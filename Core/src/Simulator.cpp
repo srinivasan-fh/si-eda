@@ -1,4 +1,5 @@
 #include "sieda/Simulator.hpp"
+#include "sieda/DeviceModels.hpp"
 
 #include <algorithm>
 #include <array>
@@ -223,7 +224,7 @@ bool Simulator::build(std::string& error) {
             case ComponentKind::Resistor:
             case ComponentKind::Fuse: {
                 twoTerminal(ElemType::Resistor);
-                auto v = parseEngineeringValue(c.value);
+                auto v = parseEngineeringValue(primaryValue(c.value));
                 if (c.kind == ComponentKind::Fuse) v = 0.05;  // nominal cold resistance
                 if (!v || *v <= 0) { error = c.ref + ": invalid resistance '" + c.value + "'"; return false; }
                 e.value = *v;
@@ -240,7 +241,7 @@ bool Simulator::build(std::string& error) {
             case ComponentKind::Capacitor:
             case ComponentKind::Inductor: {
                 twoTerminal(c.kind == ComponentKind::Capacitor ? ElemType::Capacitor : ElemType::Inductor);
-                auto v = parseEngineeringValue(c.value);
+                auto v = parseEngineeringValue(primaryValue(c.value));
                 if (!v || *v <= 0) { error = c.ref + ": invalid value '" + c.value + "'"; return false; }
                 e.value = *v;
                 if (e.type == ElemType::Inductor) e.branch = unknowns_++;
@@ -264,6 +265,9 @@ bool Simulator::build(std::string& error) {
                     std::transform(v.begin(), v.end(), v.begin(), [](unsigned char ch) { return std::tolower(ch); });
                     e.emission = 2.0;
                     e.is = (v.find("blue") != std::string::npos || v.find("white") != std::string::npos) ? 1e-26 : 1e-18;
+                } else if (const DeviceModel* m = findDeviceModel(c.kind, c.value)) {
+                    e.is = m->is;
+                    e.emission = m->emission;
                 } else {
                     e.is = 2.52e-9;
                     e.emission = 1.752;  // 1N4148-like
@@ -274,12 +278,18 @@ bool Simulator::build(std::string& error) {
                 e.type = ElemType::NPN;
                 e.n = {node(c.id, 0), node(c.id, 1), node(c.id, 2)};
                 e.betaF = 200;
+                if (const DeviceModel* m = findDeviceModel(c.kind, c.value)) e.betaF = m->betaF;
                 break;
             case ComponentKind::NMOS:
                 e.type = ElemType::NMOS;
                 e.n = {node(c.id, 0), node(c.id, 1), node(c.id, 2)};
-                e.vth = 1.6;
+                e.vth = 1.6;  // generic small-signal (2N7002-like)
                 e.kp = 0.1;
+                if (const DeviceModel* m = findDeviceModel(c.kind, c.value)) {
+                    e.vth = m->vth;
+                    e.kp = m->kp;
+                    e.lambda = m->lambda;
+                }
                 break;
             case ComponentKind::OpAmp:
                 e.type = ElemType::OpAmp;
@@ -547,7 +557,10 @@ TransientResult Simulator::transient(double tStop, double tStep) {
     auto record = [&](double t, double h) {
         res.time.push_back(t);
         for (size_t i = 0; i < nets.size(); ++i) res.netVoltages[i].push_back(nodeV(x, netToNode_[i]));
-        for (const auto& r : readings(x, h)) res.currents[r.componentId].push_back(r.current);
+        for (const auto& r : readings(x, h)) {
+            res.currents[r.componentId].push_back(r.current);
+            res.powers[r.componentId].push_back(r.power);
+        }
     };
     record(0, 0);
 

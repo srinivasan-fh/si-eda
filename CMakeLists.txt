@@ -14,6 +14,7 @@ add_library(sieda_core STATIC
     Core/src/Library.cpp
     Core/src/CustomParts.cpp
     Core/src/StandardParts.cpp
+    Core/src/DeviceModels.cpp
     Core/src/Industry.cpp
     Core/src/Validation.cpp
     Core/src/Verification.cpp

@@ -308,7 +308,7 @@ double sieda_nearest_standard_value(double value, int32_t series) { return neare
 int32_t sieda_is_standard_value(double value, int32_t series) { return isStandardValue(value, seriesFrom(series)) ? 1 : 0; }
 int32_t sieda_parse_value(const char* text, double* out) {
     if (!text) return 0;
-    auto v = parseEngineeringValue(text);
+    auto v = parseEngineeringValue(primaryValue(text));
     if (!v) return 0;
     if (out) *out = *v;
     return 1;

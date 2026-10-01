@@ -70,9 +70,9 @@ std::string exportSpiceNetlist(const Schematic& sch, const std::string& title) {
     for (const auto& c : sch.components()) {
         auto n = [&](int pin) { return spiceNode(sch, {c.id, pin}); };
         switch (c.kind) {
-            case ComponentKind::Resistor: o << c.ref << " " << n(0) << " " << n(1) << " " << c.value << "\n"; break;
-            case ComponentKind::Capacitor: o << c.ref << " " << n(0) << " " << n(1) << " " << c.value << "\n"; break;
-            case ComponentKind::Inductor: o << c.ref << " " << n(0) << " " << n(1) << " " << c.value << "\n"; break;
+            case ComponentKind::Resistor: o << c.ref << " " << n(0) << " " << n(1) << " " << primaryValue(c.value) << "\n"; break;
+            case ComponentKind::Capacitor: o << c.ref << " " << n(0) << " " << n(1) << " " << primaryValue(c.value) << "\n"; break;
+            case ComponentKind::Inductor: o << c.ref << " " << n(0) << " " << n(1) << " " << primaryValue(c.value) << "\n"; break;
             case ComponentKind::Fuse: o << "R" << c.ref << " " << n(0) << " " << n(1) << " 0.05 ; fuse " << c.value << "\n"; break;
             case ComponentKind::Switch: {
                 bool on = c.value == "on" || c.value == "closed" || c.value == "1";

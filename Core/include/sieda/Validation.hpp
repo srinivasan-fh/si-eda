@@ -24,6 +24,9 @@ struct PartRatings {
     double supplyCurrent = 1.0;    // A, above this a supply is assumed shorted
     double opampRail = 14.0;       // V, |Vout| beyond this is treated as saturated (±15 V model)
     std::string derating;          // e.g. "Space derating: power 50 %, current 50 % of rating" (added to messages)
+    double powerFactor = 1.0;      // derating applied to part-number ratings (DeviceModels)
+    double currentFactor = 1.0;
+    bool transientStress = true;   // also check steady-state RMS/peak stress when sources are SIN/PULSE
 };
 
 std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatings& ratings = {});

@@ -446,7 +446,7 @@ std::vector<RuleViolation> Schematic::runERC() const {
             case ComponentKind::Capacitor:
             case ComponentKind::Inductor:
             case ComponentKind::Fuse: {
-                auto v = parseEngineeringValue(c.value);
+                auto v = parseEngineeringValue(primaryValue(c.value));
                 if (!v || *v <= 0)
                     add(Severity::Error, "ERC_INVALID_VALUE", c.ref + " has invalid value '" + c.value + "'.", {c.id},
                         c.position);

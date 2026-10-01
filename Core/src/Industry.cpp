@@ -97,6 +97,8 @@ PartRatings deratedRatings(const IndustryProfile& profile, const PartRatings& ba
     r.diodeCurrent *= profile.currentDerating;
     r.npnCurrent *= profile.currentDerating;
     r.nmosCurrent *= profile.currentDerating;
+    r.powerFactor = profile.powerDerating;
+    r.currentFactor = profile.currentDerating;
     if (profile.powerDerating < 1.0 || profile.currentDerating < 1.0) {
         char buf[160];
         std::snprintf(buf, sizeof buf, "%s derating: power %.0f %%, current %.0f %% of rating", profile.name.c_str(),

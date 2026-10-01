@@ -14,6 +14,11 @@ std::optional<double> parseEngineeringValue(const std::string& text);
 std::string formatEngineeringValue(double value, const std::string& unit = "", int significantDigits = 3);
 
 
+/// Component value text may carry a power rating after the value: "120 2W", "0R1 1/2W", "4k7/250mW".
+/// primaryValue() returns the value part ("120"); powerRating() the rating in watts if present.
+std::string primaryValue(const std::string& text);
+std::optional<double> powerRating(const std::string& text);
+
 /// IEC 60063 preferred-number series used for resistors and capacitors.
 enum class ESeries { E12 = 12, E24 = 24, E96 = 96 };
 

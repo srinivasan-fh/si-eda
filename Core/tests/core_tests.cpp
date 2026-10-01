@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include "sieda/CustomParts.hpp"
+#include "sieda/DeviceModels.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/Json.hpp"
@@ -392,6 +393,73 @@ TEST(sim_blue_white_leds_conduct) {
         CHECK(i > 0.010 && i < 0.035);
         CHECK(wide ? (vf > 2.6 && vf < 3.3) : (vf > 1.7 && vf < 2.2));
     }
+}
+
+TEST(device_models_and_switching_stress) {
+    CHECK(findDeviceModel(ComponentKind::NMOS, "SI2302") != nullptr);
+    CHECK(findDeviceModel(ComponentKind::NMOS, "si2302cds-t1") != nullptr);
+    CHECK(findDeviceModel(ComponentKind::NMOS, "BC847") == nullptr);  // wrong kind
+    CHECK(findDeviceModel(ComponentKind::Diode, "SS14")->maxCurrent == 1.0);
+    CHECK_NEAR(primaryValue("120 2W") == "120" ? 1 : 0, 1, 0);
+    CHECK_NEAR(*powerRating("120 2W"), 2.0, 1e-12);
+    CHECK_NEAR(*powerRating("0R1 1/2W"), 0.5, 1e-12);
+    CHECK_NEAR(*powerRating("4k7/250mW"), 0.25, 1e-12);
+    CHECK(primaryValue("4k7/250mW") == "4k7");
+    CHECK(!powerRating("4k7"));
+
+    // Coreless motor channel: 3.7 V LiPo, 1.2 Ω + 50 µH winding, 20 kHz PWM, Schottky flyback.
+    auto motor = [](const char* fet, const char* winding) {
+        Schematic s;
+        int b = s.addComponent(ComponentKind::VoltageSource, "3.7", {0, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        int r = s.addComponent(ComponentKind::Resistor, winding, {80, 0});
+        int l = s.addComponent(ComponentKind::Inductor, "50u", {160, 0});
+        int q = s.addComponent(ComponentKind::NMOS, fet, {240, 0});
+        int d = s.addComponent(ComponentKind::Diode, "SS14", {240, -80});
+        int vg = s.addComponent(ComponentKind::VoltageSource, "PULSE(0 3.3 50u 0.5)", {0, 160});
+        int rg = s.addComponent(ComponentKind::Resistor, "100", {120, 160});
+        wire(s, b, "+", r, "1");
+        wire(s, r, "2", l, "1");
+        wire(s, l, "2", q, "D");
+        wire(s, q, "S", g, "GND");
+        wire(s, b, "-", g, "GND");
+        wire(s, d, "A", q, "D");
+        wire(s, d, "K", b, "+");
+        wire(s, vg, "+", rg, "1");
+        wire(s, rg, "2", q, "G");
+        wire(s, vg, "-", g, "GND");
+        return s;
+    };
+    auto peakDrain = [&](const char* fet) {
+        Schematic s = motor(fet, "1.2 5W");
+        TransientResult tr = Simulator(s).transient(1e-3, 0.5e-6);
+        double peak = 0;
+        for (const auto& c : s.components())
+            if (c.kind == ComponentKind::NMOS)
+                for (double i : tr.currents[c.id]) peak = std::max(peak, std::fabs(i));
+        return peak;
+    };
+    double si = peakDrain("SI2302"), generic = peakDrain("2N7002");
+    std::printf("    peak drain current: SI2302 %.2f A, 2N7002 %.2f A\n", si, generic);
+    CHECK(si > 1.0 && si < 3.5);  // a real logic-level FET drives the coreless motor
+    CHECK(generic < 0.3);         // the small-signal part saturates
+
+    auto codes = [](const std::vector<RuleViolation>& v, const char* code) {
+        int n = 0;
+        for (const auto& f : v) n += f.code == code;
+        return n;
+    };
+    // 2N7002 in a motor drive: DC (t = 0, gate low) sees nothing, the switching-stress check catches it.
+    Schematic weak = motor("2N7002", "1.2 5W");
+    CHECK(codes(validateCircuit(weak), "VAL_TRANSIENT_STRESS") >= 1);
+    // SI2302 with a power-rated winding model: within ratings.
+    Schematic good = motor("SI2302", "1.2 5W");
+    auto findings = validateCircuit(good);
+    for (const auto& f : findings)
+        if (f.severity != Severity::Info) std::printf("    unexpected: %s %s\n", f.code.c_str(), f.message.c_str());
+    CHECK(codes(findings, "VAL_TRANSIENT_STRESS") == 0);
+    // The same winding as a plain 0805 resistor is flagged (2.3 W average).
+    CHECK(codes(validateCircuit(motor("SI2302", "1.2")), "VAL_TRANSIENT_STRESS") >= 1);
 }
 
 TEST(sim_no_ground_reports_error) {

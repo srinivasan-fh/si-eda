@@ -42,6 +42,7 @@ struct TransientResult {
     std::vector<double> time;
     std::vector<std::vector<double>> netVoltages;  // [net][sample]
     std::map<int, std::vector<double>> currents;   // component id → current samples
+    std::map<int, std::vector<double>> powers;     // component id → dissipated power samples
 };
 
 class Simulator {
