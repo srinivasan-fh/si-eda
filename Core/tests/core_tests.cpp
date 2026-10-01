@@ -14,6 +14,7 @@
 #include "sieda/Project.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/StandardParts.hpp"
+#include "sieda/Validation.hpp"
 #include "sieda/Units.hpp"
 
 extern "C" int sieda_c_api_smoke_test(void);
@@ -742,6 +743,75 @@ TEST(standard_values_and_parts) {
     }
     const StandardPart* mega = findStandardPart("ATmega328P");
     CHECK(mega && mega->spec.pins.size() == 28 && mega->spec.pins[6].name == "VCC");
+}
+
+namespace {
+bool hasCode(const std::vector<RuleViolation>& list, const std::string& code) {
+    return std::any_of(list.begin(), list.end(), [&](const RuleViolation& v) { return v.code == code; });
+}
+
+/// V1 (+) → R → device pin A, device pin B → GND.
+Schematic seriesCircuit(const char* volts, const char* ohms, ComponentKind kind, const char* value, bool reversed = false) {
+    Schematic s;
+    int v = s.addComponent(ComponentKind::VoltageSource, volts, {0, 0});
+    int r = s.addComponent(ComponentKind::Resistor, ohms, {100, 0});
+    int d = s.addComponent(kind, value, {200, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    s.connect({v, 0}, {r, 0});
+    s.connect({r, 1}, {d, reversed ? 1 : 0});
+    s.connect({d, reversed ? 0 : 1}, {g, 0});
+    s.connect({v, 1}, {g, 0});
+    return s;
+}
+}  // namespace
+
+TEST(circuit_validation_rules) {
+    // Clean indicator: no warnings.
+    Project ok = ledProject();
+    for (const auto& v : validateCircuit(ok.schematic)) CHECK(v.severity == Severity::Info);
+
+    CHECK(hasCode(validateCircuit(seriesCircuit("5", "4.8k", ComponentKind::LED, "Red")), "VAL_NONSTANDARD_VALUE"));
+    CHECK(!hasCode(validateCircuit(seriesCircuit("5", "4.7k", ComponentKind::LED, "Red")), "VAL_NONSTANDARD_VALUE"));
+    CHECK(!hasCode(validateCircuit(seriesCircuit("5", "4.99k", ComponentKind::LED, "Red")), "VAL_NONSTANDARD_VALUE"));  // E96
+    CHECK(hasCode(validateCircuit(seriesCircuit("5", "47", ComponentKind::LED, "Red")), "VAL_LED_CURRENT"));
+    CHECK(hasCode(validateCircuit(seriesCircuit("5", "330", ComponentKind::LED, "Red", true)), "VAL_REVERSE_BIAS"));
+    auto heavy = validateCircuit(seriesCircuit("12", "100", ComponentKind::Resistor, "100"));
+    CHECK(hasCode(heavy, "VAL_RESISTOR_POWER"));
+    auto shorted = validateCircuit(seriesCircuit("5", "1", ComponentKind::Resistor, "1"));
+    CHECK(hasCode(shorted, "VAL_SUPPLY_CURRENT"));
+    CHECK(hasCode(validateCircuit(seriesCircuit("12", "10", ComponentKind::Fuse, "100m")), "VAL_FUSE_OVERLOAD"));
+    CHECK(hasCode(validateCircuit(seriesCircuit("5", "1", ComponentKind::Diode, "1N4148")), "VAL_DIODE_CURRENT"));
+
+    // Saturated op-amp: gain of 1000 on a 1 V input.
+    Schematic s;
+    int vin = s.addComponent(ComponentKind::VoltageSource, "1", {0, 0});
+    int u = s.addComponent(ComponentKind::OpAmp, "LM358", {100, 0});
+    int rf = s.addComponent(ComponentKind::Resistor, "1M", {150, -60});
+    int rg = s.addComponent(ComponentKind::Resistor, "1k", {50, -60});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    s.connect({vin, 0}, {u, 0});
+    s.connect({vin, 1}, {g, 0});
+    s.connect({u, 2}, {rf, 1});
+    s.connect({rf, 0}, {u, 1});
+    s.connect({rg, 1}, {u, 1});
+    s.connect({rg, 0}, {g, 0});
+    CHECK(hasCode(validateCircuit(s), "VAL_OPAMP_SATURATED"));
+
+    // Decoupling on a standard IC's supply rail.
+    Project p;
+    std::string id = p.addCustomPart(findStandardPart("NE555")->spec);
+    auto& sch = p.schematic;
+    int timer = sch.addCustomComponent(id, "", {200, 0});
+    int v = sch.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int gnd = sch.addComponent(ComponentKind::Ground, "", {0, 80});
+    sch.connect({v, 0}, {timer, sch.pinIndex(timer, "8")});
+    sch.connect({v, 1}, {gnd, 0});
+    sch.connect({timer, sch.pinIndex(timer, "1")}, {gnd, 0});
+    CHECK(hasCode(validateCircuit(sch), "VAL_NO_DECOUPLING"));
+    int c = sch.addComponent(ComponentKind::Capacitor, "100n", {260, 0});
+    sch.connect({c, 0}, {timer, sch.pinIndex(timer, "8")});
+    sch.connect({c, 1}, {gnd, 0});
+    CHECK(!hasCode(validateCircuit(sch), "VAL_NO_DECOUPLING"));
 }
 
 // ======================================================================= persistence & exports

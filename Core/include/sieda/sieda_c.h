@@ -78,6 +78,8 @@ int32_t sieda_is_standard_value(double value, int32_t series);
 
 /* ---- analysis ------------------------------------------------------------------------------ */
 char* sieda_run_erc(const SiedaProject* project);
+/* Basic circuit validation: E-series values, decoupling, DC-derived part ratings (VAL_* codes). */
+char* sieda_run_circuit_validation(const SiedaProject* project);
 char* sieda_simulate_dc(const SiedaProject* project);
 char* sieda_simulate_transient(const SiedaProject* project, double t_stop, double t_step);
 char* sieda_spice_netlist(const SiedaProject* project);
