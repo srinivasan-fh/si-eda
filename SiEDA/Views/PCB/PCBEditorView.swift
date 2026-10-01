@@ -74,7 +74,7 @@ struct PCBEditorView: View {
                 ToolStripButton(systemImage: "cursorarrow", help: "Select / move footprints (V)", isActive: !panMode) { panMode = false }
                 ToolStripButton(systemImage: "hand.raised", help: "Pan (H)", isActive: panMode) { panMode = true }
                 ToolStripDivider()
-                ToolStripButton(systemImage: "rotate.right", help: "Rotate footprint (R)") { store.rotateFootprints() }
+                ToolStripButton(systemImage: "rotate.right", help: "Rotate footprint (Space or R)") { store.rotateFootprints() }
                 ToolStripButton(systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right", help: "Flip to other side (F)") {
                     store.flipFootprints()
                 }
@@ -346,7 +346,6 @@ struct PCBCanvas: View {
     @State private var hover: CGPoint?
     @State private var magnifyBase: CGFloat?
     @State private var didFit = false
-    @State private var spaceHeld = false   // Space + drag pans
     @State private var zoomArmed = false   // Z: the next drag defines the area to zoom to
     @State private var zoomRect: CGRect?   // screen space, while dragging a zoom area
     @FocusState private var focused: Bool
@@ -384,10 +383,10 @@ struct PCBCanvas: View {
                 .focusable()
                 .focusEffectDisabled()
                 .focused($focused)
-                .canvasNavigationKeys(spaceHeld: $spaceHeld, toggleNavigator: { store.showNavigator.toggle() }) { command in
+                .canvasNavigationKeys(toggleNavigator: { store.showNavigator.toggle() }) { command in
                     perform(command, size: geo.size)
                 }
-                .onChange(of: focused) { _, isFocused in if !isFocused { spaceHeld = false } }
+                .onKeyPress(.space) { store.rotateFootprints(); return .handled }
                 .onKeyPress(KeyEquivalent("r")) { store.rotateFootprints(); return .handled }
                 .onKeyPress(KeyEquivalent("f")) { store.flipFootprints(); return .handled }
                 .onKeyPress(.escape) {
@@ -443,7 +442,7 @@ struct PCBCanvas: View {
                     let world = viewport.toWorld(value.startLocation)
                     if zoomArmed {
                         dragMode = .zoomBox
-                    } else if !panMode, !spaceHeld, let id = footprint(at: world) {
+                    } else if !panMode, let id = footprint(at: world) {
                         if !store.selection.contains(id) {
                             store.select(component: id, extend: NSEvent.modifierFlags.contains(.shift))
                         }
@@ -479,10 +478,8 @@ struct PCBCanvas: View {
                         viewport.zoom(by: 2, anchor: value.location, limits: limits)
                     }
                 } else if !moved {
-                    if !spaceHeld {  // a Space-click only pans
-                        let world = viewport.toWorld(value.location)
-                        store.select(component: footprint(at: world), extend: NSEvent.modifierFlags.contains(.shift))
-                    }
+                    let world = viewport.toWorld(value.location)
+                    store.select(component: footprint(at: world), extend: NSEvent.modifierFlags.contains(.shift))
                 } else if case .move(let ids) = dragMode {
                     for id in ids {
                         guard let c = store.snapshot.component(id) else { continue }

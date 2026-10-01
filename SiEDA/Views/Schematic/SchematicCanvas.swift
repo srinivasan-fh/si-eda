@@ -24,7 +24,7 @@ struct SchematicCanvas: View {
     @State private var hover: CGPoint?
     @State private var magnifyBase: CGFloat?
     @State private var didInitialFit = false
-    @State private var spaceHeld = false   // Space + drag pans (Photoshop)
+    @State private var placementRotation = 0  // Space / R rotate the part being placed (degrees)
     @State private var zoomArmed = false   // Z: the next drag defines the area to zoom to
     @FocusState private var focused: Bool
 
@@ -61,10 +61,10 @@ struct SchematicCanvas: View {
             .focusable()
             .focusEffectDisabled()
             .focused($focused)
-            .canvasNavigationKeys(spaceHeld: $spaceHeld, toggleNavigator: { store.showNavigator.toggle() }) { command in
+            .canvasNavigationKeys(toggleNavigator: { store.showNavigator.toggle() }) { command in
                 perform(command, size: geo.size)
             }
-            .onChange(of: focused) { _, isFocused in if !isFocused { spaceHeld = false } }
+            .onKeyPress(.space) { rotate(); return .handled }
             .onKeyPress(.escape) {
                 zoomArmed = false
                 pendingWire = nil
@@ -74,7 +74,7 @@ struct SchematicCanvas: View {
             }
             .onKeyPress(.delete) { store.deleteSelection(); return .handled }
             .onKeyPress(.deleteForward) { store.deleteSelection(); return .handled }
-            .onKeyPress(KeyEquivalent("r")) { store.rotateSelection(); return .handled }
+            .onKeyPress(KeyEquivalent("r")) { rotate(); return .handled }
             .onKeyPress(KeyEquivalent("w")) { tool = .wire; return .handled }
             .onKeyPress(KeyEquivalent("v")) { tool = .select; return .handled }
             .onKeyPress(KeyEquivalent("h")) { tool = .pan; return .handled }
@@ -114,6 +114,14 @@ struct SchematicCanvas: View {
             let rect = SchematicSymbols.bounds(c.componentKind, custom: snapshot.customPart(for: c))
                 .applying(SchematicSymbols.transform(position: c.position, rotation: c.rotation))
             return (c.id, rect)
+        }
+    }
+
+    /// Space / R: rotates the part being placed (before the click) or the selected parts by 90°.
+    private func rotate() {
+        switch tool {
+        case .place, .placeCustom: placementRotation = (placementRotation + 90) % 360
+        default: store.rotateSelection()
         }
     }
 
@@ -229,8 +237,7 @@ struct SchematicCanvas: View {
                         viewport.zoom(by: 2, anchor: value.location, limits: scaleLimits)
                     }
                 } else if !moved {
-                    let spacePan: Bool = { if case .pan = dragMode { return spaceHeld } else { return false } }()
-                    if !spacePan { click(at: value.location) }
+                    click(at: value.location)
                 } else {
                     switch dragMode {
                     case .move(let ids):
@@ -260,10 +267,6 @@ struct SchematicCanvas: View {
             dragMode = .zoomBox
             return
         }
-        if spaceHeld {
-            dragMode = .pan(viewport.offset)
-            return
-        }
         let world = viewport.toWorld(screen)
         switch tool {
         case .select:
@@ -288,9 +291,9 @@ struct SchematicCanvas: View {
         let world = viewport.toWorld(screen)
         switch tool {
         case .place(let kind):
-            store.addComponent(kind, at: world)
+            store.addComponent(kind, at: world, rotation: placementRotation)
         case .placeCustom(let partId):
-            store.addCustomComponent(partId: partId, at: world)
+            store.addCustomComponent(partId: partId, at: world, rotation: placementRotation)
         case .pan:
             break
         case .select, .wire:
@@ -487,7 +490,7 @@ struct SchematicCanvas: View {
         if case .placeCustom(let partId) = tool, let part = snap.customPart(partId) { ghost = SchematicSymbols.customShapes(part) }
         if let shapes = ghost, let h = hover {
             let world = SchematicAutoLayout.snap(viewport.toWorld(h))
-            let t = SchematicSymbols.transform(position: world, rotation: 0).concatenating(screen)
+            let t = SchematicSymbols.transform(position: world, rotation: placementRotation).concatenating(screen)
             ctx.stroke(shapes.stroke.applying(t), with: .color(Theme.skyBlue.opacity(0.6)),
                        style: StrokeStyle(lineWidth: 1.4, dash: [4, 3]))
         }

@@ -155,11 +155,10 @@ extension Viewport {
 
 /// Keyboard navigation shared by the canvases (the canvas must be focused):
 /// arrows pan (⇧ = half a screen), + / − zoom at the cursor, Home or 0 fit, Z zoom-to-area, ⇧Z zoom to selection,
-/// N toggles the navigator, and holding Space turns any drag into a pan.
+/// N toggles the navigator. (Space is left to the canvas: it rotates the selection or the part being placed.)
 struct CanvasNavigationKeys: ViewModifier {
     var perform: (ViewCommand) -> Void
     var toggleNavigator: () -> Void
-    @Binding var spaceHeld: Bool
 
     func body(content: Content) -> some View {
         content
@@ -191,17 +190,13 @@ struct CanvasNavigationKeys: ViewModifier {
                 }
                 return .handled
             }
-            .onKeyPress(.space, phases: [.down, .repeat, .up]) { press in
-                spaceHeld = press.phase != .up
-                return .handled
-            }
     }
 }
 
 extension View {
-    func canvasNavigationKeys(spaceHeld: Binding<Bool>, toggleNavigator: @escaping () -> Void,
+    func canvasNavigationKeys(toggleNavigator: @escaping () -> Void,
                               perform: @escaping (ViewCommand) -> Void) -> some View {
-        modifier(CanvasNavigationKeys(perform: perform, toggleNavigator: toggleNavigator, spaceHeld: spaceHeld))
+        modifier(CanvasNavigationKeys(perform: perform, toggleNavigator: toggleNavigator))
     }
 }
 

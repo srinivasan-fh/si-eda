@@ -122,7 +122,6 @@ The schematic and PCB canvases are built for large designs such as CPU/GPU/NPU m
 | Pinch, mouse wheel, or ⌘/⌥/⌃ + scroll | Zoom at the cursor |
 | ⇧ + mouse wheel | Pan horizontally |
 | Middle- or right-button drag | Pan (any tool) |
-| Space + drag | Pan (any tool) |
 | Drag on empty canvas | Pan (select tool) |
 | ⇧-drag | Marquee select (schematic) |
 
@@ -137,7 +136,8 @@ The schematic and PCB canvases are built for large designs such as CPU/GPU/NPU m
 | **View → Zoom Level** / click the zoom percentage | Preset levels from 10 % to 1600 % |
 | V / H / W | Select, pan (hand) and wire tools (schematic) |
 | G / L | Place ground or net label |
-| R / F | Rotate, or flip a footprint to the other side (PCB) |
+| Space or R | Rotate the selection 90° (schematic and PCB); while placing a part, rotate it before clicking |
+| F | Flip a footprint to the other side (PCB) |
 | ⌫ / Esc | Delete selection / cancel |
 | ⇧⌘K / ⇧⌘D / ⇧⌘R | Run ERC, DC operating point, autoroute |
 | ⇧⌘L / ⇧⌘V | Validate circuit, verify design |

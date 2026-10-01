@@ -184,10 +184,10 @@ final class DesignStore: ObservableObject {
     // MARK: - Schematic editing
 
     @discardableResult
-    func addComponent(_ kind: ComponentKind, at point: CGPoint) -> Int {
+    func addComponent(_ kind: ComponentKind, at point: CGPoint, rotation: Int = 0) -> Int {
         var id = -1
         let snapped = SchematicAutoLayout.snap(point)
-        perform("Placed \(kind.displayName)") { id = $0.addComponent(kind, at: snapped) }
+        perform("Placed \(kind.displayName)") { id = $0.addComponent(kind, at: snapped, rotation: rotation) }
         if id >= 0 { selection = [id] }
         return id
     }
@@ -286,11 +286,11 @@ final class DesignStore: ObservableObject {
     }
 
     @discardableResult
-    func addCustomComponent(partId: String, at point: CGPoint) -> Int {
+    func addCustomComponent(partId: String, at point: CGPoint, rotation: Int = 0) -> Int {
         var id = -1
         let snapped = SchematicAutoLayout.snap(point)
         let name = snapshot.customPart(partId)?.name ?? "part"
-        perform("Placed \(name)") { id = $0.addCustomComponent(partId: partId, at: snapped) }
+        perform("Placed \(name)") { id = $0.addCustomComponent(partId: partId, at: snapped, rotation: rotation) }
         if id >= 0 { selection = [id] }
         return id
     }

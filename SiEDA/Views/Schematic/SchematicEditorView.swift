@@ -57,7 +57,7 @@ struct SchematicEditorView: View {
                     tool = .place(.voltageSource)
                 }
                 ToolStripDivider()
-                ToolStripButton(systemImage: "rotate.right", help: "Rotate selection (R)") { store.rotateSelection() }
+                ToolStripButton(systemImage: "rotate.right", help: "Rotate selection (Space or R)") { store.rotateSelection() }
                 ToolStripButton(systemImage: "trash", help: "Delete selection (⌫)") { store.deleteSelection() }
                 ToolStripDivider()
                 ToolStripButton(systemImage: "sidebar.left", help: "Show/hide device picker", isActive: showPicker) {
@@ -154,10 +154,10 @@ struct SchematicEditorView: View {
     private var hint: String {
         if let wireStart { return "Wiring from \(wireStart) — click another pin to connect · Esc cancels" }
         switch tool {
-        case .select: return "Click a pin to wire · drag parts to move · ⇧-drag box-selects · drag empty space, Space-drag or middle/right-drag pans · scroll/pinch zooms · Home fits"
+        case .select: return "Click a pin to wire · drag parts to move · Space or R rotates · ⇧-drag box-selects · drag empty space or middle/right-drag pans · scroll/pinch zooms · Home fits"
         case .wire: return "Click a pin, then a second pin to connect them"
         case .pan: return "Drag, scroll or arrow keys pan · pinch, ⌘-scroll or +/− zoom · Z zoom to area · Home fits"
-        case .place, .placeCustom: return "Click to place (repeats) · Esc returns to Select"
+        case .place, .placeCustom: return "Click to place (repeats) · Space or R rotates before placing · Esc returns to Select"
         }
     }
 
