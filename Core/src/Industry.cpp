@@ -21,13 +21,14 @@ std::vector<IndustryProfile> build() {
                   "Keep the power loop (bulk capacitor, switch, diode) tight; separate power and logic grounds at one point.",
                   "Use a half-bridge gate driver (IR2104) with a bootstrap diode and capacitor for high-side N-MOSFETs."}});
     p.push_back({"power", "Power Electronics", "SMPS, converters, inverters, chargers and battery systems",
-                 "IEC 62368-1, IEC 61204, IPC-2221 B2 spacing, IPC-2152", "High Voltage (IPC-2221 B2)", 0.7, 0.8, false,
+                 "IEC 62368-1, IEC 61204, IPC-2221 B2 spacing, IPC-2152", "IPC-2221 Class 3", 0.7, 0.8, false,
                  -40, 85,
                  {"Keep the switching loop area minimal; place input capacitors at the switch.",
                   "Size tracks with IPC-2152/2221 for the RMS current and keep creepage/clearance for the working voltage.",
                   "Use current-mode control (UC3843) with a sense resistor and leading-edge blanking.",
                   "Add snubbers across switches and freewheel diodes for inductive energy.",
-                  "Derate MOSFET voltage to 80 % and capacitor voltage to 50-80 % of rating."}});
+                  "Derate MOSFET voltage to 80 % and capacitor voltage to 50-80 % of rating.",
+                  "Above 50 V switch to the High Voltage (IPC-2221 B2) rules; DRC checks voltage spacing automatically."}});
     p.push_back({"automotive", "Automotive", "Vehicle ECUs, body electronics, sensors, lighting (12/24 V)",
                  "AEC-Q100/Q101/Q200, ISO 16750-2, ISO 7637-2, ISO 11898 (CAN), IPC-6012 Class 3/A",
                  "Automotive (IPC-6012 Class 3/A)", 0.6, 0.7, false, -40, 125,

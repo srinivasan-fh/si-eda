@@ -496,6 +496,16 @@ public:
                     if (d <= rBody && !passable(l, cc, net)) return false;
                 }
         }
+        // Pad copper is sampled on the grid, so a pad edge can sit up to half a cell diagonal closer than the cells
+        // suggest: check other-net pads exactly.
+        Vec2 at = pos(ci, cj);
+        double need = s_.viaDiameter / 2 + s_.clearance - 1e-9;
+        for (const Pad& p : pads_) {
+            if (p.net == net && net >= 0) continue;
+            Rect b = p.bounds();
+            if (at.x < b.x0 - need || at.x > b.x1 + need || at.y < b.y0 - need || at.y > b.y1 + need) continue;
+            if (padDistance(p, at) < need) return false;
+        }
         return true;
     }
 
@@ -510,6 +520,7 @@ public:
     }
     void markPad(const Pad& p, double keepout) {
         Rect r = p.bounds();
+        pads_.push_back(p);
         for (int l = 0; l < layers_; ++l) {
             if (!p.onLayer(l)) continue;
             bool anyCore = false;
@@ -583,6 +594,7 @@ private:
     std::vector<std::vector<int>> padNet_;  // per layer pad copper reachable by its own net
     std::vector<std::vector<int>> copper_;  // per layer actual copper occupancy
     std::vector<char> noVia_;               // cells inside SMD pads (any layer): no via may be placed there
+    std::vector<Pad> pads_;                 // every marked pad, for exact via clearance
 };
 
 struct PathNode {
@@ -1110,7 +1122,13 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                     double la = da.length(), lb = db.length();
                     if (la < 1e-9 || lb < 1e-9) continue;
                     double angle = std::acos(std::clamp(da.dot(db) / (la * lb), -1.0, 1.0)) * 180.0 / kPi;
-                    if (angle < 89.0) {
+                    // A join inside a pad or via is covered by copper and cannot trap etchant.
+                    bool covered = false;
+                    for (const auto& p : ps)
+                        if (p.net == a.net && p.onLayer(a.layer) && padDistance(p, pa) <= 0) covered = true;
+                    for (const auto& v : vias)
+                        if (v.net == a.net && (v.position - pa).length() <= v.diameter / 2) covered = true;
+                    if (angle < 89.0 && !covered) {
                         std::snprintf(buf, sizeof buf, "Acute %.0f° track join on %s (acid trap) — use 90° or 135° corners.",
                                       angle, netName(a.net).c_str());
                         add(Severity::Warning, "DRC_ACUTE_ANGLE", buf, pa);

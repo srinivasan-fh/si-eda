@@ -602,6 +602,18 @@ TEST(pcb_router_keeps_vias_out_of_smd_pads) {
         RouteStats st = p.pcb.autoRoute(p.schematic);
         int viaInPad = 0;
         for (const auto& v : p.pcb.runDRC(p.schematic)) viaInPad += v.code == "DRC_VIA_IN_PAD";
+        // With wider (automotive) rules the router still keeps exact via-to-pad clearance.
+        Project wide = amplifierProject();
+        wide.pcb.settings.layerCount = layers;
+        wide.pcb.settings.applyPreset("Automotive (IPC-6012 Class 3/A)");
+        wide.pcb.settings.width = 26;
+        wide.pcb.settings.height = 20;
+        wide.pcb.autoPlace(wide.schematic, true);
+        wide.pcb.autoRoute(wide.schematic);
+        int clearance = 0;
+        for (const auto& v : wide.pcb.runDRC(wide.schematic))
+            clearance += v.code == "DRC_CLEARANCE_RULE" || v.code == "DRC_CLEARANCE" || v.code == "DRC_SHORT";
+        CHECK(clearance == 0);
         std::printf("    %d layers: %d/%d routed, %d vias, %d via-in-pad\n", layers, st.routed, st.connections, st.vias, viaInPad);
         CHECK(viaInPad == 0);
     }
