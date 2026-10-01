@@ -1074,7 +1074,13 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
         return -1;
     };
 
-    for (int pass = 0; pass < 4; ++pass) {
+    // Pour/plane-net pads that could not reach their pour: fanned out first in the next pass.
+    // Pour/plane-net pads that could not reach their pour: connected first in the next pass, by a track to where
+    // the net's main pour was (signals then route around that connection).
+    std::set<size_t> forcedConnect;
+    std::map<int, std::vector<std::pair<int, size_t>>> mainPour;  // net → grid cells of its main poured cluster
+    for (int pass = 0; pass < 8; ++pass) {
+        const size_t forcedBefore = forcedConnect.size();
         RoutingGrid grid(settings);
         for (const auto& z : zones) {
             int zn = netIndex(z.net);
@@ -1189,11 +1195,12 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
         };
         // Routes from `tree` to pad `tp` and commits the copper; returns false if no path exists.
         auto connect = [&](int net, const std::vector<size_t>& list, std::vector<std::pair<int, size_t>>& tree,
-                           const Pad& tp) {
+                           const Pad& tp, const std::vector<std::pair<int, size_t>>* extraTargets = nullptr) {
             std::vector<std::vector<char>> mask(static_cast<size_t>(grid.layers()),
                                                 std::vector<char>(static_cast<size_t>(grid.cols() * grid.rows()), 0));
             std::vector<std::pair<int, size_t>> targetCells;
             padCells(tp, targetCells);
+            if (extraTargets) targetCells.insert(targetCells.end(), extraTargets->begin(), extraTargets->end());
             for (auto [l, c] : targetCells) mask[static_cast<size_t>(l)][c] = 1;
             const double wn = settings.widthFor(nets[static_cast<size_t>(net)].name);
             const double wideHalf = wn > w + 1e-9 ? wn / 2 : 0.0;
@@ -1269,6 +1276,13 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
                     bool fine = neckWidths[pi] < w - 1e-9 || std::min(p.size.x, p.size.y) < 0.4;
                     if (!pourHere || fine) fanout(net, pi);
                 }
+        for (size_t pi : forcedConnect) {
+            int net = ps[pi].net;
+            auto it = mainPour.find(net);
+            if (it == mainPour.end() || it->second.empty()) continue;
+            std::vector<std::pair<int, size_t>> from = it->second;
+            connect(net, netPads[net], from, ps[pi]);
+        }
 
         for (int net : order) {
             const auto& list = netPads[net];
@@ -1297,6 +1311,7 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
                 const auto& list = netPads[net];
                 DSU d = copperClusters(ps, outT, outV, &fills);
                 const size_t base = ps.size() + outT.size() + outV.size();
+                const size_t vbaseVias = outV.size();  // vias that existed when the clusters were computed
                 // Seed: the cluster holding the largest island of this net (else the first pad's cluster).
                 size_t seed = d.find(list[0]);
                 double bestArea = 0;
@@ -1316,8 +1331,8 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
                 }
                 std::vector<std::pair<int, size_t>> tree;
                 std::set<size_t> joined;  // clusters already part of the tree
-                auto absorb = [&](size_t cluster) {
-                    if (!joined.insert(cluster).second) return;
+                // Routing-grid cells of a copper cluster: its poured islands, pads and vias.
+                auto clusterCells = [&](size_t cluster, std::vector<std::pair<int, size_t>>& cells) {
                     size_t off = base;
                     for (const auto& f : fills) {
                         if (f.net == net)
@@ -1325,14 +1340,28 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
                                 for (int i = 0; i < grid.cols(); ++i) {
                                     int id = f.islandAt(grid.pos(i, j));
                                     if (id >= 0 && d.find(off + static_cast<size_t>(id)) == cluster)
-                                        tree.push_back({f.layer, grid.idx(i, j)});
+                                        cells.push_back({f.layer, grid.idx(i, j)});
                                 }
                         off += static_cast<size_t>(f.islands);
                     }
                     for (size_t pi : list)
-                        if (d.find(pi) == cluster) padCells(ps[pi], tree);
+                        if (d.find(pi) == cluster) padCells(ps[pi], cells);
+                    const size_t vbase = ps.size() + outT.size();
+                    for (size_t v = 0; v < vbaseVias; ++v) {
+                        if (outV[v].net != net || d.find(vbase + v) != cluster) continue;
+                        int i = static_cast<int>(std::lround(outV[v].position.x / grid.pitch()));
+                        int j = static_cast<int>(std::lround(outV[v].position.y / grid.pitch()));
+                        if (grid.inside(i, j))
+                            for (int l = 0; l < grid.layers(); ++l) cells.push_back({l, grid.idx(i, j)});
+                    }
+                };
+                auto absorb = [&](size_t cluster) {
+                    if (!joined.insert(cluster).second) return;
+                    clusterCells(cluster, tree);
                 };
                 absorb(seed);
+                mainPour[net].clear();
+                clusterCells(seed, mainPour[net]);
                 std::vector<bool> connected(list.size(), false);
                 for (size_t a = 0; a < list.size(); ++a) connected[a] = joined.count(d.find(list[a])) > 0;
                 bool netFailed = false;
@@ -1343,7 +1372,10 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
                 while (pending > 0) {
                     size_t target = nearestUnconnected(list, connected);
                     size_t cluster = d.find(list[target]);
-                    bool ok = connect(net, list, tree, ps[list[target]]);
+                    std::vector<std::pair<int, size_t>> clusterTargets;
+                    clusterCells(cluster, clusterTargets);
+                    bool ok = connect(net, list, tree, ps[list[target]], &clusterTargets);
+                    if (!ok) forcedConnect.insert(list[target]);
                     // The whole pre-existing cluster (pads on the same island) joins with it.
                     for (size_t a = 0; a < list.size(); ++a) {
                         if (connected[a] || d.find(list[a]) != cluster) continue;
@@ -1373,7 +1405,7 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
             if (std::find(order.begin(), order.end(), n) != order.end()) next.push_back(n);
         for (int n : order)
             if (std::find(next.begin(), next.end(), n) == next.end()) next.push_back(n);
-        if (next == order && pass > 0) break;
+        if (next == order && pass > 0 && forcedConnect.size() == forcedBefore) break;
         order = next;
     }
 
