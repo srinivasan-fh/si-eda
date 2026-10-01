@@ -430,11 +430,13 @@ final class DesignStore: ObservableObject {
 
     func rotateFootprints() {
         let ids = selection
+        guard !ids.isEmpty else { return }
         perform("Rotated footprint", invalidatesAnalysis: false) { engine in ids.forEach { engine.rotateFootprint($0) } }
     }
 
     func flipFootprints() {
         let ids = selection
+        guard !ids.isEmpty else { return }
         perform("Flipped footprint", invalidatesAnalysis: false) { engine in ids.forEach { engine.flipFootprint($0) } }
     }
 

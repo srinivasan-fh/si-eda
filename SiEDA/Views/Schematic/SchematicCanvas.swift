@@ -25,6 +25,8 @@ struct SchematicCanvas: View {
     @State private var magnifyBase: CGFloat?
     @State private var didInitialFit = false
     @State private var placementRotation = 0  // Space / R rotate the part being placed (degrees)
+    @State private var spaceHeld = false        // Space + left-drag pans; a Space tap rotates
+    @State private var spaceUsedForPan = false
     @State private var zoomArmed = false   // Z: the next drag defines the area to zoom to
     @FocusState private var focused: Bool
 
@@ -64,7 +66,20 @@ struct SchematicCanvas: View {
             .canvasNavigationKeys(toggleNavigator: { store.showNavigator.toggle() }) { command in
                 perform(command, size: geo.size)
             }
-            .onKeyPress(.space) { rotate(); return .handled }
+            .onKeyPress(.space, phases: [.down, .repeat, .up]) { press in
+                switch press.phase {
+                case .down:
+                    spaceHeld = true
+                    spaceUsedForPan = false
+                case .up:
+                    spaceHeld = false
+                    if !spaceUsedForPan { rotate() }  // a tap rotates; Space + drag panned instead
+                default:
+                    break
+                }
+                return .handled
+            }
+            .onChange(of: focused) { _, isFocused in if !isFocused { spaceHeld = false } }
             .onKeyPress(.escape) {
                 zoomArmed = false
                 pendingWire = nil
@@ -117,11 +132,13 @@ struct SchematicCanvas: View {
         }
     }
 
-    /// Space / R: rotates the part being placed (before the click) or the selected parts by 90°.
+    /// Space / R: rotates the part being placed (before the click) or, if components are selected, the selection
+    /// by 90°. With nothing selected it does nothing.
     private func rotate() {
         switch tool {
         case .place, .placeCustom: placementRotation = (placementRotation + 90) % 360
-        default: store.rotateSelection()
+        default:
+            if !store.selection.isEmpty { store.rotateSelection() }
         }
     }
 
@@ -237,7 +254,7 @@ struct SchematicCanvas: View {
                         viewport.zoom(by: 2, anchor: value.location, limits: scaleLimits)
                     }
                 } else if !moved {
-                    click(at: value.location)
+                    if !spaceHeld { click(at: value.location) }
                 } else {
                     switch dragMode {
                     case .move(let ids):
@@ -265,6 +282,11 @@ struct SchematicCanvas: View {
     private func beginDrag(at screen: CGPoint) {
         if zoomArmed {
             dragMode = .zoomBox
+            return
+        }
+        if spaceHeld {
+            spaceUsedForPan = true
+            dragMode = .pan(viewport.offset)
             return
         }
         let world = viewport.toWorld(screen)

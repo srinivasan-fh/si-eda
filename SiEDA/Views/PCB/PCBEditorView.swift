@@ -347,6 +347,8 @@ struct PCBCanvas: View {
     @State private var magnifyBase: CGFloat?
     @State private var didFit = false
     @State private var zoomArmed = false   // Z: the next drag defines the area to zoom to
+    @State private var spaceHeld = false   // Space + left-drag pans; a Space tap rotates
+    @State private var spaceUsedForPan = false
     @State private var zoomRect: CGRect?   // screen space, while dragging a zoom area
     @FocusState private var focused: Bool
 
@@ -386,7 +388,20 @@ struct PCBCanvas: View {
                 .canvasNavigationKeys(toggleNavigator: { store.showNavigator.toggle() }) { command in
                     perform(command, size: geo.size)
                 }
-                .onKeyPress(.space) { store.rotateFootprints(); return .handled }
+                .onKeyPress(.space, phases: [.down, .repeat, .up]) { press in
+                    switch press.phase {
+                    case .down:
+                        spaceHeld = true
+                        spaceUsedForPan = false
+                    case .up:
+                        spaceHeld = false
+                        if !spaceUsedForPan { store.rotateFootprints() }  // a tap rotates; Space + drag panned instead
+                    default:
+                        break
+                    }
+                    return .handled
+                }
+                .onChange(of: focused) { _, isFocused in if !isFocused { spaceHeld = false } }
                 .onKeyPress(KeyEquivalent("r")) { store.rotateFootprints(); return .handled }
                 .onKeyPress(KeyEquivalent("f")) { store.flipFootprints(); return .handled }
                 .onKeyPress(.escape) {
@@ -442,6 +457,9 @@ struct PCBCanvas: View {
                     let world = viewport.toWorld(value.startLocation)
                     if zoomArmed {
                         dragMode = .zoomBox
+                    } else if spaceHeld {
+                        spaceUsedForPan = true
+                        dragMode = .pan(viewport.offset)
                     } else if !panMode, let id = footprint(at: world) {
                         if !store.selection.contains(id) {
                             store.select(component: id, extend: NSEvent.modifierFlags.contains(.shift))
@@ -478,8 +496,10 @@ struct PCBCanvas: View {
                         viewport.zoom(by: 2, anchor: value.location, limits: limits)
                     }
                 } else if !moved {
-                    let world = viewport.toWorld(value.location)
-                    store.select(component: footprint(at: world), extend: NSEvent.modifierFlags.contains(.shift))
+                    if !spaceHeld {  // a Space-click is part of a pan, not a selection
+                        let world = viewport.toWorld(value.location)
+                        store.select(component: footprint(at: world), extend: NSEvent.modifierFlags.contains(.shift))
+                    }
                 } else if case .move(let ids) = dragMode {
                     for id in ids {
                         guard let c = store.snapshot.component(id) else { continue }
