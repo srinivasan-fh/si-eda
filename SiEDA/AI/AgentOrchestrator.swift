@@ -118,7 +118,8 @@ final class AgentOrchestrator: ObservableObject {
             } catch is CancellationError {
                 // already reported by cancel()
             } catch {
-                self?.reportFailure(error)
+                // A cancelled URLSession request surfaces as a network error; cancel() already reported it.
+                if !Task.isCancelled { self?.reportFailure(error) }
             }
             self?.isRunning = false
         }
@@ -231,6 +232,7 @@ final class AgentOrchestrator: ObservableObject {
     private func layout(store: DesignStore, boardHint: PlannedBoard) async {
         let index = begin(.layout, "Placing and routing PCB")
         store.autoPlace(all: true)
+        store.fitBoard(margin: 2.5)  // compact outline around the placed parts
         await store.autoRoute()
         if let stats = store.routeStats, stats.failed > 0 {
             // Give the router more room and try once more.

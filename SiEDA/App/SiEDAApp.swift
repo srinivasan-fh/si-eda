@@ -13,7 +13,7 @@ struct SiEDAApp: App {
                 .environmentObject(store)
                 .environmentObject(settings)
                 .environmentObject(agents)
-                .preferredColorScheme(AppearancePreference(rawValue: appearance)?.colorScheme ?? .dark)
+                .preferredColorScheme((AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
                 .tint(Theme.blue)
                 .frame(minWidth: 1100, minHeight: 700)
         }
@@ -24,7 +24,7 @@ struct SiEDAApp: App {
             SettingsView()
                 .environmentObject(settings)
                 .environmentObject(store)
-                .preferredColorScheme(AppearancePreference(rawValue: appearance)?.colorScheme ?? .dark)
+                .preferredColorScheme((AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
                 .tint(Theme.blue)
         }
     }
@@ -85,6 +85,7 @@ struct SiEDACommands: Commands {
             .keyboardShortcut("d", modifiers: [.command, .shift])
             Divider()
             Button("Auto-Place Footprints") { store.autoPlace(all: true) }
+            Button("Fit Board to Components") { store.fitBoard() }
             Button("Autoroute Board") { Task { await store.autoRoute() } }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
             Button("Run Design Rule Check") { store.runDRC(); store.workspace = .checks }

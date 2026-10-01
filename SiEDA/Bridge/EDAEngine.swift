@@ -177,6 +177,9 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func flipFootprint(_ id: Int) -> Bool { withHandle { sieda_pcb_flip_footprint($0, Int32(id)) } == 1 }
 
+    @discardableResult
+    func fitBoard(margin: Double) -> Bool { withHandle { sieda_pcb_fit_board($0, margin) } == 1 }
+
     func autoRoute() -> RouteStats {
         Self.decode(RouteStats.self, from: withHandle { Self.take(sieda_pcb_autoroute($0)) }) ?? RouteStats()
     }

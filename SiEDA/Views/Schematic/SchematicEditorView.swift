@@ -127,7 +127,7 @@ struct DevicePicker: View {
             TextField("Search devices", text: $search)
                 .textFieldStyle(.roundedBorder)
                 .padding(8)
-            List(selection: Binding(get: { selected }, set: { if let k = $0 { onPick(k) } })) {
+            List(selection: Binding<ComponentKind?>(get: { selected }, set: { if let k = $0 { onPick(k) } })) {
                 ForEach(["Passives", "Semiconductors", "Power & Nets", "Electromechanical"], id: \.self) { category in
                     let items = filtered.filter { $0.category == category }
                     if !items.isEmpty {

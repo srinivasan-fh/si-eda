@@ -255,7 +255,7 @@ final class DesignStore: ObservableObject {
     }
 
     func autoRoute() async {
-        undoStack.append(engine.saveJSON())
+        undoStack.append(self.engine.saveJSON())
         redoStack.removeAll()
         let engine = self.engine
         let stats = await runBusy("Autorouting…") { engine.autoRoute() }
@@ -271,6 +271,11 @@ final class DesignStore: ObservableObject {
     func clearRouting() {
         perform("Cleared routing", invalidatesAnalysis: false) { $0.clearRouting() }
         routeStats = nil
+    }
+
+    /// Resizes the board outline to the placed footprints plus `margin` millimetres.
+    func fitBoard(margin: Double = 2.5) {
+        perform("Fitted board to components", invalidatesAnalysis: false) { $0.fitBoard(margin: margin) }
     }
 
     func runDRC() {

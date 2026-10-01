@@ -65,7 +65,7 @@ struct GeminiProvider: AIProvider {
         let prompt = request.prompt + "\n\nRespond with a single JSON object that conforms to this JSON Schema:\n" + schemaText
         let body: [String: Any] = [
             "systemInstruction": ["parts": [["text": request.system]]],
-            "contents": [["role": "user", "parts": [["text": prompt]]]],
+            "contents": [["role": "user", "parts": [["text": prompt]]] as [String: Any]],
             "generationConfig": ["responseMimeType": "application/json", "maxOutputTokens": request.maxTokens] as [String: Any],
         ]
         let json = try await AIHTTP.postJSON(url: url, headers: ["x-goog-api-key": key], body: body)

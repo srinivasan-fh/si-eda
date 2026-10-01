@@ -53,6 +53,10 @@ struct PCBEditorView: View {
                 ToolStripButton(systemImage: "square.grid.3x3.topleft.filled", help: "Auto-place all footprints") {
                     store.autoPlace(all: true)
                 }
+                ToolStripButton(systemImage: "arrow.down.right.and.arrow.up.left.rectangle", help: "Fit board to components") {
+                    store.fitBoard()
+                    fitRequest += 1
+                }
                 ToolStripButton(systemImage: "point.topleft.down.to.point.bottomright.curvepath.fill", help: "Autoroute (⇧⌘R)") {
                     Task { await store.autoRoute() }
                 }
