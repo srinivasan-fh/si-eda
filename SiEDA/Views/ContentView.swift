@@ -38,7 +38,9 @@ struct ContentView: View {
         .alert(item: $store.alert) { item in
             Alert(title: Text(item.title), message: Text(item.message), dismissButton: .default(Text("OK")))
         }
-        .onAppear {
+        // After the first layout pass, not during it: writing published state while the sidebar table is being
+        // populated makes AppKit warn about reentrant table updates.
+        .task {
             store.aiEnabled = settings.aiEnabled
             if store.snapshot.components.isEmpty { store.workspace = store.startWorkspace }
         }
@@ -67,10 +69,15 @@ struct ContentView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
-            Button { store.undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward") }
+            // Like ⌘Z: while a text field is being edited, undo belongs to the text.
+            Button {
+                if TextEditingFocus.isActive { TextEditingFocus.send("undo:") } else { store.undo() }
+            } label: { Label("Undo", systemImage: "arrow.uturn.backward") }
                 .disabled(!store.canUndo)
                 .help("Undo (⌘Z)")
-            Button { store.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }
+            Button {
+                if TextEditingFocus.isActive { TextEditingFocus.send("redo:") } else { store.redo() }
+            } label: { Label("Redo", systemImage: "arrow.uturn.forward") }
                 .disabled(!store.canRedo)
                 .help("Redo (⇧⌘Z)")
         }
@@ -109,8 +116,8 @@ struct ContentView: View {
 
             Button {
                 store.runERC()
-                store.runDRC()
-                store.workspace = .checks
+                if !store.snapshot.pads.isEmpty { store.runDRC() }
+                store.showChecks(.rules)
             } label: { Label("Check", systemImage: "checkmark.seal") }
                 .help("Run ERC and DRC")
 
@@ -132,29 +139,30 @@ struct ContentView: View {
     }
 }
 
+/// Workspaces, components and nets. A plain scroll view, not a `List`: a List is an AppKit table, and loading a
+/// design (dozens of rows inserted while the section headers change) made it update re-entrantly, which AppKit
+/// warns will become an assert.
 struct SidebarView: View {
     @EnvironmentObject private var store: DesignStore
     @EnvironmentObject private var settings: AISettings
 
     var body: some View {
-        List {
-            Section("Workspaces") {
+        let parts = store.snapshot.components.filter { !$0.componentKind.isVirtual }
+        let nets = store.snapshot.nets.filter { $0.pinCount > 1 }
+        ScrollView(.vertical) {
+            LazyVStack(alignment: .leading, spacing: 1) {
+                header("Workspaces")
                 ForEach(Workspace.visible(aiEnabled: settings.aiEnabled)) { w in
-                    Button {
+                    row(highlighted: store.workspace == w) {
                         store.workspace = w
                     } label: {
                         Label(w.title, systemImage: w.systemImage)
                             .foregroundStyle(store.workspace == w ? Theme.skyBlue : Theme.textSecondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
-                    .listRowBackground(store.workspace == w ? Theme.blue.opacity(0.22) : Color.clear)
                 }
-            }
-            Section("Components (\(store.snapshot.components.filter { !$0.componentKind.isVirtual }.count))") {
-                ForEach(store.snapshot.components.filter { !$0.componentKind.isVirtual }) { c in
-                    Button {
+                header("Components (\(parts.count))")
+                ForEach(parts) { c in
+                    row(highlighted: store.selection.contains(c.id)) {
                         store.select(component: c.id)
                         // Make the selection visible: jump to the schematic unless an editor that shows it is open.
                         if ![.schematic, .pcb, .threeD].contains(store.workspace) { store.workspace = .schematic }
@@ -167,14 +175,10 @@ struct SidebarView: View {
                             Spacer()
                             Text(c.value).foregroundStyle(Theme.textMuted).lineLimit(1)
                         }
-                        .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
-                    .listRowBackground(store.selection.contains(c.id) ? Theme.blue.opacity(0.22) : Color.clear)
                 }
-            }
-            Section("Nets (\(store.snapshot.nets.filter { $0.pinCount > 1 }.count))") {
-                ForEach(store.snapshot.nets.filter { $0.pinCount > 1 }) { net in
+                header("Nets (\(nets.count))")
+                ForEach(nets) { net in
                     HStack {
                         Image(systemName: net.ground ? "arrow.down.to.line" : "point.topleft.down.to.point.bottomright.curvepath")
                             .foregroundStyle(Theme.skyBlue)
@@ -186,12 +190,37 @@ struct SidebarView: View {
                                 .foregroundStyle(Theme.probe)
                         }
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
                 }
             }
+            .padding(.horizontal, 8)
+            .padding(.bottom, 10)
         }
-        .listStyle(.sidebar)
-        .scrollContentBackground(.hidden)
         .background(Theme.deepBlue.opacity(0.6))
+    }
+
+    private func header(_ title: String) -> some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Theme.textMuted)
+            .padding(.horizontal, 8)
+            .padding(.top, 12)
+            .padding(.bottom, 3)
+    }
+
+    /// A full-width clickable sidebar row with the selection highlight.
+    private func row<RowLabel: View>(highlighted: Bool, action: @escaping () -> Void,
+                                  @ViewBuilder label: () -> RowLabel) -> some View {
+        Button(action: action) {
+            label()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(RoundedRectangle(cornerRadius: 6).fill(highlighted ? Theme.blue.opacity(0.22) : Color.clear))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -265,7 +294,7 @@ struct StatusBar: View {
     /// Last verification verdict; opens Design Checks.
     @ViewBuilder private var verificationLabel: some View {
         if let report = store.verificationReport {
-            Button { store.workspace = .checks } label: {
+            Button { store.showChecks(.verification) } label: {
                 Label(store.verificationIsStale ? "Verification out of date" : "Verification: \(report.verdict.title)",
                       systemImage: store.verificationIsStale ? "clock.arrow.circlepath" : report.verdict.systemImage)
             }

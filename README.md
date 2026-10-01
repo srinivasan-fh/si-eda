@@ -38,7 +38,7 @@ Every AI result lands in the same editable schematic and PCB, so you can switch 
 | **Circuit validation** | Beyond ERC: non-standard values, missing IC decoupling, and DC-derived part ratings (resistor power, LED/diode current, reverse-biased LEDs, transistor current/power, supply over-current, op-amp saturation, fuse overload). Exceeding a rating is a warning; 2× the rating is an error |
 | **PCB design rules** | Presets: Prototype (Conservative), IPC-2221 Class 2 (default), IPC-2221 Class 3, Fab House Standard (6/6 mil) and Advanced (4/4 mil). DRC checks clearance against both the design rule and the fab minimum, plus track width, drill size, annular ring, hole-to-hole spacing, via-in-pad, dangling tracks, acute angles and IPC-2221 current capacity from the simulated net currents |
 | **Industry design kits** | Each project has an industry profile: General, Robotics & Motor Control, Drones & UAV, Power Electronics, Automotive, RF & Wireless, Space, Marine & Ship, or Industrial Automation. The profile sets the design rules, derates part ratings in validation (Space 50 %, Automotive 60/70 %, …) and selects IPC-2221 B2 or B3 (altitude) voltage spacing, and its standards and design guidance are shown in the Properties panel. The kits add domain parts (IR2104, IRF540N, UC3843, ACS712, TJA1050, LM2940, MAX485, PC817) and 9 verified reference designs, and AI agents choose and follow the profile. See [Industry design kits](#industry-design-kits) |
-| **Verification process** | **Design → Verify Design** (⇧⌘V) runs a 7-stage sign-off: ERC → DC simulation → circuit validation → footprint placement → routing completion → DRC/fab rules → manufacturing outputs (every Gerber layer, drill, BOM, pick-and-place and netlist are generated and checked). The verdict is Pass, Pass with warnings or Fail; findings cross-probe to the editors, and the report exports as Markdown. **Export Fabrication Package** always verifies first, asks before exporting a failing design, and includes `verification_report.md` |
+| **Verification process** | **Design → Verify Design** (⌥⌘V) runs a 7-stage sign-off: ERC → DC simulation → circuit validation → footprint placement → routing completion → DRC/fab rules → manufacturing outputs (every Gerber layer, drill, BOM, pick-and-place and netlist are generated and checked). The verdict is Pass, Pass with warnings or Fail; findings cross-probe to the editors, and the report exports as Markdown. **Export Fabrication Package** always verifies first, asks before exporting a failing design, and includes `verification_report.md` |
 | **Model choice** | Anthropic **Claude** (default: `claude-opus-5-5`, structured outputs, adaptive thinking, effort control, refusal fallbacks), OpenAI or any OpenAI-compatible endpoint, Google Gemini, local Ollama, and an Offline Designer that needs no network |
 | **Schematic capture** | 16 built-in device types plus your own library parts, orthogonal wiring, net labels, junctions, rotate/move/marquee, undo/redo, ERC with pin-type rules, no-connect flags (Q) for pins left open on purpose |
 | **Datasheet → component** | Drop a datasheet (PDF, pinout screenshot or text). The Datasheet Analyst agent extracts part number, package and every pin with its electrical type: Claude and Gemini read the PDF natively, OCR (Vision) handles images, and an offline pin-table parser works without a key. You review it in a pin-table editor with live symbol and footprint previews, then save it to the project library and place it like any other part. AI design agents can use library parts too |
@@ -127,7 +127,7 @@ open SiEDA.xcodeproj        # then Run (⌘R)
 2. In **AI Prompt Studio**, describe the product or pick a template, then press **Generate Design** (⌘↩).
 3. Inspect the result in **Schematic** (⌘2), **PCB Layout** (⌘4), **3D Viewer** (⌘5) and **Simulation** (⌘6).
    Import datasheets in **Component Library** (⌘3). Choose 1, 2, 4 or 6 copper layers in the PCB options bar.
-4. Choose **Design → Verify Design** (⇧⌘V) and fix anything the report flags, then **File → Export Fabrication Package…** (⇧⌘E).
+4. Choose **Design → Verify Design** (⌥⌘V) and fix anything the report flags, then **File → Export Fabrication Package…** (⇧⌘E).
 
 Command-line build and test:
 
@@ -187,7 +187,7 @@ The schematic and PCB canvases are built for large designs such as CPU/GPU/NPU m
 | F | Flip a footprint to the other side (PCB) |
 | ⌫ / Esc | Delete selection / cancel |
 | ⇧⌘K / ⇧⌘D / ⇧⌘R | Run ERC, DC operating point, autoroute |
-| ⇧⌘L / ⇧⌘V | Validate circuit, verify design |
+| ⇧⌘L / ⌥⌘V | Validate circuit, verify design |
 | ⌘1 … ⌘7 | Switch workspace (⌘1 … ⌘6 when AI assistance is off) |
 | ⌥⌘A | Turn AI assistance on/off |
 

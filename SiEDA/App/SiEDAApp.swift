@@ -30,7 +30,7 @@ struct SiEDAApp: App {
                 .environmentObject(agents)
                 .preferredColorScheme((AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
                 .tint(Theme.blue)
-                .frame(minWidth: LayoutMetrics.minimumWindow.width, minHeight: LayoutMetrics.minimumWindow.height)
+                .documentWindowFrame()
                 .onAppear { appDelegate.store = store }
         }
         .defaultSize(width: LayoutMetrics.defaultWindow.width, height: LayoutMetrics.defaultWindow.height)
@@ -142,7 +142,7 @@ struct SiEDACommands: Commands {
             Divider()
         }
         CommandMenu("Design") {
-            Button("Run Electrical Rule Check") { store.runERC(); store.workspace = .checks }
+            Button("Run Electrical Rule Check") { store.runERC(); store.showChecks(.rules) }
                 .keyboardShortcut("k", modifiers: [.command, .shift])
             Button("DC Operating Point") {
                 Task { await store.simulateDC(); store.workspace = .simulation }
@@ -153,7 +153,7 @@ struct SiEDACommands: Commands {
             Button("Fit Board to Components") { store.fitBoard() }
             Button("Autoroute Board") { Task { await store.autoRoute() } }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
-            Button("Run Design Rule Check") { store.runDRC(); store.workspace = .checks }
+            Button("Run Design Rule Check") { store.runDRC(); store.showChecks(.rules) }
             Menu("Industry Profile") {
                 ForEach(StandardLibrary.industries) { profile in
                     Toggle(profile.name, isOn: Binding(
@@ -171,12 +171,13 @@ struct SiEDACommands: Commands {
                 }
             }
             Divider()
-            Button("Validate Circuit") { store.runValidation(); store.workspace = .checks }
+            Button("Validate Circuit") { store.runValidation(); store.showChecks(.rules) }
                 .keyboardShortcut("l", modifiers: [.command, .shift])
             Button("Verify Design") {
-                Task { await store.runVerification(); store.workspace = .checks }
+                Task { await store.runVerification(); store.showChecks(.verification) }
             }
-            .keyboardShortcut("v", modifiers: [.command, .shift])
+            // ⌥⌘V: ⇧⌘V is Paste and Match Style in text fields.
+            .keyboardShortcut("v", modifiers: [.command, .option])
             Divider()
             Toggle("AI Assistance", isOn: $settings.aiEnabled)
                 .keyboardShortcut("a", modifiers: [.command, .option])

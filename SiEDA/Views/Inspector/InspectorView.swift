@@ -226,9 +226,14 @@ private struct ComponentProperties: View {
             if old == .ref { commitRef() }
             if old == .value { commitValue() }
         }
+        // A pending edit is kept when the selection changes, committed on the next run-loop turn (not during the
+        // view update that removed this panel, which would mutate the store while the sidebar table reloads).
         .onDisappear {
-            commitRef()
-            commitValue()
+            let commit = self
+            DispatchQueue.main.async {
+                commit.commitRef()
+                commit.commitValue()
+            }
         }
     }
 
@@ -277,6 +282,7 @@ private struct WireProperties: View {
 private struct ProjectProperties: View {
     @EnvironmentObject private var store: DesignStore
     @State private var name = ""
+    @State private var original = ""
     @FocusState private var nameFocused: Bool
 
     var body: some View {
@@ -312,13 +318,19 @@ private struct ProjectProperties: View {
                 .font(.caption)
                 .foregroundStyle(Theme.textMuted)
         }
-        .onAppear { name = store.snapshot.name }
-        .onDisappear { commitName() }
+        .onAppear {
+            name = store.snapshot.name
+            original = store.snapshot.name
+        }
     }
 
+    /// Commits only a name the user typed: when another design is loaded this panel is rebuilt, and its stale
+    /// text must not be written into the new design.
     private func commitName() {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        if !trimmed.isEmpty, trimmed != store.snapshot.name { store.setProjectName(trimmed) }
+        guard !trimmed.isEmpty, trimmed != original, original == store.snapshot.name else { return }
+        original = trimmed
+        store.setProjectName(trimmed)
     }
 }
 

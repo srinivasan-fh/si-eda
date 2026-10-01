@@ -69,7 +69,14 @@ final class DesignStore: ObservableObject {
     @Published var dcResult: DCResult?
     @Published var transientResult: TransientResult?
     @Published var routeStats: RouteStats?
+    /// Design revision the DRC results and route statistics describe; after any edit they are stale.
+    @Published private(set) var drcRevision = -1
+    @Published private(set) var routeRevision = -1
+    var drcIsCurrent: Bool { drcRevision == revision }
+    var routeStatsAreCurrent: Bool { routeStats != nil && routeRevision == revision }
     @Published var showDCOverlay = true
+    /// Tab of the Design Checks workspace (set by the actions that open it, so they land on their results).
+    @Published var checksMode: ChecksMode = .verification
     /// Mirrors `AISettings.aiEnabled` so document actions pick the right start workspace.
     @Published var aiEnabled = true {
         didSet { if !aiEnabled && workspace == .promptStudio { workspace = .schematic } }
@@ -127,12 +134,32 @@ final class DesignStore: ObservableObject {
     /// Runs a mutating engine operation with undo support.
     func perform(_ actionName: String, recordUndo: Bool = true, invalidatesAnalysis: Bool = true,
                  _ body: (EDAEngine) -> Void) {
-        if recordUndo {
-            undoStack.append(engine.saveJSON())
+        performChecked(actionName, recordUndo: recordUndo, invalidatesAnalysis: invalidatesAnalysis) {
+            body($0)
+            return true
+        }
+    }
+
+    /// Like `perform`, but the body reports whether the engine changed anything. A refused operation leaves no
+    /// undo step, keeps the document clean and the analysis results, and shows `failureMessage` instead.
+    @discardableResult
+    func performChecked(_ actionName: String, recordUndo: Bool = true, invalidatesAnalysis: Bool = true,
+                        failureMessage: String? = nil, _ body: (EDAEngine) -> Bool) -> Bool {
+        // Long work (autorouting, simulation) holds the engine; an edit now would freeze the UI until it finishes.
+        guard !isBusy else {
+            statusMessage = "\(busyMessage.isEmpty ? "Busy" : busyMessage) — try again when it finishes"
+            return false
+        }
+        let before = recordUndo ? engine.saveJSON() : nil
+        guard body(engine) else {
+            statusMessage = failureMessage ?? "\(actionName): not possible"
+            return false
+        }
+        if let before {
+            undoStack.append(before)
             if undoStack.count > undoLimit { undoStack.removeFirst() }
             redoStack.removeAll()
         }
-        body(engine)
         isDirty = true
         if invalidatesAnalysis {
             dcResult = nil
@@ -140,6 +167,7 @@ final class DesignStore: ObservableObject {
         }
         refresh()
         statusMessage = actionName
+        return true
     }
 
     func undo() {
@@ -235,9 +263,12 @@ final class DesignStore: ObservableObject {
         perform("Renamed to \(trimmed)", invalidatesAnalysis: false) { $0.setRef(id, trimmed) }
     }
 
-    func connect(_ a: PinAddress, _ b: PinAddress) {
-        guard a != b else { return }
-        perform("Connected wire") { $0.connect(a, b) }
+    @discardableResult
+    func connect(_ a: PinAddress, _ b: PinAddress) -> Bool {
+        guard a != b else { return false }
+        return performChecked("Connected wire", failureMessage: "Those pins are already connected") {
+            $0.connect(a, b) != nil
+        }
     }
 
     /// Toggles the "no connect" mark of a pin (an intentionally open pin; ERC stops reporting it).
@@ -245,7 +276,7 @@ final class DesignStore: ObservableObject {
         guard let component = snapshot.component(pin.component), pin.pin >= 0, pin.pin < component.pins.count else { return }
         let marked = component.pins[pin.pin].noConnect
         let label = "\(component.ref).\(component.pins[pin.pin].name)"
-        perform(marked ? "Cleared no-connect on \(label)" : "Marked \(label) no-connect", invalidatesAnalysis: false) {
+        performChecked(marked ? "Cleared no-connect on \(label)" : "Marked \(label) no-connect", invalidatesAnalysis: false) {
             $0.setPinNoConnect(pin, !marked)
         }
         runERC()
@@ -271,7 +302,8 @@ final class DesignStore: ObservableObject {
     func saveCustomPart(_ spec: CustomPartSpec, replacing oldId: String? = nil) -> CustomPartInfo? {
         var result: CustomPartInfo?
         var failure: Error?
-        perform(oldId == nil ? "Added \(spec.name) to the library" : "Updated \(spec.name)") { engine in
+        performChecked(oldId == nil ? "Added \(spec.name) to the library" : "Updated \(spec.name)",
+                       failureMessage: "\(spec.name) was not saved") { engine in
             do {
                 let part = try engine.registerCustomPart(spec)
                 if let oldId, oldId != part.id {
@@ -279,8 +311,10 @@ final class DesignStore: ObservableObject {
                     engine.removeCustomPart(oldId)
                 }
                 result = part
+                return true
             } catch {
                 failure = error
+                return false
             }
         }
         if let failure { present(failure, title: "Could not save the component") }
@@ -288,9 +322,9 @@ final class DesignStore: ObservableObject {
     }
 
     func deleteCustomPart(_ id: String) {
-        var removed = false
-        perform("Removed part from library", invalidatesAnalysis: false) { removed = $0.removeCustomPart(id) }
-        if !removed {
+        let removed = performChecked("Removed part from library", invalidatesAnalysis: false,
+                                     failureMessage: "The part is still used in the schematic") { $0.removeCustomPart(id) }
+        if !removed && !isBusy {
             alert = AlertItem(title: "Part is in use",
                               message: "Delete the components that use this part from the schematic first.")
         }
@@ -354,7 +388,7 @@ final class DesignStore: ObservableObject {
         verifiedRevision = revision
         ercResults = engine.runERC()
         validationResults = engine.runCircuitValidation()
-        if !snapshot.pads.isEmpty { drcResults = engine.runDRC() }
+        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
         if let report {
             statusMessage = "Verification: \(report.verdict.title) — \(report.errors) error(s), \(report.warnings) warning(s)"
         } else {
@@ -379,6 +413,7 @@ final class DesignStore: ObservableObject {
     }
 
     func simulateDC() async {
+        guard !isBusy else { return }  // one analysis at a time: overlapping runs would reset isBusy early
         let engine = self.engine
         let result = await runBusy("Solving DC operating point…") { engine.simulateDC() }
         dcResult = result
@@ -388,6 +423,7 @@ final class DesignStore: ObservableObject {
     }
 
     func simulateTransient(stop: Double, step: Double) async {
+        guard !isBusy else { return }  // one analysis at a time: overlapping runs would reset isBusy early
         let engine = self.engine
         let result = await runBusy("Running transient analysis…") { engine.simulateTransient(stop: stop, step: step) }
         transientResult = result
@@ -397,6 +433,7 @@ final class DesignStore: ObservableObject {
     // MARK: - PCB
 
     func autoPlace(all: Bool) {
+        guard !isBusy else { return }
         perform(all ? "Auto-placed all footprints" : "Placed new footprints", invalidatesAnalysis: false) {
             $0.autoPlace(all: all)
         }
@@ -404,20 +441,30 @@ final class DesignStore: ObservableObject {
     }
 
     func autoRoute() async {
-        undoStack.append(self.engine.saveJSON())
-        redoStack.removeAll()
+        guard !isBusy else { return }
+        let before = engine.saveJSON()
         let engine = self.engine
-        let stats = await runBusy("Autorouting…") { engine.autoRoute() }
-        routeStats = stats
+        let result = await runBusy("Autorouting…") { engine.autoRouteChecked() }
+        guard case .success(let stats) = result else {
+            if case .failure(let error) = result { present(error, title: "Autorouting failed") }
+            refresh()
+            return
+        }
+        undoStack.append(before)
+        if undoStack.count > undoLimit { undoStack.removeFirst() }
+        redoStack.removeAll()
         isDirty = true
         refresh()
-        drcResults = engine.runDRC()
+        routeStats = stats
+        routeRevision = revision
+        recordDRC(engine.runDRCChecked())
         statusMessage = stats.failed == 0
             ? "Routed \(stats.routed)/\(stats.connections) connections, \(stats.vias) vias"
             : "Routed \(stats.routed)/\(stats.connections) — \(stats.failed) failed (\(stats.failedNets.joined(separator: ", ")))"
     }
 
     func clearRouting() {
+        guard !isBusy else { return }
         perform("Cleared routing", invalidatesAnalysis: false) { $0.clearRouting() }
         routeStats = nil
     }
@@ -510,30 +557,66 @@ final class DesignStore: ObservableObject {
 
     /// Resizes the board outline to the placed footprints plus `margin` millimetres.
     func fitBoard(margin: Double = 2.5) {
-        perform("Fitted board to components", invalidatesAnalysis: false) { $0.fitBoard(margin: margin) }
-        fitToken &+= 1
+        guard !isBusy else { return }
+        let fitted = performChecked("Fitted board to components", invalidatesAnalysis: false,
+                                    failureMessage: snapshot.board.hasCustomOutline
+                                        ? "The board has a custom outline: change it in Board Setup"
+                                        : "No placed footprints to fit the board to") { $0.fitBoard(margin: margin) }
+        if fitted { fitToken &+= 1 }
+    }
+
+    /// Stores DRC results for the current revision; a core failure is shown instead of reading as "passed".
+    @discardableResult
+    private func recordDRC(_ result: Result<[RuleViolation], EDAEngineError>) -> Bool {
+        switch result {
+        case .success(let violations):
+            drcResults = violations
+            drcRevision = revision
+            return true
+        case .failure(let error):
+            present(error, title: "Design rule check failed")
+            return false
+        }
+    }
+
+    /// Opens the Design Checks workspace on the given tab.
+    func showChecks(_ mode: ChecksMode) {
+        checksMode = mode
+        workspace = .checks
     }
 
     func runDRC() {
-        drcResults = engine.runDRC()
+        guard !isBusy else { return }
+        guard recordDRC(engine.runDRCChecked()) else { return }
         let errors = drcResults.filter { $0.severity == .error }.count
         statusMessage = errors == 0 ? "DRC passed" : "DRC: \(errors) error(s)"
     }
 
     func moveFootprint(_ id: Int, to point: CGPoint) {
-        let snapped = CGPoint(x: (point.x / 0.25).rounded() * 0.25, y: (point.y / 0.25).rounded() * 0.25)
-        perform("Moved footprint", invalidatesAnalysis: false) { $0.moveFootprint(id, to: snapped) }
+        moveFootprints([(id, point)])
+    }
+
+    /// Moves several footprints as one undo step (snapped to the 0.25 mm placement grid).
+    func moveFootprints(_ moves: [(id: Int, point: CGPoint)]) {
+        guard !isBusy, !moves.isEmpty else { return }
+        performChecked(moves.count == 1 ? "Moved footprint" : "Moved \(moves.count) footprints", invalidatesAnalysis: false,
+                       failureMessage: "Footprints could not be moved there") { engine in
+            moves.reduce(false) { moved, move in
+                let snapped = CGPoint(x: (move.point.x / 0.25).rounded() * 0.25, y: (move.point.y / 0.25).rounded() * 0.25)
+                return engine.moveFootprint(move.id, to: snapped) || moved
+            }
+        }
     }
 
     func rotateFootprints() {
         let ids = selection
-        guard !ids.isEmpty else { return }
+        guard !isBusy, !ids.isEmpty else { return }
         perform("Rotated footprint", invalidatesAnalysis: false) { engine in ids.forEach { engine.rotateFootprint($0) } }
     }
 
     func flipFootprints() {
         let ids = selection
-        guard !ids.isEmpty else { return }
+        guard !isBusy, !ids.isEmpty else { return }
         perform("Flipped footprint", invalidatesAnalysis: false) { engine in ids.forEach { engine.flipFootprint($0) } }
     }
 
@@ -551,17 +634,29 @@ final class DesignStore: ObservableObject {
         perform("Industry: \(profile.name)", invalidatesAnalysis: false) { $0.setIndustry(profile.id) }
         validationResults = []
         verificationReport = nil
-        if !snapshot.pads.isEmpty { drcResults = engine.runDRC() }
+        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
     }
 
     /// Applies a design-rule preset (track/clearance/via design values and fabrication minimums).
     func applyRulePreset(_ preset: DesignRulePreset) {
         guard preset.name != snapshot.board.rulePreset else { return }
         perform("Design rules: \(preset.name)", invalidatesAnalysis: false) { $0.applyRulePreset(preset.name) }
-        if !snapshot.pads.isEmpty { drcResults = engine.runDRC() }
+        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
     }
 
+    /// Board size and default track/clearance. Values the core would reject are reported instead of ignored.
     func setBoard(width: Double, height: Double, trackWidth: Double, clearance: Double) {
+        guard !isBusy else { return }
+        // 0 keeps the current track width / clearance (the layout agent only resizes the board).
+        let trackWidth = trackWidth > 0 ? trackWidth : snapshot.board.trackWidth
+        let clearance = clearance > 0 ? clearance : snapshot.board.clearance
+        guard width > 5, height > 5, trackWidth > 0.05, clearance > 0.05 else {
+            alert = AlertItem(title: "Board settings not applied",
+                              message: "Width and height must be over 5 mm, track width and clearance over 0.05 mm.")
+            return
+        }
+        let b = snapshot.board
+        guard width != b.width || height != b.height || trackWidth != b.trackWidth || clearance != b.clearance else { return }
         perform("Updated board settings", invalidatesAnalysis: false) {
             $0.setBoard(width: width, height: height, trackWidth: trackWidth, clearance: clearance)
         }
@@ -640,6 +735,8 @@ final class DesignStore: ObservableObject {
             undoStack.removeAll()
             redoStack.removeAll()
             isDirty = false
+            selection = []
+            selectedWire = nil
             dcResult = nil
             transientResult = nil
             resetChecks()
@@ -703,7 +800,7 @@ final class DesignStore: ObservableObject {
             alert.addButton(withTitle: "Review Issues")
             alert.addButton(withTitle: "Export Anyway")
             if alert.runModal() == .alertFirstButtonReturn {
-                workspace = .checks
+                showChecks(.verification)
                 return
             }
         }
@@ -778,4 +875,11 @@ final class DesignStore: ObservableObject {
         default: return true
         }
     }
+}
+
+/// Tabs of the Design Checks workspace.
+enum ChecksMode: String, CaseIterable, Identifiable {
+    case verification = "Verification"
+    case rules = "Rule Checks"
+    var id: String { rawValue }
 }

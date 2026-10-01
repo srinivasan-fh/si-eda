@@ -325,6 +325,12 @@ private struct StepRow: View {
 }
 
 private struct MessageBubble: View {
+    /// Markdown (bold, links) without treating the text as a localization format string ("50 % duty" stays as typed).
+    static func rendered(_ text: String) -> AttributedString {
+        (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+            ?? AttributedString(text)
+    }
+
     var message: AgentOrchestrator.Message
 
     var body: some View {
@@ -332,7 +338,7 @@ private struct MessageBubble: View {
             if message.sender == .user { Spacer(minLength: 40) }
             VStack(alignment: .leading, spacing: 4) {
                 Text(senderTitle).font(.caption.weight(.semibold)).foregroundStyle(Theme.skyBlue)
-                Text(LocalizedStringKey(message.text))
+                Text(Self.rendered(message.text))
                     .foregroundStyle(Theme.textPrimary)
                     .textSelection(.enabled)
             }

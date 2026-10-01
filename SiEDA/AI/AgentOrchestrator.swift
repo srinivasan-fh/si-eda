@@ -59,10 +59,13 @@ final class AgentOrchestrator: ObservableObject {
     @Published private(set) var activeModel = ""
 
     private var task: Task<Void, Never>?
+    /// Identifies the current run: a cancelled run that is still unwinding must not touch the next one.
+    private var runID: UUID?
 
     func cancel() {
         task?.cancel()
         task = nil
+        runID = nil
         if isRunning {
             isRunning = false
             if let index = steps.lastIndex(where: { $0.status == .running }) {
@@ -83,11 +86,11 @@ final class AgentOrchestrator: ObservableObject {
 
     func generate(brief: String, store: DesignStore, settings: AISettings) {
         let trimmed = brief.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard settings.aiEnabled, !trimmed.isEmpty, !isRunning else { return }
-        let provider = settings.makeProvider()
+        guard settings.aiEnabled, !trimmed.isEmpty, !isRunning, !store.isBusy else { return }
+        post(.user, trimmed)
+        let provider = resolveProvider(settings)
         let review = settings.enableReviewAgent
         let rounds = max(0, min(settings.maxReviewRounds, 4))
-        post(.user, trimmed)
         start(provider: provider) { [weak self] in
             guard let self else { return }
             try await self.runGeneration(brief: trimmed, provider: provider, store: store, review: review, rounds: rounds)
@@ -96,11 +99,11 @@ final class AgentOrchestrator: ObservableObject {
 
     func refine(instruction: String, store: DesignStore, settings: AISettings) {
         let trimmed = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard settings.aiEnabled, !trimmed.isEmpty, !isRunning else { return }
-        let provider = settings.makeProvider()
+        guard settings.aiEnabled, !trimmed.isEmpty, !isRunning, !store.isBusy else { return }
+        post(.user, trimmed)
+        let provider = resolveProvider(settings)
         let review = settings.enableReviewAgent
         let rounds = max(0, min(settings.maxReviewRounds, 4))
-        post(.user, trimmed)
         start(provider: provider) { [weak self] in
             guard let self else { return }
             try await self.runRefinement(instruction: trimmed, provider: provider, store: store, review: review,
@@ -108,10 +111,22 @@ final class AgentOrchestrator: ObservableObject {
         }
     }
 
+    /// The selected model, or the offline designer when that model has no API key yet (so a fresh install works).
+    private func resolveProvider(_ settings: AISettings) -> AIProvider {
+        guard settings.hasCredentials(for: settings.provider) else {
+            post(.system, "No API key for \(settings.provider.displayName) — using the offline designer. "
+                 + "Add a key in Settings → AI Models to use the model.")
+            return OfflineProvider()
+        }
+        return settings.makeProvider()
+    }
+
     private func start(provider: AIProvider, _ work: @escaping @MainActor () async throws -> Void) {
         steps = []
         isRunning = true
         activeModel = "\(provider.displayName) · \(provider.modelName)"
+        let id = UUID()
+        runID = id
         task = Task { @MainActor [weak self] in
             do {
                 try await work()
@@ -121,7 +136,10 @@ final class AgentOrchestrator: ObservableObject {
                 // A cancelled URLSession request surfaces as a network error; cancel() already reported it.
                 if !Task.isCancelled { self?.reportFailure(error) }
             }
-            self?.isRunning = false
+            if self?.runID == id {
+                self?.isRunning = false
+                self?.runID = nil
+            }
         }
     }
 
@@ -183,6 +201,7 @@ final class AgentOrchestrator: ObservableObject {
         var plan = initialPlan
         compile(plan, brief: brief, store: store)
         await verify(store: store)
+        try Task.checkCancellation()
 
         if review && rounds > 0 {
             for round in 1...rounds {
@@ -201,13 +220,15 @@ final class AgentOrchestrator: ObservableObject {
                 plan = verdict.plan
                 compile(plan, brief: brief, store: store)
                 await verify(store: store)
+                try Task.checkCancellation()
             }
         } else {
             steps.append(Step(role: .reviewer, title: "Design review", detail: "Disabled in Settings", status: .skipped))
         }
         try Task.checkCancellation()
 
-        await layout(store: store, boardHint: plan.board)
+        try await layout(store: store, boardHint: plan.board)
+        try Task.checkCancellation()
         lastPlan = plan
         summarize(plan, store: store)
     }
@@ -233,17 +254,19 @@ final class AgentOrchestrator: ObservableObject {
         finish(index, errors == 0 && (store.dcResult?.converged ?? false) ? .done : .warning, detail)
     }
 
-    private func layout(store: DesignStore, boardHint: PlannedBoard) async {
+    private func layout(store: DesignStore, boardHint: PlannedBoard) async throws {
         let index = begin(.layout, "Placing and routing PCB")
         store.autoPlace(all: true)
         store.fitBoard(margin: 2.5)  // compact outline around the placed parts
         await store.autoRoute()
+        try Task.checkCancellation()
         if let stats = store.routeStats, stats.failed > 0 {
             // Give the router more room and try once more.
             let board = store.snapshot.board
             store.setBoard(width: board.width * 1.3, height: board.height * 1.3, trackWidth: 0, clearance: 0)
             store.autoPlace(all: true)
             await store.autoRoute()
+            try Task.checkCancellation()
         }
         store.runDRC()
         let stats = store.routeStats ?? RouteStats()
@@ -271,18 +294,21 @@ final class AgentOrchestrator: ObservableObject {
     // MARK: - Step bookkeeping
 
     private func begin(_ role: Role, _ title: String) -> Int {
+        guard !Task.isCancelled else { return -1 }
         steps.append(Step(role: role, title: title))
         return steps.count - 1
     }
 
     private func finish(_ index: Int, _ status: StepStatus, _ detail: String) {
-        guard steps.indices.contains(index) else { return }
+        guard !Task.isCancelled, steps.indices.contains(index) else { return }
         steps[index].status = status
         steps[index].detail = detail
         steps[index].duration = Date().timeIntervalSince(steps[index].started)
     }
 
     private func post(_ sender: Message.Sender, _ text: String) {
+        // Called from a run's task: a cancelled run stays silent (cancel() reported it). Outside a task this is false.
+        guard !Task.isCancelled else { return }
         messages.append(Message(sender: sender, text: text))
     }
 }

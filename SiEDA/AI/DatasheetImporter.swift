@@ -113,7 +113,7 @@ enum DatasheetAnalyst {
     short pin name (VCC, GND, TRIG, PB0 …) and an electrical type: power_in for supply/ground pins, power_out for \
     regulator outputs, input, output, bidirectional for I/O, open_collector for open-drain/collector outputs, \
     passive for analog/passive terminals, no_connect for NC pins.
-    - Choose the package type from the allowed list (SOIC, TSSOP, DIP, QFN, LQFP, SOT23, HEADER, TO220) that \
+    - Choose the package type from the allowed list (SOIC, TSSOP, DIP, QFN, LQFP, SOT23, HEADER, HEADER2, TO220) that \
     matches the physical package; pin_count is the number of package terminals (excluding an exposed pad).
     - name is the base part number (e.g. NE555, ATtiny85, LM7805); ref_prefix is U for ICs, Q for transistors, \
     J for connectors. Put anything uncertain in notes.
@@ -164,8 +164,10 @@ enum DatasheetAnalyst {
         let extraction = try JSONExtraction.decode(DatasheetSchema.Extraction.self, from: text)
         var spec = extraction.spec(datasheet: document.fileName)
         if let forced = PackageKind.guess(hint) { spec.package.type = forced.rawValue }
-        if spec.pins.isEmpty { throw AIProviderError.invalidResponse("No pins were found in the datasheet.") }
-        return Result(spec: spec, notes: extraction.notes ?? [], notice: notice)
+        // With no pins the draft still carries the part name and the parser's notes; the editor asks for pins.
+        var notes = extraction.notes ?? []
+        if spec.pins.isEmpty, notes.isEmpty { notes = ["No pins were found in the datasheet. Add them in the pin table."] }
+        return Result(spec: spec, notes: notes, notice: notice)
     }
 }
 

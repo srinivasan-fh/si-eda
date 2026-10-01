@@ -104,6 +104,7 @@ struct PCBEditorView: View {
                     store.requestView(.zoomArea)
                 }
             }
+            .disabled(store.isBusy)  // board edits wait for the autorouter
 
             VStack(spacing: 0) {
                 OptionsBar {
@@ -146,8 +147,11 @@ struct PCBEditorView: View {
                     .popover(isPresented: $showBoardSetup, arrowEdge: .bottom) { BoardSetupPanel().environmentObject(store) }
                     Divider().frame(height: 18)
                     HStack(spacing: 10) {
+                        // A shaped outline is sized in Board Setup; W/H would only resize the bounding rectangle.
                         ruleField("Board W", $boardWidth, unit: "mm")
+                            .disabled(store.snapshot.board.hasCustomOutline)
                         ruleField("H", $boardHeight, unit: "mm")
+                            .disabled(store.snapshot.board.hasCustomOutline)
                         ruleField("Track", $trackWidth, unit: "mm")
                         ruleField("Clr", $clearance, unit: "mm")
                         Button("Apply") { applyRules() }
@@ -155,12 +159,12 @@ struct PCBEditorView: View {
                             .controlSize(.small)
                     }
                     Spacer()
-                    if let stats = store.routeStats {
+                    if let stats = store.routeStats, store.routeStatsAreCurrent {
                         Badge(text: "\(stats.routed)/\(stats.connections) routed · \(stats.vias) vias",
                               systemImage: stats.failed == 0 ? "checkmark.circle" : "exclamationmark.triangle")
                     }
                     let drcErrors = store.drcResults.filter { $0.severity == .error }.count
-                    if !store.drcResults.isEmpty {
+                    if store.drcIsCurrent {
                         Badge(text: drcErrors == 0 ? "DRC clean" : "DRC \(drcErrors)", systemImage: "checkmark.seal")
                     }
                     ZoomControls(level: viewport.scale / Viewport.pcbBaseScale,
@@ -170,8 +174,9 @@ struct PCBEditorView: View {
                 }
 
                 ZStack(alignment: .topTrailing) {
-                    PCBCanvas(viewport: $viewport, canvasSize: $canvasSize, panMode: panMode, visible: visible,
+                    PCBCanvas(viewport: $viewport, canvasSize: $canvasSize, panMode: $panMode, visible: visible,
                               activeLayer: activeLayer)
+                        .disabled(store.isBusy)  // the engine is busy autorouting
                     if store.showNavigator, !store.snapshot.pads.isEmpty {
                         navigator
                             .padding(10)
@@ -339,7 +344,7 @@ struct PCBCanvas: View {
     @EnvironmentObject private var store: DesignStore
     @Binding var viewport: Viewport
     @Binding var canvasSize: CGSize
-    var panMode: Bool
+    @Binding var panMode: Bool
     var visible: Set<PCBLayer>
     var activeLayer: PCBLayer
 
@@ -410,14 +415,25 @@ struct PCBCanvas: View {
                     return .handled
                 }
                 .onChange(of: focused) { _, isFocused in if !isFocused { spaceHeld = false } }
-                .onKeyPress(KeyEquivalent("r")) { store.rotateFootprints(); return .handled }
-                .onKeyPress(KeyEquivalent("f")) { store.flipFootprints(); return .handled }
+                // Single-letter keys; ⌘/⌥/⌃ combinations belong to menus and text editing.
+                .onKeyPress(keys: ["r", "f", "v", "h"], phases: .down) { press in
+                    guard press.modifiers.subtracting(.shift).isEmpty else { return .ignored }
+                    switch press.key {
+                    case KeyEquivalent("r"): store.rotateFootprints()
+                    case KeyEquivalent("f"): store.flipFootprints()
+                    case KeyEquivalent("v"): panMode = false
+                    case KeyEquivalent("h"): panMode = true
+                    default: return .ignored
+                    }
+                    return .handled
+                }
                 .onKeyPress(.escape) {
                     if zoomArmed { zoomArmed = false } else { store.select(component: nil) }
                     return .handled
                 }
                 .onAppear {
                     canvasSize = geo.size
+                    focused = true
                     if !didFit {
                         didFit = true
                         fit(geo.size)
@@ -469,10 +485,10 @@ struct PCBCanvas: View {
                         spaceUsedForPan = true
                         dragMode = .pan(viewport.offset)
                     } else if !panMode, let id = footprint(at: world) {
-                        if !store.selection.contains(id) {
-                            store.select(component: id, extend: NSEvent.modifierFlags.contains(.shift))
-                        }
-                        dragMode = .move(store.selection)
+                        // ⇧ adds on release (select toggles); selecting here as well would toggle it straight back off.
+                        let shift = NSEvent.modifierFlags.contains(.shift)
+                        if !store.selection.contains(id) && !shift { store.select(component: id) }
+                        dragMode = .move(shift ? store.selection.union([id]) : store.selection)
                     } else {
                         dragMode = .pan(viewport.offset)
                     }
@@ -504,15 +520,17 @@ struct PCBCanvas: View {
                         viewport.zoom(by: 2, anchor: value.location, limits: limits)
                     }
                 } else if !moved {
-                    if !spaceHeld {  // a Space-click is part of a pan, not a selection
+                    if !spaceHeld && !panMode {  // a Space-click or a Hand-tool click pans, it doesn't select
                         let world = viewport.toWorld(value.location)
                         store.select(component: footprint(at: world), extend: NSEvent.modifierFlags.contains(.shift))
                     }
                 } else if case .move(let ids) = dragMode {
-                    for id in ids {
-                        guard let c = store.snapshot.component(id) else { continue }
-                        store.moveFootprint(id, to: CGPoint(x: c.pcb.x + dragDelta.width, y: c.pcb.y + dragDelta.height))
+                    let moves = ids.compactMap { id -> (id: Int, point: CGPoint)? in
+                        guard let c = store.snapshot.component(id) else { return nil }
+                        return (id, CGPoint(x: c.pcb.x + dragDelta.width, y: c.pcb.y + dragDelta.height))
                     }
+                    store.moveFootprints(moves)
+                    store.selection.formUnion(ids)
                 }
                 dragMode = nil
                 dragDelta = .zero
@@ -652,7 +670,7 @@ struct PCBCanvas: View {
         }
 
         // DRC markers
-        for v in store.drcResults where v.severity == .error && v.hasLocation && v.code != "DRC_UNROUTED" {
+        for v in store.drcResults where store.drcIsCurrent && v.severity == .error && v.hasLocation && v.code != "DRC_UNROUTED" {
             let s = CGPoint(x: v.x, y: v.y).applying(screen)
             ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 8, y: s.y - 8, width: 16, height: 16)), with: .color(Theme.error), lineWidth: 2)
         }

@@ -9,12 +9,15 @@ struct SchematicCanvas: View {
     @Binding var canvasSize: CGSize
     /// "R1.2" while a wire is being drawn (shown as a hint by the editor), nil otherwise.
     @Binding var wireStart: String?
+    /// Tool armed by P: the device last chosen in the picker.
+    var placementTool: SchematicTool = .place(.resistor)
 
     private enum DragMode {
         case move(Set<Int>)
         case pan(CGSize)
         case marquee
         case zoomBox
+        case wire(PinAddress)  // press on a pin and drag to another pin
     }
 
     @State private var dragMode: DragMode?
@@ -89,13 +92,29 @@ struct SchematicCanvas: View {
             }
             .onKeyPress(.delete) { store.deleteSelection(); return .handled }
             .onKeyPress(.deleteForward) { store.deleteSelection(); return .handled }
-            .onKeyPress(KeyEquivalent("r")) { rotate(); return .handled }
-            .onKeyPress(KeyEquivalent("w")) { tool = .wire; return .handled }
-            .onKeyPress(KeyEquivalent("q")) { tool = .noConnect; return .handled }
-            .onKeyPress(KeyEquivalent("v")) { tool = .select; return .handled }
-            .onKeyPress(KeyEquivalent("h")) { tool = .pan; return .handled }
-            .onKeyPress(KeyEquivalent("g")) { tool = .place(.ground); return .handled }
-            .onKeyPress(KeyEquivalent("l")) { tool = .place(.netLabel); return .handled }
+            // Single-letter tool keys; ⌘/⌥/⌃ combinations belong to menus and text editing.
+            .onKeyPress(keys: ["r", "w", "q", "v", "h", "g", "l", "p"], phases: .down) { press in
+                guard press.modifiers.subtracting(.shift).isEmpty else { return .ignored }
+                switch press.key {
+                case KeyEquivalent("r"): rotate()
+                case KeyEquivalent("w"): tool = .wire
+                case KeyEquivalent("q"): tool = .noConnect
+                case KeyEquivalent("v"): tool = .select
+                case KeyEquivalent("h"): tool = .pan
+                case KeyEquivalent("g"): tool = .place(.ground)
+                case KeyEquivalent("l"): tool = .place(.netLabel)
+                case KeyEquivalent("p"): tool = placementTool
+                default: return .ignored
+                }
+                return .handled
+            }
+            // A half-drawn wire, an armed zoom box or a placement rotation never outlives its tool.
+            .onChange(of: tool) { _, _ in
+                pendingWire = nil
+                zoomArmed = false
+                placementRotation = 0
+                focused = true
+            }
             .onAppear {
                 canvasSize = geo.size
                 focused = true
@@ -116,8 +135,13 @@ struct SchematicCanvas: View {
                 }
                 wireStart = "\(c.ref).\(c.pins[address.pin].name)"
             }
+            .onChange(of: store.revision) { _, _ in
+                // Undo or delete can remove the part a wire was started from.
+                if let address = pendingWire, store.snapshot.component(address.component) == nil { pendingWire = nil }
+            }
+            // A design appearing at once (example, AI plan, paste) is fitted; placing the first part by hand is not.
             .onChange(of: store.snapshot.components.count) { old, new in
-                if old == 0 && new > 0 { fitToContent(size: geo.size) }
+                if old == 0 && new > 1 { fitToContent(size: geo.size) }
             }
         }
     }
@@ -237,6 +261,8 @@ struct SchematicCanvas: View {
                 case .marquee, .zoomBox:
                     marquee = CGRect(origin: value.startLocation, size: .zero)
                         .union(CGRect(origin: value.location, size: .zero))
+                case .wire:
+                    hover = value.location  // hover events stop during a drag; keep the rubber band on the cursor
                 case nil:
                     break
                 }
@@ -262,6 +288,15 @@ struct SchematicCanvas: View {
                         let snapped = CGSize(width: (dragDelta.width / 10).rounded() * 10,
                                              height: (dragDelta.height / 10).rounded() * 10)
                         store.moveComponents(ids, by: snapped)
+                        store.selection.formUnion(ids)
+                    case .wire(let start):
+                        if let end = pin(at: viewport.toWorld(value.location))?.0, end != start {
+                            store.connect(start, end)
+                            pendingWire = nil
+                        } else {
+                            // Released away from a pin: the wire stays started, click a pin to finish it.
+                            pendingWire = start
+                        }
                     case .marquee:
                         if let rect = marquee {
                             let a = viewport.toWorld(rect.origin)
@@ -292,14 +327,16 @@ struct SchematicCanvas: View {
         }
         let world = viewport.toWorld(screen)
         switch tool {
-        case .select:
-            if pin(at: world) != nil, component(at: world) == nil {
+        case .select, .wire:
+            let shift = NSEvent.modifierFlags.contains(.shift)
+            if let address = pin(at: world)?.0 {
+                dragMode = .wire(pendingWire ?? address)
+            } else if tool == .wire {
                 dragMode = .pan(viewport.offset)
             } else if let id = component(at: world) {
-                if !store.selection.contains(id) {
-                    store.select(component: id, extend: NSEvent.modifierFlags.contains(.shift))
-                }
-                dragMode = .move(store.selection)
+                // ⇧ adds on release (`click` toggles); selecting here as well would toggle it straight back off.
+                if !store.selection.contains(id) && !shift { store.select(component: id) }
+                dragMode = .move(shift ? store.selection.union([id]) : store.selection)
             } else if NSEvent.modifierFlags.contains(.shift) {
                 dragMode = .marquee
             } else {
@@ -509,7 +546,8 @@ struct SchematicCanvas: View {
         }
 
         // Rubber-band wire.
-        if let start = pendingWire, let a = pinPosition(start), let h = hover {
+        let wireFrom: PinAddress? = { if case .wire(let start) = dragMode { return start } else { return pendingWire } }()
+        if let start = wireFrom, let a = pinPosition(start), let h = hover {
             var b = viewport.toWorld(h)
             if let snapPoint = pin(at: b)?.1 { b = snapPoint }
             var path = Path()

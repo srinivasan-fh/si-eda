@@ -649,11 +649,42 @@ final class LayoutBudgetTests: XCTestCase {
 /// workspace with an empty, a loaded and a placed design must not crash or hang.
 @MainActor
 final class LiveWindowTests: XCTestCase {
+    /// Last step the test reached; the watchdog reports it if the main thread stops returning from layout.
+    private final class Progress: @unchecked Sendable {
+        private let lock = NSLock()
+        private var step = "start"
+        private var changed = Date()
+        func set(_ value: String) {
+            lock.lock(); step = value; changed = Date(); lock.unlock()
+            print("[LiveWindow] \(value)")
+            fflush(stdout)
+        }
+        func stalled(after seconds: TimeInterval) -> String? {
+            lock.lock(); defer { lock.unlock() }
+            return Date().timeIntervalSince(changed) > seconds ? step : nil
+        }
+    }
+
     private func spin(_ seconds: TimeInterval = 0.2) {
         RunLoop.main.run(until: Date().addingTimeInterval(seconds))
     }
 
     func testWindowSurvivesResizingAndWorkspaceSwitches() throws {
+        let progress = Progress()
+        // A layout loop never returns to the test, so a background watchdog names the step and stops the run.
+        let watchdog = DispatchSource.makeTimerSource(queue: .global())
+        watchdog.schedule(deadline: .now() + 5, repeating: 5)
+        watchdog.setEventHandler {
+            if let step = progress.stalled(after: 30) {
+                print("[LiveWindow] HUNG for 30 s at: \(step)")
+                fflush(stdout)
+                Thread.sleep(forTimeInterval: 20)  // CI samples the process meanwhile (see ci.yml)
+                fatalError("Main thread stuck in layout at: \(step)")
+            }
+        }
+        watchdog.resume()
+        defer { watchdog.cancel() }
+
         let store = DesignStore()
         let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.LiveWindowTests")))
         let agents = AgentOrchestrator()
@@ -661,11 +692,14 @@ final class LiveWindowTests: XCTestCase {
             .environmentObject(store)
             .environmentObject(settings)
             .environmentObject(agents)
+            .documentWindowFrame()
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1360, height: 860),
                               styleMask: [.titled, .closable, .resizable, .miniaturizable],
                               backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
+        progress.set("hosting ContentView")
         window.contentViewController = NSHostingController(rootView: root)
+        progress.set("ordering window front")
         window.makeKeyAndOrderFront(nil)
         defer { window.close() }
         spin(0.5)
@@ -673,18 +707,345 @@ final class LiveWindowTests: XCTestCase {
         let sizes: [CGSize] = [CGSize(width: 1360, height: 860), CGSize(width: 1200, height: 760),
                                CGSize(width: 1000, height: 600), CGSize(width: 900, height: 540),
                                CGSize(width: 1500, height: 940)]
-        for stage in 0..<3 {
-            if stage == 1 { store.loadExample(OfflineProvider.templates[8].industryPlan) }
-            if stage == 2 { store.autoPlace(all: true) }
+        for stage in 0..<4 {
+            if stage == 1 { progress.set("stage 1: loading example"); store.loadExample(OfflineProvider.templates[8].industryPlan) }
+            if stage == 2 { progress.set("stage 2: auto-placing"); store.autoPlace(all: true) }
+            if stage == 3 {
+                // Routed board with a selection: PCB tracks, 3D copper and the inspector's part panel.
+                progress.set("stage 3: routing")
+                _ = store.engine.autoRoute()
+                store.refresh()
+                store.select(component: store.snapshot.components.first { !$0.componentKind.isVirtual }?.id)
+            }
             for size in sizes {
+                progress.set("stage \(stage): resize to \(Int(size.width))×\(Int(size.height))")
                 window.setContentSize(size)
                 spin(0.1)
                 for workspace in Workspace.allCases {
+                    progress.set("stage \(stage): \(workspace.title) at \(Int(size.width))×\(Int(size.height))")
                     store.workspace = workspace
                     spin(0.15)
                     XCTAssertTrue(window.isVisible, "\(workspace.title) at \(size)")
                 }
             }
+        }
+        progress.set("done")
+    }
+}
+
+/// The three basic user flows driven through `DesignStore`, the same entry points the editors' clicks call:
+/// circuit design → PCB design → 3D, plus saving, reopening and exporting.
+@MainActor
+final class DesignFlowTests: XCTestCase {
+    private func pin(_ component: Int, _ pin: Int) -> PinAddress { PinAddress(component: component, pin: pin) }
+
+    private func freshStore() -> DesignStore {
+        let store = DesignStore()
+        store.aiEnabled = false
+        return store
+    }
+
+    func testCircuitDesignFlow() async throws {
+        let store = freshStore()
+        // Place: each placement selects the new part, like a click with the place tool.
+        let v = store.addComponent(.voltageSource, at: CGPoint(x: 0, y: 0))
+        let r = store.addComponent(.resistor, at: CGPoint(x: 120, y: -40))
+        let d = store.addComponent(.led, at: CGPoint(x: 240, y: -40))
+        let g = store.addComponent(.ground, at: CGPoint(x: 0, y: 100))
+        XCTAssertTrue([v, r, d, g].allSatisfy { $0 >= 0 })
+        XCTAssertEqual(store.selection, [g])
+        XCTAssertEqual(store.snapshot.components.count, 4)
+
+        // Wire: pin to pin.
+        XCTAssertTrue(store.connect(pin(v, 0), pin(r, 0)))
+        XCTAssertTrue(store.connect(pin(r, 1), pin(d, 0)))
+        XCTAssertTrue(store.connect(pin(d, 1), pin(g, 0)))
+        XCTAssertTrue(store.connect(pin(v, 1), pin(g, 0)))
+        XCTAssertEqual(store.snapshot.wires.count, 4)
+        XCTAssertTrue(store.isDirty)
+
+        // A wire that already exists is refused without an undo step: one undo removes the last real wire.
+        XCTAssertFalse(store.connect(pin(v, 1), pin(g, 0)))
+        XCTAssertFalse(store.connect(pin(v, 0), pin(v, 0)))
+        XCTAssertEqual(store.snapshot.wires.count, 4)
+        store.undo()
+        XCTAssertEqual(store.snapshot.wires.count, 3)
+        store.redo()
+        XCTAssertEqual(store.snapshot.wires.count, 4)
+
+        // Inspector edits.
+        store.setValue(r, "470")
+        store.setRef(r, "R9")
+        XCTAssertEqual(store.snapshot.component(r)?.value, "470")
+        XCTAssertEqual(store.snapshot.component(r)?.ref, "R9")
+        store.setRef(d, "R9")  // duplicate designator is refused with an alert
+        XCTAssertNotNil(store.alert)
+        XCTAssertNotEqual(store.snapshot.component(d)?.ref, "R9")
+        store.alert = nil
+
+        // Move, rotate, select.
+        let before = try XCTUnwrap(store.snapshot.component(r))
+        store.moveComponents([r], by: CGSize(width: 40, height: 0))
+        XCTAssertEqual(store.snapshot.component(r)?.x ?? 0, before.x + 40, accuracy: 0.01)
+        store.select(component: r)
+        store.rotateSelection()
+        XCTAssertEqual(store.snapshot.component(r)?.rotation, (before.rotation + 90) % 360)
+        store.select(component: d, extend: true)
+        XCTAssertEqual(store.selection, [r, d])
+        store.select(component: d, extend: true)
+        XCTAssertEqual(store.selection, [r])
+
+        // No-connect mark on a spare part, then delete it.
+        let spare = store.addComponent(.resistor, at: CGPoint(x: 400, y: 200))
+        store.toggleNoConnect(pin(spare, 0))
+        XCTAssertEqual(store.snapshot.component(spare)?.pins[0].noConnect, true)
+        store.toggleNoConnect(pin(spare, 0))
+        XCTAssertEqual(store.snapshot.component(spare)?.pins[0].noConnect, false)
+        store.select(component: spare)
+        store.deleteSelection()
+        XCTAssertNil(store.snapshot.component(spare))
+        XCTAssertTrue(store.selection.isEmpty)
+
+        // Checks and simulation.
+        store.runERC()
+        XCTAssertFalse(store.ercResults.contains { $0.severity == .error }, "\(store.ercResults.map(\.message))")
+        store.showChecks(.rules)
+        XCTAssertEqual(store.workspace, .checks)
+        XCTAssertEqual(store.checksMode, .rules)
+        await store.simulateDC()
+        let dc = try XCTUnwrap(store.dcResult)
+        XCTAssertTrue(dc.converged, dc.error)
+        XCTAssertGreaterThan(try XCTUnwrap(dc.reading(component: d)?.current), 0.003)
+        XCTAssertFalse(store.isBusy)
+        // An edit invalidates the simulation; a refused edit keeps it.
+        XCTAssertFalse(store.connect(pin(v, 1), pin(g, 0)))
+        XCTAssertNotNil(store.dcResult)
+        store.setValue(r, "1k")
+        XCTAssertNil(store.dcResult)
+        let report = await store.runVerification()
+        XCTAssertNotNil(report)
+        store.showChecks(.verification)
+        XCTAssertEqual(store.checksMode, .verification)
+    }
+
+    func testPCBDesignFlow() async throws {
+        let store = freshStore()
+        store.applyPlan(OfflineProvider.templates[0].industryPlan, requirements: nil)  // LED indicator
+        XCTAssertFalse(store.snapshot.components.isEmpty)
+
+        store.autoPlace(all: true)
+        let parts = store.snapshot.components.filter { !$0.componentKind.isVirtual && !$0.footprint.isEmpty }
+        XCTAssertFalse(parts.isEmpty)
+        XCTAssertTrue(parts.allSatisfy(\.pcb.placed))
+        store.fitBoard()
+        XCTAssertGreaterThan(store.snapshot.board.width, 5)
+
+        await store.autoRoute()
+        XCTAssertFalse(store.isBusy)
+        let stats = try XCTUnwrap(store.routeStats)
+        XCTAssertEqual(stats.failed, 0)
+        XCTAssertGreaterThan(stats.routed, 0)
+        XCTAssertTrue(store.routeStatsAreCurrent)
+        XCTAssertTrue(store.drcIsCurrent, "autoroute runs the DRC")
+        XCTAssertFalse(store.drcResults.contains { $0.severity == .error }, "\(store.drcResults.map(\.message))")
+        XCTAssertFalse(store.snapshot.tracks.isEmpty)
+
+        // Dragging two footprints is one undo step, and makes the DRC/route results stale.
+        // Positions as routed (Fit Board shifted the footprints after `parts` was read).
+        let a = try XCTUnwrap(store.snapshot.component(parts[0].id))
+        let b = try XCTUnwrap(store.snapshot.component(parts[1].id))
+        store.moveFootprints([(a.id, CGPoint(x: a.pcb.x + 1, y: a.pcb.y)), (b.id, CGPoint(x: b.pcb.x + 1, y: b.pcb.y))])
+        XCTAssertEqual(store.snapshot.component(a.id)?.pcb.x ?? 0, a.pcb.x + 1, accuracy: 0.26)
+        XCTAssertEqual(store.snapshot.component(b.id)?.pcb.x ?? 0, b.pcb.x + 1, accuracy: 0.26)
+        XCTAssertFalse(store.drcIsCurrent)
+        XCTAssertFalse(store.routeStatsAreCurrent)
+        store.undo()
+        XCTAssertEqual(store.snapshot.component(a.id)?.pcb.x ?? 0, a.pcb.x, accuracy: 0.001)
+        XCTAssertEqual(store.snapshot.component(b.id)?.pcb.x ?? 0, b.pcb.x, accuracy: 0.001)
+        store.runDRC()
+        XCTAssertTrue(store.drcIsCurrent)
+
+        // Rotate and flip the selection.
+        store.select(component: a.id)
+        store.rotateFootprints()
+        XCTAssertNotEqual(store.snapshot.component(a.id)?.pcb.rotation, a.pcb.rotation)
+        store.flipFootprints()
+        XCTAssertEqual(store.snapshot.component(a.id)?.pcb.bottom, !a.pcb.bottom)
+        store.undo()
+        store.undo()
+
+        // Board settings: invalid values are reported, 0 keeps the rules.
+        let board = store.snapshot.board
+        store.setBoard(width: 2, height: board.height, trackWidth: board.trackWidth, clearance: board.clearance)
+        XCTAssertNotNil(store.alert)
+        XCTAssertEqual(store.snapshot.board.width, board.width)
+        store.alert = nil
+        store.setBoard(width: board.width + 4, height: board.height + 4, trackWidth: 0, clearance: 0)
+        XCTAssertEqual(store.snapshot.board.width, board.width + 4, accuracy: 0.001)
+        XCTAssertEqual(store.snapshot.board.trackWidth, board.trackWidth, accuracy: 0.001)
+        XCTAssertNil(store.alert)
+
+        // Stack-up, pours, mounting holes, outline.
+        store.setLayerCount(4)
+        XCTAssertEqual(store.snapshot.board.layerCount, 4)
+        XCTAssertNil(store.routeStats)
+        store.addGroundPours()
+        XCTAssertFalse(store.snapshot.zones.isEmpty)
+        store.setBoard(width: 50, height: 50, trackWidth: 0, clearance: 0)
+        store.addMountingPattern(spacing: 40, drill: 3.2, keepout: 6.4)
+        XCTAssertEqual(store.snapshot.board.holes.count, 4)
+        store.autoPlace(all: true)
+        await store.autoRoute()
+        XCTAssertEqual(try XCTUnwrap(store.routeStats).failed, 0)
+        XCTAssertFalse(store.drcResults.contains { $0.severity == .error }, "\(store.drcResults.map(\.message))")
+        store.applyOutlinePreset(.rounded, width: 50, height: 50, parameter: 4)
+        XCTAssertTrue(store.snapshot.board.hasCustomOutline)
+        let shaped = store.snapshot.board
+        store.fitBoard()  // refused for a shaped outline, with an explanation
+        XCTAssertEqual(store.snapshot.board.width, shaped.width)
+        XCTAssertTrue(store.statusMessage.contains("custom outline"), store.statusMessage)
+    }
+
+    func test3DDesignFlow() async throws {
+        for (index, layers) in [(0, 2), (4, 1), (4, 4), (4, 6)] {
+            let store = freshStore()
+            store.applyPlan(OfflineProvider.templates[index].industryPlan, requirements: nil)
+            store.setLayerCount(layers)
+            store.autoPlace(all: true)
+            await store.autoRoute()
+            XCTAssertEqual(store.routeStats?.failed, 0, "\(layers) layers")
+
+            let mesh = try XCTUnwrap(store.engine.buildMesh(includeComponents: true))
+            XCTAssertGreaterThan(mesh.vertexCount, 100)
+            XCTAssertEqual(mesh.normals.count, mesh.positions.count)
+            XCTAssertEqual(mesh.indices.count % 3, 0)
+            XCTAssertTrue(mesh.indices.allSatisfy { Int($0) < mesh.vertexCount })
+            XCTAssertTrue(mesh.positions.allSatisfy(\.isFinite))
+            let geometry = BoardSceneView.geometry(from: mesh)
+            XCTAssertFalse(geometry.elements.isEmpty)
+            XCTAssertFalse(geometry.sources.isEmpty)
+            for layer in 0..<layers { XCTAssertNotNil(store.engine.buildLayerMesh(layer: layer), "layer \(layer)") }
+            let bare = try XCTUnwrap(store.engine.buildMesh(includeComponents: false))
+            XCTAssertLessThan(bare.vertexCount, mesh.vertexCount, "components add bodies")
+            XCTAssertTrue(store.engine.export(.stl)?.contains("facet") ?? false)
+            XCTAssertTrue(store.engine.export(.obj)?.contains("v ") ?? false)
+        }
+        // Shaped (quad-X) drone frame with holes and pours.
+        let drone = OfflineProvider.templates.first { $0.plan.title == "Quadcopter Flight Controller" }
+        let store = freshStore()
+        store.applyPlan(try XCTUnwrap(drone).industryPlan, requirements: nil)
+        store.autoPlace(all: true)
+        await store.autoRoute()
+        XCTAssertTrue(store.snapshot.board.hasCustomOutline)
+        let mesh = try XCTUnwrap(store.engine.buildMesh(includeComponents: true))
+        XCTAssertGreaterThan(mesh.vertexCount, 100)
+        XCTAssertTrue(mesh.positions.allSatisfy(\.isFinite))
+    }
+
+    func testSaveOpenAndExportFlow() async throws {
+        let store = freshStore()
+        store.applyPlan(OfflineProvider.templates[7].industryPlan, requirements: "555 blinker")
+        store.setBoard(width: 60, height: 50, trackWidth: 0, clearance: 0)
+        store.addMountingPattern(spacing: 44, drill: 3.2, keepout: 6.4)  // holes first: placement keeps clear of them
+        store.autoPlace(all: true)
+        await store.autoRoute()
+        XCTAssertEqual(store.routeStats?.failed, 0)
+        store.setProjectName("Flow Test")
+
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("flow-\(UUID().uuidString).siedaproj")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try store.engine.saveJSON().write(to: url, atomically: true, encoding: .utf8)
+
+        let reopened = freshStore()
+        reopened.select(component: 0)
+        reopened.open(url: url)
+        XCTAssertNil(reopened.alert)
+        XCTAssertEqual(reopened.documentURL, url)
+        XCTAssertFalse(reopened.isDirty)
+        XCTAssertTrue(reopened.selection.isEmpty)
+        XCTAssertFalse(reopened.canUndo)
+        XCTAssertEqual(reopened.snapshot.name, "Flow Test")
+        XCTAssertEqual(reopened.snapshot.components, store.snapshot.components)
+        XCTAssertEqual(reopened.snapshot.wires.count, store.snapshot.wires.count)
+        XCTAssertEqual(reopened.snapshot.tracks.count, store.snapshot.tracks.count)
+        XCTAssertEqual(reopened.snapshot.board.holes.count, store.snapshot.board.holes.count)
+        XCTAssertEqual(reopened.workspace, .schematic)
+
+        for format in ExportFormat.allCases {
+            let text = reopened.engine.export(format)
+            XCTAssertFalse(text?.isEmpty ?? true, "\(format.displayName) is empty")
+        }
+        XCTAssertNotNil(reopened.engine.exportCopperLayer(1))
+        let report = await reopened.runVerification()
+        XCTAssertEqual(report?.passed, true, "\(report?.stages.filter { $0.status == .fail }.map(\.summary) ?? [])")
+    }
+}
+
+/// AppKit logs "reentrant operation in its NSTableView delegate" when a List's data changes while the table is
+/// calling its delegate; Apple has announced it will become an assert (a crash). Loading a design must not do it.
+@MainActor
+final class TableReentrancyTests: XCTestCase {
+    /// Runs `body` with this process's stderr redirected to a file and returns what was written.
+    private func capturingStderr(_ body: () -> Void) -> String {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("stderr-\(UUID().uuidString).log")
+        FileManager.default.createFile(atPath: url.path, contents: nil)
+        defer { try? FileManager.default.removeItem(at: url) }
+        guard let file = try? FileHandle(forWritingTo: url) else { return "" }
+        fflush(stderr)
+        let saved = dup(STDERR_FILENO)
+        dup2(file.fileDescriptor, STDERR_FILENO)
+        body()
+        fflush(stderr)
+        dup2(saved, STDERR_FILENO)
+        close(saved)
+        try? file.close()
+        return (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+    }
+
+    private func spin(_ seconds: TimeInterval) { RunLoop.main.run(until: Date().addingTimeInterval(seconds)) }
+
+    private func reentrantWarnings<V: View>(_ name: String, _ view: (DesignStore) -> V,
+                                            before: (DesignStore) -> Void = { _ in }) throws -> Int {
+        let store = DesignStore()
+        store.aiEnabled = false
+        let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.TableReentrancyTests")))
+        let agents = AgentOrchestrator()
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1360, height: 860),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: view(store)
+            .environmentObject(store).environmentObject(settings).environmentObject(agents)
+            .documentWindowFrame())
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        before(store)
+        spin(0.5)
+        let log = capturingStderr {
+            store.loadExample(OfflineProvider.templates[8].industryPlan)
+            spin(0.4)
+            window.setContentSize(CGSize(width: 1200, height: 760))
+            spin(0.4)
+            store.autoPlace(all: true)
+            spin(0.3)
+            store.select(component: store.snapshot.components.first?.id)
+            spin(0.3)
+        }
+        let count = log.components(separatedBy: "reentrant operation").count - 1
+        print("[Reentrancy] \(name): \(count) warning(s)")
+        return count
+    }
+
+    func testLoadingADesignCausesNoReentrantTableUpdates() throws {
+        var results: [String: Int] = [:]
+        results["sidebar"] = try reentrantWarnings("sidebar") { _ in SidebarView() }
+        results["schematic editor"] = try reentrantWarnings("schematic editor") { _ in SchematicEditorView() }
+        results["inspector"] = try reentrantWarnings("inspector") { _ in InspectorView() }
+        results["window (from Design Checks)"] = try reentrantWarnings("window (from Design Checks)", { _ in ContentView() },
+                                                                       before: { $0.workspace = .checks })
+        results["window (from Schematic)"] = try reentrantWarnings("window (from Schematic)", { _ in ContentView() },
+                                                                   before: { $0.workspace = .schematic })
+        for (name, count) in results.sorted(by: { $0.key < $1.key }) {
+            XCTAssertEqual(count, 0, "\(name) logged a reentrant NSTableView update")
         }
     }
 }
