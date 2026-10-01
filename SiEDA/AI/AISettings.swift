@@ -36,6 +36,11 @@ enum KeychainStore {
 /// User-selectable AI configuration. Claude is the default provider.
 @MainActor
 final class AISettings: ObservableObject {
+    /// Master switch. When off SiEDA is a classic manual EDA tool: no Prompt Studio, no network calls,
+    /// datasheets are parsed offline.
+    @Published var aiEnabled: Bool {
+        didSet { defaults.set(aiEnabled, forKey: "ai.enabled") }
+    }
     @Published var provider: AIProviderKind {
         didSet { defaults.set(provider.rawValue, forKey: "ai.provider") }
     }
@@ -62,6 +67,7 @@ final class AISettings: ObservableObject {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        aiEnabled = defaults.object(forKey: "ai.enabled") as? Bool ?? true
         provider = AIProviderKind(rawValue: defaults.string(forKey: "ai.provider") ?? "") ?? .claude
         var models: [AIProviderKind: String] = [:]
         var urls: [AIProviderKind: String] = [:]

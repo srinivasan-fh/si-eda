@@ -18,7 +18,7 @@ struct SiEDAApp: App {
                 .frame(minWidth: 1100, minHeight: 700)
         }
         .windowToolbarStyle(.unified)
-        .commands { SiEDACommands(store: store, agents: agents) }
+        .commands { SiEDACommands(store: store, agents: agents, settings: settings) }
 
         Settings {
             SettingsView()
@@ -46,11 +46,17 @@ enum AppearancePreference: String, CaseIterable, Identifiable {
 struct SiEDACommands: Commands {
     @ObservedObject var store: DesignStore
     @ObservedObject var agents: AgentOrchestrator
+    @ObservedObject var settings: AISettings
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
             Button("New Project") { store.newProject() }
                 .keyboardShortcut("n")
+            Menu("New from Example") {
+                ForEach(OfflineProvider.templates, id: \.plan.title) { template in
+                    Button(template.plan.title) { store.loadExample(template.plan) }
+                }
+            }
             Button("Open…") { store.openProject() }
                 .keyboardShortcut("o")
         }
@@ -90,11 +96,13 @@ struct SiEDACommands: Commands {
                 .keyboardShortcut("r", modifiers: [.command, .shift])
             Button("Run Design Rule Check") { store.runDRC(); store.workspace = .checks }
             Divider()
+            Toggle("AI Assistance", isOn: $settings.aiEnabled)
+                .keyboardShortcut("a", modifiers: [.command, .option])
             Button("Cancel AI Generation") { agents.cancel() }
                 .disabled(!agents.isRunning)
         }
         CommandMenu("Workspace") {
-            ForEach(Array(Workspace.allCases.enumerated()), id: \.element) { index, workspace in
+            ForEach(Array(Workspace.visible(aiEnabled: settings.aiEnabled).enumerated()), id: \.element) { index, workspace in
                 Button(workspace.title) { store.workspace = workspace }
                     .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
             }

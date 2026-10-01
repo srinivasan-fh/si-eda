@@ -28,6 +28,19 @@ private struct AIModelSettings: View {
     var body: some View {
         Form {
             Section {
+                Toggle(isOn: $settings.aiEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Enable AI assistance")
+                        Text("Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.textMuted)
+                    }
+                }
+            } header: {
+                Text("Mode")
+            }
+
+            Section {
                 Picker("Default provider", selection: $settings.provider) {
                     ForEach(AIProviderKind.allCases) { kind in
                         Label(kind.displayName, systemImage: kind.systemImage).tag(kind)
@@ -39,6 +52,7 @@ private struct AIModelSettings: View {
             } header: {
                 Text("Agents")
             }
+            .disabled(!settings.aiEnabled)
 
             Section {
                 Picker("Configure", selection: $editingKind) {
@@ -100,6 +114,7 @@ private struct AIModelSettings: View {
             } header: {
                 Text("Model back-ends")
             }
+            .disabled(!settings.aiEnabled)
         }
         .formStyle(.grouped)
         .onAppear {

@@ -8,6 +8,11 @@ enum Workspace: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// Workspaces offered in the UI; the AI Prompt Studio is hidden when AI assistance is off.
+    static func visible(aiEnabled: Bool) -> [Workspace] {
+        aiEnabled ? allCases : allCases.filter { $0 != .promptStudio }
+    }
+
     var title: String {
         switch self {
         case .promptStudio: return "AI Prompt Studio"
@@ -58,6 +63,11 @@ final class DesignStore: ObservableObject {
     @Published var transientResult: TransientResult?
     @Published var routeStats: RouteStats?
     @Published var showDCOverlay = true
+    /// Mirrors `AISettings.aiEnabled` so document actions pick the right start workspace.
+    @Published var aiEnabled = true {
+        didSet { if !aiEnabled && workspace == .promptStudio { workspace = .schematic } }
+    }
+    var startWorkspace: Workspace { aiEnabled ? .promptStudio : .schematic }
     /// Custom part the Component Library should open (set when jumping from the inspector).
     @Published var libraryFocusPartId: String?
     @Published private(set) var isBusy = false
@@ -390,7 +400,18 @@ final class DesignStore: ObservableObject {
         ercResults = []
         drcResults = []
         routeStats = nil
-        workspace = .promptStudio
+        workspace = startWorkspace
+    }
+
+    /// Loads one of the built-in reference designs (works fully offline, no AI involved).
+    func loadExample(_ plan: DesignPlan) {
+        guard confirmDiscardChanges() else { return }
+        applyPlan(plan, requirements: plan.summary)
+        undoStack.removeAll()
+        redoStack.removeAll()
+        documentURL = nil
+        statusMessage = "Loaded example “\(plan.title)”"
+        workspace = .schematic
     }
 
     func openProject() {
@@ -415,7 +436,7 @@ final class DesignStore: ObservableObject {
             ercResults = []
             drcResults = []
             refresh()
-            workspace = snapshot.components.isEmpty ? .promptStudio : .schematic
+            workspace = snapshot.components.isEmpty ? startWorkspace : .schematic
             statusMessage = "Opened \(url.lastPathComponent)"
             NSDocumentController.shared.noteNewRecentDocumentURL(url)
         } catch {

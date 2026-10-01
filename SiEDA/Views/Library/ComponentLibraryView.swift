@@ -393,7 +393,7 @@ struct ComponentLibraryView: View {
 
     private func importDatasheet(_ url: URL) {
         let hint = packageHint
-        let usesAI = settings.hasCredentials(for: settings.provider) || !settings.provider.requiresAPIKey
+        let usesAI = settings.aiEnabled && (settings.hasCredentials(for: settings.provider) || !settings.provider.requiresAPIKey)
         let provider: AIProvider = usesAI ? settings.makeProvider() : OfflineProvider()
         importState = .running("Reading \(url.lastPathComponent)…")
         Task { @MainActor in
@@ -408,7 +408,11 @@ struct ComponentLibraryView: View {
                 selectedId = nil
                 var notes = result.notes
                 if let notice = result.notice { notes.insert(notice, at: 0) }
-                if !usesAI { notes.insert("No API key configured — used the offline pin-table parser.", at: 0) }
+                if !usesAI {
+                    notes.insert(settings.aiEnabled
+                                 ? "No API key configured — used the offline pin-table parser."
+                                 : "AI assistance is off — parsed the pin table offline (nothing left this Mac).", at: 0)
+                }
                 importNotes = notes
                 importState = .done("Extracted \(result.spec.pins.count) pins — review, then add to the library.")
             } catch {

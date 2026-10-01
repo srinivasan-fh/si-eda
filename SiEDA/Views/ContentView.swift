@@ -27,6 +27,14 @@ struct ContentView: View {
         .alert(item: $store.alert) { item in
             Alert(title: Text(item.title), message: Text(item.message), dismissButton: .default(Text("OK")))
         }
+        .onAppear {
+            store.aiEnabled = settings.aiEnabled
+            if store.snapshot.components.isEmpty { store.workspace = store.startWorkspace }
+        }
+        .onChange(of: settings.aiEnabled) { _, enabled in
+            if !enabled { agents.cancel() }
+            store.aiEnabled = enabled
+        }
     }
 
     @ViewBuilder
@@ -54,7 +62,7 @@ struct ContentView: View {
         }
         ToolbarItem(placement: .principal) {
             Picker("Workspace", selection: $store.workspace) {
-                ForEach(Workspace.allCases) { w in
+                ForEach(Workspace.visible(aiEnabled: settings.aiEnabled)) { w in
                     Label(w.title, systemImage: w.systemImage).tag(w)
                 }
             }
@@ -64,18 +72,26 @@ struct ContentView: View {
         }
         ToolbarItemGroup(placement: .primaryAction) {
             Menu {
-                Picker("AI Provider", selection: $settings.provider) {
-                    ForEach(AIProviderKind.allCases) { kind in
-                        Label(kind.displayName, systemImage: kind.systemImage).tag(kind)
+                Toggle("AI Assistance", isOn: $settings.aiEnabled)
+                if settings.aiEnabled {
+                    Divider()
+                    Picker("AI Provider", selection: $settings.provider) {
+                        ForEach(AIProviderKind.allCases) { kind in
+                            Label(kind.displayName, systemImage: kind.systemImage).tag(kind)
+                        }
                     }
                 }
                 Divider()
                 SettingsLink { Text("Configure Models…") }
             } label: {
-                Label(settings.provider.shortName + " · " + settings.model(for: settings.provider),
-                      systemImage: settings.provider.systemImage)
+                if settings.aiEnabled {
+                    Label(settings.provider.shortName + " · " + settings.model(for: settings.provider),
+                          systemImage: settings.provider.systemImage)
+                } else {
+                    Label("AI Off", systemImage: "sparkles.slash")
+                }
             }
-            .help("AI model used by the design agents")
+            .help(settings.aiEnabled ? "AI model used by the design agents" : "AI assistance is off — SiEDA works fully manually")
 
             Button {
                 store.runERC()
@@ -104,11 +120,12 @@ struct ContentView: View {
 
 struct SidebarView: View {
     @EnvironmentObject private var store: DesignStore
+    @EnvironmentObject private var settings: AISettings
 
     var body: some View {
         List {
             Section("Workspaces") {
-                ForEach(Workspace.allCases) { w in
+                ForEach(Workspace.visible(aiEnabled: settings.aiEnabled)) { w in
                     Button {
                         store.workspace = w
                     } label: {
@@ -165,6 +182,7 @@ struct SidebarView: View {
 struct StatusBar: View {
     @EnvironmentObject private var store: DesignStore
     @EnvironmentObject private var agents: AgentOrchestrator
+    @EnvironmentObject private var settings: AISettings
 
     var body: some View {
         HStack(spacing: 14) {
@@ -182,6 +200,7 @@ struct StatusBar: View {
             Label("\(s.nets.filter { $0.pinCount > 1 }.count) nets", systemImage: "point.3.connected.trianglepath.dotted")
             Label(String(format: "%.0f × %.0f mm", s.board.width, s.board.height), systemImage: "square.dashed")
             Label("\(s.tracks.count) tracks · \(s.vias.count) vias", systemImage: "line.diagonal")
+            Label(settings.aiEnabled ? "AI on" : "Manual mode", systemImage: settings.aiEnabled ? "sparkles" : "hand.raised")
             Text("Core \(EDAEngine.coreVersion)").foregroundStyle(Theme.textMuted)
         }
         .font(.caption)

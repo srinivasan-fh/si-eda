@@ -13,6 +13,20 @@ The interface combines conventions from three tools:
 
 The app defaults to dark mode with a blue palette.
 
+## Use it with or without AI
+
+AI is optional. A single switch (**Settings → AI Models → Enable AI assistance**, the toolbar AI menu, or
+**Design → AI Assistance**, ⌥⌘A) changes how SiEDA works:
+
+| | AI assistance **on** | AI assistance **off** (manual mode) |
+|---|---|---|
+| Start | AI Prompt Studio: describe the product, agents design it | Schematic editor; **File → New from Example** for reference designs |
+| Schematic, simulation, PCB, autorouting, DRC, 3D, exports | ✓ | ✓ (all run locally in the C++ core) |
+| Datasheet import | AI reads the PDF or image | Offline pin-table parser plus OCR; review the result in the pin editor |
+| Network traffic | Only to the AI provider you select | None |
+
+Every AI result lands in the same editable schematic and PCB, so you can switch modes at any time.
+
 ## Features
 
 | Area | What it does |
@@ -98,7 +112,8 @@ python3 tools/generate_xcodeproj.py
 | ⌫ / Esc | Delete selection / cancel |
 | ⇧-drag | Marquee select |
 | ⇧⌘K / ⇧⌘D / ⇧⌘R | Run ERC, DC operating point, autoroute |
-| ⌘1 … ⌘7 | Switch workspace |
+| ⌘1 … ⌘7 | Switch workspace (⌘1 … ⌘6 when AI assistance is off) |
+| ⌥⌘A | Turn AI assistance on/off |
 
 ## License
 

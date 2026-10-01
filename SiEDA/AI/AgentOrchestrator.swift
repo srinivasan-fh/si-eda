@@ -83,7 +83,7 @@ final class AgentOrchestrator: ObservableObject {
 
     func generate(brief: String, store: DesignStore, settings: AISettings) {
         let trimmed = brief.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !isRunning else { return }
+        guard settings.aiEnabled, !trimmed.isEmpty, !isRunning else { return }
         let provider = settings.makeProvider()
         let review = settings.enableReviewAgent
         let rounds = max(0, min(settings.maxReviewRounds, 4))
@@ -96,7 +96,7 @@ final class AgentOrchestrator: ObservableObject {
 
     func refine(instruction: String, store: DesignStore, settings: AISettings) {
         let trimmed = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !isRunning else { return }
+        guard settings.aiEnabled, !trimmed.isEmpty, !isRunning else { return }
         let provider = settings.makeProvider()
         let review = settings.enableReviewAgent
         let rounds = max(0, min(settings.maxReviewRounds, 4))

@@ -23,6 +23,7 @@ enum SchematicTool: Equatable {
 /// transport, Altium-style properties in the inspector.
 struct SchematicEditorView: View {
     @EnvironmentObject private var store: DesignStore
+    @EnvironmentObject private var settings: AISettings
     @State private var tool: SchematicTool = .select
     @State private var pickerKind: ComponentKind = .resistor
     @State private var showPicker = true
@@ -96,11 +97,27 @@ struct SchematicEditorView: View {
                     SimulationTransport()
                         .padding(12)
                     if store.snapshot.components.isEmpty {
-                        BlueEmptyState(systemImage: "point.3.connected.trianglepath.dotted",
-                                       title: "Empty schematic",
-                                       message: "Pick a device on the left and click the canvas to place it, or describe your product in the AI Prompt Studio and let the agents design it.",
-                                       actionTitle: "Open AI Prompt Studio") { store.workspace = .promptStudio }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        VStack(spacing: 4) {
+                            if settings.aiEnabled {
+                                BlueEmptyState(systemImage: "point.3.connected.trianglepath.dotted",
+                                               title: "Empty schematic",
+                                               message: "Pick a device on the left and click the canvas to place it, or describe your product in the AI Prompt Studio and let the agents design it.",
+                                               actionTitle: "Open AI Prompt Studio") { store.workspace = .promptStudio }
+                            } else {
+                                BlueEmptyState(systemImage: "point.3.connected.trianglepath.dotted",
+                                               title: "Empty schematic",
+                                               message: "Pick a device on the left (or press P), click the canvas to place it, then click two pins to wire them. Or start from a reference design:")
+                            }
+                            Menu {
+                                ForEach(OfflineProvider.templates, id: \.plan.title) { template in
+                                    Button(template.plan.title) { store.loadExample(template.plan) }
+                                }
+                            } label: {
+                                Label("Load Example Design", systemImage: "square.grid.2x2")
+                            }
+                            .fixedSize()
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
             }
