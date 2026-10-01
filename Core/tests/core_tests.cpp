@@ -1079,7 +1079,7 @@ TEST(circuit_validation_rules) {
 
 TEST(pcb_rule_presets_and_manufacturability_checks) {
     Project p = ledProject();
-    CHECK(designRulePresets().size() == 9);
+    CHECK(designRulePresets().size() == 13);
     CHECK(p.pcb.settings.applyPreset("Prototype (Conservative)"));
     CHECK_NEAR(p.pcb.settings.trackWidth, 0.30, 1e-9);
     CHECK(!p.pcb.settings.applyPreset("nope"));
@@ -1235,8 +1235,9 @@ TEST(design_verification_pipeline) {
 }
 
 TEST(industry_profiles_and_derating) {
-    CHECK(industryProfiles().size() == 9);
-    for (const char* id : {"general", "robotics", "power", "automotive", "rf", "space", "marine", "industrial"}) {
+    CHECK(industryProfiles().size() == 13);
+    for (const char* id : {"general", "robotics", "uav", "power", "automotive", "rf", "space", "marine", "industrial",
+                           "medical", "defence", "networking", "vlsi"}) {
         const IndustryProfile* p = findIndustry(id);
         CHECK(p != nullptr);
         if (!p) continue;
@@ -1282,6 +1283,24 @@ TEST(industry_profiles_and_derating) {
     VerificationReport report = verifyDesign(led);
     CHECK(report.industryName == "Space");
     CHECK(report.toMarkdown().find("Industry profile:** Space") != std::string::npos);
+}
+
+TEST(router_keeps_voltage_spacing) {
+    // 48 V (PoE/telecom) board on fine High-Speed rules: the router must keep the IPC-2221 B2 0.6 mm spacing, not the
+    // 0.15 mm design rule, between the 48 V and ground copper; the design rule itself is left unchanged.
+    Project p = ledProject();
+    for (const auto& c : p.schematic.components()) {
+        if (c.kind == ComponentKind::VoltageSource) p.schematic.setValue(c.id, "48");
+        if (c.kind == ComponentKind::Resistor) p.schematic.setValue(c.id, "4.7k 1W");
+    }
+    p.schematicChanged();
+    CHECK(p.pcb.settings.applyPreset("High-Speed Digital (100 Ω diff)"));
+    CHECK_NEAR(voltageRoutingClearance(p.schematic, false), 0.6, 1e-12);
+    CHECK_NEAR(voltageRoutingClearance(ledProject().schematic, false), 0.1, 1e-12);  // 5 V: the design rule wins
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    CHECK_NEAR(p.pcb.settings.clearance, 0.15, 1e-12);
+    for (const auto& v : p.pcb.runDRC(p.schematic)) CHECK(v.code != "DRC_HV_CLEARANCE");
 }
 
 TEST(ipc2221_voltage_clearance) {

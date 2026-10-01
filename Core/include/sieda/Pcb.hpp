@@ -104,6 +104,12 @@ double ipc2221TrackWidth(double amps, double tempRise, double oz, bool innerLaye
 /// column B2 (sea level to 3050 m) or B3 (above 3050 m, e.g. space and avionics).
 double ipc2221Clearance(double volts, bool highAltitude);
 
+/// Voltage range (min, max) of every net: the DC operating point widened to SIN/PULSE source peaks. Empty when the
+/// circuit has no source, no ground or does not converge.
+std::map<int, std::pair<double, double>> netVoltageRanges(const Schematic& sch);
+/// IPC-2221 spacing for the largest potential difference on the board (0 when unknown).
+double voltageRoutingClearance(const Schematic& sch, bool highAltitude);
+
 /// Human-readable copper layer name ("Top", "Inner 1", "Bottom").
 std::string copperLayerName(int layer, int layerCount);
 
@@ -203,6 +209,11 @@ public:
     /// Rips up existing routing and routes every net on `settings.layerCount` layers (grid A* with through vias,
     /// layer direction preferences and rip-up passes). A single-layer board routes on the top layer without vias.
     RouteStats autoRoute(const Schematic& sch);
+
+private:
+    RouteStats routeAll(const Schematic& sch);
+
+public:
     void clearRouting() { tracks.clear(); vias.clear(); }
     /// Net classes from the simulated operating point: nets whose DC current needs a wider IPC-2221 track (+25 %
     /// margin, rounded up to 0.05 mm) get one. Existing wider classes are kept. Returns the widths it set.

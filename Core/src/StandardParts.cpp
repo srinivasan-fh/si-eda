@@ -57,6 +57,11 @@ void applyModels(std::vector<StandardPart>& parts) {
         else if (n == "MAX485") load(p, "8", "5", 0.0003);
         else if (n == "MPU-6050") load(p, "13", "18", 0.0039);
         else if (n == "NRF24L01_Module") load(p, "2", "1", 0.0135);  // receive mode
+        else if (n == "INA333") load(p, "7", "4", 50e-6);
+        else if (n == "ADuM1201") {
+            load(p, "1", "4", 0.0011);
+            load(p, "8", "5", 0.0011);
+        }
     }
 }
 
@@ -162,6 +167,17 @@ std::vector<StandardPart> build() {
     parts.push_back(part("Connectors", "Header_2x04", "Generic", "2.54 mm pin header, 2×4", "HEADER2", 8, "J",
                          {{"1", T::Passive}, {"2", T::Passive}, {"3", T::Passive}, {"4", T::Passive},
                           {"5", T::Passive}, {"6", T::Passive}, {"7", T::Passive}, {"8", T::Passive}}));
+    // Medical: biopotential front end and patient isolation.
+    parts.push_back(part("Medical", "INA333", "Texas Instruments",
+                         "Micro-power zero-drift instrumentation amplifier (G = 1 + 100 kΩ / RG), ECG/EEG front ends", "SOIC", 8,
+                         "U",
+                         {{"RG", T::Passive}, {"-IN", T::Input}, {"+IN", T::Input}, {"V-", T::PowerIn}, {"REF", T::Input},
+                          {"VOUT", T::Output}, {"V+", T::PowerIn}, {"RG", T::Passive}}));
+    parts.push_back(part("Medical", "ADuM1201", "Analog Devices",
+                         "Dual-channel digital isolator (1 forward, 1 reverse), 2.5 kV rms, patient/SELV barriers", "SOIC", 8,
+                         "U",
+                         {{"VDD1", T::PowerIn}, {"VOA", T::Output}, {"VIB", T::Input}, {"GND1", T::PowerIn},
+                          {"GND2", T::PowerIn}, {"VIA", T::Input}, {"VOB", T::Output}, {"VDD2", T::PowerIn}}));
     applyModels(parts);
     return parts;
 }

@@ -44,6 +44,17 @@ const std::vector<DesignRulePreset>& designRulePresets() {
          0.30, 0.30, 0.40, 0.90, 1.00, 0.20, 0.25, 0.30, 0.20, 0.40},
         {"RF (Controlled Impedance)", "RF and high-speed: ≈50 Ω microstrip width on a 4-layer stack (0.2 mm prepreg)",
          0.35, 0.30, 0.30, 0.60, 0.50, 0.15, 0.15, 0.20, 0.10, 0.25},
+        {"Medical (IEC 60601-1, IPC Class 3)",
+         "Medical devices: Class 3 reliability, wide spacing; patient isolation barriers need 4 mm (MOOP) / 8 mm (2 MOPP) creepage",
+         0.30, 0.30, 0.35, 0.75, 0.80, 0.20, 0.25, 0.25, 0.15, 0.30},
+        {"Defence (IPC-6012 Class 3/A, MIL)", "Military and avionics hardware: Class 3/A, wide edge keep-out for shock and vibration",
+         0.30, 0.25, 0.35, 0.80, 1.00, 0.20, 0.20, 0.25, 0.15, 0.35},
+        {"High-Speed Digital (100 Ω diff)",
+         "Networking and high-speed I/O: 100 Ω differential pairs, small vias, tight spacing on a 4/6-layer stack",
+         0.20, 0.15, 0.25, 0.50, 0.50, 0.125, 0.125, 0.20, 0.10, 0.20},
+        {"HDI / Fine-Pitch BGA (IPC-2226)",
+         "VLSI, FPGA and ASIC boards: 0.1 mm tracks and gaps, laser microvias, fan-out of fine-pitch BGA/QFN",
+         0.10, 0.10, 0.15, 0.35, 0.30, 0.075, 0.075, 0.10, 0.075, 0.15},
     };
     return presets;
 }
@@ -1023,7 +1034,61 @@ struct NetRouteOutcome {
 };
 }  // namespace
 
+std::map<int, std::pair<double, double>> netVoltageRanges(const Schematic& sch) {
+    std::map<int, std::pair<double, double>> netRange;
+    bool hasSource = false;
+    for (const auto& c : sch.components())
+        hasSource |= c.kind == ComponentKind::VoltageSource || c.kind == ComponentKind::CurrentSource;
+    if (!hasSource || sch.groundNet() < 0) return netRange;
+    DcResult dc = Simulator(sch).dcOperatingPoint();
+    if (!dc.converged) return netRange;
+    for (size_t n = 0; n < dc.netVoltages.size(); ++n) netRange[static_cast<int>(n)] = {dc.netVoltages[n], dc.netVoltages[n]};
+    for (const auto& c : sch.components()) {
+        if (c.kind != ComponentKind::VoltageSource) continue;
+        auto spec = SourceSpec::parse(c.value);
+        int plus = sch.netOf({c.id, 0}), minus = sch.netOf({c.id, 1});
+        if (!spec || plus < 0) continue;
+        double base = minus >= 0 && netRange.count(minus) ? netRange[minus].first : 0.0;
+        double lo = spec->dc, hi = spec->dc;
+        if (spec->kind == SourceSpec::Kind::Sine) {
+            lo = spec->offset - std::fabs(spec->amplitude);
+            hi = spec->offset + std::fabs(spec->amplitude);
+        } else if (spec->kind == SourceSpec::Kind::Pulse) {
+            lo = std::min(spec->v1, spec->v2);
+            hi = std::max(spec->v1, spec->v2);
+        }
+        auto& r = netRange[plus];
+        r.first = std::min(r.first, base + lo);
+        r.second = std::max(r.second, base + hi);
+    }
+    return netRange;
+}
+
+double voltageRoutingClearance(const Schematic& sch, bool highAltitude) {
+    auto ranges = netVoltageRanges(sch);
+    if (ranges.empty()) return 0;
+    double lo = 0, hi = 0;
+    for (const auto& [net, r] : ranges) {
+        lo = std::min(lo, r.first);
+        hi = std::max(hi, r.second);
+    }
+    return ipc2221Clearance(hi - lo, highAltitude);
+}
+
 RouteStats PcbLayout::autoRoute(const Schematic& sch) {
+    // Voltage spacing: when the board's largest potential difference needs more than the design-rule clearance
+    // (IPC-2221 B2/B3, above 30 V), route with that spacing so the copper meets the DRC voltage check.
+    const double ruleClearance = settings.clearance;
+    struct RestoreClearance {
+        BoardSettings& s;
+        double c;
+        ~RestoreClearance() { s.clearance = c; }
+    } restore{settings, ruleClearance};
+    settings.clearance = std::max(ruleClearance, voltageRoutingClearance(sch, settings.highAltitude));
+    return routeAll(sch);
+}
+
+RouteStats PcbLayout::routeAll(const Schematic& sch) {
     if (settings.autoSizeNets) autoNetWidths(sch);
     const auto ps = pads(sch);
     const auto& nets = sch.nets();
@@ -1539,37 +1604,10 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
         v.components = std::move(comps);
         out.push_back(std::move(v));
     };
-    // DC operating point (used for voltage clearances and current capacity).
-    bool hasSource = false;
-    for (const auto& c : sch.components())
-        hasSource |= c.kind == ComponentKind::VoltageSource || c.kind == ComponentKind::CurrentSource;
+    // Voltage range of each net (DC operating point, widened to SIN/PULSE source peaks).
+    std::map<int, std::pair<double, double>> netRange = netVoltageRanges(sch);
     DcResult dc;
-    if (hasSource && sch.groundNet() >= 0 && (!tracks.empty() || !vias.empty() || !sch.components().empty()))
-        dc = Simulator(sch).dcOperatingPoint();
-    // Voltage range of each net: the DC value, widened to a source's peaks for nets driven by SIN/PULSE sources.
-    std::map<int, std::pair<double, double>> netRange;
-    if (dc.converged) {
-        for (size_t n = 0; n < dc.netVoltages.size(); ++n)
-            netRange[static_cast<int>(n)] = {dc.netVoltages[n], dc.netVoltages[n]};
-        for (const auto& c : sch.components()) {
-            if (c.kind != ComponentKind::VoltageSource) continue;
-            auto spec = SourceSpec::parse(c.value);
-            int plus = sch.netOf({c.id, 0}), minus = sch.netOf({c.id, 1});
-            if (!spec || plus < 0) continue;
-            double base = minus >= 0 && netRange.count(minus) ? netRange[minus].first : 0.0;
-            double lo = spec->dc, hi = spec->dc;
-            if (spec->kind == SourceSpec::Kind::Sine) {
-                lo = spec->offset - std::fabs(spec->amplitude);
-                hi = spec->offset + std::fabs(spec->amplitude);
-            } else if (spec->kind == SourceSpec::Kind::Pulse) {
-                lo = std::min(spec->v1, spec->v2);
-                hi = std::max(spec->v1, spec->v2);
-            }
-            auto& r = netRange[plus];
-            r.first = std::min(r.first, base + lo);
-            r.second = std::max(r.second, base + hi);
-        }
-    }
+    if (!netRange.empty()) dc = Simulator(sch).dcOperatingPoint();
     auto voltageNeed = [&](int a, int b) {
         auto ia = netRange.find(a), ib = netRange.find(b);
         if (a < 0 || b < 0 || ia == netRange.end() || ib == netRange.end()) return std::make_pair(0.0, 0.0);

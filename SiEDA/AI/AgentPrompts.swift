@@ -65,7 +65,8 @@ enum AgentPrompts {
         return """
 
         Industry profiles — set "industry" to the one that matches the brief (robotics/motor control, drones/UAV, \
-        power electronics, automotive/car, RF/radio, space, marine/ship, industrial automation; otherwise general). The \
+        power electronics, automotive/car, RF/radio, space, marine/ship, industrial automation, medical devices, \
+        defence/military/avionics, networking/Ethernet/PoE/telecom, VLSI/ASIC/FPGA bring-up; otherwise general). The \
         profile selects the design rules and derates part ratings in SiEDA's validation, so choose resistor \
         wattages and currents with margin, and follow its guidance:
         \(lines.joined(separator: "\n"))
