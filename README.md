@@ -88,6 +88,31 @@ docs/                PRD and architecture
 
 ## Getting started
 
+### Quick start: `run.sh`
+
+One script builds, tests and launches everything from a terminal:
+
+```bash
+git clone https://github.com/srinivasan-fh/si-eda.git
+cd si-eda
+./run.sh            # macOS: builds SiEDA.app and launches it · Linux: builds the core and runs the demo
+```
+
+| Command | What it does |
+|---|---|
+| `./run.sh app` | Build the macOS app (Debug, into `build-app/`) and launch it |
+| `./run.sh xcode` | Open the project in Xcode (then press ⌘R) |
+| `./run.sh test` | Core unit tests, plus the Xcode tests on macOS |
+| `./run.sh core` | Build the C++ core, `sieda-cli` and the unit tests (any platform) |
+| `./run.sh demo [dir]` | Headless pipeline on the demo design; fabrication files and `verification_report.md` go to `dir` (default `out/`) |
+| `./run.sh cli design.siedaproj [dir]` | Verify a saved project and write its Gerbers, drill, BOM, netlist and STL |
+| `./run.sh doctor` | Show which required tools are installed |
+| `./run.sh clean` | Remove `build/`, `build-app/` and `out/` |
+
+Requirements: the app needs macOS 14+ with Xcode 16+ (`sudo xcode-select -s /Applications/Xcode.app` if
+`xcodebuild` only finds the Command Line Tools). The core needs CMake 3.20+ and a C++17 compiler
+(`brew install cmake` · `sudo apt install cmake g++`). Python 3 keeps the Xcode project in sync.
+
 ### macOS app
 
 Requirements: macOS 14 Sonoma or later and Xcode 16 or later.

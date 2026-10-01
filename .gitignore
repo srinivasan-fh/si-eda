@@ -4,6 +4,7 @@ build-*/
 DerivedData/
 *.o
 *.a
+out/
 
 # Xcode
 *.xcodeproj/xcuserdata/
