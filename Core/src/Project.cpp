@@ -45,7 +45,32 @@ Json boardJson(const BoardSettings& s) {
     Json widths = Json::object();
     for (const auto& [net, w] : s.netWidths) widths[net] = w;
     b["netWidths"] = widths;
+    b["autoSizeNets"] = s.autoSizeNets;
+    Json outline = Json::array();
+    for (const auto& v : s.outline) outline.push(vec(v));
+    b["outline"] = outline;
+    Json holes = Json::array();
+    for (const auto& h : s.holes) {
+        Json j = vec(h.position);
+        j["drill"] = h.drill;
+        j["keepout"] = h.keepout;
+        holes.push(j);
+    }
+    b["holes"] = holes;
     return b;
+}
+
+Json zonesJson(const std::vector<CopperZone>& zones) {
+    Json arr = Json::array();
+    for (const auto& z : zones) {
+        Json j = Json::object();
+        j["net"] = z.net;
+        j["layer"] = z.layer;
+        j["plane"] = z.plane;
+        j["clearance"] = z.clearance;
+        arr.push(j);
+    }
+    return arr;
 }
 }  // namespace
 
@@ -156,6 +181,7 @@ Json Project::toJson() const {
         vias.push(j);
     }
     root["vias"] = vias;
+    root["zones"] = zonesJson(pcb.zones);
     return root;
 }
 
@@ -191,6 +217,32 @@ Project Project::fromJson(const Json& root) {
         for (const auto& [net, w] : widths.fields())
             if (w.asNumber(0) > 0) s.netWidths[net] = w.asNumber(0);
     s.maxTempRise = std::max(1.0, b.get("maxTempRise").asNumber(s.maxTempRise));
+    s.autoSizeNets = b.get("autoSizeNets").asBool(true);
+    {
+        std::vector<Vec2> outline;
+        for (const auto& v : b.get("outline").items()) outline.push_back({v.get("x").asNumber(), v.get("y").asNumber()});
+        if (outline.size() >= 3) {
+            double w = s.width, h = s.height;
+            s.setOutline(outline);
+            s.width = std::max(s.width, w);  // keep the stored size (the outline may not touch every bound)
+            s.height = std::max(s.height, h);
+        }
+        for (const auto& j : b.get("holes").items()) {
+            MountingHole m;
+            m.position = {j.get("x").asNumber(), j.get("y").asNumber()};
+            m.drill = std::max(0.1, j.get("drill").asNumber(m.drill));
+            m.keepout = std::max(m.drill, j.get("keepout").asNumber(m.keepout));
+            s.holes.push_back(m);
+        }
+    }
+    for (const auto& j : root.get("zones").items()) {
+        CopperZone z;
+        z.net = j.get("net").asString("");
+        z.layer = std::clamp(j.get("layer").asInt(0), 0, s.bottomLayer());
+        z.plane = j.get("plane").asBool(false);
+        z.clearance = std::max(0.0, j.get("clearance").asNumber(0));
+        if (!z.net.empty()) p.pcb.zones.push_back(z);
+    }
 
     // Custom parts first so components can resolve them; ids are re-derived and remapped if they changed.
     std::map<std::string, std::string> idMap;
@@ -372,6 +424,27 @@ Json Project::snapshot() const {
         vias.push(j);
     }
     root["vias"] = vias;
+
+    root["zones"] = zonesJson(pcb.zones);
+    Json fills = Json::array();
+    for (const auto& f : pcb.zoneFills(schematic)) {
+        Json j = Json::object();
+        j["zone"] = f.zone;
+        j["net"] = f.net;
+        j["layer"] = f.layer;
+        j["islands"] = f.islands;
+        j["area"] = f.area();
+        Json rects = Json::array();  // flat x0, y0, x1, y1 quadruples
+        for (const auto& r : f.rects) {
+            rects.push(r.x0);
+            rects.push(r.y0);
+            rects.push(r.x1);
+            rects.push(r.y1);
+        }
+        j["rects"] = rects;
+        fills.push(j);
+    }
+    root["zoneFills"] = fills;
 
     Json rats = Json::array();
     for (const auto& [a, b] : pcb.ratsnest(schematic)) {

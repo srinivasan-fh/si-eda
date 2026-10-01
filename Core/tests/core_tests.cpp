@@ -1154,6 +1154,7 @@ TEST(pcb_rule_presets_and_manufacturability_checks) {
     power.schematic.setValue(power.schematic.findByRef("R1")->id, "1");  // ~3 A through a 0.3 mm track
     power.schematicChanged();
     power.pcb.settings.applyPreset("Prototype (Conservative)");
+    power.pcb.settings.autoSizeNets = false;  // route at the default width to provoke the finding
     power.pcb.autoPlace(power.schematic, true);
     power.pcb.autoRoute(power.schematic);
     CHECK(has(codes(power), "DRC_TRACK_CURRENT"));
@@ -1234,7 +1235,7 @@ TEST(design_verification_pipeline) {
 }
 
 TEST(industry_profiles_and_derating) {
-    CHECK(industryProfiles().size() == 8);
+    CHECK(industryProfiles().size() == 9);
     for (const char* id : {"general", "robotics", "power", "automotive", "rf", "space", "marine", "industrial"}) {
         const IndustryProfile* p = findIndustry(id);
         CHECK(p != nullptr);
@@ -1422,6 +1423,102 @@ TEST(net_classes_and_fine_pitch) {
     bool necked = false;
     for (const auto& t : f.pcb.tracks) necked |= t.width < f.pcb.settings.trackWidth - 1e-9;
     CHECK(necked);
+}
+
+TEST(board_outline_holes_and_pours) {
+    // Outline presets.
+    BoardSettings b;
+    b.setOutline(boardOutlinePreset("quad-x", 100, 40, 12));
+    CHECK_NEAR(b.width, 100, 1e-6);
+    CHECK_NEAR(b.height, 100, 1e-6);
+    CHECK(b.contains({50, 50}));
+    CHECK(b.contains({88, 88}));    // on a diagonal arm
+    CHECK(!b.contains({3, 50}));    // between two arms
+    CHECK(!b.contains({50, 97}));
+    CHECK(b.edgeDistance({50, 50}) > 15);
+    CHECK(b.edgeDistance({3, 50}) < 0);
+    CHECK(b.rectInside(Rect::centered({50, 50}, 10, 10), 1));
+    CHECK(!b.rectInside(Rect::centered({50, 72}, 10, 10), 0));
+    BoardSettings r;
+    r.setOutline(boardOutlinePreset("rounded", 30, 20, 4));
+    CHECK(r.contains({15, 10}) && !r.contains({0.3, 0.3}) && r.contains({0.3, 10}));
+    CHECK(boardOutlinePreset("hexagon", 10, 10, 0).empty());
+
+    // Amplifier on a quad-X frame with a 30.5 mm M3 mounting pattern and ground pours on both sides.
+    Project p = amplifierProject();
+    auto& s = p.schematic;
+    p.pcb.settings.setOutline(boardOutlinePreset("quad-x", 80, 40, 12));
+    for (double dx : {-15.25, 15.25})
+        for (double dy : {-15.25, 15.25}) p.pcb.settings.holes.push_back({{40 + dx, 40 + dy}, 3.2, 6.4});
+    p.pcb.zones.push_back({"GND", 1, false, 0});
+    p.pcb.zones.push_back({"GND", 0, false, 0});
+    p.pcb.autoPlace(s, true);
+    for (const auto& c : s.components())
+        if (c.hasFootprint()) CHECK(p.pcb.settings.rectInside(p.pcb.courtyard(c), 0));
+    RouteStats st = p.pcb.autoRoute(s);
+    std::printf("    quad-X board: %d/%d routed, %d vias\n", st.routed, st.connections, st.vias);
+    CHECK(st.failed == 0);
+    CHECK(p.pcb.ratsnest(s).empty());
+    const auto& fills = p.pcb.zoneFills(s);
+    CHECK(fills.size() == 2);
+    for (const auto& f : fills) {
+        CHECK(f.net >= 0 && f.islands >= 1 && f.area() > 200);
+        for (const auto& rc : f.rects) {  // poured copper stays inside the outline and out of the hole keep-outs
+            CHECK(p.pcb.settings.edgeDistance(rc.center()) >= p.pcb.settings.edgeClearance);
+            CHECK(p.pcb.settings.holeDistance(rc.center()) > 0);
+        }
+    }
+    std::string first;
+    CHECK(drcErrors(p, &first) == 0);
+    if (!first.empty()) std::printf("    first DRC error: %s\n", first.c_str());
+    // Ground tracks are only short stubs to the pour: no ground track current warning.
+    for (const auto& f : p.pcb.runDRC(s)) CHECK(f.code != "DRC_TRACK_CURRENT");
+
+    std::string edge = exportGerber(s, p.pcb, GerberLayer::EdgeCuts);
+    size_t lines = 0;
+    for (size_t at = edge.find("D01*"); at != std::string::npos; at = edge.find("D01*", at + 1)) ++lines;
+    CHECK(lines == p.pcb.settings.outline.size());
+    CHECK(exportCopperGerber(s, p.pcb, 1).find("G36*") != std::string::npos);
+    std::string npth = exportExcellonDrill(s, p.pcb, false);
+    CHECK(npth.find("T1C3.200") != std::string::npos && npth.find("NPTH") != std::string::npos);
+    Mesh m = buildAssemblyMesh(s, p.pcb);
+    CHECK(m.triangleCount() > 100);
+
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.pcb.settings.outline.size() == p.pcb.settings.outline.size());
+    CHECK(q.pcb.settings.holes.size() == 4);
+    CHECK(q.pcb.zones.size() == 2 && q.pcb.zones[0].net == "GND" && q.pcb.zones[0].layer == 1);
+    CHECK(q.pcb.ratsnest(q.schematic).empty());
+    Json snap = q.snapshot();
+    CHECK(snap.get("zoneFills").items().size() == 2);
+    CHECK(snap.get("board").get("holes").items().size() == 4);
+
+    // Off-board and hole keep-out findings.
+    Project bad = ledProject();
+    bad.pcb.settings.width = 30;
+    bad.pcb.settings.height = 20;
+    bad.pcb.autoPlace(bad.schematic, true);
+    bad.pcb.settings.holes.push_back({bad.schematic.components()[1].pcb.position, 3.2, 6.4});
+    bool keepout = false;
+    for (const auto& e : bad.pcb.runDRC(bad.schematic)) keepout |= e.code == "DRC_HOLE_KEEPOUT";
+    CHECK(keepout);
+
+    // Four-layer board with a reserved ground plane: no other net routes on it, the ground pads reach it by vias.
+    Project f = amplifierProject();
+    f.pcb.settings.layerCount = 4;
+    f.pcb.settings.width = 40;
+    f.pcb.settings.height = 30;
+    f.pcb.zones.push_back({"GND", 1, true, 0});
+    f.pcb.autoPlace(f.schematic, true);
+    RouteStats fs = f.pcb.autoRoute(f.schematic);
+    CHECK(fs.failed == 0);
+    int gnd = -1;
+    for (const auto& n : f.schematic.nets())
+        if (n.name == "GND") gnd = n.index;
+    for (const auto& t : f.pcb.tracks) CHECK(t.layer != 1 || t.net == gnd);
+    CHECK(f.pcb.zoneFills(f.schematic)[0].area() > 0.6 * 40 * 30);
+    CHECK(drcErrors(f, &first) == 0);
+    if (!first.empty()) std::printf("    first DRC error: %s\n", first.c_str());
 }
 
 TEST(project_json_roundtrip) {

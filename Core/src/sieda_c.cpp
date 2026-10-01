@@ -436,6 +436,8 @@ void sieda_pcb_set_layer_count(SiedaProject* project, int32_t layers) {
     pcb.tracks.erase(std::remove_if(pcb.tracks.begin(), pcb.tracks.end(), [&](const Track& t) { return t.layer > bottom; }),
                      pcb.tracks.end());
     if (pcb.settings.layerCount == 1) pcb.vias.clear();
+    pcb.zones.erase(std::remove_if(pcb.zones.begin(), pcb.zones.end(), [&](const CopperZone& z) { return z.layer > bottom; }),
+                    pcb.zones.end());
 }
 
 char* sieda_pcb_autoroute(SiedaProject* project) {
@@ -511,6 +513,79 @@ char* sieda_pcb_auto_net_widths(SiedaProject* project) {
     }
 }
 
+void sieda_pcb_set_auto_size_nets(SiedaProject* project, int32_t enabled) {
+    if (project) project->project.pcb.settings.autoSizeNets = enabled != 0;
+}
+
+int32_t sieda_pcb_set_outline(SiedaProject* project, const char* points_json) {
+    if (!project || !points_json) return 0;
+    try {
+        std::vector<Vec2> pts;
+        Json parsed = Json::parse(points_json);
+        for (const auto& j : parsed.items()) pts.push_back({j.get("x").asNumber(), j.get("y").asNumber()});
+        if (!pts.empty() && pts.size() < 3) return 0;
+        project->project.pcb.settings.setOutline(pts);
+        return 1;
+    } catch (...) {
+        return 0;
+    }
+}
+
+int32_t sieda_pcb_outline_preset(SiedaProject* project, const char* kind, double w, double h, double param) {
+    if (!project || !kind) return 0;
+    std::string k = kind;
+    auto poly = boardOutlinePreset(k, w, h, param);
+    if (poly.size() < 3) return 0;
+    auto& s = project->project.pcb.settings;
+    if (k == "rectangle") {
+        s.outline.clear();
+        s.width = w;
+        s.height = h;
+    } else {
+        s.setOutline(poly);
+    }
+    return 1;
+}
+
+int32_t sieda_pcb_add_mounting_hole(SiedaProject* project, double x, double y, double drill_mm, double keepout_mm) {
+    if (!project || !(drill_mm > 0)) return 0;
+    MountingHole h;
+    h.position = {x, y};
+    h.drill = drill_mm;
+    h.keepout = keepout_mm > 0 ? std::max(keepout_mm, drill_mm) : 2 * drill_mm;
+    auto& holes = project->project.pcb.settings.holes;
+    holes.push_back(h);
+    return static_cast<int32_t>(holes.size());
+}
+
+void sieda_pcb_clear_mounting_holes(SiedaProject* project) {
+    if (project) project->project.pcb.settings.holes.clear();
+}
+
+int32_t sieda_pcb_add_zone(SiedaProject* project, const char* net_name, int32_t layer, int32_t plane, double clearance_mm) {
+    if (!project || !net_name || !*net_name) return -1;
+    auto& pcb = project->project.pcb;
+    if (layer < 0 || layer >= pcb.settings.layerCount) return -1;
+    CopperZone z;
+    z.net = net_name;
+    z.layer = layer;
+    z.plane = plane != 0;
+    z.clearance = std::max(0.0, clearance_mm);
+    pcb.zones.push_back(z);
+    return static_cast<int32_t>(pcb.zones.size()) - 1;
+}
+
+int32_t sieda_pcb_remove_zone(SiedaProject* project, int32_t index) {
+    if (!project || index < 0 || index >= static_cast<int32_t>(project->project.pcb.zones.size())) return 0;
+    auto& zones = project->project.pcb.zones;
+    zones.erase(zones.begin() + index);
+    return 1;
+}
+
+void sieda_pcb_clear_zones(SiedaProject* project) {
+    if (project) project->project.pcb.zones.clear();
+}
+
 int32_t sieda_pcb_apply_rule_preset(SiedaProject* project, const char* name) {
     if (!project || !name) return 0;
     return project->project.pcb.settings.applyPreset(name) ? 1 : 0;
@@ -531,6 +606,7 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         if (f == "gerber_silk_top") return dup(exportGerber(p.schematic, p.pcb, GerberLayer::TopSilk));
         if (f == "gerber_edge") return dup(exportGerber(p.schematic, p.pcb, GerberLayer::EdgeCuts));
         if (f == "drill") return dup(exportExcellonDrill(p.schematic, p.pcb));
+        if (f == "drill_npth") return dup(exportExcellonDrill(p.schematic, p.pcb, false));
         if (f.rfind("gerber_l", 0) == 0) {
             int layer = std::atoi(f.c_str() + 8) - 1;
             if (layer < 0 || layer >= p.pcb.settings.layerCount) return nullptr;

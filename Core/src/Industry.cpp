@@ -37,6 +37,19 @@ std::vector<IndustryProfile> build() {
                   "Terminate CAN with 120 Ω at each end of the bus (TJA1050) and keep CANH/CANL routed as a pair.",
                   "Specify AEC-Q qualified parts and -40 °C to +125 °C ratings.",
                   "Avoid parts in the vibration-critical board edge; add mounting holes near heavy components."}});
+    p.push_back({"uav", "Drones & UAV", "Flight controllers, ESCs, power distribution and radio for multirotors",
+                 "IPC-2221 Class 3, IPC-A-610 Class 3, RTCA DO-160G (vibration, EMI), ASTM F3002 (sUAS C2), EN 4709-001",
+                 "IPC-2221 Class 3", 0.8, 0.8, false, -20, 60,
+                 {"Put a freewheel diode across every brushed motor; drive it with a logic-level MOSFET (SI2302, AO3400) "
+                  "with a gate resistor and a gate pull-down so the motors stay off while the MCU resets.",
+                  "Size battery and motor nets for the stall current (the autorouter widens them from the simulation) and "
+                  "pour ground on both layers — or use a 4-layer board with a ground plane.",
+                  "Place a low-ESR bulk capacitor (≥ 220 µF) at the battery input to absorb motor transients; run the "
+                  "3.3 V logic and radio from an LDO.",
+                  "Mount the IMU near the frame centre, away from the motor drivers, and decouple it at the pins.",
+                  "Use the quad-X outline preset with motor connectors at the arm tips and an M3 30.5 × 30.5 mm "
+                  "(or M2 20 × 20 mm) mounting pattern.",
+                  "Single-cell LiPo: charge with a TP4056 (1.2 kΩ PROG = 1 A) and cut the motors at 3.3 V per cell."}});
     p.push_back({"rf", "RF & Wireless", "Radio front ends, filters, matching networks, antennas",
                  "IPC-2141 (controlled impedance), IPC-2221, ETSI EN 300 220 / FCC Part 15",
                  "RF (Controlled Impedance)", 0.8, 0.8, false, -20, 85,

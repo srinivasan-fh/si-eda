@@ -190,6 +190,7 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
     auto rect = [&](double w, double h) { return "R," + mm(w) + "X" + mm(h); };
 
     std::vector<std::pair<int, std::string>> ops;  // aperture, operation
+    std::vector<std::string> regions;              // filled G36/G37 regions (drawn first)
     bool isCopper = layer == GerberLayer::TopCopper || layer == GerberLayer::BottomCopper;
     bool isMask = layer == GerberLayer::TopMask || layer == GerberLayer::BottomMask;
     int cl = copperIndex >= 0 ? copperIndex
@@ -208,6 +209,14 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
             ops.push_back({aperture(circle(v.diameter)), coord(v.position) + "D03*"});
         }
         if (isCopper) {
+            // Poured copper as G36/G37 regions (one per merged rectangle).
+            for (const auto& f : pcb.zoneFills(sch)) {
+                if (f.layer != cl) continue;
+                for (const auto& r : f.rects)
+                    regions.push_back("G36*\n" + coord({r.x0, r.y0}) + "D02*\n" + coord({r.x1, r.y0}) + "D01*\n" +
+                                      coord({r.x1, r.y1}) + "D01*\n" + coord({r.x0, r.y1}) + "D01*\n" +
+                                      coord({r.x0, r.y0}) + "D01*\nG37*");
+            }
             for (const auto& t : pcb.tracks) {
                 if (t.layer != cl) continue;
                 int ap = aperture(circle(t.width));
@@ -231,10 +240,12 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
                 ops.push_back({aperture(circle(0.3)), coord(mark) + "D03*"});
             }
         }
-    } else {  // EdgeCuts
+    } else {  // EdgeCuts: the outline polygon
         int ap = aperture(circle(0.1));
-        ops.push_back({ap, coord({0, 0}) + "D02*\n" + coord({s.width, 0}) + "D01*\n" + coord({s.width, s.height}) +
-                               "D01*\n" + coord({0, s.height}) + "D01*\n" + coord({0, 0}) + "D01*"});
+        auto poly = s.outlinePolygon();
+        std::string path = coord(poly[0]) + "D02*";
+        for (size_t i = 1; i <= poly.size(); ++i) path += "\n" + coord(poly[i % poly.size()]) + "D01*";
+        ops.push_back({ap, path});
     }
 
     // Aperture definitions sorted by D-code.
@@ -244,6 +255,8 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
         std::string type = def.substr(0, 1), params = def.substr(2);
         o << "%ADD" << code << type << "," << params << "*%\n";
     }
+    if (!regions.empty()) o << "G01*\n";
+    for (const auto& r : regions) o << r << "\n";
     int current = -1;
     for (const auto& [ap, op] : ops) {
         if (ap != current) {
@@ -256,19 +269,25 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
     return o.str();
 }
 
-std::string exportExcellonDrill(const Schematic& sch, const PcbLayout& pcb) {
+std::string exportExcellonDrill(const Schematic& sch, const PcbLayout& pcb, bool plated) {
     std::map<std::string, std::vector<Vec2>> holes;  // diameter → positions
     auto key = [](double d) {
         char b[16];
         std::snprintf(b, sizeof b, "%.3f", d);
         return std::string(b);
     };
-    for (const auto& p : pcb.pads(sch))
-        if (p.throughHole && p.drill > 0) holes[key(p.drill)].push_back(p.position);
-    for (const auto& v : pcb.vias) holes[key(v.drill)].push_back(v.position);
+    if (plated) {
+        for (const auto& p : pcb.pads(sch))
+            if (p.throughHole && p.drill > 0) holes[key(p.drill)].push_back(p.position);
+        for (const auto& v : pcb.vias) holes[key(v.drill)].push_back(v.position);
+    } else {
+        for (const auto& h : pcb.settings.holes) holes[key(h.drill)].push_back(h.position);
+    }
 
     std::ostringstream o;
-    o << "M48\n; SiEDA Excellon drill file\nFMAT,2\nMETRIC,TZ\n";
+    o << "M48\n; SiEDA Excellon drill file (" << (plated ? "plated" : "non-plated") << ")\n"
+      << "; #@! TF.FileFunction," << (plated ? "Plated,1," : "NonPlated,1,") << pcb.settings.layerCount
+      << (plated ? ",PTH" : ",NPTH") << "\nFMAT,2\nMETRIC,TZ\n";
     int tool = 1;
     for (const auto& [d, _] : holes) o << "T" << tool++ << "C" << d << "\n";
     o << "%\nG90\nG05\n";

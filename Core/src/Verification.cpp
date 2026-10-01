@@ -287,6 +287,12 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
             check("Drill (Excellon)", drill, endsWith(drill, "M30\n") && (holes == 0 || drill.find("T1") != std::string::npos),
                   "drill file incomplete");
             st.details.back() += ", " + std::to_string(holes) + " holes";
+            if (!pcb.settings.holes.empty()) {
+                std::string npth = exportExcellonDrill(sch, pcb, false);
+                check("Mounting holes (Excellon NPTH)", npth, endsWith(npth, "M30\n") && npth.find("T1") != std::string::npos,
+                      "non-plated drill file incomplete");
+                st.details.back() += ", " + std::to_string(pcb.settings.holes.size()) + " mounting holes";
+            }
 
             std::string bom = exportBomCsv(sch);
             check("Bill of materials (CSV)", bom, countLines(bom) >= 2, "no parts listed");

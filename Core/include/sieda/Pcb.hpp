@@ -1,6 +1,7 @@
 // SiEDA Core — PCB layout: board, pads, tracks, vias, auto-placement, autorouter and DRC.
 #pragma once
 
+#include <cmath>
 #include <map>
 #include <string>
 #include <vector>
@@ -12,6 +13,13 @@ namespace sieda {
 
 /// Copper layer index: 0 = top, `BoardSettings::bottomLayer()` = bottom, anything between = inner layer.
 constexpr int kTopLayer = 0;
+
+/// Non-plated mounting hole with a circular keep-out (screw head / washer) free of copper and parts.
+struct MountingHole {
+    Vec2 position;
+    double drill = 3.2;    // mm (M3 clearance)
+    double keepout = 6.4;  // keep-out diameter, mm
+};
 
 struct BoardSettings {
     double width = 50.0;   // mm
@@ -38,10 +46,31 @@ struct BoardSettings {
     bool highAltitude = false;
     /// Net classes: track width (mm) per net name, e.g. {"VBAT": 0.8} for motor and battery currents.
     std::map<std::string, double> netWidths;
+    /// The autorouter first widens net classes to the IPC-2221 width for each net's simulated current.
+    bool autoSizeNets = true;
     double widthFor(const std::string& netName) const {
         auto it = netWidths.find(netName);
         return it == netWidths.end() ? trackWidth : std::max(minTrackWidth, it->second);
     }
+
+    /// Board outline polygon (mm, inside [0,width]×[0,height]); empty = the width × height rectangle.
+    std::vector<Vec2> outline;
+    std::vector<MountingHole> holes;
+
+    /// Outline as a polygon (the rectangle when no custom outline is set).
+    std::vector<Vec2> outlinePolygon() const;
+    bool hasCustomOutline() const { return outline.size() >= 3; }
+    bool contains(Vec2 p) const;
+    /// Distance from `p` to the outline (positive inside, negative outside).
+    double edgeDistance(Vec2 p) const;
+    /// Smallest distance from a segment to the outline (negative if any part lies outside).
+    double segmentEdgeDistance(Vec2 a, Vec2 b) const;
+    /// Distance from `p` to the nearest mounting-hole keep-out circle (negative inside one); large if no holes.
+    double holeDistance(Vec2 p) const;
+    /// True if `r` lies inside the outline at least `margin` from it and clear of every hole keep-out.
+    bool rectInside(const Rect& r, double margin) const;
+    /// Sets a custom outline (empty = rectangle); shifts it to start at (0,0) and sets width/height to its bounds.
+    void setOutline(std::vector<Vec2> polygon);
 
     /// Applies a named preset from designRulePresets(); returns false if the name is unknown.
     bool applyPreset(const std::string& name);
@@ -63,6 +92,10 @@ struct DesignRulePreset {
     double minTrackWidth, minClearance, minDrill, minAnnularRing, minHoleToHole;
 };
 const std::vector<DesignRulePreset>& designRulePresets();
+
+/// Board outline presets: "rectangle" (w × h), "rounded" (corner radius `param`), "circle" (diameter w),
+/// "quad-x" (quadcopter frame: span w, square body h, arm width `param`). Returns an empty polygon for unknown names.
+std::vector<Vec2> boardOutlinePreset(const std::string& kind, double w, double h, double param);
 
 /// IPC-2221 minimum track width (mm) for `amps` at `tempRise` °C with `oz` copper; inner layers derate by 2×.
 double ipc2221TrackWidth(double amps, double tempRise, double oz, bool innerLayer);
@@ -105,6 +138,37 @@ struct Via {
     double drill = 0.3, diameter = 0.6;
 };
 
+/// Copper pour rule: fills the free area of `layer` with `net` copper, keeping clearance to every other net, the
+/// board edge and the mounting holes, with thermal-relief spokes on through-hole pads and floating islands removed.
+struct CopperZone {
+    std::string net;
+    int layer = kTopLayer;
+    /// Plane layer: reserved for this net — other nets cross it only with vias (anti-pads are cut automatically).
+    bool plane = false;
+    double clearance = 0;  // 0 = board clearance
+};
+
+/// Poured copper of one zone, as a raster of islands (cell centres at ((i+0.5)·cell, (j+0.5)·cell)).
+struct ZoneFill {
+    int zone = -1;
+    int net = -1;
+    int layer = kTopLayer;
+    double cell = 0.1;
+    int cols = 0, rows = 0;
+    std::vector<int> island;  // island index per cell, -1 = no copper
+    int islands = 0;
+    std::vector<Rect> rects;  // the same copper as merged rectangles (drawing, Gerber regions, 3D)
+    /// Island whose copper overlaps a disc of `radius` at `p`, or -1.
+    int islandNear(Vec2 p, double radius) const;
+    /// Island of the cell containing `p`, or -1.
+    int islandAt(Vec2 p) const {
+        int i = static_cast<int>(std::floor(p.x / cell)), j = static_cast<int>(std::floor(p.y / cell));
+        if (i < 0 || j < 0 || i >= cols || j >= rows) return -1;
+        return island[static_cast<size_t>(j * cols + i)];
+    }
+    double area() const;
+};
+
 struct RouteStats {
     int connections = 0;
     int routed = 0;
@@ -119,6 +183,16 @@ public:
     BoardSettings settings;
     std::vector<Track> tracks;
     std::vector<Via> vias;
+    std::vector<CopperZone> zones;
+
+    /// Pours every zone against the given copper (pads, tracks, vias). Zones fill in order; later zones keep
+    /// clearance to earlier ones of other nets.
+    std::vector<ZoneFill> fillZones(const Schematic& sch, const std::vector<Pad>& pads, const std::vector<Track>& tracks,
+                                    const std::vector<Via>& vias) const;
+    /// Current pours (cached; refilled automatically when copper, zones or the board change).
+    const std::vector<ZoneFill>& zoneFills(const Schematic& sch) const;
+    /// True if `net` has a zone (its connections may be made through poured copper).
+    bool isZoneNet(const Schematic& sch, int net) const;
 
     /// Pads of every footprint currently placed on the board, with net assignments from the schematic.
     std::vector<Pad> pads(const Schematic& sch) const;
@@ -135,6 +209,8 @@ public:
     std::map<std::string, double> autoNetWidths(const Schematic& sch);
     /// Narrows track ends that enter pads smaller than the track (fine-pitch neck-down).
     void neckDown(std::vector<Track>& out, const std::vector<Pad>& pads) const;
+    /// Per pad: the widest track that can leave it between its package neighbours (≥ the minimum track width).
+    std::vector<double> padNeckWidths(const std::vector<Pad>& pads) const;
     /// Shrinks/grows the board to the placed footprints plus `margin` mm, shifting parts and copper together.
     bool fitBoardToComponents(Schematic& sch, double margin);
     /// Removes tracks/vias of nets that no longer exist after schematic edits.
@@ -149,6 +225,9 @@ public:
 
 private:
     int nextId_ = 1;
+    mutable std::vector<ZoneFill> fillCache_;
+    mutable size_t fillKey_ = 0;
+    mutable bool fillValid_ = false;
 };
 
 }  // namespace sieda
