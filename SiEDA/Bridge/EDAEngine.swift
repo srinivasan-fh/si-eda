@@ -140,6 +140,12 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func removeWire(_ id: Int) -> Bool { withHandle { sieda_remove_wire($0, Int32(id)) } == 1 }
 
+    /// Marks a pin as intentionally unconnected (ERC no longer reports it) or clears the mark.
+    @discardableResult
+    func setPinNoConnect(_ pin: PinAddress, _ noConnect: Bool) -> Bool {
+        withHandle { sieda_set_pin_no_connect($0, Int32(pin.component), Int32(pin.pin), noConnect ? 1 : 0) } == 1
+    }
+
     // MARK: - Custom parts
 
     /// Registers a part in the project library; returns the generated part (symbol + footprint).
@@ -276,6 +282,53 @@ final class EDAEngine: @unchecked Sendable {
 
     func clearRouting() { withHandle { sieda_pcb_clear_routing($0) } }
 
+    // MARK: - Net classes, outline, holes, pours
+
+    /// Net class track width in mm (0 removes the class).
+    @discardableResult
+    func setNetWidth(_ net: String, width: Double) -> Bool {
+        withHandle { sieda_pcb_set_net_width($0, net, width) } == 1
+    }
+
+    /// Sizes net classes from the DC operating point (IPC-2221 + 25 %); returns the widths it set.
+    @discardableResult
+    func autoNetWidths() -> [String: Double] {
+        Self.decode([String: Double].self, from: withHandle { Self.take(sieda_pcb_auto_net_widths($0)) }) ?? [:]
+    }
+
+    func setAutoSizeNets(_ enabled: Bool) { withHandle { sieda_pcb_set_auto_size_nets($0, enabled ? 1 : 0) } }
+
+    /// Custom board outline (≥ 3 points, mm); an empty array restores the rectangle.
+    @discardableResult
+    func setOutline(_ points: [CGPoint]) -> Bool {
+        let json = "[" + points.map { "{\"x\":\($0.x),\"y\":\($0.y)}" }.joined(separator: ",") + "]"
+        return withHandle { sieda_pcb_set_outline($0, json) } == 1
+    }
+
+    @discardableResult
+    func applyOutlinePreset(_ preset: BoardOutlinePreset, width: Double, height: Double, parameter: Double) -> Bool {
+        withHandle { sieda_pcb_outline_preset($0, preset.rawValue, width, height, parameter) } == 1
+    }
+
+    @discardableResult
+    func addMountingHole(at point: CGPoint, drill: Double, keepout: Double) -> Int {
+        Int(withHandle { sieda_pcb_add_mounting_hole($0, Double(point.x), Double(point.y), drill, keepout) })
+    }
+
+    func clearMountingHoles() { withHandle { sieda_pcb_clear_mounting_holes($0) } }
+
+    /// Adds a copper pour (plane = reserved plane layer); returns the zone index or nil.
+    @discardableResult
+    func addZone(net: String, layer: Int, plane: Bool, clearance: Double = 0) -> Int? {
+        let index = withHandle { sieda_pcb_add_zone($0, net, Int32(layer), plane ? 1 : 0, clearance) }
+        return index >= 0 ? Int(index) : nil
+    }
+
+    @discardableResult
+    func removeZone(at index: Int) -> Bool { withHandle { sieda_pcb_remove_zone($0, Int32(index)) } == 1 }
+
+    func clearZones() { withHandle { sieda_pcb_clear_zones($0) } }
+
     func runDRC() -> [RuleViolation] {
         Self.decode([RuleViolation].self, from: withHandle { Self.take(sieda_pcb_run_drc($0)) }) ?? []
     }
@@ -335,6 +388,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case gerberSilkTop = "gerber_silk_top"
     case gerberEdge = "gerber_edge"
     case drill
+    case drillNPTH = "drill_npth"
     case stl
     case obj
 
@@ -352,6 +406,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .gerberSilkTop: return "board-F_Silkscreen.gbr"
         case .gerberEdge: return "board-Edge_Cuts.gbr"
         case .drill: return "board.drl"
+        case .drillNPTH: return "board-NPTH.drl"
         case .stl: return "assembly.stl"
         case .obj: return "assembly.obj"
         }
@@ -369,12 +424,42 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .gerberSilkTop: return "Gerber — Top Silkscreen"
         case .gerberEdge: return "Gerber — Board Outline"
         case .drill: return "Excellon Drill"
+        case .drillNPTH: return "Excellon Drill — Mounting Holes (NPTH)"
         case .stl: return "3D Model (STL)"
         case .obj: return "3D Model (OBJ)"
         }
     }
 
     static let fabricationPackage: [ExportFormat] = [.gerberTop, .gerberBottom, .gerberMaskTop, .gerberMaskBottom,
-                                                     .gerberSilkTop, .gerberEdge, .drill, .bom, .pickAndPlace, .spice,
+                                                     .gerberSilkTop, .gerberEdge, .drill, .drillNPTH, .bom, .pickAndPlace,
+                                                     .spice,
                                                      .stl]
+}
+
+/// Board outline presets understood by `sieda_pcb_outline_preset`.
+enum BoardOutlinePreset: String, CaseIterable, Identifiable {
+    case rectangle
+    case rounded
+    case circle
+    case quadX = "quad-x"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .rectangle: return "Rectangle"
+        case .rounded: return "Rounded Rectangle"
+        case .circle: return "Circle"
+        case .quadX: return "Quadcopter X Frame"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .rectangle: return "rectangle"
+        case .rounded: return "app"
+        case .circle: return "circle"
+        case .quadX: return "xmark"
+        }
+    }
 }

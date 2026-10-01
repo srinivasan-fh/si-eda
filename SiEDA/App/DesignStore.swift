@@ -240,6 +240,17 @@ final class DesignStore: ObservableObject {
         perform("Connected wire") { $0.connect(a, b) }
     }
 
+    /// Toggles the "no connect" mark of a pin (an intentionally open pin; ERC stops reporting it).
+    func toggleNoConnect(_ pin: PinAddress) {
+        guard let component = snapshot.component(pin.component), pin.pin >= 0, pin.pin < component.pins.count else { return }
+        let marked = component.pins[pin.pin].noConnect
+        let label = "\(component.ref).\(component.pins[pin.pin].name)"
+        perform(marked ? "Cleared no-connect on \(label)" : "Marked \(label) no-connect", invalidatesAnalysis: false) {
+            $0.setPinNoConnect(pin, !marked)
+        }
+        runERC()
+    }
+
     func select(component id: Int?, extend: Bool = false) {
         selectedWire = nil
         guard let id else {
@@ -409,6 +420,92 @@ final class DesignStore: ObservableObject {
     func clearRouting() {
         perform("Cleared routing", invalidatesAnalysis: false) { $0.clearRouting() }
         routeStats = nil
+    }
+
+    // MARK: Net classes, outline, mounting holes, pours
+
+    func setNetWidth(_ net: String, width: Double) {
+        perform(width > 0 ? String(format: "Net class %@ = %.2f mm", net, width) : "Removed net class \(net)",
+                invalidatesAnalysis: false) { $0.setNetWidth(net, width: width) }
+    }
+
+    /// Widens net classes to the IPC-2221 width for each net's simulated current.
+    func autoSizeNetWidths() {
+        var set: [String: Double] = [:]
+        perform("Sized net classes from the simulation", invalidatesAnalysis: false) { set = $0.autoNetWidths() }
+        statusMessage = set.isEmpty ? "All nets fit the default track width"
+            : "Sized \(set.count) net class(es): " + set.sorted { $0.key < $1.key }
+                .map { String(format: "%@ %.2f mm", $0.key, $0.value) }.joined(separator: ", ")
+    }
+
+    func setAutoSizeNets(_ enabled: Bool) {
+        perform(enabled ? "Autorouter sizes power nets" : "Autorouter uses the net classes as set",
+                invalidatesAnalysis: false) { $0.setAutoSizeNets(enabled) }
+    }
+
+    func applyOutlinePreset(_ preset: BoardOutlinePreset, width: Double, height: Double, parameter: Double) {
+        var ok = false
+        perform("Board outline: \(preset.title)", invalidatesAnalysis: false) {
+            ok = $0.applyOutlinePreset(preset, width: width, height: height, parameter: parameter)
+        }
+        if !ok { alert = AlertItem(title: "Outline not changed", message: "Check the outline dimensions.") }
+        fitToken &+= 1
+    }
+
+    /// Adds four mounting holes on a square pattern centred on the board (30.5 × 30.5 mm M3 flight-controller stack…).
+    func addMountingPattern(spacing: Double, drill: Double, keepout: Double) {
+        let board = snapshot.board
+        let centre = CGPoint(x: board.width / 2, y: board.height / 2)
+        perform(String(format: "Added %.1f × %.1f mm mounting holes", spacing, spacing), invalidatesAnalysis: false) {
+            engine in
+            for dx in [-spacing / 2, spacing / 2] {
+                for dy in [-spacing / 2, spacing / 2] {
+                    engine.addMountingHole(at: CGPoint(x: centre.x + dx, y: centre.y + dy), drill: drill, keepout: keepout)
+                }
+            }
+        }
+    }
+
+    func addMountingHole(at point: CGPoint, drill: Double = 3.2, keepout: Double = 6.4) {
+        perform("Added mounting hole", invalidatesAnalysis: false) {
+            $0.addMountingHole(at: point, drill: drill, keepout: keepout)
+        }
+    }
+
+    func clearMountingHoles() {
+        perform("Removed mounting holes", invalidatesAnalysis: false) { $0.clearMountingHoles() }
+    }
+
+    func addZone(net: String, layer: Int, plane: Bool) {
+        var index: Int?
+        let name = snapshot.board.layerName(layer)
+        perform(plane ? "\(net) plane on \(name)" : "\(net) pour on \(name)", invalidatesAnalysis: false) {
+            index = $0.addZone(net: net, layer: layer, plane: plane)
+        }
+        if index == nil { alert = AlertItem(title: "Pour not added", message: "\(name) is not in the layer stack.") }
+    }
+
+    func removeZone(at index: Int) {
+        perform("Removed copper pour", invalidatesAnalysis: false) { $0.removeZone(at: index) }
+    }
+
+    /// One-click ground: GND pours on top and bottom (2-layer) or a ground plane on inner 1 (4+ layers).
+    func addGroundPours() {
+        guard let ground = snapshot.nets.first(where: { $0.ground })?.name ?? snapshot.nets.first(where: { $0.name == "GND" })?.name
+        else {
+            alert = AlertItem(title: "No ground net", message: "Add a ground symbol to the schematic first.")
+            return
+        }
+        let board = snapshot.board
+        perform("Ground pours added", invalidatesAnalysis: false) { engine in
+            if board.layerCount >= 4 {
+                engine.addZone(net: ground, layer: 1, plane: true)
+                engine.addZone(net: ground, layer: board.bottomLayer, plane: false)
+            } else {
+                engine.addZone(net: ground, layer: board.bottomLayer, plane: false)
+                if board.layerCount > 1 { engine.addZone(net: ground, layer: 0, plane: false) }
+            }
+        }
     }
 
     /// Resizes the board outline to the placed footprints plus `margin` millimetres.
@@ -624,6 +721,7 @@ final class DesignStore: ObservableObject {
             try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
             var written = 0
             for format in ExportFormat.fabricationPackage {
+                if format == .drillNPTH, snapshot.board.holes.isEmpty { continue }
                 guard let content = engine.export(format) else { continue }
                 try content.write(to: target.appendingPathComponent(format.fileName), atomically: true, encoding: .utf8)
                 written += 1

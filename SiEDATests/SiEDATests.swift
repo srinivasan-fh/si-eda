@@ -300,7 +300,7 @@ final class StandardsAndVerificationTests: XCTestCase {
     }
 
     func testOfflineTemplateMatchingAndCategories() {
-        XCTAssertEqual(OfflineProvider.templates.count, 21)
+        XCTAssertEqual(OfflineProvider.templates.count, 22)
         XCTAssertEqual(OfflineProvider.template(for: "non-inverting amplifier with gain 11").plan.title, "Non-Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "an inverting amplifier, gain -10").plan.title, "Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "blink an LED with a 555").plan.title, "555 Astable LED Blinker")
@@ -440,7 +440,7 @@ final class CanvasNavigationTests: XCTestCase {
 final class IndustryKitTests: XCTestCase {
     func testIndustryProfilesBridge() throws {
         let ids = StandardLibrary.industries.map(\.id)
-        XCTAssertEqual(ids, ["general", "robotics", "power", "automotive", "rf", "space", "marine", "industrial"])
+        XCTAssertEqual(ids, ["general", "robotics", "uav", "power", "automotive", "rf", "space", "marine", "industrial"])
         let space = try XCTUnwrap(StandardLibrary.industry("space"))
         XCTAssertEqual(space.powerDerating, 0.5, accuracy: 1e-9)
         XCTAssertTrue(space.highAltitude)
@@ -494,5 +494,111 @@ final class IndustryKitTests: XCTestCase {
         XCTAssertEqual(OfflineProvider.template(for: "433 MHz radio filter").industry, "rf")
         XCTAssertEqual(OfflineProvider.template(for: "Let a push-button switch an LED through an NPN transistor from a 5 V rail").plan.title,
                        "NPN LED Driver")
+    }
+}
+
+final class DroneAndBoardFeatureTests: XCTestCase {
+    func testDroneBriefPicksFlightControllerOnQuadXFrame() throws {
+        let template = OfflineProvider.template(for: "Toy quadcopter drone with 4 brushed motors and a 2.4 GHz radio")
+        XCTAssertEqual(template.plan.title, "Quadcopter Flight Controller")
+        XCTAssertEqual(template.industry, "uav")
+        XCTAssertEqual(template.category, "Drones & UAV")
+        XCTAssertEqual(template.plan.board.outline, "quad-x")
+        XCTAssertEqual(template.plan.board.mountingHoleSpacing, 30.5)
+        XCTAssertEqual(template.plan.pours.count, 2)
+        XCTAssertFalse(template.plan.noConnect.isEmpty)
+        XCTAssertEqual(StandardLibrary.industry("uav")?.rulePreset, "IPC-2221 Class 3")
+
+        let engine = EDAEngine()
+        let report = DesignPlanCompiler.apply(template.industryPlan, to: engine, previous: nil)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        XCTAssertTrue(snapshot.board.hasCustomOutline)
+        XCTAssertEqual(snapshot.board.width, 100, accuracy: 1e-6)
+        XCTAssertEqual(snapshot.board.holes.count, 4)
+        XCTAssertEqual(snapshot.zones.count, 2)
+        XCTAssertEqual(snapshot.board.netWidths["VBAT"], 0.6)
+        let mcu = try XCTUnwrap(snapshot.component(ref: "U3"))
+        XCTAssertEqual(mcu.pins.filter(\.noConnect).count, template.plan.noConnect.count)
+        // Unused MCU pins are intentional: ERC reports no unconnected-pin findings for them.
+        XCTAssertFalse(engine.runERC().contains { $0.severity != .info && $0.components.contains(mcu.id) })
+        // TP4056 and the LDO come with behavioural models.
+        let charger = try XCTUnwrap(snapshot.customParts.first { $0.name == "TP4056" })
+        XCTAssertEqual(charger.model?.regulator?.charger, true)
+        // The plan built back from the design keeps its board features.
+        let back = DesignPlanCompiler.plan(from: snapshot)
+        XCTAssertEqual(back.pours.count, 2)
+        XCTAssertEqual(Set(back.noConnect), Set(template.plan.noConnect))
+        XCTAssertEqual(back.board.outline, "keep")
+    }
+
+    func testOutlineHolesPoursAndNetClassesBridge() throws {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: engine, previous: nil)
+        XCTAssertTrue(engine.applyOutlinePreset(.rounded, width: 36, height: 26, parameter: 4))
+        XCTAssertEqual(engine.addMountingHole(at: CGPoint(x: 4, y: 13), drill: 3.2, keepout: 6.4), 1)
+        XCTAssertNotNil(engine.addZone(net: "GND", layer: 1, plane: false))
+        XCTAssertNil(engine.addZone(net: "GND", layer: 7, plane: false))
+        XCTAssertTrue(engine.setNetWidth("VCC", width: 0.5))
+        engine.autoPlace(all: true)
+        XCTAssertEqual(engine.autoRoute().failed, 0)
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        XCTAssertTrue(snapshot.board.hasCustomOutline)
+        XCTAssertEqual(snapshot.board.holes.count, 1)
+        let fill = try XCTUnwrap(snapshot.zoneFills.first)
+        XCTAssertGreaterThan(fill.area, 50)
+        XCTAssertFalse(fill.cgRects.isEmpty)
+        XCTAssertTrue(engine.runDRC().allSatisfy { $0.severity != .error })
+        XCTAssertTrue(engine.export(.drillNPTH)?.contains("M30") ?? false)
+        XCTAssertTrue(engine.export(.gerberBottom)?.contains("G36*") ?? false)
+
+        let copy = EDAEngine()
+        try copy.load(json: engine.saveJSON())
+        let reloaded = try XCTUnwrap(copy.snapshot())
+        XCTAssertEqual(reloaded.zones, snapshot.zones)
+        XCTAssertEqual(reloaded.board.outline, snapshot.board.outline)
+        XCTAssertEqual(reloaded.board.netWidths, snapshot.board.netWidths)
+
+        engine.clearZones()
+        engine.clearMountingHoles()
+        XCTAssertTrue(engine.setOutline([]))
+        let cleared = try XCTUnwrap(engine.snapshot())
+        XCTAssertTrue(cleared.zones.isEmpty && cleared.board.holes.isEmpty && !cleared.board.hasCustomOutline)
+    }
+
+    func testNoConnectPinsAndModelPassThrough() throws {
+        let engine = EDAEngine()
+        let timer = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "NE555" })
+        XCTAssertNotNil(timer.spec.model?.loads)
+        let part = try engine.registerCustomPart(timer.spec)
+        XCTAssertEqual(part.model, timer.spec.model)
+        XCTAssertEqual(part.spec.model, timer.spec.model)
+        let id = engine.addCustomComponent(partId: part.id, at: .zero)
+        let control = try XCTUnwrap(engine.findPin(component: id, name: "5"))
+        XCTAssertTrue(engine.setPinNoConnect(PinAddress(component: id, pin: control), true))
+        let pin = try XCTUnwrap(engine.snapshot()?.component(id)?.pins[control])
+        XCTAssertTrue(pin.noConnect)
+        XCTAssertTrue(engine.setPinNoConnect(PinAddress(component: id, pin: control), false))
+        XCTAssertEqual(engine.snapshot()?.component(id)?.pins[control].noConnect, false)
+        XCTAssertEqual(PackageKind.guess("2x04 IDC header"), .header2)
+    }
+
+    func testPlanSchemaCoversBoardFeatures() throws {
+        let schema = DesignSchemas.designPlanSchema(customKinds: [])
+        let required = try XCTUnwrap(schema["required"] as? [String])
+        for key in ["pours", "netClasses", "noConnect"] { XCTAssertTrue(required.contains(key), key) }
+        let json = """
+        {"title":"T","summary":"","components":[],"connections":[],"notes":[],"industry":"uav",
+         "board":{"width":100,"height":44,"layers":2,"outline":"quad-x","outlineParameter":12,"mountingHoleSpacing":30.5},
+         "pours":[{"net":"GND","layer":-1,"plane":false}],"netClasses":[{"net":"VBAT","width":0.6}],"noConnect":["U1.3"]}
+        """
+        let plan = try JSONExtraction.decode(DesignPlan.self, from: json)
+        XCTAssertEqual(plan.board.outline, "quad-x")
+        XCTAssertEqual(plan.pours.first?.layer, -1)
+        XCTAssertEqual(plan.netClasses.first?.width, 0.6)
+        let old = try JSONExtraction.decode(DesignPlan.self, from: #"{"title":"X","board":{"width":30,"height":20}}"#)
+        XCTAssertEqual(old.board.outline, "keep")
+        XCTAssertEqual(old.board.mountingHoleSpacing, -1)
+        XCTAssertTrue(old.pours.isEmpty)
     }
 }

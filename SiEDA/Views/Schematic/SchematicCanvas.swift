@@ -91,6 +91,7 @@ struct SchematicCanvas: View {
             .onKeyPress(.deleteForward) { store.deleteSelection(); return .handled }
             .onKeyPress(KeyEquivalent("r")) { rotate(); return .handled }
             .onKeyPress(KeyEquivalent("w")) { tool = .wire; return .handled }
+            .onKeyPress(KeyEquivalent("q")) { tool = .noConnect; return .handled }
             .onKeyPress(KeyEquivalent("v")) { tool = .select; return .handled }
             .onKeyPress(KeyEquivalent("h")) { tool = .pan; return .handled }
             .onKeyPress(KeyEquivalent("g")) { tool = .place(.ground); return .handled }
@@ -318,6 +319,8 @@ struct SchematicCanvas: View {
             store.addCustomComponent(partId: partId, at: world, rotation: placementRotation)
         case .pan:
             break
+        case .noConnect:
+            if let address = pin(at: world)?.0 { store.toggleNoConnect(address) }
         case .select, .wire:
             if let address = pin(at: world)?.0 {
                 if let start = pendingWire {
@@ -415,7 +418,16 @@ struct SchematicCanvas: View {
                 if movingIds.contains(c.id) { pp.x += delta.width; pp.y += delta.height }
                 let s = pp.applying(screen)
                 let r: CGFloat = 2.5
-                if p.connected {
+                if p.noConnect {
+                    // No-connect flag: a cross on the pin end.
+                    var cross = Path()
+                    let a: CGFloat = max(3.5, 4 * viewport.scale)
+                    cross.move(to: CGPoint(x: s.x - a, y: s.y - a))
+                    cross.addLine(to: CGPoint(x: s.x + a, y: s.y + a))
+                    cross.move(to: CGPoint(x: s.x - a, y: s.y + a))
+                    cross.addLine(to: CGPoint(x: s.x + a, y: s.y - a))
+                    ctx.stroke(cross, with: .color(p.connected ? Theme.error : Theme.skyBlue), lineWidth: 1.5)
+                } else if p.connected {
                     ctx.fill(Path(ellipseIn: CGRect(x: s.x - r, y: s.y - r, width: 2 * r, height: 2 * r)), with: .color(Theme.pin))
                 } else if !c.componentKind.isVirtual || c.componentKind == .netLabel {
                     ctx.stroke(Path(CGRect(x: s.x - 3, y: s.y - 3, width: 6, height: 6)), with: .color(Theme.unconnectedPin), lineWidth: 1.2)

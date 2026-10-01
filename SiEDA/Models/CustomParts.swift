@@ -83,6 +83,7 @@ enum PackageKind: String, CaseIterable, Identifiable, Codable {
     case lqfp = "LQFP"
     case sot23 = "SOT23"
     case header = "HEADER"
+    case header2 = "HEADER2"
     case to220 = "TO220"
 
     var id: String { rawValue }
@@ -96,6 +97,7 @@ enum PackageKind: String, CaseIterable, Identifiable, Codable {
         case .lqfp: return "LQFP (0.5 mm)"
         case .sot23: return "SOT-23 (3/5/6)"
         case .header: return "Pin Header 1×N"
+        case .header2: return "Pin Header 2×N (IDC)"
         case .to220: return "TO-220 (THT)"
         }
     }
@@ -110,8 +112,48 @@ enum PackageKind: String, CaseIterable, Identifiable, Codable {
         if u.contains("QFP") { return .lqfp }
         if u.contains("SOT") { return .sot23 }
         if u.contains("TO-220") || u.contains("TO220") || u.contains("TO-92") || u.contains("TO92") { return .to220 }
+        if u.contains("2X") || u.contains("IDC") || u.contains("DUAL ROW") || u.contains("BOX HEADER") { return .header2 }
         if u.contains("HEADER") || u.contains("SIP") || u.contains("1X") { return .header }
         return nil
+    }
+}
+
+/// Behavioural simulation model of a part (regulator/charger and IC supply loads), as the core's JSON "model".
+struct BehaviorModel: Codable, Equatable {
+    struct Regulator: Codable, Equatable {
+        var input: String
+        var output: String
+        var ref: String
+        var vout: Double
+        var dropout: Double = 0.3
+        var iq: Double = 0
+        var ilimit: Double = 1
+        var maxPower: Double = 0.5
+        var charger = false
+
+        private enum CodingKeys: String, CodingKey {
+            case input = "in", output = "out", ref, vout, dropout, iq, ilimit, maxPower, charger
+        }
+    }
+
+    struct Load: Codable, Equatable {
+        var supply: String
+        var ret: String
+        var current: Double
+    }
+
+    var regulator: Regulator?
+    var loads: [Load]?
+
+    /// "Regulator 3.3 V" / "Charger 4.2 V" / "Supply 4 mA"
+    var summary: String {
+        var parts: [String] = []
+        if let r = regulator {
+            parts.append("\(r.charger ? "Charger" : "Regulator") \(String(format: "%g", r.vout)) V")
+        }
+        let total = (loads ?? []).reduce(0) { $0 + $1.current }
+        if total > 0 { parts.append("Supply \(EngineeringFormat.string(total, unit: "A"))") }
+        return parts.joined(separator: " · ")
     }
 }
 
@@ -166,6 +208,8 @@ struct CustomPartSpec: Codable, Equatable {
     var datasheet: String = ""
     var package = Package()
     var pins: [Pin] = []
+    /// Simulation model (kept when a standard or library part is re-registered; nil = no model).
+    var model: BehaviorModel?
 
     func jsonString() -> String {
         let encoder = JSONEncoder()
@@ -238,10 +282,11 @@ struct CustomPartInfo: Decodable, Equatable, Identifiable {
     var footprint: String
     var symbol: Symbol
     var footprintGeometry: FootprintGeometry
+    var model: BehaviorModel?
 
     var spec: CustomPartSpec {
         CustomPartSpec(name: name, manufacturer: manufacturer, description: description, refPrefix: refPrefix,
-                       defaultValue: defaultValue, datasheet: datasheet, package: package, pins: pins)
+                       defaultValue: defaultValue, datasheet: datasheet, package: package, pins: pins, model: model)
     }
 
     /// Kind identifier used in AI design plans.

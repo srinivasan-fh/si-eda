@@ -4,6 +4,7 @@ import SwiftUI
 enum SchematicTool: Equatable {
     case select
     case wire
+    case noConnect
     case pan
     case place(ComponentKind)
     case placeCustom(String)  // custom part id from the component library
@@ -12,6 +13,7 @@ enum SchematicTool: Equatable {
         switch self {
         case .select: return "Select / Move"
         case .wire: return "Wire"
+        case .noConnect: return "No Connect"
         case .pan: return "Hand (Pan)"
         case .place(let kind): return "Place \(kind.displayName)"
         case .placeCustom: return "Place Custom Part"
@@ -37,6 +39,8 @@ struct SchematicEditorView: View {
                 ToolStripButton(systemImage: "cursorarrow", help: "Select / move (V)", isActive: tool == .select) { tool = .select }
                 ToolStripButton(systemImage: "hand.raised", help: "Pan (H)", isActive: tool == .pan) { tool = .pan }
                 ToolStripButton(systemImage: "line.diagonal", help: "Wire (W) — click two pins", isActive: tool == .wire) { tool = .wire }
+                ToolStripButton(systemImage: "xmark", help: "No connect (Q) — click a pin to mark it intentionally open",
+                                isActive: tool == .noConnect) { tool = .noConnect }
                 ToolStripDivider()
                 ToolStripButton(systemImage: "plus.square.on.square", help: "Place selected device (P)",
                                 isActive: {
@@ -156,6 +160,7 @@ struct SchematicEditorView: View {
         switch tool {
         case .select: return "Click a pin to wire · drag parts to move · Space or R rotates · ⇧-drag box-selects · Space+drag, empty-space drag or middle/right-drag pans · scroll/pinch zooms · Home fits"
         case .wire: return "Click a pin, then a second pin to connect them"
+        case .noConnect: return "Click a pin to mark it intentionally unconnected (click again to clear) · ERC stops reporting it"
         case .pan: return "Drag, scroll or arrow keys pan · pinch, ⌘-scroll or +/− zoom · Z zoom to area · Home fits"
         case .place, .placeCustom: return "Click to place (repeats) · Space or R rotates before placing · Esc returns to Select"
         }

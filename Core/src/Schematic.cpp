@@ -496,6 +496,13 @@ std::vector<RuleViolation> Schematic::runERC() const {
                         {c.id}, c.position);
                     break;
                 }
+                // Connectors are plain interconnect; parts with a behavioural model (regulators, IC supply
+                // current) are simulated.
+                if (c.kind == ComponentKind::Connector) break;
+                if (c.kind == ComponentKind::Custom) {
+                    const CustomPart* part = CustomPartRegistry::instance().find(c.customPart);
+                    if (part && !part->spec.model.empty()) break;
+                }
                 add(Severity::Info, "ERC_NOT_SIMULATED", c.ref + " (" + c.def().name + ") has no simulation model.",
                     {c.id}, c.position);
                 break;

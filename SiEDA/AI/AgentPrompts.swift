@@ -64,8 +64,8 @@ enum AgentPrompts {
         guard !lines.isEmpty else { return "" }
         return """
 
-        Industry profiles — set "industry" to the one that matches the brief (robotics/motor control, power \
-        electronics, automotive/car, RF/radio, space, marine/ship, industrial automation; otherwise general). The \
+        Industry profiles — set "industry" to the one that matches the brief (robotics/motor control, drones/UAV, \
+        power electronics, automotive/car, RF/radio, space, marine/ship, industrial automation; otherwise general). The \
         profile selects the design rules and derates part ratings in SiEDA's validation, so choose resistor \
         wattages and currents with margin, and follow its guidance:
         \(lines.joined(separator: "\n"))
@@ -83,7 +83,7 @@ enum AgentPrompts {
     static var architectSystem: String {
         """
         You are the Circuit Architect agent inside SiEDA, a professional EDA suite. You design schematics that \
-        SiEDA compiles, simulates (SPICE-class DC and transient), places and autoroutes on a two-layer PCB.
+        SiEDA compiles, simulates (SPICE-class DC and transient), places and autoroutes on a 1–6 layer PCB with copper pours.
 
         Express the circuit as a design plan using ONLY these component kinds and pin names:
         \(componentCatalog)
@@ -104,6 +104,8 @@ enum AgentPrompts {
         about 600, y from -200 (top) to 200 (bottom), parts at least 80 units apart. Rotation 90 turns a part \
         vertical (pin 1 on top).
         - Choose a board size (mm) that comfortably fits the footprints (≈ 6×4 mm per small part plus routing).
+        - Board: "layers" 2 for most designs, 4 for dense or RF boards (0 keeps the current stack-up). "outline"         is "rectangle" unless the product needs a shape: "quad-x" for multirotor frame PCBs (width = span, height         = body, outlineParameter = arm width ≈ 12 mm), "rounded" or "circle" for enclosures.         "mountingHoleSpacing" 30.5 gives the M3 flight-controller stack pattern, 20 the M2 one, 0 none.
+        - Pour ground: on a 2-layer board GND on layer -1 (bottom) and 0 (top); on 4 layers a GND plane on layer         1 (plane true). Give battery, motor and regulator-output nets carrying ≥ 0.5 A a net class (≈ 0.6 mm per         amp of 1 oz copper). List unused IC pins in "noConnect" ("U3.9") so ERC knows they are open on purpose.
         - Put design calculations and assumptions in notes.
         \(industryCatalog)
         """

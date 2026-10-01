@@ -554,7 +554,10 @@ Json Project::dcToJson(const DcResult& r) const {
         j["current"] = d.current;
         j["power"] = d.power;
         j["voltage"] = d.voltage;
-        j["state"] = d.state;
+        // Operating state only for parts with a regulator/charger model.
+        if (c && c->kind == ComponentKind::Custom)
+            if (const CustomPart* part = CustomPartRegistry::instance().find(c->customPart))
+                if (part->spec.model.hasRegulator) j["state"] = d.state;
         devs.push(j);
     }
     root["devices"] = devs;

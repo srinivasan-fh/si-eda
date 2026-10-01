@@ -141,6 +141,9 @@ private struct ComponentProperties: View {
                     PropertyRow(label: "Part", value: part.name)
                     if !part.manufacturer.isEmpty { PropertyRow(label: "Manufacturer", value: part.manufacturer) }
                     PropertyRow(label: "Package", value: part.footprint)
+                    if let model = part.model, !model.summary.isEmpty {
+                        PropertyRow(label: "Sim model", value: model.summary)
+                    }
                     if !part.description.isEmpty {
                         Text(part.description).font(.caption).foregroundStyle(Theme.textSecondary)
                     }
@@ -181,15 +184,25 @@ private struct ComponentProperties: View {
             }
 
             PropertyGroup(title: "Pins") {
-                ForEach(Array(component.pins.enumerated()), id: \.offset) { _, pin in
+                ForEach(Array(component.pins.enumerated()), id: \.offset) { index, pin in
                     HStack {
                         Text(pin.name).font(.callout.monospaced()).foregroundStyle(Theme.textPrimary).frame(width: 40, alignment: .leading)
-                        Text(store.snapshot.net(pin.net)?.name ?? "—")
+                        Text(pin.noConnect && !pin.connected ? "no connect" : (store.snapshot.net(pin.net)?.name ?? "—"))
                             .font(.callout.monospaced())
-                            .foregroundStyle(pin.connected ? Theme.lightBlue : Theme.warning)
+                            .foregroundStyle(pin.connected ? Theme.lightBlue : (pin.noConnect ? Theme.textMuted : Theme.warning))
                         Spacer()
                         if let v = store.dcResult?.voltage(net: pin.net), pin.connected {
                             Text(EngineeringFormat.string(v, unit: "V")).font(.caption.monospacedDigit()).foregroundStyle(Theme.probe)
+                        }
+                        if !kind.isVirtual, !pin.connected || pin.noConnect {
+                            Button {
+                                store.toggleNoConnect(PinAddress(component: component.id, pin: index))
+                            } label: {
+                                Image(systemName: pin.noConnect ? "xmark.circle.fill" : "xmark.circle")
+                            }
+                            .buttonStyle(.borderless)
+                            .help(pin.noConnect ? "Clear the no-connect mark" : "Mark as intentionally unconnected (Q)")
+                            .accessibilityLabel(pin.noConnect ? "Clear no-connect on \(pin.name)" : "Mark \(pin.name) no-connect")
                         }
                     }
                 }
@@ -202,6 +215,9 @@ private struct ComponentProperties: View {
                     PropertyRow(label: kind == .npn ? "V_CE" : (kind == .nmos ? "V_DS" : "Voltage"),
                                 value: EngineeringFormat.string(reading.voltage, unit: "V", digits: 4))
                     PropertyRow(label: "Power", value: EngineeringFormat.string(reading.power, unit: "W", digits: 3))
+                    if let state = reading.stateTitle {
+                        PropertyRow(label: "State", value: state)
+                    }
                 }
             }
         }
