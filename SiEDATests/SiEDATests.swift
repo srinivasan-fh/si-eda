@@ -851,7 +851,9 @@ final class DesignFlowTests: XCTestCase {
         XCTAssertFalse(store.snapshot.tracks.isEmpty)
 
         // Dragging two footprints is one undo step, and makes the DRC/route results stale.
-        let a = parts[0], b = parts[1]
+        // Positions as routed (Fit Board shifted the footprints after `parts` was read).
+        let a = try XCTUnwrap(store.snapshot.component(parts[0].id))
+        let b = try XCTUnwrap(store.snapshot.component(parts[1].id))
         store.moveFootprints([(a.id, CGPoint(x: a.pcb.x + 1, y: a.pcb.y)), (b.id, CGPoint(x: b.pcb.x + 1, y: b.pcb.y))])
         XCTAssertEqual(store.snapshot.component(a.id)?.pcb.x ?? 0, a.pcb.x + 1, accuracy: 0.26)
         XCTAssertEqual(store.snapshot.component(b.id)?.pcb.x ?? 0, b.pcb.x + 1, accuracy: 0.26)
