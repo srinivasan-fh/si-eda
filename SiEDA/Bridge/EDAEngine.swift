@@ -49,9 +49,11 @@ final class EDAEngine: @unchecked Sendable {
         return String(cString: pointer)
     }
 
+    /// Error envelope the C API returns when the core throws.
+    private struct CoreError: Decodable { let error: String }
+
     /// Decodes a core result; a `{"error": …}` reply or undecodable JSON becomes a failure with its message.
     private static func decodeChecked<T: Decodable>(_ type: T.Type, from json: String?) -> Result<T, EDAEngineError> {
-        struct CoreError: Decodable { let error: String }
         guard let json, let data = json.data(using: .utf8) else { return .failure(.operationFailed("no reply from the core")) }
         if let value = try? JSONDecoder().decode(type, from: data) { return .success(value) }
         if let failure = try? JSONDecoder().decode(CoreError.self, from: data) { return .failure(.operationFailed(failure.error)) }
