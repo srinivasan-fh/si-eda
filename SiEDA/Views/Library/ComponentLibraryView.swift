@@ -268,6 +268,7 @@ struct ComponentLibraryView: View {
                             Button {
                                 draft.pins.removeAll { $0.id == pin.id }
                             } label: { Image(systemName: "minus.circle") }
+                                .accessibilityLabel("Remove pin \(pin.number)")
                                 .buttonStyle(.borderless)
                                 .foregroundStyle(Theme.lightBlue)
                                 .frame(width: 20)

@@ -34,6 +34,10 @@ struct SchematicCanvas: View {
                 draw(&ctx, size: size)
             }
             .contentShape(Rectangle())
+            .accessibilityElement()
+            .accessibilityLabel("Schematic canvas")
+            .accessibilityValue("\(store.snapshot.components.count) components, \(store.snapshot.wires.count) wires, "
+                + "\(store.selection.count) selected")
             .gesture(dragGesture)
             .simultaneousGesture(
                 MagnifyGesture()

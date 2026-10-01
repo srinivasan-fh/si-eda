@@ -237,6 +237,7 @@ struct LayersPanel: View {
                             .frame(width: 18)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(visible.contains(layer) ? "Hide \(layer.name(board))" : "Show \(layer.name(board))")
                     RoundedRectangle(cornerRadius: 3).fill(layer.color(board)).frame(width: 12, height: 12)
                     Text(layer.name(board)).font(.caption)
                         .foregroundStyle(active == layer ? Theme.textPrimary : Theme.textSecondary)
@@ -315,6 +316,12 @@ struct PCBCanvas: View {
         GeometryReader { geo in
             Canvas(rendersAsynchronously: false) { ctx, size in draw(&ctx, size: size) }
                 .contentShape(Rectangle())
+                .accessibilityElement()
+                .accessibilityLabel("PCB layout canvas")
+                .accessibilityValue(String(format: "%.0f by %.0f millimetre board, %d layers, %d tracks, %d unrouted connections",
+                                           store.snapshot.board.width, store.snapshot.board.height,
+                                           store.snapshot.board.layerCount, store.snapshot.tracks.count,
+                                           store.snapshot.ratsnest.count))
                 .gesture(drag)
                 .simultaneousGesture(
                     MagnifyGesture()

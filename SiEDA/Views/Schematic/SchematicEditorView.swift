@@ -263,18 +263,21 @@ struct SimulationTransport: View {
                 Image(systemName: "play.fill")
             }
             .help("Run DC operating point — shows live voltage probes")
+            .accessibilityLabel("Run DC operating point")
             Button {
                 store.workspace = .simulation
             } label: {
                 Image(systemName: "waveform")
             }
             .help("Transient analysis")
+            .accessibilityLabel("Open transient analysis")
             Button {
                 store.dcResult = nil
             } label: {
                 Image(systemName: "stop.fill")
             }
             .help("Clear simulation results")
+            .accessibilityLabel("Clear simulation results")
             .disabled(store.dcResult == nil)
             if let dc = store.dcResult {
                 Text(dc.converged ? "DC ✓" : "DC ✗")

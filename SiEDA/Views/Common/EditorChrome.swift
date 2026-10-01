@@ -22,6 +22,8 @@ struct ToolStripButton: View {
         }
         .buttonStyle(.plain)
         .help(help)
+        .accessibilityLabel(help)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 }
 
@@ -72,13 +74,14 @@ struct ZoomControls: View {
 
     var body: some View {
         HStack(spacing: 2) {
-            Button(action: zoomOut) { Image(systemName: "minus.magnifyingglass") }.help("Zoom out")
+            Button(action: zoomOut) { Image(systemName: "minus.magnifyingglass") }.help("Zoom out").accessibilityLabel("Zoom out")
             Text("\(Int(scale * 100))%")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(Theme.skyBlue)
                 .frame(width: 52)
-            Button(action: zoomIn) { Image(systemName: "plus.magnifyingglass") }.help("Zoom in")
+            Button(action: zoomIn) { Image(systemName: "plus.magnifyingglass") }.help("Zoom in").accessibilityLabel("Zoom in")
             Button(action: fit) { Image(systemName: "arrow.up.left.and.down.right.magnifyingglass") }.help("Zoom to fit")
+                .accessibilityLabel("Zoom to fit")
         }
         .buttonStyle(.borderless)
         .foregroundStyle(Theme.lightBlue)
