@@ -1,4 +1,4 @@
-// sieda-cli — headless SiEDA pipeline: ERC → DC simulation → placement → routing → DRC → fabrication outputs.
+// sieda-cli — headless SiEDA pipeline: ERC → DC simulation → placement → routing → DRC → verification → fabrication outputs.
 //
 //   sieda-cli                       run the built-in demo design
 //   sieda-cli --demo out/           run the demo and write its fabrication files into out/
@@ -13,6 +13,7 @@
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/Units.hpp"
+#include "sieda/Verification.hpp"
 
 using namespace sieda;
 
@@ -103,6 +104,11 @@ int main(int argc, char** argv) {
     auto drc = project.pcb.runDRC(project.schematic);
     printViolations("Design Rule Check", drc);
 
+    VerificationReport verification = verifyDesign(project);
+    std::printf("\n== Design verification: %s ==\n", stageStatusName(verification.verdict));
+    for (const auto& st : verification.stages)
+        std::printf("  %-24s %-8s %s\n", st.title.c_str(), stageStatusName(st.status), st.summary.c_str());
+
     if (argc >= 3) {
         std::string dir = argv[2];
         if (!dir.empty() && dir.back() != '/') dir += '/';
@@ -120,10 +126,9 @@ int main(int argc, char** argv) {
         ok &= writeFile(dir + "board-Edge_Cuts.gbr", exportGerber(project.schematic, project.pcb, GerberLayer::EdgeCuts));
         ok &= writeFile(dir + "board.drl", exportExcellonDrill(project.schematic, project.pcb));
         ok &= writeFile(dir + "assembly.stl", exportStl(mesh, "assembly"));
+        ok &= writeFile(dir + "verification_report.md", verification.toMarkdown());
         std::printf("\n%s fabrication outputs to %s\n", ok ? "Wrote" : "FAILED writing", dir.c_str());
         if (!ok) return 1;
     }
-    int errors = 0;
-    for (const auto& v : drc) errors += v.severity == Severity::Error;
-    return errors == 0 ? 0 : 1;
+    return verification.passed() ? 0 : 1;
 }

@@ -12,6 +12,7 @@
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
 #include "sieda/Validation.hpp"
+#include "sieda/Verification.hpp"
 
 struct SiedaProject {
     sieda::Project project;
@@ -291,6 +292,15 @@ char* sieda_run_circuit_validation(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
         return dup(Project::violationsToJson(validateCircuit(project->project.schematic)).dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_run_verification(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(verifyDesign(project->project).toJson().dump());
     } catch (const std::exception& e) {
         return errorJson(e);
     }

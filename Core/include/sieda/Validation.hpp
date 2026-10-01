@@ -2,7 +2,8 @@
 //
 // Checks standard component values, decoupling of IC power pins, and — from a DC operating point —
 // part ratings: resistor dissipation, LED/diode/transistor current and power, reverse-biased LEDs,
-// supply over-current (likely shorts), op-amp saturation and fuse overload.
+// supply over-current (likely shorts), op-amp saturation and fuse overload. Exceeding a rating is a
+// warning; reaching twice the rating is an error.
 #pragma once
 
 #include <vector>

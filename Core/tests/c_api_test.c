@@ -23,6 +23,10 @@ int sieda_c_api_smoke_test(void) {
     if (!routed || !strstr(routed, "\"failed\":0")) return 8;
     sieda_string_free(routed);
 
+    char* verification = sieda_run_verification(p);
+    if (!verification || !strstr(verification, "\"stages\":[") || !strstr(verification, "Design Verification Report")) return 22;
+    sieda_string_free(verification);
+
     SiedaMesh* m = sieda_mesh_build(p, 1);
     if (!m || sieda_mesh_vertex_count(m) <= 0 || sieda_mesh_index_count(m) % 3 != 0) return 9;
     sieda_mesh_free(m);

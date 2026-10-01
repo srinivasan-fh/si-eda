@@ -15,6 +15,7 @@
 #include "sieda/Simulator.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Validation.hpp"
+#include "sieda/Verification.hpp"
 #include "sieda/Units.hpp"
 
 extern "C" int sieda_c_api_smoke_test(void);
@@ -906,6 +907,69 @@ TEST(pcb_rule_presets_and_manufacturability_checks) {
 }
 
 // ======================================================================= persistence & exports
+
+TEST(design_verification_pipeline) {
+    auto stage = [](const VerificationReport& r, const char* id) -> const VerificationStage* {
+        for (const auto& s : r.stages)
+            if (s.id == id) return &s;
+        return nullptr;
+    };
+
+    // Empty design fails at ERC; later stages are skipped.
+    VerificationReport empty = verifyDesign(Project{});
+    CHECK(empty.verdict == StageStatus::Fail);
+    CHECK(empty.stages.size() == 7);
+    CHECK(stage(empty, "routing")->status == StageStatus::Skipped);
+
+    // Schematic only: no placement yet.
+    Project p = ledProject();
+    for (const auto& c : p.schematic.components()) p.schematic.find(c.id)->pcb.placed = false;
+    p.pcb.clearRouting();
+    VerificationReport unplaced = verifyDesign(p);
+    CHECK(stage(unplaced, "erc")->status != StageStatus::Fail);
+    CHECK(stage(unplaced, "simulation")->status == StageStatus::Pass);
+    CHECK(stage(unplaced, "placement")->status == StageStatus::Fail);
+    CHECK(!unplaced.passed());
+
+    // Placed but not routed.
+    p.pcb.autoPlace(p.schematic, true);
+    VerificationReport unrouted = verifyDesign(p);
+    CHECK(stage(unrouted, "placement")->status == StageStatus::Pass);
+    CHECK(stage(unrouted, "routing")->status == StageStatus::Fail);
+    CHECK(unrouted.verdict == StageStatus::Fail);
+
+    // Fully routed: every stage passes and every manufacturing file is checked.
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    VerificationReport done = verifyDesign(p);
+    for (const auto& s : done.stages)
+        if (s.status == StageStatus::Fail) std::printf("    stage %s failed: %s\n", s.id.c_str(), s.summary.c_str());
+    CHECK(done.passed());
+    CHECK(done.errors == 0);
+    const VerificationStage* mfg = stage(done, "manufacturing");
+    CHECK(mfg && mfg->status == StageStatus::Pass);
+    CHECK(mfg && mfg->details.size() == static_cast<size_t>(p.pcb.settings.layerCount + 4 + 4));
+    std::string md = done.toMarkdown();
+    CHECK(md.find("# Design Verification Report") != std::string::npos);
+    CHECK(md.find("| Routing Completion | PASS |") != std::string::npos);
+    Json j = Json::parse(done.toJson().dump());
+    CHECK(j["verdict"].asString() == stageStatusName(done.verdict));
+    CHECK(j["stages"].size() == 7);
+
+    // Four layers: one copper Gerber per layer is verified.
+    p.pcb.settings.layerCount = 4;
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    VerificationReport four = verifyDesign(p);
+    CHECK(stage(four, "manufacturing")->details.size() == 12);
+    CHECK(four.passed());
+
+    // An overloaded resistor fails circuit validation and therefore the design.
+    Project hot = p;
+    for (const auto& c : p.schematic.components())
+        if (c.kind == ComponentKind::Resistor) hot.schematic.setValue(c.id, "10");
+    VerificationReport overloaded = verifyDesign(hot);
+    CHECK(stage(overloaded, "validation")->status == StageStatus::Fail);
+    CHECK(!overloaded.passed());
+}
 
 TEST(project_json_roundtrip) {
     Project p = amplifierProject();

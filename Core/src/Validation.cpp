@@ -1,5 +1,6 @@
 #include "sieda/Validation.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <map>
 #include <set>
@@ -12,6 +13,10 @@ namespace sieda {
 
 namespace {
 std::string fmt(double v, const char* unit) { return formatEngineeringValue(v, unit, 3); }
+
+/// Over a rating is a warning (the default ratings are typical parts); twice the rating will destroy any
+/// part of that class and is an error.
+Severity overload(double value, double rating) { return value >= 2.0 * rating ? Severity::Error : Severity::Warning; }
 }  // namespace
 
 std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatings& r) {
@@ -98,7 +103,7 @@ std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatin
         switch (c->kind) {
             case ComponentKind::Resistor:
                 if (p > r.resistorPower)
-                    add(Severity::Warning, "VAL_RESISTOR_POWER",
+                    add(overload(p, r.resistorPower), "VAL_RESISTOR_POWER",
                         c->ref + " dissipates " + fmt(p, "W") + ", above the " + fmt(r.resistorPower, "W") +
                             " rating of an 0805 resistor. Use a larger package or a higher value.", *c);
                 break;
@@ -107,24 +112,24 @@ std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatin
                     add(Severity::Warning, "VAL_REVERSE_BIAS",
                         c->ref + " is reverse-biased (V_AK = " + fmt(d.voltage, "V") + ") — check its orientation.", *c);
                 else if (i > r.ledCurrent)
-                    add(Severity::Warning, "VAL_LED_CURRENT",
+                    add(overload(i, r.ledCurrent), "VAL_LED_CURRENT",
                         c->ref + " carries " + fmt(i, "A") + " (max " + fmt(r.ledCurrent, "A") +
                             "). Increase the series resistor.", *c);
                 break;
             case ComponentKind::Diode:
                 if (i > r.diodeCurrent)
-                    add(Severity::Warning, "VAL_DIODE_CURRENT",
+                    add(overload(i, r.diodeCurrent), "VAL_DIODE_CURRENT",
                         c->ref + " forward current " + fmt(i, "A") + " exceeds " + fmt(r.diodeCurrent, "A") + ".", *c);
                 break;
             case ComponentKind::NPN:
                 if (i > r.npnCurrent || p > r.npnPower)
-                    add(Severity::Warning, "VAL_TRANSISTOR_RATING",
+                    add(std::max(overload(i, r.npnCurrent), overload(p, r.npnPower)), "VAL_TRANSISTOR_RATING",
                         c->ref + " I_C = " + fmt(i, "A") + ", P = " + fmt(p, "W") + " exceeds BC847 ratings (" +
                             fmt(r.npnCurrent, "A") + ", " + fmt(r.npnPower, "W") + ").", *c);
                 break;
             case ComponentKind::NMOS:
                 if (i > r.nmosCurrent || p > r.nmosPower)
-                    add(Severity::Warning, "VAL_TRANSISTOR_RATING",
+                    add(std::max(overload(i, r.nmosCurrent), overload(p, r.nmosPower)), "VAL_TRANSISTOR_RATING",
                         c->ref + " I_D = " + fmt(i, "A") + ", P = " + fmt(p, "W") + " exceeds 2N7002 ratings (" +
                             fmt(r.nmosCurrent, "A") + ", " + fmt(r.nmosPower, "W") + ").", *c);
                 break;
@@ -141,7 +146,7 @@ std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatin
             case ComponentKind::Fuse: {
                 auto rating = parseEngineeringValue(c->value);
                 if (rating && *rating > 0 && i > *rating)
-                    add(Severity::Warning, "VAL_FUSE_OVERLOAD",
+                    add(overload(i, *rating), "VAL_FUSE_OVERLOAD",
                         c->ref + " carries " + fmt(i, "A") + ", above its " + fmt(*rating, "A") + " rating.", *c);
                 break;
             }
