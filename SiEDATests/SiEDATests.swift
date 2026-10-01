@@ -301,7 +301,7 @@ final class StandardsAndVerificationTests: XCTestCase {
     }
 
     func testOfflineTemplateMatchingAndCategories() {
-        XCTAssertEqual(OfflineProvider.templates.count, 26)
+        XCTAssertEqual(OfflineProvider.templates.count, 27)
         XCTAssertEqual(OfflineProvider.template(for: "non-inverting amplifier with gain 11").plan.title, "Non-Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "an inverting amplifier, gain -10").plan.title, "Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "blink an LED with a 555").plan.title, "555 Astable LED Blinker")
@@ -1055,5 +1055,174 @@ final class TableReentrancyTests: XCTestCase {
         for (name, count) in results.sorted(by: { $0.key < $1.key }) {
             XCTAssertEqual(count, 0, "\(name) logged a reentrant NSTableView update")
         }
+    }
+}
+
+/// Microcontroller firmware: attach, run in the transient analysis, persist.
+@MainActor
+final class MicrocontrollerTests: XCTestCase {
+    private func arduinoTemplate() throws -> OfflineProvider.Template {
+        try XCTUnwrap(OfflineProvider.templates.first { $0.category == "Microcontrollers" })
+    }
+
+    func testExampleFirmwareCatalog() {
+        let ids = EDAEngine.firmwareExamples.map(\.id)
+        XCTAssertTrue(ids.contains("arduino_blink"))
+        XCTAssertTrue(ids.contains("tiny_blink"))
+        for example in EDAEngine.firmwareExamples {
+            let hex = EDAEngine.firmwareExampleHex(example.id)
+            XCTAssertTrue(hex?.hasPrefix(":") ?? false, example.id)
+            XCTAssertFalse(example.description.isEmpty)
+        }
+        XCTAssertNil(EDAEngine.firmwareExampleHex("nope"))
+    }
+
+    func testArduinoTemplateRunsItsFirmware() async throws {
+        let store = DesignStore()
+        store.aiEnabled = false
+        let report = store.applyPlan(try arduinoTemplate().industryPlan, requirements: nil)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        let mcu = try XCTUnwrap(store.snapshot.component(ref: "U1")?.mcu)
+        XCTAssertEqual(mcu.model, "ATmega328P")
+        XCTAssertEqual(mcu.firmwareName, "Button (INT0)")
+        XCTAssertGreaterThan(mcu.firmwareBytes, 100)
+        XCTAssertEqual(mcu.clockHz, 16e6)
+
+        await store.simulateTransient(stop: 0.05, step: 1e-4)
+        let tr = try XCTUnwrap(store.transientResult)
+        XCTAssertTrue(tr.ok, tr.error)
+        let run = try XCTUnwrap(tr.mcus.first)
+        XCTAssertTrue(run.running, run.status)
+        XCTAssertTrue(run.status.contains("16 MHz"), run.status)
+        XCTAssertGreaterThan(run.cycles, 700_000)
+    }
+
+    func testUploadValidationUndoAndClock() throws {
+        let store = DesignStore()
+        store.aiEnabled = false
+        store.applyPlan(try arduinoTemplate().industryPlan, requirements: nil)
+        let u1 = try XCTUnwrap(store.snapshot.component(ref: "U1"))
+
+        // Not Intel HEX: refused with an alert, nothing changes.
+        XCTAssertFalse(store.setFirmware(u1.id, hex: "this is not hex", name: "bad.hex"))
+        XCTAssertNotNil(store.alert)
+        XCTAssertEqual(store.snapshot.component(ref: "U1")?.mcu?.firmwareName, "Button (INT0)")
+        store.alert = nil
+
+        // A part that is not a microcontroller is refused too.
+        let r1 = try XCTUnwrap(store.snapshot.component(ref: "R1"))
+        XCTAssertFalse(store.setFirmware(r1.id, hex: EDAEngine.firmwareExampleHex("blink") ?? "", name: "blink"))
+        XCTAssertNotNil(store.alert)
+        store.alert = nil
+
+        let blink = try XCTUnwrap(EDAEngine.firmwareExamples.first { $0.id == "arduino_blink" })
+        store.loadFirmwareExample(blink, into: u1.id)
+        XCTAssertEqual(store.snapshot.component(ref: "U1")?.mcu?.firmwareName, "Arduino Blink")
+        store.setMcuClock(u1.id, clockHz: 8e6)
+        XCTAssertEqual(store.snapshot.component(ref: "U1")?.mcu?.clockHz, 8e6)
+        XCTAssertEqual(store.snapshot.component(ref: "U1")?.mcu?.firmwareName, "Arduino Blink")
+        store.undo()
+        store.undo()
+        XCTAssertEqual(store.snapshot.component(ref: "U1")?.mcu?.firmwareName, "Button (INT0)")
+        store.setFirmware(u1.id, hex: "", name: "")
+        XCTAssertFalse(store.snapshot.component(ref: "U1")?.mcu?.hasFirmware ?? true)
+    }
+
+    func testBlinkDrivesTheLedAndFirmwarePersists() throws {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(try arduinoTemplate().industryPlan, to: engine, previous: nil)
+        let u1 = try XCTUnwrap(engine.findComponent(ref: "U1"))
+        try engine.setFirmware(u1, hex: try XCTUnwrap(EDAEngine.firmwareExampleHex("arduino_blink")), name: "Blink.hex",
+                               clockHz: 0)
+        let tr = engine.simulateTransient(stop: 0.5, step: 1e-4)
+        XCTAssertTrue(tr.ok, tr.error)
+        // D13 → R2 → LED: the PB5 net toggles every 200 ms.
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        let r2 = try XCTUnwrap(snapshot.component(ref: "R2"))
+        let net = try XCTUnwrap(snapshot.nets.first { $0.index == r2.pins[0].net })
+        let wave = try XCTUnwrap(tr.nets.first { $0.label == net.name || $0.index == net.index })
+        var edges = 0
+        for i in 1..<wave.values.count where (wave.values[i - 1] < 2.5) != (wave.values[i] < 2.5) { edges += 1 }
+        XCTAssertEqual(edges, 3, "rising at 0, falling at 0.2 s, rising at 0.4 s")
+
+        // Save → load keeps the firmware; a plan that rebuilds the schematic keeps it with U1.
+        let copy = EDAEngine()
+        try copy.load(json: engine.saveJSON())
+        let copied = try XCTUnwrap(copy.snapshot()?.component(ref: "U1")?.mcu)
+        XCTAssertEqual(copied.firmwareName, "Blink.hex")
+        XCTAssertEqual(copy.firmware(of: try XCTUnwrap(copy.findComponent(ref: "U1"))), engine.firmware(of: u1))
+        let previous = try XCTUnwrap(copy.snapshot())
+        var plan = DesignPlanCompiler.plan(from: previous)
+        plan.notes.append("refined")
+        DesignPlanCompiler.apply(plan, to: copy, previous: previous)
+        XCTAssertEqual(copy.snapshot()?.component(ref: "U1")?.mcu?.firmwareName, "Blink.hex")
+    }
+}
+
+/// The live board: real-time stepping, firmware, push-button, LED glow, serial monitor, scope, stop on edits.
+@MainActor
+final class LiveSimulationTests: XCTestCase {
+    private func wait(_ live: LiveSimulation, until condition: () -> Bool, timeout: TimeInterval = 20) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition() && Date() < deadline { try? await Task.sleep(nanoseconds: 50_000_000) }
+    }
+
+    func testArduinoBoardRunsLive() async throws {
+        let store = DesignStore()
+        store.aiEnabled = false
+        let template = try XCTUnwrap(OfflineProvider.templates.first { $0.category == "Microcontrollers" })
+        store.applyPlan(template.industryPlan, requirements: nil)
+        let live = store.live
+        live.speed = 1
+        live.resolution = 100e-6
+        live.start(store: store)
+        XCTAssertTrue(live.isRunning, live.error ?? "")
+        defer { live.stop() }
+
+        await wait(live) { (live.state?.time ?? 0) > 0.05 }
+        let state = try XCTUnwrap(live.state)
+        XCTAssertGreaterThan(state.time, 0.05)
+        XCTAssertTrue(state.mcus.first?.running ?? false, state.mcus.first?.status ?? "no MCU")
+        let sw1 = try XCTUnwrap(store.snapshot.component(ref: "SW1"))
+        let d1 = try XCTUnwrap(store.snapshot.component(ref: "D1"))
+        XCTAssertEqual(state.switches.first?.momentary, true)
+        XCTAssertLessThan(live.led(d1.id)?.brightness ?? 1, 0.05)
+
+        // Hold the push-button: the LED lights and the firmware reports the press.
+        live.press(sw1.id, pressed: true)
+        await wait(live) { (live.led(d1.id)?.brightness ?? 0) > 0.4 }
+        XCTAssertGreaterThan(live.led(d1.id)?.brightness ?? 0, 0.4)
+        XCTAssertEqual(live.isClosed(sw1.id), true)
+        await wait(live) { live.state?.mcus.first?.serial.contains("press 1") ?? false }
+        XCTAssertTrue(live.state?.mcus.first?.serial.contains("press 1") ?? false)
+        live.press(sw1.id, pressed: false)
+        await wait(live) { (live.led(d1.id)?.brightness ?? 1) < 0.05 }
+        XCTAssertLessThan(live.led(d1.id)?.brightness ?? 1, 0.05)
+
+        // Scope history accumulates for the selected nets.
+        XCTAssertFalse(live.scopeNets.isEmpty)
+        XCTAssertGreaterThan(live.scopeTime.count, 10)
+        XCTAssertTrue(live.scopeNets.allSatisfy { (live.scopeValues[$0]?.count ?? 0) == live.scopeTime.count })
+
+        // Pause holds the time; an edit stops the run.
+        live.pause()
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        let paused = live.state?.time ?? 0
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(live.state?.time ?? -1, paused, accuracy: 1e-9)
+        live.resume()
+        store.setValue(try XCTUnwrap(store.snapshot.component(ref: "R2")).id, "470")
+        await wait(live) { !live.isRunning }
+        XCTAssertFalse(live.isRunning)
+        XCTAssertTrue(store.statusMessage.contains("design changed"), store.statusMessage)
+    }
+
+    func testLiveStartErrorsAreReported() {
+        let store = DesignStore()  // empty design: nothing to simulate
+        store.live.start(store: store)
+        XCTAssertFalse(store.live.isRunning)
+        XCTAssertNotNil(store.live.error)
+        store.live.clearError()
+        XCTAssertNil(store.live.error)
     }
 }

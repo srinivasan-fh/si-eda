@@ -1,4 +1,5 @@
 #include "sieda/Simulator.hpp"
+#include "sieda/Avr.hpp"
 #include "sieda/CustomParts.hpp"
 #include "sieda/DeviceModels.hpp"
 
@@ -104,7 +105,11 @@ double limexp(double x, double kMax = 40.0) {
 
 double junctionLimit(double is) { return std::max(40.0, std::log(1.0 / std::max(is, 1e-300))); }
 
-enum class ElemType { Resistor, Capacitor, Inductor, VSource, ISource, Diode, NPN, NMOS, OpAmp, Regulator, Load };
+enum class ElemType { Resistor, Capacitor, Inductor, VSource, ISource, Diode, NPN, NMOS, OpAmp, Regulator, Load, McuPin };
+
+// Microcontroller pins: 25 Ω push-pull outputs, 35 kΩ pull-ups (ATmega328P datasheet typical values).
+constexpr double kMcuOutputConductance = 1.0 / 25.0;
+constexpr double kMcuPullupConductance = 1.0 / 35000.0;
 
 // Smooth max(0, z) with a 20 mV knee (keeps Newton derivatives continuous).
 double softplus(double z) {
@@ -126,11 +131,28 @@ struct Simulator::Element {
     double dropout = 0.3, iq = 0, ilimit = 1.0, rout = 0.01;
     mutable int mode = 0;  // 0 CV, 1 CC, 2 off
     int sub = 0;           // element index within a custom part (0 = regulator, 1… = supply loads)
+    bool isSwitch = false;
+    // Microcontroller pin (McuPin): n = {pin, GND, VCC}; conductances from the firmware's drive over the last step.
+    int mcu = -1, mcuPin = -1;
+    double gHigh = 0, gLow = 0, gPull = 0;
     // Transient state
     double prevV = 0, prevI = 0;
 
     /// Regulated output for input headroom vi (V_in − V_ref): min(vout, vi − dropout), never negative.
     double setpoint(double vi) const { return softplus(value - softplus(value - (vi - dropout))); }
+};
+
+struct Simulator::McuState {
+    int componentId = -1;
+    std::string name;
+    std::unique_ptr<AvrMcu> mcu;
+    double clockHz = 16e6;
+    double carry = 0;
+    int vcc = -1, gnd = -1, aref = -1;  // unknown indices (-1 is also the ground node)
+    bool powered = false;               // VCC and GND pins are both wired
+    std::vector<std::pair<int, size_t>> pins;  // (pin index, element index)
+    std::string loadError;
+    bool hasFirmware = false;
 };
 
 namespace {
@@ -214,6 +236,7 @@ Simulator::~Simulator() = default;
 
 bool Simulator::build(std::string& error) {
     elements_.clear();
+    mcus_.clear();
     const auto& nets = sch_.nets();
     int gnd = sch_.groundNet();
     if (gnd < 0) {
@@ -254,6 +277,7 @@ bool Simulator::build(std::string& error) {
                 std::transform(v.begin(), v.end(), v.begin(), [](unsigned char ch) { return std::tolower(ch); });
                 bool closed = v == "on" || v == "closed" || v == "1" || v == "true";
                 e.value = closed ? 0.01 : 1e9;
+                e.isSwitch = true;
                 break;
             }
             case ComponentKind::Capacitor:
@@ -343,6 +367,54 @@ bool Simulator::build(std::string& error) {
                     load.sub = sub++;
                     elements_.push_back(load);
                 }
+                if (auto model = mcuModelForPart(spec.name)) {
+                    auto st = std::make_unique<McuState>();
+                    st->componentId = c.id;
+                    st->mcu = std::make_unique<AvrMcu>(*model);
+                    st->clockHz = c.clockHz > 0 ? c.clockHz : defaultMcuClock(*model);
+                    st->name = c.firmwareName.empty() ? std::string("firmware") : c.firmwareName;
+                    std::vector<std::pair<int, int>> pinNodes;  // (pin index, node)
+                    bool vccWired = false, gndWired = false;
+                    for (size_t i = 0; i < spec.pins.size(); ++i) {
+                        std::string pn;
+                        for (char ch : spec.pins[i].name) pn += static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                        int net = sch_.netOf({c.id, static_cast<int>(i)});
+                        // A pin alone on its net is not wired (the second GND pin of a DIP-28 left open, …).
+                        bool wired = net >= 0 && sch_.nets()[static_cast<size_t>(net)].pins.size() > 1;
+                        int nd = node(c.id, static_cast<int>(i));
+                        if (pn == "VCC" && wired && !vccWired) {
+                            st->vcc = nd;
+                            vccWired = true;
+                        } else if (pn == "GND" && wired && !gndWired) {
+                            st->gnd = nd;
+                            gndWired = true;
+                        } else if (pn == "AREF" && wired) {
+                            st->aref = nd;
+                        }
+                        int pin = st->mcu->pinIndex(spec.pins[i].name);
+                        if (pin >= 0 && wired) pinNodes.push_back({pin, nd});
+                    }
+                    st->powered = vccWired && gndWired;
+                    for (const auto& [pin, nd] : pinNodes) {
+                        Element pe{};
+                        pe.type = ElemType::McuPin;
+                        pe.componentId = c.id;
+                        pe.mcu = static_cast<int>(mcus_.size());
+                        pe.mcuPin = pin;
+                        pe.sub = 1000 + pin;
+                        pe.n = {nd, st->gnd, st->vcc};
+                        st->pins.push_back({pin, elements_.size()});
+                        elements_.push_back(pe);
+                    }
+                    if (!c.firmware.empty()) {
+                        HexImage img = parseIntelHex(c.firmware);
+                        std::string err = img.error;
+                        if (img.ok() && !st->mcu->loadFirmware(img.bytes, err)) img.error = err;
+                        if (!err.empty()) st->loadError = err;
+                        else st->hasFirmware = true;
+                    }
+                    mcus_.push_back(std::move(st));
+                }
                 continue;
             }
             default: continue;  // ground, labels, connectors, generic ICs: no electrical model
@@ -379,6 +451,10 @@ void Simulator::stamp(double t, double h, const std::vector<double>& x, double g
         int a = e.n[0], bb = e.n[1];
         switch (e.type) {
             case ElemType::Resistor: conductance(a, bb, 1.0 / e.value); break;
+            case ElemType::McuPin:
+                if (e.gHigh + e.gPull > 0) conductance(a, e.n[2], e.gHigh + e.gPull);
+                if (e.gLow > 0) conductance(a, bb, e.gLow);
+                break;
             case ElemType::Capacitor:
                 if (h > 0) {
                     double geq = e.value / h;
@@ -523,11 +599,13 @@ bool Simulator::solve(double t, double h, std::vector<double>& x, int& iteration
 std::vector<DeviceReading> Simulator::readings(const std::vector<double>& x, double h) const {
     std::vector<DeviceReading> out;
     for (const auto& e : elements_) {
+        if (e.type == ElemType::McuPin) continue;  // part of the microcontroller (its supply load is the reading)
         DeviceReading r;
         r.componentId = e.componentId;
         double va = nodeV(x, e.n[0]), vb = nodeV(x, e.n[1]);
         r.voltage = va - vb;
         switch (e.type) {
+            case ElemType::McuPin: break;
             case ElemType::Resistor: r.current = r.voltage / e.value; r.power = r.voltage * r.current; break;
             case ElemType::Capacitor:
                 r.current = h > 0 ? e.value / h * (r.voltage - e.prevV) : 0.0;
@@ -614,6 +692,141 @@ DcResult Simulator::dcOperatingPoint() {
     return res;
 }
 
+void Simulator::updateState() {
+    for (auto& e : elements_) {
+        e.prevV = nodeV(x_, e.n[0]) - nodeV(x_, e.n[1]);
+        if (e.type == ElemType::Inductor) e.prevI = x_[static_cast<size_t>(e.branch)];
+    }
+}
+
+bool Simulator::begin(std::string& error) {
+    started_ = false;
+    t_ = 0;
+    if (!build(error)) return false;
+    // Initial condition: DC operating point with t = 0 source values (microcontrollers still in reset).
+    x_.assign(static_cast<size_t>(unknowns_), 0.0);
+    int iters = 0;
+    if (!solve(0, 0, x_, iters, 0.0, 1.0)) {
+        std::fill(x_.begin(), x_.end(), 0.0);
+        bool ok = true;
+        for (double g = 1e-2; g >= 1e-13 && ok; g /= 10) ok = solve(0, 0, x_, iters, g, 1.0);
+        if (!ok || !solve(0, 0, x_, iters, 0.0, 1.0)) {
+            error = "Could not find initial operating point for transient analysis.";
+            return false;
+        }
+    }
+    lastReadings_ = readings(x_, 0);
+    updateState();
+    started_ = true;
+    return true;
+}
+
+void Simulator::stepMcus(double h) {
+    for (auto& st : mcus_) {
+        AvrMcu& m = *st->mcu;
+        double gnd = nodeV(x_, st->gnd);
+        m.setSupply(st->powered ? nodeV(x_, st->vcc) - gnd : 0.0);
+        if (st->aref >= 0) m.setAref(nodeV(x_, st->aref) - gnd);
+        for (const auto& [pin, idx] : st->pins) m.setPinVoltage(pin, nodeV(x_, elements_[idx].n[0]) - gnd);
+        double cycles = h * st->clockHz / m.clockDivider() + st->carry;
+        double whole = std::floor(cycles);
+        st->carry = cycles - whole;
+        m.run(static_cast<uint64_t>(whole));
+        for (const auto& [pin, idx] : st->pins) {
+            AvrMcu::PinDrive d = m.pinDrive(pin);
+            Element& e = elements_[idx];
+            e.gHigh = d.high * kMcuOutputConductance;
+            e.gLow = d.low * kMcuOutputConductance;
+            e.gPull = d.pullup * kMcuPullupConductance;
+        }
+    }
+}
+
+bool Simulator::advance(double h, std::string& error) {
+    if (!started_) {
+        error = "The simulation has not started.";
+        return false;
+    }
+    if (!(h > 0)) {
+        error = "The time step must be positive.";
+        return false;
+    }
+    stepMcus(h);
+    const double t = t_ + h;
+    std::vector<double> guess = x_;
+    int iters = 0;
+    if (solve(t, h, x_, iters, 0.0, 1.0)) {
+        lastReadings_ = readings(x_, h);  // pre-update state: capacitor currents use the previous voltage
+        updateState();
+    } else {
+        // Retry with sub-steps.
+        x_ = guess;
+        const int sub = 10;
+        double hs = h / sub;
+        for (int k = 1; k <= sub; ++k) {
+            if (!solve(t - h + k * hs, hs, x_, iters, 0.0, 1.0)) {
+                error = "Transient analysis failed to converge at t = " + formatEngineeringValue(t, "s");
+                return false;
+            }
+            if (k == sub) lastReadings_ = readings(x_, hs);
+            updateState();
+        }
+    }
+    t_ = t;
+    return true;
+}
+
+std::vector<double> Simulator::netVoltages() const {
+    const auto& nets = sch_.nets();
+    std::vector<double> v(nets.size(), 0.0);
+    if (x_.empty()) return v;
+    for (size_t i = 0; i < nets.size(); ++i) v[i] = nodeV(x_, netToNode_[i]);
+    return v;
+}
+
+void Simulator::setSwitch(int componentId, bool closed) {
+    for (auto& e : elements_)
+        if (e.isSwitch && e.componentId == componentId) e.value = closed ? 0.01 : 1e9;
+}
+
+void Simulator::feedSerial(int componentId, const std::string& bytes) {
+    for (auto& st : mcus_)
+        if (st->componentId == componentId) st->mcu->feedSerialInput(bytes);
+}
+
+std::vector<McuReport> Simulator::mcuReports() const {
+    std::vector<McuReport> out;
+    for (const auto& st : mcus_) {
+        const AvrMcu& m = *st->mcu;
+        McuReport r;
+        r.componentId = st->componentId;
+        r.model = mcuModelName(m.model());
+        r.serial = m.serialLog();
+        r.cycles = m.cycles();
+        r.clockHz = st->clockHz;
+        char mhz[32];
+        std::snprintf(mhz, sizeof mhz, "%g MHz", st->clockHz / 1e6);
+        if (!st->loadError.empty()) {
+            r.status = "Firmware error: " + st->loadError;
+        } else if (!st->hasFirmware) {
+            r.status = "No firmware loaded — the pins are high-impedance inputs. Upload a .hex file in the inspector.";
+        } else if (!st->powered) {
+            r.status = "VCC or GND is not connected — the chip has no supply.";
+        } else if (m.supply() < 1.8) {
+            char buf[96];
+            std::snprintf(buf, sizeof buf, "Held in reset: supply %.2f V (needs at least 1.8 V).", m.supply());
+            r.status = buf;
+        } else {
+            r.running = true;
+            r.status = "Running " + st->name + " at " + mhz;
+            if (!m.fault().empty()) r.status += " — " + m.fault();
+            else if (m.sleeping()) r.status += " (sleeping)";
+        }
+        out.push_back(std::move(r));
+    }
+    return out;
+}
+
 TransientResult Simulator::transient(double tStop, double tStep) {
     TransientResult res;
     if (!(tStop > 0) || !(tStep > 0)) {
@@ -623,63 +836,31 @@ TransientResult Simulator::transient(double tStop, double tStep) {
     const double maxSamples = 200000;
     if (tStop / tStep > maxSamples) tStep = tStop / maxSamples;
 
-    if (!build(res.error)) return res;
-    // Initial condition: DC operating point with t = 0 source values.
-    std::vector<double> x(static_cast<size_t>(unknowns_), 0.0);
-    int iters = 0;
-    if (!solve(0, 0, x, iters, 0.0, 1.0)) {
-        std::fill(x.begin(), x.end(), 0.0);
-        bool ok = true;
-        for (double g = 1e-2; g >= 1e-13 && ok; g /= 10) ok = solve(0, 0, x, iters, g, 1.0);
-        if (!ok || !solve(0, 0, x, iters, 0.0, 1.0)) {
-            res.error = "Could not find initial operating point for transient analysis.";
-            return res;
-        }
-    }
-    auto updateState = [&](const std::vector<double>& xs) {
-        for (auto& e : elements_) {
-            e.prevV = nodeV(xs, e.n[0]) - nodeV(xs, e.n[1]);
-            if (e.type == ElemType::Inductor) e.prevI = xs[static_cast<size_t>(e.branch)];
-        }
-    };
-    updateState(x);
+    if (!begin(res.error)) return res;
 
     const auto& nets = sch_.nets();
     res.netVoltages.assign(nets.size(), {});
-    auto record = [&](double t, double h) {
+    auto record = [&](double t) {
         res.time.push_back(t);
-        for (size_t i = 0; i < nets.size(); ++i) res.netVoltages[i].push_back(nodeV(x, netToNode_[i]));
-        for (const auto& r : readings(x, h)) {
+        for (size_t i = 0; i < nets.size(); ++i) res.netVoltages[i].push_back(nodeV(x_, netToNode_[i]));
+        for (const auto& r : lastReadings_) {
             if (r.subIndex > 0) continue;  // one series per component (regulator or first element)
             res.currents[r.componentId].push_back(r.current);
             res.powers[r.componentId].push_back(r.power);
         }
     };
-    record(0, 0);
+    record(0);
 
     int steps = static_cast<int>(std::ceil(tStop / tStep - 1e-9));
     for (int s = 1; s <= steps; ++s) {
         double t = std::min(s * tStep, tStop);
-        std::vector<double> guess = x;
-        if (!solve(t, tStep, x, iters, 0.0, 1.0)) {
-            // Retry with sub-steps.
-            x = guess;
-            bool ok = true;
-            const int sub = 10;
-            double h = tStep / sub;
-            for (int k = 1; k <= sub && ok; ++k) {
-                ok = solve(t - tStep + k * h, h, x, iters, 0.0, 1.0);
-                if (ok) updateState(x);
-            }
-            if (!ok) {
-                res.error = "Transient analysis failed to converge at t = " + formatEngineeringValue(t, "s");
-                return res;
-            }
+        if (!advance(t - t_, res.error)) {
+            res.mcus = mcuReports();
+            return res;
         }
-        // Readings use the pre-update state so capacitor currents are correct, then advance.
-        record(t, tStep);
-        updateState(x);
+        record(t);
     }
+    res.mcus = mcuReports();
     res.ok = true;
     return res;
 }

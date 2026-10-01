@@ -256,6 +256,34 @@ final class EDAEngine: @unchecked Sendable {
         return Self.decode(DCResult.self, from: json) ?? DCResult(error: "Simulator returned no result.")
     }
 
+    // MARK: - Microcontroller firmware
+
+    /// Attaches Intel HEX firmware to a microcontroller (an empty `hex` removes it); `clockHz` 0 = the model default.
+    func setFirmware(_ id: Int, hex: String, name: String, clockHz: Double) throws {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let ok = withHandle { sieda_set_firmware($0, Int32(id), hex, name, clockHz, &errorPointer) } == 1
+        if !ok { throw EDAEngineError.operationFailed(Self.take(errorPointer) ?? "The firmware could not be attached.") }
+    }
+
+    /// The component's firmware as Intel HEX ("" when none).
+    func firmware(of id: Int) -> String {
+        withHandle { Self.take(sieda_component_firmware($0, Int32(id))) } ?? ""
+    }
+
+    /// Starts a live simulation of the current schematic (a snapshot; restart after edits).
+    func startLive() throws -> LiveSession {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        guard let session = withHandle({ sieda_live_start($0, &errorPointer) }) else {
+            throw EDAEngineError.operationFailed(Self.take(errorPointer) ?? "The live simulation could not start.")
+        }
+        return LiveSession(session)
+    }
+
+    static let firmwareExamples: [FirmwareExample] =
+        decode([FirmwareExample].self, from: take(sieda_firmware_examples_json())) ?? []
+
+    static func firmwareExampleHex(_ id: String) -> String? { take(sieda_firmware_example_hex(id)) }
+
     func simulateTransient(stop: Double, step: Double) -> TransientResult {
         let json = withHandle { Self.take(sieda_simulate_transient($0, stop, step)) }
         return Self.decode(TransientResult.self, from: json) ?? TransientResult(error: "Simulator returned no result.")
@@ -483,4 +511,48 @@ enum BoardOutlinePreset: String, CaseIterable, Identifiable {
         case .quadX: return "xmark"
         }
     }
+}
+
+/// A running live simulation (C `SiedaLiveSim`). Thread-safe: calls are serialized, so it can step on a background
+/// queue while the UI sends switch presses and serial input.
+final class LiveSession: @unchecked Sendable {
+    private let lock = NSLock()
+    private var handle: OpaquePointer?
+
+    fileprivate init(_ handle: OpaquePointer) { self.handle = handle }
+
+    deinit {
+        if let handle { sieda_live_free(handle) }
+    }
+
+    private func locked<T>(_ body: (OpaquePointer) -> T) -> T? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let handle else { return nil }
+        return body(handle)
+    }
+
+    /// Advances `duration` seconds in `step`-second steps and keeps a scope trace of at most `tracePoints` samples.
+    func run(duration: Double, step: Double, tracePoints: Int = 200) throws {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let ok = locked { sieda_live_run($0, duration, step, Int32(tracePoints), &errorPointer) } ?? 0
+        if ok != 1 {
+            var message = "The live simulation stopped."
+            if let errorPointer {
+                message = String(cString: errorPointer)
+                sieda_string_free(errorPointer)
+            }
+            throw EDAEngineError.operationFailed(message)
+        }
+    }
+
+    func state() -> LiveState? {
+        guard let pointer = locked({ sieda_live_state($0) }) ?? nil else { return nil }
+        defer { sieda_string_free(pointer) }
+        return try? JSONDecoder().decode(LiveState.self, from: Data(String(cString: pointer).utf8))
+    }
+
+    func setSwitch(_ id: Int, closed: Bool) { _ = locked { sieda_live_set_switch($0, Int32(id), closed ? 1 : 0) } }
+
+    func sendSerial(_ id: Int, text: String) { _ = locked { sieda_live_serial_input($0, Int32(id), text) } }
 }

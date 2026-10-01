@@ -20,6 +20,7 @@ extern "C" {
 
 typedef struct SiedaProject SiedaProject;
 typedef struct SiedaMesh SiedaMesh;
+typedef struct SiedaLiveSim SiedaLiveSim;
 
 /* ---- lifecycle & persistence ------------------------------------------------------------ */
 const char* sieda_version(void);
@@ -59,6 +60,38 @@ int32_t sieda_connect(SiedaProject* project, int32_t comp_a, int32_t pin_a, int3
 /* Marks (1) or clears (0) a no-connect flag on a pin: ERC no longer reports it unconnected. 1 on success. */
 int32_t sieda_set_pin_no_connect(SiedaProject* project, int32_t component_id, int32_t pin, int32_t no_connect);
 int32_t sieda_remove_wire(SiedaProject* project, int32_t wire_id);
+
+/* ---- live (real-time, interactive) simulation ------------------------------------------------------------------- */
+/* Starts a live simulation of the project's current schematic (a snapshot: later edits need a restart) at the t = 0
+ * operating point. NULL with *error_out when the circuit cannot be simulated. Free with sieda_live_free. */
+SiedaLiveSim* sieda_live_start(const SiedaProject* project, char** error_out);
+/* Advances by `duration` seconds in steps of `step` (firmware included) and keeps a scope trace of every net over that
+ * span, decimated to at most `trace_points` samples. 1 on success, 0 with *error_out. */
+int32_t sieda_live_run(SiedaLiveSim* sim, double duration, double step, int32_t trace_points, char** error_out);
+/* {"time", "nets":[{"index","name","voltage"}], "devices":[{"component","ref","current","power"}],
+ *  "leds":[{"component","ref","current","brightness" 0…1}], "switches":[{"component","ref","closed","momentary"}],
+ *  "mcus":[{"component","ref","model","status","running","serial","cycles","clockHz"}],
+ *  "trace":{"time":[…], "nets":[{"index","name","values":[…]}]}} */
+char* sieda_live_state(const SiedaLiveSim* sim);
+/* Opens/closes a switch while running (push-buttons: closed while held). */
+void sieda_live_set_switch(SiedaLiveSim* sim, int32_t component_id, int32_t closed);
+/* Sends text to a microcontroller's USART receiver (serial monitor input). */
+void sieda_live_serial_input(SiedaLiveSim* sim, int32_t component_id, const char* text);
+void sieda_live_free(SiedaLiveSim* sim);
+
+/* ---- microcontroller firmware ----------------------------------------------------------------------------------- */
+/* Attaches Intel HEX firmware to a microcontroller component (ATmega328P, ATtiny85); the simulator runs it. An empty
+ * hex removes it. clock_hz <= 0 uses the default (16 MHz ATmega328P, 8 MHz ATtiny85). Returns 1, or 0 with *error_out
+ * (free with sieda_string_free) for an unknown component, a part that is not a supported microcontroller, an invalid
+ * HEX file or an image larger than the flash. */
+int32_t sieda_set_firmware(SiedaProject* project, int32_t component_id, const char* hex, const char* name,
+                           double clock_hz, char** error_out);
+/* The component's firmware as Intel HEX ("" when none). */
+char* sieda_component_firmware(const SiedaProject* project, int32_t component_id);
+/* Built-in example firmware: [{"id","name","model","description"}]. */
+char* sieda_firmware_examples_json(void);
+/* Intel HEX of an example, or NULL. */
+char* sieda_firmware_example_hex(const char* id);
 
 /* ---- custom components (datasheet import) ---------------------------------------------------- */
 /* spec_json: {"name","manufacturer","description","refPrefix","defaultValue","datasheet",

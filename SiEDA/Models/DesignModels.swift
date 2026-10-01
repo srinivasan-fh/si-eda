@@ -131,6 +131,8 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     var pins: [SnapPin]
     var pcb: PcbPlacement
     var customPart: String?
+    /// Present for microcontrollers the simulator can run (ATmega328P, ATtiny85).
+    var mcu: McuInfo?
 
     var componentKind: ComponentKind { ComponentKind(rawValue: kind) ?? .ic8 }
     var position: CGPoint { CGPoint(x: x, y: y) }
@@ -448,20 +450,76 @@ struct WaveformSeries: Decodable, Equatable, Identifiable {
     var label: String { name ?? ref ?? "?" }
 }
 
+/// Simulated microcontroller of a component: model, clock and the attached firmware.
+struct McuInfo: Decodable, Equatable {
+    var model: String
+    var clockHz: Double
+    var firmwareName: String
+    var firmwareBytes: Int
+    var firmwareError: String
+
+    var hasFirmware: Bool { firmwareBytes > 0 }
+}
+
+/// A microcontroller after a transient run: status and everything its USART transmitted.
+struct McuRun: Decodable, Equatable, Identifiable {
+    var component: Int
+    var ref: String
+    var model: String
+    var status: String
+    var running: Bool
+    var serial: String
+    var cycles: Double
+    var clockHz: Double
+    var id: Int { component }
+}
+
+/// Built-in example firmware (Intel HEX bundled with the core).
+struct FirmwareExample: Decodable, Equatable, Identifiable {
+    var id: String
+    var name: String
+    var model: String
+    var description: String
+}
+
+/// Snapshot of a live simulation: present values plus the scope trace of the last run interval.
+struct LiveState: Decodable, Equatable {
+    struct Net: Decodable, Equatable { var index: Int; var name: String; var voltage: Double }
+    struct Device: Decodable, Equatable { var component: Int; var ref: String; var current: Double; var power: Double }
+    struct Led: Decodable, Equatable { var component: Int; var ref: String; var current: Double; var brightness: Double }
+    struct Switch: Decodable, Equatable { var component: Int; var ref: String; var closed: Bool; var momentary: Bool }
+    struct Trace: Decodable, Equatable {
+        var time: [Double]
+        var nets: [WaveformSeries]
+    }
+
+    var time: Double
+    var nets: [Net]
+    var devices: [Device]
+    var leds: [Led]
+    var switches: [Switch]
+    var mcus: [McuRun]
+    var trace: Trace
+
+    func voltage(net: Int) -> Double? { nets.first { $0.index == net }?.voltage }
+}
+
 struct TransientResult: Decodable, Equatable {
     var ok: Bool
     var error: String
     var time: [Double]
     var nets: [WaveformSeries]
     var currents: [WaveformSeries]
+    var mcus: [McuRun]
 
     init(ok: Bool = false, error: String = "", time: [Double] = [], nets: [WaveformSeries] = [],
-         currents: [WaveformSeries] = []) {
+         currents: [WaveformSeries] = [], mcus: [McuRun] = []) {
         self.ok = ok
         self.error = error
         self.time = time
         self.nets = nets
         self.currents = currents
+        self.mcus = mcus
     }
 
     init(from decoder: Decoder) throws {
@@ -471,9 +529,10 @@ struct TransientResult: Decodable, Equatable {
         time = try c.decodeIfPresent([Double].self, forKey: .time) ?? []
         nets = try c.decodeIfPresent([WaveformSeries].self, forKey: .nets) ?? []
         currents = try c.decodeIfPresent([WaveformSeries].self, forKey: .currents) ?? []
+        mcus = try c.decodeIfPresent([McuRun].self, forKey: .mcus) ?? []
     }
 
-    private enum CodingKeys: String, CodingKey { case ok, error, time, nets, currents }
+    private enum CodingKeys: String, CodingKey { case ok, error, time, nets, currents, mcus }
 }
 
 struct RouteStats: Decodable, Equatable {

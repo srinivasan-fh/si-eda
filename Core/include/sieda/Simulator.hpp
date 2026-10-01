@@ -3,7 +3,9 @@
 // saturating op-amp), backward-Euler companion models for C and L in transient analysis.
 #pragma once
 
+#include <cstdint>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -39,6 +41,17 @@ struct DcResult {
     std::vector<DeviceReading> devices;
 };
 
+/// A microcontroller after a (transient or live) run: what it did and why.
+struct McuReport {
+    int componentId = -1;
+    std::string model;    // "ATmega328P"
+    std::string status;   // "Running blink.hex at 16 MHz", "No firmware loaded…", "Held in reset…", fault text
+    std::string serial;   // everything USART0 transmitted
+    bool running = false;
+    uint64_t cycles = 0;
+    double clockHz = 0;
+};
+
 struct TransientResult {
     bool ok = false;
     std::string error;
@@ -46,6 +59,7 @@ struct TransientResult {
     std::vector<std::vector<double>> netVoltages;  // [net][sample]
     std::map<int, std::vector<double>> currents;   // component id → current samples
     std::map<int, std::vector<double>> powers;     // component id → dissipated power samples
+    std::vector<McuReport> mcus;                   // microcontrollers with their firmware's serial output
 };
 
 class Simulator {
@@ -55,9 +69,28 @@ public:
     Simulator(const Simulator&) = delete;
     Simulator& operator=(const Simulator&) = delete;
     DcResult dcOperatingPoint();
+    /// Transient analysis. Microcontrollers with firmware run alongside: each step executes the step's clock cycles,
+    /// then drives every pin from the time it spent high, low or pulled up (25 Ω outputs, 35 kΩ pull-ups) and reads
+    /// inputs and the ADC from the solved node voltages.
     TransientResult transient(double tStop, double tStep);
 
+    // ---- incremental (live) simulation --------------------------------------------------------------------------------
+    /// Starts at the t = 0 operating point. False with `error` when the circuit cannot be simulated.
+    bool begin(std::string& error);
+    /// Advances by one step of `h` seconds (firmware included).
+    bool advance(double h, std::string& error);
+    double time() const { return t_; }
+    /// Net voltages (by schematic net index) and device readings at the current time.
+    std::vector<double> netVoltages() const;
+    const std::vector<DeviceReading>& deviceReadings() const { return lastReadings_; }
+    /// Opens or closes a switch (push-buttons and toggles while the simulation runs).
+    void setSwitch(int componentId, bool closed);
+    /// Bytes for a microcontroller's USART receiver (serial monitor input).
+    void feedSerial(int componentId, const std::string& bytes);
+    std::vector<McuReport> mcuReports() const;
+
     struct Element;  // implementation detail (public so helpers in the .cpp can use it)
+    struct McuState;
 
 private:
     bool build(std::string& error);
@@ -71,6 +104,14 @@ private:
     int unknowns_ = 0;
     std::vector<Element> elements_;
     std::vector<double> A_, b_;
+    std::vector<std::unique_ptr<McuState>> mcus_;
+    std::vector<double> x_;
+    std::vector<DeviceReading> lastReadings_;
+    double t_ = 0;
+    bool started_ = false;
+
+    void stepMcus(double h);
+    void updateState();
 };
 
 }  // namespace sieda
