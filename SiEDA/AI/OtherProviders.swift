@@ -93,8 +93,8 @@ struct GeminiProvider: AIProvider {
         }
         if (first["finishReason"] as? String) == "MAX_TOKENS" { throw AIProviderError.truncated }
         if (first["finishReason"] as? String) == "SAFETY" { throw AIProviderError.refused("safety filter") }
-        let parts = (first["content"] as? [String: Any])?["parts"] as? [[String: Any]] ?? []
-        let text = parts.compactMap { $0["text"] as? String }.joined()
+        let responseParts = (first["content"] as? [String: Any])?["parts"] as? [[String: Any]] ?? []
+        let text = responseParts.compactMap { $0["text"] as? String }.joined()
         guard !text.isEmpty else { throw AIProviderError.invalidResponse("Gemini returned an empty response.") }
         return text
     }
