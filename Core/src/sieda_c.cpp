@@ -421,6 +421,32 @@ char* sieda_pcb_run_drc(const SiedaProject* project) {
     }
 }
 
+char* sieda_design_rule_presets_json(void) {
+    Json arr = Json::array();
+    for (const auto& p : designRulePresets()) {
+        Json j = Json::object();
+        j["name"] = p.name;
+        j["description"] = p.description;
+        j["trackWidth"] = p.trackWidth;
+        j["clearance"] = p.clearance;
+        j["viaDrill"] = p.viaDrill;
+        j["viaDiameter"] = p.viaDiameter;
+        j["edgeClearance"] = p.edgeClearance;
+        j["minTrackWidth"] = p.minTrackWidth;
+        j["minClearance"] = p.minClearance;
+        j["minDrill"] = p.minDrill;
+        j["minAnnularRing"] = p.minAnnularRing;
+        j["minHoleToHole"] = p.minHoleToHole;
+        arr.push(j);
+    }
+    return dup(arr.dump());
+}
+
+int32_t sieda_pcb_apply_rule_preset(SiedaProject* project, const char* name) {
+    if (!project || !name) return 0;
+    return project->project.pcb.settings.applyPreset(name) ? 1 : 0;
+}
+
 char* sieda_export(const SiedaProject* project, const char* format) {
     if (!project || !format) return nullptr;
     try {

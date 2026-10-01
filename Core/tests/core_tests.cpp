@@ -814,6 +814,97 @@ TEST(circuit_validation_rules) {
     CHECK(!hasCode(validateCircuit(sch), "VAL_NO_DECOUPLING"));
 }
 
+TEST(pcb_rule_presets_and_manufacturability_checks) {
+    Project p = ledProject();
+    CHECK(designRulePresets().size() == 5);
+    CHECK(p.pcb.settings.applyPreset("Prototype (Conservative)"));
+    CHECK_NEAR(p.pcb.settings.trackWidth, 0.30, 1e-9);
+    CHECK(!p.pcb.settings.applyPreset("nope"));
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    std::string first;
+    CHECK(drcErrors(p, &first) == 0);
+    if (!first.empty()) std::printf("    first DRC error: %s\n", first.c_str());
+
+    // Persisted with the project.
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.pcb.settings.rulePreset == "Prototype (Conservative)");
+    CHECK_NEAR(q.pcb.settings.minHoleToHole, 0.50, 1e-9);
+
+    auto codes = [](const Project& pr) {
+        std::vector<std::string> v;
+        for (const auto& e : pr.pcb.runDRC(pr.schematic)) v.push_back(e.code);
+        return v;
+    };
+    auto has = [](const std::vector<std::string>& v, const char* c) { return std::find(v.begin(), v.end(), c) != v.end(); };
+
+    // Thin track, tiny drill, thin annular ring, crowded holes, stub, acute join, via in pad.
+    Project bad = p;
+    int net = bad.pcb.tracks.front().net;
+    Track thin = bad.pcb.tracks.front();
+    thin.width = 0.08;
+    bad.pcb.addTrack(thin);
+    Via v1;
+    v1.net = net;
+    v1.position = {3, 3};
+    v1.drill = 0.1;
+    v1.diameter = 0.25;
+    bad.pcb.addVia(v1);
+    Via v2 = v1;
+    v2.position = {3.3, 3};
+    v2.drill = 0.3;
+    v2.diameter = 0.6;
+    bad.pcb.addVia(v2);
+    Track stub;
+    stub.net = net;
+    stub.layer = 0;
+    stub.width = 0.25;
+    stub.a = {2, 8};
+    stub.b = {6, 8};
+    bad.pcb.addTrack(stub);
+    Track acute = stub;
+    acute.a = {6, 8};
+    acute.b = {2, 9};
+    bad.pcb.addTrack(acute);
+    auto pads = bad.pcb.pads(bad.schematic);
+    for (const auto& pad : pads)
+        if (!pad.throughHole && pad.net >= 0) {
+            Via inPad;
+            inPad.net = pad.net;
+            inPad.position = pad.position;
+            bad.pcb.addVia(inPad);
+            break;
+        }
+    auto c = codes(bad);
+    CHECK(has(c, "DRC_TRACK_WIDTH"));
+    CHECK(has(c, "DRC_DRILL_SIZE"));
+    CHECK(has(c, "DRC_ANNULAR_RING"));
+    CHECK(has(c, "DRC_HOLE_SPACING"));
+    CHECK(has(c, "DRC_DANGLING_TRACK"));
+    CHECK(has(c, "DRC_ACUTE_ANGLE"));
+    CHECK(has(c, "DRC_VIA_IN_PAD"));
+
+    // IPC-2221: ~1 A on 0.3 mm outer track at 10 °C rise needs ≈0.3 mm; 3 A needs far more.
+    CHECK(ipc2221TrackWidth(1.0, 10, 1, false) > 0.25 && ipc2221TrackWidth(1.0, 10, 1, false) < 0.40);
+    CHECK(ipc2221TrackWidth(1.0, 10, 1, true) > ipc2221TrackWidth(1.0, 10, 1, false));
+    Project power = ledProject();
+    power.schematic.setValue(power.schematic.findByRef("R1")->id, "1");  // ~3 A through a 0.3 mm track
+    power.schematicChanged();
+    power.pcb.settings.applyPreset("Prototype (Conservative)");
+    power.pcb.autoPlace(power.schematic, true);
+    power.pcb.autoRoute(power.schematic);
+    CHECK(has(codes(power), "DRC_TRACK_CURRENT"));
+
+    // Graded clearance: between the fab minimum and the design rule is a warning, not an error.
+    Project graded = ledProject();
+    graded.pcb.autoPlace(graded.schematic, true);
+    graded.pcb.autoRoute(graded.schematic);
+    graded.pcb.settings.clearance = 5.0;  // absurd design rule, fab minimum unchanged
+    auto gv = graded.pcb.runDRC(graded.schematic);
+    CHECK(std::any_of(gv.begin(), gv.end(), [](const RuleViolation& v) { return v.code == "DRC_CLEARANCE_RULE"; }));
+    CHECK(std::none_of(gv.begin(), gv.end(), [](const RuleViolation& v) { return v.code == "DRC_CLEARANCE"; }));
+}
+
 // ======================================================================= persistence & exports
 
 TEST(project_json_roundtrip) {

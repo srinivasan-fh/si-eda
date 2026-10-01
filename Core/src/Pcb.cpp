@@ -1,5 +1,7 @@
 #include "sieda/Pcb.hpp"
 
+#include "sieda/Simulator.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -21,6 +23,49 @@ Vec2 transformFootprintPoint(Vec2 p, const PcbPlacement& pl) {
 
 bool quarterTurned(int rotation) { return ((rotation / 90) % 2 + 2) % 2 == 1; }
 }  // namespace
+
+const std::vector<DesignRulePreset>& designRulePresets() {
+    static const std::vector<DesignRulePreset> presets = {
+        {"Prototype (Conservative)", "Wide tracks and gaps for hand soldering and home etching",
+         0.30, 0.30, 0.40, 0.80, 0.50, 0.25, 0.25, 0.30, 0.15, 0.50},
+        {"IPC-2221 Class 2", "General electronics — the SiEDA default",
+         0.25, 0.20, 0.30, 0.60, 0.50, 0.15, 0.15, 0.20, 0.10, 0.25},
+        {"IPC-2221 Class 3", "High-reliability products (medical, aerospace, automotive)",
+         0.30, 0.25, 0.35, 0.75, 0.60, 0.20, 0.20, 0.25, 0.15, 0.30},
+        {"Fab House Standard (6/6 mil)", "Typical low-cost prototype service limits",
+         0.20, 0.16, 0.30, 0.60, 0.30, 0.152, 0.152, 0.20, 0.13, 0.254},
+        {"Fab House Advanced (4/4 mil)", "Fine-pitch capable services",
+         0.15, 0.12, 0.25, 0.45, 0.30, 0.10, 0.10, 0.15, 0.10, 0.20},
+    };
+    return presets;
+}
+
+bool BoardSettings::applyPreset(const std::string& name) {
+    for (const auto& p : designRulePresets()) {
+        if (p.name != name) continue;
+        rulePreset = p.name;
+        trackWidth = p.trackWidth;
+        clearance = p.clearance;
+        viaDrill = p.viaDrill;
+        viaDiameter = p.viaDiameter;
+        edgeClearance = p.edgeClearance;
+        minTrackWidth = p.minTrackWidth;
+        minClearance = p.minClearance;
+        minDrill = p.minDrill;
+        minAnnularRing = p.minAnnularRing;
+        minHoleToHole = p.minHoleToHole;
+        return true;
+    }
+    return false;
+}
+
+double ipc2221TrackWidth(double amps, double tempRise, double oz, bool innerLayer) {
+    if (!(amps > 0)) return 0;
+    double k = innerLayer ? 0.024 : 0.048;
+    double areaMil2 = std::pow(amps / (k * std::pow(tempRise, 0.44)), 1.0 / 0.725);
+    double thicknessMil = 1.378 * oz;
+    return areaMil2 / thicknessMil * 0.0254;
+}
 
 std::string copperLayerName(int layer, int layerCount) {
     if (layer == 0) return "Top";
@@ -780,6 +825,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     std::vector<RuleViolation> out;
     const double eps = 1e-3;
     const double clr = settings.clearance;
+    const double fabClr = std::min(settings.minClearance, clr);
     auto add = [&](Severity s, const std::string& code, const std::string& msg, Vec2 loc, std::vector<int> comps = {}) {
         RuleViolation v;
         v.severity = s;
@@ -789,6 +835,20 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
         v.hasLocation = true;
         v.components = std::move(comps);
         out.push_back(std::move(v));
+    };
+    // Below the fabrication minimum → error; between it and the design rule → warning.
+    auto clearanceCheck = [&](double d, const std::string& what, Vec2 loc, std::vector<int> comps = {}) {
+        if (d >= clr - eps) return;
+        char buf[96];
+        if (d <= 0) {
+            add(Severity::Error, "DRC_SHORT", what + " — copper overlaps (short circuit).", loc, std::move(comps));
+        } else if (d < fabClr - eps) {
+            std::snprintf(buf, sizeof buf, " (fabrication minimum %.3f mm)", fabClr);
+            add(Severity::Error, "DRC_CLEARANCE", what + buf + ".", loc, std::move(comps));
+        } else {
+            std::snprintf(buf, sizeof buf, " (design rule %.3f mm)", clr);
+            add(Severity::Warning, "DRC_CLEARANCE_RULE", what + buf + ".", loc, std::move(comps));
+        }
     };
     const auto& nets = sch.nets();
     auto netName = [&](int n) { return n >= 0 && n < static_cast<int>(nets.size()) ? nets[static_cast<size_t>(n)].name : std::string("(none)"); };
@@ -828,10 +888,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             for (int l = 0; l < settings.layerCount && !share; ++l) share = ps[i].onLayer(l) && ps[j].onLayer(l);
             if (!share) continue;
             double d = rectRectDistance(ps[i].bounds(), ps[j].bounds());
-            if (d < clr - eps)
-                add(Severity::Error, d <= 0 ? "DRC_SHORT" : "DRC_CLEARANCE",
-                    "Pad clearance " + fmt(d) + " between " + netName(ps[i].net) + " and " + netName(ps[j].net) + ".",
-                    (ps[i].position + ps[j].position) * 0.5, {ps[i].componentId, ps[j].componentId});
+            clearanceCheck(d, "Pad clearance " + fmt(d) + " between " + netName(ps[i].net) + " and " + netName(ps[j].net), (ps[i].position + ps[j].position) * 0.5, {ps[i].componentId, ps[j].componentId});
         }
     // Track ↔ pad, track ↔ track, track ↔ edge.
     for (size_t t = 0; t < tracks.size(); ++t) {
@@ -851,46 +908,166 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             double d = (p.round ? std::max(0.0, pointSegmentDistance(p.position, tr.a, tr.b) - std::min(p.size.x, p.size.y) / 2)
                                 : segmentRectDistance(tr.a, tr.b, p.bounds())) -
                        tr.width / 2;
-            if (d < clr - eps)
-                add(Severity::Error, d <= 0 ? "DRC_SHORT" : "DRC_CLEARANCE",
-                    "Track (" + netName(tr.net) + ") to pad (" + netName(p.net) + ") clearance " + fmt(std::max(0.0, d)) + ".",
-                    p.position, {p.componentId});
+            clearanceCheck(d, "Track (" + netName(tr.net) + ") to pad (" + netName(p.net) + ") clearance " + fmt(std::max(0.0, d)), p.position, {p.componentId});
         }
         for (size_t u = t + 1; u < tracks.size(); ++u) {
             const Track& o = tracks[u];
             if (o.net == tr.net || o.layer != tr.layer) continue;
             double d = segmentSegmentDistance(tr.a, tr.b, o.a, o.b) - (tr.width + o.width) / 2;
-            if (d < clr - eps)
-                add(Severity::Error, d <= 0 ? "DRC_SHORT" : "DRC_CLEARANCE",
-                    "Track clearance " + fmt(std::max(0.0, d)) + " between " + netName(tr.net) + " and " + netName(o.net) + ".",
-                    (tr.a + tr.b) * 0.5);
+            clearanceCheck(d, "Track clearance " + fmt(std::max(0.0, d)) + " between " + netName(tr.net) + " and " + netName(o.net), (tr.a + tr.b) * 0.5);
         }
         for (const auto& v : vias) {
             if (v.net == tr.net) continue;
             double d = pointSegmentDistance(v.position, tr.a, tr.b) - tr.width / 2 - v.diameter / 2;
-            if (d < clr - eps)
-                add(Severity::Error, d <= 0 ? "DRC_SHORT" : "DRC_CLEARANCE",
-                    "Via (" + netName(v.net) + ") to track (" + netName(tr.net) + ") clearance " + fmt(std::max(0.0, d)) + ".",
-                    v.position);
+            clearanceCheck(d, "Via (" + netName(v.net) + ") to track (" + netName(tr.net) + ") clearance " + fmt(std::max(0.0, d)), v.position);
         }
     }
     for (size_t i = 0; i < vias.size(); ++i) {
         for (const auto& p : ps) {
             if (p.net == vias[i].net) continue;
             double d = padDistance(p, vias[i].position) - vias[i].diameter / 2;
-            if (d < clr - eps)
-                add(Severity::Error, d <= 0 ? "DRC_SHORT" : "DRC_CLEARANCE",
-                    "Via (" + netName(vias[i].net) + ") to pad (" + netName(p.net) + ") clearance " + fmt(std::max(0.0, d)) + ".",
-                    vias[i].position, {p.componentId});
+            clearanceCheck(d, "Via (" + netName(vias[i].net) + ") to pad (" + netName(p.net) + ") clearance " + fmt(std::max(0.0, d)), vias[i].position, {p.componentId});
         }
         for (size_t j = i + 1; j < vias.size(); ++j) {
             if (vias[i].net == vias[j].net) continue;
             double d = (vias[i].position - vias[j].position).length() - (vias[i].diameter + vias[j].diameter) / 2;
-            if (d < clr - eps)
-                add(Severity::Error, "DRC_CLEARANCE", "Via-to-via clearance " + fmt(std::max(0.0, d)) + ".", vias[i].position);
+            clearanceCheck(d, "Via-to-via clearance " + fmt(std::max(0.0, d)), vias[i].position);
         }
         if (!board.inflated(-settings.edgeClearance).contains(vias[i].position))
             add(Severity::Error, "DRC_EDGE_CLEARANCE", "Via is too close to the board edge.", vias[i].position);
+    }
+
+    // ---- Manufacturability (fabrication limits of the selected rule preset).
+    char buf[200];
+    for (const auto& tr : tracks)
+        if (tr.width < settings.minTrackWidth - eps) {
+            std::snprintf(buf, sizeof buf, "Track width %.3f mm on %s is below the minimum %.3f mm.", tr.width,
+                          netName(tr.net).c_str(), settings.minTrackWidth);
+            add(Severity::Error, "DRC_TRACK_WIDTH", buf, (tr.a + tr.b) * 0.5);
+        }
+    struct Hole {
+        Vec2 at;
+        double drill;
+        std::string what;
+    };
+    std::vector<Hole> holes;
+    for (const auto& v : vias) {
+        holes.push_back({v.position, v.drill, "Via"});
+        if (v.drill < settings.minDrill - eps) {
+            std::snprintf(buf, sizeof buf, "Via drill %.3f mm is below the minimum %.3f mm.", v.drill, settings.minDrill);
+            add(Severity::Error, "DRC_DRILL_SIZE", buf, v.position);
+        }
+        double ring = (v.diameter - v.drill) / 2;
+        if (ring < settings.minAnnularRing - eps) {
+            std::snprintf(buf, sizeof buf, "Via annular ring %.3f mm is below the minimum %.3f mm.", ring, settings.minAnnularRing);
+            add(Severity::Error, "DRC_ANNULAR_RING", buf, v.position);
+        }
+    }
+    for (const auto& p : ps) {
+        if (!p.throughHole || p.drill <= 0) continue;
+        holes.push_back({p.position, p.drill, "Pad"});
+        if (p.drill < settings.minDrill - eps) {
+            std::snprintf(buf, sizeof buf, "Pad drill %.3f mm is below the minimum %.3f mm.", p.drill, settings.minDrill);
+            add(Severity::Error, "DRC_DRILL_SIZE", buf, p.position, {p.componentId});
+        }
+        double ring = (std::min(p.size.x, p.size.y) - p.drill) / 2;
+        if (ring < settings.minAnnularRing - eps) {
+            std::snprintf(buf, sizeof buf, "Pad annular ring %.3f mm is below the minimum %.3f mm.", ring, settings.minAnnularRing);
+            add(Severity::Error, "DRC_ANNULAR_RING", buf, p.position, {p.componentId});
+        }
+    }
+    for (size_t i = 0; i < holes.size(); ++i)
+        for (size_t j = i + 1; j < holes.size(); ++j) {
+            double gap = (holes[i].at - holes[j].at).length() - (holes[i].drill + holes[j].drill) / 2;
+            if (gap < settings.minHoleToHole - eps) {
+                std::snprintf(buf, sizeof buf, "%s-to-%s hole spacing %.3f mm is below the minimum %.3f mm.",
+                              holes[i].what.c_str(), holes[j].what.c_str(), std::max(0.0, gap), settings.minHoleToHole);
+                add(Severity::Error, "DRC_HOLE_SPACING", buf, (holes[i].at + holes[j].at) * 0.5);
+            }
+        }
+
+    // Vias inside SMD pads wick solder away from the joint.
+    for (const auto& v : vias)
+        for (const auto& p : ps)
+            if (!p.throughHole && p.net == v.net && padDistance(p, v.position) <= 0) {
+                add(Severity::Warning, "DRC_VIA_IN_PAD",
+                    "Via inside an SMD pad on " + netName(v.net) + " — tent/plug it or move it off the pad.", v.position,
+                    {p.componentId});
+                break;
+            }
+
+    // Track geometry: dangling ends and acute (< 90°) joins that trap etchant.
+    auto touchesCopper = [&](size_t self, Vec2 end) {
+        const Track& t = tracks[self];
+        for (const auto& p : ps)
+            if (p.net == t.net && p.onLayer(t.layer) && padDistance(p, end) <= t.width / 2) return true;
+        for (const auto& v : vias)
+            if (v.net == t.net && (v.position - end).length() <= v.diameter / 2) return true;
+        for (size_t k = 0; k < tracks.size(); ++k) {
+            if (k == self || tracks[k].net != t.net || tracks[k].layer != t.layer) continue;
+            if (pointSegmentDistance(end, tracks[k].a, tracks[k].b) <= (tracks[k].width + t.width) / 4) return true;
+        }
+        return false;
+    };
+    for (size_t t = 0; t < tracks.size(); ++t)
+        for (Vec2 end : {tracks[t].a, tracks[t].b})
+            if (!touchesCopper(t, end)) {
+                add(Severity::Warning, "DRC_DANGLING_TRACK", "Track on " + netName(tracks[t].net) + " ends without a connection (stub).",
+                    end);
+                break;
+            }
+    for (size_t t = 0; t < tracks.size(); ++t)
+        for (size_t u = t + 1; u < tracks.size(); ++u) {
+            const Track& a = tracks[t];
+            const Track& b = tracks[u];
+            if (a.net != b.net || a.layer != b.layer) continue;
+            for (Vec2 pa : {a.a, a.b})
+                for (Vec2 pb : {b.a, b.b}) {
+                    if ((pa - pb).length() > 1e-6) continue;
+                    Vec2 da = (pa == a.a ? a.b : a.a) - pa, db = (pb == b.a ? b.b : b.a) - pb;
+                    double la = da.length(), lb = db.length();
+                    if (la < 1e-9 || lb < 1e-9) continue;
+                    double angle = std::acos(std::clamp(da.dot(db) / (la * lb), -1.0, 1.0)) * 180.0 / kPi;
+                    if (angle < 89.0) {
+                        std::snprintf(buf, sizeof buf, "Acute %.0f° track join on %s (acid trap) — use 90° or 135° corners.",
+                                      angle, netName(a.net).c_str());
+                        add(Severity::Warning, "DRC_ACUTE_ANGLE", buf, pa);
+                    }
+                }
+        }
+
+    // IPC-2221 current capacity using the DC operating point (largest device current on each net).
+    bool hasSource = false;
+    for (const auto& c : sch.components())
+        hasSource |= c.kind == ComponentKind::VoltageSource || c.kind == ComponentKind::CurrentSource;
+    if (hasSource && sch.groundNet() >= 0 && !tracks.empty()) {
+        Simulator sim(sch);
+        DcResult dc = sim.dcOperatingPoint();
+        if (dc.converged) {
+            std::map<int, double> netCurrent;
+            for (const auto& d : dc.devices) {
+                const Component* c = sch.find(d.componentId);
+                if (!c) continue;
+                for (size_t pin = 0; pin < c->def().pins.size(); ++pin) {
+                    int n = sch.netOf({c->id, static_cast<int>(pin)});
+                    if (n >= 0) netCurrent[n] = std::max(netCurrent[n], std::fabs(d.current));
+                }
+            }
+            std::set<std::pair<int, int>> reported;
+            for (const auto& tr : tracks) {
+                auto it = netCurrent.find(tr.net);
+                if (it == netCurrent.end()) continue;
+                bool inner = tr.layer != kTopLayer && tr.layer != settings.bottomLayer();
+                double need = ipc2221TrackWidth(it->second, settings.maxTempRise, settings.copperWeightOz, inner);
+                if (tr.width + eps < need && reported.insert({tr.net, inner ? 1 : 0}).second) {
+                    std::snprintf(buf, sizeof buf,
+                                  "%s carries %.0f mA: IPC-2221 needs %.2f mm %s track width for a %.0f °C rise (track is %.2f mm).",
+                                  netName(tr.net).c_str(), it->second * 1000, need, inner ? "inner" : "outer",
+                                  settings.maxTempRise, tr.width);
+                    add(Severity::Warning, "DRC_TRACK_CURRENT", buf, (tr.a + tr.b) * 0.5);
+                }
+            }
+        }
     }
 
     // Connectivity.

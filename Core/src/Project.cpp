@@ -32,6 +32,14 @@ Json boardJson(const BoardSettings& s) {
     b["edgeClearance"] = s.edgeClearance;
     b["routingGrid"] = s.routingGrid;
     b["layerCount"] = s.layerCount;
+    b["rulePreset"] = s.rulePreset;
+    b["minTrackWidth"] = s.minTrackWidth;
+    b["minClearance"] = s.minClearance;
+    b["minDrill"] = s.minDrill;
+    b["minAnnularRing"] = s.minAnnularRing;
+    b["minHoleToHole"] = s.minHoleToHole;
+    b["copperWeightOz"] = s.copperWeightOz;
+    b["maxTempRise"] = s.maxTempRise;
     return b;
 }
 }  // namespace
@@ -143,6 +151,14 @@ Project Project::fromJson(const Json& root) {
     s.edgeClearance = b.get("edgeClearance").asNumber(s.edgeClearance);
     s.routingGrid = std::max(0.1, b.get("routingGrid").asNumber(s.routingGrid));
     s.layerCount = BoardSettings::normalizeLayerCount(b.get("layerCount").asInt(2));
+    s.rulePreset = b.get("rulePreset").asString(s.rulePreset);
+    s.minTrackWidth = b.get("minTrackWidth").asNumber(s.minTrackWidth);
+    s.minClearance = b.get("minClearance").asNumber(s.minClearance);
+    s.minDrill = b.get("minDrill").asNumber(s.minDrill);
+    s.minAnnularRing = b.get("minAnnularRing").asNumber(s.minAnnularRing);
+    s.minHoleToHole = b.get("minHoleToHole").asNumber(s.minHoleToHole);
+    s.copperWeightOz = std::max(0.5, b.get("copperWeightOz").asNumber(s.copperWeightOz));
+    s.maxTempRise = std::max(1.0, b.get("maxTempRise").asNumber(s.maxTempRise));
 
     // Custom parts first so components can resolve them; ids are re-derived and remapped if they changed.
     std::map<std::string, std::string> idMap;

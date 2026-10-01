@@ -98,6 +98,10 @@ int32_t sieda_pcb_fit_board(SiedaProject* project, double margin_mm);
 char* sieda_pcb_autoroute(SiedaProject* project); /* JSON route statistics */
 void sieda_pcb_clear_routing(SiedaProject* project);
 char* sieda_pcb_run_drc(const SiedaProject* project);
+/* Standard design-rule presets: [{"name","description","trackWidth",…,"minHoleToHole"}] */
+char* sieda_design_rule_presets_json(void);
+/* Applies a preset by name (design values + fabrication limits); returns 0 for unknown names. */
+int32_t sieda_pcb_apply_rule_preset(SiedaProject* project, const char* name);
 
 /* ---- exports ------------------------------------------------------------------------------- */
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
