@@ -50,11 +50,10 @@ jobs:
           # Surface the first errors as annotations (readable from the PR checks UI and the API).
           grep -E "(error|fatal error): |error: -\[|XCTAssert|Test Case .* failed|\*\* (BUILD|TEST) FAILED" xcodebuild.log \
             | sed -E "s#^$GITHUB_WORKSPACE/##" | awk '!seen[$0]++' | head -60 > errors.txt || true
-          if [ -s errors.txt ]; then
-            while IFS= read -r line; do echo "::error title=xcodebuild::${line}"; done < <(head -45 errors.txt)
-          else
-            tail -80 xcodebuild.log | while IFS= read -r line; do echo "::error title=xcodebuild tail::${line}"; done
-          fi
+          [ -s errors.txt ] || tail -60 xcodebuild.log > errors.txt
+          # GitHub keeps at most 10 error annotations per step: pack 6 lines into each (%0A = newline).
+          awk '{ gsub(/%/, "%25"); buf = buf $0 "%0A"; if (NR % 6 == 0) { print "::error title=xcodebuild::" buf; buf = "" } }
+               END { if (buf != "") print "::error title=xcodebuild::" buf }' errors.txt
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
