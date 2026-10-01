@@ -649,11 +649,41 @@ final class LayoutBudgetTests: XCTestCase {
 /// workspace with an empty, a loaded and a placed design must not crash or hang.
 @MainActor
 final class LiveWindowTests: XCTestCase {
+    /// Last step the test reached; the watchdog reports it if the main thread stops returning from layout.
+    private final class Progress: @unchecked Sendable {
+        private let lock = NSLock()
+        private var step = "start"
+        private var changed = Date()
+        func set(_ value: String) {
+            lock.lock(); step = value; changed = Date(); lock.unlock()
+            print("[LiveWindow] \(value)")
+            fflush(stdout)
+        }
+        func stalled(after seconds: TimeInterval) -> String? {
+            lock.lock(); defer { lock.unlock() }
+            return Date().timeIntervalSince(changed) > seconds ? step : nil
+        }
+    }
+
     private func spin(_ seconds: TimeInterval = 0.2) {
         RunLoop.main.run(until: Date().addingTimeInterval(seconds))
     }
 
     func testWindowSurvivesResizingAndWorkspaceSwitches() throws {
+        let progress = Progress()
+        // A layout loop never returns to the test, so a background watchdog names the step and stops the run.
+        let watchdog = DispatchSource.makeTimerSource(queue: .global())
+        watchdog.schedule(deadline: .now() + 5, repeating: 5)
+        watchdog.setEventHandler {
+            if let step = progress.stalled(after: 30) {
+                print("[LiveWindow] HUNG for 30 s at: \(step)")
+                fflush(stdout)
+                fatalError("Main thread stuck in layout at: \(step)")
+            }
+        }
+        watchdog.resume()
+        defer { watchdog.cancel() }
+
         let store = DesignStore()
         let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.LiveWindowTests")))
         let agents = AgentOrchestrator()
@@ -661,11 +691,14 @@ final class LiveWindowTests: XCTestCase {
             .environmentObject(store)
             .environmentObject(settings)
             .environmentObject(agents)
+            .documentWindowFrame()
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1360, height: 860),
                               styleMask: [.titled, .closable, .resizable, .miniaturizable],
                               backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
+        progress.set("hosting ContentView")
         window.contentViewController = NSHostingController(rootView: root)
+        progress.set("ordering window front")
         window.makeKeyAndOrderFront(nil)
         defer { window.close() }
         spin(0.5)
@@ -674,17 +707,20 @@ final class LiveWindowTests: XCTestCase {
                                CGSize(width: 1000, height: 600), CGSize(width: 900, height: 540),
                                CGSize(width: 1500, height: 940)]
         for stage in 0..<3 {
-            if stage == 1 { store.loadExample(OfflineProvider.templates[8].industryPlan) }
-            if stage == 2 { store.autoPlace(all: true) }
+            if stage == 1 { progress.set("stage 1: loading example"); store.loadExample(OfflineProvider.templates[8].industryPlan) }
+            if stage == 2 { progress.set("stage 2: auto-placing"); store.autoPlace(all: true) }
             for size in sizes {
+                progress.set("stage \(stage): resize to \(Int(size.width))×\(Int(size.height))")
                 window.setContentSize(size)
                 spin(0.1)
                 for workspace in Workspace.allCases {
+                    progress.set("stage \(stage): \(workspace.title) at \(Int(size.width))×\(Int(size.height))")
                     store.workspace = workspace
                     spin(0.15)
                     XCTAssertTrue(window.isVisible, "\(workspace.title) at \(size)")
                 }
             }
         }
+        progress.set("done")
     }
 }

@@ -32,11 +32,14 @@ struct SimulationView: View {
             }
             .buttonStyle(.borderless)
 
-            HSplitView {
+            // Plain stack, not HSplitView: an AppKit split view nested in the SwiftUI split view adds
+            // constraints of its own that fight the window's.
+            HStack(spacing: 0) {
                 dcPanel
-                    .frame(minWidth: 240, idealWidth: 320, maxWidth: 480)
+                    .frame(width: 300)
+                Rectangle().fill(Theme.blue.opacity(0.3)).frame(width: 1)
                 transientPanel
-                    .frame(minWidth: 360)
+                    .frame(minWidth: 300, maxWidth: .infinity)
             }
         }
         .background(Theme.navy)

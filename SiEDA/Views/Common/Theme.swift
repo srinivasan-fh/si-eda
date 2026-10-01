@@ -128,6 +128,16 @@ enum LayoutMetrics {
     static let workspaceBudget = CGSize(width: 620, height: 440)
 }
 
+extension View {
+    /// Root frame of a document window. Its minimum is fixed (min and max both set), so the window's minimum
+    /// size never follows the content: content whose minimum changes during layout would otherwise make AppKit
+    /// re-solve the window constraints in a loop (macOS 26 aborts the app).
+    func documentWindowFrame() -> some View {
+        frame(minWidth: LayoutMetrics.minimumWindow.width, maxWidth: .infinity,
+              minHeight: LayoutMetrics.minimumWindow.height, maxHeight: .infinity)
+    }
+}
+
 /// Small blue capsule label.
 struct Badge: View {
     var text: String

@@ -30,7 +30,7 @@ struct SiEDAApp: App {
                 .environmentObject(agents)
                 .preferredColorScheme((AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
                 .tint(Theme.blue)
-                .frame(minWidth: LayoutMetrics.minimumWindow.width, minHeight: LayoutMetrics.minimumWindow.height)
+                .documentWindowFrame()
                 .onAppear { appDelegate.store = store }
         }
         .defaultSize(width: LayoutMetrics.defaultWindow.width, height: LayoutMetrics.defaultWindow.height)
