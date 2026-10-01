@@ -108,6 +108,11 @@ Json Project::toJson() const {
         j["y"] = c.position.y;
         j["rotation"] = c.rotation;
         if (c.kind == ComponentKind::Custom) j["customPart"] = c.customPart;
+        if (!c.noConnect.empty()) {
+            Json nc = Json::array();
+            for (int pin : c.noConnect) nc.push(pin);
+            j["noConnect"] = nc;
+        }
         Json p = Json::object();
         p["x"] = c.pcb.position.x;
         p["y"] = c.pcb.position.y;
@@ -203,6 +208,10 @@ Project Project::fromJson(const Json& root) {
             auto it = idMap.find(id);
             c.customPart = it != idMap.end() ? it->second : id;
         }
+        for (const auto& nc : j.get("noConnect").items()) {
+            int pin = nc.asInt(-1);
+            if (pin >= 0 && pin < static_cast<int>(c.def().pins.size()) && !c.isNoConnect(pin)) c.noConnect.push_back(pin);
+        }
         const Json& pc = j.get("pcb");
         c.pcb.position = {pc.get("x").asNumber(), pc.get("y").asNumber()};
         c.pcb.rotation = pc.get("rotation").asInt(0);
@@ -266,6 +275,7 @@ Json Project::snapshot() const {
             pj["y"] = pos.y;
             pj["net"] = net;
             pj["connected"] = net >= 0 && nets[static_cast<size_t>(net)].pins.size() > 1;
+            pj["noConnect"] = c.isNoConnect(static_cast<int>(i));
             pins.push(pj);
         }
         j["pins"] = pins;

@@ -1314,6 +1314,36 @@ TEST(ipc2221_voltage_clearance) {
     CHECK(build("SIN(0 325 50)") > 0);  // mains peak, not the 0 V DC value
 }
 
+TEST(no_connect_flags) {
+    Project p;
+    auto& s = p.schematic;
+    std::string id = CustomPartRegistry::instance().registerPart(findStandardPart("NE555")->spec)->id;
+    int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    int u = s.addCustomComponent(id, "", {150, 0});
+    wire(s, v, "+", u, "8");
+    wire(s, u, "1", g, "GND");
+    wire(s, v, "-", g, "GND");
+    auto count = [&](const char* code) {
+        int n = 0;
+        for (const auto& f : s.runERC()) n += f.code == code;
+        return n;
+    };
+    CHECK(count("ERC_UNCONNECTED_PIN") == 6);  // pins 2–7 open
+    for (int pin = 1; pin <= 6; ++pin) CHECK(s.setPinNoConnect(u, pin, true));
+    CHECK(!s.setPinNoConnect(u, 99, true));
+    CHECK(count("ERC_UNCONNECTED_PIN") == 0);
+    // A flagged pin that gets wired is reported.
+    wire(s, u, "4", v, "+");
+    CHECK(count("ERC_NC_CONNECTED") == 1);
+    // Persisted with the project and visible in the snapshot.
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.schematic.find(u)->noConnect.size() == 6);
+    CHECK(p.snapshot().dump().find("\"noConnect\":true") != std::string::npos);
+    CHECK(s.setPinNoConnect(u, 3, false));
+    CHECK(s.find(u)->noConnect.size() == 5);
+}
+
 TEST(project_json_roundtrip) {
     Project p = amplifierProject();
     p.requirements = "Amplify a sensor signal and light an LED.";

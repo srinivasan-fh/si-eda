@@ -101,6 +101,7 @@ int Schematic::replaceCustomPart(const std::string& oldId, const std::string& ne
     for (auto& c : components_) {
         if (c.kind != ComponentKind::Custom || c.customPart != oldId) continue;
         c.customPart = newId;
+        c.noConnect.clear();  // pin indices change with the part
         if (c.value == oldPart->def.defaultValue) c.value = newPart->def.defaultValue;
         changed.insert(c.id);
         ++count;
@@ -115,6 +116,19 @@ int Schematic::replaceCustomPart(const std::string& oldId, const std::string& ne
     wires_ = std::move(kept);
     invalidate();
     return count;
+}
+
+bool Component::isNoConnect(int pin) const {
+    return std::find(noConnect.begin(), noConnect.end(), pin) != noConnect.end();
+}
+
+bool Schematic::setPinNoConnect(int componentId, int pin, bool nc) {
+    Component* c = find(componentId);
+    if (!c || pin < 0 || pin >= static_cast<int>(c->def().pins.size())) return false;
+    auto it = std::find(c->noConnect.begin(), c->noConnect.end(), pin);
+    if (nc && it == c->noConnect.end()) c->noConnect.push_back(pin);
+    if (!nc && it != c->noConnect.end()) c->noConnect.erase(it);
+    return true;
 }
 
 bool Schematic::removeComponent(int id) {
@@ -406,11 +420,13 @@ std::vector<RuleViolation> Schematic::runERC() const {
         const auto& pins = c.def().pins;
         int unconnected = 0;
         std::vector<std::string> openPins;
+        std::vector<int> openIdx;
         for (size_t p = 0; p < pins.size(); ++p) {
             int net = netOf({c.id, static_cast<int>(p)});
             if (net < 0 || allNets[static_cast<size_t>(net)].pins.size() < 2) {
                 ++unconnected;
                 openPins.push_back(pins[p].name);
+                openIdx.push_back(static_cast<int>(p));
             }
         }
         if (c.kind == ComponentKind::NetLabel || c.kind == ComponentKind::Ground) {
@@ -423,7 +439,9 @@ std::vector<RuleViolation> Schematic::runERC() const {
             add(Severity::Warning, "ERC_FLOATING_COMPONENT", c.ref + " is not connected to the circuit.", {c.id},
                 c.position);
         } else {
-            for (const auto& name : openPins) {
+            for (size_t o = 0; o < openPins.size(); ++o) {
+                const std::string& name = openPins[o];
+                if (c.isNoConnect(openIdx[o])) continue;  // flagged as intentionally open
                 if (c.kind == ComponentKind::Custom) {
                     PinType type = PinType::Passive;
                     for (const auto& pd : pins)
@@ -436,8 +454,19 @@ std::vector<RuleViolation> Schematic::runERC() const {
                     }
                 }
                 Severity s = c.kind == ComponentKind::IC8 ? Severity::Info : Severity::Warning;
-                add(s, "ERC_UNCONNECTED_PIN", "Pin " + c.ref + "." + name + " is unconnected.", {c.id}, c.position);
+                add(s, "ERC_UNCONNECTED_PIN",
+                    "Pin " + c.ref + "." + name + " is unconnected — wire it or mark it no-connect if it is unused.",
+                    {c.id}, c.position);
             }
+        }
+
+        for (int pin : c.noConnect) {
+            int net = netOf({c.id, pin});
+            if (net >= 0 && allNets[static_cast<size_t>(net)].pins.size() > 1 && pin < static_cast<int>(pins.size()))
+                add(Severity::Warning, "ERC_NC_CONNECTED",
+                    "Pin " + c.ref + "." + pins[static_cast<size_t>(pin)].name +
+                        " has a no-connect flag but is wired to net " + allNets[static_cast<size_t>(net)].name + ".",
+                    {c.id}, c.position);
         }
 
         // Value validation.

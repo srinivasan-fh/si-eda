@@ -96,6 +96,11 @@ void sieda_project_set_requirements(SiedaProject* project, const char* text) {
     if (project) project->project.requirements = str(text);
 }
 
+int32_t sieda_set_pin_no_connect(SiedaProject* project, int32_t component_id, int32_t pin, int32_t no_connect) {
+    if (!project) return 0;
+    return project->project.schematic.setPinNoConnect(component_id, pin, no_connect != 0) ? 1 : 0;
+}
+
 int32_t sieda_project_set_industry(SiedaProject* project, const char* industry_id) {
     if (!project || !industry_id) return 0;
     return project->project.applyIndustry(industry_id) ? 1 : 0;

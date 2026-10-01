@@ -56,6 +56,8 @@ int32_t sieda_find_component(const SiedaProject* project, const char* ref);  /* 
 int32_t sieda_find_pin(const SiedaProject* project, int32_t component_id, const char* pin_name); /* index or -1 */
 /* Returns wire id or -1. */
 int32_t sieda_connect(SiedaProject* project, int32_t comp_a, int32_t pin_a, int32_t comp_b, int32_t pin_b);
+/* Marks (1) or clears (0) a no-connect flag on a pin: ERC no longer reports it unconnected. 1 on success. */
+int32_t sieda_set_pin_no_connect(SiedaProject* project, int32_t component_id, int32_t pin, int32_t no_connect);
 int32_t sieda_remove_wire(SiedaProject* project, int32_t wire_id);
 
 /* ---- custom components (datasheet import) ---------------------------------------------------- */
