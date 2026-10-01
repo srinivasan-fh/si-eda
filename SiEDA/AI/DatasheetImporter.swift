@@ -227,7 +227,7 @@ enum PinTableParser {
 
     /// JSON matching `DatasheetSchema.componentDefinition`.
     static func extractionJSON(text: String, fileName: String, hint: String) -> String {
-        let rows = rows(in: text)
+        let rows = Self.rows(in: text)
         let stem = (fileName as NSString).deletingPathExtension
         let name = partName(in: text, fallback: stem.isEmpty ? "PART" : stem)
         let package = PackageKind.guess(hint) ?? PackageKind.guess(text.prefix(20_000).description) ?? (rows.count <= 3 ? .sot23 : .soic)
