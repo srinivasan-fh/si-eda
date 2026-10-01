@@ -278,6 +278,13 @@ char* sieda_standard_parts_json(void) {
 static ESeries seriesFrom(int32_t s) { return s <= 12 ? ESeries::E12 : (s <= 24 ? ESeries::E24 : ESeries::E96); }
 double sieda_nearest_standard_value(double value, int32_t series) { return nearestStandardValue(value, seriesFrom(series)); }
 int32_t sieda_is_standard_value(double value, int32_t series) { return isStandardValue(value, seriesFrom(series)) ? 1 : 0; }
+int32_t sieda_parse_value(const char* text, double* out) {
+    if (!text) return 0;
+    auto v = parseEngineeringValue(text);
+    if (!v) return 0;
+    if (out) *out = *v;
+    return 1;
+}
 
 char* sieda_run_erc(const SiedaProject* project) {
     if (!project) return nullptr;

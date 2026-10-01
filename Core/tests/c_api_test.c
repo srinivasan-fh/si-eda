@@ -71,6 +71,11 @@ int sieda_c_api_smoke_test(void) {
     if (!inner || !strstr(inner, "Copper,L2,Inr")) return 20;
     sieda_string_free(inner);
     if (sieda_export(p, "gerber_l9") != NULL) return 21;
+    {
+        double parsed = 0;
+        if (!sieda_parse_value("4k7", &parsed) || parsed < 4699.0 || parsed > 4701.0) return 23;
+        if (sieda_parse_value("abc", &parsed)) return 24;
+    }
     sieda_project_free(p);
     return 0;
 }

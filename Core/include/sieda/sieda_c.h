@@ -75,6 +75,8 @@ char* sieda_standard_parts_json(void);
 /* Nearest IEC 60063 value; series = 12, 24 or 96. */
 double sieda_nearest_standard_value(double value, int32_t series);
 int32_t sieda_is_standard_value(double value, int32_t series);
+/* Parses an engineering value ("4k7", "100nF", "2.2M"); returns 1 and writes *out on success, else 0. */
+int32_t sieda_parse_value(const char* text, double* out);
 
 /* ---- analysis ------------------------------------------------------------------------------ */
 char* sieda_run_erc(const SiedaProject* project);

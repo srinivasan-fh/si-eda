@@ -590,6 +590,22 @@ TEST(pcb_dense_board_uses_inner_layers) {
     CHECK(four.routed >= two.routed);
 }
 
+TEST(pcb_router_keeps_vias_out_of_smd_pads) {
+    // Dense SMD board: every via the router drops must sit outside SMD pads (no DRC_VIA_IN_PAD).
+    for (int layers : {2, 4, 6}) {
+        Project p = amplifierProject();
+        p.pcb.settings.layerCount = layers;
+        p.pcb.settings.width = 22;
+        p.pcb.settings.height = 16;
+        p.pcb.autoPlace(p.schematic, true);
+        RouteStats st = p.pcb.autoRoute(p.schematic);
+        int viaInPad = 0;
+        for (const auto& v : p.pcb.runDRC(p.schematic)) viaInPad += v.code == "DRC_VIA_IN_PAD";
+        std::printf("    %d layers: %d/%d routed, %d vias, %d via-in-pad\n", layers, st.routed, st.connections, st.vias, viaInPad);
+        CHECK(viaInPad == 0);
+    }
+}
+
 namespace {
 CustomPartSpec ne555Spec(const std::string& package) {
     CustomPartSpec s;

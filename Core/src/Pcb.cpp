@@ -424,6 +424,7 @@ public:
             padNet_[L(l)].assign(n, -1);
             copper_[L(l)].assign(n, -1);
         }
+        noVia_.assign(n, 0);
         double e = s.edgeClearance + s.trackWidth / 2;
         for (int j = 0; j < rows_; ++j)
             for (int i = 0; i < cols_; ++i) {
@@ -453,6 +454,7 @@ public:
         double rBody = std::max(0.0, s_.viaDiameter / 2 - s_.trackWidth / 2) + 1e-9;
         int k = static_cast<int>(std::ceil(rCopper / g_));
         if (layers_ < 2) return false;  // single-sided boards have no vias
+        if (noVia_[c]) return false;    // never inside an SMD pad (DRC_VIA_IN_PAD)
         for (int l = 0; l < layers_; ++l) {  // through via: every layer must allow it
             if (!passable(l, c, net)) return false;
             for (int dj = -k; dj <= k; ++dj)
@@ -488,13 +490,17 @@ public:
                 if (p.net >= 0) claim(l, c, p.net);
                 else claim(l, c, -3);  // unconnected pad: blocks every net
                 if (dist <= 0) {
+                    if (!p.throughHole) noVia_[c] = 1;
                     copper_[L(l)][c] = p.net >= 0 ? p.net : -3;
                     if (p.net >= 0) { padNet_[L(l)][c] = p.net; anyCore = true; }
                 }
             });
             if (!anyCore && p.net >= 0) {
                 int i = static_cast<int>(std::lround(p.position.x / g_)), j = static_cast<int>(std::lround(p.position.y / g_));
-                if (inside(i, j)) padNet_[L(l)][idx(i, j)] = p.net;
+                if (inside(i, j)) {
+                    padNet_[L(l)][idx(i, j)] = p.net;
+                    if (!p.throughHole) noVia_[idx(i, j)] = 1;
+                }
             }
         }
     }
@@ -549,6 +555,7 @@ private:
     std::vector<std::vector<int>> owner_;   // per layer routing keep-out: -1 free, net, -2 shared/blocked, -3 NC pad
     std::vector<std::vector<int>> padNet_;  // per layer pad copper reachable by its own net
     std::vector<std::vector<int>> copper_;  // per layer actual copper occupancy
+    std::vector<char> noVia_;               // cells inside SMD pads (any layer): no via may be placed there
 };
 
 struct PathNode {
