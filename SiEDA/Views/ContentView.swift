@@ -192,18 +192,34 @@ struct StatusBar: View {
                 ProgressView().controlSize(.small)
                 Text(store.isBusy ? store.busyMessage : "AI agents working · \(agents.activeModel)")
                     .foregroundStyle(Theme.skyBlue)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             } else {
                 Image(systemName: "bolt.horizontal.circle").foregroundStyle(Theme.blue)
-                Text(store.statusMessage).foregroundStyle(Theme.textSecondary)
+                Text(store.statusMessage)
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
-            Spacer()
-            let s = store.snapshot
-            Label("\(s.components.filter { !$0.componentKind.isVirtual }.count) parts", systemImage: "cpu")
-            Label("\(s.nets.filter { $0.pinCount > 1 }.count) nets", systemImage: "point.3.connected.trianglepath.dotted")
-            Label(String(format: "%.0f × %.0f mm", s.board.width, s.board.height), systemImage: "square.dashed")
-            Label("\(s.tracks.count) tracks · \(s.vias.count) vias", systemImage: "line.diagonal")
-            Label(settings.aiEnabled ? "AI on" : "Manual mode", systemImage: settings.aiEnabled ? "sparkles" : "hand.raised")
-            Text("Core \(EDAEngine.coreVersion)").foregroundStyle(Theme.textMuted)
+            Spacer(minLength: 12)
+            // Full statistics when there is room, a compact summary otherwise (never wraps).
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 14) {
+                    partsLabel
+                    netsLabel
+                    boardLabel
+                    Label("\(store.snapshot.tracks.count) tracks · \(store.snapshot.vias.count) vias", systemImage: "line.diagonal")
+                    modeLabel
+                    Text("Core \(EDAEngine.coreVersion)").foregroundStyle(Theme.textMuted)
+                }
+                HStack(spacing: 12) {
+                    partsLabel
+                    boardLabel
+                    modeLabel
+                }
+                modeLabel
+            }
+            .fixedSize(horizontal: false, vertical: true)
         }
         .font(.caption)
         .foregroundStyle(Theme.lightBlue)
@@ -212,5 +228,26 @@ struct StatusBar: View {
         .padding(.vertical, 6)
         .background(Theme.deepBlue)
         .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.blue.opacity(0.3)), alignment: .top)
+    }
+
+    private var partsLabel: some View {
+        Label("\(store.snapshot.components.filter { !$0.componentKind.isVirtual }.count) parts", systemImage: "cpu")
+            .lineLimit(1)
+    }
+
+    private var netsLabel: some View {
+        Label("\(store.snapshot.nets.filter { $0.pinCount > 1 }.count) nets", systemImage: "point.3.connected.trianglepath.dotted")
+            .lineLimit(1)
+    }
+
+    private var boardLabel: some View {
+        Label(String(format: "%.0f × %.0f mm · %dL", store.snapshot.board.width, store.snapshot.board.height,
+                     store.snapshot.board.layerCount), systemImage: "square.dashed")
+            .lineLimit(1)
+    }
+
+    private var modeLabel: some View {
+        Label(settings.aiEnabled ? "AI on" : "Manual mode", systemImage: settings.aiEnabled ? "sparkles" : "hand.raised")
+            .lineLimit(1)
     }
 }
