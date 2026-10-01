@@ -36,6 +36,10 @@ struct IndustryProfile: Decodable, Equatable, Identifiable, Hashable {
         case "space": return "globe.americas"
         case "marine": return "ferry"
         case "industrial": return "building.2"
+        case "medical": return "cross.case"
+        case "defence": return "shield.lefthalf.filled"
+        case "networking": return "network"
+        case "vlsi": return "cpu"
         default: return "cpu"
         }
     }

@@ -80,6 +80,58 @@ std::vector<IndustryProfile> build() {
                   "IEC 61131-2 Type 1/3 inputs: on above 15 V / 2 mA, off below 5 V.",
                   "Protect field inputs with series resistors, TVS diodes and reverse-polarity protection.",
                   "Use RS-485 (MAX485) for long fieldbus runs with termination and fail-safe bias."}});
+    p.push_back({"medical", "Medical Devices", "Patient monitors, wearables, diagnostic and therapy equipment",
+                 "IEC 60601-1 (MOOP/MOPP isolation, leakage), IEC 60601-1-2 (EMC), ISO 14971 (risk), IEC 62304 (software), "
+                 "ISO 13485, IPC-A-610 Class 3",
+                 "Medical (IEC 60601-1, IPC Class 3)", 0.6, 0.7, false, 0, 50,
+                 {"Isolate every patient-connected (applied) part: 2 MOPP = 4 kV AC test, 8 mm creepage, 5 mm clearance; use "
+                  "medical-grade isolated DC/DC converters and digital isolators (ADuM1201) across the barrier.",
+                  "Keep patient leakage below 10 µA (type CF, cardiac) or 100 µA (type BF) — no Y-capacitors across the "
+                  "patient barrier.",
+                  "Protect electrode inputs with series resistors (≥ 10 kΩ) and clamp diodes; they limit fault current "
+                  "into the patient and survive defibrillation with a gas discharge tube.",
+                  "Bias the instrumentation amplifier (INA333) to mid-supply and add a right-leg drive to reject 50/60 Hz "
+                  "common-mode interference.",
+                  "Run the device from a battery or an IEC 60601-1 certified supply; fuse the battery.",
+                  "Develop firmware to IEC 62304 and document hazards in an ISO 14971 risk file."}});
+    p.push_back({"defence", "Defence & Military", "Rugged military, avionics, radar and tactical communication electronics",
+                 "MIL-STD-810H (environment), MIL-STD-461G (EMI), MIL-STD-704F (28 V aircraft power), MIL-STD-1275E "
+                 "(vehicle 28 V), MIL-PRF-31032, IPC-6012 Class 3/A, MIL-HDBK-1547 / NAVSO P-3641A (derating)",
+                 "Defence (IPC-6012 Class 3/A, MIL)", 0.5, 0.6, true, -55, 125,
+                 {"Protect the 28 V input to MIL-STD-704/1275: fuse, reverse-polarity diode, TVS (SMBJ33A) for spikes and "
+                  "a regulator that survives 50-100 V surges.",
+                  "Filter conducted emissions for MIL-STD-461 CE102/CS101 with an LC input filter (inductor + ceramic "
+                  "capacitors) at the connector.",
+                  "Derate to MIL-HDBK-1547: power 50 %, semiconductor current 50-60 %, capacitor voltage 50 %.",
+                  "Specify −55 °C to +125 °C parts, avoid pure-tin finishes (whiskers) and conformal-coat the board.",
+                  "Stake heavy parts and add mounting holes near them for MIL-STD-810 shock and vibration.",
+                  "Airborne equipment uses the IPC-2221 B3 (altitude) voltage spacing — DRC checks it."}});
+    p.push_back({"networking", "Networking & Telecom", "Ethernet, Power over Ethernet, switches, routers and line cards",
+                 "IEEE 802.3 (Ethernet; PoE 802.3af/at/bt), IEC 62368-1, ITU-T K.21 (surge), IPC-2141 (100 Ω "
+                 "differential), CISPR 32 (EMC)",
+                 "High-Speed Digital (100 Ω diff)", 0.8, 0.8, false, 0, 70,
+                 {"Route Ethernet MDI pairs as 100 Ω differential pairs, length-matched within 0.5 mm, over an "
+                  "unbroken ground plane; keep them away from the board edge.",
+                  "Isolate the RJ45 with 1500 V rms magnetics and terminate unused pairs with Bob Smith termination "
+                  "(75 Ω to a 1 nF / 2 kV capacitor to chassis).",
+                  "PoE powered device: diode or ideal-diode bridge for either polarity, a 24.9 kΩ detection signature, "
+                  "a 58 V TVS and inrush limiting before the bulk capacitor.",
+                  "Place the 25 MHz PHY crystal close to the PHY with short, guarded traces.",
+                  "Protect ports with TVS arrays for ITU-T K.21 surges and leave chassis-to-ground spacing for "
+                  "1500 V isolation."}});
+    p.push_back({"vlsi", "VLSI / ASIC & FPGA", "Chip bring-up, ASIC/FPGA evaluation boards, high-pin-count BGA and QFN",
+                 "IPC-2226 (HDI), IPC-7351 (BGA/QFN land patterns), IPC-2152, JEDEC JESD8 (I/O levels), "
+                 "IEEE 1149.1 (JTAG), IPC-6012 Class 3",
+                 "HDI / Fine-Pitch BGA (IPC-2226)", 0.8, 0.8, false, 0, 85,
+                 {"Give every rail (core, auxiliary, I/O) its own regulator and plane; sequence core → auxiliary → I/O "
+                  "as the device datasheet requires.",
+                  "Decouple each rail with bulk (10 µF), mid (1 µF) and one 100 nF per power-ball pair, placed under "
+                  "the BGA on the back side with via-in-pad.",
+                  "Bring out IEEE 1149.1 JTAG (TCK, TMS, TDI, TDO, VREF, GND) on a header for programming and "
+                  "boundary scan.",
+                  "Fan out fine-pitch BGAs with dog-bone or via-in-pad microvias (HDI rules) and keep length-matched "
+                  "high-speed nets on inner layers between planes.",
+                  "Add test points and current-sense resistors on each rail for bring-up power measurements."}});
     return p;
 }
 

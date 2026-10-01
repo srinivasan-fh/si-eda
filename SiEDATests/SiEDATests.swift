@@ -241,7 +241,7 @@ final class StandardsAndVerificationTests: XCTestCase {
         XCTAssertTrue(StandardLibrary.parts.contains { $0.spec.name == "NE555" })
         XCTAssertGreaterThanOrEqual(StandardLibrary.parts.count, 12)
 
-        XCTAssertEqual(StandardLibrary.rulePresets.count, 9)
+        XCTAssertEqual(StandardLibrary.rulePresets.count, 13)
         XCTAssertTrue(StandardLibrary.rulePresets.contains { $0.name == "IPC-2221 Class 3" })
 
         XCTAssertEqual(try XCTUnwrap(EDAEngine.parseValue("4k7")), 4700, accuracy: 1e-9)
@@ -301,13 +301,20 @@ final class StandardsAndVerificationTests: XCTestCase {
     }
 
     func testOfflineTemplateMatchingAndCategories() {
-        XCTAssertEqual(OfflineProvider.templates.count, 22)
+        XCTAssertEqual(OfflineProvider.templates.count, 26)
         XCTAssertEqual(OfflineProvider.template(for: "non-inverting amplifier with gain 11").plan.title, "Non-Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "an inverting amplifier, gain -10").plan.title, "Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "blink an LED with a 555").plan.title, "555 Astable LED Blinker")
         XCTAssertEqual(OfflineProvider.template(for: "12 V to 5 V LM7805 regulator").plan.title, "5 V Linear Regulator")
         XCTAssertEqual(OfflineProvider.template(for: "strain gauge wheatstone bridge").plan.title, "Wheatstone Bridge")
         XCTAssertNotEqual(OfflineProvider.template(for: "h-bridge motor driver with mosfets").plan.title, "Wheatstone Bridge")
+        // New industries, and words that only contain their keywords ("basic", "product", "autorouter") stay put.
+        XCTAssertEqual(OfflineProvider.template(for: "wearable ECG patch for a patient").industry, "medical")
+        XCTAssertEqual(OfflineProvider.template(for: "MIL-STD rugged 28 V input").industry, "defence")
+        XCTAssertEqual(OfflineProvider.template(for: "PoE powered Ethernet sensor").industry, "networking")
+        XCTAssertEqual(OfflineProvider.template(for: "FPGA bring-up board with JTAG").industry, "vlsi")
+        XCTAssertNotEqual(OfflineProvider.template(for: "a basic product led indicator for the autorouter").industry, "vlsi")
+        XCTAssertNotEqual(OfflineProvider.template(for: "a basic product led indicator for the autorouter").industry, "networking")
         for template in OfflineProvider.templates {
             XCTAssertTrue(OfflineProvider.categories.contains(template.category), template.plan.title)
             // Each template's first keyword selects it.
@@ -441,7 +448,8 @@ final class CanvasNavigationTests: XCTestCase {
 final class IndustryKitTests: XCTestCase {
     func testIndustryProfilesBridge() throws {
         let ids = StandardLibrary.industries.map(\.id)
-        XCTAssertEqual(ids, ["general", "robotics", "uav", "power", "automotive", "rf", "space", "marine", "industrial"])
+        XCTAssertEqual(ids, ["general", "robotics", "uav", "power", "automotive", "rf", "space", "marine", "industrial",
+                             "medical", "defence", "networking", "vlsi"])
         let space = try XCTUnwrap(StandardLibrary.industry("space"))
         XCTAssertEqual(space.powerDerating, 0.5, accuracy: 1e-9)
         XCTAssertTrue(space.highAltitude)
