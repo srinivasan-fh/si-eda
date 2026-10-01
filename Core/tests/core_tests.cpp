@@ -367,6 +367,33 @@ TEST(sim_nmos_low_side_switch) {
     CHECK(netV(s, r, m, "D") < 0.1);
 }
 
+TEST(sim_blue_white_leds_conduct) {
+    // Wide-gap LEDs (blue/white, Is ≈ 1e-26) need junction exponents near 60; a fixed exp() knee at 40 left them open.
+    for (const char* colour : {"Blue", "White", "Red", "Green"}) {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+        int r = s.addComponent(ComponentKind::Resistor, "100", {80, 0});
+        int d = s.addComponent(ComponentKind::LED, colour, {160, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", r, "1");
+        wire(s, r, "2", d, "A");
+        wire(s, d, "K", g, "GND");
+        wire(s, v, "-", g, "GND");
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged);
+        double i = 0, vf = 0;
+        for (const auto& dev : dc.devices)
+            if (dev.componentId == d) {
+                i = dev.current;
+                vf = dev.voltage;
+            }
+        bool wide = std::string(colour) == "Blue" || std::string(colour) == "White";
+        std::printf("    %-5s Vf %.3f V, I %.2f mA\n", colour, vf, i * 1000);
+        CHECK(i > 0.010 && i < 0.035);
+        CHECK(wide ? (vf > 2.6 && vf < 3.3) : (vf > 1.7 && vf < 2.2));
+    }
+}
+
 TEST(sim_no_ground_reports_error) {
     Schematic s;
     int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});

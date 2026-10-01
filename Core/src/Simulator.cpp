@@ -93,10 +93,14 @@ constexpr double kVt = 0.025852;  // thermal voltage @ 300 K
 constexpr double kGmin = 1e-12;
 constexpr double kOpAmpGain = 1e6;
 
-double limexp(double x) {
-    constexpr double kMax = 40.0;
+/// exp(x) continued linearly above `kMax` so Newton steps cannot overflow. The knee must sit above any realistic
+/// operating point: for a junction with saturation current `is` that is ln(1 A / is), which matters for wide-gap
+/// LEDs (blue/white, is ≈ 1e-26) whose forward drop needs exponents near 60.
+double limexp(double x, double kMax = 40.0) {
     return x < kMax ? std::exp(x) : std::exp(kMax) * (1.0 + x - kMax);
 }
+
+double junctionLimit(double is) { return std::max(40.0, std::log(1.0 / std::max(is, 1e-300))); }
 
 enum class ElemType { Resistor, Capacitor, Inductor, VSource, ISource, Diode, NPN, NMOS, OpAmp };
 }  // namespace
@@ -123,13 +127,13 @@ double nodeV(const std::vector<double>& x, int i) { return i < 0 ? 0.0 : x[stati
 std::array<double, 3> deviceCurrents(const Elem& e, const std::array<double, 3>& v) {
     switch (e.type) {
         case ElemType::Diode: {
-            double i = e.is * (limexp((v[0] - v[1]) / (e.emission * kVt)) - 1.0);
+            double i = e.is * (limexp((v[0] - v[1]) / (e.emission * kVt), junctionLimit(e.is)) - 1.0);
             return {i, -i, 0};
         }
         case ElemType::NPN: {  // terminals: B, C, E  (Ebers–Moll transport model)
             double vbe = v[0] - v[2], vbc = v[0] - v[1];
-            double iF = e.is * (limexp(vbe / kVt) - 1.0);
-            double iR = e.is * (limexp(vbc / kVt) - 1.0);
+            double iF = e.is * (limexp(vbe / kVt, junctionLimit(e.is)) - 1.0);
+            double iR = e.is * (limexp(vbc / kVt, junctionLimit(e.is)) - 1.0);
             double ic = (iF - iR) - iR / e.betaR;
             double ib = iF / e.betaF + iR / e.betaR;
             return {ib, ic, -(ib + ic)};
