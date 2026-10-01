@@ -1,7 +1,22 @@
+import AppKit
 import SwiftUI
+
+/// Guards against losing work: quitting (or closing the last window) asks to save an edited design.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    weak var store: DesignStore?
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    @MainActor
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let store else { return .terminateNow }
+        return store.confirmDiscardChanges() ? .terminateNow : .terminateCancel
+    }
+}
 
 @main
 struct SiEDAApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var store = DesignStore()
     @StateObject private var settings = AISettings()
     @StateObject private var agents = AgentOrchestrator()
@@ -16,6 +31,7 @@ struct SiEDAApp: App {
                 .preferredColorScheme((AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
                 .tint(Theme.blue)
                 .frame(minWidth: 1100, minHeight: 700)
+                .onAppear { appDelegate.store = store }
         }
         .windowToolbarStyle(.unified)
         .commands { SiEDACommands(store: store, agents: agents, settings: settings) }
@@ -27,6 +43,15 @@ struct SiEDAApp: App {
                 .preferredColorScheme((AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
                 .tint(Theme.blue)
         }
+    }
+}
+
+/// Detects whether keyboard focus is in a text field/view (AppKit field editor) and forwards actions to it.
+enum TextEditingFocus {
+    @MainActor static var isActive: Bool { NSApp.keyWindow?.firstResponder is NSText }
+
+    @MainActor static func send(_ action: String) {
+        NSApp.sendAction(Selector((action)), to: nil, from: nil)
     }
 }
 
@@ -75,12 +100,15 @@ struct SiEDACommands: Commands {
             }
         }
         CommandGroup(replacing: .undoRedo) {
-            Button("Undo") { store.undo() }
-                .keyboardShortcut("z")
-                .disabled(!store.canUndo)
-            Button("Redo") { store.redo() }
-                .keyboardShortcut("z", modifiers: [.command, .shift])
-                .disabled(!store.canRedo)
+            // While a text field is being edited, ⌘Z/⇧⌘Z belong to the text, not to the design.
+            Button("Undo") {
+                if TextEditingFocus.isActive { TextEditingFocus.send("undo:") } else { store.undo() }
+            }
+            .keyboardShortcut("z")
+            Button("Redo") {
+                if TextEditingFocus.isActive { TextEditingFocus.send("redo:") } else { store.redo() }
+            }
+            .keyboardShortcut("z", modifiers: [.command, .shift])
         }
         CommandMenu("Design") {
             Button("Run Electrical Rule Check") { store.runERC(); store.workspace = .checks }

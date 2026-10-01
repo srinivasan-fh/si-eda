@@ -142,6 +142,10 @@ final class CustomPartAndLayerTests: XCTestCase {
         XCTAssertEqual(snapshot.customParts.map(\.id), [part.id])
         XCTAssertEqual(snapshot.component(id)?.customPart, part.id)
         XCTAssertEqual(engine.findPin(component: id, name: "8"), 7)
+        // A part with every pin open is reported as floating; once VCC is wired the open GND power pin is an error.
+        XCTAssertTrue(engine.runERC().contains { $0.code == "ERC_FLOATING_COMPONENT" })
+        let source = engine.addComponent(.voltageSource, value: "5", at: CGPoint(x: -100, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: source, pin: 0), PinAddress(component: id, pin: 7)))
         XCTAssertTrue(engine.runERC().contains { $0.code == "ERC_POWER_PIN_UNCONNECTED" })
 
         let copy = EDAEngine()

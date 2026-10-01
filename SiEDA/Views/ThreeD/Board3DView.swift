@@ -66,7 +66,26 @@ struct Board3DWorkspace: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.navy)
+            .overlay(alignment: .bottomTrailing) {
+                if !store.snapshot.pads.isEmpty { navigationHint.padding(12) }
+            }
         }
+    }
+
+    /// SceneKit camera controls are invisible by default; spell them out.
+    private var navigationHint: some View {
+        VStack(alignment: .trailing, spacing: 3) {
+            Label("Drag to orbit", systemImage: "rotate.3d")
+            Label("Scroll or pinch to zoom", systemImage: "plus.magnifyingglass")
+            Label("⌥-drag or two-finger drag to pan", systemImage: "hand.draw")
+            Label("Reset View re-centres the board", systemImage: "camera.metering.center.weighted")
+        }
+        .labelStyle(.titleAndIcon)
+        .font(.caption2)
+        .foregroundStyle(Theme.textSecondary)
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.navy.opacity(0.7)))
+        .allowsHitTesting(false)
     }
 
     private var xrayControls: some View {

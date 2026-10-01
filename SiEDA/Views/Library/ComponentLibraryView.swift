@@ -19,6 +19,7 @@ struct ComponentLibraryView: View {
     @State private var showImporter = false
     @State private var dropTargeted = false
     @State private var previewTask: Task<Void, Never>?
+    @State private var confirmDelete = false
 
     enum ImportState: Equatable {
         case idle
@@ -210,9 +211,16 @@ struct ComponentLibraryView: View {
             HStack {
                 if let id = editingId {
                     Button(role: .destructive) {
-                        store.deleteCustomPart(id)
-                        if !store.snapshot.customParts.contains(where: { $0.id == id }) { newPart() }
+                        confirmDelete = true
                     } label: { Label("Delete", systemImage: "trash") }
+                    .confirmationDialog("Delete “\(draft.name)” from the library?", isPresented: $confirmDelete) {
+                        Button("Delete Part", role: .destructive) {
+                            store.deleteCustomPart(id)
+                            if !store.snapshot.customParts.contains(where: { $0.id == id }) { newPart() }
+                        }
+                    } message: {
+                        Text("You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted.")
+                    }
                 }
                 Spacer()
                 Button {
@@ -260,6 +268,7 @@ struct ComponentLibraryView: View {
                             Button {
                                 draft.pins.removeAll { $0.id == pin.id }
                             } label: { Image(systemName: "minus.circle") }
+                                .accessibilityLabel("Remove pin \(pin.number)")
                                 .buttonStyle(.borderless)
                                 .foregroundStyle(Theme.lightBlue)
                                 .frame(width: 20)

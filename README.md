@@ -106,6 +106,8 @@ python3 tools/generate_xcodeproj.py
 
 | Key | Action |
 |---|---|
+| Scroll / two-finger drag | Pan the schematic or PCB |
+| ⌘-scroll, ⌥-scroll, mouse wheel, pinch | Zoom at the cursor |
 | V / H / W | Select, pan (hand) and wire tools (schematic) |
 | G / L | Place ground or net label |
 | R / F | Rotate, or flip a footprint to the other side (PCB) |
