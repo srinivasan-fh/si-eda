@@ -62,6 +62,7 @@
 		0930B17E77DDC99D62455EBA = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Json.hpp; sourceTree = "<group>"; };
 		0B047E6B6CA14C24D4B0C2FD = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCBEditorView.swift; sourceTree = "<group>"; };
 		0CF3E02226CCD062D60E465B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPrompts.swift; sourceTree = "<group>"; };
+		0EB50E3CA7A6F3A651C9B485 = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PRD.md; sourceTree = "<group>"; };
 		1861FDAEA170902904EAABB5 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SiEDATests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		190FD291891208916B99A706 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignPlan.swift; sourceTree = "<group>"; };
 		19A32AB05C4FC519DD459887 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Export.cpp; sourceTree = "<group>"; };
@@ -78,6 +79,7 @@
 		3B8AAF03382758779EE08604 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Json.cpp; sourceTree = "<group>"; };
 		41B79F22607C01D7C4BF744B = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Mesh.cpp; sourceTree = "<group>"; };
 		44E20A1917CDAF73A6C514E2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Schematic.hpp; sourceTree = "<group>"; };
+		470AD526B3A4B8CA0ADFC09B = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		4E33E84C12F180325C138248 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Simulator.hpp; sourceTree = "<group>"; };
 		51E84E9D7C3595879CC30FA4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleCheckView.swift; sourceTree = "<group>"; };
 		54E109672561428616FE3D2D = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Schematic.cpp; sourceTree = "<group>"; };
@@ -99,6 +101,7 @@
 		B7A272C317609DD8A2D79E17 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentKind.swift; sourceTree = "<group>"; };
 		B7F4A2A7A651672AE1EAE396 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sieda_c.h; sourceTree = "<group>"; };
 		C277541433091BF5ACFA3A26 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = sieda_c.cpp; sourceTree = "<group>"; };
+		C5AE10EA4E5AF49E101DBF29 = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE.md; sourceTree = "<group>"; };
 		C7832FB1E03A0AE9D93DF23C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		C9668A0215AD47CFD79FAADA = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Project.hpp; sourceTree = "<group>"; };
 		D167B535F3242C6A3552428F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
@@ -131,6 +134,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		00B97C2327003A203028A999 = {
+			isa = PBXGroup;
+			children = (
+				C5AE10EA4E5AF49E101DBF29,
+				0EB50E3CA7A6F3A651C9B485,
+			);
+			path = docs;
+			sourceTree = "<group>";
+		};
 		020D48FE83A4748AE60786F9 = {
 			isa = PBXGroup;
 			children = (
@@ -272,6 +284,8 @@
 				CE7FB57EFD7E711D2E0570C0,
 				647E7164A06FF71518326D10,
 				F278FC475D783580D0D71D31,
+				470AD526B3A4B8CA0ADFC09B,
+				00B97C2327003A203028A999,
 				0D203A808EC3694F51843B65,
 			);
 			sourceTree = "<group>";
