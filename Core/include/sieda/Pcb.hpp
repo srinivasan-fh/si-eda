@@ -1,6 +1,7 @@
 // SiEDA Core — PCB layout: board, pads, tracks, vias, auto-placement, autorouter and DRC.
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -35,6 +36,12 @@ struct BoardSettings {
     double maxTempRise = 10.0;    // °C, IPC-2221 current-capacity target
     /// Above 3050 m (aircraft, space): voltage clearances use IPC-2221 Table 6-1 column B3 instead of B2.
     bool highAltitude = false;
+    /// Net classes: track width (mm) per net name, e.g. {"VBAT": 0.8} for motor and battery currents.
+    std::map<std::string, double> netWidths;
+    double widthFor(const std::string& netName) const {
+        auto it = netWidths.find(netName);
+        return it == netWidths.end() ? trackWidth : std::max(minTrackWidth, it->second);
+    }
 
     /// Applies a named preset from designRulePresets(); returns false if the name is unknown.
     bool applyPreset(const std::string& name);
@@ -123,6 +130,11 @@ public:
     /// layer direction preferences and rip-up passes). A single-layer board routes on the top layer without vias.
     RouteStats autoRoute(const Schematic& sch);
     void clearRouting() { tracks.clear(); vias.clear(); }
+    /// Net classes from the simulated operating point: nets whose DC current needs a wider IPC-2221 track (+25 %
+    /// margin, rounded up to 0.05 mm) get one. Existing wider classes are kept. Returns the widths it set.
+    std::map<std::string, double> autoNetWidths(const Schematic& sch);
+    /// Narrows track ends that enter pads smaller than the track (fine-pitch neck-down).
+    void neckDown(std::vector<Track>& out, const std::vector<Pad>& pads) const;
     /// Shrinks/grows the board to the placed footprints plus `margin` mm, shifting parts and copper together.
     bool fitBoardToComponents(Schematic& sch, double margin);
     /// Removes tracks/vias of nets that no longer exist after schematic edits.

@@ -42,6 +42,9 @@ Json boardJson(const BoardSettings& s) {
     b["copperWeightOz"] = s.copperWeightOz;
     b["maxTempRise"] = s.maxTempRise;
     b["highAltitude"] = s.highAltitude;
+    Json widths = Json::object();
+    for (const auto& [net, w] : s.netWidths) widths[net] = w;
+    b["netWidths"] = widths;
     return b;
 }
 }  // namespace
@@ -183,6 +186,10 @@ Project Project::fromJson(const Json& root) {
     s.minHoleToHole = b.get("minHoleToHole").asNumber(s.minHoleToHole);
     s.copperWeightOz = std::max(0.5, b.get("copperWeightOz").asNumber(s.copperWeightOz));
     s.highAltitude = b.get("highAltitude").asBool(false);
+    const Json& widths = b.get("netWidths");
+    if (widths.isObject())
+        for (const auto& [net, w] : widths.fields())
+            if (w.asNumber(0) > 0) s.netWidths[net] = w.asNumber(0);
     s.maxTempRise = std::max(1.0, b.get("maxTempRise").asNumber(s.maxTempRise));
 
     // Custom parts first so components can resolve them; ids are re-derived and remapped if they changed.

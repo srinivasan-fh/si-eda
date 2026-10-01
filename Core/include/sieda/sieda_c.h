@@ -115,6 +115,10 @@ char* sieda_pcb_run_drc(const SiedaProject* project);
 char* sieda_design_rule_presets_json(void);
 /* Applies a preset by name (design values + fabrication limits); returns 0 for unknown names. */
 int32_t sieda_pcb_apply_rule_preset(SiedaProject* project, const char* name);
+/* Net class: route `net_name` with a `width_mm` track (0 removes the class). Returns 1 on success. */
+int32_t sieda_pcb_set_net_width(SiedaProject* project, const char* net_name, double width_mm);
+/* Sizes net classes from the DC operating point (IPC-2221 + 25 %). Returns {"NET": width_mm, …} of classes it set. */
+char* sieda_pcb_auto_net_widths(SiedaProject* project);
 
 /* ---- exports ------------------------------------------------------------------------------- */
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",

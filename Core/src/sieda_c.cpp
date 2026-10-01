@@ -492,6 +492,25 @@ char* sieda_design_rule_presets_json(void) {
     return dup(arr.dump());
 }
 
+int32_t sieda_pcb_set_net_width(SiedaProject* project, const char* net_name, double width_mm) {
+    if (!project || !net_name || !*net_name) return 0;
+    auto& widths = project->project.pcb.settings.netWidths;
+    if (width_mm > 0) widths[net_name] = width_mm;
+    else widths.erase(net_name);
+    return 1;
+}
+
+char* sieda_pcb_auto_net_widths(SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        Json out = Json::object();
+        for (const auto& [net, w] : project->project.pcb.autoNetWidths(project->project.schematic)) out[net] = w;
+        return dup(out.dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
 int32_t sieda_pcb_apply_rule_preset(SiedaProject* project, const char* name) {
     if (!project || !name) return 0;
     return project->project.pcb.settings.applyPreset(name) ? 1 : 0;

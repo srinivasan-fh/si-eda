@@ -1040,7 +1040,7 @@ TEST(circuit_validation_rules) {
     CHECK(hasCode(validateCircuit(seriesCircuit("5", "330", ComponentKind::LED, "Red", true)), "VAL_REVERSE_BIAS"));
     auto heavy = validateCircuit(seriesCircuit("12", "100", ComponentKind::Resistor, "100"));
     CHECK(hasCode(heavy, "VAL_RESISTOR_POWER"));
-    auto shorted = validateCircuit(seriesCircuit("5", "1", ComponentKind::Resistor, "1"));
+    auto shorted = validateCircuit(seriesCircuit("5", "0.5", ComponentKind::Resistor, "0.5"));  // 5 A
     CHECK(hasCode(shorted, "VAL_SUPPLY_CURRENT"));
     CHECK(hasCode(validateCircuit(seriesCircuit("12", "10", ComponentKind::Fuse, "100m")), "VAL_FUSE_OVERLOAD"));
     CHECK(hasCode(validateCircuit(seriesCircuit("5", "1", ComponentKind::Diode, "1N4148")), "VAL_DIODE_CURRENT"));
@@ -1342,6 +1342,86 @@ TEST(no_connect_flags) {
     CHECK(p.snapshot().dump().find("\"noConnect\":true") != std::string::npos);
     CHECK(s.setPinNoConnect(u, 3, false));
     CHECK(s.find(u)->noConnect.size() == 5);
+}
+
+TEST(net_classes_and_fine_pitch) {
+    // Net class: a 1 A LED-strip feed gets a wide track; DRC stays clean around it.
+    Project p;
+    auto& s = p.schematic;
+    int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    int r = s.addComponent(ComponentKind::Resistor, "4.7 10W", {120, 0});
+    int r2 = s.addComponent(ComponentKind::Resistor, "10k", {120, 80});
+    int d = s.addComponent(ComponentKind::LED, "Red", {200, 80});
+    wire(s, v, "+", r, "1");
+    wire(s, r, "2", g, "GND");
+    wire(s, v, "+", r2, "1");
+    wire(s, r2, "2", d, "A");
+    wire(s, d, "K", g, "GND");
+    wire(s, v, "-", g, "GND");
+    p.schematicChanged();
+    auto widths = p.pcb.autoNetWidths(s);
+    CHECK(!widths.empty());
+    for (auto& [net, w] : widths) std::printf("    net class %s = %.2f mm\n", net.c_str(), w);
+    p.pcb.settings.width = 30;
+    p.pcb.settings.height = 22;
+    p.pcb.autoPlace(s, true);
+    CHECK(p.pcb.autoRoute(s).failed == 0);
+    double widest = 0;
+    for (const auto& t : p.pcb.tracks) widest = std::max(widest, t.width);
+    CHECK(widest >= 0.45 - 1e-9);
+    int bad = 0;
+    for (const auto& f : p.pcb.runDRC(s))
+        if (f.severity != Severity::Info && f.code != "DRC_TRACK_CURRENT") {
+            ++bad;
+            std::printf("    %s %s\n", f.code.c_str(), f.message.c_str());
+        }
+    CHECK(bad == 0);
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.pcb.settings.netWidths == p.pcb.settings.netWidths);
+
+    // Fine pitch: an MPU-6050 (0.5 mm QFN) wired up on Class 3 rules has no design-rule clearance findings from
+    // its own pad gaps, and tracks entering its pads are necked down to the pad width.
+    Project f;
+    auto& fs = f.schematic;
+    std::string imu = CustomPartRegistry::instance().registerPart(findStandardPart("MPU-6050")->spec)->id;
+    int u = fs.addCustomComponent(imu, "", {200, 0});
+    int vv = fs.addComponent(ComponentKind::VoltageSource, "3.3", {0, 0});
+    int gg = fs.addComponent(ComponentKind::Ground, "", {0, 80});
+    int c1 = fs.addComponent(ComponentKind::Capacitor, "100n", {100, 80});
+    int c2 = fs.addComponent(ComponentKind::Capacitor, "2.2n", {300, 80});
+    int c3 = fs.addComponent(ComponentKind::Capacitor, "100n", {300, 160});
+    wire(fs, vv, "+", u, "13");
+    wire(fs, u, "8", u, "13");
+    wire(fs, u, "18", gg, "GND");
+    wire(fs, u, "9", gg, "GND");
+    wire(fs, u, "1", gg, "GND");
+    wire(fs, u, "11", gg, "GND");
+    wire(fs, vv, "-", gg, "GND");
+    wire(fs, c1, "1", u, "13");
+    wire(fs, c1, "2", gg, "GND");
+    wire(fs, c2, "1", u, "20");
+    wire(fs, c2, "2", gg, "GND");
+    wire(fs, c3, "1", u, "10");
+    wire(fs, c3, "2", gg, "GND");
+    f.schematicChanged();
+    f.pcb.settings.applyPreset("IPC-2221 Class 3");
+    f.pcb.settings.width = 24;
+    f.pcb.settings.height = 20;
+    f.pcb.autoPlace(fs, true);
+    RouteStats st = f.pcb.autoRoute(fs);
+    std::printf("    QFN board: %d/%d routed\n", st.routed, st.connections);
+    CHECK(st.failed == 0);
+    int clearance = 0;
+    for (const auto& x : f.pcb.runDRC(fs))
+        if (x.code == "DRC_CLEARANCE_RULE" || x.code == "DRC_CLEARANCE" || x.code == "DRC_SHORT") {
+            ++clearance;
+            std::printf("    %s %s\n", x.code.c_str(), x.message.c_str());
+        }
+    CHECK(clearance == 0);
+    bool necked = false;
+    for (const auto& t : f.pcb.tracks) necked |= t.width < f.pcb.settings.trackWidth - 1e-9;
+    CHECK(necked);
 }
 
 TEST(project_json_roundtrip) {

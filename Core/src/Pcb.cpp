@@ -473,6 +473,18 @@ public:
         int o = owner_[L(l)][c];
         return o == -1 || o == net || padNet_[L(l)][c] == net;
     }
+    /// A track wider than the base width also occupies cells within `extra` of its centreline.
+    bool bodyClear(int l, int ci, int cj, int net, double extra) const {
+        int k = static_cast<int>(std::ceil(extra / g_));
+        for (int dj = -k; dj <= k; ++dj)
+            for (int di = -k; di <= k; ++di) {
+                if (std::sqrt(double(di * di + dj * dj)) * g_ > extra + 1e-9) continue;
+                int i = ci + di, j = cj + dj;
+                if (!inside(i, j) || !passable(l, idx(i, j), net)) return false;
+            }
+        return true;
+    }
+
     bool viaAllowed(size_t c, int net) const {
         int ci = static_cast<int>(c % static_cast<size_t>(cols_)), cj = static_cast<int>(c / static_cast<size_t>(cols_));
         // Other-net copper must stay outside (via radius + clearance + half a track, since copper_ marks centrelines).
@@ -608,7 +620,8 @@ struct RouteResult {
 };
 
 RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int, size_t>>& sources,
-                  const std::vector<std::vector<char>>& targetMask, Vec2 targetCentre, double viaCost) {
+                  const std::vector<std::vector<char>>& targetMask, Vec2 targetCentre, double viaCost,
+                  double extraRadius = 0, const std::vector<char>* neckZone = nullptr) {
     const int cols = g.cols(), rows = g.rows();
     const size_t n = static_cast<size_t>(cols * rows);
     const int layers = g.layers();
@@ -655,6 +668,9 @@ RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int
             if (ni < 0 || nj < 0 || ni >= cols || nj >= rows) continue;
             size_t nc = g.idx(ni, nj);
             if (!g.passable(l, nc, net)) continue;
+            // Wide (net-class) tracks need their whole body clear, except next to their own narrow pads where the
+            // track is necked down to the pad width afterwards.
+            if (extraRadius > 0 && !(neckZone && (*neckZone)[nc]) && !g.bodyClear(l, ni, nj, net, extraRadius)) continue;
             float step = 1.0f;
             if (k >= 4) {
                 // Diagonal: both orthogonal neighbours must be free so the centreline keeps clearance.
@@ -777,7 +793,22 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
                             mask[static_cast<size_t>(l)][c] = 1;
                             targetCells.push_back({l, c});
                         }
-                RouteResult rr = astar(grid, net, tree, mask, tp.position, 12.0);
+                const double wn = settings.widthFor(nets[static_cast<size_t>(net)].name);
+                // Body check radius includes half a cell diagonal for grid sampling.
+                double extra = wn > w + 1e-9 ? (wn - w) / 2 + grid.pitch() * 0.71 : 0.0;
+                std::vector<char> neck;
+                if (extra > 0) {
+                    neck.assign(static_cast<size_t>(grid.cols() * grid.rows()), 0);
+                    for (size_t pi : list) {
+                        const Pad& np = ps[pi];
+                        if (std::min(np.size.x, np.size.y) >= wn - 1e-9) continue;
+                        Rect zone = np.bounds().inflated(clr + wn / 2);
+                        for (int j = 0; j < grid.rows(); ++j)
+                            for (int i = 0; i < grid.cols(); ++i)
+                                if (zone.contains(grid.pos(i, j))) neck[grid.idx(i, j)] = 1;
+                    }
+                }
+                RouteResult rr = astar(grid, net, tree, mask, tp.position, 12.0, extra, extra > 0 ? &neck : nullptr);
                 if (!rr.ok) {
                     netFailed = true;
                     // Keep the pad in the tree anyway so later pads may still reach it.
@@ -806,12 +837,12 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
                             Track t;
                             t.net = net;
                             t.layer = layer;
-                            t.width = w;
+                            t.width = wn;
                             t.a = grid.pos(rr.path[segStart].i, rr.path[segStart].j);
                             t.b = grid.pos(rr.path[m].i, rr.path[m].j);
                             outT.push_back(t);
-                            grid.markSegment(layer, t.a, t.b, w + clr, net);
-                            grid.markCopperSegment(layer, t.a, t.b, w / 2 + 1e-6, net);
+                            grid.markSegment(layer, t.a, t.b, wn / 2 + clr + w / 2, net);
+                            grid.markCopperSegment(layer, t.a, t.b, wn / 2 + 1e-6, net);
                             stats.trackLength += (t.b - t.a).length();
                             segStart = m;
                         }
@@ -859,10 +890,86 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
 
     tracks.clear();
     vias.clear();
+    neckDown(bestTracks, ps);
+    neckDown(bestTracks, ps);  // second pass handles the far end of split segments
     for (auto& t : bestTracks) addTrack(t);
     for (auto& v : bestVias) addVia(v);
     if (best.failed == std::numeric_limits<int>::max()) best.failed = 0;
     return best;
+}
+
+void PcbLayout::neckDown(std::vector<Track>& out, const std::vector<Pad>& ps) const {
+    // A track entering a pad narrower than itself is narrowed to the pad's width until it is a clearance away from
+    // the pad, so it never overhangs into the gap to the neighbouring fine-pitch pads.
+    std::vector<Track> result;
+    for (const Track& t : out) {
+        Track cur = t;
+        bool split = false;
+        for (int end = 0; end < 2 && !split; ++end) {
+            Vec2 inside = end == 0 ? cur.a : cur.b, other = end == 0 ? cur.b : cur.a;
+            for (const Pad& p : ps) {
+                if (p.net != cur.net || !p.onLayer(cur.layer) || padDistance(p, inside) > 1e-9) continue;
+                double minor = std::min(p.size.x, p.size.y);
+                if (minor >= cur.width - 1e-9) continue;
+                double narrow = std::max(settings.minTrackWidth, minor);
+                Rect zone = p.bounds().inflated(settings.clearance + cur.width / 2);
+                // Walk out of the zone along the segment.
+                double lo = 0, hi = 1;
+                if (zone.contains(other)) hi = 1;
+                else
+                    for (int it = 0; it < 40; ++it) {
+                        double mid = (lo + hi) / 2;
+                        (zone.contains(inside + (other - inside) * mid) ? lo : hi) = mid;
+                    }
+                Vec2 exitPt = inside + (other - inside) * hi;
+                Track a = cur, b = cur;
+                a.a = inside;
+                a.b = exitPt;
+                a.width = narrow;
+                if ((exitPt - other).length() > 1e-6) {
+                    b.a = exitPt;
+                    b.b = other;
+                    result.push_back(a);
+                    cur = b;  // the remainder may still enter a pad at its other end
+                } else {
+                    cur = a;
+                }
+                split = true;
+                break;
+            }
+        }
+        result.push_back(cur);
+    }
+    out = std::move(result);
+}
+
+std::map<std::string, double> PcbLayout::autoNetWidths(const Schematic& sch) {
+    std::map<std::string, double> set;
+    if (sch.groundNet() < 0) return set;
+    DcResult dc = Simulator(sch).dcOperatingPoint();
+    if (!dc.converged) return set;
+    std::map<int, double> current;
+    for (const auto& d : dc.devices) {
+        const Component* c = sch.find(d.componentId);
+        if (!c) continue;
+        for (size_t pin = 0; pin < c->def().pins.size(); ++pin) {
+            int n = sch.netOf({c->id, static_cast<int>(pin)});
+            if (n >= 0) current[n] = std::max(current[n], std::fabs(d.current));
+        }
+    }
+    const auto& nets = sch.nets();
+    for (auto [net, amps] : current) {
+        double need = ipc2221TrackWidth(amps, settings.maxTempRise, settings.copperWeightOz, false) * 1.25;
+        need = std::min(3.0, std::ceil(need / 0.05) * 0.05);
+        if (need <= settings.trackWidth + 1e-9) continue;
+        const std::string& name = nets[static_cast<size_t>(net)].name;
+        double& w = settings.netWidths[name];
+        if (w < need) {
+            w = need;
+            set[name] = need;
+        }
+    }
+    return set;
 }
 
 // ===================================================================== DRC
@@ -974,6 +1081,24 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                     courtyard(*placed[i]).center(), {placed[i]->id, placed[j]->id});
 
     auto ps = pads(sch);
+    // Spacing inside one footprint is fixed by the package (0.5 mm-pitch QFN pads are ~0.2 mm apart): it is held to
+    // the fabrication minimum only, not to the board's design clearance.
+    auto footprintCheck = [&](double d, const std::string& what, Vec2 loc, std::vector<int> comps, int netA, int netB) {
+        auto [dv, hvNeed] = voltageNeed(netA, netB);  // voltage spacing still applies inside a footprint
+        if (d > 0 && hvNeed > fabClr + eps && d < hvNeed - eps) {
+            char hv[160];
+            std::snprintf(hv, sizeof hv, " is below the IPC-2221 %s spacing %.2f mm for %.0f V.",
+                          settings.highAltitude ? "B3 (altitude)" : "B2", hvNeed, dv);
+            add(Severity::Error, "DRC_HV_CLEARANCE", what + hv, loc, std::move(comps));
+            return;
+        }
+        if (d <= 0) add(Severity::Error, "DRC_SHORT", what + " — copper overlaps (short circuit).", loc, std::move(comps));
+        else if (d < fabClr - eps) {
+            char b[96];
+            std::snprintf(b, sizeof b, " (fabrication minimum %.3f mm)", fabClr);
+            add(Severity::Error, "DRC_CLEARANCE", what + b + ".", loc, std::move(comps));
+        }
+    };
     // Pad ↔ pad.
     for (size_t i = 0; i < ps.size(); ++i)
         for (size_t j = i + 1; j < ps.size(); ++j) {
@@ -982,6 +1107,11 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             for (int l = 0; l < settings.layerCount && !share; ++l) share = ps[i].onLayer(l) && ps[j].onLayer(l);
             if (!share) continue;
             double d = rectRectDistance(ps[i].bounds(), ps[j].bounds());
+            if (ps[i].componentId == ps[j].componentId) {
+                footprintCheck(d, "Pad clearance " + fmt(d) + " between " + netName(ps[i].net) + " and " + netName(ps[j].net),
+                               (ps[i].position + ps[j].position) * 0.5, {ps[i].componentId}, ps[i].net, ps[j].net);
+                continue;
+            }
             clearanceCheck(d, "Pad clearance " + fmt(d) + " between " + netName(ps[i].net) + " and " + netName(ps[j].net), (ps[i].position + ps[j].position) * 0.5, {ps[i].componentId, ps[j].componentId}, ps[i].net, ps[j].net);
         }
     // Track ↔ pad, track ↔ track, track ↔ edge.
@@ -1002,6 +1132,21 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             double d = (p.round ? std::max(0.0, pointSegmentDistance(p.position, tr.a, tr.b) - std::min(p.size.x, p.size.y) / 2)
                                 : segmentRectDistance(tr.a, tr.b, p.bounds())) -
                        tr.width / 2;
+            // Where the track is still inside its own pad of the same footprint, the gap is the package's pad gap.
+            Vec2 ab = tr.b - tr.a;
+            double len2 = ab.dot(ab);
+            double tt = len2 > 0 ? std::clamp((p.position - tr.a).dot(ab) / len2, 0.0, 1.0) : 0.0;
+            Vec2 closest = tr.a + ab * tt;
+            bool inOwnPad = false;
+            for (const auto& own : ps)
+                if (own.net == tr.net && own.componentId == p.componentId && own.onLayer(tr.layer) &&
+                    padDistance(own, closest) <= 0)
+                    inOwnPad = true;
+            if (inOwnPad) {
+                footprintCheck(d, "Track (" + netName(tr.net) + ") to pad (" + netName(p.net) + ") clearance " +
+                                      fmt(std::max(0.0, d)), p.position, {p.componentId}, tr.net, p.net);
+                continue;
+            }
             clearanceCheck(d, "Track (" + netName(tr.net) + ") to pad (" + netName(p.net) + ") clearance " + fmt(std::max(0.0, d)), p.position, {p.componentId}, tr.net, p.net);
         }
         for (size_t u = t + 1; u < tracks.size(); ++u) {
