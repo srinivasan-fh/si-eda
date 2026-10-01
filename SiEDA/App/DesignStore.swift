@@ -205,13 +205,13 @@ final class DesignStore: ObservableObject {
     }
 
     func setValue(_ id: Int, _ value: String) {
-        guard snapshot.component(id)?.value != value else { return }
+        guard let current = snapshot.component(id), current.value != value else { return }
         perform("Changed value") { $0.setValue(id, value) }
     }
 
     func setRef(_ id: Int, _ ref: String) {
         let trimmed = ref.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, snapshot.component(id)?.ref != trimmed else { return }
+        guard !trimmed.isEmpty, let current = snapshot.component(id), current.ref != trimmed else { return }
         if snapshot.component(ref: trimmed) != nil {
             alert = AlertItem(title: "Duplicate designator", message: "\(trimmed) is already used in this design.")
             return

@@ -61,6 +61,9 @@ private struct ComponentProperties: View {
     let component: SnapComponent
     @State private var ref: String
     @State private var value: String
+    @FocusState private var focus: Field?
+
+    private enum Field { case ref, value }
 
     init(component: SnapComponent) {
         self.component = component
@@ -88,13 +91,15 @@ private struct ComponentProperties: View {
                     LabeledContent("Designator") {
                         TextField("Designator", text: $ref)
                             .textFieldStyle(.roundedBorder)
-                            .onSubmit { store.setRef(component.id, ref) }
+                            .focused($focus, equals: .ref)
+                            .onSubmit { commitRef() }
                     }
                 }
                 LabeledContent(kind == .netLabel ? "Net name" : "Value") {
                     TextField("Value", text: $value)
                         .textFieldStyle(.roundedBorder)
-                        .onSubmit { store.setValue(component.id, value) }
+                        .focused($focus, equals: .value)
+                        .onSubmit { commitValue() }
                 }
                 Text(kind.valueHint).font(.caption).foregroundStyle(Theme.textMuted)
                 HStack {
@@ -174,6 +179,25 @@ private struct ComponentProperties: View {
                 }
             }
         }
+        // Edits are kept when the field loses focus or the selection changes, not only on Return.
+        .onChange(of: focus) { old, _ in
+            if old == .ref { commitRef() }
+            if old == .value { commitValue() }
+        }
+        .onDisappear {
+            commitRef()
+            commitValue()
+        }
+    }
+
+    private func commitRef() {
+        let trimmed = ref.trimmingCharacters(in: .whitespaces)
+        if trimmed.isEmpty || trimmed == component.ref { ref = component.ref; return }
+        store.setRef(component.id, trimmed)
+    }
+
+    private func commitValue() {
+        if value != component.value { store.setValue(component.id, value) }
     }
 }
 
@@ -211,13 +235,16 @@ private struct WireProperties: View {
 private struct ProjectProperties: View {
     @EnvironmentObject private var store: DesignStore
     @State private var name = ""
+    @FocusState private var nameFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             PropertyGroup(title: "Project") {
                 TextField("Project name", text: $name)
                     .textFieldStyle(.roundedBorder)
-                    .onSubmit { if !name.isEmpty { store.setProjectName(name) } }
+                    .focused($nameFocused)
+                    .onSubmit { commitName() }
+                    .onChange(of: nameFocused) { _, isFocused in if !isFocused { commitName() } }
                 PropertyRow(label: "Components", value: "\(store.snapshot.components.filter { !$0.componentKind.isVirtual }.count)")
                 PropertyRow(label: "Nets", value: "\(store.snapshot.nets.filter { $0.pinCount > 1 }.count)")
                 PropertyRow(label: "Wires", value: "\(store.snapshot.wires.count)")
@@ -242,5 +269,11 @@ private struct ProjectProperties: View {
                 .foregroundStyle(Theme.textMuted)
         }
         .onAppear { name = store.snapshot.name }
+        .onDisappear { commitName() }
+    }
+
+    private func commitName() {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        if !trimmed.isEmpty, trimmed != store.snapshot.name { store.setProjectName(trimmed) }
     }
 }
