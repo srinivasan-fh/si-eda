@@ -56,15 +56,17 @@ struct PromptStudioView: View {
     static let sideBySideWidth: CGFloat = 760
 
     var body: some View {
+        // Plain SwiftUI stacks (no split views inside the window's split view): the layout depends only on the size
+        // SwiftUI proposes, so it cannot feed back into AppKit constraint passes.
         GeometryReader { geometry in
             if geometry.size.width >= Self.sideBySideWidth {
-                HSplitView {
+                HStack(spacing: 0) {
                     ScrollView {
                         briefPanel(editorHeight: Self.editorHeight(for: geometry.size.height))
                     }
-                    .frame(minWidth: 360, idealWidth: 480)
+                    .frame(maxWidth: .infinity)
                     agentPanel
-                        .frame(minWidth: 300)
+                        .frame(width: Self.agentPanelWidth(for: geometry.size.width))
                 }
             } else {
                 ScrollView {
@@ -79,6 +81,11 @@ struct PromptStudioView: View {
         .background(
             LinearGradient(colors: [Theme.navy, Theme.deepBlue.opacity(0.7)], startPoint: .top, endPoint: .bottom)
         )
+    }
+
+    /// Agent pipeline column: about 42 % of the workspace, between 320 and 520 pt.
+    static func agentPanelWidth(for width: CGFloat) -> CGFloat {
+        min(max(width * 0.42, 320), 520)
     }
 
     /// Prompt editor height: what is left after the header, templates and buttons, within sensible bounds.

@@ -55,7 +55,9 @@ jobs:
           set -o pipefail
           xcodebuild -project SiEDA.xcodeproj -scheme SiEDA -configuration Debug \
             -destination 'platform=macOS' CODE_SIGN_IDENTITY=- \
-            SWIFT_COMPILATION_MODE=wholemodule test 2>&1 | tee xcodebuild.log
+            SWIFT_COMPILATION_MODE=wholemodule \
+            -test-timeouts-enabled YES -default-test-execution-time-allowance 240 \
+            test 2>&1 | tee xcodebuild.log
       - name: Report compiler and test errors
         if: failure()
         run: |

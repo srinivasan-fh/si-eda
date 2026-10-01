@@ -34,20 +34,24 @@ struct ComponentLibraryView: View {
     var body: some View {
         GeometryReader { geometry in
             let pinRows = Self.pinTableHeight(for: geometry.size.height)
+            // Plain SwiftUI stacks (no split views inside the window's split view), sized from the proposal only.
             if geometry.size.width >= Self.threeColumnWidth {
-                HSplitView {
+                HStack(spacing: 0) {
                     libraryList
-                        .frame(minWidth: 210, idealWidth: 250, maxWidth: 320)
+                        .frame(width: 250)
+                    divider
                     ScrollView { editor(pinTableHeight: pinRows) }
-                        .frame(minWidth: 440)
+                        .frame(maxWidth: .infinity)
+                    divider
                     ScrollView { previews(stacked: true) }
-                        .frame(minWidth: 260, idealWidth: 320)
+                        .frame(width: 320)
                         .background(Theme.deepBlue.opacity(0.45))
                 }
             } else {
-                HSplitView {
+                HStack(spacing: 0) {
                     libraryList
-                        .frame(minWidth: 190, idealWidth: 220, maxWidth: 280)
+                        .frame(width: 220)
+                    divider
                     ScrollView {
                         VStack(alignment: .leading, spacing: 0) {
                             editor(pinTableHeight: pinRows)
@@ -55,7 +59,7 @@ struct ComponentLibraryView: View {
                                 .background(Theme.deepBlue.opacity(0.45))
                         }
                     }
-                    .frame(minWidth: 400)
+                    .frame(maxWidth: .infinity)
                 }
             }
         }
@@ -189,6 +193,10 @@ struct ComponentLibraryView: View {
     }
 
     // MARK: - Editor
+
+    private var divider: some View {
+        Rectangle().fill(Theme.blue.opacity(0.3)).frame(width: 1)
+    }
 
     /// Pin table height: fills what the window leaves after the part fields and buttons.
     static func pinTableHeight(for available: CGFloat) -> CGFloat {

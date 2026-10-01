@@ -122,9 +122,7 @@ enum LayoutMetrics {
     static let minimumWindow = CGSize(width: 900, height: 540)
     /// Default size of a new window.
     static let defaultWindow = CGSize(width: 1360, height: 860)
-    /// Below this window width the workspace sidebar collapses (the toolbar switcher still changes workspace).
-    static let sidebarWidthThreshold: CGFloat = 1080
-    /// Below this window width the inspector collapses.
+    /// Screens narrower than this start with the inspector hidden (toggle it from the toolbar).
     static let inspectorWidthThreshold: CGFloat = 1300
     /// Largest minimum size a workspace may need (the detail area of a minimum-size window with the sidebar shown).
     static let workspaceBudget = CGSize(width: 620, height: 440)
