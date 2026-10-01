@@ -442,8 +442,21 @@ Json Project::dcToJson(const DcResult& r) const {
         nets.push(j);
     }
     root["nets"] = nets;
-    Json devs = Json::array();
+    // One entry per component: custom parts with a regulator and supply loads report the first element's
+    // current/voltage and their total dissipation.
+    std::vector<DeviceReading> merged;
+    std::map<int, size_t> at;
     for (const auto& d : r.devices) {
+        auto it = at.find(d.componentId);
+        if (it == at.end()) {
+            at[d.componentId] = merged.size();
+            merged.push_back(d);
+        } else {
+            merged[it->second].power += d.power;
+        }
+    }
+    Json devs = Json::array();
+    for (const auto& d : merged) {
         const Component* c = schematic.find(d.componentId);
         Json j = Json::object();
         j["component"] = d.componentId;
@@ -451,6 +464,7 @@ Json Project::dcToJson(const DcResult& r) const {
         j["current"] = d.current;
         j["power"] = d.power;
         j["voltage"] = d.voltage;
+        j["state"] = d.state;
         devs.push(j);
     }
     root["devices"] = devs;

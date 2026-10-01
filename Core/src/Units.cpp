@@ -171,10 +171,11 @@ std::optional<double> wattToken(std::string t) {
     auto slash = t.find('/');
     char* end = nullptr;
     if (slash != std::string::npos) {
-        double num = std::strtod(t.substr(0, slash).c_str(), &end);
-        if (*end) return std::nullopt;
-        double den = std::strtod(t.substr(slash + 1).c_str(), &end);
-        if (*end || den <= 0) return std::nullopt;
+        const std::string numText = t.substr(0, slash), denText = t.substr(slash + 1);
+        double num = std::strtod(numText.c_str(), &end);
+        if (numText.empty() || *end) return std::nullopt;
+        double den = std::strtod(denText.c_str(), &end);
+        if (denText.empty() || *end || den <= 0) return std::nullopt;
         return num / den * scale;
     }
     double v = std::strtod(t.c_str(), &end);

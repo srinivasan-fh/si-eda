@@ -175,6 +175,28 @@ std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatin
                     addOnce(Severity::Info, "VAL_OPAMP_SATURATED",
                             c->ref + " output is saturated at " + fmt(d.voltage, "V") + " — check the gain and feedback.", *c);
                 break;
+            case ComponentKind::Custom: {
+                const CustomPart* part = CustomPartRegistry::instance().find(c->customPart);
+                if (!part || !part->spec.model.hasRegulator || d.subIndex != 0) break;
+                const RegulatorModel& rm = part->spec.model.regulator;
+                double pmax = rm.maxPower * r.powerFactor;
+                if (d.power > pmax)
+                    addOnce(overload(d.power, pmax), "VAL_REGULATOR_POWER",
+                            c->ref + " (" + part->spec.name + ") dissipates " + fmt(d.power, "W") + " ((V_in − V_out) × " +
+                                fmt(d.current, "A") + "), above its " + fmt(pmax, "W") +
+                                " package limit — lower the input voltage, reduce the load or use a switching regulator.",
+                            *c);
+                if (d.state == 1 && !rm.charger)
+                    addOnce(Severity::Warning, "VAL_REGULATOR_OVERLOAD",
+                            c->ref + " (" + part->spec.name + ") is in current limit at " + fmt(rm.ilimit, "A") +
+                                " — the load needs more than the regulator can supply.", *c);
+                if (d.state == 3)
+                    addOnce(Severity::Warning, "VAL_REGULATOR_DROPOUT",
+                            c->ref + " (" + part->spec.name + ") is in dropout: only " + fmt(d.voltage, "V") +
+                                " headroom for its " + fmt(rm.dropout, "V") + " dropout, so the output sags below " +
+                                fmt(rm.vout, "V") + ".", *c);
+                break;
+            }
             case ComponentKind::Fuse: {
                 auto rating = parseEngineeringValue(c->value);
                 if (rating && *rating > 0 && i > *rating)

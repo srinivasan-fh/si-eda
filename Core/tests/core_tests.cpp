@@ -462,6 +462,144 @@ TEST(device_models_and_switching_stress) {
     CHECK(codes(validateCircuit(motor("SI2302", "1.2")), "VAL_TRANSIENT_STRESS") >= 1);
 }
 
+TEST(behavioural_chip_models) {
+    auto partId = [](const char* name) {
+        return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec)->id;
+    };
+    auto net = [](const Schematic& s, const DcResult& dc, int comp, const char* pin) {
+        return dc.netVoltages[static_cast<size_t>(s.netOf({comp, s.pinIndex(comp, pin)}))];
+    };
+    auto codes = [](const std::vector<RuleViolation>& v, const char* code) {
+        int n = 0;
+        for (const auto& f : v) n += f.code == code;
+        return n;
+    };
+    // LDO from a 1S LiPo: regulates, then drops out as the battery sags.
+    auto ldo = [&](const char* vin, const char* load) {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, vin, {0, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        int u = s.addCustomComponent(partId("XC6206P332"), "", {100, 0});
+        int r = s.addComponent(ComponentKind::Resistor, load, {200, 0});
+        wire(s, v, "+", u, "VIN");
+        wire(s, u, "VSS", g, "GND");
+        wire(s, u, "VOUT", r, "1");
+        wire(s, r, "2", g, "GND");
+        wire(s, v, "-", g, "GND");
+        return std::make_pair(s, u);
+    };
+    {
+        auto [s, u] = ldo("3.7", "150");  // 22 mA
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged);
+        CHECK_NEAR(net(s, dc, u, "VOUT"), 3.3, 0.01);
+        CHECK(codes(validateCircuit(s), "VAL_REGULATOR_DROPOUT") == 0);
+    }
+    {
+        auto [s, u] = ldo("3.4", "150");
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(net(s, dc, u, "VOUT") < 3.2 && net(s, dc, u, "VOUT") > 3.05);
+        CHECK(codes(validateCircuit(s), "VAL_REGULATOR_DROPOUT") == 1);
+    }
+    {
+        auto [s, u] = ldo("3.7", "5");  // would need 660 mA from a 250 mA LDO
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged);
+        CHECK(net(s, dc, u, "VOUT") < 1.4);  // 250 mA × 5 Ω
+        CHECK(codes(validateCircuit(s), "VAL_REGULATOR_OVERLOAD") == 1);
+    }
+    {
+        // Output back-fed from a higher rail: the regulator must not sink.
+        auto [s, u] = ldo("3.7", "1k");
+        int v2 = s.addComponent(ComponentKind::VoltageSource, "5", {300, 0});
+        int g2 = s.addComponent(ComponentKind::Ground, "", {300, 80});
+        wire(s, v2, "+", u, "VOUT");
+        wire(s, v2, "-", g2, "GND");
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged);
+        for (const auto& d : dc.devices)
+            if (d.componentId == u && d.subIndex == 0) CHECK(std::fabs(d.current) < 1e-6);
+    }
+    // LM317 adjustable: 1.25 V × (1 + 715/240) + I_ADJ·R2 ≈ 5.01 V; a 7805 dissipating 7 W in TO-220 free air is an error.
+    {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "12", {0, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        int u = s.addCustomComponent(partId("LM317"), "", {100, 0});
+        int r1 = s.addComponent(ComponentKind::Resistor, "240", {200, 0});
+        int r2 = s.addComponent(ComponentKind::Resistor, "715", {200, 80});
+        wire(s, v, "+", u, "IN");
+        wire(s, u, "OUT", r1, "1");
+        wire(s, r1, "2", u, "ADJ");
+        wire(s, u, "ADJ", r2, "1");
+        wire(s, r2, "2", g, "GND");
+        wire(s, v, "-", g, "GND");
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK_NEAR(net(s, dc, u, "OUT"), 1.25 * (1 + 715.0 / 240.0) + 50e-6 * 715, 0.01);  // includes I_ADJ · R2
+    }
+    {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "12", {0, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        int u = s.addCustomComponent(partId("LM7805"), "", {100, 0});
+        int r = s.addComponent(ComponentKind::Resistor, "5 10W", {200, 0});
+        wire(s, v, "+", u, "IN");
+        wire(s, u, "GND", g, "GND");
+        wire(s, u, "OUT", r, "1");
+        wire(s, r, "2", g, "GND");
+        wire(s, v, "-", g, "GND");
+        auto f = validateCircuit(s);
+        CHECK(codes(f, "VAL_REGULATOR_POWER") == 1);
+        bool error = false;
+        for (const auto& x : f) error |= x.code == "VAL_REGULATOR_POWER" && x.severity == Severity::Error;
+        CHECK(error);
+    }
+    // TP4056 charging a 3.7 V cell from USB: constant current 1 A, no overload finding (CC is normal for a charger).
+    {
+        Schematic s;
+        int usb = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+        int bat = s.addComponent(ComponentKind::VoltageSource, "3.7", {300, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        int g2 = s.addComponent(ComponentKind::Ground, "", {300, 80});
+        int u = s.addCustomComponent(partId("TP4056"), "", {150, 0});
+        wire(s, usb, "+", u, "VCC");
+        wire(s, u, "GND", g, "GND");
+        wire(s, u, "BAT", bat, "+");
+        wire(s, usb, "-", g, "GND");
+        wire(s, bat, "-", g2, "GND");
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged);
+        for (const auto& d : dc.devices)
+            if (d.componentId == u && d.subIndex == 0) {
+                CHECK_NEAR(d.current, 1.0, 1e-3);
+                CHECK(d.state == 1);
+            }
+        CHECK(codes(validateCircuit(s), "VAL_REGULATOR_OVERLOAD") == 0);
+    }
+    // IC supply current: an ATmega328P draws its operating current from the rail.
+    {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "3.3", {0, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        int u = s.addCustomComponent(partId("ATmega328P"), "", {150, 0});
+        wire(s, v, "+", u, "7");
+        wire(s, u, "8", g, "GND");
+        wire(s, v, "-", g, "GND");
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        double supply = 0;
+        for (const auto& d : dc.devices)
+            if (d.componentId == v) supply = d.current;
+        CHECK_NEAR(supply, 0.004, 2e-4);
+    }
+    // 2×4 header footprint: two columns 2.54 mm apart, IDC numbering.
+    {
+        auto part = CustomPartRegistry::instance().get(partId("NRF24L01_Module"));
+        CHECK(part->footprint.pads.size() == 8);
+        CHECK_NEAR(part->footprint.pads[1].offset.x - part->footprint.pads[0].offset.x, 2.54, 1e-9);
+        CHECK_NEAR(part->footprint.pads[2].offset.y - part->footprint.pads[0].offset.y, 2.54, 1e-9);
+    }
+}
+
 TEST(sim_no_ground_reports_error) {
     Schematic s;
     int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});

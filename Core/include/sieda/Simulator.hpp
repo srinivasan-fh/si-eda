@@ -25,7 +25,10 @@ struct DeviceReading {
     int componentId = -1;
     double current = 0;  // A, conventional current entering pin 1 (or collector/drain for transistors)
     double power = 0;    // W, dissipated (negative = delivered, i.e. sources)
-    double voltage = 0;  // V across pin 1 → pin 2 (or V_CE / V_DS)
+    double voltage = 0;  // V across pin 1 → pin 2 (or V_CE / V_DS; regulator: V_in − V_out)
+    // Regulator models: 0 regulating, 1 current limit, 2 off (would have to sink), 3 in dropout.
+    int state = 0;
+    int subIndex = 0;    // several elements per component (custom part loads): 0 = regulator, 1… = loads
 };
 
 struct DcResult {
