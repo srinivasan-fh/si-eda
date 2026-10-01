@@ -344,3 +344,93 @@ final class StandardsAndVerificationTests: XCTestCase {
         XCTAssertEqual(unrouted.stages.first { $0.id == "erc" }?.status, .pass)
     }
 }
+
+@MainActor
+final class CanvasNavigationTests: XCTestCase {
+    func testWorldScreenRoundTripAndVisibleRect() {
+        let v = Viewport(scale: 4, offset: CGSize(width: 100, height: -50))
+        let p = CGPoint(x: 12.5, y: -3)
+        let back = v.toWorld(v.toScreen(p))
+        XCTAssertEqual(back.x, p.x, accuracy: 1e-9)
+        XCTAssertEqual(back.y, p.y, accuracy: 1e-9)
+        let visible = v.visibleWorldRect(in: CGSize(width: 800, height: 400))
+        XCTAssertEqual(visible.minX, -25, accuracy: 1e-9)
+        XCTAssertEqual(visible.minY, 12.5, accuracy: 1e-9)
+        XCTAssertEqual(visible.width, 200, accuracy: 1e-9)
+        XCTAssertEqual(visible.height, 100, accuracy: 1e-9)
+    }
+
+    func testZoomKeepsAnchorAndRespectsLimits() {
+        var v = Viewport(scale: 12, offset: .zero)
+        let anchor = CGPoint(x: 300, y: 200)
+        let before = v.toWorld(anchor)
+        v.zoom(by: 3, anchor: anchor, limits: Viewport.pcbLimits)
+        let after = v.toWorld(anchor)
+        XCTAssertEqual(before.x, after.x, accuracy: 1e-9)
+        XCTAssertEqual(before.y, after.y, accuracy: 1e-9)
+        v.zoom(by: 1e6, anchor: anchor, limits: Viewport.pcbLimits)
+        XCTAssertEqual(v.scale, Viewport.pcbLimits.upperBound)
+        v.zoom(by: 1e-9, anchor: anchor, limits: Viewport.pcbLimits)
+        XCTAssertEqual(v.scale, Viewport.pcbLimits.lowerBound)
+        v.zoom(by: .nan, anchor: anchor, limits: Viewport.pcbLimits)
+        XCTAssertEqual(v.scale, Viewport.pcbLimits.lowerBound)
+    }
+
+    /// A full-size motherboard (E-ATX 330 × 305 mm) must fit a small window, and BGA detail must be reachable.
+    func testLimitsCoverMotherboardsAndFinePitch() {
+        var v = Viewport(scale: 12, offset: .zero)
+        let window = CGSize(width: 640, height: 480)
+        let board = CGRect(x: 0, y: 0, width: 330, height: 305)
+        v.fit(board, in: window, margin: 50, limits: Viewport.pcbLimits)
+        let visible = v.visibleWorldRect(in: window)
+        XCTAssertTrue(visible.contains(board), "\(visible) does not contain the board")
+        XCTAssertEqual(v.toScreen(CGPoint(x: board.midX, y: board.midY)).x, window.width / 2, accuracy: 1e-6)
+        // 0.4 mm BGA pitch at maximum zoom is far more than a finger-width apart.
+        XCTAssertGreaterThan(0.4 * Viewport.pcbLimits.upperBound, 100)
+        // A 20 000-unit schematic still fits a window.
+        var s = Viewport(scale: 1.6, offset: .zero)
+        let sheet = CGRect(x: -10_000, y: -6_000, width: 20_000, height: 12_000)
+        s.fit(sheet, in: window, limits: Viewport.schematicLimits)
+        XCTAssertTrue(s.visibleWorldRect(in: window).contains(sheet))
+    }
+
+    func testCommandsPanZoomAndSetLevel() {
+        let size = CGSize(width: 1000, height: 600)
+        var v = Viewport(scale: 12, offset: .zero)
+        XCTAssertTrue(v.apply(.pan(dx: 0.25, dy: 0), size: size, anchor: nil, baseScale: 12, limits: Viewport.pcbLimits))
+        XCTAssertEqual(v.offset.width, -250, accuracy: 1e-9)  // view moved right → content moved left
+        XCTAssertTrue(v.apply(.pan(dx: 0, dy: -0.5), size: size, anchor: nil, baseScale: 12, limits: Viewport.pcbLimits))
+        XCTAssertEqual(v.offset.height, 300, accuracy: 1e-9)
+        let centreWorld = v.toWorld(CGPoint(x: 500, y: 300))
+        v.apply(.setLevel(2), size: size, anchor: nil, baseScale: 12, limits: Viewport.pcbLimits)
+        XCTAssertEqual(v.scale, 24, accuracy: 1e-9)
+        let stillCentre = v.toWorld(CGPoint(x: 500, y: 300))
+        XCTAssertEqual(stillCentre.x, centreWorld.x, accuracy: 1e-9)
+        v.apply(.zoomIn, size: size, anchor: CGPoint(x: 10, y: 10), baseScale: 12, limits: Viewport.pcbLimits)
+        XCTAssertEqual(v.scale, 30, accuracy: 1e-9)
+        v.apply(.zoomOut, size: size, anchor: nil, baseScale: 12, limits: Viewport.pcbLimits)
+        XCTAssertEqual(v.scale, 24, accuracy: 1e-9)
+        XCTAssertFalse(v.apply(.fit, size: size, anchor: nil, baseScale: 12, limits: Viewport.pcbLimits))
+        XCTAssertNotEqual(ViewRequest(command: .fit), ViewRequest(command: .fit))  // repeated commands are observed
+    }
+
+    func testCenterAndAdaptiveGrid() {
+        var v = Viewport(scale: 2, offset: .zero)
+        v.center(on: CGPoint(x: 50, y: 20), in: CGSize(width: 400, height: 200))
+        XCTAssertEqual(v.toScreen(CGPoint(x: 50, y: 20)), CGPoint(x: 200, y: 100))
+        XCTAssertEqual(Viewport(scale: 1.6, offset: .zero).gridPitch(base: 10, minimumPoints: 8), 10)
+        XCTAssertEqual(Viewport(scale: 0.5, offset: .zero).gridPitch(base: 10, minimumPoints: 8), 50)
+        XCTAssertEqual(Viewport(scale: 0.05, offset: .zero).gridPitch(base: 10, minimumPoints: 8), 500)
+        XCTAssertEqual(Viewport(scale: 12, offset: .zero).gridPitch(base: 0.1, minimumPoints: 10), 1, accuracy: 1e-9)
+        XCTAssertEqual(Viewport(scale: 40, offset: .zero).gridPitch(base: 0.1, minimumPoints: 10), 0.5, accuracy: 1e-9)
+        // Zoomed out on a huge board the grid stays sparse.
+        let far = Viewport(scale: 0.25, offset: .zero)
+        XCTAssertGreaterThanOrEqual(far.gridPitch(base: 0.1, minimumPoints: 10) * far.scale, 10)
+    }
+
+    func testZoomPresetLabels() {
+        XCTAssertEqual(ZoomControls.percent(1), "100%")
+        XCTAssertEqual(ZoomControls.percent(0.25), "25%")
+        XCTAssertEqual(ZoomControls.percent(0.05), "5.0%")
+    }
+}

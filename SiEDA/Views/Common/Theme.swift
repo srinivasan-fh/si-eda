@@ -116,10 +116,19 @@ struct Badge: View {
     }
 }
 
-/// Canvas viewport transform shared by the schematic and PCB editors.
+/// Canvas viewport transform shared by the schematic and PCB editors (screen = world × scale + offset).
 struct Viewport: Equatable {
     var scale: CGFloat
     var offset: CGSize
+
+    /// Schematic: world units are grid units (10 = one grid step). 100 % = 1.6 points per unit. The range covers
+    /// multi-sheet motherboard schematics (tens of thousands of units) down to single-pin detail.
+    static let schematicLimits: ClosedRange<CGFloat> = 0.02...24
+    static let schematicBaseScale: CGFloat = 1.6
+    /// PCB: world units are millimetres. 100 % = 12 points per mm. 0.25 fits a 600 mm backplane in a small window;
+    /// 400 shows 0.4 mm-pitch BGA pads 160 points apart.
+    static let pcbLimits: ClosedRange<CGFloat> = 0.25...400
+    static let pcbBaseScale: CGFloat = 12
 
     func toScreen(_ p: CGPoint) -> CGPoint {
         CGPoint(x: p.x * scale + offset.width, y: p.y * scale + offset.height)
@@ -129,19 +138,55 @@ struct Viewport: Equatable {
         CGPoint(x: (p.x - offset.width) / scale, y: (p.y - offset.height) / scale)
     }
 
+    /// World-space rectangle currently visible in a canvas of `size` points.
+    func visibleWorldRect(in size: CGSize) -> CGRect {
+        let a = toWorld(.zero)
+        return CGRect(x: a.x, y: a.y, width: size.width / scale, height: size.height / scale)
+    }
+
     /// Zooms by `factor` keeping `anchor` (screen space) fixed.
     mutating func zoom(by factor: CGFloat, anchor: CGPoint, limits: ClosedRange<CGFloat>) {
+        guard factor.isFinite, factor > 0 else { return }
         let world = toWorld(anchor)
         scale = min(max(scale * factor, limits.lowerBound), limits.upperBound)
         offset = CGSize(width: anchor.x - world.x * scale, height: anchor.y - world.y * scale)
     }
 
+    /// Sets an absolute scale, keeping `anchor` (screen space) fixed.
+    mutating func setScale(_ newScale: CGFloat, anchor: CGPoint, limits: ClosedRange<CGFloat>) {
+        zoom(by: newScale / scale, anchor: anchor, limits: limits)
+    }
+
+    /// Moves the view by `delta` screen points (content follows the pointer).
+    mutating func pan(by delta: CGSize) {
+        offset.width += delta.width
+        offset.height += delta.height
+    }
+
+    /// Puts world point `p` in the middle of a canvas of `size` points without changing the zoom.
+    mutating func center(on p: CGPoint, in size: CGSize) {
+        offset = CGSize(width: size.width / 2 - p.x * scale, height: size.height / 2 - p.y * scale)
+    }
+
     /// Fits `rect` (world space) into `size` (screen space) with a margin.
     mutating func fit(_ rect: CGRect, in size: CGSize, margin: CGFloat = 40, limits: ClosedRange<CGFloat>) {
-        guard rect.width > 0 || rect.height > 0, size.width > 0, size.height > 0 else { return }
-        let sx = (size.width - 2 * margin) / max(rect.width, 1)
-        let sy = (size.height - 2 * margin) / max(rect.height, 1)
+        guard !rect.isNull, rect.width > 0 || rect.height > 0, size.width > 0, size.height > 0 else { return }
+        let usableW = max(size.width - 2 * margin, size.width * 0.5)
+        let usableH = max(size.height - 2 * margin, size.height * 0.5)
+        let sx = usableW / max(rect.width, 1e-6)
+        let sy = usableH / max(rect.height, 1e-6)
         scale = min(max(min(sx, sy), limits.lowerBound), limits.upperBound)
-        offset = CGSize(width: size.width / 2 - rect.midX * scale, height: size.height / 2 - rect.midY * scale)
+        center(on: CGPoint(x: rect.midX, y: rect.midY), in: size)
+    }
+
+    /// Grid pitch (a multiple of `base` by factors of 5, then 2) whose on-screen spacing is at least `minimumPoints`.
+    func gridPitch(base: CGFloat, minimumPoints: CGFloat) -> CGFloat {
+        var pitch = base
+        var step = 0
+        while pitch * scale < minimumPoints, step < 40 {
+            pitch *= step.isMultiple(of: 2) ? 5 : 2
+            step += 1
+        }
+        return pitch
     }
 }

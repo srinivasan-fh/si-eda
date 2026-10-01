@@ -114,6 +114,32 @@ struct SiEDACommands: Commands {
             }
             .keyboardShortcut("z", modifiers: [.command, .shift])
         }
+        CommandGroup(after: .toolbar) {
+            let canvas = store.workspace.hasCanvas
+            Divider()
+            Button("Zoom In") { store.requestView(.zoomIn) }
+                .keyboardShortcut("=", modifiers: .command)
+                .disabled(!canvas)
+            Button("Zoom Out") { store.requestView(.zoomOut) }
+                .keyboardShortcut("-", modifiers: .command)
+                .disabled(!canvas)
+            Button("Zoom to Fit") { store.requestView(.fit) }
+                .keyboardShortcut("0", modifiers: .command)
+                .disabled(!canvas)
+            Button("Zoom to Selection") { store.requestView(.fitSelection) }
+                .keyboardShortcut("0", modifiers: [.command, .option])
+                .disabled(!canvas)
+            Button("Zoom to Area") { store.requestView(.zoomArea) }
+                .disabled(!canvas)
+            Menu("Zoom Level") {
+                ForEach(ZoomControls.presets, id: \.self) { level in
+                    Button(ZoomControls.percent(level)) { store.requestView(.setLevel(level)) }
+                }
+            }
+            .disabled(!canvas)
+            Toggle("Show Navigator", isOn: $store.showNavigator)
+            Divider()
+        }
         CommandMenu("Design") {
             Button("Run Electrical Rule Check") { store.runERC(); store.workspace = .checks }
                 .keyboardShortcut("k", modifiers: [.command, .shift])

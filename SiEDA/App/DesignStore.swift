@@ -25,6 +25,9 @@ enum Workspace: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Workspaces with a zoomable 2D canvas (View menu navigation applies to them).
+    var hasCanvas: Bool { self == .schematic || self == .pcb }
+
     var systemImage: String {
         switch self {
         case .promptStudio: return "sparkles.rectangle.stack"
@@ -84,6 +87,14 @@ final class DesignStore: ObservableObject {
     @Published private(set) var revision = 0
     /// Incremented when a whole new design arrives (AI plan, open, example, re-placement) so editors re-fit.
     @Published private(set) var fitToken = 0
+    /// Latest navigation command for the visible schematic/PCB canvas (View menu, zoom controls).
+    @Published private(set) var viewRequest: ViewRequest?
+    /// Navigator overview on the 2D canvases (persisted).
+    @Published var showNavigator = UserDefaults.standard.object(forKey: "canvas.showNavigator") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(showNavigator, forKey: "canvas.showNavigator") }
+    }
+
+    func requestView(_ command: ViewCommand) { viewRequest = ViewRequest(command: command) }
 
     private var undoStack: [String] = []
     private var redoStack: [String] = []

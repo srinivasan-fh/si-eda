@@ -108,17 +108,37 @@ After adding or removing source files, run:
 python3 tools/generate_xcodeproj.py
 ```
 
-## Keyboard shortcuts
+## Canvas navigation and keyboard shortcuts
+
+The schematic and PCB canvases are built for large designs such as CPU/GPU/NPU motherboards, MCU development boards and daughterboards:
+
+- **Zoom range:** fits a 600 mm backplane in a small window and goes down to 0.4 mm-pitch BGA detail on the PCB (1/50 to 15× on the schematic).
+- **Rendering:** only what is on screen is drawn. Pins, labels and designators fade out when zoomed far out, and the grid pitch adapts to the zoom level.
+- **Navigator:** a thumbnail of the whole design (toggle with N, the toolbar map button or **View → Show Navigator**). Click or drag in it to move the view.
+
+| Mouse / trackpad | Action |
+|---|---|
+| Two-finger scroll | Pan |
+| Pinch, mouse wheel, or ⌘/⌥/⌃ + scroll | Zoom at the cursor |
+| ⇧ + mouse wheel | Pan horizontally |
+| Middle- or right-button drag | Pan (any tool) |
+| Space + drag | Pan (any tool) |
+| Drag on empty canvas | Pan (select tool) |
+| ⇧-drag | Marquee select (schematic) |
 
 | Key | Action |
 |---|---|
-| Scroll / two-finger drag | Pan the schematic or PCB |
-| ⌘-scroll, ⌥-scroll, mouse wheel, pinch | Zoom at the cursor |
+| Arrow keys (⇧ for half a screen) | Pan |
+| + / − (or ⌘= / ⌘−) | Zoom in / out at the cursor |
+| Home, 0 or ⌘0 | Zoom to fit (home view) |
+| ⇧Z or ⌥⌘0 | Zoom to selection |
+| Z | Zoom to area: drag a rectangle (a click zooms 2×) |
+| N | Show/hide the navigator |
+| **View → Zoom Level** / click the zoom percentage | Preset levels from 10 % to 1600 % |
 | V / H / W | Select, pan (hand) and wire tools (schematic) |
 | G / L | Place ground or net label |
 | R / F | Rotate, or flip a footprint to the other side (PCB) |
 | ⌫ / Esc | Delete selection / cancel |
-| ⇧-drag | Marquee select |
 | ⇧⌘K / ⇧⌘D / ⇧⌘R | Run ERC, DC operating point, autoroute |
 | ⇧⌘L / ⇧⌘V | Validate circuit, verify design |
 | ⌘1 … ⌘7 | Switch workspace (⌘1 … ⌘6 when AI assistance is off) |

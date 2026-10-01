@@ -9,12 +9,12 @@ struct SchematicCanvas: View {
     @Binding var canvasSize: CGSize
     /// "R1.2" while a wire is being drawn (shown as a hint by the editor), nil otherwise.
     @Binding var wireStart: String?
-    var fitRequest: Int
 
     private enum DragMode {
         case move(Set<Int>)
         case pan(CGSize)
         case marquee
+        case zoomBox
     }
 
     @State private var dragMode: DragMode?
@@ -24,9 +24,11 @@ struct SchematicCanvas: View {
     @State private var hover: CGPoint?
     @State private var magnifyBase: CGFloat?
     @State private var didInitialFit = false
+    @State private var spaceHeld = false   // Space + drag pans (Photoshop)
+    @State private var zoomArmed = false   // Z: the next drag defines the area to zoom to
     @FocusState private var focused: Bool
 
-    private let scaleLimits: ClosedRange<CGFloat> = 0.2...12
+    private let scaleLimits = Viewport.schematicLimits
 
     var body: some View {
         GeometryReader { geo in
@@ -48,7 +50,8 @@ struct SchematicCanvas: View {
                     }
                     .onEnded { _ in magnifyBase = nil }
             )
-            .onScrollWheel { event, point in viewport.handleScroll(event, at: point, limits: scaleLimits) }
+            .canvasMouseInput(onScroll: { event, point in viewport.handleScroll(event, at: point, limits: scaleLimits) },
+                              onPan: { viewport.pan(by: $0) })
             .onContinuousHover { phase in
                 switch phase {
                 case .active(let p): hover = p
@@ -58,7 +61,12 @@ struct SchematicCanvas: View {
             .focusable()
             .focusEffectDisabled()
             .focused($focused)
+            .canvasNavigationKeys(spaceHeld: $spaceHeld, toggleNavigator: { store.showNavigator.toggle() }) { command in
+                perform(command, size: geo.size)
+            }
+            .onChange(of: focused) { _, isFocused in if !isFocused { spaceHeld = false } }
             .onKeyPress(.escape) {
+                zoomArmed = false
                 pendingWire = nil
                 tool = .select
                 store.select(component: nil)
@@ -81,7 +89,9 @@ struct SchematicCanvas: View {
                 }
             }
             .onChange(of: geo.size) { _, newSize in canvasSize = newSize }
-            .onChange(of: fitRequest) { _, _ in fitToContent(size: geo.size) }
+            .onChange(of: store.viewRequest) { _, request in
+                if let request { perform(request.command, size: geo.size) }
+            }
             .onChange(of: store.fitToken) { _, _ in fitToContent(size: geo.size) }
             .onChange(of: pendingWire) { _, address in
                 guard let address, let c = store.snapshot.component(address.component), address.pin < c.pins.count else {
@@ -96,18 +106,41 @@ struct SchematicCanvas: View {
         }
     }
 
-    // MARK: - Geometry helpers
+    // MARK: - Navigation
+
+    /// World-space bounds of every component symbol (used for fit, zoom to selection and the navigator).
+    static func componentBounds(_ snapshot: DesignSnapshot) -> [(id: Int, rect: CGRect)] {
+        snapshot.components.map { c in
+            let rect = SchematicSymbols.bounds(c.componentKind, custom: snapshot.customPart(for: c))
+                .applying(SchematicSymbols.transform(position: c.position, rotation: c.rotation))
+            return (c.id, rect)
+        }
+    }
+
+    private func perform(_ command: ViewCommand, size: CGSize) {
+        switch command {
+        case .fit: fitToContent(size: size)
+        case .fitSelection: fitSelection(size: size)
+        case .zoomArea: zoomArmed = true
+        default:
+            viewport.apply(command, size: size, anchor: hover, baseScale: Viewport.schematicBaseScale, limits: scaleLimits)
+        }
+    }
 
     private func fitToContent(size: CGSize) {
-        let comps = store.snapshot.components
-        guard !comps.isEmpty else { return }
-        var rect = CGRect.null
-        for c in comps {
-            let b = SchematicSymbols.bounds(c.componentKind, custom: store.snapshot.customPart(for: c))
-                .applying(SchematicSymbols.transform(position: c.position, rotation: c.rotation))
-            rect = rect.union(b)
-        }
+        let rect = Self.componentBounds(store.snapshot).reduce(CGRect.null) { $0.union($1.rect) }
+        guard !rect.isNull else { return }
         viewport.fit(rect.insetBy(dx: -30, dy: -30), in: size, limits: scaleLimits)
+    }
+
+    private func fitSelection(size: CGSize) {
+        var rect = Self.componentBounds(store.snapshot).filter { store.selection.contains($0.id) }
+            .reduce(CGRect.null) { $0.union($1.rect) }
+        if let id = store.selectedWire, let w = store.snapshot.wires.first(where: { $0.id == id }) {
+            rect = rect.union(CGRect(origin: w.start, size: .zero).union(CGRect(origin: w.end, size: .zero)))
+        }
+        guard !rect.isNull else { return fitToContent(size: size) }
+        viewport.fit(rect.insetBy(dx: -40, dy: -40), in: size, limits: scaleLimits)
     }
 
     private var pickTolerance: CGFloat { max(4, 7 / viewport.scale) }
@@ -175,7 +208,7 @@ struct SchematicCanvas: View {
                 case .pan(let start):
                     viewport.offset = CGSize(width: start.width + value.translation.width,
                                              height: start.height + value.translation.height)
-                case .marquee:
+                case .marquee, .zoomBox:
                     marquee = CGRect(origin: value.startLocation, size: .zero)
                         .union(CGRect(origin: value.location, size: .zero))
                 case nil:
@@ -185,8 +218,19 @@ struct SchematicCanvas: View {
             .onEnded { value in
                 focused = true
                 let moved = hypot(value.translation.width, value.translation.height) > 3
-                if !moved {
-                    click(at: value.location)
+                if case .zoomBox = dragMode {
+                    zoomArmed = false
+                    if moved, let rect = marquee {
+                        let a = viewport.toWorld(rect.origin)
+                        let b = viewport.toWorld(CGPoint(x: rect.maxX, y: rect.maxY))
+                        viewport.fit(CGRect(origin: a, size: .zero).union(CGRect(origin: b, size: .zero)),
+                                     in: canvasSize, margin: 8, limits: scaleLimits)
+                    } else {
+                        viewport.zoom(by: 2, anchor: value.location, limits: scaleLimits)
+                    }
+                } else if !moved {
+                    let spacePan: Bool = { if case .pan = dragMode { return spaceHeld } else { return false } }()
+                    if !spacePan { click(at: value.location) }
                 } else {
                     switch dragMode {
                     case .move(let ids):
@@ -212,6 +256,14 @@ struct SchematicCanvas: View {
     }
 
     private func beginDrag(at screen: CGPoint) {
+        if zoomArmed {
+            dragMode = .zoomBox
+            return
+        }
+        if spaceHeld {
+            dragMode = .pan(viewport.offset)
+            return
+        }
         let world = viewport.toWorld(screen)
         switch tool {
         case .select:
@@ -278,6 +330,10 @@ struct SchematicCanvas: View {
             .scaledBy(x: viewport.scale, y: viewport.scale)
         let movingIds: Set<Int> = { if case .move(let ids) = dragMode { return ids } else { return [] } }()
         let delta = dragDelta
+        // Only what is on screen is drawn; pins and text fade out when zoomed far out (large designs).
+        let view = viewport.visibleWorldRect(in: size).insetBy(dx: -40 / viewport.scale - 20, dy: -40 / viewport.scale - 20)
+        let showPins = viewport.scale >= 0.3
+        let showLabels = viewport.scale >= 0.25
 
         func pinPoint(_ address: PinAddress) -> CGPoint? {
             guard var p = pinPosition(address) else { return nil }
@@ -288,7 +344,9 @@ struct SchematicCanvas: View {
         // Wires (orthogonal L-routes) and junctions.
         var endpointCount: [String: (CGPoint, Int)] = [:]
         for w in snap.wires {
-            guard let a = pinPoint(w.a), let b = pinPoint(w.b) else { continue }
+            guard let a = pinPoint(w.a), let b = pinPoint(w.b),
+                  CGRect(origin: a, size: .zero).union(CGRect(origin: b, size: .zero)).insetBy(dx: -1, dy: -1).intersects(view)
+            else { continue }
             var path = Path()
             path.addLines(Self.wirePath(a, b))
             let selected = store.selectedWire == w.id
@@ -312,8 +370,9 @@ struct SchematicCanvas: View {
             var position = c.position
             if movingIds.contains(c.id) { position.x += delta.width; position.y += delta.height }
             let local = SchematicSymbols.transform(position: position, rotation: c.rotation)
-            let t = local.concatenating(screen)
             let custom = snap.customPart(for: c)
+            guard SchematicSymbols.bounds(c.componentKind, custom: custom).applying(local).intersects(view) else { continue }
+            let t = local.concatenating(screen)
             let shapes = custom.map(SchematicSymbols.customShapes) ?? SchematicSymbols.shapes(for: c.componentKind, value: c.value)
             let selected = store.selection.contains(c.id)
             if selected {
@@ -326,7 +385,7 @@ struct SchematicCanvas: View {
             ctx.fill(shapes.solid.applying(t), with: .color(strokeColor))
 
             // Pins
-            for (i, p) in c.pins.enumerated() {
+            for (i, p) in c.pins.enumerated() where showPins {
                 var pp = p.point
                 if movingIds.contains(c.id) { pp.x += delta.width; pp.y += delta.height }
                 let s = pp.applying(screen)
@@ -360,6 +419,7 @@ struct SchematicCanvas: View {
             }
 
             // Labels (kept upright)
+            guard showLabels else { continue }
             let fontSize = max(8, min(13, 9 * viewport.scale / 1.6))
             switch c.componentKind {
             case .ground:
@@ -442,22 +502,31 @@ struct SchematicCanvas: View {
             ctx.fill(Path(m), with: .color(Theme.blue.opacity(0.12)))
             ctx.stroke(Path(m), with: .color(Theme.skyBlue), style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
         }
+
+        if zoomArmed {
+            CanvasOverlays.banner("Zoom to area — drag a rectangle (click zooms 2×) · Esc cancels", in: &ctx, size: size)
+        }
+        if let h = hover {
+            let w = viewport.toWorld(h)
+            CanvasOverlays.readout(String(format: "X %.0f  Y %.0f", w.x, w.y), in: &ctx, size: size)
+        }
     }
 
     private func drawGrid(_ ctx: inout GraphicsContext, size: CGSize) {
-        let minor: CGFloat = viewport.scale * 10 >= 9 ? 10 : 50
-        let topLeft = viewport.toWorld(.zero)
-        let bottomRight = viewport.toWorld(CGPoint(x: size.width, y: size.height))
-        var x = (topLeft.x / minor).rounded(.down) * minor
+        // Pitch adapts to the zoom (10, 50, 100, 500 … units) so dots never get denser than 8 points.
+        let minor = viewport.gridPitch(base: 10, minimumPoints: 8)
+        let major = minor * 10
+        let world = viewport.visibleWorldRect(in: size)
         var dots = Path()
-        var major = Path()
-        while x <= bottomRight.x {
-            var y = (topLeft.y / minor).rounded(.down) * minor
-            while y <= bottomRight.y {
+        var majors = Path()
+        var x = (world.minX / minor).rounded(.down) * minor
+        while x <= world.maxX {
+            var y = (world.minY / minor).rounded(.down) * minor
+            while y <= world.maxY {
                 let s = viewport.toScreen(CGPoint(x: x, y: y))
-                let isMajor = Int(x) % 100 == 0 && Int(y) % 100 == 0
+                let isMajor = abs(x.remainder(dividingBy: major)) < minor / 2 && abs(y.remainder(dividingBy: major)) < minor / 2
                 if isMajor {
-                    major.addRect(CGRect(x: s.x - 1, y: s.y - 1, width: 2, height: 2))
+                    majors.addRect(CGRect(x: s.x - 1, y: s.y - 1, width: 2, height: 2))
                 } else {
                     dots.addRect(CGRect(x: s.x - 0.5, y: s.y - 0.5, width: 1, height: 1))
                 }
@@ -466,6 +535,6 @@ struct SchematicCanvas: View {
             x += minor
         }
         ctx.fill(dots, with: .color(Theme.gridDot))
-        ctx.fill(major, with: .color(Theme.darkBlue))
+        ctx.fill(majors, with: .color(Theme.darkBlue))
     }
 }
