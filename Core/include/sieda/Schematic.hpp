@@ -33,6 +33,9 @@ struct Component {
     int rotation = 0;
     PcbPlacement pcb;
     std::string customPart;  // CustomPartRegistry id when kind == ComponentKind::Custom
+    std::vector<int> noConnect;  // pin indices deliberately left open (no-connect flag): ERC does not flag them
+
+    bool isNoConnect(int pin) const;
 
     const ComponentDef& def() const;
     bool hasFootprint() const { return !def().footprint.empty(); }
@@ -75,6 +78,8 @@ public:
     bool rotateComponent(int id, int deltaDeg = 90);
     bool setValue(int id, const std::string& value);
     bool setRef(int id, const std::string& ref);
+    /// Marks a pin as intentionally unconnected (KiCad/Altium "no-connect" flag) or clears the mark.
+    bool setPinNoConnect(int componentId, int pin, bool noConnect);
 
     int connect(PinRef a, PinRef b);  // returns wire id, or -1 if invalid / duplicate
     bool removeWire(int id);

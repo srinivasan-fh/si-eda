@@ -33,6 +33,29 @@ struct PackageSpec {
     int pinCount = 0;           // 0 = derived from the pin list
 };
 
+/// Behavioural simulation model of a custom part (optional). Pins are referenced by number or name.
+struct RegulatorModel {
+    std::string in, out, ref;  // input, output and reference pins (GND for fixed regulators, ADJ for LM317-style)
+    double vout = 0;           // output relative to `ref` (V)
+    double dropout = 0.3;      // minimum in − out headroom (V)
+    double iq = 0;             // quiescent / ground-pin current (A), returned through `ref`
+    double ilimit = 1.0;       // output current limit (A) — a charger's charge current
+    double maxPower = 0.5;     // package dissipation limit (W) for validation
+    bool charger = false;      // constant-current operation is normal (Li-ion CC/CV charger)
+};
+
+struct SupplyLoad {
+    std::string supply, ret;  // supply pin and return (ground) pin
+    double current = 0;       // typical operating current (A)
+};
+
+struct BehaviorModel {
+    bool hasRegulator = false;
+    RegulatorModel regulator;
+    std::vector<SupplyLoad> loads;
+    bool empty() const { return !hasRegulator && loads.empty(); }
+};
+
 struct CustomPartSpec {
     std::string name;
     std::string manufacturer;
@@ -42,6 +65,10 @@ struct CustomPartSpec {
     std::string datasheet;  // file name or URL the part was extracted from
     PackageSpec package;
     std::vector<CustomPin> pins;
+    BehaviorModel model;
+
+    /// Index of the pin with this number (preferred) or name; -1 if none.
+    int pinIndex(const std::string& numberOrName) const;
 };
 
 struct CustomPart {

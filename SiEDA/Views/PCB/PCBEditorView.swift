@@ -62,6 +62,7 @@ struct PCBEditorView: View {
     @State private var activeLayer: PCBLayer = .copper(0)
     @State private var panMode = false
     @State private var showLayersPanel = true
+    @State private var showBoardSetup = false
 
     @State private var boardWidth = ""
     @State private var boardHeight = ""
@@ -136,6 +137,13 @@ struct PCBEditorView: View {
                     .menuStyle(.borderlessButton)
                     .fixedSize()
                     .help("Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces")
+                    Button { showBoardSetup.toggle() } label: {
+                        Label("Board Setup", systemImage: "slider.horizontal.3")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes")
+                    .popover(isPresented: $showBoardSetup, arrowEdge: .bottom) { BoardSetupPanel().environmentObject(store) }
                     Divider().frame(height: 18)
                     HStack(spacing: 10) {
                         ruleField("Board W", $boardWidth, unit: "mm")
@@ -535,16 +543,39 @@ struct PCBCanvas: View {
 
         ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Theme.pcbBackground))
 
-        // Board
+        // Board (rectangle or custom outline) and mounting holes
         let boardRect = CGRect(x: 0, y: 0, width: snap.board.width, height: snap.board.height)
-        ctx.fill(Path(roundedRect: boardRect, cornerRadius: 0.8).applying(screen), with: .color(Theme.boardFill))
+        let outline = snap.board.hasCustomOutline ? Path(snap.board.outlinePath)
+                                                  : Path(roundedRect: boardRect, cornerRadius: 0.8)
+        ctx.fill(outline.applying(screen), with: .color(Theme.boardFill))
         if visible.contains(.boardOutline) {
-            ctx.stroke(Path(roundedRect: boardRect, cornerRadius: 0.8).applying(screen), with: .color(Theme.boardEdge), lineWidth: 1.5)
-            let keepout = boardRect.insetBy(dx: snap.board.edgeClearance, dy: snap.board.edgeClearance)
-            ctx.stroke(Path(keepout).applying(screen), with: .color(Theme.boardEdge.opacity(0.25)),
-                       style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+            ctx.stroke(outline.applying(screen), with: .color(Theme.boardEdge), lineWidth: 1.5)
+            if !snap.board.hasCustomOutline {
+                let keepout = boardRect.insetBy(dx: snap.board.edgeClearance, dy: snap.board.edgeClearance)
+                ctx.stroke(Path(keepout).applying(screen), with: .color(Theme.boardEdge.opacity(0.25)),
+                           style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+            }
         }
         drawGrid(&ctx, board: boardRect, view: view)
+
+        // Copper pours (under tracks and pads), bottom-most first.
+        for fill in snap.zoneFills.sorted(by: { $0.layer > $1.layer })
+        where fill.layer < max(1, snap.board.layerCount) && visible.contains(.copper(fill.layer)) {
+            let isActive = fill.layer == (activeLayer.copperIndex ?? 0)
+            var path = Path()
+            for r in fill.cgRects where r.intersects(view) { path.addRect(r) }
+            let base = Theme.copperColor(fill.layer, layerCount: snap.board.layerCount)
+            let highlight = hoveredNet == fill.net
+            ctx.fill(path.applying(screen), with: .color(highlight ? Theme.iceBlue.opacity(0.35) : base.opacity(isActive ? 0.32 : 0.14)))
+        }
+        for hole in snap.board.holes {
+            let keep = CGRect(x: hole.x - hole.keepout / 2, y: hole.y - hole.keepout / 2, width: hole.keepout, height: hole.keepout)
+            let bore = CGRect(x: hole.x - hole.drill / 2, y: hole.y - hole.drill / 2, width: hole.drill, height: hole.drill)
+            ctx.stroke(Path(ellipseIn: keep).applying(screen), with: .color(Theme.boardEdge.opacity(0.6)),
+                       style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            ctx.fill(Path(ellipseIn: bore).applying(screen), with: .color(Theme.pcbBackground))
+            ctx.stroke(Path(ellipseIn: bore).applying(screen), with: .color(Theme.boardEdge), lineWidth: 1)
+        }
 
         // Copper: bottom-most layers first, the active copper layer last so it sits on top.
         let layerCount = max(1, snap.board.layerCount)

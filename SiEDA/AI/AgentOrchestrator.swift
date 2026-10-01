@@ -151,7 +151,8 @@ final class AgentOrchestrator: ObservableObject {
                                                                                          customParts: store.snapshot.customParts))
         var plan = try JSONExtraction.decode(DesignPlan.self, from: planText)
         if plan.board.width < 10 || plan.board.height < 10 {
-            plan.board = PlannedBoard(width: max(20, spec.boardWidthMM), height: max(15, spec.boardHeightMM))
+            plan.board.width = max(20, spec.boardWidthMM)
+            plan.board.height = max(15, spec.boardHeightMM)
         }
         finish(index, .done, "\(plan.components.count) parts, \(plan.connections.count) connections")
         try Task.checkCancellation()

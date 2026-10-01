@@ -18,6 +18,8 @@ struct DesignSnapshot: Decodable, Equatable {
     var bodies: [SnapBody] = []
     var customParts: [CustomPartInfo] = []
     var industry = "general"
+    var zones: [CopperZoneInfo] = []
+    var zoneFills: [ZoneFillInfo] = []
 
     static let empty = DesignSnapshot(name: "Untitled", requirements: "", components: [], wires: [], nets: [],
                                       board: BoardInfo(), pads: [], tracks: [], vias: [], ratsnest: [], courtyards: [])
@@ -56,11 +58,13 @@ struct DesignSnapshot: Decodable, Equatable {
         bodies = try c.decodeIfPresent([SnapBody].self, forKey: .bodies) ?? []
         customParts = try c.decodeIfPresent([CustomPartInfo].self, forKey: .customParts) ?? []
         industry = try c.decodeIfPresent(String.self, forKey: .industry) ?? "general"
+        zones = try c.decodeIfPresent([CopperZoneInfo].self, forKey: .zones) ?? []
+        zoneFills = try c.decodeIfPresent([ZoneFillInfo].self, forKey: .zoneFills) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
-        case industry
+        case industry, zones, zoneFills
     }
 
     func component(_ id: Int) -> SnapComponent? { components.first { $0.id == id } }
@@ -81,7 +85,30 @@ struct SnapPin: Decodable, Equatable {
     var y: Double
     var net: Int
     var connected: Bool
+    /// Marked "no connect" (left open on purpose; ERC does not report it).
+    var noConnect = false
     var point: CGPoint { CGPoint(x: x, y: y) }
+
+    init(name: String, x: Double, y: Double, net: Int, connected: Bool, noConnect: Bool = false) {
+        self.name = name
+        self.x = x
+        self.y = y
+        self.net = net
+        self.connected = connected
+        self.noConnect = noConnect
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        x = try c.decode(Double.self, forKey: .x)
+        y = try c.decode(Double.self, forKey: .y)
+        net = try c.decode(Int.self, forKey: .net)
+        connected = try c.decode(Bool.self, forKey: .connected)
+        noConnect = try c.decodeIfPresent(Bool.self, forKey: .noConnect) ?? false
+    }
+
+    private enum CodingKeys: String, CodingKey { case name, x, y, net, connected, noConnect }
 }
 
 struct PcbPlacement: Decodable, Equatable {
@@ -155,6 +182,12 @@ struct BoardInfo: Decodable, Equatable {
     var copperWeightOz: Double = 1.0
     var maxTempRise: Double = 10.0
     var highAltitude = false
+    /// Net classes: track width (mm) per net name.
+    var netWidths: [String: Double] = [:]
+    var autoSizeNets = true
+    /// Custom outline polygon (empty = width × height rectangle).
+    var outline: [BoardPoint] = []
+    var holes: [MountingHoleInfo] = []
 
     init() {}
 
@@ -179,21 +212,78 @@ struct BoardInfo: Decodable, Equatable {
         copperWeightOz = try c.decodeIfPresent(Double.self, forKey: .copperWeightOz) ?? 1.0
         maxTempRise = try c.decodeIfPresent(Double.self, forKey: .maxTempRise) ?? 10.0
         highAltitude = try c.decodeIfPresent(Bool.self, forKey: .highAltitude) ?? false
+        netWidths = try c.decodeIfPresent([String: Double].self, forKey: .netWidths) ?? [:]
+        autoSizeNets = try c.decodeIfPresent(Bool.self, forKey: .autoSizeNets) ?? true
+        outline = try c.decodeIfPresent([BoardPoint].self, forKey: .outline) ?? []
+        holes = try c.decodeIfPresent([MountingHoleInfo].self, forKey: .holes) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
         case layerCount, width, height, thickness, trackWidth, clearance, viaDrill, viaDiameter, edgeClearance, routingGrid
         case rulePreset, minTrackWidth, minClearance, minDrill, minAnnularRing, minHoleToHole, copperWeightOz, maxTempRise
-        case highAltitude
+        case highAltitude, netWidths, autoSizeNets, outline, holes
     }
 
     var bottomLayer: Int { max(1, layerCount) - 1 }
+    var hasCustomOutline: Bool { outline.count >= 3 }
+
+    /// Board outline as a path in board millimetres.
+    var outlinePath: CGPath {
+        let path = CGMutablePath()
+        if hasCustomOutline {
+            path.addLines(between: outline.map(\.point))
+            path.closeSubpath()
+        } else {
+            path.addRect(CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        return path
+    }
 
     /// "Top", "Inner 1", …, "Bottom"
     func layerName(_ layer: Int) -> String {
         if layer == 0 { return "Top" }
         if layer == bottomLayer { return "Bottom" }
         return "Inner \(layer)"
+    }
+}
+
+struct BoardPoint: Codable, Equatable {
+    var x: Double
+    var y: Double
+    var point: CGPoint { CGPoint(x: x, y: y) }
+}
+
+/// Non-plated mounting hole with its copper/part keep-out.
+struct MountingHoleInfo: Decodable, Equatable {
+    var x: Double
+    var y: Double
+    var drill: Double
+    var keepout: Double
+    var center: CGPoint { CGPoint(x: x, y: y) }
+}
+
+/// Copper pour rule: `net` poured on copper layer `layer`; a plane reserves the layer for that net.
+struct CopperZoneInfo: Decodable, Equatable, Identifiable, Hashable {
+    var net: String
+    var layer: Int
+    var plane: Bool
+    var clearance: Double
+    var id: String { "\(net)|\(layer)|\(plane)" }
+}
+
+/// Poured copper of one zone as rectangles (flat x0, y0, x1, y1 quadruples from the core).
+struct ZoneFillInfo: Decodable, Equatable {
+    var zone: Int
+    var net: Int
+    var layer: Int
+    var islands: Int
+    var area: Double
+    var rects: [Double]
+
+    var cgRects: [CGRect] {
+        stride(from: 0, to: rects.count - 3, by: 4).map {
+            CGRect(x: rects[$0], y: rects[$0 + 1], width: rects[$0 + 2] - rects[$0], height: rects[$0 + 3] - rects[$0 + 1])
+        }
     }
 }
 
@@ -302,7 +392,19 @@ struct DCDeviceReading: Decodable, Equatable, Identifiable {
     var current: Double
     var power: Double
     var voltage: Double
+    /// Behavioural-model state: 0 regulating (CV), 1 current limit / charging (CC), 2 off, 3 dropout.
+    var state: Int?
     var id: Int { component }
+
+    var stateTitle: String? {
+        switch state {
+        case 0: return "Regulating"
+        case 1: return "Current limit"
+        case 2: return "Off"
+        case 3: return "Dropout"
+        default: return nil
+        }
+    }
 }
 
 struct DCResult: Decodable, Equatable {

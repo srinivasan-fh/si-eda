@@ -40,7 +40,9 @@ PinType pinTypeFromName(const std::string& raw) {
     return PinType::Passive;
 }
 
-std::vector<std::string> supportedPackages() { return {"SOIC", "TSSOP", "DIP", "QFN", "LQFP", "SOT23", "HEADER", "TO220"}; }
+std::vector<std::string> supportedPackages() {
+    return {"SOIC", "TSSOP", "DIP", "QFN", "LQFP", "SOT23", "HEADER", "HEADER2", "TO220"};
+}
 
 // ------------------------------------------------------------------ JSON
 
@@ -66,7 +68,44 @@ Json customPartSpecToJson(const CustomPartSpec& s) {
         pins.push(pj);
     }
     j["pins"] = pins;
+    if (!s.model.empty()) {  // only when present, so ids of model-less parts stay stable
+        Json m = Json::object();
+        if (s.model.hasRegulator) {
+            const auto& r = s.model.regulator;
+            Json rj = Json::object();
+            rj["in"] = r.in;
+            rj["out"] = r.out;
+            rj["ref"] = r.ref;
+            rj["vout"] = r.vout;
+            rj["dropout"] = r.dropout;
+            rj["iq"] = r.iq;
+            rj["ilimit"] = r.ilimit;
+            rj["maxPower"] = r.maxPower;
+            rj["charger"] = r.charger;
+            m["regulator"] = rj;
+        }
+        if (!s.model.loads.empty()) {
+            Json loads = Json::array();
+            for (const auto& l : s.model.loads) {
+                Json lj = Json::object();
+                lj["supply"] = l.supply;
+                lj["ret"] = l.ret;
+                lj["current"] = l.current;
+                loads.push(lj);
+            }
+            m["loads"] = loads;
+        }
+        j["model"] = m;
+    }
     return j;
+}
+
+int CustomPartSpec::pinIndex(const std::string& key) const {
+    for (size_t i = 0; i < pins.size(); ++i)
+        if (pins[i].number == key) return static_cast<int>(i);
+    for (size_t i = 0; i < pins.size(); ++i)
+        if (pins[i].name == key) return static_cast<int>(i);
+    return -1;
 }
 
 namespace {
@@ -98,6 +137,7 @@ std::string normalizePackage(const std::string& raw, int& pinsFromName) {
     else if (has("QFP")) type = "LQFP";
     else if (has("SOT")) type = "SOT23";
     else if (has("TO220") || has("TO-220") || has("TO-92") || has("TO92")) type = "TO220";
+    else if (has("HEADER2") || has("2X") || has("IDC") || has("BOX HEADER") || has("DUAL ROW")) type = "HEADER2";
     else if (has("HEADER") || has("SIP") || has("CONN") || has("1X")) type = "HEADER";
     if (!digits.empty() && type != "TO220") {
         int n = std::stoi(digits.size() > 3 ? digits.substr(digits.size() - 3) : digits);
@@ -143,6 +183,33 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
         if (p.name.empty()) p.name = p.number;
         if (p.number.empty()) p.number = std::to_string(s.pins.size() + 1);
         s.pins.push_back(p);
+    }
+    const Json& m = j.get("model");
+    if (m.isObject()) {
+        const Json& rj = m.get("regulator");
+        if (rj.isObject()) {
+            RegulatorModel& r = s.model.regulator;
+            r.in = trim(rj.get("in").asString(""));
+            r.out = trim(rj.get("out").asString(""));
+            r.ref = trim(rj.get("ref").asString(""));
+            r.vout = rj.get("vout").asNumber(0);
+            r.dropout = std::max(0.0, rj.get("dropout").asNumber(0.3));
+            r.iq = std::max(0.0, rj.get("iq").asNumber(0));
+            r.ilimit = std::max(1e-6, rj.get("ilimit").asNumber(1.0));
+            r.maxPower = std::max(1e-3, rj.get("maxPower").asNumber(0.5));
+            r.charger = rj.get("charger").asBool(false);
+            s.model.hasRegulator = true;
+            if (s.pinIndex(r.in) < 0 || s.pinIndex(r.out) < 0 || s.pinIndex(r.ref) < 0)
+                throw JsonError("Regulator model of " + s.name + " references a pin that does not exist.");
+            if (!(r.vout > 0)) throw JsonError("Regulator model of " + s.name + " needs a positive vout.");
+        }
+        for (const auto& lj : m.get("loads").items()) {
+            SupplyLoad l{trim(lj.get("supply").asString("")), trim(lj.get("ret").asString("")), lj.get("current").asNumber(0)};
+            if (l.current <= 0) continue;
+            if (s.pinIndex(l.supply) < 0 || s.pinIndex(l.ret) < 0)
+                throw JsonError("Supply load of " + s.name + " references a pin that does not exist.");
+            s.model.loads.push_back(l);
+        }
     }
     return s;
 }
@@ -246,6 +313,12 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, BodyDef& b
         double y0 = -(n - 1) * 2.54 / 2;
         for (int i = 0; i < n; ++i) pads.push_back({{0, y0 + i * 2.54}, {1.7, 1.7}, true, i != 0, 1.0});
         body = {2.54, n * 2.54, 2.5, false, 0.08f, 0.08f, 0.08f};
+    } else if (type == "HEADER2") {  // 2 × N, 2.54 mm, IDC numbering (1 2 / 3 4 / …)
+        int rows = (n + 1) / 2;
+        double y0 = -(rows - 1) * 2.54 / 2;
+        for (int i = 0; i < n; ++i)
+            pads.push_back({{i % 2 ? 1.27 : -1.27, y0 + (i / 2) * 2.54}, {1.7, 1.7}, true, i != 0, 1.0});
+        body = {5.08, rows * 2.54, 2.5, false, 0.08f, 0.08f, 0.08f};
     } else if (type == "TO220") {
         double x0 = -(n - 1) * 2.54 / 2;
         for (int i = 0; i < n; ++i) pads.push_back({{x0 + i * 2.54, 0}, {1.9, 2.5}, true, false, 1.2});
@@ -287,7 +360,9 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     if (spec.package.pinCount <= 0) spec.package.pinCount = std::max(maxNumber, numeric);
     spec.package.pinCount = std::max(spec.package.pinCount, maxNumber);
     int& pc = spec.package.pinCount;
-    if ((spec.package.type == "SOIC" || spec.package.type == "TSSOP" || spec.package.type == "DIP") && pc % 2) ++pc;
+    if ((spec.package.type == "SOIC" || spec.package.type == "TSSOP" || spec.package.type == "DIP" ||
+         spec.package.type == "HEADER2") && pc % 2)
+        ++pc;
     if ((spec.package.type == "QFN" || spec.package.type == "LQFP") && pc % 4) pc += 4 - pc % 4;
     if (spec.package.type == "SOT23" && pc > 6) throw JsonError("SOT-23 packages have at most 6 pins.");
     if (spec.package.type == "TO220" && pc > 7) throw JsonError("TO-220 packages have at most 7 pins.");

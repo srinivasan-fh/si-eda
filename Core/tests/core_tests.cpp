@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include "sieda/CustomParts.hpp"
+#include "sieda/DeviceModels.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/Json.hpp"
@@ -365,6 +366,238 @@ TEST(sim_nmos_low_side_switch) {
     auto r = sim.dcOperatingPoint();
     CHECK(r.converged);
     CHECK(netV(s, r, m, "D") < 0.1);
+}
+
+TEST(sim_blue_white_leds_conduct) {
+    // Wide-gap LEDs (blue/white, Is ≈ 1e-26) need junction exponents near 60; a fixed exp() knee at 40 left them open.
+    for (const char* colour : {"Blue", "White", "Red", "Green"}) {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+        int r = s.addComponent(ComponentKind::Resistor, "100", {80, 0});
+        int d = s.addComponent(ComponentKind::LED, colour, {160, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", r, "1");
+        wire(s, r, "2", d, "A");
+        wire(s, d, "K", g, "GND");
+        wire(s, v, "-", g, "GND");
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged);
+        double i = 0, vf = 0;
+        for (const auto& dev : dc.devices)
+            if (dev.componentId == d) {
+                i = dev.current;
+                vf = dev.voltage;
+            }
+        bool wide = std::string(colour) == "Blue" || std::string(colour) == "White";
+        std::printf("    %-5s Vf %.3f V, I %.2f mA\n", colour, vf, i * 1000);
+        CHECK(i > 0.010 && i < 0.035);
+        CHECK(wide ? (vf > 2.6 && vf < 3.3) : (vf > 1.7 && vf < 2.2));
+    }
+}
+
+TEST(device_models_and_switching_stress) {
+    CHECK(findDeviceModel(ComponentKind::NMOS, "SI2302") != nullptr);
+    CHECK(findDeviceModel(ComponentKind::NMOS, "si2302cds-t1") != nullptr);
+    CHECK(findDeviceModel(ComponentKind::NMOS, "BC847") == nullptr);  // wrong kind
+    CHECK(findDeviceModel(ComponentKind::Diode, "SS14")->maxCurrent == 1.0);
+    CHECK_NEAR(primaryValue("120 2W") == "120" ? 1 : 0, 1, 0);
+    CHECK_NEAR(*powerRating("120 2W"), 2.0, 1e-12);
+    CHECK_NEAR(*powerRating("0R1 1/2W"), 0.5, 1e-12);
+    CHECK_NEAR(*powerRating("4k7/250mW"), 0.25, 1e-12);
+    CHECK(primaryValue("4k7/250mW") == "4k7");
+    CHECK(!powerRating("4k7"));
+
+    // Coreless motor channel: 3.7 V LiPo, 1.2 Ω + 50 µH winding, 20 kHz PWM, Schottky flyback.
+    auto motor = [](const char* fet, const char* winding) {
+        Schematic s;
+        int b = s.addComponent(ComponentKind::VoltageSource, "3.7", {0, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        int r = s.addComponent(ComponentKind::Resistor, winding, {80, 0});
+        int l = s.addComponent(ComponentKind::Inductor, "50u", {160, 0});
+        int q = s.addComponent(ComponentKind::NMOS, fet, {240, 0});
+        int d = s.addComponent(ComponentKind::Diode, "SS14", {240, -80});
+        int vg = s.addComponent(ComponentKind::VoltageSource, "PULSE(0 3.3 50u 0.5)", {0, 160});
+        int rg = s.addComponent(ComponentKind::Resistor, "100", {120, 160});
+        wire(s, b, "+", r, "1");
+        wire(s, r, "2", l, "1");
+        wire(s, l, "2", q, "D");
+        wire(s, q, "S", g, "GND");
+        wire(s, b, "-", g, "GND");
+        wire(s, d, "A", q, "D");
+        wire(s, d, "K", b, "+");
+        wire(s, vg, "+", rg, "1");
+        wire(s, rg, "2", q, "G");
+        wire(s, vg, "-", g, "GND");
+        return s;
+    };
+    auto peakDrain = [&](const char* fet) {
+        Schematic s = motor(fet, "1.2 5W");
+        TransientResult tr = Simulator(s).transient(1e-3, 0.5e-6);
+        double peak = 0;
+        for (const auto& c : s.components())
+            if (c.kind == ComponentKind::NMOS)
+                for (double i : tr.currents[c.id]) peak = std::max(peak, std::fabs(i));
+        return peak;
+    };
+    double si = peakDrain("SI2302"), generic = peakDrain("2N7002");
+    std::printf("    peak drain current: SI2302 %.2f A, 2N7002 %.2f A\n", si, generic);
+    CHECK(si > 1.0 && si < 3.5);  // a real logic-level FET drives the coreless motor
+    CHECK(generic < 0.3);         // the small-signal part saturates
+
+    auto codes = [](const std::vector<RuleViolation>& v, const char* code) {
+        int n = 0;
+        for (const auto& f : v) n += f.code == code;
+        return n;
+    };
+    // 2N7002 in a motor drive: DC (t = 0, gate low) sees nothing, the switching-stress check catches it.
+    Schematic weak = motor("2N7002", "1.2 5W");
+    CHECK(codes(validateCircuit(weak), "VAL_TRANSIENT_STRESS") >= 1);
+    // SI2302 with a power-rated winding model: within ratings.
+    Schematic good = motor("SI2302", "1.2 5W");
+    auto findings = validateCircuit(good);
+    for (const auto& f : findings)
+        if (f.severity != Severity::Info) std::printf("    unexpected: %s %s\n", f.code.c_str(), f.message.c_str());
+    CHECK(codes(findings, "VAL_TRANSIENT_STRESS") == 0);
+    // The same winding as a plain 0805 resistor is flagged (2.3 W average).
+    CHECK(codes(validateCircuit(motor("SI2302", "1.2")), "VAL_TRANSIENT_STRESS") >= 1);
+}
+
+TEST(behavioural_chip_models) {
+    auto partId = [](const char* name) {
+        return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec)->id;
+    };
+    auto net = [](const Schematic& s, const DcResult& dc, int comp, const char* pin) {
+        return dc.netVoltages[static_cast<size_t>(s.netOf({comp, s.pinIndex(comp, pin)}))];
+    };
+    auto codes = [](const std::vector<RuleViolation>& v, const char* code) {
+        int n = 0;
+        for (const auto& f : v) n += f.code == code;
+        return n;
+    };
+    // LDO from a 1S LiPo: regulates, then drops out as the battery sags.
+    auto ldo = [&](const char* vin, const char* load) {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, vin, {0, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        int u = s.addCustomComponent(partId("XC6206P332"), "", {100, 0});
+        int r = s.addComponent(ComponentKind::Resistor, load, {200, 0});
+        wire(s, v, "+", u, "VIN");
+        wire(s, u, "VSS", g, "GND");
+        wire(s, u, "VOUT", r, "1");
+        wire(s, r, "2", g, "GND");
+        wire(s, v, "-", g, "GND");
+        return std::make_pair(s, u);
+    };
+    {
+        auto [s, u] = ldo("3.7", "150");  // 22 mA
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged);
+        CHECK_NEAR(net(s, dc, u, "VOUT"), 3.3, 0.01);
+        CHECK(codes(validateCircuit(s), "VAL_REGULATOR_DROPOUT") == 0);
+    }
+    {
+        auto [s, u] = ldo("3.4", "150");
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(net(s, dc, u, "VOUT") < 3.2 && net(s, dc, u, "VOUT") > 3.05);
+        CHECK(codes(validateCircuit(s), "VAL_REGULATOR_DROPOUT") == 1);
+    }
+    {
+        auto [s, u] = ldo("3.7", "5");  // would need 660 mA from a 250 mA LDO
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged);
+        CHECK(net(s, dc, u, "VOUT") < 1.4);  // 250 mA × 5 Ω
+        CHECK(codes(validateCircuit(s), "VAL_REGULATOR_OVERLOAD") == 1);
+    }
+    {
+        // Output back-fed from a higher rail: the regulator must not sink.
+        auto [s, u] = ldo("3.7", "1k");
+        int v2 = s.addComponent(ComponentKind::VoltageSource, "5", {300, 0});
+        int g2 = s.addComponent(ComponentKind::Ground, "", {300, 80});
+        wire(s, v2, "+", u, "VOUT");
+        wire(s, v2, "-", g2, "GND");
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged);
+        for (const auto& d : dc.devices)
+            if (d.componentId == u && d.subIndex == 0) CHECK(std::fabs(d.current) < 1e-6);
+    }
+    // LM317 adjustable: 1.25 V × (1 + 715/240) + I_ADJ·R2 ≈ 5.01 V; a 7805 dissipating 7 W in TO-220 free air is an error.
+    {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "12", {0, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        int u = s.addCustomComponent(partId("LM317"), "", {100, 0});
+        int r1 = s.addComponent(ComponentKind::Resistor, "240", {200, 0});
+        int r2 = s.addComponent(ComponentKind::Resistor, "715", {200, 80});
+        wire(s, v, "+", u, "IN");
+        wire(s, u, "OUT", r1, "1");
+        wire(s, r1, "2", u, "ADJ");
+        wire(s, u, "ADJ", r2, "1");
+        wire(s, r2, "2", g, "GND");
+        wire(s, v, "-", g, "GND");
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK_NEAR(net(s, dc, u, "OUT"), 1.25 * (1 + 715.0 / 240.0) + 50e-6 * 715, 0.01);  // includes I_ADJ · R2
+    }
+    {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "12", {0, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        int u = s.addCustomComponent(partId("LM7805"), "", {100, 0});
+        int r = s.addComponent(ComponentKind::Resistor, "5 10W", {200, 0});
+        wire(s, v, "+", u, "IN");
+        wire(s, u, "GND", g, "GND");
+        wire(s, u, "OUT", r, "1");
+        wire(s, r, "2", g, "GND");
+        wire(s, v, "-", g, "GND");
+        auto f = validateCircuit(s);
+        CHECK(codes(f, "VAL_REGULATOR_POWER") == 1);
+        bool error = false;
+        for (const auto& x : f) error |= x.code == "VAL_REGULATOR_POWER" && x.severity == Severity::Error;
+        CHECK(error);
+    }
+    // TP4056 charging a 3.7 V cell from USB: constant current 1 A, no overload finding (CC is normal for a charger).
+    {
+        Schematic s;
+        int usb = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+        int bat = s.addComponent(ComponentKind::VoltageSource, "3.7", {300, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        int g2 = s.addComponent(ComponentKind::Ground, "", {300, 80});
+        int u = s.addCustomComponent(partId("TP4056"), "", {150, 0});
+        wire(s, usb, "+", u, "VCC");
+        wire(s, u, "GND", g, "GND");
+        wire(s, u, "BAT", bat, "+");
+        wire(s, usb, "-", g, "GND");
+        wire(s, bat, "-", g2, "GND");
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged);
+        for (const auto& d : dc.devices)
+            if (d.componentId == u && d.subIndex == 0) {
+                CHECK_NEAR(d.current, 1.0, 1e-3);
+                CHECK(d.state == 1);
+            }
+        CHECK(codes(validateCircuit(s), "VAL_REGULATOR_OVERLOAD") == 0);
+    }
+    // IC supply current: an ATmega328P draws its operating current from the rail.
+    {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "3.3", {0, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        int u = s.addCustomComponent(partId("ATmega328P"), "", {150, 0});
+        wire(s, v, "+", u, "7");
+        wire(s, u, "8", g, "GND");
+        wire(s, v, "-", g, "GND");
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        double supply = 0;
+        for (const auto& d : dc.devices)
+            if (d.componentId == v) supply = d.current;
+        CHECK_NEAR(supply, 0.004, 2e-4);
+    }
+    // 2×4 header footprint: two columns 2.54 mm apart, IDC numbering.
+    {
+        auto part = CustomPartRegistry::instance().get(partId("NRF24L01_Module"));
+        CHECK(part->footprint.pads.size() == 8);
+        CHECK_NEAR(part->footprint.pads[1].offset.x - part->footprint.pads[0].offset.x, 2.54, 1e-9);
+        CHECK_NEAR(part->footprint.pads[2].offset.y - part->footprint.pads[0].offset.y, 2.54, 1e-9);
+    }
 }
 
 TEST(sim_no_ground_reports_error) {
@@ -807,7 +1040,7 @@ TEST(circuit_validation_rules) {
     CHECK(hasCode(validateCircuit(seriesCircuit("5", "330", ComponentKind::LED, "Red", true)), "VAL_REVERSE_BIAS"));
     auto heavy = validateCircuit(seriesCircuit("12", "100", ComponentKind::Resistor, "100"));
     CHECK(hasCode(heavy, "VAL_RESISTOR_POWER"));
-    auto shorted = validateCircuit(seriesCircuit("5", "1", ComponentKind::Resistor, "1"));
+    auto shorted = validateCircuit(seriesCircuit("5", "0.5", ComponentKind::Resistor, "0.5"));  // 5 A
     CHECK(hasCode(shorted, "VAL_SUPPLY_CURRENT"));
     CHECK(hasCode(validateCircuit(seriesCircuit("12", "10", ComponentKind::Fuse, "100m")), "VAL_FUSE_OVERLOAD"));
     CHECK(hasCode(validateCircuit(seriesCircuit("5", "1", ComponentKind::Diode, "1N4148")), "VAL_DIODE_CURRENT"));
@@ -921,6 +1154,7 @@ TEST(pcb_rule_presets_and_manufacturability_checks) {
     power.schematic.setValue(power.schematic.findByRef("R1")->id, "1");  // ~3 A through a 0.3 mm track
     power.schematicChanged();
     power.pcb.settings.applyPreset("Prototype (Conservative)");
+    power.pcb.settings.autoSizeNets = false;  // route at the default width to provoke the finding
     power.pcb.autoPlace(power.schematic, true);
     power.pcb.autoRoute(power.schematic);
     CHECK(has(codes(power), "DRC_TRACK_CURRENT"));
@@ -1001,7 +1235,7 @@ TEST(design_verification_pipeline) {
 }
 
 TEST(industry_profiles_and_derating) {
-    CHECK(industryProfiles().size() == 8);
+    CHECK(industryProfiles().size() == 9);
     for (const char* id : {"general", "robotics", "power", "automotive", "rf", "space", "marine", "industrial"}) {
         const IndustryProfile* p = findIndustry(id);
         CHECK(p != nullptr);
@@ -1079,6 +1313,212 @@ TEST(ipc2221_voltage_clearance) {
     CHECK(build("5") == 0);
     CHECK(build("230") > 0);
     CHECK(build("SIN(0 325 50)") > 0);  // mains peak, not the 0 V DC value
+}
+
+TEST(no_connect_flags) {
+    Project p;
+    auto& s = p.schematic;
+    std::string id = CustomPartRegistry::instance().registerPart(findStandardPart("NE555")->spec)->id;
+    int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    int u = s.addCustomComponent(id, "", {150, 0});
+    wire(s, v, "+", u, "8");
+    wire(s, u, "1", g, "GND");
+    wire(s, v, "-", g, "GND");
+    auto count = [&](const char* code) {
+        int n = 0;
+        for (const auto& f : s.runERC()) n += f.code == code;
+        return n;
+    };
+    CHECK(count("ERC_UNCONNECTED_PIN") == 6);  // pins 2–7 open
+    for (int pin = 1; pin <= 6; ++pin) CHECK(s.setPinNoConnect(u, pin, true));
+    CHECK(!s.setPinNoConnect(u, 99, true));
+    CHECK(count("ERC_UNCONNECTED_PIN") == 0);
+    // A flagged pin that gets wired is reported.
+    wire(s, u, "4", v, "+");
+    CHECK(count("ERC_NC_CONNECTED") == 1);
+    // Persisted with the project and visible in the snapshot.
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.schematic.find(u)->noConnect.size() == 6);
+    CHECK(p.snapshot().dump().find("\"noConnect\":true") != std::string::npos);
+    CHECK(s.setPinNoConnect(u, 3, false));
+    CHECK(s.find(u)->noConnect.size() == 5);
+}
+
+TEST(net_classes_and_fine_pitch) {
+    // Net class: a 1 A LED-strip feed gets a wide track; DRC stays clean around it.
+    Project p;
+    auto& s = p.schematic;
+    int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    int r = s.addComponent(ComponentKind::Resistor, "4.7 10W", {120, 0});
+    int r2 = s.addComponent(ComponentKind::Resistor, "10k", {120, 80});
+    int d = s.addComponent(ComponentKind::LED, "Red", {200, 80});
+    wire(s, v, "+", r, "1");
+    wire(s, r, "2", g, "GND");
+    wire(s, v, "+", r2, "1");
+    wire(s, r2, "2", d, "A");
+    wire(s, d, "K", g, "GND");
+    wire(s, v, "-", g, "GND");
+    p.schematicChanged();
+    auto widths = p.pcb.autoNetWidths(s);
+    CHECK(!widths.empty());
+    for (auto& [net, w] : widths) std::printf("    net class %s = %.2f mm\n", net.c_str(), w);
+    p.pcb.settings.width = 30;
+    p.pcb.settings.height = 22;
+    p.pcb.autoPlace(s, true);
+    CHECK(p.pcb.autoRoute(s).failed == 0);
+    double widest = 0;
+    for (const auto& t : p.pcb.tracks) widest = std::max(widest, t.width);
+    CHECK(widest >= 0.45 - 1e-9);
+    int bad = 0;
+    for (const auto& f : p.pcb.runDRC(s))
+        if (f.severity != Severity::Info && f.code != "DRC_TRACK_CURRENT") {
+            ++bad;
+            std::printf("    %s %s\n", f.code.c_str(), f.message.c_str());
+        }
+    CHECK(bad == 0);
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.pcb.settings.netWidths == p.pcb.settings.netWidths);
+
+    // Fine pitch: an MPU-6050 (0.5 mm QFN) wired up on Class 3 rules has no design-rule clearance findings from
+    // its own pad gaps, and tracks entering its pads are necked down to the pad width.
+    Project f;
+    auto& fs = f.schematic;
+    std::string imu = CustomPartRegistry::instance().registerPart(findStandardPart("MPU-6050")->spec)->id;
+    int u = fs.addCustomComponent(imu, "", {200, 0});
+    int vv = fs.addComponent(ComponentKind::VoltageSource, "3.3", {0, 0});
+    int gg = fs.addComponent(ComponentKind::Ground, "", {0, 80});
+    int c1 = fs.addComponent(ComponentKind::Capacitor, "100n", {100, 80});
+    int c2 = fs.addComponent(ComponentKind::Capacitor, "2.2n", {300, 80});
+    int c3 = fs.addComponent(ComponentKind::Capacitor, "100n", {300, 160});
+    wire(fs, vv, "+", u, "13");
+    wire(fs, u, "8", u, "13");
+    wire(fs, u, "18", gg, "GND");
+    wire(fs, u, "9", gg, "GND");
+    wire(fs, u, "1", gg, "GND");
+    wire(fs, u, "11", gg, "GND");
+    wire(fs, vv, "-", gg, "GND");
+    wire(fs, c1, "1", u, "13");
+    wire(fs, c1, "2", gg, "GND");
+    wire(fs, c2, "1", u, "20");
+    wire(fs, c2, "2", gg, "GND");
+    wire(fs, c3, "1", u, "10");
+    wire(fs, c3, "2", gg, "GND");
+    f.schematicChanged();
+    f.pcb.settings.applyPreset("IPC-2221 Class 3");
+    f.pcb.settings.width = 24;
+    f.pcb.settings.height = 20;
+    f.pcb.autoPlace(fs, true);
+    RouteStats st = f.pcb.autoRoute(fs);
+    std::printf("    QFN board: %d/%d routed\n", st.routed, st.connections);
+    CHECK(st.failed == 0);
+    int clearance = 0;
+    for (const auto& x : f.pcb.runDRC(fs))
+        if (x.code == "DRC_CLEARANCE_RULE" || x.code == "DRC_CLEARANCE" || x.code == "DRC_SHORT") {
+            ++clearance;
+            std::printf("    %s %s\n", x.code.c_str(), x.message.c_str());
+        }
+    CHECK(clearance == 0);
+    bool necked = false;
+    for (const auto& t : f.pcb.tracks) necked |= t.width < f.pcb.settings.trackWidth - 1e-9;
+    CHECK(necked);
+}
+
+TEST(board_outline_holes_and_pours) {
+    // Outline presets.
+    BoardSettings b;
+    b.setOutline(boardOutlinePreset("quad-x", 100, 40, 12));
+    CHECK_NEAR(b.width, 100, 1e-6);
+    CHECK_NEAR(b.height, 100, 1e-6);
+    CHECK(b.contains({50, 50}));
+    CHECK(b.contains({88, 88}));    // on a diagonal arm
+    CHECK(!b.contains({3, 50}));    // between two arms
+    CHECK(!b.contains({50, 97}));
+    CHECK(b.edgeDistance({50, 50}) > 15);
+    CHECK(b.edgeDistance({3, 50}) < 0);
+    CHECK(b.rectInside(Rect::centered({50, 50}, 10, 10), 1));
+    CHECK(!b.rectInside(Rect::centered({50, 72}, 10, 10), 0));
+    BoardSettings r;
+    r.setOutline(boardOutlinePreset("rounded", 30, 20, 4));
+    CHECK(r.contains({15, 10}) && !r.contains({0.3, 0.3}) && r.contains({0.3, 10}));
+    CHECK(boardOutlinePreset("hexagon", 10, 10, 0).empty());
+
+    // Amplifier on a quad-X frame with a 30.5 mm M3 mounting pattern and ground pours on both sides.
+    Project p = amplifierProject();
+    auto& s = p.schematic;
+    p.pcb.settings.setOutline(boardOutlinePreset("quad-x", 80, 40, 12));
+    for (double dx : {-15.25, 15.25})
+        for (double dy : {-15.25, 15.25}) p.pcb.settings.holes.push_back({{40 + dx, 40 + dy}, 3.2, 6.4});
+    p.pcb.zones.push_back({"GND", 1, false, 0});
+    p.pcb.zones.push_back({"GND", 0, false, 0});
+    p.pcb.autoPlace(s, true);
+    for (const auto& c : s.components())
+        if (c.hasFootprint()) CHECK(p.pcb.settings.rectInside(p.pcb.courtyard(c), 0));
+    RouteStats st = p.pcb.autoRoute(s);
+    std::printf("    quad-X board: %d/%d routed, %d vias\n", st.routed, st.connections, st.vias);
+    CHECK(st.failed == 0);
+    CHECK(p.pcb.ratsnest(s).empty());
+    const auto& fills = p.pcb.zoneFills(s);
+    CHECK(fills.size() == 2);
+    for (const auto& f : fills) {
+        CHECK(f.net >= 0 && f.islands >= 1 && f.area() > 200);
+        for (const auto& rc : f.rects) {  // poured copper stays inside the outline and out of the hole keep-outs
+            CHECK(p.pcb.settings.edgeDistance(rc.center()) >= p.pcb.settings.edgeClearance);
+            CHECK(p.pcb.settings.holeDistance(rc.center()) > 0);
+        }
+    }
+    std::string first;
+    CHECK(drcErrors(p, &first) == 0);
+    if (!first.empty()) std::printf("    first DRC error: %s\n", first.c_str());
+    // Ground tracks are only short stubs to the pour: no ground track current warning.
+    for (const auto& f : p.pcb.runDRC(s)) CHECK(f.code != "DRC_TRACK_CURRENT");
+
+    std::string edge = exportGerber(s, p.pcb, GerberLayer::EdgeCuts);
+    size_t lines = 0;
+    for (size_t at = edge.find("D01*"); at != std::string::npos; at = edge.find("D01*", at + 1)) ++lines;
+    CHECK(lines == p.pcb.settings.outline.size());
+    CHECK(exportCopperGerber(s, p.pcb, 1).find("G36*") != std::string::npos);
+    std::string npth = exportExcellonDrill(s, p.pcb, false);
+    CHECK(npth.find("T1C3.200") != std::string::npos && npth.find("NPTH") != std::string::npos);
+    Mesh m = buildAssemblyMesh(s, p.pcb);
+    CHECK(m.triangleCount() > 100);
+
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.pcb.settings.outline.size() == p.pcb.settings.outline.size());
+    CHECK(q.pcb.settings.holes.size() == 4);
+    CHECK(q.pcb.zones.size() == 2 && q.pcb.zones[0].net == "GND" && q.pcb.zones[0].layer == 1);
+    CHECK(q.pcb.ratsnest(q.schematic).empty());
+    Json snap = q.snapshot();
+    CHECK(snap.get("zoneFills").items().size() == 2);
+    CHECK(snap.get("board").get("holes").items().size() == 4);
+
+    // Off-board and hole keep-out findings.
+    Project bad = ledProject();
+    bad.pcb.settings.width = 30;
+    bad.pcb.settings.height = 20;
+    bad.pcb.autoPlace(bad.schematic, true);
+    bad.pcb.settings.holes.push_back({bad.schematic.components()[1].pcb.position, 3.2, 6.4});
+    bool keepout = false;
+    for (const auto& e : bad.pcb.runDRC(bad.schematic)) keepout |= e.code == "DRC_HOLE_KEEPOUT";
+    CHECK(keepout);
+
+    // Four-layer board with a reserved ground plane: no other net routes on it, the ground pads reach it by vias.
+    Project f = amplifierProject();
+    f.pcb.settings.layerCount = 4;
+    f.pcb.settings.width = 40;
+    f.pcb.settings.height = 30;
+    f.pcb.zones.push_back({"GND", 1, true, 0});
+    f.pcb.autoPlace(f.schematic, true);
+    RouteStats fs = f.pcb.autoRoute(f.schematic);
+    CHECK(fs.failed == 0);
+    int gnd = -1;
+    for (const auto& n : f.schematic.nets())
+        if (n.name == "GND") gnd = n.index;
+    for (const auto& t : f.pcb.tracks) CHECK(t.layer != 1 || t.net == gnd);
+    CHECK(f.pcb.zoneFills(f.schematic)[0].area() > 0.6 * 40 * 30);
+    CHECK(drcErrors(f, &first) == 0);
+    if (!first.empty()) std::printf("    first DRC error: %s\n", first.c_str());
 }
 
 TEST(project_json_roundtrip) {

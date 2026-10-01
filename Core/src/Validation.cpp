@@ -6,6 +6,7 @@
 #include <set>
 
 #include "sieda/CustomParts.hpp"
+#include "sieda/DeviceModels.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/Units.hpp"
 
@@ -27,7 +28,7 @@ std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatin
         v.code = code;
         v.message = msg;
         static const char* ratingCodes[] = {"VAL_RESISTOR_POWER", "VAL_LED_CURRENT", "VAL_DIODE_CURRENT",
-                                             "VAL_TRANSISTOR_RATING"};
+                                             "VAL_TRANSISTOR_RATING", "VAL_TRANSIENT_STRESS"};
         if (!r.derating.empty())
             for (const char* rc : ratingCodes)
                 if (code == rc) v.message += " Limits include " + r.derating + ".";
@@ -43,7 +44,7 @@ std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatin
     for (const auto& c : sch.components()) {
         if (c.kind != ComponentKind::Resistor && c.kind != ComponentKind::Capacitor && c.kind != ComponentKind::Inductor)
             continue;
-        auto value = parseEngineeringValue(c.value);
+        auto value = parseEngineeringValue(primaryValue(c.value));
         if (!value || *value <= 0) continue;  // invalid values are an ERC error already
         const char* unit = c.kind == ComponentKind::Resistor ? "Ω" : (c.kind == ComponentKind::Capacitor ? "F" : "H");
         if (c.kind == ComponentKind::Resistor) {
@@ -101,62 +102,215 @@ std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatin
         out.push_back(v);
         return out;
     }
+    // Continuous ratings of a semiconductor: its part-number model if known, else the default part of its kind.
+    struct Limits {
+        double current, power;
+        std::string part;
+    };
+    auto limitsFor = [&](const Component& c) -> Limits {
+        if (const DeviceModel* m = findDeviceModel(c.kind, c.value))
+            return {m->maxCurrent * r.currentFactor, m->maxPower * r.powerFactor, m->part};
+        switch (c.kind) {
+            case ComponentKind::Diode: return {r.diodeCurrent, 1e9, "1N4148"};
+            case ComponentKind::NPN: return {r.npnCurrent, r.npnPower, "BC847"};
+            case ComponentKind::NMOS: return {r.nmosCurrent, r.nmosPower, "2N7002"};
+            default: return {1e9, 1e9, ""};
+        }
+    };
+    std::map<int, std::set<std::string>> reported;  // component id → codes already raised
+    auto addOnce = [&](Severity s, const std::string& code, const std::string& msg, const Component& c) {
+        if (reported[c.id].insert(code).second) add(s, code, msg, c);
+    };
+
     for (const auto& d : dc.devices) {
         const Component* c = sch.find(d.componentId);
         if (!c) continue;
         double i = std::fabs(d.current), p = std::fabs(d.power);
         switch (c->kind) {
-            case ComponentKind::Resistor:
-                if (p > r.resistorPower)
-                    add(overload(p, r.resistorPower), "VAL_RESISTOR_POWER",
-                        c->ref + " dissipates " + fmt(p, "W") + ", above the " + fmt(r.resistorPower, "W") +
-                            " rating of an 0805 resistor. Use a larger package or a higher value.", *c);
+            case ComponentKind::Resistor: {
+                auto rated = powerRating(c->value);
+                double limit = rated ? *rated * r.powerFactor : r.resistorPower;
+                if (p > limit)
+                    addOnce(overload(p, limit), "VAL_RESISTOR_POWER",
+                            c->ref + " dissipates " + fmt(p, "W") + ", above the " + fmt(limit, "W") +
+                                (rated ? " rating given in its value." : " rating of an 0805 resistor. Use a larger package "
+                                                                        "(add the rating to the value, e.g. \"120 1W\") or a higher value."),
+                            *c);
                 break;
+            }
             case ComponentKind::LED:
                 if (d.voltage < -0.5)
-                    add(Severity::Warning, "VAL_REVERSE_BIAS",
-                        c->ref + " is reverse-biased (V_AK = " + fmt(d.voltage, "V") + ") — check its orientation.", *c);
+                    addOnce(Severity::Warning, "VAL_REVERSE_BIAS",
+                            c->ref + " is reverse-biased (V_AK = " + fmt(d.voltage, "V") + ") — check its orientation.", *c);
                 else if (i > r.ledCurrent)
-                    add(overload(i, r.ledCurrent), "VAL_LED_CURRENT",
-                        c->ref + " carries " + fmt(i, "A") + " (max " + fmt(r.ledCurrent, "A") +
-                            "). Increase the series resistor.", *c);
+                    addOnce(overload(i, r.ledCurrent), "VAL_LED_CURRENT",
+                            c->ref + " carries " + fmt(i, "A") + " (max " + fmt(r.ledCurrent, "A") +
+                                "). Increase the series resistor.", *c);
                 break;
-            case ComponentKind::Diode:
-                if (i > r.diodeCurrent)
-                    add(overload(i, r.diodeCurrent), "VAL_DIODE_CURRENT",
-                        c->ref + " forward current " + fmt(i, "A") + " exceeds " + fmt(r.diodeCurrent, "A") + ".", *c);
+            case ComponentKind::Diode: {
+                Limits lim = limitsFor(*c);
+                if (i > lim.current)
+                    addOnce(overload(i, lim.current), "VAL_DIODE_CURRENT",
+                            c->ref + " forward current " + fmt(i, "A") + " exceeds " + fmt(lim.current, "A") + " (" +
+                                lim.part + ").", *c);
                 break;
+            }
             case ComponentKind::NPN:
-                if (i > r.npnCurrent || p > r.npnPower)
-                    add(std::max(overload(i, r.npnCurrent), overload(p, r.npnPower)), "VAL_TRANSISTOR_RATING",
-                        c->ref + " I_C = " + fmt(i, "A") + ", P = " + fmt(p, "W") + " exceeds BC847 ratings (" +
-                            fmt(r.npnCurrent, "A") + ", " + fmt(r.npnPower, "W") + ").", *c);
+            case ComponentKind::NMOS: {
+                Limits lim = limitsFor(*c);
+                if (i > lim.current || p > lim.power)
+                    addOnce(std::max(overload(i, lim.current), overload(p, lim.power)), "VAL_TRANSISTOR_RATING",
+                            c->ref + (c->kind == ComponentKind::NPN ? " I_C = " : " I_D = ") + fmt(i, "A") + ", P = " +
+                                fmt(p, "W") + " exceeds " + lim.part + " ratings (" + fmt(lim.current, "A") + ", " +
+                                fmt(lim.power, "W") + ").", *c);
                 break;
-            case ComponentKind::NMOS:
-                if (i > r.nmosCurrent || p > r.nmosPower)
-                    add(std::max(overload(i, r.nmosCurrent), overload(p, r.nmosPower)), "VAL_TRANSISTOR_RATING",
-                        c->ref + " I_D = " + fmt(i, "A") + ", P = " + fmt(p, "W") + " exceeds 2N7002 ratings (" +
-                            fmt(r.nmosCurrent, "A") + ", " + fmt(r.nmosPower, "W") + ").", *c);
-                break;
+            }
             case ComponentKind::VoltageSource:
                 if (i > r.supplyCurrent)
-                    add(Severity::Warning, "VAL_SUPPLY_CURRENT",
-                        c->ref + " delivers " + fmt(i, "A") + " — check for a short circuit or a missing load resistor.", *c);
+                    addOnce(Severity::Warning, "VAL_SUPPLY_CURRENT",
+                            c->ref + " delivers " + fmt(i, "A") + " — check for a short circuit or a missing load resistor.", *c);
                 break;
             case ComponentKind::OpAmp:
                 if (std::fabs(d.voltage) > r.opampRail)
-                    add(Severity::Info, "VAL_OPAMP_SATURATED",
-                        c->ref + " output is saturated at " + fmt(d.voltage, "V") + " — check the gain and feedback.", *c);
+                    addOnce(Severity::Info, "VAL_OPAMP_SATURATED",
+                            c->ref + " output is saturated at " + fmt(d.voltage, "V") + " — check the gain and feedback.", *c);
                 break;
+            case ComponentKind::Custom: {
+                const CustomPart* part = CustomPartRegistry::instance().find(c->customPart);
+                if (!part || !part->spec.model.hasRegulator || d.subIndex != 0) break;
+                const RegulatorModel& rm = part->spec.model.regulator;
+                double pmax = rm.maxPower * r.powerFactor;
+                if (d.power > pmax)
+                    addOnce(overload(d.power, pmax), "VAL_REGULATOR_POWER",
+                            c->ref + " (" + part->spec.name + ") dissipates " + fmt(d.power, "W") + " ((V_in − V_out) × " +
+                                fmt(d.current, "A") + "), above its " + fmt(pmax, "W") +
+                                " package limit — lower the input voltage, reduce the load or use a switching regulator.",
+                            *c);
+                if (d.state == 1 && !rm.charger)
+                    addOnce(Severity::Warning, "VAL_REGULATOR_OVERLOAD",
+                            c->ref + " (" + part->spec.name + ") is in current limit at " + fmt(rm.ilimit, "A") +
+                                " — the load needs more than the regulator can supply.", *c);
+                if (d.state == 3)
+                    addOnce(Severity::Warning, "VAL_REGULATOR_DROPOUT",
+                            c->ref + " (" + part->spec.name + ") is in dropout: only " + fmt(d.voltage, "V") +
+                                " headroom for its " + fmt(rm.dropout, "V") + " dropout, so the output sags below " +
+                                fmt(rm.vout, "V") + ".", *c);
+                break;
+            }
             case ComponentKind::Fuse: {
                 auto rating = parseEngineeringValue(c->value);
                 if (rating && *rating > 0 && i > *rating)
-                    add(overload(i, *rating), "VAL_FUSE_OVERLOAD",
-                        c->ref + " carries " + fmt(i, "A") + ", above its " + fmt(*rating, "A") + " rating.", *c);
+                    addOnce(overload(i, *rating), "VAL_FUSE_OVERLOAD",
+                            c->ref + " carries " + fmt(i, "A") + ", above its " + fmt(*rating, "A") + " rating.", *c);
                 break;
             }
             default: break;
         }
+    }
+
+    // --- Switching stress: with SIN/PULSE stimulus, the DC point (t = 0) misses the real operating currents.
+    // Simulate until steady (50–800 periods of the slowest source) and check RMS current / average power over the
+    // last quarter against continuous ratings, and peak current against 4× the continuous rating.
+    if (!r.transientStress) return out;
+    double slowest = 0, fastest = 1e30;
+    for (const auto& c : sch.components()) {
+        if (c.kind != ComponentKind::VoltageSource && c.kind != ComponentKind::CurrentSource) continue;
+        auto spec = SourceSpec::parse(c.value);
+        if (!spec) continue;
+        double period = 0;
+        if (spec->kind == SourceSpec::Kind::Sine && spec->frequency > 0) period = 1.0 / spec->frequency;
+        if (spec->kind == SourceSpec::Kind::Pulse && spec->period > 0) period = spec->period;
+        if (period > 0) {
+            slowest = std::max(slowest, period);
+            fastest = std::min(fastest, period);
+        }
+    }
+    if (slowest <= 0) return out;
+    // Extend the window until the circuit has settled: RMS currents of the last two quarters agree within 5 %.
+    TransientResult tr;
+    for (double periods = 50; periods <= 800; periods *= 2) {
+        double window = std::min(1.0, periods * slowest);
+        double step = std::max(fastest / 50, window / 40000);
+        tr = Simulator(sch).transient(window, step);
+        if (!tr.ok) break;
+        size_t n = tr.time.size(), q3 = n / 2, q4 = 3 * n / 4;
+        bool settled = true;
+        for (const auto& [id, samples] : tr.currents) {
+            double a = 0, b = 0;
+            for (size_t k = q3; k < q4; ++k) a += samples[k] * samples[k];
+            for (size_t k = q4; k < n; ++k) b += samples[k] * samples[k];
+            a = std::sqrt(a / std::max<size_t>(1, q4 - q3));
+            b = std::sqrt(b / std::max<size_t>(1, n - q4));
+            if (std::fabs(a - b) > 0.05 * std::max(a, b) + 1e-6) settled = false;
+        }
+        for (const auto& samples : tr.netVoltages) {  // slow rails (output capacitors) must have stopped moving too
+            double a = 0, b = 0;
+            for (size_t k = q3; k < q4; ++k) a += samples[k];
+            for (size_t k = q4; k < n; ++k) b += samples[k];
+            a /= static_cast<double>(std::max<size_t>(1, q4 - q3));
+            b /= static_cast<double>(std::max<size_t>(1, n - q4));
+            if (std::fabs(a - b) > 0.02 * std::max(std::fabs(a), std::fabs(b)) + 0.01) settled = false;
+        }
+        if (settled || window >= 1.0) break;
+    }
+    if (!tr.ok) {
+        RuleViolation v;
+        v.severity = Severity::Info;
+        v.code = "VAL_TRANSIENT_SKIPPED";
+        v.message = "Switching stress was not checked: " + tr.error;
+        out.push_back(v);
+        return out;
+    }
+    size_t n = tr.time.size(), from = 3 * n / 4;  // steady state: last quarter
+    if (n < 4) return out;
+    for (const auto& c : sch.components()) {
+        auto ic = tr.currents.find(c.id);
+        auto pc = tr.powers.find(c.id);
+        if (ic == tr.currents.end() || pc == tr.powers.end()) continue;
+        double sq = 0, pavg = 0, peak = 0;
+        for (size_t k = from; k < n; ++k) {
+            sq += ic->second[k] * ic->second[k];
+            pavg += std::fabs(pc->second[k]);
+            peak = std::max(peak, std::fabs(ic->second[k]));
+        }
+        double cnt = static_cast<double>(n - from);
+        double rms = std::sqrt(sq / cnt);
+        pavg /= cnt;
+        double imax = 0, pmax = 0;
+        std::string part;
+        switch (c.kind) {
+            case ComponentKind::Resistor: {
+                auto rated = powerRating(c.value);
+                pmax = rated ? *rated * r.powerFactor : r.resistorPower;
+                part = rated ? fmt(*rated, "W") + " resistor" : "0805 resistor";
+                break;
+            }
+            case ComponentKind::LED: imax = r.ledCurrent; part = "LED"; break;
+            case ComponentKind::Diode:
+            case ComponentKind::NPN:
+            case ComponentKind::NMOS: {
+                Limits lim = limitsFor(c);
+                imax = lim.current;
+                pmax = lim.power;
+                part = lim.part;
+                break;
+            }
+            default: continue;
+        }
+        if (reported[c.id].count("VAL_TRANSISTOR_RATING") || reported[c.id].count("VAL_RESISTOR_POWER") ||
+            reported[c.id].count("VAL_LED_CURRENT") || reported[c.id].count("VAL_DIODE_CURRENT"))
+            continue;
+        bool overI = imax > 0 && rms > imax;
+        bool overP = pmax > 0 && pavg > pmax;
+        bool overPeak = imax > 0 && peak > 4 * imax;
+        if (!overI && !overP && !overPeak) continue;
+        Severity sev = Severity::Warning;
+        if ((imax > 0 && rms >= 2 * imax) || (pmax > 0 && pavg >= 2 * pmax) || overPeak) sev = Severity::Error;
+        std::string msg = c.ref + " switching stress: RMS " + fmt(rms, "A") + ", peak " + fmt(peak, "A") + ", average " +
+                          fmt(pavg, "W") + " — exceeds " + part + " ratings (" +
+                          (imax > 0 ? fmt(imax, "A") + " continuous, " + fmt(4 * imax, "A") + " peak" : std::string()) +
+                          (imax > 0 && pmax > 0 ? ", " : "") + (pmax > 0 ? fmt(pmax, "W") : std::string()) + ").";
+        addOnce(sev, "VAL_TRANSIENT_STRESS", msg, c);
     }
     return out;
 }

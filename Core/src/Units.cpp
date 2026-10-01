@@ -142,4 +142,70 @@ bool isStandardValue(double value, ESeries series, double relTolerance) {
     return std::fabs(nearest - value) <= relTolerance * nearest;
 }
 
+namespace {
+std::vector<std::string> valueTokens(const std::string& text) {
+    std::vector<std::string> tokens;
+    std::string cur;
+    for (char ch : text) {
+        if (ch == ' ' || ch == '\t' || ch == ',' || ch == ';') {
+            if (!cur.empty()) tokens.push_back(cur);
+            cur.clear();
+        } else {
+            cur += ch;
+        }
+    }
+    if (!cur.empty()) tokens.push_back(cur);
+    return tokens;
+}
+
+// "2W", "0.5W", "1/4W", "250mW" → watts.
+std::optional<double> wattToken(std::string t) {
+    if (t.size() < 2 || (t.back() != 'W' && t.back() != 'w')) return std::nullopt;
+    t.pop_back();
+    double scale = 1;
+    if (!t.empty() && t.back() == 'm') {
+        scale = 1e-3;
+        t.pop_back();
+    }
+    if (t.empty()) return std::nullopt;
+    auto slash = t.find('/');
+    char* end = nullptr;
+    if (slash != std::string::npos) {
+        const std::string numText = t.substr(0, slash), denText = t.substr(slash + 1);
+        double num = std::strtod(numText.c_str(), &end);
+        if (numText.empty() || *end) return std::nullopt;
+        double den = std::strtod(denText.c_str(), &end);
+        if (denText.empty() || *end || den <= 0) return std::nullopt;
+        return num / den * scale;
+    }
+    double v = std::strtod(t.c_str(), &end);
+    if (*end || v <= 0) return std::nullopt;
+    return v * scale;
+}
+}  // namespace
+
+std::string primaryValue(const std::string& text) {
+    auto tokens = valueTokens(text);
+    if (tokens.empty()) return text;
+    // "4k7/250mW": split a rating glued on with '/'.
+    std::string first = tokens.front();
+    auto slash = first.find('/');
+    if (slash != std::string::npos && wattToken(first.substr(slash + 1))) first = first.substr(0, slash);
+    return first;
+}
+
+std::optional<double> powerRating(const std::string& text) {
+    auto tokens = valueTokens(text);
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        if (i == 0) {
+            auto slash = tokens[0].find('/');
+            if (slash != std::string::npos)
+                if (auto w = wattToken(tokens[0].substr(slash + 1))) return w;
+            continue;
+        }
+        if (auto w = wattToken(tokens[i])) return w;
+    }
+    return std::nullopt;
+}
+
 }  // namespace sieda

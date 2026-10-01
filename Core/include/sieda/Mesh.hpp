@@ -29,6 +29,8 @@ struct Mesh {
     void addSegmentBox(Vec2 a, Vec2 b, double width, double y0, double y1, Rgba color);
     /// Vertical (Y axis) cylinder.
     void addCylinder(Vec3 baseCentre, double radius, double height, Rgba color, int segments = 20);
+    /// Polygon (board XY) extruded between heights y0 and y1.
+    void addPrism(const std::vector<Vec2>& polygon, double y0, double y1, Rgba color);
 
 private:
     void addQuad(Vec3 a, Vec3 b, Vec3 c, Vec3 d, Rgba color);

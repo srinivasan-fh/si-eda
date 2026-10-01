@@ -1,5 +1,6 @@
 #include "sieda/Mesh.hpp"
 
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <string>
@@ -8,7 +9,55 @@ namespace sieda {
 
 namespace {
 Vec3 board3(Vec2 p, double y) { return {p.x, y, p.y}; }
+
+/// Ear-clipping triangulation of a simple polygon; returns index triples.
+std::vector<std::array<size_t, 3>> triangulate(const std::vector<Vec2>& poly) {
+    std::vector<std::array<size_t, 3>> tris;
+    const size_t n = poly.size();
+    if (n < 3) return tris;
+    double area = 0;
+    for (size_t i = 0, j = n - 1; i < n; j = i++) area += poly[j].x * poly[i].y - poly[i].x * poly[j].y;
+    std::vector<size_t> idx(n);
+    for (size_t i = 0; i < n; ++i) idx[i] = area >= 0 ? i : n - 1 - i;  // counter-clockwise order
+    auto cross = [](Vec2 a, Vec2 b, Vec2 c) { return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x); };
+    size_t guard = 0;
+    while (idx.size() > 3 && guard++ < 4 * n * n) {
+        bool clipped = false;
+        for (size_t k = 0; k < idx.size(); ++k) {
+            size_t ia = idx[(k + idx.size() - 1) % idx.size()], ib = idx[k], ic = idx[(k + 1) % idx.size()];
+            Vec2 a = poly[ia], b = poly[ib], c = poly[ic];
+            if (cross(a, b, c) <= 1e-12) continue;  // reflex or degenerate
+            bool inside = false;
+            for (size_t m : idx) {
+                if (m == ia || m == ib || m == ic) continue;
+                Vec2 p = poly[m];
+                if (cross(a, b, p) >= 0 && cross(b, c, p) >= 0 && cross(c, a, p) >= 0) { inside = true; break; }
+            }
+            if (inside) continue;
+            tris.push_back({ia, ib, ic});
+            idx.erase(idx.begin() + static_cast<long>(k));
+            clipped = true;
+            break;
+        }
+        if (!clipped) break;  // not simple — give up on the rest
+    }
+    if (idx.size() == 3) tris.push_back({idx[0], idx[1], idx[2]});
+    return tris;
+}
 }  // namespace
+
+void Mesh::addPrism(const std::vector<Vec2>& poly, double y0, double y1, Rgba c) {
+    for (const auto& t : triangulate(poly)) {
+        Vec2 a = poly[t[0]], b = poly[t[1]], d = poly[t[2]];
+        // Polygon is CCW in board XY; board Y maps to +Z, so top faces (normal +Y) use the reversed order.
+        addQuad(board3(a, y1), board3(d, y1), board3(b, y1), board3(a, y1), c);
+        addQuad(board3(a, y0), board3(b, y0), board3(d, y0), board3(a, y0), c);
+    }
+    for (size_t i = 0; i < poly.size(); ++i) {
+        Vec2 s = poly[i], e = poly[(i + 1) % poly.size()];
+        addQuad(board3(s, y0), board3(s, y1), board3(e, y1), board3(e, y0), c);
+    }
+}
 
 void Mesh::addQuad(Vec3 a, Vec3 b, Vec3 c, Vec3 d, Rgba color) {
     Vec3 n = (b - a).cross(c - a).normalized();
@@ -82,6 +131,10 @@ Mesh buildCopperLayerMesh(const Schematic& sch, const PcbLayout& pcb, int layer)
     const double cu = 0.035;
     const Rgba trace{0.35f, 0.75f, 1.0f, 1.0f};
     const Rgba pad{0.80f, 0.92f, 1.0f, 1.0f};
+    const Rgba pour{0.22f, 0.55f, 0.90f, 1.0f};
+    for (const auto& f : pcb.zoneFills(sch))
+        if (f.layer == layer)
+            for (const auto& r : f.rects) m.addBox({r.x0, 0.0, r.y0}, {r.x1, cu * 0.9, r.y1}, pour);
     for (const auto& tr : pcb.tracks)
         if (tr.layer == layer) m.addSegmentBox(tr.a, tr.b, tr.width, 0.0, cu, trace);
     for (const auto& p : pcb.pads(sch)) {
@@ -106,11 +159,26 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
     const Rgba fr4Edge{0.75f, 0.68f, 0.45f, 1.0f};
 
     // Board core with a slightly darker FR-4 edge band.
-    m.addBox({0, -t, 0}, {s.width, 0, s.height}, mask);
-    m.addBox({-0.01, -t * 0.7, -0.01}, {s.width + 0.01, -t * 0.3, s.height + 0.01}, fr4Edge);
+    if (s.hasCustomOutline()) {
+        m.addPrism(s.outline, -t, 0, mask);
+    } else {
+        m.addBox({0, -t, 0}, {s.width, 0, s.height}, mask);
+        m.addBox({-0.01, -t * 0.7, -0.01}, {s.width + 0.01, -t * 0.3, s.height + 0.01}, fr4Edge);
+    }
+    // Mounting holes: dark bore through the board with a bare-FR-4 ring for the screw head.
+    const Rgba bore{0.02f, 0.03f, 0.05f, 1.0f};
+    for (const auto& h : s.holes) {
+        m.addCylinder({h.position.x, -t - 0.02, h.position.y}, h.drill / 2, t + 0.04, bore, 24);
+        m.addCylinder({h.position.x, 0.0, h.position.y}, h.keepout / 2, 0.005, fr4Edge, 32);
+    }
 
     auto ps = pcb.pads(sch);
     if (opt.copper) {
+        const Rgba pourColor{0.10f, 0.32f, 0.70f, 1.0f};
+        for (const auto& f : pcb.zoneFills(sch)) {
+            double y0 = copperLayerBase(f.layer, s.layerCount, t, cu);
+            for (const auto& r : f.rects) m.addBox({r.x0, y0, r.y0}, {r.x1, y0 + cu * 0.9, r.y1}, pourColor);
+        }
         for (const auto& tr : pcb.tracks) {
             double y0 = copperLayerBase(tr.layer, s.layerCount, t, cu);
             m.addSegmentBox(tr.a, tr.b, tr.width, y0, y0 + cu, trackColor);

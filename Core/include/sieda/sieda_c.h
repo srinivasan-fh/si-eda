@@ -56,6 +56,8 @@ int32_t sieda_find_component(const SiedaProject* project, const char* ref);  /* 
 int32_t sieda_find_pin(const SiedaProject* project, int32_t component_id, const char* pin_name); /* index or -1 */
 /* Returns wire id or -1. */
 int32_t sieda_connect(SiedaProject* project, int32_t comp_a, int32_t pin_a, int32_t comp_b, int32_t pin_b);
+/* Marks (1) or clears (0) a no-connect flag on a pin: ERC no longer reports it unconnected. 1 on success. */
+int32_t sieda_set_pin_no_connect(SiedaProject* project, int32_t component_id, int32_t pin, int32_t no_connect);
 int32_t sieda_remove_wire(SiedaProject* project, int32_t wire_id);
 
 /* ---- custom components (datasheet import) ---------------------------------------------------- */
@@ -113,10 +115,30 @@ char* sieda_pcb_run_drc(const SiedaProject* project);
 char* sieda_design_rule_presets_json(void);
 /* Applies a preset by name (design values + fabrication limits); returns 0 for unknown names. */
 int32_t sieda_pcb_apply_rule_preset(SiedaProject* project, const char* name);
+/* Net class: route `net_name` with a `width_mm` track (0 removes the class). Returns 1 on success. */
+int32_t sieda_pcb_set_net_width(SiedaProject* project, const char* net_name, double width_mm);
+/* Sizes net classes from the DC operating point (IPC-2221 + 25 %). Returns {"NET": width_mm, …} of classes it set. */
+char* sieda_pcb_auto_net_widths(SiedaProject* project);
+/* enabled = 1 (default): the autorouter runs sieda_pcb_auto_net_widths first. */
+void sieda_pcb_set_auto_size_nets(SiedaProject* project, int32_t enabled);
+/* Board outline polygon as JSON [{"x":…,"y":…}, …] (mm, ≥ 3 points); "[]" restores the width × height rectangle.
+ * The outline is shifted to start at (0,0) and the board size set to its bounds. Returns 0 for invalid JSON. */
+int32_t sieda_pcb_set_outline(SiedaProject* project, const char* points_json);
+/* Outline presets: "rectangle" (w × h), "rounded" (corner radius param), "circle" (diameter w),
+ * "quad-x" (quadcopter frame: span w, square body h, arm width param). Returns 0 for unknown kinds. */
+int32_t sieda_pcb_outline_preset(SiedaProject* project, const char* kind, double w, double h, double param);
+/* Non-plated mounting hole with a copper/part keep-out circle (keepout_mm ≤ 0: twice the drill). Returns the hole count. */
+int32_t sieda_pcb_add_mounting_hole(SiedaProject* project, double x, double y, double drill_mm, double keepout_mm);
+void sieda_pcb_clear_mounting_holes(SiedaProject* project);
+/* Copper pour of `net_name` on copper layer `layer` (0 = top); plane = 1 reserves the layer for the net (other nets
+ * only pass through with vias). clearance_mm ≤ 0 uses the board clearance. Returns the zone index or -1. */
+int32_t sieda_pcb_add_zone(SiedaProject* project, const char* net_name, int32_t layer, int32_t plane, double clearance_mm);
+int32_t sieda_pcb_remove_zone(SiedaProject* project, int32_t index);
+void sieda_pcb_clear_zones(SiedaProject* project);
 
 /* ---- exports ------------------------------------------------------------------------------- */
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
- *         "gerber_silk_top", "gerber_edge", "drill", "stl", "obj". Returns NULL for unknown formats. */
+ *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj". Returns NULL for unknown formats. */
 char* sieda_export(const SiedaProject* project, const char* format);
 
 /* ---- 3D ------------------------------------------------------------------------------------ */

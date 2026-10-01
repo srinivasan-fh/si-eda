@@ -29,6 +29,7 @@ struct IndustryProfile: Decodable, Equatable, Identifiable, Hashable {
     var systemImage: String {
         switch id {
         case "robotics": return "gearshape.2"
+        case "uav": return "airplane"
         case "power": return "bolt.fill"
         case "automotive": return "car"
         case "rf": return "antenna.radiowaves.left.and.right"

@@ -1,4 +1,6 @@
 #include "sieda/Simulator.hpp"
+#include "sieda/CustomParts.hpp"
+#include "sieda/DeviceModels.hpp"
 
 #include <algorithm>
 #include <array>
@@ -93,12 +95,22 @@ constexpr double kVt = 0.025852;  // thermal voltage @ 300 K
 constexpr double kGmin = 1e-12;
 constexpr double kOpAmpGain = 1e6;
 
-double limexp(double x) {
-    constexpr double kMax = 40.0;
+/// exp(x) continued linearly above `kMax` so Newton steps cannot overflow. The knee must sit above any realistic
+/// operating point: for a junction with saturation current `is` that is ln(1 A / is), which matters for wide-gap
+/// LEDs (blue/white, is ≈ 1e-26) whose forward drop needs exponents near 60.
+double limexp(double x, double kMax = 40.0) {
     return x < kMax ? std::exp(x) : std::exp(kMax) * (1.0 + x - kMax);
 }
 
-enum class ElemType { Resistor, Capacitor, Inductor, VSource, ISource, Diode, NPN, NMOS, OpAmp };
+double junctionLimit(double is) { return std::max(40.0, std::log(1.0 / std::max(is, 1e-300))); }
+
+enum class ElemType { Resistor, Capacitor, Inductor, VSource, ISource, Diode, NPN, NMOS, OpAmp, Regulator, Load };
+
+// Smooth max(0, z) with a 20 mV knee (keeps Newton derivatives continuous).
+double softplus(double z) {
+    constexpr double s = 0.02;
+    return z / s > 30 ? z : s * std::log1p(std::exp(z / s));
+}
 }  // namespace
 
 struct Simulator::Element {
@@ -110,8 +122,15 @@ struct Simulator::Element {
     int branch = -1;  // unknown index for branch current
     // Device model parameters
     double is = 1e-14, emission = 1.0, betaF = 100, betaR = 1, vth = 1.5, kp = 0.02, lambda = 0.01, vsat = 15;
+    // Behavioural regulator (in, out, ref): CV with dropout / CC at ilimit / off when it would have to sink.
+    double dropout = 0.3, iq = 0, ilimit = 1.0, rout = 0.01;
+    mutable int mode = 0;  // 0 CV, 1 CC, 2 off
+    int sub = 0;           // element index within a custom part (0 = regulator, 1… = supply loads)
     // Transient state
     double prevV = 0, prevI = 0;
+
+    /// Regulated output for input headroom vi (V_in − V_ref): min(vout, vi − dropout), never negative.
+    double setpoint(double vi) const { return softplus(value - softplus(value - (vi - dropout))); }
 };
 
 namespace {
@@ -123,16 +142,20 @@ double nodeV(const std::vector<double>& x, int i) { return i < 0 ? 0.0 : x[stati
 std::array<double, 3> deviceCurrents(const Elem& e, const std::array<double, 3>& v) {
     switch (e.type) {
         case ElemType::Diode: {
-            double i = e.is * (limexp((v[0] - v[1]) / (e.emission * kVt)) - 1.0);
+            double i = e.is * (limexp((v[0] - v[1]) / (e.emission * kVt), junctionLimit(e.is)) - 1.0);
             return {i, -i, 0};
         }
         case ElemType::NPN: {  // terminals: B, C, E  (Ebers–Moll transport model)
             double vbe = v[0] - v[2], vbc = v[0] - v[1];
-            double iF = e.is * (limexp(vbe / kVt) - 1.0);
-            double iR = e.is * (limexp(vbc / kVt) - 1.0);
+            double iF = e.is * (limexp(vbe / kVt, junctionLimit(e.is)) - 1.0);
+            double iR = e.is * (limexp(vbc / kVt, junctionLimit(e.is)) - 1.0);
             double ic = (iF - iR) - iR / e.betaR;
             double ib = iF / e.betaF + iR / e.betaR;
             return {ib, ic, -(ib + ic)};
+        }
+        case ElemType::Load: {  // supply → return, saturating at the operating current above ~0.3 V
+            double i = e.value * std::tanh((v[0] - v[1]) / 0.3);
+            return {i, -i, 0};
         }
         case ElemType::NMOS: {  // terminals: G, D, S  (square law with channel-length modulation)
             double vd = v[1], vs = v[2];
@@ -152,7 +175,7 @@ std::array<double, 3> deviceCurrents(const Elem& e, const std::array<double, 3>&
     }
 }
 
-int terminalCount(ElemType t) { return t == ElemType::Diode ? 2 : 3; }
+int terminalCount(ElemType t) { return t == ElemType::Diode || t == ElemType::Load ? 2 : 3; }
 
 // Dense LU solve with partial pivoting. Returns false if singular.
 bool luSolve(std::vector<double>& A, std::vector<double>& b, int n) {
@@ -219,7 +242,7 @@ bool Simulator::build(std::string& error) {
             case ComponentKind::Resistor:
             case ComponentKind::Fuse: {
                 twoTerminal(ElemType::Resistor);
-                auto v = parseEngineeringValue(c.value);
+                auto v = parseEngineeringValue(primaryValue(c.value));
                 if (c.kind == ComponentKind::Fuse) v = 0.05;  // nominal cold resistance
                 if (!v || *v <= 0) { error = c.ref + ": invalid resistance '" + c.value + "'"; return false; }
                 e.value = *v;
@@ -236,7 +259,7 @@ bool Simulator::build(std::string& error) {
             case ComponentKind::Capacitor:
             case ComponentKind::Inductor: {
                 twoTerminal(c.kind == ComponentKind::Capacitor ? ElemType::Capacitor : ElemType::Inductor);
-                auto v = parseEngineeringValue(c.value);
+                auto v = parseEngineeringValue(primaryValue(c.value));
                 if (!v || *v <= 0) { error = c.ref + ": invalid value '" + c.value + "'"; return false; }
                 e.value = *v;
                 if (e.type == ElemType::Inductor) e.branch = unknowns_++;
@@ -260,6 +283,9 @@ bool Simulator::build(std::string& error) {
                     std::transform(v.begin(), v.end(), v.begin(), [](unsigned char ch) { return std::tolower(ch); });
                     e.emission = 2.0;
                     e.is = (v.find("blue") != std::string::npos || v.find("white") != std::string::npos) ? 1e-26 : 1e-18;
+                } else if (const DeviceModel* m = findDeviceModel(c.kind, c.value)) {
+                    e.is = m->is;
+                    e.emission = m->emission;
                 } else {
                     e.is = 2.52e-9;
                     e.emission = 1.752;  // 1N4148-like
@@ -270,18 +296,55 @@ bool Simulator::build(std::string& error) {
                 e.type = ElemType::NPN;
                 e.n = {node(c.id, 0), node(c.id, 1), node(c.id, 2)};
                 e.betaF = 200;
+                if (const DeviceModel* m = findDeviceModel(c.kind, c.value)) e.betaF = m->betaF;
                 break;
             case ComponentKind::NMOS:
                 e.type = ElemType::NMOS;
                 e.n = {node(c.id, 0), node(c.id, 1), node(c.id, 2)};
-                e.vth = 1.6;
+                e.vth = 1.6;  // generic small-signal (2N7002-like)
                 e.kp = 0.1;
+                if (const DeviceModel* m = findDeviceModel(c.kind, c.value)) {
+                    e.vth = m->vth;
+                    e.kp = m->kp;
+                    e.lambda = m->lambda;
+                }
                 break;
             case ComponentKind::OpAmp:
                 e.type = ElemType::OpAmp;
                 e.n = {node(c.id, 0), node(c.id, 1), node(c.id, 2)};  // IN+, IN-, OUT
                 e.branch = unknowns_++;
                 break;
+            case ComponentKind::Custom: {
+                const CustomPart* part = CustomPartRegistry::instance().find(c.customPart);
+                if (!part || part->spec.model.empty()) continue;  // no behavioural model
+                const auto& spec = part->spec;
+                auto pinNode = [&](const std::string& key) {
+                    int idx = spec.pinIndex(key);
+                    return idx < 0 ? -1 : node(c.id, idx);
+                };
+                if (spec.model.hasRegulator) {
+                    const auto& r = spec.model.regulator;
+                    Element reg = e;
+                    reg.type = ElemType::Regulator;
+                    reg.n = {pinNode(r.in), pinNode(r.out), pinNode(r.ref)};
+                    reg.value = r.vout;
+                    reg.dropout = r.dropout;
+                    reg.iq = r.iq;
+                    reg.ilimit = r.ilimit;
+                    reg.branch = unknowns_++;
+                    elements_.push_back(reg);
+                }
+                int sub = 1;
+                for (const auto& l : spec.model.loads) {
+                    Element load = e;
+                    load.type = ElemType::Load;
+                    load.n = {pinNode(l.supply), pinNode(l.ret), -1};
+                    load.value = l.current;
+                    load.sub = sub++;
+                    elements_.push_back(load);
+                }
+                continue;
+            }
             default: continue;  // ground, labels, connectors, generic ICs: no electrical model
         }
         elements_.push_back(e);
@@ -368,9 +431,41 @@ void Simulator::stamp(double t, double h, const std::vector<double>& x, double g
                 addB(k, jx0 - f0);
                 break;
             }
+            case ElemType::Regulator: {
+                int in = e.n[0], out = e.n[1], ref = e.n[2], k = e.branch;
+                double vin = nodeV(x, in), vo = nodeV(x, out) - nodeV(x, ref), vi = vin - nodeV(x, ref);
+                double k0 = x[static_cast<size_t>(k)], isrc = -k0, vset = e.setpoint(vi);
+                // Operating mode from the present iterate.
+                if (e.mode == 0 && isrc > e.ilimit) e.mode = 1;
+                else if (e.mode == 0 && isrc < -1e-6) e.mode = 2;
+                else if (e.mode == 1 && vo > vset + 1e-6) e.mode = 0;
+                else if (e.mode == 2 && vo < vset - 1e-6) e.mode = 0;
+                // KCL: k is the current leaving `out` into the regulator (negative while sourcing); the input
+                // supplies it plus the quiescent current, which returns through `ref`.
+                addA(out, k, 1);
+                addA(in, k, -1);
+                addB(in, -e.iq);
+                addB(ref, e.iq);
+                if (e.mode == 1) {         // constant current: −k = ilimit
+                    addA(k, k, -1);
+                    addB(k, e.ilimit);
+                } else if (e.mode == 2) {  // off: k = 0
+                    addA(k, k, 1);
+                } else {                   // V(out) − V(ref) − setpoint(V(in) − V(ref)) − rout·k = 0
+                    const double h = 1e-6;
+                    double d = (e.setpoint(vi + h) - e.setpoint(vi - h)) / (2 * h);
+                    addA(k, out, 1);
+                    addA(k, in, -d);
+                    addA(k, ref, -1 + d);
+                    addA(k, k, -e.rout);
+                    addB(k, vset - d * vi);
+                }
+                break;
+            }
             case ElemType::Diode:
             case ElemType::NPN:
-            case ElemType::NMOS: {
+            case ElemType::NMOS:
+            case ElemType::Load: {
                 int tc = terminalCount(e.type);
                 std::array<double, 3> v0{};
                 for (int i = 0; i < tc; ++i) v0[static_cast<size_t>(i)] = nodeV(x, e.n[static_cast<size_t>(i)]);
@@ -455,12 +550,23 @@ std::vector<DeviceReading> Simulator::readings(const std::vector<double>& x, dou
                 r.current = -x[static_cast<size_t>(e.branch)];
                 r.power = 0;
                 break;
+            case ElemType::Regulator: {
+                double vin = va, vout = vb, vref = nodeV(x, e.n[2]);
+                r.current = -x[static_cast<size_t>(e.branch)];  // output current
+                r.voltage = vin - vout;
+                r.power = (vin - vout) * std::max(0.0, r.current) + (vin - vref) * e.iq;
+                r.state = e.mode;
+                if (e.mode == 0 && (vout - vref) < e.value - 0.02 && vin - vref > 0.1) r.state = 3;  // dropout
+                break;
+            }
             case ElemType::Diode:
             case ElemType::NPN:
-            case ElemType::NMOS: {
+            case ElemType::NMOS:
+            case ElemType::Load: {
                 std::array<double, 3> v{va, vb, nodeV(x, e.n[2])};
                 auto i = deviceCurrents(e, v);
-                if (e.type == ElemType::Diode) {
+                r.subIndex = e.sub;
+                if (e.type == ElemType::Diode || e.type == ElemType::Load) {
                     r.current = i[0];
                     r.power = r.voltage * r.current;
                 } else {
@@ -543,7 +649,11 @@ TransientResult Simulator::transient(double tStop, double tStep) {
     auto record = [&](double t, double h) {
         res.time.push_back(t);
         for (size_t i = 0; i < nets.size(); ++i) res.netVoltages[i].push_back(nodeV(x, netToNode_[i]));
-        for (const auto& r : readings(x, h)) res.currents[r.componentId].push_back(r.current);
+        for (const auto& r : readings(x, h)) {
+            if (r.subIndex > 0) continue;  // one series per component (regulator or first element)
+            res.currents[r.componentId].push_back(r.current);
+            res.powers[r.componentId].push_back(r.power);
+        }
     };
     record(0, 0);
 

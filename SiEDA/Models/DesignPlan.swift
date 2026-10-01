@@ -12,9 +12,16 @@ struct DesignPlan: Codable, Equatable {
     var board: PlannedBoard
     /// Industry profile id ("general", "automotive", "space", …); nil keeps the project's current profile.
     var industry: String?
+    /// Copper pours / planes (replace the project's pours when the plan is applied).
+    var pours: [PlannedPour]
+    /// Net classes: wider tracks for power and motor nets.
+    var netClasses: [PlannedNetClass]
+    /// Pins left open on purpose ("U3.9"): marked no-connect so ERC does not report them.
+    var noConnect: [String]
 
     init(title: String, summary: String, components: [PlannedComponent], connections: [PlannedConnection],
-         notes: [String] = [], board: PlannedBoard = PlannedBoard(), industry: String? = nil) {
+         notes: [String] = [], board: PlannedBoard = PlannedBoard(), industry: String? = nil,
+         pours: [PlannedPour] = [], netClasses: [PlannedNetClass] = [], noConnect: [String] = []) {
         self.title = title
         self.summary = summary
         self.components = components
@@ -22,6 +29,9 @@ struct DesignPlan: Codable, Equatable {
         self.notes = notes
         self.board = board
         self.industry = industry
+        self.pours = pours
+        self.netClasses = netClasses
+        self.noConnect = noConnect
     }
 
     init(from decoder: Decoder) throws {
@@ -33,9 +43,14 @@ struct DesignPlan: Codable, Equatable {
         notes = try c.decodeIfPresent([String].self, forKey: .notes) ?? []
         board = try c.decodeIfPresent(PlannedBoard.self, forKey: .board) ?? PlannedBoard()
         industry = try c.decodeIfPresent(String.self, forKey: .industry)
+        pours = try c.decodeIfPresent([PlannedPour].self, forKey: .pours) ?? []
+        netClasses = try c.decodeIfPresent([PlannedNetClass].self, forKey: .netClasses) ?? []
+        noConnect = try c.decodeIfPresent([String].self, forKey: .noConnect) ?? []
     }
 
-    private enum CodingKeys: String, CodingKey { case title, summary, components, connections, notes, board, industry }
+    private enum CodingKeys: String, CodingKey {
+        case title, summary, components, connections, notes, board, industry, pours, netClasses, noConnect
+    }
 
     func jsonString(pretty: Bool = true) -> String {
         let encoder = JSONEncoder()
@@ -88,8 +103,54 @@ struct PlannedConnection: Codable, Equatable {
 }
 
 struct PlannedBoard: Codable, Equatable {
-    var width: Double = 50
-    var height: Double = 40
+    var width: Double
+    var height: Double
+    /// Copper layers (1, 2, 4, 6); 0 keeps the current stack-up.
+    var layers: Int
+    /// "rectangle", "rounded", "circle", "quad-x", or "keep" (leave the current outline).
+    var outline: String
+    /// Rounded: corner radius · quad-X: arm width (width = span, height = body); 0 = default.
+    var outlineParameter: Double
+    /// Square mounting-hole pattern spacing in mm (30.5 = M3 flight-controller stack); 0 = none, −1 = keep.
+    var mountingHoleSpacing: Double
+
+    /// Defaults describe a fresh rectangular board without holes (reference designs); refinement plans built from
+    /// the current design pass "keep" / −1 explicitly.
+    init(width: Double = 50, height: Double = 40, layers: Int = 0, outline: String = "rectangle",
+         outlineParameter: Double = 0, mountingHoleSpacing: Double = 0) {
+        self.width = width
+        self.height = height
+        self.layers = layers
+        self.outline = outline
+        self.outlineParameter = outlineParameter
+        self.mountingHoleSpacing = mountingHoleSpacing
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        width = try c.decodeIfPresent(Double.self, forKey: .width) ?? 50
+        height = try c.decodeIfPresent(Double.self, forKey: .height) ?? 40
+        layers = (try? c.decodeIfPresent(Int.self, forKey: .layers)) ?? 0
+        outline = try c.decodeIfPresent(String.self, forKey: .outline) ?? "keep"
+        outlineParameter = try c.decodeIfPresent(Double.self, forKey: .outlineParameter) ?? 0
+        mountingHoleSpacing = try c.decodeIfPresent(Double.self, forKey: .mountingHoleSpacing) ?? -1
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case width, height, layers, outline, outlineParameter, mountingHoleSpacing
+    }
+}
+
+struct PlannedPour: Codable, Equatable {
+    var net: String
+    /// Copper layer: 0 = top; −1 = bottom (whatever the stack-up).
+    var layer: Int
+    var plane: Bool
+}
+
+struct PlannedNetClass: Codable, Equatable {
+    var net: String
+    var width: Double
 }
 
 /// Product-level requirements extracted from a prompt or PRD by the Requirements Analyst agent.
@@ -146,8 +207,38 @@ enum DesignSchemas {
         return [
             "type": "object",
             "additionalProperties": false,
-            "required": ["title", "summary", "components", "connections", "notes", "board", "industry"],
+            "required": ["title", "summary", "components", "connections", "notes", "board", "industry", "pours",
+                         "netClasses", "noConnect"],
             "properties": [
+                "pours": [
+                    "type": "array",
+                    "description": "Copper pours: usually GND on both layers of a 2-layer board, or a GND plane on layer 1 of a 4-layer board",
+                    "items": [
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["net", "layer", "plane"],
+                        "properties": [
+                            "net": ["type": "string", "description": "Net name, e.g. GND"],
+                            "layer": ["type": "integer", "description": "Copper layer: 0 = top, -1 = bottom, 1.. = inner"],
+                            "plane": ["type": "boolean", "description": "Reserve the layer as a plane (inner layers)"],
+                        ] as [String: Any],
+                    ] as [String: Any],
+                ] as [String: Any],
+                "netClasses": [
+                    "type": "array",
+                    "description": "Wider tracks for high-current nets (battery, motor, regulator output)",
+                    "items": [
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["net", "width"],
+                        "properties": [
+                            "net": ["type": "string"],
+                            "width": ["type": "number", "description": "Track width in mm"],
+                        ] as [String: Any],
+                    ] as [String: Any],
+                ] as [String: Any],
+                "noConnect": ["type": "array", "items": ["type": "string"],
+                              "description": "REF.PIN of pins intentionally left open (unused MCU pins)"] as [String: Any],
                 "industry": ["type": "string", "enum": industryIds,
                              "description": "Industry profile that sets derating and design rules"] as [String: Any],
                 "title": ["type": "string"],
@@ -184,11 +275,19 @@ enum DesignSchemas {
                 "board": [
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["width", "height"],
+                    "required": ["width", "height", "layers", "outline", "outlineParameter", "mountingHoleSpacing"],
                     "properties": [
-                        "width": ["type": "number", "description": "Board width in millimetres"],
-                        "height": ["type": "number", "description": "Board height in millimetres"],
-                    ],
+                        "width": ["type": "number", "description": "Board width in millimetres (quad-x: frame span)"],
+                        "height": ["type": "number", "description": "Board height in millimetres (quad-x: body size)"],
+                        "layers": ["type": "integer", "enum": [0, 1, 2, 4, 6],
+                                   "description": "Copper layers; 0 keeps the current stack-up"] as [String: Any],
+                        "outline": ["type": "string", "enum": ["keep", "rectangle", "rounded", "circle", "quad-x"],
+                                    "description": "Board shape; quad-x for multirotor frames"] as [String: Any],
+                        "outlineParameter": ["type": "number",
+                                             "description": "rounded: corner radius; quad-x: arm width (mm); 0 = default"],
+                        "mountingHoleSpacing": ["type": "number",
+                                                "description": "Square mounting pattern in mm (30.5 = M3 FC stack, 20 = M2); 0 none, -1 keep"],
+                    ] as [String: Any],
                 ] as [String: Any],
             ] as [String: Any],
         ]
@@ -309,8 +408,53 @@ enum DesignPlanCompiler {
         }
 
         let board = plan.board
-        if board.width >= 10, board.height >= 10, board.width <= 500, board.height <= 500 {
+        if [1, 2, 4, 6].contains(board.layers) { engine.setLayerCount(board.layers) }
+        let sized = board.width >= 10 && board.height >= 5 && board.width <= 500 && board.height <= 500
+        if let preset = BoardOutlinePreset(rawValue: board.outline.lowercased()), sized {
+            if preset == .rectangle {
+                engine.setOutline([])
+                engine.setBoard(width: board.width, height: board.height, trackWidth: 0, clearance: 0)
+            } else {
+                let parameter = board.outlineParameter > 0 ? board.outlineParameter : (preset == .quadX ? 12 : 3)
+                if !engine.applyOutlinePreset(preset, width: board.width, height: board.height, parameter: parameter) {
+                    report.warnings.append("Board outline '\(board.outline)' could not be applied.")
+                }
+            }
+        } else if sized, board.outline.lowercased() == "keep", previous?.board.hasCustomOutline != true {
             engine.setBoard(width: board.width, height: board.height, trackWidth: 0, clearance: 0)
+        } else if board.outline.lowercased() != "keep" {
+            report.warnings.append("Unknown board outline '\(board.outline)'.")
+        }
+        if board.mountingHoleSpacing >= 0 {
+            engine.clearMountingHoles()
+            let spacing = board.mountingHoleSpacing
+            if spacing > 0, let snap = engine.snapshot() {
+                let metric2 = spacing < 25
+                let centre = CGPoint(x: snap.board.width / 2, y: snap.board.height / 2)
+                for dx in [-spacing / 2, spacing / 2] {
+                    for dy in [-spacing / 2, spacing / 2] {
+                        engine.addMountingHole(at: CGPoint(x: centre.x + dx, y: centre.y + dy),
+                                               drill: metric2 ? 2.2 : 3.2, keepout: metric2 ? 4.4 : 6.4)
+                    }
+                }
+            }
+        }
+
+        // Pours and net classes replace the previous ones; no-connect marks follow the pins.
+        engine.clearZones()
+        let layerCount = engine.snapshot()?.board.layerCount ?? 2
+        for pour in plan.pours {
+            let layer = pour.layer < 0 ? max(0, layerCount - 1) : pour.layer
+            if engine.addZone(net: pour.net, layer: layer, plane: pour.plane) == nil {
+                report.warnings.append("Pour for \(pour.net) on layer \(pour.layer) does not fit the \(layerCount)-layer stack-up.")
+            }
+        }
+        for net in previous?.board.netWidths.keys.sorted() ?? [] { engine.setNetWidth(net, width: 0) }
+        for netClass in plan.netClasses where netClass.width > 0 {
+            engine.setNetWidth(netClass.net, width: min(5, netClass.width))
+        }
+        for endpoint in plan.noConnect {
+            if let pin = resolve(endpoint, engine: engine, report: &report) { engine.setPinNoConnect(pin, true) }
         }
 
         for (ref, placement) in keptPlacement {
@@ -360,9 +504,23 @@ enum DesignPlanCompiler {
                   wire.a.pin < a.pins.count, wire.b.pin < b.pins.count else { return nil }
             return PlannedConnection(from: "\(a.ref).\(pinLabel(a, wire.a.pin))", to: "\(b.ref).\(pinLabel(b, wire.b.pin))")
         }
+        var noConnect: [String] = []
+        for c in snapshot.components {
+            for (index, pin) in c.pins.enumerated() where pin.noConnect { noConnect.append("\(c.ref).\(pinLabel(c, index))") }
+        }
+        let bottom = snapshot.board.bottomLayer
         return DesignPlan(title: snapshot.name, summary: "", components: components, connections: connections,
-                          notes: [], board: PlannedBoard(width: snapshot.board.width, height: snapshot.board.height),
-                          industry: snapshot.industry)
+                          notes: [], board: PlannedBoard(width: snapshot.board.width, height: snapshot.board.height,
+                                                         layers: snapshot.board.layerCount, outline: "keep",
+                                                         mountingHoleSpacing: -1),
+                          industry: snapshot.industry,
+                          pours: snapshot.zones.map {
+                              PlannedPour(net: $0.net, layer: $0.layer == bottom && bottom > 0 ? -1 : $0.layer, plane: $0.plane)
+                          },
+                          netClasses: snapshot.board.netWidths.keys.sorted().map {
+                              PlannedNetClass(net: $0, width: snapshot.board.netWidths[$0] ?? 0)
+                          },
+                          noConnect: noConnect)
     }
 }
 

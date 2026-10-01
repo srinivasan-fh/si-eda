@@ -14,12 +14,14 @@ add_library(sieda_core STATIC
     Core/src/Library.cpp
     Core/src/CustomParts.cpp
     Core/src/StandardParts.cpp
+    Core/src/DeviceModels.cpp
     Core/src/Industry.cpp
     Core/src/Validation.cpp
     Core/src/Verification.cpp
     Core/src/Schematic.cpp
     Core/src/Simulator.cpp
     Core/src/Pcb.cpp
+    Core/src/Zones.cpp
     Core/src/Mesh.cpp
     Core/src/Export.cpp
     Core/src/Project.cpp

@@ -20,6 +20,19 @@ std::vector<IndustryProfile> build() {
                   "Measure motor current with a shunt or Hall sensor (ACS712) for stall and over-current protection.",
                   "Keep the power loop (bulk capacitor, switch, diode) tight; separate power and logic grounds at one point.",
                   "Use a half-bridge gate driver (IR2104) with a bootstrap diode and capacitor for high-side N-MOSFETs."}});
+    p.push_back({"uav", "Drones & UAV", "Flight controllers, ESCs, power distribution and radio for multirotors",
+                 "IPC-2221 Class 3, IPC-A-610 Class 3, RTCA DO-160G (vibration, EMI), ASTM F3002 (sUAS C2), EN 4709-001",
+                 "IPC-2221 Class 3", 0.8, 0.8, false, -20, 60,
+                 {"Put a freewheel diode across every brushed motor; drive it with a logic-level MOSFET (SI2302, AO3400) "
+                  "with a gate resistor and a gate pull-down so the motors stay off while the MCU resets.",
+                  "Size battery and motor nets for the stall current (the autorouter widens them from the simulation) and "
+                  "pour ground on both layers — or use a 4-layer board with a ground plane.",
+                  "Place a low-ESR bulk capacitor (≥ 220 µF) at the battery input to absorb motor transients; run the "
+                  "3.3 V logic and radio from an LDO.",
+                  "Mount the IMU near the frame centre, away from the motor drivers, and decouple it at the pins.",
+                  "Use the quad-X outline preset with motor connectors at the arm tips and an M3 30.5 × 30.5 mm "
+                  "(or M2 20 × 20 mm) mounting pattern.",
+                  "Single-cell LiPo: charge with a TP4056 (1.2 kΩ PROG = 1 A) and cut the motors at 3.3 V per cell."}});
     p.push_back({"power", "Power Electronics", "SMPS, converters, inverters, chargers and battery systems",
                  "IEC 62368-1, IEC 61204, IPC-2221 B2 spacing, IPC-2152", "IPC-2221 Class 3", 0.7, 0.8, false,
                  -40, 85,
@@ -97,6 +110,8 @@ PartRatings deratedRatings(const IndustryProfile& profile, const PartRatings& ba
     r.diodeCurrent *= profile.currentDerating;
     r.npnCurrent *= profile.currentDerating;
     r.nmosCurrent *= profile.currentDerating;
+    r.powerFactor = profile.powerDerating;
+    r.currentFactor = profile.currentDerating;
     if (profile.powerDerating < 1.0 || profile.currentDerating < 1.0) {
         char buf[160];
         std::snprintf(buf, sizeof buf, "%s derating: power %.0f %%, current %.0f %% of rating", profile.name.c_str(),
