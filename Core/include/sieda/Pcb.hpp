@@ -33,6 +33,8 @@ struct BoardSettings {
     double minHoleToHole = 0.25;
     double copperWeightOz = 1.0;  // outer layers; inner layers use the same weight
     double maxTempRise = 10.0;    // °C, IPC-2221 current-capacity target
+    /// Above 3050 m (aircraft, space): voltage clearances use IPC-2221 Table 6-1 column B3 instead of B2.
+    bool highAltitude = false;
 
     /// Applies a named preset from designRulePresets(); returns false if the name is unknown.
     bool applyPreset(const std::string& name);
@@ -57,6 +59,10 @@ const std::vector<DesignRulePreset>& designRulePresets();
 
 /// IPC-2221 minimum track width (mm) for `amps` at `tempRise` °C with `oz` copper; inner layers derate by 2×.
 double ipc2221TrackWidth(double amps, double tempRise, double oz, bool innerLayer);
+
+/// IPC-2221 Table 6-1 minimum spacing (mm) between external uncoated conductors for a peak voltage difference:
+/// column B2 (sea level to 3050 m) or B3 (above 3050 m, e.g. space and avionics).
+double ipc2221Clearance(double volts, bool highAltitude);
 
 /// Human-readable copper layer name ("Top", "Inner 1", "Bottom").
 std::string copperLayerName(int layer, int layerCount);

@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "sieda/Export.hpp"
+#include "sieda/Industry.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/Units.hpp"
 
@@ -87,6 +88,12 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
     const PcbLayout& pcb = project.pcb;
     VerificationReport report;
     report.projectName = project.name;
+    report.industry = project.industry;
+    if (const IndustryProfile* profile = findIndustry(project.industry)) {
+        report.industryName = profile->name;
+        report.industryStandards = profile->standards;
+    }
+    const PartRatings ratings = options.ratings ? *options.ratings : project.partRatings();
     report.rulePreset = pcb.settings.rulePreset;
     report.layerCount = pcb.settings.layerCount;
 
@@ -153,10 +160,12 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
             st.status = StageStatus::Skipped;
             st.summary = "Nothing to validate";
         } else {
-            for (auto& v : validateCircuit(sch, options.ratings))
+            for (auto& v : validateCircuit(sch, ratings))
                 if (v.code != "VAL_DC_FAILED") st.findings.push_back(std::move(v));  // reported by the simulation stage
             st.status = statusOf(st.findings);
-            st.summary = countSummary(st.findings, "Values standard, parts within ratings");
+            st.summary = countSummary(st.findings, ratings.derating.empty() ? "Values standard, parts within ratings"
+                                                                            : "Values standard, parts within derated ratings");
+            if (!ratings.derating.empty()) st.details.push_back(ratings.derating);
         }
         report.stages.push_back(std::move(st));
     }
@@ -306,6 +315,9 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
 Json VerificationReport::toJson() const {
     Json root = Json::object();
     root["project"] = projectName;
+    root["industry"] = industry;
+    root["industryName"] = industryName;
+    root["industryStandards"] = industryStandards;
     root["rulePreset"] = rulePreset;
     root["layerCount"] = layerCount;
     root["verdict"] = stageStatusName(verdict);
@@ -344,6 +356,8 @@ std::string VerificationReport::toMarkdown() const {
     std::ostringstream o;
     o << "# Design Verification Report\n\n";
     o << "- **Project:** " << mdEscape(projectName) << "\n";
+    if (!industryName.empty())
+        o << "- **Industry profile:** " << mdEscape(industryName) << " (" << mdEscape(industryStandards) << ")\n";
     o << "- **Design rules:** " << mdEscape(rulePreset) << ", " << layerCount << " copper layer" << (layerCount == 1 ? "" : "s")
       << "\n";
     o << "- **Verdict:** " << label(verdict) << " (" << errors << " errors, " << warnings << " warnings, " << infos

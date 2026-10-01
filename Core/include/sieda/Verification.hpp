@@ -5,6 +5,7 @@
 // verdict is the worst stage. The project is never modified.
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -28,6 +29,9 @@ struct VerificationStage {
 
 struct VerificationReport {
     std::string projectName;
+    std::string industry;           // profile id
+    std::string industryName;       // "Automotive"
+    std::string industryStandards;  // standards the profile follows
     std::string rulePreset;
     int layerCount = 2;
     StageStatus verdict = StageStatus::Pass;  // never Skipped
@@ -40,7 +44,8 @@ struct VerificationReport {
 };
 
 struct VerificationOptions {
-    PartRatings ratings;
+    /// Part ratings for circuit validation; defaults to the project's industry-derated ratings.
+    std::optional<PartRatings> ratings;
     bool includeManufacturing = true;
 };
 

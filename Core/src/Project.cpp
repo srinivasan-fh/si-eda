@@ -1,4 +1,5 @@
 #include "sieda/Project.hpp"
+#include "sieda/Industry.hpp"
 
 #include <algorithm>
 #include <map>
@@ -40,9 +41,24 @@ Json boardJson(const BoardSettings& s) {
     b["minHoleToHole"] = s.minHoleToHole;
     b["copperWeightOz"] = s.copperWeightOz;
     b["maxTempRise"] = s.maxTempRise;
+    b["highAltitude"] = s.highAltitude;
     return b;
 }
 }  // namespace
+
+bool Project::applyIndustry(const std::string& id) {
+    const IndustryProfile* profile = findIndustry(id);
+    if (!profile) return false;
+    industry = profile->id;
+    pcb.settings.applyPreset(profile->rulePreset);
+    pcb.settings.highAltitude = profile->highAltitude;
+    return true;
+}
+
+PartRatings Project::partRatings() const {
+    const IndustryProfile* profile = findIndustry(industry);
+    return profile ? deratedRatings(*profile) : PartRatings{};
+}
 
 void Project::schematicChanged() { pcb.pruneStaleRouting(schematic); }
 
@@ -68,6 +84,7 @@ Json Project::toJson() const {
     root["version"] = 1;
     root["name"] = name;
     root["requirements"] = requirements;
+    root["industry"] = industry;
     root["board"] = boardJson(pcb.settings);
 
     Json library = Json::array();
@@ -139,6 +156,8 @@ Project Project::fromJson(const Json& root) {
     Project p;
     p.name = root.get("name").asString("Untitled");
     p.requirements = root.get("requirements").asString("");
+    p.industry = root.get("industry").asString("general");
+    if (!findIndustry(p.industry)) p.industry = "general";
     const Json& b = root.get("board");
     BoardSettings& s = p.pcb.settings;
     s.width = b.get("width").asNumber(s.width);
@@ -158,6 +177,7 @@ Project Project::fromJson(const Json& root) {
     s.minAnnularRing = b.get("minAnnularRing").asNumber(s.minAnnularRing);
     s.minHoleToHole = b.get("minHoleToHole").asNumber(s.minHoleToHole);
     s.copperWeightOz = std::max(0.5, b.get("copperWeightOz").asNumber(s.copperWeightOz));
+    s.highAltitude = b.get("highAltitude").asBool(false);
     s.maxTempRise = std::max(1.0, b.get("maxTempRise").asNumber(s.maxTempRise));
 
     // Custom parts first so components can resolve them; ids are re-derived and remapped if they changed.
@@ -286,6 +306,7 @@ Json Project::snapshot() const {
         netArr.push(j);
     }
     root["nets"] = netArr;
+    root["industry"] = industry;
     root["board"] = boardJson(pcb.settings);
 
     Json pads = Json::array();

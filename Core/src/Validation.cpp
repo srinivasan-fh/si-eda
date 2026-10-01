@@ -26,6 +26,11 @@ std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatin
         v.severity = s;
         v.code = code;
         v.message = msg;
+        static const char* ratingCodes[] = {"VAL_RESISTOR_POWER", "VAL_LED_CURRENT", "VAL_DIODE_CURRENT",
+                                             "VAL_TRANSISTOR_RATING"};
+        if (!r.derating.empty())
+            for (const char* rc : ratingCodes)
+                if (code == rc) v.message += " Limits include " + r.derating + ".";
         v.components = {c.id};
         v.location = c.position;
         v.hasLocation = true;

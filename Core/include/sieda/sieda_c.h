@@ -31,6 +31,12 @@ char* sieda_project_save_json(const SiedaProject* project);
 void sieda_project_set_name(SiedaProject* project, const char* name);
 void sieda_project_set_requirements(SiedaProject* project, const char* text);
 void sieda_project_clear(SiedaProject* project);
+/* Industry profile ("general", "robotics", "power", "automotive", "rf", "space", "marine", "industrial"): applies its
+   design-rule preset, altitude class and derating. Returns 1 on success, 0 for an unknown id. */
+int32_t sieda_project_set_industry(SiedaProject* project, const char* industry_id);
+/* [{"id","name","description","standards","rulePreset","powerDerating","currentDerating","highAltitude",
+     "minAmbientC","maxAmbientC","guidance":[...]}] */
+char* sieda_industry_profiles_json(void);
 /* Full UI view model (components with world pin positions, wires, nets, pads, tracks, vias, ratsnest). */
 char* sieda_project_snapshot(const SiedaProject* project);
 /* Built-in component catalogue. */

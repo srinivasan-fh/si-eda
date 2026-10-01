@@ -36,6 +36,14 @@ const std::vector<DesignRulePreset>& designRulePresets() {
          0.20, 0.16, 0.30, 0.60, 0.30, 0.152, 0.152, 0.20, 0.13, 0.254},
         {"Fab House Advanced (4/4 mil)", "Fine-pitch capable services",
          0.15, 0.12, 0.25, 0.45, 0.30, 0.10, 0.10, 0.15, 0.10, 0.20},
+        {"High Voltage (IPC-2221 B2)", "Mains and high-voltage power stages up to 300 V: 1.25 mm spacing, wide tracks",
+         0.50, 1.25, 0.40, 0.90, 2.00, 0.25, 0.60, 0.30, 0.15, 0.50},
+        {"Automotive (IPC-6012 Class 3/A)", "Vehicle electronics: Class 3 reliability, wider edge keep-out for vibration",
+         0.30, 0.25, 0.35, 0.75, 0.80, 0.20, 0.20, 0.25, 0.15, 0.30},
+        {"Space (IPC-6012 Class 3/A, ECSS)", "Spacecraft hardware: Class 3/A, 0.2 mm annular ring, generous spacing",
+         0.30, 0.30, 0.40, 0.90, 1.00, 0.20, 0.25, 0.30, 0.20, 0.40},
+        {"RF (Controlled Impedance)", "RF and high-speed: ≈50 Ω microstrip width on a 4-layer stack (0.2 mm prepreg)",
+         0.35, 0.30, 0.30, 0.60, 0.50, 0.15, 0.15, 0.20, 0.10, 0.25},
     };
     return presets;
 }
@@ -65,6 +73,25 @@ double ipc2221TrackWidth(double amps, double tempRise, double oz, bool innerLaye
     double areaMil2 = std::pow(amps / (k * std::pow(tempRise, 0.44)), 1.0 / 0.725);
     double thicknessMil = 1.378 * oz;
     return areaMil2 / thicknessMil * 0.0254;
+}
+
+double ipc2221Clearance(double volts, bool highAltitude) {
+    double v = std::fabs(volts);
+    if (highAltitude) {  // B3
+        if (v <= 30) return 0.1;
+        if (v <= 50) return 0.6;
+        if (v <= 100) return 1.5;
+        if (v <= 170) return 3.2;
+        if (v <= 250) return 6.4;
+        if (v <= 500) return 12.5;
+        return 12.5 + (v - 500) * 0.025;
+    }
+    // B2
+    if (v <= 30) return 0.1;
+    if (v <= 150) return 0.6;
+    if (v <= 300) return 1.25;
+    if (v <= 500) return 2.5;
+    return 2.5 + (v - 500) * 0.005;
 }
 
 std::string copperLayerName(int layer, int layerCount) {
@@ -843,8 +870,56 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
         v.components = std::move(comps);
         out.push_back(std::move(v));
     };
-    // Below the fabrication minimum → error; between it and the design rule → warning.
-    auto clearanceCheck = [&](double d, const std::string& what, Vec2 loc, std::vector<int> comps = {}) {
+    // DC operating point (used for voltage clearances and current capacity).
+    bool hasSource = false;
+    for (const auto& c : sch.components())
+        hasSource |= c.kind == ComponentKind::VoltageSource || c.kind == ComponentKind::CurrentSource;
+    DcResult dc;
+    if (hasSource && sch.groundNet() >= 0 && (!tracks.empty() || !vias.empty() || !sch.components().empty()))
+        dc = Simulator(sch).dcOperatingPoint();
+    // Voltage range of each net: the DC value, widened to a source's peaks for nets driven by SIN/PULSE sources.
+    std::map<int, std::pair<double, double>> netRange;
+    if (dc.converged) {
+        for (size_t n = 0; n < dc.netVoltages.size(); ++n)
+            netRange[static_cast<int>(n)] = {dc.netVoltages[n], dc.netVoltages[n]};
+        for (const auto& c : sch.components()) {
+            if (c.kind != ComponentKind::VoltageSource) continue;
+            auto spec = SourceSpec::parse(c.value);
+            int plus = sch.netOf({c.id, 0}), minus = sch.netOf({c.id, 1});
+            if (!spec || plus < 0) continue;
+            double base = minus >= 0 && netRange.count(minus) ? netRange[minus].first : 0.0;
+            double lo = spec->dc, hi = spec->dc;
+            if (spec->kind == SourceSpec::Kind::Sine) {
+                lo = spec->offset - std::fabs(spec->amplitude);
+                hi = spec->offset + std::fabs(spec->amplitude);
+            } else if (spec->kind == SourceSpec::Kind::Pulse) {
+                lo = std::min(spec->v1, spec->v2);
+                hi = std::max(spec->v1, spec->v2);
+            }
+            auto& r = netRange[plus];
+            r.first = std::min(r.first, base + lo);
+            r.second = std::max(r.second, base + hi);
+        }
+    }
+    auto voltageNeed = [&](int a, int b) {
+        auto ia = netRange.find(a), ib = netRange.find(b);
+        if (a < 0 || b < 0 || ia == netRange.end() || ib == netRange.end()) return std::make_pair(0.0, 0.0);
+        double dv = std::max(std::fabs(ia->second.second - ib->second.first), std::fabs(ib->second.second - ia->second.first));
+        return std::make_pair(dv, ipc2221Clearance(dv, settings.highAltitude));
+    };
+
+    // Below the fabrication minimum → error; between it and the design rule → warning; below the IPC-2221 voltage
+    // spacing for the nets' potential difference → error.
+    auto clearanceCheck = [&](double d, const std::string& what, Vec2 loc, std::vector<int> comps = {}, int netA = -1,
+                              int netB = -1) {
+        auto [dv, hvNeed] = voltageNeed(netA, netB);
+        if (d > 0 && hvNeed > clr + eps && d < hvNeed - eps) {
+            char hv[160];
+            std::snprintf(hv, sizeof hv, " is below the IPC-2221 %s spacing %.2f mm for %.0f V.",
+                          settings.highAltitude ? "B3 (altitude)" : "B2", hvNeed, dv);
+            add(Severity::Error, "DRC_HV_CLEARANCE", what + hv, loc, std::move(comps));
+            return;
+        }
         if (d >= clr - eps) return;
         char buf[96];
         if (d <= 0) {
@@ -895,7 +970,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             for (int l = 0; l < settings.layerCount && !share; ++l) share = ps[i].onLayer(l) && ps[j].onLayer(l);
             if (!share) continue;
             double d = rectRectDistance(ps[i].bounds(), ps[j].bounds());
-            clearanceCheck(d, "Pad clearance " + fmt(d) + " between " + netName(ps[i].net) + " and " + netName(ps[j].net), (ps[i].position + ps[j].position) * 0.5, {ps[i].componentId, ps[j].componentId});
+            clearanceCheck(d, "Pad clearance " + fmt(d) + " between " + netName(ps[i].net) + " and " + netName(ps[j].net), (ps[i].position + ps[j].position) * 0.5, {ps[i].componentId, ps[j].componentId}, ps[i].net, ps[j].net);
         }
     // Track ↔ pad, track ↔ track, track ↔ edge.
     for (size_t t = 0; t < tracks.size(); ++t) {
@@ -915,30 +990,30 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             double d = (p.round ? std::max(0.0, pointSegmentDistance(p.position, tr.a, tr.b) - std::min(p.size.x, p.size.y) / 2)
                                 : segmentRectDistance(tr.a, tr.b, p.bounds())) -
                        tr.width / 2;
-            clearanceCheck(d, "Track (" + netName(tr.net) + ") to pad (" + netName(p.net) + ") clearance " + fmt(std::max(0.0, d)), p.position, {p.componentId});
+            clearanceCheck(d, "Track (" + netName(tr.net) + ") to pad (" + netName(p.net) + ") clearance " + fmt(std::max(0.0, d)), p.position, {p.componentId}, tr.net, p.net);
         }
         for (size_t u = t + 1; u < tracks.size(); ++u) {
             const Track& o = tracks[u];
             if (o.net == tr.net || o.layer != tr.layer) continue;
             double d = segmentSegmentDistance(tr.a, tr.b, o.a, o.b) - (tr.width + o.width) / 2;
-            clearanceCheck(d, "Track clearance " + fmt(std::max(0.0, d)) + " between " + netName(tr.net) + " and " + netName(o.net), (tr.a + tr.b) * 0.5);
+            clearanceCheck(d, "Track clearance " + fmt(std::max(0.0, d)) + " between " + netName(tr.net) + " and " + netName(o.net), (tr.a + tr.b) * 0.5, {}, tr.net, o.net);
         }
         for (const auto& v : vias) {
             if (v.net == tr.net) continue;
             double d = pointSegmentDistance(v.position, tr.a, tr.b) - tr.width / 2 - v.diameter / 2;
-            clearanceCheck(d, "Via (" + netName(v.net) + ") to track (" + netName(tr.net) + ") clearance " + fmt(std::max(0.0, d)), v.position);
+            clearanceCheck(d, "Via (" + netName(v.net) + ") to track (" + netName(tr.net) + ") clearance " + fmt(std::max(0.0, d)), v.position, {}, v.net, tr.net);
         }
     }
     for (size_t i = 0; i < vias.size(); ++i) {
         for (const auto& p : ps) {
             if (p.net == vias[i].net) continue;
             double d = padDistance(p, vias[i].position) - vias[i].diameter / 2;
-            clearanceCheck(d, "Via (" + netName(vias[i].net) + ") to pad (" + netName(p.net) + ") clearance " + fmt(std::max(0.0, d)), vias[i].position, {p.componentId});
+            clearanceCheck(d, "Via (" + netName(vias[i].net) + ") to pad (" + netName(p.net) + ") clearance " + fmt(std::max(0.0, d)), vias[i].position, {p.componentId}, vias[i].net, p.net);
         }
         for (size_t j = i + 1; j < vias.size(); ++j) {
             if (vias[i].net == vias[j].net) continue;
             double d = (vias[i].position - vias[j].position).length() - (vias[i].diameter + vias[j].diameter) / 2;
-            clearanceCheck(d, "Via-to-via clearance " + fmt(std::max(0.0, d)), vias[i].position);
+            clearanceCheck(d, "Via-to-via clearance " + fmt(std::max(0.0, d)), vias[i].position, {}, vias[i].net, vias[j].net);
         }
         if (!board.inflated(-settings.edgeClearance).contains(vias[i].position))
             add(Severity::Error, "DRC_EDGE_CLEARANCE", "Via is too close to the board edge.", vias[i].position);
@@ -1044,12 +1119,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
         }
 
     // IPC-2221 current capacity using the DC operating point (largest device current on each net).
-    bool hasSource = false;
-    for (const auto& c : sch.components())
-        hasSource |= c.kind == ComponentKind::VoltageSource || c.kind == ComponentKind::CurrentSource;
-    if (hasSource && sch.groundNet() >= 0 && !tracks.empty()) {
-        Simulator sim(sch);
-        DcResult dc = sim.dcOperatingPoint();
+    if (!tracks.empty()) {
         if (dc.converged) {
             std::map<int, double> netCurrent;
             for (const auto& d : dc.devices) {

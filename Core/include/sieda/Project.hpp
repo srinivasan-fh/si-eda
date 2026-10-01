@@ -8,6 +8,7 @@
 #include "sieda/Pcb.hpp"
 #include "sieda/Schematic.hpp"
 #include "sieda/Simulator.hpp"
+#include "sieda/Validation.hpp"
 
 namespace sieda {
 
@@ -15,6 +16,7 @@ class Project {
 public:
     std::string name = "Untitled";
     std::string requirements;  // the prompt / PRD text the design was generated from
+    std::string industry = "general";  // IndustryProfile id (derating, design rules, altitude class)
     Schematic schematic;
     PcbLayout pcb;
     /// Ids of custom parts (CustomPartRegistry) available in this project's component library.
@@ -23,6 +25,11 @@ public:
     /// Registers `spec` and adds it to the project library; returns the part id.
     std::string addCustomPart(const CustomPartSpec& spec);  // throws JsonError
     bool removeCustomPart(const std::string& id);         // false if still used by a component
+
+    /// Selects an industry profile: applies its design-rule preset and altitude class. False if the id is unknown.
+    bool applyIndustry(const std::string& id);
+    /// Part ratings derated for the project's industry profile.
+    PartRatings partRatings() const;
 
     /// Call after any schematic edit that can change connectivity; keeps PCB copper consistent.
     void schematicChanged();
