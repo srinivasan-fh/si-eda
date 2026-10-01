@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Photoshop-style vertical tool button.
@@ -105,5 +106,70 @@ struct BlueEmptyState: View {
             }
         }
         .padding(30)
+    }
+}
+
+// MARK: - Scroll-wheel / trackpad navigation
+
+/// Invisible background view that receives scroll-wheel events over its frame without blocking clicks.
+struct ScrollWheelHandler: NSViewRepresentable {
+    var onScroll: (NSEvent, CGPoint) -> Void
+
+    func makeNSView(context: Context) -> MonitorView {
+        let view = MonitorView()
+        view.onScroll = onScroll
+        return view
+    }
+
+    func updateNSView(_ view: MonitorView, context: Context) { view.onScroll = onScroll }
+
+    final class MonitorView: NSView {
+        var onScroll: ((NSEvent, CGPoint) -> Void)?
+        private var monitor: Any?
+
+        override var isFlipped: Bool { true }
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }  // never intercept mouse clicks
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+                self.monitor = nil
+            }
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+                guard let self, event.window === self.window else { return event }
+                let point = self.convert(event.locationInWindow, from: nil)
+                guard self.bounds.contains(point) else { return event }
+                self.onScroll?(event, point)
+                return nil
+            }
+        }
+
+        deinit {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+        }
+    }
+}
+
+extension View {
+    /// Calls `action` with scroll events over this view (location in the view's top-left coordinates).
+    func onScrollWheel(_ action: @escaping (NSEvent, CGPoint) -> Void) -> some View {
+        background(ScrollWheelHandler(onScroll: action))
+    }
+}
+
+extension Viewport {
+    /// Trackpad scroll pans; a mouse wheel, or scrolling with ⌘/⌥ held, zooms around the cursor.
+    mutating func handleScroll(_ event: NSEvent, at point: CGPoint, limits: ClosedRange<CGFloat>) {
+        let zoomModifier = !event.modifierFlags.intersection([.command, .option]).isEmpty
+        if zoomModifier || !event.hasPreciseScrollingDeltas {
+            let delta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.scrollingDeltaY * 8
+            guard delta != 0 else { return }
+            zoom(by: exp(delta * 0.01), anchor: point, limits: limits)
+        } else {
+            offset.width += event.scrollingDeltaX
+            offset.height += event.scrollingDeltaY
+        }
     }
 }

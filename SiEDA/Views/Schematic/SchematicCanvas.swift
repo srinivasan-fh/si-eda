@@ -42,6 +42,7 @@ struct SchematicCanvas: View {
                     }
                     .onEnded { _ in magnifyBase = nil }
             )
+            .onScrollWheel { event, point in viewport.handleScroll(event, at: point, limits: scaleLimits) }
             .onContinuousHover { phase in
                 switch phase {
                 case .active(let p): hover = p
