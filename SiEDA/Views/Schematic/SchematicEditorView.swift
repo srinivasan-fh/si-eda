@@ -6,6 +6,7 @@ enum SchematicTool: Equatable {
     case wire
     case pan
     case place(ComponentKind)
+    case placeCustom(String)  // custom part id from the component library
 
     var title: String {
         switch self {
@@ -13,6 +14,7 @@ enum SchematicTool: Equatable {
         case .wire: return "Wire"
         case .pan: return "Hand (Pan)"
         case .place(let kind): return "Place \(kind.displayName)"
+        case .placeCustom: return "Place Custom Part"
         }
     }
 }
@@ -36,7 +38,12 @@ struct SchematicEditorView: View {
                 ToolStripButton(systemImage: "line.diagonal", help: "Wire (W) — click two pins", isActive: tool == .wire) { tool = .wire }
                 ToolStripDivider()
                 ToolStripButton(systemImage: "plus.square.on.square", help: "Place selected device (P)",
-                                isActive: { if case .place = tool { return true } else { return false } }()) {
+                                isActive: {
+                                    switch tool {
+                                    case .place, .placeCustom: return true
+                                    default: return false
+                                    }
+                                }()) {
                     tool = .place(pickerKind)
                 }
                 ToolStripButton(systemImage: "arrow.down.to.line", help: "Place ground (G)", isActive: tool == .place(.ground)) {
@@ -58,7 +65,9 @@ struct SchematicEditorView: View {
             }
 
             if showPicker {
-                DevicePicker(selected: $pickerKind) { kind in
+                DevicePicker(selected: $pickerKind, customParts: store.snapshot.customParts,
+                             onPickCustom: { tool = .placeCustom($0) },
+                             onImport: { store.workspace = .library }) { kind in
                     pickerKind = kind
                     tool = .place(kind)
                 }
@@ -107,12 +116,21 @@ struct SchematicEditorView: View {
 /// Proteus-style device picker: searchable list with a live symbol preview.
 struct DevicePicker: View {
     @Binding var selected: ComponentKind
+    var customParts: [CustomPartInfo] = []
+    var onPickCustom: (String) -> Void = { _ in }
+    var onImport: () -> Void = {}
     var onPick: (ComponentKind) -> Void
     @State private var search = ""
+    @State private var selectedCustom: String?
 
     private var filtered: [ComponentKind] {
         let q = search.lowercased()
-        return ComponentKind.allCases.filter { q.isEmpty || $0.displayName.lowercased().contains(q) || $0.planName.contains(q) }
+        return ComponentKind.builtIn.filter { q.isEmpty || $0.displayName.lowercased().contains(q) || $0.planName.contains(q) }
+    }
+
+    private var filteredCustom: [CustomPartInfo] {
+        let q = search.lowercased()
+        return customParts.filter { q.isEmpty || $0.name.lowercased().contains(q) || $0.description.lowercased().contains(q) }
     }
 
     var body: some View {
@@ -127,7 +145,32 @@ struct DevicePicker: View {
             TextField("Search devices", text: $search)
                 .textFieldStyle(.roundedBorder)
                 .padding(8)
-            List(selection: Binding<ComponentKind?>(get: { selected }, set: { if let k = $0 { onPick(k) } })) {
+            List(selection: Binding<ComponentKind?>(get: { selectedCustom == nil ? selected : nil },
+                                                    set: { if let k = $0 { selectedCustom = nil; onPick(k) } })) {
+                Section("Custom Parts") {
+                    ForEach(filteredCustom) { part in
+                        HStack {
+                            Image(systemName: "cpu.fill").foregroundStyle(Theme.skyBlue)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(part.name).foregroundStyle(Theme.textPrimary)
+                                Text("\(part.footprint) · \(part.pins.count) pins").font(.caption2).foregroundStyle(Theme.textMuted)
+                            }
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                        .padding(.vertical, 1)
+                        .background(RoundedRectangle(cornerRadius: 5).fill(selectedCustom == part.id ? Theme.blue.opacity(0.3) : .clear))
+                        .onTapGesture {
+                            selectedCustom = part.id
+                            onPickCustom(part.id)
+                        }
+                    }
+                    Button(action: onImport) {
+                        Label("Import Datasheet…", systemImage: "doc.viewfinder")
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(Theme.lightBlue)
+                }
                 ForEach(["Passives", "Semiconductors", "Power & Nets", "Electromechanical"], id: \.self) { category in
                     let items = filtered.filter { $0.category == category }
                     if !items.isEmpty {
@@ -144,6 +187,19 @@ struct DevicePicker: View {
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
 
+            if let id = selectedCustom, let part = customParts.first(where: { $0.id == id }) {
+                VStack(alignment: .leading, spacing: 6) {
+                    SymbolPreview(kind: .custom, value: part.name, custom: part, showPinLabels: true)
+                        .frame(height: 120)
+                        .frame(maxWidth: .infinity)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.navy))
+                    Text(part.name).font(.headline).foregroundStyle(Theme.textPrimary)
+                    Text("\(part.manufacturer.isEmpty ? "" : part.manufacturer + " · ")\(part.footprint)")
+                        .font(.caption).foregroundStyle(Theme.lightBlue)
+                    Text(part.description).font(.caption).foregroundStyle(Theme.textMuted)
+                }
+                .padding(10)
+            } else {
             VStack(alignment: .leading, spacing: 6) {
                 SymbolPreview(kind: selected, value: selected.defaultValue)
                     .frame(height: 90)
@@ -155,6 +211,7 @@ struct DevicePicker: View {
                 Text(selected.valueHint).font(.caption).foregroundStyle(Theme.textMuted)
             }
             .padding(10)
+            }
         }
         .background(Theme.deepBlue.opacity(0.75))
         .overlay(Rectangle().frame(width: 1).foregroundStyle(Theme.blue.opacity(0.3)), alignment: .trailing)

@@ -15,11 +15,59 @@ struct DesignSnapshot: Decodable, Equatable {
     var vias: [SnapVia]
     var ratsnest: [SnapLine]
     var courtyards: [SnapCourtyard]
+    var bodies: [SnapBody] = []
+    var customParts: [CustomPartInfo] = []
 
     static let empty = DesignSnapshot(name: "Untitled", requirements: "", components: [], wires: [], nets: [],
                                       board: BoardInfo(), pads: [], tracks: [], vias: [], ratsnest: [], courtyards: [])
 
+    init(name: String, requirements: String, components: [SnapComponent], wires: [SnapWire], nets: [SnapNet],
+         board: BoardInfo, pads: [SnapPad], tracks: [SnapTrack], vias: [SnapVia], ratsnest: [SnapLine],
+         courtyards: [SnapCourtyard], bodies: [SnapBody] = [], customParts: [CustomPartInfo] = []) {
+        self.name = name
+        self.requirements = requirements
+        self.components = components
+        self.wires = wires
+        self.nets = nets
+        self.board = board
+        self.pads = pads
+        self.tracks = tracks
+        self.vias = vias
+        self.ratsnest = ratsnest
+        self.courtyards = courtyards
+        self.bodies = bodies
+        self.customParts = customParts
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        requirements = try c.decodeIfPresent(String.self, forKey: .requirements) ?? ""
+        components = try c.decode([SnapComponent].self, forKey: .components)
+        wires = try c.decode([SnapWire].self, forKey: .wires)
+        nets = try c.decode([SnapNet].self, forKey: .nets)
+        board = try c.decode(BoardInfo.self, forKey: .board)
+        pads = try c.decode([SnapPad].self, forKey: .pads)
+        tracks = try c.decode([SnapTrack].self, forKey: .tracks)
+        vias = try c.decode([SnapVia].self, forKey: .vias)
+        ratsnest = try c.decode([SnapLine].self, forKey: .ratsnest)
+        courtyards = try c.decode([SnapCourtyard].self, forKey: .courtyards)
+        bodies = try c.decodeIfPresent([SnapBody].self, forKey: .bodies) ?? []
+        customParts = try c.decodeIfPresent([CustomPartInfo].self, forKey: .customParts) ?? []
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
+    }
+
     func component(_ id: Int) -> SnapComponent? { components.first { $0.id == id } }
+    func customPart(_ id: String?) -> CustomPartInfo? {
+        guard let id else { return nil }
+        return customParts.first { $0.id == id }
+    }
+    func customPart(for component: SnapComponent) -> CustomPartInfo? {
+        component.componentKind == .custom ? customPart(component.customPart) : nil
+    }
     func component(ref: String) -> SnapComponent? { components.first { $0.ref == ref } }
     func net(_ index: Int) -> SnapNet? { index >= 0 && index < nets.count ? nets[index] : nil }
 }
@@ -52,6 +100,7 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     var footprint: String
     var pins: [SnapPin]
     var pcb: PcbPlacement
+    var customPart: String?
 
     var componentKind: ComponentKind { ComponentKind(rawValue: kind) ?? .ic8 }
     var position: CGPoint { CGPoint(x: x, y: y) }
@@ -84,6 +133,7 @@ struct SnapNet: Decodable, Equatable, Identifiable {
 }
 
 struct BoardInfo: Decodable, Equatable {
+    var layerCount: Int = 2
     var width: Double = 50
     var height: Double = 40
     var thickness: Double = 1.6
@@ -93,6 +143,47 @@ struct BoardInfo: Decodable, Equatable {
     var viaDiameter: Double = 0.6
     var edgeClearance: Double = 0.5
     var routingGrid: Double = 0.25
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        layerCount = try c.decodeIfPresent(Int.self, forKey: .layerCount) ?? 2
+        width = try c.decode(Double.self, forKey: .width)
+        height = try c.decode(Double.self, forKey: .height)
+        thickness = try c.decodeIfPresent(Double.self, forKey: .thickness) ?? 1.6
+        trackWidth = try c.decodeIfPresent(Double.self, forKey: .trackWidth) ?? 0.25
+        clearance = try c.decodeIfPresent(Double.self, forKey: .clearance) ?? 0.2
+        viaDrill = try c.decodeIfPresent(Double.self, forKey: .viaDrill) ?? 0.3
+        viaDiameter = try c.decodeIfPresent(Double.self, forKey: .viaDiameter) ?? 0.6
+        edgeClearance = try c.decodeIfPresent(Double.self, forKey: .edgeClearance) ?? 0.5
+        routingGrid = try c.decodeIfPresent(Double.self, forKey: .routingGrid) ?? 0.25
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case layerCount, width, height, thickness, trackWidth, clearance, viaDrill, viaDiameter, edgeClearance, routingGrid
+    }
+
+    var bottomLayer: Int { max(1, layerCount) - 1 }
+
+    /// "Top", "Inner 1", …, "Bottom"
+    func layerName(_ layer: Int) -> String {
+        if layer == 0 { return "Top" }
+        if layer == bottomLayer { return "Bottom" }
+        return "Inner \(layer)"
+    }
+}
+
+/// Component body (mm) used by the 3D X-ray view.
+struct SnapBody: Decodable, Equatable {
+    var component: Int
+    var x: Double
+    var y: Double
+    var w: Double
+    var d: Double
+    var h: Double
+    var bottom: Bool
+    var package: String
 }
 
 struct SnapPad: Decodable, Equatable {

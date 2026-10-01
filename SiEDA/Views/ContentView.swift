@@ -34,6 +34,7 @@ struct ContentView: View {
         switch store.workspace {
         case .promptStudio: PromptStudioView()
         case .schematic: SchematicEditorView()
+        case .library: ComponentLibraryView()
         case .pcb: PCBEditorView()
         case .threeD: Board3DWorkspace()
         case .simulation: SimulationView()
@@ -59,7 +60,7 @@ struct ContentView: View {
             }
             .pickerStyle(.segmented)
             .labelStyle(.iconOnly)
-            .help("Switch workspace (⌘1 – ⌘6)")
+            .help("Switch workspace (⌘1 – ⌘7)")
         }
         ToolbarItemGroup(placement: .primaryAction) {
             Menu {

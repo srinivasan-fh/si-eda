@@ -147,7 +147,8 @@ final class AgentOrchestrator: ObservableObject {
 
         // 2. Architecture
         index = begin(.architect, "Designing circuit")
-        let planText = try await provider.complete(AgentPrompts.architectRequest(brief: brief, spec: spec))
+        let planText = try await provider.complete(AgentPrompts.architectRequest(brief: brief, spec: spec,
+                                                                                         customParts: store.snapshot.customParts))
         var plan = try JSONExtraction.decode(DesignPlan.self, from: planText)
         if plan.board.width < 10 || plan.board.height < 10 {
             plan.board = PlannedBoard(width: max(20, spec.boardWidthMM), height: max(15, spec.boardHeightMM))
@@ -165,7 +166,8 @@ final class AgentOrchestrator: ObservableObject {
         let index = begin(.architect, "Applying change request")
         let current = store.currentPlan
         let planText = try await provider.complete(
-            AgentPrompts.refineRequest(instruction: instruction, current: current, requirements: requirements))
+            AgentPrompts.refineRequest(instruction: instruction, current: current, requirements: requirements,
+                                       customParts: store.snapshot.customParts))
         var plan = try JSONExtraction.decode(DesignPlan.self, from: planText)
         if plan.board.width < 10 || plan.board.height < 10 { plan.board = current.board }
         finish(index, .done, "\(plan.components.count) parts, \(plan.connections.count) connections")
@@ -186,7 +188,8 @@ final class AgentOrchestrator: ObservableObject {
                 try Task.checkCancellation()
                 let index = begin(.reviewer, "Design review — round \(round)")
                 let text = try await provider.complete(AgentPrompts.reviewRequest(
-                    spec: spec, brief: brief, plan: plan, erc: store.ercResults, dc: store.dcResult))
+                    spec: spec, brief: brief, plan: plan, erc: store.ercResults, dc: store.dcResult,
+                    customParts: store.snapshot.customParts))
                 let verdict = try JSONExtraction.decode(DesignReview.self, from: text)
                 if verdict.approved {
                     finish(index, .done, verdict.issues.isEmpty ? "Approved" : "Approved with notes: "

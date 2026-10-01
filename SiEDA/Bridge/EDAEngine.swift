@@ -140,6 +140,48 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func removeWire(_ id: Int) -> Bool { withHandle { sieda_remove_wire($0, Int32(id)) } == 1 }
 
+    // MARK: - Custom parts
+
+    /// Registers a part in the project library; returns the generated part (symbol + footprint).
+    func registerCustomPart(_ spec: CustomPartSpec) throws -> CustomPartInfo {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let json = withHandle { Self.take(sieda_custom_part_register($0, spec.jsonString(), &errorPointer)) }
+        if let message = Self.take(errorPointer) { throw EDAEngineError.operationFailed(message) }
+        guard let part = Self.decode(CustomPartInfo.self, from: json) else {
+            throw EDAEngineError.operationFailed("The core returned an unreadable part definition.")
+        }
+        return part
+    }
+
+    /// Generates symbol and footprint without adding the part to the project (live editor preview).
+    static func previewCustomPart(_ spec: CustomPartSpec) -> Result<CustomPartInfo, EDAEngineError> {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let json = take(sieda_custom_part_preview(spec.jsonString(), &errorPointer))
+        if let message = take(errorPointer) { return .failure(.operationFailed(message)) }
+        guard let part = decode(CustomPartInfo.self, from: json) else {
+            return .failure(.operationFailed("Preview unavailable."))
+        }
+        return .success(part)
+    }
+
+    @discardableResult
+    func removeCustomPart(_ id: String) -> Bool { withHandle { sieda_custom_part_remove($0, id) } == 1 }
+
+    @discardableResult
+    func replaceCustomPart(_ oldId: String, with newId: String) -> Int {
+        Int(withHandle { sieda_custom_part_replace($0, oldId, newId) })
+    }
+
+    @discardableResult
+    func addCustomComponent(partId: String, value: String? = nil, at point: CGPoint, rotation: Int = 0,
+                            ref: String? = nil) -> Int {
+        let v = value ?? ""
+        let r = ref ?? ""
+        return Int(withHandle {
+            sieda_add_custom_component($0, partId, v, Double(point.x), Double(point.y), Int32(rotation), r)
+        })
+    }
+
     // MARK: - Analysis
 
     func runERC() -> [RuleViolation] {
@@ -157,6 +199,8 @@ final class EDAEngine: @unchecked Sendable {
     }
 
     // MARK: - PCB
+
+    func setLayerCount(_ layers: Int) { withHandle { sieda_pcb_set_layer_count($0, Int32(layers)) } }
 
     func setBoard(width: Double, height: Double, trackWidth: Double, clearance: Double) {
         withHandle { sieda_pcb_set_board($0, width, height, trackWidth, clearance) }
@@ -196,24 +240,40 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { Self.take(sieda_export($0, format.rawValue)) }
     }
 
+    /// Copper Gerber of layer `oneBasedLayer` (1 = top … layerCount = bottom).
+    func exportCopperLayer(_ oneBasedLayer: Int) -> String? {
+        withHandle { Self.take(sieda_export($0, "gerber_l\(oneBasedLayer)")) }
+    }
+
     func buildMesh(includeComponents: Bool) -> MeshData? {
         withHandle { handle -> MeshData? in
-            guard let mesh = sieda_mesh_build(handle, includeComponents ? 1 : 0) else { return nil }
-            defer { sieda_mesh_free(mesh) }
-            let vertexCount = Int(sieda_mesh_vertex_count(mesh))
-            let indexCount = Int(sieda_mesh_index_count(mesh))
-            guard vertexCount > 0, indexCount > 0,
-                  let positions = sieda_mesh_positions(mesh),
-                  let normals = sieda_mesh_normals(mesh),
-                  let colors = sieda_mesh_colors(mesh),
-                  let indices = sieda_mesh_indices(mesh) else { return nil }
-            return MeshData(
-                positions: Array(UnsafeBufferPointer(start: positions, count: vertexCount * 3)),
-                normals: Array(UnsafeBufferPointer(start: normals, count: vertexCount * 3)),
-                colors: Array(UnsafeBufferPointer(start: colors, count: vertexCount * 4)),
-                indices: Array(UnsafeBufferPointer(start: indices, count: indexCount))
-            )
+            Self.copyMesh(sieda_mesh_build(handle, includeComponents ? 1 : 0))
         }
+    }
+
+    /// Copper of a single layer, flat at Y = 0 (X-ray stack view).
+    func buildLayerMesh(layer: Int) -> MeshData? {
+        withHandle { handle -> MeshData? in
+            Self.copyMesh(sieda_mesh_build_layer(handle, Int32(layer)))
+        }
+    }
+
+    private static func copyMesh(_ meshPointer: OpaquePointer?) -> MeshData? {
+        guard let mesh = meshPointer else { return nil }
+        defer { sieda_mesh_free(mesh) }
+        let vertexCount = Int(sieda_mesh_vertex_count(mesh))
+        let indexCount = Int(sieda_mesh_index_count(mesh))
+        guard vertexCount > 0, indexCount > 0,
+              let positions = sieda_mesh_positions(mesh),
+              let normals = sieda_mesh_normals(mesh),
+              let colors = sieda_mesh_colors(mesh),
+              let indices = sieda_mesh_indices(mesh) else { return nil }
+        return MeshData(
+            positions: Array(UnsafeBufferPointer(start: positions, count: vertexCount * 3)),
+            normals: Array(UnsafeBufferPointer(start: normals, count: vertexCount * 3)),
+            colors: Array(UnsafeBufferPointer(start: colors, count: vertexCount * 4)),
+            indices: Array(UnsafeBufferPointer(start: indices, count: indexCount))
+        )
     }
 }
 

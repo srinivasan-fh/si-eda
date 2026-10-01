@@ -20,11 +20,13 @@ The app defaults to dark mode with a blue palette.
 | **AI Prompt Studio** | Prompt/PRD editor, template briefs, PRD import, live agent pipeline, conversational refinement ("make the LED green and run it from 3.3 V") |
 | **Agent team** | Requirements Analyst → Circuit Architect → Plan Compiler → Verification (ERC + SPICE) → Design Reviewer (feedback loop) → PCB Layout |
 | **Model choice** | Anthropic **Claude** (default: `claude-opus-5-5`, structured outputs, adaptive thinking, effort control, refusal fallbacks), OpenAI or any OpenAI-compatible endpoint, Google Gemini, local Ollama, and an Offline Designer that needs no network |
-| **Schematic capture** | 16 device types, orthogonal wiring, net labels, junctions, rotate/move/marquee, undo/redo, ERC |
+| **Schematic capture** | 16 built-in device types plus your own library parts, orthogonal wiring, net labels, junctions, rotate/move/marquee, undo/redo, ERC with pin-type rules |
+| **Datasheet → component** | Drop a datasheet (PDF, pinout screenshot or text). The Datasheet Analyst agent extracts part number, package and every pin with its electrical type: Claude and Gemini read the PDF natively, OCR (Vision) handles images, and an offline pin-table parser works without a key. You review it in a pin-table editor with live symbol and footprint previews, then save it to the project library and place it like any other part. AI design agents can use library parts too |
 | **Simulation** | Modified Nodal Analysis with Newton–Raphson: DC operating point and transient. Diode/LED (Shockley), BJT (Ebers–Moll), MOSFET (square-law with λ), saturating op-amp, R/L/C, DC/SIN/PULSE sources. Waveforms are drawn with Swift Charts |
-| **PCB layout** | Footprint library (0805, SOD-123, SOT-23, SOIC-8, 2.54 mm headers), connectivity-driven auto-placement, two-layer A* autorouter with vias, turn penalties and rip-up passes, ratsnest, geometric DRC (clearance, shorts, edge, courtyard, unrouted) |
-| **3D** | Tessellated board (blue solder mask), copper, vias, silkscreen and component bodies rendered with SceneKit; STL/OBJ export |
-| **Manufacturing** | Gerber RS-274X (top/bottom copper, solder mask, silkscreen, outline), Excellon drill, BOM, pick-and-place, SPICE netlist, all in one "Export Fabrication Package" step |
+| **PCB layout** | Footprint library (0805, SOD-123, SOT-23, SOIC, TSSOP, DIP, QFN with exposed pad, LQFP, headers, TO-220), connectivity-driven auto-placement, board fit, ratsnest, geometric DRC (clearance, shorts, edge, courtyard, unrouted, stack-up) |
+| **Autorouting** | Single-layer (single-sided, no vias), 2-, 4- and 6-layer A* autorouter: through vias, alternating layer directions, turn penalties, rip-up and retry passes |
+| **3D** | **X-Ray Stack:** a holographic exploded view of every copper layer with an adjustable gap. Copper glows with additive blending and HDR bloom, through vias become light pillars, part bodies are wireframes, and a scan beam sweeps the stack; turntable spin and per-layer toggles. **Assembly:** a realistic board with blue solder mask. Both export to STL/OBJ |
+| **Manufacturing** | Gerber RS-274X for every copper layer including inner layers, plus solder mask, silkscreen and outline; Excellon drill, BOM, pick-and-place and SPICE netlist; all in one "Export Fabrication Package" step |
 
 ## Repository layout
 
@@ -59,7 +61,8 @@ open SiEDA.xcodeproj        # then Run (⌘R)
    the macOS Keychain. You can switch to OpenAI, Gemini, Ollama or the Offline Designer at any time from
    the same screen or the toolbar menu.
 2. In **AI Prompt Studio**, describe the product or pick a template, then press **Generate Design** (⌘↩).
-3. Inspect the result in **Schematic** (⌘2), **PCB Layout** (⌘3), **3D Viewer** (⌘4) and **Simulation** (⌘5).
+3. Inspect the result in **Schematic** (⌘2), **PCB Layout** (⌘4), **3D Viewer** (⌘5) and **Simulation** (⌘6).
+   Import datasheets in **Component Library** (⌘3). Choose 1, 2, 4 or 6 copper layers in the PCB options bar.
 4. Choose **File → Export Fabrication Package…** (⇧⌘E).
 
 Command-line build and test:
@@ -95,7 +98,7 @@ python3 tools/generate_xcodeproj.py
 | ⌫ / Esc | Delete selection / cancel |
 | ⇧-drag | Marquee select |
 | ⇧⌘K / ⇧⌘D / ⇧⌘R | Run ERC, DC operating point, autoroute |
-| ⌘1 … ⌘6 | Switch workspace |
+| ⌘1 … ⌘7 | Switch workspace |
 
 ## License
 

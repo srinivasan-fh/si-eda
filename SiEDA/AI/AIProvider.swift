@@ -1,5 +1,24 @@
 import Foundation
 
+/// A file sent alongside a prompt (datasheet PDF or a pinout screenshot).
+struct AIAttachment {
+    enum Kind: Equatable {
+        case pdf
+        case image(mimeType: String)
+    }
+
+    var kind: Kind
+    var data: Data
+    var fileName: String
+
+    var mimeType: String {
+        switch kind {
+        case .pdf: return "application/pdf"
+        case .image(let mime): return mime
+        }
+    }
+}
+
 /// A single structured-output request issued by an agent.
 struct AIRequest {
     var system: String
@@ -8,6 +27,7 @@ struct AIRequest {
     var schemaName: String
     var schema: [String: Any]
     var maxTokens: Int = 16_000
+    var attachments: [AIAttachment] = []
 }
 
 enum AIProviderError: LocalizedError {
@@ -39,6 +59,10 @@ enum AIProviderError: LocalizedError {
 protocol AIProvider {
     var displayName: String { get }
     var modelName: String { get }
+    /// Whether the provider reads PDF attachments natively (otherwise callers send extracted text).
+    var acceptsPDF: Bool { get }
+    /// Whether the provider reads image attachments.
+    var acceptsImages: Bool { get }
     /// Returns the model's JSON text for `request` (conforming to `request.schema` when supported).
     func complete(_ request: AIRequest) async throws -> String
 }
@@ -114,6 +138,11 @@ enum AIProviderKind: String, CaseIterable, Identifiable, Codable {
         default: return ""
         }
     }
+}
+
+extension AIProvider {
+    var acceptsPDF: Bool { false }
+    var acceptsImages: Bool { false }
 }
 
 // MARK: - HTTP helper shared by the network providers

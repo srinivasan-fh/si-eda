@@ -15,7 +15,37 @@ enum SchematicSymbols {
         case .connector: return CGRect(x: -20, y: -22, width: 28, height: 44)
         case .ic8: return CGRect(x: -40, y: -42, width: 80, height: 84)
         case .netLabel: return CGRect(x: -2, y: -9, width: 60, height: 18)
+        case .custom: return CGRect(x: -40, y: -40, width: 80, height: 80)
         }
+    }
+
+    /// Hit box of a component, using the generated symbol size for custom parts.
+    static func bounds(_ kind: ComponentKind, custom: CustomPartInfo?) -> CGRect {
+        guard kind == .custom, let custom else { return bounds(kind) }
+        let w = custom.symbol.halfWidth + 20, h = custom.symbol.halfHeight
+        return CGRect(x: -w, y: -h, width: 2 * w, height: 2 * h)
+    }
+
+    /// Generated DIP-style symbol for a datasheet part: body, pin leads, pin-1 marker.
+    static func customShapes(_ part: CustomPartInfo) -> Shapes {
+        var s = Shapes()
+        let hw = part.symbol.halfWidth, hh = part.symbol.halfHeight
+        let body = CGRect(x: -hw, y: -hh, width: 2 * hw, height: 2 * hh)
+        s.fill.addRect(body)
+        s.stroke.addRect(body)
+        for pin in part.symbol.pins {
+            let edgeX = pin.x < 0 ? -hw : hw
+            s.stroke.move(to: CGPoint(x: edgeX, y: pin.y))
+            s.stroke.addLine(to: CGPoint(x: pin.x, y: pin.y))
+            if pin.type == PinElectricalType.noConnect.rawValue {
+                s.stroke.move(to: CGPoint(x: pin.x - 3, y: pin.y - 3))
+                s.stroke.addLine(to: CGPoint(x: pin.x + 3, y: pin.y + 3))
+                s.stroke.move(to: CGPoint(x: pin.x - 3, y: pin.y + 3))
+                s.stroke.addLine(to: CGPoint(x: pin.x + 3, y: pin.y - 3))
+            }
+        }
+        s.solid.addEllipse(in: CGRect(x: -hw + 4, y: -hh + 4, width: 5, height: 5))
+        return s
     }
 
     struct Shapes {
@@ -193,6 +223,11 @@ enum SchematicSymbols {
             s.stroke.addRect(body)
             line(p(-15, 0), p(15, 0))
 
+        case .custom:
+            let body = CGRect(x: -30, y: -30, width: 60, height: 60)
+            s.fill.addRect(body)
+            s.stroke.addRect(body)
+
         case .netLabel:
             let width = max(36, CGFloat(value.count) * 7 + 16)
             var tag = Path()
@@ -228,22 +263,39 @@ enum SchematicSymbols {
     }
 }
 
-/// A small standalone preview of a symbol (used by the Proteus-style device picker).
+/// A small standalone preview of a symbol (used by the Proteus-style device picker and the library editor).
 struct SymbolPreview: View {
     var kind: ComponentKind
     var value: String
+    var custom: CustomPartInfo? = nil
+    var showPinLabels = false
 
     var body: some View {
         Canvas { ctx, size in
-            let b = SchematicSymbols.bounds(kind).insetBy(dx: -6, dy: -6)
+            let b = SchematicSymbols.bounds(kind, custom: custom).insetBy(dx: -6, dy: custom == nil ? -6 : -16)
             let scale = min(size.width / b.width, size.height / b.height)
             let t = CGAffineTransform(translationX: size.width / 2, y: size.height / 2)
                 .scaledBy(x: scale, y: scale)
                 .translatedBy(x: -b.midX, y: -b.midY)
-            let shapes = SchematicSymbols.shapes(for: kind, value: value)
+            let shapes = custom.map(SchematicSymbols.customShapes) ?? SchematicSymbols.shapes(for: kind, value: value)
             ctx.fill(shapes.fill.applying(t), with: .color(Theme.symbolFill))
             ctx.stroke(shapes.stroke.applying(t), with: .color(Theme.symbol), lineWidth: 1.4)
             ctx.fill(shapes.solid.applying(t), with: .color(Theme.symbol))
+            if let custom, showPinLabels {
+                let font = max(6, min(11, 7.5 * scale))
+                for pin in custom.symbol.pins {
+                    let left = pin.x < 0
+                    let inner = CGPoint(x: left ? -custom.symbol.halfWidth + 4 : custom.symbol.halfWidth - 4, y: pin.y).applying(t)
+                    ctx.draw(Text(pin.name).font(.system(size: font, design: .monospaced)).foregroundColor(Theme.skyBlue),
+                             at: inner, anchor: left ? .leading : .trailing)
+                    let num = CGPoint(x: (pin.x + (left ? -custom.symbol.halfWidth : custom.symbol.halfWidth)) / 2, y: pin.y - 5).applying(t)
+                    ctx.draw(Text(pin.number).font(.system(size: font * 0.85, design: .monospaced)).foregroundColor(Theme.textMuted),
+                             at: num)
+                }
+                let title = CGPoint(x: 0, y: -custom.symbol.halfHeight - 8).applying(t)
+                ctx.draw(Text(custom.name).font(.system(size: font + 1, weight: .bold, design: .monospaced))
+                            .foregroundColor(Theme.iceBlue), at: title)
+            }
         }
     }
 }

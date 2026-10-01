@@ -88,7 +88,7 @@ struct SchematicCanvas: View {
         guard !comps.isEmpty else { return }
         var rect = CGRect.null
         for c in comps {
-            let b = SchematicSymbols.bounds(c.componentKind)
+            let b = SchematicSymbols.bounds(c.componentKind, custom: store.snapshot.customPart(for: c))
                 .applying(SchematicSymbols.transform(position: c.position, rotation: c.rotation))
             rect = rect.union(b)
         }
@@ -113,7 +113,9 @@ struct SchematicCanvas: View {
     private func component(at world: CGPoint) -> Int? {
         for c in store.snapshot.components.reversed() {
             let t = SchematicSymbols.transform(position: c.position, rotation: c.rotation).inverted()
-            if SchematicSymbols.bounds(c.componentKind).contains(world.applying(t)) { return c.id }
+            if SchematicSymbols.bounds(c.componentKind, custom: store.snapshot.customPart(for: c)).contains(world.applying(t)) {
+                return c.id
+            }
         }
         return nil
     }
@@ -220,6 +222,8 @@ struct SchematicCanvas: View {
         switch tool {
         case .place(let kind):
             store.addComponent(kind, at: world)
+        case .placeCustom(let partId):
+            store.addCustomComponent(partId: partId, at: world)
         case .pan:
             break
         case .select, .wire:
@@ -294,7 +298,8 @@ struct SchematicCanvas: View {
             if movingIds.contains(c.id) { position.x += delta.width; position.y += delta.height }
             let local = SchematicSymbols.transform(position: position, rotation: c.rotation)
             let t = local.concatenating(screen)
-            let shapes = SchematicSymbols.shapes(for: c.componentKind, value: c.value)
+            let custom = snap.customPart(for: c)
+            let shapes = custom.map(SchematicSymbols.customShapes) ?? SchematicSymbols.shapes(for: c.componentKind, value: c.value)
             let selected = store.selection.contains(c.id)
             if selected {
                 ctx.stroke(shapes.stroke.applying(t), with: .color(Theme.blue.opacity(0.55)), lineWidth: 6)
@@ -316,6 +321,22 @@ struct SchematicCanvas: View {
                 } else if !c.componentKind.isVirtual || c.componentKind == .netLabel {
                     ctx.stroke(Path(CGRect(x: s.x - 3, y: s.y - 3, width: 6, height: 6)), with: .color(Theme.unconnectedPin), lineWidth: 1.2)
                 }
+                if let custom, i < custom.symbol.pins.count, viewport.scale > 0.9 {
+                    // Pin name inside the body, pin number on the lead (upright text).
+                    let sp = custom.symbol.pins[i]
+                    let left = sp.x < 0
+                    let edge = left ? -custom.symbol.halfWidth : custom.symbol.halfWidth
+                    let inner = CGPoint(x: edge + (left ? 4 : -4), y: sp.y).applying(t)
+                    let centre = position.applying(screen)
+                    let anchor: UnitPoint = abs(inner.x - centre.x) < 2 ? .center : (inner.x < centre.x ? .leading : .trailing)
+                    let size = max(7, min(11, 7 * viewport.scale / 1.6))
+                    ctx.draw(Text(sp.name).font(.system(size: size, design: .monospaced))
+                                .foregroundColor(sp.type == PinElectricalType.powerIn.rawValue ? Theme.probe : Theme.skyBlue),
+                             at: inner, anchor: anchor)
+                    let lead = CGPoint(x: (sp.x + edge) / 2, y: sp.y - 5).applying(t)
+                    ctx.draw(Text(sp.number).font(.system(size: size * 0.85, design: .monospaced)).foregroundColor(Theme.textMuted),
+                             at: lead)
+                }
                 if c.componentKind == .ic8, viewport.scale > 1.2 {
                     let inward = CGPoint(x: (c.position.x - pp.x) * 0.18 + pp.x, y: pp.y).applying(screen)
                     ctx.draw(Text("\(i + 1)").font(.system(size: 8, design: .monospaced)).foregroundColor(Theme.textMuted),
@@ -335,7 +356,7 @@ struct SchematicCanvas: View {
                             .foregroundColor(Theme.skyBlue), at: center)
             default:
                 // Labels sit above/below wide symbols and to the right of tall ones, always upright.
-                let box = SchematicSymbols.bounds(c.componentKind).applying(local)
+                let box = SchematicSymbols.bounds(c.componentKind, custom: custom).applying(local)
                 let refPoint: CGPoint
                 let valPoint: CGPoint
                 let anchor: UnitPoint
@@ -386,10 +407,12 @@ struct SchematicCanvas: View {
         }
 
         // Placement ghost.
-        if case .place(let kind) = tool, let h = hover {
+        var ghost: SchematicSymbols.Shapes?
+        if case .place(let kind) = tool { ghost = SchematicSymbols.shapes(for: kind, value: kind.defaultValue) }
+        if case .placeCustom(let partId) = tool, let part = snap.customPart(partId) { ghost = SchematicSymbols.customShapes(part) }
+        if let shapes = ghost, let h = hover {
             let world = SchematicAutoLayout.snap(viewport.toWorld(h))
             let t = SchematicSymbols.transform(position: world, rotation: 0).concatenating(screen)
-            let shapes = SchematicSymbols.shapes(for: kind, value: kind.defaultValue)
             ctx.stroke(shapes.stroke.applying(t), with: .color(Theme.skyBlue.opacity(0.6)),
                        style: StrokeStyle(lineWidth: 1.4, dash: [4, 3]))
         }

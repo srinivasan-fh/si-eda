@@ -127,10 +127,14 @@ struct DesignReview: Codable, Equatable {
 // MARK: - JSON Schemas (used for structured outputs on every provider)
 
 enum DesignSchemas {
-    static var kindNames: [String] { ComponentKind.allCases.map(\.planName) }
+    static var kindNames: [String] { ComponentKind.builtIn.map(\.planName) }
 
-    static var designPlan: [String: Any] {
-        [
+    static var designPlan: [String: Any] { designPlanSchema(customKinds: []) }
+
+    /// `customKinds` are "custom:<NAME>" identifiers of parts in the project library.
+    static func designPlanSchema(customKinds: [String]) -> [String: Any] {
+        let kinds = kindNames + customKinds
+        return [
             "type": "object",
             "additionalProperties": false,
             "required": ["title", "summary", "components", "connections", "notes", "board"],
@@ -145,7 +149,7 @@ enum DesignSchemas {
                         "required": ["ref", "kind", "value", "x", "y", "rotation"],
                         "properties": [
                             "ref": ["type": "string", "description": "Unique reference designator, e.g. R1, C2, U1"],
-                            "kind": ["type": "string", "enum": kindNames] as [String: Any],
+                            "kind": ["type": "string", "enum": kinds] as [String: Any],
                             "value": ["type": "string"],
                             "x": ["type": "number"],
                             "y": ["type": "number"],
@@ -199,7 +203,9 @@ enum DesignSchemas {
         ]
     }
 
-    static var review: [String: Any] {
+    static var review: [String: Any] { reviewSchema(customKinds: []) }
+
+    static func reviewSchema(customKinds: [String]) -> [String: Any] {
         [
             "type": "object",
             "additionalProperties": false,
@@ -207,7 +213,7 @@ enum DesignSchemas {
             "properties": [
                 "approved": ["type": "boolean"],
                 "issues": ["type": "array", "items": ["type": "string"]] as [String: Any],
-                "plan": designPlan,
+                "plan": designPlanSchema(customKinds: customKinds),
             ] as [String: Any],
         ]
     }
@@ -237,8 +243,26 @@ enum DesignPlanCompiler {
         positions = SchematicAutoLayout.resolveOverlaps(positions)
 
         var seenRefs = Set<String>()
+        let library = previous?.customParts ?? []
         for (index, item) in plan.components.enumerated() {
-            guard let kind = ComponentKind.fromPlanName(item.kind) else {
+            if item.kind.lowercased().hasPrefix("custom:") {
+                let name = String(item.kind.dropFirst("custom:".count)).trimmingCharacters(in: .whitespaces)
+                guard let part = library.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) else {
+                    report.warnings.append("Skipped \(item.ref): '\(name)' is not in the component library.")
+                    continue
+                }
+                var ref = item.ref.trimmingCharacters(in: .whitespaces)
+                if seenRefs.contains(ref) { ref = "" }
+                let rotation = ((item.rotation % 360) + 360) % 360 / 90 * 90
+                let id = engine.addCustomComponent(partId: part.id, value: item.value.isEmpty ? nil : item.value,
+                                                   at: positions[index], rotation: rotation, ref: ref.isEmpty ? nil : ref)
+                if id >= 0 {
+                    report.componentsAdded += 1
+                    if !ref.isEmpty { seenRefs.insert(ref) }
+                }
+                continue
+            }
+            guard let kind = ComponentKind.fromPlanName(item.kind), kind != .custom else {
                 report.warnings.append("Skipped \(item.ref): unknown component kind '\(item.kind)'.")
                 continue
             }
@@ -302,14 +326,19 @@ enum DesignPlanCompiler {
     /// Converts the current schematic back into a plan (context for refinement requests).
     static func plan(from snapshot: DesignSnapshot) -> DesignPlan {
         let byId = Dictionary(uniqueKeysWithValues: snapshot.components.map { ($0.id, $0) })
-        let components = snapshot.components.map {
-            PlannedComponent(ref: $0.ref, kind: $0.componentKind.planName, value: $0.value, x: $0.x, y: $0.y,
-                             rotation: $0.rotation)
+        let components = snapshot.components.map { c -> PlannedComponent in
+            let kind = snapshot.customPart(for: c).map(\.planKind) ?? c.componentKind.planName
+            return PlannedComponent(ref: c.ref, kind: kind, value: c.value, x: c.x, y: c.y, rotation: c.rotation)
+        }
+        // Custom parts are addressed by datasheet pin number (names such as GND may repeat).
+        func pinLabel(_ c: SnapComponent, _ pin: Int) -> String {
+            if let part = snapshot.customPart(for: c), pin < part.symbol.pins.count { return part.symbol.pins[pin].number }
+            return c.pins[pin].name
         }
         let connections: [PlannedConnection] = snapshot.wires.compactMap { wire in
             guard let a = byId[wire.a.component], let b = byId[wire.b.component],
                   wire.a.pin < a.pins.count, wire.b.pin < b.pins.count else { return nil }
-            return PlannedConnection(from: "\(a.ref).\(a.pins[wire.a.pin].name)", to: "\(b.ref).\(b.pins[wire.b.pin].name)")
+            return PlannedConnection(from: "\(a.ref).\(pinLabel(a, wire.a.pin))", to: "\(b.ref).\(pinLabel(b, wire.b.pin))")
         }
         return DesignPlan(title: snapshot.name, summary: "", components: components, connections: connections,
                           notes: [], board: PlannedBoard(width: snapshot.board.width, height: snapshot.board.height))

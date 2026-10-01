@@ -4,7 +4,7 @@ import Foundation
 import UniformTypeIdentifiers
 
 enum Workspace: String, CaseIterable, Identifiable {
-    case promptStudio, schematic, pcb, threeD, simulation, checks
+    case promptStudio, schematic, library, pcb, threeD, simulation, checks
 
     var id: String { rawValue }
 
@@ -12,6 +12,7 @@ enum Workspace: String, CaseIterable, Identifiable {
         switch self {
         case .promptStudio: return "AI Prompt Studio"
         case .schematic: return "Schematic"
+        case .library: return "Component Library"
         case .pcb: return "PCB Layout"
         case .threeD: return "3D Viewer"
         case .simulation: return "Simulation"
@@ -23,6 +24,7 @@ enum Workspace: String, CaseIterable, Identifiable {
         switch self {
         case .promptStudio: return "sparkles.rectangle.stack"
         case .schematic: return "point.3.connected.trianglepath.dotted"
+        case .library: return "books.vertical"
         case .pcb: return "square.grid.3x3.square"
         case .threeD: return "cube.transparent"
         case .simulation: return "waveform.path.ecg"
@@ -56,6 +58,8 @@ final class DesignStore: ObservableObject {
     @Published var transientResult: TransientResult?
     @Published var routeStats: RouteStats?
     @Published var showDCOverlay = true
+    /// Custom part the Component Library should open (set when jumping from the inspector).
+    @Published var libraryFocusPartId: String?
     @Published private(set) var isBusy = false
     @Published private(set) var busyMessage = ""
     @Published var statusMessage = "Ready"
@@ -221,6 +225,48 @@ final class DesignStore: ObservableObject {
         }
     }
 
+    // MARK: - Custom components
+
+    /// Registers (or updates, when `replacing` is given) a custom part and returns it.
+    @discardableResult
+    func saveCustomPart(_ spec: CustomPartSpec, replacing oldId: String? = nil) -> CustomPartInfo? {
+        var result: CustomPartInfo?
+        var failure: Error?
+        perform(oldId == nil ? "Added \(spec.name) to the library" : "Updated \(spec.name)") { engine in
+            do {
+                let part = try engine.registerCustomPart(spec)
+                if let oldId, oldId != part.id {
+                    engine.replaceCustomPart(oldId, with: part.id)
+                    engine.removeCustomPart(oldId)
+                }
+                result = part
+            } catch {
+                failure = error
+            }
+        }
+        if let failure { present(failure, title: "Could not save the component") }
+        return result
+    }
+
+    func deleteCustomPart(_ id: String) {
+        var removed = false
+        perform("Removed part from library", invalidatesAnalysis: false) { removed = $0.removeCustomPart(id) }
+        if !removed {
+            alert = AlertItem(title: "Part is in use",
+                              message: "Delete the components that use this part from the schematic first.")
+        }
+    }
+
+    @discardableResult
+    func addCustomComponent(partId: String, at point: CGPoint) -> Int {
+        var id = -1
+        let snapped = SchematicAutoLayout.snap(point)
+        let name = snapshot.customPart(partId)?.name ?? "part"
+        perform("Placed \(name)") { id = $0.addCustomComponent(partId: partId, at: snapped) }
+        if id >= 0 { selection = [id] }
+        return id
+    }
+
     // MARK: - Analysis
 
     func runERC() {
@@ -297,6 +343,14 @@ final class DesignStore: ObservableObject {
     func flipFootprints() {
         let ids = selection
         perform("Flipped footprint", invalidatesAnalysis: false) { engine in ids.forEach { engine.flipFootprint($0) } }
+    }
+
+    /// 1 (single-sided), 2, 4 or 6 copper layers. Tracks on removed layers are deleted.
+    func setLayerCount(_ layers: Int) {
+        guard layers != snapshot.board.layerCount else { return }
+        perform("\(layers)-layer stack-up", invalidatesAnalysis: false) { $0.setLayerCount(layers) }
+        routeStats = nil
+        drcResults = []
     }
 
     func setBoard(width: Double, height: Double, trackWidth: Double, clearance: Double) {
@@ -421,6 +475,16 @@ final class DesignStore: ObservableObject {
                 guard let content = engine.export(format) else { continue }
                 try content.write(to: target.appendingPathComponent(format.fileName), atomically: true, encoding: .utf8)
                 written += 1
+            }
+            // Inner copper layers of multi-layer boards (L2 … Ln-1).
+            let layers = snapshot.board.layerCount
+            if layers > 2 {
+                for layer in 2..<layers {
+                    guard let content = engine.exportCopperLayer(layer) else { continue }
+                    try content.write(to: target.appendingPathComponent("board-In\(layer - 1)_Cu.gbr"), atomically: true,
+                                      encoding: .utf8)
+                    written += 1
+                }
             }
             try engine.saveJSON().write(to: target.appendingPathComponent("\(base).siedaproj"), atomically: true,
                                         encoding: .utf8)

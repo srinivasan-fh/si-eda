@@ -105,6 +105,26 @@ private struct ComponentProperties: View {
                 .controlSize(.small)
             }
 
+            if let part = store.snapshot.customPart(for: component) {
+                PropertyGroup(title: "Library Part") {
+                    PropertyRow(label: "Part", value: part.name)
+                    if !part.manufacturer.isEmpty { PropertyRow(label: "Manufacturer", value: part.manufacturer) }
+                    PropertyRow(label: "Package", value: part.footprint)
+                    if !part.description.isEmpty {
+                        Text(part.description).font(.caption).foregroundStyle(Theme.textSecondary)
+                    }
+                    if !part.datasheet.isEmpty {
+                        Label(part.datasheet, systemImage: "doc.text").font(.caption).foregroundStyle(Theme.textMuted)
+                    }
+                    Button {
+                        store.libraryFocusPartId = part.id
+                        store.workspace = .library
+                    } label: { Label("Open in Library", systemImage: "books.vertical") }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                }
+            }
+
             PropertyGroup(title: "Schematic") {
                 PropertyRow(label: "Position", value: String(format: "%.0f, %.0f", component.x, component.y))
                 PropertyRow(label: "Rotation", value: "\(component.rotation)°")

@@ -18,6 +18,11 @@ struct OfflineProvider: AIProvider {
                 return Self.refine(plan, instruction: Self.section("change_request", in: request.prompt) ?? "").jsonString()
             }
             return Self.template(for: brief).plan.jsonString()
+        case "component_definition":
+            let text = Self.section("datasheet_text", in: request.prompt) ?? Self.section("ocr_text", in: request.prompt) ?? ""
+            let hint = Self.section("package_hint", in: request.prompt) ?? ""
+            let file = Self.section("file_name", in: request.prompt) ?? ""
+            return PinTableParser.extractionJSON(text: text, fileName: file, hint: hint == "none" ? "" : hint)
         case "design_review":
             let planText = Self.section("current_plan", in: request.prompt) ?? "{}"
             let plan = (try? JSONExtraction.decode(DesignPlan.self, from: planText)) ?? Self.template(for: brief).plan

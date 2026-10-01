@@ -18,8 +18,12 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
     case ic8 = 13
     case fuse = 14
     case netLabel = 15
+    case custom = 16  // user-defined part (datasheet import); see CustomPartInfo
 
     var id: Int { rawValue }
+
+    /// Kinds offered in the built-in device picker (custom parts are listed from the project library).
+    static var builtIn: [ComponentKind] { allCases.filter { $0 != .custom } }
 
     var displayName: String {
         switch self {
@@ -39,6 +43,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .ic8: return "IC (8-pin)"
         case .fuse: return "Fuse"
         case .netLabel: return "Net Label"
+        case .custom: return "Custom Part"
         }
     }
 
@@ -61,6 +66,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .ic8: return "ic8"
         case .fuse: return "fuse"
         case .netLabel: return "net_label"
+        case .custom: return "custom"
         }
     }
 
@@ -82,6 +88,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .ic8: return "IC"
         case .fuse: return "500m"
         case .netLabel: return "VCC"
+        case .custom: return ""
         }
     }
 
@@ -97,6 +104,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .opAmp: return ["IN+", "IN-", "OUT"]
         case .ic8: return ["1", "2", "3", "4", "5", "6", "7", "8"]
         case .netLabel: return ["N"]
+        case .custom: return []  // defined per part
         }
     }
 
@@ -118,6 +126,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .ic8: return "cpu"
         case .fuse: return "minus.rectangle"
         case .netLabel: return "tag"
+        case .custom: return "cpu.fill"
         }
     }
 
@@ -127,6 +136,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .diode, .led, .npn, .nmos, .opAmp, .ic8: return "Semiconductors"
         case .voltageSource, .currentSource, .ground, .netLabel: return "Power & Nets"
         case .switchSPST, .connector: return "Electromechanical"
+        case .custom: return "Custom Parts"
         }
     }
 
@@ -149,6 +159,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .ic8: return "Part number (no simulation model)"
         case .fuse: return "Rating, e.g. 500m"
         case .netLabel: return "Net name; identical names connect (GND joins ground)"
+        case .custom: return "Part number or value"
         }
     }
 

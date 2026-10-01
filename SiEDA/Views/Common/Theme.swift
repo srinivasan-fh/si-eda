@@ -45,6 +45,15 @@ enum Theme {
     static let silkscreen = Color(red: 0.88, green: 0.94, blue: 1.00)
     static let ratsnest = Color(red: 0.75, green: 0.85, blue: 1.00).opacity(0.75)
 
+    /// Copper layer colours: top light blue, bottom indigo, inner layers cyan → violet-blue.
+    static func copperColor(_ layer: Int, layerCount: Int) -> Color {
+        if layer == 0 { return topCopper }
+        if layer == max(1, layerCount) - 1 { return bottomCopper }
+        let inner: [Color] = [Color(red: 0.20, green: 0.85, blue: 0.95), Color(red: 0.55, green: 0.50, blue: 1.00),
+                              Color(red: 0.25, green: 0.60, blue: 0.85), Color(red: 0.70, green: 0.78, blue: 1.00)]
+        return inner[(layer - 1) % inner.count]
+    }
+
     static func severityColor(_ s: ViolationSeverity) -> Color {
         switch s {
         case .error: return error

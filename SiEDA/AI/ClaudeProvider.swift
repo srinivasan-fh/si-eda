@@ -14,6 +14,8 @@ struct ClaudeProvider: AIProvider {
 
     var displayName: String { "Claude" }
     var modelName: String { model }
+    var acceptsPDF: Bool { true }
+    var acceptsImages: Bool { true }
 
     static let efforts = ["low", "medium", "high", "xhigh", "max"]
 
@@ -30,6 +32,21 @@ struct ClaudeProvider: AIProvider {
         }
     }
 
+    /// Plain text, or document/image blocks followed by the text prompt.
+    static func content(for request: AIRequest) -> Any {
+        guard !request.attachments.isEmpty else { return request.prompt }
+        var blocks: [[String: Any]] = request.attachments.map { attachment in
+            let source: [String: Any] = ["type": "base64", "media_type": attachment.mimeType,
+                                         "data": attachment.data.base64EncodedString()]
+            switch attachment.kind {
+            case .pdf: return ["type": "document", "source": source, "title": attachment.fileName]
+            case .image: return ["type": "image", "source": source]
+            }
+        }
+        blocks.append(["type": "text", "text": request.prompt])
+        return blocks
+    }
+
     func complete(_ request: AIRequest) async throws -> String {
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { throw AIProviderError.missingAPIKey("Anthropic Claude") }
@@ -39,7 +56,7 @@ struct ClaudeProvider: AIProvider {
             "model": model,
             "max_tokens": request.maxTokens,
             "system": request.system,
-            "messages": [["role": "user", "content": request.prompt]],
+            "messages": [["role": "user", "content": Self.content(for: request)] as [String: Any]],
         ]
         var outputConfig: [String: Any] = ["format": ["type": "json_schema", "schema": request.schema] as [String: Any]]
         if caps.effort { outputConfig["effort"] = effort }

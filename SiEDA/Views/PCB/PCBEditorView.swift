@@ -1,25 +1,55 @@
 import AppKit
 import SwiftUI
 
-enum PCBLayer: String, CaseIterable, Identifiable {
-    case topCopper = "Top Layer"
-    case bottomCopper = "Bottom Layer"
-    case silkscreen = "Top Overlay"
-    case ratsnest = "Ratsnest"
-    case courtyard = "Courtyard"
-    case boardOutline = "Keep-Out / Outline"
+/// Layers shown in the PCB editor: every copper layer of the stack-up plus documentation overlays.
+enum PCBLayer: Hashable, Identifiable {
+    case copper(Int)
+    case silkscreen
+    case ratsnest
+    case courtyard
+    case boardOutline
 
-    var id: String { rawValue }
-
-    var color: Color {
+    var id: String {
         switch self {
-        case .topCopper: return Theme.topCopper
-        case .bottomCopper: return Theme.bottomCopper
+        case .copper(let index): return "copper\(index)"
+        case .silkscreen: return "silk"
+        case .ratsnest: return "rats"
+        case .courtyard: return "court"
+        case .boardOutline: return "outline"
+        }
+    }
+
+    static let overlays: [PCBLayer] = [.silkscreen, .ratsnest, .courtyard, .boardOutline]
+    /// Everything visible by default (covers the largest supported stack-up).
+    static let defaultVisible: Set<PCBLayer> = Set((0..<6).map { PCBLayer.copper($0) } + overlays)
+
+    static func all(for board: BoardInfo) -> [PCBLayer] {
+        (0..<max(1, board.layerCount)).map { PCBLayer.copper($0) } + overlays
+    }
+
+    func name(_ board: BoardInfo) -> String {
+        switch self {
+        case .copper(let index): return board.layerName(index) + " Layer"
+        case .silkscreen: return "Top Overlay"
+        case .ratsnest: return "Ratsnest"
+        case .courtyard: return "Courtyard"
+        case .boardOutline: return "Keep-Out / Outline"
+        }
+    }
+
+    func color(_ board: BoardInfo) -> Color {
+        switch self {
+        case .copper(let index): return Theme.copperColor(index, layerCount: board.layerCount)
         case .silkscreen: return Theme.silkscreen
         case .ratsnest: return Theme.ratsnest
         case .courtyard: return Theme.lightBlue
         case .boardOutline: return Theme.boardEdge
         }
+    }
+
+    var copperIndex: Int? {
+        if case .copper(let index) = self { return index }
+        return nil
     }
 }
 
@@ -28,8 +58,8 @@ struct PCBEditorView: View {
     @EnvironmentObject private var store: DesignStore
     @State private var viewport = Viewport(scale: 12, offset: CGSize(width: 80, height: 80))
     @State private var canvasSize: CGSize = .zero
-    @State private var visible: Set<PCBLayer> = Set(PCBLayer.allCases)
-    @State private var activeLayer: PCBLayer = .topCopper
+    @State private var visible: Set<PCBLayer> = PCBLayer.defaultVisible
+    @State private var activeLayer: PCBLayer = .copper(0)
     @State private var panMode = false
     @State private var fitRequest = 0
     @State private var showLayersPanel = true
@@ -72,14 +102,27 @@ struct PCBEditorView: View {
 
             VStack(spacing: 0) {
                 OptionsBar {
-                    Image(systemName: "ruler").foregroundStyle(Theme.blue)
-                    ruleField("Board W", $boardWidth, unit: "mm")
-                    ruleField("H", $boardHeight, unit: "mm")
-                    ruleField("Track", $trackWidth, unit: "mm")
-                    ruleField("Clearance", $clearance, unit: "mm")
-                    Button("Apply") { applyRules() }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                    Image(systemName: "square.3.layers.3d.down.right").foregroundStyle(Theme.blue)
+                    Picker("Layers", selection: Binding(get: { store.snapshot.board.layerCount },
+                                                        set: { store.setLayerCount($0) })) {
+                        Text("1").tag(1)
+                        Text("2").tag(2)
+                        Text("4").tag(4)
+                        Text("6").tag(6)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 150)
+                    .help("Copper layers: 1 = single-sided (no vias), 2, 4 or 6-layer stack-up")
+                    Divider().frame(height: 18)
+                    HStack(spacing: 10) {
+                        ruleField("Board W", $boardWidth, unit: "mm")
+                        ruleField("H", $boardHeight, unit: "mm")
+                        ruleField("Track", $trackWidth, unit: "mm")
+                        ruleField("Clr", $clearance, unit: "mm")
+                        Button("Apply") { applyRules() }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                    }
                     Spacer()
                     if let stats = store.routeStats {
                         Badge(text: "\(stats.routed)/\(stats.connections) routed · \(stats.vias) vias",
@@ -99,7 +142,8 @@ struct PCBEditorView: View {
                     PCBCanvas(viewport: $viewport, canvasSize: $canvasSize, panMode: panMode, visible: visible,
                               activeLayer: activeLayer, fitRequest: fitRequest)
                     if showLayersPanel {
-                        LayersPanel(visible: $visible, active: $activeLayer)
+                        LayersPanel(layers: PCBLayer.all(for: store.snapshot.board), board: store.snapshot.board,
+                                    visible: $visible, active: $activeLayer)
                             .padding(10)
                     }
                     if store.snapshot.pads.isEmpty {
@@ -111,7 +155,8 @@ struct PCBEditorView: View {
                     }
                 }
 
-                LayerTabs(visible: visible, active: $activeLayer)
+                LayerTabs(layers: PCBLayer.all(for: store.snapshot.board), board: store.snapshot.board,
+                          visible: visible, active: $activeLayer)
             }
         }
         .background(Theme.pcbBackground)
@@ -121,7 +166,10 @@ struct PCBEditorView: View {
                 store.autoPlace(all: false)
             }
         }
-        .onChange(of: store.snapshot.board) { _, _ in syncRuleFields() }
+        .onChange(of: store.snapshot.board) { _, board in
+            syncRuleFields()
+            if let index = activeLayer.copperIndex, index >= board.layerCount { activeLayer = .copper(0) }
+        }
     }
 
     private var center: CGPoint { CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2) }
@@ -154,13 +202,15 @@ struct PCBEditorView: View {
 
 /// Photoshop-style layers panel with visibility eyes.
 struct LayersPanel: View {
+    var layers: [PCBLayer]
+    var board: BoardInfo
     @Binding var visible: Set<PCBLayer>
     @Binding var active: PCBLayer
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("LAYERS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue).padding(.bottom, 4)
-            ForEach(PCBLayer.allCases) { layer in
+            ForEach(layers) { layer in
                 HStack(spacing: 8) {
                     Button {
                         if visible.contains(layer) { visible.remove(layer) } else { visible.insert(layer) }
@@ -170,8 +220,8 @@ struct LayersPanel: View {
                             .frame(width: 18)
                     }
                     .buttonStyle(.plain)
-                    RoundedRectangle(cornerRadius: 3).fill(layer.color).frame(width: 12, height: 12)
-                    Text(layer.rawValue).font(.caption)
+                    RoundedRectangle(cornerRadius: 3).fill(layer.color(board)).frame(width: 12, height: 12)
+                    Text(layer.name(board)).font(.caption)
                         .foregroundStyle(active == layer ? Theme.textPrimary : Theme.textSecondary)
                     Spacer(minLength: 0)
                 }
@@ -190,18 +240,20 @@ struct LayersPanel: View {
 
 /// Altium-style coloured layer tabs along the bottom edge.
 struct LayerTabs: View {
+    var layers: [PCBLayer]
+    var board: BoardInfo
     var visible: Set<PCBLayer>
     @Binding var active: PCBLayer
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(PCBLayer.allCases) { layer in
+            ForEach(layers) { layer in
                 Button {
                     active = layer
                 } label: {
                     HStack(spacing: 6) {
-                        RoundedRectangle(cornerRadius: 2).fill(layer.color).frame(width: 10, height: 10)
-                        Text(layer.rawValue).font(.caption)
+                        RoundedRectangle(cornerRadius: 2).fill(layer.color(board)).frame(width: 10, height: 10)
+                        Text(layer.name(board)).font(.caption)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 5)
@@ -359,13 +411,14 @@ struct PCBCanvas: View {
                        style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
         }
 
-        // Copper: draw the inactive layer first so the active one is on top.
-        let order: [Int] = activeLayer == .bottomCopper ? [0, 1] : [1, 0]
-        for layer in order {
-            let pcbLayer: PCBLayer = layer == 0 ? .topCopper : .bottomCopper
-            guard visible.contains(pcbLayer) else { continue }
-            let isActive = activeLayer == pcbLayer || (activeLayer != .topCopper && activeLayer != .bottomCopper && layer == 0)
-            let base = layer == 0 ? Theme.topCopper : Theme.bottomCopper
+        // Copper: bottom-most layers first, the active copper layer last so it sits on top.
+        let layerCount = max(1, snap.board.layerCount)
+        let activeCopper = activeLayer.copperIndex ?? 0
+        let order = (0..<layerCount).reversed().filter { $0 != activeCopper } + [activeCopper]
+        for layer in order where layer < layerCount {
+            guard visible.contains(.copper(layer)) else { continue }
+            let isActive = layer == activeCopper
+            let base = Theme.copperColor(layer, layerCount: layerCount)
             for t in snap.tracks where t.layer == layer {
                 var path = Path()
                 path.move(to: CGPoint(x: t.ax, y: t.ay))
@@ -374,15 +427,15 @@ struct PCBCanvas: View {
                 ctx.stroke(path.applying(screen), with: .color(highlight ? Theme.iceBlue : base.opacity(isActive ? 1 : 0.45)),
                            style: StrokeStyle(lineWidth: max(1, t.width * k), lineCap: .round, lineJoin: .round))
             }
-            for p in snap.pads where !p.throughHole && (p.bottom == (layer == 1)) {
+            for p in snap.pads where !p.throughHole && (p.bottom ? snap.board.bottomLayer : 0) == layer {
                 let r = CGRect(x: p.x - p.w / 2, y: p.y - p.h / 2, width: p.w, height: p.h)
                 let moved = r.offsetBy(dx: moving.contains(p.component) ? d.width : 0, dy: moving.contains(p.component) ? d.height : 0)
                 ctx.fill(Path(roundedRect: moved, cornerRadius: min(p.w, p.h) * 0.15).applying(screen),
                          with: .color(hoveredNet == p.net && p.net >= 0 ? Theme.iceBlue : (isActive ? Theme.pad : Theme.pad.opacity(0.45))))
             }
         }
-        // Through-hole pads and vias (both layers)
-        if visible.contains(.topCopper) || visible.contains(.bottomCopper) {
+        // Through-hole pads and through vias (every layer)
+        if (0..<layerCount).contains(where: { visible.contains(.copper($0)) }) {
             for p in snap.pads where p.throughHole {
                 let c = shifted(p.component, CGPoint(x: p.x, y: p.y))
                 let r = CGRect(x: c.x - p.w / 2, y: c.y - p.h / 2, width: p.w, height: p.h)

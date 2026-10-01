@@ -3,9 +3,25 @@ import Foundation
 /// System prompts and request builders for SiEDA's design agents.
 enum AgentPrompts {
     static var componentCatalog: String {
-        ComponentKind.allCases.map { kind in
+        ComponentKind.builtIn.map { kind in
             "- \(kind.planName): pins \(kind.pinNames.joined(separator: ", ")). Value: \(kind.valueHint)."
         }.joined(separator: "\n")
+    }
+
+    /// Project library parts, addressed as kind "custom:<NAME>" with pins referenced by datasheet number.
+    static func customCatalog(_ parts: [CustomPartInfo]) -> String {
+        guard !parts.isEmpty else { return "" }
+        let lines = parts.map { part in
+            let pins = part.symbol.pins.map { "\($0.number)=\($0.name)(\($0.type))" }.joined(separator: ", ")
+            return "- \(part.planKind): \(part.description.isEmpty ? part.name : part.description), "
+                + "\(part.footprint) package. Pins (number=name(type)): \(pins)."
+        }
+        return """
+
+        Custom parts from the user's component library (imported from datasheets). Use them when they fit the \
+        brief; reference their pins by NUMBER (e.g. "U1.8"), connect every power_in pin, and leave no_connect pins open:
+        \(lines.joined(separator: "\n"))
+        """
     }
 
     static let analystSystem = """
@@ -60,8 +76,8 @@ enum AgentPrompts {
                   schemaName: "requirements_spec", schema: DesignSchemas.requirements)
     }
 
-    static func architectRequest(brief: String, spec: RequirementsSpec) -> AIRequest {
-        AIRequest(system: architectSystem,
+    static func architectRequest(brief: String, spec: RequirementsSpec, customParts: [CustomPartInfo] = []) -> AIRequest {
+        AIRequest(system: architectSystem + customCatalog(customParts),
                   prompt: """
                   <requirements>
                   \(brief)
@@ -73,11 +89,12 @@ enum AgentPrompts {
 
                   Design the complete circuit as a design plan.
                   """,
-                  schemaName: "design_plan", schema: DesignSchemas.designPlan)
+                  schemaName: "design_plan", schema: DesignSchemas.designPlanSchema(customKinds: customParts.map(\.planKind)))
     }
 
-    static func refineRequest(instruction: String, current: DesignPlan, requirements: String) -> AIRequest {
-        AIRequest(system: architectSystem,
+    static func refineRequest(instruction: String, current: DesignPlan, requirements: String,
+                              customParts: [CustomPartInfo] = []) -> AIRequest {
+        AIRequest(system: architectSystem + customCatalog(customParts),
                   prompt: """
                   <requirements>
                   \(requirements)
@@ -94,11 +111,11 @@ enum AgentPrompts {
                   Apply the change request and return the COMPLETE updated design plan. Keep reference designators \
                   and positions of parts that do not need to change.
                   """,
-                  schemaName: "design_plan", schema: DesignSchemas.designPlan)
+                  schemaName: "design_plan", schema: DesignSchemas.designPlanSchema(customKinds: customParts.map(\.planKind)))
     }
 
     static func reviewRequest(spec: RequirementsSpec?, brief: String, plan: DesignPlan, erc: [RuleViolation],
-                              dc: DCResult?) -> AIRequest {
+                              dc: DCResult?, customParts: [CustomPartInfo] = []) -> AIRequest {
         let ercText = erc.isEmpty
             ? "No findings."
             : erc.map { "[\($0.severity.rawValue)] \($0.code): \($0.message)" }.joined(separator: "\n")
@@ -115,7 +132,7 @@ enum AgentPrompts {
                 dcText = "Did not converge: \(dc.error)"
             }
         }
-        return AIRequest(system: reviewerSystem,
+        return AIRequest(system: reviewerSystem + customCatalog(customParts),
                          prompt: """
                          <requirements>
                          \(brief)
@@ -139,6 +156,6 @@ enum AgentPrompts {
 
                          Review the design.
                          """,
-                         schemaName: "design_review", schema: DesignSchemas.review)
+                         schemaName: "design_review", schema: DesignSchemas.reviewSchema(customKinds: customParts.map(\.planKind)))
     }
 }

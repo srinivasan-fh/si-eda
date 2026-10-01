@@ -1,21 +1,41 @@
 import SceneKit
 import SwiftUI
 
-/// 3D assembly viewer: the C++ core tessellates board, copper, vias, silkscreen and component bodies;
-/// SceneKit renders them with orbit/zoom camera control.
+/// 3D workspace with two modes:
+/// - **Assembly**: the C++ core tessellates board, copper, vias, silkscreen and component bodies (realistic).
+/// - **X-Ray Stack**: every copper layer floats apart in a holographic, additive-glow exploded view with
+///   through-vias as light pillars, wireframe component bodies and a scanning beam.
 struct Board3DWorkspace: View {
+    enum Mode: String, CaseIterable, Identifiable {
+        case xray = "X-Ray Stack"
+        case assembly = "Assembly"
+        var id: String { rawValue }
+    }
+
     @EnvironmentObject private var store: DesignStore
+    @AppStorage("threeD.mode") private var modeRaw = Mode.xray.rawValue
     @State private var showComponents = true
     @State private var resetCamera = 0
     @State private var stats = ""
+    @State private var xray = XRaySettings()
+
+    private var mode: Mode { Mode(rawValue: modeRaw) ?? .xray }
 
     var body: some View {
         VStack(spacing: 0) {
             OptionsBar {
-                Image(systemName: "cube.transparent").foregroundStyle(Theme.blue)
-                Text("3D Assembly").fontWeight(.semibold).foregroundStyle(Theme.textPrimary)
-                Toggle("Components", isOn: $showComponents).toggleStyle(.switch).controlSize(.mini)
-                Text(stats).foregroundStyle(Theme.textMuted).font(.caption)
+                Picker("Mode", selection: $modeRaw) {
+                    Label("X-Ray Stack", systemImage: "square.3.layers.3d.top.filled").tag(Mode.xray.rawValue)
+                    Label("Assembly", systemImage: "cube.transparent").tag(Mode.assembly.rawValue)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 230)
+                if mode == .xray {
+                    xrayControls
+                } else {
+                    Toggle("Components", isOn: $showComponents).toggleStyle(.switch).controlSize(.mini)
+                    Text(stats).foregroundStyle(Theme.textMuted).font(.caption)
+                }
                 Spacer()
                 Button { resetCamera += 1 } label: { Label("Reset View", systemImage: "camera.metering.center.weighted") }
                 Menu {
@@ -28,11 +48,17 @@ struct Board3DWorkspace: View {
             }
             .buttonStyle(.borderless)
 
-            ZStack {
+            ZStack(alignment: .bottomLeading) {
                 if store.snapshot.pads.isEmpty {
                     BlueEmptyState(systemImage: "cube.transparent", title: "Nothing to show yet",
-                                   message: "Place footprints in the PCB Layout workspace to build the 3D assembly.",
+                                   message: "Place footprints in the PCB Layout workspace to build the 3D model.",
                                    actionTitle: "Auto-Place Footprints") { store.autoPlace(all: true) }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if mode == .xray {
+                    XRayStackView(engine: store.engine, snapshot: store.snapshot, revision: store.revision,
+                                  settings: xray, resetToken: resetCamera)
+                    layerLegend
+                        .padding(12)
                 } else {
                     BoardSceneView(engine: store.engine, revision: store.revision, includeComponents: showComponents,
                                    board: store.snapshot.board, resetToken: resetCamera, stats: $stats)
@@ -41,6 +67,52 @@ struct Board3DWorkspace: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.navy)
         }
+    }
+
+    private var xrayControls: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.up.and.down.square").foregroundStyle(Theme.skyBlue)
+                Slider(value: $xray.explode, in: 0.5...16).frame(width: 110)
+                Text(String(format: "%.1f mm", xray.explode)).font(.caption.monospacedDigit()).foregroundStyle(Theme.textMuted)
+            }
+            .help("Layer separation (exploded view)")
+            Toggle("Parts", isOn: $xray.showComponents).toggleStyle(.switch).controlSize(.mini)
+            Toggle("Vias", isOn: $xray.showVias).toggleStyle(.switch).controlSize(.mini)
+            Toggle("Scan", isOn: $xray.scan).toggleStyle(.switch).controlSize(.mini)
+            Toggle("Spin", isOn: $xray.spin).toggleStyle(.switch).controlSize(.mini)
+        }
+    }
+
+    /// Per-layer chips (click to hide a layer of the stack).
+    private var layerLegend: some View {
+        let board = store.snapshot.board
+        return VStack(alignment: .leading, spacing: 4) {
+            Text("STACK-UP · \(board.layerCount) LAYER\(board.layerCount == 1 ? "" : "S")")
+                .font(.caption2.weight(.bold)).foregroundStyle(Theme.skyBlue)
+            ForEach(0..<max(1, board.layerCount), id: \.self) { layer in
+                let hidden = xray.hiddenLayers.contains(layer)
+                Button {
+                    if hidden { xray.hiddenLayers.remove(layer) } else { xray.hiddenLayers.insert(layer) }
+                } label: {
+                    HStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Theme.copperColor(layer, layerCount: board.layerCount).opacity(hidden ? 0.25 : 1))
+                            .frame(width: 18, height: 6)
+                            .shadow(color: Theme.copperColor(layer, layerCount: board.layerCount), radius: hidden ? 0 : 4)
+                        Text("L\(layer + 1) · \(board.layerName(layer))")
+                            .font(.caption.monospaced())
+                            .foregroundStyle(hidden ? Theme.textMuted : Theme.textPrimary)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            Text("\(store.snapshot.tracks.count) tracks · \(store.snapshot.vias.count) vias")
+                .font(.caption2).foregroundStyle(Theme.textMuted)
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.navy.opacity(0.75)))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.skyBlue.opacity(0.35)))
     }
 }
 
