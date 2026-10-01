@@ -146,6 +146,24 @@ struct PCBEditorView: View {
                                     visible: $visible, active: $activeLayer)
                             .padding(10)
                     }
+                    if !store.snapshot.pads.isEmpty, unplacedCount > 0 {
+                        // Viewing the board never edits it; new parts are placed only on request.
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.square").foregroundStyle(Theme.warning)
+                            Text("\(unplacedCount) part\(unplacedCount == 1 ? " is" : "s are") not on the board yet")
+                                .foregroundStyle(Theme.textPrimary)
+                            Button("Place Now") { store.autoPlace(all: false) }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                        }
+                        .font(.callout)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(Theme.deepBlue.opacity(0.95)))
+                        .overlay(Capsule().strokeBorder(Theme.blue.opacity(0.5)))
+                        .padding(10)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    }
                     if store.snapshot.pads.isEmpty {
                         BlueEmptyState(systemImage: "square.grid.3x3.square",
                                        title: "No footprints on the board",
@@ -160,12 +178,7 @@ struct PCBEditorView: View {
             }
         }
         .background(Theme.pcbBackground)
-        .onAppear {
-            syncRuleFields()
-            if store.snapshot.components.contains(where: { !$0.componentKind.isVirtual && !$0.pcb.placed }) {
-                store.autoPlace(all: false)
-            }
-        }
+        .onAppear { syncRuleFields() }
         .onChange(of: store.snapshot.board) { _, board in
             syncRuleFields()
             if let index = activeLayer.copperIndex, index >= board.layerCount { activeLayer = .copper(0) }
@@ -173,6 +186,10 @@ struct PCBEditorView: View {
     }
 
     private var center: CGPoint { CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2) }
+
+    private var unplacedCount: Int {
+        store.snapshot.components.filter { !$0.componentKind.isVirtual && !$0.pcb.placed }.count
+    }
 
     private func ruleField(_ title: String, _ text: Binding<String>, unit: String) -> some View {
         HStack(spacing: 4) {
