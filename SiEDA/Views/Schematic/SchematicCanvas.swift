@@ -76,6 +76,7 @@ struct SchematicCanvas: View {
             }
             .onChange(of: geo.size) { _, newSize in canvasSize = newSize }
             .onChange(of: fitRequest) { _, _ in fitToContent(size: geo.size) }
+            .onChange(of: store.fitToken) { _, _ in fitToContent(size: geo.size) }
             .onChange(of: store.snapshot.components.count) { old, new in
                 if old == 0 && new > 0 { fitToContent(size: geo.size) }
             }

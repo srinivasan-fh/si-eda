@@ -78,6 +78,8 @@ final class DesignStore: ObservableObject {
     @Published var alert: AlertItem?
     /// Incremented whenever geometry changes so the 3D view knows to rebuild its mesh.
     @Published private(set) var revision = 0
+    /// Incremented when a whole new design arrives (AI plan, open, example, re-placement) so editors re-fit.
+    @Published private(set) var fitToken = 0
 
     private var undoStack: [String] = []
     private var redoStack: [String] = []
@@ -308,6 +310,7 @@ final class DesignStore: ObservableObject {
         perform(all ? "Auto-placed all footprints" : "Placed new footprints", invalidatesAnalysis: false) {
             $0.autoPlace(all: all)
         }
+        if all { fitToken &+= 1 }
     }
 
     func autoRoute() async {
@@ -332,6 +335,7 @@ final class DesignStore: ObservableObject {
     /// Resizes the board outline to the placed footprints plus `margin` millimetres.
     func fitBoard(margin: Double = 2.5) {
         perform("Fitted board to components", invalidatesAnalysis: false) { $0.fitBoard(margin: margin) }
+        fitToken &+= 1
     }
 
     func runDRC() {
@@ -383,6 +387,7 @@ final class DesignStore: ObservableObject {
         ercResults = []
         drcResults = []
         routeStats = nil
+        fitToken &+= 1
         return report
     }
 
@@ -436,6 +441,7 @@ final class DesignStore: ObservableObject {
             ercResults = []
             drcResults = []
             refresh()
+            fitToken &+= 1
             workspace = snapshot.components.isEmpty ? startWorkspace : .schematic
             statusMessage = "Opened \(url.lastPathComponent)"
             NSDocumentController.shared.noteNewRecentDocumentURL(url)

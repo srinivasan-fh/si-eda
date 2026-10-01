@@ -330,6 +330,7 @@ struct PCBCanvas: View {
                 }
                 .onChange(of: geo.size) { _, s in canvasSize = s }
                 .onChange(of: fitRequest) { _, _ in fit(geo.size) }
+                .onChange(of: store.fitToken) { _, _ in fit(geo.size) }
         }
     }
 
