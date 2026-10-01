@@ -52,21 +52,43 @@ struct PromptStudioView: View {
                 prompt: "A 5 V excited Wheatstone bridge for a 1 kΩ strain gauge, with VA and VB outputs for an instrumentation amplifier."),
     ]
 
+    /// Below this width the brief and the agent pipeline stack vertically instead of side by side.
+    static let sideBySideWidth: CGFloat = 760
+
     var body: some View {
-        HSplitView {
-            briefPanel
-                .frame(minWidth: 380, idealWidth: 480)
-            agentPanel
-                .frame(minWidth: 380)
+        GeometryReader { geometry in
+            if geometry.size.width >= Self.sideBySideWidth {
+                HSplitView {
+                    ScrollView {
+                        briefPanel(editorHeight: Self.editorHeight(for: geometry.size.height))
+                    }
+                    .frame(minWidth: 360, idealWidth: 480)
+                    agentPanel
+                        .frame(minWidth: 300)
+                }
+            } else {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        briefPanel(editorHeight: 160)
+                        agentPanel
+                            .frame(height: max(420, geometry.size.height * 0.8))
+                    }
+                }
+            }
         }
         .background(
             LinearGradient(colors: [Theme.navy, Theme.deepBlue.opacity(0.7)], startPoint: .top, endPoint: .bottom)
         )
     }
 
+    /// Prompt editor height: what is left after the header, templates and buttons, within sensible bounds.
+    static func editorHeight(for available: CGFloat) -> CGFloat {
+        min(max(available - 430, 140), 420)
+    }
+
     // MARK: - Brief
 
-    private var briefPanel: some View {
+    private func briefPanel(editorHeight: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -76,6 +98,7 @@ struct PromptStudioView: View {
                     Text("Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model.")
                         .font(.callout)
                         .foregroundStyle(Theme.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
             }
@@ -83,6 +106,7 @@ struct PromptStudioView: View {
             HStack(spacing: 8) {
                 Badge(text: settings.provider.shortName + " · " + settings.model(for: settings.provider),
                       systemImage: settings.provider.systemImage)
+                    .lineLimit(1)
                 if !settings.hasCredentials(for: settings.provider) {
                     SettingsLink {
                         Label("Add API key", systemImage: "key.fill")
@@ -113,7 +137,7 @@ struct PromptStudioView: View {
                             .allowsHitTesting(false)
                     }
                 }
-                .frame(minHeight: 180)
+                .frame(height: editorHeight)
 
             Text("TEMPLATES").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8)], spacing: 8) {
@@ -123,7 +147,7 @@ struct PromptStudioView: View {
                     } label: {
                         HStack {
                             Image(systemName: example.icon).foregroundStyle(Theme.skyBlue)
-                            Text(example.title).foregroundStyle(Theme.textPrimary)
+                            Text(example.title).foregroundStyle(Theme.textPrimary).lineLimit(1)
                             Spacer(minLength: 0)
                         }
                         .font(.callout)
@@ -217,7 +241,7 @@ struct PromptStudioView: View {
 
             HStack {
                 TextField("Ask for a change — “make the LED green and run it from 3.3 V”", text: $refinement)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(.blue)
                     .onSubmit(sendRefinement)
                     .disabled(store.snapshot.components.isEmpty)
                 Button(action: sendRefinement) { Image(systemName: "arrow.up.circle.fill").font(.title2) }

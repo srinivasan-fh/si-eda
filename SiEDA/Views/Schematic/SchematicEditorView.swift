@@ -91,7 +91,7 @@ struct SchematicEditorView: View {
             }
 
             VStack(spacing: 0) {
-                OptionsBar {
+                OptionsBar(scrollsWhenNarrow: false) {
                     Image(systemName: "wrench.and.screwdriver").foregroundStyle(Theme.blue)
                     Text(tool.title).foregroundStyle(Theme.textPrimary).fontWeight(.semibold)
                     Divider().frame(height: 18)
@@ -221,7 +221,7 @@ struct DevicePicker: View {
             .padding(.horizontal, 10)
             .padding(.top, 10)
             TextField("Search devices", text: $search)
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.blue)
                 .padding(8)
             List(selection: Binding<ComponentKind?>(get: { selectedCustom == nil ? selected : nil },
                                                     set: { if let k = $0 { selectedCustom = nil; onPick(k) } })) {

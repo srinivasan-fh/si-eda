@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import SiEDA
 
@@ -600,5 +601,48 @@ final class DroneAndBoardFeatureTests: XCTestCase {
         XCTAssertEqual(old.board.outline, "keep")
         XCTAssertEqual(old.board.mountingHoleSpacing, -1)
         XCTAssertTrue(old.pours.isEmpty)
+    }
+}
+
+/// Every workspace must fit a laptop-size window: content that needs more room than the window is centred and
+/// clipped on all sides by SwiftUI (issue #13).
+@MainActor
+final class LayoutBudgetTests: XCTestCase {
+    private func minimumSize<V: View>(_ view: V, store: DesignStore, settings: AISettings,
+                                      agents: AgentOrchestrator) -> CGSize {
+        let host = NSHostingController(rootView: view
+            .environmentObject(store)
+            .environmentObject(settings)
+            .environmentObject(agents))
+        return host.sizeThatFits(in: CGSize(width: 1, height: 1))
+    }
+
+    func testEveryWorkspaceFitsTheMinimumWindow() throws {
+        let store = DesignStore()
+        let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.LayoutBudgetTests")))
+        let agents = AgentOrchestrator()
+        let budget = LayoutMetrics.workspaceBudget
+        // Empty design and a loaded reference design (panels with content can grow).
+        for loaded in [false, true] {
+            if loaded { store.loadExample(OfflineProvider.templates[8].industryPlan) }
+            for workspace in Workspace.allCases {
+                let size = minimumSize(ContentView.workspaceView(workspace), store: store, settings: settings, agents: agents)
+                XCTAssertLessThanOrEqual(size.width, budget.width, "\(workspace.title) needs \(size.width) pt of width")
+                XCTAssertLessThanOrEqual(size.height, budget.height, "\(workspace.title) needs \(size.height) pt of height")
+            }
+        }
+        let window = minimumSize(ContentView(), store: store, settings: settings, agents: agents)
+        XCTAssertLessThanOrEqual(window.width, LayoutMetrics.minimumWindow.width)
+        XCTAssertLessThanOrEqual(window.height, LayoutMetrics.minimumWindow.height)
+    }
+
+    func testSizeClassesFoldPanelsOnNarrowWindows() {
+        XCTAssertEqual(ContentView.WindowSizeClass(width: 950), .narrow)
+        XCTAssertEqual(ContentView.WindowSizeClass(width: 1200), .medium)
+        XCTAssertEqual(ContentView.WindowSizeClass(width: 1440), .wide)
+        XCTAssertLessThan(LayoutMetrics.minimumWindow.width, LayoutMetrics.sidebarWidthThreshold)
+        XCTAssertLessThanOrEqual(LayoutMetrics.minimumWindow.width, 1000, "must fit a 1000 pt laptop screen")
+        XCTAssertGreaterThan(PromptStudioView.editorHeight(for: 300), 0)
+        XCTAssertGreaterThan(ComponentLibraryView.pinTableHeight(for: 300), 0)
     }
 }

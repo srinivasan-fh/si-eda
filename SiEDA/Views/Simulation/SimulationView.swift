@@ -19,9 +19,9 @@ struct SimulationView: View {
                 } label: { Label("DC Operating Point", systemImage: "play.fill") }
                 Divider().frame(height: 18)
                 Text("Transient: stop").foregroundStyle(Theme.textMuted)
-                TextField("stop", text: $stopText).textFieldStyle(.roundedBorder).frame(width: 64)
+                TextField("stop", text: $stopText).textFieldStyle(.blue).frame(width: 64)
                 Text("step").foregroundStyle(Theme.textMuted)
-                TextField("step", text: $stepText).textFieldStyle(.roundedBorder).frame(width: 64)
+                TextField("step", text: $stepText).textFieldStyle(.blue).frame(width: 64)
                 Button {
                     runTransient()
                 } label: { Label("Run Transient", systemImage: "waveform") }
@@ -34,9 +34,9 @@ struct SimulationView: View {
 
             HSplitView {
                 dcPanel
-                    .frame(minWidth: 280, idealWidth: 340, maxWidth: 480)
+                    .frame(minWidth: 240, idealWidth: 320, maxWidth: 480)
                 transientPanel
-                    .frame(minWidth: 400)
+                    .frame(minWidth: 360)
             }
         }
         .background(Theme.navy)
@@ -185,7 +185,7 @@ struct SimulationView: View {
                         }
                     }
                     .chartLegend(.hidden)
-                    .frame(minHeight: 300)
+                    .frame(minHeight: 220)
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack {

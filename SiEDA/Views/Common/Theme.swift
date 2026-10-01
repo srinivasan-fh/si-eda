@@ -97,6 +97,39 @@ extension View {
     func bluePanel() -> some View { modifier(PanelBackground()) }
 }
 
+/// Text field drawn in the blue theme. The system rounded-border field takes its fill from the desktop picture
+/// (wallpaper tinting), which turned fields brown over orange wallpapers.
+struct BlueFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        configuration
+            .textFieldStyle(.plain)
+            .foregroundStyle(Theme.textPrimary)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.navy))
+            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.blue.opacity(0.4), lineWidth: 1))
+    }
+}
+
+extension TextFieldStyle where Self == BlueFieldStyle {
+    /// Blue themed text field (see `BlueFieldStyle`).
+    static var blue: BlueFieldStyle { BlueFieldStyle() }
+}
+
+/// Window size classes the workspaces adapt to (laptop screens give a window as little as ~900 × 540 pt).
+enum LayoutMetrics {
+    /// Smallest window the app supports; every workspace must fit it without clipping.
+    static let minimumWindow = CGSize(width: 900, height: 540)
+    /// Default size of a new window.
+    static let defaultWindow = CGSize(width: 1360, height: 860)
+    /// Below this window width the workspace sidebar collapses (the toolbar switcher still changes workspace).
+    static let sidebarWidthThreshold: CGFloat = 1080
+    /// Below this window width the inspector collapses.
+    static let inspectorWidthThreshold: CGFloat = 1300
+    /// Largest minimum size a workspace may need (the detail area of a minimum-size window with the sidebar shown).
+    static let workspaceBudget = CGSize(width: 620, height: 440)
+}
+
 /// Small blue capsule label.
 struct Badge: View {
     var text: String

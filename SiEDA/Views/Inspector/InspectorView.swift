@@ -90,14 +90,14 @@ private struct ComponentProperties: View {
                 if !kind.isVirtual {
                     LabeledContent("Designator") {
                         TextField("Designator", text: $ref)
-                            .textFieldStyle(.roundedBorder)
+                            .textFieldStyle(.blue)
                             .focused($focus, equals: .ref)
                             .onSubmit { commitRef() }
                     }
                 }
                 LabeledContent(kind == .netLabel ? "Net name" : "Value") {
                     TextField("Value", text: $value)
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(.blue)
                         .focused($focus, equals: .value)
                         .onSubmit { commitValue() }
                 }
@@ -283,7 +283,7 @@ private struct ProjectProperties: View {
         VStack(alignment: .leading, spacing: 12) {
             PropertyGroup(title: "Project") {
                 TextField("Project name", text: $name)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(.blue)
                     .focused($nameFocused)
                     .onSubmit { commitName() }
                     .onChange(of: nameFocused) { _, isFocused in if !isFocused { commitName() } }
