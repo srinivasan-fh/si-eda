@@ -1,6 +1,9 @@
 // SiEDA Core — C ABI implementation. Every entry point is exception-safe.
 #include "sieda/sieda_c.h"
 
+#include "sieda/Avr.hpp"
+#include "sieda/Firmware.hpp"
+
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -228,6 +231,61 @@ int32_t sieda_remove_wire(SiedaProject* project, int32_t id) {
         if (ok) project->project.schematicChanged();
         return ok ? 1 : 0;
     });
+}
+
+int32_t sieda_set_firmware(SiedaProject* project, int32_t component_id, const char* hex, const char* name,
+                           double clock_hz, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    auto fail = [&](const std::string& message) {
+        if (error_out) *error_out = dup(message);
+        return 0;
+    };
+    if (!project) return fail("No project.");
+    try {
+        Component* c = project->project.schematic.find(component_id);
+        if (!c) return fail("Unknown component.");
+        const CustomPart* part = c->kind == ComponentKind::Custom ? CustomPartRegistry::instance().find(c->customPart)
+                                                                  : nullptr;
+        auto model = part ? mcuModelForPart(part->spec.name) : std::nullopt;
+        if (!model)
+            return fail(c->ref + " is not a microcontroller the simulator can run (ATmega328P or ATtiny85).");
+        std::string text = str(hex);
+        if (!text.empty()) {
+            HexImage img = parseIntelHex(text);
+            if (!img.ok()) return fail(img.error);
+            AvrMcu probe(*model);
+            std::string err;
+            if (!probe.loadFirmware(img.bytes, err)) return fail(err);
+        }
+        project->project.schematic.setFirmware(component_id, text, str(name), clock_hz);
+        return 1;
+    } catch (const std::exception& e) {
+        return fail(e.what());
+    }
+}
+
+char* sieda_component_firmware(const SiedaProject* project, int32_t component_id) {
+    if (!project) return dup("");
+    const Component* c = project->project.schematic.find(component_id);
+    return dup(c ? c->firmware : std::string());
+}
+
+char* sieda_firmware_examples_json(void) {
+    Json arr = Json::array();
+    for (const auto& e : firmwareExamples()) {
+        Json j = Json::object();
+        j["id"] = e.id;
+        j["name"] = e.name;
+        j["model"] = e.model;
+        j["description"] = e.description;
+        arr.push(j);
+    }
+    return dup(arr.dump());
+}
+
+char* sieda_firmware_example_hex(const char* id) {
+    const FirmwareExample* e = findFirmwareExample(str(id));
+    return e ? dup(e->hex) : nullptr;
 }
 
 char* sieda_custom_part_register(SiedaProject* project, const char* spec_json, char** error_out) {

@@ -60,6 +60,20 @@ int32_t sieda_connect(SiedaProject* project, int32_t comp_a, int32_t pin_a, int3
 int32_t sieda_set_pin_no_connect(SiedaProject* project, int32_t component_id, int32_t pin, int32_t no_connect);
 int32_t sieda_remove_wire(SiedaProject* project, int32_t wire_id);
 
+/* ---- microcontroller firmware ----------------------------------------------------------------------------------- */
+/* Attaches Intel HEX firmware to a microcontroller component (ATmega328P, ATtiny85); the simulator runs it. An empty
+ * hex removes it. clock_hz <= 0 uses the default (16 MHz ATmega328P, 8 MHz ATtiny85). Returns 1, or 0 with *error_out
+ * (free with sieda_string_free) for an unknown component, a part that is not a supported microcontroller, an invalid
+ * HEX file or an image larger than the flash. */
+int32_t sieda_set_firmware(SiedaProject* project, int32_t component_id, const char* hex, const char* name,
+                           double clock_hz, char** error_out);
+/* The component's firmware as Intel HEX ("" when none). */
+char* sieda_component_firmware(const SiedaProject* project, int32_t component_id);
+/* Built-in example firmware: [{"id","name","model","description"}]. */
+char* sieda_firmware_examples_json(void);
+/* Intel HEX of an example, or NULL. */
+char* sieda_firmware_example_hex(const char* id);
+
 /* ---- custom components (datasheet import) ---------------------------------------------------- */
 /* spec_json: {"name","manufacturer","description","refPrefix","defaultValue","datasheet",
  *             "package":{"type":"SOIC|TSSOP|DIP|QFN|LQFP|SOT23|HEADER|TO220","pinCount":8},

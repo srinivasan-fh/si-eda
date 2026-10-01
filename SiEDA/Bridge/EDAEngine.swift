@@ -256,6 +256,25 @@ final class EDAEngine: @unchecked Sendable {
         return Self.decode(DCResult.self, from: json) ?? DCResult(error: "Simulator returned no result.")
     }
 
+    // MARK: - Microcontroller firmware
+
+    /// Attaches Intel HEX firmware to a microcontroller (an empty `hex` removes it); `clockHz` 0 = the model default.
+    func setFirmware(_ id: Int, hex: String, name: String, clockHz: Double) throws {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let ok = withHandle { sieda_set_firmware($0, Int32(id), hex, name, clockHz, &errorPointer) } == 1
+        if !ok { throw EDAEngineError.operationFailed(Self.take(errorPointer) ?? "The firmware could not be attached.") }
+    }
+
+    /// The component's firmware as Intel HEX ("" when none).
+    func firmware(of id: Int) -> String {
+        withHandle { Self.take(sieda_component_firmware($0, Int32(id))) } ?? ""
+    }
+
+    static let firmwareExamples: [FirmwareExample] =
+        decode([FirmwareExample].self, from: take(sieda_firmware_examples_json())) ?? []
+
+    static func firmwareExampleHex(_ id: String) -> String? { take(sieda_firmware_example_hex(id)) }
+
     func simulateTransient(stop: Double, step: Double) -> TransientResult {
         let json = withHandle { Self.take(sieda_simulate_transient($0, stop, step)) }
         return Self.decode(TransientResult.self, from: json) ?? TransientResult(error: "Simulator returned no result.")

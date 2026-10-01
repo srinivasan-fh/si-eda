@@ -22,6 +22,18 @@ struct SimulationView: View {
                 TextField("stop", text: $stopText).textFieldStyle(.blue).frame(width: 64)
                 Text("step").foregroundStyle(Theme.textMuted)
                 TextField("step", text: $stepText).textFieldStyle(.blue).frame(width: 64)
+                Menu {
+                    Button("Circuit — 5 ms, 5 µs") { stopText = "5m"; stepText = "5u" }
+                    Button("Serial output — 200 ms, 10 µs") { stopText = "200m"; stepText = "10u" }
+                    Button("Firmware — 1 s, 100 µs") { stopText = "1"; stepText = "100u" }
+                    Button("Long firmware run — 5 s, 500 µs") { stopText = "5"; stepText = "500u" }
+                } label: {
+                    Image(systemName: "timer")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .help("Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)")
+                .accessibilityLabel("Transient presets")
                 Button {
                     runTransient()
                 } label: { Label("Run Transient", systemImage: "waveform") }
@@ -188,7 +200,7 @@ struct SimulationView: View {
                         }
                     }
                     .chartLegend(.hidden)
-                    .frame(minHeight: 220)
+                    .frame(minHeight: tr.mcus.isEmpty ? 220 : 150)  // leave room for the serial monitor
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack {
@@ -209,8 +221,10 @@ struct SimulationView: View {
                             }
                         }
                     }
+                    if !tr.mcus.isEmpty { McuRunPanel(runs: tr.mcus) }
                 } else {
                     Label(tr.error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Theme.warning)
+                    if !tr.mcus.isEmpty { McuRunPanel(runs: tr.mcus) }
                     Spacer()
                 }
             } else {
@@ -223,5 +237,41 @@ struct SimulationView: View {
         .padding(14)
         .bluePanel()
         .padding(10)
+    }
+}
+
+/// Microcontrollers of the last transient run: status and the serial monitor (USART0 output).
+private struct McuRunPanel: View {
+    var runs: [McuRun]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(runs) { run in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Image(systemName: run.running ? "cpu.fill" : "cpu")
+                            .foregroundStyle(run.running ? Theme.skyBlue : Theme.warning)
+                        Text("\(run.ref) · \(run.model)").font(.callout.weight(.semibold)).foregroundStyle(Theme.textPrimary)
+                        Text(run.status)
+                            .font(.caption)
+                            .foregroundStyle(run.running ? Theme.textSecondary : Theme.warning)
+                            .lineLimit(2)
+                            .truncationMode(.tail)
+                        Spacer(minLength: 0)
+                    }
+                    ScrollView {
+                        Text(run.serial.isEmpty ? "No serial output." : run.serial)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(run.serial.isEmpty ? Theme.textMuted : Theme.probe)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(6)
+                    }
+                    .frame(height: 96)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Theme.navy))
+                    .accessibilityLabel("Serial monitor for \(run.ref)")
+                }
+            }
+        }
     }
 }

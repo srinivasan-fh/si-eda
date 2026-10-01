@@ -34,6 +34,10 @@ struct Component {
     PcbPlacement pcb;
     std::string customPart;  // CustomPartRegistry id when kind == ComponentKind::Custom
     std::vector<int> noConnect;  // pin indices deliberately left open (no-connect flag): ERC does not flag them
+    // Microcontroller firmware (Intel HEX) run by the simulator; empty for other parts.
+    std::string firmware;
+    std::string firmwareName;  // file or example name shown in the editor
+    double clockHz = 0;        // CPU clock; 0 = the model's default (16 MHz ATmega328P, 8 MHz ATtiny85)
 
     bool isNoConnect(int pin) const;
 
@@ -80,6 +84,8 @@ public:
     bool setRef(int id, const std::string& ref);
     /// Marks a pin as intentionally unconnected (KiCad/Altium "no-connect" flag) or clears the mark.
     bool setPinNoConnect(int componentId, int pin, bool noConnect);
+    /// Attaches firmware to a microcontroller (empty `hex` removes it). Returns false for an unknown id.
+    bool setFirmware(int id, const std::string& hex, const std::string& name, double clockHz);
 
     int connect(PinRef a, PinRef b);  // returns wire id, or -1 if invalid / duplicate
     bool removeWire(int id);

@@ -38,6 +38,7 @@ Every AI result lands in the same editable schematic and PCB, so you can switch 
 | **Circuit validation** | Beyond ERC: non-standard values, missing IC decoupling, and DC-derived part ratings (resistor power, LED/diode current, reverse-biased LEDs, transistor current/power, supply over-current, op-amp saturation, fuse overload). Exceeding a rating is a warning; 2× the rating is an error |
 | **PCB design rules** | Presets: Prototype (Conservative), IPC-2221 Class 2 (default), IPC-2221 Class 3, Fab House Standard (6/6 mil) and Advanced (4/4 mil). DRC checks clearance against both the design rule and the fab minimum, plus track width, drill size, annular ring, hole-to-hole spacing, via-in-pad, dangling tracks, acute angles and IPC-2221 current capacity from the simulated net currents |
 | **Industry design kits** | Each project has an industry profile: General, Robotics & Motor Control, Drones & UAV, Power Electronics, Automotive, RF & Wireless, Space, Marine & Ship, Industrial Automation, Medical Devices, Defence & Military, Networking & Telecom, or VLSI / ASIC & FPGA. The profile sets the design rules, derates part ratings in validation (Space 50 %, Automotive 60/70 %, …) and selects IPC-2221 B2 or B3 (altitude) voltage spacing, and its standards and design guidance are shown in the Properties panel. The kits add domain parts (IR2104, IRF540N, UC3843, ACS712, TJA1050, LM2940, MAX485, PC817, INA333, ADuM1201) and 13 verified reference designs, and AI agents choose and follow the profile. See [Industry design kits](#industry-design-kits) |
+| **Microcontroller firmware** | Upload an Arduino/avr-gcc `.hex` to an ATmega328P or ATtiny85 and run it in the transient simulation. Pins drive the circuit, inputs and the ADC read it, and the serial monitor shows its output. See [Microcontroller simulation](#microcontroller-simulation-firmware) |
 | **Verification process** | **Design → Verify Design** (⌥⌘V) runs a 7-stage sign-off: ERC → DC simulation → circuit validation → footprint placement → routing completion → DRC/fab rules → manufacturing outputs (every Gerber layer, drill, BOM, pick-and-place and netlist are generated and checked). The verdict is Pass, Pass with warnings or Fail; findings cross-probe to the editors, and the report exports as Markdown. **Export Fabrication Package** always verifies first, asks before exporting a failing design, and includes `verification_report.md` |
 | **Model choice** | Anthropic **Claude** (default: `claude-opus-5-5`, structured outputs, adaptive thinking, effort control, refusal fallbacks), OpenAI or any OpenAI-compatible endpoint, Google Gemini, local Ollama, and an Offline Designer that needs no network |
 | **Schematic capture** | 16 built-in device types plus your own library parts, orthogonal wiring, net labels, junctions, rotate/move/marquee, undo/redo, ERC with pin-type rules, no-connect flags (Q) for pins left open on purpose |
@@ -70,6 +71,21 @@ Pick the industry in **Properties → Industry Profile** or **Design → Industr
 
 - **High-voltage clearance:** DRC computes each net's DC voltage, widened to the peaks of SIN/PULSE sources. Copper of nets with a large potential difference must keep the IPC-2221 Table 6-1 spacing: B2 at sea level, B3 above 3050 m. For example, 230 V needs 1.25 mm, or 6.4 mm at altitude. The autorouter routes with that spacing when the board's largest potential difference needs more than the design-rule clearance (above 30 V, such as 48 V PoE).
 - **Not a certification:** profiles apply common derating and spacing guidance, not a compliance sign-off. Full-wave EM, thermal and radiation analysis are outside SiEDA's scope.
+
+## Microcontroller simulation (firmware)
+
+Microcontrollers run real firmware inside the circuit simulation, like on a physical board.
+
+- **Supported chips:** ATmega328P (Arduino Uno/Nano, 16 MHz by default) and ATtiny85 (8 MHz).
+- **Upload:** select the chip and use **Inspector → Firmware → Upload .hex…**. In the Arduino IDE, **Sketch ▸ Export Compiled Binary** produces the `.hex`; with avr-gcc, use `avr-objcopy -O ihex`. You can also pick a built-in example (Arduino Blink, AnalogReadSerial + Fade, UART, timer interrupt, ADC → PWM, button interrupt, CPU self-test, ATtiny85 blink). The firmware is saved with the project.
+- **Run:** start a **Transient** analysis; the timer menu has firmware presets such as 1 s at 100 µs. Each analog step runs the chip for that step's clock cycles. Then:
+  - Pins drive the circuit: 25 Ω push-pull outputs, 35 kΩ pull-ups. A PWM pin averages its duty over a step longer than the PWM period.
+  - Inputs, interrupts and the 10-bit ADC read the solved node voltages.
+  - Everything the USART transmits appears in the **serial monitor** under the waveforms.
+  - Below 1.8 V supply the chip is held in reset.
+- **What's emulated:** the full AVR instruction set with cycle counts; GPIO; Timer0/1/2 (normal, CTC, fast and phase-correct PWM); USART0 with the real bit waveform on TXD; the ADC; EEPROM; INT0/INT1 and pin-change interrupts; and sleep. The CPU is checked instruction-for-instruction against simavr, and the Arduino core's `millis()`, `delay()`, `Serial` and `analogRead()`/`analogWrite()` behave as on a board.
+- **Example design:** **New from Example ▸ Microcontrollers ▸ Arduino Uno Core: LED + Button**.
+- **Test firmware:** sources and the build script are in `Core/tests/firmware`.
 
 ## Repository layout
 

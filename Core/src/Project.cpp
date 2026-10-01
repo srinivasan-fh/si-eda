@@ -1,4 +1,6 @@
 #include "sieda/Project.hpp"
+
+#include "sieda/Avr.hpp"
 #include "sieda/Industry.hpp"
 
 #include <algorithm>
@@ -136,6 +138,11 @@ Json Project::toJson() const {
         j["y"] = c.position.y;
         j["rotation"] = c.rotation;
         if (c.kind == ComponentKind::Custom) j["customPart"] = c.customPart;
+        if (!c.firmware.empty()) {
+            j["firmware"] = c.firmware;
+            j["firmwareName"] = c.firmwareName;
+            if (c.clockHz > 0) j["clockHz"] = c.clockHz;
+        }
         if (!c.noConnect.empty()) {
             Json nc = Json::array();
             for (int pin : c.noConnect) nc.push(pin);
@@ -267,6 +274,9 @@ Project Project::fromJson(const Json& root) {
             auto it = idMap.find(id);
             c.customPart = it != idMap.end() ? it->second : id;
         }
+        c.firmware = j.get("firmware").asString("");
+        c.firmwareName = j.get("firmwareName").asString("");
+        c.clockHz = j.get("clockHz").asNumber(0);
         for (const auto& nc : j.get("noConnect").items()) {
             int pin = nc.asInt(-1);
             if (pin >= 0 && pin < static_cast<int>(c.def().pins.size()) && !c.isNoConnect(pin)) c.noConnect.push_back(pin);
@@ -323,6 +333,20 @@ Json Project::snapshot() const {
         j["rotation"] = c.rotation;
         j["footprint"] = c.def().footprint;
         if (c.kind == ComponentKind::Custom) j["customPart"] = c.customPart;
+        if (c.kind == ComponentKind::Custom) {
+            if (const CustomPart* part = CustomPartRegistry::instance().find(c.customPart)) {
+                if (auto model = mcuModelForPart(part->spec.name)) {
+                    Json m = Json::object();
+                    m["model"] = mcuModelName(*model);
+                    m["clockHz"] = c.clockHz > 0 ? c.clockHz : defaultMcuClock(*model);
+                    m["firmwareName"] = c.firmwareName;
+                    HexImage img = c.firmware.empty() ? HexImage{} : parseIntelHex(c.firmware);
+                    m["firmwareBytes"] = static_cast<int>(img.ok() ? img.bytes.size() : 0);
+                    m["firmwareError"] = c.firmware.empty() ? std::string() : img.error;
+                    j["mcu"] = m;
+                }
+            }
+        }
         Json pins = Json::array();
         for (size_t i = 0; i < c.def().pins.size(); ++i) {
             PinRef r{c.id, static_cast<int>(i)};
@@ -598,6 +622,21 @@ Json Project::transientToJson(const TransientResult& r, size_t maxPoints) const 
         currents.push(j);
     }
     root["currents"] = currents;
+    Json mcus = Json::array();
+    for (const auto& m : r.mcus) {
+        const Component* c = schematic.find(m.componentId);
+        Json j = Json::object();
+        j["component"] = m.componentId;
+        j["ref"] = c ? c->ref : std::string();
+        j["model"] = m.model;
+        j["status"] = m.status;
+        j["running"] = m.running;
+        j["serial"] = m.serial;
+        j["cycles"] = static_cast<double>(m.cycles);
+        j["clockHz"] = m.clockHz;
+        mcus.push(j);
+    }
+    root["mcus"] = mcus;
     return root;
 }
 

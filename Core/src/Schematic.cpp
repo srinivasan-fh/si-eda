@@ -1,5 +1,7 @@
 #include "sieda/Schematic.hpp"
 
+#include <cctype>
+
 #include <algorithm>
 #include <numeric>
 #include <set>
@@ -164,6 +166,15 @@ bool Schematic::setValue(int id, const std::string& value) {
     return true;
 }
 
+bool Schematic::setFirmware(int id, const std::string& hex, const std::string& name, double clockHz) {
+    Component* c = find(id);
+    if (!c) return false;
+    c->firmware = hex;
+    c->firmwareName = hex.empty() ? std::string() : name;
+    c->clockHz = clockHz > 0 ? clockHz : 0;
+    return true;
+}
+
 bool Schematic::setRef(int id, const std::string& ref) {
     Component* c = find(id);
     if (!c || ref.empty()) return false;
@@ -250,6 +261,24 @@ int Schematic::pinIndex(int componentId, const std::string& pinName) const {
         int n = std::stoi(pinName, &used);
         if (used == pinName.size() && n >= 1 && n <= static_cast<int>(pins.size())) return n - 1;
     } catch (...) {
+    }
+    // Multi-function names answer to each function, case-insensitively: "PB5/SCK" is "PB5" or "SCK".
+    auto upper = [](std::string v) {
+        for (auto& ch : v) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        return v;
+    };
+    const std::string key = upper(pinName);
+    for (size_t i = 0; i < pins.size(); ++i) {
+        std::string name = upper(pins[i].name);
+        if (name == key) return static_cast<int>(i);
+        size_t start = 0;
+        while (start <= name.size()) {
+            size_t slash = name.find('/', start);
+            if (name.substr(start, slash == std::string::npos ? std::string::npos : slash - start) == key && !key.empty())
+                return static_cast<int>(i);
+            if (slash == std::string::npos) break;
+            start = slash + 1;
+        }
     }
     return -1;
 }

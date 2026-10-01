@@ -208,6 +208,10 @@ private struct ComponentProperties: View {
                 }
             }
 
+            if let mcu = component.mcu {
+                FirmwareProperties(component: component, mcu: mcu)
+            }
+
             if let reading = store.dcResult?.reading(component: component.id) {
                 PropertyGroup(title: "Operating Point") {
                     PropertyRow(label: kind == .npn ? "I_C" : (kind == .nmos ? "I_D" : "Current"),
@@ -245,6 +249,69 @@ private struct ComponentProperties: View {
 
     private func commitValue() {
         if value != component.value { store.setValue(component.id, value) }
+    }
+}
+
+/// Microcontroller firmware: upload an Intel HEX file or pick a built-in example, set the clock; the simulator runs it.
+private struct FirmwareProperties: View {
+    @EnvironmentObject private var store: DesignStore
+    var component: SnapComponent
+    var mcu: McuInfo
+
+    private static let clocks: [Double] = [1e6, 8e6, 12e6, 16e6, 20e6]
+
+    var body: some View {
+        PropertyGroup(title: "Firmware (\(mcu.model))") {
+            if mcu.hasFirmware {
+                HStack(spacing: 6) {
+                    Image(systemName: "memorychip").foregroundStyle(Theme.skyBlue)
+                    Text(mcu.firmwareName.isEmpty ? "firmware" : mcu.firmwareName)
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                PropertyRow(label: "Size", value: "\(mcu.firmwareBytes) bytes")
+            } else {
+                Text(mcu.firmwareError.isEmpty
+                     ? "No firmware: the pins stay high-impedance inputs. Upload a .hex (Arduino IDE ▸ Sketch ▸ Export Compiled Binary) or pick an example."
+                     : "Firmware error: \(mcu.firmwareError)")
+                    .font(.caption)
+                    .foregroundStyle(mcu.firmwareError.isEmpty ? Theme.textMuted : Theme.error)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Picker("Clock", selection: Binding(get: { mcu.clockHz }, set: { store.setMcuClock(component.id, clockHz: $0) })) {
+                ForEach(Self.clocks, id: \.self) { hz in Text(String(format: "%g MHz", hz / 1e6)).tag(hz) }
+                if !Self.clocks.contains(mcu.clockHz) {
+                    Text(String(format: "%g MHz", mcu.clockHz / 1e6)).tag(mcu.clockHz)
+                }
+            }
+            .help("CPU clock the firmware was built for (Arduino Uno/Nano: 16 MHz)")
+            Menu {
+                ForEach(EDAEngine.firmwareExamples.filter { $0.model == mcu.model }) { example in
+                    Button(example.name) { store.loadFirmwareExample(example, into: component.id) }
+                        .help(example.description)
+                }
+            } label: {
+                Label("Load Example Firmware", systemImage: "list.bullet")
+            }
+            .fixedSize()
+            HStack {
+                Button { store.uploadFirmware(to: component.id) } label: { Label("Upload .hex…", systemImage: "square.and.arrow.down") }
+                if mcu.hasFirmware {
+                    Button(role: .destructive) {
+                        store.setFirmware(component.id, hex: "", name: "")
+                    } label: { Image(systemName: "trash") }
+                    .help("Remove the firmware")
+                    .accessibilityLabel("Remove firmware")
+                }
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            Text("Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation.")
+                .font(.caption2)
+                .foregroundStyle(Theme.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 

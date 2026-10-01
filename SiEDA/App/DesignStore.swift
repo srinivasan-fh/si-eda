@@ -248,6 +248,61 @@ final class DesignStore: ObservableObject {
         selection = []
     }
 
+    // MARK: - Microcontroller firmware
+
+    /// Attaches firmware (Intel HEX) to a microcontroller; an empty `hex` removes it. Undoable.
+    @discardableResult
+    func setFirmware(_ id: Int, hex: String, name: String, clockHz: Double? = nil) -> Bool {
+        guard let component = snapshot.component(id) else { return false }
+        let clock = clockHz ?? component.mcu?.clockHz ?? 0
+        var failure: Error?
+        let ok = performChecked(hex.isEmpty ? "Removed firmware from \(component.ref)" : "Loaded \(name) into \(component.ref)",
+                                failureMessage: "\(component.ref): firmware not loaded") { engine in
+            do {
+                try engine.setFirmware(id, hex: hex, name: name, clockHz: clock)
+                return true
+            } catch {
+                failure = error
+                return false
+            }
+        }
+        if let failure { present(failure, title: "Could not load the firmware") }
+        return ok
+    }
+
+    /// Asks for a .hex file (Arduino IDE ▸ Sketch ▸ Export Compiled Binary, or avr-objcopy -O ihex) and loads it.
+    func uploadFirmware(to id: Int) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "hex") ?? .data, UTType(filenameExtension: "ihex") ?? .data, .plainText]
+        panel.allowsMultipleSelection = false
+        panel.message = "Choose an Intel HEX firmware file (Arduino IDE: Sketch ▸ Export Compiled Binary)."
+        panel.prompt = "Upload"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        loadFirmwareFile(url, into: id)
+    }
+
+    func loadFirmwareFile(_ url: URL, into id: Int) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let hex = try String(contentsOf: url, encoding: .utf8)
+            setFirmware(id, hex: hex, name: url.lastPathComponent)
+        } catch {
+            present(error, title: "Could not read \(url.lastPathComponent)")
+        }
+    }
+
+    func loadFirmwareExample(_ example: FirmwareExample, into id: Int) {
+        guard let hex = EDAEngine.firmwareExampleHex(example.id) else { return }
+        setFirmware(id, hex: hex, name: example.name)
+    }
+
+    /// CPU clock of a microcontroller (keeps its firmware).
+    func setMcuClock(_ id: Int, clockHz: Double) {
+        guard let mcu = snapshot.component(id)?.mcu, mcu.clockHz != clockHz else { return }
+        setFirmware(id, hex: engine.firmware(of: id), name: mcu.firmwareName, clockHz: clockHz)
+    }
+
     func setValue(_ id: Int, _ value: String) {
         guard let current = snapshot.component(id), current.value != value else { return }
         perform("Changed value") { $0.setValue(id, value) }

@@ -67,14 +67,17 @@ struct PlannedComponent: Codable, Equatable {
     var x: Double
     var y: Double
     var rotation: Int
+    /// Built-in example firmware id for a microcontroller (reference designs; not part of the AI schema).
+    var firmware: String?
 
-    init(ref: String, kind: String, value: String, x: Double, y: Double, rotation: Int = 0) {
+    init(ref: String, kind: String, value: String, x: Double, y: Double, rotation: Int = 0, firmware: String? = nil) {
         self.ref = ref
         self.kind = kind
         self.value = value
         self.x = x
         self.y = y
         self.rotation = rotation
+        self.firmware = firmware
     }
 
     init(from decoder: Decoder) throws {
@@ -91,9 +94,10 @@ struct PlannedComponent: Codable, Equatable {
         } else {
             rotation = 0
         }
+        firmware = try c.decodeIfPresent(String.self, forKey: .firmware)
     }
 
-    private enum CodingKeys: String, CodingKey { case ref, kind, value, x, y, rotation }
+    private enum CodingKeys: String, CodingKey { case ref, kind, value, x, y, rotation, firmware }
 }
 
 struct PlannedConnection: Codable, Equatable {
@@ -346,6 +350,13 @@ enum DesignPlanCompiler {
         for c in previous?.components ?? [] where c.pcb.placed {
             keptPlacement[c.ref] = c.pcb
         }
+        // Firmware stays with its microcontroller (by reference) when a plan rebuilds the schematic.
+        var keptFirmware: [String: (hex: String, name: String, clock: Double)] = [:]
+        for c in previous?.components ?? [] {
+            if let mcu = c.mcu, mcu.hasFirmware {
+                keptFirmware[c.ref] = (engine.firmware(of: c.id), mcu.firmwareName, mcu.clockHz)
+            }
+        }
 
         engine.clear()
         engine.setName(plan.title)
@@ -455,6 +466,21 @@ enum DesignPlanCompiler {
         }
         for endpoint in plan.noConnect {
             if let pin = resolve(endpoint, engine: engine, report: &report) { engine.setPinNoConnect(pin, true) }
+        }
+        for item in plan.components {
+            guard let id = engine.findComponent(ref: item.ref) else { continue }
+            if let example = item.firmware {
+                guard let hex = EDAEngine.firmwareExampleHex(example) else {
+                    report.warnings.append("\(item.ref): unknown example firmware '\(example)'.")
+                    continue
+                }
+                let name = EDAEngine.firmwareExamples.first { $0.id == example }?.name ?? example
+                do { try engine.setFirmware(id, hex: hex, name: name, clockHz: 0) } catch {
+                    report.warnings.append("\(item.ref): \(error.localizedDescription)")
+                }
+            } else if let kept = keptFirmware[item.ref] {
+                try? engine.setFirmware(id, hex: kept.hex, name: kept.name, clockHz: kept.clock)
+            }
         }
 
         for (ref, placement) in keptPlacement {

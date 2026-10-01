@@ -79,7 +79,7 @@ struct OfflineProvider: AIProvider {
     /// Library groups in display order.
     static let categories = ["Basic", "Power", "Analog", "Filters", "Drivers", "Timers", "Sensors",
                              "Robotics", "Drones & UAV", "Power Electronics", "Automotive", "RF", "Space", "Marine", "Industrial",
-                             "Medical", "Defence", "Networking", "VLSI"]
+                             "Medical", "Defence", "Networking", "VLSI", "Microcontrollers"]
 
     static func examples(in category: String) -> [Template] { templates.filter { $0.category == category } }
 
@@ -1574,5 +1574,54 @@ struct OfflineProvider: AIProvider {
             supply: 5,
             category: "VLSI",
             industry: "vlsi"),
+        Template(
+            keywords: ["arduino", "atmega", "microcontroller", "firmware", "push button", "pushbutton"],
+            plan: DesignPlan(
+                title: "Arduino Uno Core: LED + Button (firmware)",
+                summary: "ATmega328P at 5 V running the \"Button (INT0)\" firmware: the LED on D13 (PB5) lights while the push-button on D2 (PD2, INT0, internal pull-up) is pressed and each press is reported on the serial monitor.",
+                components: [
+                    PlannedComponent(ref: "V1", kind: "voltage_source", value: "5", x: 0, y: 0),
+                    PlannedComponent(ref: "U1", kind: "custom:ATmega328P", value: "ATmega328P", x: 260, y: 0, firmware: "button_interrupt"),
+                    PlannedComponent(ref: "C1", kind: "capacitor", value: "100n", x: 120, y: 120, rotation: 90),
+                    PlannedComponent(ref: "C2", kind: "capacitor", value: "100n", x: 420, y: 200, rotation: 90),
+                    PlannedComponent(ref: "R1", kind: "resistor", value: "10k", x: 120, y: -160, rotation: 90),
+                    PlannedComponent(ref: "R2", kind: "resistor", value: "330", x: 520, y: -60),
+                    PlannedComponent(ref: "D1", kind: "led", value: "Red", x: 620, y: 0, rotation: 90),
+                    PlannedComponent(ref: "SW1", kind: "switch", value: "open", x: 520, y: 140),
+                    PlannedComponent(ref: "NL1", kind: "net_label", value: "+5V", x: 120, y: -260),
+                    PlannedComponent(ref: "GND1", kind: "ground", value: "0", x: 0, y: 90),
+                    PlannedComponent(ref: "GND2", kind: "ground", value: "0", x: 120, y: 200),
+                    PlannedComponent(ref: "GND3", kind: "ground", value: "0", x: 420, y: 280),
+                    PlannedComponent(ref: "GND4", kind: "ground", value: "0", x: 620, y: 80),
+                    PlannedComponent(ref: "GND5", kind: "ground", value: "0", x: 620, y: 200),
+                ],
+                connections: [
+                    PlannedConnection(from: "V1.+", to: "U1.7"),
+                    PlannedConnection(from: "V1.-", to: "GND1.GND"),
+                    PlannedConnection(from: "U1.8", to: "GND2.GND"),
+                    PlannedConnection(from: "U1.22", to: "GND2.GND"),
+                    PlannedConnection(from: "U1.20", to: "U1.7"),
+                    PlannedConnection(from: "U1.7", to: "C1.1"),
+                    PlannedConnection(from: "C1.2", to: "GND2.GND"),
+                    PlannedConnection(from: "U1.21", to: "C2.1"),
+                    PlannedConnection(from: "C2.2", to: "GND3.GND"),
+                    PlannedConnection(from: "U1.7", to: "R1.1"),
+                    PlannedConnection(from: "R1.2", to: "U1.1"),
+                    PlannedConnection(from: "U1.7", to: "NL1.N"),
+                    PlannedConnection(from: "U1.19", to: "R2.1"),
+                    PlannedConnection(from: "R2.2", to: "D1.A"),
+                    PlannedConnection(from: "D1.K", to: "GND4.GND"),
+                    PlannedConnection(from: "U1.4", to: "SW1.1"),
+                    PlannedConnection(from: "SW1.2", to: "GND5.GND"),
+                ],
+                notes: ["Firmware: \"Button (INT0)\" — open the Inspector on U1 to upload your own .hex (Arduino IDE ▸ Sketch ▸ Export Compiled Binary) or pick another example.",
+                        "Run a Transient analysis (e.g. 1 s, 100 µs) and press SW1 in the live simulation: D1 lights while it is held and the serial monitor prints \"press N\".",
+                        "R1 pulls RESET high; C1 decouples VCC/AVCC and C2 the AREF pin. A real Uno adds a 16 MHz crystal on PB6/PB7 (the simulator runs the core at 16 MHz)."],
+                board: PlannedBoard(width: 50, height: 35),
+                noConnect: ["U1.2", "U1.3", "U1.5", "U1.6", "U1.9", "U1.10", "U1.11", "U1.12", "U1.13", "U1.14", "U1.15", "U1.16", "U1.17", "U1.18", "U1.23", "U1.24", "U1.25", "U1.26", "U1.27", "U1.28"]),
+            blocks: ["5 V supply", "ATmega328P", "Reset pull-up", "LED on D13", "Button on D2"],
+            supply: 5,
+            category: "Microcontrollers",
+            industry: "general"),
     ]
 }

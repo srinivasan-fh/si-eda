@@ -131,6 +131,8 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     var pins: [SnapPin]
     var pcb: PcbPlacement
     var customPart: String?
+    /// Present for microcontrollers the simulator can run (ATmega328P, ATtiny85).
+    var mcu: McuInfo?
 
     var componentKind: ComponentKind { ComponentKind(rawValue: kind) ?? .ic8 }
     var position: CGPoint { CGPoint(x: x, y: y) }
@@ -448,20 +450,54 @@ struct WaveformSeries: Decodable, Equatable, Identifiable {
     var label: String { name ?? ref ?? "?" }
 }
 
+/// Simulated microcontroller of a component: model, clock and the attached firmware.
+struct McuInfo: Decodable, Equatable {
+    var model: String
+    var clockHz: Double
+    var firmwareName: String
+    var firmwareBytes: Int
+    var firmwareError: String
+
+    var hasFirmware: Bool { firmwareBytes > 0 }
+}
+
+/// A microcontroller after a transient run: status and everything its USART transmitted.
+struct McuRun: Decodable, Equatable, Identifiable {
+    var component: Int
+    var ref: String
+    var model: String
+    var status: String
+    var running: Bool
+    var serial: String
+    var cycles: Double
+    var clockHz: Double
+    var id: Int { component }
+}
+
+/// Built-in example firmware (Intel HEX bundled with the core).
+struct FirmwareExample: Decodable, Equatable, Identifiable {
+    var id: String
+    var name: String
+    var model: String
+    var description: String
+}
+
 struct TransientResult: Decodable, Equatable {
     var ok: Bool
     var error: String
     var time: [Double]
     var nets: [WaveformSeries]
     var currents: [WaveformSeries]
+    var mcus: [McuRun]
 
     init(ok: Bool = false, error: String = "", time: [Double] = [], nets: [WaveformSeries] = [],
-         currents: [WaveformSeries] = []) {
+         currents: [WaveformSeries] = [], mcus: [McuRun] = []) {
         self.ok = ok
         self.error = error
         self.time = time
         self.nets = nets
         self.currents = currents
+        self.mcus = mcus
     }
 
     init(from decoder: Decoder) throws {
@@ -471,9 +507,10 @@ struct TransientResult: Decodable, Equatable {
         time = try c.decodeIfPresent([Double].self, forKey: .time) ?? []
         nets = try c.decodeIfPresent([WaveformSeries].self, forKey: .nets) ?? []
         currents = try c.decodeIfPresent([WaveformSeries].self, forKey: .currents) ?? []
+        mcus = try c.decodeIfPresent([McuRun].self, forKey: .mcus) ?? []
     }
 
-    private enum CodingKeys: String, CodingKey { case ok, error, time, nets, currents }
+    private enum CodingKeys: String, CodingKey { case ok, error, time, nets, currents, mcus }
 }
 
 struct RouteStats: Decodable, Equatable {

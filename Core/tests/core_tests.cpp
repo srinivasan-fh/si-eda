@@ -7,9 +7,11 @@
 
 #include <algorithm>
 
+#include "sieda/Avr.hpp"
 #include "sieda/CustomParts.hpp"
 #include "sieda/DeviceModels.hpp"
 #include "sieda/Export.hpp"
+#include "sieda/Firmware.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/Json.hpp"
 #include "sieda/Mesh.hpp"
@@ -1301,6 +1303,259 @@ TEST(router_keeps_voltage_spacing) {
     CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
     CHECK_NEAR(p.pcb.settings.clearance, 0.15, 1e-12);
     for (const auto& v : p.pcb.runDRC(p.schematic)) CHECK(v.code != "DRC_HV_CLEARANCE");
+}
+
+// ======================================================================= microcontroller simulation
+
+namespace {
+const std::string& exampleHex(const char* id) {
+    const FirmwareExample* e = findFirmwareExample(id);
+    static const std::string none;
+    return e ? e->hex : none;
+}
+
+/// 5 V supply, an ATmega328P (or ATtiny85) with VCC/GND (and AVCC) wired, firmware attached. Returns the MCU id.
+int mcuBoard(Project& p, const char* part, const char* firmware, int& gnd) {
+    auto& s = p.schematic;
+    std::string id = p.addCustomPart(findStandardPart(part)->spec);
+    int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    gnd = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    int u = s.addCustomComponent(id, part, {200, 0});
+    wire(s, v, "-", gnd, "GND");
+    wire(s, v, "+", u, "VCC");
+    wire(s, u, "GND", gnd, "GND");
+    if (s.pinIndex(u, "AVCC") >= 0) wire(s, u, "AVCC", v, "+");
+    if (firmware) s.setFirmware(u, exampleHex(firmware), firmware, 0);
+    p.schematicChanged();
+    return u;
+}
+
+int countEdges(const std::vector<double>& v, double threshold) {
+    int edges = 0;
+    for (size_t i = 1; i < v.size(); ++i) edges += (v[i - 1] < threshold) != (v[i] < threshold);
+    return edges;
+}
+}  // namespace
+
+TEST(intel_hex_parser) {
+    std::vector<uint8_t> bytes;
+    for (int i = 0; i < 70; ++i) bytes.push_back(static_cast<uint8_t>(i * 7));
+    std::string hex = toIntelHex(bytes);
+    HexImage img = parseIntelHex(hex);
+    CHECK(img.ok());
+    CHECK(img.bytes == bytes);
+    CHECK(!parseIntelHex(":10000000FFFF\n").ok());
+    std::string bad = hex;
+    bad[10] = bad[10] == '0' ? '1' : '0';  // corrupt a data digit: checksum fails
+    CHECK(parseIntelHex(bad).error.find("checksum") != std::string::npos);
+    CHECK(parseIntelHex("hello").error.find("Intel HEX") != std::string::npos);
+    CHECK(!parseIntelHex(":00000001FF\n").ok());  // no data
+    CHECK(mcuModelForPart("ATmega328P") == McuModel::ATmega328P);
+    CHECK(mcuModelForPart("atmega328p-pu") == McuModel::ATmega328P);
+    CHECK(mcuModelForPart("ATtiny85") == McuModel::ATtiny85);
+    CHECK(!mcuModelForPart("NE555"));
+    CHECK(firmwareExamples().size() >= 9);
+    for (const auto& e : firmwareExamples()) CHECK(parseIntelHex(e.hex).ok());
+}
+
+TEST(avr_cpu_matches_reference_simulator) {
+    // avr-gcc output of Core/tests/firmware/alu.c; the expected text is simavr's output for the same image.
+    const std::string expected = "-23\n79\n-7700\n-14\n-2\n43\n88\n2\n2\n64\n25\n-25\n-12024\n-30585\n-38\n-147\n-1544\n26784\n8571\n3\n19456\n-987641976\n819560599\n-80004\n-4941\n-7716050\n4000065537\n376121344\n61034\n14742\n488281\n-3962745\n3600000000\n3554416254\n2802067423\n3596950572\n229283573\n3256818826\n610\n15129\n-456\n3141\n64159\n-1256636\n31006\n1\n-987654\n9\n0\nSiEDA-AVR\n-17\n-3\n0\n4\n4\n5\n9\n22\n1\nEND\n";
+    HexImage img = parseIntelHex(exampleHex("cpu_selftest"));
+    CHECK(img.ok());
+    AvrMcu mcu(McuModel::ATmega328P);
+    std::string err;
+    CHECK(mcu.loadFirmware(img.bytes, err));
+    mcu.setSupply(5.0);
+    std::string out;
+    for (int i = 0; i < 400 && out.find("END\n") == std::string::npos; ++i) {
+        mcu.run(16000);
+        out += mcu.takeSerialOutput();
+    }
+    CHECK(out == expected);
+    CHECK(mcu.fault().empty());
+}
+
+TEST(avr_peripherals_standalone) {
+    AvrMcu mcu(McuModel::ATmega328P);
+    std::string err;
+    CHECK(mcu.loadFirmware(parseIntelHex(exampleHex("arduino_analog_serial")).bytes, err));
+    mcu.setSupply(5.0);
+    mcu.setPinVoltage(mcu.pinIndex("PC0"), 2.5);
+    std::string out;
+    for (int i = 0; i < 160; ++i) {  // 160 ms
+        mcu.run(16000);
+        out += mcu.takeSerialOutput();
+    }
+    // millis() and Serial.println at 115200: "0 512", "50 512", "100 512", "150 512" (the Arduino core's drift included).
+    CHECK(out.rfind("0 512\r\n50 512\r\n100 512\r\n150 512\r\n", 0) == 0);
+    // Flash larger than the chip is refused.
+    AvrMcu tiny(McuModel::ATtiny85);
+    CHECK(!tiny.loadFirmware(std::vector<uint8_t>(9000, 0), err));
+    CHECK(err.find("flash") != std::string::npos);
+    CHECK(tiny.pinIndex("PB5/RST") == 5);
+    CHECK(tiny.pinIndex("PD0") == -1);
+}
+
+TEST(mcu_blinks_an_led_in_the_circuit) {
+    Project p;
+    int gnd = -1;
+    int u = mcuBoard(p, "ATmega328P", "arduino_blink", gnd);
+    auto& s = p.schematic;
+    int r = s.addComponent(ComponentKind::Resistor, "330", {350, 0});
+    int d = s.addComponent(ComponentKind::LED, "Red", {450, 0});
+    wire(s, u, "PB5", r, "1");
+    wire(s, r, "2", d, "A");
+    wire(s, d, "K", gnd, "GND");
+    p.schematicChanged();
+    Simulator sim(s);
+    TransientResult tr = sim.transient(1.0, 1e-4);
+    CHECK(tr.ok);
+    CHECK(tr.mcus.size() == 1 && tr.mcus[0].running);
+    CHECK(tr.mcus[0].status.find("16 MHz") != std::string::npos);
+    int ledNet = s.netOf({r, 0});
+    const auto& v = tr.netVoltages[static_cast<size_t>(ledNet)];
+    // 200 ms on / 200 ms off: edges at 0, 0.2, 0.4, 0.6, 0.8 and 1.0 s (Arduino delay() is micros()-accurate).
+    std::vector<double> edges;
+    for (size_t i = 1; i < v.size(); ++i)
+        if ((v[i - 1] < 2.5) != (v[i] < 2.5)) edges.push_back(tr.time[i]);
+    CHECK(edges.size() == 6);
+    for (size_t i = 0; i < edges.size(); ++i) CHECK_NEAR(edges[i], 0.2 * static_cast<double>(i), 0.0015);
+    double peak = *std::max_element(v.begin(), v.end());
+    CHECK(peak > 4.5 && peak < 5.0);  // 25 Ω output resistance drops a little under the LED current
+    double iMax = *std::max_element(tr.currents[d].begin(), tr.currents[d].end());
+    CHECK(iMax > 0.007 && iMax < 0.011);  // (5 V − ~2 V) / (330 + 25) Ω
+    // Pin at 0.3 s is off, at 0.1 s on.
+    CHECK(v[1000] > 4.5);
+    CHECK(v[3000] < 0.5);
+}
+
+TEST(mcu_adc_pwm_and_serial_in_the_circuit) {
+    Project p;
+    int gnd = -1;
+    int u = mcuBoard(p, "ATmega328P", "arduino_analog_serial", gnd);
+    auto& s = p.schematic;
+    int supply = s.addComponent(ComponentKind::VoltageSource, "5", {0, 200});  // separate source for the divider
+    int r1 = s.addComponent(ComponentKind::Resistor, "10k", {100, 200});
+    int r2 = s.addComponent(ComponentKind::Resistor, "30k", {100, 300});
+    wire(s, supply, "-", gnd, "GND");
+    wire(s, supply, "+", r1, "1");
+    wire(s, r1, "2", r2, "1");
+    wire(s, r2, "2", gnd, "GND");
+    wire(s, r1, "2", u, "PC0");  // A0 = 3.75 V → 767
+    // PWM on pin 9 (PB1) into an RC low-pass: the filtered voltage follows the duty (767 / 4 = 191 → 3.75 V).
+    int rf = s.addComponent(ComponentKind::Resistor, "10k", {400, 0});
+    int cf = s.addComponent(ComponentKind::Capacitor, "10u", {500, 50});
+    wire(s, u, "PB1", rf, "1");
+    wire(s, rf, "2", cf, "1");
+    wire(s, cf, "2", gnd, "GND");
+    p.schematicChanged();
+    Simulator sim(s);
+    TransientResult tr = sim.transient(0.6, 2e-5);
+    CHECK(tr.ok);
+    CHECK(tr.mcus.size() == 1);
+    const std::string& serial = tr.mcus[0].serial;
+    CHECK(serial.find("0 767\r\n") == 0);
+    CHECK(serial.find(" 767\r\n", 10) != std::string::npos);
+    const auto& vf = tr.netVoltages[static_cast<size_t>(s.netOf({rf, 1}))];
+    double avg = 0;
+    for (size_t i = vf.size() - 5000; i < vf.size(); ++i) avg += vf[i];
+    avg /= 5000;
+    CHECK_NEAR(avg, 5.0 * 191 / 255, 0.12);
+    // JSON carries the serial monitor text and the status.
+    Json j = p.transientToJson(tr);
+    CHECK(j.get("mcus").items().size() == 1);
+    CHECK(j.get("mcus").items()[0].get("serial").asString().find("767") != std::string::npos);
+}
+
+TEST(mcu_button_interrupt_with_live_switch) {
+    Project p;
+    int gnd = -1;
+    int u = mcuBoard(p, "ATmega328P", "button_interrupt", gnd);
+    auto& s = p.schematic;
+    int sw = s.addComponent(ComponentKind::Switch, "open", {300, 100});
+    int r = s.addComponent(ComponentKind::Resistor, "470", {350, 0});
+    int d = s.addComponent(ComponentKind::LED, "Green", {450, 0});
+    wire(s, u, "PD2", sw, "1");
+    wire(s, sw, "2", gnd, "GND");
+    wire(s, u, "PB5", r, "1");
+    wire(s, r, "2", d, "A");
+    wire(s, d, "K", gnd, "GND");
+    p.schematicChanged();
+    Simulator sim(s);
+    std::string err;
+    CHECK(sim.begin(err));
+    auto ledVolts = [&]() { return sim.netVoltages()[static_cast<size_t>(s.netOf({r, 0}))]; };
+    for (int i = 0; i < 200; ++i) CHECK(sim.advance(1e-4, err));  // 20 ms released
+    CHECK(ledVolts() < 0.5);
+    for (int press = 0; press < 3; ++press) {
+        sim.setSwitch(sw, true);
+        for (int i = 0; i < 100; ++i) sim.advance(1e-4, err);
+        CHECK(ledVolts() > 4.0);  // LED on while pressed
+        sim.setSwitch(sw, false);
+        for (int i = 0; i < 100; ++i) sim.advance(1e-4, err);
+        CHECK(ledVolts() < 0.5);
+    }
+    auto reports = sim.mcuReports();
+    CHECK(reports.size() == 1);
+    CHECK(reports[0].serial == "press 1\npress 2\npress 3\n");
+    CHECK_NEAR(sim.time(), 0.08, 1e-9);
+}
+
+TEST(attiny85_and_mcu_status) {
+    Project p;
+    int gnd = -1;
+    int u = mcuBoard(p, "ATtiny85", "tiny_blink", gnd);
+    auto& s = p.schematic;
+    int r = s.addComponent(ComponentKind::Resistor, "1k", {350, 0});
+    wire(s, u, "PB0", r, "1");
+    wire(s, r, "2", gnd, "GND");
+    p.schematicChanged();
+    TransientResult tr = Simulator(s).transient(0.5, 1e-4);
+    CHECK(tr.ok);
+    CHECK(tr.mcus.size() == 1 && tr.mcus[0].model == "ATtiny85");
+    CHECK(tr.mcus[0].status.find("8 MHz") != std::string::npos);
+    CHECK(countEdges(tr.netVoltages[static_cast<size_t>(s.netOf({r, 0}))], 2.5) == 5);  // toggles every 100 ms
+
+    // No firmware: a clear status, pins stay high-impedance.
+    s.setFirmware(u, "", "", 0);
+    TransientResult none = Simulator(s).transient(0.01, 1e-4);
+    CHECK(none.ok && !none.mcus[0].running);
+    CHECK(none.mcus[0].status.find("No firmware") != std::string::npos);
+    CHECK(std::fabs(none.netVoltages[static_cast<size_t>(s.netOf({r, 0}))].back()) < 1e-3);
+
+    // A 1.5 V supply holds the chip in reset.
+    s.setFirmware(u, exampleHex("tiny_blink"), "tiny_blink", 0);
+    for (const auto& c : s.components())
+        if (c.kind == ComponentKind::VoltageSource) s.setValue(c.id, "1.5");
+    TransientResult low = Simulator(s).transient(0.01, 1e-4);
+    CHECK(!low.mcus[0].running);
+    CHECK(low.mcus[0].status.find("reset") != std::string::npos);
+}
+
+TEST(firmware_persists_with_the_project) {
+    Project p;
+    int gnd = -1;
+    int u = mcuBoard(p, "ATmega328P", "blink", gnd);
+    p.schematic.setFirmware(u, exampleHex("blink"), "blink.hex", 8e6);
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    const Component* c = q.schematic.findByRef(p.schematic.find(u)->ref);
+    CHECK(c != nullptr);
+    if (!c) return;
+    CHECK(c->firmware == exampleHex("blink"));
+    CHECK(c->firmwareName == "blink.hex");
+    CHECK_NEAR(c->clockHz, 8e6, 1e-6);
+    Json snap = q.snapshot();
+    bool found = false;
+    for (const auto& j : snap.get("components").items())
+        if (j.get("ref").asString() == c->ref) {
+            found = true;
+            CHECK(j.get("mcu").get("model").asString() == "ATmega328P");
+            CHECK(j.get("mcu").get("firmwareName").asString() == "blink.hex");
+            CHECK(j.get("mcu").get("firmwareBytes").asInt() > 100);
+            CHECK_NEAR(j.get("mcu").get("clockHz").asNumber(), 8e6, 1e-6);
+        }
+    CHECK(found);
 }
 
 TEST(ipc2221_voltage_clearance) {
