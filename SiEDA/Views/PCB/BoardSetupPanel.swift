@@ -164,7 +164,7 @@ struct BoardSetupPanel: View {
     private func field(_ title: String, _ text: Binding<String>) -> some View {
         HStack(spacing: 4) {
             Text(title).foregroundStyle(Theme.textMuted)
-            TextField(title, text: text).textFieldStyle(.roundedBorder).frame(width: 56)
+            TextField(title, text: text).textFieldStyle(.blue).frame(width: 56)
             Text("mm").font(.caption).foregroundStyle(Theme.textMuted)
         }
     }

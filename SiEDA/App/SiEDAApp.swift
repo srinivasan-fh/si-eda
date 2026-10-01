@@ -30,9 +30,10 @@ struct SiEDAApp: App {
                 .environmentObject(agents)
                 .preferredColorScheme((AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
                 .tint(Theme.blue)
-                .frame(minWidth: 1100, minHeight: 700)
+                .frame(minWidth: LayoutMetrics.minimumWindow.width, minHeight: LayoutMetrics.minimumWindow.height)
                 .onAppear { appDelegate.store = store }
         }
+        .defaultSize(width: LayoutMetrics.defaultWindow.width, height: LayoutMetrics.defaultWindow.height)
         .windowToolbarStyle(.unified)
         .commands { SiEDACommands(store: store, agents: agents, settings: settings) }
 

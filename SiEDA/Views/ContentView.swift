@@ -5,11 +5,26 @@ struct ContentView: View {
     @EnvironmentObject private var settings: AISettings
     @EnvironmentObject private var agents: AgentOrchestrator
     @State private var showInspector = true
+    @State private var columns: NavigationSplitViewVisibility = .all
+    /// Last window size class, so the sidebar/inspector only fold when the window crosses a threshold (a manual
+    /// toggle in between is kept).
+    @State private var sizeClass: WindowSizeClass?
+
+    /// wide: sidebar + inspector · medium: sidebar only · narrow: workspace only (toolbar switches workspaces).
+    enum WindowSizeClass {
+        case narrow, medium, wide
+
+        init(width: CGFloat) {
+            if width < LayoutMetrics.sidebarWidthThreshold { self = .narrow }
+            else if width < LayoutMetrics.inspectorWidthThreshold { self = .medium }
+            else { self = .wide }
+        }
+    }
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columns) {
             SidebarView()
-                .navigationSplitViewColumnWidth(min: 210, ideal: 240, max: 320)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 300)
         } detail: {
             VStack(spacing: 0) {
                 workspaceView
@@ -24,6 +39,16 @@ struct ContentView: View {
         }
         .navigationTitle(store.windowTitle)
         .toolbar { toolbarContent }
+        // Solid blue toolbar: the default translucent one takes its colour from the desktop picture.
+        .toolbarBackground(Theme.deepBlue, for: .windowToolbar)
+        .toolbarBackground(.visible, for: .windowToolbar)
+        .background {
+            GeometryReader { geometry in
+                Color.clear
+                    .onAppear { adapt(to: geometry.size.width) }
+                    .onChange(of: geometry.size.width) { _, width in adapt(to: width) }
+            }
+        }
         .alert(item: $store.alert) { item in
             Alert(title: Text(item.title), message: Text(item.message), dismissButton: .default(Text("OK")))
         }
@@ -37,9 +62,24 @@ struct ContentView: View {
         }
     }
 
+    /// Folds the sidebar and inspector away when the window gets narrow, and brings them back when it widens.
+    private func adapt(to width: CGFloat) {
+        guard width > 0 else { return }
+        let newClass = WindowSizeClass(width: width)
+        guard newClass != sizeClass else { return }
+        sizeClass = newClass
+        withAnimation(.easeInOut(duration: 0.2)) {
+            columns = newClass == .narrow ? .detailOnly : .all
+            showInspector = newClass == .wide
+        }
+    }
+
+    private var workspaceView: some View { Self.workspaceView(store.workspace) }
+
+    /// The editor of a workspace (also used by the layout tests).
     @ViewBuilder
-    private var workspaceView: some View {
-        switch store.workspace {
+    static func workspaceView(_ workspace: Workspace) -> some View {
+        switch workspace {
         case .promptStudio: PromptStudioView()
         case .schematic: SchematicEditorView()
         case .library: ComponentLibraryView()

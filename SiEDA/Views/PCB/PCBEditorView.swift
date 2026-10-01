@@ -241,7 +241,7 @@ struct PCBEditorView: View {
         HStack(spacing: 4) {
             Text(title).foregroundStyle(Theme.textMuted)
             TextField(title, text: text)
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.blue)
                 .frame(width: 54)
                 .onSubmit { applyRules() }
             Text(unit).foregroundStyle(Theme.textMuted).font(.caption)

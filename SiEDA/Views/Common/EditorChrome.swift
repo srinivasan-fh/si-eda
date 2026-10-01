@@ -32,13 +32,21 @@ struct ToolStrip<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(spacing: 4) {
-            content
-            Spacer()
+        // On short windows the tools scroll instead of forcing the workspace taller than the window.
+        ViewThatFits(in: .vertical) {
+            VStack(spacing: 4) {
+                content
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 8)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 4) { content }
+                    .padding(.vertical, 8)
+            }
         }
-        .padding(.vertical, 8)
         .padding(.horizontal, 5)
         .frame(width: 44)
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(Theme.deepBlue)
         .overlay(Rectangle().frame(width: 1).foregroundStyle(Theme.blue.opacity(0.3)), alignment: .trailing)
     }
@@ -52,16 +60,37 @@ struct ToolStripDivider: View {
 
 /// Photoshop-style options bar shown above the canvas.
 struct OptionsBar<Content: View>: View {
-    @ViewBuilder var content: Content
+    /// When the controls don't fit, scroll them sideways (true) or let flexible items such as hints truncate (false).
+    var scrollsWhenNarrow: Bool
+    var content: Content
+
+    init(scrollsWhenNarrow: Bool = true, @ViewBuilder content: () -> Content) {
+        self.scrollsWhenNarrow = scrollsWhenNarrow
+        self.content = content()
+    }
 
     var body: some View {
-        HStack(spacing: 12) { content }
-            .font(.callout)
-            .foregroundStyle(Theme.textSecondary)
-            .padding(.horizontal, 12)
-            .frame(height: 36)
-            .background(Theme.deepBlue.opacity(0.92))
-            .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.blue.opacity(0.3)), alignment: .bottom)
+        Group {
+            if scrollsWhenNarrow {
+                // On narrow windows the controls scroll sideways instead of forcing the workspace wider than the window.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) { content }
+                        .padding(.horizontal, 12)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) { content }
+                            .padding(.horizontal, 12)
+                    }
+                }
+            } else {
+                HStack(spacing: 12) { content }
+                    .padding(.horizontal, 12)
+            }
+        }
+        .font(.callout)
+        .foregroundStyle(Theme.textSecondary)
+        .frame(height: 36)
+        .background(Theme.deepBlue.opacity(0.92))
+        .overlay(Rectangle().frame(height: 1).foregroundStyle(Theme.blue.opacity(0.3)), alignment: .bottom)
     }
 }
 

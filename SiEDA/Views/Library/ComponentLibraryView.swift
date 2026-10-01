@@ -28,14 +28,36 @@ struct ComponentLibraryView: View {
         case failed(String)
     }
 
+    /// Below this width the symbol and footprint previews move under the editor instead of a third column.
+    static let threeColumnWidth: CGFloat = 1000
+
     var body: some View {
-        HSplitView {
-            libraryList
-                .frame(minWidth: 220, idealWidth: 250, maxWidth: 320)
-            editor
-                .frame(minWidth: 460)
-            previews
-                .frame(minWidth: 280, idealWidth: 340)
+        GeometryReader { geometry in
+            let pinRows = Self.pinTableHeight(for: geometry.size.height)
+            if geometry.size.width >= Self.threeColumnWidth {
+                HSplitView {
+                    libraryList
+                        .frame(minWidth: 210, idealWidth: 250, maxWidth: 320)
+                    ScrollView { editor(pinTableHeight: pinRows) }
+                        .frame(minWidth: 440)
+                    ScrollView { previews(stacked: true) }
+                        .frame(minWidth: 260, idealWidth: 320)
+                        .background(Theme.deepBlue.opacity(0.45))
+                }
+            } else {
+                HSplitView {
+                    libraryList
+                        .frame(minWidth: 190, idealWidth: 220, maxWidth: 280)
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            editor(pinTableHeight: pinRows)
+                            previews(stacked: false)
+                                .background(Theme.deepBlue.opacity(0.45))
+                        }
+                    }
+                    .frame(minWidth: 400)
+                }
+            }
         }
         .background(Theme.navy)
         .fileImporter(isPresented: $showImporter,
@@ -129,7 +151,7 @@ struct ComponentLibraryView: View {
             Image(systemName: "arrow.down.doc").font(.title2).foregroundStyle(Theme.skyBlue)
             Text("Drop a datasheet PDF or pinout image").font(.caption).foregroundStyle(Theme.textSecondary)
             TextField("Package (optional, e.g. SOIC-8)", text: $packageHint)
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.blue)
                 .font(.caption)
             importStatus
         }
@@ -168,7 +190,12 @@ struct ComponentLibraryView: View {
 
     // MARK: - Editor
 
-    private var editor: some View {
+    /// Pin table height: fills what the window leaves after the part fields and buttons.
+    static func pinTableHeight(for available: CGFloat) -> CGFloat {
+        min(max(available - 360, 160), 520)
+    }
+
+    private func editor(pinTableHeight: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(editingId == nil ? "New Component" : "Edit Component")
@@ -220,6 +247,7 @@ struct ComponentLibraryView: View {
             .foregroundStyle(Theme.lightBlue)
 
             pinTable
+                .frame(height: pinTableHeight)
 
             if !importNotes.isEmpty {
                 VStack(alignment: .leading, spacing: 3) {
@@ -280,6 +308,13 @@ struct ComponentLibraryView: View {
             .background(Theme.deepBlue)
             ScrollView {
                 LazyVStack(spacing: 2) {
+                    if draft.pins.isEmpty {
+                        Text("No pins yet — import a datasheet or press Add Pin.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.textMuted)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 24)
+                    }
                     ForEach($draft.pins) { $pin in
                         HStack(spacing: 8) {
                             TextField("1", text: $pin.number).frame(width: 46)
@@ -300,14 +335,13 @@ struct ComponentLibraryView: View {
                                 .foregroundStyle(Theme.lightBlue)
                                 .frame(width: 20)
                         }
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(.blue)
                         .font(.system(.callout, design: .monospaced))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
                     }
                 }
             }
-            .frame(minHeight: 180)
         }
         .background(RoundedRectangle(cornerRadius: 8).fill(Theme.navy.opacity(0.7)))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.blue.opacity(0.3)))
@@ -316,25 +350,34 @@ struct ComponentLibraryView: View {
     private func field(_ title: String, _ text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title).font(.caption).foregroundStyle(Theme.textMuted)
-            TextField(title, text: text).textFieldStyle(.roundedBorder)
+            TextField(title, text: text).textFieldStyle(.blue)
         }
     }
 
     // MARK: - Previews
 
-    private var previews: some View {
-        VStack(alignment: .leading, spacing: 12) {
+    private var symbolPreview: some View {
+        VStack(alignment: .leading, spacing: 8) {
             Text("SYMBOL").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
             Group {
                 if let preview {
                     SymbolPreview(kind: .custom, value: preview.name, custom: preview, showPinLabels: true)
                 } else {
-                    Text("Preview appears once the part has a name and pins.").font(.caption).foregroundStyle(Theme.textMuted)
+                    Text("Preview appears once the part has a name and pins.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textMuted)
+                        .multilineTextAlignment(.center)
+                        .padding(12)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 220, maxHeight: 320)
+            .frame(maxWidth: .infinity)
+            .frame(height: 240)
             .background(RoundedRectangle(cornerRadius: 10).fill(Theme.schematicBackground))
+        }
+    }
 
+    private var footprintPreview: some View {
+        VStack(alignment: .leading, spacing: 8) {
             Text("FOOTPRINT").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
             Group {
                 if let preview {
@@ -343,8 +386,24 @@ struct ComponentLibraryView: View {
                     Color.clear
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 180, maxHeight: 260)
+            .frame(maxWidth: .infinity)
+            .frame(height: 200)
             .background(RoundedRectangle(cornerRadius: 10).fill(Theme.pcbBackground))
+        }
+    }
+
+    /// Symbol, footprint and package facts: one column (`stacked`) or symbol and footprint side by side.
+    private func previews(stacked: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if stacked {
+                symbolPreview
+                footprintPreview
+            } else {
+                HStack(alignment: .top, spacing: 12) {
+                    symbolPreview
+                    footprintPreview
+                }
+            }
 
             if let preview {
                 VStack(alignment: .leading, spacing: 4) {
@@ -356,10 +415,9 @@ struct ComponentLibraryView: View {
                                                                  preview.footprintGeometry.courtyardH))
                 }
             }
-            Spacer()
         }
         .padding(14)
-        .background(Theme.deepBlue.opacity(0.45))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Actions
