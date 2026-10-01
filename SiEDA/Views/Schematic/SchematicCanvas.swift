@@ -7,6 +7,8 @@ struct SchematicCanvas: View {
     @Binding var tool: SchematicTool
     @Binding var viewport: Viewport
     @Binding var canvasSize: CGSize
+    /// "R1.2" while a wire is being drawn (shown as a hint by the editor), nil otherwise.
+    @Binding var wireStart: String?
     var fitRequest: Int
 
     private enum DragMode {
@@ -77,6 +79,13 @@ struct SchematicCanvas: View {
             .onChange(of: geo.size) { _, newSize in canvasSize = newSize }
             .onChange(of: fitRequest) { _, _ in fitToContent(size: geo.size) }
             .onChange(of: store.fitToken) { _, _ in fitToContent(size: geo.size) }
+            .onChange(of: pendingWire) { _, address in
+                guard let address, let c = store.snapshot.component(address.component), address.pin < c.pins.count else {
+                    wireStart = nil
+                    return
+                }
+                wireStart = "\(c.ref).\(c.pins[address.pin].name)"
+            }
             .onChange(of: store.snapshot.components.count) { old, new in
                 if old == 0 && new > 0 { fitToContent(size: geo.size) }
             }

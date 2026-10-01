@@ -29,6 +29,7 @@ struct SchematicEditorView: View {
     @State private var showPicker = true
     @State private var viewport = Viewport(scale: 1.6, offset: CGSize(width: 260, height: 260))
     @State private var canvasSize: CGSize = .zero
+    @State private var wireStart: String?
     @State private var fitRequest = 0
 
     var body: some View {
@@ -80,7 +81,10 @@ struct SchematicEditorView: View {
                     Image(systemName: "wrench.and.screwdriver").foregroundStyle(Theme.blue)
                     Text(tool.title).foregroundStyle(Theme.textPrimary).fontWeight(.semibold)
                     Divider().frame(height: 18)
-                    Text("Grid 10").foregroundStyle(Theme.textMuted)
+                    Text(hint)
+                        .foregroundStyle(wireStart == nil ? Theme.textMuted : Theme.skyBlue)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     Toggle("Live probes", isOn: $store.showDCOverlay)
                         .toggleStyle(.switch)
                         .controlSize(.mini)
@@ -93,7 +97,8 @@ struct SchematicEditorView: View {
                 }
 
                 ZStack(alignment: .bottomLeading) {
-                    SchematicCanvas(tool: $tool, viewport: $viewport, canvasSize: $canvasSize, fitRequest: fitRequest)
+                    SchematicCanvas(tool: $tool, viewport: $viewport, canvasSize: $canvasSize, wireStart: $wireStart,
+                                    fitRequest: fitRequest)
                     SimulationTransport()
                         .padding(12)
                     if store.snapshot.components.isEmpty {
@@ -123,6 +128,17 @@ struct SchematicEditorView: View {
             }
         }
         .background(Theme.navy)
+    }
+
+    /// Contextual instruction for the active tool (Photoshop-style options bar hint).
+    private var hint: String {
+        if let wireStart { return "Wiring from \(wireStart) — click another pin to connect · Esc cancels" }
+        switch tool {
+        case .select: return "Click a pin to start a wire · drag parts to move · ⇧-drag to box-select · R rotates"
+        case .wire: return "Click a pin, then a second pin to connect them"
+        case .pan: return "Drag or scroll to pan · ⌘-scroll or pinch to zoom"
+        case .place, .placeCustom: return "Click to place (repeats) · Esc returns to Select"
+        }
     }
 
     private func zoom(_ factor: CGFloat) {
