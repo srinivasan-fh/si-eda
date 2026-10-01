@@ -646,3 +646,47 @@ final class LayoutBudgetTests: XCTestCase {
         XCTAssertGreaterThan(ComponentLibraryView.pinTableHeight(for: 300), 0)
     }
 }
+
+/// Runs the real window (not only a size measurement): resizing across the size classes and switching every
+/// workspace with an empty, a loaded and a placed design must not crash or hang.
+@MainActor
+final class LiveWindowTests: XCTestCase {
+    private func spin(_ seconds: TimeInterval = 0.2) {
+        RunLoop.main.run(until: Date().addingTimeInterval(seconds))
+    }
+
+    func testWindowSurvivesResizingAndWorkspaceSwitches() throws {
+        let store = DesignStore()
+        let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.LiveWindowTests")))
+        let agents = AgentOrchestrator()
+        let root = ContentView()
+            .environmentObject(store)
+            .environmentObject(settings)
+            .environmentObject(agents)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1360, height: 860),
+                              styleMask: [.titled, .closable, .resizable, .miniaturizable],
+                              backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: root)
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        spin(0.5)
+
+        let sizes: [CGSize] = [CGSize(width: 1360, height: 860), CGSize(width: 1200, height: 760),
+                               CGSize(width: 1000, height: 600), CGSize(width: 900, height: 540),
+                               CGSize(width: 1500, height: 940)]
+        for stage in 0..<3 {
+            if stage == 1 { store.loadExample(OfflineProvider.templates[8].industryPlan) }
+            if stage == 2 { store.autoPlace(all: true) }
+            for size in sizes {
+                window.setContentSize(size)
+                spin(0.1)
+                for workspace in Workspace.allCases {
+                    store.workspace = workspace
+                    spin(0.15)
+                    XCTAssertTrue(window.isVisible, "\(workspace.title) at \(size)")
+                }
+            }
+        }
+    }
+}
