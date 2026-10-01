@@ -52,6 +52,23 @@ int32_t sieda_find_pin(const SiedaProject* project, int32_t component_id, const 
 int32_t sieda_connect(SiedaProject* project, int32_t comp_a, int32_t pin_a, int32_t comp_b, int32_t pin_b);
 int32_t sieda_remove_wire(SiedaProject* project, int32_t wire_id);
 
+/* ---- custom components (datasheet import) ---------------------------------------------------- */
+/* spec_json: {"name","manufacturer","description","refPrefix","defaultValue","datasheet",
+ *             "package":{"type":"SOIC|TSSOP|DIP|QFN|LQFP|SOT23|HEADER|TO220","pinCount":8},
+ *             "pins":[{"number":"1","name":"GND","type":"power_in|input|output|bidirectional|passive|
+ *                      power_out|open_collector|no_connect","description":""}]}
+ * Returns the generated part (id, symbol, footprint geometry) as JSON, or NULL with *error_out set. */
+char* sieda_custom_part_register(SiedaProject* project, const char* spec_json, char** error_out);
+/* Same generation without adding the part to the project library (editor previews). */
+char* sieda_custom_part_preview(const char* spec_json, char** error_out);
+/* Removes a part from the project library; returns 0 if it is still used by a component. */
+int32_t sieda_custom_part_remove(SiedaProject* project, const char* part_id);
+/* Switches every instance of old_id to new_id (wires are re-mapped by pin number, then name). */
+int32_t sieda_custom_part_replace(SiedaProject* project, const char* old_id, const char* new_id);
+int32_t sieda_add_custom_component(SiedaProject* project, const char* part_id, const char* value, double x, double y,
+                                   int32_t rotation, const char* ref);
+char* sieda_packages_json(void);
+
 /* ---- analysis ------------------------------------------------------------------------------ */
 char* sieda_run_erc(const SiedaProject* project);
 char* sieda_simulate_dc(const SiedaProject* project);
@@ -60,6 +77,8 @@ char* sieda_spice_netlist(const SiedaProject* project);
 
 /* ---- PCB ----------------------------------------------------------------------------------- */
 void sieda_pcb_set_board(SiedaProject* project, double width, double height, double track_width, double clearance);
+/* Copper layer count: 1 (single-sided), 2, 4 or 6. Existing tracks on removed layers are deleted. */
+void sieda_pcb_set_layer_count(SiedaProject* project, int32_t layers);
 /* all = 1 re-places every footprint; 0 only places footprints that are not on the board yet. */
 void sieda_pcb_autoplace(SiedaProject* project, int32_t all);
 int32_t sieda_pcb_move_footprint(SiedaProject* project, int32_t component_id, double x, double y);
@@ -72,12 +91,14 @@ void sieda_pcb_clear_routing(SiedaProject* project);
 char* sieda_pcb_run_drc(const SiedaProject* project);
 
 /* ---- exports ------------------------------------------------------------------------------- */
-/* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_mask_top", "gerber_mask_bottom",
+/* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
  *         "gerber_silk_top", "gerber_edge", "drill", "stl", "obj". Returns NULL for unknown formats. */
 char* sieda_export(const SiedaProject* project, const char* format);
 
 /* ---- 3D ------------------------------------------------------------------------------------ */
 SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_components);
+/* Copper (tracks, pads, via lands) of one layer laid flat at Y = 0, for the X-ray layer-stack view. */
+SiedaMesh* sieda_mesh_build_layer(const SiedaProject* project, int32_t layer);
 void sieda_mesh_free(SiedaMesh* mesh);
 int32_t sieda_mesh_vertex_count(const SiedaMesh* mesh);
 int32_t sieda_mesh_index_count(const SiedaMesh* mesh);

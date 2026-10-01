@@ -12,6 +12,7 @@ add_library(sieda_core STATIC
     Core/src/Json.cpp
     Core/src/Units.cpp
     Core/src/Library.cpp
+    Core/src/CustomParts.cpp
     Core/src/Schematic.cpp
     Core/src/Simulator.cpp
     Core/src/Pcb.cpp

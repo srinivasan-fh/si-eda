@@ -49,6 +49,12 @@ std::string mm(double v) {
     return b;
 }
 
+std::string footprintLabel(const Component& c) {
+    const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
+    if (!fp) return c.def().footprint;
+    return fp->label.empty() ? fp->name : fp->label;
+}
+
 std::string csvEscape(const std::string& s) {
     if (s.find_first_of(",\"\n") == std::string::npos) return s;
     std::string out = "\"";
@@ -100,6 +106,7 @@ std::string exportSpiceNetlist(const Schematic& sch, const std::string& title) {
                 break;
             case ComponentKind::Connector:
             case ComponentKind::IC8:
+            case ComponentKind::Custom:
                 o << "* " << c.ref << " (" << c.def().name << ", " << c.value << ") has no SPICE model\n";
                 break;
             default: break;
@@ -114,7 +121,7 @@ std::string exportBomCsv(const Schematic& sch) {
     std::map<std::tuple<std::string, std::string, std::string>, std::vector<std::string>> groups;
     for (const auto& c : sch.components()) {
         if (!c.hasFootprint()) continue;
-        groups[{c.def().name, c.value, c.def().footprint}].push_back(c.ref);
+        groups[{c.def().name, c.value, footprintLabel(c)}].push_back(c.ref);
     }
     std::ostringstream o;
     o << "Item,Quantity,References,Type,Value,Footprint\n";
@@ -133,13 +140,23 @@ std::string exportPickAndPlaceCsv(const Schematic& sch) {
     o << "Designator,Value,Footprint,Mid X (mm),Mid Y (mm),Rotation,Layer\n";
     for (const auto& c : sch.components()) {
         if (!c.hasFootprint() || !c.pcb.placed) continue;
-        o << c.ref << "," << csvEscape(c.value) << "," << c.def().footprint << "," << mm(c.pcb.position.x) << ","
+        o << c.ref << "," << csvEscape(c.value) << "," << csvEscape(footprintLabel(c)) << "," << mm(c.pcb.position.x) << ","
           << mm(c.pcb.position.y) << "," << c.pcb.rotation << "," << (c.pcb.bottom ? "Bottom" : "Top") << "\n";
     }
     return o.str();
 }
 
+static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, GerberLayer layer, int copperIndex);
+
 std::string exportGerber(const Schematic& sch, const PcbLayout& pcb, GerberLayer layer) {
+    return exportGerberImpl(sch, pcb, layer, -1);
+}
+
+std::string exportCopperGerber(const Schematic& sch, const PcbLayout& pcb, int copperLayer) {
+    return exportGerberImpl(sch, pcb, GerberLayer::TopCopper, copperLayer);
+}
+
+static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, GerberLayer layer, int copperIndex) {
     const auto& s = pcb.settings;
     auto coord = [&](Vec2 p) {
         long long x = std::llround(p.x * 1e6), y = std::llround((s.height - p.y) * 1e6);
@@ -149,7 +166,15 @@ std::string exportGerber(const Schematic& sch, const PcbLayout& pcb, GerberLayer
     const char* names[] = {"Copper,L1,Top", "Copper,L2,Bot", "Soldermask,Top", "Soldermask,Bot", "Legend,Top", "Profile,NP"};
     o << "G04 SiEDA Gerber RS-274X*\n";
     o << "%TF.GenerationSoftware,SiEDA,SiEDA,1.0*%\n";
-    o << "%TF.FileFunction," << names[static_cast<int>(layer)] << "*%\n";
+    const int bottom = pcb.settings.bottomLayer();
+    if (copperIndex >= 0) {
+        std::string side = copperIndex == 0 ? "Top" : (copperIndex == bottom ? "Bot" : "Inr");
+        o << "%TF.FileFunction,Copper,L" << (copperIndex + 1) << "," << side << "*%\n";
+    } else if (layer == GerberLayer::BottomCopper) {
+        o << "%TF.FileFunction,Copper,L" << (bottom + 1) << ",Bot*%\n";
+    } else {
+        o << "%TF.FileFunction," << names[static_cast<int>(layer)] << "*%\n";
+    }
     o << "%FSLAX46Y46*%\n%MOMM*%\n%LPD*%\n";
 
     std::map<std::string, int> apertures;
@@ -167,7 +192,9 @@ std::string exportGerber(const Schematic& sch, const PcbLayout& pcb, GerberLayer
     std::vector<std::pair<int, std::string>> ops;  // aperture, operation
     bool isCopper = layer == GerberLayer::TopCopper || layer == GerberLayer::BottomCopper;
     bool isMask = layer == GerberLayer::TopMask || layer == GerberLayer::BottomMask;
-    CopperLayer cl = (layer == GerberLayer::TopCopper || layer == GerberLayer::TopMask) ? CopperLayer::Top : CopperLayer::Bottom;
+    int cl = copperIndex >= 0 ? copperIndex
+             : ((layer == GerberLayer::TopCopper || layer == GerberLayer::TopMask) ? kTopLayer : bottom);
+    if (copperIndex >= 0) isCopper = true;
 
     if (isCopper || isMask) {
         double grow = isMask ? 0.05 : 0.0;
@@ -177,7 +204,7 @@ std::string exportGerber(const Schematic& sch, const PcbLayout& pcb, GerberLayer
             ops.push_back({ap, coord(p.position) + "D03*"});
         }
         for (const auto& v : pcb.vias) {
-            if (isMask) continue;  // tented vias
+            if (isMask) continue;  // tented vias; through vias land on every copper layer
             ops.push_back({aperture(circle(v.diameter)), coord(v.position) + "D03*"});
         }
         if (isCopper) {

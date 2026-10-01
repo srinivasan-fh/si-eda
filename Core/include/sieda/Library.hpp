@@ -2,6 +2,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "sieda/Geometry.hpp"
@@ -26,12 +27,17 @@ enum class ComponentKind : int {
     IC8 = 13,
     Fuse = 14,
     NetLabel = 15,
+    Custom = 16,  // user-defined part (see CustomParts.hpp); Component::customPart holds its id
 };
-constexpr int kComponentKindCount = 16;
+constexpr int kComponentKindCount = 17;
 
 struct PinDef {
+    PinDef() = default;
+    PinDef(std::string n, Vec2 o) : name(std::move(n)), offset(o) {}
     std::string name;
-    Vec2 offset;  // schematic units (grid = 10), relative to the symbol origin, y down
+    Vec2 offset;         // schematic units (grid = 10), relative to the symbol origin, y down
+    std::string number;  // package pin number (custom parts); empty for built-ins
+    int type = 0;        // sieda::PinType (custom parts); 0 = passive
 };
 
 struct PadDef {
@@ -51,6 +57,7 @@ struct BodyDef {
 
 struct FootprintDef {
     std::string name;
+    std::string label;  // human readable package name (defaults to name)
     std::vector<PadDef> pads;
     double courtyardW = 0, courtyardH = 0;
     BodyDef body;

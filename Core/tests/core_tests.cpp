@@ -5,6 +5,9 @@
 #include <string>
 #include <vector>
 
+#include <algorithm>
+
+#include "sieda/CustomParts.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Json.hpp"
 #include "sieda/Mesh.hpp"
@@ -486,7 +489,7 @@ TEST(pcb_drc_detects_short_and_unrouted) {
     auto pads = p.pcb.pads(p.schematic);
     // Draw a track between two pads of different nets → short.
     Track t;
-    t.layer = CopperLayer::Top;
+    t.layer = kTopLayer;
     t.width = 0.25;
     for (const auto& a : pads)
         for (const auto& b : pads)
@@ -522,6 +525,199 @@ TEST(pcb_routing_survives_schematic_edit) {
     p.schematicChanged();
     CHECK(p.pcb.tracks.empty());
     CHECK(p.pcb.vias.empty());
+}
+
+TEST(pcb_single_layer_routing) {
+    Project p = ledProject();
+    p.pcb.settings.layerCount = 1;
+    p.pcb.settings.width = 30;
+    p.pcb.settings.height = 20;
+    p.pcb.autoPlace(p.schematic, true);
+    RouteStats st = p.pcb.autoRoute(p.schematic);
+    CHECK(st.failed == 0);
+    CHECK(st.vias == 0);
+    CHECK(p.pcb.vias.empty());
+    for (const auto& t : p.pcb.tracks) CHECK(t.layer == 0);
+    std::string first;
+    CHECK(drcErrors(p, &first) == 0);
+    if (!first.empty()) std::printf("    first DRC error: %s\n", first.c_str());
+}
+
+TEST(pcb_multi_layer_routing) {
+    for (int layers : {4, 6}) {
+        Project p = amplifierProject();
+        p.pcb.settings.layerCount = layers;
+        p.pcb.settings.width = 30;
+        p.pcb.settings.height = 24;
+        p.pcb.autoPlace(p.schematic, true);
+        RouteStats st = p.pcb.autoRoute(p.schematic);
+        std::printf("    %d layers: %d/%d routed, %d vias\n", layers, st.routed, st.connections, st.vias);
+        CHECK(st.failed == 0);
+        for (const auto& t : p.pcb.tracks) CHECK(t.layer >= 0 && t.layer < layers);
+        std::string first;
+        CHECK(drcErrors(p, &first) == 0);
+        if (!first.empty()) std::printf("    first DRC error: %s\n", first.c_str());
+        // Every layer exports as Gerber; inner layers are marked "Inr".
+        std::string inner = exportCopperGerber(p.schematic, p.pcb, 1);
+        CHECK(inner.find("Copper,L2,Inr") != std::string::npos);
+        std::string bottom = exportGerber(p.schematic, p.pcb, GerberLayer::BottomCopper);
+        CHECK(bottom.find("Copper,L" + std::to_string(layers) + ",Bot") != std::string::npos);
+        Mesh layerMesh = buildCopperLayerMesh(p.schematic, p.pcb, 0);
+        CHECK(layerMesh.vertexCount() > 0);
+    }
+}
+
+TEST(pcb_dense_board_uses_inner_layers) {
+    // A crowded grid of resistors with crossing connections: 4 layers should route at least as much as 2.
+    auto build = [](int layers) {
+        Project p;
+        auto& s = p.schematic;
+        std::vector<int> r;
+        for (int i = 0; i < 12; ++i) r.push_back(s.addComponent(ComponentKind::Resistor, "1k", {i * 80.0, 0}));
+        for (int i = 0; i < 12; ++i) s.connect({r[static_cast<size_t>(i)], 0}, {r[static_cast<size_t>((i * 5 + 3) % 12)], 1});
+        p.pcb.settings.layerCount = layers;
+        p.pcb.settings.width = 16;
+        p.pcb.settings.height = 14;
+        p.pcb.autoPlace(p.schematic, true);
+        return p.pcb.autoRoute(p.schematic);
+    };
+    RouteStats two = build(2), four = build(4);
+    std::printf("    2 layers %d/%d (%d vias), 4 layers %d/%d (%d vias)\n", two.routed, two.connections, two.vias,
+                four.routed, four.connections, four.vias);
+    CHECK(four.routed >= two.routed);
+}
+
+namespace {
+CustomPartSpec ne555Spec(const std::string& package) {
+    CustomPartSpec s;
+    s.name = "NE555";
+    s.manufacturer = "Texas Instruments";
+    s.description = "Precision timer";
+    s.package.type = package;
+    const char* names[8] = {"GND", "TRIG", "OUT", "RESET", "CONT", "THRES", "DISCH", "VCC"};
+    const PinType types[8] = {PinType::PowerIn, PinType::Input, PinType::Output, PinType::Input,
+                              PinType::Passive, PinType::Input, PinType::OpenCollector, PinType::PowerIn};
+    for (int i = 0; i < 8; ++i) s.pins.push_back({std::to_string(i + 1), names[i], types[i], ""});
+    return s;
+}
+}  // namespace
+
+TEST(custom_part_generation) {
+    auto& reg = CustomPartRegistry::instance();
+    auto dip = reg.registerPart(ne555Spec("DIP"));
+    CHECK(dip->footprint.pads.size() == 8);
+    CHECK(dip->footprint.pads[0].throughHole);
+    CHECK(dip->footprint.pads[0].pinIndex == 0 && dip->footprint.pads[7].pinIndex == 7);
+    CHECK(dip->def.pins.size() == 8);
+    CHECK(dip->def.pins[0].offset.x < 0 && dip->def.pins[7].offset.x > 0);  // DIP order: 1 left, 8 right
+    CHECK(dip->def.pins[0].offset.y == dip->def.pins[7].offset.y);          // pins 1 and 8 face each other
+    CHECK(reg.registerPart(ne555Spec("DIP"))->id == dip->id);               // idempotent
+    CHECK(reg.registerPart(ne555Spec("SOIC"))->id != dip->id);
+
+    // Every package generates a footprint whose pads do not overlap.
+    struct Case { const char* pkg; int pins; size_t pads; };
+    for (Case c : {Case{"SOIC", 14, 14}, Case{"TSSOP", 20, 20}, Case{"QFN", 16, 16}, Case{"LQFP", 32, 32},
+                   Case{"SOT23", 5, 5}, Case{"SOT23", 3, 3}, Case{"HEADER", 6, 6}, Case{"TO220", 3, 3}, Case{"DIP", 28, 28}}) {
+        CustomPartSpec s;
+        s.name = std::string("T_") + c.pkg + std::to_string(c.pins);
+        s.package.type = c.pkg;
+        for (int i = 1; i <= c.pins; ++i) s.pins.push_back({std::to_string(i), "P" + std::to_string(i), PinType::Passive, ""});
+        auto part = reg.registerPart(s);
+        CHECK(part->footprint.pads.size() == c.pads);
+        bool overlap = false;
+        const auto& pads = part->footprint.pads;
+        for (size_t i = 0; i < pads.size(); ++i)
+            for (size_t j = i + 1; j < pads.size(); ++j)
+                overlap |= rectRectDistance(Rect::centered(pads[i].offset, pads[i].size.x, pads[i].size.y),
+                                            Rect::centered(pads[j].offset, pads[j].size.x, pads[j].size.y)) < 0.15;
+        if (overlap) std::printf("    overlapping pads in %s\n", s.name.c_str());
+        CHECK(!overlap);
+    }
+
+    // QFN exposed pad from an "EP" pin.
+    CustomPartSpec q;
+    q.name = "QFN_EP";
+    q.package.type = "QFN";
+    for (int i = 1; i <= 16; ++i) q.pins.push_back({std::to_string(i), "P" + std::to_string(i), PinType::Passive, ""});
+    q.pins.push_back({"EP", "GND", PinType::PowerIn, ""});
+    CHECK(reg.registerPart(q)->footprint.pads.size() == 17);
+
+    // Validation.
+    CustomPartSpec bad = ne555Spec("SOIC");
+    bad.pins[1].number = "1";
+    bool threw = false;
+    try { reg.registerPart(bad); } catch (const JsonError&) { threw = true; }
+    CHECK(threw);
+
+    // Lenient JSON (as produced by language models).
+    CustomPartSpec parsed = customPartSpecFromJson(Json::parse(
+        R"({"name":"LM7805","package":{"type":"TO-220"},"pins":[{"number":1,"name":"IN","type":"power"},{"number":2,"name":"GND","type":"ground"},{"number":3,"name":"OUT","type":"power out"}]})"));
+    CHECK(parsed.package.type == "TO220");
+    CHECK(parsed.pins.size() == 3 && parsed.pins[0].type == PinType::PowerIn && parsed.pins[2].type == PinType::PowerOut);
+    int pinsFromName = 0;
+    (void)pinsFromName;
+    CustomPartSpec soic = customPartSpecFromJson(Json::parse(R"({"name":"X","package":"SOIC-8","pins":[{"number":"1","name":"A"}]})"));
+    CHECK(soic.package.type == "SOIC" && soic.package.pinCount == 8);
+}
+
+TEST(custom_part_in_design) {
+    Project p;
+    std::string id = p.addCustomPart(ne555Spec("SOIC"));
+    auto& s = p.schematic;
+    int u = s.addCustomComponent(id, "", {200, 0});
+    CHECK(u >= 0);
+    CHECK(s.find(u)->ref == "U1");
+    CHECK(s.find(u)->value == "NE555");
+    CHECK(s.pinIndex(u, "VCC") == 7);
+    CHECK(s.pinIndex(u, "8") == 7);  // datasheet pin number
+    int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    int r = s.addComponent(ComponentKind::Resistor, "1k", {100, -60});
+    s.connect({v, 1}, {g, 0});
+    s.connect({v, 0}, {r, 0});
+    s.connect({r, 1}, {u, s.pinIndex(u, "VCC")});
+
+    auto codes = [&]() {
+        std::vector<std::string> out;
+        for (const auto& e : s.runERC()) out.push_back(e.code);
+        return out;
+    };
+    auto has = [](const std::vector<std::string>& v, const char* c) { return std::find(v.begin(), v.end(), c) != v.end(); };
+    CHECK(has(codes(), "ERC_POWER_PIN_UNCONNECTED"));  // GND pin open
+    s.connect({u, s.pinIndex(u, "GND")}, {g, 0});
+    CHECK(!has(codes(), "ERC_POWER_PIN_UNCONNECTED"));
+    CHECK(has(codes(), "ERC_NOT_SIMULATED"));
+
+    // DC still solves around the un-modelled IC.
+    Simulator sim(s);
+    CHECK(sim.dcOperatingPoint().converged);
+
+    // Place, route and persist.
+    p.schematicChanged();
+    p.pcb.autoPlace(p.schematic, true);
+    RouteStats st = p.pcb.autoRoute(p.schematic);
+    CHECK(st.failed == 0);
+    std::string first;
+    CHECK(drcErrors(p, &first) == 0);
+    if (!first.empty()) std::printf("    first DRC error: %s\n", first.c_str());
+    Json saved = p.toJson();
+    Project q = Project::fromJson(Json::parse(saved.dump()));
+    CHECK(q.customLibrary.size() == 1);
+    CHECK(q.schematic.findByRef("U1")->def().name == "NE555");
+    CHECK(q.toJson().dump() == saved.dump());
+    CHECK(exportBomCsv(q.schematic).find("SOIC-8") != std::string::npos);
+    CHECK(!p.removeCustomPart(id));  // still used
+
+    // Editing the part (rename a pin, drop pin 5) keeps wires on matching pin numbers.
+    CustomPartSpec edited = ne555Spec("SOIC");
+    edited.pins[7].name = "VDD";
+    edited.pins.erase(edited.pins.begin() + 4);
+    std::string id2 = p.addCustomPart(edited);
+    size_t wiresBefore = s.wires().size();
+    CHECK(s.replaceCustomPart(id, id2) == 1);
+    CHECK(s.wires().size() == wiresBefore);
+    CHECK(s.pinIndex(u, "VDD") >= 0);
+    CHECK(p.removeCustomPart(id));
 }
 
 // ======================================================================= persistence & exports

@@ -20,6 +20,15 @@ Vec2 transformFootprintPoint(Vec2 p, const PcbPlacement& pl) {
 }
 
 bool quarterTurned(int rotation) { return ((rotation / 90) % 2 + 2) % 2 == 1; }
+}  // namespace
+
+std::string copperLayerName(int layer, int layerCount) {
+    if (layer == 0) return "Top";
+    if (layerCount > 1 && layer == layerCount - 1) return "Bottom";
+    return "Inner " + std::to_string(layer);
+}
+
+namespace {
 
 /// Distance from a point to pad copper (0 inside); round pads are true circles.
 double padDistance(const Pad& p, Vec2 pt) {
@@ -47,6 +56,7 @@ std::vector<Pad> PcbLayout::pads(const Schematic& sch) const {
             p.round = pd.round;
             p.drill = pd.drill;
             p.bottom = c.pcb.bottom;
+            p.smdLayer = c.pcb.bottom ? settings.bottomLayer() : kTopLayer;
             out.push_back(p);
         }
     }
@@ -357,23 +367,28 @@ class RoutingGrid {
 public:
     RoutingGrid(const BoardSettings& s) : s_(s) {
         g_ = s.routingGrid;
+        layers_ = std::max(1, s.layerCount);
+        owner_.resize(static_cast<size_t>(layers_));
+        padNet_.resize(static_cast<size_t>(layers_));
+        copper_.resize(static_cast<size_t>(layers_));
         cols_ = static_cast<int>(std::floor(s.width / g_)) + 1;
         rows_ = static_cast<int>(std::floor(s.height / g_)) + 1;
         size_t n = static_cast<size_t>(cols_ * rows_);
-        for (int l = 0; l < 2; ++l) {
-            owner_[l].assign(n, -1);
-            padNet_[l].assign(n, -1);
-            copper_[l].assign(n, -1);
+        for (int l = 0; l < layers_; ++l) {
+            owner_[L(l)].assign(n, -1);
+            padNet_[L(l)].assign(n, -1);
+            copper_[L(l)].assign(n, -1);
         }
         double e = s.edgeClearance + s.trackWidth / 2;
         for (int j = 0; j < rows_; ++j)
             for (int i = 0; i < cols_; ++i) {
                 Vec2 p = pos(i, j);
                 if (p.x < e || p.y < e || p.x > s.width - e || p.y > s.height - e)
-                    for (int l = 0; l < 2; ++l) owner_[l][idx(i, j)] = -2;
+                    for (int l = 0; l < layers_; ++l) owner_[L(l)][idx(i, j)] = -2;
             }
     }
 
+    int layers() const { return layers_; }
     int cols() const { return cols_; }
     int rows() const { return rows_; }
     double pitch() const { return g_; }
@@ -382,8 +397,8 @@ public:
     bool inside(int i, int j) const { return i >= 0 && j >= 0 && i < cols_ && j < rows_; }
 
     bool passable(int l, size_t c, int net) const {
-        int o = owner_[l][c];
-        return o == -1 || o == net || padNet_[l][c] == net;
+        int o = owner_[L(l)][c];
+        return o == -1 || o == net || padNet_[L(l)][c] == net;
     }
     bool viaAllowed(size_t c, int net) const {
         int ci = static_cast<int>(c % static_cast<size_t>(cols_)), cj = static_cast<int>(c / static_cast<size_t>(cols_));
@@ -392,7 +407,8 @@ public:
         // The via barrel is wider than a track: the extra ring must lie in cells this net may route through.
         double rBody = std::max(0.0, s_.viaDiameter / 2 - s_.trackWidth / 2) + 1e-9;
         int k = static_cast<int>(std::ceil(rCopper / g_));
-        for (int l = 0; l < 2; ++l) {
+        if (layers_ < 2) return false;  // single-sided boards have no vias
+        for (int l = 0; l < layers_; ++l) {  // through via: every layer must allow it
             if (!passable(l, c, net)) return false;
             for (int dj = -k; dj <= k; ++dj)
                 for (int di = -k; di <= k; ++di) {
@@ -401,7 +417,7 @@ public:
                     if (d > rCopper) continue;
                     if (!inside(i, j)) return false;
                     size_t cc = idx(i, j);
-                    int cu = copper_[l][cc];
+                    int cu = copper_[L(l)][cc];
                     if (cu != -1 && cu != net) return false;
                     if (d <= rBody && !passable(l, cc, net)) return false;
                 }
@@ -416,24 +432,24 @@ public:
         forCellsNear(a, b, radius, [&](size_t c) { claim(l, c, net); });
     }
     void markCopperSegment(int l, Vec2 a, Vec2 b, double radius, int net) {
-        forCellsNear(a, b, radius, [&](size_t c) { copper_[l][c] = net; });
+        forCellsNear(a, b, radius, [&](size_t c) { copper_[L(l)][c] = net; });
     }
     void markPad(const Pad& p, double keepout) {
         Rect r = p.bounds();
-        for (int l = 0; l < 2; ++l) {
-            if (!p.onLayer(static_cast<CopperLayer>(l))) continue;
+        for (int l = 0; l < layers_; ++l) {
+            if (!p.onLayer(l)) continue;
             bool anyCore = false;
             forRectNear(r, keepout, p, [&](size_t c, double dist) {
                 if (p.net >= 0) claim(l, c, p.net);
                 else claim(l, c, -3);  // unconnected pad: blocks every net
                 if (dist <= 0) {
-                    copper_[l][c] = p.net >= 0 ? p.net : -3;
-                    if (p.net >= 0) { padNet_[l][c] = p.net; anyCore = true; }
+                    copper_[L(l)][c] = p.net >= 0 ? p.net : -3;
+                    if (p.net >= 0) { padNet_[L(l)][c] = p.net; anyCore = true; }
                 }
             });
             if (!anyCore && p.net >= 0) {
                 int i = static_cast<int>(std::lround(p.position.x / g_)), j = static_cast<int>(std::lround(p.position.y / g_));
-                if (inside(i, j)) padNet_[l][idx(i, j)] = p.net;
+                if (inside(i, j)) padNet_[L(l)][idx(i, j)] = p.net;
             }
         }
     }
@@ -453,8 +469,9 @@ public:
     }
 
 private:
+    static size_t L(int l) { return static_cast<size_t>(l); }
     void claim(int l, size_t c, int net) {
-        int& o = owner_[l][c];
+        int& o = owner_[L(l)][c];
         if (o == -1) o = net;
         else if (o != net) o = -2;
     }
@@ -483,10 +500,10 @@ private:
 
     const BoardSettings& s_;
     double g_ = 0.25;
-    int cols_ = 0, rows_ = 0;
-    std::vector<int> owner_[2];   // routing keep-out ownership: -1 free, net, -2 shared/blocked, -3 NC pad
-    std::vector<int> padNet_[2];  // pad copper reachable by its own net
-    std::vector<int> copper_[2];  // actual copper occupancy
+    int cols_ = 0, rows_ = 0, layers_ = 2;
+    std::vector<std::vector<int>> owner_;   // per layer routing keep-out: -1 free, net, -2 shared/blocked, -3 NC pad
+    std::vector<std::vector<int>> padNet_;  // per layer pad copper reachable by its own net
+    std::vector<std::vector<int>> copper_;  // per layer actual copper occupancy
 };
 
 struct PathNode {
@@ -500,11 +517,13 @@ struct RouteResult {
 };
 
 RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int, size_t>>& sources,
-                  const std::vector<char> targetMask[2], Vec2 targetCentre, double viaCost) {
+                  const std::vector<std::vector<char>>& targetMask, Vec2 targetCentre, double viaCost) {
     const int cols = g.cols(), rows = g.rows();
     const size_t n = static_cast<size_t>(cols * rows);
-    std::vector<float> cost(2 * n, std::numeric_limits<float>::infinity());
-    std::vector<int> parent(2 * n, -1);
+    const int layers = g.layers();
+    const size_t total = static_cast<size_t>(layers) * n;
+    std::vector<float> cost(total, std::numeric_limits<float>::infinity());
+    std::vector<int> parent(total, -1);
     using QE = std::pair<float, int>;
     std::priority_queue<QE, std::vector<QE>, std::greater<QE>> open;
     auto h = [&](int i, int j) {
@@ -530,8 +549,8 @@ RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int
         int i = static_cast<int>(c % static_cast<size_t>(cols)), j = static_cast<int>(c / static_cast<size_t>(cols));
         float gc = cost[static_cast<size_t>(s)];
         if (f - h(i, j) > gc + 1e-3f) continue;  // stale entry
-        if (targetMask[l][c]) { found = s; break; }
-        if (++expanded > 4 * 2 * n) break;
+        if (targetMask[static_cast<size_t>(l)][c]) { found = s; break; }
+        if (++expanded > 4 * total) break;
         // Incoming direction (approximate turn penalty keeps tracks straight and avoids zig-zags).
         int inDi = 0, inDj = 0;
         int ps = parent[static_cast<size_t>(s)];
@@ -551,9 +570,9 @@ RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int
                 if (!g.passable(l, g.idx(ni, j), net) || !g.passable(l, g.idx(i, nj), net)) continue;
                 step = 1.4142f;
             }
-            // Layer direction preference: top = horizontal, bottom = vertical.
+            // Layer direction preference: even layers (top, inner 2…) horizontal, odd layers vertical.
             bool horizontal = dj[k] == 0, vertical = di[k] == 0;
-            if ((l == 0 && vertical) || (l == 1 && horizontal)) step *= 1.25f;
+            if (layers > 1 && ((l % 2 == 0 && vertical) || (l % 2 == 1 && horizontal))) step *= 1.25f;
             if ((inDi != 0 || inDj != 0) && (inDi != di[k] || inDj != dj[k])) step += 0.6f;
             int ns = static_cast<int>(static_cast<size_t>(l) * n + nc);
             float nc2 = gc + step;
@@ -563,16 +582,18 @@ RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int
                 open.push({nc2 + h(ni, nj), ns});
             }
         }
-        // Via to the other layer.
-        int ol = 1 - l;
-        int os = static_cast<int>(static_cast<size_t>(ol) * n + c);
-        if (g.passable(ol, c, net)) {
-            float nc2 = gc + static_cast<float>(viaCost);
-            if (nc2 < cost[static_cast<size_t>(os)] && g.viaAllowed(c, net)) {
-                cost[static_cast<size_t>(os)] = nc2;
-                parent[static_cast<size_t>(os)] = s;
-                open.push({nc2 + h(i, j), os});
-            }
+        // Through via to any other layer (checked lazily: viaAllowed is the expensive test).
+        int viaState = -1;  // -1 unknown, 0 no, 1 yes
+        for (int ol = 0; ol < layers; ++ol) {
+            if (ol == l) continue;
+            int os = static_cast<int>(static_cast<size_t>(ol) * n + c);
+            float nc2 = gc + static_cast<float>(viaCost) + 0.5f * static_cast<float>(std::abs(ol - l) - 1);
+            if (nc2 >= cost[static_cast<size_t>(os)] || !g.passable(ol, c, net)) continue;
+            if (viaState < 0) viaState = g.viaAllowed(c, net) ? 1 : 0;
+            if (viaState == 0) break;
+            cost[static_cast<size_t>(os)] = nc2;
+            parent[static_cast<size_t>(os)] = s;
+            open.push({nc2 + h(i, j), os});
         }
     }
     RouteResult r;
@@ -637,8 +658,8 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
             std::vector<bool> connected(list.size(), false);
             connected[0] = true;
             std::vector<std::pair<int, size_t>> tree;
-            for (int l = 0; l < 2; ++l)
-                if (ps[list[0]].onLayer(static_cast<CopperLayer>(l)))
+            for (int l = 0; l < grid.layers(); ++l)
+                if (ps[list[0]].onLayer(l))
                     for (size_t c : grid.padCoreCells(ps[list[0]])) tree.push_back({l, c});
             bool netFailed = false;
             for (size_t done = 1; done < list.size(); ++done) {
@@ -656,13 +677,13 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
                 connected[target] = true;
                 ++stats.connections;
                 const Pad& tp = ps[list[target]];
-                std::vector<char> mask[2] = {std::vector<char>(static_cast<size_t>(grid.cols() * grid.rows()), 0),
-                                             std::vector<char>(static_cast<size_t>(grid.cols() * grid.rows()), 0)};
+                std::vector<std::vector<char>> mask(static_cast<size_t>(grid.layers()),
+                                                    std::vector<char>(static_cast<size_t>(grid.cols() * grid.rows()), 0));
                 std::vector<std::pair<int, size_t>> targetCells;
-                for (int l = 0; l < 2; ++l)
-                    if (tp.onLayer(static_cast<CopperLayer>(l)))
+                for (int l = 0; l < grid.layers(); ++l)
+                    if (tp.onLayer(l))
                         for (size_t c : grid.padCoreCells(tp)) {
-                            mask[l][c] = 1;
+                            mask[static_cast<size_t>(l)][c] = 1;
                             targetCells.push_back({l, c});
                         }
                 RouteResult rr = astar(grid, net, tree, mask, tp.position, 12.0);
@@ -693,7 +714,7 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
                         if (last || turn) {
                             Track t;
                             t.net = net;
-                            t.layer = static_cast<CopperLayer>(layer);
+                            t.layer = layer;
                             t.width = w;
                             t.a = grid.pos(rr.path[segStart].i, rr.path[segStart].j);
                             t.b = grid.pos(rr.path[m].i, rr.path[m].j);
@@ -706,8 +727,10 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
                     }
                     for (size_t m = k; m <= e; ++m)
                         tree.push_back({layer, grid.idx(rr.path[m].i, rr.path[m].j)});
-                    if (e + 1 < rr.path.size()) {
-                        // Layer change → via at this cell.
+                    Vec2 viaPos = grid.pos(rr.path[e].i, rr.path[e].j);
+                    bool duplicate = !outV.empty() && outV.back().net == net && outV.back().position == viaPos;
+                    if (e + 1 < rr.path.size() && !duplicate) {
+                        // Layer change → through via at this cell.
                         Via v;
                         v.net = net;
                         v.position = grid.pos(rr.path[e].i, rr.path[e].j);
@@ -716,7 +739,7 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
                         outV.push_back(v);
                         ++stats.vias;
                         double r = settings.viaDiameter / 2 + clr + w / 2;
-                        for (int l = 0; l < 2; ++l) {
+                        for (int l = 0; l < grid.layers(); ++l) {
                             grid.markDisc(l, v.position, r, net);
                             grid.markCopperSegment(l, v.position, v.position, settings.viaDiameter / 2, net);
                         }
@@ -801,8 +824,8 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     for (size_t i = 0; i < ps.size(); ++i)
         for (size_t j = i + 1; j < ps.size(); ++j) {
             if (ps[i].net == ps[j].net && ps[i].net >= 0) continue;
-            bool share = (ps[i].onLayer(CopperLayer::Top) && ps[j].onLayer(CopperLayer::Top)) ||
-                         (ps[i].onLayer(CopperLayer::Bottom) && ps[j].onLayer(CopperLayer::Bottom));
+            bool share = false;
+            for (int l = 0; l < settings.layerCount && !share; ++l) share = ps[i].onLayer(l) && ps[j].onLayer(l);
             if (!share) continue;
             double d = rectRectDistance(ps[i].bounds(), ps[j].bounds());
             if (d < clr - eps)
@@ -813,6 +836,9 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     // Track ↔ pad, track ↔ track, track ↔ edge.
     for (size_t t = 0; t < tracks.size(); ++t) {
         const Track& tr = tracks[t];
+        if (tr.layer < 0 || tr.layer >= settings.layerCount)
+            add(Severity::Error, "DRC_LAYER", "Track on " + netName(tr.net) + " uses a layer that is not in the " +
+                std::to_string(settings.layerCount) + "-layer stack-up.", tr.a);
         for (const Vec2& p : {tr.a, tr.b}) {
             double edge = std::min({p.x, p.y, settings.width - p.x, settings.height - p.y}) - tr.width / 2;
             if (edge < settings.edgeClearance - eps) {

@@ -69,6 +69,31 @@ void Mesh::addCylinder(Vec3 base, double radius, double height, Rgba c, int segm
     }
 }
 
+double copperLayerBase(int layer, int layerCount, double thickness, double copper) {
+    if (layer <= 0) return 0.0;
+    int bottom = layerCount > 1 ? layerCount - 1 : 0;
+    if (layer >= bottom) return -thickness - copper;
+    // Inner layers are evenly spaced through the core.
+    return -thickness * static_cast<double>(layer) / static_cast<double>(bottom) - copper / 2;
+}
+
+Mesh buildCopperLayerMesh(const Schematic& sch, const PcbLayout& pcb, int layer) {
+    Mesh m;
+    const double cu = 0.035;
+    const Rgba trace{0.35f, 0.75f, 1.0f, 1.0f};
+    const Rgba pad{0.80f, 0.92f, 1.0f, 1.0f};
+    for (const auto& tr : pcb.tracks)
+        if (tr.layer == layer) m.addSegmentBox(tr.a, tr.b, tr.width, 0.0, cu, trace);
+    for (const auto& p : pcb.pads(sch)) {
+        if (!p.onLayer(layer)) continue;
+        if (p.round) m.addCylinder({p.position.x, 0.0, p.position.y}, std::min(p.size.x, p.size.y) / 2, cu, pad, 16);
+        else m.addBox({p.position.x - p.size.x / 2, 0.0, p.position.y - p.size.y / 2},
+                      {p.position.x + p.size.x / 2, cu, p.position.y + p.size.y / 2}, pad);
+    }
+    for (const auto& v : pcb.vias) m.addCylinder({v.position.x, 0.0, v.position.y}, v.diameter / 2, cu, pad, 14);
+    return m;
+}
+
 Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOptions& opt) {
     Mesh m;
     const BoardSettings& s = pcb.settings;
@@ -87,8 +112,8 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
     auto ps = pcb.pads(sch);
     if (opt.copper) {
         for (const auto& tr : pcb.tracks) {
-            bool top = tr.layer == CopperLayer::Top;
-            m.addSegmentBox(tr.a, tr.b, tr.width, top ? 0.0 : -t - cu, top ? cu : -t, trackColor);
+            double y0 = copperLayerBase(tr.layer, s.layerCount, t, cu);
+            m.addSegmentBox(tr.a, tr.b, tr.width, y0, y0 + cu, trackColor);
         }
         for (const auto& p : ps) {
             if (p.throughHole) {

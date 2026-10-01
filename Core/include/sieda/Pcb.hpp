@@ -9,7 +9,8 @@
 
 namespace sieda {
 
-enum class CopperLayer : int { Top = 0, Bottom = 1 };
+/// Copper layer index: 0 = top, `BoardSettings::bottomLayer()` = bottom, anything between = inner layer.
+constexpr int kTopLayer = 0;
 
 struct BoardSettings {
     double width = 50.0;   // mm
@@ -21,7 +22,19 @@ struct BoardSettings {
     double viaDiameter = 0.6;
     double edgeClearance = 0.5;
     double routingGrid = 0.25;
+    int layerCount = 2;  // 1 (single-sided), 2, 4 or 6 copper layers
+
+    int bottomLayer() const { return layerCount > 1 ? layerCount - 1 : 0; }
+    static int normalizeLayerCount(int n) {
+        if (n <= 1) return 1;
+        if (n <= 2) return 2;
+        if (n <= 4) return 4;
+        return 6;
+    }
 };
+
+/// Human-readable copper layer name ("Top", "Inner 1", "Bottom").
+std::string copperLayerName(int layer, int layerCount);
 
 struct Pad {
     int componentId = -1;
@@ -34,14 +47,15 @@ struct Pad {
     bool round = false;
     double drill = 0;
     bool bottom = false;  // SMD pad side
+    int smdLayer = 0;     // copper layer of an SMD pad (0 = top, bottomLayer() for parts on the bottom side)
     Rect bounds() const { return Rect::centered(position, size.x, size.y); }
-    bool onLayer(CopperLayer l) const { return throughHole || (bottom == (l == CopperLayer::Bottom)); }
+    bool onLayer(int layer) const { return throughHole || layer == smdLayer; }
 };
 
 struct Track {
     int id = -1;
     int net = -1;
-    CopperLayer layer = CopperLayer::Top;
+    int layer = kTopLayer;
     double width = 0.25;
     Vec2 a, b;
 };
@@ -74,7 +88,8 @@ public:
 
     /// Places any not-yet-placed footprints; with `all` re-places everything (connectivity-driven clustering).
     void autoPlace(Schematic& sch, bool all);
-    /// Rips up existing routing and routes every net (two-layer grid A* with vias and rip-up passes).
+    /// Rips up existing routing and routes every net on `settings.layerCount` layers (grid A* with through vias,
+    /// layer direction preferences and rip-up passes). A single-layer board routes on the top layer without vias.
     RouteStats autoRoute(const Schematic& sch);
     void clearRouting() { tracks.clear(); vias.clear(); }
     /// Shrinks/grows the board to the placed footprints plus `margin` mm, shifting parts and copper together.

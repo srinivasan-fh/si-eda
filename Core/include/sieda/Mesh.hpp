@@ -42,4 +42,10 @@ struct MeshOptions {
 
 Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOptions& options = {});
 
+/// Copper of a single layer (tracks, pads, via lands) laid flat at Y = 0 — used by the X-ray stack view.
+Mesh buildCopperLayerMesh(const Schematic& sch, const PcbLayout& pcb, int layer);
+
+/// Height (Y) of the underside of copper layer `layer` in the assembled board.
+double copperLayerBase(int layer, int layerCount, double thickness, double copper);
+
 }  // namespace sieda

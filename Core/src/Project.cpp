@@ -1,6 +1,7 @@
 #include "sieda/Project.hpp"
 
 #include <algorithm>
+#include <map>
 
 namespace sieda {
 
@@ -30,11 +31,28 @@ Json boardJson(const BoardSettings& s) {
     b["viaDiameter"] = s.viaDiameter;
     b["edgeClearance"] = s.edgeClearance;
     b["routingGrid"] = s.routingGrid;
+    b["layerCount"] = s.layerCount;
     return b;
 }
 }  // namespace
 
 void Project::schematicChanged() { pcb.pruneStaleRouting(schematic); }
+
+std::string Project::addCustomPart(const CustomPartSpec& spec) {
+    auto part = CustomPartRegistry::instance().registerPart(spec);
+    if (std::find(customLibrary.begin(), customLibrary.end(), part->id) == customLibrary.end())
+        customLibrary.push_back(part->id);
+    return part->id;
+}
+
+bool Project::removeCustomPart(const std::string& id) {
+    for (const auto& c : schematic.components())
+        if (c.kind == ComponentKind::Custom && c.customPart == id) return false;
+    auto it = std::find(customLibrary.begin(), customLibrary.end(), id);
+    if (it == customLibrary.end()) return false;
+    customLibrary.erase(it);
+    return true;
+}
 
 Json Project::toJson() const {
     Json root = Json::object();
@@ -43,6 +61,16 @@ Json Project::toJson() const {
     root["name"] = name;
     root["requirements"] = requirements;
     root["board"] = boardJson(pcb.settings);
+
+    Json library = Json::array();
+    for (const auto& id : customLibrary)
+        if (const CustomPart* part = CustomPartRegistry::instance().find(id)) {
+            Json pj = Json::object();
+            pj["id"] = id;
+            pj["spec"] = customPartSpecToJson(part->spec);
+            library.push(pj);
+        }
+    root["customParts"] = library;
 
     Json comps = Json::array();
     for (const auto& c : schematic.components()) {
@@ -54,6 +82,7 @@ Json Project::toJson() const {
         j["x"] = c.position.x;
         j["y"] = c.position.y;
         j["rotation"] = c.rotation;
+        if (c.kind == ComponentKind::Custom) j["customPart"] = c.customPart;
         Json p = Json::object();
         p["x"] = c.pcb.position.x;
         p["y"] = c.pcb.position.y;
@@ -113,6 +142,14 @@ Project Project::fromJson(const Json& root) {
     s.viaDiameter = b.get("viaDiameter").asNumber(s.viaDiameter);
     s.edgeClearance = b.get("edgeClearance").asNumber(s.edgeClearance);
     s.routingGrid = std::max(0.1, b.get("routingGrid").asNumber(s.routingGrid));
+    s.layerCount = BoardSettings::normalizeLayerCount(b.get("layerCount").asInt(2));
+
+    // Custom parts first so components can resolve them; ids are re-derived and remapped if they changed.
+    std::map<std::string, std::string> idMap;
+    for (const auto& j : root.get("customParts").items()) {
+        std::string newId = p.addCustomPart(customPartSpecFromJson(j.get("spec")));
+        idMap[j.get("id").asString(newId)] = newId;
+    }
 
     for (const auto& j : root.get("components").items()) {
         int kind = j.get("kind").asInt(-1);
@@ -125,6 +162,11 @@ Project Project::fromJson(const Json& root) {
         c.value = j.get("value").asString(c.def().defaultValue);
         c.position = {j.get("x").asNumber(), j.get("y").asNumber()};
         c.rotation = j.get("rotation").asInt(0);
+        if (c.kind == ComponentKind::Custom) {
+            std::string id = j.get("customPart").asString("");
+            auto it = idMap.find(id);
+            c.customPart = it != idMap.end() ? it->second : id;
+        }
         const Json& pc = j.get("pcb");
         c.pcb.position = {pc.get("x").asNumber(), pc.get("y").asNumber()};
         c.pcb.rotation = pc.get("rotation").asInt(0);
@@ -142,7 +184,7 @@ Project Project::fromJson(const Json& root) {
     }
     for (const auto& j : root.get("tracks").items()) {
         Track t;
-        t.layer = j.get("layer").asInt(0) == 1 ? CopperLayer::Bottom : CopperLayer::Top;
+        t.layer = std::clamp(j.get("layer").asInt(0), 0, s.bottomLayer());
         t.width = j.get("width").asNumber(s.trackWidth);
         t.a = {j.get("a").get("x").asNumber(), j.get("a").get("y").asNumber()};
         t.b = {j.get("b").get("x").asNumber(), j.get("b").get("y").asNumber()};
@@ -176,6 +218,7 @@ Json Project::snapshot() const {
         j["y"] = c.position.y;
         j["rotation"] = c.rotation;
         j["footprint"] = c.def().footprint;
+        if (c.kind == ComponentKind::Custom) j["customPart"] = c.customPart;
         Json pins = Json::array();
         for (size_t i = 0; i < c.def().pins.size(); ++i) {
             PinRef r{c.id, static_cast<int>(i)};
@@ -300,6 +343,32 @@ Json Project::snapshot() const {
         courtyards.push(j);
     }
     root["courtyards"] = courtyards;
+
+    // Component bodies (millimetres, rotated) for 3D wireframe / X-ray rendering.
+    Json bodies = Json::array();
+    for (const auto& c : schematic.components()) {
+        if (!c.hasFootprint() || !c.pcb.placed) continue;
+        const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
+        if (!fp) continue;
+        double w = fp->body.width, d = fp->body.depth;
+        if (((c.pcb.rotation / 90) % 2 + 2) % 2 == 1) std::swap(w, d);
+        Json j = Json::object();
+        j["component"] = c.id;
+        j["x"] = c.pcb.position.x;
+        j["y"] = c.pcb.position.y;
+        j["w"] = w;
+        j["d"] = d;
+        j["h"] = fp->body.height;
+        j["bottom"] = c.pcb.bottom;
+        j["package"] = fp->label.empty() ? fp->name : fp->label;
+        bodies.push(j);
+    }
+    root["bodies"] = bodies;
+
+    Json parts = Json::array();
+    for (const auto& id : customLibrary)
+        if (const CustomPart* part = CustomPartRegistry::instance().find(id)) parts.push(customPartToJson(*part));
+    root["customParts"] = parts;
     return root;
 }
 

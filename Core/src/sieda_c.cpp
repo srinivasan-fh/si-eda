@@ -1,6 +1,7 @@
 // SiEDA Core — C ABI implementation. Every entry point is exception-safe.
 #include "sieda/sieda_c.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -192,6 +193,69 @@ int32_t sieda_remove_wire(SiedaProject* project, int32_t id) {
     });
 }
 
+char* sieda_custom_part_register(SiedaProject* project, const char* spec_json, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    if (!project) return nullptr;
+    try {
+        std::string id = project->project.addCustomPart(customPartSpecFromJson(Json::parse(str(spec_json))));
+        return dup(customPartToJson(*CustomPartRegistry::instance().find(id)).dump());
+    } catch (const std::exception& e) {
+        if (error_out) *error_out = dup(e.what());
+        return nullptr;
+    }
+}
+
+char* sieda_custom_part_preview(const char* spec_json, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    try {
+        auto part = CustomPartRegistry::instance().registerPart(customPartSpecFromJson(Json::parse(str(spec_json))));
+        return dup(customPartToJson(*part).dump());
+    } catch (const std::exception& e) {
+        if (error_out) *error_out = dup(e.what());
+        return nullptr;
+    }
+}
+
+int32_t sieda_custom_part_remove(SiedaProject* project, const char* part_id) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.removeCustomPart(str(part_id)) ? 1 : 0; });
+}
+
+int32_t sieda_custom_part_replace(SiedaProject* project, const char* old_id, const char* new_id) {
+    if (!project) return 0;
+    return guarded([&] {
+        int n = project->project.schematic.replaceCustomPart(str(old_id), str(new_id));
+        auto& lib = project->project.customLibrary;
+        std::string newId = str(new_id);
+        if (CustomPartRegistry::instance().find(newId) && std::find(lib.begin(), lib.end(), newId) == lib.end())
+            lib.push_back(newId);
+        project->project.schematicChanged();
+        return n;
+    });
+}
+
+int32_t sieda_add_custom_component(SiedaProject* project, const char* part_id, const char* value, double x, double y,
+                                   int32_t rotation, const char* ref) {
+    if (!project) return -1;
+    try {
+        int id = project->project.schematic.addCustomComponent(str(part_id), str(value), {x, y}, rotation, str(ref));
+        if (id >= 0) {
+            auto& lib = project->project.customLibrary;
+            if (std::find(lib.begin(), lib.end(), str(part_id)) == lib.end()) lib.push_back(str(part_id));
+            project->project.schematicChanged();
+        }
+        return id;
+    } catch (...) {
+        return -1;
+    }
+}
+
+char* sieda_packages_json(void) {
+    Json arr = Json::array();
+    for (const auto& p : supportedPackages()) arr.push(p);
+    return dup(arr.dump());
+}
+
 char* sieda_run_erc(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
@@ -283,6 +347,16 @@ int32_t sieda_pcb_fit_board(SiedaProject* project, double margin_mm) {
     });
 }
 
+void sieda_pcb_set_layer_count(SiedaProject* project, int32_t layers) {
+    if (!project) return;
+    auto& pcb = project->project.pcb;
+    pcb.settings.layerCount = BoardSettings::normalizeLayerCount(layers);
+    int bottom = pcb.settings.bottomLayer();
+    pcb.tracks.erase(std::remove_if(pcb.tracks.begin(), pcb.tracks.end(), [&](const Track& t) { return t.layer > bottom; }),
+                     pcb.tracks.end());
+    if (pcb.settings.layerCount == 1) pcb.vias.clear();
+}
+
 char* sieda_pcb_autoroute(SiedaProject* project) {
     if (!project) return nullptr;
     try {
@@ -331,6 +405,11 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         if (f == "gerber_silk_top") return dup(exportGerber(p.schematic, p.pcb, GerberLayer::TopSilk));
         if (f == "gerber_edge") return dup(exportGerber(p.schematic, p.pcb, GerberLayer::EdgeCuts));
         if (f == "drill") return dup(exportExcellonDrill(p.schematic, p.pcb));
+        if (f.rfind("gerber_l", 0) == 0) {
+            int layer = std::atoi(f.c_str() + 8) - 1;
+            if (layer < 0 || layer >= p.pcb.settings.layerCount) return nullptr;
+            return dup(exportCopperGerber(p.schematic, p.pcb, layer));
+        }
         if (f == "stl") return dup(exportStl(buildAssemblyMesh(p.schematic, p.pcb), p.name));
         if (f == "obj") return dup(exportObj(buildAssemblyMesh(p.schematic, p.pcb), p.name));
         return nullptr;
@@ -346,6 +425,17 @@ SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_compone
         MeshOptions opt;
         opt.components = include_components != 0;
         m->mesh = buildAssemblyMesh(project->project.schematic, project->project.pcb, opt);
+        return m;
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+SiedaMesh* sieda_mesh_build_layer(const SiedaProject* project, int32_t layer) {
+    if (!project || layer < 0 || layer >= project->project.pcb.settings.layerCount) return nullptr;
+    try {
+        auto* m = new SiedaMesh();
+        m->mesh = buildCopperLayerMesh(project->project.schematic, project->project.pcb, layer);
         return m;
     } catch (...) {
         return nullptr;

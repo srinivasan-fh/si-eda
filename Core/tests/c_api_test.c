@@ -28,14 +28,45 @@ int sieda_c_api_smoke_test(void) {
     sieda_mesh_free(m);
 
     char* saved = sieda_project_save_json(p);
-    char* err = NULL;
-    SiedaProject* q = sieda_project_load_json(saved, &err);
+    char* loadErr = NULL;
+    SiedaProject* q = sieda_project_load_json(saved, &loadErr);
     sieda_string_free(saved);
-    if (!q || err) return 10;
+    if (!q || loadErr) return 10;
     if (sieda_find_component(q, "R1") < 0) return 11;
     sieda_project_free(q);
 
     if (sieda_export(p, "nonsense") != NULL) return 12;
+
+    /* Custom part from a datasheet-style spec, placed and routed on a 4-layer board. */
+    char* err = NULL;
+    char* part = sieda_custom_part_register(p,
+        "{\"name\":\"LM7805\",\"package\":{\"type\":\"TO-220\"},\"pins\":["
+        "{\"number\":\"1\",\"name\":\"IN\",\"type\":\"power_in\"},"
+        "{\"number\":\"2\",\"name\":\"GND\",\"type\":\"power_in\"},"
+        "{\"number\":\"3\",\"name\":\"OUT\",\"type\":\"power_out\"}]}", &err);
+    if (!part || err) return 13;
+    const char* idStart = strstr(part, "\"id\":\"");
+    if (!idStart) return 14;
+    char id[64] = {0};
+    idStart += 6;
+    for (int i = 0; i < 63 && idStart[i] != '"'; ++i) id[i] = idStart[i];
+    sieda_string_free(part);
+    int32_t u = sieda_add_custom_component(p, id, NULL, 300, 0, 0, NULL);
+    if (u < 0) return 15;
+    if (sieda_find_pin(p, u, "OUT") != 2) return 16;
+    if (sieda_custom_part_register(p, "{\"name\":\"\",\"pins\":[]}", &err) != NULL || !err) return 17;
+    sieda_string_free(err);
+    sieda_pcb_set_layer_count(p, 4);
+    char* routed4 = sieda_pcb_autoroute(p);
+    if (!routed4) return 18;
+    sieda_string_free(routed4);
+    SiedaMesh* layer = sieda_mesh_build_layer(p, 1);
+    if (!layer) return 19;
+    sieda_mesh_free(layer);
+    char* inner = sieda_export(p, "gerber_l2");
+    if (!inner || !strstr(inner, "Copper,L2,Inr")) return 20;
+    sieda_string_free(inner);
+    if (sieda_export(p, "gerber_l9") != NULL) return 21;
     sieda_project_free(p);
     return 0;
 }

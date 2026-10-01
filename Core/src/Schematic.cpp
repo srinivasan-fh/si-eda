@@ -4,6 +4,7 @@
 #include <numeric>
 #include <set>
 
+#include "sieda/CustomParts.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/Units.hpp"
 
@@ -16,6 +17,22 @@ const char* severityName(Severity s) {
         case Severity::Error: return "error";
     }
     return "warning";
+}
+
+const ComponentDef& Component::def() const {
+    if (kind == ComponentKind::Custom) {
+        if (const CustomPart* part = CustomPartRegistry::instance().find(customPart)) return part->def;
+    }
+    return Library::instance().component(kind);
+}
+
+std::string Schematic::nextRef(const std::string& prefix) const {
+    std::set<std::string> used;
+    for (const auto& c : components_) used.insert(c.ref);
+    for (int n = 1;; ++n) {
+        std::string candidate = prefix + std::to_string(n);
+        if (!used.count(candidate)) return candidate;
+    }
 }
 
 std::string Schematic::nextRef(ComponentKind kind) const {
@@ -36,7 +53,7 @@ std::string Schematic::nextRef(ComponentKind kind) const {
 
 int Schematic::addComponent(ComponentKind kind, const std::string& value, Vec2 position, int rotation,
                             const std::string& ref) {
-    if (!Library::isValidKind(static_cast<int>(kind))) return -1;
+    if (!Library::isValidKind(static_cast<int>(kind)) || kind == ComponentKind::Custom) return -1;
     Component c;
     c.id = nextComponentId_++;
     c.kind = kind;
@@ -47,6 +64,57 @@ int Schematic::addComponent(ComponentKind kind, const std::string& value, Vec2 p
     components_.push_back(c);
     invalidate();
     return c.id;
+}
+
+int Schematic::addCustomComponent(const std::string& partId, const std::string& value, Vec2 position, int rotation,
+                                  const std::string& ref) {
+    const CustomPart* part = CustomPartRegistry::instance().find(partId);
+    if (!part) return -1;
+    Component c;
+    c.id = nextComponentId_++;
+    c.kind = ComponentKind::Custom;
+    c.customPart = partId;
+    c.value = value.empty() ? part->def.defaultValue : value;
+    c.ref = ref.empty() ? nextRef(part->def.refPrefix) : ref;
+    c.position = position;
+    c.rotation = ((rotation % 360) + 360) % 360;
+    components_.push_back(c);
+    invalidate();
+    return c.id;
+}
+
+int Schematic::replaceCustomPart(const std::string& oldId, const std::string& newId) {
+    const CustomPart* oldPart = CustomPartRegistry::instance().find(oldId);
+    const CustomPart* newPart = CustomPartRegistry::instance().find(newId);
+    if (!oldPart || !newPart) return 0;
+    auto mapPin = [&](int pin) -> int {
+        if (pin < 0 || pin >= static_cast<int>(oldPart->def.pins.size())) return -1;
+        const PinDef& old = oldPart->def.pins[static_cast<size_t>(pin)];
+        for (size_t i = 0; i < newPart->def.pins.size(); ++i)
+            if (newPart->def.pins[i].number == old.number) return static_cast<int>(i);
+        for (size_t i = 0; i < newPart->def.pins.size(); ++i)
+            if (newPart->def.pins[i].name == old.name) return static_cast<int>(i);
+        return -1;
+    };
+    int count = 0;
+    std::set<int> changed;
+    for (auto& c : components_) {
+        if (c.kind != ComponentKind::Custom || c.customPart != oldId) continue;
+        c.customPart = newId;
+        if (c.value == oldPart->def.defaultValue) c.value = newPart->def.defaultValue;
+        changed.insert(c.id);
+        ++count;
+    }
+    std::vector<Wire> kept;
+    for (auto w : wires_) {
+        bool ok = true;
+        if (changed.count(w.a.component)) ok &= (w.a.pin = mapPin(w.a.pin)) >= 0;
+        if (changed.count(w.b.component)) ok &= (w.b.pin = mapPin(w.b.pin)) >= 0;
+        if (ok) kept.push_back(w);
+    }
+    wires_ = std::move(kept);
+    invalidate();
+    return count;
 }
 
 bool Schematic::removeComponent(int id) {
@@ -156,6 +224,10 @@ int Schematic::pinIndex(int componentId, const std::string& pinName) const {
     const Component* c = find(componentId);
     if (!c) return -1;
     const auto& pins = c->def().pins;
+    if (c->kind == ComponentKind::Custom) {  // datasheet pin numbers take precedence ("U1.4", "U1.EP")
+        for (size_t i = 0; i < pins.size(); ++i)
+            if (pins[i].number == pinName) return static_cast<int>(i);
+    }
     for (size_t i = 0; i < pins.size(); ++i)
         if (pins[i].name == pinName) return static_cast<int>(i);
     // Accept 1-based numeric aliases ("1", "2", ...) for any part.
@@ -352,6 +424,17 @@ std::vector<RuleViolation> Schematic::runERC() const {
                 c.position);
         } else {
             for (const auto& name : openPins) {
+                if (c.kind == ComponentKind::Custom) {
+                    PinType type = PinType::Passive;
+                    for (const auto& pd : pins)
+                        if (pd.name == name) type = static_cast<PinType>(pd.type);
+                    if (type == PinType::NoConnect) continue;
+                    if (type == PinType::PowerIn) {
+                        add(Severity::Error, "ERC_POWER_PIN_UNCONNECTED",
+                            "Power pin " + c.ref + "." + name + " is not connected.", {c.id}, c.position);
+                        continue;
+                    }
+                }
                 Severity s = c.kind == ComponentKind::IC8 ? Severity::Info : Severity::Warning;
                 add(s, "ERC_UNCONNECTED_PIN", "Pin " + c.ref + "." + name + " is unconnected.", {c.id}, c.position);
             }
@@ -378,6 +461,12 @@ std::vector<RuleViolation> Schematic::runERC() const {
                 break;
             case ComponentKind::Connector:
             case ComponentKind::IC8:
+            case ComponentKind::Custom:
+                if (c.kind == ComponentKind::Custom && !CustomPartRegistry::instance().find(c.customPart)) {
+                    add(Severity::Error, "ERC_MISSING_PART", c.ref + " references a component that is not in the library.",
+                        {c.id}, c.position);
+                    break;
+                }
                 add(Severity::Info, "ERC_NOT_SIMULATED", c.ref + " (" + c.def().name + ") has no simulation model.",
                     {c.id}, c.position);
                 break;
@@ -406,6 +495,32 @@ std::vector<RuleViolation> Schematic::runERC() const {
                 add(Severity::Warning, "ERC_NO_CURRENT_LIMIT",
                     c.ref + " is driven directly by a voltage source without a current-limiting resistor.", {c.id},
                     c.position);
+        }
+    }
+    // Pin-type rules for custom parts (datasheet-derived electrical types).
+    for (const auto& net : allNets) {
+        std::vector<std::string> drivers;
+        std::vector<int> ids;
+        for (const auto& pr : net.pins) {
+            const Component* c = find(pr.component);
+            if (c->kind != ComponentKind::Custom) continue;
+            const auto& pins = c->def().pins;
+            if (pr.pin < 0 || pr.pin >= static_cast<int>(pins.size())) continue;
+            auto type = static_cast<PinType>(pins[static_cast<size_t>(pr.pin)].type);
+            if (type == PinType::Output || type == PinType::PowerOut) {
+                drivers.push_back(c->ref + "." + pins[static_cast<size_t>(pr.pin)].name);
+                ids.push_back(c->id);
+            }
+            if (type == PinType::NoConnect && net.pins.size() > 1)
+                add(Severity::Warning, "ERC_NC_CONNECTED",
+                    "Pin " + c->ref + "." + pins[static_cast<size_t>(pr.pin)].name + " is marked no-connect but is wired to net " +
+                        net.name + ".", {c->id}, c->position);
+        }
+        if (drivers.size() > 1) {
+            std::string list;
+            for (size_t i = 0; i < drivers.size(); ++i) list += (i ? ", " : "") + drivers[i];
+            add(Severity::Warning, "ERC_OUTPUT_CONFLICT", "Net " + net.name + " is driven by several outputs: " + list + ".",
+                ids, find(ids[0])->position);
         }
     }
     return out;

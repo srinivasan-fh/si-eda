@@ -32,8 +32,9 @@ struct Component {
     Vec2 position;  // schematic units
     int rotation = 0;
     PcbPlacement pcb;
+    std::string customPart;  // CustomPartRegistry id when kind == ComponentKind::Custom
 
-    const ComponentDef& def() const { return Library::instance().component(kind); }
+    const ComponentDef& def() const;
     bool hasFootprint() const { return !def().footprint.empty(); }
 };
 
@@ -64,6 +65,11 @@ class Schematic {
 public:
     int addComponent(ComponentKind kind, const std::string& value, Vec2 position, int rotation = 0,
                      const std::string& ref = "");
+    /// Adds an instance of a registered custom part. Returns -1 if the part id is unknown.
+    int addCustomComponent(const std::string& partId, const std::string& value, Vec2 position, int rotation = 0,
+                           const std::string& ref = "");
+    /// Switches every instance of `oldId` to `newId`, re-mapping wires by pin number then name. Returns count.
+    int replaceCustomPart(const std::string& oldId, const std::string& newId);
     bool removeComponent(int id);
     bool moveComponent(int id, Vec2 position);
     bool rotateComponent(int id, int deltaDeg = 90);
@@ -92,6 +98,7 @@ public:
     std::vector<RuleViolation> runERC() const;
 
     std::string nextRef(ComponentKind kind) const;
+    std::string nextRef(const std::string& prefix) const;
 
     // Persistence helpers used by Project
     void restoreComponent(const Component& c);

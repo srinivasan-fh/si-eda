@@ -1,5 +1,7 @@
 #include "sieda/Library.hpp"
 
+#include "sieda/CustomParts.hpp"
+
 #include <algorithm>
 #include <stdexcept>
 
@@ -84,6 +86,7 @@ Library::Library() {
          "SOIC8", false},
         {ComponentKind::Fuse, "Fuse", "F", "500m", "A", twoH, "Fuse_1206", true},
         {ComponentKind::NetLabel, "Net Label", "NL", "VCC", "", {{"N", {0, 0}}}, "", true},
+        {ComponentKind::Custom, "Custom Part", "U", "", "", {}, "", false},
     };
 
     footprints_.push_back(twoPadSmd("R_0805", 1.9, 1.0, 1.3, 2.0, 1.25, 0.5, 0.10f, 0.10f, 0.11f));
@@ -116,6 +119,10 @@ const ComponentDef& Library::component(ComponentKind kind) const {
 }
 
 const FootprintDef* Library::footprint(const std::string& name) const {
+    if (name.rfind("CUSTOM:", 0) == 0) {
+        const CustomPart* part = CustomPartRegistry::instance().find(name.substr(7));
+        return part ? &part->footprint : nullptr;
+    }
     for (const auto& fp : footprints_)
         if (fp.name == name) return &fp;
     return nullptr;
