@@ -167,6 +167,7 @@ final class DesignStore: ObservableObject {
         }
         refresh()
         statusMessage = actionName
+        return true
     }
 
     func undo() {
