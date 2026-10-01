@@ -51,7 +51,7 @@ enum Theme {
         if layer == max(1, layerCount) - 1 { return bottomCopper }
         let inner: [Color] = [Color(red: 0.20, green: 0.85, blue: 0.95), Color(red: 0.55, green: 0.50, blue: 1.00),
                               Color(red: 0.25, green: 0.60, blue: 0.85), Color(red: 0.70, green: 0.78, blue: 1.00)]
-        return inner[(layer - 1) % inner.count]
+        return inner[max(0, layer - 1) % inner.count]
     }
 
     static func severityColor(_ s: ViolationSeverity) -> Color {

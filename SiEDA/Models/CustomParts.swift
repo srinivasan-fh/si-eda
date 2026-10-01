@@ -131,6 +131,11 @@ struct CustomPartSpec: Codable, Equatable {
 
         private enum CodingKeys: String, CodingKey { case number, name, type, description }
 
+        /// Content equality (the random `id` only keeps SwiftUI rows stable).
+        static func == (lhs: Pin, rhs: Pin) -> Bool {
+            lhs.number == rhs.number && lhs.name == rhs.name && lhs.type == rhs.type && lhs.description == rhs.description
+        }
+
         init(number: String, name: String, type: PinElectricalType = .passive, description: String = "") {
             self.number = number
             self.name = name

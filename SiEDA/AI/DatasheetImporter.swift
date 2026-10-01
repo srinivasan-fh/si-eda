@@ -99,7 +99,7 @@ struct DatasheetDocument {
         }
         chosen.sort { $0.0 < $1.0 }
         let notice = "The datasheet text is long (\(pageCount) pages); sent \(chosen.count) pages, pin-description pages first."
-        return (chosen.map(\.1).joined(separator: "\n"), notice)
+        return (chosen.map { $0.1 }.joined(separator: "\n"), notice)
     }
 }
 
