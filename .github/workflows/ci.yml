@@ -24,6 +24,13 @@ jobs:
         run: |
           mkdir -p fab
           ./build/sieda-cli --demo fab
+      - name: Local runner script (run.sh)
+        run: |
+          bash -n run.sh
+          ./run.sh help
+          ./run.sh doctor
+          ./run.sh demo runner-demo
+          test -s runner-demo/verification_report.md
       - uses: actions/upload-artifact@v4
         if: matrix.os == 'ubuntu-latest'
         with:
@@ -39,6 +46,10 @@ jobs:
         run: |
           python3 tools/generate_xcodeproj.py
           git diff --exit-code -- SiEDA.xcodeproj
+      - name: Local runner builds the app (./run.sh build)
+        run: |
+          ./run.sh build
+          test -x build-app/Build/Products/Debug/SiEDA.app/Contents/MacOS/SiEDA
       - name: Build and test
         run: |
           set -o pipefail
