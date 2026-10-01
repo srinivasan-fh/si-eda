@@ -231,3 +231,116 @@ final class CustomPartAndLayerTests: XCTestCase {
         }
     }
 }
+
+final class StandardsAndVerificationTests: XCTestCase {
+    func testStandardLibraryAndValues() throws {
+        let regulator = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "LM7805" })
+        XCTAssertEqual(regulator.spec.pins.map(\.name), ["IN", "GND", "OUT"])
+        XCTAssertEqual(regulator.spec.package.type, PackageKind.to220.rawValue)
+        XCTAssertTrue(StandardLibrary.parts.contains { $0.spec.name == "NE555" })
+        XCTAssertGreaterThanOrEqual(StandardLibrary.parts.count, 12)
+
+        XCTAssertEqual(StandardLibrary.rulePresets.count, 5)
+        XCTAssertTrue(StandardLibrary.rulePresets.contains { $0.name == "IPC-2221 Class 3" })
+
+        XCTAssertEqual(try XCTUnwrap(EDAEngine.parseValue("4k7")), 4700, accuracy: 1e-9)
+        XCTAssertEqual(try XCTUnwrap(EDAEngine.parseValue("100nF")), 100e-9, accuracy: 1e-18)
+        XCTAssertNil(EDAEngine.parseValue("abc"))
+        XCTAssertEqual(ESeries.e24.nearest(4600), 4700, accuracy: 1e-6)
+        XCTAssertEqual(ESeries.e12.nearest(5.0e-8), 4.7e-8, accuracy: 1e-15)
+        XCTAssertTrue(ESeries.e96.contains(4990))
+        XCTAssertFalse(ESeries.e24.contains(4990))
+        XCTAssertEqual(ESeries.preferred(for: .resistor), [.e24, .e96])
+        XCTAssertTrue(ESeries.preferred(for: .led).isEmpty)
+    }
+
+    func testRulePresetAppliesAndPersists() throws {
+        let engine = EDAEngine()
+        XCTAssertEqual(engine.snapshot()?.board.rulePreset, "IPC-2221 Class 2")
+        XCTAssertTrue(engine.applyRulePreset("Prototype (Conservative)"))
+        XCTAssertFalse(engine.applyRulePreset("No such preset"))
+        let board = try XCTUnwrap(engine.snapshot()?.board)
+        XCTAssertEqual(board.rulePreset, "Prototype (Conservative)")
+        XCTAssertEqual(board.trackWidth, 0.30, accuracy: 1e-9)
+        let copy = EDAEngine()
+        try copy.load(json: engine.saveJSON())
+        XCTAssertEqual(copy.snapshot()?.board.rulePreset, "Prototype (Conservative)")
+    }
+
+    func testCircuitValidationFlagsOverloadedLED() throws {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: engine, previous: nil)
+        XCTAssertFalse(engine.runCircuitValidation().contains { $0.severity != .info })
+        let resistor = try XCTUnwrap(engine.findComponent(ref: "R1"))
+        engine.setValue(resistor, "10")
+        let findings = engine.runCircuitValidation()
+        XCTAssertTrue(findings.contains { $0.code == "VAL_LED_CURRENT" && $0.severity == .error }, "\(findings.map(\.code))")
+        XCTAssertTrue(findings.contains { $0.code == "VAL_RESISTOR_POWER" })
+    }
+
+    func testPlanCompilerAddsStandardPartsOnFirstUse() throws {
+        let engine = EDAEngine()
+        let plan = DesignPlan(title: "Reg", summary: "", components: [
+            PlannedComponent(ref: "U1", kind: "custom:LM7805", value: "LM7805", x: 100, y: 0),
+            PlannedComponent(ref: "V1", kind: "voltage_source", value: "12", x: 0, y: 0),
+            PlannedComponent(ref: "GND1", kind: "ground", value: "0", x: 0, y: 100),
+        ], connections: [
+            PlannedConnection(from: "V1.+", to: "U1.1"),
+            PlannedConnection(from: "U1.2", to: "GND1.GND"),
+            PlannedConnection(from: "V1.-", to: "GND1.GND"),
+        ])
+        let report = DesignPlanCompiler.apply(plan, to: engine, previous: nil)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        XCTAssertEqual(report.connectionsMade, 3)
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        XCTAssertEqual(snapshot.customParts.map(\.name), ["LM7805"])
+        XCTAssertTrue(AgentPrompts.customPlanKinds([]).contains("custom:NE555"))
+        XCTAssertFalse(AgentPrompts.customPlanKinds(snapshot.customParts).filter { $0 == "custom:LM7805" }.count > 1)
+        XCTAssertTrue(AgentPrompts.customCatalog([]).contains("custom:LM7805"))
+    }
+
+    func testOfflineTemplateMatchingAndCategories() {
+        XCTAssertEqual(OfflineProvider.templates.count, 13)
+        XCTAssertEqual(OfflineProvider.template(for: "non-inverting amplifier with gain 11").plan.title, "Non-Inverting Amplifier")
+        XCTAssertEqual(OfflineProvider.template(for: "an inverting amplifier, gain -10").plan.title, "Inverting Amplifier")
+        XCTAssertEqual(OfflineProvider.template(for: "blink an LED with a 555").plan.title, "555 Astable LED Blinker")
+        XCTAssertEqual(OfflineProvider.template(for: "12 V to 5 V LM7805 regulator").plan.title, "5 V Linear Regulator")
+        XCTAssertEqual(OfflineProvider.template(for: "strain gauge wheatstone bridge").plan.title, "Wheatstone Bridge")
+        XCTAssertNotEqual(OfflineProvider.template(for: "h-bridge motor driver with mosfets").plan.title, "Wheatstone Bridge")
+        for template in OfflineProvider.templates {
+            XCTAssertTrue(OfflineProvider.categories.contains(template.category), template.plan.title)
+            // Each template's first keyword selects it.
+            XCTAssertEqual(OfflineProvider.template(for: template.keywords[0]).plan.title, template.plan.title)
+        }
+    }
+
+    /// Every built-in reference design must pass the full verification pipeline once laid out.
+    func testReferenceDesignsPassVerification() throws {
+        for template in OfflineProvider.templates {
+            let engine = EDAEngine()
+            let report = DesignPlanCompiler.apply(template.plan, to: engine, previous: nil)
+            XCTAssertTrue(report.warnings.isEmpty, "\(template.plan.title): \(report.warnings)")
+            engine.autoPlace(all: true)
+            engine.fitBoard(margin: 2.5)
+            XCTAssertEqual(engine.autoRoute().failed, 0, template.plan.title)
+            let verification = try XCTUnwrap(engine.runVerification(), template.plan.title)
+            let problems = verification.stages.flatMap(\.findings).filter { $0.severity != .info }.map(\.code)
+            XCTAssertEqual(verification.verdict, .pass, "\(template.plan.title): \(problems)")
+            XCTAssertEqual(verification.stages.count, 7)
+            XCTAssertTrue(verification.markdown.contains("# Design Verification Report"))
+        }
+    }
+
+    func testVerificationFailsAnUnroutedBoard() throws {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: engine, previous: nil)
+        let unplaced = try XCTUnwrap(engine.runVerification())
+        XCTAssertEqual(unplaced.verdict, .fail)
+        XCTAssertFalse(unplaced.passed)
+        XCTAssertEqual(unplaced.stages.first { $0.id == "placement" }?.status, .fail)
+        engine.autoPlace(all: true)
+        let unrouted = try XCTUnwrap(engine.runVerification())
+        XCTAssertEqual(unrouted.stages.first { $0.id == "routing" }?.status, .fail)
+        XCTAssertEqual(unrouted.stages.first { $0.id == "erc" }?.status, .pass)
+    }
+}

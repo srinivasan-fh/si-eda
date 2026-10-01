@@ -78,8 +78,12 @@ struct SiEDACommands: Commands {
             Button("New Project") { store.newProject() }
                 .keyboardShortcut("n")
             Menu("New from Example") {
-                ForEach(OfflineProvider.templates, id: \.plan.title) { template in
-                    Button(template.plan.title) { store.loadExample(template.plan) }
+                ForEach(OfflineProvider.categories, id: \.self) { category in
+                    Section(category) {
+                        ForEach(OfflineProvider.examples(in: category), id: \.plan.title) { template in
+                            Button(template.plan.title) { store.loadExample(template.plan) }
+                        }
+                    }
                 }
             }
             Button("Open…") { store.openProject() }
@@ -91,7 +95,7 @@ struct SiEDACommands: Commands {
             Button("Save As…") { store.saveAs() }
                 .keyboardShortcut("s", modifiers: [.command, .shift])
             Divider()
-            Button("Export Fabrication Package…") { store.exportFabricationPackage() }
+            Button("Export Fabrication Package…") { Task { await store.exportFabricationPackage() } }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
             Menu("Export") {
                 ForEach(ExportFormat.allCases) { format in
@@ -123,6 +127,21 @@ struct SiEDACommands: Commands {
             Button("Autoroute Board") { Task { await store.autoRoute() } }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
             Button("Run Design Rule Check") { store.runDRC(); store.workspace = .checks }
+            Menu("Design Rules") {
+                ForEach(StandardLibrary.rulePresets) { preset in
+                    Toggle(preset.name, isOn: Binding(
+                        get: { store.snapshot.board.rulePreset == preset.name },
+                        set: { if $0 { store.applyRulePreset(preset) } }
+                    ))
+                }
+            }
+            Divider()
+            Button("Validate Circuit") { store.runValidation(); store.workspace = .checks }
+                .keyboardShortcut("l", modifiers: [.command, .shift])
+            Button("Verify Design") {
+                Task { await store.runVerification(); store.workspace = .checks }
+            }
+            .keyboardShortcut("v", modifiers: [.command, .shift])
             Divider()
             Toggle("AI Assistance", isOn: $settings.aiEnabled)
                 .keyboardShortcut("a", modifiers: [.command, .option])

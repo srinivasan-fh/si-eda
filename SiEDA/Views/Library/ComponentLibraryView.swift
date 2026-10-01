@@ -71,16 +71,43 @@ struct ComponentLibraryView: View {
             }
             dropZone
             List(selection: $selectedId) {
-                ForEach(store.snapshot.customParts) { part in
-                    HStack {
-                        Image(systemName: "cpu.fill").foregroundStyle(Theme.blue)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(part.name).foregroundStyle(Theme.textPrimary)
-                            Text("\(part.footprint) · \(part.pins.count) pins")
-                                .font(.caption).foregroundStyle(Theme.textMuted)
+                Section("Project Library") {
+                    ForEach(store.snapshot.customParts) { part in
+                        HStack {
+                            Image(systemName: "cpu.fill").foregroundStyle(Theme.blue)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(part.name).foregroundStyle(Theme.textPrimary)
+                                Text("\(part.footprint) · \(part.pins.count) pins")
+                                    .font(.caption).foregroundStyle(Theme.textMuted)
+                            }
+                        }
+                        .tag(part.id)
+                    }
+                }
+                let inLibrary = Set(store.snapshot.customParts.map(\.name))
+                let standard = StandardLibrary.parts.filter { !inLibrary.contains($0.spec.name) }
+                if !standard.isEmpty {
+                    Section("Standard Library") {
+                        ForEach(standard) { part in
+                            HStack {
+                                Image(systemName: "cpu").foregroundStyle(Theme.lightBlue)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(part.spec.name).foregroundStyle(Theme.textPrimary)
+                                    Text("\(part.category) · \(part.packageSummary)")
+                                        .font(.caption).foregroundStyle(Theme.textMuted)
+                                }
+                                Spacer()
+                                Button {
+                                    if let id = store.addStandardPartToLibrary(part) { selectedId = id }
+                                } label: { Image(systemName: "plus.circle") }
+                                    .buttonStyle(.borderless)
+                                    .foregroundStyle(Theme.skyBlue)
+                                    .help("Add \(part.spec.name) to the project library")
+                                    .accessibilityLabel("Add \(part.spec.name) to the project library")
+                            }
+                            .help(part.spec.description)
                         }
                     }
-                    .tag(part.id)
                 }
             }
             .listStyle(.sidebar)
@@ -89,7 +116,7 @@ struct ComponentLibraryView: View {
                 if let id, let part = store.snapshot.customParts.first(where: { $0.id == id }) { load(part) }
             }
             if store.snapshot.customParts.isEmpty {
-                Text("Parts you import or create appear here and in the schematic device picker.")
+                Text("Parts you import, create or add from the standard library appear here and in the schematic device picker.")
                     .font(.caption).foregroundStyle(Theme.textMuted)
             }
         }

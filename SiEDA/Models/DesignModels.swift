@@ -143,6 +143,14 @@ struct BoardInfo: Decodable, Equatable {
     var viaDiameter: Double = 0.6
     var edgeClearance: Double = 0.5
     var routingGrid: Double = 0.25
+    var rulePreset: String = "IPC-2221 Class 2"
+    var minTrackWidth: Double = 0.15
+    var minClearance: Double = 0.15
+    var minDrill: Double = 0.2
+    var minAnnularRing: Double = 0.1
+    var minHoleToHole: Double = 0.25
+    var copperWeightOz: Double = 1.0
+    var maxTempRise: Double = 10.0
 
     init() {}
 
@@ -158,10 +166,19 @@ struct BoardInfo: Decodable, Equatable {
         viaDiameter = try c.decodeIfPresent(Double.self, forKey: .viaDiameter) ?? 0.6
         edgeClearance = try c.decodeIfPresent(Double.self, forKey: .edgeClearance) ?? 0.5
         routingGrid = try c.decodeIfPresent(Double.self, forKey: .routingGrid) ?? 0.25
+        rulePreset = try c.decodeIfPresent(String.self, forKey: .rulePreset) ?? "IPC-2221 Class 2"
+        minTrackWidth = try c.decodeIfPresent(Double.self, forKey: .minTrackWidth) ?? 0.15
+        minClearance = try c.decodeIfPresent(Double.self, forKey: .minClearance) ?? 0.15
+        minDrill = try c.decodeIfPresent(Double.self, forKey: .minDrill) ?? 0.2
+        minAnnularRing = try c.decodeIfPresent(Double.self, forKey: .minAnnularRing) ?? 0.1
+        minHoleToHole = try c.decodeIfPresent(Double.self, forKey: .minHoleToHole) ?? 0.25
+        copperWeightOz = try c.decodeIfPresent(Double.self, forKey: .copperWeightOz) ?? 1.0
+        maxTempRise = try c.decodeIfPresent(Double.self, forKey: .maxTempRise) ?? 10.0
     }
 
     private enum CodingKeys: String, CodingKey {
         case layerCount, width, height, thickness, trackWidth, clearance, viaDrill, viaDiameter, edgeClearance, routingGrid
+        case rulePreset, minTrackWidth, minClearance, minDrill, minAnnularRing, minHoleToHole, copperWeightOz, maxTempRise
     }
 
     var bottomLayer: Int { max(1, layerCount) - 1 }

@@ -163,6 +163,16 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         }
     }
 
+    /// SI unit of a passive's value ("" for parts whose value is a part number).
+    var valueUnit: String {
+        switch self {
+        case .resistor: return "Ω"
+        case .capacitor: return "F"
+        case .inductor: return "H"
+        default: return ""
+        }
+    }
+
     /// Kinds without a PCB footprint.
     var isVirtual: Bool { self == .ground || self == .netLabel }
 

@@ -110,6 +110,32 @@ private struct ComponentProperties: View {
                 .controlSize(.small)
             }
 
+            let series = ESeries.preferred(for: kind)
+            if !series.isEmpty, let numeric = EDAEngine.parseValue(component.value), numeric > 0 {
+                PropertyGroup(title: "Standard Values (IEC 60063)") {
+                    ForEach(series) { s in
+                        let isStandard = s.contains(numeric)
+                        HStack {
+                            Image(systemName: isStandard ? "checkmark.circle.fill" : "circle.dashed")
+                                .foregroundStyle(isStandard ? Theme.skyBlue : Theme.textMuted)
+                            Text("\(s.title) \(s.tolerance)").foregroundStyle(Theme.textSecondary)
+                            Spacer()
+                            if isStandard {
+                                Text("standard").font(.caption).foregroundStyle(Theme.textMuted)
+                            } else {
+                                Button("Use \(EngineeringFormat.string(s.nearest(numeric), unit: kind.valueUnit))") {
+                                    store.snapToStandardValue(component.id, series: s)
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .help("Replace the value with the nearest \(s.title) value")
+                            }
+                        }
+                        .font(.callout)
+                    }
+                }
+            }
+
             if let part = store.snapshot.customPart(for: component) {
                 PropertyGroup(title: "Library Part") {
                     PropertyRow(label: "Part", value: part.name)

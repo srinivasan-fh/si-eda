@@ -182,10 +182,48 @@ final class EDAEngine: @unchecked Sendable {
         })
     }
 
+    // MARK: - Standards
+
+    /// Built-in standard parts (regulators, timers, op-amps, MCUs, logic, headers).
+    static func standardParts() -> [StandardPart] {
+        decode([StandardPart].self, from: take(sieda_standard_parts_json())) ?? []
+    }
+
+    static func designRulePresets() -> [DesignRulePreset] {
+        decode([DesignRulePreset].self, from: take(sieda_design_rule_presets_json())) ?? []
+    }
+
+    static func nearestStandardValue(_ value: Double, series: ESeries) -> Double {
+        sieda_nearest_standard_value(value, Int32(series.rawValue))
+    }
+
+    /// Engineering value as the core reads it ("4k7" → 4700, "100nF" → 1e-7, "2R2" → 2.2).
+    static func parseValue(_ text: String) -> Double? {
+        var value = 0.0
+        return sieda_parse_value(text, &value) == 1 ? value : nil
+    }
+
+    static func isStandardValue(_ value: Double, series: ESeries) -> Bool {
+        sieda_is_standard_value(value, Int32(series.rawValue)) == 1
+    }
+
+    @discardableResult
+    func applyRulePreset(_ name: String) -> Bool { withHandle { sieda_pcb_apply_rule_preset($0, name) } == 1 }
+
     // MARK: - Analysis
 
     func runERC() -> [RuleViolation] {
         Self.decode([RuleViolation].self, from: withHandle { Self.take(sieda_run_erc($0)) }) ?? []
+    }
+
+    /// Standard values, decoupling and DC-derived part ratings.
+    func runCircuitValidation() -> [RuleViolation] {
+        Self.decode([RuleViolation].self, from: withHandle { Self.take(sieda_run_circuit_validation($0)) }) ?? []
+    }
+
+    /// Full sign-off: ERC, DC, validation, placement, routing, DRC and manufacturing outputs.
+    func runVerification() -> VerificationReport? {
+        Self.decode(VerificationReport.self, from: withHandle { Self.take(sieda_run_verification($0)) })
     }
 
     func simulateDC() -> DCResult {

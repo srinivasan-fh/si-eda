@@ -48,16 +48,29 @@ struct OfflineProvider: AIProvider {
         var plan: DesignPlan
         var blocks: [String]
         var supply: Double
+        /// Basic-circuit library group ("Basic", "Power", "Analog", …) used by File ▸ New from Example.
+        var category = "Basic"
+        /// Phrases that rule this template out even if a keyword matches ("non-inverting" for the inverting amp).
+        var excludes: [String] = []
+
+        func matches(_ text: String) -> Bool {
+            keywords.contains(where: { text.contains($0) }) && !excludes.contains(where: { text.contains($0) })
+        }
     }
 
     static func template(for brief: String) -> Template {
         let text = brief.lowercased()
-        // Most specific circuits first; the LED indicator (index 0) is the fallback.
-        for t in templates.reversed() where t.keywords.contains(where: { text.contains($0) }) {
+        // Later (more specific) circuits win; the LED indicator (index 0) is the fallback.
+        for t in templates.reversed() where t.matches(text) {
             return t
         }
         return templates[0]
     }
+
+    /// Library groups in display order.
+    static let categories = ["Basic", "Power", "Analog", "Filters", "Drivers", "Timers", "Sensors"]
+
+    static func examples(in category: String) -> [Template] { templates.filter { $0.category == category } }
 
     static func spec(for brief: String) -> RequirementsSpec {
         let t = template(for: brief)
@@ -164,7 +177,8 @@ struct OfflineProvider: AIProvider {
                 notes: ["fc = 1 / (2π · 1 kΩ · 100 nF) ≈ 1.59 kHz", "Run a transient analysis (5 ms, 5 µs) to see the attenuation."],
                 board: PlannedBoard(width: 30, height: 20)),
             blocks: ["Signal source", "Filter"],
-            supply: 1),
+            supply: 1,
+            category: "Filters"),
         Template(
             keywords: ["amplif", "op-amp", "opamp", "op amp", "gain", "sensor"],
             plan: DesignPlan(
@@ -191,7 +205,8 @@ struct OfflineProvider: AIProvider {
                 notes: ["Gain = 1 + R1/R2 = 11", "Supply pins of the SOIC-8 package must be wired to ±rails on the real board."],
                 board: PlannedBoard(width: 35, height: 25)),
             blocks: ["Signal source", "Gain stage", "Output"],
-            supply: 5),
+            supply: 5,
+            category: "Analog"),
         Template(
             keywords: ["transistor", "npn", "bjt", "driver", "relay", "buzzer"],
             plan: DesignPlan(
@@ -224,7 +239,8 @@ struct OfflineProvider: AIProvider {
                 notes: ["Base current ≈ 0.43 mA keeps Q1 saturated (forced β ≈ 20).", "Replace SW1 with an MCU GPIO in production."],
                 board: PlannedBoard(width: 35, height: 25)),
             blocks: ["Power input", "Control input", "Driver", "Load"],
-            supply: 5),
+            supply: 5,
+            category: "Drivers"),
         Template(
             keywords: ["mosfet", "pwm", "load switch", "motor", "n-channel"],
             plan: DesignPlan(
@@ -258,6 +274,246 @@ struct OfflineProvider: AIProvider {
                 notes: ["R2 keeps the gate low during reset.", "Load current ≈ 100 mA; check MOSFET dissipation in the DC report."],
                 board: PlannedBoard(width: 35, height: 25)),
             blocks: ["Power input", "PWM input", "Gate driver", "Load"],
-            supply: 12),
+            supply: 12,
+            category: "Drivers"),
+        Template(
+            keywords: ["regulator", "7805", "lm7805", "linear reg", "5v rail", "5 v rail"],
+            plan: DesignPlan(
+                title: "5 V Linear Regulator",
+                summary: "LM7805 regulator: 12 V in, 5 V out with input/output capacitors and a power-good LED.",
+                components: [
+                    PlannedComponent(ref: "V1", kind: "voltage_source", value: "12", x: 0, y: 0),
+                    PlannedComponent(ref: "U1", kind: "custom:LM7805", value: "LM7805", x: 200, y: -60),
+                    PlannedComponent(ref: "C1", kind: "capacitor", value: "330n", x: 100, y: 20, rotation: 90),
+                    PlannedComponent(ref: "C2", kind: "capacitor", value: "100n", x: 300, y: 20, rotation: 90),
+                    PlannedComponent(ref: "R1", kind: "resistor", value: "1k", x: 380, y: -60),
+                    PlannedComponent(ref: "D1", kind: "led", value: "Green", x: 460, y: 0, rotation: 90),
+                    PlannedComponent(ref: "NL1", kind: "net_label", value: "+5V", x: 300, y: -120),
+                    PlannedComponent(ref: "GND1", kind: "ground", value: "0", x: 0, y: 100),
+                    PlannedComponent(ref: "GND2", kind: "ground", value: "0", x: 200, y: 100),
+                    PlannedComponent(ref: "GND3", kind: "ground", value: "0", x: 460, y: 100),
+                ],
+                connections: [
+                    PlannedConnection(from: "V1.+", to: "U1.1"),
+                    PlannedConnection(from: "V1.-", to: "GND1.GND"),
+                    PlannedConnection(from: "U1.1", to: "C1.1"),
+                    PlannedConnection(from: "C1.2", to: "GND2.GND"),
+                    PlannedConnection(from: "U1.2", to: "GND2.GND"),
+                    PlannedConnection(from: "U1.3", to: "C2.1"),
+                    PlannedConnection(from: "C2.2", to: "GND2.GND"),
+                    PlannedConnection(from: "U1.3", to: "NL1.N"),
+                    PlannedConnection(from: "U1.3", to: "R1.1"),
+                    PlannedConnection(from: "R1.2", to: "D1.A"),
+                    PlannedConnection(from: "D1.K", to: "GND3.GND"),
+                ],
+                notes: ["C1 330 nF and C2 100 nF are the LM7805 datasheet values; keep them within 10 mm of U1.",
+                        "Dropout ≈ 2 V: the input must stay above 7 V.",
+                        "U1 dissipates (12 V − 5 V) × I_load — add a heatsink above ≈ 250 mA.",
+                        "U1 has no simulation model; the DC analysis covers the source and the LED branch only."],
+                board: PlannedBoard(width: 40, height: 25)),
+            blocks: ["Power input", "Linear regulator", "Power-good indicator"],
+            supply: 12,
+            category: "Power"),
+        Template(
+            keywords: ["555", "astable", "blink", "flasher", "flashing", "timer", "oscillator"],
+            plan: DesignPlan(
+                title: "555 Astable LED Blinker",
+                summary: "NE555 astable oscillator (≈ 1.5 Hz) blinking an LED from 5 V.",
+                components: [
+                    PlannedComponent(ref: "V1", kind: "voltage_source", value: "5", x: 0, y: 0),
+                    PlannedComponent(ref: "NL1", kind: "net_label", value: "VCC", x: 0, y: -80),
+                    PlannedComponent(ref: "U1", kind: "custom:NE555", value: "NE555", x: 260, y: 0),
+                    PlannedComponent(ref: "R1", kind: "resistor", value: "1k", x: 120, y: -120, rotation: 90),
+                    PlannedComponent(ref: "R2", kind: "resistor", value: "47k", x: 120, y: -20, rotation: 90),
+                    PlannedComponent(ref: "C1", kind: "capacitor", value: "10u", x: 120, y: 80, rotation: 90),
+                    PlannedComponent(ref: "C2", kind: "capacitor", value: "10n", x: 200, y: 120, rotation: 90),
+                    PlannedComponent(ref: "C3", kind: "capacitor", value: "100n", x: 360, y: -120, rotation: 90),
+                    PlannedComponent(ref: "R3", kind: "resistor", value: "330", x: 400, y: 0),
+                    PlannedComponent(ref: "D1", kind: "led", value: "Red", x: 480, y: 60, rotation: 90),
+                    PlannedComponent(ref: "NL2", kind: "net_label", value: "VCC", x: 260, y: -160),
+                    PlannedComponent(ref: "NL3", kind: "net_label", value: "VCC", x: 120, y: -200),
+                    PlannedComponent(ref: "GND1", kind: "ground", value: "0", x: 0, y: 100),
+                    PlannedComponent(ref: "GND2", kind: "ground", value: "0", x: 200, y: 200),
+                    PlannedComponent(ref: "GND3", kind: "ground", value: "0", x: 480, y: 160),
+                ],
+                connections: [
+                    PlannedConnection(from: "V1.+", to: "NL1.N"),
+                    PlannedConnection(from: "V1.-", to: "GND1.GND"),
+                    PlannedConnection(from: "NL2.N", to: "U1.8"),
+                    PlannedConnection(from: "U1.8", to: "U1.4"),
+                    PlannedConnection(from: "U1.8", to: "C3.1"),
+                    PlannedConnection(from: "C3.2", to: "GND2.GND"),
+                    PlannedConnection(from: "U1.1", to: "GND2.GND"),
+                    PlannedConnection(from: "NL3.N", to: "R1.1"),
+                    PlannedConnection(from: "R1.2", to: "U1.7"),
+                    PlannedConnection(from: "U1.7", to: "R2.1"),
+                    PlannedConnection(from: "R2.2", to: "U1.6"),
+                    PlannedConnection(from: "U1.6", to: "U1.2"),
+                    PlannedConnection(from: "U1.6", to: "C1.1"),
+                    PlannedConnection(from: "C1.2", to: "GND2.GND"),
+                    PlannedConnection(from: "U1.5", to: "C2.1"),
+                    PlannedConnection(from: "C2.2", to: "GND2.GND"),
+                    PlannedConnection(from: "U1.3", to: "R3.1"),
+                    PlannedConnection(from: "R3.2", to: "D1.A"),
+                    PlannedConnection(from: "D1.K", to: "GND3.GND"),
+                ],
+                notes: ["f = 1.44 / ((R1 + 2·R2) · C1) = 1.44 / (95 kΩ · 10 µF) ≈ 1.5 Hz, duty ≈ 51 %",
+                        "C2 decouples the CONT pin; C3 decouples VCC — place both next to U1.",
+                        "U1 has no simulation model; verify timing on the bench."],
+                board: PlannedBoard(width: 40, height: 30)),
+            blocks: ["Power input", "Astable timer", "LED output"],
+            supply: 5,
+            category: "Timers"),
+        Template(
+            keywords: ["rectifier", "half-wave", "half wave", "ac to dc", "ac-dc", "ac/dc"],
+            plan: DesignPlan(
+                title: "Half-Wave Rectifier",
+                summary: "Diode half-wave rectifier with a reservoir capacitor turning a 10 V, 50 Hz sine into DC.",
+                components: [
+                    PlannedComponent(ref: "V1", kind: "voltage_source", value: "SIN(0 10 50)", x: 0, y: 0),
+                    PlannedComponent(ref: "D1", kind: "diode", value: "1N4148", x: 120, y: -60),
+                    PlannedComponent(ref: "C1", kind: "capacitor", value: "100u", x: 220, y: 0, rotation: 90),
+                    PlannedComponent(ref: "R1", kind: "resistor", value: "10k", x: 300, y: 0, rotation: 90),
+                    PlannedComponent(ref: "NL1", kind: "net_label", value: "VDC", x: 300, y: -100),
+                    PlannedComponent(ref: "GND1", kind: "ground", value: "0", x: 0, y: 100),
+                    PlannedComponent(ref: "GND2", kind: "ground", value: "0", x: 260, y: 100),
+                ],
+                connections: [
+                    PlannedConnection(from: "V1.+", to: "D1.A"),
+                    PlannedConnection(from: "V1.-", to: "GND1.GND"),
+                    PlannedConnection(from: "D1.K", to: "C1.1"),
+                    PlannedConnection(from: "D1.K", to: "R1.1"),
+                    PlannedConnection(from: "D1.K", to: "NL1.N"),
+                    PlannedConnection(from: "C1.2", to: "GND2.GND"),
+                    PlannedConnection(from: "R1.2", to: "GND2.GND"),
+                ],
+                notes: ["VDC ≈ 10 V − 0.7 V ≈ 9.3 V peak", "Ripple ≈ I / (f · C) = 0.93 mA / (50 Hz · 100 µF) ≈ 0.19 V",
+                        "Run a transient analysis (100 ms, 50 µs) to see the ripple."],
+                board: PlannedBoard(width: 35, height: 25)),
+            blocks: ["AC source", "Rectifier", "Reservoir", "Load"],
+            supply: 10,
+            category: "Power"),
+        Template(
+            keywords: ["inverting amplifier", "inverting amp", "inverting op", "inverting gain", "inverter amp"],
+            plan: DesignPlan(
+                title: "Inverting Amplifier",
+                summary: "Op-amp inverting amplifier with a gain of −10 (100 mV → −1 V peak).",
+                components: [
+                    PlannedComponent(ref: "V1", kind: "voltage_source", value: "SIN(0 0.1 1k)", x: 0, y: 0),
+                    PlannedComponent(ref: "R1", kind: "resistor", value: "10k", x: 100, y: -40),
+                    PlannedComponent(ref: "R2", kind: "resistor", value: "100k", x: 200, y: -120),
+                    PlannedComponent(ref: "U1", kind: "opamp", value: "LM358", x: 220, y: -20),
+                    PlannedComponent(ref: "NL1", kind: "net_label", value: "VOUT", x: 320, y: -20),
+                    PlannedComponent(ref: "GND1", kind: "ground", value: "0", x: 0, y: 100),
+                    PlannedComponent(ref: "GND2", kind: "ground", value: "0", x: 160, y: 80),
+                ],
+                connections: [
+                    PlannedConnection(from: "V1.+", to: "R1.1"),
+                    PlannedConnection(from: "V1.-", to: "GND1.GND"),
+                    PlannedConnection(from: "R1.2", to: "U1.IN-"),
+                    PlannedConnection(from: "U1.IN-", to: "R2.1"),
+                    PlannedConnection(from: "R2.2", to: "U1.OUT"),
+                    PlannedConnection(from: "U1.IN+", to: "GND2.GND"),
+                    PlannedConnection(from: "U1.OUT", to: "NL1.N"),
+                ],
+                notes: ["Gain = −R2/R1 = −10; input impedance = R1 = 10 kΩ",
+                        "Supply pins of the SOIC-8 package must be wired to ±rails on the real board."],
+                board: PlannedBoard(width: 35, height: 25)),
+            blocks: ["Signal source", "Inverting gain stage", "Output"],
+            supply: 5,
+            category: "Analog",
+            excludes: ["non-inverting", "noninverting", "non inverting"]),
+        Template(
+            keywords: ["high-pass", "highpass", "high pass", "ac coupling", "ac-coupling", "dc block"],
+            plan: DesignPlan(
+                title: "RC High-Pass Filter",
+                summary: "First-order RC high-pass filter, fc ≈ 1.6 kHz, driven by a 1 kHz test sine.",
+                components: [
+                    PlannedComponent(ref: "V1", kind: "voltage_source", value: "SIN(0 1 1k)", x: 0, y: 0),
+                    PlannedComponent(ref: "C1", kind: "capacitor", value: "100n", x: 120, y: -60),
+                    PlannedComponent(ref: "R1", kind: "resistor", value: "1k", x: 200, y: 0, rotation: 90),
+                    PlannedComponent(ref: "NL1", kind: "net_label", value: "VOUT", x: 260, y: -60),
+                    PlannedComponent(ref: "GND1", kind: "ground", value: "0", x: 0, y: 80),
+                    PlannedComponent(ref: "GND2", kind: "ground", value: "0", x: 200, y: 80),
+                ],
+                connections: [
+                    PlannedConnection(from: "V1.+", to: "C1.1"),
+                    PlannedConnection(from: "C1.2", to: "R1.1"),
+                    PlannedConnection(from: "C1.2", to: "NL1.N"),
+                    PlannedConnection(from: "R1.2", to: "GND2.GND"),
+                    PlannedConnection(from: "V1.-", to: "GND1.GND"),
+                ],
+                notes: ["fc = 1 / (2π · 1 kΩ · 100 nF) ≈ 1.59 kHz", "Below fc the output falls at 20 dB/decade."],
+                board: PlannedBoard(width: 30, height: 20)),
+            blocks: ["Signal source", "Filter"],
+            supply: 1,
+            category: "Filters"),
+        Template(
+            keywords: ["follower", "buffer", "unity gain", "unity-gain"],
+            plan: DesignPlan(
+                title: "Voltage Follower",
+                summary: "Unity-gain op-amp buffer driving a 1 kΩ load from a high-impedance 2.5 V divider.",
+                components: [
+                    PlannedComponent(ref: "V1", kind: "voltage_source", value: "5", x: 0, y: 0),
+                    PlannedComponent(ref: "R1", kind: "resistor", value: "100k", x: 100, y: -60, rotation: 90),
+                    PlannedComponent(ref: "R2", kind: "resistor", value: "100k", x: 100, y: 60, rotation: 90),
+                    PlannedComponent(ref: "U1", kind: "opamp", value: "LM358", x: 220, y: 0),
+                    PlannedComponent(ref: "R3", kind: "resistor", value: "1k", x: 320, y: 60, rotation: 90),
+                    PlannedComponent(ref: "NL1", kind: "net_label", value: "VOUT", x: 320, y: -40),
+                    PlannedComponent(ref: "GND1", kind: "ground", value: "0", x: 0, y: 120),
+                    PlannedComponent(ref: "GND2", kind: "ground", value: "0", x: 100, y: 140),
+                    PlannedComponent(ref: "GND3", kind: "ground", value: "0", x: 320, y: 140),
+                ],
+                connections: [
+                    PlannedConnection(from: "V1.+", to: "R1.1"),
+                    PlannedConnection(from: "V1.-", to: "GND1.GND"),
+                    PlannedConnection(from: "R1.2", to: "R2.1"),
+                    PlannedConnection(from: "R2.2", to: "GND2.GND"),
+                    PlannedConnection(from: "R1.2", to: "U1.IN+"),
+                    PlannedConnection(from: "U1.OUT", to: "U1.IN-"),
+                    PlannedConnection(from: "U1.OUT", to: "R3.1"),
+                    PlannedConnection(from: "R3.2", to: "GND3.GND"),
+                    PlannedConnection(from: "U1.OUT", to: "NL1.N"),
+                ],
+                notes: ["VOUT = V(IN+) = 2.5 V; the divider sees only the op-amp input, so loading does not pull it down.",
+                        "Without U1 the 1 kΩ load would drop the divider output to ≈ 0.1 V."],
+                board: PlannedBoard(width: 35, height: 25)),
+            blocks: ["Power input", "Reference divider", "Buffer", "Load"],
+            supply: 5,
+            category: "Analog"),
+        Template(
+            keywords: ["wheatstone", "bridge", "strain gauge", "strain-gauge", "load cell", "rtd"],
+            plan: DesignPlan(
+                title: "Wheatstone Bridge",
+                summary: "Resistive Wheatstone bridge from 5 V with one 2 % unbalanced arm (≈ 25 mV differential output).",
+                components: [
+                    PlannedComponent(ref: "V1", kind: "voltage_source", value: "5", x: 0, y: 0),
+                    PlannedComponent(ref: "R1", kind: "resistor", value: "1k", x: 120, y: -60, rotation: 90),
+                    PlannedComponent(ref: "R2", kind: "resistor", value: "1k", x: 120, y: 60, rotation: 90),
+                    PlannedComponent(ref: "R3", kind: "resistor", value: "1k", x: 260, y: -60, rotation: 90),
+                    PlannedComponent(ref: "R4", kind: "resistor", value: "1.02k", x: 260, y: 60, rotation: 90),
+                    PlannedComponent(ref: "NL1", kind: "net_label", value: "VA", x: 180, y: 0),
+                    PlannedComponent(ref: "NL2", kind: "net_label", value: "VB", x: 320, y: 0),
+                    PlannedComponent(ref: "GND1", kind: "ground", value: "0", x: 0, y: 120),
+                    PlannedComponent(ref: "GND2", kind: "ground", value: "0", x: 190, y: 140),
+                ],
+                connections: [
+                    PlannedConnection(from: "V1.+", to: "R1.1"),
+                    PlannedConnection(from: "V1.+", to: "R3.1"),
+                    PlannedConnection(from: "V1.-", to: "GND1.GND"),
+                    PlannedConnection(from: "R1.2", to: "R2.1"),
+                    PlannedConnection(from: "R3.2", to: "R4.1"),
+                    PlannedConnection(from: "R1.2", to: "NL1.N"),
+                    PlannedConnection(from: "R3.2", to: "NL2.N"),
+                    PlannedConnection(from: "R2.2", to: "GND2.GND"),
+                    PlannedConnection(from: "R4.2", to: "GND2.GND"),
+                ],
+                notes: ["VA = 2.5 V, VB = 5 V × 1.02k / 2.02k ≈ 2.525 V → VB − VA ≈ 25 mV",
+                        "Replace R4 with the sensor (strain gauge, RTD); feed VA/VB to an instrumentation amplifier."],
+                board: PlannedBoard(width: 35, height: 25)),
+            blocks: ["Excitation", "Bridge", "Differential output"],
+            supply: 5,
+            category: "Sensors",
+            excludes: ["h-bridge", "h bridge", "full bridge", "bridge rectifier"]),
     ]
 }
