@@ -43,7 +43,8 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild -project SiEDA.xcodeproj -scheme SiEDA -configuration Debug \
-            -destination 'platform=macOS' CODE_SIGN_IDENTITY=- test 2>&1 | tee xcodebuild.log
+            -destination 'platform=macOS' CODE_SIGN_IDENTITY=- \
+            SWIFT_COMPILATION_MODE=wholemodule test 2>&1 | tee xcodebuild.log
       - name: Report compiler and test errors
         if: failure()
         run: |
@@ -52,6 +53,7 @@ jobs:
             | sed -E "s#^$GITHUB_WORKSPACE/##" | awk '!seen[$0]++' | head -60 > errors.txt || true
           [ -s errors.txt ] || tail -60 xcodebuild.log > errors.txt
           # GitHub keeps at most 10 error annotations per step: pack 6 lines into each (%0A = newline).
+          # (Whole-module compilation above makes the compiler report every type error in one run.)
           awk '{ gsub(/%/, "%25"); buf = buf $0 "%0A"; if (NR % 6 == 0) { print "::error title=xcodebuild::" buf; buf = "" } }
                END { if (buf != "") print "::error title=xcodebuild::" buf }' errors.txt
       - uses: actions/upload-artifact@v4

@@ -116,7 +116,7 @@ struct SchematicCanvas: View {
         var best: (PinAddress, CGPoint, CGFloat)?
         for c in store.snapshot.components {
             for (i, p) in c.pins.enumerated() {
-                let d = hypot(p.x - world.x, p.y - world.y)
+                let d = hypot(CGFloat(p.x) - world.x, CGFloat(p.y) - world.y)
                 if d <= pickTolerance, d < (best?.2 ?? .greatestFiniteMagnitude) {
                     best = (PinAddress(component: c.id, pin: i), p.point, d)
                 }
