@@ -34,9 +34,10 @@ Every AI result lands in the same editable schematic and PCB, so you can switch 
 | **AI Prompt Studio** | Prompt/PRD editor, template briefs, PRD import, live agent pipeline, conversational refinement ("make the LED green and run it from 3.3 V") |
 | **Agent team** | Requirements Analyst → Circuit Architect → Plan Compiler → Verification (ERC + SPICE) → Design Reviewer (feedback loop) → PCB Layout |
 | **Standard components** | Built-in standard library (LM7805, LM317, NE555, LM358, ATtiny85, ATmega328P, 74HC595, 74HC00, ULN2003A, L293D, pin headers) with correct pinouts, pin types and footprints, in the device picker and Component Library. AI agents can use them too. IEC 60063 E12/E24/E96 value checks with a one-click "use nearest standard value" in the Properties panel |
-| **Basic circuit library** | 13 verified reference designs in 7 groups (**File → New from Example**): LED indicator, voltage divider, 5 V LM7805 regulator, half-wave rectifier, non-inverting/inverting amplifier, voltage follower, RC low-/high-pass filters, NPN and MOSFET drivers, 555 astable blinker, Wheatstone bridge. Every one passes full verification on 1, 2, 4 and 6 layers |
+| **Basic circuit library** | 13 verified basic reference designs in 7 groups (**File → New from Example**): LED indicator, voltage divider, 5 V LM7805 regulator, half-wave rectifier, non-inverting/inverting amplifier, voltage follower, RC low-/high-pass filters, NPN and MOSFET drivers, 555 astable blinker, Wheatstone bridge. Every one passes full verification on 1, 2, 4 and 6 layers |
 | **Circuit validation** | Beyond ERC: non-standard values, missing IC decoupling, and DC-derived part ratings (resistor power, LED/diode current, reverse-biased LEDs, transistor current/power, supply over-current, op-amp saturation, fuse overload). Exceeding a rating is a warning; 2× the rating is an error |
 | **PCB design rules** | Presets: Prototype (Conservative), IPC-2221 Class 2 (default), IPC-2221 Class 3, Fab House Standard (6/6 mil) and Advanced (4/4 mil). DRC checks clearance against both the design rule and the fab minimum, plus track width, drill size, annular ring, hole-to-hole spacing, via-in-pad, dangling tracks, acute angles and IPC-2221 current capacity from the simulated net currents |
+| **Industry design kits** | Each project has an industry profile: General, Robotics & Motor Control, Power Electronics, Automotive, RF & Wireless, Space, Marine & Ship, or Industrial Automation. The profile sets the design rules, derates part ratings in validation (Space 50 %, Automotive 60/70 %, …) and selects IPC-2221 B2 or B3 (altitude) voltage spacing, and its standards and design guidance are shown in the Properties panel. The kits add domain parts (IR2104, IRF540N, UC3843, ACS712, TJA1050, LM2940, MAX485, PC817) and 8 verified reference designs, and AI agents choose and follow the profile. See [Industry design kits](#industry-design-kits) |
 | **Verification process** | **Design → Verify Design** (⇧⌘V) runs a 7-stage sign-off: ERC → DC simulation → circuit validation → footprint placement → routing completion → DRC/fab rules → manufacturing outputs (every Gerber layer, drill, BOM, pick-and-place and netlist are generated and checked). The verdict is Pass, Pass with warnings or Fail; findings cross-probe to the editors, and the report exports as Markdown. **Export Fabrication Package** always verifies first, asks before exporting a failing design, and includes `verification_report.md` |
 | **Model choice** | Anthropic **Claude** (default: `claude-opus-5-5`, structured outputs, adaptive thinking, effort control, refusal fallbacks), OpenAI or any OpenAI-compatible endpoint, Google Gemini, local Ollama, and an Offline Designer that needs no network |
 | **Schematic capture** | 16 built-in device types plus your own library parts, orthogonal wiring, net labels, junctions, rotate/move/marquee, undo/redo, ERC with pin-type rules |
@@ -46,6 +47,24 @@ Every AI result lands in the same editable schematic and PCB, so you can switch 
 | **Autorouting** | Single-layer (single-sided, no vias), 2-, 4- and 6-layer A* autorouter: through vias, alternating layer directions, turn penalties, rip-up and retry passes |
 | **3D** | **X-Ray Stack:** a holographic exploded view of every copper layer with an adjustable gap. Copper glows with additive blending and HDR bloom, through vias become light pillars, part bodies are wireframes, and a scan beam sweeps the stack; turntable spin and per-layer toggles. **Assembly:** a realistic board with blue solder mask. Both export to STL/OBJ |
 | **Manufacturing** | Gerber RS-274X for every copper layer including inner layers, plus solder mask, silkscreen and outline; Excellon drill, BOM, pick-and-place, SPICE netlist and the verification report; all in one "Export Fabrication Package" step |
+
+## Industry design kits
+
+Pick the industry in **Properties → Industry Profile** or **Design → Industry Profile**. AI-generated designs and the examples set it automatically.
+
+| Profile | Standards it follows | Design rules | Derating (power / current) | Reference design |
+|---|---|---|---|---|
+| General Electronics | IPC-2221, IPC-A-610 Class 2 | IPC-2221 Class 2 | none | 13 basic circuits |
+| Robotics & Motor Control | IEC 61800-5-1, IEC 60034 | IPC-2221 Class 3 | 80 % / 80 % | DC motor PWM drive with flyback diode and current shunt |
+| Power Electronics | IEC 62368-1, IEC 61204, IPC-2152 | IPC-2221 Class 3 (High Voltage above 50 V) | 70 % / 80 % | Boost converter 5 V → 12 V; IR2104 half-bridge gate driver |
+| Automotive | AEC-Q100/Q101/Q200, ISO 16750-2, ISO 7637-2, ISO 11898 | Automotive (IPC-6012 Class 3/A) | 60 % / 70 % | 12 V battery input protection + LM2940 + TJA1050 CAN node |
+| RF & Wireless | IPC-2141, ETSI EN 300 220 / FCC Part 15 | RF (Controlled Impedance) | 80 % / 80 % | 433 MHz 50 Ω LC harmonic filter |
+| Space | ECSS-Q-ST-30-11C, ECSS-Q-ST-70-12C, NASA EEE-INST-002 | Space (IPC-6012 Class 3/A, ECSS) + IPC-2221 B3 spacing | 50 % / 50 % | Redundant 28 V bus OR-ing + LM317 5 V |
+| Marine & Ship | IEC 60945, IEC 61162 (NMEA), DNV-CG-0339 | IPC-2221 Class 3 | 70 % / 75 % | MAX485 RS-485 / NMEA interface |
+| Industrial Automation | IEC 61131-2, IEC 61000-6-2/4, IEC 60664-1 | IPC-2221 Class 3 | 75 % / 80 % | 24 V PLC opto-isolated digital input |
+
+- **High-voltage clearance:** DRC computes each net's DC voltage, widened to the peaks of SIN/PULSE sources. Copper of nets with a large potential difference must keep the IPC-2221 Table 6-1 spacing: B2 at sea level, B3 above 3050 m. For example, 230 V needs 1.25 mm, or 6.4 mm at altitude.
+- **Not a certification:** profiles apply common derating and spacing guidance, not a compliance sign-off. Full-wave EM, thermal and radiation analysis are outside SiEDA's scope.
 
 ## Repository layout
 

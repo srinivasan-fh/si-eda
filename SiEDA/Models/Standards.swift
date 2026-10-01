@@ -7,6 +7,45 @@ import Foundation
 enum StandardLibrary {
     static let parts: [StandardPart] = EDAEngine.standardParts()
     static let rulePresets: [DesignRulePreset] = EDAEngine.designRulePresets()
+    static let industries: [IndustryProfile] = EDAEngine.industryProfiles()
+
+    static func industry(_ id: String) -> IndustryProfile? { industries.first { $0.id == id } }
+}
+
+/// Industry design profile (standards, design rules, derating, altitude class, guidance) from the core.
+struct IndustryProfile: Decodable, Equatable, Identifiable, Hashable {
+    var id: String
+    var name: String
+    var description: String
+    var standards: String
+    var rulePreset: String
+    var powerDerating: Double
+    var currentDerating: Double
+    var highAltitude: Bool
+    var minAmbientC: Double
+    var maxAmbientC: Double
+    var guidance: [String]
+
+    var systemImage: String {
+        switch id {
+        case "robotics": return "gearshape.2"
+        case "power": return "bolt.fill"
+        case "automotive": return "car"
+        case "rf": return "antenna.radiowaves.left.and.right"
+        case "space": return "globe.americas"
+        case "marine": return "ferry"
+        case "industrial": return "building.2"
+        default: return "cpu"
+        }
+    }
+
+    /// "Power 50 % · current 50 % of rating · −55…125 °C"
+    var deratingSummary: String {
+        let derate = powerDerating < 1 || currentDerating < 1
+            ? "Power \(Int((powerDerating * 100).rounded())) % · current \(Int((currentDerating * 100).rounded())) % of rating"
+            : "No derating"
+        return "\(derate) · \(Int(minAmbientC))…\(Int(maxAmbientC)) °C"
+    }
 }
 
 /// IEC 60063 preferred-number series (raw value = values per decade, as `sieda_nearest_standard_value` expects).
@@ -122,6 +161,9 @@ struct VerificationStage: Decodable, Equatable, Identifiable {
 
 struct VerificationReport: Decodable, Equatable {
     var project: String
+    var industry: String
+    var industryName: String
+    var industryStandards: String
     var rulePreset: String
     var layerCount: Int
     var verdict: VerificationStatus

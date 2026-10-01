@@ -275,9 +275,11 @@ private struct ProjectProperties: View {
                 PropertyRow(label: "Nets", value: "\(store.snapshot.nets.filter { $0.pinCount > 1 }.count)")
                 PropertyRow(label: "Wires", value: "\(store.snapshot.wires.count)")
             }
+            IndustryProperties()
             PropertyGroup(title: "Board") {
                 PropertyRow(label: "Size", value: String(format: "%.1f × %.1f mm", store.snapshot.board.width, store.snapshot.board.height))
-                PropertyRow(label: "Layers", value: "2 (Top / Bottom)")
+                PropertyRow(label: "Layers", value: "\(store.snapshot.board.layerCount)")
+                PropertyRow(label: "Design rules", value: store.snapshot.board.rulePreset)
                 PropertyRow(label: "Track / clearance", value: String(format: "%.2f / %.2f mm", store.snapshot.board.trackWidth, store.snapshot.board.clearance))
                 PropertyRow(label: "Via", value: String(format: "%.2f / %.2f mm", store.snapshot.board.viaDiameter, store.snapshot.board.viaDrill))
                 PropertyRow(label: "Tracks / vias", value: "\(store.snapshot.tracks.count) / \(store.snapshot.vias.count)")
@@ -301,5 +303,42 @@ private struct ProjectProperties: View {
     private func commitName() {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         if !trimmed.isEmpty, trimmed != store.snapshot.name { store.setProjectName(trimmed) }
+    }
+}
+
+/// Industry profile picker: standards, derating and design guidance for the project's domain.
+private struct IndustryProperties: View {
+    @EnvironmentObject private var store: DesignStore
+    @State private var showGuidance = false
+
+    var body: some View {
+        PropertyGroup(title: "Industry Profile") {
+            Picker("Industry", selection: Binding(
+                get: { store.snapshot.industry },
+                set: { id in if let profile = StandardLibrary.industry(id) { store.setIndustry(profile) } }
+            )) {
+                ForEach(StandardLibrary.industries) { profile in
+                    Label(profile.name, systemImage: profile.systemImage).tag(profile.id)
+                }
+            }
+            .labelsHidden()
+            if let profile = StandardLibrary.industry(store.snapshot.industry) {
+                Text(profile.description).font(.caption).foregroundStyle(Theme.textSecondary)
+                PropertyRow(label: "Derating", value: profile.deratingSummary)
+                Text(profile.standards).font(.caption).foregroundStyle(Theme.lightBlue).textSelection(.enabled)
+                DisclosureGroup("Design guidance", isExpanded: $showGuidance) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(profile.guidance, id: \.self) { line in
+                            Label(line, systemImage: "checkmark.circle")
+                                .font(.caption)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                    }
+                    .padding(.top, 4)
+                }
+                .font(.caption)
+                .foregroundStyle(Theme.skyBlue)
+            }
+        }
     }
 }

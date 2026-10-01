@@ -240,7 +240,7 @@ final class StandardsAndVerificationTests: XCTestCase {
         XCTAssertTrue(StandardLibrary.parts.contains { $0.spec.name == "NE555" })
         XCTAssertGreaterThanOrEqual(StandardLibrary.parts.count, 12)
 
-        XCTAssertEqual(StandardLibrary.rulePresets.count, 5)
+        XCTAssertEqual(StandardLibrary.rulePresets.count, 9)
         XCTAssertTrue(StandardLibrary.rulePresets.contains { $0.name == "IPC-2221 Class 3" })
 
         XCTAssertEqual(try XCTUnwrap(EDAEngine.parseValue("4k7")), 4700, accuracy: 1e-9)
@@ -300,7 +300,7 @@ final class StandardsAndVerificationTests: XCTestCase {
     }
 
     func testOfflineTemplateMatchingAndCategories() {
-        XCTAssertEqual(OfflineProvider.templates.count, 13)
+        XCTAssertEqual(OfflineProvider.templates.count, 21)
         XCTAssertEqual(OfflineProvider.template(for: "non-inverting amplifier with gain 11").plan.title, "Non-Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "an inverting amplifier, gain -10").plan.title, "Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "blink an LED with a 555").plan.title, "555 Astable LED Blinker")
@@ -318,8 +318,9 @@ final class StandardsAndVerificationTests: XCTestCase {
     func testReferenceDesignsPassVerification() throws {
         for template in OfflineProvider.templates {
             let engine = EDAEngine()
-            let report = DesignPlanCompiler.apply(template.plan, to: engine, previous: nil)
+            let report = DesignPlanCompiler.apply(template.industryPlan, to: engine, previous: nil)
             XCTAssertTrue(report.warnings.isEmpty, "\(template.plan.title): \(report.warnings)")
+            XCTAssertEqual(engine.snapshot()?.industry, template.industry, template.plan.title)
             engine.autoPlace(all: true)
             engine.fitBoard(margin: 2.5)
             XCTAssertEqual(engine.autoRoute().failed, 0, template.plan.title)
@@ -327,6 +328,7 @@ final class StandardsAndVerificationTests: XCTestCase {
             let problems = verification.stages.flatMap(\.findings).filter { $0.severity != .info }.map(\.code)
             XCTAssertEqual(verification.verdict, .pass, "\(template.plan.title): \(problems)")
             XCTAssertEqual(verification.stages.count, 7)
+            XCTAssertEqual(verification.industry, template.industry)
             XCTAssertTrue(verification.markdown.contains("# Design Verification Report"))
         }
     }
@@ -432,5 +434,65 @@ final class CanvasNavigationTests: XCTestCase {
         XCTAssertEqual(ZoomControls.percent(1), "100%")
         XCTAssertEqual(ZoomControls.percent(0.25), "25%")
         XCTAssertEqual(ZoomControls.percent(0.05), "5.0%")
+    }
+}
+
+final class IndustryKitTests: XCTestCase {
+    func testIndustryProfilesBridge() throws {
+        let ids = StandardLibrary.industries.map(\.id)
+        XCTAssertEqual(ids, ["general", "robotics", "power", "automotive", "rf", "space", "marine", "industrial"])
+        let space = try XCTUnwrap(StandardLibrary.industry("space"))
+        XCTAssertEqual(space.powerDerating, 0.5, accuracy: 1e-9)
+        XCTAssertTrue(space.highAltitude)
+        XCTAssertFalse(space.guidance.isEmpty)
+        for profile in StandardLibrary.industries {
+            XCTAssertTrue(StandardLibrary.rulePresets.contains { $0.name == profile.rulePreset }, profile.name)
+        }
+        for name in ["IR2104", "IRF540N", "UC3843", "ACS712", "TJA1050", "LM2940-5.0", "MAX485", "PC817"] {
+            XCTAssertTrue(StandardLibrary.parts.contains { $0.spec.name == name }, name)
+        }
+    }
+
+    func testSetIndustryAppliesRulesAndPersists() throws {
+        let engine = EDAEngine()
+        XCTAssertEqual(engine.snapshot()?.industry, "general")
+        XCTAssertTrue(engine.setIndustry("space"))
+        XCTAssertFalse(engine.setIndustry("submarine"))
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        XCTAssertEqual(snapshot.industry, "space")
+        XCTAssertTrue(snapshot.board.highAltitude)
+        XCTAssertEqual(snapshot.board.rulePreset, "Space (IPC-6012 Class 3/A, ECSS)")
+        let copy = EDAEngine()
+        try copy.load(json: engine.saveJSON())
+        XCTAssertEqual(copy.snapshot()?.industry, "space")
+        XCTAssertEqual(DesignPlanCompiler.plan(from: snapshot).industry, "space")
+    }
+
+    func testDeratingTightensValidation() throws {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: engine, previous: nil)
+        let resistor = try XCTUnwrap(engine.findComponent(ref: "R1"))
+        engine.setValue(resistor, "150")  // ≈ 20 mA LED current
+        XCTAssertFalse(engine.runCircuitValidation().contains { $0.code == "VAL_LED_CURRENT" })
+        engine.setIndustry("space")       // LED limit derated to 15 mA
+        let finding = try XCTUnwrap(engine.runCircuitValidation().first { $0.code == "VAL_LED_CURRENT" })
+        XCTAssertTrue(finding.message.contains("Space derating"), finding.message)
+    }
+
+    func testPlanSchemaAndOfflinePlansCarryIndustry() async throws {
+        let schema = DesignSchemas.designPlanSchema(customKinds: [])
+        let required = try XCTUnwrap(schema["required"] as? [String])
+        XCTAssertTrue(required.contains("industry"))
+        XCTAssertNoThrow(try JSONSerialization.data(withJSONObject: schema))
+        XCTAssertTrue(AgentPrompts.architectSystem.contains("ECSS-Q-ST-30-11C"))
+
+        let brief = "Automotive ECU: 12 V battery input protection and a CAN transceiver"
+        let text = try await OfflineProvider().complete(
+            AgentPrompts.architectRequest(brief: brief, spec: OfflineProvider.spec(for: brief)))
+        let plan = try JSONExtraction.decode(DesignPlan.self, from: text)
+        XCTAssertEqual(plan.industry, "automotive")
+        XCTAssertEqual(OfflineProvider.template(for: "433 MHz radio filter").industry, "rf")
+        XCTAssertEqual(OfflineProvider.template(for: "Let a push-button switch an LED through an NPN transistor from a 5 V rail").plan.title,
+                       "NPN LED Driver")
     }
 }

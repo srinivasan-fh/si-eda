@@ -10,15 +10,18 @@ struct DesignPlan: Codable, Equatable {
     var connections: [PlannedConnection]
     var notes: [String]
     var board: PlannedBoard
+    /// Industry profile id ("general", "automotive", "space", …); nil keeps the project's current profile.
+    var industry: String?
 
     init(title: String, summary: String, components: [PlannedComponent], connections: [PlannedConnection],
-         notes: [String] = [], board: PlannedBoard = PlannedBoard()) {
+         notes: [String] = [], board: PlannedBoard = PlannedBoard(), industry: String? = nil) {
         self.title = title
         self.summary = summary
         self.components = components
         self.connections = connections
         self.notes = notes
         self.board = board
+        self.industry = industry
     }
 
     init(from decoder: Decoder) throws {
@@ -29,9 +32,10 @@ struct DesignPlan: Codable, Equatable {
         connections = try c.decodeIfPresent([PlannedConnection].self, forKey: .connections) ?? []
         notes = try c.decodeIfPresent([String].self, forKey: .notes) ?? []
         board = try c.decodeIfPresent(PlannedBoard.self, forKey: .board) ?? PlannedBoard()
+        industry = try c.decodeIfPresent(String.self, forKey: .industry)
     }
 
-    private enum CodingKeys: String, CodingKey { case title, summary, components, connections, notes, board }
+    private enum CodingKeys: String, CodingKey { case title, summary, components, connections, notes, board, industry }
 
     func jsonString(pretty: Bool = true) -> String {
         let encoder = JSONEncoder()
@@ -131,14 +135,21 @@ enum DesignSchemas {
 
     static var designPlan: [String: Any] { designPlanSchema(customKinds: []) }
 
+    static var industryIds: [String] {
+        let ids = StandardLibrary.industries.map(\.id)
+        return ids.isEmpty ? ["general"] : ids
+    }
+
     /// `customKinds` are "custom:<NAME>" identifiers of parts in the project library.
     static func designPlanSchema(customKinds: [String]) -> [String: Any] {
         let kinds = kindNames + customKinds
         return [
             "type": "object",
             "additionalProperties": false,
-            "required": ["title", "summary", "components", "connections", "notes", "board"],
+            "required": ["title", "summary", "components", "connections", "notes", "board", "industry"],
             "properties": [
+                "industry": ["type": "string", "enum": industryIds,
+                             "description": "Industry profile that sets derating and design rules"] as [String: Any],
                 "title": ["type": "string"],
                 "summary": ["type": "string"],
                 "components": [
@@ -239,6 +250,9 @@ enum DesignPlanCompiler {
 
         engine.clear()
         engine.setName(plan.title)
+        if let industry = plan.industry, !engine.setIndustry(industry) {
+            report.warnings.append("Unknown industry profile '\(industry)' — kept the current profile.")
+        }
         var positions = plan.components.map { CGPoint(x: $0.x, y: $0.y) }
         positions = SchematicAutoLayout.resolveOverlaps(positions)
 
@@ -347,7 +361,8 @@ enum DesignPlanCompiler {
             return PlannedConnection(from: "\(a.ref).\(pinLabel(a, wire.a.pin))", to: "\(b.ref).\(pinLabel(b, wire.b.pin))")
         }
         return DesignPlan(title: snapshot.name, summary: "", components: components, connections: connections,
-                          notes: [], board: PlannedBoard(width: snapshot.board.width, height: snapshot.board.height))
+                          notes: [], board: PlannedBoard(width: snapshot.board.width, height: snapshot.board.height),
+                          industry: snapshot.industry)
     }
 }
 

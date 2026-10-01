@@ -448,6 +448,15 @@ final class DesignStore: ObservableObject {
         drcResults = []
     }
 
+    /// Selects the project's industry profile: its design-rule preset, altitude class and component derating.
+    func setIndustry(_ profile: IndustryProfile) {
+        guard profile.id != snapshot.industry else { return }
+        perform("Industry: \(profile.name)", invalidatesAnalysis: false) { $0.setIndustry(profile.id) }
+        validationResults = []
+        verificationReport = nil
+        if !snapshot.pads.isEmpty { drcResults = engine.runDRC() }
+    }
+
     /// Applies a design-rule preset (track/clearance/via design values and fabrication minimums).
     func applyRulePreset(_ preset: DesignRulePreset) {
         guard preset.name != snapshot.board.rulePreset else { return }
@@ -491,7 +500,12 @@ final class DesignStore: ObservableObject {
 
     func newProject() {
         guard confirmDiscardChanges() else { return }
-        perform("New project", recordUndo: false) { $0.clear(); $0.setName("Untitled"); $0.setRequirements("") }
+        perform("New project", recordUndo: false) {
+            $0.clear()
+            $0.setName("Untitled")
+            $0.setRequirements("")
+            $0.setIndustry("general")
+        }
         undoStack.removeAll()
         redoStack.removeAll()
         documentURL = nil
