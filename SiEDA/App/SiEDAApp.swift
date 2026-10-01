@@ -46,6 +46,15 @@ struct SiEDAApp: App {
     }
 }
 
+/// Detects whether keyboard focus is in a text field/view (AppKit field editor) and forwards actions to it.
+enum TextEditingFocus {
+    @MainActor static var isActive: Bool { NSApp.keyWindow?.firstResponder is NSText }
+
+    @MainActor static func send(_ action: String) {
+        NSApp.sendAction(Selector((action)), to: nil, from: nil)
+    }
+}
+
 enum AppearancePreference: String, CaseIterable, Identifiable {
     case dark, light, system
     var id: String { rawValue }
@@ -91,12 +100,15 @@ struct SiEDACommands: Commands {
             }
         }
         CommandGroup(replacing: .undoRedo) {
-            Button("Undo") { store.undo() }
-                .keyboardShortcut("z")
-                .disabled(!store.canUndo)
-            Button("Redo") { store.redo() }
-                .keyboardShortcut("z", modifiers: [.command, .shift])
-                .disabled(!store.canRedo)
+            // While a text field is being edited, ⌘Z/⇧⌘Z belong to the text, not to the design.
+            Button("Undo") {
+                if TextEditingFocus.isActive { TextEditingFocus.send("undo:") } else { store.undo() }
+            }
+            .keyboardShortcut("z")
+            Button("Redo") {
+                if TextEditingFocus.isActive { TextEditingFocus.send("redo:") } else { store.redo() }
+            }
+            .keyboardShortcut("z", modifiers: [.command, .shift])
         }
         CommandMenu("Design") {
             Button("Run Electrical Rule Check") { store.runERC(); store.workspace = .checks }
