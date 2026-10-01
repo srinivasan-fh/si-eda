@@ -678,6 +678,7 @@ final class LiveWindowTests: XCTestCase {
             if let step = progress.stalled(after: 30) {
                 print("[LiveWindow] HUNG for 30 s at: \(step)")
                 fflush(stdout)
+                Thread.sleep(forTimeInterval: 20)  // CI samples the process meanwhile (see ci.yml)
                 fatalError("Main thread stuck in layout at: \(step)")
             }
         }

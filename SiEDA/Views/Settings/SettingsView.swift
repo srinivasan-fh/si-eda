@@ -137,6 +137,10 @@ private struct AIModelSettings: View {
 
     private func test() {
         testState = .running
+        // Test the key as typed, saving it first (the provider reads the saved key).
+        if editingKind.requiresAPIKey, !keyDraft.isEmpty, keyDraft != settings.apiKey(for: editingKind) {
+            settings.setAPIKey(keyDraft, for: editingKind)
+        }
         let provider = settings.makeProvider(editingKind)
         Task { @MainActor in
             do {

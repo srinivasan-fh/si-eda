@@ -53,6 +53,15 @@ jobs:
       - name: Build and test
         run: |
           set -o pipefail
+          : > xcodebuild.log
+          # If the live-window test reports a hang, sample the stuck app so the log shows where the main thread is.
+          ( while sleep 2; do
+              if grep -q "\[LiveWindow\] HUNG" xcodebuild.log 2>/dev/null; then
+                pid=$(pgrep -x SiEDA | head -1)
+                [ -n "$pid" ] && sample "$pid" 4 -mayDie -file hang-sample.txt >/dev/null 2>&1
+                break
+              fi
+            done ) &
           xcodebuild -project SiEDA.xcodeproj -scheme SiEDA -configuration Debug \
             -destination 'platform=macOS' CODE_SIGN_IDENTITY=- \
             SWIFT_COMPILATION_MODE=wholemodule \
@@ -69,8 +78,17 @@ jobs:
           # (Whole-module compilation above makes the compiler report every type error in one run.)
           awk '{ gsub(/%/, "%25"); buf = buf $0 "%0A"; if (NR % 6 == 0) { print "::error title=xcodebuild::" buf; buf = "" } }
                END { if (buf != "") print "::error title=xcodebuild::" buf }' errors.txt
+      - name: Main-thread sample of a hang
+        if: failure()
+        run: |
+          [ -f hang-sample.txt ] || { echo "No hang sample."; exit 0; }
+          # The main thread's call tree (heaviest path first), then the most frequent top-of-stack frames.
+          awk '/^Call graph:/{on=1} on' hang-sample.txt | head -220
+          awk '/^Sort by top of stack/{on=1} on' hang-sample.txt | head -40
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: xcodebuild-log
-          path: xcodebuild.log
+          path: |
+            xcodebuild.log
+            hang-sample.txt

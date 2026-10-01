@@ -364,7 +364,9 @@ enum DatasheetSchema {
             s.refPrefix = (refPrefix?.isEmpty == false ? refPrefix : nil) ?? "U"
             s.defaultValue = (defaultValue?.isEmpty == false ? defaultValue : nil) ?? name
             s.datasheet = datasheet
-            s.package.type = (package.flatMap { PackageKind.guess($0.type) } ?? .soic).rawValue
+            // An exact enum value first ("HEADER2" contains no "2X", so guessing alone turns it into a 1×N header).
+            s.package.type = (package.flatMap { PackageKind(rawValue: $0.type.uppercased()) ?? PackageKind.guess($0.type) }
+                              ?? .soic).rawValue
             s.package.pinCount = package?.pinCount ?? 0
             s.pins = pins
             return s

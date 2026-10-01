@@ -38,7 +38,9 @@ struct ContentView: View {
         .alert(item: $store.alert) { item in
             Alert(title: Text(item.title), message: Text(item.message), dismissButton: .default(Text("OK")))
         }
-        .onAppear {
+        // After the first layout pass, not during it: writing published state while the sidebar table is being
+        // populated makes AppKit warn about reentrant table updates.
+        .task {
             store.aiEnabled = settings.aiEnabled
             if store.snapshot.components.isEmpty { store.workspace = store.startWorkspace }
         }
@@ -67,10 +69,15 @@ struct ContentView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
-            Button { store.undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward") }
+            // Like ⌘Z: while a text field is being edited, undo belongs to the text.
+            Button {
+                if TextEditingFocus.isActive { TextEditingFocus.send("undo:") } else { store.undo() }
+            } label: { Label("Undo", systemImage: "arrow.uturn.backward") }
                 .disabled(!store.canUndo)
                 .help("Undo (⌘Z)")
-            Button { store.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }
+            Button {
+                if TextEditingFocus.isActive { TextEditingFocus.send("redo:") } else { store.redo() }
+            } label: { Label("Redo", systemImage: "arrow.uturn.forward") }
                 .disabled(!store.canRedo)
                 .help("Redo (⇧⌘Z)")
         }
@@ -109,8 +116,8 @@ struct ContentView: View {
 
             Button {
                 store.runERC()
-                store.runDRC()
-                store.workspace = .checks
+                if !store.snapshot.pads.isEmpty { store.runDRC() }
+                store.showChecks(.rules)
             } label: { Label("Check", systemImage: "checkmark.seal") }
                 .help("Run ERC and DRC")
 
@@ -265,7 +272,7 @@ struct StatusBar: View {
     /// Last verification verdict; opens Design Checks.
     @ViewBuilder private var verificationLabel: some View {
         if let report = store.verificationReport {
-            Button { store.workspace = .checks } label: {
+            Button { store.showChecks(.verification) } label: {
                 Label(store.verificationIsStale ? "Verification out of date" : "Verification: \(report.verdict.title)",
                       systemImage: store.verificationIsStale ? "clock.arrow.circlepath" : report.verdict.systemImage)
             }

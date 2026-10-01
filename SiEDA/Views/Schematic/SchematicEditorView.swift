@@ -32,6 +32,8 @@ struct SchematicEditorView: View {
     @State private var viewport = Viewport(scale: 1.6, offset: CGSize(width: 260, height: 260))
     @State private var canvasSize: CGSize = .zero
     @State private var wireStart: String?
+    /// What P (and the "Place selected device" tool) arms: the device or custom part last chosen in the picker.
+    @State private var placementTool: SchematicTool = .place(.resistor)
 
     var body: some View {
         HStack(spacing: 0) {
@@ -43,13 +45,8 @@ struct SchematicEditorView: View {
                                 isActive: tool == .noConnect) { tool = .noConnect }
                 ToolStripDivider()
                 ToolStripButton(systemImage: "plus.square.on.square", help: "Place selected device (P)",
-                                isActive: {
-                                    switch tool {
-                                    case .place, .placeCustom: return true
-                                    default: return false
-                                    }
-                                }()) {
-                    tool = .place(pickerKind)
+                                isActive: tool == placementTool) {
+                    tool = placementTool
                 }
                 ToolStripButton(systemImage: "arrow.down.to.line", help: "Place ground (G)", isActive: tool == .place(.ground)) {
                     tool = .place(.ground)
@@ -77,15 +74,16 @@ struct SchematicEditorView: View {
 
             if showPicker {
                 DevicePicker(selected: $pickerKind, customParts: store.snapshot.customParts,
-                             onPickCustom: { tool = .placeCustom($0) },
+                             isPlacing: tool == .place(pickerKind),
+                             onPickCustom: { arm(.placeCustom($0)) },
                              onPickStandard: { part in
                                  guard let id = store.addStandardPartToLibrary(part) else { return nil }
-                                 tool = .placeCustom(id)
+                                 arm(.placeCustom(id))
                                  return id
                              },
                              onImport: { store.workspace = .library }) { kind in
                     pickerKind = kind
-                    tool = .place(kind)
+                    arm(.place(kind))
                 }
                 .frame(width: 220)
             }
@@ -113,7 +111,8 @@ struct SchematicEditorView: View {
                 }
 
                 ZStack(alignment: .bottomLeading) {
-                    SchematicCanvas(tool: $tool, viewport: $viewport, canvasSize: $canvasSize, wireStart: $wireStart)
+                    SchematicCanvas(tool: $tool, viewport: $viewport, canvasSize: $canvasSize, wireStart: $wireStart,
+                                    placementTool: placementTool)
                     if store.showNavigator, !store.snapshot.components.isEmpty {
                         navigator
                             .padding(12)
@@ -132,6 +131,7 @@ struct SchematicEditorView: View {
                                 BlueEmptyState(systemImage: "point.3.connected.trianglepath.dotted",
                                                title: "Empty schematic",
                                                message: "Pick a device on the left (or press P), click the canvas to place it, then click two pins to wire them. Or start from a reference design:")
+                                    .allowsHitTesting(false)  // clicks fall through to the canvas
                             }
                             Menu {
                                 ForEach(OfflineProvider.categories, id: \.self) { category in
@@ -152,6 +152,11 @@ struct SchematicEditorView: View {
             }
         }
         .background(Theme.navy)
+    }
+
+    private func arm(_ placement: SchematicTool) {
+        placementTool = placement
+        tool = placement
     }
 
     /// Contextual instruction for the active tool (Photoshop-style options bar hint).
@@ -182,6 +187,9 @@ struct SchematicEditorView: View {
 struct DevicePicker: View {
     @Binding var selected: ComponentKind
     var customParts: [CustomPartInfo] = []
+    /// Whether the highlighted built-in device is armed for placement. When it isn't, the list shows no selection so
+    /// clicking that same row arms it again (a List only reports clicks that change its selection).
+    var isPlacing = true
     var onPickCustom: (String) -> Void = { _ in }
     /// Adds a built-in standard part to the project library; returns its part id.
     var onPickStandard: (StandardPart) -> String? = { _ in nil }
@@ -223,7 +231,7 @@ struct DevicePicker: View {
             TextField("Search devices", text: $search)
                 .textFieldStyle(.blue)
                 .padding(8)
-            List(selection: Binding<ComponentKind?>(get: { selectedCustom == nil ? selected : nil },
+            List(selection: Binding<ComponentKind?>(get: { selectedCustom == nil && isPlacing ? selected : nil },
                                                     set: { if let k = $0 { selectedCustom = nil; onPick(k) } })) {
                 Section("Custom Parts") {
                     ForEach(filteredCustom) { part in

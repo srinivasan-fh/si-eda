@@ -4,22 +4,17 @@ import SwiftUI
 /// results (Altium "Messages" panel style).
 struct RuleCheckView: View {
     @EnvironmentObject private var store: DesignStore
-    @State private var mode: Mode = .verification
     @State private var filter: ViolationSeverity? = nil
 
-    enum Mode: String, CaseIterable, Identifiable {
-        case verification = "Verification"
-        case rules = "Rule Checks"
-        var id: String { rawValue }
-    }
+    private var mode: ChecksMode { store.checksMode }
 
     var body: some View {
         VStack(spacing: 0) {
             OptionsBar {
                 Image(systemName: "checkmark.seal").foregroundStyle(Theme.blue)
                 Text("Design Checks").fontWeight(.semibold).foregroundStyle(Theme.textPrimary)
-                Picker("Mode", selection: $mode) {
-                    ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+                Picker("Mode", selection: $store.checksMode) {
+                    ForEach(ChecksMode.allCases) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
@@ -69,7 +64,8 @@ struct RuleCheckView: View {
             }
         }
         .background(Theme.navy)
-        .onAppear {
+        // `.task` runs after the workspace switch has been laid out (publishing results during it is reentrant).
+        .task {
             if store.ercResults.isEmpty { store.runERC() }
             if store.validationResults.isEmpty, !store.snapshot.components.isEmpty { store.runValidation() }
             if store.drcResults.isEmpty, !store.snapshot.pads.isEmpty { store.runDRC() }

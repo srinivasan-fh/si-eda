@@ -49,6 +49,15 @@ final class EDAEngine: @unchecked Sendable {
         return String(cString: pointer)
     }
 
+    /// Decodes a core result; a `{"error": …}` reply or undecodable JSON becomes a failure with its message.
+    private static func decodeChecked<T: Decodable>(_ type: T.Type, from json: String?) -> Result<T, EDAEngineError> {
+        struct CoreError: Decodable { let error: String }
+        guard let json, let data = json.data(using: .utf8) else { return .failure(.operationFailed("no reply from the core")) }
+        if let value = try? JSONDecoder().decode(type, from: data) { return .success(value) }
+        if let failure = try? JSONDecoder().decode(CoreError.self, from: data) { return .failure(.operationFailed(failure.error)) }
+        return .failure(.operationFailed("unreadable reply from the core"))
+    }
+
     private static func decode<T: Decodable>(_ type: T.Type, from json: String?) -> T? {
         guard let json, let data = json.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(type, from: data)
@@ -277,7 +286,12 @@ final class EDAEngine: @unchecked Sendable {
     func fitBoard(margin: Double) -> Bool { withHandle { sieda_pcb_fit_board($0, margin) } == 1 }
 
     func autoRoute() -> RouteStats {
-        Self.decode(RouteStats.self, from: withHandle { Self.take(sieda_pcb_autoroute($0)) }) ?? RouteStats()
+        (try? autoRouteChecked().get()) ?? RouteStats()
+    }
+
+    /// Autoroutes, or reports the core's error message (instead of an empty "0/0 routed" result).
+    func autoRouteChecked() -> Result<RouteStats, EDAEngineError> {
+        Self.decodeChecked(RouteStats.self, from: withHandle { Self.take(sieda_pcb_autoroute($0)) })
     }
 
     func clearRouting() { withHandle { sieda_pcb_clear_routing($0) } }
@@ -330,7 +344,12 @@ final class EDAEngine: @unchecked Sendable {
     func clearZones() { withHandle { sieda_pcb_clear_zones($0) } }
 
     func runDRC() -> [RuleViolation] {
-        Self.decode([RuleViolation].self, from: withHandle { Self.take(sieda_pcb_run_drc($0)) }) ?? []
+        (try? runDRCChecked().get()) ?? []
+    }
+
+    /// Runs the DRC, or reports the core's error message (instead of an empty, "passed" result).
+    func runDRCChecked() -> Result<[RuleViolation], EDAEngineError> {
+        Self.decodeChecked([RuleViolation].self, from: withHandle { Self.take(sieda_pcb_run_drc($0)) })
     }
 
     // MARK: - Export & 3D
