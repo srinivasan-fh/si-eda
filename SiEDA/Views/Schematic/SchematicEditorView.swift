@@ -69,6 +69,11 @@ struct SchematicEditorView: View {
             if showPicker {
                 DevicePicker(selected: $pickerKind, customParts: store.snapshot.customParts,
                              onPickCustom: { tool = .placeCustom($0) },
+                             onPickStandard: { part in
+                                 guard let id = store.addStandardPartToLibrary(part) else { return nil }
+                                 tool = .placeCustom(id)
+                                 return id
+                             },
                              onImport: { store.workspace = .library }) { kind in
                     pickerKind = kind
                     tool = .place(kind)
@@ -114,8 +119,12 @@ struct SchematicEditorView: View {
                                                message: "Pick a device on the left (or press P), click the canvas to place it, then click two pins to wire them. Or start from a reference design:")
                             }
                             Menu {
-                                ForEach(OfflineProvider.templates, id: \.plan.title) { template in
-                                    Button(template.plan.title) { store.loadExample(template.plan) }
+                                ForEach(OfflineProvider.categories, id: \.self) { category in
+                                    Section(category) {
+                                        ForEach(OfflineProvider.examples(in: category), id: \.plan.title) { template in
+                                            Button(template.plan.title) { store.loadExample(template.plan) }
+                                        }
+                                    }
                                 }
                             } label: {
                                 Label("Load Example Design", systemImage: "square.grid.2x2")
@@ -151,6 +160,8 @@ struct DevicePicker: View {
     @Binding var selected: ComponentKind
     var customParts: [CustomPartInfo] = []
     var onPickCustom: (String) -> Void = { _ in }
+    /// Adds a built-in standard part to the project library; returns its part id.
+    var onPickStandard: (StandardPart) -> String? = { _ in nil }
     var onImport: () -> Void = {}
     var onPick: (ComponentKind) -> Void
     @State private var search = ""
@@ -164,6 +175,17 @@ struct DevicePicker: View {
     private var filteredCustom: [CustomPartInfo] {
         let q = search.lowercased()
         return customParts.filter { q.isEmpty || $0.name.lowercased().contains(q) || $0.description.lowercased().contains(q) }
+    }
+
+    /// Standard parts not yet in the project library (those already added show under Custom Parts).
+    private var filteredStandard: [StandardPart] {
+        let q = search.lowercased()
+        let inLibrary = Set(customParts.map(\.name))
+        return StandardLibrary.parts.filter { part in
+            !inLibrary.contains(part.spec.name)
+                && (q.isEmpty || part.spec.name.lowercased().contains(q) || part.spec.description.lowercased().contains(q)
+                    || part.category.lowercased().contains(q))
+        }
     }
 
     var body: some View {
@@ -203,6 +225,26 @@ struct DevicePicker: View {
                     }
                     .buttonStyle(.borderless)
                     .foregroundStyle(Theme.lightBlue)
+                }
+                if !filteredStandard.isEmpty {
+                    Section("Standard Parts") {
+                        ForEach(filteredStandard) { part in
+                            HStack {
+                                Image(systemName: "cpu").foregroundStyle(Theme.lightBlue)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(part.spec.name).foregroundStyle(Theme.textPrimary)
+                                    Text("\(part.category) · \(part.packageSummary)").font(.caption2).foregroundStyle(Theme.textMuted)
+                                }
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .padding(.vertical, 1)
+                            .help(part.spec.description)
+                            .onTapGesture {
+                                if let id = onPickStandard(part) { selectedCustom = id }
+                            }
+                        }
+                    }
                 }
                 ForEach(["Passives", "Semiconductors", "Power & Nets", "Electromechanical"], id: \.self) { category in
                     let items = filtered.filter { $0.category == category }

@@ -1,0 +1,134 @@
+import Foundation
+
+// Built-in standards exposed by the core: standard parts, E-series values, PCB design-rule presets and the
+// design verification report.
+
+/// Core standards, loaded once (they are compiled into the core and never change at run time).
+enum StandardLibrary {
+    static let parts: [StandardPart] = EDAEngine.standardParts()
+    static let rulePresets: [DesignRulePreset] = EDAEngine.designRulePresets()
+}
+
+/// IEC 60063 preferred-number series (raw value = values per decade, as `sieda_nearest_standard_value` expects).
+enum ESeries: Int, CaseIterable, Identifiable {
+    case e12 = 12
+    case e24 = 24
+    case e96 = 96
+
+    var id: Int { rawValue }
+    var title: String { "E\(rawValue)" }
+    var tolerance: String {
+        switch self {
+        case .e12: return "±10 %"
+        case .e24: return "±5 %"
+        case .e96: return "±1 %"
+        }
+    }
+
+    func nearest(_ value: Double) -> Double { EDAEngine.nearestStandardValue(value, series: self) }
+    func contains(_ value: Double) -> Bool { EDAEngine.isStandardValue(value, series: self) }
+
+    /// Series a component kind's values are normally chosen from.
+    static func preferred(for kind: ComponentKind) -> [ESeries] {
+        switch kind {
+        case .resistor: return [.e24, .e96]
+        case .capacitor, .inductor: return [.e12, .e24]
+        default: return []
+        }
+    }
+}
+
+/// A part from the core's built-in standard library (NE555, LM7805, LM358, ATmega328P, …).
+struct StandardPart: Decodable, Equatable, Identifiable {
+    var category: String
+    var spec: CustomPartSpec
+    var id: String { spec.name }
+
+    /// "U1 · DIP-8 · 8 pins"
+    var packageSummary: String { "\(spec.package.type)-\(spec.package.pinCount) · \(spec.pins.count) pins" }
+}
+
+/// Named design-rule set (design values and fabrication minimums, millimetres).
+struct DesignRulePreset: Decodable, Equatable, Identifiable, Hashable {
+    var name: String
+    var description: String
+    var trackWidth: Double
+    var clearance: Double
+    var viaDrill: Double
+    var viaDiameter: Double
+    var edgeClearance: Double
+    var minTrackWidth: Double
+    var minClearance: Double
+    var minDrill: Double
+    var minAnnularRing: Double
+    var minHoleToHole: Double
+    var id: String { name }
+}
+
+// MARK: - Verification
+
+enum VerificationStatus: String, Decodable {
+    case pass, warning, fail, skipped
+
+    var title: String {
+        switch self {
+        case .pass: return "Pass"
+        case .warning: return "Pass with warnings"
+        case .fail: return "Fail"
+        case .skipped: return "Skipped"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .pass: return "checkmark.seal.fill"
+        case .warning: return "exclamationmark.triangle.fill"
+        case .fail: return "xmark.octagon.fill"
+        case .skipped: return "minus.circle"
+        }
+    }
+}
+
+struct VerificationStage: Decodable, Equatable, Identifiable {
+    var id: String
+    var title: String
+    var status: VerificationStatus
+    var summary: String
+    var details: [String]
+    var findings: [RuleViolation]
+
+    var systemImage: String {
+        switch id {
+        case "erc": return "bolt.shield"
+        case "simulation": return "waveform.path.ecg"
+        case "validation": return "checklist"
+        case "placement": return "square.on.square.dashed"
+        case "routing": return "point.topleft.down.to.point.bottomright.curvepath"
+        case "drc": return "square.grid.3x3.square"
+        case "manufacturing": return "shippingbox"
+        default: return "checkmark.circle"
+        }
+    }
+
+    /// Editor that shows the parts a finding refers to.
+    var workspace: Workspace {
+        switch id {
+        case "erc", "validation": return .schematic
+        case "simulation": return .simulation
+        default: return .pcb
+        }
+    }
+}
+
+struct VerificationReport: Decodable, Equatable {
+    var project: String
+    var rulePreset: String
+    var layerCount: Int
+    var verdict: VerificationStatus
+    var passed: Bool
+    var errors: Int
+    var warnings: Int
+    var infos: Int
+    var stages: [VerificationStage]
+    var markdown: String
+}

@@ -108,7 +108,7 @@ struct ContentView: View {
             } label: { Label("Simulate", systemImage: "play.circle") }
                 .help("DC operating point (⇧⌘D)")
 
-            Button { store.exportFabricationPackage() } label: {
+            Button { Task { await store.exportFabricationPackage() } } label: {
                 Label("Export", systemImage: "shippingbox")
             }
             .help("Export fabrication package (⇧⌘E)")
@@ -209,12 +209,14 @@ struct StatusBar: View {
                     netsLabel
                     boardLabel
                     Label("\(store.snapshot.tracks.count) tracks · \(store.snapshot.vias.count) vias", systemImage: "line.diagonal")
+                    verificationLabel
                     modeLabel
                     Text("Core \(EDAEngine.coreVersion)").foregroundStyle(Theme.textMuted)
                 }
                 HStack(spacing: 12) {
                     partsLabel
                     boardLabel
+                    verificationLabel
                     modeLabel
                 }
                 modeLabel
@@ -244,6 +246,19 @@ struct StatusBar: View {
         Label(String(format: "%.0f × %.0f mm · %dL", store.snapshot.board.width, store.snapshot.board.height,
                      store.snapshot.board.layerCount), systemImage: "square.dashed")
             .lineLimit(1)
+    }
+
+    /// Last verification verdict; opens Design Checks.
+    @ViewBuilder private var verificationLabel: some View {
+        if let report = store.verificationReport {
+            Button { store.workspace = .checks } label: {
+                Label(store.verificationIsStale ? "Verification out of date" : "Verification: \(report.verdict.title)",
+                      systemImage: store.verificationIsStale ? "clock.arrow.circlepath" : report.verdict.systemImage)
+            }
+            .buttonStyle(.plain)
+            .lineLimit(1)
+            .help("Open the design verification report")
+        }
     }
 
     private var modeLabel: some View {

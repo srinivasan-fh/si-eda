@@ -24,6 +24,19 @@ struct BoardSettings {
     double routingGrid = 0.25;
     int layerCount = 2;  // 1 (single-sided), 2, 4 or 6 copper layers
 
+    // Fabrication limits (DRC errors below these) — set together with the design values by a rule preset.
+    std::string rulePreset = "IPC-2221 Class 2";
+    double minTrackWidth = 0.15;
+    double minClearance = 0.15;
+    double minDrill = 0.2;
+    double minAnnularRing = 0.1;
+    double minHoleToHole = 0.25;
+    double copperWeightOz = 1.0;  // outer layers; inner layers use the same weight
+    double maxTempRise = 10.0;    // °C, IPC-2221 current-capacity target
+
+    /// Applies a named preset from designRulePresets(); returns false if the name is unknown.
+    bool applyPreset(const std::string& name);
+
     int bottomLayer() const { return layerCount > 1 ? layerCount - 1 : 0; }
     static int normalizeLayerCount(int n) {
         if (n <= 1) return 1;
@@ -32,6 +45,18 @@ struct BoardSettings {
         return 6;
     }
 };
+
+/// Standard design-rule sets (design values + fabrication minimums), in millimetres.
+struct DesignRulePreset {
+    std::string name;
+    std::string description;
+    double trackWidth, clearance, viaDrill, viaDiameter, edgeClearance;
+    double minTrackWidth, minClearance, minDrill, minAnnularRing, minHoleToHole;
+};
+const std::vector<DesignRulePreset>& designRulePresets();
+
+/// IPC-2221 minimum track width (mm) for `amps` at `tempRise` °C with `oz` copper; inner layers derate by 2×.
+double ipc2221TrackWidth(double amps, double tempRise, double oz, bool innerLayer);
 
 /// Human-readable copper layer name ("Top", "Inner 1", "Bottom").
 std::string copperLayerName(int layer, int layerCount);

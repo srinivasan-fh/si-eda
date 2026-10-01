@@ -8,20 +8,50 @@ enum AgentPrompts {
         }.joined(separator: "\n")
     }
 
-    /// Project library parts, addressed as kind "custom:<NAME>" with pins referenced by datasheet number.
-    static func customCatalog(_ parts: [CustomPartInfo]) -> String {
-        guard !parts.isEmpty else { return "" }
-        let lines = parts.map { part in
-            let pins = part.symbol.pins.map { "\($0.number)=\($0.name)(\($0.type))" }.joined(separator: ", ")
-            return "- \(part.planKind): \(part.description.isEmpty ? part.name : part.description), "
-                + "\(part.footprint) package. Pins (number=name(type)): \(pins)."
-        }
-        return """
+    /// Built-in standard parts that are not already in the project library.
+    static func standardPartsOutsideLibrary(_ parts: [CustomPartInfo]) -> [StandardPart] {
+        let names = Set(parts.map { $0.name.lowercased() })
+        return StandardLibrary.parts.filter { !names.contains($0.spec.name.lowercased()) }
+    }
 
-        Custom parts from the user's component library (imported from datasheets). Use them when they fit the \
-        brief; reference their pins by NUMBER (e.g. "U1.8"), connect every power_in pin, and leave no_connect pins open:
-        \(lines.joined(separator: "\n"))
-        """
+    /// Every "custom:<NAME>" kind a plan may use: project library parts plus the standard parts.
+    static func customPlanKinds(_ parts: [CustomPartInfo]) -> [String] {
+        parts.map(\.planKind) + standardPartsOutsideLibrary(parts).map { "custom:\($0.spec.name)" }
+    }
+
+    /// Project library and standard parts, addressed as kind "custom:<NAME>" with pins referenced by number.
+    static func customCatalog(_ parts: [CustomPartInfo]) -> String {
+        var text = ""
+        if !parts.isEmpty {
+            let lines = parts.map { part in
+                let pins = part.symbol.pins.map { "\($0.number)=\($0.name)(\($0.type))" }.joined(separator: ", ")
+                return "- \(part.planKind): \(part.description.isEmpty ? part.name : part.description), "
+                    + "\(part.footprint) package. Pins (number=name(type)): \(pins)."
+            }
+            text += """
+
+            Custom parts from the user's component library (imported from datasheets). Use them when they fit the \
+            brief; reference their pins by NUMBER (e.g. "U1.8"), connect every power_in pin, and leave no_connect pins open:
+            \(lines.joined(separator: "\n"))
+            """
+        }
+        let standard = standardPartsOutsideLibrary(parts)
+        if !standard.isEmpty {
+            let lines = standard.map { part in
+                let pins = part.spec.pins.map { "\($0.number)=\($0.name)(\($0.type.rawValue))" }.joined(separator: ", ")
+                return "- custom:\(part.spec.name) [\(part.category)]: \(part.spec.description), "
+                    + "\(part.spec.package.type)-\(part.spec.package.pinCount). Pins: \(pins)."
+            }
+            text += """
+
+            Standard parts built into SiEDA (no simulation model: prefer the simulated built-in kinds above for \
+            analogue behaviour, and use these when the brief names the part or needs a regulator, timer, MCU, logic \
+            or driver IC). Reference pins by NUMBER, connect every power_in pin and add a 100n decoupling capacitor \
+            from each IC supply pin to ground:
+            \(lines.joined(separator: "\n"))
+            """
+        }
+        return text
     }
 
     static let analystSystem = """
@@ -89,7 +119,7 @@ enum AgentPrompts {
 
                   Design the complete circuit as a design plan.
                   """,
-                  schemaName: "design_plan", schema: DesignSchemas.designPlanSchema(customKinds: customParts.map(\.planKind)))
+                  schemaName: "design_plan", schema: DesignSchemas.designPlanSchema(customKinds: customPlanKinds(customParts)))
     }
 
     static func refineRequest(instruction: String, current: DesignPlan, requirements: String,
@@ -111,7 +141,7 @@ enum AgentPrompts {
                   Apply the change request and return the COMPLETE updated design plan. Keep reference designators \
                   and positions of parts that do not need to change.
                   """,
-                  schemaName: "design_plan", schema: DesignSchemas.designPlanSchema(customKinds: customParts.map(\.planKind)))
+                  schemaName: "design_plan", schema: DesignSchemas.designPlanSchema(customKinds: customPlanKinds(customParts)))
     }
 
     static func reviewRequest(spec: RequirementsSpec?, brief: String, plan: DesignPlan, erc: [RuleViolation],
@@ -156,6 +186,6 @@ enum AgentPrompts {
 
                          Review the design.
                          """,
-                         schemaName: "design_review", schema: DesignSchemas.reviewSchema(customKinds: customParts.map(\.planKind)))
+                         schemaName: "design_review", schema: DesignSchemas.reviewSchema(customKinds: customPlanKinds(customParts)))
     }
 }

@@ -247,14 +247,20 @@ enum DesignPlanCompiler {
         for (index, item) in plan.components.enumerated() {
             if item.kind.lowercased().hasPrefix("custom:") {
                 let name = String(item.kind.dropFirst("custom:".count)).trimmingCharacters(in: .whitespaces)
-                guard let part = library.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) else {
+                var partId = library.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame })?.id
+                if partId == nil,
+                   let standard = StandardLibrary.parts.first(where: { $0.spec.name.caseInsensitiveCompare(name) == .orderedSame }) {
+                    // Built-in standard part (LM7805, NE555, …): add it to the project library on first use.
+                    partId = try? engine.registerCustomPart(standard.spec).id
+                }
+                guard let partId else {
                     report.warnings.append("Skipped \(item.ref): '\(name)' is not in the component library.")
                     continue
                 }
                 var ref = item.ref.trimmingCharacters(in: .whitespaces)
                 if seenRefs.contains(ref) { ref = "" }
                 let rotation = ((item.rotation % 360) + 360) % 360 / 90 * 90
-                let id = engine.addCustomComponent(partId: part.id, value: item.value.isEmpty ? nil : item.value,
+                let id = engine.addCustomComponent(partId: partId, value: item.value.isEmpty ? nil : item.value,
                                                    at: positions[index], rotation: rotation, ref: ref.isEmpty ? nil : ref)
                 if id >= 0 {
                     report.componentsAdded += 1

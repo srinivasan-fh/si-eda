@@ -30,6 +30,12 @@ struct PromptStudioView: View {
                 prompt: "First-order RC low-pass filter with a cutoff near 1.6 kHz for a 1 kHz test signal."),
         Example(title: "Reference divider", icon: "divide",
                 prompt: "Derive a 6 V reference from a 12 V supply with a resistive divider and expose it as VOUT."),
+        Example(title: "5 V regulator", icon: "bolt.batteryblock",
+                prompt: "Regulate a 12 V input down to a 5 V rail with an LM7805, datasheet input/output capacitors and a power-good LED."),
+        Example(title: "555 blinker", icon: "timer",
+                prompt: "Blink a red LED at about 1.5 Hz with an NE555 astable timer from 5 V; decouple VCC and the CONT pin."),
+        Example(title: "Sensor bridge", icon: "scalemass",
+                prompt: "A 5 V excited Wheatstone bridge for a 1 kΩ strain gauge, with VA and VB outputs for an instrumentation amplifier."),
     ]
 
     var body: some View {

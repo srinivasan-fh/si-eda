@@ -113,6 +113,25 @@ struct PCBEditorView: View {
                     .pickerStyle(.segmented)
                     .frame(width: 150)
                     .help("Copper layers: 1 = single-sided (no vias), 2, 4 or 6-layer stack-up")
+                    Menu {
+                        ForEach(StandardLibrary.rulePresets) { preset in
+                            Button {
+                                store.applyRulePreset(preset)
+                            } label: {
+                                if preset.name == store.snapshot.board.rulePreset {
+                                    Label(preset.name, systemImage: "checkmark")
+                                } else {
+                                    Text(preset.name)
+                                }
+                            }
+                            .help(preset.description)
+                        }
+                    } label: {
+                        Label(store.snapshot.board.rulePreset, systemImage: "ruler")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces")
                     Divider().frame(height: 18)
                     HStack(spacing: 10) {
                         ruleField("Board W", $boardWidth, unit: "mm")

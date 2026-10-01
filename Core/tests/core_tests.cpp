@@ -13,6 +13,9 @@
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/Simulator.hpp"
+#include "sieda/StandardParts.hpp"
+#include "sieda/Validation.hpp"
+#include "sieda/Verification.hpp"
 #include "sieda/Units.hpp"
 
 extern "C" int sieda_c_api_smoke_test(void);
@@ -587,6 +590,22 @@ TEST(pcb_dense_board_uses_inner_layers) {
     CHECK(four.routed >= two.routed);
 }
 
+TEST(pcb_router_keeps_vias_out_of_smd_pads) {
+    // Dense SMD board: every via the router drops must sit outside SMD pads (no DRC_VIA_IN_PAD).
+    for (int layers : {2, 4, 6}) {
+        Project p = amplifierProject();
+        p.pcb.settings.layerCount = layers;
+        p.pcb.settings.width = 22;
+        p.pcb.settings.height = 16;
+        p.pcb.autoPlace(p.schematic, true);
+        RouteStats st = p.pcb.autoRoute(p.schematic);
+        int viaInPad = 0;
+        for (const auto& v : p.pcb.runDRC(p.schematic)) viaInPad += v.code == "DRC_VIA_IN_PAD";
+        std::printf("    %d layers: %d/%d routed, %d vias, %d via-in-pad\n", layers, st.routed, st.connections, st.vias, viaInPad);
+        CHECK(viaInPad == 0);
+    }
+}
+
 namespace {
 CustomPartSpec ne555Spec(const std::string& package) {
     CustomPartSpec s;
@@ -720,7 +739,253 @@ TEST(custom_part_in_design) {
     CHECK(p.removeCustomPart(id));
 }
 
+TEST(standard_values_and_parts) {
+    CHECK_NEAR(nearestStandardValue(4800, ESeries::E24), 4700, 1e-9);
+    CHECK_NEAR(nearestStandardValue(9.6e-9, ESeries::E12), 10e-9, 1e-18);   // rolls into the next decade
+    CHECK_NEAR(nearestStandardValue(330, ESeries::E12), 330, 1e-9);
+    CHECK_NEAR(nearestStandardValue(4990, ESeries::E96), 4990, 1e-9);
+    CHECK(isStandardValue(4700, ESeries::E24));
+    CHECK(isStandardValue(1e5, ESeries::E12));
+    CHECK(!isStandardValue(4800, ESeries::E24));
+    CHECK(!isStandardValue(-1, ESeries::E24));
+
+    CHECK(standardParts().size() >= 12);
+    CHECK(findStandardPart("ne555") != nullptr);
+    CHECK(findStandardPart("does-not-exist") == nullptr);
+    for (const auto& sp : standardParts()) {
+        auto part = CustomPartRegistry::instance().registerPart(sp.spec);
+        CHECK(part->footprint.pads.size() >= sp.spec.pins.size());
+        // Every package pad maps to a pin (no anonymous pads on the standard parts).
+        for (const auto& pad : part->footprint.pads) CHECK(pad.pinIndex >= 0);
+    }
+    const StandardPart* mega = findStandardPart("ATmega328P");
+    CHECK(mega && mega->spec.pins.size() == 28 && mega->spec.pins[6].name == "VCC");
+}
+
+namespace {
+bool hasCode(const std::vector<RuleViolation>& list, const std::string& code) {
+    return std::any_of(list.begin(), list.end(), [&](const RuleViolation& v) { return v.code == code; });
+}
+
+/// V1 (+) → R → device pin A, device pin B → GND.
+Schematic seriesCircuit(const char* volts, const char* ohms, ComponentKind kind, const char* value, bool reversed = false) {
+    Schematic s;
+    int v = s.addComponent(ComponentKind::VoltageSource, volts, {0, 0});
+    int r = s.addComponent(ComponentKind::Resistor, ohms, {100, 0});
+    int d = s.addComponent(kind, value, {200, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    s.connect({v, 0}, {r, 0});
+    s.connect({r, 1}, {d, reversed ? 1 : 0});
+    s.connect({d, reversed ? 0 : 1}, {g, 0});
+    s.connect({v, 1}, {g, 0});
+    return s;
+}
+}  // namespace
+
+TEST(circuit_validation_rules) {
+    // Clean indicator: no warnings.
+    Project ok = ledProject();
+    for (const auto& v : validateCircuit(ok.schematic)) CHECK(v.severity == Severity::Info);
+
+    CHECK(hasCode(validateCircuit(seriesCircuit("5", "4.8k", ComponentKind::LED, "Red")), "VAL_NONSTANDARD_VALUE"));
+    CHECK(!hasCode(validateCircuit(seriesCircuit("5", "4.7k", ComponentKind::LED, "Red")), "VAL_NONSTANDARD_VALUE"));
+    CHECK(!hasCode(validateCircuit(seriesCircuit("5", "4.99k", ComponentKind::LED, "Red")), "VAL_NONSTANDARD_VALUE"));  // E96
+    CHECK(hasCode(validateCircuit(seriesCircuit("5", "47", ComponentKind::LED, "Red")), "VAL_LED_CURRENT"));
+    CHECK(hasCode(validateCircuit(seriesCircuit("5", "330", ComponentKind::LED, "Red", true)), "VAL_REVERSE_BIAS"));
+    auto heavy = validateCircuit(seriesCircuit("12", "100", ComponentKind::Resistor, "100"));
+    CHECK(hasCode(heavy, "VAL_RESISTOR_POWER"));
+    auto shorted = validateCircuit(seriesCircuit("5", "1", ComponentKind::Resistor, "1"));
+    CHECK(hasCode(shorted, "VAL_SUPPLY_CURRENT"));
+    CHECK(hasCode(validateCircuit(seriesCircuit("12", "10", ComponentKind::Fuse, "100m")), "VAL_FUSE_OVERLOAD"));
+    CHECK(hasCode(validateCircuit(seriesCircuit("5", "1", ComponentKind::Diode, "1N4148")), "VAL_DIODE_CURRENT"));
+
+    // Saturated op-amp: gain of 1000 on a 1 V input.
+    Schematic s;
+    int vin = s.addComponent(ComponentKind::VoltageSource, "1", {0, 0});
+    int u = s.addComponent(ComponentKind::OpAmp, "LM358", {100, 0});
+    int rf = s.addComponent(ComponentKind::Resistor, "1M", {150, -60});
+    int rg = s.addComponent(ComponentKind::Resistor, "1k", {50, -60});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    s.connect({vin, 0}, {u, 0});
+    s.connect({vin, 1}, {g, 0});
+    s.connect({u, 2}, {rf, 1});
+    s.connect({rf, 0}, {u, 1});
+    s.connect({rg, 1}, {u, 1});
+    s.connect({rg, 0}, {g, 0});
+    CHECK(hasCode(validateCircuit(s), "VAL_OPAMP_SATURATED"));
+
+    // Decoupling on a standard IC's supply rail.
+    Project p;
+    std::string id = p.addCustomPart(findStandardPart("NE555")->spec);
+    auto& sch = p.schematic;
+    int timer = sch.addCustomComponent(id, "", {200, 0});
+    int v = sch.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int gnd = sch.addComponent(ComponentKind::Ground, "", {0, 80});
+    sch.connect({v, 0}, {timer, sch.pinIndex(timer, "8")});
+    sch.connect({v, 1}, {gnd, 0});
+    sch.connect({timer, sch.pinIndex(timer, "1")}, {gnd, 0});
+    CHECK(hasCode(validateCircuit(sch), "VAL_NO_DECOUPLING"));
+    int c = sch.addComponent(ComponentKind::Capacitor, "100n", {260, 0});
+    sch.connect({c, 0}, {timer, sch.pinIndex(timer, "8")});
+    sch.connect({c, 1}, {gnd, 0});
+    CHECK(!hasCode(validateCircuit(sch), "VAL_NO_DECOUPLING"));
+}
+
+TEST(pcb_rule_presets_and_manufacturability_checks) {
+    Project p = ledProject();
+    CHECK(designRulePresets().size() == 5);
+    CHECK(p.pcb.settings.applyPreset("Prototype (Conservative)"));
+    CHECK_NEAR(p.pcb.settings.trackWidth, 0.30, 1e-9);
+    CHECK(!p.pcb.settings.applyPreset("nope"));
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    std::string first;
+    CHECK(drcErrors(p, &first) == 0);
+    if (!first.empty()) std::printf("    first DRC error: %s\n", first.c_str());
+
+    // Persisted with the project.
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.pcb.settings.rulePreset == "Prototype (Conservative)");
+    CHECK_NEAR(q.pcb.settings.minHoleToHole, 0.50, 1e-9);
+
+    auto codes = [](const Project& pr) {
+        std::vector<std::string> v;
+        for (const auto& e : pr.pcb.runDRC(pr.schematic)) v.push_back(e.code);
+        return v;
+    };
+    auto has = [](const std::vector<std::string>& v, const char* c) { return std::find(v.begin(), v.end(), c) != v.end(); };
+
+    // Thin track, tiny drill, thin annular ring, crowded holes, stub, acute join, via in pad.
+    Project bad = p;
+    int net = bad.pcb.tracks.front().net;
+    Track thin = bad.pcb.tracks.front();
+    thin.width = 0.08;
+    bad.pcb.addTrack(thin);
+    Via v1;
+    v1.net = net;
+    v1.position = {3, 3};
+    v1.drill = 0.1;
+    v1.diameter = 0.25;
+    bad.pcb.addVia(v1);
+    Via v2 = v1;
+    v2.position = {3.3, 3};
+    v2.drill = 0.3;
+    v2.diameter = 0.6;
+    bad.pcb.addVia(v2);
+    Track stub;
+    stub.net = net;
+    stub.layer = 0;
+    stub.width = 0.25;
+    stub.a = {2, 8};
+    stub.b = {6, 8};
+    bad.pcb.addTrack(stub);
+    Track acute = stub;
+    acute.a = {6, 8};
+    acute.b = {2, 9};
+    bad.pcb.addTrack(acute);
+    auto pads = bad.pcb.pads(bad.schematic);
+    for (const auto& pad : pads)
+        if (!pad.throughHole && pad.net >= 0) {
+            Via inPad;
+            inPad.net = pad.net;
+            inPad.position = pad.position;
+            bad.pcb.addVia(inPad);
+            break;
+        }
+    auto c = codes(bad);
+    CHECK(has(c, "DRC_TRACK_WIDTH"));
+    CHECK(has(c, "DRC_DRILL_SIZE"));
+    CHECK(has(c, "DRC_ANNULAR_RING"));
+    CHECK(has(c, "DRC_HOLE_SPACING"));
+    CHECK(has(c, "DRC_DANGLING_TRACK"));
+    CHECK(has(c, "DRC_ACUTE_ANGLE"));
+    CHECK(has(c, "DRC_VIA_IN_PAD"));
+
+    // IPC-2221: ~1 A on 0.3 mm outer track at 10 °C rise needs ≈0.3 mm; 3 A needs far more.
+    CHECK(ipc2221TrackWidth(1.0, 10, 1, false) > 0.25 && ipc2221TrackWidth(1.0, 10, 1, false) < 0.40);
+    CHECK(ipc2221TrackWidth(1.0, 10, 1, true) > ipc2221TrackWidth(1.0, 10, 1, false));
+    Project power = ledProject();
+    power.schematic.setValue(power.schematic.findByRef("R1")->id, "1");  // ~3 A through a 0.3 mm track
+    power.schematicChanged();
+    power.pcb.settings.applyPreset("Prototype (Conservative)");
+    power.pcb.autoPlace(power.schematic, true);
+    power.pcb.autoRoute(power.schematic);
+    CHECK(has(codes(power), "DRC_TRACK_CURRENT"));
+
+    // Graded clearance: between the fab minimum and the design rule is a warning, not an error.
+    Project graded = ledProject();
+    graded.pcb.autoPlace(graded.schematic, true);
+    graded.pcb.autoRoute(graded.schematic);
+    graded.pcb.settings.clearance = 5.0;  // absurd design rule, fab minimum unchanged
+    auto gv = graded.pcb.runDRC(graded.schematic);
+    CHECK(std::any_of(gv.begin(), gv.end(), [](const RuleViolation& v) { return v.code == "DRC_CLEARANCE_RULE"; }));
+    CHECK(std::none_of(gv.begin(), gv.end(), [](const RuleViolation& v) { return v.code == "DRC_CLEARANCE"; }));
+}
+
 // ======================================================================= persistence & exports
+
+TEST(design_verification_pipeline) {
+    auto stage = [](const VerificationReport& r, const char* id) -> const VerificationStage* {
+        for (const auto& s : r.stages)
+            if (s.id == id) return &s;
+        return nullptr;
+    };
+
+    // Empty design fails at ERC; later stages are skipped.
+    VerificationReport empty = verifyDesign(Project{});
+    CHECK(empty.verdict == StageStatus::Fail);
+    CHECK(empty.stages.size() == 7);
+    CHECK(stage(empty, "routing")->status == StageStatus::Skipped);
+
+    // Schematic only: no placement yet.
+    Project p = ledProject();
+    for (const auto& c : p.schematic.components()) p.schematic.find(c.id)->pcb.placed = false;
+    p.pcb.clearRouting();
+    VerificationReport unplaced = verifyDesign(p);
+    CHECK(stage(unplaced, "erc")->status != StageStatus::Fail);
+    CHECK(stage(unplaced, "simulation")->status == StageStatus::Pass);
+    CHECK(stage(unplaced, "placement")->status == StageStatus::Fail);
+    CHECK(!unplaced.passed());
+
+    // Placed but not routed.
+    p.pcb.autoPlace(p.schematic, true);
+    VerificationReport unrouted = verifyDesign(p);
+    CHECK(stage(unrouted, "placement")->status == StageStatus::Pass);
+    CHECK(stage(unrouted, "routing")->status == StageStatus::Fail);
+    CHECK(unrouted.verdict == StageStatus::Fail);
+
+    // Fully routed: every stage passes and every manufacturing file is checked.
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    VerificationReport done = verifyDesign(p);
+    for (const auto& s : done.stages)
+        if (s.status == StageStatus::Fail) std::printf("    stage %s failed: %s\n", s.id.c_str(), s.summary.c_str());
+    CHECK(done.passed());
+    CHECK(done.errors == 0);
+    const VerificationStage* mfg = stage(done, "manufacturing");
+    CHECK(mfg && mfg->status == StageStatus::Pass);
+    CHECK(mfg && mfg->details.size() == static_cast<size_t>(p.pcb.settings.layerCount + 4 + 4));
+    std::string md = done.toMarkdown();
+    CHECK(md.find("# Design Verification Report") != std::string::npos);
+    CHECK(md.find("| Routing Completion | PASS |") != std::string::npos);
+    Json j = Json::parse(done.toJson().dump());
+    CHECK(j["verdict"].asString() == stageStatusName(done.verdict));
+    CHECK(j["stages"].size() == 7);
+
+    // Four layers: one copper Gerber per layer is verified.
+    p.pcb.settings.layerCount = 4;
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    VerificationReport four = verifyDesign(p);
+    CHECK(stage(four, "manufacturing")->details.size() == 12);
+    CHECK(four.passed());
+
+    // An overloaded resistor fails circuit validation and therefore the design.
+    Project hot = p;
+    for (const auto& c : p.schematic.components())
+        if (c.kind == ComponentKind::Resistor) hot.schematic.setValue(c.id, "10");
+    VerificationReport overloaded = verifyDesign(hot);
+    CHECK(stage(overloaded, "validation")->status == StageStatus::Fail);
+    CHECK(!overloaded.passed());
+}
 
 TEST(project_json_roundtrip) {
     Project p = amplifierProject();

@@ -68,9 +68,23 @@ int32_t sieda_custom_part_replace(SiedaProject* project, const char* old_id, con
 int32_t sieda_add_custom_component(SiedaProject* project, const char* part_id, const char* value, double x, double y,
                                    int32_t rotation, const char* ref);
 char* sieda_packages_json(void);
+/* Built-in standard parts: [{"category": "...", "spec": {<spec_json as above>}}, ...] */
+char* sieda_standard_parts_json(void);
+
+/* ---- standard values --------------------------------------------------------------------- */
+/* Nearest IEC 60063 value; series = 12, 24 or 96. */
+double sieda_nearest_standard_value(double value, int32_t series);
+int32_t sieda_is_standard_value(double value, int32_t series);
+/* Parses an engineering value ("4k7", "100nF", "2.2M"); returns 1 and writes *out on success, else 0. */
+int32_t sieda_parse_value(const char* text, double* out);
 
 /* ---- analysis ------------------------------------------------------------------------------ */
 char* sieda_run_erc(const SiedaProject* project);
+/* Basic circuit validation: E-series values, decoupling, DC-derived part ratings (VAL_* codes). */
+char* sieda_run_circuit_validation(const SiedaProject* project);
+/* Full design verification (ERC, DC, validation, placement, routing, DRC, manufacturing outputs):
+   {"verdict":"pass|warning|fail","passed","errors","warnings","infos","stages":[...],"markdown"}. */
+char* sieda_run_verification(const SiedaProject* project);
 char* sieda_simulate_dc(const SiedaProject* project);
 char* sieda_simulate_transient(const SiedaProject* project, double t_stop, double t_step);
 char* sieda_spice_netlist(const SiedaProject* project);
@@ -89,6 +103,10 @@ int32_t sieda_pcb_fit_board(SiedaProject* project, double margin_mm);
 char* sieda_pcb_autoroute(SiedaProject* project); /* JSON route statistics */
 void sieda_pcb_clear_routing(SiedaProject* project);
 char* sieda_pcb_run_drc(const SiedaProject* project);
+/* Standard design-rule presets: [{"name","description","trackWidth",…,"minHoleToHole"}] */
+char* sieda_design_rule_presets_json(void);
+/* Applies a preset by name (design values + fabrication limits); returns 0 for unknown names. */
+int32_t sieda_pcb_apply_rule_preset(SiedaProject* project, const char* name);
 
 /* ---- exports ------------------------------------------------------------------------------- */
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",

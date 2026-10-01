@@ -13,4 +13,14 @@ std::optional<double> parseEngineeringValue(const std::string& text);
 /// Formats a value with an SI prefix, e.g. formatEngineeringValue(4700, "Ω") == "4.7kΩ".
 std::string formatEngineeringValue(double value, const std::string& unit = "", int significantDigits = 3);
 
+
+/// IEC 60063 preferred-number series used for resistors and capacitors.
+enum class ESeries { E12 = 12, E24 = 24, E96 = 96 };
+
+/// Nearest standard value of `series` (any decade). Returns `value` unchanged for non-positive input.
+double nearestStandardValue(double value, ESeries series);
+
+/// True if `value` matches a member of `series` within `relTolerance` (default 0.5 %).
+bool isStandardValue(double value, ESeries series, double relTolerance = 0.005);
+
 }  // namespace sieda

@@ -59,6 +59,10 @@ final class DesignStore: ObservableObject {
     @Published var selectedWire: Int?
     @Published var ercResults: [RuleViolation] = []
     @Published var drcResults: [RuleViolation] = []
+    @Published var validationResults: [RuleViolation] = []
+    @Published private(set) var verificationReport: VerificationReport?
+    /// `revision` the verification report was computed at; any later edit makes it stale.
+    @Published private(set) var verifiedRevision = -1
     @Published var dcResult: DCResult?
     @Published var transientResult: TransientResult?
     @Published var routeStats: RouteStats?
@@ -92,6 +96,7 @@ final class DesignStore: ObservableObject {
         return isDirty ? base + " — Edited" : base
     }
     var selectedComponents: [SnapComponent] { snapshot.components.filter { selection.contains($0.id) } }
+    var verificationIsStale: Bool { verificationReport != nil && verifiedRevision != revision }
 
     init() {
         refresh()
@@ -279,6 +284,29 @@ final class DesignStore: ObservableObject {
         return id
     }
 
+    /// Adds a built-in standard part to the project library (if needed) and returns its part id.
+    @discardableResult
+    func addStandardPartToLibrary(_ part: StandardPart) -> String? {
+        if let existing = snapshot.customParts.first(where: { $0.name == part.spec.name }) { return existing.id }
+        return saveCustomPart(part.spec)?.id
+    }
+
+    /// Places a built-in standard part (registering it in the project library first).
+    @discardableResult
+    func placeStandardPart(_ part: StandardPart, at point: CGPoint) -> Int {
+        guard let partId = addStandardPartToLibrary(part) else { return -1 }
+        return addCustomComponent(partId: partId, at: point)
+    }
+
+    /// Replaces a resistor/capacitor/inductor value with the nearest member of `series`.
+    func snapToStandardValue(_ id: Int, series: ESeries) {
+        guard let c = snapshot.component(id), let value = EDAEngine.parseValue(c.value), value > 0 else { return }
+        let nearest = series.nearest(value)
+        let text = EngineeringFormat.string(nearest, unit: "", digits: 3).replacingOccurrences(of: " ", with: "")
+        guard text != c.value else { return }
+        perform("\(c.ref) → \(text) (\(series.title))") { $0.setValue(id, text) }
+    }
+
     // MARK: - Analysis
 
     func runERC() {
@@ -286,6 +314,46 @@ final class DesignStore: ObservableObject {
         let errors = ercResults.filter { $0.severity == .error }.count
         let warnings = ercResults.filter { $0.severity == .warning }.count
         statusMessage = "ERC: \(errors) error(s), \(warnings) warning(s)"
+    }
+
+    func runValidation() {
+        validationResults = engine.runCircuitValidation()
+        let errors = validationResults.filter { $0.severity == .error }.count
+        let warnings = validationResults.filter { $0.severity == .warning }.count
+        statusMessage = "Circuit validation: \(errors) error(s), \(warnings) warning(s)"
+    }
+
+    /// Runs the full verification pipeline off the main thread and refreshes the individual check panels.
+    @discardableResult
+    func runVerification() async -> VerificationReport? {
+        let engine = self.engine
+        let report = await runBusy("Verifying design…") { engine.runVerification() }
+        verificationReport = report
+        verifiedRevision = revision
+        ercResults = engine.runERC()
+        validationResults = engine.runCircuitValidation()
+        if !snapshot.pads.isEmpty { drcResults = engine.runDRC() }
+        if let report {
+            statusMessage = "Verification: \(report.verdict.title) — \(report.errors) error(s), \(report.warnings) warning(s)"
+        } else {
+            statusMessage = "Verification could not run"
+        }
+        return report
+    }
+
+    /// Saves the last verification report as Markdown.
+    func exportVerificationReport() {
+        guard let report = verificationReport else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]
+        panel.nameFieldStringValue = "\(snapshot.name.replacingOccurrences(of: "/", with: "-"))-verification.md"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try report.markdown.write(to: url, atomically: true, encoding: .utf8)
+            statusMessage = "Exported verification report"
+        } catch {
+            present(error, title: "Export failed")
+        }
     }
 
     func simulateDC() async {
@@ -367,6 +435,13 @@ final class DesignStore: ObservableObject {
         drcResults = []
     }
 
+    /// Applies a design-rule preset (track/clearance/via design values and fabrication minimums).
+    func applyRulePreset(_ preset: DesignRulePreset) {
+        guard preset.name != snapshot.board.rulePreset else { return }
+        perform("Design rules: \(preset.name)", invalidatesAnalysis: false) { $0.applyRulePreset(preset.name) }
+        if !snapshot.pads.isEmpty { drcResults = engine.runDRC() }
+    }
+
     func setBoard(width: Double, height: Double, trackWidth: Double, clearance: Double) {
         perform("Updated board settings", invalidatesAnalysis: false) {
             $0.setBoard(width: width, height: height, trackWidth: trackWidth, clearance: clearance)
@@ -384,14 +459,20 @@ final class DesignStore: ObservableObject {
             if let requirements { engine.setRequirements(requirements) }
         }
         selection = []
-        ercResults = []
-        drcResults = []
+        resetChecks()
         routeStats = nil
         fitToken &+= 1
         return report
     }
 
     var currentPlan: DesignPlan { DesignPlanCompiler.plan(from: snapshot) }
+
+    private func resetChecks() {
+        ercResults = []
+        drcResults = []
+        validationResults = []
+        verificationReport = nil
+    }
 
     // MARK: - Documents
 
@@ -402,8 +483,7 @@ final class DesignStore: ObservableObject {
         redoStack.removeAll()
         documentURL = nil
         isDirty = false
-        ercResults = []
-        drcResults = []
+        resetChecks()
         routeStats = nil
         workspace = startWorkspace
     }
@@ -438,8 +518,7 @@ final class DesignStore: ObservableObject {
             isDirty = false
             dcResult = nil
             transientResult = nil
-            ercResults = []
-            drcResults = []
+            resetChecks()
             refresh()
             fitToken &+= 1
             workspace = snapshot.components.isEmpty ? startWorkspace : .schematic
@@ -483,8 +562,27 @@ final class DesignStore: ObservableObject {
         perform("Renamed project", invalidatesAnalysis: false) { $0.setName(name) }
     }
 
-    /// Writes Gerbers, drill, BOM, pick & place, netlist and 3D model into a folder.
-    func exportFabricationPackage() {
+    /// Verifies the design, then writes Gerbers, drill, BOM, pick & place, netlist, 3D model and the
+    /// verification report into a folder. A failing design is only exported after confirmation.
+    func exportFabricationPackage() async {
+        guard let report = await runVerification() else {
+            alert = AlertItem(title: "Export failed", message: "The design could not be verified, so nothing was exported.")
+            return
+        }
+        if !report.passed {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "This design fails verification"
+            let failing = report.stages.filter { $0.status == .fail }.map { "• \($0.title): \($0.summary)" }
+            alert.informativeText = failing.joined(separator: "\n")
+                + "\n\nBoards built from it are unlikely to work. Export the fabrication files anyway?"
+            alert.addButton(withTitle: "Review Issues")
+            alert.addButton(withTitle: "Export Anyway")
+            if alert.runModal() == .alertFirstButtonReturn {
+                workspace = .checks
+                return
+            }
+        }
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
@@ -515,6 +613,8 @@ final class DesignStore: ObservableObject {
             }
             try engine.saveJSON().write(to: target.appendingPathComponent("\(base).siedaproj"), atomically: true,
                                         encoding: .utf8)
+            try report.markdown.write(to: target.appendingPathComponent("verification_report.md"), atomically: true,
+                                      encoding: .utf8)
             statusMessage = "Exported \(written) fabrication files to \(target.lastPathComponent)"
             NSWorkspace.shared.activateFileViewerSelecting([target])
         } catch {
