@@ -6,6 +6,7 @@
 // warning; reaching twice the rating is an error.
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include "sieda/Schematic.hpp"
@@ -22,6 +23,7 @@ struct PartRatings {
     double nmosPower = 0.200;      // W, SOT-23
     double supplyCurrent = 1.0;    // A, above this a supply is assumed shorted
     double opampRail = 14.0;       // V, |Vout| beyond this is treated as saturated (±15 V model)
+    std::string derating;          // e.g. "Space derating: power 50 %, current 50 % of rating" (added to messages)
 };
 
 std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatings& ratings = {});

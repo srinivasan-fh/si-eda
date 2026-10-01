@@ -76,6 +76,34 @@ std::vector<StandardPart> build() {
     parts.push_back(part("Connectors", "Header_1x06", "Generic", "2.54 mm pin header, 1×6", "HEADER", 6, "J",
                          {{"1", T::Passive}, {"2", T::Passive}, {"3", T::Passive}, {"4", T::Passive},
                           {"5", T::Passive}, {"6", T::Passive}}));
+
+    // Industry kits: motor control / power electronics.
+    parts.push_back(part("Power Electronics", "IR2104", "Infineon", "Half-bridge gate driver (600 V, bootstrap high side)",
+                         "DIP", 8, "U",
+                         {{"VCC", T::PowerIn}, {"IN", T::Input}, {"SD", T::Input}, {"COM", T::PowerIn},
+                          {"LO", T::Output}, {"VS", T::Passive}, {"HO", T::Output}, {"VB", T::Passive}}));
+    parts.push_back(part("Power Electronics", "IRF540N", "Infineon", "N-channel power MOSFET, 100 V 33 A", "TO220", 3, "Q",
+                         {{"G", T::Input}, {"D", T::Passive}, {"S", T::Passive}}));
+    parts.push_back(part("Power Electronics", "UC3843", "Texas Instruments", "Current-mode PWM controller", "DIP", 8, "U",
+                         {{"COMP", T::Output}, {"VFB", T::Input}, {"ISENSE", T::Input}, {"RT/CT", T::Passive},
+                          {"GND", T::PowerIn}, {"OUTPUT", T::Output}, {"VCC", T::PowerIn}, {"VREF", T::PowerOut}}));
+    parts.push_back(part("Motor Control", "ACS712", "Allegro", "Hall-effect current sensor, ±5/20/30 A", "SOIC", 8, "U",
+                         {{"IP+", T::Passive}, {"IP+", T::Passive}, {"IP-", T::Passive}, {"IP-", T::Passive},
+                          {"GND", T::PowerIn}, {"FILTER", T::Passive}, {"VIOUT", T::Output}, {"VCC", T::PowerIn}}));
+    // Automotive.
+    parts.push_back(part("Automotive", "TJA1050", "NXP", "High-speed CAN transceiver (ISO 11898)", "SOIC", 8, "U",
+                         {{"TXD", T::Input}, {"GND", T::PowerIn}, {"VCC", T::PowerIn}, {"RXD", T::Output},
+                          {"VREF", T::NoConnect}, {"CANL", T::Bidirectional}, {"CANH", T::Bidirectional}, {"S", T::Input}}));
+    parts.push_back(part("Automotive", "LM2940-5.0", "Texas Instruments",
+                         "5 V low-dropout regulator with load-dump and reverse-battery protection", "TO220", 3, "U",
+                         {{"IN", T::PowerIn}, {"GND", T::PowerIn}, {"OUT", T::PowerOut}}));
+    // Marine / industrial communication and isolation.
+    parts.push_back(part("Marine & Industrial", "MAX485", "Analog Devices", "RS-485 / RS-422 transceiver (NMEA 0183/2000 bus)",
+                         "DIP", 8, "U",
+                         {{"RO", T::Output}, {"RE", T::Input}, {"DE", T::Input}, {"DI", T::Input}, {"GND", T::PowerIn},
+                          {"A", T::Bidirectional}, {"B", T::Bidirectional}, {"VCC", T::PowerIn}}));
+    parts.push_back(part("Marine & Industrial", "PC817", "Sharp", "Optocoupler, 5 kV isolation", "DIP", 4, "U",
+                         {{"A", T::Passive}, {"K", T::Passive}, {"E", T::Passive}, {"C", T::Passive}}));
     return parts;
 }
 

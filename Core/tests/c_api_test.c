@@ -71,6 +71,12 @@ int sieda_c_api_smoke_test(void) {
     if (!inner || !strstr(inner, "Copper,L2,Inr")) return 20;
     sieda_string_free(inner);
     if (sieda_export(p, "gerber_l9") != NULL) return 21;
+    if (!sieda_project_set_industry(p, "automotive") || sieda_project_set_industry(p, "nope")) return 25;
+    {
+        char* profiles = sieda_industry_profiles_json();
+        if (!profiles || !strstr(profiles, "\"id\":\"space\"")) return 26;
+        sieda_string_free(profiles);
+    }
     {
         double parsed = 0;
         if (!sieda_parse_value("4k7", &parsed) || parsed < 4699.0 || parsed > 4701.0) return 23;

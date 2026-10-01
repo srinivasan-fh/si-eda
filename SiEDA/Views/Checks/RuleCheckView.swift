@@ -97,7 +97,7 @@ private struct VerificationPanel: View {
         } else {
             BlueEmptyState(systemImage: "checkmark.shield",
                            title: "Verify the design before fabrication",
-                           message: "One pass runs every built-in check: electrical rules, DC simulation, circuit validation (standard values, decoupling, part ratings), footprint placement, routing completion, the \(store.snapshot.board.rulePreset) design rules and the manufacturing outputs. The fabrication export runs it too.",
+                           message: "One pass runs every built-in check: electrical rules, DC simulation, circuit validation (standard values, decoupling, part ratings derated for the industry profile), footprint placement, routing completion, the \(store.snapshot.board.rulePreset) design rules and the manufacturing outputs. The fabrication export runs it too.",
                            actionTitle: "Verify Design") { Task { await store.runVerification() } }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -121,7 +121,7 @@ private struct VerdictHeader: View {
                     .foregroundStyle(Theme.textPrimary)
                 Text("\(report.verdict.title) · \(report.errors) errors · \(report.warnings) warnings · \(report.infos) notes")
                     .foregroundStyle(Theme.textSecondary)
-                Text("\(report.rulePreset) · \(report.layerCount) copper layer\(report.layerCount == 1 ? "" : "s")")
+                Text("\(report.industryName.isEmpty ? "" : report.industryName + " · ")\(report.rulePreset) · \(report.layerCount) copper layer\(report.layerCount == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundStyle(Theme.textMuted)
             }

@@ -133,7 +133,7 @@ struct SchematicEditorView: View {
                                 ForEach(OfflineProvider.categories, id: \.self) { category in
                                     Section(category) {
                                         ForEach(OfflineProvider.examples(in: category), id: \.plan.title) { template in
-                                            Button(template.plan.title) { store.loadExample(template.plan) }
+                                            Button(template.plan.title) { store.loadExample(template.industryPlan) }
                                         }
                                     }
                                 }

@@ -189,6 +189,14 @@ final class EDAEngine: @unchecked Sendable {
         decode([StandardPart].self, from: take(sieda_standard_parts_json())) ?? []
     }
 
+    static func industryProfiles() -> [IndustryProfile] {
+        decode([IndustryProfile].self, from: take(sieda_industry_profiles_json())) ?? []
+    }
+
+    /// Applies an industry profile (rule preset, altitude class, derating). False for an unknown id.
+    @discardableResult
+    func setIndustry(_ id: String) -> Bool { withHandle { sieda_project_set_industry($0, id) } == 1 }
+
     static func designRulePresets() -> [DesignRulePreset] {
         decode([DesignRulePreset].self, from: take(sieda_design_rule_presets_json())) ?? []
     }

@@ -17,6 +17,7 @@ struct DesignSnapshot: Decodable, Equatable {
     var courtyards: [SnapCourtyard]
     var bodies: [SnapBody] = []
     var customParts: [CustomPartInfo] = []
+    var industry = "general"
 
     static let empty = DesignSnapshot(name: "Untitled", requirements: "", components: [], wires: [], nets: [],
                                       board: BoardInfo(), pads: [], tracks: [], vias: [], ratsnest: [], courtyards: [])
@@ -54,10 +55,12 @@ struct DesignSnapshot: Decodable, Equatable {
         courtyards = try c.decode([SnapCourtyard].self, forKey: .courtyards)
         bodies = try c.decodeIfPresent([SnapBody].self, forKey: .bodies) ?? []
         customParts = try c.decodeIfPresent([CustomPartInfo].self, forKey: .customParts) ?? []
+        industry = try c.decodeIfPresent(String.self, forKey: .industry) ?? "general"
     }
 
     private enum CodingKeys: String, CodingKey {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
+        case industry
     }
 
     func component(_ id: Int) -> SnapComponent? { components.first { $0.id == id } }
@@ -151,6 +154,7 @@ struct BoardInfo: Decodable, Equatable {
     var minHoleToHole: Double = 0.25
     var copperWeightOz: Double = 1.0
     var maxTempRise: Double = 10.0
+    var highAltitude = false
 
     init() {}
 
@@ -174,11 +178,13 @@ struct BoardInfo: Decodable, Equatable {
         minHoleToHole = try c.decodeIfPresent(Double.self, forKey: .minHoleToHole) ?? 0.25
         copperWeightOz = try c.decodeIfPresent(Double.self, forKey: .copperWeightOz) ?? 1.0
         maxTempRise = try c.decodeIfPresent(Double.self, forKey: .maxTempRise) ?? 10.0
+        highAltitude = try c.decodeIfPresent(Bool.self, forKey: .highAltitude) ?? false
     }
 
     private enum CodingKeys: String, CodingKey {
         case layerCount, width, height, thickness, trackWidth, clearance, viaDrill, viaDiameter, edgeClearance, routingGrid
         case rulePreset, minTrackWidth, minClearance, minDrill, minAnnularRing, minHoleToHole, copperWeightOz, maxTempRise
+        case highAltitude
     }
 
     var bottomLayer: Int { max(1, layerCount) - 1 }

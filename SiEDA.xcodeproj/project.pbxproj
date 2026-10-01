@@ -29,6 +29,7 @@
 		6821CCCDECA1EE3F41A956C7 = {isa = PBXBuildFile; fileRef = 301DAF4F2FC8D0083DFB1A0F; };
 		68D48DAD17D325679CCABD65 = {isa = PBXBuildFile; fileRef = 5B677B1CF7DF150184E961B2; };
 		6D9A3DC7BD2B0F85B8A269AF = {isa = PBXBuildFile; fileRef = 34727A3F0B5278EFB74683D0; };
+		6EB9D3E942D2E5293BA5CD69 = {isa = PBXBuildFile; fileRef = 5C5A4E6673BC22FAFE753C09; };
 		7A0F6B254F09DDD2E807D258 = {isa = PBXBuildFile; fileRef = 2803DF6FC30693BE00F1F0FC; };
 		7A10A9C2A05E8392D79C71E1 = {isa = PBXBuildFile; fileRef = 89D9BE7B7D9C91F898FB822D; };
 		7E5CB3E6074CEC5D362A6B2E = {isa = PBXBuildFile; fileRef = C7832FB1E03A0AE9D93DF23C; };
@@ -99,6 +100,7 @@
 		54E109672561428616FE3D2D = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Schematic.cpp; sourceTree = "<group>"; };
 		598E73B82C21E2428C143C93 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Geometry.hpp; sourceTree = "<group>"; };
 		5B677B1CF7DF150184E961B2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineProvider.swift; sourceTree = "<group>"; };
+		5C5A4E6673BC22FAFE753C09 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Industry.cpp; sourceTree = "<group>"; };
 		6C44D52C3E47659A6A7CAF85 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Pcb.hpp; sourceTree = "<group>"; };
 		6F713D3D022B8E6CABF26E5C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		7240EC7A71DCA0DFCC205FBA = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OtherProviders.swift; sourceTree = "<group>"; };
@@ -120,6 +122,7 @@
 		B7A272C317609DD8A2D79E17 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentKind.swift; sourceTree = "<group>"; };
 		B7F4A2A7A651672AE1EAE396 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sieda_c.h; sourceTree = "<group>"; };
 		C034F0251DFB40B57D57ED72 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Validation.hpp; sourceTree = "<group>"; };
+		C07144B375647346E0E3EC7B = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Industry.hpp; sourceTree = "<group>"; };
 		C277541433091BF5ACFA3A26 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = sieda_c.cpp; sourceTree = "<group>"; };
 		C5AE10EA4E5AF49E101DBF29 = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE.md; sourceTree = "<group>"; };
 		C7832FB1E03A0AE9D93DF23C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -238,6 +241,7 @@
 				80BDB171C5EBFDFEAE8F3C02,
 				833CC0D371F8BDA60C967CC4,
 				598E73B82C21E2428C143C93,
+				C07144B375647346E0E3EC7B,
 				0930B17E77DDC99D62455EBA,
 				1DB297246101A1F77E0719A3,
 				E72D8B430F37B4F24483C73F,
@@ -291,6 +295,7 @@
 			children = (
 				3B93D968614EC9B31DA4DE95,
 				19A32AB05C4FC519DD459887,
+				5C5A4E6673BC22FAFE753C09,
 				3B8AAF03382758779EE08604,
 				E0E3155DFC35436C47F59BCE,
 				41B79F22607C01D7C4BF744B,
@@ -555,6 +560,7 @@
 				5735397F522136DBEB890548,
 				65FD190DDE9074461717C0FA,
 				482CD12CF3DD25314FE03C7D,
+				6EB9D3E942D2E5293BA5CD69,
 				3D5D45FB5BEA3347870ADE14,
 				2F37DBCC1B97825D126178A5,
 				C98936A9AF1F391BD51F67D5,

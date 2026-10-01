@@ -81,7 +81,7 @@ struct SiEDACommands: Commands {
                 ForEach(OfflineProvider.categories, id: \.self) { category in
                     Section(category) {
                         ForEach(OfflineProvider.examples(in: category), id: \.plan.title) { template in
-                            Button(template.plan.title) { store.loadExample(template.plan) }
+                            Button(template.plan.title) { store.loadExample(template.industryPlan) }
                         }
                     }
                 }
@@ -153,6 +153,14 @@ struct SiEDACommands: Commands {
             Button("Autoroute Board") { Task { await store.autoRoute() } }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
             Button("Run Design Rule Check") { store.runDRC(); store.workspace = .checks }
+            Menu("Industry Profile") {
+                ForEach(StandardLibrary.industries) { profile in
+                    Toggle(profile.name, isOn: Binding(
+                        get: { store.snapshot.industry == profile.id },
+                        set: { if $0 { store.setIndustry(profile) } }
+                    ))
+                }
+            }
             Menu("Design Rules") {
                 ForEach(StandardLibrary.rulePresets) { preset in
                     Toggle(preset.name, isOn: Binding(

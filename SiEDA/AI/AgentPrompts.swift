@@ -54,6 +54,24 @@ enum AgentPrompts {
         return text
     }
 
+    /// Industry profiles the plan can select, with the domain guidance the architect should apply.
+    static var industryCatalog: String {
+        let lines: [String] = StandardLibrary.industries.map { p -> String in
+            let header = "- \(p.id) (\(p.name); \(p.standards); derating: \(p.deratingSummary)):"
+            let tips = p.guidance.map { tip -> String in "    · " + tip }
+            return ([header] + tips).joined(separator: "\n")
+        }
+        guard !lines.isEmpty else { return "" }
+        return """
+
+        Industry profiles — set "industry" to the one that matches the brief (robotics/motor control, power \
+        electronics, automotive/car, RF/radio, space, marine/ship, industrial automation; otherwise general). The \
+        profile selects the design rules and derates part ratings in SiEDA's validation, so choose resistor \
+        wattages and currents with margin, and follow its guidance:
+        \(lines.joined(separator: "\n"))
+        """
+    }
+
     static let analystSystem = """
     You are the Requirements Analyst agent inside SiEDA, a professional electronic design automation suite.
     Turn a product prompt or PRD into a compact, testable electrical specification for a small PCB.
@@ -87,6 +105,7 @@ enum AgentPrompts {
         vertical (pin 1 on top).
         - Choose a board size (mm) that comfortably fits the footprints (≈ 6×4 mm per small part plus routing).
         - Put design calculations and assumptions in notes.
+        \(industryCatalog)
         """
     }
 
@@ -95,7 +114,9 @@ enum AgentPrompts {
     electrical rule check (ERC) report and the DC operating point from SiEDA's simulator.
     Approve the design only if it meets the specification, has no ERC errors, no floating parts and sensible \
     operating values (LED currents 2–20 mA, transistors saturated when used as switches, no component \
-    dissipating beyond typical 0805/SOT-23 ratings ≈ 125–250 mW).
+    dissipating beyond typical 0805/SOT-23 ratings ≈ 125–250 mW, reduced by the plan's industry derating — e.g. \
+    50 % for space, 60 % for automotive). Check the industry guidance (protection, decoupling, termination, \
+    isolation) was followed and keep the plan's industry field.
     If anything is wrong, set approved to false, list the issues, and return the COMPLETE corrected plan (not a \
     diff), keeping reference designators and positions of unchanged parts. If approved, return the plan unchanged.
     """

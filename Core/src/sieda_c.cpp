@@ -7,6 +7,7 @@
 #include <string>
 
 #include "sieda/Export.hpp"
+#include "sieda/Industry.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/StandardParts.hpp"
@@ -93,6 +94,33 @@ void sieda_project_set_name(SiedaProject* project, const char* name) {
 
 void sieda_project_set_requirements(SiedaProject* project, const char* text) {
     if (project) project->project.requirements = str(text);
+}
+
+int32_t sieda_project_set_industry(SiedaProject* project, const char* industry_id) {
+    if (!project || !industry_id) return 0;
+    return project->project.applyIndustry(industry_id) ? 1 : 0;
+}
+
+char* sieda_industry_profiles_json(void) {
+    Json arr = Json::array();
+    for (const auto& p : industryProfiles()) {
+        Json j = Json::object();
+        j["id"] = p.id;
+        j["name"] = p.name;
+        j["description"] = p.description;
+        j["standards"] = p.standards;
+        j["rulePreset"] = p.rulePreset;
+        j["powerDerating"] = p.powerDerating;
+        j["currentDerating"] = p.currentDerating;
+        j["highAltitude"] = p.highAltitude;
+        j["minAmbientC"] = p.minAmbientC;
+        j["maxAmbientC"] = p.maxAmbientC;
+        Json g = Json::array();
+        for (const auto& line : p.guidance) g.push(line);
+        j["guidance"] = g;
+        arr.push(j);
+    }
+    return dup(arr.dump());
 }
 
 void sieda_project_clear(SiedaProject* project) {
@@ -298,7 +326,7 @@ char* sieda_run_erc(const SiedaProject* project) {
 char* sieda_run_circuit_validation(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
-        return dup(Project::violationsToJson(validateCircuit(project->project.schematic)).dump());
+        return dup(Project::violationsToJson(validateCircuit(project->project.schematic, project->project.partRatings())).dump());
     } catch (const std::exception& e) {
         return errorJson(e);
     }

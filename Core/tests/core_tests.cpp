@@ -9,6 +9,7 @@
 
 #include "sieda/CustomParts.hpp"
 #include "sieda/Export.hpp"
+#include "sieda/Industry.hpp"
 #include "sieda/Json.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
@@ -601,6 +602,18 @@ TEST(pcb_router_keeps_vias_out_of_smd_pads) {
         RouteStats st = p.pcb.autoRoute(p.schematic);
         int viaInPad = 0;
         for (const auto& v : p.pcb.runDRC(p.schematic)) viaInPad += v.code == "DRC_VIA_IN_PAD";
+        // With wider (automotive) rules the router still keeps exact via-to-pad clearance.
+        Project wide = amplifierProject();
+        wide.pcb.settings.layerCount = layers;
+        wide.pcb.settings.applyPreset("Automotive (IPC-6012 Class 3/A)");
+        wide.pcb.settings.width = 26;
+        wide.pcb.settings.height = 20;
+        wide.pcb.autoPlace(wide.schematic, true);
+        wide.pcb.autoRoute(wide.schematic);
+        int clearance = 0;
+        for (const auto& v : wide.pcb.runDRC(wide.schematic))
+            clearance += v.code == "DRC_CLEARANCE_RULE" || v.code == "DRC_CLEARANCE" || v.code == "DRC_SHORT";
+        CHECK(clearance == 0);
         std::printf("    %d layers: %d/%d routed, %d vias, %d via-in-pad\n", layers, st.routed, st.connections, st.vias, viaInPad);
         CHECK(viaInPad == 0);
     }
@@ -833,7 +846,7 @@ TEST(circuit_validation_rules) {
 
 TEST(pcb_rule_presets_and_manufacturability_checks) {
     Project p = ledProject();
-    CHECK(designRulePresets().size() == 5);
+    CHECK(designRulePresets().size() == 9);
     CHECK(p.pcb.settings.applyPreset("Prototype (Conservative)"));
     CHECK_NEAR(p.pcb.settings.trackWidth, 0.30, 1e-9);
     CHECK(!p.pcb.settings.applyPreset("nope"));
@@ -985,6 +998,87 @@ TEST(design_verification_pipeline) {
     VerificationReport overloaded = verifyDesign(hot);
     CHECK(stage(overloaded, "validation")->status == StageStatus::Fail);
     CHECK(!overloaded.passed());
+}
+
+TEST(industry_profiles_and_derating) {
+    CHECK(industryProfiles().size() == 8);
+    for (const char* id : {"general", "robotics", "power", "automotive", "rf", "space", "marine", "industrial"}) {
+        const IndustryProfile* p = findIndustry(id);
+        CHECK(p != nullptr);
+        if (!p) continue;
+        BoardSettings b;
+        CHECK(b.applyPreset(p->rulePreset));  // every profile names a real preset
+        CHECK(!p->guidance.empty() && !p->standards.empty());
+    }
+    CHECK(findIndustry("SPACE") != nullptr);
+    CHECK(findIndustry("nope") == nullptr);
+
+    const IndustryProfile& space = *findIndustry("space");
+    PartRatings r = deratedRatings(space);
+    CHECK_NEAR(r.resistorPower, 0.0625, 1e-12);
+    CHECK_NEAR(r.ledCurrent, 0.015, 1e-12);
+    CHECK(r.derating.find("Space") != std::string::npos);
+    CHECK(deratedRatings(*findIndustry("general")).derating.empty());
+
+    // Project: the profile sets rules and altitude and survives a save/load.
+    Project p = ledProject();
+    CHECK(!p.applyIndustry("unknown"));
+    CHECK(p.applyIndustry("space"));
+    CHECK(p.pcb.settings.rulePreset == "Space (IPC-6012 Class 3/A, ECSS)");
+    CHECK(p.pcb.settings.highAltitude);
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.industry == "space");
+    CHECK(q.pcb.settings.highAltitude);
+
+    // A 330 Ω LED at 5 V (~9 mA) is fine in general, but a 150 Ω one (~20 mA) exceeds the space-derated 15 mA.
+    Project led = ledProject();
+    for (const auto& c : led.schematic.components())
+        if (c.kind == ComponentKind::Resistor) led.schematic.setValue(c.id, "150");
+    auto hasLedFinding = [](const std::vector<RuleViolation>& v) {
+        for (const auto& f : v)
+            if (f.code == "VAL_LED_CURRENT") return f.message.find("derating") != std::string::npos;
+        return false;
+    };
+    CHECK(!hasLedFinding(validateCircuit(led.schematic, led.partRatings())));
+    led.applyIndustry("space");
+    CHECK(hasLedFinding(validateCircuit(led.schematic, led.partRatings())));
+
+    led.pcb.autoPlace(led.schematic, true);
+    CHECK(led.pcb.autoRoute(led.schematic).failed == 0);
+    VerificationReport report = verifyDesign(led);
+    CHECK(report.industryName == "Space");
+    CHECK(report.toMarkdown().find("Industry profile:** Space") != std::string::npos);
+}
+
+TEST(ipc2221_voltage_clearance) {
+    CHECK_NEAR(ipc2221Clearance(12, false), 0.1, 1e-12);
+    CHECK_NEAR(ipc2221Clearance(48, false), 0.6, 1e-12);
+    CHECK_NEAR(ipc2221Clearance(230, false), 1.25, 1e-12);
+    CHECK_NEAR(ipc2221Clearance(400, false), 2.5, 1e-12);
+    CHECK_NEAR(ipc2221Clearance(1000, false), 5.0, 1e-12);
+    CHECK_NEAR(ipc2221Clearance(230, true), 6.4, 1e-12);
+    CHECK(ipc2221Clearance(-230, false) == ipc2221Clearance(230, false));
+
+    // 230 V across an 0805 resistor: its pads are ~1 mm apart, below the 1.25 mm B2 spacing.
+    auto build = [](const char* volts) {
+        Project p;
+        auto& s = p.schematic;
+        int v = s.addComponent(ComponentKind::VoltageSource, volts, {0, 0});
+        int r = s.addComponent(ComponentKind::Resistor, "1M", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", r, "1");
+        wire(s, r, "2", g, "GND");
+        wire(s, v, "-", g, "GND");
+        p.schematicChanged();
+        p.pcb.autoPlace(p.schematic, true);
+        p.pcb.autoRoute(p.schematic);
+        int hv = 0;
+        for (const auto& f : p.pcb.runDRC(p.schematic)) hv += f.code == "DRC_HV_CLEARANCE";
+        return hv;
+    };
+    CHECK(build("5") == 0);
+    CHECK(build("230") > 0);
+    CHECK(build("SIN(0 325 50)") > 0);  // mains peak, not the 0 V DC value
 }
 
 TEST(project_json_roundtrip) {
