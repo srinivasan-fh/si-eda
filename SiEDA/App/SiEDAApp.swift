@@ -1,7 +1,22 @@
+import AppKit
 import SwiftUI
+
+/// Guards against losing work: quitting (or closing the last window) asks to save an edited design.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    weak var store: DesignStore?
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    @MainActor
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let store else { return .terminateNow }
+        return store.confirmDiscardChanges() ? .terminateNow : .terminateCancel
+    }
+}
 
 @main
 struct SiEDAApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var store = DesignStore()
     @StateObject private var settings = AISettings()
     @StateObject private var agents = AgentOrchestrator()
@@ -16,6 +31,7 @@ struct SiEDAApp: App {
                 .preferredColorScheme((AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
                 .tint(Theme.blue)
                 .frame(minWidth: 1100, minHeight: 700)
+                .onAppear { appDelegate.store = store }
         }
         .windowToolbarStyle(.unified)
         .commands { SiEDACommands(store: store, agents: agents, settings: settings) }
