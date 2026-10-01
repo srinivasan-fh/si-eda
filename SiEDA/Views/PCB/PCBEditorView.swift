@@ -61,7 +61,6 @@ struct PCBEditorView: View {
     @State private var visible: Set<PCBLayer> = PCBLayer.defaultVisible
     @State private var activeLayer: PCBLayer = .copper(0)
     @State private var panMode = false
-    @State private var fitRequest = 0
     @State private var showLayersPanel = true
 
     @State private var boardWidth = ""
@@ -75,7 +74,7 @@ struct PCBEditorView: View {
                 ToolStripButton(systemImage: "cursorarrow", help: "Select / move footprints (V)", isActive: !panMode) { panMode = false }
                 ToolStripButton(systemImage: "hand.raised", help: "Pan (H)", isActive: panMode) { panMode = true }
                 ToolStripDivider()
-                ToolStripButton(systemImage: "rotate.right", help: "Rotate footprint (R)") { store.rotateFootprints() }
+                ToolStripButton(systemImage: "rotate.right", help: "Rotate footprint (Space or R)") { store.rotateFootprints() }
                 ToolStripButton(systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right", help: "Flip to other side (F)") {
                     store.flipFootprints()
                 }
@@ -85,7 +84,6 @@ struct PCBEditorView: View {
                 }
                 ToolStripButton(systemImage: "arrow.down.right.and.arrow.up.left.rectangle", help: "Fit board to components") {
                     store.fitBoard()
-                    fitRequest += 1
                 }
                 ToolStripButton(systemImage: "point.topleft.down.to.point.bottomright.curvepath.fill", help: "Autoroute (⇧⌘R)") {
                     Task { await store.autoRoute() }
@@ -97,6 +95,12 @@ struct PCBEditorView: View {
                 ToolStripDivider()
                 ToolStripButton(systemImage: "square.3.layers.3d", help: "Layers panel", isActive: showLayersPanel) {
                     showLayersPanel.toggle()
+                }
+                ToolStripButton(systemImage: "map", help: "Navigator overview (N)", isActive: store.showNavigator) {
+                    store.showNavigator.toggle()
+                }
+                ToolStripButton(systemImage: "plus.magnifyingglass", help: "Zoom to area (Z) — drag a rectangle") {
+                    store.requestView(.zoomArea)
                 }
             }
 
@@ -151,15 +155,20 @@ struct PCBEditorView: View {
                     if !store.drcResults.isEmpty {
                         Badge(text: drcErrors == 0 ? "DRC clean" : "DRC \(drcErrors)", systemImage: "checkmark.seal")
                     }
-                    ZoomControls(scale: viewport.scale / 12,
-                                 zoomIn: { viewport.zoom(by: 1.25, anchor: center, limits: 1...200) },
-                                 zoomOut: { viewport.zoom(by: 0.8, anchor: center, limits: 1...200) },
-                                 fit: { fitRequest += 1 })
+                    ZoomControls(level: viewport.scale / Viewport.pcbBaseScale,
+                                 zoomIn: { store.requestView(.zoomIn) }, zoomOut: { store.requestView(.zoomOut) },
+                                 fit: { store.requestView(.fit) }, fitSelection: { store.requestView(.fitSelection) },
+                                 setLevel: { store.requestView(.setLevel($0)) })
                 }
 
                 ZStack(alignment: .topTrailing) {
                     PCBCanvas(viewport: $viewport, canvasSize: $canvasSize, panMode: panMode, visible: visible,
-                              activeLayer: activeLayer, fitRequest: fitRequest)
+                              activeLayer: activeLayer)
+                    if store.showNavigator, !store.snapshot.pads.isEmpty {
+                        navigator
+                            .padding(10)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    }
                     if showLayersPanel {
                         LayersPanel(layers: PCBLayer.all(for: store.snapshot.board), board: store.snapshot.board,
                                     visible: $visible, active: $activeLayer)
@@ -204,7 +213,17 @@ struct PCBEditorView: View {
         }
     }
 
-    private var center: CGPoint { CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2) }
+    /// Overview of the board; click or drag to move the view.
+    private var navigator: some View {
+        let board = CGRect(x: 0, y: 0, width: store.snapshot.board.width, height: store.snapshot.board.height)
+        let courtyards = store.snapshot.courtyards
+        return CanvasNavigator(extent: courtyards.reduce(board) { $0.union($1.rect) }.insetBy(dx: -2, dy: -2),
+                               items: [board] + courtyards.map(\.rect),
+                               highlighted: courtyards.filter { store.selection.contains($0.component) }.map(\.rect),
+                               viewport: viewport, canvasSize: canvasSize,
+                               onCenter: { viewport.center(on: $0, in: canvasSize) },
+                               onClose: { store.showNavigator = false })
+    }
 
     private var unplacedCount: Int {
         store.snapshot.components.filter { !$0.componentKind.isVirtual && !$0.pcb.placed }.count
@@ -315,11 +334,11 @@ struct PCBCanvas: View {
     var panMode: Bool
     var visible: Set<PCBLayer>
     var activeLayer: PCBLayer
-    var fitRequest: Int
 
     private enum DragMode {
         case move(Set<Int>)
         case pan(CGSize)
+        case zoomBox
     }
 
     @State private var dragMode: DragMode?
@@ -327,9 +346,13 @@ struct PCBCanvas: View {
     @State private var hover: CGPoint?
     @State private var magnifyBase: CGFloat?
     @State private var didFit = false
+    @State private var zoomArmed = false   // Z: the next drag defines the area to zoom to
+    @State private var spaceHeld = false   // Space + left-drag pans; a Space tap rotates
+    @State private var spaceUsedForPan = false
+    @State private var zoomRect: CGRect?   // screen space, while dragging a zoom area
     @FocusState private var focused: Bool
 
-    private let limits: ClosedRange<CGFloat> = 1...200
+    private let limits = Viewport.pcbLimits
 
     var body: some View {
         GeometryReader { geo in
@@ -351,7 +374,8 @@ struct PCBCanvas: View {
                         }
                         .onEnded { _ in magnifyBase = nil }
                 )
-                .onScrollWheel { event, point in viewport.handleScroll(event, at: point, limits: limits) }
+                .canvasMouseInput(onScroll: { event, point in viewport.handleScroll(event, at: point, limits: limits) },
+                                  onPan: { viewport.pan(by: $0) })
                 .onContinuousHover { phase in
                     switch phase {
                     case .active(let p): hover = p
@@ -361,9 +385,29 @@ struct PCBCanvas: View {
                 .focusable()
                 .focusEffectDisabled()
                 .focused($focused)
+                .canvasNavigationKeys(toggleNavigator: { store.showNavigator.toggle() }) { command in
+                    perform(command, size: geo.size)
+                }
+                .onKeyPress(.space, phases: [.down, .repeat, .up]) { press in
+                    switch press.phase {
+                    case .down:
+                        spaceHeld = true
+                        spaceUsedForPan = false
+                    case .up:
+                        spaceHeld = false
+                        if !spaceUsedForPan { store.rotateFootprints() }  // a tap rotates; Space + drag panned instead
+                    default:
+                        break
+                    }
+                    return .handled
+                }
+                .onChange(of: focused) { _, isFocused in if !isFocused { spaceHeld = false } }
                 .onKeyPress(KeyEquivalent("r")) { store.rotateFootprints(); return .handled }
                 .onKeyPress(KeyEquivalent("f")) { store.flipFootprints(); return .handled }
-                .onKeyPress(.escape) { store.select(component: nil); return .handled }
+                .onKeyPress(.escape) {
+                    if zoomArmed { zoomArmed = false } else { store.select(component: nil) }
+                    return .handled
+                }
                 .onAppear {
                     canvasSize = geo.size
                     if !didFit {
@@ -372,14 +416,30 @@ struct PCBCanvas: View {
                     }
                 }
                 .onChange(of: geo.size) { _, s in canvasSize = s }
-                .onChange(of: fitRequest) { _, _ in fit(geo.size) }
+                .onChange(of: store.viewRequest) { _, request in
+                    if let request { perform(request.command, size: geo.size) }
+                }
                 .onChange(of: store.fitToken) { _, _ in fit(geo.size) }
         }
     }
 
     private func fit(_ size: CGSize) {
         let b = store.snapshot.board
-        viewport.fit(CGRect(x: 0, y: 0, width: b.width, height: b.height), in: size, margin: 50, limits: limits)
+        let board = CGRect(x: 0, y: 0, width: b.width, height: b.height)
+        viewport.fit(store.snapshot.courtyards.reduce(board) { $0.union($1.rect) }, in: size, margin: 50, limits: limits)
+    }
+
+    private func perform(_ command: ViewCommand, size: CGSize) {
+        switch command {
+        case .fit: fit(size)
+        case .fitSelection:
+            let rect = store.snapshot.courtyards.filter { store.selection.contains($0.component) }
+                .reduce(CGRect.null) { $0.union($1.rect) }
+            if rect.isNull { fit(size) } else { viewport.fit(rect.insetBy(dx: -2, dy: -2), in: size, limits: limits) }
+        case .zoomArea: zoomArmed = true
+        default:
+            viewport.apply(command, size: size, anchor: hover, baseScale: Viewport.pcbBaseScale, limits: limits)
+        }
     }
 
     private func footprint(at world: CGPoint) -> Int? {
@@ -395,7 +455,12 @@ struct PCBCanvas: View {
             .onChanged { value in
                 if dragMode == nil {
                     let world = viewport.toWorld(value.startLocation)
-                    if !panMode, let id = footprint(at: world) {
+                    if zoomArmed {
+                        dragMode = .zoomBox
+                    } else if spaceHeld {
+                        spaceUsedForPan = true
+                        dragMode = .pan(viewport.offset)
+                    } else if !panMode, let id = footprint(at: world) {
                         if !store.selection.contains(id) {
                             store.select(component: id, extend: NSEvent.modifierFlags.contains(.shift))
                         }
@@ -411,14 +476,30 @@ struct PCBCanvas: View {
                 case .pan(let start):
                     viewport.offset = CGSize(width: start.width + value.translation.width,
                                              height: start.height + value.translation.height)
+                case .zoomBox:
+                    zoomRect = CGRect(origin: value.startLocation, size: .zero)
+                        .union(CGRect(origin: value.location, size: .zero))
                 case nil: break
                 }
             }
             .onEnded { value in
                 focused = true
-                if hypot(value.translation.width, value.translation.height) <= 3 {
-                    let world = viewport.toWorld(value.location)
-                    store.select(component: footprint(at: world), extend: NSEvent.modifierFlags.contains(.shift))
+                let moved = hypot(value.translation.width, value.translation.height) > 3
+                if case .zoomBox = dragMode {
+                    zoomArmed = false
+                    if moved, let rect = zoomRect {
+                        let a = viewport.toWorld(rect.origin)
+                        let b = viewport.toWorld(CGPoint(x: rect.maxX, y: rect.maxY))
+                        viewport.fit(CGRect(origin: a, size: .zero).union(CGRect(origin: b, size: .zero)),
+                                     in: canvasSize, margin: 8, limits: limits)
+                    } else {
+                        viewport.zoom(by: 2, anchor: value.location, limits: limits)
+                    }
+                } else if !moved {
+                    if !spaceHeld {  // a Space-click is part of a pan, not a selection
+                        let world = viewport.toWorld(value.location)
+                        store.select(component: footprint(at: world), extend: NSEvent.modifierFlags.contains(.shift))
+                    }
                 } else if case .move(let ids) = dragMode {
                     for id in ids {
                         guard let c = store.snapshot.component(id) else { continue }
@@ -427,6 +508,7 @@ struct PCBCanvas: View {
                 }
                 dragMode = nil
                 dragDelta = .zero
+                zoomRect = nil
             }
     }
 
@@ -443,6 +525,13 @@ struct PCBCanvas: View {
             moving.contains(component) ? CGPoint(x: p.x + d.width, y: p.y + d.height) : p
         }
         let hoveredNet: Int? = hover.flatMap { pad(at: viewport.toWorld($0)) }.flatMap { $0.net >= 0 ? $0.net : nil }
+        // Only what is on screen is drawn (large boards); designators fade out when zoomed far out.
+        let view = viewport.visibleWorldRect(in: size).insetBy(dx: -2, dy: -2)
+        func onScreen(_ ax: Double, _ ay: Double, _ bx: Double, _ by: Double, pad: Double = 0) -> Bool {
+            CGRect(x: min(ax, bx) - pad, y: min(ay, by) - pad, width: abs(bx - ax) + 2 * pad, height: abs(by - ay) + 2 * pad)
+                .intersects(view)
+        }
+        let showDesignators = k >= 2.5
 
         ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Theme.pcbBackground))
 
@@ -455,6 +544,7 @@ struct PCBCanvas: View {
             ctx.stroke(Path(keepout).applying(screen), with: .color(Theme.boardEdge.opacity(0.25)),
                        style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
         }
+        drawGrid(&ctx, board: boardRect, view: view)
 
         // Copper: bottom-most layers first, the active copper layer last so it sits on top.
         let layerCount = max(1, snap.board.layerCount)
@@ -464,7 +554,7 @@ struct PCBCanvas: View {
             guard visible.contains(.copper(layer)) else { continue }
             let isActive = layer == activeCopper
             let base = Theme.copperColor(layer, layerCount: layerCount)
-            for t in snap.tracks where t.layer == layer {
+            for t in snap.tracks where t.layer == layer && onScreen(t.ax, t.ay, t.bx, t.by, pad: t.width) {
                 var path = Path()
                 path.move(to: CGPoint(x: t.ax, y: t.ay))
                 path.addLine(to: CGPoint(x: t.bx, y: t.by))
@@ -472,7 +562,8 @@ struct PCBCanvas: View {
                 ctx.stroke(path.applying(screen), with: .color(highlight ? Theme.iceBlue : base.opacity(isActive ? 1 : 0.45)),
                            style: StrokeStyle(lineWidth: max(1, t.width * k), lineCap: .round, lineJoin: .round))
             }
-            for p in snap.pads where !p.throughHole && (p.bottom ? snap.board.bottomLayer : 0) == layer {
+            for p in snap.pads where !p.throughHole && (p.bottom ? snap.board.bottomLayer : 0) == layer
+                && (moving.contains(p.component) || onScreen(p.x, p.y, p.x, p.y, pad: max(p.w, p.h))) {
                 let r = CGRect(x: p.x - p.w / 2, y: p.y - p.h / 2, width: p.w, height: p.h)
                 let moved = r.offsetBy(dx: moving.contains(p.component) ? d.width : 0, dy: moving.contains(p.component) ? d.height : 0)
                 ctx.fill(Path(roundedRect: moved, cornerRadius: min(p.w, p.h) * 0.15).applying(screen),
@@ -481,7 +572,7 @@ struct PCBCanvas: View {
         }
         // Through-hole pads and through vias (every layer)
         if (0..<layerCount).contains(where: { visible.contains(.copper($0)) }) {
-            for p in snap.pads where p.throughHole {
+            for p in snap.pads where p.throughHole && (moving.contains(p.component) || onScreen(p.x, p.y, p.x, p.y, pad: max(p.w, p.h))) {
                 let c = shifted(p.component, CGPoint(x: p.x, y: p.y))
                 let r = CGRect(x: c.x - p.w / 2, y: c.y - p.h / 2, width: p.w, height: p.h)
                 let shape = p.round ? Path(ellipseIn: r) : Path(r)
@@ -489,7 +580,7 @@ struct PCBCanvas: View {
                 let hole = CGRect(x: c.x - p.drill / 2, y: c.y - p.drill / 2, width: p.drill, height: p.drill)
                 ctx.fill(Path(ellipseIn: hole).applying(screen), with: .color(Theme.pcbBackground))
             }
-            for v in snap.vias {
+            for v in snap.vias where onScreen(v.x, v.y, v.x, v.y, pad: v.diameter) {
                 let r = CGRect(x: v.x - v.diameter / 2, y: v.y - v.diameter / 2, width: v.diameter, height: v.diameter)
                 ctx.fill(Path(ellipseIn: r).applying(screen), with: .color(Theme.via))
                 let hole = CGRect(x: v.x - v.drill / 2, y: v.y - v.drill / 2, width: v.drill, height: v.drill)
@@ -498,7 +589,7 @@ struct PCBCanvas: View {
         }
 
         // Silkscreen / courtyards / designators
-        for cy in snap.courtyards {
+        for cy in snap.courtyards where moving.contains(cy.component) || cy.rect.intersects(view) {
             let rect = cy.rect.offsetBy(dx: moving.contains(cy.component) ? d.width : 0, dy: moving.contains(cy.component) ? d.height : 0)
             let selected = store.selection.contains(cy.component)
             if visible.contains(.courtyard) || selected {
@@ -511,6 +602,7 @@ struct PCBCanvas: View {
             if visible.contains(.silkscreen), let c = snap.component(cy.component) {
                 let inner = rect.insetBy(dx: 0.15, dy: 0.15)
                 ctx.stroke(Path(inner).applying(screen), with: .color(Theme.silkscreen.opacity(c.pcb.bottom ? 0.35 : 0.9)), lineWidth: max(0.6, 0.12 * k))
+                guard showDesignators else { continue }
                 let fontSize = max(7, min(14, 1.0 * k))
                 ctx.draw(Text(c.ref).font(.system(size: fontSize, weight: .semibold, design: .monospaced))
                             .foregroundColor(Theme.silkscreen.opacity(c.pcb.bottom ? 0.5 : 1)),
@@ -521,7 +613,7 @@ struct PCBCanvas: View {
         // Ratsnest
         if visible.contains(.ratsnest) {
             var rats = Path()
-            for l in snap.ratsnest {
+            for l in snap.ratsnest where onScreen(l.ax, l.ay, l.bx, l.by, pad: 0.5) {
                 rats.move(to: CGPoint(x: l.ax, y: l.ay))
                 rats.addLine(to: CGPoint(x: l.bx, y: l.by))
             }
@@ -534,6 +626,14 @@ struct PCBCanvas: View {
             ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 8, y: s.y - 8, width: 16, height: 16)), with: .color(Theme.error), lineWidth: 2)
         }
 
+        if let r = zoomRect {
+            ctx.fill(Path(r), with: .color(Theme.blue.opacity(0.12)))
+            ctx.stroke(Path(r), with: .color(Theme.skyBlue), style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
+        }
+        if zoomArmed {
+            CanvasOverlays.banner("Zoom to area — drag a rectangle (click zooms 2×) · Esc cancels", in: &ctx, size: size)
+        }
+
         // Cursor read-out
         if let h = hover {
             let w = viewport.toWorld(h)
@@ -542,5 +642,24 @@ struct PCBCanvas: View {
             ctx.draw(Text(text).font(.system(size: 11, design: .monospaced)).foregroundColor(Theme.skyBlue),
                      at: CGPoint(x: 12, y: size.height - 12), anchor: .bottomLeading)
         }
+    }
+
+    /// Dot grid on the board (1 mm at 100 %, coarser when zoomed out, 0.5/0.1 mm when zoomed in).
+    private func drawGrid(_ ctx: inout GraphicsContext, board: CGRect, view: CGRect) {
+        let pitch = viewport.gridPitch(base: 0.1, minimumPoints: 10)
+        let area = board.intersection(view)
+        guard !area.isNull, area.width > 0, area.height > 0 else { return }
+        var dots = Path()
+        var x = (area.minX / pitch).rounded(.up) * pitch
+        while x <= area.maxX {
+            var y = (area.minY / pitch).rounded(.up) * pitch
+            while y <= area.maxY {
+                let p = viewport.toScreen(CGPoint(x: x, y: y))
+                dots.addRect(CGRect(x: p.x - 0.5, y: p.y - 0.5, width: 1, height: 1))
+                y += pitch
+            }
+            x += pitch
+        }
+        ctx.fill(dots, with: .color(Theme.gridDot.opacity(0.7)))
     }
 }

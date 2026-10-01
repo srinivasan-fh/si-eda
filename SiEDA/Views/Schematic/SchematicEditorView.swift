@@ -30,7 +30,6 @@ struct SchematicEditorView: View {
     @State private var viewport = Viewport(scale: 1.6, offset: CGSize(width: 260, height: 260))
     @State private var canvasSize: CGSize = .zero
     @State private var wireStart: String?
-    @State private var fitRequest = 0
 
     var body: some View {
         HStack(spacing: 0) {
@@ -58,11 +57,17 @@ struct SchematicEditorView: View {
                     tool = .place(.voltageSource)
                 }
                 ToolStripDivider()
-                ToolStripButton(systemImage: "rotate.right", help: "Rotate selection (R)") { store.rotateSelection() }
+                ToolStripButton(systemImage: "rotate.right", help: "Rotate selection (Space or R)") { store.rotateSelection() }
                 ToolStripButton(systemImage: "trash", help: "Delete selection (⌫)") { store.deleteSelection() }
                 ToolStripDivider()
                 ToolStripButton(systemImage: "sidebar.left", help: "Show/hide device picker", isActive: showPicker) {
                     showPicker.toggle()
+                }
+                ToolStripButton(systemImage: "map", help: "Navigator overview (N)", isActive: store.showNavigator) {
+                    store.showNavigator.toggle()
+                }
+                ToolStripButton(systemImage: "plus.magnifyingglass", help: "Zoom to area (Z) — drag a rectangle") {
+                    store.requestView(.zoomArea)
                 }
             }
 
@@ -97,13 +102,19 @@ struct SchematicEditorView: View {
                     if !store.selection.isEmpty {
                         Text("\(store.selection.count) selected").foregroundStyle(Theme.skyBlue)
                     }
-                    ZoomControls(scale: viewport.scale / 1.6,
-                                 zoomIn: { zoom(1.25) }, zoomOut: { zoom(0.8) }, fit: { fitRequest += 1 })
+                    ZoomControls(level: viewport.scale / Viewport.schematicBaseScale,
+                                 zoomIn: { store.requestView(.zoomIn) }, zoomOut: { store.requestView(.zoomOut) },
+                                 fit: { store.requestView(.fit) }, fitSelection: { store.requestView(.fitSelection) },
+                                 setLevel: { store.requestView(.setLevel($0)) })
                 }
 
                 ZStack(alignment: .bottomLeading) {
-                    SchematicCanvas(tool: $tool, viewport: $viewport, canvasSize: $canvasSize, wireStart: $wireStart,
-                                    fitRequest: fitRequest)
+                    SchematicCanvas(tool: $tool, viewport: $viewport, canvasSize: $canvasSize, wireStart: $wireStart)
+                    if store.showNavigator, !store.snapshot.components.isEmpty {
+                        navigator
+                            .padding(12)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    }
                     SimulationTransport()
                         .padding(12)
                     if store.snapshot.components.isEmpty {
@@ -143,15 +154,22 @@ struct SchematicEditorView: View {
     private var hint: String {
         if let wireStart { return "Wiring from \(wireStart) — click another pin to connect · Esc cancels" }
         switch tool {
-        case .select: return "Click a pin to start a wire · drag parts to move · ⇧-drag to box-select · R rotates"
+        case .select: return "Click a pin to wire · drag parts to move · Space or R rotates · ⇧-drag box-selects · Space+drag, empty-space drag or middle/right-drag pans · scroll/pinch zooms · Home fits"
         case .wire: return "Click a pin, then a second pin to connect them"
-        case .pan: return "Drag or scroll to pan · ⌘-scroll or pinch to zoom"
-        case .place, .placeCustom: return "Click to place (repeats) · Esc returns to Select"
+        case .pan: return "Drag, scroll or arrow keys pan · pinch, ⌘-scroll or +/− zoom · Z zoom to area · Home fits"
+        case .place, .placeCustom: return "Click to place (repeats) · Space or R rotates before placing · Esc returns to Select"
         }
     }
 
-    private func zoom(_ factor: CGFloat) {
-        viewport.zoom(by: factor, anchor: CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2), limits: 0.2...12)
+    /// Overview of the whole schematic; click or drag to move the view.
+    private var navigator: some View {
+        let bounds = SchematicCanvas.componentBounds(store.snapshot)
+        let extent = bounds.reduce(CGRect.null) { $0.union($1.rect) }.insetBy(dx: -40, dy: -40)
+        return CanvasNavigator(extent: extent, items: bounds.map { $0.rect },
+                               highlighted: bounds.filter { store.selection.contains($0.id) }.map { $0.rect },
+                               viewport: viewport, canvasSize: canvasSize,
+                               onCenter: { viewport.center(on: $0, in: canvasSize) },
+                               onClose: { store.showNavigator = false })
     }
 }
 
