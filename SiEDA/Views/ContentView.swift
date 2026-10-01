@@ -142,6 +142,8 @@ struct SidebarView: View {
                 ForEach(store.snapshot.components.filter { !$0.componentKind.isVirtual }) { c in
                     Button {
                         store.select(component: c.id)
+                        // Make the selection visible: jump to the schematic unless an editor that shows it is open.
+                        if ![.schematic, .pcb, .threeD].contains(store.workspace) { store.workspace = .schematic }
                     } label: {
                         HStack {
                             Image(systemName: c.componentKind.systemImage)
