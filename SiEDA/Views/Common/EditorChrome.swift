@@ -32,13 +32,21 @@ struct ToolStrip<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(spacing: 4) {
-            content
-            Spacer()
+        // On short windows the tools scroll instead of forcing the workspace taller than the window.
+        ViewThatFits(in: .vertical) {
+            VStack(spacing: 4) {
+                content
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 8)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 4) { content }
+                    .padding(.vertical, 8)
+            }
         }
-        .padding(.vertical, 8)
         .padding(.horizontal, 5)
         .frame(width: 44)
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(Theme.deepBlue)
         .overlay(Rectangle().frame(width: 1).foregroundStyle(Theme.blue.opacity(0.3)), alignment: .trailing)
     }
