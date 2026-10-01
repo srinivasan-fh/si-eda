@@ -68,6 +68,13 @@ int32_t sieda_custom_part_replace(SiedaProject* project, const char* old_id, con
 int32_t sieda_add_custom_component(SiedaProject* project, const char* part_id, const char* value, double x, double y,
                                    int32_t rotation, const char* ref);
 char* sieda_packages_json(void);
+/* Built-in standard parts: [{"category": "...", "spec": {<spec_json as above>}}, ...] */
+char* sieda_standard_parts_json(void);
+
+/* ---- standard values --------------------------------------------------------------------- */
+/* Nearest IEC 60063 value; series = 12, 24 or 96. */
+double sieda_nearest_standard_value(double value, int32_t series);
+int32_t sieda_is_standard_value(double value, int32_t series);
 
 /* ---- analysis ------------------------------------------------------------------------------ */
 char* sieda_run_erc(const SiedaProject* project);

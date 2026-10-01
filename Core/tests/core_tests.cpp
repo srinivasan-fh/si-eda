@@ -13,6 +13,7 @@
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/Simulator.hpp"
+#include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
 
 extern "C" int sieda_c_api_smoke_test(void);
@@ -718,6 +719,29 @@ TEST(custom_part_in_design) {
     CHECK(s.wires().size() == wiresBefore);
     CHECK(s.pinIndex(u, "VDD") >= 0);
     CHECK(p.removeCustomPart(id));
+}
+
+TEST(standard_values_and_parts) {
+    CHECK_NEAR(nearestStandardValue(4800, ESeries::E24), 4700, 1e-9);
+    CHECK_NEAR(nearestStandardValue(9.6e-9, ESeries::E12), 10e-9, 1e-18);   // rolls into the next decade
+    CHECK_NEAR(nearestStandardValue(330, ESeries::E12), 330, 1e-9);
+    CHECK_NEAR(nearestStandardValue(4990, ESeries::E96), 4990, 1e-9);
+    CHECK(isStandardValue(4700, ESeries::E24));
+    CHECK(isStandardValue(1e5, ESeries::E12));
+    CHECK(!isStandardValue(4800, ESeries::E24));
+    CHECK(!isStandardValue(-1, ESeries::E24));
+
+    CHECK(standardParts().size() >= 12);
+    CHECK(findStandardPart("ne555") != nullptr);
+    CHECK(findStandardPart("does-not-exist") == nullptr);
+    for (const auto& sp : standardParts()) {
+        auto part = CustomPartRegistry::instance().registerPart(sp.spec);
+        CHECK(part->footprint.pads.size() >= sp.spec.pins.size());
+        // Every package pad maps to a pin (no anonymous pads on the standard parts).
+        for (const auto& pad : part->footprint.pads) CHECK(pad.pinIndex >= 0);
+    }
+    const StandardPart* mega = findStandardPart("ATmega328P");
+    CHECK(mega && mega->spec.pins.size() == 28 && mega->spec.pins[6].name == "VCC");
 }
 
 // ======================================================================= persistence & exports

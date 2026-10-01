@@ -9,6 +9,8 @@
 #include "sieda/Export.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
+#include "sieda/StandardParts.hpp"
+#include "sieda/Units.hpp"
 
 struct SiedaProject {
     sieda::Project project;
@@ -255,6 +257,25 @@ char* sieda_packages_json(void) {
     for (const auto& p : supportedPackages()) arr.push(p);
     return dup(arr.dump());
 }
+
+char* sieda_standard_parts_json(void) {
+    try {
+        Json arr = Json::array();
+        for (const auto& p : standardParts()) {
+            Json j = Json::object();
+            j["category"] = p.category;
+            j["spec"] = customPartSpecToJson(p.spec);
+            arr.push(j);
+        }
+        return dup(arr.dump());
+    } catch (...) {
+        return dup("[]");
+    }
+}
+
+static ESeries seriesFrom(int32_t s) { return s <= 12 ? ESeries::E12 : (s <= 24 ? ESeries::E24 : ESeries::E96); }
+double sieda_nearest_standard_value(double value, int32_t series) { return nearestStandardValue(value, seriesFrom(series)); }
+int32_t sieda_is_standard_value(double value, int32_t series) { return isStandardValue(value, seriesFrom(series)) ? 1 : 0; }
 
 char* sieda_run_erc(const SiedaProject* project) {
     if (!project) return nullptr;
