@@ -41,6 +41,22 @@ jobs:
           git diff --exit-code -- SiEDA.xcodeproj
       - name: Build and test
         run: |
+          set -o pipefail
           xcodebuild -project SiEDA.xcodeproj -scheme SiEDA -configuration Debug \
-            -destination 'platform=macOS' CODE_SIGN_IDENTITY=- test | tee xcodebuild.log
-          exit ${PIPESTATUS[0]}
+            -destination 'platform=macOS' CODE_SIGN_IDENTITY=- test 2>&1 | tee xcodebuild.log
+      - name: Report compiler and test errors
+        if: failure()
+        run: |
+          # Surface the first errors as annotations (readable from the PR checks UI and the API).
+          grep -E "(error|fatal error): |error: -\[|XCTAssert|Test Case .* failed|\*\* (BUILD|TEST) FAILED" xcodebuild.log \
+            | sed -E "s#^$GITHUB_WORKSPACE/##" | awk '!seen[$0]++' | head -60 > errors.txt || true
+          if [ -s errors.txt ]; then
+            while IFS= read -r line; do echo "::error title=xcodebuild::${line}"; done < <(head -45 errors.txt)
+          else
+            tail -80 xcodebuild.log | while IFS= read -r line; do echo "::error title=xcodebuild tail::${line}"; done
+          fi
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: xcodebuild-log
+          path: xcodebuild.log
