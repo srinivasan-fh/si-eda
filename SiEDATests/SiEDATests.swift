@@ -980,3 +980,72 @@ final class DesignFlowTests: XCTestCase {
         XCTAssertEqual(report?.passed, true, "\(report?.stages.filter { $0.status == .fail }.map(\.summary) ?? [])")
     }
 }
+
+/// AppKit logs "reentrant operation in its NSTableView delegate" when a List's data changes while the table is
+/// calling its delegate; Apple has announced it will become an assert (a crash). Loading a design must not do it.
+@MainActor
+final class TableReentrancyTests: XCTestCase {
+    /// Runs `body` with this process's stderr redirected to a file and returns what was written.
+    private func capturingStderr(_ body: () -> Void) -> String {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("stderr-\(UUID().uuidString).log")
+        FileManager.default.createFile(atPath: url.path, contents: nil)
+        defer { try? FileManager.default.removeItem(at: url) }
+        guard let file = try? FileHandle(forWritingTo: url) else { return "" }
+        fflush(stderr)
+        let saved = dup(STDERR_FILENO)
+        dup2(file.fileDescriptor, STDERR_FILENO)
+        body()
+        fflush(stderr)
+        dup2(saved, STDERR_FILENO)
+        close(saved)
+        try? file.close()
+        return (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+    }
+
+    private func spin(_ seconds: TimeInterval) { RunLoop.main.run(until: Date().addingTimeInterval(seconds)) }
+
+    private func reentrantWarnings<V: View>(_ name: String, _ view: (DesignStore) -> V,
+                                            before: (DesignStore) -> Void = { _ in }) throws -> Int {
+        let store = DesignStore()
+        store.aiEnabled = false
+        let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.TableReentrancyTests")))
+        let agents = AgentOrchestrator()
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1360, height: 860),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: view(store)
+            .environmentObject(store).environmentObject(settings).environmentObject(agents)
+            .documentWindowFrame())
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        before(store)
+        spin(0.5)
+        let log = capturingStderr {
+            store.loadExample(OfflineProvider.templates[8].industryPlan)
+            spin(0.4)
+            window.setContentSize(CGSize(width: 1200, height: 760))
+            spin(0.4)
+            store.autoPlace(all: true)
+            spin(0.3)
+            store.select(component: store.snapshot.components.first?.id)
+            spin(0.3)
+        }
+        let count = log.components(separatedBy: "reentrant operation").count - 1
+        print("[Reentrancy] \(name): \(count) warning(s)")
+        return count
+    }
+
+    func testLoadingADesignCausesNoReentrantTableUpdates() throws {
+        var results: [String: Int] = [:]
+        results["sidebar"] = try reentrantWarnings("sidebar") { _ in SidebarView() }
+        results["schematic editor"] = try reentrantWarnings("schematic editor") { _ in SchematicEditorView() }
+        results["inspector"] = try reentrantWarnings("inspector") { _ in InspectorView() }
+        results["window (from Design Checks)"] = try reentrantWarnings("window (from Design Checks)", { _ in ContentView() },
+                                                                       before: { $0.workspace = .checks })
+        results["window (from Schematic)"] = try reentrantWarnings("window (from Schematic)", { _ in ContentView() },
+                                                                   before: { $0.workspace = .schematic })
+        for (name, count) in results.sorted(by: { $0.key < $1.key }) {
+            XCTAssertEqual(count, 0, "\(name) logged a reentrant NSTableView update")
+        }
+    }
+}
