@@ -74,8 +74,8 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
     const BoardSettings& s = pcb.settings;
     const double t = s.thickness;
     const double cu = 0.035;
-    const Rgba mask{0.04f, 0.36f, 0.20f, 1.0f};
-    const Rgba trackColor{0.10f, 0.52f, 0.28f, 1.0f};
+    const Rgba mask{0.05f, 0.22f, 0.55f, 1.0f};  // blue solder mask
+    const Rgba trackColor{0.12f, 0.36f, 0.75f, 1.0f};
     const Rgba gold{0.86f, 0.70f, 0.30f, 1.0f};
     const Rgba silk{0.95f, 0.95f, 0.95f, 1.0f};
     const Rgba fr4Edge{0.75f, 0.68f, 0.45f, 1.0f};

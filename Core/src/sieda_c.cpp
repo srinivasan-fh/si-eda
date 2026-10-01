@@ -276,6 +276,13 @@ int32_t sieda_pcb_flip_footprint(SiedaProject* project, int32_t id) {
     return 1;
 }
 
+int32_t sieda_pcb_fit_board(SiedaProject* project, double margin_mm) {
+    if (!project) return 0;
+    return guarded([&] {
+        return project->project.pcb.fitBoardToComponents(project->project.schematic, margin_mm) ? 1 : 0;
+    });
+}
+
 char* sieda_pcb_autoroute(SiedaProject* project) {
     if (!project) return nullptr;
     try {

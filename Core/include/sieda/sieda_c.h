@@ -65,6 +65,8 @@ void sieda_pcb_autoplace(SiedaProject* project, int32_t all);
 int32_t sieda_pcb_move_footprint(SiedaProject* project, int32_t component_id, double x, double y);
 int32_t sieda_pcb_rotate_footprint(SiedaProject* project, int32_t component_id, int32_t delta_degrees);
 int32_t sieda_pcb_flip_footprint(SiedaProject* project, int32_t component_id);
+/* Resizes the board outline to the placed footprints plus margin_mm, keeping parts and copper together. */
+int32_t sieda_pcb_fit_board(SiedaProject* project, double margin_mm);
 char* sieda_pcb_autoroute(SiedaProject* project); /* JSON route statistics */
 void sieda_pcb_clear_routing(SiedaProject* project);
 char* sieda_pcb_run_drc(const SiedaProject* project);

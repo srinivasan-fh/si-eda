@@ -73,6 +73,34 @@ int PcbLayout::addVia(Via v) {
     return v.id;
 }
 
+bool PcbLayout::fitBoardToComponents(Schematic& sch, double margin) {
+    bool any = false;
+    Rect box;
+    for (const auto& c : sch.components()) {
+        if (!c.hasFootprint() || !c.pcb.placed) continue;
+        Rect r = courtyard(c);
+        box = any ? Rect(std::min(box.x0, r.x0), std::min(box.y0, r.y0), std::max(box.x1, r.x1), std::max(box.y1, r.y1)) : r;
+        any = true;
+    }
+    if (!any) return false;
+    margin = std::max(margin, settings.edgeClearance + 0.5);
+    auto roundUp = [](double v) { return std::ceil(v * 2.0) / 2.0; };
+    double width = std::max(10.0, roundUp(box.width() + 2 * margin));
+    double height = std::max(10.0, roundUp(box.height() + 2 * margin));
+    // Centre the parts in the new outline, snapped to the 0.25 mm placement grid.
+    Vec2 shift{std::round(((width - box.width()) / 2 - box.x0) * 4) / 4, std::round(((height - box.height()) / 2 - box.y0) * 4) / 4};
+    for (auto& c : sch.mutableComponents())
+        if (c.hasFootprint() && c.pcb.placed) c.pcb.position = c.pcb.position + shift;
+    for (auto& t : tracks) {
+        t.a = t.a + shift;
+        t.b = t.b + shift;
+    }
+    for (auto& v : vias) v.position = v.position + shift;
+    settings.width = width;
+    settings.height = height;
+    return true;
+}
+
 // ===================================================================== auto placement
 
 void PcbLayout::autoPlace(Schematic& sch, bool all) {

@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  core:
+    name: C++ core (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSIEDA_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
+      - name: CLI pipeline (ERC → simulation → place & route → DRC → fabrication files)
+        run: |
+          mkdir -p fab
+          ./build/sieda-cli --demo fab
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: demo-fabrication-files
+          path: fab/
+
+  app:
+    name: macOS app (Xcode)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode project is up to date
+        run: |
+          python3 tools/generate_xcodeproj.py
+          git diff --exit-code -- SiEDA.xcodeproj
+      - name: Build and test
+        run: |
+          xcodebuild -project SiEDA.xcodeproj -scheme SiEDA -configuration Debug \
+            -destination 'platform=macOS' CODE_SIGN_IDENTITY=- test | tee xcodebuild.log
+          exit ${PIPESTATUS[0]}

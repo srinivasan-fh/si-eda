@@ -77,7 +77,7 @@ std::optional<double> parseEngineeringValue(const std::string& raw) {
 }
 
 std::string formatEngineeringValue(double value, const std::string& unit, int significantDigits) {
-    if (value == 0.0 || !std::isfinite(value)) return "0" + unit;
+    if (value == 0.0 || !std::isfinite(value) || std::fabs(value) < 1e-15) return "0" + unit;
     static const struct { double scale; const char* prefix; } kPrefixes[] = {
         {1e12, "T"}, {1e9, "G"}, {1e6, "M"}, {1e3, "k"}, {1.0, ""},
         {1e-3, "m"}, {1e-6, "µ"}, {1e-9, "n"}, {1e-12, "p"}, {1e-15, "f"},

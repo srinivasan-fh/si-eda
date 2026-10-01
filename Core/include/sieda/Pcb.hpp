@@ -77,6 +77,8 @@ public:
     /// Rips up existing routing and routes every net (two-layer grid A* with vias and rip-up passes).
     RouteStats autoRoute(const Schematic& sch);
     void clearRouting() { tracks.clear(); vias.clear(); }
+    /// Shrinks/grows the board to the placed footprints plus `margin` mm, shifting parts and copper together.
+    bool fitBoardToComponents(Schematic& sch, double margin);
     /// Removes tracks/vias of nets that no longer exist after schematic edits.
     void pruneStaleRouting(const Schematic& sch);
 

@@ -1,0 +1,55 @@
+# SiEDA — Product Requirements (v1.0)
+
+## Vision
+Hardware teams should be able to go from a product idea to manufacturable PCB files in minutes. SiEDA does
+this with AI agents whose work is grounded by a deterministic, verifiable EDA engine.
+
+## Target users
+- Hardware and embedded engineers who prototype small boards: sensors, indicators, drivers, filters, amplifiers.
+- Product managers and makers who can describe a function but not draw a schematic.
+- Educators who need simulation and visual feedback.
+
+## Goals
+1. Generate from a prompt or PRD: a schematic, an ERC-clean result, simulated operating values, a routed
+   two-layer PCB, a 3D model and Gerber/drill files.
+2. Let users choose the AI model per workspace. Claude is the default; OpenAI, Gemini, local Ollama and an
+   offline mode are alternatives.
+3. Give experienced users a professional manual workflow: schematic capture, footprint placement,
+   autorouting, DRC and exports.
+4. Combine familiar interface conventions from Altium, Photoshop and Proteus. Dark mode is the default and
+   the palette is blue.
+
+## Functional requirements
+| ID | Requirement | Status |
+|---|---|---|
+| F1 | Prompt/PRD editor with templates and PRD file import | ✅ |
+| F2 | Multi-agent pipeline: analyse → architect → compile → verify → review → layout, with live progress | ✅ |
+| F3 | Conversational refinement of an existing design | ✅ |
+| F4 | Provider selection (Claude default, OpenAI/compatible, Gemini, Ollama, Offline); keys stored in the Keychain | ✅ |
+| F5 | Schematic editor: place, move, rotate, wire, delete, net labels, marquee, undo/redo | ✅ |
+| F6 | ERC with cross-probing | ✅ |
+| F7 | DC operating point and transient simulation, waveform charts, live probes | ✅ |
+| F8 | PCB: auto-place, manual move/rotate/flip, autoroute, ratsnest, DRC, editable design rules | ✅ |
+| F9 | 3D assembly viewer with STL/OBJ export | ✅ |
+| F10 | Fabrication package: Gerber RS-274X, Excellon, BOM, pick-and-place, SPICE netlist | ✅ |
+| F11 | Project save/open (`.siedaproj`, JSON) | ✅ |
+
+## Non-functional requirements
+- **Correctness.** All AI output is schema-validated and checked by the core (ERC, simulation, DRC) before
+  it is presented.
+- **Performance.** Interactive editing of designs with up to 200 parts. Autorouting typical small boards
+  takes under one second.
+- **Privacy.** Keys live in the Keychain. Only the prompt and design context are sent to the selected provider.
+- **Portability.** The core is dependency-free C++17 and is tested on Linux and macOS in CI.
+
+## Out of scope for v1
+- Boards with more than two layers, copper pours, differential pairs and length tuning.
+- Custom symbol and footprint editors, and importing KiCad or Altium libraries.
+- AC and noise analysis.
+
+## Roadmap
+1. Copper pours (GND plane) and thermal reliefs.
+2. User component libraries, with KiCad footprint import.
+3. AC small-signal analysis and Bode plots.
+4. Push-and-shove interactive routing.
+5. Team collaboration through a shared project repository.

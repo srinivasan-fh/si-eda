@@ -1,6 +1,7 @@
 // sieda-cli — headless SiEDA pipeline: ERC → DC simulation → placement → routing → DRC → fabrication outputs.
 //
 //   sieda-cli                       run the built-in demo design
+//   sieda-cli --demo out/           run the demo and write its fabrication files into out/
 //   sieda-cli design.siedaproj      process a saved project
 //   sieda-cli design.siedaproj out/ write Gerbers, drill, BOM, netlist, STL into out/
 #include <cstdio>
@@ -55,7 +56,7 @@ bool writeFile(const std::string& path, const std::string& content) {
 
 int main(int argc, char** argv) {
     Project project;
-    if (argc >= 2) {
+    if (argc >= 2 && std::string(argv[1]) != "--demo") {
         std::ifstream in(argv[1]);
         if (!in) {
             std::fprintf(stderr, "cannot open %s\n", argv[1]);

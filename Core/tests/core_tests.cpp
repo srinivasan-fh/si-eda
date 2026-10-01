@@ -459,6 +459,27 @@ TEST(pcb_route_amplifier_drc_clean) {
     if (!first.empty()) std::printf("    first DRC error: %s\n", first.c_str());
 }
 
+TEST(pcb_fit_board_keeps_design_valid) {
+    Project p = amplifierProject();
+    p.pcb.settings.width = 80;
+    p.pcb.settings.height = 60;
+    p.pcb.autoPlace(p.schematic, true);
+    p.pcb.autoRoute(p.schematic);
+    size_t tracks = p.pcb.tracks.size();
+    CHECK(p.pcb.fitBoardToComponents(p.schematic, 2.0));
+    CHECK(p.pcb.settings.width < 80);
+    CHECK(p.pcb.settings.height < 60);
+    CHECK(p.pcb.tracks.size() == tracks);
+    std::string first;
+    CHECK(drcErrors(p, &first) == 0);  // shifted copper must still connect and keep clearance
+    if (!first.empty()) std::printf("    first DRC error: %s\n", first.c_str());
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint()) {
+            Rect cy = p.pcb.courtyard(c);
+            CHECK(cy.x0 >= 0 && cy.y0 >= 0 && cy.x1 <= p.pcb.settings.width && cy.y1 <= p.pcb.settings.height);
+        }
+}
+
 TEST(pcb_drc_detects_short_and_unrouted) {
     Project p = ledProject();
     p.pcb.autoPlace(p.schematic, true);
