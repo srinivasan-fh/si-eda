@@ -11,6 +11,8 @@ struct SchematicCanvas: View {
     @Binding var wireStart: String?
     /// Tool armed by P: the device last chosen in the picker.
     var placementTool: SchematicTool = .place(.resistor)
+    /// Live (real-time) simulation: probes show its voltages, LEDs glow, switches are clicked.
+    @ObservedObject var live: LiveSimulation
 
     private enum DragMode {
         case move(Set<Int>)
@@ -18,6 +20,7 @@ struct SchematicCanvas: View {
         case marquee
         case zoomBox
         case wire(PinAddress)  // press on a pin and drag to another pin
+        case livePress(Int)    // a switch held while the live simulation runs
     }
 
     @State private var dragMode: DragMode?
@@ -263,12 +266,17 @@ struct SchematicCanvas: View {
                         .union(CGRect(origin: value.location, size: .zero))
                 case .wire:
                     hover = value.location  // hover events stop during a drag; keep the rubber band on the cursor
-                case nil:
+                case .livePress, nil:
                     break
                 }
             }
             .onEnded { value in
                 focused = true
+                if case .livePress(let id) = dragMode {  // release a held push-button
+                    live.press(id, pressed: false)
+                    dragMode = nil
+                    return
+                }
                 let moved = hypot(value.translation.width, value.translation.height) > 3
                 if case .zoomBox = dragMode {
                     zoomArmed = false
@@ -326,6 +334,12 @@ struct SchematicCanvas: View {
             return
         }
         let world = viewport.toWorld(screen)
+        // While the board runs live, switches and push-buttons are operated, not edited.
+        if live.isRunning, let id = component(at: world), store.snapshot.component(id)?.componentKind == .switchSPST {
+            live.press(id, pressed: true)
+            dragMode = .livePress(id)
+            return
+        }
         switch tool {
         case .select, .wire:
             let shift = NSEvent.modifierFlags.contains(.shift)
@@ -385,6 +399,17 @@ struct SchematicCanvas: View {
     }
 
     // MARK: - Drawing
+
+    /// Glow colour of an LED from its value ("Red", "Green 0805", "Blue", …).
+    static func ledColour(_ value: String) -> Color {
+        let v = value.lowercased()
+        if v.contains("green") { return Color(red: 0.30, green: 1.0, blue: 0.40) }
+        if v.contains("blue") { return Color(red: 0.35, green: 0.55, blue: 1.0) }
+        if v.contains("yellow") || v.contains("amber") { return Color(red: 1.0, green: 0.85, blue: 0.20) }
+        if v.contains("orange") { return Color(red: 1.0, green: 0.55, blue: 0.15) }
+        if v.contains("white") { return Color(red: 0.95, green: 0.97, blue: 1.0) }
+        return Color(red: 1.0, green: 0.22, blue: 0.18)
+    }
 
     private func draw(_ ctx: inout GraphicsContext, size: CGSize) {
         let snap = store.snapshot
@@ -525,12 +550,49 @@ struct SchematicCanvas: View {
             }
         }
 
-        // Live DC probes (Proteus-style).
-        if store.showDCOverlay, let dc = store.dcResult, dc.converged {
+        // Live board: LEDs glow with their current, switches show their state.
+        if live.isRunning, let liveState = live.state {
+            for led in liveState.leds where led.brightness > 0.02 {
+                guard let c = snap.component(led.component) else { continue }
+                let local = SchematicSymbols.transform(position: c.position, rotation: c.rotation)
+                let box = SchematicSymbols.bounds(c.componentKind, custom: nil).applying(local)
+                let centre = CGPoint(x: box.midX, y: box.midY).applying(screen)
+                let radius = max(14, 30 * viewport.scale)
+                let colour = Self.ledColour(c.value)
+                let b = min(1, led.brightness)
+                ctx.fill(Path(ellipseIn: CGRect(x: centre.x - radius, y: centre.y - radius, width: 2 * radius, height: 2 * radius)),
+                         with: .radialGradient(Gradient(colors: [colour.opacity(0.9 * b), colour.opacity(0.35 * b), colour.opacity(0)]),
+                                               center: centre, startRadius: 0, endRadius: radius))
+            }
+            for sw in liveState.switches {
+                guard let c = snap.component(sw.component) else { continue }
+                let local = SchematicSymbols.transform(position: c.position, rotation: c.rotation)
+                let box = SchematicSymbols.bounds(c.componentKind, custom: nil).applying(local)
+                let top = CGPoint(x: box.midX, y: box.minY).applying(screen)
+                let closed = live.isClosed(sw.component) ?? sw.closed
+                let text = closed ? (sw.momentary ? "PRESSED" : "ON") : (sw.momentary ? "PRESS" : "OFF")
+                let width = CGFloat(text.count) * 6.2 + 14
+                let rect = CGRect(x: top.x - width / 2, y: top.y - 22, width: width, height: 15)
+                ctx.fill(Path(roundedRect: rect, cornerRadius: 7.5),
+                         with: .color(closed ? Theme.liveOn.opacity(0.9) : Theme.deepBlue.opacity(0.92)))
+                ctx.stroke(Path(roundedRect: rect, cornerRadius: 7.5), with: .color(closed ? Theme.liveOn : Theme.textMuted), lineWidth: 1)
+                ctx.draw(Text(text).font(.system(size: 9, weight: .bold, design: .rounded))
+                            .foregroundColor(closed ? Theme.deepBlue : Theme.textSecondary), at: CGPoint(x: rect.midX, y: rect.midY))
+            }
+        }
+
+        // Live probes (Proteus-style): the running board's voltages, otherwise the DC operating point.
+        let liveState = live.isRunning ? live.state : nil
+        let probeVoltage: ((Int) -> Double?)? = {
+            if let liveState { return { liveState.voltage(net: $0) } }
+            if store.showDCOverlay, let dc = store.dcResult, dc.converged { return { dc.voltage(net: $0) } }
+            return nil
+        }()
+        if let probeVoltage {
             var labelled = Set<Int>()
             for w in snap.wires {
                 guard w.net >= 0, !labelled.contains(w.net), let net = snap.net(w.net), !net.ground,
-                      let v = dc.voltage(net: w.net), let a = pinPoint(w.a), let b = pinPoint(w.b) else { continue }
+                      let v = probeVoltage(w.net), let a = pinPoint(w.a), let b = pinPoint(w.b) else { continue }
                 labelled.insert(w.net)
                 let pts = Self.wirePath(a, b)
                 let mid = pts.count == 3 ? pts[1] : CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)

@@ -1587,7 +1587,7 @@ struct OfflineProvider: AIProvider {
                     PlannedComponent(ref: "R1", kind: "resistor", value: "10k", x: 120, y: -160, rotation: 90),
                     PlannedComponent(ref: "R2", kind: "resistor", value: "330", x: 520, y: -60),
                     PlannedComponent(ref: "D1", kind: "led", value: "Red", x: 620, y: 0, rotation: 90),
-                    PlannedComponent(ref: "SW1", kind: "switch", value: "open", x: 520, y: 140),
+                    PlannedComponent(ref: "SW1", kind: "switch", value: "push", x: 520, y: 140),
                     PlannedComponent(ref: "NL1", kind: "net_label", value: "+5V", x: 120, y: -260),
                     PlannedComponent(ref: "GND1", kind: "ground", value: "0", x: 0, y: 90),
                     PlannedComponent(ref: "GND2", kind: "ground", value: "0", x: 120, y: 200),

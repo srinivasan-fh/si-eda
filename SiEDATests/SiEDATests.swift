@@ -1158,3 +1158,71 @@ final class MicrocontrollerTests: XCTestCase {
         XCTAssertEqual(copy.snapshot()?.component(ref: "U1")?.mcu?.firmwareName, "Blink.hex")
     }
 }
+
+/// The live board: real-time stepping, firmware, push-button, LED glow, serial monitor, scope, stop on edits.
+@MainActor
+final class LiveSimulationTests: XCTestCase {
+    private func wait(_ live: LiveSimulation, until condition: () -> Bool, timeout: TimeInterval = 20) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition() && Date() < deadline { try? await Task.sleep(nanoseconds: 50_000_000) }
+    }
+
+    func testArduinoBoardRunsLive() async throws {
+        let store = DesignStore()
+        store.aiEnabled = false
+        let template = try XCTUnwrap(OfflineProvider.templates.first { $0.category == "Microcontrollers" })
+        store.applyPlan(template.industryPlan, requirements: nil)
+        let live = store.live
+        live.speed = 1
+        live.resolution = 100e-6
+        live.start(store: store)
+        XCTAssertTrue(live.isRunning, live.error ?? "")
+        defer { live.stop() }
+
+        await wait(live) { (live.state?.time ?? 0) > 0.05 }
+        let state = try XCTUnwrap(live.state)
+        XCTAssertGreaterThan(state.time, 0.05)
+        XCTAssertTrue(state.mcus.first?.running ?? false, state.mcus.first?.status ?? "no MCU")
+        let sw1 = try XCTUnwrap(store.snapshot.component(ref: "SW1"))
+        let d1 = try XCTUnwrap(store.snapshot.component(ref: "D1"))
+        XCTAssertEqual(state.switches.first?.momentary, true)
+        XCTAssertLessThan(live.led(d1.id)?.brightness ?? 1, 0.05)
+
+        // Hold the push-button: the LED lights and the firmware reports the press.
+        live.press(sw1.id, pressed: true)
+        await wait(live) { (live.led(d1.id)?.brightness ?? 0) > 0.4 }
+        XCTAssertGreaterThan(live.led(d1.id)?.brightness ?? 0, 0.4)
+        XCTAssertEqual(live.isClosed(sw1.id), true)
+        await wait(live) { live.state?.mcus.first?.serial.contains("press 1") ?? false }
+        XCTAssertTrue(live.state?.mcus.first?.serial.contains("press 1") ?? false)
+        live.press(sw1.id, pressed: false)
+        await wait(live) { (live.led(d1.id)?.brightness ?? 1) < 0.05 }
+        XCTAssertLessThan(live.led(d1.id)?.brightness ?? 1, 0.05)
+
+        // Scope history accumulates for the selected nets.
+        XCTAssertFalse(live.scopeNets.isEmpty)
+        XCTAssertGreaterThan(live.scopeTime.count, 10)
+        XCTAssertTrue(live.scopeNets.allSatisfy { (live.scopeValues[$0]?.count ?? 0) == live.scopeTime.count })
+
+        // Pause holds the time; an edit stops the run.
+        live.pause()
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        let paused = live.state?.time ?? 0
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(live.state?.time ?? -1, paused, accuracy: 1e-9)
+        live.resume()
+        store.setValue(try XCTUnwrap(store.snapshot.component(ref: "R2")).id, "470")
+        await wait(live) { !live.isRunning }
+        XCTAssertFalse(live.isRunning)
+        XCTAssertTrue(store.statusMessage.contains("design changed"), store.statusMessage)
+    }
+
+    func testLiveStartErrorsAreReported() {
+        let store = DesignStore()  // empty design: nothing to simulate
+        store.live.start(store: store)
+        XCTAssertFalse(store.live.isRunning)
+        XCTAssertNotNil(store.live.error)
+        store.live.clearError()
+        XCTAssertNil(store.live.error)
+    }
+}

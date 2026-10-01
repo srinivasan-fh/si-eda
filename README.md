@@ -38,6 +38,7 @@ Every AI result lands in the same editable schematic and PCB, so you can switch 
 | **Circuit validation** | Beyond ERC: non-standard values, missing IC decoupling, and DC-derived part ratings (resistor power, LED/diode current, reverse-biased LEDs, transistor current/power, supply over-current, op-amp saturation, fuse overload). Exceeding a rating is a warning; 2× the rating is an error |
 | **PCB design rules** | Presets: Prototype (Conservative), IPC-2221 Class 2 (default), IPC-2221 Class 3, Fab House Standard (6/6 mil) and Advanced (4/4 mil). DRC checks clearance against both the design rule and the fab minimum, plus track width, drill size, annular ring, hole-to-hole spacing, via-in-pad, dangling tracks, acute angles and IPC-2221 current capacity from the simulated net currents |
 | **Industry design kits** | Each project has an industry profile: General, Robotics & Motor Control, Drones & UAV, Power Electronics, Automotive, RF & Wireless, Space, Marine & Ship, Industrial Automation, Medical Devices, Defence & Military, Networking & Telecom, or VLSI / ASIC & FPGA. The profile sets the design rules, derates part ratings in validation (Space 50 %, Automotive 60/70 %, …) and selects IPC-2221 B2 or B3 (altitude) voltage spacing, and its standards and design guidance are shown in the Properties panel. The kits add domain parts (IR2104, IRF540N, UC3843, ACS712, TJA1050, LM2940, MAX485, PC817, INA333, ADuM1201) and 13 verified reference designs, and AI agents choose and follow the profile. See [Industry design kits](#industry-design-kits) |
+| **Live board** | **Run Live** runs the board in real time: LEDs glow with their current, you click switches and push-buttons, probes, a scope and the serial monitor update as firmware runs. See [Live board simulation](#live-board-simulation) |
 | **Microcontroller firmware** | Upload an Arduino/avr-gcc `.hex` to an ATmega328P or ATtiny85 and run it in the transient simulation. Pins drive the circuit, inputs and the ADC read it, and the serial monitor shows its output. See [Microcontroller simulation](#microcontroller-simulation-firmware) |
 | **Verification process** | **Design → Verify Design** (⌥⌘V) runs a 7-stage sign-off: ERC → DC simulation → circuit validation → footprint placement → routing completion → DRC/fab rules → manufacturing outputs (every Gerber layer, drill, BOM, pick-and-place and netlist are generated and checked). The verdict is Pass, Pass with warnings or Fail; findings cross-probe to the editors, and the report exports as Markdown. **Export Fabrication Package** always verifies first, asks before exporting a failing design, and includes `verification_report.md` |
 | **Model choice** | Anthropic **Claude** (default: `claude-opus-5-5`, structured outputs, adaptive thinking, effort control, refusal fallbacks), OpenAI or any OpenAI-compatible endpoint, Google Gemini, local Ollama, and an Offline Designer that needs no network |
@@ -86,6 +87,22 @@ Microcontrollers run real firmware inside the circuit simulation, like on a phys
 - **What's emulated:** the full AVR instruction set with cycle counts; GPIO; Timer0/1/2 (normal, CTC, fast and phase-correct PWM); USART0 with the real bit waveform on TXD; the ADC; EEPROM; INT0/INT1 and pin-change interrupts; and sleep. The CPU is checked instruction-for-instruction against simavr, and the Arduino core's `millis()`, `delay()`, `Serial` and `analogRead()`/`analogWrite()` behave as on a board.
 - **Example design:** **New from Example ▸ Microcontrollers ▸ Arduino Uno Core: LED + Button**.
 - **Test firmware:** sources and the build script are in `Core/tests/firmware`.
+
+## Live board simulation
+
+**Run Live** on the schematic (or in Simulation) runs the circuit in real time, like a powered board on the bench.
+
+- **Firmware runs:** microcontrollers execute their firmware continuously.
+- **LEDs glow:** in their own colour, with brightness from the simulated current.
+- **Live probes:** wires show voltages that update continuously.
+- **Switches and buttons:** click them on the schematic while the board runs. A switch whose value contains "push", "button" or "tact" is a momentary push-button: it is closed while you hold the mouse. Other switches toggle.
+- **Instruments:** **Simulation ▸ Live board** has:
+  - The speed (0.01× slow motion to 10×) and the analog step.
+  - Hold/toggle controls for every switch, plus LED currents.
+  - Probes you can add to a rolling **scope** (20 ms – 10 s window).
+  - A **serial monitor** per microcontroller, with an input line that feeds its USART receiver.
+- **Pause, resume and restart.** The run stops when the design is edited; start it again to include the changes.
+- **Real-time factor:** shown in the header. Heavy circuits or fine steps can run slower than real time.
 
 ## Repository layout
 

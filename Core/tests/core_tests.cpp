@@ -21,6 +21,7 @@
 #include "sieda/Validation.hpp"
 #include "sieda/Verification.hpp"
 #include "sieda/Units.hpp"
+#include "sieda/sieda_c.h"
 
 extern "C" int sieda_c_api_smoke_test(void);
 
@@ -1556,6 +1557,97 @@ TEST(firmware_persists_with_the_project) {
             CHECK_NEAR(j.get("mcu").get("clockHz").asNumber(), 8e6, 1e-6);
         }
     CHECK(found);
+}
+
+TEST(live_simulation_c_api) {
+    SiedaProject* p = sieda_project_new("live");
+    // ATmega328P from the standard library, through the C API like the app does.
+    Json parts = Json::parse(std::string([] {
+        char* j = sieda_standard_parts_json();
+        std::string s = j;
+        sieda_string_free(j);
+        return s;
+    }()));
+    std::string specJson;
+    for (const auto& item : parts.items())
+        if (item.get("spec").get("name").asString() == "ATmega328P") specJson = item.get("spec").dump();
+    CHECK(!specJson.empty());
+    char* err = nullptr;
+    char* partJson = sieda_custom_part_register(p, specJson.c_str(), &err);
+    CHECK(partJson != nullptr);
+    std::string partId = Json::parse(partJson).get("id").asString();
+    sieda_string_free(partJson);
+    int u = sieda_add_custom_component(p, partId.c_str(), "ATmega328P", 200, 0, 0, "U1");
+    int v = sieda_add_component(p, static_cast<int32_t>(ComponentKind::VoltageSource), "5", 0, 0, 0, "V1");
+    int g = sieda_add_component(p, static_cast<int32_t>(ComponentKind::Ground), "0", 0, 100, 0, "GND1");
+    int sw = sieda_add_component(p, static_cast<int32_t>(ComponentKind::Switch), "push", 300, 100, 0, "SW1");
+    int r = sieda_add_component(p, static_cast<int32_t>(ComponentKind::Resistor), "330", 350, 0, 0, "R1");
+    int d = sieda_add_component(p, static_cast<int32_t>(ComponentKind::LED), "Red", 450, 0, 0, "D1");
+    auto pin = [&](int c, const char* name) { return sieda_find_pin(p, c, name); };
+    CHECK(sieda_connect(p, v, pin(v, "+"), u, pin(u, "VCC")) >= 0);
+    CHECK(sieda_connect(p, v, pin(v, "-"), g, 0) >= 0);
+    CHECK(sieda_connect(p, u, pin(u, "GND"), g, 0) >= 0);
+    CHECK(sieda_connect(p, u, pin(u, "PD2"), sw, 0) >= 0);
+    CHECK(sieda_connect(p, sw, 1, g, 0) >= 0);
+    CHECK(sieda_connect(p, u, pin(u, "PB5"), r, 0) >= 0);
+    CHECK(sieda_connect(p, r, 1, d, 0) >= 0);
+    CHECK(sieda_connect(p, d, 1, g, 0) >= 0);
+    char* hex = sieda_firmware_example_hex("button_interrupt");
+    CHECK(hex != nullptr);
+    CHECK(sieda_set_firmware(p, u, hex, "Button", 0, &err) == 1);
+    CHECK(sieda_set_firmware(p, r, hex, "Button", 0, &err) == 0);  // a resistor is not a microcontroller
+    CHECK(err != nullptr && std::string(err).find("not a microcontroller") != std::string::npos);
+    sieda_string_free(err);
+    err = nullptr;
+    CHECK(sieda_set_firmware(p, u, ":nonsense", "x", 0, &err) == 0);
+    sieda_string_free(err);
+    err = nullptr;
+    sieda_string_free(hex);
+
+    SiedaLiveSim* live = sieda_live_start(p, &err);
+    CHECK(live != nullptr);
+    auto state = [&]() {
+        char* j = sieda_live_state(live);
+        Json out = Json::parse(j);
+        sieda_string_free(j);
+        return out;
+    };
+    auto led = [&](const Json& st) {
+        for (const auto& l : st.get("leds").items())
+            if (l.get("ref").asString() == "D1") return l.get("brightness").asNumber();
+        return -1.0;
+    };
+    CHECK(sieda_live_run(live, 0.02, 1e-4, 50, &err) == 1);
+    Json s0 = state();
+    CHECK_NEAR(s0.get("time").asNumber(), 0.02, 1e-9);
+    CHECK(led(s0) < 0.05);
+    CHECK(s0.get("switches").items().size() == 1);
+    CHECK(s0.get("switches").items()[0].get("momentary").asBool());
+    CHECK(!s0.get("switches").items()[0].get("closed").asBool());
+    CHECK(s0.get("trace").get("time").items().size() == 50);
+    CHECK(!s0.get("trace").get("nets").items().empty());
+    sieda_live_set_switch(live, sw, 1);  // press and hold
+    CHECK(sieda_live_run(live, 0.01, 1e-4, 50, &err) == 1);
+    Json s1 = state();
+    CHECK(led(s1) > 0.4);  // ~8 mA of 15 mA full glow
+    CHECK(s1.get("switches").items()[0].get("closed").asBool());
+    CHECK(s1.get("mcus").items()[0].get("serial").asString() == "press 1\n");
+    CHECK(s1.get("mcus").items()[0].get("running").asBool());
+    sieda_live_set_switch(live, sw, 0);
+    CHECK(sieda_live_run(live, 0.01, 1e-4, 50, &err) == 1);
+    CHECK(led(state()) < 0.05);
+    sieda_live_serial_input(live, u, "ignored");  // the button firmware does not read; must not disturb anything
+    CHECK(sieda_live_run(live, 0.005, 1e-4, 10, &err) == 1);
+    sieda_live_free(live);
+
+    // A circuit without ground cannot start.
+    SiedaProject* bad = sieda_project_new("bad");
+    sieda_add_component(bad, static_cast<int32_t>(ComponentKind::Resistor), "1k", 0, 0, 0, "R1");
+    CHECK(sieda_live_start(bad, &err) == nullptr);
+    CHECK(err != nullptr);
+    sieda_string_free(err);
+    sieda_project_free(bad);
+    sieda_project_free(p);
 }
 
 TEST(ipc2221_voltage_clearance) {

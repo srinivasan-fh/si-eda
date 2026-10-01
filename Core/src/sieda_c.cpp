@@ -5,6 +5,9 @@
 #include "sieda/Firmware.hpp"
 
 #include <algorithm>
+#include <cctype>
+#include <map>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -24,6 +27,15 @@ struct SiedaProject {
 
 struct SiedaMesh {
     sieda::Mesh mesh;
+};
+
+struct SiedaLiveSim {
+    explicit SiedaLiveSim(const sieda::Schematic& s) : schematic(s), sim(schematic) {}
+    sieda::Schematic schematic;  // snapshot the simulator reads (declared first: constructed before `sim`)
+    sieda::Simulator sim;
+    std::map<int, bool> switches;  // component id → closed
+    std::vector<double> traceTime;
+    std::vector<std::vector<double>> traceNets;  // [net][sample]
 };
 
 using namespace sieda;
@@ -232,6 +244,173 @@ int32_t sieda_remove_wire(SiedaProject* project, int32_t id) {
         return ok ? 1 : 0;
     });
 }
+
+namespace {
+bool isMomentary(const std::string& value) {
+    std::string v;
+    for (char c : value) v += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return v.find("push") != std::string::npos || v.find("button") != std::string::npos ||
+           v.find("momentary") != std::string::npos || v.find("tact") != std::string::npos;
+}
+bool isClosedValue(const std::string& value) {
+    std::string v;
+    for (char c : value) v += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return v == "on" || v == "closed" || v == "1" || v == "true";
+}
+}  // namespace
+
+SiedaLiveSim* sieda_live_start(const SiedaProject* project, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    if (!project) return nullptr;
+    try {
+        auto* live = new SiedaLiveSim(project->project.schematic);
+        std::string error;
+        if (!live->sim.begin(error)) {
+            if (error_out) *error_out = dup(error);
+            delete live;
+            return nullptr;
+        }
+        for (const auto& c : live->schematic.components())
+            if (c.kind == ComponentKind::Switch) live->switches[c.id] = isClosedValue(c.value);
+        return live;
+    } catch (const std::exception& e) {
+        if (error_out) *error_out = dup(e.what());
+        return nullptr;
+    }
+}
+
+int32_t sieda_live_run(SiedaLiveSim* live, double duration, double step, int32_t trace_points, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    if (!live) return 0;
+    try {
+        if (!(duration > 0) || !(step > 0)) return 1;
+        int steps = std::max(1, static_cast<int>(std::ceil(duration / step - 1e-9)));
+        steps = std::min(steps, 200000);
+        double h = duration / steps;
+        int keep = std::max(2, static_cast<int>(trace_points));
+        int stride = std::max(1, steps / keep);
+        const size_t netCount = live->schematic.nets().size();
+        live->traceTime.clear();
+        live->traceNets.assign(netCount, {});
+        auto sample = [&]() {
+            live->traceTime.push_back(live->sim.time());
+            auto v = live->sim.netVoltages();
+            for (size_t n = 0; n < netCount && n < v.size(); ++n) live->traceNets[n].push_back(v[n]);
+        };
+        for (int i = 0; i < steps; ++i) {
+            std::string error;
+            if (!live->sim.advance(h, error)) {
+                if (error_out) *error_out = dup(error);
+                return 0;
+            }
+            if (i % stride == stride - 1 || i == steps - 1) sample();
+        }
+        return 1;
+    } catch (const std::exception& e) {
+        if (error_out) *error_out = dup(e.what());
+        return 0;
+    }
+}
+
+char* sieda_live_state(const SiedaLiveSim* live) {
+    if (!live) return nullptr;
+    try {
+        const Schematic& s = live->schematic;
+        Json root = Json::object();
+        root["time"] = live->sim.time();
+        auto volts = live->sim.netVoltages();
+        Json nets = Json::array();
+        for (const auto& n : s.nets()) {
+            if (n.isGround || n.pins.size() < 2) continue;
+            Json j = Json::object();
+            j["index"] = n.index;
+            j["name"] = n.name;
+            j["voltage"] = static_cast<size_t>(n.index) < volts.size() ? volts[static_cast<size_t>(n.index)] : 0.0;
+            nets.push(j);
+        }
+        root["nets"] = nets;
+        Json devices = Json::array(), leds = Json::array();
+        for (const auto& r : live->sim.deviceReadings()) {
+            if (r.subIndex > 0) continue;
+            const Component* c = s.find(r.componentId);
+            if (!c) continue;
+            Json j = Json::object();
+            j["component"] = r.componentId;
+            j["ref"] = c->ref;
+            j["current"] = r.current;
+            j["power"] = r.power;
+            devices.push(j);
+            if (c->kind == ComponentKind::LED) {
+                Json l = Json::object();
+                l["component"] = r.componentId;
+                l["ref"] = c->ref;
+                l["current"] = r.current;
+                l["brightness"] = std::clamp(r.current / 0.015, 0.0, 1.0);  // full glow at 15 mA
+                leds.push(l);
+            }
+        }
+        root["devices"] = devices;
+        root["leds"] = leds;
+        Json switches = Json::array();
+        for (const auto& [id, closed] : live->switches) {
+            const Component* c = s.find(id);
+            Json j = Json::object();
+            j["component"] = id;
+            j["ref"] = c ? c->ref : std::string();
+            j["closed"] = closed;
+            j["momentary"] = c ? isMomentary(c->value) : false;
+            switches.push(j);
+        }
+        root["switches"] = switches;
+        Json mcus = Json::array();
+        for (const auto& m : live->sim.mcuReports()) {
+            const Component* c = s.find(m.componentId);
+            Json j = Json::object();
+            j["component"] = m.componentId;
+            j["ref"] = c ? c->ref : std::string();
+            j["model"] = m.model;
+            j["status"] = m.status;
+            j["running"] = m.running;
+            j["serial"] = m.serial;
+            j["cycles"] = static_cast<double>(m.cycles);
+            j["clockHz"] = m.clockHz;
+            mcus.push(j);
+        }
+        root["mcus"] = mcus;
+        Json trace = Json::object();
+        Json times = Json::array();
+        for (double t : live->traceTime) times.push(t);
+        trace["time"] = times;
+        Json tnets = Json::array();
+        for (const auto& n : s.nets()) {
+            if (n.isGround || n.pins.size() < 2 || static_cast<size_t>(n.index) >= live->traceNets.size()) continue;
+            Json j = Json::object();
+            j["index"] = n.index;
+            j["name"] = n.name;
+            Json vals = Json::array();
+            for (double v : live->traceNets[static_cast<size_t>(n.index)]) vals.push(v);
+            j["values"] = vals;
+            tnets.push(j);
+        }
+        trace["nets"] = tnets;
+        root["trace"] = trace;
+        return dup(root.dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+void sieda_live_set_switch(SiedaLiveSim* live, int32_t component_id, int32_t closed) {
+    if (!live || !live->switches.count(component_id)) return;
+    live->switches[component_id] = closed != 0;
+    live->sim.setSwitch(component_id, closed != 0);
+}
+
+void sieda_live_serial_input(SiedaLiveSim* live, int32_t component_id, const char* text) {
+    if (live) live->sim.feedSerial(component_id, str(text));
+}
+
+void sieda_live_free(SiedaLiveSim* live) { delete live; }
 
 int32_t sieda_set_firmware(SiedaProject* project, int32_t component_id, const char* hex, const char* name,
                            double clock_hz, char** error_out) {

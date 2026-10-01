@@ -482,6 +482,28 @@ struct FirmwareExample: Decodable, Equatable, Identifiable {
     var description: String
 }
 
+/// Snapshot of a live simulation: present values plus the scope trace of the last run interval.
+struct LiveState: Decodable, Equatable {
+    struct Net: Decodable, Equatable { var index: Int; var name: String; var voltage: Double }
+    struct Device: Decodable, Equatable { var component: Int; var ref: String; var current: Double; var power: Double }
+    struct Led: Decodable, Equatable { var component: Int; var ref: String; var current: Double; var brightness: Double }
+    struct Switch: Decodable, Equatable { var component: Int; var ref: String; var closed: Bool; var momentary: Bool }
+    struct Trace: Decodable, Equatable {
+        var time: [Double]
+        var nets: [WaveformSeries]
+    }
+
+    var time: Double
+    var nets: [Net]
+    var devices: [Device]
+    var leds: [Led]
+    var switches: [Switch]
+    var mcus: [McuRun]
+    var trace: Trace
+
+    func voltage(net: Int) -> Double? { nets.first { $0.index == net }?.voltage }
+}
+
 struct TransientResult: Decodable, Equatable {
     var ok: Bool
     var error: String

@@ -33,6 +33,8 @@ enum Theme {
     static let label = iceBlue
     static let valueLabel = Color(red: 0.55, green: 0.70, blue: 0.95)
     static let probe = Color(red: 0.36, green: 0.92, blue: 1.00)
+    /// Live simulation: closed switches, running indicators.
+    static let liveOn = Color(red: 0.36, green: 0.90, blue: 0.52)
 
     // PCB canvas (blue copper palette)
     static let pcbBackground = Color(red: 0.02, green: 0.04, blue: 0.09)

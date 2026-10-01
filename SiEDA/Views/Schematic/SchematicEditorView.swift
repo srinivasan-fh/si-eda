@@ -112,13 +112,13 @@ struct SchematicEditorView: View {
 
                 ZStack(alignment: .bottomLeading) {
                     SchematicCanvas(tool: $tool, viewport: $viewport, canvasSize: $canvasSize, wireStart: $wireStart,
-                                    placementTool: placementTool)
+                                    placementTool: placementTool, live: store.live)
                     if store.showNavigator, !store.snapshot.components.isEmpty {
                         navigator
                             .padding(12)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     }
-                    SimulationTransport()
+                    SimulationTransport(live: store.live)
                         .padding(12)
                     if store.snapshot.components.isEmpty {
                         VStack(spacing: 4) {
@@ -327,35 +327,65 @@ struct DevicePicker: View {
 /// Proteus-style simulation transport (bottom-left of the schematic).
 struct SimulationTransport: View {
     @EnvironmentObject private var store: DesignStore
+    @ObservedObject var live: LiveSimulation
 
     var body: some View {
         HStack(spacing: 6) {
-            Button {
-                Task { await store.simulateDC() }
-            } label: {
-                Image(systemName: "play.fill")
-            }
-            .help("Run DC operating point — shows live voltage probes")
-            .accessibilityLabel("Run DC operating point")
-            Button {
-                store.workspace = .simulation
-            } label: {
-                Image(systemName: "waveform")
-            }
-            .help("Transient analysis")
-            .accessibilityLabel("Open transient analysis")
-            Button {
-                store.dcResult = nil
-            } label: {
-                Image(systemName: "stop.fill")
-            }
-            .help("Clear simulation results")
-            .accessibilityLabel("Clear simulation results")
-            .disabled(store.dcResult == nil)
-            if let dc = store.dcResult {
-                Text(dc.converged ? "DC ✓" : "DC ✗")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(dc.converged ? Theme.skyBlue : Theme.error)
+            if live.isRunning {
+                // Live board: time, speed, pause / stop.
+                Circle().fill(live.isPaused ? Theme.warning : Theme.liveOn).frame(width: 7, height: 7)
+                Text("LIVE \(EngineeringFormat.string(live.state?.time ?? 0, unit: "s", digits: 3))")
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                Button {
+                    if live.isPaused { live.resume() } else { live.pause() }
+                } label: {
+                    Image(systemName: live.isPaused ? "play.fill" : "pause.fill")
+                }
+                .help(live.isPaused ? "Resume" : "Pause")
+                .accessibilityLabel(live.isPaused ? "Resume live simulation" : "Pause live simulation")
+                Button { live.stop() } label: { Image(systemName: "stop.fill") }
+                    .help("Stop the live simulation")
+                    .accessibilityLabel("Stop live simulation")
+                Button { store.workspace = .simulation } label: { Image(systemName: "waveform.path.ecg.rectangle") }
+                    .help("Scope, serial monitor and switches")
+                    .accessibilityLabel("Open live instruments")
+            } else {
+                Button {
+                    live.start(store: store)
+                } label: {
+                    Label("Run Live", systemImage: "bolt.circle.fill")
+                }
+                .help("Run the board in real time: firmware runs, LEDs light, click switches and buttons, live probes")
+                .accessibilityLabel("Run live simulation")
+                Divider().frame(height: 14)
+                Button {
+                    Task { await store.simulateDC() }
+                } label: {
+                    Image(systemName: "play.fill")
+                }
+                .help("Run DC operating point — shows voltage probes")
+                .accessibilityLabel("Run DC operating point")
+                Button {
+                    store.workspace = .simulation
+                } label: {
+                    Image(systemName: "waveform")
+                }
+                .help("Transient analysis")
+                .accessibilityLabel("Open transient analysis")
+                Button {
+                    store.dcResult = nil
+                } label: {
+                    Image(systemName: "xmark.circle")
+                }
+                .help("Clear simulation results")
+                .accessibilityLabel("Clear simulation results")
+                .disabled(store.dcResult == nil)
+                if let dc = store.dcResult {
+                    Text(dc.converged ? "DC ✓" : "DC ✗")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(dc.converged ? Theme.skyBlue : Theme.error)
+                }
             }
         }
         .buttonStyle(.borderless)
@@ -363,6 +393,12 @@ struct SimulationTransport: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(Capsule().fill(Theme.deepBlue.opacity(0.95)))
-        .overlay(Capsule().strokeBorder(Theme.blue.opacity(0.5)))
+        .overlay(Capsule().strokeBorder(live.isRunning ? Theme.liveOn.opacity(0.8) : Theme.blue.opacity(0.5)))
+        .alert("Live simulation", isPresented: Binding(get: { live.error != nil && !live.isRunning },
+                                                        set: { if !$0 { live.clearError() } })) {
+            Button("OK") { live.clearError() }
+        } message: {
+            Text(live.error ?? "")
+        }
     }
 }

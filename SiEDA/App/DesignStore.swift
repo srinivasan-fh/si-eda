@@ -55,6 +55,8 @@ extension UTType {
 @MainActor
 final class DesignStore: ObservableObject {
     let engine = EDAEngine()
+    /// Real-time interactive simulation ("run the board").
+    let live = LiveSimulation()
 
     @Published private(set) var snapshot: DesignSnapshot = .empty
     @Published var workspace: Workspace = .promptStudio

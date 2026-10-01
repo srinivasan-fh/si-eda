@@ -14,6 +14,7 @@ struct SimulationView: View {
             OptionsBar {
                 Image(systemName: "waveform.path.ecg").foregroundStyle(Theme.blue)
                 Text("Analysis").fontWeight(.semibold).foregroundStyle(Theme.textPrimary)
+                LiveRunButton(live: store.live)
                 Button {
                     Task { await store.simulateDC() }
                 } label: { Label("DC Operating Point", systemImage: "play.fill") }
@@ -46,12 +47,14 @@ struct SimulationView: View {
 
             // Plain stack, not HSplitView: an AppKit split view nested in the SwiftUI split view adds
             // constraints of its own that fight the window's.
-            HStack(spacing: 0) {
-                dcPanel
-                    .frame(width: 300)
-                Rectangle().fill(Theme.blue.opacity(0.3)).frame(width: 1)
-                transientPanel
-                    .frame(minWidth: 300, maxWidth: .infinity)
+            LiveSwitcher(live: store.live) {
+                HStack(spacing: 0) {
+                    dcPanel
+                        .frame(width: 300)
+                    Rectangle().fill(Theme.blue.opacity(0.3)).frame(width: 1)
+                    transientPanel
+                        .frame(minWidth: 300, maxWidth: .infinity)
+                }
             }
         }
         .background(Theme.navy)
@@ -273,5 +276,306 @@ private struct McuRunPanel: View {
                 }
             }
         }
+    }
+}
+
+/// Starts / stops the live board simulation.
+private struct LiveRunButton: View {
+    @EnvironmentObject private var store: DesignStore
+    @ObservedObject var live: LiveSimulation
+
+    var body: some View {
+        if live.isRunning {
+            Button { live.stop() } label: { Label("Stop Live", systemImage: "stop.circle.fill") }
+                .foregroundStyle(Theme.liveOn)
+                .help("Stop the live simulation")
+        } else {
+            Button { live.start(store: store) } label: { Label("Run Live", systemImage: "bolt.circle.fill") }
+                .help("Run the board in real time: firmware, LEDs, switches, scope and serial monitor")
+        }
+    }
+}
+
+/// The live board panel while it runs, the analysis panels otherwise.
+private struct LiveSwitcher<Normal: View>: View {
+    @ObservedObject var live: LiveSimulation
+    @ViewBuilder var normal: Normal
+
+    var body: some View {
+        if live.isRunning {
+            LiveBoardPanel(live: live)
+        } else {
+            VStack(spacing: 0) {
+                if let error = live.error {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.callout)
+                        .foregroundStyle(Theme.warning)
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Theme.deepBlue)
+                }
+                normal
+            }
+        }
+    }
+}
+
+/// Real-time board: controls, switches and push-buttons, LEDs, probes, a scope and the serial monitors.
+private struct LiveBoardPanel: View {
+    @EnvironmentObject private var store: DesignStore
+    @ObservedObject var live: LiveSimulation
+    @State private var serialInput: [Int: String] = [:]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            controls
+            HStack(alignment: .top, spacing: 0) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        switchesSection
+                        ledsSection
+                        probesSection
+                    }
+                    .padding(12)
+                }
+                .frame(width: 250)
+                Rectangle().fill(Theme.blue.opacity(0.3)).frame(width: 1)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        scope
+                        ForEach(live.state?.mcus ?? []) { run in serialMonitor(run) }
+                    }
+                    .padding(12)
+                }
+                .frame(minWidth: 300, maxWidth: .infinity)
+            }
+        }
+        .background(Theme.navy)
+    }
+
+    private var controls: some View {
+        HStack(spacing: 10) {
+            Circle().fill(live.isPaused ? Theme.warning : Theme.liveOn).frame(width: 9, height: 9)
+            Text("Live board").font(.headline).foregroundStyle(Theme.textPrimary)
+            Text("t = \(EngineeringFormat.string(live.state?.time ?? 0, unit: "s", digits: 4))")
+                .font(.callout.monospacedDigit())
+                .foregroundStyle(Theme.textSecondary)
+            Text(String(format: "×%.2f real time", live.realTimeFactor))
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(Theme.textMuted)
+                .help("Simulated seconds per second achieved")
+            Spacer(minLength: 8)
+            Picker("Speed", selection: $live.speed) {
+                ForEach(LiveSimulation.speeds, id: \.self) { s in Text(s < 1 ? String(format: "%g×", s) : "\(Int(s))×").tag(s) }
+            }
+            .frame(width: 120)
+            .help("Simulation speed relative to real time (slow motion shows fast signals)")
+            Picker("Step", selection: $live.resolution) {
+                ForEach(LiveSimulation.resolutions, id: \.self) { r in Text(EngineeringFormat.string(r, unit: "s")).tag(r) }
+            }
+            .frame(width: 120)
+            .help("Analog time step: finer resolves faster signals, coarser runs faster")
+            Button {
+                if live.isPaused { live.resume() } else { live.pause() }
+            } label: { Image(systemName: live.isPaused ? "play.fill" : "pause.fill") }
+                .accessibilityLabel(live.isPaused ? "Resume" : "Pause")
+            Button { live.start(store: store) } label: { Image(systemName: "arrow.counterclockwise") }
+                .help("Restart from t = 0")
+                .accessibilityLabel("Restart live simulation")
+            Button { live.stop() } label: { Image(systemName: "stop.fill") }
+                .accessibilityLabel("Stop live simulation")
+        }
+        .buttonStyle(.borderless)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Theme.deepBlue)
+    }
+
+    @ViewBuilder private var switchesSection: some View {
+        let switches = live.state?.switches ?? []
+        sectionTitle("Switches & buttons", "switch.2")
+        if switches.isEmpty {
+            Text("No switches. Add a Switch to the schematic (value \"push\" for a push-button).")
+                .font(.caption).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
+        }
+        ForEach(switches, id: \.component) { sw in
+            let closed = live.isClosed(sw.component) ?? sw.closed
+            HStack {
+                Text(sw.ref).font(.callout.monospaced()).foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Text(closed ? "closed" : "open").font(.caption).foregroundStyle(closed ? Theme.liveOn : Theme.textMuted)
+                if sw.momentary {
+                    Text("Hold")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10).padding(.vertical, 4)
+                        .background(Capsule().fill(closed ? Theme.liveOn : Theme.blue.opacity(0.35)))
+                        .foregroundStyle(closed ? Theme.deepBlue : Theme.textPrimary)
+                        .gesture(DragGesture(minimumDistance: 0)
+                            .onChanged { _ in if !(live.isClosed(sw.component) ?? false) { live.press(sw.component, pressed: true) } }
+                            .onEnded { _ in live.press(sw.component, pressed: false) })
+                        .accessibilityLabel("Hold \(sw.ref)")
+                        .accessibilityAddTraits(.isButton)
+                } else {
+                    Toggle("", isOn: Binding(get: { closed }, set: { _ in live.press(sw.component, pressed: true) }))
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .controlSize(.small)
+                        .accessibilityLabel("Switch \(sw.ref)")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var ledsSection: some View {
+        let leds = live.state?.leds ?? []
+        if !leds.isEmpty {
+            sectionTitle("LEDs", "lightbulb.fill")
+            ForEach(leds, id: \.component) { led in
+                let colour = SchematicCanvas.ledColour(store.snapshot.component(led.component)?.value ?? "")
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(colour.opacity(0.15 + 0.85 * led.brightness))
+                        .frame(width: 14, height: 14)
+                        .shadow(color: colour.opacity(led.brightness), radius: 6 * led.brightness)
+                    Text(led.ref).font(.callout.monospaced()).foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    Text(EngineeringFormat.string(led.current, unit: "A", digits: 3))
+                        .font(.caption.monospacedDigit()).foregroundStyle(Theme.textSecondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var probesSection: some View {
+        let nets = live.state?.nets ?? []
+        sectionTitle("Probes", "scope")
+        ForEach(nets, id: \.index) { net in
+            let shown = live.scopeNets.contains(net.index)
+            Button {
+                if shown { live.scopeNets.remove(net.index) } else if live.scopeNets.count < 6 { live.scopeNets.insert(net.index) }
+            } label: {
+                HStack {
+                    Image(systemName: shown ? "checkmark.square.fill" : "square")
+                        .foregroundStyle(shown ? Theme.skyBlue : Theme.textMuted)
+                    Text(net.name).font(.caption.monospaced()).foregroundStyle(Theme.textSecondary).lineLimit(1)
+                    Spacer()
+                    Text(EngineeringFormat.string(net.voltage, unit: "V", digits: 3))
+                        .font(.caption.monospacedDigit()).foregroundStyle(Theme.probe)
+                }
+            }
+            .buttonStyle(.plain)
+            .help(shown ? "Remove from the scope" : "Show on the scope")
+        }
+    }
+
+    private var scope: some View {
+        let names = Dictionary(uniqueKeysWithValues: (live.state?.nets ?? []).map { ($0.index, $0.name) })
+        // At most ~600 points per trace on screen.
+        let stride = max(1, live.scopeTime.count / 600)
+        let times = Swift.stride(from: 0, to: live.scopeTime.count, by: stride).map { live.scopeTime[$0] }
+        let series = live.scopeNets.sorted().compactMap { index -> (String, [Double])? in
+            guard let values = live.scopeValues[index], values.count == live.scopeTime.count else { return nil }
+            return (names[index] ?? "N\(index)", Swift.stride(from: 0, to: values.count, by: stride).map { values[$0] })
+        }
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                sectionTitle("Scope", "waveform.path.ecg")
+                Spacer()
+                Picker("Window", selection: $live.scopeWindow) {
+                    Text("20 ms").tag(0.02)
+                    Text("200 ms").tag(0.2)
+                    Text("2 s").tag(2.0)
+                    Text("10 s").tag(10.0)
+                }
+                .frame(width: 130)
+            }
+            Chart {
+                ForEach(Array(series.enumerated()), id: \.offset) { i, s in
+                    ForEach(Array(zip(times, s.1).enumerated()), id: \.offset) { _, point in
+                        LineMark(x: .value("t", point.0), y: .value("V", point.1), series: .value("Net", s.0))
+                            .foregroundStyle(Theme.seriesColors[i % Theme.seriesColors.count])
+                    }
+                }
+            }
+            .chartXAxis {
+                AxisMarks { value in
+                    AxisGridLine().foregroundStyle(Theme.blue.opacity(0.18))
+                    AxisValueLabel {
+                        if let t = value.as(Double.self) {
+                            Text(EngineeringFormat.string(t, unit: "s", digits: 3)).foregroundStyle(Theme.textMuted)
+                        }
+                    }
+                }
+            }
+            .chartYAxis {
+                AxisMarks { value in
+                    AxisGridLine().foregroundStyle(Theme.blue.opacity(0.18))
+                    AxisValueLabel {
+                        if let v = value.as(Double.self) {
+                            Text(EngineeringFormat.string(v, unit: "V", digits: 2)).foregroundStyle(Theme.textMuted)
+                        }
+                    }
+                }
+            }
+            .frame(height: 180)
+            .accessibilityLabel("Live scope")
+            HStack(spacing: 10) {
+                ForEach(Array(series.enumerated()), id: \.offset) { i, s in
+                    HStack(spacing: 4) {
+                        Circle().fill(Theme.seriesColors[i % Theme.seriesColors.count]).frame(width: 8, height: 8)
+                        Text(s.0).font(.caption.monospaced()).foregroundStyle(Theme.textSecondary)
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .bluePanel()
+    }
+
+    private func serialMonitor(_ run: McuRun) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: run.running ? "cpu.fill" : "cpu").foregroundStyle(run.running ? Theme.liveOn : Theme.warning)
+                Text("\(run.ref) · \(run.model) · serial monitor").font(.callout.weight(.semibold)).foregroundStyle(Theme.textPrimary)
+                Spacer()
+            }
+            Text(run.status).font(.caption).foregroundStyle(run.running ? Theme.textSecondary : Theme.warning)
+                .lineLimit(2)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    Text(run.serial.isEmpty ? "No serial output yet." : run.serial)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(run.serial.isEmpty ? Theme.textMuted : Theme.probe)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(6)
+                    Color.clear.frame(height: 1).id("end")
+                }
+                .frame(height: 120)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Theme.navy))
+                .onChange(of: run.serial) { _, _ in proxy.scrollTo("end", anchor: .bottom) }
+            }
+            HStack {
+                TextField("Send to \(run.ref)…", text: Binding(get: { serialInput[run.component] ?? "" },
+                                                                 set: { serialInput[run.component] = $0 }))
+                    .textFieldStyle(.blue)
+                    .onSubmit { send(run) }
+                Button("Send") { send(run) }
+                    .disabled((serialInput[run.component] ?? "").isEmpty)
+            }
+        }
+        .padding(10)
+        .bluePanel()
+    }
+
+    private func send(_ run: McuRun) {
+        let text = serialInput[run.component] ?? ""
+        guard !text.isEmpty else { return }
+        live.sendSerial(text + "\n", to: run.component)
+        serialInput[run.component] = ""
+    }
+
+    private func sectionTitle(_ title: String, _ icon: String) -> some View {
+        Label(title, systemImage: icon).font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
     }
 }

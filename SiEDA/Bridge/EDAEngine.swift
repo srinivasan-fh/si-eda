@@ -270,6 +270,15 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { Self.take(sieda_component_firmware($0, Int32(id))) } ?? ""
     }
 
+    /// Starts a live simulation of the current schematic (a snapshot; restart after edits).
+    func startLive() throws -> LiveSession {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        guard let session = withHandle({ sieda_live_start($0, &errorPointer) }) else {
+            throw EDAEngineError.operationFailed(Self.take(errorPointer) ?? "The live simulation could not start.")
+        }
+        return LiveSession(session)
+    }
+
     static let firmwareExamples: [FirmwareExample] =
         decode([FirmwareExample].self, from: take(sieda_firmware_examples_json())) ?? []
 
@@ -502,4 +511,48 @@ enum BoardOutlinePreset: String, CaseIterable, Identifiable {
         case .quadX: return "xmark"
         }
     }
+}
+
+/// A running live simulation (C `SiedaLiveSim`). Thread-safe: calls are serialized, so it can step on a background
+/// queue while the UI sends switch presses and serial input.
+final class LiveSession: @unchecked Sendable {
+    private let lock = NSLock()
+    private var handle: OpaquePointer?
+
+    fileprivate init(_ handle: OpaquePointer) { self.handle = handle }
+
+    deinit {
+        if let handle { sieda_live_free(handle) }
+    }
+
+    private func locked<T>(_ body: (OpaquePointer) -> T) -> T? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let handle else { return nil }
+        return body(handle)
+    }
+
+    /// Advances `duration` seconds in `step`-second steps and keeps a scope trace of at most `tracePoints` samples.
+    func run(duration: Double, step: Double, tracePoints: Int = 200) throws {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let ok = locked { sieda_live_run($0, duration, step, Int32(tracePoints), &errorPointer) } ?? 0
+        if ok != 1 {
+            var message = "The live simulation stopped."
+            if let errorPointer {
+                message = String(cString: errorPointer)
+                sieda_string_free(errorPointer)
+            }
+            throw EDAEngineError.operationFailed(message)
+        }
+    }
+
+    func state() -> LiveState? {
+        guard let pointer = locked({ sieda_live_state($0) }) ?? nil else { return nil }
+        defer { sieda_string_free(pointer) }
+        return try? JSONDecoder().decode(LiveState.self, from: Data(String(cString: pointer).utf8))
+    }
+
+    func setSwitch(_ id: Int, closed: Bool) { _ = locked { sieda_live_set_switch($0, Int32(id), closed ? 1 : 0) } }
+
+    func sendSerial(_ id: Int, text: String) { _ = locked { sieda_live_serial_input($0, Int32(id), text) } }
 }
