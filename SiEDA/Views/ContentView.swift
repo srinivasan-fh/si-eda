@@ -1,28 +1,20 @@
+import AppKit
 import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var store: DesignStore
     @EnvironmentObject private var settings: AISettings
     @EnvironmentObject private var agents: AgentOrchestrator
-    @State private var showInspector = true
-    @State private var columns: NavigationSplitViewVisibility = .all
-    /// Last window size class, so the sidebar/inspector only fold when the window crosses a threshold (a manual
-    /// toggle in between is kept).
-    @State private var sizeClass: WindowSizeClass?
+    /// The inspector starts hidden on laptop-size screens (decided once at launch: measuring the window and
+    /// toggling panels during layout makes AppKit loop on constraint updates and abort).
+    @State private var showInspector = ContentView.startsWithInspector
 
-    /// wide: sidebar + inspector · medium: sidebar only · narrow: workspace only (toolbar switches workspaces).
-    enum WindowSizeClass {
-        case narrow, medium, wide
-
-        init(width: CGFloat) {
-            if width < LayoutMetrics.sidebarWidthThreshold { self = .narrow }
-            else if width < LayoutMetrics.inspectorWidthThreshold { self = .medium }
-            else { self = .wide }
-        }
+    static var startsWithInspector: Bool {
+        (NSScreen.main?.visibleFrame.width ?? LayoutMetrics.defaultWindow.width) >= LayoutMetrics.inspectorWidthThreshold
     }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columns) {
+        NavigationSplitView {
             SidebarView()
                 .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 300)
         } detail: {
@@ -42,13 +34,7 @@ struct ContentView: View {
         // Solid blue toolbar: the default translucent one takes its colour from the desktop picture.
         .toolbarBackground(Theme.deepBlue, for: .windowToolbar)
         .toolbarBackground(.visible, for: .windowToolbar)
-        .background {
-            GeometryReader { geometry in
-                Color.clear
-                    .onAppear { adapt(to: geometry.size.width) }
-                    .onChange(of: geometry.size.width) { _, width in adapt(to: width) }
-            }
-        }
+
         .alert(item: $store.alert) { item in
             Alert(title: Text(item.title), message: Text(item.message), dismissButton: .default(Text("OK")))
         }
@@ -59,18 +45,6 @@ struct ContentView: View {
         .onChange(of: settings.aiEnabled) { _, enabled in
             if !enabled { agents.cancel() }
             store.aiEnabled = enabled
-        }
-    }
-
-    /// Folds the sidebar and inspector away when the window gets narrow, and brings them back when it widens.
-    private func adapt(to width: CGFloat) {
-        guard width > 0 else { return }
-        let newClass = WindowSizeClass(width: width)
-        guard newClass != sizeClass else { return }
-        sizeClass = newClass
-        withAnimation(.easeInOut(duration: 0.2)) {
-            columns = newClass == .narrow ? .detailOnly : .all
-            showInspector = newClass == .wide
         }
     }
 

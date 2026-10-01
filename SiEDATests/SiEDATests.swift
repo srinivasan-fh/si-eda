@@ -636,11 +636,9 @@ final class LayoutBudgetTests: XCTestCase {
         XCTAssertLessThanOrEqual(window.height, LayoutMetrics.minimumWindow.height)
     }
 
-    func testSizeClassesFoldPanelsOnNarrowWindows() {
-        XCTAssertEqual(ContentView.WindowSizeClass(width: 950), .narrow)
-        XCTAssertEqual(ContentView.WindowSizeClass(width: 1200), .medium)
-        XCTAssertEqual(ContentView.WindowSizeClass(width: 1440), .wide)
-        XCTAssertLessThan(LayoutMetrics.minimumWindow.width, LayoutMetrics.sidebarWidthThreshold)
+    func testLayoutHelpers() {
+        XCTAssertEqual(PromptStudioView.agentPanelWidth(for: 600), 320)
+        XCTAssertEqual(PromptStudioView.agentPanelWidth(for: 2000), 520)
         XCTAssertLessThanOrEqual(LayoutMetrics.minimumWindow.width, 1000, "must fit a 1000 pt laptop screen")
         XCTAssertGreaterThan(PromptStudioView.editorHeight(for: 300), 0)
         XCTAssertGreaterThan(ComponentLibraryView.pinTableHeight(for: 300), 0)
