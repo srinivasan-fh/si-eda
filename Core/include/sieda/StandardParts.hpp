@@ -12,7 +12,7 @@
 namespace sieda {
 
 struct StandardPart {
-    std::string category;  // "Timers", "Regulators", "Op-Amps", "Microcontrollers", "Logic", "Drivers", "Connectors"
+    std::string category;  // "Timers", "Regulators", "Op-Amps", "Microcontrollers · Microchip", "Logic", "Drivers", "Connectors"
     CustomPartSpec spec;
 };
 

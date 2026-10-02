@@ -31,6 +31,10 @@ struct CustomPin {
 struct PackageSpec {
     std::string type = "SOIC";  // SOIC, TSSOP, DIP, QFN, LQFP, SOT23, HEADER, TO220
     int pinCount = 0;           // 0 = derived from the pin list
+    /// Lead pitch and body size in millimetres (0 = the package type's default). The body size is the square body of
+    /// a QFN/QFP (7 for a 7 × 7 mm LQFP-48), the moulded body width of a SOIC/TSSOP, or the row spacing of a DIP.
+    double pitch = 0;
+    double bodySize = 0;
 };
 
 /// Behavioural simulation model of a custom part (optional). Pins are referenced by number or name.

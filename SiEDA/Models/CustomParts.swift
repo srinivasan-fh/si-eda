@@ -162,6 +162,9 @@ struct CustomPartSpec: Codable, Equatable {
     struct Package: Codable, Equatable {
         var type: String = PackageKind.soic.rawValue
         var pinCount: Int = 0
+        /// Lead pitch and body size in mm (nil = the package type's default); set for the standard microcontrollers.
+        var pitch: Double?
+        var bodySize: Double?
     }
 
     struct Pin: Codable, Equatable, Identifiable {

@@ -1508,3 +1508,35 @@ final class SwitchSymbolTests: XCTestCase {
         XCTAssertEqual(SchematicSymbols.shapes(for: .switchSPST, value: "open").solid.boundingRect, off)
     }
 }
+
+@MainActor
+final class MicrocontrollerLibraryTests: XCTestCase {
+    func testTenMicrocontrollersPerVendorWithRealPackages() throws {
+        let groups = Dictionary(grouping: StandardLibrary.parts.filter { $0.category.hasPrefix("Microcontrollers · ") },
+                                by: \.category)
+        XCTAssertEqual(groups["Microcontrollers · Arm"]?.count, 10)
+        XCTAssertEqual(groups["Microcontrollers · STMicroelectronics"]?.count, 10)
+        XCTAssertEqual(groups["Microcontrollers · Texas Instruments"]?.count, 10)
+        XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 12)
+        let rp2040 = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "RP2040" })
+        XCTAssertEqual(rp2040.spec.package.type, "QFN")
+        XCTAssertEqual(rp2040.spec.package.pitch, 0.4)
+        XCTAssertEqual(rp2040.spec.package.bodySize, 7)
+        XCTAssertTrue(rp2040.packageSummary.contains("0.4mm"), rp2040.packageSummary)
+    }
+
+    func testPlacingAnStm32GivesTheRealFootprint() throws {
+        let store = DesignStore()
+        let part = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "STM32F103C8T6" })
+        let id = try XCTUnwrap(store.addStandardPartToLibrary(part))
+        // Saving the part again from the editor keeps its pitch and body (they round-trip through the spec).
+        let info = try XCTUnwrap(store.snapshot.customParts.first { $0.id == id })
+        XCTAssertEqual(info.spec.package.pitch, 0.5)
+        XCTAssertEqual(info.spec.package.bodySize, 7)
+        let u = store.addCustomComponent(partId: id, at: .zero)
+        XCTAssertGreaterThanOrEqual(u, 0)
+        store.autoPlace(all: true)
+        let pads = store.snapshot.pads.filter { $0.component == u }
+        XCTAssertEqual(pads.count, 48)
+    }
+}

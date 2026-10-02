@@ -57,6 +57,8 @@ Json customPartSpecToJson(const CustomPartSpec& s) {
     Json pkg = Json::object();
     pkg["type"] = s.package.type;
     pkg["pinCount"] = s.package.pinCount;
+    if (s.package.pitch > 0) pkg["pitch"] = s.package.pitch;  // only when set: older parts keep their ids
+    if (s.package.bodySize > 0) pkg["bodySize"] = s.package.bodySize;
     j["package"] = pkg;
     Json pins = Json::array();
     for (const auto& p : s.pins) {
@@ -167,6 +169,9 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
     if (pkg.isObject()) {
         s.package.type = normalizePackage(pkg.get("type").asString("SOIC"), pinsFromName);
         s.package.pinCount = pkg.get("pinCount").asInt(pkg.get("pin_count").asInt(0));
+        double pitch = pkg.get("pitch").asNumber(0), body = pkg.get("bodySize").asNumber(0);
+        s.package.pitch = std::isfinite(pitch) && pitch > 0.2 && pitch <= 5.08 ? pitch : 0;
+        s.package.bodySize = std::isfinite(body) && body > 0.5 && body <= 60 ? body : 0;
     } else {
         s.package.type = normalizePackage(pkg.asString(j.get("package_type").asString("SOIC")), pinsFromName);
         s.package.pinCount = j.get("pin_count").asInt(0);
@@ -244,7 +249,8 @@ struct PadPlacement {
 };
 
 /// Pad positions for pad numbers 1..n of a package (index 0 = pad 1).
-std::vector<PadPlacement> packagePads(const std::string& type, int n, BodyDef& body, double& courtW, double& courtH) {
+std::vector<PadPlacement> packagePads(const std::string& type, int n, double pitchIn, double bodyIn, BodyDef& body,
+                                      double& courtW, double& courtH) {
     std::vector<PadPlacement> pads;
     auto dual = [&](double pitch, double rowX, Vec2 size, bool tht, double drill) {
         int perSide = (n + 1) / 2;
@@ -279,22 +285,27 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, BodyDef& b
         return perSide;
     };
 
+    // Pad width across the lead pitch: ~55 % of the pitch, within what the package's pitch allows.
+    auto padWidth = [](double pitch, double lo, double hi) { return std::clamp(pitch * 0.55, lo, hi); };
     if (type == "TSSOP") {
-        int per = dual(0.65, 2.9, {1.5, 0.4}, false, 0);
-        body = {4.4, per * 0.65 + 0.5, 1.1, false, 0.12f, 0.12f, 0.13f};
+        double pitch = pitchIn > 0 ? pitchIn : 0.65, bw = bodyIn > 0 ? bodyIn : 4.4;
+        int per = dual(pitch, bw / 2 + 0.7, {1.5, padWidth(pitch, 0.2, 0.45)}, false, 0);
+        body = {bw, per * pitch + 0.5, 1.1, false, 0.12f, 0.12f, 0.13f};
     } else if (type == "DIP") {
-        double row = n > 20 ? 7.62 : 3.81;
+        double row = bodyIn > 0 ? bodyIn / 2 : (n > 20 ? 7.62 : 3.81);  // bodySize = row spacing (7.62 / 15.24)
         int per = dual(2.54, row, {1.6, 1.6}, true, 0.8);
         body = {row * 2 - 1.3, per * 2.54, 3.5, false, 0.10f, 0.10f, 0.11f};
     } else if (type == "QFN") {
         int per = std::max(1, n / 4);
-        double size = std::max(3.0, per * 0.5 + 1.6);  // keeps corner pads ≥ 0.3 mm apart
-        quad(0.5, size / 2 - 0.2, {0.8, 0.28});
+        double pitch = pitchIn > 0 ? pitchIn : 0.5;
+        double size = bodyIn > 0 ? bodyIn : std::max(3.0, per * pitch + 1.6);  // keeps corner pads ≥ 0.3 mm apart
+        quad(pitch, size / 2 - 0.2, {0.8, padWidth(pitch, 0.18, 0.35)});
         body = {size, size, 0.9, false, 0.14f, 0.14f, 0.15f};
     } else if (type == "LQFP") {
         int per = std::max(1, n / 4);
-        double size = std::max(5.0, per * 0.5 + 1.5);
-        quad(0.5, size / 2 + 0.75, {1.5, 0.3});
+        double pitch = pitchIn > 0 ? pitchIn : 0.5;
+        double size = bodyIn > 0 ? bodyIn : std::max(5.0, per * pitch + 1.5);
+        quad(pitch, size / 2 + 0.75, {1.5, padWidth(pitch, 0.22, 0.5)});
         body = {size, size, 1.4, false, 0.12f, 0.12f, 0.13f};
     } else if (type == "SOT23") {
         if (n <= 3) {
@@ -324,9 +335,11 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, BodyDef& b
         for (int i = 0; i < n; ++i) pads.push_back({{x0 + i * 2.54, 0}, {1.9, 2.5}, true, false, 1.2});
         body = {10.0, 4.5, 15.0, false, 0.10f, 0.10f, 0.11f};
     } else {  // SOIC
-        double row = n > 16 ? 4.65 : 2.7;
-        int per = dual(1.27, row, {1.55, 0.6}, false, 0);
-        body = {n > 16 ? 7.5 : 3.9, per * 1.27 + 0.6, 1.5, false, 0.12f, 0.12f, 0.13f};
+        double pitch = pitchIn > 0 ? pitchIn : 1.27;
+        double bw = bodyIn > 0 ? bodyIn : (n > 16 ? 7.5 : 3.9);
+        double row = bodyIn > 0 ? bw / 2 + 0.75 : (n > 16 ? 4.65 : 2.7);
+        int per = dual(pitch, row, {1.55, padWidth(pitch, 0.25, 0.6)}, false, 0);
+        body = {bw, per * pitch + 0.6, 1.5, false, 0.12f, 0.12f, 0.13f};
     }
     // Courtyard: union of pads and body plus 0.25 mm.
     double xMax = body.width / 2, yMax = body.depth / 2;
@@ -420,7 +433,13 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     FootprintDef fp;
     fp.name = def.footprint;
     fp.label = spec.package.type + "-" + std::to_string(pc);
-    std::vector<PadPlacement> placements = packagePads(spec.package.type, pc, fp.body, fp.courtyardW, fp.courtyardH);
+    if (spec.package.pitch > 0) {
+        char pitch[32];
+        std::snprintf(pitch, sizeof pitch, " %gmm pitch", spec.package.pitch);
+        fp.label += pitch;
+    }
+    std::vector<PadPlacement> placements = packagePads(spec.package.type, pc, spec.package.pitch, spec.package.bodySize,
+                                                       fp.body, fp.courtyardW, fp.courtyardH);
     for (size_t i = 0; i < placements.size(); ++i) {
         PadDef pad;
         pad.offset = placements[i].offset;

@@ -1,4 +1,5 @@
 // SiEDA core unit tests — dependency-free; run via `ctest` or directly.
+#include <map>
 #include <cmath>
 #include <cstdio>
 #include <functional>
@@ -2090,4 +2091,68 @@ TEST(project_reset_returns_to_a_blank_project) {
     sieda_project_reset(p);
     CHECK(save(p) == fresh);
     sieda_project_free(p);
+}
+
+TEST(microcontroller_library_by_vendor) {
+    // Ten microcontrollers per vendor group, each on its real package: lead count, pitch, body and exposed pad.
+    std::map<std::string, int> perGroup;
+    for (const auto& p : standardParts())
+        if (p.category.rfind("Microcontrollers · ", 0) == 0) ++perGroup[p.category];
+    CHECK(perGroup["Microcontrollers · Arm"] == 10);
+    CHECK(perGroup["Microcontrollers · STMicroelectronics"] == 10);
+    CHECK(perGroup["Microcontrollers · Texas Instruments"] == 10);
+    CHECK(perGroup["Microcontrollers · Microchip"] == 12);  // + ATmega328P and ATtiny85
+    for (const auto& p : standardParts()) {
+        if (p.category.rfind("Microcontrollers · ", 0) != 0) continue;
+        bool ok = true;
+        try {
+            auto part = CustomPartRegistry::instance().registerPart(p.spec);
+            ok = part->footprint.pads.size() >= static_cast<size_t>(p.spec.package.pinCount) && !part->def.pins.empty();
+        } catch (const std::exception&) {
+            ok = false;
+        }
+        CHECK(ok);
+    }
+
+    struct Expect {
+        const char* name;
+        int leads;
+        double pitch;   // centre-to-centre of pads 1 and 2
+        bool exposedPad;
+        const char* pin1;
+    };
+    const Expect expect[] = {
+        {"RP2040", 56, 0.4, true, "IOVDD"},           {"nRF52832", 48, 0.4, true, "DEC1"},
+        {"STM32F103C8T6", 48, 0.5, false, "VBAT"},    {"STM32F030F4P6", 20, 0.65, false, "BOOT0"},
+        {"STM32F042K6T6", 32, 0.8, false, "VDD"},     {"STM32L432KCU6", 32, 0.5, true, "VDD"},
+        {"ATmega32U4", 44, 0.8, false, "PE6"},        {"ATmega2560", 100, 0.5, false, "PG5"},
+        {"ATtiny1614", 14, 1.27, false, "VCC"},       {"PIC16F877A", 40, 2.54, false, "nMCLR/Vpp"},
+        {"MSP430G2553", 20, 2.54, false, "DVCC"},     {"MSP432E401Y", 128, 0.4, false, nullptr},
+        {"EFM32HG308F64", 24, 0.65, true, nullptr},   {"LPC1768", 100, 0.5, false, nullptr},
+    };
+    for (const auto& e : expect) {
+        const StandardPart* sp = findStandardPart(e.name);
+        CHECK(sp != nullptr);
+        if (!sp) continue;
+        auto part = CustomPartRegistry::instance().registerPart(sp->spec);
+        const auto& pads = part->footprint.pads;
+        CHECK(static_cast<int>(pads.size()) == e.leads + (e.exposedPad ? 1 : 0));
+        double pitch = std::hypot(pads[1].offset.x - pads[0].offset.x, pads[1].offset.y - pads[0].offset.y);
+        CHECK(std::fabs(pitch - e.pitch) < 1e-6);
+        // Every lead pad is wired to its pin; the exposed pad (if any) to the last listed pin.
+        for (int i = 0; i < e.leads; ++i) CHECK(pads[static_cast<size_t>(i)].pinIndex == i);
+        if (e.exposedPad) CHECK(pads.back().pinIndex == e.leads && pads.back().size.x > 1.5);
+        if (e.pin1) CHECK(sp->spec.pins[0].name == e.pin1);
+        // Neighbouring pads never overlap (fine-pitch packages included).
+        CHECK(pads[0].size.y < e.pitch || pads[0].size.x < e.pitch);
+    }
+    // Real body sizes: LQFP-100 14 × 14 mm, QFN-56 7 × 7 mm.
+    auto body = [](const char* n) { return CustomPartRegistry::instance().registerPart(findStandardPart(n)->spec)->footprint.body; };
+    CHECK(std::fabs(body("STM32F407VGT6").width - 14) < 1e-9);
+    CHECK(std::fabs(body("RP2040").width - 7) < 1e-9);
+    // Pitch and body survive the JSON round trip, and parts without them keep their ids.
+    CustomPartSpec spec = findStandardPart("RP2040")->spec;
+    CustomPartSpec back = customPartSpecFromJson(customPartSpecToJson(spec));
+    CHECK(back.package.pitch == 0.4 && back.package.bodySize == 7);
+    CHECK(customPartSpecToJson(findStandardPart("NE555")->spec).get("package").get("pitch").isNull());
 }

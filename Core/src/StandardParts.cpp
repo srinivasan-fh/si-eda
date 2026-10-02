@@ -25,6 +25,20 @@ StandardPart part(const char* category, const char* name, const char* manufactur
     return p;
 }
 
+/// A microcontroller with its real package (pitch and body from the footprint); categories by vendor group.
+void mcu(std::vector<StandardPart>& parts, const char* group, const char* name, const char* manufacturer,
+         const char* description, const char* package, int pinCount, double pitch, double bodySize, const char* footprint,
+         std::vector<std::pair<const char*, T>> pins) {
+    std::string category = std::string("Microcontrollers · ") + group;
+    StandardPart p = part(category.c_str(), name, manufacturer, description, package, pinCount, "U", std::move(pins));
+    p.spec.package.pitch = pitch;
+    p.spec.package.bodySize = bodySize;
+    p.spec.datasheet = std::string("Pinout and ") + footprint + " footprint from the " + manufacturer + " datasheet";
+    // An exposed pad listed after the last lead (QFN-48 + pad 49) is the thermal / ground pad.
+    if (static_cast<int>(p.spec.pins.size()) == pinCount + 1) p.spec.pins.back().number = "EP";
+    parts.push_back(std::move(p));
+}
+
 void regulator(StandardPart& p, const char* in, const char* out, const char* ref, double vout, double dropout, double iq,
                double ilimit, double maxPower, bool charger = false) {
     p.spec.model.hasRegulator = true;
@@ -77,11 +91,11 @@ std::vector<StandardPart> build() {
     parts.push_back(part("Op-Amps", "LM358", "Texas Instruments", "Dual low-power operational amplifier", "SOIC", 8, "U",
                          {{"OUT1", T::Output}, {"IN1-", T::Input}, {"IN1+", T::Input}, {"GND", T::PowerIn},
                           {"IN2+", T::Input}, {"IN2-", T::Input}, {"OUT2", T::Output}, {"VCC", T::PowerIn}}));
-    parts.push_back(part("Microcontrollers", "ATtiny85", "Microchip", "8-bit AVR MCU, 8 KB flash", "DIP", 8, "U",
+    parts.push_back(part("Microcontrollers · Microchip", "ATtiny85", "Microchip", "8-bit AVR MCU, 8 KB flash", "DIP", 8, "U",
                          {{"PB5/RST", T::Bidirectional}, {"PB3", T::Bidirectional}, {"PB4", T::Bidirectional},
                           {"GND", T::PowerIn}, {"PB0", T::Bidirectional}, {"PB1", T::Bidirectional},
                           {"PB2", T::Bidirectional}, {"VCC", T::PowerIn}}));
-    parts.push_back(part("Microcontrollers", "ATmega328P", "Microchip", "8-bit AVR MCU, 32 KB flash", "DIP", 28, "U",
+    parts.push_back(part("Microcontrollers · Microchip", "ATmega328P", "Microchip", "8-bit AVR MCU, 32 KB flash", "DIP", 28, "U",
                          {{"PC6/RST", T::Input}, {"PD0/RXD", T::Bidirectional}, {"PD1/TXD", T::Bidirectional},
                           {"PD2", T::Bidirectional}, {"PD3", T::Bidirectional}, {"PD4", T::Bidirectional},
                           {"VCC", T::PowerIn}, {"GND", T::PowerIn}, {"PB6/XT1", T::Bidirectional},
@@ -178,6 +192,8 @@ std::vector<StandardPart> build() {
                          "U",
                          {{"VDD1", T::PowerIn}, {"VOA", T::Output}, {"VIB", T::Input}, {"GND1", T::PowerIn},
                           {"GND2", T::PowerIn}, {"VIA", T::Input}, {"VOB", T::Output}, {"VDD2", T::PowerIn}}));
+    // Top microcontrollers of Arm-ecosystem vendors, Microchip, ST and TI (generated: tools/fetch_mcu_pinouts.py).
+#include "StandardMcus.inc"
     applyModels(parts);
     return parts;
 }
