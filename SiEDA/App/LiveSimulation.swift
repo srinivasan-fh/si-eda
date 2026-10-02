@@ -31,6 +31,7 @@ final class LiveSimulation: ObservableObject {
     private var session: LiveSession?
     private var loop: Task<Void, Never>?
     private var startedRevision = -1
+    private var startedCircuit: [String] = []
     private var pendingSwitches: [Int: Bool] = [:]
     private var pendingSerial: [(Int, String)] = []
     private var switchState: [Int: Bool] = [:]
@@ -40,7 +41,9 @@ final class LiveSimulation: ObservableObject {
     nonisolated init() {}
 
     /// Starts (or restarts) the live simulation of the store's current design.
-    func start(store: DesignStore) {
+    /// `restart`: re-running after an edit; a circuit that can't run (mid-edit, no ground yet…) stops quietly
+    /// with a status message instead of an alert.
+    func start(store: DesignStore, restart: Bool = false) {
         stop()
         do {
             let session = try store.engine.startLive()
@@ -54,13 +57,18 @@ final class LiveSimulation: ObservableObject {
                 scopeNets = Set((state?.nets ?? []).prefix(2).map(\.index))
             }
             startedRevision = store.revision
+            startedCircuit = Self.circuitKey(store.snapshot)
             isRunning = true
             isPaused = false
             runLoop(store: store)
             store.statusMessage = "Live simulation running"
         } catch {
-            self.error = error.localizedDescription
-            store.statusMessage = "Live simulation could not start"
+            if restart {
+                store.statusMessage = "Live simulation stopped: \(error.localizedDescription)"
+            } else {
+                self.error = error.localizedDescription
+                store.statusMessage = "Live simulation could not start"
+            }
         }
     }
 
@@ -105,6 +113,15 @@ final class LiveSimulation: ObservableObject {
 
     func led(_ componentId: Int) -> LiveState.Led? { state?.leds.first { $0.component == componentId } }
 
+    /// What the simulation depends on: parts, values, firmware and which net every pin is on (not positions).
+    static func circuitKey(_ snapshot: DesignSnapshot) -> [String] {
+        snapshot.components.map { c in
+            let mcu = c.mcu.map { "\($0.firmwareName)|\($0.firmwareBytes)|\($0.clockHz)" } ?? ""
+            let nets = c.pins.map { "\($0.net)\($0.noConnect ? "x" : "")" }.joined(separator: ",")
+            return "\(c.id)|\(c.kind)|\(c.value)|\(c.customPart ?? "")|\(mcu)|\(nets)"
+        }
+    }
+
     // MARK: - Run loop
 
     private func runLoop(store: DesignStore) {
@@ -113,11 +130,15 @@ final class LiveSimulation: ObservableObject {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 33_000_000)
                 guard let self, !Task.isCancelled, let session = self.session else { return }
-                // An edited design is a different circuit: stop instead of simulating a stale snapshot.
+                // Edits take effect immediately, like on a real bench: a changed circuit restarts the board with the
+                // edit (moving parts, renaming, PCB work don't touch the circuit and keep it running).
                 if store.revision != self.startedRevision {
-                    self.stop()
-                    store.statusMessage = "Live simulation stopped: the design changed — run it again to include the edits"
-                    return
+                    if Self.circuitKey(store.snapshot) != self.startedCircuit {
+                        self.start(store: store, restart: true)
+                        if self.isRunning { store.statusMessage = "Live simulation updated with your edit" }
+                        return
+                    }
+                    self.startedRevision = store.revision
                 }
                 let now = Date()
                 let wall = min(now.timeIntervalSince(last), 0.2)

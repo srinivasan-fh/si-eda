@@ -390,6 +390,11 @@ struct SchematicCanvas: View {
             }
             guard tool == .select else { return }
             if let id = component(at: world) {
+                // Clicking a switch's lever flips it (like the real thing); the rest of its body just selects.
+                if !NSEvent.modifierFlags.contains(.shift), let c = store.snapshot.component(id), c.componentKind == .switchSPST {
+                    let local = world.applying(SchematicSymbols.transform(position: c.position, rotation: c.rotation).inverted())
+                    if abs(local.x) <= 16 && abs(local.y) <= 14 { store.toggleSwitch(id) }
+                }
                 store.select(component: id, extend: NSEvent.modifierFlags.contains(.shift))
             } else if let w = wire(at: world) {
                 store.selection = []
@@ -401,6 +406,14 @@ struct SchematicCanvas: View {
     }
 
     // MARK: - Drawing
+
+    /// How brightly an LED is lit (0…1, full at 15 mA): from the live board, otherwise from the shown DC result.
+    private func ledBrightness(_ id: Int) -> Double {
+        if live.isRunning { return live.led(id)?.brightness ?? 0 }
+        guard store.showDCOverlay, let dc = store.dcResult, dc.converged,
+              let device = dc.devices.first(where: { $0.component == id }) else { return 0 }
+        return min(1, max(0, device.current / 0.015))
+    }
 
     /// Glow colour of an LED from its value ("Red", "Green 0805", "Blue", …).
     static func ledColour(_ value: String) -> Color {
@@ -465,16 +478,41 @@ struct SchematicCanvas: View {
             let custom = snap.customPart(for: c)
             guard SchematicSymbols.bounds(c.componentKind, value: c.value, custom: custom).applying(local).intersects(view) else { continue }
             let t = local.concatenating(screen)
-            let shapes = custom.map(SchematicSymbols.customShapes) ?? SchematicSymbols.shapes(for: c.componentKind, value: c.value)
+            // A switch is drawn in the state it is in now: the live board's, otherwise its value.
+            var symbolValue = c.value
+            if c.componentKind == .switchSPST, let closed = live.isRunning ? live.isClosed(c.id) : nil {
+                symbolValue = closed ? "on" : "off"
+            }
+            let shapes = custom.map(SchematicSymbols.customShapes) ?? SchematicSymbols.shapes(for: c.componentKind, value: symbolValue)
             let selected = store.selection.contains(c.id)
             if selected {
                 ctx.stroke(shapes.stroke.applying(t), with: .color(Theme.blue.opacity(0.55)), lineWidth: 6)
             }
-            ctx.fill(shapes.fill.applying(t), with: .color(Theme.symbolFill))
-            let strokeColor = selected ? Theme.selection : Theme.symbol
-            ctx.stroke(shapes.stroke.applying(t), with: .color(strokeColor),
-                       style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
-            ctx.fill(shapes.solid.applying(t), with: .color(strokeColor))
+            if c.componentKind == .led {
+                // LEDs show their colour: a dim tint when dark, lit body and glow with the current through them.
+                let colour = Self.ledColour(c.value)
+                let b = ledBrightness(c.id)
+                if b > 0.02 {
+                    let box = SchematicSymbols.bounds(.led).applying(local)
+                    let centre = CGPoint(x: box.midX, y: box.midY).applying(screen)
+                    let radius = max(16, 34 * viewport.scale) * (0.6 + 0.4 * b)
+                    ctx.fill(Path(ellipseIn: CGRect(x: centre.x - radius, y: centre.y - radius, width: 2 * radius, height: 2 * radius)),
+                             with: .radialGradient(Gradient(colors: [colour.opacity(0.85 * b), colour.opacity(0.4 * b), colour.opacity(0)]),
+                                                   center: centre, startRadius: 0, endRadius: radius))
+                }
+                ctx.fill(shapes.fill.applying(t), with: .color(b > 0.02 ? colour.opacity(0.45 + 0.55 * b) : colour.opacity(0.22)))
+                let ledStroke = selected ? Theme.selection : (b > 0.02 ? colour : colour.opacity(0.75))
+                ctx.stroke(shapes.stroke.applying(t), with: .color(ledStroke),
+                           style: StrokeStyle(lineWidth: b > 0.02 ? 2 : 1.6, lineCap: .round, lineJoin: .round))
+                ctx.fill(shapes.solid.applying(t), with: .color(ledStroke))
+            } else {
+                ctx.fill(shapes.fill.applying(t), with: .color(Theme.symbolFill))
+                var strokeColor = selected ? Theme.selection : Theme.symbol
+                if c.componentKind == .switchSPST, !selected, live.isRunning, live.isClosed(c.id) == true { strokeColor = Theme.liveOn }
+                ctx.stroke(shapes.stroke.applying(t), with: .color(strokeColor),
+                           style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
+                ctx.fill(shapes.solid.applying(t), with: .color(strokeColor))
+            }
 
             // Pins
             for (i, p) in c.pins.enumerated() where showPins {
@@ -552,20 +590,8 @@ struct SchematicCanvas: View {
             }
         }
 
-        // Live board: LEDs glow with their current, switches show their state.
+        // Live board: switches show their state (LEDs are lit where they are drawn).
         if live.isRunning, let liveState = live.state {
-            for led in liveState.leds where led.brightness > 0.02 {
-                guard let c = snap.component(led.component) else { continue }
-                let local = SchematicSymbols.transform(position: c.position, rotation: c.rotation)
-                let box = SchematicSymbols.bounds(c.componentKind, custom: nil).applying(local)
-                let centre = CGPoint(x: box.midX, y: box.midY).applying(screen)
-                let radius = max(14, 30 * viewport.scale)
-                let colour = Self.ledColour(c.value)
-                let b = min(1, led.brightness)
-                ctx.fill(Path(ellipseIn: CGRect(x: centre.x - radius, y: centre.y - radius, width: 2 * radius, height: 2 * radius)),
-                         with: .radialGradient(Gradient(colors: [colour.opacity(0.9 * b), colour.opacity(0.35 * b), colour.opacity(0)]),
-                                               center: centre, startRadius: 0, endRadius: radius))
-            }
             for sw in liveState.switches {
                 guard let c = snap.component(sw.component) else { continue }
                 let local = SchematicSymbols.transform(position: c.position, rotation: c.rotation)
