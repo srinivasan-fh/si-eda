@@ -1978,3 +1978,80 @@ int main() {
     std::printf("\n%d checks, %d failures, %zu tests\n", g_checks, g_failures, registry().size());
     return g_failures == 0 ? 0 : 1;
 }
+
+TEST(ina333_instrumentation_amplifier) {
+    // ECG front end: 3.3 V, VREF = 1.65 V, a floating 1 mV electrode signal through 10 kΩ protection resistors with
+    // 1 MΩ bias returns to VREF, RG = 1 kΩ → G = 101.
+    Project p;
+    auto& s = p.schematic;
+    std::string id = p.addCustomPart(findStandardPart("INA333")->spec);
+    int vs = s.addComponent(ComponentKind::VoltageSource, "3.3", {0, 0});
+    int gnd = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    int r3 = s.addComponent(ComponentKind::Resistor, "100k", {100, 0});
+    int r4 = s.addComponent(ComponentKind::Resistor, "100k", {100, 100});
+    int sig = s.addComponent(ComponentKind::VoltageSource, "0.001", {0, 300});
+    int r1 = s.addComponent(ComponentKind::Resistor, "10k", {100, 250});
+    int r2 = s.addComponent(ComponentKind::Resistor, "10k", {100, 350});
+    int r5 = s.addComponent(ComponentKind::Resistor, "1M", {200, 250});
+    int r6 = s.addComponent(ComponentKind::Resistor, "1M", {200, 350});
+    int u = s.addCustomComponent(id, "INA333", {300, 300});
+    int rg = s.addComponent(ComponentKind::Resistor, "1k", {300, 200});
+    int load = s.addComponent(ComponentKind::Resistor, "10k", {400, 300});
+    wire(s, vs, "-", gnd, "GND");
+    wire(s, vs, "+", r3, "1");
+    wire(s, r3, "2", r4, "1");
+    wire(s, r4, "2", gnd, "GND");
+    wire(s, sig, "+", r1, "1");
+    wire(s, r1, "2", u, "+IN");
+    wire(s, sig, "-", r2, "1");
+    wire(s, r2, "2", u, "-IN");
+    wire(s, u, "+IN", r5, "1");
+    wire(s, r5, "2", r3, "2");
+    wire(s, u, "-IN", r6, "1");
+    wire(s, r6, "2", r3, "2");
+    wire(s, u, "1", rg, "1");
+    wire(s, rg, "2", u, "8");
+    wire(s, u, "V+", vs, "+");
+    wire(s, u, "V-", gnd, "GND");
+    wire(s, u, "REF", r3, "2");
+    wire(s, u, "VOUT", load, "1");
+    wire(s, load, "2", gnd, "GND");
+    p.schematicChanged();
+
+    auto out = [&] {
+        DcResult r = Simulator(s).dcOperatingPoint();
+        CHECK(r.converged);
+        return r.converged ? netV(s, r, u, "VOUT") - netV(s, r, u, "REF") : NAN;
+    };
+    double vdiff = 0.001 * 2e6 / 2.02e6;  // divided by the protection resistors
+    double g101 = out();
+    CHECK(std::fabs(g101 - 101 * vdiff) < 1e-3);
+
+    // Two RG resistors in parallel (500 Ω) → G = 201.
+    int rg2 = s.addComponent(ComponentKind::Resistor, "1k", {300, 150});
+    wire(s, rg2, "1", u, "1");
+    wire(s, rg2, "2", u, "8");
+    p.schematicChanged();
+    CHECK(std::fabs(out() - 201 * vdiff) < 2e-3);
+
+    // RG open → unity gain.
+    s.removeComponent(rg);
+    s.removeComponent(rg2);
+    p.schematicChanged();
+    CHECK(std::fabs(out() - vdiff) < 1e-4);
+
+    // A large input saturates just inside the rails instead of following REF + G·Vd.
+    int rgBig = s.addComponent(ComponentKind::Resistor, "100", {300, 200});
+    wire(s, rgBig, "1", u, "1");
+    wire(s, rgBig, "2", u, "8");
+    s.setValue(sig, "0.1");
+    p.schematicChanged();
+    DcResult sat = Simulator(s).dcOperatingPoint();
+    CHECK(sat.converged);
+    double vo = netV(s, sat, u, "VOUT");
+    CHECK(vo > 3.2 && vo < 3.3);
+    s.setValue(sig, "-0.1");
+    p.schematicChanged();
+    DcResult neg = Simulator(s).dcOperatingPoint();
+    CHECK(neg.converged && netV(s, neg, u, "VOUT") < 0.1 && netV(s, neg, u, "VOUT") > 0);
+}

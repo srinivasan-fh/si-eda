@@ -1276,3 +1276,21 @@ final class DocumentHandlingTests: XCTestCase {
         XCTAssertTrue(store.closeConfirmed)
     }
 }
+
+@MainActor
+final class MedicalFrontEndTests: XCTestCase {
+    /// The ECG template's INA333 (G = 101) turns the 1 mV electrode signal into ≈ ±0.1 V around VREF on ECG_OUT.
+    func testEcgTemplateAmplifiesTheElectrodeSignal() throws {
+        let template = try XCTUnwrap(OfflineProvider.templates.first { $0.plan.title.contains("ECG") })
+        let engine = EDAEngine(name: "ECG")
+        DesignPlanCompiler.apply(template.industryPlan, to: engine, previous: nil)
+        let result = engine.simulateTransient(stop: 2, step: 1e-3)
+        XCTAssertTrue(result.ok, result.error)
+        let out = try XCTUnwrap(result.nets.first { $0.name == "ECG_OUT" })
+        let settled = out.values.suffix(out.values.count / 2)
+        let swing = (settled.max() ?? 0) - (settled.min() ?? 0)
+        let mean = settled.reduce(0, +) / Double(max(settled.count, 1))
+        XCTAssertEqual(mean, 1.65, accuracy: 0.05)
+        XCTAssertEqual(swing, 0.2, accuracy: 0.03)
+    }
+}
