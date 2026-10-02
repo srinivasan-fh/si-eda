@@ -321,6 +321,22 @@ final class DesignStore: ObservableObject {
         setFirmware(id, hex: engine.firmware(of: id), name: mcu.firmwareName, clockHz: clockHz)
     }
 
+    /// Flips a toggle switch ("on" ⇄ "off"). Undoable; a DC result on screen is re-solved so the probes and LEDs
+    /// follow at once. Push-buttons ("push", "button"…) are only pressed while the live simulation runs.
+    func toggleSwitch(_ id: Int) {
+        guard let c = snapshot.component(id), c.componentKind == .switchSPST else { return }
+        let value = c.value.lowercased()
+        if ["push", "button", "momentary", "tact"].contains(where: { value.contains($0) }) {
+            statusMessage = "\(c.ref) is a push-button — press it while the live simulation runs"
+            return
+        }
+        let closed = ["on", "closed", "1", "true"].contains(value)
+        let resolve = showDCOverlay && dcResult != nil && !live.isRunning  // the edit clears the result
+        perform(closed ? "Opened \(c.ref)" : "Closed \(c.ref)") { $0.setValue(id, closed ? "off" : "on") }
+        statusMessage = "\(c.ref) \(closed ? "off" : "on")"
+        if resolve { Task { await simulateDC() } }
+    }
+
     func setValue(_ id: Int, _ value: String) {
         guard let current = snapshot.component(id), current.value != value else { return }
         perform("Changed value") { $0.setValue(id, value) }

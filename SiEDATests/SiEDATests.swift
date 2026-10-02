@@ -1205,17 +1205,29 @@ final class LiveSimulationTests: XCTestCase {
         XCTAssertGreaterThan(live.scopeTime.count, 10)
         XCTAssertTrue(live.scopeNets.allSatisfy { (live.scopeValues[$0]?.count ?? 0) == live.scopeTime.count })
 
-        // Pause holds the time; an edit stops the run.
+        // Pause holds the time.
         live.pause()
         try? await Task.sleep(nanoseconds: 200_000_000)
         let paused = live.state?.time ?? 0
         try? await Task.sleep(nanoseconds: 200_000_000)
         XCTAssertEqual(live.state?.time ?? -1, paused, accuracy: 1e-9)
         live.resume()
-        store.setValue(try XCTUnwrap(store.snapshot.component(ref: "R2")).id, "470")
-        await wait(live) { !live.isRunning }
+
+        // Moving a part doesn't change the circuit: the board keeps running.
+        let r2 = try XCTUnwrap(store.snapshot.component(ref: "R2")).id
+        let before = live.state?.time ?? 0
+        store.moveComponents([r2], by: CGSize(width: 10, height: 0))
+        await wait(live) { (live.state?.time ?? 0) > before + 0.2 }
+        XCTAssertGreaterThan(live.state?.time ?? 0, before + 0.2)
+
+        // A circuit edit takes effect at once: the board restarts with it and keeps running.
+        store.setValue(r2, "470")
+        await wait(live) { store.statusMessage.contains("updated with your edit") }
+        XCTAssertTrue(live.isRunning)
+        XCTAssertTrue(store.statusMessage.contains("updated with your edit"), store.statusMessage)
+        XCTAssertLessThan(live.state?.time ?? 1, before + 0.2)
+        live.stop()
         XCTAssertFalse(live.isRunning)
-        XCTAssertTrue(store.statusMessage.contains("design changed"), store.statusMessage)
     }
 
     func testLiveStartErrorsAreReported() {
@@ -1383,5 +1395,102 @@ final class AuditFixTests: XCTestCase {
     func testClaudeOutputBudgetGrowsWithEffort() {
         XCTAssertEqual(ClaudeProvider.outputBudget(effort: "medium"), 16_000)
         XCTAssertGreaterThan(ClaudeProvider.outputBudget(effort: "max"), ClaudeProvider.outputBudget(effort: "high"))
+    }
+}
+
+@MainActor
+final class InteractiveSchematicTests: XCTestCase {
+    /// V1 → R1 → SW1 → D1 (red) → ground, as built by hand on the canvas.
+    private func ledCircuit(_ store: DesignStore) -> (sw: Int, led: Int) {
+        let v = store.addComponent(.voltageSource, at: CGPoint(x: 0, y: 0))
+        let r = store.addComponent(.resistor, at: CGPoint(x: 120, y: -40))
+        let sw = store.addComponent(.switchSPST, at: CGPoint(x: 240, y: -40))
+        let d = store.addComponent(.led, at: CGPoint(x: 360, y: -40))
+        let g = store.addComponent(.ground, at: CGPoint(x: 0, y: 100))
+        let g2 = store.addComponent(.ground, at: CGPoint(x: 460, y: 60))
+        func pin(_ id: Int, _ i: Int) -> PinAddress { PinAddress(component: id, pin: i) }
+        XCTAssertTrue(store.connect(pin(v, 0), pin(r, 0)))
+        XCTAssertTrue(store.connect(pin(r, 1), pin(sw, 0)))
+        XCTAssertTrue(store.connect(pin(sw, 1), pin(d, 0)))
+        XCTAssertTrue(store.connect(pin(d, 1), pin(g2, 0)))
+        XCTAssertTrue(store.connect(pin(v, 1), pin(g, 0)))
+        return (sw, d)
+    }
+
+    func testClickingASwitchTogglesItAndTheLedFollows() async throws {
+        let store = DesignStore()
+        let (sw, led) = ledCircuit(store)
+        store.setValue(sw, "on")
+        await store.simulateDC()
+        let lit = try XCTUnwrap(store.dcResult?.devices.first { $0.component == led }).current
+        XCTAssertGreaterThan(lit, 0.005)  // ≈ 9 mA through 330 Ω
+
+        store.toggleSwitch(sw)
+        XCTAssertEqual(store.snapshot.component(sw)?.value, "off")
+        // The DC result on screen is re-solved, so the LED goes dark without pressing anything.
+        let deadline = Date().addingTimeInterval(10)
+        while store.dcResult == nil && Date() < deadline { try? await Task.sleep(nanoseconds: 20_000_000) }
+        let dark = try XCTUnwrap(store.dcResult?.devices.first { $0.component == led }).current
+        XCTAssertLessThan(dark, 1e-5)
+
+        store.toggleSwitch(sw)
+        XCTAssertEqual(store.snapshot.component(sw)?.value, "on")
+        store.undo()
+        XCTAssertEqual(store.snapshot.component(sw)?.value, "off")
+
+        // Push-buttons are pressed in the live simulation, not flipped.
+        store.setValue(sw, "push")
+        store.toggleSwitch(sw)
+        XCTAssertEqual(store.snapshot.component(sw)?.value, "push")
+    }
+
+    func testLiveRunFollowsSwitchToggles() async throws {
+        let store = DesignStore()
+        let (sw, led) = ledCircuit(store)
+        store.setValue(sw, "off")
+        let live = store.live
+        live.start(store: store)
+        defer { live.stop() }
+        XCTAssertTrue(live.isRunning, live.error ?? "")
+        var deadline = Date().addingTimeInterval(10)
+        while (live.state?.time ?? 0) < 0.05 && Date() < deadline { try? await Task.sleep(nanoseconds: 20_000_000) }
+        XCTAssertLessThan(live.led(led)?.brightness ?? 1, 0.02)
+        live.press(sw, pressed: true)  // a toggle switch flips on press
+        deadline = Date().addingTimeInterval(10)
+        while (live.led(led)?.brightness ?? 0) < 0.4 && Date() < deadline { try? await Task.sleep(nanoseconds: 20_000_000) }
+        XCTAssertGreaterThan(live.led(led)?.brightness ?? 0, 0.4)
+        XCTAssertEqual(live.isClosed(sw), true)
+    }
+
+    func testCircuitKeyIgnoresPositions() {
+        let store = DesignStore()
+        let (sw, _) = ledCircuit(store)
+        let key = LiveSimulation.circuitKey(store.snapshot)
+        store.moveComponents([sw], by: CGSize(width: 20, height: 0))
+        XCTAssertEqual(LiveSimulation.circuitKey(store.snapshot), key)
+        store.setValue(sw, "off")
+        XCTAssertNotEqual(LiveSimulation.circuitKey(store.snapshot), key)
+    }
+
+    func testDeleteKeysAreRecognisedButNotWithCommand() throws {
+        func key(_ code: UInt16, _ flags: NSEvent.ModifierFlags = []) throws -> NSEvent {
+            try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0,
+                                           windowNumber: 0, context: nil, characters: "\u{7F}",
+                                           charactersIgnoringModifiers: "\u{7F}", isARepeat: false, keyCode: code))
+        }
+        XCTAssertTrue(DeleteKeyMonitor.MonitorView.isDeleteKey(try key(51)))
+        XCTAssertTrue(DeleteKeyMonitor.MonitorView.isDeleteKey(try key(117)))
+        XCTAssertFalse(DeleteKeyMonitor.MonitorView.isDeleteKey(try key(51, .command)))  // ⌘⌫ belongs to menus
+        XCTAssertFalse(DeleteKeyMonitor.MonitorView.isDeleteKey(try key(0)))
+
+        let store = DesignStore()
+        let (sw, _) = ledCircuit(store)
+        store.select(component: sw)
+        store.deleteSelection()
+        XCTAssertNil(store.snapshot.component(sw))
+        let wire = try XCTUnwrap(store.snapshot.wires.first).id
+        store.selectedWire = wire
+        store.deleteSelection()
+        XCTAssertFalse(store.snapshot.wires.contains { $0.id == wire })
     }
 }

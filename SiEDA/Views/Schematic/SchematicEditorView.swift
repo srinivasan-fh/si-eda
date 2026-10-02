@@ -155,6 +155,9 @@ struct SchematicEditorView: View {
             }
         }
         .background(Theme.navy)
+        .background(DeleteKeyMonitor { store.deleteSelection() } isActive: {
+            store.selectedWire != nil || !store.selection.isEmpty
+        })
     }
 
     private func arm(_ placement: SchematicTool) {
@@ -354,20 +357,22 @@ struct SimulationTransport: View {
                     .help("Scope, serial monitor and switches")
                     .accessibilityLabel("Open live instruments")
             } else {
+                // ▶ is the real-time run (like powering the board); DC is a one-shot operating point.
                 Button {
                     live.start(store: store)
                 } label: {
-                    Label("Run Live", systemImage: "bolt.circle.fill")
+                    Label("Run", systemImage: "play.fill")
                 }
-                .help("Run the board in real time: firmware runs, LEDs light, click switches and buttons, live probes")
+                .keyboardShortcut("r", modifiers: [.command])
+                .help("Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes")
                 .accessibilityLabel("Run live simulation")
                 Divider().frame(height: 14)
                 Button {
                     Task { await store.simulateDC() }
                 } label: {
-                    Image(systemName: "play.fill")
+                    Text("DC").font(.caption.weight(.semibold))
                 }
-                .help("Run DC operating point — shows voltage probes")
+                .help("Solve the DC operating point once — shows voltage probes")
                 .accessibilityLabel("Run DC operating point")
                 Button {
                     store.workspace = .simulation

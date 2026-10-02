@@ -373,6 +373,67 @@ private struct CanvasScrollShield: ViewModifier {
     }
 }
 
+/// Delete / Backspace remove the selection while the editor is on screen, wherever keyboard focus is (a list row,
+/// the inspector, the toolbar) — except while text is being edited, where the keys keep editing the text.
+struct DeleteKeyMonitor: NSViewRepresentable {
+    var onDelete: () -> Void
+    var isActive: () -> Bool
+
+    init(_ onDelete: @escaping () -> Void, isActive: @escaping () -> Bool) {
+        self.onDelete = onDelete
+        self.isActive = isActive
+    }
+
+    func makeNSView(context: Context) -> MonitorView {
+        let view = MonitorView()
+        view.onDelete = onDelete
+        view.isActive = isActive
+        return view
+    }
+
+    func updateNSView(_ view: MonitorView, context: Context) {
+        view.onDelete = onDelete
+        view.isActive = isActive
+    }
+
+    final class MonitorView: NSView {
+        var onDelete: (() -> Void)?
+        var isActive: (() -> Bool)?
+        private var monitor: Any?
+
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        /// Backspace (51) and forward delete (117), without ⌘/⌥/⌃.
+        static func isDeleteKey(_ event: NSEvent) -> Bool {
+            guard event.keyCode == 51 || event.keyCode == 117 else { return false }
+            return event.modifierFlags.intersection([.command, .option, .control]).isEmpty
+        }
+
+        /// Text being edited (a field editor, a text view) keeps its keys.
+        static func isEditingText(_ window: NSWindow?) -> Bool {
+            guard let responder = window?.firstResponder else { return false }
+            return responder is NSText || responder is NSTextField || responder is NSTextView
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = nil
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self, let window = self.window, event.window === window, window.attachedSheet == nil,
+                      Self.isDeleteKey(event), !Self.isEditingText(window), self.isActive?() == true else { return event }
+                self.onDelete?()
+                return nil
+            }
+        }
+
+        deinit {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+        }
+    }
+}
+
 extension View {
     /// Marks an overlay above a canvas: scroll-wheel and trackpad events over it don't zoom or pan the canvas.
     func canvasScrollShield() -> some View { modifier(CanvasScrollShield()) }
