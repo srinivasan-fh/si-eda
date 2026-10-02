@@ -1,5 +1,6 @@
 import SwiftUI
 import XCTest
+import UniformTypeIdentifiers
 @testable import SiEDA
 
 final class EngineBridgeTests: XCTestCase {
@@ -1224,5 +1225,163 @@ final class LiveSimulationTests: XCTestCase {
         XCTAssertNotNil(store.live.error)
         store.live.clearError()
         XCTAssertNil(store.live.error)
+    }
+}
+
+/// Files from Finder / Dock / Open Recent, and the close-window save guard.
+@MainActor
+final class DocumentHandlingTests: XCTestCase {
+    private func projectFile(named name: String) throws -> URL {
+        let engine = EDAEngine(name: name)
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].industryPlan, to: engine, previous: nil)
+        engine.setName(name)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).siedaproj")
+        try engine.saveJSON().write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    func testAppDelegateOpensFilesEvenBeforeTheWindowExists() throws {
+        let url = try projectFile(named: "From Finder")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let delegate = AppDelegate()
+        delegate.application(NSApplication.shared, open: [url])  // no store yet: kept pending
+        let store = DesignStore()
+        delegate.store = store
+        XCTAssertEqual(store.snapshot.name, "From Finder")
+        XCTAssertEqual(store.documentURL, url)
+
+        let second = try projectFile(named: "Second")
+        defer { try? FileManager.default.removeItem(at: second) }
+        delegate.application(NSApplication.shared, open: [second])
+        XCTAssertEqual(store.snapshot.name, "Second")
+        XCTAssertEqual(UTType.siedaProject.preferredFilenameExtension, "siedaproj")
+    }
+
+    func testCloseGuardForwardsAndAllowsCleanClose() {
+        final class Original: NSObject, NSWindowDelegate {
+            var resized = false
+            func windowDidResize(_ notification: Notification) { resized = true }
+        }
+        let original = Original()
+        let closeGuard = WindowCloseGuard()
+        closeGuard.original = original
+        let store = DesignStore()
+        closeGuard.store = store
+        XCTAssertTrue(closeGuard.responds(to: #selector(NSWindowDelegate.windowDidResize(_:))))
+        XCTAssertTrue((closeGuard.forwardingTarget(for: #selector(NSWindowDelegate.windowDidResize(_:))) as AnyObject) === original)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 100), styleMask: [.titled, .closable],
+                              backing: .buffered, defer: true)
+        window.isReleasedWhenClosed = false
+        XCTAssertTrue(closeGuard.windowShouldClose(window))  // clean design: closes without asking
+        XCTAssertTrue(store.closeConfirmed)
+    }
+}
+
+@MainActor
+final class MedicalFrontEndTests: XCTestCase {
+    /// The ECG template's INA333 (G = 101) turns the 1 mV electrode signal into ≈ ±0.1 V around VREF on ECG_OUT.
+    func testEcgTemplateAmplifiesTheElectrodeSignal() throws {
+        let template = try XCTUnwrap(OfflineProvider.templates.first { $0.plan.title.contains("ECG") })
+        let engine = EDAEngine(name: "ECG")
+        DesignPlanCompiler.apply(template.industryPlan, to: engine, previous: nil)
+        let result = engine.simulateTransient(stop: 2, step: 1e-3)
+        XCTAssertTrue(result.ok, result.error)
+        let out = try XCTUnwrap(result.nets.first { $0.name == "ECG_OUT" })
+        let settled = out.values.suffix(out.values.count / 2)
+        let swing = (settled.max() ?? 0) - (settled.min() ?? 0)
+        let mean = settled.reduce(0, +) / Double(max(settled.count, 1))
+        XCTAssertEqual(mean, 1.65, accuracy: 0.05)
+        XCTAssertEqual(swing, 0.2, accuracy: 0.03)
+    }
+}
+
+@MainActor
+final class AuditFixTests: XCTestCase {
+    func testChangeRequestsAreKeptAsOneList() {
+        var requirements = "Battery-powered ECG front end."
+        requirements = AgentOrchestrator.appendingChangeRequest("Add a power LED", to: requirements)
+        requirements = AgentOrchestrator.appendingChangeRequest("Use a 4-layer board", to: requirements)
+        requirements = AgentOrchestrator.appendingChangeRequest("add a power led", to: requirements)  // repeated
+        XCTAssertEqual(requirements, """
+            Battery-powered ECG front end.
+
+            Change requests:
+            - Use a 4-layer board
+            - add a power led
+            """)
+        // Old projects stored one "Change request:" paragraph per refinement.
+        let legacy = "PRD\n\nChange request: A\n\nChange request: B"
+        XCTAssertEqual(AgentOrchestrator.appendingChangeRequest("C", to: legacy), "PRD\n\nChange requests:\n- A\n- B\n- C")
+        var many = ""
+        for i in 0..<40 { many = AgentOrchestrator.appendingChangeRequest("Request \(i)", to: many) }
+        XCTAssertEqual(many.components(separatedBy: "\n- ").count - 1, AgentOrchestrator.maxChangeRequests)
+        XCTAssertTrue(many.hasSuffix("- Request 39"))
+    }
+
+    func testIdenticalViolationsHaveDistinctIds() throws {
+        let json = """
+            [{"severity":"warning","code":"X","message":"same","components":[],"hasLocation":false,"x":0,"y":0},
+             {"severity":"warning","code":"X","message":"same","components":[],"hasLocation":false,"x":0,"y":0}]
+            """
+        let violations = try JSONDecoder().decode([RuleViolation].self, from: Data(json.utf8)).numbered()
+        XCTAssertEqual(Set(violations.map(\.id)).count, 2)
+    }
+
+    func testTextFilesInLegacyEncodingsAreRead() {
+        let text = "Résumé: 5 °C – 3.3 V rail"
+        let cp1252 = text.data(using: .windowsCP1252)!
+        XCTAssertEqual(DatasheetDocument.decodeText(cp1252), text)
+        XCTAssertEqual(DatasheetDocument.decodeText(text.data(using: .utf16)!), text)
+        XCTAssertEqual(DatasheetDocument.decodeText(Data(text.utf8)), text)
+    }
+
+    func testExampleLoadsCleanAndNewProjectStartsBlank() throws {
+        let store = DesignStore()
+        let blankBoard = store.snapshot.board
+        let ecg = try XCTUnwrap(OfflineProvider.templates.first { $0.plan.title.contains("ECG") })
+        store.loadExample(ecg.industryPlan)
+        XCTAssertFalse(store.isDirty, "an untouched example needs no save prompt")
+        XCTAssertFalse(store.snapshot.customParts.isEmpty)
+
+        store.addGroundPours()
+        let pours = store.snapshot.zones.count
+        XCTAssertGreaterThan(pours, 0)
+        store.addGroundPours()
+        XCTAssertEqual(store.snapshot.zones.count, pours, "a second click must not stack duplicate pours")
+
+        // Saved and reopened: clean, so New Project doesn't ask.
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).siedaproj")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try store.engine.saveJSON().write(to: url, atomically: true, encoding: .utf8)
+        store.open(url: url)
+        XCTAssertFalse(store.isDirty)
+        XCTAssertEqual(store.snapshot.zones.count, pours)
+        store.newProject()
+        XCTAssertTrue(store.snapshot.components.isEmpty)
+        XCTAssertTrue(store.snapshot.customParts.isEmpty)
+        XCTAssertTrue(store.snapshot.zones.isEmpty)
+        XCTAssertEqual(store.snapshot.board, blankBoard)
+        XCTAssertEqual(store.snapshot.requirements, "")
+    }
+
+    func testNetLabelHitBoxFollowsTheText() {
+        let short = SchematicSymbols.bounds(.netLabel, value: "A", custom: nil)
+        let long = SchematicSymbols.bounds(.netLabel, value: "MOTOR_PWM_FRONT_LEFT", custom: nil)
+        XCTAssertGreaterThan(long.width, short.width)
+        XCTAssertGreaterThanOrEqual(long.maxX, SchematicSymbols.netLabelTextWidth("MOTOR_PWM_FRONT_LEFT"))
+    }
+
+    func testRevealAsksForTheInspector() {
+        let store = DesignStore()
+        let r = store.addComponent(.resistor, at: .zero)
+        let before = store.inspectorRevealToken
+        store.reveal(component: r)
+        XCTAssertEqual(store.selection, [r])
+        XCTAssertEqual(store.inspectorRevealToken, before + 1)
+    }
+
+    func testClaudeOutputBudgetGrowsWithEffort() {
+        XCTAssertEqual(ClaudeProvider.outputBudget(effort: "medium"), 16_000)
+        XCTAssertGreaterThan(ClaudeProvider.outputBudget(effort: "max"), ClaudeProvider.outputBudget(effort: "high"))
     }
 }

@@ -191,9 +191,39 @@ final class AgentOrchestrator: ObservableObject {
         if plan.board.width < 10 || plan.board.height < 10 { plan.board = current.board }
         finish(index, .done, "\(plan.components.count) parts, \(plan.connections.count) connections")
         try Task.checkCancellation()
-        let brief = requirements.isEmpty ? instruction : requirements + "\n\nChange request: " + instruction
+        let brief = Self.appendingChangeRequest(instruction, to: requirements)
         try await compileVerifyReview(plan: plan, spec: lastSpec, brief: brief, provider: provider, store: store,
                                       review: review, rounds: rounds)
+    }
+
+    static let changeRequestsHeader = "Change requests:"
+    static let maxChangeRequests = 12
+
+    /// The original requirements followed by one "Change requests:" list (most recent last, duplicates dropped,
+    /// at most `maxChangeRequests`), instead of a new "Change request:" paragraph appended on every refinement.
+    static func appendingChangeRequest(_ instruction: String, to requirements: String) -> String {
+        let request = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
+        var base = "\n\n" + requirements  // so a list at the very start is found like one after the PRD
+        var requests: [String] = []
+        if let range = base.range(of: "\n\n" + changeRequestsHeader + "\n") {
+            requests = base[range.upperBound...].split(separator: "\n").map {
+                String($0).trimmingCharacters(in: .whitespaces)
+            }.filter { $0.hasPrefix("- ") }.map { String($0.dropFirst(2)) }
+            base = String(base[..<range.lowerBound])
+        }
+        // Earlier versions appended "\n\nChange request: …" paragraphs.
+        let legacy = base.components(separatedBy: "\n\nChange request: ")
+        base = legacy[0]
+        requests = legacy.dropFirst().map { $0.trimmingCharacters(in: .whitespacesAndNewlines) } + requests
+        if !request.isEmpty {
+            requests.removeAll { $0.caseInsensitiveCompare(request) == .orderedSame }
+            requests.append(request.replacingOccurrences(of: "\n", with: " "))
+        }
+        requests = Array(requests.suffix(maxChangeRequests))
+        base = base.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !requests.isEmpty else { return base }
+        let list = changeRequestsHeader + "\n" + requests.map { "- " + $0 }.joined(separator: "\n")
+        return base.isEmpty ? list : base + "\n\n" + list
     }
 
     private func compileVerifyReview(plan initialPlan: DesignPlan, spec: RequirementsSpec?, brief: String,

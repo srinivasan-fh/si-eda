@@ -237,6 +237,9 @@ struct BoardSceneView: NSViewRepresentable {
         c.cameraNode.position = SCNVector3(0, span * 1.1, span * 1.25)
         c.cameraNode.look(at: SCNVector3(0, 0, 0))
         view.pointOfView = c.cameraNode
+        // Reset also re-centres the orbit (a pan moves the controller's target away from the board).
+        view.defaultCameraController.pointOfView = c.cameraNode
+        view.defaultCameraController.target = SCNVector3(0, 0, 0)
     }
 
     static func geometry(from mesh: MeshData) -> SCNGeometry {

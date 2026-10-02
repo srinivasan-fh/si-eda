@@ -115,10 +115,12 @@ struct SchematicEditorView: View {
                                     placementTool: placementTool, live: store.live)
                     if store.showNavigator, !store.snapshot.components.isEmpty {
                         navigator
+                            .canvasScrollShield()
                             .padding(12)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     }
                     SimulationTransport(live: store.live)
+                        .canvasScrollShield()
                         .padding(12)
                     if store.snapshot.components.isEmpty {
                         VStack(spacing: 4) {
@@ -145,6 +147,7 @@ struct SchematicEditorView: View {
                                 Label("Load Example Design", systemImage: "square.grid.2x2")
                             }
                             .fixedSize()
+                            .canvasScrollShield()
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }

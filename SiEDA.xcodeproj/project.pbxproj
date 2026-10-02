@@ -125,6 +125,7 @@
 		833CC0D371F8BDA60C967CC4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Export.hpp; sourceTree = "<group>"; };
 		87FD7D0F8D0FCBA339485071 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Standards.swift; sourceTree = "<group>"; };
 		89D9BE7B7D9C91F898FB822D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignStore.swift; sourceTree = "<group>"; };
+		8FD5A37ED920B43821E811D3 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		91E1716A4E8C3862BD047035 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Avr.hpp; sourceTree = "<group>"; };
 		921B2819EF3E6FB02EB71875 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchematicEditorView.swift; sourceTree = "<group>"; };
 		94640EC62FB04611BA180EDD = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Firmware.cpp; sourceTree = "<group>"; };
@@ -385,6 +386,7 @@
 				F3D7905FC6038E4E1A7161D2,
 				2A6E9FA74463A506F384BA53,
 				281968485D39656793209D6D,
+				8FD5A37ED920B43821E811D3,
 			);
 			path = SiEDA;
 			sourceTree = "<group>";
@@ -712,6 +714,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SiEDA/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SiEDA;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 SiEDA. All rights reserved.";
@@ -737,6 +740,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SiEDA/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SiEDA;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 SiEDA. All rights reserved.";

@@ -48,7 +48,8 @@ struct AlertItem: Identifiable {
 }
 
 extension UTType {
-    static var siedaProject: UTType { UTType(filenameExtension: "siedaproj") ?? .json }
+    /// Declared in Info.plist (UTExportedTypeDeclarations) so Finder, the Dock and Open Recent route files to SiEDA.
+    static var siedaProject: UTType { UTType("com.sieda.project") ?? UTType(filenameExtension: "siedaproj") ?? .json }
 }
 
 /// Single source of truth for the open design. Wraps the C++ engine and publishes snapshots to SwiftUI.
@@ -96,6 +97,8 @@ final class DesignStore: ObservableObject {
     @Published private(set) var revision = 0
     /// Incremented when a whole new design arrives (AI plan, open, example, re-placement) so editors re-fit.
     @Published private(set) var fitToken = 0
+    /// Bumped to ask the window to show the inspector (a click on a part in a results list).
+    @Published private(set) var inspectorRevealToken = 0
     /// Latest navigation command for the visible schematic/PCB canvas (View menu, zoom controls).
     @Published private(set) var viewRequest: ViewRequest?
     /// Navigator overview on the 2D canvases (persisted).
@@ -124,9 +127,22 @@ final class DesignStore: ObservableObject {
 
     // MARK: - Core plumbing
 
+    /// One alert per run of failed snapshot reads.
+    private var snapshotErrorShown = false
+
     func refresh() {
-        if let snap = engine.snapshot() {
+        switch engine.snapshotChecked() {
+        case .success(let snap):
             snapshot = snap
+            snapshotErrorShown = false
+        case .failure(let error):
+            // Keep showing the last good state, but never silently: edits would otherwise look like they did nothing.
+            NSLog("SiEDA: %@", error.localizedDescription)
+            statusMessage = "Display not updated — \(error.localizedDescription)"
+            if !snapshotErrorShown {
+                snapshotErrorShown = true
+                alert = AlertItem(title: "The design view could not be updated", message: error.localizedDescription)
+            }
         }
         selection = selection.filter { id in snapshot.components.contains { $0.id == id } }
         if let wire = selectedWire, !snapshot.wires.contains(where: { $0.id == wire }) { selectedWire = nil }
@@ -337,6 +353,12 @@ final class DesignStore: ObservableObject {
             $0.setPinNoConnect(pin, !marked)
         }
         runERC()
+    }
+
+    /// Selects a part from a list (simulation results, reports) and shows its properties in the inspector.
+    func reveal(component id: Int) {
+        select(component: id)
+        inspectorRevealToken &+= 1
     }
 
     func select(component id: Int?, extend: Bool = false) {
@@ -601,14 +623,21 @@ final class DesignStore: ObservableObject {
             return
         }
         let board = snapshot.board
+        var wanted: [(layer: Int, plane: Bool)] = []
+        if board.layerCount >= 4 {
+            wanted = [(layer: 1, plane: true), (layer: board.bottomLayer, plane: false)]
+        } else {
+            wanted = [(layer: board.bottomLayer, plane: false)]
+            if board.layerCount > 1 { wanted.append((layer: 0, plane: false)) }
+        }
+        // Pressing it again (or after adding some by hand) never stacks a second pour of GND on the same layer.
+        wanted.removeAll { w in snapshot.zones.contains { $0.net == ground && $0.layer == w.layer } }
+        guard !wanted.isEmpty else {
+            statusMessage = "Ground pours are already on the board"
+            return
+        }
         perform("Ground pours added", invalidatesAnalysis: false) { engine in
-            if board.layerCount >= 4 {
-                engine.addZone(net: ground, layer: 1, plane: true)
-                engine.addZone(net: ground, layer: board.bottomLayer, plane: false)
-            } else {
-                engine.addZone(net: ground, layer: board.bottomLayer, plane: false)
-                if board.layerCount > 1 { engine.addZone(net: ground, layer: 0, plane: false) }
-            }
+            for w in wanted { engine.addZone(net: ground, layer: w.layer, plane: w.plane) }
         }
     }
 
@@ -749,12 +778,7 @@ final class DesignStore: ObservableObject {
 
     func newProject() {
         guard confirmDiscardChanges() else { return }
-        perform("New project", recordUndo: false) {
-            $0.clear()
-            $0.setName("Untitled")
-            $0.setRequirements("")
-            $0.setIndustry("general")
-        }
+        perform("New project", recordUndo: false) { $0.reset() }
         undoStack.removeAll()
         redoStack.removeAll()
         documentURL = nil
@@ -767,10 +791,13 @@ final class DesignStore: ObservableObject {
     /// Loads one of the built-in reference designs (works fully offline, no AI involved).
     func loadExample(_ plan: DesignPlan) {
         guard confirmDiscardChanges() else { return }
+        // A fresh project: nothing (library parts, board, pours, placement) carries over from the previous design.
+        perform("New project", recordUndo: false) { $0.reset() }
         applyPlan(plan, requirements: plan.summary)
         undoStack.removeAll()
         redoStack.removeAll()
         documentURL = nil
+        isDirty = false  // an untouched example needs no save prompt
         statusMessage = "Loaded example “\(plan.title)”"
         workspace = .schematic
     }
@@ -916,6 +943,9 @@ final class DesignStore: ObservableObject {
             present(error, title: "Export failed")
         }
     }
+
+    /// Set once the user agreed to close the window (saved or chose Don't Save), so quitting does not ask again.
+    var closeConfirmed = false
 
     /// Returns false if the user cancels.
     func confirmDiscardChanges() -> Bool {

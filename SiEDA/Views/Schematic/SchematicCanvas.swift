@@ -154,7 +154,7 @@ struct SchematicCanvas: View {
     /// World-space bounds of every component symbol (used for fit, zoom to selection and the navigator).
     static func componentBounds(_ snapshot: DesignSnapshot) -> [(id: Int, rect: CGRect)] {
         snapshot.components.map { c in
-            let rect = SchematicSymbols.bounds(c.componentKind, custom: snapshot.customPart(for: c))
+            let rect = SchematicSymbols.bounds(c.componentKind, value: c.value, custom: snapshot.customPart(for: c))
                 .applying(SchematicSymbols.transform(position: c.position, rotation: c.rotation))
             return (c.id, rect)
         }
@@ -214,7 +214,7 @@ struct SchematicCanvas: View {
     private func component(at world: CGPoint) -> Int? {
         for c in store.snapshot.components.reversed() {
             let t = SchematicSymbols.transform(position: c.position, rotation: c.rotation).inverted()
-            if SchematicSymbols.bounds(c.componentKind, custom: store.snapshot.customPart(for: c)).contains(world.applying(t)) {
+            if SchematicSymbols.bounds(c.componentKind, value: c.value, custom: store.snapshot.customPart(for: c)).contains(world.applying(t)) {
                 return c.id
             }
         }
@@ -310,7 +310,9 @@ struct SchematicCanvas: View {
                             let a = viewport.toWorld(rect.origin)
                             let b = viewport.toWorld(CGPoint(x: rect.maxX, y: rect.maxY))
                             let worldRect = CGRect(origin: a, size: .zero).union(CGRect(origin: b, size: .zero))
-                            store.selection = Set(store.snapshot.components.filter { worldRect.contains($0.position) }.map(\.id))
+                            // ⇧-drag adds every part the box touches to the selection.
+                            let boxed = Self.componentBounds(store.snapshot).filter { $0.rect.intersects(worldRect) }.map(\.id)
+                            store.selection.formUnion(boxed)
                             store.selectedWire = nil
                         }
                     default:
@@ -461,7 +463,7 @@ struct SchematicCanvas: View {
             if movingIds.contains(c.id) { position.x += delta.width; position.y += delta.height }
             let local = SchematicSymbols.transform(position: position, rotation: c.rotation)
             let custom = snap.customPart(for: c)
-            guard SchematicSymbols.bounds(c.componentKind, custom: custom).applying(local).intersects(view) else { continue }
+            guard SchematicSymbols.bounds(c.componentKind, value: c.value, custom: custom).applying(local).intersects(view) else { continue }
             let t = local.concatenating(screen)
             let shapes = custom.map(SchematicSymbols.customShapes) ?? SchematicSymbols.shapes(for: c.componentKind, value: c.value)
             let selected = store.selection.contains(c.id)
@@ -524,7 +526,7 @@ struct SchematicCanvas: View {
             case .ground:
                 break
             case .netLabel:
-                let width = max(36, CGFloat(c.value.count) * 7 + 16)
+                let width = SchematicSymbols.netLabelTextWidth(c.value)
                 let center = CGPoint(x: (width + 7) / 2, y: 0).applying(t)
                 ctx.draw(Text(c.value).font(.system(size: fontSize, weight: .semibold, design: .monospaced))
                             .foregroundColor(Theme.skyBlue), at: center)

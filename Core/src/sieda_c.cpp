@@ -149,6 +149,11 @@ void sieda_project_clear(SiedaProject* project) {
     project->project.pcb.clearRouting();
 }
 
+void sieda_project_reset(SiedaProject* project) {
+    if (!project) return;
+    project->project = Project{};
+}
+
 char* sieda_project_snapshot(const SiedaProject* project) {
     if (!project) return nullptr;
     try {

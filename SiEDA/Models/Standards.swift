@@ -141,6 +141,18 @@ struct VerificationStage: Decodable, Equatable, Identifiable {
     var details: [String]
     var findings: [RuleViolation]
 
+    private enum CodingKeys: String, CodingKey { case id, title, status, summary, details, findings }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        status = try c.decode(VerificationStatus.self, forKey: .status)
+        summary = try c.decode(String.self, forKey: .summary)
+        details = try c.decode([String].self, forKey: .details)
+        findings = try c.decode([RuleViolation].self, forKey: .findings).numbered()
+    }
+
     var systemImage: String {
         switch id {
         case "erc": return "bolt.shield"

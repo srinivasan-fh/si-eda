@@ -10,6 +10,13 @@ struct XRaySettings: Equatable {
     var scan = true
     var spin = false
     var hiddenLayers: Set<Int> = []
+
+    /// The settings that change the scene's geometry (spinning only animates the existing scene).
+    var geometryKey: XRaySettings {
+        var key = self
+        key.spin = false
+        return key
+    }
 }
 
 /// "Iron Man" X-ray view: each copper layer is rendered as a translucent, additively blended hologram plane,
@@ -80,11 +87,11 @@ struct XRayStackView: NSViewRepresentable {
             }
             c.meshRevision = revision
         }
-        if c.builtRevision != revision || c.builtSettings != settings {
+        if c.builtRevision != revision || c.builtSettings != settings.geometryKey {
             let firstBuild = c.builtRevision < 0
             build(c)
             c.builtRevision = revision
-            c.builtSettings = settings
+            c.builtSettings = settings.geometryKey
             if firstBuild { placeCamera(c, view: view) }
         }
         if c.lastReset != resetToken {
@@ -112,14 +119,31 @@ struct XRayStackView: NSViewRepresentable {
         c.stack.childNodes.forEach { $0.removeFromParentNode() }
         let w = CGFloat(snapshot.board.width), h = CGFloat(snapshot.board.height)
         let origin = SCNVector3(-w / 2, 0, -h / 2)  // core meshes use board millimetres with the origin at a corner
+        // Custom outline in the sheet's local XY plane (rotated −90° about X onto the board: local y = −z).
+        var customShape: NSBezierPath?
+        if snapshot.board.hasCustomOutline {
+            let path = NSBezierPath()
+            for (i, p) in snapshot.board.outline.enumerated() {
+                let q = NSPoint(x: p.point.x - w / 2, y: -(p.point.y - h / 2))
+                if i == 0 { path.move(to: q) } else { path.line(to: q) }
+            }
+            path.close()
+            customShape = path
+        }
 
         for layer in 0..<layerCount where !settings.hiddenLayers.contains(layer) {
             let colour = NSColor(Theme.copperColor(layer, layerCount: layerCount))
             let plane = SCNNode()
             plane.position = SCNVector3(0, height(of: layer), 0)
 
-            // Dielectric sheet with a holographic grid.
-            let sheet = SCNPlane(width: w, height: h)
+            // Dielectric sheet with a holographic grid, cut to the board shape (rounded, circle, quad-X…).
+            let sheet: SCNGeometry
+            if let shape = customShape {
+                let geometry = SCNShape(path: shape, extrusionDepth: 0)
+                sheet = geometry
+            } else {
+                sheet = SCNPlane(width: w, height: h)
+            }
             sheet.materials = [Self.gridMaterial(colour: colour, width: w, height: h)]
             let sheetNode = SCNNode(geometry: sheet)
             sheetNode.eulerAngles.x = -.pi / 2
@@ -127,7 +151,12 @@ struct XRayStackView: NSViewRepresentable {
             plane.addChildNode(sheetNode)
 
             // Glowing board outline.
-            plane.addChildNode(Self.outline(width: w, height: h, colour: colour.withAlphaComponent(0.9)))
+            if snapshot.board.hasCustomOutline {
+                plane.addChildNode(Self.polygon(snapshot.board.outline.map(\.point), width: w, height: h,
+                                                colour: colour.withAlphaComponent(0.9)))
+            } else {
+                plane.addChildNode(Self.outline(width: w, height: h, colour: colour.withAlphaComponent(0.9)))
+            }
 
             // Copper of this layer: solid glow + bright wire edges.
             if let mesh = c.layerMeshes[layer] {
@@ -230,6 +259,9 @@ struct XRayStackView: NSViewRepresentable {
         c.cameraNode.position = SCNVector3(span * 0.85, mid + span * 0.75, span * 1.15)
         c.cameraNode.look(at: SCNVector3(0, mid, 0))
         view.pointOfView = c.cameraNode
+        // Orbit about the middle of the stack, not SceneKit's default origin.
+        view.defaultCameraController.pointOfView = c.cameraNode
+        view.defaultCameraController.target = SCNVector3(0, mid, 0)
     }
 
     // MARK: - Materials & helpers
@@ -283,6 +315,21 @@ struct XRayStackView: NSViewRepresentable {
         gradient?.draw(in: NSRect(origin: .zero, size: size), angle: 90)
         image.unlockFocus()
         return image
+    }
+
+    /// Closed polygon outline (board millimetres, origin at a corner) as line primitives in the y = 0 plane.
+    static func polygon(_ points: [CGPoint], width w: CGFloat, height h: CGFloat, colour: NSColor) -> SCNNode {
+        let vertices = points.map { SCNVector3($0.x - w / 2, 0, $0.y - h / 2) }
+        let source = SCNGeometrySource(vertices: vertices)
+        var indices: [UInt32] = []
+        for i in 0..<vertices.count {
+            indices.append(UInt32(i))
+            indices.append(UInt32((i + 1) % vertices.count))
+        }
+        let element = SCNGeometryElement(indices: indices, primitiveType: .line)
+        let geometry = SCNGeometry(sources: [source], elements: [element])
+        geometry.materials = [hologram(colour, alpha: 1)]
+        return SCNNode(geometry: geometry)
     }
 
     /// Rectangle outline as line primitives (y = 0 plane, or the local XY plane when `flat`).

@@ -46,6 +46,7 @@ FILE_TYPES = {
     ".xcassets": "folder.assetcatalog",
     ".entitlements": "text.plist.entitlements",
     ".md": "net.daringfireball.markdown",
+    ".plist": "text.plist.xml",
 }
 
 app_swift = collect("SiEDA", {".swift"})
@@ -55,9 +56,10 @@ bridge_headers = collect("SiEDA", {".h"})
 test_swift = collect("SiEDATests", {".swift"})
 assets = "SiEDA/Assets.xcassets"
 entitlements = "SiEDA/SiEDA.entitlements"
+info_plist = "SiEDA/Info.plist"  # document types and UTIs, merged into the generated Info.plist
 docs = [p for p in ["README.md", "docs/ARCHITECTURE.md", "docs/PRD.md"] if os.path.exists(os.path.join(ROOT, p))]
 
-all_files = app_swift + core_cpp + core_headers + bridge_headers + test_swift + [assets, entitlements] + docs
+all_files = app_swift + core_cpp + core_headers + bridge_headers + test_swift + [assets, entitlements, info_plist] + docs
 
 # ---------------------------------------------------------------- objects
 objects = {}  # id -> (isa, body lines)
@@ -215,6 +217,7 @@ app_settings = {
     "ENABLE_HARDENED_RUNTIME": "YES",
     "ENABLE_PREVIEWS": "YES",
     "GENERATE_INFOPLIST_FILE": "YES",
+    "INFOPLIST_FILE": info_plist,
     "INFOPLIST_KEY_CFBundleDisplayName": "SiEDA",
     "INFOPLIST_KEY_LSApplicationCategoryType": '"public.app-category.developer-tools"',
     "INFOPLIST_KEY_NSHumanReadableCopyright": '"Copyright © 2026 SiEDA. All rights reserved."',

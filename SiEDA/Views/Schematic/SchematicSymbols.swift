@@ -19,6 +19,16 @@ enum SchematicSymbols {
         }
     }
 
+    /// Drawn width of a net label's text area (the label text is centred in it).
+    static func netLabelTextWidth(_ text: String) -> CGFloat { max(36, CGFloat(text.count) * 7 + 16) }
+
+    /// Hit box of a component, using the generated symbol size for custom parts and the text width for net labels.
+    static func bounds(_ kind: ComponentKind, value: String, custom: CustomPartInfo?) -> CGRect {
+        guard kind == .netLabel else { return bounds(kind, custom: custom) }
+        let base = bounds(kind)
+        return CGRect(x: base.minX, y: base.minY, width: max(base.width, netLabelTextWidth(value) + 9), height: base.height)
+    }
+
     /// Hit box of a component, using the generated symbol size for custom parts.
     static func bounds(_ kind: ComponentKind, custom: CustomPartInfo?) -> CGRect {
         guard kind == .custom, let custom else { return bounds(kind) }

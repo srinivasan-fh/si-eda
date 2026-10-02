@@ -94,7 +94,7 @@ struct SimulationView: View {
                             }
                             .padding(.vertical, 2)
                             .contentShape(Rectangle())
-                            .onTapGesture { store.select(component: d.component) }
+                            .onTapGesture { store.reveal(component: d.component) }
                         }
                     } else {
                         Label(dc.error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Theme.warning)

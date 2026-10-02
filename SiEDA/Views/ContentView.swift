@@ -30,6 +30,7 @@ struct ContentView: View {
             }
         }
         .navigationTitle(store.windowTitle)
+        .onChange(of: store.inspectorRevealToken) { _, _ in showInspector = true }
         .toolbar { toolbarContent }
         // Solid blue toolbar: the default translucent one takes its colour from the desktop picture.
         .toolbarBackground(Theme.deepBlue, for: .windowToolbar)

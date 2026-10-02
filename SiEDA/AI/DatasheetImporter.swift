@@ -55,10 +55,35 @@ struct DatasheetDocument {
                                      attachment: AIAttachment(kind: .image(mimeType: attachmentMime), data: attachmentData, fileName: name))
         }
         if let type, type.conforms(to: .text) || type.conforms(to: .commaSeparatedText) || url.pathExtension.lowercased() == "md" {
-            guard let text = try? String(contentsOf: url, encoding: .utf8) else { throw LoadError.unreadable(name) }
+            guard let text = readText(url) else { throw LoadError.unreadable(name) }
             return DatasheetDocument(fileName: name, pages: [text], attachment: nil)
         }
         throw LoadError.unsupported(url.pathExtension)
+    }
+
+    /// Reads a text file in whatever encoding it was saved with: a BOM or the file's recorded encoding first, then
+    /// UTF-8, UTF-16, Windows-1252 and Mac Roman (PRDs exported from Word or old editors are rarely UTF-8).
+    static func readText(_ url: URL) -> String? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return decodeText(data)
+    }
+
+    static func decodeText(_ data: Data) -> String? {
+        if data.isEmpty { return "" }
+        let bytes = [UInt8](data.prefix(4))
+        if bytes.starts(with: [0xEF, 0xBB, 0xBF]) { return String(data: data.dropFirst(3), encoding: .utf8) }
+        if bytes.starts(with: [0xFF, 0xFE]) || bytes.starts(with: [0xFE, 0xFF]) { return String(data: data, encoding: .utf16) }
+        // BOM-less UTF-16 (checked before UTF-8, which accepts NUL bytes): every other byte of ASCII text is zero.
+        let sample = [UInt8](data.prefix(512))
+        let evenZeros = stride(from: 0, to: sample.count, by: 2).filter { sample[$0] == 0 }.count
+        let oddZeros = stride(from: 1, to: sample.count, by: 2).filter { sample[$0] == 0 }.count
+        if oddZeros > sample.count / 4, let text = String(data: data, encoding: .utf16LittleEndian) { return text }
+        if evenZeros > sample.count / 4, let text = String(data: data, encoding: .utf16BigEndian) { return text }
+        if let text = String(data: data, encoding: .utf8) { return text }
+        for encoding in [String.Encoding.windowsCP1252, .macOSRoman, .isoLatin1] {
+            if let text = String(data: data, encoding: encoding) { return text }
+        }
+        return nil
     }
 
     /// Vision OCR (accurate mode) for pinout screenshots and scanned tables.

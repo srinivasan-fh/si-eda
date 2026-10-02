@@ -84,7 +84,8 @@ struct BoardSetupPanel: View {
                     }
                     HStack(spacing: 8) {
                         Picker("Net", selection: $pourNet) {
-                            ForEach(store.snapshot.nets.filter { $0.pinCount > 1 }) { Text($0.name).tag($0.name) }
+                            if !netChoices.contains(pourNet) { Text("Choose a net").tag(pourNet) }
+                            ForEach(netChoices, id: \.self) { Text($0).tag($0) }
                         }
                         .frame(width: 150)
                         Picker("Layer", selection: $pourLayer) {
@@ -99,7 +100,7 @@ struct BoardSetupPanel: View {
                             .help("2-layer: GND on top and bottom · 4+ layers: GND plane on Inner 1 and a bottom pour")
                         Spacer()
                         Button("Add Pour") { store.addZone(net: pourNet, layer: pourLayer, plane: pourPlane) }
-                            .disabled(pourNet.isEmpty)
+                            .disabled(!netChoices.contains(pourNet))
                     }
                 }
 
@@ -119,12 +120,13 @@ struct BoardSetupPanel: View {
                     }
                     HStack(spacing: 8) {
                         Picker("Net", selection: $classNet) {
-                            ForEach(store.snapshot.nets.filter { $0.pinCount > 1 }) { Text($0.name).tag($0.name) }
+                            if !netChoices.contains(classNet) { Text("Choose a net").tag(classNet) }
+                            ForEach(netChoices, id: \.self) { Text($0).tag($0) }
                         }
                         .frame(width: 150)
                         field("Width", $classWidth)
                         Button("Set") { store.setNetWidth(classNet, width: value(classWidth, 0)) }
-                            .disabled(classNet.isEmpty)
+                            .disabled(!netChoices.contains(classNet))
                         Spacer()
                         Button("Auto-Size") { store.autoSizeNetWidths() }
                             .help("Widen nets to the IPC-2221 width for their DC current (+25 %)")
@@ -138,9 +140,13 @@ struct BoardSetupPanel: View {
         .onAppear {
             outlineWidth = String(format: "%.1f", board.width)
             outlineHeight = String(format: "%.1f", board.height)
-            let ground = store.snapshot.nets.first { $0.ground }?.name ?? ""
-            if pourNet.isEmpty { pourNet = ground }
-            if classNet.isEmpty { classNet = store.snapshot.nets.first { !$0.ground && $0.pinCount > 1 }?.name ?? "" }
+            let routable = store.snapshot.nets.filter { $0.pinCount > 1 }
+            if !netChoices.contains(pourNet) {
+                pourNet = routable.first { $0.ground }?.name ?? routable.first?.name ?? ""
+            }
+            if !netChoices.contains(classNet) {
+                classNet = routable.first { !$0.ground }?.name ?? routable.first?.name ?? ""
+            }
             pourLayer = board.bottomLayer
         }
         .onChange(of: preset) { _, newValue in
@@ -156,6 +162,9 @@ struct BoardSetupPanel: View {
             }
         }
     }
+
+    /// Nets with at least two pins (the ones a pour or a net class can apply to).
+    private var netChoices: [String] { store.snapshot.nets.filter { $0.pinCount > 1 }.map(\.name) }
 
     private func value(_ text: String, _ fallback: Double) -> Double {
         Double(text.replacingOccurrences(of: ",", with: ".")) ?? fallback

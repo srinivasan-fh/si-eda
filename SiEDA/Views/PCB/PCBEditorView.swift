@@ -179,12 +179,14 @@ struct PCBEditorView: View {
                         .disabled(store.isBusy)  // the engine is busy autorouting
                     if store.showNavigator, !store.snapshot.pads.isEmpty {
                         navigator
+                            .canvasScrollShield()
                             .padding(10)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     }
                     if showLayersPanel {
                         LayersPanel(layers: PCBLayer.all(for: store.snapshot.board), board: store.snapshot.board,
                                     visible: $visible, active: $activeLayer)
+                            .canvasScrollShield()
                             .padding(10)
                     }
                     if !store.snapshot.pads.isEmpty, unplacedCount > 0 {
@@ -220,8 +222,8 @@ struct PCBEditorView: View {
         }
         .background(Theme.pcbBackground)
         .onAppear { syncRuleFields() }
-        .onChange(of: store.snapshot.board) { _, board in
-            syncRuleFields()
+        .onChange(of: store.snapshot.board) { old, board in
+            syncRuleFields(changedFrom: old)
             if let index = activeLayer.copperIndex, index >= board.layerCount { activeLayer = .copper(0) }
         }
     }
@@ -253,12 +255,14 @@ struct PCBEditorView: View {
         }
     }
 
-    private func syncRuleFields() {
+    /// Shows the board's size and rules in the fields. After a board change only the values that actually changed
+    /// are rewritten, so text being typed survives unrelated edits (a mounting hole, a pour, a layer change).
+    private func syncRuleFields(changedFrom old: BoardInfo? = nil) {
         let b = store.snapshot.board
-        boardWidth = String(format: "%.1f", b.width)
-        boardHeight = String(format: "%.1f", b.height)
-        trackWidth = String(format: "%.2f", b.trackWidth)
-        clearance = String(format: "%.2f", b.clearance)
+        if old == nil || old?.width != b.width { boardWidth = String(format: "%.1f", b.width) }
+        if old == nil || old?.height != b.height { boardHeight = String(format: "%.1f", b.height) }
+        if old == nil || old?.trackWidth != b.trackWidth { trackWidth = String(format: "%.2f", b.trackWidth) }
+        if old == nil || old?.clearance != b.clearance { clearance = String(format: "%.2f", b.clearance) }
     }
 
     private func applyRules() {
@@ -298,7 +302,16 @@ struct LayersPanel: View {
                 .padding(.horizontal, 6)
                 .background(RoundedRectangle(cornerRadius: 5).fill(active == layer ? Theme.blue.opacity(0.3) : .clear))
                 .contentShape(Rectangle())
-                .onTapGesture { active = layer }
+                .onTapGesture {
+                    // Only copper can be the active (editing/top-drawn) layer; overlays just show or hide.
+                    if layer.copperIndex != nil {
+                        active = layer
+                    } else if visible.contains(layer) {
+                        visible.remove(layer)
+                    } else {
+                        visible.insert(layer)
+                    }
+                }
             }
         }
         .padding(10)
@@ -318,7 +331,7 @@ struct LayerTabs: View {
         HStack(spacing: 0) {
             ForEach(layers) { layer in
                 Button {
-                    active = layer
+                    if layer.copperIndex != nil { active = layer }
                 } label: {
                     HStack(spacing: 6) {
                         RoundedRectangle(cornerRadius: 2).fill(layer.color(board)).frame(width: 10, height: 10)
@@ -330,6 +343,8 @@ struct LayerTabs: View {
                     .background(active == layer ? Theme.blue.opacity(0.45) : Color.clear)
                 }
                 .buttonStyle(.plain)
+                .help(layer.copperIndex != nil ? "Make \(layer.name(board)) the active layer"
+                                               : "Overlay layer — show or hide it in the Layers panel")
                 Rectangle().fill(Theme.blue.opacity(0.25)).frame(width: 1, height: 18)
             }
             Spacer()

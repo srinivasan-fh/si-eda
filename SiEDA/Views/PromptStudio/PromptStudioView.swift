@@ -195,10 +195,30 @@ struct PromptStudioView: View {
 
     private func importPRD() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.plainText, .text, UTType(filenameExtension: "md") ?? .plainText]
-        guard panel.runModal() == .OK, let url = panel.url,
-              let text = try? String(contentsOf: url, encoding: .utf8) else { return }
-        brief = text
+        panel.allowedContentTypes = [.plainText, .text, .pdf, UTType(filenameExtension: "md") ?? .plainText]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let text = try Self.readPRD(url)
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                store.alert = AlertItem(title: "Nothing to import", message: "\(url.lastPathComponent) contains no text.")
+                return
+            }
+            brief = text
+            store.statusMessage = "Imported \(url.lastPathComponent)"
+        } catch {
+            store.alert = AlertItem(title: "Could not import the PRD", message: error.localizedDescription)
+        }
+    }
+
+    /// PRD text from a text/Markdown file (any common encoding) or a PDF.
+    static func readPRD(_ url: URL) throws -> String {
+        if UTType(filenameExtension: url.pathExtension.lowercased())?.conforms(to: .pdf) == true {
+            return try DatasheetDocument.load(url: url).pages
+                .map { $0.replacingOccurrences(of: #"^--- Page \d+ ---\n"#, with: "", options: .regularExpression) }
+                .joined(separator: "\n")
+        }
+        guard let text = DatasheetDocument.readText(url) else { throw DatasheetDocument.LoadError.unreadable(url.lastPathComponent) }
+        return text
     }
 
     // MARK: - Agents

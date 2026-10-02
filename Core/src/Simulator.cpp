@@ -105,7 +105,7 @@ double limexp(double x, double kMax = 40.0) {
 
 double junctionLimit(double is) { return std::max(40.0, std::log(1.0 / std::max(is, 1e-300))); }
 
-enum class ElemType { Resistor, Capacitor, Inductor, VSource, ISource, Diode, NPN, NMOS, OpAmp, Regulator, Load, McuPin };
+enum class ElemType { Resistor, Capacitor, Inductor, VSource, ISource, Diode, NPN, NMOS, OpAmp, Regulator, Load, McuPin, InAmp };
 
 // Microcontroller pins: 25 Ω push-pull outputs, 35 kΩ pull-ups (ATmega328P datasheet typical values).
 constexpr double kMcuOutputConductance = 1.0 / 25.0;
@@ -135,11 +135,20 @@ struct Simulator::Element {
     // Microcontroller pin (McuPin): n = {pin, GND, VCC}; conductances from the firmware's drive over the last step.
     int mcu = -1, mcuPin = -1;
     double gHigh = 0, gLow = 0, gPull = 0;
+    // Instrumentation amplifier (InAmp): n = {+IN, −IN, OUT}, aux = {REF, V+, V−}, value = gain.
+    std::array<int, 3> aux{{-1, -1, -1}};
     // Transient state
     double prevV = 0, prevI = 0;
 
     /// Regulated output for input headroom vi (V_in − V_ref): min(vout, vi − dropout), never negative.
     double setpoint(double vi) const { return softplus(value - softplus(value - (vi - dropout))); }
+
+    /// Instrumentation-amplifier output REF + G·(V+IN − V−IN), limited (smoothly) to 50 mV inside the supply rails.
+    static double inAmpOut(double gain, double vp, double vm, double vref, double vpos, double vneg) {
+        double mid = 0.5 * (vpos + vneg);
+        double half = std::max(0.5 * (vpos - vneg) - 0.05, 1e-3);
+        return mid + half * std::tanh((vref + gain * (vp - vm) - mid) / half);
+    }
 };
 
 struct Simulator::McuState {
@@ -254,6 +263,19 @@ bool Simulator::build(std::string& error) {
         return net < 0 ? -1 : netToNode_[static_cast<size_t>(net)];
     };
 
+    // Σ 1/R of the resistors connected directly between two nets (0 when none, or either net is unconnected).
+    auto inverseResistanceBetween = [&](int netA, int netB) {
+        double g = 0;
+        if (netA < 0 || netB < 0 || netA == netB) return g;
+        for (const auto& r : sch_.components()) {
+            if (r.kind != ComponentKind::Resistor) continue;
+            int a = sch_.netOf({r.id, 0}), b = sch_.netOf({r.id, 1});
+            if (!((a == netA && b == netB) || (a == netB && b == netA))) continue;
+            if (auto v = parseEngineeringValue(primaryValue(r.value)); v && *v > 0) g += 1.0 / *v;
+        }
+        return g;
+    };
+
     for (const auto& c : sch_.components()) {
         Element e{};
         e.componentId = c.id;
@@ -366,6 +388,22 @@ bool Simulator::build(std::string& error) {
                     load.value = l.current;
                     load.sub = sub++;
                     elements_.push_back(load);
+                }
+                if (std::string upper = spec.name;
+                    (std::transform(upper.begin(), upper.end(), upper.begin(),
+                                    [](unsigned char ch) { return static_cast<char>(std::toupper(ch)); }),
+                     upper == "INA333") &&
+                    spec.pins.size() >= 8) {
+                    // Pins: 1 RG, 2 −IN, 3 +IN, 4 V−, 5 REF, 6 VOUT, 7 V+, 8 RG. Gain = 1 + 100 kΩ / RG, where RG is
+                    // the (parallel) resistance of the resistors between the two RG pins; open RG gives unity gain.
+                    Element amp = e;
+                    amp.type = ElemType::InAmp;
+                    amp.n = {node(c.id, 2), node(c.id, 1), node(c.id, 5)};
+                    amp.aux = {node(c.id, 4), node(c.id, 6), node(c.id, 3)};
+                    amp.value = 1.0 + 100e3 * inverseResistanceBetween(sch_.netOf({c.id, 0}), sch_.netOf({c.id, 7}));
+                    amp.branch = unknowns_++;
+                    amp.sub = sub++;
+                    elements_.push_back(amp);
                 }
                 if (auto model = mcuModelForPart(spec.name)) {
                     auto st = std::make_unique<McuState>();
@@ -507,6 +545,29 @@ void Simulator::stamp(double t, double h, const std::vector<double>& x, double g
                 addB(k, jx0 - f0);
                 break;
             }
+            case ElemType::InAmp: {
+                // f = Vo − g(V+IN, V−IN, REF, V+, V−) = 0, linearised with numerical partial derivatives.
+                int o = e.n[2], k = e.branch;
+                std::array<int, 5> ctl{{e.n[0], e.n[1], e.aux[0], e.aux[1], e.aux[2]}};
+                std::array<double, 5> v{};
+                for (size_t i = 0; i < 5; ++i) v[i] = nodeV(x, ctl[i]);
+                auto g = [&](const std::array<double, 5>& u) { return Element::inAmpOut(e.value, u[0], u[1], u[2], u[3], u[4]); };
+                double g0 = g(v), rhs = g0;
+                addA(o, k, 1);
+                addA(k, o, 1);
+                for (size_t i = 0; i < 5; ++i) {
+                    if (ctl[i] < 0) continue;
+                    const double h = 1e-7;
+                    auto up = v, dn = v;
+                    up[i] += h;
+                    dn[i] -= h;
+                    double d = (g(up) - g(dn)) / (2 * h);
+                    addA(k, ctl[i], -d);
+                    rhs -= d * v[i];
+                }
+                addB(k, rhs);
+                break;
+            }
             case ElemType::Regulator: {
                 int in = e.n[0], out = e.n[1], ref = e.n[2], k = e.branch;
                 double vin = nodeV(x, in), vo = nodeV(x, out) - nodeV(x, ref), vi = vin - nodeV(x, ref);
@@ -624,6 +685,7 @@ std::vector<DeviceReading> Simulator::readings(const std::vector<double>& x, dou
                 r.power = -r.voltage * r.current;
                 break;
             case ElemType::OpAmp:
+            case ElemType::InAmp:
                 r.voltage = nodeV(x, e.n[2]);
                 r.current = -x[static_cast<size_t>(e.branch)];
                 r.power = 0;
