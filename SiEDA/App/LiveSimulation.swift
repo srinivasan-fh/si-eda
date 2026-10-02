@@ -34,7 +34,7 @@ final class LiveSimulation: ObservableObject {
     private var startedCircuit: [String] = []
     private var pendingSwitches: [Int: Bool] = [:]
     private var pendingSerial: [(Int, String)] = []
-    private var switchState: [Int: Bool] = [:]
+    @Published private var switchState: [Int: Bool] = [:]  // published: the symbol flips the moment it is clicked
 
     var isActive: Bool { isRunning }
 
