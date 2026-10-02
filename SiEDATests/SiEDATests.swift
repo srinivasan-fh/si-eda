@@ -1404,6 +1404,7 @@ final class InteractiveSchematicTests: XCTestCase {
     private func ledCircuit(_ store: DesignStore) -> (sw: Int, led: Int) {
         let v = store.addComponent(.voltageSource, at: CGPoint(x: 0, y: 0))
         let r = store.addComponent(.resistor, at: CGPoint(x: 120, y: -40))
+        store.setValue(r, "330")  // the default 10k would give only ≈ 0.3 mA
         let sw = store.addComponent(.switchSPST, at: CGPoint(x: 240, y: -40))
         let d = store.addComponent(.led, at: CGPoint(x: 360, y: -40))
         let g = store.addComponent(.ground, at: CGPoint(x: 0, y: 100))
