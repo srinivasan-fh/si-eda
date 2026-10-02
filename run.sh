@@ -31,6 +31,20 @@ warn() { printf '%s!%s %s\n' "$YELLOW" "$RESET" "$*" >&2; }
 die()  { printf '%s✗%s %s\n' "$RED" "$RESET" "$*" >&2; exit 1; }
 
 is_macos() { [ "$(uname -s)" = "Darwin" ]; }
+# First / last N lines. Not head/tail: on macOS's case-insensitive disk, Perl's libwww HEAD tool
+# (/usr/local/bin/HEAD) can shadow `head`.
+first_lines() { awk -v n="$1" 'NR <= n'; }
+last_lines() { awk -v n="$1" '{ line[NR % n] = $0 } END { for (i = NR - n + 1; i <= NR; i++) if (i > 0) print line[i % n] }'; }
+
+# Prints the build errors from an xcodebuild log, or its last lines when there are none.
+show_build_errors() {
+    local log="$1" pattern="$2" count="$3"
+    if grep -qE "$pattern" "$log"; then
+        grep -E "$pattern" "$log" | awk '!seen[$0]++' | first_lines "$count" >&2
+    else
+        last_lines 40 <"$log" >&2
+    fi
+}
 have() { command -v "$1" >/dev/null 2>&1; }
 
 jobs_count() {
@@ -54,7 +68,7 @@ require_xcode() {
     [ "$major" -ge 14 ] || die "macOS 14 Sonoma or later is required (this Mac runs $(sw_vers -productVersion))."
     local xcode
     xcode="$(xcodebuild -version | awk 'NR==1 {print $2}' | cut -d. -f1)"
-    [ "${xcode:-0}" -ge 16 ] || warn "Xcode 16 or later is recommended (found $(xcodebuild -version | head -1))."
+    [ "${xcode:-0}" -ge 16 ] || warn "Xcode 16 or later is recommended (found $(xcodebuild -version | first_lines 1))."
 }
 
 # Keep the Xcode project in sync with the source tree (CI fails if it is out of date).
@@ -109,7 +123,7 @@ build_app() {
     if ! xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
             -destination 'platform=macOS' -derivedDataPath "$APP_BUILD" \
             CODE_SIGN_IDENTITY=- build >"$log" 2>&1; then
-        grep -E "(error|fatal error): " "$log" | head -20 >&2 || true
+        show_build_errors "$log" "(error|fatal error): |error: -\\[|\\*\\* BUILD FAILED" 30
         die "App build failed — full log: $log"
     fi
     APP_PATH="$APP_BUILD/Build/Products/Debug/SiEDA.app"
@@ -133,7 +147,7 @@ test_app() {
     if ! xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
             -destination 'platform=macOS' -derivedDataPath "$APP_BUILD" \
             CODE_SIGN_IDENTITY=- test >"$log" 2>&1; then
-        grep -E "error: |Test Case .* failed|\*\* TEST FAILED" "$log" | head -30 >&2 || true
+        show_build_errors "$log" "error: |Test Case .* failed|\\*\\* TEST FAILED" 30
         die "Xcode tests failed — full log: $log"
     fi
     ok "Xcode tests passed"
@@ -152,8 +166,8 @@ doctor() {
     for tool in cmake python3 xcodebuild git; do
         if have "$tool"; then
             case "$tool" in
-                xcodebuild) printf '%-9s %s\n' "$tool:" "$(xcodebuild -version 2>/dev/null | head -1 || echo 'Command Line Tools only — install Xcode')";;
-                *) printf '%-9s %s\n' "$tool:" "$("$tool" --version 2>&1 | head -1)";;
+                xcodebuild) printf '%-9s %s\n' "$tool:" "$(xcodebuild -version 2>/dev/null | first_lines 1 || echo 'Command Line Tools only — install Xcode')";;
+                *) printf '%-9s %s\n' "$tool:" "$("$tool" --version 2>&1 | first_lines 1)";;
             esac
         else
             printf '%-9s %s\n' "$tool:" "not found"
