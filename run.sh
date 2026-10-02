@@ -114,15 +114,30 @@ run_cli() {
     "$CORE_BUILD/sieda-cli" "$@"
 }
 
+xcodebuild_app() {
+    xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
+        -destination 'platform=macOS' -derivedDataPath "$APP_BUILD" \
+        CODE_SIGN_IDENTITY=- build >"$1" 2>&1
+}
+
 build_app() {
     require_xcode
     sync_xcode_project
     step "Building SiEDA.app (Debug) — the first build takes a few minutes"
     local log="$APP_BUILD/xcodebuild.log"
     mkdir -p "$APP_BUILD"
-    if ! xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
-            -destination 'platform=macOS' -derivedDataPath "$APP_BUILD" \
-            CODE_SIGN_IDENTITY=- build >"$log" 2>&1; then
+    local status=0
+    xcodebuild_app "$log" || status=$?
+    # A cached build signed with different entitlements (e.g. after a pull changed SiEDA.entitlements)
+    # makes Xcode refuse to sign: start from a clean build folder once.
+    if [ "$status" -ne 0 ] && grep -q "was modified during the build" "$log"; then
+        warn "The build cache predates an entitlements change — rebuilding from scratch."
+        rm -rf "$APP_BUILD"
+        mkdir -p "$APP_BUILD"
+        status=0
+        xcodebuild_app "$log" || status=$?
+    fi
+    if [ "$status" -ne 0 ]; then
         show_build_errors "$log" "(error|fatal error): |error: -\\[|\\*\\* BUILD FAILED" 30
         die "App build failed — full log: $log"
     fi
