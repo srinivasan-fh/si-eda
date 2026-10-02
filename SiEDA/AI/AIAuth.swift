@@ -110,7 +110,7 @@ enum CommandLineTool {
         /// The most useful line of the error output (CLIs print progress first and the error last).
         var errorSummary: String {
             let lines = (stderr + "\n" + stdout).split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
-            return lines.last { !$0.isEmpty }.map(String.init) ?? "exit status \(status)"
+            return lines.last { !$0.isEmpty } ?? "exit status \(status)"
         }
     }
 
