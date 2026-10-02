@@ -36,6 +36,12 @@ struct Board3DWorkspace: View {
                 } else {
                     Toggle("Components", isOn: $showComponents).toggleStyle(.switch).controlSize(.mini)
                     maskPicker
+                    let layers = store.snapshot.board.layerCount
+                    Label(layers == 1 ? "Single-sided" : "\(layers)-layer", systemImage: "square.3.layers.3d.down.right")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textSecondary)
+                        .help("Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; "
+                              + "4 and 6 layers show their inner copper on the board edge")
                     Text(stats).foregroundStyle(Theme.textMuted).font(.caption)
                 }
                 Spacer()

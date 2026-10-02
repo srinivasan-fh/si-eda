@@ -1859,3 +1859,24 @@ final class SolderMaskTests: XCTestCase {
         XCTAssertEqual(reopened.snapshot()?.board.mask, .white)
     }
 }
+
+@MainActor
+final class StackUp3DTests: XCTestCase {
+    func testThe3DBoardFollowsTheLayerCountPickedInPCBLayout() throws {
+        let store = DesignStore()
+        DesignPlanCompiler.apply(OfflineProvider.templates[4].plan, to: store.engine, previous: nil)
+        store.engine.autoPlace(all: true)
+        store.refresh()
+        var signatures: [Int: Int] = [:]
+        for layers in [1, 2, 4, 6] {
+            let revision = store.revision
+            store.setLayerCount(layers)
+            XCTAssertEqual(store.snapshot.board.layerCount, layers)
+            XCTAssertNotEqual(store.revision, revision, "3D views rebuild on the revision change")
+            let mesh = try XCTUnwrap(store.engine.buildMesh(includeComponents: false))
+            signatures[layers] = mesh.vertexCount
+        }
+        // Each stack-up builds a different board (bare underside, mask, inner copper bands).
+        XCTAssertEqual(Set(signatures.values).count, 4, "\(signatures)")
+    }
+}

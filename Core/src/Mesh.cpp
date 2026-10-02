@@ -179,13 +179,30 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
     const Rgba silk = style->silk;
     const Rgba fr4Edge{0.75f, 0.68f, 0.45f, 1.0f};
 
-    // Board core with a slightly darker FR-4 edge band.
-    if (s.hasCustomOutline()) {
-        m.addPrism(s.outline, -t, 0, mask);
-    } else {
-        m.addBox({0, -t, 0}, {s.width, 0, s.height}, mask);
-        m.addBox({-0.01, -t * 0.7, -0.01}, {s.width + 0.01, -t * 0.3, s.height + 0.01}, fr4Edge);
+    // The board is built from its stack-up, top to bottom: solder mask, FR-4 laminate with a copper band at each inner
+    // layer (visible on the board edge of 4- and 6-layer boards), and solder mask underneath — except on a single-sided
+    // board, whose underside is bare FR-4.
+    auto slab = [&](double y0, double y1, Rgba colour) {
+        if (y1 - y0 <= 1e-6) return;
+        if (s.hasCustomOutline()) m.addPrism(s.outline, y0, y1, colour);
+        else m.addBox({0, y0, 0}, {s.width, y1, s.height}, colour);
+    };
+    const double skin = std::min(0.03, t / 8);
+    const Rgba innerCopper{0.80f, 0.52f, 0.28f, 1.0f};
+    const int layers = std::max(1, s.layerCount);
+    const int bottomLayer = layers > 1 ? layers - 1 : 0;
+    slab(-skin, 0, mask);
+    double y = -skin;  // top of the laminate still to be built
+    for (int layer = 1; layer < bottomLayer; ++layer) {
+        double centre = copperLayerBase(layer, layers, t, cu) + cu / 2;
+        double band = std::min(0.07, t / (4.0 * layers));
+        slab(centre + band / 2, y, fr4Edge);
+        slab(centre - band / 2, centre + band / 2, innerCopper);
+        y = centre - band / 2;
     }
+    double underside = layers > 1 ? -t + skin : -t;
+    slab(underside, y, fr4Edge);
+    if (layers > 1) slab(-t, underside, mask);
     // Mounting holes: dark bore through the board with a bare-FR-4 ring for the screw head.
     const Rgba bore{0.02f, 0.03f, 0.05f, 1.0f};
     for (const auto& h : s.holes) {
@@ -207,6 +224,7 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
         for (const auto& p : ps) {
             if (p.throughHole) {
                 for (bool top : {true, false}) {
+                    if (!top && layers == 1) continue;  // single-sided: copper on the top layer only
                     double y = top ? 0.0 : -t - cu;
                     if (p.round) m.addCylinder({p.position.x, y, p.position.y}, p.size.x / 2, cu, gold);
                     else
