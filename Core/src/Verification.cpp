@@ -104,7 +104,7 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
             ++footprinted;
             placed += c.pcb.placed;
         }
-        hasSource |= c.kind == ComponentKind::VoltageSource || c.kind == ComponentKind::CurrentSource;
+        hasSource |= isSourceKind(c.kind);
     }
     const bool empty = sch.components().empty();
 
@@ -144,7 +144,7 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
                 double supply = 0;
                 for (const auto& d : dc.devices) {
                     const Component* c = sch.find(d.componentId);
-                    if (c && c->kind == ComponentKind::VoltageSource) supply += std::abs(d.power);
+                    if (c && isVoltageSourceKind(c->kind)) supply += std::abs(d.power);
                 }
                 if (hasSource) st.details.push_back("Total supply power " + formatEngineeringValue(supply, "W", 3));
             }

@@ -28,8 +28,17 @@ enum class ComponentKind : int {
     Fuse = 14,
     NetLabel = 15,
     Custom = 16,  // user-defined part (see CustomParts.hpp); Component::customPart holds its id
+    Battery = 17,    // DC cell / pack: a voltage source with a battery symbol (value = volts)
+    ACSource = 18,   // AC mains / transformer secondary: a voltage source, value SIN(offset peak freq)
 };
-constexpr int kComponentKindCount = 17;
+constexpr int kComponentKindCount = 19;
+
+/// Kinds that are ideal voltage sources in the simulator (DC supply, battery, AC source).
+inline bool isVoltageSourceKind(ComponentKind k) {
+    return k == ComponentKind::VoltageSource || k == ComponentKind::Battery || k == ComponentKind::ACSource;
+}
+/// Any independent source (voltage or current).
+inline bool isSourceKind(ComponentKind k) { return isVoltageSourceKind(k) || k == ComponentKind::CurrentSource; }
 
 struct PinDef {
     PinDef() = default;

@@ -239,6 +239,19 @@ struct DevicePicker: View {
                 .padding(8)
             List(selection: Binding<ComponentKind?>(get: { selectedCustom == nil && isPlacing ? selected : nil },
                                                     set: { if let k = $0 { selectedCustom = nil; onPick(k) } })) {
+                // Basic components first: power sources, passives, semiconductors, nets, switches/connectors.
+                ForEach(ComponentKind.pickerCategories, id: \.self) { category in
+                    let items = filtered.filter { $0.category == category }
+                    if !items.isEmpty {
+                        Section(category) {
+                            ForEach(items) { kind in
+                                Label(kind.displayName, systemImage: kind.systemImage)
+                                    .foregroundStyle(Theme.textPrimary)
+                                    .tag(kind)
+                            }
+                        }
+                    }
+                }
                 Section("Custom Parts") {
                     ForEach(filteredCustom) { part in
                         HStack {
@@ -279,18 +292,6 @@ struct DevicePicker: View {
                             .help(part.spec.description)
                             .onTapGesture {
                                 if let id = onPickStandard(part) { selectedCustom = id }
-                            }
-                        }
-                    }
-                }
-                ForEach(["Passives", "Semiconductors", "Power & Nets", "Electromechanical"], id: \.self) { category in
-                    let items = filtered.filter { $0.category == category }
-                    if !items.isEmpty {
-                        Section(category) {
-                            ForEach(items) { kind in
-                                Label(kind.displayName, systemImage: kind.systemImage)
-                                    .foregroundStyle(Theme.textPrimary)
-                                    .tag(kind)
                             }
                         }
                     }

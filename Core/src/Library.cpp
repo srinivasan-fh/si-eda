@@ -87,6 +87,8 @@ Library::Library() {
         {ComponentKind::Fuse, "Fuse", "F", "500m", "A", twoH, "Fuse_1206", true},
         {ComponentKind::NetLabel, "Net Label", "NL", "VCC", "", {{"N", {0, 0}}}, "", true},
         {ComponentKind::Custom, "Custom Part", "U", "", "", {}, "", false},
+        {ComponentKind::Battery, "Battery", "BT", "9", "V", source, "PinHeader_1x02", true},
+        {ComponentKind::ACSource, "AC Source", "VAC", "SIN(0 17 50)", "V", source, "PinHeader_1x02", true},
     };
 
     footprints_.push_back(twoPadSmd("R_0805", 1.9, 1.0, 1.3, 2.0, 1.25, 0.5, 0.10f, 0.10f, 0.11f));
