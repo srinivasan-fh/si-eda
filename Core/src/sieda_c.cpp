@@ -13,6 +13,7 @@
 #include <string>
 
 #include "sieda/Export.hpp"
+#include "sieda/Fabrication.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
@@ -873,6 +874,19 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         if (f == "gerber_mask_bottom") return dup(exportGerber(p.schematic, p.pcb, GerberLayer::BottomMask));
         if (f == "gerber_silk_top") return dup(exportGerber(p.schematic, p.pcb, GerberLayer::TopSilk));
         if (f == "gerber_edge") return dup(exportGerber(p.schematic, p.pcb, GerberLayer::EdgeCuts));
+        if (f == "gerber_paste_top") return dup(exportGerber(p.schematic, p.pcb, GerberLayer::TopPaste));
+        if (f == "gerber_paste_bottom") return dup(exportGerber(p.schematic, p.pcb, GerberLayer::BottomPaste));
+        if (f == "gerber_silk_bottom") return dup(exportGerber(p.schematic, p.pcb, GerberLayer::BottomSilk));
+        if (f == "ipc356") return dup(exportIpcD356(p.schematic, p.pcb, p.name));
+        if (f == "bom_assembly") return dup(exportAssemblyBomCsv(p.schematic));
+        if (f == "cpl") return dup(exportCplCsv(p.schematic, p.pcb));
+        if (f == "assembly_top") return dup(exportAssemblySvg(p.schematic, p.pcb, false, p.name));
+        if (f == "assembly_bottom") return dup(exportAssemblySvg(p.schematic, p.pcb, true, p.name));
+        if (f == "gerber_job") return dup(exportGerberJob(p, fabricationPackage(p)));
+        if (f == "fab_notes") {
+            for (const auto& file : fabricationPackage(p))
+                if (file.path == "fab_notes.txt") return dup(file.content);
+        }
         if (f == "drill") return dup(exportExcellonDrill(p.schematic, p.pcb));
         if (f == "drill_npth") return dup(exportExcellonDrill(p.schematic, p.pcb, false));
         if (f.rfind("gerber_l", 0) == 0) {
@@ -886,6 +900,21 @@ char* sieda_export(const SiedaProject* project, const char* format) {
     } catch (...) {
         return nullptr;
     }
+}
+
+char* sieda_write_fabrication_package(const SiedaProject* project, const char* dir, const char* base) {
+    Json out = Json::object();
+    std::vector<std::string> written;
+    std::string error;
+    bool ok = project && dir &&
+              writeFabricationPackage(project->project, dir, &written, &error, base ? std::string(base) : std::string());
+    if (!project || !dir) error = "No project or folder";
+    Json files = Json::array();
+    for (const auto& f : written) files.push(f);
+    out["ok"] = ok;
+    out["files"] = files;
+    out["error"] = error;
+    return dup(out.dump());
 }
 
 SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_components) {

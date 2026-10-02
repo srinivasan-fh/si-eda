@@ -987,8 +987,10 @@ final class DesignStore: ObservableObject {
         perform("Renamed project", invalidatesAnalysis: false) { $0.setName(name) }
     }
 
-    /// Verifies the design, then writes Gerbers, drill, BOM, pick & place, netlist, 3D model and the
-    /// verification report into a folder. A failing design is only exported after confirmation.
+    /// Verifies the design, then writes the complete fabrication package into a folder: Gerbers for every copper layer,
+    /// mask, paste (stencil) and silkscreen with designators, outline, drills, Gerber X2 job file, IPC-D-356A test
+    /// netlist, assembly BOM / CPL / drawings, fab_notes.txt (the order sheet), the Gerber zip to upload, the project
+    /// and the verification report. A failing design is only exported after confirmation.
     func exportFabricationPackage() async {
         guard let report = await runVerification() else {
             alert = AlertItem(title: "Export failed", message: "The design could not be verified, so nothing was exported.")
@@ -1020,29 +1022,21 @@ final class DesignStore: ObservableObject {
         let target = folder.appendingPathComponent("\(base)-fabrication", isDirectory: true)
         do {
             try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
-            var written = 0
-            for format in ExportFormat.fabricationPackage {
-                if format == .drillNPTH, snapshot.board.holes.isEmpty { continue }
-                guard let content = engine.export(format) else { continue }
-                try content.write(to: target.appendingPathComponent(format.fileName), atomically: true, encoding: .utf8)
-                written += 1
-            }
-            // Inner copper layers of multi-layer boards (L2 … Ln-1).
-            let layers = snapshot.board.layerCount
-            if layers > 2 {
-                for layer in 2..<layers {
-                    guard let content = engine.exportCopperLayer(layer) else { continue }
-                    try content.write(to: target.appendingPathComponent("board-In\(layer - 1)_Cu.gbr"), atomically: true,
-                                      encoding: .utf8)
-                    written += 1
-                }
+            // Gerbers (every layer, mask, paste, silkscreen), drills, job file, IPC netlist, assembly files, notes and
+            // the upload zip all come from the core, the same package the command-line tool writes.
+            let package = engine.writeFabricationPackage(to: target, base: base)
+            guard package.ok else {
+                alert = AlertItem(title: "Export failed", message: package.error)
+                return
             }
             try engine.saveJSON().write(to: target.appendingPathComponent("\(base).siedaproj"), atomically: true,
                                         encoding: .utf8)
             try report.markdown.write(to: target.appendingPathComponent("verification_report.md"), atomically: true,
                                       encoding: .utf8)
-            statusMessage = "Exported \(written) fabrication files to \(target.lastPathComponent)"
-            NSWorkspace.shared.activateFileViewerSelecting([target])
+            lastFabricationPackage = package.files.map { target.appendingPathComponent($0) }
+            statusMessage = "Exported the fabrication package (\(package.files.count + 2) files): upload the Gerber zip to the fab"
+            let zip = package.files.first { $0.hasSuffix("-gerbers.zip") }.map { target.appendingPathComponent($0) }
+            NSWorkspace.shared.activateFileViewerSelecting([zip ?? target])
         } catch {
             present(error, title: "Export failed")
         }
@@ -1063,6 +1057,9 @@ final class DesignStore: ObservableObject {
             present(error, title: "Export failed")
         }
     }
+
+    /// Files of the last fabrication package exported (for tests and the status line).
+    var lastFabricationPackage: [URL] = []
 
     /// Set once the user agreed to close the window (saved or chose Don't Save), so quitting does not ask again.
     var closeConfirmed = false

@@ -1912,3 +1912,39 @@ final class AutoRouteActionTests: XCTestCase {
         XCTAssertEqual(store.snapshot.board.outline.count, unplacedState.board.outline.count)
     }
 }
+
+@MainActor
+final class FabricationPackageTests: XCTestCase {
+    func testThePackageHasEverythingAFabAndAssemblyHouseNeed() throws {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(OfflineProvider.templates[4].plan, to: engine, previous: nil)
+        engine.autoPlace(all: true)
+        XCTAssertEqual(engine.autoRoute().failed, 0)
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-fab-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: folder) }
+
+        let result = engine.writeFabricationPackage(to: folder, base: "Board")
+        XCTAssertTrue(result.ok, result.error)
+        for path in ["gerbers/Board-F_Cu.gbr", "gerbers/Board-B_Cu.gbr", "gerbers/Board-F_Mask.gbr", "gerbers/Board-B_Mask.gbr",
+                     "gerbers/Board-F_Paste.gbr", "gerbers/Board-F_Silkscreen.gbr", "gerbers/Board-Edge_Cuts.gbr",
+                     "gerbers/Board-PTH.drl", "gerbers/Board-job.gbrjob", "gerbers/Board-ipc356.ipc",
+                     "assembly/Board-bom.csv", "assembly/Board-bom_assembly.csv", "assembly/Board-cpl.csv",
+                     "assembly/Board-pick_and_place.csv", "assembly/Board-assembly_top.svg",
+                     "Board-gerbers.zip", "fab_notes.txt", "Board-netlist.cir", "3d/Board.stl"] {
+            XCTAssertTrue(result.files.contains(path), "missing \(path)")
+            XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent(path).path), path)
+        }
+        let zip = try Data(contentsOf: folder.appendingPathComponent("Board-gerbers.zip"))
+        XCTAssertEqual(Array(zip.prefix(4)), [0x50, 0x4B, 0x03, 0x04])
+        let notes = try String(contentsOf: folder.appendingPathComponent("fab_notes.txt"), encoding: .utf8)
+        XCTAssertTrue(notes.contains("Solder mask          Green"))
+        XCTAssertTrue(notes.contains("Board-gerbers.zip"))
+
+        // Every single-file export works on its own too.
+        for format in ExportFormat.allCases {
+            XCTAssertNotNil(engine.export(format), "\(format)")
+        }
+        XCTAssertTrue(engine.export(.ipc356)?.hasSuffix("999\n") ?? false)
+        XCTAssertTrue(engine.export(.cpl)?.hasPrefix("Designator,Mid X,Mid Y,Layer,Rotation") ?? false)
+    }
+}

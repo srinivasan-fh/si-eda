@@ -182,6 +182,11 @@ void sieda_pcb_clear_zones(SiedaProject* project);
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
  *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj". Returns NULL for unknown formats. */
 char* sieda_export(const SiedaProject* project, const char* format);
+/* Writes the complete fabrication package into directory `dir` (created if needed): gerbers/ (every copper layer,
+ * mask, paste, silkscreen with designators, outline, drills, X2 job file, IPC-D-356A netlist), assembly/ (BOMs, CPL,
+ * pick-and-place, assembly drawings), fab_notes.txt, <base>-gerbers.zip for upload, netlist and 3D STL.
+ * `base` names the files (NULL or "" = project name). Returns JSON {"ok":bool,"files":[…],"error":"…"}. */
+char* sieda_write_fabrication_package(const SiedaProject* project, const char* dir, const char* base);
 
 /* ---- 3D ------------------------------------------------------------------------------------ */
 SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_components);

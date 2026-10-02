@@ -161,6 +161,18 @@ final class EDAEngine: @unchecked Sendable {
         return id >= 0 ? Int(id) : nil
     }
 
+    /// Writes the complete fabrication package (Gerbers, drills, job file, IPC netlist, paste, assembly files, notes and
+    /// the Gerber zip) into `folder`, naming the files after `base`.
+    func writeFabricationPackage(to folder: URL, base: String) -> FabricationPackageResult {
+        let json = withHandle { handle -> String? in
+            guard let raw = sieda_write_fabrication_package(handle, folder.path, base) else { return nil }
+            defer { sieda_free_string(raw) }
+            return String(cString: raw)
+        }
+        return Self.decode(FabricationPackageResult.self, from: json)
+            ?? FabricationPackageResult(ok: false, files: [], error: "The core returned no result")
+    }
+
     @discardableResult
     func removeWire(_ id: Int) -> Bool { withHandle { sieda_remove_wire($0, Int32(id)) } == 1 }
 
@@ -465,8 +477,18 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case gerberMaskBottom = "gerber_mask_bottom"
     case gerberSilkTop = "gerber_silk_top"
     case gerberEdge = "gerber_edge"
+    case gerberPasteTop = "gerber_paste_top"
+    case gerberPasteBottom = "gerber_paste_bottom"
+    case gerberSilkBottom = "gerber_silk_bottom"
+    case gerberJob = "gerber_job"
+    case ipc356
     case drill
     case drillNPTH = "drill_npth"
+    case bomAssembly = "bom_assembly"
+    case cpl
+    case assemblyTop = "assembly_top"
+    case assemblyBottom = "assembly_bottom"
+    case fabNotes = "fab_notes"
     case stl
     case obj
 
@@ -483,6 +505,16 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .gerberMaskBottom: return "board-B_Mask.gbr"
         case .gerberSilkTop: return "board-F_Silkscreen.gbr"
         case .gerberEdge: return "board-Edge_Cuts.gbr"
+        case .gerberPasteTop: return "board-F_Paste.gbr"
+        case .gerberPasteBottom: return "board-B_Paste.gbr"
+        case .gerberSilkBottom: return "board-B_Silkscreen.gbr"
+        case .gerberJob: return "board-job.gbrjob"
+        case .ipc356: return "board-ipc356.ipc"
+        case .bomAssembly: return "bom_assembly.csv"
+        case .cpl: return "cpl.csv"
+        case .assemblyTop: return "assembly_top.svg"
+        case .assemblyBottom: return "assembly_bottom.svg"
+        case .fabNotes: return "fab_notes.txt"
         case .drill: return "board.drl"
         case .drillNPTH: return "board-NPTH.drl"
         case .stl: return "assembly.stl"
@@ -501,17 +533,29 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .gerberMaskBottom: return "Gerber — Bottom Solder Mask"
         case .gerberSilkTop: return "Gerber — Top Silkscreen"
         case .gerberEdge: return "Gerber — Board Outline"
+        case .gerberPasteTop: return "Gerber — Top Solder Paste (stencil)"
+        case .gerberPasteBottom: return "Gerber — Bottom Solder Paste (stencil)"
+        case .gerberSilkBottom: return "Gerber — Bottom Silkscreen"
+        case .gerberJob: return "Gerber X2 Job File (stack-up)"
+        case .ipc356: return "IPC-D-356A Test Netlist"
+        case .bomAssembly: return "BOM for Assembly (JLCPCB / PCBWay)"
+        case .cpl: return "Component Placement List (CPL)"
+        case .assemblyTop: return "Assembly Drawing — Top (SVG)"
+        case .assemblyBottom: return "Assembly Drawing — Bottom (SVG)"
+        case .fabNotes: return "Fabrication Notes (order sheet)"
         case .drill: return "Excellon Drill"
         case .drillNPTH: return "Excellon Drill — Mounting Holes (NPTH)"
         case .stl: return "3D Model (STL)"
         case .obj: return "3D Model (OBJ)"
         }
     }
+}
 
-    static let fabricationPackage: [ExportFormat] = [.gerberTop, .gerberBottom, .gerberMaskTop, .gerberMaskBottom,
-                                                     .gerberSilkTop, .gerberEdge, .drill, .drillNPTH, .bom, .pickAndPlace,
-                                                     .spice,
-                                                     .stl]
+/// Result of writing the fabrication package (`sieda_write_fabrication_package`).
+struct FabricationPackageResult: Decodable {
+    var ok: Bool
+    var files: [String]
+    var error: String
 }
 
 /// Board outline presets understood by `sieda_pcb_outline_preset`.

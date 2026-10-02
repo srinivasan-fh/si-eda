@@ -10,6 +10,7 @@
 #include <sstream>
 
 #include "sieda/Export.hpp"
+#include "sieda/Fabrication.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/Units.hpp"
@@ -112,22 +113,15 @@ int main(int argc, char** argv) {
     if (argc >= 3) {
         std::string dir = argv[2];
         if (!dir.empty() && dir.back() != '/') dir += '/';
-        Mesh mesh = buildAssemblyMesh(project.schematic, project.pcb);
-        bool ok = true;
+        std::vector<std::string> written;
+        std::string error;
+        bool ok = writeFabricationPackage(project, dir, &written, &error);
         ok &= writeFile(dir + "design.siedaproj", project.toJson().dump(true));
-        ok &= writeFile(dir + "netlist.cir", exportSpiceNetlist(project.schematic, project.name));
-        ok &= writeFile(dir + "bom.csv", exportBomCsv(project.schematic));
-        ok &= writeFile(dir + "pick_and_place.csv", exportPickAndPlaceCsv(project.schematic));
-        ok &= writeFile(dir + "board-F_Cu.gbr", exportGerber(project.schematic, project.pcb, GerberLayer::TopCopper));
-        ok &= writeFile(dir + "board-B_Cu.gbr", exportGerber(project.schematic, project.pcb, GerberLayer::BottomCopper));
-        ok &= writeFile(dir + "board-F_Mask.gbr", exportGerber(project.schematic, project.pcb, GerberLayer::TopMask));
-        ok &= writeFile(dir + "board-B_Mask.gbr", exportGerber(project.schematic, project.pcb, GerberLayer::BottomMask));
-        ok &= writeFile(dir + "board-F_Silk.gbr", exportGerber(project.schematic, project.pcb, GerberLayer::TopSilk));
-        ok &= writeFile(dir + "board-Edge_Cuts.gbr", exportGerber(project.schematic, project.pcb, GerberLayer::EdgeCuts));
-        ok &= writeFile(dir + "board.drl", exportExcellonDrill(project.schematic, project.pcb));
-        ok &= writeFile(dir + "assembly.stl", exportStl(mesh, "assembly"));
         ok &= writeFile(dir + "verification_report.md", verification.toMarkdown());
-        std::printf("\n%s fabrication outputs to %s\n", ok ? "Wrote" : "FAILED writing", dir.c_str());
+        for (const auto& f : written) std::printf("  %s\n", f.c_str());
+        if (!error.empty()) std::printf("  error: %s\n", error.c_str());
+        std::printf("\n%s the fabrication package (%zu files) to %s\n", ok ? "Wrote" : "FAILED writing",
+                    written.size() + 2, dir.c_str());
         if (!ok) return 1;
     }
     return verification.passed() ? 0 : 1;

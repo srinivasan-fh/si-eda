@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "sieda/Export.hpp"
+#include "sieda/Fabrication.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/Units.hpp"
@@ -301,6 +302,45 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
                   std::to_string(countLines(pnp) - 1) + " rows for " + std::to_string(placed) + " placed parts");
             std::string net = exportSpiceNetlist(sch, project.name);
             check("SPICE netlist", net, net.find(".end") != std::string::npos, "missing .end");
+
+            // Stencil, designators, electrical-test netlist, job file and the upload zip.
+            int smdTop = 0;
+            for (const auto& p : pads) smdTop += !p.throughHole && p.smdLayer == kTopLayer;
+            if (smdTop) {
+                std::string paste = exportGerber(sch, pcb, GerberLayer::TopPaste);
+                size_t flashes = 0;
+                for (size_t at = paste.find("D03*"); at != std::string::npos; at = paste.find("D03*", at + 1)) ++flashes;
+                check("Solder paste top (Gerber)", paste, static_cast<int>(flashes) == smdTop,
+                      std::to_string(flashes) + " stencil apertures for " + std::to_string(smdTop) + " SMD pads");
+            }
+            std::string silk = exportGerber(sch, pcb, GerberLayer::TopSilk);
+            check("Silkscreen designators", silk, endsWith(silk, "M02*\n"), "missing M02 end of file");
+            std::string ipc = exportIpcD356(sch, pcb, project.name);
+            int records = 0;
+            for (size_t at = 0; (at = ipc.find('\n', at)) != std::string::npos; ++at)
+                if (ipc.compare(at + 1, 3, "317") == 0 || ipc.compare(at + 1, 3, "327") == 0) ++records;
+            const int expected = static_cast<int>(pads.size() + pcb.vias.size());
+            check("IPC-D-356A test netlist", ipc, endsWith(ipc, "999\n") && records == expected,
+                  std::to_string(records) + " test points for " + std::to_string(expected) + " pads and vias");
+            auto package = fabricationPackage(project);
+            bool zipOk = false, jobOk = false;
+            std::string zip, job;
+            for (const auto& f : package) {
+                if (endsWith(f.path, "-gerbers.zip")) {
+                    zip = f.content;
+                    zipOk = zip.compare(0, 4, "PK\x03\x04") == 0;
+                }
+                if (endsWith(f.path, ".gbrjob")) {
+                    job = f.content;
+                    try {
+                        jobOk = Json::parse(f.content).get("GeneralSpecs").get("LayerNumber").asInt() == pcb.settings.layerCount;
+                    } catch (...) {
+                        jobOk = false;
+                    }
+                }
+            }
+            check("Gerber job file (X2)", job, jobOk, "job file invalid");
+            check("Gerber zip for upload", zip, zipOk, "zip archive invalid");
             st.status = statusOf(st.findings);
             st.summary = st.findings.empty() ? std::to_string(files) + " files generated and checked"
                                              : countSummary(st.findings, "");
