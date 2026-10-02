@@ -201,7 +201,7 @@ private struct AccountSettings: View {
                 let signedIn = settings.isSignedIn(kind, with: mode)
                 Button {
                     changed()
-                    Task { await settings.signIn(kind, with: mode) }
+                    settings.beginSignIn(kind, with: mode)
                 } label: {
                     Label(signedIn ? mode.title.replacingOccurrences(of: "Sign in", with: "Sign in again") + "…" : mode.title + "…",
                           systemImage: "person.badge.key.fill")
@@ -212,6 +212,7 @@ private struct AccountSettings: View {
                 if settings.signingIn == kind && settings.authMode(for: kind) == mode {
                     ProgressView().controlSize(.small)
                     Text("Finish the login in your browser…").font(.caption).foregroundStyle(Theme.textMuted)
+                    Button("Cancel") { settings.cancelSignIn() }
                 } else if signedIn {
                     Label(inUse ? "Signed in · in use" : "Signed in", systemImage: "checkmark.seal.fill")
                         .font(.caption)

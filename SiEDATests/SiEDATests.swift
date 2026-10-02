@@ -1634,6 +1634,40 @@ final class AISignInTests: XCTestCase {
         XCTAssertEqual(callback.queryItems?.first { $0.name == "state" }?.value, "xyz")
     }
 
+    func testBusyPreferredPortFallsBackInsteadOfHanging() async throws {
+        let first = try await LoopbackRedirect.start()
+        defer { first.stop() }
+        let started = Date()
+        let second = try await LoopbackRedirect.start(preferredPort: first.port)  // already taken
+        defer { second.stop() }
+        XCTAssertNotEqual(second.port, first.port)
+        XCTAssertLessThan(Date().timeIntervalSince(started), 6)
+    }
+
+    func testCancellingASignInStopsWaiting() async throws {
+        let redirect = try await LoopbackRedirect.start()
+        let wait = Task { try await redirect.waitForCallback(timeout: 120) }
+        try await Task.sleep(nanoseconds: 200_000_000)
+        let started = Date()
+        wait.cancel()
+        do {
+            _ = try await wait.value
+            XCTFail("expected cancellation")
+        } catch AIAuthError.cancelled {
+        }
+        XCTAssertLessThan(Date().timeIntervalSince(started), 3)
+
+        // A command-line login (ant / gcloud) is terminated the same way.
+        let run = Task { try await CommandLineTool.run(URL(fileURLWithPath: "/bin/sleep"), ["60"], timeout: 120) }
+        try await Task.sleep(nanoseconds: 200_000_000)
+        run.cancel()
+        do {
+            _ = try await run.value
+            XCTFail("expected cancellation")
+        } catch AIAuthError.cancelled {
+        }
+    }
+
     func testCommandLineToolsRunWithoutBlocking() async throws {
         let echo = try await CommandLineTool.run(URL(fileURLWithPath: "/bin/echo"), ["token-123"], timeout: 10)
         XCTAssertEqual(echo.status, 0)

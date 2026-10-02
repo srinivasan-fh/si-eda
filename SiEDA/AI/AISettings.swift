@@ -135,6 +135,18 @@ final class AISettings: ObservableObject {
         await signIn(kind, with: authMode(for: kind))
     }
 
+    /// Starts a browser sign-in from a button; `cancelSignIn()` stops it (closed tab, wrong account…).
+    func beginSignIn(_ kind: AIProviderKind, with mode: AIAuthMode) {
+        guard signingIn == nil else { return }
+        signInTask = Task { await self.signIn(kind, with: mode) }
+    }
+
+    func cancelSignIn() {
+        signInTask?.cancel()
+    }
+
+    private var signInTask: Task<Void, Never>?
+
     /// Opens the login page of `mode` in the default browser, waits for it, and makes it the provider's method.
     func signIn(_ kind: AIProviderKind, with mode: AIAuthMode) async {
         guard mode.usesBrowser, kind.authModes.contains(mode), signingIn == nil else { return }
@@ -161,9 +173,17 @@ final class AISettings: ObservableObject {
                 break
             }
             signInMessage = "Signed in to \(kind.shortName)."
+            // The agents use the default provider: switch to this one when the default can't be used yet.
+            if provider != kind, !hasCredentials(for: provider) {
+                provider = kind
+                signInMessage = "Signed in to \(kind.shortName) — it is now the default provider."
+            }
+        } catch AIAuthError.cancelled {
+            signInMessage = "Sign-in cancelled."
         } catch {
-            signInMessage = error.localizedDescription
+            signInMessage = Task.isCancelled ? "Sign-in cancelled." : error.localizedDescription
         }
+        signInTask = nil
     }
 
     func signOut(_ kind: AIProviderKind) async {

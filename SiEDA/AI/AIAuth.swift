@@ -116,8 +116,18 @@ enum CommandLineTool {
 
     /// Runs a tool to completion without blocking the caller; the process is terminated after `timeout`.
     static func run(_ tool: URL, _ arguments: [String], timeout: TimeInterval) async throws -> Output {
+        let process = Process()
+        let output = try await withTaskCancellationHandler {
+            try await run(process, tool, arguments, timeout: timeout)
+        } onCancel: {
+            if process.isRunning { process.terminate() }  // the user pressed Cancel
+        }
+        if Task.isCancelled { throw AIAuthError.cancelled }
+        return output
+    }
+
+    private static func run(_ process: Process, _ tool: URL, _ arguments: [String], timeout: TimeInterval) async throws -> Output {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Output, Error>) in
-            let process = Process()
             process.executableURL = tool
             process.arguments = arguments
             var environment = ProcessInfo.processInfo.environment
@@ -311,7 +321,8 @@ final class LoopbackRedirect: @unchecked Sendable {
                 case .ready:
                     once.done = true
                     ready.resume(returning: listener.port?.rawValue ?? 0)
-                case .failed(let error):
+                case .failed(let error), .waiting(let error):
+                    // .waiting: the port is taken (a dev server on :3000…) — try another one instead of hanging.
                     once.done = true
                     listener.cancel()
                     ready.resume(throwing: error)
@@ -321,6 +332,12 @@ final class LoopbackRedirect: @unchecked Sendable {
             }
             listener.newConnectionHandler = { connection in connection.cancel() }
             listener.start(queue: queue)
+            queue.asyncAfter(deadline: .now() + 5) {
+                guard !once.done else { return }
+                once.done = true
+                listener.cancel()
+                ready.resume(throwing: AIAuthError.configuration("Could not open a local port for the sign-in redirect."))
+            }
         }
         let redirect = LoopbackRedirect(listener: listener, queue: queue, port: bound)
         listener.newConnectionHandler = { [weak redirect] connection in redirect?.handle(connection) }
@@ -339,22 +356,27 @@ final class LoopbackRedirect: @unchecked Sendable {
     /// Waits for `GET /callback?…` (other paths such as /favicon.ico are answered and ignored).
     func waitForCallback(timeout: TimeInterval = 300) async throws -> URLComponents {
         defer { stop() }
-        return try await withCheckedThrowingContinuation { continuation in
-            queue.async {
-                self.continuation = continuation
-                if let pending = self.pending {
-                    self.pending = nil
-                    self.deliver(pending)
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                queue.async {
+                    self.continuation = continuation
+                    if let pending = self.pending {
+                        self.pending = nil
+                        self.deliver(pending)
+                    }
+                    self.queue.asyncAfter(deadline: .now() + timeout) { self.deliver(.failure(AIAuthError.timedOut)) }
                 }
-                self.queue.asyncAfter(deadline: .now() + timeout) { self.deliver(.failure(AIAuthError.timedOut)) }
             }
+        } onCancel: {
+            self.stop()  // the user pressed Cancel
         }
     }
 
+    /// Stops listening; a caller still waiting (or about to wait) gets `cancelled`.
     func stop() {
         queue.async {
             self.listener.cancel()
-            if self.continuation != nil { self.deliver(.failure(AIAuthError.cancelled)) }
+            self.deliver(.failure(AIAuthError.cancelled))
         }
     }
 
