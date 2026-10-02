@@ -95,7 +95,8 @@ struct ClaudeProvider: AIProvider {
 
         var headers = ["anthropic-version": "2023-06-01"]
         if let accessToken {
-            headers["authorization"] = "Bearer \(try await accessToken())"  // fetched per request: tokens expire hourly
+            let token = try await accessToken()  // fetched per request: tokens expire hourly
+            headers["authorization"] = "Bearer \(token)"
         } else {
             headers["x-api-key"] = key
         }

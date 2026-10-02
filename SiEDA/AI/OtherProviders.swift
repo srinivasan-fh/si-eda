@@ -47,7 +47,8 @@ struct OpenAIProvider: AIProvider {
         ]
         var headers = extraHeaders
         if let accessToken {
-            headers["authorization"] = "Bearer \(try await accessToken())"
+            let token = try await accessToken()
+            headers["authorization"] = "Bearer \(token)"
         } else if !apiKey.isEmpty {
             headers["authorization"] = "Bearer \(apiKey)"
         }
@@ -100,7 +101,8 @@ struct GeminiProvider: AIProvider {
                 throw AIProviderError.invalidResponse("Invalid Vertex AI project, region or model.")
             }
             url = endpoint
-            headers = ["authorization": "Bearer \(try await vertex.accessToken())", "x-goog-user-project": vertex.project]
+            let token = try await vertex.accessToken()
+            headers = ["authorization": "Bearer \(token)", "x-goog-user-project": vertex.project]
         } else {
             guard !key.isEmpty else { throw AIProviderError.missingAPIKey("Google Gemini") }
             guard let endpoint = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent") else {

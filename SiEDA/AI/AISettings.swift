@@ -145,9 +145,11 @@ final class AISettings: ObservableObject {
                 try await GoogleCloudAuth.signIn()
                 signedIn.insert(.googleCloud)
             case .browser:
-                setAPIKey(try await OpenRouterAuth.signIn(), for: kind)
+                let key = try await OpenRouterAuth.signIn()
+                setAPIKey(key, for: kind)
             case .sso:
-                OIDCAuth.save(try await OIDCAuth.signIn(ssoConfiguration))
+                let tokens = try await OIDCAuth.signIn(ssoConfiguration)
+                OIDCAuth.save(tokens)
                 objectWillChange.send()
             case .apiKey:
                 break
