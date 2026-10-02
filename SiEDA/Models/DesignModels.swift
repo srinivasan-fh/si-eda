@@ -205,6 +205,27 @@ struct SnapNet: Decodable, Equatable, Identifiable {
     var id: Int { index }
 }
 
+/// Solder mask colours fabs offer (core `solderMaskStyles()`), green first: the usual board colour.
+enum SolderMaskColour: String, CaseIterable, Identifiable {
+    case green, black, blue, red, yellow, white, purple
+
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+
+    /// Swatch colour (matches the 3D board).
+    var swatch: (red: Double, green: Double, blue: Double) {
+        switch self {
+        case .green: return (0.04, 0.40, 0.20)
+        case .black: return (0.05, 0.05, 0.06)
+        case .blue: return (0.04, 0.13, 0.42)
+        case .red: return (0.76, 0.04, 0.04)
+        case .yellow: return (0.93, 0.74, 0.04)
+        case .white: return (0.92, 0.93, 0.94)
+        case .purple: return (0.32, 0.12, 0.44)
+        }
+    }
+}
+
 struct BoardInfo: Decodable, Equatable {
     var layerCount: Int = 2
     var width: Double = 50
@@ -225,6 +246,9 @@ struct BoardInfo: Decodable, Equatable {
     var copperWeightOz: Double = 1.0
     var maxTempRise: Double = 10.0
     var highAltitude = false
+    /// Solder mask colour name (core `BoardSettings::solderMask`).
+    var solderMask = "green"
+    var mask: SolderMaskColour { SolderMaskColour(rawValue: solderMask) ?? .green }
     /// Net classes: track width (mm) per net name.
     var netWidths: [String: Double] = [:]
     var autoSizeNets = true
@@ -255,6 +279,7 @@ struct BoardInfo: Decodable, Equatable {
         copperWeightOz = try c.decodeIfPresent(Double.self, forKey: .copperWeightOz) ?? 1.0
         maxTempRise = try c.decodeIfPresent(Double.self, forKey: .maxTempRise) ?? 10.0
         highAltitude = try c.decodeIfPresent(Bool.self, forKey: .highAltitude) ?? false
+        solderMask = try c.decodeIfPresent(String.self, forKey: .solderMask) ?? "green"
         netWidths = try c.decodeIfPresent([String: Double].self, forKey: .netWidths) ?? [:]
         autoSizeNets = try c.decodeIfPresent(Bool.self, forKey: .autoSizeNets) ?? true
         outline = try c.decodeIfPresent([BoardPoint].self, forKey: .outline) ?? []
@@ -264,7 +289,7 @@ struct BoardInfo: Decodable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case layerCount, width, height, thickness, trackWidth, clearance, viaDrill, viaDiameter, edgeClearance, routingGrid
         case rulePreset, minTrackWidth, minClearance, minDrill, minAnnularRing, minHoleToHole, copperWeightOz, maxTempRise
-        case highAltitude, netWidths, autoSizeNets, outline, holes
+        case highAltitude, solderMask, netWidths, autoSizeNets, outline, holes
     }
 
     var bottomLayer: Int { max(1, layerCount) - 1 }

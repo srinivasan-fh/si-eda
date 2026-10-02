@@ -2,6 +2,7 @@
 
 #include "sieda/Avr.hpp"
 #include "sieda/Industry.hpp"
+#include "sieda/Mesh.hpp"
 
 #include <algorithm>
 #include <map>
@@ -44,6 +45,7 @@ Json boardJson(const BoardSettings& s) {
     b["copperWeightOz"] = s.copperWeightOz;
     b["maxTempRise"] = s.maxTempRise;
     b["highAltitude"] = s.highAltitude;
+    b["solderMask"] = s.solderMask;
     Json widths = Json::object();
     for (const auto& [net, w] : s.netWidths) widths[net] = w;
     b["netWidths"] = widths;
@@ -219,6 +221,8 @@ Project Project::fromJson(const Json& root) {
     s.minHoleToHole = b.get("minHoleToHole").asNumber(s.minHoleToHole);
     s.copperWeightOz = std::max(0.5, b.get("copperWeightOz").asNumber(s.copperWeightOz));
     s.highAltitude = b.get("highAltitude").asBool(false);
+    s.solderMask = b.get("solderMask").asString("green");
+    if (!findSolderMask(s.solderMask)) s.solderMask = "green";
     const Json& widths = b.get("netWidths");
     if (widths.isObject())
         for (const auto& [net, w] : widths.fields())

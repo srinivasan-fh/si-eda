@@ -1822,3 +1822,40 @@ final class WireJunctionTests: XCTestCase {
         XCTAssertEqual(WireGeometry.nearestPoint(on: wire, to: CGPoint(x: 100, y: -60)).point, CGPoint(x: 130, y: -60))
     }
 }
+
+@MainActor
+final class SolderMaskTests: XCTestCase {
+    /// Colour of the board's top face in the 3D assembly mesh.
+    private func boardTop(_ engine: EDAEngine) throws -> (r: Float, g: Float, b: Float) {
+        let mesh = try XCTUnwrap(engine.buildMesh(includeComponents: false))
+        let v = try XCTUnwrap((0..<mesh.vertexCount).first { mesh.normals[$0 * 3 + 1] > 0.99 })
+        return (mesh.colors[v * 4], mesh.colors[v * 4 + 1], mesh.colors[v * 4 + 2])
+    }
+
+    func testBoardsAreGreenByDefaultAndTheMaskColourIsAChoice() throws {
+        let store = DesignStore()
+        DesignPlanCompiler.apply(OfflineProvider.templates[4].plan, to: store.engine, previous: nil)
+        store.engine.autoPlace(all: true)
+        store.refresh()
+        XCTAssertEqual(store.snapshot.board.mask, .green)
+        let green = try boardTop(store.engine)
+        XCTAssertGreaterThan(green.g, green.r * 3)
+        XCTAssertGreaterThan(green.g, green.b)
+
+        XCTAssertEqual(SolderMaskColour.allCases.map(\.rawValue), ["green", "black", "blue", "red", "yellow", "white", "purple"])
+        for mask in SolderMaskColour.allCases {
+            store.setSolderMask(mask)
+            XCTAssertEqual(store.snapshot.board.mask, mask)
+            let top = try boardTop(store.engine)
+            XCTAssertEqual(Double(top.r), mask.swatch.red, accuracy: 0.001, "\(mask)")
+            XCTAssertEqual(Double(top.g), mask.swatch.green, accuracy: 0.001, "\(mask)")
+            XCTAssertEqual(Double(top.b), mask.swatch.blue, accuracy: 0.001, "\(mask)")
+        }
+        store.undo()
+        XCTAssertEqual(store.snapshot.board.mask, .white)
+        // Saved with the project.
+        let reopened = EDAEngine()
+        XCTAssertNoThrow(try reopened.load(json: store.engine.saveJSON()))
+        XCTAssertEqual(reopened.snapshot()?.board.mask, .white)
+    }
+}

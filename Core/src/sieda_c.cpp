@@ -779,6 +779,12 @@ void sieda_pcb_set_auto_size_nets(SiedaProject* project, int32_t enabled) {
     if (project) project->project.pcb.settings.autoSizeNets = enabled != 0;
 }
 
+int32_t sieda_pcb_set_solder_mask(SiedaProject* project, const char* colour) {
+    if (!project || !colour || !findSolderMask(colour)) return 0;
+    project->project.pcb.settings.solderMask = colour;
+    return 1;
+}
+
 int32_t sieda_pcb_set_outline(SiedaProject* project, const char* points_json) {
     if (!project || !points_json) return 0;
     try {

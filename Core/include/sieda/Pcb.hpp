@@ -44,6 +44,8 @@ struct BoardSettings {
     double maxTempRise = 10.0;    // °C, IPC-2221 current-capacity target
     /// Above 3050 m (aircraft, space): voltage clearances use IPC-2221 Table 6-1 column B3 instead of B2.
     bool highAltitude = false;
+    /// Solder mask colour ordered from the fab: green (default), black, blue, red, yellow, white or purple.
+    std::string solderMask = "green";
     /// Net classes: track width (mm) per net name, e.g. {"VBAT": 0.8} for motor and battery currents.
     std::map<std::string, double> netWidths;
     /// The autorouter first widens net classes to the IPC-2221 width for each net's simulated current.

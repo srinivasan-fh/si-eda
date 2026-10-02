@@ -147,15 +147,36 @@ Mesh buildCopperLayerMesh(const Schematic& sch, const PcbLayout& pcb, int layer)
     return m;
 }
 
+const std::vector<SolderMaskStyle>& solderMaskStyles() {
+    static const std::vector<SolderMaskStyle> styles = {
+        {"green", {0.04f, 0.40f, 0.20f, 1}, {0.10f, 0.53f, 0.27f, 1}, {0.96f, 0.96f, 0.94f, 1}},
+        {"black", {0.05f, 0.05f, 0.06f, 1}, {0.13f, 0.13f, 0.14f, 1}, {0.96f, 0.96f, 0.94f, 1}},
+        {"blue", {0.04f, 0.13f, 0.42f, 1}, {0.09f, 0.22f, 0.60f, 1}, {0.96f, 0.96f, 0.94f, 1}},
+        {"red", {0.76f, 0.04f, 0.04f, 1}, {0.92f, 0.12f, 0.10f, 1}, {0.97f, 0.97f, 0.95f, 1}},
+        {"yellow", {0.93f, 0.74f, 0.04f, 1}, {0.98f, 0.62f, 0.08f, 1}, {0.04f, 0.04f, 0.05f, 1}},
+        {"white", {0.92f, 0.93f, 0.94f, 1}, {0.84f, 0.85f, 0.86f, 1}, {0.04f, 0.04f, 0.05f, 1}},
+        {"purple", {0.32f, 0.12f, 0.44f, 1}, {0.52f, 0.14f, 0.66f, 1}, {0.97f, 0.97f, 0.95f, 1}},
+    };
+    return styles;
+}
+
+const SolderMaskStyle* findSolderMask(const std::string& name) {
+    for (const auto& style : solderMaskStyles())
+        if (name == style.name) return &style;
+    return nullptr;
+}
+
 Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOptions& opt) {
     Mesh m;
     const BoardSettings& s = pcb.settings;
     const double t = s.thickness;
     const double cu = 0.035;
-    const Rgba mask{0.05f, 0.22f, 0.55f, 1.0f};  // blue solder mask
-    const Rgba trackColor{0.12f, 0.36f, 0.75f, 1.0f};
+    const SolderMaskStyle* style = findSolderMask(s.solderMask);
+    if (!style) style = &solderMaskStyles().front();
+    const Rgba mask = style->mask;
+    const Rgba trackColor = style->maskOverCopper;
     const Rgba gold{0.86f, 0.70f, 0.30f, 1.0f};
-    const Rgba silk{0.95f, 0.95f, 0.95f, 1.0f};
+    const Rgba silk = style->silk;
     const Rgba fr4Edge{0.75f, 0.68f, 0.45f, 1.0f};
 
     // Board core with a slightly darker FR-4 edge band.
@@ -174,7 +195,7 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
 
     auto ps = pcb.pads(sch);
     if (opt.copper) {
-        const Rgba pourColor{0.10f, 0.32f, 0.70f, 1.0f};
+        const Rgba pourColor{(mask.r + trackColor.r) / 2, (mask.g + trackColor.g) / 2, (mask.b + trackColor.b) / 2, 1.0f};
         for (const auto& f : pcb.zoneFills(sch)) {
             double y0 = copperLayerBase(f.layer, s.layerCount, t, cu);
             for (const auto& r : f.rects) m.addBox({r.x0, y0, r.y0}, {r.x1, y0 + cu * 0.9, r.y1}, pourColor);
