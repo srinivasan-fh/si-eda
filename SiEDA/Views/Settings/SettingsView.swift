@@ -225,6 +225,13 @@ private struct AccountSettings: View {
                 }
                 Spacer(minLength: 0)
             }
+            if mode == .sso && !settings.ssoConfiguration.isComplete {
+                Label("Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator).",
+                      systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if !mode.isAvailable {
                 Label(CommandLineTool.sandboxMessage, systemImage: "exclamationmark.triangle")
                     .font(.caption)
