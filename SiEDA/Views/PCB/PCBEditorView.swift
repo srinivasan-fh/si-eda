@@ -69,6 +69,18 @@ struct PCBEditorView: View {
     @State private var trackWidth = ""
     @State private var clearance = ""
 
+    /// The one Auto Route action (⇧⌘R): places any footprints not on the board yet, inside its shape, then routes
+    /// every connection from scratch and runs DRC.
+    private var autoRouteButton: some View {
+        Button { Task { await store.autoRouteBoard() } } label: {
+            Label("Auto Route", systemImage: "point.topleft.down.to.point.bottomright.curvepath.fill")
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.small)
+        .disabled(store.isBusy || !store.snapshot.components.contains { !$0.componentKind.isVirtual })
+        .help("Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)")
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             ToolStrip {
@@ -86,8 +98,8 @@ struct PCBEditorView: View {
                 ToolStripButton(systemImage: "arrow.down.right.and.arrow.up.left.rectangle", help: "Fit board to components") {
                     store.fitBoard()
                 }
-                ToolStripButton(systemImage: "point.topleft.down.to.point.bottomright.curvepath.fill", help: "Autoroute (⇧⌘R)") {
-                    Task { await store.autoRoute() }
+                ToolStripButton(systemImage: "point.topleft.down.to.point.bottomright.curvepath.fill", help: "Auto Route (⇧⌘R)") {
+                    Task { await store.autoRouteBoard() }
                 }
                 ToolStripButton(systemImage: "eraser", help: "Clear all tracks and vias") { store.clearRouting() }
                 ToolStripButton(systemImage: "checkmark.seal", help: "Design rule check") {
@@ -108,6 +120,8 @@ struct PCBEditorView: View {
 
             VStack(spacing: 0) {
                 OptionsBar {
+                    autoRouteButton
+                    Divider().frame(height: 18)
                     Image(systemName: "square.3.layers.3d.down.right").foregroundStyle(Theme.blue)
                     Picker("Layers", selection: Binding(get: { store.snapshot.board.layerCount },
                                                         set: { store.setLayerCount($0) })) {
@@ -189,6 +203,25 @@ struct PCBEditorView: View {
                             .canvasScrollShield()
                             .padding(10)
                     }
+                    if !store.snapshot.pads.isEmpty, unplacedCount == 0, !store.isBusy, !store.snapshot.ratsnest.isEmpty {
+                        // Like "Place Now" for footprints: one click routes what is still a ratsnest line.
+                        let openCount = store.snapshot.ratsnest.count
+                        HStack(spacing: 8) {
+                            Image(systemName: "point.topleft.down.to.point.bottomright.curvepath").foregroundStyle(Theme.skyBlue)
+                            Text("\(openCount) connection\(openCount == 1 ? " is" : "s are") not routed yet")
+                                .foregroundStyle(Theme.textPrimary)
+                            Button("Auto Route") { Task { await store.autoRouteBoard() } }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                        }
+                        .font(.callout)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(Theme.deepBlue.opacity(0.95)))
+                        .overlay(Capsule().strokeBorder(Theme.blue.opacity(0.5)))
+                        .padding(10)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    }
                     if !store.snapshot.pads.isEmpty, unplacedCount > 0 {
                         // Viewing the board never edits it; new parts are placed only on request.
                         HStack(spacing: 8) {
@@ -210,7 +243,7 @@ struct PCBEditorView: View {
                     if store.snapshot.pads.isEmpty {
                         BlueEmptyState(systemImage: "square.grid.3x3.square",
                                        title: "No footprints on the board",
-                                       message: "Place the schematic's footprints automatically, then run the autorouter.",
+                                       message: "Place the schematic's footprints automatically, then Auto Route the board.",
                                        actionTitle: "Auto-Place Footprints") { store.autoPlace(all: true) }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }

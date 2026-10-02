@@ -607,27 +607,53 @@ final class DesignStore: ObservableObject {
         if all { fitToken &+= 1 }
     }
 
-    func autoRoute() async {
+    /// The single Auto Route action: footprints not on the board yet are placed inside its shape first (outline,
+    /// mounting holes and edge clearance respected, connected parts kept close), then the whole board is routed
+    /// cleanly from scratch and DRC-checked. One undo step.
+    func autoRouteBoard() async {
+        let unplaced = snapshot.components.contains { !$0.componentKind.isVirtual && !$0.footprint.isEmpty && !$0.pcb.placed }
+        await autoRoute(clearFirst: !snapshot.tracks.isEmpty || !snapshot.vias.isEmpty, placeMissing: unplaced)
+    }
+
+    /// Routes the board. `clearFirst` rips up the existing tracks and vias first (a clean re-route); `placeMissing`
+    /// first places footprints that are not on the board yet. Either way it is a single undo step.
+    func autoRoute(clearFirst: Bool = false, placeMissing: Bool = false) async {
         guard !isBusy else { return }
-        let before = engine.saveJSON()
+        let before = self.engine.saveJSON()
+        if clearFirst {
+            self.engine.clearRouting()
+            refresh()
+        }
+        if placeMissing {
+            let empty = snapshot.pads.isEmpty
+            self.engine.autoPlace(all: false)
+            refresh()
+            if empty { fitToken &+= 1 }
+        }
         let engine = self.engine
-        let result = await runBusy("Autorouting…") { engine.autoRouteChecked() }
+        let result = await runBusy(placeMissing ? "Placing and routing…" : "Autorouting…") { engine.autoRouteChecked() }
+        func recordUndo() {
+            undoStack.append(before)
+            if undoStack.count > undoLimit { undoStack.removeFirst() }
+            redoStack.removeAll()
+            isDirty = true
+        }
         guard case .success(let stats) = result else {
+            if placeMissing || clearFirst { recordUndo() }  // the placement / rip-up already happened
             if case .failure(let error) = result { present(error, title: "Autorouting failed") }
             refresh()
             return
         }
-        undoStack.append(before)
-        if undoStack.count > undoLimit { undoStack.removeFirst() }
-        redoStack.removeAll()
-        isDirty = true
+        recordUndo()
         refresh()
         routeStats = stats
         routeRevision = revision
         recordDRC(engine.runDRCChecked())
-        statusMessage = stats.failed == 0
-            ? "Routed \(stats.routed)/\(stats.connections) connections, \(stats.vias) vias"
-            : "Routed \(stats.routed)/\(stats.connections) — \(stats.failed) failed (\(stats.failedNets.joined(separator: ", ")))"
+        let routed = stats.failed == 0
+            ? "routed \(stats.routed)/\(stats.connections) connections, \(stats.vias) vias"
+            : "routed \(stats.routed)/\(stats.connections) — \(stats.failed) failed (\(stats.failedNets.joined(separator: ", ")))"
+        statusMessage = (placeMissing ? "Placed footprints inside the board outline and " : "") + routed
+        statusMessage = statusMessage.prefix(1).uppercased() + statusMessage.dropFirst()
     }
 
     func clearRouting() {
