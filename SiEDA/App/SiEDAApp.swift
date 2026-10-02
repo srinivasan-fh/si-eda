@@ -248,7 +248,7 @@ struct SiEDACommands: Commands {
             Divider()
             Button("Auto-Place Footprints") { store.autoPlace(all: true) }
             Button("Fit Board to Components") { store.fitBoard() }
-            Button("Autoroute Board") { Task { await store.autoRoute() } }
+            Button("Auto Route Board") { Task { await store.autoRouteBoard() } }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
             Button("Run Design Rule Check") { store.runDRC(); store.showChecks(.rules) }
             Menu("Industry Profile") {

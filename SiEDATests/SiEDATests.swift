@@ -1880,3 +1880,35 @@ final class StackUp3DTests: XCTestCase {
         XCTAssertEqual(Set(signatures.values).count, 4, "\(signatures)")
     }
 }
+
+@MainActor
+final class AutoRouteActionTests: XCTestCase {
+    func testOneAutoRouteClickPlacesInsideTheBoardShapeAndRoutes() async throws {
+        let store = DesignStore()
+        DesignPlanCompiler.apply(OfflineProvider.templates[4].plan, to: store.engine, previous: nil)
+        store.refresh()
+        XCTAssertTrue(store.snapshot.pads.isEmpty)
+        // A shaped board: the footprints must land inside the circle.
+        store.applyOutlinePreset(.circle, width: 60, height: 60, parameter: 0)
+        let unplacedState = store.snapshot
+
+        await store.autoRouteBoard()
+        XCTAssertFalse(store.snapshot.pads.isEmpty)
+        XCTAssertTrue(store.snapshot.components.filter { !$0.componentKind.isVirtual }.allSatisfy(\.pcb.placed))
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty, "every connection routed")
+        XCTAssertFalse(store.snapshot.tracks.isEmpty)
+        let cx = store.snapshot.board.width / 2, cy = store.snapshot.board.height / 2
+        for pad in store.snapshot.pads {
+            XCTAssertLessThan(hypot(pad.x - cx, pad.y - cy), 30, "pad outside the circular board")
+        }
+
+        // Clicking again re-routes cleanly (no duplicate copper), and one undo goes back to before the first click.
+        let tracks = store.snapshot.tracks.count
+        await store.autoRouteBoard()
+        XCTAssertEqual(store.snapshot.tracks.count, tracks)
+        store.undo()
+        store.undo()
+        XCTAssertTrue(store.snapshot.pads.isEmpty)
+        XCTAssertEqual(store.snapshot.board.outline.count, unplacedState.board.outline.count)
+    }
+}
