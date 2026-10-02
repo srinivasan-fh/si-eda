@@ -164,6 +164,8 @@ void sieda_pcb_set_auto_size_nets(SiedaProject* project, int32_t enabled);
 /* Board outline polygon as JSON [{"x":…,"y":…}, …] (mm, ≥ 3 points); "[]" restores the width × height rectangle.
  * The outline is shifted to start at (0,0) and the board size set to its bounds. Returns 0 for invalid JSON. */
 int32_t sieda_pcb_set_outline(SiedaProject* project, const char* points_json);
+/* Solder mask colour: "green" (default), "black", "blue", "red", "yellow", "white" or "purple". 0 for unknown names. */
+int32_t sieda_pcb_set_solder_mask(SiedaProject* project, const char* colour);
 /* Outline presets: "rectangle" (w × h), "rounded" (corner radius param), "circle" (diameter w),
  * "quad-x" (quadcopter frame: span w, square body h, arm width param). Returns 0 for unknown kinds. */
 int32_t sieda_pcb_outline_preset(SiedaProject* project, const char* kind, double w, double h, double param);

@@ -3,6 +3,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "sieda/Geometry.hpp"
@@ -14,6 +15,20 @@ namespace sieda {
 struct Rgba {
     float r = 1, g = 1, b = 1, a = 1;
 };
+
+/// Look of a solder mask colour in the 3D assembly: the mask over bare laminate, the mask over copper (tracks and
+/// pours show through slightly lighter) and the silkscreen ink printed on it (black on yellow and white boards).
+struct SolderMaskStyle {
+    const char* name;
+    Rgba mask;
+    Rgba maskOverCopper;
+    Rgba silk;
+};
+
+/// Mask colours fabs offer, in menu order (green first: the usual choice).
+const std::vector<SolderMaskStyle>& solderMaskStyles();
+/// nullptr for an unknown name.
+const SolderMaskStyle* findSolderMask(const std::string& name);
 
 struct Mesh {
     std::vector<float> positions;  // xyz

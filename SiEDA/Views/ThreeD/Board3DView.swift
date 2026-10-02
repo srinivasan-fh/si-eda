@@ -2,31 +2,32 @@ import SceneKit
 import SwiftUI
 
 /// 3D workspace with two modes:
-/// - **Assembly**: the C++ core tessellates board, copper, vias, silkscreen and component bodies (realistic).
+/// - **Assembly** (default): the C++ core tessellates board, copper, vias, silkscreen and component bodies (realistic),
+///   in the board's solder mask colour (green unless another is chosen).
 /// - **X-Ray Stack**: every copper layer floats apart in a holographic, additive-glow exploded view with
 ///   through-vias as light pillars, wireframe component bodies and a scanning beam.
 struct Board3DWorkspace: View {
     enum Mode: String, CaseIterable, Identifiable {
-        case xray = "X-Ray Stack"
         case assembly = "Assembly"
+        case xray = "X-Ray Stack"
         var id: String { rawValue }
     }
 
     @EnvironmentObject private var store: DesignStore
-    @AppStorage("threeD.mode") private var modeRaw = Mode.xray.rawValue
+    @AppStorage("threeD.mode.v2") private var modeRaw = Mode.assembly.rawValue
     @State private var showComponents = true
     @State private var resetCamera = 0
     @State private var stats = ""
     @State private var xray = XRaySettings()
 
-    private var mode: Mode { Mode(rawValue: modeRaw) ?? .xray }
+    private var mode: Mode { Mode(rawValue: modeRaw) ?? .assembly }
 
     var body: some View {
         VStack(spacing: 0) {
             OptionsBar {
                 Picker("Mode", selection: $modeRaw) {
-                    Label("X-Ray Stack", systemImage: "square.3.layers.3d.top.filled").tag(Mode.xray.rawValue)
                     Label("Assembly", systemImage: "cube.transparent").tag(Mode.assembly.rawValue)
+                    Label("X-Ray Stack", systemImage: "square.3.layers.3d.top.filled").tag(Mode.xray.rawValue)
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 230)
@@ -34,6 +35,7 @@ struct Board3DWorkspace: View {
                     xrayControls
                 } else {
                     Toggle("Components", isOn: $showComponents).toggleStyle(.switch).controlSize(.mini)
+                    maskPicker
                     Text(stats).foregroundStyle(Theme.textMuted).font(.caption)
                 }
                 Spacer()
@@ -68,6 +70,29 @@ struct Board3DWorkspace: View {
             .background(Theme.navy)
             .overlay(alignment: .bottomTrailing) {
                 if !store.snapshot.pads.isEmpty { navigationHint.padding(12) }
+            }
+        }
+    }
+
+    /// Solder mask colour swatches (green, black, blue, red, yellow, white, purple), like a fab's sample boards.
+    private var maskPicker: some View {
+        HStack(spacing: 5) {
+            Text("Mask").font(.caption).foregroundStyle(Theme.textMuted)
+            ForEach(SolderMaskColour.allCases) { mask in
+                let selected = store.snapshot.board.mask == mask
+                let c = mask.swatch
+                Button { store.setSolderMask(mask) } label: {
+                    Circle()
+                        .fill(Color(red: c.red, green: c.green, blue: c.blue))
+                        .overlay(Circle().strokeBorder(Color.white.opacity(0.35), lineWidth: 0.5))
+                        .frame(width: 14, height: 14)
+                        .padding(2)
+                        .overlay(Circle().strokeBorder(selected ? Theme.skyBlue : .clear, lineWidth: 1.5))
+                }
+                .buttonStyle(.plain)
+                .help("\(mask.title) solder mask")
+                .accessibilityLabel("\(mask.title) solder mask")
+                .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
     }
@@ -179,7 +204,7 @@ struct BoardSceneView: NSViewRepresentable {
         ambient.light = SCNLight()
         ambient.light?.type = .ambient
         ambient.light?.intensity = 350
-        ambient.light?.color = NSColor(red: 0.75, green: 0.85, blue: 1.0, alpha: 1)
+        ambient.light?.color = NSColor(red: 0.95, green: 0.96, blue: 1.0, alpha: 1)  // near-neutral: true mask colours
         scene.rootNode.addChildNode(ambient)
 
         let key = SCNNode()
@@ -196,7 +221,7 @@ struct BoardSceneView: NSViewRepresentable {
         rim.light = SCNLight()
         rim.light?.type = .directional
         rim.light?.intensity = 400
-        rim.light?.color = NSColor(red: 0.45, green: 0.68, blue: 1.0, alpha: 1)
+        rim.light?.color = NSColor(red: 0.80, green: 0.86, blue: 1.0, alpha: 1)
         rim.eulerAngles = SCNVector3(-0.4, -2.4, 0)
         scene.rootNode.addChildNode(rim)
 

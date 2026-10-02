@@ -652,6 +652,12 @@ final class DesignStore: ObservableObject {
                 .map { String(format: "%@ %.2f mm", $0.key, $0.value) }.joined(separator: ", ")
     }
 
+    /// Solder mask colour of the board (3D assembly view and fabrication order). Undoable.
+    func setSolderMask(_ mask: SolderMaskColour) {
+        guard mask != snapshot.board.mask else { return }
+        performChecked("\(mask.title) solder mask", invalidatesAnalysis: false) { $0.setSolderMask(mask) }
+    }
+
     func setAutoSizeNets(_ enabled: Bool) {
         perform(enabled ? "Autorouter sizes power nets" : "Autorouter uses the net classes as set",
                 invalidatesAnalysis: false) { $0.setAutoSizeNets(enabled) }

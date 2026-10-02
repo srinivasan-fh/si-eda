@@ -2276,3 +2276,36 @@ TEST(wire_junctions) {
     CHECK(s.removeDanglingJunctions(j2) == 2);
     CHECK(!s.find(j1) && !s.find(j2) && s.wireCount(c1) == 1);
 }
+
+TEST(solder_mask_colours) {
+    // Green is the default (like most boards); the other fab colours change the 3D board and are saved.
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.settings.solderMask == "green");
+    CHECK(solderMaskStyles().size() == 7 && std::string(solderMaskStyles().front().name) == "green");
+    auto topColour = [&]() {
+        Mesh m = buildAssemblyMesh(p.schematic, p.pcb, {false, false, false});
+        // The first box is the board core; find a vertex on its top face (normal +Y).
+        for (size_t v = 0; v < m.vertexCount(); ++v)
+            if (m.normals[v * 3 + 1] > 0.99f) return Rgba{m.colors[v * 4], m.colors[v * 4 + 1], m.colors[v * 4 + 2], 1};
+        return Rgba{};
+    };
+    Rgba green = topColour();
+    CHECK(green.g > green.r * 3 && green.g > green.b);
+    for (const char* name : {"black", "blue", "red", "yellow", "white", "purple"}) {
+        CHECK(findSolderMask(name) != nullptr);
+        p.pcb.settings.solderMask = name;
+        Rgba c = topColour();
+        CHECK(c.r == findSolderMask(name)->mask.r && c.g == findSolderMask(name)->mask.g);
+    }
+    CHECK(findSolderMask("yellow")->silk.r < 0.1f && findSolderMask("white")->silk.r < 0.1f);  // black legend
+    CHECK(findSolderMask("red")->silk.r > 0.9f);
+    CHECK(!findSolderMask("orange"));
+
+    p.pcb.settings.solderMask = "purple";
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.pcb.settings.solderMask == "purple");
+    Json old = p.toJson();
+    old["board"]["solderMask"] = std::string("tartan");
+    CHECK(Project::fromJson(old).pcb.settings.solderMask == "green");
+}
