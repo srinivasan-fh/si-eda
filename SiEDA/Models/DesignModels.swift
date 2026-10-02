@@ -156,6 +156,47 @@ struct SnapWire: Decodable, Equatable, Identifiable {
     var end: CGPoint { CGPoint(x: bx, y: by) }
 }
 
+/// Where a schematic wire being drawn starts or ends: a pin, a point on an existing wire (a T-junction is made there)
+/// or a free point (a bend: the wire continues from a junction there).
+enum WireEnd: Equatable {
+    case pin(PinAddress)
+    case wire(Int, CGPoint)
+    case point(CGPoint)
+}
+
+/// Schematic wire routing: a wire is drawn as an orthogonal L (horizontal first) between its two ends.
+enum WireGeometry {
+    static let grid: CGFloat = 10
+
+    static func path(_ a: CGPoint, _ b: CGPoint) -> [CGPoint] {
+        if a.x == b.x || a.y == b.y { return [a, b] }
+        return [a, CGPoint(x: b.x, y: a.y), b]
+    }
+
+    /// The point of a wire's route nearest to `p`, on the grid where the segment allows, and its distance from `p`.
+    static func nearestPoint(on wire: SnapWire, to p: CGPoint) -> (point: CGPoint, distance: CGFloat) {
+        let pts = path(wire.start, wire.end)
+        var best = (point: wire.start, distance: CGFloat.greatestFiniteMagnitude)
+        for i in 0..<(pts.count - 1) {
+            let q = nearestPoint(onSegment: pts[i], pts[i + 1], to: p)
+            let d = hypot(q.x - p.x, q.y - p.y)
+            if d < best.distance { best = (q, d) }
+        }
+        return best
+    }
+
+    static func nearestPoint(onSegment a: CGPoint, _ b: CGPoint, to p: CGPoint) -> CGPoint {
+        let dx = b.x - a.x, dy = b.y - a.y
+        let len2 = dx * dx + dy * dy
+        let t = len2 > 0 ? max(0, min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2)) : 0
+        var q = CGPoint(x: a.x + t * dx, y: a.y + t * dy)
+        // Along a horizontal or vertical run the junction lands on the grid, inside the segment.
+        if dy == 0 { q.x = min(max((q.x / grid).rounded() * grid, min(a.x, b.x)), max(a.x, b.x)) }
+        if dx == 0 { q.y = min(max((q.y / grid).rounded() * grid, min(a.y, b.y)), max(a.y, b.y)) }
+        return q
+    }
+}
+
 struct SnapNet: Decodable, Equatable, Identifiable {
     var index: Int
     var name: String

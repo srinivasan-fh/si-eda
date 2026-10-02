@@ -164,6 +164,19 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func removeWire(_ id: Int) -> Bool { withHandle { sieda_remove_wire($0, Int32(id)) } == 1 }
 
+    /// Splits a wire with a junction at `point` (T-junction or bend point); returns the junction's component id.
+    @discardableResult
+    func splitWire(_ id: Int, at point: CGPoint) -> Int? {
+        let j = withHandle { sieda_split_wire($0, Int32(id), Double(point.x), Double(point.y)) }
+        return j >= 0 ? Int(j) : nil
+    }
+
+    /// Removes a chain of dangling junctions (a wire abandoned half-way) starting at `junction`.
+    @discardableResult
+    func removeDanglingJunctions(from junction: Int) -> Int {
+        Int(withHandle { sieda_remove_dangling_junctions($0, Int32(junction)) })
+    }
+
     /// Marks a pin as intentionally unconnected (ERC no longer reports it) or clears the mark.
     @discardableResult
     func setPinNoConnect(_ pin: PinAddress, _ noConnect: Bool) -> Bool {

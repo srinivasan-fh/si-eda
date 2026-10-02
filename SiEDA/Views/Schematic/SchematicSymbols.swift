@@ -17,6 +17,7 @@ enum SchematicSymbols {
         case .ic8: return CGRect(x: -40, y: -42, width: 80, height: 84)
         case .netLabel: return CGRect(x: -2, y: -9, width: 60, height: 18)
         case .custom: return CGRect(x: -40, y: -40, width: 80, height: 80)
+        case .junction: return CGRect(x: -5, y: -5, width: 10, height: 10)
         }
     }
 
@@ -273,6 +274,9 @@ enum SchematicSymbols {
             let body = CGRect(x: -30, y: -30, width: 60, height: 60)
             s.fill.addRect(body)
             s.stroke.addRect(body)
+
+        case .junction:
+            break  // drawn by the canvas from its wires (dot at a T, nothing on a bend)
 
         case .netLabel:
             let width = max(36, CGFloat(value.count) * 7 + 16)

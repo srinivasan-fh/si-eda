@@ -9,7 +9,9 @@ struct InspectorView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Text("PROPERTIES").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
                 let selected = store.selectedComponents
-                if selected.count == 1, let c = selected.first {
+                if selected.count == 1, let c = selected.first, c.componentKind == .junction {
+                    JunctionProperties(junction: c)
+                } else if selected.count == 1, let c = selected.first {
                     ComponentProperties(component: c)
                         .id("\(c.id)|\(c.ref)|\(c.value)")
                 } else if selected.count > 1 {
@@ -342,6 +344,28 @@ private struct WireProperties: View {
             }
             Button(role: .destructive) { store.deleteSelection() } label: { Label("Delete Wire", systemImage: "trash") }
                 .buttonStyle(.bordered)
+        }
+    }
+}
+
+/// A wire node: a T-junction where wires meet, or a bend point that shapes a wire.
+private struct JunctionProperties: View {
+    @EnvironmentObject private var store: DesignStore
+    var junction: SnapComponent
+
+    var body: some View {
+        let wires = store.snapshot.wires.filter { $0.a.component == junction.id || $0.b.component == junction.id }
+        let net = wires.first?.net ?? -1
+        PropertyGroup(title: wires.count >= 3 ? "Junction" : (wires.count == 2 ? "Wire bend" : "Open wire end")) {
+            PropertyRow(label: "Net", value: store.snapshot.net(net)?.name ?? "—")
+            PropertyRow(label: "Wires", value: "\(wires.count)")
+            Text(wires.count == 2 ? "Drag to reshape the wire. Delete straightens it."
+                 : "Drag to move. Wires ending here are joined; a dot marks the T.")
+                .font(.caption).foregroundStyle(Theme.textMuted)
+            Button(role: .destructive) { store.deleteSelection() } label: {
+                Label(wires.count == 2 ? "Remove Bend" : "Delete Junction", systemImage: "trash")
+            }
+            .buttonStyle(.bordered)
         }
     }
 }

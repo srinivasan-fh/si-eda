@@ -360,6 +360,78 @@ final class DesignStore: ObservableObject {
         }
     }
 
+    /// Draws one wire between two ends, as a single undo step: an end on a wire splits it with a T-junction (or uses
+    /// the pin at that wire's end), a free end makes a bend point. Returns the pin the wire ended on (a new bend's
+    /// junction, to continue drawing from it), or nil when nothing could be drawn.
+    @discardableResult
+    func drawWire(from start: WireEnd, to end: WireEnd) -> PinAddress? {
+        if case .wire(let a, _) = start, case .wire(let b, _) = end, a == b { return nil }  // a wire onto itself
+        let wires = snapshot.wires
+        // Resolve on the current geometry first; only the engine calls below change the design.
+        enum Resolved { case pin(PinAddress), split(Int, CGPoint), junction(CGPoint) }
+        func resolve(_ end: WireEnd) -> Resolved? {
+            switch end {
+            case .pin(let address):
+                return .pin(address)
+            case .wire(let id, let near):
+                guard let w = wires.first(where: { $0.id == id }) else { return nil }
+                let p = WireGeometry.nearestPoint(on: w, to: near).point
+                if p == w.start { return .pin(w.a) }
+                if p == w.end { return .pin(w.b) }
+                return .split(id, p)
+            case .point(let p):
+                return .junction(SchematicAutoLayout.snap(p))
+            }
+        }
+        guard let from = resolve(start), let to = resolve(end) else { return nil }
+        if case .pin(let a) = from, case .pin(let b) = to, a == b { return nil }
+        if case .pin(let a) = from, case .junction(let p) = to, pinPoint(a) == p { return a }  // no zero-length wire
+        var result: PinAddress?
+        let creates: Bool = {
+            if case .pin = from, case .pin = to { return false }
+            return true
+        }()
+        performChecked(creates ? "Drew wire" : "Connected wire", failureMessage: "Those pins are already connected") { engine in
+            func make(_ r: Resolved) -> PinAddress? {
+                switch r {
+                case .pin(let address): return address
+                case .split(let id, let p): return engine.splitWire(id, at: p).map { PinAddress(component: $0, pin: 0) }
+                case .junction(let p):
+                    let j = engine.addComponent(.junction, at: p)
+                    return j >= 0 ? PinAddress(component: j, pin: 0) : nil
+                }
+            }
+            guard let a = make(from), let b = make(to), a != b else { return creates }
+            result = b
+            return engine.connect(a, b) != nil || creates
+        }
+        return result
+    }
+
+    /// Bends a wire through `point`: a junction there splits it, and can be dragged further later.
+    func bendWire(_ id: Int, at point: CGPoint) {
+        let p = SchematicAutoLayout.snap(point)
+        var junction: Int?
+        performChecked("Bent wire", invalidatesAnalysis: false) { engine in
+            junction = engine.splitWire(id, at: p)
+            return junction != nil
+        }
+        if let junction { selection = [junction]; selectedWire = nil }
+    }
+
+    /// Abandons a wire being drawn: the corners already placed for it (dangling junctions) are removed.
+    func cancelWire(at end: PinAddress) {
+        guard snapshot.component(end.component)?.componentKind == .junction,
+              snapshot.wires.filter({ $0.a.component == end.component || $0.b.component == end.component }).count <= 1
+        else { return }
+        perform("Cancelled wire") { $0.removeDanglingJunctions(from: end.component) }
+    }
+
+    private func pinPoint(_ address: PinAddress) -> CGPoint? {
+        guard let c = snapshot.component(address.component), address.pin < c.pins.count else { return nil }
+        return c.pins[address.pin].point
+    }
+
     /// Toggles the "no connect" mark of a pin (an intentionally open pin; ERC stops reporting it).
     func toggleNoConnect(_ pin: PinAddress) {
         guard let component = snapshot.component(pin.component), pin.pin >= 0, pin.pin < component.pins.count else { return }

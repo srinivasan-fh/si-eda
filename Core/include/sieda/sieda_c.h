@@ -62,6 +62,11 @@ int32_t sieda_connect(SiedaProject* project, int32_t comp_a, int32_t pin_a, int3
 /* Marks (1) or clears (0) a no-connect flag on a pin: ERC no longer reports it unconnected. 1 on success. */
 int32_t sieda_set_pin_no_connect(SiedaProject* project, int32_t component_id, int32_t pin, int32_t no_connect);
 int32_t sieda_remove_wire(SiedaProject* project, int32_t wire_id);
+/* Splits a wire at (x, y) with a junction (T-junction / bend point) and returns the junction's component id, or -1.
+ * Wires can then start or end on the junction's pin 0; deleting a junction that joins two wires straightens them. */
+int32_t sieda_split_wire(SiedaProject* project, int32_t wire_id, double x, double y);
+/* Removes a chain of dangling junctions (a wire abandoned half-way) starting at `junction_id`. Returns the count. */
+int32_t sieda_remove_dangling_junctions(SiedaProject* project, int32_t junction_id);
 
 /* ---- live (real-time, interactive) simulation ------------------------------------------------------------------- */
 /* Starts a live simulation of the project's current schematic (a snapshot: later edits need a restart) at the t = 0

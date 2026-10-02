@@ -19,14 +19,15 @@ struct SchematicCanvas: View {
         case pan(CGSize)
         case marquee
         case zoomBox
-        case wire(PinAddress)  // press on a pin and drag to another pin
+        case wire(WireEnd)     // press on a pin (or, with the wire tool, a wire) and drag to a pin, wire or point
+        case bend(Int)         // drag a wire to bend it through a new junction
         case livePress(Int)    // a switch held while the live simulation runs
     }
 
     @State private var dragMode: DragMode?
     @State private var dragDelta: CGSize = .zero          // world units, for live move preview
     @State private var marquee: CGRect?
-    @State private var pendingWire: PinAddress?
+    @State private var pendingWire: WireEnd?
     @State private var hover: CGPoint?
     @State private var magnifyBase: CGFloat?
     @State private var didInitialFit = false
@@ -88,6 +89,7 @@ struct SchematicCanvas: View {
             .onChange(of: focused) { _, isFocused in if !isFocused { spaceHeld = false } }
             .onKeyPress(.escape) {
                 zoomArmed = false
+                if case .pin(let end)? = pendingWire { store.cancelWire(at: end) }
                 pendingWire = nil
                 tool = .select
                 store.select(component: nil)
@@ -113,6 +115,7 @@ struct SchematicCanvas: View {
             }
             // A half-drawn wire, an armed zoom box or a placement rotation never outlives its tool.
             .onChange(of: tool) { _, _ in
+                if case .pin(let end)? = pendingWire { store.cancelWire(at: end) }
                 pendingWire = nil
                 zoomArmed = false
                 placementRotation = 0
@@ -131,16 +134,10 @@ struct SchematicCanvas: View {
                 if let request { perform(request.command, size: geo.size) }
             }
             .onChange(of: store.fitToken) { _, _ in fitToContent(size: geo.size) }
-            .onChange(of: pendingWire) { _, address in
-                guard let address, let c = store.snapshot.component(address.component), address.pin < c.pins.count else {
-                    wireStart = nil
-                    return
-                }
-                wireStart = "\(c.ref).\(c.pins[address.pin].name)"
-            }
+            .onChange(of: pendingWire) { _, end in wireStart = end.flatMap { describe($0) } }
             .onChange(of: store.revision) { _, _ in
-                // Undo or delete can remove the part a wire was started from.
-                if let address = pendingWire, store.snapshot.component(address.component) == nil { pendingWire = nil }
+                // Undo or delete can remove the part or wire a wire was started from.
+                if let end = pendingWire, endPoint(end) == nil { pendingWire = nil }
             }
             // A design appearing at once (example, AI plan, paste) is fitted; placing the first part by hand is not.
             .onChange(of: store.snapshot.components.count) { old, new in
@@ -198,9 +195,10 @@ struct SchematicCanvas: View {
 
     private var pickTolerance: CGFloat { max(4, 7 / viewport.scale) }
 
-    private func pin(at world: CGPoint) -> (PinAddress, CGPoint)? {
+    /// The pin under `world`. Junctions count as pins when wiring; in the select tool they are dragged instead.
+    private func pin(at world: CGPoint, includeJunctions: Bool = true) -> (PinAddress, CGPoint)? {
         var best: (PinAddress, CGPoint, CGFloat)?
-        for c in store.snapshot.components {
+        for c in store.snapshot.components where includeJunctions || c.componentKind != .junction {
             for (i, p) in c.pins.enumerated() {
                 let d = hypot(CGFloat(p.x) - world.x, CGFloat(p.y) - world.y)
                 if d <= pickTolerance, d < (best?.2 ?? .greatestFiniteMagnitude) {
@@ -221,31 +219,67 @@ struct SchematicCanvas: View {
         return nil
     }
 
-    private static func wirePath(_ a: CGPoint, _ b: CGPoint) -> [CGPoint] {
-        if a.x == b.x || a.y == b.y { return [a, b] }
-        return [a, CGPoint(x: b.x, y: a.y), b]
-    }
+    private static func wirePath(_ a: CGPoint, _ b: CGPoint) -> [CGPoint] { WireGeometry.path(a, b) }
 
-    private func wire(at world: CGPoint) -> Int? {
+    /// The wire under `world` and the point on it (on the grid) where a T-junction would go.
+    private func wireHit(at world: CGPoint) -> (id: Int, point: CGPoint)? {
+        var best: (id: Int, point: CGPoint, distance: CGFloat)?
         for w in store.snapshot.wires {
-            let pts = Self.wirePath(w.start, w.end)
-            for i in 0..<(pts.count - 1) where distance(world, pts[i], pts[i + 1]) <= pickTolerance {
-                return w.id
+            let hit = WireGeometry.nearestPoint(on: w, to: world)
+            if hit.distance <= pickTolerance, hit.distance < (best?.distance ?? .greatestFiniteMagnitude) {
+                best = (w.id, hit.point, hit.distance)
             }
         }
-        return nil
+        return best.map { ($0.id, $0.point) }
     }
 
-    private func distance(_ p: CGPoint, _ a: CGPoint, _ b: CGPoint) -> CGFloat {
-        let dx = b.x - a.x, dy = b.y - a.y
-        let len2 = dx * dx + dy * dy
-        let t = len2 > 0 ? max(0, min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2)) : 0
-        return hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
-    }
+    private func wire(at world: CGPoint) -> Int? { wireHit(at: world)?.id }
 
     private func pinPosition(_ address: PinAddress) -> CGPoint? {
         guard let c = store.snapshot.component(address.component), address.pin < c.pins.count else { return nil }
         return c.pins[address.pin].point
+    }
+
+    /// World position of a wire end (nil once its pin or wire is gone).
+    private func endPoint(_ end: WireEnd) -> CGPoint? {
+        switch end {
+        case .pin(let address): return pinPosition(address)
+        case .wire(let id, let near):
+            return store.snapshot.wires.first { $0.id == id }.map { WireGeometry.nearestPoint(on: $0, to: near).point }
+        case .point(let p): return SchematicAutoLayout.snap(p)
+        }
+    }
+
+    /// "R1.2" for the editor's wiring hint.
+    private func describe(_ end: WireEnd) -> String? {
+        switch end {
+        case .pin(let address):
+            guard let c = store.snapshot.component(address.component), address.pin < c.pins.count else { return nil }
+            return c.componentKind == .junction ? "a wire corner" : "\(c.ref).\(c.pins[address.pin].name)"
+        case .wire: return "a wire"
+        case .point: return nil
+        }
+    }
+
+    /// Junctions act as pins while wiring (wire tool, or a wire already started); the select tool drags them.
+    private var wiringJunctions: Bool { tool == .wire || pendingWire != nil }
+
+    /// Where a wire released or clicked at `world` ends: a pin, else a wire (T-junction), else a free corner.
+    private func wireEnd(at world: CGPoint) -> WireEnd {
+        if let address = pin(at: world)?.0 { return .pin(address) }
+        if let hit = wireHit(at: world) { return .wire(hit.id, hit.point) }
+        return .point(world)
+    }
+
+    /// Finishes the wire from `start` at `end`; a free corner keeps drawing from there.
+    private func finishWire(from start: WireEnd, to end: WireEnd) {
+        if end == start { pendingWire = nil; return }  // the start clicked again: dropped
+        let reached = store.drawWire(from: start, to: end)
+        if case .point = end, let reached {
+            pendingWire = .pin(reached)
+        } else {
+            pendingWire = nil
+        }
     }
 
     // MARK: - Interaction
@@ -264,7 +298,7 @@ struct SchematicCanvas: View {
                 case .marquee, .zoomBox:
                     marquee = CGRect(origin: value.startLocation, size: .zero)
                         .union(CGRect(origin: value.location, size: .zero))
-                case .wire:
+                case .wire, .bend:
                     hover = value.location  // hover events stop during a drag; keep the rubber band on the cursor
                 case .livePress, nil:
                     break
@@ -298,13 +332,11 @@ struct SchematicCanvas: View {
                         store.moveComponents(ids, by: snapped)
                         store.selection.formUnion(ids)
                     case .wire(let start):
-                        if let end = pin(at: viewport.toWorld(value.location))?.0, end != start {
-                            store.connect(start, end)
-                            pendingWire = nil
-                        } else {
-                            // Released away from a pin: the wire stays started, click a pin to finish it.
-                            pendingWire = start
-                        }
+                        // Onto a pin or a wire (T-junction) finishes it; in empty space it turns a corner there.
+                        let end = wireEnd(at: viewport.toWorld(value.location))
+                        if end == start { pendingWire = start } else { finishWire(from: start, to: end) }
+                    case .bend(let id):
+                        store.bendWire(id, at: viewport.toWorld(value.location))
                     case .marquee:
                         if let rect = marquee {
                             let a = viewport.toWorld(rect.origin)
@@ -345,14 +377,18 @@ struct SchematicCanvas: View {
         switch tool {
         case .select, .wire:
             let shift = NSEvent.modifierFlags.contains(.shift)
-            if let address = pin(at: world)?.0 {
-                dragMode = .wire(pendingWire ?? address)
+            if let address = pin(at: world, includeJunctions: wiringJunctions)?.0 {
+                dragMode = .wire(pendingWire ?? .pin(address))
             } else if tool == .wire {
-                dragMode = .pan(viewport.offset)
+                // The wire tool starts a wire anywhere on another wire (a T-junction there).
+                if let hit = wireHit(at: world) { dragMode = .wire(pendingWire ?? .wire(hit.id, hit.point)) }
+                else { dragMode = .pan(viewport.offset) }
             } else if let id = component(at: world) {
                 // ⇧ adds on release (`click` toggles); selecting here as well would toggle it straight back off.
                 if !store.selection.contains(id) && !shift { store.select(component: id) }
                 dragMode = .move(shift ? store.selection.union([id]) : store.selection)
+            } else if !shift, pendingWire == nil, let hit = wireHit(at: world) {
+                dragMode = .bend(hit.id)  // pull a wire into shape
             } else if NSEvent.modifierFlags.contains(.shift) {
                 dragMode = .marquee
             } else {
@@ -375,20 +411,28 @@ struct SchematicCanvas: View {
         case .noConnect:
             if let address = pin(at: world)?.0 { store.toggleNoConnect(address) }
         case .select, .wire:
-            if let address = pin(at: world)?.0 {
+            if let address = pin(at: world, includeJunctions: wiringJunctions)?.0 {
                 if let start = pendingWire {
-                    if start != address { store.connect(start, address) }
-                    pendingWire = nil
+                    finishWire(from: start, to: .pin(address))
                 } else {
-                    pendingWire = address
+                    pendingWire = .pin(address)
                 }
                 return
             }
-            if pendingWire != nil {
-                pendingWire = nil
+            if let start = pendingWire {
+                if let hit = wireHit(at: world) {
+                    finishWire(from: start, to: .wire(hit.id, hit.point))  // T-junction on that wire
+                } else if tool == .wire || isJunction(start) {
+                    finishWire(from: start, to: .point(world))  // a corner; keep drawing
+                } else {
+                    pendingWire = nil  // select tool: a click in empty space drops the wire just started
+                }
                 return
             }
-            guard tool == .select else { return }
+            if tool == .wire {
+                if let hit = wireHit(at: world) { pendingWire = .wire(hit.id, hit.point) }
+                return
+            }
             if let id = component(at: world) {
                 // Clicking a switch's lever flips it (like the real thing); the rest of its body just selects.
                 if !NSEvent.modifierFlags.contains(.shift), let c = store.snapshot.component(id), c.componentKind == .switchSPST {
@@ -403,6 +447,11 @@ struct SchematicCanvas: View {
                 store.select(component: nil)
             }
         }
+    }
+
+    private func isJunction(_ end: WireEnd) -> Bool {
+        if case .pin(let address) = end { return store.snapshot.component(address.component)?.componentKind == .junction }
+        return false
     }
 
     // MARK: - Drawing
@@ -447,20 +496,36 @@ struct SchematicCanvas: View {
         }
 
         // Wires (orthogonal L-routes) and junctions.
+        let junctionIds = Set(snap.components.filter { $0.componentKind == .junction }.map(\.id))
+        var wiresAt: [Int: Int] = [:]  // junction id → wire ends on it
+        for w in snap.wires {
+            for end in [w.a, w.b] where junctionIds.contains(end.component) { wiresAt[end.component, default: 0] += 1 }
+        }
+        let bending: (id: Int, point: CGPoint)? = {
+            guard case .bend(let id) = dragMode, let h = hover else { return nil }
+            return (id, SchematicAutoLayout.snap(viewport.toWorld(h)))
+        }()
         var endpointCount: [String: (CGPoint, Int)] = [:]
         for w in snap.wires {
             guard let a = pinPoint(w.a), let b = pinPoint(w.b),
                   CGRect(origin: a, size: .zero).union(CGRect(origin: b, size: .zero)).insetBy(dx: -1, dy: -1).intersects(view)
+                    || bending?.id == w.id
             else { continue }
             var path = Path()
-            path.addLines(Self.wirePath(a, b))
+            if let bending, bending.id == w.id {  // the wire being pulled into shape
+                path.addLines(Self.wirePath(a, bending.point))
+                path.addLines(Self.wirePath(bending.point, b))
+            } else {
+                path.addLines(Self.wirePath(a, b))
+            }
             let selected = store.selectedWire == w.id
             if selected {
                 ctx.stroke(path.applying(screen), with: .color(Theme.blue.opacity(0.6)), lineWidth: 7)
             }
             ctx.stroke(path.applying(screen), with: .color(selected ? Theme.selection : Theme.wire),
                        style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
-            for p in [a, b] {
+            // Two wires on one pin make a T with the pin's lead (a dot); junctions draw their own.
+            for (end, p) in [(w.a, a), (w.b, b)] where !junctionIds.contains(end.component) {
                 let key = "\(Int(p.x))_\(Int(p.y))"
                 endpointCount[key] = (p, (endpointCount[key]?.1 ?? 0) + 1)
             }
@@ -469,9 +534,29 @@ struct SchematicCanvas: View {
             let s = entry.0.applying(screen)
             ctx.fill(Path(ellipseIn: CGRect(x: s.x - 3.5, y: s.y - 3.5, width: 7, height: 7)), with: .color(Theme.wire))
         }
+        // Junctions: a dot where three or more wires meet, nothing on a plain bend, an open circle on a loose end.
+        for c in snap.components where c.componentKind == .junction {
+            var p = c.position
+            if movingIds.contains(c.id) { p.x += delta.width; p.y += delta.height }
+            guard view.contains(p) else { continue }
+            let s = p.applying(screen)
+            let count = wiresAt[c.id] ?? 0
+            if store.selection.contains(c.id) {
+                ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 7, y: s.y - 7, width: 14, height: 14)), with: .color(Theme.selection), lineWidth: 2)
+            }
+            if count >= 3 {
+                ctx.fill(Path(ellipseIn: CGRect(x: s.x - 4, y: s.y - 4, width: 8, height: 8)), with: .color(Theme.wire))
+            } else if count <= 1 {
+                ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 3.5, y: s.y - 3.5, width: 7, height: 7)),
+                           with: .color(Theme.unconnectedPin), lineWidth: 1.4)
+            } else if let h = hover, tool == .select, hypot(h.x - s.x, h.y - s.y) < 10 {
+                // A bend shows a handle under the pointer: drag it to reshape the wire.
+                ctx.stroke(Path(CGRect(x: s.x - 3.5, y: s.y - 3.5, width: 7, height: 7)), with: .color(Theme.skyBlue), lineWidth: 1.4)
+            }
+        }
 
         // Components.
-        for c in snap.components {
+        for c in snap.components where c.componentKind != .junction {
             var position = c.position
             if movingIds.contains(c.id) { position.x += delta.width; position.y += delta.height }
             let local = SchematicSymbols.transform(position: position, rotation: c.rotation)
@@ -636,10 +721,9 @@ struct SchematicCanvas: View {
         }
 
         // Rubber-band wire.
-        let wireFrom: PinAddress? = { if case .wire(let start) = dragMode { return start } else { return pendingWire } }()
-        if let start = wireFrom, let a = pinPosition(start), let h = hover {
-            var b = viewport.toWorld(h)
-            if let snapPoint = pin(at: b)?.1 { b = snapPoint }
+        let wireFrom: WireEnd? = { if case .wire(let start) = dragMode { return start } else { return pendingWire } }()
+        if let start = wireFrom, let a = endPoint(start), let h = hover {
+            let b = endPoint(wireEnd(at: viewport.toWorld(h))) ?? viewport.toWorld(h)
             var path = Path()
             path.addLines(Self.wirePath(a, b))
             ctx.stroke(path.applying(screen), with: .color(Theme.skyBlue),
@@ -657,10 +741,17 @@ struct SchematicCanvas: View {
                        style: StrokeStyle(lineWidth: 1.4, dash: [4, 3]))
         }
 
-        // Hover highlight on pins.
-        if let h = hover, tool != .pan, let p = pin(at: viewport.toWorld(h))?.1 {
-            let s = p.applying(screen)
-            ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 7, y: s.y - 7, width: 14, height: 14)), with: .color(Theme.skyBlue), lineWidth: 1.5)
+        // Hover highlight on pins, and on the spot of a wire where a T-junction would go while wiring.
+        if let h = hover, tool != .pan {
+            let world = viewport.toWorld(h)
+            if let p = pin(at: world, includeJunctions: wiringJunctions)?.1 {
+                let s = p.applying(screen)
+                ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 7, y: s.y - 7, width: 14, height: 14)), with: .color(Theme.skyBlue), lineWidth: 1.5)
+            } else if wiringJunctions || wireFrom != nil, let hit = wireHit(at: world) {
+                let s = hit.point.applying(screen)
+                ctx.fill(Path(ellipseIn: CGRect(x: s.x - 4, y: s.y - 4, width: 8, height: 8)), with: .color(Theme.skyBlue))
+                ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 8, y: s.y - 8, width: 16, height: 16)), with: .color(Theme.skyBlue), lineWidth: 1.2)
+            }
         }
 
         if let m = marquee {

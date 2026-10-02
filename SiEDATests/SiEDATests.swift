@@ -1687,7 +1687,7 @@ final class PowerSourceTests: XCTestCase {
     func testPowerSourcesLeadTheDevicePicker() {
         XCTAssertEqual(ComponentKind.pickerCategories.first, "Power Sources")
         XCTAssertEqual(Array(ComponentKind.builtIn.prefix(4)), [.battery, .voltageSource, .acSource, .currentSource])
-        XCTAssertEqual(Set(ComponentKind.builtIn), Set(ComponentKind.allCases.filter { $0 != .custom }))
+        XCTAssertEqual(Set(ComponentKind.builtIn), Set(ComponentKind.allCases.filter { $0 != .custom && $0 != .junction }))
         for kind in ComponentKind.builtIn {
             XCTAssertTrue(ComponentKind.pickerCategories.contains(kind.category), "\(kind) has no picker section")
         }
@@ -1724,5 +1724,101 @@ final class WorkspaceOrderTests: XCTestCase {
                        ["Super Intelligence", "Schematic", "PCB Layout", "3D Viewer", "Simulation", "Design Checks", "Library"])
         XCTAssertEqual(Workspace.visible(aiEnabled: false).first, .schematic)
         XCTAssertEqual(Workspace.visible(aiEnabled: false).last, .library)
+    }
+}
+
+@MainActor
+final class WireJunctionTests: XCTestCase {
+    private func pin(_ id: Int, _ i: Int) -> PinAddress { PinAddress(component: id, pin: i) }
+
+    /// The user's circuit: 9 V battery → 10 kΩ → red LED, with C1 placed beside the LED and dropped onto the wires.
+    private func circuit(_ store: DesignStore) -> (bt: Int, r1: Int, d1: Int, c1: Int, top: Int, bottom: Int) {
+        let bt = store.addComponent(.battery, at: .zero)
+        let r1 = store.addComponent(.resistor, at: CGPoint(x: 100, y: -60))
+        let d1 = store.addComponent(.led, at: CGPoint(x: 300, y: 0), rotation: 90)
+        let c1 = store.addComponent(.capacitor, at: CGPoint(x: 200, y: 0), rotation: 90)
+        let g = store.addComponent(.ground, at: CGPoint(x: 0, y: 100))
+        XCTAssertTrue(store.connect(pin(bt, 0), pin(r1, 0)))
+        XCTAssertTrue(store.connect(pin(r1, 1), pin(d1, 0)))
+        XCTAssertTrue(store.connect(pin(d1, 1), pin(bt, 1)))
+        XCTAssertTrue(store.connect(pin(bt, 1), pin(g, 0)))
+        let top = store.snapshot.wires.first { $0.a == pin(r1, 1) }!.id
+        let bottom = store.snapshot.wires.first { $0.a == pin(d1, 1) }!.id
+        return (bt, r1, d1, c1, top, bottom)
+    }
+
+    private func net(_ store: DesignStore, _ address: PinAddress) -> Int {
+        store.snapshot.component(address.component)!.pins[address.pin].net
+    }
+
+    func testComponentsConnectInParallelOnExistingWires() throws {
+        let store = DesignStore()
+        let c = circuit(store)
+        // The bottom wire passes straight over C1.2, which is still not connected: drop C1's pins onto the wires.
+        XCTAssertEqual(store.snapshot.component(c.c1)?.pins[1].connected, false)
+        let t1 = try XCTUnwrap(store.drawWire(from: .pin(pin(c.c1, 0)), to: .wire(c.top, CGPoint(x: 203, y: -58))))
+        let wires = store.snapshot.wires.count
+        let t2 = try XCTUnwrap(store.drawWire(from: .pin(pin(c.c1, 1)), to: .wire(c.bottom, CGPoint(x: 198, y: 31))))
+        XCTAssertEqual(store.snapshot.component(t1.component)?.componentKind, .junction)
+        XCTAssertEqual(store.snapshot.component(t1.component)?.position, CGPoint(x: 200, y: -60))  // on the grid, on the wire
+        XCTAssertEqual(store.snapshot.component(t2.component)?.position, CGPoint(x: 200, y: 30))
+
+        XCTAssertEqual(net(store, pin(c.c1, 0)), net(store, pin(c.d1, 0)))
+        XCTAssertEqual(net(store, pin(c.c1, 1)), net(store, pin(c.d1, 1)))
+        XCTAssertTrue(store.snapshot.component(c.c1)!.pins.allSatisfy(\.connected))
+        XCTAssertFalse(store.engine.runERC().contains { $0.code == "ERC_UNCONNECTED_PIN" || $0.code == "ERC_DANGLING_WIRE" })
+
+        // One T-junction is one undo step: the split and the new wire go together.
+        store.undo()
+        XCTAssertEqual(store.snapshot.wires.count, wires)
+        XCTAssertNil(store.snapshot.component(t2.component))
+        XCTAssertEqual(store.snapshot.component(c.c1)?.pins[1].connected, false)
+
+        // Plans (AI context) never see junctions: C1 is connected pin to pin on the same nets.
+        store.drawWire(from: .pin(pin(c.c1, 1)), to: .wire(c.bottom, CGPoint(x: 200, y: 30)))
+        let plan = DesignPlanCompiler.plan(from: store.snapshot)
+        XCTAssertFalse(plan.components.contains { $0.kind == "junction" })
+        let c1Ref = store.snapshot.component(c.c1)!.ref, d1Ref = store.snapshot.component(c.d1)!.ref
+        let links = plan.connections.flatMap { [$0.from, $0.to] }
+        XCTAssertTrue(links.contains("\(c1Ref).1") && links.contains("\(c1Ref).2") && links.contains("\(d1Ref).A"))
+    }
+
+    func testWiresTurnCornersBendAndStraighten() throws {
+        let store = DesignStore()
+        let c = circuit(store)
+        // Wire tool: from C1.1 out to a free corner, then on to R1.2 (one wire with a bend point).
+        let corner = try XCTUnwrap(store.drawWire(from: .pin(pin(c.c1, 0)), to: .point(CGPoint(x: 198, y: -102))))
+        XCTAssertEqual(store.snapshot.component(corner.component)?.position, CGPoint(x: 200, y: -100))
+        XCTAssertNotNil(store.drawWire(from: .pin(corner), to: .pin(pin(c.r1, 1))))
+        XCTAssertEqual(net(store, pin(c.c1, 0)), net(store, pin(c.r1, 1)))
+
+        // A wire abandoned after a corner leaves nothing behind.
+        let loose = try XCTUnwrap(store.drawWire(from: .pin(pin(c.c1, 1)), to: .point(CGPoint(x: 250, y: 150))))
+        store.cancelWire(at: loose)
+        XCTAssertNil(store.snapshot.component(loose.component))
+        XCTAssertEqual(store.snapshot.component(c.c1)?.pins[1].connected, false)
+
+        // Dragging a wire bends it through a junction that stays selected (drag it further); delete straightens it.
+        store.bendWire(c.top, at: CGPoint(x: 252, y: -118))
+        let bend = try XCTUnwrap(store.selection.first)
+        XCTAssertEqual(store.snapshot.component(bend)?.position, CGPoint(x: 250, y: -120))
+        store.moveComponents([bend], by: CGSize(width: 0, height: -20))
+        XCTAssertEqual(store.snapshot.component(bend)?.position, CGPoint(x: 250, y: -140))
+        XCTAssertEqual(net(store, pin(c.r1, 1)), net(store, pin(c.d1, 0)))
+        store.deleteSelection()
+        XCTAssertNil(store.snapshot.component(bend))
+        XCTAssertEqual(net(store, pin(c.r1, 1)), net(store, pin(c.d1, 0)))
+        XCTAssertTrue(store.snapshot.components.filter { $0.componentKind == .junction }.allSatisfy { j in
+            store.snapshot.wires.filter { $0.a.component == j.id || $0.b.component == j.id }.count >= 2
+        })
+    }
+
+    func testTJunctionPointSnapsOntoTheWireRoute() {
+        // R1.2 (130, -60) → D1.A (300, -30) is drawn as an L: along y = -60, then down x = 300.
+        let wire = SnapWire(id: 1, a: PinAddress(component: 1, pin: 1), b: PinAddress(component: 2, pin: 0),
+                            ax: 130, ay: -60, bx: 300, by: -30, net: 0)
+        XCTAssertEqual(WireGeometry.nearestPoint(on: wire, to: CGPoint(x: 207, y: -55)).point, CGPoint(x: 210, y: -60))
+        XCTAssertEqual(WireGeometry.nearestPoint(on: wire, to: CGPoint(x: 304, y: -44)).point, CGPoint(x: 300, y: -40))
+        XCTAssertEqual(WireGeometry.nearestPoint(on: wire, to: CGPoint(x: 100, y: -60)).point, CGPoint(x: 130, y: -60))
     }
 }

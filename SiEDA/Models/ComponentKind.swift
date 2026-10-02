@@ -21,6 +21,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
     case custom = 16  // user-defined part (datasheet import); see CustomPartInfo
     case battery = 17   // DC cell / pack (a voltage source with a battery symbol)
     case acSource = 18  // AC mains / transformer secondary
+    case junction = 19  // wire node: T-junction or bend point (placed by the wiring tools, not the picker)
 
     var id: Int { rawValue }
 
@@ -58,6 +59,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .custom: return "Custom Part"
         case .battery: return "Battery"
         case .acSource: return "AC Source"
+        case .junction: return "Junction"
         }
     }
 
@@ -83,6 +85,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .custom: return "custom"
         case .battery: return "battery"
         case .acSource: return "ac_source"
+        case .junction: return "junction"
         }
     }
 
@@ -107,6 +110,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .custom: return ""
         case .battery: return "9"
         case .acSource: return "SIN(0 17 50)"
+        case .junction: return ""
         }
     }
 
@@ -122,6 +126,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .opAmp: return ["IN+", "IN-", "OUT"]
         case .ic8: return ["1", "2", "3", "4", "5", "6", "7", "8"]
         case .netLabel: return ["N"]
+        case .junction: return ["J"]
         case .custom: return []  // defined per part
         }
     }
@@ -147,6 +152,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .custom: return "cpu.fill"
         case .battery: return "battery.75percent"
         case .acSource: return "powerplug"
+        case .junction: return "smallcircle.filled.circle"
         }
     }
 
@@ -155,7 +161,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .battery, .voltageSource, .acSource, .currentSource: return "Power Sources"
         case .resistor, .capacitor, .inductor, .fuse: return "Passives"
         case .diode, .led, .npn, .nmos, .opAmp, .ic8: return "Semiconductors"
-        case .ground, .netLabel: return "Ground & Nets"
+        case .ground, .netLabel, .junction: return "Ground & Nets"
         case .switchSPST, .connector: return "Electromechanical"
         case .custom: return "Custom Parts"
         }
@@ -183,6 +189,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .custom: return "Part number or value"
         case .battery: return "Cell / pack voltage, e.g. 1.5, 3.7 (Li-ion), 9, 12"
         case .acSource: return "SIN(offset peak freq): SIN(0 17 50) = 12 V rms 50 Hz, SIN(0 325 50) = 230 V mains"
+        case .junction: return "—"
         }
     }
 
@@ -197,14 +204,15 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
     }
 
     /// Kinds without a PCB footprint.
-    var isVirtual: Bool { self == .ground || self == .netLabel }
+    var isVirtual: Bool { self == .ground || self == .netLabel || self == .junction }
 
     /// Accepts plan names plus common aliases an LLM might produce.
     static func fromPlanName(_ raw: String) -> ComponentKind? {
         let key = raw.lowercased()
             .replacingOccurrences(of: "-", with: "_")
             .replacingOccurrences(of: " ", with: "_")
-        if let exact = ComponentKind.allCases.first(where: { $0.planName == key }) { return exact }
+        // Junctions come from drawing wires, not from plans (plans connect pins directly).
+        if let exact = ComponentKind.allCases.first(where: { $0.planName == key && $0 != .junction }) { return exact }
         switch key {
         case "r", "res": return .resistor
         case "c", "cap": return .capacitor
