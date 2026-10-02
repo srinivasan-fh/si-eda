@@ -39,7 +39,7 @@ std::string Schematic::nextRef(const std::string& prefix) const {
 
 std::string Schematic::nextRef(ComponentKind kind) const {
     const ComponentDef& def = Library::instance().component(kind);
-    if (kind == ComponentKind::Ground || kind == ComponentKind::NetLabel) {
+    if (isNetSymbolKind(kind)) {
         int n = 1;
         for (const auto& c : components_)
             if (c.kind == kind) ++n;
@@ -136,12 +136,62 @@ bool Schematic::setPinNoConnect(int componentId, int pin, bool nc) {
 bool Schematic::removeComponent(int id) {
     auto it = std::find_if(components_.begin(), components_.end(), [&](const Component& c) { return c.id == id; });
     if (it == components_.end()) return false;
+    // Deleting a bend point (a junction joining exactly two wires) keeps the connection: the wire is straightened.
+    std::vector<PinRef> heal;
+    if (it->kind == ComponentKind::Junction) {
+        for (const auto& w : wires_) {
+            if (w.a.component == id) heal.push_back(w.b);
+            else if (w.b.component == id) heal.push_back(w.a);
+        }
+        if (heal.size() != 2) heal.clear();
+    }
     components_.erase(it);
     wires_.erase(std::remove_if(wires_.begin(), wires_.end(),
                                 [&](const Wire& w) { return w.a.component == id || w.b.component == id; }),
                  wires_.end());
+    if (heal.size() == 2) connect(heal[0], heal[1]);
     invalidate();
     return true;
+}
+
+int Schematic::wireCount(int componentId) const {
+    int n = 0;
+    for (const auto& w : wires_)
+        n += (w.a.component == componentId) + (w.b.component == componentId);
+    return n;
+}
+
+int Schematic::splitWire(int wireId, Vec2 position) {
+    auto it = std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == wireId; });
+    if (it == wires_.end()) return -1;
+    const Wire old = *it;
+    for (PinRef end : {old.a, old.b})  // splitting on a junction end reuses that junction
+        if (const Component* c = find(end.component); c && c->kind == ComponentKind::Junction &&
+                                                      c->position.x == position.x && c->position.y == position.y)
+            return c->id;
+    int j = addComponent(ComponentKind::Junction, "", position);
+    wires_.erase(std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == wireId; }));
+    connect(old.a, {j, 0});
+    connect({j, 0}, old.b);
+    invalidate();
+    return j;
+}
+
+int Schematic::removeDanglingJunctions(int junctionId) {
+    int removed = 0;
+    for (int id = junctionId; id >= 0;) {
+        const Component* c = find(id);
+        if (!c || c->kind != ComponentKind::Junction || wireCount(id) > 1) break;
+        int next = -1;
+        for (const auto& w : wires_) {
+            if (w.a.component == id) next = w.b.component;
+            else if (w.b.component == id) next = w.a.component;
+        }
+        removeComponent(id);
+        ++removed;
+        id = next;
+    }
+    return removed;
 }
 
 bool Schematic::moveComponent(int id, Vec2 position) {
@@ -202,7 +252,13 @@ int Schematic::connect(PinRef a, PinRef b) {
 bool Schematic::removeWire(int id) {
     auto it = std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == id; });
     if (it == wires_.end()) return false;
+    const Wire old = *it;
     wires_.erase(it);
+    // A junction left with no wires is gone with them.
+    for (int end : {old.a.component, old.b.component}) {
+        const Component* c = find(end);
+        if (c && c->kind == ComponentKind::Junction && wireCount(end) == 0) removeComponent(end);
+    }
     invalidate();
     return true;
 }
@@ -350,8 +406,12 @@ void Schematic::rebuildNets() const {
         }
     }
 
+    // Junctions only join wires: they are not net members, and a net exists only where a real pin is.
+    std::vector<bool> isJunction(pins.size());
+    for (size_t i = 0; i < pins.size(); ++i) isJunction[i] = find(pins[i].component)->kind == ComponentKind::Junction;
     std::map<int, int> rootToNet;
     for (size_t i = 0; i < pins.size(); ++i) {
+        if (isJunction[i]) continue;
         int root = uf.find(static_cast<int>(i));
         auto it = rootToNet.find(root);
         int net;
@@ -366,6 +426,11 @@ void Schematic::rebuildNets() const {
         }
         nets_[static_cast<size_t>(net)].pins.push_back(pins[i]);
         pinToNet_[pins[i]] = net;
+    }
+    for (size_t i = 0; i < pins.size(); ++i) {
+        if (!isJunction[i]) continue;
+        auto it = rootToNet.find(uf.find(static_cast<int>(i)));
+        if (it != rootToNet.end()) pinToNet_[pins[i]] = it->second;
     }
 
     int autoCounter = 1;
@@ -431,7 +496,7 @@ std::vector<RuleViolation> Schematic::runERC() const {
     // Duplicate reference designators.
     std::map<std::string, std::vector<int>> refs;
     for (const auto& c : components_)
-        if (c.kind != ComponentKind::Ground && c.kind != ComponentKind::NetLabel) refs[c.ref].push_back(c.id);
+        if (!isNetSymbolKind(c.kind)) refs[c.ref].push_back(c.id);
     for (const auto& [ref, ids] : refs)
         if (ids.size() > 1)
             add(Severity::Error, "ERC_DUPLICATE_REF", "Reference designator " + ref + " is used " +
@@ -446,6 +511,12 @@ std::vector<RuleViolation> Schematic::runERC() const {
             components_.front().position);
 
     for (const auto& c : components_) {
+        if (c.kind == ComponentKind::Junction) {
+            if (wireCount(c.id) < 2)
+                add(Severity::Warning, "ERC_DANGLING_WIRE", "A wire ends in empty space (not on a pin or another wire).",
+                    {c.id}, c.position);
+            continue;
+        }
         const auto& pins = c.def().pins;
         int unconnected = 0;
         std::vector<std::string> openPins;

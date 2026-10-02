@@ -241,6 +241,26 @@ int32_t sieda_connect(SiedaProject* project, int32_t ca, int32_t pa, int32_t cb,
     }
 }
 
+int32_t sieda_split_wire(SiedaProject* project, int32_t wire_id, double x, double y) {
+    if (!project) return -1;
+    try {
+        int id = project->project.schematic.splitWire(wire_id, {x, y});
+        if (id >= 0) project->project.schematicChanged();
+        return id;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_remove_dangling_junctions(SiedaProject* project, int32_t junction_id) {
+    if (!project) return 0;
+    return guarded([&] {
+        int n = project->project.schematic.removeDanglingJunctions(junction_id);
+        if (n > 0) project->project.schematicChanged();
+        return n;
+    });
+}
+
 int32_t sieda_remove_wire(SiedaProject* project, int32_t id) {
     if (!project) return 0;
     return guarded([&] {

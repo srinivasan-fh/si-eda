@@ -2197,3 +2197,82 @@ TEST(battery_and_ac_sources) {
         if (v.code == "ERC_SHORTED_SOURCE") shortFound = true;
     CHECK(shortFound);
 }
+
+TEST(wire_junctions) {
+    // The schematic a user draws: 9 V battery → 10 kΩ → red LED, then a capacitor added in parallel with the LED by
+    // dropping its pins onto the existing wires (T-junctions), not onto other pins.
+    Project p;
+    auto& s = p.schematic;
+    int bt = s.addComponent(ComponentKind::Battery, "9", {0, 0});
+    int r1 = s.addComponent(ComponentKind::Resistor, "10k", {100, -60});
+    int d1 = s.addComponent(ComponentKind::LED, "Red", {300, 0}, 90);
+    int c1 = s.addComponent(ComponentKind::Capacitor, "100n", {200, 0}, 90);
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    wire(s, bt, "+", r1, "1");
+    int top = s.connect({r1, 1}, {d1, 0});
+    int bottom = s.connect({d1, 1}, {bt, 1});
+    wire(s, bt, "-", g, "GND");
+    CHECK(top >= 0 && bottom >= 0);
+
+    int jt = s.splitWire(top, {200, -60});
+    int jb = s.splitWire(bottom, {200, 60});
+    CHECK(jt >= 0 && jb >= 0 && jt != jb);
+    CHECK(s.find(jt)->kind == ComponentKind::Junction && s.find(jt)->ref[0] == '#');
+    CHECK(s.connect({c1, 0}, {jt, 0}) >= 0);
+    CHECK(s.connect({c1, 1}, {jb, 0}) >= 0);
+    CHECK(s.wireCount(jt) == 3 && s.wireCount(jb) == 3);
+    // Splitting at an existing junction end reuses it.
+    CHECK(s.splitWire(s.wires().back().id, {200, 60}) == jb);
+
+    // C1 is in parallel with D1; junctions join nets but are not net members.
+    CHECK(s.netOf({c1, 0}) == s.netOf({d1, 0}) && s.netOf({c1, 0}) == s.netOf({r1, 1}));
+    CHECK(s.netOf({c1, 1}) == s.netOf({d1, 1}) && s.netOf({c1, 1}) == s.groundNet());
+    CHECK(s.netOf({jt, 0}) == s.netOf({c1, 0}));
+    for (const auto& n : s.nets())
+        for (const auto& pin : n.pins) CHECK(s.find(pin.component)->kind != ComponentKind::Junction);
+    for (const auto& v : s.runERC()) {
+        CHECK(v.code != "ERC_UNCONNECTED_PIN" && v.code != "ERC_DANGLING_WIRE" && v.code != "ERC_DUPLICATE_REF");
+    }
+    p.schematicChanged();
+    DcResult dc = Simulator(s).dcOperatingPoint();
+    CHECK(dc.converged);
+    double vled = netV(s, dc, d1, "A") - netV(s, dc, d1, "K");
+    CHECK(std::fabs(netV(s, dc, c1, "1") - netV(s, dc, c1, "2") - vled) < 1e-6 && vled > 1.5 && vled < 2.2);
+    CHECK(exportSpiceNetlist(s, "j").find(s.find(jt)->ref) == std::string::npos);
+    CHECK(exportBomCsv(s).find("Junction") == std::string::npos);
+
+    // Round trip through the project file.
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.schematic.find(jt) && q.schematic.find(jt)->kind == ComponentKind::Junction);
+    CHECK(q.schematic.netOf({c1, 0}) == q.schematic.netOf({d1, 0}));
+
+    // A bend point: move it anywhere, delete it and the wire straightens (connection kept).
+    int r1d1 = -1;
+    for (const auto& w : s.wires())
+        if ((w.a.component == jt && w.b.component == d1) || (w.b.component == jt && w.a.component == d1)) r1d1 = w.id;
+    int bend = s.splitWire(r1d1, {250, -60});
+    CHECK(s.moveComponent(bend, {250, -100}));
+    CHECK(s.netOf({bend, 0}) == s.netOf({d1, 0}));
+    CHECK(s.removeComponent(bend));
+    CHECK(s.netOf({d1, 0}) == s.netOf({c1, 0}));
+
+    // Deleting C1's wire leaves its junction as a bend point; deleting the last wires removes the junction.
+    int cw = -1;
+    for (const auto& w : s.wires())
+        if (w.a.component == c1 && w.a.pin == 0) cw = w.id;
+    CHECK(s.removeWire(cw));
+    CHECK(s.find(jt) && s.wireCount(jt) == 2);
+
+    // A wire abandoned in empty space is a dangling junction chain: reported, then cleaned up.
+    int j1 = s.addComponent(ComponentKind::Junction, "", {200, -150});
+    int j2 = s.addComponent(ComponentKind::Junction, "", {260, -150});
+    s.connect({c1, 0}, {j1, 0});
+    s.connect({j1, 0}, {j2, 0});
+    bool dangling = false;
+    for (const auto& v : s.runERC())
+        if (v.code == "ERC_DANGLING_WIRE") dangling = true;
+    CHECK(dangling);
+    CHECK(s.netOf({c1, 0}) >= 0 && s.nets()[static_cast<size_t>(s.netOf({c1, 0}))].pins.size() == 1);  // still open
+    CHECK(s.removeDanglingJunctions(j2) == 2);
+    CHECK(!s.find(j1) && !s.find(j2) && s.wireCount(c1) == 1);
+}

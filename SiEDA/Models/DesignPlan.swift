@@ -516,7 +516,8 @@ enum DesignPlanCompiler {
     /// Converts the current schematic back into a plan (context for refinement requests).
     static func plan(from snapshot: DesignSnapshot) -> DesignPlan {
         let byId = Dictionary(uniqueKeysWithValues: snapshot.components.map { ($0.id, $0) })
-        let components = snapshot.components.map { c -> PlannedComponent in
+        let junctions = Set(snapshot.components.filter { $0.componentKind == .junction }.map(\.id))
+        let components = snapshot.components.filter { !junctions.contains($0.id) }.map { c -> PlannedComponent in
             let kind = snapshot.customPart(for: c).map(\.planKind) ?? c.componentKind.planName
             return PlannedComponent(ref: c.ref, kind: kind, value: c.value, x: c.x, y: c.y, rotation: c.rotation)
         }
@@ -525,10 +526,35 @@ enum DesignPlanCompiler {
             if let part = snapshot.customPart(for: c), pin < part.symbol.pins.count { return part.symbol.pins[pin].number }
             return c.pins[pin].name
         }
-        let connections: [PlannedConnection] = snapshot.wires.compactMap { wire in
-            guard let a = byId[wire.a.component], let b = byId[wire.b.component],
-                  wire.a.pin < a.pins.count, wire.b.pin < b.pins.count else { return nil }
-            return PlannedConnection(from: "\(a.ref).\(pinLabel(a, wire.a.pin))", to: "\(b.ref).\(pinLabel(b, wire.b.pin))")
+        func label(_ address: PinAddress) -> String? {
+            guard let c = byId[address.component], address.pin < c.pins.count else { return nil }
+            return "\(c.ref).\(pinLabel(c, address.pin))"
+        }
+        var connections: [PlannedConnection] = snapshot.wires.compactMap { wire in
+            guard !junctions.contains(wire.a.component), !junctions.contains(wire.b.component),
+                  let a = label(wire.a), let b = label(wire.b) else { return nil }
+            return PlannedConnection(from: a, to: b)
+        }
+        // Plans connect pins directly: the pins joined through a cluster of junctions are chained pin to pin.
+        var neighbours: [Int: [PinAddress]] = [:]
+        for wire in snapshot.wires {
+            if junctions.contains(wire.a.component) { neighbours[wire.a.component, default: []].append(wire.b) }
+            if junctions.contains(wire.b.component) { neighbours[wire.b.component, default: []].append(wire.a) }
+        }
+        var visited = Set<Int>()
+        for start in junctions.sorted() where !visited.contains(start) {
+            var stack = [start], pins: [String] = []
+            visited.insert(start)
+            while let j = stack.popLast() {
+                for n in neighbours[j] ?? [] {
+                    if junctions.contains(n.component) {
+                        if visited.insert(n.component).inserted { stack.append(n.component) }
+                    } else if let text = label(n), !pins.contains(text) {
+                        pins.append(text)
+                    }
+                }
+            }
+            for i in pins.indices.dropFirst() { connections.append(PlannedConnection(from: pins[i - 1], to: pins[i])) }
         }
         var noConnect: [String] = []
         for c in snapshot.components {

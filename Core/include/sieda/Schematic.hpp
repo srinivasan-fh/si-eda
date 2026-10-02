@@ -77,6 +77,7 @@ public:
                            const std::string& ref = "");
     /// Switches every instance of `oldId` to `newId`, re-mapping wires by pin number then name. Returns count.
     int replaceCustomPart(const std::string& oldId, const std::string& newId);
+    /// Removes a component and its wires. Removing a junction that joins exactly two wires keeps them connected.
     bool removeComponent(int id);
     bool moveComponent(int id, Vec2 position);
     bool rotateComponent(int id, int deltaDeg = 90);
@@ -88,7 +89,15 @@ public:
     bool setFirmware(int id, const std::string& hex, const std::string& name, double clockHz);
 
     int connect(PinRef a, PinRef b);  // returns wire id, or -1 if invalid / duplicate
+    /// Removes a wire; a junction left without wires is removed with it.
     bool removeWire(int id);
+    /// Splits a wire at `position` with a new junction (T-junction or bend point) and returns the junction's id:
+    /// the two halves keep the connection and further wires can end on the junction. -1 for an unknown wire.
+    int splitWire(int wireId, Vec2 position);
+    /// Removes a chain of dangling junctions starting at `junctionId` (a wire abandoned half-way). Returns count.
+    int removeDanglingJunctions(int junctionId);
+    /// Number of wire ends on the component's pins.
+    int wireCount(int componentId) const;
     void clear();
 
     const std::vector<Component>& components() const { return components_; }

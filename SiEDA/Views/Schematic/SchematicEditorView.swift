@@ -167,10 +167,13 @@ struct SchematicEditorView: View {
 
     /// Contextual instruction for the active tool (Photoshop-style options bar hint).
     private var hint: String {
-        if let wireStart { return "Wiring from \(wireStart) — click another pin to connect · Esc cancels" }
+        if let wireStart {
+            return "Wiring from \(wireStart) — click a pin or any wire (T-junction) to connect"
+                + (tool == .wire ? " · click empty space for a corner" : "") + " · Esc cancels"
+        }
         switch tool {
-        case .select: return "Click a pin to wire · drag parts to move · Space or R rotates · ⇧-drag box-selects · Space+drag, empty-space drag or middle/right-drag pans · scroll/pinch zooms · Home fits"
-        case .wire: return "Click a pin, then a second pin to connect them"
+        case .select: return "Click a pin to wire · drag a wire to bend it · drag parts or junctions to move · Space or R rotates · ⇧-drag box-selects · Space+drag, empty-space drag or middle/right-drag pans · scroll/pinch zooms · Home fits"
+        case .wire: return "Start on a pin or any wire · click empty space for corners · end on a pin or a wire (T-junction joins it in parallel) · Esc cancels"
         case .noConnect: return "Click a pin to mark it intentionally unconnected (click again to clear) · ERC stops reporting it"
         case .pan: return "Drag, scroll or arrow keys pan · pinch, ⌘-scroll or +/− zoom · Z zoom to area · Home fits"
         case .place, .placeCustom: return "Click to place (repeats) · Space or R rotates before placing · Esc returns to Select"
