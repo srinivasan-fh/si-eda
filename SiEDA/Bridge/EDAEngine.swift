@@ -164,11 +164,7 @@ final class EDAEngine: @unchecked Sendable {
     /// Writes the complete fabrication package (Gerbers, drills, job file, IPC netlist, paste, assembly files, notes and
     /// the Gerber zip) into `folder`, naming the files after `base`.
     func writeFabricationPackage(to folder: URL, base: String) -> FabricationPackageResult {
-        let json = withHandle { handle -> String? in
-            guard let raw = sieda_write_fabrication_package(handle, folder.path, base) else { return nil }
-            defer { sieda_free_string(raw) }
-            return String(cString: raw)
-        }
+        let json = withHandle { Self.take(sieda_write_fabrication_package($0, folder.path, base)) }
         return Self.decode(FabricationPackageResult.self, from: json)
             ?? FabricationPackageResult(ok: false, files: [], error: "The core returned no result")
     }
