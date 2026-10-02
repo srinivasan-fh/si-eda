@@ -79,7 +79,12 @@ std::string exportSpiceNetlist(const Schematic& sch, const std::string& title) {
                 o << "R" << c.ref << " " << n(0) << " " << n(1) << " " << (on ? "0.01" : "1G") << " ; switch\n";
                 break;
             }
-            case ComponentKind::VoltageSource: o << c.ref << " " << n(0) << " " << n(1) << " " << spiceSource(c.value) << "\n"; break;
+            case ComponentKind::VoltageSource:
+            case ComponentKind::Battery:
+            case ComponentKind::ACSource:  // SPICE voltage sources are named V…: BT1 → VBT1
+                o << (c.ref.empty() || (c.ref[0] != 'V' && c.ref[0] != 'v') ? "V" : "") << c.ref << " " << n(0) << " "
+                  << n(1) << " " << spiceSource(c.value) << "\n";
+                break;
             case ComponentKind::CurrentSource:
                 // SPICE current flows from n+ through the source to n-; ours leaves "+", so swap nodes.
                 o << c.ref << " " << n(1) << " " << n(0) << " " << spiceSource(c.value) << "\n";

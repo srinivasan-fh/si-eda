@@ -19,11 +19,23 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
     case fuse = 14
     case netLabel = 15
     case custom = 16  // user-defined part (datasheet import); see CustomPartInfo
+    case battery = 17   // DC cell / pack (a voltage source with a battery symbol)
+    case acSource = 18  // AC mains / transformer secondary
 
     var id: Int { rawValue }
 
-    /// Kinds offered in the built-in device picker (custom parts are listed from the project library).
-    static var builtIn: [ComponentKind] { allCases.filter { $0 != .custom } }
+    /// Kinds offered in the built-in device picker (custom parts are listed from the project library),
+    /// in picker order: batteries and supplies first.
+    static var builtIn: [ComponentKind] {
+        [.battery, .voltageSource, .acSource, .currentSource,
+         .resistor, .capacitor, .inductor, .fuse,
+         .diode, .led, .npn, .nmos, .opAmp, .ic8,
+         .ground, .netLabel,
+         .switchSPST, .connector]
+    }
+
+    /// Device-picker sections, top to bottom (basic parts before the custom and standard part libraries).
+    static let pickerCategories = ["Power Sources", "Passives", "Semiconductors", "Ground & Nets", "Electromechanical"]
 
     var displayName: String {
         switch self {
@@ -44,6 +56,8 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .fuse: return "Fuse"
         case .netLabel: return "Net Label"
         case .custom: return "Custom Part"
+        case .battery: return "Battery"
+        case .acSource: return "AC Source"
         }
     }
 
@@ -67,6 +81,8 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .fuse: return "fuse"
         case .netLabel: return "net_label"
         case .custom: return "custom"
+        case .battery: return "battery"
+        case .acSource: return "ac_source"
         }
     }
 
@@ -89,6 +105,8 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .fuse: return "500m"
         case .netLabel: return "VCC"
         case .custom: return ""
+        case .battery: return "9"
+        case .acSource: return "SIN(0 17 50)"
         }
     }
 
@@ -97,7 +115,7 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         switch self {
         case .resistor, .capacitor, .inductor, .switchSPST, .fuse, .connector: return ["1", "2"]
         case .diode, .led: return ["A", "K"]
-        case .voltageSource, .currentSource: return ["+", "-"]
+        case .voltageSource, .currentSource, .battery, .acSource: return ["+", "-"]
         case .ground: return ["GND"]
         case .npn: return ["B", "C", "E"]
         case .nmos: return ["G", "D", "S"]
@@ -127,14 +145,17 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .fuse: return "minus.rectangle"
         case .netLabel: return "tag"
         case .custom: return "cpu.fill"
+        case .battery: return "battery.75percent"
+        case .acSource: return "powerplug"
         }
     }
 
     var category: String {
         switch self {
+        case .battery, .voltageSource, .acSource, .currentSource: return "Power Sources"
         case .resistor, .capacitor, .inductor, .fuse: return "Passives"
         case .diode, .led, .npn, .nmos, .opAmp, .ic8: return "Semiconductors"
-        case .voltageSource, .currentSource, .ground, .netLabel: return "Power & Nets"
+        case .ground, .netLabel: return "Ground & Nets"
         case .switchSPST, .connector: return "Electromechanical"
         case .custom: return "Custom Parts"
         }
@@ -160,6 +181,8 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case .fuse: return "Rating, e.g. 500m"
         case .netLabel: return "Net name; identical names connect (GND joins ground)"
         case .custom: return "Part number or value"
+        case .battery: return "Cell / pack voltage, e.g. 1.5, 3.7 (Li-ion), 9, 12"
+        case .acSource: return "SIN(offset peak freq): SIN(0 17 50) = 12 V rms 50 Hz, SIN(0 325 50) = 230 V mains"
         }
     }
 
@@ -188,7 +211,9 @@ enum ComponentKind: Int, CaseIterable, Identifiable, Codable {
         case "l", "coil": return .inductor
         case "d", "rectifier": return .diode
         case "light_emitting_diode": return .led
-        case "v", "vsource", "dc_source", "battery", "power", "power_supply", "voltage": return .voltageSource
+        case "v", "vsource", "dc_source", "dc", "power", "power_supply", "voltage", "dc_supply": return .voltageSource
+        case "bat", "cell", "battery_pack", "lipo", "li_ion", "coin_cell": return .battery
+        case "ac", "vac", "mains", "ac_supply", "ac_voltage", "sine_source", "transformer_secondary": return .acSource
         case "i", "isource", "current": return .currentSource
         case "gnd", "earth": return .ground
         case "bjt", "transistor", "npn_transistor": return .npn

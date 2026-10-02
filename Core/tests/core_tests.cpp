@@ -2156,3 +2156,44 @@ TEST(microcontroller_library_by_vendor) {
     CHECK(back.package.pitch == 0.4 && back.package.bodySize == 7);
     CHECK(customPartSpecToJson(findStandardPart("NE555")->spec).get("package").get("pitch").isNull());
 }
+
+TEST(battery_and_ac_sources) {
+    // A 9 V battery lighting a 1 kΩ load, and a 12 V rms / 50 Hz AC source into another.
+    Project p;
+    auto& s = p.schematic;
+    int bt = s.addComponent(ComponentKind::Battery, "", {0, 0});
+    int ac = s.addComponent(ComponentKind::ACSource, "", {0, 200});
+    int r1 = s.addComponent(ComponentKind::Resistor, "1k", {100, 0});
+    int r2 = s.addComponent(ComponentKind::Resistor, "1k", {100, 200});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    CHECK(s.find(bt)->value == "9" && s.find(bt)->ref.rfind("BT", 0) == 0);
+    CHECK(s.find(ac)->value == "SIN(0 17 50)" && s.find(ac)->ref.rfind("VAC", 0) == 0);
+    wire(s, bt, "+", r1, "1");
+    wire(s, r1, "2", g, "GND");
+    wire(s, bt, "-", g, "GND");
+    wire(s, ac, "+", r2, "1");
+    wire(s, r2, "2", g, "GND");
+    wire(s, ac, "-", g, "GND");
+    p.schematicChanged();
+
+    DcResult dc = Simulator(s).dcOperatingPoint();
+    CHECK(dc.converged);
+    CHECK(std::fabs(netV(s, dc, r1, "1") - 9.0) < 1e-6);
+    TransientResult tr = Simulator(s).transient(0.04, 1e-4);  // two 50 Hz cycles
+    CHECK(tr.ok);
+    const auto& wave = tr.netVoltages[static_cast<size_t>(s.netOf({r2, 0}))];
+    double hi = *std::max_element(wave.begin(), wave.end()), lo = *std::min_element(wave.begin(), wave.end());
+    CHECK(hi > 16.5 && lo < -16.5);  // ±17 V peak
+
+    // Both export as SPICE voltage sources (named V…), and a shorted battery is caught by ERC.
+    std::string spice = exportSpiceNetlist(s, "sources");
+    CHECK(spice.find("V" + s.find(bt)->ref + " ") != std::string::npos);
+    CHECK(spice.find(s.find(ac)->ref + " ") != std::string::npos && spice.find("SIN(0 17 50)") != std::string::npos);
+    int shorted = s.addComponent(ComponentKind::Battery, "3", {300, 0});
+    wire(s, shorted, "+", g, "GND");
+    wire(s, shorted, "-", g, "GND");
+    bool shortFound = false;
+    for (const auto& v : s.runERC())
+        if (v.code == "ERC_SHORTED_SOURCE") shortFound = true;
+    CHECK(shortFound);
+}

@@ -439,7 +439,7 @@ std::vector<RuleViolation> Schematic::runERC() const {
 
     bool hasSources = false;
     for (const auto& c : components_)
-        if (c.kind == ComponentKind::VoltageSource || c.kind == ComponentKind::CurrentSource) hasSources = true;
+        if (isSourceKind(c.kind)) hasSources = true;
     int gnd = groundNet();
     if (hasSources && gnd < 0)
         add(Severity::Error, "ERC_NO_GROUND", "Circuit has sources but no ground reference. Add a Ground symbol.", {},
@@ -511,6 +511,8 @@ std::vector<RuleViolation> Schematic::runERC() const {
                 break;
             }
             case ComponentKind::VoltageSource:
+            case ComponentKind::Battery:
+            case ComponentKind::ACSource:
             case ComponentKind::CurrentSource:
                 if (!SourceSpec::parse(c.value))
                     add(Severity::Error, "ERC_INVALID_VALUE",
@@ -538,7 +540,7 @@ std::vector<RuleViolation> Schematic::runERC() const {
             default: break;
         }
 
-        if (c.kind == ComponentKind::VoltageSource) {
+        if (isVoltageSourceKind(c.kind)) {
             int a = netOf({c.id, 0}), b = netOf({c.id, 1});
             if (a >= 0 && a == b)
                 add(Severity::Error, "ERC_SHORTED_SOURCE", c.ref + " is short-circuited (both terminals on net " +
@@ -551,7 +553,7 @@ std::vector<RuleViolation> Schematic::runERC() const {
                 const Net& n = allNets[static_cast<size_t>(net)];
                 if (n.isGround) return true;
                 return std::any_of(n.pins.begin(), n.pins.end(), [&](const PinRef& p) {
-                    return find(p.component)->kind == ComponentKind::VoltageSource;
+                    return isVoltageSourceKind(find(p.component)->kind);
                 });
             };
             int a = netOf({c.id, 0}), k = netOf({c.id, 1});

@@ -1038,13 +1038,13 @@ std::map<int, std::pair<double, double>> netVoltageRanges(const Schematic& sch) 
     std::map<int, std::pair<double, double>> netRange;
     bool hasSource = false;
     for (const auto& c : sch.components())
-        hasSource |= c.kind == ComponentKind::VoltageSource || c.kind == ComponentKind::CurrentSource;
+        hasSource |= isSourceKind(c.kind);
     if (!hasSource || sch.groundNet() < 0) return netRange;
     DcResult dc = Simulator(sch).dcOperatingPoint();
     if (!dc.converged) return netRange;
     for (size_t n = 0; n < dc.netVoltages.size(); ++n) netRange[static_cast<int>(n)] = {dc.netVoltages[n], dc.netVoltages[n]};
     for (const auto& c : sch.components()) {
-        if (c.kind != ComponentKind::VoltageSource) continue;
+        if (!isVoltageSourceKind(c.kind)) continue;
         auto spec = SourceSpec::parse(c.value);
         int plus = sch.netOf({c.id, 0}), minus = sch.netOf({c.id, 1});
         if (!spec || plus < 0) continue;

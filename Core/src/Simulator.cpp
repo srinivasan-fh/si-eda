@@ -312,8 +312,10 @@ bool Simulator::build(std::string& error) {
                 break;
             }
             case ComponentKind::VoltageSource:
+            case ComponentKind::Battery:
+            case ComponentKind::ACSource:
             case ComponentKind::CurrentSource: {
-                twoTerminal(c.kind == ComponentKind::VoltageSource ? ElemType::VSource : ElemType::ISource);
+                twoTerminal(isVoltageSourceKind(c.kind) ? ElemType::VSource : ElemType::ISource);
                 auto s = SourceSpec::parse(c.value);
                 if (!s) { error = c.ref + ": invalid source value '" + c.value + "'"; return false; }
                 e.source = *s;

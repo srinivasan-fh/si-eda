@@ -1681,3 +1681,39 @@ final class AISignInTests: XCTestCase {
         XCTAssertNil(CommandLineTool.locate("sieda-no-such-tool"))
     }
 }
+
+@MainActor
+final class PowerSourceTests: XCTestCase {
+    func testPowerSourcesLeadTheDevicePicker() {
+        XCTAssertEqual(ComponentKind.pickerCategories.first, "Power Sources")
+        XCTAssertEqual(Array(ComponentKind.builtIn.prefix(4)), [.battery, .voltageSource, .acSource, .currentSource])
+        XCTAssertEqual(Set(ComponentKind.builtIn), Set(ComponentKind.allCases.filter { $0 != .custom }))
+        for kind in ComponentKind.builtIn {
+            XCTAssertTrue(ComponentKind.pickerCategories.contains(kind.category), "\(kind) has no picker section")
+        }
+        XCTAssertEqual(ComponentKind.fromPlanName("battery"), .battery)
+        XCTAssertEqual(ComponentKind.fromPlanName("LiPo"), .battery)
+        XCTAssertEqual(ComponentKind.fromPlanName("mains"), .acSource)
+        XCTAssertEqual(ComponentKind.fromPlanName("AC Source"), .acSource)
+        XCTAssertEqual(ComponentKind.fromPlanName("dc_supply"), .voltageSource)
+    }
+
+    func testABatteryLightsAnLED() async throws {
+        let store = DesignStore()
+        let bt = store.addComponent(.battery, at: .zero)
+        let r = store.addComponent(.resistor, at: CGPoint(x: 120, y: -40))
+        store.setValue(r, "330")
+        let d = store.addComponent(.led, at: CGPoint(x: 240, y: -40))
+        let g = store.addComponent(.ground, at: CGPoint(x: 0, y: 100))
+        func pin(_ id: Int, _ i: Int) -> PinAddress { PinAddress(component: id, pin: i) }
+        XCTAssertTrue(store.connect(pin(bt, 0), pin(r, 0)))
+        XCTAssertTrue(store.connect(pin(r, 1), pin(d, 0)))
+        XCTAssertTrue(store.connect(pin(d, 1), pin(g, 0)))
+        XCTAssertTrue(store.connect(pin(bt, 1), pin(g, 0)))
+        XCTAssertEqual(store.snapshot.component(bt)?.ref, "BT1")
+        XCTAssertEqual(store.snapshot.component(bt)?.value, "9")
+        await store.simulateDC()
+        let current = try XCTUnwrap(store.dcResult?.devices.first { $0.component == d }).current
+        XCTAssertEqual(current, (9 - 1.9) / 330, accuracy: 0.004)  // ≈ 21 mA from the 9 V battery
+    }
+}

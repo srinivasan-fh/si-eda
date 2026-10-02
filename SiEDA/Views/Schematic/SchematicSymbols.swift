@@ -8,7 +8,8 @@ enum SchematicSymbols {
         switch kind {
         case .resistor, .capacitor, .inductor, .diode, .led, .switchSPST, .fuse:
             return CGRect(x: -30, y: -14, width: 60, height: 28)
-        case .voltageSource, .currentSource: return CGRect(x: -18, y: -30, width: 36, height: 60)
+        case .voltageSource, .currentSource, .acSource: return CGRect(x: -18, y: -30, width: 36, height: 60)
+        case .battery: return CGRect(x: -16, y: -30, width: 32, height: 60)
         case .ground: return CGRect(x: -12, y: -2, width: 24, height: 22)
         case .npn, .nmos: return CGRect(x: -30, y: -30, width: 56, height: 60)
         case .opAmp: return CGRect(x: -40, y: -28, width: 80, height: 56)
@@ -145,6 +146,27 @@ enum SchematicSymbols {
                 line(p(-4, 8), p(4, 8))
             }
 
+        case .battery:
+            // Two cells: long (+) and short (−) plates, positive terminal on top.
+            line(p(0, -30), p(0, -10))
+            line(p(0, 10), p(0, 30))
+            for y in [CGFloat(-10), 2] {
+                line(p(-12, y), p(12, y))                                        // long plate (+)
+                s.solid.addRect(CGRect(x: -6, y: y + 6, width: 12, height: 2.4))  // short, thick plate (−)
+            }
+            line(p(0, -2), p(0, 2))  // link between the cells
+            line(p(9, -20), p(15, -20))  // "+" mark
+            line(p(12, -23), p(12, -17))
+
+        case .acSource:
+            s.fill.addEllipse(in: CGRect(x: -15, y: -15, width: 30, height: 30))
+            s.stroke.addEllipse(in: CGRect(x: -15, y: -15, width: 30, height: 30))
+            line(p(0, -30), p(0, -15))
+            line(p(0, 15), p(0, 30))
+            s.stroke.move(to: p(-9, 0))
+            s.stroke.addCurve(to: p(0, 0), control1: p(-7, -10), control2: p(-2, -10))
+            s.stroke.addCurve(to: p(9, 0), control1: p(2, 10), control2: p(7, 10))
+
         case .currentSource:
             s.fill.addEllipse(in: CGRect(x: -15, y: -15, width: 30, height: 30))
             s.stroke.addEllipse(in: CGRect(x: -15, y: -15, width: 30, height: 30))
@@ -271,7 +293,7 @@ enum SchematicSymbols {
     /// this returns the local anchor for the reference/value labels.
     static func labelAnchor(_ kind: ComponentKind) -> (ref: CGPoint, value: CGPoint) {
         switch kind {
-        case .voltageSource, .currentSource: return (CGPoint(x: 20, y: -8), CGPoint(x: 20, y: 8))
+        case .voltageSource, .currentSource, .acSource, .battery: return (CGPoint(x: 20, y: -8), CGPoint(x: 20, y: 8))
         case .npn, .nmos: return (CGPoint(x: 30, y: -6), CGPoint(x: 30, y: 8))
         case .opAmp: return (CGPoint(x: 0, y: -36), CGPoint(x: 0, y: 36))
         case .ic8: return (CGPoint(x: 0, y: -50), CGPoint(x: 0, y: 50))

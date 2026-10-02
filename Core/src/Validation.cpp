@@ -89,7 +89,7 @@ std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatin
     // --- Ratings from the DC operating point.
     bool hasSource = false;
     for (const auto& c : sch.components())
-        hasSource |= c.kind == ComponentKind::VoltageSource || c.kind == ComponentKind::CurrentSource;
+        hasSource |= isSourceKind(c.kind);
     if (gnd < 0 || !hasSource) return out;
 
     Simulator sim(sch);
@@ -166,6 +166,8 @@ std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatin
                 break;
             }
             case ComponentKind::VoltageSource:
+            case ComponentKind::Battery:
+            case ComponentKind::ACSource:
                 if (i > r.supplyCurrent)
                     addOnce(Severity::Warning, "VAL_SUPPLY_CURRENT",
                             c->ref + " delivers " + fmt(i, "A") + " — check for a short circuit or a missing load resistor.", *c);
@@ -214,7 +216,7 @@ std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatin
     if (!r.transientStress) return out;
     double slowest = 0, fastest = 1e30;
     for (const auto& c : sch.components()) {
-        if (c.kind != ComponentKind::VoltageSource && c.kind != ComponentKind::CurrentSource) continue;
+        if (!isSourceKind(c.kind)) continue;
         auto spec = SourceSpec::parse(c.value);
         if (!spec) continue;
         double period = 0;
