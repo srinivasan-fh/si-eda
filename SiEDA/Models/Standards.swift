@@ -89,7 +89,11 @@ struct StandardPart: Decodable, Equatable, Identifiable {
     var id: String { spec.name }
 
     /// "U1 · DIP-8 · 8 pins"
-    var packageSummary: String { "\(spec.package.type)-\(spec.package.pinCount) · \(spec.pins.count) pins" }
+    var packageSummary: String {
+        var text = "\(spec.package.type)-\(spec.package.pinCount)"
+        if let pitch = spec.package.pitch { text += String(format: " %gmm", pitch) }
+        return text + " · \(spec.pins.count) pins"
+    }
 }
 
 /// Named design-rule set (design values and fabrication minimums, millimetres).

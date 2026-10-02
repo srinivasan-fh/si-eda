@@ -33,7 +33,7 @@ Every AI result lands in the same editable schematic and PCB, so you can switch 
 |---|---|
 | **AI Prompt Studio** | Prompt/PRD editor, template briefs, PRD import, live agent pipeline, conversational refinement ("make the LED green and run it from 3.3 V") |
 | **Agent team** | Requirements Analyst → Circuit Architect → Plan Compiler → Verification (ERC + SPICE) → Design Reviewer (feedback loop) → PCB Layout |
-| **Standard components** | Built-in standard library (LM7805, LM317, NE555, LM358, ATtiny85, ATmega328P, 74HC595, 74HC00, ULN2003A, L293D, pin headers) with correct pinouts, pin types and footprints, in the device picker and Component Library. AI agents can use them too. IEC 60063 E12/E24/E96 value checks with a one-click "use nearest standard value" in the Properties panel |
+| **Standard components** | Built-in standard library (LM7805, LM317, NE555, LM358, ATtiny85, ATmega328P, 74HC595, 74HC00, ULN2003A, L293D, pin headers) with correct pinouts, pin types and footprints, in the device picker and Component Library. Plus 40 popular microcontrollers, see [Microcontroller library](#microcontroller-library). AI agents can use them too. IEC 60063 E12/E24/E96 value checks with a one-click "use nearest standard value" in the Properties panel |
 | **Basic circuit library** | 13 verified basic reference designs in 7 groups (**File → New from Example**): LED indicator, voltage divider, 5 V LM7805 regulator, half-wave rectifier, non-inverting/inverting amplifier, voltage follower, RC low-/high-pass filters, NPN and MOSFET drivers, 555 astable blinker, Wheatstone bridge. Every one passes full verification on 1, 2, 4 and 6 layers |
 | **Circuit validation** | Beyond ERC: non-standard values, missing IC decoupling, and DC-derived part ratings (resistor power, LED/diode current, reverse-biased LEDs, transistor current/power, supply over-current, op-amp saturation, fuse overload). Exceeding a rating is a warning; 2× the rating is an error |
 | **PCB design rules** | Presets: Prototype (Conservative), IPC-2221 Class 2 (default), IPC-2221 Class 3, Fab House Standard (6/6 mil) and Advanced (4/4 mil). DRC checks clearance against both the design rule and the fab minimum, plus track width, drill size, annular ring, hole-to-hole spacing, via-in-pad, dangling tracks, acute angles and IPC-2221 current capacity from the simulated net currents |
@@ -87,6 +87,19 @@ Microcontrollers run real firmware inside the circuit simulation, like on a phys
 - **What's emulated:** the full AVR instruction set with cycle counts; GPIO; Timer0/1/2 (normal, CTC, fast and phase-correct PWM); USART0 with the real bit waveform on TXD; the ADC; EEPROM; INT0/INT1 and pin-change interrupts; and sleep. The CPU is checked instruction-for-instruction against simavr, and the Arduino core's `millis()`, `delay()`, `Serial` and `analogRead()`/`analogWrite()` behave as on a board.
 - **Example design:** **New from Example ▸ Microcontrollers ▸ Arduino Uno Core: LED + Button**.
 - **Test firmware:** sources and the build script are in `Core/tests/firmware`.
+
+## Microcontroller library
+
+Ten popular microcontrollers from each vendor group are in the standard library. Each is on its real package: lead count, pitch, body size and exposed pad. Pin numbers, names and electrical types are taken from the KiCad symbol library, which follows the vendor datasheets (`tools/fetch_mcu_pinouts.py` regenerates `Core/src/StandardMcus.inc`). In the device picker they are grouped under **Microcontrollers · <vendor>**.
+
+| Group | Parts (package) |
+|---|---|
+| Arm (other vendors) | RP2040 (QFN-56 0.4), RP2350A (QFN-60 0.4), nRF52832 / nRF52810 / nRF51822 (QFN-48 0.4), LPC1768 (LQFP-100), LPC1114FBD48 (LQFP-48), MKL25Z128VLK4 (LQFP-80), CY8C4245AXI PSoC 4 (TQFP-64 0.8), EFM32HG308F64 (QFN-24 0.65) |
+| Microchip | ATmega2560 (TQFP-100), ATmega32U4 (TQFP-44 0.8), ATmega4809 (TQFP-48), ATtiny1614 (SOIC-14), ATSAMD21G18A (TQFP-48), ATSAMD21E18A (TQFP-32 0.8), PIC16F877A / PIC18F4550 (DIP-40), PIC12F675 (DIP-8), PIC32MX250F128D (TQFP-44 0.8); plus ATmega328P and ATtiny85 |
+| STMicroelectronics | STM32F103C8T6 (LQFP-48), STM32F030F4P6 / STM32G030F6P6 (TSSOP-20), STM32F042K6T6 (LQFP-32 0.8), STM32F401CCU6 / STM32F411CEU6 / STM32G431CBU6 (UFQFPN-48), STM32F407VGT6 / STM32H743VIT6 (LQFP-100), STM32L432KCU6 (UFQFPN-32) |
+| Texas Instruments | MSP430G2553 / MSP430G2452 (DIP-20), MSP430F2013 (DIP-14), MSP430F2274 (TSSOP-38), MSP430FR5738 (VQFN-24), MSP430F5510 (VQFN-48), TM4C1231H6PM (LQFP-64), MSP432E401Y (LQFP-128 0.4), CC1312R1 (VQFN-48), CC430F5137 (VQFN-48) |
+
+Pitches are 0.5 mm unless noted. Firmware can only be run in the simulator on the ATmega328P and ATtiny85. The other parts are for schematic and PCB design.
 
 ## Live board simulation
 
