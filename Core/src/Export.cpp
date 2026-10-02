@@ -168,7 +168,8 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
         return "X" + std::to_string(x) + "Y" + std::to_string(y);
     };
     std::ostringstream o;
-    const char* names[] = {"Copper,L1,Top", "Copper,L2,Bot", "Soldermask,Top", "Soldermask,Bot", "Legend,Top", "Profile,NP"};
+    const char* names[] = {"Copper,L1,Top", "Copper,L2,Bot", "Soldermask,Top", "Soldermask,Bot", "Legend,Top",
+                           "Profile,NP",    "Paste,Top",     "Paste,Bot",      "Legend,Bot"};
     o << "G04 SiEDA Gerber RS-274X*\n";
     o << "%TF.GenerationSoftware,SiEDA,SiEDA,1.0*%\n";
     const int bottom = pcb.settings.bottomLayer();
@@ -180,6 +181,10 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
     } else {
         o << "%TF.FileFunction," << names[static_cast<int>(layer)] << "*%\n";
     }
+    // Solder mask images are the openings (negative polarity in Gerber X2); everything else is positive.
+    bool maskFile = layer == GerberLayer::TopMask || layer == GerberLayer::BottomMask;
+    o << "%TF.FilePolarity," << (maskFile && copperIndex < 0 ? "Negative" : "Positive") << "*%\n";
+    o << "%TF.SameCoordinates,Original*%\n";
     o << "%FSLAX46Y46*%\n%MOMM*%\n%LPD*%\n";
 
     std::map<std::string, int> apertures;
@@ -228,10 +233,21 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
                 ops.push_back({ap, coord(t.a) + "D02*\n" + coord(t.b) + "D01*"});
             }
         }
-    } else if (layer == GerberLayer::TopSilk) {
+    } else if (layer == GerberLayer::TopPaste || layer == GerberLayer::BottomPaste) {
+        // Stencil apertures: SMD pads of this side 1:1; large thermal / exposed pads at 80 % per side (≈ 64 % paste
+        // area) so the part does not float on too much solder.
+        int side = layer == GerberLayer::TopPaste ? kTopLayer : bottom;
+        for (const auto& p : pcb.pads(sch)) {
+            if (p.throughHole || p.smdLayer != side) continue;
+            double w = p.size.x, h = p.size.y;
+            if (w >= 2.5 && h >= 2.5) w *= 0.8, h *= 0.8;
+            ops.push_back({aperture(p.round ? circle(w) : rect(w, h)), coord(p.position) + "D03*"});
+        }
+    } else if (layer == GerberLayer::TopSilk || layer == GerberLayer::BottomSilk) {
+        const bool bottomSide = layer == GerberLayer::BottomSilk;
         int ap = aperture(circle(0.15));
         for (const auto& c : sch.components()) {
-            if (!c.hasFootprint() || !c.pcb.placed || c.pcb.bottom) continue;
+            if (!c.hasFootprint() || !c.pcb.placed || c.pcb.bottom != bottomSide) continue;
             Rect r = pcb.courtyard(c).inflated(-0.15);
             ops.push_back({ap, coord({r.x0, r.y0}) + "D02*\n" + coord({r.x1, r.y0}) + "D01*\n" + coord({r.x1, r.y1}) +
                                    "D01*\n" + coord({r.x0, r.y1}) + "D01*\n" + coord({r.x0, r.y0}) + "D01*"});
@@ -243,6 +259,17 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
                 double len = dir.length();
                 Vec2 mark = len > 1e-9 ? p1 + dir * (0.9 / len) : p1;
                 ops.push_back({aperture(circle(0.3)), coord(mark) + "D03*"});
+            }
+            // Reference designator above the part (below it when that would leave the board).
+            const double textH = 1.0;
+            double width = silkscreenTextWidth(c.ref, textH);
+            double baseline = r.y0 - 0.45;
+            if (baseline - textH < s.edgeClearance) baseline = r.y1 + 0.45 + textH;
+            Vec2 origin{(r.x0 + r.x1) / 2 + (bottomSide ? width / 2 : -width / 2), baseline};
+            for (const auto& stroke : silkscreenText(c.ref, origin, textH, bottomSide)) {
+                std::string path = coord(stroke[0]) + "D02*";
+                for (size_t i = 1; i < stroke.size(); ++i) path += "\n" + coord(stroke[i]) + "D01*";
+                ops.push_back({ap, path});
             }
         }
     } else {  // EdgeCuts: the outline polygon
@@ -302,6 +329,249 @@ std::string exportExcellonDrill(const Schematic& sch, const PcbLayout& pcb, bool
         for (const auto& p : pts) o << "X" << mm(p.x) << "Y" << mm(pcb.settings.height - p.y) << "\n";
     }
     o << "T0\nM30\n";
+    return o.str();
+}
+
+namespace {
+// Simple stroke font on a 4 × 6 grid (y up), one polyline per '|'-separated stroke: legible on silkscreen at 1 mm.
+const std::map<char, const char*>& strokeFont() {
+    static const std::map<char, const char*> font = {
+        {'A', "0,0 0,4 2,6 4,4 4,0|0,3 4,3"},
+        {'B', "0,0 0,6 3,6 4,5 4,4 3,3 0,3|3,3 4,2 4,1 3,0 0,0"},
+        {'C', "4,1 3,0 1,0 0,1 0,5 1,6 3,6 4,5"},
+        {'D', "0,0 0,6 3,6 4,5 4,1 3,0 0,0"},
+        {'E', "4,0 0,0 0,6 4,6|0,3 3,3"},
+        {'F', "0,0 0,6 4,6|0,3 3,3"},
+        {'G', "4,5 3,6 1,6 0,5 0,1 1,0 3,0 4,1 4,3 2,3"},
+        {'H', "0,0 0,6|4,0 4,6|0,3 4,3"},
+        {'I', "1,0 3,0|2,0 2,6|1,6 3,6"},
+        {'J', "0,1 1,0 3,0 4,1 4,6"},
+        {'K', "0,0 0,6|4,6 0,2|1,3 4,0"},
+        {'L', "0,6 0,0 4,0"},
+        {'M', "0,0 0,6 2,3 4,6 4,0"},
+        {'N', "0,0 0,6 4,0 4,6"},
+        {'O', "1,0 0,1 0,5 1,6 3,6 4,5 4,1 3,0 1,0"},
+        {'P', "0,0 0,6 3,6 4,5 4,4 3,3 0,3"},
+        {'Q', "1,0 0,1 0,5 1,6 3,6 4,5 4,1 3,0 1,0|2,2 4,0"},
+        {'R', "0,0 0,6 3,6 4,5 4,4 3,3 0,3|2,3 4,0"},
+        {'S', "0,1 1,0 3,0 4,1 4,2 3,3 1,3 0,4 0,5 1,6 3,6 4,5"},
+        {'T', "0,6 4,6|2,6 2,0"},
+        {'U', "0,6 0,1 1,0 3,0 4,1 4,6"},
+        {'V', "0,6 2,0 4,6"},
+        {'W', "0,6 1,0 2,3 3,0 4,6"},
+        {'X', "0,0 4,6|0,6 4,0"},
+        {'Y', "0,6 2,3 4,6|2,3 2,0"},
+        {'Z', "0,6 4,6 0,0 4,0"},
+        {'0', "1,0 0,1 0,5 1,6 3,6 4,5 4,1 3,0 1,0|0,1 4,5"},
+        {'1', "1,5 2,6 2,0|1,0 3,0"},
+        {'2', "0,5 1,6 3,6 4,5 4,4 0,0 4,0"},
+        {'3', "0,5 1,6 3,6 4,5 4,4 3,3 4,2 4,1 3,0 1,0 0,1|1,3 3,3"},
+        {'4', "3,0 3,6 0,2 4,2"},
+        {'5', "4,6 0,6 0,3 3,3 4,2 4,1 3,0 0,0"},
+        {'6', "4,5 3,6 1,6 0,5 0,1 1,0 3,0 4,1 4,2 3,3 0,3"},
+        {'7', "0,6 4,6 1,0"},
+        {'8', "1,3 0,4 0,5 1,6 3,6 4,5 4,4 3,3 1,3 0,2 0,1 1,0 3,0 4,1 4,2 3,3"},
+        {'9', "0,1 1,0 3,0 4,1 4,5 3,6 1,6 0,5 0,4 1,3 4,3"},
+        {'+', "0,3 4,3|2,1 2,5"},
+        {'-', "0,3 4,3"},
+        {'.', "2,0 2,1"},
+        {'_', "0,0 4,0"},
+        {'/', "0,0 4,6"},
+        {'#', "1,0 1,6|3,0 3,6|0,2 4,2|0,4 4,4"},
+    };
+    return font;
+}
+}  // namespace
+
+double silkscreenTextWidth(const std::string& text, double height) {
+    if (text.empty()) return 0;
+    double u = height / 6;
+    return (static_cast<double>(text.size()) * 6 - 2) * u;
+}
+
+std::vector<std::vector<Vec2>> silkscreenText(const std::string& text, Vec2 origin, double height, bool mirror) {
+    std::vector<std::vector<Vec2>> strokes;
+    const double u = height / 6;
+    double advance = 0;
+    for (char ch : text) {
+        char key = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        auto it = strokeFont().find(key);
+        if (it != strokeFont().end()) {
+            std::vector<Vec2> stroke;
+            auto flush = [&]() {
+                if (stroke.size() >= 2) strokes.push_back(stroke);
+                stroke.clear();
+            };
+            std::string spec = it->second;
+            size_t i = 0;
+            while (i < spec.size()) {
+                if (spec[i] == '|') { flush(); ++i; continue; }
+                if (spec[i] == ' ') { ++i; continue; }
+                size_t comma = spec.find(',', i);
+                size_t end = spec.find_first_of(" |", comma);
+                if (end == std::string::npos) end = spec.size();
+                double gx = std::stod(spec.substr(i, comma - i)), gy = std::stod(spec.substr(comma + 1, end - comma - 1));
+                double dx = (advance + gx) * u;
+                stroke.push_back({origin.x + (mirror ? -dx : dx), origin.y - gy * u});
+                i = end;
+            }
+            flush();
+        }
+        advance += 6;
+    }
+    return strokes;
+}
+
+std::string exportIpcD356(const Schematic& sch, const PcbLayout& pcb, const std::string& jobName) {
+    // Fixed-column records (IPC-D-356A): 317 = through hole, 327 = SMD; units CUST 1 = millimetres, 0.001 mm resolution.
+    const auto& s = pcb.settings;
+    const int bottom = s.bottomLayer();
+    auto place = [](std::string& line, int col, const std::string& text) {
+        for (size_t i = 0; i < text.size() && col - 1 + static_cast<int>(i) < static_cast<int>(line.size()); ++i)
+            line[static_cast<size_t>(col - 1) + i] = text[i];
+    };
+    auto num = [](double v, int digits) {
+        long long n = std::llround(std::fabs(v) * 1000);
+        long long cap = 1;
+        for (int i = 0; i < digits; ++i) cap *= 10;
+        n = std::min(n, cap - 1);
+        char b[16];
+        std::snprintf(b, sizeof b, "%0*lld", digits, n);
+        return std::string(b);
+    };
+    auto netName = [&](int net) {
+        if (net < 0 || net >= static_cast<int>(sch.nets().size())) return std::string("N/C");
+        std::string n = sch.nets()[static_cast<size_t>(net)].name;
+        for (auto& ch : n)
+            if (ch == ' ') ch = '_';
+        return n.substr(0, 14);
+    };
+    auto record = [&](bool through, const std::string& net, const std::string& ref, const std::string& pin, double drill,
+                      const std::string& access, Vec2 pos, double w, double h) {
+        std::string line(80, ' ');
+        place(line, 1, through ? "317" : "327");
+        place(line, 4, net);
+        place(line, 21, ref.substr(0, 6));
+        place(line, 27, "-");
+        place(line, 28, pin.substr(0, 4));
+        if (through) {
+            place(line, 33, "D" + num(drill, 4));
+            place(line, 38, "P");
+        }
+        place(line, 39, access);
+        place(line, 42, "X+" + num(pos.x, 6));
+        double y = s.height - pos.y;
+        place(line, 50, std::string("Y") + (y < 0 ? "-" : "+") + num(y, 6));
+        place(line, 58, "X" + num(w, 4));
+        place(line, 63, "Y" + num(h, 4));
+        place(line, 68, "R000");
+        place(line, 73, "S0");
+        while (!line.empty() && line.back() == ' ') line.pop_back();
+        return line + "\n";
+    };
+    std::ostringstream o;
+    o << "C  IPC-D-356A netlist generated by SiEDA\n";
+    o << "P  JOB   " << jobName << "\n";
+    o << "P  UNITS CUST 1\n";
+    o << "P  DIM   N\n";
+    char layerCode[16];
+    std::snprintf(layerCode, sizeof layerCode, "A%02d", bottom + 1);
+    for (const auto& p : pcb.pads(sch)) {
+        const Component* c = sch.find(p.componentId);
+        if (!c) continue;
+        o << record(p.throughHole, netName(p.net), c->ref, std::to_string(p.padNumber), p.drill,
+                    p.throughHole ? "A00" : (p.smdLayer == kTopLayer ? "A01" : layerCode), p.position, p.size.x, p.size.y);
+    }
+    for (const auto& v : pcb.vias) o << record(true, netName(v.net), "VIA", "", v.drill, "A00", v.position, v.diameter, v.diameter);
+    o << "999\n";
+    return o.str();
+}
+
+std::string exportAssemblyBomCsv(const Schematic& sch) {
+    std::map<std::pair<std::string, std::string>, std::vector<std::string>> groups;  // (value, footprint) → refs
+    for (const auto& c : sch.components()) {
+        if (!c.hasFootprint()) continue;
+        std::string comment = c.value.empty() ? c.def().name : c.value;
+        groups[{comment, footprintLabel(c)}].push_back(c.ref);
+    }
+    std::ostringstream o;
+    o << "Comment,Designator,Footprint,Quantity,LCSC Part #,Manufacturer Part #\n";
+    for (const auto& [key, refs] : groups) {
+        std::string joined;
+        for (size_t i = 0; i < refs.size(); ++i) joined += (i ? "," : "") + refs[i];
+        o << csvEscape(key.first) << "," << csvEscape(joined) << "," << csvEscape(key.second) << "," << refs.size() << ",,\n";
+    }
+    return o.str();
+}
+
+std::string exportCplCsv(const Schematic& sch, const PcbLayout& pcb) {
+    std::ostringstream o;
+    o << "Designator,Mid X,Mid Y,Layer,Rotation\n";
+    for (const auto& c : sch.components()) {
+        if (!c.hasFootprint() || !c.pcb.placed) continue;
+        // Same origin as the Gerbers: the board's lower-left corner, Y up.
+        o << c.ref << "," << mm(c.pcb.position.x) << "mm,";
+        o << mm(pcb.settings.height - c.pcb.position.y) << "mm," << (c.pcb.bottom ? "Bottom" : "Top") << "," << c.pcb.rotation << "\n";
+    }
+    return o.str();
+}
+
+std::string exportAssemblySvg(const Schematic& sch, const PcbLayout& pcb, bool bottom, const std::string& title) {
+    const auto& s = pcb.settings;
+    const double margin = 6, titleH = 8;
+    std::ostringstream o;
+    char head[512];
+    std::snprintf(head, sizeof head,
+                  "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%.1fmm\" height=\"%.1fmm\" viewBox=\"%.3f %.3f %.3f %.3f\">\n",
+                  s.width + 2 * margin, s.height + 2 * margin + titleH, -margin, -margin - titleH, s.width + 2 * margin,
+                  s.height + 2 * margin + titleH);
+    o << head;
+    o << "<rect x=\"" << -margin << "\" y=\"" << -margin - titleH << "\" width=\"" << s.width + 2 * margin << "\" height=\""
+      << s.height + 2 * margin + titleH << "\" fill=\"white\"/>\n";
+    auto esc = [](std::string t) {
+        std::string out;
+        for (char ch : t) {
+            if (ch == '<') out += "&lt;";
+            else if (ch == '>') out += "&gt;";
+            else if (ch == '&') out += "&amp;";
+            else out += ch;
+        }
+        return out;
+    };
+    o << "<text x=\"0\" y=\"" << -margin - titleH / 2 + 1 << "\" font-family=\"Helvetica, Arial\" font-size=\"3\" "
+      << "fill=\"#111\">" << esc(title) << " — assembly drawing, " << (bottom ? "bottom side (seen from below)" : "top side")
+      << "</text>\n";
+    // Bottom-side drawings are mirrored so they match the board turned over.
+    o << "<g" << (bottom ? " transform=\"translate(" + mm(s.width) + ",0) scale(-1,1)\"" : std::string()) << ">\n";
+    o << "<polygon fill=\"#f4f4ef\" stroke=\"#222\" stroke-width=\"0.2\" points=\"";
+    for (const auto& v : s.outlinePolygon()) o << mm(v.x) << "," << mm(v.y) << " ";
+    o << "\"/>\n";
+    for (const auto& h : s.holes)
+        o << "<circle cx=\"" << mm(h.position.x) << "\" cy=\"" << mm(h.position.y) << "\" r=\"" << mm(h.drill / 2)
+          << "\" fill=\"white\" stroke=\"#222\" stroke-width=\"0.15\"/>\n";
+    for (const auto& p : pcb.pads(sch)) {
+        const Component* c = sch.find(p.componentId);
+        if (!c || c->pcb.bottom != bottom) continue;
+        o << "<rect x=\"" << mm(p.position.x - p.size.x / 2) << "\" y=\"" << mm(p.position.y - p.size.y / 2) << "\" width=\""
+          << mm(p.size.x) << "\" height=\"" << mm(p.size.y) << "\" fill=\"#c9c9c9\"/>\n";
+    }
+    for (const auto& c : sch.components()) {
+        if (!c.hasFootprint() || !c.pcb.placed || c.pcb.bottom != bottom) continue;
+        Rect r = pcb.courtyard(c).inflated(-0.15);
+        o << "<rect x=\"" << mm(r.x0) << "\" y=\"" << mm(r.y0) << "\" width=\"" << mm(r.x1 - r.x0) << "\" height=\""
+          << mm(r.y1 - r.y0) << "\" fill=\"none\" stroke=\"#1b4f9c\" stroke-width=\"0.15\"/>\n";
+        const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
+        if (fp && !fp->pads.empty()) {
+            Vec2 p1 = c.pcb.position + rotate90(fp->pads[0].offset, c.pcb.rotation);
+            o << "<circle cx=\"" << mm(p1.x) << "\" cy=\"" << mm(p1.y) << "\" r=\"0.25\" fill=\"#c0392b\"/>\n";
+        }
+        double size = std::max(0.8, std::min(2.0, std::min(r.x1 - r.x0, r.y1 - r.y0) * 0.45));
+        o << "<text x=\"" << mm((r.x0 + r.x1) / 2) << "\" y=\"" << mm((r.y0 + r.y1) / 2 + size * 0.35) << "\" font-size=\""
+          << mm(size) << "\" font-family=\"Helvetica, Arial\" text-anchor=\"middle\" fill=\"#111\""
+          << (bottom ? " transform=\"translate(" + mm(r.x0 + r.x1) + ",0) scale(-1,1)\"" : std::string()) << ">"
+          << esc(c.ref) << "</text>\n";
+    }
+    o << "</g>\n</svg>\n";
     return o.str();
 }
 

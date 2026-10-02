@@ -2,7 +2,10 @@
 #include <map>
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
 #include <functional>
+#include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -12,6 +15,7 @@
 #include "sieda/CustomParts.hpp"
 #include "sieda/DeviceModels.hpp"
 #include "sieda/Export.hpp"
+#include "sieda/Fabrication.hpp"
 #include "sieda/Firmware.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/Json.hpp"
@@ -1214,7 +1218,8 @@ TEST(design_verification_pipeline) {
     CHECK(done.errors == 0);
     const VerificationStage* mfg = stage(done, "manufacturing");
     CHECK(mfg && mfg->status == StageStatus::Pass);
-    CHECK(mfg && mfg->details.size() == static_cast<size_t>(p.pcb.settings.layerCount + 4 + 4));
+    // Copper per layer, mask ×2, silk, outline, drill, BOM, PnP, netlist, then paste, designators, IPC-356, job, zip.
+    CHECK(mfg && mfg->details.size() == static_cast<size_t>(p.pcb.settings.layerCount + 4 + 4 + 5));
     std::string md = done.toMarkdown();
     CHECK(md.find("# Design Verification Report") != std::string::npos);
     CHECK(md.find("| Routing Completion | PASS |") != std::string::npos);
@@ -1226,7 +1231,7 @@ TEST(design_verification_pipeline) {
     p.pcb.settings.layerCount = 4;
     CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
     VerificationReport four = verifyDesign(p);
-    CHECK(stage(four, "manufacturing")->details.size() == 12);
+    CHECK(stage(four, "manufacturing")->details.size() == 17);
     CHECK(four.passed());
 
     // An overloaded resistor fails circuit validation and therefore the design.
@@ -2338,4 +2343,110 @@ TEST(assembly_mesh_follows_layer_count) {
         CHECK((layers == 1) == (bareUnderside > 0));
         CHECK(bands == std::max(0, layers - 2));
     }
+}
+
+TEST(fabrication_package_is_complete) {
+    Project p = amplifierProject();
+    p.name = "Amp: rev A";
+    p.pcb.autoPlace(p.schematic, true);
+    p.pcb.settings.layerCount = 4;
+    p.pcb.settings.solderMask = "black";
+    p.pcb.settings.holes.push_back({{3, 3}, 3.2, 6.4});
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    // One SMD part on the bottom side.
+    for (auto& c : p.schematic.mutableComponents())
+        if (c.kind == ComponentKind::Resistor && c.hasFootprint()) {
+            c.pcb.bottom = true;
+            break;
+        }
+    auto files = fabricationPackage(p);
+    std::map<std::string, std::string> byName;
+    for (const auto& f : files) byName[f.path] = f.content;
+    auto has = [&](const std::string& path) { return byName.count(path) == 1 && !byName[path].empty(); };
+    const std::string g = "gerbers/Amp_rev_A";
+    for (const char* layer : {"-F_Cu", "-In1_Cu", "-In2_Cu", "-B_Cu", "-F_Mask", "-B_Mask", "-F_Paste", "-B_Paste",
+                              "-F_Silkscreen", "-B_Silkscreen", "-Edge_Cuts"})
+        CHECK(has(g + layer + ".gbr"));
+    CHECK(has(g + "-PTH.drl") && has(g + "-NPTH.drl") && has(g + "-ipc356.ipc") && has(g + "-job.gbrjob"));
+    for (const char* a : {"-bom.csv", "-bom_assembly.csv", "-cpl.csv", "-pick_and_place.csv", "-assembly_top.svg",
+                          "-assembly_bottom.svg"})
+        CHECK(has("assembly/Amp_rev_A" + std::string(a)));
+    CHECK(has("Amp_rev_A-gerbers.zip") && has("fab_notes.txt") && has("Amp_rev_A-netlist.cir") && has("3d/Amp_rev_A.stl"));
+
+    // Gerber X2 attributes, paste and silkscreen content.
+    CHECK(byName[g + "-F_Mask.gbr"].find("%TF.FilePolarity,Negative*%") != std::string::npos);
+    CHECK(byName[g + "-B_Paste.gbr"].find("%TF.FileFunction,Paste,Bot*%") != std::string::npos);
+    CHECK(byName[g + "-B_Silkscreen.gbr"].find("%TF.FileFunction,Legend,Bot*%") != std::string::npos);
+    int topSmd = 0;
+    for (const auto& pd : p.pcb.pads(p.schematic)) topSmd += !pd.throughHole && pd.smdLayer == kTopLayer;
+    size_t flashes = 0;
+    const std::string& paste = byName[g + "-F_Paste.gbr"];
+    for (size_t at = paste.find("D03*"); at != std::string::npos; at = paste.find("D03*", at + 1)) ++flashes;
+    CHECK(static_cast<int>(flashes) == topSmd);
+    // Designators are drawn: the top silkscreen has many more strokes than outlines alone.
+    auto strokes = silkscreenText("R12", {0, 0}, 1.0, false);
+    CHECK(strokes.size() >= 3);
+    auto mirrored = silkscreenText("R12", {0, 0}, 1.0, true);
+    CHECK(mirrored[0][0].x <= 0 && strokes[0][0].x >= 0);
+
+    // IPC-D-356A: one test point per pad and via, fixed columns, terminated.
+    const std::string& ipc = byName[g + "-ipc356.ipc"];
+    int records = 0;
+    std::istringstream lines(ipc);
+    for (std::string line; std::getline(lines, line);)
+        if (line.rfind("317", 0) == 0 || line.rfind("327", 0) == 0) {
+            ++records;
+            CHECK(line[26] == '-' && line[41] == 'X' && line[49] == 'Y');
+        }
+    CHECK(records == static_cast<int>(p.pcb.pads(p.schematic).size() + p.pcb.vias.size()));
+    CHECK(ipc.size() >= 4 && ipc.compare(ipc.size() - 4, 4, "999\n") == 0);
+
+    // Job file: stack-up with 4 copper layers, black mask, white legend.
+    Json job = Json::parse(byName[g + "-job.gbrjob"]);
+    CHECK(job.get("GeneralSpecs").get("LayerNumber").asInt() == 4);
+    int copper = 0;
+    bool black = false, white = false;
+    for (const auto& l : job.get("MaterialStackup").items()) {
+        copper += l.get("Type").asString() == "Copper";
+        black |= l.get("Type").asString() == "SolderMask" && l.get("Color").asString() == "Black";
+        white |= l.get("Type").asString() == "Legend" && l.get("Color").asString() == "White";
+    }
+    CHECK(copper == 4 && black && white);
+    CHECK(job.get("FilesAttributes").size() == 11);
+
+    // The zip holds the gerbers/ files (flat), each stored intact.
+    const std::string& zip = byName["Amp_rev_A-gerbers.zip"];
+    CHECK(zip.compare(0, 4, "PK\x03\x04") == 0);
+    size_t entries = 0;
+    for (size_t at = zip.find("PK\x01\x02"); at != std::string::npos; at = zip.find("PK\x01\x02", at + 1)) ++entries;
+    size_t gerberFiles = 0;
+    for (const auto& f : files) gerberFiles += f.path.rfind("gerbers/", 0) == 0;
+    CHECK(entries == gerberFiles);
+    CHECK(zip.find(byName[g + "-F_Cu.gbr"]) != std::string::npos);
+
+    // Order notes carry what the fab asks for.
+    const std::string& notes = byName["fab_notes.txt"];
+    for (const char* text : {"Layers               4", "Thickness            1.60 mm", "Solder mask          Black",
+                             "Silkscreen           White, top and bottom", "HASL lead-free", "Non-plated           1",
+                             "IPC-D-356A", "Amp_rev_A-gerbers.zip"})
+        CHECK(notes.find(text) != std::string::npos);
+    std::string cpl = byName["assembly/Amp_rev_A-cpl.csv"];
+    CHECK(cpl.find("Bottom") != std::string::npos && cpl.find("mm,") != std::string::npos);
+
+    // Single-sided: no bottom copper or mask.
+    p.pcb.settings.layerCount = 1;
+    for (auto& c : p.schematic.mutableComponents()) c.pcb.bottom = false;
+    std::set<std::string> single;
+    for (const auto& f : fabricationPackage(p, "ss")) single.insert(f.path);
+    CHECK(single.count("gerbers/ss-F_Cu.gbr") && !single.count("gerbers/ss-B_Cu.gbr") && !single.count("gerbers/ss-B_Mask.gbr"));
+
+    // Written to disk.
+    std::string dir = (std::filesystem::temp_directory_path() / "sieda_fab_test").string();
+    std::filesystem::remove_all(dir);
+    std::vector<std::string> written;
+    std::string error;
+    CHECK(writeFabricationPackage(p, dir, &written, &error, "ss"));
+    CHECK(error.empty() && written.size() == single.size());
+    CHECK(std::filesystem::exists(dir + "/gerbers/ss-F_Cu.gbr") && std::filesystem::exists(dir + "/ss-gerbers.zip"));
+    std::filesystem::remove_all(dir);
 }
