@@ -8,14 +8,14 @@ enum Workspace: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// Workspaces offered in the UI; the AI Prompt Studio is hidden when AI assistance is off.
+    /// Workspaces offered in the UI; the Super Intelligence workspace is hidden when AI assistance is off.
     static func visible(aiEnabled: Bool) -> [Workspace] {
         aiEnabled ? allCases : allCases.filter { $0 != .promptStudio }
     }
 
     var title: String {
         switch self {
-        case .promptStudio: return "AI Prompt Studio"
+        case .promptStudio: return "Super Intelligence"
         case .schematic: return "Schematic"
         case .library: return "Component Library"
         case .pcb: return "PCB Layout"

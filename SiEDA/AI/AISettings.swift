@@ -36,7 +36,7 @@ enum KeychainStore {
 /// User-selectable AI configuration. Claude is the default provider.
 @MainActor
 final class AISettings: ObservableObject {
-    /// Master switch. When off SiEDA is a classic manual EDA tool: no Prompt Studio, no network calls,
+    /// Master switch. When off SiEDA is a classic manual EDA tool: no Super Intelligence workspace, no network calls,
     /// datasheets are parsed offline.
     @Published var aiEnabled: Bool {
         didSet { defaults.set(aiEnabled, forKey: "ai.enabled") }
