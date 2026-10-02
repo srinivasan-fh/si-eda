@@ -1495,3 +1495,16 @@ final class InteractiveSchematicTests: XCTestCase {
         XCTAssertFalse(store.snapshot.wires.contains { $0.id == wire })
     }
 }
+
+final class SwitchSymbolTests: XCTestCase {
+    /// On: the lever lies flat across the contacts. Off: it is lifted well clear (the gap is visible at any zoom).
+    func testSwitchSymbolShowsOpenAndClosed() {
+        let on = SchematicSymbols.shapes(for: .switchSPST, value: "on").solid.boundingRect
+        let off = SchematicSymbols.shapes(for: .switchSPST, value: "off").solid.boundingRect
+        XCTAssertLessThan(on.height, 5)          // flat bar + contact dots
+        XCTAssertGreaterThanOrEqual(on.maxX, 12) // reaches the right contact
+        XCTAssertLessThan(off.minY, -15)         // lifted lever
+        XCTAssertEqual(SchematicSymbols.shapes(for: .switchSPST, value: "closed").solid.boundingRect, on)
+        XCTAssertEqual(SchematicSymbols.shapes(for: .switchSPST, value: "open").solid.boundingRect, off)
+    }
+}

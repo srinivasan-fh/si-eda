@@ -202,8 +202,22 @@ enum SchematicSymbols {
             line(p(12, 0), p(30, 0))
             s.solid.addEllipse(in: CGRect(x: -14, y: -2, width: 4, height: 4))
             s.solid.addEllipse(in: CGRect(x: 10, y: -2, width: 4, height: 4))
+            // Closed (on): the lever lies flat across both contacts, ──●━━━━●──.
+            // Open (off): the lever is lifted well clear of the right contact, ──●╱  ●──.
             let closed = ["on", "closed", "1", "true"].contains(value.lowercased())
-            line(p(-12, 0), closed ? p(12, -2) : p(10, -11))
+            let tip = closed ? p(12, 0) : p(7, -17)
+            line(p(-12, 0), tip)
+            // A solid bar along the lever so the state reads at any zoom.
+            let dx = tip.x + 12, dy = tip.y
+            let length = max(hypot(dx, dy), 1)
+            let nx = -dy / length * 1.3, ny = dx / length * 1.3
+            var lever = Path()
+            lever.move(to: p(-12 + nx, ny))
+            lever.addLine(to: p(tip.x + nx, tip.y + ny))
+            lever.addLine(to: p(tip.x - nx, tip.y - ny))
+            lever.addLine(to: p(-12 - nx, -ny))
+            lever.closeSubpath()
+            s.solid.addPath(lever)
 
         case .connector:
             let body = CGRect(x: -10, y: -20, width: 16, height: 40)
