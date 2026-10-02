@@ -1,16 +1,100 @@
 import AppKit
 import SwiftUI
 
-/// Guards against losing work: quitting (or closing the last window) asks to save an edited design.
+/// Guards against losing work (quitting or closing the window asks to save an edited design) and opens .siedaproj
+/// files handed over by Finder, the Dock or Open Recent.
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    weak var store: DesignStore?
+    weak var store: DesignStore? {
+        didSet { openPending() }
+    }
+    /// A file opened before the window (and its store) existed — opened as soon as the store is attached.
+    private var pendingURL: URL?
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
     @MainActor
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let store else { return .terminateNow }
+        guard let store, !store.closeConfirmed else { return .terminateNow }
         return store.confirmDiscardChanges() ? .terminateNow : .terminateCancel
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let url = urls.first(where: { $0.pathExtension.lowercased() == "siedaproj" }) ?? urls.first else { return }
+        pendingURL = url
+        openPending()
+    }
+
+    private func openPending() {
+        guard let url = pendingURL, let store else { return }
+        pendingURL = nil
+        MainActor.assumeIsolated {
+            if store.confirmDiscardChanges() { store.open(url: url) }
+        }
+    }
+}
+
+/// Asks to save before the window closes (red button, ⌘W). Installed as a proxy in front of SwiftUI's own window
+/// delegate, to which every other delegate call is forwarded.
+final class WindowCloseGuard: NSObject, NSWindowDelegate {
+    /// Weak reference holder readable from the (nonisolated) Objective-C forwarding overrides.
+    final class Box {
+        weak var delegate: NSObjectProtocol?
+    }
+    private let originalBox = Box()
+    var original: NSWindowDelegate? {
+        get { originalBox.delegate as? NSWindowDelegate }
+        set { originalBox.delegate = newValue }
+    }
+    weak var store: DesignStore?
+
+    override func responds(to selector: Selector!) -> Bool {
+        super.responds(to: selector) || (originalBox.delegate?.responds(to: selector) ?? false)
+    }
+
+    override func forwardingTarget(for selector: Selector!) -> Any? {
+        if let target = originalBox.delegate, target.responds(to: selector) { return target }
+        return super.forwardingTarget(for: selector)
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if original?.windowShouldClose?(sender) == false { return false }
+        guard let store else { return true }
+        return MainActor.assumeIsolated {
+            let ok = store.confirmDiscardChanges()
+            if ok { store.closeConfirmed = true }
+            return ok
+        }
+    }
+}
+
+/// Invisible view that installs the `WindowCloseGuard` on its window.
+struct WindowCloseGuardInstaller: NSViewRepresentable {
+    let store: DesignStore
+
+    final class Coordinator {
+        let guardDelegate = WindowCloseGuard()
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async { install(on: view.window, context.coordinator) }
+        return view
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        DispatchQueue.main.async { install(on: view.window, context.coordinator) }
+    }
+
+    private func install(on window: NSWindow?, _ coordinator: Coordinator) {
+        guard let window else { return }
+        let proxy = coordinator.guardDelegate
+        proxy.store = store
+        if window.delegate !== proxy {
+            proxy.original = window.delegate
+            window.delegate = proxy
+        }
     }
 }
 
@@ -31,6 +115,7 @@ struct SiEDAApp: App {
                 .preferredColorScheme((AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
                 .tint(Theme.blue)
                 .documentWindowFrame()
+                .background(WindowCloseGuardInstaller(store: store))
                 .onAppear { appDelegate.store = store }
         }
         .defaultSize(width: LayoutMetrics.defaultWindow.width, height: LayoutMetrics.defaultWindow.height)
@@ -89,6 +174,18 @@ struct SiEDACommands: Commands {
             }
             Button("Open…") { store.openProject() }
                 .keyboardShortcut("o")
+            Menu("Open Recent") {
+                let recents = NSDocumentController.shared.recentDocumentURLs
+                ForEach(recents, id: \.self) { url in
+                    Button(url.deletingPathExtension().lastPathComponent) {
+                        if store.confirmDiscardChanges() { store.open(url: url) }
+                    }
+                }
+                if !recents.isEmpty {
+                    Divider()
+                    Button("Clear Menu") { NSDocumentController.shared.clearRecentDocuments(nil) }
+                }
+            }
         }
         CommandGroup(replacing: .saveItem) {
             Button("Save") { store.save() }

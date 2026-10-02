@@ -48,7 +48,8 @@ struct AlertItem: Identifiable {
 }
 
 extension UTType {
-    static var siedaProject: UTType { UTType(filenameExtension: "siedaproj") ?? .json }
+    /// Declared in Info.plist (UTExportedTypeDeclarations) so Finder, the Dock and Open Recent route files to SiEDA.
+    static var siedaProject: UTType { UTType("com.sieda.project") ?? UTType(filenameExtension: "siedaproj") ?? .json }
 }
 
 /// Single source of truth for the open design. Wraps the C++ engine and publishes snapshots to SwiftUI.
@@ -916,6 +917,9 @@ final class DesignStore: ObservableObject {
             present(error, title: "Export failed")
         }
     }
+
+    /// Set once the user agreed to close the window (saved or chose Don't Save), so quitting does not ask again.
+    var closeConfirmed = false
 
     /// Returns false if the user cancels.
     func confirmDiscardChanges() -> Bool {

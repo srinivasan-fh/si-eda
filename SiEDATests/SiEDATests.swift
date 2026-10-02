@@ -1,5 +1,6 @@
 import SwiftUI
 import XCTest
+import UniformTypeIdentifiers
 @testable import SiEDA
 
 final class EngineBridgeTests: XCTestCase {
@@ -1224,5 +1225,54 @@ final class LiveSimulationTests: XCTestCase {
         XCTAssertNotNil(store.live.error)
         store.live.clearError()
         XCTAssertNil(store.live.error)
+    }
+}
+
+/// Files from Finder / Dock / Open Recent, and the close-window save guard.
+@MainActor
+final class DocumentHandlingTests: XCTestCase {
+    private func projectFile(named name: String) throws -> URL {
+        let engine = EDAEngine(name: name)
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].industryPlan, to: engine, previous: nil)
+        engine.setName(name)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).siedaproj")
+        try engine.saveJSON().write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    func testAppDelegateOpensFilesEvenBeforeTheWindowExists() throws {
+        let url = try projectFile(named: "From Finder")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let delegate = AppDelegate()
+        delegate.application(NSApplication.shared, open: [url])  // no store yet: kept pending
+        let store = DesignStore()
+        delegate.store = store
+        XCTAssertEqual(store.snapshot.name, "From Finder")
+        XCTAssertEqual(store.documentURL, url)
+
+        let second = try projectFile(named: "Second")
+        defer { try? FileManager.default.removeItem(at: second) }
+        delegate.application(NSApplication.shared, open: [second])
+        XCTAssertEqual(store.snapshot.name, "Second")
+        XCTAssertEqual(UTType.siedaProject.preferredFilenameExtension, "siedaproj")
+    }
+
+    func testCloseGuardForwardsAndAllowsCleanClose() {
+        final class Original: NSObject, NSWindowDelegate {
+            var resized = false
+            func windowDidResize(_ notification: Notification) { resized = true }
+        }
+        let original = Original()
+        let closeGuard = WindowCloseGuard()
+        closeGuard.original = original
+        let store = DesignStore()
+        closeGuard.store = store
+        XCTAssertTrue(closeGuard.responds(to: #selector(NSWindowDelegate.windowDidResize(_:))))
+        XCTAssertTrue((closeGuard.forwardingTarget(for: #selector(NSWindowDelegate.windowDidResize(_:))) as AnyObject) === original)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 100), styleMask: [.titled, .closable],
+                              backing: .buffered, defer: true)
+        window.isReleasedWhenClosed = false
+        XCTAssertTrue(closeGuard.windowShouldClose(window))  // clean design: closes without asking
+        XCTAssertTrue(store.closeConfirmed)
     }
 }
