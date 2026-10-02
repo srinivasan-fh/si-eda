@@ -99,7 +99,7 @@ Each cloud provider has a **Sign In…** button in **Settings → AI Models**. S
 | OpenRouter | **OpenRouter** | OAuth with PKCE in the browser. OpenRouter issues SiEDA a key (kept in the Keychain), giving one login for Claude, GPT, Gemini and other models. |
 | OpenAI / compatible | **Organisation SSO** | OpenID Connect + PKCE with your company identity provider (Okta, Microsoft Entra ID, Google Workspace, Keycloak…) for an OpenAI-compatible AI gateway that accepts its access tokens. Tokens are refreshed automatically. OpenAI itself has no third-party sign-in, so the OpenAI API uses a key. |
 
-Every provider still accepts an API key. Browser redirects are received on `127.0.0.1`, local connections only. The Claude Console and Google sign-ins start the vendors' command-line tools. The App Sandbox does not allow that, so a sandboxed build (the default) disables those two options and explains why. Use them from a build without the sandbox.
+Every provider still accepts an API key. Browser redirects are received on `127.0.0.1`, local connections only. The Claude Console and Google sign-ins start the vendors' command-line tools, which the macOS App Sandbox does not allow. SiEDA therefore runs without the App Sandbox, like other developer tools distributed outside the Mac App Store. A sandboxed build disables those two options and explains why.
 
 ## Microcontroller library
 

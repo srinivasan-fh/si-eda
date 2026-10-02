@@ -143,7 +143,7 @@ private struct AIModelSettings: View {
     }
 }
 
-/// Sign-in for one provider: the method (browser sign-in or API key), its status and the fields it needs.
+/// Sign-in for one provider: a button for each browser sign-in it offers, then an API key as the alternative.
 private struct AccountSettings: View {
     @EnvironmentObject private var settings: AISettings
     let kind: AIProviderKind
@@ -151,57 +151,78 @@ private struct AccountSettings: View {
     var changed: () -> Void
 
     var body: some View {
-        Picker("Sign-in", selection: modeBinding) {
-            ForEach(kind.authModes) { Text($0.title).tag($0) }
+        let inUse = settings.authMode(for: kind)
+        LabeledContent("Signed in with") {
+            Text(settings.isSignedIn(kind) ? inUse.title.replacingOccurrences(of: "Sign in with ", with: "") : "Not signed in")
+                .foregroundStyle(settings.isSignedIn(kind) ? Theme.skyBlue : Theme.textMuted)
         }
-        let mode = settings.authMode(for: kind)
-        if mode == .apiKey {
+        ForEach(kind.authModes.filter(\.usesBrowser)) { mode in
+            signInRow(mode, inUse: inUse == mode)
+        }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(kind.authModes.contains { $0.usesBrowser } ? "Or use an API key" : "API key")
+                .font(.callout.weight(.semibold))
             HStack {
-                SecureField("API key", text: $keyDraft)
+                SecureField("API key", text: $keyDraft, prompt: Text("Paste API key"))
+                    .textFieldStyle(.roundedBorder)
+                    .labelsHidden()
                 Button("Save Key") {
                     settings.setAPIKey(keyDraft, for: kind)
+                    if !keyDraft.isEmpty { settings.authModes[kind] = .apiKey }
                     changed()
                 }
+                .disabled(keyDraft.isEmpty && settings.apiKey(for: kind).isEmpty)
             }
             Text(settings.apiKey(for: kind).isEmpty
                  ? "No key stored."
-                 : "Key stored in the macOS Keychain (••••\(String(settings.apiKey(for: kind).suffix(4)))).")
+                 : "Key stored in the macOS Keychain (••••\(String(settings.apiKey(for: kind).suffix(4))))\(inUse == .apiKey ? " — in use." : ".")")
                 .font(.caption)
                 .foregroundStyle(Theme.textMuted)
-        } else {
+        }
+        if let message = settings.signInMessage {
+            Text(message).font(.caption).foregroundStyle(Theme.textSecondary).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private func signInRow(_ mode: AIAuthMode, inUse: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
             if mode == .googleCloud {
-                TextField("Google Cloud project ID", text: $settings.googleProject)
-                TextField("Vertex AI region", text: $settings.googleRegion)
+                TextField("Google Cloud project ID", text: $settings.googleProject, prompt: Text("my-gcp-project"))
+                TextField("Vertex AI region", text: $settings.googleRegion, prompt: Text("us-central1"))
             }
             if mode == .sso {
-                TextField("Issuer URL (e.g. https://login.example.com/oauth2/default)", text: $settings.ssoConfiguration.issuer)
-                TextField("Client ID (public client, loopback redirect)", text: $settings.ssoConfiguration.clientID)
+                TextField("Issuer URL", text: $settings.ssoConfiguration.issuer, prompt: Text("https://login.example.com/oauth2/default"))
+                TextField("Client ID", text: $settings.ssoConfiguration.clientID, prompt: Text("public client id"))
                 TextField("Scopes", text: $settings.ssoConfiguration.scopes)
                 TextField("Audience (optional)", text: $settings.ssoConfiguration.audience)
             }
             HStack(spacing: 10) {
-                let signedIn = settings.isSignedIn(kind)
-                Label(signedIn ? "Signed in" : "Not signed in",
-                      systemImage: signedIn ? "checkmark.seal.fill" : "person.crop.circle.badge.questionmark")
-                    .foregroundStyle(signedIn ? Theme.skyBlue : Theme.textMuted)
-                Spacer()
-                if settings.signingIn == kind {
-                    ProgressView().controlSize(.small)
-                    Text("Finish the login in your browser…").font(.caption).foregroundStyle(Theme.textMuted)
-                }
-                Button(signedIn ? "Sign In Again…" : "Sign In…") {
+                let signedIn = settings.isSignedIn(kind, with: mode)
+                Button {
                     changed()
-                    Task { await settings.signIn(kind) }
+                    Task { await settings.signIn(kind, with: mode) }
+                } label: {
+                    Label(signedIn ? mode.title.replacingOccurrences(of: "Sign in", with: "Sign in again") + "…" : mode.title + "…",
+                          systemImage: "person.badge.key.fill")
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 .disabled(settings.signingIn != nil || !mode.isAvailable || (mode == .sso && !settings.ssoConfiguration.isComplete))
-                if signedIn {
+                if settings.signingIn == kind && settings.authMode(for: kind) == mode {
+                    ProgressView().controlSize(.small)
+                    Text("Finish the login in your browser…").font(.caption).foregroundStyle(Theme.textMuted)
+                } else if signedIn {
+                    Label(inUse ? "Signed in · in use" : "Signed in", systemImage: "checkmark.seal.fill")
+                        .font(.caption)
+                        .foregroundStyle(Theme.skyBlue)
                     Button("Sign Out") {
                         changed()
-                        Task { await settings.signOut(kind) }
+                        Task { await settings.signOut(kind, from: mode) }
                     }
                     .disabled(settings.signingIn != nil)
                 }
+                Spacer(minLength: 0)
             }
             if !mode.isAvailable {
                 Label(CommandLineTool.sandboxMessage, systemImage: "exclamationmark.triangle")
@@ -214,17 +235,7 @@ private struct AccountSettings: View {
                 .foregroundStyle(Theme.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        if let message = settings.signInMessage {
-            Text(message).font(.caption).foregroundStyle(Theme.textSecondary).fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private var modeBinding: Binding<AIAuthMode> {
-        Binding(get: { settings.authMode(for: kind) }, set: {
-            settings.authModes[kind] = $0
-            settings.signInMessage = nil
-            changed()
-        })
+        .padding(.vertical, 4)
     }
 
     static func explanation(_ mode: AIAuthMode) -> String {

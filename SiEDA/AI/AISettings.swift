@@ -120,19 +120,25 @@ final class AISettings: ObservableObject {
 
     func authMode(for kind: AIProviderKind) -> AIAuthMode { authModes[kind] ?? kind.authModes.first ?? .apiKey }
 
-    /// Whether the provider's selected sign-in is complete (an API key counts as signed in).
-    func isSignedIn(_ kind: AIProviderKind) -> Bool {
-        switch authMode(for: kind) {
+    /// Whether the provider is signed in with `mode` (default: the method in use). An API key counts as signed in.
+    func isSignedIn(_ kind: AIProviderKind, with mode: AIAuthMode? = nil) -> Bool {
+        let mode = mode ?? authMode(for: kind)
+        switch mode {
         case .apiKey, .browser: return !apiKey(for: kind).isEmpty
-        case .claudeConsole, .googleCloud: return signedIn.contains(authMode(for: kind))
+        case .claudeConsole, .googleCloud: return signedIn.contains(mode)
         case .sso: return OIDCAuth.load() != nil
         }
     }
 
-    /// Runs the provider's browser sign-in: opens the login page in the default browser and waits for it.
+    /// Runs the provider's browser sign-in with the method in use.
     func signIn(_ kind: AIProviderKind) async {
-        let mode = authMode(for: kind)
-        guard mode.usesBrowser, signingIn == nil else { return }
+        await signIn(kind, with: authMode(for: kind))
+    }
+
+    /// Opens the login page of `mode` in the default browser, waits for it, and makes it the provider's method.
+    func signIn(_ kind: AIProviderKind, with mode: AIAuthMode) async {
+        guard mode.usesBrowser, kind.authModes.contains(mode), signingIn == nil else { return }
+        authModes[kind] = mode
         signingIn = kind
         signInMessage = nil
         defer { signingIn = nil }
@@ -161,7 +167,11 @@ final class AISettings: ObservableObject {
     }
 
     func signOut(_ kind: AIProviderKind) async {
-        switch authMode(for: kind) {
+        await signOut(kind, from: authMode(for: kind))
+    }
+
+    func signOut(_ kind: AIProviderKind, from mode: AIAuthMode) async {
+        switch mode {
         case .claudeConsole:
             await ClaudeConsoleAuth.signOut()
             signedIn.remove(.claudeConsole)
