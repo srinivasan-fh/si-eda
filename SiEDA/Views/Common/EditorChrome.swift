@@ -352,6 +352,32 @@ struct BlueEmptyState: View {
 
 // MARK: - Mouse input: scroll wheel, trackpad, middle/right-button pan
 
+/// Window frames (SwiftUI global coordinates, top-left origin) of the overlays drawn above a canvas. Scrolling over
+/// them scrolls the overlay (or nothing) instead of zooming the canvas underneath.
+@MainActor
+enum CanvasScrollShields {
+    static var frames: [UUID: CGRect] = [:]
+}
+
+private struct CanvasScrollShield: ViewModifier {
+    @State private var id = UUID()
+
+    func body(content: Content) -> some View {
+        content.background(GeometryReader { geometry in
+            let frame = geometry.frame(in: .global)
+            Color.clear
+                .onAppear { CanvasScrollShields.frames[id] = frame }
+                .onChange(of: frame) { _, new in CanvasScrollShields.frames[id] = new }
+                .onDisappear { CanvasScrollShields.frames[id] = nil }
+        })
+    }
+}
+
+extension View {
+    /// Marks an overlay above a canvas: scroll-wheel and trackpad events over it don't zoom or pan the canvas.
+    func canvasScrollShield() -> some View { modifier(CanvasScrollShield()) }
+}
+
 /// Invisible background view that receives scroll-wheel events and middle/right-button drags over its frame without
 /// blocking normal clicks.
 struct CanvasInputMonitor: NSViewRepresentable {
@@ -385,12 +411,20 @@ struct CanvasInputMonitor: NSViewRepresentable {
             return bounds.contains(point) ? point : nil
         }
 
+        /// True over an overlay drawn above the canvas (navigator, layers panel, transport…): its scrolling is its own.
+        private func overShield(_ event: NSEvent) -> Bool {
+            guard let content = window?.contentView else { return false }
+            let p = content.convert(event.locationInWindow, from: nil)
+            let topLeft = CGPoint(x: p.x, y: content.isFlipped ? p.y : content.bounds.height - p.y)
+            return CanvasScrollShields.frames.values.contains { $0.contains(topLeft) }
+        }
+
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             removeMonitors()
             guard window != nil else { return }
             if let m = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel, handler: { [weak self] event in
-                guard let self, let point = self.contains(event) else { return event }
+                guard let self, let point = self.contains(event), !self.overShield(event) else { return event }
                 self.onScroll?(event, point)
                 return nil
             }) { monitors.append(m) }

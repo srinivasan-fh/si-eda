@@ -51,10 +51,32 @@ struct ClaudeProvider: AIProvider {
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { throw AIProviderError.missingAPIKey("Anthropic Claude") }
 
+        // Adaptive thinking shares max_tokens with the answer: give higher effort levels room, and retry a cut-off
+        // answer once with twice the budget.
+        let budget = max(request.maxTokens, Self.outputBudget(effort: effort))
+        do {
+            return try await complete(request, key: key, maxTokens: budget)
+        } catch AIProviderError.truncated where budget < Self.maxOutputTokens {
+            return try await complete(request, key: key, maxTokens: min(budget * 2, Self.maxOutputTokens))
+        }
+    }
+
+    static let maxOutputTokens = 128_000
+
+    /// Output budget (thinking + answer) for an effort level.
+    static func outputBudget(effort: String) -> Int {
+        switch effort {
+        case "xhigh", "max": return 64_000
+        case "high": return 32_000
+        default: return 16_000
+        }
+    }
+
+    private func complete(_ request: AIRequest, key: String, maxTokens: Int) async throws -> String {
         let caps = Capabilities(model: model)
         var body: [String: Any] = [
             "model": model,
-            "max_tokens": request.maxTokens,
+            "max_tokens": maxTokens,
             "system": request.system,
             "messages": [["role": "user", "content": Self.content(for: request)] as [String: Any]],
         ]

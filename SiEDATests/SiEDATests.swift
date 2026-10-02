@@ -1294,3 +1294,94 @@ final class MedicalFrontEndTests: XCTestCase {
         XCTAssertEqual(swing, 0.2, accuracy: 0.03)
     }
 }
+
+@MainActor
+final class AuditFixTests: XCTestCase {
+    func testChangeRequestsAreKeptAsOneList() {
+        var requirements = "Battery-powered ECG front end."
+        requirements = AgentOrchestrator.appendingChangeRequest("Add a power LED", to: requirements)
+        requirements = AgentOrchestrator.appendingChangeRequest("Use a 4-layer board", to: requirements)
+        requirements = AgentOrchestrator.appendingChangeRequest("add a power led", to: requirements)  // repeated
+        XCTAssertEqual(requirements, """
+            Battery-powered ECG front end.
+
+            Change requests:
+            - Use a 4-layer board
+            - add a power led
+            """)
+        // Old projects stored one "Change request:" paragraph per refinement.
+        let legacy = "PRD\n\nChange request: A\n\nChange request: B"
+        XCTAssertEqual(AgentOrchestrator.appendingChangeRequest("C", to: legacy), "PRD\n\nChange requests:\n- A\n- B\n- C")
+        var many = ""
+        for i in 0..<40 { many = AgentOrchestrator.appendingChangeRequest("Request \(i)", to: many) }
+        XCTAssertEqual(many.components(separatedBy: "\n- ").count - 1, AgentOrchestrator.maxChangeRequests)
+        XCTAssertTrue(many.hasSuffix("- Request 39"))
+    }
+
+    func testIdenticalViolationsHaveDistinctIds() throws {
+        let json = """
+            [{"severity":"warning","code":"X","message":"same","components":[],"hasLocation":false,"x":0,"y":0},
+             {"severity":"warning","code":"X","message":"same","components":[],"hasLocation":false,"x":0,"y":0}]
+            """
+        let violations = try JSONDecoder().decode([RuleViolation].self, from: Data(json.utf8)).numbered()
+        XCTAssertEqual(Set(violations.map(\.id)).count, 2)
+    }
+
+    func testTextFilesInLegacyEncodingsAreRead() {
+        let text = "Résumé: 5 °C – 3.3 V rail"
+        let cp1252 = text.data(using: .windowsCP1252)!
+        XCTAssertEqual(DatasheetDocument.decodeText(cp1252), text)
+        XCTAssertEqual(DatasheetDocument.decodeText(text.data(using: .utf16)!), text)
+        XCTAssertEqual(DatasheetDocument.decodeText(Data(text.utf8)), text)
+    }
+
+    func testExampleLoadsCleanAndNewProjectStartsBlank() throws {
+        let store = DesignStore()
+        let blankBoard = store.snapshot.board
+        let ecg = try XCTUnwrap(OfflineProvider.templates.first { $0.plan.title.contains("ECG") })
+        store.loadExample(ecg.industryPlan)
+        XCTAssertFalse(store.isDirty, "an untouched example needs no save prompt")
+        XCTAssertFalse(store.snapshot.customParts.isEmpty)
+
+        store.addGroundPours()
+        let pours = store.snapshot.zones.count
+        XCTAssertGreaterThan(pours, 0)
+        store.addGroundPours()
+        XCTAssertEqual(store.snapshot.zones.count, pours, "a second click must not stack duplicate pours")
+
+        // Saved and reopened: clean, so New Project doesn't ask.
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).siedaproj")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try store.engine.saveJSON().write(to: url, atomically: true, encoding: .utf8)
+        store.open(url: url)
+        XCTAssertFalse(store.isDirty)
+        XCTAssertEqual(store.snapshot.zones.count, pours)
+        store.newProject()
+        XCTAssertTrue(store.snapshot.components.isEmpty)
+        XCTAssertTrue(store.snapshot.customParts.isEmpty)
+        XCTAssertTrue(store.snapshot.zones.isEmpty)
+        XCTAssertEqual(store.snapshot.board, blankBoard)
+        XCTAssertEqual(store.snapshot.requirements, "")
+    }
+
+    func testNetLabelHitBoxFollowsTheText() {
+        let short = SchematicSymbols.bounds(.netLabel, value: "A", custom: nil)
+        let long = SchematicSymbols.bounds(.netLabel, value: "MOTOR_PWM_FRONT_LEFT", custom: nil)
+        XCTAssertGreaterThan(long.width, short.width)
+        XCTAssertGreaterThanOrEqual(long.maxX, SchematicSymbols.netLabelTextWidth("MOTOR_PWM_FRONT_LEFT"))
+    }
+
+    func testRevealAsksForTheInspector() {
+        let store = DesignStore()
+        let r = store.addComponent(.resistor, at: .zero)
+        let before = store.inspectorRevealToken
+        store.reveal(component: r)
+        XCTAssertEqual(store.selection, [r])
+        XCTAssertEqual(store.inspectorRevealToken, before + 1)
+    }
+
+    func testClaudeOutputBudgetGrowsWithEffort() {
+        XCTAssertEqual(ClaudeProvider.outputBudget(effort: "medium"), 16_000)
+        XCTAssertGreaterThan(ClaudeProvider.outputBudget(effort: "max"), ClaudeProvider.outputBudget(effort: "high"))
+    }
+}

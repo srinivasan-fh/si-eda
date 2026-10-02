@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -27,6 +28,9 @@ struct ComponentLibraryView: View {
         case done(String)
         case failed(String)
     }
+
+    /// Selection tag prefix of standard-library rows (project parts are tagged with their id).
+    static let standardTag = "std:"
 
     /// Below this width the symbol and footprint previews move under the editor instead of a third column.
     static let threeColumnWidth: CGFloat = 1000
@@ -132,6 +136,7 @@ struct ComponentLibraryView: View {
                                     .accessibilityLabel("Add \(part.spec.name) to the project library")
                             }
                             .help(part.spec.description)
+                            .tag(Self.standardTag + part.id)
                         }
                     }
                 }
@@ -139,7 +144,16 @@ struct ComponentLibraryView: View {
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
             .onChange(of: selectedId) { _, id in
-                if let id, let part = store.snapshot.customParts.first(where: { $0.id == id }) { load(part) }
+                guard let id else { return }
+                if let part = store.snapshot.customParts.first(where: { $0.id == id }) {
+                    load(part)
+                } else if id.hasPrefix(Self.standardTag),
+                          let part = StandardLibrary.parts.first(where: { Self.standardTag + $0.id == id }) {
+                    // Preview a standard part as a new, unsaved draft: "Add to Library" copies it into the project.
+                    draft = part.spec
+                    editingId = nil
+                    importNotes = ["\(part.spec.name) from the standard library (\(part.category)). Add it to the library to place it."]
+                }
             }
             if store.snapshot.customParts.isEmpty {
                 Text("Parts you import, create or add from the standard library appear here and in the schematic device picker.")
@@ -323,22 +337,25 @@ struct ComponentLibraryView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 24)
                     }
-                    ForEach($draft.pins) { $pin in
+                    ForEach(draft.pins) { row in
+                        // Id-keyed bindings: an index-based `$draft.pins` binding outlives a deleted row (focused field
+                        // commits after the removal) and traps with "index out of range".
+                        let pin = pinBinding(row)
                         HStack(spacing: 8) {
-                            TextField("1", text: $pin.number).frame(width: 46)
-                            TextField("Name", text: $pin.name).frame(width: 110)
-                            Picker("", selection: $pin.type) {
+                            TextField("1", text: pin.number).frame(width: 46)
+                            TextField("Name", text: pin.name).frame(width: 110)
+                            Picker("", selection: pin.type) {
                                 ForEach(PinElectricalType.allCases) { type in
                                     Label(type.title, systemImage: type.symbol).tag(type)
                                 }
                             }
                             .labelsHidden()
                             .frame(width: 130)
-                            TextField("Description", text: $pin.description)
+                            TextField("Description", text: pin.description)
                             Button {
-                                draft.pins.removeAll { $0.id == pin.id }
+                                removePin(row.id)
                             } label: { Image(systemName: "minus.circle") }
-                                .accessibilityLabel("Remove pin \(pin.number)")
+                                .accessibilityLabel("Remove pin \(row.number)")
                                 .buttonStyle(.borderless)
                                 .foregroundStyle(Theme.lightBlue)
                                 .frame(width: 20)
@@ -445,6 +462,19 @@ struct ComponentLibraryView: View {
         preview = nil
     }
 
+    private func pinBinding(_ row: CustomPartSpec.Pin) -> Binding<CustomPartSpec.Pin> {
+        Binding(
+            get: { draft.pins.first { $0.id == row.id } ?? row },
+            set: { value in
+                if let i = draft.pins.firstIndex(where: { $0.id == row.id }) { draft.pins[i] = value }
+            })
+    }
+
+    private func removePin(_ id: CustomPartSpec.Pin.ID) {
+        NSApp.keyWindow?.makeFirstResponder(nil)  // commit (or drop) the edit in progress first
+        DispatchQueue.main.async { draft.pins.removeAll { $0.id == id } }
+    }
+
     private func addPin() {
         let next = (draft.pins.compactMap { Int($0.number) }.max() ?? 0) + 1
         draft.pins.append(CustomPartSpec.Pin(number: String(next), name: "P\(next)"))
@@ -504,12 +534,22 @@ struct ComponentLibraryView: View {
             do {
                 let document = try await Task.detached(priority: .userInitiated) { try DatasheetDocument.load(url: url) }.value
                 importState = .running("\(provider.displayName) is reading the pinout (\(document.pageCount) page\(document.pageCount == 1 ? "" : "s"))…")
-                let result = try await DatasheetAnalyst.extract(document, hint: hint, provider: provider)
+                var fallbackNote: String?
+                let result: DatasheetAnalyst.Result
+                do {
+                    result = try await DatasheetAnalyst.extract(document, hint: hint, provider: provider)
+                } catch let error as AIProviderError where usesAI {
+                    // A local server (Ollama, LM Studio…) that isn't running, or no network: parse offline instead.
+                    guard case .network(let reason) = error else { throw error }
+                    fallbackNote = "Couldn't reach \(provider.displayName) (\(reason)) — parsed the pin table offline."
+                    result = try await DatasheetAnalyst.extract(document, hint: hint, provider: OfflineProvider())
+                }
                 draft = result.spec
                 editingId = nil
                 selectedId = nil
                 var notes = result.notes
                 if let notice = result.notice { notes.insert(notice, at: 0) }
+                if let fallbackNote { notes.insert(fallbackNote, at: 0) }
                 if !usesAI {
                     notes.insert(settings.aiEnabled
                                  ? "No API key configured — used the offline pin-table parser."

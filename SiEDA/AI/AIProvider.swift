@@ -150,8 +150,10 @@ extension AIProvider {
 enum AIHTTP {
     static let session: URLSession = {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 600
-        config.timeoutIntervalForResource = 900
+        // Non-streaming structured output: nothing arrives until the whole answer (with thinking) is done, which
+        // can take many minutes at high effort.
+        config.timeoutIntervalForRequest = 1800
+        config.timeoutIntervalForResource = 3600
         return URLSession(configuration: config)
     }()
 

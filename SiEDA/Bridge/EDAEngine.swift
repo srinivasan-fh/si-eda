@@ -70,6 +70,8 @@ final class EDAEngine: @unchecked Sendable {
     func setName(_ name: String) { withHandle { sieda_project_set_name($0, name) } }
     func setRequirements(_ text: String) { withHandle { sieda_project_set_requirements($0, text) } }
     func clear() { withHandle { sieda_project_clear($0) } }
+    /// Blank project: also resets the library, board, rules, net classes, pours, holes and outline.
+    func reset() { withHandle { sieda_project_reset($0) } }
 
     func saveJSON() -> String {
         withHandle { Self.take(sieda_project_save_json($0)) } ?? "{}"
@@ -89,8 +91,19 @@ final class EDAEngine: @unchecked Sendable {
     }
 
     func snapshot() -> DesignSnapshot? {
+        try? snapshotChecked().get()
+    }
+
+    /// The snapshot, or why it could not be read (a core error, or the decoder's description of the bad field).
+    func snapshotChecked() -> Result<DesignSnapshot, EDAEngineError> {
         let json = withHandle { Self.take(sieda_project_snapshot($0)) }
-        return Self.decode(DesignSnapshot.self, from: json)
+        guard let json, let data = json.data(using: .utf8) else { return .failure(.operationFailed("no reply from the core")) }
+        do {
+            return .success(try JSONDecoder().decode(DesignSnapshot.self, from: data))
+        } catch {
+            if let failure = try? JSONDecoder().decode(CoreError.self, from: data) { return .failure(.operationFailed(failure.error)) }
+            return .failure(.operationFailed("unreadable design snapshot: \(error)"))
+        }
     }
 
     static func libraryJSON() -> String {
@@ -238,12 +251,12 @@ final class EDAEngine: @unchecked Sendable {
     // MARK: - Analysis
 
     func runERC() -> [RuleViolation] {
-        Self.decode([RuleViolation].self, from: withHandle { Self.take(sieda_run_erc($0)) }) ?? []
+        (Self.decode([RuleViolation].self, from: withHandle { Self.take(sieda_run_erc($0)) }) ?? []).numbered()
     }
 
     /// Standard values, decoupling and DC-derived part ratings.
     func runCircuitValidation() -> [RuleViolation] {
-        Self.decode([RuleViolation].self, from: withHandle { Self.take(sieda_run_circuit_validation($0)) }) ?? []
+        (Self.decode([RuleViolation].self, from: withHandle { Self.take(sieda_run_circuit_validation($0)) }) ?? []).numbered()
     }
 
     /// Full sign-off: ERC, DC, validation, placement, routing, DRC and manufacturing outputs.
@@ -379,7 +392,7 @@ final class EDAEngine: @unchecked Sendable {
 
     /// Runs the DRC, or reports the core's error message (instead of an empty, "passed" result).
     func runDRCChecked() -> Result<[RuleViolation], EDAEngineError> {
-        Self.decodeChecked([RuleViolation].self, from: withHandle { Self.take(sieda_pcb_run_drc($0)) })
+        Self.decodeChecked([RuleViolation].self, from: withHandle { Self.take(sieda_pcb_run_drc($0)) }).map { $0.numbered() }
     }
 
     // MARK: - Export & 3D

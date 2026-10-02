@@ -2055,3 +2055,39 @@ TEST(ina333_instrumentation_amplifier) {
     DcResult neg = Simulator(s).dcOperatingPoint();
     CHECK(neg.converged && netV(s, neg, u, "VOUT") < 0.1 && netV(s, neg, u, "VOUT") > 0);
 }
+
+TEST(project_reset_returns_to_a_blank_project) {
+    auto save = [](SiedaProject* p) {
+        char* j = sieda_project_save_json(p);
+        std::string s = j ? j : "";
+        sieda_string_free(j);
+        return s;
+    };
+    SiedaProject* blank = sieda_project_new(nullptr);
+    std::string fresh = save(blank);
+    sieda_project_free(blank);
+
+    SiedaProject* p = sieda_project_new("Old design");
+    char* err = nullptr;
+    char* all = sieda_standard_parts_json();
+    Json parts = Json::parse(std::string(all));
+    sieda_string_free(all);
+    std::string specJson;
+    for (const auto& item : parts.items())
+        if (item.get("spec").get("name").asString() == "NE555") specJson = item.get("spec").dump();
+    char* partJson = sieda_custom_part_register(p, specJson.c_str(), &err);
+    CHECK(partJson != nullptr);
+    sieda_string_free(partJson);
+    sieda_add_component(p, static_cast<int32_t>(ComponentKind::Resistor), "1k", 0, 0, 0, "R1");
+    sieda_project_set_requirements(p, "a PRD");
+    CHECK(sieda_project_set_industry(p, "medical") == 1);
+    sieda_pcb_set_board(p, 77, 55, 0.4, 0.3);
+    CHECK(sieda_pcb_add_mounting_hole(p, 3, 3, 3.2, 1) >= 0);
+    CHECK(save(p) != fresh);
+
+    sieda_project_clear(p);  // keeps the library and board (used when a plan rebuilds the schematic)
+    CHECK(save(p).find("NE555") != std::string::npos);
+    sieda_project_reset(p);
+    CHECK(save(p) == fresh);
+    sieda_project_free(p);
+}

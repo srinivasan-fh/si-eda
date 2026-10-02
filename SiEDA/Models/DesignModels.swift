@@ -376,7 +376,27 @@ struct RuleViolation: Decodable, Equatable, Identifiable {
     var hasLocation: Bool
     var x: Double
     var y: Double
-    var id: String { "\(code)|\(message)|\(x)|\(y)" }
+    /// Distinguishes identical findings (same rule, message and place), so list identities stay unique.
+    var occurrence = 0
+    var id: String { "\(code)|\(message)|\(x)|\(y)|\(occurrence)" }
+
+    private enum CodingKeys: String, CodingKey {
+        case severity, code, message, components, hasLocation, x, y
+    }
+}
+
+extension Array where Element == RuleViolation {
+    /// Numbers repeated findings so every element has a distinct `id`.
+    func numbered() -> [RuleViolation] {
+        var seen: [String: Int] = [:]
+        return map { v in
+            var v = v
+            let key = v.id
+            v.occurrence = seen[key, default: 0]
+            seen[key] = v.occurrence + 1
+            return v
+        }
+    }
 }
 
 // MARK: - Simulation results
