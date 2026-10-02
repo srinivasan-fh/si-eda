@@ -33,7 +33,7 @@ Every AI result lands in the same editable schematic and PCB, so you can switch 
 |---|---|
 | **Super Intelligence** | Prompt/PRD editor, template briefs, PRD import, live agent pipeline, conversational refinement ("make the LED green and run it from 3.3 V") |
 | **Agent team** | Requirements Analyst → Circuit Architect → Plan Compiler → Verification (ERC + SPICE) → Design Reviewer (feedback loop) → PCB Layout |
-| **Standard components** | Built-in standard library (LM7805, LM317, NE555, LM358, ATtiny85, ATmega328P, 74HC595, 74HC00, ULN2003A, L293D, pin headers) with correct pinouts, pin types and footprints, in the device picker and Component Library. Plus 40 popular microcontrollers, see [Microcontroller library](#microcontroller-library). AI agents can use them too. IEC 60063 E12/E24/E96 value checks with a one-click "use nearest standard value" in the Properties panel |
+| **Standard components** | Built-in standard library (LM7805, LM317, NE555, LM358, ATtiny85, ATmega328P, 74HC595, 74HC00, ULN2003A, L293D, pin headers) with correct pinouts, pin types and footprints, in the device picker and Library. Plus 40 popular microcontrollers, see [Microcontroller library](#microcontroller-library). AI agents can use them too. IEC 60063 E12/E24/E96 value checks with a one-click "use nearest standard value" in the Properties panel |
 | **Basic circuit library** | 13 verified basic reference designs in 7 groups (**File → New from Example**): LED indicator, voltage divider, 5 V LM7805 regulator, half-wave rectifier, non-inverting/inverting amplifier, voltage follower, RC low-/high-pass filters, NPN and MOSFET drivers, 555 astable blinker, Wheatstone bridge. Every one passes full verification on 1, 2, 4 and 6 layers |
 | **Circuit validation** | Beyond ERC: non-standard values, missing IC decoupling, and DC-derived part ratings (resistor power, LED/diode current, reverse-biased LEDs, transistor current/power, supply over-current, op-amp saturation, fuse overload). Exceeding a rating is a warning; 2× the rating is an error |
 | **PCB design rules** | Presets: Prototype (Conservative), IPC-2221 Class 2 (default), IPC-2221 Class 3, Fab House Standard (6/6 mil) and Advanced (4/4 mil). DRC checks clearance against both the design rule and the fab minimum, plus track width, drill size, annular ring, hole-to-hole spacing, via-in-pad, dangling tracks, acute angles and IPC-2221 current capacity from the simulated net currents |
@@ -189,8 +189,8 @@ open SiEDA.xcodeproj        # then Run (⌘R)
    [Signing in to AI models](#signing-in-to-ai-models). You can switch between Claude, OpenAI, Gemini,
    OpenRouter, Ollama and the Offline Designer at any time from the same screen or the toolbar menu.
 2. In **Super Intelligence**, describe the product or pick a template, then press **Generate Design** (⌘↩).
-3. Inspect the result in **Schematic** (⌘2), **PCB Layout** (⌘4), **3D Viewer** (⌘5) and **Simulation** (⌘6).
-   Import datasheets in **Component Library** (⌘3). Choose 1, 2, 4 or 6 copper layers in the PCB options bar.
+3. Inspect the result in **Schematic** (⌘2), **PCB Layout** (⌘3), **3D Viewer** (⌘4) and **Simulation** (⌘5).
+   Import datasheets in **Library** (⌘7). Choose 1, 2, 4 or 6 copper layers in the PCB options bar.
 4. Choose **Design → Verify Design** (⌥⌘V) and fix anything the report flags, then **File → Export Fabrication Package…** (⇧⌘E).
 
 Command-line build and test:

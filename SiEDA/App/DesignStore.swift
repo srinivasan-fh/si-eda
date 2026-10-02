@@ -4,7 +4,7 @@ import Foundation
 import UniformTypeIdentifiers
 
 enum Workspace: String, CaseIterable, Identifiable {
-    case promptStudio, schematic, library, pcb, threeD, simulation, checks
+    case promptStudio, schematic, pcb, threeD, simulation, checks, library
 
     var id: String { rawValue }
 
@@ -17,7 +17,7 @@ enum Workspace: String, CaseIterable, Identifiable {
         switch self {
         case .promptStudio: return "Super Intelligence"
         case .schematic: return "Schematic"
-        case .library: return "Component Library"
+        case .library: return "Library"
         case .pcb: return "PCB Layout"
         case .threeD: return "3D Viewer"
         case .simulation: return "Simulation"

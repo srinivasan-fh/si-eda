@@ -1717,3 +1717,12 @@ final class PowerSourceTests: XCTestCase {
         XCTAssertEqual(current, (9 - 1.9) / 330, accuracy: 0.004)  // ≈ 21 mA from the 9 V battery
     }
 }
+
+final class WorkspaceOrderTests: XCTestCase {
+    func testSidebarOrderAndTitles() {
+        XCTAssertEqual(Workspace.visible(aiEnabled: true).map(\.title),
+                       ["Super Intelligence", "Schematic", "PCB Layout", "3D Viewer", "Simulation", "Design Checks", "Library"])
+        XCTAssertEqual(Workspace.visible(aiEnabled: false).first, .schematic)
+        XCTAssertEqual(Workspace.visible(aiEnabled: false).last, .library)
+    }
+}
