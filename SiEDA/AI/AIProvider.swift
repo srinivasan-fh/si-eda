@@ -72,6 +72,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable, Codable {
     case claude
     case openAI
     case gemini
+    case openRouter
     case ollama
     case offline
 
@@ -82,6 +83,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable, Codable {
         case .claude: return "Anthropic Claude"
         case .openAI: return "OpenAI / Compatible"
         case .gemini: return "Google Gemini"
+        case .openRouter: return "OpenRouter (Claude, GPT, Gemini…)"
         case .ollama: return "Ollama (Local)"
         case .offline: return "Offline Designer"
         }
@@ -92,6 +94,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable, Codable {
         case .claude: return "Claude"
         case .openAI: return "OpenAI"
         case .gemini: return "Gemini"
+        case .openRouter: return "OpenRouter"
         case .ollama: return "Ollama"
         case .offline: return "Offline"
         }
@@ -102,12 +105,13 @@ enum AIProviderKind: String, CaseIterable, Identifiable, Codable {
         case .claude: return "sparkles"
         case .openAI: return "brain"
         case .gemini: return "diamond"
+        case .openRouter: return "arrow.triangle.branch"
         case .ollama: return "desktopcomputer"
         case .offline: return "wand.and.stars"
         }
     }
 
-    var requiresAPIKey: Bool { self == .claude || self == .openAI || self == .gemini }
+    var requiresAPIKey: Bool { self == .claude || self == .openAI || self == .gemini || self == .openRouter }
     var supportsBaseURL: Bool { self == .openAI || self == .ollama }
 
     var defaultModel: String {
@@ -115,6 +119,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable, Codable {
         case .claude: return "claude-opus-5-5"
         case .openAI: return "gpt-4.1"
         case .gemini: return "gemini-2.5-pro"
+        case .openRouter: return "openrouter/auto"
         case .ollama: return "llama3.1"
         case .offline: return "templates"
         }
@@ -126,6 +131,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable, Codable {
         case .claude: return ["claude-opus-5-5", "claude-fable-5-1", "claude-sonnet-5-5", "claude-haiku-4-5"]
         case .openAI: return ["gpt-4.1", "gpt-4o", "o4-mini"]
         case .gemini: return ["gemini-2.5-pro", "gemini-2.5-flash"]
+        case .openRouter: return ["openrouter/auto"]
         case .ollama: return ["llama3.1", "qwen2.5", "mistral"]
         case .offline: return ["templates"]
         }
@@ -134,6 +140,7 @@ enum AIProviderKind: String, CaseIterable, Identifiable, Codable {
     var defaultBaseURL: String {
         switch self {
         case .openAI: return "https://api.openai.com/v1"
+        case .openRouter: return "https://openrouter.ai/api/v1"
         case .ollama: return "http://localhost:11434"
         default: return ""
         }

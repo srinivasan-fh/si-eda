@@ -10,7 +10,7 @@ struct SettingsView: View {
             AboutSettings()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
-        .frame(width: 640, height: 520)
+        .frame(width: 680, height: 600)
     }
 }
 
@@ -76,19 +76,8 @@ private struct AIModelSettings: View {
                     if editingKind.supportsBaseURL {
                         TextField("Base URL", text: baseURLBinding)
                     }
-                    if editingKind.requiresAPIKey || editingKind == .openAI {
-                        HStack {
-                            SecureField("API key", text: $keyDraft)
-                            Button("Save Key") {
-                                settings.setAPIKey(keyDraft, for: editingKind)
-                                testState = .idle
-                            }
-                        }
-                        Text(settings.apiKey(for: editingKind).isEmpty
-                             ? "No key stored."
-                             : "Key stored in the macOS Keychain (••••\(String(settings.apiKey(for: editingKind).suffix(4)))).")
-                            .font(.caption)
-                            .foregroundStyle(Theme.textMuted)
+                    if !editingKind.authModes.isEmpty {
+                        AccountSettings(kind: editingKind, keyDraft: $keyDraft) { testState = .idle }
                     }
                     if editingKind == .claude {
                         Picker("Effort", selection: $settings.claudeEffort) {
@@ -138,7 +127,7 @@ private struct AIModelSettings: View {
     private func test() {
         testState = .running
         // Test the key as typed, saving it first (the provider reads the saved key).
-        if editingKind.requiresAPIKey, !keyDraft.isEmpty, keyDraft != settings.apiKey(for: editingKind) {
+        if settings.authMode(for: editingKind) == .apiKey, !keyDraft.isEmpty, keyDraft != settings.apiKey(for: editingKind) {
             settings.setAPIKey(keyDraft, for: editingKind)
         }
         let provider = settings.makeProvider(editingKind)
@@ -150,6 +139,117 @@ private struct AIModelSettings: View {
             } catch {
                 testState = .failed(error.localizedDescription)
             }
+        }
+    }
+}
+
+/// Sign-in for one provider: a button for each browser sign-in it offers, then an API key as the alternative.
+private struct AccountSettings: View {
+    @EnvironmentObject private var settings: AISettings
+    let kind: AIProviderKind
+    @Binding var keyDraft: String
+    var changed: () -> Void
+
+    var body: some View {
+        let inUse = settings.authMode(for: kind)
+        LabeledContent("Signed in with") {
+            Text(settings.isSignedIn(kind) ? inUse.title.replacingOccurrences(of: "Sign in with ", with: "") : "Not signed in")
+                .foregroundStyle(settings.isSignedIn(kind) ? Theme.skyBlue : Theme.textMuted)
+        }
+        ForEach(kind.authModes.filter(\.usesBrowser)) { mode in
+            signInRow(mode, inUse: inUse == mode)
+        }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(kind.authModes.contains { $0.usesBrowser } ? "Or use an API key" : "API key")
+                .font(.callout.weight(.semibold))
+            HStack {
+                SecureField("API key", text: $keyDraft, prompt: Text("Paste API key"))
+                    .textFieldStyle(.roundedBorder)
+                    .labelsHidden()
+                Button("Save Key") {
+                    settings.setAPIKey(keyDraft, for: kind)
+                    if !keyDraft.isEmpty { settings.authModes[kind] = .apiKey }
+                    changed()
+                }
+                .disabled(keyDraft.isEmpty && settings.apiKey(for: kind).isEmpty)
+            }
+            Text(settings.apiKey(for: kind).isEmpty
+                 ? "No key stored."
+                 : "Key stored in the macOS Keychain (••••\(String(settings.apiKey(for: kind).suffix(4))))\(inUse == .apiKey ? " — in use." : ".")")
+                .font(.caption)
+                .foregroundStyle(Theme.textMuted)
+        }
+        if let message = settings.signInMessage {
+            Text(message).font(.caption).foregroundStyle(Theme.textSecondary).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private func signInRow(_ mode: AIAuthMode, inUse: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if mode == .googleCloud {
+                TextField("Google Cloud project ID", text: $settings.googleProject, prompt: Text("my-gcp-project"))
+                TextField("Vertex AI region", text: $settings.googleRegion, prompt: Text("us-central1"))
+            }
+            if mode == .sso {
+                TextField("Issuer URL", text: $settings.ssoConfiguration.issuer, prompt: Text("https://login.example.com/oauth2/default"))
+                TextField("Client ID", text: $settings.ssoConfiguration.clientID, prompt: Text("public client id"))
+                TextField("Scopes", text: $settings.ssoConfiguration.scopes)
+                TextField("Audience (optional)", text: $settings.ssoConfiguration.audience)
+            }
+            HStack(spacing: 10) {
+                let signedIn = settings.isSignedIn(kind, with: mode)
+                Button {
+                    changed()
+                    Task { await settings.signIn(kind, with: mode) }
+                } label: {
+                    Label(signedIn ? mode.title.replacingOccurrences(of: "Sign in", with: "Sign in again") + "…" : mode.title + "…",
+                          systemImage: "person.badge.key.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(settings.signingIn != nil || !mode.isAvailable || (mode == .sso && !settings.ssoConfiguration.isComplete))
+                if settings.signingIn == kind && settings.authMode(for: kind) == mode {
+                    ProgressView().controlSize(.small)
+                    Text("Finish the login in your browser…").font(.caption).foregroundStyle(Theme.textMuted)
+                } else if signedIn {
+                    Label(inUse ? "Signed in · in use" : "Signed in", systemImage: "checkmark.seal.fill")
+                        .font(.caption)
+                        .foregroundStyle(Theme.skyBlue)
+                    Button("Sign Out") {
+                        changed()
+                        Task { await settings.signOut(kind, from: mode) }
+                    }
+                    .disabled(settings.signingIn != nil)
+                }
+                Spacer(minLength: 0)
+            }
+            if !mode.isAvailable {
+                Label(CommandLineTool.sandboxMessage, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(Theme.warning)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text(Self.explanation(mode))
+                .font(.caption)
+                .foregroundStyle(Theme.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 4)
+    }
+
+    static func explanation(_ mode: AIAuthMode) -> String {
+        switch mode {
+        case .claudeConsole:
+            return "Opens the Claude Console login in your browser through the official Anthropic CLI (ant). Choose your organisation and workspace there. SiEDA then asks the CLI for short-lived access tokens, and usage is billed to that workspace. No API key is stored in SiEDA. Claude.ai Pro/Max chat subscriptions cannot be used by other apps."
+        case .googleCloud:
+            return "Opens Google sign-in in your browser through the official Google Cloud CLI (gcloud). SiEDA calls Gemini on Vertex AI in the project above with your account's access token. The Vertex AI API must be enabled in that project."
+        case .browser:
+            return "Opens OpenRouter in your browser. Approve SiEDA there and OpenRouter issues it a key, kept in the macOS Keychain. One account gives access to Claude, GPT, Gemini and other models; see openrouter.ai/models for model IDs."
+        case .sso:
+            return "Signs in with your organisation's identity provider (OpenID Connect: Okta, Microsoft Entra ID, Google Workspace, Keycloak…) for an OpenAI-compatible AI gateway at the base URL above that accepts its access tokens. Register SiEDA as a public (native) client with the redirect URI http://127.0.0.1/callback (any port). Tokens are kept in the Keychain and refreshed automatically."
+        case .apiKey:
+            return ""
         }
     }
 }

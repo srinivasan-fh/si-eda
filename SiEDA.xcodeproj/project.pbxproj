@@ -13,6 +13,7 @@
 		1D0CCCE3C0074105DFCF6C37 = {isa = PBXBuildFile; fileRef = 2B421B324134866281AAE285; };
 		22409A8BB039D0E0CC2751CF = {isa = PBXBuildFile; fileRef = DB4F7DFDEFEBDCC2273D77C2; };
 		27F0083DD20AA58EE2FA4A6F = {isa = PBXBuildFile; fileRef = 2B5B8F926E5F3FE0015F96DA; };
+		2EC7607088EE552EE82C08CD = {isa = PBXBuildFile; fileRef = E24E95E9C50ED191B629FFCB; };
 		2F37DBCC1B97825D126178A5 = {isa = PBXBuildFile; fileRef = E0E3155DFC35436C47F59BCE; };
 		3D5D45FB5BEA3347870ADE14 = {isa = PBXBuildFile; fileRef = 3B8AAF03382758779EE08604; };
 		443E14D73B4434B4FDD2677B = {isa = PBXBuildFile; fileRef = 2A6E9FA74463A506F384BA53; };
@@ -149,6 +150,7 @@
 		DCA642B6ED42847C57E4E461 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSimulation.swift; sourceTree = "<group>"; };
 		DF6ECA8D3A158AB03BF17024 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		E0E3155DFC35436C47F59BCE = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Library.cpp; sourceTree = "<group>"; };
+		E24E95E9C50ED191B629FFCB = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAuth.swift; sourceTree = "<group>"; };
 		E5358630779E09315A8A91E7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "SiEDA-Bridging-Header.h"; sourceTree = "<group>"; };
 		E7024C27DB6C84CB54B12395 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Board3DView.swift; sourceTree = "<group>"; };
 		E72D8B430F37B4F24483C73F = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Mesh.hpp; sourceTree = "<group>"; };
@@ -280,6 +282,7 @@
 		5B89E94EA1FDC2318144D88E = {
 			isa = PBXGroup;
 			children = (
+				E24E95E9C50ED191B629FFCB,
 				D167B535F3242C6A3552428F,
 				AA4AB23447B95722FF60AB2A,
 				00094F17F7E920A8AA3B69DA,
@@ -553,6 +556,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2EC7607088EE552EE82C08CD,
 				DDC557E6FCB5E07CCE21F675,
 				9EAA0CE5E58FE55480669B64,
 				E6FAB940CD6B9F15AB71D1FE,

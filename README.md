@@ -88,6 +88,19 @@ Microcontrollers run real firmware inside the circuit simulation, like on a phys
 - **Example design:** **New from Example ▸ Microcontrollers ▸ Arduino Uno Core: LED + Button**.
 - **Test firmware:** sources and the build script are in `Core/tests/firmware`.
 
+## Signing in to AI models
+
+Each cloud provider has a **Sign In…** button in **Settings → AI Models**. SiEDA opens the provider's own login page in your default browser. You sign in there, and SiEDA keeps the session token in the macOS Keychain (or leaves it with the vendor's CLI) and sends it with every request. Each provider uses its own documented login:
+
+| Provider | Sign-in | What happens |
+|---|---|---|
+| Anthropic Claude | **Claude Console** | The official Anthropic CLI (`ant auth login`) opens the Claude Console login, where you pick the organisation and workspace. SiEDA asks the CLI for short-lived access tokens (`ant auth print-credentials`) and sends them as bearer tokens. Usage is billed to that workspace. Claude.ai Pro/Max chat subscriptions cannot be used by other apps. |
+| Google Gemini | **Google (Vertex AI)** | The official Google Cloud CLI (`gcloud auth application-default login`) signs you in with your Google account. SiEDA calls Gemini on Vertex AI in your project and region. |
+| OpenRouter | **OpenRouter** | OAuth with PKCE in the browser. OpenRouter issues SiEDA a key (kept in the Keychain), giving one login for Claude, GPT, Gemini and other models. |
+| OpenAI / compatible | **Organisation SSO** | OpenID Connect + PKCE with your company identity provider (Okta, Microsoft Entra ID, Google Workspace, Keycloak…) for an OpenAI-compatible AI gateway that accepts its access tokens. Tokens are refreshed automatically. OpenAI itself has no third-party sign-in, so the OpenAI API uses a key. |
+
+Every provider still accepts an API key. Browser redirects are received on `127.0.0.1`, local connections only. The Claude Console and Google sign-ins start the vendors' command-line tools, which the macOS App Sandbox does not allow. SiEDA therefore runs without the App Sandbox, like other developer tools distributed outside the Mac App Store. A sandboxed build disables those two options and explains why.
+
 ## Microcontroller library
 
 Ten popular microcontrollers from each vendor group are in the standard library. Each is on its real package: lead count, pitch, body size and exposed pad. Pin numbers, names and electrical types are taken from the KiCad symbol library, which follows the vendor datasheets (`tools/fetch_mcu_pinouts.py` regenerates `Core/src/StandardMcus.inc`). In the device picker they are grouped under **Microcontrollers · <vendor>**.
@@ -172,9 +185,9 @@ Requirements: macOS 14 Sonoma or later and Xcode 16 or later.
 open SiEDA.xcodeproj        # then Run (⌘R)
 ```
 
-1. Open **Settings → AI Models**, keep **Anthropic Claude** selected and paste an API key. It is stored in
-   the macOS Keychain. You can switch to OpenAI, Gemini, Ollama or the Offline Designer at any time from
-   the same screen or the toolbar menu.
+1. Open **Settings → AI Models**, pick a provider and **Sign In** (or paste an API key). See
+   [Signing in to AI models](#signing-in-to-ai-models). You can switch between Claude, OpenAI, Gemini,
+   OpenRouter, Ollama and the Offline Designer at any time from the same screen or the toolbar menu.
 2. In **AI Prompt Studio**, describe the product or pick a template, then press **Generate Design** (⌘↩).
 3. Inspect the result in **Schematic** (⌘2), **PCB Layout** (⌘4), **3D Viewer** (⌘5) and **Simulation** (⌘6).
    Import datasheets in **Component Library** (⌘3). Choose 1, 2, 4 or 6 copper layers in the PCB options bar.

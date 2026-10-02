@@ -60,6 +60,28 @@ final class AISettings: ObservableObject {
     @Published var maxReviewRounds: Int {
         didSet { defaults.set(maxReviewRounds, forKey: "ai.reviewRounds") }
     }
+    /// How each provider is signed in to (API key, or a browser sign-in).
+    @Published var authModes: [AIProviderKind: AIAuthMode] {
+        didSet { for (kind, mode) in authModes { defaults.set(mode.rawValue, forKey: "ai.auth.\(kind.rawValue)") } }
+    }
+    /// Browser sign-ins that completed (Claude Console, Google Cloud); the tokens themselves stay with the CLIs.
+    @Published private(set) var signedIn: Set<AIAuthMode> {
+        didSet { defaults.set(signedIn.map(\.rawValue), forKey: "ai.signedIn") }
+    }
+    @Published var ssoConfiguration: OIDCConfiguration {
+        didSet { if let data = try? JSONEncoder().encode(ssoConfiguration) { defaults.set(data, forKey: "ai.sso") } }
+    }
+    /// Google Cloud project and Vertex AI region used by "Sign in with Google".
+    @Published var googleProject: String {
+        didSet { defaults.set(googleProject, forKey: "ai.google.project") }
+    }
+    @Published var googleRegion: String {
+        didSet { defaults.set(googleRegion, forKey: "ai.google.region") }
+    }
+    /// A sign-in in progress (its browser window is open), and the outcome of the last one.
+    @Published private(set) var signingIn: AIProviderKind?
+    @Published var signInMessage: String?
+
     /// Keys are cached in memory after the first Keychain read (not @Published: reads happen during view updates).
     private var keys: [AIProviderKind: String] = [:]
 
@@ -80,6 +102,89 @@ final class AISettings: ObservableObject {
         claudeEffort = defaults.string(forKey: "ai.claude.effort") ?? "high"
         enableReviewAgent = defaults.object(forKey: "ai.review") as? Bool ?? true
         maxReviewRounds = defaults.object(forKey: "ai.reviewRounds") as? Int ?? 2
+        var modes: [AIProviderKind: AIAuthMode] = [:]
+        for kind in AIProviderKind.allCases where !kind.authModes.isEmpty {
+            let stored = AIAuthMode(rawValue: defaults.string(forKey: "ai.auth.\(kind.rawValue)") ?? "")
+            // Existing installs keep using their API key; new ones start with the provider's browser sign-in.
+            let hasKey = !KeychainStore.read(kind.rawValue).isEmpty
+            let preferred = kind.authModes.first { $0.isAvailable } ?? .apiKey
+            modes[kind] = stored.flatMap { kind.authModes.contains($0) ? $0 : nil } ?? (hasKey ? .apiKey : preferred)
+        }
+        authModes = modes
+        signedIn = Set((defaults.stringArray(forKey: "ai.signedIn") ?? []).compactMap(AIAuthMode.init(rawValue:)))
+        ssoConfiguration = (defaults.data(forKey: "ai.sso")).flatMap { try? JSONDecoder().decode(OIDCConfiguration.self, from: $0) }
+            ?? OIDCConfiguration()
+        googleProject = defaults.string(forKey: "ai.google.project") ?? ""
+        googleRegion = defaults.string(forKey: "ai.google.region") ?? "us-central1"
+    }
+
+    func authMode(for kind: AIProviderKind) -> AIAuthMode { authModes[kind] ?? kind.authModes.first ?? .apiKey }
+
+    /// Whether the provider is signed in with `mode` (default: the method in use). An API key counts as signed in.
+    func isSignedIn(_ kind: AIProviderKind, with mode: AIAuthMode? = nil) -> Bool {
+        let mode = mode ?? authMode(for: kind)
+        switch mode {
+        case .apiKey, .browser: return !apiKey(for: kind).isEmpty
+        case .claudeConsole, .googleCloud: return signedIn.contains(mode)
+        case .sso: return OIDCAuth.load() != nil
+        }
+    }
+
+    /// Runs the provider's browser sign-in with the method in use.
+    func signIn(_ kind: AIProviderKind) async {
+        await signIn(kind, with: authMode(for: kind))
+    }
+
+    /// Opens the login page of `mode` in the default browser, waits for it, and makes it the provider's method.
+    func signIn(_ kind: AIProviderKind, with mode: AIAuthMode) async {
+        guard mode.usesBrowser, kind.authModes.contains(mode), signingIn == nil else { return }
+        authModes[kind] = mode
+        signingIn = kind
+        signInMessage = nil
+        defer { signingIn = nil }
+        do {
+            switch mode {
+            case .claudeConsole:
+                try await ClaudeConsoleAuth.signIn()
+                signedIn.insert(.claudeConsole)
+            case .googleCloud:
+                try await GoogleCloudAuth.signIn()
+                signedIn.insert(.googleCloud)
+            case .browser:
+                let key = try await OpenRouterAuth.signIn()
+                setAPIKey(key, for: kind)
+            case .sso:
+                let tokens = try await OIDCAuth.signIn(ssoConfiguration)
+                OIDCAuth.save(tokens)
+                objectWillChange.send()
+            case .apiKey:
+                break
+            }
+            signInMessage = "Signed in to \(kind.shortName)."
+        } catch {
+            signInMessage = error.localizedDescription
+        }
+    }
+
+    func signOut(_ kind: AIProviderKind) async {
+        await signOut(kind, from: authMode(for: kind))
+    }
+
+    func signOut(_ kind: AIProviderKind, from mode: AIAuthMode) async {
+        switch mode {
+        case .claudeConsole:
+            await ClaudeConsoleAuth.signOut()
+            signedIn.remove(.claudeConsole)
+        case .googleCloud:
+            await GoogleCloudAuth.signOut()
+            signedIn.remove(.googleCloud)
+        case .browser, .apiKey:
+            setAPIKey("", for: kind)
+        case .sso:
+            OIDCAuth.save(nil)
+            objectWillChange.send()
+        }
+        signInMessage = "Signed out of \(kind.shortName)."
     }
 
     func model(for kind: AIProviderKind) -> String { models[kind] ?? kind.defaultModel }
@@ -100,7 +205,7 @@ final class AISettings: ObservableObject {
     }
 
     func hasCredentials(for kind: AIProviderKind) -> Bool {
-        !kind.requiresAPIKey || !apiKey(for: kind).isEmpty || (kind == .openAI && baseURL(for: kind).contains("localhost"))
+        !kind.requiresAPIKey || isSignedIn(kind) || (kind == .openAI && baseURL(for: kind).contains("localhost"))
     }
 
     /// Builds the provider for the current selection, or a specific kind.
@@ -108,11 +213,30 @@ final class AISettings: ObservableObject {
         let kind = kind ?? provider
         switch kind {
         case .claude:
-            return ClaudeProvider(apiKey: apiKey(for: .claude), model: model(for: .claude), effort: claudeEffort)
+            var claude = ClaudeProvider(apiKey: apiKey(for: .claude), model: model(for: .claude), effort: claudeEffort)
+            if authMode(for: .claude) == .claudeConsole {
+                claude.accessToken = { try await ClaudeConsoleAuth.accessToken() }
+            }
+            return claude
         case .openAI:
-            return OpenAIProvider(apiKey: apiKey(for: .openAI), model: model(for: .openAI), baseURL: baseURL(for: .openAI))
+            var openAI = OpenAIProvider(apiKey: apiKey(for: .openAI), model: model(for: .openAI), baseURL: baseURL(for: .openAI))
+            if authMode(for: .openAI) == .sso {
+                let sso = ssoConfiguration
+                openAI.accessToken = { try await OIDCAuth.accessToken(sso) }
+            }
+            return openAI
         case .gemini:
-            return GeminiProvider(apiKey: apiKey(for: .gemini), model: model(for: .gemini))
+            var gemini = GeminiProvider(apiKey: apiKey(for: .gemini), model: model(for: .gemini))
+            if authMode(for: .gemini) == .googleCloud {
+                gemini.vertex = GeminiProvider.Vertex(project: googleProject.trimmingCharacters(in: .whitespaces),
+                                                      region: googleRegion.trimmingCharacters(in: .whitespaces),
+                                                      accessToken: { try await GoogleCloudAuth.accessToken() })
+            }
+            return gemini
+        case .openRouter:
+            return OpenAIProvider(apiKey: apiKey(for: .openRouter), model: model(for: .openRouter),
+                                  baseURL: AIProviderKind.openRouter.defaultBaseURL, name: "OpenRouter",
+                                  extraHeaders: ["X-Title": "SiEDA"])
         case .ollama:
             return OllamaProvider(model: model(for: .ollama), baseURL: baseURL(for: .ollama))
         case .offline:
