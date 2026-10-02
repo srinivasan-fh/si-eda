@@ -2309,3 +2309,33 @@ TEST(solder_mask_colours) {
     old["board"]["solderMask"] = std::string("tartan");
     CHECK(Project::fromJson(old).pcb.settings.solderMask == "green");
 }
+
+TEST(assembly_mesh_follows_layer_count) {
+    // The 3D board shows the stack-up picked in PCB Layout: a single-sided board has a bare FR-4 underside, two layers
+    // have solder mask on both sides, and 4/6-layer boards show their inner copper as bands on the board edge.
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    const Rgba mask = findSolderMask("green")->mask;
+    auto count = [](const Mesh& m, auto pred) {
+        int n = 0;
+        for (size_t v = 0; v < m.vertexCount(); ++v)
+            if (pred(Rgba{m.colors[v * 4], m.colors[v * 4 + 1], m.colors[v * 4 + 2], 1}, m.normals[v * 3 + 1],
+                     m.positions[v * 3 + 1]))
+                ++n;
+        return n;
+    };
+    auto same = [](Rgba a, Rgba b) { return std::fabs(a.r - b.r) < 1e-4 && std::fabs(a.g - b.g) < 1e-4 && std::fabs(a.b - b.b) < 1e-4; };
+    const Rgba innerCopper{0.80f, 0.52f, 0.28f, 1};
+    const double t = p.pcb.settings.thickness;
+    for (int layers : {1, 2, 4, 6}) {
+        p.pcb.settings.layerCount = layers;
+        Mesh m = buildAssemblyMesh(p.schematic, p.pcb, {false, false, false});
+        CHECK(m.normals[1] > 0.99f && same({m.colors[0], m.colors[1], m.colors[2], 1}, mask));  // green top
+        int maskUnderside = count(m, [&](Rgba c, float ny, float py) { return ny < -0.99f && std::fabs(py + t) < 1e-3 && same(c, mask); });
+        int bareUnderside = count(m, [&](Rgba c, float ny, float py) { return ny < -0.99f && std::fabs(py + t) < 1e-3 && !same(c, mask); });
+        int bands = count(m, [&](Rgba c, float ny, float) { return ny > 0.99f && same(c, innerCopper); }) / 4;  // 4 vertices per top quad
+        CHECK((layers == 1) == (maskUnderside == 0));
+        CHECK((layers == 1) == (bareUnderside > 0));
+        CHECK(bands == std::max(0, layers - 2));
+    }
+}
