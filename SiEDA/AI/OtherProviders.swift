@@ -5,8 +5,12 @@ struct OpenAIProvider: AIProvider {
     var apiKey: String
     var model: String
     var baseURL: String
+    /// Organisation SSO: a current access token for the AI gateway, sent instead of the key.
+    var accessToken: (() async throws -> String)? = nil
+    var name = "OpenAI"
+    var extraHeaders: [String: String] = [:]
 
-    var displayName: String { "OpenAI" }
+    var displayName: String { name }
     var modelName: String { model }
     var acceptsImages: Bool { true }
 
@@ -23,8 +27,8 @@ struct OpenAIProvider: AIProvider {
 
     func complete(_ request: AIRequest) async throws -> String {
         let isLocal = baseURL.contains("localhost") || baseURL.contains("127.0.0.1")
-        guard isLocal || !apiKey.trimmingCharacters(in: .whitespaces).isEmpty else {
-            throw AIProviderError.missingAPIKey("OpenAI")
+        guard isLocal || accessToken != nil || !apiKey.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw AIProviderError.missingAPIKey(name)
         }
         let root = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
         guard let url = URL(string: root + "/chat/completions") else {
@@ -41,17 +45,21 @@ struct OpenAIProvider: AIProvider {
                 "json_schema": ["name": request.schemaName, "schema": request.schema, "strict": true] as [String: Any],
             ] as [String: Any],
         ]
-        var headers: [String: String] = [:]
-        if !apiKey.isEmpty { headers["authorization"] = "Bearer \(apiKey)" }
+        var headers = extraHeaders
+        if let accessToken {
+            headers["authorization"] = "Bearer \(try await accessToken())"
+        } else if !apiKey.isEmpty {
+            headers["authorization"] = "Bearer \(apiKey)"
+        }
         let json = try await AIHTTP.postJSON(url: url, headers: headers, body: body)
         let choices = json["choices"] as? [[String: Any]] ?? []
         guard let message = choices.first?["message"] as? [String: Any] else {
-            throw AIProviderError.invalidResponse("OpenAI returned no choices.")
+            throw AIProviderError.invalidResponse("\(name) returned no choices.")
         }
         if let refusal = message["refusal"] as? String, !refusal.isEmpty { throw AIProviderError.refused(refusal) }
         if (choices.first?["finish_reason"] as? String) == "length" { throw AIProviderError.truncated }
         guard let content = message["content"] as? String, !content.isEmpty else {
-            throw AIProviderError.invalidResponse("OpenAI returned an empty message.")
+            throw AIProviderError.invalidResponse("\(name) returned an empty message.")
         }
         return content
     }
@@ -61,6 +69,19 @@ struct OpenAIProvider: AIProvider {
 struct GeminiProvider: AIProvider {
     var apiKey: String
     var model: String
+    /// Google sign-in: Gemini on Vertex AI in this Google Cloud project and region, with the account's access token.
+    struct Vertex {
+        var project: String
+        var region: String
+        var accessToken: () async throws -> String
+
+        /// `generateContent` on Vertex AI (the `global` region has no regional host prefix).
+        func endpoint(model: String) -> URL? {
+            let host = region == "global" ? "aiplatform.googleapis.com" : "\(region)-aiplatform.googleapis.com"
+            return URL(string: "https://\(host)/v1/projects/\(project)/locations/\(region)/publishers/google/models/\(model):generateContent")
+        }
+    }
+    var vertex: Vertex? = nil
 
     var displayName: String { "Gemini" }
     var modelName: String { model }
@@ -69,9 +90,24 @@ struct GeminiProvider: AIProvider {
 
     func complete(_ request: AIRequest) async throws -> String {
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { throw AIProviderError.missingAPIKey("Google Gemini") }
-        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent") else {
-            throw AIProviderError.invalidResponse("Invalid Gemini model name '\(model)'.")
+        let url: URL
+        let headers: [String: String]
+        if let vertex {
+            guard !vertex.project.trimmingCharacters(in: .whitespaces).isEmpty else {
+                throw AIProviderError.invalidResponse("Enter your Google Cloud project ID in Settings → AI Models → Gemini.")
+            }
+            guard let endpoint = vertex.endpoint(model: model) else {
+                throw AIProviderError.invalidResponse("Invalid Vertex AI project, region or model.")
+            }
+            url = endpoint
+            headers = ["authorization": "Bearer \(try await vertex.accessToken())", "x-goog-user-project": vertex.project]
+        } else {
+            guard !key.isEmpty else { throw AIProviderError.missingAPIKey("Google Gemini") }
+            guard let endpoint = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent") else {
+                throw AIProviderError.invalidResponse("Invalid Gemini model name '\(model)'.")
+            }
+            url = endpoint
+            headers = ["x-goog-api-key": key]
         }
         // Gemini's schema dialect differs from JSON Schema, so the schema travels in the prompt instead.
         let schemaText = (try? JSONSerialization.data(withJSONObject: request.schema, options: [.prettyPrinted, .sortedKeys]))
@@ -86,7 +122,7 @@ struct GeminiProvider: AIProvider {
             "contents": [["role": "user", "parts": parts] as [String: Any]],
             "generationConfig": ["responseMimeType": "application/json", "maxOutputTokens": request.maxTokens] as [String: Any],
         ]
-        let json = try await AIHTTP.postJSON(url: url, headers: ["x-goog-api-key": key], body: body)
+        let json = try await AIHTTP.postJSON(url: url, headers: headers, body: body)
         let candidates = json["candidates"] as? [[String: Any]] ?? []
         guard let first = candidates.first else {
             throw AIProviderError.invalidResponse("Gemini returned no candidates.")

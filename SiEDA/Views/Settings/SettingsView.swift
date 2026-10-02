@@ -10,7 +10,7 @@ struct SettingsView: View {
             AboutSettings()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
-        .frame(width: 640, height: 520)
+        .frame(width: 680, height: 600)
     }
 }
 
@@ -76,19 +76,8 @@ private struct AIModelSettings: View {
                     if editingKind.supportsBaseURL {
                         TextField("Base URL", text: baseURLBinding)
                     }
-                    if editingKind.requiresAPIKey || editingKind == .openAI {
-                        HStack {
-                            SecureField("API key", text: $keyDraft)
-                            Button("Save Key") {
-                                settings.setAPIKey(keyDraft, for: editingKind)
-                                testState = .idle
-                            }
-                        }
-                        Text(settings.apiKey(for: editingKind).isEmpty
-                             ? "No key stored."
-                             : "Key stored in the macOS Keychain (••••\(String(settings.apiKey(for: editingKind).suffix(4)))).")
-                            .font(.caption)
-                            .foregroundStyle(Theme.textMuted)
+                    if !editingKind.authModes.isEmpty {
+                        AccountSettings(kind: editingKind, keyDraft: $keyDraft) { testState = .idle }
                     }
                     if editingKind == .claude {
                         Picker("Effort", selection: $settings.claudeEffort) {
@@ -138,7 +127,7 @@ private struct AIModelSettings: View {
     private func test() {
         testState = .running
         // Test the key as typed, saving it first (the provider reads the saved key).
-        if editingKind.requiresAPIKey, !keyDraft.isEmpty, keyDraft != settings.apiKey(for: editingKind) {
+        if settings.authMode(for: editingKind) == .apiKey, !keyDraft.isEmpty, keyDraft != settings.apiKey(for: editingKind) {
             settings.setAPIKey(keyDraft, for: editingKind)
         }
         let provider = settings.makeProvider(editingKind)
@@ -150,6 +139,106 @@ private struct AIModelSettings: View {
             } catch {
                 testState = .failed(error.localizedDescription)
             }
+        }
+    }
+}
+
+/// Sign-in for one provider: the method (browser sign-in or API key), its status and the fields it needs.
+private struct AccountSettings: View {
+    @EnvironmentObject private var settings: AISettings
+    let kind: AIProviderKind
+    @Binding var keyDraft: String
+    var changed: () -> Void
+
+    var body: some View {
+        Picker("Sign-in", selection: modeBinding) {
+            ForEach(kind.authModes) { Text($0.title).tag($0) }
+        }
+        let mode = settings.authMode(for: kind)
+        if mode == .apiKey {
+            HStack {
+                SecureField("API key", text: $keyDraft)
+                Button("Save Key") {
+                    settings.setAPIKey(keyDraft, for: kind)
+                    changed()
+                }
+            }
+            Text(settings.apiKey(for: kind).isEmpty
+                 ? "No key stored."
+                 : "Key stored in the macOS Keychain (••••\(String(settings.apiKey(for: kind).suffix(4)))).")
+                .font(.caption)
+                .foregroundStyle(Theme.textMuted)
+        } else {
+            if mode == .googleCloud {
+                TextField("Google Cloud project ID", text: $settings.googleProject)
+                TextField("Vertex AI region", text: $settings.googleRegion)
+            }
+            if mode == .sso {
+                TextField("Issuer URL (e.g. https://login.example.com/oauth2/default)", text: $settings.ssoConfiguration.issuer)
+                TextField("Client ID (public client, loopback redirect)", text: $settings.ssoConfiguration.clientID)
+                TextField("Scopes", text: $settings.ssoConfiguration.scopes)
+                TextField("Audience (optional)", text: $settings.ssoConfiguration.audience)
+            }
+            HStack(spacing: 10) {
+                let signedIn = settings.isSignedIn(kind)
+                Label(signedIn ? "Signed in" : "Not signed in",
+                      systemImage: signedIn ? "checkmark.seal.fill" : "person.crop.circle.badge.questionmark")
+                    .foregroundStyle(signedIn ? Theme.skyBlue : Theme.textMuted)
+                Spacer()
+                if settings.signingIn == kind {
+                    ProgressView().controlSize(.small)
+                    Text("Finish the login in your browser…").font(.caption).foregroundStyle(Theme.textMuted)
+                }
+                Button(signedIn ? "Sign In Again…" : "Sign In…") {
+                    changed()
+                    Task { await settings.signIn(kind) }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(settings.signingIn != nil || !mode.isAvailable || (mode == .sso && !settings.ssoConfiguration.isComplete))
+                if signedIn {
+                    Button("Sign Out") {
+                        changed()
+                        Task { await settings.signOut(kind) }
+                    }
+                    .disabled(settings.signingIn != nil)
+                }
+            }
+            if !mode.isAvailable {
+                Label(CommandLineTool.sandboxMessage, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(Theme.warning)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text(Self.explanation(mode))
+                .font(.caption)
+                .foregroundStyle(Theme.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        if let message = settings.signInMessage {
+            Text(message).font(.caption).foregroundStyle(Theme.textSecondary).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var modeBinding: Binding<AIAuthMode> {
+        Binding(get: { settings.authMode(for: kind) }, set: {
+            settings.authModes[kind] = $0
+            settings.signInMessage = nil
+            changed()
+        })
+    }
+
+    static func explanation(_ mode: AIAuthMode) -> String {
+        switch mode {
+        case .claudeConsole:
+            return "Opens the Claude Console login in your browser through the official Anthropic CLI (ant). Choose your organisation and workspace there. SiEDA then asks the CLI for short-lived access tokens, and usage is billed to that workspace. No API key is stored in SiEDA. Claude.ai Pro/Max chat subscriptions cannot be used by other apps."
+        case .googleCloud:
+            return "Opens Google sign-in in your browser through the official Google Cloud CLI (gcloud). SiEDA calls Gemini on Vertex AI in the project above with your account's access token. The Vertex AI API must be enabled in that project."
+        case .browser:
+            return "Opens OpenRouter in your browser. Approve SiEDA there and OpenRouter issues it a key, kept in the macOS Keychain. One account gives access to Claude, GPT, Gemini and other models; see openrouter.ai/models for model IDs."
+        case .sso:
+            return "Signs in with your organisation's identity provider (OpenID Connect: Okta, Microsoft Entra ID, Google Workspace, Keycloak…) for an OpenAI-compatible AI gateway at the base URL above that accepts its access tokens. Register SiEDA as a public (native) client with the redirect URI http://127.0.0.1/callback (any port). Tokens are kept in the Keychain and refreshed automatically."
+        case .apiKey:
+            return ""
         }
     }
 }

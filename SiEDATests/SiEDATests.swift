@@ -1540,3 +1540,110 @@ final class MicrocontrollerLibraryTests: XCTestCase {
         XCTAssertEqual(pads.count, 48)
     }
 }
+
+@MainActor
+final class AISignInTests: XCTestCase {
+    private func freshDefaults() -> UserDefaults {
+        let name = "sieda.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        return defaults
+    }
+
+    func testEachCloudProviderOffersABrowserSignIn() {
+        XCTAssertEqual(AIProviderKind.claude.authModes.first, .claudeConsole)
+        XCTAssertEqual(AIProviderKind.gemini.authModes.first, .googleCloud)
+        XCTAssertEqual(AIProviderKind.openRouter.authModes.first, .browser)
+        XCTAssertTrue(AIProviderKind.openAI.authModes.contains(.sso))
+        for kind in [AIProviderKind.claude, .openAI, .gemini, .openRouter] {
+            XCTAssertTrue(kind.authModes.contains(.apiKey), "\(kind) keeps the API-key option")
+        }
+        XCTAssertTrue(AIProviderKind.ollama.authModes.isEmpty)
+    }
+
+    func testSignInModeIsRememberedAndGatesCredentials() {
+        let defaults = freshDefaults()
+        let settings = AISettings(defaults: defaults)
+        settings.authModes[.openAI] = .sso
+        settings.ssoConfiguration.issuer = "https://login.example.com"
+        settings.ssoConfiguration.clientID = "sieda-desktop"
+        settings.googleProject = "my-project"
+        let reloaded = AISettings(defaults: defaults)
+        XCTAssertEqual(reloaded.authMode(for: .openAI), .sso)
+        XCTAssertEqual(reloaded.ssoConfiguration.clientID, "sieda-desktop")
+        XCTAssertTrue(reloaded.ssoConfiguration.isComplete)
+        XCTAssertEqual(reloaded.googleProject, "my-project")
+        // Browser sign-ins count only once they have completed.
+        reloaded.authModes[.gemini] = .googleCloud
+        XCTAssertFalse(reloaded.isSignedIn(.gemini))
+        XCTAssertFalse(reloaded.hasCredentials(for: .gemini))
+        XCTAssertTrue(reloaded.hasCredentials(for: .ollama))
+    }
+
+    func testCommandLineSignInsExplainTheSandbox() async {
+        guard CommandLineTool.isSandboxed else { return }  // the app (and its test host) ships sandboxed
+        XCTAssertFalse(AIAuthMode.claudeConsole.isAvailable)
+        XCTAssertFalse(AIAuthMode.googleCloud.isAvailable)
+        XCTAssertTrue(AIAuthMode.browser.isAvailable && AIAuthMode.sso.isAvailable)
+        let settings = AISettings(defaults: freshDefaults())
+        XCTAssertNotEqual(settings.authMode(for: .claude), .claudeConsole, "a fresh sandboxed install starts with a method that works")
+        settings.authModes[.claude] = .claudeConsole
+        await settings.signIn(.claude)
+        XCTAssertTrue(settings.signInMessage?.contains("sandboxed") ?? false, settings.signInMessage ?? "")
+        XCTAssertFalse(settings.isSignedIn(.claude))
+    }
+
+    func testProvidersUseBearerTokensWhenSignedIn() async {
+        // A Claude Console sign-in that has expired surfaces a clear message before anything is sent.
+        var claude = ClaudeProvider(apiKey: "", model: "claude-opus-5-5", effort: "high")
+        claude.accessToken = { throw AIAuthError.notSignedIn("Claude Console") }
+        do {
+            _ = try await claude.complete(AgentPrompts.analystRequest(brief: "LED"))
+            XCTFail("expected a sign-in error")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("Not signed in to Claude Console"), error.localizedDescription)
+        }
+        let vertex = GeminiProvider.Vertex(project: "p1", region: "us-central1", accessToken: { "t" })
+        XCTAssertEqual(vertex.endpoint(model: "gemini-2.5-pro")?.absoluteString,
+                       "https://us-central1-aiplatform.googleapis.com/v1/projects/p1/locations/us-central1/publishers/google/models/gemini-2.5-pro:generateContent")
+        let global = GeminiProvider.Vertex(project: "p1", region: "global", accessToken: { "t" })
+        XCTAssertTrue(global.endpoint(model: "m")?.absoluteString.hasPrefix("https://aiplatform.googleapis.com/") ?? false)
+    }
+
+    func testPKCEMatchesTheReferenceImplementation() {
+        // SHA-256 → base64url without padding (value computed with Python's hashlib).
+        XCTAssertEqual(PKCE.challenge(for: "dBjftJeZ4CVP-mJ0kqHY-ihU8ss7vJ3fDy2kYiYOvp0"), "4p2cRIBKQDPO06paecsSD1HvrjHrrcmlosUunKJ8i5c")
+        let verifier = PKCE.verifier()
+        XCTAssertEqual(verifier.count, 43)
+        XCTAssertNil(verifier.rangeOfCharacter(from: CharacterSet(charactersIn: "+/=")))
+        XCTAssertNotEqual(PKCE.verifier(), verifier)
+        XCTAssertEqual(OIDCAuth.formEncode(["redirect_uri": "http://127.0.0.1:5/callback", "code": "a b"]),
+                       "code=a%20b&redirect_uri=http%3A%2F%2F127.0.0.1%3A5%2Fcallback")
+    }
+
+    func testLoopbackRedirectReceivesTheBrowserCallback() async throws {
+        let redirect = try await LoopbackRedirect.start()
+        XCTAssertGreaterThan(redirect.port, 0)
+        XCTAssertTrue(redirect.redirectURI.hasPrefix("http://127.0.0.1:"))
+        // The browser asks for a favicon too; only /callback completes the sign-in.
+        _ = try? await URLSession.shared.data(from: URL(string: "http://127.0.0.1:\(redirect.port)/favicon.ico")!)
+        let (page, _) = try await URLSession.shared.data(from: URL(string: "\(redirect.redirectURI)?code=abc123&state=xyz")!)
+        XCTAssertTrue(String(decoding: page, as: UTF8.self).contains("Signed in to SiEDA"))
+        let callback = try await redirect.waitForCallback(timeout: 10)
+        XCTAssertEqual(callback.queryItems?.first { $0.name == "code" }?.value, "abc123")
+        XCTAssertEqual(callback.queryItems?.first { $0.name == "state" }?.value, "xyz")
+    }
+
+    func testCommandLineToolsRunWithoutBlocking() async throws {
+        let echo = try await CommandLineTool.run(URL(fileURLWithPath: "/bin/echo"), ["token-123"], timeout: 10)
+        XCTAssertEqual(echo.status, 0)
+        XCTAssertEqual(echo.stdout.trimmingCharacters(in: .whitespacesAndNewlines), "token-123")
+        do {
+            _ = try await CommandLineTool.run(URL(fileURLWithPath: "/bin/sleep"), ["30"], timeout: 0.5)
+            XCTFail("expected a timeout")
+        } catch AIAuthError.timedOut {
+        }
+        XCTAssertNotNil(CommandLineTool.locate("ls"))
+        XCTAssertNil(CommandLineTool.locate("sieda-no-such-tool"))
+    }
+}

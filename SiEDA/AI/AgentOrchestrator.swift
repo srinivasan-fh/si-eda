@@ -114,8 +114,8 @@ final class AgentOrchestrator: ObservableObject {
     /// The selected model, or the offline designer when that model has no API key yet (so a fresh install works).
     private func resolveProvider(_ settings: AISettings) -> AIProvider {
         guard settings.hasCredentials(for: settings.provider) else {
-            post(.system, "No API key for \(settings.provider.displayName) — using the offline designer. "
-                 + "Add a key in Settings → AI Models to use the model.")
+            post(.system, "Not signed in to \(settings.provider.displayName) — using the offline designer. "
+                 + "Sign in (or add a key) in Settings → AI Models to use the model.")
             return OfflineProvider()
         }
         return settings.makeProvider()

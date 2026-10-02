@@ -7,6 +7,8 @@ import Foundation
 /// refusal fallbacks on the models that support them.
 struct ClaudeProvider: AIProvider {
     var apiKey: String
+    /// Claude Console sign-in: returns a current OAuth access token, sent as `Authorization: Bearer` instead of the key.
+    var accessToken: (() async throws -> String)?
     var model: String
     /// One of: low, medium, high, xhigh, max.
     var effort: String
@@ -48,8 +50,14 @@ struct ClaudeProvider: AIProvider {
     }
 
     func complete(_ request: AIRequest) async throws -> String {
-        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { throw AIProviderError.missingAPIKey("Anthropic Claude") }
+        let key: String
+        if let accessToken {
+            key = ""
+            _ = try await accessToken()  // signed in? (fails with a clear message before any work)
+        } else {
+            key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty else { throw AIProviderError.missingAPIKey("Anthropic Claude") }
+        }
 
         // Adaptive thinking shares max_tokens with the answer: give higher effort levels room, and retry a cut-off
         // answer once with twice the budget.
@@ -85,7 +93,12 @@ struct ClaudeProvider: AIProvider {
         body["output_config"] = outputConfig
         if caps.adaptiveThinking { body["thinking"] = ["type": "adaptive"] }
 
-        var headers = ["x-api-key": key, "anthropic-version": "2023-06-01"]
+        var headers = ["anthropic-version": "2023-06-01"]
+        if let accessToken {
+            headers["authorization"] = "Bearer \(try await accessToken())"  // fetched per request: tokens expire hourly
+        } else {
+            headers["x-api-key"] = key
+        }
         if caps.serverFallback {
             // Re-runs a declined request on a suitable fallback model inside the same call.
             headers["anthropic-beta"] = "server-side-fallback-2026-07-01"

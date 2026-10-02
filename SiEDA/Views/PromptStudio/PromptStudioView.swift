@@ -116,7 +116,7 @@ struct PromptStudioView: View {
                     .lineLimit(1)
                 if !settings.hasCredentials(for: settings.provider) {
                     SettingsLink {
-                        Label("Add API key", systemImage: "key.fill")
+                        Label("Sign in", systemImage: "person.crop.circle.badge.plus")
                     }
                     .foregroundStyle(Theme.warning)
                     .font(.caption)
