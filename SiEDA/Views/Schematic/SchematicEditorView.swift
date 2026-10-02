@@ -127,8 +127,8 @@ struct SchematicEditorView: View {
                             if settings.aiEnabled {
                                 BlueEmptyState(systemImage: "point.3.connected.trianglepath.dotted",
                                                title: "Empty schematic",
-                                               message: "Pick a device on the left and click the canvas to place it, or describe your product in the AI Prompt Studio and let the agents design it.",
-                                               actionTitle: "Open AI Prompt Studio") { store.workspace = .promptStudio }
+                                               message: "Pick a device on the left and click the canvas to place it, or describe your product in Super Intelligence and let the agents design it.",
+                                               actionTitle: "Open Super Intelligence") { store.workspace = .promptStudio }
                             } else {
                                 BlueEmptyState(systemImage: "point.3.connected.trianglepath.dotted",
                                                title: "Empty schematic",
