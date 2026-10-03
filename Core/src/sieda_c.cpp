@@ -12,6 +12,7 @@
 #include <cstring>
 #include <string>
 
+#include "sieda/Bom.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
 #include "sieda/Industry.hpp"
@@ -900,6 +901,40 @@ char* sieda_export(const SiedaProject* project, const char* format) {
     } catch (...) {
         return nullptr;
     }
+}
+
+char* sieda_bom_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(bomJson(project->project.schematic, project->project.buildQuantity).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_set_component_sourcing(SiedaProject* project, int32_t component_id, const char* json) {
+    if (!project || !json) return 0;
+    try {
+        Component* c = project->project.schematic.find(component_id);
+        if (!c) return 0;
+        Json j = Json::parse(json);
+        Sourcing& s = c->sourcing;
+        auto text = [&](const char* key, std::string& field) {
+            if (j.has(key)) field = j.get(key).asString("");
+        };
+        text("manufacturer", s.manufacturer);
+        text("mpn", s.mpn);
+        text("supplierPart", s.supplierPart);
+        if (j.has("unitPrice")) s.unitPrice = std::max(0.0, j.get("unitPrice").asNumber(0));
+        if (j.has("dnp")) s.dnp = j.get("dnp").asBool(false);
+        return 1;
+    } catch (...) {
+        return 0;
+    }
+}
+
+void sieda_set_build_quantity(SiedaProject* project, int32_t quantity) {
+    if (project) project->project.buildQuantity = std::max(1, static_cast<int>(quantity));
 }
 
 char* sieda_write_fabrication_package(const SiedaProject* project, const char* dir, const char* base) {

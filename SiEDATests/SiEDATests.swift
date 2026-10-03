@@ -1721,7 +1721,7 @@ final class PowerSourceTests: XCTestCase {
 final class WorkspaceOrderTests: XCTestCase {
     func testSidebarOrderAndTitles() {
         XCTAssertEqual(Workspace.visible(aiEnabled: true).map(\.title),
-                       ["Super Intelligence", "Schematic", "PCB Layout", "3D Viewer", "Simulation", "Design Checks", "Library"])
+                       ["Super Intelligence", "Schematic", "PCB Layout", "3D Viewer", "Simulation", "Design Checks", "BOM", "Library"])
         XCTAssertEqual(Workspace.visible(aiEnabled: false).first, .schematic)
         XCTAssertEqual(Workspace.visible(aiEnabled: false).last, .library)
     }
@@ -1977,5 +1977,55 @@ final class NetColourTests: XCTestCase {
         let bottom = NSColor(Theme.copperColor(1, layerCount: 2)).usingColorSpace(.sRGB)!
         XCTAssertGreaterThan(top.redComponent, top.blueComponent)
         XCTAssertGreaterThan(bottom.blueComponent, bottom.redComponent)
+    }
+}
+
+@MainActor
+final class BomWorkspaceTests: XCTestCase {
+    func testBomLinesSuggestionsSourcingCostAndDNP() throws {
+        let store = DesignStore()
+        DesignPlanCompiler.apply(OfflineProvider.templates[4].plan, to: store.engine, previous: nil)  // NPN LED driver
+        store.refresh()
+        var bom = store.bomReport
+        XCTAssertFalse(bom.lines.isEmpty)
+        XCTAssertFalse(bom.lines.contains { $0.type == "Ground" || $0.type == "Net Label" })
+        let r1 = try XCTUnwrap(bom.lines.first { $0.refs.contains("R1") })
+        XCTAssertEqual(r1.suggestedMpn, "RC0805FR-0710KL")
+        XCTAssertEqual(r1.suggestedManufacturer, "Yageo")
+        XCTAssertEqual(r1.rating, "0.125 W")
+        XCTAssertTrue(r1.mpn.isEmpty)
+        XCTAssertEqual(bom.summary.missingMpn, bom.lines.count)
+
+        // One click fills every suggested part number; undo takes them all back.
+        let filled = store.applySuggestedPartNumbers()
+        XCTAssertGreaterThan(filled, 0)
+        XCTAssertEqual(store.bomReport.lines.first { $0.refs.contains("R1") }?.mpn, "RC0805FR-0710KL")
+        XCTAssertEqual(store.bomReport.lines.first { $0.refs.contains("Q1") }?.mpn, "BC847")
+        store.undo()
+        XCTAssertTrue(store.bomReport.lines.allSatisfy(\.mpn.isEmpty))
+        store.redo()
+
+        // Price and DNP on a line.
+        bom = store.bomReport
+        let resistor = try XCTUnwrap(bom.lines.first { $0.refs.contains("R1") })
+        store.updateBomLine(resistor, SourcingUpdate(supplierPart: "C17414", unitPrice: 0.01))
+        let led = try XCTUnwrap(store.bomReport.lines.first { $0.refs.contains("D1") })
+        store.updateBomLine(led, SourcingUpdate(dnp: true))
+        bom = store.bomReport
+        XCTAssertEqual(bom.summary.dnp, 1)
+        XCTAssertEqual(bom.summary.costPerBoard, 0.01, accuracy: 1e-9)
+        store.setBuildQuantity(20)
+        XCTAssertEqual(store.bomReport.orderCost, 0.2, accuracy: 1e-9)
+        let assembly = try XCTUnwrap(store.engine.export(.bomAssembly))
+        XCTAssertTrue(assembly.contains("C17414") && assembly.contains("RC0805FR-0710KL"))
+        XCTAssertFalse(assembly.contains("D1"), "DNP parts are not ordered")
+
+        // Saved with the project.
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        let again = reopened.bom()
+        XCTAssertEqual(again.buildQuantity, 20)
+        XCTAssertEqual(again.lines.first { $0.refs.contains("R1") }?.supplierPart, "C17414")
+        XCTAssertEqual(again.lines.first { $0.refs.contains("D1") }?.dnp, true)
     }
 }

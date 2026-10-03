@@ -182,6 +182,15 @@ void sieda_pcb_clear_zones(SiedaProject* project);
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
  *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj". Returns NULL for unknown formats. */
 char* sieda_export(const SiedaProject* project, const char* format);
+/* Bill of materials: {"lines":[{item, refs, componentIds, quantity, type, value, footprint, description, rating,
+ * manufacturer, mpn, supplierPart, unitPrice, dnp, lineCost, suggestedManufacturer, suggestedMpn, notes}],
+ * "summary":{lines, placements, dnp, missingMpn, unpriced, costPerBoard}, "buildQuantity", "orderCost"}. */
+char* sieda_bom_json(const SiedaProject* project);
+/* Sets a part's sourcing from JSON {"manufacturer","mpn","supplierPart","unitPrice","dnp"} (fields left out keep
+ * their value). 1 on success. */
+int32_t sieda_set_component_sourcing(SiedaProject* project, int32_t component_id, const char* json);
+/* Boards per order, for BOM cost totals (≥ 1). */
+void sieda_set_build_quantity(SiedaProject* project, int32_t quantity);
 /* Writes the complete fabrication package into directory `dir` (created if needed): gerbers/ (every copper layer,
  * mask, paste, silkscreen with designators, outline, drills, X2 job file, IPC-D-356A netlist), assembly/ (BOMs, CPL,
  * pick-and-place, assembly drawings), fab_notes.txt, <base>-gerbers.zip for upload, netlist and 3D STL.

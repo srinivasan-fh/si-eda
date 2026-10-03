@@ -15,6 +15,8 @@ namespace sieda {
 class Project {
 public:
     std::string name = "Untitled";
+    /// Boards per order (BOM cost totals).
+    int buildQuantity = 5;
     std::string requirements;  // the prompt / PRD text the design was generated from
     std::string industry = "general";  // IndustryProfile id (derating, design rules, altitude class)
     Schematic schematic;
