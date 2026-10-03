@@ -26,4 +26,19 @@ struct GalvanicDomains {
 
 GalvanicDomains galvanicDomains(const Schematic& sch);
 
+struct BoardSettings;
+
+/// Domains the layout keeps apart: galvanic domains (when the board has an isolation gap), split further by voltage.
+/// With mains / high-voltage nets on the board (above 60 V to ground, IPC-2221 spacing over 0.6 mm), each
+/// high-voltage net becomes its own domain fenced `hvGap` from other copper — instead of widening every gap on the
+/// board, which fine-pitch low-voltage parts could not meet. `gap` = the larger of the isolation gap and hvGap
+/// (0 = nothing to fence).
+struct SpacingDomains {
+    GalvanicDomains domains;
+    double gap = 0;
+    double hvGap = 0;
+    std::vector<char> highVoltage;  // per net
+};
+SpacingDomains spacingDomains(const Schematic& sch, const BoardSettings& settings);
+
 }  // namespace sieda

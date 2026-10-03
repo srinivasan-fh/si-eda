@@ -296,6 +296,14 @@ final class EDAEngine: @unchecked Sendable {
         Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_retail_segments_json($0)) }) ?? .empty
     }
 
+    /// Home appliance type ("laundry", "kitchen", "refrigeration", "hvac", "small"; "" = none).
+    @discardableResult
+    func setApplianceType(_ id: String) -> Bool { withHandle { sieda_set_appliance_type($0, id) } == 1 }
+
+    func applianceSegments() -> RobotSegmentsReport {
+        Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_appliance_segments_json($0)) }) ?? .empty
+    }
+
     /// Active tamper mesh over the part `ref` (laid by the autorouter on two inner layers); nil if rejected.
     func addTamperMesh(component ref: String, netA: String, netB: String, layerA: Int = 1, layerB: Int = 2,
                        margin: Double = 2) -> Int? {

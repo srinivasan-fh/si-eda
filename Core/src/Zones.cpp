@@ -107,7 +107,9 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
         }
     const int k = std::max(1, static_cast<int>(std::ceil(s.minTrackWidth / (2 * cell) - 1e-9)));
     // Isolation barrier: a pour keeps the barrier gap from copper of other galvanic domains.
-    const GalvanicDomains doms = s.isolationGap > 0 ? galvanicDomains(sch) : GalvanicDomains{};
+    // Isolation barrier and mains spacing: a pour keeps the fence gap from copper of other domains.
+    const SpacingDomains spacing = spacingDomains(sch, s);
+    const GalvanicDomains& doms = spacing.domains;
 
     for (size_t zi = 0; zi < zones.size(); ++zi) {
         const CopperZone& z = zones[zi];
@@ -131,7 +133,7 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
         // Keep-out radius around another net's copper: the clearance, or the barrier gap across domains.
         auto keep = [&](int other) {
             const int od = doms.domainOfNet(other);
-            return zoneDom >= 0 && od >= 0 && od != zoneDom ? std::max(clr, s.isolationGap) + half : r;
+            return zoneDom >= 0 && od >= 0 && od != zoneDom ? std::max(clr, spacing.gap) + half : r;
         };
         std::vector<char> ok = board;
         auto block = [&](size_t c, Vec2) { ok[c] = 0; };

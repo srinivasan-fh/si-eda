@@ -87,6 +87,7 @@ enum PackageKind: String, CaseIterable, Identifiable, Codable {
     case to220 = "TO220"
     case hc49 = "HC49"
     case disc = "DISC"
+    case module = "MODULE"
 
     var id: String { rawValue }
 
@@ -103,6 +104,7 @@ enum PackageKind: String, CaseIterable, Identifiable, Codable {
         case .to220: return "TO-220 (THT)"
         case .hc49: return "HC-49 crystal (THT)"
         case .disc: return "Radial disc (MOV / GDT, THT)"
+        case .module: return "RF module, castellated (1.27 mm)"
         }
     }
 
@@ -118,6 +120,7 @@ enum PackageKind: String, CaseIterable, Identifiable, Codable {
         if u.contains("TO-220") || u.contains("TO220") || u.contains("TO-92") || u.contains("TO92") { return .to220 }
         if u.contains("HC49") || u.contains("HC-49") { return .hc49 }
         if u.contains("RADIAL DISC") || u.hasPrefix("DISC") { return .disc }
+        if u.contains("CASTELLATED") || u.contains("WROOM") || u.hasPrefix("MODULE") { return .module }
         if u.contains("2X") || u.contains("IDC") || u.contains("DUAL ROW") || u.contains("BOX HEADER") { return .header2 }
         if u.contains("HEADER") || u.contains("SIP") || u.contains("1X") { return .header }
         return nil

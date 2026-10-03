@@ -4,6 +4,7 @@
 #include "sieda/Naval.hpp"
 #include "sieda/Medical.hpp"
 #include "sieda/Retail.hpp"
+#include "sieda/Appliance.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/Embedded.hpp"
@@ -182,6 +183,7 @@ Json Project::toJson() const {
     root["navalPlatform"] = navalPlatform;
     root["medicalClass"] = medicalClass;
     root["retailDevice"] = retailDevice;
+    root["applianceType"] = applianceType;
     root["buildQuantity"] = buildQuantity;
     root["board"] = boardJson(pcb.settings);
 
@@ -286,6 +288,8 @@ Project Project::fromJson(const Json& root) {
     if (!p.medicalClass.empty() && !findMedicalClass(p.medicalClass)) p.medicalClass.clear();
     p.retailDevice = root.get("retailDevice").asString("");
     if (!p.retailDevice.empty() && !findRetailDevice(p.retailDevice)) p.retailDevice.clear();
+    p.applianceType = root.get("applianceType").asString("");
+    if (!p.applianceType.empty() && !findApplianceType(p.applianceType)) p.applianceType.clear();
     p.buildQuantity = std::max(1, root.get("buildQuantity").asInt(5));
     if (!findIndustry(p.industry)) p.industry = "general";
     const Json& b = root.get("board");
@@ -536,6 +540,7 @@ Json Project::snapshot() const {
     root["navalPlatform"] = navalPlatform;
     root["medicalClass"] = medicalClass;
     root["retailDevice"] = retailDevice;
+    root["applianceType"] = applianceType;
     root["board"] = boardJson(pcb.settings);
 
     Json pads = Json::array();

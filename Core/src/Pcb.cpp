@@ -16,6 +16,7 @@
 #include <tuple>
 #include <numeric>
 #include <queue>
+#include <mutex>
 #include <set>
 
 namespace sieda {
@@ -459,12 +460,12 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
     };
     const double step = 0.5;
     // Isolation barrier: parts of different galvanic domains keep the barrier gap between their courtyards.
-    const double isoGap = settings.isolationGap;
+    // Mains / high-voltage parts likewise keep their IPC-2221 voltage spacing from low-voltage parts.
+    const SpacingDomains spacing = spacingDomains(sch, settings);
+    const double isoGap = spacing.gap;
     std::map<int, int> domainOf;
-    if (isoGap > 0) {
-        const GalvanicDomains doms = galvanicDomains(sch);
-        for (const auto& comp : comps) domainOf[comp.id] = doms.domainOfComponent(sch, comp);
-    }
+    if (isoGap > 0)
+        for (const auto& comp : comps) domainOf[comp.id] = spacing.domains.domainOfComponent(sch, comp);
     auto barrierGap = [&](int a, int b) {
         if (isoGap <= 0) return 0.0;
         const int da = domainOf[a], db = domainOf[b];
@@ -819,7 +820,7 @@ public:
         int o = owner_[L(l)][c];
         if (!(o == -1 || o == net || padNet_[L(l)][c] == net)) return false;
         if (isoGap_ > 0 && !fence_.empty()) {  // isolation barrier: other domains' fenced area is closed
-            const int f = fence_[c];
+            const int f = fence_[static_cast<size_t>(l) * static_cast<size_t>(cols_ * rows_) + c];
             if (f == -3) return padNet_[L(l)][c] == net;
             if (f >= 0) {
                 const int d = domainOf(net);
@@ -832,13 +833,17 @@ public:
     /// Isolation barrier (BoardSettings::isolationGap): copper of one galvanic domain fences the cells within the
     /// gap (plus half a track) against every other domain. `exits` lets each barrier part's pads reach out through
     /// its own other-domain fence: cells within `exitRadius` of a pad of the part stay open to that pad's domain.
-    void setIsolation(std::vector<int> netDomain, double gap, const std::vector<Pad>& pads, double widestHalf) {
+    /// `perLayer`: voltage spacing applies within a copper layer (a mains track fences its own layer only); a galvanic
+    /// barrier fences every layer (creepage and clearance through the board).
+    void setIsolation(std::vector<int> netDomain, double gap, const std::vector<Pad>& pads, double widestHalf,
+                      bool perLayer = false) {
         netDomain_ = std::move(netDomain);
         isoGap_ = gap;
+        perLayer_ = perLayer;
         // Cells are tested at their centres and tracks run between them (chords), and net-class tracks are wider
         // than the base track: fence by the widest half-width plus a grid pitch.
         fenceReach_ = std::max(widestHalf, s_.trackWidth / 2) + g_;
-        fence_.assign(static_cast<size_t>(cols_ * rows_), -1);
+        fence_.assign(static_cast<size_t>(layers_ * cols_ * rows_), -1);
         if (gap <= 0) return;
         std::map<int, std::vector<const Pad*>> byComp;
         for (const auto& p : pads) byComp[p.componentId].push_back(&p);
@@ -850,8 +855,8 @@ public:
                     if (da < 0 || db < 0 || da == db) continue;
                     sMin = std::min(sMin, rectRectDistance(list[a]->bounds(), list[b]->bounds()));
                 }
-            if (sMin < 1e8) {
-                exitRadius_[comp] = std::max(0.0, gap - sMin) + s_.trackWidth + s_.clearance;
+            if (sMin < gap - 1e-9) {  // pins closer than the gap need exit corridors; wider-spaced ones do not
+                exitRadius_[comp] = gap - sMin + s_.trackWidth + s_.clearance;
                 barrierPads_[comp] = list;
             }
         }
@@ -860,10 +865,10 @@ public:
         return net >= 0 && net < static_cast<int>(netDomain_.size()) ? netDomain_[static_cast<size_t>(net)] : -1;
     }
     /// Fences the cells around copper (a segment, or a pad's rectangle) of `net` against other domains.
-    void fenceCopper(Vec2 a, Vec2 b, double half, int net) {
+    void fenceCopper(Vec2 a, Vec2 b, double half, int net, int layer = -1) {
         const int d = domainOf(net);
         if (isoGap_ <= 0 || d < 0) return;
-        forCellsNear(a, b, isoGap_ + half + fenceReach_, [&](size_t c) { fenceCell(c, d); });
+        forCellsNear(a, b, isoGap_ + half + fenceReach_, [&](size_t c) { fenceCell(layer, c, d); });
     }
     void fencePad(const Pad& p) {
         const int d = domainOf(p.net);
@@ -876,8 +881,16 @@ public:
                 for (const Pad* q : exits->second)
                     if (domainOf(q->net) != d && padDistance(*q, at) < exitRadius_[p.componentId]) return;
             }
-            fenceCell(c, d);
+            if (p.throughHole || !perLayer_) fenceCell(-1, c, d);
+            else fenceCell(p.smdLayer, c, d);
         });
+    }
+    /// Keeps the area `r` to domain `d` only (e.g. a radio module and its antenna kept clear of mains nets).
+    void fenceArea(const Rect& r, int d) {
+        if (isoGap_ <= 0 || d < 0) return;
+        for (int j = 0; j < rows_; ++j)
+            for (int i = 0; i < cols_; ++i)
+                if (r.contains(pos(i, j))) fenceCell(-1, idx(i, j), d);
     }
     /// Exact clearance test for a wide (net-class) track segment a–b of half-width `half` on layer l: the grid only
     /// guarantees clearance for the base track width, so wide tracks are checked against the real copper.
@@ -1082,11 +1095,17 @@ private:
             }
     }
 
-    void fenceCell(size_t c, int d) {
-        int& f = fence_[c];
-        if (f == -1) f = d;
-        else if (f != d) f = -3;
+    /// Fences cell `c` on `layer` (every layer when layer < 0 or the fence is not per layer).
+    void fenceCell(int layer, size_t c, int d) {
+        const size_t n = static_cast<size_t>(cols_ * rows_);
+        for (int l = 0; l < layers_; ++l) {
+            if (perLayer_ && layer >= 0 && l != layer) continue;
+            int& f = fence_[static_cast<size_t>(l) * n + c];
+            if (f == -1) f = d;
+            else if (f != d) f = -3;
+        }
     }
+    bool perLayer_ = false;
     std::vector<int> fence_, netDomain_;
     double isoGap_ = 0, fenceReach_ = 0;
     std::map<int, double> exitRadius_;
@@ -1233,7 +1252,23 @@ struct NetRouteOutcome {
 };
 }  // namespace
 
-std::map<int, std::pair<double, double>> netVoltageRanges(const Schematic& sch) {
+namespace {
+/// Content hash of a schematic for the voltage-range cache: parts, values and pin-to-net connectivity.
+size_t schematicHash(const Schematic& sch) {
+    size_t h = 1469598103934665603ULL;
+    auto mix = [&](size_t v) { h = (h ^ v) * 1099511628211ULL; };
+    std::hash<std::string> hs;
+    for (const auto& c : sch.components()) {
+        mix(static_cast<size_t>(c.id));
+        mix(static_cast<size_t>(c.kind));
+        mix(hs(c.value));
+        mix(hs(c.customPart));
+        for (int i = 0; i < static_cast<int>(c.def().pins.size()); ++i) mix(static_cast<size_t>(sch.netOf({c.id, i}) + 7));
+    }
+    return h;
+}
+
+std::map<int, std::pair<double, double>> computeNetVoltageRanges(const Schematic& sch) {
     std::map<int, std::pair<double, double>> netRange;
     bool hasSource = false;
     for (const auto& c : sch.components())
@@ -1242,6 +1277,7 @@ std::map<int, std::pair<double, double>> netVoltageRanges(const Schematic& sch) 
     DcResult dc = Simulator(sch).dcOperatingPoint();
     if (!dc.converged) return netRange;
     for (size_t n = 0; n < dc.netVoltages.size(); ++n) netRange[static_cast<int>(n)] = {dc.netVoltages[n], dc.netVoltages[n]};
+    double mainsAmplitude = 0, period = 0;
     for (const auto& c : sch.components()) {
         if (!isVoltageSourceKind(c.kind)) continue;
         auto spec = SourceSpec::parse(c.value);
@@ -1252,6 +1288,10 @@ std::map<int, std::pair<double, double>> netVoltageRanges(const Schematic& sch) 
         if (spec->kind == SourceSpec::Kind::Sine) {
             lo = spec->offset - std::fabs(spec->amplitude);
             hi = spec->offset + std::fabs(spec->amplitude);
+            if (spec->frequency > 0 && spec->frequency <= 1000) {
+                mainsAmplitude = std::max(mainsAmplitude, std::fabs(spec->amplitude));
+                period = std::max(period, 1.0 / spec->frequency);
+            }
         } else if (spec->kind == SourceSpec::Kind::Pulse) {
             lo = std::min(spec->v1, spec->v2);
             hi = std::max(spec->v1, spec->v2);
@@ -1260,7 +1300,43 @@ std::map<int, std::pair<double, double>> netVoltageRanges(const Schematic& sch) 
         r.first = std::min(r.first, base + lo);
         r.second = std::max(r.second, base + hi);
     }
+    // Mains and other large low-frequency AC sources: the DC point (t = 0) misses what a fuse, a choke or a
+    // rectifier passes on, so simulate a few cycles and widen every net to its swing (L / N after the fuse, the
+    // rectified bus, the switch node of an off-line converter).
+    // The simulated swing replaces the source-peak estimate, which is wrong when a source's return floats (mains
+    // through a bridge: L and N each swing 0…325 V against the bus return, not ±325 V).
+    if (mainsAmplitude > 30 && period > 0) {
+        TransientResult tr = Simulator(sch).transient(4 * period, period / 200);
+        if (tr.ok && tr.time.size() > 4) {
+            const size_t from = tr.time.size() / 4;  // after the first cycle
+            for (size_t n = 0; n < tr.netVoltages.size(); ++n) {
+                const auto& v = tr.netVoltages[n];
+                if (v.size() <= from) continue;
+                auto [mn, mx] = std::minmax_element(v.begin() + static_cast<std::ptrdiff_t>(from), v.end());
+                const double dcv = n < dc.netVoltages.size() ? dc.netVoltages[n] : 0.0;
+                netRange[static_cast<int>(n)] = {std::min(dcv, *mn), std::max(dcv, *mx)};
+            }
+        }
+    }
     return netRange;
+}
+}  // namespace
+
+std::map<int, std::pair<double, double>> netVoltageRanges(const Schematic& sch) {
+    // Placement, routing passes, pours and DRC all ask for the ranges: cache the last few schematics.
+    static std::mutex mutex;
+    static std::vector<std::pair<size_t, std::map<int, std::pair<double, double>>>> cache;
+    const size_t key = schematicHash(sch);
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        for (const auto& [k, v] : cache)
+            if (k == key) return v;
+    }
+    auto ranges = computeNetVoltageRanges(sch);
+    std::lock_guard<std::mutex> lock(mutex);
+    cache.insert(cache.begin(), {key, ranges});
+    if (cache.size() > 4) cache.pop_back();
+    return ranges;
 }
 
 double voltageRoutingClearance(const Schematic& sch, bool highAltitude, bool coated) {
@@ -1283,7 +1359,9 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
         double c;
         ~RestoreClearance() { s.clearance = c; }
     } restore{settings, ruleClearance};
-    settings.clearance = std::max(ruleClearance, voltageRoutingClearance(sch, settings.highAltitude, settings.coated()));
+    // Mains boards fence their high-voltage nets instead (spacingDomains), so fine-pitch parts keep their rules.
+    if (spacingDomains(sch, settings).hvGap <= 0)
+        settings.clearance = std::max(ruleClearance, voltageRoutingClearance(sch, settings.highAltitude, settings.coated()));
     return routeAll(sch);
 }
 
@@ -1489,7 +1567,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
     // the net's main pour was (signals then route around that connection).
     std::set<size_t> forcedConnect;
     std::map<int, std::vector<std::pair<int, size_t>>> mainPour;
-    const GalvanicDomains isoDomains = settings.isolationGap > 0 ? galvanicDomains(sch) : GalvanicDomains{};  // net → grid cells of its main poured cluster
+    const SpacingDomains spacing = spacingDomains(sch, settings);
     for (int pass = 0; pass < 8; ++pass) {
         const size_t forcedBefore = forcedConnect.size();
         RoutingGrid grid(settings);
@@ -1500,11 +1578,16 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
             else grid.setPour(z.layer, zn);
         }
         for (const auto& p : ps) grid.markPad(p, clr + w / 2);
-        if (settings.isolationGap > 0) {
+        if (spacing.gap > 0) {
             double widest = settings.trackWidth;
             for (const auto& [name, width] : settings.netWidths) widest = std::max(widest, width);
-            grid.setIsolation(isoDomains.netDomain, settings.isolationGap, ps, widest / 2);
+            grid.setIsolation(spacing.domains.netDomain, spacing.gap, ps, widest / 2, settings.isolationGap <= 0);
             for (const auto& p : ps) grid.fencePad(p);
+            // Mains nets stay ≥ 6 mm from radio modules and their antennas (creepage, and switching noise).
+            if (spacing.hvGap > 0)
+                if (const int lv = spacing.domains.domainOfNet(sch.groundNet()); lv >= 0)
+                    for (const auto& comp : sch.components())
+                        if (comp.hasFootprint() && comp.pcb.placed && isRadioPart(comp)) grid.fenceArea(courtyard(comp).inflated(6.0), lv);
         }
         // Mesh copper blocks every net (its own included, so no stub shortcuts the serpentine); the stripes cover the
         // secure area on both mesh layers, so no other track crosses it there and no via can be drilled through it.
@@ -1587,7 +1670,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
                             grid.markSegment(layer, piece.a, piece.b, piece.width / 2 + clr + extra(net) + w / 2, net);
                             grid.markCopperSegment(layer, piece.a, piece.b, piece.width / 2 + 1e-6, net);
                             grid.addCopper(piece.a, piece.b, piece.width / 2, net, layer);
-                            grid.fenceCopper(piece.a, piece.b, piece.width / 2, net);
+                            grid.fenceCopper(piece.a, piece.b, piece.width / 2, net, layer);
                         }
                         segStart = m;
                     }
@@ -2165,6 +2248,9 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     auto voltageNeed = [&](int a, int b) {
         auto ia = netRange.find(a), ib = netRange.find(b);
         if (a < 0 || b < 0 || ia == netRange.end() || ib == netRange.end()) return std::make_pair(0.0, 0.0);
+        // A pin left open (one-pin net) has no defined voltage: a simulated floating node says nothing about it.
+        if (sch.nets()[static_cast<size_t>(a)].pins.size() < 2 || sch.nets()[static_cast<size_t>(b)].pins.size() < 2)
+            return std::make_pair(0.0, 0.0);
         double dv = std::max(std::fabs(ia->second.second - ib->second.first), std::fabs(ib->second.second - ia->second.first));
         return std::make_pair(dv, ipc2221Clearance(dv, settings.highAltitude, settings.coated()));
     };
@@ -2554,7 +2640,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                 for (size_t j = i + 1; j < list.size(); ++j)
                     if (doms.domainOfNet(list[i]->net) != doms.domainOfNet(list[j]->net))
                         sMin = std::min(sMin, rectRectDistance(list[i]->bounds(), list[j]->bounds()));
-            if (sMin < 1e8) exitR[comp] = std::max(0.0, gap - sMin) + settings.trackWidth + settings.clearance;
+            if (sMin < gap - 1e-9) exitR[comp] = gap - sMin + settings.trackWidth + settings.clearance;
         }
         auto dist = [&](const Item& x, const Item& y) {
             if (x.pad && y.pad) return rectRectDistance(x.pad->bounds(), y.pad->bounds());

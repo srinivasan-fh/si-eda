@@ -413,6 +413,7 @@ private struct ProjectProperties: View {
             NavalSystemProperties()
             MedicalSystemProperties()
             RetailSystemProperties()
+            ApplianceSystemProperties()
             PropertyGroup(title: "Board") {
                 PropertyRow(label: "Size", value: String(format: "%.1f × %.1f mm", store.snapshot.board.width, store.snapshot.board.height))
                 PropertyRow(label: "Layers", value: "\(store.snapshot.board.layerCount)")
@@ -525,6 +526,19 @@ private struct RetailSystemProperties: View {
                             selection: Binding(get: { store.snapshot.retailDevice }, set: { store.setRetailDevice($0) }),
                             hint: "Pick a device class (or the Retail & POS industry) to check payment security, printer "
                                 + "drivers, peripherals and ESD segments.")
+    }
+}
+
+/// Home appliance type and the four appliance design segments (mains entry, actuation & motor control, HMI &
+/// sensing, IoT).
+private struct ApplianceSystemProperties: View {
+    @EnvironmentObject private var store: DesignStore
+
+    var body: some View {
+        SystemSegmentsGroup(title: "Home Appliance Segments", report: store.applianceSegments(), noneLabel: "Not an appliance",
+                            selection: Binding(get: { store.snapshot.applianceType }, set: { store.setApplianceType($0) }),
+                            hint: "Pick an appliance type (or the Home Appliances industry) to check mains entry, actuation, "
+                                + "sensing and IoT segments.")
     }
 }
 

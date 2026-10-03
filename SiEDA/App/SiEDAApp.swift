@@ -301,6 +301,14 @@ struct SiEDACommands: Commands {
                                                       set: { if $0 { store.setRetailDevice(device.id) } }))
                 }
             }
+            Menu("Appliance Type") {
+                Toggle("Not an appliance", isOn: Binding(get: { store.snapshot.applianceType.isEmpty },
+                                                         set: { if $0 { store.setApplianceType("") } }))
+                ForEach(store.applianceSegments().platforms) { type in
+                    Toggle(type.name, isOn: Binding(get: { store.snapshot.applianceType == type.id },
+                                                    set: { if $0 { store.setApplianceType(type.id) } }))
+                }
+            }
             Menu("Industry Profile") {
                 ForEach(StandardLibrary.industries) { profile in
                     Toggle(profile.name, isOn: Binding(

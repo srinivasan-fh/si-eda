@@ -37,6 +37,9 @@ public:
     /// Retail device class ("countertop", "unattended", "mpos", "kiosk", "printer"; empty = none): turns on the four
     /// retail / POS segment checks (the retail industry profile turns them on as advice).
     std::string retailDevice;
+    /// Home appliance type ("laundry", "kitchen", "refrigeration", "hvac", "small"; empty = none): turns on the
+    /// four appliance segment checks (the appliance industry profile turns them on as advice).
+    std::string applianceType;
     Schematic schematic;
     PcbLayout pcb;
     /// Ids of custom parts (CustomPartRegistry) available in this project's component library.

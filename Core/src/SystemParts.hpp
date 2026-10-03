@@ -181,7 +181,7 @@ inline Parts classify(const Schematic& sch) {
         if (containsAny(n, {"HI-15", "HI15", "BU-6", "BU6", "61580", "1553"})) p.mil1553.push_back(&c);
         if (containsAny(n, {"HI-8", "HI8", "DEI10", "ARINC", "429"})) p.arinc.push_back(&c);
         if (containsAny(n, {"XFMR", "TRANSFORMER", "PM-DB", "B-3818"})) p.transformers.push_back(&c);
-        if (containsAny(n, {"MOV", "VARISTOR", "S14K", "S20K", "ERZ", "V275", "V130"})) p.movs.push_back(&c);
+        if (containsAny(n, {"MOV", "VARISTOR", "S05K", "S07K", "S10K", "S14K", "S20K", "ERZ", "V275", "V130"})) p.movs.push_back(&c);
         if (containsAny(n, {"GDT", "GAS DISCHARGE", "2038-", "CG2", "SL1011", "B88069"})) p.gdts.push_back(&c);
         if (containsAny(n, {"UCC28", "L656", "NCP16", "FAN75", "PFC"})) p.pfc.push_back(&c);
         if (n.rfind("ATMEGAS", 0) == 0 || n.rfind("UT", 0) == 0 || n.rfind("RH", 0) == 0 ||

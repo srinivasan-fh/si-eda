@@ -41,7 +41,7 @@ PinType pinTypeFromName(const std::string& raw) {
 }
 
 std::vector<std::string> supportedPackages() {
-    return {"SOIC", "TSSOP", "DIP", "QFN", "LQFP", "SOT23", "HEADER", "HEADER2", "TO220", "HC49", "DISC"};
+    return {"SOIC", "TSSOP", "DIP", "QFN", "LQFP", "SOT23", "HEADER", "HEADER2", "TO220", "HC49", "DISC", "MODULE"};
 }
 
 // ------------------------------------------------------------------ JSON
@@ -146,9 +146,10 @@ std::string normalizePackage(const std::string& raw, int& pinsFromName) {
     else if (has("TO220") || has("TO-220") || has("TO-92") || has("TO92")) type = "TO220";
     else if (has("HC49") || has("HC-49") || has("XTAL") || has("CRYSTAL")) type = "HC49";
     else if (u.rfind("DISC", 0) == 0 || has("RADIAL DISC")) type = "DISC";
+    else if (has("CASTELLATED") || has("WROOM") || u.rfind("MODULE", 0) == 0) type = "MODULE";
     else if (has("HEADER2") || has("2X") || has("IDC") || has("BOX HEADER") || has("DUAL ROW")) type = "HEADER2";
     else if (has("HEADER") || has("SIP") || has("CONN") || has("1X")) type = "HEADER";
-    if (!digits.empty() && type != "TO220" && type != "HC49" && type != "DISC") {
+    if (!digits.empty() && type != "TO220" && type != "HC49" && type != "DISC" && type != "MODULE") {
         int n = std::stoi(digits.size() > 3 ? digits.substr(digits.size() - 3) : digits);
         if (type == "SOT23" && n == 23) n = 0;  // "SOT-23" alone means 3 pins
         pinsFromName = n;
@@ -215,7 +216,8 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
             r.loadSwitch = rj.get("loadSwitch").asBool(false);
             if (!r.isolated()) r.dropout = std::max(0.0, r.dropout);
             s.model.hasRegulator = true;
-            if (s.pinIndex(r.in) < 0 || s.pinIndex(r.out) < 0 || s.pinIndex(r.ref) < 0 ||
+            // An empty `ref` references circuit ground (a floating off-line buck such as LinkSwitch-TN has no ground pin).
+            if (s.pinIndex(r.in) < 0 || s.pinIndex(r.out) < 0 || (!r.ref.empty() && s.pinIndex(r.ref) < 0) ||
                 (r.isolated() && s.pinIndex(r.inReturn) < 0))
                 throw JsonError("Regulator model of " + s.name + " references a pin that does not exist.");
             if (!(r.vout > 0)) throw JsonError("Regulator model of " + s.name + " needs a positive vout.");
@@ -339,6 +341,19 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
         const double half = bodyIn > 0 ? bodyIn / 2 : 3.75;
         for (int i = 0; i < n; ++i) pads.push_back({{i == 0 ? -half : half, 0}, {2.0, 2.0}, true, true, 1.0});
         body = {half * 2 + 6.0, 5.0, 14.0, false, 0.20f, 0.35f, 0.65f};
+    } else if (type == "MODULE") {
+        // Castellated RF module (ESP32-WROOM class): pads down both long sides and across the bottom; the antenna end
+        // (−y, 6 mm) carries no pads and overhangs the board edge or sits over a copper keep-out.
+        const double pitch = pitchIn > 0 ? pitchIn : 1.27;
+        const int side = n * 3 / 8, bottom = n - 2 * side;
+        const double w = bodyIn > 0 ? bodyIn : std::max(10.0, (bottom + 1) * pitch + 2.5);
+        const double antenna = 6.0, h = side * pitch + antenna + 2.0;
+        const double yTop = -h / 2 + antenna + 1.0 + pitch / 2;
+        for (int i = 0; i < side; ++i) pads.push_back({{-w / 2, yTop + i * pitch}, {1.5, 0.9}, false, false, 0});
+        const double x0 = -(bottom - 1) * pitch / 2;
+        for (int k = 0; k < bottom; ++k) pads.push_back({{x0 + k * pitch, h / 2}, {0.9, 1.5}, false, false, 0});
+        for (int k = 0; k < side; ++k) pads.push_back({{w / 2, yTop + (side - 1 - k) * pitch}, {1.5, 0.9}, false, false, 0});
+        body = {w, h, 3.1, false, 0.16f, 0.17f, 0.19f};
     } else if (type == "HEADER") {
         double y0 = -(n - 1) * 2.54 / 2;
         for (int i = 0; i < n; ++i) pads.push_back({{0, y0 + i * 2.54}, {1.7, 1.7}, true, i != 0, 1.0});
@@ -350,8 +365,10 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
             pads.push_back({{i % 2 ? 1.27 : -1.27, y0 + (i / 2) * 2.54}, {1.7, 1.7}, true, i != 0, 1.0});
         body = {5.08, rows * 2.54, 2.5, false, 0.08f, 0.08f, 0.08f};
     } else if (type == "TO220") {
-        double x0 = -(n - 1) * 2.54 / 2;
-        for (int i = 0; i < n; ++i) pads.push_back({{x0 + i * 2.54, 0}, {1.9, 2.5}, true, false, 1.2});
+        // Lead pitch 2.54 mm, or wider for leads formed out for mains creepage (e.g. 5.08 mm on a triac).
+        const double pitch = pitchIn > 2.54 ? pitchIn : 2.54;
+        double x0 = -(n - 1) * pitch / 2;
+        for (int i = 0; i < n; ++i) pads.push_back({{x0 + i * pitch, 0}, {1.9, 2.5}, true, false, 1.2});
         body = {10.0, 4.5, 15.0, false, 0.10f, 0.10f, 0.11f};
     } else {  // SOIC
         double pitch = pitchIn > 0 ? pitchIn : 1.27;
@@ -475,7 +492,7 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     }
     // Exposed thermal pad for QFN and TSSOP (HTSSOP PowerPAD) when the datasheet lists one ("EP", "PAD", "TAB",
     // "THERMAL").
-    if (spec.package.type == "QFN" || spec.package.type == "TSSOP") {
+    if (spec.package.type == "QFN" || spec.package.type == "TSSOP" || spec.package.type == "MODULE") {
         for (size_t p = 0; p < spec.pins.size(); ++p) {
             std::string u = upper(spec.pins[p].number);
             if (u == "EP" || u == "PAD" || u == "TAB" || u == "THERMAL" || u == std::to_string(pc + 1)) {
@@ -484,6 +501,10 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
                 double s = fp.body.width * 0.55;
                 ep.size = {s, s};
                 if (spec.package.type == "TSSOP") ep.size = {fp.body.width * 0.55, std::max(1.0, fp.body.depth - 2.0)};
+                if (spec.package.type == "MODULE") {  // ground paddle under the shield, below the antenna end
+                    ep.size = {fp.body.width * 0.28, fp.body.width * 0.28};
+                    ep.offset = {0, fp.body.depth * 0.1};
+                }
                 fp.pads.push_back(ep);
                 break;
             }

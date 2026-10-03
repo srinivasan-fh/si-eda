@@ -170,6 +170,10 @@ char* sieda_medical_segments_json(const SiedaProject* project);
 int32_t sieda_set_retail_device(SiedaProject* project, const char* device);
 /// The four retail / POS segments, same JSON shape as sieda_robot_segments_json. Caller frees.
 char* sieda_retail_segments_json(const SiedaProject* project);
+/// Home appliance type ("laundry", "kitchen", "refrigeration", "hvac", "small"; "" = none). 0 for an unknown id.
+int32_t sieda_set_appliance_type(SiedaProject* project, const char* type);
+/// The four appliance segments, same JSON shape as sieda_robot_segments_json. Caller frees.
+char* sieda_appliance_segments_json(const SiedaProject* project);
 /// Naval platform ("combatant", "carrier", "submarine", "patrol", "commercial"; "" = none). 0 for an unknown id.
 int32_t sieda_set_naval_platform(SiedaProject* project, const char* platform);
 /// The five naval segments, same JSON shape as sieda_robot_segments_json. Caller frees.

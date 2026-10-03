@@ -302,7 +302,7 @@ final class StandardsAndVerificationTests: XCTestCase {
     }
 
     func testOfflineTemplateMatchingAndCategories() {
-        XCTAssertEqual(OfflineProvider.templates.count, 39)
+        XCTAssertEqual(OfflineProvider.templates.count, 40)
         XCTAssertEqual(OfflineProvider.template(for: "non-inverting amplifier with gain 11").plan.title, "Non-Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "an inverting amplifier, gain -10").plan.title, "Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "blink an LED with a 555").plan.title, "555 Astable LED Blinker")
@@ -2207,6 +2207,32 @@ final class ReliabilityTests: XCTestCase {
         store.undo()
         XCTAssertTrue(store.snapshot.board.underfill)
         XCTAssertEqual(DesignPlanCompiler.plan(from: store.snapshot).navalPlatform, "combatant")
+    }
+
+    func testApplianceSegmentsAndMainsSpacing() throws {
+        XCTAssertEqual(OfflineProvider.template(for: "washing machine controller with triac pump, inverter drum motor and ESP32").plan.title,
+                       "Washing Machine Controller: 4-Segment Home Appliance Reference")
+        let template = try XCTUnwrap(OfflineProvider.templates.first { $0.plan.applianceType != nil })
+        XCTAssertEqual(template.industry, "appliance")
+        XCTAssertTrue(OfflineProvider.categories.contains(template.category))
+        let store = DesignStore()
+        let report = DesignPlanCompiler.apply(template.industryPlan, to: store.engine, previous: nil)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        store.refresh()
+        XCTAssertEqual(store.snapshot.applianceType, "laundry")
+        let segments = store.applianceSegments()
+        XCTAssertEqual(segments.segments.map(\.id), ["mains", "actuation", "sensing", "iot"])
+        for segment in segments.segments where segment.id != "iot" {  // the antenna items need the placed module
+            XCTAssertEqual(segment.status, "complete", "\(segment.id): \(segment.items.filter { !$0.ok }.map(\.label))")
+        }
+        store.setApplianceType("")
+        XCTAssertTrue(store.snapshot.applianceType.isEmpty)
+        store.undo()
+        XCTAssertEqual(store.snapshot.applianceType, "laundry")
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        XCTAssertEqual(reopened.snapshot()?.applianceType, "laundry")
+        XCTAssertEqual(PackageKind.guess("ESP32-WROOM castellated module"), .module)
     }
 
     func testRetailSegmentsAndTamperMesh() throws {

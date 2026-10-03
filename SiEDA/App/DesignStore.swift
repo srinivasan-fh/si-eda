@@ -1038,6 +1038,18 @@ final class DesignStore: ObservableObject {
 
     func retailSegments() -> RobotSegmentsReport { engine.retailSegments() }
 
+    /// Home appliance type ("" = none): turns on the 4-segment appliance checks at full severity. Undoable.
+    func setApplianceType(_ id: String) {
+        guard id != snapshot.applianceType else { return }
+        perform(id.isEmpty ? "No appliance type" : "Appliance type: \(id)", invalidatesAnalysis: false) {
+            $0.setApplianceType(id)
+        }
+        verificationReport = nil
+        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+    }
+
+    func applianceSegments() -> RobotSegmentsReport { engine.applianceSegments() }
+
     /// Lays an active tamper mesh over a secure element (two inner layers; the nets must each join two of its pins).
     /// Undoable; the mesh copper appears with the next Auto Route.
     func addTamperMesh(component ref: String, netA: String, netB: String) {

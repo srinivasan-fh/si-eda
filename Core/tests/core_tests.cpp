@@ -29,6 +29,7 @@
 #include "sieda/Isolation.hpp"
 #include "sieda/Medical.hpp"
 #include "sieda/Retail.hpp"
+#include "sieda/Appliance.hpp"
 #include "sieda/Naval.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Robotics.hpp"
@@ -3722,4 +3723,90 @@ TEST(retail_printer_and_peripheral_rules) {
     // 0.5 A out at 5 V and 85 %: ≈ 0.12 A from 24 V instead of 0.5 A through a linear pass element.
     CHECK(reading(dc, vin) && std::fabs(reading(dc, vin)->current) < 0.2);
     CHECK(galvanicDomains(t).domainOfNet(t.netOf({vin, 0})) == galvanicDomains(t).domainOfNet(t.netOf({load, 0})));
+}
+
+TEST(appliance_mains_rules_and_voltage_spacing) {
+    auto partId = [](const char* name) {
+        return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec)->id;
+    };
+    // 230 VAC through a fuse and a bridge into a bulk capacitor and a resistive load; a 3.3 V logic island beside it.
+    Project p;
+    auto& s = p.schematic;
+    p.industry = "appliance";
+    p.applianceType = "kitchen";
+    int ac = s.addComponent(ComponentKind::ACSource, "SIN(0 325 50)", {0, 0});
+    int f = s.addComponent(ComponentKind::Fuse, "2", {100, -100});
+    int lbl = s.addComponent(ComponentKind::NetLabel, "AC_L", {50, -100});
+    int d1 = s.addComponent(ComponentKind::Diode, "1N4007", {200, -100});
+    int d2 = s.addComponent(ComponentKind::Diode, "1N4007", {200, 0});
+    int d3 = s.addComponent(ComponentKind::Diode, "1N4007", {200, 100});
+    int d4 = s.addComponent(ComponentKind::Diode, "1N4007", {200, 200});
+    int g = s.addComponent(ComponentKind::Ground, "", {300, 300});
+    int bulk = s.addComponent(ComponentKind::Capacitor, "10u", {300, 0});
+    int load = s.addComponent(ComponentKind::Resistor, "100k", {400, 0});
+    int v = s.addComponent(ComponentKind::VoltageSource, "3.3", {600, 0});
+    int r1 = s.addComponent(ComponentKind::Resistor, "10k", {700, 0});
+    int r2 = s.addComponent(ComponentKind::Resistor, "10k", {700, 100});
+    wire(s, ac, "+", lbl, "N");
+    wire(s, lbl, "N", f, "1");
+    wire(s, f, "2", d1, "A");
+    wire(s, f, "2", d3, "K");
+    wire(s, ac, "-", d2, "A");
+    wire(s, ac, "-", d4, "K");
+    wire(s, d1, "K", bulk, "1");
+    wire(s, d2, "K", bulk, "1");
+    wire(s, d3, "A", g, "GND");
+    wire(s, d4, "A", g, "GND");
+    wire(s, bulk, "2", g, "GND");
+    wire(s, load, "1", bulk, "1");
+    wire(s, load, "2", g, "GND");
+    wire(s, v, "-", g, "GND");
+    wire(s, v, "+", r1, "1");
+    wire(s, r1, "2", r2, "1");
+    wire(s, r2, "2", g, "GND");
+    p.schematicChanged();
+
+    // The transient puts L, N and the bus at mains potential (not their DC point of 0 V); logic stays low.
+    const auto ranges = netVoltageRanges(s);
+    const int bus = s.netOf({bulk, 0}), logic = s.netOf({r1, 1});
+    CHECK(ranges.at(bus).second > 250 && ranges.at(s.netOf({f, 1})).second > 250);
+    CHECK(std::fabs(ranges.at(logic).second) < 5);
+    {
+        std::set<std::string> c;
+        for (const auto& x : applianceChecks(p))
+            if (x.severity != Severity::Info) c.insert(x.code);
+        CHECK(!c.count("REL_MAINS_FUSE") && c.count("REL_MAINS_MOV") && c.count("REL_X_CAP") && c.count("REL_OFFLINE_SUPPLY"));
+    }
+    int mov = s.addCustomComponent(partId("S10K275"), "", {150, -50});
+    int x2 = s.addCustomComponent(partId("X2-100N-275VAC"), "", {150, 50});
+    wire(s, mov, "1", f, "2");
+    wire(s, mov, "2", ac, "-");
+    wire(s, x2, "1", f, "2");
+    wire(s, x2, "2", ac, "-");
+    p.schematicChanged();
+    {
+        std::set<std::string> c;
+        for (const auto& x : applianceChecks(p))
+            if (x.severity != Severity::Info) c.insert(x.code);
+        CHECK(!c.count("REL_MAINS_MOV") && !c.count("REL_X_CAP"));
+        const auto segs = applianceSegments(p);
+        CHECK(segs.size() == 4 && segs[0].id == "mains" && segs[0].items[0].ok && segs[0].items[1].ok == false);
+    }
+
+    // Mains spacing: coated board → 0.8 mm for 325 V, applied by fencing the mains nets, not the whole board.
+    p.pcb.settings.layerCount = 2;
+    p.pcb.settings.width = 70;
+    p.pcb.settings.height = 50;
+    p.pcb.settings.coating = "acrylic";
+    const SpacingDomains sd = spacingDomains(s, p.pcb.settings);
+    CHECK_NEAR(sd.hvGap, 0.8, 1e-9);
+    CHECK(sd.highVoltage[static_cast<size_t>(bus)] && !sd.highVoltage[static_cast<size_t>(logic)]);
+    CHECK(sd.domains.domainOfNet(bus) != sd.domains.domainOfNet(logic));
+    p.pcb.autoPlace(s, true);
+    CHECK(p.pcb.autoRoute(s).failed == 0);
+    CHECK(p.pcb.settings.clearance < 0.5);  // the logic keeps its design-rule clearance
+    int hv = 0;
+    for (const auto& x : p.pcb.runDRC(s)) hv += x.code == "DRC_HV_CLEARANCE" || x.code == "DRC_SHORT";
+    CHECK(hv == 0);
+    CHECK(Project::fromJson(p.toJson()).applianceType == "kitchen");
 }

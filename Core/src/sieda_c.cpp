@@ -5,6 +5,7 @@
 #include "sieda/Naval.hpp"
 #include "sieda/Medical.hpp"
 #include "sieda/Retail.hpp"
+#include "sieda/Appliance.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/Firmware.hpp"
@@ -761,6 +762,23 @@ int32_t sieda_set_retail_device(SiedaProject* project, const char* device) {
     if (!id.empty() && !findRetailDevice(id)) return 0;
     project->project.retailDevice = id;
     return 1;
+}
+
+int32_t sieda_set_appliance_type(SiedaProject* project, const char* type) {
+    if (!project || !type) return 0;
+    std::string id = type;
+    if (!id.empty() && !findApplianceType(id)) return 0;
+    project->project.applianceType = id;
+    return 1;
+}
+
+char* sieda_appliance_segments_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(applianceSegmentsJson(project->project).dump());
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 char* sieda_retail_segments_json(const SiedaProject* project) {

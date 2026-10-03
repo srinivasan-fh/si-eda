@@ -81,6 +81,11 @@ void applyModels(std::vector<StandardPart>& parts) {
         } else if (n == "ISO-DCDC-MED") isolated(p, "1", "2", "8", "7", 5.0, -2.0, 0.004, 0.2, 0.5, 0.7);
         else if (n == "DW01A") load(p, "5", "6", 3e-6);
         else if (n == "SECURE-MCU") load(p, "2", "3", 0.025);
+        else if (n == "LNK306") regulator(p, "4", "5", "", 15.0, 25.0, 0.0001, 0.36, 1.0);  // buck: S node to 15 V
+        else if (n == "IPM-SLLIMM-600V") load(p, "1", "2", 0.005);
+        else if (n == "AT42QT1070") load(p, "1", "14", 0.0006);
+        else if (n == "A3144") load(p, "1", "2", 0.004);
+        else if (n == "ESP32-WROOM-32E") load(p, "2", "1", 0.08);
         else if (n == "LM2596-5.0") isolated(p, "1", "3", "2", "3", 5.0, 2.0, 0.005, 3.0, 3.0, 0.85);  // buck: shared ground
         else if (n == "DRV8833") load(p, "12", "13", 0.0017);
         else if (n == "TPH-80MM") {
@@ -448,6 +453,90 @@ std::vector<StandardPart> build() {
                           {"NC", T::NoConnect}, {"IO4", T::Passive}}));
     parts.push_back(part("Timing", "Crystal_24MHz", "Generic", "24 MHz crystal (USB hub / PHY reference), HC-49/US, ±30 ppm, 18 pF load",
                          "HC49", 2, "Y", {{"1", T::Passive}, {"2", T::Passive}}));
+    // Home appliances: mains entry, off-line buck, AC switching, inverter motor, touch HMI, Wi-Fi.
+    parts.push_back(part("Home Appliances", "S10K275", "TDK / EPCOS",
+                         "275 VAC metal-oxide varistor, 10 mm disc, 2.5 kA surge: line-to-neutral clamp after the fuse",
+                         "DISC", 2, "RV", {{"1", T::Passive}, {"2", T::Passive}}));
+    {
+        StandardPart x2 = part("Home Appliances", "X2-100N-275VAC", "Generic (MKP X2 film)",
+                               "100 nF / 275 VAC class-X2 film capacitor across line and neutral (EMI filter, self-healing), "
+                               "15 mm lead pitch",
+                               "DISC", 2, "CX", {{"1", T::Passive}, {"2", T::Passive}});
+        x2.spec.package.bodySize = 15.0;
+        parts.push_back(std::move(x2));
+    }
+    parts.push_back(part("Home Appliances", "LNK306", "Power Integrations",
+                         "LinkSwitch-TN off-line switcher for a non-isolated buck from the rectified mains (85–265 VAC), "
+                         "up to 360 mA; source (S) is the switching node, the output is referenced to the DC-bus return. "
+                         "Pins by function",
+                         "DIP", 8, "U",
+                         {{"BP", T::Passive}, {"FB", T::Input}, {"NC", T::NoConnect}, {"D", T::PowerIn}, {"S", T::Passive},
+                          {"S", T::Passive}, {"S", T::Passive}, {"S", T::Passive}}));
+    {
+        StandardPart triac = part("Home Appliances", "BT136-600E", "WeEn",
+                                  "4 A / 600 V sensitive-gate triac (TO-220, leads formed to 5.08 mm for mains creepage) for "
+                                  "heaters, valves and pump motors; needs an RC snubber across MT1–MT2",
+                                  "TO220", 3, "Q", {{"MT1", T::Passive}, {"MT2", T::Passive}, {"G", T::Input}});
+        triac.spec.package.pitch = 5.08;
+        parts.push_back(std::move(triac));
+    }
+    parts.push_back(part("Home Appliances", "MOC3021", "onsemi",
+                         "Random-phase opto-triac driver, 400 V, 5.3 kV isolation: fires a power triac from a logic pin",
+                         "DIP", 6, "U",
+                         {{"A", T::Input}, {"K", T::Input}, {"NC", T::NoConnect}, {"MT1", T::Passive}, {"NC", T::NoConnect},
+                          {"MT2", T::Passive}}));
+    parts.push_back(part("Home Appliances", "H11AA1", "onsemi",
+                         "AC-input optocoupler (anti-parallel LEDs): a pulse at every mains zero crossing for phase control "
+                         "and triac timing",
+                         "DIP", 6, "U",
+                         {{"AC1", T::Passive}, {"AC2", T::Passive}, {"NC", T::NoConnect}, {"E", T::Passive},
+                          {"C", T::OpenCollector}, {"B", T::Passive}}));
+    parts.push_back(part("Home Appliances", "IPM-SLLIMM-600V", "Generic (STGIPQ / SLLIMM nano class)",
+                         "600 V 3 A three-phase intelligent power module: six IGBTs, gate drivers, bootstrap diodes, "
+                         "open emitters for shunt sensing and a fault output, for inverter compressors, drum and fan "
+                         "motors; logic pins on one row, power pins on the other with empty positions between high-voltage pins. "
+                         "Pins by function",
+                         "DIP", 28, "U",
+                         {{"VCC", T::PowerIn}, {"GND", T::PowerIn}, {"HIN_U", T::Input}, {"HIN_V", T::Input}, {"HIN_W", T::Input},
+                          {"LIN_U", T::Input}, {"LIN_V", T::Input}, {"LIN_W", T::Input}, {"FAULT", T::OpenCollector},
+                          {"CIN", T::Input}, {"NC", T::NoConnect}, {"NC", T::NoConnect}, {"NC", T::NoConnect},
+                          {"NC", T::NoConnect}, {"NW", T::Passive}, {"NV", T::Passive}, {"NU", T::Passive},
+                          {"NC", T::NoConnect}, {"P", T::PowerIn}, {"NC", T::NoConnect}, {"W", T::Output},
+                          {"VBOOT_W", T::Passive}, {"NC", T::NoConnect}, {"V", T::Output}, {"VBOOT_V", T::Passive},
+                          {"NC", T::NoConnect}, {"U", T::Output}, {"VBOOT_U", T::Passive}}));
+    parts.push_back(part("Home Appliances", "AT42QT1070", "Microchip",
+                         "Seven-key capacitive touch sensor (QTouch), I²C or standalone, automatic drift compensation; pads "
+                         "need ~1 kΩ series resistors and a hatched ground guard. Pins by function",
+                         "SOIC", 14, "U",
+                         {{"VDD", T::PowerIn}, {"KEY0", T::Passive}, {"KEY1", T::Passive}, {"KEY2", T::Passive},
+                          {"KEY3", T::Passive}, {"KEY4", T::Passive}, {"KEY5", T::Passive}, {"KEY6", T::Passive},
+                          {"SCL", T::Input}, {"SDA", T::Bidirectional}, {"CHANGE", T::OpenCollector}, {"RESET", T::Input},
+                          {"MODE", T::Input}, {"VSS", T::PowerIn}}));
+    parts.push_back(part("Home Appliances", "A3144", "Allegro (generic)",
+                         "Unipolar hall-effect switch for drum / fan speed (tacho) and door / lid sensing, open-collector",
+                         "SOT23", 3, "U", {{"VCC", T::PowerIn}, {"GND", T::PowerIn}, {"OUT", T::OpenCollector}}));
+    {
+        StandardPart esp = part("RF", "ESP32-WROOM-32E", "Espressif",
+                                "Wi-Fi + Bluetooth LE module (ESP32, 4 MB flash) with a PCB MIFA antenna: place the antenna "
+                                "end at the board edge with no copper beneath it and well away from mains copper",
+                                "MODULE", 38, "U",
+                                {{"GND", T::PowerIn}, {"3V3", T::PowerIn}, {"EN", T::Input}, {"SENSOR_VP", T::Input},
+                                 {"SENSOR_VN", T::Input}, {"IO34", T::Input}, {"IO35", T::Input}, {"IO32", T::Bidirectional},
+                                 {"IO33", T::Bidirectional}, {"IO25", T::Bidirectional}, {"IO26", T::Bidirectional},
+                                 {"IO27", T::Bidirectional}, {"IO14", T::Bidirectional}, {"IO12", T::Bidirectional},
+                                 {"GND", T::PowerIn}, {"IO13", T::Bidirectional}, {"SD2", T::NoConnect}, {"SD3", T::NoConnect},
+                                 {"CMD", T::NoConnect}, {"CLK", T::NoConnect}, {"SD0", T::NoConnect}, {"SD1", T::NoConnect},
+                                 {"IO15", T::Bidirectional}, {"IO2", T::Bidirectional}, {"IO0", T::Bidirectional},
+                                 {"IO4", T::Bidirectional}, {"IO16", T::Bidirectional}, {"IO17", T::Bidirectional},
+                                 {"IO5", T::Bidirectional}, {"IO18", T::Bidirectional}, {"IO19", T::Bidirectional},
+                                 {"NC", T::NoConnect}, {"IO21", T::Bidirectional}, {"RXD0", T::Input}, {"TXD0", T::Output},
+                                 {"IO22", T::Bidirectional}, {"IO23", T::Bidirectional}, {"GND", T::PowerIn},
+                                 {"GND", T::PowerIn}});
+        esp.spec.pins.back().number = "EP";
+        esp.spec.package.pitch = 1.27;
+        esp.spec.package.bodySize = 18.0;
+        parts.push_back(std::move(esp));
+    }
     parts.push_back(part("Medical", "DW01A", "Fortune Semiconductor",
                          "One-cell Li-ion protector: over-charge, over-discharge and over-current cut-off through two external "
                          "MOSFETs",
