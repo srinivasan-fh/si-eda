@@ -1,3 +1,4 @@
+import SceneKit
 import SwiftUI
 import XCTest
 import UniformTypeIdentifiers
@@ -2394,5 +2395,136 @@ final class ReliabilityTests: XCTestCase {
         XCTAssertTrue(report.enabled)
         // Every group the report lists has members with names.
         for group in report.groups { XCTAssertFalse(group.nets.isEmpty) }
+    }
+}
+
+/// Holographic data panels in the X-ray stack: the toggle, the figures they chart, their textures and their layout.
+@MainActor
+final class XRayPanelTests: XCTestCase {
+    private func placedDesign() throws -> EDAEngine {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: engine, previous: nil)
+        engine.autoPlace(all: true)
+        return engine
+    }
+
+    func testPanelsToggleIsOffByDefaultAndRebuildsTheScene() {
+        var settings = XRaySettings()
+        XCTAssertFalse(settings.panels, "panels are opt-in")
+        XCTAssertTrue(settings.hud)
+        let before = settings.geometryKey
+        settings.panels = true
+        XCTAssertNotEqual(settings.geometryKey, before, "switching panels rebuilds the scene")
+        var spinning = settings
+        spinning.spin = true
+        XCTAssertEqual(spinning.geometryKey, settings.geometryKey, "spin only animates")
+    }
+
+    func testStatsFollowTheDesignAndRoutingProgress() throws {
+        let engine = try placedDesign()
+        let placed = try XCTUnwrap(engine.snapshot())
+        let before = XRayPanelStats(placed)
+        XCTAssertEqual(before.layerLengths.count, max(1, placed.board.layerCount))
+        XCTAssertGreaterThan(before.connections, 0)
+        XCTAssertEqual(before.unrouted, placed.ratsnest.count)
+        XCTAssertGreaterThan(before.unrouted, 0, "nothing is routed yet")
+        XCTAssertLessThan(before.completion, 1)
+
+        XCTAssertEqual(engine.autoRoute().failed, 0)
+        let routed = try XCTUnwrap(engine.snapshot())
+        let after = XRayPanelStats(routed)
+        XCTAssertEqual(after.unrouted, routed.ratsnest.count)
+        XCTAssertGreaterThan(after.completion, before.completion)
+        if routed.ratsnest.isEmpty { XCTAssertEqual(after.completion, 1, accuracy: 1e-12) }
+
+        // Copper length: per layer adds up to the total, which matches the tracks.
+        let length = routed.tracks.reduce(0) { $0 + hypot($1.bx - $1.ax, $1.by - $1.ay) }
+        XCTAssertGreaterThan(after.totalLength, 0)
+        XCTAssertEqual(after.totalLength, length, accuracy: 1e-6)
+        XCTAssertEqual(after.layerLengths.reduce(0, +), after.totalLength, accuracy: 1e-6)
+        XCTAssertTrue(after.layerLengths.allSatisfy { $0 >= 0 })
+
+        // Fan-out bins cover every multi-pin net once; power / ground counts follow the net roles.
+        let nets = routed.nets.filter { $0.pinCount >= 2 }
+        XCTAssertEqual(after.fanout.map { $0.0 }, XRayPanelStats.fanoutBins.map { $0.0 })
+        XCTAssertEqual(Int(after.fanout.reduce(0) { $0 + $1.1 }), nets.count)
+        XCTAssertEqual(after.powerNets, nets.filter { $0.netRole == .power }.count)
+        XCTAssertEqual(after.groundNets, nets.filter { $0.netRole == .ground }.count)
+        XCTAssertEqual(after.connections, nets.reduce(0) { $0 + $1.pinCount - 1 })
+
+        // Parts by prefix: most common first, never more than seven bars, never more parts than the design has.
+        XCTAssertFalse(after.partKinds.isEmpty)
+        XCTAssertLessThanOrEqual(after.partKinds.count, 7)
+        XCTAssertEqual(after.partKinds.map { $0.1 }, after.partKinds.map { $0.1 }.sorted(by: >))
+        XCTAssertLessThanOrEqual(Int(after.partKinds.reduce(0) { $0 + $1.1 }), routed.components.count)
+        XCTAssertTrue(after.partKinds.allSatisfy { !$0.0.isEmpty && $0.1 >= 1 })
+    }
+
+    func testCompletionIsClampedAndCountsAnEmptyBoardAsDone() throws {
+        var stats = XRayPanelStats(try XCTUnwrap(try placedDesign().snapshot()))
+        stats.connections = 0
+        stats.unrouted = 0
+        XCTAssertEqual(stats.completion, 1)
+        stats.connections = 10
+        stats.unrouted = 4
+        XCTAssertEqual(stats.completion, 0.6, accuracy: 1e-12)
+        stats.unrouted = 0
+        XCTAssertEqual(stats.completion, 1)
+        stats.unrouted = 15  // more ratsnest lines than estimated connections
+        XCTAssertEqual(stats.completion, 0)
+    }
+
+    func testPanelTexturesRender() throws {
+        let engine = try placedDesign()
+        _ = engine.autoRoute()
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        let images = XRayStackView.panelImages(snapshot, stats: XRayPanelStats(snapshot))
+        XCTAssertEqual(images.count, 5)
+        for (index, image) in images.enumerated() {
+            XCTAssertEqual(image.size, NSSize(width: 640, height: 420), "panel \(index)")
+            let tiff = try XCTUnwrap(image.tiffRepresentation, "panel \(index)")
+            let bitmap = try XCTUnwrap(NSBitmapImageRep(data: tiff))
+            // Something is drawn: the frame border (left edge, middle) and the glass body are not transparent.
+            let border = try XCTUnwrap(bitmap.colorAt(x: bitmap.pixelsWide * 10 / 640, y: bitmap.pixelsHigh / 2))
+            XCTAssertGreaterThan(border.alphaComponent, 0.3, "panel \(index) frame")
+            let body = try XCTUnwrap(bitmap.colorAt(x: bitmap.pixelsWide / 2, y: bitmap.pixelsHigh / 2))
+            XCTAssertGreaterThan(body.alphaComponent, 0, "panel \(index) glass")
+        }
+        // Empty designs still draw (no tracks, no nets, no parts).
+        let blank = try XCTUnwrap(EDAEngine().snapshot())
+        XCTAssertEqual(XRayStackView.panelImages(blank, stats: XRayPanelStats(blank)).count, 5)
+    }
+
+    func testPanelsStandOnAnArcBehindTheStack() throws {
+        let images = (0..<5).map { _ in NSImage(size: NSSize(width: 640, height: 420)) }
+        let span: CGFloat = 50, stackHeight: CGFloat = 12, floorY: CGFloat = -8
+        let nodes = XRayStackView.panelNodes(images, span: span, stackHeight: stackHeight, floorY: floorY)
+        XCTAssertEqual(nodes.count, 5)
+        var seen: [SCNVector3] = []
+        for (index, node) in nodes.enumerated() {
+            let p = node.position
+            XCTAssertEqual(hypot(p.x, p.z), span * 0.95, accuracy: 1e-3, "panel \(index) on the arc")
+            // Opposite the default camera at (+0.85, +1.15) × span in x / z, so it never blocks the board.
+            XCTAssertLessThan(p.x * 0.85 + p.z * 1.15, 0, "panel \(index) behind the stack")
+            XCTAssertGreaterThan(p.y, stackHeight, "panel \(index) above the top layer")
+            XCTAssertFalse(seen.contains { abs($0.x - p.x) < 1e-3 && abs($0.z - p.z) < 1e-3 }, "panel \(index) overlaps")
+            seen.append(p)
+
+            // Upright billboard, hidden until it unfolds.
+            let billboard = try XCTUnwrap(node.constraints?.first as? SCNBillboardConstraint)
+            XCTAssertEqual(billboard.freeAxes, .Y)
+            XCTAssertEqual(node.opacity, 0)
+            XCTAssertTrue(node.hasActions)
+
+            // Glass face sized to the panel, and a post whose base ring sits on the floor.
+            let face = try XCTUnwrap(node.childNodes.first?.geometry as? SCNPlane)
+            XCTAssertEqual(face.width, span * 0.32, accuracy: 1e-6)
+            XCTAssertEqual(face.height, span * 0.32 * 420 / 640, accuracy: 1e-6)
+            let base = try XCTUnwrap(node.childNodes.first { $0.geometry is SCNTorus })
+            XCTAssertEqual(p.y + base.position.y, floorY, accuracy: 1e-3)
+        }
+        // Staggered heights alternate.
+        XCTAssertNotEqual(nodes[0].position.y, nodes[1].position.y)
+        XCTAssertEqual(nodes[0].position.y, nodes[2].position.y, accuracy: 1e-6)
     }
 }
