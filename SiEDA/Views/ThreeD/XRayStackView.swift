@@ -45,6 +45,10 @@ struct XRayStackView: NSViewRepresentable {
         var layerMeshes: [Int: MeshData] = [:]
         var meshRevision = -1
         var materialised = false  // the layer-by-layer materialise plays once per view
+        /// Panel textures of `panelRevision`: rebuilding for a settings change (explode slider, layer toggles)
+        /// reuses them; dropped as soon as Panels is switched off.
+        var panelImages: [NSImage] = []
+        var panelRevision = -1
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -259,7 +263,12 @@ struct XRayStackView: NSViewRepresentable {
             c.stack.addChildNode(motes)
             addCallouts(c, width: w, height: h)
         }
-        if settings.panels { addPanels(c, width: w, height: h, floorY: floorY) }
+        if settings.panels {
+            addPanels(c, width: w, height: h, floorY: floorY)
+        } else {
+            c.panelImages = []
+            c.panelRevision = -1
+        }
         HoloFX.flicker(c.stack)
         c.materialised = true
 
@@ -329,8 +338,11 @@ struct XRayStackView: NSViewRepresentable {
     /// Holographic data panels standing on light posts in an arc behind the stack, opposite the default camera, each
     /// unfolding in turn: copper per layer, net fan-out, parts by type, routing completion and a board mini-map.
     private func addPanels(_ c: Coordinator, width w: CGFloat, height h: CGFloat, floorY: CGFloat) {
-        let images = Self.panelImages(snapshot, stats: XRayPanelStats(snapshot))
-        for node in Self.panelNodes(images, span: max(w, h), stackHeight: stackHeight, floorY: floorY) {
+        if c.panelRevision != revision || c.panelImages.isEmpty {
+            c.panelImages = Self.panelImages(snapshot, stats: XRayPanelStats(snapshot))
+            c.panelRevision = revision
+        }
+        for node in Self.panelNodes(c.panelImages, span: max(w, h), stackHeight: stackHeight, floorY: floorY) {
             c.stack.addChildNode(node)
         }
     }
@@ -527,20 +539,32 @@ struct XRayPanelStats {
         layerLengths = lengths
         totalLength = lengths.reduce(0, +)
 
-        let nets = snapshot.nets.filter { $0.pinCount >= 2 }
-        fanout = Self.fanoutBins.map { bin in (bin.0, Double(nets.filter { bin.1.contains($0.pinCount) }.count)) }
-        powerNets = nets.filter { $0.netRole == .power }.count
-        groundNets = nets.filter { $0.netRole == .ground }.count
+        // One pass over the nets: O(nets), no intermediate arrays.
+        var bins = [Int](repeating: 0, count: Self.fanoutBins.count)
+        var power = 0, ground = 0, needed = 0
+        for net in snapshot.nets where net.pinCount >= 2 {
+            if let bin = Self.fanoutBins.firstIndex(where: { $0.1.contains(net.pinCount) }) { bins[bin] += 1 }
+            switch net.netRole {
+            case .power: power += 1
+            case .ground: ground += 1
+            default: break
+            }
+            needed += net.pinCount - 1
+        }
+        fanout = zip(Self.fanoutBins, bins).map { ($0.0.0, Double($0.1)) }
+        powerNets = power
+        groundNets = ground
+        connections = needed
 
         var kinds: [String: Int] = [:]
         for part in snapshot.components {
             let prefix = String(part.ref.prefix { $0.isLetter }).uppercased()
             kinds[prefix.isEmpty ? "?" : prefix, default: 0] += 1
         }
+        // O(k log k) over distinct prefixes only.
         partKinds = kinds.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
             .prefix(7).map { ($0.key, Double($0.value)) }
 
         unrouted = snapshot.ratsnest.count
-        connections = nets.reduce(0) { $0 + $1.pinCount - 1 }
     }
 }

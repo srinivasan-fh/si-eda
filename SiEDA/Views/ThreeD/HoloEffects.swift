@@ -10,6 +10,51 @@ enum HoloFX {
     static let amber = NSColor(red: 1.00, green: 0.62, blue: 0.18, alpha: 1)
     static let cyan = NSColor(red: 0.36, green: 0.86, blue: 1.00, alpha: 1)
 
+    // MARK: Texture rendering and cache
+
+    /// Textures shared by every rebuild (rings, hex mesh, cards…): building the scene again — a slider drag, a layer
+    /// toggle — reuses them instead of redrawing megabytes of bitmaps. NSCache is thread-safe, bounded, and empties
+    /// itself under memory pressure.
+    private static let textureCache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = 96
+        cache.totalCostLimit = 48 * 1024 * 1024
+        return cache
+    }()
+
+    static func cached(_ key: String, _ make: () -> NSImage) -> NSImage {
+        if let hit = textureCache.object(forKey: key as NSString) { return hit }
+        let image = make()
+        textureCache.setObject(image, forKey: key as NSString, cost: Int(image.size.width * image.size.height) * 4)
+        return image
+    }
+
+    static func clearTextureCache() { textureCache.removeAllObjects() }
+
+    /// Draws into an RGBA bitmap of exactly `size` × `scale` pixels: a fixed, predictable texture size (lockFocus would
+    /// allocate 4× the pixels on a Retina screen for a texture SceneKit samples at panel size anyway).
+    static func render(_ size: NSSize, scale: CGFloat = 1, _ draw: () -> Void) -> NSImage {
+        let image = NSImage(size: size)
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: max(1, Int((size.width * scale).rounded())),
+                                         pixelsHigh: max(1, Int((size.height * scale).rounded())), bitsPerSample: 8,
+                                         samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                                         bytesPerRow: 0, bitsPerPixel: 0),
+              let context = NSGraphicsContext(bitmapImageRep: rep) else { return image }
+        rep.size = size
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        draw()
+        context.flushGraphics()
+        NSGraphicsContext.restoreGraphicsState()
+        image.addRepresentation(rep)
+        return image
+    }
+
+    private static func colourKey(_ colour: NSColor) -> String {
+        guard let c = colour.usingColorSpace(.deviceRGB) else { return colour.description }
+        return String(format: "%.3f,%.3f,%.3f,%.3f", c.redComponent, c.greenComponent, c.blueComponent, c.alphaComponent)
+    }
+
     // MARK: Textures
 
     /// Tileable hexagon mesh (pointy-top cells) with a soft glow on the edges.
@@ -17,121 +62,121 @@ enum HoloFX {
         let r: CGFloat = 16                       // cell radius in pixels
         let w = sqrt(3) * r, h = 3 * r            // tile: one cell wide, two rows high
         let size = NSSize(width: w * 2, height: h)
-        let image = NSImage(size: size)
-        image.lockFocus()
-        colour.withAlphaComponent(0.05).setFill()
-        NSRect(origin: .zero, size: size).fill()
-        func hexagon(cx: CGFloat, cy: CGFloat) -> NSBezierPath {
-            let path = NSBezierPath()
-            for k in 0..<6 {
-                let a = CGFloat(k) * .pi / 3 + .pi / 6
-                let p = NSPoint(x: cx + r * 0.92 * cos(a), y: cy + r * 0.92 * sin(a))
-                if k == 0 { path.move(to: p) } else { path.line(to: p) }
+        return cached("hex|\(colourKey(colour))") {
+            render(size, scale: 2) {  // small tile: 2× keeps its 1 px lines crisp when tiled
+                colour.withAlphaComponent(0.05).setFill()
+                NSRect(origin: .zero, size: size).fill()
+                func hexagon(cx: CGFloat, cy: CGFloat) -> NSBezierPath {
+                    let path = NSBezierPath()
+                    for k in 0..<6 {
+                        let a = CGFloat(k) * .pi / 3 + .pi / 6
+                        let p = NSPoint(x: cx + r * 0.92 * cos(a), y: cy + r * 0.92 * sin(a))
+                        if k == 0 { path.move(to: p) } else { path.line(to: p) }
+                    }
+                    path.close()
+                    return path
+                }
+                var centres: [NSPoint] = []
+                for row in -1...2 {
+                    let offset = row % 2 == 0 ? 0 : w / 2
+                    for col in -1...3 { centres.append(NSPoint(x: CGFloat(col) * w + offset, y: CGFloat(row) * 1.5 * r)) }
+                }
+                for c in centres {
+                    let path = hexagon(cx: c.x, cy: c.y)
+                    colour.withAlphaComponent(0.10).setStroke()
+                    path.lineWidth = 3.5
+                    path.stroke()
+                    colour.withAlphaComponent(0.55).setStroke()
+                    path.lineWidth = 1
+                    path.stroke()
+                }
             }
-            path.close()
-            return path
         }
-        var centres: [NSPoint] = []
-        for row in -1...2 {
-            let offset = row % 2 == 0 ? 0 : w / 2
-            for col in -1...3 { centres.append(NSPoint(x: CGFloat(col) * w + offset, y: CGFloat(row) * 1.5 * r)) }
-        }
-        for c in centres {
-            let path = hexagon(cx: c.x, cy: c.y)
-            colour.withAlphaComponent(0.10).setStroke()
-            path.lineWidth = 3.5
-            path.stroke()
-            colour.withAlphaComponent(0.55).setStroke()
-            path.lineWidth = 1
-            path.stroke()
-        }
-        image.unlockFocus()
-        return image
     }
 
     /// A ring of tick marks and arc segments, drawn flat (used on rotating projector rings).
     static func ringImage(colour: NSColor, ticks: Int, segments: Int) -> NSImage {
         let size: CGFloat = 512
-        let image = NSImage(size: NSSize(width: size, height: size))
-        image.lockFocus()
-        let c = NSPoint(x: size / 2, y: size / 2)
-        colour.withAlphaComponent(0.85).setStroke()
-        for k in 0..<ticks {
-            let a = CGFloat(k) / CGFloat(ticks) * 2 * .pi
-            let long = k % 5 == 0
-            let r0 = size * (long ? 0.40 : 0.43), r1 = size * 0.47
-            let path = NSBezierPath()
-            path.move(to: NSPoint(x: c.x + r0 * cos(a), y: c.y + r0 * sin(a)))
-            path.line(to: NSPoint(x: c.x + r1 * cos(a), y: c.y + r1 * sin(a)))
-            path.lineWidth = long ? 3 : 1.5
-            path.stroke()
+        return cached("ring|\(colourKey(colour))|\(ticks)|\(segments)") {
+            render(NSSize(width: size, height: size)) {
+                let c = NSPoint(x: size / 2, y: size / 2)
+                colour.withAlphaComponent(0.85).setStroke()
+                for k in 0..<ticks {
+                    let a = CGFloat(k) / CGFloat(ticks) * 2 * .pi
+                    let long = k % 5 == 0
+                    let r0 = size * (long ? 0.40 : 0.43), r1 = size * 0.47
+                    let path = NSBezierPath()
+                    path.move(to: NSPoint(x: c.x + r0 * cos(a), y: c.y + r0 * sin(a)))
+                    path.line(to: NSPoint(x: c.x + r1 * cos(a), y: c.y + r1 * sin(a)))
+                    path.lineWidth = long ? 3 : 1.5
+                    path.stroke()
+                }
+                for k in 0..<segments where k % 3 != 2 {
+                    let start = CGFloat(k) / CGFloat(segments) * 360, end = start + 360 / CGFloat(segments) * 0.8
+                    let arc = NSBezierPath()
+                    arc.appendArc(withCenter: c, radius: size * 0.36, startAngle: start, endAngle: end)
+                    arc.lineWidth = 6
+                    colour.withAlphaComponent(0.6).setStroke()
+                    arc.stroke()
+                }
+            }
         }
-        for k in 0..<segments where k % 3 != 2 {
-            let start = CGFloat(k) / CGFloat(segments) * 360, end = start + 360 / CGFloat(segments) * 0.8
-            let arc = NSBezierPath()
-            arc.appendArc(withCenter: c, radius: size * 0.36, startAngle: start, endAngle: end)
-            arc.lineWidth = 6
-            colour.withAlphaComponent(0.6).setStroke()
-            arc.stroke()
-        }
-        image.unlockFocus()
-        return image
     }
 
     /// Floating data card: a bracketed panel with a title, a value line and key / value rows.
     static func cardImage(title: String, subtitle: String, rows: [(String, String)], accent: NSColor) -> NSImage {
         let size = NSSize(width: 360, height: 120 + CGFloat(rows.count) * 26)
-        let image = NSImage(size: size)
-        image.lockFocus()
-        let frame = NSRect(origin: .zero, size: size).insetBy(dx: 4, dy: 4)
-        NSColor(red: 0.02, green: 0.10, blue: 0.20, alpha: 0.55).setFill()
-        NSBezierPath(rect: frame).fill()
-        cyan.withAlphaComponent(0.35).setStroke()
-        let border = NSBezierPath(rect: frame)
-        border.lineWidth = 1.5
-        border.stroke()
-        // Corner brackets.
-        accent.setStroke()
-        let b: CGFloat = 22
-        for (x, y, dx, dy) in [(frame.minX, frame.minY, 1.0, 1.0), (frame.maxX, frame.minY, -1.0, 1.0),
-                               (frame.minX, frame.maxY, 1.0, -1.0), (frame.maxX, frame.maxY, -1.0, -1.0)] {
-            let p = NSBezierPath()
-            p.move(to: NSPoint(x: x + dx * b, y: y))
-            p.line(to: NSPoint(x: x, y: y))
-            p.line(to: NSPoint(x: x, y: y + dy * b))
-            p.lineWidth = 4
-            p.stroke()
+        return cached("card|\(title)|\(subtitle)|\(rows.map { "\($0.0)=\($0.1)" }.joined(separator: ";"))|\(colourKey(accent))") {
+            render(size) {
+                let frame = NSRect(origin: .zero, size: size).insetBy(dx: 4, dy: 4)
+                NSColor(red: 0.02, green: 0.10, blue: 0.20, alpha: 0.55).setFill()
+                NSBezierPath(rect: frame).fill()
+                cyan.withAlphaComponent(0.35).setStroke()
+                let border = NSBezierPath(rect: frame)
+                border.lineWidth = 1.5
+                border.stroke()
+                // Corner brackets.
+                accent.setStroke()
+                let b: CGFloat = 22
+                for (x, y, dx, dy) in [(frame.minX, frame.minY, 1.0, 1.0), (frame.maxX, frame.minY, -1.0, 1.0),
+                                       (frame.minX, frame.maxY, 1.0, -1.0), (frame.maxX, frame.maxY, -1.0, -1.0)] {
+                    let p = NSBezierPath()
+                    p.move(to: NSPoint(x: x + dx * b, y: y))
+                    p.line(to: NSPoint(x: x, y: y))
+                    p.line(to: NSPoint(x: x, y: y + dy * b))
+                    p.lineWidth = 4
+                    p.stroke()
+                }
+                // Accent bar under the title.
+                accent.withAlphaComponent(0.8).setFill()
+                NSRect(x: frame.minX + 18, y: frame.maxY - 62, width: 120, height: 3).fill()
+                let titleFont = NSFont.monospacedSystemFont(ofSize: 30, weight: .heavy)
+                let bodyFont = NSFont.monospacedSystemFont(ofSize: 17, weight: .medium)
+                (title as NSString).draw(at: NSPoint(x: frame.minX + 18, y: frame.maxY - 52),
+                                         withAttributes: [.font: titleFont, .foregroundColor: NSColor.white])
+                (subtitle as NSString).draw(at: NSPoint(x: frame.minX + 150, y: frame.maxY - 46),
+                                            withAttributes: [.font: bodyFont, .foregroundColor: accent])
+                var y = frame.maxY - 96
+                for (key, value) in rows {
+                    (key.uppercased() as NSString).draw(at: NSPoint(x: frame.minX + 18, y: y),
+                                                        withAttributes: [.font: bodyFont, .foregroundColor: cyan.withAlphaComponent(0.75)])
+                    (value as NSString).draw(at: NSPoint(x: frame.minX + 150, y: y),
+                                             withAttributes: [.font: bodyFont, .foregroundColor: NSColor.white])
+                    y -= 26
+                }
+            }
         }
-        // Accent bar under the title.
-        accent.withAlphaComponent(0.8).setFill()
-        NSRect(x: frame.minX + 18, y: frame.maxY - 62, width: 120, height: 3).fill()
-        let titleFont = NSFont.monospacedSystemFont(ofSize: 30, weight: .heavy)
-        let bodyFont = NSFont.monospacedSystemFont(ofSize: 17, weight: .medium)
-        (title as NSString).draw(at: NSPoint(x: frame.minX + 18, y: frame.maxY - 52),
-                                 withAttributes: [.font: titleFont, .foregroundColor: NSColor.white])
-        (subtitle as NSString).draw(at: NSPoint(x: frame.minX + 150, y: frame.maxY - 46),
-                                    withAttributes: [.font: bodyFont, .foregroundColor: accent])
-        var y = frame.maxY - 96
-        for (key, value) in rows {
-            (key.uppercased() as NSString).draw(at: NSPoint(x: frame.minX + 18, y: y),
-                                                withAttributes: [.font: bodyFont, .foregroundColor: cyan.withAlphaComponent(0.75)])
-            (value as NSString).draw(at: NSPoint(x: frame.minX + 150, y: y),
-                                     withAttributes: [.font: bodyFont, .foregroundColor: NSColor.white])
-            y -= 26
-        }
-        image.unlockFocus()
-        return image
     }
 
     /// A glowing "particle" sprite: a soft round dot.
     static func dotImage() -> NSImage {
         let size: CGFloat = 32
-        let image = NSImage(size: NSSize(width: size, height: size))
-        image.lockFocus()
-        let gradient = NSGradient(colors: [NSColor.white, NSColor.white.withAlphaComponent(0)])
-        gradient?.draw(in: NSBezierPath(ovalIn: NSRect(x: 0, y: 0, width: size, height: size)), relativeCenterPosition: .zero)
-        image.unlockFocus()
-        return image
+        return cached("dot") {
+            render(NSSize(width: size, height: size), scale: 2) {
+                let gradient = NSGradient(colors: [NSColor.white, NSColor.white.withAlphaComponent(0)])
+                gradient?.draw(in: NSBezierPath(ovalIn: NSRect(x: 0, y: 0, width: size, height: size)), relativeCenterPosition: .zero)
+            }
+        }
     }
 
     // MARK: Scene pieces
@@ -278,73 +323,71 @@ extension HoloFX {
     /// header band (title + code) and a footer; `content` draws the panel's chart into the body rectangle.
     static func panelImage(title: String, code: String, accent: NSColor, content: (NSRect) -> Void) -> NSImage {
         let size = NSSize(width: 640, height: 420)
-        let image = NSImage(size: size)
-        image.lockFocus()
-        let frame = NSRect(origin: .zero, size: size).insetBy(dx: 10, dy: 10)
-        NSGradient(colors: [NSColor(red: 0.03, green: 0.16, blue: 0.30, alpha: 0.55),
-                            NSColor(red: 0.01, green: 0.06, blue: 0.14, alpha: 0.30)])?.draw(in: frame, angle: 90)
-        // Hex grain and scanlines.
-        if let hex = hexImage(colour: cyan).cgImage(forProposedRect: nil, context: nil, hints: nil) {
-            NSGraphicsContext.current?.cgContext.saveGState()
-            NSBezierPath(rect: frame).addClip()
-            NSGraphicsContext.current?.cgContext.setAlpha(0.18)
-            NSGraphicsContext.current?.cgContext.draw(hex, in: CGRect(x: 0, y: 0, width: 64, height: 48), byTiling: true)
-            NSGraphicsContext.current?.cgContext.restoreGState()
+        return render(size) {
+            let frame = NSRect(origin: .zero, size: size).insetBy(dx: 10, dy: 10)
+            NSGradient(colors: [NSColor(red: 0.03, green: 0.16, blue: 0.30, alpha: 0.55),
+                                NSColor(red: 0.01, green: 0.06, blue: 0.14, alpha: 0.30)])?.draw(in: frame, angle: 90)
+            // Hex grain and scanlines.
+            if let hex = hexImage(colour: cyan).cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                NSGraphicsContext.current?.cgContext.saveGState()
+                NSBezierPath(rect: frame).addClip()
+                NSGraphicsContext.current?.cgContext.setAlpha(0.18)
+                NSGraphicsContext.current?.cgContext.draw(hex, in: CGRect(x: 0, y: 0, width: 64, height: 48), byTiling: true)
+                NSGraphicsContext.current?.cgContext.restoreGState()
+            }
+            cyan.withAlphaComponent(0.05).setFill()
+            var y = frame.minY
+            while y < frame.maxY {
+                NSRect(x: frame.minX, y: y, width: frame.width, height: 1.5).fill()
+                y += 5
+            }
+            // Frame: soft outer glow, crisp border.
+            for (width, alpha) in [(10.0, 0.08), (5.0, 0.18), (2.0, 0.85)] as [(CGFloat, CGFloat)] {
+                cyan.withAlphaComponent(alpha).setStroke()
+                let border = NSBezierPath(rect: frame)
+                border.lineWidth = width
+                border.stroke()
+            }
+            // Header band.
+            let header = NSRect(x: frame.minX, y: frame.maxY - 58, width: frame.width, height: 58)
+            cyan.withAlphaComponent(0.14).setFill()
+            header.fill()
+            accent.setFill()
+            NSRect(x: frame.minX, y: header.minY - 3, width: 150, height: 3).fill()
+            cyan.withAlphaComponent(0.45).setFill()
+            NSRect(x: frame.minX + 156, y: header.minY - 2, width: frame.width - 156, height: 1).fill()
+            (title.uppercased() as NSString).draw(at: NSPoint(x: frame.minX + 22, y: header.minY + 14),
+                                                  withAttributes: [.font: NSFont.monospacedSystemFont(ofSize: 26, weight: .heavy),
+                                                                   .foregroundColor: NSColor.white])
+            let codeAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedSystemFont(ofSize: 17, weight: .bold),
+                                                             .foregroundColor: accent]
+            let codeSize = (code as NSString).size(withAttributes: codeAttrs)
+            (code as NSString).draw(at: NSPoint(x: frame.maxX - codeSize.width - 20, y: header.minY + 19), withAttributes: codeAttrs)
+            // Left ruler ticks.
+            cyan.withAlphaComponent(0.6).setFill()
+            for k in 0..<14 {
+                let ty = frame.minY + 34 + CGFloat(k) * 22
+                NSRect(x: frame.minX + 4, y: ty, width: k % 3 == 0 ? 12 : 6, height: 1.5).fill()
+            }
+            // Amber corner brackets.
+            accent.setStroke()
+            let b: CGFloat = 30
+            let corners: [(CGFloat, CGFloat, CGFloat, CGFloat)] = [(frame.minX, frame.minY, 1.0, 1.0), (frame.maxX, frame.minY, -1.0, 1.0),
+                                    (frame.minX, frame.maxY, 1.0, -1.0), (frame.maxX, frame.maxY, -1.0, -1.0)]
+            for (x, yy, dx, dy) in corners {
+                let path = NSBezierPath()
+                path.move(to: NSPoint(x: x + dx * b, y: yy))
+                path.line(to: NSPoint(x: x, y: yy))
+                path.line(to: NSPoint(x: x, y: yy + dy * b))
+                path.lineWidth = 5
+                path.stroke()
+            }
+            // Footer.
+            ("SIEDA // HOLO-ANALYSIS" as NSString).draw(at: NSPoint(x: frame.minX + 22, y: frame.minY + 10),
+                                                        withAttributes: [.font: NSFont.monospacedSystemFont(ofSize: 12, weight: .medium),
+                                                                         .foregroundColor: cyan.withAlphaComponent(0.55)])
+            content(NSRect(x: frame.minX + 26, y: frame.minY + 36, width: frame.width - 52, height: header.minY - frame.minY - 50))
         }
-        cyan.withAlphaComponent(0.05).setFill()
-        var y = frame.minY
-        while y < frame.maxY {
-            NSRect(x: frame.minX, y: y, width: frame.width, height: 1.5).fill()
-            y += 5
-        }
-        // Frame: soft outer glow, crisp border.
-        for (width, alpha) in [(10.0, 0.08), (5.0, 0.18), (2.0, 0.85)] as [(CGFloat, CGFloat)] {
-            cyan.withAlphaComponent(alpha).setStroke()
-            let border = NSBezierPath(rect: frame)
-            border.lineWidth = width
-            border.stroke()
-        }
-        // Header band.
-        let header = NSRect(x: frame.minX, y: frame.maxY - 58, width: frame.width, height: 58)
-        cyan.withAlphaComponent(0.14).setFill()
-        header.fill()
-        accent.setFill()
-        NSRect(x: frame.minX, y: header.minY - 3, width: 150, height: 3).fill()
-        cyan.withAlphaComponent(0.45).setFill()
-        NSRect(x: frame.minX + 156, y: header.minY - 2, width: frame.width - 156, height: 1).fill()
-        (title.uppercased() as NSString).draw(at: NSPoint(x: frame.minX + 22, y: header.minY + 14),
-                                              withAttributes: [.font: NSFont.monospacedSystemFont(ofSize: 26, weight: .heavy),
-                                                               .foregroundColor: NSColor.white])
-        let codeAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedSystemFont(ofSize: 17, weight: .bold),
-                                                         .foregroundColor: accent]
-        let codeSize = (code as NSString).size(withAttributes: codeAttrs)
-        (code as NSString).draw(at: NSPoint(x: frame.maxX - codeSize.width - 20, y: header.minY + 19), withAttributes: codeAttrs)
-        // Left ruler ticks.
-        cyan.withAlphaComponent(0.6).setFill()
-        for k in 0..<14 {
-            let ty = frame.minY + 34 + CGFloat(k) * 22
-            NSRect(x: frame.minX + 4, y: ty, width: k % 3 == 0 ? 12 : 6, height: 1.5).fill()
-        }
-        // Amber corner brackets.
-        accent.setStroke()
-        let b: CGFloat = 30
-        let corners: [(CGFloat, CGFloat, CGFloat, CGFloat)] = [(frame.minX, frame.minY, 1.0, 1.0), (frame.maxX, frame.minY, -1.0, 1.0),
-                                (frame.minX, frame.maxY, 1.0, -1.0), (frame.maxX, frame.maxY, -1.0, -1.0)]
-        for (x, yy, dx, dy) in corners {
-            let path = NSBezierPath()
-            path.move(to: NSPoint(x: x + dx * b, y: yy))
-            path.line(to: NSPoint(x: x, y: yy))
-            path.line(to: NSPoint(x: x, y: yy + dy * b))
-            path.lineWidth = 5
-            path.stroke()
-        }
-        // Footer.
-        ("SIEDA // HOLO-ANALYSIS" as NSString).draw(at: NSPoint(x: frame.minX + 22, y: frame.minY + 10),
-                                                    withAttributes: [.font: NSFont.monospacedSystemFont(ofSize: 12, weight: .medium),
-                                                                     .foregroundColor: cyan.withAlphaComponent(0.55)])
-        content(NSRect(x: frame.minX + 26, y: frame.minY + 36, width: frame.width - 52, height: header.minY - frame.minY - 50))
-        image.unlockFocus()
-        return image
     }
 
     private static func label(_ text: String, at p: NSPoint, size: CGFloat = 15, colour: NSColor = .white,
@@ -444,6 +487,9 @@ extension HoloFX {
         }
     }
 
+    static let maxMiniMapSegments = 8000
+    static let maxMiniMapPads = 6000
+
     /// Top-down mini-map of the board: outline, tracks and pads scaled into `r`.
     static func drawMiniMap(width: Double, height: Double, tracks: [(CGPoint, CGPoint)], pads: [CGPoint], in r: NSRect) {
         guard width > 0, height > 0 else { return }
@@ -457,8 +503,11 @@ extension HoloFX {
         let o = NSBezierPath(rect: outline)
         o.lineWidth = 2
         o.stroke()
+        // Bounded work on huge boards: at most `maxMiniMapSegments` tracks and `maxMiniMapPads` pads are drawn
+        // (evenly sampled) — a 640 px map cannot show more anyway.
         let path = NSBezierPath()
-        for (a, b) in tracks {
+        let trackStep = max(1, tracks.count / maxMiniMapSegments)
+        for (a, b) in stride(from: 0, to: tracks.count, by: trackStep).lazy.map({ tracks[$0] }) {
             path.move(to: map(a))
             path.line(to: map(b))
         }
@@ -466,8 +515,8 @@ extension HoloFX {
         cyan.withAlphaComponent(0.55).setStroke()
         path.stroke()
         amber.withAlphaComponent(0.9).setFill()
-        for p in pads {
-            let q = map(p)
+        for index in stride(from: 0, to: pads.count, by: max(1, pads.count / maxMiniMapPads)) {
+            let q = map(pads[index])
             NSRect(x: q.x - 1, y: q.y - 1, width: 2, height: 2).fill()
         }
     }
@@ -512,16 +561,16 @@ extension HoloFX {
     /// Faint double frame for a panel's depth layer.
     static func ringFrameImage() -> NSImage {
         let size = NSSize(width: 320, height: 210)
-        let image = NSImage(size: size)
-        image.lockFocus()
-        for (inset, alpha) in [(4.0, 0.7), (12.0, 0.3)] as [(CGFloat, CGFloat)] {
-            cyan.withAlphaComponent(alpha).setStroke()
-            let p = NSBezierPath(rect: NSRect(origin: .zero, size: size).insetBy(dx: inset, dy: inset))
-            p.lineWidth = 2
-            p.stroke()
+        return cached("ringFrame") {
+            render(size) {
+                for (inset, alpha) in [(4.0, 0.7), (12.0, 0.3)] as [(CGFloat, CGFloat)] {
+                    cyan.withAlphaComponent(alpha).setStroke()
+                    let p = NSBezierPath(rect: NSRect(origin: .zero, size: size).insetBy(dx: inset, dy: inset))
+                    p.lineWidth = 2
+                    p.stroke()
+                }
+            }
         }
-        image.unlockFocus()
-        return image
     }
 }
 

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		01B0280DE2241948F1896AA1 = {isa = PBXBuildFile; fileRef = ED31CDCBDEE7E1F670F7977E; };
+		028535CF9713ADC0DD562876 = {isa = PBXBuildFile; fileRef = 884025894DE1241B1FECCFEC; };
 		05D6128DD9BE6AF8A4BC311F = {isa = PBXBuildFile; fileRef = 7240EC7A71DCA0DFCC205FBA; };
 		11DA8A2E7A51801F14B785D4 = {isa = PBXBuildFile; fileRef = 40CB462BA68D53F06E05FE4B; };
 		120253EBD1D58E6CD359F37D = {isa = PBXBuildFile; fileRef = 87FD7D0F8D0FCBA339485071; };
@@ -155,6 +156,7 @@
 		80E356175BDB80AB2AB4E5ED = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Aerospace.hpp; sourceTree = "<group>"; };
 		833CC0D371F8BDA60C967CC4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Export.hpp; sourceTree = "<group>"; };
 		87FD7D0F8D0FCBA339485071 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Standards.swift; sourceTree = "<group>"; };
+		884025894DE1241B1FECCFEC = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashReporter.swift; sourceTree = "<group>"; };
 		89D9BE7B7D9C91F898FB822D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignStore.swift; sourceTree = "<group>"; };
 		8AB4FED3D8DC2F86F55E450D = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Medical.hpp; sourceTree = "<group>"; };
 		8D23FAC4C1E972362B3DB3E7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Appliance.cpp; sourceTree = "<group>"; };
@@ -526,6 +528,7 @@
 		F6DAA87D8CB52A39E5AAB258 = {
 			isa = PBXGroup;
 			children = (
+				884025894DE1241B1FECCFEC,
 				89D9BE7B7D9C91F898FB822D,
 				DCA642B6ED42847C57E4E461,
 				EBECAAA7807D81B9EA1B4E2D,
@@ -649,6 +652,7 @@
 				49D121232DDFBC0445D83F9B,
 				68D48DAD17D325679CCABD65,
 				05D6128DD9BE6AF8A4BC311F,
+				028535CF9713ADC0DD562876,
 				7A10A9C2A05E8392D79C71E1,
 				C33B3E4901A01AAF4FDEEE96,
 				53EA1E9ED727F5F22BF6D1BF,

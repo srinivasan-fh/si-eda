@@ -62,7 +62,9 @@ final class DesignStore: ObservableObject {
     let live = LiveSimulation()
 
     @Published private(set) var snapshot: DesignSnapshot = .empty
-    @Published var workspace: Workspace = .promptStudio
+    @Published var workspace: Workspace = .promptStudio {
+        didSet { if workspace != oldValue { CrashReporter.note("Workspace: \(workspace.title)") } }
+    }
     @Published var selection: Set<Int> = []
     @Published var selectedWire: Int?
     @Published var ercResults: [RuleViolation] = []
@@ -93,7 +95,12 @@ final class DesignStore: ObservableObject {
     @Published private(set) var busyMessage = ""
     @Published var statusMessage = "Ready"
     @Published private(set) var documentURL: URL?
-    @Published private(set) var isDirty = false
+    @Published private(set) var isDirty = false {
+        didSet {
+            // Saved, reverted or discarded: nothing left to recover.
+            if oldValue, !isDirty { recoveryWork?.cancel(); recovery?.clear() }
+        }
+    }
     @Published var alert: AlertItem?
     /// Incremented whenever geometry changes so the 3D view knows to rebuild its mesh.
     @Published private(set) var revision = 0
@@ -113,6 +120,39 @@ final class DesignStore: ObservableObject {
     private var undoStack: [String] = []
     private var redoStack: [String] = []
     private let undoLimit = 100
+    /// Memory budget for the undo + redo history (each step is a full design snapshot): big boards keep fewer
+    /// steps instead of growing without bound.
+    var historyByteLimit = 96 * 1024 * 1024
+
+    /// Bytes held by the undo + redo history. O(steps): a native string's UTF-8 count is stored, not recounted.
+    var historyBytes: Int {
+        undoStack.reduce(0) { $0 + $1.utf8.count } + redoStack.reduce(0) { $0 + $1.utf8.count }
+    }
+    var undoDepth: Int { undoStack.count }
+
+    /// Records an undo step and clears redo, keeping the history within `undoLimit` steps and `historyByteLimit`.
+    private func pushUndo(_ state: String) {
+        undoStack.append(state)
+        redoStack.removeAll()
+        trimHistory()
+    }
+
+    private func trimHistory() {
+        if undoStack.count > undoLimit { undoStack.removeFirst(undoStack.count - undoLimit) }
+        var bytes = historyBytes
+        // Oldest redo steps go first, then the oldest undo steps; the latest undo step is always kept.
+        while bytes > historyByteLimit, !redoStack.isEmpty { bytes -= redoStack.removeFirst().utf8.count }
+        while bytes > historyByteLimit, undoStack.count > 1 { bytes -= undoStack.removeFirst().utf8.count }
+    }
+
+    /// Crash-recovery autosave of unsaved work (attached by the app; nil in tests unless they set one).
+    var recovery: CrashRecovery? {
+        didSet { scheduleRecoverySave() }
+    }
+    /// Seconds of inactivity before unsaved work is autosaved for recovery.
+    var recoveryDelay: TimeInterval = 3
+    private var recoveryWork: DispatchWorkItem?
+    private var memoryObserver: NSObjectProtocol?
 
     var canUndo: Bool { !undoStack.isEmpty }
     var canRedo: Bool { !redoStack.isEmpty }
@@ -125,6 +165,67 @@ final class DesignStore: ObservableObject {
 
     init() {
         refresh()
+        memoryObserver = NotificationCenter.default.addObserver(forName: .siedaMemoryPressure, object: nil,
+                                                                queue: .main) { [weak self] note in
+            let critical = note.userInfo?["critical"] as? Bool ?? false
+            MainActor.assumeIsolated { self?.relieveMemoryPressure(critical: critical) }
+        }
+    }
+
+    deinit {
+        if let memoryObserver { NotificationCenter.default.removeObserver(memoryObserver) }
+    }
+
+    /// Under memory pressure: drop redo, and on critical pressure the older half of the undo history.
+    func relieveMemoryPressure(critical: Bool) {
+        redoStack.removeAll()
+        if critical, undoStack.count > 1 { undoStack.removeFirst(undoStack.count / 2) }
+        if critical { statusMessage = "Low memory — older undo steps released" }
+    }
+
+    // MARK: - Crash recovery
+
+    /// Autosaves unsaved work after `recoveryDelay` seconds without further changes (debounced: one write per pause).
+    func scheduleRecoverySave() {
+        recoveryWork?.cancel()
+        guard recovery != nil, isDirty else { return }
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated { self?.saveRecoveryNow() }
+        }
+        recoveryWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + recoveryDelay, execute: work)
+    }
+
+    /// Writes the recovery autosave now (the file write itself happens off the main thread).
+    func saveRecoveryNow() {
+        recoveryWork?.cancel()
+        recoveryWork = nil
+        guard let recovery, isDirty else { return }
+        recovery.save(json: engine.saveJSON(), documentURL: documentURL)
+    }
+
+    /// Reopens work recovered after a crash: the design comes back unsaved, pointing at its original file if any.
+    func restoreRecovered(_ pending: CrashRecovery.Pending) {
+        do {
+            try engine.load(json: pending.json)
+            documentURL = pending.documentURL
+            undoStack.removeAll()
+            redoStack.removeAll()
+            selection = []
+            selectedWire = nil
+            dcResult = nil
+            transientResult = nil
+            resetChecks()
+            refresh()
+            isDirty = true
+            fitToken &+= 1
+            workspace = snapshot.components.isEmpty ? startWorkspace : .schematic
+            statusMessage = "Recovered unsaved work"
+            CrashReporter.note("Recovered unsaved work")
+            scheduleRecoverySave()
+        } catch {
+            present(error, title: "Could not recover the unsaved work")
+        }
     }
 
     // MARK: - Core plumbing
@@ -175,11 +276,7 @@ final class DesignStore: ObservableObject {
             statusMessage = failureMessage ?? "\(actionName): not possible"
             return false
         }
-        if let before {
-            undoStack.append(before)
-            if undoStack.count > undoLimit { undoStack.removeFirst() }
-            redoStack.removeAll()
-        }
+        if let before { pushUndo(before) }
         isDirty = true
         if invalidatesAnalysis {
             dcResult = nil
@@ -187,18 +284,22 @@ final class DesignStore: ObservableObject {
         }
         refresh()
         statusMessage = actionName
+        CrashReporter.note(actionName)
+        scheduleRecoverySave()
         return true
     }
 
     func undo() {
         guard let state = undoStack.popLast() else { return }
         redoStack.append(engine.saveJSON())
+        trimHistory()
         restore(state, message: "Undo")
     }
 
     func redo() {
         guard let state = redoStack.popLast() else { return }
         undoStack.append(engine.saveJSON())
+        trimHistory()
         restore(state, message: "Redo")
     }
 
@@ -210,6 +311,8 @@ final class DesignStore: ObservableObject {
             transientResult = nil
             refresh()
             statusMessage = message
+            CrashReporter.note(message)
+            scheduleRecoverySave()
         } catch {
             present(error, title: "Undo failed")
         }
@@ -673,10 +776,9 @@ final class DesignStore: ObservableObject {
         let engine = self.engine
         let result = await runBusy(placeMissing ? "Placing and routing…" : "Autorouting…") { engine.autoRouteChecked() }
         func recordUndo() {
-            undoStack.append(before)
-            if undoStack.count > undoLimit { undoStack.removeFirst() }
-            redoStack.removeAll()
+            pushUndo(before)
             isDirty = true
+            scheduleRecoverySave()
         }
         guard case .success(let stats) = result else {
             if placeMissing || clearFirst { recordUndo() }  // the placement / rip-up already happened
@@ -1167,6 +1269,7 @@ final class DesignStore: ObservableObject {
     /// Loads one of the built-in reference designs (works fully offline, no AI involved).
     func loadExample(_ plan: DesignPlan) {
         guard confirmDiscardChanges() else { return }
+        CrashReporter.note("Load example: \(plan.title)")
         // A fresh project: nothing (library parts, board, pours, placement) carries over from the previous design.
         perform("New project", recordUndo: false) { $0.reset() }
         applyPlan(plan, requirements: plan.summary)
@@ -1188,6 +1291,7 @@ final class DesignStore: ObservableObject {
     }
 
     func open(url: URL) {
+        CrashReporter.note("Open \(url.lastPathComponent)")
         do {
             let json = try String(contentsOf: url, encoding: .utf8)
             try engine.load(json: json)
@@ -1231,6 +1335,7 @@ final class DesignStore: ObservableObject {
             documentURL = url
             isDirty = false
             statusMessage = "Saved \(url.lastPathComponent)"
+            CrashReporter.note("Saved \(url.lastPathComponent)")
             NSDocumentController.shared.noteNewRecentDocumentURL(url)
             return true
         } catch {

@@ -2557,6 +2557,11 @@ final class XRayLiveSceneTests: XCTestCase {
         }.count
     }
 
+    private func firstPanelTexture(_ scene: SCNScene) -> NSImage? {
+        let panel = scene.rootNode.childNodes { node, _ in node.childNodes.contains { $0.geometry is SCNTorus } }.first
+        return panel?.childNodes.first?.geometry?.firstMaterial?.emission.contents as? NSImage
+    }
+
     func testPanelsToggleInALiveWindow() throws {
         let engine = EDAEngine()
         DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: engine, previous: nil)
@@ -2587,6 +2592,7 @@ final class XRayLiveSceneTests: XCTestCase {
         spin(0.5)
         XCTAssertEqual(panelCount(scene), 5, "Panels on")
         XCTAssertTrue(window.isVisible)
+        let texture = try XCTUnwrap(firstPanelTexture(scene))
 
         // Panels work without the HUD, and survive explode / layer changes.
         settings.hud = false
@@ -2595,10 +2601,205 @@ final class XRayLiveSceneTests: XCTestCase {
         host.rootView = stack(settings)
         spin(0.3)
         XCTAssertEqual(panelCount(scene), 5, "Panels without the HUD")
+        XCTAssertTrue(try XCTUnwrap(firstPanelTexture(scene)) === texture, "settings changes reuse the panel textures")
 
         settings.panels = false
         host.rootView = stack(settings)
         spin(0.3)
         XCTAssertEqual(panelCount(scene), 0, "Panels off again")
+    }
+}
+
+/// Crash reports, crash recovery and the memory / time bounds: reports are built after an abnormal end and never
+/// after a clean one, logs and report folders stay bounded, unsaved work survives a crash, the undo history keeps
+/// to its memory budget, hangs are logged, and the hologram textures are cached and fixed-size.
+@MainActor
+final class CrashAndResourceTests: XCTestCase {
+    private var directory: URL!
+
+    override func setUp() {
+        super.setUp()
+        directory = FileManager.default.temporaryDirectory.appendingPathComponent("SiEDA-diag-\(UUID().uuidString)")
+    }
+
+    override func tearDown() {
+        try? FileManager.default.removeItem(at: directory)
+        super.tearDown()
+    }
+
+    private func spin(_ seconds: TimeInterval) {
+        RunLoop.main.run(until: Date().addingTimeInterval(seconds))
+    }
+
+    // MARK: Crash reports
+
+    func testReportAfterACrashWithActivityAndBacktrace() throws {
+        let first = CrashReporter(directory: directory)
+        first.startSession()
+        XCTAssertNil(first.lastSessionReport, "nothing to report on a first launch")
+        first.breadcrumb("Auto-place")
+        first.breadcrumb("Workspace: 3D View")
+        first.recordFatal(kind: "Uncaught exception NSRangeException", reason: "index 7 beyond bounds",
+                          stack: ["0 SiEDA frameA", "1 SiEDA frameB"])
+        // No endSession(): the process "died". Next launch:
+        let second = CrashReporter(directory: directory)
+        second.startSession()
+        let url = try XCTUnwrap(second.lastSessionReport)
+        let report = try String(contentsOf: url, encoding: .utf8)
+        for expected in ["NSRangeException", "index 7 beyond bounds", "frameB", "Auto-place", "Workspace: 3D View",
+                         "Session started", "macOS:"] {
+            XCTAssertTrue(report.contains(expected), "report mentions \(expected)")
+        }
+        XCTAssertEqual(second.reports.map(\.lastPathComponent), [url.lastPathComponent])
+        // A clean quit leaves nothing to report.
+        second.endSession()
+        let third = CrashReporter(directory: directory)
+        third.startSession()
+        XCTAssertNil(third.lastSessionReport)
+        third.endSession()
+    }
+
+    func testAbnormalEndWithoutACapturedCrashIsStillReported() throws {
+        CrashReporter(directory: directory).startSession()  // e.g. force quit after a hang
+        let next = CrashReporter(directory: directory)
+        next.startSession()
+        let report = try String(contentsOf: try XCTUnwrap(next.lastSessionReport), encoding: .utf8)
+        XCTAssertTrue(report.contains("did not shut down normally"))
+        next.endSession()
+    }
+
+    func testSessionLogAndReportFolderStayBounded() throws {
+        let limit = 2048
+        let reporter = CrashReporter(directory: directory, maxReports: 3, maxLogBytes: limit)
+        reporter.startSession()
+        for k in 0..<2000 { reporter.breadcrumb("Edit number \(k) with some detail") }
+        let fm = FileManager.default
+        let logs = ["session.log", "session.1.log"].map { directory.appendingPathComponent($0).path }
+        let bytes = logs.reduce(0) { $0 + ((try? fm.attributesOfItem(atPath: $1))?[.size] as? Int ?? 0) }
+        XCTAssertLessThanOrEqual(bytes, 2 * limit, "log rotation keeps the log bounded")
+        XCTAssertGreaterThan(bytes, 0)
+
+        // Six crashed sessions keep only the newest three reports.
+        for _ in 0..<6 {
+            let r = CrashReporter(directory: directory, maxReports: 3, maxLogBytes: limit)
+            r.startSession()
+        }
+        let final = CrashReporter(directory: directory, maxReports: 3, maxLogBytes: limit)
+        final.startSession()
+        XCTAssertNotNil(final.lastSessionReport)
+        XCTAssertLessThanOrEqual(final.reports.count, 3)
+        final.endSession()
+    }
+
+    func testWatchdogLogsAHangAndTheRecovery() {
+        final class Lines: @unchecked Sendable {
+            private let lock = NSLock()
+            private var items: [String] = []
+            func add(_ line: String) { lock.lock(); items.append(line); lock.unlock() }
+            var all: [String] { lock.lock(); defer { lock.unlock() }; return items }
+        }
+        let lines = Lines()
+        let watchdog = MainThreadWatchdog(threshold: 0.5) { lines.add($0) }
+        watchdog.start()
+        defer { watchdog.stop() }
+        spin(0.4)
+        Thread.sleep(forTimeInterval: 1.5)  // block the main thread
+        spin(1.0)
+        let logged = lines.all
+        XCTAssertTrue(logged.contains { $0.hasPrefix("HANG") }, "\(logged)")
+        XCTAssertTrue(logged.contains { $0.contains("responsive again") }, "\(logged)")
+    }
+
+    // MARK: Crash recovery
+
+    private func addResistor(_ store: DesignStore, _ k: Int) {
+        store.perform("Add R\(k)") { _ = $0.addComponent(.resistor, value: "1k", at: CGPoint(x: 40 * k, y: 0)) }
+    }
+
+    func testUnsavedWorkIsAutosavedAndRestored() throws {
+        let store = DesignStore()
+        store.aiEnabled = false
+        let recovery = CrashRecovery(directory: directory.appendingPathComponent("Recovery"))
+        store.recoveryDelay = 0.1
+        store.recovery = recovery
+        XCTAssertNil(recovery.pending(), "a clean design has nothing to recover")
+
+        addResistor(store, 1)
+        addResistor(store, 2)
+        spin(0.5)  // debounced autosave fires once
+        let pending = try XCTUnwrap(recovery.pending())
+        XCTAssertNotNil(pending.savedAt)
+
+        // "After the crash": a fresh window restores it as unsaved work.
+        let restored = DesignStore()
+        restored.restoreRecovered(pending)
+        XCTAssertEqual(restored.snapshot.components.count, store.snapshot.components.count)
+        XCTAssertTrue(restored.isDirty)
+
+        // Opening a saved file (a clean state) removes the autosave.
+        let file = directory.appendingPathComponent("saved.siedaproj")
+        try store.engine.saveJSON().write(to: file, atomically: true, encoding: .utf8)
+        store.open(url: file)
+        XCTAssertFalse(store.isDirty)
+        recovery.flush()
+        XCTAssertNil(recovery.pending())
+    }
+
+    // MARK: Memory bounds
+
+    func testUndoHistoryKeepsToItsMemoryBudget() {
+        let store = DesignStore()
+        store.aiEnabled = false
+        addResistor(store, 0)
+        let step = store.engine.saveJSON().utf8.count
+        store.historyByteLimit = step * 4
+        for k in 1...30 { addResistor(store, k) }
+        XCTAssertGreaterThanOrEqual(store.undoDepth, 1, "the latest step is always kept")
+        XCTAssertLessThan(store.undoDepth, 30)
+        XCTAssertTrue(store.historyBytes <= store.historyByteLimit || store.undoDepth == 1)
+        store.undo()
+        XCTAssertTrue(store.canRedo)
+
+        // Memory pressure releases redo, and (critical) the older half of undo.
+        store.historyByteLimit = 96 * 1024 * 1024
+        for k in 31...40 { addResistor(store, k) }
+        store.undo()
+        XCTAssertTrue(store.canRedo)
+        let depth = store.undoDepth
+        NotificationCenter.default.post(name: .siedaMemoryPressure, object: nil, userInfo: ["critical": true])
+        spin(0.1)
+        XCTAssertFalse(store.canRedo)
+        XCTAssertEqual(store.undoDepth, depth - depth / 2)
+    }
+
+    func testHologramTexturesAreCachedAndFixedSize() throws {
+        HoloFX.clearTextureCache()
+        let ring = HoloFX.ringImage(colour: HoloFX.cyan, ticks: 72, segments: 9)
+        XCTAssertTrue(ring === HoloFX.ringImage(colour: HoloFX.cyan, ticks: 72, segments: 9), "cached")
+        XCTAssertFalse(ring === HoloFX.ringImage(colour: HoloFX.amber, ticks: 72, segments: 9), "keyed by colour")
+        let ringRep = try XCTUnwrap(ring.representations.first as? NSBitmapImageRep)
+        XCTAssertEqual(ringRep.pixelsWide, 512, "1× texture regardless of the screen")
+
+        let panel = HoloFX.panelImage(title: "Test", code: "X", accent: HoloFX.cyan) { _ in }
+        let rep = try XCTUnwrap(panel.representations.first as? NSBitmapImageRep)
+        XCTAssertEqual(rep.pixelsWide, 640)
+        XCTAssertEqual(rep.pixelsHigh, 420)
+        let hex = try XCTUnwrap(HoloFX.hexImage(colour: HoloFX.cyan).representations.first as? NSBitmapImageRep)
+        XCTAssertEqual(CGFloat(hex.pixelsWide), (sqrt(3) * 16 * 2 * 2).rounded(), "small tiles at 2×")
+    }
+
+    func testMiniMapAndStatsStayFastOnHugeBoards() {
+        // 200 000 tracks and 100 000 pads: drawing is capped, so it stays well under a second.
+        let tracks = (0..<200_000).map { k -> (CGPoint, CGPoint) in
+            let x = CGFloat(k % 500), y = CGFloat(k / 500)
+            return (CGPoint(x: x, y: y), CGPoint(x: x + 1, y: y))
+        }
+        let pads = (0..<100_000).map { CGPoint(x: CGFloat($0 % 400), y: CGFloat($0 / 400)) }
+        let start = Date()
+        let image = HoloFX.render(NSSize(width: 640, height: 420)) {
+            HoloFX.drawMiniMap(width: 500, height: 400, tracks: tracks, pads: pads, in: NSRect(x: 0, y: 0, width: 640, height: 420))
+        }
+        XCTAssertEqual(image.size, NSSize(width: 640, height: 420))
+        XCTAssertLessThan(Date().timeIntervalSince(start), 2.0)
     }
 }
