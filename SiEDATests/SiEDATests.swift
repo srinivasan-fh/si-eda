@@ -2757,8 +2757,14 @@ final class CrashAndResourceTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(store.undoDepth, 1, "the latest step is always kept")
         XCTAssertLessThan(store.undoDepth, 30)
         XCTAssertTrue(store.historyBytes <= store.historyByteLimit || store.undoDepth == 1)
+        // Undo and redo still work right at the limit: the newest step on each side is never trimmed.
+        let before = store.snapshot.components.count
         store.undo()
-        XCTAssertTrue(store.canRedo)
+        XCTAssertTrue(store.canRedo, "undo at the memory limit keeps its redo step")
+        XCTAssertEqual(store.snapshot.components.count, before - 1)
+        store.redo()
+        XCTAssertEqual(store.snapshot.components.count, before)
+        store.undo()
 
         // Memory pressure releases redo, and (critical) the older half of undo.
         store.historyByteLimit = 96 * 1024 * 1024

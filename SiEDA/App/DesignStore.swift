@@ -140,9 +140,10 @@ final class DesignStore: ObservableObject {
     private func trimHistory() {
         if undoStack.count > undoLimit { undoStack.removeFirst(undoStack.count - undoLimit) }
         var bytes = historyBytes
-        // Oldest redo steps go first, then the oldest undo steps; the latest undo step is always kept.
-        while bytes > historyByteLimit, !redoStack.isEmpty { bytes -= redoStack.removeFirst().utf8.count }
+        // The oldest steps go first (furthest back in undo, then furthest ahead in redo); the latest step on each
+        // side is always kept, so Undo and Redo keep working right at the limit.
         while bytes > historyByteLimit, undoStack.count > 1 { bytes -= undoStack.removeFirst().utf8.count }
+        while bytes > historyByteLimit, redoStack.count > 1 { bytes -= redoStack.removeFirst().utf8.count }
     }
 
     /// Crash-recovery autosave of unsaved work (attached by the app; nil in tests unless they set one).
