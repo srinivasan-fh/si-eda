@@ -117,6 +117,11 @@ struct PcbPlacement: Decodable, Equatable {
     var rotation: Int
     var bottom: Bool
     var placed: Bool
+    /// Locked footprints stay where they are on Auto Place.
+    var locked: Bool?
+    /// Embedded passive: the inner copper layer it is formed on (0 / nil = surface part).
+    var embeddedLayer: Int?
+    var isEmbedded: Bool { (embeddedLayer ?? 0) > 0 }
 }
 
 struct SnapComponent: Decodable, Equatable, Identifiable {
@@ -214,6 +219,7 @@ struct BomSummaryInfo: Decodable, Equatable {
     var missingMpn = 0
     var unpriced = 0
     var costPerBoard = 0.0
+    var embedded: Int? = nil
 }
 
 /// One BOM line: identical parts (type, value, footprint and sourcing) with their designators.
@@ -232,6 +238,8 @@ struct BomLineInfo: Decodable, Equatable, Identifiable {
     var supplierPart: String
     var unitPrice: Double
     var dnp: Bool
+    /// Formed inside the PCB (embedded passive): not bought or assembled.
+    var embedded: Bool?
     var lineCost: Double
     var suggestedManufacturer: String
     var suggestedMpn: String
@@ -572,6 +580,8 @@ struct SnapPad: Decodable, Equatable {
     var round: Bool
     var drill: Double
     var bottom: Bool
+    /// Copper layer of an SMD pad (inner layers for embedded passives); -1 for through-hole.
+    var layer: Int?
     var rect: CGRect { CGRect(x: x - w / 2, y: y - h / 2, width: w, height: h) }
 }
 

@@ -19,12 +19,13 @@ struct BomLine {
     Sourcing sourcing;        // shared by every part on the line
     std::string suggestedManufacturer, suggestedMpn;  // standard part when one is known (e.g. Yageo RC0805 resistors)
     std::vector<std::string> notes;  // what is still missing or worth checking
+    bool embedded = false;           // formed inside the PCB (embedded passive): not bought or assembled
     int quantity() const { return static_cast<int>(refs.size()); }
-    double lineCost() const { return sourcing.dnp ? 0 : sourcing.unitPrice * quantity(); }
+    double lineCost() const { return sourcing.dnp || embedded ? 0 : sourcing.unitPrice * quantity(); }
 };
 
 struct BomSummary {
-    int lines = 0, placements = 0, dnp = 0, missingMpn = 0, unpriced = 0;
+    int lines = 0, placements = 0, dnp = 0, missingMpn = 0, unpriced = 0, embedded = 0;
     double costPerBoard = 0;
 };
 

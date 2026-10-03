@@ -15,6 +15,7 @@ namespace sieda {
 
 namespace {
 std::string footprintLabel(const Component& c) {
+    if (c.pcb.embedded()) return "Embedded, layer " + std::to_string(c.pcb.embeddedLayer + 1);
     const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
     if (!fp) return c.def().footprint;
     return fp->label.empty() ? fp->name : fp->label;
@@ -140,6 +141,16 @@ std::vector<BomLine> buildBom(const Schematic& sch) {
             line.suggestedManufacturer = maker;
             line.suggestedMpn = mpn;
             const std::string pkg = packageCode(c);
+            line.embedded = c.pcb.embedded();
+            if (line.embedded) {
+                // Formed by the board house inside the stack-up: nothing to buy or place.
+                line.description = c.kind == ComponentKind::Resistor
+                                       ? "Embedded thin-film resistor " + primaryValue(c.value) + "Ω ±10 % (in the PCB)"
+                                       : "Embedded buried capacitor " + primaryValue(c.value) + "F (in the PCB)";
+                line.refs.push_back(c.ref);
+                line.componentIds.push_back(c.id);
+                continue;
+            }
             switch (c.kind) {
                 case ComponentKind::Resistor: {
                     auto rated = powerRating(c.value);
@@ -195,7 +206,7 @@ std::vector<BomLine> buildBom(const Schematic& sch) {
             sorted.refs[i] = line.refs[order[i]];
             sorted.componentIds[i] = line.componentIds[order[i]];
         }
-        if (!sorted.sourcing.dnp) {
+        if (!sorted.sourcing.dnp && !sorted.embedded) {
             if (sorted.sourcing.mpn.empty())
                 sorted.notes.push_back(sorted.suggestedMpn.empty() ? "No manufacturer part number"
                                                                    : "No part number yet (suggested: " + sorted.suggestedMpn + ")");
@@ -214,6 +225,10 @@ BomSummary summarizeBom(const std::vector<BomLine>& lines) {
     for (const auto& l : lines) {
         if (l.sourcing.dnp) {
             s.dnp += l.quantity();
+            continue;
+        }
+        if (l.embedded) {
+            s.embedded += l.quantity();
             continue;
         }
         s.placements += l.quantity();
@@ -249,6 +264,7 @@ Json bomJson(const Schematic& sch, int buildQuantity) {
         j["supplierPart"] = l.sourcing.supplierPart;
         j["unitPrice"] = l.sourcing.unitPrice;
         j["dnp"] = l.sourcing.dnp;
+        j["embedded"] = l.embedded;
         j["lineCost"] = l.lineCost();
         j["suggestedManufacturer"] = l.suggestedManufacturer;
         j["suggestedMpn"] = l.suggestedMpn;
@@ -262,6 +278,7 @@ Json bomJson(const Schematic& sch, int buildQuantity) {
     s["lines"] = sum.lines;
     s["placements"] = sum.placements;
     s["dnp"] = sum.dnp;
+    s["embedded"] = sum.embedded;
     s["missingMpn"] = sum.missingMpn;
     s["unpriced"] = sum.unpriced;
     s["costPerBoard"] = sum.costPerBoard;

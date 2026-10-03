@@ -1,6 +1,7 @@
 #include "sieda/Project.hpp"
 
 #include "sieda/Avr.hpp"
+#include "sieda/Embedded.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Stackup.hpp"
@@ -193,6 +194,8 @@ Json Project::toJson() const {
         p["rotation"] = c.pcb.rotation;
         p["bottom"] = c.pcb.bottom;
         p["placed"] = c.pcb.placed;
+        if (c.pcb.locked) p["locked"] = true;
+        if (c.pcb.embedded()) p["embeddedLayer"] = c.pcb.embeddedLayer;
         j["pcb"] = p;
         comps.push(j);
     }
@@ -350,6 +353,8 @@ Project Project::fromJson(const Json& root) {
         c.pcb.rotation = pc.get("rotation").asInt(0);
         c.pcb.bottom = pc.get("bottom").asBool(false);
         c.pcb.placed = pc.get("placed").asBool(false);
+        c.pcb.locked = c.pcb.placed && pc.get("locked").asBool(false);
+        c.pcb.embeddedLayer = canEmbed(c) ? std::max(0, pc.get("embeddedLayer").asInt(0)) : 0;
         p.schematic.restoreComponent(c);
     }
     for (const auto& j : root.get("wires").items()) {
@@ -436,6 +441,8 @@ Json Project::snapshot() const {
         pc["rotation"] = c.pcb.rotation;
         pc["bottom"] = c.pcb.bottom;
         pc["placed"] = c.pcb.placed;
+        pc["locked"] = c.pcb.locked;
+        pc["embeddedLayer"] = c.pcb.embeddedLayer;
         j["pcb"] = pc;
         comps.push(j);
     }
@@ -486,6 +493,7 @@ Json Project::snapshot() const {
         j["round"] = p.round;
         j["drill"] = p.drill;
         j["bottom"] = p.bottom;
+        j["layer"] = p.throughHole ? -1 : p.smdLayer;
         pads.push(j);
     }
     root["pads"] = pads;

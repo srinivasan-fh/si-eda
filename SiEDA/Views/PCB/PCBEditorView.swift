@@ -699,7 +699,7 @@ struct PCBCanvas: View {
                 ctx.stroke(path.applying(screen), with: .color(highlight ? Theme.iceBlue : base.opacity(isActive ? 1 : 0.45)),
                            style: StrokeStyle(lineWidth: max(1, t.width * k), lineCap: .round, lineJoin: .round))
             }
-            for p in snap.pads where !p.throughHole && (p.bottom ? snap.board.bottomLayer : 0) == layer
+            for p in snap.pads where !p.throughHole && (p.layer ?? (p.bottom ? snap.board.bottomLayer : 0)) == layer
                 && (moving.contains(p.component) || onScreen(p.x, p.y, p.x, p.y, pad: max(p.w, p.h))) {
                 let r = CGRect(x: p.x - p.w / 2, y: p.y - p.h / 2, width: p.w, height: p.h)
                 let moved = r.offsetBy(dx: moving.contains(p.component) ? d.width : 0, dy: moving.contains(p.component) ? d.height : 0)

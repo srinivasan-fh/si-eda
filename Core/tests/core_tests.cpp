@@ -15,6 +15,7 @@
 #include "sieda/CustomParts.hpp"
 #include "sieda/DeviceModels.hpp"
 #include "sieda/Bom.hpp"
+#include "sieda/Embedded.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
 #include "sieda/Firmware.hpp"
@@ -3012,4 +3013,87 @@ TEST(hdi_blind_buried_microvias) {
         notes |= f.content.find("HDI (IPC-2226)") != std::string::npos;
     }
     CHECK(spanFile && notes);
+}
+
+TEST(locked_footprints_survive_auto_place) {
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    Component* first = nullptr;
+    for (auto& c : p.schematic.mutableComponents())
+        if (c.hasFootprint()) { first = &c; break; }
+    CHECK(first);
+    first->pcb.position = {7.5, 9.0};
+    first->pcb.locked = true;
+    const int id = first->id;
+    p.pcb.autoPlace(p.schematic, true);
+    const Component* again = p.schematic.find(id);
+    CHECK(again && again->pcb.placed && again->pcb.locked);
+    CHECK_NEAR(again->pcb.position.x, 7.5, 1e-9);
+    CHECK_NEAR(again->pcb.position.y, 9.0, 1e-9);
+    Project q = Project::fromJson(p.toJson());
+    CHECK(q.schematic.find(id)->pcb.locked);
+}
+
+TEST(embedded_passives) {
+    Project p = amplifierProject();
+    p.pcb.settings.layerCount = 4;
+    Component* r330 = nullptr;
+    Component* cap = nullptr;
+    for (auto& c : p.schematic.mutableComponents()) {
+        if (c.kind == ComponentKind::Resistor && c.value == "330") r330 = &c;
+        if (c.kind == ComponentKind::Capacitor) cap = &c;
+    }
+    CHECK(r330 && cap);
+    const int rid = r330->id, cid = cap->id;
+    r330->pcb.embeddedLayer = 1;
+    p.pcb.autoPlace(p.schematic, true);
+
+    // 330 Ω on 100 Ω/sq foil: 3.3 squares, 0.5 mm wide.
+    auto e = embeddedElement(*p.schematic.find(rid), p.pcb.settings);
+    CHECK(e && e->resistor && e->layer == 1 && e->inRange);
+    CHECK(e && e->sheet == 100 && std::fabs(e->squares - 3.3) < 1e-9 && std::fabs(e->length - 1.65) < 1e-9);
+    int onInner = 0;
+    for (const auto& pd : p.pcb.pads(p.schematic))
+        if (pd.componentId == rid) onInner += pd.smdLayer == 1 && !pd.throughHole;
+    CHECK(onInner == 2);
+
+    // Routes and passes DRC with the part inside the board.
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    CHECK(p.pcb.ratsnest(p.schematic).empty());
+    int errors = 0;
+    for (const auto& v : p.pcb.runDRC(p.schematic)) errors += v.severity == Severity::Error;
+    CHECK(errors == 0);
+
+    // Not assembled: off the CPL and the assembly BOM; listed as embedded in the BOM.
+    CHECK(exportCplCsv(p.schematic, p.pcb).find(r330->ref + ",") == std::string::npos);
+    CHECK(exportAssemblyBomCsv(p.schematic).find(r330->ref) == std::string::npos);
+    bool bomEmbedded = false;
+    for (const auto& l : buildBom(p.schematic)) bomEmbedded |= l.embedded && l.refs.front() == r330->ref;
+    CHECK(bomEmbedded);
+    // Fabrication: resistor element artwork and notes.
+    bool artwork = false, notes = false;
+    for (const auto& f : fabricationPackage(p)) {
+        artwork |= f.path.find("-In1_Resistor.gbr") != std::string::npos && f.content.find("G36") != std::string::npos;
+        notes |= f.content.find("EMBEDDED PASSIVES") != std::string::npos;
+    }
+    CHECK(artwork && notes);
+    auto codes = [&] {
+        std::set<std::string> out;
+        for (const auto& x : reliabilityChecks(p)) out.insert(x.code);
+        return out;
+    };
+    CHECK(codes().count("REL_EMBEDDED_PASSIVES"));
+
+    // 100 nF is far too large for a buried plate pair; a 2-layer board cannot hold embedded parts at all.
+    p.schematic.find(cid)->pcb.embeddedLayer = 1;
+    auto ce = embeddedElement(*p.schematic.find(cid), p.pcb.settings);
+    CHECK(ce && !ce->resistor && ce->layer2 == 2 && !ce->inRange);
+    CHECK(codes().count("REL_EMBEDDED_RANGE"));
+    p.schematic.find(rid)->value = "330 1%";
+    CHECK(codes().count("REL_EMBEDDED_TOLERANCE"));
+    Project saved = Project::fromJson(p.toJson());
+    CHECK(saved.schematic.find(rid)->pcb.embeddedLayer == 1);
+    p.pcb.settings.layerCount = 2;
+    CHECK(!embeddedElement(*p.schematic.find(rid), p.pcb.settings));
+    CHECK(codes().count("REL_EMBEDDED_STACKUP"));
 }

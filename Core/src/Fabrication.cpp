@@ -14,6 +14,7 @@
 #include <sstream>
 
 #include "sieda/Bom.hpp"
+#include "sieda/Embedded.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/Export.hpp"
@@ -79,7 +80,7 @@ BoardFacts facts(const Project& p) {
             ++f.pth;
             minDrill = std::min(minDrill, pd.drill);
             minRing = std::min(minRing, (std::min(pd.size.x, pd.size.y) - pd.drill) / 2);
-        } else {
+        } else if (pd.smdLayer == kTopLayer || pd.smdLayer == s.bottomLayer()) {  // inner: embedded passives
             (pd.smdLayer == kTopLayer ? f.smdTop : f.smdBottom)++;
             smdByPart[pd.componentId].push_back(pd.position);
         }
@@ -95,7 +96,7 @@ BoardFacts facts(const Project& p) {
         if (pd.throughHole) thtParts.insert(pd.componentId);
     f.tht = static_cast<int>(thtParts.size());
     for (const auto& c : p.schematic.components()) {
-        if (!c.hasFootprint() || !c.pcb.placed) continue;
+        if (!c.hasFootprint() || !c.pcb.placed || c.pcb.embedded()) continue;
         (c.pcb.bottom ? f.partsBottom : f.partsTop)++;
     }
     double x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
@@ -336,6 +337,25 @@ std::string fabricationNotes(const Project& project, const std::vector<FabFile>&
             buried += k == "buried";
             micro += k == "microvia";
         }
+        const auto embedded = embeddedElements(project.schematic, s);
+        if (!embedded.empty()) {
+            o << "EMBEDDED PASSIVES (formed inside the board — not assembled)\n";
+            for (const auto& e : embedded) {
+                const Component* c = project.schematic.find(e.componentId);
+                const std::string ref = c ? c->ref : "?";
+                if (e.resistor)
+                    o << "  " << ref << "  " << fmt("%g", e.value) << " ohm  L" << e.layer + 1 << "  " << e.material
+                      << ", " << fmt("%.2f", e.squares) << " sq = " << fmt("%.2f", e.width) << " x "
+                      << fmt("%.2f", e.length) << " mm, +/-" << fmt("%.0f", kEmbeddedResistorTolerance)
+                      << " % untrimmed\n";
+                else
+                    o << "  " << ref << "  " << fmt("%g", e.value * 1e9) << " nF  L" << e.layer + 1 << "-L"
+                      << e.layer2 + 1 << "  " << e.material << ", plates " << fmt("%.2f", e.width) << " x "
+                      << fmt("%.2f", e.width) << " mm\n";
+            }
+            o << "  Resistor element artwork: *-In<n>_Resistor.gbr (keep the foil inside each rectangle); laser trim "
+                 "where the BOM tolerance is tighter than +/-10 %. Test each element after lamination.\n\n";
+        }
         if (blind + buried + micro > 0 || s.viaInPad) {
             o << "HDI (IPC-2226)\n";
             o << "  Vias                 " << through << " through, " << blind << " blind, " << buried << " buried, "
@@ -407,6 +427,10 @@ std::vector<FabFile> fabricationPackage(const Project& project, const std::strin
         add(g + "-B_Silkscreen.gbr", exportGerber(sch, pcb, GerberLayer::BottomSilk), "Silkscreen bottom");
     add(g + "-Edge_Cuts.gbr", exportGerber(sch, pcb, GerberLayer::EdgeCuts), "Board outline (profile)");
     if (f.pth || f.vias) add(g + "-PTH.drl", exportExcellonDrill(sch, pcb, true), "Drill, plated (pads and vias)");
+    for (int layer = 1; layer + 1 < layers; ++layer)
+        if (std::string g2 = exportEmbeddedResistorGerber(sch, pcb, layer); !g2.empty())
+            add(g + "-In" + std::to_string(layer) + "_Resistor.gbr", g2,
+                "Embedded resistor foil, layer " + std::to_string(layer + 1) + " (thin-film element artwork)");
     for (auto [from, to] : viaSpans(pcb))
         add(g + "-L" + std::to_string(from + 1) + "-L" + std::to_string(to + 1) + ".drl", exportExcellonSpan(pcb, from, to),
             to - from == 1 ? "Drill, laser microvias L" + std::to_string(from + 1) + "–L" + std::to_string(to + 1)

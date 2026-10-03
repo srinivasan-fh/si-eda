@@ -69,8 +69,12 @@ struct PlannedComponent: Codable, Equatable {
     var rotation: Int
     /// Built-in example firmware id for a microcontroller (reference designs; not part of the AI schema).
     var firmware: String?
+    /// Fixed board position (mm) and rotation: the footprint is placed there and locked, as designers fix
+    /// connectors and matched-length bus parts before Auto Place fills in the rest.
+    var pcb: PlannedPlacement?
 
-    init(ref: String, kind: String, value: String, x: Double, y: Double, rotation: Int = 0, firmware: String? = nil) {
+    init(ref: String, kind: String, value: String, x: Double, y: Double, rotation: Int = 0, firmware: String? = nil,
+         pcb: PlannedPlacement? = nil) {
         self.ref = ref
         self.kind = kind
         self.value = value
@@ -78,6 +82,7 @@ struct PlannedComponent: Codable, Equatable {
         self.y = y
         self.rotation = rotation
         self.firmware = firmware
+        self.pcb = pcb
     }
 
     init(from decoder: Decoder) throws {
@@ -95,9 +100,17 @@ struct PlannedComponent: Codable, Equatable {
             rotation = 0
         }
         firmware = try c.decodeIfPresent(String.self, forKey: .firmware)
+        pcb = try? c.decodeIfPresent(PlannedPlacement.self, forKey: .pcb)
     }
 
-    private enum CodingKeys: String, CodingKey { case ref, kind, value, x, y, rotation, firmware }
+    private enum CodingKeys: String, CodingKey { case ref, kind, value, x, y, rotation, firmware, pcb }
+}
+
+/// A locked footprint position on the board (mm, y down) with its rotation (multiple of 90°).
+struct PlannedPlacement: Codable, Equatable {
+    var x: Double
+    var y: Double
+    var rotation: Int = 0
 }
 
 struct PlannedConnection: Codable, Equatable {
@@ -117,17 +130,23 @@ struct PlannedBoard: Codable, Equatable {
     var outlineParameter: Double
     /// Square mounting-hole pattern spacing in mm (30.5 = M3 flight-controller stack); 0 = none, −1 = keep.
     var mountingHoleSpacing: Double
+    /// Laminate id ("megtron-6", "rogers-4350b", …); empty keeps the current material.
+    var material: String
+    /// Backdrill via stubs on fast nets (≥ 4 layers).
+    var backdrill: Bool
 
     /// Defaults describe a fresh rectangular board without holes (reference designs); refinement plans built from
     /// the current design pass "keep" / −1 explicitly.
     init(width: Double = 50, height: Double = 40, layers: Int = 0, outline: String = "rectangle",
-         outlineParameter: Double = 0, mountingHoleSpacing: Double = 0) {
+         outlineParameter: Double = 0, mountingHoleSpacing: Double = 0, material: String = "", backdrill: Bool = false) {
         self.width = width
         self.height = height
         self.layers = layers
         self.outline = outline
         self.outlineParameter = outlineParameter
         self.mountingHoleSpacing = mountingHoleSpacing
+        self.material = material
+        self.backdrill = backdrill
     }
 
     init(from decoder: Decoder) throws {
@@ -138,10 +157,12 @@ struct PlannedBoard: Codable, Equatable {
         outline = try c.decodeIfPresent(String.self, forKey: .outline) ?? "keep"
         outlineParameter = try c.decodeIfPresent(Double.self, forKey: .outlineParameter) ?? 0
         mountingHoleSpacing = try c.decodeIfPresent(Double.self, forKey: .mountingHoleSpacing) ?? -1
+        material = try c.decodeIfPresent(String.self, forKey: .material) ?? ""
+        backdrill = try c.decodeIfPresent(Bool.self, forKey: .backdrill) ?? false
     }
 
     private enum CodingKeys: String, CodingKey {
-        case width, height, layers, outline, outlineParameter, mountingHoleSpacing
+        case width, height, layers, outline, outlineParameter, mountingHoleSpacing, material, backdrill
     }
 }
 
@@ -420,6 +441,14 @@ enum DesignPlanCompiler {
 
         let board = plan.board
         if [1, 2, 4, 6].contains(board.layers) { engine.setLayerCount(board.layers) }
+        if !board.material.isEmpty || board.backdrill, let current = engine.snapshot()?.board {
+            let material = board.material.isEmpty ? current.material : board.material
+            if !engine.setStackup(material: material, construction: current.boardConstruction,
+                                  singleEnded: current.singleEndedImpedance, differential: current.differentialImpedance,
+                                  backdrill: board.backdrill) {
+                report.warnings.append("Board material '\(board.material)' is not in the laminate list.")
+            }
+        }
         let sized = board.width >= 10 && board.height >= 5 && board.width <= 500 && board.height <= 500
         if let preset = BoardOutlinePreset(rawValue: board.outline.lowercased()), sized {
             if preset == .rectangle {
@@ -469,6 +498,13 @@ enum DesignPlanCompiler {
         }
         for item in plan.components {
             guard let id = engine.findComponent(ref: item.ref) else { continue }
+            if let place = item.pcb {
+                engine.moveFootprint(id, to: CGPoint(x: place.x, y: place.y))
+                let current = engine.snapshot()?.components.first { $0.id == id }?.pcb.rotation ?? 0
+                let delta = ((place.rotation - current) % 360 + 360) % 360
+                if delta != 0 { engine.rotateFootprint(id, by: delta) }
+                engine.lockFootprint(id, true)
+            }
             if let example = item.firmware {
                 guard let hex = EDAEngine.firmwareExampleHex(example) else {
                     report.warnings.append("\(item.ref): unknown example firmware '\(example)'.")

@@ -1,5 +1,7 @@
 #include "sieda/Mesh.hpp"
 
+#include "sieda/Embedded.hpp"
+
 #include <array>
 #include <cctype>
 #include <cmath>
@@ -233,10 +235,18 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
                                  {p.position.x + p.size.x / 2, y + cu, p.position.y + p.size.y / 2}, gold);
                 }
             } else {
-                double y0 = p.bottom ? -t - cu : 0.0;
+                // Surface pads, or the terminations / plates of an embedded passive on an inner layer.
+                double y0 = p.smdLayer == kTopLayer ? 0.0 : p.bottom ? -t - cu : copperLayerBase(p.smdLayer, layers, t, cu);
                 m.addBox({p.position.x - p.size.x / 2, y0, p.position.y - p.size.y / 2},
                          {p.position.x + p.size.x / 2, y0 + cu, p.position.y + p.size.y / 2}, gold);
             }
+        }
+        // Embedded resistors: the dark thin-film foil between their terminations.
+        for (const auto& e : embeddedElements(sch, s)) {
+            if (!e.resistor) continue;
+            const Rect r = e.bounds();
+            const double y0 = copperLayerBase(e.layer, layers, t, cu);
+            m.addBox({r.x0, y0, r.y0}, {r.x1, y0 + cu * 0.6, r.y1}, Rgba{0.18f, 0.16f, 0.14f, 1.0f});
         }
         for (const auto& v : pcb.vias) {
             // The barrel runs between the copper layers it spans (blind / buried / microvias stop inside the board).
@@ -248,7 +258,7 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
 
     if (opt.silkscreen) {
         for (const auto& c : sch.components()) {
-            if (!c.hasFootprint() || !c.pcb.placed) continue;
+            if (!c.hasFootprint() || !c.pcb.placed || c.pcb.embedded()) continue;
             Rect r = pcb.courtyard(c).inflated(-0.15);
             double y0 = c.pcb.bottom ? -t - 0.045 : cu, y1 = c.pcb.bottom ? -t - cu : cu + 0.01;
             Vec2 p0{r.x0, r.y0}, p1{r.x1, r.y0}, p2{r.x1, r.y1}, p3{r.x0, r.y1};
@@ -261,7 +271,7 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
 
     if (opt.components) {
         for (const auto& c : sch.components()) {
-            if (!c.hasFootprint() || !c.pcb.placed) continue;
+            if (!c.hasFootprint() || !c.pcb.placed || embeddedElement(c, s)) continue;  // embedded: inside the board
             const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
             if (!fp) continue;
             const BodyDef& b = fp->body;
