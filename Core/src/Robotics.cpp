@@ -660,8 +660,15 @@ int addThermalVias(Project& project, int componentId, int maxVias) {
         return pointRectDistance(a, bigPad.bounds()) < pointRectDistance(b, bigPad.bounds());
     });
     const int layer = bigPad.throughHole ? kTopLayer : bigPad.smdLayer;
-    // A via's keep-out in a pour can split it into islands: keep only vias that leave connectivity as it was.
-    const size_t openBefore = pcb.ratsnest(sch).size();
+    // A via's keep-out in a pour can split it into islands: where a via lands in another net's pour, keep it
+    // only if connectivity stays as it was (elsewhere it cannot change anything, so no re-check is needed).
+    const std::vector<ZoneFill> fills = pcb.zoneFills(sch);
+    auto inForeignPour = [&](Vec2 p) {
+        for (const auto& f : fills)
+            if (f.net != bigPad.net && f.islandNear(p, dia / 2 + s.clearance) >= 0) return true;
+        return false;
+    };
+    const size_t openBefore = fills.empty() ? 0 : pcb.ratsnest(sch).size();
     for (Vec2 p : cand) {
         if (added >= maxVias) break;
         if (!fits(p)) continue;
@@ -695,7 +702,7 @@ int addThermalVias(Project& project, int componentId, int maxVias) {
         v.drill = drill;
         v.diameter = dia;
         pcb.addVia(v);
-        if (pcb.ratsnest(sch).size() > openBefore) {
+        if (inForeignPour(p) && pcb.ratsnest(sch).size() > openBefore) {
             pcb.vias.pop_back();
             if (!inside) pcb.tracks.pop_back();
             continue;

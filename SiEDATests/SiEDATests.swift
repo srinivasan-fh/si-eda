@@ -325,6 +325,8 @@ final class StandardsAndVerificationTests: XCTestCase {
 
     /// Every built-in reference design must pass the full verification pipeline once laid out.
     func testReferenceDesignsPassVerification() throws {
+        // Places, routes and verifies every reference design (34 boards, up to 12 layers): minutes of work.
+        executionTimeAllowance = 900
         for template in OfflineProvider.templates {
             let engine = EDAEngine()
             let report = DesignPlanCompiler.apply(template.industryPlan, to: engine, previous: nil)
