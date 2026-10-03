@@ -28,12 +28,17 @@ struct DesignPlan: Codable, Equatable {
     var navalPlatform: String?
     /// Medical device class ("bf", "cf", "life", "implant", "home"): turns on the 4-segment medical checks.
     var medicalClass: String?
+    /// Retail device class ("countertop", "unattended", "mpos", "kiosk", "printer"): turns on the 4-segment POS checks.
+    var retailDevice: String?
+    /// Active tamper meshes over secure elements (laid by the autorouter on two inner layers).
+    var tamperMeshes: [PlannedTamperMesh]
 
     init(title: String, summary: String, components: [PlannedComponent], connections: [PlannedConnection],
          notes: [String] = [], board: PlannedBoard = PlannedBoard(), industry: String? = nil,
          pours: [PlannedPour] = [], netClasses: [PlannedNetClass] = [], noConnect: [String] = [],
          robotPlatform: String? = nil, ecuType: String? = nil, aerospaceMission: String? = nil,
-         navalPlatform: String? = nil, medicalClass: String? = nil) {
+         navalPlatform: String? = nil, medicalClass: String? = nil, retailDevice: String? = nil,
+         tamperMeshes: [PlannedTamperMesh] = []) {
         self.title = title
         self.summary = summary
         self.components = components
@@ -49,6 +54,8 @@ struct DesignPlan: Codable, Equatable {
         self.aerospaceMission = aerospaceMission
         self.navalPlatform = navalPlatform
         self.medicalClass = medicalClass
+        self.retailDevice = retailDevice
+        self.tamperMeshes = tamperMeshes
     }
 
     init(from decoder: Decoder) throws {
@@ -68,10 +75,13 @@ struct DesignPlan: Codable, Equatable {
         aerospaceMission = try c.decodeIfPresent(String.self, forKey: .aerospaceMission)
         navalPlatform = try c.decodeIfPresent(String.self, forKey: .navalPlatform)
         medicalClass = try c.decodeIfPresent(String.self, forKey: .medicalClass)
+        retailDevice = try c.decodeIfPresent(String.self, forKey: .retailDevice)
+        tamperMeshes = try c.decodeIfPresent([PlannedTamperMesh].self, forKey: .tamperMeshes) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
         case title, summary, components, connections, notes, board, industry, pours, netClasses, noConnect, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass
+        case retailDevice, tamperMeshes
     }
 
     func jsonString(pretty: Bool = true) -> String {
@@ -221,6 +231,31 @@ struct PlannedPour: Codable, Equatable {
     var plane: Bool
 }
 
+/// Tamper mesh over a secure element: `netA` / `netB` each join two of its pins (drive and sense).
+struct PlannedTamperMesh: Codable, Equatable {
+    var component: String
+    var netA: String
+    var netB: String
+    var margin: Double = 2
+
+    init(component: String, netA: String, netB: String, margin: Double = 2) {
+        self.component = component
+        self.netA = netA
+        self.netB = netB
+        self.margin = margin
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        component = try c.decode(String.self, forKey: .component)
+        netA = try c.decode(String.self, forKey: .netA)
+        netB = try c.decode(String.self, forKey: .netB)
+        margin = try c.decodeIfPresent(Double.self, forKey: .margin) ?? 2
+    }
+
+    private enum CodingKeys: String, CodingKey { case component, netA, netB, margin }
+}
+
 struct PlannedNetClass: Codable, Equatable {
     var net: String
     var width: Double
@@ -324,6 +359,23 @@ enum DesignSchemas {
                                   "description": "Naval platform: turns on the 5-segment naval checks"] as [String: Any],
                 "medicalClass": ["type": "string", "enum": ["bf", "cf", "life", "implant", "home"],
                                  "description": "Medical device class: turns on the 4-segment medical checks"] as [String: Any],
+                "retailDevice": ["type": "string", "enum": ["countertop", "unattended", "mpos", "kiosk", "printer"],
+                                 "description": "Retail / POS device class: turns on the 4-segment POS checks"] as [String: Any],
+                "tamperMeshes": [
+                    "type": "array",
+                    "description": "Active tamper meshes (PCI PTS) over secure elements; needs 4+ layers",
+                    "items": [
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["component", "netA", "netB"],
+                        "properties": [
+                            "component": ["type": "string", "description": "Secure element reference, e.g. U1"],
+                            "netA": ["type": "string", "description": "Mesh net joining two pins (horizontal stripes, inner 1)"],
+                            "netB": ["type": "string", "description": "Mesh net joining two pins (vertical stripes, inner 2)"],
+                            "margin": ["type": "number", "description": "Mesh overhang around the part, mm (default 2)"],
+                        ] as [String: Any],
+                    ] as [String: Any],
+                ] as [String: Any],
                 "title": ["type": "string"],
                 "summary": ["type": "string"],
                 "components": [
@@ -471,6 +523,9 @@ enum DesignPlanCompiler {
         if let cls = plan.medicalClass, !engine.setMedicalClass(cls) {
             report.warnings.append("Unknown medical class '\(cls)'.")
         }
+        if let device = plan.retailDevice, !engine.setRetailDevice(device) {
+            report.warnings.append("Unknown retail device '\(device)'.")
+        }
         var positions = plan.components.map { CGPoint(x: $0.x, y: $0.y) }
         positions = SchematicAutoLayout.resolveOverlaps(positions)
 
@@ -599,6 +654,11 @@ enum DesignPlanCompiler {
         for endpoint in plan.noConnect {
             if let pin = resolve(endpoint, engine: engine, report: &report) { engine.setPinNoConnect(pin, true) }
         }
+        engine.clearTamperMeshes()
+        for mesh in plan.tamperMeshes
+        where engine.addTamperMesh(component: mesh.component, netA: mesh.netA, netB: mesh.netB, margin: mesh.margin) == nil {
+            report.warnings.append("Tamper mesh over \(mesh.component) could not be added.")
+        }
         for item in plan.components {
             guard let id = engine.findComponent(ref: item.ref) else { continue }
             if let place = item.pcb {
@@ -716,7 +776,11 @@ enum DesignPlanCompiler {
                           ecuType: snapshot.ecuType.isEmpty ? nil : snapshot.ecuType,
                           aerospaceMission: snapshot.aerospaceMission.isEmpty ? nil : snapshot.aerospaceMission,
                           navalPlatform: snapshot.navalPlatform.isEmpty ? nil : snapshot.navalPlatform,
-                          medicalClass: snapshot.medicalClass.isEmpty ? nil : snapshot.medicalClass)
+                          medicalClass: snapshot.medicalClass.isEmpty ? nil : snapshot.medicalClass,
+                          retailDevice: snapshot.retailDevice.isEmpty ? nil : snapshot.retailDevice,
+                          tamperMeshes: snapshot.tamperMeshes.map {
+                              PlannedTamperMesh(component: $0.component, netA: $0.netA, netB: $0.netB, margin: $0.margin)
+                          })
     }
 }
 

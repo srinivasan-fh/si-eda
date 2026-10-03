@@ -66,7 +66,8 @@ enum AgentPrompts {
 
         Industry profiles — set "industry" to the one that matches the brief (robotics/motor control, drones/UAV, \
         power electronics, automotive/car, RF/radio, space, marine/ship, industrial automation, medical devices, \
-        defence/military/avionics, networking/Ethernet/PoE/telecom, VLSI/ASIC/FPGA bring-up; otherwise general). The \
+        defence/military/avionics, networking/Ethernet/PoE/telecom, VLSI/ASIC/FPGA bring-up, retail/POS/kiosk/printer, \
+        home appliances/white goods; otherwise general). The \
         profile selects the design rules and derates part ratings in SiEDA's validation, so choose resistor \
         wattages and currents with margin, and follow its guidance:
         \(lines.joined(separator: "\n"))
@@ -154,6 +155,13 @@ enum AgentPrompts {
         resistor (defibrillator-proof), an INA333 front end and a driven-right-leg op-amp on a net named ECG_DRL; \
         windowed watchdog and lockstep MCU for life-support; DW01A + NTC on any Li-ion cell; ESD diodes on every \
         connector pin; BLE with a 50 Ω feed over a GND plane.
+        - Retail / POS (payment terminal, kiosk, receipt printer): set "industry" "retail" and "retailDevice"; put the \
+        payment SECURE-MCU under an active tamper mesh ("tamperMeshes": nets TAMPER_MESH_A / TAMPER_MESH_B each joining \
+        its MESH_x_DRV and MESH_x_SNS pins, 4+ layers), wire case-open switches to its TAMPER inputs, VBAT on a coin \
+        cell, NCN8025 for EMV contact cards; printers: TPH-58MM head with ≥ 470 µF on VH, DRV8833 stepper driver with \
+        its PPAD on a GND pour, AO3400 cutter / drawer drivers with flyback diodes (nets CUTTER_*, DRAWER_*); 24 V \
+        drawer kick through a PC817; USB2514B hub when there are several USB ports; SMBJ / PESD TVS on every port pin; \
+        board "coating" "acrylic".
         - Put design calculations and assumptions in notes.
         \(industryCatalog)
         """

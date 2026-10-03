@@ -28,7 +28,11 @@ struct DesignSnapshot: Decodable, Equatable {
     var navalPlatform = ""
     /// Medical device class ("bf", "cf", "life", "implant", "home"); empty when not set.
     var medicalClass = ""
+    /// Retail device class ("countertop", "unattended", "mpos", "kiosk", "printer"); empty when not set.
+    var retailDevice = ""
     var zones: [CopperZoneInfo] = []
+    /// Active tamper meshes laid over secure elements by the autorouter.
+    var tamperMeshes: [TamperMeshInfo] = []
     var zoneFills: [ZoneFillInfo] = []
 
     static let empty = DesignSnapshot(name: "Untitled", requirements: "", components: [], wires: [], nets: [],
@@ -73,13 +77,16 @@ struct DesignSnapshot: Decodable, Equatable {
         aerospaceMission = try c.decodeIfPresent(String.self, forKey: .aerospaceMission) ?? ""
         navalPlatform = try c.decodeIfPresent(String.self, forKey: .navalPlatform) ?? ""
         medicalClass = try c.decodeIfPresent(String.self, forKey: .medicalClass) ?? ""
+        retailDevice = try c.decodeIfPresent(String.self, forKey: .retailDevice) ?? ""
+        tamperMeshes = try c.decodeIfPresent([TamperMeshInfo].self, forKey: .tamperMeshes) ?? []
         zones = try c.decodeIfPresent([CopperZoneInfo].self, forKey: .zones) ?? []
         zoneFills = try c.decodeIfPresent([ZoneFillInfo].self, forKey: .zoneFills) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
-        case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, zones, zoneFills
+        case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
+        case tamperMeshes
     }
 
     func component(_ id: Int) -> SnapComponent? { components.first { $0.id == id } }
@@ -554,6 +561,18 @@ struct MountingHoleInfo: Decodable, Equatable {
 }
 
 /// Copper pour rule: `net` poured on copper layer `layer`; a plane reserves the layer for that net.
+/// Active tamper mesh (PCI PTS): serpentines of netA (horizontal stripes, inner layerA) and netB (vertical stripes,
+/// inner layerB) over `component` plus `margin` mm.
+struct TamperMeshInfo: Decodable, Equatable, Identifiable, Hashable {
+    var component: String
+    var netA: String
+    var netB: String
+    var layerA: Int
+    var layerB: Int
+    var margin: Double
+    var id: String { "\(component)|\(netA)|\(netB)" }
+}
+
 struct CopperZoneInfo: Decodable, Equatable, Identifiable, Hashable {
     var net: String
     var layer: Int

@@ -412,6 +412,7 @@ private struct ProjectProperties: View {
             AerospaceSystemProperties()
             NavalSystemProperties()
             MedicalSystemProperties()
+            RetailSystemProperties()
             PropertyGroup(title: "Board") {
                 PropertyRow(label: "Size", value: String(format: "%.1f × %.1f mm", store.snapshot.board.width, store.snapshot.board.height))
                 PropertyRow(label: "Layers", value: "\(store.snapshot.board.layerCount)")
@@ -511,6 +512,19 @@ private struct MedicalSystemProperties: View {
                             selection: Binding(get: { store.snapshot.medicalClass }, set: { store.setMedicalClass($0) }),
                             hint: "Pick a device class (or the Medical industry) to check patient isolation, biosignal, "
                                 + "safety compute and wireless coexistence segments.")
+    }
+}
+
+/// Retail device class and the four POS design segments (payment security & anti-tamper, printer drivers, HMI &
+/// peripherals, ESD & environment).
+private struct RetailSystemProperties: View {
+    @EnvironmentObject private var store: DesignStore
+
+    var body: some View {
+        SystemSegmentsGroup(title: "Retail / POS Segments", report: store.retailSegments(), noneLabel: "Not retail",
+                            selection: Binding(get: { store.snapshot.retailDevice }, set: { store.setRetailDevice($0) }),
+                            hint: "Pick a device class (or the Retail & POS industry) to check payment security, printer "
+                                + "drivers, peripherals and ESD segments.")
     }
 }
 

@@ -302,7 +302,7 @@ final class StandardsAndVerificationTests: XCTestCase {
     }
 
     func testOfflineTemplateMatchingAndCategories() {
-        XCTAssertEqual(OfflineProvider.templates.count, 38)
+        XCTAssertEqual(OfflineProvider.templates.count, 39)
         XCTAssertEqual(OfflineProvider.template(for: "non-inverting amplifier with gain 11").plan.title, "Non-Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "an inverting amplifier, gain -10").plan.title, "Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "blink an LED with a 555").plan.title, "555 Astable LED Blinker")
@@ -463,7 +463,8 @@ final class IndustryKitTests: XCTestCase {
     func testIndustryProfilesBridge() throws {
         let ids = StandardLibrary.industries.map(\.id)
         XCTAssertEqual(ids, ["general", "robotics", "uav", "power", "automotive", "rf", "space", "marine", "industrial",
-                             "medical", "defence", "networking", "vlsi", "motherboard", "server", "hpc", "arm", "addin"])
+                             "medical", "defence", "networking", "vlsi", "motherboard", "server", "hpc", "arm", "addin",
+                             "retail", "appliance"])
         let space = try XCTUnwrap(StandardLibrary.industry("space"))
         XCTAssertEqual(space.powerDerating, 0.5, accuracy: 1e-9)
         XCTAssertTrue(space.highAltitude)
@@ -2206,6 +2207,37 @@ final class ReliabilityTests: XCTestCase {
         store.undo()
         XCTAssertTrue(store.snapshot.board.underfill)
         XCTAssertEqual(DesignPlanCompiler.plan(from: store.snapshot).navalPlatform, "combatant")
+    }
+
+    func testRetailSegmentsAndTamperMesh() throws {
+        XCTAssertEqual(OfflineProvider.template(for: "PCI PTS payment terminal with a tamper mesh and receipt printer").plan.title,
+                       "Countertop Payment Terminal + Receipt Printer: 4-Segment POS Reference")
+        let template = try XCTUnwrap(OfflineProvider.templates.first { $0.plan.retailDevice != nil })
+        XCTAssertEqual(template.industry, "retail")
+        let store = DesignStore()
+        let report = DesignPlanCompiler.apply(template.industryPlan, to: store.engine, previous: nil)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        store.refresh()
+        XCTAssertEqual(store.snapshot.retailDevice, "countertop")
+        XCTAssertEqual(store.snapshot.tamperMeshes.map(\.component), ["U3"])
+        let segments = store.retailSegments()
+        XCTAssertEqual(segments.segments.map(\.id), ["security", "printer", "hmi", "esd"])
+        for segment in segments.segments {
+            XCTAssertEqual(segment.status, "complete", "\(segment.id): \(segment.items.filter { !$0.ok }.map(\.label))")
+        }
+        // Without the mesh the security segment is incomplete; undo brings it back.
+        store.clearTamperMeshes()
+        XCTAssertTrue(store.snapshot.tamperMeshes.isEmpty)
+        XCTAssertEqual(store.retailSegments().segments.first { $0.id == "security" }?.status, "partial")
+        store.undo()
+        XCTAssertEqual(store.snapshot.tamperMeshes.count, 1)
+        // The mesh and the device class survive save / open and the plan round trip.
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        let snapshot = try XCTUnwrap(reopened.snapshot())
+        XCTAssertEqual(snapshot.retailDevice, "countertop")
+        XCTAssertEqual(snapshot.tamperMeshes.first?.netB, "TAMPER_MESH_B")
+        XCTAssertEqual(snapshot.board.rulePreset, "Fab House Advanced (4/4 mil)")
     }
 
     func testMedicalSegmentsAndIsolationBarrier() throws {

@@ -473,8 +473,9 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
             if (spec.pins[p].number == number) pad.pinIndex = static_cast<int>(p);
         fp.pads.push_back(pad);
     }
-    // Exposed thermal pad for QFN when the datasheet lists one ("EP", "PAD", "TAB", "THERMAL").
-    if (spec.package.type == "QFN") {
+    // Exposed thermal pad for QFN and TSSOP (HTSSOP PowerPAD) when the datasheet lists one ("EP", "PAD", "TAB",
+    // "THERMAL").
+    if (spec.package.type == "QFN" || spec.package.type == "TSSOP") {
         for (size_t p = 0; p < spec.pins.size(); ++p) {
             std::string u = upper(spec.pins[p].number);
             if (u == "EP" || u == "PAD" || u == "TAB" || u == "THERMAL" || u == std::to_string(pc + 1)) {
@@ -482,6 +483,7 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
                 ep.pinIndex = static_cast<int>(p);
                 double s = fp.body.width * 0.55;
                 ep.size = {s, s};
+                if (spec.package.type == "TSSOP") ep.size = {fp.body.width * 0.55, std::max(1.0, fp.body.depth - 2.0)};
                 fp.pads.push_back(ep);
                 break;
             }

@@ -34,6 +34,9 @@ public:
     /// Medical device class ("bf", "cf", "life", "implant", "home"; empty = none): turns on the four medical segment
     /// checks (the medical industry profile turns them on as advice).
     std::string medicalClass;
+    /// Retail device class ("countertop", "unattended", "mpos", "kiosk", "printer"; empty = none): turns on the four
+    /// retail / POS segment checks (the retail industry profile turns them on as advice).
+    std::string retailDevice;
     Schematic schematic;
     PcbLayout pcb;
     /// Ids of custom parts (CustomPartRegistry) available in this project's component library.

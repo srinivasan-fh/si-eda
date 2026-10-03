@@ -38,6 +38,7 @@ add_library(sieda_core STATIC
     Core/src/Naval.cpp
     Core/src/Isolation.cpp
     Core/src/Medical.cpp
+    Core/src/Retail.cpp
     Core/src/Project.cpp
     Core/src/sieda_c.cpp
 )

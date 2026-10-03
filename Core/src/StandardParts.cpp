@@ -80,6 +80,15 @@ void applyModels(std::vector<StandardPart>& parts) {
             load(p, "16", "15", 0.002);
         } else if (n == "ISO-DCDC-MED") isolated(p, "1", "2", "8", "7", 5.0, -2.0, 0.004, 0.2, 0.5, 0.7);
         else if (n == "DW01A") load(p, "5", "6", 3e-6);
+        else if (n == "SECURE-MCU") load(p, "2", "3", 0.025);
+        else if (n == "LM2596-5.0") isolated(p, "1", "3", "2", "3", 5.0, 2.0, 0.005, 3.0, 3.0, 0.85);  // buck: shared ground
+        else if (n == "DRV8833") load(p, "12", "13", 0.0017);
+        else if (n == "TPH-80MM") {
+            load(p, "1", "3", 0.02);   // idle head bias; firing current is a pulse the bulk capacitor supplies
+            load(p, "10", "12", 0.01);
+        }
+        else if (n == "USB2514B") load(p, "15", "EP", 0.08);
+        else if (n == "NCN8025") load(p, "9", "10", 0.004);
         else if (n == "BLE-MODULE") load(p, "2", "1", 0.008);
         else if (n == "TPS2553") {  // current-limited switch: OUT follows IN (≈ 85 mΩ), trips at the ILIM setting
             regulator(p, "1", "6", "2", 6.5, 0.02, 120e-6, 0.5, 0.5);
@@ -345,6 +354,100 @@ std::vector<StandardPart> build() {
         dc.spec.package.bodySize = 15.24;  // wide row spacing across the barrier
         parts.push_back(std::move(dc));
     }
+    {
+        // Payment secure element (MAX32550 / MAX32560 class): mesh drive / sense pins at the four corners so each
+        // tamper-mesh stub leaves straight to its mesh end; tamper switch inputs and battery-backed key storage.
+        StandardPart se = part("Retail", "SECURE-MCU", "Generic (PCI PTS secure MCU class)",
+                               "Payment secure MCU: battery-backed AES key storage zeroized on tamper, two active mesh "
+                               "drive / sense pairs, tamper-switch inputs, smart-card (EMV) and magstripe interfaces",
+                               "LQFP", 32, "U",
+                               {{"MESH_A_DRV", T::Output}, {"VDD", T::PowerIn}, {"GND", T::PowerIn}, {"TAMPER1", T::Input},
+                                {"TAMPER2", T::Input}, {"VBAT", T::PowerIn}, {"MSR_DATA", T::Input}, {"MSR_CLK", T::Input},
+                                {"SC_IO", T::Bidirectional}, {"SC_CLK", T::Output}, {"SC_RST", T::Output}, {"SC_VCC", T::Output},
+                                {"GND", T::PowerIn}, {"VDD", T::PowerIn}, {"NRST", T::Input}, {"MESH_B_SNS", T::Input},
+                                {"MESH_A_SNS", T::Input}, {"SPI_SCK", T::Output}, {"SPI_MOSI", T::Output}, {"SPI_MISO", T::Input},
+                                {"SPI_CS", T::Output}, {"UART_TX", T::Output}, {"UART_RX", T::Input}, {"VDD", T::PowerIn},
+                                {"GND", T::PowerIn}, {"USB_DP", T::Bidirectional}, {"USB_DM", T::Bidirectional},
+                                {"KEY_ROW", T::Output}, {"KEY_COL", T::Input}, {"SWDIO", T::Bidirectional}, {"SWCLK", T::Input},
+                                {"MESH_B_DRV", T::Output}});
+        se.spec.package.pitch = 0.8;
+        se.spec.package.bodySize = 7.0;
+        parts.push_back(std::move(se));
+    }
+    parts.push_back(part("Power", "LM2596-5.0", "Texas Instruments",
+                         "3 A step-down (buck) converter, 5 V fixed, 150 kHz, 4.5–40 V input; needs a 33 µH inductor, a "
+                         "Schottky catch diode and low-ESR output capacitance",
+                         "TO220", 5, "U",
+                         {{"VIN", T::PowerIn}, {"OUTPUT", T::PowerOut}, {"GND", T::PowerIn}, {"FEEDBACK", T::Input},
+                          {"ON_OFF", T::Input}}));
+    {
+        StandardPart drv = part("Robotics & Motor Control", "DRV8833", "Texas Instruments",
+                                "Dual H-bridge motor / stepper driver, 2.7–10.8 V, 1.5 A RMS per bridge, current "
+                                "regulation, HTSSOP-16 PowerPAD (the pad sinks the heat into a ground pour)",
+                                "TSSOP", 16, "U",
+                                {{"nSLEEP", T::Input}, {"AOUT1", T::Output}, {"AISEN", T::Passive}, {"AOUT2", T::Output},
+                                 {"BOUT2", T::Output}, {"BISEN", T::Passive}, {"BOUT1", T::Output}, {"nFAULT", T::OpenCollector},
+                                 {"BIN1", T::Input}, {"BIN2", T::Input}, {"VCP", T::Passive}, {"VM", T::PowerIn},
+                                 {"GND", T::PowerIn}, {"VINT", T::Passive}, {"AIN2", T::Input}, {"AIN1", T::Input},
+                                 {"PPAD", T::PowerIn}});
+        drv.spec.pins.back().number = "EP";
+        parts.push_back(std::move(drv));
+    }
+    parts.push_back(part("Retail", "TPH-80MM", "Generic (80 mm, 576-dot receipt mechanism class)",
+                         "80 mm thermal print head connector (576 dots): head supply VH 24 V (amps while a dot line fires), "
+                         "serial dot data, latch, two strobe groups and the head thermistor",
+                         "HEADER", 12, "J",
+                         {{"VH", T::PowerIn}, {"VH", T::PowerIn}, {"GND", T::PowerIn}, {"GND", T::PowerIn}, {"DI", T::Input},
+                          {"CLK", T::Input}, {"LAT", T::Input}, {"STB1", T::Input}, {"STB2", T::Input}, {"VDD", T::PowerIn},
+                          {"TH", T::Passive}, {"GND", T::PowerIn}}));
+    {
+        StandardPart hub = part("Retail", "USB2514B", "Microchip",
+                                "USB 2.0 high-speed 4-port hub controller, per-port power switching and over-current "
+                                "sense, 24 MHz crystal, QFN-36 6 × 6 mm",
+                                "QFN", 36, "U",
+                                {{"USBDM_DN1", T::Bidirectional}, {"USBDP_DN1", T::Bidirectional}, {"USBDM_DN2", T::Bidirectional},
+                                 {"USBDP_DN2", T::Bidirectional}, {"VDDA33", T::PowerIn}, {"USBDM_DN3", T::Bidirectional},
+                                 {"USBDP_DN3", T::Bidirectional}, {"USBDM_DN4", T::Bidirectional}, {"USBDP_DN4", T::Bidirectional},
+                                 {"VDDA33", T::PowerIn}, {"TEST", T::Input}, {"PRTPWR1", T::Output}, {"OCS_N1", T::Input},
+                                 {"CRFILT", T::Passive}, {"VDD33", T::PowerIn}, {"PRTPWR2", T::Output}, {"OCS_N2", T::Input},
+                                 {"PRTPWR3", T::Output}, {"OCS_N3", T::Input}, {"PRTPWR4", T::Output}, {"OCS_N4", T::Input},
+                                 {"SDA", T::Bidirectional}, {"VDD33", T::PowerIn}, {"SCL", T::Input}, {"HS_IND", T::Output},
+                                 {"RESET_N", T::Input}, {"VBUS_DET", T::Input}, {"SUSP_IND", T::Output}, {"VDDA33", T::PowerIn},
+                                 {"USBDM_UP", T::Bidirectional}, {"USBDP_UP", T::Bidirectional}, {"XTALOUT", T::Output},
+                                 {"XTALIN", T::Input}, {"PLLFILT", T::Passive}, {"RBIAS", T::Passive}, {"VDD33", T::PowerIn},
+                                 {"GND", T::PowerIn}});
+        hub.spec.pins.back().number = "EP";
+        hub.spec.package.pitch = 0.5;
+        parts.push_back(std::move(hub));
+    }
+    {
+        StandardPart afe = part("Retail", "NCN8025", "onsemi",
+                                "EMV / ISO 7816 smart-card interface: card VCC (1.8 / 3 / 5 V) from its own DC-DC, "
+                                "level-shifted I/O, card-presence detect, 8 kV ESD on the card pins. Pins by function",
+                                "QFN", 24, "U",
+                                {{"CLKIN", T::Input}, {"RSTIN", T::Input}, {"CMDVCC", T::Input}, {"VSEL", T::Input},
+                                 {"INT", T::OpenCollector}, {"IOUC", T::Bidirectional}, {"AUX1UC", T::Bidirectional},
+                                 {"AUX2UC", T::Bidirectional}, {"VDD", T::PowerIn}, {"GND", T::PowerIn}, {"VDDP", T::PowerIn},
+                                 {"LI", T::Passive}, {"PGND", T::PowerIn}, {"CVCC", T::PowerOut}, {"CRST", T::Output},
+                                 {"CCLK", T::Output}, {"CIO", T::Bidirectional}, {"CAUX1", T::Bidirectional},
+                                 {"CAUX2", T::Bidirectional}, {"PRES", T::Input}, {"PRESN", T::Input}, {"GND", T::PowerIn},
+                                 {"NC", T::NoConnect}, {"NC", T::NoConnect}, {"GND", T::PowerIn}});
+        afe.spec.pins.back().number = "EP";
+        afe.spec.package.pitch = 0.5;
+        parts.push_back(std::move(afe));
+    }
+    parts.push_back(part("Protection", "USBLC6-2SC6", "STMicroelectronics",
+                         "Two-line USB ESD protection with VBUS clamp, ±15 kV air (IEC 61000-4-2 level 4), 3.5 pF",
+                         "SOT23", 6, "D",
+                         {{"IO1", T::Passive}, {"GND", T::PowerIn}, {"IO2", T::Passive}, {"IO2", T::Passive},
+                          {"VBUS", T::Passive}, {"IO1", T::Passive}}));
+    parts.push_back(part("Protection", "TPD4E1U06", "Texas Instruments",
+                         "Four-channel low-capacitance ESD array (0.8 pF, ±15 kV contact) for LVDS / HDMI / smart-card lines",
+                         "SOT23", 6, "D",
+                         {{"IO1", T::Passive}, {"GND", T::PowerIn}, {"IO2", T::Passive}, {"IO3", T::Passive},
+                          {"NC", T::NoConnect}, {"IO4", T::Passive}}));
+    parts.push_back(part("Timing", "Crystal_24MHz", "Generic", "24 MHz crystal (USB hub / PHY reference), HC-49/US, ±30 ppm, 18 pF load",
+                         "HC49", 2, "Y", {{"1", T::Passive}, {"2", T::Passive}}));
     parts.push_back(part("Medical", "DW01A", "Fortune Semiconductor",
                          "One-cell Li-ion protector: over-charge, over-discharge and over-current cut-off through two external "
                          "MOSFETs",

@@ -1026,6 +1026,34 @@ final class DesignStore: ObservableObject {
 
     func medicalSegments() -> RobotSegmentsReport { engine.medicalSegments() }
 
+    /// Retail device class ("" = none): turns on the 4-segment retail / POS checks at full severity. Undoable.
+    func setRetailDevice(_ id: String) {
+        guard id != snapshot.retailDevice else { return }
+        perform(id.isEmpty ? "No retail device" : "Retail device: \(id)", invalidatesAnalysis: false) {
+            $0.setRetailDevice(id)
+        }
+        verificationReport = nil
+        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+    }
+
+    func retailSegments() -> RobotSegmentsReport { engine.retailSegments() }
+
+    /// Lays an active tamper mesh over a secure element (two inner layers; the nets must each join two of its pins).
+    /// Undoable; the mesh copper appears with the next Auto Route.
+    func addTamperMesh(component ref: String, netA: String, netB: String) {
+        var index: Int?
+        perform("Tamper mesh over \(ref)", invalidatesAnalysis: false) {
+            index = $0.addTamperMesh(component: ref, netA: netA, netB: netB)
+        }
+        if index == nil { alert = AlertItem(title: "Tamper mesh not added", message: "Choose a part and two mesh nets.") }
+        else if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+    }
+
+    func clearTamperMeshes() {
+        guard !snapshot.tamperMeshes.isEmpty else { return }
+        perform("Removed tamper meshes", invalidatesAnalysis: false) { $0.clearTamperMeshes() }
+    }
+
     /// Isolation barrier spacing between galvanic domains (patient barrier: 8 mm = 2 × MOPP). Undoable; re-checks.
     func setIsolationGap(_ gap: Double) {
         guard abs(gap - snapshot.board.isolationGap) > 1e-9 else { return }

@@ -94,6 +94,21 @@ struct Parts {
     std::vector<const Component*> windowWdt;    // windowed watchdogs (TPS3850 / TPS3851 / TPS3430, safety PMICs)
     std::vector<const Component*> bms;          // battery protectors / fuel gauges / balancers
     std::vector<const Component*> moppIsolators;  // isolators / converters rated for 2 × MOPP (5 kV, 8 mm)
+    // Retail / POS
+    std::vector<const Component*> secureElements;  // payment secure MCUs / elements (MAX3255x, SE050, ATECC, OPTIGA…)
+    std::vector<const Component*> cardAfes;        // EMV contact smart-card and magstripe front ends
+    std::vector<const Component*> printHeads;      // thermal print heads / mechanisms
+    std::vector<const Component*> usbHubs;         // USB hub controllers
+    std::vector<const Component*> displayLinks;    // LVDS / eDP / HDMI transmitters and bridges
+    // Home appliances
+    std::vector<const Component*> triacs;          // triacs / AC switches (BT136, BTA16, Z0103, ACST)
+    std::vector<const Component*> optoTriacs;      // opto-triac drivers (MOC302x / MOC306x zero-cross)
+    std::vector<const Component*> zeroCross;       // AC-input optocouplers / zero-crossing detectors (H11AA1)
+    std::vector<const Component*> offline;         // off-line converters (LinkSwitch, TinySwitch, VIPer)
+    std::vector<const Component*> ipms;            // intelligent power modules (SLLIMM, SPM, CIPOS)
+    std::vector<const Component*> touch;           // capacitive touch controllers
+    std::vector<const Component*> halls;           // hall-effect / tacho speed sensors
+    std::vector<const Component*> cmChokes;        // common-mode chokes
 };
 
 inline Parts classify(const Schematic& sch) {
@@ -104,7 +119,10 @@ inline Parts classify(const Schematic& sch) {
             case ComponentKind::NMOS: p.powerFets.push_back(&c); break;
             case ComponentKind::Fuse: p.fuses.push_back(&c); break;
             case ComponentKind::LED: p.leds.push_back(&c); break;
-            case ComponentKind::Inductor: p.inductors.push_back(&c); break;
+            case ComponentKind::Inductor:
+                p.inductors.push_back(&c);
+                if (containsAny(v, {"CMC", "COMMON"})) p.cmChokes.push_back(&c);
+                break;
             case ComponentKind::Capacitor: p.caps.push_back(&c); break;
             case ComponentKind::Diode:
                 (containsAny(v, {"SMBJ", "SMAJ", "SMCJ", "P6KE", "TVS", "PESD", "ESD"}) ? p.tvs : p.diodes).push_back(&c);
@@ -177,10 +195,26 @@ inline Parts classify(const Schematic& sch) {
         if (containsAny(n, {"BQ76", "BQ77", "BQ29", "BQ40", "BQ27", "MAX1726", "MAX1730", "LTC68", "DW01", "S-8261", "BMS"}))
             p.bms.push_back(&c);
         if (containsAny(n, {"ADUM44", "ADUM4", "ISO77", "SI86", "-MED", "MOPP", "ISO7841", "ADUM6"})) p.moppIsolators.push_back(&c);
+        if (containsAny(n, {"BT13", "BT14", "BTA", "BTB", "Z010", "Z040", "ACST", "TRIAC"})) p.triacs.push_back(&c);
+        if (containsAny(n, {"MOC30", "MOC31", "MOC32"})) p.optoTriacs.push_back(&c);
+        if (containsAny(n, {"H11AA", "LTV-814", "LTV814", "PC814", "ZERO-CROSS"})) p.zeroCross.push_back(&c);
+        if (containsAny(n, {"LNK", "TNY", "TOP2", "VIPER", "LYT", "KP3", "HLK-"})) p.offline.push_back(&c);
+        if (containsAny(n, {"IPM", "FSB5", "FNB", "IRSM", "IKCM", "STGIP", "PS21", "SLLIMM"})) p.ipms.push_back(&c);
+        if (containsAny(n, {"AT42QT", "CAP1", "TTP2", "IQS", "TOUCH"})) p.touch.push_back(&c);
+        if (containsAny(n, {"A3144", "DRV50", "DRV51", "SS49", "HALL", "AH3", "US1881", "TLE49"})) p.halls.push_back(&c);
+        if (containsAny(n, {"CMC", "CM-CHOKE", "COMMON-MODE"})) p.cmChokes.push_back(&c);
+        if (containsAny(n, {"USBLC6", "TPD4E", "TPD2E", "PESD", "ESD9", "SP050", "RCLAMP"})) p.tvs.push_back(&c);
+        if (containsAny(n, {"SECURE-MCU", "MAX3255", "MAX3256", "MAX3257", "SE050", "SE051", "ATECC", "OPTIGA", "ST33", "SECURE ELEMENT"}))
+            p.secureElements.push_back(&c);
+        if (containsAny(n, {"TDA803", "NCN802", "73S80", "73S81", "EMV", "MSR", "MAGSTRIPE", "MAG-HEAD"})) p.cardAfes.push_back(&c);
+        if (containsAny(n, {"TPH", "THERMAL-HEAD", "PRINTHEAD", "PRINT HEAD", "LTP0", "LTPD", "PT48", "MTP"})) p.printHeads.push_back(&c);
+        if (containsAny(n, {"USB251", "USB2514", "USB2517", "TUSB804", "TUSB2046", "FE1.1", "GL850", "USB-HUB"})) p.usbHubs.push_back(&c);
+        if (containsAny(n, {"SN75LVDS", "DS90C", "DS90UB", "TFP410", "PTN3460", "IT66", "SN65DSI", "EDP", "HDMI"}))
+            p.displayLinks.push_back(&c);
         if (containsAny(n, {"ISO-DCDC", "NME", "MHF", "SVR28", "DCDC_ISO", "ISOLATED DC"}) ||
             ([&] {
                 const CustomPart* cp = CustomPartRegistry::instance().find(c.customPart);
-                return cp && cp->spec.model.hasRegulator && cp->spec.model.regulator.isolated();
+                return cp && cp->spec.model.hasRegulator && cp->spec.model.regulator.galvanic();
             })())
             p.isoDcdc.push_back(&c);
         if (containsAny(n, {"IR2104", "IR2110", "IR2184", "L293", "ULN2003", "DRV8", "TMC2", "A4988", "L298", "UCC27",

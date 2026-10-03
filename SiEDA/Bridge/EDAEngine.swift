@@ -288,6 +288,23 @@ final class EDAEngine: @unchecked Sendable {
         Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_medical_segments_json($0)) }) ?? .empty
     }
 
+    /// Retail device class ("countertop", "unattended", "mpos", "kiosk", "printer"; "" = none).
+    @discardableResult
+    func setRetailDevice(_ id: String) -> Bool { withHandle { sieda_set_retail_device($0, id) } == 1 }
+
+    func retailSegments() -> RobotSegmentsReport {
+        Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_retail_segments_json($0)) }) ?? .empty
+    }
+
+    /// Active tamper mesh over the part `ref` (laid by the autorouter on two inner layers); nil if rejected.
+    func addTamperMesh(component ref: String, netA: String, netB: String, layerA: Int = 1, layerB: Int = 2,
+                       margin: Double = 2) -> Int? {
+        let index = withHandle { sieda_pcb_add_tamper_mesh($0, ref, netA, netB, Int32(layerA), Int32(layerB), margin) }
+        return index >= 0 ? Int(index) : nil
+    }
+
+    func clearTamperMeshes() { withHandle { sieda_pcb_clear_tamper_meshes($0) } }
+
     /// Naval platform ("combatant", "carrier", "submarine", "patrol", "commercial"; "" = none).
     @discardableResult
     func setNavalPlatform(_ id: String) -> Bool { withHandle { sieda_set_naval_platform($0, id) } == 1 }

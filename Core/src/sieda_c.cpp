@@ -4,6 +4,7 @@
 #include "sieda/Aerospace.hpp"
 #include "sieda/Naval.hpp"
 #include "sieda/Medical.hpp"
+#include "sieda/Retail.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/Firmware.hpp"
@@ -754,6 +755,23 @@ char* sieda_medical_segments_json(const SiedaProject* project) {
     }
 }
 
+int32_t sieda_set_retail_device(SiedaProject* project, const char* device) {
+    if (!project || !device) return 0;
+    std::string id = device;
+    if (!id.empty() && !findRetailDevice(id)) return 0;
+    project->project.retailDevice = id;
+    return 1;
+}
+
+char* sieda_retail_segments_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(retailSegmentsJson(project->project).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
 int32_t sieda_set_naval_platform(SiedaProject* project, const char* platform) {
     if (!project || !platform) return 0;
     std::string id = platform;
@@ -1082,6 +1100,25 @@ int32_t sieda_pcb_remove_zone(SiedaProject* project, int32_t index) {
 
 void sieda_pcb_clear_zones(SiedaProject* project) {
     if (project) project->project.pcb.zones.clear();
+}
+
+int32_t sieda_pcb_add_tamper_mesh(SiedaProject* project, const char* ref, const char* net_a, const char* net_b,
+                                  int32_t layer_a, int32_t layer_b, double margin_mm) {
+    if (!project || !ref || !*ref || !net_a || !*net_a || !net_b || !*net_b) return -1;
+    auto& pcb = project->project.pcb;
+    TamperMesh m;
+    m.componentRef = ref;
+    m.netA = net_a;
+    m.netB = net_b;
+    m.layerA = layer_a;
+    m.layerB = layer_b;
+    m.margin = std::clamp(margin_mm, 0.0, 20.0);
+    pcb.tamperMeshes.push_back(m);
+    return static_cast<int32_t>(pcb.tamperMeshes.size()) - 1;
+}
+
+void sieda_pcb_clear_tamper_meshes(SiedaProject* project) {
+    if (project) project->project.pcb.tamperMeshes.clear();
 }
 
 int32_t sieda_pcb_apply_rule_preset(SiedaProject* project, const char* name) {

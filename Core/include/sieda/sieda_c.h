@@ -162,11 +162,15 @@ int32_t sieda_pcb_set_mechanical(SiedaProject* project, double thickness, int32_
 /// Isolation barrier spacing between galvanic domains in mm (0 = none, up to 25): placement, routing, pours and DRC
 /// keep that far apart (8 = 2 × MOPP, 4 = 1 × MOPP).
 int32_t sieda_pcb_set_isolation_gap(SiedaProject* project, double gap);
-/// Naval platform ("combatant", "carrier", "submarine", "patrol", "commercial"; "" = none). 0 for an unknown id.
 /// Medical device class ("bf", "cf", "life", "implant", "home"; "" = none). 0 for an unknown id.
 int32_t sieda_set_medical_class(SiedaProject* project, const char* cls);
 /// The four medical segments, same JSON shape as sieda_robot_segments_json. Caller frees.
 char* sieda_medical_segments_json(const SiedaProject* project);
+/// Retail device class ("countertop", "unattended", "mpos", "kiosk", "printer"; "" = none). 0 for an unknown id.
+int32_t sieda_set_retail_device(SiedaProject* project, const char* device);
+/// The four retail / POS segments, same JSON shape as sieda_robot_segments_json. Caller frees.
+char* sieda_retail_segments_json(const SiedaProject* project);
+/// Naval platform ("combatant", "carrier", "submarine", "patrol", "commercial"; "" = none). 0 for an unknown id.
 int32_t sieda_set_naval_platform(SiedaProject* project, const char* platform);
 /// The five naval segments, same JSON shape as sieda_robot_segments_json. Caller frees.
 char* sieda_naval_segments_json(const SiedaProject* project);
@@ -237,6 +241,12 @@ void sieda_pcb_clear_mounting_holes(SiedaProject* project);
 int32_t sieda_pcb_add_zone(SiedaProject* project, const char* net_name, int32_t layer, int32_t plane, double clearance_mm);
 int32_t sieda_pcb_remove_zone(SiedaProject* project, int32_t index);
 void sieda_pcb_clear_zones(SiedaProject* project);
+/** Active tamper mesh (PCI PTS): serpentines of net_a (horizontal stripes, inner layer_a) and net_b (vertical
+ * stripes, inner layer_b) laid over component `ref` plus margin_mm by the autorouter; each net joins exactly two pins
+ * of the secure element. Returns the mesh index or -1. */
+int32_t sieda_pcb_add_tamper_mesh(SiedaProject* project, const char* ref, const char* net_a, const char* net_b,
+                                  int32_t layer_a, int32_t layer_b, double margin_mm);
+void sieda_pcb_clear_tamper_meshes(SiedaProject* project);
 
 /* ---- exports ------------------------------------------------------------------------------- */
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",

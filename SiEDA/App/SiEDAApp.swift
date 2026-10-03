@@ -293,6 +293,14 @@ struct SiEDACommands: Commands {
                                                    set: { if $0 { store.setMedicalClass(cls.id) } }))
                 }
             }
+            Menu("Retail Device") {
+                Toggle("Not retail", isOn: Binding(get: { store.snapshot.retailDevice.isEmpty },
+                                                   set: { if $0 { store.setRetailDevice("") } }))
+                ForEach(store.retailSegments().platforms) { device in
+                    Toggle(device.name, isOn: Binding(get: { store.snapshot.retailDevice == device.id },
+                                                      set: { if $0 { store.setRetailDevice(device.id) } }))
+                }
+            }
             Menu("Industry Profile") {
                 ForEach(StandardLibrary.industries) { profile in
                     Toggle(profile.name, isOn: Binding(

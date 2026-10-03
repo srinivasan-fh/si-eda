@@ -15,7 +15,7 @@ bool isIsolationBarrier(const Component& c) {
                         "NME", "MHF", "SVR28", "XFMR", "TRANSFORMER", "ISOLAT"}))
         return true;
     const CustomPart* cp = CustomPartRegistry::instance().find(c.customPart);
-    return cp && cp->spec.model.hasRegulator && cp->spec.model.regulator.isolated();
+    return cp && cp->spec.model.hasRegulator && cp->spec.model.regulator.galvanic();
 }
 
 GalvanicDomains galvanicDomains(const Schematic& sch) {

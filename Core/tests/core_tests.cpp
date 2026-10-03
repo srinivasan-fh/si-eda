@@ -28,6 +28,7 @@
 #include "sieda/Aerospace.hpp"
 #include "sieda/Isolation.hpp"
 #include "sieda/Medical.hpp"
+#include "sieda/Retail.hpp"
 #include "sieda/Naval.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Robotics.hpp"
@@ -1255,7 +1256,7 @@ TEST(design_verification_pipeline) {
 }
 
 TEST(industry_profiles_and_derating) {
-    CHECK(industryProfiles().size() == 18);
+    CHECK(industryProfiles().size() == 20);
     for (const char* id : {"general", "robotics", "uav", "power", "automotive", "rf", "space", "marine", "industrial",
                            "medical", "defence", "networking", "vlsi"}) {
         const IndustryProfile* p = findIndustry(id);
@@ -3557,4 +3558,168 @@ TEST(galvanic_domains_and_isolation_barrier) {
     CHECK(after > 0);
     CHECK(Project::fromJson(p.toJson()).pcb.settings.isolationGap == 8);
     CHECK(Project::fromJson(p.toJson()).medicalClass == "cf");
+}
+
+TEST(tamper_mesh_over_secure_element) {
+    auto partId = [](const char* name) {
+        return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec)->id;
+    };
+    Project p;
+    auto& s = p.schematic;
+    int v = s.addComponent(ComponentKind::VoltageSource, "3.3", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    int se = s.addCustomComponent(partId("SECURE-MCU"), "", {200, 0});
+    int c1 = s.addComponent(ComponentKind::Capacitor, "100n", {300, 0});
+    int r1 = s.addComponent(ComponentKind::Resistor, "10k", {300, 100});
+    int r2 = s.addComponent(ComponentKind::Resistor, "10k", {300, 200});
+    int ma = s.addComponent(ComponentKind::NetLabel, "TAMPER_MESH_A", {400, 0});
+    int mb = s.addComponent(ComponentKind::NetLabel, "TAMPER_MESH_B", {400, 100});
+    wire(s, v, "-", g, "GND");
+    wire(s, v, "+", se, "VDD");
+    wire(s, se, "GND", g, "GND");
+    wire(s, c1, "1", se, "VDD");
+    wire(s, c1, "2", g, "GND");
+    wire(s, r1, "1", se, "NRST");
+    wire(s, r1, "2", se, "VDD");
+    wire(s, r2, "1", se, "TAMPER1");
+    wire(s, r2, "2", g, "GND");
+    wire(s, se, "MESH_A_DRV", ma, "N");
+    wire(s, se, "MESH_A_SNS", ma, "N");
+    wire(s, se, "MESH_B_DRV", mb, "N");
+    wire(s, se, "MESH_B_SNS", mb, "N");
+    p.schematicChanged();
+    const std::string seRef = s.find(se)->ref;
+
+    // Retail rules: a countertop terminal's secure element without a mesh, backup cell or tamper switches.
+    p.retailDevice = "countertop";
+    auto retailCodes = [&] {
+        std::set<std::string> c;
+        for (const auto& x : retailChecks(p))
+            if (x.severity != Severity::Info) c.insert(x.code);
+        return c;
+    };
+    {
+        const auto c = retailCodes();
+        CHECK(!c.count("REL_SECURE_ELEMENT") && c.count("REL_TAMPER_MESH") && c.count("REL_KEY_BATTERY"));
+        CHECK(!c.count("REL_TAMPER_SWITCHES"));  // TAMPER1 is wired (pull-down R2)
+        CHECK(c.count("REL_RETAIL_COATING") == 0);  // countertop: coating advice is Info
+    }
+    p.pcb.settings.layerCount = 4;
+    p.pcb.settings.width = 50;
+    p.pcb.settings.height = 45;
+    p.pcb.tamperMeshes.push_back({seRef, "TAMPER_MESH_A", "TAMPER_MESH_B", 1, 2, 2.0});
+    CHECK(!retailCodes().count("REL_TAMPER_MESH"));
+    {
+        const auto segs = retailSegments(p);
+        CHECK(segs.size() == 4 && segs[0].id == "security");
+        CHECK(segs[0].items[0].ok && segs[0].items[1].ok && !segs[0].items[2].ok);  // no backup cell yet
+    }
+    p.pcb.autoPlace(s, true);
+    const RouteStats st = p.pcb.autoRoute(s);
+    CHECK(st.failed == 0);
+    const auto geo = p.pcb.tamperMeshGeometry(s, p.pcb.pads(s));
+    CHECK(geo.size() == 1 && geo[0].error.empty());
+    // The secure element sits under the mesh; both serpentines are laid on their inner layers.
+    const Rect area = geo[0].region;
+    CHECK(area.contains(s.find(se)->pcb.position));
+    int stripesA = 0, stripesB = 0;
+    for (const auto& t : p.pcb.tracks) {
+        stripesA += t.net == geo[0].netA && t.layer == 1;
+        stripesB += t.net == geo[0].netB && t.layer == 2;
+        // Nothing else crosses the mesh layers inside the secure area.
+        if ((t.layer == 1 || t.layer == 2) && t.net != geo[0].netA && t.net != geo[0].netB)
+            CHECK(segmentRectDistance(t.a, t.b, area) > 0);
+    }
+    CHECK(stripesA > 10 && stripesB > 10);
+    for (const auto& via : p.pcb.vias) CHECK(!area.contains(via.position) || via.net == geo[0].netA || via.net == geo[0].netB);
+    std::set<std::string> codes;
+    for (const auto& x : p.pcb.runDRC(s)) codes.insert(x.code);
+    CHECK(!codes.count("DRC_TAMPER_MESH") && !codes.count("DRC_TAMPER_MESH_BREACH") && !codes.count("DRC_UNROUTED"));
+    CHECK(!codes.count("DRC_CLEARANCE"));
+    // A via drilled through the secure area is a breach.
+    Via drill;
+    drill.net = s.netOf({g, 0});
+    drill.position = s.find(se)->pcb.position;
+    p.pcb.vias.push_back(drill);
+    std::set<std::string> breach;
+    for (const auto& x : p.pcb.runDRC(s)) breach.insert(x.code);
+    CHECK(breach.count("DRC_TAMPER_MESH_BREACH"));
+    // Persisted with the project; a 2-layer board cannot carry a mesh.
+    const Project q = Project::fromJson(p.toJson());
+    CHECK(q.pcb.tamperMeshes.size() == 1 && q.pcb.tamperMeshes[0].netB == "TAMPER_MESH_B");
+    p.pcb.settings.layerCount = 2;
+    std::set<std::string> two;
+    for (const auto& x : p.pcb.runDRC(s)) two.insert(x.code);
+    CHECK(two.count("DRC_TAMPER_MESH"));
+}
+
+TEST(retail_printer_and_peripheral_rules) {
+    auto partId = [](const char* name) {
+        return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec)->id;
+    };
+    Project p;
+    auto& s = p.schematic;
+    p.industry = "retail";
+    p.retailDevice = "printer";
+    int v = s.addComponent(ComponentKind::VoltageSource, "24", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    int head = s.addCustomComponent(partId("TPH-80MM"), "", {200, 0});
+    int q = s.addComponent(ComponentKind::NMOS, "AO3400", {300, 100});
+    int sol = s.addComponent(ComponentKind::NetLabel, "CUTTER_SOL", {400, 100});
+    int j = s.addComponent(ComponentKind::Connector, "CUTTER", {500, 100});
+    wire(s, v, "-", g, "GND");
+    wire(s, v, "+", head, "1");
+    wire(s, head, "3", g, "GND");
+    wire(s, q, "D", sol, "N");
+    wire(s, q, "S", g, "GND");
+    wire(s, j, "2", sol, "N");
+    wire(s, j, "1", v, "+");
+    p.schematicChanged();
+    auto codes = [&] {
+        std::set<std::string> c;
+        for (const auto& x : retailChecks(p))
+            if (x.severity != Severity::Info) c.insert(x.code);
+        return c;
+    };
+    {
+        const auto c = codes();
+        CHECK(c.count("REL_TPH_BULK") && c.count("REL_PRINTER_MOTOR") && c.count("REL_SOLENOID_FLYBACK"));
+        CHECK(!c.count("REL_SECURE_ELEMENT"));  // a printer carries no payment keys
+    }
+    int bulk = s.addComponent(ComponentKind::Capacitor, "1000u", {200, 200});
+    int fly = s.addComponent(ComponentKind::Diode, "1N4007", {400, 200});
+    wire(s, bulk, "1", v, "+");
+    wire(s, bulk, "2", g, "GND");
+    wire(s, fly, "A", sol, "N");
+    wire(s, fly, "K", v, "+");
+    p.schematicChanged();
+    {
+        const auto c = codes();
+        CHECK(!c.count("REL_TPH_BULK") && !c.count("REL_SOLENOID_FLYBACK") && c.count("REL_PRINTER_MOTOR"));
+    }
+    CHECK(Project::fromJson(p.toJson()).retailDevice == "printer");
+    CHECK(findIndustry("retail") && findIndustry("appliance"));
+    // A buck converter with a shared ground is simulated by efficiency and is not a galvanic barrier.
+    Project b;
+    auto& t = b.schematic;
+    int vin = t.addComponent(ComponentKind::VoltageSource, "24", {0, 0});
+    int gg = t.addComponent(ComponentKind::Ground, "", {0, 100});
+    int buck = t.addCustomComponent(partId("LM2596-5.0"), "", {200, 0});
+    int l = t.addComponent(ComponentKind::Inductor, "33u", {300, 0});
+    int load = t.addComponent(ComponentKind::Resistor, "10", {400, 0});
+    wire(t, vin, "-", gg, "GND");
+    wire(t, vin, "+", buck, "VIN");
+    wire(t, buck, "GND", gg, "GND");
+    wire(t, buck, "ON_OFF", gg, "GND");
+    wire(t, buck, "OUTPUT", l, "1");
+    wire(t, l, "2", load, "1");
+    wire(t, buck, "FEEDBACK", load, "1");
+    wire(t, load, "2", gg, "GND");
+    b.schematicChanged();
+    DcResult dc = Simulator(t).dcOperatingPoint();
+    CHECK(dc.converged);
+    CHECK_NEAR(netV(t, dc, load, "1"), 5.0, 0.05);
+    // 0.5 A out at 5 V and 85 %: ≈ 0.12 A from 24 V instead of 0.5 A through a linear pass element.
+    CHECK(reading(dc, vin) && std::fabs(reading(dc, vin)->current) < 0.2);
+    CHECK(galvanicDomains(t).domainOfNet(t.netOf({vin, 0})) == galvanicDomains(t).domainOfNet(t.netOf({load, 0})));
 }

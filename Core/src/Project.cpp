@@ -3,6 +3,7 @@
 #include "sieda/Aerospace.hpp"
 #include "sieda/Naval.hpp"
 #include "sieda/Medical.hpp"
+#include "sieda/Retail.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/Embedded.hpp"
@@ -107,6 +108,21 @@ Json boardJson(const BoardSettings& s) {
     return b;
 }
 
+Json tamperMeshesJson(const std::vector<TamperMesh>& meshes) {
+    Json arr = Json::array();
+    for (const auto& m : meshes) {
+        Json j = Json::object();
+        j["component"] = m.componentRef;
+        j["netA"] = m.netA;
+        j["netB"] = m.netB;
+        j["layerA"] = m.layerA;
+        j["layerB"] = m.layerB;
+        j["margin"] = m.margin;
+        arr.push(j);
+    }
+    return arr;
+}
+
 Json zonesJson(const std::vector<CopperZone>& zones) {
     Json arr = Json::array();
     for (const auto& z : zones) {
@@ -165,6 +181,7 @@ Json Project::toJson() const {
     root["aerospaceMission"] = aerospaceMission;
     root["navalPlatform"] = navalPlatform;
     root["medicalClass"] = medicalClass;
+    root["retailDevice"] = retailDevice;
     root["buildQuantity"] = buildQuantity;
     root["board"] = boardJson(pcb.settings);
 
@@ -247,6 +264,7 @@ Json Project::toJson() const {
     }
     root["vias"] = vias;
     root["zones"] = zonesJson(pcb.zones);
+    root["tamperMeshes"] = tamperMeshesJson(pcb.tamperMeshes);
     return root;
 }
 
@@ -266,6 +284,8 @@ Project Project::fromJson(const Json& root) {
     if (!p.navalPlatform.empty() && !findNavalPlatform(p.navalPlatform)) p.navalPlatform.clear();
     p.medicalClass = root.get("medicalClass").asString("");
     if (!p.medicalClass.empty() && !findMedicalClass(p.medicalClass)) p.medicalClass.clear();
+    p.retailDevice = root.get("retailDevice").asString("");
+    if (!p.retailDevice.empty() && !findRetailDevice(p.retailDevice)) p.retailDevice.clear();
     p.buildQuantity = std::max(1, root.get("buildQuantity").asInt(5));
     if (!findIndustry(p.industry)) p.industry = "general";
     const Json& b = root.get("board");
@@ -339,6 +359,16 @@ Project Project::fromJson(const Json& root) {
         z.plane = j.get("plane").asBool(false);
         z.clearance = std::max(0.0, j.get("clearance").asNumber(0));
         if (!z.net.empty()) p.pcb.zones.push_back(z);
+    }
+    for (const auto& j : root.get("tamperMeshes").items()) {
+        TamperMesh m;
+        m.componentRef = j.get("component").asString("");
+        m.netA = j.get("netA").asString("");
+        m.netB = j.get("netB").asString("");
+        m.layerA = j.get("layerA").asInt(1);
+        m.layerB = j.get("layerB").asInt(2);
+        m.margin = std::clamp(j.get("margin").asNumber(2.0), 0.0, 20.0);
+        if (!m.componentRef.empty()) p.pcb.tamperMeshes.push_back(m);
     }
 
     // Custom parts first so components can resolve them; ids are re-derived and remapped if they changed.
@@ -505,6 +535,7 @@ Json Project::snapshot() const {
     root["aerospaceMission"] = aerospaceMission;
     root["navalPlatform"] = navalPlatform;
     root["medicalClass"] = medicalClass;
+    root["retailDevice"] = retailDevice;
     root["board"] = boardJson(pcb.settings);
 
     Json pads = Json::array();
@@ -559,6 +590,7 @@ Json Project::snapshot() const {
     root["vias"] = vias;
 
     root["zones"] = zonesJson(pcb.zones);
+    root["tamperMeshes"] = tamperMeshesJson(pcb.tamperMeshes);
     Json fills = Json::array();
     for (const auto& f : pcb.zoneFills(schematic)) {
         Json j = Json::object();
