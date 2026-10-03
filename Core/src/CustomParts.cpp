@@ -41,7 +41,7 @@ PinType pinTypeFromName(const std::string& raw) {
 }
 
 std::vector<std::string> supportedPackages() {
-    return {"SOIC", "TSSOP", "DIP", "QFN", "LQFP", "SOT23", "HEADER", "HEADER2", "TO220"};
+    return {"SOIC", "TSSOP", "DIP", "QFN", "LQFP", "SOT23", "HEADER", "HEADER2", "TO220", "HC49"};
 }
 
 // ------------------------------------------------------------------ JSON
@@ -139,9 +139,10 @@ std::string normalizePackage(const std::string& raw, int& pinsFromName) {
     else if (has("QFP")) type = "LQFP";
     else if (has("SOT")) type = "SOT23";
     else if (has("TO220") || has("TO-220") || has("TO-92") || has("TO92")) type = "TO220";
+    else if (has("HC49") || has("HC-49") || has("XTAL") || has("CRYSTAL")) type = "HC49";
     else if (has("HEADER2") || has("2X") || has("IDC") || has("BOX HEADER") || has("DUAL ROW")) type = "HEADER2";
     else if (has("HEADER") || has("SIP") || has("CONN") || has("1X")) type = "HEADER";
-    if (!digits.empty() && type != "TO220") {
+    if (!digits.empty() && type != "TO220" && type != "HC49") {
         int n = std::stoi(digits.size() > 3 ? digits.substr(digits.size() - 3) : digits);
         if (type == "SOT23" && n == 23) n = 0;  // "SOT-23" alone means 3 pins
         pinsFromName = n;
@@ -320,6 +321,9 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
             }
         }
         body = {2.9, 1.6, 1.1, false, 0.12f, 0.12f, 0.13f};
+    } else if (type == "HC49") {  // HC-49/US crystal: two leads 4.88 mm apart, 11 × 4.7 mm can
+        for (int i = 0; i < n; ++i) pads.push_back({{i == 0 ? -2.44 : 2.44, 0}, {1.5, 1.5}, true, true, 0.8});
+        body = {11.0, 4.7, 3.5, false, 0.75f, 0.75f, 0.78f};
     } else if (type == "HEADER") {
         double y0 = -(n - 1) * 2.54 / 2;
         for (int i = 0; i < n; ++i) pads.push_back({{0, y0 + i * 2.54}, {1.7, 1.7}, true, i != 0, 1.0});
@@ -379,6 +383,7 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     if ((spec.package.type == "QFN" || spec.package.type == "LQFP") && pc % 4) pc += 4 - pc % 4;
     if (spec.package.type == "SOT23" && pc > 6) throw JsonError("SOT-23 packages have at most 6 pins.");
     if (spec.package.type == "TO220" && pc > 7) throw JsonError("TO-220 packages have at most 7 pins.");
+    if (spec.package.type == "HC49" && pc != 2) throw JsonError("HC-49 crystals have 2 pins.");
     if (pc > 256) throw JsonError("Package pin count is too large.");
 
     auto part = std::make_shared<CustomPart>();

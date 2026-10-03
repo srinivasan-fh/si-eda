@@ -302,7 +302,7 @@ final class StandardsAndVerificationTests: XCTestCase {
     }
 
     func testOfflineTemplateMatchingAndCategories() {
-        XCTAssertEqual(OfflineProvider.templates.count, 34)
+        XCTAssertEqual(OfflineProvider.templates.count, 35)
         XCTAssertEqual(OfflineProvider.template(for: "non-inverting amplifier with gain 11").plan.title, "Non-Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "an inverting amplifier, gain -10").plan.title, "Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "blink an LED with a 555").plan.title, "555 Astable LED Blinker")
@@ -2111,6 +2111,36 @@ final class ReliabilityTests: XCTestCase {
         XCTAssertEqual(reopened.snapshot()?.robotPlatform, "arm")
         // Refinement plans keep the platform.
         XCTAssertEqual(DesignPlanCompiler.plan(from: store.snapshot).robotPlatform, "arm")
+    }
+
+    func testAutomotiveEcuSegments() throws {
+        XCTAssertEqual(OfflineProvider.template(for: "body control module ECU with CAN-FD and LIN").plan.title,
+                       "Automotive Body ECU: 6-Segment Reference")
+        let template = try XCTUnwrap(OfflineProvider.templates.first { $0.plan.ecuType != nil })
+        let store = DesignStore()
+        let report = DesignPlanCompiler.apply(template.industryPlan, to: store.engine, previous: nil)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        store.refresh()
+        XCTAssertEqual(store.snapshot.ecuType, "bcm")
+        XCTAssertEqual(store.snapshot.industry, "automotive")
+        let segments = store.ecuSegments()
+        XCTAssertTrue(segments.applies)
+        XCTAssertEqual(segments.platforms.count, 6)
+        XCTAssertEqual(segments.segments.map(\.id), ["shield", "regulation", "mcu", "network", "actuation", "sensors"])
+        // Every segment but the lockstep safety MCU is complete on the schematic alone.
+        for id in ["shield", "regulation", "network", "actuation", "sensors"] {
+            XCTAssertEqual(segments.segments.first { $0.id == id }?.status, "complete", id)
+        }
+        XCTAssertEqual(segments.segments.first { $0.id == "mcu" }?.status, "partial")
+        // ECU type changes are undoable and saved.
+        store.setEcuType("gateway")
+        XCTAssertEqual(store.snapshot.ecuType, "gateway")
+        store.undo()
+        XCTAssertEqual(store.snapshot.ecuType, "bcm")
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        XCTAssertEqual(reopened.snapshot()?.ecuType, "bcm")
+        XCTAssertEqual(DesignPlanCompiler.plan(from: store.snapshot).ecuType, "bcm")
     }
 
     func testComputingSegmentReferenceDesigns() throws {

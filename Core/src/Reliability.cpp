@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <set>
 
+#include "sieda/Automotive.hpp"
 #include "sieda/CustomParts.hpp"
 #include "sieda/Embedded.hpp"
 #include "sieda/Industry.hpp"
@@ -502,6 +503,7 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
 
     if (!laidOut) {
         for (auto& v : roboticsChecks(project)) out.push_back(std::move(v));  // schematic-level robot checks
+        for (auto& v : automotiveChecks(project)) out.push_back(std::move(v));
         return out;
     }
 
@@ -959,6 +961,8 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
     }
     // Robotic systems: the seven design segments (power, compute, motion, sensors, comms, safety, mechanical).
     for (auto& v : roboticsChecks(project)) out.push_back(std::move(v));
+    // Automotive ECUs: the six ECU segments (protection, regulation, safety MCU, networks, actuation, sensors).
+    for (auto& v : automotiveChecks(project)) out.push_back(std::move(v));
     return out;
 }
 

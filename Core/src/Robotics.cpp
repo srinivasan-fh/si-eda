@@ -7,6 +7,7 @@
 #include <map>
 #include <set>
 
+#include "SystemParts.hpp"
 #include "sieda/CustomParts.hpp"
 #include "sieda/LengthMatch.hpp"
 #include "sieda/Project.hpp"
@@ -15,114 +16,7 @@
 namespace sieda {
 
 namespace {
-
-std::string up(std::string s) {
-    for (auto& ch : s) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
-    return s;
-}
-
-bool containsAny(const std::string& hay, std::initializer_list<const char*> needles) {
-    for (const char* n : needles)
-        if (hay.find(n) != std::string::npos) return true;
-    return false;
-}
-
-std::string fmt(const char* f, double v) {
-    char b[64];
-    std::snprintf(b, sizeof b, f, v);
-    return b;
-}
-
-std::string partName(const Component& c) {
-    if (c.kind == ComponentKind::Custom)
-        if (const CustomPart* p = CustomPartRegistry::instance().find(c.customPart)) return up(p->spec.name);
-    return up(c.def().name);
-}
-
-std::string pinName(const Component& c, int pin) {
-    const auto& pins = c.def().pins;
-    return pin >= 0 && pin < static_cast<int>(pins.size()) ? up(pins[static_cast<size_t>(pin)].name) : "";
-}
-
-/// What a part is, for the segment checks.
-struct Parts {
-    std::vector<const Component*> drivers;     // gate / motor drivers (IR2104, L293D, ULN2003A, DRV…)
-    std::vector<const Component*> powerFets;   // NMOS or power MOSFET parts
-    std::vector<const Component*> shunts;      // current-sense resistors (≤ 0.1 Ω) and hall sensors (ACS712)
-    std::vector<const Component*> imus;        // MPU-6050, ICM-, BMI…, LSM6…
-    std::vector<const Component*> rf;          // radios (NRF24L01, ESP32, LoRa…)
-    std::vector<const Component*> coax;        // SMA / U.FL connectors
-    std::vector<const Component*> isolators;   // ADuM, ISO…, optocouplers
-    std::vector<const Component*> fieldbus;    // TJA1050 (CAN), MAX485 (RS-485)
-    std::vector<const Component*> compute;     // MCUs / SoCs
-    std::vector<const Component*> fuses, tvs, diodes, leds, inductors, caps, sources;
-};
-
-Parts classify(const Schematic& sch) {
-    Parts p;
-    for (const auto& c : sch.components()) {
-        const std::string n = partName(c), v = up(c.value);
-        switch (c.kind) {
-            case ComponentKind::NMOS: p.powerFets.push_back(&c); break;
-            case ComponentKind::Fuse: p.fuses.push_back(&c); break;
-            case ComponentKind::LED: p.leds.push_back(&c); break;
-            case ComponentKind::Inductor: p.inductors.push_back(&c); break;
-            case ComponentKind::Capacitor: p.caps.push_back(&c); break;
-            case ComponentKind::Diode:
-                (containsAny(v, {"SMBJ", "SMAJ", "SMCJ", "P6KE", "TVS", "PESD", "ESD"}) ? p.tvs : p.diodes).push_back(&c);
-                break;
-            case ComponentKind::Resistor: {
-                auto r = parseEngineeringValue(primaryValue(c.value));
-                if (r && *r > 0 && *r <= 0.1) p.shunts.push_back(&c);
-                break;
-            }
-            case ComponentKind::Connector:
-                if (containsAny(v, {"SMA", "U.FL", "UFL", "MMCX", "IPEX", "MHF"})) p.coax.push_back(&c);
-                break;
-            default: break;
-        }
-        if (isSourceKind(c.kind)) p.sources.push_back(&c);
-        if (c.kind != ComponentKind::Custom) continue;
-        if (containsAny(n, {"IR2104", "IR2110", "IR2184", "L293", "ULN2003", "DRV8", "TMC2", "A4988", "L298", "UCC27",
-                            "FAN73", "LM5113", "DRV83"}))
-            p.drivers.push_back(&c);
-        if (n.rfind("IRF", 0) == 0 || n.rfind("IPB", 0) == 0 || n.rfind("BSC", 0) == 0 || containsAny(n, {"MOSFET", "GAN", "EPC2"}))
-            p.powerFets.push_back(&c);
-        if (containsAny(n, {"ACS7", "INA2", "INA1", "INA3", "AMC1"})) p.shunts.push_back(&c);
-        if (containsAny(n, {"MPU-6050", "MPU6050", "MPU-9250", "ICM-", "BMI0", "BMI1", "BMI2", "LSM6", "BNO0", "IMU"}))
-            p.imus.push_back(&c);
-        if (containsAny(n, {"NRF24", "ESP32", "ESP8266", "SX127", "SX126", "LORA", "CC1101", "RFM9", "WIFI", "BLE", "LTE"}))
-            p.rf.push_back(&c);
-        if (containsAny(n, {"SMA", "U.FL", "UFL", "MMCX"})) p.coax.push_back(&c);
-        if (containsAny(n, {"ADUM", "ISO77", "ISO15", "SI86", "PC817", "6N137", "TLP", "OPTO"})) p.isolators.push_back(&c);
-        if (containsAny(n, {"TJA10", "MCP2551", "SN65HVD", "MAX485", "MAX3485", "ADM485", "THVD", "MCP2562", "ISO1050"}))
-            p.fieldbus.push_back(&c);
-        // Processors: a custom part with GPIO / SWD / XTAL style pins (MCUs, SoCs, module carriers).
-        bool cpu = false;
-        for (size_t i = 0; i < c.def().pins.size() && !cpu; ++i) {
-            const std::string pn = pinName(c, static_cast<int>(i));
-            cpu = pn.rfind("GPIO", 0) == 0 || pn == "PA0" || pn == "PB0" || pn == "PD0" || pn == "SWCLK" || pn == "SWDIO" ||
-                  pn == "XTAL1" || pn == "XIN" || pn == "TCK";
-        }
-        if (cpu) p.compute.push_back(&c);
-    }
-    return p;
-}
-
-std::string netName(const Schematic& sch, int net) {
-    const auto& nets = sch.nets();
-    return net >= 0 && net < static_cast<int>(nets.size()) ? nets[static_cast<size_t>(net)].name : "";
-}
-
-/// Nets whose (upper-case) name contains one of the needles.
-std::vector<int> netsNamed(const Schematic& sch, std::initializer_list<const char*> needles) {
-    std::vector<int> out;
-    for (const auto& n : sch.nets())
-        if (!n.name.empty() && containsAny(up(n.name), needles)) out.push_back(n.index);
-    return out;
-}
-
-Rect courtyardOf(const PcbLayout& pcb, const Component& c) { return pcb.courtyard(c); }
+using namespace sysparts;
 
 /// The pad heat leaves a power part through: its drain / tab / exposed pad, else its largest pad.
 const Pad* heatPad(const std::vector<Pad>& pads, const Component& c) {
@@ -139,23 +33,6 @@ const Pad* heatPad(const std::vector<Pad>& pads, const Component& c) {
     }
     return best;
 }
-
-double rectGap(const Rect& a, const Rect& b) {
-    double dx = std::max({0.0, b.x0 - a.x1, a.x0 - b.x1}), dy = std::max({0.0, b.y0 - a.y1, a.y0 - b.y1});
-    return std::hypot(dx, dy);
-}
-
-/// Resistors between two nets (one pin on each).
-std::vector<const Component*> bridges(const Schematic& sch, int a, int b, std::initializer_list<ComponentKind> kinds) {
-    std::vector<const Component*> out;
-    for (const auto& c : sch.components()) {
-        if (std::find(kinds.begin(), kinds.end(), c.kind) == kinds.end() || c.def().pins.size() != 2) continue;
-        int n0 = sch.netOf({c.id, 0}), n1 = sch.netOf({c.id, 1});
-        if ((n0 == a && n1 == b) || (n0 == b && n1 == a)) out.push_back(&c);
-    }
-    return out;
-}
-
 }  // namespace
 
 const std::vector<RobotPlatform>& robotPlatforms() {
@@ -230,19 +107,7 @@ std::vector<RuleViolation> roboticsChecks(const Project& project) {
 
     // ---------------------------------------------------------------- 1. power distribution
     if (!parts.sources.empty()) {
-        // Reverse polarity: a series diode / ideal-diode MOSFET on the supply, or a reverse-protected regulator.
-        bool reverse = false;
-        for (const Component* src : parts.sources) {
-            const int plus = sch.netOf({src->id, 0}), minus = sch.netOf({src->id, 1});
-            for (const Component* d : parts.diodes)
-                reverse |= sch.netOf({d->id, 0}) == plus;  // anode on the battery +
-            for (const Component* q : parts.powerFets)
-                for (size_t i = 0; i < q->def().pins.size(); ++i)
-                    if (pinName(*q, static_cast<int>(i)) == "S" && sch.netOf({q->id, static_cast<int>(i)}) == minus &&
-                        minus != gnd)
-                        reverse = true;  // low-side ideal diode in the return
-        }
-        for (const auto& c : sch.components()) reverse |= containsAny(partName(c), {"LM2940", "LTC4359", "LM74", "IDEAL"});
+        const bool reverse = hasReverseProtection(sch, parts);
         if (!reverse && motorDrive)
             add(Severity::Warning, "REL_REVERSE_POLARITY",
                 "No reverse-polarity protection on the battery input: a reversed pack destroys the drivers and logic "

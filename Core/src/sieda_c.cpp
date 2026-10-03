@@ -1,6 +1,7 @@
 // SiEDA Core — C ABI implementation. Every entry point is exception-safe.
 #include "sieda/sieda_c.h"
 
+#include "sieda/Automotive.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/Firmware.hpp"
 
@@ -694,6 +695,23 @@ char* sieda_robot_segments_json(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
         return dup(robotSegmentsJson(project->project).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_set_ecu_type(SiedaProject* project, const char* type) {
+    if (!project || !type) return 0;
+    std::string id = type;
+    if (!id.empty() && !findEcuType(id)) return 0;
+    project->project.ecuType = id;
+    return 1;
+}
+
+char* sieda_ecu_segments_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(ecuSegmentsJson(project->project).dump());
     } catch (...) {
         return nullptr;
     }

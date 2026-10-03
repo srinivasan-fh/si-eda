@@ -152,6 +152,10 @@ int32_t sieda_set_robot_platform(SiedaProject* project, const char* platform);
 /* {"platform","applies","platforms":[{id,name,description,guidance}],"segments":[{id,name,status,items:[{label,ok,
  * detail}],guidance}]} — the seven robot design segments checked on the current design. */
 char* sieda_robot_segments_json(const SiedaProject* project);
+/* Automotive ECU type ("bcm", "powertrain", "adas", "ev", "chassis", "gateway"; "" = none). 0 if unknown. */
+int32_t sieda_set_ecu_type(SiedaProject* project, const char* type);
+/* The six automotive ECU segments checked on the design (same shape as sieda_robot_segments_json). */
+char* sieda_ecu_segments_json(const SiedaProject* project);
 /* Stitches thermal vias at a power part's largest pad (own net, clearance kept). Returns the vias added. */
 int32_t sieda_pcb_add_thermal_vias(SiedaProject* project, int32_t component_id);
 /* Locks a placed footprint so Auto Place (and Auto Route's placement) keeps it where it is. */

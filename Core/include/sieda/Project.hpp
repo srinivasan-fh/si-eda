@@ -22,6 +22,9 @@ public:
     /// Robot platform ("rover", "fpv", "arm", "quadruped", "humanoid"; empty = not a robot): turns on the robotics
     /// segment checks and their platform guidance.
     std::string robotPlatform;
+    /// Automotive ECU type ("bcm", "powertrain", "adas", "ev", "chassis", "gateway"; empty = none): turns on the
+    /// six ECU segment checks with their guidance (the automotive industry profile turns them on too).
+    std::string ecuType;
     Schematic schematic;
     PcbLayout pcb;
     /// Ids of custom parts (CustomPartRegistry) available in this project's component library.

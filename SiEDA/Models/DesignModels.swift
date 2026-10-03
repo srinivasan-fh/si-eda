@@ -20,6 +20,8 @@ struct DesignSnapshot: Decodable, Equatable {
     var industry = "general"
     /// Robot platform id ("rover", "fpv", "arm", "quadruped", "humanoid"); empty when the design is not a robot.
     var robotPlatform = ""
+    /// Automotive ECU type ("bcm", "powertrain", "adas", "ev", "chassis", "gateway"); empty when not set.
+    var ecuType = ""
     var zones: [CopperZoneInfo] = []
     var zoneFills: [ZoneFillInfo] = []
 
@@ -61,13 +63,14 @@ struct DesignSnapshot: Decodable, Equatable {
         customParts = try c.decodeIfPresent([CustomPartInfo].self, forKey: .customParts) ?? []
         industry = try c.decodeIfPresent(String.self, forKey: .industry) ?? "general"
         robotPlatform = try c.decodeIfPresent(String.self, forKey: .robotPlatform) ?? ""
+        ecuType = try c.decodeIfPresent(String.self, forKey: .ecuType) ?? ""
         zones = try c.decodeIfPresent([CopperZoneInfo].self, forKey: .zones) ?? []
         zoneFills = try c.decodeIfPresent([ZoneFillInfo].self, forKey: .zoneFills) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
-        case industry, robotPlatform, zones, zoneFills
+        case industry, robotPlatform, ecuType, zones, zoneFills
     }
 
     func component(_ id: Int) -> SnapComponent? { components.first { $0.id == id } }
@@ -850,7 +853,8 @@ struct RouteStats: Decodable, Equatable {
     var failedNets: [String] = []
 }
 
-/// The seven robot design segments checked on the design (`sieda_robot_segments_json`).
+/// The seven robot design segments (`sieda_robot_segments_json`) or the six automotive ECU segments
+/// (`sieda_ecu_segments_json`) checked on the design; `platforms` lists the robot platforms / ECU types.
 struct RobotSegmentsReport: Decodable, Equatable {
     var platform = ""
     var applies = false

@@ -268,6 +268,14 @@ final class EDAEngine: @unchecked Sendable {
         Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_robot_segments_json($0)) }) ?? .empty
     }
 
+    /// Automotive ECU type ("bcm", "powertrain", "adas", "ev", "chassis", "gateway"; "" = none).
+    @discardableResult
+    func setEcuType(_ id: String) -> Bool { withHandle { sieda_set_ecu_type($0, id) } == 1 }
+
+    func ecuSegments() -> RobotSegmentsReport {
+        Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_ecu_segments_json($0)) }) ?? .empty
+    }
+
     /// Stitches thermal vias at a power part's drain / tab pad; returns the vias added.
     @discardableResult
     func addThermalVias(_ id: Int) -> Int { Int(withHandle { sieda_pcb_add_thermal_vias($0, Int32(id)) }) }

@@ -33,6 +33,7 @@ add_library(sieda_core STATIC
     Core/src/LengthMatch.cpp
     Core/src/Embedded.cpp
     Core/src/Robotics.cpp
+    Core/src/Automotive.cpp
     Core/src/Project.cpp
     Core/src/sieda_c.cpp
 )

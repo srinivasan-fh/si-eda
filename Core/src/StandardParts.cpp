@@ -53,6 +53,11 @@ void applyModels(std::vector<StandardPart>& parts) {
         if (n == "LM7805") regulator(p, "1", "3", "2", 5.0, 2.0, 0.005, 1.5, 2.0);
         else if (n == "LM317") regulator(p, "3", "2", "1", 1.25, 2.0, 50e-6, 1.5, 2.0);  // ADJ is the reference
         else if (n == "LM2940-5.0") regulator(p, "1", "3", "2", 5.0, 0.5, 0.010, 1.0, 2.0);
+        else if (n == "TJA1044GT") load(p, "3", "2", 0.010);
+        else if (n == "TJA1021") load(p, "7", "5", 0.001);
+        else if (n == "TPS3823-33-Q1" || n == "TPS3823-50-Q1") load(p, "5", "2", 15e-6);
+        else if (n == "MCP2518FD") load(p, "14", "7", 0.010);
+        else if (n == "24LC256") load(p, "8", "4", 0.001);
         else if (n == "TP4056") regulator(p, "4", "5", "3", 4.2, 0.1, 0.0003, 1.0, 2.0, true);  // 1 A with R_PROG = 1.2 kΩ
         else if (n == "XC6206P332") regulator(p, "3", "2", "1", 3.3, 0.25, 1e-6, 0.25, 0.25);
         else if (n == "AP2112K-3.3") regulator(p, "1", "5", "2", 3.3, 0.25, 55e-6, 0.6, 0.4);
@@ -151,6 +156,36 @@ std::vector<StandardPart> build() {
     parts.push_back(part("Automotive", "LM2940-5.0", "Texas Instruments",
                          "5 V low-dropout regulator with load-dump and reverse-battery protection", "TO220", 3, "U",
                          {{"IN", T::PowerIn}, {"GND", T::PowerIn}, {"OUT", T::PowerOut}}));
+    // Automotive ECU building blocks (AEC-Q100 grades): CAN-FD, LIN, watchdog supervisor, EEPROM, crystal.
+    parts.push_back(part("Automotive", "TJA1044GT", "NXP",
+                         "CAN-FD transceiver (5 Mbit/s, ISO 11898-2:2016), VIO for 3.3 V MCUs, standby", "SOIC", 8, "U",
+                         {{"TXD", T::Input}, {"GND", T::PowerIn}, {"VCC", T::PowerIn}, {"RXD", T::Output},
+                          {"VIO", T::PowerIn}, {"CANL", T::Bidirectional}, {"CANH", T::Bidirectional}, {"STB", T::Input}}));
+    parts.push_back(part("Automotive", "TJA1021", "NXP", "LIN 2.x / SAE J2602 transceiver (20 kbit/s), sleep and wake",
+                         "SOIC", 8, "U",
+                         {{"RXD", T::Output}, {"SLP_N", T::Input}, {"WAKE_N", T::Input}, {"TXD", T::Input},
+                          {"GND", T::PowerIn}, {"LIN", T::Bidirectional}, {"BAT", T::PowerIn}, {"INH", T::Output}}));
+    parts.push_back(part("Automotive", "TPS3823-33-Q1", "Texas Instruments",
+                         "Supervisor with watchdog (1.6 s) and 2.93 V reset threshold, AEC-Q100", "SOT23", 5, "U",
+                         {{"RESET", T::Output}, {"GND", T::PowerIn}, {"MR", T::Input}, {"WDI", T::Input}, {"VDD", T::PowerIn}}));
+    parts.push_back(part("Automotive", "TPS3823-50-Q1", "Texas Instruments",
+                         "Supervisor with watchdog (1.6 s) and 4.55 V reset threshold for 5 V rails, AEC-Q100", "SOT23", 5, "U",
+                         {{"RESET", T::Output}, {"GND", T::PowerIn}, {"MR", T::Input}, {"WDI", T::Input}, {"VDD", T::PowerIn}}));
+    parts.push_back(part("Automotive", "MCP2518FD", "Microchip",
+                         "SPI CAN-FD controller (8 Mbit/s data phase) for MCUs without a CAN peripheral, AEC-Q100", "SOIC", 14,
+                         "U",
+                         {{"TXCAN", T::Output}, {"RXCAN", T::Input}, {"CLKO", T::Output}, {"INT", T::OpenCollector},
+                          {"OSC2", T::Passive}, {"OSC1", T::Passive}, {"VSS", T::PowerIn}, {"INT1", T::OpenCollector},
+                          {"INT0", T::OpenCollector}, {"SCK", T::Input}, {"SDI", T::Input}, {"SDO", T::Output},
+                          {"CS", T::Input}, {"VDD", T::PowerIn}}));
+    parts.push_back(part("Automotive", "24LC256", "Microchip", "256 Kbit I²C EEPROM (1 M cycles, 200-year retention), grade 1",
+                         "SOIC", 8, "U",
+                         {{"A0", T::Input}, {"A1", T::Input}, {"A2", T::Input}, {"VSS", T::PowerIn}, {"SDA", T::Bidirectional},
+                          {"SCL", T::Input}, {"WP", T::Input}, {"VCC", T::PowerIn}}));
+    parts.push_back(part("Timing", "Crystal_8MHz", "Generic (AEC-Q200)", "8 MHz crystal, HC-49/US, ±30 ppm, 18 pF load",
+                         "HC49", 2, "Y", {{"1", T::Passive}, {"2", T::Passive}}));
+    parts.push_back(part("Timing", "Crystal_20MHz", "Generic (AEC-Q200)", "20 MHz crystal, HC-49/US, ±30 ppm, 18 pF load",
+                         "HC49", 2, "Y", {{"1", T::Passive}, {"2", T::Passive}}));
     // Marine / industrial communication and isolation.
     parts.push_back(part("Marine & Industrial", "MAX485", "Analog Devices", "RS-485 / RS-422 transceiver (NMEA 0183/2000 bus)",
                          "DIP", 8, "U",
