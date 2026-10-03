@@ -104,6 +104,19 @@ struct BoardSetupPanel: View {
                     }
                 }
 
+                section("Protection & Reliability", systemImage: "shield.lefthalf.filled") {
+                    Picker("Conformal coating", selection: Binding(get: { board.conformalCoating },
+                                                                   set: { store.setCoating($0) })) {
+                        ForEach(ConformalCoating.allCases) { Text($0.title).tag($0) }
+                    }
+                    Text(board.conformalCoating == .none
+                         ? "Uncoated: voltage spacing follows IPC-2221B \(board.highAltitude ? "B3 (altitude)" : "B2"); high-impedance "
+                           + "inputs keep 0.5 mm leakage spacing. Coating seals out moisture and contamination."
+                         : "Coated (IPC-CC-830): voltage spacing follows IPC-2221B A5; leakage spacing 0.25 mm. Mask "
+                           + "connectors and test points before coating.")
+                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 section("Net Classes", systemImage: "line.3.horizontal") {
                     Toggle("Autorouter sizes power nets from the simulation (IPC-2221)", isOn: Binding(
                         get: { board.autoSizeNets }, set: { store.setAutoSizeNets($0) }))

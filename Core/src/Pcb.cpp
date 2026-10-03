@@ -1,4 +1,5 @@
 #include "sieda/Pcb.hpp"
+#include "sieda/Reliability.hpp"
 
 #include "sieda/Simulator.hpp"
 
@@ -87,23 +88,42 @@ double ipc2221TrackWidth(double amps, double tempRise, double oz, bool innerLaye
     return areaMil2 / thicknessMil * 0.0254;
 }
 
-double ipc2221Clearance(double volts, bool highAltitude) {
-    double v = std::fabs(volts);
-    if (highAltitude) {  // B3
-        if (v <= 30) return 0.1;
-        if (v <= 50) return 0.6;
-        if (v <= 100) return 1.5;
-        if (v <= 170) return 3.2;
-        if (v <= 250) return 6.4;
-        if (v <= 500) return 12.5;
-        return 12.5 + (v - 500) * 0.025;
-    }
-    // B2
-    if (v <= 30) return 0.1;
-    if (v <= 150) return 0.6;
-    if (v <= 300) return 1.25;
-    if (v <= 500) return 2.5;
-    return 2.5 + (v - 500) * 0.005;
+const char* ipc2221ColumnName(Ipc2221Column c) {
+    static const char* names[] = {"B1", "B2", "B3", "B4", "A5", "A6", "A7"};
+    return names[static_cast<int>(c)];
+}
+
+double ipc2221Spacing(double volts, Ipc2221Column column) {
+    // Rows: peak volts 0-15, 16-30, 31-50, 51-100, 101-150, 151-170, 171-250, 251-300, 301-500; then mm per volt.
+    static const double limits[] = {15, 30, 50, 100, 150, 170, 250, 300, 500};
+    static const double table[7][10] = {
+        {0.05, 0.05, 0.1, 0.1, 0.2, 0.2, 0.2, 0.2, 0.25, 0.0025},     // B1
+        {0.1, 0.1, 0.6, 0.6, 0.6, 1.25, 1.25, 1.25, 2.5, 0.005},      // B2
+        {0.1, 0.1, 0.6, 1.5, 3.2, 3.2, 6.4, 12.5, 12.5, 0.025},       // B3
+        {0.05, 0.05, 0.13, 0.13, 0.4, 0.4, 0.4, 0.4, 0.8, 0.00305},   // B4
+        {0.13, 0.13, 0.13, 0.13, 0.4, 0.4, 0.4, 0.4, 0.8, 0.00305},   // A5
+        {0.13, 0.25, 0.4, 0.5, 0.8, 0.8, 0.8, 0.8, 1.5, 0.00305},     // A6
+        {0.13, 0.13, 0.13, 0.13, 0.4, 0.4, 0.4, 0.8, 0.8, 0.00305},   // A7
+    };
+    const double v = std::fabs(volts);
+    const auto& row = table[static_cast<int>(column)];
+    for (int i = 0; i < 9; ++i)
+        if (v <= limits[i]) return row[i];
+    return std::max(row[8], v * row[9]);
+}
+
+Ipc2221Column externalSpacingColumn(bool highAltitude, bool coated) {
+    if (coated) return Ipc2221Column::A5;
+    return highAltitude ? Ipc2221Column::B3 : Ipc2221Column::B2;
+}
+
+double ipc2221Clearance(double volts, bool highAltitude, bool coated) {
+    return ipc2221Spacing(volts, externalSpacingColumn(highAltitude, coated));
+}
+
+const std::vector<std::string>& conformalCoatings() {
+    static const std::vector<std::string> coatings = {"none", "acrylic", "silicone", "urethane", "epoxy", "parylene"};
+    return coatings;
 }
 
 std::string copperLayerName(int layer, int layerCount) {
@@ -1065,7 +1085,7 @@ std::map<int, std::pair<double, double>> netVoltageRanges(const Schematic& sch) 
     return netRange;
 }
 
-double voltageRoutingClearance(const Schematic& sch, bool highAltitude) {
+double voltageRoutingClearance(const Schematic& sch, bool highAltitude, bool coated) {
     auto ranges = netVoltageRanges(sch);
     if (ranges.empty()) return 0;
     double lo = 0, hi = 0;
@@ -1073,7 +1093,7 @@ double voltageRoutingClearance(const Schematic& sch, bool highAltitude) {
         lo = std::min(lo, r.first);
         hi = std::max(hi, r.second);
     }
-    return ipc2221Clearance(hi - lo, highAltitude);
+    return ipc2221Clearance(hi - lo, highAltitude, coated);
 }
 
 RouteStats PcbLayout::autoRoute(const Schematic& sch) {
@@ -1085,12 +1105,31 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
         double c;
         ~RestoreClearance() { s.clearance = c; }
     } restore{settings, ruleClearance};
-    settings.clearance = std::max(ruleClearance, voltageRoutingClearance(sch, settings.highAltitude));
+    settings.clearance = std::max(ruleClearance, voltageRoutingClearance(sch, settings.highAltitude, settings.coated()));
     return routeAll(sch);
 }
 
 RouteStats PcbLayout::routeAll(const Schematic& sch) {
     if (settings.autoSizeNets) autoNetWidths(sch);
+    // Reliability net classes: RF lines get their 50 Ω width (when the stack-up allows a practical one);
+    // leakage-sensitive and fast nets keep extra spacing and route first, so everything else keeps away from them.
+    const NetClassification classes = classifyNets(sch, "");
+    for (int net : classes.rf) {
+        double z0 = microstripWidth(50.0, settings);
+        const std::string& name = sch.nets()[static_cast<size_t>(net)].name;
+        if (z0 <= 1.5 && !settings.netWidths.count(name)) settings.netWidths[name] = std::ceil(z0 * 100) / 100;
+    }
+    std::map<int, double> extraClearance;
+    for (const auto& [net, guard] : classes.highImpedance)
+        extraClearance[net] = std::max(0.0, leakageSpacing(settings) - settings.clearance);
+    for (int net : classes.fast) {
+        double w3 = 2 * settings.widthFor(sch.nets()[static_cast<size_t>(net)].name);  // 3W rule: 2 widths edge to edge
+        extraClearance[net] = std::max(extraClearance[net], w3 - settings.clearance);
+    }
+    auto extra = [&](int net) {
+        auto it = extraClearance.find(net);
+        return it == extraClearance.end() ? 0.0 : it->second;
+    };
     const auto ps = pads(sch);
     const auto& nets = sch.nets();
     std::map<int, std::vector<size_t>> netPads;
@@ -1124,6 +1163,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
         return false;
     };
     std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return fineNet(a) && !fineNet(b); });
+    std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return extra(a) > 0 && extra(b) <= 0; });
     RouteStats best;
     best.failed = std::numeric_limits<int>::max();
     std::vector<Track> bestTracks;
@@ -1187,7 +1227,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
             v.diameter = settings.viaDiameter;
             outV.push_back(v);
             ++stats.vias;
-            double r = settings.viaDiameter / 2 + clr + w / 2;
+            double r = settings.viaDiameter / 2 + clr + extra(net) + w / 2;
             for (int l = 0; l < grid.layers(); ++l) {
                 grid.markDisc(l, v.position, r, net);
                 grid.markCopperSegment(l, v.position, v.position, settings.viaDiameter / 2, net);
@@ -1224,7 +1264,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
                         neckDown(pieces, ps);
                         for (const Track& piece : pieces) {
                             outT.push_back(piece);
-                            grid.markSegment(layer, piece.a, piece.b, piece.width / 2 + clr + w / 2, net);
+                            grid.markSegment(layer, piece.a, piece.b, piece.width / 2 + clr + extra(net) + w / 2, net);
                             grid.markCopperSegment(layer, piece.a, piece.b, piece.width / 2 + 1e-6, net);
                             grid.addCopper(piece.a, piece.b, piece.width / 2, net, layer);
                         }
@@ -1706,11 +1746,14 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     std::map<int, std::pair<double, double>> netRange = netVoltageRanges(sch);
     DcResult dc;
     if (!netRange.empty()) dc = Simulator(sch).dcOperatingPoint();
+    const std::string spacingColumn =
+        std::string(ipc2221ColumnName(externalSpacingColumn(settings.highAltitude, settings.coated()))) +
+        (settings.coated() ? " (conformal coated)" : settings.highAltitude ? " (altitude)" : "");
     auto voltageNeed = [&](int a, int b) {
         auto ia = netRange.find(a), ib = netRange.find(b);
         if (a < 0 || b < 0 || ia == netRange.end() || ib == netRange.end()) return std::make_pair(0.0, 0.0);
         double dv = std::max(std::fabs(ia->second.second - ib->second.first), std::fabs(ib->second.second - ia->second.first));
-        return std::make_pair(dv, ipc2221Clearance(dv, settings.highAltitude));
+        return std::make_pair(dv, ipc2221Clearance(dv, settings.highAltitude, settings.coated()));
     };
 
     // Below the fabrication minimum → error; between it and the design rule → warning; below the IPC-2221 voltage
@@ -1720,8 +1763,8 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
         auto [dv, hvNeed] = voltageNeed(netA, netB);
         if (d > 0 && hvNeed > clr + eps && d < hvNeed - eps) {
             char hv[160];
-            std::snprintf(hv, sizeof hv, " is below the IPC-2221 %s spacing %.2f mm for %.0f V.",
-                          settings.highAltitude ? "B3 (altitude)" : "B2", hvNeed, dv);
+            std::snprintf(hv, sizeof hv, " is below the IPC-2221B %s spacing %.2f mm for %.0f V.",
+                          spacingColumn.c_str(), hvNeed, dv);
             add(Severity::Error, "DRC_HV_CLEARANCE", what + hv, loc, std::move(comps));
             return;
         }
@@ -1785,8 +1828,8 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
         auto [dv, hvNeed] = voltageNeed(netA, netB);  // voltage spacing still applies inside a footprint
         if (d > 0 && hvNeed > fabClr + eps && d < hvNeed - eps) {
             char hv[160];
-            std::snprintf(hv, sizeof hv, " is below the IPC-2221 %s spacing %.2f mm for %.0f V.",
-                          settings.highAltitude ? "B3 (altitude)" : "B2", hvNeed, dv);
+            std::snprintf(hv, sizeof hv, " is below the IPC-2221B %s spacing %.2f mm for %.0f V.",
+                          spacingColumn.c_str(), hvNeed, dv);
             add(Severity::Error, "DRC_HV_CLEARANCE", what + hv, loc, std::move(comps));
             return;
         }

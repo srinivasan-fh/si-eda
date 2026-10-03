@@ -22,6 +22,7 @@
 #include "sieda/Json.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
+#include "sieda/Reliability.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Validation.hpp"
@@ -1190,7 +1191,7 @@ TEST(design_verification_pipeline) {
     // Empty design fails at ERC; later stages are skipped.
     VerificationReport empty = verifyDesign(Project{});
     CHECK(empty.verdict == StageStatus::Fail);
-    CHECK(empty.stages.size() == 7);
+    CHECK(empty.stages.size() == 8);
     CHECK(stage(empty, "routing")->status == StageStatus::Skipped);
 
     // Schematic only: no placement yet.
@@ -1226,7 +1227,7 @@ TEST(design_verification_pipeline) {
     CHECK(md.find("| Routing Completion | PASS |") != std::string::npos);
     Json j = Json::parse(done.toJson().dump());
     CHECK(j["verdict"].asString() == stageStatusName(done.verdict));
-    CHECK(j["stages"].size() == 7);
+    CHECK(j["stages"].size() == 8);
 
     // Four layers: one copper Gerber per layer is verified.
     p.pcb.settings.layerCount = 4;
@@ -2619,4 +2620,165 @@ TEST(bill_of_materials) {
     CHECK(api_j.get("lines")[0].get("mpn").asString() == "X1" && api_j.get("lines")[0].get("dnp").asBool());
     CHECK(api_j.get("buildQuantity").asInt() == 4);
     sieda_project_free(api);
+}
+
+TEST(ipc2221b_spacing_table_and_coating) {
+    CHECK_NEAR(ipc2221Spacing(230, Ipc2221Column::B2), 1.25, 1e-12);
+    CHECK_NEAR(ipc2221Spacing(230, Ipc2221Column::A5), 0.4, 1e-12);
+    CHECK_NEAR(ipc2221Spacing(48, Ipc2221Column::B4), 0.13, 1e-12);
+    CHECK_NEAR(ipc2221Spacing(12, Ipc2221Column::B1), 0.05, 1e-12);
+    CHECK_NEAR(ipc2221Spacing(80, Ipc2221Column::A6), 0.5, 1e-12);
+    CHECK_NEAR(ipc2221Spacing(1000, Ipc2221Column::A5), 3.05, 1e-9);
+    CHECK_NEAR(ipc2221Clearance(230, false, true), 0.4, 1e-12);   // coated: A5 at any altitude
+    CHECK_NEAR(ipc2221Clearance(230, true, false), 6.4, 1e-12);   // B3
+    CHECK(std::string(ipc2221ColumnName(externalSpacingColumn(false, true))) == "A5");
+    Project p;
+    p.pcb.settings.coating = "silicone";
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.pcb.settings.coating == "silicone" && q.pcb.settings.coated());
+    CHECK(leakageSpacing(q.pcb.settings) == 0.25);
+    SiedaProject* api = sieda_project_new("c");
+    CHECK(sieda_pcb_set_coating(api, "parylene") == 1 && sieda_pcb_set_coating(api, "glitter") == 0);
+    sieda_project_free(api);
+}
+
+TEST(reliability_circuit_rules) {
+    auto codes = [](const Project& p) {
+        std::set<std::string> c;
+        for (const auto& v : reliabilityChecks(p)) c.insert(v.code);
+        return c;
+    };
+    // A relay coil / motor winding switched by a MOSFET with no flyback diode.
+    Project p;
+    p.industry = "automotive";
+    auto& s = p.schematic;
+    int bt = s.addComponent(ComponentKind::Battery, "12", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    int l1 = s.addComponent(ComponentKind::Inductor, "10m", {100, 0});
+    int q1 = s.addComponent(ComponentKind::NMOS, "2N7002", {200, 0});
+    int pwm = s.addComponent(ComponentKind::VoltageSource, "PULSE(0 5 1m)", {300, 0});
+    wire(s, bt, "+", l1, "1");
+    wire(s, bt, "-", g, "GND");
+    wire(s, l1, "2", q1, "D");
+    wire(s, q1, "S", g, "GND");
+    wire(s, pwm, "+", q1, "G");
+    wire(s, pwm, "-", g, "GND");
+    auto c = codes(p);
+    CHECK(c.count("REL_FLYBACK"));
+    CHECK(c.count("REL_LOAD_DUMP"));        // automotive supply without TVS
+    CHECK(c.count("REL_THERMAL_CYCLING"));  // automotive guidance
+    int d1 = s.addComponent(ComponentKind::Diode, "1N4148", {100, 50});
+    wire(s, d1, "A", l1, "2");
+    wire(s, d1, "K", l1, "1");
+    int tvs = s.addComponent(ComponentKind::Diode, "SMBJ24A", {0, 50});
+    wire(s, tvs, "K", bt, "+");
+    wire(s, tvs, "A", g, "GND");
+    c = codes(p);
+    CHECK(!c.count("REL_FLYBACK") && !c.count("REL_LOAD_DUMP"));
+    // The PWM-driven gate net is a fast net.
+    NetClassification cls = classifyNets(p);
+    CHECK(cls.fast.count(s.netOf({q1, 0})));
+
+    // A half-bridge of two N-MOSFETs with no gate driver: shoot-through risk.
+    int q2 = s.addComponent(ComponentKind::NMOS, "IRF540N", {400, 0});
+    wire(s, q2, "D", bt, "+");
+    wire(s, q2, "S", q1, "D");
+    p.industry = "robotics";
+    c = codes(p);
+    CHECK(c.count("REL_SHOOT_THROUGH") && c.count("REL_SNUBBER") && c.count("REL_FLEX"));
+
+    // A high-impedance amplifier input (10 MΩ bias resistor) wants a guard ring driven by the other input.
+    Project a;
+    auto& t = a.schematic;
+    int v = t.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int gg = t.addComponent(ComponentKind::Ground, "", {0, 100});
+    int u = t.addComponent(ComponentKind::OpAmp, "LM358", {200, 0});
+    int rb = t.addComponent(ComponentKind::Resistor, "10M", {100, 0});
+    int rf = t.addComponent(ComponentKind::Resistor, "10k", {300, 0});
+    wire(t, v, "-", gg, "GND");
+    wire(t, rb, "1", u, "IN+");
+    wire(t, rb, "2", gg, "GND");
+    wire(t, u, "IN-", u, "OUT");  // follower
+    wire(t, u, "OUT", rf, "1");
+    wire(t, rf, "2", gg, "GND");
+    wire(t, v, "+", rf, "1");
+    NetClassification hz = classifyNets(a);
+    int inPlus = t.netOf({u, 0});
+    CHECK(hz.highImpedance.count(inPlus) && hz.highImpedance.at(inPlus) == t.netOf({u, 1}));
+    CHECK(codes(a).count("REL_HIGH_IMPEDANCE"));
+    // The autorouter keeps other nets the leakage spacing away from the high-impedance input.
+    a.pcb.autoPlace(t, true);
+    CHECK(a.pcb.autoRoute(t).failed == 0);
+    CHECK(!codes(a).count("REL_LEAKAGE"));
+
+    // Space: tin whiskers, outgassing, radiation; tin-lead solder and polyimide in the fab requirements.
+    a.industry = "space";
+    c = codes(a);
+    CHECK(c.count("REL_TIN_WHISKER") && c.count("REL_OUTGASSING") && c.count("REL_RADIATION"));
+    FabricationRequirements req = fabricationRequirements(a);
+    CHECK(req.solder.find("Sn63Pb37") != std::string::npos && req.material.find("Polyimide") != std::string::npos);
+    CHECK(req.ipcClass == 3 && recommendedSurfaceFinish(a).find("SnPb") != std::string::npos);
+}
+
+TEST(reliability_layout_rules) {
+    auto has = [](const std::vector<RuleViolation>& v, const char* code) {
+        return std::any_of(v.begin(), v.end(), [&](const RuleViolation& x) { return x.code == code; });
+    };
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    auto clean = reliabilityChecks(p);
+    CHECK(!has(clean, "REL_ACID_TRAP") && !has(clean, "REL_SOLDER_BRIDGE") && !has(clean, "REL_VIA_ASPECT"));
+
+    // An acute bend on one net (acid trap) and a 0.1 mm via in a 1.6 mm board (16:1).
+    int net = p.pcb.tracks.front().net;
+    Track a;
+    a.net = net;
+    a.layer = 0;
+    a.width = 0.25;
+    a.a = {2, 2};
+    a.b = {6, 2};
+    Track b = a;
+    b.a = {6, 2};
+    b.b = {3, 4};
+    p.pcb.addTrack(a);
+    p.pcb.addTrack(b);
+    Via v;
+    v.net = net;
+    v.position = {2, 8};
+    v.drill = 0.1;
+    v.diameter = 0.35;
+    p.pcb.addVia(v);
+    // Two resistors pushed together: their pads nearly touch (solder bridge).
+    Component* r1 = nullptr;
+    Component* r2 = nullptr;
+    for (auto& c : p.schematic.mutableComponents())
+        if (c.kind == ComponentKind::Resistor && c.hasFootprint()) (r1 ? r2 : r1) = r1 ? (r2 ? r2 : &c) : &c;
+    CHECK(r1 && r2);
+    r1->pcb.rotation = 0;
+    r2->pcb.rotation = 180;  // stacked, pads swapped: R2.2 over R1.1 — different nets face each other
+    double padH = 0;
+    for (const auto& pd : p.pcb.pads(p.schematic))
+        if (pd.componentId == r1->id) padH = pd.size.y;
+    r2->pcb.position = r1->pcb.position + Vec2{0, padH + 0.1};  // 0.1 mm between the pad rows
+    auto found = reliabilityChecks(p);
+    CHECK(has(found, "REL_ACID_TRAP"));
+    CHECK(has(found, "REL_VIA_ASPECT"));
+    CHECK(has(found, "REL_SOLDER_BRIDGE"));
+
+    // RF line width for 50 Ω (IPC-2141 microstrip on FR-4).
+    BoardSettings s;
+    s.layerCount = 2;
+    s.thickness = 1.6;
+    double w2 = microstripWidth(50, s);
+    CHECK(w2 > 2.6 && w2 < 3.2);
+    s.layerCount = 4;
+    double w4 = microstripWidth(50, s);
+    CHECK(w4 > 0.7 && w4 < 1.1);
+
+    // Verification has a Design for Reliability stage.
+    VerificationReport rep = verifyDesign(p);
+    bool stage = false;
+    for (const auto& st : rep.stages) stage |= st.id == "reliability";
+    CHECK(stage);
 }

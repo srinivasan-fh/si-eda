@@ -18,6 +18,7 @@
 #include "sieda/Industry.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
+#include "sieda/Reliability.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
 #include "sieda/Validation.hpp"
@@ -731,7 +732,10 @@ void sieda_pcb_clear_routing(SiedaProject* project) {
 char* sieda_pcb_run_drc(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
-        return dup(Project::violationsToJson(project->project.pcb.runDRC(project->project.schematic)).dump());
+        // Layout rules, then the design-for-reliability rules (leakage, thermal, SI/EMI, assembly, industry risks).
+        auto found = project->project.pcb.runDRC(project->project.schematic);
+        for (auto& v : reliabilityChecks(project->project)) found.push_back(std::move(v));
+        return dup(Project::violationsToJson(found).dump());
     } catch (const std::exception& e) {
         return errorJson(e);
     }
@@ -784,6 +788,14 @@ void sieda_pcb_set_auto_size_nets(SiedaProject* project, int32_t enabled) {
 int32_t sieda_pcb_set_solder_mask(SiedaProject* project, const char* colour) {
     if (!project || !colour || !findSolderMask(colour)) return 0;
     project->project.pcb.settings.solderMask = colour;
+    return 1;
+}
+
+int32_t sieda_pcb_set_coating(SiedaProject* project, const char* coating) {
+    if (!project || !coating) return 0;
+    const auto& all = conformalCoatings();
+    if (std::find(all.begin(), all.end(), coating) == all.end()) return 0;
+    project->project.pcb.settings.coating = coating;
     return 1;
 }
 

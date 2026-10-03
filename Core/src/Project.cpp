@@ -66,6 +66,7 @@ Json boardJson(const BoardSettings& s) {
     b["copperWeightOz"] = s.copperWeightOz;
     b["maxTempRise"] = s.maxTempRise;
     b["highAltitude"] = s.highAltitude;
+    b["coating"] = s.coating;
     b["solderMask"] = s.solderMask;
     Json widths = Json::object();
     for (const auto& [net, w] : s.netWidths) widths[net] = w;
@@ -245,6 +246,9 @@ Project Project::fromJson(const Json& root) {
     s.minHoleToHole = b.get("minHoleToHole").asNumber(s.minHoleToHole);
     s.copperWeightOz = std::max(0.5, b.get("copperWeightOz").asNumber(s.copperWeightOz));
     s.highAltitude = b.get("highAltitude").asBool(false);
+    s.coating = b.get("coating").asString("none");
+    if (std::find(conformalCoatings().begin(), conformalCoatings().end(), s.coating) == conformalCoatings().end())
+        s.coating = "none";
     s.solderMask = b.get("solderMask").asString("green");
     if (!findSolderMask(s.solderMask)) s.solderMask = "green";
     const Json& widths = b.get("netWidths");

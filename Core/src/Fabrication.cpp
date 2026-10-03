@@ -14,6 +14,7 @@
 #include <sstream>
 
 #include "sieda/Bom.hpp"
+#include "sieda/Reliability.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Json.hpp"
 #include "sieda/Mesh.hpp"
@@ -132,6 +133,8 @@ uint32_t crc32(const std::string& data) {
 }  // namespace
 
 std::string recommendedSurfaceFinish(const Project& project) {
+    std::string required = fabricationRequirements(project).finish;  // industry (no pure tin, RF silver …)
+    if (!required.empty()) return required;
     return facts(project).minPitch < 0.65 ? "ENIG" : "HASL lead-free";
 }
 
@@ -189,7 +192,10 @@ std::string exportGerberJob(const Project& project, const std::vector<FabFile>& 
     general["LayerNumber"] = layers;
     general["BoardThickness"] = s.thickness;
     std::string finish = recommendedSurfaceFinish(project);
-    general["Finish"] = finish == "ENIG" ? "ENIG" : "HAL Pb-free";
+    general["Finish"] = finish.rfind("ENIG", 0) == 0                     ? "ENIG"
+                        : finish.find("SnPb") != std::string::npos          ? "HAL SnPb"
+                        : finish.find("silver") != std::string::npos        ? "ImAg"
+                                                                            : "HAL Pb-free";
     root["GeneralSpecs"] = general;
 
     Json rules = Json::array();
@@ -234,8 +240,9 @@ std::string exportGerberJob(const Project& project, const std::vector<FabFile>& 
     double dielectric = layers > 1 ? (s.thickness - layers * cu) / (layers - 1) : s.thickness - cu;
     for (int i = 0; i < layers; ++i) {
         layer("Copper", "L" + std::to_string(i + 1), cu, "", "");
-        if (i < layers - 1 || layers == 1) layer("Dielectric", i == 0 ? "Core" : "Prepreg / core " + std::to_string(i + 1),
-                                                 dielectric, "", "FR4");
+        if (i < layers - 1 || layers == 1)
+            layer("Dielectric", i == 0 ? "Core" : "Prepreg / core " + std::to_string(i + 1), dielectric, "",
+                  project.industry == "space" ? "Polyimide" : "FR4");
     }
     if (layers > 1) {
         layer("SolderMask", "Bottom solder mask", 0.01, mask, "");
@@ -261,7 +268,8 @@ std::string fabricationNotes(const Project& project, const std::vector<FabFile>&
     o << "  Size                 " << fmt("%.2f", f.sizeX) << " x " << fmt("%.2f", f.sizeY) << " mm"
       << (s.hasCustomOutline() ? " (shaped outline — route along board-Edge_Cuts)" : " (rectangle)") << "\n";
     o << "  Layers               " << layers << (layers == 1 ? " (single-sided, copper on top)" : "") << "\n";
-    o << "  Material             FR-4, Tg 140 °C or better\n";
+    const FabricationRequirements req = fabricationRequirements(project);
+    o << "  Material             " << req.material << "\n";
     o << "  Thickness            " << fmt("%.2f", s.thickness) << " mm\n";
     o << "  Copper weight        " << fmt("%.1f", s.copperWeightOz) << " oz outer"
       << (layers > 2 ? ", " + fmt("%.1f", std::min(s.copperWeightOz, 1.0)) + " oz inner" : "") << "\n";
@@ -270,10 +278,14 @@ std::string fabricationNotes(const Project& project, const std::vector<FabFile>&
     o << "  Solder mask          " << colourName(s.solderMask) << (layers == 1 ? ", top only" : ", both sides")
       << "; vias tented\n";
     o << "  Silkscreen           " << silkColour(s) << ", top" << (f.partsBottom > 0 ? " and bottom" : "") << "\n";
-    o << "  IPC class            " << (s.rulePreset.find("Class 3") != std::string::npos ? "3" : "2")
-      << " (design rules: " << s.rulePreset << ")\n";
+    o << "  IPC class            " << req.ipcClass << " (IPC-6012 / IPC-A-610; design rules: " << s.rulePreset << ")\n";
+    o << "  Solder               " << req.solder << "\n";
+    o << "  Conformal coating    " << (s.coated() ? s.coating + " (IPC-CC-830)" : std::string("none")) << "\n";
     o << "  Electrical test      100 % (flying probe) against the IPC-D-356A netlist\n";
     o << "  Impedance control    none   Castellated holes: none   Edge connector: none\n\n";
+    o << "RELIABILITY (industry profile: " << project.industry << ")\n";
+    for (const auto& n : req.notes) o << "  - " << n << "\n";
+    o << "\n";
     o << "MINIMUM FEATURES (check against the fab's capabilities)\n";
     o << "  Track width          " << fmt("%.3f", f.minTrack) << " mm\n";
     o << "  Clearance            " << fmt("%.3f", s.clearance) << " mm (fab minimum checked by DRC: "

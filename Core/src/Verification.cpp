@@ -8,6 +8,7 @@
 
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
+#include "sieda/Reliability.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/Units.hpp"
@@ -243,6 +244,19 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
             st.details.push_back(buf);
         }
         report.stages.push_back(std::move(st));
+    }
+
+    // 6b. Design for reliability: leakage, thermal, signal integrity / EMI, assembly and the industry's risks.
+    {
+        VerificationStage rel{"reliability", "Design for Reliability", StageStatus::Pass, "", {}, {}};
+        rel.findings = reliabilityChecks(project);
+        rel.status = statusOf(rel.findings);
+        rel.summary = countSummary(rel.findings, "No reliability risks found");
+        FabricationRequirements req = fabricationRequirements(project);
+        rel.details.push_back("Material: " + req.material);
+        rel.details.push_back("Solder: " + req.solder + ", IPC Class " + std::to_string(req.ipcClass));
+        rel.details.push_back(std::string("Conformal coating: ") + (pcb.settings.coated() ? pcb.settings.coating : "none"));
+        report.stages.push_back(std::move(rel));
     }
 
     // 7. Manufacturing outputs: generate every file in memory and check it is complete.

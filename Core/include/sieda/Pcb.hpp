@@ -44,6 +44,9 @@ struct BoardSettings {
     double maxTempRise = 10.0;    // °C, IPC-2221 current-capacity target
     /// Above 3050 m (aircraft, space): voltage clearances use IPC-2221 Table 6-1 column B3 instead of B2.
     bool highAltitude = false;
+    /// Conformal coating applied after assembly ("none" or an IPC-CC-830 type, see conformalCoatings()).
+    std::string coating = "none";
+    bool coated() const { return !coating.empty() && coating != "none"; }
     /// Solder mask colour ordered from the fab: green (default), black, blue, red, yellow, white or purple.
     std::string solderMask = "green";
     /// Net classes: track width (mm) per net name, e.g. {"VBAT": 0.8} for motor and battery currents.
@@ -102,15 +105,27 @@ std::vector<Vec2> boardOutlinePreset(const std::string& kind, double w, double h
 /// IPC-2221 minimum track width (mm) for `amps` at `tempRise` °C with `oz` copper; inner layers derate by 2×.
 double ipc2221TrackWidth(double amps, double tempRise, double oz, bool innerLayer);
 
-/// IPC-2221 Table 6-1 minimum spacing (mm) between external uncoated conductors for a peak voltage difference:
-/// column B2 (sea level to 3050 m) or B3 (above 3050 m, e.g. space and avionics).
-double ipc2221Clearance(double volts, bool highAltitude);
+/// IPC-2221B Table 6-1 columns: B1 internal conductors; B2 external uncoated, sea level to 3050 m; B3 external
+/// uncoated above 3050 m; B4 external with permanent polymer coating; A5 external with conformal coating over the
+/// assembly; A6 external component lead / termination, uncoated; A7 component lead / termination, conformal coated.
+enum class Ipc2221Column { B1, B2, B3, B4, A5, A6, A7 };
+const char* ipc2221ColumnName(Ipc2221Column c);  // "B2", "A5", …
+/// Minimum conductor spacing (mm) for a peak voltage difference, from IPC-2221B Table 6-1 (per-volt above 500 V).
+double ipc2221Spacing(double volts, Ipc2221Column column);
+/// The spacing the board's external copper needs: A5 when the assembly is conformal coated (any altitude), otherwise
+/// B2 (sea level) or B3 (above 3050 m, e.g. space and avionics).
+double ipc2221Clearance(double volts, bool highAltitude, bool coated = false);
+Ipc2221Column externalSpacingColumn(bool highAltitude, bool coated);
+
+/// Conformal coatings (IPC-CC-830 / IPC-HDBK-830): "none", "acrylic" (AR), "silicone" (SR), "urethane" (UR),
+/// "epoxy" (ER), "parylene" (XY). Coating seals the surface against moisture, dust and contamination (surface leakage).
+const std::vector<std::string>& conformalCoatings();
 
 /// Voltage range (min, max) of every net: the DC operating point widened to SIN/PULSE source peaks. Empty when the
 /// circuit has no source, no ground or does not converge.
 std::map<int, std::pair<double, double>> netVoltageRanges(const Schematic& sch);
 /// IPC-2221 spacing for the largest potential difference on the board (0 when unknown).
-double voltageRoutingClearance(const Schematic& sch, bool highAltitude);
+double voltageRoutingClearance(const Schematic& sch, bool highAltitude, bool coated = false);
 
 /// Human-readable copper layer name ("Top", "Inner 1", "Bottom").
 std::string copperLayerName(int layer, int layerCount);

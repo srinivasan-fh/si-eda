@@ -718,6 +718,14 @@ final class DesignStore: ObservableObject {
                 .map { String(format: "%@ %.2f mm", $0.key, $0.value) }.joined(separator: ", ")
     }
 
+    /// Conformal coating applied after assembly (spacing column A5, fab notes, reliability checks). Undoable.
+    func setCoating(_ coating: ConformalCoating) {
+        guard coating != snapshot.board.conformalCoating else { return }
+        performChecked(coating == .none ? "No conformal coating" : "\(coating.title) conformal coating",
+                       invalidatesAnalysis: false) { $0.setCoating(coating) }
+        if !drcResults.isEmpty { runDRC() }
+    }
+
     /// Solder mask colour of the board (3D assembly view and fabrication order). Undoable.
     func setSolderMask(_ mask: SolderMaskColour) {
         guard mask != snapshot.board.mask else { return }

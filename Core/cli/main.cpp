@@ -11,6 +11,7 @@
 
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
+#include "sieda/Reliability.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/Units.hpp"
@@ -104,6 +105,7 @@ int main(int argc, char** argv) {
                 st.vias, st.trackLength);
     auto drc = project.pcb.runDRC(project.schematic);
     printViolations("Design Rule Check", drc);
+    printViolations("Design for Reliability", reliabilityChecks(project));
 
     VerificationReport verification = verifyDesign(project);
     std::printf("\n== Design verification: %s ==\n", stageStatusName(verification.verdict));
