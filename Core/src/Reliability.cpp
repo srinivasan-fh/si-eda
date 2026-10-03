@@ -11,6 +11,7 @@
 #include "sieda/Industry.hpp"
 #include "sieda/LengthMatch.hpp"
 #include "sieda/Library.hpp"
+#include "sieda/Robotics.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/Units.hpp"
@@ -367,6 +368,9 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
         for (const auto& hi : sch.components()) {
             if (hi.kind != ComponentKind::NMOS) continue;
             int hiSource = sch.netOf({hi.id, 2});
+            // A half-bridge midpoint is a switch node: never ground or a supply rail (an ideal-diode FET in the
+            // battery return shares ground with the low-side switches without forming a bridge).
+            if (hiSource < 0 || hiSource == sch.groundNet() || sch.netRole(hiSource) != NetRole::Signal) continue;
             for (const auto& lo : sch.components()) {
                 if (lo.kind != ComponentKind::NMOS || lo.id == hi.id) continue;
                 if (hiSource < 0 || sch.netOf({lo.id, 1}) != hiSource) continue;  // low-side drain = high-side source
@@ -496,7 +500,10 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
                 "creepage to IEC 62368-1 / 60664-1 and add routed slots where spacing is short.");
     }
 
-    if (!laidOut) return out;
+    if (!laidOut) {
+        for (auto& v : roboticsChecks(project)) out.push_back(std::move(v));  // schematic-level robot checks
+        return out;
+    }
 
     // ------------------------------------------------------------------ PCB layout reliability
     const double eps = 1e-6;
@@ -950,6 +957,8 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
             }
         }
     }
+    // Robotic systems: the seven design segments (power, compute, motion, sensors, comms, safety, mechanical).
+    for (auto& v : roboticsChecks(project)) out.push_back(std::move(v));
     return out;
 }
 

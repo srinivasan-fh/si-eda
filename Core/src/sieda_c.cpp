@@ -21,6 +21,7 @@
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/Reliability.hpp"
+#include "sieda/Robotics.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
@@ -681,6 +682,28 @@ int32_t sieda_set_component_embedded(SiedaProject* project, int32_t id, int32_t 
     return 1;
 }
 
+int32_t sieda_set_robot_platform(SiedaProject* project, const char* platform) {
+    if (!project || !platform) return 0;
+    std::string id = platform;
+    if (!id.empty() && !findRobotPlatform(id)) return 0;
+    project->project.robotPlatform = id;
+    return 1;
+}
+
+char* sieda_robot_segments_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(robotSegmentsJson(project->project).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_pcb_add_thermal_vias(SiedaProject* project, int32_t id) {
+    if (!project) return 0;
+    return addThermalVias(project->project, id);
+}
+
 int32_t sieda_pcb_lock_footprint(SiedaProject* project, int32_t id, int32_t locked) {
     if (!project) return 0;
     Component* c = project->project.schematic.find(id);
@@ -735,7 +758,10 @@ char* sieda_pcb_autoroute(SiedaProject* project) {
     try {
         project->project.pcb.autoPlace(project->project.schematic, false);
         RouteStats s = project->project.pcb.autoRoute(project->project.schematic);
+        // Robots: stitched thermal vias under the power FETs (motion-control segment).
+        const int thermal = autoThermalVias(project->project);
         Json j = Json::object();
+        j["thermalVias"] = thermal;
         j["connections"] = s.connections;
         j["routed"] = s.routed;
         j["failed"] = s.failed;

@@ -147,6 +147,13 @@ int32_t sieda_pcb_move_footprint(SiedaProject* project, int32_t component_id, do
 /* Embedded passive: forms a resistor / capacitor inside the board on inner copper layer `layer` (1 … layers-2;
  * a capacitor uses `layer` and `layer`+1); 0 makes it a surface part again. Returns 0 for other parts. */
 int32_t sieda_set_component_embedded(SiedaProject* project, int32_t component_id, int32_t layer);
+/* Robotics: sets the robot platform ("rover", "fpv", "arm", "quadruped", "humanoid"; "" = none). 0 if unknown. */
+int32_t sieda_set_robot_platform(SiedaProject* project, const char* platform);
+/* {"platform","applies","platforms":[{id,name,description,guidance}],"segments":[{id,name,status,items:[{label,ok,
+ * detail}],guidance}]} — the seven robot design segments checked on the current design. */
+char* sieda_robot_segments_json(const SiedaProject* project);
+/* Stitches thermal vias at a power part's largest pad (own net, clearance kept). Returns the vias added. */
+int32_t sieda_pcb_add_thermal_vias(SiedaProject* project, int32_t component_id);
 /* Locks a placed footprint so Auto Place (and Auto Route's placement) keeps it where it is. */
 int32_t sieda_pcb_lock_footprint(SiedaProject* project, int32_t component_id, int32_t locked);
 int32_t sieda_pcb_rotate_footprint(SiedaProject* project, int32_t component_id, int32_t delta_degrees);

@@ -407,6 +407,7 @@ private struct ProjectProperties: View {
                 PropertyRow(label: "Wires", value: "\(store.snapshot.wires.count)")
             }
             IndustryProperties()
+            RobotSystemProperties()
             PropertyGroup(title: "Board") {
                 PropertyRow(label: "Size", value: String(format: "%.1f × %.1f mm", store.snapshot.board.width, store.snapshot.board.height))
                 PropertyRow(label: "Layers", value: "\(store.snapshot.board.layerCount)")
@@ -440,6 +441,72 @@ private struct ProjectProperties: View {
         guard !trimmed.isEmpty, trimmed != original, original == store.snapshot.name else { return }
         original = trimmed
         store.setProjectName(trimmed)
+    }
+}
+
+/// Robot platform and the seven modular design segments (power, compute, motion, sensors, comms, safety,
+/// mechanical), each with its checklist evaluated on the current design.
+private struct RobotSystemProperties: View {
+    @EnvironmentObject private var store: DesignStore
+    @State private var expanded: Set<String> = []
+
+    var body: some View {
+        let report = store.robotSegments()
+        PropertyGroup(title: "Robot System Segments") {
+            Picker("Platform", selection: Binding(get: { store.snapshot.robotPlatform },
+                                                  set: { store.setRobotPlatform($0) })) {
+                Text("Not a robot").tag("")
+                ForEach(report.platforms) { Text($0.name).tag($0.id) }
+            }
+            .labelsHidden()
+            if let platform = report.platforms.first(where: { $0.id == store.snapshot.robotPlatform }) {
+                Text(platform.description).font(.caption).foregroundStyle(Theme.textSecondary)
+                ForEach(platform.guidance, id: \.self) { line in
+                    Label(line, systemImage: "lightbulb").font(.caption).foregroundStyle(Theme.textSecondary)
+                }
+            }
+            if report.applies {
+                ForEach(report.segments) { segment in
+                    DisclosureGroup(isExpanded: Binding(get: { expanded.contains(segment.id) },
+                                                        set: { if $0 { expanded.insert(segment.id) } else { expanded.remove(segment.id) } })) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            ForEach(segment.items) { item in
+                                Label {
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        Text(item.label).foregroundStyle(Theme.textPrimary)
+                                        Text(item.detail).foregroundStyle(Theme.textMuted)
+                                    }
+                                } icon: {
+                                    Image(systemName: item.ok ? "checkmark.circle.fill" : "circle.dashed")
+                                        .foregroundStyle(item.ok ? Color.green : Color.orange)
+                                }
+                                .font(.caption)
+                            }
+                            ForEach(segment.guidance, id: \.self) { Text($0).font(.caption2).foregroundStyle(Theme.textMuted) }
+                            if segment.id == "motion" {
+                                Button("Add Thermal Vias") { store.addThermalVias() }
+                                    .controlSize(.small)
+                                    .disabled(store.snapshot.pads.isEmpty)
+                                    .help("Stitch vias at the selected parts' drain / tab pads (every power MOSFET if none is selected)")
+                            }
+                        }
+                        .padding(.top, 2)
+                    } label: {
+                        HStack {
+                            Image(systemName: segment.status == "complete" ? "checkmark.seal.fill"
+                                  : segment.status == "partial" ? "circle.lefthalf.filled" : "circle")
+                                .foregroundStyle(segment.status == "complete" ? Color.green
+                                                 : segment.status == "partial" ? Color.orange : Theme.textMuted)
+                            Text(segment.name).font(.caption).foregroundStyle(Theme.textPrimary)
+                        }
+                    }
+                }
+            } else {
+                Text("Pick a platform (or the Robotics / UAV industry) to check the power, compute, motion, sensor, "
+                     + "communication, safety and mechanical segments.")
+                    .font(.caption).foregroundStyle(Theme.textMuted)
+            }
+        }
     }
 }
 

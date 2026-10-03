@@ -53,12 +53,18 @@ std::vector<std::pair<int, int>> differentialPairs(const Schematic& sch) {
         const std::string& name = entry.first;
         const int idx = entry.second;
         auto partner = [&](const std::string& pos, const std::string& neg) -> int {
-            if (name.size() <= pos.size() || name.compare(name.size() - pos.size(), pos.size(), pos) != 0) return -1;
+            // The whole name may be the suffix only for the field-bus forms ("CANH" / "CANL").
+            const bool bare = pos.rfind("CAN", 0) == 0;
+            if (name.size() < pos.size() + (bare ? 0 : 1) || name.compare(name.size() - pos.size(), pos.size(), pos) != 0)
+                return -1;
             auto it = byName.find(name.substr(0, name.size() - pos.size()) + neg);
             return it == byName.end() ? -1 : it->second;
         };
+        // Field buses are differential too: CANH / CANL and RS-485 / RS-422 A / B.
+        const bool rs485 = name.find("485") != std::string::npos || name.find("422") != std::string::npos;
         for (auto [pos, neg] : std::initializer_list<std::pair<const char*, const char*>>{
-                 {"_P", "_N"}, {"+", "-"}, {"_DP", "_DN"}, {"P", "N"}}) {
+                 {"_P", "_N"}, {"+", "-"}, {"_DP", "_DN"}, {"P", "N"}, {"CANH", "CANL"}, {"CAN_H", "CAN_L"}, {"_A", "_B"}}) {
+            if (std::string(pos) == "_A" && !rs485) continue;
             int other = partner(pos, neg);
             if (other >= 0 && sch.netRole(idx) == NetRole::Signal && sch.netRole(other) == NetRole::Signal) {
                 out.push_back({idx, other});

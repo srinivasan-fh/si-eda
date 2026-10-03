@@ -1,4 +1,5 @@
 #include "sieda/Pcb.hpp"
+#include "sieda/CustomParts.hpp"
 #include "sieda/Embedded.hpp"
 #include "sieda/LengthMatch.hpp"
 #include "sieda/Reliability.hpp"
@@ -30,6 +31,38 @@ bool quarterTurned(int rotation) { return ((rotation / 90) % 2 + 2) % 2 == 1; }
 
 /// Where a part sits: top (0) or bottom (1) surface, or inside the board on an inner layer (embedded passives).
 /// Courtyards only collide with parts on the same plane.
+/// Placement classes the auto-placer keeps apart: radios away from switching power (≥ 10 mm), and ceramic
+/// capacitors out of the flex zone around mounting holes (MLCC cracking).
+std::string upperName(const Component& c) {
+    std::string n = c.def().name;
+    if (c.kind == ComponentKind::Custom)
+        if (const CustomPart* p = CustomPartRegistry::instance().find(c.customPart)) n = p->spec.name;
+    for (auto& ch : n) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+    return n;
+}
+bool isRadioPart(const Component& c) {
+    if (c.kind != ComponentKind::Custom) return false;
+    const std::string n = upperName(c);
+    for (const char* k : {"NRF24", "ESP32", "ESP8266", "SX127", "SX126", "LORA", "CC1101", "RFM9"})
+        if (n.find(k) != std::string::npos) return true;
+    return false;
+}
+bool isImuPart(const Component& c) {
+    if (c.kind != ComponentKind::Custom) return false;
+    const std::string n = upperName(c);
+    for (const char* k : {"MPU-6050", "MPU6050", "MPU-9250", "ICM-", "BMI0", "BMI1", "BMI2", "LSM6", "BNO0"})
+        if (n.find(k) != std::string::npos) return true;
+    return false;
+}
+bool isSwitchingPart(const Component& c) {
+    if (c.kind == ComponentKind::NMOS || c.kind == ComponentKind::Inductor) return true;
+    if (c.kind != ComponentKind::Custom) return false;
+    const std::string n = upperName(c);
+    for (const char* k : {"IR2104", "IR2110", "L293", "ULN2003", "DRV8", "IRF", "UC3843", "L298"})
+        if (n.find(k) != std::string::npos) return true;
+    return false;
+}
+
 int mountPlane(const Component& c, const BoardSettings& s) {
     if (auto e = embeddedElement(c, s)) return 100 + e->layer;
     return c.pcb.bottom ? 1 : 0;
@@ -430,10 +463,15 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
             e.second += 1;
         }
         bool done = false;
+        // Radios and IMUs stay clear of switching power (noise, vibration).
+        const bool radio = isRadioPart(c) || isImuPart(c), switching = isSwitchingPart(c);
+        const bool mlcc = c.kind == ComponentKind::Capacitor;
         for (int growth = 0; growth < 20 && !done; ++growth) {
             double bestCost = std::numeric_limits<double>::max();
             Vec2 bestPos;
             int bestRot = 0;
+            // First with the spacing rules (radios / switching, MLCCs / holes); without them only if nothing fits.
+            for (int strict = 1; strict >= 0 && bestCost == std::numeric_limits<double>::max(); --strict)
             for (int rot : {0, 90}) {
                 c.pcb.rotation = rot;
                 c.pcb.bottom = false;
@@ -455,6 +493,23 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
                             if (courtyard(o).inflated(margin / 2 + escapeOf[o.id]).intersects(cy)) { clash = true; break; }
                         }
                         if (clash) continue;
+                        if (strict) {
+                            const Rect body = Rect::centered({x, y}, cy0.width(), cy0.height());
+                            if (mlcc)
+                                for (const auto& h : settings.holes)
+                                    if (pointRectDistance(h.position, body) < h.keepout / 2 + 2.0) clash = true;
+                            if (radio || switching)
+                                for (const auto& o : comps) {
+                                    if (o.id == c.id || !o.hasFootprint() || !o.pcb.placed) continue;
+                                    if (!((radio && isSwitchingPart(o)) || (switching && (isRadioPart(o) || isImuPart(o)))))
+                                        continue;
+                                    const Rect ob = courtyard(o);
+                                    const double dx = std::max({0.0, ob.x0 - body.x1, body.x0 - ob.x1});
+                                    const double dy = std::max({0.0, ob.y0 - body.y1, body.y0 - ob.y1});
+                                    if (std::hypot(dx, dy) < 10.0) { clash = true; break; }
+                                }
+                            if (clash) continue;
+                        }
                         // Cost: pad distances to the centroid of their nets, else pull toward board centre.
                         c.pcb.position = {x, y};
                         double cost = 0;

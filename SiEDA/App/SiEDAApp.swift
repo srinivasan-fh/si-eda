@@ -251,6 +251,16 @@ struct SiEDACommands: Commands {
             Button("Auto Route Board") { Task { await store.autoRouteBoard() } }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
             Button("Run Design Rule Check") { store.runDRC(); store.showChecks(.rules) }
+            Button("Add Thermal Vias") { store.addThermalVias() }
+                .help("Stitch vias at the selected (or every) power MOSFET's drain / tab pad")
+            Menu("Robot Platform") {
+                Toggle("Not a robot", isOn: Binding(get: { store.snapshot.robotPlatform.isEmpty },
+                                                    set: { if $0 { store.setRobotPlatform("") } }))
+                ForEach(store.robotSegments().platforms) { platform in
+                    Toggle(platform.name, isOn: Binding(get: { store.snapshot.robotPlatform == platform.id },
+                                                        set: { if $0 { store.setRobotPlatform(platform.id) } }))
+                }
+            }
             Menu("Industry Profile") {
                 ForEach(StandardLibrary.industries) { profile in
                     Toggle(profile.name, isOn: Binding(

@@ -970,6 +970,30 @@ final class DesignStore: ObservableObject {
         if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
     }
 
+    /// Robot platform ("" = not a robot): turns on the 7-segment robotics checks. Undoable.
+    func setRobotPlatform(_ id: String) {
+        guard id != snapshot.robotPlatform else { return }
+        perform(id.isEmpty ? "Not a robot" : "Robot platform: \(id)", invalidatesAnalysis: false) { $0.setRobotPlatform(id) }
+        verificationReport = nil
+        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+    }
+
+    func robotSegments() -> RobotSegmentsReport { engine.robotSegments() }
+
+    /// Stitches thermal vias at the selected parts' drain / tab pads (every power MOSFET when nothing is selected).
+    func addThermalVias() {
+        guard !isBusy else { return }
+        let fets = snapshot.components.filter { $0.componentKind == .nmos || $0.value.uppercased().hasPrefix("IRF") }
+        let targets = selection.isEmpty ? fets.map(\.id) : Array(selection)
+        var added = 0
+        perform("Added thermal vias", invalidatesAnalysis: false) { engine in
+            for id in targets { added += engine.addThermalVias(id) }
+        }
+        statusMessage = added > 0 ? "Added \(added) thermal via\(added == 1 ? "" : "s")"
+                                  : "No room for thermal vias (clearance, or vias inside pads need VIPPO)"
+        if !drcResults.isEmpty { runDRC() }
+    }
+
     /// Applies a design-rule preset (track/clearance/via design values and fabrication minimums).
     func applyRulePreset(_ preset: DesignRulePreset) {
         guard preset.name != snapshot.board.rulePreset else { return }

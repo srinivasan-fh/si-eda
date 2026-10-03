@@ -19,6 +19,9 @@ public:
     int buildQuantity = 5;
     std::string requirements;  // the prompt / PRD text the design was generated from
     std::string industry = "general";  // IndustryProfile id (derating, design rules, altitude class)
+    /// Robot platform ("rover", "fpv", "arm", "quadruped", "humanoid"; empty = not a robot): turns on the robotics
+    /// segment checks and their platform guidance.
+    std::string robotPlatform;
     Schematic schematic;
     PcbLayout pcb;
     /// Ids of custom parts (CustomPartRegistry) available in this project's component library.

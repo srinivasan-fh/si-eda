@@ -260,6 +260,18 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func setIndustry(_ id: String) -> Bool { withHandle { sieda_project_set_industry($0, id) } == 1 }
 
+    /// Robot platform ("rover", "fpv", "arm", "quadruped", "humanoid"; "" = none).
+    @discardableResult
+    func setRobotPlatform(_ id: String) -> Bool { withHandle { sieda_set_robot_platform($0, id) } == 1 }
+
+    func robotSegments() -> RobotSegmentsReport {
+        Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_robot_segments_json($0)) }) ?? .empty
+    }
+
+    /// Stitches thermal vias at a power part's drain / tab pad; returns the vias added.
+    @discardableResult
+    func addThermalVias(_ id: Int) -> Int { Int(withHandle { sieda_pcb_add_thermal_vias($0, Int32(id)) }) }
+
     static func designRulePresets() -> [DesignRulePreset] {
         decode([DesignRulePreset].self, from: take(sieda_design_rule_presets_json())) ?? []
     }

@@ -25,6 +25,7 @@
 #include "sieda/Project.hpp"
 #include "sieda/LengthMatch.hpp"
 #include "sieda/Reliability.hpp"
+#include "sieda/Robotics.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/StandardParts.hpp"
@@ -3138,4 +3139,98 @@ TEST(high_layer_count_and_computing_segments) {
     CHECK(fabricationRequirements(card).finish.find("hard") != std::string::npos);
     CHECK(findLaminate("megtron-7") && findLaminate("tachyon-100g"));
     CHECK(findLaminate("tachyon-100g")->er < findLaminate("megtron-6")->er);
+}
+
+TEST(robotics_segments_and_rules) {
+    CHECK(robotPlatforms().size() == 5);
+    CHECK(findRobotPlatform("quadruped") && findRobotPlatform("rover") && !findRobotPlatform("toaster"));
+    auto codes = [](const Project& p) {
+        std::set<std::string> out;
+        for (const auto& v : roboticsChecks(p)) out.insert(v.code);
+        return out;
+    };
+    // A 24 V motor drive: battery, low-side MOSFET switching an inductive load.
+    Project p;
+    auto& s = p.schematic;
+    int v = s.addComponent(ComponentKind::VoltageSource, "24", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    int bus = s.addComponent(ComponentKind::NetLabel, "VBUS", {60, -40});
+    int load = s.addComponent(ComponentKind::Inductor, "1m", {120, 0});
+    int q = s.addComponent(ComponentKind::NMOS, "AO3400", {200, 40});
+    wire(s, v, "-", g, "GND");
+    wire(s, bus, "N", load, "1");
+    wire(s, load, "2", q, "D");
+    wire(s, q, "S", g, "GND");
+    int direct = s.connect({v, 0}, {bus, 0});
+    p.schematicChanged();
+    CHECK(roboticsChecks(p).empty());  // not a robot project yet
+    p.robotPlatform = "arm";
+    auto c1 = codes(p);
+    CHECK(c1.count("REL_REVERSE_POLARITY") && c1.count("REL_NO_FUSE"));
+    // Series Schottky + fuse on the input clears both.
+    s.removeWire(direct);
+    int d = s.addComponent(ComponentKind::Diode, "SS34", {20, -40});
+    int f = s.addComponent(ComponentKind::Fuse, "5", {40, -40});
+    wire(s, v, "+", d, "A");
+    wire(s, d, "K", f, "1");
+    wire(s, f, "2", bus, "N");
+    p.schematicChanged();
+    auto c2 = codes(p);
+    CHECK(!c2.count("REL_REVERSE_POLARITY") && !c2.count("REL_NO_FUSE"));
+
+    // CAN bus: termination required between CANH and CANL.
+    int h = s.addComponent(ComponentKind::NetLabel, "CANH", {300, 0});
+    int l = s.addComponent(ComponentKind::NetLabel, "CANL", {300, 60});
+    int rt = s.addComponent(ComponentKind::Resistor, "1k", {340, 30});
+    wire(s, h, "N", rt, "1");
+    wire(s, l, "N", rt, "2");
+    p.schematicChanged();
+    CHECK(codes(p).count("REL_BUS_TERMINATION"));
+    s.find(rt)->value = "120";
+    CHECK(!codes(p).count("REL_BUS_TERMINATION"));
+    bool canPair = false;
+    for (auto [a, b] : differentialPairs(s)) canPair |= s.nets()[static_cast<size_t>(a)].name == "CANH";
+    CHECK(canPair);
+
+    // Analog ground: one star tie, not zero and not two.
+    int agnd = s.addComponent(ComponentKind::NetLabel, "AGND", {400, 0});
+    int r1 = s.addComponent(ComponentKind::Resistor, "10k", {440, 0});
+    wire(s, agnd, "N", r1, "1");
+    wire(s, r1, "2", bus, "N");
+    p.schematicChanged();
+    CHECK(codes(p).count("REL_STAR_GROUND"));  // floating
+    int fb = s.addComponent(ComponentKind::Inductor, "1u", {440, 60});
+    wire(s, agnd, "N", fb, "1");
+    wire(s, fb, "2", g, "GND");
+    p.schematicChanged();
+    CHECK(!codes(p).count("REL_STAR_GROUND"));
+    int fb2 = s.addComponent(ComponentKind::Inductor, "1u", {480, 60});
+    wire(s, agnd, "N", fb2, "1");
+    wire(s, fb2, "2", g, "GND");
+    p.schematicChanged();
+    CHECK(codes(p).count("REL_STAR_GROUND"));  // ground loop
+
+    // Segment report: seven segments, power complete only once a TVS joins the fuse and reverse protection.
+    auto segs = robotSegments(p);
+    CHECK(segs.size() == 7);
+    CHECK(segs[0].id == "power" && segs[0].status == "partial");
+    CHECK(robotSegmentsJson(p)["segments"].size() == 7);
+    Project saved = Project::fromJson(p.toJson());
+    CHECK(saved.robotPlatform == "arm");
+
+    // Thermal vias at an SMD power FET on a laid-out board.
+    p.pcb.settings.layerCount = 4;
+    p.pcb.settings.width = 60;
+    p.pcb.settings.height = 40;
+    p.pcb.autoPlace(s, true);
+    CHECK(p.pcb.autoRoute(s).failed == 0);
+    const size_t before = p.pcb.vias.size();
+    const int added = addThermalVias(p, q, 6);
+    CHECK(added > 0 && p.pcb.vias.size() == before + static_cast<size_t>(added));
+    int drainNet = s.netOf({q, 1});
+    for (size_t i = before; i < p.pcb.vias.size(); ++i) CHECK(p.pcb.vias[i].net == drainNet);
+    CHECK(p.pcb.ratsnest(s).empty());
+    int errors = 0;
+    for (const auto& e : p.pcb.runDRC(s)) errors += e.severity == Severity::Error;
+    CHECK(errors == 0);
 }
