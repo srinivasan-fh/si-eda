@@ -144,6 +144,18 @@ Pitches are 0.5 mm unless noted. Firmware can only be run in the simulator on th
 - **Delete / Backspace** removes the selected parts or wire wherever the keyboard focus is, except while you're typing in a text field.
 - **Real-time factor:** shown in the header. Heavy circuits or fine steps can run slower than real time.
 
+## Crash reports and recovery
+
+SiEDA keeps its diagnostics on your Mac and never uploads them (`~/Library/Application Support/SiEDA/Diagnostics`).
+
+- **Crash reports.** A crash (a Swift runtime trap, an invalid memory access, an abort or an uncaught exception) is written with a backtrace. Recent activity is recorded too: edits, opens, saves, workspace switches, hangs and memory warnings. If the app ended abnormally, the next launch turns this into a readable report and tells you. The newest 20 reports are kept; use **Help → Show Crash Reports** to see them.
+- **Recovery.** While a design has unsaved changes, it is autosaved a few seconds after you stop editing. The file is written in the background. After a crash, SiEDA offers to restore that work. Saving, or quitting normally, removes the autosave.
+- **Bounded memory.**
+  - Undo and redo keep at most 100 steps and 96 MB in total. On low memory, redo and the older half of undo are released.
+  - The X-ray textures are fixed-size 1× bitmaps, held in a shared cache that has a size limit.
+  - The panel textures are reused until the design changes.
+  - The board mini-map draws at most 8,000 tracks and 6,000 pads.
+
 ## Repository layout
 
 ```
