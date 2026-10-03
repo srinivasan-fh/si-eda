@@ -2109,6 +2109,26 @@ final class ReliabilityTests: XCTestCase {
         XCTAssertEqual(lengths.groups.first { $0.kind == "bus" }?.nets.count, 8)
     }
 
+    func testEmbeddedResistorMovesInsideTheBoard() throws {
+        let store = DesignStore()
+        DesignPlanCompiler.apply(OfflineProvider.templates[4].plan, to: store.engine, previous: nil)  // NPN LED driver
+        store.refresh()
+        store.setLayerCount(4)
+        store.autoPlace(all: true)
+        let resistor = try XCTUnwrap(store.snapshot.components.first { $0.componentKind == .resistor })
+        store.selection = [resistor.id]
+        store.setEmbedded(layer: 1)
+        let embedded = try XCTUnwrap(store.snapshot.components.first { $0.id == resistor.id })
+        XCTAssertEqual(embedded.pcb.embeddedLayer, 1)
+        // Its terminations are on inner layer 2, and it is listed as embedded (not assembled) in the BOM.
+        let pads = store.snapshot.pads.filter { $0.component == resistor.id }
+        XCTAssertEqual(pads.count, 2)
+        XCTAssertTrue(pads.allSatisfy { $0.layer == 1 })
+        XCTAssertEqual(store.engine.bom().lines.first { $0.componentIds.contains(resistor.id) }?.embedded, true)
+        store.undo()
+        XCTAssertFalse(store.snapshot.components.first { $0.id == resistor.id }?.pcb.isEmbedded ?? true)
+    }
+
     func testHDISettingsAreUndoableAndSaved() throws {
         let store = DesignStore()
         DesignPlanCompiler.apply(OfflineProvider.templates[5].plan, to: store.engine, previous: nil)

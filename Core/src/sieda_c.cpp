@@ -13,6 +13,7 @@
 #include <string>
 
 #include "sieda/Bom.hpp"
+#include "sieda/Embedded.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
 #include "sieda/Industry.hpp"
@@ -666,6 +667,16 @@ int32_t sieda_pcb_move_footprint(SiedaProject* project, int32_t id, double x, do
     if (!c || !c->hasFootprint()) return 0;
     c->pcb.position = {x, y};
     c->pcb.placed = true;
+    project->project.schematicChanged();
+    return 1;
+}
+
+int32_t sieda_set_component_embedded(SiedaProject* project, int32_t id, int32_t layer) {
+    if (!project || layer < 0) return 0;
+    Component* c = project->project.schematic.find(id);
+    if (!c || !canEmbed(*c)) return 0;
+    c->pcb.embeddedLayer = layer;
+    if (layer > 0) c->pcb.bottom = false;
     project->project.schematicChanged();
     return 1;
 }

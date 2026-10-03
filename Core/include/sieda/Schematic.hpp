@@ -24,6 +24,9 @@ struct PcbPlacement {
     bool placed = false;
     /// Locked by the designer (connectors, fixed mechanical parts, matched-length bus parts): Auto Place keeps it.
     bool locked = false;
+    /// Embedded passive: the inner copper layer it is formed on (1 … layers-2); 0 = an ordinary surface part.
+    int embeddedLayer = 0;
+    bool embedded() const { return embeddedLayer > 0; }
 };
 
 /// How a part is bought and fitted (BOM): who makes it, the orderable part number, the distributor / assembly-house

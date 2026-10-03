@@ -7,6 +7,7 @@
 #include <set>
 
 #include "sieda/CustomParts.hpp"
+#include "sieda/Embedded.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/LengthMatch.hpp"
 #include "sieda/Library.hpp"
@@ -798,6 +799,65 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
                     std::to_string(stubs.size()) + " via stub(s) will be backdrilled (backdrill file in the fabrication "
                     "package, longest " + fmt("%.2f mm", worst) + ").", {}, stubs.front().position, true);
         }
+    }
+    // Embedded passives: stack-up, achievable values, tolerance and power of the thin-film foil.
+    {
+        int count = 0;
+        for (const auto& c : sch.components()) {
+            if (!c.pcb.embedded() || !c.pcb.placed) continue;
+            const auto e = embeddedElement(c, s);
+            if (!e) {
+                add(Severity::Error, "REL_EMBEDDED_STACKUP",
+                    c.ref + " is set to be embedded on layer " + std::to_string(c.pcb.embeddedLayer + 1) + ", which this " +
+                        std::to_string(s.layerCount) + "-layer board does not have as an inner layer" +
+                        (c.kind == ComponentKind::Capacitor ? " pair (a buried capacitor needs two neighbouring inner layers)"
+                                                            : "") +
+                        ". Use 4+ layers, choose another inner layer, or make it a surface part.",
+                    {c.id}, c.pcb.position, true);
+                continue;
+            }
+            ++count;
+            if (!e->inRange)
+                add(Severity::Warning, "REL_EMBEDDED_RANGE",
+                    e->resistor
+                        ? c.ref + " (" + c.value + "): " + fmt("%.1f", e->squares) + " squares of " + fmt("%.0f", e->sheet) +
+                              " Ω/sq foil — outside the 0.3–40 squares a thin-film element can be made reliably. Keep it "
+                              "as a surface resistor."
+                        : c.ref + " (" + c.value + ") needs " + fmt("%.0f", e->area) + " mm² of buried-capacitance laminate (" +
+                              fmt("%.1f", e->width) + " mm square plates). Above ~5 nF use a surface capacitor, or a "
+                              "power / ground plane pair for distributed decoupling.",
+                    {c.id}, c.pcb.position, true);
+            if (e->resistor) {
+                // A tighter tolerance than the untrimmed foil needs laser trimming.
+                const auto pct = c.value.find('%');
+                if (pct != std::string::npos) {
+                    size_t b = pct;
+                    while (b > 0 && (std::isdigit(static_cast<unsigned char>(c.value[b - 1])) || c.value[b - 1] == '.')) --b;
+                    const double tol = b < pct ? std::atof(c.value.substr(b, pct - b).c_str()) : 0;
+                    if (tol > 0 && tol < kEmbeddedResistorTolerance)
+                        add(Severity::Warning, "REL_EMBEDDED_TOLERANCE",
+                            c.ref + " needs ±" + fmt("%g", tol) + " % but an untrimmed thin-film element is ±" +
+                                fmt("%.0f", kEmbeddedResistorTolerance) + " %. Order laser trimming (±2 %) or use a "
+                                "surface resistor.",
+                            {c.id}, c.pcb.position, true);
+                }
+                if (haveDc)
+                    for (const auto& d : dc.devices)
+                        if (d.componentId == c.id && std::fabs(d.power) > e->powerRating)
+                            add(Severity::Warning, "REL_EMBEDDED_POWER",
+                                c.ref + " dissipates " + fmt("%.0f mW", std::fabs(d.power) * 1e3) + " but its " +
+                                    fmt("%.2f", e->width) + " × " + fmt("%.2f", e->length) + " mm foil is rated " +
+                                    fmt("%.0f mW", e->powerRating * 1e3) + " (" +
+                                    fmt("%.1f W/mm²", kEmbeddedResistorWattsPerMm2) + "). Buried heat cannot escape: "
+                                    "use a lower sheet resistance (wider element) or a surface resistor.",
+                                {c.id}, c.pcb.position, true);
+            }
+        }
+        if (count > 0)
+            add(Severity::Info, "REL_EMBEDDED_PASSIVES",
+                std::to_string(count) + " embedded passive(s) are formed inside the board: no placement, shorter loops and "
+                "less inductance, but they cannot be reworked. The fab notes list foil / laminate and geometry; test each "
+                "element after lamination.");
     }
     // Length / phase matching of differential pairs and parallel buses.
     for (const auto& g : lengthGroups(sch, s)) {

@@ -173,6 +173,21 @@ private struct ComponentProperties: View {
                         PropertyRow(label: "Position", value: String(format: "%.2f, %.2f mm", component.pcb.x, component.pcb.y))
                         PropertyRow(label: "Rotation", value: "\(component.pcb.rotation)°")
                         PropertyRow(label: "Layer", value: component.pcb.bottom ? "Bottom" : "Top")
+                        if kind == .resistor || kind == .capacitor, store.snapshot.board.layerCount >= 4 {
+                            // Embedded passives: thin-film resistor foil / buried capacitance inside the stack-up.
+                            let inner = Array(1..<(store.snapshot.board.layerCount - (kind == .capacitor ? 2 : 1)))
+                            Picker("Mounting", selection: Binding(get: { component.pcb.embeddedLayer ?? 0 },
+                                                                  set: { store.setEmbedded(layer: $0) })) {
+                                Text("Surface").tag(0)
+                                ForEach(inner, id: \.self) { layer in
+                                    Text(kind == .capacitor ? "Embedded L\(layer + 1)–L\(layer + 2)" : "Embedded L\(layer + 1)")
+                                        .tag(layer)
+                                }
+                            }
+                            .font(.caption)
+                            .help(kind == .resistor ? "Thin-film resistive foil (25–250 Ω/sq) inside the board: no assembly, shortest loop"
+                                                    : "Buried-capacitance laminate between two inner layers (practical up to a few nF)")
+                        }
                         Toggle("Locked (Auto Place keeps it)", isOn: Binding(
                             get: { component.pcb.locked ?? false }, set: { store.setFootprintsLocked($0) }))
                             .font(.caption)

@@ -144,7 +144,7 @@ std::string exportPickAndPlaceCsv(const Schematic& sch) {
     std::ostringstream o;
     o << "Designator,Value,Footprint,Mid X (mm),Mid Y (mm),Rotation,Layer\n";
     for (const auto& c : sch.components()) {
-        if (!c.hasFootprint() || !c.pcb.placed) continue;
+        if (!c.hasFootprint() || !c.pcb.placed || c.pcb.embedded()) continue;  // embedded parts are not assembled
         o << c.ref << "," << csvEscape(c.value) << "," << csvEscape(footprintLabel(c)) << "," << mm(c.pcb.position.x) << ","
           << mm(c.pcb.position.y) << "," << c.pcb.rotation << "," << (c.pcb.bottom ? "Bottom" : "Top") << "\n";
     }
@@ -247,7 +247,7 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
         const bool bottomSide = layer == GerberLayer::BottomSilk;
         int ap = aperture(circle(0.15));
         for (const auto& c : sch.components()) {
-            if (!c.hasFootprint() || !c.pcb.placed || c.pcb.bottom != bottomSide) continue;
+            if (!c.hasFootprint() || !c.pcb.placed || c.pcb.bottom != bottomSide || c.pcb.embedded()) continue;
             Rect r = pcb.courtyard(c).inflated(-0.15);
             ops.push_back({ap, coord({r.x0, r.y0}) + "D02*\n" + coord({r.x1, r.y0}) + "D01*\n" + coord({r.x1, r.y1}) +
                                    "D01*\n" + coord({r.x0, r.y1}) + "D01*\n" + coord({r.x0, r.y0}) + "D01*"});
@@ -534,7 +534,7 @@ std::string exportAssemblyBomCsv(const Schematic& sch) {
     std::ostringstream o;
     o << "Comment,Designator,Footprint,Quantity,LCSC Part #,Manufacturer Part #\n";
     for (const auto& l : buildBom(sch)) {
-        if (l.sourcing.dnp) continue;
+        if (l.sourcing.dnp || l.embedded) continue;  // embedded passives are made in the PCB
         std::string joined;
         for (size_t i = 0; i < l.refs.size(); ++i) joined += (i ? "," : "") + l.refs[i];
         o << csvEscape(l.value.empty() ? l.type : l.value) << "," << csvEscape(joined) << "," << csvEscape(l.footprint) << ","
@@ -547,7 +547,8 @@ std::string exportCplCsv(const Schematic& sch, const PcbLayout& pcb) {
     std::ostringstream o;
     o << "Designator,Mid X,Mid Y,Layer,Rotation\n";
     for (const auto& c : sch.components()) {
-        if (!c.hasFootprint() || !c.pcb.placed || c.sourcing.dnp) continue;  // DNP parts are not placed
+        // DNP parts are not placed; embedded passives are made by the board house, not assembled.
+        if (!c.hasFootprint() || !c.pcb.placed || c.sourcing.dnp || c.pcb.embedded()) continue;
         // Same origin as the Gerbers: the board's lower-left corner, Y up.
         o << c.ref << "," << mm(c.pcb.position.x) << "mm,";
         o << mm(pcb.settings.height - c.pcb.position.y) << "mm," << (c.pcb.bottom ? "Bottom" : "Top") << "," << c.pcb.rotation << "\n";
@@ -590,12 +591,12 @@ std::string exportAssemblySvg(const Schematic& sch, const PcbLayout& pcb, bool b
           << "\" fill=\"white\" stroke=\"#222\" stroke-width=\"0.15\"/>\n";
     for (const auto& p : pcb.pads(sch)) {
         const Component* c = sch.find(p.componentId);
-        if (!c || c->pcb.bottom != bottom) continue;
+        if (!c || c->pcb.bottom != bottom || c->pcb.embedded()) continue;
         o << "<rect x=\"" << mm(p.position.x - p.size.x / 2) << "\" y=\"" << mm(p.position.y - p.size.y / 2) << "\" width=\""
           << mm(p.size.x) << "\" height=\"" << mm(p.size.y) << "\" fill=\"#c9c9c9\"/>\n";
     }
     for (const auto& c : sch.components()) {
-        if (!c.hasFootprint() || !c.pcb.placed || c.pcb.bottom != bottom) continue;
+        if (!c.hasFootprint() || !c.pcb.placed || c.pcb.bottom != bottom || c.pcb.embedded()) continue;
         Rect r = pcb.courtyard(c).inflated(-0.15);
         o << "<rect x=\"" << mm(r.x0) << "\" y=\"" << mm(r.y0) << "\" width=\"" << mm(r.x1 - r.x0) << "\" height=\""
           << mm(r.y1 - r.y0) << "\" fill=\"none\" stroke=\"#1b4f9c\" stroke-width=\"0.15\"/>\n";

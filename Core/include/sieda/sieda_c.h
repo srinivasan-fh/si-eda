@@ -144,6 +144,9 @@ void sieda_pcb_set_layer_count(SiedaProject* project, int32_t layers);
 /* all = 1 re-places every footprint; 0 only places footprints that are not on the board yet. */
 void sieda_pcb_autoplace(SiedaProject* project, int32_t all);
 int32_t sieda_pcb_move_footprint(SiedaProject* project, int32_t component_id, double x, double y);
+/* Embedded passive: forms a resistor / capacitor inside the board on inner copper layer `layer` (1 … layers-2;
+ * a capacitor uses `layer` and `layer`+1); 0 makes it a surface part again. Returns 0 for other parts. */
+int32_t sieda_set_component_embedded(SiedaProject* project, int32_t component_id, int32_t layer);
 /* Locks a placed footprint so Auto Place (and Auto Route's placement) keeps it where it is. */
 int32_t sieda_pcb_lock_footprint(SiedaProject* project, int32_t component_id, int32_t locked);
 int32_t sieda_pcb_rotate_footprint(SiedaProject* project, int32_t component_id, int32_t delta_degrees);

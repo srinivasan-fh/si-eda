@@ -1,4 +1,5 @@
 #include "sieda/Pcb.hpp"
+#include "sieda/Embedded.hpp"
 #include "sieda/LengthMatch.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Stackup.hpp"
@@ -26,6 +27,13 @@ Vec2 transformFootprintPoint(Vec2 p, const PcbPlacement& pl) {
 }
 
 bool quarterTurned(int rotation) { return ((rotation / 90) % 2 + 2) % 2 == 1; }
+
+/// Where a part sits: top (0) or bottom (1) surface, or inside the board on an inner layer (embedded passives).
+/// Courtyards only collide with parts on the same plane.
+int mountPlane(const Component& c, const BoardSettings& s) {
+    if (auto e = embeddedElement(c, s)) return 100 + e->layer;
+    return c.pcb.bottom ? 1 : 0;
+}
 }  // namespace
 
 const std::vector<DesignRulePreset>& designRulePresets() {
@@ -262,6 +270,10 @@ std::vector<Pad> PcbLayout::pads(const Schematic& sch) const {
     std::vector<Pad> out;
     for (const auto& c : sch.components()) {
         if (!c.hasFootprint() || !c.pcb.placed) continue;
+        if (auto e = embeddedElement(c, settings)) {  // formed inside the board: terminations / plates
+            for (auto& p : embeddedPads(c, *e, sch)) out.push_back(p);
+            continue;
+        }
         const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
         if (!fp) continue;
         int number = 1;
@@ -285,6 +297,7 @@ std::vector<Pad> PcbLayout::pads(const Schematic& sch) const {
 }
 
 Rect PcbLayout::courtyard(const Component& c) const {
+    if (auto e = embeddedElement(c, settings)) return e->bounds().inflated(0.6);
     const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
     if (!fp) return Rect::centered(c.pcb.position, 1, 1);
     double w = fp->courtyardW, h = fp->courtyardH;
@@ -438,6 +451,7 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
                         bool clash = false;
                         for (const auto& o : comps) {
                             if (o.id == c.id || !o.hasFootprint() || !o.pcb.placed) continue;
+                            if (mountPlane(o, settings) != mountPlane(c, settings)) continue;
                             if (courtyard(o).inflated(margin / 2 + escapeOf[o.id]).intersects(cy)) { clash = true; break; }
                         }
                         if (clash) continue;
@@ -1886,7 +1900,8 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     }
     for (size_t i = 0; i < placed.size(); ++i)
         for (size_t j = i + 1; j < placed.size(); ++j)
-            if (placed[i]->pcb.bottom == placed[j]->pcb.bottom && courtyard(*placed[i]).intersects(courtyard(*placed[j])))
+            if (mountPlane(*placed[i], settings) == mountPlane(*placed[j], settings) &&
+                courtyard(*placed[i]).intersects(courtyard(*placed[j])))
                 add(Severity::Warning, "DRC_COURTYARD_OVERLAP",
                     "Courtyards of " + placed[i]->ref + " and " + placed[j]->ref + " overlap.",
                     courtyard(*placed[i]).center(), {placed[i]->id, placed[j]->id});

@@ -927,6 +927,17 @@ final class DesignStore: ObservableObject {
         perform("Rotated footprint", invalidatesAnalysis: false) { engine in ids.forEach { engine.rotateFootprint($0) } }
     }
 
+    /// Embeds the selected resistors / capacitors on inner layer `layer` (0 = surface parts). Undoable.
+    func setEmbedded(layer: Int) {
+        let ids = selection
+        guard !isBusy, !ids.isEmpty else { return }
+        performChecked(layer > 0 ? "Embedded passive on layer \(layer + 1)" : "Surface-mounted part",
+                       invalidatesAnalysis: false, failureMessage: "Only resistors and capacitors can be embedded") { engine in
+            ids.allSatisfy { engine.setEmbedded($0, layer: layer) }
+        }
+        if !drcResults.isEmpty { runDRC() }
+    }
+
     /// Locks (or unlocks) the selected footprints so Auto Place keeps them. Undoable.
     func setFootprintsLocked(_ locked: Bool) {
         let ids = selection

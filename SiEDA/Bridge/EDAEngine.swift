@@ -350,6 +350,12 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_pcb_move_footprint($0, Int32(id), Double(point.x), Double(point.y)) } == 1
     }
 
+    /// Forms a resistor / capacitor inside the board on inner layer `layer` (0 = surface part again).
+    @discardableResult
+    func setEmbedded(_ id: Int, layer: Int) -> Bool {
+        withHandle { sieda_set_component_embedded($0, Int32(id), Int32(layer)) } == 1
+    }
+
     /// Locks a placed footprint so Auto Place keeps it.
     @discardableResult
     func lockFootprint(_ id: Int, _ locked: Bool) -> Bool {
