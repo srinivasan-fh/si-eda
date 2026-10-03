@@ -276,7 +276,6 @@ bool isRetailProject(const Project& project) { return !project.retailDevice.empt
 std::vector<RuleViolation> retailChecks(const Project& project) { return checks(project, !project.retailDevice.empty()); }
 
 std::vector<RobotSegment> retailSegments(const Project& project) {
-    const Schematic& sch = project.schematic;
     const BoardSettings& s = project.pcb.settings;
     const std::string cls = project.retailDevice;
     const Analysis a = analyse(project);
