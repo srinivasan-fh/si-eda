@@ -185,7 +185,8 @@ std::vector<BomLine> buildBom(const Schematic& sch) {
         line.componentIds.push_back(c.id);
     }
     std::vector<BomLine> lines;
-    for (auto& [key, line] : groups) {
+    for (auto& entry : groups) {
+        const BomLine& line = entry.second;
         std::vector<size_t> order(line.refs.size());
         for (size_t i = 0; i < order.size(); ++i) order[i] = i;
         std::sort(order.begin(), order.end(), [&](size_t a, size_t b) { return refLess(line.refs[a], line.refs[b]); });
