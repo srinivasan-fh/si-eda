@@ -119,7 +119,12 @@ struct OfflineProvider: AIProvider {
         return plan
     }
 
-    static let templates: [Template] = [
+    /// Reference designs. Split into several array literals: one literal of every template takes the Swift type
+    /// checker (and the emit-module step) far longer than a few concatenated ones.
+    static let templates: [Template] = Array([templates1, templates2, templates3, templates4, templates5, templates6,
+                                              templates7].joined())
+
+    private static let templates1: [Template] = [
         Template(
             keywords: ["led", "indicator", "light", "lamp"],
             plan: DesignPlan(
@@ -288,6 +293,9 @@ struct OfflineProvider: AIProvider {
             blocks: ["Power input", "PWM input", "Gate driver", "Load"],
             supply: 12,
             category: "Drivers"),
+    ]
+
+    private static let templates2: [Template] = [
         Template(
             keywords: ["regulator", "7805", "lm7805", "linear reg", "ldo"],
             plan: DesignPlan(
@@ -493,6 +501,9 @@ struct OfflineProvider: AIProvider {
             blocks: ["Power input", "Reference divider", "Buffer", "Load"],
             supply: 5,
             category: "Analog"),
+    ]
+
+    private static let templates3: [Template] = [
         Template(
             keywords: ["wheatstone", "bridge", "strain gauge", "strain-gauge", "load cell", "rtd"],
             plan: DesignPlan(
@@ -815,6 +826,9 @@ struct OfflineProvider: AIProvider {
             supply: 1,
             category: "RF",
             industry: "rf"),
+    ]
+
+    private static let templates4: [Template] = [
         Template(
             keywords: ["space", "satellite", "spacecraft", "cubesat", "payload", "launcher", "redundant supply", "or-ing", "oring"],
             plan: DesignPlan(
@@ -1413,6 +1427,9 @@ struct OfflineProvider: AIProvider {
             supply: 28,
             category: "Defence",
             industry: "defence"),
+    ]
+
+    private static let templates5: [Template] = [
         Template(
             keywords: ["networking", "network", "ethernet", " poe", "power over ethernet", "rj45", "802.3", " router", "telecom"],
             plan: DesignPlan(
@@ -1960,6 +1977,9 @@ struct OfflineProvider: AIProvider {
             supply: 48,
             category: "Supercomputers & AI",
             industry: "hpc"),
+    ]
+
+    private static let templates6: [Template] = [
         Template(
             keywords: [" arm ", "arm cortex", "cortex", "rp2040", "raspberry", " som ", "system on module", "compute module", "carrier board", "smarc", "com-hpc", "single board computer", " sbc", " soc"],
             plan: DesignPlan(
@@ -3343,6 +3363,9 @@ struct OfflineProvider: AIProvider {
             supply: 28,
             category: "Space",
             industry: "space"),
+    ]
+
+    private static let templates7: [Template] = [
         Template(
             keywords: ["naval", "navy", "warship", "battleship", "destroyer", "frigate", "submarine", "shipboard", "mil-std-1399", "mil-std-901", "mil-std-461", "mil-std-810", "salt fog", "salt-fog", "hull", "sonar", "hydrophone", "radar lna", "pin limiter", "ntds", "fiber optic", "fibre optic"],
             plan: DesignPlan(
