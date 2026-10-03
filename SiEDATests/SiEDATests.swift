@@ -1,3 +1,4 @@
+import SceneKit
 import SwiftUI
 import XCTest
 import UniformTypeIdentifiers
@@ -707,6 +708,12 @@ final class LiveWindowTests: XCTestCase {
         }
         watchdog.resume()
         defer { watchdog.cancel() }
+
+        // Show the 3D workspace in the X-ray hologram mode (HUD on by default), the heaviest scene the app builds.
+        let modeKey = "threeD.mode.v2"
+        let savedMode = UserDefaults.standard.object(forKey: modeKey)
+        UserDefaults.standard.set(Board3DWorkspace.Mode.xray.rawValue, forKey: modeKey)
+        defer { UserDefaults.standard.set(savedMode, forKey: modeKey) }
 
         let store = DesignStore()
         let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.LiveWindowTests")))
@@ -2394,5 +2401,411 @@ final class ReliabilityTests: XCTestCase {
         XCTAssertTrue(report.enabled)
         // Every group the report lists has members with names.
         for group in report.groups { XCTAssertFalse(group.nets.isEmpty) }
+    }
+}
+
+/// Holographic data panels in the X-ray stack: the toggle, the figures they chart, their textures and their layout.
+@MainActor
+final class XRayPanelTests: XCTestCase {
+    private func placedDesign() throws -> EDAEngine {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: engine, previous: nil)
+        engine.autoPlace(all: true)
+        return engine
+    }
+
+    func testPanelsToggleIsOffByDefaultAndRebuildsTheScene() {
+        var settings = XRaySettings()
+        XCTAssertFalse(settings.panels, "panels are opt-in")
+        XCTAssertTrue(settings.hud)
+        let before = settings.geometryKey
+        settings.panels = true
+        XCTAssertNotEqual(settings.geometryKey, before, "switching panels rebuilds the scene")
+        var spinning = settings
+        spinning.spin = true
+        XCTAssertEqual(spinning.geometryKey, settings.geometryKey, "spin only animates")
+    }
+
+    func testStatsFollowTheDesignAndRoutingProgress() throws {
+        let engine = try placedDesign()
+        let placed = try XCTUnwrap(engine.snapshot())
+        let before = XRayPanelStats(placed)
+        XCTAssertEqual(before.layerLengths.count, max(1, placed.board.layerCount))
+        XCTAssertGreaterThan(before.connections, 0)
+        XCTAssertEqual(before.unrouted, placed.ratsnest.count)
+        XCTAssertGreaterThan(before.unrouted, 0, "nothing is routed yet")
+        XCTAssertLessThan(before.completion, 1)
+
+        XCTAssertEqual(engine.autoRoute().failed, 0)
+        let routed = try XCTUnwrap(engine.snapshot())
+        let after = XRayPanelStats(routed)
+        XCTAssertEqual(after.unrouted, routed.ratsnest.count)
+        XCTAssertGreaterThan(after.completion, before.completion)
+        if routed.ratsnest.isEmpty { XCTAssertEqual(after.completion, 1, accuracy: 1e-12) }
+
+        // Copper length: per layer adds up to the total, which matches the tracks.
+        let length = routed.tracks.reduce(0) { $0 + hypot($1.bx - $1.ax, $1.by - $1.ay) }
+        XCTAssertGreaterThan(after.totalLength, 0)
+        XCTAssertEqual(after.totalLength, length, accuracy: 1e-6)
+        XCTAssertEqual(after.layerLengths.reduce(0, +), after.totalLength, accuracy: 1e-6)
+        XCTAssertTrue(after.layerLengths.allSatisfy { $0 >= 0 })
+
+        // Fan-out bins cover every multi-pin net once; power / ground counts follow the net roles.
+        let nets = routed.nets.filter { $0.pinCount >= 2 }
+        XCTAssertEqual(after.fanout.map { $0.0 }, XRayPanelStats.fanoutBins.map { $0.0 })
+        XCTAssertEqual(Int(after.fanout.reduce(0) { $0 + $1.1 }), nets.count)
+        XCTAssertEqual(after.powerNets, nets.filter { $0.netRole == .power }.count)
+        XCTAssertEqual(after.groundNets, nets.filter { $0.netRole == .ground }.count)
+        XCTAssertEqual(after.connections, nets.reduce(0) { $0 + $1.pinCount - 1 })
+
+        // Parts by prefix: most common first, never more than seven bars, never more parts than the design has.
+        XCTAssertFalse(after.partKinds.isEmpty)
+        XCTAssertLessThanOrEqual(after.partKinds.count, 7)
+        XCTAssertEqual(after.partKinds.map { $0.1 }, after.partKinds.map { $0.1 }.sorted(by: >))
+        XCTAssertLessThanOrEqual(Int(after.partKinds.reduce(0) { $0 + $1.1 }), routed.components.count)
+        XCTAssertTrue(after.partKinds.allSatisfy { !$0.0.isEmpty && $0.1 >= 1 })
+    }
+
+    func testCompletionIsClampedAndCountsAnEmptyBoardAsDone() throws {
+        var stats = XRayPanelStats(try XCTUnwrap(try placedDesign().snapshot()))
+        stats.connections = 0
+        stats.unrouted = 0
+        XCTAssertEqual(stats.completion, 1)
+        stats.connections = 10
+        stats.unrouted = 4
+        XCTAssertEqual(stats.completion, 0.6, accuracy: 1e-12)
+        stats.unrouted = 0
+        XCTAssertEqual(stats.completion, 1)
+        stats.unrouted = 15  // more ratsnest lines than estimated connections
+        XCTAssertEqual(stats.completion, 0)
+    }
+
+    func testPanelTexturesRender() throws {
+        let engine = try placedDesign()
+        _ = engine.autoRoute()
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        let images = XRayStackView.panelImages(snapshot, stats: XRayPanelStats(snapshot))
+        XCTAssertEqual(images.count, 5)
+        for (index, image) in images.enumerated() {
+            XCTAssertEqual(image.size, NSSize(width: 640, height: 420), "panel \(index)")
+            let tiff = try XCTUnwrap(image.tiffRepresentation, "panel \(index)")
+            let bitmap = try XCTUnwrap(NSBitmapImageRep(data: tiff))
+            // Something is drawn: the frame border (left edge, middle) and the glass body are not transparent.
+            let border = try XCTUnwrap(bitmap.colorAt(x: bitmap.pixelsWide * 10 / 640, y: bitmap.pixelsHigh / 2))
+            XCTAssertGreaterThan(border.alphaComponent, 0.3, "panel \(index) frame")
+            let body = try XCTUnwrap(bitmap.colorAt(x: bitmap.pixelsWide / 2, y: bitmap.pixelsHigh / 2))
+            XCTAssertGreaterThan(body.alphaComponent, 0, "panel \(index) glass")
+        }
+        // Empty designs still draw (no tracks, no nets, no parts).
+        let blank = try XCTUnwrap(EDAEngine().snapshot())
+        XCTAssertEqual(XRayStackView.panelImages(blank, stats: XRayPanelStats(blank)).count, 5)
+    }
+
+    func testPanelsStandOnAnArcBehindTheStack() throws {
+        let images = (0..<5).map { _ in NSImage(size: NSSize(width: 640, height: 420)) }
+        let span: CGFloat = 50, stackHeight: CGFloat = 12, floorY: CGFloat = -8
+        let nodes = XRayStackView.panelNodes(images, span: span, stackHeight: stackHeight, floorY: floorY)
+        XCTAssertEqual(nodes.count, 5)
+        var seen: [SCNVector3] = []
+        for (index, node) in nodes.enumerated() {
+            let p = node.position
+            XCTAssertEqual(hypot(p.x, p.z), span * 0.95, accuracy: 1e-3, "panel \(index) on the arc")
+            // Opposite the default camera at (+0.85, +1.15) × span in x / z, so it never blocks the board.
+            XCTAssertLessThan(p.x * 0.85 + p.z * 1.15, 0, "panel \(index) behind the stack")
+            XCTAssertGreaterThan(p.y, stackHeight, "panel \(index) above the top layer")
+            XCTAssertFalse(seen.contains { abs($0.x - p.x) < 1e-3 && abs($0.z - p.z) < 1e-3 }, "panel \(index) overlaps")
+            seen.append(p)
+
+            // Upright billboard, hidden until it unfolds.
+            let billboard = try XCTUnwrap(node.constraints?.first as? SCNBillboardConstraint)
+            XCTAssertEqual(billboard.freeAxes, .Y)
+            XCTAssertEqual(node.opacity, 0)
+            XCTAssertTrue(node.hasActions)
+
+            // Glass face sized to the panel, and a post whose base ring sits on the floor.
+            let face = try XCTUnwrap(node.childNodes.first?.geometry as? SCNPlane)
+            XCTAssertEqual(face.width, span * 0.32, accuracy: 1e-6)
+            XCTAssertEqual(face.height, span * 0.32 * 420 / 640, accuracy: 1e-6)
+            let base = try XCTUnwrap(node.childNodes.first { $0.geometry is SCNTorus })
+            XCTAssertEqual(p.y + base.position.y, floorY, accuracy: 1e-3)
+        }
+        // Staggered heights alternate.
+        XCTAssertNotEqual(nodes[0].position.y, nodes[1].position.y)
+        XCTAssertEqual(nodes[0].position.y, nodes[2].position.y, accuracy: 1e-6)
+    }
+}
+
+/// The X-ray stack hosted in a real window: the SceneKit scene gains the five holographic panels when the Panels
+/// switch is on and drops them when it is switched off, alongside the HUD.
+@MainActor
+final class XRayLiveSceneTests: XCTestCase {
+    private func spin(_ seconds: TimeInterval = 0.2) {
+        RunLoop.main.run(until: Date().addingTimeInterval(seconds))
+    }
+
+    private func sceneView(in view: NSView) -> SCNView? {
+        if let scene = view as? SCNView { return scene }
+        for child in view.subviews { if let found = sceneView(in: child) { return found } }
+        return nil
+    }
+
+    /// Panel roots: upright billboards carrying a torus base ring.
+    private func panelCount(_ scene: SCNScene) -> Int {
+        scene.rootNode.childNodes { node, _ in
+            (node.constraints?.contains { ($0 as? SCNBillboardConstraint)?.freeAxes == .Y } ?? false)
+                && node.childNodes.contains { $0.geometry is SCNTorus }
+        }.count
+    }
+
+    private func firstPanelTexture(_ scene: SCNScene) -> NSImage? {
+        let panel = scene.rootNode.childNodes { node, _ in node.childNodes.contains { $0.geometry is SCNTorus } }.first
+        return panel?.childNodes.first?.geometry?.firstMaterial?.emission.contents as? NSImage
+    }
+
+    func testPanelsToggleInALiveWindow() throws {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: engine, previous: nil)
+        engine.autoPlace(all: true)
+        XCTAssertEqual(engine.autoRoute().failed, 0)
+        let snapshot = try XCTUnwrap(engine.snapshot())
+
+        func stack(_ settings: XRaySettings) -> XRayStackView {
+            XRayStackView(engine: engine, snapshot: snapshot, revision: 1, settings: settings, resetToken: 0)
+        }
+        var settings = XRaySettings()
+        let host = NSHostingController(rootView: stack(settings))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 700),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        spin(0.5)
+
+        let view = try XCTUnwrap(sceneView(in: host.view), "the X-ray view hosts an SCNView")
+        let scene = try XCTUnwrap(view.scene)
+        XCTAssertEqual(panelCount(scene), 0, "panels are off by default")
+        XCTAssertGreaterThan(scene.rootNode.childNodes(passingTest: { _, _ in true }).count, 20, "the stack is built")
+
+        settings.panels = true
+        host.rootView = stack(settings)
+        spin(0.5)
+        XCTAssertEqual(panelCount(scene), 5, "Panels on")
+        XCTAssertTrue(window.isVisible)
+        let texture = try XCTUnwrap(firstPanelTexture(scene))
+
+        // Panels work without the HUD, and survive explode / layer changes.
+        settings.hud = false
+        settings.explode = 12
+        settings.hiddenLayers = [0]
+        host.rootView = stack(settings)
+        spin(0.3)
+        XCTAssertEqual(panelCount(scene), 5, "Panels without the HUD")
+        XCTAssertTrue(try XCTUnwrap(firstPanelTexture(scene)) === texture, "settings changes reuse the panel textures")
+
+        settings.panels = false
+        host.rootView = stack(settings)
+        spin(0.3)
+        XCTAssertEqual(panelCount(scene), 0, "Panels off again")
+    }
+}
+
+/// Crash reports, crash recovery and the memory / time bounds: reports are built after an abnormal end and never
+/// after a clean one, logs and report folders stay bounded, unsaved work survives a crash, the undo history keeps
+/// to its memory budget, hangs are logged, and the hologram textures are cached and fixed-size.
+@MainActor
+final class CrashAndResourceTests: XCTestCase {
+    private var directory: URL!
+
+    override func setUp() {
+        super.setUp()
+        directory = FileManager.default.temporaryDirectory.appendingPathComponent("SiEDA-diag-\(UUID().uuidString)")
+    }
+
+    override func tearDown() {
+        try? FileManager.default.removeItem(at: directory)
+        super.tearDown()
+    }
+
+    private func spin(_ seconds: TimeInterval) {
+        RunLoop.main.run(until: Date().addingTimeInterval(seconds))
+    }
+
+    // MARK: Crash reports
+
+    func testReportAfterACrashWithActivityAndBacktrace() throws {
+        let first = CrashReporter(directory: directory)
+        first.startSession()
+        XCTAssertNil(first.lastSessionReport, "nothing to report on a first launch")
+        first.breadcrumb("Auto-place")
+        first.breadcrumb("Workspace: 3D View")
+        first.recordFatal(kind: "Uncaught exception NSRangeException", reason: "index 7 beyond bounds",
+                          stack: ["0 SiEDA frameA", "1 SiEDA frameB"])
+        // No endSession(): the process "died". Next launch:
+        let second = CrashReporter(directory: directory)
+        second.startSession()
+        let url = try XCTUnwrap(second.lastSessionReport)
+        let report = try String(contentsOf: url, encoding: .utf8)
+        for expected in ["NSRangeException", "index 7 beyond bounds", "frameB", "Auto-place", "Workspace: 3D View",
+                         "Session started", "macOS:"] {
+            XCTAssertTrue(report.contains(expected), "report mentions \(expected)")
+        }
+        XCTAssertEqual(second.reports.map(\.lastPathComponent), [url.lastPathComponent])
+        // A clean quit leaves nothing to report.
+        second.endSession()
+        let third = CrashReporter(directory: directory)
+        third.startSession()
+        XCTAssertNil(third.lastSessionReport)
+        third.endSession()
+    }
+
+    func testAbnormalEndWithoutACapturedCrashIsStillReported() throws {
+        CrashReporter(directory: directory).startSession()  // e.g. force quit after a hang
+        let next = CrashReporter(directory: directory)
+        next.startSession()
+        let report = try String(contentsOf: try XCTUnwrap(next.lastSessionReport), encoding: .utf8)
+        XCTAssertTrue(report.contains("did not shut down normally"))
+        next.endSession()
+    }
+
+    func testSessionLogAndReportFolderStayBounded() throws {
+        let limit = 2048
+        let reporter = CrashReporter(directory: directory, maxReports: 3, maxLogBytes: limit)
+        reporter.startSession()
+        for k in 0..<2000 { reporter.breadcrumb("Edit number \(k) with some detail") }
+        let fm = FileManager.default
+        let logs = ["session.log", "session.1.log"].map { directory.appendingPathComponent($0).path }
+        let bytes = logs.reduce(0) { $0 + ((try? fm.attributesOfItem(atPath: $1))?[.size] as? Int ?? 0) }
+        XCTAssertLessThanOrEqual(bytes, 2 * limit, "log rotation keeps the log bounded")
+        XCTAssertGreaterThan(bytes, 0)
+
+        // Six crashed sessions keep only the newest three reports.
+        for _ in 0..<6 {
+            let r = CrashReporter(directory: directory, maxReports: 3, maxLogBytes: limit)
+            r.startSession()
+        }
+        let final = CrashReporter(directory: directory, maxReports: 3, maxLogBytes: limit)
+        final.startSession()
+        XCTAssertNotNil(final.lastSessionReport)
+        XCTAssertLessThanOrEqual(final.reports.count, 3)
+        final.endSession()
+    }
+
+    func testWatchdogLogsAHangAndTheRecovery() {
+        final class Lines: @unchecked Sendable {
+            private let lock = NSLock()
+            private var items: [String] = []
+            func add(_ line: String) { lock.lock(); items.append(line); lock.unlock() }
+            var all: [String] { lock.lock(); defer { lock.unlock() }; return items }
+        }
+        let lines = Lines()
+        let watchdog = MainThreadWatchdog(threshold: 0.5) { lines.add($0) }
+        watchdog.start()
+        defer { watchdog.stop() }
+        spin(0.4)
+        Thread.sleep(forTimeInterval: 1.5)  // block the main thread
+        spin(1.0)
+        let logged = lines.all
+        XCTAssertTrue(logged.contains { $0.hasPrefix("HANG") }, "\(logged)")
+        XCTAssertTrue(logged.contains { $0.contains("responsive again") }, "\(logged)")
+    }
+
+    // MARK: Crash recovery
+
+    private func addResistor(_ store: DesignStore, _ k: Int) {
+        store.perform("Add R\(k)") { _ = $0.addComponent(.resistor, value: "1k", at: CGPoint(x: 40 * k, y: 0)) }
+    }
+
+    func testUnsavedWorkIsAutosavedAndRestored() throws {
+        let store = DesignStore()
+        store.aiEnabled = false
+        let recovery = CrashRecovery(directory: directory.appendingPathComponent("Recovery"))
+        store.recoveryDelay = 0.1
+        store.recovery = recovery
+        XCTAssertNil(recovery.pending(), "a clean design has nothing to recover")
+
+        addResistor(store, 1)
+        addResistor(store, 2)
+        spin(0.5)  // debounced autosave fires once
+        let pending = try XCTUnwrap(recovery.pending())
+        XCTAssertNotNil(pending.savedAt)
+
+        // "After the crash": a fresh window restores it as unsaved work.
+        let restored = DesignStore()
+        restored.restoreRecovered(pending)
+        XCTAssertEqual(restored.snapshot.components.count, store.snapshot.components.count)
+        XCTAssertTrue(restored.isDirty)
+
+        // Opening a saved file (a clean state) removes the autosave.
+        let file = directory.appendingPathComponent("saved.siedaproj")
+        try store.engine.saveJSON().write(to: file, atomically: true, encoding: .utf8)
+        store.open(url: file)
+        XCTAssertFalse(store.isDirty)
+        recovery.flush()
+        XCTAssertNil(recovery.pending())
+    }
+
+    // MARK: Memory bounds
+
+    func testUndoHistoryKeepsToItsMemoryBudget() {
+        let store = DesignStore()
+        store.aiEnabled = false
+        addResistor(store, 0)
+        let step = store.engine.saveJSON().utf8.count
+        store.historyByteLimit = step * 4
+        for k in 1...30 { addResistor(store, k) }
+        XCTAssertGreaterThanOrEqual(store.undoDepth, 1, "the latest step is always kept")
+        XCTAssertLessThan(store.undoDepth, 30)
+        XCTAssertTrue(store.historyBytes <= store.historyByteLimit || store.undoDepth == 1)
+        // Undo and redo still work right at the limit: the newest step on each side is never trimmed.
+        let before = store.snapshot.components.count
+        store.undo()
+        XCTAssertTrue(store.canRedo, "undo at the memory limit keeps its redo step")
+        XCTAssertEqual(store.snapshot.components.count, before - 1)
+        store.redo()
+        XCTAssertEqual(store.snapshot.components.count, before)
+        store.undo()
+
+        // Memory pressure releases redo, and (critical) the older half of undo.
+        store.historyByteLimit = 96 * 1024 * 1024
+        for k in 31...40 { addResistor(store, k) }
+        store.undo()
+        XCTAssertTrue(store.canRedo)
+        let depth = store.undoDepth
+        NotificationCenter.default.post(name: .siedaMemoryPressure, object: nil, userInfo: ["critical": true])
+        spin(0.1)
+        XCTAssertFalse(store.canRedo)
+        XCTAssertEqual(store.undoDepth, depth - depth / 2)
+    }
+
+    func testHologramTexturesAreCachedAndFixedSize() throws {
+        HoloFX.clearTextureCache()
+        let ring = HoloFX.ringImage(colour: HoloFX.cyan, ticks: 72, segments: 9)
+        XCTAssertTrue(ring === HoloFX.ringImage(colour: HoloFX.cyan, ticks: 72, segments: 9), "cached")
+        XCTAssertFalse(ring === HoloFX.ringImage(colour: HoloFX.amber, ticks: 72, segments: 9), "keyed by colour")
+        let ringRep = try XCTUnwrap(ring.representations.first as? NSBitmapImageRep)
+        XCTAssertEqual(ringRep.pixelsWide, 512, "1× texture regardless of the screen")
+
+        let panel = HoloFX.panelImage(title: "Test", code: "X", accent: HoloFX.cyan) { _ in }
+        let rep = try XCTUnwrap(panel.representations.first as? NSBitmapImageRep)
+        XCTAssertEqual(rep.pixelsWide, 640)
+        XCTAssertEqual(rep.pixelsHigh, 420)
+        let hex = try XCTUnwrap(HoloFX.hexImage(colour: HoloFX.cyan).representations.first as? NSBitmapImageRep)
+        XCTAssertEqual(CGFloat(hex.pixelsWide), (sqrt(3) * 16 * 2 * 2).rounded(), "small tiles at 2×")
+    }
+
+    func testMiniMapAndStatsStayFastOnHugeBoards() {
+        // 200 000 tracks and 100 000 pads: drawing is capped, so it stays well under a second.
+        let tracks = (0..<200_000).map { k -> (CGPoint, CGPoint) in
+            let x = CGFloat(k % 500), y = CGFloat(k / 500)
+            return (CGPoint(x: x, y: y), CGPoint(x: x + 1, y: y))
+        }
+        let pads = (0..<100_000).map { CGPoint(x: CGFloat($0 % 400), y: CGFloat($0 / 400)) }
+        let start = Date()
+        let image = HoloFX.render(NSSize(width: 640, height: 420)) {
+            HoloFX.drawMiniMap(width: 500, height: 400, tracks: tracks, pads: pads, in: NSRect(x: 0, y: 0, width: 640, height: 420))
+        }
+        XCTAssertEqual(image.size, NSSize(width: 640, height: 420))
+        XCTAssertLessThan(Date().timeIntervalSince(start), 2.0)
     }
 }

@@ -11,6 +11,8 @@ struct XRaySettings: Equatable {
     var spin = false
     /// Cinematic HUD: call-outs over the key parts, data pillars, projector rings and particles.
     var hud = true
+    /// Holographic data panels on an arc behind the stack (layer copper, net topology, parts, routing, board map).
+    var panels = false
     var hiddenLayers: Set<Int> = []
 
     /// The settings that change the scene's geometry (spinning only animates the existing scene).
@@ -43,6 +45,10 @@ struct XRayStackView: NSViewRepresentable {
         var layerMeshes: [Int: MeshData] = [:]
         var meshRevision = -1
         var materialised = false  // the layer-by-layer materialise plays once per view
+        /// Panel textures of `panelRevision`: rebuilding for a settings change (explode slider, layer toggles)
+        /// reuses them; dropped as soon as Panels is switched off.
+        var panelImages: [NSImage] = []
+        var panelRevision = -1
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -257,6 +263,12 @@ struct XRayStackView: NSViewRepresentable {
             c.stack.addChildNode(motes)
             addCallouts(c, width: w, height: h)
         }
+        if settings.panels {
+            addPanels(c, width: w, height: h, floorY: floorY)
+        } else {
+            c.panelImages = []
+            c.panelRevision = -1
+        }
         HoloFX.flicker(c.stack)
         c.materialised = true
 
@@ -320,6 +332,71 @@ struct XRayStackView: NSViewRepresentable {
             cardNode.constraints = [SCNBillboardConstraint()]
             HoloFX.materialise(cardNode, delay: 1.0 + 0.2 * Double(index))
             c.stack.addChildNode(cardNode)
+        }
+    }
+
+    /// Holographic data panels standing on light posts in an arc behind the stack, opposite the default camera, each
+    /// unfolding in turn: copper per layer, net fan-out, parts by type, routing completion and a board mini-map.
+    private func addPanels(_ c: Coordinator, width w: CGFloat, height h: CGFloat, floorY: CGFloat) {
+        if c.panelRevision != revision || c.panelImages.isEmpty {
+            c.panelImages = Self.panelImages(snapshot, stats: XRayPanelStats(snapshot))
+            c.panelRevision = revision
+        }
+        for node in Self.panelNodes(c.panelImages, span: max(w, h), stackHeight: stackHeight, floorY: floorY) {
+            c.stack.addChildNode(node)
+        }
+    }
+
+    /// The five panel textures, in arc order.
+    static func panelImages(_ snapshot: DesignSnapshot, stats: XRayPanelStats) -> [NSImage] {
+        let layerRows = stats.layerLengths.enumerated().prefix(8).map { item -> (String, Double, String) in
+            ("L\(item.offset + 1) \(snapshot.board.layerName(item.offset).prefix(6).uppercased())", item.element,
+             String(format: "%.0f mm", item.element))
+        }
+        let segments = snapshot.tracks.map { (CGPoint(x: $0.ax, y: $0.ay), CGPoint(x: $0.bx, y: $0.by)) }
+        let pads = snapshot.pads.map { CGPoint(x: $0.x, y: $0.y) }
+        let unrouted = stats.unrouted
+        return [
+            HoloFX.panelImage(title: "Layer Stack", code: "CU-\(stats.layerLengths.count)L", accent: HoloFX.cyan) { r in
+                HoloFX.drawHBars(layerRows, in: r)
+            },
+            HoloFX.panelImage(title: "Net Topology", code: "PWR \(stats.powerNets) · GND \(stats.groundNets)",
+                              accent: HoloFX.amber) { r in
+                HoloFX.drawVBars(stats.fanout, in: r)
+            },
+            HoloFX.panelImage(title: "Components", code: "\(snapshot.components.count) PARTS", accent: HoloFX.cyan) { r in
+                HoloFX.drawVBars(stats.partKinds, in: r)
+            },
+            HoloFX.panelImage(title: "Routing", code: unrouted == 0 ? "COMPLETE" : "\(unrouted) OPEN",
+                              accent: unrouted == 0 ? HoloFX.cyan : HoloFX.amber) { r in
+                HoloFX.drawGauge(fraction: stats.completion, caption: "ROUTED",
+                                 rows: [("Tracks", "\(snapshot.tracks.count)"), ("Vias", "\(snapshot.vias.count)"),
+                                        ("Length", String(format: "%.0f mm", stats.totalLength)), ("Open", "\(unrouted)")],
+                                 in: r)
+            },
+            HoloFX.panelImage(title: "Board Map", code: String(format: "%.0f×%.0f MM", snapshot.board.width, snapshot.board.height),
+                              accent: HoloFX.amber) { r in
+                HoloFX.drawMiniMap(width: snapshot.board.width, height: snapshot.board.height, tracks: segments, pads: pads, in: r)
+            },
+        ]
+    }
+
+    /// Panels on an arc behind the board, centred opposite the default camera (which sits at +x, +z), each on a post
+    /// down to the holo-table floor.
+    static func panelNodes(_ images: [NSImage], span: CGFloat, stackHeight: CGFloat, floorY: CGFloat) -> [SCNNode] {
+        let radius = span * 0.95
+        let centre: CGFloat = atan2(-1.15, -0.85)
+        let panelWidth = span * 0.32
+        return images.enumerated().map { item -> SCNNode in
+            let index = item.offset, image = item.element
+            let t = CGFloat(index) / CGFloat(max(images.count - 1, 1)) - 0.5
+            let angle = centre + t * 2 * (70 * .pi / 180)
+            let y = stackHeight + span * (0.22 + 0.06 * CGFloat(index % 2))
+            let panelHeight = panelWidth * image.size.height / image.size.width
+            let node = HoloFX.panelNode(image: image, width: panelWidth, delay: 1.4 + 0.25 * Double(index),
+                                        postDepth: max(0, y - panelHeight / 2 - floorY))
+            node.position = SCNVector3(radius * cos(angle), y, radius * sin(angle))
+            return node
         }
     }
 
@@ -427,5 +504,67 @@ struct XRayStackView: NSViewRepresentable {
         core.materials = [hologram(NSColor.white, alpha: 0.9)]
         node.addChildNode(SCNNode(geometry: core))
         return node
+    }
+}
+
+/// The figures the holographic panels chart, derived from a design snapshot.
+struct XRayPanelStats {
+    /// Track length (mm) per copper layer.
+    var layerLengths: [Double]
+    /// Nets with at least two pins, binned by pin count.
+    var fanout: [(String, Double)]
+    var powerNets: Int
+    var groundNets: Int
+    /// Part counts by reference prefix (R, C, U…), most common first, at most seven.
+    var partKinds: [(String, Double)]
+    /// Connections still on the ratsnest, and the connections all multi-pin nets need.
+    var unrouted: Int
+    var connections: Int
+    var totalLength: Double
+
+    /// Routed fraction of the connections, 0…1.
+    var completion: Double {
+        connections > 0 ? max(0, 1 - Double(unrouted) / Double(max(connections, unrouted))) : 1
+    }
+
+    static let fanoutBins: [(String, ClosedRange<Int>)] = [("2", 2...2), ("3", 3...3), ("4-5", 4...5), ("6-9", 6...9),
+                                                            ("10+", 10...Int.max)]
+
+    init(_ snapshot: DesignSnapshot) {
+        let layerCount = max(1, snapshot.board.layerCount)
+        var lengths = [Double](repeating: 0, count: layerCount)
+        for t in snapshot.tracks where t.layer >= 0 && t.layer < layerCount {
+            lengths[t.layer] += hypot(t.bx - t.ax, t.by - t.ay)
+        }
+        layerLengths = lengths
+        totalLength = lengths.reduce(0, +)
+
+        // One pass over the nets: O(nets), no intermediate arrays.
+        var bins = [Int](repeating: 0, count: Self.fanoutBins.count)
+        var power = 0, ground = 0, needed = 0
+        for net in snapshot.nets where net.pinCount >= 2 {
+            if let bin = Self.fanoutBins.firstIndex(where: { $0.1.contains(net.pinCount) }) { bins[bin] += 1 }
+            switch net.netRole {
+            case .power: power += 1
+            case .ground: ground += 1
+            default: break
+            }
+            needed += net.pinCount - 1
+        }
+        fanout = zip(Self.fanoutBins, bins).map { ($0.0.0, Double($0.1)) }
+        powerNets = power
+        groundNets = ground
+        connections = needed
+
+        var kinds: [String: Int] = [:]
+        for part in snapshot.components {
+            let prefix = String(part.ref.prefix { $0.isLetter }).uppercased()
+            kinds[prefix.isEmpty ? "?" : prefix, default: 0] += 1
+        }
+        // O(k log k) over distinct prefixes only.
+        partKinds = kinds.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+            .prefix(7).map { ($0.key, Double($0.value)) }
+
+        unrouted = snapshot.ratsnest.count
     }
 }

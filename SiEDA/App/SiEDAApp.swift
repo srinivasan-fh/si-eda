@@ -5,10 +5,81 @@ import SwiftUI
 /// files handed over by Finder, the Dock or Open Recent.
 final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var store: DesignStore? {
-        didSet { openPending() }
+        didSet {
+            if let store, store !== oldValue { attachDiagnostics(to: store) }
+            openPending()
+        }
     }
     /// A file opened before the window (and its store) existed — opened as soon as the store is attached.
     private var pendingURL: URL?
+    private var crashReporter: CrashReporter?
+    private let watchdog = MainThreadWatchdog()
+    private let memoryMonitor = MemoryPressureMonitor()
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // Unit tests drive the app themselves: no handlers, monitors or launch dialogs there.
+        guard !CrashReporter.isRunningTests else { return }
+        crashReporter = CrashReporter.installShared()
+        watchdog.start()
+        memoryMonitor.start()
+    }
+
+    @MainActor
+    func applicationWillTerminate(_ notification: Notification) {
+        watchdog.stop()
+        memoryMonitor.stop()
+        // A clean quit: unsaved changes were saved or deliberately discarded, so there is nothing to recover.
+        if let recovery = store?.recovery {
+            recovery.clear()
+            recovery.flush()
+        }
+        crashReporter?.endSession()
+    }
+
+    /// After an abnormal end of the previous session: offers the work that was autosaved and the crash report, then
+    /// starts autosaving this session's unsaved work.
+    private func attachDiagnostics(to store: DesignStore) {
+        guard let reporter = crashReporter else { return }
+        let recovery = CrashRecovery(directory: reporter.recoveryDirectory)
+        let report = reporter.lastSessionReport
+        let pending = recovery.pending()
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                if report != nil || pending != nil {
+                    Self.offerRecovery(report: report, pending: pending, store: store)
+                }
+                if pending != nil && !store.isDirty { recovery.clear() }  // declined or not restorable
+                store.recovery = recovery
+            }
+        }
+    }
+
+    @MainActor
+    private static func offerRecovery(report: URL?, pending: CrashRecovery.Pending?, store: DesignStore) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = report != nil ? "SiEDA quit unexpectedly" : "Unsaved work was recovered"
+        var info = report != nil ? "A crash report was saved on this Mac (nothing is sent anywhere)." : ""
+        if let pending {
+            let when = pending.savedAt.map { DateFormatter.localizedString(from: $0, dateStyle: .none, timeStyle: .short) }
+            info += (info.isEmpty ? "" : "\n\n") + "Unsaved changes" + (when.map { " from \($0)" } ?? "")
+                + " can be restored" + (pending.documentURL.map { " to “\($0.lastPathComponent)”" } ?? "") + "."
+        }
+        alert.informativeText = info
+        var actions: [() -> Void] = []
+        if let pending {
+            alert.addButton(withTitle: "Restore Unsaved Work")
+            actions.append { store.restoreRecovered(pending) }
+        }
+        if let report {
+            alert.addButton(withTitle: "Show Report")
+            actions.append { NSWorkspace.shared.activateFileViewerSelecting([report]) }
+        }
+        alert.addButton(withTitle: pending != nil ? "Discard" : "OK")
+        actions.append {}
+        let index = alert.runModal().rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        if actions.indices.contains(index) { actions[index]() }
+    }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
@@ -211,6 +282,14 @@ struct SiEDACommands: Commands {
                 if TextEditingFocus.isActive { TextEditingFocus.send("redo:") } else { store.redo() }
             }
             .keyboardShortcut("z", modifiers: [.command, .shift])
+        }
+        CommandGroup(after: .help) {
+            Button("Show Crash Reports") {
+                let folder = (CrashReporter.shared?.directory ?? CrashReporter.defaultDirectory)
+                    .appendingPathComponent("Reports", isDirectory: true)
+                try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                NSWorkspace.shared.open(folder)
+            }
         }
         CommandGroup(after: .toolbar) {
             let canvas = store.workspace.hasCanvas
