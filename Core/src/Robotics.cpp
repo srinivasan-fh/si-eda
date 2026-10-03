@@ -633,7 +633,7 @@ int addThermalVias(Project& project, int componentId, int maxVias) {
     const Pad* big = comp ? heatPad(pads, *comp) : nullptr;
     if (!big) return 0;
     const double drill = std::max(0.3, s.minDrill), dia = std::max(drill + 2 * s.minAnnularRing, 0.6), pitch = dia + 0.5;
-    const Rect area = big->bounds().inflated(big->throughHole ? 2.0 : 1.5);
+    const Rect area = big->bounds().inflated(2.5);
     const Pad bigPad = *big;
     auto fits = [&](Vec2 p) {
         if (s.edgeDistance(p) < s.edgeClearance + dia / 2 || s.holeDistance(p) < dia / 2) return false;
@@ -646,13 +646,15 @@ int addThermalVias(Project& project, int componentId, int maxVias) {
         for (const auto& t : pcb.tracks)
             if (t.net != bigPad.net && pointSegmentDistance(p, t.a, t.b) - t.width / 2 - dia / 2 < s.clearance) return false;
         for (const auto& v : pcb.vias)
-            if ((v.position - p).length() - (v.diameter + dia) / 2 < (v.net == bigPad.net ? 0.15 : s.clearance)) return false;
+            if ((v.position - p).length() < (v.net == bigPad.net ? pitch : (v.diameter + dia) / 2 + s.clearance)) return false;
         return true;
     };
     int added = 0;
     std::vector<Vec2> cand;
-    for (double y = area.y0 + dia / 2; y <= area.y1 - dia / 2 + 1e-9; y += pitch)
-        for (double x = area.x0 + dia / 2; x <= area.x1 - dia / 2 + 1e-9; x += pitch) cand.push_back({x, y});
+    // A fine search grid: the array keeps its pitch, but every gap around the pad can be used.
+    const double step = 0.25;
+    for (double y = area.y0 + dia / 2; y <= area.y1 - dia / 2 + 1e-9; y += step)
+        for (double x = area.x0 + dia / 2; x <= area.x1 - dia / 2 + 1e-9; x += step) cand.push_back({x, y});
     // Closest to the pad first: under an SMD pad the via is in the copper; outside it a short track joins it.
     std::sort(cand.begin(), cand.end(), [&](Vec2 a, Vec2 b) {
         return pointRectDistance(a, bigPad.bounds()) < pointRectDistance(b, bigPad.bounds());
