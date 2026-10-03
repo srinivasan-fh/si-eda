@@ -23,38 +23,6 @@ int pinNamed(const Component& c, std::initializer_list<const char*> names) {
     return -1;
 }
 
-bool connectsTo(const Schematic& sch, int net, const std::vector<const Component*>& parts) {
-    if (net < 0) return false;
-    for (const Component* c : parts)
-        for (int i = 0; i < static_cast<int>(c->def().pins.size()); ++i)
-            if (sch.netOf({c->id, i}) == net) return true;
-    return false;
-}
-
-/// Nets with a capacitor to ground.
-bool decoupled(const Schematic& sch, int net, const std::vector<const Component*>& caps) {
-    for (const Component* c : caps) {
-        const int a = sch.netOf({c->id, 0}), b = sch.netOf({c->id, 1});
-        if ((a == net && b == sch.groundNet()) || (b == net && a == sch.groundNet())) return true;
-    }
-    return false;
-}
-
-/// A series inductor between two decoupled nodes on the supply input (C–L–C pi filter).
-bool hasPiFilter(const Schematic& sch, const Parts& parts) {
-    for (const Component* l : parts.inductors) {
-        const int a = sch.netOf({l->id, 0}), b = sch.netOf({l->id, 1});
-        if (a < 0 || b < 0 || a == sch.groundNet() || b == sch.groundNet()) continue;
-        if (!decoupled(sch, a, parts.caps) || !decoupled(sch, b, parts.caps)) continue;
-        // One side faces the battery: the source, its fuse, reverse-protection diode or TVS.
-        std::vector<const Component*> front = parts.sources;
-        for (auto* v : {&parts.fuses, &parts.tvs, &parts.diodes, &parts.efuses})
-            front.insert(front.end(), v->begin(), v->end());
-        if (connectsTo(sch, a, front) || connectsTo(sch, b, front)) return true;
-    }
-    return false;
-}
-
 struct CrankResult {
     double worstNeed = 0;  // battery voltage the most demanding battery-fed regulator needs
     std::string ref;

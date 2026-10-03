@@ -157,6 +157,19 @@ int32_t sieda_set_ecu_type(SiedaProject* project, const char* type);
 /* The six automotive ECU segments checked on the design (same shape as sieda_robot_segments_json). */
 char* sieda_ecu_segments_json(const SiedaProject* project);
 /// Aerospace mission ("leo", "geo", "launcher", "military", "commercial"; "" = none). Returns 0 for an unknown id.
+/// Mechanical build: board thickness in mm (≤ 0 keeps it, otherwise 0.4–6.4) and underfill / corner bonding of heavy parts.
+int32_t sieda_pcb_set_mechanical(SiedaProject* project, double thickness, int32_t underfill);
+/// Isolation barrier spacing between galvanic domains in mm (0 = none, up to 25): placement, routing, pours and DRC
+/// keep that far apart (8 = 2 × MOPP, 4 = 1 × MOPP).
+int32_t sieda_pcb_set_isolation_gap(SiedaProject* project, double gap);
+/// Naval platform ("combatant", "carrier", "submarine", "patrol", "commercial"; "" = none). 0 for an unknown id.
+/// Medical device class ("bf", "cf", "life", "implant", "home"; "" = none). 0 for an unknown id.
+int32_t sieda_set_medical_class(SiedaProject* project, const char* cls);
+/// The four medical segments, same JSON shape as sieda_robot_segments_json. Caller frees.
+char* sieda_medical_segments_json(const SiedaProject* project);
+int32_t sieda_set_naval_platform(SiedaProject* project, const char* platform);
+/// The five naval segments, same JSON shape as sieda_robot_segments_json. Caller frees.
+char* sieda_naval_segments_json(const SiedaProject* project);
 int32_t sieda_set_aerospace_mission(SiedaProject* project, const char* mission);
 /// The five aerospace segments, same JSON shape as sieda_robot_segments_json. Caller frees.
 char* sieda_aerospace_segments_json(const SiedaProject* project);

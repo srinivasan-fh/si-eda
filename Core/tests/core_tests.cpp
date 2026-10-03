@@ -26,6 +26,9 @@
 #include "sieda/LengthMatch.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Aerospace.hpp"
+#include "sieda/Isolation.hpp"
+#include "sieda/Medical.hpp"
+#include "sieda/Naval.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Robotics.hpp"
 #include "sieda/Stackup.hpp"
@@ -3420,4 +3423,138 @@ TEST(aerospace_segments_rules_and_isolated_power) {
     CustomPartSpec spec = customPartSpecFromJson(customPartSpecToJson(findStandardPart("ISO-DCDC-2805S")->spec));
     CHECK(spec.model.regulator.isolated() && spec.model.regulator.inReturn == "2");
     CHECK_NEAR(spec.model.regulator.efficiency, 0.82, 1e-9);
+}
+
+TEST(naval_segments_and_rules) {
+    auto partId = [](const char* name) {
+        return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec)->id;
+    };
+    CHECK(navalPlatforms().size() == 5 && findNavalPlatform("submarine") && !findNavalPlatform("yacht"));
+    auto codes = [](const Project& p) {
+        std::set<std::string> out;
+        for (const auto& v : navalChecks(p))
+            if (v.severity != Severity::Info) out.insert(v.code);
+        return out;
+    };
+    Project p;
+    auto& s = p.schematic;
+    int v = s.addComponent(ComponentKind::VoltageSource, "28", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    int u = s.addCustomComponent(partId("ATmega328P"), "", {200, 0});
+    wire(s, v, "-", g, "GND");
+    wire(s, v, "+", u, "7");
+    wire(s, u, "8", g, "GND");
+    p.schematicChanged();
+    CHECK(navalChecks(p).empty());
+    p.industry = "marine";
+    CHECK(!navalChecks(p).empty() && codes(p).empty());  // advisory only
+    p.navalPlatform = "combatant";
+    auto c1 = codes(p);
+    for (const char* code : {"REL_SHIP_ISOLATION", "REL_SURGE_FRONT_END", "REL_SALT_FOG_COATING", "REL_HERMETIC",
+                             "REL_SHOCK_UNDERFILL", "REL_SHOCK_MOUNTING", "REL_SHOCK_SUBSTRATE", "REL_FIBER_LINK"})
+        CHECK(c1.count(code));
+    // Board build: coating, underfill, thick polyimide, close mounting holes.
+    p.pcb.settings.coating = "parylene";
+    p.pcb.settings.underfill = true;
+    p.pcb.settings.thickness = 2.4;
+    p.pcb.settings.layerCount = 8;
+    p.pcb.settings.material = "polyimide";
+    p.pcb.settings.clearance = 0.25;
+    for (double x : {10.0, 70.0})
+        for (double y : {10.0, 70.0}) p.pcb.settings.holes.push_back({{x, y}, 3.2, 6.4});
+    auto c2 = codes(p);
+    for (const char* code : {"REL_SALT_FOG_COATING", "REL_SHOCK_UNDERFILL", "REL_SHOCK_MOUNTING", "REL_SHOCK_SUBSTRATE",
+                             "REL_ECM_SPACING"})
+        CHECK(!c2.count(code));
+    // A radar LNA needs a PIN limiter on its input.
+    int lna = s.addCustomComponent(partId("LNA-MMIC"), "", {400, 0});
+    int in = s.addComponent(ComponentKind::NetLabel, "LNA_IN", {360, 0});
+    wire(s, lna, "RFIN", in, "N");
+    wire(s, lna, "GND", g, "GND");
+    p.schematicChanged();
+    CHECK(codes(p).count("REL_LNA_LIMITER"));
+    int d = s.addComponent(ComponentKind::Diode, "BAP64-02", {380, 60});
+    wire(s, d, "A", in, "N");
+    wire(s, d, "K", g, "GND");
+    p.schematicChanged();
+    CHECK(!codes(p).count("REL_LNA_LIMITER"));
+    auto segs = navalSegments(p);
+    CHECK(segs.size() == 5 && segs[2].id == "mechanical" && segs[2].status == "complete");
+    CHECK(navalSegmentsJson(p)["segments"].size() == 5);
+    CHECK(Project::fromJson(p.toJson()).navalPlatform == "combatant");
+    CHECK(Project::fromJson(p.toJson()).pcb.settings.underfill);
+}
+
+TEST(galvanic_domains_and_isolation_barrier) {
+    auto partId = [](const char* name) {
+        return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec)->id;
+    };
+    // System side: 5 V → isolated converter → patient side with a resistor load; an isolator crosses too.
+    Project p;
+    auto& s = p.schematic;
+    int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    int dc = s.addCustomComponent(partId("ISO-DCDC-MED"), "", {200, 0});
+    int pg = s.addComponent(ComponentKind::NetLabel, "PGND", {300, 100});
+    int load = s.addComponent(ComponentKind::Resistor, "1k", {400, 0});
+    int ecg = s.addComponent(ComponentKind::NetLabel, "ECG_RA", {500, 0});
+    int rin = s.addComponent(ComponentKind::Resistor, "10k", {500, 60});
+    wire(s, v, "-", g, "GND");
+    wire(s, v, "+", dc, "+VIN");
+    wire(s, dc, "-VIN", g, "GND");
+    wire(s, dc, "+VOUT", load, "1");
+    wire(s, dc, "-VOUT", pg, "N");
+    wire(s, load, "2", pg, "N");
+    wire(s, ecg, "N", rin, "1");
+    wire(s, rin, "2", pg, "N");
+    p.schematicChanged();
+    const GalvanicDomains doms = galvanicDomains(s);
+    const int sys = doms.domainOfNet(s.netOf({v, 0})), pat = doms.domainOfNet(s.netOf({load, 0}));
+    CHECK(sys >= 0 && pat >= 0 && sys != pat);
+    CHECK(doms.domainOfNet(s.netOf({rin, 0})) == pat);
+    CHECK(doms.domainOfComponent(s, *s.find(dc)) == -1 && doms.domainOfComponent(s, *s.find(load)) == pat);
+    {
+        DcResult dcr = Simulator(s).dcOperatingPoint();  // 3.0–5.5 V in, isolated 5 V out
+        CHECK(dcr.converged);
+        CHECK_NEAR(netV(s, dcr, load, "1") - netV(s, dcr, load, "2"), 5.0, 0.05);
+    }
+    // Medical rules: patient barrier present; 2 × MOPP creepage asked of the board.
+    p.medicalClass = "cf";
+    std::set<std::string> c1;
+    for (const auto& x : medicalChecks(p))
+        if (x.severity != Severity::Info) c1.insert(x.code);
+    CHECK(!c1.count("REL_PATIENT_ISOLATION") && c1.count("REL_MOPP_CREEPAGE") && c1.count("REL_DEFIB_PROTECTION"));
+    // A Y-capacitor across the barrier merges the domains: the patient is no longer isolated.
+    int ycap = s.addComponent(ComponentKind::Capacitor, "4.7n", {300, 200});
+    wire(s, ycap, "1", pg, "N");
+    wire(s, ycap, "2", g, "GND");
+    p.schematicChanged();
+    std::set<std::string> c2;
+    for (const auto& x : medicalChecks(p))
+        if (x.severity != Severity::Info) c2.insert(x.code);
+    CHECK(c2.count("REL_PATIENT_ISOLATION"));
+    s.removeComponent(ycap);
+    p.schematicChanged();
+
+    // Layout: with an 8 mm barrier the domains are placed, routed and poured 8 mm apart and DRC proves it.
+    p.pcb.settings.isolationGap = 8;
+    p.pcb.settings.layerCount = 2;
+    p.pcb.settings.width = 60;
+    p.pcb.settings.height = 40;
+    p.pcb.zones.push_back({"GND", 1, false, 0});
+    p.pcb.autoPlace(s, true);
+    CHECK(p.pcb.autoRoute(s).failed == 0);
+    int gapErrors = 0;
+    for (const auto& x : p.pcb.runDRC(s)) gapErrors += x.code == "DRC_ISOLATION_GAP";
+    CHECK(gapErrors == 0);
+    // A patient-side part moved next to the system side is caught.
+    const Vec2 next = s.find(v)->pcb.position + Vec2{3, 0};
+    for (auto& c : s.mutableComponents())
+        if (c.id == load) c.pcb.position = next;
+    p.pcb.clearRouting();
+    int after = 0;
+    for (const auto& x : p.pcb.runDRC(s)) after += x.code == "DRC_ISOLATION_GAP";
+    CHECK(after > 0);
+    CHECK(Project::fromJson(p.toJson()).pcb.settings.isolationGap == 8);
+    CHECK(Project::fromJson(p.toJson()).medicalClass == "cf");
 }

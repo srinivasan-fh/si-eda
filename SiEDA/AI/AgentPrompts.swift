@@ -142,6 +142,18 @@ enum AgentPrompts {
         on harness pins), avionics buses (SpaceWire via UT54LVDS031 / 032 with 100 Ω receiver termination; \
         transformer-coupled dual MIL-STD-1553; ARINC 429 with TVS) and RF (SMA at the board edge, 50 Ω, "material" \
         "rogers-4350b", GND plane).
+        - Naval / navy (destroyer, carrier, submarine, patrol, commercial marine): set "industry" "marine" and \
+        "navalPlatform"; the ship's supply returns on RTN through a fuse, S14K35 varistor, GDT-90V tubes to CHASSIS, TVS \
+        and pi filter into an isolated DC-DC; a hermetic ceramic MCU (ATmegaS128); board "coating" "parylene", \
+        "thickness" 2.4, "underfill" true, 8 layers of "polyimide", mounting holes ≤ 75 mm apart; fibre links \
+        (FO-TX-820 / FO-RX-820) and RS-485 on an isolated domain (ISO-DCDC-0505S + ADuM1201 + MAX485); radar LNAs behind \
+        BAP64 PIN limiter diodes; hydrophone nets HYD_* on an AGND tied to GND by one ferrite.
+        - Medical (BF / CF / life-support / implant / home): set "industry" "medical" and "medicalClass"; the patient \
+        side (nets named ECG_*, EEG_*, ELECTRODE…) sits on its own isolated domain powered by ISO-DCDC-MED with data \
+        through ADuM4401 (5 kV, 2 × MOPP) and board "isolationGap" 8; each lead gets GDT-90V + TVS + 10 kΩ series \
+        resistor (defibrillator-proof), an INA333 front end and a driven-right-leg op-amp on a net named ECG_DRL; \
+        windowed watchdog and lockstep MCU for life-support; DW01A + NTC on any Li-ion cell; ESD diodes on every \
+        connector pin; BLE with a 50 Ω feed over a GND plane.
         - Put design calculations and assumptions in notes.
         \(industryCatalog)
         """

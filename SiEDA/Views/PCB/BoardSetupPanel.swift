@@ -118,6 +118,28 @@ struct BoardSetupPanel: View {
                            + "connectors and test points before coating.")
                         .font(.caption).foregroundStyle(Theme.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
+                    Picker("Board thickness", selection: Binding(get: { board.thickness },
+                                                                 set: { store.setMechanical(thickness: $0) })) {
+                        ForEach([0.8, 1.0, 1.6, 2.0, 2.4, 3.2], id: \.self) { Text(String(format: "%.1f mm", $0)).tag($0) }
+                        if ![0.8, 1.0, 1.6, 2.0, 2.4, 3.2].contains(board.thickness) {
+                            Text(String(format: "%.2f mm", board.thickness)).tag(board.thickness)
+                        }
+                    }
+                    Picker("Isolation barrier", selection: Binding(get: { board.isolationGap },
+                                                                   set: { store.setIsolationGap($0) })) {
+                        Text("None").tag(0.0)
+                        Text("2.5 mm (functional)").tag(2.5)
+                        Text("4 mm (1 × MOPP)").tag(4.0)
+                        Text("8 mm (2 × MOPP)").tag(8.0)
+                        if ![0.0, 2.5, 4.0, 8.0].contains(board.isolationGap) {
+                            Text(String(format: "%.1f mm", board.isolationGap)).tag(board.isolationGap)
+                        }
+                    }
+                    .help("Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) "
+                          + "keep this creepage apart; DRC checks it")
+                    Toggle("Underfill / corner-bond heavy parts (shock)", isOn: Binding(
+                        get: { board.underfill }, set: { store.setMechanical(underfill: $0) }))
+                        .help("Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off")
                 }
                 section("Net Classes", systemImage: "line.3.horizontal") {
                     Toggle("Autorouter sizes power nets from the simulation (IPC-2221)", isOn: Binding(

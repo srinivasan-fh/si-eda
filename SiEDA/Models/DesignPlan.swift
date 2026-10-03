@@ -24,11 +24,16 @@ struct DesignPlan: Codable, Equatable {
     var ecuType: String?
     /// Aerospace mission ("leo", "geo", "launcher", "military", "commercial"): turns on the 5-segment aerospace checks.
     var aerospaceMission: String?
+    /// Naval platform ("combatant", "carrier", "submarine", "patrol", "commercial"): turns on the 5-segment naval checks.
+    var navalPlatform: String?
+    /// Medical device class ("bf", "cf", "life", "implant", "home"): turns on the 4-segment medical checks.
+    var medicalClass: String?
 
     init(title: String, summary: String, components: [PlannedComponent], connections: [PlannedConnection],
          notes: [String] = [], board: PlannedBoard = PlannedBoard(), industry: String? = nil,
          pours: [PlannedPour] = [], netClasses: [PlannedNetClass] = [], noConnect: [String] = [],
-         robotPlatform: String? = nil, ecuType: String? = nil, aerospaceMission: String? = nil) {
+         robotPlatform: String? = nil, ecuType: String? = nil, aerospaceMission: String? = nil,
+         navalPlatform: String? = nil, medicalClass: String? = nil) {
         self.title = title
         self.summary = summary
         self.components = components
@@ -42,6 +47,8 @@ struct DesignPlan: Codable, Equatable {
         self.robotPlatform = robotPlatform
         self.ecuType = ecuType
         self.aerospaceMission = aerospaceMission
+        self.navalPlatform = navalPlatform
+        self.medicalClass = medicalClass
     }
 
     init(from decoder: Decoder) throws {
@@ -59,10 +66,12 @@ struct DesignPlan: Codable, Equatable {
         robotPlatform = try c.decodeIfPresent(String.self, forKey: .robotPlatform)
         ecuType = try c.decodeIfPresent(String.self, forKey: .ecuType)
         aerospaceMission = try c.decodeIfPresent(String.self, forKey: .aerospaceMission)
+        navalPlatform = try c.decodeIfPresent(String.self, forKey: .navalPlatform)
+        medicalClass = try c.decodeIfPresent(String.self, forKey: .medicalClass)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case title, summary, components, connections, notes, board, industry, pours, netClasses, noConnect, robotPlatform, ecuType, aerospaceMission
+        case title, summary, components, connections, notes, board, industry, pours, netClasses, noConnect, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass
     }
 
     func jsonString(pretty: Bool = true) -> String {
@@ -150,12 +159,21 @@ struct PlannedBoard: Codable, Equatable {
     /// Controlled-impedance targets (Ω); 0 keeps the current ones (85 PCIe, 90 USB, 100 Ethernet / SerDes).
     var singleEndedOhms: Double
     var differentialOhms: Double
+    /// Conformal coating ("parylene", "silicone", …); empty keeps the current one.
+    var coating: String
+    /// Board thickness in mm; 0 keeps it.
+    var thickness: Double
+    /// Underfill / corner bonding of heavy parts; nil keeps the current setting.
+    var underfill: Bool?
+    /// Isolation barrier spacing between galvanic domains (mm); 0 keeps the current one.
+    var isolationGap: Double
 
     /// Defaults describe a fresh rectangular board without holes (reference designs); refinement plans built from
     /// the current design pass "keep" / −1 explicitly.
     init(width: Double = 50, height: Double = 40, layers: Int = 0, outline: String = "rectangle",
          outlineParameter: Double = 0, mountingHoleSpacing: Double = 0, material: String = "", backdrill: Bool = false,
-         singleEndedOhms: Double = 0, differentialOhms: Double = 0) {
+         singleEndedOhms: Double = 0, differentialOhms: Double = 0, coating: String = "", thickness: Double = 0,
+         underfill: Bool? = nil, isolationGap: Double = 0) {
         self.width = width
         self.height = height
         self.layers = layers
@@ -166,6 +184,10 @@ struct PlannedBoard: Codable, Equatable {
         self.backdrill = backdrill
         self.singleEndedOhms = singleEndedOhms
         self.differentialOhms = differentialOhms
+        self.coating = coating
+        self.thickness = thickness
+        self.underfill = underfill
+        self.isolationGap = isolationGap
     }
 
     init(from decoder: Decoder) throws {
@@ -180,11 +202,15 @@ struct PlannedBoard: Codable, Equatable {
         backdrill = try c.decodeIfPresent(Bool.self, forKey: .backdrill) ?? false
         singleEndedOhms = try c.decodeIfPresent(Double.self, forKey: .singleEndedOhms) ?? 0
         differentialOhms = try c.decodeIfPresent(Double.self, forKey: .differentialOhms) ?? 0
+        coating = try c.decodeIfPresent(String.self, forKey: .coating) ?? ""
+        thickness = try c.decodeIfPresent(Double.self, forKey: .thickness) ?? 0
+        underfill = try c.decodeIfPresent(Bool.self, forKey: .underfill)
+        isolationGap = try c.decodeIfPresent(Double.self, forKey: .isolationGap) ?? 0
     }
 
     private enum CodingKeys: String, CodingKey {
         case width, height, layers, outline, outlineParameter, mountingHoleSpacing, material, backdrill
-        case singleEndedOhms, differentialOhms
+        case singleEndedOhms, differentialOhms, coating, thickness, underfill, isolationGap
     }
 }
 
@@ -294,6 +320,10 @@ enum DesignSchemas {
                             "description": "Automotive ECU type: turns on the 6-segment ECU checks"] as [String: Any],
                 "aerospaceMission": ["type": "string", "enum": ["leo", "geo", "launcher", "military", "commercial"],
                                      "description": "Aerospace mission: turns on the 5-segment aerospace checks"] as [String: Any],
+                "navalPlatform": ["type": "string", "enum": ["combatant", "carrier", "submarine", "patrol", "commercial"],
+                                  "description": "Naval platform: turns on the 5-segment naval checks"] as [String: Any],
+                "medicalClass": ["type": "string", "enum": ["bf", "cf", "life", "implant", "home"],
+                                 "description": "Medical device class: turns on the 4-segment medical checks"] as [String: Any],
                 "title": ["type": "string"],
                 "summary": ["type": "string"],
                 "components": [
@@ -348,6 +378,12 @@ enum DesignSchemas {
                         "singleEndedOhms": ["type": "number", "description": "Single-ended impedance target; 0 keeps"],
                         "differentialOhms": ["type": "number",
                                              "description": "Differential impedance: 85 PCIe, 90 USB, 100 Ethernet/SerDes; 0 keeps"],
+                        "coating": ["type": "string", "enum": ["", "none", "acrylic", "silicone", "urethane", "epoxy", "parylene"],
+                                    "description": "Conformal coating; empty keeps"] as [String: Any],
+                        "thickness": ["type": "number", "description": "Board thickness in mm (1.6 standard, 2.4 for shock); 0 keeps"],
+                        "underfill": ["type": "boolean", "description": "Underfill / corner-bond heavy parts (shock, vibration)"],
+                        "isolationGap": ["type": "number",
+                                         "description": "Creepage between galvanic domains in mm (8 = 2 × MOPP patient barrier); 0 keeps"],
                     ] as [String: Any],
                 ] as [String: Any],
             ] as [String: Any],
@@ -429,6 +465,12 @@ enum DesignPlanCompiler {
         if let mission = plan.aerospaceMission, !engine.setAerospaceMission(mission) {
             report.warnings.append("Unknown aerospace mission '\(mission)'.")
         }
+        if let platform = plan.navalPlatform, !engine.setNavalPlatform(platform) {
+            report.warnings.append("Unknown naval platform '\(platform)'.")
+        }
+        if let cls = plan.medicalClass, !engine.setMedicalClass(cls) {
+            report.warnings.append("Unknown medical class '\(cls)'.")
+        }
         var positions = plan.components.map { CGPoint(x: $0.x, y: $0.y) }
         positions = SchematicAutoLayout.resolveOverlaps(positions)
 
@@ -494,6 +536,20 @@ enum DesignPlanCompiler {
                                   differential: board.differentialOhms > 0 ? board.differentialOhms : current.differentialImpedance,
                                   backdrill: board.backdrill) {
                 report.warnings.append("Board material '\(board.material)' is not in the laminate list.")
+            }
+        }
+        if !board.coating.isEmpty {
+            if let coating = ConformalCoating(rawValue: board.coating) { _ = engine.setCoating(coating) } else {
+                report.warnings.append("Unknown conformal coating '\(board.coating)'.")
+            }
+        }
+        if board.isolationGap > 0, !engine.setIsolationGap(board.isolationGap) {
+            report.warnings.append("Isolation gap \(board.isolationGap) mm is outside 0–25 mm.")
+        }
+        if board.thickness > 0 || board.underfill != nil, let current = engine.snapshot()?.board {
+            if !engine.setMechanical(thickness: board.thickness > 0 ? board.thickness : current.thickness,
+                                     underfill: board.underfill ?? current.underfill) {
+                report.warnings.append("Board thickness \(board.thickness) mm is outside 0.4–6.4 mm.")
             }
         }
         let sized = board.width >= 10 && board.height >= 5 && board.width <= 500 && board.height <= 500
@@ -658,7 +714,9 @@ enum DesignPlanCompiler {
                           noConnect: noConnect,
                           robotPlatform: snapshot.robotPlatform.isEmpty ? nil : snapshot.robotPlatform,
                           ecuType: snapshot.ecuType.isEmpty ? nil : snapshot.ecuType,
-                          aerospaceMission: snapshot.aerospaceMission.isEmpty ? nil : snapshot.aerospaceMission)
+                          aerospaceMission: snapshot.aerospaceMission.isEmpty ? nil : snapshot.aerospaceMission,
+                          navalPlatform: snapshot.navalPlatform.isEmpty ? nil : snapshot.navalPlatform,
+                          medicalClass: snapshot.medicalClass.isEmpty ? nil : snapshot.medicalClass)
     }
 }
 

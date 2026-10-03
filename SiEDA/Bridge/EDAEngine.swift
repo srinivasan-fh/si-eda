@@ -280,6 +280,32 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func setAerospaceMission(_ id: String) -> Bool { withHandle { sieda_set_aerospace_mission($0, id) } == 1 }
 
+    /// Medical device class ("bf", "cf", "life", "implant", "home"; "" = none).
+    @discardableResult
+    func setMedicalClass(_ id: String) -> Bool { withHandle { sieda_set_medical_class($0, id) } == 1 }
+
+    func medicalSegments() -> RobotSegmentsReport {
+        Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_medical_segments_json($0)) }) ?? .empty
+    }
+
+    /// Naval platform ("combatant", "carrier", "submarine", "patrol", "commercial"; "" = none).
+    @discardableResult
+    func setNavalPlatform(_ id: String) -> Bool { withHandle { sieda_set_naval_platform($0, id) } == 1 }
+
+    func navalSegments() -> RobotSegmentsReport {
+        Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_naval_segments_json($0)) }) ?? .empty
+    }
+
+    /// Board thickness (mm, ≤ 0 keeps it) and underfill / corner bonding of heavy parts.
+    @discardableResult
+    func setMechanical(thickness: Double, underfill: Bool) -> Bool {
+        withHandle { sieda_pcb_set_mechanical($0, thickness, underfill ? 1 : 0) } == 1
+    }
+
+    /// Isolation barrier spacing between galvanic domains (mm, 0 = none).
+    @discardableResult
+    func setIsolationGap(_ gap: Double) -> Bool { withHandle { sieda_pcb_set_isolation_gap($0, gap) } == 1 }
+
     func aerospaceSegments() -> RobotSegmentsReport {
         Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_aerospace_segments_json($0)) }) ?? .empty
     }

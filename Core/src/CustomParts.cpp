@@ -41,7 +41,7 @@ PinType pinTypeFromName(const std::string& raw) {
 }
 
 std::vector<std::string> supportedPackages() {
-    return {"SOIC", "TSSOP", "DIP", "QFN", "LQFP", "SOT23", "HEADER", "HEADER2", "TO220", "HC49"};
+    return {"SOIC", "TSSOP", "DIP", "QFN", "LQFP", "SOT23", "HEADER", "HEADER2", "TO220", "HC49", "DISC"};
 }
 
 // ------------------------------------------------------------------ JSON
@@ -145,9 +145,10 @@ std::string normalizePackage(const std::string& raw, int& pinsFromName) {
     else if (has("SOT")) type = "SOT23";
     else if (has("TO220") || has("TO-220") || has("TO-92") || has("TO92")) type = "TO220";
     else if (has("HC49") || has("HC-49") || has("XTAL") || has("CRYSTAL")) type = "HC49";
+    else if (u.rfind("DISC", 0) == 0 || has("RADIAL DISC")) type = "DISC";
     else if (has("HEADER2") || has("2X") || has("IDC") || has("BOX HEADER") || has("DUAL ROW")) type = "HEADER2";
     else if (has("HEADER") || has("SIP") || has("CONN") || has("1X")) type = "HEADER";
-    if (!digits.empty() && type != "TO220" && type != "HC49") {
+    if (!digits.empty() && type != "TO220" && type != "HC49" && type != "DISC") {
         int n = std::stoi(digits.size() > 3 ? digits.substr(digits.size() - 3) : digits);
         if (type == "SOT23" && n == 23) n = 0;  // "SOT-23" alone means 3 pins
         pinsFromName = n;
@@ -204,7 +205,7 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
             r.out = trim(rj.get("out").asString(""));
             r.ref = trim(rj.get("ref").asString(""));
             r.vout = rj.get("vout").asNumber(0);
-            r.dropout = std::max(0.0, rj.get("dropout").asNumber(0.3));
+            r.dropout = rj.get("dropout").asNumber(0.3);  // isolated converters: minimum input − vout (may be < 0)
             r.iq = std::max(0.0, rj.get("iq").asNumber(0));
             r.ilimit = std::max(1e-6, rj.get("ilimit").asNumber(1.0));
             r.maxPower = std::max(1e-3, rj.get("maxPower").asNumber(0.5));
@@ -212,6 +213,7 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
             r.inReturn = trim(rj.get("inReturn").asString(""));
             r.efficiency = std::clamp(rj.get("efficiency").asNumber(0.8), 0.05, 1.0);
             r.loadSwitch = rj.get("loadSwitch").asBool(false);
+            if (!r.isolated()) r.dropout = std::max(0.0, r.dropout);
             s.model.hasRegulator = true;
             if (s.pinIndex(r.in) < 0 || s.pinIndex(r.out) < 0 || s.pinIndex(r.ref) < 0 ||
                 (r.isolated() && s.pinIndex(r.inReturn) < 0))
@@ -333,6 +335,10 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
     } else if (type == "HC49") {  // HC-49/US crystal: two leads 4.88 mm apart, 11 × 4.7 mm can
         for (int i = 0; i < n; ++i) pads.push_back({{i == 0 ? -2.44 : 2.44, 0}, {1.5, 1.5}, true, true, 0.8});
         body = {11.0, 4.7, 3.5, false, 0.75f, 0.75f, 0.78f};
+    } else if (type == "DISC") {  // radial disc (varistor, gas discharge tube): two leads 7.5 mm apart
+        const double half = bodyIn > 0 ? bodyIn / 2 : 3.75;
+        for (int i = 0; i < n; ++i) pads.push_back({{i == 0 ? -half : half, 0}, {2.0, 2.0}, true, true, 1.0});
+        body = {half * 2 + 6.0, 5.0, 14.0, false, 0.20f, 0.35f, 0.65f};
     } else if (type == "HEADER") {
         double y0 = -(n - 1) * 2.54 / 2;
         for (int i = 0; i < n; ++i) pads.push_back({{0, y0 + i * 2.54}, {1.7, 1.7}, true, i != 0, 1.0});
@@ -393,6 +399,7 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     if (spec.package.type == "SOT23" && pc > 6) throw JsonError("SOT-23 packages have at most 6 pins.");
     if (spec.package.type == "TO220" && pc > 7) throw JsonError("TO-220 packages have at most 7 pins.");
     if (spec.package.type == "HC49" && pc != 2) throw JsonError("HC-49 crystals have 2 pins.");
+    if (spec.package.type == "DISC" && pc != 2) throw JsonError("Radial disc parts have 2 pins.");
     if (pc > 256) throw JsonError("Package pin count is too large.");
 
     auto part = std::make_shared<CustomPart>();

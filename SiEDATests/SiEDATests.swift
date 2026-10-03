@@ -302,7 +302,7 @@ final class StandardsAndVerificationTests: XCTestCase {
     }
 
     func testOfflineTemplateMatchingAndCategories() {
-        XCTAssertEqual(OfflineProvider.templates.count, 36)
+        XCTAssertEqual(OfflineProvider.templates.count, 38)
         XCTAssertEqual(OfflineProvider.template(for: "non-inverting amplifier with gain 11").plan.title, "Non-Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "an inverting amplifier, gain -10").plan.title, "Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "blink an LED with a 555").plan.title, "555 Astable LED Blinker")
@@ -2182,6 +2182,56 @@ final class ReliabilityTests: XCTestCase {
         try reopened.load(json: store.engine.saveJSON())
         XCTAssertEqual(reopened.snapshot()?.aerospaceMission, "leo")
         XCTAssertEqual(DesignPlanCompiler.plan(from: store.snapshot).aerospaceMission, "leo")
+    }
+
+    func testNavalSegments() throws {
+        XCTAssertEqual(OfflineProvider.template(for: "navy destroyer shipboard interface with sonar").plan.title,
+                       "Naval Shipboard Interface: 5-Segment Navy Reference")
+        let template = try XCTUnwrap(OfflineProvider.templates.first { $0.plan.navalPlatform != nil })
+        let store = DesignStore()
+        let report = DesignPlanCompiler.apply(template.industryPlan, to: store.engine, previous: nil)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        store.refresh()
+        XCTAssertEqual(store.snapshot.navalPlatform, "combatant")
+        XCTAssertEqual(store.snapshot.board.coating, "parylene")
+        XCTAssertTrue(store.snapshot.board.underfill)
+        XCTAssertEqual(store.snapshot.board.thickness, 2.4, accuracy: 1e-9)
+        let segments = store.navalSegments()
+        XCTAssertEqual(segments.segments.map(\.id), ["power", "compute", "mechanical", "comms", "rfsonar"])
+        for segment in segments.segments where segment.id != "compute" {  // the coating border needs a layout
+            XCTAssertEqual(segment.status, "complete", "\(segment.id): \(segment.items.filter { !$0.ok }.map(\.label))")
+        }
+        store.setMechanical(underfill: false)
+        XCTAssertEqual(store.navalSegments().segments.first { $0.id == "mechanical" }?.status, "partial")
+        store.undo()
+        XCTAssertTrue(store.snapshot.board.underfill)
+        XCTAssertEqual(DesignPlanCompiler.plan(from: store.snapshot).navalPlatform, "combatant")
+    }
+
+    func testMedicalSegmentsAndIsolationBarrier() throws {
+        XCTAssertEqual(OfflineProvider.template(for: "defibrillator-proof ECG patient monitor, IEC 60601").plan.title,
+                       "Defibrillator-Proof ECG Monitor: 4-Segment Medical Reference")
+        let template = try XCTUnwrap(OfflineProvider.templates.first { $0.plan.medicalClass != nil })
+        let store = DesignStore()
+        let report = DesignPlanCompiler.apply(template.industryPlan, to: store.engine, previous: nil)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        store.refresh()
+        XCTAssertEqual(store.snapshot.medicalClass, "cf")
+        XCTAssertEqual(store.snapshot.board.isolationGap, 8, accuracy: 1e-9)
+        let segments = store.medicalSegments()
+        XCTAssertEqual(segments.segments.map(\.id), ["isolation", "biosignal", "compute", "coexistence"])
+        for segment in segments.segments {
+            XCTAssertEqual(segment.status, "complete", "\(segment.id): \(segment.items.filter { !$0.ok }.map(\.label))")
+        }
+        // Dropping the barrier to 4 mm breaks the 2 × MOPP item; undo restores it.
+        store.setIsolationGap(4)
+        XCTAssertEqual(store.medicalSegments().segments.first { $0.id == "isolation" }?.status, "partial")
+        store.undo()
+        XCTAssertEqual(store.snapshot.board.isolationGap, 8, accuracy: 1e-9)
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        XCTAssertEqual(reopened.snapshot()?.medicalClass, "cf")
+        XCTAssertEqual(reopened.snapshot()?.board.isolationGap ?? 0, 8, accuracy: 1e-9)
     }
 
     func testComputingSegmentReferenceDesigns() throws {

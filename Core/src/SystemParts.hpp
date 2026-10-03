@@ -10,6 +10,8 @@
 #include <vector>
 
 #include "sieda/CustomParts.hpp"
+#include "sieda/Json.hpp"
+#include "sieda/Robotics.hpp"
 #include "sieda/Pcb.hpp"
 #include "sieda/Schematic.hpp"
 #include "sieda/Units.hpp"
@@ -79,6 +81,19 @@ struct Parts {
     std::vector<const Component*> arinc;        // ARINC 429 line drivers / receivers
     std::vector<const Component*> transformers; // coupling transformers
     std::vector<const Component*> isoDcdc;      // galvanically isolated DC-DC converters
+    // Naval blocks.
+    std::vector<const Component*> movs;         // metal-oxide varistors
+    std::vector<const Component*> gdts;         // gas discharge tubes
+    std::vector<const Component*> pfc;          // power-factor-correction controllers
+    std::vector<const Component*> hermetic;     // ceramic / hermetic packages (QML, /883, 5962, rad-hard ceramic)
+    std::vector<const Component*> fiber;        // fibre-optic transmitters / receivers / SFP
+    std::vector<const Component*> ntds;         // NTDS (MIL-STD-1397) line drivers / receivers
+    std::vector<const Component*> lnas;         // low-noise amplifiers
+    std::vector<const Component*> limiters;     // PIN limiter diodes
+    // Medical blocks.
+    std::vector<const Component*> windowWdt;    // windowed watchdogs (TPS3850 / TPS3851 / TPS3430, safety PMICs)
+    std::vector<const Component*> bms;          // battery protectors / fuel gauges / balancers
+    std::vector<const Component*> moppIsolators;  // isolators / converters rated for 2 × MOPP (5 kV, 8 mm)
 };
 
 inline Parts classify(const Schematic& sch) {
@@ -108,6 +123,7 @@ inline Parts classify(const Schematic& sch) {
         if (c.kind == ComponentKind::Connector) p.connectors.push_back(&c);
         if (c.kind == ComponentKind::OpAmp) p.amplifiers.push_back(&c);
         if (c.kind == ComponentKind::Diode && containsAny(v, {"SM8S", "SM5S", "SMDJ"})) p.tvs.push_back(&c);
+        if (c.kind == ComponentKind::Diode && containsAny(v, {"PIN", "BAP", "HSMP", "CLA4", "LIMIT", "MADL"})) p.limiters.push_back(&c);
         if (c.kind != ComponentKind::Custom) continue;
         if (containsAny(n, {"TPS38", "TPS37", "TLF3558", "TPS6538", "TPS6539", "MAX6369", "MAX6746", "STWD", "WATCHDOG"}))
             p.watchdogs.push_back(&c);
@@ -147,6 +163,20 @@ inline Parts classify(const Schematic& sch) {
         if (containsAny(n, {"HI-15", "HI15", "BU-6", "BU6", "61580", "1553"})) p.mil1553.push_back(&c);
         if (containsAny(n, {"HI-8", "HI8", "DEI10", "ARINC", "429"})) p.arinc.push_back(&c);
         if (containsAny(n, {"XFMR", "TRANSFORMER", "PM-DB", "B-3818"})) p.transformers.push_back(&c);
+        if (containsAny(n, {"MOV", "VARISTOR", "S14K", "S20K", "ERZ", "V275", "V130"})) p.movs.push_back(&c);
+        if (containsAny(n, {"GDT", "GAS DISCHARGE", "2038-", "CG2", "SL1011", "B88069"})) p.gdts.push_back(&c);
+        if (containsAny(n, {"UCC28", "L656", "NCP16", "FAN75", "PFC"})) p.pfc.push_back(&c);
+        if (n.rfind("ATMEGAS", 0) == 0 || n.rfind("UT", 0) == 0 || n.rfind("RH", 0) == 0 ||
+            containsAny(n, {"SAMRH", "5962", "/883", "CERAMIC", "CQFP", "CDIP", "HERMETIC", "GR712", "GR740"}))
+            p.hermetic.push_back(&c);
+        if (containsAny(n, {"SFP", "HFBR", "AFBR", "FIBER", "FIBRE", "FO-"})) p.fiber.push_back(&c);
+        if (containsAny(n, {"NTDS", "1397"})) p.ntds.push_back(&c);
+        if (containsAny(n, {"LNA", "HMC", "PMA", "GALI", "MAAL", "QPL", "BGA2"})) p.lnas.push_back(&c);
+        if (containsAny(n, {"TPS3850", "TPS3851", "TPS3430", "TPS3431", "TPS65381", "TLF3558", "STWD100", "MAX6369"}))
+            p.windowWdt.push_back(&c);
+        if (containsAny(n, {"BQ76", "BQ77", "BQ29", "BQ40", "BQ27", "MAX1726", "MAX1730", "LTC68", "DW01", "S-8261", "BMS"}))
+            p.bms.push_back(&c);
+        if (containsAny(n, {"ADUM44", "ADUM4", "ISO77", "SI86", "-MED", "MOPP", "ISO7841", "ADUM6"})) p.moppIsolators.push_back(&c);
         if (containsAny(n, {"ISO-DCDC", "NME", "MHF", "SVR28", "DCDC_ISO", "ISOLATED DC"}) ||
             ([&] {
                 const CustomPart* cp = CustomPartRegistry::instance().find(c.customPart);
@@ -161,10 +191,11 @@ inline Parts classify(const Schematic& sch) {
         if (containsAny(n, {"ACS7", "INA2", "INA1", "INA3", "AMC1"})) p.shunts.push_back(&c);
         if (containsAny(n, {"MPU-6050", "MPU6050", "MPU-9250", "ICM-", "BMI0", "BMI1", "BMI2", "LSM6", "BNO0", "IMU"}))
             p.imus.push_back(&c);
-        if (containsAny(n, {"NRF24", "ESP32", "ESP8266", "SX127", "SX126", "LORA", "CC1101", "RFM9", "WIFI", "BLE", "LTE", "UHF-TRX"}))
+        if (containsAny(n, {"NRF24", "NRF52", "ESP32", "ESP8266", "SX127", "SX126", "LORA", "CC1101", "CC26", "RFM9", "WIFI", "BLE", "LTE",
+                            "UHF-TRX", "DW1000", "DW3000", "DWM", "UWB"}))
             p.rf.push_back(&c);
         if (containsAny(n, {"SMA", "U.FL", "UFL", "MMCX"})) p.coax.push_back(&c);
-        if (containsAny(n, {"ADUM", "ISO77", "ISO15", "SI86", "PC817", "6N137", "TLP", "OPTO"})) p.isolators.push_back(&c);
+        if (containsAny(n, {"ADUM", "ISO77", "ISO15", "SI86", "PC817", "6N137", "TLP", "OPTO", "HCPL"})) p.isolators.push_back(&c);
         if (containsAny(n, {"TJA10", "MCP2551", "SN65HVD", "MAX485", "MAX3485", "ADM485", "THVD", "MCP2562", "ISO1050"}))
             p.fieldbus.push_back(&c);
         // Processors: a custom part with GPIO / SWD / XTAL style pins (MCUs, SoCs, module carriers).
@@ -258,6 +289,111 @@ inline bool hasEsdDiode(const Schematic& sch, int net) {
             if (sch.netOf({c.id, pin}) == net) return true;
     }
     return false;
+}
+
+inline bool connectsTo(const Schematic& sch, int net, const std::vector<const Component*>& parts) {
+    if (net < 0) return false;
+    for (const Component* c : parts)
+        for (int i = 0; i < static_cast<int>(c->def().pins.size()); ++i)
+            if (sch.netOf({c->id, i}) == net) return true;
+    return false;
+}
+
+/// Nets with a capacitor to ground.
+inline bool decoupled(const Schematic& sch, int net, const std::vector<const Component*>& caps) {
+    for (const Component* c : caps) {
+        const int a = sch.netOf({c->id, 0}), b = sch.netOf({c->id, 1});
+        if ((a == net && b == sch.groundNet()) || (b == net && a == sch.groundNet())) return true;
+    }
+    return false;
+}
+
+/// A series inductor between two decoupled nodes on the supply input (C–L–C pi filter).
+inline bool hasPiFilter(const Schematic& sch, const Parts& parts) {
+    // Returns the filter capacitors may sit on: GND, or a source's own return (an isolated input's RTN).
+    std::vector<int> returns{sch.groundNet()};
+    for (const Component* src : parts.sources) returns.push_back(sch.netOf({src->id, 1}));
+    auto toReturn = [&](int net) {
+        for (const Component* c : parts.caps) {
+            const int x = sch.netOf({c->id, 0}), y = sch.netOf({c->id, 1});
+            for (int r : returns)
+                if (r >= 0 && ((x == net && y == r) || (y == net && x == r))) return true;
+        }
+        return false;
+    };
+    for (const Component* l : parts.inductors) {
+        const int a = sch.netOf({l->id, 0}), b = sch.netOf({l->id, 1});
+        if (a < 0 || b < 0 || a == sch.groundNet() || b == sch.groundNet()) continue;
+        if (!toReturn(a) || !toReturn(b)) continue;
+        // One side faces the battery: the source, its fuse, reverse-protection diode or TVS.
+        std::vector<const Component*> front = parts.sources;
+        for (auto* v : {&parts.fuses, &parts.tvs, &parts.diodes, &parts.efuses})
+            front.insert(front.end(), v->begin(), v->end());
+        if (connectsTo(sch, a, front) || connectsTo(sch, b, front)) return true;
+    }
+    return false;
+}
+
+
+/// The segment report JSON shared by every system architecture (robot, ECU, aerospace, naval, medical):
+/// {platform, applies, platforms[{id,name,description,guidance}], segments[{id,name,status,items[],guidance}]}.
+struct PlatformInfo {
+    std::string id, name, description;
+    std::vector<std::string> guidance;
+};
+inline Json segmentReportJson(const std::string& platform, bool applies, const std::vector<PlatformInfo>& platforms,
+                              std::vector<RobotSegment> segments) {
+    Json root = Json::object();
+    root["platform"] = platform;
+    root["applies"] = applies;
+    auto strings = [](const std::vector<std::string>& v) {
+        Json a = Json::array();
+        for (const auto& x : v) a.push(x);
+        return a;
+    };
+    Json types = Json::array();
+    for (const auto& t : platforms) {
+        Json j = Json::object();
+        j["id"] = t.id;
+        j["name"] = t.name;
+        j["description"] = t.description;
+        j["guidance"] = strings(t.guidance);
+        types.push(j);
+    }
+    root["platforms"] = types;
+    Json segs = Json::array();
+    for (auto& seg : segments) {
+        int ok = 0;
+        for (const auto& i : seg.items) ok += i.ok;
+        if (seg.status.empty())
+            seg.status = ok == static_cast<int>(seg.items.size()) ? "complete" : ok == 0 ? "missing" : "partial";
+        Json j = Json::object();
+        j["id"] = seg.id;
+        j["name"] = seg.name;
+        j["status"] = seg.status;
+        Json items = Json::array();
+        for (const auto& i : seg.items) {
+            Json x = Json::object();
+            x["label"] = i.label;
+            x["ok"] = i.ok;
+            x["detail"] = i.detail;
+            items.push(x);
+        }
+        j["items"] = items;
+        j["guidance"] = strings(seg.guidance);
+        segs.push(j);
+    }
+    root["segments"] = segs;
+    return root;
+}
+
+/// Sets each segment's status from its checklist: complete, partial or missing.
+inline void scoreSegments(std::vector<RobotSegment>& segments) {
+    for (auto& seg : segments) {
+        int ok = 0;
+        for (const auto& i : seg.items) ok += i.ok;
+        seg.status = ok == static_cast<int>(seg.items.size()) ? "complete" : ok == 0 ? "missing" : "partial";
+    }
 }
 
 }  // namespace sieda::sysparts

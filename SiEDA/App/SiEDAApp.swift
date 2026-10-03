@@ -277,6 +277,22 @@ struct SiEDACommands: Commands {
                                                        set: { if $0 { store.setAerospaceMission(mission.id) } }))
                 }
             }
+            Menu("Naval Platform") {
+                Toggle("Not naval", isOn: Binding(get: { store.snapshot.navalPlatform.isEmpty },
+                                                  set: { if $0 { store.setNavalPlatform("") } }))
+                ForEach(store.navalSegments().platforms) { platform in
+                    Toggle(platform.name, isOn: Binding(get: { store.snapshot.navalPlatform == platform.id },
+                                                        set: { if $0 { store.setNavalPlatform(platform.id) } }))
+                }
+            }
+            Menu("Medical Device Class") {
+                Toggle("Not medical", isOn: Binding(get: { store.snapshot.medicalClass.isEmpty },
+                                                    set: { if $0 { store.setMedicalClass("") } }))
+                ForEach(store.medicalSegments().platforms) { cls in
+                    Toggle(cls.name, isOn: Binding(get: { store.snapshot.medicalClass == cls.id },
+                                                   set: { if $0 { store.setMedicalClass(cls.id) } }))
+                }
+            }
             Menu("Industry Profile") {
                 ForEach(StandardLibrary.industries) { profile in
                     Toggle(profile.name, isOn: Binding(

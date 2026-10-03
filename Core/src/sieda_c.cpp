@@ -2,6 +2,8 @@
 #include "sieda/sieda_c.h"
 
 #include "sieda/Aerospace.hpp"
+#include "sieda/Naval.hpp"
+#include "sieda/Medical.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/Firmware.hpp"
@@ -713,6 +715,57 @@ char* sieda_ecu_segments_json(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
         return dup(ecuSegmentsJson(project->project).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_pcb_set_mechanical(SiedaProject* project, double thickness, int32_t underfill) {
+    if (!project) return 0;
+    auto& s = project->project.pcb.settings;
+    if (thickness > 0) {
+        if (thickness < 0.4 || thickness > 6.4) return 0;
+        s.thickness = thickness;
+    }
+    s.underfill = underfill != 0;
+    return 1;
+}
+
+int32_t sieda_pcb_set_isolation_gap(SiedaProject* project, double gap) {
+    if (!project || gap < 0 || gap > 25) return 0;
+    project->project.pcb.settings.isolationGap = gap;
+    return 1;
+}
+
+int32_t sieda_set_medical_class(SiedaProject* project, const char* cls) {
+    if (!project || !cls) return 0;
+    std::string id = cls;
+    if (!id.empty() && !findMedicalClass(id)) return 0;
+    project->project.medicalClass = id;
+    return 1;
+}
+
+char* sieda_medical_segments_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(medicalSegmentsJson(project->project).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_set_naval_platform(SiedaProject* project, const char* platform) {
+    if (!project || !platform) return 0;
+    std::string id = platform;
+    if (!id.empty() && !findNavalPlatform(id)) return 0;
+    project->project.navalPlatform = id;
+    return 1;
+}
+
+char* sieda_naval_segments_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(navalSegmentsJson(project->project).dump());
     } catch (...) {
         return nullptr;
     }

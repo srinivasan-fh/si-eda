@@ -47,6 +47,11 @@ struct BoardSettings {
     bool highAltitude = false;
     /// Conformal coating applied after assembly ("none" or an IPC-CC-830 type, see conformalCoatings()).
     std::string coating = "none";
+    /// Underfill / corner-bond epoxy specified for BGAs, processors and heavy parts (shock: MIL-STD-901E, MIL-STD-810).
+    bool underfill = false;
+    /// Galvanic isolation barrier spacing (mm): parts, tracks, vias and pours of different isolation domains keep at
+    /// least this far apart (8 mm = 2 × MOPP, 4 mm = 1 × MOPP; 0 = no barrier rule). See Isolation.hpp.
+    double isolationGap = 0;
     bool coated() const { return !coating.empty() && coating != "none"; }
     /// Laminate (see laminateMaterials()): "fr4", "fr4-hightg", "isola-370hr", "rogers-4350b", "megtron-6",
     /// "polyimide", "ims-aluminium".

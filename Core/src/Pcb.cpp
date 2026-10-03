@@ -1,6 +1,7 @@
 #include "sieda/Pcb.hpp"
 #include "sieda/CustomParts.hpp"
 #include "sieda/Embedded.hpp"
+#include "sieda/Isolation.hpp"
 #include "sieda/LengthMatch.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Stackup.hpp"
@@ -457,6 +458,18 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
         return std::max(pitch < 0.65 ? 1.5 : 0.0, fanout);
     };
     const double step = 0.5;
+    // Isolation barrier: parts of different galvanic domains keep the barrier gap between their courtyards.
+    const double isoGap = settings.isolationGap;
+    std::map<int, int> domainOf;
+    if (isoGap > 0) {
+        const GalvanicDomains doms = galvanicDomains(sch);
+        for (const auto& comp : comps) domainOf[comp.id] = doms.domainOfComponent(sch, comp);
+    }
+    auto barrierGap = [&](int a, int b) {
+        if (isoGap <= 0) return 0.0;
+        const int da = domainOf[a], db = domainOf[b];
+        return da >= 0 && db >= 0 && da != db ? isoGap : 0.0;
+    };
     std::map<int, double> escapeOf;
     for (const auto& comp : comps)
         if (comp.hasFootprint()) escapeOf[comp.id] = escape(comp);
@@ -498,7 +511,10 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
                         for (const auto& o : comps) {
                             if (o.id == c.id || !o.hasFootprint() || !o.pcb.placed) continue;
                             if (mountPlane(o, settings) != mountPlane(c, settings)) continue;
-                            if (courtyard(o).inflated(margin / 2 + escapeOf[o.id]).intersects(cy)) { clash = true; break; }
+                            if (courtyard(o).inflated(margin / 2 + escapeOf[o.id] + barrierGap(o.id, c.id)).intersects(cy)) {
+                                clash = true;
+                                break;
+                            }
                         }
                         if (clash) continue;
                         if (strict) {
@@ -792,7 +808,67 @@ public:
 
     bool passable(int l, size_t c, int net) const {
         int o = owner_[L(l)][c];
-        return o == -1 || o == net || padNet_[L(l)][c] == net;
+        if (!(o == -1 || o == net || padNet_[L(l)][c] == net)) return false;
+        if (isoGap_ > 0 && !fence_.empty()) {  // isolation barrier: other domains' fenced area is closed
+            const int f = fence_[c];
+            if (f == -3) return padNet_[L(l)][c] == net;
+            if (f >= 0) {
+                const int d = domainOf(net);
+                if (d >= 0 && f != d) return false;
+            }
+        }
+        return true;
+    }
+
+    /// Isolation barrier (BoardSettings::isolationGap): copper of one galvanic domain fences the cells within the
+    /// gap (plus half a track) against every other domain. `exits` lets each barrier part's pads reach out through
+    /// its own other-domain fence: cells within `exitRadius` of a pad of the part stay open to that pad's domain.
+    void setIsolation(std::vector<int> netDomain, double gap, const std::vector<Pad>& pads, double widestHalf) {
+        netDomain_ = std::move(netDomain);
+        isoGap_ = gap;
+        // Cells are tested at their centres and tracks run between them (chords), and net-class tracks are wider
+        // than the base track: fence by the widest half-width plus a grid pitch.
+        fenceReach_ = std::max(widestHalf, s_.trackWidth / 2) + g_;
+        fence_.assign(static_cast<size_t>(cols_ * rows_), -1);
+        if (gap <= 0) return;
+        std::map<int, std::vector<const Pad*>> byComp;
+        for (const auto& p : pads) byComp[p.componentId].push_back(&p);
+        for (const auto& [comp, list] : byComp) {
+            double sMin = 1e9;
+            for (size_t a = 0; a < list.size(); ++a)
+                for (size_t b = a + 1; b < list.size(); ++b) {
+                    const int da = domainOf(list[a]->net), db = domainOf(list[b]->net);
+                    if (da < 0 || db < 0 || da == db) continue;
+                    sMin = std::min(sMin, rectRectDistance(list[a]->bounds(), list[b]->bounds()));
+                }
+            if (sMin < 1e8) {
+                exitRadius_[comp] = std::max(0.0, gap - sMin) + s_.trackWidth + s_.clearance;
+                barrierPads_[comp] = list;
+            }
+        }
+    }
+    int domainOf(int net) const {
+        return net >= 0 && net < static_cast<int>(netDomain_.size()) ? netDomain_[static_cast<size_t>(net)] : -1;
+    }
+    /// Fences the cells around copper (a segment, or a pad's rectangle) of `net` against other domains.
+    void fenceCopper(Vec2 a, Vec2 b, double half, int net) {
+        const int d = domainOf(net);
+        if (isoGap_ <= 0 || d < 0) return;
+        forCellsNear(a, b, isoGap_ + half + fenceReach_, [&](size_t c) { fenceCell(c, d); });
+    }
+    void fencePad(const Pad& p) {
+        const int d = domainOf(p.net);
+        if (isoGap_ <= 0 || d < 0) return;
+        auto exits = barrierPads_.find(p.componentId);
+        const double reach = isoGap_ + fenceReach_;
+        forRectNear(p.bounds(), reach, p, [&](size_t c, double) {
+            if (exits != barrierPads_.end()) {
+                const Vec2 at = cellPos(c);
+                for (const Pad* q : exits->second)
+                    if (domainOf(q->net) != d && padDistance(*q, at) < exitRadius_[p.componentId]) return;
+            }
+            fenceCell(c, d);
+        });
     }
     /// Exact clearance test for a wide (net-class) track segment a–b of half-width `half` on layer l: the grid only
     /// guarantees clearance for the base track width, so wide tracks are checked against the real copper.
@@ -997,6 +1073,15 @@ private:
             }
     }
 
+    void fenceCell(size_t c, int d) {
+        int& f = fence_[c];
+        if (f == -1) f = d;
+        else if (f != d) f = -3;
+    }
+    std::vector<int> fence_, netDomain_;
+    double isoGap_ = 0, fenceReach_ = 0;
+    std::map<int, double> exitRadius_;
+    std::map<int, std::vector<const Pad*>> barrierPads_;
     const BoardSettings& s_;
     double g_ = 0.25;
     int cols_ = 0, rows_ = 0, layers_ = 2;
@@ -1277,7 +1362,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
     // Pour/plane-net pads that could not reach their pour: connected first in the next pass, by a track to where
     // the net's main pour was (signals then route around that connection).
     std::set<size_t> forcedConnect;
-    std::map<int, std::vector<std::pair<int, size_t>>> mainPour;  // net → grid cells of its main poured cluster
+    std::map<int, std::vector<std::pair<int, size_t>>> mainPour;
+    const GalvanicDomains isoDomains = settings.isolationGap > 0 ? galvanicDomains(sch) : GalvanicDomains{};  // net → grid cells of its main poured cluster
     for (int pass = 0; pass < 8; ++pass) {
         const size_t forcedBefore = forcedConnect.size();
         RoutingGrid grid(settings);
@@ -1288,6 +1374,12 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
             else grid.setPour(z.layer, zn);
         }
         for (const auto& p : ps) grid.markPad(p, clr + w / 2);
+        if (settings.isolationGap > 0) {
+            double widest = settings.trackWidth;
+            for (const auto& [name, width] : settings.netWidths) widest = std::max(widest, width);
+            grid.setIsolation(isoDomains.netDomain, settings.isolationGap, ps, widest / 2);
+            for (const auto& p : ps) grid.fencePad(p);
+        }
         // Escape bands: the pad field of each fine-pitch package, widened by ~1 mm.
         {
             std::map<int, Rect> fine;
@@ -1326,6 +1418,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
                 grid.markCopperSegment(l, v.position, v.position, settings.viaDiameter / 2, net);
             }
             grid.addCopper(v.position, v.position, settings.viaDiameter / 2, net, -1, settings.viaDrill);
+            grid.fenceCopper(v.position, v.position, settings.viaDiameter / 2, net);
         };
         // Turns an A* path into tracks and through vias, marking them on the grid.
         auto commit = [&](int net, double wn, const RouteResult& rr, std::vector<std::pair<int, size_t>>& tree) {
@@ -1360,6 +1453,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
                             grid.markSegment(layer, piece.a, piece.b, piece.width / 2 + clr + extra(net) + w / 2, net);
                             grid.markCopperSegment(layer, piece.a, piece.b, piece.width / 2 + 1e-6, net);
                             grid.addCopper(piece.a, piece.b, piece.width / 2, net, layer);
+                            grid.fenceCopper(piece.a, piece.b, piece.width / 2, net);
                         }
                         segStart = m;
                     }
@@ -2254,6 +2348,80 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                     " plane layer and cuts it.", tr.a);
                 break;
             }
+
+    // Isolation barrier: copper of different galvanic domains at least isolationGap apart on every layer. A barrier
+    // part's own pads are rated by its datasheet; their exit corridors are exempt the way the router leaves them.
+    if (settings.isolationGap > 0) {
+        const GalvanicDomains doms = galvanicDomains(sch);
+        const double gap = settings.isolationGap;
+        struct Item {
+            int net, dom, comp = -1;
+            int layer;      // -1 = every layer (via)
+            const Pad* pad = nullptr;
+            Vec2 a, b;
+            double half = 0;
+        };
+        std::vector<Item> items;
+        std::map<int, std::vector<const Pad*>> compPads;
+        for (const auto& p : ps) {
+            const int d = doms.domainOfNet(p.net);
+            if (d < 0) continue;
+            compPads[p.componentId].push_back(&p);
+            for (int l = 0; l < settings.layerCount; ++l)
+                if (p.onLayer(l)) items.push_back({p.net, d, p.componentId, l, &p, p.position, p.position, 0});
+        }
+        for (const auto& t : tracks)
+            if (const int d = doms.domainOfNet(t.net); d >= 0) items.push_back({t.net, d, -1, t.layer, nullptr, t.a, t.b, t.width / 2});
+        for (const auto& v : vias)
+            if (const int d = doms.domainOfNet(v.net); d >= 0)
+                items.push_back({v.net, d, -1, -1, nullptr, v.position, v.position, v.diameter / 2});
+        std::map<int, double> exitR;
+        for (const auto& [comp, list] : compPads) {
+            double sMin = 1e9;
+            for (size_t i = 0; i < list.size(); ++i)
+                for (size_t j = i + 1; j < list.size(); ++j)
+                    if (doms.domainOfNet(list[i]->net) != doms.domainOfNet(list[j]->net))
+                        sMin = std::min(sMin, rectRectDistance(list[i]->bounds(), list[j]->bounds()));
+            if (sMin < 1e8) exitR[comp] = std::max(0.0, gap - sMin) + settings.trackWidth + settings.clearance;
+        }
+        auto dist = [&](const Item& x, const Item& y) {
+            if (x.pad && y.pad) return rectRectDistance(x.pad->bounds(), y.pad->bounds());
+            if (x.pad) return segmentRectDistance(y.a, y.b, x.pad->bounds()) - y.half;
+            if (y.pad) return segmentRectDistance(x.a, x.b, y.pad->bounds()) - x.half;
+            return segmentSegmentDistance(x.a, x.b, y.a, y.b) - x.half - y.half;
+        };
+        // Within a barrier part's exit corridor: `y` sits next to a pad of barrier `x.comp` in its own domain.
+        auto exempt = [&](const Item& x, const Item& y) {
+            auto it = exitR.find(x.comp);
+            if (it == exitR.end()) return false;
+            for (const Pad* q : compPads[x.comp]) {
+                if (doms.domainOfNet(q->net) != y.dom) continue;
+                const double d = y.pad ? rectRectDistance(q->bounds(), y.pad->bounds())
+                                       : segmentRectDistance(y.a, y.b, q->bounds()) - y.half;
+                if (d < it->second) return true;
+            }
+            return false;
+        };
+        int reported = 0;
+        for (size_t i = 0; i < items.size() && reported < 5; ++i)
+            for (size_t j = i + 1; j < items.size() && reported < 5; ++j) {
+                const Item &x = items[i], &y = items[j];
+                if (x.dom == y.dom) continue;
+                if (x.layer >= 0 && y.layer >= 0 && x.layer != y.layer) continue;
+                if (x.comp >= 0 && x.comp == y.comp) continue;  // inside one barrier part: its datasheet rating
+                const Rect bx = x.pad ? x.pad->bounds() : Rect(x.a.x, x.a.y, x.b.x, x.b.y).inflated(x.half);
+                const Rect by = y.pad ? y.pad->bounds() : Rect(y.a.x, y.a.y, y.b.x, y.b.y).inflated(y.half);
+                if (!bx.inflated(gap).intersects(by)) continue;
+                const double d = dist(x, y);
+                if (d >= gap - 1e-6 || exempt(x, y) || exempt(y, x)) continue;
+                char msg[200];
+                std::snprintf(msg, sizeof msg, "%s and %s are %.2f mm apart across the isolation barrier (needs %.1f mm",
+                              netName(x.net).c_str(), netName(y.net).c_str(), std::max(0.0, d), gap);
+                add(Severity::Error, "DRC_ISOLATION_GAP",
+                    std::string(msg) + " creepage / clearance between galvanic domains).", (x.a + y.a) * 0.5);
+                ++reported;
+            }
+    }
 
     // Connectivity.
     auto lines = ratsnest(sch);

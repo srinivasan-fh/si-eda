@@ -73,6 +73,14 @@ void applyModels(std::vector<StandardPart>& parts) {
         else if (n == "MAX31855K") load(p, "4", "1", 0.0015);
         else if (n == "CC1101") load(p, "9", "16", 0.017);
         else if (n == "UHF-TRX-MODULE") load(p, "2", "1", 0.030);
+        else if (n == "FO-RX-820") load(p, "3", "2", 0.006);
+        else if (n == "LNA-MMIC") load(p, "3", "2", 0.025);
+        else if (n == "ADuM4401") {
+            load(p, "1", "2", 0.002);
+            load(p, "16", "15", 0.002);
+        } else if (n == "ISO-DCDC-MED") isolated(p, "1", "2", "8", "7", 5.0, -2.0, 0.004, 0.2, 0.5, 0.7);
+        else if (n == "DW01A") load(p, "5", "6", 3e-6);
+        else if (n == "BLE-MODULE") load(p, "2", "1", 0.008);
         else if (n == "TPS2553") {  // current-limited switch: OUT follows IN (≈ 85 mΩ), trips at the ILIM setting
             regulator(p, "1", "6", "2", 6.5, 0.02, 120e-6, 0.5, 0.5);
             p.spec.model.regulator.loadSwitch = true;
@@ -293,6 +301,62 @@ std::vector<StandardPart> build() {
                          {{"GND", T::PowerIn}, {"VCC", T::PowerIn}, {"SCK", T::Input}, {"MOSI", T::Input},
                           {"MISO", T::Output}, {"CS", T::Input}, {"IRQ", T::Output}, {"GND", T::PowerIn},
                           {"RF", T::Passive}, {"GND", T::PowerIn}}));
+    // Naval: surge front end, fibre links and a radar LNA.
+    parts.push_back(part("Naval & Marine", "S14K35", "TDK (EPCOS)",
+                         "Metal-oxide varistor, 35 V rms / 45 V DC, 14 mm disc, 6 kA (8/20 µs): ship's power surge clamp",
+                         "DISC", 2, "RV", {{"1", T::Passive}, {"2", T::Passive}}));
+    parts.push_back(part("Naval & Marine", "GDT-90V", "Generic (Bourns 2038 / Littelfuse CG2 class)",
+                         "Two-electrode gas discharge tube, 90 V DC spark-over, 10 kA: high-energy surge diverter at the power "
+                         "entry",
+                         "DISC", 2, "GDT", {{"1", T::Passive}, {"2", T::Passive}}));
+    parts.push_back(part("Naval & Marine", "FO-TX-820", "Generic (versatile-link / ST fibre class)",
+                         "Fibre-optic transmitter function block, 820 nm LED, up to 5 MBd: drive the LED through a resistor. "
+                         "Pins by function — use the chosen module's footprint",
+                         "HEADER", 4, "U", {{"ANODE", T::Passive}, {"CATHODE", T::Passive}, {"NC", T::NoConnect}, {"NC", T::NoConnect}}));
+    parts.push_back(part("Naval & Marine", "FO-RX-820", "Generic (versatile-link / ST fibre class)",
+                         "Fibre-optic receiver function block, 820 nm, up to 5 MBd, open-collector output with internal pull-up "
+                         "(RL). Pins by function — use the chosen module's footprint",
+                         "HEADER", 4, "U", {{"VO", T::OpenCollector}, {"GND", T::PowerIn}, {"VCC", T::PowerIn}, {"RL", T::Passive}}));
+    parts.push_back(part("RF", "LNA-MMIC", "Generic (InGaP / pHEMT MMIC class)",
+                         "Low-noise amplifier MMIC function block (0.05–6 GHz, NF ≈ 1 dB, 20 dB gain), biased through a choke "
+                         "on RFOUT. Pins by function — check the chosen MMIC's pinout",
+                         "SOT23", 3, "U", {{"RFIN", T::Passive}, {"GND", T::PowerIn}, {"RFOUT", T::Passive}}));
+    // Medical: 2 × MOPP patient barrier, battery protection and BLE telemetry.
+    {
+        StandardPart iso = part("Medical", "ADuM4401", "Analog Devices",
+                                "Quad digital isolator (3 forward, 1 reverse), 5 kV rms reinforced, wide-body SOIC-16 with 8 mm "
+                                "creepage: 2 × MOPP patient barrier",
+                                "SOIC", 16, "U",
+                                {{"VDD1", T::PowerIn}, {"GND1", T::PowerIn}, {"VIA", T::Input}, {"VIB", T::Input},
+                                 {"VIC", T::Input}, {"VOD", T::Output}, {"VE1", T::Input}, {"GND1", T::PowerIn},
+                                 {"GND2", T::PowerIn}, {"VE2", T::Input}, {"VID", T::Input}, {"VOC", T::Output},
+                                 {"VOB", T::Output}, {"VOA", T::Output}, {"GND2", T::PowerIn}, {"VDD2", T::PowerIn}});
+        iso.spec.package.bodySize = 7.5;  // wide body
+        parts.push_back(std::move(iso));
+    }
+    {
+        StandardPart dc = part("Medical", "ISO-DCDC-MED", "Generic (RECOM REM / Murata MEV medical class)",
+                               "Medical isolated DC-DC function block: 3.0–5.5 V in, 5 V out, 1 W, 5 kV AC reinforced "
+                               "(2 × MOPP), < 10 pF barrier capacitance (patient leakage < 2 µA). Input and output on "
+                               "opposite rows 15 mm apart; pins by function — use the chosen module's footprint",
+                               "DIP", 8, "PS",
+                               {{"+VIN", T::PowerIn}, {"-VIN", T::PowerIn}, {"NC", T::NoConnect}, {"NC", T::NoConnect},
+                                {"NC", T::NoConnect}, {"NC", T::NoConnect}, {"-VOUT", T::PowerOut}, {"+VOUT", T::PowerOut}});
+        dc.spec.package.bodySize = 15.24;  // wide row spacing across the barrier
+        parts.push_back(std::move(dc));
+    }
+    parts.push_back(part("Medical", "DW01A", "Fortune Semiconductor",
+                         "One-cell Li-ion protector: over-charge, over-discharge and over-current cut-off through two external "
+                         "MOSFETs",
+                         "SOT23", 6, "U",
+                         {{"OD", T::Output}, {"CS", T::Input}, {"OC", T::Output}, {"TD", T::Passive}, {"VCC", T::PowerIn},
+                          {"GND", T::PowerIn}}));
+    parts.push_back(part("RF", "BLE-MODULE", "Generic (nRF52832 module class)",
+                         "Bluetooth LE module function block with a 50 Ω RF pad for an external antenna, UART host interface. "
+                         "Pins by function — use the chosen module's footprint",
+                         "HEADER", 8, "U",
+                         {{"GND", T::PowerIn}, {"VCC", T::PowerIn}, {"TXD", T::Output}, {"RXD", T::Input},
+                          {"RESET", T::Input}, {"GND", T::PowerIn}, {"RF", T::Passive}, {"GND", T::PowerIn}}));
     parts.push_back(part("Timing", "Crystal_26MHz", "Generic (AEC-Q200)", "26 MHz crystal, HC-49/US, ±10 ppm, 10 pF load",
                          "HC49", 2, "Y", {{"1", T::Passive}, {"2", T::Passive}}));
     // Marine / industrial communication and isolation.

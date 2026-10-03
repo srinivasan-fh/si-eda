@@ -1,6 +1,8 @@
 #include "sieda/Project.hpp"
 
 #include "sieda/Aerospace.hpp"
+#include "sieda/Naval.hpp"
+#include "sieda/Medical.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/Embedded.hpp"
@@ -72,6 +74,8 @@ Json boardJson(const BoardSettings& s) {
     b["maxTempRise"] = s.maxTempRise;
     b["highAltitude"] = s.highAltitude;
     b["coating"] = s.coating;
+    b["underfill"] = s.underfill;
+    b["isolationGap"] = s.isolationGap;
     b["material"] = s.material;
     b["construction"] = s.construction;
     b["singleEndedImpedance"] = s.singleEndedImpedance;
@@ -159,6 +163,8 @@ Json Project::toJson() const {
     root["robotPlatform"] = robotPlatform;
     root["ecuType"] = ecuType;
     root["aerospaceMission"] = aerospaceMission;
+    root["navalPlatform"] = navalPlatform;
+    root["medicalClass"] = medicalClass;
     root["buildQuantity"] = buildQuantity;
     root["board"] = boardJson(pcb.settings);
 
@@ -256,6 +262,10 @@ Project Project::fromJson(const Json& root) {
     if (!p.ecuType.empty() && !findEcuType(p.ecuType)) p.ecuType.clear();
     p.aerospaceMission = root.get("aerospaceMission").asString("");
     if (!p.aerospaceMission.empty() && !findAerospaceMission(p.aerospaceMission)) p.aerospaceMission.clear();
+    p.navalPlatform = root.get("navalPlatform").asString("");
+    if (!p.navalPlatform.empty() && !findNavalPlatform(p.navalPlatform)) p.navalPlatform.clear();
+    p.medicalClass = root.get("medicalClass").asString("");
+    if (!p.medicalClass.empty() && !findMedicalClass(p.medicalClass)) p.medicalClass.clear();
     p.buildQuantity = std::max(1, root.get("buildQuantity").asInt(5));
     if (!findIndustry(p.industry)) p.industry = "general";
     const Json& b = root.get("board");
@@ -279,6 +289,8 @@ Project Project::fromJson(const Json& root) {
     s.copperWeightOz = std::max(0.5, b.get("copperWeightOz").asNumber(s.copperWeightOz));
     s.highAltitude = b.get("highAltitude").asBool(false);
     s.coating = b.get("coating").asString("none");
+    s.underfill = b.get("underfill").asBool(false);
+    s.isolationGap = std::clamp(b.get("isolationGap").asNumber(0), 0.0, 25.0);
     if (std::find(conformalCoatings().begin(), conformalCoatings().end(), s.coating) == conformalCoatings().end())
         s.coating = "none";
     s.material = b.get("material").asString("fr4");
@@ -491,6 +503,8 @@ Json Project::snapshot() const {
     root["robotPlatform"] = robotPlatform;
     root["ecuType"] = ecuType;
     root["aerospaceMission"] = aerospaceMission;
+    root["navalPlatform"] = navalPlatform;
+    root["medicalClass"] = medicalClass;
     root["board"] = boardJson(pcb.settings);
 
     Json pads = Json::array();
