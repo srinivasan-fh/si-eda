@@ -1,5 +1,6 @@
 #include "sieda/Project.hpp"
 
+#include "sieda/Aerospace.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/Embedded.hpp"
@@ -157,6 +158,7 @@ Json Project::toJson() const {
     root["industry"] = industry;
     root["robotPlatform"] = robotPlatform;
     root["ecuType"] = ecuType;
+    root["aerospaceMission"] = aerospaceMission;
     root["buildQuantity"] = buildQuantity;
     root["board"] = boardJson(pcb.settings);
 
@@ -252,6 +254,8 @@ Project Project::fromJson(const Json& root) {
     if (!p.robotPlatform.empty() && !findRobotPlatform(p.robotPlatform)) p.robotPlatform.clear();
     p.ecuType = root.get("ecuType").asString("");
     if (!p.ecuType.empty() && !findEcuType(p.ecuType)) p.ecuType.clear();
+    p.aerospaceMission = root.get("aerospaceMission").asString("");
+    if (!p.aerospaceMission.empty() && !findAerospaceMission(p.aerospaceMission)) p.aerospaceMission.clear();
     p.buildQuantity = std::max(1, root.get("buildQuantity").asInt(5));
     if (!findIndustry(p.industry)) p.industry = "general";
     const Json& b = root.get("board");
@@ -486,6 +490,7 @@ Json Project::snapshot() const {
     root["industry"] = industry;
     root["robotPlatform"] = robotPlatform;
     root["ecuType"] = ecuType;
+    root["aerospaceMission"] = aerospaceMission;
     root["board"] = boardJson(pcb.settings);
 
     Json pads = Json::array();

@@ -245,9 +245,9 @@ std::vector<RuleViolation> roboticsChecks(const Project& project) {
     }
     if (laidOut)
         for (const Component* c : parts.coax)
-            if (c->hasFootprint() && c->pcb.placed && s.edgeDistance(c->pcb.position) > 3.0)
+            if (c->hasFootprint() && c->pcb.placed && coaxEdgeGap(pcb, *c) > 3.0)
                 add(Severity::Warning, "REL_COAX_EDGE",
-                    c->ref + " (" + c->value + ") is " + fmt("%.1f mm", s.edgeDistance(c->pcb.position)) + " from the board "
+                    c->ref + " (" + c->value + ") is " + fmt("%.1f mm", coaxEdgeGap(pcb, *c)) + " from the board "
                     "edge: place coax connectors at the edge with solid ground under them and a short 50 Ω feed.",
                     {c->id}, c->pcb.position, true);
 

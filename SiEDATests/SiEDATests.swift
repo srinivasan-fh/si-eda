@@ -302,7 +302,7 @@ final class StandardsAndVerificationTests: XCTestCase {
     }
 
     func testOfflineTemplateMatchingAndCategories() {
-        XCTAssertEqual(OfflineProvider.templates.count, 35)
+        XCTAssertEqual(OfflineProvider.templates.count, 36)
         XCTAssertEqual(OfflineProvider.template(for: "non-inverting amplifier with gain 11").plan.title, "Non-Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "an inverting amplifier, gain -10").plan.title, "Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "blink an LED with a 555").plan.title, "555 Astable LED Blinker")
@@ -1519,7 +1519,7 @@ final class MicrocontrollerLibraryTests: XCTestCase {
         XCTAssertEqual(groups["Microcontrollers · Arm"]?.count, 10)
         XCTAssertEqual(groups["Microcontrollers · STMicroelectronics"]?.count, 10)
         XCTAssertEqual(groups["Microcontrollers · Texas Instruments"]?.count, 10)
-        XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 12)
+        XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 13)
         let rp2040 = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "RP2040" })
         XCTAssertEqual(rp2040.spec.package.type, "QFN")
         XCTAssertEqual(rp2040.spec.package.pitch, 0.4)
@@ -2141,6 +2141,36 @@ final class ReliabilityTests: XCTestCase {
         try reopened.load(json: store.engine.saveJSON())
         XCTAssertEqual(reopened.snapshot()?.ecuType, "bcm")
         XCTAssertEqual(DesignPlanCompiler.plan(from: store.snapshot).ecuType, "bcm")
+    }
+
+    func testAerospaceSegments() throws {
+        XCTAssertEqual(OfflineProvider.template(for: "rad-hard satellite on-board computer with TMR and SpaceWire").plan.title,
+                       "Satellite On-Board Computer: 5-Segment Aerospace Reference")
+        let template = try XCTUnwrap(OfflineProvider.templates.first { $0.plan.aerospaceMission != nil })
+        let store = DesignStore()
+        let report = DesignPlanCompiler.apply(template.industryPlan, to: store.engine, previous: nil)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        store.refresh()
+        XCTAssertEqual(store.snapshot.aerospaceMission, "leo")
+        XCTAssertEqual(store.snapshot.industry, "space")
+        let segments = store.aerospaceSegments()
+        XCTAssertTrue(segments.applies)
+        XCTAssertEqual(segments.platforms.count, 5)
+        XCTAssertEqual(segments.segments.map(\.id), ["compute", "power", "sensors", "avionics", "rf"])
+        // The schematic alone completes compute, power, sensors and avionics (RF needs the stack-up, set by the plan).
+        for segment in segments.segments {
+            XCTAssertEqual(segment.status, "complete", "\(segment.id): \(segment.items.filter { !$0.ok }.map(\.label))")
+        }
+        // Mission changes are undoable and saved.
+        store.setAerospaceMission("military")
+        XCTAssertEqual(store.snapshot.aerospaceMission, "military")
+        XCTAssertEqual(store.aerospaceSegments().segments.first { $0.id == "avionics" }?.status, "partial")  // no 1553
+        store.undo()
+        XCTAssertEqual(store.snapshot.aerospaceMission, "leo")
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        XCTAssertEqual(reopened.snapshot()?.aerospaceMission, "leo")
+        XCTAssertEqual(DesignPlanCompiler.plan(from: store.snapshot).aerospaceMission, "leo")
     }
 
     func testComputingSegmentReferenceDesigns() throws {

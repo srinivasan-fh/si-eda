@@ -25,6 +25,9 @@ public:
     /// Automotive ECU type ("bcm", "powertrain", "adas", "ev", "chassis", "gateway"; empty = none): turns on the
     /// six ECU segment checks with their guidance (the automotive industry profile turns them on too).
     std::string ecuType;
+    /// Aerospace mission ("leo", "geo", "launcher", "military", "commercial"; empty = none): turns on the five
+    /// aerospace segment checks with their guidance (the space industry profile turns them on too).
+    std::string aerospaceMission;
     Schematic schematic;
     PcbLayout pcb;
     /// Ids of custom parts (CustomPartRegistry) available in this project's component library.

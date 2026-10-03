@@ -156,6 +156,10 @@ char* sieda_robot_segments_json(const SiedaProject* project);
 int32_t sieda_set_ecu_type(SiedaProject* project, const char* type);
 /* The six automotive ECU segments checked on the design (same shape as sieda_robot_segments_json). */
 char* sieda_ecu_segments_json(const SiedaProject* project);
+/// Aerospace mission ("leo", "geo", "launcher", "military", "commercial"; "" = none). Returns 0 for an unknown id.
+int32_t sieda_set_aerospace_mission(SiedaProject* project, const char* mission);
+/// The five aerospace segments, same JSON shape as sieda_robot_segments_json. Caller frees.
+char* sieda_aerospace_segments_json(const SiedaProject* project);
 /* Stitches thermal vias at a power part's largest pad (own net, clearance kept). Returns the vias added. */
 int32_t sieda_pcb_add_thermal_vias(SiedaProject* project, int32_t component_id);
 /* Locks a placed footprint so Auto Place (and Auto Route's placement) keeps it where it is. */

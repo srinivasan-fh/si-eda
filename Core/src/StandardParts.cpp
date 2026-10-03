@@ -42,7 +42,14 @@ void mcu(std::vector<StandardPart>& parts, const char* group, const char* name, 
 void regulator(StandardPart& p, const char* in, const char* out, const char* ref, double vout, double dropout, double iq,
                double ilimit, double maxPower, bool charger = false) {
     p.spec.model.hasRegulator = true;
-    p.spec.model.regulator = {in, out, ref, vout, dropout, iq, ilimit, maxPower, charger};
+    p.spec.model.regulator = {in, out, ref, vout, dropout, iq, ilimit, maxPower, charger, {}, 0.8};
+}
+/// Isolated DC-DC module: primary +VIN / −VIN, secondary +VOUT / −VOUT; dropout = minimum input − vout.
+void isolated(StandardPart& p, const char* in, const char* inRet, const char* out, const char* ref, double vout,
+              double dropout, double iq, double ilimit, double maxPower, double efficiency) {
+    regulator(p, in, out, ref, vout, dropout, iq, ilimit, maxPower);
+    p.spec.model.regulator.inReturn = inRet;
+    p.spec.model.regulator.efficiency = efficiency;
 }
 void load(StandardPart& p, const char* supply, const char* ret, double amps) { p.spec.model.loads.push_back({supply, ret, amps}); }
 
@@ -57,6 +64,21 @@ void applyModels(std::vector<StandardPart>& parts) {
         else if (n == "TJA1021") load(p, "7", "5", 0.001);
         else if (n == "TPS3823-33-Q1" || n == "TPS3823-50-Q1") load(p, "5", "2", 15e-6);
         else if (n == "MCP2518FD") load(p, "14", "7", 0.010);
+        // Aerospace.
+        else if (n == "ATmegaS128") load(p, "21", "22", 0.008);
+        else if (n == "MR25H40") load(p, "8", "4", 0.003);
+        else if (n == "74HC10") load(p, "14", "7", 0.0001);
+        else if (n == "UT54LVDS031" || n == "UT54LVDS032") load(p, "16", "8", 0.010);
+        else if (n == "MCP3201") load(p, "8", "4", 0.0004);
+        else if (n == "MAX31855K") load(p, "4", "1", 0.0015);
+        else if (n == "CC1101") load(p, "9", "16", 0.017);
+        else if (n == "UHF-TRX-MODULE") load(p, "2", "1", 0.030);
+        else if (n == "TPS2553") {  // current-limited switch: OUT follows IN (≈ 85 mΩ), trips at the ILIM setting
+            regulator(p, "1", "6", "2", 6.5, 0.02, 120e-6, 0.5, 0.5);
+            p.spec.model.regulator.loadSwitch = true;
+        }
+        else if (n == "ISO-DCDC-2805S") isolated(p, "1", "2", "4", "3", 5.0, 11.0, 0.002, 2.0, 3.0, 0.82);
+        else if (n == "ISO-DCDC-0505S") isolated(p, "1", "2", "4", "3", 5.0, 0.0, 0.005, 0.2, 0.4, 0.75);
         else if (n == "24LC256") load(p, "8", "4", 0.001);
         else if (n == "TP4056") regulator(p, "4", "5", "3", 4.2, 0.1, 0.0003, 1.0, 2.0, true);  // 1 A with R_PROG = 1.2 kΩ
         else if (n == "XC6206P332") regulator(p, "3", "2", "1", 3.3, 0.25, 1e-6, 0.25, 0.25);
@@ -185,6 +207,93 @@ std::vector<StandardPart> build() {
     parts.push_back(part("Timing", "Crystal_8MHz", "Generic (AEC-Q200)", "8 MHz crystal, HC-49/US, ±30 ppm, 18 pF load",
                          "HC49", 2, "Y", {{"1", T::Passive}, {"2", T::Passive}}));
     parts.push_back(part("Timing", "Crystal_20MHz", "Generic (AEC-Q200)", "20 MHz crystal, HC-49/US, ±30 ppm, 18 pF load",
+                         "HC49", 2, "Y", {{"1", T::Passive}, {"2", T::Passive}}));
+    // Aerospace: rad-tolerant compute, MRAM, latch-up current limiting, TMR voting, SpaceWire LVDS, sensor
+    // conversion, isolated power and UHF telemetry.
+    mcu(parts, "Microchip", "ATmegaS128", "Microchip",
+        "Radiation-tolerant 8-bit AVR (ATmega128 pin-compatible): SEL-free to 62 MeV·cm²/mg, 30 krad TID, 3.3 V",
+        "LQFP", 64, 0.8, 14.0, "TQFP-64",
+        {{"PEN", T::Input}, {"PE0/RXD0", T::Bidirectional}, {"PE1/TXD0", T::Bidirectional}, {"PE2", T::Bidirectional},
+         {"PE3", T::Bidirectional}, {"PE4", T::Bidirectional}, {"PE5", T::Bidirectional}, {"PE6", T::Bidirectional},
+         {"PE7", T::Bidirectional}, {"PB0", T::Bidirectional}, {"PB1/SCK", T::Bidirectional},
+         {"PB2/MOSI", T::Bidirectional}, {"PB3/MISO", T::Bidirectional}, {"PB4", T::Bidirectional},
+         {"PB5", T::Bidirectional}, {"PB6", T::Bidirectional}, {"PB7", T::Bidirectional}, {"PG3", T::Bidirectional},
+         {"PG4", T::Bidirectional}, {"RESET", T::Input}, {"VCC", T::PowerIn}, {"GND", T::PowerIn},
+         {"XTAL2", T::Passive}, {"XTAL1", T::Passive}, {"PD0/SCL", T::Bidirectional}, {"PD1/SDA", T::Bidirectional},
+         {"PD2/RXD1", T::Bidirectional}, {"PD3/TXD1", T::Bidirectional}, {"PD4", T::Bidirectional},
+         {"PD5", T::Bidirectional}, {"PD6", T::Bidirectional}, {"PD7", T::Bidirectional}, {"PG0", T::Bidirectional},
+         {"PG1", T::Bidirectional}, {"PC0", T::Bidirectional}, {"PC1", T::Bidirectional}, {"PC2", T::Bidirectional},
+         {"PC3", T::Bidirectional}, {"PC4", T::Bidirectional}, {"PC5", T::Bidirectional}, {"PC6", T::Bidirectional},
+         {"PC7", T::Bidirectional}, {"PG2", T::Bidirectional}, {"PA7", T::Bidirectional}, {"PA6", T::Bidirectional},
+         {"PA5", T::Bidirectional}, {"PA4", T::Bidirectional}, {"PA3", T::Bidirectional}, {"PA2", T::Bidirectional},
+         {"PA1", T::Bidirectional}, {"PA0", T::Bidirectional}, {"VCC", T::PowerIn}, {"GND", T::PowerIn},
+         {"PF7", T::Bidirectional}, {"PF6", T::Bidirectional}, {"PF5", T::Bidirectional}, {"PF4", T::Bidirectional},
+         {"PF3", T::Bidirectional}, {"PF2", T::Bidirectional}, {"PF1", T::Bidirectional}, {"PF0/ADC0", T::Bidirectional},
+         {"AREF", T::Passive}, {"GND", T::PowerIn}, {"AVCC", T::PowerIn}});
+    parts.push_back(part("Aerospace", "MR25H40", "Everspin", "4 Mbit SPI MRAM: radiation-immune storage, unlimited endurance",
+                         "SOIC", 8, "U",
+                         {{"CS", T::Input}, {"SO", T::Output}, {"WP", T::Input}, {"VSS", T::PowerIn}, {"SI", T::Input},
+                          {"SCK", T::Input}, {"HOLD", T::Input}, {"VDD", T::PowerIn}}));
+    parts.push_back(part("Aerospace", "TPS2553", "Texas Instruments",
+                         "Current-limited power switch (75–1700 mA, 2 µs trip): single-event latch-up protection per processor",
+                         "SOT23", 6, "U",
+                         {{"IN", T::PowerIn}, {"GND", T::PowerIn}, {"EN", T::Input}, {"FAULT", T::OpenCollector},
+                          {"ILIM", T::Passive}, {"OUT", T::PowerOut}}));
+    parts.push_back(part("Logic", "74HC10", "Texas Instruments", "Triple 3-input NAND gate (TMR majority voter output stage)",
+                         "DIP", 14, "U",
+                         {{"1A", T::Input}, {"1B", T::Input}, {"2A", T::Input}, {"2B", T::Input}, {"2C", T::Input},
+                          {"2Y", T::Output}, {"GND", T::PowerIn}, {"3Y", T::Output}, {"3A", T::Input}, {"3B", T::Input},
+                          {"3C", T::Input}, {"1Y", T::Output}, {"1C", T::Input}, {"VCC", T::PowerIn}}));
+    parts.push_back(part("Aerospace", "UT54LVDS031", "CAES (Aeroflex)",
+                         "Rad-hard quad LVDS driver (400 Mbit/s, 300 krad): SpaceWire data / strobe transmit", "SOIC", 16, "U",
+                         {{"DIN1", T::Input}, {"DOUT1+", T::Output}, {"DOUT1-", T::Output}, {"EN", T::Input},
+                          {"DOUT2-", T::Output}, {"DOUT2+", T::Output}, {"DIN2", T::Input}, {"GND", T::PowerIn},
+                          {"DIN3", T::Input}, {"DOUT3+", T::Output}, {"DOUT3-", T::Output}, {"EN_N", T::Input},
+                          {"DOUT4-", T::Output}, {"DOUT4+", T::Output}, {"DIN4", T::Input}, {"VDD", T::PowerIn}}));
+    parts.push_back(part("Aerospace", "UT54LVDS032", "CAES (Aeroflex)",
+                         "Rad-hard quad LVDS receiver (400 Mbit/s, 300 krad): SpaceWire data / strobe receive", "SOIC", 16, "U",
+                         {{"RIN1-", T::Input}, {"RIN1+", T::Input}, {"ROUT1", T::Output}, {"EN", T::Input},
+                          {"ROUT2", T::Output}, {"RIN2+", T::Input}, {"RIN2-", T::Input}, {"GND", T::PowerIn},
+                          {"RIN3-", T::Input}, {"RIN3+", T::Input}, {"ROUT3", T::Output}, {"EN_N", T::Input},
+                          {"ROUT4", T::Output}, {"RIN4+", T::Input}, {"RIN4-", T::Input}, {"VDD", T::PowerIn}}));
+    parts.push_back(part("Aerospace", "MCP3201", "Microchip", "12-bit differential-input SPI ADC (100 ksps)", "SOIC", 8, "U",
+                         {{"VREF", T::PowerIn}, {"IN+", T::Input}, {"IN-", T::Input}, {"VSS", T::PowerIn},
+                          {"CS", T::Input}, {"DOUT", T::Output}, {"CLK", T::Input}, {"VDD", T::PowerIn}}));
+    parts.push_back(part("Aerospace", "MAX31855K", "Analog Devices",
+                         "K-type thermocouple-to-digital converter with cold-junction compensation (−270 … +1372 °C)", "SOIC",
+                         8, "U",
+                         {{"GND", T::PowerIn}, {"T-", T::Input}, {"T+", T::Input}, {"VCC", T::PowerIn}, {"SCK", T::Input},
+                          {"CS", T::Input}, {"SO", T::Output}, {"DNC", T::NoConnect}}));
+    parts.push_back(part("Aerospace", "ISO-DCDC-2805S", "Generic (MHF+2805S / SVR2805S class)",
+                         "Isolated DC-DC function block: 28 V bus (16–50 V) to 5 V, 10 W, 1500 V isolation. Pins by function — "
+                         "use the chosen module's footprint",
+                         "HEADER", 4, "PS", {{"+VIN", T::PowerIn}, {"-VIN", T::PowerIn}, {"-VOUT", T::PowerOut}, {"+VOUT", T::PowerOut}}));
+    parts.push_back(part("Aerospace", "ISO-DCDC-0505S", "Generic (NME0505 class)",
+                         "Isolated DC-DC function block: 5 V to isolated 5 V, 1 W, 1000 V isolation for a sensor domain. Pins "
+                         "by function — use the chosen module's footprint",
+                         "HEADER", 4, "PS", {{"+VIN", T::PowerIn}, {"-VIN", T::PowerIn}, {"-VOUT", T::PowerOut}, {"+VOUT", T::PowerOut}}));
+    {
+        StandardPart rf = part("RF", "CC1101", "Texas Instruments",
+                               "Sub-1 GHz transceiver (300–928 MHz, +12 dBm): UHF telemetry / beacon", "QFN", 20, "U",
+                               {{"SCLK", T::Input}, {"SO", T::Output}, {"GDO2", T::Output}, {"DVDD", T::PowerIn},
+                                {"DCOUPL", T::Passive}, {"GDO0", T::Output}, {"CSN", T::Input}, {"XOSC_Q1", T::Passive},
+                                {"AVDD", T::PowerIn}, {"XOSC_Q2", T::Passive}, {"AVDD", T::PowerIn}, {"RF_P", T::Passive},
+                                {"RF_N", T::Passive}, {"AVDD", T::PowerIn}, {"AVDD", T::PowerIn}, {"GND", T::PowerIn},
+                                {"RBIAS", T::Passive}, {"DGUARD", T::PowerIn}, {"GND", T::PowerIn}, {"SI", T::Input},
+                                {"GND", T::PowerIn}});
+        rf.spec.package.pitch = 0.5;
+        rf.spec.package.bodySize = 4.0;
+        rf.spec.pins.back().number = "EP";
+        parts.push_back(std::move(rf));
+    }
+    parts.push_back(part("RF", "UHF-TRX-MODULE", "Generic (CC1101 / Si4463 module class)",
+                         "UHF telemetry transceiver module function block (430–440 MHz, +20 dBm, 50 Ω RF pin, SPI). Pins by "
+                         "function — use the chosen module's footprint",
+                         "HEADER", 10, "U",
+                         {{"GND", T::PowerIn}, {"VCC", T::PowerIn}, {"SCK", T::Input}, {"MOSI", T::Input},
+                          {"MISO", T::Output}, {"CS", T::Input}, {"IRQ", T::Output}, {"GND", T::PowerIn},
+                          {"RF", T::Passive}, {"GND", T::PowerIn}}));
+    parts.push_back(part("Timing", "Crystal_26MHz", "Generic (AEC-Q200)", "26 MHz crystal, HC-49/US, ±10 ppm, 10 pF load",
                          "HC49", 2, "Y", {{"1", T::Passive}, {"2", T::Passive}}));
     // Marine / industrial communication and isolation.
     parts.push_back(part("Marine & Industrial", "MAX485", "Analog Devices", "RS-485 / RS-422 transceiver (NMEA 0183/2000 bus)",

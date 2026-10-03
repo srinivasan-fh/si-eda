@@ -276,6 +276,14 @@ final class EDAEngine: @unchecked Sendable {
         Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_ecu_segments_json($0)) }) ?? .empty
     }
 
+    /// Aerospace mission ("leo", "geo", "launcher", "military", "commercial"; "" = none).
+    @discardableResult
+    func setAerospaceMission(_ id: String) -> Bool { withHandle { sieda_set_aerospace_mission($0, id) } == 1 }
+
+    func aerospaceSegments() -> RobotSegmentsReport {
+        Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_aerospace_segments_json($0)) }) ?? .empty
+    }
+
     /// Stitches thermal vias at a power part's drain / tab pad; returns the vias added.
     @discardableResult
     func addThermalVias(_ id: Int) -> Int { Int(withHandle { sieda_pcb_add_thermal_vias($0, Int32(id)) }) }

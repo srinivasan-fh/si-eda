@@ -990,6 +990,18 @@ final class DesignStore: ObservableObject {
 
     func ecuSegments() -> RobotSegmentsReport { engine.ecuSegments() }
 
+    /// Aerospace mission ("" = none): turns on the 5-segment aerospace checks at full severity. Undoable.
+    func setAerospaceMission(_ id: String) {
+        guard id != snapshot.aerospaceMission else { return }
+        perform(id.isEmpty ? "No aerospace mission" : "Aerospace mission: \(id)", invalidatesAnalysis: false) {
+            $0.setAerospaceMission(id)
+        }
+        verificationReport = nil
+        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+    }
+
+    func aerospaceSegments() -> RobotSegmentsReport { engine.aerospaceSegments() }
+
     /// Stitches thermal vias at the selected parts' drain / tab pads (every power MOSFET when nothing is selected).
     func addThermalVias() {
         guard !isBusy else { return }

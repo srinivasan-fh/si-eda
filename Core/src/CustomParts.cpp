@@ -84,6 +84,11 @@ Json customPartSpecToJson(const CustomPartSpec& s) {
             rj["ilimit"] = r.ilimit;
             rj["maxPower"] = r.maxPower;
             rj["charger"] = r.charger;
+            if (r.loadSwitch) rj["loadSwitch"] = true;
+            if (r.isolated()) {
+                rj["inReturn"] = r.inReturn;
+                rj["efficiency"] = r.efficiency;
+            }
             m["regulator"] = rj;
         }
         if (!s.model.loads.empty()) {
@@ -204,8 +209,12 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
             r.ilimit = std::max(1e-6, rj.get("ilimit").asNumber(1.0));
             r.maxPower = std::max(1e-3, rj.get("maxPower").asNumber(0.5));
             r.charger = rj.get("charger").asBool(false);
+            r.inReturn = trim(rj.get("inReturn").asString(""));
+            r.efficiency = std::clamp(rj.get("efficiency").asNumber(0.8), 0.05, 1.0);
+            r.loadSwitch = rj.get("loadSwitch").asBool(false);
             s.model.hasRegulator = true;
-            if (s.pinIndex(r.in) < 0 || s.pinIndex(r.out) < 0 || s.pinIndex(r.ref) < 0)
+            if (s.pinIndex(r.in) < 0 || s.pinIndex(r.out) < 0 || s.pinIndex(r.ref) < 0 ||
+                (r.isolated() && s.pinIndex(r.inReturn) < 0))
                 throw JsonError("Regulator model of " + s.name + " references a pin that does not exist.");
             if (!(r.vout > 0)) throw JsonError("Regulator model of " + s.name + " needs a positive vout.");
         }
