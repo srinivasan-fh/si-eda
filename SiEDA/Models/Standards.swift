@@ -45,6 +45,8 @@ struct IndustryProfile: Decodable, Equatable, Identifiable, Hashable {
         case "hpc": return "cpu.fill"
         case "arm": return "memorychip"
         case "addin": return "rectangle.on.rectangle"
+        case "retail": return "creditcard"
+        case "appliance": return "washer"
         default: return "cpu"
         }
     }

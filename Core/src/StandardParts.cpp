@@ -73,6 +73,28 @@ void applyModels(std::vector<StandardPart>& parts) {
         else if (n == "MAX31855K") load(p, "4", "1", 0.0015);
         else if (n == "CC1101") load(p, "9", "16", 0.017);
         else if (n == "UHF-TRX-MODULE") load(p, "2", "1", 0.030);
+        else if (n == "FO-RX-820") load(p, "3", "2", 0.006);
+        else if (n == "LNA-MMIC") load(p, "3", "2", 0.025);
+        else if (n == "ADuM4401") {
+            load(p, "1", "2", 0.002);
+            load(p, "16", "15", 0.002);
+        } else if (n == "ISO-DCDC-MED") isolated(p, "1", "2", "8", "7", 5.0, -2.0, 0.004, 0.2, 0.5, 0.7);
+        else if (n == "DW01A") load(p, "5", "6", 3e-6);
+        else if (n == "SECURE-MCU") load(p, "2", "3", 0.025);
+        else if (n == "LNK306") regulator(p, "4", "5", "", 15.0, 25.0, 0.0001, 0.36, 1.0);  // buck: S node to 15 V
+        else if (n == "IPM-SLLIMM-600V") load(p, "1", "2", 0.005);
+        else if (n == "AT42QT1070") load(p, "1", "14", 0.0006);
+        else if (n == "A3144") load(p, "1", "2", 0.004);
+        else if (n == "ESP32-WROOM-32E") load(p, "2", "1", 0.08);
+        else if (n == "LM2596-5.0") isolated(p, "1", "3", "2", "3", 5.0, 2.0, 0.005, 3.0, 3.0, 0.85);  // buck: shared ground
+        else if (n == "DRV8833") load(p, "12", "13", 0.0017);
+        else if (n == "TPH-80MM") {
+            load(p, "1", "3", 0.02);   // idle head bias; firing current is a pulse the bulk capacitor supplies
+            load(p, "10", "12", 0.01);
+        }
+        else if (n == "USB2514B") load(p, "15", "EP", 0.08);
+        else if (n == "NCN8025") load(p, "9", "10", 0.004);
+        else if (n == "BLE-MODULE") load(p, "2", "1", 0.008);
         else if (n == "TPS2553") {  // current-limited switch: OUT follows IN (≈ 85 mΩ), trips at the ILIM setting
             regulator(p, "1", "6", "2", 6.5, 0.02, 120e-6, 0.5, 0.5);
             p.spec.model.regulator.loadSwitch = true;
@@ -293,6 +315,240 @@ std::vector<StandardPart> build() {
                          {{"GND", T::PowerIn}, {"VCC", T::PowerIn}, {"SCK", T::Input}, {"MOSI", T::Input},
                           {"MISO", T::Output}, {"CS", T::Input}, {"IRQ", T::Output}, {"GND", T::PowerIn},
                           {"RF", T::Passive}, {"GND", T::PowerIn}}));
+    // Naval: surge front end, fibre links and a radar LNA.
+    parts.push_back(part("Naval & Marine", "S14K35", "TDK (EPCOS)",
+                         "Metal-oxide varistor, 35 V rms / 45 V DC, 14 mm disc, 6 kA (8/20 µs): ship's power surge clamp",
+                         "DISC", 2, "RV", {{"1", T::Passive}, {"2", T::Passive}}));
+    parts.push_back(part("Naval & Marine", "GDT-90V", "Generic (Bourns 2038 / Littelfuse CG2 class)",
+                         "Two-electrode gas discharge tube, 90 V DC spark-over, 10 kA: high-energy surge diverter at the power "
+                         "entry",
+                         "DISC", 2, "GDT", {{"1", T::Passive}, {"2", T::Passive}}));
+    parts.push_back(part("Naval & Marine", "FO-TX-820", "Generic (versatile-link / ST fibre class)",
+                         "Fibre-optic transmitter function block, 820 nm LED, up to 5 MBd: drive the LED through a resistor. "
+                         "Pins by function — use the chosen module's footprint",
+                         "HEADER", 4, "U", {{"ANODE", T::Passive}, {"CATHODE", T::Passive}, {"NC", T::NoConnect}, {"NC", T::NoConnect}}));
+    parts.push_back(part("Naval & Marine", "FO-RX-820", "Generic (versatile-link / ST fibre class)",
+                         "Fibre-optic receiver function block, 820 nm, up to 5 MBd, open-collector output with internal pull-up "
+                         "(RL). Pins by function — use the chosen module's footprint",
+                         "HEADER", 4, "U", {{"VO", T::OpenCollector}, {"GND", T::PowerIn}, {"VCC", T::PowerIn}, {"RL", T::Passive}}));
+    parts.push_back(part("RF", "LNA-MMIC", "Generic (InGaP / pHEMT MMIC class)",
+                         "Low-noise amplifier MMIC function block (0.05–6 GHz, NF ≈ 1 dB, 20 dB gain), biased through a choke "
+                         "on RFOUT. Pins by function — check the chosen MMIC's pinout",
+                         "SOT23", 3, "U", {{"RFIN", T::Passive}, {"GND", T::PowerIn}, {"RFOUT", T::Passive}}));
+    // Medical: 2 × MOPP patient barrier, battery protection and BLE telemetry.
+    {
+        StandardPart iso = part("Medical", "ADuM4401", "Analog Devices",
+                                "Quad digital isolator (3 forward, 1 reverse), 5 kV rms reinforced, wide-body SOIC-16 with 8 mm "
+                                "creepage: 2 × MOPP patient barrier",
+                                "SOIC", 16, "U",
+                                {{"VDD1", T::PowerIn}, {"GND1", T::PowerIn}, {"VIA", T::Input}, {"VIB", T::Input},
+                                 {"VIC", T::Input}, {"VOD", T::Output}, {"VE1", T::Input}, {"GND1", T::PowerIn},
+                                 {"GND2", T::PowerIn}, {"VE2", T::Input}, {"VID", T::Input}, {"VOC", T::Output},
+                                 {"VOB", T::Output}, {"VOA", T::Output}, {"GND2", T::PowerIn}, {"VDD2", T::PowerIn}});
+        iso.spec.package.bodySize = 7.5;  // wide body
+        parts.push_back(std::move(iso));
+    }
+    {
+        StandardPart dc = part("Medical", "ISO-DCDC-MED", "Generic (RECOM REM / Murata MEV medical class)",
+                               "Medical isolated DC-DC function block: 3.0–5.5 V in, 5 V out, 1 W, 5 kV AC reinforced "
+                               "(2 × MOPP), < 10 pF barrier capacitance (patient leakage < 2 µA). Input and output on "
+                               "opposite rows 15 mm apart; pins by function — use the chosen module's footprint",
+                               "DIP", 8, "PS",
+                               {{"+VIN", T::PowerIn}, {"-VIN", T::PowerIn}, {"NC", T::NoConnect}, {"NC", T::NoConnect},
+                                {"NC", T::NoConnect}, {"NC", T::NoConnect}, {"-VOUT", T::PowerOut}, {"+VOUT", T::PowerOut}});
+        dc.spec.package.bodySize = 15.24;  // wide row spacing across the barrier
+        parts.push_back(std::move(dc));
+    }
+    {
+        // Payment secure element (MAX32550 / MAX32560 class): mesh drive / sense pins at the four corners so each
+        // tamper-mesh stub leaves straight to its mesh end; tamper switch inputs and battery-backed key storage.
+        StandardPart se = part("Retail", "SECURE-MCU", "Generic (PCI PTS secure MCU class)",
+                               "Payment secure MCU: battery-backed AES key storage zeroized on tamper, two active mesh "
+                               "drive / sense pairs, tamper-switch inputs, smart-card (EMV) and magstripe interfaces",
+                               "LQFP", 32, "U",
+                               {{"MESH_A_DRV", T::Output}, {"VDD", T::PowerIn}, {"GND", T::PowerIn}, {"TAMPER1", T::Input},
+                                {"TAMPER2", T::Input}, {"VBAT", T::PowerIn}, {"MSR_DATA", T::Input}, {"MSR_CLK", T::Input},
+                                {"SC_IO", T::Bidirectional}, {"SC_CLK", T::Output}, {"SC_RST", T::Output}, {"SC_VCC", T::Output},
+                                {"GND", T::PowerIn}, {"VDD", T::PowerIn}, {"NRST", T::Input}, {"MESH_B_SNS", T::Input},
+                                {"MESH_A_SNS", T::Input}, {"SPI_SCK", T::Output}, {"SPI_MOSI", T::Output}, {"SPI_MISO", T::Input},
+                                {"SPI_CS", T::Output}, {"UART_TX", T::Output}, {"UART_RX", T::Input}, {"VDD", T::PowerIn},
+                                {"GND", T::PowerIn}, {"USB_DP", T::Bidirectional}, {"USB_DM", T::Bidirectional},
+                                {"KEY_ROW", T::Output}, {"KEY_COL", T::Input}, {"SWDIO", T::Bidirectional}, {"SWCLK", T::Input},
+                                {"MESH_B_DRV", T::Output}});
+        se.spec.package.pitch = 0.8;
+        se.spec.package.bodySize = 7.0;
+        parts.push_back(std::move(se));
+    }
+    parts.push_back(part("Power", "LM2596-5.0", "Texas Instruments",
+                         "3 A step-down (buck) converter, 5 V fixed, 150 kHz, 4.5–40 V input; needs a 33 µH inductor, a "
+                         "Schottky catch diode and low-ESR output capacitance",
+                         "TO220", 5, "U",
+                         {{"VIN", T::PowerIn}, {"OUTPUT", T::PowerOut}, {"GND", T::PowerIn}, {"FEEDBACK", T::Input},
+                          {"ON_OFF", T::Input}}));
+    {
+        StandardPart drv = part("Robotics & Motor Control", "DRV8833", "Texas Instruments",
+                                "Dual H-bridge motor / stepper driver, 2.7–10.8 V, 1.5 A RMS per bridge, current "
+                                "regulation, HTSSOP-16 PowerPAD (the pad sinks the heat into a ground pour)",
+                                "TSSOP", 16, "U",
+                                {{"nSLEEP", T::Input}, {"AOUT1", T::Output}, {"AISEN", T::Passive}, {"AOUT2", T::Output},
+                                 {"BOUT2", T::Output}, {"BISEN", T::Passive}, {"BOUT1", T::Output}, {"nFAULT", T::OpenCollector},
+                                 {"BIN1", T::Input}, {"BIN2", T::Input}, {"VCP", T::Passive}, {"VM", T::PowerIn},
+                                 {"GND", T::PowerIn}, {"VINT", T::Passive}, {"AIN2", T::Input}, {"AIN1", T::Input},
+                                 {"PPAD", T::PowerIn}});
+        drv.spec.pins.back().number = "EP";
+        parts.push_back(std::move(drv));
+    }
+    parts.push_back(part("Retail", "TPH-80MM", "Generic (80 mm, 576-dot receipt mechanism class)",
+                         "80 mm thermal print head connector (576 dots): head supply VH 24 V (amps while a dot line fires), "
+                         "serial dot data, latch, two strobe groups and the head thermistor",
+                         "HEADER", 12, "J",
+                         {{"VH", T::PowerIn}, {"VH", T::PowerIn}, {"GND", T::PowerIn}, {"GND", T::PowerIn}, {"DI", T::Input},
+                          {"CLK", T::Input}, {"LAT", T::Input}, {"STB1", T::Input}, {"STB2", T::Input}, {"VDD", T::PowerIn},
+                          {"TH", T::Passive}, {"GND", T::PowerIn}}));
+    {
+        StandardPart hub = part("Retail", "USB2514B", "Microchip",
+                                "USB 2.0 high-speed 4-port hub controller, per-port power switching and over-current "
+                                "sense, 24 MHz crystal, QFN-36 6 × 6 mm",
+                                "QFN", 36, "U",
+                                {{"USBDM_DN1", T::Bidirectional}, {"USBDP_DN1", T::Bidirectional}, {"USBDM_DN2", T::Bidirectional},
+                                 {"USBDP_DN2", T::Bidirectional}, {"VDDA33", T::PowerIn}, {"USBDM_DN3", T::Bidirectional},
+                                 {"USBDP_DN3", T::Bidirectional}, {"USBDM_DN4", T::Bidirectional}, {"USBDP_DN4", T::Bidirectional},
+                                 {"VDDA33", T::PowerIn}, {"TEST", T::Input}, {"PRTPWR1", T::Output}, {"OCS_N1", T::Input},
+                                 {"CRFILT", T::Passive}, {"VDD33", T::PowerIn}, {"PRTPWR2", T::Output}, {"OCS_N2", T::Input},
+                                 {"PRTPWR3", T::Output}, {"OCS_N3", T::Input}, {"PRTPWR4", T::Output}, {"OCS_N4", T::Input},
+                                 {"SDA", T::Bidirectional}, {"VDD33", T::PowerIn}, {"SCL", T::Input}, {"HS_IND", T::Output},
+                                 {"RESET_N", T::Input}, {"VBUS_DET", T::Input}, {"SUSP_IND", T::Output}, {"VDDA33", T::PowerIn},
+                                 {"USBDM_UP", T::Bidirectional}, {"USBDP_UP", T::Bidirectional}, {"XTALOUT", T::Output},
+                                 {"XTALIN", T::Input}, {"PLLFILT", T::Passive}, {"RBIAS", T::Passive}, {"VDD33", T::PowerIn},
+                                 {"GND", T::PowerIn}});
+        hub.spec.pins.back().number = "EP";
+        hub.spec.package.pitch = 0.5;
+        parts.push_back(std::move(hub));
+    }
+    {
+        StandardPart afe = part("Retail", "NCN8025", "onsemi",
+                                "EMV / ISO 7816 smart-card interface: card VCC (1.8 / 3 / 5 V) from its own DC-DC, "
+                                "level-shifted I/O, card-presence detect, 8 kV ESD on the card pins. Pins by function",
+                                "QFN", 24, "U",
+                                {{"CLKIN", T::Input}, {"RSTIN", T::Input}, {"CMDVCC", T::Input}, {"VSEL", T::Input},
+                                 {"INT", T::OpenCollector}, {"IOUC", T::Bidirectional}, {"AUX1UC", T::Bidirectional},
+                                 {"AUX2UC", T::Bidirectional}, {"VDD", T::PowerIn}, {"GND", T::PowerIn}, {"VDDP", T::PowerIn},
+                                 {"LI", T::Passive}, {"PGND", T::PowerIn}, {"CVCC", T::PowerOut}, {"CRST", T::Output},
+                                 {"CCLK", T::Output}, {"CIO", T::Bidirectional}, {"CAUX1", T::Bidirectional},
+                                 {"CAUX2", T::Bidirectional}, {"PRES", T::Input}, {"PRESN", T::Input}, {"GND", T::PowerIn},
+                                 {"NC", T::NoConnect}, {"NC", T::NoConnect}, {"GND", T::PowerIn}});
+        afe.spec.pins.back().number = "EP";
+        afe.spec.package.pitch = 0.5;
+        parts.push_back(std::move(afe));
+    }
+    parts.push_back(part("Protection", "USBLC6-2SC6", "STMicroelectronics",
+                         "Two-line USB ESD protection with VBUS clamp, ±15 kV air (IEC 61000-4-2 level 4), 3.5 pF",
+                         "SOT23", 6, "D",
+                         {{"IO1", T::Passive}, {"GND", T::PowerIn}, {"IO2", T::Passive}, {"IO2", T::Passive},
+                          {"VBUS", T::Passive}, {"IO1", T::Passive}}));
+    parts.push_back(part("Protection", "TPD4E1U06", "Texas Instruments",
+                         "Four-channel low-capacitance ESD array (0.8 pF, ±15 kV contact) for LVDS / HDMI / smart-card lines",
+                         "SOT23", 6, "D",
+                         {{"IO1", T::Passive}, {"GND", T::PowerIn}, {"IO2", T::Passive}, {"IO3", T::Passive},
+                          {"NC", T::NoConnect}, {"IO4", T::Passive}}));
+    parts.push_back(part("Timing", "Crystal_24MHz", "Generic", "24 MHz crystal (USB hub / PHY reference), HC-49/US, ±30 ppm, 18 pF load",
+                         "HC49", 2, "Y", {{"1", T::Passive}, {"2", T::Passive}}));
+    // Home appliances: mains entry, off-line buck, AC switching, inverter motor, touch HMI, Wi-Fi.
+    parts.push_back(part("Home Appliances", "S10K275", "TDK / EPCOS",
+                         "275 VAC metal-oxide varistor, 10 mm disc, 2.5 kA surge: line-to-neutral clamp after the fuse",
+                         "DISC", 2, "RV", {{"1", T::Passive}, {"2", T::Passive}}));
+    {
+        StandardPart x2 = part("Home Appliances", "X2-100N-275VAC", "Generic (MKP X2 film)",
+                               "100 nF / 275 VAC class-X2 film capacitor across line and neutral (EMI filter, self-healing), "
+                               "15 mm lead pitch",
+                               "DISC", 2, "CX", {{"1", T::Passive}, {"2", T::Passive}});
+        x2.spec.package.bodySize = 15.0;
+        parts.push_back(std::move(x2));
+    }
+    parts.push_back(part("Home Appliances", "LNK306", "Power Integrations",
+                         "LinkSwitch-TN off-line switcher for a non-isolated buck from the rectified mains (85–265 VAC), "
+                         "up to 360 mA; source (S) is the switching node, the output is referenced to the DC-bus return. "
+                         "Pins by function",
+                         "DIP", 8, "U",
+                         {{"BP", T::Passive}, {"FB", T::Input}, {"NC", T::NoConnect}, {"D", T::PowerIn}, {"S", T::Passive},
+                          {"S", T::Passive}, {"S", T::Passive}, {"S", T::Passive}}));
+    {
+        StandardPart triac = part("Home Appliances", "BT136-600E", "WeEn",
+                                  "4 A / 600 V sensitive-gate triac (TO-220, leads formed to 5.08 mm for mains creepage) for "
+                                  "heaters, valves and pump motors; needs an RC snubber across MT1–MT2",
+                                  "TO220", 3, "Q", {{"MT1", T::Passive}, {"MT2", T::Passive}, {"G", T::Input}});
+        triac.spec.package.pitch = 5.08;
+        parts.push_back(std::move(triac));
+    }
+    parts.push_back(part("Home Appliances", "MOC3021", "onsemi",
+                         "Random-phase opto-triac driver, 400 V, 5.3 kV isolation: fires a power triac from a logic pin",
+                         "DIP", 6, "U",
+                         {{"A", T::Input}, {"K", T::Input}, {"NC", T::NoConnect}, {"MT1", T::Passive}, {"NC", T::NoConnect},
+                          {"MT2", T::Passive}}));
+    parts.push_back(part("Home Appliances", "H11AA1", "onsemi",
+                         "AC-input optocoupler (anti-parallel LEDs): a pulse at every mains zero crossing for phase control "
+                         "and triac timing",
+                         "DIP", 6, "U",
+                         {{"AC1", T::Passive}, {"AC2", T::Passive}, {"NC", T::NoConnect}, {"E", T::Passive},
+                          {"C", T::OpenCollector}, {"B", T::Passive}}));
+    parts.push_back(part("Home Appliances", "IPM-SLLIMM-600V", "Generic (STGIPQ / SLLIMM nano class)",
+                         "600 V 3 A three-phase intelligent power module: six IGBTs, gate drivers, bootstrap diodes, "
+                         "open emitters for shunt sensing and a fault output, for inverter compressors, drum and fan "
+                         "motors; logic pins on one row, power pins on the other with empty positions between high-voltage pins. "
+                         "Pins by function",
+                         "DIP", 28, "U",
+                         {{"VCC", T::PowerIn}, {"GND", T::PowerIn}, {"HIN_U", T::Input}, {"HIN_V", T::Input}, {"HIN_W", T::Input},
+                          {"LIN_U", T::Input}, {"LIN_V", T::Input}, {"LIN_W", T::Input}, {"FAULT", T::OpenCollector},
+                          {"CIN", T::Input}, {"NC", T::NoConnect}, {"NC", T::NoConnect}, {"NC", T::NoConnect},
+                          {"NC", T::NoConnect}, {"NW", T::Passive}, {"NV", T::Passive}, {"NU", T::Passive},
+                          {"NC", T::NoConnect}, {"P", T::PowerIn}, {"NC", T::NoConnect}, {"W", T::Output},
+                          {"VBOOT_W", T::Passive}, {"NC", T::NoConnect}, {"V", T::Output}, {"VBOOT_V", T::Passive},
+                          {"NC", T::NoConnect}, {"U", T::Output}, {"VBOOT_U", T::Passive}}));
+    parts.push_back(part("Home Appliances", "AT42QT1070", "Microchip",
+                         "Seven-key capacitive touch sensor (QTouch), I²C or standalone, automatic drift compensation; pads "
+                         "need ~1 kΩ series resistors and a hatched ground guard. Pins by function",
+                         "SOIC", 14, "U",
+                         {{"VDD", T::PowerIn}, {"KEY0", T::Passive}, {"KEY1", T::Passive}, {"KEY2", T::Passive},
+                          {"KEY3", T::Passive}, {"KEY4", T::Passive}, {"KEY5", T::Passive}, {"KEY6", T::Passive},
+                          {"SCL", T::Input}, {"SDA", T::Bidirectional}, {"CHANGE", T::OpenCollector}, {"RESET", T::Input},
+                          {"MODE", T::Input}, {"VSS", T::PowerIn}}));
+    parts.push_back(part("Home Appliances", "A3144", "Allegro (generic)",
+                         "Unipolar hall-effect switch for drum / fan speed (tacho) and door / lid sensing, open-collector",
+                         "SOT23", 3, "U", {{"VCC", T::PowerIn}, {"GND", T::PowerIn}, {"OUT", T::OpenCollector}}));
+    {
+        StandardPart esp = part("RF", "ESP32-WROOM-32E", "Espressif",
+                                "Wi-Fi + Bluetooth LE module (ESP32, 4 MB flash) with a PCB MIFA antenna: place the antenna "
+                                "end at the board edge with no copper beneath it and well away from mains copper",
+                                "MODULE", 38, "U",
+                                {{"GND", T::PowerIn}, {"3V3", T::PowerIn}, {"EN", T::Input}, {"SENSOR_VP", T::Input},
+                                 {"SENSOR_VN", T::Input}, {"IO34", T::Input}, {"IO35", T::Input}, {"IO32", T::Bidirectional},
+                                 {"IO33", T::Bidirectional}, {"IO25", T::Bidirectional}, {"IO26", T::Bidirectional},
+                                 {"IO27", T::Bidirectional}, {"IO14", T::Bidirectional}, {"IO12", T::Bidirectional},
+                                 {"GND", T::PowerIn}, {"IO13", T::Bidirectional}, {"SD2", T::NoConnect}, {"SD3", T::NoConnect},
+                                 {"CMD", T::NoConnect}, {"CLK", T::NoConnect}, {"SD0", T::NoConnect}, {"SD1", T::NoConnect},
+                                 {"IO15", T::Bidirectional}, {"IO2", T::Bidirectional}, {"IO0", T::Bidirectional},
+                                 {"IO4", T::Bidirectional}, {"IO16", T::Bidirectional}, {"IO17", T::Bidirectional},
+                                 {"IO5", T::Bidirectional}, {"IO18", T::Bidirectional}, {"IO19", T::Bidirectional},
+                                 {"NC", T::NoConnect}, {"IO21", T::Bidirectional}, {"RXD0", T::Input}, {"TXD0", T::Output},
+                                 {"IO22", T::Bidirectional}, {"IO23", T::Bidirectional}, {"GND", T::PowerIn},
+                                 {"GND", T::PowerIn}});
+        esp.spec.pins.back().number = "EP";
+        esp.spec.package.pitch = 1.27;
+        esp.spec.package.bodySize = 18.0;
+        parts.push_back(std::move(esp));
+    }
+    parts.push_back(part("Medical", "DW01A", "Fortune Semiconductor",
+                         "One-cell Li-ion protector: over-charge, over-discharge and over-current cut-off through two external "
+                         "MOSFETs",
+                         "SOT23", 6, "U",
+                         {{"OD", T::Output}, {"CS", T::Input}, {"OC", T::Output}, {"TD", T::Passive}, {"VCC", T::PowerIn},
+                          {"GND", T::PowerIn}}));
+    parts.push_back(part("RF", "BLE-MODULE", "Generic (nRF52832 module class)",
+                         "Bluetooth LE module function block with a 50 Ω RF pad for an external antenna, UART host interface. "
+                         "Pins by function — use the chosen module's footprint",
+                         "HEADER", 8, "U",
+                         {{"GND", T::PowerIn}, {"VCC", T::PowerIn}, {"TXD", T::Output}, {"RXD", T::Input},
+                          {"RESET", T::Input}, {"GND", T::PowerIn}, {"RF", T::Passive}, {"GND", T::PowerIn}}));
     parts.push_back(part("Timing", "Crystal_26MHz", "Generic (AEC-Q200)", "26 MHz crystal, HC-49/US, ±10 ppm, 10 pF load",
                          "HC49", 2, "Y", {{"1", T::Passive}, {"2", T::Passive}}));
     // Marine / industrial communication and isolation.

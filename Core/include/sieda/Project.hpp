@@ -28,6 +28,18 @@ public:
     /// Aerospace mission ("leo", "geo", "launcher", "military", "commercial"; empty = none): turns on the five
     /// aerospace segment checks with their guidance (the space industry profile turns them on too).
     std::string aerospaceMission;
+    /// Naval platform ("combatant", "carrier", "submarine", "patrol", "commercial"; empty = none): turns on the five
+    /// naval segment checks (the marine industry profile turns them on as advice).
+    std::string navalPlatform;
+    /// Medical device class ("bf", "cf", "life", "implant", "home"; empty = none): turns on the four medical segment
+    /// checks (the medical industry profile turns them on as advice).
+    std::string medicalClass;
+    /// Retail device class ("countertop", "unattended", "mpos", "kiosk", "printer"; empty = none): turns on the four
+    /// retail / POS segment checks (the retail industry profile turns them on as advice).
+    std::string retailDevice;
+    /// Home appliance type ("laundry", "kitchen", "refrigeration", "hvac", "small"; empty = none): turns on the
+    /// four appliance segment checks (the appliance industry profile turns them on as advice).
+    std::string applianceType;
     Schematic schematic;
     PcbLayout pcb;
     /// Ids of custom parts (CustomPartRegistry) available in this project's component library.

@@ -26,6 +26,11 @@
 #include "sieda/LengthMatch.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Aerospace.hpp"
+#include "sieda/Isolation.hpp"
+#include "sieda/Medical.hpp"
+#include "sieda/Retail.hpp"
+#include "sieda/Appliance.hpp"
+#include "sieda/Naval.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Robotics.hpp"
 #include "sieda/Stackup.hpp"
@@ -1252,7 +1257,7 @@ TEST(design_verification_pipeline) {
 }
 
 TEST(industry_profiles_and_derating) {
-    CHECK(industryProfiles().size() == 18);
+    CHECK(industryProfiles().size() == 20);
     for (const char* id : {"general", "robotics", "uav", "power", "automotive", "rf", "space", "marine", "industrial",
                            "medical", "defence", "networking", "vlsi"}) {
         const IndustryProfile* p = findIndustry(id);
@@ -3420,4 +3425,388 @@ TEST(aerospace_segments_rules_and_isolated_power) {
     CustomPartSpec spec = customPartSpecFromJson(customPartSpecToJson(findStandardPart("ISO-DCDC-2805S")->spec));
     CHECK(spec.model.regulator.isolated() && spec.model.regulator.inReturn == "2");
     CHECK_NEAR(spec.model.regulator.efficiency, 0.82, 1e-9);
+}
+
+TEST(naval_segments_and_rules) {
+    auto partId = [](const char* name) {
+        return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec)->id;
+    };
+    CHECK(navalPlatforms().size() == 5 && findNavalPlatform("submarine") && !findNavalPlatform("yacht"));
+    auto codes = [](const Project& p) {
+        std::set<std::string> out;
+        for (const auto& v : navalChecks(p))
+            if (v.severity != Severity::Info) out.insert(v.code);
+        return out;
+    };
+    Project p;
+    auto& s = p.schematic;
+    int v = s.addComponent(ComponentKind::VoltageSource, "28", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    int u = s.addCustomComponent(partId("ATmega328P"), "", {200, 0});
+    wire(s, v, "-", g, "GND");
+    wire(s, v, "+", u, "7");
+    wire(s, u, "8", g, "GND");
+    p.schematicChanged();
+    CHECK(navalChecks(p).empty());
+    p.industry = "marine";
+    CHECK(!navalChecks(p).empty() && codes(p).empty());  // advisory only
+    p.navalPlatform = "combatant";
+    auto c1 = codes(p);
+    for (const char* code : {"REL_SHIP_ISOLATION", "REL_SURGE_FRONT_END", "REL_SALT_FOG_COATING", "REL_HERMETIC",
+                             "REL_SHOCK_UNDERFILL", "REL_SHOCK_MOUNTING", "REL_SHOCK_SUBSTRATE", "REL_FIBER_LINK"})
+        CHECK(c1.count(code));
+    // Board build: coating, underfill, thick polyimide, close mounting holes.
+    p.pcb.settings.coating = "parylene";
+    p.pcb.settings.underfill = true;
+    p.pcb.settings.thickness = 2.4;
+    p.pcb.settings.layerCount = 8;
+    p.pcb.settings.material = "polyimide";
+    p.pcb.settings.clearance = 0.25;
+    for (double x : {10.0, 70.0})
+        for (double y : {10.0, 70.0}) p.pcb.settings.holes.push_back({{x, y}, 3.2, 6.4});
+    auto c2 = codes(p);
+    for (const char* code : {"REL_SALT_FOG_COATING", "REL_SHOCK_UNDERFILL", "REL_SHOCK_MOUNTING", "REL_SHOCK_SUBSTRATE",
+                             "REL_ECM_SPACING"})
+        CHECK(!c2.count(code));
+    // A radar LNA needs a PIN limiter on its input.
+    int lna = s.addCustomComponent(partId("LNA-MMIC"), "", {400, 0});
+    int in = s.addComponent(ComponentKind::NetLabel, "LNA_IN", {360, 0});
+    wire(s, lna, "RFIN", in, "N");
+    wire(s, lna, "GND", g, "GND");
+    p.schematicChanged();
+    CHECK(codes(p).count("REL_LNA_LIMITER"));
+    int d = s.addComponent(ComponentKind::Diode, "BAP64-02", {380, 60});
+    wire(s, d, "A", in, "N");
+    wire(s, d, "K", g, "GND");
+    p.schematicChanged();
+    CHECK(!codes(p).count("REL_LNA_LIMITER"));
+    auto segs = navalSegments(p);
+    CHECK(segs.size() == 5 && segs[2].id == "mechanical" && segs[2].status == "complete");
+    CHECK(navalSegmentsJson(p)["segments"].size() == 5);
+    CHECK(Project::fromJson(p.toJson()).navalPlatform == "combatant");
+    CHECK(Project::fromJson(p.toJson()).pcb.settings.underfill);
+}
+
+TEST(galvanic_domains_and_isolation_barrier) {
+    auto partId = [](const char* name) {
+        return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec)->id;
+    };
+    // System side: 5 V → isolated converter → patient side with a resistor load; an isolator crosses too.
+    Project p;
+    auto& s = p.schematic;
+    int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    int dc = s.addCustomComponent(partId("ISO-DCDC-MED"), "", {200, 0});
+    int pg = s.addComponent(ComponentKind::NetLabel, "PGND", {300, 100});
+    int load = s.addComponent(ComponentKind::Resistor, "1k", {400, 0});
+    int ecg = s.addComponent(ComponentKind::NetLabel, "ECG_RA", {500, 0});
+    int rin = s.addComponent(ComponentKind::Resistor, "10k", {500, 60});
+    wire(s, v, "-", g, "GND");
+    wire(s, v, "+", dc, "+VIN");
+    wire(s, dc, "-VIN", g, "GND");
+    wire(s, dc, "+VOUT", load, "1");
+    wire(s, dc, "-VOUT", pg, "N");
+    wire(s, load, "2", pg, "N");
+    wire(s, ecg, "N", rin, "1");
+    wire(s, rin, "2", pg, "N");
+    p.schematicChanged();
+    const GalvanicDomains doms = galvanicDomains(s);
+    const int sys = doms.domainOfNet(s.netOf({v, 0})), pat = doms.domainOfNet(s.netOf({load, 0}));
+    CHECK(sys >= 0 && pat >= 0 && sys != pat);
+    CHECK(doms.domainOfNet(s.netOf({rin, 0})) == pat);
+    CHECK(doms.domainOfComponent(s, *s.find(dc)) == -1 && doms.domainOfComponent(s, *s.find(load)) == pat);
+    {
+        DcResult dcr = Simulator(s).dcOperatingPoint();  // 3.0–5.5 V in, isolated 5 V out
+        CHECK(dcr.converged);
+        CHECK_NEAR(netV(s, dcr, load, "1") - netV(s, dcr, load, "2"), 5.0, 0.05);
+    }
+    // Medical rules: patient barrier present; 2 × MOPP creepage asked of the board.
+    p.medicalClass = "cf";
+    std::set<std::string> c1;
+    for (const auto& x : medicalChecks(p))
+        if (x.severity != Severity::Info) c1.insert(x.code);
+    CHECK(!c1.count("REL_PATIENT_ISOLATION") && c1.count("REL_MOPP_CREEPAGE") && c1.count("REL_DEFIB_PROTECTION"));
+    // A Y-capacitor across the barrier merges the domains: the patient is no longer isolated.
+    int ycap = s.addComponent(ComponentKind::Capacitor, "4.7n", {300, 200});
+    wire(s, ycap, "1", pg, "N");
+    wire(s, ycap, "2", g, "GND");
+    p.schematicChanged();
+    std::set<std::string> c2;
+    for (const auto& x : medicalChecks(p))
+        if (x.severity != Severity::Info) c2.insert(x.code);
+    CHECK(c2.count("REL_PATIENT_ISOLATION"));
+    s.removeComponent(ycap);
+    p.schematicChanged();
+
+    // Layout: with an 8 mm barrier the domains are placed, routed and poured 8 mm apart and DRC proves it.
+    p.pcb.settings.isolationGap = 8;
+    p.pcb.settings.layerCount = 2;
+    p.pcb.settings.width = 60;
+    p.pcb.settings.height = 40;
+    p.pcb.zones.push_back({"GND", 1, false, 0});
+    p.pcb.autoPlace(s, true);
+    CHECK(p.pcb.autoRoute(s).failed == 0);
+    int gapErrors = 0;
+    for (const auto& x : p.pcb.runDRC(s)) gapErrors += x.code == "DRC_ISOLATION_GAP";
+    CHECK(gapErrors == 0);
+    // A patient-side part moved next to the system side is caught.
+    const Vec2 next = s.find(v)->pcb.position + Vec2{3, 0};
+    for (auto& c : s.mutableComponents())
+        if (c.id == load) c.pcb.position = next;
+    p.pcb.clearRouting();
+    int after = 0;
+    for (const auto& x : p.pcb.runDRC(s)) after += x.code == "DRC_ISOLATION_GAP";
+    CHECK(after > 0);
+    CHECK(Project::fromJson(p.toJson()).pcb.settings.isolationGap == 8);
+    CHECK(Project::fromJson(p.toJson()).medicalClass == "cf");
+}
+
+TEST(tamper_mesh_over_secure_element) {
+    auto partId = [](const char* name) {
+        return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec)->id;
+    };
+    Project p;
+    auto& s = p.schematic;
+    int v = s.addComponent(ComponentKind::VoltageSource, "3.3", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    int se = s.addCustomComponent(partId("SECURE-MCU"), "", {200, 0});
+    int c1 = s.addComponent(ComponentKind::Capacitor, "100n", {300, 0});
+    int r1 = s.addComponent(ComponentKind::Resistor, "10k", {300, 100});
+    int r2 = s.addComponent(ComponentKind::Resistor, "10k", {300, 200});
+    int ma = s.addComponent(ComponentKind::NetLabel, "TAMPER_MESH_A", {400, 0});
+    int mb = s.addComponent(ComponentKind::NetLabel, "TAMPER_MESH_B", {400, 100});
+    wire(s, v, "-", g, "GND");
+    wire(s, v, "+", se, "VDD");
+    wire(s, se, "GND", g, "GND");
+    wire(s, c1, "1", se, "VDD");
+    wire(s, c1, "2", g, "GND");
+    wire(s, r1, "1", se, "NRST");
+    wire(s, r1, "2", se, "VDD");
+    wire(s, r2, "1", se, "TAMPER1");
+    wire(s, r2, "2", g, "GND");
+    wire(s, se, "MESH_A_DRV", ma, "N");
+    wire(s, se, "MESH_A_SNS", ma, "N");
+    wire(s, se, "MESH_B_DRV", mb, "N");
+    wire(s, se, "MESH_B_SNS", mb, "N");
+    p.schematicChanged();
+    const std::string seRef = s.find(se)->ref;
+
+    // Retail rules: a countertop terminal's secure element without a mesh, backup cell or tamper switches.
+    p.retailDevice = "countertop";
+    auto retailCodes = [&] {
+        std::set<std::string> c;
+        for (const auto& x : retailChecks(p))
+            if (x.severity != Severity::Info) c.insert(x.code);
+        return c;
+    };
+    {
+        const auto c = retailCodes();
+        CHECK(!c.count("REL_SECURE_ELEMENT") && c.count("REL_TAMPER_MESH") && c.count("REL_KEY_BATTERY"));
+        CHECK(!c.count("REL_TAMPER_SWITCHES"));  // TAMPER1 is wired (pull-down R2)
+        CHECK(c.count("REL_RETAIL_COATING") == 0);  // countertop: coating advice is Info
+    }
+    p.pcb.settings.layerCount = 4;
+    p.pcb.settings.width = 50;
+    p.pcb.settings.height = 45;
+    p.pcb.tamperMeshes.push_back({seRef, "TAMPER_MESH_A", "TAMPER_MESH_B", 1, 2, 2.0});
+    CHECK(!retailCodes().count("REL_TAMPER_MESH"));
+    {
+        const auto segs = retailSegments(p);
+        CHECK(segs.size() == 4 && segs[0].id == "security");
+        CHECK(segs[0].items[0].ok && segs[0].items[1].ok && !segs[0].items[2].ok);  // no backup cell yet
+    }
+    p.pcb.autoPlace(s, true);
+    const RouteStats st = p.pcb.autoRoute(s);
+    CHECK(st.failed == 0);
+    const auto geo = p.pcb.tamperMeshGeometry(s, p.pcb.pads(s));
+    CHECK(geo.size() == 1 && geo[0].error.empty());
+    // The secure element sits under the mesh; both serpentines are laid on their inner layers.
+    const Rect area = geo[0].region;
+    CHECK(area.contains(s.find(se)->pcb.position));
+    int stripesA = 0, stripesB = 0;
+    for (const auto& t : p.pcb.tracks) {
+        stripesA += t.net == geo[0].netA && t.layer == 1;
+        stripesB += t.net == geo[0].netB && t.layer == 2;
+        // Nothing else crosses the mesh layers inside the secure area.
+        if ((t.layer == 1 || t.layer == 2) && t.net != geo[0].netA && t.net != geo[0].netB)
+            CHECK(segmentRectDistance(t.a, t.b, area) > 0);
+    }
+    CHECK(stripesA > 10 && stripesB > 10);
+    for (const auto& via : p.pcb.vias) CHECK(!area.contains(via.position) || via.net == geo[0].netA || via.net == geo[0].netB);
+    std::set<std::string> codes;
+    for (const auto& x : p.pcb.runDRC(s)) codes.insert(x.code);
+    CHECK(!codes.count("DRC_TAMPER_MESH") && !codes.count("DRC_TAMPER_MESH_BREACH") && !codes.count("DRC_UNROUTED"));
+    CHECK(!codes.count("DRC_CLEARANCE"));
+    // A via drilled through the secure area is a breach.
+    Via drill;
+    drill.net = s.netOf({g, 0});
+    drill.position = s.find(se)->pcb.position;
+    p.pcb.vias.push_back(drill);
+    std::set<std::string> breach;
+    for (const auto& x : p.pcb.runDRC(s)) breach.insert(x.code);
+    CHECK(breach.count("DRC_TAMPER_MESH_BREACH"));
+    // Persisted with the project; a 2-layer board cannot carry a mesh.
+    const Project q = Project::fromJson(p.toJson());
+    CHECK(q.pcb.tamperMeshes.size() == 1 && q.pcb.tamperMeshes[0].netB == "TAMPER_MESH_B");
+    p.pcb.settings.layerCount = 2;
+    std::set<std::string> two;
+    for (const auto& x : p.pcb.runDRC(s)) two.insert(x.code);
+    CHECK(two.count("DRC_TAMPER_MESH"));
+}
+
+TEST(retail_printer_and_peripheral_rules) {
+    auto partId = [](const char* name) {
+        return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec)->id;
+    };
+    Project p;
+    auto& s = p.schematic;
+    p.industry = "retail";
+    p.retailDevice = "printer";
+    int v = s.addComponent(ComponentKind::VoltageSource, "24", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    int head = s.addCustomComponent(partId("TPH-80MM"), "", {200, 0});
+    int q = s.addComponent(ComponentKind::NMOS, "AO3400", {300, 100});
+    int sol = s.addComponent(ComponentKind::NetLabel, "CUTTER_SOL", {400, 100});
+    int j = s.addComponent(ComponentKind::Connector, "CUTTER", {500, 100});
+    wire(s, v, "-", g, "GND");
+    wire(s, v, "+", head, "1");
+    wire(s, head, "3", g, "GND");
+    wire(s, q, "D", sol, "N");
+    wire(s, q, "S", g, "GND");
+    wire(s, j, "2", sol, "N");
+    wire(s, j, "1", v, "+");
+    p.schematicChanged();
+    auto codes = [&] {
+        std::set<std::string> c;
+        for (const auto& x : retailChecks(p))
+            if (x.severity != Severity::Info) c.insert(x.code);
+        return c;
+    };
+    {
+        const auto c = codes();
+        CHECK(c.count("REL_TPH_BULK") && c.count("REL_PRINTER_MOTOR") && c.count("REL_SOLENOID_FLYBACK"));
+        CHECK(!c.count("REL_SECURE_ELEMENT"));  // a printer carries no payment keys
+    }
+    int bulk = s.addComponent(ComponentKind::Capacitor, "1000u", {200, 200});
+    int fly = s.addComponent(ComponentKind::Diode, "1N4007", {400, 200});
+    wire(s, bulk, "1", v, "+");
+    wire(s, bulk, "2", g, "GND");
+    wire(s, fly, "A", sol, "N");
+    wire(s, fly, "K", v, "+");
+    p.schematicChanged();
+    {
+        const auto c = codes();
+        CHECK(!c.count("REL_TPH_BULK") && !c.count("REL_SOLENOID_FLYBACK") && c.count("REL_PRINTER_MOTOR"));
+    }
+    CHECK(Project::fromJson(p.toJson()).retailDevice == "printer");
+    CHECK(findIndustry("retail") && findIndustry("appliance"));
+    // A buck converter with a shared ground is simulated by efficiency and is not a galvanic barrier.
+    Project b;
+    auto& t = b.schematic;
+    int vin = t.addComponent(ComponentKind::VoltageSource, "24", {0, 0});
+    int gg = t.addComponent(ComponentKind::Ground, "", {0, 100});
+    int buck = t.addCustomComponent(partId("LM2596-5.0"), "", {200, 0});
+    int l = t.addComponent(ComponentKind::Inductor, "33u", {300, 0});
+    int load = t.addComponent(ComponentKind::Resistor, "10", {400, 0});
+    wire(t, vin, "-", gg, "GND");
+    wire(t, vin, "+", buck, "VIN");
+    wire(t, buck, "GND", gg, "GND");
+    wire(t, buck, "ON_OFF", gg, "GND");
+    wire(t, buck, "OUTPUT", l, "1");
+    wire(t, l, "2", load, "1");
+    wire(t, buck, "FEEDBACK", load, "1");
+    wire(t, load, "2", gg, "GND");
+    b.schematicChanged();
+    DcResult dc = Simulator(t).dcOperatingPoint();
+    CHECK(dc.converged);
+    CHECK_NEAR(netV(t, dc, load, "1"), 5.0, 0.05);
+    // 0.5 A out at 5 V and 85 %: ≈ 0.12 A from 24 V instead of 0.5 A through a linear pass element.
+    CHECK(reading(dc, vin) && std::fabs(reading(dc, vin)->current) < 0.2);
+    CHECK(galvanicDomains(t).domainOfNet(t.netOf({vin, 0})) == galvanicDomains(t).domainOfNet(t.netOf({load, 0})));
+}
+
+TEST(appliance_mains_rules_and_voltage_spacing) {
+    auto partId = [](const char* name) {
+        return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec)->id;
+    };
+    // 230 VAC through a fuse and a bridge into a bulk capacitor and a resistive load; a 3.3 V logic island beside it.
+    Project p;
+    auto& s = p.schematic;
+    p.industry = "appliance";
+    p.applianceType = "kitchen";
+    int ac = s.addComponent(ComponentKind::ACSource, "SIN(0 325 50)", {0, 0});
+    int f = s.addComponent(ComponentKind::Fuse, "2", {100, -100});
+    int lbl = s.addComponent(ComponentKind::NetLabel, "AC_L", {50, -100});
+    int d1 = s.addComponent(ComponentKind::Diode, "1N4007", {200, -100});
+    int d2 = s.addComponent(ComponentKind::Diode, "1N4007", {200, 0});
+    int d3 = s.addComponent(ComponentKind::Diode, "1N4007", {200, 100});
+    int d4 = s.addComponent(ComponentKind::Diode, "1N4007", {200, 200});
+    int g = s.addComponent(ComponentKind::Ground, "", {300, 300});
+    int bulk = s.addComponent(ComponentKind::Capacitor, "10u", {300, 0});
+    int load = s.addComponent(ComponentKind::Resistor, "100k", {400, 0});
+    int v = s.addComponent(ComponentKind::VoltageSource, "3.3", {600, 0});
+    int r1 = s.addComponent(ComponentKind::Resistor, "10k", {700, 0});
+    int r2 = s.addComponent(ComponentKind::Resistor, "10k", {700, 100});
+    wire(s, ac, "+", lbl, "N");
+    wire(s, lbl, "N", f, "1");
+    wire(s, f, "2", d1, "A");
+    wire(s, f, "2", d3, "K");
+    wire(s, ac, "-", d2, "A");
+    wire(s, ac, "-", d4, "K");
+    wire(s, d1, "K", bulk, "1");
+    wire(s, d2, "K", bulk, "1");
+    wire(s, d3, "A", g, "GND");
+    wire(s, d4, "A", g, "GND");
+    wire(s, bulk, "2", g, "GND");
+    wire(s, load, "1", bulk, "1");
+    wire(s, load, "2", g, "GND");
+    wire(s, v, "-", g, "GND");
+    wire(s, v, "+", r1, "1");
+    wire(s, r1, "2", r2, "1");
+    wire(s, r2, "2", g, "GND");
+    p.schematicChanged();
+
+    // The transient puts L, N and the bus at mains potential (not their DC point of 0 V); logic stays low.
+    const auto ranges = netVoltageRanges(s);
+    const int bus = s.netOf({bulk, 0}), logic = s.netOf({r1, 1});
+    CHECK(ranges.at(bus).second > 250 && ranges.at(s.netOf({f, 1})).second > 250);
+    CHECK(std::fabs(ranges.at(logic).second) < 5);
+    {
+        std::set<std::string> c;
+        for (const auto& x : applianceChecks(p))
+            if (x.severity != Severity::Info) c.insert(x.code);
+        CHECK(!c.count("REL_MAINS_FUSE") && c.count("REL_MAINS_MOV") && c.count("REL_X_CAP") && c.count("REL_OFFLINE_SUPPLY"));
+    }
+    int mov = s.addCustomComponent(partId("S10K275"), "", {150, -50});
+    int x2 = s.addCustomComponent(partId("X2-100N-275VAC"), "", {150, 50});
+    wire(s, mov, "1", f, "2");
+    wire(s, mov, "2", ac, "-");
+    wire(s, x2, "1", f, "2");
+    wire(s, x2, "2", ac, "-");
+    p.schematicChanged();
+    {
+        std::set<std::string> c;
+        for (const auto& x : applianceChecks(p))
+            if (x.severity != Severity::Info) c.insert(x.code);
+        CHECK(!c.count("REL_MAINS_MOV") && !c.count("REL_X_CAP"));
+        const auto segs = applianceSegments(p);
+        CHECK(segs.size() == 4 && segs[0].id == "mains" && segs[0].items[0].ok && segs[0].items[1].ok == false);
+    }
+
+    // Mains spacing: coated board → 0.8 mm for 325 V, applied by fencing the mains nets, not the whole board.
+    p.pcb.settings.layerCount = 2;
+    p.pcb.settings.width = 70;
+    p.pcb.settings.height = 50;
+    p.pcb.settings.coating = "acrylic";
+    const SpacingDomains sd = spacingDomains(s, p.pcb.settings);
+    CHECK_NEAR(sd.hvGap, 0.8, 1e-9);
+    CHECK(sd.highVoltage[static_cast<size_t>(bus)] && !sd.highVoltage[static_cast<size_t>(logic)]);
+    CHECK(sd.domains.domainOfNet(bus) != sd.domains.domainOfNet(logic));
+    p.pcb.autoPlace(s, true);
+    CHECK(p.pcb.autoRoute(s).failed == 0);
+    CHECK(p.pcb.settings.clearance < 0.5);  // the logic keeps its design-rule clearance
+    int hv = 0;
+    for (const auto& x : p.pcb.runDRC(s)) hv += x.code == "DRC_HV_CLEARANCE" || x.code == "DRC_SHORT";
+    CHECK(hv == 0);
+    CHECK(Project::fromJson(p.toJson()).applianceType == "kitchen");
 }

@@ -280,6 +280,57 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func setAerospaceMission(_ id: String) -> Bool { withHandle { sieda_set_aerospace_mission($0, id) } == 1 }
 
+    /// Medical device class ("bf", "cf", "life", "implant", "home"; "" = none).
+    @discardableResult
+    func setMedicalClass(_ id: String) -> Bool { withHandle { sieda_set_medical_class($0, id) } == 1 }
+
+    func medicalSegments() -> RobotSegmentsReport {
+        Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_medical_segments_json($0)) }) ?? .empty
+    }
+
+    /// Retail device class ("countertop", "unattended", "mpos", "kiosk", "printer"; "" = none).
+    @discardableResult
+    func setRetailDevice(_ id: String) -> Bool { withHandle { sieda_set_retail_device($0, id) } == 1 }
+
+    func retailSegments() -> RobotSegmentsReport {
+        Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_retail_segments_json($0)) }) ?? .empty
+    }
+
+    /// Home appliance type ("laundry", "kitchen", "refrigeration", "hvac", "small"; "" = none).
+    @discardableResult
+    func setApplianceType(_ id: String) -> Bool { withHandle { sieda_set_appliance_type($0, id) } == 1 }
+
+    func applianceSegments() -> RobotSegmentsReport {
+        Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_appliance_segments_json($0)) }) ?? .empty
+    }
+
+    /// Active tamper mesh over the part `ref` (laid by the autorouter on two inner layers); nil if rejected.
+    func addTamperMesh(component ref: String, netA: String, netB: String, layerA: Int = 1, layerB: Int = 2,
+                       margin: Double = 2) -> Int? {
+        let index = withHandle { sieda_pcb_add_tamper_mesh($0, ref, netA, netB, Int32(layerA), Int32(layerB), margin) }
+        return index >= 0 ? Int(index) : nil
+    }
+
+    func clearTamperMeshes() { withHandle { sieda_pcb_clear_tamper_meshes($0) } }
+
+    /// Naval platform ("combatant", "carrier", "submarine", "patrol", "commercial"; "" = none).
+    @discardableResult
+    func setNavalPlatform(_ id: String) -> Bool { withHandle { sieda_set_naval_platform($0, id) } == 1 }
+
+    func navalSegments() -> RobotSegmentsReport {
+        Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_naval_segments_json($0)) }) ?? .empty
+    }
+
+    /// Board thickness (mm, ≤ 0 keeps it) and underfill / corner bonding of heavy parts.
+    @discardableResult
+    func setMechanical(thickness: Double, underfill: Bool) -> Bool {
+        withHandle { sieda_pcb_set_mechanical($0, thickness, underfill ? 1 : 0) } == 1
+    }
+
+    /// Isolation barrier spacing between galvanic domains (mm, 0 = none).
+    @discardableResult
+    func setIsolationGap(_ gap: Double) -> Bool { withHandle { sieda_pcb_set_isolation_gap($0, gap) } == 1 }
+
     func aerospaceSegments() -> RobotSegmentsReport {
         Self.decode(RobotSegmentsReport.self, from: withHandle { Self.take(sieda_aerospace_segments_json($0)) }) ?? .empty
     }

@@ -47,6 +47,11 @@ struct BoardSettings {
     bool highAltitude = false;
     /// Conformal coating applied after assembly ("none" or an IPC-CC-830 type, see conformalCoatings()).
     std::string coating = "none";
+    /// Underfill / corner-bond epoxy specified for BGAs, processors and heavy parts (shock: MIL-STD-901E, MIL-STD-810).
+    bool underfill = false;
+    /// Galvanic isolation barrier spacing (mm): parts, tracks, vias and pours of different isolation domains keep at
+    /// least this far apart (8 mm = 2 × MOPP, 4 mm = 1 × MOPP; 0 = no barrier rule). See Isolation.hpp.
+    double isolationGap = 0;
     bool coated() const { return !coating.empty() && coating != "none"; }
     /// Laminate (see laminateMaterials()): "fr4", "fr4-hightg", "isola-370hr", "rogers-4350b", "megtron-6",
     /// "polyimide", "ims-aluminium".
@@ -230,6 +235,31 @@ struct ZoneFill {
     double area() const;
 };
 
+/// Active tamper mesh (PCI PTS / FIPS 140-3 level 3+): two serpentine traces on inner layers, one running in
+/// horizontal stripes and one in vertical stripes, cover the secure element `componentRef` plus `margin` mm. Each
+/// mesh net has exactly two pads (drive and sense pins of the secure element); the autorouter lays the mesh, ties
+/// each pad to one end of it and keeps every other net — and every via — out of the covered area, so drilling or
+/// cutting into the secure area breaks or shorts a mesh line and the secure element zeroizes its keys.
+struct TamperMesh {
+    std::string componentRef;
+    std::string netA, netB;  // horizontal-stripe mesh on layerA, vertical-stripe mesh on layerB
+    int layerA = 1, layerB = 2;
+    double margin = 2.0;
+};
+
+/// The copper a tamper mesh lays out: `region` is the covered (secure) area; tracks are the serpentines with their
+/// leaders; `ends` are the via positions at the two ends of each serpentine ([0],[1] = netA, [2],[3] = netB).
+struct TamperMeshGeometry {
+    int mesh = -1;
+    std::string error;  // why the mesh cannot be laid out (empty when it can)
+    Rect region;
+    int netA = -1, netB = -1;
+    std::vector<Track> tracks;
+    std::vector<Vec2> ends;
+    /// Pads tied to each end, in the same order as `ends` (indices into PcbLayout::pads()).
+    std::vector<size_t> endPads;
+};
+
 struct RouteStats {
     int connections = 0;
     int routed = 0;
@@ -246,6 +276,9 @@ public:
     std::vector<Track> tracks;
     std::vector<Via> vias;
     std::vector<CopperZone> zones;
+    std::vector<TamperMesh> tamperMeshes;
+    /// Layout of every tamper mesh for the current placement (see TamperMesh).
+    std::vector<TamperMeshGeometry> tamperMeshGeometry(const Schematic& sch, const std::vector<Pad>& pads) const;
 
     /// Pours every zone against the given copper (pads, tracks, vias). Zones fill in order; later zones keep
     /// clearance to earlier ones of other nets.

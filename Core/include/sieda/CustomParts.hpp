@@ -51,6 +51,9 @@ struct RegulatorModel {
     std::string inReturn;
     double efficiency = 0.8;
     bool isolated() const { return !inReturn.empty(); }
+    /// A converter with its own input return that is a different pin from the output reference: a galvanic
+    /// barrier. inReturn == ref models a non-isolated switching converter (buck) by its efficiency.
+    bool galvanic() const { return isolated() && inReturn != ref; }
     // Current-limited load switch: the output follows the input (minus `dropout`), so it is never "in dropout".
     bool loadSwitch = false;
 };

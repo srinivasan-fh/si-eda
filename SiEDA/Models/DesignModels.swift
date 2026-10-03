@@ -24,7 +24,17 @@ struct DesignSnapshot: Decodable, Equatable {
     var ecuType = ""
     /// Aerospace mission ("leo", "geo", "launcher", "military", "commercial"); empty when not set.
     var aerospaceMission = ""
+    /// Naval platform ("combatant", "carrier", "submarine", "patrol", "commercial"); empty when not set.
+    var navalPlatform = ""
+    /// Medical device class ("bf", "cf", "life", "implant", "home"); empty when not set.
+    var medicalClass = ""
+    /// Retail device class ("countertop", "unattended", "mpos", "kiosk", "printer"); empty when not set.
+    var retailDevice = ""
+    /// Home appliance type ("laundry", "kitchen", "refrigeration", "hvac", "small"); empty when not set.
+    var applianceType = ""
     var zones: [CopperZoneInfo] = []
+    /// Active tamper meshes laid over secure elements by the autorouter.
+    var tamperMeshes: [TamperMeshInfo] = []
     var zoneFills: [ZoneFillInfo] = []
 
     static let empty = DesignSnapshot(name: "Untitled", requirements: "", components: [], wires: [], nets: [],
@@ -67,13 +77,19 @@ struct DesignSnapshot: Decodable, Equatable {
         robotPlatform = try c.decodeIfPresent(String.self, forKey: .robotPlatform) ?? ""
         ecuType = try c.decodeIfPresent(String.self, forKey: .ecuType) ?? ""
         aerospaceMission = try c.decodeIfPresent(String.self, forKey: .aerospaceMission) ?? ""
+        navalPlatform = try c.decodeIfPresent(String.self, forKey: .navalPlatform) ?? ""
+        medicalClass = try c.decodeIfPresent(String.self, forKey: .medicalClass) ?? ""
+        retailDevice = try c.decodeIfPresent(String.self, forKey: .retailDevice) ?? ""
+        applianceType = try c.decodeIfPresent(String.self, forKey: .applianceType) ?? ""
+        tamperMeshes = try c.decodeIfPresent([TamperMeshInfo].self, forKey: .tamperMeshes) ?? []
         zones = try c.decodeIfPresent([CopperZoneInfo].self, forKey: .zones) ?? []
         zoneFills = try c.decodeIfPresent([ZoneFillInfo].self, forKey: .zoneFills) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
-        case industry, robotPlatform, ecuType, aerospaceMission, zones, zoneFills
+        case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
+        case tamperMeshes, applianceType
     }
 
     func component(_ id: Int) -> SnapComponent? { components.first { $0.id == id } }
@@ -422,6 +438,10 @@ struct BoardInfo: Decodable, Equatable {
     var solderMask = "green"
     /// Conformal coating (core `BoardSettings::coating`).
     var coating = "none"
+    /// Underfill / corner bonding of heavy parts specified (core `BoardSettings::underfill`).
+    var underfill = false
+    /// Isolation barrier spacing between galvanic domains, mm (core `BoardSettings::isolationGap`; 0 = none).
+    var isolationGap = 0.0
     var conformalCoating: ConformalCoating { ConformalCoating(rawValue: coating) ?? .none }
     var mask: SolderMaskColour { SolderMaskColour(rawValue: solderMask) ?? .green }
     /// Laminate id (core `laminateMaterials()`): "fr4", "rogers-4350b", "megtron-6", …
@@ -475,6 +495,8 @@ struct BoardInfo: Decodable, Equatable {
         highAltitude = try c.decodeIfPresent(Bool.self, forKey: .highAltitude) ?? false
         solderMask = try c.decodeIfPresent(String.self, forKey: .solderMask) ?? "green"
         coating = try c.decodeIfPresent(String.self, forKey: .coating) ?? "none"
+        underfill = try c.decodeIfPresent(Bool.self, forKey: .underfill) ?? false
+        isolationGap = try c.decodeIfPresent(Double.self, forKey: .isolationGap) ?? 0
         material = try c.decodeIfPresent(String.self, forKey: .material) ?? "fr4"
         construction = try c.decodeIfPresent(String.self, forKey: .construction) ?? "rigid"
         singleEndedImpedance = try c.decodeIfPresent(Double.self, forKey: .singleEndedImpedance) ?? 50
@@ -496,7 +518,7 @@ struct BoardInfo: Decodable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case layerCount, width, height, thickness, trackWidth, clearance, viaDrill, viaDiameter, edgeClearance, routingGrid
         case rulePreset, minTrackWidth, minClearance, minDrill, minAnnularRing, minHoleToHole, copperWeightOz, maxTempRise
-        case highAltitude, solderMask, coating, netWidths, autoSizeNets, outline, holes
+        case highAltitude, solderMask, coating, underfill, isolationGap, netWidths, autoSizeNets, outline, holes
         case material, construction, singleEndedImpedance, differentialImpedance, backdrill
         case lengthTuning, pairSkewTolerance, busLengthTolerance, hdi, microviaDrill, microviaDiameter, viaInPad
     }
@@ -542,6 +564,18 @@ struct MountingHoleInfo: Decodable, Equatable {
 }
 
 /// Copper pour rule: `net` poured on copper layer `layer`; a plane reserves the layer for that net.
+/// Active tamper mesh (PCI PTS): serpentines of netA (horizontal stripes, inner layerA) and netB (vertical stripes,
+/// inner layerB) over `component` plus `margin` mm.
+struct TamperMeshInfo: Decodable, Equatable, Identifiable, Hashable {
+    var component: String
+    var netA: String
+    var netB: String
+    var layerA: Int
+    var layerB: Int
+    var margin: Double
+    var id: String { "\(component)|\(netA)|\(netB)" }
+}
+
 struct CopperZoneInfo: Decodable, Equatable, Identifiable, Hashable {
     var net: String
     var layer: Int

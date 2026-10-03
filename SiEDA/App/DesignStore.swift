@@ -1002,6 +1002,89 @@ final class DesignStore: ObservableObject {
 
     func aerospaceSegments() -> RobotSegmentsReport { engine.aerospaceSegments() }
 
+    /// Naval platform ("" = none): turns on the 5-segment naval checks at full severity. Undoable.
+    func setNavalPlatform(_ id: String) {
+        guard id != snapshot.navalPlatform else { return }
+        perform(id.isEmpty ? "No naval platform" : "Naval platform: \(id)", invalidatesAnalysis: false) {
+            $0.setNavalPlatform(id)
+        }
+        verificationReport = nil
+        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+    }
+
+    func navalSegments() -> RobotSegmentsReport { engine.navalSegments() }
+
+    /// Medical device class ("" = none): turns on the 4-segment medical checks at full severity. Undoable.
+    func setMedicalClass(_ id: String) {
+        guard id != snapshot.medicalClass else { return }
+        perform(id.isEmpty ? "No medical class" : "Medical class: \(id)", invalidatesAnalysis: false) {
+            $0.setMedicalClass(id)
+        }
+        verificationReport = nil
+        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+    }
+
+    func medicalSegments() -> RobotSegmentsReport { engine.medicalSegments() }
+
+    /// Retail device class ("" = none): turns on the 4-segment retail / POS checks at full severity. Undoable.
+    func setRetailDevice(_ id: String) {
+        guard id != snapshot.retailDevice else { return }
+        perform(id.isEmpty ? "No retail device" : "Retail device: \(id)", invalidatesAnalysis: false) {
+            $0.setRetailDevice(id)
+        }
+        verificationReport = nil
+        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+    }
+
+    func retailSegments() -> RobotSegmentsReport { engine.retailSegments() }
+
+    /// Home appliance type ("" = none): turns on the 4-segment appliance checks at full severity. Undoable.
+    func setApplianceType(_ id: String) {
+        guard id != snapshot.applianceType else { return }
+        perform(id.isEmpty ? "No appliance type" : "Appliance type: \(id)", invalidatesAnalysis: false) {
+            $0.setApplianceType(id)
+        }
+        verificationReport = nil
+        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+    }
+
+    func applianceSegments() -> RobotSegmentsReport { engine.applianceSegments() }
+
+    /// Lays an active tamper mesh over a secure element (two inner layers; the nets must each join two of its pins).
+    /// Undoable; the mesh copper appears with the next Auto Route.
+    func addTamperMesh(component ref: String, netA: String, netB: String) {
+        var index: Int?
+        perform("Tamper mesh over \(ref)", invalidatesAnalysis: false) {
+            index = $0.addTamperMesh(component: ref, netA: netA, netB: netB)
+        }
+        if index == nil { alert = AlertItem(title: "Tamper mesh not added", message: "Choose a part and two mesh nets.") }
+        else if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+    }
+
+    func clearTamperMeshes() {
+        guard !snapshot.tamperMeshes.isEmpty else { return }
+        perform("Removed tamper meshes", invalidatesAnalysis: false) { $0.clearTamperMeshes() }
+    }
+
+    /// Isolation barrier spacing between galvanic domains (patient barrier: 8 mm = 2 × MOPP). Undoable; re-checks.
+    func setIsolationGap(_ gap: Double) {
+        guard abs(gap - snapshot.board.isolationGap) > 1e-9 else { return }
+        performChecked(gap > 0 ? String(format: "Isolation barrier %.0f mm", gap) : "No isolation barrier",
+                       invalidatesAnalysis: false) { $0.setIsolationGap(gap) }
+        verificationReport = nil
+        if !drcResults.isEmpty { runDRC() }
+    }
+
+    /// Board thickness and underfill / corner bonding (shock). Undoable.
+    func setMechanical(thickness: Double? = nil, underfill: Bool? = nil) {
+        let board = snapshot.board
+        let t = thickness ?? board.thickness, u = underfill ?? board.underfill
+        guard abs(t - board.thickness) > 1e-9 || u != board.underfill else { return }
+        performChecked(u != board.underfill ? (u ? "Underfill heavy parts" : "No underfill") : "Board thickness",
+                       invalidatesAnalysis: false) { $0.setMechanical(thickness: t, underfill: u) }
+        verificationReport = nil
+    }
+
     /// Stitches thermal vias at the selected parts' drain / tab pads (every power MOSFET when nothing is selected).
     func addThermalVias() {
         guard !isBusy else { return }

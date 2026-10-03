@@ -2,6 +2,10 @@
 #include "sieda/sieda_c.h"
 
 #include "sieda/Aerospace.hpp"
+#include "sieda/Naval.hpp"
+#include "sieda/Medical.hpp"
+#include "sieda/Retail.hpp"
+#include "sieda/Appliance.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/Firmware.hpp"
@@ -718,6 +722,91 @@ char* sieda_ecu_segments_json(const SiedaProject* project) {
     }
 }
 
+int32_t sieda_pcb_set_mechanical(SiedaProject* project, double thickness, int32_t underfill) {
+    if (!project) return 0;
+    auto& s = project->project.pcb.settings;
+    if (thickness > 0) {
+        if (thickness < 0.4 || thickness > 6.4) return 0;
+        s.thickness = thickness;
+    }
+    s.underfill = underfill != 0;
+    return 1;
+}
+
+int32_t sieda_pcb_set_isolation_gap(SiedaProject* project, double gap) {
+    if (!project || gap < 0 || gap > 25) return 0;
+    project->project.pcb.settings.isolationGap = gap;
+    return 1;
+}
+
+int32_t sieda_set_medical_class(SiedaProject* project, const char* cls) {
+    if (!project || !cls) return 0;
+    std::string id = cls;
+    if (!id.empty() && !findMedicalClass(id)) return 0;
+    project->project.medicalClass = id;
+    return 1;
+}
+
+char* sieda_medical_segments_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(medicalSegmentsJson(project->project).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_set_retail_device(SiedaProject* project, const char* device) {
+    if (!project || !device) return 0;
+    std::string id = device;
+    if (!id.empty() && !findRetailDevice(id)) return 0;
+    project->project.retailDevice = id;
+    return 1;
+}
+
+int32_t sieda_set_appliance_type(SiedaProject* project, const char* type) {
+    if (!project || !type) return 0;
+    std::string id = type;
+    if (!id.empty() && !findApplianceType(id)) return 0;
+    project->project.applianceType = id;
+    return 1;
+}
+
+char* sieda_appliance_segments_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(applianceSegmentsJson(project->project).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_retail_segments_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(retailSegmentsJson(project->project).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_set_naval_platform(SiedaProject* project, const char* platform) {
+    if (!project || !platform) return 0;
+    std::string id = platform;
+    if (!id.empty() && !findNavalPlatform(id)) return 0;
+    project->project.navalPlatform = id;
+    return 1;
+}
+
+char* sieda_naval_segments_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(navalSegmentsJson(project->project).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
 int32_t sieda_set_aerospace_mission(SiedaProject* project, const char* mission) {
     if (!project || !mission) return 0;
     std::string id = mission;
@@ -1029,6 +1118,25 @@ int32_t sieda_pcb_remove_zone(SiedaProject* project, int32_t index) {
 
 void sieda_pcb_clear_zones(SiedaProject* project) {
     if (project) project->project.pcb.zones.clear();
+}
+
+int32_t sieda_pcb_add_tamper_mesh(SiedaProject* project, const char* ref, const char* net_a, const char* net_b,
+                                  int32_t layer_a, int32_t layer_b, double margin_mm) {
+    if (!project || !ref || !*ref || !net_a || !*net_a || !net_b || !*net_b) return -1;
+    auto& pcb = project->project.pcb;
+    TamperMesh m;
+    m.componentRef = ref;
+    m.netA = net_a;
+    m.netB = net_b;
+    m.layerA = layer_a;
+    m.layerB = layer_b;
+    m.margin = std::clamp(margin_mm, 0.0, 20.0);
+    pcb.tamperMeshes.push_back(m);
+    return static_cast<int32_t>(pcb.tamperMeshes.size()) - 1;
+}
+
+void sieda_pcb_clear_tamper_meshes(SiedaProject* project) {
+    if (project) project->project.pcb.tamperMeshes.clear();
 }
 
 int32_t sieda_pcb_apply_rule_preset(SiedaProject* project, const char* name) {

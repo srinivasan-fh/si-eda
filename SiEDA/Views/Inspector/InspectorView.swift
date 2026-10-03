@@ -410,6 +410,10 @@ private struct ProjectProperties: View {
             RobotSystemProperties()
             EcuSystemProperties()
             AerospaceSystemProperties()
+            NavalSystemProperties()
+            MedicalSystemProperties()
+            RetailSystemProperties()
+            ApplianceSystemProperties()
             PropertyGroup(title: "Board") {
                 PropertyRow(label: "Size", value: String(format: "%.1f × %.1f mm", store.snapshot.board.width, store.snapshot.board.height))
                 PropertyRow(label: "Layers", value: "\(store.snapshot.board.layerCount)")
@@ -486,7 +490,60 @@ private struct AerospaceSystemProperties: View {
     }
 }
 
-/// A segment checklist with a type picker: robot platforms, automotive ECU types and aerospace missions share it.
+/// Naval platform and the five naval design segments (power isolation, hermetic compute, shock, data links,
+/// radar / sonar).
+private struct NavalSystemProperties: View {
+    @EnvironmentObject private var store: DesignStore
+
+    var body: some View {
+        SystemSegmentsGroup(title: "Naval Segments", report: store.navalSegments(), noneLabel: "Not naval",
+                            selection: Binding(get: { store.snapshot.navalPlatform }, set: { store.setNavalPlatform($0) }),
+                            hint: "Pick a platform (or the Marine industry) to check the power isolation, corrosion, shock, "
+                                + "data link and radar / sonar segments.")
+    }
+}
+
+/// Medical device class and the four medical design segments (patient isolation, biosignal acquisition, safety
+/// compute & power, coexistence & wireless).
+private struct MedicalSystemProperties: View {
+    @EnvironmentObject private var store: DesignStore
+
+    var body: some View {
+        SystemSegmentsGroup(title: "Medical Segments", report: store.medicalSegments(), noneLabel: "Not medical",
+                            selection: Binding(get: { store.snapshot.medicalClass }, set: { store.setMedicalClass($0) }),
+                            hint: "Pick a device class (or the Medical industry) to check patient isolation, biosignal, "
+                                + "safety compute and wireless coexistence segments.")
+    }
+}
+
+/// Retail device class and the four POS design segments (payment security & anti-tamper, printer drivers, HMI &
+/// peripherals, ESD & environment).
+private struct RetailSystemProperties: View {
+    @EnvironmentObject private var store: DesignStore
+
+    var body: some View {
+        SystemSegmentsGroup(title: "Retail / POS Segments", report: store.retailSegments(), noneLabel: "Not retail",
+                            selection: Binding(get: { store.snapshot.retailDevice }, set: { store.setRetailDevice($0) }),
+                            hint: "Pick a device class (or the Retail & POS industry) to check payment security, printer "
+                                + "drivers, peripherals and ESD segments.")
+    }
+}
+
+/// Home appliance type and the four appliance design segments (mains entry, actuation & motor control, HMI &
+/// sensing, IoT).
+private struct ApplianceSystemProperties: View {
+    @EnvironmentObject private var store: DesignStore
+
+    var body: some View {
+        SystemSegmentsGroup(title: "Home Appliance Segments", report: store.applianceSegments(), noneLabel: "Not an appliance",
+                            selection: Binding(get: { store.snapshot.applianceType }, set: { store.setApplianceType($0) }),
+                            hint: "Pick an appliance type (or the Home Appliances industry) to check mains entry, actuation, "
+                                + "sensing and IoT segments.")
+    }
+}
+
+/// A segment checklist with a type picker: robot platforms, ECU types, aerospace missions, naval platforms and
+/// medical device classes share it.
 private struct SystemSegmentsGroup: View {
     @EnvironmentObject private var store: DesignStore
     let title: String

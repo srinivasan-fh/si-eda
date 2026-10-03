@@ -14,6 +14,9 @@ struct BoardSetupPanel: View {
     @State private var pourPlane = false
     @State private var classNet = ""
     @State private var classWidth = "0.6"
+    @State private var meshPart = ""
+    @State private var meshNetA = "TAMPER_MESH_A"
+    @State private var meshNetB = "TAMPER_MESH_B"
 
     var body: some View {
         let board = store.snapshot.board
@@ -118,6 +121,29 @@ struct BoardSetupPanel: View {
                            + "connectors and test points before coating.")
                         .font(.caption).foregroundStyle(Theme.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
+                    Picker("Board thickness", selection: Binding(get: { board.thickness },
+                                                                 set: { store.setMechanical(thickness: $0) })) {
+                        ForEach([0.8, 1.0, 1.6, 2.0, 2.4, 3.2], id: \.self) { Text(String(format: "%.1f mm", $0)).tag($0) }
+                        if ![0.8, 1.0, 1.6, 2.0, 2.4, 3.2].contains(board.thickness) {
+                            Text(String(format: "%.2f mm", board.thickness)).tag(board.thickness)
+                        }
+                    }
+                    Picker("Isolation barrier", selection: Binding(get: { board.isolationGap },
+                                                                   set: { store.setIsolationGap($0) })) {
+                        Text("None").tag(0.0)
+                        Text("2.5 mm (functional)").tag(2.5)
+                        Text("4 mm (1 × MOPP)").tag(4.0)
+                        Text("8 mm (2 × MOPP)").tag(8.0)
+                        if ![0.0, 2.5, 4.0, 8.0].contains(board.isolationGap) {
+                            Text(String(format: "%.1f mm", board.isolationGap)).tag(board.isolationGap)
+                        }
+                    }
+                    .help("Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) "
+                          + "keep this creepage apart; DRC checks it")
+                    Toggle("Underfill / corner-bond heavy parts (shock)", isOn: Binding(
+                        get: { board.underfill }, set: { store.setMechanical(underfill: $0) }))
+                        .help("Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off")
+                    tamperMeshRows(board)
                 }
                 section("Net Classes", systemImage: "line.3.horizontal") {
                     Toggle("Autorouter sizes power nets from the simulation (IPC-2221)", isOn: Binding(
@@ -180,6 +206,45 @@ struct BoardSetupPanel: View {
 
     /// Nets with at least two pins (the ones a pour or a net class can apply to).
     private var netChoices: [String] { store.snapshot.nets.filter { $0.pinCount > 1 }.map(\.name) }
+
+    /// Active tamper meshes (PCI PTS): serpentine traces on two inner layers over a secure element.
+    @ViewBuilder
+    private func tamperMeshRows(_ board: BoardInfo) -> some View {
+        let parts = store.snapshot.components.filter { $0.componentKind == .custom }.map(\.ref).sorted()
+        ForEach(store.snapshot.tamperMeshes) { mesh in
+            HStack {
+                Text("Tamper mesh over \(mesh.component): \(mesh.netA) (\(board.layerName(mesh.layerA))) · "
+                     + "\(mesh.netB) (\(board.layerName(mesh.layerB)))")
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer()
+            }
+        }
+        HStack(spacing: 8) {
+            Picker("Tamper mesh over", selection: $meshPart) {
+                if !parts.contains(meshPart) { Text("Choose a part").tag(meshPart) }
+                ForEach(parts, id: \.self) { Text($0).tag($0) }
+            }
+            Picker("Nets", selection: $meshNetA) {
+                if !netChoices.contains(meshNetA) { Text(meshNetA).tag(meshNetA) }
+                ForEach(netChoices, id: \.self) { Text($0).tag($0) }
+            }
+            .labelsHidden()
+            Picker("", selection: $meshNetB) {
+                if !netChoices.contains(meshNetB) { Text(meshNetB).tag(meshNetB) }
+                ForEach(netChoices, id: \.self) { Text($0).tag($0) }
+            }
+            .labelsHidden()
+            Button("Add Mesh") { store.addTamperMesh(component: meshPart, netA: meshNetA, netB: meshNetB) }
+                .disabled(!parts.contains(meshPart) || board.layerCount < 4 || meshNetA == meshNetB)
+            if !store.snapshot.tamperMeshes.isEmpty {
+                Button { store.clearTamperMeshes() } label: { Image(systemName: "trash") }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Remove tamper meshes")
+            }
+        }
+        .help("Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on "
+              + "Inner 1 / Inner 2 and keeps every other track and via out of the secure area (4+ layers)")
+    }
 
     /// Laminate, construction and controlled-impedance targets, with the widths each copper layer needs.
     private func stackupSection(_ board: BoardInfo) -> some View {

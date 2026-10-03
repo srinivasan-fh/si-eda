@@ -8,6 +8,7 @@
 #include <tuple>
 
 #include "sieda/Pcb.hpp"
+#include "sieda/Isolation.hpp"
 
 namespace sieda {
 
@@ -105,6 +106,10 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
                 s.edgeDistance(p) >= s.edgeClearance + half && s.holeDistance(p) >= half;
         }
     const int k = std::max(1, static_cast<int>(std::ceil(s.minTrackWidth / (2 * cell) - 1e-9)));
+    // Isolation barrier: a pour keeps the barrier gap from copper of other galvanic domains.
+    // Isolation barrier and mains spacing: a pour keeps the fence gap from copper of other domains.
+    const SpacingDomains spacing = spacingDomains(sch, s);
+    const GalvanicDomains& doms = spacing.domains;
 
     for (size_t zi = 0; zi < zones.size(); ++zi) {
         const CopperZone& z = zones[zi];
@@ -124,6 +129,12 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
         const int L = z.layer, net = f.net;
         const double clr = std::max(s.clearance, z.clearance);
         const double r = clr + half;
+        const int zoneDom = doms.domainOfNet(net);
+        // Keep-out radius around another net's copper: the clearance, or the barrier gap across domains.
+        auto keep = [&](int other) {
+            const int od = doms.domainOfNet(other);
+            return zoneDom >= 0 && od >= 0 && od != zoneDom ? std::max(clr, spacing.gap) + half : r;
+        };
         std::vector<char> ok = board;
         auto block = [&](size_t c, Vec2) { ok[c] = 0; };
 
@@ -139,10 +150,11 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
         };
         for (const auto& p : ps) {
             if (!p.onLayer(L)) continue;
-            Rect box = p.bounds().inflated(r + cell);
+            const double rp = keep(p.net);
+            Rect box = p.bounds().inflated(rp + cell);
             if (p.net != net || p.net < 0) {
                 forCells(cols, rows, cell, box, [&](size_t c, Vec2 at) {
-                    if (padCopperDistance(p, at) < r) block(c, at);
+                    if (padCopperDistance(p, at) < rp) block(c, at);
                 });
             } else if (p.throughHole || chipPad(p)) {
                 // Thermal relief: a clearance ring around the pad crossed by four spokes.
@@ -157,22 +169,23 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
         }
         for (const auto& t : trs) {
             if (t.layer != L || t.net == net) continue;
-            double rr = r + t.width / 2;
+            double rr = keep(t.net) + t.width / 2;
             forCells(cols, rows, cell, segmentBox(t.a, t.b, rr), [&](size_t c, Vec2 at) {
                 if (pointSegmentDistance(at, t.a, t.b) < rr) block(c, at);
             });
         }
         for (const auto& v : vs) {
             if (v.net == net || !v.spans(L)) continue;
-            double rr = r + v.diameter / 2;
+            double rr = keep(v.net) + v.diameter / 2;
             forCells(cols, rows, cell, segmentBox(v.position, v.position, rr), [&](size_t c, Vec2 at) {
                 if ((at - v.position).length() < rr) block(c, at);
             });
         }
         // Earlier zones of other nets on this layer.
-        const int kz = static_cast<int>(std::ceil((clr + 1.4143 * cell) / cell));
         for (const auto& e : fills) {
             if (e.layer != L || e.net == net || e.net < 0) continue;
+            const double ez = keep(e.net) - half;  // clearance, or the barrier gap to another domain's pour
+            const int kz = static_cast<int>(std::ceil((ez + 1.4143 * cell) / cell));
             for (int j = 0; j < rows; ++j)
                 for (int i = 0; i < cols; ++i) {
                     if (e.island[static_cast<size_t>(j * cols + i)] < 0) continue;
@@ -187,7 +200,7 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
                         for (int di = -kz; di <= kz; ++di) {
                             int x = i + di, y = j + dj;
                             if (x < 0 || y < 0 || x >= cols || y >= rows) continue;
-                            if (std::sqrt(double(di * di + dj * dj)) * cell < clr + 1.4143 * cell)
+                            if (std::sqrt(double(di * di + dj * dj)) * cell < ez + 1.4143 * cell)
                                 ok[static_cast<size_t>(y * cols + x)] = 0;
                         }
                 }
@@ -288,7 +301,7 @@ const std::vector<ZoneFill>& PcbLayout::zoneFills(const Schematic& sch) const {
     auto ps = pads(sch);
     size_t h = 14695981039346656037ull;
     const BoardSettings& s = settings;
-    for (double v : {s.width, s.height, s.clearance, s.edgeClearance, s.minTrackWidth, s.trackWidth}) hashD(h, v);
+    for (double v : {s.width, s.height, s.clearance, s.edgeClearance, s.minTrackWidth, s.trackWidth, s.isolationGap}) hashD(h, v);
     hashI(h, s.layerCount);
     for (const auto& p : s.outline) {
         hashD(h, p.x);

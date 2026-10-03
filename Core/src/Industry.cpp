@@ -206,6 +206,28 @@ std::vector<IndustryProfile> build() {
                   "Mezzanine / daughterboards (OCP NIC 3.0, risers): board-to-board connectors with ground pins between "
                   "pairs, stacking height and keep-outs from the mechanical drawing.",
                   "Hot-plug: PRSNT# / presence detect and PERST# from the host; ESD on any external connector."}});
+    p.push_back({"retail", "Retail & POS", "Payment terminals, self-service kiosks and receipt printers",
+                 "PCI PTS POI v6 (tamper response), EMVCo Level 1 (contact / contactless), IEC 62368-1 (safety), "
+                 "IEC 61000-4-2 level 4 (±15 kV ESD), FCC Part 15 B / EN 55032",
+                 "Fab House Advanced (4/4 mil)", 0.8, 0.8, false, 0, 50,
+                 {"Put the secure element under an active tamper mesh on two inner layers (no vias through the secure "
+                  "area), wire case-open switches to its tamper inputs and keep the keys on a backup cell.",
+                  "Thermal printers: ≥ 470 µF low-ESR at the head supply, a current-limited stepper H-bridge on a thermal "
+                  "pad, flyback diodes on the cutter and drawer solenoids.",
+                  "Opto-isolate the 24 V cash-drawer kick; fan peripherals out through a USB hub; 100 Ω display pairs.",
+                  "TVS on every customer-facing port (±15 kV air) and an acrylic conformal coat against spills."}});
+    p.push_back({"appliance", "Home Appliances", "White goods, kitchen and HVAC controllers on AC mains",
+                 "IEC 60335-1 / UL 60335-1 (household safety), IEC 60730-1 (controls, Class B software), IEC 60664-1 "
+                 "(creepage), IEC 61000-4-4 / -4-5 (burst / surge), CISPR 14-1 (emissions), UL 94 V-0",
+                 "IPC-2221 Class 2", 0.7, 0.8, false, 0, 85,
+                 {"Mains entry: slow-blow fuse, MOV, X capacitor and common-mode choke before the converter; Y capacitors "
+                  "only across the safety barrier, sized for leakage.",
+                  "Keep IEC 60335 / 60664 creepage between mains and SELV (≥ 2.5 mm functional, 6–8 mm reinforced); route "
+                  "mains on its own side of the board.",
+                  "Triacs and SSRs with RC snubbers, a zero-crossing detector for phase control, an IPM for the inverter "
+                  "compressor or drum motor.",
+                  "Capacitive touch pads with guard rings, NTC dividers with RC filters, Wi-Fi module antenna kept clear "
+                  "of mains copper."}});
     return p;
 }
 

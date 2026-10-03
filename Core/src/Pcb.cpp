@@ -1,6 +1,7 @@
 #include "sieda/Pcb.hpp"
 #include "sieda/CustomParts.hpp"
 #include "sieda/Embedded.hpp"
+#include "sieda/Isolation.hpp"
 #include "sieda/LengthMatch.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Stackup.hpp"
@@ -15,6 +16,7 @@
 #include <tuple>
 #include <numeric>
 #include <queue>
+#include <mutex>
 #include <set>
 
 namespace sieda {
@@ -457,9 +459,30 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
         return std::max(pitch < 0.65 ? 1.5 : 0.0, fanout);
     };
     const double step = 0.5;
+    // Isolation barrier: parts of different galvanic domains keep the barrier gap between their courtyards.
+    // Mains / high-voltage parts likewise keep their IPC-2221 voltage spacing from low-voltage parts.
+    const SpacingDomains spacing = spacingDomains(sch, settings);
+    const double isoGap = spacing.gap;
+    std::map<int, int> domainOf;
+    if (isoGap > 0)
+        for (const auto& comp : comps) domainOf[comp.id] = spacing.domains.domainOfComponent(sch, comp);
+    auto barrierGap = [&](int a, int b) {
+        if (isoGap <= 0) return 0.0;
+        const int da = domainOf[a], db = domainOf[b];
+        return da >= 0 && db >= 0 && da != db ? isoGap : 0.0;
+    };
     std::map<int, double> escapeOf;
     for (const auto& comp : comps)
         if (comp.hasFootprint()) escapeOf[comp.id] = escape(comp);
+    // Tamper-meshed secure elements: the mesh area (margin) and its end vias stay free of other parts.
+    std::map<int, double> meshKeep;
+    for (const auto& tm : tamperMeshes)
+        for (const auto& comp : comps)
+            if (comp.ref == tm.componentRef && comp.hasFootprint()) {
+                const double lead = settings.viaDiameter / 2 + settings.clearance + settings.trackWidth + settings.routingGrid;
+                meshKeep[comp.id] = std::max(0.0, tm.margin) + lead + settings.viaDiameter / 2 + 0.5;
+                escapeOf[comp.id] = std::max(escapeOf[comp.id], meshKeep[comp.id]);
+            }
     for (size_t idx : order) {
         Component& c = comps[idx];
         // Net centroids of already-placed pads.
@@ -485,7 +508,7 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
                 c.pcb.bottom = false;
                 Rect cy0 = courtyard(c);
                 double hw = cy0.width() / 2, hh = cy0.height() / 2;
-                double e = settings.edgeClearance + 0.5;
+                double e = settings.edgeClearance + 0.5 + (meshKeep.count(c.id) ? meshKeep[c.id] : 0.0);
                 // Candidates on the placement grid itself, so the final snap does not move a checked position.
                 for (double y = std::ceil((e + hh) / step - 1e-9) * step; y <= settings.height - e - hh + 1e-9; y += step) {
                     for (double x = std::ceil((e + hw) / step - 1e-9) * step; x <= settings.width - e - hw + 1e-9; x += step) {
@@ -498,7 +521,10 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
                         for (const auto& o : comps) {
                             if (o.id == c.id || !o.hasFootprint() || !o.pcb.placed) continue;
                             if (mountPlane(o, settings) != mountPlane(c, settings)) continue;
-                            if (courtyard(o).inflated(margin / 2 + escapeOf[o.id]).intersects(cy)) { clash = true; break; }
+                            if (courtyard(o).inflated(margin / 2 + escapeOf[o.id] + barrierGap(o.id, c.id)).intersects(cy)) {
+                                clash = true;
+                                break;
+                            }
                         }
                         if (clash) continue;
                         if (strict) {
@@ -792,7 +818,79 @@ public:
 
     bool passable(int l, size_t c, int net) const {
         int o = owner_[L(l)][c];
-        return o == -1 || o == net || padNet_[L(l)][c] == net;
+        if (!(o == -1 || o == net || padNet_[L(l)][c] == net)) return false;
+        if (isoGap_ > 0 && !fence_.empty()) {  // isolation barrier: other domains' fenced area is closed
+            const int f = fence_[static_cast<size_t>(l) * static_cast<size_t>(cols_ * rows_) + c];
+            if (f == -3) return padNet_[L(l)][c] == net;
+            if (f >= 0) {
+                const int d = domainOf(net);
+                if (d >= 0 && f != d) return false;
+            }
+        }
+        return true;
+    }
+
+    /// Isolation barrier (BoardSettings::isolationGap): copper of one galvanic domain fences the cells within the
+    /// gap (plus half a track) against every other domain. `exits` lets each barrier part's pads reach out through
+    /// its own other-domain fence: cells within `exitRadius` of a pad of the part stay open to that pad's domain.
+    /// `perLayer`: voltage spacing applies within a copper layer (a mains track fences its own layer only); a galvanic
+    /// barrier fences every layer (creepage and clearance through the board).
+    void setIsolation(std::vector<int> netDomain, double gap, const std::vector<Pad>& pads, double widestHalf,
+                      bool perLayer = false) {
+        netDomain_ = std::move(netDomain);
+        isoGap_ = gap;
+        perLayer_ = perLayer;
+        // Cells are tested at their centres and tracks run between them (chords), and net-class tracks are wider
+        // than the base track: fence by the widest half-width plus a grid pitch.
+        fenceReach_ = std::max(widestHalf, s_.trackWidth / 2) + g_;
+        fence_.assign(static_cast<size_t>(layers_ * cols_ * rows_), -1);
+        if (gap <= 0) return;
+        std::map<int, std::vector<const Pad*>> byComp;
+        for (const auto& p : pads) byComp[p.componentId].push_back(&p);
+        for (const auto& [comp, list] : byComp) {
+            double sMin = 1e9;
+            for (size_t a = 0; a < list.size(); ++a)
+                for (size_t b = a + 1; b < list.size(); ++b) {
+                    const int da = domainOf(list[a]->net), db = domainOf(list[b]->net);
+                    if (da < 0 || db < 0 || da == db) continue;
+                    sMin = std::min(sMin, rectRectDistance(list[a]->bounds(), list[b]->bounds()));
+                }
+            if (sMin < gap - 1e-9) {  // pins closer than the gap need exit corridors; wider-spaced ones do not
+                exitRadius_[comp] = gap - sMin + s_.trackWidth + s_.clearance;
+                barrierPads_[comp] = list;
+            }
+        }
+    }
+    int domainOf(int net) const {
+        return net >= 0 && net < static_cast<int>(netDomain_.size()) ? netDomain_[static_cast<size_t>(net)] : -1;
+    }
+    /// Fences the cells around copper (a segment, or a pad's rectangle) of `net` against other domains.
+    void fenceCopper(Vec2 a, Vec2 b, double half, int net, int layer = -1) {
+        const int d = domainOf(net);
+        if (isoGap_ <= 0 || d < 0) return;
+        forCellsNear(a, b, isoGap_ + half + fenceReach_, [&](size_t c) { fenceCell(layer, c, d); });
+    }
+    void fencePad(const Pad& p) {
+        const int d = domainOf(p.net);
+        if (isoGap_ <= 0 || d < 0) return;
+        auto exits = barrierPads_.find(p.componentId);
+        const double reach = isoGap_ + fenceReach_;
+        forRectNear(p.bounds(), reach, p, [&](size_t c, double) {
+            if (exits != barrierPads_.end()) {
+                const Vec2 at = cellPos(c);
+                for (const Pad* q : exits->second)
+                    if (domainOf(q->net) != d && padDistance(*q, at) < exitRadius_[p.componentId]) return;
+            }
+            if (p.throughHole || !perLayer_) fenceCell(-1, c, d);
+            else fenceCell(p.smdLayer, c, d);
+        });
+    }
+    /// Keeps the area `r` to domain `d` only (e.g. a radio module and its antenna kept clear of mains nets).
+    void fenceArea(const Rect& r, int d) {
+        if (isoGap_ <= 0 || d < 0) return;
+        for (int j = 0; j < rows_; ++j)
+            for (int i = 0; i < cols_; ++i)
+                if (r.contains(pos(i, j))) fenceCell(-1, idx(i, j), d);
     }
     /// Exact clearance test for a wide (net-class) track segment a–b of half-width `half` on layer l: the grid only
     /// guarantees clearance for the base track width, so wide tracks are checked against the real copper.
@@ -997,6 +1095,21 @@ private:
             }
     }
 
+    /// Fences cell `c` on `layer` (every layer when layer < 0 or the fence is not per layer).
+    void fenceCell(int layer, size_t c, int d) {
+        const size_t n = static_cast<size_t>(cols_ * rows_);
+        for (int l = 0; l < layers_; ++l) {
+            if (perLayer_ && layer >= 0 && l != layer) continue;
+            int& f = fence_[static_cast<size_t>(l) * n + c];
+            if (f == -1) f = d;
+            else if (f != d) f = -3;
+        }
+    }
+    bool perLayer_ = false;
+    std::vector<int> fence_, netDomain_;
+    double isoGap_ = 0, fenceReach_ = 0;
+    std::map<int, double> exitRadius_;
+    std::map<int, std::vector<const Pad*>> barrierPads_;
     const BoardSettings& s_;
     double g_ = 0.25;
     int cols_ = 0, rows_ = 0, layers_ = 2;
@@ -1139,7 +1252,23 @@ struct NetRouteOutcome {
 };
 }  // namespace
 
-std::map<int, std::pair<double, double>> netVoltageRanges(const Schematic& sch) {
+namespace {
+/// Content hash of a schematic for the voltage-range cache: parts, values and pin-to-net connectivity.
+size_t schematicHash(const Schematic& sch) {
+    size_t h = 1469598103934665603ULL;
+    auto mix = [&](size_t v) { h = (h ^ v) * 1099511628211ULL; };
+    std::hash<std::string> hs;
+    for (const auto& c : sch.components()) {
+        mix(static_cast<size_t>(c.id));
+        mix(static_cast<size_t>(c.kind));
+        mix(hs(c.value));
+        mix(hs(c.customPart));
+        for (int i = 0; i < static_cast<int>(c.def().pins.size()); ++i) mix(static_cast<size_t>(sch.netOf({c.id, i}) + 7));
+    }
+    return h;
+}
+
+std::map<int, std::pair<double, double>> computeNetVoltageRanges(const Schematic& sch) {
     std::map<int, std::pair<double, double>> netRange;
     bool hasSource = false;
     for (const auto& c : sch.components())
@@ -1148,6 +1277,7 @@ std::map<int, std::pair<double, double>> netVoltageRanges(const Schematic& sch) 
     DcResult dc = Simulator(sch).dcOperatingPoint();
     if (!dc.converged) return netRange;
     for (size_t n = 0; n < dc.netVoltages.size(); ++n) netRange[static_cast<int>(n)] = {dc.netVoltages[n], dc.netVoltages[n]};
+    double mainsAmplitude = 0, period = 0;
     for (const auto& c : sch.components()) {
         if (!isVoltageSourceKind(c.kind)) continue;
         auto spec = SourceSpec::parse(c.value);
@@ -1158,6 +1288,10 @@ std::map<int, std::pair<double, double>> netVoltageRanges(const Schematic& sch) 
         if (spec->kind == SourceSpec::Kind::Sine) {
             lo = spec->offset - std::fabs(spec->amplitude);
             hi = spec->offset + std::fabs(spec->amplitude);
+            if (spec->frequency > 0 && spec->frequency <= 1000) {
+                mainsAmplitude = std::max(mainsAmplitude, std::fabs(spec->amplitude));
+                period = std::max(period, 1.0 / spec->frequency);
+            }
         } else if (spec->kind == SourceSpec::Kind::Pulse) {
             lo = std::min(spec->v1, spec->v2);
             hi = std::max(spec->v1, spec->v2);
@@ -1166,7 +1300,43 @@ std::map<int, std::pair<double, double>> netVoltageRanges(const Schematic& sch) 
         r.first = std::min(r.first, base + lo);
         r.second = std::max(r.second, base + hi);
     }
+    // Mains and other large low-frequency AC sources: the DC point (t = 0) misses what a fuse, a choke or a
+    // rectifier passes on, so simulate a few cycles and widen every net to its swing (L / N after the fuse, the
+    // rectified bus, the switch node of an off-line converter).
+    // The simulated swing replaces the source-peak estimate, which is wrong when a source's return floats (mains
+    // through a bridge: L and N each swing 0…325 V against the bus return, not ±325 V).
+    if (mainsAmplitude > 30 && period > 0) {
+        TransientResult tr = Simulator(sch).transient(4 * period, period / 200);
+        if (tr.ok && tr.time.size() > 4) {
+            const size_t from = tr.time.size() / 4;  // after the first cycle
+            for (size_t n = 0; n < tr.netVoltages.size(); ++n) {
+                const auto& v = tr.netVoltages[n];
+                if (v.size() <= from) continue;
+                auto [mn, mx] = std::minmax_element(v.begin() + static_cast<std::ptrdiff_t>(from), v.end());
+                const double dcv = n < dc.netVoltages.size() ? dc.netVoltages[n] : 0.0;
+                netRange[static_cast<int>(n)] = {std::min(dcv, *mn), std::max(dcv, *mx)};
+            }
+        }
+    }
     return netRange;
+}
+}  // namespace
+
+std::map<int, std::pair<double, double>> netVoltageRanges(const Schematic& sch) {
+    // Placement, routing passes, pours and DRC all ask for the ranges: cache the last few schematics.
+    static std::mutex mutex;
+    static std::vector<std::pair<size_t, std::map<int, std::pair<double, double>>>> cache;
+    const size_t key = schematicHash(sch);
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        for (const auto& [k, v] : cache)
+            if (k == key) return v;
+    }
+    auto ranges = computeNetVoltageRanges(sch);
+    std::lock_guard<std::mutex> lock(mutex);
+    cache.insert(cache.begin(), {key, ranges});
+    if (cache.size() > 4) cache.pop_back();
+    return ranges;
 }
 
 double voltageRoutingClearance(const Schematic& sch, bool highAltitude, bool coated) {
@@ -1189,8 +1359,116 @@ RouteStats PcbLayout::autoRoute(const Schematic& sch) {
         double c;
         ~RestoreClearance() { s.clearance = c; }
     } restore{settings, ruleClearance};
-    settings.clearance = std::max(ruleClearance, voltageRoutingClearance(sch, settings.highAltitude, settings.coated()));
+    // Mains boards fence their high-voltage nets instead (spacingDomains), so fine-pitch parts keep their rules.
+    if (spacingDomains(sch, settings).hvGap <= 0)
+        settings.clearance = std::max(ruleClearance, voltageRoutingClearance(sch, settings.highAltitude, settings.coated()));
     return routeAll(sch);
+}
+
+std::vector<TamperMeshGeometry> PcbLayout::tamperMeshGeometry(const Schematic& sch, const std::vector<Pad>& ps) const {
+    std::vector<TamperMeshGeometry> out;
+    const double g = settings.routingGrid, w = settings.trackWidth, clr = settings.clearance;
+    auto netIndex = [&](const std::string& name) {
+        for (const auto& n : sch.nets())
+            if (n.name == name) return n.index;
+        return -1;
+    };
+    for (size_t m = 0; m < tamperMeshes.size(); ++m) {
+        const TamperMesh& tm = tamperMeshes[m];
+        TamperMeshGeometry geo;
+        geo.mesh = static_cast<int>(m);
+        auto fail = [&](const std::string& why) {
+            geo.error = why;
+            out.push_back(geo);
+        };
+        const Component* c = sch.findByRef(tm.componentRef);
+        if (!c || !c->hasFootprint() || !c->pcb.placed) { fail(tm.componentRef + " is not placed on the board"); continue; }
+        const int n = settings.layerCount;
+        if (n < 4) { fail("a tamper mesh needs two inner layers (4 or more copper layers)"); continue; }
+        if (tm.layerA < 1 || tm.layerA > n - 2 || tm.layerB < 1 || tm.layerB > n - 2 || tm.layerA == tm.layerB) {
+            fail("the mesh layers must be two different inner layers");
+            continue;
+        }
+        bool planeLayer = false;
+        for (const auto& z : zones)
+            if (z.plane && (z.layer == tm.layerA || z.layer == tm.layerB)) planeLayer = true;
+        if (planeLayer) { fail("a mesh layer is reserved as a plane"); continue; }
+        geo.netA = netIndex(tm.netA);
+        geo.netB = netIndex(tm.netB);
+        if (geo.netA < 0 || geo.netB < 0 || geo.netA == geo.netB) { fail("mesh nets " + tm.netA + " / " + tm.netB + " are not two nets of the schematic"); continue; }
+        std::vector<size_t> padsA, padsB;
+        for (size_t i = 0; i < ps.size(); ++i) {
+            if (ps[i].net == geo.netA) padsA.push_back(i);
+            if (ps[i].net == geo.netB) padsB.push_back(i);
+        }
+        if (padsA.size() != 2 || padsB.size() != 2) {
+            fail("each mesh net must join exactly two pins (the drive and sense pins of " + tm.componentRef + ")");
+            continue;
+        }
+        // Stripe pitch: one track plus clearance, on the routing grid so the end vias land on grid cells.
+        const double p = std::ceil((w + clr) / g - 1e-9) * g;
+        const double lead = std::ceil((settings.viaDiameter / 2 + clr + w) / g - 1e-9) * g;
+        const Rect r = courtyard(*c).inflated(std::max(0.0, tm.margin));
+        const double x0 = std::floor(r.x0 / g + 1e-9) * g, y0 = std::floor(r.y0 / g + 1e-9) * g;
+        int cols = static_cast<int>(std::ceil((r.x1 - x0) / p - 1e-9)) + 1;
+        int rows = static_cast<int>(std::ceil((r.y1 - y0) / p - 1e-9)) + 1;
+        if (cols % 2 == 0) ++cols;  // odd stripe counts end each serpentine on the far side
+        if (rows % 2 == 0) ++rows;
+        const double x1 = x0 + (cols - 1) * p, y1 = y0 + (rows - 1) * p;
+        geo.region = Rect(x0, y0, x1, y1);
+        if (!settings.rectInside(geo.region.inflated(lead + settings.viaDiameter / 2), settings.edgeClearance)) {
+            fail("the mesh around " + tm.componentRef + " runs off the board or into a mounting hole");
+            continue;
+        }
+        auto add = [&](int net, int layer, Vec2 a, Vec2 b) {
+            Track t;
+            t.net = net;
+            t.layer = layer;
+            t.width = w;
+            t.a = a;
+            t.b = b;
+            geo.tracks.push_back(t);
+        };
+        // Mesh A: horizontal stripes, entering top-left and leaving bottom-right.
+        add(geo.netA, tm.layerA, {x0 - lead, y0}, {x0, y0});
+        for (int k = 0; k < rows; ++k) {
+            const double y = y0 + k * p;
+            add(geo.netA, tm.layerA, {x0, y}, {x1, y});
+            if (k + 1 < rows) {
+                const double xe = k % 2 == 0 ? x1 : x0;
+                add(geo.netA, tm.layerA, {xe, y}, {xe, y + p});
+            }
+        }
+        add(geo.netA, tm.layerA, {x1, y1}, {x1 + lead, y1});
+        // Mesh B: vertical stripes, entering top-left and leaving bottom-right.
+        add(geo.netB, tm.layerB, {x0, y0 - lead}, {x0, y0});
+        for (int k = 0; k < cols; ++k) {
+            const double x = x0 + k * p;
+            add(geo.netB, tm.layerB, {x, y0}, {x, y1});
+            if (k + 1 < cols) {
+                const double ye = k % 2 == 0 ? y1 : y0;
+                add(geo.netB, tm.layerB, {x, ye}, {x + p, ye});
+            }
+        }
+        add(geo.netB, tm.layerB, {x1, y1}, {x1, y1 + lead});
+        geo.ends = {{x0 - lead, y0}, {x1 + lead, y1}, {x0, y0 - lead}, {x1, y1 + lead}};
+        // Each pad goes to the nearer end (the pairing with the shorter total stub length).
+        auto pair = [&](const std::vector<size_t>& two, Vec2 e0, Vec2 e1) {
+            const double straight = (ps[two[0]].position - e0).length() + (ps[two[1]].position - e1).length();
+            const double crossed = (ps[two[1]].position - e0).length() + (ps[two[0]].position - e1).length();
+            if (straight <= crossed) {
+                geo.endPads.push_back(two[0]);
+                geo.endPads.push_back(two[1]);
+            } else {
+                geo.endPads.push_back(two[1]);
+                geo.endPads.push_back(two[0]);
+            }
+        };
+        pair(padsA, geo.ends[0], geo.ends[1]);
+        pair(padsB, geo.ends[2], geo.ends[3]);
+        out.push_back(geo);
+    }
+    return out;
 }
 
 RouteStats PcbLayout::routeAll(const Schematic& sch) {
@@ -1272,12 +1550,24 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
             if (n.name == name) return n.index;
         return -1;
     };
+    // Tamper meshes: laid as fixed copper; their nets only get the two stubs from the pads to the mesh ends.
+    const std::vector<TamperMeshGeometry> meshGeo = tamperMeshGeometry(sch, ps);
+    std::set<int> meshNets;
+    for (const auto& m : meshGeo)
+        if (m.error.empty()) {
+            meshNets.insert(m.netA);
+            meshNets.insert(m.netB);
+        }
+    auto isMeshNet = [&](int net) { return meshNets.count(net) > 0; };
+    order.erase(std::remove_if(order.begin(), order.end(), isMeshNet), order.end());
+    zoneOrder.erase(std::remove_if(zoneOrder.begin(), zoneOrder.end(), isMeshNet), zoneOrder.end());
 
     // Pour/plane-net pads that could not reach their pour: fanned out first in the next pass.
     // Pour/plane-net pads that could not reach their pour: connected first in the next pass, by a track to where
     // the net's main pour was (signals then route around that connection).
     std::set<size_t> forcedConnect;
-    std::map<int, std::vector<std::pair<int, size_t>>> mainPour;  // net → grid cells of its main poured cluster
+    std::map<int, std::vector<std::pair<int, size_t>>> mainPour;
+    const SpacingDomains spacing = spacingDomains(sch, settings);
     for (int pass = 0; pass < 8; ++pass) {
         const size_t forcedBefore = forcedConnect.size();
         RoutingGrid grid(settings);
@@ -1288,6 +1578,25 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
             else grid.setPour(z.layer, zn);
         }
         for (const auto& p : ps) grid.markPad(p, clr + w / 2);
+        if (spacing.gap > 0) {
+            double widest = settings.trackWidth;
+            for (const auto& [name, width] : settings.netWidths) widest = std::max(widest, width);
+            grid.setIsolation(spacing.domains.netDomain, spacing.gap, ps, widest / 2, settings.isolationGap <= 0);
+            for (const auto& p : ps) grid.fencePad(p);
+            // Mains nets stay ≥ 6 mm from radio modules and their antennas (creepage, and switching noise).
+            if (spacing.hvGap > 0)
+                if (const int lv = spacing.domains.domainOfNet(sch.groundNet()); lv >= 0)
+                    for (const auto& comp : sch.components())
+                        if (comp.hasFootprint() && comp.pcb.placed && isRadioPart(comp)) grid.fenceArea(courtyard(comp).inflated(6.0), lv);
+        }
+        // Mesh copper blocks every net (its own included, so no stub shortcuts the serpentine); the stripes cover the
+        // secure area on both mesh layers, so no other track crosses it there and no via can be drilled through it.
+        for (const auto& m : meshGeo)
+            for (const Track& t : m.tracks) {
+                grid.markSegment(t.layer, t.a, t.b, t.width / 2 + clr + w / 2, -3);
+                grid.markCopperSegment(t.layer, t.a, t.b, t.width / 2 + 1e-6, -3);
+                grid.addCopper(t.a, t.b, t.width / 2, t.net, t.layer);
+            }
         // Escape bands: the pad field of each fine-pitch package, widened by ~1 mm.
         {
             std::map<int, Rect> fine;
@@ -1326,6 +1635,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
                 grid.markCopperSegment(l, v.position, v.position, settings.viaDiameter / 2, net);
             }
             grid.addCopper(v.position, v.position, settings.viaDiameter / 2, net, -1, settings.viaDrill);
+            grid.fenceCopper(v.position, v.position, settings.viaDiameter / 2, net);
         };
         // Turns an A* path into tracks and through vias, marking them on the grid.
         auto commit = [&](int net, double wn, const RouteResult& rr, std::vector<std::pair<int, size_t>>& tree) {
@@ -1360,6 +1670,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
                             grid.markSegment(layer, piece.a, piece.b, piece.width / 2 + clr + extra(net) + w / 2, net);
                             grid.markCopperSegment(layer, piece.a, piece.b, piece.width / 2 + 1e-6, net);
                             grid.addCopper(piece.a, piece.b, piece.width / 2, net, layer);
+                            grid.fenceCopper(piece.a, piece.b, piece.width / 2, net, layer);
                         }
                         segStart = m;
                     }
@@ -1446,6 +1757,44 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
             placeVia(net, grid.pos(rr.path.back().i, rr.path.back().j));
             return true;
         };
+
+        // Tamper meshes: the serpentines, a via at each end and a stub from each drive / sense pad to its end.
+        for (const auto& m : meshGeo) {
+            if (!m.error.empty()) continue;
+            for (const Track& t : m.tracks) outT.push_back(t);
+            for (size_t e = 0; e < m.ends.size(); ++e) placeVia(e < 2 ? m.netA : m.netB, m.ends[e]);
+        }
+        for (const auto& m : meshGeo) {
+            if (!m.error.empty()) continue;
+            const TamperMesh& tm = tamperMeshes[static_cast<size_t>(m.mesh)];
+            bool ok[2] = {true, true};
+            for (size_t e = 0; e < m.ends.size(); ++e) {
+                const int net = e < 2 ? m.netA : m.netB;
+                const Pad& pad = ps[m.endPads[e]];
+                std::vector<std::pair<int, size_t>> src;
+                padCells(pad, src);
+                std::vector<std::vector<char>> mask(static_cast<size_t>(grid.layers()),
+                                                    std::vector<char>(static_cast<size_t>(grid.cols() * grid.rows()), 0));
+                const int ci = static_cast<int>(std::lround(m.ends[e].x / grid.pitch()));
+                const int cj = static_cast<int>(std::lround(m.ends[e].y / grid.pitch()));
+                if (grid.inside(ci, cj))
+                    for (int l = 0; l < grid.layers(); ++l)
+                        if (l != tm.layerA && l != tm.layerB) mask[static_cast<size_t>(l)][grid.idx(ci, cj)] = 1;
+                RouteResult rr = astar(grid, net, src, mask, m.ends[e], 12.0);
+                if (rr.ok) {
+                    std::vector<std::pair<int, size_t>> scratch;
+                    commit(net, settings.widthFor(nets[static_cast<size_t>(net)].name), rr, scratch);
+                } else {
+                    ok[e < 2 ? 0 : 1] = false;
+                }
+            }
+            for (int k = 0; k < 2; ++k) {
+                const int net = k == 0 ? m.netA : m.netB;
+                ++stats.connections;
+                if (ok[k]) ++stats.routed;
+                else stats.failedNets.push_back(nets[static_cast<size_t>(net)].name);
+            }
+        }
 
         auto nearestUnconnected = [&](const std::vector<size_t>& list, const std::vector<bool>& connected) {
             size_t target = 0;
@@ -1899,6 +2248,9 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     auto voltageNeed = [&](int a, int b) {
         auto ia = netRange.find(a), ib = netRange.find(b);
         if (a < 0 || b < 0 || ia == netRange.end() || ib == netRange.end()) return std::make_pair(0.0, 0.0);
+        // A pin left open (one-pin net) has no defined voltage: a simulated floating node says nothing about it.
+        if (sch.nets()[static_cast<size_t>(a)].pins.size() < 2 || sch.nets()[static_cast<size_t>(b)].pins.size() < 2)
+            return std::make_pair(0.0, 0.0);
         double dv = std::max(std::fabs(ia->second.second - ib->second.first), std::fabs(ib->second.second - ia->second.first));
         return std::make_pair(dv, ipc2221Clearance(dv, settings.highAltitude, settings.coated()));
     };
@@ -2254,6 +2606,130 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                     " plane layer and cuts it.", tr.a);
                 break;
             }
+
+    // Isolation barrier: copper of different galvanic domains at least isolationGap apart on every layer. A barrier
+    // part's own pads are rated by its datasheet; their exit corridors are exempt the way the router leaves them.
+    if (settings.isolationGap > 0) {
+        const GalvanicDomains doms = galvanicDomains(sch);
+        const double gap = settings.isolationGap;
+        struct Item {
+            int net, dom, comp = -1;
+            int layer;      // -1 = every layer (via)
+            const Pad* pad = nullptr;
+            Vec2 a, b;
+            double half = 0;
+        };
+        std::vector<Item> items;
+        std::map<int, std::vector<const Pad*>> compPads;
+        for (const auto& p : ps) {
+            const int d = doms.domainOfNet(p.net);
+            if (d < 0) continue;
+            compPads[p.componentId].push_back(&p);
+            for (int l = 0; l < settings.layerCount; ++l)
+                if (p.onLayer(l)) items.push_back({p.net, d, p.componentId, l, &p, p.position, p.position, 0});
+        }
+        for (const auto& t : tracks)
+            if (const int d = doms.domainOfNet(t.net); d >= 0) items.push_back({t.net, d, -1, t.layer, nullptr, t.a, t.b, t.width / 2});
+        for (const auto& v : vias)
+            if (const int d = doms.domainOfNet(v.net); d >= 0)
+                items.push_back({v.net, d, -1, -1, nullptr, v.position, v.position, v.diameter / 2});
+        std::map<int, double> exitR;
+        for (const auto& [comp, list] : compPads) {
+            double sMin = 1e9;
+            for (size_t i = 0; i < list.size(); ++i)
+                for (size_t j = i + 1; j < list.size(); ++j)
+                    if (doms.domainOfNet(list[i]->net) != doms.domainOfNet(list[j]->net))
+                        sMin = std::min(sMin, rectRectDistance(list[i]->bounds(), list[j]->bounds()));
+            if (sMin < gap - 1e-9) exitR[comp] = gap - sMin + settings.trackWidth + settings.clearance;
+        }
+        auto dist = [&](const Item& x, const Item& y) {
+            if (x.pad && y.pad) return rectRectDistance(x.pad->bounds(), y.pad->bounds());
+            if (x.pad) return segmentRectDistance(y.a, y.b, x.pad->bounds()) - y.half;
+            if (y.pad) return segmentRectDistance(x.a, x.b, y.pad->bounds()) - x.half;
+            return segmentSegmentDistance(x.a, x.b, y.a, y.b) - x.half - y.half;
+        };
+        // Within a barrier part's exit corridor: `y` sits next to a pad of barrier `x.comp` in its own domain.
+        auto exempt = [&](const Item& x, const Item& y) {
+            auto it = exitR.find(x.comp);
+            if (it == exitR.end()) return false;
+            for (const Pad* q : compPads[x.comp]) {
+                if (doms.domainOfNet(q->net) != y.dom) continue;
+                const double d = y.pad ? rectRectDistance(q->bounds(), y.pad->bounds())
+                                       : segmentRectDistance(y.a, y.b, q->bounds()) - y.half;
+                if (d < it->second) return true;
+            }
+            return false;
+        };
+        int reported = 0;
+        for (size_t i = 0; i < items.size() && reported < 5; ++i)
+            for (size_t j = i + 1; j < items.size() && reported < 5; ++j) {
+                const Item &x = items[i], &y = items[j];
+                if (x.dom == y.dom) continue;
+                if (x.layer >= 0 && y.layer >= 0 && x.layer != y.layer) continue;
+                if (x.comp >= 0 && x.comp == y.comp) continue;  // inside one barrier part: its datasheet rating
+                const Rect bx = x.pad ? x.pad->bounds() : Rect(x.a.x, x.a.y, x.b.x, x.b.y).inflated(x.half);
+                const Rect by = y.pad ? y.pad->bounds() : Rect(y.a.x, y.a.y, y.b.x, y.b.y).inflated(y.half);
+                if (!bx.inflated(gap).intersects(by)) continue;
+                const double d = dist(x, y);
+                if (d >= gap - 1e-6 || exempt(x, y) || exempt(y, x)) continue;
+                char msg[200];
+                std::snprintf(msg, sizeof msg, "%s and %s are %.2f mm apart across the isolation barrier (needs %.1f mm",
+                              netName(x.net).c_str(), netName(y.net).c_str(), std::max(0.0, d), gap);
+                add(Severity::Error, "DRC_ISOLATION_GAP",
+                    std::string(msg) + " creepage / clearance between galvanic domains).", (x.a + y.a) * 0.5);
+                ++reported;
+            }
+    }
+
+    // Tamper meshes: laid out, intact over the whole secure area, and never crossed or drilled by other copper.
+    for (const auto& m : tamperMeshGeometry(sch, ps)) {
+        const TamperMesh& tm = tamperMeshes[static_cast<size_t>(m.mesh)];
+        const Component* se = sch.findByRef(tm.componentRef);
+        std::vector<int> comps;
+        if (se) comps.push_back(se->id);
+        const Vec2 at = se ? se->pcb.position : Vec2{};
+        if (!m.error.empty()) {
+            add(Severity::Error, "DRC_TAMPER_MESH", "Tamper mesh over " + tm.componentRef + ": " + m.error + ".", at, comps);
+            continue;
+        }
+        if (tracks.empty()) continue;  // not routed yet (DRC_UNROUTED reports it)
+        // Every stripe must be present on its layer (a missing one leaves a hole a probe can reach through).
+        size_t missing = 0;
+        for (const Track& want : m.tracks) {
+            bool found = false;
+            for (const Track& t : tracks)
+                if (t.net == want.net && t.layer == want.layer &&
+                    pointSegmentDistance((want.a + want.b) * 0.5, t.a, t.b) < 1e-3 + t.width / 2) {  // corners may be chamfered
+                    found = true;
+                    break;
+                }
+            if (!found) ++missing;
+        }
+        if (missing > 0)
+            add(Severity::Error, "DRC_TAMPER_MESH",
+                "Tamper mesh over " + tm.componentRef + " is incomplete: " + std::to_string(missing) +
+                    " stripe(s) are missing. Re-run the autorouter to lay the mesh.",
+                at, comps);
+        const Rect area = m.region;
+        for (const Via& v : vias)
+            if (v.net != m.netA && v.net != m.netB && area.contains(v.position) &&
+                (v.spans(tm.layerA) || v.spans(tm.layerB))) {
+                add(Severity::Error, "DRC_TAMPER_MESH_BREACH",
+                    "Via of " + netName(v.net) + " is drilled through the tamper-mesh area of " + tm.componentRef +
+                        ": a probe could follow it to the secure element without cutting the mesh.",
+                    v.position, comps);
+                break;
+            }
+        for (const Track& t : tracks)
+            if ((t.layer == tm.layerA || t.layer == tm.layerB) && t.net != m.netA && t.net != m.netB &&
+                segmentRectDistance(t.a, t.b, area) <= 0) {
+                add(Severity::Error, "DRC_TAMPER_MESH_BREACH",
+                    netName(t.net) + " runs through the tamper-mesh layer of " + tm.componentRef + " (" +
+                        copperLayerName(t.layer, settings.layerCount) + "), leaving a gap in the mesh.",
+                    t.a, comps);
+                break;
+            }
+    }
 
     // Connectivity.
     auto lines = ratsnest(sch);
