@@ -22,7 +22,9 @@
 #include "sieda/Json.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
+#include "sieda/LengthMatch.hpp"
 #include "sieda/Reliability.hpp"
+#include "sieda/Stackup.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Validation.hpp"
@@ -2781,4 +2783,146 @@ TEST(reliability_layout_rules) {
     bool stage = false;
     for (const auto& st : rep.stages) stage |= st.id == "reliability";
     CHECK(stage);
+}
+
+TEST(stackup_controlled_impedance) {
+    // IPC-2141 sanity: wider track → lower impedance; stripline below microstrip for the same geometry.
+    CHECK(microstripImpedance(0.3, 0.2, 0.035, 4.4) > microstripImpedance(0.5, 0.2, 0.035, 4.4));
+    CHECK(striplineImpedance(0.2, 0.4, 0.035, 4.4) < microstripImpedance(0.2, 0.2, 0.035, 4.4) + 30);
+    CHECK(findLaminate("rogers-4350b") && findLaminate("megtron-6") && !findLaminate("unobtainium"));
+
+    BoardSettings s;
+    s.layerCount = 4;
+    s.thickness = 1.6;
+    const double fr4 = widthForImpedance(s, 0, 50);
+    CHECK(fr4 > 0);
+    CHECK_NEAR(trackImpedance(s, 0, fr4), 50, 1.0);
+    CHECK(isStriplineLayer(s, 1) && !isStriplineLayer(s, 0) && !isStriplineLayer(s, 3));
+    CHECK(widthForImpedance(s, 1, 50) < fr4);  // stripline: narrower for the same 50 Ω
+    s.material = "rogers-4350b";
+    CHECK(widthForImpedance(s, 0, 50) > fr4);  // lower εr → wider line
+    auto [dw, gap] = differentialPairGeometry(s, 0, 100);
+    CHECK(dw > 0 && gap >= dw - 1e-9);
+    CHECK_NEAR(differentialMicrostrip(trackImpedance(s, 0, dw), gap, layerDielectric(s)), 100, 5);
+
+    // Persistence of the stack-up and the C API.
+    Project p = amplifierProject();
+    p.pcb.settings.layerCount = 4;
+    p.pcb.settings.material = "megtron-6";
+    p.pcb.settings.construction = "rigid-flex";
+    p.pcb.settings.singleEndedImpedance = 45;
+    p.pcb.settings.backdrill = true;
+    Project q = Project::fromJson(p.toJson());
+    CHECK(q.pcb.settings.material == "megtron-6" && q.pcb.settings.construction == "rigid-flex");
+    CHECK_NEAR(q.pcb.settings.singleEndedImpedance, 45, 1e-9);
+    CHECK(q.pcb.settings.backdrill);
+    Json sj = stackupJson(q.pcb.settings);
+    CHECK(sj["materialName"].asString().find("Megtron") != std::string::npos);
+    CHECK(sj["layers"].size() == 7);  // 4 copper + 3 dielectrics
+
+    // A 4-layer via on a clock net that only connects the top layer leaves a stub → backdrill file.
+    Project c = amplifierProject();
+    auto& sch = c.schematic;
+    int clk = sch.addComponent(ComponentKind::NetLabel, "CLK", {0, 200});
+    int r = sch.addComponent(ComponentKind::Resistor, "33", {60, 200});
+    int g = sch.addComponent(ComponentKind::Ground, "", {120, 200});
+    wire(sch, clk, "N", r, "1");
+    wire(sch, r, "2", g, "GND");
+    c.schematicChanged();
+    c.pcb.settings.layerCount = 4;
+    c.pcb.autoPlace(c.schematic, true);  // footprints on the board: layout rules apply
+    int net = sch.netOf({r, 0});
+    Via v;
+    v.net = net;
+    v.position = {5, 5};
+    c.pcb.addVia(v);
+    Track t;
+    t.net = net;
+    t.layer = 0;
+    t.width = 0.2;
+    t.a = {5, 5};
+    t.b = {9, 5};
+    c.pcb.addTrack(t);
+    auto stubs = viaStubs(c);
+    CHECK(stubs.size() == 1);
+    CHECK(stubs.size() == 1 && stubs[0].bottomStub > 1.0 && stubs[0].topStub == 0);
+    auto codes = [&] {
+        std::set<std::string> out;
+        for (const auto& x : reliabilityChecks(c)) out.insert(x.code);
+        return out;
+    };
+    CHECK(codes().count("REL_VIA_STUB"));
+    c.pcb.settings.backdrill = true;
+    CHECK(codes().count("REL_BACKDRILL") && !codes().count("REL_VIA_STUB"));
+    CHECK(exportBackdrill(c).find("M48") != std::string::npos);
+
+    // Metal-core boards are single/double-sided.
+    c.pcb.settings.construction = "metal-core";
+    CHECK(codes().count("REL_METAL_CORE_LAYERS"));
+}
+
+TEST(length_matching_serpentines) {
+    Project p;
+    auto& s = p.schematic;
+    auto signal = [&](const char* name, double y) {
+        int l = s.addComponent(ComponentKind::NetLabel, name, {0, y});
+        int r = s.addComponent(ComponentKind::Resistor, "33", {60, y});
+        int g = s.addComponent(ComponentKind::Ground, "", {120, y});
+        wire(s, l, "N", r, "1");
+        wire(s, r, "2", g, "GND");
+        return r;
+    };
+    int dq0 = signal("DQ0", 0), dq1 = signal("DQ1", 100);
+    int dp = signal("USB_DP", 200), dn = signal("USB_DN", 300);
+    signal("A0", 400);
+    signal("A1", 500);  // MCU analog pins — not a bus
+    signal("LED1", 600);
+    signal("LED2", 700);
+    p.schematicChanged();
+
+    auto groups = lengthGroups(s, p.pcb.settings);
+    CHECK(groups.size() == 2);
+    bool pair = false, bus = false;
+    for (const auto& g : groups) {
+        pair |= g.kind == "pair" && g.name == "USB_D" && g.nets.size() == 2;
+        bus |= g.kind == "bus" && g.name == "DQ" && g.nets.size() == 2;
+    }
+    CHECK(pair && bus);
+
+    p.pcb.settings.width = 100;
+    p.pcb.settings.height = 80;
+    int n0 = s.netOf({dq0, 0}), n1 = s.netOf({dq1, 0});
+    auto track = [&](int net, Vec2 a, Vec2 b) {
+        Track t;
+        t.net = net;
+        t.width = 0.2;
+        t.a = a;
+        t.b = b;
+        p.pcb.addTrack(t);
+    };
+    track(n0, {10, 60}, {40, 60});  // 30 mm
+    track(n1, {10, 70}, {30, 70});  // 20 mm: 10 mm short
+    track(s.netOf({dp, 0}), {10, 20}, {40, 20});
+    track(s.netOf({dn, 0}), {10, 22}, {39, 22});  // 1 mm skew, a neighbour 2 mm away
+    auto matched = [](const Json& r, size_t i) { return r.get("groups")[i].get("matched").asBool(false); };
+    Json before = lengthReportJson(p.pcb, s);
+    CHECK(!matched(before, 0) && !matched(before, 1));
+
+    CHECK(tuneLengths(p.pcb, s) == 2);
+    CHECK_NEAR(routedNetLength(p.pcb, n1), 30, 1e-6);
+    CHECK_NEAR(routedNetLength(p.pcb, s.netOf({dn, 0})), 30, 1e-6);
+    Json after = lengthReportJson(p.pcb, s);
+    CHECK(after.get("groups").size() == 2 && matched(after, 0) && matched(after, 1));
+    // The serpentine keeps the end points (connectivity) and clearance to the neighbouring pair member.
+    for (const auto& t : p.pcb.tracks)
+        if (t.net == s.netOf({dn, 0}))
+            CHECK(segmentSegmentDistance(t.a, t.b, {10, 20}, {40, 20}) - t.width >= p.pcb.settings.clearance - 1e-6);
+    CHECK(tuneLengths(p.pcb, s) == 0);  // already matched
+
+    // Persistence.
+    p.pcb.settings.pairSkewTolerance = 0.05;
+    p.pcb.settings.lengthTuning = false;
+    Project q = Project::fromJson(p.toJson());
+    CHECK_NEAR(q.pcb.settings.pairSkewTolerance, 0.05, 1e-9);
+    CHECK(!q.pcb.settings.lengthTuning);
 }

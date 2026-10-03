@@ -15,6 +15,7 @@
 
 #include "sieda/Bom.hpp"
 #include "sieda/Reliability.hpp"
+#include "sieda/Stackup.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Json.hpp"
 #include "sieda/Mesh.hpp"
@@ -163,6 +164,38 @@ std::string makeZip(const std::vector<std::pair<std::string, std::string>>& file
     return out;
 }
 
+std::string exportBackdrill(const Project& project) {
+    auto stubs = viaStubs(project);
+    if (stubs.empty()) return "";
+    const auto& s = project.pcb.settings;
+    const auto& nets = project.schematic.nets();
+    std::ostringstream o;
+    o << "M48\n; SiEDA backdrill program — remove unused via barrel stubs on high-speed nets\n"
+      << "; drill = via drill + 0.20 mm; depth measured from the drilled side; never cut the listed must-not-cut layer\n"
+      << "; #@! TF.FileFunction,NonPlated,1," << s.layerCount << ",Backdrill\nMETRIC,TZ\n";
+    std::map<std::string, std::vector<const ViaStub*>> tools;
+    for (const auto& st : stubs) tools[fmt("%.3f", st.drill + 0.2)].push_back(&st);
+    int tool = 1;
+    for (const auto& [d, list] : tools) o << "T" << tool++ << "C" << d << "\n";
+    o << "%\nG90\nG05\n";
+    tool = 1;
+    for (const auto& [d, list] : tools) {
+        o << "T" << tool++ << "\n";
+        for (const ViaStub* st : list) {
+            std::string net = st->net >= 0 && st->net < static_cast<int>(nets.size()) ? nets[static_cast<size_t>(st->net)].name : "?";
+            if (st->bottomStub > 0.2)
+                o << "; " << net << ": from bottom, depth " << fmt("%.3f", st->bottomStub - 0.05) << " mm, must not cut "
+                  << copperLayerName(st->lastLayer, s.layerCount) << "\n";
+            if (st->topStub > 0.2)
+                o << "; " << net << ": from top, depth " << fmt("%.3f", st->topStub - 0.05) << " mm, must not cut "
+                  << copperLayerName(st->firstLayer, s.layerCount) << "\n";
+            o << "X" << fmt("%.4f", st->position.x) << "Y" << fmt("%.4f", s.height - st->position.y) << "\n";
+        }
+    }
+    o << "T0\nM30\n";
+    return o.str();
+}
+
 std::string exportGerberJob(const Project& project, const std::vector<FabFile>& files) {
     const auto& s = project.pcb.settings;
     const BoardFacts f = facts(project);
@@ -242,7 +275,9 @@ std::string exportGerberJob(const Project& project, const std::vector<FabFile>& 
         layer("Copper", "L" + std::to_string(i + 1), cu, "", "");
         if (i < layers - 1 || layers == 1)
             layer("Dielectric", i == 0 ? "Core" : "Prepreg / core " + std::to_string(i + 1), dielectric, "",
-                  project.industry == "space" ? "Polyimide" : "FR4");
+                  project.pcb.settings.material != "fr4" ? boardLaminate(project.pcb.settings).name
+                  : project.industry == "space"          ? "Polyimide"
+                                                         : "FR4");
     }
     if (layers > 1) {
         layer("SolderMask", "Bottom solder mask", 0.01, mask, "");
@@ -343,6 +378,9 @@ std::vector<FabFile> fabricationPackage(const Project& project, const std::strin
     if (f.pth || f.vias) add(g + "-PTH.drl", exportExcellonDrill(sch, pcb, true), "Drill, plated (pads and vias)");
     if (f.npth) add(g + "-NPTH.drl", exportExcellonDrill(sch, pcb, false), "Drill, non-plated (mounting holes)");
     add(g + "-ipc356.ipc", exportIpcD356(sch, pcb, project.name), "IPC-D-356A netlist (electrical test)");
+    if (s.backdrill)
+        if (std::string bd = exportBackdrill(project); !bd.empty())
+            add(g + "-backdrill.drl", bd, "Backdrill program (via stubs on high-speed nets)");
     // The job file lists the Gerbers above.
     add(g + "-job.gbrjob", exportGerberJob(project, files), "Gerber X2 job file (stack-up, finish, colours)");
 

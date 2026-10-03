@@ -18,6 +18,7 @@
 		2EC7607088EE552EE82C08CD = {isa = PBXBuildFile; fileRef = E24E95E9C50ED191B629FFCB; };
 		2F37DBCC1B97825D126178A5 = {isa = PBXBuildFile; fileRef = E0E3155DFC35436C47F59BCE; };
 		3D5D45FB5BEA3347870ADE14 = {isa = PBXBuildFile; fileRef = 3B8AAF03382758779EE08604; };
+		3ED20566BE159D1479B983DC = {isa = PBXBuildFile; fileRef = 12BA3643F29BE4C857019229; };
 		443E14D73B4434B4FDD2677B = {isa = PBXBuildFile; fileRef = 2A6E9FA74463A506F384BA53; };
 		482CD12CF3DD25314FE03C7D = {isa = PBXBuildFile; fileRef = 19A32AB05C4FC519DD459887; };
 		48FB3527518FE55EE06380A1 = {isa = PBXBuildFile; fileRef = FD0349E3F008C96C569E5F1F; };
@@ -39,6 +40,7 @@
 		7A0F6B254F09DDD2E807D258 = {isa = PBXBuildFile; fileRef = 2803DF6FC30693BE00F1F0FC; };
 		7A10A9C2A05E8392D79C71E1 = {isa = PBXBuildFile; fileRef = 89D9BE7B7D9C91F898FB822D; };
 		7E5CB3E6074CEC5D362A6B2E = {isa = PBXBuildFile; fileRef = C7832FB1E03A0AE9D93DF23C; };
+		8A31929501458CDAC3444CA1 = {isa = PBXBuildFile; fileRef = 4948511C3F66BCF11536263B; };
 		92D8A78741A34B5E4AA64FE6 = {isa = PBXBuildFile; fileRef = 190FD291891208916B99A706; };
 		93F543F5DF9687E3A93CCAA0 = {isa = PBXBuildFile; fileRef = 938DECEE75900EFD66E07216; };
 		94A2FB858724C3D8CDB07FAF = {isa = PBXBuildFile; fileRef = 0C901B807364BC2CC8209B6B; };
@@ -86,6 +88,7 @@
 		0C901B807364BC2CC8209B6B = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = StandardParts.cpp; sourceTree = "<group>"; };
 		0CF3E02226CCD062D60E465B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPrompts.swift; sourceTree = "<group>"; };
 		0EB50E3CA7A6F3A651C9B485 = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PRD.md; sourceTree = "<group>"; };
+		12BA3643F29BE4C857019229 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Stackup.cpp; sourceTree = "<group>"; };
 		1861FDAEA170902904EAABB5 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SiEDATests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		190FD291891208916B99A706 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignPlan.swift; sourceTree = "<group>"; };
 		19A32AB05C4FC519DD459887 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Export.cpp; sourceTree = "<group>"; };
@@ -97,6 +100,7 @@
 		2803DF6FC30693BE00F1F0FC = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimulationView.swift; sourceTree = "<group>"; };
 		281968485D39656793209D6D = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SiEDA.entitlements; sourceTree = "<group>"; };
 		28DA5CB541B843FE20EC60BA = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardSetupPanel.swift; sourceTree = "<group>"; };
+		294CA3D13E83A6848CF71840 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = LengthMatch.hpp; sourceTree = "<group>"; };
 		2A6E9FA74463A506F384BA53 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2B421B324134866281AAE285 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Pcb.cpp; sourceTree = "<group>"; };
 		2B5B8F926E5F3FE0015F96DA = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Avr.cpp; sourceTree = "<group>"; };
@@ -109,6 +113,7 @@
 		41B79F22607C01D7C4BF744B = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Mesh.cpp; sourceTree = "<group>"; };
 		44E20A1917CDAF73A6C514E2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Schematic.hpp; sourceTree = "<group>"; };
 		470AD526B3A4B8CA0ADFC09B = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		4948511C3F66BCF11536263B = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LengthMatch.cpp; sourceTree = "<group>"; };
 		4E33E84C12F180325C138248 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Simulator.hpp; sourceTree = "<group>"; };
 		4F936263151D3C60C008BC98 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Verification.cpp; sourceTree = "<group>"; };
 		4FC7244E5CC6E8E1CA1526AE = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XRayStackView.swift; sourceTree = "<group>"; };
@@ -149,6 +154,7 @@
 		C034F0251DFB40B57D57ED72 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Validation.hpp; sourceTree = "<group>"; };
 		C07144B375647346E0E3EC7B = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Industry.hpp; sourceTree = "<group>"; };
 		C277541433091BF5ACFA3A26 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = sieda_c.cpp; sourceTree = "<group>"; };
+		C4FD1126C93FBA32D1FFC34C = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Stackup.hpp; sourceTree = "<group>"; };
 		C5AE10EA4E5AF49E101DBF29 = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE.md; sourceTree = "<group>"; };
 		C7832FB1E03A0AE9D93DF23C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		C9668A0215AD47CFD79FAADA = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Project.hpp; sourceTree = "<group>"; };
@@ -277,6 +283,7 @@
 				598E73B82C21E2428C143C93,
 				C07144B375647346E0E3EC7B,
 				0930B17E77DDC99D62455EBA,
+				294CA3D13E83A6848CF71840,
 				1DB297246101A1F77E0719A3,
 				E72D8B430F37B4F24483C73F,
 				6C44D52C3E47659A6A7CAF85,
@@ -284,6 +291,7 @@
 				27F3B185D30AF8F6453A8E28,
 				44E20A1917CDAF73A6C514E2,
 				4E33E84C12F180325C138248,
+				C4FD1126C93FBA32D1FFC34C,
 				73FB164A362C386F2070046E,
 				1DC2001261854B1018467136,
 				C034F0251DFB40B57D57ED72,
@@ -338,6 +346,7 @@
 				94640EC62FB04611BA180EDD,
 				5C5A4E6673BC22FAFE753C09,
 				3B8AAF03382758779EE08604,
+				4948511C3F66BCF11536263B,
 				E0E3155DFC35436C47F59BCE,
 				41B79F22607C01D7C4BF744B,
 				2B421B324134866281AAE285,
@@ -345,6 +354,7 @@
 				ED31CDCBDEE7E1F670F7977E,
 				54E109672561428616FE3D2D,
 				F459489B353E161C42FB7B2D,
+				12BA3643F29BE4C857019229,
 				0C901B807364BC2CC8209B6B,
 				26947D07ECF33FE13550E88A,
 				23615D21B117E2A85C546F98,
@@ -626,6 +636,7 @@
 				5CD6C55A8FE73A7847272E36,
 				6EB9D3E942D2E5293BA5CD69,
 				3D5D45FB5BEA3347870ADE14,
+				8A31929501458CDAC3444CA1,
 				2F37DBCC1B97825D126178A5,
 				C98936A9AF1F391BD51F67D5,
 				1D0CCCE3C0074105DFCF6C37,
@@ -633,6 +644,7 @@
 				01B0280DE2241948F1896AA1,
 				4B8107A57118B84C609B7113,
 				976C2E17360605E19E2949BC,
+				3ED20566BE159D1479B983DC,
 				94A2FB858724C3D8CDB07FAF,
 				D7DF1C1C815D245B80D2653D,
 				C25C04B573D5668E271225D9,

@@ -391,6 +391,32 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func setCoating(_ coating: ConformalCoating) -> Bool { withHandle { sieda_pcb_set_coating($0, coating.rawValue) } == 1 }
 
+    /// Laminate, construction, impedance targets (Ω) and backdrilling.
+    @discardableResult
+    func setStackup(material: String, construction: BoardConstruction, singleEnded: Double, differential: Double,
+                    backdrill: Bool) -> Bool {
+        withHandle {
+            sieda_pcb_set_stackup($0, material, construction.rawValue, singleEnded, differential, backdrill ? 1 : 0)
+        } == 1
+    }
+
+    @discardableResult
+    func setLengthMatching(enabled: Bool, pairSkew: Double, bus: Double) -> Bool {
+        withHandle { sieda_pcb_set_length_matching($0, enabled ? 1 : 0, pairSkew, bus) } == 1
+    }
+
+    /// Adds serpentines to the short members of differential pairs and buses; returns the nets tuned.
+    @discardableResult
+    func tuneLengths() -> Int { Int(withHandle { sieda_pcb_tune_lengths($0) }) }
+
+    func lengthReport() -> LengthReport {
+        Self.decode(LengthReport.self, from: withHandle { Self.take(sieda_length_report_json($0)) }) ?? .empty
+    }
+
+    func stackup() -> StackupReport {
+        Self.decode(StackupReport.self, from: withHandle { Self.take(sieda_stackup_json($0)) }) ?? .empty
+    }
+
     @discardableResult
     func setSolderMask(_ mask: SolderMaskColour) -> Bool { withHandle { sieda_pcb_set_solder_mask($0, mask.rawValue) } == 1 }
 

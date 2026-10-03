@@ -19,6 +19,7 @@ struct NetClassification {
                                        // output, or ground): leakage-sensitive, needs spacing and a guard ring
     std::set<int> fast;                // fast edges (clocks, PWM, data, switching nodes): crosstalk / EMI
     std::set<int> rf;                  // RF nets: controlled 50 Ω impedance
+    std::vector<std::pair<int, int>> diffPairs;  // (positive, negative) nets of differential pairs
 };
 NetClassification classifyNets(const Project& project);
 /// The same from the schematic alone (`industry` "" = no RF board rule): what the autorouter uses.
@@ -30,6 +31,17 @@ double leakageSpacing(const BoardSettings& s);
 double microstripWidth(double ohms, const BoardSettings& s);
 /// Dielectric height (mm) from an outer layer to its reference plane.
 double referencePlaneHeight(const BoardSettings& s);
+
+/// The unused part of a through-via barrel on a high-speed / RF net: the signal enters and leaves on inner or one-side
+/// layers and the rest of the barrel is a resonant stub (reflections at multi-Gb/s). Backdrilling removes it.
+struct ViaStub {
+    Vec2 position;
+    int net = -1;
+    double drill = 0;
+    int firstLayer = 0, lastLayer = 0;  // copper layers the signal uses at this via
+    double topStub = 0, bottomStub = 0; // mm of unused barrel above / below
+};
+std::vector<ViaStub> viaStubs(const Project& project);
 
 /// All reliability findings for the project (PCB layout, circuit and industry profile). Errors are real defects;
 /// warnings are likely field failures; info is guidance the profile's standards ask for.

@@ -8,8 +8,10 @@
 
 #include "sieda/CustomParts.hpp"
 #include "sieda/Industry.hpp"
+#include "sieda/LengthMatch.hpp"
 #include "sieda/Library.hpp"
 #include "sieda/Simulator.hpp"
+#include "sieda/Stackup.hpp"
 #include "sieda/Units.hpp"
 
 namespace sieda {
@@ -98,17 +100,11 @@ double laminateTg(const std::string& industry) {
 }
 }  // namespace
 
-double referencePlaneHeight(const BoardSettings& s) {
-    const double cu = 0.035 * std::max(0.5, s.copperWeightOz);
-    if (s.layerCount <= 2) return std::max(0.1, s.thickness - 2 * cu);
-    return std::max(0.08, (s.thickness - s.layerCount * cu) / (s.layerCount - 1));
-}
+double referencePlaneHeight(const BoardSettings& s) { return layerDielectric(s); }
 
 double microstripWidth(double ohms, const BoardSettings& s) {
-    // IPC-2141: Z0 = 87 / sqrt(εr + 1.41) · ln(5.98 h / (0.8 w + t)), solved for w.
-    const double er = 4.4, t = 0.035 * std::max(0.5, s.copperWeightOz), h = referencePlaneHeight(s);
-    double w = (5.98 * h / std::exp(ohms * std::sqrt(er + 1.41) / 87.0) - t) / 0.8;
-    return std::max(0.05, w);
+    double w = widthForImpedance(s, 0, ohms);  // IPC-2141 on the board's laminate
+    return w > 0 ? w : 0.05;
 }
 
 double leakageSpacing(const BoardSettings& s) { return s.coated() ? 0.25 : 0.5; }
@@ -187,6 +183,12 @@ NetClassification classifyNets(const Schematic& sch, const std::string& industry
         if (inductor && drain) fast = true;
         if (fast && sch.netRole(n.index) == NetRole::Signal) out.fast.insert(n.index);
     }
+    // Differential pairs: X_P / X_N, X+ / X-, XP / XN, USB D+ / D-.
+    for (auto pair : differentialPairs(sch)) {
+        out.diffPairs.push_back(pair);
+        out.fast.insert(pair.first);
+        out.fast.insert(pair.second);
+    }
     // RF nets: by name, or on RF/networking boards any net on an SMA / U.FL / antenna connector.
     const bool rfBoard = industry == "rf" || industry == "networking";
     for (const auto& n : nets) {
@@ -231,10 +233,50 @@ FabricationRequirements fabricationRequirements(const Project& project) {
         r.notes.push_back("Thermal cycling −40 … +125 °C: AEC-Q100/Q200 parts, IPC-6012 Class 3 plating (via barrel "
                           "≥ 25 µm copper)");
     if (id == "space") r.notes.push_back("Radiation: radiation-hardened / latch-up-protected parts and redundant design");
+    // A material or construction chosen in Board Setup wins over the profile's default.
+    if (s.material != "fr4") r.material = boardLaminate(s).name;
+    if (s.construction == "metal-core")
+        r.notes.push_back("Metal-core (IMS) board: 1.0–1.6 mm aluminium base, thermally conductive dielectric (" +
+                          fmt("%.1f W/m·K", boardLaminate(s).thermalConductivity) + "); components on one side");
+    if (s.construction == "rigid-flex")
+        r.notes.push_back("Rigid-flex (IPC-2223 / IPC-6013): polyimide flex layers, adhesiveless; in the bend area use "
+                          "curved, staggered traces, hatched planes, no vias or plating, bend radius ≥ 10× (static) / 100× "
+                          "(dynamic) flex thickness");
+    if (s.backdrill) r.notes.push_back("Backdrill the via stubs listed in the backdrill file (high-speed nets)");
     if (id == "rf" || id == "networking")
         r.notes.push_back("Controlled impedance: RF lines 50 Ω ± 10 % (fab to adjust width to their stack-up); low-profile "
                           "copper foil for skin-effect losses");
     return r;
+}
+
+std::vector<ViaStub> viaStubs(const Project& project) {
+    const PcbLayout& pcb = project.pcb;
+    const BoardSettings& s = pcb.settings;
+    std::vector<ViaStub> out;
+    if (s.layerCount < 4) return out;
+    const NetClassification cls = classifyNets(project);
+    const double cu = copperThickness(s), d = layerDielectric(s);
+    auto top = [&](int layer) { return layer * (cu + d); };          // depth of a layer's top surface
+    for (const auto& v : pcb.vias) {
+        if (!cls.fast.count(v.net) && !cls.rf.count(v.net)) continue;
+        int first = s.layerCount, last = -1;
+        for (const auto& t : pcb.tracks)
+            if (t.net == v.net && ((t.a - v.position).length() < 1e-6 || (t.b - v.position).length() < 1e-6)) {
+                first = std::min(first, t.layer);
+                last = std::max(last, t.layer);
+            }
+        if (last < 0) continue;
+        ViaStub stub;
+        stub.position = v.position;
+        stub.net = v.net;
+        stub.drill = v.drill;
+        stub.firstLayer = first;
+        stub.lastLayer = last;
+        stub.topStub = first > 0 ? top(first) : 0;
+        stub.bottomStub = last < s.layerCount - 1 ? s.thickness - (top(last) + cu) : 0;
+        if (stub.topStub > 0.2 || stub.bottomStub > 0.2) out.push_back(stub);
+    }
+    return out;
 }
 
 std::vector<RuleViolation> reliabilityChecks(const Project& project) {
@@ -558,8 +600,10 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
             for (const auto& p : pads)
                 if (p.componentId == c->id && zoneNets.count(p.net)) pour = true;
             if (pour) theta *= 0.7;  // copper pour spreads the heat
+            if (s.construction == "metal-core") theta *= 0.35;  // the aluminium base sinks it
             const double rise = std::fabs(d.power) * theta;
-            const double tj = prof.maxAmbientC + rise, board = prof.maxAmbientC + 0.5 * rise, tg = laminateTg(id);
+            const double tg = s.material != "fr4" ? boardLaminate(s).tg : laminateTg(id);
+            const double tj = prof.maxAmbientC + rise, board = prof.maxAmbientC + 0.5 * rise;
             std::string why;
             Severity sev = Severity::Warning;
             if (tj > 150) {
@@ -665,13 +709,26 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
                 {}, at, true);
             continue;
         }
-        double w0 = static_cast<double>(*widths.begin()) / 1000.0;
-        if (std::fabs(w0 - target) > 0.15 * target)
+        // Impedance of each piece on its own layer (microstrip outside, stripline inside) against the target.
+        double worst = 0, worstZ = 0;
+        int worstLayer = 0;
+        for (const auto& t : pcb.tracks)
+            if (t.net == net) {
+                double z = trackImpedance(s, t.layer, t.width);
+                if (std::fabs(z - s.singleEndedImpedance) > worst) {
+                    worst = std::fabs(z - s.singleEndedImpedance);
+                    worstZ = z;
+                    worstLayer = t.layer;
+                }
+            }
+        if (worst > 0.10 * s.singleEndedImpedance)
             add(Severity::Warning, "REL_RF_IMPEDANCE",
-                "RF net " + netName(net) + " is " + fmt("%.2f mm", w0) + " wide; 50 Ω on this stack-up (h = " +
-                    fmt("%.2f mm", referencePlaneHeight(s)) + ", FR-4) needs about " + fmt("%.2f mm", target) +
-                    ". Impedance mismatch reflects power back to the transmitter. Set a net class of that width" +
-                    (target > 1.5 ? " (or use a 4-layer board / grounded coplanar waveguide for a narrower line)" : "") + ".",
+                "RF net " + netName(net) + " is about " + fmt("%.0f Ω", worstZ) + " on " +
+                    copperLayerName(worstLayer, s.layerCount) + " (" + boardLaminate(s).name + ", h = " +
+                    fmt("%.2f mm", layerDielectric(s)) + "); the target is " + fmt("%.0f Ω", s.singleEndedImpedance) +
+                    " ± 10 %, a " + fmt("%.2f mm", widthForImpedance(s, worstLayer, s.singleEndedImpedance)) +
+                    " track there. Impedance mismatch reflects power back to the transmitter." +
+                    (target > 1.5 ? " For a narrower line use a 4-layer board or grounded coplanar waveguide." : ""),
                 {}, at, true);
         if (widths.size() > 1)
             add(Severity::Warning, "REL_RF_DISCONTINUITY",
@@ -682,6 +739,54 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
                 "RF net " + netName(net) + " uses " + std::to_string(vias) + " via(s): each adds inductance and an "
                 "impedance mismatch. Keep RF lines on one layer over an unbroken ground plane.", {}, at, true);
     }
+    // Via stubs on high-speed nets.
+    {
+        auto stubs = viaStubs(project);
+        if (!stubs.empty()) {
+            double worst = 0;
+            for (const auto& st : stubs) worst = std::max({worst, st.topStub, st.bottomStub});
+            const bool highSpeedBoard = isOneOf(id, {"networking", "vlsi", "rf"});
+            if (!s.backdrill)
+                add(highSpeedBoard ? Severity::Warning : Severity::Info, "REL_VIA_STUB",
+                    std::to_string(stubs.size()) + " via(s) on high-speed nets leave unused barrel stubs (up to " +
+                        fmt("%.2f mm", worst) + "): the stub resonates and reflects multi-Gb/s signals. Enable "
+                        "backdrilling (Board Setup → Stack-up) or use blind / buried vias.",
+                    {}, stubs.front().position, true);
+            else
+                add(Severity::Info, "REL_BACKDRILL",
+                    std::to_string(stubs.size()) + " via stub(s) will be backdrilled (backdrill file in the fabrication "
+                    "package, longest " + fmt("%.2f mm", worst) + ").", {}, stubs.front().position, true);
+        }
+    }
+    // Length / phase matching of differential pairs and parallel buses.
+    for (const auto& g : lengthGroups(sch, s)) {
+        double lo = 1e18, hi = 0;
+        int shortNet = -1;
+        for (int n : g.nets) {
+            double len = routedNetLength(pcb, n);
+            if (len < lo) shortNet = n;
+            lo = std::min(lo, len);
+            hi = std::max(hi, len);
+        }
+        if (lo <= 0 || hi - lo <= g.tolerance + eps) continue;
+        const bool critical = isOneOf(id, {"networking", "vlsi", "rf"});
+        add(critical ? Severity::Warning : Severity::Info, "REL_LENGTH_MISMATCH",
+            (g.kind == "pair" ? "Differential pair " + g.name + ": intra-pair skew " : "Bus " + g.name + ": lengths differ by ") +
+                fmt("%.2f mm", hi - lo) + " (tolerance " + fmt("%.2f mm", g.tolerance) + "); " + netName(shortNet) +
+                " is shortest. Mismatched lengths arrive out of phase (skew), closing the timing eye and turning a "
+                "differential signal into common-mode noise. Auto Route adds serpentines when there is room; leave "
+                "space beside the short member or tune it by hand.");
+    }
+    // Board construction.
+    if (s.construction == "metal-core" && s.layerCount > 2)
+        add(Severity::Warning, "REL_METAL_CORE_LAYERS",
+            "Metal-core (IMS) boards are made with one or two copper layers above the aluminium base; " +
+                std::to_string(s.layerCount) + " layers need a hybrid FR-4 + metal stack. Reduce the layer count or use "
+                "thermal vias into a copper coin.");
+    if (s.construction == "metal-core" && s.material != "ims-aluminium")
+        add(Severity::Info, "REL_METAL_CORE_MATERIAL",
+            "Metal-core construction: select the Aluminium IMS laminate so the thermal checks use its 2 W/m·K dielectric.");
+
     // Leakage spacing around high-impedance copper (guard net and ground excepted).
     {
         const double need = leakageSpacing(s);

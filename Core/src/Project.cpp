@@ -3,6 +3,7 @@
 #include "sieda/Avr.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/Mesh.hpp"
+#include "sieda/Stackup.hpp"
 
 #include <algorithm>
 #include <map>
@@ -67,6 +68,14 @@ Json boardJson(const BoardSettings& s) {
     b["maxTempRise"] = s.maxTempRise;
     b["highAltitude"] = s.highAltitude;
     b["coating"] = s.coating;
+    b["material"] = s.material;
+    b["construction"] = s.construction;
+    b["singleEndedImpedance"] = s.singleEndedImpedance;
+    b["differentialImpedance"] = s.differentialImpedance;
+    b["backdrill"] = s.backdrill;
+    b["lengthTuning"] = s.lengthTuning;
+    b["pairSkewTolerance"] = s.pairSkewTolerance;
+    b["busLengthTolerance"] = s.busLengthTolerance;
     b["solderMask"] = s.solderMask;
     Json widths = Json::object();
     for (const auto& [net, w] : s.netWidths) widths[net] = w;
@@ -249,6 +258,16 @@ Project Project::fromJson(const Json& root) {
     s.coating = b.get("coating").asString("none");
     if (std::find(conformalCoatings().begin(), conformalCoatings().end(), s.coating) == conformalCoatings().end())
         s.coating = "none";
+    s.material = b.get("material").asString("fr4");
+    if (!findLaminate(s.material)) s.material = "fr4";
+    s.construction = b.get("construction").asString("rigid");
+    if (s.construction != "rigid-flex" && s.construction != "metal-core") s.construction = "rigid";
+    s.singleEndedImpedance = std::clamp(b.get("singleEndedImpedance").asNumber(50), 20.0, 150.0);
+    s.differentialImpedance = std::clamp(b.get("differentialImpedance").asNumber(100), 50.0, 200.0);
+    s.backdrill = b.get("backdrill").asBool(false);
+    s.lengthTuning = b.get("lengthTuning").asBool(true);
+    s.pairSkewTolerance = std::clamp(b.get("pairSkewTolerance").asNumber(0.13), 0.02, 5.0);
+    s.busLengthTolerance = std::clamp(b.get("busLengthTolerance").asNumber(0.5), 0.02, 20.0);
     s.solderMask = b.get("solderMask").asString("green");
     if (!findSolderMask(s.solderMask)) s.solderMask = "green";
     const Json& widths = b.get("netWidths");

@@ -2054,4 +2054,48 @@ final class ReliabilityTests: XCTestCase {
         XCTAssertTrue(stage.details.contains { $0.contains("Conformal coating: silicone") })
         XCTAssertEqual(ConformalCoating.allCases.count, 6)
     }
+
+    func testStackupMaterialImpedanceAndBackdrill() throws {
+        let store = DesignStore()
+        DesignPlanCompiler.apply(OfflineProvider.templates[5].plan, to: store.engine, previous: nil)
+        store.refresh()
+        let fr4 = store.stackup()
+        XCTAssertEqual(fr4.material, "fr4")
+        XCTAssertTrue(fr4.materials.contains { $0.id == "rogers-4350b" })
+        XCTAssertTrue(fr4.materials.contains { $0.id == "megtron-6" })
+        let fr4Width = try XCTUnwrap(fr4.layers.first?.seWidth)
+
+        store.setStackup(material: "rogers-4350b", construction: .metalCore, singleEnded: 50, backdrill: true)
+        let board = store.snapshot.board
+        XCTAssertEqual(board.material, "rogers-4350b")
+        XCTAssertEqual(board.boardConstruction, .metalCore)
+        XCTAssertTrue(board.backdrill)
+        // Lower εr → wider 50 Ω microstrip on the same dielectric.
+        let rogers = store.stackup()
+        XCTAssertGreaterThan(try XCTUnwrap(rogers.layers.first?.seWidth), fr4Width)
+
+        store.undo()
+        XCTAssertEqual(store.snapshot.board.material, "fr4")
+        store.redo()
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        XCTAssertEqual(reopened.snapshot()?.board.material, "rogers-4350b")
+        XCTAssertEqual(reopened.snapshot()?.board.boardConstruction, .metalCore)
+    }
+
+    func testLengthMatchingSettingsAndReport() throws {
+        let store = DesignStore()
+        DesignPlanCompiler.apply(OfflineProvider.templates[5].plan, to: store.engine, previous: nil)
+        store.refresh()
+        XCTAssertTrue(store.snapshot.board.lengthTuning)
+        store.setLengthMatching(enabled: false, pairSkew: 0.05)
+        XCTAssertFalse(store.snapshot.board.lengthTuning)
+        XCTAssertEqual(store.snapshot.board.pairSkewTolerance, 0.05, accuracy: 1e-9)
+        store.undo()
+        XCTAssertTrue(store.snapshot.board.lengthTuning)
+        let report = store.lengthReport()
+        XCTAssertTrue(report.enabled)
+        // Every group the report lists has members with names.
+        for group in report.groups { XCTAssertFalse(group.nets.isEmpty) }
+    }
 }

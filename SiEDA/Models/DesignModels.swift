@@ -305,6 +305,61 @@ enum ConformalCoating: String, CaseIterable, Identifiable {
     }
 }
 
+/// Board construction: rigid FR-4 style, rigid-flex (polyimide flex sections) or metal-core (IMS) for heat.
+enum BoardConstruction: String, CaseIterable, Identifiable {
+    case rigid
+    case rigidFlex = "rigid-flex"
+    case metalCore = "metal-core"
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .rigid: return "Rigid"
+        case .rigidFlex: return "Rigid-flex"
+        case .metalCore: return "Metal-core (IMS)"
+        }
+    }
+}
+
+/// Stack-up with impedance-controlled widths per copper layer (`sieda_stackup_json`).
+struct StackupReport: Decodable, Equatable {
+    var material = "fr4"
+    var materialName = "FR-4"
+    var er = 4.4
+    var lossTangent = 0.02
+    var tg = 140.0
+    var construction = "rigid"
+    var singleEndedOhms = 50.0
+    var differentialOhms = 100.0
+    var layers: [StackupLayerInfo] = []
+    var materials: [LaminateInfo] = []
+
+    static let empty = StackupReport()
+}
+
+struct StackupLayerInfo: Decodable, Equatable, Identifiable {
+    var name: String
+    var type: String
+    var thickness: Double
+    var line: String?
+    var seWidth: Double?
+    var diffWidth: Double?
+    var diffGap: Double?
+    var material: String?
+
+    var id: String { name }
+    var isCopper: Bool { type == "copper" }
+}
+
+struct LaminateInfo: Decodable, Equatable, Identifiable {
+    var id: String
+    var name: String
+    var er: Double
+    var lossTangent: Double
+    var tg: Double
+    var note: String
+}
+
 /// Solder mask colours fabs offer (core `solderMaskStyles()`), green first: the usual board colour.
 enum SolderMaskColour: String, CaseIterable, Identifiable {
     case green, black, blue, red, yellow, white, purple
@@ -352,6 +407,20 @@ struct BoardInfo: Decodable, Equatable {
     var coating = "none"
     var conformalCoating: ConformalCoating { ConformalCoating(rawValue: coating) ?? .none }
     var mask: SolderMaskColour { SolderMaskColour(rawValue: solderMask) ?? .green }
+    /// Laminate id (core `laminateMaterials()`): "fr4", "rogers-4350b", "megtron-6", …
+    var material = "fr4"
+    /// Board construction (core `BoardSettings::construction`).
+    var construction = "rigid"
+    var boardConstruction: BoardConstruction { BoardConstruction(rawValue: construction) ?? .rigid }
+    /// Controlled-impedance targets (Ω) the router sizes RF lines and differential pairs to.
+    var singleEndedImpedance = 50.0
+    var differentialImpedance = 100.0
+    /// Back-drill via stubs on fast nets (≥ 4 layers).
+    var backdrill = false
+    /// Serpentine length / phase matching after Auto Route, with tolerances (mm).
+    var lengthTuning = true
+    var pairSkewTolerance = 0.13
+    var busLengthTolerance = 0.5
     /// Net classes: track width (mm) per net name.
     var netWidths: [String: Double] = [:]
     var autoSizeNets = true
@@ -384,6 +453,14 @@ struct BoardInfo: Decodable, Equatable {
         highAltitude = try c.decodeIfPresent(Bool.self, forKey: .highAltitude) ?? false
         solderMask = try c.decodeIfPresent(String.self, forKey: .solderMask) ?? "green"
         coating = try c.decodeIfPresent(String.self, forKey: .coating) ?? "none"
+        material = try c.decodeIfPresent(String.self, forKey: .material) ?? "fr4"
+        construction = try c.decodeIfPresent(String.self, forKey: .construction) ?? "rigid"
+        singleEndedImpedance = try c.decodeIfPresent(Double.self, forKey: .singleEndedImpedance) ?? 50
+        differentialImpedance = try c.decodeIfPresent(Double.self, forKey: .differentialImpedance) ?? 100
+        backdrill = try c.decodeIfPresent(Bool.self, forKey: .backdrill) ?? false
+        lengthTuning = try c.decodeIfPresent(Bool.self, forKey: .lengthTuning) ?? true
+        pairSkewTolerance = try c.decodeIfPresent(Double.self, forKey: .pairSkewTolerance) ?? 0.13
+        busLengthTolerance = try c.decodeIfPresent(Double.self, forKey: .busLengthTolerance) ?? 0.5
         netWidths = try c.decodeIfPresent([String: Double].self, forKey: .netWidths) ?? [:]
         autoSizeNets = try c.decodeIfPresent(Bool.self, forKey: .autoSizeNets) ?? true
         outline = try c.decodeIfPresent([BoardPoint].self, forKey: .outline) ?? []
@@ -394,6 +471,8 @@ struct BoardInfo: Decodable, Equatable {
         case layerCount, width, height, thickness, trackWidth, clearance, viaDrill, viaDiameter, edgeClearance, routingGrid
         case rulePreset, minTrackWidth, minClearance, minDrill, minAnnularRing, minHoleToHole, copperWeightOz, maxTempRise
         case highAltitude, solderMask, coating, netWidths, autoSizeNets, outline, holes
+        case material, construction, singleEndedImpedance, differentialImpedance, backdrill
+        case lengthTuning, pairSkewTolerance, busLengthTolerance
     }
 
     var bottomLayer: Int { max(1, layerCount) - 1 }
@@ -731,7 +810,41 @@ struct RouteStats: Decodable, Equatable {
     var failed: Int = 0
     var vias: Int = 0
     var trackLength: Double = 0
+    /// Nets lengthened with serpentines (length / phase matching).
+    var lengthTuned: Int?
     var failedNets: [String] = []
+}
+
+/// Matched-length groups (differential pairs, buses) and their routed lengths (`sieda_length_report_json`).
+struct LengthReport: Decodable, Equatable {
+    var enabled = true
+    var pairSkewTolerance = 0.13
+    var busLengthTolerance = 0.5
+    var groups: [LengthGroupInfo] = []
+
+    static let empty = LengthReport()
+}
+
+struct LengthGroupInfo: Decodable, Equatable, Identifiable {
+    var name: String
+    var kind: String
+    var tolerance: Double
+    var target: Double
+    var matched: Bool
+    var nets: [LengthNetInfo]
+
+    var id: String { kind + ":" + name }
+    var isPair: Bool { kind == "pair" }
+}
+
+struct LengthNetInfo: Decodable, Equatable, Identifiable {
+    var name: String
+    var length: Double
+    var delta: Double
+    var routed: Bool
+    var ok: Bool
+
+    var id: String { name }
 }
 
 // MARK: - 3D
