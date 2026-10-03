@@ -11,6 +11,8 @@ struct XRaySettings: Equatable {
     var spin = false
     /// Cinematic HUD: call-outs over the key parts, data pillars, projector rings and particles.
     var hud = true
+    /// Holographic data panels on an arc behind the stack (layer copper, net topology, parts, routing, board map).
+    var panels = false
     var hiddenLayers: Set<Int> = []
 
     /// The settings that change the scene's geometry (spinning only animates the existing scene).
@@ -257,6 +259,7 @@ struct XRayStackView: NSViewRepresentable {
             c.stack.addChildNode(motes)
             addCallouts(c, width: w, height: h)
         }
+        if settings.panels { addPanels(c, width: w, height: h, floorY: floorY) }
         HoloFX.flicker(c.stack)
         c.materialised = true
 
@@ -320,6 +323,83 @@ struct XRayStackView: NSViewRepresentable {
             cardNode.constraints = [SCNBillboardConstraint()]
             HoloFX.materialise(cardNode, delay: 1.0 + 0.2 * Double(index))
             c.stack.addChildNode(cardNode)
+        }
+    }
+
+    /// Holographic data panels standing on light posts in an arc behind the stack, opposite the default camera, each
+    /// unfolding in turn: copper per layer, net fan-out, parts by type, routing completion and a board mini-map.
+    private func addPanels(_ c: Coordinator, width w: CGFloat, height h: CGFloat, floorY: CGFloat) {
+        let span = max(w, h)
+        var images: [NSImage] = []
+
+        // Track length per copper layer.
+        var length = [Double](repeating: 0, count: layerCount)
+        for t in snapshot.tracks where t.layer >= 0 && t.layer < layerCount {
+            length[t.layer] += hypot(t.bx - t.ax, t.by - t.ay)
+        }
+        let layerRows = (0..<layerCount).prefix(8).map { layer -> (String, Double, String) in
+            ("L\(layer + 1) \(snapshot.board.layerName(layer).prefix(6).uppercased())", length[layer],
+             String(format: "%.0f mm", length[layer]))
+        }
+        images.append(HoloFX.panelImage(title: "Layer Stack", code: "CU-\(layerCount)L", accent: HoloFX.cyan) { r in
+            HoloFX.drawHBars(layerRows, in: r)
+        })
+
+        // Net fan-out histogram.
+        let nets = snapshot.nets.filter { $0.pinCount >= 2 }
+        let bins: [(String, ClosedRange<Int>)] = [("2", 2...2), ("3", 3...3), ("4-5", 4...5), ("6-9", 6...9), ("10+", 10...Int.max)]
+        let fanout: [(String, Double)] = bins.map { bin in (bin.0, Double(nets.filter { bin.1.contains($0.pinCount) }.count)) }
+        let power = nets.filter { $0.netRole == .power }.count, ground = nets.filter { $0.netRole == .ground }.count
+        images.append(HoloFX.panelImage(title: "Net Topology", code: "PWR \(power) · GND \(ground)", accent: HoloFX.amber) { r in
+            HoloFX.drawVBars(fanout, in: r)
+        })
+
+        // Parts by reference prefix.
+        var kinds: [String: Int] = [:]
+        for part in snapshot.components {
+            let prefix = String(part.ref.prefix { $0.isLetter }).uppercased()
+            kinds[prefix.isEmpty ? "?" : prefix, default: 0] += 1
+        }
+        let parts = kinds.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+            .prefix(7).map { ($0.key, Double($0.value)) }
+        images.append(HoloFX.panelImage(title: "Components", code: "\(snapshot.components.count) PARTS", accent: HoloFX.cyan) { r in
+            HoloFX.drawVBars(Array(parts), in: r)
+        })
+
+        // Routing completion: connections still on the ratsnest against all the connections the nets need.
+        let needed = nets.reduce(0) { $0 + $1.pinCount - 1 }
+        let unrouted = snapshot.ratsnest.count
+        let done = needed > 0 ? max(0, 1 - Double(unrouted) / Double(max(needed, unrouted))) : 1
+        let total = length.reduce(0, +)
+        images.append(HoloFX.panelImage(title: "Routing", code: unrouted == 0 ? "COMPLETE" : "\(unrouted) OPEN",
+                                        accent: unrouted == 0 ? HoloFX.cyan : HoloFX.amber) { r in
+            HoloFX.drawGauge(fraction: done, caption: "ROUTED",
+                             rows: [("Tracks", "\(snapshot.tracks.count)"), ("Vias", "\(snapshot.vias.count)"),
+                                    ("Length", String(format: "%.0f mm", total)), ("Open", "\(unrouted)")], in: r)
+        })
+
+        // Board mini-map.
+        let segments = snapshot.tracks.map { (CGPoint(x: $0.ax, y: $0.ay), CGPoint(x: $0.bx, y: $0.by)) }
+        let pads = snapshot.pads.map { CGPoint(x: $0.x, y: $0.y) }
+        images.append(HoloFX.panelImage(title: "Board Map", code: String(format: "%.0f×%.0f MM", snapshot.board.width,
+                                                                           snapshot.board.height),
+                                        accent: HoloFX.amber) { r in
+            HoloFX.drawMiniMap(width: snapshot.board.width, height: snapshot.board.height, tracks: segments, pads: pads, in: r)
+        })
+
+        // Arc behind the board, centred opposite the default camera (which sits at +x, +z).
+        let radius = span * 0.95
+        let centre: CGFloat = atan2(-1.15, -0.85)
+        let panelWidth = span * 0.32
+        for (index, image) in images.enumerated() {
+            let t = CGFloat(index) / CGFloat(max(images.count - 1, 1)) - 0.5
+            let angle = centre + t * 2 * (70 * .pi / 180)
+            let y = stackHeight + span * (0.22 + 0.06 * CGFloat(index % 2))
+            let panelHeight = panelWidth * image.size.height / image.size.width
+            let node = HoloFX.panelNode(image: image, width: panelWidth, delay: 1.4 + 0.25 * Double(index),
+                                        postDepth: max(0, y - panelHeight / 2 - floorY))
+            node.position = SCNVector3(radius * cos(angle), y, radius * sin(angle))
+            c.stack.addChildNode(node)
         }
     }
 

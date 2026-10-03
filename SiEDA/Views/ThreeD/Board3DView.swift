@@ -148,6 +148,8 @@ struct Board3DWorkspace: View {
             Toggle("Spin", isOn: $xray.spin).toggleStyle(.switch).controlSize(.mini)
             Toggle("HUD", isOn: $xray.hud).toggleStyle(.switch).controlSize(.mini)
                 .help("Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs")
+            Toggle("Panels", isOn: $xray.panels).toggleStyle(.switch).controlSize(.mini)
+                .help("Holographic data panels around the stack: copper per layer, net fan-out, parts, routing and a board map")
         }
     }
 
