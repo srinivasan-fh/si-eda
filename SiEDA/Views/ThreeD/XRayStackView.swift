@@ -9,6 +9,8 @@ struct XRaySettings: Equatable {
     var showVias = true
     var scan = true
     var spin = false
+    /// Cinematic HUD: call-outs over the key parts, data pillars, projector rings and particles.
+    var hud = true
     var hiddenLayers: Set<Int> = []
 
     /// The settings that change the scene's geometry (spinning only animates the existing scene).
@@ -40,6 +42,7 @@ struct XRayStackView: NSViewRepresentable {
         let cameraNode = SCNNode()
         var layerMeshes: [Int: MeshData] = [:]
         var meshRevision = -1
+        var materialised = false  // the layer-by-layer materialise plays once per view
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -188,6 +191,7 @@ struct XRayStackView: NSViewRepresentable {
             labelNode.constraints = [SCNBillboardConstraint()]
             plane.addChildNode(labelNode)
 
+            if !c.materialised { HoloFX.materialise(plane, delay: 0.15 + 0.18 * Double(layer)) }
             c.stack.addChildNode(plane)
         }
 
@@ -230,14 +234,31 @@ struct XRayStackView: NSViewRepresentable {
             }
         }
 
-        // Faint reference grid floor.
+        // Hex-mesh holo-table floor.
         let floorSize = max(w, h) * 3
+        let floorY = -max(spacing, 3) - 2
         let floor = SCNPlane(width: floorSize, height: floorSize)
-        floor.materials = [Self.gridMaterial(colour: NSColor(Theme.darkBlue), width: floorSize, height: floorSize, alpha: 0.25)]
+        let hex = HoloFX.glow(HoloFX.hexImage(colour: NSColor(Theme.lightBlue)), alpha: 0.22)
+        hex.emission.contentsTransform = SCNMatrix4MakeScale(floorSize / 12, floorSize / 12, 1)
+        hex.emission.wrapS = .repeat
+        hex.emission.wrapT = .repeat
+        floor.materials = [hex]
         let floorNode = SCNNode(geometry: floor)
         floorNode.eulerAngles.x = -.pi / 2
-        floorNode.position.y = -max(spacing, 3) - 2
+        floorNode.position.y = floorY
         c.stack.addChildNode(floorNode)
+
+        if settings.hud {
+            // Projector rings and light cone under the board; motes drifting through the hologram.
+            let radius = max(w, h) * 0.78
+            c.stack.addChildNode(HoloFX.projector(radius: radius, floorY: floorY + 0.05, coneHeight: -floorY - 0.6))
+            let motes = HoloFX.particles(width: w * 1.2, depth: h * 1.2, height: stackHeight + 8)
+            motes.position.y = stackHeight / 2
+            c.stack.addChildNode(motes)
+            addCallouts(c, width: w, height: h)
+        }
+        HoloFX.flicker(c.stack)
+        c.materialised = true
 
         // Scan beam sweeping through the stack.
         c.scanBeam.removeAllActions()
@@ -255,6 +276,50 @@ struct XRayStackView: NSViewRepresentable {
             c.scanBeam.runAction(.repeatForever(.sequence([up, up.reversed(), .wait(duration: 0.4)])))
             // A bright edge ring travelling with the beam.
             c.scanBeam.addChildNode(Self.outline(width: w * 1.15, height: h * 1.15, colour: NSColor(Theme.probe), flat: true))
+        }
+    }
+
+    /// Targeting reticles over the largest parts, leader lines up to floating data cards, and data pillars whose
+    /// height and colour follow each part's pin count.
+    private func addCallouts(_ c: Coordinator, width w: CGFloat, height h: CGFloat) {
+        let top = stackHeight
+        let ranked = snapshot.bodies.filter { !$0.bottom }.sorted { $0.w * $0.d > $1.w * $1.d }
+        let picks = Array(ranked.prefix(6))
+        let maxPins = max(1, picks.compactMap { snapshot.component($0.component)?.pins.count }.max() ?? 1)
+        let span = max(w, h)
+        for (index, body) in picks.enumerated() {
+            guard let part = snapshot.component(body.component) else { continue }
+            let x = CGFloat(body.x) - w / 2, z = CGFloat(body.y) - h / 2
+            let footprint = CGFloat(max(body.w, body.d))
+            let accent = index == 0 ? HoloFX.amber : HoloFX.cyan
+
+            let reticle = HoloFX.reticle(size: footprint * 1.9 + 2, colour: accent)
+            reticle.position = SCNVector3(x, top + CGFloat(body.h) + 0.6, z)
+            c.stack.addChildNode(reticle)
+
+            // Data pillar beside the part.
+            let level = CGFloat(part.pins.count) / CGFloat(maxPins)
+            let pillar = HoloFX.pillar(height: max(1.5, span * 0.18 * level), radius: max(0.4, span / 220), level: level)
+            pillar.position = SCNVector3(x + footprint / 2 + 1.2, top + 0.2, z)
+            c.stack.addChildNode(pillar)
+
+            // Leader line up to a card that always faces the camera.
+            let lift = span * (0.22 + 0.07 * CGFloat(index % 3))
+            let anchor = SCNVector3(x, top + CGFloat(body.h) + 0.6, z)
+            let cardAt = SCNVector3(x + (x < 0 ? -span * 0.12 : span * 0.12), top + lift, z)
+            c.stack.addChildNode(HoloFX.line(from: anchor, to: SCNVector3(x, cardAt.y, z), colour: accent, alpha: 0.7))
+            c.stack.addChildNode(HoloFX.line(from: SCNVector3(x, cardAt.y, z), to: cardAt, colour: accent, alpha: 0.7))
+            var rows: [(String, String)] = [("Package", body.package), ("Pins", "\(part.pins.count)")]
+            if !part.value.isEmpty, part.value != part.ref { rows.insert(("Value", part.value), at: 0) }
+            let image = HoloFX.cardImage(title: part.ref, subtitle: index == 0 ? "PRIMARY" : "TRACKED", rows: rows, accent: accent)
+            let cardWidth = span * 0.2
+            let card = SCNPlane(width: cardWidth, height: cardWidth * image.size.height / image.size.width)
+            card.materials = [HoloFX.glow(image, alpha: 0.95)]
+            let cardNode = SCNNode(geometry: card)
+            cardNode.position = cardAt
+            cardNode.constraints = [SCNBillboardConstraint()]
+            HoloFX.materialise(cardNode, delay: 1.0 + 0.2 * Double(index))
+            c.stack.addChildNode(cardNode)
         }
     }
 

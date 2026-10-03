@@ -65,6 +65,9 @@ struct Board3DWorkspace: View {
                 } else if mode == .xray {
                     XRayStackView(engine: store.engine, snapshot: store.snapshot, revision: store.revision,
                                   settings: xray, resetToken: resetCamera)
+                    if xray.hud {
+                        HoloHUDOverlay(title: store.snapshot.name, readouts: hudReadouts)
+                    }
                     layerLegend
                         .padding(12)
                 } else {
@@ -78,6 +81,18 @@ struct Board3DWorkspace: View {
                 if !store.snapshot.pads.isEmpty { navigationHint.padding(12) }
             }
         }
+    }
+
+    /// Live read-outs for the holographic HUD.
+    private var hudReadouts: [(String, String)] {
+        let b = store.snapshot.board
+        let parts = store.snapshot.components.filter { !$0.componentKind.isVirtual }.count
+        return [("Board", String(format: "%.1f × %.1f mm", b.width, b.height)),
+                ("Stack", "\(b.layerCount) layers · \(b.material.uppercased())"),
+                ("Parts", "\(parts)"),
+                ("Nets", "\(store.snapshot.nets.filter { $0.pinCount > 1 }.count)"),
+                ("Tracks", "\(store.snapshot.tracks.count)"),
+                ("Vias", "\(store.snapshot.vias.count)")]
     }
 
     /// Solder mask colour swatches (green, black, blue, red, yellow, white, purple), like a fab's sample boards.
@@ -131,6 +146,8 @@ struct Board3DWorkspace: View {
             Toggle("Vias", isOn: $xray.showVias).toggleStyle(.switch).controlSize(.mini)
             Toggle("Scan", isOn: $xray.scan).toggleStyle(.switch).controlSize(.mini)
             Toggle("Spin", isOn: $xray.spin).toggleStyle(.switch).controlSize(.mini)
+            Toggle("HUD", isOn: $xray.hud).toggleStyle(.switch).controlSize(.mini)
+                .help("Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs")
         }
     }
 
