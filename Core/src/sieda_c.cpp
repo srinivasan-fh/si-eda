@@ -16,9 +16,11 @@
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
 #include "sieda/Industry.hpp"
+#include "sieda/LengthMatch.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/Reliability.hpp"
+#include "sieda/Stackup.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
 #include "sieda/Validation.hpp"
@@ -716,6 +718,7 @@ char* sieda_pcb_autoroute(SiedaProject* project) {
         j["failed"] = s.failed;
         j["vias"] = s.vias;
         j["trackLength"] = s.trackLength;
+        j["lengthTuned"] = s.lengthTuned;
         Json failed = Json::array();
         for (const auto& n : s.failedNets) failed.push(n);
         j["failedNets"] = failed;
@@ -789,6 +792,65 @@ int32_t sieda_pcb_set_solder_mask(SiedaProject* project, const char* colour) {
     if (!project || !colour || !findSolderMask(colour)) return 0;
     project->project.pcb.settings.solderMask = colour;
     return 1;
+}
+
+int32_t sieda_pcb_set_stackup(SiedaProject* project, const char* material, const char* construction, double se, double diff,
+                              int32_t backdrill) {
+    if (!project || !material || !construction || !findLaminate(material)) return 0;
+    std::string c = construction;
+    if (c != "rigid" && c != "rigid-flex" && c != "metal-core") return 0;
+    auto& s = project->project.pcb.settings;
+    s.material = material;
+    s.construction = c;
+    s.singleEndedImpedance = std::clamp(se, 20.0, 150.0);
+    s.differentialImpedance = std::clamp(diff, 50.0, 200.0);
+    s.backdrill = backdrill != 0;
+    return 1;
+}
+
+int32_t sieda_pcb_set_length_matching(SiedaProject* project, int32_t enabled, double pair_skew_mm, double bus_mm) {
+    if (!project || !(pair_skew_mm > 0) || !(bus_mm > 0)) return 0;
+    auto& s = project->project.pcb.settings;
+    s.lengthTuning = enabled != 0;
+    s.pairSkewTolerance = std::clamp(pair_skew_mm, 0.02, 5.0);
+    s.busLengthTolerance = std::clamp(bus_mm, 0.02, 20.0);
+    return 1;
+}
+
+int32_t sieda_pcb_tune_lengths(SiedaProject* project) {
+    if (!project) return 0;
+    return tuneLengths(project->project.pcb, project->project.schematic);
+}
+
+char* sieda_length_report_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(lengthReportJson(project->project.pcb, project->project.schematic).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_stackup_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        Json j = stackupJson(project->project.pcb.settings);
+        Json mats = Json::array();
+        for (const auto& m : laminateMaterials()) {
+            Json x = Json::object();
+            x["id"] = m.id;
+            x["name"] = m.name;
+            x["er"] = m.er;
+            x["lossTangent"] = m.lossTangent;
+            x["tg"] = m.tg;
+            x["note"] = m.note;
+            mats.push(x);
+        }
+        j["materials"] = mats;
+        return dup(j.dump());
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 int32_t sieda_pcb_set_coating(SiedaProject* project, const char* coating) {

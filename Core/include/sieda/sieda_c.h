@@ -169,6 +169,23 @@ int32_t sieda_pcb_set_solder_mask(SiedaProject* project, const char* colour);
 /* Conformal coating: "none", "acrylic", "silicone", "urethane", "epoxy" or "parylene" (IPC-CC-830). A coated board
  * uses IPC-2221B column A5 for voltage spacing and tighter leakage spacing. 0 for unknown names. */
 int32_t sieda_pcb_set_coating(SiedaProject* project, const char* coating);
+/* Stack-up: laminate material id ("fr4", "fr4-hightg", "isola-370hr", "rogers-4350b", "megtron-6", "polyimide",
+ * "ims-aluminium"), construction ("rigid", "rigid-flex", "metal-core"), single-ended and differential impedance
+ * targets (Ω) and backdrilling of high-speed via stubs. 0 for an unknown material or construction. */
+int32_t sieda_pcb_set_stackup(SiedaProject* project, const char* material, const char* construction, double single_ended_ohms,
+                              double differential_ohms, int32_t backdrill);
+/* The stack-up with per-layer impedance-controlled widths: {"material","materialName","er","lossTangent","tg",
+ * "construction","singleEndedOhms","differentialOhms","layers":[{name,type,thickness,line,seWidth,diffWidth,diffGap}],
+ * "materials":[{id,name,er,lossTangent,tg,note}]}. */
+char* sieda_stackup_json(const SiedaProject* project);
+/* Length / phase matching: enable serpentine tuning after Auto Route and set the intra-pair skew and bus length
+ * tolerances (mm). */
+int32_t sieda_pcb_set_length_matching(SiedaProject* project, int32_t enabled, double pair_skew_mm, double bus_mm);
+/* Adds serpentines to the short members of differential pairs and buses now; returns the nets tuned. */
+int32_t sieda_pcb_tune_lengths(SiedaProject* project);
+/* {"enabled","pairSkewTolerance","busLengthTolerance","groups":[{name,kind:"pair"|"bus",tolerance,target,matched,
+ * nets:[{name,length,delta,routed,ok}]}]} */
+char* sieda_length_report_json(const SiedaProject* project);
 /* Outline presets: "rectangle" (w × h), "rounded" (corner radius param), "circle" (diameter w),
  * "quad-x" (quadcopter frame: span w, square body h, arm width param). Returns 0 for unknown kinds. */
 int32_t sieda_pcb_outline_preset(SiedaProject* project, const char* kind, double w, double h, double param);

@@ -1,5 +1,7 @@
 #include "sieda/Pcb.hpp"
+#include "sieda/LengthMatch.hpp"
 #include "sieda/Reliability.hpp"
+#include "sieda/Stackup.hpp"
 
 #include "sieda/Simulator.hpp"
 
@@ -1115,9 +1117,18 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
     // leakage-sensitive and fast nets keep extra spacing and route first, so everything else keeps away from them.
     const NetClassification classes = classifyNets(sch, "");
     for (int net : classes.rf) {
-        double z0 = microstripWidth(50.0, settings);
+        double z0 = widthForImpedance(settings, kTopLayer, settings.singleEndedImpedance);
         const std::string& name = sch.nets()[static_cast<size_t>(net)].name;
-        if (z0 <= 1.5 && !settings.netWidths.count(name)) settings.netWidths[name] = std::ceil(z0 * 100) / 100;
+        if (z0 > 0 && z0 <= 1.5 && !settings.netWidths.count(name)) settings.netWidths[name] = std::ceil(z0 * 100) / 100;
+    }
+    // Differential pairs: both members at the width for the differential target (outer-layer geometry).
+    for (auto [p, n] : classes.diffPairs) {
+        double w = differentialPairGeometry(settings, kTopLayer, settings.differentialImpedance).first;
+        if (w <= 0 || w > 1.0) continue;
+        for (int net : {p, n}) {
+            const std::string& name = sch.nets()[static_cast<size_t>(net)].name;
+            if (!settings.netWidths.count(name)) settings.netWidths[name] = std::max(settings.minTrackWidth, std::ceil(w * 100) / 100);
+        }
     }
     std::map<int, double> extraClearance;
     for (const auto& [net, guard] : classes.highImpedance)
@@ -1521,6 +1532,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
     for (auto& t : bestTracks) addTrack(t);
     for (auto& v : bestVias) addVia(v);
     cleanupRouting(sch);
+    // Length / phase matching: serpentines on the short members of differential pairs and buses.
+    if (settings.lengthTuning) best.lengthTuned = tuneLengths(*this, sch);
     if (best.failed == std::numeric_limits<int>::max()) best.failed = 0;
     return best;
 }

@@ -36,6 +36,10 @@ std::string fabricationNotes(const Project& project, const std::vector<FabFile>&
 /// silkscreen colours, and the function of every Gerber file in `files`.
 std::string exportGerberJob(const Project& project, const std::vector<FabFile>& files);
 
+/// Excellon backdrill program: per via stub, an oversize drill from the bottom (or top) to just short of the last
+/// (first) used layer, with the must-not-cut layer in the comments. Empty when nothing needs backdrilling.
+std::string exportBackdrill(const Project& project);
+
 /// A .zip archive (stored, no compression) of the given files.
 std::string makeZip(const std::vector<std::pair<std::string, std::string>>& files);
 

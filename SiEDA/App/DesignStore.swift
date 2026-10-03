@@ -693,6 +693,7 @@ final class DesignStore: ObservableObject {
             ? "routed \(stats.routed)/\(stats.connections) connections, \(stats.vias) vias"
             : "routed \(stats.routed)/\(stats.connections) — \(stats.failed) failed (\(stats.failedNets.joined(separator: ", ")))"
         statusMessage = (placeMissing ? "Placed footprints inside the board outline and " : "") + routed
+            + ((stats.lengthTuned ?? 0) > 0 ? ", \(stats.lengthTuned ?? 0) nets length-matched with serpentines" : "")
         statusMessage = statusMessage.prefix(1).uppercased() + statusMessage.dropFirst()
     }
 
@@ -724,6 +725,48 @@ final class DesignStore: ObservableObject {
         performChecked(coating == .none ? "No conformal coating" : "\(coating.title) conformal coating",
                        invalidatesAnalysis: false) { $0.setCoating(coating) }
         if !drcResults.isEmpty { runDRC() }
+    }
+
+    /// Laminate, construction, controlled-impedance targets and backdrilling. Undoable; re-checks the design.
+    func setStackup(material: String? = nil, construction: BoardConstruction? = nil, singleEnded: Double? = nil,
+                    differential: Double? = nil, backdrill: Bool? = nil) {
+        let b = snapshot.board
+        let m = material ?? b.material, c = construction ?? b.boardConstruction
+        let se = singleEnded ?? b.singleEndedImpedance, diff = differential ?? b.differentialImpedance
+        let bd = backdrill ?? b.backdrill
+        guard m != b.material || c != b.boardConstruction || se != b.singleEndedImpedance
+                || diff != b.differentialImpedance || bd != b.backdrill else { return }
+        performChecked("Stack-up: \(m), \(c.title)", invalidatesAnalysis: false) {
+            $0.setStackup(material: m, construction: c, singleEnded: se, differential: diff, backdrill: bd)
+        }
+        if !drcResults.isEmpty { runDRC() }
+    }
+
+    func stackup() -> StackupReport { engine.stackup() }
+
+    func lengthReport() -> LengthReport { engine.lengthReport() }
+
+    /// Length / phase matching on Auto Route and its tolerances (mm). Undoable.
+    func setLengthMatching(enabled: Bool? = nil, pairSkew: Double? = nil, bus: Double? = nil) {
+        let b = snapshot.board
+        let e = enabled ?? b.lengthTuning, p = pairSkew ?? b.pairSkewTolerance, t = bus ?? b.busLengthTolerance
+        guard e != b.lengthTuning || p != b.pairSkewTolerance || t != b.busLengthTolerance else { return }
+        performChecked(e ? "Length matching" : "No length matching", invalidatesAnalysis: false) {
+            $0.setLengthMatching(enabled: e, pairSkew: p, bus: t)
+        }
+    }
+
+    /// Tunes the routed board now: serpentines on the short members of pairs and buses. Undoable.
+    func tuneLengths() {
+        var tuned = 0
+        performChecked("Tune lengths", invalidatesAnalysis: false, failureMessage: "Lengths already matched") {
+            tuned = $0.tuneLengths()
+            return tuned > 0
+        }
+        if tuned > 0 {
+            statusMessage = "Added serpentines to \(tuned) net\(tuned == 1 ? "" : "s")"
+            if !drcResults.isEmpty { runDRC() }
+        }
     }
 
     /// Solder mask colour of the board (3D assembly view and fabrication order). Undoable.

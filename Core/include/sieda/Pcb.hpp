@@ -47,6 +47,21 @@ struct BoardSettings {
     /// Conformal coating applied after assembly ("none" or an IPC-CC-830 type, see conformalCoatings()).
     std::string coating = "none";
     bool coated() const { return !coating.empty() && coating != "none"; }
+    /// Laminate (see laminateMaterials()): "fr4", "fr4-hightg", "isola-370hr", "rogers-4350b", "megtron-6",
+    /// "polyimide", "ims-aluminium".
+    std::string material = "fr4";
+    /// "rigid", "rigid-flex" (IPC-2223) or "metal-core" (aluminium IMS for power / LEDs).
+    std::string construction = "rigid";
+    /// Controlled-impedance targets (Ω) for RF / single-ended high-speed nets and differential pairs.
+    double singleEndedImpedance = 50;
+    double differentialImpedance = 100;
+    /// Backdrill through-via stubs on high-speed nets (multilayer boards).
+    bool backdrill = false;
+    /// Length / phase matching: after routing, serpentines are added so differential pairs (intra-pair skew) and
+    /// parallel buses (DQ0…n, DATA[0..7], ADDR…) match within these tolerances (mm).
+    bool lengthTuning = true;
+    double pairSkewTolerance = 0.13;   // ≈ 5 mil (USB / PCIe / LVDS intra-pair)
+    double busLengthTolerance = 0.5;   // ≈ 20 mil (DDR byte lane / parallel bus)
     /// Solder mask colour ordered from the fab: green (default), black, blue, red, yellow, white or purple.
     std::string solderMask = "green";
     /// Net classes: track width (mm) per net name, e.g. {"VBAT": 0.8} for motor and battery currents.
@@ -198,6 +213,7 @@ struct RouteStats {
     int failed = 0;
     int vias = 0;
     double trackLength = 0;
+    int lengthTuned = 0;  // nets lengthened with serpentines (length / phase matching)
     std::vector<std::string> failedNets;
 };
 

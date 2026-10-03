@@ -104,6 +104,8 @@ struct BoardSetupPanel: View {
                     }
                 }
 
+                stackupSection(board)
+                lengthMatchingSection(board)
                 section("Protection & Reliability", systemImage: "shield.lefthalf.filled") {
                     Picker("Conformal coating", selection: Binding(get: { board.conformalCoating },
                                                                    set: { store.setCoating($0) })) {
@@ -178,6 +180,101 @@ struct BoardSetupPanel: View {
 
     /// Nets with at least two pins (the ones a pour or a net class can apply to).
     private var netChoices: [String] { store.snapshot.nets.filter { $0.pinCount > 1 }.map(\.name) }
+
+    /// Laminate, construction and controlled-impedance targets, with the widths each copper layer needs.
+    private func stackupSection(_ board: BoardInfo) -> some View {
+        let report = store.stackup()
+        return section("Stack-up & Impedance", systemImage: "square.3.layers.3d") {
+            Picker("Laminate", selection: Binding(get: { board.material }, set: { store.setStackup(material: $0) })) {
+                ForEach(report.materials) { Text($0.name).tag($0.id) }
+            }
+            if let m = report.materials.first(where: { $0.id == board.material }) {
+                Text(String(format: "εr %.2f · Df %.4f · Tg %.0f °C — ", m.er, m.lossTangent, m.tg) + m.note)
+                    .font(.caption).foregroundStyle(Theme.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Picker("Construction", selection: Binding(get: { board.boardConstruction },
+                                                      set: { store.setStackup(construction: $0) })) {
+                ForEach(BoardConstruction.allCases) { Text($0.title).tag($0) }
+            }
+            Stepper(String(format: "Single-ended %.0f Ω", board.singleEndedImpedance),
+                    value: Binding(get: { board.singleEndedImpedance }, set: { store.setStackup(singleEnded: $0) }),
+                    in: 20...150, step: 5)
+            Stepper(String(format: "Differential %.0f Ω", board.differentialImpedance),
+                    value: Binding(get: { board.differentialImpedance }, set: { store.setStackup(differential: $0) }),
+                    in: 50...200, step: 5)
+            Toggle("Backdrill via stubs on fast nets", isOn: Binding(get: { board.backdrill },
+                                                                     set: { store.setStackup(backdrill: $0) }))
+                .disabled(board.layerCount < 4)
+                .help("Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file")
+            ForEach(report.layers) { layer in
+                HStack {
+                    Image(systemName: layer.isCopper ? "square.fill" : "square")
+                        .foregroundStyle(layer.isCopper ? Color.orange : Theme.textMuted)
+                    Text(layer.name).foregroundStyle(layer.isCopper ? Theme.textPrimary : Theme.textMuted)
+                    Spacer()
+                    if layer.isCopper, let se = layer.seWidth, let dw = layer.diffWidth, let gap = layer.diffGap {
+                        Text(String(format: "%@ · SE %.3f · diff %.3f/%.3f mm", layer.line ?? "", se, dw, gap))
+                            .font(.caption).monospacedDigit().foregroundStyle(Theme.textSecondary)
+                    } else {
+                        Text(String(format: "%.3f mm", layer.thickness))
+                            .font(.caption).monospacedDigit().foregroundStyle(Theme.textMuted)
+                    }
+                }
+            }
+            Text("The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141).")
+                .font(.caption).foregroundStyle(Theme.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Differential pairs and buses found from net names, their routed lengths and serpentine tuning.
+    private func lengthMatchingSection(_ board: BoardInfo) -> some View {
+        let report = store.lengthReport()
+        return section("Length & Phase Matching", systemImage: "waveform.path") {
+            Toggle("Auto Route adds serpentines to match lengths", isOn: Binding(
+                get: { board.lengthTuning }, set: { store.setLengthMatching(enabled: $0) }))
+            Stepper(String(format: "Pair skew ≤ %.2f mm", board.pairSkewTolerance),
+                    value: Binding(get: { board.pairSkewTolerance }, set: { store.setLengthMatching(pairSkew: $0) }),
+                    in: 0.03...2, step: 0.02)
+            Stepper(String(format: "Bus length ≤ %.2f mm", board.busLengthTolerance),
+                    value: Binding(get: { board.busLengthTolerance }, set: { store.setLengthMatching(bus: $0) }),
+                    in: 0.1...10, step: 0.1)
+            if report.groups.isEmpty {
+                Text("No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design.")
+                    .font(.caption).foregroundStyle(Theme.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            ForEach(report.groups) { group in
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Image(systemName: group.matched ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                            .foregroundStyle(group.matched ? Color.green : Color.orange)
+                        Text("\(group.isPair ? "Pair" : "Bus") \(group.name)").foregroundStyle(Theme.textPrimary)
+                        Spacer()
+                        Text(String(format: "target %.2f mm ± %.2f", group.target, group.tolerance))
+                            .font(.caption).monospacedDigit().foregroundStyle(Theme.textSecondary)
+                    }
+                    ForEach(group.nets) { net in
+                        HStack {
+                            Text(net.name).font(.caption).foregroundStyle(Theme.textSecondary)
+                            Spacer()
+                            Text(net.routed ? String(format: "%.2f mm (−%.2f)", net.length, net.delta) : "unrouted")
+                                .font(.caption).monospacedDigit()
+                                .foregroundStyle(net.ok ? Theme.textMuted : Color.orange)
+                        }
+                        .padding(.leading, 22)
+                    }
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Tune Lengths") { store.tuneLengths() }
+                    .disabled(report.groups.allSatisfy(\.matched))
+                    .help("Add serpentine (accordion) tuning to the short members of each group")
+            }
+        }
+    }
 
     private func value(_ text: String, _ fallback: Double) -> Double {
         Double(text.replacingOccurrences(of: ",", with: ".")) ?? fallback
