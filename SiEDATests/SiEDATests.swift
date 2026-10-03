@@ -1948,3 +1948,34 @@ final class FabricationPackageTests: XCTestCase {
         XCTAssertTrue(engine.export(.cpl)?.hasPrefix("Designator,Mid X,Mid Y,Layer,Rotation") ?? false)
     }
 }
+
+@MainActor
+final class NetColourTests: XCTestCase {
+    func testPowerIsRedGroundIsBlueAndSignalsFollowTheirLayer() throws {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(OfflineProvider.templates[4].plan, to: engine, previous: nil)
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        let roles = Set(snapshot.nets.map(\.netRole))
+        XCTAssertTrue(roles.contains(.power), "\(snapshot.nets.map { "\($0.name)=\($0.role ?? "nil")" })")
+        XCTAssertTrue(roles.contains(.ground))
+        XCTAssertTrue(roles.contains(.signal))
+        for net in snapshot.nets where net.ground { XCTAssertEqual(net.netRole, .ground) }
+
+        // Signal colours never look like power (red) or ground (blue) on any layer of a 6-layer board.
+        let power = NSColor(Theme.netColor(.power, layer: 0, layerCount: 6)).usingColorSpace(.sRGB)!
+        let ground = NSColor(Theme.netColor(.ground, layer: 0, layerCount: 6)).usingColorSpace(.sRGB)!
+        XCTAssertGreaterThan(power.redComponent, 0.9)
+        XCTAssertGreaterThan(ground.blueComponent, 0.9)
+        for layer in 0..<6 {
+            let c = NSColor(Theme.signalColor(layer, layerCount: 6)).usingColorSpace(.sRGB)!
+            let isRed = c.redComponent > 0.8 && c.greenComponent < 0.4 && c.blueComponent < 0.4
+            let isBlue = c.blueComponent > 0.8 && c.redComponent < 0.4 && c.greenComponent < 0.6
+            XCTAssertFalse(isRed || isBlue, "layer \(layer)")
+        }
+        // Layer mode keeps the CAD convention: top red, bottom blue.
+        let top = NSColor(Theme.copperColor(0, layerCount: 2)).usingColorSpace(.sRGB)!
+        let bottom = NSColor(Theme.copperColor(1, layerCount: 2)).usingColorSpace(.sRGB)!
+        XCTAssertGreaterThan(top.redComponent, top.blueComponent)
+        XCTAssertGreaterThan(bottom.blueComponent, bottom.redComponent)
+    }
+}

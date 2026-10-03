@@ -38,21 +38,43 @@ enum Theme {
 
     // PCB canvas (blue copper palette)
     static let pcbBackground = Color(red: 0.02, green: 0.04, blue: 0.09)
-    static let boardFill = Color(red: 0.05, green: 0.12, blue: 0.27)
+    /// Near-black laminate, so layer and net colours read as in professional CAD (Altium / KiCad dark themes).
+    static let boardFill = Color(red: 0.07, green: 0.08, blue: 0.10)
     static let boardEdge = skyBlue
-    static let topCopper = Color(red: 0.36, green: 0.66, blue: 1.00)
-    static let bottomCopper = Color(red: 0.22, green: 0.30, blue: 0.78)
-    static let pad = Color(red: 0.70, green: 0.86, blue: 1.00)
-    static let via = Color(red: 0.62, green: 0.80, blue: 1.00)
+    // Standard layer colours (KiCad / Altium convention): top red, bottom blue.
+    static let topCopper = Color(red: 0.90, green: 0.22, blue: 0.20)
+    static let bottomCopper = Color(red: 0.25, green: 0.45, blue: 0.98)
+    static let pad = Color(red: 0.86, green: 0.72, blue: 0.38)   // gold (plated copper)
+    static let via = Color(red: 0.78, green: 0.80, blue: 0.84)
     static let silkscreen = Color(red: 0.88, green: 0.94, blue: 1.00)
     static let ratsnest = Color(red: 0.75, green: 0.85, blue: 1.00).opacity(0.75)
 
-    /// Copper layer colours: top light blue, bottom indigo, inner layers cyan → violet-blue.
+    /// Copper layer colours (Layer colour mode, layer tabs, X-Ray stack): standard CAD colours per layer.
     static func copperColor(_ layer: Int, layerCount: Int) -> Color {
         if layer == 0 { return topCopper }
         if layer == max(1, layerCount) - 1 { return bottomCopper }
-        let inner: [Color] = [Color(red: 0.20, green: 0.85, blue: 0.95), Color(red: 0.55, green: 0.50, blue: 1.00),
-                              Color(red: 0.25, green: 0.60, blue: 0.85), Color(red: 0.70, green: 0.78, blue: 1.00)]
+        // Inner layers: yellow, green, orange, magenta (Altium's mid-layer order).
+        let inner: [Color] = [Color(red: 0.98, green: 0.84, blue: 0.25), Color(red: 0.30, green: 0.82, blue: 0.40),
+                              Color(red: 1.00, green: 0.58, blue: 0.20), Color(red: 0.90, green: 0.40, blue: 0.85)]
+        return inner[max(0, layer - 1) % inner.count]
+    }
+
+    /// Copper coloured by what it carries: power red, ground blue, negative rails purple; signals take a per-layer
+    /// colour that is never red or blue (top yellow, bottom green, inner cyan / orange / pink / lime).
+    static func netColor(_ role: NetRole, layer: Int, layerCount: Int) -> Color {
+        switch role {
+        case .power: return Color(red: 1.00, green: 0.25, blue: 0.22)
+        case .ground: return Color(red: 0.27, green: 0.55, blue: 1.00)
+        case .negative: return Color(red: 0.74, green: 0.42, blue: 1.00)
+        case .signal: return signalColor(layer, layerCount: layerCount)
+        }
+    }
+
+    static func signalColor(_ layer: Int, layerCount: Int) -> Color {
+        if layer == 0 { return Color(red: 0.98, green: 0.84, blue: 0.30) }
+        if layer == max(1, layerCount) - 1 { return Color(red: 0.35, green: 0.86, blue: 0.48) }
+        let inner: [Color] = [Color(red: 0.30, green: 0.86, blue: 0.95), Color(red: 1.00, green: 0.62, blue: 0.25),
+                              Color(red: 1.00, green: 0.52, blue: 0.80), Color(red: 0.72, green: 0.95, blue: 0.32)]
         return inner[max(0, layer - 1) % inner.count]
     }
 

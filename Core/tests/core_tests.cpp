@@ -2450,3 +2450,89 @@ TEST(fabrication_package_is_complete) {
     CHECK(std::filesystem::exists(dir + "/gerbers/ss-F_Cu.gbr") && std::filesystem::exists(dir + "/ss-gerbers.zip"));
     std::filesystem::remove_all(dir);
 }
+
+TEST(net_roles_for_copper_colours) {
+    Project p;
+    auto& s = p.schematic;
+    int bt = s.addComponent(ComponentKind::Battery, "9", {0, 0});
+    int r1 = s.addComponent(ComponentKind::Resistor, "1k", {100, 0});
+    int r2 = s.addComponent(ComponentKind::Resistor, "1k", {200, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    int vneg = s.addComponent(ComponentKind::VoltageSource, "12", {300, 0});   // + at ground, − is a −12 V rail
+    int sig = s.addComponent(ComponentKind::VoltageSource, "SIN(0 1 1k)", {400, 0});  // a test signal, not a rail
+    int label = s.addComponent(ComponentKind::NetLabel, "3V3", {500, 0});
+    int r3 = s.addComponent(ComponentKind::Resistor, "1k", {500, 50});
+    wire(s, bt, "+", r1, "1");
+    wire(s, r1, "2", r2, "1");
+    wire(s, r2, "2", g, "GND");
+    wire(s, bt, "-", g, "GND");
+    wire(s, vneg, "+", g, "GND");
+    int r4 = s.addComponent(ComponentKind::Resistor, "1k", {300, 100});
+    wire(s, vneg, "-", r4, "1");
+    int r5 = s.addComponent(ComponentKind::Resistor, "1k", {400, 100});
+    wire(s, sig, "+", r5, "1");
+    wire(s, sig, "-", g, "GND");
+    s.connect({label, 0}, {r3, 0});
+    auto role = [&](int comp, int pin) { return s.netRole(s.netOf({comp, pin})); };
+    CHECK(role(r1, 0) == NetRole::Power);            // battery +
+    CHECK(role(r1, 1) == NetRole::Signal);           // divider midpoint
+    CHECK(role(r2, 1) == NetRole::Ground);
+    CHECK(role(r4, 0) == NetRole::NegativeSupply);   // −12 V rail
+    CHECK(role(r5, 0) == NetRole::Signal);           // sine test source
+    CHECK(role(r3, 0) == NetRole::Power);            // named 3V3
+    CHECK(std::string(netRoleName(NetRole::Ground)) == "ground");
+    // A timer IC's VCC / GND power pins mark their nets even without names or symbols.
+    std::string id = p.addCustomPart(findStandardPart("NE555")->spec);
+    int u = s.addCustomComponent(id, "", {600, 0});
+    int r6 = s.addComponent(ComponentKind::Resistor, "1k", {600, 100});
+    int r7 = s.addComponent(ComponentKind::Resistor, "1k", {700, 100});
+    s.connect({u, s.pinIndex(u, "VCC")}, {r6, 0});
+    s.connect({u, s.pinIndex(u, "GND")}, {r7, 0});
+    CHECK(role(r6, 0) == NetRole::Power);
+    CHECK(role(r7, 0) == NetRole::Ground);
+    // In the UI view model.
+    Json vm = Json::parse(p.snapshot().dump());
+    bool sawPower = false;
+    for (const auto& n : vm.get("nets").items()) sawPower |= n.get("role").asString() == "power";
+    CHECK(sawPower);
+}
+
+TEST(routing_cleanup_chamfers_and_merges) {
+    Project p;
+    PcbLayout& pcb = p.pcb;
+    auto add = [&](Vec2 a, Vec2 b, int net) {
+        Track t;
+        t.a = a;
+        t.b = b;
+        t.net = net;
+        t.width = 0.25;
+        pcb.addTrack(t);
+    };
+    add({10, 10}, {20, 10}, 1);  // right-angle corner at (20,10) in open board
+    add({20, 10}, {20, 20}, 1);
+    add({5, 30}, {10, 30}, 2);   // collinear pieces
+    add({10, 30}, {15, 30}, 2);
+    // A corner hemmed in by another net's track running diagonally across it: no room for a chamfer.
+    add({30, 5}, {40, 5}, 3);
+    add({40, 5}, {40, 15}, 3);
+    add({39.4, 5.2}, {39.8, 5.6}, 4);
+    int changes = pcb.cleanupRouting(p.schematic);
+    CHECK(changes == 2);
+    int diagonals = 0, net2 = 0;
+    for (const auto& t : pcb.tracks) {
+        if (t.net == 1 && std::fabs(std::fabs(t.b.x - t.a.x) - std::fabs(t.b.y - t.a.y)) < 1e-9) ++diagonals;
+        net2 += t.net == 2;
+    }
+    CHECK(diagonals == 1 && net2 == 1);
+    // Still one connected piece of copper from (10,10) to (20,20).
+    bool startsAt = false, endsAt = false;
+    for (const auto& t : pcb.tracks)
+        if (t.net == 1) {
+            startsAt |= (t.a - Vec2{10, 10}).length() < 1e-9 || (t.b - Vec2{10, 10}).length() < 1e-9;
+            endsAt |= (t.a - Vec2{20, 20}).length() < 1e-9 || (t.b - Vec2{20, 20}).length() < 1e-9;
+        }
+    CHECK(startsAt && endsAt);
+    int net3 = 0;
+    for (const auto& t : pcb.tracks) net3 += t.net == 3;
+    CHECK(net3 == 2);  // hemmed-in corner untouched
+}

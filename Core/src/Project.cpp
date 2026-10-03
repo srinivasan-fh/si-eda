@@ -400,6 +400,7 @@ Json Project::snapshot() const {
         j["name"] = n.name;
         j["pinCount"] = n.pins.size();
         j["ground"] = n.isGround;
+        j["role"] = netRoleName(schematic.netRole(n.index));
         netArr.push(j);
     }
     root["nets"] = netArr;

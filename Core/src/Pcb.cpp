@@ -7,6 +7,7 @@
 #include <functional>
 #include <limits>
 #include <map>
+#include <tuple>
 #include <numeric>
 #include <queue>
 #include <set>
@@ -1479,8 +1480,105 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
     neckDown(bestTracks, ps);
     for (auto& t : bestTracks) addTrack(t);
     for (auto& v : bestVias) addVia(v);
+    cleanupRouting(sch);
     if (best.failed == std::numeric_limits<int>::max()) best.failed = 0;
     return best;
+}
+
+int PcbLayout::cleanupRouting(const Schematic& sch) {
+    const auto ps = pads(sch);
+    const double clr = settings.clearance;
+    int changes = 0;
+    auto key = [](int layer, Vec2 p) {
+        return std::make_tuple(layer, std::llround(p.x * 1e4), std::llround(p.y * 1e4));
+    };
+    // A joint can be reshaped only where two pieces of one track meet in open board: no pad or via there.
+    auto anchored = [&](int layer, Vec2 p) {
+        for (const auto& pd : ps)
+            if (pd.onLayer(layer) && padDistance(pd, p) <= 1e-6) return true;
+        for (const auto& v : vias)
+            if ((v.position - p).length() <= 1e-6) return true;
+        return false;
+    };
+    // Clearance of a new piece of copper (segment a–b, width w, net) to everything of other nets on its layer.
+    auto clear = [&](int layer, int net, Vec2 a, Vec2 b, double w, size_t skipA, size_t skipB) {
+        for (size_t i = 0; i < tracks.size(); ++i) {
+            const Track& t = tracks[i];
+            if (i == skipA || i == skipB || t.layer != layer || t.net == net) continue;
+            if (segmentSegmentDistance(a, b, t.a, t.b) - (w + t.width) / 2 < clr - 1e-6) return false;
+        }
+        for (const auto& pd : ps) {
+            if (!pd.onLayer(layer) || (pd.net == net && net >= 0)) continue;
+            double d = pd.round ? pointSegmentDistance(pd.position, a, b) - std::min(pd.size.x, pd.size.y) / 2
+                                : segmentRectDistance(a, b, pd.bounds());
+            if (d - w / 2 < clr - 1e-6) return false;
+        }
+        for (const auto& v : vias) {
+            if (v.net == net) continue;
+            if (pointSegmentDistance(v.position, a, b) - v.diameter / 2 - w / 2 < clr - 1e-6) return false;
+        }
+        Vec2 mid = (a + b) * 0.5;
+        return settings.edgeDistance(mid) >= settings.edgeClearance + w / 2 - 1e-6;
+    };
+
+    for (int pass = 0; pass < 4; ++pass) {
+        std::map<std::tuple<int, long long, long long>, std::vector<size_t>> ends;
+        for (size_t i = 0; i < tracks.size(); ++i) {
+            ends[key(tracks[i].layer, tracks[i].a)].push_back(i);
+            ends[key(tracks[i].layer, tracks[i].b)].push_back(i);
+        }
+        std::vector<bool> removed(tracks.size(), false), touched(tracks.size(), false);
+        std::vector<Track> added;
+        int before = changes;
+        for (const auto& [k, list] : ends) {
+            if (list.size() != 2) continue;
+            size_t i = list[0], j = list[1];
+            if (i == j || removed[i] || removed[j] || touched[i] || touched[j]) continue;
+            Track& ti = tracks[i];
+            Track& tj = tracks[j];
+            if (ti.net != tj.net || std::fabs(ti.width - tj.width) > 1e-9) continue;
+            Vec2 p{std::get<1>(k) / 1e4, std::get<2>(k) / 1e4};
+            if (anchored(ti.layer, p)) continue;
+            bool iAtA = (ti.a - p).length() < 1e-3, jAtA = (tj.a - p).length() < 1e-3;
+            Vec2 oi = iAtA ? ti.b : ti.a, oj = jAtA ? tj.b : tj.a;
+            Vec2 u = oi - p, v = oj - p;
+            double li = u.length(), lj = v.length();
+            if (li < 1e-6 || lj < 1e-6) continue;
+            double cosine = (u.x * v.x + u.y * v.y) / (li * lj);
+            if (cosine < -0.99999) {  // collinear: one segment
+                (iAtA ? ti.a : ti.b) = oj;
+                removed[j] = true;
+                touched[i] = true;
+                ++changes;
+            } else if (std::fabs(cosine) < 1e-6) {  // right angle: 45° chamfer
+                // The largest chamfer (up to 1 mm, under half of each leg) that keeps clearance.
+                double c = std::min(1.0, 0.45 * std::min(li, lj));
+                Vec2 a, b;
+                bool fits = false;
+                for (; c >= ti.width && !fits; c *= 0.7) {
+                    a = p + u * (c / li);
+                    b = p + v * (c / lj);
+                    fits = clear(ti.layer, ti.net, a, b, ti.width, i, j);
+                }
+                if (!fits) continue;
+                (iAtA ? ti.a : ti.b) = a;
+                (jAtA ? tj.a : tj.b) = b;
+                Track diag = ti;
+                diag.a = a;
+                diag.b = b;
+                added.push_back(diag);
+                touched[i] = touched[j] = true;
+                ++changes;
+            }
+        }
+        std::vector<Track> kept;
+        for (size_t i = 0; i < tracks.size(); ++i)
+            if (!removed[i]) kept.push_back(tracks[i]);
+        tracks = std::move(kept);
+        for (auto& t : added) addTrack(t);
+        if (changes == before) break;
+    }
+    return changes;
 }
 
 std::vector<double> PcbLayout::padNeckWidths(const std::vector<Pad>& ps) const {
