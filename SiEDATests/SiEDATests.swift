@@ -2118,7 +2118,7 @@ final class ReliabilityTests: XCTestCase {
                        "Automotive Body ECU: 6-Segment Reference")
         let template = try XCTUnwrap(OfflineProvider.templates.first { $0.plan.ecuType != nil })
         let store = DesignStore()
-        let report = DesignPlanCompiler.apply(template.plan, to: store.engine, previous: nil)
+        let report = DesignPlanCompiler.apply(template.industryPlan, to: store.engine, previous: nil)
         XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
         store.refresh()
         XCTAssertEqual(store.snapshot.ecuType, "bcm")
