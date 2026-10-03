@@ -202,7 +202,25 @@ struct SnapNet: Decodable, Equatable, Identifiable {
     var name: String
     var pinCount: Int
     var ground: Bool
+    /// Core `NetRole`: "power", "ground", "negative" or "signal".
+    var role: String?
     var id: Int { index }
+    var netRole: NetRole { role.flatMap(NetRole.init(rawValue:)) ?? (ground ? .ground : .signal) }
+}
+
+/// What a net carries (core `Schematic::netRole`), used to colour copper: power red, ground blue, negative rails
+/// purple, signals in their layer's colour.
+enum NetRole: String, CaseIterable {
+    case power, ground, negative, signal
+
+    var title: String {
+        switch self {
+        case .power: return "Power +"
+        case .ground: return "Ground −"
+        case .negative: return "Negative rail"
+        case .signal: return "Signal"
+        }
+    }
 }
 
 /// Solder mask colours fabs offer (core `solderMaskStyles()`), green first: the usual board colour.

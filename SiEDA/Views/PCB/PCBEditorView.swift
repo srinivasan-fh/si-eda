@@ -311,9 +311,29 @@ struct LayersPanel: View {
     var board: BoardInfo
     @Binding var visible: Set<PCBLayer>
     @Binding var active: PCBLayer
+    @AppStorage("pcb.colourByNet") private var colourByNet = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
+            Text("COPPER COLOURS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue).padding(.bottom, 2)
+            Picker("Copper colours", selection: $colourByNet) {
+                Text("By Net").tag(true)
+                Text("By Layer").tag(false)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .controlSize(.small)
+            .help("By Net: power red, ground blue, negative rails purple, signals in their layer's colour. "
+                  + "By Layer: top red, bottom blue, inner yellow / green / orange / magenta.")
+            if colourByNet {
+                ForEach([NetRole.power, .ground, .negative], id: \.self) { role in
+                    legendRow(Theme.netColor(role, layer: 0, layerCount: board.layerCount), role.title)
+                }
+                ForEach(0..<max(1, board.layerCount), id: \.self) { layer in
+                    legendRow(Theme.signalColor(layer, layerCount: board.layerCount), "Signal · \(board.layerName(layer))")
+                }
+            }
+            Divider().padding(.vertical, 4)
             Text("LAYERS").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue).padding(.bottom, 4)
             ForEach(layers) { layer in
                 HStack(spacing: 8) {
@@ -350,6 +370,18 @@ struct LayersPanel: View {
         .padding(10)
         .frame(width: 210)
         .bluePanel()
+    }
+}
+
+extension LayersPanel {
+    fileprivate func legendRow(_ colour: Color, _ title: String) -> some View {
+        HStack(spacing: 8) {
+            Capsule().fill(colour).frame(width: 18, height: 4)
+            Text(title).font(.caption2).foregroundStyle(Theme.textSecondary)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 1)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -395,6 +427,8 @@ struct PCBCanvas: View {
     @Binding var panMode: Bool
     var visible: Set<PCBLayer>
     var activeLayer: PCBLayer
+    /// Copper coloured by what it carries (power red, ground blue, …) or by layer (top red, bottom blue, …).
+    @AppStorage("pcb.colourByNet") private var colourByNet = true
 
     private enum DragMode {
         case move(Set<Int>)
@@ -605,7 +639,13 @@ struct PCBCanvas: View {
             CGRect(x: min(ax, bx) - pad, y: min(ay, by) - pad, width: abs(bx - ax) + 2 * pad, height: abs(by - ay) + 2 * pad)
                 .intersects(view)
         }
-        let showDesignators = k >= 2.5
+        let showDesignators = k >= 1.2
+        let roles = Dictionary(snap.nets.map { ($0.index, $0.netRole) }, uniquingKeysWith: { a, _ in a })
+        let layerTotal = max(1, snap.board.layerCount)
+        func copper(_ net: Int, _ layer: Int) -> Color {
+            colourByNet ? Theme.netColor(roles[net] ?? .signal, layer: layer, layerCount: layerTotal)
+                        : Theme.copperColor(layer, layerCount: layerTotal)
+        }
 
         ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Theme.pcbBackground))
 
@@ -630,7 +670,7 @@ struct PCBCanvas: View {
             let isActive = fill.layer == (activeLayer.copperIndex ?? 0)
             var path = Path()
             for r in fill.cgRects where r.intersects(view) { path.addRect(r) }
-            let base = Theme.copperColor(fill.layer, layerCount: snap.board.layerCount)
+            let base = copper(fill.net, fill.layer)
             let highlight = hoveredNet == fill.net
             ctx.fill(path.applying(screen), with: .color(highlight ? Theme.iceBlue.opacity(0.35) : base.opacity(isActive ? 0.32 : 0.14)))
         }
@@ -650,12 +690,12 @@ struct PCBCanvas: View {
         for layer in order where layer < layerCount {
             guard visible.contains(.copper(layer)) else { continue }
             let isActive = layer == activeCopper
-            let base = Theme.copperColor(layer, layerCount: layerCount)
             for t in snap.tracks where t.layer == layer && onScreen(t.ax, t.ay, t.bx, t.by, pad: t.width) {
                 var path = Path()
                 path.move(to: CGPoint(x: t.ax, y: t.ay))
                 path.addLine(to: CGPoint(x: t.bx, y: t.by))
                 let highlight = hoveredNet == t.net
+                let base = copper(t.net, layer)
                 ctx.stroke(path.applying(screen), with: .color(highlight ? Theme.iceBlue : base.opacity(isActive ? 1 : 0.45)),
                            style: StrokeStyle(lineWidth: max(1, t.width * k), lineCap: .round, lineJoin: .round))
             }
@@ -700,10 +740,53 @@ struct PCBCanvas: View {
                 let inner = rect.insetBy(dx: 0.15, dy: 0.15)
                 ctx.stroke(Path(inner).applying(screen), with: .color(Theme.silkscreen.opacity(c.pcb.bottom ? 0.35 : 0.9)), lineWidth: max(0.6, 0.12 * k))
                 guard showDesignators else { continue }
-                let fontSize = max(7, min(14, 1.0 * k))
+                // Designator above the part, like the silkscreen; the value inside it once there is room.
+                let fontSize = max(8, min(15, 1.0 * k))
                 ctx.draw(Text(c.ref).font(.system(size: fontSize, weight: .semibold, design: .monospaced))
                             .foregroundColor(Theme.silkscreen.opacity(c.pcb.bottom ? 0.5 : 1)),
-                         at: CGPoint(x: rect.midX, y: rect.minY).applying(screen), anchor: .bottom)
+                         at: CGPoint(x: rect.midX, y: rect.minY - 0.2).applying(screen), anchor: .bottom)
+                if k >= 5, !c.value.isEmpty, rect.width * k > CGFloat(c.value.count) * 6 + 8 {
+                    ctx.draw(Text(c.value).font(.system(size: max(7, min(11, 0.7 * k)), design: .monospaced))
+                                .foregroundColor(Theme.silkscreen.opacity(0.6)),
+                             at: CGPoint(x: rect.midX, y: rect.midY).applying(screen))
+                }
+            }
+        }
+
+        // Pad numbers (zoomed in) and net names along tracks, like professional CAD.
+        if k >= 8 {
+            for p in snap.pads where onScreen(p.x, p.y, p.x, p.y, pad: max(p.w, p.h)) && min(p.w, p.h) * k >= 12 {
+                let c = shifted(p.component, CGPoint(x: p.x, y: p.y))
+                ctx.draw(Text("\(p.number)").font(.system(size: max(7, min(12, min(p.w, p.h) * k * 0.45)), weight: .bold,
+                                                         design: .monospaced))
+                            .foregroundColor(Color.black.opacity(0.8)),
+                         at: c.applying(screen))
+            }
+        }
+        if k >= 4 {
+            // One label per net and layer, on its longest visible segment that has room for the name.
+            var best: [String: (SnapTrack, CGFloat)] = [:]
+            for t in snap.tracks where visible.contains(.copper(t.layer)) && onScreen(t.ax, t.ay, t.bx, t.by) {
+                let length = CGFloat(hypot(t.bx - t.ax, t.by - t.ay)) * k
+                let key = "\(t.net)/\(t.layer)"
+                if length > (best[key]?.1 ?? 0) { best[key] = (t, length) }
+            }
+            for (t, length) in best.values {
+                guard let net = snap.net(t.net) else { continue }
+                let size = max(7, min(11, t.width * k * 0.9 + 3))
+                guard length > CGFloat(net.name.count) * size * 0.62 + 14 else { continue }
+                var angle = atan2(t.by - t.ay, t.bx - t.ax)
+                if angle > .pi / 2 { angle -= .pi } else if angle <= -.pi / 2 { angle += .pi }  // keep text upright
+                let mid = CGPoint(x: (t.ax + t.bx) / 2, y: (t.ay + t.by) / 2).applying(screen)
+                var label = ctx
+                label.translateBy(x: mid.x, y: mid.y)
+                label.rotate(by: .radians(angle))
+                let text = Text(net.name).font(.system(size: size, weight: .semibold, design: .monospaced))
+                let width = CGFloat(net.name.count) * size * 0.62 + 6
+                label.fill(Path(roundedRect: CGRect(x: -width / 2, y: -size * 0.65, width: width, height: size * 1.3),
+                                cornerRadius: size * 0.3),
+                           with: .color(Theme.boardFill.opacity(0.85)))
+                label.draw(text.foregroundColor(copper(t.net, t.layer)), at: .zero)
             }
         }
 

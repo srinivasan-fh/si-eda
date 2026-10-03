@@ -57,6 +57,10 @@ struct Net {
     bool isGround = false;
 };
 
+/// What a net carries, for colouring copper the way designers expect (power red, ground blue) and for net classes.
+enum class NetRole { Signal = 0, Power, Ground, NegativeSupply };
+const char* netRoleName(NetRole r);  // "signal", "power", "ground", "negative"
+
 enum class Severity { Info = 0, Warning = 1, Error = 2 };
 
 struct RuleViolation {
@@ -114,6 +118,10 @@ public:
     const std::vector<Net>& nets() const;
     int netOf(PinRef pin) const;  // -1 if pin has no net (unconnected)
     int groundNet() const;        // -1 if no ground net
+    /// Ground nets; supply rails (a source's + terminal, a regulator's power output, an IC's power input, or a name
+    /// such as VCC, VDD, VBAT, +5V, 3V3); negative rails (a source's − terminal above a grounded +, or -12V, VEE);
+    /// everything else is a signal.
+    NetRole netRole(int net) const;
 
     std::vector<RuleViolation> runERC() const;
 

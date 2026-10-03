@@ -462,6 +462,80 @@ int Schematic::netOf(PinRef pin) const {
     return it == pinToNet_.end() ? -1 : it->second;
 }
 
+const char* netRoleName(NetRole r) {
+    switch (r) {
+        case NetRole::Power: return "power";
+        case NetRole::Ground: return "ground";
+        case NetRole::NegativeSupply: return "negative";
+        case NetRole::Signal: break;
+    }
+    return "signal";
+}
+
+NetRole Schematic::netRole(int net) const {
+    const auto& all = nets();
+    if (net < 0 || net >= static_cast<int>(all.size())) return NetRole::Signal;
+    const Net& n = all[static_cast<size_t>(net)];
+    if (n.isGround) return NetRole::Ground;
+    std::string name;
+    for (char ch : n.name) name += static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+    auto has = [&](const char* s) { return name.find(s) != std::string::npos; };
+    auto startsWith = [&](const char* s) { return name.rfind(s, 0) == 0; };
+    // Negative rails by name: -5V, -12V, VEE, VNEG, V-.
+    if ((startsWith("-") && name.size() > 1 && std::isdigit(static_cast<unsigned char>(name[1]))) || startsWith("VEE") ||
+        has("VNEG") || name == "V-")
+        return NetRole::NegativeSupply;
+    // Supply rails by name: VCC, VDD, VIN, VBAT, VBUS, +5V, 3V3, 12V, 1.8V, V+ …
+    for (const char* rail : {"VCC", "VDD", "VIN", "VBAT", "VBUS", "VSYS", "VREG", "VMOT", "VSUP", "VPP", "PWR", "POWER",
+                             "VMAIN", "VLOGIC", "VSERVO", "VLED"})
+        if (has(rail)) return NetRole::Power;
+    if (startsWith("+") || name == "V+") return NetRole::Power;
+    {
+        // 5V, 12V, 3V3, 1V8, 3.3V, 5V0
+        size_t i = 0;
+        while (i < name.size() && (std::isdigit(static_cast<unsigned char>(name[i])) || name[i] == '.')) ++i;
+        if (i > 0 && i < name.size() && name[i] == 'V') {
+            size_t j = i + 1;
+            while (j < name.size() && std::isdigit(static_cast<unsigned char>(name[j]))) ++j;
+            if (j == name.size()) return NetRole::Power;
+        }
+    }
+    // By what the net connects to.
+    const int gnd = groundNet();
+    bool power = false, negative = false;
+    for (const auto& pin : n.pins) {
+        const Component* c = find(pin.component);
+        if (!c) continue;
+        if (isVoltageSourceKind(c->kind)) {
+            // A DC supply, battery or mains source powers its + net; a SIN/PULSE test source drives a signal.
+            auto spec = SourceSpec::parse(c->value);
+            bool supply = c->kind != ComponentKind::VoltageSource || (spec && spec->kind == SourceSpec::Kind::DC);
+            if (!supply) continue;
+            int other = netOf({c->id, pin.pin == 0 ? 1 : 0});
+            if (pin.pin == 0) power = true;                             // the + terminal
+            else if (gnd >= 0 && other == gnd) negative = true;         // − terminal below a grounded +
+            continue;
+        }
+        if (c->kind == ComponentKind::Custom) {
+            const auto& pins = c->def().pins;
+            if (pin.pin < 0 || pin.pin >= static_cast<int>(pins.size())) continue;
+            PinType type = static_cast<PinType>(pins[static_cast<size_t>(pin.pin)].type);
+            std::string pinName;
+            for (char ch : pins[static_cast<size_t>(pin.pin)].name)
+                pinName += static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+            if (type == PinType::PowerIn || type == PinType::PowerOut) {
+                if (pinName.find("GND") != std::string::npos || pinName == "VSS" || pinName == "AGND" || pinName == "PGND")
+                    return NetRole::Ground;
+                if (pinName.find("VEE") != std::string::npos || pinName == "V-") negative = true;
+                else power = true;
+            }
+        }
+    }
+    if (negative) return NetRole::NegativeSupply;
+    if (power) return NetRole::Power;
+    return NetRole::Signal;
+}
+
 int Schematic::groundNet() const {
     for (const auto& n : nets())
         if (n.isGround) return n.index;

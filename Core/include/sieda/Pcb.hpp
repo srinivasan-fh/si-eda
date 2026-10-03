@@ -220,6 +220,10 @@ public:
     /// Net classes from the simulated operating point: nets whose DC current needs a wider IPC-2221 track (+25 %
     /// margin, rounded up to 0.05 mm) get one. Existing wider classes are kept. Returns the widths it set.
     std::map<std::string, double> autoNetWidths(const Schematic& sch);
+    /// Final polish of routed copper, as a designer would leave it: collinear pieces of a track are merged and
+    /// right-angle corners are chamfered to 45° wherever the chamfer keeps clearance to other nets and the board edge.
+    /// Connectivity never changes. Returns the number of corners chamfered plus segments merged.
+    int cleanupRouting(const Schematic& sch);
     /// Narrows track ends that enter pads smaller than the track (fine-pitch neck-down).
     void neckDown(std::vector<Track>& out, const std::vector<Pad>& pads) const;
     /// Per pad: the widest track that can leave it between its package neighbours (≥ the minimum track width).
