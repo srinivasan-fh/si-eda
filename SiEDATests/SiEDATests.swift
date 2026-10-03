@@ -2083,6 +2083,23 @@ final class ReliabilityTests: XCTestCase {
         XCTAssertEqual(reopened.snapshot()?.board.boardConstruction, .metalCore)
     }
 
+    func testHDISettingsAreUndoableAndSaved() throws {
+        let store = DesignStore()
+        DesignPlanCompiler.apply(OfflineProvider.templates[5].plan, to: store.engine, previous: nil)
+        store.refresh()
+        XCTAssertFalse(store.snapshot.board.hdi)
+        store.setHDI(enabled: true, viaInPad: true)
+        XCTAssertTrue(store.snapshot.board.hdi)
+        XCTAssertTrue(store.snapshot.board.viaInPad)
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        XCTAssertEqual(reopened.snapshot()?.board.hdi, true)
+        store.undo()
+        XCTAssertFalse(store.snapshot.board.hdi)
+        // Every via in the snapshot reports its span.
+        for via in store.snapshot.vias { XCTAssertNotNil(via.kind) }
+    }
+
     func testLengthMatchingSettingsAndReport() throws {
         let store = DesignStore()
         DesignPlanCompiler.apply(OfflineProvider.templates[5].plan, to: store.engine, previous: nil)

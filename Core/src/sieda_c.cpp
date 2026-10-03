@@ -703,6 +703,10 @@ void sieda_pcb_set_layer_count(SiedaProject* project, int32_t layers) {
     pcb.tracks.erase(std::remove_if(pcb.tracks.begin(), pcb.tracks.end(), [&](const Track& t) { return t.layer > bottom; }),
                      pcb.tracks.end());
     if (pcb.settings.layerCount == 1) pcb.vias.clear();
+    for (auto& v : pcb.vias) {  // blind / buried spans belong to the old stack-up
+        v.fromLayer = 0;
+        v.toLayer = -1;
+    }
     pcb.zones.erase(std::remove_if(pcb.zones.begin(), pcb.zones.end(), [&](const CopperZone& z) { return z.layer > bottom; }),
                     pcb.zones.end());
 }
@@ -815,6 +819,22 @@ int32_t sieda_pcb_set_length_matching(SiedaProject* project, int32_t enabled, do
     s.pairSkewTolerance = std::clamp(pair_skew_mm, 0.02, 5.0);
     s.busLengthTolerance = std::clamp(bus_mm, 0.02, 20.0);
     return 1;
+}
+
+int32_t sieda_pcb_set_hdi(SiedaProject* project, int32_t hdi, double microvia_drill, double microvia_diameter,
+                          int32_t via_in_pad) {
+    if (!project || !(microvia_drill > 0) || !(microvia_diameter > microvia_drill)) return 0;
+    auto& s = project->project.pcb.settings;
+    s.hdi = hdi != 0;
+    s.microviaDrill = std::clamp(microvia_drill, 0.05, 0.15);
+    s.microviaDiameter = std::clamp(microvia_diameter, 0.15, 0.5);
+    s.viaInPad = via_in_pad != 0;
+    return 1;
+}
+
+int32_t sieda_pcb_apply_hdi(SiedaProject* project) {
+    if (!project || !project->project.pcb.settings.hdi) return 0;
+    return project->project.pcb.applyHdiVias(project->project.schematic);
 }
 
 int32_t sieda_pcb_tune_lengths(SiedaProject* project) {

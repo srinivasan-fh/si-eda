@@ -196,8 +196,13 @@ struct XRayStackView: NSViewRepresentable {
             let pillarHeight = max(stackHeight, 0.2)
             let viaColour = NSColor(Theme.iceBlue)
             for via in snapshot.vias {
+                // A blind / buried / micro via spans only its own layers.
+                let top = height(of: via.fromLayer ?? 0), bottom = height(of: via.toLayer ?? (layerCount - 1))
                 c.stack.addChildNode(Self.pillar(x: CGFloat(via.x) - w / 2, z: CGFloat(via.y) - h / 2,
-                                                 radius: CGFloat(via.diameter) / 2, height: pillarHeight, colour: viaColour))
+                                                 radius: CGFloat(via.diameter) / 2,
+                                                 height: via.isThrough ? pillarHeight : max(top - bottom, 0.2),
+                                                 colour: via.isThrough ? viaColour : NSColor(Theme.lightBlue),
+                                                 base: via.isThrough ? 0 : bottom))
             }
             for pad in snapshot.pads where pad.throughHole {
                 c.stack.addChildNode(Self.pillar(x: CGFloat(pad.x) - w / 2, z: CGFloat(pad.y) - h / 2,
@@ -345,12 +350,13 @@ struct XRayStackView: NSViewRepresentable {
         return SCNNode(geometry: geometry)
     }
 
-    static func pillar(x: CGFloat, z: CGFloat, radius: CGFloat, height: CGFloat, colour: NSColor) -> SCNNode {
+    static func pillar(x: CGFloat, z: CGFloat, radius: CGFloat, height: CGFloat, colour: NSColor,
+                       base: CGFloat = 0) -> SCNNode {
         let cylinder = SCNCylinder(radius: max(radius, 0.12), height: height)
         cylinder.radialSegmentCount = 14
         cylinder.materials = [hologram(colour, alpha: 0.75)]
         let node = SCNNode(geometry: cylinder)
-        node.position = SCNVector3(x, height / 2, z)
+        node.position = SCNVector3(x, base + height / 2, z)
         // Bright core for the "energy beam" look.
         let core = SCNCylinder(radius: max(radius, 0.12) * 0.35, height: height)
         core.materials = [hologram(NSColor.white, alpha: 0.9)]

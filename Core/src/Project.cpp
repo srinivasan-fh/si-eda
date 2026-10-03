@@ -74,6 +74,10 @@ Json boardJson(const BoardSettings& s) {
     b["differentialImpedance"] = s.differentialImpedance;
     b["backdrill"] = s.backdrill;
     b["lengthTuning"] = s.lengthTuning;
+    b["hdi"] = s.hdi;
+    b["microviaDrill"] = s.microviaDrill;
+    b["microviaDiameter"] = s.microviaDiameter;
+    b["viaInPad"] = s.viaInPad;
     b["pairSkewTolerance"] = s.pairSkewTolerance;
     b["busLengthTolerance"] = s.busLengthTolerance;
     b["solderMask"] = s.solderMask;
@@ -220,6 +224,10 @@ Json Project::toJson() const {
         Json j = vec(v.position);
         j["drill"] = v.drill;
         j["diameter"] = v.diameter;
+        if (!v.isThrough()) {
+            j["fromLayer"] = v.fromLayer;
+            j["toLayer"] = v.toLayer;
+        }
         vias.push(j);
     }
     root["vias"] = vias;
@@ -266,6 +274,10 @@ Project Project::fromJson(const Json& root) {
     s.differentialImpedance = std::clamp(b.get("differentialImpedance").asNumber(100), 50.0, 200.0);
     s.backdrill = b.get("backdrill").asBool(false);
     s.lengthTuning = b.get("lengthTuning").asBool(true);
+    s.hdi = b.get("hdi").asBool(false);
+    s.microviaDrill = std::clamp(b.get("microviaDrill").asNumber(0.1), 0.05, 0.15);
+    s.microviaDiameter = std::clamp(b.get("microviaDiameter").asNumber(0.25), 0.15, 0.5);
+    s.viaInPad = b.get("viaInPad").asBool(false);
     s.pairSkewTolerance = std::clamp(b.get("pairSkewTolerance").asNumber(0.13), 0.02, 5.0);
     s.busLengthTolerance = std::clamp(b.get("busLengthTolerance").asNumber(0.5), 0.02, 20.0);
     s.solderMask = b.get("solderMask").asString("green");
@@ -361,6 +373,10 @@ Project Project::fromJson(const Json& root) {
         v.position = {j.get("x").asNumber(), j.get("y").asNumber()};
         v.drill = j.get("drill").asNumber(s.viaDrill);
         v.diameter = j.get("diameter").asNumber(s.viaDiameter);
+        const int last = std::max(0, s.layerCount - 1);
+        v.fromLayer = std::clamp(static_cast<int>(j.get("fromLayer").asNumber(0)), 0, last);
+        v.toLayer = static_cast<int>(j.get("toLayer").asNumber(-1));
+        if (v.toLayer >= last || v.toLayer < v.fromLayer) v.toLayer = -1;
         p.pcb.addVia(v);
     }
     p.schematicChanged();  // assigns nets to copper from pad contact
@@ -498,6 +514,9 @@ Json Project::snapshot() const {
         j["y"] = v.position.y;
         j["drill"] = v.drill;
         j["diameter"] = v.diameter;
+        j["fromLayer"] = v.fromLayer;
+        j["toLayer"] = v.lastLayer(pcb.settings.layerCount);
+        j["kind"] = viaKind(v, pcb.settings.layerCount);
         vias.push(j);
     }
     root["vias"] = vias;

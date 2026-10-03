@@ -2926,3 +2926,90 @@ TEST(length_matching_serpentines) {
     CHECK_NEAR(q.pcb.settings.pairSkewTolerance, 0.05, 1e-9);
     CHECK(!q.pcb.settings.lengthTuning);
 }
+
+TEST(hdi_blind_buried_microvias) {
+    // Via kinds on a 6-layer stack.
+    Via v;
+    CHECK(std::string(viaKind(v, 6)) == "through" && v.isThrough());
+    v.fromLayer = 0;
+    v.toLayer = 1;
+    v.drill = 0.1;
+    CHECK(std::string(viaKind(v, 6)) == "microvia" && v.spans(1) && !v.spans(2));
+    v.toLayer = 2;
+    v.drill = 0.2;
+    CHECK(std::string(viaKind(v, 6)) == "blind");
+    v.fromLayer = 2;
+    v.toLayer = 3;
+    CHECK(std::string(viaKind(v, 6)) == "buried");
+
+    // HDI stack-up: thin laser build-up dielectrics under the outer layers.
+    BoardSettings bs;
+    bs.layerCount = 6;
+    bs.thickness = 1.6;
+    const double plain = dielectricBelow(bs, 0);
+    bs.hdi = true;
+    CHECK(dielectricBelow(bs, 0) < 0.1 && dielectricBelow(bs, 4) < 0.1 && dielectricBelow(bs, 2) > plain);
+    CHECK(widthForImpedance(bs, 0, 50) < 0.3);  // thin build-up → narrow 50 Ω microstrip
+    Via mv;
+    mv.toLayer = 1;
+    mv.drill = 0.1;
+    CHECK((viaBarrelDepth(bs, mv) - 2 * copperThickness(bs)) / mv.drill <= 1.0);  // laser-drillable dielectric
+
+    // Auto Route on a 4-layer HDI board: vias are cut to the layers they join, connectivity and DRC stay intact.
+    Project p = amplifierProject();
+    p.pcb.settings.layerCount = 4;
+    p.pcb.settings.hdi = true;
+    p.pcb.autoPlace(p.schematic, true);
+    RouteStats st = p.pcb.autoRoute(p.schematic);
+    CHECK(st.failed == 0);
+    CHECK(p.pcb.ratsnest(p.schematic).empty());
+    int errors = 0;
+    for (const auto& e : p.pcb.runDRC(p.schematic)) errors += e.severity == Severity::Error;
+    CHECK(errors == 0);
+    for (const auto& via : p.pcb.vias) CHECK(via.fromLayer >= 0 && via.lastLayer(4) > via.fromLayer);
+
+    // A hand-placed microvia from the top to layer 2 joining two tracks: own drill file, only on its layers.
+    Project q = amplifierProject();
+    q.pcb.settings.layerCount = 4;
+    q.pcb.settings.hdi = true;
+    int net = q.schematic.netOf({q.schematic.components().front().id, 0});
+    Track a;
+    a.net = net;
+    a.layer = 0;
+    a.a = {5, 5};
+    a.b = {10, 5};
+    Track b = a;
+    b.layer = 1;
+    b.a = {10, 5};
+    b.b = {10, 12};
+    q.pcb.addTrack(a);
+    q.pcb.addTrack(b);
+    Via through;
+    through.net = net;
+    through.position = {10, 5};
+    q.pcb.addVia(through);
+    CHECK(q.pcb.applyHdiVias(q.schematic) == 1);
+    const Via& cut = q.pcb.vias.front();
+    CHECK(std::string(viaKind(cut, 4)) == "microvia");
+    CHECK_NEAR(cut.drill, 0.1, 1e-9);
+    auto spans = viaSpans(q.pcb);
+    CHECK(spans.size() == 1 && spans[0].first == 0 && spans[0].second == 1);
+    CHECK(exportExcellonSpan(q.pcb, 0, 1).find("Plated,1,2,Blind") != std::string::npos);
+    CHECK(exportExcellonDrill(q.schematic, q.pcb, true).find("X10.000") == std::string::npos);  // not in the PTH file
+    CHECK(exportCopperGerber(q.schematic, q.pcb, 0).find("X10000000Y") != std::string::npos ||
+          exportCopperGerber(q.schematic, q.pcb, 0).find("D03") != std::string::npos);
+    // The bottom layer has no copper of this via.
+    const std::string bottom = exportCopperGerber(q.schematic, q.pcb, 3);
+    CHECK(bottom.find("D03") == std::string::npos);
+    // Persistence of the span (the hand-drawn copper is not on a pad, so check the saved document itself).
+    const std::string saved = q.toJson().dump();
+    CHECK(saved.find("\"toLayer\":1") != std::string::npos && saved.find("\"hdi\":true") != std::string::npos);
+    CHECK(Project::fromJson(q.toJson()).pcb.settings.hdi);
+    // Fabrication package lists the span drill file and HDI notes.
+    bool spanFile = false, notes = false;
+    for (const auto& f : fabricationPackage(q)) {
+        spanFile |= f.path.find("-L1-L2.drl") != std::string::npos;
+        notes |= f.content.find("HDI (IPC-2226)") != std::string::npos;
+    }
+    CHECK(spanFile && notes);
+}

@@ -100,7 +100,7 @@ double laminateTg(const std::string& industry) {
 }
 }  // namespace
 
-double referencePlaneHeight(const BoardSettings& s) { return layerDielectric(s); }
+double referencePlaneHeight(const BoardSettings& s) { return dielectricBelow(s, 0); }
 
 double microstripWidth(double ohms, const BoardSettings& s) {
     double w = widthForImpedance(s, 0, ohms);  // IPC-2141 on the board's laminate
@@ -255,8 +255,8 @@ std::vector<ViaStub> viaStubs(const Project& project) {
     std::vector<ViaStub> out;
     if (s.layerCount < 4) return out;
     const NetClassification cls = classifyNets(project);
-    const double cu = copperThickness(s), d = layerDielectric(s);
-    auto top = [&](int layer) { return layer * (cu + d); };          // depth of a layer's top surface
+    const double cu = copperThickness(s);
+    auto top = [&](int layer) { return layerDepth(s, layer); };  // depth of a layer's top surface
     for (const auto& v : pcb.vias) {
         if (!cls.fast.count(v.net) && !cls.rf.count(v.net)) continue;
         int first = s.layerCount, last = -1;
@@ -272,8 +272,10 @@ std::vector<ViaStub> viaStubs(const Project& project) {
         stub.drill = v.drill;
         stub.firstLayer = first;
         stub.lastLayer = last;
-        stub.topStub = first > 0 ? top(first) : 0;
-        stub.bottomStub = last < s.layerCount - 1 ? s.thickness - (top(last) + cu) : 0;
+        // Stubs are measured within the barrel the via actually has (a blind / buried via ends at its span).
+        const int from = v.fromLayer, to = v.lastLayer(s.layerCount);
+        stub.topStub = first > from ? top(first) - top(from) : 0;
+        stub.bottomStub = last < to ? (to >= s.layerCount - 1 ? s.thickness - (top(last) + cu) : top(to) - top(last)) : 0;
         if (stub.topStub > 0.2 || stub.bottomStub > 0.2) out.push_back(stub);
     }
     return out;
@@ -571,11 +573,14 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
     {
         double worst = 0;
         Vec2 at;
-        for (const auto& v : pcb.vias)
-            if (v.drill > 0 && s.thickness / v.drill > worst) {
-                worst = s.thickness / v.drill;
+        for (const auto& v : pcb.vias) {
+            if (v.drill <= 0 || std::string(viaKind(v, s.layerCount)) == "microvia") continue;  // own rule below
+            const double depth = viaBarrelDepth(s, v);
+            if (depth / v.drill > worst) {
+                worst = depth / v.drill;
                 at = v.position;
             }
+        }
         for (const auto& p : pads)
             if (p.throughHole && p.drill > 0 && s.thickness / p.drill > worst) {
                 worst = s.thickness / p.drill;
@@ -585,10 +590,46 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
         const double limit = class3 ? 10.0 : 12.0, advisory = class3 ? 8.0 : 10.0;
         if (worst > advisory)
             add(worst > limit ? Severity::Warning : Severity::Info, "REL_VIA_ASPECT",
-                "A hole has an aspect ratio of " + fmt("%.1f:1", worst) + " (board thickness ÷ drill), above " +
+                "A hole has an aspect ratio of " + fmt("%.1f:1", worst) + " (barrel depth ÷ drill), above " +
                     fmt("%.0f:1", worst > limit ? limit : advisory) + ". Thin plating in deep holes cracks as the board expands with heat (Z-axis "
                     "CTE). Use a larger drill or a thinner board.",
                 {}, at, true);
+    }
+    // HDI microvias (IPC-2226): laser holes plate reliably only up to ~1:1 depth to diameter; stacked microvias
+    // crack at the interfaces under thermal cycling unless copper filled (staggered is preferred for Class 3).
+    {
+        double worst = 0;
+        Vec2 at;
+        int stacked = 0;
+        Vec2 stackAt;
+        for (size_t i = 0; i < pcb.vias.size(); ++i) {
+            const Via& v = pcb.vias[i];
+            if (std::string(viaKind(v, s.layerCount)) != "microvia") continue;
+            const double ratio = (viaBarrelDepth(s, v) - 2 * copperThickness(s)) / v.drill;  // dielectric ÷ drill
+            if (ratio > worst) {
+                worst = ratio;
+                at = v.position;
+            }
+            for (size_t j = i + 1; j < pcb.vias.size(); ++j) {
+                const Via& o = pcb.vias[j];
+                if (o.net == v.net && (o.position - v.position).length() < (o.diameter + v.diameter) / 4 &&
+                    (o.fromLayer == v.lastLayer(s.layerCount) || v.fromLayer == o.lastLayer(s.layerCount))) {
+                    ++stacked;
+                    stackAt = v.position;
+                }
+            }
+        }
+        if (worst > 1.0 + eps)
+            add(worst > 1.2 ? Severity::Warning : Severity::Info, "REL_MICROVIA_ASPECT",
+                "A laser microvia has an aspect ratio of " + fmt("%.2f:1", worst) + " (dielectric depth ÷ drill), above "
+                "the 1:1 that plates reliably (IPC-2226). Use a thinner build-up dielectric or a larger microvia drill.",
+                {}, at, true);
+        if (stacked > 0)
+            add(fabricationRequirements(project).ipcClass >= 3 ? Severity::Warning : Severity::Info,
+                "REL_STACKED_MICROVIA",
+                std::to_string(stacked) + " stacked microvia joint(s): stacks must be copper filled and still fail first "
+                "under thermal cycling. Stagger the microvias (offset by one pad) where there is room.",
+                {}, stackAt, true);
     }
     // Hot spots: delamination near FR-4 Tg.
     if (haveDc) {
@@ -725,7 +766,7 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
             add(Severity::Warning, "REL_RF_IMPEDANCE",
                 "RF net " + netName(net) + " is about " + fmt("%.0f Ω", worstZ) + " on " +
                     copperLayerName(worstLayer, s.layerCount) + " (" + boardLaminate(s).name + ", h = " +
-                    fmt("%.2f mm", layerDielectric(s)) + "); the target is " + fmt("%.0f Ω", s.singleEndedImpedance) +
+                    fmt("%.2f mm", dielectricBelow(s, 0)) + "); the target is " + fmt("%.0f Ω", s.singleEndedImpedance) +
                     " ± 10 %, a " + fmt("%.2f mm", widthForImpedance(s, worstLayer, s.singleEndedImpedance)) +
                     " track there. Impedance mismatch reflects power back to the transmitter." +
                     (target > 1.5 ? " For a narrower line use a 4-layer board or grounded coplanar waveguide." : ""),

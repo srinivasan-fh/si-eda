@@ -515,9 +515,13 @@ bool tracksTouch(const Track& a, const Track& b) {
     return segmentSegmentDistance(a.a, a.b, b.a, b.b) <= std::min(a.width, b.width) / 2;
 }
 
-bool viaTouchesTrack(const Via& v, const Track& t) { return pointSegmentDistance(v.position, t.a, t.b) <= v.diameter / 2; }
+bool viaTouchesTrack(const Via& v, const Track& t) {
+    return v.spans(t.layer) && pointSegmentDistance(v.position, t.a, t.b) <= v.diameter / 2;
+}
 
-bool viaTouchesPad(const Via& v, const Pad& p) { return padDistance(p, v.position) <= v.diameter / 2 - 1e-6; }
+bool viaTouchesPad(const Via& v, const Pad& p) {
+    return (p.throughHole || v.spans(p.smdLayer)) && padDistance(p, v.position) <= v.diameter / 2 - 1e-6;
+}
 
 /// Union-find over pads + tracks + vias (+ poured islands) by physical contact. Item order: pads, tracks, vias, then
 /// the islands of each fill in turn.
@@ -563,7 +567,8 @@ DSU copperClusters(const std::vector<Pad>& pads, const std::vector<Track>& track
                 }
             }
             for (size_t v = 0; v < nv; ++v)
-                if (vias[v].net == f.net) join(np + nt + v, f.islandNear(vias[v].position, vias[v].diameter / 2));
+                if (vias[v].net == f.net && vias[v].spans(f.layer))
+                    join(np + nt + v, f.islandNear(vias[v].position, vias[v].diameter / 2));
             base += static_cast<size_t>(f.islands);
         }
     }
@@ -1532,10 +1537,62 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
     for (auto& t : bestTracks) addTrack(t);
     for (auto& v : bestVias) addVia(v);
     cleanupRouting(sch);
+    // HDI: blind / buried / microvias cut to the layers each via connects.
+    if (settings.hdi) applyHdiVias(sch);
     // Length / phase matching: serpentines on the short members of differential pairs and buses.
     if (settings.lengthTuning) best.lengthTuned = tuneLengths(*this, sch);
     if (best.failed == std::numeric_limits<int>::max()) best.failed = 0;
     return best;
+}
+
+const char* viaKind(const Via& v, int layerCount) {
+    const int last = v.lastLayer(layerCount);
+    if (v.fromLayer <= 0 && last >= layerCount - 1) return "through";
+    if (last - v.fromLayer == 1 && v.drill <= 0.15 + 1e-9) return "microvia";
+    if (v.fromLayer == 0 || last == layerCount - 1) return "blind";
+    return "buried";
+}
+
+int PcbLayout::applyHdiVias(const Schematic& sch) {
+    const int n = settings.layerCount;
+    if (n < 4) return 0;
+    const auto ps = pads(sch);
+    const std::vector<ZoneFill> fills = zoneFills(sch);
+    const double laserRing = std::min(settings.minAnnularRing, 0.075);
+    int changed = 0;
+    for (auto& v : vias) {
+        int first = n, last = -1;
+        auto use = [&](int layer) {
+            first = std::min(first, layer);
+            last = std::max(last, layer);
+        };
+        for (const auto& t : tracks)
+            if (t.net == v.net && pointSegmentDistance(v.position, t.a, t.b) <= v.diameter / 2 + 1e-6) use(t.layer);
+        for (const auto& p : ps)
+            if (p.net == v.net && padDistance(p, v.position) <= v.diameter / 2 - 1e-6) {
+                if (p.throughHole) {
+                    use(0);
+                    use(n - 1);
+                } else {
+                    use(p.smdLayer);
+                }
+            }
+        for (const auto& f : fills)
+            if (f.net == v.net && f.islandNear(v.position, v.diameter / 2) >= 0) use(f.layer);
+        if (last <= first) continue;  // joins a single layer (or nothing): leave it for DRC to report
+        Via nv = v;
+        nv.fromLayer = first;
+        nv.toLayer = last >= n - 1 ? -1 : last;
+        if (last - first == 1) {  // one dielectric: laser microvia (IPC-2226 Type I/II)
+            nv.drill = settings.microviaDrill;
+            nv.diameter = std::min(v.diameter, std::max(settings.microviaDiameter, nv.drill + 2 * laserRing));
+        }
+        if (nv.fromLayer != v.fromLayer || nv.toLayer != v.toLayer || nv.drill != v.drill || nv.diameter != v.diameter) {
+            v = nv;
+            ++changed;
+        }
+    }
+    return changed;
 }
 
 int PcbLayout::cleanupRouting(const Schematic& sch) {
@@ -1567,7 +1624,7 @@ int PcbLayout::cleanupRouting(const Schematic& sch) {
             if (d - w / 2 < clr - 1e-6) return false;
         }
         for (const auto& v : vias) {
-            if (v.net == net) continue;
+            if (v.net == net || !v.spans(layer)) continue;
             if (pointSegmentDistance(v.position, a, b) - v.diameter / 2 - w / 2 < clr - 1e-6) return false;
         }
         Vec2 mid = (a + b) * 0.5;
@@ -1911,19 +1968,19 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             clearanceCheck(d, "Track clearance " + fmt(std::max(0.0, d)) + " between " + netName(tr.net) + " and " + netName(o.net), (tr.a + tr.b) * 0.5, {}, tr.net, o.net);
         }
         for (const auto& v : vias) {
-            if (v.net == tr.net) continue;
+            if (v.net == tr.net || !v.spans(tr.layer)) continue;
             double d = pointSegmentDistance(v.position, tr.a, tr.b) - tr.width / 2 - v.diameter / 2;
             clearanceCheck(d, "Via (" + netName(v.net) + ") to track (" + netName(tr.net) + ") clearance " + fmt(std::max(0.0, d)), v.position, {}, v.net, tr.net);
         }
     }
     for (size_t i = 0; i < vias.size(); ++i) {
         for (const auto& p : ps) {
-            if (p.net == vias[i].net) continue;
+            if (p.net == vias[i].net || !(p.throughHole || vias[i].spans(p.smdLayer))) continue;
             double d = padDistance(p, vias[i].position) - vias[i].diameter / 2;
             clearanceCheck(d, "Via (" + netName(vias[i].net) + ") to pad (" + netName(p.net) + ") clearance " + fmt(std::max(0.0, d)), vias[i].position, {p.componentId}, vias[i].net, p.net);
         }
         for (size_t j = i + 1; j < vias.size(); ++j) {
-            if (vias[i].net == vias[j].net) continue;
+            if (vias[i].net == vias[j].net || !vias[i].overlaps(vias[j])) continue;
             double d = (vias[i].position - vias[j].position).length() - (vias[i].diameter + vias[j].diameter) / 2;
             clearanceCheck(d, "Via-to-via clearance " + fmt(std::max(0.0, d)), vias[i].position, {}, vias[i].net, vias[j].net);
         }
@@ -1949,13 +2006,16 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     std::vector<Hole> holes;
     for (const auto& v : vias) {
         holes.push_back({v.position, v.drill, "Via"});
-        if (v.drill < settings.minDrill - eps) {
+        // Laser microvias have their own (smaller) drill and annular ring limits (IPC-2226).
+        const bool laser = std::string(viaKind(v, settings.layerCount)) == "microvia";
+        if (!laser && v.drill < settings.minDrill - eps) {
             std::snprintf(buf, sizeof buf, "Via drill %.3f mm is below the minimum %.3f mm.", v.drill, settings.minDrill);
             add(Severity::Error, "DRC_DRILL_SIZE", buf, v.position);
         }
         double ring = (v.diameter - v.drill) / 2;
-        if (ring < settings.minAnnularRing - eps) {
-            std::snprintf(buf, sizeof buf, "Via annular ring %.3f mm is below the minimum %.3f mm.", ring, settings.minAnnularRing);
+        const double minRing = laser ? std::min(settings.minAnnularRing, 0.075) : settings.minAnnularRing;
+        if (ring < minRing - eps) {
+            std::snprintf(buf, sizeof buf, "Via annular ring %.3f mm is below the minimum %.3f mm.", ring, minRing);
             add(Severity::Error, "DRC_ANNULAR_RING", buf, v.position);
         }
     }
@@ -1987,12 +2047,14 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             }
         }
 
-    // Vias inside SMD pads wick solder away from the joint.
+    // Vias inside SMD pads wick solder away from the joint — unless they are filled and plated over (VIPPO).
     for (const auto& v : vias)
         for (const auto& p : ps)
-            if (!p.throughHole && p.net == v.net && padDistance(p, v.position) <= 0) {
+            if (!settings.viaInPad && !p.throughHole && p.net == v.net && v.spans(p.smdLayer) &&
+                padDistance(p, v.position) <= 0) {
                 add(Severity::Warning, "DRC_VIA_IN_PAD",
-                    "Via inside an SMD pad on " + netName(v.net) + " — tent/plug it or move it off the pad.", v.position,
+                    "Via inside an SMD pad on " + netName(v.net) +
+                        " — tent/plug it, move it off the pad, or order via-in-pad plated over (VIPPO, Board Setup → HDI).", v.position,
                     {p.componentId});
                 break;
             }

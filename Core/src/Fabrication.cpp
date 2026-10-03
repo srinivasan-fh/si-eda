@@ -317,7 +317,38 @@ std::string fabricationNotes(const Project& project, const std::vector<FabFile>&
     o << "  Solder               " << req.solder << "\n";
     o << "  Conformal coating    " << (s.coated() ? s.coating + " (IPC-CC-830)" : std::string("none")) << "\n";
     o << "  Electrical test      100 % (flying probe) against the IPC-D-356A netlist\n";
-    o << "  Impedance control    none   Castellated holes: none   Edge connector: none\n\n";
+    {
+        const NetClassification cls = classifyNets(project);
+        if (!cls.rf.empty() || !cls.diffPairs.empty())
+            o << "  Impedance control    " << fmt("%.0f", s.singleEndedImpedance) << " ohm single-ended / "
+              << fmt("%.0f", s.differentialImpedance) << " ohm differential +/-10 % (RF and pair nets; widths from the "
+              << "IPC-2141 stack-up — fab to adjust for its own prepreg)\n";
+        else
+            o << "  Impedance control    none\n";
+        o << "  Castellated holes: none   Edge connector: none\n\n";
+    }
+    {
+        int through = 0, blind = 0, buried = 0, micro = 0;
+        for (const auto& v : project.pcb.vias) {
+            std::string k = viaKind(v, layers);
+            through += k == "through";
+            blind += k == "blind";
+            buried += k == "buried";
+            micro += k == "microvia";
+        }
+        if (blind + buried + micro > 0 || s.viaInPad) {
+            o << "HDI (IPC-2226)\n";
+            o << "  Vias                 " << through << " through, " << blind << " blind, " << buried << " buried, "
+              << micro << " laser microvias (" << fmt("%.2f", s.microviaDrill) << " mm drill, "
+              << fmt("%.2f", s.microviaDiameter) << " mm pad)\n";
+            o << "  Drill files          one Excellon file per span (*-L<a>-L<b>.drl); sequential lamination as needed\n";
+            if (micro > 0) o << "  Microvias            copper-filled; stack only filled microvias, staggered preferred\n";
+            if (s.viaInPad)
+                o << "  Via-in-pad           VIPPO — vias in pads filled with non-conductive epoxy and plated over "
+                     "(IPC-4761 Type VII)\n";
+            o << "\n";
+        }
+    }
     o << "RELIABILITY (industry profile: " << project.industry << ")\n";
     for (const auto& n : req.notes) o << "  - " << n << "\n";
     o << "\n";
@@ -376,6 +407,10 @@ std::vector<FabFile> fabricationPackage(const Project& project, const std::strin
         add(g + "-B_Silkscreen.gbr", exportGerber(sch, pcb, GerberLayer::BottomSilk), "Silkscreen bottom");
     add(g + "-Edge_Cuts.gbr", exportGerber(sch, pcb, GerberLayer::EdgeCuts), "Board outline (profile)");
     if (f.pth || f.vias) add(g + "-PTH.drl", exportExcellonDrill(sch, pcb, true), "Drill, plated (pads and vias)");
+    for (auto [from, to] : viaSpans(pcb))
+        add(g + "-L" + std::to_string(from + 1) + "-L" + std::to_string(to + 1) + ".drl", exportExcellonSpan(pcb, from, to),
+            to - from == 1 ? "Drill, laser microvias L" + std::to_string(from + 1) + "–L" + std::to_string(to + 1)
+                           : "Drill, blind / buried vias L" + std::to_string(from + 1) + "–L" + std::to_string(to + 1));
     if (f.npth) add(g + "-NPTH.drl", exportExcellonDrill(sch, pcb, false), "Drill, non-plated (mounting holes)");
     add(g + "-ipc356.ipc", exportIpcD356(sch, pcb, project.name), "IPC-D-356A netlist (electrical test)");
     if (s.backdrill)

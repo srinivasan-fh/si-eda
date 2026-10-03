@@ -720,6 +720,11 @@ struct PCBCanvas: View {
             for v in snap.vias where onScreen(v.x, v.y, v.x, v.y, pad: v.diameter) {
                 let r = CGRect(x: v.x - v.diameter / 2, y: v.y - v.diameter / 2, width: v.diameter, height: v.diameter)
                 ctx.fill(Path(ellipseIn: r).applying(screen), with: .color(Theme.via))
+                if !v.isThrough {
+                    // Blind / buried / microvias: a ring marks the partial span (as CAD tools draw them).
+                    ctx.stroke(Path(ellipseIn: r.insetBy(dx: -0.05, dy: -0.05)).applying(screen),
+                               with: .color(v.kind == "microvia" ? Theme.iceBlue : Theme.lightBlue), lineWidth: 1)
+                }
                 let hole = CGRect(x: v.x - v.drill / 2, y: v.y - v.drill / 2, width: v.drill, height: v.drill)
                 ctx.fill(Path(ellipseIn: hole).applying(screen), with: .color(Theme.pcbBackground))
             }

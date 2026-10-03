@@ -756,6 +756,22 @@ final class DesignStore: ObservableObject {
         }
     }
 
+    /// HDI vias and via-in-pad (VIPPO). Turning HDI on converts the routed vias right away. Undoable.
+    func setHDI(enabled: Bool? = nil, microviaDrill: Double? = nil, microviaDiameter: Double? = nil, viaInPad: Bool? = nil) {
+        let b = snapshot.board
+        let e = enabled ?? b.hdi, d = microviaDrill ?? b.microviaDrill, p = microviaDiameter ?? b.microviaDiameter
+        let vip = viaInPad ?? b.viaInPad
+        guard e != b.hdi || d != b.microviaDrill || p != b.microviaDiameter || vip != b.viaInPad else { return }
+        var changed = 0
+        performChecked(e ? "HDI vias" : "Through vias only", invalidatesAnalysis: false) {
+            guard $0.setHDI(enabled: e, microviaDrill: d, microviaDiameter: p, viaInPad: vip) else { return false }
+            if e { changed = $0.applyHDI() }
+            return true
+        }
+        if changed > 0 { statusMessage = "\(changed) via\(changed == 1 ? "" : "s") cut to blind / buried / microvia spans" }
+        if !drcResults.isEmpty { runDRC() }
+    }
+
     /// Tunes the routed board now: serpentines on the short members of pairs and buses. Undoable.
     func tuneLengths() {
         var tuned = 0

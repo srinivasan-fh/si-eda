@@ -207,6 +207,19 @@ struct BoardSetupPanel: View {
                                                                      set: { store.setStackup(backdrill: $0) }))
                 .disabled(board.layerCount < 4)
                 .help("Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file")
+            Toggle("HDI vias: blind, buried and laser microvias (IPC-2226)", isOn: Binding(
+                get: { board.hdi }, set: { store.setHDI(enabled: $0) }))
+                .disabled(board.layerCount < 4)
+                .help("Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers")
+            if board.hdi {
+                Stepper(String(format: "Microvia drill %.2f mm / pad %.2f mm", board.microviaDrill, board.microviaDiameter),
+                        value: Binding(get: { board.microviaDrill },
+                                       set: { store.setHDI(microviaDrill: $0, microviaDiameter: max(board.microviaDiameter, $0 + 0.15)) }),
+                        in: 0.05...0.15, step: 0.025)
+            }
+            Toggle("Via-in-pad plated over (VIPPO, IPC-4761 Type VII)", isOn: Binding(
+                get: { board.viaInPad }, set: { store.setHDI(viaInPad: $0) }))
+                .help("Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them")
             ForEach(report.layers) { layer in
                 HStack {
                     Image(systemName: layer.isCopper ? "square.fill" : "square")

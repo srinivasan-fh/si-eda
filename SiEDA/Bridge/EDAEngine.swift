@@ -405,6 +405,15 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_pcb_set_length_matching($0, enabled ? 1 : 0, pairSkew, bus) } == 1
     }
 
+    @discardableResult
+    func setHDI(enabled: Bool, microviaDrill: Double, microviaDiameter: Double, viaInPad: Bool) -> Bool {
+        withHandle { sieda_pcb_set_hdi($0, enabled ? 1 : 0, microviaDrill, microviaDiameter, viaInPad ? 1 : 0) } == 1
+    }
+
+    /// Cuts the routed vias to the layers they connect (blind / buried / microvias); returns the vias changed.
+    @discardableResult
+    func applyHDI() -> Int { Int(withHandle { sieda_pcb_apply_hdi($0) }) }
+
     /// Adds serpentines to the short members of differential pairs and buses; returns the nets tuned.
     @discardableResult
     func tuneLengths() -> Int { Int(withHandle { sieda_pcb_tune_lengths($0) }) }
