@@ -41,6 +41,13 @@ double layerDielectric(const BoardSettings& s);
 bool isStriplineLayer(const BoardSettings& s, int layer);
 /// Characteristic impedance of a track of width w on `layer`.
 double trackImpedance(const BoardSettings& s, int layer, double w);
+/// Dielectric between copper layer `layer` and `layer + 1` (mm): HDI boards have thin laser-drillable build-up
+/// layers (0.075 mm) under the outer layers; otherwise the stack is evenly spaced (`layerDielectric`).
+double dielectricBelow(const BoardSettings& s, int layer);
+/// Depth of a copper layer's top surface below the top of the board (mm).
+double layerDepth(const BoardSettings& s, int layer);
+/// Depth (mm) of a via barrel through the layers it spans: the board thickness for a through via.
+double viaBarrelDepth(const BoardSettings& s, const Via& v);
 /// Track width for a target single-ended impedance on `layer` (bisection; 0 when out of range).
 double widthForImpedance(const BoardSettings& s, int layer, double ohms);
 /// Width and gap of an edge-coupled pair for a target differential impedance on `layer`: the gap is set to the

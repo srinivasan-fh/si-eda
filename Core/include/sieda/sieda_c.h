@@ -181,6 +181,13 @@ char* sieda_stackup_json(const SiedaProject* project);
 /* Length / phase matching: enable serpentine tuning after Auto Route and set the intra-pair skew and bus length
  * tolerances (mm). */
 int32_t sieda_pcb_set_length_matching(SiedaProject* project, int32_t enabled, double pair_skew_mm, double bus_mm);
+/* HDI (IPC-2226): with `hdi` set, Auto Route cuts vias to the layers they connect (blind / buried) and one-dielectric
+ * spans become laser microvias (drill / pad mm); `via_in_pad` orders VIPPO (filled, plated over) so vias may sit in
+ * SMD pads. Returns 0 for invalid sizes. */
+int32_t sieda_pcb_set_hdi(SiedaProject* project, int32_t hdi, double microvia_drill, double microvia_diameter,
+                          int32_t via_in_pad);
+/* Applies the HDI via spans to the routed board now; returns the vias changed. */
+int32_t sieda_pcb_apply_hdi(SiedaProject* project);
 /* Adds serpentines to the short members of differential pairs and buses now; returns the nets tuned. */
 int32_t sieda_pcb_tune_lengths(SiedaProject* project);
 /* {"enabled","pairSkewTolerance","busLengthTolerance","groups":[{name,kind:"pair"|"bus",tolerance,target,matched,

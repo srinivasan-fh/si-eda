@@ -160,7 +160,7 @@ int tuneLengths(PcbLayout& pcb, const Schematic& sch) {
             if (d - w / 2 < clr - 1e-6) return false;
         }
         for (const auto& v : pcb.vias) {
-            if (v.net == net) continue;
+            if (v.net == net || !v.spans(layer)) continue;
             if (pointSegmentDistance(v.position, a, b) - v.diameter / 2 - w / 2 < clr - 1e-6) return false;
         }
         if (s.segmentEdgeDistance(a, b) < s.edgeClearance + w / 2 - 1e-6) return false;

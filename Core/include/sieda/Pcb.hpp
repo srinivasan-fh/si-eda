@@ -57,6 +57,13 @@ struct BoardSettings {
     double differentialImpedance = 100;
     /// Backdrill through-via stubs on high-speed nets (multilayer boards).
     bool backdrill = false;
+    /// HDI (IPC-2226): after routing, each via is cut to the layers it connects (blind / buried), and vias between
+    /// neighbouring layers become laser microvias of this drill / pad size.
+    bool hdi = false;
+    double microviaDrill = 0.1;
+    double microviaDiameter = 0.25;
+    /// Via-in-pad plated over (VIPPO, IPC-4761 Type VII): vias in SMD pads are filled and capped, so they are allowed.
+    bool viaInPad = false;
     /// Length / phase matching: after routing, serpentines are added so differential pairs (intra-pair skew) and
     /// parallel buses (DQ0…n, DATA[0..7], ADDR…) match within these tolerances (mm).
     bool lengthTuning = true;
@@ -174,7 +181,20 @@ struct Via {
     int net = -1;
     Vec2 position;
     double drill = 0.3, diameter = 0.6;
+    /// Copper layers the barrel connects (HDI, IPC-2226): 0 … -1 is a through via (top to bottom); otherwise a blind
+    /// (one outer layer), buried (inner layers only) or laser microvia (one dielectric, small drill).
+    int fromLayer = 0;
+    int toLayer = -1;  // -1 = bottom layer
+    bool isThrough() const { return fromLayer <= 0 && toLayer < 0; }
+    bool spans(int layer) const { return layer >= fromLayer && (toLayer < 0 || layer <= toLayer); }
+    int lastLayer(int layerCount) const { return toLayer < 0 ? std::max(0, layerCount - 1) : toLayer; }
+    bool overlaps(const Via& o) const {
+        return (toLayer < 0 || o.fromLayer <= toLayer) && (o.toLayer < 0 || fromLayer <= o.toLayer);
+    }
 };
+
+/// "through", "blind", "buried" or "microvia" (one dielectric, drill ≤ 0.15 mm).
+const char* viaKind(const Via& v, int layerCount);
 
 /// Copper pour rule: fills the free area of `layer` with `net` copper, keeping clearance to every other net, the
 /// board edge and the mounting holes, with thermal-relief spokes on through-hole pads and floating islands removed.
@@ -255,6 +275,9 @@ public:
     /// right-angle corners are chamfered to 45° wherever the chamfer keeps clearance to other nets and the board edge.
     /// Connectivity never changes. Returns the number of corners chamfered plus segments merged.
     int cleanupRouting(const Schematic& sch);
+    /// HDI: shrinks every via to the copper layers it actually connects (tracks, pads, pours) and turns one-dielectric
+    /// spans into laser microvias. Returns the vias changed.
+    int applyHdiVias(const Schematic& sch);
     /// Narrows track ends that enter pads smaller than the track (fine-pitch neck-down).
     void neckDown(std::vector<Track>& out, const std::vector<Pad>& pads) const;
     /// Per pad: the widest track that can leave it between its package neighbours (≥ the minimum track width).

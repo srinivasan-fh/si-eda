@@ -2,6 +2,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "sieda/Mesh.hpp"
@@ -20,6 +21,10 @@ std::string exportGerber(const Schematic& sch, const PcbLayout& pcb, GerberLayer
 std::string exportCopperGerber(const Schematic& sch, const PcbLayout& pcb, int copperLayer);
 /// Excellon drill file: plated holes (pads, vias) or, with `plated` false, the non-plated mounting holes.
 std::string exportExcellonDrill(const Schematic& sch, const PcbLayout& pcb, bool plated = true);
+/// Distinct (first, last) copper-layer spans of the board's blind / buried / micro vias.
+std::vector<std::pair<int, int>> viaSpans(const PcbLayout& pcb);
+/// Excellon file for the vias spanning exactly `fromLayer`…`toLayer` (one per span, as HDI fabs drill them).
+std::string exportExcellonSpan(const PcbLayout& pcb, int fromLayer, int toLayer);
 /// IPC-D-356A bare-board netlist (every pad and via with its net): fabs use it for the electrical (flying-probe) test.
 std::string exportIpcD356(const Schematic& sch, const PcbLayout& pcb, const std::string& jobName);
 /// Assembly BOM in the column layout assembly houses (JLCPCB, PCBWay) import: Comment, Designator, Footprint, part #.

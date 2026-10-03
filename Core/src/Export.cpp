@@ -1,5 +1,6 @@
 #include "sieda/Export.hpp"
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
@@ -214,7 +215,7 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
             ops.push_back({ap, coord(p.position) + "D03*"});
         }
         for (const auto& v : pcb.vias) {
-            if (isMask) continue;  // tented vias; through vias land on every copper layer
+            if (isMask || !v.spans(cl)) continue;  // tented vias; a via lands on the copper layers it spans
             ops.push_back({aperture(circle(v.diameter)), coord(v.position) + "D03*"});
         }
         if (isCopper) {
@@ -300,6 +301,47 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
     return o.str();
 }
 
+std::vector<std::pair<int, int>> viaSpans(const PcbLayout& pcb) {
+    std::vector<std::pair<int, int>> spans;
+    for (const auto& v : pcb.vias) {
+        if (v.isThrough()) continue;
+        std::pair<int, int> sp{v.fromLayer, v.lastLayer(pcb.settings.layerCount)};
+        if (std::find(spans.begin(), spans.end(), sp) == spans.end()) spans.push_back(sp);
+    }
+    std::sort(spans.begin(), spans.end());
+    return spans;
+}
+
+std::string exportExcellonSpan(const PcbLayout& pcb, int fromLayer, int toLayer) {
+    const int n = pcb.settings.layerCount;
+    std::map<std::string, std::vector<Vec2>> holes;
+    std::string kind = "Buried";
+    for (const auto& v : pcb.vias) {
+        if (v.isThrough() || v.fromLayer != fromLayer || v.lastLayer(n) != toLayer) continue;
+        char b[16];
+        std::snprintf(b, sizeof b, "%.3f", v.drill);
+        holes[b].push_back(v.position);
+        if (fromLayer == 0 || toLayer == n - 1) kind = "Blind";
+    }
+    const bool laser = toLayer - fromLayer == 1;
+    std::ostringstream o;
+    o << "M48\n; SiEDA Excellon drill file — " << (laser ? "laser microvias" : kind == "Blind" ? "blind vias" : "buried vias")
+      << " L" << fromLayer + 1 << "–L" << toLayer + 1 << " (" << copperLayerName(fromLayer, n) << " to "
+      << copperLayerName(toLayer, n) << ")\n"
+      << "; #@! TF.FileFunction,Plated," << fromLayer + 1 << "," << toLayer + 1 << "," << kind << "\n"
+      << "; #@! TF.FilePolarity,Positive\nFMAT,2\nMETRIC,TZ\n";
+    int tool = 1;
+    for (const auto& [d, _] : holes) o << "T" << tool++ << "C" << d << "\n";
+    o << "%\nG90\nG05\n";
+    tool = 1;
+    for (const auto& [d, pts] : holes) {
+        o << "T" << tool++ << "\n";
+        for (const auto& p : pts) o << "X" << mm(p.x) << "Y" << mm(pcb.settings.height - p.y) << "\n";
+    }
+    o << "T0\nM30\n";
+    return o.str();
+}
+
 std::string exportExcellonDrill(const Schematic& sch, const PcbLayout& pcb, bool plated) {
     std::map<std::string, std::vector<Vec2>> holes;  // diameter → positions
     auto key = [](double d) {
@@ -310,7 +352,8 @@ std::string exportExcellonDrill(const Schematic& sch, const PcbLayout& pcb, bool
     if (plated) {
         for (const auto& p : pcb.pads(sch))
             if (p.throughHole && p.drill > 0) holes[key(p.drill)].push_back(p.position);
-        for (const auto& v : pcb.vias) holes[key(v.drill)].push_back(v.position);
+        for (const auto& v : pcb.vias)
+            if (v.isThrough()) holes[key(v.drill)].push_back(v.position);  // blind / buried: exportExcellonSpan
     } else {
         for (const auto& h : pcb.settings.holes) holes[key(h.drill)].push_back(h.position);
     }

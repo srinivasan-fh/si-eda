@@ -143,7 +143,8 @@ Mesh buildCopperLayerMesh(const Schematic& sch, const PcbLayout& pcb, int layer)
         else m.addBox({p.position.x - p.size.x / 2, 0.0, p.position.y - p.size.y / 2},
                       {p.position.x + p.size.x / 2, cu, p.position.y + p.size.y / 2}, pad);
     }
-    for (const auto& v : pcb.vias) m.addCylinder({v.position.x, 0.0, v.position.y}, v.diameter / 2, cu, pad, 14);
+    for (const auto& v : pcb.vias)
+        if (v.spans(layer)) m.addCylinder({v.position.x, 0.0, v.position.y}, v.diameter / 2, cu, pad, 14);
     return m;
 }
 
@@ -237,7 +238,12 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
                          {p.position.x + p.size.x / 2, y0 + cu, p.position.y + p.size.y / 2}, gold);
             }
         }
-        for (const auto& v : pcb.vias) m.addCylinder({v.position.x, -t - cu, v.position.y}, v.diameter / 2, t + 2 * cu, gold, 14);
+        for (const auto& v : pcb.vias) {
+            // The barrel runs between the copper layers it spans (blind / buried / microvias stop inside the board).
+            const double top = copperLayerBase(v.fromLayer, layers, t, cu) + cu;
+            const double bottom = copperLayerBase(v.lastLayer(layers), layers, t, cu);
+            m.addCylinder({v.position.x, bottom, v.position.y}, v.diameter / 2, top - bottom, gold, 14);
+        }
     }
 
     if (opt.silkscreen) {

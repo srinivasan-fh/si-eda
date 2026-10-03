@@ -53,11 +53,39 @@ double layerDielectric(const BoardSettings& s) {
     return std::max(0.05, (s.thickness - layers * cu) / (layers - 1));
 }
 
+namespace {
+constexpr double kBuildUp = 0.075;  // HDI laser-drillable build-up dielectric (≈ 3 mil)
+bool hdiStack(const BoardSettings& s) { return s.hdi && s.layerCount >= 4; }
+}  // namespace
+
+double dielectricBelow(const BoardSettings& s, int layer) {
+    const int n = std::max(1, s.layerCount);
+    if (n <= 2 || !hdiStack(s)) return layerDielectric(s);
+    if (layer == 0 || layer == n - 2) return kBuildUp;
+    const double cu = copperThickness(s);
+    return std::max(0.05, (s.thickness - n * cu - 2 * kBuildUp) / (n - 3));
+}
+
+double layerDepth(const BoardSettings& s, int layer) {
+    double d = 0;
+    for (int k = 0; k < layer; ++k) d += copperThickness(s) + dielectricBelow(s, k);
+    return d;
+}
+
+namespace {
+/// Microstrip: height to the plane below / above; stripline: plane-to-plane spacing b.
+double referenceHeight(const BoardSettings& s, int layer) {
+    const int n = std::max(1, s.layerCount);
+    if (isStriplineLayer(s, layer)) return dielectricBelow(s, layer - 1) + dielectricBelow(s, layer) + copperThickness(s);
+    return dielectricBelow(s, layer <= 0 ? 0 : std::max(0, n - 2));
+}
+}  // namespace
+
 bool isStriplineLayer(const BoardSettings& s, int layer) { return s.layerCount >= 4 && layer > 0 && layer < s.layerCount - 1; }
 
 double trackImpedance(const BoardSettings& s, int layer, double w) {
-    const double er = boardLaminate(s).er, t = copperThickness(s), h = layerDielectric(s);
-    return isStriplineLayer(s, layer) ? striplineImpedance(w, 2 * h + t, t, er) : microstripImpedance(w, h, t, er);
+    const double er = boardLaminate(s).er, t = copperThickness(s), h = referenceHeight(s, layer);
+    return isStriplineLayer(s, layer) ? striplineImpedance(w, h, t, er) : microstripImpedance(w, h, t, er);
 }
 
 double widthForImpedance(const BoardSettings& s, int layer, double ohms) {
@@ -72,12 +100,12 @@ double widthForImpedance(const BoardSettings& s, int layer, double ohms) {
 }
 
 std::pair<double, double> differentialPairGeometry(const BoardSettings& s, int layer, double ohms) {
-    const double h = layerDielectric(s), t = copperThickness(s);
+    const double h = referenceHeight(s, layer);
     const bool strip = isStriplineLayer(s, layer);
     auto zdiff = [&](double w) {
         double gap = std::max(w, s.clearance);
         double z0 = trackImpedance(s, layer, w);
-        return strip ? differentialStripline(z0, gap, 2 * h + t) : differentialMicrostrip(z0, gap, h);
+        return strip ? differentialStripline(z0, gap, h) : differentialMicrostrip(z0, gap, h);
     };
     double lo = 0.02, hi = 10.0;
     if (zdiff(lo) < ohms || zdiff(hi) > ohms) return {0, 0};
@@ -87,6 +115,13 @@ std::pair<double, double> differentialPairGeometry(const BoardSettings& s, int l
     }
     double w = (lo + hi) / 2;
     return {w, std::max(w, s.clearance)};
+}
+
+double viaBarrelDepth(const BoardSettings& s, const Via& v) {
+    const int n = std::max(1, s.layerCount);
+    const int last = v.lastLayer(n);
+    if (v.fromLayer <= 0 && last >= n - 1) return s.thickness;
+    return layerDepth(s, last) + copperThickness(s) - layerDepth(s, v.fromLayer);
 }
 
 Json stackupJson(const BoardSettings& s) {
@@ -102,7 +137,8 @@ Json stackupJson(const BoardSettings& s) {
     root["differentialOhms"] = s.differentialImpedance;
     Json layers = Json::array();
     const int n = std::max(1, s.layerCount);
-    const double cu = copperThickness(s), d = layerDielectric(s);
+    const double cu = copperThickness(s);
+    root["hdi"] = hdiStack(s);
     for (int l = 0; l < n; ++l) {
         Json c = Json::object();
         c["name"] = copperLayerName(l, n);
@@ -117,9 +153,12 @@ Json stackupJson(const BoardSettings& s) {
         layers.push(c);
         if (l < n - 1 || n == 1) {
             Json di = Json::object();
-            di["name"] = l == 0 ? std::string("Core") : "Prepreg / core " + std::to_string(l + 1);
+            const bool buildUp = hdiStack(s) && (l == 0 || l == n - 2);
+            di["name"] = buildUp ? std::string("Build-up ") + std::to_string(l + 1) + " (laser microvias)"
+                         : l == 0 ? std::string("Core")
+                                  : "Prepreg / core " + std::to_string(l + 1);
             di["type"] = "dielectric";
-            di["thickness"] = d;
+            di["thickness"] = dielectricBelow(s, l);
             di["material"] = m.name;
             layers.push(di);
         }

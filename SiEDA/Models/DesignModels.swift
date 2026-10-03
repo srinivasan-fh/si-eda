@@ -419,6 +419,11 @@ struct BoardInfo: Decodable, Equatable {
     var backdrill = false
     /// Serpentine length / phase matching after Auto Route, with tolerances (mm).
     var lengthTuning = true
+    /// HDI vias (blind / buried / laser microvias) and via-in-pad plated over (VIPPO).
+    var hdi = false
+    var microviaDrill = 0.1
+    var microviaDiameter = 0.25
+    var viaInPad = false
     var pairSkewTolerance = 0.13
     var busLengthTolerance = 0.5
     /// Net classes: track width (mm) per net name.
@@ -459,6 +464,10 @@ struct BoardInfo: Decodable, Equatable {
         differentialImpedance = try c.decodeIfPresent(Double.self, forKey: .differentialImpedance) ?? 100
         backdrill = try c.decodeIfPresent(Bool.self, forKey: .backdrill) ?? false
         lengthTuning = try c.decodeIfPresent(Bool.self, forKey: .lengthTuning) ?? true
+        hdi = try c.decodeIfPresent(Bool.self, forKey: .hdi) ?? false
+        microviaDrill = try c.decodeIfPresent(Double.self, forKey: .microviaDrill) ?? 0.1
+        microviaDiameter = try c.decodeIfPresent(Double.self, forKey: .microviaDiameter) ?? 0.25
+        viaInPad = try c.decodeIfPresent(Bool.self, forKey: .viaInPad) ?? false
         pairSkewTolerance = try c.decodeIfPresent(Double.self, forKey: .pairSkewTolerance) ?? 0.13
         busLengthTolerance = try c.decodeIfPresent(Double.self, forKey: .busLengthTolerance) ?? 0.5
         netWidths = try c.decodeIfPresent([String: Double].self, forKey: .netWidths) ?? [:]
@@ -472,7 +481,7 @@ struct BoardInfo: Decodable, Equatable {
         case rulePreset, minTrackWidth, minClearance, minDrill, minAnnularRing, minHoleToHole, copperWeightOz, maxTempRise
         case highAltitude, solderMask, coating, netWidths, autoSizeNets, outline, holes
         case material, construction, singleEndedImpedance, differentialImpedance, backdrill
-        case lengthTuning, pairSkewTolerance, busLengthTolerance
+        case lengthTuning, pairSkewTolerance, busLengthTolerance, hdi, microviaDrill, microviaDiameter, viaInPad
     }
 
     var bottomLayer: Int { max(1, layerCount) - 1 }
@@ -584,6 +593,17 @@ struct SnapVia: Decodable, Equatable, Identifiable {
     var y: Double
     var drill: Double
     var diameter: Double
+    /// Copper layers the barrel spans (HDI): through vias run from 0 to the bottom layer.
+    var fromLayer: Int?
+    var toLayer: Int?
+    /// "through", "blind", "buried" or "microvia".
+    var kind: String?
+
+    var isThrough: Bool { (kind ?? "through") == "through" }
+    func spans(_ layer: Int) -> Bool {
+        guard let from = fromLayer, let to = toLayer else { return true }
+        return layer >= from && layer <= to
+    }
 }
 
 struct SnapLine: Decodable, Equatable {

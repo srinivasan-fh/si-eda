@@ -163,7 +163,7 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
             });
         }
         for (const auto& v : vs) {
-            if (v.net == net) continue;
+            if (v.net == net || !v.spans(L)) continue;
             double rr = r + v.diameter / 2;
             forCells(cols, rows, cell, segmentBox(v.position, v.position, rr), [&](size_t c, Vec2 at) {
                 if ((at - v.position).length() < rr) block(c, at);
@@ -210,7 +210,7 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
                     if (pointSegmentDistance(at, t.a, t.b) <= t.width / 2 + touch) mark(c, at);
                 });
         for (const auto& v : vs)
-            if (v.net == net)
+            if (v.net == net && v.spans(L))
                 forCells(cols, rows, cell, segmentBox(v.position, v.position, v.diameter / 2 + touch), [&](size_t c, Vec2 at) {
                     if ((at - v.position).length() <= v.diameter / 2 + touch) mark(c, at);
                 });
