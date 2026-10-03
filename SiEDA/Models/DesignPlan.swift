@@ -22,11 +22,13 @@ struct DesignPlan: Codable, Equatable {
     var robotPlatform: String?
     /// Automotive ECU type ("bcm", "powertrain", "adas", "ev", "chassis", "gateway"): turns on the 6-segment ECU checks.
     var ecuType: String?
+    /// Aerospace mission ("leo", "geo", "launcher", "military", "commercial"): turns on the 5-segment aerospace checks.
+    var aerospaceMission: String?
 
     init(title: String, summary: String, components: [PlannedComponent], connections: [PlannedConnection],
          notes: [String] = [], board: PlannedBoard = PlannedBoard(), industry: String? = nil,
          pours: [PlannedPour] = [], netClasses: [PlannedNetClass] = [], noConnect: [String] = [],
-         robotPlatform: String? = nil, ecuType: String? = nil) {
+         robotPlatform: String? = nil, ecuType: String? = nil, aerospaceMission: String? = nil) {
         self.title = title
         self.summary = summary
         self.components = components
@@ -39,6 +41,7 @@ struct DesignPlan: Codable, Equatable {
         self.noConnect = noConnect
         self.robotPlatform = robotPlatform
         self.ecuType = ecuType
+        self.aerospaceMission = aerospaceMission
     }
 
     init(from decoder: Decoder) throws {
@@ -55,10 +58,11 @@ struct DesignPlan: Codable, Equatable {
         noConnect = try c.decodeIfPresent([String].self, forKey: .noConnect) ?? []
         robotPlatform = try c.decodeIfPresent(String.self, forKey: .robotPlatform)
         ecuType = try c.decodeIfPresent(String.self, forKey: .ecuType)
+        aerospaceMission = try c.decodeIfPresent(String.self, forKey: .aerospaceMission)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case title, summary, components, connections, notes, board, industry, pours, netClasses, noConnect, robotPlatform, ecuType
+        case title, summary, components, connections, notes, board, industry, pours, netClasses, noConnect, robotPlatform, ecuType, aerospaceMission
     }
 
     func jsonString(pretty: Bool = true) -> String {
@@ -288,6 +292,8 @@ enum DesignSchemas {
                                   "description": "Robot platform: turns on the 7-segment robotics checks"] as [String: Any],
                 "ecuType": ["type": "string", "enum": ["bcm", "powertrain", "adas", "ev", "chassis", "gateway"],
                             "description": "Automotive ECU type: turns on the 6-segment ECU checks"] as [String: Any],
+                "aerospaceMission": ["type": "string", "enum": ["leo", "geo", "launcher", "military", "commercial"],
+                                     "description": "Aerospace mission: turns on the 5-segment aerospace checks"] as [String: Any],
                 "title": ["type": "string"],
                 "summary": ["type": "string"],
                 "components": [
@@ -419,6 +425,9 @@ enum DesignPlanCompiler {
         }
         if let type = plan.ecuType, !engine.setEcuType(type) {
             report.warnings.append("Unknown ECU type '\(type)'.")
+        }
+        if let mission = plan.aerospaceMission, !engine.setAerospaceMission(mission) {
+            report.warnings.append("Unknown aerospace mission '\(mission)'.")
         }
         var positions = plan.components.map { CGPoint(x: $0.x, y: $0.y) }
         positions = SchematicAutoLayout.resolveOverlaps(positions)
@@ -648,7 +657,8 @@ enum DesignPlanCompiler {
                           },
                           noConnect: noConnect,
                           robotPlatform: snapshot.robotPlatform.isEmpty ? nil : snapshot.robotPlatform,
-                          ecuType: snapshot.ecuType.isEmpty ? nil : snapshot.ecuType)
+                          ecuType: snapshot.ecuType.isEmpty ? nil : snapshot.ecuType,
+                          aerospaceMission: snapshot.aerospaceMission.isEmpty ? nil : snapshot.aerospaceMission)
     }
 }
 

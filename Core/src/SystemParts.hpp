@@ -67,7 +67,18 @@ struct Parts {
     std::vector<const Component*> connectors;   // headers and connectors
     std::vector<const Component*> amplifiers;   // op-amps and instrumentation amplifiers
     std::vector<const Component*> safetyMcus;   // lockstep / ASIL-D MCUs (AURIX, Stellar, RH850, S32K3, TMS570…)
-    std::vector<const Component*> efuses;       // electronic fuses / ideal-diode controllers
+    std::vector<const Component*> efuses;       // electronic fuses / ideal-diode controllers / current-limited switches
+    // Aerospace blocks.
+    std::vector<const Component*> radHard;      // radiation-hardened / tolerant parts (ATmegaS, SAMRH, GR712, RTG4, UT…)
+    std::vector<const Component*> mram;         // MRAM (Everspin MR25H / MR4A, CAES UT8MR…)
+    std::vector<const Component*> voters;       // TMR majority voters (74HC10 / 74LVC1G57 / majority gates)
+    std::vector<const Component*> adcs;         // ADCs (MCP320x, ADS…, AD7…, MAX318xx thermocouple converters)
+    std::vector<const Component*> cjc;          // thermocouple converters with cold-junction compensation
+    std::vector<const Component*> spacewire;    // LVDS / SpaceWire physical layer and codecs
+    std::vector<const Component*> mil1553;      // MIL-STD-1553 transceivers / terminals
+    std::vector<const Component*> arinc;        // ARINC 429 line drivers / receivers
+    std::vector<const Component*> transformers; // coupling transformers
+    std::vector<const Component*> isoDcdc;      // galvanically isolated DC-DC converters
 };
 
 inline Parts classify(const Schematic& sch) {
@@ -121,7 +132,27 @@ inline Parts classify(const Schematic& sch) {
         if (containsAny(n, {"TC2", "TC3", "TC4", "SPC5", "SR6", "RH850", "S32K3", "S32E", "TMS570", "RM4", "RM5", "MPC57",
                             "TRAVEO", "CYT"}))
             p.safetyMcus.push_back(&c);
-        if (containsAny(n, {"TPS1213", "TPS1211", "TPS2HC", "LM7470", "LM7472", "LTC4359", "LM74", "EFUSE"})) p.efuses.push_back(&c);
+        if (containsAny(n, {"TPS1213", "TPS1211", "TPS2HC", "LM7470", "LM7472", "LTC4359", "LM74", "EFUSE", "TPS255", "TPS2596",
+                            "TPS1663", "TPS2660", "SSPC", "LCL"}))
+            p.efuses.push_back(&c);
+        if (n.rfind("ATMEGAS", 0) == 0 || n.rfind("UT", 0) == 0 || n.rfind("RH", 0) == 0 || n.rfind("RAD", 0) == 0 ||
+            containsAny(n, {"SAMRH", "GR712", "GR740", "LEON", "RTG4", "RTAX", "XQR", "VA108", "VA416", "RT_", "-RT", "RADHARD"}))
+            p.radHard.push_back(&c);
+        if (containsAny(n, {"MR25H", "MR4A", "MR2A", "MR10Q", "MR0A", "UT8MR", "MRAM"})) p.mram.push_back(&c);
+        if (containsAny(n, {"74HC10", "74LVC1G57", "74LVC1G58", "MAJORITY", "VOTER", "4530"})) p.voters.push_back(&c);
+        if (containsAny(n, {"MCP320", "MCP330", "ADS1", "ADS8", "AD7", "MAX318", "MAX1112", "LTC24", "AMC13", "ADC"}))
+            p.adcs.push_back(&c);
+        if (containsAny(n, {"MAX31855", "MAX31856", "MAX6675", "AD849", "LT1025", "LTC2983"})) p.cjc.push_back(&c);
+        if (containsAny(n, {"LVDS", "DS90C03", "DS90LV", "GR718", "SPACEWIRE", "SPW"})) p.spacewire.push_back(&c);
+        if (containsAny(n, {"HI-15", "HI15", "BU-6", "BU6", "61580", "1553"})) p.mil1553.push_back(&c);
+        if (containsAny(n, {"HI-8", "HI8", "DEI10", "ARINC", "429"})) p.arinc.push_back(&c);
+        if (containsAny(n, {"XFMR", "TRANSFORMER", "PM-DB", "B-3818"})) p.transformers.push_back(&c);
+        if (containsAny(n, {"ISO-DCDC", "NME", "MHF", "SVR28", "DCDC_ISO", "ISOLATED DC"}) ||
+            ([&] {
+                const CustomPart* cp = CustomPartRegistry::instance().find(c.customPart);
+                return cp && cp->spec.model.hasRegulator && cp->spec.model.regulator.isolated();
+            })())
+            p.isoDcdc.push_back(&c);
         if (containsAny(n, {"IR2104", "IR2110", "IR2184", "L293", "ULN2003", "DRV8", "TMC2", "A4988", "L298", "UCC27",
                             "FAN73", "LM5113", "DRV83"}))
             p.drivers.push_back(&c);
@@ -130,7 +161,7 @@ inline Parts classify(const Schematic& sch) {
         if (containsAny(n, {"ACS7", "INA2", "INA1", "INA3", "AMC1"})) p.shunts.push_back(&c);
         if (containsAny(n, {"MPU-6050", "MPU6050", "MPU-9250", "ICM-", "BMI0", "BMI1", "BMI2", "LSM6", "BNO0", "IMU"}))
             p.imus.push_back(&c);
-        if (containsAny(n, {"NRF24", "ESP32", "ESP8266", "SX127", "SX126", "LORA", "CC1101", "RFM9", "WIFI", "BLE", "LTE"}))
+        if (containsAny(n, {"NRF24", "ESP32", "ESP8266", "SX127", "SX126", "LORA", "CC1101", "RFM9", "WIFI", "BLE", "LTE", "UHF-TRX"}))
             p.rf.push_back(&c);
         if (containsAny(n, {"SMA", "U.FL", "UFL", "MMCX"})) p.coax.push_back(&c);
         if (containsAny(n, {"ADUM", "ISO77", "ISO15", "SI86", "PC817", "6N137", "TLP", "OPTO"})) p.isolators.push_back(&c);
@@ -163,6 +194,17 @@ inline std::vector<int> netsNamed(const Schematic& sch, std::initializer_list<co
 
 inline Rect courtyardOf(const PcbLayout& pcb, const Component& c) { return pcb.courtyard(c); }
 
+
+/// How far a connector's body sits from the board edge: the nearest side of its courtyard (an edge-launch coax
+/// connector has its courtyard against the edge, whatever its size).
+inline double coaxEdgeGap(const PcbLayout& pcb, const Component& c) {
+    const Rect r = pcb.courtyard(c);
+    const Vec2 mids[4] = {{r.x0, (r.y0 + r.y1) / 2}, {r.x1, (r.y0 + r.y1) / 2}, {(r.x0 + r.x1) / 2, r.y0},
+                          {(r.x0 + r.x1) / 2, r.y1}};
+    double best = 1e9;
+    for (const Vec2& m : mids) best = std::min(best, pcb.settings.edgeDistance(m));
+    return std::max(0.0, best);
+}
 
 inline double rectGap(const Rect& a, const Rect& b) {
     double dx = std::max({0.0, b.x0 - a.x1, a.x0 - b.x1}), dy = std::max({0.0, b.y0 - a.y1, a.y0 - b.y1});

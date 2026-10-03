@@ -269,6 +269,14 @@ struct SiEDACommands: Commands {
                                                     set: { if $0 { store.setEcuType(type.id) } }))
                 }
             }
+            Menu("Aerospace Mission") {
+                Toggle("Not aerospace", isOn: Binding(get: { store.snapshot.aerospaceMission.isEmpty },
+                                                      set: { if $0 { store.setAerospaceMission("") } }))
+                ForEach(store.aerospaceSegments().platforms) { mission in
+                    Toggle(mission.name, isOn: Binding(get: { store.snapshot.aerospaceMission == mission.id },
+                                                       set: { if $0 { store.setAerospaceMission(mission.id) } }))
+                }
+            }
             Menu("Industry Profile") {
                 ForEach(StandardLibrary.industries) { profile in
                     Toggle(profile.name, isOn: Binding(

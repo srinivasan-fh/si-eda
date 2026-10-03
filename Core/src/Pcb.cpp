@@ -361,6 +361,12 @@ bool PcbLayout::fitBoardToComponents(Schematic& sch, double margin) {
         any = true;
     }
     if (!any) return false;
+    // Mounting holes stay inside too, keep-out ring and all.
+    for (const auto& h : settings.holes) {
+        const double r = std::max(h.keepout, h.drill) / 2;
+        box = Rect(std::min(box.x0, h.position.x - r), std::min(box.y0, h.position.y - r), std::max(box.x1, h.position.x + r),
+                   std::max(box.y1, h.position.y + r));
+    }
     margin = std::max(margin, settings.edgeClearance + 0.5);
     auto roundUp = [](double v) { return std::ceil(v * 2.0) / 2.0; };
     double width = std::max(10.0, roundUp(box.width() + 2 * margin));
@@ -446,7 +452,9 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
         for (size_t a = 0; a < fp->pads.size(); ++a)
             for (size_t b = a + 1; b < fp->pads.size(); ++b)
                 pitch = std::min(pitch, (fp->pads[a].offset - fp->pads[b].offset).length());
-        return pitch < 0.65 ? 1.5 : 0.0;
+        // High-pin-count packages (TQFP-64 and up) need a fan-out ring too, or their neighbours wall the pins in.
+        const double fanout = fp->pads.size() >= 44 ? 1.0 : 0.0;
+        return std::max(pitch < 0.65 ? 1.5 : 0.0, fanout);
     };
     const double step = 0.5;
     std::map<int, double> escapeOf;
@@ -1964,6 +1972,8 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     auto ps = pads(sch);
     // Spacing inside one footprint is fixed by the package (0.5 mm-pitch QFN pads are ~0.2 mm apart): it is held to
     // the fabrication minimum only, not to the board's design clearance.
+    constexpr double kMinEtchGap = 0.1;  // absolute etching limit, whatever the preset
+    std::set<int> finePitchNoted;
     auto footprintCheck = [&](double d, const std::string& what, Vec2 loc, std::vector<int> comps, int netA, int netB) {
         auto [dv, hvNeed] = voltageNeed(netA, netB);  // voltage spacing still applies inside a footprint
         if (d > 0 && hvNeed > fabClr + eps && d < hvNeed - eps) {
@@ -1974,10 +1984,18 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             return;
         }
         if (d <= 0) add(Severity::Error, "DRC_SHORT", what + " — copper overlaps (short circuit).", loc, std::move(comps));
-        else if (d < fabClr - eps) {
+        else if (d < kMinEtchGap - eps) {
             char b[96];
-            std::snprintf(b, sizeof b, " (fabrication minimum %.3f mm)", fabClr);
+            std::snprintf(b, sizeof b, " (below the %.2f mm any fab can etch)", kMinEtchGap);
             add(Severity::Error, "DRC_CLEARANCE", what + b + ".", loc, std::move(comps));
+        } else if (d < fabClr - eps && !finePitchNoted.count(comps.empty() ? -1 : comps.front())) {
+            // The part's own land pattern (a 0.5 mm-pitch QFN has ≈ 0.22 mm gaps) is set by its datasheet: below the
+            // preset's minimum it is a capability question for the fab, not a layout error.
+            finePitchNoted.insert(comps.empty() ? -1 : comps.front());
+            char b[200];
+            std::snprintf(b, sizeof b, " inside one footprint: its land pattern is below the %.2f mm preset minimum — "
+                          "confirm the fab's fine-pitch capability (or use a part with a coarser pitch).", fabClr);
+            add(Severity::Info, "DRC_FINE_PITCH_PADS", what + b, loc, std::move(comps));
         }
     };
     // Pad ↔ pad.

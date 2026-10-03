@@ -409,6 +409,7 @@ private struct ProjectProperties: View {
             IndustryProperties()
             RobotSystemProperties()
             EcuSystemProperties()
+            AerospaceSystemProperties()
             PropertyGroup(title: "Board") {
                 PropertyRow(label: "Size", value: String(format: "%.1f × %.1f mm", store.snapshot.board.width, store.snapshot.board.height))
                 PropertyRow(label: "Layers", value: "\(store.snapshot.board.layerCount)")
@@ -471,7 +472,21 @@ private struct EcuSystemProperties: View {
     }
 }
 
-/// A segment checklist with a type picker: robot platforms and automotive ECU types share it.
+/// Aerospace mission and the five aerospace design segments (rad-hard compute, power conditioning, sensor
+/// interface, avionics communications, RF telemetry).
+private struct AerospaceSystemProperties: View {
+    @EnvironmentObject private var store: DesignStore
+
+    var body: some View {
+        SystemSegmentsGroup(title: "Aerospace Segments", report: store.aerospaceSegments(), noneLabel: "Not aerospace",
+                            selection: Binding(get: { store.snapshot.aerospaceMission },
+                                               set: { store.setAerospaceMission($0) }),
+                            hint: "Pick a mission (or the Space industry) to check the rad-hard compute, power isolation, "
+                                + "sensor, avionics bus and RF telemetry segments.")
+    }
+}
+
+/// A segment checklist with a type picker: robot platforms, automotive ECU types and aerospace missions share it.
 private struct SystemSegmentsGroup: View {
     @EnvironmentObject private var store: DesignStore
     let title: String

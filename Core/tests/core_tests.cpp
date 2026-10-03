@@ -25,6 +25,7 @@
 #include "sieda/Project.hpp"
 #include "sieda/LengthMatch.hpp"
 #include "sieda/Reliability.hpp"
+#include "sieda/Aerospace.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Robotics.hpp"
 #include "sieda/Stackup.hpp"
@@ -2113,7 +2114,7 @@ TEST(microcontroller_library_by_vendor) {
     CHECK(perGroup["Microcontrollers · Arm"] == 10);
     CHECK(perGroup["Microcontrollers · STMicroelectronics"] == 10);
     CHECK(perGroup["Microcontrollers · Texas Instruments"] == 10);
-    CHECK(perGroup["Microcontrollers · Microchip"] == 12);  // + ATmega328P and ATtiny85
+    CHECK(perGroup["Microcontrollers · Microchip"] == 13);  // + ATmega328P, ATtiny85 and the rad-tolerant ATmegaS128
     for (const auto& p : standardParts()) {
         if (p.category.rfind("Microcontrollers · ", 0) != 0) continue;
         bool ok = true;
@@ -3322,4 +3323,101 @@ TEST(automotive_ecu_segments_and_rules) {
     CHECK(automotiveChecks(p).empty());
     p.industry = "automotive";
     CHECK(!automotiveChecks(p).empty());
+}
+
+TEST(aerospace_segments_rules_and_isolated_power) {
+    auto partId = [](const char* name) {
+        return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec)->id;
+    };
+    CHECK(aerospaceMissions().size() == 5);
+    CHECK(findAerospaceMission("leo") && findAerospaceMission("commercial") && !findAerospaceMission("mars"));
+    auto codes = [](const Project& p) {
+        std::set<std::string> out;
+        for (const auto& v : aerospaceChecks(p))
+            if (v.severity != Severity::Info) out.insert(v.code);
+        return out;
+    };
+    // A 28 V bus into an isolated DC-DC: the secondary regulates and the primary draws P_out / efficiency.
+    Project p;
+    auto& s = p.schematic;
+    int v = s.addComponent(ComponentKind::VoltageSource, "28", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 200});
+    int rtn = s.addComponent(ComponentKind::NetLabel, "RTN", {0, 100});
+    int dc = s.addCustomComponent(partId("ISO-DCDC-2805S"), "", {200, 0});
+    int load = s.addComponent(ComponentKind::Resistor, "10", {400, 0});
+    int bleed = s.addComponent(ComponentKind::Resistor, "10meg", {100, 150});
+    wire(s, v, "+", dc, "+VIN");
+    wire(s, v, "-", rtn, "N");
+    wire(s, dc, "-VIN", rtn, "N");
+    wire(s, dc, "+VOUT", load, "1");
+    wire(s, load, "2", g, "GND");
+    wire(s, dc, "-VOUT", g, "GND");
+    wire(s, bleed, "1", rtn, "N");
+    wire(s, bleed, "2", g, "GND");
+    p.schematicChanged();
+    {
+        DcResult dcr = Simulator(s).dcOperatingPoint();
+        CHECK(dcr.converged);
+        CHECK_NEAR(netV(s, dcr, load, "1"), 5.0, 0.05);
+        double supply = 0;
+        for (const auto& d : dcr.devices)
+            if (d.componentId == v) supply = d.current;
+        // 2.5 W out at 82 % from 28 V ≈ 109 mA (+ 2 mA quiescent).
+        CHECK_NEAR(supply, 2.5 / 0.82 / 28.0 + 0.002, 0.003);
+        CHECK(std::fabs(netV(s, dcr, rtn, "N")) < 0.01);  // the bleeder carries no load current
+    }
+    CHECK(aerospaceChecks(p).empty());  // not an aerospace project yet
+    p.industry = "space";
+    CHECK(!aerospaceChecks(p).empty() && codes(p).empty());  // industry alone: advisory only
+    p.aerospaceMission = "leo";
+    auto c1 = codes(p);
+    CHECK(!c1.count("REL_ISOLATED_POWER") && c1.count("REL_LIGHTNING_TVS") && c1.count("REL_SSPC"));
+
+    // Three commercial MCUs straight on the rail: rad-hard, MRAM, latch-up and TMR voter findings.
+    std::vector<int> lanes;
+    for (int i = 0; i < 3; ++i) {
+        int u = s.addCustomComponent(partId("ATmega328P"), "", {600.0 + 200 * i, 0});
+        wire(s, u, "7", load, "1");
+        wire(s, u, "8", g, "GND");
+        lanes.push_back(u);
+    }
+    p.schematicChanged();
+    auto c2 = codes(p);
+    CHECK(c2.count("REL_RAD_HARD") && c2.count("REL_MRAM") && c2.count("REL_SEL_PROTECTION") && c2.count("REL_SEL_WATCHDOG"));
+    CHECK(c2.count("REL_TMR_VOTER"));
+    int voter = s.addCustomComponent(partId("74HC10"), "", {600, 300});
+    wire(s, voter, "VCC", load, "1");
+    wire(s, voter, "GND", g, "GND");
+    p.schematicChanged();
+    CHECK(!codes(p).count("REL_TMR_VOTER"));
+
+    // LVDS receiver: 100 Ω across each used pair.
+    int rx = s.addCustomComponent(partId("UT54LVDS032"), "", {600, 500});
+    int dp = s.addComponent(ComponentKind::NetLabel, "SPW_DIN_P", {700, 500});
+    int dn = s.addComponent(ComponentKind::NetLabel, "SPW_DIN_N", {700, 560});
+    wire(s, rx, "RIN1+", dp, "N");
+    wire(s, rx, "RIN1-", dn, "N");
+    p.schematicChanged();
+    CHECK(codes(p).count("REL_LVDS_TERMINATION"));
+    int rt = s.addComponent(ComponentKind::Resistor, "100", {740, 530});
+    wire(s, rt, "1", dp, "N");
+    wire(s, rt, "2", dn, "N");
+    p.schematicChanged();
+    CHECK(!codes(p).count("REL_LVDS_TERMINATION"));
+
+    // Five segments; MRAM missing, SpaceWire present for a LEO mission.
+    auto segs = aerospaceSegments(p);
+    CHECK(segs.size() == 5);
+    CHECK(segs[0].id == "compute" && segs[0].status != "complete");
+    CHECK(segs[3].id == "avionics");
+    for (const auto& i : segs[3].items)
+        if (i.label == "SpaceWire / LVDS") CHECK(i.ok);
+    Json j = aerospaceSegmentsJson(p);
+    CHECK(j["segments"].size() == 5 && j["platforms"].size() == 5);
+    Project saved = Project::fromJson(p.toJson());
+    CHECK(saved.aerospaceMission == "leo");
+    // The isolated model survives a save / load of the part spec.
+    CustomPartSpec spec = customPartSpecFromJson(customPartSpecToJson(findStandardPart("ISO-DCDC-2805S")->spec));
+    CHECK(spec.model.regulator.isolated() && spec.model.regulator.inReturn == "2");
+    CHECK_NEAR(spec.model.regulator.efficiency, 0.82, 1e-9);
 }

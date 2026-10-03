@@ -65,6 +65,14 @@ std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatin
             if (c.kind != ComponentKind::Custom) continue;
             const auto& pins = c.def().pins;
             std::set<int> reported;
+            // A capacitor to GND or to the part's own other supply / return pin (isolated domains, a module's input
+            // and its return) decouples the pin.
+            std::set<int> powerNets;
+            for (size_t i = 0; i < pins.size(); ++i) {
+                const auto t = static_cast<PinType>(pins[i].type);
+                if (t == PinType::PowerIn || t == PinType::PowerOut)
+                    if (int n = sch.netOf({c.id, static_cast<int>(i)}); n >= 0) powerNets.insert(n);
+            }
             for (size_t i = 0; i < pins.size(); ++i) {
                 if (static_cast<PinType>(pins[i].type) != PinType::PowerIn) continue;
                 int net = sch.netOf({c.id, static_cast<int>(i)});
@@ -75,7 +83,7 @@ std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatin
                     const Component* cap = sch.find(pr.component);
                     if (!cap || cap->kind != ComponentKind::Capacitor) continue;
                     int other = sch.netOf({cap->id, pr.pin == 0 ? 1 : 0});
-                    if (other == gnd) decoupled = true;
+                    if (other == gnd || (other != net && powerNets.count(other))) decoupled = true;
                 }
                 reported.insert(net);
                 if (!decoupled)
@@ -192,7 +200,7 @@ std::vector<RuleViolation> validateCircuit(const Schematic& sch, const PartRatin
                     addOnce(Severity::Warning, "VAL_REGULATOR_OVERLOAD",
                             c->ref + " (" + part->spec.name + ") is in current limit at " + fmt(rm.ilimit, "A") +
                                 " — the load needs more than the regulator can supply.", *c);
-                if (d.state == 3)
+                if (d.state == 3 && !rm.loadSwitch)
                     addOnce(Severity::Warning, "VAL_REGULATOR_DROPOUT",
                             c->ref + " (" + part->spec.name + ") is in dropout: only " + fmt(d.voltage, "V") +
                                 " headroom for its " + fmt(rm.dropout, "V") + " dropout, so the output sags below " +

@@ -1,6 +1,7 @@
 // SiEDA Core — C ABI implementation. Every entry point is exception-safe.
 #include "sieda/sieda_c.h"
 
+#include "sieda/Aerospace.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/Firmware.hpp"
@@ -712,6 +713,23 @@ char* sieda_ecu_segments_json(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
         return dup(ecuSegmentsJson(project->project).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_set_aerospace_mission(SiedaProject* project, const char* mission) {
+    if (!project || !mission) return 0;
+    std::string id = mission;
+    if (!id.empty() && !findAerospaceMission(id)) return 0;
+    project->project.aerospaceMission = id;
+    return 1;
+}
+
+char* sieda_aerospace_segments_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(aerospaceSegmentsJson(project->project).dump());
     } catch (...) {
         return nullptr;
     }

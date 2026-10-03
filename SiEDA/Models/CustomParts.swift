@@ -130,9 +130,14 @@ struct BehaviorModel: Codable, Equatable {
         var ilimit: Double = 1
         var maxPower: Double = 0.5
         var charger = false
+        /// Isolated DC-DC: primary return pin and conversion efficiency (nil = non-isolated regulator).
+        var inReturn: String?
+        var efficiency: Double?
+        /// Current-limited load switch: the output follows the input.
+        var loadSwitch: Bool?
 
         private enum CodingKeys: String, CodingKey {
-            case input = "in", output = "out", ref, vout, dropout, iq, ilimit, maxPower, charger
+            case input = "in", output = "out", ref, vout, dropout, iq, ilimit, maxPower, charger, inReturn, efficiency, loadSwitch
         }
     }
 

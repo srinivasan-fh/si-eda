@@ -129,6 +129,10 @@ struct Simulator::Element {
     double is = 1e-14, emission = 1.0, betaF = 100, betaR = 1, vth = 1.5, kp = 0.02, lambda = 0.01, vsat = 15;
     // Behavioural regulator (in, out, ref): CV with dropout / CC at ilimit / off when it would have to sink.
     double dropout = 0.3, iq = 0, ilimit = 1.0, rout = 0.01;
+    // Isolated DC-DC (aux[0] = primary return): the output loop closes through `ref`, the input draws
+    // V_out·I_out / efficiency between `in` and the primary return.
+    bool isolated = false;
+    double efficiency = 0.8;
     mutable int mode = 0;  // 0 CV, 1 CC, 2 off
     int sub = 0;           // element index within a custom part (0 = regulator, 1… = supply loads)
     bool isSwitch = false;
@@ -379,6 +383,11 @@ bool Simulator::build(std::string& error) {
                     reg.dropout = r.dropout;
                     reg.iq = r.iq;
                     reg.ilimit = r.ilimit;
+                    if (r.isolated()) {
+                        reg.isolated = true;
+                        reg.efficiency = r.efficiency;
+                        reg.aux = {pinNode(r.inReturn), -1, -1};
+                    }
                     reg.branch = unknowns_++;
                     elements_.push_back(reg);
                 }
@@ -572,7 +581,8 @@ void Simulator::stamp(double t, double h, const std::vector<double>& x, double g
             }
             case ElemType::Regulator: {
                 int in = e.n[0], out = e.n[1], ref = e.n[2], k = e.branch;
-                double vin = nodeV(x, in), vo = nodeV(x, out) - nodeV(x, ref), vi = vin - nodeV(x, ref);
+                const int inRet = e.isolated ? e.aux[0] : ref;  // the input side's return
+                double vin = nodeV(x, in), vo = nodeV(x, out) - nodeV(x, ref), vi = vin - nodeV(x, inRet);
                 double k0 = x[static_cast<size_t>(k)], isrc = -k0, vset = e.setpoint(vi);
                 // Operating mode from the present iterate.
                 if (e.mode == 0 && isrc > e.ilimit) e.mode = 1;
@@ -582,9 +592,18 @@ void Simulator::stamp(double t, double h, const std::vector<double>& x, double g
                 // KCL: k is the current leaving `out` into the regulator (negative while sourcing); the input
                 // supplies it plus the quiescent current, which returns through `ref`.
                 addA(out, k, 1);
-                addA(in, k, -1);
+                if (e.isolated) {
+                    // Secondary: the output current returns through ref. Primary: power balance, linearised on the
+                    // present iterate (input current = V_set·I_out / (efficiency·V_in)).
+                    addA(ref, k, -1);
+                    const double g = vset / (e.efficiency * std::max(vi, 1.0));
+                    addA(in, k, -g);
+                    addA(inRet, k, g);
+                } else {
+                    addA(in, k, -1);
+                }
                 addB(in, -e.iq);
-                addB(ref, e.iq);
+                addB(inRet, e.iq);
                 if (e.mode == 1) {         // constant current: −k = ilimit
                     addA(k, k, -1);
                     addB(k, e.ilimit);
@@ -595,7 +614,12 @@ void Simulator::stamp(double t, double h, const std::vector<double>& x, double g
                     double d = (e.setpoint(vi + h) - e.setpoint(vi - h)) / (2 * h);
                     addA(k, out, 1);
                     addA(k, in, -d);
-                    addA(k, ref, -1 + d);
+                    if (e.isolated) {
+                        addA(k, ref, -1);
+                        addA(k, inRet, d);
+                    } else {
+                        addA(k, ref, -1 + d);
+                    }
                     addA(k, k, -e.rout);
                     addB(k, vset - d * vi);
                 }
@@ -697,8 +721,14 @@ std::vector<DeviceReading> Simulator::readings(const std::vector<double>& x, dou
                 r.current = -x[static_cast<size_t>(e.branch)];  // output current
                 r.voltage = vin - vout;
                 r.power = (vin - vout) * std::max(0.0, r.current) + (vin - vref) * e.iq;
+                double headroom = vin - vref;  // input relative to the regulator's input return
+                if (e.isolated) {  // voltage = primary input; power = conversion loss
+                    headroom = vin - nodeV(x, e.aux[0]);
+                    r.voltage = headroom;
+                    r.power = (vout - vref) * std::max(0.0, r.current) * (1.0 / e.efficiency - 1.0) + headroom * e.iq;
+                }
                 r.state = e.mode;
-                if (e.mode == 0 && (vout - vref) < e.value - 0.02 && vin - vref > 0.1) r.state = 3;  // dropout
+                if (e.mode == 0 && (vout - vref) < e.value - 0.02 && headroom > 0.1) r.state = 3;  // dropout
                 break;
             }
             case ElemType::Diode:

@@ -46,6 +46,13 @@ struct RegulatorModel {
     double ilimit = 1.0;       // output current limit (A) — a charger's charge current
     double maxPower = 0.5;     // package dissipation limit (W) for validation
     bool charger = false;      // constant-current operation is normal (Li-ion CC/CV charger)
+    // Isolated DC-DC module: the input draws P_out / efficiency between `in` and `inReturn` (the primary side) and
+    // the output is referenced to `ref` on the galvanically separate secondary. Empty = non-isolated regulator.
+    std::string inReturn;
+    double efficiency = 0.8;
+    bool isolated() const { return !inReturn.empty(); }
+    // Current-limited load switch: the output follows the input (minus `dropout`), so it is never "in dropout".
+    bool loadSwitch = false;
 };
 
 struct SupplyLoad {

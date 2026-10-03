@@ -133,6 +133,15 @@ enum AgentPrompts {
         CANH / CANL with 120 Ω termination and ESD diodes, LIN with a 1 kΩ + diode master pull-up), actuation (gate \
         driver + MOSFETs or PROFET high-side switches with IS read by the MCU, flyback paths) and sensor \
         conditioning (series R + RC + ESD diode on every harness input, instrumentation amplifier).
+        - Aerospace (satellite, launcher, military or commercial avionics): set "industry" to "space" and \
+        "aerospaceMission", and design the five segments — rad-hard compute (rad-tolerant MCU such as ATmegaS128, \
+        three identical lanes with 74HC00 / 74HC10 majority voters, MR25H40 MRAM, each lane powered through a \
+        TPS2553 current limiter whose EN is driven by a TPS3823 watchdog RESET so latch-up power-cycles it), power \
+        (28 V bus returning on a separate RTN net into an isolated DC-DC, MPLAD / JANTX TVS, fuse or SSPC, pi filter), \
+        sensors (INA333 / MCP3201 on an isolated supply behind ADuM1201 isolators, MAX31855 for thermocouples, RC + TVS \
+        on harness pins), avionics buses (SpaceWire via UT54LVDS031 / 032 with 100 Ω receiver termination; \
+        transformer-coupled dual MIL-STD-1553; ARINC 429 with TVS) and RF (SMA at the board edge, 50 Ω, "material" \
+        "rogers-4350b", GND plane).
         - Put design calculations and assumptions in notes.
         \(industryCatalog)
         """
