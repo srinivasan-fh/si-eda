@@ -709,6 +709,12 @@ final class LiveWindowTests: XCTestCase {
         watchdog.resume()
         defer { watchdog.cancel() }
 
+        // Show the 3D workspace in the X-ray hologram mode (HUD on by default), the heaviest scene the app builds.
+        let modeKey = "threeD.mode.v2"
+        let savedMode = UserDefaults.standard.object(forKey: modeKey)
+        UserDefaults.standard.set(Board3DWorkspace.Mode.xray.rawValue, forKey: modeKey)
+        defer { UserDefaults.standard.set(savedMode, forKey: modeKey) }
+
         let store = DesignStore()
         let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.LiveWindowTests")))
         let agents = AgentOrchestrator()
@@ -2526,5 +2532,73 @@ final class XRayPanelTests: XCTestCase {
         // Staggered heights alternate.
         XCTAssertNotEqual(nodes[0].position.y, nodes[1].position.y)
         XCTAssertEqual(nodes[0].position.y, nodes[2].position.y, accuracy: 1e-6)
+    }
+}
+
+/// The X-ray stack hosted in a real window: the SceneKit scene gains the five holographic panels when the Panels
+/// switch is on and drops them when it is switched off, alongside the HUD.
+@MainActor
+final class XRayLiveSceneTests: XCTestCase {
+    private func spin(_ seconds: TimeInterval = 0.2) {
+        RunLoop.main.run(until: Date().addingTimeInterval(seconds))
+    }
+
+    private func sceneView(in view: NSView) -> SCNView? {
+        if let scene = view as? SCNView { return scene }
+        for child in view.subviews { if let found = sceneView(in: child) { return found } }
+        return nil
+    }
+
+    /// Panel roots: upright billboards carrying a torus base ring.
+    private func panelCount(_ scene: SCNScene) -> Int {
+        scene.rootNode.childNodes { node, _ in
+            (node.constraints?.contains { ($0 as? SCNBillboardConstraint)?.freeAxes == .Y } ?? false)
+                && node.childNodes.contains { $0.geometry is SCNTorus }
+        }.count
+    }
+
+    func testPanelsToggleInALiveWindow() throws {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: engine, previous: nil)
+        engine.autoPlace(all: true)
+        XCTAssertEqual(engine.autoRoute().failed, 0)
+        let snapshot = try XCTUnwrap(engine.snapshot())
+
+        func stack(_ settings: XRaySettings) -> XRayStackView {
+            XRayStackView(engine: engine, snapshot: snapshot, revision: 1, settings: settings, resetToken: 0)
+        }
+        var settings = XRaySettings()
+        let host = NSHostingController(rootView: stack(settings))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 700),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        spin(0.5)
+
+        let view = try XCTUnwrap(sceneView(in: host.view), "the X-ray view hosts an SCNView")
+        let scene = try XCTUnwrap(view.scene)
+        XCTAssertEqual(panelCount(scene), 0, "panels are off by default")
+        XCTAssertGreaterThan(scene.rootNode.childNodes(passingTest: { _, _ in true }).count, 20, "the stack is built")
+
+        settings.panels = true
+        host.rootView = stack(settings)
+        spin(0.5)
+        XCTAssertEqual(panelCount(scene), 5, "Panels on")
+        XCTAssertTrue(window.isVisible)
+
+        // Panels work without the HUD, and survive explode / layer changes.
+        settings.hud = false
+        settings.explode = 12
+        settings.hiddenLayers = [0]
+        host.rootView = stack(settings)
+        spin(0.3)
+        XCTAssertEqual(panelCount(scene), 5, "Panels without the HUD")
+
+        settings.panels = false
+        host.rootView = stack(settings)
+        spin(0.3)
+        XCTAssertEqual(panelCount(scene), 0, "Panels off again")
     }
 }
