@@ -324,10 +324,12 @@ final class StandardsAndVerificationTests: XCTestCase {
     }
 
     /// Every built-in reference design must pass the full verification pipeline once laid out.
-    func testReferenceDesignsPassVerification() throws {
-        // Places, routes and verifies every reference design (34 boards, up to 12 layers): minutes of work.
+    // Places, routes and verifies every reference design (up to 24 layers, 300+ nets): minutes of work per board, so
+    // the designs are split into interleaved groups (the large architecture references land in different groups),
+    // each test with its own time allowance.
+    private func verifyReferenceDesigns(group: Int, of groups: Int = 8) throws {
         executionTimeAllowance = 900
-        for template in OfflineProvider.templates {
+        for (index, template) in OfflineProvider.templates.enumerated() where index % groups == group {
             let engine = EDAEngine()
             let report = DesignPlanCompiler.apply(template.industryPlan, to: engine, previous: nil)
             XCTAssertTrue(report.warnings.isEmpty, "\(template.plan.title): \(report.warnings)")
@@ -343,6 +345,15 @@ final class StandardsAndVerificationTests: XCTestCase {
             XCTAssertTrue(verification.markdown.contains("# Design Verification Report"))
         }
     }
+
+    func testReferenceDesignsPassVerification0() throws { try verifyReferenceDesigns(group: 0) }
+    func testReferenceDesignsPassVerification1() throws { try verifyReferenceDesigns(group: 1) }
+    func testReferenceDesignsPassVerification2() throws { try verifyReferenceDesigns(group: 2) }
+    func testReferenceDesignsPassVerification3() throws { try verifyReferenceDesigns(group: 3) }
+    func testReferenceDesignsPassVerification4() throws { try verifyReferenceDesigns(group: 4) }
+    func testReferenceDesignsPassVerification5() throws { try verifyReferenceDesigns(group: 5) }
+    func testReferenceDesignsPassVerification6() throws { try verifyReferenceDesigns(group: 6) }
+    func testReferenceDesignsPassVerification7() throws { try verifyReferenceDesigns(group: 7) }
 
     func testVerificationFailsAnUnroutedBoard() throws {
         let engine = EDAEngine()
