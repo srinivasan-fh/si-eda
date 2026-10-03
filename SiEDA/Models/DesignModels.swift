@@ -18,6 +18,8 @@ struct DesignSnapshot: Decodable, Equatable {
     var bodies: [SnapBody] = []
     var customParts: [CustomPartInfo] = []
     var industry = "general"
+    /// Robot platform id ("rover", "fpv", "arm", "quadruped", "humanoid"); empty when the design is not a robot.
+    var robotPlatform = ""
     var zones: [CopperZoneInfo] = []
     var zoneFills: [ZoneFillInfo] = []
 
@@ -58,13 +60,14 @@ struct DesignSnapshot: Decodable, Equatable {
         bodies = try c.decodeIfPresent([SnapBody].self, forKey: .bodies) ?? []
         customParts = try c.decodeIfPresent([CustomPartInfo].self, forKey: .customParts) ?? []
         industry = try c.decodeIfPresent(String.self, forKey: .industry) ?? "general"
+        robotPlatform = try c.decodeIfPresent(String.self, forKey: .robotPlatform) ?? ""
         zones = try c.decodeIfPresent([CopperZoneInfo].self, forKey: .zones) ?? []
         zoneFills = try c.decodeIfPresent([ZoneFillInfo].self, forKey: .zoneFills) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
-        case industry, zones, zoneFills
+        case industry, robotPlatform, zones, zoneFills
     }
 
     func component(_ id: Int) -> SnapComponent? { components.first { $0.id == id } }
@@ -845,6 +848,38 @@ struct RouteStats: Decodable, Equatable {
     /// Nets lengthened with serpentines (length / phase matching).
     var lengthTuned: Int?
     var failedNets: [String] = []
+}
+
+/// The seven robot design segments checked on the design (`sieda_robot_segments_json`).
+struct RobotSegmentsReport: Decodable, Equatable {
+    var platform = ""
+    var applies = false
+    var platforms: [RobotPlatformInfo] = []
+    var segments: [RobotSegmentInfo] = []
+
+    static let empty = RobotSegmentsReport()
+}
+
+struct RobotPlatformInfo: Decodable, Equatable, Identifiable {
+    var id: String
+    var name: String
+    var description: String
+    var guidance: [String]
+}
+
+struct RobotSegmentInfo: Decodable, Equatable, Identifiable {
+    var id: String
+    var name: String
+    var status: String  // "complete", "partial", "missing"
+    var items: [RobotCheckItemInfo]
+    var guidance: [String]
+}
+
+struct RobotCheckItemInfo: Decodable, Equatable, Identifiable {
+    var label: String
+    var ok: Bool
+    var detail: String
+    var id: String { label }
 }
 
 /// Matched-length groups (differential pairs, buses) and their routed lengths (`sieda_length_report_json`).

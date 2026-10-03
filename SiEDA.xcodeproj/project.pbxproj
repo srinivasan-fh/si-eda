@@ -12,6 +12,7 @@
 		11DA8A2E7A51801F14B785D4 = {isa = PBXBuildFile; fileRef = 40CB462BA68D53F06E05FE4B; };
 		120253EBD1D58E6CD359F37D = {isa = PBXBuildFile; fileRef = 87FD7D0F8D0FCBA339485071; };
 		1B6D303504BD876122874794 = {isa = PBXBuildFile; fileRef = 71284BA817C0C1DCC0CA3D6B; };
+		1C910CD058950B7CB5002628 = {isa = PBXBuildFile; fileRef = A78F3BD58AF9FE19CC35A068; };
 		1D0CCCE3C0074105DFCF6C37 = {isa = PBXBuildFile; fileRef = 2B421B324134866281AAE285; };
 		22409A8BB039D0E0CC2751CF = {isa = PBXBuildFile; fileRef = DB4F7DFDEFEBDCC2273D77C2; };
 		27F0083DD20AA58EE2FA4A6F = {isa = PBXBuildFile; fileRef = 2B5B8F926E5F3FE0015F96DA; };
@@ -150,6 +151,7 @@
 		9ED8EACAFA77375D35C88B94 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Bom.hpp; sourceTree = "<group>"; };
 		A3D89B8BF0303F825673F91D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiEDATests.swift; sourceTree = "<group>"; };
 		A45E448C357B4A89C66CFE33 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectorView.swift; sourceTree = "<group>"; };
+		A78F3BD58AF9FE19CC35A068 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Robotics.cpp; sourceTree = "<group>"; };
 		AA4AB23447B95722FF60AB2A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISettings.swift; sourceTree = "<group>"; };
 		AC5F3ED740A4FD6618195715 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Zones.cpp; sourceTree = "<group>"; };
 		B7A272C317609DD8A2D79E17 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentKind.swift; sourceTree = "<group>"; };
@@ -160,6 +162,7 @@
 		C4FD1126C93FBA32D1FFC34C = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Stackup.hpp; sourceTree = "<group>"; };
 		C5AE10EA4E5AF49E101DBF29 = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE.md; sourceTree = "<group>"; };
 		C7832FB1E03A0AE9D93DF23C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		C89170449E2396D5C7CCEC71 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Robotics.hpp; sourceTree = "<group>"; };
 		C9668A0215AD47CFD79FAADA = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Project.hpp; sourceTree = "<group>"; };
 		D167B535F3242C6A3552428F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
 		D3E15B9053DA257C9A5751E7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentLibraryView.swift; sourceTree = "<group>"; };
@@ -293,6 +296,7 @@
 				6C44D52C3E47659A6A7CAF85,
 				C9668A0215AD47CFD79FAADA,
 				27F3B185D30AF8F6453A8E28,
+				C89170449E2396D5C7CCEC71,
 				44E20A1917CDAF73A6C514E2,
 				4E33E84C12F180325C138248,
 				C4FD1126C93FBA32D1FFC34C,
@@ -357,6 +361,7 @@
 				2B421B324134866281AAE285,
 				754F9843AC5AAB513A6742B2,
 				ED31CDCBDEE7E1F670F7977E,
+				A78F3BD58AF9FE19CC35A068,
 				54E109672561428616FE3D2D,
 				F459489B353E161C42FB7B2D,
 				12BA3643F29BE4C857019229,
@@ -648,6 +653,7 @@
 				1D0CCCE3C0074105DFCF6C37,
 				4F54772D2F67B6B122050EB5,
 				01B0280DE2241948F1896AA1,
+				1C910CD058950B7CB5002628,
 				4B8107A57118B84C609B7113,
 				976C2E17360605E19E2949BC,
 				3ED20566BE159D1479B983DC,

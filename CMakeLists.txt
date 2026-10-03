@@ -32,6 +32,7 @@ add_library(sieda_core STATIC
     Core/src/Stackup.cpp
     Core/src/LengthMatch.cpp
     Core/src/Embedded.cpp
+    Core/src/Robotics.cpp
     Core/src/Project.cpp
     Core/src/sieda_c.cpp
 )

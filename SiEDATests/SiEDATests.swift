@@ -302,7 +302,7 @@ final class StandardsAndVerificationTests: XCTestCase {
     }
 
     func testOfflineTemplateMatchingAndCategories() {
-        XCTAssertEqual(OfflineProvider.templates.count, 33)
+        XCTAssertEqual(OfflineProvider.templates.count, 34)
         XCTAssertEqual(OfflineProvider.template(for: "non-inverting amplifier with gain 11").plan.title, "Non-Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "an inverting amplifier, gain -10").plan.title, "Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "blink an LED with a 555").plan.title, "555 Astable LED Blinker")
@@ -325,6 +325,8 @@ final class StandardsAndVerificationTests: XCTestCase {
 
     /// Every built-in reference design must pass the full verification pipeline once laid out.
     func testReferenceDesignsPassVerification() throws {
+        // Places, routes and verifies every reference design (34 boards, up to 12 layers): minutes of work.
+        executionTimeAllowance = 900
         for template in OfflineProvider.templates {
             let engine = EDAEngine()
             let report = DesignPlanCompiler.apply(template.industryPlan, to: engine, previous: nil)
@@ -2081,6 +2083,34 @@ final class ReliabilityTests: XCTestCase {
         try reopened.load(json: store.engine.saveJSON())
         XCTAssertEqual(reopened.snapshot()?.board.material, "rogers-4350b")
         XCTAssertEqual(reopened.snapshot()?.board.boardConstruction, .metalCore)
+    }
+
+    func testRobotSystemSegments() throws {
+        XCTAssertEqual(OfflineProvider.template(for: "quadruped robot dog joint controller with an e-stop").plan.title,
+                       "Robot Joint Controller: 7-Segment Robotics Reference")
+        let template = try XCTUnwrap(OfflineProvider.templates.first { $0.plan.robotPlatform != nil })
+        let store = DesignStore()
+        let report = DesignPlanCompiler.apply(template.plan, to: store.engine, previous: nil)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        store.refresh()
+        XCTAssertEqual(store.snapshot.robotPlatform, "arm")
+        let segments = store.robotSegments()
+        XCTAssertTrue(segments.applies)
+        XCTAssertEqual(segments.platforms.count, 5)
+        XCTAssertEqual(segments.segments.map(\.id), ["power", "compute", "motion", "sensors", "comms", "safety", "mechanical"])
+        // The schematic alone already completes power distribution and the safety interlock.
+        XCTAssertEqual(segments.segments.first { $0.id == "power" }?.status, "complete")
+        XCTAssertEqual(segments.segments.first { $0.id == "safety" }?.status, "complete")
+        // Platform changes are undoable and saved.
+        store.setRobotPlatform("humanoid")
+        XCTAssertEqual(store.snapshot.robotPlatform, "humanoid")
+        store.undo()
+        XCTAssertEqual(store.snapshot.robotPlatform, "arm")
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        XCTAssertEqual(reopened.snapshot()?.robotPlatform, "arm")
+        // Refinement plans keep the platform.
+        XCTAssertEqual(DesignPlanCompiler.plan(from: store.snapshot).robotPlatform, "arm")
     }
 
     func testComputingSegmentReferenceDesigns() throws {

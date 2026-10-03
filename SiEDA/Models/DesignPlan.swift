@@ -18,10 +18,13 @@ struct DesignPlan: Codable, Equatable {
     var netClasses: [PlannedNetClass]
     /// Pins left open on purpose ("U3.9"): marked no-connect so ERC does not report them.
     var noConnect: [String]
+    /// Robot platform ("rover", "fpv", "arm", "quadruped", "humanoid"): turns on the 7-segment robotics checks.
+    var robotPlatform: String?
 
     init(title: String, summary: String, components: [PlannedComponent], connections: [PlannedConnection],
          notes: [String] = [], board: PlannedBoard = PlannedBoard(), industry: String? = nil,
-         pours: [PlannedPour] = [], netClasses: [PlannedNetClass] = [], noConnect: [String] = []) {
+         pours: [PlannedPour] = [], netClasses: [PlannedNetClass] = [], noConnect: [String] = [],
+         robotPlatform: String? = nil) {
         self.title = title
         self.summary = summary
         self.components = components
@@ -32,6 +35,7 @@ struct DesignPlan: Codable, Equatable {
         self.pours = pours
         self.netClasses = netClasses
         self.noConnect = noConnect
+        self.robotPlatform = robotPlatform
     }
 
     init(from decoder: Decoder) throws {
@@ -46,10 +50,11 @@ struct DesignPlan: Codable, Equatable {
         pours = try c.decodeIfPresent([PlannedPour].self, forKey: .pours) ?? []
         netClasses = try c.decodeIfPresent([PlannedNetClass].self, forKey: .netClasses) ?? []
         noConnect = try c.decodeIfPresent([String].self, forKey: .noConnect) ?? []
+        robotPlatform = try c.decodeIfPresent(String.self, forKey: .robotPlatform)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case title, summary, components, connections, notes, board, industry, pours, netClasses, noConnect
+        case title, summary, components, connections, notes, board, industry, pours, netClasses, noConnect, robotPlatform
     }
 
     func jsonString(pretty: Bool = true) -> String {
@@ -275,6 +280,8 @@ enum DesignSchemas {
                               "description": "REF.PIN of pins intentionally left open (unused MCU pins)"] as [String: Any],
                 "industry": ["type": "string", "enum": industryIds,
                              "description": "Industry profile that sets derating and design rules"] as [String: Any],
+                "robotPlatform": ["type": "string", "enum": ["rover", "fpv", "arm", "quadruped", "humanoid"],
+                                  "description": "Robot platform: turns on the 7-segment robotics checks"] as [String: Any],
                 "title": ["type": "string"],
                 "summary": ["type": "string"],
                 "components": [
@@ -400,6 +407,9 @@ enum DesignPlanCompiler {
         engine.setName(plan.title)
         if let industry = plan.industry, !engine.setIndustry(industry) {
             report.warnings.append("Unknown industry profile '\(industry)' — kept the current profile.")
+        }
+        if let platform = plan.robotPlatform, !engine.setRobotPlatform(platform) {
+            report.warnings.append("Unknown robot platform '\(platform)'.")
         }
         var positions = plan.components.map { CGPoint(x: $0.x, y: $0.y) }
         positions = SchematicAutoLayout.resolveOverlaps(positions)
@@ -627,7 +637,8 @@ enum DesignPlanCompiler {
                           netClasses: snapshot.board.netWidths.keys.sorted().map {
                               PlannedNetClass(net: $0, width: snapshot.board.netWidths[$0] ?? 0)
                           },
-                          noConnect: noConnect)
+                          noConnect: noConnect,
+                          robotPlatform: snapshot.robotPlatform.isEmpty ? nil : snapshot.robotPlatform)
     }
 }
 
