@@ -408,6 +408,7 @@ private struct ProjectProperties: View {
             }
             IndustryProperties()
             RobotSystemProperties()
+            EcuSystemProperties()
             PropertyGroup(title: "Board") {
                 PropertyRow(label: "Size", value: String(format: "%.1f × %.1f mm", store.snapshot.board.width, store.snapshot.board.height))
                 PropertyRow(label: "Layers", value: "\(store.snapshot.board.layerCount)")
@@ -448,18 +449,46 @@ private struct ProjectProperties: View {
 /// mechanical), each with its checklist evaluated on the current design.
 private struct RobotSystemProperties: View {
     @EnvironmentObject private var store: DesignStore
+
+    var body: some View {
+        SystemSegmentsGroup(title: "Robot System Segments", report: store.robotSegments(), noneLabel: "Not a robot",
+                            selection: Binding(get: { store.snapshot.robotPlatform }, set: { store.setRobotPlatform($0) }),
+                            hint: "Pick a platform (or the Robotics / UAV industry) to check the power, compute, motion, "
+                                + "sensor, communication, safety and mechanical segments.")
+    }
+}
+
+/// Automotive ECU type and the six ECU design segments (protection front-end, regulation, safety MCU, vehicle
+/// networks, actuation, sensor conditioning).
+private struct EcuSystemProperties: View {
+    @EnvironmentObject private var store: DesignStore
+
+    var body: some View {
+        SystemSegmentsGroup(title: "Automotive ECU Segments", report: store.ecuSegments(), noneLabel: "Not an ECU",
+                            selection: Binding(get: { store.snapshot.ecuType }, set: { store.setEcuType($0) }),
+                            hint: "Pick an ECU type (or the Automotive industry) to check the protection front-end, "
+                                + "regulation, safety MCU, vehicle network, actuation and sensor segments.")
+    }
+}
+
+/// A segment checklist with a type picker: robot platforms and automotive ECU types share it.
+private struct SystemSegmentsGroup: View {
+    @EnvironmentObject private var store: DesignStore
+    let title: String
+    let report: RobotSegmentsReport
+    let noneLabel: String
+    let selection: Binding<String>
+    let hint: String
     @State private var expanded: Set<String> = []
 
     var body: some View {
-        let report = store.robotSegments()
-        PropertyGroup(title: "Robot System Segments") {
-            Picker("Platform", selection: Binding(get: { store.snapshot.robotPlatform },
-                                                  set: { store.setRobotPlatform($0) })) {
-                Text("Not a robot").tag("")
+        PropertyGroup(title: title) {
+            Picker("Type", selection: selection) {
+                Text(noneLabel).tag("")
                 ForEach(report.platforms) { Text($0.name).tag($0.id) }
             }
             .labelsHidden()
-            if let platform = report.platforms.first(where: { $0.id == store.snapshot.robotPlatform }) {
+            if let platform = report.platforms.first(where: { $0.id == selection.wrappedValue }) {
                 Text(platform.description).font(.caption).foregroundStyle(Theme.textSecondary)
                 ForEach(platform.guidance, id: \.self) { line in
                     Label(line, systemImage: "lightbulb").font(.caption).foregroundStyle(Theme.textSecondary)
@@ -483,7 +512,7 @@ private struct RobotSystemProperties: View {
                                 .font(.caption)
                             }
                             ForEach(segment.guidance, id: \.self) { Text($0).font(.caption2).foregroundStyle(Theme.textMuted) }
-                            if segment.id == "motion" {
+                            if segment.id == "motion" || segment.id == "actuation" {
                                 Button("Add Thermal Vias") { store.addThermalVias() }
                                     .controlSize(.small)
                                     .disabled(store.snapshot.pads.isEmpty)
@@ -502,9 +531,7 @@ private struct RobotSystemProperties: View {
                     }
                 }
             } else {
-                Text("Pick a platform (or the Robotics / UAV industry) to check the power, compute, motion, sensor, "
-                     + "communication, safety and mechanical segments.")
-                    .font(.caption).foregroundStyle(Theme.textMuted)
+                Text(hint).font(.caption).foregroundStyle(Theme.textMuted)
             }
         }
     }

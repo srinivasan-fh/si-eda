@@ -980,6 +980,16 @@ final class DesignStore: ObservableObject {
 
     func robotSegments() -> RobotSegmentsReport { engine.robotSegments() }
 
+    /// Automotive ECU type ("" = none): turns on the 6-segment ECU checks. Undoable.
+    func setEcuType(_ id: String) {
+        guard id != snapshot.ecuType else { return }
+        perform(id.isEmpty ? "No ECU type" : "ECU type: \(id)", invalidatesAnalysis: false) { $0.setEcuType(id) }
+        verificationReport = nil
+        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+    }
+
+    func ecuSegments() -> RobotSegmentsReport { engine.ecuSegments() }
+
     /// Stitches thermal vias at the selected parts' drain / tab pads (every power MOSFET when nothing is selected).
     func addThermalVias() {
         guard !isBusy else { return }

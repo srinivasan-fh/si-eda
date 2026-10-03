@@ -261,6 +261,14 @@ struct SiEDACommands: Commands {
                                                         set: { if $0 { store.setRobotPlatform(platform.id) } }))
                 }
             }
+            Menu("ECU Type") {
+                Toggle("Not an ECU", isOn: Binding(get: { store.snapshot.ecuType.isEmpty },
+                                                   set: { if $0 { store.setEcuType("") } }))
+                ForEach(store.ecuSegments().platforms) { type in
+                    Toggle(type.name, isOn: Binding(get: { store.snapshot.ecuType == type.id },
+                                                    set: { if $0 { store.setEcuType(type.id) } }))
+                }
+            }
             Menu("Industry Profile") {
                 ForEach(StandardLibrary.industries) { profile in
                     Toggle(profile.name, isOn: Binding(

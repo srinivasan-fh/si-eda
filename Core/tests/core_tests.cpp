@@ -25,6 +25,7 @@
 #include "sieda/Project.hpp"
 #include "sieda/LengthMatch.hpp"
 #include "sieda/Reliability.hpp"
+#include "sieda/Automotive.hpp"
 #include "sieda/Robotics.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/Simulator.hpp"
@@ -3233,4 +3234,92 @@ TEST(robotics_segments_and_rules) {
     int errors = 0;
     for (const auto& e : p.pcb.runDRC(s)) errors += e.severity == Severity::Error;
     CHECK(errors == 0);
+}
+
+TEST(automotive_ecu_segments_and_rules) {
+    auto partId = [](const char* name) {
+        return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec)->id;
+    };
+    CHECK(ecuTypes().size() == 6);
+    CHECK(findEcuType("bcm") && findEcuType("gateway") && !findEcuType("toaster"));
+    auto codes = [](const Project& p) {
+        std::set<std::string> out;
+        for (const auto& v : automotiveChecks(p))
+            if (v.severity != Severity::Info) out.insert(v.code);
+        return out;
+    };
+    // Battery straight into an LM7805 that powers an ATmega328P.
+    Project p;
+    auto& s = p.schematic;
+    int v = s.addComponent(ComponentKind::VoltageSource, "13.5", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 100});
+    int reg = s.addCustomComponent(partId("LM7805"), "", {100, 0});
+    int mcu = s.addCustomComponent(partId("ATmega328P"), "", {300, 0});
+    wire(s, v, "-", g, "GND");
+    wire(s, v, "+", reg, "1");
+    wire(s, reg, "2", g, "GND");
+    wire(s, reg, "3", mcu, "7");
+    wire(s, mcu, "8", g, "GND");
+    p.schematicChanged();
+    CHECK(automotiveChecks(p).empty());  // not an ECU project yet
+    p.ecuType = "bcm";
+    auto c1 = codes(p);
+    CHECK(c1.count("REL_REVERSE_POLARITY") && c1.count("REL_NO_FUSE") && c1.count("REL_EMI_FILTER"));
+    CHECK(c1.count("REL_COLD_CRANK"));  // 7805: 5 V + 2 V dropout > 6 V crank
+    CHECK(c1.count("REL_WATCHDOG"));
+
+    // Watchdog supervisor: RESET to the MCU reset and WDI kicked by a GPIO clears the rule.
+    int wd = s.addCustomComponent(partId("TPS3823-33-Q1"), "", {300, 200});
+    wire(s, wd, "VDD", mcu, "7");
+    wire(s, wd, "GND", g, "GND");
+    wire(s, wd, "RESET", mcu, "1");
+    p.schematicChanged();
+    CHECK(codes(p).count("REL_WATCHDOG"));  // WDI not kicked yet
+    wire(s, wd, "WDI", mcu, "5");
+    p.schematicChanged();
+    CHECK(!codes(p).count("REL_WATCHDOG"));
+
+    // CAN bus lines: termination and bus ESD.
+    int h = s.addComponent(ComponentKind::NetLabel, "CANH", {500, 0});
+    int l = s.addComponent(ComponentKind::NetLabel, "CANL", {500, 60});
+    int rt = s.addComponent(ComponentKind::Resistor, "120", {540, 30});
+    wire(s, h, "N", rt, "1");
+    wire(s, l, "N", rt, "2");
+    p.schematicChanged();
+    auto c2 = codes(p);
+    CHECK(!c2.count("REL_BUS_TERMINATION") && c2.count("REL_BUS_ESD") && c2.count("REL_CLOCK"));
+    int e1 = s.addComponent(ComponentKind::Diode, "PESD1CAN", {560, 0});
+    int e2 = s.addComponent(ComponentKind::Diode, "PESD1CAN", {560, 60});
+    wire(s, e1, "K", h, "N");
+    wire(s, e1, "A", g, "GND");
+    wire(s, e2, "K", l, "N");
+    wire(s, e2, "A", g, "GND");
+    int y = s.addCustomComponent(partId("Crystal_8MHz"), "", {300, -100});
+    wire(s, y, "1", mcu, "9");
+    wire(s, y, "2", mcu, "10");
+    p.schematicChanged();
+    auto c3 = codes(p);
+    CHECK(!c3.count("REL_BUS_ESD") && !c3.count("REL_CLOCK"));
+
+    // Six segments; a body ECU without a LIN transceiver is incomplete on the network segment.
+    auto segs = ecuSegments(p);
+    CHECK(segs.size() == 6);
+    CHECK(segs[0].id == "shield" && segs[0].status == "partial");
+    CHECK(segs[3].id == "network");
+    bool linMissing = false;
+    for (const auto& i : segs[3].items) linMissing |= i.label == "LIN node" && !i.ok;
+    CHECK(linMissing);
+    p.ecuType = "powertrain";
+    const auto powertrain = ecuSegments(p);
+    for (const auto& i : powertrain[3].items)
+        if (i.label == "LIN node") CHECK(i.ok);
+    Json j = ecuSegmentsJson(p);
+    CHECK(j["segments"].size() == 6 && j["platforms"].size() == 6);
+    Project saved = Project::fromJson(p.toJson());
+    CHECK(saved.ecuType == "powertrain");
+    // The automotive industry profile alone turns the checks on.
+    p.ecuType.clear();
+    CHECK(automotiveChecks(p).empty());
+    p.industry = "automotive";
+    CHECK(!automotiveChecks(p).empty());
 }

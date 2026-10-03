@@ -125,6 +125,14 @@ enum AgentPrompts {
         low-value Kelvin shunt + amplifier), sensors (IMU, an AGND net tied to GND through one ferrite / 0 Ω star \
         point, CANH / CANL with a 120 Ω termination), communication (radio module), safety (a net named ESTOP \
         from a normally-closed switch to every gate driver SD / EN pin, status LEDs) and mechanical (mounting holes).
+        - Automotive ECUs (body, powertrain, ADAS, EV, chassis, gateway): set "industry" to "automotive" and \
+        "ecuType", and design the six segments — transient & power protection front-end (reverse-battery MOSFET / \
+        ideal diode, SM8S load-dump TVS, fuse / eFuse, C–L–C pi filter), voltage regulation (load-dump-rated LDO or \
+        buck-boost for 4 V cranking, a low-noise LDO for analog, a watchdog supervisor whose RESET drives the MCU \
+        reset and whose WDI a GPIO kicks), the MCU (crystal, I²C EEPROM), vehicle networks (CAN-FD transceiver on \
+        CANH / CANL with 120 Ω termination and ESD diodes, LIN with a 1 kΩ + diode master pull-up), actuation (gate \
+        driver + MOSFETs or PROFET high-side switches with IS read by the MCU, flyback paths) and sensor \
+        conditioning (series R + RC + ESD diode on every harness input, instrumentation amplifier).
         - Put design calculations and assumptions in notes.
         \(industryCatalog)
         """
