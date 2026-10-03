@@ -302,7 +302,7 @@ final class StandardsAndVerificationTests: XCTestCase {
     }
 
     func testOfflineTemplateMatchingAndCategories() {
-        XCTAssertEqual(OfflineProvider.templates.count, 27)
+        XCTAssertEqual(OfflineProvider.templates.count, 28)
         XCTAssertEqual(OfflineProvider.template(for: "non-inverting amplifier with gain 11").plan.title, "Non-Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "an inverting amplifier, gain -10").plan.title, "Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "blink an LED with a 555").plan.title, "555 Astable LED Blinker")
@@ -2081,6 +2081,32 @@ final class ReliabilityTests: XCTestCase {
         try reopened.load(json: store.engine.saveJSON())
         XCTAssertEqual(reopened.snapshot()?.board.material, "rogers-4350b")
         XCTAssertEqual(reopened.snapshot()?.board.boardConstruction, .metalCore)
+    }
+
+    func testHighSpeedReferenceDesignIsLengthMatched() throws {
+        XCTAssertEqual(OfflineProvider.template(for: "usb 2.0 high-speed link with a length matched DDR bus").plan.title,
+                       "High-Speed Link: USB 2.0 Pair + 8-bit DQ Bus")
+        let template = try XCTUnwrap(OfflineProvider.templates.first { $0.plan.title.hasPrefix("High-Speed Link") })
+        let engine = EDAEngine()
+        let report = DesignPlanCompiler.apply(template.plan, to: engine, previous: nil)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        let board = try XCTUnwrap(engine.snapshot()?.board)
+        XCTAssertEqual(board.material, "megtron-6")
+        XCTAssertTrue(board.backdrill)
+        // Connectors and terminators are locked: Auto Place keeps them where the plan put them.
+        engine.autoPlace(all: true)
+        let j3 = try XCTUnwrap(engine.snapshot()?.components.first { $0.ref == "J3" })
+        XCTAssertEqual(j3.pcb.locked, true)
+        XCTAssertEqual(j3.pcb.x, 6, accuracy: 1e-6)
+        XCTAssertEqual(j3.pcb.y, 22, accuracy: 1e-6)
+        let stats = engine.autoRoute()
+        XCTAssertEqual(stats.failed, 0)
+        XCTAssertGreaterThan(stats.lengthTuned ?? 0, 0)
+        // The USB pair and the DQ0–DQ7 lane come out length-matched.
+        let lengths = engine.lengthReport()
+        XCTAssertEqual(Set(lengths.groups.map(\.kind)), ["pair", "bus"])
+        for group in lengths.groups { XCTAssertTrue(group.matched, "\(group.name): \(group.nets.map(\.length))") }
+        XCTAssertEqual(lengths.groups.first { $0.kind == "bus" }?.nets.count, 8)
     }
 
     func testHDISettingsAreUndoableAndSaved() throws {

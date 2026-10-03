@@ -173,6 +173,9 @@ private struct ComponentProperties: View {
                         PropertyRow(label: "Position", value: String(format: "%.2f, %.2f mm", component.pcb.x, component.pcb.y))
                         PropertyRow(label: "Rotation", value: "\(component.pcb.rotation)°")
                         PropertyRow(label: "Layer", value: component.pcb.bottom ? "Bottom" : "Top")
+                        Toggle("Locked (Auto Place keeps it)", isOn: Binding(
+                            get: { component.pcb.locked ?? false }, set: { store.setFootprintsLocked($0) }))
+                            .font(.caption)
                         HStack {
                             Button { store.rotateFootprints() } label: { Label("Rotate", systemImage: "rotate.right") }
                             Button { store.flipFootprints() } label: { Label("Flip", systemImage: "arrow.left.and.right") }

@@ -193,6 +193,7 @@ Json Project::toJson() const {
         p["rotation"] = c.pcb.rotation;
         p["bottom"] = c.pcb.bottom;
         p["placed"] = c.pcb.placed;
+        if (c.pcb.locked) p["locked"] = true;
         j["pcb"] = p;
         comps.push(j);
     }
@@ -350,6 +351,7 @@ Project Project::fromJson(const Json& root) {
         c.pcb.rotation = pc.get("rotation").asInt(0);
         c.pcb.bottom = pc.get("bottom").asBool(false);
         c.pcb.placed = pc.get("placed").asBool(false);
+        c.pcb.locked = c.pcb.placed && pc.get("locked").asBool(false);
         p.schematic.restoreComponent(c);
     }
     for (const auto& j : root.get("wires").items()) {
@@ -436,6 +438,7 @@ Json Project::snapshot() const {
         pc["rotation"] = c.pcb.rotation;
         pc["bottom"] = c.pcb.bottom;
         pc["placed"] = c.pcb.placed;
+        pc["locked"] = c.pcb.locked;
         j["pcb"] = pc;
         comps.push(j);
     }

@@ -341,7 +341,7 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
     std::vector<size_t> todo;
     for (size_t i = 0; i < comps.size(); ++i) {
         if (!comps[i].hasFootprint()) continue;
-        if (all) comps[i].pcb.placed = false;
+        if (all && !comps[i].pcb.locked) comps[i].pcb.placed = false;
         if (!comps[i].pcb.placed) todo.push_back(i);
     }
     if (todo.empty()) return;

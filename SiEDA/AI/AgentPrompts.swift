@@ -108,7 +108,11 @@ enum AgentPrompts {
         - Board: "layers" 2 for most designs, 4 for dense or RF boards (0 keeps the current stack-up). "outline" \
         is "rectangle" unless the product needs a shape: "quad-x" for multirotor frame PCBs (width = span, height \
         = body, outlineParameter = arm width ≈ 12 mm), "rounded" or "circle" for enclosures. \
-        "mountingHoleSpacing" 30.5 gives the M3 flight-controller stack pattern, 20 the M2 one, 0 none.
+        "mountingHoleSpacing" 30.5 gives the M3 flight-controller stack pattern, 20 the M2 one, 0 none. \
+        "material" picks the laminate for high-speed or RF boards ("megtron-6" for multi-Gb/s digital, \
+        "rogers-4350b" for RF / microwave, "fr4-hightg" for power and automotive; omit for FR-4) and "backdrill" \
+        true removes via stubs on fast nets of 4+ layer boards. Name differential pairs X_P / X_N (or X_DP / X_DN) \
+        and parallel buses DQ0…DQ7 / DATA0… with net labels: Auto Route matches their lengths with serpentines.
         - Pour ground: on a 2-layer board GND on layer -1 (bottom) and 0 (top); on 4 layers a GND plane on layer \
         1 (plane true). Give battery, motor and regulator-output nets carrying ≥ 0.5 A a net class (≈ 0.6 mm per \
         amp of 1 oz copper). List unused IC pins in "noConnect" ("U3.9") so ERC knows they are open on purpose.

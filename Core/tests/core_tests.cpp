@@ -3013,3 +3013,22 @@ TEST(hdi_blind_buried_microvias) {
     }
     CHECK(spanFile && notes);
 }
+
+TEST(locked_footprints_survive_auto_place) {
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    Component* first = nullptr;
+    for (auto& c : p.schematic.mutableComponents())
+        if (c.hasFootprint()) { first = &c; break; }
+    CHECK(first);
+    first->pcb.position = {7.5, 9.0};
+    first->pcb.locked = true;
+    const int id = first->id;
+    p.pcb.autoPlace(p.schematic, true);
+    const Component* again = p.schematic.find(id);
+    CHECK(again && again->pcb.placed && again->pcb.locked);
+    CHECK_NEAR(again->pcb.position.x, 7.5, 1e-9);
+    CHECK_NEAR(again->pcb.position.y, 9.0, 1e-9);
+    Project q = Project::fromJson(p.toJson());
+    CHECK(q.schematic.find(id)->pcb.locked);
+}

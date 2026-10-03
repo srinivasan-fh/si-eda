@@ -670,6 +670,14 @@ int32_t sieda_pcb_move_footprint(SiedaProject* project, int32_t id, double x, do
     return 1;
 }
 
+int32_t sieda_pcb_lock_footprint(SiedaProject* project, int32_t id, int32_t locked) {
+    if (!project) return 0;
+    Component* c = project->project.schematic.find(id);
+    if (!c || !c->hasFootprint() || (locked && !c->pcb.placed)) return 0;
+    c->pcb.locked = locked != 0;
+    return 1;
+}
+
 int32_t sieda_pcb_rotate_footprint(SiedaProject* project, int32_t id, int32_t delta) {
     if (!project) return 0;
     Component* c = project->project.schematic.find(id);

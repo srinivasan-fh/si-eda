@@ -117,6 +117,8 @@ struct PcbPlacement: Decodable, Equatable {
     var rotation: Int
     var bottom: Bool
     var placed: Bool
+    /// Locked footprints stay where they are on Auto Place.
+    var locked: Bool?
 }
 
 struct SnapComponent: Decodable, Equatable, Identifiable {

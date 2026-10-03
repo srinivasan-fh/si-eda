@@ -144,6 +144,8 @@ void sieda_pcb_set_layer_count(SiedaProject* project, int32_t layers);
 /* all = 1 re-places every footprint; 0 only places footprints that are not on the board yet. */
 void sieda_pcb_autoplace(SiedaProject* project, int32_t all);
 int32_t sieda_pcb_move_footprint(SiedaProject* project, int32_t component_id, double x, double y);
+/* Locks a placed footprint so Auto Place (and Auto Route's placement) keeps it where it is. */
+int32_t sieda_pcb_lock_footprint(SiedaProject* project, int32_t component_id, int32_t locked);
 int32_t sieda_pcb_rotate_footprint(SiedaProject* project, int32_t component_id, int32_t delta_degrees);
 int32_t sieda_pcb_flip_footprint(SiedaProject* project, int32_t component_id);
 /* Resizes the board outline to the placed footprints plus margin_mm, keeping parts and copper together. */

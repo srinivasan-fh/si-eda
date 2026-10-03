@@ -927,6 +927,15 @@ final class DesignStore: ObservableObject {
         perform("Rotated footprint", invalidatesAnalysis: false) { engine in ids.forEach { engine.rotateFootprint($0) } }
     }
 
+    /// Locks (or unlocks) the selected footprints so Auto Place keeps them. Undoable.
+    func setFootprintsLocked(_ locked: Bool) {
+        let ids = selection
+        guard !isBusy, !ids.isEmpty else { return }
+        perform(locked ? "Locked footprint" : "Unlocked footprint", invalidatesAnalysis: false) { engine in
+            ids.forEach { engine.lockFootprint($0, locked) }
+        }
+    }
+
     func flipFootprints() {
         let ids = selection
         guard !isBusy, !ids.isEmpty else { return }

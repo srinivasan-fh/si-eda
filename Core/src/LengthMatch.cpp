@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cmath>
 #include <map>
+#include <set>
 
 namespace sieda {
 
@@ -115,24 +116,22 @@ double routedNetLength(const PcbLayout& pcb, int net) {
 
 namespace {
 
-/// Serpentine replacing track `t`, adding `extra` mm: `bumps` bumps of height extra / (2·bumps) on one side,
-/// centred on the track.
-std::vector<Vec2> serpentine(const Track& t, double extra, double side, double pitch, int bumps) {
+/// Serpentine replacing track `t`: `bumps` bumps of height `amplitude` on one side, starting `start` mm along the
+/// track. Adds 2 · bumps · amplitude of length; the end points stay where they were.
+std::vector<Vec2> serpentine(const Track& t, double amplitude, double side, double pitch, int bumps, double start) {
     Vec2 d = t.b - t.a;
     double len = d.length();
     Vec2 u = d * (1.0 / len);
     Vec2 n = Vec2{-u.y, u.x} * side;
-    double a = extra / (2.0 * bumps);
-    double start = (len - 2.0 * pitch * bumps) / 2.0;
     std::vector<Vec2> pts = {t.a};
     Vec2 p = t.a + u * start;
     pts.push_back(p);
     for (int i = 0; i < bumps; ++i) {
-        p = p + n * a;
+        p = p + n * amplitude;
         pts.push_back(p);
         p = p + u * pitch;
         pts.push_back(p);
-        p = p - n * a;
+        p = p - n * amplitude;
         pts.push_back(p);
         p = p + u * pitch;
         pts.push_back(p);
@@ -178,6 +177,58 @@ int tuneLengths(PcbLayout& pcb, const Schematic& sch) {
         return true;
     };
 
+    // Adds up to `want` mm to `net` on one of its straight tracks; returns the length added (0 if nothing fits).
+    std::set<int> serpentineIds;  // tracks that are already part of a serpentine are not tuned again
+    auto tuneOnce = [&](int net, double want) -> double {
+        std::vector<size_t> cand;
+        for (size_t i = 0; i < pcb.tracks.size(); ++i)
+            if (pcb.tracks[i].net == net && !serpentineIds.count(pcb.tracks[i].id)) cand.push_back(i);
+        std::sort(cand.begin(), cand.end(), [&](size_t x, size_t y) {
+            return (pcb.tracks[x].b - pcb.tracks[x].a).length() > (pcb.tracks[y].b - pcb.tracks[y].a).length();
+        });
+        for (size_t ci : cand) {
+            const Track t = pcb.tracks[ci];
+            const double w = t.width, L = (t.b - t.a).length();
+            const double pitch = std::max(w + clr, 3 * w);  // leg spacing: ≥ 3W keeps self-coupling low
+            const double margin = std::max(2 * w, 0.5);
+            const int maxBumps = static_cast<int>(std::floor((L - 2 * margin) / (2 * pitch)));
+            if (maxBumps < 1) continue;
+            // Low, compact bumps first; then taller ones; fewer bumps when the full run does not fit.
+            for (double amax : {0.6, 1.0, 1.5, 2.0, 3.0, 4.0}) {
+                const int need = std::max(1, static_cast<int>(std::ceil(want / (2 * amax))));
+                for (int bumps = std::min(need, maxBumps); bumps >= 1; bumps = bumps > 1 ? (bumps + 1) / 2 : 0) {
+                    const double amp = std::min(amax, want / (2.0 * bumps));
+                    if (amp < 0.05) break;
+                    const double run = 2.0 * pitch * bumps;
+                    for (double where : {0.5, 0.0, 1.0}) {
+                        const double start = margin + (L - 2 * margin - run) * where;
+                        for (double side : {1.0, -1.0}) {
+                            auto pts = serpentine(t, amp, side, pitch, bumps, start);
+                            bool ok = true;
+                            for (size_t k = 0; ok && k + 1 < pts.size(); ++k) {
+                                ok = clear(t.layer, net, pts[k], pts[k + 1], w, ci);
+                                // The bumps (not the lead-in / lead-out on the original line) must not touch own pads.
+                                if (ok && k > 0 && k + 2 < pts.size())
+                                    ok = clearOwnPads(t.layer, net, pts[k], pts[k + 1], w);
+                            }
+                            if (!ok) continue;
+                            pcb.tracks.erase(pcb.tracks.begin() + static_cast<long>(ci));
+                            for (size_t k = 0; k + 1 < pts.size(); ++k) {
+                                if ((pts[k + 1] - pts[k]).length() < 1e-6) continue;
+                                Track nt = t;
+                                nt.a = pts[k];
+                                nt.b = pts[k + 1];
+                                serpentineIds.insert(pcb.addTrack(nt));
+                            }
+                            return 2.0 * bumps * amp;
+                        }
+                    }
+                }
+            }
+        }
+        return 0;
+    };
+
     int tuned = 0;
     for (const auto& g : lengthGroups(sch, s)) {
         double target = 0;
@@ -186,51 +237,15 @@ int tuneLengths(PcbLayout& pcb, const Schematic& sch) {
         for (int net : g.nets) {
             double len = routedNetLength(pcb, net);
             if (len <= 0) continue;  // unrouted: nothing to tune
-            double extra = target - len;
-            if (extra <= g.tolerance / 2) continue;
-            // Candidate tracks: this net's, longest first.
-            std::vector<size_t> cand;
-            for (size_t i = 0; i < pcb.tracks.size(); ++i)
-                if (pcb.tracks[i].net == net) cand.push_back(i);
-            std::sort(cand.begin(), cand.end(), [&](size_t x, size_t y) {
-                return (pcb.tracks[x].b - pcb.tracks[x].a).length() > (pcb.tracks[y].b - pcb.tracks[y].a).length();
-            });
-            bool done = false;
-            for (size_t ci : cand) {
-                if (done) break;
-                const Track t = pcb.tracks[ci];
-                const double w = t.width, L = (t.b - t.a).length();
-                const double pitch = std::max(w + clr, 3 * w);  // leg spacing: ≥ 3W keeps self-coupling low
-                const double margin = std::max(2 * w, 0.5);
-                const int maxBumps = static_cast<int>(std::floor((L - 2 * margin) / (2 * pitch)));
-                if (maxBumps < 1) continue;
-                for (double amax : {0.6, 1.0, 1.5, 2.0, 3.0}) {
-                    if (done) break;
-                    int bumps = std::max(1, static_cast<int>(std::ceil(extra / (2 * amax))));
-                    if (bumps > maxBumps) continue;
-                    for (double side : {1.0, -1.0}) {
-                        auto pts = serpentine(t, extra, side, pitch, bumps);
-                        bool ok = true;
-                        for (size_t k = 0; ok && k + 1 < pts.size(); ++k) {
-                            ok = clear(t.layer, net, pts[k], pts[k + 1], w, ci);
-                            // The bumps (not the lead-in / lead-out on the original line) must not touch own pads.
-                            if (ok && k > 0 && k + 2 < pts.size()) ok = clearOwnPads(t.layer, net, pts[k], pts[k + 1], w);
-                        }
-                        if (!ok) continue;
-                        pcb.tracks.erase(pcb.tracks.begin() + static_cast<long>(ci));
-                        for (size_t k = 0; k + 1 < pts.size(); ++k) {
-                            if ((pts[k + 1] - pts[k]).length() < 1e-6) continue;
-                            Track nt = t;
-                            nt.a = pts[k];
-                            nt.b = pts[k + 1];
-                            pcb.addTrack(nt);
-                        }
-                        ++tuned;
-                        done = true;
-                        break;
-                    }
-                }
+            bool changed = false;
+            // Several serpentines (on different tracks of the net) until the net reaches the target.
+            for (int pass = 0; pass < 12 && target - len > g.tolerance / 2; ++pass) {
+                double added = tuneOnce(net, target - len);
+                if (added <= 0) break;
+                len += added;
+                changed = true;
             }
+            tuned += changed;
         }
     }
     return tuned;
