@@ -389,6 +389,9 @@ final class EDAEngine: @unchecked Sendable {
     func setAutoSizeNets(_ enabled: Bool) { withHandle { sieda_pcb_set_auto_size_nets($0, enabled ? 1 : 0) } }
 
     @discardableResult
+    func setCoating(_ coating: ConformalCoating) -> Bool { withHandle { sieda_pcb_set_coating($0, coating.rawValue) } == 1 }
+
+    @discardableResult
     func setSolderMask(_ mask: SolderMaskColour) -> Bool { withHandle { sieda_pcb_set_solder_mask($0, mask.rawValue) } == 1 }
 
     /// Custom board outline (≥ 3 points, mm); an empty array restores the rectangle.

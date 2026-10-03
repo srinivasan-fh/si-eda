@@ -336,7 +336,7 @@ final class StandardsAndVerificationTests: XCTestCase {
             let verification = try XCTUnwrap(engine.runVerification(), template.plan.title)
             let problems = verification.stages.flatMap(\.findings).filter { $0.severity != .info }.map(\.code)
             XCTAssertEqual(verification.verdict, .pass, "\(template.plan.title): \(problems)")
-            XCTAssertEqual(verification.stages.count, 7)
+            XCTAssertEqual(verification.stages.count, 8)
             XCTAssertEqual(verification.industry, template.industry)
             XCTAssertTrue(verification.markdown.contains("# Design Verification Report"))
         }
@@ -2027,5 +2027,31 @@ final class BomWorkspaceTests: XCTestCase {
         XCTAssertEqual(again.buildQuantity, 20)
         XCTAssertEqual(again.lines.first { $0.refs.contains("R1") }?.supplierPart, "C17414")
         XCTAssertEqual(again.lines.first { $0.refs.contains("D1") }?.dnp, true)
+    }
+}
+
+@MainActor
+final class ReliabilityTests: XCTestCase {
+    func testCoatingIsSavedAndChangesTheSpacingStandard() throws {
+        let store = DesignStore()
+        DesignPlanCompiler.apply(OfflineProvider.templates[5].plan, to: store.engine, previous: nil)
+        store.refresh()
+        XCTAssertEqual(store.snapshot.board.conformalCoating, .none)
+        store.setCoating(.silicone)
+        XCTAssertEqual(store.snapshot.board.conformalCoating, .silicone)
+        store.undo()
+        XCTAssertEqual(store.snapshot.board.conformalCoating, .none)
+        store.redo()
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        XCTAssertEqual(reopened.snapshot()?.board.conformalCoating, .silicone)
+
+        // The verification report has a Design for Reliability stage, and its findings reach Design Checks (DRC).
+        store.engine.autoPlace(all: true)
+        _ = store.engine.autoRoute()
+        let verification = try XCTUnwrap(store.engine.runVerification())
+        let stage = try XCTUnwrap(verification.stages.first { $0.id == "reliability" })
+        XCTAssertTrue(stage.details.contains { $0.contains("Conformal coating: silicone") })
+        XCTAssertEqual(ConformalCoating.allCases.count, 6)
     }
 }

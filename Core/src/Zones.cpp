@@ -127,6 +127,16 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
         std::vector<char> ok = board;
         auto block = [&](size_t c, Vec2) { ok[c] = 0; };
 
+        // Two-pad SMD chips (resistors, capacitors, LEDs) get thermal reliefs too: a pad joined solidly to the pour
+        // heats slower than its partner and the part tombstones during reflow.
+        std::map<int, int> padsOf, smdOf;
+        for (const auto& p : ps) {
+            ++padsOf[p.componentId];
+            smdOf[p.componentId] += !p.throughHole;
+        }
+        auto chipPad = [&](const Pad& p) {
+            return !p.throughHole && padsOf[p.componentId] == 2 && smdOf[p.componentId] == 2 && p.size.x * p.size.y <= 4.0;
+        };
         for (const auto& p : ps) {
             if (!p.onLayer(L)) continue;
             Rect box = p.bounds().inflated(r + cell);
@@ -134,7 +144,7 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
                 forCells(cols, rows, cell, box, [&](size_t c, Vec2 at) {
                     if (padCopperDistance(p, at) < r) block(c, at);
                 });
-            } else if (p.throughHole) {
+            } else if (p.throughHole || chipPad(p)) {
                 // Thermal relief: a clearance ring around the pad crossed by four spokes.
                 double spoke = std::max(s.trackWidth, (2 * k + 2) * cell);
                 forCells(cols, rows, cell, box, [&](size_t c, Vec2 at) {

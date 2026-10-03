@@ -165,6 +165,7 @@ struct VerificationStage: Decodable, Equatable, Identifiable {
         case "placement": return "square.on.square.dashed"
         case "routing": return "point.topleft.down.to.point.bottomright.curvepath"
         case "drc": return "square.grid.3x3.square"
+        case "reliability": return "shield.lefthalf.filled"
         case "manufacturing": return "shippingbox"
         default: return "checkmark.circle"
         }
