@@ -40,6 +40,11 @@ struct IndustryProfile: Decodable, Equatable, Identifiable, Hashable {
         case "defence": return "shield.lefthalf.filled"
         case "networking": return "network"
         case "vlsi": return "cpu"
+        case "motherboard": return "desktopcomputer"
+        case "server": return "server.rack"
+        case "hpc": return "cpu.fill"
+        case "arm": return "memorychip"
+        case "addin": return "rectangle.on.rectangle"
         default: return "cpu"
         }
     }

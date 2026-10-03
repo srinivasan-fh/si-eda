@@ -125,14 +125,11 @@ struct PCBEditorView: View {
                     Image(systemName: "square.3.layers.3d.down.right").foregroundStyle(Theme.blue)
                     Picker("Layers", selection: Binding(get: { store.snapshot.board.layerCount },
                                                         set: { store.setLayerCount($0) })) {
-                        Text("1").tag(1)
-                        Text("2").tag(2)
-                        Text("4").tag(4)
-                        Text("6").tag(6)
+                        ForEach(BoardInfo.layerChoices, id: \.self) { Text("\($0) layer\($0 == 1 ? "" : "s")").tag($0) }
                     }
-                    .pickerStyle(.segmented)
-                    .frame(width: 150)
-                    .help("Copper layers: 1 = single-sided (no vias), 2, 4 or 6-layer stack-up")
+                    .pickerStyle(.menu)
+                    .frame(width: 120)
+                    .help("Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards")
                     Menu {
                         ForEach(StandardLibrary.rulePresets) { preset in
                             Button {

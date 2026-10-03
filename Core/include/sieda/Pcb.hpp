@@ -1,6 +1,7 @@
 // SiEDA Core — PCB layout: board, pads, tracks, vias, auto-placement, autorouter and DRC.
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <map>
 #include <string>
@@ -103,11 +104,13 @@ struct BoardSettings {
     bool applyPreset(const std::string& name);
 
     int bottomLayer() const { return layerCount > 1 ? layerCount - 1 : 0; }
+    /// Supported stack-ups: single-sided, then even layer counts up to 24 (servers, mainframes and GPU baseboards
+    /// run 12–24 layers).
+    static constexpr int kMaxLayers = 24;
     static int normalizeLayerCount(int n) {
         if (n <= 1) return 1;
         if (n <= 2) return 2;
-        if (n <= 4) return 4;
-        return 6;
+        return std::min(kMaxLayers, n + (n % 2));
     }
 };
 

@@ -487,7 +487,7 @@ NetRole Schematic::netRole(int net) const {
         return NetRole::NegativeSupply;
     // Supply rails by name: VCC, VDD, VIN, VBAT, VBUS, +5V, 3V3, 12V, 1.8V, V+ …
     for (const char* rail : {"VCC", "VDD", "VIN", "VBAT", "VBUS", "VSYS", "VREG", "VMOT", "VSUP", "VPP", "PWR", "POWER",
-                             "VMAIN", "VLOGIC", "VSERVO", "VLED"})
+                             "VMAIN", "VLOGIC", "VSERVO", "VLED", "VCORE", "VTT"})
         if (has(rail)) return NetRole::Power;
     if (startsWith("+") || name == "V+") return NetRole::Power;
     {

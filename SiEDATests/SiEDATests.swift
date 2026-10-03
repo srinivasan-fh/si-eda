@@ -302,7 +302,7 @@ final class StandardsAndVerificationTests: XCTestCase {
     }
 
     func testOfflineTemplateMatchingAndCategories() {
-        XCTAssertEqual(OfflineProvider.templates.count, 28)
+        XCTAssertEqual(OfflineProvider.templates.count, 33)
         XCTAssertEqual(OfflineProvider.template(for: "non-inverting amplifier with gain 11").plan.title, "Non-Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "an inverting amplifier, gain -10").plan.title, "Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "blink an LED with a 555").plan.title, "555 Astable LED Blinker")
@@ -450,7 +450,7 @@ final class IndustryKitTests: XCTestCase {
     func testIndustryProfilesBridge() throws {
         let ids = StandardLibrary.industries.map(\.id)
         XCTAssertEqual(ids, ["general", "robotics", "uav", "power", "automotive", "rf", "space", "marine", "industrial",
-                             "medical", "defence", "networking", "vlsi"])
+                             "medical", "defence", "networking", "vlsi", "motherboard", "server", "hpc", "arm", "addin"])
         let space = try XCTUnwrap(StandardLibrary.industry("space"))
         XCTAssertEqual(space.powerDerating, 0.5, accuracy: 1e-9)
         XCTAssertTrue(space.highAltitude)
@@ -2081,6 +2081,31 @@ final class ReliabilityTests: XCTestCase {
         try reopened.load(json: store.engine.saveJSON())
         XCTAssertEqual(reopened.snapshot()?.board.material, "rogers-4350b")
         XCTAssertEqual(reopened.snapshot()?.board.boardConstruction, .metalCore)
+    }
+
+    func testComputingSegmentReferenceDesigns() throws {
+        // Intel / AMD / ARM / NVIDIA / Microsoft / Google platform segments find their reference designs.
+        XCTAssertEqual(OfflineProvider.template(for: "an Intel or AMD desktop motherboard VRM with a PCIe slot").industry, "motherboard")
+        XCTAssertEqual(OfflineProvider.template(for: "EPYC server for a Microsoft / Google style OCP data center rack").industry, "server")
+        XCTAssertEqual(OfflineProvider.template(for: "NVIDIA GPU accelerator baseboard for a supercomputer").industry, "hpc")
+        XCTAssertEqual(OfflineProvider.template(for: "ARM Cortex compute module carrier board").industry, "arm")
+        XCTAssertEqual(OfflineProvider.template(for: "PCIe add-in daughterboard with gold fingers").industry, "addin")
+        let expected: [String: (layers: Int, material: String)] = [
+            "motherboard": (8, "isola-370hr"), "server": (12, "megtron-6"), "hpc": (12, "megtron-7"),
+            "arm": (6, "fr4"), "addin": (4, "fr4")]
+        for (industry, board) in expected {
+            let template = try XCTUnwrap(OfflineProvider.templates.first { $0.industry == industry })
+            XCTAssertTrue(OfflineProvider.categories.contains(template.category))
+            let engine = EDAEngine()
+            let report = DesignPlanCompiler.apply(template.plan, to: engine, previous: nil)
+            XCTAssertTrue(report.warnings.isEmpty, "\(template.plan.title): \(report.warnings)")
+            let snapshot = try XCTUnwrap(engine.snapshot())
+            XCTAssertEqual(snapshot.board.layerCount, board.layers, industry)
+            XCTAssertEqual(snapshot.board.material, board.material, industry)
+            XCTAssertNotNil(StandardLibrary.industry(industry), industry)
+        }
+        XCTAssertEqual(try XCTUnwrap(OfflineProvider.templates.first { $0.industry == "motherboard" }).plan.board.differentialOhms, 85)
+        XCTAssertTrue(BoardInfo.layerChoices.contains(24))
     }
 
     func testHighSpeedReferenceDesignIsLengthMatched() throws {

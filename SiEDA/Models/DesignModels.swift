@@ -493,6 +493,8 @@ struct BoardInfo: Decodable, Equatable {
     }
 
     var bottomLayer: Int { max(1, layerCount) - 1 }
+    /// Stack-ups the core supports: single-sided, then even layer counts up to 24.
+    static let layerChoices = [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]
     var hasCustomOutline: Bool { outline.count >= 3 }
 
     /// Board outline as a path in board millimetres.

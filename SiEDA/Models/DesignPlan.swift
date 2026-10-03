@@ -122,7 +122,7 @@ struct PlannedConnection: Codable, Equatable {
 struct PlannedBoard: Codable, Equatable {
     var width: Double
     var height: Double
-    /// Copper layers (1, 2, 4, 6); 0 keeps the current stack-up.
+    /// Copper layers (1, 2, 4 … 24, even); 0 keeps the current stack-up.
     var layers: Int
     /// "rectangle", "rounded", "circle", "quad-x", or "keep" (leave the current outline).
     var outline: String
@@ -134,11 +134,15 @@ struct PlannedBoard: Codable, Equatable {
     var material: String
     /// Backdrill via stubs on fast nets (≥ 4 layers).
     var backdrill: Bool
+    /// Controlled-impedance targets (Ω); 0 keeps the current ones (85 PCIe, 90 USB, 100 Ethernet / SerDes).
+    var singleEndedOhms: Double
+    var differentialOhms: Double
 
     /// Defaults describe a fresh rectangular board without holes (reference designs); refinement plans built from
     /// the current design pass "keep" / −1 explicitly.
     init(width: Double = 50, height: Double = 40, layers: Int = 0, outline: String = "rectangle",
-         outlineParameter: Double = 0, mountingHoleSpacing: Double = 0, material: String = "", backdrill: Bool = false) {
+         outlineParameter: Double = 0, mountingHoleSpacing: Double = 0, material: String = "", backdrill: Bool = false,
+         singleEndedOhms: Double = 0, differentialOhms: Double = 0) {
         self.width = width
         self.height = height
         self.layers = layers
@@ -147,6 +151,8 @@ struct PlannedBoard: Codable, Equatable {
         self.mountingHoleSpacing = mountingHoleSpacing
         self.material = material
         self.backdrill = backdrill
+        self.singleEndedOhms = singleEndedOhms
+        self.differentialOhms = differentialOhms
     }
 
     init(from decoder: Decoder) throws {
@@ -159,10 +165,13 @@ struct PlannedBoard: Codable, Equatable {
         mountingHoleSpacing = try c.decodeIfPresent(Double.self, forKey: .mountingHoleSpacing) ?? -1
         material = try c.decodeIfPresent(String.self, forKey: .material) ?? ""
         backdrill = try c.decodeIfPresent(Bool.self, forKey: .backdrill) ?? false
+        singleEndedOhms = try c.decodeIfPresent(Double.self, forKey: .singleEndedOhms) ?? 0
+        differentialOhms = try c.decodeIfPresent(Double.self, forKey: .differentialOhms) ?? 0
     }
 
     private enum CodingKeys: String, CodingKey {
         case width, height, layers, outline, outlineParameter, mountingHoleSpacing, material, backdrill
+        case singleEndedOhms, differentialOhms
     }
 }
 
@@ -304,7 +313,7 @@ enum DesignSchemas {
                     "properties": [
                         "width": ["type": "number", "description": "Board width in millimetres (quad-x: frame span)"],
                         "height": ["type": "number", "description": "Board height in millimetres (quad-x: body size)"],
-                        "layers": ["type": "integer", "enum": [0, 1, 2, 4, 6],
+                        "layers": ["type": "integer", "enum": [0] + BoardInfo.layerChoices,
                                    "description": "Copper layers; 0 keeps the current stack-up"] as [String: Any],
                         "outline": ["type": "string", "enum": ["keep", "rectangle", "rounded", "circle", "quad-x"],
                                     "description": "Board shape; quad-x for multirotor frames"] as [String: Any],
@@ -312,6 +321,14 @@ enum DesignSchemas {
                                              "description": "rounded: corner radius; quad-x: arm width (mm); 0 = default"],
                         "mountingHoleSpacing": ["type": "number",
                                                 "description": "Square mounting pattern in mm (30.5 = M3 FC stack, 20 = M2); 0 none, -1 keep"],
+                        "material": ["type": "string",
+                                     "enum": ["", "fr4", "fr4-hightg", "isola-370hr", "rogers-4350b", "megtron-6",
+                                              "megtron-7", "tachyon-100g", "polyimide", "ims-aluminium"],
+                                     "description": "Laminate; empty keeps FR-4 / the current one"] as [String: Any],
+                        "backdrill": ["type": "boolean", "description": "Backdrill via stubs on fast nets (4+ layers)"],
+                        "singleEndedOhms": ["type": "number", "description": "Single-ended impedance target; 0 keeps"],
+                        "differentialOhms": ["type": "number",
+                                             "description": "Differential impedance: 85 PCIe, 90 USB, 100 Ethernet/SerDes; 0 keeps"],
                     ] as [String: Any],
                 ] as [String: Any],
             ] as [String: Any],
@@ -440,11 +457,13 @@ enum DesignPlanCompiler {
         }
 
         let board = plan.board
-        if [1, 2, 4, 6].contains(board.layers) { engine.setLayerCount(board.layers) }
-        if !board.material.isEmpty || board.backdrill, let current = engine.snapshot()?.board {
+        if BoardInfo.layerChoices.contains(board.layers) { engine.setLayerCount(board.layers) }
+        if !board.material.isEmpty || board.backdrill || board.singleEndedOhms > 0 || board.differentialOhms > 0,
+           let current = engine.snapshot()?.board {
             let material = board.material.isEmpty ? current.material : board.material
             if !engine.setStackup(material: material, construction: current.boardConstruction,
-                                  singleEnded: current.singleEndedImpedance, differential: current.differentialImpedance,
+                                  singleEnded: board.singleEndedOhms > 0 ? board.singleEndedOhms : current.singleEndedImpedance,
+                                  differential: board.differentialOhms > 0 ? board.differentialOhms : current.differentialImpedance,
                                   backdrill: board.backdrill) {
                 report.warnings.append("Board material '\(board.material)' is not in the laminate list.")
             }

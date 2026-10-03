@@ -132,6 +132,80 @@ std::vector<IndustryProfile> build() {
                   "Fan out fine-pitch BGAs with dog-bone or via-in-pad microvias (HDI rules) and keep length-matched "
                   "high-speed nets on inner layers between planes.",
                   "Add test points and current-sense resistors on each rail for bring-up power measurements."}});
+    // Computing platforms: the publicly documented form factors and interfaces (Intel, AMD, ARM, NVIDIA, Microsoft
+    // and Google platforms build on them); vendor platform design guides still govern a real product.
+    p.push_back({"motherboard", "Motherboards & PCs (Intel / AMD / ARM)",
+                 "Desktop, workstation and laptop mainboards: CPU socket, VRM, DDR5, PCIe, USB4",
+                 "ATX 3.1 / ATX12VO, PCI Express CEM 5.0 / 6.0, JEDEC JESD79-5 (DDR5), USB4 / USB 3.2, "
+                 "Intel VR / AMD SVI3 voltage-regulator interfaces, IPC-6012 Class 2, IPC-2152",
+                 "High-Speed Digital (100 Ω diff)", 0.8, 0.8, false, 0, 70,
+                 {"CPU VRM: one phase per ~40–60 A of core current (Intel Core / AMD Ryzen: 8–20 phases), interleaved, "
+                  "inductors and power stages close to the socket, wide 2 oz copper and dozens of vias per phase.",
+                  "PCIe: 85 Ω differential pairs, 0.22 µF AC-coupling capacitors on the transmitter side, ≤ 5 mil "
+                  "intra-pair skew; Gen 5 (32 GT/s) and Gen 6 need mid-/low-loss laminate and backdrilled vias.",
+                  "DDR5: 40 Ω single-ended data / 80 Ω differential strobes; match DQ to DQS within each byte lane and "
+                  "keep the fly-by command / address bus on inner layers between planes.",
+                  "USB 3.2 / USB4: 90 Ω pairs with common-mode chokes and ESD arrays at the connector.",
+                  "Typical stack-up: 6–10 layers FR-4 mid-loss (8-layer is common), GND reference under every "
+                  "high-speed layer; ATX12VO boards make 5 V / 3.3 V on board from 12 V."}});
+    p.push_back({"server", "Servers & Mainframes",
+                 "Intel Xeon / AMD EPYC / ARM Neoverse servers, OCP and hyperscale boards, mainframe-class RAS",
+                 "OCP DC-MHS (modular hardware system), OCP Open Rack v3 48 V, PCI Express CEM / EDSFF, JEDEC DDR5 "
+                 "RDIMM, PMBus 1.3 / SMBus, DMTF Redfish (BMC), IPC-6012 Class 3 for mainframe RAS",
+                 "HDI / Fine-Pitch BGA (IPC-2226)", 0.7, 0.7, false, 0, 55,
+                 {"48 V rack power (OCP Open Rack v3, the hyperscale 48 V bus): hot-swap controller with inrush "
+                  "limiting, OR-ing between redundant PSUs, then 48 V → 12 V intermediate bus converters.",
+                  "Two CPU sockets (Xeon / EPYC) with 8–12 DDR5 RDIMM channels each: length-match each channel, "
+                  "route on 12–16 layers of low-loss laminate (Megtron 6 / 7) and backdrill the via stubs.",
+                  "A BMC (management controller) watches every rail over PMBus / I2C with pull-ups, and feeds Redfish "
+                  "/ IPMI; give each rail a current monitor and power-good.",
+                  "Mainframe-class RAS: redundant regulators (N+1), ECC memory, no single point of failure on the "
+                  "power path, IPC Class 3 fabrication and conformal / clean-room assembly.",
+                  "OCP NIC 3.0, EDSFF E1/E3 and PCIe risers carry I/O: keep their connectors on the board edge with "
+                  "the high-speed lanes routed straight to them."}});
+    p.push_back({"hpc", "Supercomputers & AI Accelerators",
+                 "GPU / accelerator baseboards (NVIDIA HGX-class, AMD Instinct, TPU-style trays), HPC compute blades",
+                 "OCP OAM (Accelerator Module) & UBB (Universal Baseboard), OCP Open Rack v3 48 V / ORv3 busbar, "
+                 "PCI Express 5.0 / 6.0, OIF CEI-112G, IPC-6012 Class 3, IPC-2152",
+                 "HDI / Fine-Pitch BGA (IPC-2226)", 0.7, 0.7, false, 0, 45,
+                 {"Power: 48 V in, 48 V → 12 V (or direct 48 V → core) converters next to each accelerator; a 700–1000 W "
+                  "module draws 1000 A+ at < 1 V, so use multi-phase vertical power delivery under the package.",
+                  "Accelerator-to-accelerator links (NVLink / Infinity Fabric / ICI-class) and 112G PAM4 SerDes: 85–100 Ω "
+                  "pairs on ultra-low-loss laminate (Megtron 7 / Tachyon 100G), backdrilled, length-matched in each "
+                  "lane group.",
+                  "Stack-ups of 20–26 layers with HDI (laser microvias, VIPPO) to fan out 0.8–1 mm-pitch BGAs and "
+                  "connector fields.",
+                  "Cold-plate liquid cooling: keep-outs for the plates and leak detection; derate every part for the "
+                  "hot spots around the accelerators.",
+                  "Supercomputers scale these nodes: management (BMC), clock distribution and per-rail telemetry on "
+                  "every board."}});
+    p.push_back({"arm", "ARM SoC & Compute Modules",
+                 "Cortex-A / Neoverse SoCs, systems-on-module and carrier boards, single-board computers",
+                 "SGET SMARC 2.1, PICMG COM-HPC / COM Express, Qseven, JEDEC LPDDR4X / LPDDR5, MIPI CSI-2 / DSI, "
+                 "IPC-2226 (HDI), IPC-6012 Class 2",
+                 "HDI / Fine-Pitch BGA (IPC-2226)", 0.8, 0.8, false, -20, 85,
+                 {"The SoC's PMIC sequences the rails (core, DDR, I/O); follow the SoC vendor's power-up order and keep "
+                  "each rail's decoupling under the BGA.",
+                  "LPDDR4X / LPDDR5: point-to-point, 40 Ω single-ended, byte-lane length matching; place the memory "
+                  "next to the SoC (or package-on-package).",
+                  "MIPI CSI-2 / DSI and USB: 100 Ω / 90 Ω pairs; Ethernet RGMII length-matched (or SGMII pairs).",
+                  "System-on-module + carrier: put the high-speed SoC/DRAM on a small HDI module (8–10 layers), and the "
+                  "connectors, power input and I/O on a cheaper 4–6 layer carrier through a SMARC / COM-HPC connector.",
+                  "Boot and debug: boot-mode straps, UART console and SWD / JTAG on test points."}});
+    p.push_back({"addin", "Daughterboards & Add-in Cards",
+                 "PCIe add-in cards, OCP NIC 3.0 / mezzanines, M.2 modules, risers and daughter cards",
+                 "PCI Express CEM 5.0 / 6.0 (card outline, gold fingers), OCP NIC 3.0, PCI-SIG M.2, "
+                 "IPC-6012 Class 2/3, IPC-4552 / IPC-4556 (ENIG / hard gold)",
+                 "High-Speed Digital (100 Ω diff)", 0.8, 0.8, false, 0, 55,
+                 {"PCIe card: 1.57 mm thick, edge fingers in hard (electrolytic) gold ~0.76 µm over nickel, chamfered "
+                  "20–45°; respect the CEM outline, bracket and keep-outs.",
+                  "Power from the slot (12 V / 3.3 V, 75 W for x16; more through 12V-2x6 connectors) with a "
+                  "hot-swap / inrush limiter and per-rail fuses.",
+                  "AC-couple the transmit lanes (0.22 µF) on the card, 85 Ω pairs from the fingers straight to the "
+                  "device, REFCLK as a 100 Ω pair.",
+                  "Mezzanine / daughterboards (OCP NIC 3.0, risers): board-to-board connectors with ground pins between "
+                  "pairs, stacking height and keep-outs from the mechanical drawing.",
+                  "Hot-plug: PRSNT# / presence detect and PERST# from the host; ESD on any external connector."}});
     return p;
 }
 
