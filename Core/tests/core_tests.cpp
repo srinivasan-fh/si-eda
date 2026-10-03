@@ -1249,7 +1249,7 @@ TEST(design_verification_pipeline) {
 }
 
 TEST(industry_profiles_and_derating) {
-    CHECK(industryProfiles().size() == 13);
+    CHECK(industryProfiles().size() == 18);
     for (const char* id : {"general", "robotics", "uav", "power", "automotive", "rf", "space", "marine", "industrial",
                            "medical", "defence", "networking", "vlsi"}) {
         const IndustryProfile* p = findIndustry(id);
@@ -2777,7 +2777,7 @@ TEST(reliability_layout_rules) {
     CHECK(w2 > 2.6 && w2 < 3.2);
     s.layerCount = 4;
     double w4 = microstripWidth(50, s);
-    CHECK(w4 > 0.7 && w4 < 1.1);
+    CHECK(w4 > 0.3 && w4 < 0.45);  // 0.2 mm prepreg under the top layer of a standard 4-layer build
 
     // Verification has a Design for Reliability stage.
     VerificationReport rep = verifyDesign(p);
@@ -2793,18 +2793,21 @@ TEST(stackup_controlled_impedance) {
     CHECK(findLaminate("rogers-4350b") && findLaminate("megtron-6") && !findLaminate("unobtainium"));
 
     BoardSettings s;
-    s.layerCount = 4;
+    s.layerCount = 6;
     s.thickness = 1.6;
     const double fr4 = widthForImpedance(s, 0, 50);
     CHECK(fr4 > 0);
     CHECK_NEAR(trackImpedance(s, 0, fr4), 50, 1.0);
-    CHECK(isStriplineLayer(s, 1) && !isStriplineLayer(s, 0) && !isStriplineLayer(s, 3));
-    CHECK(widthForImpedance(s, 1, 50) < fr4);  // stripline: narrower for the same 50 Ω
+    CHECK(isStriplineLayer(s, 1) && !isStriplineLayer(s, 0) && !isStriplineLayer(s, 5));
+    CHECK(widthForImpedance(s, 2, 50) < fr4);  // stripline: narrower for the same 50 Ω
+    BoardSettings four = s;
+    four.layerCount = 4;  // standard 4-layer build: 0.2 mm prepreg, thick core
+    CHECK(std::fabs(dielectricBelow(four, 0) - 0.2) < 1e-9 && dielectricBelow(four, 1) > 1.0);
     s.material = "rogers-4350b";
     CHECK(widthForImpedance(s, 0, 50) > fr4);  // lower εr → wider line
     auto [dw, gap] = differentialPairGeometry(s, 0, 100);
     CHECK(dw > 0 && gap >= dw - 1e-9);
-    CHECK_NEAR(differentialMicrostrip(trackImpedance(s, 0, dw), gap, layerDielectric(s)), 100, 5);
+    CHECK_NEAR(differentialMicrostrip(trackImpedance(s, 0, dw), gap, dielectricBelow(s, 0)), 100, 5);
 
     // Persistence of the stack-up and the C API.
     Project p = amplifierProject();
@@ -3096,4 +3099,43 @@ TEST(embedded_passives) {
     p.pcb.settings.layerCount = 2;
     CHECK(!embeddedElement(*p.schematic.find(rid), p.pcb.settings));
     CHECK(codes().count("REL_EMBEDDED_STACKUP"));
+}
+
+TEST(high_layer_count_and_computing_segments) {
+    // Even stack-ups up to 24 layers (servers, mainframes, GPU baseboards).
+    CHECK(BoardSettings::normalizeLayerCount(1) == 1 && BoardSettings::normalizeLayerCount(3) == 4);
+    CHECK(BoardSettings::normalizeLayerCount(8) == 8 && BoardSettings::normalizeLayerCount(13) == 14);
+    CHECK(BoardSettings::normalizeLayerCount(40) == BoardSettings::kMaxLayers);
+    Project p = amplifierProject();
+    p.pcb.settings.layerCount = 12;
+    p.pcb.zones.push_back({"GND", 1, true, 0});
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    CHECK(p.pcb.ratsnest(p.schematic).empty());
+    Json st = stackupJson(p.pcb.settings);
+    CHECK(st["layers"].size() == 23);  // 12 copper + 11 dielectrics
+    Project q = Project::fromJson(p.toJson());
+    CHECK(q.pcb.settings.layerCount == 12);
+
+    // Computing segments: profiles, materials and fabrication requirements.
+    for (const char* id : {"motherboard", "server", "hpc", "arm", "addin"}) {
+        const IndustryProfile* prof = findIndustry(id);
+        CHECK(prof && !prof->guidance.empty() && !prof->standards.empty());
+        CHECK(prof && std::any_of(designRulePresets().begin(), designRulePresets().end(),
+                                  [&](const DesignRulePreset& r) { return r.name == prof->rulePreset; }));
+        Project seg = amplifierProject();
+        seg.industry = id;
+        FabricationRequirements req = fabricationRequirements(seg);
+        CHECK(!req.finish.empty());
+        CHECK(std::any_of(req.notes.begin(), req.notes.end(),
+                          [](const std::string& n) { return n.find("Controlled impedance") != std::string::npos; }));
+    }
+    Project server = amplifierProject();
+    server.industry = "server";
+    CHECK(fabricationRequirements(server).ipcClass == 3);
+    Project card = amplifierProject();
+    card.industry = "addin";
+    CHECK(fabricationRequirements(card).finish.find("hard") != std::string::npos);
+    CHECK(findLaminate("megtron-7") && findLaminate("tachyon-100g"));
+    CHECK(findLaminate("tachyon-100g")->er < findLaminate("megtron-6")->er);
 }

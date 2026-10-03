@@ -105,7 +105,10 @@ enum AgentPrompts {
         about 600, y from -200 (top) to 200 (bottom), parts at least 80 units apart. Rotation 90 turns a part \
         vertical (pin 1 on top).
         - Choose a board size (mm) that comfortably fits the footprints (≈ 6×4 mm per small part plus routing).
-        - Board: "layers" 2 for most designs, 4 for dense or RF boards (0 keeps the current stack-up). "outline" \
+        - Board: "layers" 2 for most designs, 4 for dense or RF boards, 6–10 for motherboards and ARM compute \
+        modules, 12–16 for servers / mainframes, 16–24 for GPU / AI baseboards (0 keeps the current stack-up). \
+        "differentialOhms" sets the pair impedance (85 for PCIe, 90 for USB, 100 for Ethernet / SerDes) and \
+        "singleEndedOhms" the single-ended target (40 for DDR5, 50 otherwise). "outline" \
         is "rectangle" unless the product needs a shape: "quad-x" for multirotor frame PCBs (width = span, height \
         = body, outlineParameter = arm width ≈ 12 mm), "rounded" or "circle" for enclosures. \
         "mountingHoleSpacing" 30.5 gives the M3 flight-controller stack pattern, 20 the M2 one, 0 none. \

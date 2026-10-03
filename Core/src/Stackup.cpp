@@ -13,6 +13,10 @@ const std::vector<LaminateMaterial>& laminateMaterials() {
         {"isola-370hr", "Isola 370HR", 4.04, 0.021, 180, 0.4, "High-reliability multilayer, thermal cycling"},
         {"rogers-4350b", "Rogers RO4350B", 3.66, 0.0037, 280, 0.69, "RF / microwave to ~10 GHz, low loss"},
         {"megtron-6", "Panasonic Megtron 6", 3.61, 0.004, 185, 0.4, "High-speed digital: PCIe, 25G+ SerDes, DDR5"},
+        {"megtron-7", "Panasonic Megtron 7", 3.37, 0.002, 200, 0.4,
+         "Servers, switches and AI baseboards: PCIe 6 / 112G PAM4 SerDes, 16–24 layers"},
+        {"tachyon-100g", "Isola Tachyon 100G", 3.02, 0.0021, 200, 0.4,
+         "Ultra-low-loss 100G+ backplanes and GPU / accelerator baseboards"},
         {"polyimide", "Polyimide (IPC-4101/40)", 4.2, 0.010, 250, 0.3, "Space, high temperature, flex / rigid-flex"},
         {"ims-aluminium", "Aluminium IMS (metal core, 2 W/m·K dielectric)", 4.5, 0.020, 130, 2.0,
          "Power LEDs, motor drives, EV inverters: heat into the metal base"},
@@ -60,6 +64,12 @@ bool hdiStack(const BoardSettings& s) { return s.hdi && s.layerCount >= 4; }
 
 double dielectricBelow(const BoardSettings& s, int layer) {
     const int n = std::max(1, s.layerCount);
+    if (n == 4 && !hdiStack(s) && s.thickness >= 0.8) {
+        // The usual 4-layer build: thin prepreg under each outer layer (0.2 mm), the rest is the centre core.
+        const double prepreg = 0.2;
+        if (layer == 0 || layer == 2) return prepreg;
+        return std::max(0.05, s.thickness - 4 * copperThickness(s) - 2 * prepreg);
+    }
     if (n <= 2 || !hdiStack(s)) return layerDielectric(s);
     if (layer == 0 || layer == n - 2) return kBuildUp;
     const double cu = copperThickness(s);

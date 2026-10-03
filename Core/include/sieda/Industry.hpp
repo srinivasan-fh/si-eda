@@ -13,7 +13,7 @@
 namespace sieda {
 
 struct IndustryProfile {
-    std::string id;           // stable: "general", "robotics", "power", "automotive", "rf", "space", "marine", "industrial", "medical", "defence", "networking", "vlsi"
+    std::string id;           // stable: "general", "robotics", "power", "automotive", "rf", "space", "marine", "industrial", "medical", "defence", "networking", "vlsi", "motherboard", "server", "hpc", "arm", "addin"
     std::string name;         // "Automotive"
     std::string description;  // one line
     std::string standards;    // "AEC-Q100/Q200, ISO 16750-2, ISO 7637-2, IPC-6012 Class 3/A"

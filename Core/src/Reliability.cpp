@@ -210,7 +210,8 @@ FabricationRequirements fabricationRequirements(const Project& project) {
     const BoardSettings& s = project.pcb.settings;
     const std::string id = project.industry;
     FabricationRequirements r;
-    r.ipcClass = isOneOf(id, {"automotive", "space", "defence", "medical"}) || s.rulePreset.find("Class 3") != std::string::npos
+    r.ipcClass = isOneOf(id, {"automotive", "space", "defence", "medical", "server", "hpc"}) ||
+                         s.rulePreset.find("Class 3") != std::string::npos
                      ? 3
                      : 2;
     r.material = "FR-4, Tg ≥ 140 °C (IPC-4101/21)";
@@ -218,10 +219,17 @@ FabricationRequirements fabricationRequirements(const Project& project) {
         r.material = "High-Tg FR-4, Tg ≥ 170 °C, low Z-axis CTE (IPC-4101/126)";
     if (id == "space") r.material = "Polyimide (IPC-4101/40), low outgassing: ASTM E595 TML ≤ 1.0 %, CVCM ≤ 0.10 %";
     if (id == "rf") r.material = "Low-loss laminate for > 2 GHz (e.g. Rogers RO4350B, εr 3.48) or FR-4 below 2 GHz";
+    if (id == "motherboard") r.material = "Mid-loss FR-4 (Df ≈ 0.010, e.g. Isola 370HR / FR408HR) for PCIe 5; Tg ≥ 170 °C";
+    if (id == "server") r.material = "Low-loss laminate (Panasonic Megtron 6 / 7 or equivalent), Tg ≥ 180 °C, 12–16 layers";
+    if (id == "hpc") r.material = "Ultra-low-loss laminate (Megtron 7 / Isola Tachyon 100G), HDI build-up, 16–26 layers";
+    if (id == "arm") r.material = "High-Tg FR-4 with HDI build-up (laser microvias) for the SoM; standard FR-4 carrier";
+    if (id == "addin") r.material = "Mid-loss FR-4 (Megtron 6 for PCIe 6 / 400G NICs), 1.57 mm finished (PCIe CEM)";
     r.solder = isOneOf(id, {"space", "defence"}) ? "Sn63Pb37 tin-lead (no pure-tin finishes: tin-whisker risk, GEIA-STD-0005-1)"
                                                  : "SAC305 lead-free";
     if (isOneOf(id, {"space", "defence"})) r.finish = "HASL tin-lead (SnPb) or ENIG; no pure tin";
     else if (id == "rf") r.finish = "Immersion silver or ENEPIG (smooth, low-loss; avoid HASL on RF lines)";
+    else if (id == "addin") r.finish = "ENIG, with hard electrolytic gold (≈ 0.76 µm Au over Ni) on the edge fingers";
+    else if (isOneOf(id, {"motherboard", "server", "hpc", "arm"})) r.finish = "ENIG or OSP (flat pads for fine-pitch BGA / LGA)";
     else r.finish = "";  // fine-pitch decides (see fabrication notes)
     if (s.coated())
         r.notes.push_back("Conformal coating: " + s.coating + " (IPC-CC-830), applied after cleaning; mask connectors, "
@@ -244,6 +252,18 @@ FabricationRequirements fabricationRequirements(const Project& project) {
                           "curved, staggered traces, hatched planes, no vias or plating, bend radius ≥ 10× (static) / 100× "
                           "(dynamic) flex thickness");
     if (s.backdrill) r.notes.push_back("Backdrill the via stubs listed in the backdrill file (high-speed nets)");
+    if (isOneOf(id, {"motherboard", "server", "hpc", "arm", "addin"}))
+        r.notes.push_back("Controlled impedance: " + fmt("%.0f", s.differentialImpedance) + " Ω differential / " +
+                          fmt("%.0f", s.singleEndedImpedance) + " Ω single-ended ±10 % with test coupons (IPC-2141 / "
+                          "IPC-TM-650 2.5.5.7); low-profile (HVLP) copper on high-speed layers");
+    if (isOneOf(id, {"server", "hpc"}))
+        r.notes.push_back("High layer count: sequential lamination where blind / buried vias are used, ≥ 25 µm via "
+                          "barrel copper, IST / thermal-stress coupons (IPC-TM-650 2.6.26) for reliability");
+    if (id == "addin")
+        r.notes.push_back("Edge fingers: bevel 20–45°, no solder mask or plating bars on the fingers, tie bars removed");
+    if (id == "hpc")
+        r.notes.push_back("Heavy copper (2–3 oz) power layers for 1000 A-class accelerator rails; flatness ≤ 0.75 % "
+                          "(bow and twist) for large BGA / LGA sockets");
     if (id == "rf" || id == "networking")
         r.notes.push_back("Controlled impedance: RF lines 50 Ω ± 10 % (fab to adjust width to their stack-up); low-profile "
                           "copper foil for skin-effect losses");
@@ -521,12 +541,20 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
     {
         const double minGap = 0.2;
         int count = 0;
+        std::set<int> finePitch;  // packages whose own pads sit closer than a mask dam (0.4 mm-pitch QFN / BGA)
         for (size_t i = 0; i < pads.size() && count < 20; ++i) {
             if (pads[i].throughHole) continue;
             for (size_t j = i + 1; j < pads.size() && count < 20; ++j) {
                 const Pad& a = pads[i];
                 const Pad& b = pads[j];
                 if (b.throughHole || a.smdLayer != b.smdLayer || (a.net == b.net && a.net >= 0)) continue;
+                if (a.componentId == b.componentId) {
+                    // Spacing inside one package is fixed by its land pattern: handled with gang mask relief.
+                    Rect ra = a.bounds(), rb = b.bounds();
+                    double dx = std::max({0.0, rb.x0 - ra.x1, ra.x0 - rb.x1}), dy = std::max({0.0, rb.y0 - ra.y1, ra.y0 - rb.y1});
+                    if (std::hypot(dx, dy) < minGap - eps) finePitch.insert(a.componentId);
+                    continue;
+                }
                 Rect ra = a.bounds(), rb = b.bounds();
                 double dx = std::max({0.0, rb.x0 - ra.x1, ra.x0 - rb.x1}), dy = std::max({0.0, rb.y0 - ra.y1, ra.y0 - rb.y1});
                 double gap = std::hypot(dx, dy);
@@ -542,6 +570,13 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
                 }
             }
         }
+        for (int id : finePitch)
+            if (const Component* c = sch.find(id))
+                add(Severity::Info, "REL_FINE_PITCH_MASK",
+                    c->ref + ": its pads are closer than a 0.2 mm solder-mask dam (fine-pitch package). Specify gang "
+                    "(group) mask relief across each pad row, a 10–20 % reduced paste aperture and LDI solder mask; "
+                    "inspect with AOI / X-ray after reflow.",
+                    {id}, c->pcb.position, true);
     }
     // Tombstoning: unbalanced copper on the two pads of a small chip part.
     for (const auto& c : sch.components()) {
@@ -556,8 +591,9 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
             const Pad& p = *mine[static_cast<size_t>(k)];
             if (zoneNets.count(p.net)) mass[k] += 2 * s.trackWidth;  // pours reach chip pads through thermal-relief spokes
             for (const auto& t : pcb.tracks)
-                if (t.net == p.net && t.layer == p.smdLayer &&
-                    (p.bounds().contains(t.a) || p.bounds().contains(t.b)))
+                // Copper that leaves the pad conducts heat away; pieces lying wholly on the pad (neck-down, the
+                // lead-in of a serpentine) do not.
+                if (t.net == p.net && t.layer == p.smdLayer && (p.bounds().contains(t.a) != p.bounds().contains(t.b)))
                     mass[k] += t.width;
         }
         double hi = std::max(mass[0], mass[1]), lo = std::min(mass[0], mass[1]);
@@ -588,7 +624,9 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
                 at = p.position;
             }
         const bool class3 = fabricationRequirements(project).ipcClass >= 3;
-        const double limit = class3 ? 10.0 : 12.0, advisory = class3 ? 8.0 : 10.0;
+        // High-layer-count server / HPC fabs plate 12–16:1 holes routinely (with reliability coupons).
+        const bool highEnd = isOneOf(id, {"server", "hpc"});
+        const double limit = highEnd ? 16.0 : class3 ? 10.0 : 12.0, advisory = highEnd ? 12.0 : class3 ? 8.0 : 10.0;
         if (worst > advisory)
             add(worst > limit ? Severity::Warning : Severity::Info, "REL_VIA_ASPECT",
                 "A hole has an aspect ratio of " + fmt("%.1f:1", worst) + " (barrel depth ÷ drill), above " +
@@ -720,7 +758,7 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
         for (const auto& z : pcb.zones)
             for (const auto& n : nets)
                 if (n.name == z.net && n.isGround) groundPour = true;
-        const bool critical = longRf || (!cls.fast.empty() && isOneOf(id, {"networking", "vlsi"}));
+        const bool critical = longRf || (!cls.fast.empty() && isOneOf(id, {"networking", "vlsi", "server", "hpc", "motherboard", "addin", "arm"}));
         if (!groundPour)
             add(critical ? Severity::Warning : Severity::Info, "REL_NO_REFERENCE_PLANE",
                 "Fast or RF signals but no ground pour/plane: return currents take long loops that radiate (EMI failing "
@@ -787,7 +825,7 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
         if (!stubs.empty()) {
             double worst = 0;
             for (const auto& st : stubs) worst = std::max({worst, st.topStub, st.bottomStub});
-            const bool highSpeedBoard = isOneOf(id, {"networking", "vlsi", "rf"});
+            const bool highSpeedBoard = isOneOf(id, {"networking", "vlsi", "rf", "server", "hpc", "motherboard", "addin"});
             if (!s.backdrill)
                 add(highSpeedBoard ? Severity::Warning : Severity::Info, "REL_VIA_STUB",
                     std::to_string(stubs.size()) + " via(s) on high-speed nets leave unused barrel stubs (up to " +
@@ -870,7 +908,7 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
             hi = std::max(hi, len);
         }
         if (lo <= 0 || hi - lo <= g.tolerance + eps) continue;
-        const bool critical = isOneOf(id, {"networking", "vlsi", "rf"});
+        const bool critical = isOneOf(id, {"networking", "vlsi", "rf", "server", "hpc", "motherboard", "addin", "arm"});
         add(critical ? Severity::Warning : Severity::Info, "REL_LENGTH_MISMATCH",
             (g.kind == "pair" ? "Differential pair " + g.name + ": intra-pair skew " : "Bus " + g.name + ": lengths differ by ") +
                 fmt("%.2f mm", hi - lo) + " (tolerance " + fmt("%.2f mm", g.tolerance) + "); " + netName(shortNet) +
