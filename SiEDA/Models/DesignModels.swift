@@ -197,6 +197,70 @@ enum WireGeometry {
     }
 }
 
+/// Bill of materials from the core (`sieda_bom_json`).
+struct BomReport: Decodable, Equatable {
+    var lines: [BomLineInfo]
+    var summary: BomSummaryInfo
+    var buildQuantity: Int
+    var orderCost: Double
+
+    static let empty = BomReport(lines: [], summary: BomSummaryInfo(), buildQuantity: 5, orderCost: 0)
+}
+
+struct BomSummaryInfo: Decodable, Equatable {
+    var lines = 0
+    var placements = 0
+    var dnp = 0
+    var missingMpn = 0
+    var unpriced = 0
+    var costPerBoard = 0.0
+}
+
+/// One BOM line: identical parts (type, value, footprint and sourcing) with their designators.
+struct BomLineInfo: Decodable, Equatable, Identifiable {
+    var item: Int
+    var refs: [String]
+    var componentIds: [Int]
+    var quantity: Int
+    var type: String
+    var value: String
+    var footprint: String
+    var description: String
+    var rating: String
+    var manufacturer: String
+    var mpn: String
+    var supplierPart: String
+    var unitPrice: Double
+    var dnp: Bool
+    var lineCost: Double
+    var suggestedManufacturer: String
+    var suggestedMpn: String
+    var notes: [String]
+
+    var id: String { refs.joined(separator: ",") }
+    var designators: String { refs.joined(separator: ", ") }
+}
+
+/// Fields of a BOM line the user edits; nil leaves a field as it is.
+struct SourcingUpdate: Equatable {
+    var manufacturer: String?
+    var mpn: String?
+    var supplierPart: String?
+    var unitPrice: Double?
+    var dnp: Bool?
+
+    var json: String {
+        var fields: [String: Any] = [:]
+        if let manufacturer { fields["manufacturer"] = manufacturer }
+        if let mpn { fields["mpn"] = mpn }
+        if let supplierPart { fields["supplierPart"] = supplierPart }
+        if let unitPrice { fields["unitPrice"] = unitPrice }
+        if let dnp { fields["dnp"] = dnp }
+        let data = (try? JSONSerialization.data(withJSONObject: fields)) ?? Data("{}".utf8)
+        return String(decoding: data, as: UTF8.self)
+    }
+}
+
 struct SnapNet: Decodable, Equatable, Identifiable {
     var index: Int
     var name: String

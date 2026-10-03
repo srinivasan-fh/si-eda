@@ -161,6 +161,18 @@ final class EDAEngine: @unchecked Sendable {
         return id >= 0 ? Int(id) : nil
     }
 
+    /// Bill of materials: grouped lines, descriptions, ratings, sourcing, suggestions and cost totals.
+    func bom() -> BomReport {
+        Self.decode(BomReport.self, from: withHandle { Self.take(sieda_bom_json($0)) }) ?? .empty
+    }
+
+    @discardableResult
+    func setSourcing(component: Int, _ update: SourcingUpdate) -> Bool {
+        withHandle { sieda_set_component_sourcing($0, Int32(component), update.json) } == 1
+    }
+
+    func setBuildQuantity(_ quantity: Int) { withHandle { sieda_set_build_quantity($0, Int32(max(1, quantity))) } }
+
     /// Writes the complete fabrication package (Gerbers, drills, job file, IPC netlist, paste, assembly files, notes and
     /// the Gerber zip) into `folder`, naming the files after `base`.
     func writeFabricationPackage(to folder: URL, base: String) -> FabricationPackageResult {

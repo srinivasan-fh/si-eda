@@ -14,6 +14,7 @@
 #include "sieda/Avr.hpp"
 #include "sieda/CustomParts.hpp"
 #include "sieda/DeviceModels.hpp"
+#include "sieda/Bom.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
 #include "sieda/Firmware.hpp"
@@ -2535,4 +2536,87 @@ TEST(routing_cleanup_chamfers_and_merges) {
     int net3 = 0;
     for (const auto& t : pcb.tracks) net3 += t.net == 3;
     CHECK(net3 == 2);  // hemmed-in corner untouched
+}
+
+TEST(bill_of_materials) {
+    Project p;
+    auto& s = p.schematic;
+    int bt = s.addComponent(ComponentKind::Battery, "9", {0, 0});
+    std::vector<int> r;
+    for (const char* v : {"10k", "10k", "4k7", "330", "10k"}) r.push_back(s.addComponent(ComponentKind::Resistor, v, {100, 0}));
+    for (int i = 0; i < 6; ++i) s.addComponent(ComponentKind::Resistor, "1M", {100, 0});  // R6…R11: natural order
+    int c1 = s.addComponent(ComponentKind::Capacitor, "100n", {200, 0});
+    int d1 = s.addComponent(ComponentKind::LED, "Red", {300, 0});
+    int q1 = s.addComponent(ComponentKind::NPN, "BC847", {400, 0});
+    s.addComponent(ComponentKind::Ground, "", {0, 100});
+    s.addComponent(ComponentKind::NetLabel, "VCC", {0, 100});
+
+    auto lines = buildBom(s);
+    auto find = [&](const std::string& value) -> const BomLine* {
+        for (const auto& l : lines)
+            if (l.value == value) return &l;
+        return nullptr;
+    };
+    const BomLine* tenK = find("10k");
+    CHECK(tenK && tenK->quantity() == 3 && tenK->refs[0] == "R1" && tenK->refs[2] == "R5");
+    CHECK(tenK->suggestedManufacturer == "Yageo" && tenK->suggestedMpn == "RC0805FR-0710KL");
+    CHECK(tenK->description == "Resistor 10kΩ ±1% 0805" && tenK->rating == "0.125 W");
+    CHECK(find("4k7")->suggestedMpn == "RC0805FR-074K7L");
+    CHECK(find("330")->suggestedMpn == "RC0805FR-07330RL");
+    const BomLine* meg = find("1M");
+    CHECK(meg && meg->refs.size() == 6 && meg->refs[4] == "R10" && meg->refs[5] == "R11");
+    CHECK(find("100n")->rating == "≥ 25 V");  // 9 V supply, rated at twice the working voltage
+    CHECK(find("BC847")->suggestedMpn == "BC847" && find("Red")->suggestedMpn.empty());
+    for (const auto& l : lines) CHECK(l.type != "Ground" && l.type != "Net Label");
+    CHECK(lines.front().item == 1 && lines.size() == 8);  // BT1, R×4 values, C, D, Q
+
+    // Sourcing: part numbers, price and DNP flow into the totals and the assembly files.
+    for (int id : {r[0], r[1], r[4]}) {
+        auto* c = s.find(id);
+        c->sourcing.manufacturer = "Yageo";
+        c->sourcing.mpn = "RC0805FR-0710KL";
+        c->sourcing.supplierPart = "C17414";
+        c->sourcing.unitPrice = 0.002;
+    }
+    s.find(c1)->sourcing.unitPrice = 0.01;
+    s.find(d1)->sourcing.dnp = true;
+    lines = buildBom(s);
+    BomSummary sum = summarizeBom(lines);
+    CHECK(sum.dnp == 1 && sum.placements == 14);
+    CHECK(std::fabs(sum.costPerBoard - (3 * 0.002 + 0.01)) < 1e-9);
+    CHECK(find("10k")->notes.empty());  // part number and price entered
+    CHECK(!find("4k7")->notes.empty() && find("4k7")->notes[0].find("suggested: RC0805FR-074K7L") != std::string::npos);
+    std::string assembly = exportAssemblyBomCsv(s);
+    CHECK(assembly.find("C17414") != std::string::npos && assembly.find("RC0805FR-0710KL") != std::string::npos);
+    CHECK(assembly.find(s.find(d1)->ref) == std::string::npos);  // DNP not ordered
+    std::string bom = exportBomCsv(s);
+    CHECK(bom.rfind("Item,Quantity,References", 0) == 0 && bom.find("DNP") != std::string::npos);
+    CHECK(bom.find("Yageo") != std::string::npos && bom.find("0.0060") != std::string::npos);  // line total
+    s.find(d1)->pcb.placed = true;
+    s.find(q1)->pcb.placed = true;
+    std::string cpl = exportCplCsv(s, p.pcb);
+    CHECK(cpl.find(s.find(q1)->ref + ",") != std::string::npos && cpl.find(s.find(d1)->ref + ",") == std::string::npos);
+
+    // Saved with the project, together with the build quantity.
+    p.buildQuantity = 25;
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.buildQuantity == 25);
+    CHECK(q.schematic.find(r[0])->sourcing.supplierPart == "C17414" && q.schematic.find(d1)->sourcing.dnp);
+    CHECK(q.schematic.find(bt)->sourcing.empty());
+    Json j = bomJson(q.schematic, q.buildQuantity);
+    CHECK(std::fabs(j.get("orderCost").asNumber() - 25 * (3 * 0.002 + 0.01)) < 1e-9);
+    CHECK(j.get("summary").get("dnp").asInt() == 1);
+
+    // C API: set sourcing field by field.
+    SiedaProject* api = sieda_project_new("bom");
+    int rid = sieda_add_component(api, static_cast<int32_t>(ComponentKind::Resistor), "10k", 0, 0, 0, "");
+    CHECK(sieda_set_component_sourcing(api, rid, "{\"mpn\":\"X1\",\"unitPrice\":0.5}") == 1);
+    CHECK(sieda_set_component_sourcing(api, rid, "{\"dnp\":true}") == 1);
+    sieda_set_build_quantity(api, 4);
+    char* out = sieda_bom_json(api);
+    Json api_j = Json::parse(out);
+    sieda_string_free(out);
+    CHECK(api_j.get("lines")[0].get("mpn").asString() == "X1" && api_j.get("lines")[0].get("dnp").asBool());
+    CHECK(api_j.get("buildQuantity").asInt() == 4);
+    sieda_project_free(api);
 }

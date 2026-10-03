@@ -24,6 +24,17 @@ struct PcbPlacement {
     bool placed = false;
 };
 
+/// How a part is bought and fitted (BOM): who makes it, the orderable part number, the distributor / assembly-house
+/// part number, the unit price, and "do not populate" (on the board but not fitted).
+struct Sourcing {
+    std::string manufacturer;
+    std::string mpn;           // manufacturer part number
+    std::string supplierPart;  // e.g. LCSC "C17414", Digi-Key, Mouser
+    double unitPrice = 0;      // per part, in the project currency (0 = not priced)
+    bool dnp = false;
+    bool empty() const { return manufacturer.empty() && mpn.empty() && supplierPart.empty() && unitPrice == 0 && !dnp; }
+};
+
 struct Component {
     int id = -1;
     ComponentKind kind = ComponentKind::Resistor;
@@ -38,6 +49,7 @@ struct Component {
     std::string firmware;
     std::string firmwareName;  // file or example name shown in the editor
     double clockHz = 0;        // CPU clock; 0 = the model's default (16 MHz ATmega328P, 8 MHz ATtiny85)
+    Sourcing sourcing;         // BOM: manufacturer, part numbers, price, do-not-populate
 
     bool isNoConnect(int pin) const;
 

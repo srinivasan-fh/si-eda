@@ -13,6 +13,7 @@
 #include <set>
 #include <sstream>
 
+#include "sieda/Bom.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Json.hpp"
 #include "sieda/Mesh.hpp"
@@ -286,6 +287,12 @@ std::string fabricationNotes(const Project& project, const std::vector<FabFile>&
     o << "ASSEMBLY\n";
     o << "  Parts                " << f.partsTop << " top, " << f.partsBottom << " bottom (" << f.tht
       << " through-hole)\n";
+    {
+        BomSummary bom = summarizeBom(buildBom(project.schematic));
+        o << "  BOM lines            " << bom.lines << (bom.dnp ? " (" + std::to_string(bom.dnp) + " parts not fitted: DNP)" : "")
+          << (bom.missingMpn ? ", " + std::to_string(bom.missingMpn) + " still without a manufacturer part number" : "")
+          << "\n";
+    }
     o << "  SMD pads             " << f.smdTop << " top, " << f.smdBottom << " bottom\n";
     o << "  Stencil              " << (f.smdTop ? "top" : "") << (f.smdTop && f.smdBottom ? " + " : "")
       << (f.smdBottom ? "bottom" : "") << (f.smdTop || f.smdBottom ? "" : "not needed (no SMD pads)") << "\n";

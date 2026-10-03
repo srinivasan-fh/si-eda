@@ -9,6 +9,7 @@
 #include <tuple>
 #include <vector>
 
+#include "sieda/Bom.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/Units.hpp"
 
@@ -123,19 +124,17 @@ std::string exportSpiceNetlist(const Schematic& sch, const std::string& title) {
 }
 
 std::string exportBomCsv(const Schematic& sch) {
-    std::map<std::tuple<std::string, std::string, std::string>, std::vector<std::string>> groups;
-    for (const auto& c : sch.components()) {
-        if (!c.hasFootprint()) continue;
-        groups[{c.def().name, c.value, footprintLabel(c)}].push_back(c.ref);
-    }
     std::ostringstream o;
-    o << "Item,Quantity,References,Type,Value,Footprint\n";
-    int item = 1;
-    for (const auto& [key, refs] : groups) {
-        std::string joined;
-        for (size_t i = 0; i < refs.size(); ++i) joined += (i ? " " : "") + refs[i];
-        o << item++ << "," << refs.size() << "," << csvEscape(joined) << "," << csvEscape(std::get<0>(key)) << ","
-          << csvEscape(std::get<1>(key)) << "," << csvEscape(std::get<2>(key)) << "\n";
+    o << "Item,Quantity,References,Type,Value,Footprint,Description,Rating,Manufacturer,MPN,Supplier Part,"
+         "Unit Price,Line Total,DNP\n";
+    for (const auto& l : buildBom(sch)) {
+        std::string refs;
+        for (size_t i = 0; i < l.refs.size(); ++i) refs += (i ? " " : "") + l.refs[i];
+        auto money = [](double v) { return v > 0 ? mm(v) : std::string(); };
+        o << l.item << "," << l.quantity() << "," << csvEscape(refs) << "," << csvEscape(l.type) << "," << csvEscape(l.value)
+          << "," << csvEscape(l.footprint) << "," << csvEscape(l.description) << "," << csvEscape(l.rating) << ","
+          << csvEscape(l.sourcing.manufacturer) << "," << csvEscape(l.sourcing.mpn) << "," << csvEscape(l.sourcing.supplierPart)
+          << "," << money(l.sourcing.unitPrice) << "," << money(l.lineCost()) << "," << (l.sourcing.dnp ? "DNP" : "") << "\n";
     }
     return o.str();
 }
@@ -488,18 +487,15 @@ std::string exportIpcD356(const Schematic& sch, const PcbLayout& pcb, const std:
 }
 
 std::string exportAssemblyBomCsv(const Schematic& sch) {
-    std::map<std::pair<std::string, std::string>, std::vector<std::string>> groups;  // (value, footprint) → refs
-    for (const auto& c : sch.components()) {
-        if (!c.hasFootprint()) continue;
-        std::string comment = c.value.empty() ? c.def().name : c.value;
-        groups[{comment, footprintLabel(c)}].push_back(c.ref);
-    }
+    // Fitted parts only (DNP lines are left off), with the part numbers entered in the BOM workspace.
     std::ostringstream o;
     o << "Comment,Designator,Footprint,Quantity,LCSC Part #,Manufacturer Part #\n";
-    for (const auto& [key, refs] : groups) {
+    for (const auto& l : buildBom(sch)) {
+        if (l.sourcing.dnp) continue;
         std::string joined;
-        for (size_t i = 0; i < refs.size(); ++i) joined += (i ? "," : "") + refs[i];
-        o << csvEscape(key.first) << "," << csvEscape(joined) << "," << csvEscape(key.second) << "," << refs.size() << ",,\n";
+        for (size_t i = 0; i < l.refs.size(); ++i) joined += (i ? "," : "") + l.refs[i];
+        o << csvEscape(l.value.empty() ? l.type : l.value) << "," << csvEscape(joined) << "," << csvEscape(l.footprint) << ","
+          << l.quantity() << "," << csvEscape(l.sourcing.supplierPart) << "," << csvEscape(l.sourcing.mpn) << "\n";
     }
     return o.str();
 }
@@ -508,7 +504,7 @@ std::string exportCplCsv(const Schematic& sch, const PcbLayout& pcb) {
     std::ostringstream o;
     o << "Designator,Mid X,Mid Y,Layer,Rotation\n";
     for (const auto& c : sch.components()) {
-        if (!c.hasFootprint() || !c.pcb.placed) continue;
+        if (!c.hasFootprint() || !c.pcb.placed || c.sourcing.dnp) continue;  // DNP parts are not placed
         // Same origin as the Gerbers: the board's lower-left corner, Y up.
         o << c.ref << "," << mm(c.pcb.position.x) << "mm,";
         o << mm(pcb.settings.height - c.pcb.position.y) << "mm," << (c.pcb.bottom ? "Bottom" : "Top") << "," << c.pcb.rotation << "\n";

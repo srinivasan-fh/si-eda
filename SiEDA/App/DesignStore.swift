@@ -4,7 +4,7 @@ import Foundation
 import UniformTypeIdentifiers
 
 enum Workspace: String, CaseIterable, Identifiable {
-    case promptStudio, schematic, pcb, threeD, simulation, checks, library
+    case promptStudio, schematic, pcb, threeD, simulation, checks, bom, library
 
     var id: String { rawValue }
 
@@ -22,6 +22,7 @@ enum Workspace: String, CaseIterable, Identifiable {
         case .threeD: return "3D Viewer"
         case .simulation: return "Simulation"
         case .checks: return "Design Checks"
+        case .bom: return "BOM"
         }
     }
 
@@ -37,6 +38,7 @@ enum Workspace: String, CaseIterable, Identifiable {
         case .threeD: return "cube.transparent"
         case .simulation: return "waveform.path.ecg"
         case .checks: return "checkmark.seal"
+        case .bom: return "list.bullet.rectangle.portrait"
         }
     }
 }
@@ -430,6 +432,44 @@ final class DesignStore: ObservableObject {
     private func pinPoint(_ address: PinAddress) -> CGPoint? {
         guard let c = snapshot.component(address.component), address.pin < c.pins.count else { return nil }
         return c.pins[address.pin].point
+    }
+
+    // MARK: - Bill of materials
+
+    /// The current BOM (computed by the core from the schematic and each part's sourcing).
+    var bomReport: BomReport { engine.bom() }
+
+    /// Sets manufacturer, part numbers, price or DNP on every part of a BOM line, as one undo step.
+    func updateBomLine(_ line: BomLineInfo, _ update: SourcingUpdate) {
+        guard update != SourcingUpdate() else { return }
+        performChecked("BOM: \(line.refs.first ?? "")\(line.refs.count > 1 ? "…" : "") updated", invalidatesAnalysis: false) { engine in
+            line.componentIds.reduce(false) { changed, id in engine.setSourcing(component: id, update) || changed }
+        }
+    }
+
+    /// Fills the suggested standard part numbers (e.g. Yageo RC0805 resistors, semiconductor part numbers) into every
+    /// line that has none yet. One undo step. Returns how many lines were filled.
+    @discardableResult
+    func applySuggestedPartNumbers() -> Int {
+        let lines = bomReport.lines.filter { $0.mpn.isEmpty && !$0.suggestedMpn.isEmpty }
+        guard !lines.isEmpty else {
+            statusMessage = "No suggested part numbers to apply"
+            return 0
+        }
+        perform("Applied \(lines.count) suggested part number\(lines.count == 1 ? "" : "s")", invalidatesAnalysis: false) { engine in
+            for line in lines {
+                let update = SourcingUpdate(manufacturer: line.manufacturer.isEmpty ? line.suggestedManufacturer : nil,
+                                            mpn: line.suggestedMpn)
+                for id in line.componentIds { engine.setSourcing(component: id, update) }
+            }
+        }
+        return lines.count
+    }
+
+    func setBuildQuantity(_ quantity: Int) {
+        let q = max(1, quantity)
+        guard q != bomReport.buildQuantity else { return }
+        perform("Build quantity \(q)", invalidatesAnalysis: false) { $0.setBuildQuantity(q) }
     }
 
     /// Toggles the "no connect" mark of a pin (an intentionally open pin; ERC stops reporting it).

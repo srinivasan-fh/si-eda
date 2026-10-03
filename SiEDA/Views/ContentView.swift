@@ -64,6 +64,7 @@ struct ContentView: View {
         case .threeD: Board3DWorkspace()
         case .simulation: SimulationView()
         case .checks: RuleCheckView()
+        case .bom: BomView()
         }
     }
 

@@ -24,6 +24,27 @@ Json pinRef(PinRef p) {
 }
 PinRef pinRefFrom(const Json& j) { return {j.get("component").asInt(-1), j.get("pin").asInt(-1)}; }
 
+Json sourcingJson(const Sourcing& s) {
+    Json j = Json::object();
+    if (!s.manufacturer.empty()) j["manufacturer"] = s.manufacturer;
+    if (!s.mpn.empty()) j["mpn"] = s.mpn;
+    if (!s.supplierPart.empty()) j["supplierPart"] = s.supplierPart;
+    if (s.unitPrice > 0) j["unitPrice"] = s.unitPrice;
+    if (s.dnp) j["dnp"] = true;
+    return j;
+}
+
+Sourcing sourcingFrom(const Json& j) {
+    Sourcing s;
+    if (!j.isObject()) return s;
+    s.manufacturer = j.get("manufacturer").asString("");
+    s.mpn = j.get("mpn").asString("");
+    s.supplierPart = j.get("supplierPart").asString("");
+    s.unitPrice = std::max(0.0, j.get("unitPrice").asNumber(0));
+    s.dnp = j.get("dnp").asBool(false);
+    return s;
+}
+
 Json boardJson(const BoardSettings& s) {
     Json b = Json::object();
     b["width"] = s.width;
@@ -117,6 +138,7 @@ Json Project::toJson() const {
     root["name"] = name;
     root["requirements"] = requirements;
     root["industry"] = industry;
+    root["buildQuantity"] = buildQuantity;
     root["board"] = boardJson(pcb.settings);
 
     Json library = Json::array();
@@ -150,6 +172,7 @@ Json Project::toJson() const {
             for (int pin : c.noConnect) nc.push(pin);
             j["noConnect"] = nc;
         }
+        if (!c.sourcing.empty()) j["sourcing"] = sourcingJson(c.sourcing);
         Json p = Json::object();
         p["x"] = c.pcb.position.x;
         p["y"] = c.pcb.position.y;
@@ -200,6 +223,7 @@ Project Project::fromJson(const Json& root) {
     p.name = root.get("name").asString("Untitled");
     p.requirements = root.get("requirements").asString("");
     p.industry = root.get("industry").asString("general");
+    p.buildQuantity = std::max(1, root.get("buildQuantity").asInt(5));
     if (!findIndustry(p.industry)) p.industry = "general";
     const Json& b = root.get("board");
     BoardSettings& s = p.pcb.settings;
@@ -281,6 +305,7 @@ Project Project::fromJson(const Json& root) {
         c.firmware = j.get("firmware").asString("");
         c.firmwareName = j.get("firmwareName").asString("");
         c.clockHz = j.get("clockHz").asNumber(0);
+        c.sourcing = sourcingFrom(j.get("sourcing"));
         for (const auto& nc : j.get("noConnect").items()) {
             int pin = nc.asInt(-1);
             if (pin >= 0 && pin < static_cast<int>(c.def().pins.size()) && !c.isNoConnect(pin)) c.noConnect.push_back(pin);
