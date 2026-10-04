@@ -1,3 +1,4 @@
+import Metal
 import SceneKit
 import SwiftUI
 import XCTest
@@ -709,7 +710,7 @@ final class LiveWindowTests: XCTestCase {
         watchdog.resume()
         defer { watchdog.cancel() }
 
-        // Show the 3D workspace in the X-ray hologram mode (HUD on by default), the heaviest scene the app builds.
+        // The 3D workspace runs in both modes: the realistic assembly and the X-ray hologram (the heaviest scenes).
         let modeKey = "threeD.mode.v2"
         let savedMode = UserDefaults.standard.object(forKey: modeKey)
         UserDefaults.standard.set(Board3DWorkspace.Mode.xray.rawValue, forKey: modeKey)
@@ -740,6 +741,8 @@ final class LiveWindowTests: XCTestCase {
         for stage in 0..<4 {
             if stage == 1 { progress.set("stage 1: loading example"); store.loadExample(OfflineProvider.templates[8].industryPlan) }
             if stage == 2 { progress.set("stage 2: auto-placing"); store.autoPlace(all: true) }
+            // The 3D workspace shows the realistic assembly of the placed board, the X-ray hologram once routed.
+            UserDefaults.standard.set((stage < 3 ? Board3DWorkspace.Mode.assembly : .xray).rawValue, forKey: modeKey)
             if stage == 3 {
                 // Routed board with a selection: PCB tracks, 3D copper and the inspector's part panel.
                 progress.set("stage 3: routing")
@@ -1536,9 +1539,11 @@ final class MicrocontrollerLibraryTests: XCTestCase {
         let groups = Dictionary(grouping: StandardLibrary.parts.filter { $0.category.hasPrefix("Microcontrollers · ") },
                                 by: \.category)
         XCTAssertEqual(groups["Microcontrollers · Arm"]?.count, 10)
-        XCTAssertEqual(groups["Microcontrollers · STMicroelectronics"]?.count, 10)
+        // + the production catalog's STM32F405RGT6, STM32H743IIT6 and STM32F765VIT6.
+        XCTAssertEqual(groups["Microcontrollers · STMicroelectronics"]?.count, 13)
         XCTAssertEqual(groups["Microcontrollers · Texas Instruments"]?.count, 10)
-        XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 13)
+        // + the catalog's ATMEGA328P-AU / -PU and ATSAMD51J20A-AU.
+        XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 16)
         let rp2040 = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "RP2040" })
         XCTAssertEqual(rp2040.spec.package.type, "QFN")
         XCTAssertEqual(rp2040.spec.package.pitch, 0.4)
@@ -2807,5 +2812,309 @@ final class CrashAndResourceTests: XCTestCase {
         }
         XCTAssertEqual(image.size, NSSize(width: 640, height: 420))
         XCTAssertLessThan(Date().timeIntervalSince(start), 2.0)
+    }
+}
+
+/// Realistic 3D assembly: every surface gets its own physical material, the finish follows the picker, and the live
+/// scene is lit by the studio environment with a shadow-catching floor.
+@MainActor
+final class RealisticAssemblyTests: XCTestCase {
+    private func routedEngine() throws -> EDAEngine {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: engine, previous: nil)
+        engine.autoPlace(all: true)
+        XCTAssertEqual(engine.autoRoute().failed, 0)
+        return engine
+    }
+
+    private func surfaces(_ node: SCNNode) -> [String: SCNNode] {
+        Dictionary(uniqueKeysWithValues: node.childNodes.compactMap { child in child.name.map { ($0, child) } })
+    }
+
+    func testEverySurfaceGetsItsOwnMaterial() throws {
+        let mesh = try XCTUnwrap(try routedEngine().buildMesh(includeComponents: true))
+        XCTAssertEqual(mesh.surfaces.count, mesh.vertexCount)
+        XCTAssertTrue(mesh.surfaces.allSatisfy { MeshSurface(rawValue: $0) != nil })
+
+        let node = BoardSceneView.assemblyNode(from: mesh, finish: .enig)
+        let parts = surfaces(node)
+        for name in ["mask", "laminate", "finish", "solder", "silk", "tin"] {
+            XCTAssertNotNil(parts["surface.\(name)"], name)
+        }
+        // Every triangle lands in exactly one surface.
+        let triangles = node.childNodes.reduce(0) { $0 + ($1.geometry?.elements.first?.primitiveCount ?? 0) }
+        XCTAssertEqual(triangles, mesh.indices.count / 3)
+
+        // Metals are metallic, the mask is a glossy lacquer, silkscreen is matte; the finish ignores vertex colours.
+        func material(_ name: String) throws -> SCNMaterial {
+            try XCTUnwrap(parts["surface.\(name)"]?.geometry?.firstMaterial, name)
+        }
+        XCTAssertEqual(try material("finish").metalness.contents as? CGFloat, 1)
+        XCTAssertEqual(try material("solder").metalness.contents as? CGFloat, 1)
+        XCTAssertEqual(try material("mask").metalness.contents as? CGFloat, 0)
+        XCTAssertGreaterThan(try XCTUnwrap(material("mask").clearCoat.contents as? CGFloat), 0)
+        XCTAssertGreaterThan(try XCTUnwrap(material("silk").roughness.contents as? CGFloat), 0.8)
+        XCTAssertEqual(try material("finish").diffuse.contents as? NSColor, BoardFinish.enig.colour)
+        XCTAssertEqual(parts["surface.finish"]?.geometry?.sources(for: .color).count, 0)
+        XCTAssertEqual(parts["surface.mask"]?.geometry?.sources(for: .color).count, 1)
+
+        // Another finish only changes the finish's material.
+        let hasl = surfaces(BoardSceneView.assemblyNode(from: mesh, finish: .hasl))
+        XCTAssertEqual(hasl["surface.finish"]?.geometry?.firstMaterial?.diffuse.contents as? NSColor, BoardFinish.hasl.colour)
+        XCTAssertNotEqual(BoardFinish.enig.colour, BoardFinish.osp.colour)
+
+        // A bare board has no solder joints or bodies.
+        let bare = try XCTUnwrap(try routedEngine().buildMesh(includeComponents: false))
+        let bareParts = surfaces(BoardSceneView.assemblyNode(from: bare, finish: .osp))
+        XCTAssertNil(bareParts["surface.solder"])
+        XCTAssertNil(bareParts["surface.plastic"])
+        XCTAssertNotNil(bareParts["surface.finish"])
+    }
+
+    private func sceneView(in v: NSView) -> SCNView? {
+        if let s = v as? SCNView { return s }
+        for child in v.subviews { if let s = sceneView(in: child) { return s } }
+        return nil
+    }
+
+    /// Share of sampled pixels where `dominant` (0 red, 1 green, 2 blue) clearly leads the other channels.
+    private func dominantShare(_ image: NSImage, channel dominant: Int) throws -> Double {
+        let tiff = try XCTUnwrap(image.tiffRepresentation)
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(data: tiff))
+        var hits = 0, samples = 0
+        for y in stride(from: 0, to: bitmap.pixelsHigh, by: 8) {
+            for x in stride(from: 0, to: bitmap.pixelsWide, by: 8) {
+                guard let c = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { continue }
+                let rgb = [c.redComponent, c.greenComponent, c.blueComponent]
+                samples += 1
+                let others = rgb.enumerated().filter { $0.offset != dominant }.map { $0.element }
+                // The lit mask's hue leads clearly (the studio light is slightly cool, so no strict 1.4× ratio).
+                if rgb[dominant] > 0.1 && rgb[dominant] > 1.1 * (others.max() ?? 0) { hits += 1 }
+            }
+        }
+        return samples == 0 ? 0 : Double(hits) / Double(samples)
+    }
+
+    func testRenderedBoardShowsItsMaskColourUnderStudioLight() throws {
+        // Render the routed board in a real window and read the pixels back: a green board looks green, and switching
+        // to a red mask turns it red (the lit, glossy mask colour survives the lighting and tone mapping).
+        let store = DesignStore()
+        store.aiEnabled = false
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: store.engine, previous: nil)
+        store.engine.autoPlace(all: true)
+        _ = store.engine.autoRoute()
+        store.refresh()
+        func view() -> BoardSceneView {
+            BoardSceneView(engine: store.engine, revision: store.revision, includeComponents: true,
+                           board: store.snapshot.board, resetToken: 0, finish: .enig, stats: .constant(""))
+        }
+        // A fixed frame: a hosting controller otherwise sizes the window to the representable's (tiny) ideal size.
+        let host = NSHostingController(rootView: view().frame(width: 800, height: 600))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        RunLoop.main.run(until: Date().addingTimeInterval(1.0))
+        let scnView = try XCTUnwrap(sceneView(in: host.view))
+        // Render the live scene offscreen at a known size, through the view's own camera.
+        let renderer = SCNRenderer(device: MTLCreateSystemDefaultDevice(), options: nil)
+        func render() -> NSImage {
+            renderer.scene = scnView.scene
+            renderer.pointOfView = scnView.pointOfView
+            // The first offscreen frame can come out before textures and the environment are uploaded: warm up once.
+            _ = renderer.snapshot(atTime: 0, with: CGSize(width: 800, height: 600), antialiasingMode: .none)
+            return renderer.snapshot(atTime: 0.1, with: CGSize(width: 800, height: 600), antialiasingMode: .none)
+        }
+
+        let green = render()
+        XCTAssertGreaterThan(green.size.width, 100)
+        let greenShare = try dominantShare(green, channel: 1)
+        XCTAssertGreaterThan(greenShare, 0.08, "a green board fills a good part of the view")
+        XCTAssertLessThan(try dominantShare(green, channel: 0), greenShare)
+
+        store.setSolderMask(.red)
+        host.rootView = view().frame(width: 800, height: 600)
+        RunLoop.main.run(until: Date().addingTimeInterval(1.0))
+        let red = render()
+        let redShare = try dominantShare(red, channel: 0)
+        XCTAssertGreaterThan(redShare, 0.08, "the red mask shows")
+        XCTAssertLessThan(try dominantShare(red, channel: 1), redShare)
+    }
+
+    func testWorkspaceUsesTheSavedFinish() throws {
+        // The Finish picker is saved: the 3D workspace opens with HASL pads when HASL was chosen last time.
+        let defaults = UserDefaults.standard
+        let keys = ["threeD.mode.v2", "threeD.finish"]
+        let saved = keys.map { defaults.object(forKey: $0) }
+        defer { for (key, value) in zip(keys, saved) { defaults.set(value, forKey: key) } }
+        defaults.set(Board3DWorkspace.Mode.assembly.rawValue, forKey: "threeD.mode.v2")
+        defaults.set(BoardFinish.hasl.rawValue, forKey: "threeD.finish")
+
+        let store = DesignStore()
+        store.aiEnabled = false
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: store.engine, previous: nil)
+        store.engine.autoPlace(all: true)
+        store.refresh()
+        let host = NSHostingController(rootView: Board3DWorkspace().environmentObject(store))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 700),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.8))
+        let scene = try XCTUnwrap(sceneView(in: host.view)?.scene)
+        let finish = scene.rootNode.childNodes { node, _ in node.name == "surface.finish" }.first
+        XCTAssertEqual(finish?.geometry?.firstMaterial?.diffuse.contents as? NSColor, BoardFinish.hasl.colour)
+        // Solder joints and part bodies are in the scene (Components is on by default).
+        XCTAssertFalse(scene.rootNode.childNodes { node, _ in node.name == "surface.solder" }.isEmpty)
+        XCTAssertFalse(scene.rootNode.childNodes { node, _ in node.name == "surface.silk" }.isEmpty)
+        XCTAssertEqual(BoardFinish.allCases.map(\.title), ["ENIG (gold)", "HASL (tin)", "OSP (bare copper)"])
+    }
+
+    func testStudioSceneInALiveWindow() throws {
+        let engine = try routedEngine()
+        let board = try XCTUnwrap(engine.snapshot()).board
+        func view(_ finish: BoardFinish) -> BoardSceneView {
+            BoardSceneView(engine: engine, revision: 1, includeComponents: true, board: board, resetToken: 0, finish: finish,
+                           stats: .constant(""))
+        }
+        let host = NSHostingController(rootView: view(.enig))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 640),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+
+        func sceneView(in v: NSView) -> SCNView? {
+            if let s = v as? SCNView { return s }
+            for child in v.subviews { if let s = sceneView(in: child) { return s } }
+            return nil
+        }
+        let scnView = try XCTUnwrap(sceneView(in: host.view))
+        let scene = try XCTUnwrap(scnView.scene)
+        XCTAssertNotNil(scene.lightingEnvironment.contents, "studio reflections")
+        XCTAssertEqual(BoardSceneView.studioEnvironment.size, NSSize(width: 1024, height: 512))
+        let floor = try XCTUnwrap(scene.rootNode.childNodes { node, _ in node.geometry is SCNFloor }.first)
+        XCTAssertEqual(floor.geometry?.firstMaterial?.lightingModel, .shadowOnly)
+        XCTAssertLessThan(floor.position.y, -CGFloat(board.thickness))
+        XCTAssertTrue(scene.rootNode.childNodes { node, _ in node.light?.castsShadow == true }.count >= 1)
+        XCTAssertGreaterThan(scnView.pointOfView?.camera?.screenSpaceAmbientOcclusionIntensity ?? 0, 0)
+
+        func finishColour() -> NSColor? {
+            scene.rootNode.childNodes { node, _ in node.name == "surface.finish" }.first?.geometry?.firstMaterial?
+                .diffuse.contents as? NSColor
+        }
+        XCTAssertEqual(finishColour(), BoardFinish.enig.colour)
+        host.rootView = view(.hasl)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        XCTAssertEqual(finishColour(), BoardFinish.hasl.colour, "the finish picker rebuilds the materials")
+        XCTAssertTrue(window.isVisible)
+    }
+}
+
+/// Productivity: the biggest reference designs go from plan to a placed, routed, verified and 3D board quickly, through
+/// the same engine calls the app makes (Debug builds compile the C++ core with -O2).
+@MainActor
+final class ProductivityFlowTests: XCTestCase {
+    func testComplexReferenceDesignsCompleteQuickly() throws {
+        executionTimeAllowance = 900
+        let largest = OfflineProvider.templates
+            .sorted { $0.plan.components.count > $1.plan.components.count }
+            .prefix(3)
+        XCTAssertGreaterThan(largest.first?.plan.components.count ?? 0, 60, "the largest designs are genuinely complex")
+        for template in largest {
+            let start = Date()
+            var marks: [(String, Double)] = []
+            func mark(_ step: String) { marks.append((step, Date().timeIntervalSince(start))) }
+            let engine = EDAEngine()
+            DesignPlanCompiler.apply(template.industryPlan, to: engine, previous: nil)
+            mark("schematic")
+            engine.autoPlace(all: true)
+            engine.fitBoard(margin: 2.5)
+            mark("place")
+            XCTAssertEqual(engine.autoRoute().failed, 0, template.plan.title)
+            mark("route")
+            let verification = try XCTUnwrap(engine.runVerification(), template.plan.title)
+            XCTAssertEqual(verification.verdict, .pass, template.plan.title)
+            mark("verify")
+            let mesh = try XCTUnwrap(engine.buildMesh(includeComponents: true), template.plan.title)
+            XCTAssertGreaterThan(mesh.vertexCount, 1000)
+            _ = BoardSceneView.assemblyNode(from: mesh, finish: .enig)
+            mark("3D")
+            let total = Date().timeIntervalSince(start)
+            print("[Productivity] \(template.plan.title) (\(template.plan.components.count) parts): "
+                  + marks.map { String(format: "%@ %.1f s", $0.0, $0.1) }.joined(separator: " · "))
+            XCTAssertLessThan(total, 120, "\(template.plan.title) took \(Int(total)) s from plan to 3D")
+        }
+    }
+}
+
+/// Production parts catalog in the app: every catalog part number is in the Component Library and places with its
+/// real footprint; passives switch package from the Inspector (undoable, saved).
+@MainActor
+final class PartsCatalogTests: XCTestCase {
+    func testCatalogPartsAreInTheLibraryAndPlace() throws {
+        let names = ["ATMEGA328P-AU", "ATMEGA328P-PU", "STM32F405RGT6", "STM32H743IIT6", "STM32F765VIT6", "XC7A35T-1CSG324I",
+                     "L293DD", "L298HN", "ULN2003ADR", "PCA9685PW", "IR2101S", "IR2110S", "TMC2209-LA", "TMC2160-TA",
+                     "TMC5160A-TA", "CSD18540Q5B", "ADS1115IDGS", "LM358DR", "LM358N", "LM393DR", "LM393N", "AS5047D-ATSM",
+                     "INA240A1EDRQ1", "MPU-9250", "MAX9814ETD+T", "MAX4466EXK+T", "74HC595D", "PCF8574TS", "PCF8574N",
+                     "CH340G", "MAX485ESA+T", "SP485EEN-L", "MCP2551-I/SN", "TCAN1042VDRQ1", "ADM2587EBRWZ", "LM7812",
+                     "AMS1117-3.3", "LM2596S-5.0", "XL4015E1", "LM74700QDBVRQ1", "LTC4359IMS8#PBF", "PC817X3NSZ0F",
+                     "TLP281-4", "Crystal_16MHz", "Crystal_16MHz_3225", "Crystal_32.768kHz_3215", "Crystal_32.768kHz_Cylinder"]
+        let store = DesignStore()
+        store.aiEnabled = false
+        var x = 0.0
+        for name in names {
+            let part = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == name }, name)
+            let id = store.placeStandardPart(part, at: CGPoint(x: x, y: 0))
+            x += 200
+            XCTAssertGreaterThanOrEqual(id, 0, name)
+        }
+        store.autoPlace(all: true)
+        // Every placed catalog part has its pads on the board (the FPGA alone has 324 balls).
+        let snapshot = store.snapshot
+        for component in snapshot.components {
+            XCTAssertFalse(snapshot.pads.filter { $0.component == component.id }.isEmpty, component.value)
+        }
+        let fpga = try XCTUnwrap(snapshot.components.first { $0.value == "XC7A35T-1CSG324I" })
+        XCTAssertEqual(snapshot.pads.filter { $0.component == fpga.id }.count, 324)
+    }
+
+    func testPassivesSwitchPackageFromTheInspector() throws {
+        let store = DesignStore()
+        store.aiEnabled = false
+        store.applyPlan(OfflineProvider.templates[0].industryPlan, requirements: nil)
+        store.autoPlace(all: true)
+        let resistor = try XCTUnwrap(store.snapshot.components.first { $0.componentKind == .resistor })
+        let options = try XCTUnwrap(resistor.packageOptions)
+        XCTAssertEqual(options.map(\.label), ["0402", "0603", "0805", "1206", "Axial THT (1/4 W)"])
+        XCTAssertEqual(resistor.footprint, "R_0805")
+        XCTAssertNil(resistor.package)
+
+        store.setPackage(resistor.id, "R_Axial_THT")
+        let tht = try XCTUnwrap(store.snapshot.component(resistor.id))
+        XCTAssertEqual(tht.footprint, "R_Axial_THT")
+        XCTAssertTrue(store.snapshot.pads.filter { $0.component == resistor.id }.allSatisfy(\.throughHole))
+        XCTAssertTrue(store.isDirty)
+
+        // Saved with the project.
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        XCTAssertEqual(reopened.snapshot()?.component(resistor.id)?.footprint, "R_Axial_THT")
+
+        // Undo restores the chip resistor; parts without variants offer none.
+        store.undo()
+        XCTAssertEqual(store.snapshot.component(resistor.id)?.footprint, "R_0805")
+        XCTAssertNil(store.snapshot.components.first { $0.componentKind == .opAmp }?.packageOptions)
+        // A capacitor offers tantalum and electrolytic cases; a diode SMA and DO-41.
+        if let cap = store.snapshot.components.first(where: { $0.componentKind == .capacitor }) {
+            XCTAssertTrue(cap.packageOptions?.contains { $0.id == "CP_Tant_B" } ?? false)
+        }
+        XCTAssertTrue(EDAEngine().setPackage(-1, "R_0603") == false)
     }
 }

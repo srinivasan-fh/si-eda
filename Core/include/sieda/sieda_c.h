@@ -54,6 +54,8 @@ int32_t sieda_remove_component(SiedaProject* project, int32_t component_id);
 int32_t sieda_move_component(SiedaProject* project, int32_t component_id, double x, double y);
 int32_t sieda_rotate_component(SiedaProject* project, int32_t component_id, int32_t delta_degrees);
 int32_t sieda_set_component_value(SiedaProject* project, int32_t component_id, const char* value);
+/* Package variant of a passive / diode ("R_0603", "CP_Tant_B", "D_DO41_THT"…; "" = default). 1 on success. */
+int32_t sieda_set_component_package(SiedaProject* project, int32_t component_id, const char* package);
 int32_t sieda_set_component_ref(SiedaProject* project, int32_t component_id, const char* ref);
 int32_t sieda_find_component(const SiedaProject* project, const char* ref);  /* id or -1 */
 int32_t sieda_find_pin(const SiedaProject* project, int32_t component_id, const char* pin_name); /* index or -1 */
@@ -281,6 +283,9 @@ int32_t sieda_mesh_index_count(const SiedaMesh* mesh);
 const float* sieda_mesh_positions(const SiedaMesh* mesh); /* 3 floats per vertex */
 const float* sieda_mesh_normals(const SiedaMesh* mesh);   /* 3 floats per vertex */
 const float* sieda_mesh_colors(const SiedaMesh* mesh);    /* 4 floats per vertex (RGBA) */
+/* 1 byte per vertex: what the surface is made of (0 mask, 1 laminate, 2 copper finish, 3 gold, 4 tin, 5 solder,
+   6 silkscreen, 7 plastic, 8 ceramic, 9 glass, 10 drilled hole, 11 package marking). */
+const uint8_t* sieda_mesh_surfaces(const SiedaMesh* mesh);
 const uint32_t* sieda_mesh_indices(const SiedaMesh* mesh);
 
 #ifdef __cplusplus

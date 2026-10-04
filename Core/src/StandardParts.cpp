@@ -1,6 +1,7 @@
 #include "sieda/StandardParts.hpp"
 
 #include <cctype>
+#include <tuple>
 
 namespace sieda {
 
@@ -53,11 +54,27 @@ void isolated(StandardPart& p, const char* in, const char* inRet, const char* ou
 }
 void load(StandardPart& p, const char* supply, const char* ret, double amps) { p.spec.model.loads.push_back({supply, ret, amps}); }
 
+/// A part from the production catalog (generated: tools/fetch_catalog_parts.py) with explicit pin numbers, which
+/// for BGAs are ball names (A1, B7…).
+void catalog(std::vector<StandardPart>& parts, const char* category, const char* name, const char* manufacturer,
+             const char* description, const char* refPrefix, const char* package, int pinCount, double pitch,
+             double bodySize, const char* footprint, std::vector<std::tuple<const char*, const char*, T>> pins) {
+    StandardPart p = part(category, name, manufacturer, description, package, pinCount, refPrefix, {});
+    for (const auto& [number, pinName, type] : pins) p.spec.pins.push_back({number, pinName, type, ""});
+    p.spec.package.pitch = pitch;
+    p.spec.package.bodySize = bodySize;
+    p.spec.datasheet = std::string("Pinout and ") + footprint + " footprint from the " + manufacturer + " datasheet";
+    parts.push_back(std::move(p));
+}
+
 /// Behavioural simulation models (datasheet typical values; pins by number).
 void applyModels(std::vector<StandardPart>& parts) {
     for (auto& p : parts) {
         const std::string& n = p.spec.name;
         if (n == "LM7805") regulator(p, "1", "3", "2", 5.0, 2.0, 0.005, 1.5, 2.0);
+        else if (n == "LM7812") regulator(p, "1", "3", "2", 12.0, 2.0, 0.005, 1.5, 2.0);
+        else if (n == "AMS1117-3.3") regulator(p, "3", "2", "1", 3.3, 1.1, 0.005, 1.0, 1.0);
+        else if (n == "LM2596S-5.0") isolated(p, "1", "3", "2", "3", 5.0, 2.0, 0.005, 3.0, 3.0, 0.85);  // buck
         else if (n == "LM317") regulator(p, "3", "2", "1", 1.25, 2.0, 50e-6, 1.5, 2.0);  // ADJ is the reference
         else if (n == "LM2940-5.0") regulator(p, "1", "3", "2", 5.0, 0.5, 0.010, 1.0, 2.0);
         else if (n == "TJA1044GT") load(p, "3", "2", 0.010);
@@ -594,6 +611,63 @@ std::vector<StandardPart> build() {
                           {"GND2", T::PowerIn}, {"VIA", T::Input}, {"VOB", T::Output}, {"VDD2", T::PowerIn}}));
     // Top microcontrollers of Arm-ecosystem vendors, Microchip, ST and TI (generated: tools/fetch_mcu_pinouts.py).
 #include "StandardMcus.inc"
+    // Production catalog for robotics, automotive and industrial boards (generated: tools/fetch_catalog_parts.py).
+#include "StandardCatalog.inc"
+    // Microcontroller clock crystals in the packages fabs stock (HC-49 through-hole, 3225 SMD, 3215 / cylinder 32 kHz).
+    parts.push_back(part("Timing", "Crystal_16MHz", "Generic", "16 MHz crystal, HC-49/S, ±30 ppm, 20 pF load (2 × 22 pF caps)",
+                         "HC49", 2, "Y", {{"1", T::Passive}, {"2", T::Passive}}));
+    parts.push_back(part("Timing", "Crystal_16MHz_3225", "Generic", "16 MHz crystal, 3.2 × 2.5 mm SMD, ±20 ppm, 12 pF load",
+                         "XTAL3225", 4, "Y", {{"X1", T::Passive}, {"GND", T::Passive}, {"X2", T::Passive}, {"GND", T::Passive}}));
+    parts.push_back(part("Timing", "Crystal_8MHz_3225", "Generic", "8 MHz crystal, 3.2 × 2.5 mm SMD, ±20 ppm, 12 pF load",
+                         "XTAL3225", 4, "Y", {{"X1", T::Passive}, {"GND", T::Passive}, {"X2", T::Passive}, {"GND", T::Passive}}));
+    parts.push_back(part("Timing", "Crystal_32.768kHz_3215", "Generic", "32.768 kHz RTC crystal, 3.2 × 1.5 mm SMD, 12.5 pF load",
+                         "XTAL3215", 2, "Y", {{"1", T::Passive}, {"2", T::Passive}}));
+    parts.push_back(part("Timing", "Crystal_32.768kHz_Cylinder", "Generic",
+                         "32.768 kHz RTC crystal, 2 × 6 mm cylinder (through-hole), 12.5 pF load", "XTALCYL", 2, "Y",
+                         {{"1", T::Passive}, {"2", T::Passive}}));
+    // Catalog parts the KiCad library does not carry, from their datasheets.
+    parts.push_back(part("Motor Control", "L293DD", "STMicroelectronics",
+                         "Quad half-H driver with clamp diodes, 600 mA per channel, SOIC-20 (GND pins 4-7 / 14-17 sink heat)",
+                         "SOIC", 20, "U",
+                         {{"EN1", T::Input}, {"IN1", T::Input}, {"OUT1", T::Output}, {"GND", T::PowerIn},
+                          {"GND", T::PowerIn}, {"GND", T::PowerIn}, {"GND", T::PowerIn}, {"OUT2", T::Output},
+                          {"IN2", T::Input}, {"VS", T::PowerIn}, {"EN2", T::Input}, {"IN3", T::Input}, {"OUT3", T::Output},
+                          {"GND", T::PowerIn}, {"GND", T::PowerIn}, {"GND", T::PowerIn}, {"GND", T::PowerIn},
+                          {"OUT4", T::Output}, {"IN4", T::Input}, {"VSS", T::PowerIn}}));
+    parts.back().spec.package.bodySize = 7.5;
+    parts.push_back(part("Interface", "TCAN1042VDRQ1", "Texas Instruments",
+                         "Automotive CAN FD transceiver, 5 Mbit/s, 1.8…5 V VIO logic supply, ±58 V bus fault protection",
+                         "SOIC", 8, "U",
+                         {{"TXD", T::Input}, {"GND", T::PowerIn}, {"VCC", T::PowerIn}, {"RXD", T::Output},
+                          {"VIO", T::PowerIn}, {"CANL", T::Bidirectional}, {"CANH", T::Bidirectional}, {"STB", T::Input}}));
+    parts.push_back(part("Interface", "SP485EEN-L", "MaxLinear (Exar)", "RS-485 half-duplex transceiver, ±15 kV ESD, SOIC-8",
+                         "SOIC", 8, "U",
+                         {{"RO", T::Output}, {"nRE", T::Input}, {"DE", T::Input}, {"DI", T::Input}, {"GND", T::PowerIn},
+                          {"A", T::Bidirectional}, {"B", T::Bidirectional}, {"VCC", T::PowerIn}}));
+    parts.push_back(part("Optocouplers", "PC817X3NSZ0F", "Sharp", "Phototransistor optocoupler, 5 kV, CTR 80…160 %, DIP-4",
+                         "DIP", 4, "U", {{"A", T::Passive}, {"K", T::Passive}, {"E", T::Passive}, {"C", T::Passive}}));
+    parts.push_back(part("Optocouplers", "TLP281-4", "Toshiba",
+                         "Quad phototransistor optocoupler, 2.5 kV, SOP-16 (motor-to-CPU galvanic isolation)", "SOIC", 16, "U",
+                         {{"A1", T::Passive}, {"K1", T::Passive}, {"A2", T::Passive}, {"K2", T::Passive}, {"A3", T::Passive},
+                          {"K3", T::Passive}, {"A4", T::Passive}, {"K4", T::Passive}, {"E4", T::Passive}, {"C4", T::Passive},
+                          {"E3", T::Passive}, {"C3", T::Passive}, {"E2", T::Passive}, {"C2", T::Passive}, {"E1", T::Passive},
+                          {"C1", T::Passive}}));
+    parts.back().spec.package.bodySize = 4.4;
+    parts.push_back(part("Audio", "MAX4466EXK+T", "Analog Devices (Maxim)",
+                         "Low-power microphone pre-amplifier op-amp, 200 kHz GBW, SC70-5", "SOT23", 5, "U",
+                         {{"OUT", T::Output}, {"VSS", T::PowerIn}, {"IN+", T::Input}, {"IN-", T::Input}, {"VDD", T::PowerIn}}));
+    {
+        // Power MOSFET in a 5 × 6 mm SON: source pins 1-3, gate 4, drain pins 5-8 and the drain tab.
+        StandardPart fet = part("Power Electronics", "CSD18540Q5B", "Texas Instruments",
+                                "60 V N-channel NexFET, 1.8 mΩ, 100 A — leg / phase switching stages, VSON-8 (5 × 6 mm)",
+                                "SON", 8, "Q",
+                                {{"S", T::Passive}, {"S", T::Passive}, {"S", T::Passive}, {"G", T::Input}, {"D", T::Passive},
+                                 {"D", T::Passive}, {"D", T::Passive}, {"D", T::Passive}});
+        fet.spec.pins.push_back({"EP", "D", T::Passive, ""});
+        fet.spec.package.pitch = 1.27;
+        fet.spec.package.bodySize = 5.0;
+        parts.push_back(std::move(fet));
+    }
     applyModels(parts);
     return parts;
 }

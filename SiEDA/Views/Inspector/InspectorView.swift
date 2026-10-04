@@ -113,6 +113,17 @@ private struct ComponentProperties: View {
             }
 
             let series = ESeries.preferred(for: kind)
+            if let options = component.packageOptions, options.count > 1 {
+                PropertyGroup(title: "Package") {
+                    Picker("Package", selection: Binding(get: { component.footprint },
+                                                         set: { store.setPackage(component.id, $0) })) {
+                        ForEach(options) { Text($0.label).tag($0.id) }
+                    }
+                    .labelsHidden()
+                    .help("Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case")
+                    .accessibilityLabel("Package of \(component.ref)")
+                }
+            }
             if !series.isEmpty, let numeric = EDAEngine.parseValue(component.value), numeric > 0 {
                 PropertyGroup(title: "Standard Values (IEC 60063)") {
                     ForEach(series) { s in

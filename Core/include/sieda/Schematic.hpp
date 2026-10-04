@@ -55,11 +55,16 @@ struct Component {
     std::string firmwareName;  // file or example name shown in the editor
     double clockHz = 0;        // CPU clock; 0 = the model's default (16 MHz ATmega328P, 8 MHz ATtiny85)
     Sourcing sourcing;         // BOM: manufacturer, part numbers, price, do-not-populate
+    /// Package variant this part is fitted in (Library::packageVariants: "R_0603", "CP_Tant_B", "D_DO41_THT"…);
+    /// empty = the kind's default footprint.
+    std::string package;
 
     bool isNoConnect(int pin) const;
 
     const ComponentDef& def() const;
     bool hasFootprint() const { return !def().footprint.empty(); }
+    /// The footprint the part is placed with: its package variant, else the kind's default.
+    const std::string& footprintName() const;
 };
 
 struct Wire {
@@ -103,6 +108,8 @@ public:
     bool moveComponent(int id, Vec2 position);
     bool rotateComponent(int id, int deltaDeg = 90);
     bool setValue(int id, const std::string& value);
+    /// Fits the part in another package variant ("" = default); false if the kind has no such variant.
+    bool setPackage(int id, const std::string& package);
     bool setRef(int id, const std::string& ref);
     /// Marks a pin as intentionally unconnected (KiCad/Altium "no-connect" flag) or clears the mark.
     bool setPinNoConnect(int componentId, int pin, bool noConnect);

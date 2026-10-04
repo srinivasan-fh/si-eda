@@ -140,6 +140,12 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_set_component_value($0, Int32(id), value) } == 1
     }
 
+    /// Package variant of a passive / diode ("" = the default footprint).
+    @discardableResult
+    func setPackage(_ id: Int, _ package: String) -> Bool {
+        withHandle { sieda_set_component_package($0, Int32(id), package) } == 1
+    }
+
     @discardableResult
     func setRef(_ id: Int, _ ref: String) -> Bool {
         withHandle { sieda_set_component_ref($0, Int32(id), ref) } == 1
@@ -594,11 +600,13 @@ final class EDAEngine: @unchecked Sendable {
               let normals = sieda_mesh_normals(mesh),
               let colors = sieda_mesh_colors(mesh),
               let indices = sieda_mesh_indices(mesh) else { return nil }
+        let surfaces = sieda_mesh_surfaces(mesh).map { Array(UnsafeBufferPointer(start: $0, count: vertexCount)) } ?? []
         return MeshData(
             positions: Array(UnsafeBufferPointer(start: positions, count: vertexCount * 3)),
             normals: Array(UnsafeBufferPointer(start: normals, count: vertexCount * 3)),
             colors: Array(UnsafeBufferPointer(start: colors, count: vertexCount * 4)),
-            indices: Array(UnsafeBufferPointer(start: indices, count: indexCount))
+            indices: Array(UnsafeBufferPointer(start: indices, count: indexCount)),
+            surfaces: surfaces
         )
     }
 }

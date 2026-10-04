@@ -149,6 +149,12 @@ struct PcbPlacement: Decodable, Equatable {
     var isEmbedded: Bool { (embeddedLayer ?? 0) > 0 }
 }
 
+/// A package a part can be fitted in ("R_0603" shown as "0603").
+struct PackageOption: Decodable, Equatable, Identifiable, Hashable {
+    var id: String
+    var label: String
+}
+
 struct SnapComponent: Decodable, Equatable, Identifiable {
     var id: Int
     var kind: Int
@@ -163,6 +169,10 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     var customPart: String?
     /// Present for microcontrollers the simulator can run (ATmega328P, ATtiny85).
     var mcu: McuInfo?
+    /// Package variant the part is fitted in (nil = the kind's default footprint).
+    var package: String?
+    /// Packages a passive / diode can be switched to (chip sizes, through-hole, tantalum…); nil for fixed parts.
+    var packageOptions: [PackageOption]?
 
     var componentKind: ComponentKind { ComponentKind(rawValue: kind) ?? .ic8 }
     var position: CGPoint { CGPoint(x: x, y: y) }
@@ -963,7 +973,14 @@ struct MeshData {
     var normals: [Float]
     var colors: [Float]
     var indices: [UInt32]
+    /// One `MeshSurface` raw value per vertex (empty when the core did not tag them).
+    var surfaces: [UInt8] = []
     var vertexCount: Int { positions.count / 3 }
+}
+
+/// What a mesh triangle is made of (mirrors the core's `Surface`); the 3D view gives each its own physical material.
+enum MeshSurface: UInt8, CaseIterable {
+    case mask = 0, laminate, finish, gold, tin, solder, silk, plastic, ceramic, glass, hole, marking
 }
 
 // MARK: - Formatting

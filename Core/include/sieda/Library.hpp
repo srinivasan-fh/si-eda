@@ -93,6 +93,10 @@ public:
     static const Library& instance();
     const ComponentDef& component(ComponentKind kind) const;
     const FootprintDef* footprint(const std::string& name) const;  // nullptr if unknown
+    /// Footprints a part of this kind can be fitted in (chip sizes, through-hole, tantalum…); empty = fixed.
+    static std::vector<std::string> packageVariants(ComponentKind kind);
+    /// Short name of a package variant for menus and the BOM ("0603", "SMA (DO-214AC)").
+    static std::string packageLabel(const std::string& footprint);
     const std::vector<ComponentDef>& components() const { return components_; }
     const std::vector<FootprintDef>& footprints() const { return footprints_; }
     static bool isValidKind(int kind) { return kind >= 0 && kind < kComponentKindCount; }

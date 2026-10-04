@@ -1,5 +1,6 @@
 // SiEDA core unit tests — dependency-free; run via `ctest` or directly.
 #include <map>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
@@ -1981,6 +1982,444 @@ TEST(mesh_is_valid) {
     CHECK(obj.find("\nf ") != std::string::npos);
 }
 
+TEST(assembly_mesh_is_realistic) {
+    // Every vertex carries what it is made of, so the 3D view can light mask, metal, solder and plastic differently.
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    Mesh m = buildAssemblyMesh(p.schematic, p.pcb);
+    CHECK(m.surfaces.size() == m.vertexCount());
+    for (uint8_t v : m.surfaces) CHECK(v < kSurfaceCount);
+    for (Surface s : {Surface::Mask, Surface::Laminate, Surface::Finish, Surface::Gold, Surface::Tin, Surface::Solder,
+                      Surface::Silk, Surface::Plastic, Surface::Ceramic, Surface::Glass, Surface::Hole, Surface::Marking})
+        CHECK(m.surfaceVertices(s) > 0);
+    // The board's top face is still the first quad, in the mask colour.
+    CHECK(m.surfaces[0] == static_cast<uint8_t>(Surface::Mask) && m.normals[1] > 0.99f);
+
+    // A bare board (no parts): pads show their finish, no solder joints, leads or bodies.
+    Mesh bare = buildAssemblyMesh(p.schematic, p.pcb, {false, true, true});
+    CHECK(bare.surfaceVertices(Surface::Solder) == 0 && bare.surfaceVertices(Surface::Plastic) == 0);
+    CHECK(bare.surfaceVertices(Surface::Finish) > 0 && bare.surfaceVertices(Surface::Silk) > 0);
+    // Silkscreen legends: reference designators make the silk far richer than the bare outlines.
+    size_t parts = 0;
+    for (const auto& c : p.schematic.components()) parts += c.hasFootprint() && c.pcb.placed ? 1 : 0;
+    CHECK(bare.surfaceVertices(Surface::Silk) > parts * 4 * 24 * 2);
+
+    // The X-ray copper layers are all finish.
+    Mesh layer = buildCopperLayerMesh(p.schematic, p.pcb, 0);
+    CHECK(layer.surfaces.size() == layer.vertexCount() && layer.surfaceVertices(Surface::Finish) == layer.vertexCount());
+}
+
+TEST(silkscreen_stroke_font) {
+    // Every character a reference or part value uses draws something; unknown ones fall back to '?'.
+    for (char ch : std::string("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcxyz-+./_?")) {
+        Mesh t;
+        t.addText(std::string(1, ch), {0, 0}, 1.0, 0.0, 0.01, Rgba{});
+        CHECK(t.vertexCount() > 0);
+    }
+    Mesh space;
+    space.addText(" ", {0, 0}, 1.0, 0.0, 0.01, Rgba{});
+    CHECK(space.vertexCount() == 0);
+    Mesh unknown;
+    unknown.addText("~", {0, 0}, 1.0, 0.0, 0.01, Rgba{});
+    CHECK(unknown.vertexCount() > 0);
+
+    // Width grows with length and height; text is centred, and mirrored text (bottom legend) is its reflection.
+    CHECK(Mesh::textWidth("R10", 1.0) > Mesh::textWidth("R1", 1.0));
+    CHECK(std::fabs(Mesh::textWidth("U1", 2.0) - 2 * Mesh::textWidth("U1", 1.0)) < 1e-9);
+    Mesh a, b;
+    a.addText("R7", {10, 5}, 1.0, 0.0, 0.01, Rgba{});
+    b.addText("R7", {10, 5}, 1.0, 0.0, 0.01, Rgba{}, true);
+    double minA = 1e9, maxA = -1e9, sumA = 0, sumB = 0;
+    for (size_t v = 0; v < a.vertexCount(); ++v) {
+        minA = std::min(minA, double(a.positions[v * 3]));
+        maxA = std::max(maxA, double(a.positions[v * 3]));
+        sumA += a.positions[v * 3] - 10;
+        sumB += b.positions[v * 3] - 10;
+    }
+    CHECK(std::fabs((minA + maxA) / 2 - 10) < 0.2);
+    CHECK(a.vertexCount() == b.vertexCount());
+    CHECK(std::fabs(sumA + sumB) < 1e-3);  // x mirrored about the centre
+    // Text tops point to board −Y (the top of the PCB view): the '7' bar sits at the smallest Z.
+    double minZ = 1e9, maxZ = -1e9;
+    for (size_t v = 0; v < a.vertexCount(); ++v) {
+        minZ = std::min(minZ, double(a.positions[v * 3 + 2]));
+        maxZ = std::max(maxZ, double(a.positions[v * 3 + 2]));
+    }
+    CHECK(minZ < 5 - 0.4 && maxZ > 5 + 0.4);
+}
+
+namespace {
+/// Positions (x, y, z) of the vertices tagged with `s`.
+std::vector<Vec3> surfacePoints(const Mesh& m, Surface s) {
+    std::vector<Vec3> pts;
+    for (size_t v = 0; v < m.vertexCount(); ++v)
+        if (m.surfaces[v] == static_cast<uint8_t>(s)) pts.push_back({m.positions[v * 3], m.positions[v * 3 + 1], m.positions[v * 3 + 2]});
+    return pts;
+}
+bool anyIn(const std::vector<Vec3>& pts, Rect r, double y0, double y1) {
+    for (const auto& p : pts)
+        if (p.x >= r.x0 && p.x <= r.x1 && p.z >= r.y0 && p.z <= r.y1 && p.y >= y0 && p.y <= y1) return true;
+    return false;
+}
+}  // namespace
+
+TEST(realistic_assembly_geometry) {
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    const auto& s = p.schematic;
+    const double t = p.pcb.settings.thickness;
+    Mesh m = buildAssemblyMesh(s, p.pcb);
+    const auto solder = surfacePoints(m, Surface::Solder), tin = surfacePoints(m, Surface::Tin);
+    const auto silk = surfacePoints(m, Surface::Silk), marking = surfacePoints(m, Surface::Marking);
+    const auto glass = surfacePoints(m, Surface::Glass), ceramic = surfacePoints(m, Surface::Ceramic);
+    const auto pads = p.pcb.pads(s);
+
+    for (const auto& pad : pads) {
+        const Component* c = s.find(pad.componentId);
+        if (!c || c->pcb.bottom) continue;
+        if (!pad.throughHole) {
+            // A solder dome sits on every top SMD pad, inside the pad and just above the copper.
+            CHECK(anyIn(solder, pad.bounds(), 0.0, 0.2));
+        } else {
+            // Through-hole joints are on the solder side, under the board.
+            CHECK(anyIn(solder, pad.bounds().inflated(0.05), -t - 0.4, -t));
+        }
+    }
+    // Every SOIC lead reaches its pad: tinned metal over each pad that sticks out of the package body.
+    int socs = 0, leds = 0, chips = 0, smdPads = 0, thPads = 0;
+    for (const auto& pad : pads) (pad.throughHole ? thPads : smdPads) += 1;
+    CHECK(smdPads > 10 && thPads >= 2);
+    for (const auto& c : s.components()) {
+        if (c.def().footprint != "SOIC8_OPAMP") continue;
+        ++socs;
+        int reached = 0, total = 0;
+        for (const auto& pad : pads) {
+            if (pad.componentId != c.id) continue;
+            ++total;
+            reached += anyIn(tin, pad.bounds(), 0.0, 0.3) ? 1 : 0;
+        }
+        CHECK(total == 8 && reached == 8);
+        // The part number is etched on the package top and a pin-1 dimple sits on it.
+        const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
+        Rect body = Rect::centered(c.pcb.position, fp->body.width + 0.01, fp->body.depth + 0.01);
+        if (((c.pcb.rotation / 90) % 2 + 2) % 2 == 1) body = Rect::centered(c.pcb.position, fp->body.depth + 0.01, fp->body.width + 0.01);
+        CHECK(anyIn(marking, body, fp->body.height, fp->body.height + 0.1));
+    }
+    // Each placed part's reference is printed on the silkscreen above its outline.
+    for (const auto& c : s.components()) {
+        if (!c.hasFootprint() || !c.pcb.placed || c.ref.empty()) continue;
+        Rect r = p.pcb.courtyard(c);
+        Rect label{r.x0 - 3, r.y0 - 2.5, r.x1 + 3, r.y0};
+        CHECK(anyIn(silk, label, 0.0, 0.1));
+    }
+    // Glass only on LEDs, ceramic only on chip passives.
+    for (const auto& c : s.components()) {
+        if (!c.hasFootprint() || !c.pcb.placed) continue;
+        Rect r = p.pcb.courtyard(c);
+        const std::string fp = c.def().footprint;
+        const bool chip = fp.rfind("R_", 0) == 0 || fp.rfind("C_", 0) == 0;
+        if (c.kind == ComponentKind::LED) {
+            ++leds;
+            CHECK(anyIn(glass, r, 0.0, 10.0));
+        }
+        if (chip) {
+            ++chips;
+            CHECK(anyIn(ceramic, r, 0.0, 10.0) && !anyIn(glass, r, 0.0, 10.0));
+        }
+    }
+    CHECK(socs == 1 && leds == 1 && chips >= 6);
+    for (const auto& g : glass) CHECK(g.y >= 0);  // no LED glass inside or under the board here
+
+    // Vias: a dark bore of the drill's radius through the board and plated lands on both outer layers.
+    p.pcb.vias.push_back({});
+    Via& v = p.pcb.vias.back();
+    v.position = {1.5, 1.5};
+    v.drill = 0.3;
+    v.diameter = 0.6;
+    Mesh withVia = buildAssemblyMesh(s, p.pcb);
+    double boreR = 0, boreTop = -1e9, boreBottom = 1e9;
+    for (const auto& h : surfacePoints(withVia, Surface::Hole)) {
+        double r = std::hypot(h.x - 1.5, h.z - 1.5);
+        if (r > 0.4) continue;
+        boreR = std::max(boreR, r);
+        boreTop = std::max(boreTop, h.y);
+        boreBottom = std::min(boreBottom, h.y);
+    }
+    CHECK(std::fabs(boreR - 0.15) < 1e-3);
+    CHECK(boreTop > 0 && boreBottom < -t);
+    const auto finish = surfacePoints(withVia, Surface::Finish);
+    CHECK(anyIn(finish, Rect::centered({1.5, 1.5}, 0.62, 0.62), -0.001, 0.04));
+    CHECK(anyIn(finish, Rect::centered({1.5, 1.5}, 0.62, 0.62), -t - 0.04, -t + 0.001));
+}
+
+TEST(realistic_assembly_bottom_side) {
+    // A part flipped to the bottom: its body, solder and mirrored legend hang under the board.
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    int flipped = -1;
+    for (auto& c : p.schematic.mutableComponents())
+        if (flipped < 0 && c.kind == ComponentKind::Resistor && c.pcb.placed) {
+            c.pcb.bottom = true;
+            flipped = c.id;
+        }
+    CHECK(flipped >= 0);
+    const auto& s = p.schematic;
+    const double t = p.pcb.settings.thickness;
+    Mesh m = buildAssemblyMesh(s, p.pcb);
+    Rect r = p.pcb.courtyard(*s.find(flipped));
+    CHECK(anyIn(surfacePoints(m, Surface::Ceramic), r, -t - 5, -t));
+    CHECK(!anyIn(surfacePoints(m, Surface::Ceramic), r, 0.0, 5.0));
+    CHECK(anyIn(surfacePoints(m, Surface::Solder), r.inflated(0.5), -t - 0.3, -t));
+    Rect label{r.x0 - 3, r.y0 - 2.5, r.x1 + 3, r.y0};
+    CHECK(anyIn(surfacePoints(m, Surface::Silk), label, -t - 0.1, -t));
+}
+
+TEST(realistic_assembly_mesh_stays_bounded) {
+    // Big boards: the extra detail (legends, leads, joints) costs a bounded number of vertices per part and the mesh
+    // builds quickly.
+    Project p;
+    auto& s = p.schematic;
+    int prev = -1;
+    for (int k = 0; k < 120; ++k) {
+        int r = s.addComponent(ComponentKind::Resistor, "10k", {k * 30.0, 0});
+        if (prev >= 0) wire(s, prev, "2", r, "1");
+        prev = r;
+    }
+    p.pcb.settings.width = 160;
+    p.pcb.settings.height = 120;
+    p.pcb.autoPlace(s, true);
+    size_t placed = 0;
+    for (const auto& c : s.components()) placed += c.pcb.placed ? 1 : 0;
+    CHECK(placed == 120);
+    auto start = std::chrono::steady_clock::now();
+    Mesh m = buildAssemblyMesh(s, p.pcb);
+    double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    CHECK(seconds < 5.0);
+    CHECK(m.vertexCount() < placed * 3000);
+    CHECK(m.surfaces.size() == m.vertexCount() && m.colors.size() == m.vertexCount() * 4);
+    // Exports still carry the realistic colours.
+    CHECK(exportObj(m, "big").find("\nv ") != std::string::npos);
+}
+
+TEST(complex_design_flow_is_fast) {
+    // Productivity: a dense 40-channel signal-conditioning board (40 op-amp stages, each with gain resistors, a
+    // filter capacitor and an output connector pin, all on shared VCC / GND) goes from schematic to a placed,
+    // routed, verified and meshed board in seconds.
+    Project p;
+    auto& s = p.schematic;
+    int j = s.addComponent(ComponentKind::Connector, "PWR", {0, 0});
+    int vcc = s.addComponent(ComponentKind::NetLabel, "VCC", {-40, -10});
+    int gnd = s.addComponent(ComponentKind::Ground, "", {-40, 30});
+    wire(s, j, "1", vcc, "N");
+    wire(s, j, "2", gnd, "GND");
+    constexpr int kStages = 40;
+    for (int k = 0; k < kStages; ++k) {
+        const double x = 100.0 + k * 120.0;
+        int u = s.addComponent(ComponentKind::OpAmp, "LM358", {x, 0});
+        int rin = s.addComponent(ComponentKind::Resistor, "10k", {x - 60, 10});
+        int rf = s.addComponent(ComponentKind::Resistor, "47k", {x, -60});
+        int rg = s.addComponent(ComponentKind::Resistor, "10k", {x - 40, -60});
+        int cf = s.addComponent(ComponentKind::Capacitor, "1n", {x + 40, -60});
+        int lv = s.addComponent(ComponentKind::NetLabel, "VCC", {x - 90, 10});
+        int g = s.addComponent(ComponentKind::Ground, "", {x - 40, 60});
+        int out = s.addComponent(ComponentKind::NetLabel, "OUT" + std::to_string(k), {x + 60, 0});
+        wire(s, lv, "N", rin, "1");
+        wire(s, rin, "2", u, "IN+");
+        wire(s, u, "IN-", rg, "2");
+        wire(s, rg, "1", g, "GND");
+        wire(s, u, "IN-", rf, "1");
+        wire(s, rf, "2", u, "OUT");
+        wire(s, cf, "1", u, "IN-");
+        wire(s, cf, "2", u, "OUT");
+        wire(s, u, "OUT", out, "N");
+    }
+    size_t parts = 0;
+    for (const auto& c : s.components()) parts += c.hasFootprint() ? 1 : 0;
+    CHECK(parts == 1 + kStages * 5);  // the connector, then an op-amp, three resistors and a capacitor per stage
+
+    using clock = std::chrono::steady_clock;
+    auto secs = [](clock::time_point a) { return std::chrono::duration<double>(clock::now() - a).count(); };
+    auto t0 = clock::now();
+    p.pcb.autoPlace(s, true);
+    p.pcb.fitBoardToComponents(s, 2.5);
+    const double place = secs(t0);
+    t0 = clock::now();
+    const auto stats = p.pcb.autoRoute(s);
+    const double route = secs(t0);
+    t0 = clock::now();
+    const auto report = verifyDesign(p);
+    const double verify = secs(t0);
+    t0 = clock::now();
+    Mesh m = buildAssemblyMesh(s, p.pcb);
+    const double mesh = secs(t0);
+    std::printf("    flow: %zu parts, %d connections — place %.2f s, route %.2f s, verify %.2f s, 3D %.2f s\n", parts,
+                stats.connections, place, route, verify, mesh);
+    CHECK(stats.failed == 0);
+    for (const auto& c : s.components()) CHECK(!c.hasFootprint() || c.pcb.placed);
+    CHECK(m.vertexCount() > 0);
+    CHECK(report.stages.size() == 8);
+    // Generous budgets (sanitiser and debug builds run here too): a regression to the old quadratic scans or an
+    // unoptimised core shows up as minutes.
+    CHECK(place < 20.0);
+    CHECK(route < 60.0);
+    CHECK(verify < 20.0);
+    CHECK(mesh < 5.0);
+}
+
+TEST(production_parts_catalog) {
+    // The robotics / automotive / industrial catalog: every orderable part number is in the library on its real
+    // package, with datasheet pin names, and registers as a placeable part.
+    const char* catalog[] = {
+        "ATMEGA328P-AU", "ATMEGA328P-PU", "STM32F103C8T6", "STM32F405RGT6", "ESP32-WROOM-32E", "RP2040", "L293DD", "L293D",
+        "L298HN", "ULN2003ADR", "ULN2003A", "PCA9685PW", "IR2101S", "IR2110S", "TMC2209-LA", "MPU-6050", "MPU-9250",
+        "ADS1115IDGS", "LM358DR", "LM358N", "LM393DR", "LM393N", "MAX9814ETD+T", "MAX4466EXK+T", "74HC595D", "74HC595",
+        "PCF8574TS", "PCF8574N", "CH340G", "CP2102N-A02-GQFN28", "MAX485ESA+T", "SP485EEN-L", "TJA1050", "MCP2551-I/SN",
+        "LM7805", "LM7812", "AMS1117-3.3", "LM2596S-5.0", "XL4015E1", "TP4056", "LM74700QDBVRQ1", "PC817X3NSZ0F",
+        "TLP281-4", "STM32H743IIT6", "STM32F765VIT6", "LPC1768", "XC7A35T-1CSG324I", "CSD18540Q5B",
+        "TMC2160-TA", "TMC5160A-TA", "AS5047D-ATSM", "INA240A1EDRQ1", "TCAN1042VDRQ1", "ADM2587EBRWZ",
+        "LTC4359IMS8#PBF", "BMI160", "ICS-43434", "ATSAMD51J20A-AU",
+    };
+    for (const char* name : catalog) {
+        const StandardPart* sp = findStandardPart(name);
+        CHECK(sp != nullptr);
+        if (!sp) {
+            std::printf("    missing %s\n", name);
+            continue;
+        }
+        bool ok = true;
+        try {
+            auto part = CustomPartRegistry::instance().registerPart(sp->spec);
+            size_t connected = 0;
+            for (const auto& pad : part->footprint.pads) connected += pad.pinIndex >= 0 ? 1 : 0;
+            ok = !part->def.pins.empty() && part->footprint.pads.size() >= sp->spec.pins.size() - 1 && connected > 0;
+        } catch (const std::exception& e) {
+            std::printf("    %s: %s\n", name, e.what());
+            ok = false;
+        }
+        CHECK(ok);
+    }
+    // The catalog's flyback diodes are diode values with their own simulation models (Schottky / rectifier).
+    CHECK(findDeviceModel(ComponentKind::Diode, "1N5819") != nullptr);
+    CHECK(findDeviceModel(ComponentKind::Diode, "1N4007") != nullptr);
+    auto reg = [](const char* name) { return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec); };
+    auto pinName = [](const std::shared_ptr<const CustomPart>& part, const PadDef& pad) {
+        return pad.pinIndex >= 0 ? part->def.pins[static_cast<size_t>(pad.pinIndex)].name : std::string("-");
+    };
+
+    // Datasheet pin names from the generated catalog.
+    CHECK(reg("LM358DR")->def.pins[7].name == "V+" || reg("LM358DR")->def.pins[7].number == "8");
+    CHECK(reg("MAX485ESA+T")->def.pins[5].name == "A" && reg("MAX485ESA+T")->def.pins[6].name == "B");
+    CHECK(reg("L298HN")->def.pins[3].name == "Vs");
+    CHECK(reg("TCAN1042VDRQ1")->def.pins[4].name == "VIO");
+
+    // FPGA: 324 balls in an 18 × 18 grid at 0.8 mm, named A1…V18 (no I / O / Q / S rows), pins on their balls.
+    auto fpga = reg("XC7A35T-1CSG324I");
+    CHECK(fpga->footprint.pads.size() == 324);
+    CHECK(fpga->footprint.pads.front().round);
+    CHECK(std::fabs(fpga->footprint.pads[1].offset.x - fpga->footprint.pads[0].offset.x - 0.8) < 1e-9);
+    size_t mapped = 0;
+    for (const auto& pad : fpga->footprint.pads) mapped += pad.pinIndex >= 0 ? 1 : 0;
+    CHECK(mapped == 324);
+    bool hasV18 = false, hasI = false;
+    for (const auto& pin : fpga->def.pins) {
+        hasV18 |= pin.number == "V18";
+        hasI |= pin.number[0] == 'I' || pin.number[0] == 'O';
+    }
+    CHECK(hasV18 && !hasI);
+
+    // D²PAK buck: five leads plus the tab soldered to pin 3 (GND); SOT-223 LDO: tab on pin 2 (VO).
+    auto buck = reg("LM2596S-5.0");
+    CHECK(buck->footprint.pads.size() == 6);
+    CHECK(pinName(buck, buck->footprint.pads.back()) == "GND");
+    CHECK(buck->footprint.pads.back().size.x > 9);
+    auto ldo = reg("AMS1117-3.3");
+    CHECK(ldo->footprint.pads.size() == 4 && pinName(ldo, ldo->footprint.pads.back()) == "VO");
+
+    // Multiwatt-15: through-hole, staggered rows.
+    auto l298 = reg("L298HN");
+    CHECK(l298->footprint.pads.size() == 15 && l298->footprint.pads[0].throughHole);
+    CHECK(l298->footprint.pads[0].offset.y != l298->footprint.pads[1].offset.y);
+
+    // Power MOSFET SON: the drain tab joins the drain pins; TQFP-48 drivers get their exposed pad.
+    auto fet = reg("CSD18540Q5B");
+    CHECK(fet->footprint.pads.size() == 9 && pinName(fet, fet->footprint.pads.back()) == "D");
+    CHECK(reg("TMC2160-TA")->footprint.pads.size() == 49);
+    CHECK(reg("TMC2209-LA")->footprint.pads.size() == 29);
+    // Wide-body SOIC and SC70 / SOT-23-5 packages.
+    CHECK(reg("ADM2587EBRWZ")->footprint.body.width > 7);
+    CHECK(reg("MAX4466EXK+T")->footprint.pads.size() == 5);
+    // Linear regulators simulate.
+    CHECK(findStandardPart("LM7812")->spec.model.hasRegulator && findStandardPart("AMS1117-3.3")->spec.model.hasRegulator);
+}
+
+TEST(passive_package_variants) {
+    // Resistors, capacitors, inductors, diodes and LEDs can be fitted in the package the BOM calls for: chip sizes,
+    // through-hole, tantalum and electrolytic capacitors, SMA / DO-41 diodes.
+    Project p = amplifierProject();
+    auto& s = p.schematic;
+    int r = -1, c = -1, d = -1;
+    for (const auto& comp : s.components()) {
+        if (r < 0 && comp.kind == ComponentKind::Resistor) r = comp.id;
+        if (c < 0 && comp.kind == ComponentKind::Capacitor) c = comp.id;
+    }
+    d = s.addComponent(ComponentKind::Diode, "1N4007", {500, 0});
+    CHECK(r >= 0 && c >= 0 && d >= 0);
+    CHECK(Library::packageVariants(ComponentKind::Resistor).size() == 5);
+    CHECK(Library::packageVariants(ComponentKind::OpAmp).empty());
+    for (ComponentKind k : {ComponentKind::Resistor, ComponentKind::Capacitor, ComponentKind::Inductor, ComponentKind::Diode,
+                            ComponentKind::LED})
+        for (const auto& v : Library::packageVariants(k)) CHECK(Library::instance().footprint(v) != nullptr);
+    CHECK(Library::packageLabel("CP_Tant_B") == "Tantalum B (3528)");
+
+    // Default footprint until a variant is chosen; invalid variants are refused.
+    CHECK(s.find(r)->footprintName() == "R_0805" && s.find(r)->package.empty());
+    CHECK(!s.setPackage(r, "D_SMA") && !s.setPackage(r, "nonsense"));
+    CHECK(s.setPackage(r, "R_0603") && s.find(r)->footprintName() == "R_0603");
+    CHECK(s.setPackage(c, "CP_Tant_B") && s.setPackage(d, "D_DO41_THT"));
+    p.pcb.autoPlace(s, true);
+    const auto pads = p.pcb.pads(s);
+    for (const auto& pad : pads) {
+        if (pad.componentId == r) CHECK(std::fabs(pad.size.x - 0.9) < 1e-9 || std::fabs(pad.size.y - 0.9) < 1e-9);
+        if (pad.componentId == d) CHECK(pad.throughHole && pad.drill > 0.9);
+    }
+    // BOM, export, save / load and the snapshot carry the package.
+    Json snap = p.snapshot();
+    bool sawOptions = false;
+    for (const auto& j : snap.get("components").items()) {
+        if (j.get("id").asInt() == c) {
+            CHECK(j.get("footprint").asString() == "CP_Tant_B" && j.get("package").asString() == "CP_Tant_B");
+            CHECK(j.get("packageOptions").items().size() == 8);
+            sawOptions = true;
+        }
+    }
+    CHECK(sawOptions);
+    CHECK(exportBomCsv(s).find("Tantalum B") != std::string::npos);
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.schematic.find(r)->footprintName() == "R_0603" && q.schematic.find(d)->footprintName() == "D_DO41_THT");
+    // Back to the default clears the variant.
+    CHECK(s.setPackage(r, "R_0805") && s.find(r)->package.empty());
+    // 3D: the tantalum is a moulded body, the axial diode a through-hole part with leads under the board.
+    Mesh m = buildAssemblyMesh(s, p.pcb);
+    Rect dr = p.pcb.courtyard(*s.find(d));
+    CHECK(anyIn(surfacePoints(m, Surface::Hole), dr, -p.pcb.settings.thickness - 0.1, 0.1));
+
+    // Crystals in the catalog's packages.
+    auto reg = [](const char* name) { return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec); };
+    CHECK(reg("Crystal_16MHz_3225")->footprint.pads.size() == 4);
+    CHECK(reg("Crystal_32.768kHz_3215")->footprint.pads.size() == 2 && !reg("Crystal_32.768kHz_3215")->footprint.pads[0].throughHole);
+    CHECK(reg("Crystal_32.768kHz_Cylinder")->footprint.pads[0].throughHole);
+    CHECK(reg("Crystal_16MHz")->footprint.pads[0].throughHole);
+
+    // C API.
+    SiedaProject* api = sieda_project_new("pkg");
+    int32_t rr = sieda_add_component(api, static_cast<int32_t>(ComponentKind::Resistor), "10k", 0, 0, 0, "R1");
+    CHECK(sieda_set_component_package(api, rr, "R_Axial_THT") == 1);
+    CHECK(sieda_set_component_package(api, rr, "C_0603") == 0);
+    sieda_project_free(api);
+}
+
 TEST(c_api_smoke) {
     int rc = sieda_c_api_smoke_test();
     if (rc != 0) std::printf("    c api step %d failed\n", rc);
@@ -2117,9 +2556,10 @@ TEST(microcontroller_library_by_vendor) {
     for (const auto& p : standardParts())
         if (p.category.rfind("Microcontrollers · ", 0) == 0) ++perGroup[p.category];
     CHECK(perGroup["Microcontrollers · Arm"] == 10);
-    CHECK(perGroup["Microcontrollers · STMicroelectronics"] == 10);
+    CHECK(perGroup["Microcontrollers · STMicroelectronics"] == 13);  // + the catalog's STM32F405 / H743 / F765
     CHECK(perGroup["Microcontrollers · Texas Instruments"] == 10);
-    CHECK(perGroup["Microcontrollers · Microchip"] == 13);  // + ATmega328P, ATtiny85 and the rad-tolerant ATmegaS128
+    // + ATmega328P, ATtiny85, the rad-tolerant ATmegaS128 and the catalog's ATMEGA328P-AU / -PU and SAM D51.
+    CHECK(perGroup["Microcontrollers · Microchip"] == 16);
     for (const auto& p : standardParts()) {
         if (p.category.rfind("Microcontrollers · ", 0) != 0) continue;
         bool ok = true;

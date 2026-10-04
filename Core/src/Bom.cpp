@@ -16,18 +16,25 @@ namespace sieda {
 namespace {
 std::string footprintLabel(const Component& c) {
     if (c.pcb.embedded()) return "Embedded, layer " + std::to_string(c.pcb.embeddedLayer + 1);
-    const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
-    if (!fp) return c.def().footprint;
+    const FootprintDef* fp = Library::instance().footprint(c.footprintName());
+    if (!fp) return c.footprintName();
     return fp->label.empty() ? fp->name : fp->label;
 }
 
 /// "0805" from "R_0805", "SOT-23" from "SOT23_BJT" …
 std::string packageCode(const Component& c) {
-    std::string fp = c.def().footprint;
+    std::string fp = c.footprintName();
     for (const char* size : {"0402", "0603", "0805", "1206", "1210", "2512"})
         if (fp.find(size) != std::string::npos) return size;
     if (fp.rfind("SOT23", 0) == 0) return "SOT-23";
     if (fp.rfind("SOD123", 0) == 0 || fp.find("SOD123") != std::string::npos) return "SOD-123";
+    if (fp == "D_SMA") return "SMA";
+    if (fp == "D_DO41_THT") return "DO-41";
+    if (fp == "CP_Tant_A") return "Tantalum A";
+    if (fp == "CP_Tant_B") return "Tantalum B";
+    if (fp == "CP_Radial_THT") return "Radial";
+    if (fp == "R_Axial_THT") return "Axial";
+    if (fp == "C_Disc_THT") return "Disc";
     if (fp.rfind("SOIC8", 0) == 0) return "SOIC-8";
     if (fp.rfind("PinHeader", 0) == 0) return "2.54 mm header";
     return footprintLabel(c);

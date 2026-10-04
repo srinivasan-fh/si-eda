@@ -227,6 +227,15 @@ int32_t sieda_set_component_value(SiedaProject* project, int32_t id, const char*
     });
 }
 
+int32_t sieda_set_component_package(SiedaProject* project, int32_t id, const char* package) {
+    if (!project) return 0;
+    return guarded([&] {
+        bool ok = project->project.schematic.setPackage(id, str(package));
+        if (ok) project->project.schematicChanged();
+        return ok ? 1 : 0;
+    });
+}
+
 int32_t sieda_set_component_ref(SiedaProject* project, int32_t id, const char* ref) {
     if (!project) return 0;
     return project->project.schematic.setRef(id, str(ref)) ? 1 : 0;
@@ -1265,6 +1274,7 @@ int32_t sieda_mesh_index_count(const SiedaMesh* m) { return m ? static_cast<int3
 const float* sieda_mesh_positions(const SiedaMesh* m) { return m ? m->mesh.positions.data() : nullptr; }
 const float* sieda_mesh_normals(const SiedaMesh* m) { return m ? m->mesh.normals.data() : nullptr; }
 const float* sieda_mesh_colors(const SiedaMesh* m) { return m ? m->mesh.colors.data() : nullptr; }
+const uint8_t* sieda_mesh_surfaces(const SiedaMesh* m) { return m ? m->mesh.surfaces.data() : nullptr; }
 const uint32_t* sieda_mesh_indices(const SiedaMesh* m) { return m ? m->mesh.indices.data() : nullptr; }
 
 }  // extern "C"

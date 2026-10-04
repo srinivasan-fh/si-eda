@@ -52,8 +52,8 @@ std::string mm(double v) {
 }
 
 std::string footprintLabel(const Component& c) {
-    const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
-    if (!fp) return c.def().footprint;
+    const FootprintDef* fp = Library::instance().footprint(c.footprintName());
+    if (!fp) return c.footprintName();
     return fp->label.empty() ? fp->name : fp->label;
 }
 
@@ -252,7 +252,7 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
             ops.push_back({ap, coord({r.x0, r.y0}) + "D02*\n" + coord({r.x1, r.y0}) + "D01*\n" + coord({r.x1, r.y1}) +
                                    "D01*\n" + coord({r.x0, r.y1}) + "D01*\n" + coord({r.x0, r.y0}) + "D01*"});
             // Pin-1 marker dot.
-            const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
+            const FootprintDef* fp = Library::instance().footprint(c.footprintName());
             if (fp && !fp->pads.empty()) {
                 Vec2 p1 = c.pcb.position + rotate90(fp->pads[0].offset, c.pcb.rotation);
                 Vec2 dir = p1 - c.pcb.position;
@@ -600,7 +600,7 @@ std::string exportAssemblySvg(const Schematic& sch, const PcbLayout& pcb, bool b
         Rect r = pcb.courtyard(c).inflated(-0.15);
         o << "<rect x=\"" << mm(r.x0) << "\" y=\"" << mm(r.y0) << "\" width=\"" << mm(r.x1 - r.x0) << "\" height=\""
           << mm(r.y1 - r.y0) << "\" fill=\"none\" stroke=\"#1b4f9c\" stroke-width=\"0.15\"/>\n";
-        const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
+        const FootprintDef* fp = Library::instance().footprint(c.footprintName());
         if (fp && !fp->pads.empty()) {
             Vec2 p1 = c.pcb.position + rotate90(fp->pads[0].offset, c.pcb.rotation);
             o << "<circle cx=\"" << mm(p1.x) << "\" cy=\"" << mm(p1.y) << "\" r=\"0.25\" fill=\"#c0392b\"/>\n";

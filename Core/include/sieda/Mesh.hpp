@@ -30,11 +30,33 @@ const std::vector<SolderMaskStyle>& solderMaskStyles();
 /// nullptr for an unknown name.
 const SolderMaskStyle* findSolderMask(const std::string& name);
 
+/// What a triangle is made of, so a renderer can give each its own physical material (gloss, metalness…). The
+/// vertex colour stays the base colour for every surface except `Finish`, whose look (ENIG gold, HASL tin, bare
+/// copper) is the renderer's choice.
+enum class Surface : uint8_t {
+    Mask = 0,      // solder mask (glossy lacquer over laminate or copper)
+    Laminate = 1,  // FR-4 / core on the board edge, bare underside, mounting-hole ring
+    Finish = 2,    // exposed copper with its surface finish: pads, via lands, plated rings
+    Gold = 3,      // hard-gold plated pins (headers, edge fingers)
+    Tin = 4,       // tinned leads, chip terminations, can tops
+    Solder = 5,    // solder joints and fillets
+    Silk = 6,      // silkscreen ink
+    Plastic = 7,   // moulded epoxy / plastic bodies
+    Ceramic = 8,   // chip resistor / capacitor bodies
+    Glass = 9,     // LED lenses and other clear bodies
+    Hole = 10,     // drilled bores
+    Marking = 11,  // laser marking and pin-1 dots on package tops
+};
+constexpr int kSurfaceCount = 12;
+
 struct Mesh {
     std::vector<float> positions;  // xyz
     std::vector<float> normals;    // xyz
     std::vector<float> colors;     // rgba
     std::vector<uint32_t> indices; // triangles
+    std::vector<uint8_t> surfaces; // one `Surface` per vertex
+    /// Surface tagged on everything added next.
+    Surface surface = Surface::Mask;
 
     size_t vertexCount() const { return positions.size() / 3; }
     size_t triangleCount() const { return indices.size() / 3; }
@@ -46,6 +68,15 @@ struct Mesh {
     void addCylinder(Vec3 baseCentre, double radius, double height, Rgba color, int segments = 20);
     /// Polygon (board XY) extruded between heights y0 and y1.
     void addPrism(const std::vector<Vec2>& polygon, double y0, double y1, Rgba color);
+    /// Stroke-font text lying flat at heights y0…y1, centred on `centre` (board XY), reading along +X with its top
+    /// towards board −Y (the top of the PCB view). `mirrored` reads correctly from below (bottom-side legend).
+    /// Returns the text's width.
+    double addText(const std::string& text, Vec2 centre, double height, double y0, double y1, Rgba color,
+                   bool mirrored = false);
+    /// Width `addText` would give `text` at `height`.
+    static double textWidth(const std::string& text, double height);
+    /// Number of vertices tagged with `s`.
+    size_t surfaceVertices(Surface s) const;
 
 private:
     void addQuad(Vec3 a, Vec3 b, Vec3 c, Vec3 d, Rgba color);

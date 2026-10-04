@@ -219,6 +219,7 @@ Json Project::toJson() const {
             j["noConnect"] = nc;
         }
         if (!c.sourcing.empty()) j["sourcing"] = sourcingJson(c.sourcing);
+        if (!c.package.empty()) j["package"] = c.package;
         Json p = Json::object();
         p["x"] = c.pcb.position.x;
         p["y"] = c.pcb.position.y;
@@ -402,6 +403,12 @@ Project Project::fromJson(const Json& root) {
         c.firmwareName = j.get("firmwareName").asString("");
         c.clockHz = j.get("clockHz").asNumber(0);
         c.sourcing = sourcingFrom(j.get("sourcing"));
+        {
+            // Only a variant this kind offers (an unknown one from a newer file falls back to the default).
+            const std::string package = j.get("package").asString("");
+            const auto variants = Library::packageVariants(c.kind);
+            if (std::find(variants.begin(), variants.end(), package) != variants.end()) c.package = package;
+        }
         for (const auto& nc : j.get("noConnect").items()) {
             int pin = nc.asInt(-1);
             if (pin >= 0 && pin < static_cast<int>(c.def().pins.size()) && !c.isNoConnect(pin)) c.noConnect.push_back(pin);
@@ -462,7 +469,21 @@ Json Project::snapshot() const {
         j["x"] = c.position.x;
         j["y"] = c.position.y;
         j["rotation"] = c.rotation;
-        j["footprint"] = c.def().footprint;
+        j["footprint"] = c.footprintName();
+        if (!c.package.empty()) j["package"] = c.package;
+        {
+            const auto variants = Library::packageVariants(c.kind);
+            if (!variants.empty()) {
+                Json options = Json::array();
+                for (const auto& v : variants) {
+                    Json o = Json::object();
+                    o["id"] = v;
+                    o["label"] = Library::packageLabel(v);
+                    options.push(o);
+                }
+                j["packageOptions"] = options;
+            }
+        }
         if (c.kind == ComponentKind::Custom) j["customPart"] = c.customPart;
         if (c.kind == ComponentKind::Custom) {
             if (const CustomPart* part = CustomPartRegistry::instance().find(c.customPart)) {
@@ -645,7 +666,7 @@ Json Project::snapshot() const {
     Json bodies = Json::array();
     for (const auto& c : schematic.components()) {
         if (!c.hasFootprint() || !c.pcb.placed) continue;
-        const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
+        const FootprintDef* fp = Library::instance().footprint(c.footprintName());
         if (!fp) continue;
         double w = fp->body.width, d = fp->body.depth;
         if (((c.pcb.rotation / 90) % 2 + 2) % 2 == 1) std::swap(w, d);
