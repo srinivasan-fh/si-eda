@@ -55,6 +55,7 @@
 		9BD1EFC37CFEB2FCF1B54EE8 = {isa = PBXBuildFile; fileRef = D3E15B9053DA257C9A5751E7; };
 		9D123CFF6797C354E55BECE2 = {isa = PBXBuildFile; fileRef = B7A272C317609DD8A2D79E17; };
 		9EAA0CE5E58FE55480669B64 = {isa = PBXBuildFile; fileRef = AA4AB23447B95722FF60AB2A; };
+		A96A43532A4B39F999745661 = {isa = PBXBuildFile; fileRef = C7908EC042B9A2D79A33EA40; };
 		AAC385CA2568FFA26B026F63 = {isa = PBXBuildFile; fileRef = DF6ECA8D3A158AB03BF17024; };
 		AB875AA41AE0F100BA45A38C = {isa = PBXBuildFile; fileRef = 4F936263151D3C60C008BC98; };
 		B49EF7DDF4B0D9905AA40643 = {isa = PBXBuildFile; fileRef = E75D7DE7D08DFA800FFAA790; };
@@ -62,6 +63,7 @@
 		BA6D45241A0139FD8B4C26A9 = {isa = PBXBuildFile; fileRef = 51E84E9D7C3595879CC30FA4; };
 		BB309E505EC5272A3C86459C = {isa = PBXBuildFile; fileRef = 28DA5CB541B843FE20EC60BA; };
 		C1512C5968EF4A24C368E681 = {isa = PBXBuildFile; fileRef = 7F594F5664EF7D8FB682ECA0; };
+		C22B231D09108E5DE6098FC1 = {isa = PBXBuildFile; fileRef = 0CFD6B6919610A29BB650C7E; };
 		C25C04B573D5668E271225D9 = {isa = PBXBuildFile; fileRef = 23615D21B117E2A85C546F98; };
 		C33B3E4901A01AAF4FDEEE96 = {isa = PBXBuildFile; fileRef = DCA642B6ED42847C57E4E461; };
 		C352E7ADF695CB6669D52EFE = {isa = PBXBuildFile; fileRef = B23FD27DAD6BD2539569BEE1; };
@@ -100,6 +102,7 @@
 		0B047E6B6CA14C24D4B0C2FD = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCBEditorView.swift; sourceTree = "<group>"; };
 		0C901B807364BC2CC8209B6B = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = StandardParts.cpp; sourceTree = "<group>"; };
 		0CF3E02226CCD062D60E465B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPrompts.swift; sourceTree = "<group>"; };
+		0CFD6B6919610A29BB650C7E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FootprintDraft.swift; sourceTree = "<group>"; };
 		0EB50E3CA7A6F3A651C9B485 = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PRD.md; sourceTree = "<group>"; };
 		0F0833A5CA77AB73527A9023 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Embedded.cpp; sourceTree = "<group>"; };
 		12BA3643F29BE4C857019229 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Stackup.cpp; sourceTree = "<group>"; };
@@ -187,6 +190,7 @@
 		C4FD1126C93FBA32D1FFC34C = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Stackup.hpp; sourceTree = "<group>"; };
 		C5AE10EA4E5AF49E101DBF29 = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE.md; sourceTree = "<group>"; };
 		C7832FB1E03A0AE9D93DF23C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		C7908EC042B9A2D79A33EA40 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FootprintEditorView.swift; sourceTree = "<group>"; };
 		C89170449E2396D5C7CCEC71 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Robotics.hpp; sourceTree = "<group>"; };
 		C9668A0215AD47CFD79FAADA = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Project.hpp; sourceTree = "<group>"; };
 		D167B535F3242C6A3552428F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
@@ -273,6 +277,7 @@
 			isa = PBXGroup;
 			children = (
 				D3E15B9053DA257C9A5751E7,
+				C7908EC042B9A2D79A33EA40,
 			);
 			path = Library;
 			sourceTree = "<group>";
@@ -429,6 +434,7 @@
 				7F594F5664EF7D8FB682ECA0,
 				34727A3F0B5278EFB74683D0,
 				190FD291891208916B99A706,
+				0CFD6B6919610A29BB650C7E,
 				87FD7D0F8D0FCBA339485071,
 			);
 			path = Models;
@@ -661,6 +667,7 @@
 				C1512C5968EF4A24C368E681,
 				6D9A3DC7BD2B0F85B8A269AF,
 				92D8A78741A34B5E4AA64FE6,
+				C22B231D09108E5DE6098FC1,
 				120253EBD1D58E6CD359F37D,
 				93F543F5DF9687E3A93CCAA0,
 				BA6D45241A0139FD8B4C26A9,
@@ -669,6 +676,7 @@
 				7E5CB3E6074CEC5D362A6B2E,
 				5DC08A9929AC1D5F72AD3527,
 				9BD1EFC37CFEB2FCF1B54EE8,
+				A96A43532A4B39F999745661,
 				BB309E505EC5272A3C86459C,
 				D0DE83284A0ADF3CE958D7F0,
 				22409A8BB039D0E0CC2751CF,

@@ -3142,6 +3142,87 @@ final class PartsCatalogTests: XCTestCase {
         XCTAssertEqual(ComponentLibraryView.filterStandard(all, search: "tmc", kit: ["TMC2660-PA", "W5500"]).map(\.spec.name), ["TMC2660-PA"])
     }
 
+    func testFootprintEditorConvertsEditsAndPlacesACustomFootprint() throws {
+        // Start from a generated DIP-8: the editor gets the same pads (plated holes) on the same pins.
+        let ne555 = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "NE555" }).spec
+        let editable = try EDAEngine.landPattern(ne555).get()
+        XCTAssertEqual(editable.package.type, "CUSTOM")
+        XCTAssertEqual(editable.package.lands?.count, 8)
+        XCTAssertGreaterThan(editable.package.lands?[0].drill ?? 0, 0)
+        XCTAssertTrue(EDAEngine.checkLandPattern(editable).isEmpty)
+
+        var draft = FootprintDraft(spec: editable)
+        var history = FootprintHistory()
+        XCTAssertEqual(draft.pads.count, 8)
+        // Move pad 2 onto pad 1: the core reports the overlap on both pads; undo restores it.
+        let pad1 = draft.pads[0], pad2 = draft.pads[1]
+        history.record(draft)
+        draft.move([pad2.id], dx: pad1.land.x - pad2.land.x, dy: pad1.land.y - pad2.land.y, grid: 0.05)
+        let overlap = EDAEngine.checkLandPattern(draft.applied(to: editable))
+        XCTAssertTrue(overlap.contains { $0.code == "LAND_OVERLAP" && $0.pads == [1, 2] && $0.isError })
+        XCTAssertTrue(history.undo(&draft))
+        XCTAssertEqual(draft.pads[1].land, pad2.land)
+        XCTAssertTrue(history.redo(&draft))
+        XCTAssertTrue(history.undo(&draft))
+
+        // Add a mechanical mounting hole, an array, a second pad on pin 4, renumber, mirror.
+        let hole = draft.addPad(at: CGPoint(x: 0, y: 9.02), grid: 0.05)
+        XCTAssertEqual(draft.number(of: hole), 9)
+        XCTAssertEqual(draft.pads[8].land.y, 9.0, accuracy: 1e-9)  // snapped
+        draft.pads[8].land.pin = "-"
+        draft.pads[8].land.w = 3.0
+        draft.pads[8].land.h = 3.0
+        draft.pads[8].land.drill = 2.2
+        draft.pads[8].land.round = true
+        XCTAssertNil(draft.pinNumber(of: 8))
+        let copies = draft.duplicate([draft.pads[3].id], dx: 0, dy: 0)
+        XCTAssertEqual(copies.count, 1)
+        draft.pads[9].land.pin = "4"
+        draft.move(copies, dx: 0, dy: 3.0, grid: 0.05)
+        XCTAssertEqual(draft.pinNumber(of: 9), "4")
+        let row = draft.array(from: hole, count: 2, pitch: 8, horizontal: true)
+        XCTAssertEqual(row.count, 2)
+        XCTAssertEqual(draft.pads.count, 12)
+        for id in row { draft.pads[draft.number(of: id)! - 1].land.pin = "-" }
+        draft.setNumber(of: hole, to: 12)
+        XCTAssertEqual(draft.number(of: hole), 12)
+        draft.mirrorX(row)
+        draft.bodyW = 7
+        draft.bodyD = 10
+
+        var spec = ne555
+        draft.apply(to: &spec)
+        XCTAssertEqual(spec.package.type, "CUSTOM")
+        XCTAssertEqual(spec.package.lands?.count, 12)
+        XCTAssertEqual(spec.package.bodyDepth, 10)
+        let issues = EDAEngine.checkLandPattern(spec)
+        XCTAssertFalse(issues.contains { $0.isError }, "\(issues.map(\.message))")
+
+        // The edited part previews, round-trips through JSON, saves to the project and places on the board.
+        let preview = try EDAEngine.previewCustomPart(spec).get()
+        XCTAssertEqual(preview.footprintGeometry.pads.count, 12)
+        XCTAssertEqual(preview.footprintGeometry.pads.filter { $0.pin < 0 }.count, 3)  // the mechanical holes
+        let data = try JSONEncoder().encode(spec)
+        XCTAssertEqual(try JSONDecoder().decode(CustomPartSpec.self, from: data), spec)
+        let store = DesignStore()
+        store.aiEnabled = false
+        spec.name = "NE555-CUSTOM-FP"
+        let saved = try XCTUnwrap(store.saveCustomPart(spec))
+        XCTAssertEqual(saved.package.lands?.count, 12)
+        let id = store.addCustomComponent(partId: saved.id, at: CGPoint(x: 0, y: 0))
+        XCTAssertGreaterThanOrEqual(id, 0)
+        store.autoPlace(all: true)
+        XCTAssertEqual(store.snapshot.pads.filter { $0.component == id }.count, 12)
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        XCTAssertEqual(reopened.snapshot()?.customParts.first { $0.name == "NE555-CUSTOM-FP" }?.package.lands?.count, 12)
+
+        // A pin left without a pad is an error the editor shows (and Apply stays off).
+        var broken = FootprintDraft(spec: editable)
+        broken.delete([broken.pads[7].id])
+        XCTAssertTrue(EDAEngine.checkLandPattern(broken.applied(to: editable)).contains { $0.code == "LAND_NO_PAD" })
+    }
+
     func testPassivesSwitchPackageFromTheInspector() throws {
         let store = DesignStore()
         store.aiEnabled = false

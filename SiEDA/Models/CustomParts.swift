@@ -179,9 +179,62 @@ struct CustomPartSpec: Codable, Equatable {
         /// Lead pitch and body size in mm (nil = the package type's default); set for the standard microcontrollers.
         var pitch: Double?
         var bodySize: Double?
-        /// "LGA" packages: the exact land pattern, [x, y, width, height] in mm per pad 1…N, and the body length (y).
-        var lands: [[Double]]?
+        /// "LGA" / "CUSTOM" packages: the exact land pattern (pad 1…N in order) and the body length (y).
+        var lands: [Land]?
         var bodyDepth: Double?
+
+        /// True when the footprint is drawn pad-for-pad from `lands` (catalog LGA parts, footprint-editor parts).
+        var usesLandPattern: Bool { type == "LGA" || type == "CUSTOM" }
+    }
+
+    /// One pad of a land pattern, in mm (y down). Encoded like the core: [x, y, w, h] for an SMD rectangle, else
+    /// [x, y, w, h, drill, round] and a trailing pin number when the pad belongs to another pin ("EP", "3", "-").
+    struct Land: Codable, Equatable {
+        var x: Double
+        var y: Double
+        var w: Double
+        var h: Double
+        /// Plated through-hole drill (0 = SMD pad).
+        var drill: Double = 0
+        var round = false
+        /// Pin number the pad connects to when it is not the pad's own number; "-" = mechanical (no pin).
+        var pin = ""
+
+        init(x: Double, y: Double, w: Double, h: Double, drill: Double = 0, round: Bool = false, pin: String = "") {
+            self.x = x
+            self.y = y
+            self.w = w
+            self.h = h
+            self.drill = drill
+            self.round = round
+            self.pin = pin
+        }
+
+        init(from decoder: Decoder) throws {
+            var c = try decoder.unkeyedContainer()
+            x = try c.decode(Double.self)
+            y = try c.decode(Double.self)
+            w = try c.decode(Double.self)
+            h = try c.decode(Double.self)
+            if !c.isAtEnd {
+                drill = try c.decode(Double.self)
+                round = try c.decode(Double.self) != 0
+            }
+            if !c.isAtEnd { pin = try c.decode(String.self) }
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.unkeyedContainer()
+            try c.encode(x)
+            try c.encode(y)
+            try c.encode(w)
+            try c.encode(h)
+            if drill > 0 || round || !pin.isEmpty {
+                try c.encode(drill)
+                try c.encode(round ? 1 : 0)
+            }
+            if !pin.isEmpty { try c.encode(pin) }
+        }
     }
 
     struct Pin: Codable, Equatable, Identifiable {

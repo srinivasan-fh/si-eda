@@ -3589,6 +3589,100 @@ TEST(high_layer_count_and_computing_segments) {
     CHECK(findLaminate("tachyon-100g")->er < findLaminate("megtron-6")->er);
 }
 
+TEST(footprint_editor_land_patterns) {
+    auto spec = [](const char* name) { return findStandardPart(name)->spec; };
+    auto padOf = [](const std::shared_ptr<const CustomPart>& part, const std::string& number) -> const PadDef* {
+        for (const auto& pad : part->footprint.pads)
+            if (pad.pinIndex >= 0 && part->def.pins[static_cast<size_t>(pad.pinIndex)].number == number) return &pad;
+        return nullptr;
+    };
+    // Any generated footprint converts to an editable land pattern that draws the same pads on the same pins.
+    for (const char* name : {"NE555", "LM7805", "STM32F405RGT6", "DRV8833PWPR", "LM2596S-5.0", "XC7A35T-1CSG324I",
+                             "BMI088", "TMC2209-LA"}) {
+        const CustomPartSpec original = spec(name);
+        const CustomPartSpec editable = landPatternFromFootprint(original);
+        CHECK(usesLandPattern(editable.package.type));
+        auto a = CustomPartRegistry::instance().registerPart(original);
+        auto b = CustomPartRegistry::instance().registerPart(editable);
+        CHECK(a->footprint.pads.size() == b->footprint.pads.size());
+        bool same = true;
+        for (size_t i = 0; i < a->footprint.pads.size(); ++i) {
+            const PadDef &pa = a->footprint.pads[i], &pb = b->footprint.pads[i];
+            same &= std::fabs(pa.offset.x - pb.offset.x) < 1e-9 && std::fabs(pa.offset.y - pb.offset.y) < 1e-9 &&
+                    std::fabs(pa.size.x - pb.size.x) < 1e-9 && pa.throughHole == pb.throughHole && pa.round == pb.round &&
+                    pa.pinIndex == pb.pinIndex;
+        }
+        if (!same) std::printf("    %s: converted pads differ\n", name);
+        CHECK(same);
+        CHECK(std::fabs(a->footprint.body.width - b->footprint.body.width) < 1e-9);
+        // Survives JSON (saved in the project library) and checks clean.
+        CHECK(customPartSpecToJson(customPartSpecFromJson(customPartSpecToJson(editable))).dump() ==
+              customPartSpecToJson(editable).dump());
+        for (const auto& issue : checkLandPattern(editable))
+            if (issue.severity == "error") std::printf("    %s: %s\n", name, issue.message.c_str());
+    }
+    // DIP keeps its plated through-holes; the TO-263 tab stays on the middle lead's pin; the QFN's exposed pad on EP.
+    const CustomPartSpec dip = landPatternFromFootprint(spec("NE555"));
+    CHECK(dip.package.lands[0].drill > 0 && dip.package.lands[1].round);
+    const CustomPartSpec d2pak = landPatternFromFootprint(spec("LM2596S-5.0"));
+    CHECK(d2pak.package.lands.size() == 6 && !d2pak.package.lands[5].pin.empty());
+    const CustomPartSpec qfn = landPatternFromFootprint(spec("TMC2209-LA"));
+    bool epOk = false;
+    for (const auto& l : qfn.package.lands) epOk |= l.pin == "EP" || l.pin == "29";
+    CHECK(epOk);
+    CHECK(landPatternFromFootprint(spec("BMI088")).package.type == "LGA");  // already a land pattern
+
+    // Edit: move pad 2 onto pad 1 → overlap; nudge it close → gap warning; a pad with no pin; a pin with no pad.
+    CustomPartSpec e = landPatternFromFootprint(spec("NE555"));
+    CHECK(checkLandPattern(e).empty());
+    auto codes = [](const std::vector<LandIssue>& v) {
+        std::set<std::string> out;
+        for (const auto& i : v) out.insert(i.code);
+        return out;
+    };
+    CustomPartSpec moved = e;
+    moved.package.lands[1].x = moved.package.lands[0].x;
+    moved.package.lands[1].y = moved.package.lands[0].y + 0.5;
+    CHECK(codes(checkLandPattern(moved)).count("LAND_OVERLAP"));
+    moved.package.lands[1].y = moved.package.lands[0].y + moved.package.lands[0].h + 0.05;
+    auto gapIssues = checkLandPattern(moved);
+    CHECK(codes(gapIssues).count("LAND_GAP") && !codes(gapIssues).count("LAND_OVERLAP"));
+    CustomPartSpec extra = e;
+    extra.package.lands.push_back(PackageSpec::Land(0, 0, 1.0, 1.0, 0.8, true));  // 0.1 mm ring is fine
+    CHECK(codes(checkLandPattern(extra)).count("LAND_NO_PIN"));
+    extra.package.lands.back().drill = 0.9;
+    CHECK(codes(checkLandPattern(extra)).count("LAND_ANNULAR"));
+    extra.package.lands.back().pin = "-";  // mechanical
+    CHECK(!codes(checkLandPattern(extra)).count("LAND_NO_PIN"));
+    auto mech = CustomPartRegistry::instance().registerPart(extra);
+    CHECK(mech->footprint.pads.back().pinIndex == -1 && mech->footprint.pads.back().throughHole);
+    CustomPartSpec missing = e;
+    missing.package.lands.pop_back();
+    CHECK(codes(checkLandPattern(missing)).count("LAND_NO_PAD"));
+    bool threw = false;
+    try {
+        CustomPartRegistry::instance().registerPart(missing);
+    } catch (const JsonError&) {
+        threw = true;
+    }
+    CHECK(threw);
+    // Two pads on one pin (a split ground) both connect to it and may touch.
+    CustomPartSpec split = e;
+    split.package.lands.push_back(PackageSpec::Land(0, 0, 1.0, 1.0, 0, false, "1"));
+    auto sp = CustomPartRegistry::instance().registerPart(split);
+    CHECK(sp->footprint.pads.back().pinIndex == padOf(sp, "1")->pinIndex);
+    // Drill larger than the pad is refused on load.
+    Json bad = customPartSpecToJson(e);
+    bad["package"]["lands"] = Json::parse("[[0, 0, 1, 1, 1.2, 1]]");
+    threw = false;
+    try {
+        customPartSpecFromJson(bad);
+    } catch (const JsonError&) {
+        threw = true;
+    }
+    CHECK(threw);
+}
+
 /// The robot segments JSON lists every platform with its parts kit (the app reads the kits from it).
 static bool json_roundtrip_platform_kits() {
     Project p;

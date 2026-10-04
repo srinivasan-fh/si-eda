@@ -9,6 +9,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "sieda/Json.hpp"
@@ -35,12 +36,21 @@ struct PackageSpec {
     /// a QFN/QFP (7 for a 7 × 7 mm LQFP-48), the moulded body width of a SOIC/TSSOP, or the row spacing of a DIP.
     double pitch = 0;
     double bodySize = 0;
-    /// "LGA": the exact land pattern, one pad per pin number 1…N in order (centre x, y and size w, h in mm, y down,
-    /// pad 1 usually top-left) — for land-grid and other irregular packages (rectangular LGA sensors, clockwise
-    /// numbering, uneven pad rows) taken pad-for-pad from the manufacturer's recommended footprint. bodySize is the
-    /// body width (x) and bodyDepth its length (y; 0 = square).
+    /// "LGA" / "CUSTOM": the exact land pattern, one pad per pin number 1…N in order (centre x, y and size w, h in mm,
+    /// y down, pad 1 usually top-left) — land-grid and other irregular packages taken pad-for-pad from the
+    /// manufacturer's recommended footprint ("LGA"), or a footprint drawn in the footprint editor ("CUSTOM").
+    /// bodySize is the body width (x) and bodyDepth its length (y; 0 = square). A land with a drill is a plated
+    /// through-hole pad; `round` makes it a circle / oval.
+    /// `pin` names the pin number the pad belongs to when that is not its own number (a tab or a second pad on the
+    /// same pin, an exposed pad "EP", BGA ball names); "-" marks a mechanical pad with no pin.
     struct Land {
         double x = 0, y = 0, w = 0, h = 0;
+        double drill = 0;
+        bool round = false;
+        std::string pin;
+        Land() = default;
+        Land(double x_, double y_, double w_, double h_, double drill_ = 0, bool round_ = false, std::string pin_ = {})
+            : x(x_), y(y_), w(w_), h(h_), drill(drill_), round(round_), pin(std::move(pin_)) {}
     };
     std::vector<Land> lands;
     double bodyDepth = 0;
@@ -101,6 +111,24 @@ struct CustomPart {
     FootprintDef footprint;
     double symbolHalfWidth = 40, symbolHalfHeight = 40;  // schematic body half extents (grid units)
 };
+
+/// True for package types drawn from an explicit land pattern ("LGA", "CUSTOM").
+bool usesLandPattern(const std::string& packageType);
+
+/// The footprint editor's starting point: the part's generated footprint as an editable land pattern (type
+/// "CUSTOM", one land per pad, body kept). Pins numbered "EP" / "TAB" take their pad's number. Parts already on a
+/// land pattern are returned unchanged. Throws JsonError for an invalid part or a BGA (ball names, not numbers).
+CustomPartSpec landPatternFromFootprint(const CustomPartSpec& spec);
+
+/// Manufacturability of a land pattern: pads that overlap, copper gaps below `minGap` (mm), annular rings below
+/// 0.1 mm, pads with no pin and pins with no pad. `pads` are 1-based pad numbers.
+struct LandIssue {
+    std::string severity;  // "error", "warning"
+    std::string code;      // "LAND_OVERLAP", "LAND_GAP", "LAND_ANNULAR", "LAND_NO_PIN", "LAND_NO_PAD"
+    std::string message;
+    std::vector<int> pads;
+};
+std::vector<LandIssue> checkLandPattern(const CustomPartSpec& spec, double minGap = 0.1);
 
 Json customPartSpecToJson(const CustomPartSpec& spec);
 CustomPartSpec customPartSpecFromJson(const Json& j);  // throws JsonError on invalid input

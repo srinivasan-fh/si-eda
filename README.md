@@ -51,7 +51,7 @@ Every AI result lands in the same editable schematic and PCB, so you can switch 
 | **Verification process** | **Design → Verify Design** (⌥⌘V) runs a 7-stage sign-off: ERC → DC simulation → circuit validation → footprint placement → routing completion → DRC/fab rules → manufacturing outputs (every Gerber layer, drill, BOM, pick-and-place and netlist are generated and checked). The verdict is Pass, Pass with warnings or Fail; findings cross-probe to the editors, and the report exports as Markdown. **Export Fabrication Package** always verifies first, asks before exporting a failing design, and includes `verification_report.md` |
 | **Model choice** | Anthropic **Claude** (default: `claude-opus-5-5`, structured outputs, adaptive thinking, effort control, refusal fallbacks), OpenAI or any OpenAI-compatible endpoint, Google Gemini, local Ollama, and an Offline Designer that needs no network |
 | **Schematic capture** | 16 built-in device types plus your own library parts, orthogonal wiring with T-junctions (end a wire on any wire to join it, e.g. a part in parallel), corners (wire tool: click empty space), bendable wires (drag a wire or its bend points; deleting a bend straightens it), net labels, rotate/move/marquee, undo/redo, ERC with pin-type rules, no-connect flags (Q) for pins left open on purpose |
-| **Datasheet → component** | Drop a datasheet (PDF, pinout screenshot or text). The Datasheet Analyst agent extracts part number, package and every pin with its electrical type: Claude and Gemini read the PDF natively, OCR (Vision) handles images, and an offline pin-table parser works without a key. You review it in a pin-table editor with live symbol and footprint previews, then save it to the project library and place it like any other part. AI design agents can use library parts too |
+| **Datasheet → component** | Drop a datasheet (PDF, pinout screenshot or text). The Datasheet Analyst agent extracts part number, package and every pin with its electrical type: Claude and Gemini read the PDF natively, OCR (Vision) handles images, and an offline pin-table parser works without a key. You review it in a pin-table editor with live symbol and footprint previews, then save it to the project library and place it like any other part. Any part's footprint can be redrawn pad by pad in the [Footprint Editor](#footprint-editor). AI design agents can use library parts too |
 | **Simulation** | Modified Nodal Analysis with Newton–Raphson: DC operating point and transient. Diode/LED (Shockley), BJT (Ebers–Moll), MOSFET (square-law with λ), saturating op-amp, R/L/C, DC/SIN/PULSE sources, batteries and AC (mains / transformer) sources. Part-number device models (1N4148, SS14, BC847, 2N7002, AO3400, SI2302, IRF540N, …) and behavioural chip models: regulators and chargers (LM7805, LM317, XC6206, AP2112K, TP4056 with constant-current charging) and IC supply current (ATmega328P, MPU-6050, nRF24L01+, …). Switching designs are checked for RMS/peak stress in steady state. Waveforms are drawn with Swift Charts |
 | **PCB layout** | Footprint library (0805, SOD-123, SOT-23, SOIC, TSSOP, DIP, QFN with exposed pad, LQFP, 1×N and 2×N headers, TO-220), connectivity-driven auto-placement with escape space around fine-pitch parts, board fit, ratsnest, geometric and manufacturability DRC (see design rules). **Board Setup** (PCB options bar): board outlines (rectangle, rounded, circle, quadcopter X frame), M2/M3 mounting-hole patterns with keep-outs, copper pours and reserved plane layers (clearance-aware fill, thermal reliefs, island removal), and net classes with IPC-2221 auto-sizing from the simulated currents |
 | **Autorouting** | A final clean-up pass merges collinear pieces and chamfers right-angle corners to 45° wherever clearance allows, so tracks look hand-routed. In the PCB view, copper is coloured **By Net** (power red, ground blue, negative rails purple, signals yellow on top, green on the bottom, and other colours on inner layers) or **By Layer** (the CAD convention: top red, bottom blue, inner yellow / green / orange / magenta), with a legend in the Layers panel. Part designators show at normal zoom, values inside parts and net names along tracks as you zoom in, and pad numbers close up. One **Auto Route** button (PCB options bar, or ⇧⌘R): places any footprints not on the board yet inside the board shape (outline, mounting holes, edge clearance), then routes every connection cleanly and runs DRC, as one undo step. A banner offers it whenever connections are still unrouted. Single-layer (single-sided, no vias), 2-, 4- and 6-layer A* autorouter: through vias, alternating layer directions, turn penalties, rip-up and retry passes, escape routing and neck-down for 0.5 mm-pitch QFN pins, fan-out vias to ground pours/planes, exact clearance for wide power tracks |
@@ -205,6 +205,31 @@ Seven robot platforms each carry a production parts kit: Mars / ground rover, FP
 - the three-slug MultiPowerSO-30.
 
 `tools/fetch_catalog_parts.py` regenerates the catalog (it needs network access to gitlab.com).
+
+## Footprint Editor
+
+In the Component Library, select a part and click **Edit Footprint…** to draw its land pattern pad by pad. This works on any part: a generated footprint (SOIC, QFN, DIP, TO-263, BGA, …) first converts to an editable one, with the same pads on the same pins.
+- **Canvas.** Pads sit on a grid you choose (0.01 to 2.54 mm), with the body, the courtyard and the pin-1 marker drawn around them.
+  - Click a pad to select it, and ⇧-click to add pads to the selection.
+  - Drag to move the selection; it snaps to the grid.
+  - Double-click an empty spot to add a pad there, and press ⌫ to delete.
+- **Pad properties:**
+  - X, Y, width and height;
+  - rectangle or circle / oval;
+  - drill (0 is an SMD pad; anything above 0 makes a plated through-hole);
+  - number: change it to renumber the pads;
+  - pin: by default a pad connects to the pin with its own number. You can point it at another pin (a tab, an exposed pad, a second pad on a ground pin) or mark it mechanical (no pin).
+- **Tools.** Add Pad, Duplicate, Delete, Mirror left ↔ right, Centre on the origin, Pad Array (a row or column of N pads at a pitch), body width and length, and Undo / Redo for every edit.
+- **Live checks** (from the core). Errors block **Apply Footprint** until you fix them:
+  - overlapping pads (error);
+  - copper gaps below 0.1 mm (warning);
+  - annular rings below 0.1 mm (warning);
+  - pads with no pin (warning);
+  - pins with no pad (error).
+  
+  Click a finding to select its pads.
+
+The edited part is saved with the project as a `CUSTOM` land pattern. It places, routes and appears in the 3D view like any other part.
 
 ## Speed on large designs
 

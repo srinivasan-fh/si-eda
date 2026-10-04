@@ -24,6 +24,8 @@ struct ComponentLibraryView: View {
     @State private var standardSearch = ""
     @State private var kitFilter = ""
     @State private var robotKits: [RobotPlatformInfo] = []
+    @State private var footprintSource: CustomPartSpec?
+    @State private var footprintError: String?
 
     enum ImportState: Equatable {
         case idle
@@ -87,6 +89,11 @@ struct ComponentLibraryView: View {
             refreshPreview()
         }
         .onChange(of: draft) { _, _ in refreshPreview() }
+        .sheet(isPresented: Binding(get: { footprintSource != nil }, set: { if !$0 { footprintSource = nil } })) {
+            if let source = footprintSource {
+                FootprintEditorView(spec: source) { edited in draft = edited }
+            }
+        }
     }
 
     // MARK: - Library list
@@ -292,10 +299,27 @@ struct ComponentLibraryView: View {
                     }
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Package pins (0 = from pin list)").font(.caption).foregroundStyle(Theme.textMuted)
-                        Stepper(value: $draft.package.pinCount, in: 0...256) {
+                        Stepper(value: $draft.package.pinCount, in: 0...512) {
                             Text("\(draft.package.pinCount)").monospacedDigit().foregroundStyle(Theme.textPrimary)
                         }
+                        .disabled(draft.package.usesLandPattern)
                     }
+                }
+                GridRow {
+                    HStack {
+                        Button { openFootprintEditor() } label: { Label("Edit Footprint…", systemImage: "square.grid.3x3.topleft.filled") }
+                            .disabled(draft.pins.isEmpty)
+                            .help("Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad")
+                        if draft.package.usesLandPattern {
+                            Text(draft.package.type == "CUSTOM" ? "Custom footprint · \(draft.package.lands?.count ?? 0) pads"
+                                                                : "Land pattern · \(draft.package.lands?.count ?? 0) pads")
+                                .font(.caption).foregroundStyle(Theme.textSecondary)
+                        }
+                        if let footprintError {
+                            Text(footprintError).font(.caption).foregroundStyle(Theme.error).lineLimit(2)
+                        }
+                    }
+                    .gridCellColumns(2)
                 }
             }
 
@@ -489,6 +513,20 @@ struct ComponentLibraryView: View {
     }
 
     // MARK: - Actions
+
+    /// Opens the footprint editor on the draft: a land-pattern part as it is, any other part converted from its
+    /// generated footprint first (same pads, same pins).
+    private func openFootprintEditor() {
+        footprintError = nil
+        if draft.package.usesLandPattern, !(draft.package.lands ?? []).isEmpty {
+            footprintSource = draft
+            return
+        }
+        switch EDAEngine.landPattern(draft) {
+        case .success(let editable): footprintSource = editable
+        case .failure(let error): footprintError = error.localizedDescription
+        }
+    }
 
     private func load(_ part: CustomPartInfo) {
         draft = part.spec
