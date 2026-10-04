@@ -33,6 +33,8 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 | F9 | 3D assembly viewer with STL/OBJ export | ✅ |
 | F10 | Fabrication package: Gerber RS-274X, Excellon, BOM, pick-and-place, SPICE netlist | ✅ |
 | F11 | Project save/open (`.siedaproj`, JSON) | ✅ |
+| F12 | Component library: datasheet import, pin-table editor, standard parts catalog, symbol / footprint / 3D generation | ✅ |
+| F13 | Footprint Editor: draw any part's land pattern pad by pad (position, size, shape, drill, pin), pad arrays, undo, live checks (overlap, gap, annular ring, pin ↔ pad coverage); converts generated footprints | ✅ |
 
 ## Non-functional requirements
 - **Correctness.** All AI output is schema-validated and checked by the core (ERC, simulation, DRC) before
@@ -44,12 +46,12 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 
 ## Out of scope for v1
 - Boards with more than two layers, copper pours, differential pairs and length tuning.
-- Custom symbol and footprint editors, and importing KiCad or Altium libraries.
+- A custom symbol editor, and importing KiCad or Altium library files (the Footprint Editor shipped; see F13).
 - AC and noise analysis.
 
 ## Roadmap
 1. Copper pours (GND plane) and thermal reliefs.
-2. User component libraries, with KiCad footprint import.
+2. KiCad `.kicad_mod` / Altium footprint import into the Footprint Editor (user component libraries shipped).
 3. AC small-signal analysis and Bode plots.
 4. Push-and-shove interactive routing.
 5. Team collaboration through a shared project repository.

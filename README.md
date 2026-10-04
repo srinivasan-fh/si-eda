@@ -52,6 +52,7 @@ Every AI result lands in the same editable schematic and PCB, so you can switch 
 | **Model choice** | Anthropic **Claude** (default: `claude-opus-5-5`, structured outputs, adaptive thinking, effort control, refusal fallbacks), OpenAI or any OpenAI-compatible endpoint, Google Gemini, local Ollama, and an Offline Designer that needs no network |
 | **Schematic capture** | 16 built-in device types plus your own library parts, orthogonal wiring with T-junctions (end a wire on any wire to join it, e.g. a part in parallel), corners (wire tool: click empty space), bendable wires (drag a wire or its bend points; deleting a bend straightens it), net labels, rotate/move/marquee, undo/redo, ERC with pin-type rules, no-connect flags (Q) for pins left open on purpose |
 | **Datasheet → component** | Drop a datasheet (PDF, pinout screenshot or text). The Datasheet Analyst agent extracts part number, package and every pin with its electrical type: Claude and Gemini read the PDF natively, OCR (Vision) handles images, and an offline pin-table parser works without a key. You review it in a pin-table editor with live symbol and footprint previews, then save it to the project library and place it like any other part. Any part's footprint can be redrawn pad by pad in the [Footprint Editor](#footprint-editor). AI design agents can use library parts too |
+| **Footprint Editor** | Draw any part's land pattern pad by pad (**Component Library → Edit Footprint…**). You set each pad's position, size, rectangle or circle shape, drill (SMD or plated through-hole), number, and pin (its own, another pin such as a tab or exposed pad, or none for a mounting hole). The canvas has a grid, ⇧-click selection, drag to move and double-click to add. Tools: duplicate, delete, mirror, centre, pad arrays, body size and undo. Live checks flag overlaps, gaps under 0.1 mm, thin annular rings, pads without pins and pins without pads; errors block Apply. Generated footprints (DIP, SOIC, QFN, TO-263, BGA, …) convert with the same pads on the same pins. See [Footprint Editor](#footprint-editor) and [docs/FOOTPRINT_EDITOR.md](docs/FOOTPRINT_EDITOR.md) |
 | **Simulation** | Modified Nodal Analysis with Newton–Raphson: DC operating point and transient. Diode/LED (Shockley), BJT (Ebers–Moll), MOSFET (square-law with λ), saturating op-amp, R/L/C, DC/SIN/PULSE sources, batteries and AC (mains / transformer) sources. Part-number device models (1N4148, SS14, BC847, 2N7002, AO3400, SI2302, IRF540N, …) and behavioural chip models: regulators and chargers (LM7805, LM317, XC6206, AP2112K, TP4056 with constant-current charging) and IC supply current (ATmega328P, MPU-6050, nRF24L01+, …). Switching designs are checked for RMS/peak stress in steady state. Waveforms are drawn with Swift Charts |
 | **PCB layout** | Footprint library (0805, SOD-123, SOT-23, SOIC, TSSOP, DIP, QFN with exposed pad, LQFP, 1×N and 2×N headers, TO-220), connectivity-driven auto-placement with escape space around fine-pitch parts, board fit, ratsnest, geometric and manufacturability DRC (see design rules). **Board Setup** (PCB options bar): board outlines (rectangle, rounded, circle, quadcopter X frame), M2/M3 mounting-hole patterns with keep-outs, copper pours and reserved plane layers (clearance-aware fill, thermal reliefs, island removal), and net classes with IPC-2221 auto-sizing from the simulated currents |
 | **Autorouting** | A final clean-up pass merges collinear pieces and chamfers right-angle corners to 45° wherever clearance allows, so tracks look hand-routed. In the PCB view, copper is coloured **By Net** (power red, ground blue, negative rails purple, signals yellow on top, green on the bottom, and other colours on inner layers) or **By Layer** (the CAD convention: top red, bottom blue, inner yellow / green / orange / magenta), with a legend in the Layers panel. Part designators show at normal zoom, values inside parts and net names along tracks as you zoom in, and pad numbers close up. One **Auto Route** button (PCB options bar, or ⇧⌘R): places any footprints not on the board yet inside the board shape (outline, mounting holes, edge clearance), then routes every connection cleanly and runs DRC, as one undo step. A banner offers it whenever connections are still unrouted. Single-layer (single-sided, no vias), 2-, 4- and 6-layer A* autorouter: through vias, alternating layer directions, turn penalties, rip-up and retry passes, escape routing and neck-down for 0.5 mm-pitch QFN pins, fan-out vias to ground pours/planes, exact clearance for wide power tracks |
@@ -231,6 +232,24 @@ In the Component Library, select a part and click **Edit Footprint…** to draw 
 
 The edited part is saved with the project as a `CUSTOM` land pattern. It places, routes and appears in the 3D view like any other part.
 
+**Typical workflow.**
+1. Select the part and click **Edit Footprint…**.
+2. Edit the pads, then click **Apply Footprint**.
+3. Click **Add to Library** / **Save Changes**.
+
+Parts already on the board switch to the new footprint and keep their position. **Edit → Undo** brings the old footprint back.
+
+| In the editor | Action |
+|---|---|
+| Click / ⇧-click / ⌘-click a pad | Select / add to or remove from the selection |
+| Click empty space | Clear the selection |
+| Drag a selected pad | Move the selection (snaps to the grid on release) |
+| Double-click empty space | Add a pad there |
+| ⌫ | Delete the selected pads |
+| Esc / ↩ | Cancel / Apply Footprint |
+
+The full guide covers how pads map to pins, every check code, conversion details, the land JSON format, the code map and the tests: [docs/FOOTPRINT_EDITOR.md](docs/FOOTPRINT_EDITOR.md).
+
 ## Speed on large designs
 
 Auto-place works out the other parts' keep-outs and each net's position once per part, not once per candidate position. The C++ core is also optimised in Debug builds, which is what `run.sh` uses. All 40 reference designs place, route, verify and build their 3D model in about 60 s in total, against about 163 s before. A 300-connection satellite computer takes about 21 s, against several minutes in an unoptimised Debug build. Tests hold each step of a 201-part board, and the three largest reference designs, to time budgets.
@@ -258,12 +277,13 @@ Core/                C++17 engine (no dependencies)
 SiEDA/               macOS SwiftUI app
   App/               app entry point, menus, DesignStore (state, undo, documents)
   Bridge/            bridging header + EDAEngine (thread-safe Swift façade over the C ABI)
-  Models/            snapshot models, ComponentKind, DesignPlan (the agents' structured output)
+  Models/            snapshot models, ComponentKind, DesignPlan (the agents' structured output), FootprintDraft (footprint editor document)
   AI/                providers (Claude, OpenAI, Gemini, Ollama, Offline), prompts, orchestrator, settings
-  Views/             Super Intelligence (PromptStudio/), Schematic, PCB, 3D, Simulation, Checks, Inspector, Settings
-SiEDATests/          XCTest suite (bridge, plan compiler, offline templates)
+  Views/             Super Intelligence (PromptStudio/), Schematic, PCB, 3D, Simulation, Checks, Inspector, Settings,
+                     Library (Component Library + Footprint Editor), BOM
+SiEDATests/          XCTest suite (bridge, plan compiler, offline templates, editors, live windows)
 SiEDA.xcodeproj      generated by tools/generate_xcodeproj.py
-docs/                PRD and architecture
+docs/                PRD, architecture, footprint editor guide, missing-parts worksheets
 ```
 
 ## Getting started
