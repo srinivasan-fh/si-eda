@@ -290,6 +290,19 @@ PARTS = [
      "128 Mbit SPI / QSPI NOR flash — flight logs (blackbox), G-code and firmware storage, SOIC-8 208 mil", "U", ""),
     ("Memory", "Memory_EEPROM", "AT24CS02-SSHM", "AT24CS02-SSHM-T", "Microchip",
      "2 Kbit I²C EEPROM with unique 128-bit serial number — joint calibration and board ID, SOIC-8", "U", ""),
+    # DRAM: SDR SDRAM on an MCU's memory controller (FMC / EMC), DDR3L / DDR4 memory-down beside an SoC
+    ("Memory · DRAM", "Memory_RAM", "MT48LC16M16A2TG", "MT48LC16M16A2TG-6A", "Micron",
+     "256 Mb SDR SDRAM, 4 M × 16 × 4 banks, 167 MHz, 3.3 V, TSOP-II-54 — STM32 FMC / NXP SEMC frame buffers", "U", ""),
+    ("Memory · DRAM", "Memory_RAM", "W9812G6KH-6", "W9812G6KH-6", "Winbond",
+     "128 Mb SDR SDRAM, 2 M × 16 × 4 banks, 166 MHz, 3.3 V, TSOP-II-54", "U", ""),
+    ("Memory · DRAM", "Memory_RAM", "IS42S16400J-xT", "IS42S16400J-7TL", "ISSI",
+     "64 Mb SDR SDRAM, 1 M × 16 × 4 banks, 143 MHz, 3.3 V, TSOP-II-54", "U", ""),
+    ("Memory · DRAM", "Memory_RAM", "MT41K256M16HA", "MT41K256M16HA-125", "Micron",
+     "4 Gb DDR3L SDRAM × 16, 1.35 V, DDR3-1600, 96-ball FBGA — memory-down for FPGAs / SoCs", "U", ""),
+    ("Memory · DRAM", "Memory_RAM", "AS4C256M16D3", "AS4C256M16D3-12BCN", "Alliance Memory",
+     "4 Gb DDR3 SDRAM × 16, 1.5 V, DDR3-1600, 96-ball FBGA", "U", ""),
+    ("Memory · DRAM", "Memory_RAM", "MT40A512M16LY", "MT40A512M16LY-062E", "Micron",
+     "8 Gb DDR4 SDRAM × 16, 1.2 V (VPP 2.5 V), DDR4-3200, 96-ball FBGA", "U", ""),
     # Power: regulation, protection, batteries
     ("Regulators", "Regulator_Switching", "LM2576S-5", "LM2576S-5.0", "Texas Instruments",
      "5 V 3 A step-down regulator, 40 V input, 52 kHz — servo and logic rail, TO-263-5", "U", ""),
@@ -386,6 +399,9 @@ def package(footprint):
     if re.search(r"(^|_)(T|V|W)?DFN|TDSON|VSON", u):
         n = int(re.search(r"(?:DFN|SON)-(\d+)", u).group(1))
         return "SON", n, float(pitch.group(1)) if pitch else 1.27, float(body.group(1)) if body else 0, fp
+    if "TSOP-II" in u:  # SDRAM TSOP-II: gull-wing leads on the long sides, body width across the rows
+        tsop = re.search(r"TSOP-II-(\d+)_([\d.]+)x([\d.]+)mm", fp)
+        return "TSSOP", int(tsop.group(1)), float(pitch.group(1)), float(tsop.group(3)), fp
     if "MSOP" in u:
         return "TSSOP", int(re.search(r"MSOP-(\d+)", u).group(1)), float(pitch.group(1)), float(body.group(1)), fp
     if "INVENSENSE_QFN" in u or "LGA" in u:
@@ -460,6 +476,9 @@ def entry(category, lib, sym, name, maker, desc, ref, override, summary):
         out.append(f"catalog(parts, {cpp(category)}, {cpp(name)}, {cpp(maker)}, {cpp(desc)}, {cpp(ref)},")
         out.append(f"    {cpp(kind)}, {n}, {pitch:g}, {body:g}, {cpp(fpname)},")
         out.append("    {" + ", ".join("{%s, %s, T::%s}" % (cpp(num), cpp(nm), t) for num, nm, t in pin_list) + "});")
+        rect = re.search(r"_([\d.]+)x([\d.]+)mm", fpname)
+        if kind == "BGA" and rect and float(rect.group(1)) != float(rect.group(2)):  # rectangular body (DRAM FBGA)
+            out.append(f"parts.back().spec.package.bodyDepth = {float(rect.group(2)):g};")
         summary.append(f"{name:20} {kind:9} n={n:3} pins={len(pin_list):3} {fpname}")
     return out
 

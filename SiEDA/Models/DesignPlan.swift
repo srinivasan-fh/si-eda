@@ -34,13 +34,15 @@ struct DesignPlan: Codable, Equatable {
     var tamperMeshes: [PlannedTamperMesh]
     /// Home appliance type ("laundry", "kitchen", "refrigeration", "hvac", "small"): turns on the 4-segment checks.
     var applianceType: String?
+    /// Memory design type ("sdram", "ddr", "lpddr", "dimm", "rdimm"): turns on the 5-segment memory checks.
+    var memoryDesign: String?
 
     init(title: String, summary: String, components: [PlannedComponent], connections: [PlannedConnection],
          notes: [String] = [], board: PlannedBoard = PlannedBoard(), industry: String? = nil,
          pours: [PlannedPour] = [], netClasses: [PlannedNetClass] = [], noConnect: [String] = [],
          robotPlatform: String? = nil, ecuType: String? = nil, aerospaceMission: String? = nil,
          navalPlatform: String? = nil, medicalClass: String? = nil, retailDevice: String? = nil,
-         tamperMeshes: [PlannedTamperMesh] = [], applianceType: String? = nil) {
+         tamperMeshes: [PlannedTamperMesh] = [], applianceType: String? = nil, memoryDesign: String? = nil) {
         self.title = title
         self.summary = summary
         self.components = components
@@ -59,6 +61,7 @@ struct DesignPlan: Codable, Equatable {
         self.retailDevice = retailDevice
         self.tamperMeshes = tamperMeshes
         self.applianceType = applianceType
+        self.memoryDesign = memoryDesign
     }
 
     init(from decoder: Decoder) throws {
@@ -81,11 +84,12 @@ struct DesignPlan: Codable, Equatable {
         retailDevice = try c.decodeIfPresent(String.self, forKey: .retailDevice)
         tamperMeshes = try c.decodeIfPresent([PlannedTamperMesh].self, forKey: .tamperMeshes) ?? []
         applianceType = try c.decodeIfPresent(String.self, forKey: .applianceType)
+        memoryDesign = try c.decodeIfPresent(String.self, forKey: .memoryDesign)
     }
 
     private enum CodingKeys: String, CodingKey {
         case title, summary, components, connections, notes, board, industry, pours, netClasses, noConnect, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass
-        case retailDevice, tamperMeshes, applianceType
+        case retailDevice, tamperMeshes, applianceType, memoryDesign
     }
 
     func jsonString(pretty: Bool = true) -> String {
@@ -367,6 +371,8 @@ enum DesignSchemas {
                                  "description": "Retail / POS device class: turns on the 4-segment POS checks"] as [String: Any],
                 "applianceType": ["type": "string", "enum": ["laundry", "kitchen", "refrigeration", "hvac", "small"],
                                   "description": "Home appliance type: turns on the 4-segment appliance checks"] as [String: Any],
+                "memoryDesign": ["type": "string", "enum": ["sdram", "ddr", "lpddr", "dimm", "rdimm"],
+                                 "description": "Memory design type: turns on the 5-segment memory (RAM) checks"] as [String: Any],
                 "tamperMeshes": [
                     "type": "array",
                     "description": "Active tamper meshes (PCI PTS) over secure elements; needs 4+ layers",
@@ -534,6 +540,9 @@ enum DesignPlanCompiler {
         }
         if let type = plan.applianceType, !engine.setApplianceType(type) {
             report.warnings.append("Unknown appliance type '\(type)'.")
+        }
+        if let type = plan.memoryDesign, !engine.setMemoryDesign(type) {
+            report.warnings.append("Unknown memory design type '\(type)'.")
         }
         var positions = plan.components.map { CGPoint(x: $0.x, y: $0.y) }
         positions = SchematicAutoLayout.resolveOverlaps(positions)
@@ -790,7 +799,8 @@ enum DesignPlanCompiler {
                           tamperMeshes: snapshot.tamperMeshes.map {
                               PlannedTamperMesh(component: $0.component, netA: $0.netA, netB: $0.netB, margin: $0.margin)
                           },
-                          applianceType: snapshot.applianceType.isEmpty ? nil : snapshot.applianceType)
+                          applianceType: snapshot.applianceType.isEmpty ? nil : snapshot.applianceType,
+                          memoryDesign: snapshot.memoryDesign.isEmpty ? nil : snapshot.memoryDesign)
     }
 }
 

@@ -31,6 +31,7 @@ final class SplashModel: ObservableObject {
             Step(title: "Starting the design engine") { _ = StandardLibrary.rulePresets.count },
             Step(title: "Loading the component library") { _ = StandardLibrary.parts.count },
             Step(title: "Loading industry profiles") { _ = StandardLibrary.industries.count },
+            Step(title: "Loading memory & system design kits") { _ = StandardLibrary.memoryDesignTypes.count },
             Step(title: "Loading reference designs") { _ = OfflineProvider.templates.count },
         ]
     }
@@ -392,7 +393,7 @@ private struct SplashBackground: View {
 
 /// A QFN-style chip with traces fanning out to vias, drawn in over the first second and a half, with a few signal
 /// pulses running along the traces afterwards.
-private struct SplashCircuit: View {
+struct SplashCircuit: View {
     var time: TimeInterval
     var animated: Bool
 

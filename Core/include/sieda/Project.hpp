@@ -40,6 +40,9 @@ public:
     /// Home appliance type ("laundry", "kitchen", "refrigeration", "hvac", "small"; empty = none): turns on the
     /// four appliance segment checks (the appliance industry profile turns them on as advice).
     std::string applianceType;
+    /// Memory design type ("sdram", "ddr", "lpddr", "dimm", "rdimm"; empty = none): turns on the five memory
+    /// segment checks (the memory industry profile turns them on as advice).
+    std::string memoryDesign;
     Schematic schematic;
     PcbLayout pcb;
     /// Ids of custom parts (CustomPartRegistry) available in this project's component library.

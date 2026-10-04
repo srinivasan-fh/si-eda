@@ -304,7 +304,7 @@ final class StandardsAndVerificationTests: XCTestCase {
     }
 
     func testOfflineTemplateMatchingAndCategories() {
-        XCTAssertEqual(OfflineProvider.templates.count, 40)
+        XCTAssertEqual(OfflineProvider.templates.count, 41)
         XCTAssertEqual(OfflineProvider.template(for: "non-inverting amplifier with gain 11").plan.title, "Non-Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "an inverting amplifier, gain -10").plan.title, "Inverting Amplifier")
         XCTAssertEqual(OfflineProvider.template(for: "blink an LED with a 555").plan.title, "555 Astable LED Blinker")
@@ -466,7 +466,7 @@ final class IndustryKitTests: XCTestCase {
         let ids = StandardLibrary.industries.map(\.id)
         XCTAssertEqual(ids, ["general", "robotics", "uav", "power", "automotive", "rf", "space", "marine", "industrial",
                              "medical", "defence", "networking", "vlsi", "motherboard", "server", "hpc", "arm", "addin",
-                             "retail", "appliance"])
+                             "retail", "appliance", "memory"])
         let space = try XCTUnwrap(StandardLibrary.industry("space"))
         XCTAssertEqual(space.powerDerating, 0.5, accuracy: 1e-9)
         XCTAssertTrue(space.highAltitude)
@@ -4183,9 +4183,10 @@ final class SplashScreenTests: XCTestCase {
 
     func testStandardStepsPreloadTheLibraries() {
         let steps = SplashModel.standardSteps
-        XCTAssertEqual(steps.count, 4)
-        XCTAssertEqual(Set(steps.map(\.title)).count, 4)
+        XCTAssertEqual(steps.count, 5)
+        XCTAssertEqual(Set(steps.map(\.title)).count, 5)
         steps.forEach { $0.work() }
+        XCTAssertEqual(StandardLibrary.memoryDesignTypes.map(\.id), ["sdram", "ddr", "lpddr", "dimm", "rdimm"])
         XCTAssertFalse(StandardLibrary.parts.isEmpty)
         XCTAssertFalse(StandardLibrary.rulePresets.isEmpty)
         XCTAssertFalse(StandardLibrary.industries.isEmpty)
@@ -4299,5 +4300,147 @@ final class SplashScreenTests: XCTestCase {
         XCTAssertGreaterThan(host.fittingSize.width, 0)
         XCTAssertTrue(SplashView.versionLine.hasPrefix("Version "))
         XCTAssertTrue(SplashView.versionLine.contains("Core \(EDAEngine.coreVersion)"))
+    }
+}
+
+@MainActor
+final class SplashDesignTests: XCTestCase {
+    func testCircuitArtworkStaysOnTheCardAndClearOfTheStatusLine() {
+        let traces = SplashCircuit.traces
+        XCTAssertEqual(traces.count, SplashCircuit.pinsPerSide * 4)
+        XCTAssertTrue(traces.contains { $0.pulse }, "some traces carry signal pulses")
+        // The status line and version text sit in the bottom ~60 points; the wordmark on the left third.
+        let statusTop = SplashView.size.height - 60
+        for trace in traces {
+            let box = trace.path.boundingRect
+            XCTAssertGreaterThanOrEqual(box.minY, 0)
+            XCTAssertLessThan(box.maxY + 4, statusTop, "a trace (and its via) ends above the status line")
+            XCTAssertGreaterThan(box.minX, SplashView.size.width * 0.3, "traces stay right of the wordmark")
+            XCTAssertLessThan(trace.end.y + 4, statusTop)
+        }
+    }
+
+    func testStatusWalksThroughEveryStepThenReady() {
+        let steps = SplashModel.standardSteps
+        let model = SplashModel(steps: steps.map { SplashModel.Step(title: $0.title) {} }, minimumDuration: 5)
+        var seen: [String] = []
+        for k in 0...steps.count {
+            let progress = Double(k) / Double(steps.count)
+            let index = SplashModel.statusIndex(progress: progress, total: steps.count)
+            seen.append(index < steps.count ? steps[index].title + "…" : "Ready")
+        }
+        XCTAssertEqual(seen.last, "Ready")
+        XCTAssertEqual(Array(seen.dropLast()), steps.map { $0.title + "…" })
+        XCTAssertTrue(model.steps.map(\.title).contains("Loading memory & system design kits"))
+    }
+
+    func testSplashCanBeTurnedOffInSettings() {
+        let key = "showSplashScreen"
+        let saved = UserDefaults.standard.object(forKey: key)
+        defer {
+            if let saved { UserDefaults.standard.set(saved, forKey: key) } else { UserDefaults.standard.removeObject(forKey: key) }
+        }
+        UserDefaults.standard.removeObject(forKey: key)
+        XCTAssertTrue(SplashController.isEnabled, "on by default")
+        UserDefaults.standard.set(false, forKey: key)
+        XCTAssertFalse(SplashController.isEnabled)
+        UserDefaults.standard.set(true, forKey: key)
+        XCTAssertTrue(SplashController.isEnabled)
+    }
+
+    func testControllerIgnoresWindowsWhenInactive() {
+        let controller = SplashController(model: SplashModel(steps: [], minimumDuration: 0))
+        XCTAssertFalse(controller.isActive)
+        XCTAssertFalse(controller.isShowing)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 100), styleMask: [.titled],
+                              backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        controller.hold(window)
+        XCTAssertEqual(window.alphaValue, 1, "an inactive controller leaves windows alone")
+        window.close()
+    }
+}
+
+@MainActor
+final class MemoryDesignTests: XCTestCase {
+    private let title = "STM32H743 + 32 MB SDRAM Frame Buffer: 5-Segment Memory Reference"
+
+    func testMemoryTypesPartsAndTemplateSelection() throws {
+        XCTAssertEqual(StandardLibrary.memoryDesignTypes.map(\.id), ["sdram", "ddr", "lpddr", "dimm", "rdimm"])
+        let profile = try XCTUnwrap(StandardLibrary.industry("memory"))
+        XCTAssertEqual(profile.rulePreset, "HDI / Fine-Pitch BGA (IPC-2226)")
+        XCTAssertEqual(profile.systemImage, "memorychip.fill")
+        for name in ["MT48LC16M16A2TG-6A", "W9812G6KH-6", "IS42S16400J-7TL", "MT41K256M16HA-125", "AS4C256M16D3-12BCN",
+                     "MT40A512M16LY-062E"] {
+            XCTAssertTrue(StandardLibrary.parts.contains { $0.spec.name == name }, name)
+        }
+        XCTAssertEqual(OfflineProvider.template(for: "STM32H743 frame buffer with external SDRAM").plan.title, title)
+        XCTAssertEqual(OfflineProvider.template(for: "DDR4 memory-down beside an FPGA").industry, "memory")
+        XCTAssertEqual(OfflineProvider.template(for: "DDR5 SO-DIMM module").industry, "memory")
+        // Words that merely contain "ram" stay with their own templates.
+        XCTAssertNotEqual(OfflineProvider.template(for: "program a frame grabber").industry, "memory")
+        XCTAssertNotEqual(OfflineProvider.template(for: "usb 2.0 high-speed link with a length matched DDR bus").industry, "memory")
+        XCTAssertTrue(OfflineProvider.categories.contains("Memory & RAM"))
+        XCTAssertEqual(OfflineProvider.examples(in: "Memory & RAM").map(\.plan.title), [title])
+    }
+
+    func testReferenceDesignSegmentsAndPersistence() throws {
+        let template = try XCTUnwrap(OfflineProvider.templates.first { $0.plan.memoryDesign != nil })
+        XCTAssertEqual(template.plan.title, title)
+        XCTAssertEqual(template.industry, "memory")
+        let store = DesignStore()
+        let report = DesignPlanCompiler.apply(template.industryPlan, to: store.engine, previous: nil)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        XCTAssertEqual(report.connectionsMade, template.plan.connections.count)
+        store.refresh()
+        XCTAssertEqual(store.snapshot.memoryDesign, "sdram")
+        XCTAssertEqual(store.snapshot.industry, "memory")
+        XCTAssertEqual(store.snapshot.board.layerCount, 6)
+        let segments = store.memorySegments()
+        XCTAssertTrue(segments.applies)
+        XCTAssertEqual(segments.segments.map(\.id), ["power", "clock", "data", "config", "layout"])
+        for segment in segments.segments where segment.id != "layout" {  // the layout items need placed parts
+            XCTAssertEqual(segment.status, "complete", "\(segment.id): \(segment.items.filter { !$0.ok }.map(\.label))")
+        }
+        let erc = store.engine.runERC().filter { $0.severity != .info }
+        XCTAssertTrue(erc.isEmpty, "\(erc.map(\.message))")
+
+        // The type is undoable, saved with the project and carried into refinement plans.
+        store.setMemoryDesign("ddr")
+        XCTAssertEqual(store.snapshot.memoryDesign, "ddr")
+        XCTAssertNotEqual(store.memorySegments().segments.first { $0.id == "data" }?.status, nil)
+        store.undo()
+        XCTAssertEqual(store.snapshot.memoryDesign, "sdram")
+        store.setMemoryDesign("")
+        XCTAssertTrue(store.snapshot.memoryDesign.isEmpty)
+        store.undo()
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        XCTAssertEqual(reopened.snapshot()?.memoryDesign, "sdram")
+        XCTAssertEqual(DesignPlanCompiler.plan(from: store.snapshot).memoryDesign, "sdram")
+        XCTAssertFalse(store.engine.setMemoryDesign("ddr9"))
+
+        // The plan schema offers the types to AI agents.
+        let schema = DesignSchemas.designPlan
+        let properties = try XCTUnwrap(schema["properties"] as? [String: Any])
+        let memory = try XCTUnwrap(properties["memoryDesign"] as? [String: Any])
+        XCTAssertEqual(memory["enum"] as? [String], ["sdram", "ddr", "lpddr", "dimm", "rdimm"])
+        XCTAssertTrue(AgentPrompts.architectSystem.contains("\"memoryDesign\""))
+    }
+
+    func testDdrChecksOnAFreshProject() throws {
+        let store = DesignStore()
+        store.setMemoryDesign("ddr")
+        let part = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "MT41K256M16HA-125" })
+        let info = try store.engine.registerCustomPart(part.spec)
+        XCTAssertEqual(info.footprintGeometry.pads.count, 96)
+        _ = store.engine.addCustomComponent(partId: info.id, value: nil, at: CGPoint(x: 0, y: 0), rotation: 0, ref: "U1")
+        store.refresh()
+        let codes = Set(store.engine.runDRC().map(\.code))  // layout + design-for-reliability rules
+        for code in ["REL_DDR_ZQ", "REL_DDR_VREF", "REL_DDR_RESET", "REL_DDR_VTT"] {
+            XCTAssertTrue(codes.contains(code), code)
+        }
+        let segments = store.memorySegments()
+        XCTAssertEqual(segments.segments.first { $0.id == "data" }?.items.last?.ok, false, "ZQ resistor missing")
     }
 }

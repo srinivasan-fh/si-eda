@@ -228,6 +228,18 @@ std::vector<IndustryProfile> build() {
                   "compressor or drum motor.",
                   "Capacitive touch pads with guard rings, NTC dividers with RC filters, Wi-Fi module antenna kept clear "
                   "of mains copper."}});
+    p.push_back({"memory", "Memory & DRAM Design", "SDRAM, DDR3L / DDR4 / LPDDR memory-down and DDR5 memory modules",
+                 "JEDEC JESD79-3 / -4 / -5 (DDR3 / DDR4 / DDR5), JESD209-4 / -5 (LPDDR4 / LPDDR5), JESD21-C (SDR SDRAM, "
+                 "SPD), JESD301 (DDR5 PMIC), JESD82 (RCD), IPC-2141 (controlled impedance), IPC-2226 (HDI)",
+                 "HDI / Fine-Pitch BGA (IPC-2226)", 0.8, 0.8, false, 0, 85,
+                 {"Decouple every VDD / VDDQ pin pair with 100 nF at the pin, add bulk at the DRAM; DDR adds a sink / "
+                  "source VTT regulator (VDDQ / 2) and a filtered VREF.",
+                  "SDR: a 22–33 Ω series resistor on SDCLK and a length-matched data bus. DDR3 / DDR4: fly-by command / "
+                  "address and clock terminated to VTT, CK as a 100 Ω pair, 240 Ω 1 % on ZQ, RESET_n pulled low.",
+                  "Match each byte lane to its DQS strobe; 40 Ω single-ended / 80 Ω differential for DDR4 / DDR5 / LPDDR; "
+                  "route the bus over an unbroken ground plane on ≥ 4 layers (6–10 for DDR).",
+                  "Modules: SPD EEPROM / hub with I²C pull-ups, DDR5 PMIC, RDIMM RCD; 1.2–1.27 mm board with hard-gold "
+                  "bevelled fingers."}});
     return p;
 }
 

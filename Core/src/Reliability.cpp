@@ -11,6 +11,7 @@
 #include "sieda/Medical.hpp"
 #include "sieda/Retail.hpp"
 #include "sieda/Appliance.hpp"
+#include "sieda/Memory.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/CustomParts.hpp"
 #include "sieda/Embedded.hpp"
@@ -514,6 +515,7 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
         for (auto& v : medicalChecks(project)) out.push_back(std::move(v));
         for (auto& v : retailChecks(project)) out.push_back(std::move(v));
         for (auto& v : applianceChecks(project)) out.push_back(std::move(v));
+        for (auto& v : memoryChecks(project)) out.push_back(std::move(v));
         return out;
     }
 
@@ -978,6 +980,8 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
     for (auto& v : medicalChecks(project)) out.push_back(std::move(v));
     for (auto& v : retailChecks(project)) out.push_back(std::move(v));
     for (auto& v : applianceChecks(project)) out.push_back(std::move(v));
+    // Memory subsystems: power, clock / address, data, configuration and layout segments.
+    for (auto& v : memoryChecks(project)) out.push_back(std::move(v));
     return out;
 }
 

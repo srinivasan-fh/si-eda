@@ -6,6 +6,7 @@
 #include "sieda/Medical.hpp"
 #include "sieda/Retail.hpp"
 #include "sieda/Appliance.hpp"
+#include "sieda/Memory.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/Firmware.hpp"
@@ -857,6 +858,23 @@ char* sieda_appliance_segments_json(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
         return dup(applianceSegmentsJson(project->project).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_set_memory_design(SiedaProject* project, const char* type) {
+    if (!project || !type) return 0;
+    std::string id = type;
+    if (!id.empty() && !findMemoryDesignType(id)) return 0;
+    project->project.memoryDesign = id;
+    return 1;
+}
+
+char* sieda_memory_segments_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(memorySegmentsJson(project->project).dump());
     } catch (...) {
         return nullptr;
     }

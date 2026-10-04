@@ -363,6 +363,26 @@ std::string bgaBallName(int i, int n) {
     return name + std::to_string(i % grid + 1);
 }
 
+/// Row and column (0-based) of a JEDEC ball name ("A1", "K7", "AB12"; rows skip I, O, Q, S, X, Z).
+bool parseBallName(const std::string& name, int& row, int& col) {
+    static const std::string letters = "ABCDEFGHJKLMNPRTUVWY";
+    size_t k = 0;
+    while (k < name.size() && std::isalpha(static_cast<unsigned char>(name[k]))) ++k;
+    if (k == 0 || k > 2 || k == name.size()) return false;
+    for (size_t i = k; i < name.size(); ++i)
+        if (!std::isdigit(static_cast<unsigned char>(name[i]))) return false;
+    const size_t a = letters.find(static_cast<char>(std::toupper(static_cast<unsigned char>(name[0]))));
+    if (a == std::string::npos) return false;
+    row = static_cast<int>(a);
+    if (k == 2) {
+        const size_t b = letters.find(static_cast<char>(std::toupper(static_cast<unsigned char>(name[1]))));
+        if (b == std::string::npos) return false;
+        row = (row + 1) * static_cast<int>(letters.size()) + static_cast<int>(b);
+    }
+    col = std::stoi(name.substr(k)) - 1;
+    return col >= 0 && col < 64;
+}
+
 struct PadPlacement {
     Vec2 offset, size;
     bool tht = false, round = false;
@@ -694,6 +714,39 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     std::vector<PadPlacement> placements = packagePads(spec.package.type, tabbed ? leadCount : pc, spec.package.pitch,
                                                        spec.package.bodySize, fp.body, fp.courtyardW, fp.courtyardH,
                                                        &spec.package);
+    // A depopulated or rectangular ball grid (DDR3 / DDR4 DRAM: 9 × 16 balls with columns 4–6 empty) is laid out
+    // from the balls' own names; a full square grid keeps the row-major layout.
+    std::vector<std::string> ballNumbers;
+    if (spec.package.type == "BGA" && !tabbed && placements.size() == spec.pins.size()) {
+        std::set<std::string> square;
+        for (int i = 0; i < pc; ++i) square.insert(bgaBallName(i, pc));
+        bool named = true, squareGrid = true;
+        int rows = 0, cols = 0;
+        std::vector<std::pair<int, int>> at;
+        for (const auto& pin : spec.pins) {
+            int r = 0, c = 0;
+            if (!parseBallName(pin.number, r, c)) {
+                named = false;
+                break;
+            }
+            squareGrid = squareGrid && square.count(upper(pin.number));
+            at.emplace_back(r, c);
+            rows = std::max(rows, r + 1);
+            cols = std::max(cols, c + 1);
+        }
+        if (named && !squareGrid) {
+            const double pitch = spec.package.pitch > 0 ? spec.package.pitch : 0.8, ball = pitch * 0.45;
+            for (size_t i = 0; i < placements.size(); ++i) {
+                placements[i].offset = {(at[i].second - (cols - 1) / 2.0) * pitch, (at[i].first - (rows - 1) / 2.0) * pitch};
+                placements[i].size = {ball, ball};
+                ballNumbers.push_back(upper(spec.pins[i].number));
+            }
+            fp.body.width = spec.package.bodySize > 0 ? spec.package.bodySize : cols * pitch + 1.0;
+            fp.body.depth = spec.package.bodyDepth > 0 ? spec.package.bodyDepth : rows * pitch + 1.0;
+            fp.courtyardW = std::max(fp.body.width, cols * pitch) + 0.5;
+            fp.courtyardH = std::max(fp.body.depth, rows * pitch) + 0.5;
+        }
+    }
     for (size_t i = 0; i < placements.size(); ++i) {
         PadDef pad;
         pad.offset = placements[i].offset;
@@ -701,7 +754,9 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
         pad.throughHole = placements[i].tht;
         pad.round = placements[i].round;
         pad.drill = placements[i].drill;
-        std::string number = spec.package.type == "BGA" ? bgaBallName(static_cast<int>(i), pc) : std::to_string(i + 1);
+        std::string number = !ballNumbers.empty()         ? ballNumbers[i]
+                             : spec.package.type == "BGA" ? bgaBallName(static_cast<int>(i), pc)
+                                                          : std::to_string(i + 1);
         if (usesLandPattern(spec.package.type)) number = landPin(spec.package, i);
         for (size_t p = 0; p < spec.pins.size(); ++p)
             if (upper(spec.pins[p].number) == number) pad.pinIndex = static_cast<int>(p);
