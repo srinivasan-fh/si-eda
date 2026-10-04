@@ -18,7 +18,7 @@ struct DesignPlan: Codable, Equatable {
     var netClasses: [PlannedNetClass]
     /// Pins left open on purpose ("U3.9"): marked no-connect so ERC does not report them.
     var noConnect: [String]
-    /// Robot platform ("rover", "fpv", "arm", "quadruped", "humanoid"): turns on the 7-segment robotics checks.
+    /// Robot platform ("rover", "fpv", "arm", "quadruped", "humanoid", "printer3d", "cnc"): turns on the 7-segment robotics checks.
     var robotPlatform: String?
     /// Automotive ECU type ("bcm", "powertrain", "adas", "ev", "chassis", "gateway"): turns on the 6-segment ECU checks.
     var ecuType: String?
@@ -353,7 +353,7 @@ enum DesignSchemas {
                               "description": "REF.PIN of pins intentionally left open (unused MCU pins)"] as [String: Any],
                 "industry": ["type": "string", "enum": industryIds,
                              "description": "Industry profile that sets derating and design rules"] as [String: Any],
-                "robotPlatform": ["type": "string", "enum": ["rover", "fpv", "arm", "quadruped", "humanoid"],
+                "robotPlatform": ["type": "string", "enum": ["rover", "fpv", "arm", "quadruped", "humanoid", "printer3d", "cnc"],
                                   "description": "Robot platform: turns on the 7-segment robotics checks"] as [String: Any],
                 "ecuType": ["type": "string", "enum": ["bcm", "powertrain", "adas", "ev", "chassis", "gateway"],
                             "description": "Automotive ECU type: turns on the 6-segment ECU checks"] as [String: Any],

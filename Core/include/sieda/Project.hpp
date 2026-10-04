@@ -19,7 +19,7 @@ public:
     int buildQuantity = 5;
     std::string requirements;  // the prompt / PRD text the design was generated from
     std::string industry = "general";  // IndustryProfile id (derating, design rules, altitude class)
-    /// Robot platform ("rover", "fpv", "arm", "quadruped", "humanoid"; empty = not a robot): turns on the robotics
+    /// Robot platform ("rover", "fpv", "arm", "quadruped", "humanoid", "printer3d", "cnc"; empty = not a robot): turns on the robotics
     /// segment checks and their platform guidance.
     std::string robotPlatform;
     /// Automotive ECU type ("bcm", "powertrain", "adas", "ev", "chassis", "gateway"; empty = none): turns on the

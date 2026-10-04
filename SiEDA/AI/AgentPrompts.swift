@@ -120,7 +120,7 @@ enum AgentPrompts {
         - Pour ground: on a 2-layer board GND on layer -1 (bottom) and 0 (top); on 4 layers a GND plane on layer \
         1 (plane true). Give battery, motor and regulator-output nets carrying ≥ 0.5 A a net class (≈ 0.6 mm per \
         amp of 1 oz copper). List unused IC pins in "noConnect" ("U3.9") so ERC knows they are open on purpose.
-        - Robots (Mars rover, FPV drone, industrial arm, quadruped, humanoid): set "robotPlatform" and design the \
+        - Robots (Mars rover, FPV drone, industrial arm, quadruped, humanoid, 3D printer, CNC machine): set "robotPlatform" and design the \
         seven segments — power distribution (battery input with reverse-polarity MOSFET, fuse / eFuse, TVS, \
         isolated logic rail), compute (MCU / SoM with debug header), motion (gate driver + MOSFET bridge, \
         low-value Kelvin shunt + amplifier), sensors (IMU, an AGND net tied to GND through one ferrite / 0 Ω star \

@@ -233,6 +233,24 @@ final class EDAEngine: @unchecked Sendable {
         return .success(part)
     }
 
+    /// Footprint editor: the part's generated footprint as an editable land pattern (package "CUSTOM", one land per
+    /// pad, same pins). Parts already on a land pattern come back unchanged.
+    static func landPattern(_ spec: CustomPartSpec) -> Result<CustomPartSpec, EDAEngineError> {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let json = take(sieda_custom_part_land_pattern(spec.jsonString(), &errorPointer))
+        if let message = take(errorPointer) { return .failure(.operationFailed(message)) }
+        guard let converted = decode(CustomPartSpec.self, from: json) else {
+            return .failure(.operationFailed("Footprint unavailable."))
+        }
+        return .success(converted)
+    }
+
+    /// Footprint editor checks: overlapping pads, copper gaps below `minGap` mm, annular rings, pads without pins and
+    /// pins without pads.
+    static func checkLandPattern(_ spec: CustomPartSpec, minGap: Double = 0.1) -> [LandIssue] {
+        decode([LandIssue].self, from: take(sieda_check_land_pattern(spec.jsonString(), minGap))) ?? []
+    }
+
     @discardableResult
     func removeCustomPart(_ id: String) -> Bool { withHandle { sieda_custom_part_remove($0, id) } == 1 }
 
@@ -266,7 +284,7 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func setIndustry(_ id: String) -> Bool { withHandle { sieda_project_set_industry($0, id) } == 1 }
 
-    /// Robot platform ("rover", "fpv", "arm", "quadruped", "humanoid"; "" = none).
+    /// Robot platform ("rover", "fpv", "arm", "quadruped", "humanoid", "printer3d", "cnc"; "" = none).
     @discardableResult
     func setRobotPlatform(_ id: String) -> Bool { withHandle { sieda_set_robot_platform($0, id) } == 1 }
 

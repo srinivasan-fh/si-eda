@@ -42,8 +42,21 @@ PinType pinTypeFromName(const std::string& raw) {
 
 std::vector<std::string> supportedPackages() {
     return {"SOIC", "TSSOP", "DIP", "QFN", "LQFP", "SOT23", "HEADER", "HEADER2", "TO220", "HC49", "DISC", "MODULE",
-            "BGA", "TO263", "SOT223", "MULTIWATT", "SON", "XTAL3225", "XTAL3215", "XTALCYL"};
+            "BGA", "TO263", "SOT223", "MULTIWATT", "SON", "XTAL3225", "XTAL3215", "XTALCYL", "LGA", "CUSTOM"};
 }
+
+bool usesLandPattern(const std::string& packageType) { return packageType == "LGA" || packageType == "CUSTOM"; }
+
+namespace {
+/// Pin number (upper case) of land `i`: its explicit pin, else its own number i + 1; "-" = mechanical.
+std::string landPin(const PackageSpec& pkg, size_t i) {
+    const std::string& p = pkg.lands[i].pin;
+    if (p.empty()) return std::to_string(i + 1);
+    std::string u = p;
+    for (auto& c : u) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    return u;
+}
+}  // namespace
 
 // ------------------------------------------------------------------ JSON
 
@@ -60,6 +73,21 @@ Json customPartSpecToJson(const CustomPartSpec& s) {
     pkg["pinCount"] = s.package.pinCount;
     if (s.package.pitch > 0) pkg["pitch"] = s.package.pitch;  // only when set: older parts keep their ids
     if (s.package.bodySize > 0) pkg["bodySize"] = s.package.bodySize;
+    if (s.package.bodyDepth > 0) pkg["bodyDepth"] = s.package.bodyDepth;
+    if (!s.package.lands.empty()) {
+        Json lands = Json::array();
+        for (const auto& l : s.package.lands) {
+            Json lj = Json::array();
+            for (double v : {l.x, l.y, l.w, l.h}) lj.push(v);
+            if (l.drill > 0 || l.round || !l.pin.empty()) {  // [x, y, w, h, drill, round(, pin)]
+                lj.push(l.drill);
+                lj.push(l.round ? 1 : 0);
+            }
+            if (!l.pin.empty()) lj.push(l.pin);
+            lands.push(lj);
+        }
+        pkg["lands"] = lands;
+    }
     j["package"] = pkg;
     Json pins = Json::array();
     for (const auto& p : s.pins) {
@@ -138,7 +166,9 @@ std::string normalizePackage(const std::string& raw, int& pinsFromName) {
     }
     auto has = [&](const char* k) { return u.find(k) != std::string::npos; };
     std::string type;
-    if (has("BGA") || has("CSG") || has("FBG")) type = "BGA";
+    if (u.rfind("LGA", 0) == 0 || has("LAND PATTERN")) type = "LGA";
+    else if (u.rfind("CUSTOM", 0) == 0) type = "CUSTOM";
+    else if (has("BGA") || has("CSG") || has("FBG")) type = "BGA";
     else if (has("TO-263") || has("TO263") || has("D2PAK") || has("DDPAK")) type = "TO263";
     else if (has("SOT-223") || has("SOT223")) type = "SOT223";
     else if (has("MULTIWATT") || has("TO-220-15") || has("TO-220-11")) type = "MULTIWATT";
@@ -191,6 +221,25 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
         double pitch = pkg.get("pitch").asNumber(0), body = pkg.get("bodySize").asNumber(0);
         s.package.pitch = std::isfinite(pitch) && pitch > 0.2 && pitch <= 5.08 ? pitch : 0;
         s.package.bodySize = std::isfinite(body) && body > 0.5 && body <= 60 ? body : 0;
+        const double depth = pkg.get("bodyDepth").asNumber(0);
+        s.package.bodyDepth = std::isfinite(depth) && depth > 0.5 && depth <= 60 ? depth : 0;
+        for (const auto& lj : pkg.get("lands").items()) {
+            if (!lj.isArray() || (lj.size() != 4 && lj.size() != 6 && lj.size() != 7))
+                throw JsonError("Each land is [x, y, width, height] or [x, y, width, height, drill, round, pin] in mm.");
+            PackageSpec::Land l{lj[0].asNumber(0), lj[1].asNumber(0), lj[2].asNumber(0), lj[3].asNumber(0)};
+            if (lj.size() >= 6) {
+                l.drill = lj[4].asNumber(0);
+                l.round = lj[5].asNumber(0) != 0;
+            }
+            if (lj.size() == 7) l.pin = trim(lj[6].asString(""));
+            const bool ok = std::isfinite(l.x) && std::isfinite(l.y) && std::fabs(l.x) <= 60 && std::fabs(l.y) <= 60 &&
+                            l.w > 0.05 && l.w <= 30 && l.h > 0.05 && l.h <= 30;
+            if (!ok) throw JsonError("Land pattern pads must lie within 60 mm and be 0.05…30 mm in size.");
+            if (!std::isfinite(l.drill) || l.drill < 0 || (l.drill > 0 && l.drill >= std::min(l.w, l.h)))
+                throw JsonError("A pad's drill must be smaller than the pad.");
+            if (s.package.lands.size() >= 512) throw JsonError("Land pattern has too many pads.");
+            s.package.lands.push_back(l);
+        }
     } else {
         s.package.type = normalizePackage(pkg.asString(j.get("package_type").asString("SOIC")), pinsFromName);
         s.package.pinCount = j.get("pin_count").asInt(0);
@@ -287,7 +336,7 @@ struct PadPlacement {
 
 /// Pad positions for pad numbers 1..n of a package (index 0 = pad 1).
 std::vector<PadPlacement> packagePads(const std::string& type, int n, double pitchIn, double bodyIn, BodyDef& body,
-                                      double& courtW, double& courtH) {
+                                      double& courtW, double& courtH, const PackageSpec* exact = nullptr) {
     std::vector<PadPlacement> pads;
     auto dual = [&](double pitch, double rowX, Vec2 size, bool tht, double drill) {
         int perSide = (n + 1) / 2;
@@ -436,6 +485,17 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
         const double pitch = pitchIn > 0 ? pitchIn : 1.27, bw = bodyIn > 0 ? bodyIn : 5.0;
         int per = dual(pitch, bw / 2 - 0.3, {0.9, padWidth(pitch, 0.3, 0.65)}, false, 0);
         body = {bw, std::max(per * pitch + 0.8, bw * 1.2), 1.0, false, 0.12f, 0.12f, 0.13f};
+    } else if (usesLandPattern(type) && exact) {
+        // Exact land pattern: pad k is land k; the body is the declared outline, else the pads' extent.
+        double xMax = 0, yMax = 0;
+        for (int i = 0; i < n && i < static_cast<int>(exact->lands.size()); ++i) {
+            const auto& l = exact->lands[i];
+            pads.push_back({{l.x, l.y}, {l.w, l.h}, l.drill > 0, l.round, l.drill});
+            xMax = std::max(xMax, std::fabs(l.x) + l.w / 2);
+            yMax = std::max(yMax, std::fabs(l.y) + l.h / 2);
+        }
+        const double bw = bodyIn > 0 ? bodyIn : 2 * xMax, bd = exact->bodyDepth > 0 ? exact->bodyDepth : (bodyIn > 0 ? bodyIn : 2 * yMax);
+        body = {bw, bd, 1.0, false, 0.14f, 0.14f, 0.15f};
     } else {  // SOIC
         double pitch = pitchIn > 0 ? pitchIn : 1.27;
         double bw = bodyIn > 0 ? bodyIn : (n > 16 ? 7.5 : 3.9);
@@ -488,6 +548,15 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     if (spec.package.type == "DISC" && pc != 2) throw JsonError("Radial disc parts have 2 pins.");
     if (spec.package.type == "SOT223" && pc > 4) throw JsonError("SOT-223 packages have 3 leads and a tab.");
     if (spec.package.type == "TO263" && pc > 8) throw JsonError("TO-263 packages have at most 7 leads and a tab.");
+    if (usesLandPattern(spec.package.type)) {
+        if (spec.package.lands.empty())
+            throw JsonError(spec.package.type + " packages need their land pattern (one pad per pin).");
+        std::set<std::string> covered;
+        for (size_t i = 0; i < spec.package.lands.size(); ++i) covered.insert(landPin(spec.package, i));
+        for (const auto& p : spec.pins)
+            if (!covered.count(upper(p.number))) throw JsonError("Pin " + p.number + " has no pad in the land pattern.");
+        pc = static_cast<int>(spec.package.lands.size());
+    }
     if (pc > 512) throw JsonError("Package pin count is too large.");
 
     auto part = std::make_shared<CustomPart>();
@@ -561,7 +630,8 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
         else if (!tabNumber.empty() && declared > 0) leadCount = declared;
     }
     std::vector<PadPlacement> placements = packagePads(spec.package.type, tabbed ? leadCount : pc, spec.package.pitch,
-                                                       spec.package.bodySize, fp.body, fp.courtyardW, fp.courtyardH);
+                                                       spec.package.bodySize, fp.body, fp.courtyardW, fp.courtyardH,
+                                                       &spec.package);
     for (size_t i = 0; i < placements.size(); ++i) {
         PadDef pad;
         pad.offset = placements[i].offset;
@@ -570,6 +640,7 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
         pad.round = placements[i].round;
         pad.drill = placements[i].drill;
         std::string number = spec.package.type == "BGA" ? bgaBallName(static_cast<int>(i), pc) : std::to_string(i + 1);
+        if (usesLandPattern(spec.package.type)) number = landPin(spec.package, i);
         for (size_t p = 0; p < spec.pins.size(); ++p)
             if (upper(spec.pins[p].number) == number) pad.pinIndex = static_cast<int>(p);
         fp.pads.push_back(pad);
@@ -613,6 +684,78 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     std::lock_guard<std::mutex> lock(mutex_);
     auto [it, inserted] = parts_.emplace(part->id, part);
     return it->second;
+}
+
+CustomPartSpec landPatternFromFootprint(const CustomPartSpec& spec) {
+    if (usesLandPattern(spec.package.type) && !spec.package.lands.empty()) return spec;
+    auto part = CustomPartRegistry::instance().registerPart(spec);
+    CustomPartSpec out = part->spec;  // normalised (pin count, package type)
+    out.package.type = "CUSTOM";
+    out.package.pitch = 0;
+    out.package.bodySize = part->footprint.body.width;
+    out.package.bodyDepth = part->footprint.body.depth;
+    out.package.lands.clear();
+    const auto& pads = part->footprint.pads;
+    for (size_t k = 0; k < pads.size(); ++k) {
+        const PadDef& pad = pads[k];
+        PackageSpec::Land l{pad.offset.x, pad.offset.y, pad.size.x, pad.size.y, pad.throughHole ? pad.drill : 0,
+                            pad.round, ""};
+        if (pad.pinIndex < 0) {
+            l.pin = "-";
+        } else {
+            const std::string& number = part->def.pins[static_cast<size_t>(pad.pinIndex)].number;
+            if (upper(number) != std::to_string(k + 1)) l.pin = number;
+        }
+        out.package.lands.push_back(l);
+    }
+    out.package.pinCount = static_cast<int>(out.package.lands.size());
+    return out;
+}
+
+std::vector<LandIssue> checkLandPattern(const CustomPartSpec& spec, double minGap) {
+    std::vector<LandIssue> out;
+    const auto& lands = spec.package.lands;
+    std::set<std::string> pinNumbers;
+    for (const auto& p : spec.pins) pinNumbers.insert(upper(p.number));
+    std::set<std::string> covered;
+    for (size_t i = 0; i < lands.size(); ++i) {
+        const std::string pin = landPin(spec.package, i);
+        covered.insert(pin);
+        const int n = static_cast<int>(i) + 1;
+        if (pin != "-" && !pinNumbers.count(pin))
+            out.push_back({"warning", "LAND_NO_PIN", "Pad " + std::to_string(n) + " belongs to no pin (pin " + pin +
+                                                     " is not in the pin list); mark it \"-\" if it is mechanical.", {n}});
+        const auto& l = lands[i];
+        if (l.drill > 0 && (std::min(l.w, l.h) - l.drill) / 2 < 0.1 - 1e-9)
+            out.push_back({"warning", "LAND_ANNULAR",
+                           "Pad " + std::to_string(n) + ": annular ring below 0.1 mm (grow the pad or shrink the drill).", {n}});
+    }
+    for (const auto& p : spec.pins)
+        if (!covered.count(upper(p.number)))
+            out.push_back({"error", "LAND_NO_PAD", "Pin " + p.number + " (" + p.name + ") has no pad.", {}});
+    auto gap = [](const PackageSpec::Land& a, const PackageSpec::Land& b) {
+        if (a.round && b.round && std::fabs(a.w - a.h) < 1e-9 && std::fabs(b.w - b.h) < 1e-9)
+            return std::hypot(a.x - b.x, a.y - b.y) - (a.w + b.w) / 2;
+        const double dx = std::fabs(a.x - b.x) - (a.w + b.w) / 2, dy = std::fabs(a.y - b.y) - (a.h + b.h) / 2;
+        if (dx < 0 && dy < 0) return std::max(dx, dy);  // overlapping: negative
+        return std::hypot(std::max(dx, 0.0), std::max(dy, 0.0));
+    };
+    for (size_t i = 0; i < lands.size(); ++i)
+        for (size_t j = i + 1; j < lands.size(); ++j) {
+            const std::string pi = landPin(spec.package, i), pj = landPin(spec.package, j);
+            if (pi == pj && pi != "-") continue;  // pads of one pin may touch (split exposed pad, tab)
+            const double g = gap(lands[i], lands[j]);
+            const int a = static_cast<int>(i) + 1, b = static_cast<int>(j) + 1;
+            char text[160];
+            if (g < 0) {
+                std::snprintf(text, sizeof text, "Pads %d and %d overlap.", a, b);
+                out.push_back({"error", "LAND_OVERLAP", text, {a, b}});
+            } else if (g < minGap - 1e-9) {
+                std::snprintf(text, sizeof text, "Pads %d and %d are %.3f mm apart (minimum %.2f mm).", a, b, g, minGap);
+                out.push_back({"warning", "LAND_GAP", text, {a, b}});
+            }
+        }
+    return out;
 }
 
 CustomPartRegistry& CustomPartRegistry::instance() {

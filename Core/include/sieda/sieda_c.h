@@ -111,6 +111,12 @@ char* sieda_firmware_example_hex(const char* id);
 char* sieda_custom_part_register(SiedaProject* project, const char* spec_json, char** error_out);
 /* Same generation without adding the part to the project library (editor previews). */
 char* sieda_custom_part_preview(const char* spec_json, char** error_out);
+/* Footprint editor: the part's footprint as an editable land pattern (spec JSON with package type "CUSTOM" and one
+ * land per pad). NULL and *error_out (caller frees) on an invalid spec. Caller frees. */
+char* sieda_custom_part_land_pattern(const char* spec_json, char** error_out);
+/* Footprint editor checks: [{severity,code,message,pads:[n]}] for a spec's land pattern — overlapping pads, copper
+ * gaps below min_gap mm, annular rings, pads without pins and pins without pads. Caller frees. */
+char* sieda_check_land_pattern(const char* spec_json, double min_gap);
 /* Removes a part from the project library; returns 0 if it is still used by a component. */
 int32_t sieda_custom_part_remove(SiedaProject* project, const char* part_id);
 /* Switches every instance of old_id to new_id (wires are re-mapped by pin number, then name). */
@@ -149,7 +155,8 @@ int32_t sieda_pcb_move_footprint(SiedaProject* project, int32_t component_id, do
 /* Embedded passive: forms a resistor / capacitor inside the board on inner copper layer `layer` (1 … layers-2;
  * a capacitor uses `layer` and `layer`+1); 0 makes it a surface part again. Returns 0 for other parts. */
 int32_t sieda_set_component_embedded(SiedaProject* project, int32_t component_id, int32_t layer);
-/* Robotics: sets the robot platform ("rover", "fpv", "arm", "quadruped", "humanoid"; "" = none). 0 if unknown. */
+/* Robotics: sets the robot platform ("rover", "fpv", "arm", "quadruped", "humanoid", "printer3d", "cnc"; "" = none).
+ * 0 if unknown. */
 int32_t sieda_set_robot_platform(SiedaProject* project, const char* platform);
 /* {"platform","applies","platforms":[{id,name,description,guidance}],"segments":[{id,name,status,items:[{label,ok,
  * detail}],guidance}]} — the seven robot design segments checked on the current design. */

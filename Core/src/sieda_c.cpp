@@ -537,6 +537,43 @@ char* sieda_custom_part_preview(const char* spec_json, char** error_out) {
     }
 }
 
+char* sieda_custom_part_land_pattern(const char* spec_json, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    try {
+        return dup(customPartSpecToJson(landPatternFromFootprint(customPartSpecFromJson(Json::parse(str(spec_json))))).dump());
+    } catch (const std::exception& e) {
+        if (error_out) *error_out = dup(e.what());
+        return nullptr;
+    }
+}
+
+char* sieda_check_land_pattern(const char* spec_json, double min_gap) {
+    try {
+        Json arr = Json::array();
+        const CustomPartSpec spec = customPartSpecFromJson(Json::parse(str(spec_json)));
+        for (const auto& issue : checkLandPattern(spec, min_gap > 0 ? min_gap : 0.1)) {
+            Json j = Json::object();
+            j["severity"] = issue.severity;
+            j["code"] = issue.code;
+            j["message"] = issue.message;
+            Json pads = Json::array();
+            for (int p : issue.pads) pads.push(p);
+            j["pads"] = pads;
+            arr.push(j);
+        }
+        return dup(arr.dump());
+    } catch (const std::exception& e) {
+        Json arr = Json::array();
+        Json j = Json::object();
+        j["severity"] = "error";
+        j["code"] = "LAND_INVALID";
+        j["message"] = e.what();
+        j["pads"] = Json::array();
+        arr.push(j);
+        return dup(arr.dump());
+    }
+}
+
 int32_t sieda_custom_part_remove(SiedaProject* project, const char* part_id) {
     if (!project) return 0;
     return guarded([&] { return project->project.removeCustomPart(str(part_id)) ? 1 : 0; });

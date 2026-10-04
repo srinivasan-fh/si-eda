@@ -18,7 +18,7 @@ struct DesignSnapshot: Decodable, Equatable {
     var bodies: [SnapBody] = []
     var customParts: [CustomPartInfo] = []
     var industry = "general"
-    /// Robot platform id ("rover", "fpv", "arm", "quadruped", "humanoid"); empty when the design is not a robot.
+    /// Robot platform id ("rover", "fpv", "arm", "quadruped", "humanoid", "printer3d", "cnc"); empty when the design is not a robot.
     var robotPlatform = ""
     /// Automotive ECU type ("bcm", "powertrain", "adas", "ev", "chassis", "gateway"); empty when not set.
     var ecuType = ""
@@ -917,6 +917,14 @@ struct RobotPlatformInfo: Decodable, Equatable, Identifiable {
     var name: String
     var description: String
     var guidance: [String]
+    /// Robot platforms: the production parts kit, part numbers per subsystem (all in the standard library).
+    var kit: [RobotKitGroupInfo]?
+}
+
+struct RobotKitGroupInfo: Decodable, Equatable, Identifiable, Hashable {
+    var subsystem: String
+    var parts: [String]
+    var id: String { subsystem }
 }
 
 struct RobotSegmentInfo: Decodable, Equatable, Identifiable {

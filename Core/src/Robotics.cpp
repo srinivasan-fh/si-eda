@@ -70,8 +70,108 @@ const std::vector<RobotPlatform>& robotPlatforms() {
           "Rigid-flex harnesses through shoulders, elbows, hips and knees; strain relief at every mounting point.",
           "Main compute on a carrier for a Jetson-class SoM: HDI, DDR / PCIe / MIPI CSI length matching.",
           "Functional safety: hardware E-stop, current limits per joint and status indication people can see."}},
+        {"printer3d", "3D printer",
+         "FDM printer mainboard: 24 V, 4–8 stepper axes, hot end and heated bed, thermistors / thermocouples",
+         {"24 V input with reverse-polarity protection and a fuse per heater; heated-bed MOSFET on 2 oz copper with "
+          "thermal vias, or a mains bed through an SSR with the mains side isolated.",
+          "Stepper drivers (TMC22xx / 51xx) on thermal pads into inner planes; keep the motor phase tracks short and away "
+          "from the thermistor inputs.",
+          "Thermal runaway protection needs trustworthy sensing: RC-filtered thermistor inputs, or a MAX31865 / MAX31856 "
+          "for PT100 / thermocouples, routed away from heater switching.",
+          "Endstops, probe and filament sensors through filtered, ESD-protected inputs; CAN toolhead boards over a "
+          "terminated twisted pair."}},
+        {"cnc", "CNC machine",
+         "Router / mill controller: 24–48 V steppers or servo drives, spindle, limit switches and E-stop, very noisy",
+         {"Opto- or digitally-isolated inputs for limit switches, probe and E-stop; the E-stop also cuts the driver "
+          "enables in hardware.",
+          "Differential (RS-422) step / dir to external servo drives and from encoders; terminate and twist pairs.",
+          "Spindle VFD control by an isolated 0–10 V output and RS-485 Modbus; keep VFD wiring and its ground away from "
+          "the logic.",
+          "Stepper drivers on 2 oz copper with thermal vias and forced air; 48 V bulk capacitance at every driver."}},
     };
     return p;
+}
+
+const std::vector<RobotKitGroup>& robotPartKit(const std::string& platform) {
+    static const std::map<std::string, std::vector<RobotKitGroup>> kits = {
+        {"rover",
+         {{"Compute", {"STM32H743VIT6", "STM32F446RET6", "ESP32-WROOM-32E", "Crystal_8MHz_3225", "Crystal_32.768kHz_3215"}},
+          {"Motion — drive motors", {"VNH5019A-E", "DRV8871DDAR", "TB6612FNG", "DRV8833PWPR", "IRF3205PBF", "IR2184STRPBF"}},
+          {"Motion — wheel encoders", {"AS5047D-ATSM", "MT6701CT-STD", "AM26LV32CDR"}},
+          {"Sensors — navigation", {"ICM-20948", "IIM-42652", "LIS3MDLTR", "BME280"}},
+          {"Sensors — obstacles", {"VL53L1CXV0FY/1", "VL53L0CXV0DH/1", "TCA9548APWR"}},
+          {"Sensors — power telemetry", {"INA226AIDGSR", "ACS712ELCTR-20A-T", "INA3221AIRGVR"}},
+          {"Field bus and links", {"TJA1051T/3", "MCP2515-I/SO", "W5500", "CP2102N-A02-GQFN28", "THVD1450DR"}},
+          {"Power — battery", {"BQ7692000PWR", "LM74700QDBVRQ1", "LM5060MM/NOPB", "LM5050MK-1/NOPB"}},
+          {"Power — regulation", {"LMR33630ADDAR", "LT8610EMSE#PBF", "LD1117S33TR", "LP2985-33DBVR", "TPS22919DCKR"}},
+          {"Safety and storage", {"ISO7721DR", "W25Q128JVSIQ", "AT24CS02-SSHM-T"}}}},
+        {"fpv",
+         {{"Flight controller", {"STM32F405RGT6", "STM32F765VIT6", "STM32H723VGT6", "Crystal_8MHz_3225"}},
+          {"ESC — motor drive", {"STSPIN32F0A", "BSC028N06LS3G", "UCC27524DR", "INA181A2IDBVR"}},
+          {"Sensors — inertial", {"BMI088", "ICM-20602", "ICM-20948", "MPU-6050"}},
+          {"Sensors — altitude and heading", {"MS5611-01BA03", "BMP280", "LPS22HBTR", "LIS3MDLTR"}},
+          {"Sensors — landing and telemetry", {"VL53L1CXV0FY/1", "INA226AIDGSR", "ACS723LLCTR-20AB-T"}},
+          {"Links and logic", {"SN74LVC1T45DBVR", "TXB0104PWR", "CP2102N-A02-GQFN28", "PCA9685PW"}},
+          {"Power", {"BQ7692000PWR", "LMR33630ADDAR", "LT8610EMSE#PBF", "LP2985-33DBVR", "AP2112K-3.3"}},
+          {"Blackbox and storage", {"W25Q128JVSIQ", "AT24CS02-SSHM-T"}}}},
+        {"arm",
+         {{"Compute", {"STM32G474RET6", "STM32H723VGT6", "XC7A35T-1CSG324I", "Crystal_8MHz_3225"}},
+          {"Motion — joint drives", {"TMC5160A-TA", "TMC5130A-TA", "TMC2160-TA", "LM5109BMAX/NOPB", "BSC040N10NS5",
+                                     "UCC27524DR"}},
+          {"Motion — current sensing", {"ADS131M04IPWR", "INA240A1EDRQ1", "INA181A2IDBVR"}},
+          {"Sensors — joint position", {"AS5048A-HTSP", "TLE5012BE1000", "MA730GQ", "AM26LV32CDR"}},
+          {"Sensors — gripper and vibration", {"ADS1220IPWR", "ISM330DHCXTR", "TMAG5273A1QDBVR"}},
+          {"Field bus", {"TJA1051T/3", "ISO1050DUBR", "THVD1450DR", "ADM2587EBRWZ", "W5500", "KSZ8081RNACA"}},
+          {"Power", {"LM5060MM/NOPB", "LM74700QDBVRQ1", "LT8610EMSE#PBF", "LMR33630ADDAR", "INA226AIDGSR"}},
+          {"Safety I/O", {"ISO7721DR", "6N137", "TLP291-4", "AT24CS02-SSHM-T"}}}},
+        {"quadruped",
+         {{"Compute", {"STM32H723VGT6", "STM32G474RET6", "Crystal_8MHz_3225"}},
+          {"Motion — leg joint drives", {"DRV8311HRRWR", "LM5109BMAX/NOPB", "IR2184STRPBF", "BSC040N10NS5",
+                                         "BSC028N06LS3G"}},
+          {"Motion — current sensing", {"ADS131M04IPWR", "INA240A1EDRQ1", "INA181A2IDBVR"}},
+          {"Sensors — balance", {"IIM-42652", "BNO055", "BMI088"}},
+          {"Sensors — joints and feet", {"AS5048A-HTSP", "MA730GQ", "ADS1220IPWR", "TCA9548APWR"}},
+          {"Field bus", {"TJA1051T/3", "ISO1050DUBR", "TCAN1042VDRQ1", "TCAN4550RGYR"}},
+          {"Power — battery", {"BQ7694000DBTR", "LM5060MM/NOPB", "LM5050MK-1/NOPB", "INA3221AIRGVR"}},
+          {"Power — regulation", {"LT8610EMSE#PBF", "LMR33630ADDAR", "LD1117S33TR"}},
+          {"Safety and storage", {"ISO7721DR", "TPS22919DCKR", "AT24CS02-SSHM-T", "W25Q128JVSIQ"}}}},
+        {"humanoid",
+         {{"Compute", {"STM32H723VGT6", "STM32G474RET6", "ESP32-WROOM-32E", "Crystal_8MHz_3225"}},
+          {"Motion — joint drives", {"DRV8311HRRWR", "LM5109BMAX/NOPB", "BSC028N06LS3G", "UCC27524DR"}},
+          {"Motion — current sensing", {"ADS131M04IPWR", "INA181A2IDBVR", "INA240A1EDRQ1"}},
+          {"Sensors — balance", {"BNO055", "ISM330DHCXTR", "IIM-42652"}},
+          {"Sensors — joints and hands", {"AS5048A-HTSP", "MT6701CT-STD", "TMAG5273A1QDBVR", "ADS1220IPWR",
+                                          "TCA9548APWR"}},
+          {"Sensors — proximity", {"VL53L0CXV0DH/1", "VL53L1CXV0FY/1"}},
+          {"Field bus and network", {"TJA1051T/3", "ISO1050DUBR", "KSZ8081RNACA", "THVD1450DR"}},
+          {"Power", {"BQ7694000DBTR", "LM5060MM/NOPB", "LT8610EMSE#PBF", "LMR33630ADDAR", "INA3221AIRGVR"}},
+          {"Safety and storage", {"ISO7721DR", "AT24CS02-SSHM-T", "W25Q128JVSIQ"}}}},
+        {"printer3d",
+         {{"Mainboard compute", {"STM32F446RET6", "STM32H723VGT6", "LPC1769FBD100", "ATSAMD51J20A-AU", "ATmega2560",
+                                 "Crystal_8MHz_3225"}},
+          {"Motion — stepper drivers", {"TMC2209-LA", "TMC2226-SA", "TMC2208-LA", "TMC2130-LA", "TMC5160A-TA",
+                                        "A4988-STEPSTICK", "DRV8825-STEPSTICK"}},
+          {"Heaters and fans", {"IRLZ44NPBF", "BSC028N06LS3G", "AO3400A", "PC817X3NSZ0F"}},
+          {"Temperature sensing", {"MAX31865AAP+T", "MAX31856MUD+T", "AD8495ARMZ", "SHT31-DIS-B"}},
+          {"Probe and filament sensing", {"ADS1220IPWR", "TLP291-4", "TMAG5273A1QDBVR"}},
+          {"Host, network and toolhead CAN", {"CH340G", "CP2102N-A02-GQFN28", "LAN8720A-CP", "MCP2515-I/SO",
+                                              "TJA1051T/3"}},
+          {"Power", {"LMR33630ADDAR", "LM2576S-5.0", "LD1117S33TR", "LM74700QDBVRQ1", "INA219AID"}},
+          {"Storage", {"W25Q128JVSIQ", "24LC256"}}}},
+        {"cnc",
+         {{"Motion controller", {"STM32H723VGT6", "LPC1769FBD100", "STM32F446RET6", "XC7A35T-1CSG324I",
+                                 "Crystal_8MHz_3225"}},
+          {"Motion — stepper drivers", {"TMC2660-PA", "TMC5160A-TA", "TMC2160-TA", "DRV8825-STEPSTICK", "BSC040N10NS5"}},
+          {"Motion — servo step / dir and encoders", {"AM26LS31CDR", "AM26LV32CDR", "6N137"}},
+          {"Spindle and coolant", {"MCP4725A0T-E/CH", "IRLZ44NPBF", "ULN2003ADR", "MAX485ESA+T"}},
+          {"Inputs — limits, probe, E-stop", {"TLP291-4", "6N137", "ISO7721DR"}},
+          {"Monitoring", {"ACS723LLCTR-20AB-T", "ISM330DHCXTR", "INA226AIDGSR"}},
+          {"Host and pendant", {"W5500", "KSZ8081RNACA", "MAX3232ESE+T", "CH340G"}},
+          {"Power", {"LMR33630ADDAR", "LT8610EMSE#PBF", "LM5060MM/NOPB", "LD1117S33TR"}}}},
+    };
+    static const std::vector<RobotKitGroup> none;
+    auto it = kits.find(platform);
+    return it == kits.end() ? none : it->second;
 }
 
 const RobotPlatform* findRobotPlatform(const std::string& id) {
@@ -452,6 +552,16 @@ Json robotSegmentsJson(const Project& project) {
         Json g = Json::array();
         for (const auto& x : p.guidance) g.push(x);
         j["guidance"] = g;
+        Json kit = Json::array();
+        for (const auto& group : robotPartKit(p.id)) {
+            Json gj = Json::object();
+            gj["subsystem"] = group.subsystem;
+            Json names = Json::array();
+            for (const auto& n : group.parts) names.push(n);
+            gj["parts"] = names;
+            kit.push(gj);
+        }
+        j["kit"] = kit;
         plats.push(j);
     }
     root["platforms"] = plats;
