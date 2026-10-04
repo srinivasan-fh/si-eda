@@ -1,3 +1,4 @@
+import Metal
 import SceneKit
 import SwiftUI
 import XCTest
@@ -2904,7 +2905,8 @@ final class RealisticAssemblyTests: XCTestCase {
             BoardSceneView(engine: store.engine, revision: store.revision, includeComponents: true,
                            board: store.snapshot.board, resetToken: 0, finish: .enig, stats: .constant(""))
         }
-        let host = NSHostingController(rootView: view())
+        // A fixed frame: a hosting controller otherwise sizes the window to the representable's (tiny) ideal size.
+        let host = NSHostingController(rootView: view().frame(width: 800, height: 600))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -2913,17 +2915,24 @@ final class RealisticAssemblyTests: XCTestCase {
         defer { window.close() }
         RunLoop.main.run(until: Date().addingTimeInterval(1.0))
         let scnView = try XCTUnwrap(sceneView(in: host.view))
+        // Render the live scene offscreen at a known size, through the view's own camera.
+        let renderer = SCNRenderer(device: MTLCreateSystemDefaultDevice(), options: nil)
+        func render() -> NSImage {
+            renderer.scene = scnView.scene
+            renderer.pointOfView = scnView.pointOfView
+            return renderer.snapshot(atTime: 0, with: CGSize(width: 800, height: 600), antialiasingMode: .none)
+        }
 
-        let green = scnView.snapshot()
+        let green = render()
         XCTAssertGreaterThan(green.size.width, 100)
         let greenShare = try dominantShare(green, channel: 1)
         XCTAssertGreaterThan(greenShare, 0.08, "a green board fills a good part of the view")
         XCTAssertLessThan(try dominantShare(green, channel: 0), greenShare)
 
         store.setSolderMask(.red)
-        host.rootView = view()
+        host.rootView = view().frame(width: 800, height: 600)
         RunLoop.main.run(until: Date().addingTimeInterval(1.0))
-        let red = scnView.snapshot()
+        let red = render()
         let redShare = try dominantShare(red, channel: 0)
         XCTAssertGreaterThan(redShare, 0.08, "the red mask shows")
         XCTAssertLessThan(try dominantShare(red, channel: 1), redShare)
