@@ -29,12 +29,21 @@ struct CustomPin {
 };
 
 struct PackageSpec {
-    std::string type = "SOIC";  // SOIC, TSSOP, DIP, QFN, LQFP, SOT23, HEADER, TO220
+    std::string type = "SOIC";  // SOIC, TSSOP, DIP, QFN, LQFP, SOT23, HEADER, TO220, LGA, … (supportedPackages())
     int pinCount = 0;           // 0 = derived from the pin list
     /// Lead pitch and body size in millimetres (0 = the package type's default). The body size is the square body of
     /// a QFN/QFP (7 for a 7 × 7 mm LQFP-48), the moulded body width of a SOIC/TSSOP, or the row spacing of a DIP.
     double pitch = 0;
     double bodySize = 0;
+    /// "LGA": the exact land pattern, one pad per pin number 1…N in order (centre x, y and size w, h in mm, y down,
+    /// pad 1 usually top-left) — for land-grid and other irregular packages (rectangular LGA sensors, clockwise
+    /// numbering, uneven pad rows) taken pad-for-pad from the manufacturer's recommended footprint. bodySize is the
+    /// body width (x) and bodyDepth its length (y; 0 = square).
+    struct Land {
+        double x = 0, y = 0, w = 0, h = 0;
+    };
+    std::vector<Land> lands;
+    double bodyDepth = 0;
 };
 
 /// Behavioural simulation model of a custom part (optional). Pins are referenced by number or name.

@@ -576,6 +576,9 @@ private struct SystemSegmentsGroup: View {
                 ForEach(platform.guidance, id: \.self) { line in
                     Label(line, systemImage: "lightbulb").font(.caption).foregroundStyle(Theme.textSecondary)
                 }
+                if let kit = platform.kit, !kit.isEmpty {
+                    RobotKitList(platformId: platform.id, kit: kit)
+                }
             }
             if report.applies {
                 ForEach(report.segments) { segment in
@@ -616,6 +619,42 @@ private struct SystemSegmentsGroup: View {
             } else {
                 Text(hint).font(.caption).foregroundStyle(Theme.textMuted)
             }
+        }
+    }
+}
+
+/// A robot platform's production parts kit by subsystem, with one click to put the whole kit in the project library.
+private struct RobotKitList: View {
+    @EnvironmentObject private var store: DesignStore
+    let platformId: String
+    let kit: [RobotKitGroupInfo]
+    @State private var expanded = false
+    @State private var lastAdded: Int?
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $expanded) {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(kit) { group in
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(group.subsystem).font(.caption.weight(.semibold)).foregroundStyle(Theme.textPrimary)
+                        Text(group.parts.joined(separator: " · ")).font(.caption2).foregroundStyle(Theme.textMuted)
+                            .textSelection(.enabled)
+                    }
+                }
+                HStack {
+                    Button("Add Kit to Library") { lastAdded = store.addRobotKitToLibrary(platformId) }
+                        .controlSize(.small)
+                        .help("Add every part of this kit to the project library so it shows in the device picker")
+                    if let lastAdded {
+                        Text(lastAdded == 0 ? "Already in the library" : "\(lastAdded) parts added")
+                            .font(.caption2).foregroundStyle(Theme.textMuted)
+                    }
+                }
+            }
+            .padding(.top, 2)
+        } label: {
+            Label("Parts Kit (\(Set(kit.flatMap(\.parts)).count) parts)", systemImage: "shippingbox")
+                .font(.caption).foregroundStyle(Theme.skyBlue)
         }
     }
 }

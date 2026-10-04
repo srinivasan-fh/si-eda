@@ -42,7 +42,7 @@ PinType pinTypeFromName(const std::string& raw) {
 
 std::vector<std::string> supportedPackages() {
     return {"SOIC", "TSSOP", "DIP", "QFN", "LQFP", "SOT23", "HEADER", "HEADER2", "TO220", "HC49", "DISC", "MODULE",
-            "BGA", "TO263", "SOT223", "MULTIWATT", "SON", "XTAL3225", "XTAL3215", "XTALCYL"};
+            "BGA", "TO263", "SOT223", "MULTIWATT", "SON", "XTAL3225", "XTAL3215", "XTALCYL", "LGA"};
 }
 
 // ------------------------------------------------------------------ JSON
@@ -60,6 +60,16 @@ Json customPartSpecToJson(const CustomPartSpec& s) {
     pkg["pinCount"] = s.package.pinCount;
     if (s.package.pitch > 0) pkg["pitch"] = s.package.pitch;  // only when set: older parts keep their ids
     if (s.package.bodySize > 0) pkg["bodySize"] = s.package.bodySize;
+    if (s.package.bodyDepth > 0) pkg["bodyDepth"] = s.package.bodyDepth;
+    if (!s.package.lands.empty()) {
+        Json lands = Json::array();
+        for (const auto& l : s.package.lands) {
+            Json lj = Json::array();
+            for (double v : {l.x, l.y, l.w, l.h}) lj.push(v);
+            lands.push(lj);
+        }
+        pkg["lands"] = lands;
+    }
     j["package"] = pkg;
     Json pins = Json::array();
     for (const auto& p : s.pins) {
@@ -138,7 +148,8 @@ std::string normalizePackage(const std::string& raw, int& pinsFromName) {
     }
     auto has = [&](const char* k) { return u.find(k) != std::string::npos; };
     std::string type;
-    if (has("BGA") || has("CSG") || has("FBG")) type = "BGA";
+    if (u.rfind("LGA", 0) == 0 || has("LAND PATTERN")) type = "LGA";
+    else if (has("BGA") || has("CSG") || has("FBG")) type = "BGA";
     else if (has("TO-263") || has("TO263") || has("D2PAK") || has("DDPAK")) type = "TO263";
     else if (has("SOT-223") || has("SOT223")) type = "SOT223";
     else if (has("MULTIWATT") || has("TO-220-15") || has("TO-220-11")) type = "MULTIWATT";
@@ -191,6 +202,17 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
         double pitch = pkg.get("pitch").asNumber(0), body = pkg.get("bodySize").asNumber(0);
         s.package.pitch = std::isfinite(pitch) && pitch > 0.2 && pitch <= 5.08 ? pitch : 0;
         s.package.bodySize = std::isfinite(body) && body > 0.5 && body <= 60 ? body : 0;
+        const double depth = pkg.get("bodyDepth").asNumber(0);
+        s.package.bodyDepth = std::isfinite(depth) && depth > 0.5 && depth <= 60 ? depth : 0;
+        for (const auto& lj : pkg.get("lands").items()) {
+            if (!lj.isArray() || lj.size() != 4) throw JsonError("Each land is [x, y, width, height] in mm.");
+            PackageSpec::Land l{lj[0].asNumber(0), lj[1].asNumber(0), lj[2].asNumber(0), lj[3].asNumber(0)};
+            const bool ok = std::isfinite(l.x) && std::isfinite(l.y) && std::fabs(l.x) <= 60 && std::fabs(l.y) <= 60 &&
+                            l.w > 0.05 && l.w <= 30 && l.h > 0.05 && l.h <= 30;
+            if (!ok) throw JsonError("Land pattern pads must lie within 60 mm and be 0.05…30 mm in size.");
+            if (s.package.lands.size() >= 512) throw JsonError("Land pattern has too many pads.");
+            s.package.lands.push_back(l);
+        }
     } else {
         s.package.type = normalizePackage(pkg.asString(j.get("package_type").asString("SOIC")), pinsFromName);
         s.package.pinCount = j.get("pin_count").asInt(0);
@@ -287,7 +309,7 @@ struct PadPlacement {
 
 /// Pad positions for pad numbers 1..n of a package (index 0 = pad 1).
 std::vector<PadPlacement> packagePads(const std::string& type, int n, double pitchIn, double bodyIn, BodyDef& body,
-                                      double& courtW, double& courtH) {
+                                      double& courtW, double& courtH, const PackageSpec* exact = nullptr) {
     std::vector<PadPlacement> pads;
     auto dual = [&](double pitch, double rowX, Vec2 size, bool tht, double drill) {
         int perSide = (n + 1) / 2;
@@ -436,6 +458,17 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
         const double pitch = pitchIn > 0 ? pitchIn : 1.27, bw = bodyIn > 0 ? bodyIn : 5.0;
         int per = dual(pitch, bw / 2 - 0.3, {0.9, padWidth(pitch, 0.3, 0.65)}, false, 0);
         body = {bw, std::max(per * pitch + 0.8, bw * 1.2), 1.0, false, 0.12f, 0.12f, 0.13f};
+    } else if (type == "LGA" && exact) {
+        // Exact land pattern: pad k is land k; the body is the declared outline, else the pads' extent.
+        double xMax = 0, yMax = 0;
+        for (int i = 0; i < n && i < static_cast<int>(exact->lands.size()); ++i) {
+            const auto& l = exact->lands[i];
+            pads.push_back({{l.x, l.y}, {l.w, l.h}, false, false, 0});
+            xMax = std::max(xMax, std::fabs(l.x) + l.w / 2);
+            yMax = std::max(yMax, std::fabs(l.y) + l.h / 2);
+        }
+        const double bw = bodyIn > 0 ? bodyIn : 2 * xMax, bd = exact->bodyDepth > 0 ? exact->bodyDepth : (bodyIn > 0 ? bodyIn : 2 * yMax);
+        body = {bw, bd, 1.0, false, 0.14f, 0.14f, 0.15f};
     } else {  // SOIC
         double pitch = pitchIn > 0 ? pitchIn : 1.27;
         double bw = bodyIn > 0 ? bodyIn : (n > 16 ? 7.5 : 3.9);
@@ -488,6 +521,12 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     if (spec.package.type == "DISC" && pc != 2) throw JsonError("Radial disc parts have 2 pins.");
     if (spec.package.type == "SOT223" && pc > 4) throw JsonError("SOT-223 packages have 3 leads and a tab.");
     if (spec.package.type == "TO263" && pc > 8) throw JsonError("TO-263 packages have at most 7 leads and a tab.");
+    if (spec.package.type == "LGA") {
+        if (spec.package.lands.empty()) throw JsonError("LGA packages need their land pattern (one pad per pin).");
+        if (maxNumber > static_cast<int>(spec.package.lands.size()))
+            throw JsonError("Pin " + std::to_string(maxNumber) + " has no pad in the land pattern.");
+        pc = static_cast<int>(spec.package.lands.size());
+    }
     if (pc > 512) throw JsonError("Package pin count is too large.");
 
     auto part = std::make_shared<CustomPart>();
@@ -561,7 +600,8 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
         else if (!tabNumber.empty() && declared > 0) leadCount = declared;
     }
     std::vector<PadPlacement> placements = packagePads(spec.package.type, tabbed ? leadCount : pc, spec.package.pitch,
-                                                       spec.package.bodySize, fp.body, fp.courtyardW, fp.courtyardH);
+                                                       spec.package.bodySize, fp.body, fp.courtyardW, fp.courtyardH,
+                                                       &spec.package);
     for (size_t i = 0; i < placements.size(); ++i) {
         PadDef pad;
         pad.offset = placements[i].offset;

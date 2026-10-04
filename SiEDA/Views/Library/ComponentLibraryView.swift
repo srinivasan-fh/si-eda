@@ -21,6 +21,9 @@ struct ComponentLibraryView: View {
     @State private var dropTargeted = false
     @State private var previewTask: Task<Void, Never>?
     @State private var confirmDelete = false
+    @State private var standardSearch = ""
+    @State private var kitFilter = ""
+    @State private var robotKits: [RobotPlatformInfo] = []
 
     enum ImportState: Equatable {
         case idle
@@ -74,6 +77,7 @@ struct ComponentLibraryView: View {
             if case .success(let urls) = result, let url = urls.first { importDatasheet(url) }
         }
         .onAppear {
+            loadRobotKits()
             if let focus = store.libraryFocusPartId, let part = store.snapshot.customParts.first(where: { $0.id == focus }) {
                 load(part)
                 store.libraryFocusPartId = nil
@@ -86,6 +90,28 @@ struct ComponentLibraryView: View {
     }
 
     // MARK: - Library list
+
+    /// Robot platforms that carry a production parts kit (rover, drone, arm, quadruped, humanoid, 3D printer, CNC);
+    /// read once when the library opens.
+    private func loadRobotKits() {
+        if robotKits.isEmpty { robotKits = store.robotSegments().platforms.filter { !($0.kit ?? []).isEmpty } }
+    }
+    private var kitName: String { robotKits.first(where: { $0.id == kitFilter })?.name ?? kitFilter }
+    private var kitParts: Set<String>? {
+        guard !kitFilter.isEmpty, let kit = robotKits.first(where: { $0.id == kitFilter })?.kit else { return nil }
+        return Set(kit.flatMap(\.parts))
+    }
+
+    /// Standard parts matching a search (name, category, manufacturer or description) and, if set, a robot kit.
+    static func filterStandard(_ parts: [StandardPart], search: String, kit: Set<String>?) -> [StandardPart] {
+        let query = search.trimmingCharacters(in: .whitespaces).lowercased()
+        return parts.filter { part in
+            if let kit, !kit.contains(part.spec.name) { return false }
+            guard !query.isEmpty else { return true }
+            return [part.spec.name, part.category, part.spec.manufacturer, part.spec.description]
+                .contains { $0.lowercased().contains(query) }
+        }
+    }
 
     private var libraryList: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -100,6 +126,18 @@ struct ComponentLibraryView: View {
                     .help("New blank part")
             }
             dropZone
+            HStack(spacing: 6) {
+                TextField("Search parts", text: $standardSearch)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Search the standard library")
+                Picker("", selection: $kitFilter) {
+                    Text("All").tag("")
+                    ForEach(robotKits) { Text($0.name).tag($0.id) }
+                }
+                .labelsHidden()
+                .frame(width: 90)
+                .help("Show one robot platform's production parts kit")
+            }
             List(selection: $selectedId) {
                 Section("Project Library") {
                     ForEach(store.snapshot.customParts) { part in
@@ -115,9 +153,10 @@ struct ComponentLibraryView: View {
                     }
                 }
                 let inLibrary = Set(store.snapshot.customParts.map(\.name))
-                let standard = StandardLibrary.parts.filter { !inLibrary.contains($0.spec.name) }
+                let standard = Self.filterStandard(StandardLibrary.parts.filter { !inLibrary.contains($0.spec.name) },
+                                                   search: standardSearch, kit: kitParts)
                 if !standard.isEmpty {
-                    Section("Standard Library") {
+                    Section(kitFilter.isEmpty ? "Standard Library" : "Standard Library · \(kitName)") {
                         ForEach(standard) { part in
                             HStack {
                                 Image(systemName: "cpu").foregroundStyle(Theme.lightBlue)
@@ -244,6 +283,10 @@ struct ComponentLibraryView: View {
                         Text("Package").font(.caption).foregroundStyle(Theme.textMuted)
                         Picker("", selection: $draft.package.type) {
                             ForEach(PackageKind.allCases) { Text($0.title).tag($0.rawValue) }
+                            if PackageKind(rawValue: draft.package.type) == nil {
+                                // Catalog packages (LGA land pattern, BGA, TO-263, SON …) keep their own geometry.
+                                Text("\(draft.package.type) (from the part's datasheet)").tag(draft.package.type)
+                            }
                         }
                         .labelsHidden()
                     }

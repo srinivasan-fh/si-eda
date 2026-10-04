@@ -1538,9 +1538,11 @@ final class MicrocontrollerLibraryTests: XCTestCase {
     func testTenMicrocontrollersPerVendorWithRealPackages() throws {
         let groups = Dictionary(grouping: StandardLibrary.parts.filter { $0.category.hasPrefix("Microcontrollers · ") },
                                 by: \.category)
-        XCTAssertEqual(groups["Microcontrollers · Arm"]?.count, 10)
-        // + the production catalog's STM32F405RGT6, STM32H743IIT6 and STM32F765VIT6.
-        XCTAssertEqual(groups["Microcontrollers · STMicroelectronics"]?.count, 13)
+        // + the robotics spares' LPC1769 (CNC / 3D-printer controllers).
+        XCTAssertEqual(groups["Microcontrollers · Arm"]?.count, 11)
+        // + the production catalog's STM32F405RGT6, STM32H743IIT6 and STM32F765VIT6 and the robotics spares'
+        // STM32F446RET6, STM32G474RET6 and STM32H723VGT6.
+        XCTAssertEqual(groups["Microcontrollers · STMicroelectronics"]?.count, 16)
         XCTAssertEqual(groups["Microcontrollers · Texas Instruments"]?.count, 10)
         // + the catalog's ATMEGA328P-AU / -PU and ATSAMD51J20A-AU.
         XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 16)
@@ -2120,7 +2122,7 @@ final class ReliabilityTests: XCTestCase {
         XCTAssertEqual(store.snapshot.robotPlatform, "arm")
         let segments = store.robotSegments()
         XCTAssertTrue(segments.applies)
-        XCTAssertEqual(segments.platforms.count, 5)
+        XCTAssertEqual(segments.platforms.count, 7)  // + 3D printer and CNC machine
         XCTAssertEqual(segments.segments.map(\.id), ["power", "compute", "motion", "sensors", "comms", "safety", "mechanical"])
         // The schematic alone already completes power distribution and the safety interlock.
         XCTAssertEqual(segments.segments.first { $0.id == "power" }?.status, "complete")
@@ -3083,6 +3085,61 @@ final class PartsCatalogTests: XCTestCase {
         }
         let fpga = try XCTUnwrap(snapshot.components.first { $0.value == "XC7A35T-1CSG324I" })
         XCTAssertEqual(snapshot.pads.filter { $0.component == fpga.id }.count, 324)
+    }
+
+    func testRobotPartKitsAddToTheLibraryAndPlaceOnABoard() throws {
+        let store = DesignStore()
+        store.aiEnabled = false
+        let platforms = store.robotSegments().platforms
+        XCTAssertEqual(Set(platforms.map(\.id)), ["rover", "fpv", "arm", "quadruped", "humanoid", "printer3d", "cnc"])
+        for platform in platforms {
+            let kit = try XCTUnwrap(platform.kit, platform.id)
+            XCTAssertGreaterThanOrEqual(kit.count, 7, platform.id)
+            for name in kit.flatMap(\.parts) {
+                XCTAssertNotNil(StandardLibrary.parts.first { $0.spec.name == name }, "\(platform.id): \(name)")
+            }
+        }
+        // The whole drone kit goes into the project library in one step, land patterns included.
+        let drone = try XCTUnwrap(platforms.first { $0.id == "fpv" }?.kit)
+        let expected = Set(drone.flatMap(\.parts)).count
+        XCTAssertEqual(store.addRobotKitToLibrary("fpv"), expected)
+        XCTAssertEqual(store.addRobotKitToLibrary("fpv"), 0)
+        XCTAssertEqual(store.addRobotKitToLibrary("toaster"), 0)
+        let bmi = try XCTUnwrap(store.snapshot.customParts.first { $0.name == "BMI088" })
+        XCTAssertEqual(bmi.pins.count, 16)
+        // Place the flight-controller core and lay it out: every part lands on the board with all its pads.
+        var x = 0.0
+        for name in ["STM32F405RGT6", "BMI088", "MS5611-01BA03", "BMP280", "W25Q128JVSIQ", "BSC028N06LS3G", "STSPIN32F0A"] {
+            let part = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == name }, name)
+            XCTAssertGreaterThanOrEqual(store.placeStandardPart(part, at: CGPoint(x: x, y: 0)), 0, name)
+            x += 220
+        }
+        store.autoPlace(all: true)
+        let snapshot = store.snapshot
+        let baro = try XCTUnwrap(snapshot.components.first { $0.value == "BMP280" })
+        XCTAssertEqual(snapshot.pads.filter { $0.component == baro.id }.count, 8)
+        let fet = try XCTUnwrap(snapshot.components.first { $0.value == "BSC028N06LS3G" })
+        XCTAssertEqual(snapshot.pads.filter { $0.component == fet.id }.count, 5)  // S S S G + the drain slab
+    }
+
+    func testLandPatternPackagesSurviveTheLibraryRoundTrip() throws {
+        // An LGA catalog part keeps its exact land pattern when the app encodes it for the core.
+        let part = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "BMI088" })
+        XCTAssertEqual(part.spec.package.type, "LGA")
+        XCTAssertEqual(part.spec.package.lands?.count, 16)
+        XCTAssertEqual(part.spec.package.bodyDepth, 3)
+        let data = try JSONEncoder().encode(part.spec)
+        let decoded = try JSONDecoder().decode(CustomPartSpec.self, from: data)
+        XCTAssertEqual(decoded.package.lands, part.spec.package.lands)
+        let info = try EDAEngine.previewCustomPart(decoded).get()
+        XCTAssertEqual(info.footprintGeometry.pads.count, 16)
+        XCTAssertEqual(info.footprintGeometry.label, "LGA-16")
+        // Library search and the robot-kit filter.
+        let all = StandardLibrary.parts
+        XCTAssertTrue(ComponentLibraryView.filterStandard(all, search: "barometric", kit: nil).contains { $0.spec.name == "MS5611-01BA03" })
+        let cnc = ComponentLibraryView.filterStandard(all, search: "", kit: ["TMC2660-PA", "W5500"])
+        XCTAssertEqual(Set(cnc.map(\.spec.name)), ["TMC2660-PA", "W5500"])
+        XCTAssertEqual(ComponentLibraryView.filterStandard(all, search: "tmc", kit: ["TMC2660-PA", "W5500"]).map(\.spec.name), ["TMC2660-PA"])
     }
 
     func testPassivesSwitchPackageFromTheInspector() throws {

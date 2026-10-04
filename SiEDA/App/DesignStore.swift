@@ -1093,6 +1093,20 @@ final class DesignStore: ObservableObject {
 
     func robotSegments() -> RobotSegmentsReport { engine.robotSegments() }
 
+    /// Adds every part of a robot platform's production kit to the project library (parts already there are kept).
+    /// Returns how many were added.
+    @discardableResult
+    func addRobotKitToLibrary(_ platform: String) -> Int {
+        guard let kit = robotSegments().platforms.first(where: { $0.id == platform })?.kit else { return 0 }
+        var added = 0
+        for name in Set(kit.flatMap(\.parts)).sorted() {
+            guard !snapshot.customParts.contains(where: { $0.name == name }),
+                  let part = StandardLibrary.parts.first(where: { $0.spec.name == name }) else { continue }
+            if addStandardPartToLibrary(part) != nil { added += 1 }
+        }
+        return added
+    }
+
     /// Automotive ECU type ("" = none): turns on the 6-segment ECU checks. Undoable.
     func setEcuType(_ id: String) {
         guard id != snapshot.ecuType else { return }

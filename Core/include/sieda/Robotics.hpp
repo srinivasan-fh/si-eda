@@ -1,4 +1,5 @@
-// SiEDA Core — robotic system architecture: platforms (Mars rover, FPV drone, industrial arm, quadruped, humanoid)
+// SiEDA Core — robotic system architecture: platforms (Mars rover, FPV drone, industrial arm, quadruped, humanoid,
+// 3D printer, CNC machine) with their production parts kits
 // and the seven modular design segments every production robot needs — power distribution, compute, motion control,
 // sensors, communication, safety / UI and mechanical — each checked on the actual schematic and layout.
 #pragma once
@@ -14,13 +15,22 @@ namespace sieda {
 class Project;
 
 struct RobotPlatform {
-    std::string id;    // "rover", "fpv", "arm", "quadruped", "humanoid"
+    std::string id;    // "rover", "fpv", "arm", "quadruped", "humanoid", "printer3d", "cnc"
     std::string name;  // "Mars / planetary rover"
     std::string description;
     std::vector<std::string> guidance;
 };
 const std::vector<RobotPlatform>& robotPlatforms();
 const RobotPlatform* findRobotPlatform(const std::string& id);
+
+/// The production parts kit of a platform: for each subsystem, the library part numbers (all in standardParts())
+/// a production board of that robot is built from — compute, motion, sensing, field bus, power and safety — with
+/// the spares that drop into the same footprint or role.
+struct RobotKitGroup {
+    std::string subsystem;  // "Motion — stepper drivers"
+    std::vector<std::string> parts;
+};
+const std::vector<RobotKitGroup>& robotPartKit(const std::string& platform);  // empty for an unknown platform
 
 struct RobotCheckItem {
     std::string label;

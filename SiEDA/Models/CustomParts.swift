@@ -179,6 +179,9 @@ struct CustomPartSpec: Codable, Equatable {
         /// Lead pitch and body size in mm (nil = the package type's default); set for the standard microcontrollers.
         var pitch: Double?
         var bodySize: Double?
+        /// "LGA" packages: the exact land pattern, [x, y, width, height] in mm per pad 1…N, and the body length (y).
+        var lands: [[Double]]?
+        var bodyDepth: Double?
     }
 
     struct Pin: Codable, Equatable, Identifiable {

@@ -266,7 +266,7 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func setIndustry(_ id: String) -> Bool { withHandle { sieda_project_set_industry($0, id) } == 1 }
 
-    /// Robot platform ("rover", "fpv", "arm", "quadruped", "humanoid"; "" = none).
+    /// Robot platform ("rover", "fpv", "arm", "quadruped", "humanoid", "printer3d", "cnc"; "" = none).
     @discardableResult
     func setRobotPlatform(_ id: String) -> Bool { withHandle { sieda_set_robot_platform($0, id) } == 1 }
 
