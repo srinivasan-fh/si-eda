@@ -196,8 +196,8 @@ struct SchematicEditorView: View {
 struct DevicePicker: View {
     @Binding var selected: ComponentKind
     var customParts: [CustomPartInfo] = []
-    /// Whether the highlighted built-in device is armed for placement. When it isn't, the list shows no selection so
-    /// clicking that same row arms it again (a List only reports clicks that change its selection).
+    /// Whether the highlighted built-in device is armed for placement (only then is its row highlighted); clicking a
+    /// row always arms it.
     var isPlacing = true
     var onPickCustom: (String) -> Void = { _ in }
     /// Adds a built-in standard part to the project library; returns its part id.
@@ -228,6 +228,29 @@ struct DevicePicker: View {
         }
     }
 
+    private func header(_ title: String) -> some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Theme.textMuted)
+            .padding(.horizontal, 8)
+            .padding(.top, 10)
+            .padding(.bottom, 3)
+    }
+
+    /// A full-width clickable row with the selection highlight.
+    private func row<RowLabel: View>(highlighted: Bool, action: @escaping () -> Void,
+                                     @ViewBuilder label: () -> RowLabel) -> some View {
+        Button(action: action) {
+            label()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(RoundedRectangle(cornerRadius: 5).fill(highlighted ? Theme.blue.opacity(0.3) : Color.clear))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
@@ -240,37 +263,39 @@ struct DevicePicker: View {
             TextField("Search devices", text: $search)
                 .textFieldStyle(.blue)
                 .padding(8)
-            List(selection: Binding<ComponentKind?>(get: { selectedCustom == nil && isPlacing ? selected : nil },
-                                                    set: { if let k = $0 { selectedCustom = nil; onPick(k) } })) {
-                // Basic components first: power sources, passives, semiconductors, nets, switches/connectors.
-                ForEach(ComponentKind.pickerCategories, id: \.self) { category in
-                    let items = filtered.filter { $0.category == category }
-                    if !items.isEmpty {
-                        Section(category) {
+            // A plain lazy scroll view, not a `List` (an AppKit table): with the full parts catalog the table was
+            // updated re-entrantly while a design loaded, which AppKit warns will become an assert.
+            ScrollView(.vertical) {
+                LazyVStack(alignment: .leading, spacing: 1) {
+                    // Basic components first: power sources, passives, semiconductors, nets, switches/connectors.
+                    ForEach(ComponentKind.pickerCategories, id: \.self) { category in
+                        let items = filtered.filter { $0.category == category }
+                        if !items.isEmpty {
+                            header(category)
                             ForEach(items) { kind in
-                                Label(kind.displayName, systemImage: kind.systemImage)
-                                    .foregroundStyle(Theme.textPrimary)
-                                    .tag(kind)
+                                row(highlighted: selectedCustom == nil && isPlacing && selected == kind) {
+                                    selectedCustom = nil
+                                    onPick(kind)
+                                } label: {
+                                    Label(kind.displayName, systemImage: kind.systemImage)
+                                        .foregroundStyle(Theme.textPrimary)
+                                }
                             }
                         }
                     }
-                }
-                Section("Custom Parts") {
+                    header("Custom Parts")
                     ForEach(filteredCustom) { part in
-                        HStack {
-                            Image(systemName: "cpu.fill").foregroundStyle(Theme.skyBlue)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(part.name).foregroundStyle(Theme.textPrimary)
-                                Text("\(part.footprint) · \(part.pins.count) pins").font(.caption2).foregroundStyle(Theme.textMuted)
-                            }
-                            Spacer()
-                        }
-                        .contentShape(Rectangle())
-                        .padding(.vertical, 1)
-                        .background(RoundedRectangle(cornerRadius: 5).fill(selectedCustom == part.id ? Theme.blue.opacity(0.3) : .clear))
-                        .onTapGesture {
+                        row(highlighted: selectedCustom == part.id) {
                             selectedCustom = part.id
                             onPickCustom(part.id)
+                        } label: {
+                            HStack {
+                                Image(systemName: "cpu.fill").foregroundStyle(Theme.skyBlue)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(part.name).foregroundStyle(Theme.textPrimary)
+                                    Text("\(part.footprint) · \(part.pins.count) pins").font(.caption2).foregroundStyle(Theme.textMuted)
+                                }
+                            }
                         }
                     }
                     Button(action: onImport) {
@@ -278,30 +303,29 @@ struct DevicePicker: View {
                     }
                     .buttonStyle(.borderless)
                     .foregroundStyle(Theme.lightBlue)
-                }
-                if !filteredStandard.isEmpty {
-                    Section("Standard Parts") {
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    if !filteredStandard.isEmpty {
+                        header("Standard Parts")
                         ForEach(filteredStandard) { part in
-                            HStack {
-                                Image(systemName: "cpu").foregroundStyle(Theme.lightBlue)
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(part.spec.name).foregroundStyle(Theme.textPrimary)
-                                    Text("\(part.category) · \(part.packageSummary)").font(.caption2).foregroundStyle(Theme.textMuted)
-                                }
-                                Spacer()
-                            }
-                            .contentShape(Rectangle())
-                            .padding(.vertical, 1)
-                            .help(part.spec.description)
-                            .onTapGesture {
+                            row(highlighted: false) {
                                 if let id = onPickStandard(part) { selectedCustom = id }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "cpu").foregroundStyle(Theme.lightBlue)
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(part.spec.name).foregroundStyle(Theme.textPrimary)
+                                        Text("\(part.category) · \(part.packageSummary)").font(.caption2).foregroundStyle(Theme.textMuted)
+                                    }
+                                }
                             }
+                            .help(part.spec.description)
                         }
                     }
                 }
+                .padding(.horizontal, 6)
+                .padding(.bottom, 6)
             }
-            .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)
 
             if let id = selectedCustom, let part = customParts.first(where: { $0.id == id }) {
                 VStack(alignment: .leading, spacing: 6) {
