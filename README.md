@@ -144,6 +144,37 @@ Pitches are 0.5 mm unless noted. Firmware can only be run in the simulator on th
 - **Delete / Backspace** removes the selected parts or wire wherever the keyboard focus is, except while you're typing in a text field.
 - **Real-time factor:** shown in the header. Heavy circuits or fine steps can run slower than real time.
 
+## Production parts catalog
+
+The standard library covers the usual robotics, automotive and industrial production catalog. Every part listed here has its orderable part number, its real package, and datasheet pin names. Where KiCad's symbol library has the part, the pinouts come from it (`tools/fetch_catalog_parts.py` and `tools/fetch_mcu_pinouts.py` write them).
+
+- **Compute:**
+  - ATMEGA328P-AU / -PU, STM32F103C8T6, STM32F405RGT6, STM32H743IIT6, STM32F765VIT6, LPC1768;
+  - ESP32-WROOM-32E, RP2040, ATSAMD51J20A;
+  - XC7A35T-1CSG324I FPGA (324-ball BGA).
+- **Motion control:** L293D / L293DD, L298HN (Multiwatt-15), ULN2003A / ULN2003ADR, PCA9685PW, IR2101S, IR2110S, TMC2209-LA, TMC2160-TA, TMC5160A-TA, CSD18540Q5B.
+- **Sensors and conditioning:** MPU-6050, MPU-9250, BMI160, ADS1115IDGS, AS5047D-ATSM, INA240A1EDRQ1, LM358DR / LM358N, LM393DR / LM393N.
+- **Audio:** MAX9814ETD+T, MAX4466EXK+T, ICS-43434 (I²S microphone).
+- **Interfaces:** 74HC595 / 74HC595D, PCF8574TS / PCF8574N, CH340G, CP2102N, MAX485ESA+T, SP485EEN-L, TJA1050, MCP2551-I/SN, TCAN1042VDRQ1, ADM2587EBRWZ.
+- **Power:** LM7805, LM7812, AMS1117-3.3 (SOT-223), LM2596S-5.0 and XL4015E1 (TO-263-5), TP4056, LM74700QDBVRQ1, LTC4359IMS8.
+- **Isolation:** PC817X3NSZ0F, TLP281-4.
+- **Glue parts:**
+  - 16 / 8 MHz crystals (HC-49/S or 3225 SMD) and 32.768 kHz crystals (3215 SMD or cylinder);
+  - 1N5819 / 1N4007 diodes with simulation models.
+
+New footprint types: BGA (JEDEC ball names), TO-263 / D²PAK and SOT-223 with the tab tied to the datasheet's pin, Multiwatt-15 (staggered), SON / DFN with a drain tab, exposed pads on TQFP, and 3225 / 3215 / cylinder crystals.
+
+**Package choice for passives.** Pick a resistor, capacitor, inductor, diode or LED and choose its package in the Inspector. The choice is undoable, saved with the project, and the PCB, 3D view and BOM follow it.
+- Resistors: 0402, 0603, 0805, 1206, axial through-hole.
+- Capacitors: chip sizes, ceramic disc, tantalum A/B, radial electrolytic.
+- Diodes: SOD-123, SMA, DO-41.
+
+**Not in the library yet.** These parts are in neither the KiCad library nor a datasheet I could verify here: TMS320F28379D, DRV8301, DRV8353, TPS65381, LM5116, TJA1101, MA702, BMX160, ADS1256, ATSAMD51P20A, INMP441, JQ6500, WT2003HP8 and SYN6288. Add them from their datasheet's pin table with **Library → Import from datasheet**. The nearest stocked alternatives are BMI160, ICS-43434 and ATSAMD51J20A.
+
+## Speed on large designs
+
+Auto-place works out the other parts' keep-outs and each net's position once per part, not once per candidate position. The C++ core is also optimised in Debug builds, which is what `run.sh` uses. All 40 reference designs place, route, verify and build their 3D model in about 60 s in total, against about 163 s before. A 300-connection satellite computer takes about 21 s, against several minutes in an unoptimised Debug build. Tests hold each step of a 201-part board, and the three largest reference designs, to time budgets.
+
 ## Crash reports and recovery
 
 SiEDA keeps its diagnostics on your Mac and never uploads them (`~/Library/Application Support/SiEDA/Diagnostics`).

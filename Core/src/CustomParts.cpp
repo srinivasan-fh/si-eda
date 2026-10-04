@@ -41,7 +41,8 @@ PinType pinTypeFromName(const std::string& raw) {
 }
 
 std::vector<std::string> supportedPackages() {
-    return {"SOIC", "TSSOP", "DIP", "QFN", "LQFP", "SOT23", "HEADER", "HEADER2", "TO220", "HC49", "DISC", "MODULE"};
+    return {"SOIC", "TSSOP", "DIP", "QFN", "LQFP", "SOT23", "HEADER", "HEADER2", "TO220", "HC49", "DISC", "MODULE",
+            "BGA", "TO263", "SOT223", "MULTIWATT", "SON", "XTAL3225", "XTAL3215", "XTALCYL"};
 }
 
 // ------------------------------------------------------------------ JSON
@@ -137,21 +138,31 @@ std::string normalizePackage(const std::string& raw, int& pinsFromName) {
     }
     auto has = [&](const char* k) { return u.find(k) != std::string::npos; };
     std::string type;
-    if (has("TSSOP") || has("MSOP") || has("SSOP")) type = "TSSOP";
+    if (has("BGA") || has("CSG") || has("FBG")) type = "BGA";
+    else if (has("TO-263") || has("TO263") || has("D2PAK") || has("DDPAK")) type = "TO263";
+    else if (has("SOT-223") || has("SOT223")) type = "SOT223";
+    else if (has("MULTIWATT") || has("TO-220-15") || has("TO-220-11")) type = "MULTIWATT";
+    else if (has("VSON") || has("TDSON") || has("WSON") || u.rfind("SON", 0) == 0) type = "SON";
+    else if (has("TSSOP") || has("MSOP") || has("SSOP")) type = "TSSOP";
     else if (has("SOIC") || has("SOP") || has("SO-") || u == "SO") type = "SOIC";
     else if (has("DIP")) type = "DIP";
     else if (has("QFN") || has("DFN") || has("MLF")) type = "QFN";
     else if (has("QFP")) type = "LQFP";
     else if (has("SOT")) type = "SOT23";
     else if (has("TO220") || has("TO-220") || has("TO-92") || has("TO92")) type = "TO220";
+    else if (has("3225") || has("3.2X2.5")) type = "XTAL3225";
+    else if (has("3215") || has("3.2X1.5")) type = "XTAL3215";
+    else if (has("CYLINDER") || has("TC26") || has("TC38")) type = "XTALCYL";
     else if (has("HC49") || has("HC-49") || has("XTAL") || has("CRYSTAL")) type = "HC49";
     else if (u.rfind("DISC", 0) == 0 || has("RADIAL DISC")) type = "DISC";
     else if (has("CASTELLATED") || has("WROOM") || u.rfind("MODULE", 0) == 0) type = "MODULE";
     else if (has("HEADER2") || has("2X") || has("IDC") || has("BOX HEADER") || has("DUAL ROW")) type = "HEADER2";
     else if (has("HEADER") || has("SIP") || has("CONN") || has("1X")) type = "HEADER";
-    if (!digits.empty() && type != "TO220" && type != "HC49" && type != "DISC" && type != "MODULE") {
+    if (!digits.empty() && type != "TO220" && type != "HC49" && type != "DISC" && type != "MODULE" && type != "SOT223" &&
+        type.rfind("XTAL", 0) != 0) {
         int n = std::stoi(digits.size() > 3 ? digits.substr(digits.size() - 3) : digits);
         if (type == "SOT23" && n == 23) n = 0;  // "SOT-23" alone means 3 pins
+        if (type == "TO263" && n == 263) n = 0;  // "TO-263" alone: the pin count comes from the pin list
         pinsFromName = n;
     }
     return type;
@@ -256,6 +267,18 @@ std::string makeId(const CustomPartSpec& spec) {
     return base + "-" + hex;
 }
 
+/// JEDEC ball name of pad index `i` in a square grid holding `n` balls: rows A…Z without I, O, Q, S, X, Z (then
+/// AA, AB…), columns from 1.
+std::string bgaBallName(int i, int n) {
+    static const std::string letters = "ABCDEFGHJKLMNPRTUVWY";
+    const int grid = std::max(1, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(n)))));
+    int row = i / grid;
+    std::string name;
+    if (row >= static_cast<int>(letters.size())) name += letters[row / static_cast<int>(letters.size()) - 1];
+    name += letters[row % letters.size()];
+    return name + std::to_string(i % grid + 1);
+}
+
 struct PadPlacement {
     Vec2 offset, size;
     bool tht = false, round = false;
@@ -337,6 +360,18 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
     } else if (type == "HC49") {  // HC-49/US crystal: two leads 4.88 mm apart, 11 × 4.7 mm can
         for (int i = 0; i < n; ++i) pads.push_back({{i == 0 ? -2.44 : 2.44, 0}, {1.5, 1.5}, true, true, 0.8});
         body = {11.0, 4.7, 3.5, false, 0.75f, 0.75f, 0.78f};
+    } else if (type == "XTAL3225") {
+        // 3.2 × 2.5 mm SMD crystal: pads 1 and 3 are the crystal, 2 and 4 the lid / ground (counter-clockwise from
+        // pad 1 at bottom left).
+        const Vec2 pos[4] = {{-1.1, 0.8}, {1.1, 0.8}, {1.1, -0.8}, {-1.1, -0.8}};
+        for (int i = 0; i < std::min(n, 4); ++i) pads.push_back({pos[i], {1.4, 1.15}, false, false, 0});
+        body = {3.2, 2.5, 0.8, false, 0.78f, 0.78f, 0.80f};
+    } else if (type == "XTAL3215") {  // 3.2 × 1.5 mm 32.768 kHz tuning-fork crystal: two end pads
+        for (int i = 0; i < n; ++i) pads.push_back({{i == 0 ? -1.25 : 1.25, 0}, {1.0, 1.8}, false, false, 0});
+        body = {3.2, 1.5, 0.9, false, 0.78f, 0.78f, 0.80f};
+    } else if (type == "XTALCYL") {  // 2 × 6 mm cylinder can (watch crystal), leads 1.9 mm apart, lying on the board
+        for (int i = 0; i < n; ++i) pads.push_back({{i == 0 ? -0.95 : 0.95, 0}, {1.2, 1.2}, true, true, 0.6});
+        body = {2.0, 6.0, 2.0, false, 0.78f, 0.78f, 0.80f};
     } else if (type == "DISC") {  // radial disc (varistor, gas discharge tube): two leads 7.5 mm apart
         const double half = bodyIn > 0 ? bodyIn / 2 : 3.75;
         for (int i = 0; i < n; ++i) pads.push_back({{i == 0 ? -half : half, 0}, {2.0, 2.0}, true, true, 1.0});
@@ -370,6 +405,37 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
         double x0 = -(n - 1) * pitch / 2;
         for (int i = 0; i < n; ++i) pads.push_back({{x0 + i * pitch, 0}, {1.9, 2.5}, true, false, 1.2});
         body = {10.0, 4.5, 15.0, false, 0.10f, 0.10f, 0.11f};
+    } else if (type == "BGA") {
+        // Ball grid: rows A, B, C… (JEDEC: no I, O, Q, S, X, Z), columns 1…N; pads in row-major order.
+        const int grid = std::max(1, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(n)))));
+        const double pitch = pitchIn > 0 ? pitchIn : 0.8, x0 = -(grid - 1) * pitch / 2;
+        const double ball = pitch * 0.45;
+        for (int i = 0; i < n; ++i)
+            pads.push_back({{x0 + (i % grid) * pitch, x0 + (i / grid) * pitch}, {ball, ball}, false, true, 0});
+        const double size = bodyIn > 0 ? bodyIn : grid * pitch + 1.0;
+        body = {size, size, 1.2, false, 0.12f, 0.12f, 0.13f};
+    } else if (type == "TO263") {
+        // D²PAK: the leads on one side (1.7 mm pitch) and the big tab soldered down opposite them.
+        const int leads = n;
+        const double pitch = pitchIn > 0 ? pitchIn : (leads > 3 ? 1.7 : 2.54);
+        const double x0 = -(leads - 1) * pitch / 2;
+        for (int i = 0; i < leads; ++i) pads.push_back({{x0 + i * pitch, 5.0}, {pitch * 0.6, 3.2}, false, false, 0});
+        body = {10.2, 9.0, 4.4, false, 0.10f, 0.10f, 0.11f};
+    } else if (type == "SOT223") {
+        // Three leads at 2.3 mm on one side, the wide tab (pad 4) on the other.
+        for (int i = 0; i < std::min(n, 3); ++i) pads.push_back({{(i - 1) * 2.3, 3.15}, {1.0, 2.0}, false, false, 0});
+        body = {6.5, 3.5, 1.7, false, 0.12f, 0.12f, 0.13f};
+    } else if (type == "MULTIWATT") {
+        // Multiwatt / TO-220-15: leads at 1.27 mm, alternate leads bent to a second row 5.08 mm back (staggered).
+        const double pitch = pitchIn > 0 ? pitchIn : 1.27, x0 = -(n - 1) * pitch / 2;
+        for (int i = 0; i < n; ++i)
+            pads.push_back({{x0 + i * pitch, i % 2 ? 2.54 : -2.54}, {1.6, 1.6}, true, i != 0, 1.0});
+        body = {std::max(10.0, n * pitch + 1.5), 5.0, 17.5, false, 0.10f, 0.10f, 0.11f};
+    } else if (type == "SON") {
+        // Small-outline no-lead (VSON / TDSON power packages): two rows of short pads under the body edges.
+        const double pitch = pitchIn > 0 ? pitchIn : 1.27, bw = bodyIn > 0 ? bodyIn : 5.0;
+        int per = dual(pitch, bw / 2 - 0.3, {0.9, padWidth(pitch, 0.3, 0.65)}, false, 0);
+        body = {bw, std::max(per * pitch + 0.8, bw * 1.2), 1.0, false, 0.12f, 0.12f, 0.13f};
     } else {  // SOIC
         double pitch = pitchIn > 0 ? pitchIn : 1.27;
         double bw = bodyIn > 0 ? bodyIn : (n > 16 ? 7.5 : 3.9);
@@ -395,7 +461,7 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     CustomPartSpec spec = specIn;
     if (spec.name.empty()) throw JsonError("The component needs a name.");
     if (spec.pins.empty()) throw JsonError("The component needs at least one pin.");
-    if (spec.pins.size() > 256) throw JsonError("Components are limited to 256 pins.");
+    if (spec.pins.size() > 512) throw JsonError("Components are limited to 512 pins.");
     std::set<std::string> numbers;
     int maxNumber = 0;
     for (const auto& p : spec.pins) {
@@ -410,14 +476,19 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     spec.package.pinCount = std::max(spec.package.pinCount, maxNumber);
     int& pc = spec.package.pinCount;
     if ((spec.package.type == "SOIC" || spec.package.type == "TSSOP" || spec.package.type == "DIP" ||
-         spec.package.type == "HEADER2") && pc % 2)
+         spec.package.type == "HEADER2" || spec.package.type == "SON") && pc % 2)
         ++pc;
     if ((spec.package.type == "QFN" || spec.package.type == "LQFP") && pc % 4) pc += 4 - pc % 4;
     if (spec.package.type == "SOT23" && pc > 6) throw JsonError("SOT-23 packages have at most 6 pins.");
     if (spec.package.type == "TO220" && pc > 7) throw JsonError("TO-220 packages have at most 7 pins.");
     if (spec.package.type == "HC49" && pc != 2) throw JsonError("HC-49 crystals have 2 pins.");
+    if (spec.package.type == "XTAL3225" && pc != 4) throw JsonError("3225 crystals have 4 pads.");
+    if ((spec.package.type == "XTAL3215" || spec.package.type == "XTALCYL") && pc != 2)
+        throw JsonError("This crystal package has 2 pins.");
     if (spec.package.type == "DISC" && pc != 2) throw JsonError("Radial disc parts have 2 pins.");
-    if (pc > 256) throw JsonError("Package pin count is too large.");
+    if (spec.package.type == "SOT223" && pc > 4) throw JsonError("SOT-223 packages have 3 leads and a tab.");
+    if (spec.package.type == "TO263" && pc > 8) throw JsonError("TO-263 packages have at most 7 leads and a tab.");
+    if (pc > 512) throw JsonError("Package pin count is too large.");
 
     auto part = std::make_shared<CustomPart>();
     part->spec = spec;
@@ -476,8 +547,21 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
         std::snprintf(pitch, sizeof pitch, " %gmm pitch", spec.package.pitch);
         fp.label += pitch;
     }
-    std::vector<PadPlacement> placements = packagePads(spec.package.type, pc, spec.package.pitch, spec.package.bodySize,
-                                                       fp.body, fp.courtyardW, fp.courtyardH);
+    // Packages with a soldered tab (TO-263, SOT-223): the leads are the numbered pins; the tab is the pin numbered
+    // past the last lead ("TAB" / n+1) or, as on most such parts, the middle lead's pin.
+    const bool tabbed = spec.package.type == "TO263" || spec.package.type == "SOT223";
+    int leadCount = pc;
+    std::string tabNumber;  // the pin soldered to the tab, when the datasheet numbers it ("TAB" or past the leads)
+    if (tabbed) {
+        const int declared = specIn.package.pinCount;
+        for (const auto& p : spec.pins)
+            if (upper(p.number) == "TAB" || (declared > 0 && isNumber(p.number) && std::stoi(p.number) > declared))
+                tabNumber = p.number;
+        if (spec.package.type == "SOT223") leadCount = 3;
+        else if (!tabNumber.empty() && declared > 0) leadCount = declared;
+    }
+    std::vector<PadPlacement> placements = packagePads(spec.package.type, tabbed ? leadCount : pc, spec.package.pitch,
+                                                       spec.package.bodySize, fp.body, fp.courtyardW, fp.courtyardH);
     for (size_t i = 0; i < placements.size(); ++i) {
         PadDef pad;
         pad.offset = placements[i].offset;
@@ -485,14 +569,27 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
         pad.throughHole = placements[i].tht;
         pad.round = placements[i].round;
         pad.drill = placements[i].drill;
-        std::string number = std::to_string(i + 1);
+        std::string number = spec.package.type == "BGA" ? bgaBallName(static_cast<int>(i), pc) : std::to_string(i + 1);
         for (size_t p = 0; p < spec.pins.size(); ++p)
-            if (spec.pins[p].number == number) pad.pinIndex = static_cast<int>(p);
+            if (upper(spec.pins[p].number) == number) pad.pinIndex = static_cast<int>(p);
         fp.pads.push_back(pad);
+    }
+    if (tabbed && !fp.pads.empty()) {
+        PadDef tab;
+        tab.pinIndex = fp.pads[fp.pads.size() / 2].pinIndex;  // middle lead (TabPin2 / TabPin3)
+        for (size_t p = 0; p < spec.pins.size(); ++p)
+            if (!tabNumber.empty() && spec.pins[p].number == tabNumber) tab.pinIndex = static_cast<int>(p);
+        const bool d2pak = spec.package.type == "TO263";
+        tab.size = d2pak ? Vec2{10.8, 9.4} : Vec2{3.6, 2.0};
+        tab.offset = d2pak ? Vec2{0, -1.9} : Vec2{0, -3.15};
+        fp.pads.push_back(tab);
+        fp.courtyardH = std::max(fp.courtyardH, 2 * (std::fabs(tab.offset.y) + tab.size.y / 2) + 0.5);
+        fp.courtyardW = std::max(fp.courtyardW, tab.size.x + 0.5);
     }
     // Exposed thermal pad for QFN and TSSOP (HTSSOP PowerPAD) when the datasheet lists one ("EP", "PAD", "TAB",
     // "THERMAL").
-    if (spec.package.type == "QFN" || spec.package.type == "TSSOP" || spec.package.type == "MODULE") {
+    if (spec.package.type == "QFN" || spec.package.type == "TSSOP" || spec.package.type == "MODULE" ||
+        spec.package.type == "LQFP" || spec.package.type == "SON") {
         for (size_t p = 0; p < spec.pins.size(); ++p) {
             std::string u = upper(spec.pins[p].number);
             if (u == "EP" || u == "PAD" || u == "TAB" || u == "THERMAL" || u == std::to_string(pc + 1)) {
@@ -501,6 +598,7 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
                 double s = fp.body.width * 0.55;
                 ep.size = {s, s};
                 if (spec.package.type == "TSSOP") ep.size = {fp.body.width * 0.55, std::max(1.0, fp.body.depth - 2.0)};
+                if (spec.package.type == "SON") ep.size = {fp.body.width * 0.6, fp.body.depth * 0.7};
                 if (spec.package.type == "MODULE") {  // ground paddle under the shield, below the antenna end
                     ep.size = {fp.body.width * 0.28, fp.body.width * 0.28};
                     ep.offset = {0, fp.body.depth * 0.1};

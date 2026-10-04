@@ -28,6 +28,11 @@ const ComponentDef& Component::def() const {
     return Library::instance().component(kind);
 }
 
+const std::string& Component::footprintName() const {
+    if (!package.empty() && Library::instance().footprint(package)) return package;
+    return def().footprint;
+}
+
 std::string Schematic::nextRef(const std::string& prefix) const {
     std::set<std::string> used;
     for (const auto& c : components_) used.insert(c.ref);
@@ -213,6 +218,15 @@ bool Schematic::setValue(int id, const std::string& value) {
     if (!c) return false;
     c->value = value;
     if (c->kind == ComponentKind::NetLabel || c->kind == ComponentKind::Ground) invalidate();
+    return true;
+}
+
+bool Schematic::setPackage(int id, const std::string& package) {
+    Component* c = find(id);
+    if (!c) return false;
+    const auto variants = Library::packageVariants(c->kind);
+    if (!package.empty() && std::find(variants.begin(), variants.end(), package) == variants.end()) return false;
+    c->package = package == c->def().footprint ? std::string() : package;
     return true;
 }
 

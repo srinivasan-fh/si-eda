@@ -140,6 +140,12 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_set_component_value($0, Int32(id), value) } == 1
     }
 
+    /// Package variant of a passive / diode ("" = the default footprint).
+    @discardableResult
+    func setPackage(_ id: Int, _ package: String) -> Bool {
+        withHandle { sieda_set_component_package($0, Int32(id), package) } == 1
+    }
+
     @discardableResult
     func setRef(_ id: Int, _ ref: String) -> Bool {
         withHandle { sieda_set_component_ref($0, Int32(id), ref) } == 1

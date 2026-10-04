@@ -309,7 +309,7 @@ std::vector<Pad> PcbLayout::pads(const Schematic& sch) const {
             for (auto& p : embeddedPads(c, *e, sch)) out.push_back(p);
             continue;
         }
-        const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
+        const FootprintDef* fp = Library::instance().footprint(c.footprintName());
         if (!fp) continue;
         int number = 1;
         for (const auto& pd : fp->pads) {
@@ -333,7 +333,7 @@ std::vector<Pad> PcbLayout::pads(const Schematic& sch) const {
 
 Rect PcbLayout::courtyard(const Component& c) const {
     if (auto e = embeddedElement(c, settings)) return e->bounds().inflated(0.6);
-    const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
+    const FootprintDef* fp = Library::instance().footprint(c.footprintName());
     if (!fp) return Rect::centered(c.pcb.position, 1, 1);
     double w = fp->courtyardW, h = fp->courtyardH;
     if (quarterTurned(c.pcb.rotation)) std::swap(w, h);
@@ -448,7 +448,7 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
     const double margin = 1.2;   // spacing between courtyards, leaves routing channels
     // Fine-pitch packages (pad pitch below 0.65 mm) get an escape area: every pin needs room to neck out and turn.
     auto escape = [&](const Component& comp) {
-        const FootprintDef* fp = Library::instance().footprint(comp.def().footprint);
+        const FootprintDef* fp = Library::instance().footprint(comp.footprintName());
         if (!fp) return 0.0;
         double pitch = std::numeric_limits<double>::max();
         for (size_t a = 0; a < fp->pads.size(); ++a)
@@ -513,7 +513,7 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
                 if ((radio && isSwitchingPart(o)) || (switching && (isRadioPart(o) || isImuPart(o))))
                     noiseNeighbours.push_back(courtyard(o));
             }
-        const FootprintDef* placingFp = Library::instance().footprint(c.def().footprint);
+        const FootprintDef* placingFp = Library::instance().footprint(c.footprintName());
         std::vector<std::pair<Vec2, Vec2>> padPulls;  // (pad offset, centroid of its net's placed pads)
         if (placingFp)
             for (const auto& pd : placingFp->pads) {

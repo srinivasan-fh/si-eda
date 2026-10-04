@@ -227,6 +227,15 @@ int32_t sieda_set_component_value(SiedaProject* project, int32_t id, const char*
     });
 }
 
+int32_t sieda_set_component_package(SiedaProject* project, int32_t id, const char* package) {
+    if (!project) return 0;
+    return guarded([&] {
+        bool ok = project->project.schematic.setPackage(id, str(package));
+        if (ok) project->project.schematicChanged();
+        return ok ? 1 : 0;
+    });
+}
+
 int32_t sieda_set_component_ref(SiedaProject* project, int32_t id, const char* ref) {
     if (!project) return 0;
     return project->project.schematic.setRef(id, str(ref)) ? 1 : 0;

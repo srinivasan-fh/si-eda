@@ -89,7 +89,7 @@ double thetaJA(const Component& c) {
             if (type.find("LQFP") != std::string::npos) return pins >= 64 ? 55 : 70;
             if (type.find("TO220") != std::string::npos) return 60;
         }
-    const std::string fp = c.def().footprint;
+    const std::string fp = c.footprintName();
     if (fp.find("0402") != std::string::npos) return 250;
     if (fp.find("0603") != std::string::npos) return 200;
     if (fp.find("0805") != std::string::npos) return 160;
@@ -448,7 +448,7 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
         std::string refs;
         for (const auto& c : sch.components()) {
             if (!c.hasFootprint() || !c.pcb.placed) continue;
-            const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
+            const FootprintDef* fp = Library::instance().footprint(c.footprintName());
             if (fp && (fp->body.height >= 5.0 || c.kind == ComponentKind::Inductor)) {
                 tall.push_back(c.id);
                 refs += (refs.empty() ? "" : ", ") + c.ref;

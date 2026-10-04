@@ -412,7 +412,7 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
     if (opt.components) {
         for (const auto& c : sch.components()) {
             if (!c.hasFootprint() || !c.pcb.placed || embeddedElement(c, s)) continue;  // embedded: inside the board
-            const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
+            const FootprintDef* fp = Library::instance().footprint(c.footprintName());
             if (!fp) continue;
             const BodyDef& b = fp->body;
             double w = b.width, d = b.depth;

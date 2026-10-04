@@ -3039,3 +3039,68 @@ final class ProductivityFlowTests: XCTestCase {
         }
     }
 }
+
+/// Production parts catalog in the app: every catalog part number is in the Component Library and places with its
+/// real footprint; passives switch package from the Inspector (undoable, saved).
+@MainActor
+final class PartsCatalogTests: XCTestCase {
+    func testCatalogPartsAreInTheLibraryAndPlace() throws {
+        let names = ["ATMEGA328P-AU", "ATMEGA328P-PU", "STM32F405RGT6", "STM32H743IIT6", "STM32F765VIT6", "XC7A35T-1CSG324I",
+                     "L293DD", "L298HN", "ULN2003ADR", "PCA9685PW", "IR2101S", "IR2110S", "TMC2209-LA", "TMC2160-TA",
+                     "TMC5160A-TA", "CSD18540Q5B", "ADS1115IDGS", "LM358DR", "LM358N", "LM393DR", "LM393N", "AS5047D-ATSM",
+                     "INA240A1EDRQ1", "MPU-9250", "MAX9814ETD+T", "MAX4466EXK+T", "74HC595D", "PCF8574TS", "PCF8574N",
+                     "CH340G", "MAX485ESA+T", "SP485EEN-L", "MCP2551-I/SN", "TCAN1042VDRQ1", "ADM2587EBRWZ", "LM7812",
+                     "AMS1117-3.3", "LM2596S-5.0", "XL4015E1", "LM74700QDBVRQ1", "LTC4359IMS8#PBF", "PC817X3NSZ0F",
+                     "TLP281-4", "Crystal_16MHz", "Crystal_16MHz_3225", "Crystal_32.768kHz_3215", "Crystal_32.768kHz_Cylinder"]
+        let store = DesignStore()
+        store.aiEnabled = false
+        var x = 0.0
+        for name in names {
+            let part = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == name }, name)
+            let id = store.placeStandardPart(part, at: CGPoint(x: x, y: 0))
+            x += 200
+            XCTAssertGreaterThanOrEqual(id, 0, name)
+        }
+        store.autoPlace(all: true)
+        // Every placed catalog part has its pads on the board (the FPGA alone has 324 balls).
+        let snapshot = store.snapshot
+        for component in snapshot.components {
+            XCTAssertFalse(snapshot.pads.filter { $0.component == component.id }.isEmpty, component.value)
+        }
+        let fpga = try XCTUnwrap(snapshot.components.first { $0.value == "XC7A35T-1CSG324I" })
+        XCTAssertEqual(snapshot.pads.filter { $0.component == fpga.id }.count, 324)
+    }
+
+    func testPassivesSwitchPackageFromTheInspector() throws {
+        let store = DesignStore()
+        store.aiEnabled = false
+        store.applyPlan(OfflineProvider.templates[0].industryPlan, requirements: nil)
+        store.autoPlace(all: true)
+        let resistor = try XCTUnwrap(store.snapshot.components.first { $0.componentKind == .resistor })
+        let options = try XCTUnwrap(resistor.packageOptions)
+        XCTAssertEqual(options.map(\.label), ["0402", "0603", "0805", "1206", "Axial THT (1/4 W)"])
+        XCTAssertEqual(resistor.footprint, "R_0805")
+        XCTAssertNil(resistor.package)
+
+        store.setPackage(resistor.id, "R_Axial_THT")
+        let tht = try XCTUnwrap(store.snapshot.component(resistor.id))
+        XCTAssertEqual(tht.footprint, "R_Axial_THT")
+        XCTAssertTrue(store.snapshot.pads.filter { $0.component == resistor.id }.allSatisfy(\.throughHole))
+        XCTAssertTrue(store.isDirty)
+
+        // Saved with the project.
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        XCTAssertEqual(reopened.snapshot()?.component(resistor.id)?.footprint, "R_Axial_THT")
+
+        // Undo restores the chip resistor; parts without variants offer none.
+        store.undo()
+        XCTAssertEqual(store.snapshot.component(resistor.id)?.footprint, "R_0805")
+        XCTAssertNil(store.snapshot.components.first { $0.componentKind == .opAmp }?.packageOptions)
+        // A capacitor offers tantalum and electrolytic cases; a diode SMA and DO-41.
+        if let cap = store.snapshot.components.first(where: { $0.componentKind == .capacitor }) {
+            XCTAssertTrue(cap.packageOptions?.contains { $0.id == "CP_Tant_B" } ?? false)
+        }
+        XCTAssertTrue(EDAEngine().setPackage(-1, "R_0603") == false)
+    }
+}

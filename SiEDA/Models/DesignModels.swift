@@ -149,6 +149,12 @@ struct PcbPlacement: Decodable, Equatable {
     var isEmbedded: Bool { (embeddedLayer ?? 0) > 0 }
 }
 
+/// A package a part can be fitted in ("R_0603" shown as "0603").
+struct PackageOption: Decodable, Equatable, Identifiable, Hashable {
+    var id: String
+    var label: String
+}
+
 struct SnapComponent: Decodable, Equatable, Identifiable {
     var id: Int
     var kind: Int
@@ -163,6 +169,10 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     var customPart: String?
     /// Present for microcontrollers the simulator can run (ATmega328P, ATtiny85).
     var mcu: McuInfo?
+    /// Package variant the part is fitted in (nil = the kind's default footprint).
+    var package: String?
+    /// Packages a passive / diode can be switched to (chip sizes, through-hole, tantalum…); nil for fixed parts.
+    var packageOptions: [PackageOption]?
 
     var componentKind: ComponentKind { ComponentKind(rawValue: kind) ?? .ic8 }
     var position: CGPoint { CGPoint(x: x, y: y) }

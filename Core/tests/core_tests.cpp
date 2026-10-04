@@ -2268,6 +2268,158 @@ TEST(complex_design_flow_is_fast) {
     CHECK(mesh < 5.0);
 }
 
+TEST(production_parts_catalog) {
+    // The robotics / automotive / industrial catalog: every orderable part number is in the library on its real
+    // package, with datasheet pin names, and registers as a placeable part.
+    const char* catalog[] = {
+        "ATMEGA328P-AU", "ATMEGA328P-PU", "STM32F103C8T6", "STM32F405RGT6", "ESP32-WROOM-32E", "RP2040", "L293DD", "L293D",
+        "L298HN", "ULN2003ADR", "ULN2003A", "PCA9685PW", "IR2101S", "IR2110S", "TMC2209-LA", "MPU-6050", "MPU-9250",
+        "ADS1115IDGS", "LM358DR", "LM358N", "LM393DR", "LM393N", "MAX9814ETD+T", "MAX4466EXK+T", "74HC595D", "74HC595",
+        "PCF8574TS", "PCF8574N", "CH340G", "CP2102N-A02-GQFN28", "MAX485ESA+T", "SP485EEN-L", "TJA1050", "MCP2551-I/SN",
+        "LM7805", "LM7812", "AMS1117-3.3", "LM2596S-5.0", "XL4015E1", "TP4056", "LM74700QDBVRQ1", "PC817X3NSZ0F",
+        "TLP281-4", "STM32H743IIT6", "STM32F765VIT6", "LPC1768", "XC7A35T-1CSG324I", "CSD18540Q5B",
+        "TMC2160-TA", "TMC5160A-TA", "AS5047D-ATSM", "INA240A1EDRQ1", "TCAN1042VDRQ1", "ADM2587EBRWZ",
+        "LTC4359IMS8#PBF", "BMI160", "ICS-43434", "ATSAMD51J20A-AU",
+    };
+    for (const char* name : catalog) {
+        const StandardPart* sp = findStandardPart(name);
+        CHECK(sp != nullptr);
+        if (!sp) {
+            std::printf("    missing %s\n", name);
+            continue;
+        }
+        bool ok = true;
+        try {
+            auto part = CustomPartRegistry::instance().registerPart(sp->spec);
+            size_t connected = 0;
+            for (const auto& pad : part->footprint.pads) connected += pad.pinIndex >= 0 ? 1 : 0;
+            ok = !part->def.pins.empty() && part->footprint.pads.size() >= sp->spec.pins.size() - 1 && connected > 0;
+        } catch (const std::exception& e) {
+            std::printf("    %s: %s\n", name, e.what());
+            ok = false;
+        }
+        CHECK(ok);
+    }
+    // The catalog's flyback diodes are diode values with their own simulation models (Schottky / rectifier).
+    CHECK(findDeviceModel(ComponentKind::Diode, "1N5819") != nullptr);
+    CHECK(findDeviceModel(ComponentKind::Diode, "1N4007") != nullptr);
+    auto reg = [](const char* name) { return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec); };
+    auto pinName = [](const std::shared_ptr<const CustomPart>& part, const PadDef& pad) {
+        return pad.pinIndex >= 0 ? part->def.pins[static_cast<size_t>(pad.pinIndex)].name : std::string("-");
+    };
+
+    // Datasheet pin names from the generated catalog.
+    CHECK(reg("LM358DR")->def.pins[7].name == "V+" || reg("LM358DR")->def.pins[7].number == "8");
+    CHECK(reg("MAX485ESA+T")->def.pins[5].name == "A" && reg("MAX485ESA+T")->def.pins[6].name == "B");
+    CHECK(reg("L298HN")->def.pins[3].name == "Vs");
+    CHECK(reg("TCAN1042VDRQ1")->def.pins[4].name == "VIO");
+
+    // FPGA: 324 balls in an 18 × 18 grid at 0.8 mm, named A1…V18 (no I / O / Q / S rows), pins on their balls.
+    auto fpga = reg("XC7A35T-1CSG324I");
+    CHECK(fpga->footprint.pads.size() == 324);
+    CHECK(fpga->footprint.pads.front().round);
+    CHECK(std::fabs(fpga->footprint.pads[1].offset.x - fpga->footprint.pads[0].offset.x - 0.8) < 1e-9);
+    size_t mapped = 0;
+    for (const auto& pad : fpga->footprint.pads) mapped += pad.pinIndex >= 0 ? 1 : 0;
+    CHECK(mapped == 324);
+    bool hasV18 = false, hasI = false;
+    for (const auto& pin : fpga->def.pins) {
+        hasV18 |= pin.number == "V18";
+        hasI |= pin.number[0] == 'I' || pin.number[0] == 'O';
+    }
+    CHECK(hasV18 && !hasI);
+
+    // D²PAK buck: five leads plus the tab soldered to pin 3 (GND); SOT-223 LDO: tab on pin 2 (VO).
+    auto buck = reg("LM2596S-5.0");
+    CHECK(buck->footprint.pads.size() == 6);
+    CHECK(pinName(buck, buck->footprint.pads.back()) == "GND");
+    CHECK(buck->footprint.pads.back().size.x > 9);
+    auto ldo = reg("AMS1117-3.3");
+    CHECK(ldo->footprint.pads.size() == 4 && pinName(ldo, ldo->footprint.pads.back()) == "VO");
+
+    // Multiwatt-15: through-hole, staggered rows.
+    auto l298 = reg("L298HN");
+    CHECK(l298->footprint.pads.size() == 15 && l298->footprint.pads[0].throughHole);
+    CHECK(l298->footprint.pads[0].offset.y != l298->footprint.pads[1].offset.y);
+
+    // Power MOSFET SON: the drain tab joins the drain pins; TQFP-48 drivers get their exposed pad.
+    auto fet = reg("CSD18540Q5B");
+    CHECK(fet->footprint.pads.size() == 9 && pinName(fet, fet->footprint.pads.back()) == "D");
+    CHECK(reg("TMC2160-TA")->footprint.pads.size() == 49);
+    CHECK(reg("TMC2209-LA")->footprint.pads.size() == 29);
+    // Wide-body SOIC and SC70 / SOT-23-5 packages.
+    CHECK(reg("ADM2587EBRWZ")->footprint.body.width > 7);
+    CHECK(reg("MAX4466EXK+T")->footprint.pads.size() == 5);
+    // Linear regulators simulate.
+    CHECK(findStandardPart("LM7812")->spec.model.hasRegulator && findStandardPart("AMS1117-3.3")->spec.model.hasRegulator);
+}
+
+TEST(passive_package_variants) {
+    // Resistors, capacitors, inductors, diodes and LEDs can be fitted in the package the BOM calls for: chip sizes,
+    // through-hole, tantalum and electrolytic capacitors, SMA / DO-41 diodes.
+    Project p = amplifierProject();
+    auto& s = p.schematic;
+    int r = -1, c = -1, d = -1;
+    for (const auto& comp : s.components()) {
+        if (r < 0 && comp.kind == ComponentKind::Resistor) r = comp.id;
+        if (c < 0 && comp.kind == ComponentKind::Capacitor) c = comp.id;
+    }
+    d = s.addComponent(ComponentKind::Diode, "1N4007", {500, 0});
+    CHECK(r >= 0 && c >= 0 && d >= 0);
+    CHECK(Library::packageVariants(ComponentKind::Resistor).size() == 5);
+    CHECK(Library::packageVariants(ComponentKind::OpAmp).empty());
+    for (ComponentKind k : {ComponentKind::Resistor, ComponentKind::Capacitor, ComponentKind::Inductor, ComponentKind::Diode,
+                            ComponentKind::LED})
+        for (const auto& v : Library::packageVariants(k)) CHECK(Library::instance().footprint(v) != nullptr);
+    CHECK(Library::packageLabel("CP_Tant_B") == "Tantalum B (3528)");
+
+    // Default footprint until a variant is chosen; invalid variants are refused.
+    CHECK(s.find(r)->footprintName() == "R_0805" && s.find(r)->package.empty());
+    CHECK(!s.setPackage(r, "D_SMA") && !s.setPackage(r, "nonsense"));
+    CHECK(s.setPackage(r, "R_0603") && s.find(r)->footprintName() == "R_0603");
+    CHECK(s.setPackage(c, "CP_Tant_B") && s.setPackage(d, "D_DO41_THT"));
+    p.pcb.autoPlace(s, true);
+    const auto pads = p.pcb.pads(s);
+    for (const auto& pad : pads) {
+        if (pad.componentId == r) CHECK(std::fabs(pad.size.x - 0.9) < 1e-9 || std::fabs(pad.size.y - 0.9) < 1e-9);
+        if (pad.componentId == d) CHECK(pad.throughHole && pad.drill > 0.9);
+    }
+    // BOM, export, save / load and the snapshot carry the package.
+    Json snap = p.snapshot();
+    bool sawOptions = false;
+    for (const auto& j : snap.get("components").items()) {
+        if (j.get("id").asInt() == c) {
+            CHECK(j.get("footprint").asString() == "CP_Tant_B" && j.get("package").asString() == "CP_Tant_B");
+            CHECK(j.get("packageOptions").items().size() == 8);
+            sawOptions = true;
+        }
+    }
+    CHECK(sawOptions);
+    CHECK(exportBomCsv(s).find("Tantalum B") != std::string::npos);
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.schematic.find(r)->footprintName() == "R_0603" && q.schematic.find(d)->footprintName() == "D_DO41_THT");
+    // Back to the default clears the variant.
+    CHECK(s.setPackage(r, "R_0805") && s.find(r)->package.empty());
+    // 3D: the tantalum is a moulded body, the axial diode a through-hole part with leads under the board.
+    Mesh m = buildAssemblyMesh(s, p.pcb);
+    Rect dr = p.pcb.courtyard(*s.find(d));
+    CHECK(anyIn(surfacePoints(m, Surface::Hole), dr, -p.pcb.settings.thickness - 0.1, 0.1));
+
+    // Crystals in the catalog's packages.
+    auto reg = [](const char* name) { return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec); };
+    CHECK(reg("Crystal_16MHz_3225")->footprint.pads.size() == 4);
+    CHECK(reg("Crystal_32.768kHz_3215")->footprint.pads.size() == 2 && !reg("Crystal_32.768kHz_3215")->footprint.pads[0].throughHole);
+    CHECK(reg("Crystal_32.768kHz_Cylinder")->footprint.pads[0].throughHole);
+    CHECK(reg("Crystal_16MHz")->footprint.pads[0].throughHole);
+
+    // C API.
+    SiedaProject* api = sieda_project_new("pkg");
+    int32_t rr = sieda_add_component(api, static_cast<int32_t>(ComponentKind::Resistor), "10k", 0, 0, 0, "R1");
+    CHECK(sieda_set_component_package(api, rr, "R_Axial_THT") == 1);
+    CHECK(sieda_set_component_package(api, rr, "C_0603") == 0);
+    sieda_project_free(api);
+}
+
 TEST(c_api_smoke) {
     int rc = sieda_c_api_smoke_test();
     if (rc != 0) std::printf("    c api step %d failed\n", rc);
@@ -2404,9 +2556,10 @@ TEST(microcontroller_library_by_vendor) {
     for (const auto& p : standardParts())
         if (p.category.rfind("Microcontrollers · ", 0) == 0) ++perGroup[p.category];
     CHECK(perGroup["Microcontrollers · Arm"] == 10);
-    CHECK(perGroup["Microcontrollers · STMicroelectronics"] == 10);
+    CHECK(perGroup["Microcontrollers · STMicroelectronics"] == 13);  // + the catalog's STM32F405 / H743 / F765
     CHECK(perGroup["Microcontrollers · Texas Instruments"] == 10);
-    CHECK(perGroup["Microcontrollers · Microchip"] == 13);  // + ATmega328P, ATtiny85 and the rad-tolerant ATmegaS128
+    // + ATmega328P, ATtiny85, the rad-tolerant ATmegaS128 and the catalog's ATMEGA328P-AU / -PU and SAM D51.
+    CHECK(perGroup["Microcontrollers · Microchip"] == 16);
     for (const auto& p : standardParts()) {
         if (p.category.rfind("Microcontrollers · ", 0) != 0) continue;
         bool ok = true;

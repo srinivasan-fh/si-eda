@@ -448,6 +448,16 @@ final class DesignStore: ObservableObject {
         perform("Changed value") { $0.setValue(id, value) }
     }
 
+    /// Fits a passive / diode in another package (0603, through-hole, tantalum B…): an undoable edit that moves its
+    /// pads, so the PCB and 3D views follow.
+    func setPackage(_ id: Int, _ package: String) {
+        guard let current = snapshot.component(id), current.footprint != package else { return }
+        let label = current.packageOptions?.first { $0.id == package }?.label ?? package
+        performChecked("\(current.ref) package \(label)", failureMessage: "\(current.ref) cannot use \(label)") {
+            $0.setPackage(id, package)
+        }
+    }
+
     func setRef(_ id: Int, _ ref: String) {
         let trimmed = ref.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty, let current = snapshot.component(id), current.ref != trimmed else { return }
