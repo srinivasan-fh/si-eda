@@ -98,8 +98,9 @@ final class SplashController {
     private let held = NSHashTable<NSWindow>.weakObjects()
     private var onFinish: (() -> Void)?
 
-    init(model: SplashModel = SplashModel()) {
-        self.model = model
+    /// `model` defaults to the standard preload (made here: default arguments aren't main-actor isolated).
+    init(model: SplashModel? = nil) {
+        self.model = model ?? SplashModel()
     }
 
     var isShowing: Bool { window != nil }
