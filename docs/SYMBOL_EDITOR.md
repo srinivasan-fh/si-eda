@@ -187,12 +187,19 @@ room above and below the side pins.
   - each check and JSON validation;
   - stacked pins joining nets, and an unwired stack staying open in ERC;
   - the C API.
-- **App** (`SiEDATests/SiEDATests.swift`), `SymbolEditorTests` (10 tests):
-  - the document operations, history and reconcile;
-  - the layout encoding and four-sided drawing;
-  - checks and auto-arrange;
-  - editing a placed part's symbol through the store, with wires kept and undo;
-  - the editor in a live window.
+- **Core**, `symbol_editor_auto_arrange_rules_geometry_and_board`:
+  - every Auto Arrange rule on one part (supplies, grounds, control, inputs, outputs, ports in bit order, NC);
+  - ports split into groups of 8, and arranging without stacking;
+  - body sizing and four-sided pin positions;
+  - stacked pins on a rotated component, placed and routed on the board;
+  - project save / load and replacing a placed part's symbol with wires kept.
+- **App** (`SiEDATests/SiEDATests.swift`):
+  - `SymbolEditorTests` (10 tests): the document operations, history and reconcile; the layout encoding and
+    four-sided drawing; checks and auto-arrange; editing a placed part's symbol through the store, with wires kept
+    and undo; the editor in a live window.
+  - `SymbolEditorDetailTests` (12 tests): the generated box, stack splitting and nudging, no-op edits, gaps,
+    reconcile, width and apply, issue decoding, deterministic Auto Arrange, every arranged library part drawn with
+    its pins on their sides, project save and reopen, and four-sided symbols in the schematic editor.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j && ./build/sieda_core_tests
