@@ -96,7 +96,11 @@ final class SplashController {
     let model: SplashModel
     private(set) var window: NSWindow?
     private let held = NSHashTable<NSWindow>.weakObjects()
+    private var observers: [NSObjectProtocol] = []
+    private var sweep: Timer?
     private var onFinish: (() -> Void)?
+    /// From `activate()` until the splash is done: main windows are kept out of sight.
+    private(set) var isActive = false
 
     /// `model` defaults to the standard preload (made here: default arguments aren't main-actor isolated).
     init(model: SplashModel? = nil) {
@@ -105,10 +109,32 @@ final class SplashController {
 
     var isShowing: Bool { window != nil }
 
+    /// Starts holding main windows back. Called before launch finishes, because SwiftUI creates the main window
+    /// before `applicationDidFinishLaunching` (when the splash itself appears). Until the splash is done, any
+    /// main window that shows up, or that SwiftUI brings forward again, is hidden on the next sweep (every 50 ms).
+    func activate() {
+        guard !isActive else { return }
+        isActive = true
+        Self.current = self
+        let center = NotificationCenter.default
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didBecomeMainNotification] {
+            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.holdVisibleWindows() }
+            })
+        }
+        // A cheap sweep (only while the splash is up) catches windows ordered in without becoming key.
+        let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.holdVisibleWindows() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        sweep = timer
+        holdVisibleWindows()
+    }
+
     /// Shows the splash, preloads, then reveals the held windows and calls `onFinish`.
     func show(onFinish: @escaping () -> Void) {
         self.onFinish = onFinish
-        Self.current = self
+        activate()
         let window = SplashWindow(contentRect: NSRect(origin: .zero, size: SplashView.size), styleMask: [.borderless],
                                   backing: .buffered, defer: false)
         window.isOpaque = false
@@ -126,9 +152,10 @@ final class SplashController {
         window.onCancel = { [weak self] in self?.model.skip() }
         window.center()
         window.alphaValue = 0
+        self.window = window
+        holdVisibleWindows()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        self.window = window
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.3
             window.animator().alphaValue = 1
@@ -141,22 +168,38 @@ final class SplashController {
         }
     }
 
-    /// Keeps a main window out of sight until the splash is done.
-    func hold(_ window: NSWindow) {
-        guard isShowing, window !== self.window, !held.contains(window) else { return }
-        held.add(window)
-        window.alphaValue = 0
-        DispatchQueue.main.async { [weak self, weak window] in
+    /// Hides every main window that is on screen (other than the splash).
+    private func holdVisibleWindows() {
+        guard isActive else { return }
+        for other in NSApp.windows where other !== window && other.isVisible && other.canBecomeMain {
+            hold(other)
+        }
+    }
+
+    /// Keeps a main window out of sight until the splash is done: transparent at once (so it never draws on
+    /// screen), and ordered out so the splash stays in front and keeps the keyboard.
+    func hold(_ other: NSWindow) {
+        guard isActive, other !== window else { return }
+        held.add(other)
+        other.alphaValue = 0
+        guard other.isVisible else { return }
+        DispatchQueue.main.async { [weak self, weak other] in
             MainActor.assumeIsolated {
-                guard let self, let window, self.isShowing else { return }
-                window.orderOut(nil)
-                self.window?.makeKeyAndOrderFront(nil)
+                guard let self, let other, self.isActive, other.isVisible else { return }
+                other.orderOut(nil)
+                if let splash = self.window, !splash.isKeyWindow { splash.makeKeyAndOrderFront(nil) }
             }
         }
     }
 
     private func finish() {
         guard let splash = window else { return }
+        // Stop holding first, so revealing the main windows isn't undone.
+        isActive = false
+        for observer in observers { NotificationCenter.default.removeObserver(observer) }
+        observers.removeAll()
+        sweep?.invalidate()
+        sweep = nil
         if Self.current === self { Self.current = nil }
         let windows = held.allObjects
         held.removeAllObjects()
@@ -226,6 +269,11 @@ struct SplashView: View {
                         LinearGradient(stops: [.init(color: .clear, location: 0.30),
                                                .init(color: .black, location: 0.62)],
                                        startPoint: .leading, endPoint: .trailing)
+                    }
+                    .mask {
+                        LinearGradient(stops: [.init(color: .black, location: 0.78),
+                                               .init(color: .clear, location: 0.86)],
+                                       startPoint: .top, endPoint: .bottom)
                     }
                 content(progress: progress, status: model.status(at: context.date))
             }
@@ -355,7 +403,7 @@ private struct SplashCircuit: View {
         var phase: Double
     }
 
-    static let chipCenter = CGPoint(x: 505, y: 200)
+    static let chipCenter = CGPoint(x: 505, y: 185)
     static let chipSize: CGFloat = 96
     static let pinsPerSide = 6
     static let traces: [Trace] = makeTraces()
@@ -377,7 +425,8 @@ private struct SplashCircuit: View {
                                     y: chipCenter.y + out1.dy * (half + 8) + along.dy * offset)
                 let first: CGFloat = 14 + CGFloat(seed) * 22
                 let bend: CGFloat = (k < pinsPerSide / 2 ? -1 : 1) * (10 + CGFloat(k % 3) * 9)
-                let last: CGFloat = 30 + CGFloat((side + k) % 4) * 26
+                // Top and bottom traces stay short, clear of the status line along the bottom.
+                let last: CGFloat = side >= 2 ? 10 + CGFloat((side + k) % 3) * 10 : 30 + CGFloat((side + k) % 4) * 26
                 let p1 = CGPoint(x: start.x + out1.dx * first, y: start.y + out1.dy * first)
                 let p2 = CGPoint(x: p1.x + out1.dx * abs(bend) + along.dx * bend,
                                  y: p1.y + out1.dy * abs(bend) + along.dy * bend)

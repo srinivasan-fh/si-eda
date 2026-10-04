@@ -4227,10 +4227,26 @@ final class SplashScreenTests: XCTestCase {
     func testControllerHoldsTheMainWindowUntilTheSplashIsDone() throws {
         XCTAssertNil(SplashController.current, "no splash is shown while the tests run")
         var loaded = 0
-        let model = SplashModel(steps: counting(2) { _ in loaded += 1 }, minimumDuration: 0.8)
+        let model = SplashModel(steps: counting(2) { _ in loaded += 1 }, minimumDuration: 2.5)
         let controller = SplashController(model: model)
+        // SwiftUI's main window exists, on screen, before the splash: it must still wait behind it.
+        let early = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+                             styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        early.isReleasedWhenClosed = false
+        early.makeKeyAndOrderFront(nil)
+        XCTAssertTrue(early.isVisible)
+        controller.activate()
+        XCTAssertEqual(early.alphaValue, 0, "hidden at once, before it can draw")
         var finished = false
         controller.show { finished = true }
+        spin { !early.isVisible }
+        XCTAssertFalse(early.isVisible)
+        // Brought forward again mid-splash (as SwiftUI may do): hidden again.
+        early.alphaValue = 1
+        early.makeKeyAndOrderFront(nil)
+        spin { !early.isVisible }
+        XCTAssertFalse(early.isVisible)
+        XCTAssertEqual(early.alphaValue, 0)
         XCTAssertTrue(SplashController.current === controller)
         let splash = try XCTUnwrap(controller.window)
         XCTAssertTrue(splash.isVisible)
@@ -4255,6 +4271,10 @@ final class SplashScreenTests: XCTestCase {
         XCTAssertFalse(splash.isVisible)
         XCTAssertTrue(main.isVisible, "the main window opens when the splash is done")
         XCTAssertEqual(main.alphaValue, 1)
+        XCTAssertTrue(early.isVisible)
+        XCTAssertEqual(early.alphaValue, 1)
+        XCTAssertFalse(controller.isActive)
+        early.close()
 
         // Windows opened later are left alone.
         controller.hold(main)
