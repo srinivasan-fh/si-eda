@@ -5,13 +5,14 @@ import SwiftUI
 /// files handed over by Finder, the Dock or Open Recent.
 final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var store: DesignStore? {
-        didSet {
-            if let store, store !== oldValue { attachDiagnostics(to: store) }
-            openPending()
-        }
+        didSet { activateStore() }
     }
+    /// The store whose crash diagnostics are attached.
+    private weak var activeStore: DesignStore?
     /// A file opened before the window (and its store) existed — opened as soon as the store is attached.
     private var pendingURL: URL?
+    /// The launch splash while it is up; recovery offers and opened files wait for it.
+    private var splash: SplashController?
     private var crashReporter: CrashReporter?
     private let watchdog = MainThreadWatchdog()
     private let memoryMonitor = MemoryPressureMonitor()
@@ -22,6 +23,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         crashReporter = CrashReporter.installShared()
         watchdog.start()
         memoryMonitor.start()
+        MainActor.assumeIsolated {
+            if SplashController.isEnabled {
+                let controller = SplashController()
+                splash = controller
+                SplashController.current = controller
+            }
+        }
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        MainActor.assumeIsolated {
+            splash?.show { [weak self] in
+                self?.splash = nil
+                self?.activateStore()
+            }
+        }
+    }
+
+    /// While the splash is up the main window is hidden, so the Dock icon must not open a second one.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        splash == nil
+    }
+
+    /// Once the window's store exists and the splash is gone: crash diagnostics, then any file waiting to open.
+    private func activateStore() {
+        guard splash == nil, let store else { return }
+        if activeStore !== store {
+            activeStore = store
+            attachDiagnostics(to: store)
+        }
+        openPending()
     }
 
     @MainActor
@@ -96,7 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func openPending() {
-        guard let url = pendingURL, let store else { return }
+        guard splash == nil, let url = pendingURL, let store else { return }
         pendingURL = nil
         MainActor.assumeIsolated {
             if store.confirmDiscardChanges() { store.open(url: url) }
@@ -187,6 +219,7 @@ struct SiEDAApp: App {
                 .tint(Theme.blue)
                 .documentWindowFrame()
                 .background(WindowCloseGuardInstaller(store: store))
+                .background(SplashWindowGate())
                 .onAppear { appDelegate.store = store }
         }
         .defaultSize(width: LayoutMetrics.defaultWindow.width, height: LayoutMetrics.defaultWindow.height)

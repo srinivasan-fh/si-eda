@@ -264,6 +264,7 @@ private struct AccountSettings: View {
 
 private struct AppearanceSettings: View {
     @AppStorage("appearance") private var appearance = AppearancePreference.dark.rawValue
+    @AppStorage("showSplashScreen") private var showSplashScreen = true
 
     var body: some View {
         Form {
@@ -272,6 +273,10 @@ private struct AppearanceSettings: View {
             }
             .pickerStyle(.segmented)
             Text("SiEDA is designed for dark mode with a blue engineering palette; editors keep their dark canvases in every mode.")
+                .font(.caption)
+                .foregroundStyle(Theme.textMuted)
+            Toggle("Show splash screen at launch", isOn: $showSplashScreen)
+            Text("The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done.")
                 .font(.caption)
                 .foregroundStyle(Theme.textMuted)
         }

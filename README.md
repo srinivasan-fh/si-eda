@@ -11,7 +11,7 @@ The interface combines conventions from three tools:
 - **Photoshop:** a vertical tool strip, a tool-options bar and a layers panel with visibility toggles.
 - **Proteus:** a device picker with symbol preview, simulation transport controls and live voltage probes on the schematic.
 
-The app defaults to dark mode with a blue palette.
+The app defaults to dark mode with a blue palette. At launch, a five-second splash screen preloads the design engine, the component library, the industry profiles and the reference designs, then opens the main window. Once loading is done, a click or Esc skips the rest. **Settings → Appearance → Show splash screen at launch** turns it off (or launch with `-showSplashScreen NO`).
 
 ## Use it with or without AI
 
@@ -316,7 +316,7 @@ Core/                C++17 engine (no dependencies)
   tests/             unit tests (C++ and a C-compiled ABI smoke test)
   cli/               sieda-cli: headless ERC → simulation → place & route → DRC → verification → fabrication files
 SiEDA/               macOS SwiftUI app
-  App/               app entry point, menus, DesignStore (state, undo, documents)
+  App/               app entry point, launch splash, menus, DesignStore (state, undo, documents)
   Bridge/            bridging header + EDAEngine (thread-safe Swift façade over the C ABI)
   Models/            snapshot models, ComponentKind, DesignPlan (the agents' structured output), FootprintDraft and SymbolDraft (editor documents)
   AI/                providers (Claude, OpenAI, Gemini, Ollama, Offline), prompts, orchestrator, settings

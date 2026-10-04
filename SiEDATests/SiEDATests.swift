@@ -4145,3 +4145,139 @@ final class SymbolEditorDetailTests: XCTestCase {
         XCTAssertLessThan(stm.pins[vdd[0]].y, stm.y - info.symbol.halfHeight)
     }
 }
+
+@MainActor
+final class SplashScreenTests: XCTestCase {
+    private func spin(until done: () -> Bool, timeout: TimeInterval = 10) {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !done() && Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+    }
+
+    private func counting(_ count: Int, into log: @escaping (Int) -> Void) -> [SplashModel.Step] {
+        (0..<count).map { index in SplashModel.Step(title: "Step \(index)") { log(index) } }
+    }
+
+    func testProgressFollowsBothTheClockAndTheWork() {
+        // Ahead on work: the bar follows the clock.
+        XCTAssertEqual(SplashModel.progress(elapsed: 1, minimum: 5, completed: 4, total: 4), 0.2, accuracy: 1e-9)
+        // Ahead on time: the bar waits for the work.
+        XCTAssertEqual(SplashModel.progress(elapsed: 4, minimum: 5, completed: 1, total: 4), 0.25, accuracy: 1e-9)
+        XCTAssertEqual(SplashModel.progress(elapsed: 9, minimum: 5, completed: 4, total: 4), 1)
+        XCTAssertEqual(SplashModel.progress(elapsed: -1, minimum: 5, completed: 4, total: 4), 0)
+        XCTAssertEqual(SplashModel.progress(elapsed: 0, minimum: 0, completed: 0, total: 0), 1)
+        XCTAssertEqual(SplashModel.progress(elapsed: 3, minimum: 0, completed: 2, total: 4), 0.5)
+    }
+
+    func testStatusNamesTheStepUnderTheBar() {
+        XCTAssertEqual(SplashModel.statusIndex(progress: 0, total: 4), 0)
+        XCTAssertEqual(SplashModel.statusIndex(progress: 0.24, total: 4), 0)
+        XCTAssertEqual(SplashModel.statusIndex(progress: 0.25, total: 4), 1)
+        XCTAssertEqual(SplashModel.statusIndex(progress: 0.99, total: 4), 3)
+        XCTAssertEqual(SplashModel.statusIndex(progress: 1, total: 4), 4)
+        XCTAssertEqual(SplashModel.statusIndex(progress: 1, total: 0), 0)
+
+        let model = SplashModel(steps: counting(2) { _ in }, minimumDuration: 5)
+        XCTAssertEqual(model.status(at: model.startDate), "Step 0…")
+        XCTAssertFalse(model.isLoaded)
+    }
+
+    func testStandardStepsPreloadTheLibraries() {
+        let steps = SplashModel.standardSteps
+        XCTAssertEqual(steps.count, 4)
+        XCTAssertEqual(Set(steps.map(\.title)).count, 4)
+        steps.forEach { $0.work() }
+        XCTAssertFalse(StandardLibrary.parts.isEmpty)
+        XCTAssertFalse(StandardLibrary.rulePresets.isEmpty)
+        XCTAssertFalse(StandardLibrary.industries.isEmpty)
+        XCTAssertFalse(OfflineProvider.templates.isEmpty)
+        XCTAssertEqual(SplashModel.defaultDuration, 5)
+    }
+
+    func testRunDoesEveryStepInOrderThenWaitsOutTheMinimum() {
+        var log: [Int] = []
+        let model = SplashModel(steps: counting(3) { log.append($0) }, minimumDuration: 0.6)
+        let started = Date()
+        Task { await model.run() }
+        spin { model.isLoaded }
+        XCTAssertEqual(log, [0, 1, 2])
+        XCTAssertFalse(model.isFinished, "the splash stays up for its minimum duration")
+        spin { model.isFinished }
+        XCTAssertTrue(model.isFinished)
+        XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(started), 0.6)
+        XCTAssertEqual(model.progress(at: Date()), 1)
+        XCTAssertEqual(model.status(at: Date()), "Ready")
+    }
+
+    func testSkipEndsTheSplashOnlyOnceLoaded() {
+        var gate = false
+        let steps = [SplashModel.Step(title: "Slow") { gate = true }]
+        let model = SplashModel(steps: steps, minimumDuration: 30)
+        model.skip()  // nothing loaded yet: ignored
+        let started = Date()
+        Task { await model.run() }
+        spin { model.isLoaded }
+        XCTAssertTrue(gate)
+        XCTAssertFalse(model.isFinished)
+        model.skip()
+        spin { model.isFinished }
+        XCTAssertTrue(model.isFinished)
+        XCTAssertLessThan(Date().timeIntervalSince(started), 5, "skip ends the splash long before 30 s")
+    }
+
+    func testControllerHoldsTheMainWindowUntilTheSplashIsDone() throws {
+        XCTAssertNil(SplashController.current, "no splash is shown while the tests run")
+        var loaded = 0
+        let model = SplashModel(steps: counting(2) { _ in loaded += 1 }, minimumDuration: 0.8)
+        let controller = SplashController(model: model)
+        var finished = false
+        controller.show { finished = true }
+        XCTAssertTrue(SplashController.current === controller)
+        let splash = try XCTUnwrap(controller.window)
+        XCTAssertTrue(splash.isVisible)
+        XCTAssertEqual(splash.frame.size, SplashView.size)
+        XCTAssertTrue(splash.canBecomeKey)
+
+        // A main window that appears meanwhile is kept out of sight.
+        let main = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+                            styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        main.isReleasedWhenClosed = false
+        main.contentView = NSHostingView(rootView: Text("Main").background(SplashWindowGate()))
+        main.makeKeyAndOrderFront(nil)
+        spin { !main.isVisible }
+        XCTAssertFalse(main.isVisible)
+        XCTAssertEqual(main.alphaValue, 0)
+
+        spin { finished }
+        XCTAssertTrue(finished)
+        XCTAssertEqual(loaded, 2)
+        XCTAssertNil(SplashController.current)
+        XCTAssertNil(controller.window)
+        XCTAssertFalse(splash.isVisible)
+        XCTAssertTrue(main.isVisible, "the main window opens when the splash is done")
+        XCTAssertEqual(main.alphaValue, 1)
+
+        // Windows opened later are left alone.
+        controller.hold(main)
+        XCTAssertEqual(main.alphaValue, 1)
+        main.close()
+    }
+
+    func testSplashViewRendersEveryStage() throws {
+        let model = SplashModel(steps: counting(1) { _ in }, minimumDuration: 0.3)
+        let host = NSHostingView(rootView: SplashView(model: model))
+        host.frame = NSRect(origin: .zero, size: SplashView.size)
+        let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.close() }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        Task { await model.run() }
+        spin { model.isFinished }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        XCTAssertTrue(model.isFinished)
+        XCTAssertGreaterThan(host.fittingSize.width, 0)
+        XCTAssertTrue(SplashView.versionLine.hasPrefix("Version "))
+        XCTAssertTrue(SplashView.versionLine.contains("Core \(EDAEngine.coreVersion)"))
+    }
+}
