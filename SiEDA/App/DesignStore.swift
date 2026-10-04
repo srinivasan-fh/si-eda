@@ -1177,6 +1177,18 @@ final class DesignStore: ObservableObject {
 
     func applianceSegments() -> RobotSegmentsReport { engine.applianceSegments() }
 
+    /// Memory design type ("" = none): turns on the 5-segment memory checks at full severity. Undoable.
+    func setMemoryDesign(_ id: String) {
+        guard id != snapshot.memoryDesign else { return }
+        perform(id.isEmpty ? "No memory design type" : "Memory design: \(id)", invalidatesAnalysis: false) {
+            $0.setMemoryDesign(id)
+        }
+        verificationReport = nil
+        if !snapshot.pads.isEmpty { recordDRC(engine.runDRCChecked()) }
+    }
+
+    func memorySegments() -> RobotSegmentsReport { engine.memorySegments() }
+
     /// Lays an active tamper mesh over a secure element (two inner layers; the nets must each join two of its pins).
     /// Undoable; the mesh copper appears with the next Auto Route.
     func addTamperMesh(component ref: String, netA: String, netB: String) {

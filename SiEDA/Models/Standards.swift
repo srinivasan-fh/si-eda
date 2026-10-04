@@ -8,6 +8,8 @@ enum StandardLibrary {
     static let parts: [StandardPart] = EDAEngine.standardParts()
     static let rulePresets: [DesignRulePreset] = EDAEngine.designRulePresets()
     static let industries: [IndustryProfile] = EDAEngine.industryProfiles()
+    /// Memory (RAM) design types for the 5-segment memory checks: SDR SDRAM, DDR memory-down, LPDDR, DIMM, RDIMM.
+    static let memoryDesignTypes: [RobotPlatformInfo] = EDAEngine().memorySegments().platforms
 
     static func industry(_ id: String) -> IndustryProfile? { industries.first { $0.id == id } }
 }
@@ -47,6 +49,7 @@ struct IndustryProfile: Decodable, Equatable, Identifiable, Hashable {
         case "addin": return "rectangle.on.rectangle"
         case "retail": return "creditcard"
         case "appliance": return "washer"
+        case "memory": return "memorychip.fill"
         default: return "cpu"
         }
     }

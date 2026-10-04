@@ -31,6 +31,7 @@
 #include "sieda/Medical.hpp"
 #include "sieda/Retail.hpp"
 #include "sieda/Appliance.hpp"
+#include "sieda/Memory.hpp"
 #include "sieda/Naval.hpp"
 #include "sieda/Automotive.hpp"
 #include "sieda/Robotics.hpp"
@@ -1258,9 +1259,9 @@ TEST(design_verification_pipeline) {
 }
 
 TEST(industry_profiles_and_derating) {
-    CHECK(industryProfiles().size() == 20);
+    CHECK(industryProfiles().size() == 21);
     for (const char* id : {"general", "robotics", "uav", "power", "automotive", "rf", "space", "marine", "industrial",
-                           "medical", "defence", "networking", "vlsi"}) {
+                           "medical", "defence", "networking", "vlsi", "memory"}) {
         const IndustryProfile* p = findIndustry(id);
         CHECK(p != nullptr);
         if (!p) continue;
@@ -2279,7 +2280,8 @@ TEST(production_parts_catalog) {
         "LM7805", "LM7812", "AMS1117-3.3", "LM2596S-5.0", "XL4015E1", "TP4056", "LM74700QDBVRQ1", "PC817X3NSZ0F",
         "TLP281-4", "STM32H743IIT6", "STM32F765VIT6", "LPC1768", "XC7A35T-1CSG324I", "CSD18540Q5B",
         "TMC2160-TA", "TMC5160A-TA", "AS5047D-ATSM", "INA240A1EDRQ1", "TCAN1042VDRQ1", "ADM2587EBRWZ",
-        "LTC4359IMS8#PBF", "BMI160", "ICS-43434", "ATSAMD51J20A-AU",
+        "LTC4359IMS8#PBF", "BMI160", "ICS-43434", "ATSAMD51J20A-AU", "MT48LC16M16A2TG-6A", "W9812G6KH-6", "IS42S16400J-7TL",
+        "MT41K256M16HA-125", "AS4C256M16D3-12BCN", "MT40A512M16LY-062E",
     };
     for (const char* name : catalog) {
         const StandardPart* sp = findStandardPart(name);
@@ -4874,4 +4876,184 @@ TEST(appliance_mains_rules_and_voltage_spacing) {
     for (const auto& x : p.pcb.runDRC(s)) hv += x.code == "DRC_HV_CLEARANCE" || x.code == "DRC_SHORT";
     CHECK(hv == 0);
     CHECK(Project::fromJson(p.toJson()).applianceType == "kitchen");
+}
+
+TEST(memory_design_segments_and_checks) {
+    auto partId = [](const char* name) {
+        return CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec)->id;
+    };
+    auto codes = [](const Project& p, bool warningsOnly = true) {
+        std::set<std::string> c;
+        for (const auto& x : memoryChecks(p))
+            if (!warningsOnly || x.severity != Severity::Info) c.insert(x.code);
+        return c;
+    };
+    CHECK(memoryDesignTypes().size() == 5);
+    for (const char* id : {"sdram", "ddr", "lpddr", "dimm", "rdimm"}) CHECK(findMemoryDesignType(id) != nullptr);
+    CHECK(findMemoryDesignType("ddr6") == nullptr);
+    CHECK(findIndustry("memory") && findIndustry("memory")->rulePreset == "HDI / Fine-Pitch BGA (IPC-2226)");
+
+    // The DRAM parts: SDR SDRAM in TSOP-II, DDR3L / DDR4 in a depopulated 9 × 16 FBGA laid out by ball name.
+    const auto sdr = CustomPartRegistry::instance().registerPart(findStandardPart("MT48LC16M16A2TG-6A")->spec);
+    CHECK(sdr->footprint.pads.size() == 54 && sdr->footprint.label == "TSSOP-54 0.8mm pitch");
+    for (const char* name : {"MT41K256M16HA-125", "AS4C256M16D3-12BCN", "MT40A512M16LY-062E"}) {
+        const auto ddr = CustomPartRegistry::instance().registerPart(findStandardPart(name)->spec);
+        CHECK(ddr->footprint.pads.size() == 96);
+        for (const auto& pad : ddr->footprint.pads) CHECK(pad.pinIndex >= 0);
+        const PadDef* a1 = nullptr;
+        const PadDef* t9 = nullptr;
+        for (const auto& pad : ddr->footprint.pads) {
+            const std::string& n = ddr->def.pins[static_cast<size_t>(pad.pinIndex)].number;
+            if (n == "A1") a1 = &pad;
+            if (n == "T9") t9 = &pad;
+        }
+        // A1 top-left and T9 bottom-right of a 9-column, 16-row grid at 0.8 mm.
+        CHECK(a1 && t9);
+        if (a1 && t9) {
+            CHECK_NEAR(a1->offset.x, -3.2, 1e-9);
+            CHECK_NEAR(a1->offset.y, -6.0, 1e-9);
+            CHECK_NEAR(t9->offset.x, 3.2, 1e-9);
+            CHECK_NEAR(t9->offset.y, 6.0, 1e-9);
+        }
+        CHECK(ddr->footprint.body.depth > ddr->footprint.body.width);
+    }
+    // A full square grid keeps its row-major layout (the FPGA is unchanged).
+    const auto fpga = CustomPartRegistry::instance().registerPart(findStandardPart("XC7A35T-1CSG324I")->spec);
+    CHECK(fpga->footprint.pads.size() == 324 && fpga->footprint.body.width == fpga->footprint.body.depth);
+
+    // SDR SDRAM beside a controller, wired data-only at first.
+    Project p;
+    auto& s = p.schematic;
+    CHECK(memoryChecks(p).empty() && !isMemoryProject(p));
+    p.industry = "memory";
+    int mcu = s.addCustomComponent(partId("STM32H743IIT6"), "", {0, 0});
+    int ram = s.addCustomComponent(partId("MT48LC16M16A2TG-6A"), "", {600, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {300, 400});
+    const char* data[][2] = {{"DQ0", "PD14"}, {"DQ1", "PD15"}, {"DQ2", "PD0"}, {"DQ3", "PD1"}, {"DQ4", "PE7"}, {"DQ5", "PE8"},
+                             {"DQ6", "PE9"}, {"DQ7", "PE10"}};
+    for (auto& d : data) wire(s, ram, d[0], mcu, d[1]);
+    wire(s, ram, "CLK", mcu, "PG8");
+    wire(s, ram, "VSS", g, "GND");
+    p.schematicChanged();
+    for (const auto& v : memoryChecks(p)) CHECK(v.severity == Severity::Info);  // industry only: advice
+    p.memoryDesign = "sdram";
+    {
+        const auto c = codes(p);
+        CHECK(c.count("REL_DRAM_DECOUPLING") && c.count("REL_DRAM_LAYERS"));
+        CHECK(!c.count("REL_DRAM_CONTROLLER"));  // the STM32 is found on the data lines
+        CHECK(!c.count("REL_DDR_ZQ") && !c.count("REL_DDR_VTT"));  // no DDR rules on SDR
+        const auto info = codes(p, false);
+        CHECK(info.count("REL_DRAM_CLOCK_SERIES") && info.count("REL_DRAM_LENGTH_MATCH"));
+    }
+    // Decoupling, a named data bus and a 4-layer board with a ground plane clear them.
+    int vdd = s.addComponent(ComponentKind::NetLabel, "+3V3", {300, -300});
+    wire(s, ram, "VDD", vdd, "N");
+    wire(s, ram, "VDDQ", vdd, "N");
+    for (int i = 0; i < 4; ++i) {
+        int c = s.addComponent(ComponentKind::Capacitor, i == 0 ? "10u" : "100n", {400.0 + 40 * i, -200});
+        wire(s, c, "1", vdd, "N");
+        wire(s, c, "2", g, "GND");
+    }
+    for (int i = 0; i < 8; ++i) {
+        int l = s.addComponent(ComponentKind::NetLabel, ("SD_DQ" + std::to_string(i)).c_str(), {500, 50.0 * i});
+        wire(s, l, "N", ram, data[i][0]);
+    }
+    p.pcb.settings.layerCount = 4;
+    p.pcb.zones.push_back({"GND", 1, true, 0});
+    p.schematicChanged();
+    {
+        const auto c = codes(p, false);
+        CHECK(!c.count("REL_DRAM_DECOUPLING") && !c.count("REL_DRAM_BULK") && !c.count("REL_DRAM_LAYERS"));
+        CHECK(!c.count("REL_DRAM_LENGTH_MATCH") && !c.count("REL_DRAM_REFERENCE_PLANE"));
+        const auto segs = memorySegments(p);
+        CHECK(segs.size() == 5 && segs[0].id == "power" && segs[1].id == "clock" && segs[2].id == "data" &&
+              segs[3].id == "config" && segs[4].id == "layout");
+        CHECK(segs[0].status == "complete");
+        CHECK(segs[2].items[0].ok);  // data lanes matched
+        CHECK(!segs[1].items[1].ok);  // address lines still open
+    }
+    CHECK(Project::fromJson(p.toJson()).memoryDesign == "sdram");
+    Json bad = p.toJson();
+    bad["memoryDesign"] = "ddr9";
+    CHECK(Project::fromJson(bad).memoryDesign.empty());
+
+    // DDR3L memory-down: ZQ, VREF, RESET_n, VTT and the CK pair are checked.
+    Project q;
+    auto& d = q.schematic;
+    q.memoryDesign = "ddr";
+    int dram = d.addCustomComponent(partId("MT41K256M16HA-125"), "", {0, 0});
+    int gq = d.addComponent(ComponentKind::Ground, "", {0, 400});
+    wire(d, dram, "V_{SS}", gq, "GND");
+    q.schematicChanged();
+    {
+        const auto c = codes(q);
+        CHECK(c.count("REL_DDR_ZQ") && c.count("REL_DDR_VREF") && c.count("REL_DDR_RESET") && c.count("REL_DDR_VTT"));
+        CHECK(c.count("REL_DRAM_CONTROLLER"));
+    }
+    int zq = d.addComponent(ComponentKind::Resistor, "100", {100, 100});
+    wire(d, dram, "ZQ", zq, "1");
+    wire(d, zq, "2", gq, "GND");
+    q.schematicChanged();
+    bool wrongValue = false;
+    for (const auto& v : memoryChecks(q)) wrongValue |= v.code == "REL_DDR_ZQ" && v.message.find("240") != std::string::npos;
+    CHECK(wrongValue);
+    d.find(zq)->value = "240 1%";
+    int reset = d.addComponent(ComponentKind::Resistor, "10k", {100, 200});
+    wire(d, dram, "nRESET", reset, "1");
+    wire(d, reset, "2", gq, "GND");
+    int vtt = d.addComponent(ComponentKind::NetLabel, "VTT", {200, 0});
+    int rt = d.addComponent(ComponentKind::Resistor, "39", {200, 100});
+    wire(d, dram, "A0", rt, "1");
+    wire(d, rt, "2", vtt, "N");
+    int ck = d.addComponent(ComponentKind::Resistor, "100", {300, 100});
+    wire(d, dram, "CK", ck, "1");
+    wire(d, dram, "nCK", ck, "2");
+    int vref = d.addComponent(ComponentKind::NetLabel, "VREF", {300, 200});
+    int ra = d.addComponent(ComponentKind::Resistor, "1k", {300, 250});
+    int rb = d.addComponent(ComponentKind::Resistor, "1k", {300, 300});
+    int cv = d.addComponent(ComponentKind::Capacitor, "100n", {350, 250});
+    wire(d, dram, "V_{REFCA}", vref, "N");
+    wire(d, dram, "V_{REFDQ}", vref, "N");
+    wire(d, ra, "1", vref, "N");
+    wire(d, rb, "1", vref, "N");
+    wire(d, rb, "2", gq, "GND");
+    wire(d, cv, "1", vref, "N");
+    wire(d, cv, "2", gq, "GND");
+    q.schematicChanged();
+    {
+        const auto c = codes(q);
+        CHECK(!c.count("REL_DDR_ZQ") && !c.count("REL_DDR_RESET") && !c.count("REL_DDR_VTT") && !c.count("REL_DDR_CK_TERM"));
+        CHECK(!c.count("REL_DDR_VREF"));
+        const auto segs = memorySegments(q);
+        CHECK(segs[2].items[2].ok);  // ZQ calibration resistor
+    }
+
+    // A DDR5 module: SPD EEPROM with pull-ups and a 1.2–1.27 mm board.
+    Project m;
+    m.memoryDesign = "dimm";
+    m.schematic.addCustomComponent(partId("MT40A512M16LY-062E"), "", {0, 0});
+    m.schematicChanged();
+    {
+        const auto c = codes(m);
+        CHECK(c.count("REL_SPD") && c.count("REL_DIMM_THICKNESS"));
+    }
+    m.pcb.settings.thickness = 1.27;
+    m.schematic.addCustomComponent(partId("AT24CS02-SSHM-T"), "", {300, 0});
+    m.schematicChanged();
+    {
+        const auto c = codes(m);
+        CHECK(!c.count("REL_SPD") && c.count("REL_SPD_PULLUPS") && !c.count("REL_DIMM_THICKNESS"));
+    }
+
+    // The C API: set / reject a type and read the segment report.
+    SiedaProject* api = sieda_project_new("mem");
+    CHECK(sieda_set_memory_design(api, "rdimm") == 1);
+    CHECK(sieda_set_memory_design(api, "nope") == 0);
+    char* json = sieda_memory_segments_json(api);
+    const Json report = Json::parse(json);
+    CHECK(report.get("platform").asString("") == "rdimm" && report.get("applies").asBool());
+    CHECK(report.get("platforms").size() == 5 && report.get("segments").size() == 5);
+    sieda_string_free(json);
+    CHECK(sieda_set_memory_design(api, "") == 1);
+    sieda_project_free(api);
 }

@@ -422,6 +422,14 @@ struct SiEDACommands: Commands {
                                                     set: { if $0 { store.setApplianceType(type.id) } }))
                 }
             }
+            Menu("Memory Design") {
+                Toggle("Not a memory design", isOn: Binding(get: { store.snapshot.memoryDesign.isEmpty },
+                                                            set: { if $0 { store.setMemoryDesign("") } }))
+                ForEach(store.memorySegments().platforms) { type in
+                    Toggle(type.name, isOn: Binding(get: { store.snapshot.memoryDesign == type.id },
+                                                    set: { if $0 { store.setMemoryDesign(type.id) } }))
+                }
+            }
             Menu("Industry Profile") {
                 ForEach(StandardLibrary.industries) { profile in
                     Toggle(profile.name, isOn: Binding(

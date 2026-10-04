@@ -425,6 +425,7 @@ private struct ProjectProperties: View {
             MedicalSystemProperties()
             RetailSystemProperties()
             ApplianceSystemProperties()
+            MemorySystemProperties()
             PropertyGroup(title: "Board") {
                 PropertyRow(label: "Size", value: String(format: "%.1f × %.1f mm", store.snapshot.board.width, store.snapshot.board.height))
                 PropertyRow(label: "Layers", value: "\(store.snapshot.board.layerCount)")
@@ -550,6 +551,19 @@ private struct ApplianceSystemProperties: View {
                             selection: Binding(get: { store.snapshot.applianceType }, set: { store.setApplianceType($0) }),
                             hint: "Pick an appliance type (or the Home Appliances industry) to check mains entry, actuation, "
                                 + "sensing and IoT segments.")
+    }
+}
+
+/// Memory design type and the five memory segments (power & decoupling, clock / command / address, data
+/// integrity, configuration, layout).
+private struct MemorySystemProperties: View {
+    @EnvironmentObject private var store: DesignStore
+
+    var body: some View {
+        SystemSegmentsGroup(title: "Memory (RAM) Segments", report: store.memorySegments(), noneLabel: "Not a memory design",
+                            selection: Binding(get: { store.snapshot.memoryDesign }, set: { store.setMemoryDesign($0) }),
+                            hint: "Pick a memory design type (or the Memory & DRAM industry) to check power, clock / address, "
+                                + "data, configuration and layout segments.")
     }
 }
 

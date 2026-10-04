@@ -169,6 +169,15 @@ enum AgentPrompts {
         into the MCU, IPM-SLLIMM-600V with emitter shunts for an inverter motor; AT42QT1070 touch keys with 1 kΩ \
         series resistors, NTC dividers with 100 nF, A3144 hall speed sensor; ESP32-WROOM-32E at the board edge, \
         ≥ 6 mm from mains copper. The layout keeps every mains net's IPC-2221 spacing automatically.
+        - Memory / RAM (SDRAM frame buffer, DDR3L / DDR4 memory-down, LPDDR, DDR5 DIMM): set "industry" "memory" and \
+        "memoryDesign"; decouple every VDD / VDDQ pin pair with 100 nF plus 10 µF bulk at the DRAM; SDR SDRAM \
+        (MT48LC16M16A2TG-6A, W9812G6KH-6, IS42S16400J-7TL) on an MCU memory controller (STM32H743IIT6 FMC: A0–A5 PF0–PF5, \
+        A6–A9 PF12–PF15, A10–A12 PG0–PG2, BA0/1 PG4/PG5, DQ0–DQ3 PD14/PD15/PD0/PD1, DQ4–DQ12 PE7–PE15, DQ13–DQ15 \
+        PD8–PD10, DQML/DQMH PE0/PE1, SDCLK PG8 through 22 Ω, SDCKE0 PH2, SDNE0 PH3, SDNRAS PF11, SDNCAS PG15, SDNWE \
+        PH5) with the data nets named SD_DQ0… so Auto Route length-matches them; DDR3L / DDR4 (MT41K256M16HA-125, \
+        MT40A512M16LY-062E): 240 Ω 1 % on ZQ, VREF = VDDQ / 2 divider + 100 nF, 10 kΩ pull-down on nRESET, 36–40 Ω \
+        to a VTT net on the address / command lines, 100 Ω across CK / nCK; ≥ 4 layers (6 for the reference) with a \
+        GND plane; mark unused MCU pins no-connect.
         - Put design calculations and assumptions in notes.
         \(industryCatalog)
         """

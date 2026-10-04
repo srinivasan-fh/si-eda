@@ -190,6 +190,10 @@ char* sieda_retail_segments_json(const SiedaProject* project);
 int32_t sieda_set_appliance_type(SiedaProject* project, const char* type);
 /// The four appliance segments, same JSON shape as sieda_robot_segments_json. Caller frees.
 char* sieda_appliance_segments_json(const SiedaProject* project);
+/// Memory design type ("sdram", "ddr", "lpddr", "dimm", "rdimm"; "" = none). 0 for an unknown id.
+int32_t sieda_set_memory_design(SiedaProject* project, const char* type);
+/// The five memory segments, same JSON shape as sieda_robot_segments_json. Caller frees.
+char* sieda_memory_segments_json(const SiedaProject* project);
 /// Naval platform ("combatant", "carrier", "submarine", "patrol", "commercial"; "" = none). 0 for an unknown id.
 int32_t sieda_set_naval_platform(SiedaProject* project, const char* platform);
 /// The five naval segments, same JSON shape as sieda_robot_segments_json. Caller frees.

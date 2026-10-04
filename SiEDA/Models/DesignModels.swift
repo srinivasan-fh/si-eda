@@ -32,6 +32,8 @@ struct DesignSnapshot: Decodable, Equatable {
     var retailDevice = ""
     /// Home appliance type ("laundry", "kitchen", "refrigeration", "hvac", "small"); empty when not set.
     var applianceType = ""
+    /// Memory design type ("sdram", "ddr", "lpddr", "dimm", "rdimm"); empty when not set.
+    var memoryDesign = ""
     var zones: [CopperZoneInfo] = []
     /// Active tamper meshes laid over secure elements by the autorouter.
     var tamperMeshes: [TamperMeshInfo] = []
@@ -81,6 +83,7 @@ struct DesignSnapshot: Decodable, Equatable {
         medicalClass = try c.decodeIfPresent(String.self, forKey: .medicalClass) ?? ""
         retailDevice = try c.decodeIfPresent(String.self, forKey: .retailDevice) ?? ""
         applianceType = try c.decodeIfPresent(String.self, forKey: .applianceType) ?? ""
+        memoryDesign = try c.decodeIfPresent(String.self, forKey: .memoryDesign) ?? ""
         tamperMeshes = try c.decodeIfPresent([TamperMeshInfo].self, forKey: .tamperMeshes) ?? []
         zones = try c.decodeIfPresent([CopperZoneInfo].self, forKey: .zones) ?? []
         zoneFills = try c.decodeIfPresent([ZoneFillInfo].self, forKey: .zoneFills) ?? []
@@ -89,7 +92,7 @@ struct DesignSnapshot: Decodable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
         case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
-        case tamperMeshes, applianceType
+        case tamperMeshes, applianceType, memoryDesign
     }
 
     func component(_ id: Int) -> SnapComponent? { components.first { $0.id == id } }
