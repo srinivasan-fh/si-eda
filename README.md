@@ -169,7 +169,7 @@ New footprint types: BGA (JEDEC ball names), TO-263 / D²PAK and SOT-223 with th
 - Capacitors: chip sizes, ceramic disc, tantalum A/B, radial electrolytic.
 - Diodes: SOD-123, SMA, DO-41.
 
-**Not in the library yet.** These parts are in neither the KiCad library nor a datasheet I could verify here: TMS320F28379D, DRV8301, DRV8353, TPS65381, LM5116, TJA1101, MA702, BMX160, ADS1256, ATSAMD51P20A, INMP441, JQ6500, WT2003HP8 and SYN6288. Add them from their datasheet's pin table with **Library → Import from datasheet**. The nearest stocked alternatives are BMI160, ICS-43434 and ATSAMD51J20A.
+**Not in the library yet.** These parts are in neither the KiCad library nor a datasheet I could verify here: TMS320F28379D, DRV8301, DRV8353, TPS65381, LM5116, TJA1101, MA702, BMX160, ADS1256, ATSAMD51P20A, INMP441, JQ6500, WT2003HP8 and SYN6288. Each has a file in [`docs/missing-parts/`](docs/missing-parts/README.md) with its package, datasheet link and a pin table to fill in; until then, add them from their datasheet's pin table with **Library → Import from datasheet**. The nearest stocked alternatives are BMI160, ICS-43434 and ATSAMD51J20A.
 
 ## Speed on large designs
 
