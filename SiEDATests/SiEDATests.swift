@@ -3256,3 +3256,387 @@ final class PartsCatalogTests: XCTestCase {
         XCTAssertTrue(EDAEngine().setPackage(-1, "R_0603") == false)
     }
 }
+
+/// Footprint Editor: the editable document (pads, numbering, grid, undo), the land encoding shared with the core,
+/// the core's checks as the editor shows them, conversions from every package family, the store flow that edits a
+/// placed part's footprint, and the editor and library views in a live window.
+@MainActor
+final class FootprintEditorTests: XCTestCase {
+    private typealias Land = CustomPartSpec.Land
+
+    private func spec(_ name: String) throws -> CustomPartSpec {
+        try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == name }, name).spec
+    }
+
+    /// A two-pin part on a hand-made land pattern.
+    private func twoPin(_ lands: [Land]) -> CustomPartSpec {
+        var s = CustomPartSpec()
+        s.name = "FP-TEST"
+        s.refPrefix = "U"
+        s.pins = [CustomPartSpec.Pin(number: "1", name: "A"), CustomPartSpec.Pin(number: "2", name: "B")]
+        s.package.type = "CUSTOM"
+        s.package.lands = lands
+        return s
+    }
+
+    private func codes(_ issues: [LandIssue]) -> [String] { issues.map(\.code).sorted() }
+
+    // MARK: - Document
+
+    func testSnapRoundsToTheGrid() {
+        XCTAssertEqual(FootprintDraft.snap(1.26, 0.05), 1.25, accuracy: 1e-12)
+        XCTAssertEqual(FootprintDraft.snap(1.276, 0.05), 1.3, accuracy: 1e-12)
+        XCTAssertEqual(FootprintDraft.snap(-0.63, 0.635), -0.635, accuracy: 1e-12)
+        XCTAssertEqual(FootprintDraft.snap(3.3, 2.54), 2.54, accuracy: 1e-12)
+        XCTAssertEqual(FootprintDraft.snap(0.123, 0), 0.123, accuracy: 1e-12)  // no grid
+    }
+
+    func testDraftReadsTheLandPatternAndBody() {
+        var lga = twoPin([Land(x: -1, y: 0, w: 0.5, h: 0.4), Land(x: 1, y: 0, w: 0.5, h: 0.4)])
+        lga.package.type = "LGA"
+        lga.package.bodySize = 3
+        lga.package.bodyDepth = 2
+        let draft = FootprintDraft(spec: lga)
+        XCTAssertEqual(draft.pads.count, 2)
+        XCTAssertEqual(draft.packageType, "LGA")  // a catalog land pattern stays LGA
+        XCTAssertEqual(draft.bodyW, 3)
+        XCTAssertEqual(draft.bodyD, 2)
+        // Without a declared body: the pads' extent; a square body when only the width is known.
+        let bare = FootprintDraft(spec: twoPin([Land(x: -1, y: 0.5, w: 0.5, h: 0.4), Land(x: 1, y: -0.5, w: 0.5, h: 0.4)]))
+        XCTAssertEqual(bare.packageType, "CUSTOM")
+        XCTAssertEqual(bare.bodyW, 2.5, accuracy: 1e-12)
+        XCTAssertEqual(bare.bodyD, 1.4, accuracy: 1e-12)
+        var square = twoPin([Land(x: 0, y: 0, w: 1, h: 1)])
+        square.package.bodySize = 4
+        XCTAssertEqual(FootprintDraft(spec: square).bodyD, 4)
+    }
+
+    func testAddDuplicateDeleteAndRenumber() {
+        var d = FootprintDraft(spec: twoPin([Land(x: -1, y: 0, w: 0.6, h: 1, drill: 0.3, round: true),
+                                             Land(x: 1, y: 0, w: 0.6, h: 1)]))
+        // A new pad copies the last pad's shape, lands on the grid and takes the next number with no pin override.
+        d.pads[1].land.pin = "1"
+        let added = d.addPad(at: CGPoint(x: 0.02, y: 2.04), grid: 0.1)
+        XCTAssertEqual(d.number(of: added), 3)
+        XCTAssertEqual(d.pads[2].land.x, 0, accuracy: 1e-12)
+        XCTAssertEqual(d.pads[2].land.y, 2.0, accuracy: 1e-12)
+        XCTAssertEqual(d.pads[2].land.w, 0.6)
+        XCTAssertEqual(d.pads[2].land.pin, "")
+        // An empty document starts from a 1 × 0.6 mm SMD pad.
+        var empty = FootprintDraft(spec: twoPin([]))
+        empty.addPad(at: .zero, grid: 0.05)
+        XCTAssertEqual(empty.pads.first?.land, Land(x: 0, y: 0, w: 1.0, h: 0.6))
+
+        // Duplicates append after the last pad; an explicit pin resets, a mechanical pad stays mechanical.
+        d.pads[0].land.pin = "-"
+        let copies = d.duplicate([d.pads[0].id, d.pads[1].id], dx: 0, dy: 5)
+        XCTAssertEqual(copies.count, 2)
+        XCTAssertEqual(d.pads.count, 5)
+        XCTAssertEqual(d.pads[3].land.pin, "-")
+        XCTAssertEqual(d.pads[4].land.pin, "")
+        XCTAssertEqual(d.pads[3].land.y, 5)
+        XCTAssertEqual(d.pads[3].land.drill, 0.3)
+        XCTAssertTrue(d.pads[3].land.round)
+        XCTAssertTrue(d.duplicate([], dx: 1, dy: 1).isEmpty)
+
+        // Deleting renumbers the pads after it down by one.
+        let fifth = d.pads[4].id
+        d.delete([d.pads[1].id])
+        XCTAssertEqual(d.pads.count, 4)
+        XCTAssertEqual(d.number(of: fifth), 4)
+        XCTAssertNil(d.number(of: UUID()))
+
+        // Renumbering moves a pad in the order; out-of-range numbers clamp; the same number is a no-op.
+        let first = d.pads[0].id
+        d.setNumber(of: first, to: 3)
+        XCTAssertEqual(d.number(of: first), 3)
+        d.setNumber(of: first, to: 99)
+        XCTAssertEqual(d.number(of: first), 4)
+        d.setNumber(of: first, to: -5)
+        XCTAssertEqual(d.number(of: first), 1)
+        let before = d
+        d.setNumber(of: first, to: 1)
+        XCTAssertEqual(d, before)
+    }
+
+    func testMoveSnapsEachPadAndLeavesOthers() {
+        var d = FootprintDraft(spec: twoPin([Land(x: 0.013, y: 0, w: 1, h: 1), Land(x: 3, y: 3, w: 1, h: 1)]))
+        d.move([d.pads[0].id], dx: 1.0, dy: -0.52, grid: 0.25)
+        XCTAssertEqual(d.pads[0].land.x, 1.0, accuracy: 1e-12)
+        XCTAssertEqual(d.pads[0].land.y, -0.5, accuracy: 1e-12)
+        XCTAssertEqual(d.pads[1].land.x, 3)
+        XCTAssertEqual(d.pads[1].land.y, 3)
+    }
+
+    func testArraysMirrorCentreAndHitTesting() {
+        var d = FootprintDraft(spec: twoPin([Land(x: -2, y: -1.905, w: 1.5, h: 0.6), Land(x: 2, y: 0, w: 1, h: 1)]))
+        // A column of 3 at the SOIC pitch, then a row of 2 at 2.54 mm.
+        let column = d.array(from: d.pads[0].id, count: 3, pitch: 1.27, horizontal: false)
+        XCTAssertEqual(column.count, 3)
+        XCTAssertEqual(d.pads.count, 5)
+        XCTAssertEqual(d.pads[2].land.y, -0.635, accuracy: 1e-9)
+        XCTAssertEqual(d.pads[4].land.y, 1.905, accuracy: 1e-9)
+        XCTAssertTrue(d.pads[2...4].allSatisfy { $0.land.x == -2 && $0.land.pin.isEmpty })
+        let row = d.array(from: d.pads[1].id, count: 2, pitch: 2.54, horizontal: true)
+        XCTAssertEqual(d.pads[5].land.x, 4.54, accuracy: 1e-9)
+        XCTAssertEqual(d.pads[6].land.x, 7.08, accuracy: 1e-9)
+        XCTAssertTrue(d.array(from: UUID(), count: 3, pitch: 1, horizontal: true).isEmpty)
+        XCTAssertTrue(d.array(from: d.pads[0].id, count: 0, pitch: 1, horizontal: true).isEmpty)
+
+        // Mirror flips x about the origin for the selected pads only.
+        d.mirrorX(row)
+        XCTAssertEqual(d.pads[5].land.x, -4.54, accuracy: 1e-9)
+        XCTAssertEqual(d.pads[6].land.x, -7.08, accuracy: 1e-9)
+        XCTAssertEqual(d.pads[0].land.x, -2)
+
+        // Centre puts the middle of the pads' extent on the origin.
+        d.centre()
+        let minX = d.pads.map { $0.land.x - $0.land.w / 2 }.min()!, maxX = d.pads.map { $0.land.x + $0.land.w / 2 }.max()!
+        let minY = d.pads.map { $0.land.y - $0.land.h / 2 }.min()!, maxY = d.pads.map { $0.land.y + $0.land.h / 2 }.max()!
+        XCTAssertEqual(minX + maxX, 0, accuracy: 1e-9)
+        XCTAssertEqual(minY + maxY, 0, accuracy: 1e-9)
+
+        // Hit testing returns the topmost pad under the point.
+        let top = d.pads[1]
+        XCTAssertEqual(d.pad(at: CGPoint(x: top.land.x + 0.4, y: top.land.y)), top.id)
+        XCTAssertNil(d.pad(at: CGPoint(x: 100, y: 100)))
+        d.addPad(at: CGPoint(x: top.land.x, y: top.land.y), grid: 0)
+        XCTAssertEqual(d.pad(at: CGPoint(x: top.land.x, y: top.land.y)), d.pads.last?.id)
+    }
+
+    func testPinMappingAndCourtyard() {
+        var d = FootprintDraft(spec: twoPin([Land(x: -1, y: 0, w: 1, h: 1), Land(x: 1, y: 0, w: 1, h: 1)]))
+        XCTAssertEqual(d.pinNumber(of: 0), "1")
+        d.pads[0].land.pin = "2"
+        XCTAssertEqual(d.pinNumber(of: 0), "2")
+        d.pads[0].land.pin = "-"
+        XCTAssertNil(d.pinNumber(of: 0))
+        // The courtyard holds pads and body with 0.25 mm all round.
+        d.bodyW = 1
+        d.bodyD = 3
+        XCTAssertEqual(d.courtyard.minX, -1.75, accuracy: 1e-12)
+        XCTAssertEqual(d.courtyard.maxX, 1.75, accuracy: 1e-12)
+        XCTAssertEqual(d.courtyard.minY, -1.75, accuracy: 1e-12)
+        XCTAssertEqual(d.courtyard.height, 3.5, accuracy: 1e-12)
+    }
+
+    func testApplyWritesTheLandPatternAndKeepsThePins() throws {
+        var d = FootprintDraft(spec: try EDAEngine.landPattern(try spec("LM358DR")).get())
+        d.bodyW = 3.9
+        d.bodyD = 4.9
+        var out = try spec("LM358DR")
+        d.apply(to: &out)
+        XCTAssertEqual(out.package.type, "CUSTOM")
+        XCTAssertEqual(out.package.lands?.count, 8)
+        XCTAssertEqual(out.package.pinCount, 8)
+        XCTAssertNil(out.package.pitch)
+        XCTAssertEqual(out.package.bodySize, 3.9)
+        XCTAssertEqual(out.package.bodyDepth, 4.9)
+        XCTAssertEqual(out.pins, try spec("LM358DR").pins)
+        XCTAssertTrue(out.package.usesLandPattern)
+        // A degenerate body is left to the core (pads' extent).
+        d.bodyW = 0.2
+        XCTAssertNil(d.applied(to: out).package.bodySize)
+    }
+
+    // MARK: - Undo history
+
+    func testHistoryUndoRedoAndLimit() {
+        var history = FootprintHistory()
+        var d = FootprintDraft(spec: twoPin([Land(x: 0, y: 0, w: 1, h: 1)]))
+        XCTAssertFalse(history.canUndo)
+        XCTAssertFalse(history.undo(&d))
+        XCTAssertFalse(history.redo(&d))
+        let original = d
+        history.record(d)
+        d.move([d.pads[0].id], dx: 1, dy: 0, grid: 0)
+        let moved = d
+        XCTAssertTrue(history.undo(&d))
+        XCTAssertEqual(d, original)
+        XCTAssertTrue(history.canRedo)
+        XCTAssertTrue(history.redo(&d))
+        XCTAssertEqual(d, moved)
+        // A new edit clears the redo stack.
+        XCTAssertTrue(history.undo(&d))
+        history.record(d)
+        d.bodyW = 9
+        XCTAssertFalse(history.canRedo)
+        // The history keeps the last 200 snapshots.
+        for _ in 0..<250 { history.record(d) }
+        XCTAssertEqual(history.undoStack.count, FootprintHistory.limit)
+    }
+
+    // MARK: - Land encoding (shared with the core)
+
+    func testLandEncodesLikeTheCore() throws {
+        let encoder = JSONEncoder()
+        func json(_ land: Land) throws -> String { String(decoding: try encoder.encode(land), as: UTF8.self) }
+        XCTAssertEqual(try json(Land(x: 1, y: -2, w: 0.5, h: 0.25)), "[1,-2,0.5,0.25]")
+        XCTAssertEqual(try json(Land(x: 0, y: 0, w: 1.6, h: 1.6, drill: 0.8, round: true)), "[0,0,1.6,1.6,0.8,1]")
+        XCTAssertEqual(try json(Land(x: 0, y: 0, w: 2, h: 2, pin: "EP")), "[0,0,2,2,0,0,\"EP\"]")
+        let decoder = JSONDecoder()
+        let lands = try decoder.decode([Land].self, from: Data("[[1,2,3,4],[0,0,1,1,0.5,1],[0,0,1,1,0,0,\"-\"]]".utf8))
+        XCTAssertEqual(lands[0], Land(x: 1, y: 2, w: 3, h: 4))
+        XCTAssertEqual(lands[1], Land(x: 0, y: 0, w: 1, h: 1, drill: 0.5, round: true))
+        XCTAssertEqual(lands[2].pin, "-")
+        XCTAssertThrowsError(try decoder.decode(Land.self, from: Data("[1,2,3]".utf8)))
+        // The core reads what the app writes: a part with every land form previews.
+        var s = twoPin([Land(x: -2, y: 0, w: 1, h: 1), Land(x: 2, y: 0, w: 1.6, h: 1.6, drill: 0.8, round: true),
+                        Land(x: 0, y: 3, w: 3, h: 3, drill: 2.2, round: true, pin: "-")])
+        s.name = "FP-ENCODE"
+        let info = try EDAEngine.previewCustomPart(s).get()
+        XCTAssertEqual(info.footprintGeometry.pads.count, 3)
+        XCTAssertTrue(info.footprintGeometry.pads[1].throughHole)
+        XCTAssertTrue(info.footprintGeometry.pads[1].round)
+        XCTAssertEqual(info.footprintGeometry.pads[2].pin, -1)
+        XCTAssertEqual(info.package.lands, s.package.lands)
+    }
+
+    // MARK: - Checks
+
+    func testChecksReportEachProblemOnItsPads() {
+        let clean = twoPin([Land(x: -1, y: 0, w: 1, h: 1), Land(x: 1, y: 0, w: 1, h: 1)])
+        XCTAssertTrue(EDAEngine.checkLandPattern(clean).isEmpty)
+
+        let overlap = EDAEngine.checkLandPattern(twoPin([Land(x: 0, y: 0, w: 1, h: 1), Land(x: 0.5, y: 0, w: 1, h: 1)]))
+        XCTAssertEqual(overlap.first?.code, "LAND_OVERLAP")
+        XCTAssertEqual(overlap.first?.pads, [1, 2])
+        XCTAssertTrue(overlap.first?.isError ?? false)
+
+        let gap = EDAEngine.checkLandPattern(twoPin([Land(x: 0, y: 0, w: 1, h: 1), Land(x: 1.15, y: 0, w: 1, h: 1)]),
+                                             minGap: 0.2)
+        XCTAssertEqual(codes(gap), ["LAND_GAP"])
+        XCTAssertFalse(gap[0].isError)
+        XCTAssertTrue(EDAEngine.checkLandPattern(twoPin([Land(x: 0, y: 0, w: 1, h: 1), Land(x: 1.15, y: 0, w: 1, h: 1)]),
+                                                 minGap: 0.1).isEmpty)
+
+        let ring = EDAEngine.checkLandPattern(twoPin([Land(x: -2, y: 0, w: 1, h: 1, drill: 0.9, round: true),
+                                                      Land(x: 2, y: 0, w: 1, h: 1)]))
+        XCTAssertEqual(codes(ring), ["LAND_ANNULAR"])
+        XCTAssertEqual(ring[0].pads, [1])
+
+        let extra = EDAEngine.checkLandPattern(twoPin([Land(x: -2, y: 0, w: 1, h: 1), Land(x: 2, y: 0, w: 1, h: 1),
+                                                       Land(x: 0, y: 3, w: 1, h: 1)]))
+        XCTAssertEqual(codes(extra), ["LAND_NO_PIN"])
+        XCTAssertEqual(extra[0].pads, [3])
+
+        let missing = EDAEngine.checkLandPattern(twoPin([Land(x: 0, y: 0, w: 1, h: 1)]))
+        XCTAssertEqual(codes(missing), ["LAND_NO_PAD"])
+        XCTAssertTrue(missing[0].isError)
+        XCTAssertTrue(missing[0].message.contains("B"))
+
+        // A drill larger than its pad cannot even be read: one LAND_INVALID error.
+        let invalid = EDAEngine.checkLandPattern(twoPin([Land(x: 0, y: 0, w: 1, h: 1, drill: 1.5, round: true),
+                                                         Land(x: 3, y: 0, w: 1, h: 1)]))
+        XCTAssertEqual(codes(invalid), ["LAND_INVALID"])
+        XCTAssertTrue(invalid[0].isError)
+    }
+
+    // MARK: - Conversions
+
+    func testEveryPackageFamilyConvertsToTheSamePadsOnTheSamePins() throws {
+        for name in ["NE555", "LM358DR", "LM7805", "AMS1117-3.3", "LM2596S-5.0", "STM32F405RGT6", "TMC2209-LA",
+                     "DRV8833PWPR", "BSS138", "ESP32-WROOM-32E", "XC7A35T-1CSG324I", "Crystal_16MHz_3225"] {
+            let original = try spec(name)
+            let editable = try EDAEngine.landPattern(original).get()
+            XCTAssertTrue(editable.package.usesLandPattern, name)
+            XCTAssertEqual(editable.pins, original.pins, name)
+            let before = try EDAEngine.previewCustomPart(original).get().footprintGeometry
+            let after = try EDAEngine.previewCustomPart(editable).get().footprintGeometry
+            XCTAssertEqual(after.pads.count, before.pads.count, name)
+            for (a, b) in zip(before.pads, after.pads) {
+                XCTAssertEqual(a.x, b.x, accuracy: 1e-9, name)
+                XCTAssertEqual(a.y, b.y, accuracy: 1e-9, name)
+                XCTAssertEqual(a.w, b.w, accuracy: 1e-9, name)
+                XCTAssertEqual(a.pin, b.pin, name)
+                XCTAssertEqual(a.throughHole, b.throughHole, name)
+            }
+            XCTAssertFalse(EDAEngine.checkLandPattern(editable).contains { $0.isError }, name)
+            // The editor round trip without edits gives the same part back.
+            let roundTrip = FootprintDraft(spec: editable).applied(to: editable)
+            XCTAssertEqual(roundTrip.package.lands, editable.package.lands, name)
+        }
+        // Land-pattern parts open as they are.
+        let lga = try spec("BMI088")
+        XCTAssertEqual(try EDAEngine.landPattern(lga).get().package.lands, lga.package.lands)
+        // A part without pins cannot be converted.
+        if case .success = EDAEngine.landPattern(CustomPartSpec()) { XCTFail("an empty part converted") }
+    }
+
+    // MARK: - Store and views
+
+    func testEditingAPlacedPartsFootprintUpdatesTheBoardAndUndoes() throws {
+        let store = DesignStore()
+        store.aiEnabled = false
+        let part = try XCTUnwrap(store.addStandardPartToLibrary(try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "LM358DR" })))
+        let u1 = store.addCustomComponent(partId: part, at: .zero)
+        store.autoPlace(all: true)
+        XCTAssertEqual(store.snapshot.pads.filter { $0.component == u1 }.count, 8)
+
+        // Edit: convert, add two mechanical holes, save over the old part (what Apply + Save does in the library).
+        let info = try XCTUnwrap(store.snapshot.customParts.first { $0.id == part })
+        var draft = FootprintDraft(spec: try EDAEngine.landPattern(info.spec).get())
+        for x in [-6.0, 6.0] {
+            let hole = draft.addPad(at: CGPoint(x: x, y: 0), grid: 0.05)
+            let i = draft.number(of: hole)! - 1
+            draft.pads[i].land = Land(x: x, y: 0, w: 2.5, h: 2.5, drill: 1.6, round: true, pin: "-")
+        }
+        let edited = draft.applied(to: info.spec)
+        XCTAssertTrue(EDAEngine.checkLandPattern(edited).isEmpty)
+        let saved = try XCTUnwrap(store.saveCustomPart(edited, replacing: part))
+        XCTAssertNotEqual(saved.id, part)
+        XCTAssertNil(store.snapshot.customParts.first { $0.id == part })  // the old version is gone
+        let placed = store.snapshot.pads.filter { $0.component == u1 }
+        XCTAssertEqual(placed.count, 10)
+        XCTAssertEqual(placed.filter(\.throughHole).count, 2)
+
+        // Undo restores the generated SOIC on the board.
+        store.undo()
+        XCTAssertEqual(store.snapshot.pads.filter { $0.component == u1 }.count, 8)
+        store.redo()
+        XCTAssertEqual(store.snapshot.pads.filter { $0.component == u1 }.count, 10)
+
+        // An invalid footprint (pin 8 without a pad) is refused and leaves the part as it was.
+        var broken = draft
+        broken.delete([broken.pads[7].id])
+        XCTAssertNil(store.saveCustomPart(broken.applied(to: info.spec), replacing: saved.id))
+        XCTAssertEqual(store.snapshot.pads.filter { $0.component == u1 }.count, 10)
+        store.alert = nil
+    }
+
+    func testEditorAndLibraryRenderInALiveWindow() throws {
+        let editable = try EDAEngine.landPattern(try spec("STM32F405RGT6")).get()
+        var applied: CustomPartSpec?
+        let editor = FootprintEditorView(spec: editable) { applied = $0 }
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 760),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: editor)
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+        XCTAssertGreaterThan(window.contentView?.fittingSize.width ?? 0, 0)
+        XCTAssertNil(applied)  // nothing is written until Apply
+
+        // The editor also renders offscreen at a fixed size (the canvas, side panel and footer lay out).
+        let renderer = ImageRenderer(content: FootprintEditorView(spec: editable) { _ in }.frame(width: 1000, height: 700))
+        renderer.scale = 1
+        let image = try XCTUnwrap(renderer.cgImage)
+        XCTAssertEqual(image.width, 1000)
+
+        // The library hosts the editor button for a part with pins.
+        let store = DesignStore()
+        store.aiEnabled = false
+        _ = store.addStandardPartToLibrary(try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "NE555" }))
+        let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.FootprintEditorTests")))
+        let library = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1300, height: 820),
+                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        library.isReleasedWhenClosed = false
+        library.contentViewController = NSHostingController(rootView: ComponentLibraryView()
+            .environmentObject(store).environmentObject(settings).environmentObject(AgentOrchestrator()))
+        library.makeKeyAndOrderFront(nil)
+        defer { library.close() }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+        XCTAssertNotNil(library.contentView)
+    }
+}

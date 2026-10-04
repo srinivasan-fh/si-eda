@@ -3589,6 +3589,83 @@ TEST(high_layer_count_and_computing_segments) {
     CHECK(findLaminate("tachyon-100g")->er < findLaminate("megtron-6")->er);
 }
 
+TEST(footprint_editor_checks_geometry_and_c_api) {
+    // A two-pin part whose land pattern each case rewrites.
+    CustomPartSpec two;
+    two.name = "FP-EDGE";
+    two.package.type = "CUSTOM";
+    two.pins = {{"1", "A", PinType::Passive, ""}, {"2", "B", PinType::Passive, ""}};
+    auto with = [&](std::vector<PackageSpec::Land> lands) {
+        CustomPartSpec s = two;
+        s.package.lands = std::move(lands);
+        return s;
+    };
+    auto codes = [](const std::vector<LandIssue>& v) {
+        std::multiset<std::string> out;
+        for (const auto& i : v) out.insert(i.code);
+        return out;
+    };
+    using L = PackageSpec::Land;
+    // Circles: the gap is centre distance minus the radii (not the bounding boxes).
+    CHECK(checkLandPattern(with({L(0, 0, 1, 1, 0, true), L(1.2, 0, 1, 1, 0, true)})).empty());
+    CHECK(codes(checkLandPattern(with({L(0, 0, 1, 1, 0, true), L(1.05, 0, 1, 1, 0, true)}))).count("LAND_GAP") == 1);
+    CHECK(codes(checkLandPattern(with({L(0, 0, 1, 1, 0, true), L(0.9, 0, 1, 1, 0, true)}))).count("LAND_OVERLAP") == 1);
+    // Diagonal neighbours: corner-to-corner distance, 0.05 mm on each axis → 0.0707 mm.
+    auto diag = checkLandPattern(with({L(0, 0, 1, 1), L(1.05, 1.05, 1, 1)}));
+    CHECK(diag.size() == 1 && diag[0].code == "LAND_GAP" && diag[0].message.find("0.071") != std::string::npos);
+    CHECK(diag[0].pads == std::vector<int>({1, 2}));
+    // Touching edges are a zero gap, not an overlap; the minimum gap is configurable.
+    CHECK(codes(checkLandPattern(with({L(0, 0, 1, 1), L(1, 0, 1, 1)}))).count("LAND_GAP") == 1);
+    CHECK(checkLandPattern(with({L(0, 0, 1, 1), L(1.15, 0, 1, 1)}), 0.1).empty());
+    CHECK(codes(checkLandPattern(with({L(0, 0, 1, 1), L(1.15, 0, 1, 1)}), 0.2)).count("LAND_GAP") == 1);
+    // Two pads of one pin may overlap (a split exposed pad); two mechanical pads may not.
+    CHECK(checkLandPattern(with({L(0, 0, 1, 1), L(3, 0, 1, 1), L(0.5, 0, 1, 1, 0, false, "1")})).empty());
+    CHECK(codes(checkLandPattern(with({L(0, 0, 1, 1), L(3, 0, 1, 1), L(6, 0, 2, 2, 1, true, "-"),
+                                        L(6.5, 0, 2, 2, 1, true, "-")}))).count("LAND_OVERLAP") == 1);
+    // Pin references are case-insensitive ("ep" is pin "EP").
+    CustomPartSpec ep = two;
+    ep.pins.push_back({"EP", "GND", PinType::PowerIn, ""});
+    ep.package.lands = {L(-2, 0, 1, 1), L(2, 0, 1, 1), L(0, 0, 2, 2, 0, false, "ep")};
+    CHECK(checkLandPattern(ep).empty());
+    auto epPart = CustomPartRegistry::instance().registerPart(ep);
+    CHECK(epPart->def.pins[static_cast<size_t>(epPart->footprint.pads[2].pinIndex)].number == "EP");
+    // The pin reference survives JSON ([x, y, w, h, drill, round, pin]); "custom" normalises to CUSTOM.
+    Json j = customPartSpecToJson(ep);
+    CHECK(j.get("package").get("lands")[2].size() == 7);
+    j["package"]["type"] = "custom";
+    CustomPartSpec back = customPartSpecFromJson(j);
+    CHECK(back.package.type == "CUSTOM" && back.package.lands[2].pin == "ep");
+    CHECK(CustomPartRegistry::instance().registerPart(back)->footprint.pads.size() == 3);
+    // A BGA converts with its ball names as pad pins: every ball keeps its pin.
+    const CustomPartSpec bga = landPatternFromFootprint(findStandardPart("XC7A35T-1CSG324I")->spec);
+    CHECK(bga.package.lands.size() == 324 && bga.package.lands[0].pin == "A1");
+    CHECK(checkLandPattern(bga).empty());
+
+    // C API: convert, check, and the error paths.
+    const std::string ne555 = customPartSpecToJson(findStandardPart("NE555")->spec).dump();
+    char* error = nullptr;
+    char* converted = sieda_custom_part_land_pattern(ne555.c_str(), &error);
+    CHECK(converted != nullptr && error == nullptr);
+    if (converted) {
+        Json cj = Json::parse(converted);
+        CHECK(cj.get("package").get("type").asString("") == "CUSTOM" && cj.get("package").get("lands").size() == 8);
+        char* issues = sieda_check_land_pattern(converted, 0.1);
+        CHECK(issues && std::string(issues) == "[]");
+        sieda_string_free(issues);
+        sieda_string_free(converted);
+    }
+    CHECK(sieda_custom_part_land_pattern("{not json", &error) == nullptr && error != nullptr);
+    sieda_string_free(error);
+    char* invalid = sieda_check_land_pattern(R"({"name":"X","package":{"type":"CUSTOM","lands":[[0,0,1,1,2,1]]},"pins":[]})", 0.1);
+    Json ij = Json::parse(invalid);
+    CHECK(ij.size() == 1 && ij.items().front().get("code").asString("") == "LAND_INVALID");
+    sieda_string_free(invalid);
+    char* overlap = sieda_check_land_pattern(customPartSpecToJson(with({L(0, 0, 1, 1), L(0.5, 0, 1, 1)})).dump().c_str(), 0);
+    Json oj = Json::parse(overlap);
+    CHECK(oj.size() == 1 && oj.items().front().get("severity").asString("") == "error" && oj.items().front().get("pads").size() == 2);
+    sieda_string_free(overlap);
+}
+
 TEST(footprint_editor_land_patterns) {
     auto spec = [](const char* name) { return findStandardPart(name)->spec; };
     auto padOf = [](const std::shared_ptr<const CustomPart>& part, const std::string& number) -> const PadDef* {
@@ -3598,7 +3675,8 @@ TEST(footprint_editor_land_patterns) {
     };
     // Any generated footprint converts to an editable land pattern that draws the same pads on the same pins.
     for (const char* name : {"NE555", "LM7805", "STM32F405RGT6", "DRV8833PWPR", "LM2596S-5.0", "XC7A35T-1CSG324I",
-                             "BMI088", "TMC2209-LA"}) {
+                             "BMI088", "TMC2209-LA", "LM358DR", "AMS1117-3.3", "BSS138", "ESP32-WROOM-32E",
+                             "Crystal_16MHz_3225", "BSC028N06LS3G"}) {
         const CustomPartSpec original = spec(name);
         const CustomPartSpec editable = landPatternFromFootprint(original);
         CHECK(usesLandPattern(editable.package.type));
@@ -3615,6 +3693,8 @@ TEST(footprint_editor_land_patterns) {
         if (!same) std::printf("    %s: converted pads differ\n", name);
         CHECK(same);
         CHECK(std::fabs(a->footprint.body.width - b->footprint.body.width) < 1e-9);
+        // The pins are untouched (the app compares them field by field).
+        CHECK(customPartSpecToJson(editable).get("pins").dump() == customPartSpecToJson(original).get("pins").dump());
         // Survives JSON (saved in the project library) and checks clean.
         CHECK(customPartSpecToJson(customPartSpecFromJson(customPartSpecToJson(editable))).dump() ==
               customPartSpecToJson(editable).dump());
@@ -3631,6 +3711,13 @@ TEST(footprint_editor_land_patterns) {
     for (const auto& l : qfn.package.lands) epOk |= l.pin == "EP" || l.pin == "29";
     CHECK(epOk);
     CHECK(landPatternFromFootprint(spec("BMI088")).package.type == "LGA");  // already a land pattern
+    bool emptyThrew = false;  // nothing to convert: no pins, no package
+    try {
+        landPatternFromFootprint(CustomPartSpec{});
+    } catch (const JsonError&) {
+        emptyThrew = true;
+    }
+    CHECK(emptyThrew);
 
     // Edit: move pad 2 onto pad 1 → overlap; nudge it close → gap warning; a pad with no pin; a pin with no pad.
     CustomPartSpec e = landPatternFromFootprint(spec("NE555"));
