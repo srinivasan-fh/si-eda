@@ -68,6 +68,7 @@
 		C25C04B573D5668E271225D9 = {isa = PBXBuildFile; fileRef = 23615D21B117E2A85C546F98; };
 		C33B3E4901A01AAF4FDEEE96 = {isa = PBXBuildFile; fileRef = DCA642B6ED42847C57E4E461; };
 		C352E7ADF695CB6669D52EFE = {isa = PBXBuildFile; fileRef = B23FD27DAD6BD2539569BEE1; };
+		C6480DA995967BBF248D0B2F = {isa = PBXBuildFile; fileRef = A933E8C328957019A2A82CCD; };
 		C98936A9AF1F391BD51F67D5 = {isa = PBXBuildFile; fileRef = 41B79F22607C01D7C4BF744B; };
 		D0DE83284A0ADF3CE958D7F0 = {isa = PBXBuildFile; fileRef = 0B047E6B6CA14C24D4B0C2FD; };
 		D613DD45D4EDEC7B3FED103D = {isa = PBXBuildFile; fileRef = A3D89B8BF0303F825673F91D; };
@@ -180,6 +181,7 @@
 		A3D89B8BF0303F825673F91D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiEDATests.swift; sourceTree = "<group>"; };
 		A45E448C357B4A89C66CFE33 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectorView.swift; sourceTree = "<group>"; };
 		A78F3BD58AF9FE19CC35A068 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Robotics.cpp; sourceTree = "<group>"; };
+		A933E8C328957019A2A82CCD = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };
 		A9F650B4243D08116A05CB74 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Retail.hpp; sourceTree = "<group>"; };
 		AA4AB23447B95722FF60AB2A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISettings.swift; sourceTree = "<group>"; };
 		AC5F3ED740A4FD6618195715 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Zones.cpp; sourceTree = "<group>"; };
@@ -544,6 +546,7 @@
 				89D9BE7B7D9C91F898FB822D,
 				DCA642B6ED42847C57E4E461,
 				EBECAAA7807D81B9EA1B4E2D,
+				A933E8C328957019A2A82CCD,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -668,6 +671,7 @@
 				7A10A9C2A05E8392D79C71E1,
 				C33B3E4901A01AAF4FDEEE96,
 				53EA1E9ED727F5F22BF6D1BF,
+				C6480DA995967BBF248D0B2F,
 				E667F005148F0F4D717DC56D,
 				9D123CFF6797C354E55BECE2,
 				C1512C5968EF4A24C368E681,

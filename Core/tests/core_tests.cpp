@@ -3589,6 +3589,133 @@ TEST(high_layer_count_and_computing_segments) {
     CHECK(findLaminate("tachyon-100g")->er < findLaminate("megtron-6")->er);
 }
 
+TEST(symbol_editor_auto_arrange_rules_geometry_and_board) {
+    using P = PinType;
+    auto spot = [](const SymbolSpec& sym, const std::string& number) -> const SymbolPin* {
+        for (const auto& p : sym.pins)
+            if (p.number == number) return &p;
+        return nullptr;
+    };
+    auto side = [&](const SymbolSpec& sym, const std::string& number) { return spot(sym, number) ? spot(sym, number)->side : '?'; };
+    // A part exercising every Auto Arrange rule.
+    CustomPartSpec mcu;
+    mcu.name = "ARRANGE-TEST";
+    const std::vector<std::tuple<const char*, P>> pins = {
+        {"VDD", P::PowerIn}, {"AVDD", P::PowerIn}, {"VDD", P::PowerIn}, {"GND", P::PowerIn}, {"AGND", P::Passive},
+        {"PGND", P::PowerIn}, {"VSS", P::PowerIn}, {"VEE", P::PowerIn}, {"V-", P::PowerIn}, {"0V", P::Passive},
+        {"NRST", P::Input}, {"XTAL1", P::Passive}, {"SWDIO", P::Bidirectional}, {"BOOT0", P::Input},
+        {"IN_A", P::Input}, {"OUT_A", P::Output}, {"nFAULT", P::OpenCollector}, {"VOUT", P::PowerOut},
+        {"PA10", P::Bidirectional}, {"PA9", P::Bidirectional}, {"PA0", P::Bidirectional}, {"P1.3", P::Bidirectional},
+        {"P1_2", P::Bidirectional}, {"GPIO12", P::Bidirectional}, {"IO5", P::Bidirectional}, {"RB7", P::Bidirectional},
+        {"PA5/ADC1_5", P::Bidirectional}, {"NC", P::NoConnect}, {"NC", P::NoConnect}, {"CAP", P::Passive}, {"FB", P::Passive}};
+    for (size_t i = 0; i < pins.size(); ++i)
+        mcu.pins.push_back({std::to_string(i + 1), std::get<0>(pins[i]), std::get<1>(pins[i]), ""});
+    const SymbolSpec sym = autoArrangeSymbol(mcu);
+    CHECK(sym.pins.size() == mcu.pins.size());
+    // Supplies on top (repeated ones stacked), grounds and negative supplies at the bottom.
+    CHECK(side(sym, "1") == 'T' && side(sym, "2") == 'T' && side(sym, "3") == 'T');
+    CHECK(spot(sym, "1")->slot == spot(sym, "3")->slot && spot(sym, "1")->slot != spot(sym, "2")->slot);
+    for (const char* g : {"4", "5", "6", "7", "8", "9", "10"}) CHECK(side(sym, g) == 'B');
+    // Control pins first on the left, then inputs; outputs (open-drain, regulator outputs too) on the right.
+    for (const char* c : {"11", "12", "13", "14"}) CHECK(side(sym, c) == 'L' && spot(sym, c)->slot < 4);
+    CHECK(side(sym, "15") == 'L' && spot(sym, "15")->slot > spot(sym, "14")->slot + 1);  // a gap before inputs
+    CHECK(side(sym, "16") == 'R' && side(sym, "17") == 'R' && side(sym, "18") == 'R');
+    // Ports: PA in bit order (PA0, PA5, PA9, PA10 — not lexical), each port one group on one side.
+    CHECK(side(sym, "21") == side(sym, "27") && side(sym, "27") == side(sym, "20") && side(sym, "20") == side(sym, "19"));
+    CHECK(spot(sym, "21")->slot < spot(sym, "27")->slot && spot(sym, "27")->slot < spot(sym, "20")->slot &&
+          spot(sym, "20")->slot < spot(sym, "19")->slot);
+    CHECK(side(sym, "22") == side(sym, "23") && spot(sym, "23")->slot + 1 == spot(sym, "22")->slot);  // P1_2, P1.3
+    for (const char* port : {"24", "25", "26"}) CHECK(side(sym, port) == 'L' || side(sym, port) == 'R');
+    // No-connect pins last on the right; plain passives on the sides.
+    int lastRight = -1;
+    for (const auto& p : sym.pins)
+        if (p.side == 'R') lastRight = std::max(lastRight, p.slot);
+    CHECK(side(sym, "28") == 'R' && side(sym, "29") == 'R' && spot(sym, "29")->slot == lastRight);
+    CHECK((side(sym, "30") == 'L' || side(sym, "30") == 'R') && (side(sym, "31") == 'L' || side(sym, "31") == 'R'));
+    // Without stacking every pin has its own spot; the result always passes the checks.
+    const SymbolSpec flat = autoArrangeSymbol(mcu, false);
+    CHECK(spot(flat, "1")->slot != spot(flat, "3")->slot);
+    CustomPartSpec checked = mcu;
+    checked.symbol = sym;
+    for (const auto& issue : checkSymbol(checked)) CHECK(issue.severity == "info");
+    checked.symbol = flat;
+    CHECK(checkSymbol(checked).empty());
+    // A long port is cut into groups of 8 balanced over both sides.
+    CustomPartSpec wide;
+    wide.name = "PORT-TEST";
+    for (int b = 0; b < 24; ++b) wide.pins.push_back({std::to_string(b + 1), "PB" + std::to_string(b), P::Bidirectional, ""});
+    const SymbolSpec banks = autoArrangeSymbol(wide);
+    int left = 0, right = 0;
+    for (const auto& p : banks.pins) (p.side == 'L' ? left : right) += 1;
+    CHECK(left == 16 && right == 8);
+    CHECK(side(banks, "1") != side(banks, "9"));  // PB0–7 and PB8–15 on different sides
+
+    // Geometry: the generated box equals its explicit layout; long top names make room above the side pins; a
+    // requested width below the automatic one is ignored; the body is never narrower than 30.
+    CustomPartSpec chip;
+    chip.name = "GEO-TEST";
+    chip.pins = {{"1", "A", P::Input}, {"2", "B", P::Input}, {"3", "C", P::Output}, {"4", "D", P::Output}};
+    auto generated = CustomPartRegistry::instance().registerPart(chip);
+    CustomPartSpec explicitBox = chip;
+    explicitBox.symbol.pins = {{"1", 'L', 0}, {"2", 'L', 1}, {"3", 'R', 1}, {"4", 'R', 0}};
+    auto same = CustomPartRegistry::instance().registerPart(explicitBox);
+    CHECK(same->symbolHalfWidth == generated->symbolHalfWidth && same->symbolHalfHeight == generated->symbolHalfHeight);
+    for (size_t i = 0; i < 4; ++i)
+        CHECK(same->def.pins[i].offset.x == generated->def.pins[i].offset.x && same->def.pins[i].offset.y == generated->def.pins[i].offset.y);
+    CHECK(generated->symbolHalfWidth >= 30);
+    CustomPartSpec tall = explicitBox;
+    tall.pins.push_back({"5", "VERY_LONG_SUPPLY", P::PowerIn, ""});
+    tall.symbol.pins.push_back({"5", 'T', 0});
+    auto tallPart = CustomPartRegistry::instance().registerPart(tall);
+    CHECK(tallPart->symbolHalfHeight > generated->symbolHalfHeight + 40);
+    CHECK(tallPart->def.pins[4].offset.x == 0 && tallPart->def.pins[4].offset.y == -(tallPart->symbolHalfHeight + 20));
+    CustomPartSpec narrow = explicitBox;
+    narrow.symbol.width = 20;
+    CHECK(CustomPartRegistry::instance().registerPart(narrow)->symbolHalfWidth == generated->symbolHalfWidth);
+
+    // Stacked pins on a rotated component stay joined and move together.
+    CustomPartSpec stacked = chip;
+    stacked.pins.push_back({"5", "GND", P::PowerIn, ""});
+    stacked.pins.push_back({"6", "GND", P::PowerIn, ""});
+    stacked.symbol.pins = {{"1", 'L', 0}, {"2", 'L', 1}, {"3", 'R', 0}, {"4", 'R', 1}, {"5", 'B', 0}, {"6", 'B', 0}};
+    Project p;
+    auto& sch = p.schematic;
+    const std::string id = p.addCustomPart(stacked);
+    int u = sch.addCustomComponent(id, "", {300, 0}, 90);
+    const Vec2 a = sch.pinPosition({u, sch.pinIndex(u, "5")}), b = sch.pinPosition({u, sch.pinIndex(u, "6")});
+    CHECK(a.x == b.x && a.y == b.y);
+    CHECK(sch.netOf({u, sch.pinIndex(u, "5")}) == sch.netOf({u, sch.pinIndex(u, "6")}));
+    // Wired up and laid out: both GND pads are on the ground net and the router joins them.
+    int v = sch.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int r = sch.addComponent(ComponentKind::Resistor, "1k", {120, -80});
+    int g = sch.addComponent(ComponentKind::Ground, "", {0, 120});
+    sch.connect({v, 1}, {g, 0});
+    sch.connect({v, 0}, {r, 0});
+    sch.connect({r, 1}, {u, sch.pinIndex(u, "1")});
+    sch.connect({u, sch.pinIndex(u, "5")}, {g, 0});
+    p.pcb.autoPlace(sch, true);
+    CHECK(p.pcb.autoRoute(sch).failed == 0);
+    int groundPads = 0;
+    const int gnd = sch.netOf({g, 0});
+    for (const auto& pad : p.pcb.pads(sch))
+        if (pad.componentId == u && pad.net == gnd) ++groundPads;
+    CHECK(groundPads == 2);
+    // The layout is saved with the project and loads back to the same symbol and nets.
+    Project back = Project::fromJson(Json::parse(p.toJson().dump()));
+    const Component* restored = back.schematic.find(u);
+    CHECK(restored && back.schematic.netOf({u, back.schematic.pinIndex(u, "6")}) == back.schematic.netOf({g, 0}));
+    const CustomPart* restoredPart = CustomPartRegistry::instance().find(restored->customPart);
+    CHECK(restoredPart && restoredPart->spec.symbol.pins.size() == 6);
+    // Swapping in a re-arranged symbol keeps the wires on their pins.
+    CustomPartSpec moved = stacked;
+    moved.symbol.pins[4].side = 'T';
+    moved.symbol.pins[5].side = 'T';
+    const std::string movedId = p.addCustomPart(moved);
+    CHECK(sch.replaceCustomPart(id, movedId) == 1);
+    CHECK(sch.netOf({u, sch.pinIndex(u, "6")}) == sch.netOf({g, 0}));
+    CHECK(sch.pinPosition({u, sch.pinIndex(u, "5")}).x != a.x || sch.pinPosition({u, sch.pinIndex(u, "5")}).y != a.y);
+}
+
 TEST(symbol_editor_layout_auto_arrange_and_checks) {
     auto reg = [](const CustomPartSpec& spec) { return CustomPartRegistry::instance().registerPart(spec); };
     auto pinAt = [](const std::shared_ptr<const CustomPart>& part, const std::string& number) -> const PinDef* {

@@ -3924,3 +3924,360 @@ final class SymbolEditorTests: XCTestCase {
         XCTAssertNotNil(preview.cgImage)
     }
 }
+
+/// Symbol Editor in depth: edge cases of the layout document (odd and named pins, partial stacks, no-op edits, gaps),
+/// layout encoding, the core's checks and Auto Arrange on every library part, saving and reopening a project with an
+/// arranged symbol, and four-sided symbols drawn by the schematic editor in a live window.
+@MainActor
+final class SymbolEditorDetailTests: XCTestCase {
+    /// VCC, IN, OUT, GND, GND, EN.
+    private func chip() -> CustomPartSpec {
+        var s = CustomPartSpec()
+        s.name = "SYM-DETAIL"
+        s.pins = [CustomPartSpec.Pin(number: "1", name: "VCC", type: .powerIn), CustomPartSpec.Pin(number: "2", name: "IN", type: .input),
+                  CustomPartSpec.Pin(number: "3", name: "OUT", type: .output), CustomPartSpec.Pin(number: "4", name: "GND", type: .powerIn),
+                  CustomPartSpec.Pin(number: "5", name: "GND", type: .powerIn), CustomPartSpec.Pin(number: "6", name: "EN", type: .input)]
+        return s
+    }
+
+    private func library(_ name: String) throws -> CustomPartSpec {
+        try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == name }, name).spec
+    }
+
+    // MARK: - Document edge cases
+
+    func testGeneratedBoxWithOddCountsAndNamedPins() throws {
+        var s = chip()
+        s.pins.removeLast()  // 5 pins
+        let odd = SymbolDraft(spec: s)
+        XCTAssertEqual(odd.slots(.left), [["1"], ["2"], ["3"]])
+        XCTAssertEqual(odd.slots(.right), [["5"], ["4"]])
+        // A named pin (EP) sorts after the numbered ones, like the core.
+        var qfn = chip()
+        qfn.pins.removeLast()
+        qfn.pins.append(CustomPartSpec.Pin(number: "EP", name: "GND", type: .powerIn))
+        qfn.package.type = "QFN"
+        let d = SymbolDraft(spec: qfn)
+        XCTAssertEqual(d.slots(.right), [["EP"], ["5"], ["4"]])
+        let generated = try EDAEngine.previewCustomPart(qfn).get().symbol.pins
+        let explicit = try EDAEngine.previewCustomPart(d.applied(to: qfn)).get().symbol.pins
+        XCTAssertEqual(generated.map { "\($0.number)@\($0.x),\($0.y)" }, explicit.map { "\($0.number)@\($0.x),\($0.y)" })
+        // No pins: an empty layout.
+        let empty = SymbolDraft(spec: CustomPartSpec())
+        XCTAssertTrue(empty.placements.isEmpty)
+        XCTAssertEqual(empty.slotCount(.left), 0)
+        XCTAssertEqual(empty.slots(.top), [])
+    }
+
+    func testMovingPartOfAStackSplitsIt() {
+        var d = SymbolDraft(spec: chip())
+        d.move(["4", "5"], to: .bottom, slot: 0)
+        d.stack(["4", "5"])
+        d.move(["5"], to: .right, slot: 0)
+        XCTAssertEqual(d.placement(of: "4")?.side, .bottom)
+        XCTAssertEqual(d.placement(of: "5")?.side, .right)
+        XCTAssertEqual(d.stack(of: "4"), ["4"])
+    }
+
+    func testNudgeMovesAStackAsOne() {
+        var d = SymbolDraft(spec: chip())
+        d.move(["4", "5"], to: .bottom, slot: 0)
+        d.stack(["4", "5"])
+        d.closeGaps()
+        d.move(["1"], to: .bottom, slot: 1)
+        XCTAssertEqual(d.slots(.bottom), [["4", "5"], ["1"]])
+        d.nudge("4", by: 1)
+        XCTAssertEqual(d.slots(.bottom), [["1"], ["4", "5"]])
+        d.nudge("5", by: -1)
+        XCTAssertEqual(d.slots(.bottom), [["4", "5"], ["1"]])
+    }
+
+    func testNoOpEditsLeaveTheDraftUnchanged() {
+        let original = SymbolDraft(spec: chip())
+        var d = original
+        d.unstack("2")               // not stacked
+        d.stack([])                  // nothing to stack
+        d.stack(["99", "1"])         // unknown anchor
+        d.swap("1", "99")            // unknown partner
+        d.nudge("1", by: 0)
+        d.nudge("99", by: 1)
+        d.move([], to: .top, slot: 0)
+        d.insertGap(.left, at: 10)   // past the last pin
+        d.closeGaps(.top)            // empty side
+        XCTAssertEqual(d, original)
+        d.mirror()
+        d.mirror()
+        XCTAssertEqual(d, original)
+    }
+
+    func testGapsOnEverySideClose() {
+        var d = SymbolDraft(spec: chip())
+        d.move(["1"], to: .top, slot: 2)
+        d.move(["4"], to: .bottom, slot: 3)
+        d.insertGap(.left, at: 0)
+        d.insertGap(.right, at: 1)
+        XCTAssertEqual(d.slots(.top), [[], [], ["1"]])
+        XCTAssertEqual(d.slots(.left).first, [])
+        d.closeGaps()
+        for side in SymbolDraft.Side.allCases { XCTAssertFalse(d.slots(side).contains { $0.isEmpty }, side.title) }
+        XCTAssertEqual(d.placement(of: "1")?.slot, 0)
+        XCTAssertEqual(d.placement(of: "4")?.slot, 0)
+    }
+
+    func testReconcileDropsDuplicatesAndUnknownPins() {
+        var d = SymbolDraft(spec: chip())
+        d.placements.append(.init(number: "2", side: .top, slot: 0))
+        d.placements.append(.init(number: "9", side: .top, slot: 1))
+        XCTAssertTrue(d.reconcile(with: chip().pins))
+        XCTAssertEqual(d.placements.filter { $0.number == "2" }.count, 1)
+        XCTAssertNil(d.placement(of: "9"))
+        XCTAssertEqual(Set(d.placements.map(\.number)), Set(chip().pins.map(\.number)))
+        XCTAssertFalse(d.reconcile(with: chip().pins))
+    }
+
+    func testLayoutWidthAndApply() {
+        var d = SymbolDraft(spec: chip())
+        XCTAssertNil(d.layout.width)
+        d.width = 140
+        XCTAssertEqual(d.layout.width, 140)
+        var s = chip()
+        s.symbolLayout = .init(width: 60, pins: [])
+        d.apply(to: &s)
+        XCTAssertEqual(s.symbolLayout, d.layout)
+        XCTAssertEqual(s.pins, chip().pins)
+        XCTAssertEqual(s.name, chip().name)
+        XCTAssertEqual(SymbolDraft(spec: s), d)
+        XCTAssertEqual(SymbolDraft.Side.allCases.map(\.rawValue), ["L", "R", "T", "B"])
+        XCTAssertEqual(SymbolDraft.Side.top.title, "Top")
+    }
+
+    // MARK: - Core checks and Auto Arrange
+
+    func testIssueDecodingAndPartsWithoutALayout() throws {
+        let issues = try JSONDecoder().decode([SymbolIssue].self, from: Data(
+            #"[{"severity":"warning","code":"SYM_STACK_SIGNAL","message":"m","pins":["1","2"]}]"#.utf8))
+        XCTAssertFalse(issues[0].isError)
+        XCTAssertEqual(issues[0].pins, ["1", "2"])
+        XCTAssertEqual(issues[0].id, "SYM_STACK_SIGNALm")
+        XCTAssertTrue(EDAEngine.checkSymbol(chip()).isEmpty)  // the generated box has nothing to check
+    }
+
+    func testAutoArrangeKeepsThePartAndIsDeterministic() throws {
+        var stm = try library("STM32F405RGT6")
+        stm.symbolLayout = nil
+        let first = try EDAEngine.autoArrangeSymbol(stm).get()
+        let second = try EDAEngine.autoArrangeSymbol(stm).get()
+        XCTAssertEqual(first.symbolLayout, second.symbolLayout)
+        XCTAssertEqual(first.pins, stm.pins)
+        XCTAssertEqual(first.name, stm.name)
+        XCTAssertEqual(first.package, stm.package)
+        XCTAssertEqual(first.symbolLayout, try library("STM32F405RGT6").symbolLayout)  // what the library ships
+    }
+
+    func testEveryArrangedLibraryPartDrawsEachPinOnItsSide() throws {
+        let arranged = StandardLibrary.parts.filter { $0.spec.symbolLayout != nil }
+        XCTAssertGreaterThan(arranged.count, 60)
+        for part in arranged {
+            let info = try EDAEngine.previewCustomPart(part.spec).get()
+            let hw = info.symbol.halfWidth, hh = info.symbol.halfHeight
+            XCTAssertEqual(info.symbol.pins.count, part.spec.pins.count, part.spec.name)
+            for pin in info.symbol.pins {
+                switch pin.sideLetter {
+                case "L": XCTAssertLessThan(pin.x, -hw, "\(part.spec.name) \(pin.number)")
+                case "R": XCTAssertGreaterThan(pin.x, hw, "\(part.spec.name) \(pin.number)")
+                case "T": XCTAssertLessThan(pin.y, -hh, "\(part.spec.name) \(pin.number)")
+                case "B": XCTAssertGreaterThan(pin.y, hh, "\(part.spec.name) \(pin.number)")
+                default: XCTFail("\(part.spec.name) pin \(pin.number) has no side")
+                }
+            }
+            XCTAssertFalse(EDAEngine.checkSymbol(part.spec).contains { $0.isError }, part.spec.name)
+        }
+    }
+
+    // MARK: - Projects and the schematic
+
+    func testProjectSaveAndReopenKeepTheSymbol() throws {
+        let store = DesignStore()
+        store.aiEnabled = false
+        var d = SymbolDraft(spec: chip())
+        d.move(["1"], to: .top, slot: 0)
+        d.move(["4", "5"], to: .bottom, slot: 0)
+        d.stack(["4", "5"])
+        d.closeGaps()
+        let part = try XCTUnwrap(store.saveCustomPart(d.applied(to: chip())))
+        let u = store.addCustomComponent(partId: part.id, at: CGPoint(x: 100, y: 100), rotation: 90)
+        let before = try XCTUnwrap(store.snapshot.component(u))
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        let snapshot = try XCTUnwrap(reopened.snapshot())
+        XCTAssertEqual(snapshot.customParts.first { $0.id == part.id }?.symbolLayout, d.layout)
+        let after = try XCTUnwrap(snapshot.component(u))
+        XCTAssertEqual(after.pins.map(\.x), before.pins.map(\.x))
+        XCTAssertEqual(after.pins.map(\.y), before.pins.map(\.y))
+        XCTAssertEqual(after.pins[3].x, after.pins[4].x)  // the stack survives rotation and reload
+        XCTAssertEqual(after.pins[3].y, after.pins[4].y)
+    }
+
+    func testSchematicEditorDrawsFourSidedSymbolsInALiveWindow() throws {
+        let store = DesignStore()
+        store.aiEnabled = false
+        for (i, name) in ["STM32F405RGT6", "ESP32-WROOM-32E", "CH340G"].enumerated() {
+            let part = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == name })
+            XCTAssertGreaterThanOrEqual(store.placeStandardPart(part, at: CGPoint(x: Double(i) * 500, y: 0)), 0, name)
+        }
+        let rotatedPart = try XCTUnwrap(store.snapshot.customParts.first { $0.name == "CH340G" })
+        XCTAssertGreaterThanOrEqual(store.addCustomComponent(partId: rotatedPart.id, at: CGPoint(x: 0, y: 600), rotation: 90), 0)
+        let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.SymbolEditorDetailTests")))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1300, height: 820),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: SchematicEditorView()
+            .environmentObject(store).environmentObject(settings).environmentObject(AgentOrchestrator()))
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.8))
+        XCTAssertNotNil(window.contentView)
+        // Each placed symbol's pins sit on the sides the layout says, also on the rotated copy.
+        let stm = try XCTUnwrap(store.snapshot.components.first { $0.value == "STM32F405RGT6" })
+        let info = try XCTUnwrap(store.snapshot.customPart(for: stm))
+        let vdd = info.symbol.pins.enumerated().filter { $0.element.name == "VDD" }.map(\.offset)
+        XCTAssertEqual(Set(vdd.map { stm.pins[$0].y }).count, 1)
+        XCTAssertLessThan(stm.pins[vdd[0]].y, stm.y - info.symbol.halfHeight)
+    }
+}
+
+@MainActor
+final class SplashScreenTests: XCTestCase {
+    private func spin(until done: () -> Bool, timeout: TimeInterval = 10) {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !done() && Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
+    }
+
+    private func counting(_ count: Int, into log: @escaping (Int) -> Void) -> [SplashModel.Step] {
+        (0..<count).map { index in SplashModel.Step(title: "Step \(index)") { log(index) } }
+    }
+
+    func testProgressFollowsBothTheClockAndTheWork() {
+        // Ahead on work: the bar follows the clock.
+        XCTAssertEqual(SplashModel.progress(elapsed: 1, minimum: 5, completed: 4, total: 4), 0.2, accuracy: 1e-9)
+        // Ahead on time: the bar waits for the work.
+        XCTAssertEqual(SplashModel.progress(elapsed: 4, minimum: 5, completed: 1, total: 4), 0.25, accuracy: 1e-9)
+        XCTAssertEqual(SplashModel.progress(elapsed: 9, minimum: 5, completed: 4, total: 4), 1)
+        XCTAssertEqual(SplashModel.progress(elapsed: -1, minimum: 5, completed: 4, total: 4), 0)
+        XCTAssertEqual(SplashModel.progress(elapsed: 0, minimum: 0, completed: 0, total: 0), 1)
+        XCTAssertEqual(SplashModel.progress(elapsed: 3, minimum: 0, completed: 2, total: 4), 0.5)
+    }
+
+    func testStatusNamesTheStepUnderTheBar() {
+        XCTAssertEqual(SplashModel.statusIndex(progress: 0, total: 4), 0)
+        XCTAssertEqual(SplashModel.statusIndex(progress: 0.24, total: 4), 0)
+        XCTAssertEqual(SplashModel.statusIndex(progress: 0.25, total: 4), 1)
+        XCTAssertEqual(SplashModel.statusIndex(progress: 0.99, total: 4), 3)
+        XCTAssertEqual(SplashModel.statusIndex(progress: 1, total: 4), 4)
+        XCTAssertEqual(SplashModel.statusIndex(progress: 1, total: 0), 0)
+
+        let model = SplashModel(steps: counting(2) { _ in }, minimumDuration: 5)
+        XCTAssertEqual(model.status(at: model.startDate), "Step 0…")
+        XCTAssertFalse(model.isLoaded)
+    }
+
+    func testStandardStepsPreloadTheLibraries() {
+        let steps = SplashModel.standardSteps
+        XCTAssertEqual(steps.count, 4)
+        XCTAssertEqual(Set(steps.map(\.title)).count, 4)
+        steps.forEach { $0.work() }
+        XCTAssertFalse(StandardLibrary.parts.isEmpty)
+        XCTAssertFalse(StandardLibrary.rulePresets.isEmpty)
+        XCTAssertFalse(StandardLibrary.industries.isEmpty)
+        XCTAssertFalse(OfflineProvider.templates.isEmpty)
+        XCTAssertEqual(SplashModel.defaultDuration, 5)
+    }
+
+    func testRunDoesEveryStepInOrderThenWaitsOutTheMinimum() {
+        var log: [Int] = []
+        let model = SplashModel(steps: counting(3) { log.append($0) }, minimumDuration: 0.6)
+        let started = Date()
+        Task { await model.run() }
+        spin { model.isLoaded }
+        XCTAssertEqual(log, [0, 1, 2])
+        XCTAssertFalse(model.isFinished, "the splash stays up for its minimum duration")
+        spin { model.isFinished }
+        XCTAssertTrue(model.isFinished)
+        XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(started), 0.6)
+        XCTAssertEqual(model.progress(at: Date()), 1)
+        XCTAssertEqual(model.status(at: Date()), "Ready")
+    }
+
+    func testSkipEndsTheSplashOnlyOnceLoaded() {
+        var gate = false
+        let steps = [SplashModel.Step(title: "Slow") { gate = true }]
+        let model = SplashModel(steps: steps, minimumDuration: 30)
+        model.skip()  // nothing loaded yet: ignored
+        let started = Date()
+        Task { await model.run() }
+        spin { model.isLoaded }
+        XCTAssertTrue(gate)
+        XCTAssertFalse(model.isFinished)
+        model.skip()
+        spin { model.isFinished }
+        XCTAssertTrue(model.isFinished)
+        XCTAssertLessThan(Date().timeIntervalSince(started), 5, "skip ends the splash long before 30 s")
+    }
+
+    func testControllerHoldsTheMainWindowUntilTheSplashIsDone() throws {
+        XCTAssertNil(SplashController.current, "no splash is shown while the tests run")
+        var loaded = 0
+        let model = SplashModel(steps: counting(2) { _ in loaded += 1 }, minimumDuration: 0.8)
+        let controller = SplashController(model: model)
+        var finished = false
+        controller.show { finished = true }
+        XCTAssertTrue(SplashController.current === controller)
+        let splash = try XCTUnwrap(controller.window)
+        XCTAssertTrue(splash.isVisible)
+        XCTAssertEqual(splash.frame.size, SplashView.size)
+        XCTAssertTrue(splash.canBecomeKey)
+
+        // A main window that appears meanwhile is kept out of sight.
+        let main = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+                            styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        main.isReleasedWhenClosed = false
+        main.contentView = NSHostingView(rootView: Text("Main").background(SplashWindowGate()))
+        main.makeKeyAndOrderFront(nil)
+        spin { !main.isVisible }
+        XCTAssertFalse(main.isVisible)
+        XCTAssertEqual(main.alphaValue, 0)
+
+        spin { finished }
+        XCTAssertTrue(finished)
+        XCTAssertEqual(loaded, 2)
+        XCTAssertNil(SplashController.current)
+        XCTAssertNil(controller.window)
+        XCTAssertFalse(splash.isVisible)
+        XCTAssertTrue(main.isVisible, "the main window opens when the splash is done")
+        XCTAssertEqual(main.alphaValue, 1)
+
+        // Windows opened later are left alone.
+        controller.hold(main)
+        XCTAssertEqual(main.alphaValue, 1)
+        main.close()
+    }
+
+    func testSplashViewRendersEveryStage() throws {
+        let model = SplashModel(steps: counting(1) { _ in }, minimumDuration: 0.3)
+        let host = NSHostingView(rootView: SplashView(model: model))
+        host.frame = NSRect(origin: .zero, size: SplashView.size)
+        let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.close() }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        Task { await model.run() }
+        spin { model.isFinished }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        XCTAssertTrue(model.isFinished)
+        XCTAssertGreaterThan(host.fittingSize.width, 0)
+        XCTAssertTrue(SplashView.versionLine.hasPrefix("Version "))
+        XCTAssertTrue(SplashView.versionLine.contains("Core \(EDAEngine.coreVersion)"))
+    }
+}
