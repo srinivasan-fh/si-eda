@@ -1265,6 +1265,7 @@ int32_t sieda_mesh_index_count(const SiedaMesh* m) { return m ? static_cast<int3
 const float* sieda_mesh_positions(const SiedaMesh* m) { return m ? m->mesh.positions.data() : nullptr; }
 const float* sieda_mesh_normals(const SiedaMesh* m) { return m ? m->mesh.normals.data() : nullptr; }
 const float* sieda_mesh_colors(const SiedaMesh* m) { return m ? m->mesh.colors.data() : nullptr; }
+const uint8_t* sieda_mesh_surfaces(const SiedaMesh* m) { return m ? m->mesh.surfaces.data() : nullptr; }
 const uint32_t* sieda_mesh_indices(const SiedaMesh* m) { return m ? m->mesh.indices.data() : nullptr; }
 
 }  // extern "C"

@@ -963,7 +963,14 @@ struct MeshData {
     var normals: [Float]
     var colors: [Float]
     var indices: [UInt32]
+    /// One `MeshSurface` raw value per vertex (empty when the core did not tag them).
+    var surfaces: [UInt8] = []
     var vertexCount: Int { positions.count / 3 }
+}
+
+/// What a mesh triangle is made of (mirrors the core's `Surface`); the 3D view gives each its own physical material.
+enum MeshSurface: UInt8, CaseIterable {
+    case mask = 0, laminate, finish, gold, tin, solder, silk, plastic, ceramic, glass, hole, marking
 }
 
 // MARK: - Formatting

@@ -709,7 +709,7 @@ final class LiveWindowTests: XCTestCase {
         watchdog.resume()
         defer { watchdog.cancel() }
 
-        // Show the 3D workspace in the X-ray hologram mode (HUD on by default), the heaviest scene the app builds.
+        // The 3D workspace runs in both modes: the realistic assembly and the X-ray hologram (the heaviest scenes).
         let modeKey = "threeD.mode.v2"
         let savedMode = UserDefaults.standard.object(forKey: modeKey)
         UserDefaults.standard.set(Board3DWorkspace.Mode.xray.rawValue, forKey: modeKey)
@@ -740,6 +740,8 @@ final class LiveWindowTests: XCTestCase {
         for stage in 0..<4 {
             if stage == 1 { progress.set("stage 1: loading example"); store.loadExample(OfflineProvider.templates[8].industryPlan) }
             if stage == 2 { progress.set("stage 2: auto-placing"); store.autoPlace(all: true) }
+            // The 3D workspace shows the realistic assembly of the placed board, the X-ray hologram once routed.
+            UserDefaults.standard.set((stage < 3 ? Board3DWorkspace.Mode.assembly : .xray).rawValue, forKey: modeKey)
             if stage == 3 {
                 // Routed board with a selection: PCB tracks, 3D copper and the inspector's part panel.
                 progress.set("stage 3: routing")
@@ -2807,5 +2809,104 @@ final class CrashAndResourceTests: XCTestCase {
         }
         XCTAssertEqual(image.size, NSSize(width: 640, height: 420))
         XCTAssertLessThan(Date().timeIntervalSince(start), 2.0)
+    }
+}
+
+/// Realistic 3D assembly: every surface gets its own physical material, the finish follows the picker, and the live
+/// scene is lit by the studio environment with a shadow-catching floor.
+@MainActor
+final class RealisticAssemblyTests: XCTestCase {
+    private func routedEngine() throws -> EDAEngine {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: engine, previous: nil)
+        engine.autoPlace(all: true)
+        XCTAssertEqual(engine.autoRoute().failed, 0)
+        return engine
+    }
+
+    private func surfaces(_ node: SCNNode) -> [String: SCNNode] {
+        Dictionary(uniqueKeysWithValues: node.childNodes.compactMap { child in child.name.map { ($0, child) } })
+    }
+
+    func testEverySurfaceGetsItsOwnMaterial() throws {
+        let mesh = try XCTUnwrap(try routedEngine().buildMesh(includeComponents: true))
+        XCTAssertEqual(mesh.surfaces.count, mesh.vertexCount)
+        XCTAssertTrue(mesh.surfaces.allSatisfy { MeshSurface(rawValue: $0) != nil })
+
+        let node = BoardSceneView.assemblyNode(from: mesh, finish: .enig)
+        let parts = surfaces(node)
+        for name in ["mask", "laminate", "finish", "solder", "silk", "tin"] {
+            XCTAssertNotNil(parts["surface.\(name)"], name)
+        }
+        // Every triangle lands in exactly one surface.
+        let triangles = node.childNodes.reduce(0) { $0 + ($1.geometry?.elements.first?.primitiveCount ?? 0) }
+        XCTAssertEqual(triangles, mesh.indices.count / 3)
+
+        // Metals are metallic, the mask is a glossy lacquer, silkscreen is matte; the finish ignores vertex colours.
+        func material(_ name: String) throws -> SCNMaterial {
+            try XCTUnwrap(parts["surface.\(name)"]?.geometry?.firstMaterial, name)
+        }
+        XCTAssertEqual(try material("finish").metalness.contents as? CGFloat, 1)
+        XCTAssertEqual(try material("solder").metalness.contents as? CGFloat, 1)
+        XCTAssertEqual(try material("mask").metalness.contents as? CGFloat, 0)
+        XCTAssertGreaterThan(try XCTUnwrap(material("mask").clearCoat.contents as? CGFloat), 0)
+        XCTAssertGreaterThan(try XCTUnwrap(material("silk").roughness.contents as? CGFloat), 0.8)
+        XCTAssertEqual(try material("finish").diffuse.contents as? NSColor, BoardFinish.enig.colour)
+        XCTAssertEqual(parts["surface.finish"]?.geometry?.sources(for: .color).count, 0)
+        XCTAssertEqual(parts["surface.mask"]?.geometry?.sources(for: .color).count, 1)
+
+        // Another finish only changes the finish's material.
+        let hasl = surfaces(BoardSceneView.assemblyNode(from: mesh, finish: .hasl))
+        XCTAssertEqual(hasl["surface.finish"]?.geometry?.firstMaterial?.diffuse.contents as? NSColor, BoardFinish.hasl.colour)
+        XCTAssertNotEqual(BoardFinish.enig.colour, BoardFinish.osp.colour)
+
+        // A bare board has no solder joints or bodies.
+        let bare = try XCTUnwrap(try routedEngine().buildMesh(includeComponents: false))
+        let bareParts = surfaces(BoardSceneView.assemblyNode(from: bare, finish: .osp))
+        XCTAssertNil(bareParts["surface.solder"])
+        XCTAssertNil(bareParts["surface.plastic"])
+        XCTAssertNotNil(bareParts["surface.finish"])
+    }
+
+    func testStudioSceneInALiveWindow() throws {
+        let engine = try routedEngine()
+        let board = try XCTUnwrap(engine.snapshot()).board
+        func view(_ finish: BoardFinish) -> BoardSceneView {
+            BoardSceneView(engine: engine, revision: 1, includeComponents: true, board: board, resetToken: 0, finish: finish,
+                           stats: .constant(""))
+        }
+        let host = NSHostingController(rootView: view(.enig))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 640),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+
+        func sceneView(in v: NSView) -> SCNView? {
+            if let s = v as? SCNView { return s }
+            for child in v.subviews { if let s = sceneView(in: child) { return s } }
+            return nil
+        }
+        let scnView = try XCTUnwrap(sceneView(in: host.view))
+        let scene = try XCTUnwrap(scnView.scene)
+        XCTAssertNotNil(scene.lightingEnvironment.contents, "studio reflections")
+        XCTAssertEqual(BoardSceneView.studioEnvironment.size, NSSize(width: 1024, height: 512))
+        let floor = try XCTUnwrap(scene.rootNode.childNodes { node, _ in node.geometry is SCNFloor }.first)
+        XCTAssertEqual(floor.geometry?.firstMaterial?.lightingModel, .shadowOnly)
+        XCTAssertLessThan(floor.position.y, -CGFloat(board.thickness))
+        XCTAssertTrue(scene.rootNode.childNodes { node, _ in node.light?.castsShadow == true }.count >= 1)
+        XCTAssertGreaterThan(scnView.pointOfView?.camera?.screenSpaceAmbientOcclusionIntensity ?? 0, 0)
+
+        func finishColour() -> NSColor? {
+            scene.rootNode.childNodes { node, _ in node.name == "surface.finish" }.first?.geometry?.firstMaterial?
+                .diffuse.contents as? NSColor
+        }
+        XCTAssertEqual(finishColour(), BoardFinish.enig.colour)
+        host.rootView = view(.hasl)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        XCTAssertEqual(finishColour(), BoardFinish.hasl.colour, "the finish picker rebuilds the materials")
+        XCTAssertTrue(window.isVisible)
     }
 }

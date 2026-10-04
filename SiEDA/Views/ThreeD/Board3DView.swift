@@ -2,8 +2,9 @@ import SceneKit
 import SwiftUI
 
 /// 3D workspace with two modes:
-/// - **Assembly** (default): the C++ core tessellates board, copper, vias, silkscreen and component bodies (realistic),
-///   in the board's solder mask colour (green unless another is chosen).
+/// - **Assembly** (default): the C++ core tessellates board, copper, vias, silkscreen and component bodies, tagging
+///   each surface so it renders with its own physical material (glossy mask, metal finish, solder, plastic…) under
+///   studio lighting, in the board's solder mask colour (green unless another is chosen).
 /// - **X-Ray Stack**: every copper layer floats apart in a holographic, additive-glow exploded view with
 ///   through-vias as light pillars, wireframe component bodies and a scanning beam.
 struct Board3DWorkspace: View {
@@ -15,6 +16,7 @@ struct Board3DWorkspace: View {
 
     @EnvironmentObject private var store: DesignStore
     @AppStorage("threeD.mode.v2") private var modeRaw = Mode.assembly.rawValue
+    @AppStorage("threeD.finish") private var finishRaw = BoardFinish.enig.rawValue
     @State private var showComponents = true
     @State private var resetCamera = 0
     @State private var stats = ""
@@ -36,6 +38,11 @@ struct Board3DWorkspace: View {
                 } else {
                     Toggle("Components", isOn: $showComponents).toggleStyle(.switch).controlSize(.mini)
                     maskPicker
+                    Picker("Finish", selection: $finishRaw) {
+                        ForEach(BoardFinish.allCases) { Text($0.title).tag($0.rawValue) }
+                    }
+                    .fixedSize()
+                    .help("Surface finish of the exposed copper: pads, via lands and plated holes")
                     let layers = store.snapshot.board.layerCount
                     Label(layers == 1 ? "Single-sided" : "\(layers)-layer", systemImage: "square.3.layers.3d.down.right")
                         .font(.caption)
@@ -72,7 +79,8 @@ struct Board3DWorkspace: View {
                         .padding(12)
                 } else {
                     BoardSceneView(engine: store.engine, revision: store.revision, includeComponents: showComponents,
-                                   board: store.snapshot.board, resetToken: resetCamera, stats: $stats)
+                                   board: store.snapshot.board, resetToken: resetCamera,
+                                   finish: BoardFinish(rawValue: finishRaw) ?? .enig, stats: $stats)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -185,20 +193,47 @@ struct Board3DWorkspace: View {
     }
 }
 
+/// Surface finish of the exposed copper (pads, via lands, plated rings), as ordered from the fab.
+enum BoardFinish: String, CaseIterable, Identifiable {
+    case enig, hasl, osp
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .enig: return "ENIG (gold)"
+        case .hasl: return "HASL (tin)"
+        case .osp: return "OSP (bare copper)"
+        }
+    }
+    var colour: NSColor {
+        switch self {
+        case .enig: return NSColor(red: 0.96, green: 0.78, blue: 0.42, alpha: 1)
+        case .hasl: return NSColor(red: 0.83, green: 0.84, blue: 0.86, alpha: 1)
+        case .osp: return NSColor(red: 0.93, green: 0.56, blue: 0.36, alpha: 1)
+        }
+    }
+    var roughness: CGFloat { self == .hasl ? 0.32 : 0.22 }
+}
+
+/// Realistic assembly view: each surface (mask, laminate, copper finish, solder, tin and gold, silkscreen, plastic,
+/// ceramic, glass…) gets its own physically based material, lit by a studio environment (soft boxes reflected in
+/// the metals) and a key light casting soft shadows onto an invisible floor, with ambient occlusion in the gaps.
 struct BoardSceneView: NSViewRepresentable {
     let engine: EDAEngine
     let revision: Int
     let includeComponents: Bool
     let board: BoardInfo
     let resetToken: Int
+    var finish: BoardFinish = .enig
     @Binding var stats: String
 
     final class Coordinator {
         var lastRevision = -1
         var lastComponents = true
+        var lastFinish: BoardFinish?
         var lastReset = 0
         let boardNode = SCNNode()
         let cameraNode = SCNNode()
+        let floorNode = SCNNode()
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -214,13 +249,26 @@ struct BoardSceneView: NSViewRepresentable {
         view.defaultCameraController.interactionMode = .orbitTurntable
         view.defaultCameraController.inertiaEnabled = true
 
-        // Soft blue environment gradient
-        scene.background.contents = NSColor(red: 0.03, green: 0.06, blue: 0.13, alpha: 1)
+        // Dark studio backdrop; the reflections come from a bright studio environment instead.
+        scene.background.contents = Self.backdrop
+        scene.lightingEnvironment.contents = Self.studioEnvironment
+        scene.lightingEnvironment.intensity = 1.25
 
         let camera = SCNCamera()
         camera.zNear = 0.1
         camera.zFar = 2000
         camera.fieldOfView = 35
+        camera.wantsHDR = true
+        camera.wantsExposureAdaptation = false
+        camera.exposureOffset = 0.15
+        camera.screenSpaceAmbientOcclusionIntensity = 0.9
+        camera.screenSpaceAmbientOcclusionRadius = 1.2   // millimetres: the gaps under and between parts
+        camera.screenSpaceAmbientOcclusionBias = 0.03
+        camera.bloomIntensity = 0.25                     // a little glint on solder and gold
+        camera.bloomThreshold = 0.95
+        camera.bloomBlurRadius = 6
+        camera.vignettingIntensity = 0.35
+        camera.vignettingPower = 0.6
         context.coordinator.cameraNode.camera = camera
         scene.rootNode.addChildNode(context.coordinator.cameraNode)
         view.pointOfView = context.coordinator.cameraNode
@@ -228,27 +276,42 @@ struct BoardSceneView: NSViewRepresentable {
         let ambient = SCNNode()
         ambient.light = SCNLight()
         ambient.light?.type = .ambient
-        ambient.light?.intensity = 350
+        ambient.light?.intensity = 120
         ambient.light?.color = NSColor(red: 0.95, green: 0.96, blue: 1.0, alpha: 1)  // near-neutral: true mask colours
         scene.rootNode.addChildNode(ambient)
 
+        // Key light: soft shadows of the parts on the board and of the board on the floor.
         let key = SCNNode()
         key.light = SCNLight()
         key.light?.type = .directional
-        key.light?.intensity = 900
+        key.light?.intensity = 1100
+        key.light?.color = NSColor(red: 1.0, green: 0.97, blue: 0.92, alpha: 1)
         key.light?.castsShadow = true
-        key.light?.shadowRadius = 4
-        key.light?.shadowColor = NSColor(white: 0, alpha: 0.45)
-        key.eulerAngles = SCNVector3(-1.0, 0.6, 0)
+        key.light?.shadowMode = .deferred
+        key.light?.shadowSampleCount = 16
+        key.light?.shadowRadius = 6
+        key.light?.shadowMapSize = CGSize(width: 4096, height: 4096)
+        key.light?.automaticallyAdjustsShadowProjection = true
+        key.light?.shadowColor = NSColor(white: 0, alpha: 0.55)
+        key.eulerAngles = SCNVector3(-1.05, 0.55, 0)
         scene.rootNode.addChildNode(key)
 
         let rim = SCNNode()
         rim.light = SCNLight()
         rim.light?.type = .directional
-        rim.light?.intensity = 400
+        rim.light?.intensity = 450
         rim.light?.color = NSColor(red: 0.80, green: 0.86, blue: 1.0, alpha: 1)
         rim.eulerAngles = SCNVector3(-0.4, -2.4, 0)
         scene.rootNode.addChildNode(rim)
+
+        // Invisible floor that only receives the board's shadow.
+        let floor = SCNFloor()
+        floor.reflectivity = 0
+        let shadowOnly = SCNMaterial()
+        shadowOnly.lightingModel = .shadowOnly
+        floor.materials = [shadowOnly]
+        context.coordinator.floorNode.geometry = floor
+        scene.rootNode.addChildNode(context.coordinator.floorNode)
 
         scene.rootNode.addChildNode(context.coordinator.boardNode)
         return view
@@ -256,9 +319,10 @@ struct BoardSceneView: NSViewRepresentable {
 
     func updateNSView(_ view: SCNView, context: Context) {
         let c = context.coordinator
-        if c.lastRevision != revision || c.lastComponents != includeComponents {
+        if c.lastRevision != revision || c.lastComponents != includeComponents || c.lastFinish != finish {
             c.lastRevision = revision
             c.lastComponents = includeComponents
+            c.lastFinish = finish
             rebuild(c)
             if c.lastReset == 0 { placeCamera(c, view: view) }
         }
@@ -270,9 +334,10 @@ struct BoardSceneView: NSViewRepresentable {
 
     private func rebuild(_ c: Coordinator) {
         c.boardNode.childNodes.forEach { $0.removeFromParentNode() }
+        // Below the board and anything hanging under it (bottom-side parts, header tails).
+        c.floorNode.position = SCNVector3(0, -CGFloat(board.thickness) - 9, 0)
         guard let mesh = engine.buildMesh(includeComponents: includeComponents) else { return }
-        let geometry = Self.geometry(from: mesh)
-        let node = SCNNode(geometry: geometry)
+        let node = Self.assemblyNode(from: mesh, finish: finish)
         // Centre the board on the origin (mesh is in board millimetres).
         node.position = SCNVector3(-board.width / 2, 0, -board.height / 2)
         c.boardNode.addChildNode(node)
@@ -290,6 +355,121 @@ struct BoardSceneView: NSViewRepresentable {
         // Reset also re-centres the orbit (a pan moves the controller's target away from the board).
         view.defaultCameraController.pointOfView = c.cameraNode
         view.defaultCameraController.target = SCNVector3(0, 0, 0)
+    }
+
+    // MARK: - Materials
+
+    /// One child geometry per surface, all sharing the mesh's vertex buffers. O(triangles) to split.
+    static func assemblyNode(from mesh: MeshData, finish: BoardFinish) -> SCNNode {
+        let root = SCNNode()
+        guard mesh.surfaces.count == mesh.vertexCount, mesh.vertexCount > 0 else {
+            root.addChildNode(SCNNode(geometry: geometry(from: mesh)))  // untagged mesh: one material
+            return root
+        }
+        var buckets = [[UInt32]](repeating: [], count: MeshSurface.allCases.count)
+        var t = 0
+        while t + 2 < mesh.indices.count {
+            let surface = Int(mesh.surfaces[Int(mesh.indices[t])])
+            if surface < buckets.count { buckets[surface].append(contentsOf: mesh.indices[t...(t + 2)]) }
+            t += 3
+        }
+        let (vertices, normals, colours) = sources(from: mesh)
+        for surface in MeshSurface.allCases where !buckets[Int(surface.rawValue)].isEmpty {
+            let indices = buckets[Int(surface.rawValue)]
+            let element = SCNGeometryElement(data: indices.withUnsafeBufferPointer { Data(buffer: $0) },
+                                             primitiveType: .triangles, primitiveCount: indices.count / 3,
+                                             bytesPerIndex: MemoryLayout<UInt32>.size)
+            // The finish takes its colour from the chosen plating, not from the mesh.
+            let sources = surface == .finish ? [vertices, normals] : [vertices, normals, colours]
+            let geometry = SCNGeometry(sources: sources, elements: [element])
+            geometry.materials = [material(for: surface, finish: finish)]
+            let node = SCNNode(geometry: geometry)
+            node.name = "surface.\(surface)"
+            if surface == .glass { node.renderingOrder = 10 }  // after the opaque board
+            root.addChildNode(node)
+        }
+        return root
+    }
+
+    /// Physically based look of each surface (base colours come from the mesh except for the finish).
+    static func material(for surface: MeshSurface, finish: BoardFinish) -> SCNMaterial {
+        let m = SCNMaterial()
+        m.lightingModel = .physicallyBased
+        m.diffuse.contents = NSColor.white
+        m.isDoubleSided = false
+        func pbr(metal: CGFloat, rough: CGFloat) {
+            m.metalness.contents = metal
+            m.roughness.contents = rough
+        }
+        switch surface {
+        case .mask:
+            pbr(metal: 0, rough: 0.38)
+            m.clearCoat.contents = 0.55          // the lacquer's gloss over the colour
+            m.clearCoatRoughness.contents = 0.18
+        case .laminate: pbr(metal: 0, rough: 0.78)
+        case .finish:
+            m.diffuse.contents = finish.colour
+            pbr(metal: 1, rough: finish.roughness)
+        case .gold: pbr(metal: 1, rough: 0.2)
+        case .tin: pbr(metal: 1, rough: 0.3)
+        case .solder: pbr(metal: 1, rough: 0.16)
+        case .silk: pbr(metal: 0, rough: 0.88)
+        case .plastic: pbr(metal: 0, rough: 0.6)
+        case .ceramic: pbr(metal: 0, rough: 0.5)
+        case .glass:
+            pbr(metal: 0, rough: 0.06)
+            m.transparency = 0.82
+            m.blendMode = .alpha
+            m.isDoubleSided = true
+        case .hole: pbr(metal: 0, rough: 0.95)
+        case .marking: pbr(metal: 0, rough: 0.8)
+        }
+        return m
+    }
+
+    private static func sources(from mesh: MeshData) -> (SCNGeometrySource, SCNGeometrySource, SCNGeometrySource) {
+        let vertexCount = mesh.vertexCount
+        let floatSize = MemoryLayout<Float>.size
+        let vertices = SCNGeometrySource(data: mesh.positions.withUnsafeBufferPointer { Data(buffer: $0) }, semantic: .vertex,
+                                         vectorCount: vertexCount, usesFloatComponents: true, componentsPerVector: 3,
+                                         bytesPerComponent: floatSize, dataOffset: 0, dataStride: floatSize * 3)
+        let normals = SCNGeometrySource(data: mesh.normals.withUnsafeBufferPointer { Data(buffer: $0) }, semantic: .normal,
+                                        vectorCount: vertexCount, usesFloatComponents: true, componentsPerVector: 3,
+                                        bytesPerComponent: floatSize, dataOffset: 0, dataStride: floatSize * 3)
+        let colours = SCNGeometrySource(data: mesh.colors.withUnsafeBufferPointer { Data(buffer: $0) }, semantic: .color,
+                                        vectorCount: vertexCount, usesFloatComponents: true, componentsPerVector: 4,
+                                        bytesPerComponent: floatSize, dataOffset: 0, dataStride: floatSize * 4)
+        return (vertices, normals, colours)
+    }
+
+    // MARK: - Studio
+
+    /// Equirectangular studio: a dim floor, a bright overhead and two soft boxes that metals and the glossy mask
+    /// reflect. Drawn once (1024 × 512, 2 MB).
+    static let studioEnvironment: NSImage = HoloFX.render(NSSize(width: 1024, height: 512)) {
+        let full = NSRect(x: 0, y: 0, width: 1024, height: 512)
+        NSGradient(colorsAndLocations:
+                    (NSColor(white: 0.06, alpha: 1), 0.0),
+                   (NSColor(red: 0.20, green: 0.22, blue: 0.26, alpha: 1), 0.48),
+                   (NSColor(red: 0.55, green: 0.58, blue: 0.64, alpha: 1), 0.56),
+                   (NSColor(white: 0.85, alpha: 1), 1.0))?.draw(in: full, angle: 90)
+        func softbox(_ rect: NSRect, _ brightness: CGFloat) {
+            for k in 0..<6 {  // feathered edge
+                let inset = CGFloat(5 - k) * 6
+                NSColor(white: 1, alpha: brightness * CGFloat(k + 1) / 6).setFill()
+                NSBezierPath(roundedRect: rect.insetBy(dx: -inset, dy: -inset), xRadius: 18, yRadius: 18).fill()
+            }
+        }
+        softbox(NSRect(x: 140, y: 380, width: 220, height: 70), 0.95)  // key side
+        softbox(NSRect(x: 620, y: 360, width: 160, height: 90), 0.7)   // fill side
+        softbox(NSRect(x: 420, y: 470, width: 200, height: 30), 0.9)   // overhead strip
+    }
+
+    /// Vertical navy gradient behind the board.
+    static let backdrop: NSImage = HoloFX.render(NSSize(width: 4, height: 256)) {
+        NSGradient(colors: [NSColor(red: 0.01, green: 0.02, blue: 0.05, alpha: 1),
+                            NSColor(red: 0.05, green: 0.09, blue: 0.17, alpha: 1)])?
+            .draw(in: NSRect(x: 0, y: 0, width: 4, height: 256), angle: 90)
     }
 
     static func geometry(from mesh: MeshData) -> SCNGeometry {

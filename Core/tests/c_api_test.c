@@ -29,6 +29,13 @@ int sieda_c_api_smoke_test(void) {
 
     SiedaMesh* m = sieda_mesh_build(p, 1);
     if (!m || sieda_mesh_vertex_count(m) <= 0 || sieda_mesh_index_count(m) % 3 != 0) return 9;
+    {
+        /* Every vertex carries a surface tag (mask, finish, solder, silk, plastic…). */
+        const uint8_t* surfaces = sieda_mesh_surfaces(m);
+        if (!surfaces) return 9;
+        for (int32_t v = 0; v < sieda_mesh_vertex_count(m); ++v)
+            if (surfaces[v] > 11) return 9;
+    }
     sieda_mesh_free(m);
 
     char* saved = sieda_project_save_json(p);

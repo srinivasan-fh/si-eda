@@ -1981,6 +1981,73 @@ TEST(mesh_is_valid) {
     CHECK(obj.find("\nf ") != std::string::npos);
 }
 
+TEST(assembly_mesh_is_realistic) {
+    // Every vertex carries what it is made of, so the 3D view can light mask, metal, solder and plastic differently.
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    Mesh m = buildAssemblyMesh(p.schematic, p.pcb);
+    CHECK(m.surfaces.size() == m.vertexCount());
+    for (uint8_t v : m.surfaces) CHECK(v < kSurfaceCount);
+    for (Surface s : {Surface::Mask, Surface::Laminate, Surface::Finish, Surface::Gold, Surface::Tin, Surface::Solder,
+                      Surface::Silk, Surface::Plastic, Surface::Ceramic, Surface::Glass, Surface::Hole, Surface::Marking})
+        CHECK(m.surfaceVertices(s) > 0);
+    // The board's top face is still the first quad, in the mask colour.
+    CHECK(m.surfaces[0] == static_cast<uint8_t>(Surface::Mask) && m.normals[1] > 0.99f);
+
+    // A bare board (no parts): pads show their finish, no solder joints, leads or bodies.
+    Mesh bare = buildAssemblyMesh(p.schematic, p.pcb, {false, true, true});
+    CHECK(bare.surfaceVertices(Surface::Solder) == 0 && bare.surfaceVertices(Surface::Plastic) == 0);
+    CHECK(bare.surfaceVertices(Surface::Finish) > 0 && bare.surfaceVertices(Surface::Silk) > 0);
+    // Silkscreen legends: reference designators make the silk far richer than the bare outlines.
+    size_t parts = 0;
+    for (const auto& c : p.schematic.components()) parts += c.hasFootprint() && c.pcb.placed ? 1 : 0;
+    CHECK(bare.surfaceVertices(Surface::Silk) > parts * 4 * 24 * 2);
+
+    // The X-ray copper layers are all finish.
+    Mesh layer = buildCopperLayerMesh(p.schematic, p.pcb, 0);
+    CHECK(layer.surfaces.size() == layer.vertexCount() && layer.surfaceVertices(Surface::Finish) == layer.vertexCount());
+}
+
+TEST(silkscreen_stroke_font) {
+    // Every character a reference or part value uses draws something; unknown ones fall back to '?'.
+    for (char ch : std::string("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcxyz-+./_?")) {
+        Mesh t;
+        t.addText(std::string(1, ch), {0, 0}, 1.0, 0.0, 0.01, Rgba{});
+        CHECK(t.vertexCount() > 0);
+    }
+    Mesh space;
+    space.addText(" ", {0, 0}, 1.0, 0.0, 0.01, Rgba{});
+    CHECK(space.vertexCount() == 0);
+    Mesh unknown;
+    unknown.addText("~", {0, 0}, 1.0, 0.0, 0.01, Rgba{});
+    CHECK(unknown.vertexCount() > 0);
+
+    // Width grows with length and height; text is centred, and mirrored text (bottom legend) is its reflection.
+    CHECK(Mesh::textWidth("R10", 1.0) > Mesh::textWidth("R1", 1.0));
+    CHECK(std::fabs(Mesh::textWidth("U1", 2.0) - 2 * Mesh::textWidth("U1", 1.0)) < 1e-9);
+    Mesh a, b;
+    a.addText("R7", {10, 5}, 1.0, 0.0, 0.01, Rgba{});
+    b.addText("R7", {10, 5}, 1.0, 0.0, 0.01, Rgba{}, true);
+    double minA = 1e9, maxA = -1e9, sumA = 0, sumB = 0;
+    for (size_t v = 0; v < a.vertexCount(); ++v) {
+        minA = std::min(minA, double(a.positions[v * 3]));
+        maxA = std::max(maxA, double(a.positions[v * 3]));
+        sumA += a.positions[v * 3] - 10;
+        sumB += b.positions[v * 3] - 10;
+    }
+    CHECK(std::fabs((minA + maxA) / 2 - 10) < 0.2);
+    CHECK(a.vertexCount() == b.vertexCount());
+    CHECK(std::fabs(sumA + sumB) < 1e-3);  // x mirrored about the centre
+    // Text tops point to board −Y (the top of the PCB view): the '7' bar sits at the smallest Z.
+    double minZ = 1e9, maxZ = -1e9;
+    for (size_t v = 0; v < a.vertexCount(); ++v) {
+        minZ = std::min(minZ, double(a.positions[v * 3 + 2]));
+        maxZ = std::max(maxZ, double(a.positions[v * 3 + 2]));
+    }
+    CHECK(minZ < 5 - 0.4 && maxZ > 5 + 0.4);
+}
+
 TEST(c_api_smoke) {
     int rc = sieda_c_api_smoke_test();
     if (rc != 0) std::printf("    c api step %d failed\n", rc);
