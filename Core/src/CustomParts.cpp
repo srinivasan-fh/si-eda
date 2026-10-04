@@ -4,6 +4,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
+#include <map>
 #include <set>
 
 namespace sieda {
@@ -99,6 +101,20 @@ Json customPartSpecToJson(const CustomPartSpec& s) {
         pins.push(pj);
     }
     j["pins"] = pins;
+    if (!s.symbol.empty()) {  // only when laid out, so ids of generated-symbol parts stay stable
+        Json sym = Json::object();
+        if (s.symbol.width > 0) sym["width"] = s.symbol.width;
+        Json sp = Json::array();
+        for (const auto& p : s.symbol.pins) {
+            Json pj = Json::object();
+            pj["number"] = p.number;
+            pj["side"] = std::string(1, p.side);
+            pj["slot"] = p.slot;
+            sp.push(pj);
+        }
+        sym["pins"] = sp;
+        j["symbolLayout"] = sym;  // "symbol" is the generated geometry in customPartToJson
+    }
     if (!s.model.empty()) {  // only when present, so ids of model-less parts stay stable
         Json m = Json::object();
         if (s.model.hasRegulator) {
@@ -256,6 +272,25 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
         if (p.name.empty()) p.name = p.number;
         if (p.number.empty()) p.number = std::to_string(s.pins.size() + 1);
         s.pins.push_back(p);
+    }
+    const Json& sym = j.get("symbolLayout");
+    if (sym.isObject()) {
+        const double width = sym.get("width").asNumber(0);
+        if (!std::isfinite(width) || width < 0 || width > 400) throw JsonError("Symbol width must be 0…400.");
+        s.symbol.width = width;
+        for (const auto& pj : sym.get("pins").items()) {
+            SymbolPin p;
+            p.number = trim(pj.get("number").isNumber() ? std::to_string(pj.get("number").asInt()) : pj.get("number").asString(""));
+            const std::string side = upper(pj.get("side").asString("L"));
+            p.side = side.empty() ? 'L' : side[0];
+            p.slot = pj.get("slot").asInt(0);
+            if (p.number.empty()) throw JsonError("Every symbol pin needs a pin number.");
+            if (side.size() != 1 || std::string("LRTB").find(p.side) == std::string::npos)
+                throw JsonError("Symbol pin sides are L, R, T or B.");
+            if (p.slot < 0 || p.slot > 511) throw JsonError("Symbol pin slots are 0…511.");
+            if (s.symbol.pins.size() >= 1024) throw JsonError("Symbol has too many pins.");
+            s.symbol.pins.push_back(p);
+        }
     }
     const Json& m = j.get("model");
     if (m.isObject()) {
@@ -568,19 +603,41 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
         if (it != parts_.end()) return it->second;
     }
 
-    // --- Schematic symbol: DIP-style box, pins ordered by number down the left then up the right.
-    std::vector<size_t> order(spec.pins.size());
-    for (size_t i = 0; i < order.size(); ++i) order[i] = i;
-    std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) {
-        return numericOrder(spec.pins[a].number) < numericOrder(spec.pins[b].number);
-    });
-    size_t n = order.size();
-    size_t leftCount = (n + 1) / 2, rightCount = n - leftCount;
-    size_t maxName = 0;
-    for (const auto& p : spec.pins) maxName = std::max(maxName, p.name.size());
-    double halfW = std::clamp(std::ceil((static_cast<double>(maxName) * 3.6 + 14) / 10) * 10, 30.0, 120.0);
-    size_t rows = std::max<size_t>(leftCount, std::max<size_t>(rightCount, 1));
-    double halfH = static_cast<double>(rows) * 10 + 10;
+    // --- Schematic symbol: the part's symbol layout, or the generated one (pins in number order down the left, then
+    // up the right). Each pin leaves the body from its side; pins 2 grid units apart, all on the 10-unit grid.
+    const size_t n = spec.pins.size();
+    std::vector<SymbolPin> placement(n);
+    if (spec.symbol.empty()) {
+        std::vector<size_t> order(n);
+        for (size_t i = 0; i < n; ++i) order[i] = i;
+        std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+            return numericOrder(spec.pins[a].number) < numericOrder(spec.pins[b].number);
+        });
+        const size_t leftCount = (n + 1) / 2;
+        for (size_t k = 0; k < n; ++k) {
+            const bool left = k < leftCount;
+            placement[order[k]] = {spec.pins[order[k]].number, left ? 'L' : 'R', static_cast<int>(left ? k : n - 1 - k)};
+        }
+    } else {
+        for (const auto& issue : checkSymbol(spec))
+            if (issue.severity == "error") throw JsonError("Symbol: " + issue.message);
+        for (const auto& sp : spec.symbol.pins) placement[static_cast<size_t>(spec.pinIndex(sp.number))] = sp;
+    }
+    int slots[4] = {0, 0, 0, 0};  // L R T B: slot count (highest slot + 1)
+    size_t nameLR = 0, nameTB = 0;
+    auto sideIndex = [](char side) { return side == 'L' ? 0 : side == 'R' ? 1 : side == 'T' ? 2 : 3; };
+    for (size_t i = 0; i < n; ++i) {
+        const int k = sideIndex(placement[i].side);
+        slots[k] = std::max(slots[k], placement[i].slot + 1);
+        (k < 2 ? nameLR : nameTB) = std::max(k < 2 ? nameLR : nameTB, spec.pins[i].name.size());
+    }
+    double halfW = std::clamp(std::ceil((static_cast<double>(nameLR) * 3.6 + 14) / 10) * 10, 30.0, 400.0);
+    halfW = std::max(halfW, static_cast<double>(std::max(slots[2], slots[3])) * 10 + 10);  // room for top / bottom pins
+    if (spec.symbol.width > 0) halfW = std::max(halfW, std::ceil(spec.symbol.width / 20) * 10);
+    const int rows = std::max(1, std::max(slots[0], slots[1]));
+    // Top and bottom pin names read vertically inside the body: leave them that much room above / below the side pins.
+    const double vertical = nameTB > 0 ? std::ceil((static_cast<double>(nameTB) * 3.6 + 6) / 10) * 10 : 0;
+    const double halfH = static_cast<double>(rows - 1) * 10 + 10 + std::max(10.0, vertical);
     part->symbolHalfWidth = halfW;
     part->symbolHalfHeight = halfH;
 
@@ -593,17 +650,22 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     def.footprint = "CUSTOM:" + part->id;
     def.simulated = false;
     def.pins.resize(n);
-    double top = -static_cast<double>(rows - 1) * 10;
-    for (size_t k = 0; k < n; ++k) {
-        size_t pinIdx = order[k];
-        bool left = k < leftCount;
-        size_t row = left ? k : (n - 1 - k);
+    const double top = -static_cast<double>(rows - 1) * 10;
+    for (size_t i = 0; i < n; ++i) {
+        const SymbolPin& sp = placement[i];
         PinDef pd;
-        pd.name = spec.pins[pinIdx].name;
-        pd.number = spec.pins[pinIdx].number;
-        pd.type = static_cast<int>(spec.pins[pinIdx].type);
-        pd.offset = {left ? -(halfW + 20) : (halfW + 20), top + static_cast<double>(row) * 20};
-        def.pins[pinIdx] = pd;  // pin index == position in the spec's pin list
+        pd.name = spec.pins[i].name;
+        pd.number = spec.pins[i].number;
+        pd.type = static_cast<int>(spec.pins[i].type);
+        pd.side = sp.side;
+        const double along = static_cast<double>(sp.slot) * 20;
+        switch (sp.side) {
+            case 'L': pd.offset = {-(halfW + 20), top + along}; break;
+            case 'R': pd.offset = {halfW + 20, top + along}; break;
+            case 'T': pd.offset = {-static_cast<double>(slots[2] - 1) * 10 + along, -(halfH + 20)}; break;
+            default: pd.offset = {-static_cast<double>(slots[3] - 1) * 10 + along, halfH + 20}; break;
+        }
+        def.pins[i] = pd;  // pin index == position in the spec's pin list
     }
     part->def = def;
 
@@ -684,6 +746,186 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     std::lock_guard<std::mutex> lock(mutex_);
     auto [it, inserted] = parts_.emplace(part->id, part);
     return it->second;
+}
+
+namespace {
+bool startsWith(const std::string& s, const char* prefix) { return s.rfind(prefix, 0) == 0; }
+
+/// Ground / negative-supply pin names: GND, AGND, DGND, PGND, VSS, AVSS, VEE, V-, 0V, GND/EP, EP (on a ground part).
+bool groundPinName(const std::string& upperName) {
+    for (const char* p : {"GND", "AGND", "DGND", "PGND", "SGND", "CGND", "VSS", "AVSS", "DVSS", "VEE", "V-", "0V", "-VS"})
+        if (startsWith(upperName, p)) return true;
+    return false;
+}
+
+/// Reset, clock, boot and debug pins: kept together at the top left of an MCU symbol.
+bool controlPinName(const std::string& u) {
+    for (const char* p : {"RST", "RESET", "NRST", "MCLR", "XTAL", "OSC", "XIN", "XOUT", "XI", "XO", "CLKIN", "CLKOUT",
+                          "BOOT", "SWD", "SWCLK", "SWDIO", "SWO", "TCK", "TMS", "TDI", "TDO", "NTRST", "JTAG", "UPDI",
+                          "PDI", "TEST", "PROG", "EN", "CHIP_EN"})
+        if (u == p || (startsWith(u, p) && std::strlen(p) >= 3)) return true;
+    return false;
+}
+
+/// MCU port of a pin name and its bit: "PA5" → ("PA", 5), "P1.3" / "P1_3" → ("P1", 3), "GPIO12" → ("GPIO", 12),
+/// "RB7" → ("RB", 7), "PA5/ADC1_5" → ("PA", 5). Empty port when the name is not a port pin.
+std::pair<std::string, int> portOf(const std::string& u) {
+    std::string base = u.substr(0, u.find_first_of("/ ("));
+    auto digitsAt = [&](size_t i) {
+        size_t j = i;
+        while (j < base.size() && std::isdigit(static_cast<unsigned char>(base[j]))) ++j;
+        return j;
+    };
+    if (base.size() >= 3 && (base[0] == 'P' || base[0] == 'R') && std::isalpha(static_cast<unsigned char>(base[1])) &&
+        std::isdigit(static_cast<unsigned char>(base[2])) && digitsAt(2) == base.size())
+        return {base.substr(0, 2), std::stoi(base.substr(2))};
+    if (base.size() >= 4 && base[0] == 'P' && std::isdigit(static_cast<unsigned char>(base[1]))) {
+        size_t j = digitsAt(1);
+        if (j < base.size() && (base[j] == '.' || base[j] == '_') && j + 1 < base.size() && digitsAt(j + 1) == base.size())
+            return {base.substr(0, j), std::stoi(base.substr(j + 1))};
+    }
+    if (startsWith(base, "GPIO") && base.size() > 4 && digitsAt(4) == base.size()) return {"GPIO", std::stoi(base.substr(4))};
+    if (startsWith(base, "IO") && base.size() > 2 && digitsAt(2) == base.size()) return {"IO", std::stoi(base.substr(2))};
+    return {"", 0};
+}
+}  // namespace
+
+SymbolSpec autoArrangeSymbol(const CustomPartSpec& spec, bool stackDuplicates) {
+    // Groups per side, each a list of pin indices; groups are separated by an empty slot.
+    struct Group {
+        std::vector<size_t> pins;
+    };
+    std::vector<Group> left, right, top, bottom;
+    Group control, inputs, outputs, nc, supplies, grounds, other;
+    std::map<std::string, Group> ports;
+    std::vector<std::string> portOrder;
+    for (size_t i = 0; i < spec.pins.size(); ++i) {
+        const CustomPin& p = spec.pins[i];
+        const std::string u = upper(p.name);
+        const auto [port, bit] = portOf(u);
+        (void)bit;
+        if (p.type == PinType::NoConnect) nc.pins.push_back(i);
+        else if (groundPinName(u)) grounds.pins.push_back(i);
+        else if (p.type == PinType::PowerIn) supplies.pins.push_back(i);
+        else if (controlPinName(u)) control.pins.push_back(i);
+        else if (!port.empty() && (p.type == PinType::Bidirectional || p.type == PinType::Passive ||
+                                   p.type == PinType::Input || p.type == PinType::Output)) {
+            if (!ports.count(port)) portOrder.push_back(port);
+            ports[port].pins.push_back(i);
+        } else if (p.type == PinType::Input) inputs.pins.push_back(i);
+        else if (p.type == PinType::Output || p.type == PinType::OpenCollector || p.type == PinType::PowerOut)
+            outputs.pins.push_back(i);
+        else other.pins.push_back(i);
+    }
+    // Port pins in bit order.
+    for (auto& [name, g] : ports)
+        std::stable_sort(g.pins.begin(), g.pins.end(), [&](size_t a, size_t b) {
+            return portOf(upper(spec.pins[a].name)).second < portOf(upper(spec.pins[b].name)).second;
+        });
+    auto count = [](const std::vector<Group>& side) {
+        size_t n = 0;
+        for (const auto& g : side) n += g.pins.size() + 1;
+        return n;
+    };
+    if (!control.pins.empty()) left.push_back(control);
+    if (!inputs.pins.empty()) left.push_back(inputs);
+    if (!outputs.pins.empty()) right.push_back(outputs);
+    // Ports and the remaining bidirectional / passive pins balance the two sides (each goes to the shorter side).
+    // A long port is cut into groups of 8 bits (PA0–7, PA8–15) so both sides stay balanced.
+    for (const auto& name : portOrder) {
+        const auto& all = ports[name].pins;
+        for (size_t k = 0; k < all.size(); k += 8) {
+            Group chunk;
+            chunk.pins.assign(all.begin() + static_cast<long>(k), all.begin() + static_cast<long>(std::min(all.size(), k + 8)));
+            (count(left) <= count(right) ? left : right).push_back(chunk);
+        }
+    }
+    if (!other.pins.empty()) {
+        // Split a plain bidirectional / passive group across both sides (e.g. an 8-pin passive part).
+        Group a, b;
+        for (size_t k = 0; k < other.pins.size(); ++k) (k < (other.pins.size() + 1) / 2 ? a : b).pins.push_back(other.pins[k]);
+        (count(left) <= count(right) ? left : right).push_back(a);
+        if (!b.pins.empty()) (count(left) <= count(right) ? left : right).push_back(b);
+    }
+    if (!nc.pins.empty()) right.push_back(nc);
+    if (!supplies.pins.empty()) top.push_back(supplies);
+    if (!grounds.pins.empty()) bottom.push_back(grounds);
+
+    SymbolSpec out;
+    auto place = [&](const std::vector<Group>& groups, char side, bool stack) {
+        int slot = 0;
+        std::map<std::string, int> stacked;  // name → slot of its first pin
+        for (size_t g = 0; g < groups.size(); ++g) {
+            if (g > 0) ++slot;  // gap between groups
+            for (size_t i : groups[g].pins) {
+                const std::string& name = spec.pins[i].name;
+                if (stack) {
+                    auto it = stacked.find(name);
+                    if (it != stacked.end()) {
+                        out.pins.push_back({spec.pins[i].number, side, it->second});
+                        continue;
+                    }
+                    stacked[name] = slot;
+                }
+                out.pins.push_back({spec.pins[i].number, side, slot++});
+            }
+        }
+    };
+    place(left, 'L', false);
+    place(right, 'R', false);
+    place(top, 'T', stackDuplicates);
+    place(bottom, 'B', stackDuplicates);
+    return out;
+}
+
+std::vector<SymbolIssue> checkSymbol(const CustomPartSpec& spec) {
+    std::vector<SymbolIssue> out;
+    if (spec.symbol.empty()) return out;
+    std::map<std::string, size_t> byNumber;  // upper-case pin number → index in the pin list
+    for (size_t i = 0; i < spec.pins.size(); ++i) byNumber[upper(spec.pins[i].number)] = i;
+    std::map<std::string, int> placed;
+    std::map<std::pair<char, int>, std::vector<size_t>> spots;  // (side, slot) → pin indices
+    for (const auto& sp : spec.symbol.pins) {
+        const std::string key = upper(sp.number);
+        auto it = byNumber.find(key);
+        if (it == byNumber.end()) {
+            out.push_back({"error", "SYM_UNKNOWN", "Symbol places pin " + sp.number + ", which the part does not have.",
+                           {sp.number}});
+            continue;
+        }
+        if (placed[key]++ == 1)
+            out.push_back({"error", "SYM_DUPLICATE", "Pin " + sp.number + " is placed more than once.", {sp.number}});
+        spots[{sp.side, sp.slot}].push_back(it->second);
+    }
+    for (const auto& p : spec.pins)
+        if (!placed.count(upper(p.number)))
+            out.push_back({"error", "SYM_MISSING", "Pin " + p.number + " (" + p.name + ") is not on the symbol.", {p.number}});
+    for (const auto& [spot, pins] : spots) {
+        if (pins.size() < 2) continue;
+        std::vector<std::string> numbers;
+        bool sameName = true, power = true;
+        for (size_t i : pins) {
+            numbers.push_back(spec.pins[i].number);
+            sameName &= spec.pins[i].name == spec.pins[pins[0]].name;
+            const PinType t = spec.pins[i].type;
+            power &= t == PinType::PowerIn || t == PinType::PowerOut || groundPinName(upper(spec.pins[i].name));
+        }
+        std::string list;
+        for (const auto& num : numbers) list += (list.empty() ? "" : ", ") + num;
+        if (!sameName) {
+            out.push_back({"error", "SYM_OVERLAP", "Pins " + list + " have different names but sit on the same spot.", numbers});
+        } else if (!power) {
+            out.push_back({"warning", "SYM_STACK_SIGNAL",
+                           "Pins " + list + " (" + spec.pins[pins[0]].name +
+                               ") are stacked: they will be joined into one net. Stack only pins that are connected "
+                               "inside the part.",
+                           numbers});
+        } else {
+            out.push_back({"info", "SYM_STACK",
+                           "Pins " + list + " (" + spec.pins[pins[0]].name + ") are stacked and join one net.", numbers});
+        }
+    }
+    return out;
 }
 
 CustomPartSpec landPatternFromFootprint(const CustomPartSpec& spec) {
@@ -786,6 +1028,7 @@ Json customPartToJson(const CustomPart& part) {
         pj["type"] = pinTypeName(static_cast<PinType>(p.type));
         pj["x"] = p.offset.x;
         pj["y"] = p.offset.y;
+        pj["side"] = std::string(1, p.side ? p.side : (p.offset.x < 0 ? 'L' : 'R'));
         pins.push(pj);
     }
     symbol["pins"] = pins;

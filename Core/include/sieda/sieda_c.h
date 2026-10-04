@@ -117,6 +117,13 @@ char* sieda_custom_part_land_pattern(const char* spec_json, char** error_out);
 /* Footprint editor checks: [{severity,code,message,pads:[n]}] for a spec's land pattern — overlapping pads, copper
  * gaps below min_gap mm, annular rings, pads without pins and pins without pads. Caller frees. */
 char* sieda_check_land_pattern(const char* spec_json, double min_gap);
+/* Symbol editor: the spec with an auto-arranged symbol layout (supplies top, grounds bottom, inputs left, outputs
+ * right, ports grouped; repeated supply / ground pins stacked when stack != 0). NULL and *error_out on an invalid
+ * spec. Caller frees. */
+char* sieda_symbol_auto_arrange(const char* spec_json, int32_t stack, char** error_out);
+/* Symbol editor checks: [{severity,code,message,pins:["number"]}] — pins missing from the symbol or placed twice,
+ * unknown pins, different pins on one spot (errors), stacked signal pins (warning), stacked pins (info). */
+char* sieda_check_symbol(const char* spec_json);
 /* Removes a part from the project library; returns 0 if it is still used by a component. */
 int32_t sieda_custom_part_remove(SiedaProject* project, const char* part_id);
 /* Switches every instance of old_id to new_id (wires are re-mapped by pin number, then name). */

@@ -619,27 +619,18 @@ struct SchematicCanvas: View {
                 } else if !c.componentKind.isVirtual || c.componentKind == .netLabel {
                     ctx.stroke(Path(CGRect(x: s.x - 3, y: s.y - 3, width: 6, height: 6)), with: .color(Theme.unconnectedPin), lineWidth: 1.2)
                 }
-                if let custom, i < custom.symbol.pins.count, viewport.scale > 0.9 {
-                    // Pin name inside the body, pin number on the lead (upright text).
-                    let sp = custom.symbol.pins[i]
-                    let left = sp.x < 0
-                    let edge = left ? -custom.symbol.halfWidth : custom.symbol.halfWidth
-                    let inner = CGPoint(x: edge + (left ? 4 : -4), y: sp.y).applying(t)
-                    let centre = position.applying(screen)
-                    let anchor: UnitPoint = abs(inner.x - centre.x) < 2 ? .center : (inner.x < centre.x ? .leading : .trailing)
-                    let size = max(7, min(11, 7 * viewport.scale / 1.6))
-                    ctx.draw(Text(sp.name).font(.system(size: size, design: .monospaced))
-                                .foregroundColor(sp.type == PinElectricalType.powerIn.rawValue ? Theme.probe : Theme.skyBlue),
-                             at: inner, anchor: anchor)
-                    let lead = CGPoint(x: (sp.x + edge) / 2, y: sp.y - 5).applying(t)
-                    ctx.draw(Text(sp.number).font(.system(size: size * 0.85, design: .monospaced)).foregroundColor(Theme.textMuted),
-                             at: lead)
-                }
                 if c.componentKind == .ic8, viewport.scale > 1.2 {
                     let inward = CGPoint(x: (c.position.x - pp.x) * 0.18 + pp.x, y: pp.y).applying(screen)
                     ctx.draw(Text("\(i + 1)").font(.system(size: 8, design: .monospaced)).foregroundColor(Theme.textMuted),
                              at: inward)
                 }
+            }
+
+            if let custom, showPins, viewport.scale > 0.9 {
+                // Pin names inside the body, pin numbers on the leads (readable at any rotation).
+                SchematicSymbols.drawPinLabels(ctx, part: custom, transform: t, fontSize: max(7, min(11, 7 * viewport.scale / 1.6)),
+                                               nameColor: { $0.type == PinElectricalType.powerIn.rawValue ? Theme.probe : Theme.skyBlue },
+                                               numberColor: Theme.textMuted)
             }
 
             // Labels (kept upright)

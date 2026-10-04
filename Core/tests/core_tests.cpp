@@ -3589,6 +3589,190 @@ TEST(high_layer_count_and_computing_segments) {
     CHECK(findLaminate("tachyon-100g")->er < findLaminate("megtron-6")->er);
 }
 
+TEST(symbol_editor_layout_auto_arrange_and_checks) {
+    auto reg = [](const CustomPartSpec& spec) { return CustomPartRegistry::instance().registerPart(spec); };
+    auto pinAt = [](const std::shared_ptr<const CustomPart>& part, const std::string& number) -> const PinDef* {
+        for (const auto& p : part->def.pins)
+            if (p.number == number) return &p;
+        return nullptr;
+    };
+    auto codes = [](const std::vector<SymbolIssue>& v) {
+        std::multiset<std::string> out;
+        for (const auto& i : v) out.insert(i.code);
+        return out;
+    };
+
+    // Small parts keep the generated datasheet-order box: NE555 pins 1–4 down the left, 5–8 up the right.
+    const CustomPartSpec ne555 = findStandardPart("NE555")->spec;
+    CHECK(ne555.symbol.empty());
+    auto timer = reg(ne555);
+    CHECK(pinAt(timer, "1")->side == 'L' && pinAt(timer, "8")->side == 'R');
+    CHECK(pinAt(timer, "1")->offset.y < pinAt(timer, "4")->offset.y);
+    CHECK(pinAt(timer, "8")->offset.y == pinAt(timer, "1")->offset.y);
+
+    // Large library parts are auto-arranged: supplies on top (repeated ones stacked), grounds below, control pins top left.
+    for (const auto& sp : standardParts()) {
+        if (sp.spec.pins.size() < 16) continue;
+        CHECK(!sp.spec.symbol.empty());
+        bool clean = true;
+        for (const auto& issue : checkSymbol(sp.spec)) clean &= issue.severity == "info";
+        if (!clean) std::printf("    %s: symbol issues\n", sp.spec.name.c_str());
+        CHECK(clean);
+        auto part = reg(sp.spec);
+        bool onGrid = true;
+        for (const auto& p : part->def.pins)
+            onGrid &= std::fmod(std::fabs(p.offset.x), 10.0) < 1e-9 && std::fmod(std::fabs(p.offset.y), 10.0) < 1e-9;
+        CHECK(onGrid);
+    }
+    auto stm = reg(findStandardPart("STM32F405RGT6")->spec);
+    std::set<std::pair<double, double>> vdd;
+    for (const auto& p : stm->def.pins)
+        if (p.name == "VDD") vdd.insert({p.offset.x, p.offset.y});
+    CHECK(vdd.size() == 1);  // four VDD pins, one stacked pin
+    CHECK(pinAt(stm, "19")->name == "VDD" && pinAt(stm, "19")->side == 'T');
+    CHECK(pinAt(stm, "19")->offset.y == -(stm->symbolHalfHeight + 20));
+    const PinDef* vss = nullptr;
+    for (const auto& p : stm->def.pins)
+        if (p.name == "VSS") vss = &p;
+    CHECK(vss && vss->side == 'B' && vss->offset.y == stm->symbolHalfHeight + 20);
+    const PinDef* nrst = nullptr;
+    for (const auto& p : stm->def.pins)
+        if (p.name == "NRST") nrst = &p;
+    double topLeft = 1e9;  // NRST is the first pin of the left side (reset / boot / debug group)
+    for (const auto& p : stm->def.pins)
+        if (p.side == 'L') topLeft = std::min(topLeft, p.offset.y);
+    CHECK(nrst && nrst->side == 'L' && nrst->offset.y == topLeft);
+    // Port pins in bit order, one slot apart, within a group of 8.
+    auto y = [&](const char* name) {
+        for (const auto& p : stm->def.pins)
+            if (p.name == name) return p.offset.y;
+        return 1e9;
+    };
+    CHECK(y("PA1") - y("PA0") == 20 && y("PA7") - y("PA0") == 140);
+
+    // A hand-made layout on all four sides.
+    CustomPartSpec chip;
+    chip.name = "SYM-TEST";
+    chip.pins = {{"1", "VCC", PinType::PowerIn, ""}, {"2", "IN", PinType::Input, ""}, {"3", "OUT", PinType::Output, ""},
+                 {"4", "GND", PinType::PowerIn, ""}, {"5", "GND", PinType::PowerIn, ""}, {"6", "EN", PinType::Input, ""}};
+    chip.symbol.pins = {{"1", 'T', 0}, {"2", 'L', 0}, {"6", 'L', 2}, {"3", 'R', 1}, {"4", 'B', 0}, {"5", 'B', 0}};
+    CHECK(codes(checkSymbol(chip)) == std::multiset<std::string>({"SYM_STACK"}));
+    auto c = reg(chip);
+    CHECK(pinAt(c, "1")->offset.x == 0 && pinAt(c, "1")->offset.y == -(c->symbolHalfHeight + 20));
+    CHECK(pinAt(c, "4")->offset.x == pinAt(c, "5")->offset.x && pinAt(c, "4")->offset.y == pinAt(c, "5")->offset.y);
+    CHECK(pinAt(c, "6")->offset.y - pinAt(c, "2")->offset.y == 40);  // slot 2 leaves a gap
+    CHECK(pinAt(c, "2")->offset.x == -(c->symbolHalfWidth + 20) && pinAt(c, "3")->offset.x == c->symbolHalfWidth + 20);
+    // The body widens for a requested width and for a row of top pins.
+    CustomPartSpec wide = chip;
+    wide.symbol.width = 200;
+    CHECK(reg(wide)->symbolHalfWidth == 100);
+    CustomPartSpec row = chip;
+    for (int k = 0; k < 12; ++k) {
+        row.pins.push_back({std::to_string(7 + k), "D" + std::to_string(k), PinType::Bidirectional, ""});
+        row.symbol.pins.push_back({std::to_string(7 + k), 'T', 1 + k});
+    }
+    auto rowPart = reg(row);
+    CHECK(rowPart->symbolHalfWidth >= 13 * 10 + 10);
+    double minX = 1e9, maxX = -1e9;
+    for (const auto& p : rowPart->def.pins)
+        if (p.side == 'T') {
+            minX = std::min(minX, p.offset.x);
+            maxX = std::max(maxX, p.offset.x);
+        }
+    CHECK(minX == -maxX && maxX < rowPart->symbolHalfWidth);
+
+    // Checks: missing, unknown, duplicate, overlap, stacked signal pins; errors refuse registration.
+    CustomPartSpec bad = chip;
+    bad.symbol.pins.pop_back();  // pin 5 missing
+    CHECK(codes(checkSymbol(bad)).count("SYM_MISSING") == 1);
+    bad.symbol.pins.push_back({"9", 'R', 5});
+    CHECK(codes(checkSymbol(bad)).count("SYM_UNKNOWN") == 1);
+    bad = chip;
+    bad.symbol.pins.push_back({"2", 'R', 6});
+    CHECK(codes(checkSymbol(bad)).count("SYM_DUPLICATE") == 1);
+    bad = chip;
+    bad.symbol.pins[2] = {"6", 'L', 0};  // EN on top of IN
+    CHECK(codes(checkSymbol(bad)).count("SYM_OVERLAP") == 1);
+    bool threw = false;
+    try {
+        reg(bad);
+    } catch (const JsonError&) {
+        threw = true;
+    }
+    CHECK(threw);
+    CustomPartSpec sig = chip;
+    sig.pins.push_back({"7", "IN", PinType::Input, ""});
+    sig.symbol.pins.push_back({"7", 'L', 0});
+    CHECK(codes(checkSymbol(sig)).count("SYM_STACK_SIGNAL") == 1);
+
+    // JSON: the layout round-trips, changes the part id, and is validated.
+    Json j = customPartSpecToJson(chip);
+    CHECK(j.get("symbolLayout").get("pins").size() == 6);
+    CustomPartSpec back = customPartSpecFromJson(j);
+    CHECK(back.symbol.pins.size() == 6 && back.symbol.pins[0].side == 'T' && back.symbol.pins[2].slot == 2);
+    CHECK(reg(back)->id == c->id);
+    CustomPartSpec plain = chip;
+    plain.symbol = {};
+    CHECK(reg(plain)->id != c->id);
+    CHECK(customPartSpecToJson(plain).get("symbolLayout").isNull());  // generated symbols keep their old ids
+    for (const char* badSym : {R"({"pins":[{"number":"1","side":"X","slot":0}]})", R"({"pins":[{"number":"1","side":"L","slot":-1}]})",
+                               R"({"width":900,"pins":[]})", R"({"pins":[{"side":"L","slot":0}]})"}) {
+        Json bj = customPartSpecToJson(chip);
+        bj["symbolLayout"] = Json::parse(badSym);
+        threw = false;
+        try {
+            customPartSpecFromJson(bj);
+        } catch (const JsonError&) {
+            threw = true;
+        }
+        CHECK(threw);
+    }
+
+    // Stacked pins are one node: wiring one GND pin connects both, and the board must join both pads.
+    Project p;
+    auto& sch = p.schematic;
+    const std::string id = p.addCustomPart(chip);
+    int u = sch.addCustomComponent(id, "", {200, 0});
+    int v = sch.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int g = sch.addComponent(ComponentKind::Ground, "", {0, 100});
+    sch.connect({v, 0}, {u, sch.pinIndex(u, "1")});
+    sch.connect({v, 1}, {g, 0});
+    sch.connect({u, sch.pinIndex(u, "4")}, {g, 0});
+    CHECK(sch.netOf({u, sch.pinIndex(u, "5")}) == sch.netOf({u, sch.pinIndex(u, "4")}));
+    CHECK(sch.netOf({u, sch.pinIndex(u, "5")}) == sch.netOf({g, 0}));
+    CHECK(sch.netOf({u, sch.pinIndex(u, "2")}) != sch.netOf({u, sch.pinIndex(u, "6")}));  // the gap joins nothing
+    CHECK(sch.isPinConnected({u, sch.pinIndex(u, "5")}));
+    // A stack with no wire is still open: ERC reports the floating ground pins.
+    int u2 = sch.addCustomComponent(id, "", {400, 0});
+    CHECK(sch.netOf({u2, sch.pinIndex(u2, "4")}) == sch.netOf({u2, sch.pinIndex(u2, "5")}));
+    CHECK(!sch.isPinConnected({u2, sch.pinIndex(u2, "4")}) && !sch.isPinConnected({u2, sch.pinIndex(u2, "5")}));
+    bool groundOpen = false;
+    for (const auto& v : sch.runERC())
+        groundOpen |= v.code == "ERC_FLOATING_COMPONENT" && !v.components.empty() && v.components[0] == u2;
+    CHECK(groundOpen);
+
+    // C API: auto-arrange and check.
+    const std::string specJson = customPartSpecToJson(findStandardPart("CH340G")->spec).dump();
+    char* error = nullptr;
+    char* arranged = sieda_symbol_auto_arrange(specJson.c_str(), 1, &error);
+    CHECK(arranged && !error);
+    if (arranged) {
+        Json aj = Json::parse(arranged);
+        CHECK(aj.get("symbolLayout").get("pins").size() == 16);
+        char* issues = sieda_check_symbol(arranged);
+        CHECK(issues && Json::parse(issues).size() == 0);
+        sieda_string_free(issues);
+        sieda_string_free(arranged);
+    }
+    CHECK(sieda_symbol_auto_arrange(R"({"name":"X","pins":[]})", 1, &error) == nullptr && error);
+    sieda_string_free(error);
+    Json broken = customPartSpecToJson(chip);
+    broken["symbolLayout"] = Json::parse(R"({"pins":[{"number":"1","side":"Q","slot":0}]})");
+    char* invalid = sieda_check_symbol(broken.dump().c_str());
+    CHECK(Json::parse(invalid).items().front().get("code").asString("") == "SYM_INVALID");
+    sieda_string_free(invalid);
+}
+
 TEST(footprint_editor_checks_geometry_and_c_api) {
     // A two-pin part whose land pattern each case rewrites.
     CustomPartSpec two;

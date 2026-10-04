@@ -237,6 +237,18 @@ struct CustomPartSpec: Codable, Equatable {
         }
     }
 
+    /// Where each pin sits on the schematic symbol (encoded like the core's "symbolLayout").
+    struct SymbolLayout: Codable, Equatable {
+        struct Pin: Codable, Equatable {
+            var number: String
+            var side: String  // "L", "R", "T", "B"
+            var slot: Int
+        }
+        /// Body width in schematic units (nil = from the pin names).
+        var width: Double?
+        var pins: [Pin]
+    }
+
     struct Pin: Codable, Equatable, Identifiable {
         var id = UUID()
         var number: String
@@ -281,6 +293,8 @@ struct CustomPartSpec: Codable, Equatable {
     var datasheet: String = ""
     var package = Package()
     var pins: [Pin] = []
+    /// Symbol Editor layout: each pin's side and slot on the schematic symbol (nil = the generated datasheet-order box).
+    var symbolLayout: SymbolLayout?
     /// Simulation model (kept when a standard or library part is re-registered; nil = no model).
     var model: BehaviorModel?
 
@@ -314,6 +328,10 @@ struct CustomPartInfo: Decodable, Equatable, Identifiable {
         var type: String
         var x: Double
         var y: Double
+        /// Side of the body the pin leaves from ("L", "R", "T", "B").
+        var side: String?
+
+        var sideLetter: String { side ?? (x < 0 ? "L" : "R") }
     }
 
     struct Symbol: Decodable, Equatable {
@@ -357,9 +375,12 @@ struct CustomPartInfo: Decodable, Equatable, Identifiable {
     var footprintGeometry: FootprintGeometry
     var model: BehaviorModel?
 
+    var symbolLayout: CustomPartSpec.SymbolLayout?
+
     var spec: CustomPartSpec {
         CustomPartSpec(name: name, manufacturer: manufacturer, description: description, refPrefix: refPrefix,
-                       defaultValue: defaultValue, datasheet: datasheet, package: package, pins: pins, model: model)
+                       defaultValue: defaultValue, datasheet: datasheet, package: package, pins: pins, symbolLayout: symbolLayout,
+                       model: model)
     }
 
     /// Kind identifier used in AI design plans.

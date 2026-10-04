@@ -25,6 +25,7 @@ struct ComponentLibraryView: View {
     @State private var kitFilter = ""
     @State private var robotKits: [RobotPlatformInfo] = []
     @State private var footprintSource: CustomPartSpec?
+    @State private var symbolSource: CustomPartSpec?
     @State private var footprintError: String?
 
     enum ImportState: Equatable {
@@ -88,7 +89,22 @@ struct ComponentLibraryView: View {
             }
             refreshPreview()
         }
-        .onChange(of: draft) { _, _ in refreshPreview() }
+        .onChange(of: draft) { _, _ in
+            // An arranged symbol follows the pin list: new pins join the shorter side, removed pins leave it.
+            if draft.symbolLayout != nil {
+                var symbol = SymbolDraft(spec: draft)
+                if symbol.reconcile(with: draft.pins) {
+                    draft.symbolLayout = symbol.layout
+                    return
+                }
+            }
+            refreshPreview()
+        }
+        .sheet(isPresented: Binding(get: { symbolSource != nil }, set: { if !$0 { symbolSource = nil } })) {
+            if let source = symbolSource {
+                SymbolEditorView(spec: source) { edited in draft = edited }
+            }
+        }
         .sheet(isPresented: Binding(get: { footprintSource != nil }, set: { if !$0 { footprintSource = nil } })) {
             if let source = footprintSource {
                 FootprintEditorView(spec: source) { edited in draft = edited }
@@ -307,9 +323,15 @@ struct ComponentLibraryView: View {
                 }
                 GridRow {
                     HStack {
+                        Button { symbolSource = draft } label: { Label("Edit Symbol…", systemImage: "rectangle.connected.to.line.below") }
+                            .disabled(draft.pins.isEmpty)
+                            .help("Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange")
                         Button { openFootprintEditor() } label: { Label("Edit Footprint…", systemImage: "square.grid.3x3.topleft.filled") }
                             .disabled(draft.pins.isEmpty)
                             .help("Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad")
+                        if draft.symbolLayout != nil {
+                            Text("Arranged symbol").font(.caption).foregroundStyle(Theme.textSecondary)
+                        }
                         if draft.package.usesLandPattern {
                             Text(draft.package.type == "CUSTOM" ? "Custom footprint · \(draft.package.lands?.count ?? 0) pads"
                                                                 : "Land pattern · \(draft.package.lands?.count ?? 0) pads")

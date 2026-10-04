@@ -51,8 +51,9 @@ Every AI result lands in the same editable schematic and PCB, so you can switch 
 | **Verification process** | **Design → Verify Design** (⌥⌘V) runs a 7-stage sign-off: ERC → DC simulation → circuit validation → footprint placement → routing completion → DRC/fab rules → manufacturing outputs (every Gerber layer, drill, BOM, pick-and-place and netlist are generated and checked). The verdict is Pass, Pass with warnings or Fail; findings cross-probe to the editors, and the report exports as Markdown. **Export Fabrication Package** always verifies first, asks before exporting a failing design, and includes `verification_report.md` |
 | **Model choice** | Anthropic **Claude** (default: `claude-opus-5-5`, structured outputs, adaptive thinking, effort control, refusal fallbacks), OpenAI or any OpenAI-compatible endpoint, Google Gemini, local Ollama, and an Offline Designer that needs no network |
 | **Schematic capture** | 16 built-in device types plus your own library parts, orthogonal wiring with T-junctions (end a wire on any wire to join it, e.g. a part in parallel), corners (wire tool: click empty space), bendable wires (drag a wire or its bend points; deleting a bend straightens it), net labels, rotate/move/marquee, undo/redo, ERC with pin-type rules, no-connect flags (Q) for pins left open on purpose |
-| **Datasheet → component** | Drop a datasheet (PDF, pinout screenshot or text). The Datasheet Analyst agent extracts part number, package and every pin with its electrical type: Claude and Gemini read the PDF natively, OCR (Vision) handles images, and an offline pin-table parser works without a key. You review it in a pin-table editor with live symbol and footprint previews, then save it to the project library and place it like any other part. Any part's footprint can be redrawn pad by pad in the [Footprint Editor](#footprint-editor). AI design agents can use library parts too |
+| **Datasheet → component** | Drop a datasheet (PDF, pinout screenshot or text). The Datasheet Analyst agent extracts part number, package and every pin with its electrical type: Claude and Gemini read the PDF natively, OCR (Vision) handles images, and an offline pin-table parser works without a key. You review it in a pin-table editor with live symbol and footprint previews, then save it to the project library and place it like any other part. Any part's footprint can be redrawn pad by pad in the [Footprint Editor](#footprint-editor), and its symbol arranged in the [Symbol Editor](#symbol-editor). AI design agents can use library parts too |
 | **Footprint Editor** | Draw any part's land pattern pad by pad (**Component Library → Edit Footprint…**). You set each pad's position, size, rectangle or circle shape, drill (SMD or plated through-hole), number, and pin (its own, another pin such as a tab or exposed pad, or none for a mounting hole). The canvas has a grid, ⇧-click selection, drag to move and double-click to add. Tools: duplicate, delete, mirror, centre, pad arrays, body size and undo. Live checks flag overlaps, gaps under 0.1 mm, thin annular rings, pads without pins and pins without pads; errors block Apply. Generated footprints (DIP, SOIC, QFN, TO-263, BGA, …) convert with the same pads on the same pins. See [Footprint Editor](#footprint-editor) and [docs/FOOTPRINT_EDITOR.md](docs/FOOTPRINT_EDITOR.md) |
+| **Symbol Editor** | Arrange any part's schematic symbol (**Component Library → Edit Symbol…**). Drag pins to any of the four sides and any slot, separate groups with gaps, and stack repeated VDD / GND pins onto one spot (drawn once, joined into one net). **Auto Arrange** puts supplies on top, grounds at the bottom, inputs left, outputs right, and groups MCU ports in bit order. Live checks catch unplaced, duplicated or colliding pins. Library parts with 16+ pins (MCUs, FPGA, modules, drivers) come arranged. See [Symbol Editor](#symbol-editor) and [docs/SYMBOL_EDITOR.md](docs/SYMBOL_EDITOR.md) |
 | **Simulation** | Modified Nodal Analysis with Newton–Raphson: DC operating point and transient. Diode/LED (Shockley), BJT (Ebers–Moll), MOSFET (square-law with λ), saturating op-amp, R/L/C, DC/SIN/PULSE sources, batteries and AC (mains / transformer) sources. Part-number device models (1N4148, SS14, BC847, 2N7002, AO3400, SI2302, IRF540N, …) and behavioural chip models: regulators and chargers (LM7805, LM317, XC6206, AP2112K, TP4056 with constant-current charging) and IC supply current (ATmega328P, MPU-6050, nRF24L01+, …). Switching designs are checked for RMS/peak stress in steady state. Waveforms are drawn with Swift Charts |
 | **PCB layout** | Footprint library (0805, SOD-123, SOT-23, SOIC, TSSOP, DIP, QFN with exposed pad, LQFP, 1×N and 2×N headers, TO-220), connectivity-driven auto-placement with escape space around fine-pitch parts, board fit, ratsnest, geometric and manufacturability DRC (see design rules). **Board Setup** (PCB options bar): board outlines (rectangle, rounded, circle, quadcopter X frame), M2/M3 mounting-hole patterns with keep-outs, copper pours and reserved plane layers (clearance-aware fill, thermal reliefs, island removal), and net classes with IPC-2221 auto-sizing from the simulated currents |
 | **Autorouting** | A final clean-up pass merges collinear pieces and chamfers right-angle corners to 45° wherever clearance allows, so tracks look hand-routed. In the PCB view, copper is coloured **By Net** (power red, ground blue, negative rails purple, signals yellow on top, green on the bottom, and other colours on inner layers) or **By Layer** (the CAD convention: top red, bottom blue, inner yellow / green / orange / magenta), with a legend in the Layers panel. Part designators show at normal zoom, values inside parts and net names along tracks as you zoom in, and pad numbers close up. One **Auto Route** button (PCB options bar, or ⇧⌘R): places any footprints not on the board yet inside the board shape (outline, mounting holes, edge clearance), then routes every connection cleanly and runs DRC, as one undo step. A banner offers it whenever connections are still unrouted. Single-layer (single-sided, no vias), 2-, 4- and 6-layer A* autorouter: through vias, alternating layer directions, turn penalties, rip-up and retry passes, escape routing and neck-down for 0.5 mm-pitch QFN pins, fan-out vias to ground pours/planes, exact clearance for wide power tracks |
@@ -250,6 +251,27 @@ Parts already on the board switch to the new footprint and keep their position. 
 
 The full guide covers how pads map to pins, every check code, conversion details, the land JSON format, the code map and the tests: [docs/FOOTPRINT_EDITOR.md](docs/FOOTPRINT_EDITOR.md).
 
+## Symbol Editor
+
+The symbol is how a part appears on the schematic. In the Component Library, select a part and click **Edit Symbol…** to arrange where its pins sit. Readable symbols keep wires short and the signal flow obvious: supplies at the top, grounds at the bottom, inputs on the left and outputs on the right.
+
+- **Canvas.** Click a pin to select it, and ⇧-click to add more. Drag to any side and slot: a marker shows where the pins will land, and pins already there shift along. ⌥-drop onto a pin to stack onto it.
+- **Selected pins:** send them to Left / Right / Top / Bottom, move them one slot with ↑ / ↓, insert a gap before them, and Stack / Unstack.
+- **Tools:**
+  - **Auto Arrange** (optionally stacking repeated power pins);
+  - **Datasheet Order** (the plain box);
+  - **Mirror**, **Close Gaps**, body width;
+  - **Undo / Redo**.
+- **Stacked pins** (several pins on one spot, e.g. the STM32's four `VDD` pins numbered `19,32,48,64`) are one node: a wire to the stack connects them all, and on the PCB their pads are routed together. A stack with no wire is still reported by ERC.
+- **Live checks** (from the core):
+  - errors, which block **Apply Symbol**: pins not on the symbol, unknown or duplicated pins, pins with different names on one spot;
+  - a warning for stacked signal pins;
+  - info for stacked power pins.
+- **Wires follow their pins.** Rearranging a placed part's symbol moves its pins, and the wires stay attached. **Edit → Undo** restores the old symbol.
+- **Drawing.** Symbols now have pins on all four sides. Pin names along vertical leads read from bottom to top at any rotation.
+
+Library parts with 16 or more pins come auto-arranged; smaller parts keep the datasheet-order box. Full guide (Auto Arrange rules, check codes, layout JSON, code map, tests): [docs/SYMBOL_EDITOR.md](docs/SYMBOL_EDITOR.md).
+
 ## Speed on large designs
 
 Auto-place works out the other parts' keep-outs and each net's position once per part, not once per candidate position. The C++ core is also optimised in Debug builds, which is what `run.sh` uses. All 40 reference designs place, route, verify and build their 3D model in about 60 s in total, against about 163 s before. A 300-connection satellite computer takes about 21 s, against several minutes in an unoptimised Debug build. Tests hold each step of a 201-part board, and the three largest reference designs, to time budgets.
@@ -277,13 +299,13 @@ Core/                C++17 engine (no dependencies)
 SiEDA/               macOS SwiftUI app
   App/               app entry point, menus, DesignStore (state, undo, documents)
   Bridge/            bridging header + EDAEngine (thread-safe Swift façade over the C ABI)
-  Models/            snapshot models, ComponentKind, DesignPlan (the agents' structured output), FootprintDraft (footprint editor document)
+  Models/            snapshot models, ComponentKind, DesignPlan (the agents' structured output), FootprintDraft and SymbolDraft (editor documents)
   AI/                providers (Claude, OpenAI, Gemini, Ollama, Offline), prompts, orchestrator, settings
   Views/             Super Intelligence (PromptStudio/), Schematic, PCB, 3D, Simulation, Checks, Inspector, Settings,
-                     Library (Component Library + Footprint Editor), BOM
+                     Library (Component Library, Footprint Editor, Symbol Editor), BOM
 SiEDATests/          XCTest suite (bridge, plan compiler, offline templates, editors, live windows)
 SiEDA.xcodeproj      generated by tools/generate_xcodeproj.py
-docs/                PRD, architecture, footprint editor guide, missing-parts worksheets
+docs/                PRD, architecture, footprint and symbol editor guides, missing-parts worksheets
 ```
 
 ## Getting started

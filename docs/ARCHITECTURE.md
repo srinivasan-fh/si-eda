@@ -88,6 +88,15 @@ This gives us:
   
   The editor UI (`FootprintEditorView`, `FootprintDraft`) is pure Swift over these two calls. See
   [FOOTPRINT_EDITOR.md](FOOTPRINT_EDITOR.md).
+- **Symbols.**
+  - A part's symbol is generated: pins in number order down the left side, then up the right.
+  - Alternatively it comes from a `symbolLayout`: each pin's side (L / R / T / B) and slot.
+  - `autoArrangeSymbol` builds a layout from pin names and types, and library parts with 16+ pins get one.
+  - Pins on the same spot are stacked. `rebuildNets` joins them into one node, and `isPinConnected` still treats an
+    unwired stack as open.
+  - `checkSymbol` reports unplaced, unknown, duplicated and colliding pins. Registration refuses those errors.
+  
+  The Symbol Editor (`SymbolEditorView`, `SymbolDraft`) works over these calls. See [SYMBOL_EDITOR.md](SYMBOL_EDITOR.md).
 
 ## AI agents
 
@@ -120,7 +129,8 @@ reads any content. API keys are stored in the Keychain.
 - **Altium:** the Properties inspector, the `LayerTabs` along the bottom of the PCB editor, and the Checks
   panel with cross-probing to the affected parts.
 - **Altium / KiCad library editors:** the Component Library (pin table, symbol and footprint previews) and the
-  Footprint Editor sheet (pad canvas on a grid, pad properties, pad arrays, live land-pattern checks).
+  Footprint Editor sheet (pad canvas on a grid, pad properties, pad arrays, live land-pattern checks) and the Symbol
+  Editor sheet (pins dragged to any side and slot, stacks, Auto Arrange, live symbol checks).
 - **Proteus:** the `DevicePicker` with symbol preview, the `SimulationTransport` controls and live DC probes
   drawn on schematic nets.
 - **Theme:** `Theme.swift` defines the palette. The app is dark by default and blue throughout; warm colours

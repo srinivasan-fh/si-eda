@@ -34,11 +34,13 @@ enum SchematicSymbols {
     /// Hit box of a component, using the generated symbol size for custom parts.
     static func bounds(_ kind: ComponentKind, custom: CustomPartInfo?) -> CGRect {
         guard kind == .custom, let custom else { return bounds(kind) }
-        let w = custom.symbol.halfWidth + 20, h = custom.symbol.halfHeight
+        // Side pins reach 20 past the body; top / bottom pins do too.
+        let w = custom.symbol.halfWidth + 20
+        let h = max(custom.symbol.halfHeight, custom.symbol.pins.map { abs($0.y) }.max() ?? 0)
         return CGRect(x: -w, y: -h, width: 2 * w, height: 2 * h)
     }
 
-    /// Generated DIP-style symbol for a datasheet part: body, pin leads, pin-1 marker.
+    /// Symbol of a library part: body, pin leads on all four sides (stacked pins share one lead), pin-1 marker.
     static func customShapes(_ part: CustomPartInfo) -> Shapes {
         var s = Shapes()
         let hw = part.symbol.halfWidth, hh = part.symbol.halfHeight
@@ -46,8 +48,7 @@ enum SchematicSymbols {
         s.fill.addRect(body)
         s.stroke.addRect(body)
         for pin in part.symbol.pins {
-            let edgeX = pin.x < 0 ? -hw : hw
-            s.stroke.move(to: CGPoint(x: edgeX, y: pin.y))
+            s.stroke.move(to: pinEdge(pin, halfWidth: hw, halfHeight: hh))
             s.stroke.addLine(to: CGPoint(x: pin.x, y: pin.y))
             if pin.type == PinElectricalType.noConnect.rawValue {
                 s.stroke.move(to: CGPoint(x: pin.x - 3, y: pin.y - 3))
@@ -58,6 +59,62 @@ enum SchematicSymbols {
         }
         s.solid.addEllipse(in: CGRect(x: -hw + 4, y: -hh + 4, width: 5, height: 5))
         return s
+    }
+
+    /// Where a symbol pin's lead meets the body (symbol coordinates).
+    static func pinEdge(_ pin: CustomPartInfo.SymbolPin, halfWidth hw: Double, halfHeight hh: Double) -> CGPoint {
+        switch pin.sideLetter {
+        case "T": return CGPoint(x: pin.x, y: -hh)
+        case "B": return CGPoint(x: pin.x, y: hh)
+        case "R": return CGPoint(x: hw, y: pin.y)
+        default: return CGPoint(x: -hw, y: pin.y)
+        }
+    }
+
+    /// Pin names inside the body and pin numbers beside the leads of a library part's symbol, kept readable on screen
+    /// whatever the component's rotation (names along vertical leads read bottom to top). Stacked pins show one name
+    /// and all their numbers.
+    static func drawPinLabels(_ ctx: GraphicsContext, part: CustomPartInfo, transform t: CGAffineTransform, fontSize: CGFloat,
+                              nameColor: (CustomPartInfo.SymbolPin) -> Color, numberColor: Color) {
+        let hw = part.symbol.halfWidth, hh = part.symbol.halfHeight
+        var order: [String] = []
+        var groups: [String: (pin: CustomPartInfo.SymbolPin, numbers: [String])] = [:]
+        for pin in part.symbol.pins {
+            let key = "\(pin.x),\(pin.y)"
+            if groups[key] == nil {
+                groups[key] = (pin, [pin.number])
+                order.append(key)
+            } else {
+                groups[key]?.numbers.append(pin.number)
+            }
+        }
+        for key in order {
+            guard let group = groups[key] else { continue }
+            let pin = group.pin
+            let edge = pinEdge(pin, halfWidth: hw, halfHeight: hh)
+            let toCentre = CGVector(dx: edge.x == pin.x ? 0 : (pin.x < edge.x ? 1 : -1), dy: edge.y == pin.y ? 0 : (pin.y < edge.y ? 1 : -1))
+            let inner = CGPoint(x: edge.x + toCentre.dx * 4, y: edge.y + toCentre.dy * 4).applying(t)
+            let end = CGPoint(x: pin.x, y: pin.y).applying(t), edgeOnScreen = edge.applying(t)
+            let outward = CGVector(dx: end.x - edgeOnScreen.x, dy: end.y - edgeOnScreen.y)
+            let horizontal = abs(outward.dx) >= abs(outward.dy)
+            let name = Text(pin.name).font(.system(size: fontSize, design: .monospaced)).foregroundColor(nameColor(pin))
+            if horizontal {
+                ctx.draw(name, at: inner, anchor: outward.dx > 0 ? .trailing : .leading)
+            } else {
+                var rotated = ctx
+                rotated.translateBy(x: inner.x, y: inner.y)
+                rotated.rotate(by: .degrees(-90))
+                rotated.draw(name, at: .zero, anchor: outward.dy < 0 ? .trailing : .leading)
+            }
+            let mid = CGPoint(x: (edgeOnScreen.x + end.x) / 2, y: (edgeOnScreen.y + end.y) / 2)
+            let numbers = Text(group.numbers.joined(separator: ",")).font(.system(size: fontSize * 0.85, design: .monospaced))
+                .foregroundColor(numberColor)
+            if horizontal {
+                ctx.draw(numbers, at: CGPoint(x: mid.x, y: mid.y - fontSize * 0.7))
+            } else {
+                ctx.draw(numbers, at: CGPoint(x: mid.x + fontSize * 0.5, y: mid.y), anchor: .leading)
+            }
+        }
     }
 
     struct Shapes {
@@ -333,15 +390,8 @@ struct SymbolPreview: View {
             ctx.fill(shapes.solid.applying(t), with: .color(Theme.symbol))
             if let custom, showPinLabels {
                 let font = max(6, min(11, 7.5 * scale))
-                for pin in custom.symbol.pins {
-                    let left = pin.x < 0
-                    let inner = CGPoint(x: left ? -custom.symbol.halfWidth + 4 : custom.symbol.halfWidth - 4, y: pin.y).applying(t)
-                    ctx.draw(Text(pin.name).font(.system(size: font, design: .monospaced)).foregroundColor(Theme.skyBlue),
-                             at: inner, anchor: left ? .leading : .trailing)
-                    let num = CGPoint(x: (pin.x + (left ? -custom.symbol.halfWidth : custom.symbol.halfWidth)) / 2, y: pin.y - 5).applying(t)
-                    ctx.draw(Text(pin.number).font(.system(size: font * 0.85, design: .monospaced)).foregroundColor(Theme.textMuted),
-                             at: num)
-                }
+                SchematicSymbols.drawPinLabels(ctx, part: custom, transform: t, fontSize: font,
+                                               nameColor: { _ in Theme.skyBlue }, numberColor: Theme.textMuted)
                 let title = CGPoint(x: 0, y: -custom.symbol.halfHeight - 8).applying(t)
                 ctx.draw(Text(custom.name).font(.system(size: font + 1, weight: .bold, design: .monospaced))
                             .foregroundColor(Theme.iceBlue), at: title)

@@ -35,6 +35,7 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 | F11 | Project save/open (`.siedaproj`, JSON) | ✅ |
 | F12 | Component library: datasheet import, pin-table editor, standard parts catalog, symbol / footprint / 3D generation | ✅ |
 | F13 | Footprint Editor: draw any part's land pattern pad by pad (position, size, shape, drill, pin), pad arrays, undo, live checks (overlap, gap, annular ring, pin ↔ pad coverage); converts generated footprints | ✅ |
+| F14 | Symbol Editor: pins on any side and slot, gaps, stacked power pins (joined nets), Auto Arrange by name and type, live checks; library parts with 16+ pins arranged | ✅ |
 
 ## Non-functional requirements
 - **Correctness.** All AI output is schema-validated and checked by the core (ERC, simulation, DRC) before
@@ -46,7 +47,8 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 
 ## Out of scope for v1
 - Boards with more than two layers, copper pours, differential pairs and length tuning.
-- A custom symbol editor, and importing KiCad or Altium library files (the Footprint Editor shipped; see F13).
+- Importing KiCad or Altium library files, multi-unit symbols (one gate per unit) and custom symbol graphics (the
+  Footprint and Symbol Editors shipped; see F13, F14).
 - AC and noise analysis.
 
 ## Roadmap

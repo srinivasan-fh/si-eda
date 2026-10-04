@@ -245,6 +245,24 @@ final class EDAEngine: @unchecked Sendable {
         return .success(converted)
     }
 
+    /// Symbol editor: the part with an auto-arranged symbol (supplies top, grounds bottom, inputs left, outputs right,
+    /// ports grouped; repeated supply / ground pins stacked when `stack`).
+    static func autoArrangeSymbol(_ spec: CustomPartSpec, stack: Bool = true) -> Result<CustomPartSpec, EDAEngineError> {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let json = take(sieda_symbol_auto_arrange(spec.jsonString(), stack ? 1 : 0, &errorPointer))
+        if let message = take(errorPointer) { return .failure(.operationFailed(message)) }
+        guard let arranged = decode(CustomPartSpec.self, from: json) else {
+            return .failure(.operationFailed("Symbol unavailable."))
+        }
+        return .success(arranged)
+    }
+
+    /// Symbol editor checks: pins missing or placed twice, unknown pins, different pins on one spot (errors), stacked
+    /// signal pins (warnings), stacked pins (info).
+    static func checkSymbol(_ spec: CustomPartSpec) -> [SymbolIssue] {
+        decode([SymbolIssue].self, from: take(sieda_check_symbol(spec.jsonString()))) ?? []
+    }
+
     /// Footprint editor checks: overlapping pads, copper gaps below `minGap` mm, annular rings, pads without pins and
     /// pins without pads.
     static func checkLandPattern(_ spec: CustomPartSpec, minGap: Double = 0.1) -> [LandIssue] {
