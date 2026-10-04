@@ -68,6 +68,27 @@ This gives us:
 - **Edits after routing.** After schematic edits, copper is re-associated with nets through its contact with
   pads. Copper that no longer touches any pad is pruned.
 
+### Components and footprints
+- **Custom parts** (`CustomParts.cpp`) are specs (name, pins with electrical types, package). From a spec the
+  core generates a schematic symbol, a footprint and a 3D body, and registers the part under an id hashed from
+  the spec. The standard library, the datasheet importer and the Footprint Editor all produce such specs.
+- **Parametric packages** (SOIC, TSSOP, DIP, QFN, LQFP, SOT-23, SON, BGA, TO-220 / TO-263, SOT-223, modules,
+  headers, crystals) place pads from a pin count, pitch and body size. QFN, TSSOP, LQFP, SON and module packages
+  can add an exposed pad; TO-263 and SOT-223 add a tab.
+- **Land patterns** (`LGA`, `CUSTOM`) carry the exact pads instead: one land per pad with position, size, drill,
+  shape and, optionally, the pin it belongs to (a tab, `EP`, a BGA ball, or `-` for a mechanical pad). The
+  catalog's irregular parts use `LGA`, generated pad for pad from the KiCad footprints; the Footprint Editor
+  writes `CUSTOM`.
+- **Footprint editing.**
+  - `landPatternFromFootprint` converts any generated footprint into an editable land pattern, with the same
+    pads on the same pins.
+  - `checkLandPattern` reports overlapping pads, copper gaps below 0.1 mm, annular rings, pads without pins and
+    pins without pads.
+  - Registration refuses a land pattern that leaves a pin without a pad.
+  
+  The editor UI (`FootprintEditorView`, `FootprintDraft`) is pure Swift over these two calls. See
+  [FOOTPRINT_EDITOR.md](FOOTPRINT_EDITOR.md).
+
 ## AI agents
 
 | Agent | Input | Output (JSON schema) |
@@ -98,6 +119,8 @@ reads any content. API keys are stored in the Keychain.
 - **Photoshop:** the `ToolStrip`, the `OptionsBar` and the PCB `LayersPanel` (eye toggles, active layer).
 - **Altium:** the Properties inspector, the `LayerTabs` along the bottom of the PCB editor, and the Checks
   panel with cross-probing to the affected parts.
+- **Altium / KiCad library editors:** the Component Library (pin table, symbol and footprint previews) and the
+  Footprint Editor sheet (pad canvas on a grid, pad properties, pad arrays, live land-pattern checks).
 - **Proteus:** the `DevicePicker` with symbol preview, the `SimulationTransport` controls and live DC probes
   drawn on schematic nets.
 - **Theme:** `Theme.swift` defines the palette. The app is dark by default and blue throughout; warm colours
