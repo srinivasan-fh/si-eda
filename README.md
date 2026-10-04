@@ -270,7 +270,26 @@ The symbol is how a part appears on the schematic. In the Component Library, sel
 - **Wires follow their pins.** Rearranging a placed part's symbol moves its pins, and the wires stay attached. **Edit → Undo** restores the old symbol.
 - **Drawing.** Symbols now have pins on all four sides. Pin names along vertical leads read from bottom to top at any rotation.
 
-Library parts with 16 or more pins come auto-arranged; smaller parts keep the datasheet-order box. Full guide (Auto Arrange rules, check codes, layout JSON, code map, tests): [docs/SYMBOL_EDITOR.md](docs/SYMBOL_EDITOR.md).
+Library parts with 16 or more pins come auto-arranged; smaller parts keep the datasheet-order box. To change a library part's symbol, add it to the project library and edit it there.
+
+**Typical workflow.**
+1. Select the part and click **Edit Symbol…**. A part that was never arranged opens as the datasheet-order box.
+2. Click **Auto Arrange**, then fine-tune: drag pins, add gaps between groups, stack or unstack power pins.
+3. Click **Apply Symbol**, then **Add to Library** / **Save Changes**.
+
+Components already on the schematic switch to the new symbol, with their wires still attached. The board, nets and footprint don't change, except that stacked pins join one net.
+
+| In the editor | Action |
+|---|---|
+| Click / ⇧-click / ⌘-click a pin | Select (with its stack) / add to or remove from the selection |
+| Click empty space | Clear the selection |
+| Drag selected pins | Move them to the side and slot under the pointer; pins already there shift along |
+| ⌥-drop onto a pin | Stack the dragged pins on that pin |
+| Esc / ↩ | Cancel / Apply Symbol |
+
+The layout is saved with the part as `symbolLayout` (a side and slot for each pin, plus an optional body width), so it travels with the project file. Tests cover every Auto Arrange rule, the checks, four-sided geometry, stacked pins on a placed and routed board, project save and reopen, and the editor and schematic in a live window.
+
+Full guide (Auto Arrange rules, check codes, layout JSON, code map, tests): [docs/SYMBOL_EDITOR.md](docs/SYMBOL_EDITOR.md).
 
 ## Speed on large designs
 
