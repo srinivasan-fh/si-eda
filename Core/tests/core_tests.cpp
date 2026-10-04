@@ -1,5 +1,6 @@
 // SiEDA core unit tests — dependency-free; run via `ctest` or directly.
 #include <map>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
@@ -2046,6 +2047,225 @@ TEST(silkscreen_stroke_font) {
         maxZ = std::max(maxZ, double(a.positions[v * 3 + 2]));
     }
     CHECK(minZ < 5 - 0.4 && maxZ > 5 + 0.4);
+}
+
+namespace {
+/// Positions (x, y, z) of the vertices tagged with `s`.
+std::vector<Vec3> surfacePoints(const Mesh& m, Surface s) {
+    std::vector<Vec3> pts;
+    for (size_t v = 0; v < m.vertexCount(); ++v)
+        if (m.surfaces[v] == static_cast<uint8_t>(s)) pts.push_back({m.positions[v * 3], m.positions[v * 3 + 1], m.positions[v * 3 + 2]});
+    return pts;
+}
+bool anyIn(const std::vector<Vec3>& pts, Rect r, double y0, double y1) {
+    for (const auto& p : pts)
+        if (p.x >= r.x0 && p.x <= r.x1 && p.z >= r.y0 && p.z <= r.y1 && p.y >= y0 && p.y <= y1) return true;
+    return false;
+}
+}  // namespace
+
+TEST(realistic_assembly_geometry) {
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    const auto& s = p.schematic;
+    const double t = p.pcb.settings.thickness;
+    Mesh m = buildAssemblyMesh(s, p.pcb);
+    const auto solder = surfacePoints(m, Surface::Solder), tin = surfacePoints(m, Surface::Tin);
+    const auto silk = surfacePoints(m, Surface::Silk), marking = surfacePoints(m, Surface::Marking);
+    const auto glass = surfacePoints(m, Surface::Glass), ceramic = surfacePoints(m, Surface::Ceramic);
+    const auto pads = p.pcb.pads(s);
+
+    for (const auto& pad : pads) {
+        const Component* c = s.find(pad.componentId);
+        if (!c || c->pcb.bottom) continue;
+        if (!pad.throughHole) {
+            // A solder dome sits on every top SMD pad, inside the pad and just above the copper.
+            CHECK(anyIn(solder, pad.bounds(), 0.0, 0.2));
+        } else {
+            // Through-hole joints are on the solder side, under the board.
+            CHECK(anyIn(solder, pad.bounds().inflated(0.05), -t - 0.4, -t));
+        }
+    }
+    // Every SOIC lead reaches its pad: tinned metal over each pad that sticks out of the package body.
+    int socs = 0, leds = 0, chips = 0, smdPads = 0, thPads = 0;
+    for (const auto& pad : pads) (pad.throughHole ? thPads : smdPads) += 1;
+    CHECK(smdPads > 10 && thPads >= 2);
+    for (const auto& c : s.components()) {
+        if (c.def().footprint != "SOIC8_OPAMP") continue;
+        ++socs;
+        int reached = 0, total = 0;
+        for (const auto& pad : pads) {
+            if (pad.componentId != c.id) continue;
+            ++total;
+            reached += anyIn(tin, pad.bounds(), 0.0, 0.3) ? 1 : 0;
+        }
+        CHECK(total == 8 && reached == 8);
+        // The part number is etched on the package top and a pin-1 dimple sits on it.
+        const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
+        Rect body = Rect::centered(c.pcb.position, fp->body.width + 0.01, fp->body.depth + 0.01);
+        if (((c.pcb.rotation / 90) % 2 + 2) % 2 == 1) body = Rect::centered(c.pcb.position, fp->body.depth + 0.01, fp->body.width + 0.01);
+        CHECK(anyIn(marking, body, fp->body.height, fp->body.height + 0.1));
+    }
+    // Each placed part's reference is printed on the silkscreen above its outline.
+    for (const auto& c : s.components()) {
+        if (!c.hasFootprint() || !c.pcb.placed || c.ref.empty()) continue;
+        Rect r = p.pcb.courtyard(c);
+        Rect label{r.x0 - 3, r.y0 - 2.5, r.x1 + 3, r.y0};
+        CHECK(anyIn(silk, label, 0.0, 0.1));
+    }
+    // Glass only on LEDs, ceramic only on chip passives.
+    for (const auto& c : s.components()) {
+        if (!c.hasFootprint() || !c.pcb.placed) continue;
+        Rect r = p.pcb.courtyard(c);
+        const std::string fp = c.def().footprint;
+        const bool chip = fp.rfind("R_", 0) == 0 || fp.rfind("C_", 0) == 0;
+        if (c.kind == ComponentKind::LED) {
+            ++leds;
+            CHECK(anyIn(glass, r, 0.0, 10.0));
+        }
+        if (chip) {
+            ++chips;
+            CHECK(anyIn(ceramic, r, 0.0, 10.0) && !anyIn(glass, r, 0.0, 10.0));
+        }
+    }
+    CHECK(socs == 1 && leds == 1 && chips >= 6);
+    for (const auto& g : glass) CHECK(g.y >= 0);  // no LED glass inside or under the board here
+
+    // Vias: a dark bore of the drill's radius through the board and plated lands on both outer layers.
+    p.pcb.vias.push_back({});
+    Via& v = p.pcb.vias.back();
+    v.position = {1.5, 1.5};
+    v.drill = 0.3;
+    v.diameter = 0.6;
+    Mesh withVia = buildAssemblyMesh(s, p.pcb);
+    double boreR = 0, boreTop = -1e9, boreBottom = 1e9;
+    for (const auto& h : surfacePoints(withVia, Surface::Hole)) {
+        double r = std::hypot(h.x - 1.5, h.z - 1.5);
+        if (r > 0.4) continue;
+        boreR = std::max(boreR, r);
+        boreTop = std::max(boreTop, h.y);
+        boreBottom = std::min(boreBottom, h.y);
+    }
+    CHECK(std::fabs(boreR - 0.15) < 1e-3);
+    CHECK(boreTop > 0 && boreBottom < -t);
+    const auto finish = surfacePoints(withVia, Surface::Finish);
+    CHECK(anyIn(finish, Rect::centered({1.5, 1.5}, 0.62, 0.62), -0.001, 0.04));
+    CHECK(anyIn(finish, Rect::centered({1.5, 1.5}, 0.62, 0.62), -t - 0.04, -t + 0.001));
+}
+
+TEST(realistic_assembly_bottom_side) {
+    // A part flipped to the bottom: its body, solder and mirrored legend hang under the board.
+    Project p = amplifierProject();
+    p.pcb.autoPlace(p.schematic, true);
+    int flipped = -1;
+    for (auto& c : p.schematic.mutableComponents())
+        if (flipped < 0 && c.kind == ComponentKind::Resistor && c.pcb.placed) {
+            c.pcb.bottom = true;
+            flipped = c.id;
+        }
+    CHECK(flipped >= 0);
+    const auto& s = p.schematic;
+    const double t = p.pcb.settings.thickness;
+    Mesh m = buildAssemblyMesh(s, p.pcb);
+    Rect r = p.pcb.courtyard(*s.find(flipped));
+    CHECK(anyIn(surfacePoints(m, Surface::Ceramic), r, -t - 5, -t));
+    CHECK(!anyIn(surfacePoints(m, Surface::Ceramic), r, 0.0, 5.0));
+    CHECK(anyIn(surfacePoints(m, Surface::Solder), r.inflated(0.5), -t - 0.3, -t));
+    Rect label{r.x0 - 3, r.y0 - 2.5, r.x1 + 3, r.y0};
+    CHECK(anyIn(surfacePoints(m, Surface::Silk), label, -t - 0.1, -t));
+}
+
+TEST(realistic_assembly_mesh_stays_bounded) {
+    // Big boards: the extra detail (legends, leads, joints) costs a bounded number of vertices per part and the mesh
+    // builds quickly.
+    Project p;
+    auto& s = p.schematic;
+    int prev = -1;
+    for (int k = 0; k < 120; ++k) {
+        int r = s.addComponent(ComponentKind::Resistor, "10k", {k * 30.0, 0});
+        if (prev >= 0) wire(s, prev, "2", r, "1");
+        prev = r;
+    }
+    p.pcb.settings.width = 160;
+    p.pcb.settings.height = 120;
+    p.pcb.autoPlace(s, true);
+    size_t placed = 0;
+    for (const auto& c : s.components()) placed += c.pcb.placed ? 1 : 0;
+    CHECK(placed == 120);
+    auto start = std::chrono::steady_clock::now();
+    Mesh m = buildAssemblyMesh(s, p.pcb);
+    double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    CHECK(seconds < 5.0);
+    CHECK(m.vertexCount() < placed * 3000);
+    CHECK(m.surfaces.size() == m.vertexCount() && m.colors.size() == m.vertexCount() * 4);
+    // Exports still carry the realistic colours.
+    CHECK(exportObj(m, "big").find("\nv ") != std::string::npos);
+}
+
+TEST(complex_design_flow_is_fast) {
+    // Productivity: a dense 40-channel signal-conditioning board (40 op-amp stages, each with gain resistors, a
+    // filter capacitor and an output connector pin, all on shared VCC / GND) goes from schematic to a placed,
+    // routed, verified and meshed board in seconds.
+    Project p;
+    auto& s = p.schematic;
+    int j = s.addComponent(ComponentKind::Connector, "PWR", {0, 0});
+    int vcc = s.addComponent(ComponentKind::NetLabel, "VCC", {-40, -10});
+    int gnd = s.addComponent(ComponentKind::Ground, "", {-40, 30});
+    wire(s, j, "1", vcc, "N");
+    wire(s, j, "2", gnd, "GND");
+    constexpr int kStages = 40;
+    for (int k = 0; k < kStages; ++k) {
+        const double x = 100.0 + k * 120.0;
+        int u = s.addComponent(ComponentKind::OpAmp, "LM358", {x, 0});
+        int rin = s.addComponent(ComponentKind::Resistor, "10k", {x - 60, 10});
+        int rf = s.addComponent(ComponentKind::Resistor, "47k", {x, -60});
+        int rg = s.addComponent(ComponentKind::Resistor, "10k", {x - 40, -60});
+        int cf = s.addComponent(ComponentKind::Capacitor, "1n", {x + 40, -60});
+        int lv = s.addComponent(ComponentKind::NetLabel, "VCC", {x - 90, 10});
+        int g = s.addComponent(ComponentKind::Ground, "", {x - 40, 60});
+        int out = s.addComponent(ComponentKind::NetLabel, "OUT" + std::to_string(k), {x + 60, 0});
+        wire(s, lv, "N", rin, "1");
+        wire(s, rin, "2", u, "IN+");
+        wire(s, u, "IN-", rg, "2");
+        wire(s, rg, "1", g, "GND");
+        wire(s, u, "IN-", rf, "1");
+        wire(s, rf, "2", u, "OUT");
+        wire(s, cf, "1", u, "IN-");
+        wire(s, cf, "2", u, "OUT");
+        wire(s, u, "OUT", out, "N");
+    }
+    size_t parts = 0;
+    for (const auto& c : s.components()) parts += c.hasFootprint() ? 1 : 0;
+    CHECK(parts == 1 + kStages * 5);  // the connector, then an op-amp, three resistors and a capacitor per stage
+
+    using clock = std::chrono::steady_clock;
+    auto secs = [](clock::time_point a) { return std::chrono::duration<double>(clock::now() - a).count(); };
+    auto t0 = clock::now();
+    p.pcb.autoPlace(s, true);
+    p.pcb.fitBoardToComponents(s, 2.5);
+    const double place = secs(t0);
+    t0 = clock::now();
+    const auto stats = p.pcb.autoRoute(s);
+    const double route = secs(t0);
+    t0 = clock::now();
+    const auto report = verifyDesign(p);
+    const double verify = secs(t0);
+    t0 = clock::now();
+    Mesh m = buildAssemblyMesh(s, p.pcb);
+    const double mesh = secs(t0);
+    std::printf("    flow: %zu parts, %d connections — place %.2f s, route %.2f s, verify %.2f s, 3D %.2f s\n", parts,
+                stats.connections, place, route, verify, mesh);
+    CHECK(stats.failed == 0);
+    for (const auto& c : s.components()) CHECK(!c.hasFootprint() || c.pcb.placed);
+    CHECK(m.vertexCount() > 0);
+    CHECK(report.stages.size() == 8);
+    // Generous budgets (sanitiser and debug builds run here too): a regression to the old quadratic scans or an
+    // unoptimised core shows up as minutes.
+    CHECK(place < 20.0);
+    CHECK(route < 60.0);
+    CHECK(verify < 20.0);
+    CHECK(mesh < 5.0);
 }
 
 TEST(c_api_smoke) {

@@ -497,6 +497,31 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
         // Radios and IMUs stay clear of switching power (noise, vibration).
         const bool radio = isRadioPart(c) || isImuPart(c), switching = isSwitchingPart(c);
         const bool mlcc = c.kind == ComponentKind::Capacitor;
+        // Everything the candidate scan needs that does not depend on the candidate position is gathered once per
+        // part (the scan visits thousands of grid positions): the other parts' keep-out rectangles, the radio /
+        // switching neighbours, and each pad's net centroid.
+        c.pcb.bottom = false;
+        std::vector<Rect> keepOut, noiseNeighbours;
+        for (const auto& o : comps) {
+            if (o.id == c.id || !o.hasFootprint() || !o.pcb.placed) continue;
+            if (mountPlane(o, settings) != mountPlane(c, settings)) continue;
+            keepOut.push_back(courtyard(o).inflated(margin / 2 + escapeOf[o.id] + barrierGap(o.id, c.id)));
+        }
+        if (radio || switching)
+            for (const auto& o : comps) {
+                if (o.id == c.id || !o.hasFootprint() || !o.pcb.placed) continue;
+                if ((radio && isSwitchingPart(o)) || (switching && (isRadioPart(o) || isImuPart(o))))
+                    noiseNeighbours.push_back(courtyard(o));
+            }
+        const FootprintDef* placingFp = Library::instance().footprint(c.def().footprint);
+        std::vector<std::pair<Vec2, Vec2>> padPulls;  // (pad offset, centroid of its net's placed pads)
+        if (placingFp)
+            for (const auto& pd : placingFp->pads) {
+                if (pd.pinIndex < 0) continue;
+                auto it = centroid.find(sch.netOf({c.id, pd.pinIndex}));
+                if (it == centroid.end() || it->second.second == 0) continue;
+                padPulls.push_back({pd.offset, it->second.first * (1.0 / it->second.second)});
+            }
         for (int growth = 0; growth < 20 && !done; ++growth) {
             double bestCost = std::numeric_limits<double>::max();
             Vec2 bestPos;
@@ -518,14 +543,11 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
                             !settings.rectInside(Rect::centered({x, y}, cy0.width(), cy0.height()), 0))
                             continue;
                         bool clash = false;
-                        for (const auto& o : comps) {
-                            if (o.id == c.id || !o.hasFootprint() || !o.pcb.placed) continue;
-                            if (mountPlane(o, settings) != mountPlane(c, settings)) continue;
-                            if (courtyard(o).inflated(margin / 2 + escapeOf[o.id] + barrierGap(o.id, c.id)).intersects(cy)) {
+                        for (const Rect& k : keepOut)
+                            if (k.intersects(cy)) {
                                 clash = true;
                                 break;
                             }
-                        }
                         if (clash) continue;
                         if (strict) {
                             const Rect body = Rect::centered({x, y}, cy0.width(), cy0.height());
@@ -533,11 +555,7 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
                                 for (const auto& h : settings.holes)
                                     if (pointRectDistance(h.position, body) < h.keepout / 2 + 2.0) clash = true;
                             if (radio || switching)
-                                for (const auto& o : comps) {
-                                    if (o.id == c.id || !o.hasFootprint() || !o.pcb.placed) continue;
-                                    if (!((radio && isSwitchingPart(o)) || (switching && (isRadioPart(o) || isImuPart(o)))))
-                                        continue;
-                                    const Rect ob = courtyard(o);
+                                for (const Rect& ob : noiseNeighbours) {
                                     const double dx = std::max({0.0, ob.x0 - body.x1, body.x0 - ob.x1});
                                     const double dy = std::max({0.0, ob.y0 - body.y1, body.y0 - ob.y1});
                                     if (std::hypot(dx, dy) < 10.0) { clash = true; break; }
@@ -547,17 +565,10 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
                         // Cost: pad distances to the centroid of their nets, else pull toward board centre.
                         c.pcb.position = {x, y};
                         double cost = 0;
-                        int terms = 0;
-                        const FootprintDef* fp = Library::instance().footprint(c.def().footprint);
-                        for (const auto& pd : fp->pads) {
-                            if (pd.pinIndex < 0) continue;
-                            int net = sch.netOf({c.id, pd.pinIndex});
-                            auto it = centroid.find(net);
-                            if (it == centroid.end() || it->second.second == 0) continue;
-                            Vec2 cen = it->second.first * (1.0 / it->second.second);
-                            Vec2 pp = transformFootprintPoint(pd.offset, c.pcb);
+                        const int terms = static_cast<int>(padPulls.size());
+                        for (const auto& [offset, cen] : padPulls) {
+                            Vec2 pp = transformFootprintPoint(offset, c.pcb);
                             cost += std::fabs(pp.x - cen.x) + std::fabs(pp.y - cen.y);
-                            ++terms;
                         }
                         Vec2 centre{settings.width / 2, settings.height / 2};
                         cost += (terms ? 0.05 : 1.0) * ((Vec2{x, y} - centre).length());

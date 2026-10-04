@@ -2868,6 +2868,98 @@ final class RealisticAssemblyTests: XCTestCase {
         XCTAssertNotNil(bareParts["surface.finish"])
     }
 
+    private func sceneView(in v: NSView) -> SCNView? {
+        if let s = v as? SCNView { return s }
+        for child in v.subviews { if let s = sceneView(in: child) { return s } }
+        return nil
+    }
+
+    /// Share of sampled pixels where `dominant` (0 red, 1 green, 2 blue) clearly leads the other channels.
+    private func dominantShare(_ image: NSImage, channel dominant: Int) throws -> Double {
+        let tiff = try XCTUnwrap(image.tiffRepresentation)
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(data: tiff))
+        var hits = 0, samples = 0
+        for y in stride(from: 0, to: bitmap.pixelsHigh, by: 8) {
+            for x in stride(from: 0, to: bitmap.pixelsWide, by: 8) {
+                guard let c = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { continue }
+                let rgb = [c.redComponent, c.greenComponent, c.blueComponent]
+                samples += 1
+                let others = rgb.enumerated().filter { $0.offset != dominant }.map { $0.element }
+                if rgb[dominant] > 0.12 && rgb[dominant] > 1.4 * (others.max() ?? 0) { hits += 1 }
+            }
+        }
+        return samples == 0 ? 0 : Double(hits) / Double(samples)
+    }
+
+    func testRenderedBoardShowsItsMaskColourUnderStudioLight() throws {
+        // Render the routed board in a real window and read the pixels back: a green board looks green, and switching
+        // to a red mask turns it red (the lit, glossy mask colour survives the lighting and tone mapping).
+        let store = DesignStore()
+        store.aiEnabled = false
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: store.engine, previous: nil)
+        store.engine.autoPlace(all: true)
+        _ = store.engine.autoRoute()
+        store.refresh()
+        func view() -> BoardSceneView {
+            BoardSceneView(engine: store.engine, revision: store.revision, includeComponents: true,
+                           board: store.snapshot.board, resetToken: 0, finish: .enig, stats: .constant(""))
+        }
+        let host = NSHostingController(rootView: view())
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        RunLoop.main.run(until: Date().addingTimeInterval(1.0))
+        let scnView = try XCTUnwrap(sceneView(in: host.view))
+
+        let green = scnView.snapshot()
+        XCTAssertGreaterThan(green.size.width, 100)
+        let greenShare = try dominantShare(green, channel: 1)
+        XCTAssertGreaterThan(greenShare, 0.08, "a green board fills a good part of the view")
+        XCTAssertLessThan(try dominantShare(green, channel: 0), greenShare)
+
+        store.setSolderMask(.red)
+        host.rootView = view()
+        RunLoop.main.run(until: Date().addingTimeInterval(1.0))
+        let red = scnView.snapshot()
+        let redShare = try dominantShare(red, channel: 0)
+        XCTAssertGreaterThan(redShare, 0.08, "the red mask shows")
+        XCTAssertLessThan(try dominantShare(red, channel: 1), redShare)
+    }
+
+    func testWorkspaceUsesTheSavedFinish() throws {
+        // The Finish picker is saved: the 3D workspace opens with HASL pads when HASL was chosen last time.
+        let defaults = UserDefaults.standard
+        let keys = ["threeD.mode.v2", "threeD.finish"]
+        let saved = keys.map { defaults.object(forKey: $0) }
+        defer { for (key, value) in zip(keys, saved) { defaults.set(value, forKey: key) } }
+        defaults.set(Board3DWorkspace.Mode.assembly.rawValue, forKey: "threeD.mode.v2")
+        defaults.set(BoardFinish.hasl.rawValue, forKey: "threeD.finish")
+
+        let store = DesignStore()
+        store.aiEnabled = false
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: store.engine, previous: nil)
+        store.engine.autoPlace(all: true)
+        store.refresh()
+        let host = NSHostingController(rootView: Board3DWorkspace().environmentObject(store))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 700),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.8))
+        let scene = try XCTUnwrap(sceneView(in: host.view)?.scene)
+        let finish = scene.rootNode.childNodes { node, _ in node.name == "surface.finish" }.first
+        XCTAssertEqual(finish?.geometry?.firstMaterial?.diffuse.contents as? NSColor, BoardFinish.hasl.colour)
+        // Solder joints and part bodies are in the scene (Components is on by default).
+        XCTAssertFalse(scene.rootNode.childNodes { node, _ in node.name == "surface.solder" }.isEmpty)
+        XCTAssertFalse(scene.rootNode.childNodes { node, _ in node.name == "surface.silk" }.isEmpty)
+        XCTAssertEqual(BoardFinish.allCases.map(\.title), ["ENIG (gold)", "HASL (tin)", "OSP (bare copper)"])
+    }
+
     func testStudioSceneInALiveWindow() throws {
         let engine = try routedEngine()
         let board = try XCTUnwrap(engine.snapshot()).board
@@ -2908,5 +3000,42 @@ final class RealisticAssemblyTests: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(0.3))
         XCTAssertEqual(finishColour(), BoardFinish.hasl.colour, "the finish picker rebuilds the materials")
         XCTAssertTrue(window.isVisible)
+    }
+}
+
+/// Productivity: the biggest reference designs go from plan to a placed, routed, verified and 3D board quickly, through
+/// the same engine calls the app makes (Debug builds compile the C++ core with -O2).
+@MainActor
+final class ProductivityFlowTests: XCTestCase {
+    func testComplexReferenceDesignsCompleteQuickly() throws {
+        executionTimeAllowance = 900
+        let largest = OfflineProvider.templates
+            .sorted { $0.plan.components.count > $1.plan.components.count }
+            .prefix(3)
+        XCTAssertGreaterThan(largest.first?.plan.components.count ?? 0, 60, "the largest designs are genuinely complex")
+        for template in largest {
+            let start = Date()
+            var marks: [(String, Double)] = []
+            func mark(_ step: String) { marks.append((step, Date().timeIntervalSince(start))) }
+            let engine = EDAEngine()
+            DesignPlanCompiler.apply(template.industryPlan, to: engine, previous: nil)
+            mark("schematic")
+            engine.autoPlace(all: true)
+            engine.fitBoard(margin: 2.5)
+            mark("place")
+            XCTAssertEqual(engine.autoRoute().failed, 0, template.plan.title)
+            mark("route")
+            let verification = try XCTUnwrap(engine.runVerification(), template.plan.title)
+            XCTAssertEqual(verification.verdict, .pass, template.plan.title)
+            mark("verify")
+            let mesh = try XCTUnwrap(engine.buildMesh(includeComponents: true), template.plan.title)
+            XCTAssertGreaterThan(mesh.vertexCount, 1000)
+            _ = BoardSceneView.assemblyNode(from: mesh, finish: .enig)
+            mark("3D")
+            let total = Date().timeIntervalSince(start)
+            print("[Productivity] \(template.plan.title) (\(template.plan.components.count) parts): "
+                  + marks.map { String(format: "%@ %.1f s", $0.0, $0.1) }.joined(separator: " · "))
+            XCTAssertLessThan(total, 120, "\(template.plan.title) took \(Int(total)) s from plan to 3D")
+        }
     }
 }

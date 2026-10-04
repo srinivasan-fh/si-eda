@@ -193,7 +193,10 @@ common_build = {
 debug_extra = {
     "DEBUG_INFORMATION_FORMAT": "dwarf",
     "ENABLE_TESTABILITY": "YES",
-    "GCC_OPTIMIZATION_LEVEL": "0",
+    # The C/C++ in this project is the EDA core (placer, router, verification, 3D mesh): it runs optimised even in
+    # Debug, or run.sh's Debug app and the test suite place and route large boards several times slower. Swift stays
+    # -Onone for debugging.
+    "GCC_OPTIMIZATION_LEVEL": "2",
     "GCC_PREPROCESSOR_DEFINITIONS": '("DEBUG=1", "$(inherited)")',
     "ONLY_ACTIVE_ARCH": "YES",
     "SWIFT_ACTIVE_COMPILATION_CONDITIONS": '"DEBUG $(inherited)"',
