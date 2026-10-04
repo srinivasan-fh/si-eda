@@ -1539,9 +1539,11 @@ final class MicrocontrollerLibraryTests: XCTestCase {
         let groups = Dictionary(grouping: StandardLibrary.parts.filter { $0.category.hasPrefix("Microcontrollers · ") },
                                 by: \.category)
         XCTAssertEqual(groups["Microcontrollers · Arm"]?.count, 10)
-        XCTAssertEqual(groups["Microcontrollers · STMicroelectronics"]?.count, 10)
+        // + the production catalog's STM32F405RGT6, STM32H743IIT6 and STM32F765VIT6.
+        XCTAssertEqual(groups["Microcontrollers · STMicroelectronics"]?.count, 13)
         XCTAssertEqual(groups["Microcontrollers · Texas Instruments"]?.count, 10)
-        XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 13)
+        // + the catalog's ATMEGA328P-AU / -PU and ATSAMD51J20A-AU.
+        XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 16)
         let rp2040 = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "RP2040" })
         XCTAssertEqual(rp2040.spec.package.type, "QFN")
         XCTAssertEqual(rp2040.spec.package.pitch, 0.4)
