@@ -89,6 +89,24 @@ struct BehaviorModel {
     bool empty() const { return !hasRegulator && loads.empty(); }
 };
 
+/// Where one pin sits on the schematic symbol: a side of the body ('L' left, 'R' right, 'T' top, 'B' bottom) and a
+/// slot along it (0 = topmost on L / R, leftmost on T / B; slots are 2 grid units apart and may leave gaps between
+/// groups). Pins of one part on the same side and slot are stacked: drawn as one pin and joined electrically, the
+/// way repeated VDD / GND pins are shown on professional symbols.
+struct SymbolPin {
+    std::string number;  // the pin's number in the part's pin list
+    char side = 'L';
+    int slot = 0;
+};
+
+/// A part's schematic symbol layout (the Symbol Editor's document). Empty = the generated layout: pins in number
+/// order down the left side, then up the right.
+struct SymbolSpec {
+    std::vector<SymbolPin> pins;
+    double width = 0;  // body width in schematic units (grid = 10); 0 = from the pin names
+    bool empty() const { return pins.empty(); }
+};
+
 struct CustomPartSpec {
     std::string name;
     std::string manufacturer;
@@ -99,6 +117,7 @@ struct CustomPartSpec {
     PackageSpec package;
     std::vector<CustomPin> pins;
     BehaviorModel model;
+    SymbolSpec symbol;
 
     /// Index of the pin with this number (preferred) or name; -1 if none.
     int pinIndex(const std::string& numberOrName) const;
@@ -129,6 +148,24 @@ struct LandIssue {
     std::vector<int> pads;
 };
 std::vector<LandIssue> checkLandPattern(const CustomPartSpec& spec, double minGap = 0.1);
+
+/// Symbol Editor's starting point: a readable layout from the pins' names and electrical types. Supplies go on top
+/// and grounds at the bottom, inputs on the left and outputs on the right. MCU port pins (PA0…, P1.3, GPIO5) are
+/// grouped by port and kept in bit order; reset, clock, boot and debug pins sit together at the top left; no-connect
+/// pins go last on the right. Groups are separated by an empty slot. With `stackDuplicates`, repeated supply and
+/// ground pins of the same name share one slot (stacked, joined).
+SymbolSpec autoArrangeSymbol(const CustomPartSpec& spec, bool stackDuplicates = true);
+
+/// Problems with a symbol layout: pins missing from it or placed twice, unknown pins, pins of different names on
+/// one spot (errors); stacked pins (info, they are joined) and stacked signal pins (warning). `pins` are pin numbers.
+struct SymbolIssue {
+    std::string severity;  // "error", "warning", "info"
+    std::string code;      // "SYM_MISSING", "SYM_UNKNOWN", "SYM_DUPLICATE", "SYM_OVERLAP", "SYM_STACK", "SYM_STACK_SIGNAL",
+                           // "SYM_INVALID"
+    std::string message;
+    std::vector<std::string> pins;
+};
+std::vector<SymbolIssue> checkSymbol(const CustomPartSpec& spec);
 
 Json customPartSpecToJson(const CustomPartSpec& spec);
 CustomPartSpec customPartSpecFromJson(const Json& j);  // throws JsonError on invalid input

@@ -574,6 +574,41 @@ char* sieda_check_land_pattern(const char* spec_json, double min_gap) {
     }
 }
 
+char* sieda_symbol_auto_arrange(const char* spec_json, int32_t stack, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    try {
+        CustomPartSpec spec = customPartSpecFromJson(Json::parse(str(spec_json)));
+        if (spec.pins.empty()) throw JsonError("The part has no pins to arrange.");
+        spec.symbol = autoArrangeSymbol(spec, stack != 0);
+        return dup(customPartSpecToJson(spec).dump());
+    } catch (const std::exception& e) {
+        if (error_out) *error_out = dup(e.what());
+        return nullptr;
+    }
+}
+
+char* sieda_check_symbol(const char* spec_json) {
+    Json arr = Json::array();
+    auto add = [&](const std::string& severity, const std::string& code, const std::string& message,
+                   const std::vector<std::string>& pins) {
+        Json j = Json::object();
+        j["severity"] = severity;
+        j["code"] = code;
+        j["message"] = message;
+        Json pj = Json::array();
+        for (const auto& p : pins) pj.push(p);
+        j["pins"] = pj;
+        arr.push(j);
+    };
+    try {
+        for (const auto& i : checkSymbol(customPartSpecFromJson(Json::parse(str(spec_json)))))
+            add(i.severity, i.code, i.message, i.pins);
+    } catch (const std::exception& e) {
+        add("error", "SYM_INVALID", e.what(), {});
+    }
+    return dup(arr.dump());
+}
+
 int32_t sieda_custom_part_remove(SiedaProject* project, const char* part_id) {
     if (!project) return 0;
     return guarded([&] { return project->project.removeCustomPart(str(part_id)) ? 1 : 0; });

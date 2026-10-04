@@ -678,8 +678,16 @@ std::string lower(std::string s) {
 }
 }  // namespace
 
+/// Parts with 16 or more pins get a readable symbol: supplies on top, grounds at the bottom, inputs left, outputs
+/// right, MCU ports grouped, repeated supply / ground pins stacked. Small parts keep the classic datasheet-order box.
+std::vector<StandardPart> withArrangedSymbols(std::vector<StandardPart> parts) {
+    for (auto& p : parts)
+        if (p.spec.pins.size() >= 16 && p.spec.symbol.empty()) p.spec.symbol = autoArrangeSymbol(p.spec);
+    return parts;
+}
+
 const std::vector<StandardPart>& standardParts() {
-    static const std::vector<StandardPart> parts = build();
+    static const std::vector<StandardPart> parts = withArrangedSymbols(build());
     return parts;
 }
 

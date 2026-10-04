@@ -509,7 +509,7 @@ Json Project::snapshot() const {
             pj["x"] = pos.x;
             pj["y"] = pos.y;
             pj["net"] = net;
-            pj["connected"] = net >= 0 && nets[static_cast<size_t>(net)].pins.size() > 1;
+            pj["connected"] = net >= 0 && schematic.isPinConnected(r);
             pj["noConnect"] = c.isNoConnect(static_cast<int>(i));
             pins.push(pj);
         }

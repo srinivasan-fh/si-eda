@@ -1,5 +1,6 @@
 #include "sieda/Schematic.hpp"
 
+#include <map>
 #include <cctype>
 
 #include <algorithm>
@@ -400,6 +401,16 @@ void Schematic::rebuildNets() const {
         }
     }
     UnionFind uf(pins.size());
+    // Stacked symbol pins (several pins of one part drawn on the same spot, e.g. repeated VDD / GND) are one node.
+    for (const auto& c : components_) {
+        if (c.kind != ComponentKind::Custom) continue;
+        const auto& defPins = c.def().pins;
+        std::map<std::pair<double, double>, int> first;  // pin offset → first pin there
+        for (size_t p = 0; p < defPins.size(); ++p) {
+            auto [it, fresh] = first.emplace(std::make_pair(defPins[p].offset.x, defPins[p].offset.y), static_cast<int>(p));
+            if (!fresh) uf.unite(index[{c.id, it->second}], index[{c.id, static_cast<int>(p)}]);
+        }
+    }
     for (const auto& w : wires_) {
         auto ia = index.find(w.a), ib = index.find(w.b);
         if (ia != index.end() && ib != index.end()) uf.unite(ia->second, ib->second);
@@ -463,6 +474,21 @@ void Schematic::rebuildNets() const {
         else n.name = "N$" + std::to_string(autoCounter++);
     }
     netsDirty_ = false;
+}
+
+bool Schematic::isPinConnected(PinRef pin) const {
+    const int net = netOf(pin);
+    if (net < 0) return false;
+    const Component* self = find(pin.component);
+    if (!self || pin.pin < 0 || static_cast<size_t>(pin.pin) >= self->def().pins.size()) return false;
+    const Vec2 spot = self->def().pins[static_cast<size_t>(pin.pin)].offset;
+    for (const auto& other : nets()[static_cast<size_t>(net)].pins) {
+        if (other == pin) continue;
+        if (other.component != pin.component) return true;
+        const Vec2 o = self->def().pins[static_cast<size_t>(other.pin)].offset;
+        if (o.x != spot.x || o.y != spot.y) return true;  // wired to another pin of the same part
+    }
+    return false;
 }
 
 const std::vector<Net>& Schematic::nets() const {
@@ -610,8 +636,7 @@ std::vector<RuleViolation> Schematic::runERC() const {
         std::vector<std::string> openPins;
         std::vector<int> openIdx;
         for (size_t p = 0; p < pins.size(); ++p) {
-            int net = netOf({c.id, static_cast<int>(p)});
-            if (net < 0 || allNets[static_cast<size_t>(net)].pins.size() < 2) {
+            if (!isPinConnected({c.id, static_cast<int>(p)})) {
                 ++unconnected;
                 openPins.push_back(pins[p].name);
                 openIdx.push_back(static_cast<int>(p));

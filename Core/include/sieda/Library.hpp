@@ -52,6 +52,7 @@ struct PinDef {
     Vec2 offset;         // schematic units (grid = 10), relative to the symbol origin, y down
     std::string number;  // package pin number (custom parts); empty for built-ins
     int type = 0;        // sieda::PinType (custom parts); 0 = passive
+    char side = 0;       // custom parts: symbol side the pin leaves from ('L', 'R', 'T', 'B'); 0 = from the offset
 };
 
 struct PadDef {

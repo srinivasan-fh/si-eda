@@ -3640,3 +3640,287 @@ final class FootprintEditorTests: XCTestCase {
         XCTAssertNotNil(library.contentView)
     }
 }
+
+/// Symbol Editor: the layout document (sides, slots, gaps, stacks, undo), the core's layout and checks as the editor
+/// shows them, auto-arranged library symbols, four-sided drawing, stacked pins joining nets, editing a placed part's
+/// symbol through the store, and the editor in a live window.
+@MainActor
+final class SymbolEditorTests: XCTestCase {
+    private typealias Side = SymbolDraft.Side
+
+    private func spec(_ name: String) throws -> CustomPartSpec {
+        try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == name }, name).spec
+    }
+
+    /// VCC, IN, OUT, GND, GND, EN.
+    private func chip() -> CustomPartSpec {
+        var s = CustomPartSpec()
+        s.name = "SYM-TEST"
+        s.pins = [CustomPartSpec.Pin(number: "1", name: "VCC", type: .powerIn), CustomPartSpec.Pin(number: "2", name: "IN", type: .input),
+                  CustomPartSpec.Pin(number: "3", name: "OUT", type: .output), CustomPartSpec.Pin(number: "4", name: "GND", type: .powerIn),
+                  CustomPartSpec.Pin(number: "5", name: "GND", type: .powerIn), CustomPartSpec.Pin(number: "6", name: "EN", type: .input)]
+        return s
+    }
+
+    private func codes(_ issues: [SymbolIssue]) -> [String] { issues.map(\.code).sorted() }
+
+    // MARK: - Document
+
+    func testGeneratedLayoutMatchesTheCoresBox() throws {
+        let ne555 = try spec("NE555")
+        XCTAssertNil(ne555.symbolLayout)
+        let draft = SymbolDraft(spec: ne555)
+        XCTAssertEqual(draft.slots(.left), [["1"], ["2"], ["3"], ["4"]])
+        XCTAssertEqual(draft.slots(.right), [["8"], ["7"], ["6"], ["5"]])
+        // Writing the generated layout out explicitly draws the same symbol.
+        let generated = try EDAEngine.previewCustomPart(ne555).get().symbol
+        let explicit = try EDAEngine.previewCustomPart(draft.applied(to: ne555)).get().symbol
+        XCTAssertEqual(generated.pins.map(\.x), explicit.pins.map(\.x))
+        XCTAssertEqual(generated.pins.map(\.y), explicit.pins.map(\.y))
+        XCTAssertEqual(generated.halfWidth, explicit.halfWidth)
+        XCTAssertEqual(generated.pins.map(\.sideLetter), ["L", "L", "L", "L", "R", "R", "R", "R"])
+    }
+
+    func testMoveInsertsAndShiftsOnTheTargetSide() {
+        var d = SymbolDraft(spec: chip())  // generated: 1 2 3 left, 6 5 4 right
+        XCTAssertEqual(d.slots(.left), [["1"], ["2"], ["3"]])
+        d.move(["1"], to: .top, slot: 0)
+        XCTAssertEqual(d.slots(.top), [["1"]])
+        XCTAssertEqual(d.slots(.left), [[], ["2"], ["3"]])  // the slot it left is a gap
+        d.closeGaps(.left)
+        XCTAssertEqual(d.slots(.left), [["2"], ["3"]])
+        // Inserting at an occupied slot pushes the pins there down.
+        d.move(["6"], to: .left, slot: 1)
+        XCTAssertEqual(d.slots(.left), [["2"], ["6"], ["3"]])
+        // Several pins land on consecutive slots in their order.
+        d.move(["4", "5"], to: .bottom, slot: 0)
+        XCTAssertEqual(d.slots(.bottom), [["4"], ["5"]])
+        // Appending past the end; negative slots clamp to 0; unknown pins are ignored.
+        d.move(["3"], to: .right, slot: d.slotCount(.right))
+        XCTAssertEqual(d.placement(of: "3")?.side, .right)
+        d.move(["2"], to: .right, slot: -4)
+        XCTAssertEqual(d.placement(of: "2")?.slot, 0)
+        let before = d
+        d.move(["99"], to: .left, slot: 0)
+        XCTAssertEqual(d, before)
+    }
+
+    func testStackUnstackGapsSwapNudgeAndMirror() {
+        var d = SymbolDraft(spec: chip())
+        d.move(["4"], to: .bottom, slot: 0)
+        d.move(["5"], to: .bottom, slot: 1)
+        d.stack(["4", "5"])
+        XCTAssertEqual(d.slots(.bottom), [["4", "5"]])
+        XCTAssertEqual(Set(d.stack(of: "5")), ["4", "5"])
+        // A stack moves as one.
+        d.move(["4", "5"], to: .top, slot: 0)
+        XCTAssertEqual(d.slots(.top).first.map(Set.init), ["4", "5"])
+        d.unstack("5")
+        XCTAssertEqual(d.stack(of: "5"), ["5"])
+        XCTAssertEqual(d.placement(of: "5")?.slot, (d.placement(of: "4")?.slot ?? 0) + 1)
+
+        // Gaps.
+        d = SymbolDraft(spec: chip())
+        d.insertGap(.left, at: 1)
+        XCTAssertEqual(d.slots(.left), [["1"], [], ["2"], ["3"]])
+        d.closeGaps()
+        XCTAssertEqual(d.slots(.left), [["1"], ["2"], ["3"]])
+
+        // Nudge swaps with the neighbour, or moves into a gap; never above slot 0.
+        d.nudge("2", by: -1)
+        XCTAssertEqual(d.slots(.left), [["2"], ["1"], ["3"]])
+        d.nudge("2", by: -1)
+        XCTAssertEqual(d.slots(.left), [["2"], ["1"], ["3"]])
+        d.insertGap(.left, at: 2)
+        d.nudge("1", by: 1)
+        XCTAssertEqual(d.slots(.left), [["2"], [], ["1"], ["3"]])
+
+        // Swap trades spots across sides; mirror flips left and right.
+        d.swap("2", "6")
+        XCTAssertEqual(d.placement(of: "2")?.side, .right)
+        XCTAssertEqual(d.placement(of: "6")?.side, .left)
+        let lefts = d.slots(.left), rights = d.slots(.right)
+        d.mirror()
+        XCTAssertEqual(d.slots(.left), rights)
+        XCTAssertEqual(d.slots(.right), lefts)
+    }
+
+    func testReconcileFollowsThePinList() {
+        var s = chip()
+        var d = SymbolDraft(spec: s)
+        d.move(["1"], to: .top, slot: 0)
+        s.pins.removeAll { $0.number == "6" }
+        s.pins.append(CustomPartSpec.Pin(number: "7", name: "FB", type: .input))
+        s.pins.append(CustomPartSpec.Pin(number: "8", name: "SS", type: .input))
+        XCTAssertTrue(d.reconcile(with: s.pins))
+        XCTAssertNil(d.placement(of: "6"))
+        XCTAssertNotNil(d.placement(of: "7"))
+        XCTAssertNotNil(d.placement(of: "8"))
+        XCTAssertEqual(d.placement(of: "1")?.side, .top)  // the user's layout is kept
+        XCTAssertFalse(d.reconcile(with: s.pins))
+        XCTAssertTrue(EDAEngine.checkSymbol(d.applied(to: s)).allSatisfy { !$0.isError })
+    }
+
+    func testHistoryIsSharedWithTheFootprintEditor() {
+        var history = EditHistory<SymbolDraft>()
+        var d = SymbolDraft(spec: chip())
+        let original = d
+        history.record(d)
+        d.mirror()
+        XCTAssertTrue(history.undo(&d))
+        XCTAssertEqual(d, original)
+        XCTAssertTrue(history.redo(&d))
+        XCTAssertNotEqual(d, original)
+        XCTAssertEqual(EditHistory<SymbolDraft>.limit, 200)
+        XCTAssertEqual(FootprintHistory.limit, 200)
+    }
+
+    // MARK: - Core layout and checks
+
+    func testLayoutEncodesLikeTheCoreAndDrawsOnFourSides() throws {
+        var d = SymbolDraft(spec: chip())
+        d.move(["1"], to: .top, slot: 0)
+        d.move(["4", "5"], to: .bottom, slot: 0)
+        d.stack(["4", "5"])
+        d.closeGaps()
+        d.width = 120
+        let s = d.applied(to: chip())
+        let json = s.jsonString()
+        XCTAssertTrue(json.contains("\"symbolLayout\""))
+        XCTAssertTrue(json.contains("\"side\":\"T\""))
+        let info = try EDAEngine.previewCustomPart(s).get()
+        XCTAssertEqual(info.symbolLayout, s.symbolLayout)  // kept separate from the generated geometry
+        XCTAssertEqual(info.symbol.halfWidth, 60)
+        let vcc = try XCTUnwrap(info.symbol.pins.first { $0.number == "1" })
+        XCTAssertEqual(vcc.sideLetter, "T")
+        XCTAssertEqual(vcc.y, -(info.symbol.halfHeight + 20))
+        let gnd = info.symbol.pins.filter { $0.name == "GND" }
+        XCTAssertEqual(gnd.count, 2)
+        XCTAssertEqual(gnd[0].x, gnd[1].x)
+        XCTAssertEqual(gnd[0].y, gnd[1].y)
+        XCTAssertEqual(gnd[0].sideLetter, "B")
+        // The hit box reaches the top and bottom pins; the lead of a top pin runs up from the body.
+        let bounds = SchematicSymbols.bounds(.custom, custom: info)
+        XCTAssertLessThanOrEqual(bounds.minY, vcc.y)
+        XCTAssertEqual(SchematicSymbols.pinEdge(vcc, halfWidth: info.symbol.halfWidth, halfHeight: info.symbol.halfHeight),
+                       CGPoint(x: vcc.x, y: -info.symbol.halfHeight))
+        XCTAssertLessThanOrEqual(SchematicSymbols.customShapes(info).stroke.boundingRect.minY, vcc.y + 0.001)
+        // Info about the stack; no errors.
+        XCTAssertEqual(codes(EDAEngine.checkSymbol(s)), ["SYM_STACK"])
+    }
+
+    func testChecksReportEachProblem() {
+        var d = SymbolDraft(spec: chip())
+        d.placements.removeAll { $0.number == "6" }
+        XCTAssertEqual(codes(EDAEngine.checkSymbol(d.applied(to: chip()))), ["SYM_MISSING"])
+        d = SymbolDraft(spec: chip())
+        d.placements.append(.init(number: "9", side: .right, slot: 9))
+        XCTAssertEqual(codes(EDAEngine.checkSymbol(d.applied(to: chip()))), ["SYM_UNKNOWN"])
+        d = SymbolDraft(spec: chip())
+        d.placements.append(.init(number: "2", side: .right, slot: 9))
+        XCTAssertTrue(codes(EDAEngine.checkSymbol(d.applied(to: chip()))).contains("SYM_DUPLICATE"))
+        d = SymbolDraft(spec: chip())
+        d.stack(["2", "3"])  // IN and OUT on one spot
+        let overlap = EDAEngine.checkSymbol(d.applied(to: chip()))
+        XCTAssertEqual(codes(overlap), ["SYM_OVERLAP"])
+        XCTAssertEqual(Set(overlap[0].pins), ["2", "3"])
+        XCTAssertTrue(overlap[0].isError)
+        // An invalid layout is refused by the core (the editor keeps its last good preview).
+        if case .success = EDAEngine.previewCustomPart(d.applied(to: chip())) { XCTFail("colliding pins registered") }
+        // A stack of signal pins of the same name is allowed with a warning (they join).
+        var twin = chip()
+        twin.pins.append(CustomPartSpec.Pin(number: "7", name: "IN", type: .input))
+        var t = SymbolDraft(spec: twin)
+        t.stack(["2", "7"])
+        XCTAssertEqual(codes(EDAEngine.checkSymbol(t.applied(to: twin))), ["SYM_STACK_SIGNAL"])
+        // A malformed layout cannot be read at all.
+        var bad = chip()
+        bad.symbolLayout = .init(width: nil, pins: [.init(number: "1", side: "Q", slot: 0)])
+        XCTAssertEqual(codes(EDAEngine.checkSymbol(bad)), ["SYM_INVALID"])
+    }
+
+    func testAutoArrangeAndLibrarySymbols() throws {
+        // Large library parts come arranged: STM32 supplies on top with the four VDD pins stacked, grounds below.
+        let stm = try spec("STM32F405RGT6")
+        XCTAssertNotNil(stm.symbolLayout)
+        XCTAssertNil(try spec("LM358DR").symbolLayout)  // small parts keep the datasheet-order box
+        let info = try EDAEngine.previewCustomPart(stm).get()
+        let vdd = info.symbol.pins.filter { $0.name == "VDD" }
+        XCTAssertEqual(vdd.count, 4)
+        XCTAssertEqual(Set(vdd.map { "\($0.x),\($0.y)" }).count, 1)
+        XCTAssertTrue(vdd.allSatisfy { $0.sideLetter == "T" })
+        XCTAssertTrue(info.symbol.pins.filter { $0.name.hasPrefix("VSS") }.allSatisfy { $0.sideLetter == "B" })
+        XCTAssertFalse(EDAEngine.checkSymbol(stm).contains { $0.severity != "info" })
+        // Auto Arrange from the editor: same idea for any part, with or without stacking.
+        var plain = try spec("CH340G")
+        plain.symbolLayout = nil
+        let stacked = try EDAEngine.autoArrangeSymbol(chip()).get()
+        let draft = SymbolDraft(spec: stacked)
+        XCTAssertEqual(draft.placement(of: "1")?.side, .top)
+        XCTAssertEqual(draft.placement(of: "2")?.side, .left)
+        XCTAssertEqual(draft.placement(of: "3")?.side, .right)
+        XCTAssertEqual(Set(draft.stack(of: "4")), ["4", "5"])
+        let unstacked = SymbolDraft(spec: try EDAEngine.autoArrangeSymbol(chip(), stack: false).get())
+        XCTAssertEqual(unstacked.stack(of: "4"), ["4"])
+        XCTAssertEqual(try EDAEngine.autoArrangeSymbol(plain).get().symbolLayout?.pins.count, plain.pins.count)
+        if case .success = EDAEngine.autoArrangeSymbol(CustomPartSpec()) { XCTFail("a part without pins arranged") }
+    }
+
+    // MARK: - Store
+
+    func testStackedPinsJoinNetsAndEditingKeepsWires() throws {
+        let store = DesignStore()
+        store.aiEnabled = false
+        var s = chip()
+        var d = SymbolDraft(spec: s)
+        d.move(["4", "5"], to: .bottom, slot: 0)
+        d.stack(["4", "5"])
+        d.apply(to: &s)
+        let part = try XCTUnwrap(store.saveCustomPart(s))
+        let u = store.addCustomComponent(partId: part.id, at: CGPoint(x: 200, y: 0))
+        let g = store.addComponent(.ground, at: CGPoint(x: 200, y: 200))
+        XCTAssertTrue(store.connect(PinAddress(component: u, pin: 3), PinAddress(component: g, pin: 0)))  // pin "4"
+        let c = try XCTUnwrap(store.snapshot.component(u))
+        XCTAssertEqual(c.pins[3].net, c.pins[4].net)  // the stacked pin "5" joined GND
+        XCTAssertTrue(c.pins[4].connected)
+        XCTAssertFalse(c.pins[1].connected)  // IN is on its own
+
+        // Re-arranging the symbol moves the pins; the wire stays on pin "4".
+        var moved = SymbolDraft(spec: part.spec)
+        moved.move(["4", "5"], to: .top, slot: 0)
+        let saved = try XCTUnwrap(store.saveCustomPart(moved.applied(to: part.spec), replacing: part.id))
+        let after = try XCTUnwrap(store.snapshot.component(u))
+        XCTAssertNotEqual(after.pins[3].y, c.pins[3].y)
+        XCTAssertTrue(after.pins[3].connected)
+        XCTAssertEqual(after.pins[3].net, after.pins[4].net)
+        XCTAssertEqual(store.snapshot.customParts.first { $0.id == saved.id }?.symbolLayout, moved.layout)
+        store.undo()
+        XCTAssertEqual(store.snapshot.component(u)?.pins[3].y, c.pins[3].y)
+    }
+
+    // MARK: - Views
+
+    func testEditorRendersInALiveWindow() throws {
+        var applied: CustomPartSpec?
+        let editor = SymbolEditorView(spec: try spec("STM32F405RGT6")) { applied = $0 }
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 760),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: editor)
+        window.makeKeyAndOrderFront(nil)
+        defer { window.close() }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+        XCTAssertNotNil(window.contentView)
+        XCTAssertNil(applied)
+        let renderer = ImageRenderer(content: SymbolEditorView(spec: chip()) { _ in }.frame(width: 1000, height: 700))
+        renderer.scale = 1
+        XCTAssertEqual(try XCTUnwrap(renderer.cgImage).width, 1000)
+        // A previewed four-sided symbol renders with its labels.
+        var d = SymbolDraft(spec: chip())
+        d.move(["1"], to: .top, slot: 0)
+        let info = try EDAEngine.previewCustomPart(d.applied(to: chip())).get()
+        let preview = ImageRenderer(content: SymbolPreview(kind: .custom, value: info.name, custom: info, showPinLabels: true)
+            .frame(width: 300, height: 300))
+        XCTAssertNotNil(preview.cgImage)
+    }
+}

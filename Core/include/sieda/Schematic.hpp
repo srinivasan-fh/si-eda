@@ -141,6 +141,9 @@ public:
     /// Connectivity (cached). Nets are merged across wires and identically named net labels.
     const std::vector<Net>& nets() const;
     int netOf(PinRef pin) const;  // -1 if pin has no net (unconnected)
+    /// True when the pin's net reaches anything besides the pin itself and the pins stacked with it on its symbol
+    /// (a stack of repeated GND pins with no wire is still open).
+    bool isPinConnected(PinRef pin) const;
     int groundNet() const;        // -1 if no ground net
     /// Ground nets; supply rails (a source's + terminal, a regulator's power output, an IC's power input, or a name
     /// such as VCC, VDD, VBAT, +5V, 3V3); negative rails (a source's − terminal above a grounded +, or -12V, VEE);

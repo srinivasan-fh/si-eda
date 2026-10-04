@@ -174,26 +174,26 @@ struct FootprintDraft: Equatable {
     }
 }
 
-/// Undo / redo of footprint edits (snapshots of the draft).
-struct FootprintHistory {
-    private(set) var undoStack: [FootprintDraft] = []
-    private(set) var redoStack: [FootprintDraft] = []
-    static let limit = 200
+/// Undo / redo of an editor's document (snapshots), shared by the footprint and symbol editors.
+struct EditHistory<Document: Equatable> {
+    private(set) var undoStack: [Document] = []
+    private(set) var redoStack: [Document] = []
+    static var limit: Int { 200 }
 
-    mutating func record(_ draft: FootprintDraft) {
-        undoStack.append(draft)
+    mutating func record(_ document: Document) {
+        undoStack.append(document)
         if undoStack.count > Self.limit { undoStack.removeFirst(undoStack.count - Self.limit) }
         redoStack.removeAll()
     }
 
-    mutating func undo(_ current: inout FootprintDraft) -> Bool {
+    mutating func undo(_ current: inout Document) -> Bool {
         guard let previous = undoStack.popLast() else { return false }
         redoStack.append(current)
         current = previous
         return true
     }
 
-    mutating func redo(_ current: inout FootprintDraft) -> Bool {
+    mutating func redo(_ current: inout Document) -> Bool {
         guard let next = redoStack.popLast() else { return false }
         undoStack.append(current)
         current = next
@@ -203,3 +203,6 @@ struct FootprintHistory {
     var canUndo: Bool { !undoStack.isEmpty }
     var canRedo: Bool { !redoStack.isEmpty }
 }
+
+/// Undo / redo of footprint edits.
+typealias FootprintHistory = EditHistory<FootprintDraft>
