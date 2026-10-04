@@ -25,9 +25,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         memoryMonitor.start()
         MainActor.assumeIsolated {
             if SplashController.isEnabled {
+                // Hold main windows back from the start: SwiftUI creates them before launch finishes.
                 let controller = SplashController()
                 splash = controller
-                SplashController.current = controller
+                controller.activate()
             }
         }
     }
