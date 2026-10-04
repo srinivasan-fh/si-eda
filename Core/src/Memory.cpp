@@ -312,7 +312,8 @@ std::vector<RuleViolation> checks(const Project& project, bool strict, const Ana
             }
             // Strobes as named differential pairs (so routing and length tuning treat them as pairs).
             const auto pairs = differentialPairs(sch);
-            for (const auto& [pos, neg] : d.strobes) {
+            for (const auto& strobe : d.strobes) {
+                const int pos = strobe.first, neg = strobe.second;
                 if (pos < 0 || neg < 0) continue;
                 const bool paired = std::any_of(pairs.begin(), pairs.end(), [&](const std::pair<int, int>& p) {
                     return (p.first == pos && p.second == neg) || (p.first == neg && p.second == pos);
