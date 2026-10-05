@@ -821,3 +821,6 @@
 "Finishing a route removes the old path of the net it makes redundant" = "Finishing a route removes the old path of the net it makes redundant";
 "Auto teardrops" = "Auto teardrops";
 "Teardrops where each finished route meets pads and vias" = "Teardrops where each finished route meets pads and vias";
+"Stop at obstacle" = "Stop at obstacle";
+"Hug obstacles" = "Hug obstacles";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "A dragged track bends around pads and other copper it cannot push instead of stopping short";

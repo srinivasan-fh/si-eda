@@ -821,3 +821,6 @@
 "Finishing a route removes the old path of the net it makes redundant" = "배선을 마치면 그로 인해 불필요해진 네트의 기존 경로를 제거합니다";
 "Auto teardrops" = "자동 티어드롭";
 "Teardrops where each finished route meets pads and vias" = "완료된 각 배선이 패드와 비아에 닿는 곳에 티어드롭";
+"Stop at obstacle" = "장애물에서 멈춤";
+"Hug obstacles" = "장애물 감싸기";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "끌고 있는 트랙이 밀 수 없는 패드와 다른 구리를 피해 휘어 돌아가며 중간에 멈추지 않습니다";

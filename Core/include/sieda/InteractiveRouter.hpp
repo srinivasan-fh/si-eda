@@ -24,6 +24,7 @@ enum class RouterMode {
     Walkaround,  // the head goes around everything that is in its way
     Shove,       // the head pushes other nets' tracks and vias aside; falls back to walkaround when that fails
     Highlight,   // the head goes where it is pointed; nothing moves and what it violates is listed (`collisions`)
+    Stop,        // the head stops at the first obstacle (nothing is shoved or walked around)
 };
 
 /// Copper (or a board rule) the route violates in Highlight mode. `kind` is "track", "via", "pad", "edge", "hole",
@@ -79,6 +80,9 @@ struct RouterOptions {
     bool removeLoops = false;
     /// Teardrops on commit where the new tracks meet pads and vias (addTeardrops).
     bool autoTeardrops = false;
+    /// Hug: a dragged segment that runs into copper that cannot move (pads, locked tracks, fixed vias) bends around it
+    /// on its clearance hull instead of stopping short; other nets' tracks are still shoved (Shove) or kept clear.
+    bool hugDrag = false;
 };
 
 /// What commit() changed, so a caller can undo it exactly: removed items (with their old geometry and ids) and the
@@ -260,6 +264,22 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
 /// {"ok","message","net","group","groupKind","tolerance","before","after","target","applied",
 ///  "addedTracks":[track],"removedTracks":[id],"changes":{…}}
 Json lengthTuneJson(const LengthTuneResult& r);
+
+/// Length matching of several nets at once (a routed bus, a byte lane): the nets of the given tracks are tuned to
+/// the longest of them within `tolerance` mm (pad to pad through series parts, as a match group), each on its
+/// longest straight track with `options`' pattern and corners. Nets in a match group or with a length rule keep
+/// their own target.
+struct MatchLengthsResult {
+    bool ok = false;  // at least one net was lengthened
+    std::string message;
+    double target = 0;
+    int tuned = 0, matched = 0, short_ = 0;  // lengthened / already within tolerance / still too short
+    std::vector<LengthTuneResult> nets;
+};
+MatchLengthsResult matchTrackLengths(PcbLayout& pcb, const Schematic& sch, const std::vector<int>& trackIds,
+                                     const LengthTuneOptions& options = {}, double tolerance = 0.1);
+/// {"ok","message","target","tuned","matched","short","nets":[lengthTuneJson]}
+Json matchLengthsJson(const MatchLengthsResult& r);
 /// Options from {"target","maxAmplitude","spacing","x","y","apply","style":"accordion|trombone|sawtooth",
 /// "corner":"square|mitered|round","fromX","fromY","toX","toY" (drag-along span),"coupled","phase"} (x and y
 /// together set the near point).

@@ -157,6 +157,10 @@ struct PCBEditorView: View {
                                 help: "Via shielding: ground vias on both sides of the selected tracks") {
                     store.shieldSelectedTracks()
                 }
+                ToolStripButton(systemImage: "equal.square",
+                                help: "Match lengths: tune the nets of the selected tracks (a bus) to the longest of them") {
+                    store.matchSelectedLengths()
+                }
                 ToolStripButton(systemImage: "eraser", help: "Clear all tracks and vias") { store.clearRouting() }
                 ToolStripButton(systemImage: "checkmark.seal", help: "Design rule check") {
                     store.runDRC()
@@ -186,11 +190,15 @@ struct PCBEditorView: View {
                             Text("Shove").tag(RouterModeChoice.shove)
                             Text("Walk around").tag(RouterModeChoice.walkaround)
                             Text("Highlight").tag(RouterModeChoice.highlight)
+                            Text("Stop at obstacle").tag(RouterModeChoice.stop)
                         }
                         .pickerStyle(.segmented)
                         .labelsHidden()
                         .fixedSize()
                         .help("Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red")
+                        Toggle("Hug obstacles", isOn: $store.routerHugDrag)
+                            .toggleStyle(.checkbox)
+                            .help("A dragged track bends around pads and other copper it cannot push instead of stopping short")
                     }
                     if routeTool {
                         Picker("Corners", selection: $store.routerDiagonal) {

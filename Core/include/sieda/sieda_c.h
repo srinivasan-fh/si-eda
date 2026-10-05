@@ -735,6 +735,10 @@ char* sieda_pcb_stitch_vias(SiedaProject* project, const char* options_json);
 char* sieda_pcb_shield_tracks(SiedaProject* project, const char* track_ids_json, const char* options_json);
 /* Glossing: pull the lines through the given tracks tight; options {"retrace" (default true),"apply"}. */
 char* sieda_pcb_gloss(SiedaProject* project, const char* track_ids_json, const char* options_json);
+/* Length matching: the nets of the given tracks tuned to the longest of them; options as sieda_router_tune ("style",
+ * "corner","maxAmplitude","spacing") plus "tolerance" (mm, default 0.1). Returns {"ok","message","target","tuned",
+ * "matched","short","nets":[tune result]}. Router options also take "mode":"stop" (stop at the first obstacle). */
+char* sieda_pcb_match_lengths(SiedaProject* project, const char* track_ids_json, const char* options_json);
 
 #ifdef __cplusplus
 }

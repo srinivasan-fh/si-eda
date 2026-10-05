@@ -138,4 +138,23 @@ extension DesignStore {
         if let result, !result.message.isEmpty { statusMessage = result.message }
         if done, !drcResults.isEmpty { runDRC() }
     }
+
+    /// Matches the lengths of the selected tracks' nets (a routed bus) to the longest of them. One undo step.
+    func matchSelectedLengths() {
+        let tracks = Array(selectedTracks).sorted()
+        guard !tracks.isEmpty else {
+            statusMessage = "Match lengths: select a track of each net (⇧-click)"
+            return
+        }
+        if routePreview != nil { cancelRoute() }
+        let style = tuneStyle, corner = tuneCorner
+        var result: MatchLengthsResult?
+        _ = performChecked("Match lengths", invalidatesAnalysis: false,
+                           failureMessage: "Match lengths: no net needed or had room for meanders") {
+            result = $0.matchLengths(tracks: tracks, style: style, corner: corner)
+            return result?.ok == true
+        }
+        if let result { statusMessage = result.message }
+        if !drcResults.isEmpty { runDRC() }
+    }
 }

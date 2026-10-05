@@ -41,7 +41,8 @@
 - Interactive routing: `Core/src/InteractiveRouter.cpp` (router, shove, arc corners, commands), arc tracks in
   `Core/include/sieda/TrackGeometry.hpp` (`Track::arc`: measure tracks only through these functions, never `a`–`b`;
   straight tracks must stay bit-identical), board commands (teardrops as `Track::teardrop` fans, via stitching /
-  shielding, gloss, loop removal on commit — opt-in router options, so default routing is unchanged), C API additions in `Core/src/sieda_c_routing.cpp`; app in
+  shielding, gloss, loop removal on commit, hug drag, Stop mode, `matchTrackLengths` — opt-in router options, so default
+  routing is unchanged; head searches may run on several threads but must give the sequential result), C API additions in `Core/src/sieda_c_routing.cpp`; app in
   `SiEDA/Views/PCB/`, `SiEDA/App/DesignStore+Routing.swift`, `SiEDA/Bridge/EDAEngine+Routing.swift`; guide in
   `docs/INTERACTIVE_ROUTING.md`.
 - Library parts live in `Core/src/StandardParts.cpp`; KiCad-derived pinouts are generated into

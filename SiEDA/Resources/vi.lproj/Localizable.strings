@@ -821,3 +821,6 @@
 "Finishing a route removes the old path of the net it makes redundant" = "Hoàn tất một tuyến sẽ xóa đường cũ của net mà tuyến đó làm cho thừa";
 "Auto teardrops" = "Giọt lệ tự động";
 "Teardrops where each finished route meets pads and vias" = "Giọt lệ tại nơi mỗi tuyến hoàn tất gặp pad và via";
+"Stop at obstacle" = "Dừng tại vật cản";
+"Hug obstacles" = "Ôm sát vật cản";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "Đường mạch đang kéo uốn quanh pad và đồng khác không đẩy được thay vì dừng sớm";

@@ -821,3 +821,6 @@
 "Finishing a route removes the old path of the net it makes redundant" = "配線を確定すると、それによって不要になったネットの古い経路を削除します";
 "Auto teardrops" = "自動ティアドロップ";
 "Teardrops where each finished route meets pads and vias" = "確定した各配線がパッドやビアと接する箇所にティアドロップ";
+"Stop at obstacle" = "障害物で停止";
+"Hug obstacles" = "障害物に沿わせる";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "ドラッグ中の配線は押しのけられないパッドや他の銅を迂回して曲がり、手前で止まりません";

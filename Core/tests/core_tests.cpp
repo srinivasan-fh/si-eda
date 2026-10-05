@@ -13866,3 +13866,111 @@ TEST(c_api_board_commands) {
     if (rc != 0) std::printf("    C API board commands test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+// ======================================================================= stop mode, length-matched bus
+
+TEST(router_stop_mode_stops_at_the_first_obstacle) {
+    // Another net's track across the way: Shove pushes it aside; Stop leaves it and the head ends short of it.
+    for (RouterMode mode : {RouterMode::Shove, RouterMode::Stop}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {36, 20}), r3 = placeR(p, {22, 10}), r4 = placeR(p, {22, 30});
+        wire(s, r1, "2", r2, "1");
+        wire(s, r3, "2", r4, "1");
+        p.schematicChanged();
+        const int other = s.netOf({r3, 1});
+        addPath(p.pcb, other, 0, 0.25, {padAt(p, r3, 1), {padAt(p, r3, 1).x, 15}, {22, 25}, padAt(p, r4, 0)});
+        InteractiveRouter r(p.pcb, s);
+        RouterOptions o;
+        o.mode = mode;
+        r.setOptions(o);
+        CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+        const RoutePreview& pv = r.moveTo(padAt(p, r2, 0));
+        if (mode == RouterMode::Stop) {
+            CHECK(pv.blocked && pv.shovedTracks.empty() && !pv.reachedTarget);
+            const Vec2 tip = pv.head.empty() ? padAt(p, r1, 1) : pv.head.back().b;
+            CHECK(tip.x > 15 && tip.x < 22.3);  // up to the other track (it crosses y = 20 at x = 22.475)
+        } else {
+            CHECK(!pv.blocked && pv.reachedTarget);
+        }
+    }
+    RouterOptions j = routerOptionsFromJson(Json::parse("{\"mode\":\"stop\"}"));
+    CHECK(j.mode == RouterMode::Stop);
+}
+
+TEST(match_track_lengths_of_a_bus) {
+    // Three nets routed pad to pad, the middle one with a detour: matching the selection lengthens the other two to
+    // the longest within the tolerance, DRC clean; the temporary group is gone afterwards.
+    Project p;
+    auto& s = p.schematic;
+    std::vector<int> nets;
+    std::vector<int> picks;
+    for (int k = 0; k < 3; ++k) {
+        const double y = 10 + 8 * k;
+        const int a = placeR(p, {8, y}), b = placeR(p, {40, y});
+        wire(s, a, "2", b, "1");
+        p.schematicChanged();
+        const int net = s.netOf({a, 1});
+        nets.push_back(net);
+        const Vec2 from = padAt(p, a, 1), to = padAt(p, b, 0);
+        if (k == 1)
+            addPath(p.pcb, net, 0, 0.25, {from, {16, y}, {18, y + 2}, {26, y + 2}, {28, y}, to});
+        else
+            addPath(p.pcb, net, 0, 0.25, {from, to});
+        picks.push_back(p.pcb.tracks.back().id);
+    }
+    const double longest = routedNetLength(p.pcb, nets[1]);
+    CHECK(routedNetLength(p.pcb, nets[0]) < longest - 1);
+    CHECK(!matchTrackLengths(p.pcb, s, {picks[0]}).ok);  // one net: nothing to match
+    const MatchLengthsResult r = matchTrackLengths(p.pcb, s, picks);
+    CHECK(r.ok && r.tuned == 2 && r.matched == 1 && r.short_ == 0);
+    CHECK_NEAR(r.target, longest, 1e-6);
+    for (int n : nets) CHECK_NEAR(routedNetLength(p.pcb, n), longest, 0.1 + 1e-6);
+    CHECK(p.pcb.settings.matchGroups.empty());
+    CHECK(routingProblems(p) == 0);
+    CHECK(matchLengthsJson(r).get("nets").size() == 3);
+}
+
+extern "C" int sieda_c_api_match_lengths_test(void);
+TEST(c_api_match_lengths_and_stop_mode) {
+    const int rc = sieda_c_api_match_lengths_test();
+    if (rc != 0) std::printf("    C API match lengths test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}
+
+TEST(router_drag_hugs_a_pad) {
+    // A segment dragged onto another part's pad stops short of it; with hug on it bends around the pad on its
+    // clearance hull instead, stays connected and DRC clean.
+    for (bool hug : {false, true}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {36, 20}), r3 = placeR(p, {22, 23.5}), r4 = placeR(p, {22, 35});
+        wire(s, r1, "2", r2, "1");
+        wire(s, r3, "2", r4, "1");
+        p.schematicChanged();
+        const int net = s.netOf({r1, 1});
+        const Vec2 from = padAt(p, r1, 1), to = padAt(p, r2, 0);
+        addPath(p.pcb, net, 0, 0.25, {from, {12, 20}, {32, 20}, to});
+        int mid = -1;
+        for (const auto& t : p.pcb.tracks)
+            if ((t.b - t.a).length() > 15) mid = t.id;
+        InteractiveRouter r(p.pcb, s);
+        RouterOptions o;
+        o.hugDrag = hug;
+        r.setOptions(o);
+        CHECK(r.beginDrag(mid, {22, 20}));
+        const RoutePreview& pv = r.moveTo({22, 23.5});
+        if (!hug) {
+            CHECK(pv.blocked);
+            continue;
+        }
+        CHECK(!pv.blocked);
+        CHECK(pv.status.find("hugging") != std::string::npos);
+        CHECK(pv.head.size() >= 4);  // bends round the pad
+        CHECK(r.commit().ok);
+        CHECK(netRouted(p, net));
+        CHECK(routingProblems(p) == 0);
+        CHECK(acuteWarnings(p) == 0);
+    }
+    CHECK(routerOptionsFromJson(Json::parse("{\"hug\":true}")).hugDrag);
+}

@@ -821,3 +821,6 @@
 "Finishing a route removes the old path of the net it makes redundant" = "Ang pagtatapos ng route ay nag-aalis sa lumang daan ng net na ginawa nitong labis";
 "Auto teardrops" = "Awtomatikong teardrop";
 "Teardrops where each finished route meets pads and vias" = "Mga teardrop kung saan nagtatagpo ang bawat natapos na route at ang mga pad at via";
+"Stop at obstacle" = "Huminto sa hadlang";
+"Hug obstacles" = "Yakapin ang mga hadlang";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "Ang hinihilang track ay lumiliko paikot sa mga pad at ibang tanso na hindi nito maitulak sa halip na huminto nang maaga";

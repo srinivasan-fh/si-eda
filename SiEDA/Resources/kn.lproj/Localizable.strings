@@ -821,3 +821,6 @@
 "Finishing a route removes the old path of the net it makes redundant" = "ರೂಟ್ ಮುಗಿಸಿದಾಗ ಅದು ಅನಗತ್ಯಗೊಳಿಸಿದ ನೆಟ್‌ನ ಹಳೆಯ ಮಾರ್ಗ ತೆಗೆದುಹಾಕಲಾಗುತ್ತದೆ";
 "Auto teardrops" = "ಸ್ವಯಂ ಟಿಯರ್‌ಡ್ರಾಪ್‌ಗಳು";
 "Teardrops where each finished route meets pads and vias" = "ಪ್ರತಿ ಮುಗಿದ ರೂಟ್ ಪ್ಯಾಡ್‌ಗಳು ಮತ್ತು ವಯಾಗಳನ್ನು ಸೇರುವಲ್ಲಿ ಟಿಯರ್‌ಡ್ರಾಪ್‌ಗಳು";
+"Stop at obstacle" = "ಅಡಚಣೆಯಲ್ಲಿ ನಿಲ್ಲಿಸಿ";
+"Hug obstacles" = "ಅಡಚಣೆಗಳನ್ನು ಅಪ್ಪಿಕೊಂಡು ಸಾಗು";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "ಎಳೆದ ಟ್ರ್ಯಾಕ್ ತಳ್ಳಲಾಗದ ಪ್ಯಾಡ್‌ಗಳು ಮತ್ತು ಇತರ ತಾಮ್ರದ ಸುತ್ತ ಬಾಗಿ ಹೋಗುತ್ತದೆ, ಮೊದಲೇ ನಿಲ್ಲುವುದಿಲ್ಲ";

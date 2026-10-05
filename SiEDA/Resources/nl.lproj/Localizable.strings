@@ -821,3 +821,6 @@
 "Finishing a route removes the old path of the net it makes redundant" = "Een route voltooien verwijdert het oude pad van het net dat erdoor overbodig wordt";
 "Auto teardrops" = "Automatische teardrops";
 "Teardrops where each finished route meets pads and vias" = "Teardrops waar elke voltooide route pads en via's raakt";
+"Stop at obstacle" = "Stoppen bij obstakel";
+"Hug obstacles" = "Obstakels volgen";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "Een gesleept spoor buigt om pads en ander koper dat het niet kan duwen, in plaats van ervoor te stoppen";

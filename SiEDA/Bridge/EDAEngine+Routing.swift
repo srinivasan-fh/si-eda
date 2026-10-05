@@ -26,6 +26,16 @@ struct BoardEditResult: Decodable, Equatable {
     var removedVias: [Int]
 }
 
+/// Result of matching several nets' lengths (`sieda_pcb_match_lengths`).
+struct MatchLengthsResult: Decodable, Equatable {
+    var ok: Bool
+    var message: String
+    var target: Double
+    var tuned: Int
+    var matched: Int
+    var short: Int
+}
+
 /// Meander pattern of the length tuning tool (`sieda_router_tune` "style").
 enum MeanderStyleChoice: String, CaseIterable, Identifiable {
     case accordion, trombone, sawtooth
@@ -76,11 +86,11 @@ extension EDAEngine {
     /// (pairs and buses on concentric arcs) instead of short chords.
     static func routingOptions(mode: RouterModeChoice, diagonal: Bool, via: RouterViaChoice = .through,
                                rounded: Bool = false, arcs: Bool = true, anyAngle: Bool = false,
-                               removeLoops: Bool = false, teardrops: Bool = false) -> String {
+                               removeLoops: Bool = false, teardrops: Bool = false, hug: Bool = false) -> String {
         let posture = anyAngle ? "free" : (diagonal ? "45" : "90")
         return "{\"mode\":\"\(mode.rawValue)\",\"posture\":\"\(posture)\",\"viaType\":\"\(via.rawValue)\","
             + "\"cornerRadius\":\(rounded ? -1 : 0),\"arcCorners\":\(rounded && arcs),"
-            + "\"removeLoops\":\(removeLoops),\"teardrops\":\(teardrops)}"
+            + "\"removeLoops\":\(removeLoops),\"teardrops\":\(teardrops),\"hug\":\(hug)}"
     }
 
     /// Drags the corner of `trackId` nearest to `point`.
@@ -207,5 +217,15 @@ extension EDAEngine {
         guard let data = try? JSONSerialization.data(withJSONObject: object),
               let text = String(data: data, encoding: .utf8) else { return "{}" }
         return text
+    }
+
+    /// Tunes the nets of `tracks` to the longest of them (within `tolerance` mm) with the meander style and corners.
+    func matchLengths(tracks: [Int], style: MeanderStyleChoice = .accordion, corner: MeanderCornerChoice = .square,
+                      tolerance: Double = 0.1) -> MatchLengthsResult? {
+        let tol = tolerance.isFinite ? max(0.01, tolerance) : 0.1
+        let options = "{\"style\":\"\(style.rawValue)\",\"corner\":\"\(corner.rawValue)\",\"tolerance\":\(tol)}"
+        return Self.decode(MatchLengthsResult.self, from: withHandle {
+            Self.take(sieda_pcb_match_lengths($0, Self.idList(tracks), options))
+        })
     }
 }

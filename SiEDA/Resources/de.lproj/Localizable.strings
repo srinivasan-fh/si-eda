@@ -821,3 +821,6 @@
 "Finishing a route removes the old path of the net it makes redundant" = "Das Abschließen einer Route entfernt den alten Pfad des Netzes, den sie überflüssig macht";
 "Auto teardrops" = "Automatische Teardrops";
 "Teardrops where each finished route meets pads and vias" = "Teardrops, wo jede fertige Route auf Pads und Vias trifft";
+"Stop at obstacle" = "An Hindernis anhalten";
+"Hug obstacles" = "Hindernisse umschmiegen";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "Eine gezogene Leiterbahn biegt um Pads und anderes Kupfer, das sie nicht verschieben kann, statt davor anzuhalten";

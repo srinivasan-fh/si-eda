@@ -6195,3 +6195,48 @@ final class BoardCommandTests: XCTestCase {
         XCTAssertNotEqual(store.engine.gloss(tracks: [tracks[0].id])?.applied, true)
     }
 }
+
+/// Stop-at-obstacle mode and length matching of a bus from the store (docs/INTERACTIVE_ROUTING.md).
+@MainActor
+final class StopModeAndMatchLengthTests: XCTestCase {
+    func testStopModeOption() {
+        let json = EDAEngine.routingOptions(mode: .stop, diagonal: true)
+        XCTAssertTrue(json.contains("\"mode\":\"stop\""))
+        XCTAssertTrue(RouterModeChoice.allCases.contains(.stop))
+        XCTAssertTrue(EDAEngine.routingOptions(mode: .shove, diagonal: true, hug: true).contains("\"hug\":true"))
+        XCTAssertTrue(DesignStore().routerHugDrag)
+    }
+
+    func testMatchLengthsOfTwoNets() throws {
+        let store = DesignStore()
+        let engine = store.engine
+        let a1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let a2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        let b1 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 0, y: 100))
+        let b2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 100))
+        XCTAssertNotNil(engine.connect(PinAddress(component: a1, pin: 1), PinAddress(component: a2, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: b1, pin: 1), PinAddress(component: b2, pin: 0)))
+        engine.moveFootprint(a1, to: CGPoint(x: 10, y: 10))
+        engine.moveFootprint(a2, to: CGPoint(x: 40, y: 10))
+        engine.moveFootprint(b1, to: CGPoint(x: 10, y: 20))
+        engine.moveFootprint(b2, to: CGPoint(x: 40, y: 26))
+        let options = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+        for (from, to) in [(CGPoint(x: 10.95, y: 10), CGPoint(x: 39.05, y: 10)),
+                           (CGPoint(x: 10.95, y: 20), CGPoint(x: 39.05, y: 26))] {
+            XCTAssertNil(engine.routerBegin(at: from, layer: 0, pair: false, options: options)?.error)
+            _ = engine.routerMove(to: to)
+            XCTAssertTrue(engine.routerCommit().ok)
+        }
+        store.refresh()
+        let before = store.snapshot.tracks
+        store.matchSelectedLengths()  // nothing selected: refused
+        XCTAssertEqual(store.snapshot.tracks, before)
+        store.selectedTracks = Set(before.map(\.id))
+        store.matchSelectedLengths()
+        XCTAssertNotEqual(store.snapshot.tracks, before)
+        store.undo()
+        XCTAssertEqual(store.snapshot.tracks, before)
+        let direct = try XCTUnwrap(engine.matchLengths(tracks: before.map(\.id)))
+        XCTAssertGreaterThan(direct.target, 0)
+    }
+}

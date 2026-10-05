@@ -821,3 +821,6 @@
 "Finishing a route removes the old path of the net it makes redundant" = "完成佈線時移除該網路因此變得多餘的舊路徑";
 "Auto teardrops" = "自動淚滴";
 "Teardrops where each finished route meets pads and vias" = "在每條完成的佈線與焊盤和過孔相接處加入淚滴";
+"Stop at obstacle" = "遇障礙停止";
+"Hug obstacles" = "貼合障礙物";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "拖曳的走線會繞過無法推開的焊盤與其他銅箔，而不是提前停下";

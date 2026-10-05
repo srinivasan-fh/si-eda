@@ -1559,10 +1559,15 @@ final class DesignStore: ObservableObject {
         didSet { if routerTeardrops != oldValue { applyRouterOptions() } }
     }
 
+    /// Hug: a dragged track bends around pads and other copper it cannot push instead of stopping short.
+    @Published var routerHugDrag = true {
+        didSet { if routerHugDrag != oldValue { applyRouterOptions() } }
+    }
+
     private var routerOptions: String {
         EDAEngine.routingOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType, rounded: routerRounded,
                                  arcs: routerArcs, anyAngle: routerAnyAngle, removeLoops: routerRemoveLoops,
-                                 teardrops: routerTeardrops)
+                                 teardrops: routerTeardrops, hug: routerHugDrag)
     }
 
     /// Shows a router reply: a refused step keeps the route and reports why.

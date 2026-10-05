@@ -75,6 +75,15 @@ as close to it as it can.
 count in the banner. You can still place and finish the route; the DRC then reports the violations. Use it to sketch
 a route through a congested area before cleaning it up, as with the "highlight collisions" mode of other tools.
 
+**Stop at obstacle**. Nothing moves and the head does not walk around anything: it follows the cursor until the
+first obstacle and stops just short of it (Altium's "Stop at first obstacle").
+
+How the modes map to other tools: Shove is Altium's "Push" and "Hug and push" in one (it pushes what can move and
+hugs, walks around, what cannot); Walk around is "Walkaround"; Highlight is "Ignore obstacles" with the collisions
+shown; Stop at obstacle is "Stop at first obstacle". "Follow mouse" (the head follows the cursor path rather than
+the shortest way) is not offered: the head is always recomputed from the last corner, so a detour is drawn by placing
+a corner.
+
 In Shove and Walk around the head never makes an acute (acid-trap) corner with the board's copper: a head that would
 is refused like a collision, and the router tries the other bend, walks around or stops short. A route that starts
 at the free end of a track continues it without folding back.
@@ -235,7 +244,11 @@ joins it to the moved segment. With **Shove** set in the options bar, other nets
 puts everything back. Locked tracks cannot be dragged: the drag pans the view instead. A press on a pad still moves
 the footprint, and a click without dragging still selects.
 
-Core: `InteractiveRouter::beginDrag` (C: `sieda_router_begin_drag`).
+**Hug obstacles** (options bar, on by default): where the moved segment runs into copper that cannot move (a pad, a
+locked track, a fixed via), it bends around it on its clearance hull, the shorter way round, instead of stopping
+short; other nets' tracks are still pushed (Shove) or kept clear. Without it the segment stops at the obstacle.
+
+Core: `InteractiveRouter::beginDrag` (C: `sieda_router_begin_drag`), router option `hugDrag` (`"hug"`).
 
 ## Dragging a corner
 
@@ -379,6 +392,16 @@ older `sieda_router_tune_length` still works), `sieda_pcb_set_length_rule`, `sie
 `sieda_length_targets_json`. Plain accordion tuning without rules is exactly as before. Board-wide pair and bus
 matching after Auto Route is unchanged (`tuneLengths`, **Board Setup → Stack-up & Impedance**).
 
+### Matching a bus
+
+Select a track of each net of a routed bus (or byte lane: ⇧-click) and press **Match lengths** (tool strip): every
+net is tuned to the longest of them within 0.1 mm, pad to pad through series parts, each on its longest straight
+track with the Tune tool's pattern and corners. It works like a match group made of the selection for the duration
+of the command; nets that already have a length rule or belong to a match group keep their own target. One undo step;
+the message counts the nets lengthened, already matched and without room.
+
+Core: `matchTrackLengths(pcb, sch, trackIds, options, tolerance)`; C: `sieda_pcb_match_lengths`.
+
 ## Core API
 
 `Core/include/sieda/InteractiveRouter.hpp`:
@@ -429,6 +452,7 @@ All functions are in `sieda_c.h`. Each project has one route session.
 | `sieda_pcb_stitch_vias(project, options_json)` | Via stitching of a net's pours |
 | `sieda_pcb_shield_tracks(project, track_ids_json, options_json)` | Via shielding along tracks |
 | `sieda_pcb_gloss(project, track_ids_json, options_json)` | Gloss / retrace routes |
+| `sieda_pcb_match_lengths(project, track_ids_json, options_json)` | Match the selected nets' lengths (a bus) |
 | `sieda_pcb_set_length_rule(project, net, target_mm, tolerance_mm)` | Length rule of a net (target 0 removes it) |
 | `sieda_pcb_set_match_group(project, group_json)` | Match group `{"name","nets":[…],"tolerance"}` (fewer than two nets removes it) |
 | `sieda_length_targets_json(project)` | Rules and groups with their members' xSignal lengths |
@@ -490,6 +514,9 @@ never fails because of an old DRC problem elsewhere, and it never creates a new 
   junctions between tracks); a track as wide as 90 % of the pad gets none. Stitching uses one via size on a square
   grid (no hexagonal or edge-of-pour patterns). Glossing works line by line on one layer (it does not move vias).
   Loop removal skips poured nets.
+- Hugging bends a dragged segment round fixed copper only (up to six obstacles); a corner drag, a multi-track drag
+  and a via drag still stop short. Match lengths tunes each net on one straight track (as the Tune tool) and does not
+  re-route a bus to equal lengths while it is drawn.
 - Fanout covers SMD pads only (through-hole pads already reach every layer) and walks around (it never shoves).
 - The Select-tool drag picks the via, then the track on the active layer, under the pointer (near a track's end: its
   corner; on one of several selected tracks: all of them); a press on a pad moves the footprint as before. Arcs are
@@ -608,6 +635,10 @@ Core (`Core/tests/core_tests.cpp`):
 | `gloss_pulls_routes_tight` | A detour is pulled > 10 mm shorter, connected, DRC clean; a tight or locked route stays. |
 | `router_removes_loops_on_commit` | A new direct route removes the old detour, its stub and its two vias; without the option all stays. |
 | `c_api_board_commands` | Teardrops, gloss, shielding, stitching and the router options through the C API. |
+| `router_stop_mode_stops_at_the_first_obstacle` | Shove pushes a crossing track; Stop at obstacle leaves it and ends short of it. |
+| `match_track_lengths_of_a_bus` | Three nets, one with a detour: the other two are lengthened to it within 0.1 mm, DRC clean, no group left behind. |
+| `router_drag_hugs_a_pad` | A segment dragged onto another part's pad stops short; with hug it bends round the pad, connected, DRC clean. |
+| `c_api_match_lengths_and_stop_mode` | Stop mode and length matching through the C API. |
 | `router_head_update_can_be_cancelled` | A cancelled update leaves the router exactly as before; the next one matches a router that was never cancelled; a request while idle changes nothing. |
 | `router_routes_a_bus_together` | A bus of four SOIC pins ends at track pitch in pin order; each track is then finished to its pad; DRC clean. |
 | `router_bus_turns_corners_at_pitch` | A bus through a 90° turn keeps the clearance between members, and is packed at it. |

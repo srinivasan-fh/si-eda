@@ -244,3 +244,23 @@ char* sieda_pcb_gloss(SiedaProject* project, const char* track_ids_json, const c
 }
 
 }  // extern "C"
+
+extern "C" {
+
+char* sieda_pcb_match_lengths(SiedaProject* project, const char* track_ids_json, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        const std::vector<int> ids = idList(parseOr(track_ids_json, Json::array()));
+        const Json o = parseOr(options_json, Json::object());
+        const LengthTuneOptions opt = lengthTuneOptionsFromJson(o);
+        const double tolerance = o.get("tolerance").asNumber(0.1);
+        if (project->router) project->router->cancel();
+        return dupString(matchLengthsJson(matchTrackLengths(project->project.pcb, project->project.schematic, ids, opt,
+                                                            std::isfinite(tolerance) ? tolerance : 0.1))
+                             .dump());
+    } catch (const std::exception& e) {
+        return errorString(e);
+    }
+}
+
+}  // extern "C"

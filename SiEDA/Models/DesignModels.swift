@@ -902,7 +902,7 @@ struct RoutePreview: Decodable, Equatable {
 
 /// Interactive router mode (`sieda_router_*` options "mode").
 enum RouterModeChoice: String, CaseIterable, Identifiable {
-    case shove, walkaround, highlight
+    case shove, walkaround, highlight, stop  // stop: the head stops at the first obstacle
     var id: String { rawValue }
 }
 

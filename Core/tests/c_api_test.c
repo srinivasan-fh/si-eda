@@ -1086,3 +1086,64 @@ int sieda_c_api_board_commands_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+int sieda_c_api_match_lengths_test(void) {
+    SiedaProject* p = sieda_project_new("C API match lengths");
+    if (!p) return 1;
+    int32_t a1 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 0, 0, NULL);
+    int32_t a2 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 0, 0, NULL);
+    int32_t b1 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 100, 0, NULL);
+    int32_t b2 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 100, 0, NULL);
+    if (a1 < 0 || a2 < 0 || b1 < 0 || b2 < 0) return 2;
+    if (sieda_connect(p, a1, 1, a2, 0) < 0 || sieda_connect(p, b1, 1, b2, 0) < 0) return 3;
+    if (!sieda_pcb_move_footprint(p, a1, 10, 10) || !sieda_pcb_move_footprint(p, a2, 40, 10) ||
+        !sieda_pcb_move_footprint(p, b1, 10, 20) || !sieda_pcb_move_footprint(p, b2, 40, 26))
+        return 4;
+    /* Stop mode: a plain route reaches its pad. */
+    char* s = sieda_router_begin(p, "{\"mode\":\"stop\"}", 10.95, 10, 0);
+    if (!s || strstr(s, "\"error\"")) return 5;
+    sieda_string_free(s);
+    s = sieda_router_move(p, 39.05, 10);
+    if (!s || !strstr(s, "\"reachedTarget\":true")) return 6;
+    sieda_string_free(s);
+    s = sieda_router_commit(p);
+    if (!s || !strstr(s, "\"ok\":true")) return 7;
+    sieda_string_free(s);
+    s = sieda_router_begin(p, "{\"mode\":\"stop\"}", 10.95, 20, 0);
+    if (!s) return 8;
+    sieda_string_free(s);
+    s = sieda_router_move(p, 39.05, 26);
+    if (!s || !strstr(s, "\"reachedTarget\":true")) return 9;
+    sieda_string_free(s);
+    s = sieda_router_commit(p);
+    if (!s || !strstr(s, "\"ok\":true")) return 10;
+    sieda_string_free(s);
+    /* Every track: the two nets are matched (the straight one lengthened). */
+    char* snap = sieda_project_snapshot(p);
+    if (!snap) return 11;
+    char ids[256] = "[";
+    const char* at = strstr(snap, "\"tracks\":[");
+    int n = 0;
+    while (at && (at = strstr(at, "\"id\":")) != NULL && n < 20) {
+        int id = 0;
+        const char* c = at + 5;
+        for (; *c >= '0' && *c <= '9'; ++c) id = id * 10 + (*c - '0');
+        char part[16];
+        snprintf(part, sizeof part, "%s%d", n ? "," : "", id);
+        strncat(ids, part, sizeof ids - strlen(ids) - 2);
+        ++n;
+        at = c;
+        if (strstr(at, "\"vias\":[") && strstr(at, "\"vias\":[") < strstr(at, "\"id\":")) break;
+    }
+    strcat(ids, "]");
+    sieda_string_free(snap);
+    char* m = sieda_pcb_match_lengths(p, ids, "{\"tolerance\":0.2}");
+    if (!m || strstr(m, "\"error\"") || !strstr(m, "\"target\"")) return 12;
+    sieda_string_free(m);
+    char* bad = sieda_pcb_match_lengths(p, "{x", NULL);
+    if (!bad || !strstr(bad, "\"error\"")) return 13;
+    sieda_string_free(bad);
+    if (sieda_pcb_match_lengths(NULL, "[]", NULL) != NULL) return 14;
+    sieda_project_free(p);
+    return 0;
+}

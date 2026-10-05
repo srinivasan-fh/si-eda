@@ -3038,8 +3038,8 @@ struct InteractiveRouter::Impl {
             why = tries[k].why;
             if (firstWhy.empty()) firstWhy = why;
         }
-        // Walk around what cannot be shoved.
-        const GridPath walk = walkSearch();
+        // Walk around what cannot be shoved (Stop: the head stops short instead).
+        const GridPath walk = opt.mode == RouterMode::Stop ? GridPath{} : walkSearch();
         const std::vector<Vec2>& walkPath = walk.pts;
         if (walk.reached && walkPath.size() >= 2) {
             World w = committed;
@@ -3547,6 +3547,48 @@ struct InteractiveRouter::Impl {
         return simplifyPath(pts);
     }
 
+    /// The path bent around the fixed copper in its way (each obstacle's octagonal clearance hull, the shorter way
+    /// round), as the shove engine walks a pushed line around a pad. Empty when an obstacle cannot be passed.
+    std::vector<Vec2> hugPath(std::vector<Vec2> pts, int net, double hw) const {
+        std::vector<Hit> hits;
+        for (int round = 0; round < 6; ++round) {
+            bool found = false;
+            Hit h;
+            for (size_t k = 0; k + 1 < pts.size() && !found; ++k) {
+                hits.clear();
+                segmentHits(committed, {net}, layer, pts[k], pts[k + 1], hw, &hits);
+                for (const Hit& x : hits)
+                    if (x.fixed && (x.kind == HitKind::Pad || x.kind == HitKind::Track || x.kind == HitKind::Via)) {
+                        h = x;
+                        found = true;
+                        break;
+                    }
+            }
+            if (!found) return pts;
+            Shape s;
+            int on = -1;
+            bool barrier = false;
+            if (h.kind == HitKind::Pad) {
+                const Pad& p = base->pads[h.index];
+                s = padShape(p);
+                on = p.net;
+                barrier = base->barrierComps.count(p.componentId) > 0;
+            } else if (h.kind == HitKind::Track) {
+                s = trackShape(committed.track(h.index));
+                on = committed.track(h.index).net;
+            } else {
+                s = viaShape(committed.via(h.index));
+                on = committed.via(h.index).net;
+            }
+            const Octagon hull = makeOctagon(s.points(), s.radius + base->clearance(net, on, barrier) + hw + 1e-4);
+            std::vector<Vec2> c1, c2;
+            const bool ok1 = walkAround(pts, hull, true, c1), ok2 = walkAround(pts, hull, false, c2);
+            if (!ok1 && !ok2) return {};
+            pts = simplifyPath(ok1 && ok2 ? (pathLength(c1) <= pathLength(c2) ? c1 : c2) : (ok1 ? c1 : c2));
+        }
+        return {};
+    }
+
     void dragHead(Vec2 cursor) {
         Member& m = members[0];
         const double delta = (cursor - drag.grab).dot(drag.normal);
@@ -3576,6 +3618,20 @@ struct InteractiveRouter::Impl {
             current = w;
             m.head = dragPath(delta);
             return;
+        }
+        if (opt.hugDrag) {
+            // Hug: bend around the pad (or other fixed copper) in the way instead of stopping short.
+            const std::vector<Vec2> hug = hugPath(dragPath(delta), m.net, width / 2);
+            if (hug.size() >= 2) {
+                World wh = committed;
+                std::string whyHug;
+                if (placeHead(wh, {{m.net, hug}}, shove, whyHug) && newAcuteJoins(wh).empty()) {
+                    current = wh;
+                    m.head = hug;
+                    status = "Dragging a track of " + base->netName(m.net) + " — hugging an obstacle";
+                    return;
+                }
+            }
         }
         blocked = true;
         status = why;
@@ -5440,6 +5496,79 @@ LengthTuneOptions lengthTuneOptionsFromJson(const Json& j) {
     return o;
 }
 
+MatchLengthsResult matchTrackLengths(PcbLayout& pcb, const Schematic& sch, const std::vector<int>& trackIds,
+                                     const LengthTuneOptions& options, double tolerance) {
+    MatchLengthsResult r;
+    std::vector<int> nets;
+    for (int id : trackIds)
+        for (const auto& t : pcb.tracks)
+            if (t.id == id && t.net >= 0 && !t.teardrop && std::find(nets.begin(), nets.end(), t.net) == nets.end())
+                nets.push_back(t.net);
+    std::sort(nets.begin(), nets.end());
+    if (nets.size() < 2) {
+        r.message = "Select tracks of two or more nets to match";
+        return r;
+    }
+    // A match group of the selection for the duration of the command (the tuner's group target: the longest).
+    MatchGroup g;
+    g.name = "\x01selection";
+    for (int n : nets)
+        if (n < static_cast<int>(sch.nets().size())) g.nets.push_back(sch.nets()[static_cast<size_t>(n)].name);
+    g.tolerance = std::max(0.01, tolerance);
+    pcb.settings.matchGroups.push_back(g);
+    {
+        const auto pads = pcb.pads(sch);
+        LengthTarget lt;
+        if (lengthTargetFor(pcb, sch, pads, nets.front(), lt)) r.target = lt.target;
+    }
+    for (int n : nets) {
+        // Its longest straight track that the tuner may meander.
+        int best = -1;
+        double bestLen = 0;
+        for (const auto& t : pcb.tracks)
+            if (t.net == n && !t.arc && !t.teardrop && !t.locked && trackLength(t) > bestLen) {
+                bestLen = trackLength(t);
+                best = t.id;
+            }
+        if (best < 0) continue;
+        LengthTuneOptions o = options;
+        o.target = 0;
+        o.apply = true;
+        o.hasNear = o.hasSpan = o.coupled = o.phase = false;
+        LengthTuneResult tr = tuneTrackLength(pcb, sch, best, o);
+        if (tr.applied && tr.ok)
+            ++r.tuned;
+        else if (tr.target > 0 && tr.before >= tr.target - tr.tolerance - 1e-9)
+            ++r.matched;
+        else
+            ++r.short_;
+        r.nets.push_back(std::move(tr));
+    }
+    auto& groups = pcb.settings.matchGroups;
+    groups.erase(std::remove_if(groups.begin(), groups.end(), [&](const MatchGroup& m) { return m.name == g.name; }),
+                 groups.end());
+    r.ok = r.tuned > 0;
+    char buf[160];
+    std::snprintf(buf, sizeof buf, "%d of %zu nets lengthened to %.2f mm, %d already matched, %d without room", r.tuned,
+                  nets.size(), r.target, r.matched, r.short_);
+    r.message = buf;
+    return r;
+}
+
+Json matchLengthsJson(const MatchLengthsResult& r) {
+    Json j = Json::object();
+    j["ok"] = r.ok;
+    j["message"] = r.message;
+    j["target"] = r.target;
+    j["tuned"] = r.tuned;
+    j["matched"] = r.matched;
+    j["short"] = r.short_;
+    Json ns = Json::array();
+    for (const auto& n : r.nets) ns.push(lengthTuneJson(n));
+    j["nets"] = ns;
+    return j;
+}
+
 Json lengthTuneJson(const LengthTuneResult& r) {
     Json j = Json::object();
     j["ok"] = r.ok;
@@ -6186,6 +6315,7 @@ RouterOptions routerOptionsFromJson(const Json& j, RouterOptions o) {
     if (mode == "shove") o.mode = RouterMode::Shove;
     if (mode == "walkaround") o.mode = RouterMode::Walkaround;
     if (mode == "highlight") o.mode = RouterMode::Highlight;
+    if (mode == "stop") o.mode = RouterMode::Stop;
     const Json& posture = j.get("posture");
     const std::string ps = posture.isNumber() ? std::to_string(posture.asInt()) : posture.asString(std::string());
     if (ps == "45") o.posture = RoutePosture::Diagonal45;
@@ -6204,6 +6334,7 @@ RouterOptions routerOptionsFromJson(const Json& j, RouterOptions o) {
     if (j.has("arcCorners")) o.arcCorners = j.get("arcCorners").asBool(o.arcCorners);
     if (j.has("removeLoops")) o.removeLoops = j.get("removeLoops").asBool(o.removeLoops);
     if (j.has("teardrops")) o.autoTeardrops = j.get("teardrops").asBool(o.autoTeardrops);
+    if (j.has("hug")) o.hugDrag = j.get("hug").asBool(o.hugDrag);
     if (j.has("shoveLimit")) o.shoveLimit = std::clamp(j.get("shoveLimit").asInt(o.shoveLimit), 1, 10000);
     return o;
 }

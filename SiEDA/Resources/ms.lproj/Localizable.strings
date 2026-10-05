@@ -821,3 +821,6 @@
 "Finishing a route removes the old path of the net it makes redundant" = "Menamatkan halaan membuang laluan lama net yang menjadi berlebihan";
 "Auto teardrops" = "Titisan air mata automatik";
 "Teardrops where each finished route meets pads and vias" = "Titisan air mata di tempat setiap halaan siap bertemu pad dan via";
+"Stop at obstacle" = "Berhenti pada halangan";
+"Hug obstacles" = "Peluk halangan";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "Trek yang diseret melentur mengelilingi pad dan kuprum lain yang tidak dapat ditolaknya dan tidak berhenti awal";

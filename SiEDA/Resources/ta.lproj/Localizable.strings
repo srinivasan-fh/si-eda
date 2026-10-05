@@ -821,3 +821,6 @@
 "Finishing a route removes the old path of the net it makes redundant" = "ஒரு வழித்தடத்தை முடித்தால் அது தேவையற்றதாக்கும் நெட்டின் பழைய பாதை நீக்கப்படும்";
 "Auto teardrops" = "தானியங்கு கண்ணீர்த்துளிகள்";
 "Teardrops where each finished route meets pads and vias" = "முடிந்த ஒவ்வொரு வழித்தடமும் பேட்கள் மற்றும் வயாக்களைச் சந்திக்கும் இடத்தில் கண்ணீர்த்துளிகள்";
+"Stop at obstacle" = "தடையில் நிறுத்து";
+"Hug obstacles" = "தடைகளை ஒட்டிச் செல்";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "இழுக்கப்படும் தடம் தள்ள முடியாத பேட்கள் மற்றும் பிற செம்பைச் சுற்றி வளைந்து செல்கிறது, முன்பே நிற்காது";
