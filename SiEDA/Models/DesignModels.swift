@@ -204,6 +204,7 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     var customPart: String?
     /// Present for microcontrollers the simulator can run (ATmega328P, ATtiny85).
     var mcu: McuInfo?
+    var spice: SpiceAttachment?
     /// Package variant the part is fitted in (nil = the kind's default footprint).
     var package: String?
     /// Packages a passive / diode can be switched to (chip sizes, through-hole, tantalum…); nil for fixed parts.

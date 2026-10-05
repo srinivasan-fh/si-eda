@@ -22,6 +22,24 @@ struct SimulationView: View {
     @State private var mcBandwidth = false
     @State private var mcRuns = "200"
     @State private var mode: AnalysisMode = .circuit
+    @State private var noiseOutput = ""
+    @State private var noiseStart = "10"
+    @State private var noiseStop = "100k"
+    @State private var noisePoints = "20"
+    @State private var noiseSource = ""
+    @State private var sweepPart = "R1"
+    @State private var sweepValues = "1k 2k2 4k7 10k"
+    @State private var sweepKind = "dc"
+    @State private var sweepNet = ""
+    @State private var fftNet = ""
+    @State private var fftStop = "10m"
+    @State private var fftStep = "2u"
+    @State private var fftHarmonics = "10"
+    @State private var cursorA: Double?
+    @State private var cursorB: Double?
+    @State private var placingB = false
+    @AppStorage("SimulationAdaptiveStep") private var adaptiveStep = false
+    @AppStorage("SimulationTrapezoidal") private var trapezoidal = false
 
     var body: some View {
         if mode == .integrity {
@@ -48,6 +66,9 @@ struct SimulationView: View {
                     Text("AC Sweep").tag(SimulationAnalysis.ac)
                     Text("DC Sweep").tag(SimulationAnalysis.dcSweep)
                     Text("Monte Carlo").tag(SimulationAnalysis.monteCarlo)
+                    Text("Noise").tag(SimulationAnalysis.noise)
+                    Text("Parameter Sweep").tag(SimulationAnalysis.paramSweep)
+                    Text("FFT / THD").tag(SimulationAnalysis.fft)
                 }
                 .labelsHidden()
                 .fixedSize()
@@ -69,6 +90,19 @@ struct SimulationView: View {
                     .fixedSize()
                     .help("Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)")
                     .accessibilityLabel("Transient presets")
+                    Menu {
+                        Toggle("Adaptive time step", isOn: $adaptiveStep)
+                        Picker("Integration", selection: $trapezoidal) {
+                            Text("Backward Euler").tag(false)
+                            Text("Trapezoidal").tag(true)
+                        }
+                    } label: {
+                        Image(systemName: adaptiveStep || trapezoidal ? "gearshape.fill" : "gearshape")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators")
+                    .accessibilityLabel("Transient integration options")
                     Button {
                         runTransient()
                     } label: { Label("Run Transient", systemImage: "waveform") }
@@ -110,6 +144,51 @@ struct SimulationView: View {
                     Button {
                         runMonteCarlo()
                     } label: { Label("Run Monte Carlo", systemImage: "chart.bar") }
+                case .noise:
+                    Text("Output").foregroundStyle(Theme.textMuted)
+                    TextField("Net", text: $noiseOutput).textFieldStyle(.blue).frame(width: 64)
+                    Text("from").foregroundStyle(Theme.textMuted)
+                    TextField("from", text: $noiseStart).textFieldStyle(.blue).frame(width: 52)
+                    Text("to").foregroundStyle(Theme.textMuted)
+                    TextField("to", text: $noiseStop).textFieldStyle(.blue).frame(width: 52)
+                    TextField("20", text: $noisePoints).textFieldStyle(.blue).frame(width: 36)
+                    Text("points/decade").foregroundStyle(Theme.textMuted)
+                    Text("Input").foregroundStyle(Theme.textMuted)
+                    TextField("auto", text: $noiseSource).textFieldStyle(.blue).frame(width: 48)
+                    Button {
+                        runNoise()
+                    } label: { Label("Run Noise", systemImage: "waveform.badge.magnifyingglass") }
+                case .paramSweep:
+                    Text("Part").foregroundStyle(Theme.textMuted)
+                    TextField("R1", text: $sweepPart).textFieldStyle(.blue).frame(width: 44)
+                    Text("Values").foregroundStyle(Theme.textMuted)
+                    TextField("1k 2k2 4k7", text: $sweepValues).textFieldStyle(.blue).frame(width: 110)
+                        .help("Values separated by spaces or commas (up to 100)")
+                    Picker("Analysis", selection: $sweepKind) {
+                        Text("DC").tag("dc")
+                        Text("AC Sweep").tag("ac")
+                        Text("Transient").tag("transient")
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    .help("AC uses the AC Sweep range, Transient the Transient stop and step")
+                    Text("Net").foregroundStyle(Theme.textMuted)
+                    TextField("all", text: $sweepNet).textFieldStyle(.blue).frame(width: 56)
+                    Button {
+                        runParamSweep()
+                    } label: { Label("Run Sweep", systemImage: "slider.horizontal.3") }
+                case .fft:
+                    Text("Net").foregroundStyle(Theme.textMuted)
+                    TextField("Net", text: $fftNet).textFieldStyle(.blue).frame(width: 64)
+                    Text("stop").foregroundStyle(Theme.textMuted)
+                    TextField("stop", text: $fftStop).textFieldStyle(.blue).frame(width: 52)
+                    Text("step").foregroundStyle(Theme.textMuted)
+                    TextField("step", text: $fftStep).textFieldStyle(.blue).frame(width: 52)
+                    Text("Harmonics").foregroundStyle(Theme.textMuted)
+                    TextField("10", text: $fftHarmonics).textFieldStyle(.blue).frame(width: 36)
+                    Button {
+                        runFFT()
+                    } label: { Label("Run FFT", systemImage: "chart.bar.xaxis") }
                 }
                 Spacer()
                 Button {
@@ -138,7 +217,7 @@ struct SimulationView: View {
             store.alert = AlertItem(title: "Invalid analysis settings", message: "Use values like 5m (stop) and 5u (step).")
             return
         }
-        Task { await store.simulateTransient(stop: stop, step: step) }
+        Task { await store.simulateTransient(stop: stop, step: step, adaptive: adaptiveStep, trapezoidal: trapezoidal) }
     }
 
     // Values go to the core as typed ("1MEG", "50m"); it parses and validates them.
@@ -163,6 +242,39 @@ struct SimulationView: View {
             return
         }
         Task { await store.simulateMonteCarlo(net: net, measure: mcBandwidth ? "f3db" : "dc", runs: runs) }
+    }
+
+    private func runNoise() {
+        let output = noiseOutput.trimmingCharacters(in: .whitespaces)
+        guard !output.isEmpty, let points = Int(noisePoints.trimmingCharacters(in: .whitespaces)), points > 0 else {
+            store.alert = AlertItem(title: "Invalid analysis settings", message: "Name the output net (e.g. OUT) and a whole number of points per decade, e.g. 20.")
+            return
+        }
+        let source = noiseSource.trimmingCharacters(in: .whitespaces)
+        Task { await store.simulateNoise(output: output, start: noiseStart, stop: noiseStop, pointsPerDecade: points, source: source) }
+    }
+
+    private func runParamSweep() {
+        let part = sweepPart.trimmingCharacters(in: .whitespaces)
+        let values = sweepValues.split(whereSeparator: { $0 == " " || $0 == "," || $0 == ";" }).map(String.init)
+        let net = sweepNet.trimmingCharacters(in: .whitespaces)
+        guard !part.isEmpty, !values.isEmpty, values.count <= 100, sweepKind == "dc" || !net.isEmpty else {
+            store.alert = AlertItem(title: "Invalid analysis settings", message: "Name the part (e.g. R1), its values (e.g. 1k 2k2 4k7) and, for AC or transient, the net to plot.")
+            return
+        }
+        Task {
+            await store.simulateParamSweep(component: part, values: values, analysis: sweepKind, net: net,
+                                           start: acStart, stop: sweepKind == "ac" ? acStop : stopText, step: stepText)
+        }
+    }
+
+    private func runFFT() {
+        let net = fftNet.trimmingCharacters(in: .whitespaces)
+        guard !net.isEmpty, let harmonics = Int(fftHarmonics.trimmingCharacters(in: .whitespaces)), harmonics >= 2 else {
+            store.alert = AlertItem(title: "Invalid analysis settings", message: "Name the net to analyse (e.g. OUT) and at least 2 harmonics.")
+            return
+        }
+        Task { await store.simulateFFT(net: net, stop: fftStop, step: fftStep, fundamental: "", harmonics: harmonics) }
     }
 
     // MARK: Analyses
@@ -190,6 +302,39 @@ struct SimulationView: View {
                     BlueEmptyState(systemImage: "chart.line.uptrend.xyaxis", title: "DC sweep",
                                    message: "Steps a voltage or current source (by reference, e.g. V1) and solves the operating point at every value: transfer curves, diode and transistor characteristics.",
                                    actionTitle: "Run DC Sweep") { runDCSweep() }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+        case .noise:
+            resultPanel {
+                if let noise = store.noiseResult {
+                    if noise.ok { NoisePanel(result: noise) } else { failure(noise.error) }
+                } else {
+                    BlueEmptyState(systemImage: "waveform.badge.magnifyingglass", title: "Noise analysis",
+                                   message: "Output noise density of a net over frequency: resistor thermal noise, diode and transistor shot and flicker noise, op-amp EN= / IN= densities. Referred to the input source and integrated to an RMS value.",
+                                   actionTitle: "Run Noise") { runNoise() }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+        case .paramSweep:
+            resultPanel {
+                if let sweep = store.paramSweepResult {
+                    if sweep.ok { ParamSweepPanel(result: sweep) } else { failure(sweep.error) }
+                } else {
+                    BlueEmptyState(systemImage: "slider.horizontal.3", title: "Parameter sweep",
+                                   message: "Runs a DC operating point, an AC sweep or a transient once per value of one part (a resistor, capacitor, source or a part number such as TL072) and overlays the results. The design is not changed.",
+                                   actionTitle: "Run Sweep") { runParamSweep() }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+        case .fft:
+            resultPanel {
+                if let fft = store.fftResult {
+                    if fft.ok { FFTPanel(result: fft) } else { failure(fft.error) }
+                } else {
+                    BlueEmptyState(systemImage: "chart.bar.xaxis", title: "FFT and THD",
+                                   message: "Runs a transient and analyses a net over whole periods of the first SIN source in the second half of the run: spectrum, harmonics and total harmonic distortion. Use a step of 1/500 of the period or finer.",
+                                   actionTitle: "Run FFT") { runFFT() }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
@@ -331,12 +476,35 @@ struct SimulationView: View {
                         Text("\(tr.time.count) points · 0 – \(EngineeringFormat.string(tr.time.last ?? 0, unit: "s"))")
                             .font(.caption).foregroundStyle(Theme.textMuted)
                     }
-                    Chart(samples(tr)) { s in
-                        LineMark(x: .value("Time (s)", s.t), y: .value(showCurrents ? "Current (A)" : "Voltage (V)", s.v))
-                            .foregroundStyle(by: .value("Signal", s.series))
-                            .interpolationMethod(.linear)
+                    Chart {
+                        ForEach(samples(tr)) { s in
+                            LineMark(x: .value("Time (s)", s.t), y: .value(showCurrents ? "Current (A)" : "Voltage (V)", s.v))
+                                .foregroundStyle(by: .value("Signal", s.series))
+                                .interpolationMethod(.linear)
+                        }
+                        if let a = cursorA {
+                            RuleMark(x: .value("A", a)).foregroundStyle(Theme.selection.opacity(0.8))
+                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                                .annotation(position: .top, alignment: .leading) { Text(verbatim: "A").font(.caption2).foregroundStyle(Theme.selection) }
+                        }
+                        if let b = cursorB {
+                            RuleMark(x: .value("B", b)).foregroundStyle(Theme.warning.opacity(0.9))
+                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                                .annotation(position: .top, alignment: .leading) { Text(verbatim: "B").font(.caption2).foregroundStyle(Theme.warning) }
+                        }
                     }
                     .chartForegroundStyleScale(domain: seriesLabels(tr), range: seriesColors(tr))
+                    .chartOverlay { proxy in
+                        GeometryReader { geometry in
+                            Rectangle().fill(.clear).contentShape(Rectangle())
+                                .onTapGesture(coordinateSpace: .local) { location in
+                                    guard let plot = proxy.plotFrame else { return }
+                                    let x = location.x - geometry[plot].origin.x
+                                    guard let t: Double = proxy.value(atX: x), t.isFinite else { return }
+                                    if placingB { cursorB = t } else { cursorA = t }
+                                }
+                        }
+                    }
                     .chartXAxis {
                         AxisMarks { value in
                             AxisGridLine().foregroundStyle(Theme.blue.opacity(0.18))
@@ -380,6 +548,10 @@ struct SimulationView: View {
                             }
                         }
                     }
+                    WaveformToolsPanel(time: tr.time,
+                                       series: (showCurrents ? tr.currents : tr.nets).filter { !hiddenSeries.contains($0.label) },
+                                       unit: showCurrents ? "A" : "V",
+                                       cursorA: $cursorA, cursorB: $cursorB, placingB: $placingB)
                     if !tr.mcus.isEmpty { McuRunPanel(runs: tr.mcus) }
                 } else {
                     Label(tr.error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Theme.warning)

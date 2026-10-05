@@ -86,6 +86,9 @@ final class DesignStore: ObservableObject {
     @Published var acResult: ACResult?
     @Published var dcSweepResult: DCSweepResult?
     @Published var monteCarloResult: MonteCarloResult?
+    @Published var noiseResult: NoiseAnalysisResult?
+    @Published var paramSweepResult: ParamSweepResult?
+    @Published var fftResult: FFTResult?
     @Published var routeStats: RouteStats?
     /// Design revision the DRC results and route statistics describe; after any edit they are stale.
     @Published private(set) var drcRevision = -1
@@ -230,6 +233,9 @@ final class DesignStore: ObservableObject {
             acResult = nil
             dcSweepResult = nil
             monteCarloResult = nil
+            noiseResult = nil
+            paramSweepResult = nil
+            fftResult = nil
             resetChecks()
             refresh()
             isDirty = true
@@ -304,6 +310,9 @@ final class DesignStore: ObservableObject {
             acResult = nil
             dcSweepResult = nil
             monteCarloResult = nil
+            noiseResult = nil
+            paramSweepResult = nil
+            fftResult = nil
         }
         refresh()
         statusMessage = actionName
@@ -335,6 +344,9 @@ final class DesignStore: ObservableObject {
             acResult = nil
             dcSweepResult = nil
             monteCarloResult = nil
+            noiseResult = nil
+            paramSweepResult = nil
+            fftResult = nil
             refresh()
             statusMessage = message
             CrashReporter.note(message)
@@ -344,7 +356,7 @@ final class DesignStore: ObservableObject {
         }
     }
 
-    private func runBusy<T: Sendable>(_ message: String, _ work: @escaping @Sendable () -> T) async -> T {
+    func runBusy<T: Sendable>(_ message: String, _ work: @escaping @Sendable () -> T) async -> T {
         isBusy = true
         busyMessage = message
         defer {
@@ -1129,10 +1141,12 @@ final class DesignStore: ObservableObject {
             : "DC analysis failed: \(result.error)"
     }
 
-    func simulateTransient(stop: Double, step: Double) async {
+    func simulateTransient(stop: Double, step: Double, adaptive: Bool = false, trapezoidal: Bool = false) async {
         guard !isBusy else { return }  // one analysis at a time: overlapping runs would reset isBusy early
         let engine = self.engine
-        let result = await runBusy("Running transient analysis…") { engine.simulateTransient(stop: stop, step: step) }
+        let result = await runBusy("Running transient analysis…") {
+            engine.simulateTransient(stop: stop, step: step, adaptive: adaptive, trapezoidal: trapezoidal)
+        }
         transientResult = result
         statusMessage = result.ok ? "Transient analysis: \(result.time.count) points" : "Transient failed: \(result.error)"
     }
@@ -2181,6 +2195,9 @@ final class DesignStore: ObservableObject {
             acResult = nil
             dcSweepResult = nil
             monteCarloResult = nil
+            noiseResult = nil
+            paramSweepResult = nil
+            fftResult = nil
             resetChecks()
             refresh()
             fitToken &+= 1

@@ -79,6 +79,17 @@ struct Sheet {
     InstanceRefs refs = InstanceRefs::SheetNumber;
 };
 
+/// Imported SPICE model attached to a part (docs/SIMULATION.md, sieda/SpiceModels.hpp): the simulator uses it instead
+/// of the part's built-in model.
+struct SpiceModelRef {
+    std::string text;   // the definition and everything it uses (.model / .subckt / .param / .func cards)
+    std::string model;  // the .model or .subckt name
+    /// One entry per model port, in port order: a pin name or number, "0" (ground), "net:NAME", "dc:15" (an ideal
+    /// supply to ground) or "nc"; ";" separates instances (both halves of a dual op-amp). Empty: the default mapping.
+    std::string pins;
+    bool empty() const { return text.empty(); }
+};
+
 struct Component {
     int id = -1;
     ComponentKind kind = ComponentKind::Resistor;
@@ -93,6 +104,7 @@ struct Component {
     std::string firmware;
     std::string firmwareName;  // file or example name shown in the editor
     double clockHz = 0;        // CPU clock; 0 = the model's default (16 MHz ATmega328P, 8 MHz ATtiny85)
+    SpiceModelRef spice;       // imported SPICE model (empty: the built-in model)
     Sourcing sourcing;         // BOM: manufacturer, part numbers, price, do-not-populate
     /// Package variant this part is fitted in (Library::packageVariants: "R_0603", "CP_Tant_B", "D_DO41_THT"…);
     /// empty = the kind's default footprint.
@@ -211,6 +223,7 @@ public:
     bool setPinNoConnect(int componentId, int pin, bool noConnect);
     /// Attaches firmware to a microcontroller (empty `hex` removes it). Returns false for an unknown id.
     bool setFirmware(int id, const std::string& hex, const std::string& name, double clockHz);
+    bool setSpiceModel(int id, const SpiceModelRef& model);
 
     int connect(PinRef a, PinRef b);  // returns wire id, or -1 if invalid / duplicate
     /// Removes a wire; a junction left without wires is removed with it.

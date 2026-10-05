@@ -43,6 +43,9 @@
 #include "sieda/LossyLine.hpp"
 #include "sieda/Touchstone.hpp"
 #include "sieda/PdnPlanning.hpp"
+#include "sieda/Noise.hpp"
+#include "sieda/SpiceModels.hpp"
+#include "sieda/Waveforms.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
@@ -770,6 +773,7 @@ char* sieda_simulate_dc(const SiedaProject* project) {
     try {
         const Schematic circuit = project->project.simulationSchematic();  // the active variant as assembled
         Simulator sim(circuit);
+        sim.setConvergenceAids(true);  // the app: rescue a circuit the standard strategies cannot solve
         Json result = project->project.dcToJson(sim.dcOperatingPoint());
         addAssemblyNote(project->project, result);
         return dup(result.dump());
@@ -783,6 +787,7 @@ char* sieda_simulate_transient(const SiedaProject* project, double t_stop, doubl
     try {
         const Schematic circuit = project->project.simulationSchematic();
         Simulator sim(circuit);
+        sim.setConvergenceAids(true);
         Json result = project->project.transientToJson(sim.transient(t_stop, t_step));
         addAssemblyNote(project->project, result);
         return dup(result.dump());
@@ -2361,6 +2366,84 @@ LossOptions lossOptions(const Json& j, const SiSettings& si) {
 }
 }  // namespace
 
+namespace {
+Json spiceDiagnosticsJson(const std::vector<SpiceDiagnostic>& diags) {
+    Json a = Json::array();
+    for (const auto& d : diags) {
+        Json j = Json::object();
+        j["level"] = spiceLevelName(d.level);
+        j["line"] = d.line;
+        j["message"] = d.message;
+        a.push(j);
+    }
+    return a;
+}
+Json stringsJson(const std::vector<std::string>& v) {
+    Json a = Json::array();
+    for (const auto& s : v) a.push(s);
+    return a;
+}
+/// The part's pins as (number, name) for the default pin map.
+std::vector<std::pair<std::string, std::string>> partPins(const Component& c) {
+    std::vector<std::pair<std::string, std::string>> pins;
+    const CustomPart* part = c.kind == ComponentKind::Custom ? CustomPartRegistry::instance().find(c.customPart) : nullptr;
+    if (part)
+        for (const auto& p : part->spec.pins) pins.push_back({p.number, p.name});
+    else
+        for (const auto& p : c.def().pins) pins.push_back({std::string(), p.name});
+    return pins;
+}
+/// Checks a model on a copy of the schematic. Fills `result` (see sieda_spice_check); false on any error.
+bool checkSpiceModel(const Schematic& schematic, int componentId, const std::string& text, const std::string& model,
+                     const std::string& pins, Json& result, std::string& error) {
+    result = Json::object();
+    const Component* c = schematic.find(componentId);
+    if (!c) {
+        error = "Unknown component.";
+        return false;
+    }
+    if (text.size() > (8u << 20)) {
+        error = "The model text is larger than 8 MB.";
+        return false;
+    }
+    SpiceLibrary lib = parseSpiceLibrary(text);
+    SpiceFlatCircuit flat = flattenSpiceModel(lib, model);
+    std::vector<SpiceDiagnostic> diags = lib.diagnostics;
+    diags.insert(diags.end(), flat.diagnostics.begin(), flat.diagnostics.end());
+    result["kind"] = flat.kind;
+    result["type"] = flat.type;
+    result["ports"] = stringsJson(flat.ports);
+    const std::string def = flat.ok ? defaultSpicePinMap(flat, partPins(*c), c->kind == ComponentKind::OpAmp) : std::string();
+    result["defaultPins"] = def;
+    result["pins"] = pins.empty() ? def : pins;
+    result["diagnostics"] = spiceDiagnosticsJson(diags);
+    if (!flat.ok) {
+        for (const auto& d : flat.diagnostics)
+            if (d.level == SpiceDiagnostic::Level::Error) {
+                error = d.message;
+                break;
+            }
+        if (error.empty()) error = "The model could not be read.";
+        return false;
+    }
+    Schematic copy = schematic;
+    SpiceModelRef ref;
+    ref.text = extractSpiceModel(lib, model);
+    ref.model = model;
+    ref.pins = pins;
+    copy.setSpiceModel(componentId, ref);
+    Simulator sim(copy);
+    std::string buildError;
+    // Only this part's problems count: an unrelated one (no ground yet, another part's value) does not block it.
+    if (!sim.check(buildError) && buildError.rfind(c->ref + ": ", 0) == 0) {
+        error = buildError;
+        return false;
+    }
+    result["text"] = ref.text;
+    return true;
+}
+}  // namespace
+
 extern "C" {
 
 char* sieda_si_line_loss_json(const SiedaProject* project, const char* options_json) {
@@ -2370,6 +2453,31 @@ char* sieda_si_line_loss_json(const SiedaProject* project, const char* options_j
         return dup(lineLossJson(project->project.pcb.settings, lossOptions(o, project->project.si),
                                 std::clamp(o.get("width").asNumber(0), 0.0, 20.0), o.get("fMax").asNumber(20e9))
                        .dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_spice_parse(const char* text) {
+    try {
+        SpiceLibrary lib = parseSpiceLibrary(str(text));
+        Json root = Json::object();
+        bool ok = true;
+        for (const auto& d : lib.diagnostics) ok = ok && d.level != SpiceDiagnostic::Level::Error;
+        root["ok"] = ok;
+        Json entries = Json::array();
+        for (const auto& e : spiceLibraryEntries(lib)) {
+            Json j = Json::object();
+            j["name"] = e.name;
+            j["kind"] = e.kind;
+            j["type"] = e.type;
+            j["ports"] = stringsJson(e.ports);
+            j["line"] = e.line;
+            entries.push(j);
+        }
+        root["entries"] = entries;
+        root["diagnostics"] = spiceDiagnosticsJson(lib.diagnostics);
+        return dup(root.dump());
     } catch (const std::exception& e) {
         return errorJson(e);
     }
@@ -2527,6 +2635,132 @@ char* sieda_pi_ir_map_json(const SiedaProject* project, const char* net_name) {
         return dup(pdnIrMapJson(project->project, str(net_name)).dump());
     } catch (const std::exception& e) {
         return errorJson(e);
+    }
+}
+
+char* sieda_spice_check(const SiedaProject* project, int32_t component_id, const char* text, const char* model,
+                        const char* pins) {
+    if (!project) return nullptr;
+    try {
+        Json result;
+        std::string error;
+        bool ok = checkSpiceModel(project->project.schematic, component_id, str(text), str(model), str(pins), result,
+                                  error);
+        result["ok"] = ok;
+        result["error"] = error;
+        if (result.has("text")) result["text"] = "";  // the stored text: sieda_component_spice_model after attaching
+        return dup(result.dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+int32_t sieda_set_spice_model(SiedaProject* project, int32_t component_id, const char* text, const char* model,
+                              const char* pins, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    auto fail = [&](const std::string& message) {
+        if (error_out) *error_out = dup(message);
+        return 0;
+    };
+    if (!project) return fail("No project.");
+    try {
+        Schematic& s = project->project.schematic;
+        if (!s.find(component_id)) return fail("Unknown component.");
+        if (str(text).empty()) {
+            s.setSpiceModel(component_id, SpiceModelRef{});
+            return 1;
+        }
+        Json result;
+        std::string error;
+        if (!checkSpiceModel(s, component_id, str(text), str(model), str(pins), result, error)) return fail(error);
+        SpiceModelRef ref;
+        ref.text = result.get("text").asString("");
+        ref.model = str(model);
+        ref.pins = str(pins);
+        s.setSpiceModel(component_id, ref);
+        return 1;
+    } catch (const std::exception& e) {
+        return fail(e.what());
+    }
+}
+
+char* sieda_component_spice_model(const SiedaProject* project, int32_t component_id) {
+    if (!project) return nullptr;
+    const Component* c = project->project.schematic.find(component_id);
+    Json j = Json::object();
+    j["text"] = c ? c->spice.text : std::string();
+    j["model"] = c ? c->spice.model : std::string();
+    j["pins"] = c ? c->spice.pins : std::string();
+    return dup(j.dump());
+}
+
+char* sieda_spice_builtin_models(void) {
+    Json a = Json::array();
+    for (const auto& m : builtinSpiceModels()) {
+        Json j = Json::object();
+        j["name"] = m.name;
+        j["description"] = m.description;
+        j["text"] = m.text;
+        a.push(j);
+    }
+    return dup(a.dump());
+}
+
+char* sieda_simulate_noise(const SiedaProject* project, const char* options_json) {
+    return runAnalysis(project, options_json, simulateNoiseJson);
+}
+
+char* sieda_measure_waveform(const char* request_json) {
+    try {
+        std::string text = str(request_json);
+        Json request = text.find_first_not_of(" \t\r\n") == std::string::npos ? Json::object() : Json::parse(text);
+        return dup(measureWaveformJson(request).dump());
+    } catch (const std::exception& e) {
+        Json j = Json::object();
+        j["ok"] = false;
+        j["error"] = std::string("Invalid measurement request: ") + e.what();
+        return dup(j.dump());
+    }
+}
+
+char* sieda_simulate_transient_ex(const SiedaProject* project, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        std::string text = str(options_json);
+        Json o = text.find_first_not_of(" \t\r\n") == std::string::npos ? Json::object() : Json::parse(text);
+        auto number = [&](const char* key, double def) {
+            const Json& j = o.get(key);
+            if (j.isNumber()) return j.asNumber();
+            if (j.isString())
+                if (auto v = parseEngineeringValue(j.asString())) return *v;
+            return def;
+        };
+        TransientOptions options;
+        options.tStop = number("stop", 5e-3);
+        options.tStep = number("step", 5e-6);
+        const std::string method = o.get("method").asString("be");
+        if (method != "be" && method != "trap") {
+            Json j = Json::object();
+            j["ok"] = false;
+            j["error"] = "Unknown integration method '" + method + "' (be or trap).";
+            return dup(j.dump());
+        }
+        options.trapezoidal = method == "trap";
+        options.adaptive = o.get("adaptive").asBool(false);
+        options.reltol = number("reltol", options.reltol);
+        options.vntol = number("vntol", options.vntol);
+        options.maxStep = number("maxStep", 0);
+        const Schematic circuit = project->project.simulationSchematic();
+        Simulator sim(circuit);
+        sim.setConvergenceAids(true);
+        Json result = project->project.transientToJson(sim.transient(options));
+        addAssemblyNote(project->project, result);
+        return dup(result.dump());
+    } catch (const std::exception& e) {
+        Json j = Json::object();
+        j["ok"] = false;
+        j["error"] = std::string("Invalid transient options: ") + e.what();
+        return dup(j.dump());
     }
 }
 

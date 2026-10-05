@@ -28,6 +28,12 @@ add_library(sieda_core STATIC
     Core/src/Variants.cpp
     Core/src/Simulator.cpp
     Core/src/Analysis.cpp
+    Core/src/SpiceModels.cpp
+    Core/src/SpiceDevices.cpp
+    Core/src/SpiceBuild.cpp
+    Core/src/Noise.cpp
+    Core/src/Convergence.cpp
+    Core/src/Waveforms.cpp
     Core/src/Pcb.cpp
     Core/src/Zones.cpp
   Core/src/Avr.cpp

@@ -524,6 +524,7 @@ bool Schematic::syncInstancesOnce() {
                 c.firmware = m.firmware;
                 c.firmwareName = m.firmwareName;
                 c.clockHz = m.clockHz;
+                c.spice = m.spice;
                 c.package = m.package;
                 c.scope = m.scope;
                 c.targetSheet = m.targetSheet;
