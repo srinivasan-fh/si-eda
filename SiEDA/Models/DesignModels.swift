@@ -860,6 +860,29 @@ struct RoutePreview: Decodable, Equatable {
     var hiddenVias: [Int]
     /// Why the last router call was refused (the preview is still the current state).
     var error: String?
+    /// The routed net's whole length with this route, and the length its matched-length group asks for (0 = none).
+    var netLength: Double?
+    var targetLength: Double?
+}
+
+/// Interactive length tuning (`sieda_router_tune`): the meanders it would add (or added) and the lengths.
+struct TunePreview: Decodable, Equatable {
+    var ok: Bool
+    var message: String
+    var net: Int
+    /// Matched-length group of the net ("" when none) and its kind ("pair" / "bus").
+    var group: String
+    var groupKind: String
+    var tolerance: Double
+    var before: Double
+    var after: Double
+    var target: Double
+    var applied: Bool
+    var addedTracks: [SnapTrack]
+    var removedTracks: [Int]
+
+    /// Within tolerance of the target.
+    var onTarget: Bool { abs(after - target) <= max(tolerance, 0.01) + 1e-6 }
 }
 
 /// Result of committing a route (`sieda_router_commit`).

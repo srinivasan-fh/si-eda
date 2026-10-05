@@ -110,19 +110,47 @@ net and routes both together:
 
 ## Dragging a segment
 
-`InteractiveRouter::beginDrag` (C: `sieda_router_begin_drag`) takes a track segment and moves it parallel to itself
-with the cursor. Its neighbours follow with 45° joints. Where an end of the segment sits on a pad, a via or a
-junction, a 45° leg joins it to the moved segment. In shove mode other nets' copper is pushed aside. In walkaround
-mode the segment stops where it would collide. Locked tracks cannot be dragged.
+With the **Select** tool (**V**), press on a track and drag. The segment moves parallel to itself with the cursor and
+its neighbours follow with 45° joints. Where an end of the segment sits on a pad, a via or a junction, a 45° leg
+joins it to the moved segment. With **Shove** set in the options bar, other nets' copper is pushed aside; with
+**Walk around** the segment stops where it would collide. Release to drop it (one undo step); **Esc** while dragging
+puts everything back. Locked tracks cannot be dragged: the drag pans the view instead. A press on a pad still moves
+the footprint, and a click without dragging still selects.
+
+Core: `InteractiveRouter::beginDrag` (C: `sieda_router_begin_drag`).
+
+## Dragging a via
+
+Press on a via with the **Select** tool and drag. The via follows the cursor and every track that ends on it follows
+too: each rejoins its old path with a 45° link, cutting a corner where that is shorter and makes no acute corner.
+Shove mode pushes other nets' tracks and vias out of the way (recursively, as for a route); walkaround stops the via
+at the last position that fits. These vias stay put: a via inside a pad of its own net, tamper-mesh vias, a via with
+a locked track on it, and a via that a track runs straight through.
+
+Core: `InteractiveRouter::beginViaDrag` (C: `sieda_router_begin_via_drag`). The preview has kind `via`.
 
 ## Length tuning
 
-`tuneTrackLength` (C: `sieda_router_tune_length`) lengthens the net of a selected track to a target length. It adds
-accordion meanders, on the selected track first and then on the net's other straight tracks, longest first. Every
-meander keeps clearance to other nets, to the net's other pads and to the board edge. With target 0 the net is tuned
-to the longest member of its matched-length group: its differential pair, or a bus such as `DQ0…DQ7`
-(see `lengthGroups`). The meander height is limited to 2 mm unless a maximum is given. Board-wide pair and bus
-matching after Auto Route is unchanged (`tuneLengths`, **Board Setup → Stack-up & Impedance**).
+The **Tune length** tool (**T**, the waveform button in the tool strip) lengthens a net with accordion meanders:
+
+1. Click a routed track. The meanders are placed near the click first, then on the net's other straight tracks,
+   longest first.
+2. The target starts at the longest member of the net's matched-length group: the other member of its differential
+   pair (intra-pair skew) or the longest net of its bus (`DQ0…DQ7`, `ADDR…`, see `lengthGroups`). A net outside any
+   group starts at its own length plus 1 mm. Type another target in the options bar, or **Match Group** to go back.
+3. **Amplitude** limits the meander height (empty: 2 mm). **Spacing** sets the gap between meander legs, edge to
+   edge (empty: three track widths centre to centre; never closer than the clearance).
+4. The canvas shows the meanders before anything changes, and the banner reads the net's length before and after,
+   the target, the remaining difference and the tolerance (the group's tolerance, or 0.01 mm). The preview is
+   outlined in blue when it reaches the target, amber when the free space runs out first.
+5. **Enter** or **Apply Tuning** writes it (one undo step). **Esc** drops it.
+
+Every meander keeps clearance to other nets, to the net's other pads and to the board edge. While routing, the banner
+also shows the net's whole length against its group's target (`netLength` / `targetLength` in the preview).
+
+Core: `tuneTrackLength(pcb, sch, trackId, LengthTuneOptions)` with `apply = false` for the preview; C:
+`sieda_router_tune(project, track_id, options_json)` (the older `sieda_router_tune_length` still works). Board-wide
+pair and bus matching after Auto Route is unchanged (`tuneLengths`, **Board Setup → Stack-up & Impedance**).
 
 ## Core API
 
@@ -160,15 +188,18 @@ All functions are in `sieda_c.h`. Each project has one route session.
 | `sieda_router_set_options(project, options_json)` | Change mode / posture during a route |
 | `sieda_router_commit(project)` | Write the route; returns the changes |
 | `sieda_router_cancel(project)`, `sieda_router_active(project)` | Session control |
-| `sieda_router_tune_length(project, track_id, target_mm, max_amplitude_mm)` | Length tuning |
+| `sieda_router_begin_via_drag(project, options_json, via_id, x, y)` | Drag a via |
+| `sieda_router_tune(project, track_id, options_json)` | Length tuning with preview: `{"target","maxAmplitude","spacing","x","y","apply"}` |
+| `sieda_router_tune_length(project, track_id, target_mm, max_amplitude_mm)` | Length tuning (applies at once) |
 | `sieda_pcb_lock_track`, `sieda_pcb_remove_track`, `sieda_pcb_remove_via` | Track editing |
 
 Options JSON: `{"mode":"shove"|"walkaround", "posture":"45"|"90"|"free", "swapPosture":bool, "width":mm,
 "pairGap":mm, "snap":bool}`. Fields that are left out keep their value.
 
-Preview JSON: `active`, `kind` (`route` / `pair` / `drag`), `status`, `blocked`, `reachedTarget`, `nets`, `layer`,
-`width`, `gap`, `endX`, `endY`, `length`, `placed`, `head`, `vias`, `shovedTracks`, `shovedVias`, `hiddenTracks`,
-`hiddenVias`, and `error` when the call was refused. To draw a preview, draw the board without `hiddenTracks` /
+Preview JSON: `active`, `kind` (`route` / `pair` / `drag` / `via`), `status`, `blocked`, `reachedTarget`, `nets`,
+`layer`, `width`, `gap`, `endX`, `endY`, `length`, `netLength`, `targetLength`, `placed`, `head`, `vias`,
+`shovedTracks`, `shovedVias`, `hiddenTracks`, `hiddenVias`, and `error` when the call was refused. Vias carry
+`fromLayer`, `toLayer` and `kind` as in the snapshot. To draw a preview, draw the board without `hiddenTracks` /
 `hiddenVias`, then `shovedTracks` / `shovedVias`, then the route (`placed`, `head`, `vias`).
 
 ## How shoving works
@@ -229,7 +260,13 @@ Core (`Core/tests/core_tests.cpp`):
 | `router_drags_a_segment_and_shoves` | A dragged segment pushes two neighbours. Cancel leaves the board alone. Locked tracks cannot be dragged. |
 | `router_commit_refuses_a_stale_board` | A board changed during a route is not overwritten. |
 | `router_tunes_length_with_meanders` | A net reaches its target length within 0.05 mm and stays DRC clean. |
+| `router_drags_a_via_and_shoves` | A dragged via shoves another net's track, its tracks follow; walkaround stops short; in-pad vias refuse. |
+| `router_previews_length_tuning` | A preview leaves the board alone, puts the meander near the click at the asked spacing, and applying writes exactly the preview. |
+| `router_tunes_pair_skew_and_reports_the_target` | Tuning a pair member matches its partner; the route preview reports net and target length. |
+| `c_api_router_drag_and_tune` | Via drag and `sieda_router_tune` through the C API. |
 | `router_keeps_an_autorouted_board_drc_clean` | 30 pseudo-random routes and drags with shove on an autorouted board, with DRC after every commit. |
 | `c_api_router` | The C API end to end (`Core/tests/c_api_test.c`). |
 
-App (`SiEDATests`): `testInteractiveRouterRoutesAndCommits` routes and commits through `EDAEngine`.
+App (`SiEDATests`): `testInteractiveRouterRoutesAndCommits` routes and commits through `EDAEngine`;
+`InteractiveRoutingStoreTests` drags a track and a via through `DesignStore` (one undo step each) and previews, applies
+and undoes a length tuning.

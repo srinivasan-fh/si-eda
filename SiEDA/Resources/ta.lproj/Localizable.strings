@@ -561,3 +561,12 @@
 "Go to Port" = "போர்ட்டுக்குச் செல்";
 "Go to Sheet Entry" = "தாள் நுழைவுக்குச் செல்";
 "Sheet %lld of %lld" = "தாள் %lld / %lld";
+"Amplitude" = "வீச்சு";
+"Spacing" = "இடைவெளி";
+"Auto" = "தானியங்கு";
+"Match Group" = "குழுவுடன் பொருத்து";
+"Apply Tuning" = "சரிசெய்தலைப் பயன்படுத்து";
+"Add the previewed meanders to the board (Enter)" = "முன்னோட்டமிட்ட வளைவுகளைப் பலகையில் சேர் (Enter)";
+"Meander height limit in mm (empty: 2 mm)" = "வளைவு உயர வரம்பு mm இல் (காலி: 2 mm)";
+"Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "வளைவுக் கால்களுக்கு இடையிலான விளிம்பு-விளிம்பு இடைவெளி mm இல் (காலி: மையங்களுக்கு இடையே மூன்று தட அகலம்)";
+"Tune to the longest member of the net's differential pair or bus" = "நெட்டின் வேறுபாட்டு இணை அல்லது பஸ்ஸின் மிக நீளமான உறுப்பினருக்கு ஏற்ப சரிசெய்";

@@ -268,6 +268,7 @@ final class DesignStore: ObservableObject {
         if let bus = selectedBus, sheetSnapshot.bus(bus) == nil { selectedBus = nil }
         // Undo, open or any edit that replaced the design ends a route in progress.
         if routePreview != nil, !engine.routerActive { routePreview = nil }
+        if let tune = tuneSession, !snapshot.tracks.contains(where: { $0.id == tune.track }) { tuneSession = nil }
         revision &+= 1
     }
 
@@ -1431,11 +1432,16 @@ final class DesignStore: ObservableObject {
         showRoute(engine.routerAddVia())
     }
 
-    /// Writes the route and every shoved track and via into the board as one undo step (Enter / double-click).
-    func finishRoute() {
-        guard routePreview != nil else { return }
+    /// Writes the route and every shoved track and via into the board as one undo step (Enter / double-click, or
+    /// the end of a drag). With `point` the head first moves there, so the board gets exactly what is dropped.
+    func finishRoute(at point: CGPoint? = nil) {
+        if let point, routePreview != nil, !isBusy, let preview = engine.routerMove(to: point) {
+            routePreview = preview.active ? preview : nil
+        }
+        guard let kind = routePreview?.kind else { return }
         var result = RouteCommitResult(ok: false, error: nil, addedTracks: [], addedVias: [])
-        let done = performChecked("Routed track", invalidatesAnalysis: false, failureMessage: "Nothing was routed") {
+        let action = kind == "drag" ? "Dragged track" : kind == "via" ? "Moved via" : "Routed track"
+        let done = performChecked(action, invalidatesAnalysis: false, failureMessage: "Nothing was routed") {
             result = $0.routerCommit()
             return result.ok && !(result.addedTracks.isEmpty && result.addedVias.isEmpty)
         }
@@ -1455,6 +1461,94 @@ final class DesignStore: ObservableObject {
     private func applyRouterOptions() {
         guard routePreview != nil, !isBusy else { return }
         showRoute(engine.routerSetOptions(routerOptions))
+    }
+
+    /// Starts dragging track segment `trackId` (Select tool): it follows the cursor parallel to itself and shoves
+    /// other nets' copper (or stops at it with Walk around). Finish with `finishRoute`, drop with `cancelRoute`.
+    @discardableResult
+    func beginTrackDrag(_ trackId: Int, at point: CGPoint) -> Bool {
+        guard !isBusy else { return false }
+        showRoute(engine.routerBeginDrag(track: trackId, at: point, options: routerOptions))
+        return routePreview != nil
+    }
+
+    /// Starts dragging via `viaId` (Select tool); the tracks ending on it follow.
+    @discardableResult
+    func beginViaDrag(_ viaId: Int, at point: CGPoint) -> Bool {
+        guard !isBusy else { return false }
+        showRoute(engine.routerBeginViaDrag(via: viaId, at: point, options: routerOptions))
+        return routePreview != nil
+    }
+
+    // MARK: Interactive length tuning
+
+    /// The Tune Length tool's session: the track picked, where it was clicked, and the meanders it would add.
+    struct TuneSession: Equatable {
+        var track: Int
+        var point: CGPoint
+        /// Target length (mm); 0 = the longest member of the net's pair / bus group.
+        var target: Double
+        var preview: TunePreview?
+    }
+
+    @Published private(set) var tuneSession: TuneSession?
+    /// Meander height limit and leg spacing (edge to edge) in mm; 0 = the core's defaults.
+    @Published var tuneAmplitude = 0.0 {
+        didSet { if tuneAmplitude != oldValue { updateTunePreview() } }
+    }
+    @Published var tuneSpacing = 0.0 {
+        didSet { if tuneSpacing != oldValue { updateTunePreview() } }
+    }
+
+    /// Picks the track to tune; the preview shows the meanders before anything changes.
+    func beginTune(track trackId: Int, at point: CGPoint) {
+        guard !isBusy else { return }
+        if routePreview != nil { cancelRoute() }
+        tuneSession = TuneSession(track: trackId, point: point, target: 0, preview: nil)
+        updateTunePreview()
+        // A net outside any pair / bus group has nothing to match: start from its length plus 1 mm.
+        if let preview = tuneSession?.preview, !preview.ok, preview.group.isEmpty {
+            tuneSession?.target = ((preview.before + 1) * 10).rounded(.up) / 10
+            updateTunePreview()
+        }
+    }
+
+    /// Sets the target length (mm, 0 = match the group) and refreshes the preview.
+    func setTuneTarget(_ target: Double) {
+        guard tuneSession != nil, target.isFinite else { return }
+        tuneSession?.target = max(0, target)
+        updateTunePreview()
+    }
+
+    private func updateTunePreview() {
+        guard let session = tuneSession, !isBusy else { return }
+        let preview = engine.routerTune(track: session.track, target: session.target, amplitude: tuneAmplitude,
+                                        spacing: tuneSpacing, near: session.point, apply: false)
+        tuneSession?.preview = preview
+        statusMessage = preview?.message ?? "Tune: no reply from the core"
+    }
+
+    /// Writes the previewed meanders into the board as one undo step (Enter).
+    func applyTune() {
+        guard let session = tuneSession else { return }
+        var result: TunePreview?
+        let done = performChecked("Tuned length", invalidatesAnalysis: false, failureMessage: "Length not changed") {
+            result = $0.routerTune(track: session.track, target: session.target, amplitude: tuneAmplitude,
+                                   spacing: tuneSpacing, near: session.point, apply: true)
+            return result?.applied == true
+        }
+        tuneSession = nil
+        if let result {
+            statusMessage = done ? String(format: "%@ — %.2f mm (target %.2f mm)", result.message, result.after, result.target)
+                                 : result.message
+        }
+        if done, !drcResults.isEmpty { runDRC() }
+    }
+
+    func cancelTune() {
+        guard tuneSession != nil else { return }
+        tuneSession = nil
+        statusMessage = "Tuning cancelled"
     }
 
     /// Solder mask colour of the board (3D assembly view and fabrication order). Undoable.

@@ -561,3 +561,12 @@
 "Go to Port" = "Go to Port";
 "Go to Sheet Entry" = "Go to Sheet Entry";
 "Sheet %lld of %lld" = "Sheet %lld of %lld";
+"Amplitude" = "Amplitude";
+"Spacing" = "Spacing";
+"Auto" = "Auto";
+"Match Group" = "Match Group";
+"Apply Tuning" = "Apply Tuning";
+"Add the previewed meanders to the board (Enter)" = "Add the previewed meanders to the board (Enter)";
+"Meander height limit in mm (empty: 2 mm)" = "Meander height limit in mm (empty: 2 mm)";
+"Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)";
+"Tune to the longest member of the net's differential pair or bus" = "Tune to the longest member of the net's differential pair or bus";

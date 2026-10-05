@@ -561,3 +561,12 @@
 "Go to Port" = "Pumunta sa Port";
 "Go to Sheet Entry" = "Pumunta sa Sheet Entry";
 "Sheet %lld of %lld" = "Sheet %lld ng %lld";
+"Amplitude" = "Amplitude";
+"Spacing" = "Pagitan";
+"Auto" = "Awto";
+"Match Group" = "Itugma sa Grupo";
+"Apply Tuning" = "Ilapat ang Pag-tune";
+"Add the previewed meanders to the board (Enter)" = "Idagdag sa board ang mga meander na na-preview (Enter)";
+"Meander height limit in mm (empty: 2 mm)" = "Hangganan ng taas ng meander sa mm (walang laman: 2 mm)";
+"Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Pagitan ng mga binti ng meander, gilid sa gilid, sa mm (walang laman: tatlong lapad ng track sa pagitan ng mga gitna)";
+"Tune to the longest member of the net's differential pair or bus" = "I-tune sa pinakamahabang miyembro ng differential pair o bus ng net";

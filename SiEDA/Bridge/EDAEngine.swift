@@ -828,6 +828,33 @@ final class EDAEngine: @unchecked Sendable {
         return Self.decode(RoutePreview.self, from: json)
     }
 
+    /// Drags track segment `trackId` grabbed at `point` (it moves parallel to itself; other nets are shoved).
+    func routerBeginDrag(track trackId: Int, at point: CGPoint, options: String) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle {
+            Self.take(sieda_router_begin_drag($0, options, Int32(trackId), Double(point.x), Double(point.y)))
+        })
+    }
+
+    /// Drags via `viaId` grabbed at `point`; the tracks ending on it follow.
+    func routerBeginViaDrag(via viaId: Int, at point: CGPoint, options: String) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle {
+            Self.take(sieda_router_begin_via_drag($0, options, Int32(viaId), Double(point.x), Double(point.y)))
+        })
+    }
+
+    /// Length tuning of the net of `trackId`: a preview (`apply` false) or the change itself. `target` 0 = the
+    /// longest member of the net's pair / bus group; `amplitude` / `spacing` 0 = defaults.
+    func routerTune(track trackId: Int, target: Double, amplitude: Double, spacing: Double, near point: CGPoint?,
+                    apply: Bool) -> TunePreview? {
+        var fields = [String(format: "\"target\":%.6f", max(0, target)),
+                      String(format: "\"maxAmplitude\":%.6f", max(0, amplitude)),
+                      String(format: "\"spacing\":%.6f", max(0, spacing)),
+                      "\"apply\":\(apply ? "true" : "false")"]
+        if let point { fields.append(String(format: "\"x\":%.6f,\"y\":%.6f", Double(point.x), Double(point.y))) }
+        let options = "{" + fields.joined(separator: ",") + "}"
+        return Self.decode(TunePreview.self, from: withHandle { Self.take(sieda_router_tune($0, Int32(trackId), options)) })
+    }
+
     func routerMove(to point: CGPoint) -> RoutePreview? {
         Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_move($0, Double(point.x), Double(point.y))) })
     }

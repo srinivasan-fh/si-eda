@@ -561,3 +561,12 @@
 "Go to Port" = "포트로 이동";
 "Go to Sheet Entry" = "시트 엔트리로 이동";
 "Sheet %lld of %lld" = "%lld / %lld 시트";
+"Amplitude" = "진폭";
+"Spacing" = "간격";
+"Auto" = "자동";
+"Match Group" = "그룹에 맞춤";
+"Apply Tuning" = "튜닝 적용";
+"Add the previewed meanders to the board (Enter)" = "미리 본 미앤더를 보드에 추가 (Enter)";
+"Meander height limit in mm (empty: 2 mm)" = "미앤더 높이 한계(mm, 비우면 2 mm)";
+"Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "미앤더 다리 사이의 가장자리 간격(mm, 비우면 중심 간 선폭의 3배)";
+"Tune to the longest member of the net's differential pair or bus" = "넷의 차동 쌍 또는 버스 중 가장 긴 멤버에 맞춤";

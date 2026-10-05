@@ -561,3 +561,12 @@
 "Go to Port" = "Naar poort";
 "Go to Sheet Entry" = "Naar bladingang";
 "Sheet %lld of %lld" = "Blad %lld van %lld";
+"Amplitude" = "Amplitude";
+"Spacing" = "Afstand";
+"Auto" = "Auto";
+"Match Group" = "Groep volgen";
+"Apply Tuning" = "Afstemming toepassen";
+"Add the previewed meanders to the board (Enter)" = "De getoonde meanders aan de print toevoegen (Enter)";
+"Meander height limit in mm (empty: 2 mm)" = "Maximale meanderhoogte in mm (leeg: 2 mm)";
+"Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Afstand tussen meanderbenen, rand tot rand, in mm (leeg: drie spoorbreedtes hart op hart)";
+"Tune to the longest member of the net's differential pair or bus" = "Afstemmen op het langste lid van het differentiële paar of de bus van het net";

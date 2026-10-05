@@ -561,3 +561,12 @@
 "Go to Port" = "Đến cổng";
 "Go to Sheet Entry" = "Đến điểm vào trang";
 "Sheet %lld of %lld" = "Trang %lld / %lld";
+"Amplitude" = "Biên độ";
+"Spacing" = "Khoảng cách";
+"Auto" = "Tự động";
+"Match Group" = "Khớp nhóm";
+"Apply Tuning" = "Áp dụng tinh chỉnh";
+"Add the previewed meanders to the board (Enter)" = "Thêm các đường uốn khúc đã xem trước vào bo mạch (Enter)";
+"Meander height limit in mm (empty: 2 mm)" = "Giới hạn chiều cao uốn khúc, mm (để trống: 2 mm)";
+"Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Khe giữa các nhánh uốn khúc, mép tới mép, mm (để trống: ba lần bề rộng đường giữa các tâm)";
+"Tune to the longest member of the net's differential pair or bus" = "Tinh chỉnh theo thành viên dài nhất của cặp vi sai hoặc bus của net";

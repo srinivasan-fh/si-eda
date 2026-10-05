@@ -561,3 +561,12 @@
 "Go to Port" = "पोर्ट पर जाएँ";
 "Go to Sheet Entry" = "शीट प्रविष्टि पर जाएँ";
 "Sheet %lld of %lld" = "शीट %lld / %lld";
+"Amplitude" = "आयाम";
+"Spacing" = "अंतराल";
+"Auto" = "स्वतः";
+"Match Group" = "समूह से मिलाएँ";
+"Apply Tuning" = "ट्यूनिंग लागू करें";
+"Add the previewed meanders to the board (Enter)" = "पूर्वावलोकित मियांडर बोर्ड में जोड़ें (Enter)";
+"Meander height limit in mm (empty: 2 mm)" = "मियांडर ऊँचाई सीमा mm में (खाली: 2 mm)";
+"Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "मियांडर भुजाओं के बीच किनारे से किनारे का अंतर mm में (खाली: केंद्रों के बीच तीन ट्रैक चौड़ाई)";
+"Tune to the longest member of the net's differential pair or bus" = "नेट की डिफरेंशियल जोड़ी या बस के सबसे लंबे सदस्य के अनुसार ट्यून करें";

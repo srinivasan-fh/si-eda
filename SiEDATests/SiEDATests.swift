@@ -4900,3 +4900,87 @@ final class SchematicFindAndNavigateTests: XCTestCase {
         XCTAssertEqual(reopened.snapshot()?.titleBlock.revision, "C")
     }
 }
+
+@MainActor
+final class InteractiveRoutingStoreTests: XCTestCase {
+    /// Track geometry independent of ids and order (undo reloads the design).
+    private static func shapes(_ tracks: [SnapTrack]) -> [String] {
+        tracks.map { String(format: "%d %d %.4f %.4f %.4f %.4f %.4f", $0.net, $0.layer, $0.width, $0.ax, $0.ay, $0.bx, $0.by) }
+            .sorted()
+    }
+
+    /// Two resistors 30 mm apart joined by a routed track with a through via at (18, 20).
+    private func routedStore() throws -> DesignStore {
+        let store = DesignStore()
+        let engine = store.engine
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        engine.moveFootprint(r1, to: CGPoint(x: 10, y: 20))
+        engine.moveFootprint(r2, to: CGPoint(x: 40, y: 20))
+        let options = EDAEngine.routerOptions(shove: true, diagonal: true)
+        XCTAssertNotNil(engine.routerBegin(at: CGPoint(x: 10.95, y: 20), layer: 0, pair: false, options: options))
+        _ = engine.routerMove(to: CGPoint(x: 18, y: 20))
+        XCTAssertNil(engine.routerAddVia()?.error)
+        _ = engine.routerMove(to: CGPoint(x: 30, y: 20))
+        XCTAssertNil(engine.routerAddVia(toLayer: 0)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 39.05, y: 20))
+        XCTAssertTrue(engine.routerCommit().ok)
+        store.refresh()
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        return store
+    }
+
+    func testDraggingATrackAndAViaIsOneUndoStep() throws {
+        let store = try routedStore()
+        let bottom = try XCTUnwrap(store.snapshot.tracks.first { $0.layer == 1 })
+        let before = store.snapshot.tracks
+        let grab = CGPoint(x: (bottom.ax + bottom.bx) / 2, y: (bottom.ay + bottom.by) / 2)
+        XCTAssertTrue(store.beginTrackDrag(bottom.id, at: grab))
+        XCTAssertEqual(store.routePreview?.kind, "drag")
+        store.finishRoute(at: CGPoint(x: grab.x, y: grab.y + 2))
+        XCTAssertNil(store.routePreview)
+        XCTAssertNotEqual(store.snapshot.tracks, before)
+        XCTAssertTrue(store.snapshot.tracks.contains { $0.layer == 1 && abs($0.ay - 22) < 1e-6 && abs($0.by - 22) < 1e-6 })
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        store.undo()
+        XCTAssertEqual(Self.shapes(store.snapshot.tracks), Self.shapes(before))
+
+        let via = try XCTUnwrap(store.snapshot.vias.first)
+        XCTAssertTrue(store.beginViaDrag(via.id, at: CGPoint(x: via.x, y: via.y)))
+        XCTAssertEqual(store.routePreview?.kind, "via")
+        store.finishRoute(at: CGPoint(x: via.x, y: via.y - 3))
+        XCTAssertTrue(store.snapshot.vias.contains { abs($0.x - via.x) < 1e-6 && abs($0.y - (via.y - 3)) < 1e-6 })
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        XCTAssertFalse(store.engine.runDRC().contains { $0.severity == .error })
+        // A refused drag (unknown via) starts nothing.
+        XCTAssertFalse(store.beginViaDrag(-4, at: .zero))
+        XCTAssertNil(store.routePreview)
+    }
+
+    func testLengthTuningPreviewsThenApplies() throws {
+        let store = try routedStore()
+        let top = try XCTUnwrap(store.snapshot.tracks.first { $0.layer == 0 && hypot($0.bx - $0.ax, $0.by - $0.ay) > 6 })
+        let tracks = store.snapshot.tracks
+        store.beginTune(track: top.id, at: CGPoint(x: (top.ax + top.bx) / 2, y: top.ay))
+        let preview = try XCTUnwrap(store.tuneSession?.preview)
+        XCTAssertTrue(preview.ok, preview.message)
+        XCTAssertTrue(preview.group.isEmpty)
+        XCTAssertGreaterThan(preview.target, preview.before)  // no group: starts at its length + 1 mm
+        XCTAssertFalse(preview.applied)
+        XCTAssertFalse(preview.addedTracks.isEmpty)
+        XCTAssertEqual(store.snapshot.tracks, tracks)  // a preview leaves the board alone
+        store.setTuneTarget(preview.before + 0.5)
+        XCTAssertEqual(store.tuneSession?.preview?.target ?? 0, preview.before + 0.5, accuracy: 1e-9)
+        store.applyTune()
+        XCTAssertNil(store.tuneSession)
+        let length = store.snapshot.tracks.reduce(0.0) { $0 + hypot($1.bx - $1.ax, $1.by - $1.ay) }
+        XCTAssertEqual(length, preview.before + 0.5, accuracy: 0.05)
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        store.undo()
+        XCTAssertEqual(Self.shapes(store.snapshot.tracks), Self.shapes(tracks))
+        store.beginTune(track: top.id, at: .zero)
+        store.cancelTune()
+        XCTAssertNil(store.tuneSession)
+    }
+}

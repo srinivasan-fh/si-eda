@@ -561,3 +561,12 @@
 "Go to Port" = "పోర్ట్‌కు వెళ్లు";
 "Go to Sheet Entry" = "షీట్ ఎంట్రీకి వెళ్లు";
 "Sheet %lld of %lld" = "షీట్ %lld / %lld";
+"Amplitude" = "వ్యాప్తి";
+"Spacing" = "అంతరం";
+"Auto" = "స్వయంచాలకం";
+"Match Group" = "సమూహానికి సరిపోల్చు";
+"Apply Tuning" = "ట్యూనింగ్ వర్తింపజేయి";
+"Add the previewed meanders to the board (Enter)" = "ముందుగా చూసిన మియాండర్లను బోర్డుకు జోడించు (Enter)";
+"Meander height limit in mm (empty: 2 mm)" = "మియాండర్ ఎత్తు పరిమితి mm లో (ఖాళీ: 2 mm)";
+"Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "మియాండర్ కాళ్ల మధ్య అంచు నుండి అంచు అంతరం mm లో (ఖాళీ: కేంద్రాల మధ్య మూడు ట్రాక్ వెడల్పులు)";
+"Tune to the longest member of the net's differential pair or bus" = "నెట్ యొక్క డిఫరెన్షియల్ జత లేదా బస్‌లోని పొడవైన సభ్యునికి ట్యూన్ చేయి";

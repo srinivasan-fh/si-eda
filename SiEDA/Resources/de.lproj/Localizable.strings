@@ -561,3 +561,12 @@
 "Go to Port" = "Zum Port";
 "Go to Sheet Entry" = "Zum Blatteingang";
 "Sheet %lld of %lld" = "Blatt %lld von %lld";
+"Amplitude" = "Amplitude";
+"Spacing" = "Abstand";
+"Auto" = "Auto";
+"Match Group" = "An Gruppe angleichen";
+"Apply Tuning" = "Abstimmung anwenden";
+"Add the previewed meanders to the board (Enter)" = "Die angezeigten Mäander auf die Leiterplatte übernehmen (Enter)";
+"Meander height limit in mm (empty: 2 mm)" = "Höchste Mäanderhöhe in mm (leer: 2 mm)";
+"Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Abstand der Mäanderschenkel, Kante zu Kante, in mm (leer: drei Leiterbahnbreiten Mittenabstand)";
+"Tune to the longest member of the net's differential pair or bus" = "Auf das längste Mitglied des Differenzpaars oder Busses des Netzes abstimmen";

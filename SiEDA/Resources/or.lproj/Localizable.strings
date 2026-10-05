@@ -561,3 +561,12 @@
 "Go to Port" = "ପୋର୍ଟକୁ ଯାଆନ୍ତୁ";
 "Go to Sheet Entry" = "ସିଟ୍ ଏଣ୍ଟ୍ରିକୁ ଯାଆନ୍ତୁ";
 "Sheet %lld of %lld" = "ସିଟ୍ %lld / %lld";
+"Amplitude" = "ପ୍ରସାର";
+"Spacing" = "ବ୍ୟବଧାନ";
+"Auto" = "ସ୍ୱୟଂ";
+"Match Group" = "ଗୋଷ୍ଠୀ ସହ ମେଳାନ୍ତୁ";
+"Apply Tuning" = "ଟ୍ୟୁନିଂ ପ୍ରୟୋଗ କରନ୍ତୁ";
+"Add the previewed meanders to the board (Enter)" = "ପୂର୍ବାବଲୋକିତ ମିଆଣ୍ଡର ବୋର୍ଡରେ ଯୋଗ କରନ୍ତୁ (Enter)";
+"Meander height limit in mm (empty: 2 mm)" = "ମିଆଣ୍ଡର ଉଚ୍ଚତା ସୀମା mm ରେ (ଖାଲି: 2 mm)";
+"Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "ମିଆଣ୍ଡର ଗୋଡ଼ ମଧ୍ୟରେ ଧାରରୁ ଧାର ବ୍ୟବଧାନ mm ରେ (ଖାଲି: କେନ୍ଦ୍ର ମଧ୍ୟରେ ତିନି ଟ୍ରାକ ପ୍ରସ୍ଥ)";
+"Tune to the longest member of the net's differential pair or bus" = "ନେଟର ଡିଫରେନସିଆଲ ଯୋଡ଼ି ବା ବସର ସବୁଠାରୁ ଲମ୍ବା ସଦସ୍ୟ ଅନୁସାରେ ଟ୍ୟୁନ କରନ୍ତୁ";

@@ -561,3 +561,12 @@
 "Go to Port" = "转到端口";
 "Go to Sheet Entry" = "转到图页入口";
 "Sheet %lld of %lld" = "第 %lld 页，共 %lld 页";
+"Amplitude" = "振幅";
+"Spacing" = "间距";
+"Auto" = "自动";
+"Match Group" = "匹配组";
+"Apply Tuning" = "应用调整";
+"Add the previewed meanders to the board (Enter)" = "将预览的蛇形线添加到电路板（Enter）";
+"Meander height limit in mm (empty: 2 mm)" = "蛇形线高度上限（mm，留空：2 mm）";
+"Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "蛇形线各段之间的边到边间隙（mm，留空：中心距为三倍线宽）";
+"Tune to the longest member of the net's differential pair or bus" = "调整到该网络所属差分对或总线中最长的成员";

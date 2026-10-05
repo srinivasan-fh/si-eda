@@ -561,3 +561,12 @@
 "Go to Port" = "പോർട്ടിലേക്ക് പോകുക";
 "Go to Sheet Entry" = "ഷീറ്റ് എൻട്രിയിലേക്ക് പോകുക";
 "Sheet %lld of %lld" = "ഷീറ്റ് %lld / %lld";
+"Amplitude" = "ആംപ്ലിറ്റ്യൂഡ്";
+"Spacing" = "അകലം";
+"Auto" = "സ്വയം";
+"Match Group" = "ഗ്രൂപ്പുമായി ഒത്തുനോക്കുക";
+"Apply Tuning" = "ട്യൂണിങ് പ്രയോഗിക്കുക";
+"Add the previewed meanders to the board (Enter)" = "പ്രിവ്യൂ ചെയ്ത മിയാൻഡറുകൾ ബോർഡിൽ ചേർക്കുക (Enter)";
+"Meander height limit in mm (empty: 2 mm)" = "മിയാൻഡർ ഉയര പരിധി mm-ൽ (ശൂന്യം: 2 mm)";
+"Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "മിയാൻഡർ കാലുകൾ തമ്മിലുള്ള അരികിൽ നിന്ന് അരികിലേക്കുള്ള വിടവ് mm-ൽ (ശൂന്യം: കേന്ദ്രങ്ങൾക്കിടയിൽ മൂന്ന് ട്രാക്ക് വീതി)";
+"Tune to the longest member of the net's differential pair or bus" = "നെറ്റിന്റെ ഡിഫറൻഷ്യൽ ജോഡിയിലെയോ ബസിലെയോ ഏറ്റവും നീളമുള്ള അംഗത്തിലേക്ക് ട്യൂൺ ചെയ്യുക";
