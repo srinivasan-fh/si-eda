@@ -9,6 +9,7 @@
 "3D Viewer" = "3D व्ह्यूअर";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "AC स्वीप";
 "AI Assistance" = "AI सहाय्य";
 "AI Models" = "AI मॉडेल";
 "AI Off" = "AI बंद";
@@ -36,6 +37,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "अ‍ॅनालॉग टाइम स्टेप: बारीक वेगवान सिग्नल सोडवतो, जाड वेगाने चालतो";
 "Analysis" = "विश्लेषण";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "विश्लेषण प्रीसेट — मायक्रोकंट्रोलर फर्मवेअरला मोठा रन लागतो (उदा. 100 µs वर 1 s)";
+"Analysis type" = "विश्लेषणाचा प्रकार";
 "Annotate" = "अ‍ॅनोटेट करा";
 "Appearance" = "स्वरूप";
 "Appliance Type" = "उपकरण प्रकार";
@@ -60,6 +62,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "असेंब्लीसाठी BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "वेगवान नेटवरील व्हाया स्टब बॅकड्रिल करा";
+"Bandwidth" = "बँडविड्थ";
 "Base Design" = "मूळ डिझाइन";
 "Base URL" = "बेस URL";
 "Bill of Materials" = "बिल ऑफ मटेरियल्स";
@@ -104,7 +107,9 @@
 "Currents" = "करंट";
 "DC" = "DC";
 "DC Operating Point" = "DC ऑपरेटिंग पॉइंट";
+"DC Sweep" = "DC स्वीप";
 "DC operating point (⇧⌘D)" = "DC ऑपरेटिंग पॉइंट (⇧⌘D)";
+"DC voltage" = "DC व्होल्टेज";
 "DEVICES" = "डिव्हाइस";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -161,6 +166,7 @@
 "Fix Duplicates Only" = "फक्त डुप्लिकेट दुरुस्त करा";
 "Flip" = "फ्लिप करा";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "पार्ट ज्या फूटप्रिंटमध्ये बसतो: चिप आकार, थ्रू-होल, टँटलम किंवा इलेक्ट्रोलिटिक केस";
+"Gain" = "गेन";
 "Gap Before" = "आधी गॅप";
 "Generate Design" = "डिझाइन तयार करा";
 "Give each selected pin its own slot" = "प्रत्येक निवडलेल्या पिनला स्वतःचा स्लॉट द्या";
@@ -182,6 +188,7 @@
 "Industry Profile" = "उद्योग प्रोफाइल";
 "Infer Types" = "प्रकार ओळखा";
 "Info" = "माहिती";
+"Input" = "इनपुट";
 "Insert an empty slot before the pin to separate a group" = "गट वेगळा करण्यासाठी पिनपूर्वी रिकामा स्लॉट घाला";
 "Inspector" = "इन्स्पेक्टर";
 "Interface language" = "इंटरफेस भाषा";
@@ -207,7 +214,10 @@
 "Local (this sheet)" = "लोकल (ही शीट)";
 "Locked (Auto Place keeps it)" = "लॉक (ऑटो प्लेस तो तसाच ठेवतो)";
 "Long firmware run — 5 s, 500 µs" = "दीर्घ फर्मवेअर रन — 5 s, 500 µs";
+"Magnitude" = "मॅग्निट्यूड";
 "Mask" = "मास्क";
+"Mean" = "सरासरी";
+"Measure" = "मोजमाप";
 "Medical Device Class" = "मेडिकल डिव्हाइस वर्ग";
 "Memory Design" = "मेमरी डिझाइन";
 "Mirror" = "मिरर करा";
@@ -215,6 +225,7 @@
 "Mode" = "मोड";
 "Model" = "मॉडेल";
 "Model back-ends" = "मॉडेल बॅक-एंड";
+"Monte Carlo" = "मॉन्टे कार्लो";
 "Mounting" = "माउंटिंग";
 "Move Selection Here" = "निवड येथे हलवा";
 "Move the footprint origin to the centre of the pads" = "फूटप्रिंट ओरिजिन पॅडच्या मध्यभागी हलवा";
@@ -236,6 +247,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "पोर नाहीत. ग्राउंड पोर रिटर्न पाथ लहान करतात, जास्त करंट वाहतात आणि ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "स्विच नाहीत. स्कीमॅटिकमध्ये एक Switch जोडा (पुश-बटणसाठी मूल्य \"push\").";
 "No." = "क्र.";
+"Nominal" = "नाममात्र मूल्य";
 "None" = "काहीही नाही";
 "None (mechanical)" = "काहीही नाही (मेकॅनिकल)";
 "Not a memory design" = "मेमरी डिझाइन नाही";
@@ -270,6 +282,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "वेगळ्या गॅल्व्हॅनिक डोमेनचे (आयसोलेटर आणि आयसोलेटेड कन्व्हर्टरच्या पलीकडे) पार्ट, ट्रॅक आणि पोर ";
 "Paste API key" = "API की पेस्ट करा";
 "Pattern" = "पॅटर्न";
+"Peak" = "शिखर";
+"Phase" = "फेज";
+"Phase margin" = "फेज मार्जिन";
 "Pin" = "पिन";
 "Pins: " = "पिन: ";
 "Place Now" = "आता ठेवा";
@@ -305,14 +320,18 @@
 "Robot Platform" = "रोबोट प्लॅटफॉर्म";
 "Rotate" = "फिरवा";
 "Run" = "चालवा";
+"Run AC Sweep" = "AC स्वीप चालवा";
+"Run DC Sweep" = "DC स्वीप चालवा";
 "Run Design Rule Check" = "डिझाइन रूल चेक चालवा";
 "Run ERC and DRC" = "ERC आणि DRC चालवा";
 "Run Electrical Rule Check" = "इलेक्ट्रिकल रूल चेक चालवा";
 "Run Live" = "लाइव्ह चालवा";
+"Run Monte Carlo" = "मॉन्टे कार्लो चालवा";
 "Run Transient" = "ट्रान्झिएंट चालवा";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "ते चालवण्यासाठी ट्रान्झिएंट विश्लेषण चालवा: पिन सर्किट ड्राइव्ह करतात, इनपुट आणि ADC ते वाचतात, आणि सिरियल आउटपुट सिम्युलेशनमध्ये दिसतो.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "बोर्ड रिअल टाइममध्ये चालवा (⌘R): LED पेटतात, स्विच क्लिक करा, फर्मवेअर चालते, लाइव्ह प्रोब";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "बोर्ड रिअल टाइममध्ये चालवा: फर्मवेअर, LED, स्विच, स्कोप आणि सिरियल मॉनिटर";
+"Runs" = "रन";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "SPICE नेटलिस्ट";
 "STL (ASCII)" = "STL (ASCII)";
@@ -358,6 +377,7 @@
 "Simulation" = "सिम्युलेशन";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "रिअल टाइमच्या तुलनेत सिम्युलेशन वेग (स्लो मोशन वेगवान सिग्नल दाखवते)";
 "Solve the DC operating point once — shows voltage probes" = "DC ऑपरेटिंग पॉइंट एकदा सोडवा — व्होल्टेज प्रोब दाखवतो";
+"Source" = "स्रोत";
 "Speed" = "वेग";
 "Spin" = "फिरवा";
 "Stack" = "स्टॅक करा";
@@ -386,6 +406,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ऑफलाइन डिझायनर SiEDA चे अंगभूत रेफरन्स सर्किट वापरतो. नेटवर्क किंवा API की आवश्यक नाही — डेमो आणि एअर-गॅप्ड लॅबसाठी आदर्श.";
 "The plain box: pins in number order down the left, then up the right" = "साधा बॉक्स: पिन क्रमांक क्रमाने डावीकडे खाली, नंतर उजवीकडे वर";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "स्प्लॅश पाच सेकंद कंपोनंट लायब्ररी आणि रेफरन्स डिझाइन प्रीलोड करतो, नंतर मुख्य विंडो उघडतो. लोडिंग पूर्ण झाल्यावर वगळण्यासाठी त्यावर क्लिक करा किंवा Esc दाबा.";
+"Transient" = "ट्रान्झिएंट";
 "Transient analysis" = "ट्रान्झिएंट विश्लेषण";
 "Transient: stop" = "ट्रान्झिएंट: थांबा";
 "Tune Lengths" = "लांबी ट्यून करा";
@@ -395,6 +416,7 @@
 "Undo (⌘Z)" = "पूर्ववत करा (⌘Z)";
 "Undo the last footprint edit" = "शेवटचे फूटप्रिंट संपादन पूर्ववत करा";
 "Undo the last symbol edit" = "शेवटचे सिम्बॉल संपादन पूर्ववत करा";
+"Unity gain" = "युनिटी गेन";
 "Unstack" = "अनस्टॅक करा";
 "Upload .hex…" = ".hex अपलोड करा…";
 "Validate" = "प्रमाणित करा";
@@ -413,6 +435,7 @@
 "Window" = "विंडो";
 "Workspace" = "वर्कस्पेस";
 "Workspaces" = "वर्कस्पेस";
+"Worst case" = "सर्वात वाईट स्थिती";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "प्रॉम्प्ट लिहा किंवा PRD पेस्ट करा. एजंट टीम त्याचे पडताळलेले स्कीमॅटिक, रूट केलेले PCB आणि 3D मॉडेलमध्ये रूपांतर करते.";
 "X-Ray Stack" = "X-Ray स्टॅक";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "तुम्ही हे ⌘Z ने पूर्ववत करू शकता. स्कीमॅटिकमध्ये ठेवलेले पार्ट हटवता येत नाहीत.";
@@ -427,13 +450,18 @@
 "Zoom to Selection" = "निवडीवर झूम करा";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "फिटवर झूम / होम (Home, 0 किंवा ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "निवडीवर झूम (⇧Z किंवा ⌥⌘0)";
+"auto" = "स्वयं";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "उदा. “बॅटरीवर चालणारा 9 V नाइट लाइट जो पांढरा LED लावतो…”";
+"from" = "सुरुवात";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "पॉइंट/डिकेड";
 "public client id" = "सार्वजनिक क्लायंट id";
 "standard" = "मानक";
 "step" = "स्टेप";
 "stop" = "थांबा";
+"to" = "शेवट";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "पॅन करण्यासाठी ⌥-ड्रॅग किंवा दोन-बोटांनी ड्रॅग करा";

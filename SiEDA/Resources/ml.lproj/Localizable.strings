@@ -9,6 +9,7 @@
 "3D Viewer" = "3D വ്യൂവർ";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "AC സ്വീപ്പ്";
 "AI Assistance" = "AI സഹായം";
 "AI Models" = "AI മോഡലുകൾ";
 "AI Off" = "AI ഓഫ്";
@@ -36,6 +37,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "അനലോഗ് ടൈം സ്റ്റെപ്പ്: ചെറുത് വേഗമേറിയ സിഗ്നലുകൾ വ്യക്തമാക്കുന്നു, വലുത് വേഗത്തിൽ റൺ ചെയ്യുന്നു";
 "Analysis" = "വിശകലനം";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "വിശകലന പ്രീസെറ്റുകൾ — മൈക്രോകൺട്രോളർ ഫേംവെയറിന് ദൈർഘ്യമേറിയ റൺ ആവശ്യമാണ് (ഉദാ. 100 µs-ൽ 1 s)";
+"Analysis type" = "വിശകലന തരം";
 "Annotate" = "അനോട്ടേറ്റ് ചെയ്യുക";
 "Appearance" = "രൂപഭാവം";
 "Appliance Type" = "അപ്ലയൻസ് തരം";
@@ -60,6 +62,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "അസംബ്ലിക്കുള്ള BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "വേഗമേറിയ നെറ്റുകളിലെ വിയ സ്റ്റബുകൾ ബാക്ക്ഡ്രിൽ ചെയ്യുക";
+"Bandwidth" = "ബാൻഡ്‌വിഡ്ത്ത്";
 "Base Design" = "അടിസ്ഥാന ഡിസൈൻ";
 "Base URL" = "ബേസ് URL";
 "Bill of Materials" = "ബിൽ ഓഫ് മെറ്റീരിയൽസ്";
@@ -104,7 +107,9 @@
 "Currents" = "കറന്റുകൾ";
 "DC" = "DC";
 "DC Operating Point" = "DC ഓപ്പറേറ്റിംഗ് പോയിന്റ്";
+"DC Sweep" = "DC സ്വീപ്പ്";
 "DC operating point (⇧⌘D)" = "DC ഓപ്പറേറ്റിംഗ് പോയിന്റ് (⇧⌘D)";
+"DC voltage" = "DC വോൾട്ടേജ്";
 "DEVICES" = "ഡിവൈസുകൾ";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -161,6 +166,7 @@
 "Fix Duplicates Only" = "ഡ്യൂപ്ലിക്കേറ്റുകൾ മാത്രം ശരിയാക്കുക";
 "Flip" = "ഫ്ലിപ്പ് ചെയ്യുക";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "പാർട്ട് ഘടിപ്പിക്കുന്ന ഫുട്പ്രിന്റ്: ചിപ്പ് വലുപ്പം, ത്രൂ-ഹോൾ, ടാന്റലം അല്ലെങ്കിൽ ഇലക്ട്രോലിറ്റിക് കേസ്";
+"Gain" = "ഗെയിൻ";
 "Gap Before" = "മുമ്പുള്ള വിടവ്";
 "Generate Design" = "ഡിസൈൻ സൃഷ്ടിക്കുക";
 "Give each selected pin its own slot" = "തിരഞ്ഞെടുത്ത ഓരോ പിനിനും സ്വന്തം സ്ലോട്ട് നൽകുക";
@@ -182,6 +188,7 @@
 "Industry Profile" = "വ്യവസായ പ്രൊഫൈൽ";
 "Infer Types" = "തരങ്ങൾ അനുമാനിക്കുക";
 "Info" = "വിവരം";
+"Input" = "ഇൻപുട്ട്";
 "Insert an empty slot before the pin to separate a group" = "ഒരു ഗ്രൂപ്പ് വേർതിരിക്കാൻ പിനിന് മുമ്പ് ഒരു ശൂന്യ സ്ലോട്ട് ചേർക്കുക";
 "Inspector" = "ഇൻസ്പെക്ടർ";
 "Interface language" = "ഇന്റർഫേസ് ഭാഷ";
@@ -207,7 +214,10 @@
 "Local (this sheet)" = "ലോക്കൽ (ഈ ഷീറ്റ്)";
 "Locked (Auto Place keeps it)" = "ലോക്ക് ചെയ്തു (ഓട്ടോ പ്ലേസ് ഇത് നിലനിർത്തുന്നു)";
 "Long firmware run — 5 s, 500 µs" = "ദീർഘ ഫേംവെയർ റൺ — 5 s, 500 µs";
+"Magnitude" = "മാഗ്നിറ്റ്യൂഡ്";
 "Mask" = "മാസ്ക്";
+"Mean" = "ശരാശരി";
+"Measure" = "അളവ്";
 "Medical Device Class" = "മെഡിക്കൽ ഡിവൈസ് ക്ലാസ്";
 "Memory Design" = "മെമ്മറി ഡിസൈൻ";
 "Mirror" = "മിറർ ചെയ്യുക";
@@ -215,6 +225,7 @@
 "Mode" = "മോഡ്";
 "Model" = "മോഡൽ";
 "Model back-ends" = "മോഡൽ ബാക്ക്-എൻഡുകൾ";
+"Monte Carlo" = "മോണ്ടി കാർലോ";
 "Mounting" = "മൗണ്ടിംഗ്";
 "Move Selection Here" = "തിരഞ്ഞെടുപ്പ് ഇവിടേക്ക് നീക്കുക";
 "Move the footprint origin to the centre of the pads" = "ഫുട്പ്രിന്റ് ഒറിജിൻ പാഡുകളുടെ മധ്യത്തിലേക്ക് നീക്കുക";
@@ -236,6 +247,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "പോറുകൾ ഇല്ല. ഗ്രൗണ്ട് പോറുകൾ റിട്ടേൺ പാത്തുകൾ ചുരുക്കുന്നു, ഉയർന്ന കറന്റുകൾ വഹിക്കുന്നു, കൂടാതെ ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "സ്വിച്ചുകൾ ഇല്ല. സ്കീമാറ്റിക്കിൽ ഒരു സ്വിച്ച് ചേർക്കുക (പുഷ്-ബട്ടണിന് മൂല്യം \"push\").";
 "No." = "നം.";
+"Nominal" = "നാമമാത്ര മൂല്യം";
 "None" = "ഒന്നുമില്ല";
 "None (mechanical)" = "ഒന്നുമില്ല (മെക്കാനിക്കൽ)";
 "Not a memory design" = "മെമ്മറി ഡിസൈൻ അല്ല";
@@ -270,6 +282,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "വേറിട്ട ഗാൽവാനിക് ഡൊമെയ്‌നുകളുടെ (ഐസൊലേറ്ററുകൾക്കും ഐസൊലേറ്റഡ് കൺവെർട്ടറുകൾക്കും കുറുകെ) പാർട്ടുകൾ, ട്രാക്കുകൾ, പോറുകൾ ";
 "Paste API key" = "API കീ പേസ്റ്റ് ചെയ്യുക";
 "Pattern" = "പാറ്റേൺ";
+"Peak" = "പീക്ക്";
+"Phase" = "ഫേസ്";
+"Phase margin" = "ഫേസ് മാർജിൻ";
 "Pin" = "പിൻ";
 "Pins: " = "പിനുകൾ: ";
 "Place Now" = "ഇപ്പോൾ സ്ഥാപിക്കുക";
@@ -305,14 +320,18 @@
 "Robot Platform" = "റോബോട്ട് പ്ലാറ്റ്ഫോം";
 "Rotate" = "തിരിക്കുക";
 "Run" = "റൺ ചെയ്യുക";
+"Run AC Sweep" = "AC സ്വീപ്പ് റൺ ചെയ്യുക";
+"Run DC Sweep" = "DC സ്വീപ്പ് റൺ ചെയ്യുക";
 "Run Design Rule Check" = "ഡിസൈൻ റൂൾ ചെക്ക് റൺ ചെയ്യുക";
 "Run ERC and DRC" = "ERC, DRC എന്നിവ റൺ ചെയ്യുക";
 "Run Electrical Rule Check" = "ഇലക്ട്രിക്കൽ റൂൾ ചെക്ക് റൺ ചെയ്യുക";
 "Run Live" = "ലൈവ് റൺ ചെയ്യുക";
+"Run Monte Carlo" = "മോണ്ടി കാർലോ റൺ ചെയ്യുക";
 "Run Transient" = "ട്രാൻസിയന്റ് റൺ ചെയ്യുക";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "ഇത് എക്സിക്യൂട്ട് ചെയ്യാൻ ഒരു ട്രാൻസിയന്റ് വിശകലനം റൺ ചെയ്യുക: പിനുകൾ സർക്യൂട്ട് ഡ്രൈവ് ചെയ്യുന്നു, ഇൻപുട്ടുകളും ADC-യും അത് റീഡ് ചെയ്യുന്നു, സീരിയൽ ഔട്ട്പുട്ട് സിമുലേഷനിൽ ദൃശ്യമാകുന്നു.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "ബോർഡ് റിയൽ ടൈമിൽ റൺ ചെയ്യുക (⌘R): LED-കൾ തെളിയുന്നു, സ്വിച്ചുകളിൽ ക്ലിക്ക് ചെയ്യുക, ഫേംവെയർ റൺ ചെയ്യുന്നു, ലൈവ് പ്രോബുകൾ";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "ബോർഡ് റിയൽ ടൈമിൽ റൺ ചെയ്യുക: ഫേംവെയർ, LED-കൾ, സ്വിച്ചുകൾ, സ്കോപ്പ്, സീരിയൽ മോണിറ്റർ";
+"Runs" = "റണ്ണുകൾ";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "SPICE നെറ്റ്‌ലിസ്റ്റ്";
 "STL (ASCII)" = "STL (ASCII)";
@@ -358,6 +377,7 @@
 "Simulation" = "സിമുലേഷൻ";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "റിയൽ ടൈമുമായി താരതമ്യം ചെയ്തുള്ള സിമുലേഷൻ വേഗത (സ്ലോ മോഷൻ വേഗമേറിയ സിഗ്നലുകൾ കാണിക്കുന്നു)";
 "Solve the DC operating point once — shows voltage probes" = "DC ഓപ്പറേറ്റിംഗ് പോയിന്റ് ഒരിക്കൽ സോൾവ് ചെയ്യുക — വോൾട്ടേജ് പ്രോബുകൾ കാണിക്കുന്നു";
+"Source" = "സ്രോതസ്സ്";
 "Speed" = "വേഗത";
 "Spin" = "സ്പിൻ";
 "Stack" = "സ്റ്റാക്ക്";
@@ -386,6 +406,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ഓഫ്‌ലൈൻ ഡിസൈനർ SiEDA-യുടെ ബിൽറ്റ്-ഇൻ റഫറൻസ് സർക്യൂട്ടുകൾ ഉപയോഗിക്കുന്നു. നെറ്റ്‌വർക്കോ API കീയോ ആവശ്യമില്ല — ഡെമോകൾക്കും എയർ-ഗ്യാപ്പ്ഡ് ലാബുകൾക്കും അനുയോജ്യം.";
 "The plain box: pins in number order down the left, then up the right" = "ലളിതമായ ബോക്സ്: പിനുകൾ നമ്പർ ക്രമത്തിൽ ഇടതുവശത്ത് താഴേക്ക്, പിന്നെ വലതുവശത്ത് മുകളിലേക്ക്";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "സ്പ്ലാഷ് അഞ്ച് സെക്കൻഡ് നേരം കംപോണന്റ് ലൈബ്രറിയും റഫറൻസ് ഡിസൈനുകളും മുൻകൂട്ടി ലോഡ് ചെയ്യുന്നു, തുടർന്ന് പ്രധാന വിൻഡോ തുറക്കുന്നു. ലോഡിംഗ് പൂർത്തിയായാൽ ഒഴിവാക്കാൻ അതിൽ ക്ലിക്ക് ചെയ്യുക അല്ലെങ്കിൽ Esc അമർത്തുക.";
+"Transient" = "ട്രാൻസിയന്റ്";
 "Transient analysis" = "ട്രാൻസിയന്റ് വിശകലനം";
 "Transient: stop" = "ട്രാൻസിയന്റ്: സ്റ്റോപ്പ്";
 "Tune Lengths" = "നീളങ്ങൾ ട്യൂൺ ചെയ്യുക";
@@ -395,6 +416,7 @@
 "Undo (⌘Z)" = "പഴയപടിയാക്കുക (⌘Z)";
 "Undo the last footprint edit" = "അവസാന ഫുട്പ്രിന്റ് എഡിറ്റ് പഴയപടിയാക്കുക";
 "Undo the last symbol edit" = "അവസാന സിംബൽ എഡിറ്റ് പഴയപടിയാക്കുക";
+"Unity gain" = "യൂണിറ്റി ഗെയിൻ";
 "Unstack" = "അൺസ്റ്റാക്ക് ചെയ്യുക";
 "Upload .hex…" = ".hex അപ്‌ലോഡ് ചെയ്യുക…";
 "Validate" = "സാധൂകരിക്കുക";
@@ -413,6 +435,7 @@
 "Window" = "വിൻഡോ";
 "Workspace" = "വർക്ക്‌സ്പേസ്";
 "Workspaces" = "വർക്ക്‌സ്പേസുകൾ";
+"Worst case" = "ഏറ്റവും മോശം സാഹചര്യം";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "ഒരു പ്രോംപ്റ്റ് എഴുതുക അല്ലെങ്കിൽ ഒരു PRD പേസ്റ്റ് ചെയ്യുക. ഏജന്റ് ടീം അതിനെ വെരിഫൈ ചെയ്ത സ്കീമാറ്റിക്, റൂട്ട് ചെയ്ത PCB, 3D മോഡൽ എന്നിവയാക്കി മാറ്റുന്നു.";
 "X-Ray Stack" = "X-റേ സ്റ്റാക്ക്";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "⌘Z ഉപയോഗിച്ച് ഇത് പഴയപടിയാക്കാം. സ്കീമാറ്റിക്കിൽ സ്ഥാപിച്ച പാർട്ടുകൾ ഇല്ലാതാക്കാൻ കഴിയില്ല.";
@@ -427,13 +450,18 @@
 "Zoom to Selection" = "തിരഞ്ഞെടുപ്പിലേക്ക് സൂം ചെയ്യുക";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "അനുയോജ്യമായി സൂം / ഹോം (Home, 0 അല്ലെങ്കിൽ ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "തിരഞ്ഞെടുപ്പിലേക്ക് സൂം (⇧Z അല്ലെങ്കിൽ ⌥⌘0)";
+"auto" = "ഓട്ടോ";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "ഉദാ. “വെളുത്ത LED ഓണാക്കുന്ന, ബാറ്ററിയിൽ പ്രവർത്തിക്കുന്ന 9 V നൈറ്റ് ലൈറ്റ്…”";
+"from" = "ആരംഭം";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "പോയിന്റുകൾ/ഡെക്കേഡ്";
 "public client id" = "പബ്ലിക് ക്ലയന്റ് ID";
 "standard" = "സ്റ്റാൻഡേർഡ്";
 "step" = "സ്റ്റെപ്പ്";
 "stop" = "സ്റ്റോപ്പ്";
+"to" = "അവസാനം";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "പാൻ ചെയ്യാൻ ⌥-ഡ്രാഗ് അല്ലെങ്കിൽ രണ്ട് വിരൽ ഉപയോഗിച്ച് ഡ്രാഗ് ചെയ്യുക";

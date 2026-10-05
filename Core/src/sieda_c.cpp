@@ -2,6 +2,7 @@
 #include "sieda/sieda_c.h"
 
 #include "sieda/Aerospace.hpp"
+#include "sieda/Analysis.hpp"
 #include "sieda/Naval.hpp"
 #include "sieda/Medical.hpp"
 #include "sieda/Retail.hpp"
@@ -734,6 +735,48 @@ char* sieda_simulate_transient(const SiedaProject* project, double t_stop, doubl
     } catch (const std::exception& e) {
         return errorJson(e);
     }
+}
+
+}  // extern "C"
+
+namespace {
+// Advanced analyses: options JSON in, result JSON out (sieda/Analysis.hpp).
+char* runAnalysis(const SiedaProject* project, const char* options_json,
+                  Json (*analysis)(const Schematic&, const Json&)) {
+    if (!project) return nullptr;
+    try {
+        std::string text = str(options_json);
+        Json options = text.find_first_not_of(" \t\r\n") == std::string::npos ? Json::object() : Json::parse(text);
+        return dup(analysis(project->project.schematic, options).dump());
+    } catch (const std::exception& e) {
+        Json j = Json::object();
+        j["ok"] = false;
+        j["error"] = std::string("Invalid analysis options: ") + e.what();
+        return dup(j.dump());
+    }
+}
+}  // namespace
+
+extern "C" {
+
+char* sieda_simulate_ac(const SiedaProject* project, const char* options_json) {
+    return runAnalysis(project, options_json, simulateAcJson);
+}
+
+char* sieda_simulate_dc_sweep(const SiedaProject* project, const char* options_json) {
+    return runAnalysis(project, options_json, simulateDcSweepJson);
+}
+
+char* sieda_simulate_param_sweep(const SiedaProject* project, const char* options_json) {
+    return runAnalysis(project, options_json, simulateParamSweepJson);
+}
+
+char* sieda_simulate_monte_carlo(const SiedaProject* project, const char* options_json) {
+    return runAnalysis(project, options_json, simulateToleranceJson);
+}
+
+char* sieda_simulate_fft(const SiedaProject* project, const char* options_json) {
+    return runAnalysis(project, options_json, simulateFftJson);
 }
 
 char* sieda_spice_netlist(const SiedaProject* project) {

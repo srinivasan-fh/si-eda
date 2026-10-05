@@ -9,6 +9,7 @@
 "3D Viewer" = "3D వ్యూయర్";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "AC స్వీప్";
 "AI Assistance" = "AI సహాయం";
 "AI Models" = "AI మోడల్స్";
 "AI Off" = "AI ఆఫ్";
@@ -36,6 +37,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "అనలాగ్ టైమ్ స్టెప్: సూక్ష్మమైనది వేగవంతమైన సిగ్నల్స్‌ను గుర్తిస్తుంది, స్థూలమైనది వేగంగా రన్ అవుతుంది";
 "Analysis" = "విశ్లేషణ";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "విశ్లేషణ ప్రీసెట్‌లు — మైక్రోకంట్రోలర్ ఫర్మ్‌వేర్‌కు ఎక్కువ రన్ అవసరం (ఉదా. 100 µs వద్ద 1 s)";
+"Analysis type" = "విశ్లేషణ రకం";
 "Annotate" = "అనోటేట్ చేయండి";
 "Appearance" = "రూపం";
 "Appliance Type" = "ఉపకరణ రకం";
@@ -60,6 +62,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "అసెంబ్లీ కోసం BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "వేగవంతమైన నెట్‌లపై వయా స్టబ్‌లను బ్యాక్‌డ్రిల్ చేయి";
+"Bandwidth" = "బ్యాండ్‌విడ్త్";
 "Base Design" = "మూల డిజైన్";
 "Base URL" = "బేస్ URL";
 "Bill of Materials" = "బిల్ ఆఫ్ మెటీరియల్స్";
@@ -104,7 +107,9 @@
 "Currents" = "కరెంట్లు";
 "DC" = "DC";
 "DC Operating Point" = "DC ఆపరేటింగ్ పాయింట్";
+"DC Sweep" = "DC స్వీప్";
 "DC operating point (⇧⌘D)" = "DC ఆపరేటింగ్ పాయింట్ (⇧⌘D)";
+"DC voltage" = "DC వోల్టేజ్";
 "DEVICES" = "డివైస్‌లు";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -161,6 +166,7 @@
 "Fix Duplicates Only" = "నకిలీలను మాత్రమే సరిచేయండి";
 "Flip" = "ఫ్లిప్ చేయి";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "పార్ట్ అమర్చబడే ఫుట్‌ప్రింట్: చిప్ సైజ్, త్రూ-హోల్, టాంటలమ్ లేదా ఎలక్ట్రోలైటిక్ కేస్";
+"Gain" = "గెయిన్";
 "Gap Before" = "ముందు ఖాళీ";
 "Generate Design" = "డిజైన్ రూపొందించు";
 "Give each selected pin its own slot" = "ఎంచుకున్న ప్రతి పిన్‌కు దాని స్వంత స్లాట్ ఇవ్వు";
@@ -182,6 +188,7 @@
 "Industry Profile" = "పరిశ్రమ ప్రొఫైల్";
 "Infer Types" = "రకాలను ఊహించు";
 "Info" = "సమాచారం";
+"Input" = "ఇన్‌పుట్";
 "Insert an empty slot before the pin to separate a group" = "గ్రూప్‌ను వేరు చేయడానికి పిన్‌కు ముందు ఖాళీ స్లాట్‌ను చొప్పించు";
 "Inspector" = "ఇన్‌స్పెక్టర్";
 "Interface language" = "ఇంటర్‌ఫేస్ భాష";
@@ -207,7 +214,10 @@
 "Local (this sheet)" = "లోకల్ (ఈ షీట్)";
 "Locked (Auto Place keeps it)" = "లాక్ చేయబడింది (ఆటో ప్లేస్ దీన్ని ఉంచుతుంది)";
 "Long firmware run — 5 s, 500 µs" = "దీర్ఘ ఫర్మ్‌వేర్ రన్ — 5 s, 500 µs";
+"Magnitude" = "మాగ్నిట్యూడ్";
 "Mask" = "మాస్క్";
+"Mean" = "సగటు";
+"Measure" = "కొలత";
 "Medical Device Class" = "వైద్య పరికర క్లాస్";
 "Memory Design" = "మెమరీ డిజైన్";
 "Mirror" = "మిర్రర్";
@@ -215,6 +225,7 @@
 "Mode" = "మోడ్";
 "Model" = "మోడల్";
 "Model back-ends" = "మోడల్ బ్యాక్-ఎండ్‌లు";
+"Monte Carlo" = "మాంటే కార్లో";
 "Mounting" = "మౌంటింగ్";
 "Move Selection Here" = "ఎంపికను ఇక్కడికి తరలించండి";
 "Move the footprint origin to the centre of the pads" = "ఫుట్‌ప్రింట్ ఆరిజిన్‌ను ప్యాడ్‌ల మధ్యకు తరలించు";
@@ -236,6 +247,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "పోర్‌లు లేవు. గ్రౌండ్ పోర్‌లు రిటర్న్ పాత్‌లను తగ్గిస్తాయి, అధిక కరెంట్‌లను మోస్తాయి మరియు ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "స్విచ్‌లు లేవు. స్కీమాటిక్‌కు Switch జోడించండి (పుష్-బటన్ కోసం విలువ \"push\").";
 "No." = "సం.";
+"Nominal" = "నామమాత్ర విలువ";
 "None" = "ఏదీ లేదు";
 "None (mechanical)" = "ఏదీ లేదు (మెకానికల్)";
 "Not a memory design" = "మెమరీ డిజైన్ కాదు";
@@ -270,6 +282,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "వేర్వేరు గాల్వానిక్ డొమైన్‌ల (ఐసోలేటర్‌లు మరియు ఐసోలేటెడ్ కన్వర్టర్‌ల అంతటా) పార్ట్‌లు, ట్రాక్‌లు మరియు పోర్‌లు ";
 "Paste API key" = "API కీని పేస్ట్ చేయండి";
 "Pattern" = "ప్యాటర్న్";
+"Peak" = "శిఖరం";
+"Phase" = "ఫేజ్";
+"Phase margin" = "ఫేజ్ మార్జిన్";
 "Pin" = "పిన్";
 "Pins: " = "పిన్‌లు: ";
 "Place Now" = "ఇప్పుడే ఉంచు";
@@ -305,14 +320,18 @@
 "Robot Platform" = "రోబోట్ ప్లాట్‌ఫారమ్";
 "Rotate" = "తిప్పు";
 "Run" = "రన్ చేయి";
+"Run AC Sweep" = "AC స్వీప్ రన్ చేయి";
+"Run DC Sweep" = "DC స్వీప్ రన్ చేయి";
 "Run Design Rule Check" = "డిజైన్ రూల్ చెక్ రన్ చేయి";
 "Run ERC and DRC" = "ERC మరియు DRC రన్ చేయి";
 "Run Electrical Rule Check" = "ఎలక్ట్రికల్ రూల్ చెక్ రన్ చేయి";
 "Run Live" = "లైవ్ రన్ చేయి";
+"Run Monte Carlo" = "మాంటే కార్లో రన్ చేయి";
 "Run Transient" = "ట్రాన్సియెంట్ రన్ చేయి";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "దీన్ని అమలు చేయడానికి ట్రాన్సియెంట్ విశ్లేషణను రన్ చేయండి: పిన్‌లు సర్క్యూట్‌ను డ్రైవ్ చేస్తాయి, ఇన్‌పుట్‌లు మరియు ADC దాన్ని చదువుతాయి, సీరియల్ అవుట్‌పుట్ సిమ్యులేషన్‌లో కనిపిస్తుంది.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "బోర్డును రియల్ టైమ్‌లో రన్ చేయి (⌘R): LED లు వెలుగుతాయి, స్విచ్‌లను క్లిక్ చేయండి, ఫర్మ్‌వేర్ రన్ అవుతుంది, లైవ్ ప్రోబ్‌లు";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "బోర్డును రియల్ టైమ్‌లో రన్ చేయి: ఫర్మ్‌వేర్, LED లు, స్విచ్‌లు, స్కోప్ మరియు సీరియల్ మానిటర్";
+"Runs" = "రన్‌లు";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "SPICE నెట్‌లిస్ట్";
 "STL (ASCII)" = "STL (ASCII)";
@@ -358,6 +377,7 @@
 "Simulation" = "సిమ్యులేషన్";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "రియల్ టైమ్‌తో పోలిస్తే సిమ్యులేషన్ వేగం (స్లో మోషన్ వేగవంతమైన సిగ్నల్స్‌ను చూపుతుంది)";
 "Solve the DC operating point once — shows voltage probes" = "DC ఆపరేటింగ్ పాయింట్‌ను ఒకసారి సాల్వ్ చేయి — వోల్టేజ్ ప్రోబ్‌లను చూపుతుంది";
+"Source" = "సోర్స్";
 "Speed" = "వేగం";
 "Spin" = "స్పిన్";
 "Stack" = "స్టాక్ చేయి";
@@ -386,6 +406,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ఆఫ్‌లైన్ డిజైనర్ SiEDA అంతర్నిర్మిత రిఫరెన్స్ సర్క్యూట్‌లను ఉపయోగిస్తుంది. నెట్‌వర్క్ లేదా API కీ అవసరం లేదు — డెమోలు మరియు ఎయిర్-గ్యాప్డ్ ల్యాబ్‌లకు అనువైనది.";
 "The plain box: pins in number order down the left, then up the right" = "సాధారణ బాక్స్: పిన్‌లు సంఖ్య క్రమంలో ఎడమ వైపు కిందకు, ఆపై కుడి వైపు పైకి";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "స్ప్లాష్ కాంపోనెంట్ లైబ్రరీ మరియు రిఫరెన్స్ డిజైన్‌లను ఐదు సెకన్ల పాటు ముందుగా లోడ్ చేసి, ఆపై ప్రధాన విండోను తెరుస్తుంది. లోడింగ్ పూర్తయిన తర్వాత దాటవేయడానికి దాన్ని క్లిక్ చేయండి లేదా Esc నొక్కండి.";
+"Transient" = "ట్రాన్సియెంట్";
 "Transient analysis" = "ట్రాన్సియెంట్ విశ్లేషణ";
 "Transient: stop" = "ట్రాన్సియెంట్: ఆపు";
 "Tune Lengths" = "పొడవులను ట్యూన్ చేయి";
@@ -395,6 +416,7 @@
 "Undo (⌘Z)" = "చర్యను రద్దు చేయి (⌘Z)";
 "Undo the last footprint edit" = "చివరి ఫుట్‌ప్రింట్ సవరణను రద్దు చేయి";
 "Undo the last symbol edit" = "చివరి సింబల్ సవరణను రద్దు చేయి";
+"Unity gain" = "యూనిటీ గెయిన్";
 "Unstack" = "అన్‌స్టాక్ చేయి";
 "Upload .hex…" = ".hex అప్‌లోడ్ చేయి…";
 "Validate" = "ధృవీకరించు";
@@ -413,6 +435,7 @@
 "Window" = "విండో";
 "Workspace" = "వర్క్‌స్పేస్";
 "Workspaces" = "వర్క్‌స్పేస్‌లు";
+"Worst case" = "అత్యంత ప్రతికూల స్థితి";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "ప్రాంప్ట్ రాయండి లేదా PRD ని పేస్ట్ చేయండి. ఏజెంట్ బృందం దాన్ని వెరిఫై చేసిన స్కీమాటిక్, రూట్ చేసిన PCB మరియు 3D మోడల్‌గా మారుస్తుంది.";
 "X-Ray Stack" = "X-రే స్టాక్";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "మీరు దీన్ని ⌘Z తో రద్దు చేయవచ్చు. స్కీమాటిక్‌లో ఉంచిన పార్ట్‌లను తొలగించలేరు.";
@@ -427,13 +450,18 @@
 "Zoom to Selection" = "ఎంపికకు జూమ్ చేయి";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "సరిపోయేలా జూమ్ / హోమ్ (Home, 0 లేదా ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "ఎంపికకు జూమ్ (⇧Z లేదా ⌥⌘0)";
+"auto" = "ఆటో";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "ఉదా. “తెల్లని LED ని వెలిగించే బ్యాటరీతో నడిచే 9 V నైట్ లైట్…”";
+"from" = "ప్రారంభం";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "పాయింట్లు/డెకేడ్";
 "public client id" = "పబ్లిక్ క్లయింట్ ID";
 "standard" = "ప్రామాణికం";
 "step" = "స్టెప్";
 "stop" = "ఆపు";
+"to" = "ముగింపు";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "పాన్ చేయడానికి ⌥-డ్రాగ్ లేదా రెండు వేళ్లతో డ్రాగ్ చేయండి";

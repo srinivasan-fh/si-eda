@@ -16,6 +16,35 @@ namespace sieda {
 // ------------------------------------------------------------------ source specs
 
 std::optional<SourceSpec> SourceSpec::parse(const std::string& raw) {
+    // "<waveform> AC mag [phase]": split off the small-signal stimulus (a standalone "AC" word), parse the rest.
+    for (size_t pos = 0; pos + 1 < raw.size(); ++pos) {
+        auto up = [&](size_t i) { return static_cast<char>(std::toupper(static_cast<unsigned char>(raw[i]))); };
+        if (up(pos) != 'A' || up(pos + 1) != 'C') continue;
+        bool startOk = pos == 0 || std::isspace(static_cast<unsigned char>(raw[pos - 1])) || raw[pos - 1] == ')';
+        bool endOk = pos + 2 == raw.size() || std::isspace(static_cast<unsigned char>(raw[pos + 2]));
+        if (!startOk || !endOk) continue;
+        std::string tail = raw.substr(pos + 2);
+        for (char& c : tail)
+            if (c == ',') c = ' ';
+        std::istringstream ts(tail);
+        std::vector<double> nums;
+        std::string tok;
+        while (ts >> tok) {
+            auto v = parseEngineeringValue(tok);
+            if (!v) return std::nullopt;
+            nums.push_back(*v);
+        }
+        if (nums.empty() || nums.size() > 2) return std::nullopt;
+        std::string head = raw.substr(0, pos);
+        bool headEmpty = head.find_first_not_of(" \t") == std::string::npos;
+        std::optional<SourceSpec> s = headEmpty ? std::optional<SourceSpec>(SourceSpec{}) : parse(head);
+        if (!s || s->hasAc) return std::nullopt;
+        s->hasAc = true;
+        s->acMagnitude = nums[0];
+        s->acPhaseDeg = nums.size() > 1 ? nums[1] : 0.0;
+        return s;
+    }
+
     std::string text;
     for (char c : raw) text += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
     auto trim = [](std::string s) {
@@ -127,6 +156,7 @@ struct Simulator::Element {
     int branch = -1;  // unknown index for branch current
     // Device model parameters
     double is = 1e-14, emission = 1.0, betaF = 100, betaR = 1, vth = 1.5, kp = 0.02, lambda = 0.01, vsat = 15;
+    double gbw = 1e6;  // op-amp gain–bandwidth product (Hz): the dominant pole of the AC model
     // Behavioural regulator (in, out, ref): CV with dropout / CC at ilimit / off when it would have to sink.
     double dropout = 0.3, iq = 0, ilimit = 1.0, rout = 0.01;
     // Isolated DC-DC (aux[0] = primary return): the output loop closes through `ref`, the input draws
@@ -210,6 +240,35 @@ std::array<double, 3> deviceCurrents(const Elem& e, const std::array<double, 3>&
     }
 }
 
+/// Gain–bandwidth product of an op-amp from its value: "GBW=10MEG" explicitly, else the typical datasheet figure of a
+/// known part number (prefix match), else 1 MHz.
+double opAmpGainBandwidth(const std::string& value) {
+    std::string v;
+    for (char ch : value) v += static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+    if (auto pos = v.find("GBW="); pos != std::string::npos) {
+        std::string rest = value.substr(pos + 4);
+        rest = rest.substr(0, rest.find_first_of(" \t,;"));
+        if (auto g = parseEngineeringValue(rest); g && *g > 0) return *g;
+    }
+    static const std::pair<const char*, double> kParts[] = {
+        {"LM358", 1e6},   {"LM2904", 1e6},  {"LM324", 1e6},    {"LM741", 1e6},   {"UA741", 1e6},   {"LMV321", 1e6},
+        {"LMV358", 1e6},  {"LMV324", 1e6},  {"MCP6001", 1e6},  {"MCP6002", 1e6}, {"MCP6004", 1e6}, {"TLV900", 1e6},
+        {"TL07", 3e6},    {"TL08", 3e6},    {"NE5532", 10e6},  {"NE5534", 10e6}, {"OPA134", 8e6},  {"OPA2134", 8e6},
+        {"OPA4134", 8e6}, {"OPA333", 350e3}, {"OPA2333", 350e3}, {"MCP6021", 10e6}, {"AD8605", 10e6}, {"AD8606", 10e6},
+        {"AD8628", 2.5e6}, {"OPA1612", 40e6}, {"OPA350", 38e6}, {"LM833", 15e6},  {"OP07", 0.6e6},
+    };
+    size_t best = 0;
+    double gbw = 1e6;
+    for (const auto& [part, hz] : kParts) {
+        std::string p = part;
+        if (v.compare(0, p.size(), p) == 0 && p.size() > best) {
+            best = p.size();
+            gbw = hz;
+        }
+    }
+    return gbw;
+}
+
 int terminalCount(ElemType t) { return t == ElemType::Diode || t == ElemType::Load ? 2 : 3; }
 
 // Dense LU solve with partial pivoting. Returns false if singular.
@@ -280,6 +339,11 @@ bool Simulator::build(std::string& error) {
         return g;
     };
 
+    auto scaleOf = [&](int id) {
+        auto it = valueScale_.find(id);
+        return it == valueScale_.end() ? 1.0 : it->second;
+    };
+
     for (const auto& c : sch_.components()) {
         Element e{};
         e.componentId = c.id;
@@ -295,6 +359,7 @@ bool Simulator::build(std::string& error) {
                 if (c.kind == ComponentKind::Fuse) v = 0.05;  // nominal cold resistance
                 if (!v || *v <= 0) { error = c.ref + ": invalid resistance '" + c.value + "'"; return false; }
                 e.value = *v;
+                if (c.kind == ComponentKind::Resistor) e.value *= scaleOf(c.id);
                 break;
             }
             case ComponentKind::Switch: {
@@ -311,7 +376,7 @@ bool Simulator::build(std::string& error) {
                 twoTerminal(c.kind == ComponentKind::Capacitor ? ElemType::Capacitor : ElemType::Inductor);
                 auto v = parseEngineeringValue(primaryValue(c.value));
                 if (!v || *v <= 0) { error = c.ref + ": invalid value '" + c.value + "'"; return false; }
-                e.value = *v;
+                e.value = *v * scaleOf(c.id);
                 if (e.type == ElemType::Inductor) e.branch = unknowns_++;
                 break;
             }
@@ -365,6 +430,7 @@ bool Simulator::build(std::string& error) {
                 e.type = ElemType::OpAmp;
                 e.n = {node(c.id, 0), node(c.id, 1), node(c.id, 2)};  // IN+, IN-, OUT
                 e.branch = unknowns_++;
+                e.gbw = opAmpGainBandwidth(c.value);
                 break;
             case ComponentKind::Custom: {
                 const CustomPart* part = CustomPartRegistry::instance().find(c.customPart);
@@ -754,13 +820,10 @@ std::vector<DeviceReading> Simulator::readings(const std::vector<double>& x, dou
     return out;
 }
 
-DcResult Simulator::dcOperatingPoint() {
-    DcResult res;
-    if (!build(res.error)) return res;
-    std::vector<double> x(static_cast<size_t>(unknowns_), 0.0);
+bool Simulator::operatingPoint(std::vector<double>& x, int& iterations) {
     int iters = 0;
     bool ok = solve(0, 0, x, iters, 0.0, 1.0);
-    res.iterations = iters;
+    iterations = iters;
     if (!ok) {
         // Gmin stepping, then source stepping.
         std::fill(x.begin(), x.end(), 0.0);
@@ -772,8 +835,16 @@ DcResult Simulator::dcOperatingPoint() {
             ok = true;
             for (int s = 1; s <= 20 && ok; ++s) ok = solve(0, 0, x, iters, 0.0, s / 20.0);
         }
-        res.iterations += iters;
+        iterations += iters;
     }
+    return ok;
+}
+
+DcResult Simulator::dcOperatingPoint() {
+    DcResult res;
+    if (!build(res.error)) return res;
+    std::vector<double> x(static_cast<size_t>(unknowns_), 0.0);
+    bool ok = operatingPoint(x, res.iterations);
     if (!ok) {
         res.error = "DC operating point did not converge (check for floating nodes or unrealistic values).";
         return res;
@@ -955,6 +1026,403 @@ TransientResult Simulator::transient(double tStop, double tStep) {
         record(t);
     }
     res.mcus = mcuReports();
+    res.ok = true;
+    return res;
+}
+
+// ------------------------------------------------------------------ AC small-signal analysis
+
+namespace {
+using Cplx = std::complex<double>;
+
+constexpr double kHalfPowerDb = 3.0102999566398120;  // 10·log10(2): the "−3 dB" point
+
+// Dense complex LU solve with partial pivoting (same scheme as luSolve). Returns false if singular.
+bool luSolveComplex(std::vector<Cplx>& A, std::vector<Cplx>& b, int n) {
+    for (int k = 0; k < n; ++k) {
+        int piv = k;
+        double best = std::abs(A[static_cast<size_t>(k * n + k)]);
+        for (int r = k + 1; r < n; ++r) {
+            double v = std::abs(A[static_cast<size_t>(r * n + k)]);
+            if (v > best) { best = v; piv = r; }
+        }
+        if (best < 1e-300) return false;
+        if (piv != k) {
+            for (int c = 0; c < n; ++c) std::swap(A[static_cast<size_t>(k * n + c)], A[static_cast<size_t>(piv * n + c)]);
+            std::swap(b[static_cast<size_t>(k)], b[static_cast<size_t>(piv)]);
+        }
+        Cplx d = A[static_cast<size_t>(k * n + k)];
+        for (int r = k + 1; r < n; ++r) {
+            Cplx a = A[static_cast<size_t>(r * n + k)];
+            if (a.real() == 0.0 && a.imag() == 0.0) continue;  // sparse rows: nothing to eliminate
+            Cplx f = a / d;
+            A[static_cast<size_t>(r * n + k)] = 0.0;
+            for (int c = k + 1; c < n; ++c) A[static_cast<size_t>(r * n + c)] -= f * A[static_cast<size_t>(k * n + c)];
+            b[static_cast<size_t>(r)] -= f * b[static_cast<size_t>(k)];
+        }
+    }
+    for (int r = n - 1; r >= 0; --r) {
+        Cplx s = b[static_cast<size_t>(r)];
+        for (int c = r + 1; c < n; ++c) s -= A[static_cast<size_t>(r * n + c)] * b[static_cast<size_t>(c)];
+        b[static_cast<size_t>(r)] = s / A[static_cast<size_t>(r * n + r)];
+    }
+    return true;
+}
+
+double wrapDeg(double d) {
+    d = std::fmod(d, 360.0);
+    if (d > 180.0) d -= 360.0;
+    if (d <= -180.0) d += 360.0;
+    return d;
+}
+}  // namespace
+
+double magnitudeDb(std::complex<double> h) {
+    double m = std::abs(h);
+    return m > 1e-20 ? 20.0 * std::log10(m) : -400.0;
+}
+
+std::vector<double> unwrappedPhaseDeg(const std::vector<std::complex<double>>& h) {
+    std::vector<double> out;
+    out.reserve(h.size());
+    for (const auto& v : h) {
+        double p = std::arg(v) * 180.0 / kPi;
+        if (!out.empty()) p += 360.0 * std::round((out.back() - p) / 360.0);
+        out.push_back(p);
+    }
+    return out;
+}
+
+AcMetrics acMetrics(const std::vector<double>& freq, const std::vector<std::complex<double>>& h,
+                    const std::function<std::complex<double>(double)>& eval) {
+    AcMetrics m;
+    const size_t n = std::min(freq.size(), h.size());
+    if (n == 0) return m;
+    std::vector<double> f(freq.begin(), freq.begin() + static_cast<std::ptrdiff_t>(n)), db(n);
+    for (size_t i = 0; i < n; ++i) db[i] = magnitudeDb(h[i]);
+    const std::vector<double> phase =
+        unwrappedPhaseDeg(std::vector<Cplx>(h.begin(), h.begin() + static_cast<std::ptrdiff_t>(n)));
+    auto dbAt = [&](double u) { return magnitudeDb(eval(std::pow(10.0, u))); };
+
+    // Frequency between samples i and i+1 where the gain equals `target` (the samples bracket it): linear in
+    // (log f, dB), refined on the circuit itself with the Illinois variant of regula falsi when `eval` is given.
+    auto crossing = [&](size_t i, double target) {
+        double u0 = std::log10(f[i]), u1 = std::log10(f[i + 1]);
+        double g0 = db[i] - target, g1 = db[i + 1] - target;
+        double u = g0 == g1 ? u0 : u0 + (u1 - u0) * g0 / (g0 - g1);
+        if (eval) {
+            int side = 0;
+            for (int it = 0; it < 60; ++it) {
+                double g = dbAt(u) - target;
+                if (std::fabs(g) < 1e-10) break;
+                if ((g > 0) == (g0 > 0)) {
+                    u0 = u;
+                    g0 = g;
+                    if (side == -1) g1 *= 0.5;
+                    side = -1;
+                } else {
+                    u1 = u;
+                    g1 = g;
+                    if (side == 1) g0 *= 0.5;
+                    side = 1;
+                }
+                if (u1 - u0 < 1e-13 || g0 == g1) break;
+                u = (u0 * g1 - u1 * g0) / (g1 - g0);
+            }
+        }
+        return std::pow(10.0, u);
+    };
+
+    m.lowFreqDb = db[0];
+    size_t imax = 0;
+    for (size_t i = 1; i < n; ++i)
+        if (db[i] > db[imax]) imax = i;
+    m.peakDb = db[imax];
+    m.peakHz = f[imax];
+    const bool interiorPeak = imax > 0 && imax + 1 < n && db[imax] > db[0] + 1e-3 && db[imax] > db[n - 1] + 1e-3;
+    if (interiorPeak) {
+        double ua = std::log10(f[imax - 1]), ub = std::log10(f[imax + 1]);
+        double peakU = std::log10(f[imax]), peakDb = db[imax];
+        if (eval) {  // golden-section search for the maximum
+            const double r = 0.6180339887498949;
+            double c = ub - r * (ub - ua), d = ua + r * (ub - ua), fc = dbAt(c), fd = dbAt(d);
+            for (int it = 0; it < 60 && ub - ua > 1e-11; ++it) {
+                if (fc > fd) {
+                    ub = d;
+                    d = c;
+                    fd = fc;
+                    c = ub - r * (ub - ua);
+                    fc = dbAt(c);
+                } else {
+                    ua = c;
+                    c = d;
+                    fc = fd;
+                    d = ua + r * (ub - ua);
+                    fd = dbAt(d);
+                }
+            }
+            double u = 0.5 * (ua + ub), v = dbAt(u);
+            if (v > peakDb) {
+                peakU = u;
+                peakDb = v;
+            }
+        } else {  // vertex of the parabola through the three samples (dB over log f)
+            double y0 = db[imax - 1], y1 = db[imax], y2 = db[imax + 1];
+            double h0 = peakU - ua, h1 = ub - peakU;
+            double denom = h0 * h1 * (h0 + h1);
+            double a = (h0 * (y2 - y1) + h1 * (y0 - y1)) / denom;  // y ≈ y1 + b·t + a·t²
+            double b = (h0 * h0 * (y2 - y1) - h1 * h1 * (y0 - y1)) / denom;
+            if (a < 0) {
+                double t = std::clamp(-b / (2 * a), -h0, h1);
+                peakU += t;
+                peakDb = y1 + b * t + a * t * t;
+            }
+        }
+        m.peakHz = std::pow(10.0, peakU);
+        m.peakDb = peakDb;
+        f[imax] = m.peakHz;  // the refined peak replaces its sample so the half-power searches bracket it
+        db[imax] = m.peakDb;
+    }
+
+    const double target3 = m.lowFreqDb - kHalfPowerDb;
+    for (size_t i = 0; i + 1 < n; ++i)
+        if (db[i] > target3 && db[i + 1] <= target3) {
+            m.f3dbHz = crossing(i, target3);
+            break;
+        }
+    if (interiorPeak) {
+        const double target = m.peakDb - kHalfPowerDb;
+        for (size_t j = imax; j > 0; --j)
+            if (db[j - 1] <= target && db[j] > target) {
+                m.bwLowHz = crossing(j - 1, target);
+                break;
+            }
+        for (size_t j = imax; j + 1 < n; ++j)
+            if (db[j] > target && db[j + 1] <= target) {
+                m.bwHighHz = crossing(j, target);
+                break;
+            }
+    }
+    for (size_t i = 0; i + 1 < n; ++i)
+        if (db[i] >= 0 && db[i + 1] < 0 && db[i] - db[i + 1] > 1e-9) {  // a real fall, not round-off on a flat 0 dB
+            double fu = crossing(i, 0.0);
+            double t = (std::log10(fu) - std::log10(f[i])) / (std::log10(f[i + 1]) - std::log10(f[i]));
+            double p = phase[i] + t * (phase[i + 1] - phase[i]);
+            if (eval) {
+                double exact = std::arg(eval(fu)) * 180.0 / kPi;
+                p = exact + 360.0 * std::round((p - exact) / 360.0);
+            }
+            m.unityHz = fu;
+            m.phaseMarginDeg = wrapDeg(180.0 + p);
+            break;
+        }
+    return m;
+}
+
+AcResult Simulator::ac(const AcOptions& o) {
+    AcResult res;
+    if (!(o.fStart > 0) || !(o.fStop > o.fStart) || !std::isfinite(o.fStop)) {
+        res.error = "AC analysis needs a start frequency above 0 and a stop frequency above it.";
+        return res;
+    }
+    if (o.pointsPerDecade < 1 || o.pointsPerDecade > 1000) {
+        res.error = "AC analysis needs 1 to 1000 points per decade.";
+        return res;
+    }
+    const double decades = std::log10(o.fStop / o.fStart);
+    const double intervals = std::max(1.0, std::ceil(decades * o.pointsPerDecade - 1e-9));
+    if (intervals > 20000) {
+        res.error = "AC analysis is limited to 20 000 frequency points: narrow the range or use fewer points per decade.";
+        return res;
+    }
+    if (!build(res.error)) return res;
+    std::vector<double> x(static_cast<size_t>(unknowns_), 0.0);
+    int iters = 0;
+    if (!operatingPoint(x, iters)) {
+        res.error = "AC analysis needs the DC operating point, which did not converge (check for floating nodes or "
+                    "unrealistic values).";
+        return res;
+    }
+    const auto& nets = sch_.nets();
+    res.dcNetVoltages.assign(nets.size(), 0.0);
+    for (size_t i = 0; i < nets.size(); ++i) res.dcNetVoltages[i] = nodeV(x, netToNode_[i]);
+
+    // Stimulus.
+    struct Drive {
+        size_t elem;
+        Cplx phasor;
+    };
+    std::vector<Drive> drives;
+    auto isSource = [](const Element& e) { return e.type == ElemType::VSource || e.type == ElemType::ISource; };
+    auto phasorOf = [](const SourceSpec& s) {
+        return s.hasAc ? std::polar(s.acMagnitude, s.acPhaseDeg * kPi / 180.0) : Cplx(1.0, 0.0);
+    };
+    if (o.sourceId >= 0) {
+        for (size_t i = 0; i < elements_.size(); ++i)
+            if (elements_[i].componentId == o.sourceId && isSource(elements_[i]))
+                drives.push_back({i, phasorOf(elements_[i].source)});
+        if (drives.empty()) {
+            res.error = "The AC stimulus must be an independent voltage or current source.";
+            return res;
+        }
+    } else {
+        for (size_t i = 0; i < elements_.size(); ++i)
+            if (isSource(elements_[i]) && elements_[i].source.hasAc && elements_[i].source.acMagnitude != 0)
+                drives.push_back({i, phasorOf(elements_[i].source)});
+        for (size_t i = 0; i < elements_.size() && drives.empty(); ++i) {
+            const Element& e = elements_[i];
+            const Component* c = sch_.find(e.componentId);
+            if (isSource(e) && (e.source.kind == SourceSpec::Kind::Sine || (c && c->kind == ComponentKind::ACSource)))
+                drives.push_back({i, Cplx(1.0, 0.0)});
+        }
+        if (drives.empty()) {
+            res.error = "No AC stimulus: give the input source an AC magnitude (for example \"0 AC 1\" or "
+                        "\"SIN(0 1 1k) AC 1\") or choose it as the input.";
+            return res;
+        }
+    }
+    for (const auto& d : drives) res.stimulus.push_back(elements_[d.elem].componentId);
+
+    // Small-signal conductance matrix: the Newton Jacobian at the operating point (capacitors open, inductors short).
+    stamp(0, 0, x, 0.0, 1.0);
+    const std::vector<double> G = A_;
+    const int n = unknowns_;
+    std::vector<Cplx> M, rhs;
+    auto solveAt = [&](double freq) -> bool {
+        const double w = 2 * kPi * freq;
+        M.assign(G.begin(), G.end());
+        auto add = [&](int r, int c, Cplx v) {
+            if (r >= 0 && c >= 0) M[static_cast<size_t>(r * n + c)] += v;
+        };
+        for (const auto& e : elements_) {
+            int a = e.n[0], bb = e.n[1];
+            switch (e.type) {
+                case ElemType::Capacitor: {
+                    Cplx y(0.0, w * e.value);
+                    add(a, a, y);
+                    add(bb, bb, y);
+                    add(a, bb, -y);
+                    add(bb, a, -y);
+                    break;
+                }
+                case ElemType::Inductor: add(e.branch, e.branch, Cplx(0.0, -w * e.value)); break;
+                case ElemType::OpAmp: {
+                    // Single pole that keeps the gain–bandwidth product: (1 + jf·A'/GBW)·Vo − A'·(V+ − V−) = 0, with
+                    // A' the open-loop gain at the operating point (falling towards 0 as the output saturates).
+                    double th = std::tanh(kOpAmpGain * (nodeV(x, e.n[0]) - nodeV(x, e.n[1])) / e.vsat);
+                    add(e.branch, e.n[2], Cplx(0.0, freq * kOpAmpGain * (1.0 - th * th) / e.gbw));
+                    break;
+                }
+                default: break;
+            }
+        }
+        rhs.assign(static_cast<size_t>(n), Cplx(0.0, 0.0));
+        for (const auto& d : drives) {
+            const Element& e = elements_[d.elem];
+            if (e.type == ElemType::VSource) {
+                rhs[static_cast<size_t>(e.branch)] += d.phasor;
+            } else {
+                if (e.n[0] >= 0) rhs[static_cast<size_t>(e.n[0])] += d.phasor;
+                if (e.n[1] >= 0) rhs[static_cast<size_t>(e.n[1])] -= d.phasor;
+            }
+        }
+        return luSolveComplex(M, rhs, n);
+    };
+
+    const auto points = static_cast<size_t>(intervals) + 1;
+    res.netPhasors.assign(nets.size(), {});
+    for (auto& v : res.netPhasors) v.reserve(points);
+    for (size_t i = 0; i < points; ++i) {
+        double freq = i + 1 == points ? o.fStop
+                                      : o.fStart * std::pow(10.0, static_cast<double>(i) / o.pointsPerDecade);
+        if (!solveAt(freq)) {
+            res.error = "AC analysis: the circuit matrix is singular at " + formatEngineeringValue(freq, "Hz") +
+                        " (a floating node or a loop of voltage sources).";
+            return res;
+        }
+        res.frequency.push_back(freq);
+        for (size_t k = 0; k < nets.size(); ++k) {
+            int nd = netToNode_[k];
+            res.netPhasors[k].push_back(nd < 0 ? Cplx(0.0, 0.0) : rhs[static_cast<size_t>(nd)]);
+        }
+    }
+
+    // Readouts, refined on the circuit while the solve budget lasts (large circuits fall back to interpolation).
+    std::vector<int> measure = o.measureNets;
+    if (measure.empty())
+        for (size_t k = 0; k < nets.size(); ++k)
+            if (netToNode_[k] >= 0) measure.push_back(static_cast<int>(k));
+    const double cube = static_cast<double>(n) * n * n;
+    long budget = static_cast<long>(std::min(1e6, std::max(400.0, 4e9 / std::max(cube, 1.0))));
+    for (int net : measure) {
+        if (net < 0 || static_cast<size_t>(net) >= nets.size()) continue;
+        const int nd = netToNode_[static_cast<size_t>(net)];
+        std::function<Cplx(double)> eval;
+        if (nd >= 0 && budget > 0)
+            eval = [&budget, &solveAt, &rhs, nd](double freq) {
+                --budget;
+                return solveAt(freq) ? rhs[static_cast<size_t>(nd)] : Cplx(0.0, 0.0);
+            };
+        res.metrics[net] = acMetrics(res.frequency, res.netPhasors[static_cast<size_t>(net)], eval);
+    }
+    res.ok = true;
+    return res;
+}
+
+DcSweepResult Simulator::dcSweep(int componentId, double start, double stop, double step) {
+    DcSweepResult res;
+    step = std::fabs(step);
+    if (!(step > 0) || !std::isfinite(start) || !std::isfinite(stop)) {
+        res.error = "The DC sweep needs finite start and stop values and a non-zero step.";
+        return res;
+    }
+    const double span = std::fabs(stop - start);
+    if (span / step > 100000) {
+        res.error = "The DC sweep is limited to 100 000 points: use a larger step.";
+        return res;
+    }
+    if (!build(res.error)) return res;
+    std::vector<size_t> swept;
+    for (size_t i = 0; i < elements_.size(); ++i)
+        if (elements_[i].componentId == componentId &&
+            (elements_[i].type == ElemType::VSource || elements_[i].type == ElemType::ISource))
+            swept.push_back(i);
+    const Component* comp = sch_.find(componentId);
+    if (swept.empty() || !comp) {
+        res.error = "The DC sweep needs an independent voltage or current source.";
+        return res;
+    }
+    const std::string unit = elements_[swept.front()].type == ElemType::VSource ? "V" : "A";
+    std::vector<double> values;
+    const double dir = stop >= start ? 1.0 : -1.0;
+    const auto count = static_cast<size_t>(std::floor(span / step + 1e-9));
+    for (size_t i = 0; i <= count; ++i) values.push_back(start + dir * static_cast<double>(i) * step);
+    if (span - static_cast<double>(count) * step > 1e-9 * step) values.push_back(stop);
+
+    const auto& nets = sch_.nets();
+    res.netVoltages.assign(nets.size(), {});
+    std::vector<double> x(static_cast<size_t>(unknowns_), 0.0);
+    for (double v : values) {
+        for (size_t i : swept) {
+            SourceSpec dc;
+            dc.dc = v;
+            elements_[i].source = dc;
+        }
+        int iters = 0;
+        bool ok = solve(0, 0, x, iters, 0.0, 1.0);  // continuation from the previous point
+        if (!ok) {
+            std::fill(x.begin(), x.end(), 0.0);
+            ok = operatingPoint(x, iters);
+        }
+        if (!ok) {
+            res.error = "DC sweep did not converge at " + comp->ref + " = " + formatEngineeringValue(v, unit) + ".";
+            return res;
+        }
+        res.values.push_back(v);
+        for (size_t k = 0; k < nets.size(); ++k) res.netVoltages[k].push_back(nodeV(x, netToNode_[k]));
+        for (const auto& r : readings(x, 0))
+            if (r.subIndex == 0) res.currents[r.componentId].push_back(r.current);
+    }
     res.ok = true;
     return res;
 }

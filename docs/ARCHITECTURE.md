@@ -52,6 +52,9 @@ This gives us:
   current functions. Exponentials are linearised past a limit (`limexp`) and node-voltage steps are damped.
 - If Newton fails to converge, the solver falls back to gmin stepping and then source stepping.
 - Transient analysis uses backward-Euler companion models for C and L, and sub-steps on non-convergence.
+- AC analysis reuses the Newton Jacobian at the operating point as the small-signal matrix, adds jωC, jωL and the
+  op-amp pole, and solves the complex system per frequency. DC / parameter sweeps, Monte Carlo / worst case and
+  FFT / THD build on these analyses in `Analysis.cpp` (see [SIMULATION.md](SIMULATION.md)).
 
 ### PCB
 - **Auto-placement.** A greedy, connectivity-ordered placer. Each part goes where the Manhattan distance from

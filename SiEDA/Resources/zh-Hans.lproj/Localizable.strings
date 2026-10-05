@@ -9,6 +9,7 @@
 "3D Viewer" = "3D 查看器";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "AC 扫描";
 "AI Assistance" = "AI 辅助";
 "AI Models" = "AI 模型";
 "AI Off" = "AI 已关闭";
@@ -36,6 +37,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "模拟时间步长：越细可解析越快的信号，越粗运行越快";
 "Analysis" = "分析";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "分析预设 — 微控制器固件需要更长的运行时间 (例如 1 s，100 µs 步长)";
+"Analysis type" = "分析类型";
 "Annotate" = "自动标注";
 "Appearance" = "外观";
 "Appliance Type" = "家电类型";
@@ -60,6 +62,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "装配用 BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "对高速网络的过孔残桩进行背钻";
+"Bandwidth" = "带宽";
 "Base Design" = "基础设计";
 "Base URL" = "基础 URL";
 "Bill of Materials" = "物料清单";
@@ -104,7 +107,9 @@
 "Currents" = "电流";
 "DC" = "DC";
 "DC Operating Point" = "DC 工作点";
+"DC Sweep" = "DC 扫描";
 "DC operating point (⇧⌘D)" = "DC 工作点 (⇧⌘D)";
+"DC voltage" = "直流电压";
 "DEVICES" = "器件";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -161,6 +166,7 @@
 "Fix Duplicates Only" = "仅修复重复项";
 "Flip" = "翻转";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "元件安装所用的封装：片式尺寸、通孔、钽电容或电解电容外壳";
+"Gain" = "增益";
 "Gap Before" = "前置空位";
 "Generate Design" = "生成设计";
 "Give each selected pin its own slot" = "为每个所选引脚分配独立槽位";
@@ -182,6 +188,7 @@
 "Industry Profile" = "行业配置";
 "Infer Types" = "推断类型";
 "Info" = "信息";
+"Input" = "输入";
 "Insert an empty slot before the pin to separate a group" = "在引脚前插入空槽位以分隔分组";
 "Inspector" = "检查器";
 "Interface language" = "界面语言";
@@ -207,7 +214,10 @@
 "Local (this sheet)" = "本地（本图纸）";
 "Locked (Auto Place keeps it)" = "已锁定 (自动放置会保留)";
 "Long firmware run — 5 s, 500 µs" = "长时间固件运行 — 5 s，500 µs";
+"Magnitude" = "幅度";
 "Mask" = "阻焊";
+"Mean" = "平均值";
+"Measure" = "测量项";
 "Medical Device Class" = "医疗器械类别";
 "Memory Design" = "存储器设计";
 "Mirror" = "镜像";
@@ -215,6 +225,7 @@
 "Mode" = "模式";
 "Model" = "模型";
 "Model back-ends" = "模型后端";
+"Monte Carlo" = "蒙特卡洛";
 "Mounting" = "安装方式";
 "Move Selection Here" = "将所选内容移到此处";
 "Move the footprint origin to the centre of the pads" = "将封装原点移至焊盘中心";
@@ -236,6 +247,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "无铺铜。地铺铜可缩短回流路径、承载大电流，并且 ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "没有开关。请在原理图中添加开关 (值设为 \"push\" 即为按钮)。";
 "No." = "编号";
+"Nominal" = "标称值";
 "None" = "无";
 "None (mechanical)" = "无 (机械)";
 "Not a memory design" = "非存储器设计";
@@ -270,6 +282,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "分属不同电气隔离域 (跨隔离器和隔离式转换器) 的元件、走线和铺铜 ";
 "Paste API key" = "粘贴 API 密钥";
 "Pattern" = "阵列";
+"Peak" = "峰值";
+"Phase" = "相位";
+"Phase margin" = "相位裕度";
 "Pin" = "引脚";
 "Pins: " = "引脚: ";
 "Place Now" = "立即放置";
@@ -305,14 +320,18 @@
 "Robot Platform" = "机器人平台";
 "Rotate" = "旋转";
 "Run" = "运行";
+"Run AC Sweep" = "运行 AC 扫描";
+"Run DC Sweep" = "运行 DC 扫描";
 "Run Design Rule Check" = "运行设计规则检查";
 "Run ERC and DRC" = "运行 ERC 和 DRC";
 "Run Electrical Rule Check" = "运行电气规则检查";
 "Run Live" = "实时运行";
+"Run Monte Carlo" = "运行蒙特卡洛分析";
 "Run Transient" = "运行瞬态分析";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "运行瞬态分析即可执行：引脚驱动电路，输入和 ADC 读取电路，串口输出显示在“仿真”中。";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "实时运行电路板 (⌘R)：LED 点亮、点击开关、固件运行、实时探针";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "实时运行电路板：固件、LED、开关、示波器和串口监视器";
+"Runs" = "次数";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "SPICE 网表";
 "STL (ASCII)" = "STL (ASCII)";
@@ -358,6 +377,7 @@
 "Simulation" = "仿真";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "相对于实时的仿真速度 (慢动作可显示快速信号)";
 "Solve the DC operating point once — shows voltage probes" = "求解一次 DC 工作点 — 显示电压探针";
+"Source" = "电源";
 "Speed" = "速度";
 "Spin" = "自转";
 "Stack" = "堆叠";
@@ -386,6 +406,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "离线设计器使用 SiEDA 内置的参考电路。无需网络或 API 密钥 — 非常适合演示和物理隔离的实验室。";
 "The plain box: pins in number order down the left, then up the right" = "普通方框：引脚按编号顺序沿左侧向下，再沿右侧向上";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "启动画面会预载元件库和参考设计五秒钟，然后打开主窗口。载入完成后，点击它或按 Esc 即可跳过。";
+"Transient" = "瞬态";
 "Transient analysis" = "瞬态分析";
 "Transient: stop" = "瞬态：停止时间";
 "Tune Lengths" = "等长调节";
@@ -395,6 +416,7 @@
 "Undo (⌘Z)" = "撤销 (⌘Z)";
 "Undo the last footprint edit" = "撤销上一次封装编辑";
 "Undo the last symbol edit" = "撤销上一次符号编辑";
+"Unity gain" = "单位增益";
 "Unstack" = "取消堆叠";
 "Upload .hex…" = "上传 .hex…";
 "Validate" = "验证";
@@ -413,6 +435,7 @@
 "Window" = "窗口";
 "Workspace" = "工作区";
 "Workspaces" = "工作区";
+"Worst case" = "最坏情况";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "编写提示词或粘贴 PRD。智能体团队会将其转化为经过验证的原理图、已布线的 PCB 和 3D 模型。";
 "X-Ray Stack" = "X 光层叠";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "可以用 ⌘Z 撤销此操作。已放置在原理图中的元件无法删除。";
@@ -427,13 +450,18 @@
 "Zoom to Selection" = "缩放到所选内容";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "缩放以适合 / 主页 (Home、0 或 ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "缩放到所选内容 (⇧Z 或 ⌥⌘0)";
+"auto" = "自动";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "例如“一款电池供电的 9 V 小夜灯，可点亮一个白色 LED…”";
+"from" = "从";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "点/十倍频程";
 "public client id" = "公共客户端 ID";
 "standard" = "标准";
 "step" = "步长";
 "stop" = "停止";
+"to" = "至";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "按住 ⌥ 拖动或双指拖动以平移";

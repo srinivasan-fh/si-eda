@@ -9,6 +9,7 @@
 "3D Viewer" = "Pemapar 3D";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "Sapuan AC";
 "AI Assistance" = "Bantuan AI";
 "AI Models" = "Model AI";
 "AI Off" = "AI Mati";
@@ -36,6 +37,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "Langkah masa analog: lebih halus menyelesaikan isyarat lebih pantas, lebih kasar berjalan lebih cepat";
 "Analysis" = "Analisis";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "Praset analisis — perisian tegar mikropengawal memerlukan larian lebih lama (cth. 1 s pada 100 µs)";
+"Analysis type" = "Jenis analisis";
 "Annotate" = "Anotasi";
 "Appearance" = "Penampilan";
 "Appliance Type" = "Jenis Perkakas";
@@ -60,6 +62,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM untuk Pemasangan (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "Gerudi balik stub via pada net laju";
+"Bandwidth" = "Lebar jalur";
 "Base Design" = "Reka Bentuk Asas";
 "Base URL" = "URL Asas";
 "Bill of Materials" = "Senarai Bahan";
@@ -104,7 +107,9 @@
 "Currents" = "Arus";
 "DC" = "DC";
 "DC Operating Point" = "Titik Operasi DC";
+"DC Sweep" = "Sapuan DC";
 "DC operating point (⇧⌘D)" = "Titik operasi DC (⇧⌘D)";
+"DC voltage" = "Voltan DC";
 "DEVICES" = "PERANTI";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -161,6 +166,7 @@
 "Fix Duplicates Only" = "Betulkan Pendua Sahaja";
 "Flip" = "Balikkan";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Tapak kaki komponen dipasang: saiz cip, lubang telus, kes tantalum atau elektrolitik";
+"Gain" = "Gandaan";
 "Gap Before" = "Jurang Sebelum";
 "Generate Design" = "Jana Reka Bentuk";
 "Give each selected pin its own slot" = "Beri setiap pin terpilih slot tersendiri";
@@ -182,6 +188,7 @@
 "Industry Profile" = "Profil Industri";
 "Infer Types" = "Simpulkan Jenis";
 "Info" = "Maklumat";
+"Input" = "Input";
 "Insert an empty slot before the pin to separate a group" = "Sisipkan slot kosong sebelum pin untuk memisahkan kumpulan";
 "Inspector" = "Pemeriksa";
 "Interface language" = "Bahasa antara muka";
@@ -207,7 +214,10 @@
 "Local (this sheet)" = "Setempat (helaian ini)";
 "Locked (Auto Place keeps it)" = "Dikunci (Letak Automatik mengekalkannya)";
 "Long firmware run — 5 s, 500 µs" = "Larian perisian tegar panjang — 5 s, 500 µs";
+"Magnitude" = "Magnitud";
 "Mask" = "Topeng";
+"Mean" = "Purata";
+"Measure" = "Ukuran";
 "Medical Device Class" = "Kelas Peranti Perubatan";
 "Memory Design" = "Reka Bentuk Memori";
 "Mirror" = "Cermin";
@@ -215,6 +225,7 @@
 "Mode" = "Mod";
 "Model" = "Model";
 "Model back-ends" = "Bahagian belakang model";
+"Monte Carlo" = "Monte Carlo";
 "Mounting" = "Pelekapan";
 "Move Selection Here" = "Alih Pilihan ke Sini";
 "Move the footprint origin to the centre of the pads" = "Alihkan asalan tapak kaki ke tengah pad";
@@ -236,6 +247,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "Tiada tuangan. Tuangan bumi memendekkan laluan balik, membawa arus tinggi dan membiarkan ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "Tiada suis. Tambah Switch pada skematik (nilai \"push\" untuk butang tekan).";
 "No." = "No.";
+"Nominal" = "Nominal";
 "None" = "Tiada";
 "None (mechanical)" = "Tiada (mekanikal)";
 "Not a memory design" = "Bukan reka bentuk memori";
@@ -270,6 +282,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "Komponen, trek dan tuangan domain galvanik berasingan (merentasi pengasing dan penukar terasing) ";
 "Paste API key" = "Tampal kunci API";
 "Pattern" = "Corak";
+"Peak" = "Puncak";
+"Phase" = "Fasa";
+"Phase margin" = "Jidar fasa";
 "Pin" = "Pin";
 "Pins: " = "Pin: ";
 "Place Now" = "Letak Sekarang";
@@ -305,14 +320,18 @@
 "Robot Platform" = "Platform Robot";
 "Rotate" = "Putar";
 "Run" = "Jalankan";
+"Run AC Sweep" = "Jalankan Sapuan AC";
+"Run DC Sweep" = "Jalankan Sapuan DC";
 "Run Design Rule Check" = "Jalankan Semakan Peraturan Reka Bentuk";
 "Run ERC and DRC" = "Jalankan ERC dan DRC";
 "Run Electrical Rule Check" = "Jalankan Semakan Peraturan Elektrik";
 "Run Live" = "Jalankan Langsung";
+"Run Monte Carlo" = "Jalankan Monte Carlo";
 "Run Transient" = "Jalankan Analisis Fana";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "Jalankan analisis Fana untuk melaksanakannya: pin memacu litar, input dan ADC membacanya, dan output bersiri dipaparkan dalam Simulasi.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "Jalankan papan dalam masa nyata (⌘R): LED menyala, klik suis, perisian tegar berjalan, prob langsung";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "Jalankan papan dalam masa nyata: perisian tegar, LED, suis, skop dan pemantau bersiri";
+"Runs" = "Larian";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "Netlist SPICE";
 "STL (ASCII)" = "STL (ASCII)";
@@ -358,6 +377,7 @@
 "Simulation" = "Simulasi";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "Kelajuan simulasi berbanding masa nyata (gerak perlahan menunjukkan isyarat pantas)";
 "Solve the DC operating point once — shows voltage probes" = "Selesaikan titik operasi DC sekali — menunjukkan prob voltan";
+"Source" = "Sumber";
 "Speed" = "Kelajuan";
 "Spin" = "Pusing";
 "Stack" = "Tindan";
@@ -386,6 +406,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Pereka bentuk luar talian menggunakan litar rujukan terbina dalam SiEDA. Tiada rangkaian atau kunci API diperlukan — sesuai untuk demo dan makmal terasing.";
 "The plain box: pins in number order down the left, then up the right" = "Kotak asas: pin mengikut susunan nombor menurun di kiri, kemudian menaik di kanan";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "Skrin percikan pramuat pustaka komponen dan reka bentuk rujukan selama lima saat, kemudian membuka tetingkap utama. Klik atau tekan Esc untuk melangkau setelah pemuatan selesai.";
+"Transient" = "Fana";
 "Transient analysis" = "Analisis fana";
 "Transient: stop" = "Fana: henti";
 "Tune Lengths" = "Tala Panjang";
@@ -395,6 +416,7 @@
 "Undo (⌘Z)" = "Buat Asal (⌘Z)";
 "Undo the last footprint edit" = "Buat asal suntingan tapak kaki terakhir";
 "Undo the last symbol edit" = "Buat asal suntingan simbol terakhir";
+"Unity gain" = "Gandaan uniti";
 "Unstack" = "Nyahtindan";
 "Upload .hex…" = "Muat Naik .hex…";
 "Validate" = "Sahkan";
@@ -413,6 +435,7 @@
 "Window" = "Tetingkap";
 "Workspace" = "Ruang Kerja";
 "Workspaces" = "Ruang Kerja";
+"Worst case" = "Kes terburuk";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "Tulis gesaan atau tampal PRD. Pasukan ejen menukarkannya menjadi skematik disahkan, PCB berlaluan dan model 3D.";
 "X-Ray Stack" = "Tindanan X-Ray";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "Anda boleh buat asal dengan ⌘Z. Komponen yang diletakkan dalam skematik tidak boleh dipadam.";
@@ -427,13 +450,18 @@
 "Zoom to Selection" = "Zum ke Pilihan";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "Zum muat / Laman Utama (Home, 0 atau ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "Zum ke pilihan (⇧Z atau ⌥⌘0)";
+"auto" = "auto";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "cth. “Lampu tidur 9 V berkuasa bateri yang menyalakan LED putih…”";
+"from" = "dari";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "titik/dekad";
 "public client id" = "id klien awam";
 "standard" = "standard";
 "step" = "langkah";
 "stop" = "henti";
+"to" = "hingga";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-seret atau seret dua jari untuk menatal";

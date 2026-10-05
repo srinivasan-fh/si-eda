@@ -1,13 +1,26 @@
 import Charts
 import SwiftUI
 
-/// SPICE-class analysis workspace: DC operating point table and transient waveforms.
+/// SPICE-class analysis workspace: DC operating point table beside transient waveforms, AC Bode plots, DC sweeps or
+/// Monte Carlo tolerance analysis.
 struct SimulationView: View {
     @EnvironmentObject private var store: DesignStore
     @State private var stopText = "5m"
     @State private var stepText = "5u"
     @State private var hiddenSeries: Set<String> = []
     @State private var showCurrents = false
+    @State private var analysis: SimulationAnalysis = .transient
+    @State private var acStart = "10"
+    @State private var acStop = "1MEG"
+    @State private var acPoints = "50"
+    @State private var acSource = ""
+    @State private var sweepSource = "V1"
+    @State private var sweepStart = "0"
+    @State private var sweepStop = "5"
+    @State private var sweepStep = "50m"
+    @State private var mcNet = ""
+    @State private var mcBandwidth = false
+    @State private var mcRuns = "200"
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,25 +32,74 @@ struct SimulationView: View {
                     Task { await store.simulateDC() }
                 } label: { Label("DC Operating Point", systemImage: "play.fill") }
                 Divider().frame(height: 18)
-                Text("Transient: stop").foregroundStyle(Theme.textMuted)
-                TextField("stop", text: $stopText).textFieldStyle(.blue).frame(width: 64)
-                Text("step").foregroundStyle(Theme.textMuted)
-                TextField("step", text: $stepText).textFieldStyle(.blue).frame(width: 64)
-                Menu {
-                    Button("Circuit — 5 ms, 5 µs") { stopText = "5m"; stepText = "5u" }
-                    Button("Serial output — 200 ms, 10 µs") { stopText = "200m"; stepText = "10u" }
-                    Button("Firmware — 1 s, 100 µs") { stopText = "1"; stepText = "100u" }
-                    Button("Long firmware run — 5 s, 500 µs") { stopText = "5"; stepText = "500u" }
-                } label: {
-                    Image(systemName: "timer")
+                Picker("Analysis type", selection: $analysis) {
+                    Text("Transient").tag(SimulationAnalysis.transient)
+                    Text("AC Sweep").tag(SimulationAnalysis.ac)
+                    Text("DC Sweep").tag(SimulationAnalysis.dcSweep)
+                    Text("Monte Carlo").tag(SimulationAnalysis.monteCarlo)
                 }
-                .menuStyle(.borderlessButton)
+                .labelsHidden()
                 .fixedSize()
-                .help("Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)")
-                .accessibilityLabel("Transient presets")
-                Button {
-                    runTransient()
-                } label: { Label("Run Transient", systemImage: "waveform") }
+                switch analysis {
+                case .transient:
+                    Text("Transient: stop").foregroundStyle(Theme.textMuted)
+                    TextField("stop", text: $stopText).textFieldStyle(.blue).frame(width: 64)
+                    Text("step").foregroundStyle(Theme.textMuted)
+                    TextField("step", text: $stepText).textFieldStyle(.blue).frame(width: 64)
+                    Menu {
+                        Button("Circuit — 5 ms, 5 µs") { stopText = "5m"; stepText = "5u" }
+                        Button("Serial output — 200 ms, 10 µs") { stopText = "200m"; stepText = "10u" }
+                        Button("Firmware — 1 s, 100 µs") { stopText = "1"; stepText = "100u" }
+                        Button("Long firmware run — 5 s, 500 µs") { stopText = "5"; stepText = "500u" }
+                    } label: {
+                        Image(systemName: "timer")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)")
+                    .accessibilityLabel("Transient presets")
+                    Button {
+                        runTransient()
+                    } label: { Label("Run Transient", systemImage: "waveform") }
+                case .ac:
+                    Text("from").foregroundStyle(Theme.textMuted)
+                    TextField("from", text: $acStart).textFieldStyle(.blue).frame(width: 56)
+                    Text("to").foregroundStyle(Theme.textMuted)
+                    TextField("to", text: $acStop).textFieldStyle(.blue).frame(width: 56)
+                    TextField("50", text: $acPoints).textFieldStyle(.blue).frame(width: 40)
+                    Text("points/decade").foregroundStyle(Theme.textMuted)
+                    Text("Input").foregroundStyle(Theme.textMuted)
+                    TextField("auto", text: $acSource).textFieldStyle(.blue).frame(width: 52)
+                    Button {
+                        runAC()
+                    } label: { Label("Run AC Sweep", systemImage: "chart.xyaxis.line") }
+                case .dcSweep:
+                    Text("Source").foregroundStyle(Theme.textMuted)
+                    TextField("Source", text: $sweepSource).textFieldStyle(.blue).frame(width: 52)
+                    Text("from").foregroundStyle(Theme.textMuted)
+                    TextField("from", text: $sweepStart).textFieldStyle(.blue).frame(width: 52)
+                    Text("to").foregroundStyle(Theme.textMuted)
+                    TextField("to", text: $sweepStop).textFieldStyle(.blue).frame(width: 52)
+                    Text("step").foregroundStyle(Theme.textMuted)
+                    TextField("step", text: $sweepStep).textFieldStyle(.blue).frame(width: 52)
+                    Button {
+                        runDCSweep()
+                    } label: { Label("Run DC Sweep", systemImage: "chart.line.uptrend.xyaxis") }
+                case .monteCarlo:
+                    Text("Net").foregroundStyle(Theme.textMuted)
+                    TextField("Net", text: $mcNet).textFieldStyle(.blue).frame(width: 72)
+                    Picker("Measure", selection: $mcBandwidth) {
+                        Text("DC voltage").tag(false)
+                        Text("Bandwidth").tag(true)
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    Text("Runs").foregroundStyle(Theme.textMuted)
+                    TextField("200", text: $mcRuns).textFieldStyle(.blue).frame(width: 48)
+                    Button {
+                        runMonteCarlo()
+                    } label: { Label("Run Monte Carlo", systemImage: "chart.bar") }
+                }
                 Spacer()
                 Button {
                     store.export(.spice)
@@ -52,7 +114,7 @@ struct SimulationView: View {
                     dcPanel
                         .frame(width: 300)
                     Rectangle().fill(Theme.blue.opacity(0.3)).frame(width: 1)
-                    transientPanel
+                    analysisPanel
                         .frame(minWidth: 300, maxWidth: .infinity)
                 }
             }
@@ -66,6 +128,89 @@ struct SimulationView: View {
             return
         }
         Task { await store.simulateTransient(stop: stop, step: step) }
+    }
+
+    // Values go to the core as typed ("1MEG", "50m"); it parses and validates them.
+    private func runAC() {
+        guard let points = Int(acPoints.trimmingCharacters(in: .whitespaces)), points > 0 else {
+            store.alert = AlertItem(title: "Invalid analysis settings", message: "Use a whole number of points per decade, e.g. 50.")
+            return
+        }
+        let source = acSource.trimmingCharacters(in: .whitespaces)
+        Task { await store.simulateAC(start: acStart, stop: acStop, pointsPerDecade: points, source: source) }
+    }
+
+    private func runDCSweep() {
+        let source = sweepSource.trimmingCharacters(in: .whitespaces)
+        Task { await store.simulateDCSweep(source: source, start: sweepStart, stop: sweepStop, step: sweepStep) }
+    }
+
+    private func runMonteCarlo() {
+        let net = mcNet.trimmingCharacters(in: .whitespaces)
+        guard !net.isEmpty, let runs = Int(mcRuns.trimmingCharacters(in: .whitespaces)), runs > 0 else {
+            store.alert = AlertItem(title: "Invalid analysis settings", message: "Name the net to measure (e.g. OUT) and the number of runs (e.g. 200).")
+            return
+        }
+        Task { await store.simulateMonteCarlo(net: net, measure: mcBandwidth ? "f3db" : "dc", runs: runs) }
+    }
+
+    // MARK: Analyses
+
+    @ViewBuilder private var analysisPanel: some View {
+        switch analysis {
+        case .transient:
+            transientPanel
+        case .ac:
+            resultPanel {
+                if let ac = store.acResult {
+                    if ac.ok { ACAnalysisPanel(result: ac) } else { failure(ac.error) }
+                } else {
+                    BlueEmptyState(systemImage: "chart.xyaxis.line", title: "AC analysis",
+                                   message: "Frequency response of every node, linearised at the DC operating point. Give the input source an AC magnitude (for example 0 AC 1 or SIN(0 1 1k) AC 1) or name it as the input.",
+                                   actionTitle: "Run AC Sweep") { runAC() }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+        case .dcSweep:
+            resultPanel {
+                if let sweep = store.dcSweepResult {
+                    if sweep.ok { DCSweepPanel(result: sweep) } else { failure(sweep.error) }
+                } else {
+                    BlueEmptyState(systemImage: "chart.line.uptrend.xyaxis", title: "DC sweep",
+                                   message: "Steps a voltage or current source (by reference, e.g. V1) and solves the operating point at every value: transfer curves, diode and transistor characteristics.",
+                                   actionTitle: "Run DC Sweep") { runDCSweep() }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+        case .monteCarlo:
+            resultPanel {
+                if let mc = store.monteCarloResult {
+                    if mc.ok { MonteCarloPanel(result: mc) } else { failure(mc.error) }
+                } else {
+                    BlueEmptyState(systemImage: "chart.bar", title: "Monte Carlo and worst case",
+                                   message: "Varies every resistor, capacitor and inductor within its tolerance (a % in the value, else R 1 %, C 10 %, L 20 %) and measures a net's DC voltage or −3 dB bandwidth.",
+                                   actionTitle: "Run Monte Carlo") { runMonteCarlo() }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+        }
+    }
+
+    private func resultPanel<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            content()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(14)
+        .bluePanel()
+        .padding(10)
+    }
+
+    private func failure(_ message: String) -> some View {
+        VStack(alignment: .leading) {
+            Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Theme.warning)
+            Spacer()
+        }
     }
 
     // MARK: DC

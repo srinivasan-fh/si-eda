@@ -9,6 +9,7 @@
 "3D Viewer" = "3D ビューア";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "AC スイープ";
 "AI Assistance" = "AI アシスト";
 "AI Models" = "AI モデル";
 "AI Off" = "AI オフ";
@@ -36,6 +37,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "アナログタイムステップ：細かいほど高速な信号を解析でき、粗いほど高速に実行";
 "Analysis" = "解析";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "解析プリセット — マイコンのファームウェアには長い実行が必要 (例: 1 s、100 µs)";
+"Analysis type" = "解析の種類";
 "Annotate" = "アノテーション";
 "Appearance" = "外観";
 "Appliance Type" = "家電の種類";
@@ -60,6 +62,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "実装用 BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "高速ネットのビアスタブをバックドリル";
+"Bandwidth" = "帯域幅";
 "Base Design" = "ベース設計";
 "Base URL" = "ベース URL";
 "Bill of Materials" = "部品表";
@@ -104,7 +107,9 @@
 "Currents" = "電流";
 "DC" = "DC";
 "DC Operating Point" = "DC 動作点";
+"DC Sweep" = "DC スイープ";
 "DC operating point (⇧⌘D)" = "DC 動作点 (⇧⌘D)";
+"DC voltage" = "DC 電圧";
 "DEVICES" = "デバイス";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -161,6 +166,7 @@
 "Fix Duplicates Only" = "重複のみ修正";
 "Flip" = "反転";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "部品のフットプリント：チップサイズ、スルーホール、タンタルまたは電解コンデンサのケース";
+"Gain" = "ゲイン";
 "Gap Before" = "前に隙間";
 "Generate Design" = "設計を生成";
 "Give each selected pin its own slot" = "選択した各ピンに個別のスロットを割り当てる";
@@ -182,6 +188,7 @@
 "Industry Profile" = "業界プロファイル";
 "Infer Types" = "種類を推定";
 "Info" = "情報";
+"Input" = "入力";
 "Insert an empty slot before the pin to separate a group" = "ピンの前に空きスロットを挿入してグループを区切る";
 "Inspector" = "インスペクタ";
 "Interface language" = "インターフェイスの言語";
@@ -207,7 +214,10 @@
 "Local (this sheet)" = "ローカル（このシート）";
 "Locked (Auto Place keeps it)" = "ロック (自動配置で維持)";
 "Long firmware run — 5 s, 500 µs" = "長時間ファームウェア実行 — 5 s、500 µs";
+"Magnitude" = "振幅";
 "Mask" = "マスク";
+"Mean" = "平均";
+"Measure" = "測定対象";
 "Medical Device Class" = "医療機器クラス";
 "Memory Design" = "メモリ設計";
 "Mirror" = "ミラー";
@@ -215,6 +225,7 @@
 "Mode" = "モード";
 "Model" = "モデル";
 "Model back-ends" = "モデルバックエンド";
+"Monte Carlo" = "モンテカルロ";
 "Mounting" = "実装方式";
 "Move Selection Here" = "選択項目をここへ移動";
 "Move the footprint origin to the centre of the pads" = "フットプリントの原点をパッドの中心に移動";
@@ -236,6 +247,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "ベタなし。グラウンドベタはリターンパスを短縮し、大電流を流し、さらに ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "スイッチがありません。回路図にスイッチを追加してください (値を \"push\" にすると押しボタン)。";
 "No." = "番号";
+"Nominal" = "公称値";
 "None" = "なし";
 "None (mechanical)" = "なし (機械)";
 "Not a memory design" = "メモリ設計ではない";
@@ -270,6 +282,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "別々のガルバニック絶縁ドメイン (アイソレータや絶縁型コンバータの両側) の部品、配線、ベタは ";
 "Paste API key" = "API キーをペースト";
 "Pattern" = "パターン";
+"Peak" = "ピーク";
+"Phase" = "位相";
+"Phase margin" = "位相余裕";
 "Pin" = "ピン";
 "Pins: " = "ピン: ";
 "Place Now" = "今すぐ配置";
@@ -305,14 +320,18 @@
 "Robot Platform" = "ロボットプラットフォーム";
 "Rotate" = "回転";
 "Run" = "実行";
+"Run AC Sweep" = "AC スイープを実行";
+"Run DC Sweep" = "DC スイープを実行";
 "Run Design Rule Check" = "デザインルールチェックを実行";
 "Run ERC and DRC" = "ERC と DRC を実行";
 "Run Electrical Rule Check" = "電気的ルールチェックを実行";
 "Run Live" = "ライブ実行";
+"Run Monte Carlo" = "モンテカルロ解析を実行";
 "Run Transient" = "過渡解析を実行";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "過渡解析を実行すると動作します：ピンが回路を駆動し、入力と ADC が回路を読み取り、シリアル出力が “シミュレーション” に表示されます。";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "基板をリアルタイムで実行 (⌘R)：LED 点灯、スイッチのクリック、ファームウェア実行、ライブプローブ";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "基板をリアルタイムで実行：ファームウェア、LED、スイッチ、スコープ、シリアルモニタ";
+"Runs" = "試行回数";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "SPICE ネットリスト";
 "STL (ASCII)" = "STL (ASCII)";
@@ -358,6 +377,7 @@
 "Simulation" = "シミュレーション";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "実時間に対するシミュレーション速度 (スローモーションで高速信号を表示)";
 "Solve the DC operating point once — shows voltage probes" = "DC 動作点を 1 回解く — 電圧プローブを表示";
+"Source" = "電源";
 "Speed" = "速度";
 "Spin" = "スピン";
 "Stack" = "積み重ね";
@@ -386,6 +406,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "オフラインデザイナーは SiEDA 内蔵のリファレンス回路を使用します。ネットワークや API キーは不要 — デモやエアギャップ環境のラボに最適です。";
 "The plain box: pins in number order down the left, then up the right" = "シンプルなボックス：ピンを番号順に左側を下へ、続いて右側を上へ";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "スプラッシュ画面は部品ライブラリとリファレンスデザインを 5 秒間プリロードしてからメインウインドウを開きます。読み込み完了後はクリックまたは Esc でスキップできます。";
+"Transient" = "過渡";
 "Transient analysis" = "過渡解析";
 "Transient: stop" = "過渡：停止時間";
 "Tune Lengths" = "配線長調整";
@@ -395,6 +416,7 @@
 "Undo (⌘Z)" = "取り消す (⌘Z)";
 "Undo the last footprint edit" = "直前のフットプリント編集を取り消す";
 "Undo the last symbol edit" = "直前のシンボル編集を取り消す";
+"Unity gain" = "ユニティゲイン";
 "Unstack" = "積み重ねを解除";
 "Upload .hex…" = ".hex をアップロード…";
 "Validate" = "検証";
@@ -413,6 +435,7 @@
 "Window" = "ウインドウ";
 "Workspace" = "ワークスペース";
 "Workspaces" = "ワークスペース";
+"Worst case" = "ワーストケース";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "プロンプトを入力するか PRD を貼り付けてください。エージェントチームが検証済みの回路図、配線済みの PCB、3D モデルに変換します。";
 "X-Ray Stack" = "X 線スタック";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "⌘Z で取り消せます。回路図に配置済みの部品は削除できません。";
@@ -427,13 +450,18 @@
 "Zoom to Selection" = "選択範囲をズーム";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "全体を表示 / ホーム (Home、0 または ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "選択範囲をズーム (⇧Z または ⌥⌘0)";
+"auto" = "自動";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "例: “白色 LED を点灯する、電池駆動の 9 V ナイトライト…”";
+"from" = "開始";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "点/デケード";
 "public client id" = "パブリッククライアント ID";
 "standard" = "標準";
 "step" = "ステップ";
 "stop" = "停止";
+"to" = "終了";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥ を押しながらドラッグまたは 2 本指ドラッグでパン";

@@ -55,6 +55,40 @@ final class EngineBridgeTests: XCTestCase {
         XCTAssertNotNil(engine.export(.drill))
     }
 
+    func testACSweepDCSweepAndMonteCarloOfRCFilter() throws {
+        let engine = EDAEngine(name: "RC filter")
+        let v = engine.addComponent(.voltageSource, value: "0 AC 1", at: .zero)
+        let r = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: -40))
+        let c = engine.addComponent(.capacitor, value: "100n", at: CGPoint(x: 200, y: -40))
+        let g = engine.addComponent(.ground, at: CGPoint(x: 0, y: 80))
+        XCTAssertNotNil(engine.connect(PinAddress(component: v, pin: 0), PinAddress(component: r, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r, pin: 1), PinAddress(component: c, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: c, pin: 1), PinAddress(component: g, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: v, pin: 1), PinAddress(component: g, pin: 0)))
+
+        let ac = engine.simulateAC(start: "10", stop: "1MEG", pointsPerDecade: 20, source: "")
+        XCTAssertTrue(ac.ok, ac.error)
+        XCTAssertEqual(ac.stimulus, ["V1"])
+        XCTAssertEqual(ac.frequency.count, 101)
+        let out = try XCTUnwrap(ac.nets.first { $0.metrics?.f3dbHz != nil })
+        XCTAssertEqual(try XCTUnwrap(out.metrics?.f3dbHz), 1591.6, accuracy: 1)  // 1/(2πRC)
+        XCTAssertNil(out.metrics?.unityHz)
+        XCTAssertEqual(out.magnitudeDb.count, 101)
+
+        let sweep = engine.simulateDCSweep(source: "V1", start: "0", stop: "1", step: "0.5")
+        XCTAssertTrue(sweep.ok, sweep.error)
+        XCTAssertEqual(sweep.values, [0, 0.5, 1])
+
+        let mc = engine.simulateMonteCarlo(net: out.name, measure: "f3db", runs: 20, seed: 1)
+        XCTAssertTrue(mc.ok, mc.error)
+        XCTAssertEqual(mc.runs, 20)
+        XCTAssertEqual(mc.histogram.counts.reduce(0, +), 20)
+        let worst = try XCTUnwrap(mc.worstCase)
+        XCTAssertLessThan(worst.min, mc.nominal)
+        XCTAssertGreaterThan(worst.max, mc.nominal)
+        XCTAssertFalse(engine.simulateMonteCarlo(net: "no such net", measure: "dc", runs: 5, seed: 1).ok)
+    }
+
     func testSaveLoadRoundTrip() throws {
         let engine = EDAEngine()
         engine.addComponent(.capacitor, value: "10u", at: CGPoint(x: 10, y: 20), ref: "C7")

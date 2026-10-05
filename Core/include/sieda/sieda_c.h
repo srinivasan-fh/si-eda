@@ -150,6 +150,30 @@ char* sieda_run_circuit_validation(const SiedaProject* project);
 char* sieda_run_verification(const SiedaProject* project);
 char* sieda_simulate_dc(const SiedaProject* project);
 char* sieda_simulate_transient(const SiedaProject* project, double t_stop, double t_step);
+/* Advanced analyses (docs/SIMULATION.md). Each takes a JSON options object (numbers may be engineering strings such as
+ * "10k" or "1MEG"; NULL or "" = defaults) and returns {"ok","error",…}. Nets are named as in the schematic, parts by
+ * reference.
+ * AC small-signal sweep: {"start":1,"stop":1e6,"pointsPerDecade":50,"source":"V1"} →
+ *   {"stimulus":[refs],"frequency":[Hz],"nets":[{index,name,dc,magnitudeDb:[],phaseDeg:[],metrics:{lowFreqDb,peakDb,
+ *   peakHz,f3dbHz,bwLowHz,bwHighHz,unityHz,phaseMarginDeg}}]} (readouts outside the sweep are null). */
+char* sieda_simulate_ac(const SiedaProject* project, const char* options_json);
+/* DC sweep of a source: {"source":"V1","start":0,"stop":5,"step":0.05} →
+ *   {"source","unit","values":[],"nets":[{index,name,values}],"currents":[{component,ref,values}]}. */
+char* sieda_simulate_dc_sweep(const SiedaProject* project, const char* options_json);
+/* Parameter sweep: {"component":"R1","values":["1k","2k2"],"analysis":"dc|ac|transient","net":"OUT" (optional),
+ *   AC options as above, "stop"/"step" for transient} → {"component","analysis","runs":[{value,ok,error,x:[Hz or s],
+ *   nets:[{index,name, voltage | values | magnitudeDb,phaseDeg,metrics}]}]}. */
+char* sieda_simulate_param_sweep(const SiedaProject* project, const char* options_json);
+/* Monte Carlo + worst case over R/C/L tolerances: {"net":"OUT","measure":"dc|gain|f3db|peak","runs":100,"seed":1,
+ *   "distribution":"uniform|gaussian","worstCase":true,"tolerances":{"resistor":0.01,"capacitor":0.1,"inductor":0.2},
+ *   AC options for the AC measures} → {"net","measure","unit","nominal","runs","failedRuns","min","max","mean","sigma",
+ *   "samples":[],"histogram":{edges,counts},"worstCase":{min,max,minParts,maxParts},"parts":[{ref,value,tolerance,
+ *   fromValue,sensitivity}]}. */
+char* sieda_simulate_monte_carlo(const SiedaProject* project, const char* options_json);
+/* FFT / THD of a net over a transient run: {"net":"OUT","stop":"10m","step":"1u","fundamental":1000,"harmonics":10,
+ *   "from":"5m"} (fundamental default: the first SIN source; window: whole periods after "from", default stop / 2) → {"fundamentalHz","thdPercent","dc","cycles","windowStart",
+ *   "windowStop","frequency":[],"magnitudeDb":[],"harmonics":[{order,frequency,amplitude,dbc}]}. */
+char* sieda_simulate_fft(const SiedaProject* project, const char* options_json);
 char* sieda_spice_netlist(const SiedaProject* project);
 
 /* ---- PCB ----------------------------------------------------------------------------------- */
