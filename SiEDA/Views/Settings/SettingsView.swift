@@ -9,6 +9,8 @@ struct SettingsView: View {
                 .tabItem { Label("Appearance", systemImage: "paintpalette") }
             LanguageSettingsView()
                 .tabItem { Label("Language", systemImage: "globe") }
+            SupplierSettingsView()
+                .tabItem { Label("Suppliers", systemImage: "shippingbox") }
             AboutSettings()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }

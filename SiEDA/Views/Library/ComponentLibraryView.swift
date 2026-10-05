@@ -28,6 +28,11 @@ struct ComponentLibraryView: View {
     @State private var symbolSource: CustomPartSpec?
     @State private var footprintError: String?
     @State private var libraryImport: LibraryImportResult?
+    @State private var showSupplierSearch = false
+    /// Sourcing of a distributor part being drawn in the pin table: applied when it is saved and placed.
+    @State private var pendingSourcing: SourcingUpdate?
+    /// The distributor's datasheet of that part, offered for pin extraction.
+    @State private var supplierDatasheet: URL?
 
     enum ImportState: Equatable {
         case idle
@@ -111,6 +116,11 @@ struct ComponentLibraryView: View {
                 FootprintEditorView(spec: source) { edited in draft = edited }
             }
         }
+        .sheet(isPresented: $showSupplierSearch) {
+            SupplierSearchView(initialQuery: draft.pins.isEmpty ? draft.name : "") { part, place in
+                chooseSupplierPart(part, place: place)
+            }
+        }
         .sheet(isPresented: Binding(get: { libraryImport != nil }, set: { if !$0 { libraryImport = nil } })) {
             if let result = libraryImport {
                 LibraryImportView(result: result) { specs in
@@ -160,6 +170,9 @@ struct ComponentLibraryView: View {
             Button { importLibrary() } label: { Label("Import Library…", systemImage: "books.vertical") }
                 .buttonStyle(.bordered)
                 .help("Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries")
+            Button { showSupplierSearch = true } label: { Label("Find Parts Online…", systemImage: "shippingbox") }
+                .buttonStyle(.bordered)
+                .help("Search Octopart, DigiKey and Mouser: stock, prices, lifecycle and datasheets")
             dropZone
             HStack(spacing: 6) {
                 TextField("Search parts", text: $standardSearch)
@@ -378,6 +391,10 @@ struct ComponentLibraryView: View {
                     ForEach(importNotes, id: \.self) { note in
                         Label(note, systemImage: "info.circle").font(.caption).foregroundStyle(Theme.textSecondary)
                     }
+                    if let url = supplierDatasheet, draft.pins.isEmpty {
+                        Button { readSupplierDatasheet(url) } label: { Label("Read Pins from Datasheet", systemImage: "doc.viewfinder") }
+                            .help("Download the distributor's datasheet PDF and extract its pin table")
+                    }
                 }
             }
             let issues = draft.validationIssues + (previewError.map { [$0] } ?? [])
@@ -564,6 +581,8 @@ struct ComponentLibraryView: View {
     }
 
     private func load(_ part: CustomPartInfo) {
+        supplierDatasheet = nil
+        pendingSourcing = nil
         draft = part.spec
         editingId = part.id
         selectedId = part.id
@@ -571,6 +590,8 @@ struct ComponentLibraryView: View {
     }
 
     private func newPart() {
+        supplierDatasheet = nil
+        pendingSourcing = nil
         draft = CustomPartSpec()
         editingId = nil
         selectedId = nil
@@ -633,9 +654,80 @@ struct ComponentLibraryView: View {
         editingId = part.id
         selectedId = part.id
         if andPlace {
-            let x = (store.snapshot.components.map(\.x).max() ?? 0) + 160
-            store.addCustomComponent(partId: part.id, at: CGPoint(x: x, y: 0))
+            if let sourcing = pendingSourcing,
+               sourcing.mpn.map(SupplierPlacement.normalized) == SupplierPlacement.normalized(part.name) {
+                store.placeLibraryPart(part.id, sourcing: sourcing)
+                pendingSourcing = nil
+            } else {
+                let x = (store.snapshot.components.map(\.x).max() ?? 0) + 160
+                store.addCustomComponent(partId: part.id, at: CGPoint(x: x, y: 0))
+            }
             store.workspace = .schematic
+        }
+    }
+
+    // MARK: - Distributor parts
+
+    /// A part chosen in Find Parts Online: linked to the project library or the catalog part with the same part number
+    /// (placed with its sourcing, or added to the library), else opened as a new part in the pin table, prefilled.
+    private func chooseSupplierPart(_ part: SupplierPartInfo, place: Bool) {
+        let settings = SupplierSettings.shared
+        let sourcing = SupplierPlacement.sourcing(for: part, boards: store.bomReport.buildQuantity, currency: settings.currency)
+        var partId: String?
+        var note: String?
+        switch SupplierPlacement.link(for: part, library: store.snapshot.customParts) {
+        case .library(let id, _):
+            partId = id
+        case .catalog(let name, let packingNote):
+            if let standard = StandardLibrary.parts.first(where: { $0.spec.name == name }) {
+                partId = store.addStandardPartToLibrary(standard)
+                if !packingNote.isEmpty { note = packingNote }
+            }
+        case .none(let candidates):
+            draft = SupplierPlacement.draft(for: part)
+            editingId = nil
+            selectedId = nil
+            pendingSourcing = sourcing
+            supplierDatasheet = URL(string: part.datasheet).flatMap { $0.scheme == "https" || $0.scheme == "http" ? $0 : nil }
+            var notes = ["\(part.mpn) (\(part.manufacturer)) has no symbol or footprint yet: add its pins from the datasheet, "
+                         + "then Save & Place. Its part number, supplier number and price are kept."]
+            if !candidates.isEmpty { notes.append("Similar catalog parts: \(candidates.joined(separator: ", ")).") }
+            importNotes = notes
+            importState = .idle
+            return
+        }
+        guard let partId else { return }
+        if place {
+            store.placeLibraryPart(partId, sourcing: sourcing)
+            store.workspace = .schematic
+        } else {
+            selectedId = partId
+        }
+        importState = .done(note ?? "\(part.mpn) linked to its library symbol and footprint.")
+    }
+
+    /// Downloads the distributor's datasheet (PDF, up to 30 MB) and reads its pin table like a dropped datasheet.
+    private func readSupplierDatasheet(_ url: URL) {
+        importState = .running("Downloading \(url.lastPathComponent)…")
+        let base = SupplierPlacement.normalized(draft.name)
+        Task { @MainActor in
+            do {
+                var request = URLRequest(url: url, timeoutInterval: 30)
+                request.setValue("application/pdf", forHTTPHeaderField: "Accept")
+                let (data, response) = try await SupplierHTTP.shared.session.data(for: request)
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                guard (200..<300).contains(status), data.count > 4, data.count <= 30 << 20,
+                      data.prefix(4) == Data("%PDF".utf8) else {
+                    importState = .failed("The datasheet link did not return a PDF: open it with the Datasheet link instead.")
+                    return
+                }
+                let file = FileManager.default.temporaryDirectory
+                    .appendingPathComponent((base.isEmpty ? "datasheet" : base) + ".pdf")
+                try data.write(to: file, options: .atomic)
+                importDatasheet(file)
+            } catch {
+                importState = .failed(error.localizedDescription)
+            }
         }
     }
 

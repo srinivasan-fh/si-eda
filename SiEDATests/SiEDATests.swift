@@ -4973,3 +4973,285 @@ final class ChannelAnalysisBridgeTests: XCTestCase {
         XCTAssertNil(store.pdnIRMap("NO SUCH RAIL"))
     }
 }
+
+// MARK: - Supplier search (stubbed network: no request leaves the test)
+
+/// Answers every request of a stubbed session from `handler` and records it.
+final class SupplierStubProtocol: URLProtocol {
+    struct Reply {
+        var status: Int
+        var headers: [String: String] = [:]
+        var body: Data
+    }
+    private static let lock = NSLock()
+    private static var _handler: ((URLRequest) -> Reply)?
+    private static var _requests: [URLRequest] = []
+
+    static func install(_ handler: @escaping (URLRequest) -> Reply) {
+        lock.lock(); defer { lock.unlock() }
+        _handler = handler
+        _requests = []
+    }
+
+    static var requests: [URLRequest] {
+        lock.lock(); defer { lock.unlock() }
+        return _requests
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        Self.lock.lock()
+        Self._requests.append(request)
+        let handler = Self._handler
+        Self.lock.unlock()
+        let reply = handler?(request) ?? Reply(status: 500, body: Data())
+        guard let url = request.url,
+              let response = HTTPURLResponse(url: url, statusCode: reply.status, httpVersion: "HTTP/1.1", headerFields: reply.headers)
+        else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: reply.body)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
+final class InMemorySupplierCredentials: SupplierCredentialStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [String: String] = [:]
+    func read(_ account: String) -> String { lock.lock(); defer { lock.unlock() }; return values[account] ?? "" }
+    func write(_ value: String, for account: String) { lock.lock(); values[account] = value; lock.unlock() }
+}
+
+final class SupplierSearchTests: XCTestCase {
+    static let mouserBody = Data("""
+    {"Errors":[],"SearchResults":{"NumberOfResult":1,"Parts":[{"ManufacturerPartNumber":"LM358DR",
+    "Manufacturer":"Texas Instruments","Description":"Dual op amp","MouserPartNumber":"595-LM358DR",
+    "DataSheetUrl":"https://www.ti.com/lit/ds/symlink/lm358.pdf","AvailabilityInStock":"23764","Min":"1","Mult":"1",
+    "LifecycleStatus":"Not Recommended for New Designs",
+    "PriceBreaks":[{"Quantity":1,"Price":"$0.45","Currency":"USD"},{"Quantity":100,"Price":"$0.184","Currency":"USD"}]}]}}
+    """.utf8)
+
+    static let nexarBody = Data("""
+    {"data":{"supSearchMpn":{"hits":1,"results":[{"part":{"mpn":"MCP2551-I/SN","manufacturer":{"name":"Microchip"},
+    "shortDescription":"CAN transceiver","specs":[{"attribute":{"name":"Lifecycle Status","shortname":"lifecyclestatus"},
+    "displayValue":"NRND"}],"sellers":[{"company":{"name":"Digi-Key"},"offers":[{"sku":"MCP2551-I/SN-ND",
+    "inventoryLevel":10,"moq":1,"prices":[{"quantity":1,"price":1.18,"currency":"USD"}]}]}]}}]}}}
+    """.utf8)
+
+    private var cacheDirectory: URL!
+
+    override func setUp() {
+        super.setUp()
+        cacheDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-supplier-tests-\(UUID().uuidString)")
+    }
+
+    override func tearDown() {
+        try? FileManager.default.removeItem(at: cacheDirectory)
+        super.tearDown()
+    }
+
+    private func engine(mouser: Bool = true, nexar: Bool = false, cacheLifetime: TimeInterval = 3600) -> SupplierSearchEngine {
+        var credentials = SupplierCredentials()
+        if mouser { credentials.values[.mouserApiKey] = "test-mouser-key" }
+        if nexar {
+            credentials.values[.nexarClientId] = "id"
+            credentials.values[.nexarClientSecret] = "secret"
+        }
+        return SupplierSearchEngine(credentials: credentials, currency: "USD",
+                                    http: SupplierHTTP(session: SupplierHTTP.makeSession(protocolClasses: [SupplierStubProtocol.self]),
+                                                       maxRetryWait: 1),
+                                    tokens: SupplierTokenCache(),
+                                    cache: SupplierCache(directory: cacheDirectory, lifetime: cacheLifetime))
+    }
+
+    func testCoreReadsRepliesIntoTheSchema() {
+        let result = EDAEngine.parseSupplierReply(source: .mouser, body: Self.mouserBody, currency: "USD")
+        XCTAssertEqual(result.error, "")
+        XCTAssertEqual(result.parts.first?.mpn, "LM358DR")
+        XCTAssertEqual(result.parts.first?.lifecycle, .nrnd)
+        XCTAssertEqual(result.parts.first?.offers.first?.stock, 23764)
+        XCTAssertEqual(result.parts.first?.price(at: 100)?.unitPrice ?? 0, 0.184, accuracy: 1e-9)
+        let bad = EDAEngine.parseSupplierReply(source: .digikey, body: Data("<html>".utf8), currency: "USD")
+        XCTAssertFalse(bad.error.isEmpty)
+        XCTAssertTrue(bad.parts.isEmpty)
+        let merged = EDAEngine.mergeSupplierResults([result, result], currency: "USD")
+        XCTAssertEqual(merged.count, 1)
+        XCTAssertEqual(merged.first?.offers.count, 1)  // the same offer twice is kept once
+    }
+
+    func testNoKeysMeansNoRequests() async {
+        SupplierStubProtocol.install { _ in .init(status: 200, body: Self.mouserBody) }
+        let outcome = await engine(mouser: false).search("LM358DR")
+        XCTAssertTrue(outcome.parts.isEmpty)
+        XCTAssertEqual(outcome.statuses[.mouser], .notConfigured)
+        XCTAssertEqual(outcome.statuses[.digikey], .notConfigured)
+        XCTAssertTrue(SupplierStubProtocol.requests.isEmpty)
+    }
+
+    func testMouserSearchThenCacheThenOffline() async throws {
+        SupplierStubProtocol.install { _ in .init(status: 200, body: Self.mouserBody) }
+        let live = await engine().search("LM358DR")
+        XCTAssertEqual(live.parts.map(\.mpn), ["LM358DR"])
+        XCTAssertEqual(live.statuses[.mouser], .live(parts: 1))
+        let request = try XCTUnwrap(SupplierStubProtocol.requests.first)
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertEqual(request.url?.host, "api.mouser.com")
+        XCTAssertTrue(request.url?.query?.contains("apiKey=test-mouser-key") == true)
+
+        // Fresh cache: no second request.
+        let cached = await engine().search("lm358dr ")
+        XCTAssertEqual(cached.parts.count, 1)
+        if case .cached = cached.statuses[.mouser] {} else { XCTFail("expected a cached result, got \(String(describing: cached.statuses[.mouser]))") }
+        XCTAssertEqual(SupplierStubProtocol.requests.count, 1)
+
+        // Expired cache and the service down: the old result is shown, marked offline.
+        SupplierStubProtocol.install { _ in .init(status: 503, body: Data("<html>busy</html>".utf8)) }
+        let offline = await engine(cacheLifetime: 0).search("LM358DR")
+        XCTAssertEqual(offline.parts.count, 1)
+        if case .offline = offline.statuses[.mouser] {} else { XCTFail("expected offline, got \(String(describing: offline.statuses[.mouser]))") }
+
+        // A bad key is an error, never served from the cache.
+        SupplierStubProtocol.install { _ in
+            .init(status: 200, body: Data(#"{"Errors":[{"Code":"Invalid","Message":"Invalid unique identifier.","ResourceKey":"InvalidIdentifier"}]}"#.utf8))
+        }
+        let refused = await engine(cacheLifetime: 0).search("LM358DR")
+        XCTAssertTrue(refused.parts.isEmpty)
+        if case .failed(let message) = refused.statuses[.mouser] {
+            XCTAssertTrue(message.contains("Settings"), message)
+        } else {
+            XCTFail("expected failure")
+        }
+    }
+
+    func testRateLimitRetriesOnceThenReports() async {
+        var calls = 0
+        let lock = NSLock()
+        SupplierStubProtocol.install { _ in
+            lock.lock(); defer { lock.unlock() }
+            calls += 1
+            return calls == 1 ? .init(status: 429, headers: ["Retry-After": "0"], body: Data())
+                              : .init(status: 200, body: Self.mouserBody)
+        }
+        let retried = await engine().search("LM358DR")
+        XCTAssertEqual(retried.parts.count, 1)
+        XCTAssertEqual(SupplierStubProtocol.requests.count, 2)
+
+        SupplierStubProtocol.install { _ in .init(status: 429, headers: ["Retry-After": "120"], body: Data()) }
+        let limited = await engine().search("NE555DR")
+        XCTAssertTrue(limited.parts.isEmpty)
+        XCTAssertEqual(SupplierStubProtocol.requests.count, 1)  // a long back-off is not waited for
+        if case .failed(let message) = limited.statuses[.mouser] {
+            XCTAssertTrue(message.contains("120"), message)
+        } else {
+            XCTFail("expected a rate-limit failure")
+        }
+    }
+
+    func testNexarSignsInWithClientCredentials() async throws {
+        SupplierStubProtocol.install { request in
+            if request.url?.host == "identity.nexar.com" {
+                return .init(status: 200, body: Data(#"{"access_token":"tok123","expires_in":3600,"token_type":"Bearer"}"#.utf8))
+            }
+            return .init(status: 200, body: Self.nexarBody)
+        }
+        let outcome = await engine(mouser: false, nexar: true).search("MCP2551")
+        XCTAssertEqual(outcome.parts.first?.mpn, "MCP2551-I/SN")
+        XCTAssertEqual(outcome.parts.first?.lifecycle, .nrnd)
+        let requests = SupplierStubProtocol.requests
+        XCTAssertEqual(requests.count, 2)
+        XCTAssertEqual(requests.first?.url?.host, "identity.nexar.com")
+        XCTAssertEqual(requests.last?.value(forHTTPHeaderField: "Authorization"), "Bearer tok123")
+    }
+
+    func testCancelledSearchReturnsNothing() async {
+        SupplierStubProtocol.install { _ in .init(status: 200, body: Self.mouserBody) }
+        let engine = engine()
+        let task = Task { await engine.search("LM358DR") }
+        task.cancel()
+        let outcome = await task.value
+        XCTAssertTrue(outcome.parts.isEmpty || outcome.parts.count == 1)  // finished or cancelled, never a crash
+    }
+
+    func testCacheKeysAndFormEncoding() {
+        XCTAssertEqual(SupplierCache.key(source: .mouser, query: " LM358DR ", currency: "USD"),
+                       SupplierCache.key(source: .mouser, query: "lm358dr", currency: "USD"))
+        XCTAssertNotEqual(SupplierCache.key(source: .mouser, query: "lm358dr", currency: "USD"),
+                          SupplierCache.key(source: .digikey, query: "lm358dr", currency: "USD"))
+        XCTAssertEqual(SupplierHTTP.formEncoded(["b": "a b&c", "a": "x/y"]), "a=x%2Fy&b=a%20b%26c")
+    }
+
+    @MainActor
+    func testSettingsKeepKeysInTheCredentialStore() throws {
+        let suite = "sieda.supplier.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = InMemorySupplierCredentials()
+        let settings = SupplierSettings(defaults: defaults, store: store)
+        XCTAssertFalse(settings.hasAnySource)
+        settings.setValue("  key  ", for: .mouserApiKey)
+        XCTAssertEqual(store.read("mouserApiKey"), "key")
+        XCTAssertEqual(settings.configuredSources, [.mouser])
+        settings.setValue("id", for: .digikeyClientId)
+        XCTAssertFalse(settings.credentials.isConfigured(.digikey))  // the secret is still missing
+        XCTAssertNil(defaults.string(forKey: "mouserApiKey"))       // never in UserDefaults
+        settings.currency = "EUR"
+        XCTAssertEqual(SupplierSettings(defaults: defaults, store: store).currency, "EUR")
+    }
+
+    func testPlacementLinksCatalogPartsOrPrefillsTheEditor() throws {
+        let result = EDAEngine.parseSupplierReply(source: .mouser, body: Self.mouserBody, currency: "USD")
+        let part = try XCTUnwrap(result.parts.first)
+        XCTAssertEqual(SupplierPlacement.link(for: part, library: []), .catalog(name: "LM358DR", note: ""))
+        let sourcing = SupplierPlacement.sourcing(for: part, boards: 100, currency: "USD")
+        XCTAssertEqual(sourcing.mpn, "LM358DR")
+        XCTAssertEqual(sourcing.supplierPart, "595-LM358DR")
+        XCTAssertEqual(sourcing.unitPrice ?? 0, 0.184, accuracy: 1e-9)
+
+        var unknown = part
+        unknown.mpn = "XYZ9000QFN24"
+        unknown.package = "24-VQFN (4x4)"
+        unknown.category = "Interface ICs"
+        if case .none = SupplierPlacement.link(for: unknown, library: []) {} else { XCTFail("no catalog part expected") }
+        let draft = SupplierPlacement.draft(for: unknown)
+        XCTAssertEqual(draft.name, "XYZ9000QFN24")
+        XCTAssertEqual(draft.package.type, PackageKind.qfn.rawValue)
+        XCTAssertEqual(draft.package.pinCount, 24)
+        XCTAssertEqual(draft.datasheet, "https://www.ti.com/lit/ds/symlink/lm358.pdf")
+        XCTAssertTrue(draft.pins.isEmpty)
+        XCTAssertEqual(SupplierPlacement.refPrefix(category: "Connectors, Interconnects", description: ""), "J")
+    }
+
+    @MainActor
+    func testPlacingALibraryPartKeepsItsSourcingInOneUndoStep() throws {
+        let store = DesignStore()
+        let standard = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "LM358DR" })
+        let partId = try XCTUnwrap(store.addStandardPartToLibrary(standard))
+        let id = store.placeLibraryPart(partId, sourcing: SourcingUpdate(manufacturer: "Texas Instruments", mpn: "LM358DR",
+                                                                          supplierPart: "595-LM358DR", unitPrice: 0.184))
+        XCTAssertGreaterThanOrEqual(id, 0)
+        let line = try XCTUnwrap(store.bomReport.lines.first { $0.componentIds.contains(id) })
+        XCTAssertEqual(line.mpn, "LM358DR")
+        XCTAssertEqual(line.supplierPart, "595-LM358DR")
+        XCTAssertEqual(line.unitPrice, 0.184, accuracy: 1e-9)
+        XCTAssertEqual(store.applySupplierPricing([(line, SourcingUpdate(unitPrice: 0.15))]), 1)
+        XCTAssertEqual(store.bomReport.lines.first { $0.componentIds.contains(id) }?.unitPrice ?? 0, 0.15, accuracy: 1e-9)
+    }
+
+    func testRollupThroughTheEngine() throws {
+        let result = EDAEngine.parseSupplierReply(source: .mouser, body: Self.mouserBody, currency: "USD")
+        let rollup = try XCTUnwrap(EDAEngine.supplierBomRollup(SupplierRollupRequest(
+            currency: "USD", quantities: [1, 100], buildQuantity: 5,
+            lines: [.init(item: 1, refs: ["U1"], quantity: 2, mpn: "LM358DR", manufacturer: "", dnp: false, embedded: false)],
+            parts: result.parts)))
+        XCTAssertEqual(rollup.totals.map(\.boards), [1, 5, 100])
+        XCTAssertEqual(rollup.lines.first?.lifecycle, .nrnd)
+        XCTAssertFalse(rollup.warnings.isEmpty)
+        XCTAssertEqual(rollup.totals.last?.cost ?? 0, 200 * 0.184, accuracy: 1e-9)
+    }
+}

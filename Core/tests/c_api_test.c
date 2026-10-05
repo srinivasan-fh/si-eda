@@ -1,4 +1,5 @@
 /* Compiled as C to guarantee sieda_c.h stays a valid C header (it is what Swift imports). */
+#include <stdio.h>
 #include <string.h>
 
 #include "sieda/sieda_c.h"
@@ -520,5 +521,43 @@ int sieda_c_api_pi_test(const char* project_json) {
     if (!json || strstr(json, "+3V3")) return 12;
     sieda_string_free(json);
     sieda_project_free(p);
+    return 0;
+}
+
+/* Supplier data through the C API: parse, merge, roll-up, catalog match and hostile input. */
+int sieda_c_api_supplier_test(void) {
+    const char* body =
+        "{\"SearchResults\":{\"NumberOfResult\":1,\"Parts\":[{\"ManufacturerPartNumber\":\"NE555DR\",\"Manufacturer\":"
+        "\"Texas Instruments\",\"MouserPartNumber\":\"595-NE555DR\",\"AvailabilityInStock\":\"100\",\"Min\":\"1\","
+        "\"Mult\":\"1\",\"PriceBreaks\":[{\"Quantity\":1,\"Price\":\"$0.30\",\"Currency\":\"USD\"}]}]}}";
+    char* parsed = sieda_supplier_parse("mouser", body, "USD");
+    if (!parsed || !strstr(parsed, "\"mpn\":\"NE555DR\"") || !strstr(parsed, "\"schema\":\"sieda.supplier/1\"")) return 1;
+    char request[8192];
+    snprintf(request, sizeof request, "{\"currency\":\"USD\",\"results\":[%s]}", parsed);
+    sieda_string_free(parsed);
+    char* merged = sieda_supplier_merge(request);
+    if (!merged || !strstr(merged, "\"595-NE555DR\"")) return 2;
+    sieda_string_free(merged);
+    char* rollup = sieda_supplier_bom_rollup(
+        "{\"quantities\":[1],\"lines\":[{\"item\":1,\"refs\":[\"U1\"],\"quantity\":1,\"mpn\":\"NE555DR\"}],"
+        "\"parts\":[{\"mpn\":\"NE555DR\",\"offers\":[{\"supplier\":\"Mouser\",\"currency\":\"USD\",\"stock\":5,"
+        "\"prices\":[{\"quantity\":1,\"price\":0.3}]}]}]}");
+    if (!rollup || !strstr(rollup, "\"status\":\"priced\"")) return 3;
+    sieda_string_free(rollup);
+    char* match = sieda_supplier_catalog_match("NE555");
+    if (!match || !strstr(match, "\"match\":\"NE555\"")) return 4;
+    sieda_string_free(match);
+    char* bad = sieda_supplier_parse(NULL, NULL, NULL);
+    if (!bad || !strstr(bad, "\"errorKind\":\"source\"")) return 5;
+    sieda_string_free(bad);
+    bad = sieda_supplier_merge("not json");
+    if (!bad || !strstr(bad, "\"parts\":[]")) return 6;
+    sieda_string_free(bad);
+    bad = sieda_supplier_bom_rollup(NULL);
+    if (!bad || !strstr(bad, "\"error\"")) return 7;
+    sieda_string_free(bad);
+    bad = sieda_supplier_parse("nexar", "[[[[[[[[", "");
+    if (!bad || !strstr(bad, "\"errorKind\":\"parse\"")) return 8;
+    sieda_string_free(bad);
     return 0;
 }

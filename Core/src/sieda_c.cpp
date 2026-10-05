@@ -43,6 +43,7 @@
 #include "sieda/Touchstone.hpp"
 #include "sieda/PdnPlanning.hpp"
 #include "sieda/Stackup.hpp"
+#include "sieda/Suppliers.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
 #include "sieda/Validation.hpp"
@@ -700,6 +701,42 @@ char* sieda_standard_parts_json(void) {
         return dup(arr.dump());
     } catch (...) {
         return dup("[]");
+    }
+}
+
+char* sieda_supplier_parse(const char* source, const char* body, const char* currency) {
+    try {
+        return dup(supplierParseRequest(str(source), str(body), str(currency)).dump());
+    } catch (...) {
+        return dup("{\"schema\":\"sieda.supplier/1\",\"parts\":[],\"error\":\"out of memory\",\"errorKind\":\"parse\"}");
+    }
+}
+
+char* sieda_supplier_merge(const char* request_json) {
+    try {
+        return dup(supplierMergeRequest(Json::parse(str(request_json))).dump());
+    } catch (const std::exception& e) {
+        Json j = Json::object();
+        j["parts"] = Json::array();
+        j["errors"] = Json::array();
+        j["error"] = std::string("Invalid merge request: ") + e.what();
+        return dup(j.dump());
+    }
+}
+
+char* sieda_supplier_bom_rollup(const char* request_json) {
+    try {
+        return dup(supplierBomRollup(Json::parse(str(request_json))).dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_supplier_catalog_match(const char* mpn) {
+    try {
+        return dup(catalogMatchForMpn(str(mpn)).dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
     }
 }
 

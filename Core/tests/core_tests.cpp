@@ -9653,3 +9653,378 @@ TEST(si_channel_ends_at_connector) {
     const Json j = channelJson(b.p, o, ideal, &e, nullptr);
     CHECK(j.get("error").isNull() && j.get("eye").get("open").asBool());
 }
+
+// ------------------------------------------------------------------ supplier part data (Nexar, DigiKey, Mouser)
+
+#include "sieda/Suppliers.hpp"
+
+extern "C" int sieda_c_api_supplier_test(void);
+
+namespace {
+std::string readSupplierFixture(const std::string& name) {
+    std::ifstream f(std::string(SIEDA_FIXTURE_DIR) + "/suppliers/" + name, std::ios::binary);
+    std::stringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+
+const SupplierPart* supplierPart(const std::vector<SupplierPart>& parts, const std::string& mpn) {
+    for (const auto& p : parts)
+        if (p.mpn == mpn) return &p;
+    return nullptr;
+}
+}  // namespace
+
+TEST(supplier_lifecycle_prices_and_quotes) {
+    CHECK(partLifecycleFromText("Active") == PartLifecycle::Active);
+    CHECK(partLifecycleFromText("Production (Last Updated: 2 years ago)") == PartLifecycle::Active);
+    CHECK(partLifecycleFromText("Not Recommended for New Designs") == PartLifecycle::Nrnd);
+    CHECK(partLifecycleFromText("NRND") == PartLifecycle::Nrnd);
+    CHECK(partLifecycleFromText("Not For New Designs") == PartLifecycle::Nrnd);
+    CHECK(partLifecycleFromText("End of Life") == PartLifecycle::Eol);
+    CHECK(partLifecycleFromText("Last Time Buy") == PartLifecycle::Eol);
+    CHECK(partLifecycleFromText("EOL") == PartLifecycle::Eol);
+    CHECK(partLifecycleFromText("Obsolete") == PartLifecycle::Obsolete);
+    CHECK(partLifecycleFromText("Discontinued at Digi-Key") == PartLifecycle::Obsolete);
+    CHECK(partLifecycleFromText("New Product") == PartLifecycle::New);
+    CHECK(partLifecycleFromText("Preliminary") == PartLifecycle::New);
+    CHECK(partLifecycleFromText("") == PartLifecycle::Unknown);
+    CHECK(partLifecycleFromText("Develop") == PartLifecycle::Unknown);  // "eol" only as a word
+    CHECK(lifecycleNeedsAttention(PartLifecycle::Nrnd) && !lifecycleNeedsAttention(PartLifecycle::Active));
+    CHECK(partLifecycleFromName(partLifecycleName(PartLifecycle::Eol)) == PartLifecycle::Eol);
+
+    CHECK_NEAR(parsePriceText("$0.452"), 0.452, 1e-12);
+    CHECK_NEAR(parsePriceText("0,45 \xE2\x82\xAC"), 0.45, 1e-12);
+    CHECK_NEAR(parsePriceText("1.234,56 \xE2\x82\xAC"), 1234.56, 1e-9);
+    CHECK_NEAR(parsePriceText("1,234.50"), 1234.5, 1e-9);
+    CHECK_NEAR(parsePriceText("1,234"), 1234, 1e-9);
+    CHECK_NEAR(parsePriceText("0,452"), 0.452, 1e-12);
+    CHECK_NEAR(parsePriceText("12,5"), 12.5, 1e-12);
+    CHECK_NEAR(parsePriceText("\xC2\xA5" "63"), 63, 1e-12);
+    CHECK_NEAR(parsePriceText("1 234,56"), 1234.56, 1e-9);
+    CHECK(std::isnan(parsePriceText("Quote")));
+    CHECK(std::isnan(parsePriceText("")));
+    CHECK(normalizeMpn("ltc4359ims8#pbf") == "LTC4359IMS8PBF");
+
+    SupplierOffer o;
+    o.currency = "USD";
+    o.stock = 1000;
+    o.prices = {{1, 0.50}, {10, 0.40}, {100, 0.20}};
+    PriceQuote q = quoteOffer(o, 5);
+    CHECK(q.ok && q.orderQuantity == 5 && std::fabs(q.unitPrice - 0.5) < 1e-12 && q.inStock);
+    q = quoteOffer(o, 90);  // 90 x 0.40 = 36 > 100 x 0.20 = 20: buy 100
+    CHECK(q.orderQuantity == 100 && std::fabs(q.extended - 20) < 1e-9);
+    o.moq = 25;
+    o.multiple = 25;
+    q = quoteOffer(o, 30);  // MOQ and multiple: 50 at 0.40
+    CHECK(q.orderQuantity == 50 && std::fabs(q.unitPrice - 0.40) < 1e-12);
+    o.stock = 40;
+    CHECK(!quoteOffer(o, 30).inStock);
+    o.stock = -1;
+    CHECK(!quoteOffer(o, 1).inStock);  // stock not reported: not confirmed
+    SupplierOffer reel;
+    reel.prices = {{2500, 0.1}};
+    q = quoteOffer(reel, 3);
+    CHECK(q.orderQuantity == 2500 && std::fabs(q.extended - 250) < 1e-9);
+    CHECK(!quoteOffer(SupplierOffer{}, 3).ok);
+    q = quoteOffer(o, 2000000000);  // no overflow on silly quantities
+    CHECK(q.ok && q.orderQuantity > 0 && std::isfinite(q.extended));
+
+    SupplierPart part;
+    part.mpn = "X";
+    SupplierOffer cheapNoStock = o, dearInStock = o;
+    cheapNoStock.stock = 0;
+    cheapNoStock.moq = cheapNoStock.multiple = 1;
+    dearInStock.stock = 500;
+    dearInStock.moq = dearInStock.multiple = 1;
+    dearInStock.prices = {{1, 0.9}};
+    SupplierOffer euro = dearInStock;
+    euro.currency = "EUR";
+    euro.prices = {{1, 0.01}};
+    part.offers = {cheapNoStock, dearInStock, euro};
+    OfferChoice c = bestOffer(part, 10, "USD");
+    CHECK(c.offerIndex == 1);  // in stock beats cheaper but out of stock; EUR ignored while USD offers exist
+    c = bestOffer(part, 10, "");
+    CHECK(c.offerIndex == 2);
+    c = bestOffer(part, 10, "GBP");  // nothing in GBP: any currency
+    CHECK(c.offerIndex == 2);
+}
+
+TEST(supplier_parsers_read_recorded_replies) {
+    // Mouser v2 keyword search.
+    const SupplierSearchResult m = parseMouserResponse(readSupplierFixture("mouser_v2_keyword_lm358dr.json"));
+    CHECK(m.error.empty() && m.source == "mouser" && m.total == 3 && m.parts.size() == 3);
+    const SupplierPart* dr = supplierPart(m.parts, "LM358DR");
+    CHECK(dr != nullptr);
+    if (dr) {
+        CHECK(dr->manufacturer == "Texas Instruments" && dr->lifecycle == PartLifecycle::Unknown);
+        CHECK(dr->datasheet == "https://www.ti.com/lit/ds/symlink/lm358.pdf");
+        CHECK(dr->offers.size() == 1 && dr->offers[0].sku == "595-LM358DR" && dr->offers[0].stock == 23764);
+        CHECK(dr->offers[0].prices.size() == 5 && std::fabs(dr->offers[0].prices[2].price - 0.184) < 1e-12);
+        CHECK(dr->offers[0].currency == "USD" && dr->offers[0].leadTimeDays == 42 && dr->offers[0].packaging == "Reel");
+    }
+    const SupplierPart* g4 = supplierPart(m.parts, "LM358DRG4");
+    CHECK(g4 && g4->lifecycle == PartLifecycle::Nrnd && g4->offers.size() == 1 && g4->offers[0].stock == 0 &&
+          g4->offers[0].moq == 2500 && g4->offers[0].multiple == 2500 && g4->offers[0].leadTimeDays == 42);
+    const SupplierPart* on = supplierPart(m.parts, "LM358DR2G");
+    CHECK(on && on->lifecycle == PartLifecycle::Eol && on->datasheet.empty());  // javascript: link dropped
+    CHECK(on && on->productUrl == "https://www.mouser.de/ProductDetail/onsemi/LM358DR2G");
+    CHECK(on && on->offers[0].currency == "EUR" && std::fabs(on->offers[0].prices[0].price - 0.41) < 1e-12 &&
+          std::fabs(on->offers[0].prices[2].price - 1234.5) < 1e-9);
+    const SupplierSearchResult me = parseMouserResponse(readSupplierFixture("mouser_v2_error_invalid_key.json"));
+    CHECK(me.parts.empty() && me.errorKind == "auth" && me.error.find("Invalid unique identifier") != std::string::npos);
+
+    // DigiKey v4 keyword search: exact matches first, no duplicates.
+    const SupplierSearchResult d = parseDigikeyResponse(readSupplierFixture("digikey_v4_keyword_lm358dr.json"));
+    CHECK(d.error.empty() && d.total == 41 && d.parts.size() == 2);
+    if (d.parts.size() == 2) {
+        CHECK(d.parts[0].mpn == "LM358DR" && d.parts[0].offers.size() == 1);
+        const SupplierPart& e4 = d.parts[1];
+        CHECK(e4.mpn == "LM358DRE4" && e4.lifecycle == PartLifecycle::Obsolete);
+        CHECK(e4.datasheet == "https://www.ti.com/lit/ds/symlink/lm358.pdf");  // "//host" made https
+        CHECK(e4.offers.size() == 1 && e4.offers[0].stock == 0 && e4.offers[0].prices.empty());
+    }
+    // The full product as listed in "Products": three packagings, the reel in whole reels.
+    {
+        Json root = Json::parse(readSupplierFixture("digikey_v4_keyword_lm358dr.json"));
+        Json only = Json::object();
+        Json products = Json::array();
+        products.push(root.get("Products")[0]);
+        only["Products"] = products;
+        const SupplierSearchResult full = parseDigikeyResponse(only.dump());
+        CHECK(full.parts.size() == 1);
+        if (full.parts.size() == 1) {
+            const SupplierPart& p = full.parts[0];
+            CHECK(p.offers.size() == 3 && p.package == "8-SOIC" && p.rohs == "ROHS3 Compliant");
+            CHECK(p.lifecycle == PartLifecycle::Active && p.category == "Instrumentation, Op Amps, Buffer Amps");
+            CHECK(p.offers.size() == 3 && p.offers[0].sku == "296-1014-1-ND" && p.offers[0].packaging == "Cut Tape (CT)" &&
+                  p.offers[0].stock == 18342);
+            if (p.offers.size() == 3) {
+                CHECK(p.offers[1].multiple == 2500 && p.offers[1].moq == 2500);
+                CHECK(p.offers[2].multiple == 1);  // Digi-Reel: any quantity
+                CHECK(p.offers[0].leadTimeDays == 42 && p.offers[0].currency == "USD");
+            }
+            CHECK(p.totalStock() == 18342 + 17500 + 18342);
+            CHECK(bestOffer(p, 3000, "USD").offerIndex >= 0);
+        }
+    }
+    const SupplierSearchResult de = parseDigikeyResponse(readSupplierFixture("digikey_v4_error_401.json"));
+    CHECK(de.parts.empty() && de.errorKind == "auth" && de.error.find("expired") != std::string::npos);
+
+    // Nexar supSearchMpn: specs carry lifecycle and package; converted prices; bad links dropped.
+    const SupplierSearchResult n = parseNexarResponse(readSupplierFixture("nexar_supsearchmpn_mcp2551.json"));
+    CHECK(n.error.empty() && n.total == 2 && n.parts.size() == 2);
+    const SupplierPart* mcp = supplierPart(n.parts, "MCP2551-I/SN");
+    CHECK(mcp && mcp->lifecycle == PartLifecycle::Nrnd && mcp->package == "SOIC" && mcp->offers.size() == 3);
+    if (mcp && mcp->offers.size() == 3) {
+        CHECK(mcp->offers[1].supplier == "Farnell" && mcp->offers[1].currency == "USD" &&
+              std::fabs(mcp->offers[1].prices[0].price - 1.33) < 1e-12);
+        CHECK(mcp->offers[2].url.empty() && mcp->offers[2].stock == -1 && mcp->offers[2].moq == 100);
+        CHECK(mcp->offers[2].prices.size() == 2);  // the EUR ladder entry is not mixed in
+        CHECK(mcp->offers[0].leadTimeDays == 49);
+    }
+    const SupplierPart* t = supplierPart(n.parts, "MCP2551T-I/SN");
+    CHECK(t && t->lifecycle == PartLifecycle::Active && t->offers.empty());
+    const SupplierSearchResult ne = parseNexarResponse(readSupplierFixture("nexar_error_unauthenticated.json"));
+    CHECK(ne.parts.empty() && ne.errorKind == "auth");
+
+    CHECK(parseSupplierResponse("octopart", readSupplierFixture("nexar_error_unauthenticated.json")).errorKind == "auth");
+    CHECK(parseSupplierResponse("lcsc", "{}").errorKind == "source");
+
+    // Normalised JSON round trip (the app's offline cache) keeps every field.
+    const Json j = supplierSearchToJson(n, "USD");
+    CHECK(j.get("schema").asString() == "sieda.supplier/1" && j.get("parts").size() == 2);
+    const SupplierPart back = supplierPartFromJson(Json::parse(j.dump()).get("parts")[0]);
+    CHECK(back.mpn == "MCP2551-I/SN" && back.lifecycle == PartLifecycle::Nrnd && back.offers.size() == 3 &&
+          back.sources == std::vector<std::string>{"nexar"});
+    CHECK(!back.offers.empty() && back.offers[0].prices.size() == 3 && back.offers[0].stock == 5210);
+    const Json& pricing = j.get("parts")[0].get("pricing");
+    CHECK(pricing.size() == 4);
+    if (pricing.size() == 4) {
+        CHECK(std::fabs(pricing[0].get("unitPrice").asNumber() - 1.18) < 1e-12);
+        CHECK(std::fabs(pricing[2].get("unitPrice").asNumber() - 0.9) < 1e-12);
+    }
+}
+
+TEST(supplier_merge_rollup_and_catalog_match) {
+    const SupplierSearchResult m = parseMouserResponse(readSupplierFixture("mouser_v2_keyword_lm358dr.json"));
+    const SupplierSearchResult d = parseDigikeyResponse(readSupplierFixture("digikey_v4_keyword_lm358dr.json"));
+    const auto merged = mergeSupplierParts({m, d});
+    const SupplierPart* dr = supplierPart(merged, "LM358DR");
+    CHECK(dr && dr->offers.size() == 2 && dr->sources.size() == 2);  // Mouser + Digi-Key cut tape
+    CHECK(merged.size() == 4);  // LM358DR, LM358DRG4, LM358DR2G, LM358DRE4
+    // The worst lifecycle wins when distributors disagree.
+    SupplierSearchResult a, b;
+    SupplierPart pa, pb;
+    pa.mpn = pb.mpn = "ABC123";
+    pa.lifecycle = PartLifecycle::Active;
+    pb.lifecycle = PartLifecycle::Eol;
+    pb.lifecycleText = "Last Time Buy";
+    a.parts = {pa};
+    b.parts = {pb};
+    const auto worst = mergeSupplierParts({a, b});
+    CHECK(worst.size() == 1 && worst[0].lifecycle == PartLifecycle::Eol && worst[0].lifecycleText == "Last Time Buy");
+
+    // Roll-up over the merged parts.
+    Json req = Json::object();
+    req["currency"] = "USD";
+    Json qs = Json::array();
+    for (int q : {1, 100}) qs.push(q);
+    req["quantities"] = qs;
+    req["buildQuantity"] = 10;
+    Json lines = Json::array();
+    auto line = [&](int item, std::vector<std::string> refs, int qty, const std::string& mpn, bool dnp = false) {
+        Json l = Json::object();
+        l["item"] = item;
+        Json r = Json::array();
+        for (const auto& s : refs) r.push(s);
+        l["refs"] = r;
+        l["quantity"] = qty;
+        l["mpn"] = mpn;
+        l["manufacturer"] = "";
+        l["dnp"] = dnp;
+        lines.push(l);
+    };
+    line(1, {"U1", "U2"}, 2, "lm358-dr");  // matched on the normalised MPN
+    line(2, {"U3"}, 1, "LM358DRG4");       // NRND, reel only, none in stock
+    line(3, {"R1"}, 1, "");
+    line(4, {"U4"}, 1, "NOPE123");
+    line(5, {"U5"}, 1, "LM358DR", true);
+    req["lines"] = lines;
+    Json parts = Json::array();
+    for (const auto& p : merged) parts.push(supplierPartToJson(p));
+    req["parts"] = parts;
+    const Json r = supplierBomRollup(Json::parse(req.dump()));
+    CHECK(r.get("lines").size() == 5 && r.get("totals").size() == 3);  // 1, 10 (build) and 100 boards
+    if (r.get("lines").size() == 5) {
+        const Json& l1 = r.get("lines")[0];
+        CHECK(l1.get("status").asString() == "priced" && l1.get("offers").size() == 3);
+        if (l1.get("offers").size() == 3) {
+            CHECK(std::fabs(l1.get("offers")[0].get("extended").asNumber() - 0.90) < 1e-9);  // 2 at 0.45
+            CHECK(l1.get("offers")[2].get("needed").asNumber() == 200);
+        }
+        const Json& l2 = r.get("lines")[1];
+        CHECK(l2.get("lifecycle").asString() == "nrnd" &&
+              l2.get("warning").asString().find("not recommended") != std::string::npos);
+        CHECK(l2.get("offers").size() == 3 && l2.get("offers")[0].get("orderQuantity").asInt() == 2500 &&
+              !l2.get("offers")[0].get("inStock").asBool());
+        CHECK(r.get("lines")[2].get("status").asString() == "no_mpn");
+        CHECK(r.get("lines")[3].get("status").asString() == "not_found");
+        CHECK(r.get("lines")[4].get("status").asString() == "dnp" && r.get("lines")[4].get("offers").size() == 0);
+    }
+    if (r.get("totals").size() == 3) {
+        const Json& t1 = r.get("totals")[0];
+        CHECK(t1.get("boards").asInt() == 1 && t1.get("priced").asInt() == 2 && t1.get("unpriced").asInt() == 2 &&
+              t1.get("shortages").asInt() == 1 && !t1.get("complete").asBool());
+        CHECK(std::fabs(t1.get("cost").asNumber() - (0.90 + 255.0)) < 1e-6);  // 2 x 0.45 + a reel of 2500 x 0.102
+        const Json& t100 = r.get("totals")[2];
+        CHECK(std::fabs(t100.get("perBoard").asNumber() - t100.get("cost").asNumber() / 100) < 1e-12);
+    }
+    CHECK(r.get("warnings").size() >= 1 && !r.get("mixedCurrency").asBool());
+    // Garbage requests give a roll-up, never an exception.
+    CHECK(supplierBomRollup(Json::parse("{\"lines\":[1,\"x\",{}],\"parts\":[null,{\"mpn\":7}]}")).get("lines").size() == 3);
+    CHECK(supplierBomRollup(Json()).get("totals").size() == 4);
+
+    // Catalog matching.
+    Json cm = catalogMatchForMpn("LM358DR");
+    CHECK(cm.get("match").asString() == "LM358DR" && cm.get("exact").asBool());
+    cm = catalogMatchForMpn("lm358dr");
+    CHECK(cm.get("match").asString() == "LM358DR" && cm.get("exact").asBool());
+    cm = catalogMatchForMpn("MAX485ESA+");  // catalog: MAX485ESA+T (reel)
+    CHECK(cm.get("match").asString() == "MAX485ESA+T" && !cm.get("exact").asBool() && !cm.get("note").asString().empty());
+    cm = catalogMatchForMpn("LTC4359IMS8#TRPBF");  // catalog: LTC4359IMS8#PBF
+    CHECK(cm.get("match").asString() == "LTC4359IMS8#PBF");
+    cm = catalogMatchForMpn("LM358DGKR");  // a different package: only a candidate
+    CHECK(cm.get("match").asString().empty() && cm.get("candidates").size() >= 1);
+    CHECK(catalogMatchForMpn("").get("match").asString().empty());
+    CHECK(catalogMatchForMpn("ZZZZ99999").get("candidates").size() == 0);
+}
+
+TEST(supplier_parsers_survive_hostile_replies) {
+    // Deep nesting, huge and empty bodies, non-JSON (an HTML error page), wrong types everywhere.
+    CHECK(parseMouserResponse(std::string(100000, '[')).errorKind == "parse");
+    CHECK(parseNexarResponse("{\"data\":" + std::string(5000, '{')).errorKind == "parse");
+    CHECK(parseDigikeyResponse("").errorKind == "parse");
+    CHECK(parseDigikeyResponse("<html><body>502 Bad Gateway</body></html>").errorKind == "service");
+    CHECK(parseMouserResponse(std::string(SupplierLimits::maxBody + 1, ' ')).errorKind == "parse");
+    CHECK(parseMouserResponse("[1,2,3]").errorKind == "parse");
+    CHECK(parseMouserResponse("{\"SearchResults\":{\"Parts\":7}}").parts.empty());
+    CHECK(parseDigikeyResponse("{\"Products\":[{\"ManufacturerProductNumber\":{},\"ProductVariations\":\"x\"}]}").parts.empty());
+    const SupplierSearchResult weird = parseMouserResponse(
+        "{\"SearchResults\":{\"Parts\":[{\"ManufacturerPartNumber\":\"A\\u0000B\\u0007\\ud800C\",\"Min\":-5,\"Mult\":1e300,"
+        "\"PriceBreaks\":[{\"Quantity\":-1,\"Price\":\"$1\"},{\"Quantity\":1e30,\"Price\":\"$1e9\"},{\"Quantity\":5,\"Price\":1e400},"
+        "{\"Quantity\":2,\"Price\":\"NaN\"},{\"Quantity\":3,\"Price\":\"$0.5\"}],\"AvailabilityInStock\":\"99999999999999999999\"}]}}");
+    CHECK(weird.parts.size() == 1);
+    if (weird.parts.size() == 1 && weird.parts[0].offers.size() == 1) {
+        const SupplierOffer& o = weird.parts[0].offers[0];
+        CHECK(o.moq == 1 && o.multiple >= 1);
+        CHECK(o.stock == 1000000000000LL);
+        for (const auto& b : o.prices) CHECK(b.quantity >= 1 && b.price > 0 && b.price <= 1e7);
+        CHECK(weird.parts[0].mpn.find('\0') == std::string::npos);
+    }
+    // Too many parts: capped with a note.
+    std::string many = "{\"SearchResults\":{\"Parts\":[";
+    for (int i = 0; i < 260; ++i) many += std::string(i ? "," : "") + "{\"ManufacturerPartNumber\":\"P" + std::to_string(i) + "\"}";
+    many += "]}}";
+    const SupplierSearchResult capped = parseMouserResponse(many);
+    CHECK(capped.parts.size() == SupplierLimits::maxParts && !capped.notes.empty());
+    // A 100 kB description is cut.
+    const SupplierSearchResult longText = parseMouserResponse(
+        "{\"SearchResults\":{\"Parts\":[{\"ManufacturerPartNumber\":\"X\",\"Description\":\"" + std::string(100000, 'a') + "\"}]}}");
+    CHECK(longText.parts.size() == 1 && longText.parts[0].description.size() <= SupplierLimits::maxString);
+
+    // Deterministic mutations of every fixture: the parsers never throw and their output stays within the limits.
+    const char* fixtures[][2] = {{"mouser", "mouser_v2_keyword_lm358dr.json"},
+                                 {"digikey", "digikey_v4_keyword_lm358dr.json"},
+                                 {"nexar", "nexar_supsearchmpn_mcp2551.json"},
+                                 {"mouser", "mouser_v2_error_invalid_key.json"},
+                                 {"digikey", "digikey_v4_error_401.json"},
+                                 {"nexar", "nexar_error_unauthenticated.json"}};
+    uint32_t seed = 0x5EDA5EDAu;
+    auto rnd = [&]() {
+        seed ^= seed << 13;
+        seed ^= seed >> 17;
+        seed ^= seed << 5;
+        return seed;
+    };
+    int parsed = 0;
+    for (const auto& fx : fixtures) {
+        const std::string original = readSupplierFixture(fx[1]);
+        CHECK(!original.empty());
+        for (int k = 0; k < 250; ++k) {
+            std::string s = original;
+            const size_t a = rnd() % (s.size() + 1), len = rnd() % 64;
+            switch (k % 6) {
+                case 0: s.resize(a); break;
+                case 1:
+                    for (int f = 0; f < 8 && !s.empty(); ++f) s[rnd() % s.size()] = static_cast<char>(rnd());
+                    break;
+                case 2: s.erase(a, len); break;
+                case 3: s.insert(a, s.substr(a, len)); break;
+                case 4: s.insert(a, std::string(len, "[{\"\\,:"[rnd() % 6])); break;
+                default: s.insert(a, "\"Price\":\"$-1e999\",\"Quantity\":1e999,"); break;
+            }
+            try {
+                const SupplierSearchResult r = parseSupplierResponse(fx[0], s);
+                parsed += r.error.empty();
+                CHECK(r.parts.size() <= SupplierLimits::maxParts);
+                for (const auto& p : r.parts) {
+                    CHECK(!p.mpn.empty() && p.offers.size() <= SupplierLimits::maxOffers);
+                    for (const auto& o : p.offers) {
+                        CHECK(o.moq >= 1 && o.multiple >= 1);
+                        for (const auto& b : o.prices) CHECK(b.quantity >= 1 && b.price > 0 && std::isfinite(b.price));
+                        CHECK(quoteOffer(o, 7).extended >= 0);
+                    }
+                    const Json j = supplierPartToJson(p, "USD");
+                    CHECK(!Json::parse(j.dump()).get("mpn").asString().empty());
+                }
+            } catch (const std::exception& e) {
+                std::printf("    %s mutation %d threw: %s\n", fx[1], k, e.what());
+                CHECK(false);
+            }
+        }
+    }
+    CHECK(parsed > 100);  // most single mutations still read
+}
+
+TEST(supplier_c_api) { CHECK(sieda_c_api_supplier_test() == 0); }

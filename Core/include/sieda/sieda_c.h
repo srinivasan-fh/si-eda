@@ -144,6 +144,20 @@ char* sieda_standard_parts_json(void);
  * reported in files[].error; the call never fails on file content. Caller frees. */
 char* sieda_library_import(const char* request_json);
 
+/* ---- supplier part data (docs/SUPPLIERS.md) --------------------------------------------------- */
+/* Reads a distributor reply body (source "nexar", "digikey" or "mouser") into the normalised supplier schema
+ * {"schema":"sieda.supplier/1","source","total","error","errorKind","notes","parts":[{mpn,manufacturer,description,
+ *  category,package,datasheet,productUrl,lifecycle,lifecycleText,parameters,offers:[{supplier,sku,stock,moq,multiple,
+ *  packaging,currency,leadTimeDays,url,prices:[{quantity,price}]}],stock,pricing}]}. currency ("USD", NULL = any)
+ * picks the offers "pricing" prefers. Never fails: errors are in "error". Caller frees. */
+char* sieda_supplier_parse(const char* source, const char* body, const char* currency);
+/* {"results":[normalised results],"currency"} -> {"parts":[merged parts],"errors":[{source,error,errorKind}]}. */
+char* sieda_supplier_merge(const char* request_json);
+/* BOM cost roll-up with stock and lifecycle warnings (see Suppliers.hpp, supplierBomRollup). */
+char* sieda_supplier_bom_rollup(const char* request_json);
+/* Standard-catalog part for a manufacturer part number: {"match","exact","note","candidates":[names]}. */
+char* sieda_supplier_catalog_match(const char* mpn);
+
 /* ---- standard values --------------------------------------------------------------------- */
 /* Nearest IEC 60063 value; series = 12, 24 or 96. */
 double sieda_nearest_standard_value(double value, int32_t series);
