@@ -9406,3 +9406,146 @@ TEST(router_head_update_can_be_cancelled) {
     CHECK(sieda_router_active(p) == 0);
     sieda_project_free(p);
 }
+
+namespace {
+/// Two SOIC-8 parts 30 mm apart; U1's right-hand pins 5…8 are wired to U2's left-hand pins 4…1 (same rows).
+struct BusBoard {
+    Project p;
+    int u1 = -1, u2 = -1;
+    std::vector<int> nets;  // U1 pin 5, 6, 7, 8
+};
+
+BusBoard busBoard() {
+    BusBoard b;
+    auto& s = b.p.schematic;
+    CustomPartSpec spec;
+    spec.name = "BUS-SOIC8";
+    spec.package.type = "SOIC";
+    spec.package.pinCount = 8;
+    for (int i = 1; i <= 8; ++i) {
+        CustomPin pin;
+        pin.number = std::to_string(i);
+        pin.name = "P" + std::to_string(i);
+        pin.type = PinType::Passive;
+        spec.pins.push_back(pin);
+    }
+    const std::string part = b.p.addCustomPart(spec);
+    b.u1 = s.addCustomComponent(part, "", {0, 0});
+    b.u2 = s.addCustomComponent(part, "", {400, 0});
+    for (int k = 0; k < 4; ++k) wire(s, b.u1, ("P" + std::to_string(5 + k)).c_str(), b.u2, ("P" + std::to_string(4 - k)).c_str());
+    b.p.schematicChanged();
+    for (auto [id, x] : {std::pair<int, double>{b.u1, 12}, {b.u2, 42}}) {
+        Component* c = s.find(id);
+        c->pcb.position = {x, 20};
+        c->pcb.placed = true;
+    }
+    for (int k = 0; k < 4; ++k) b.nets.push_back(s.netOf({b.u1, pin(s, b.u1, ("P" + std::to_string(5 + k)).c_str())}));
+    return b;
+}
+}  // namespace
+
+TEST(router_routes_a_bus_together) {
+    BusBoard b = busBoard();
+    auto& s = b.p.schematic;
+    const Vec2 p8 = padAt(b.p, b.u1, pin(s, b.u1, "P8"));
+    InteractiveRouter r(b.p.pcb, s);
+    CHECK(!r.beginBus({1, 1}, 0, 4));  // not on a pad
+    CHECK(r.beginBus(p8, 0, 4));
+    CHECK(r.preview().kind == "bus" && r.preview().nets.size() == 4);
+    const RoutePreview& pv = r.moveTo({30, 20});
+    CHECK(!pv.blocked);
+    CHECK(!r.addVia());  // vias track by track, after the bus
+    CHECK(r.commit().ok);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    // Each member ends in the bundle at x = 30: four parallel ends at track pitch (width + clearance), in pin order.
+    const double pitch = b.p.pcb.settings.trackWidth + b.p.pcb.settings.clearance;
+    std::vector<std::pair<double, int>> ends;
+    for (const auto& t : b.p.pcb.tracks)
+        for (Vec2 e : {t.a, t.b})
+            if (std::fabs(e.x - 30) < 1e-6) ends.push_back({e.y, t.net});
+    std::sort(ends.begin(), ends.end());
+    CHECK(ends.size() == 4);
+    for (size_t k = 1; k < ends.size(); ++k) CHECK_NEAR(ends[k].first - ends[k - 1].first, pitch, 1e-6);
+    // Each track is then finished on its own, onto its pad of U2: everything routed, DRC clean.
+    for (size_t k = 0; k < ends.size(); ++k) {
+        InteractiveRouter rk(b.p.pcb, s);
+        CHECK(rk.beginRoute({30, ends[k].first}, 0));
+        Vec2 target{-1, -1};
+        for (const auto& pd : b.p.pcb.pads(s))
+            if (pd.net == ends[k].second && pd.componentId == b.u2) target = pd.position;
+        const RoutePreview& fk = rk.moveTo(target);
+        CHECK(fk.reachedTarget);
+        CHECK(rk.commit().ok);
+    }
+    for (int n : b.nets) CHECK(netRouted(b.p, n));
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+}
+
+TEST(router_bus_turns_corners_at_pitch) {
+    // The bundle turns a 90° corner (45° posture: two 45° bends) and stays at pitch: no member comes closer to
+    // another than the clearance anywhere, and DRC stays clean.
+    BusBoard b = busBoard();
+    auto& s = b.p.schematic;
+    InteractiveRouter r(b.p.pcb, s);
+    CHECK(r.beginBus(padAt(b.p, b.u1, pin(s, b.u1, "P5")), 0, 4));
+    r.moveTo({24, 20});
+    CHECK(r.fixHead());
+    const RoutePreview& pv = r.moveTo({30, 34});
+    CHECK(!pv.blocked);
+    CHECK(r.commit().ok);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    double closest = 1e9;
+    for (const auto& t : b.p.pcb.tracks)
+        for (const auto& u : b.p.pcb.tracks)
+            if (t.net != u.net) closest = std::min(closest, segmentSegmentDistance(t.a, t.b, u.a, u.b) - (t.width + u.width) / 2);
+    CHECK(closest >= b.p.pcb.settings.clearance - 1e-6);
+    CHECK(closest <= b.p.pcb.settings.clearance + 1e-6);  // packed at pitch somewhere
+}
+
+TEST(router_fans_out_a_part) {
+    // U1's four wired pins get an escape and a via each, straight out of the pad row; its four unconnected pins are
+    // skipped. A second fanout finds nothing left to do. The board stays DRC clean.
+    BusBoard b = busBoard();
+    const FanoutResult f = fanoutComponent(b.p.pcb, b.p.schematic, b.u1);
+    CHECK(f.ok);
+    CHECK(f.fanned == 4 && f.skipped == 4 && f.failedPads.empty());
+    CHECK(b.p.pcb.vias.size() == 4);
+    for (const auto& v : b.p.pcb.vias) CHECK(v.position.x > 14.7 + 0.775);  // outside the right-hand pad column
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    const FanoutResult again = fanoutComponent(b.p.pcb, b.p.schematic, b.u1);
+    CHECK(!again.ok && again.fanned == 0 && again.skipped == 8);
+    CHECK(b.p.pcb.vias.size() == 4);
+    CHECK(!fanoutComponent(b.p.pcb, b.p.schematic, -1).ok);
+    const FanoutOptions o = fanoutOptionsFromJson(Json::parse("{\"viaType\":\"micro\",\"shove\":true,\"distance\":1.5}"));
+    CHECK(o.viaType == RouterViaType::Micro && o.shove && o.distance == 1.5);
+    CHECK(fanoutJson(f).dump().find("\"fanned\":4") != std::string::npos);
+}
+
+TEST(router_fans_out_two_pin_parts_and_starts_their_bus) {
+    // The app test's board: R1 at (20, 20) wired to R2 and R3 on both pins. Fanout gives both pads a via; the same
+    // two pads also start a bus of two.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {20, 20}), r2 = placeR(p, {40, 10}), r3 = placeR(p, {40, 30});
+    wire(s, r1, "2", r2, "1");
+    wire(s, r1, "1", r3, "2");
+    p.schematicChanged();
+    {
+        Project q = p;
+        const FanoutResult f = fanoutComponent(q.pcb, q.schematic, r1);
+        CHECK(f.fanned == 2 && q.pcb.vias.size() == 2);
+        CHECK(routingProblems(q) == 0);
+        CHECK(acuteWarnings(q) == 0);
+    }
+    InteractiveRouter r(p.pcb, s);
+    CHECK(r.beginBus(padAt(p, r1, 1), 0, 2));
+    const RoutePreview& pv = r.moveTo({20, 5});
+    std::set<int> nets;
+    for (const auto& t : pv.head) nets.insert(t.net);
+    CHECK(nets.size() == 2);
+    CHECK(!pv.blocked);
+}

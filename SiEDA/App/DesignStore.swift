@@ -1400,6 +1400,10 @@ final class DesignStore: ObservableObject {
         didSet { if routerViaType != oldValue { applyRouterOptions() } }
     }
 
+    /// Bus routing: the next route takes the clicked pad and the next pads of its row (`routerBusWidth` nets).
+    @Published var routerBus = false
+    @Published var routerBusWidth = 4
+
     /// Rounded corners: arcs (as short chords) instead of sharp 45° / 90° corners on single-track routes.
     @Published var routerRounded = false {
         didSet { if routerRounded != oldValue { applyRouterOptions() } }
@@ -1424,6 +1428,40 @@ final class DesignStore: ObservableObject {
         guard !isBusy else { return }
         settleRouteMoves()
         showRoute(engine.routerBegin(at: point, layer: layer, pair: pair, options: routerOptions))
+    }
+
+    /// Starts a bus on the pad at `point`: it and the next pads of the same part's row route as one bundle.
+    func beginBus(at point: CGPoint, layer: Int) {
+        guard !isBusy else { return }
+        settleRouteMoves()
+        showRoute(engine.routerBeginBus(at: point, layer: layer, count: routerBusWidth, options: routerOptions))
+    }
+
+    /// Fans out the selected parts: an escape track and a via (the Route tool's via type) on each SMD pad that has
+    /// somewhere to go and no copper yet. One undo step.
+    func fanoutSelection() {
+        let parts = snapshot.components.filter { selection.contains($0.id) && $0.pcb.placed }.map(\.id).sorted()
+        guard !parts.isEmpty else {
+            statusMessage = "Fanout: select a part on the board first"
+            return
+        }
+        if routePreview != nil { cancelRoute() }
+        var fanned = 0, failed = 0
+        var message = ""
+        let done = performChecked("Fanout", invalidatesAnalysis: false, failureMessage: "Fanout: nothing to fan out") {
+            for id in parts {
+                guard let result = $0.fanout(component: id, via: routerViaType) else { continue }
+                fanned += result.fanned
+                failed += result.failed.count
+                message = result.message
+            }
+            return fanned > 0
+        }
+        if done {
+            statusMessage = parts.count == 1 ? message
+                : "\(fanned) pad\(fanned == 1 ? "" : "s") fanned out" + (failed > 0 ? ", \(failed) without room" : "")
+            if !drcResults.isEmpty { runDRC() }
+        }
     }
 
     // Head updates run off the main thread, latest wins: while one is computed, newer cursor positions replace each

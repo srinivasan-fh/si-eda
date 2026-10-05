@@ -579,3 +579,7 @@
 "Via placed with V: through to the other side, or (HDI boards) blind / buried or a microvia to the next layer; Shift-V goes to the next layer the other way" = "V で置くビア：反対面まで貫通、または（HDI 基板）次の層へのブラインド／ベリードやマイクロビア。Shift-V は逆方向の次の層へ";
 "Rounded corners" = "角を丸める";
 "Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only" = "収まりクリアランスを保てる箇所で角を円弧（短い直線の弦で描画）にします。単一トラックのみ";
+"Bus" = "バス";
+"Bus width" = "バス幅";
+"Number of nets in the bus" = "バスに含めるネット数";
+"Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "パッドをクリック：そのパッドと同じ列の続くパッドがトラックピッチで束になって一緒に配線されます。終えたら各トラックを個別に続けます";

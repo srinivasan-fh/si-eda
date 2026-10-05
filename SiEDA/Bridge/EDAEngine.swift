@@ -863,6 +863,19 @@ final class EDAEngine: @unchecked Sendable {
         return Self.decode(TunePreview.self, from: withHandle { Self.take(sieda_router_tune($0, Int32(trackId), options)) })
     }
 
+    /// Starts a bus on the pad at `point`: it and the next pads of its part's row (up to `count` nets) route together.
+    func routerBeginBus(at point: CGPoint, layer: Int, count: Int, options: String) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle {
+            Self.take(sieda_router_begin_bus($0, options, Double(point.x), Double(point.y), Int32(layer), Int32(count)))
+        })
+    }
+
+    /// Fanout of a part: an escape track and a via on every SMD pad whose net has other pins and no copper yet.
+    func fanout(component: Int, via: RouterViaChoice = .through) -> FanoutResult? {
+        let options = "{\"viaType\":\"\(via.rawValue)\"}"
+        return Self.decode(FanoutResult.self, from: withHandle { Self.take(sieda_pcb_fanout($0, Int32(component), options)) })
+    }
+
     func routerMove(to point: CGPoint) -> RoutePreview? {
         Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_move($0, Double(point.x), Double(point.y))) })
     }

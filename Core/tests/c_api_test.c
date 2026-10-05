@@ -517,6 +517,14 @@ int sieda_c_api_router_drag_tune_test(void) {
     char* bad = sieda_router_tune(p, first, "{not json");
     if (!bad || !strstr(bad, "\"error\"")) return 14;
     sieda_string_free(bad);
+    /* A resistor's other pad has no net: no bus to start there. */
+    char* bus = sieda_router_begin_bus(p, NULL, 10.95, 20, 0, 4);
+    if (!bus || !strstr(bus, "\"error\"") || sieda_router_active(p)) return 15;
+    sieda_string_free(bus);
+    /* Both pads of R1 that matter are routed already: nothing to fan out. */
+    char* fan = sieda_pcb_fanout(p, r1, "{\"viaType\":\"through\"}");
+    if (!fan || !strstr(fan, "\"fanned\":0") || !strstr(fan, "\"ok\":false")) return 16;
+    sieda_string_free(fan);
     sieda_project_free(p);
     return 0;
 }

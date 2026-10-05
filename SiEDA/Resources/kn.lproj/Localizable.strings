@@ -579,3 +579,7 @@
 "Via placed with V: through to the other side, or (HDI boards) blind / buried or a microvia to the next layer; Shift-V goes to the next layer the other way" = "V ಯಿಂದ ಇಡುವ ವಯಾ: ಇನ್ನೊಂದು ಬದಿಗೆ ಥ್ರೂ, ಅಥವಾ (HDI ಬೋರ್ಡ್) ಮುಂದಿನ ಪದರಕ್ಕೆ ಬ್ಲೈಂಡ್ / ಬರೀಡ್ ಅಥವಾ ಮೈಕ್ರೋವಯಾ; Shift-V ವಿರುದ್ಧ ದಿಕ್ಕಿನ ಮುಂದಿನ ಪದರಕ್ಕೆ ಹೋಗುತ್ತದೆ";
 "Rounded corners" = "ದುಂಡಾದ ಮೂಲೆಗಳು";
 "Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only" = "ಹೊಂದುವ ಮತ್ತು ಕ್ಲಿಯರೆನ್ಸ್ ಉಳಿಯುವಲ್ಲಿ ಮೂಲೆಗಳು ಚಾಪಗಳಾಗುತ್ತವೆ (ಚಿಕ್ಕ ನೇರ ಜ್ಯಾಗಳಿಂದ ಎಳೆಯಲಾಗಿದೆ); ಏಕ ಟ್ರ್ಯಾಕ್‌ಗಳಿಗೆ ಮಾತ್ರ";
+"Bus" = "ಬಸ್";
+"Bus width" = "ಬಸ್ ಅಗಲ";
+"Number of nets in the bus" = "ಬಸ್‌ನಲ್ಲಿರುವ ನೆಟ್‌ಗಳ ಸಂಖ್ಯೆ";
+"Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "ಪ್ಯಾಡ್ ಕ್ಲಿಕ್ ಮಾಡಿ: ಅದು ಮತ್ತು ಅದರ ಸಾಲಿನ ಮುಂದಿನ ಪ್ಯಾಡ್‌ಗಳು ಟ್ರ್ಯಾಕ್ ಪಿಚ್‌ನಲ್ಲಿ ಕಟ್ಟಾಗಿ ಒಟ್ಟಿಗೆ ರೂಟ್ ಆಗುತ್ತವೆ; ಮುಗಿಸಿ, ನಂತರ ಪ್ರತಿ ಟ್ರ್ಯಾಕ್ ಮುಂದುವರಿಸಿ";

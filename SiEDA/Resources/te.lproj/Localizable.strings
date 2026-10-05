@@ -579,3 +579,7 @@
 "Via placed with V: through to the other side, or (HDI boards) blind / buried or a microvia to the next layer; Shift-V goes to the next layer the other way" = "V తో ఉంచే వయా: అవతలి వైపుకు త్రూ, లేదా (HDI బోర్డులు) తదుపరి లేయర్‌కు బ్లైండ్ / బరీడ్ లేదా మైక్రోవయా; Shift-V వ్యతిరేక దిశలో తదుపరి లేయర్‌కు వెళ్తుంది";
 "Rounded corners" = "గుండ్రని మూలలు";
 "Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only" = "సరిపోయే చోట మరియు క్లియరెన్స్ ఉంచే చోట మూలలు చాపాలుగా మారతాయి (చిన్న సరళ జ్యాలతో గీస్తారు); ఒకే ట్రాక్‌లకు మాత్రమే";
+"Bus" = "బస్";
+"Bus width" = "బస్ వెడల్పు";
+"Number of nets in the bus" = "బస్‌లోని నెట్‌ల సంఖ్య";
+"Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "ప్యాడ్‌ను క్లిక్ చేయండి: అదీ దాని వరుసలోని తదుపరి ప్యాడ్‌లూ ట్రాక్ పిచ్‌లో కట్టగా కలిసి రూట్ అవుతాయి; ముగించి, ఆపై ప్రతి ట్రాక్‌ను కొనసాగించండి";

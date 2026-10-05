@@ -356,6 +356,16 @@ char* sieda_router_begin_via_drag(SiedaProject* project, const char* options_jso
  * {"ok","message","net","group","groupKind","tolerance","before","after","target","applied",
  *  "addedTracks":[track],"removedTracks":[id],"changes":{…as commit…}}. Caller frees. */
 char* sieda_router_tune(SiedaProject* project, int32_t track_id, const char* options_json);
+/* Bus: starts on the pad at (x, y) and takes the next pads of the same part along its row, up to `count` nets (2–16),
+ * routed together at track pitch; continue with sieda_router_move / fix / commit (vias track by track afterwards).
+ * Returns the preview (kind "bus"). */
+char* sieda_router_begin_bus(SiedaProject* project, const char* options_json, double x, double y, int32_t layer,
+                             int32_t count);
+/* Fanout of component `component_id`: an escape track and a via on every SMD pad whose net has other pins (and no
+ * copper yet). options_json (NULL = defaults): {"shove":bool,"onlyUnrouted":bool,"distance":mm,
+ * "viaType":"through"|"blind"|"micro"|"auto"}. {"ok","message","fanned","skipped","failed":[pad number]}.
+ * Ends a route session in progress. Caller frees. */
+char* sieda_pcb_fanout(SiedaProject* project, int32_t component_id, const char* options_json);
 /* Locked tracks are never shoved or dragged. Returns 1 on success. */
 int32_t sieda_pcb_lock_track(SiedaProject* project, int32_t track_id, int32_t locked);
 /* Deletes one track / via by id. Returns 1 on success. */

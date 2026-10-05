@@ -86,7 +86,7 @@ struct RouteChanges {
 /// other nets' items at their shoved positions (`hiddenTracks` / `hiddenVias` are the layout items they replace).
 struct RoutePreview {
     bool active = false;
-    std::string kind;          // "route", "pair", "drag" (a track segment) or "via" (a dragged via)
+    std::string kind;          // "route", "pair", "bus", "drag" (a track segment) or "via" (a dragged via)
     std::string status;        // what the router is doing / why the head stopped
     bool blocked = false;      // the head stops short of the cursor
     bool reachedTarget = false;  // the head ends on a pad / via / track of its own net (the route can finish)
@@ -132,6 +132,10 @@ public:
     /// Starts a differential pair on a pad of either member (nets named X_P / X_N, X+ / X-, …): both members are
     /// routed together at the pair gap from the nearest pads of the two nets.
     bool beginPair(Vec2 at, int layer);
+    /// Starts a bus on a pad of a part: that pad and the next pads of the same part along its row (up to `count`
+    /// nets, 2–16) are routed together as one bundle at track pitch (widest member width + clearance). The bus ends
+    /// where it is finished; each track is then continued on its own. Vias are placed track by track.
+    bool beginBus(Vec2 at, int layer, int count);
     /// Drags a track segment: it moves parallel to itself with the cursor, its neighbours follow with 45° joints,
     /// and (shove mode) other nets' copper is pushed aside.
     bool beginDrag(int trackId, Vec2 grab);
@@ -212,6 +216,34 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
 Json lengthTuneJson(const LengthTuneResult& r);
 /// Options from {"target","maxAmplitude","spacing","x","y","apply"} (x and y together set the near point).
 LengthTuneOptions lengthTuneOptionsFromJson(const Json& j);
+
+struct FanoutOptions {
+    /// Walk around (default: nothing else moves) or shove other nets' copper out of the way.
+    bool shove = false;
+    /// Skip pads that already have a track or via of their net.
+    bool onlyUnrouted = true;
+    /// Pad centre to via centre (mm); 0 = just clear of the pad (pad half size + clearance + via radius).
+    double distance = 0;
+    RouterViaType viaType = RouterViaType::Through;
+};
+
+struct FanoutResult {
+    bool ok = false;  // at least one pad was fanned out
+    std::string message;
+    int fanned = 0, skipped = 0;  // skipped: through-hole, no net / single-pin net, already routed
+    std::vector<int> failedPads;  // pad numbers with no room for an escape and a via
+    std::string firstProblem;
+};
+
+/// Fanout of a part: every SMD pad whose net has other pins gets a short escape track and a via (dog-bone), outward
+/// along the pad's long side (diagonal for square pads such as BGA balls), placed through the interactive router so
+/// it keeps every rule (walkaround by default). Each pad tries a few positions (straight out, ±45°, further out)
+/// before it is reported as failed. Changes the layout.
+FanoutResult fanoutComponent(PcbLayout& pcb, const Schematic& sch, int componentId, const FanoutOptions& options = {});
+/// Options from {"shove","onlyUnrouted","distance","viaType":"through|blind|micro|auto"}.
+FanoutOptions fanoutOptionsFromJson(const Json& j);
+/// {"ok","message","fanned","skipped","failed":[pad number]}
+Json fanoutJson(const FanoutResult& r);
 
 /// Options from {"mode":"shove|walkaround","posture":"45|90|free","swapPosture","width","pairGap","snap"} — missing
 /// fields keep their value in `base`.

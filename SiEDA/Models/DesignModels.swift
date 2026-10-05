@@ -898,6 +898,15 @@ struct RouteCollision: Decodable, Equatable {
     var width: Double
 }
 
+/// Fanout of a part (`sieda_pcb_fanout`): pads given an escape and a via, pads skipped, pads without room.
+struct FanoutResult: Decodable, Equatable {
+    var ok: Bool
+    var message: String
+    var fanned: Int
+    var skipped: Int
+    var failed: [Int]
+}
+
 /// Interactive length tuning (`sieda_router_tune`): the meanders it would add (or added) and the lengths.
 struct TunePreview: Decodable, Equatable {
     var ok: Bool

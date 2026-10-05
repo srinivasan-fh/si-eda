@@ -579,3 +579,7 @@
 "Via placed with V: through to the other side, or (HDI boards) blind / buried or a microvia to the next layer; Shift-V goes to the next layer the other way" = "Via yang diletak dengan V: tembus ke sisi lain, atau (papan HDI) buta / tertanam atau mikrovia ke lapisan seterusnya; Shift-V ke lapisan seterusnya arah bertentangan";
 "Rounded corners" = "Sudut bulat";
 "Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only" = "Sudut menjadi lengkok (dilukis sebagai perentas lurus pendek) di mana ia muat dan mengekalkan kelegaan; trek tunggal sahaja";
+"Bus" = "Bas";
+"Bus width" = "Lebar bas";
+"Number of nets in the bus" = "Bilangan net dalam bas";
+"Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "Klik pad: pad itu dan pad seterusnya dalam barisnya dilaluankan bersama sebagai berkas pada jarak trek; selesaikan, kemudian teruskan setiap trek";

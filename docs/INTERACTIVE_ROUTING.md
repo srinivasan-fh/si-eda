@@ -41,6 +41,7 @@ The options bar shows the router settings while the Route tool is active:
 - **Differential pair**: the next route starts as a pair (see [Differential pairs](#differential-pairs)).
 - **Via type**: Through, Blind / buried, Microvia or Auto (see [Vias and HDI](#vias-and-hdi)).
 - **Rounded corners**: corners become arcs (see [Rounded corners](#rounded-corners)).
+- **Bus** and its width: the next route is a bus (see [Bus routing](#bus-routing)).
 
 The banner at the top of the canvas shows what the router is doing, the route length so far, and why the head stopped
 if it is blocked. A blocked head is outlined in amber.
@@ -152,6 +153,33 @@ net and routes both together:
 - **V** places two vias side by side, far enough apart for their clearance, and the pair continues on the other side;
 - walkaround and shove treat the pair as one unit.
 
+## Bus routing
+
+With **Bus** set (and a width of 2–8 nets), click a pad of a part. The bus takes that pad and the next pads of the
+same part along its row (onwards, then back the other way if the row ends first), skipping pads whose net goes
+nowhere, and routes them as one bundle:
+
+- the tracks run parallel at track pitch: the widest member's width plus the largest clearance between members;
+- before the first corner the bundle starts clear of the pad row on the cursor's side, and each pad leaves straight
+  out, then fans in at 45° to its lane, so neighbours never come closer than the clearance;
+- members keep their order across the bundle; at a corner the bundle first runs on by its half width, so each
+  member turns at its own miter point and the pitch stays exact through 45° and 90° turns;
+- walkaround and shove treat the bundle as one unit, like a pair.
+
+The bus ends where you finish it (**Enter** or double-click) with each track ending in the bundle. Continue each
+track on its own from there (start a route on its end) to its pad, with vias as needed. **V** inside a bus is
+refused: vias are placed track by track. Core: `InteractiveRouter::beginBus(at, layer, count)`; C:
+`sieda_router_begin_bus`.
+
+## Fanout
+
+Select one or more parts and press the fanout button in the tool strip (the outward-arrows icon). Every SMD pad whose
+net has other pins and no copper yet gets a short escape track and a via (a dog-bone): straight out along the pad's
+long side for gull-wing and QFN pads, diagonally for square pads such as BGA balls. Each escape is placed through the
+router in walkaround mode, so it keeps every rule and moves nothing; a pad tries straight out, ±45° and up to 1 mm
+further out before it is reported as without room. The via is the Route tool's **Via type**. Fanout is one undo step.
+Core: `fanoutComponent(pcb, sch, componentId, FanoutOptions)`; C: `sieda_pcb_fanout`.
+
 ## Dragging a segment
 
 With the **Select** tool (**V**), press on a track and drag. The segment moves parallel to itself with the cursor and
@@ -234,6 +262,8 @@ All functions are in `sieda_c.h`. Each project has one route session.
 | `sieda_router_cancel(project)`, `sieda_router_active(project)` | Session control |
 | `sieda_router_abort(project)` | Cancel the head update running on another thread (lock-free, thread-safe) |
 | `sieda_router_begin_via_drag(project, options_json, via_id, x, y)` | Drag a via |
+| `sieda_router_begin_bus(project, options_json, x, y, layer, count)` | Start a bus of `count` nets from a pad row |
+| `sieda_pcb_fanout(project, component_id, options_json)` | Fanout: escape + via per pad (`{"shove","onlyUnrouted","distance","viaType"}`) |
 | `sieda_router_tune(project, track_id, options_json)` | Length tuning with preview: `{"target","maxAmplitude","spacing","x","y","apply"}` |
 | `sieda_router_tune_length(project, track_id, target_mm, max_amplitude_mm)` | Length tuning (applies at once) |
 | `sieda_pcb_lock_track`, `sieda_pcb_remove_track`, `sieda_pcb_remove_via` | Track editing |
@@ -351,6 +381,9 @@ Core (`Core/tests/core_tests.cpp`):
 | `router_places_blind_buried_and_micro_vias` | Microvia, buried microvia, blind and through vias on a 4-layer HDI board with the asked spans and sizes; a microvia refuses a non-neighbouring layer; Auto and the no-HDI cases. |
 | `router_rounds_corners` | 45° corners become chord arcs (every join ≥ 165°), written exactly as previewed and DRC clean; a via inside a corner keeps that corner sharp. |
 | `router_head_update_can_be_cancelled` | A cancelled update leaves the router exactly as before; the next one matches a router that was never cancelled; a request while idle changes nothing. |
+| `router_routes_a_bus_together` | A bus of four SOIC pins ends at track pitch in pin order; each track is then finished to its pad; DRC clean. |
+| `router_bus_turns_corners_at_pitch` | A bus through a 90° turn keeps the clearance between members, and is packed at it. |
+| `router_fans_out_a_part` | Four wired pins get an escape and a via, four unconnected pins are skipped, a second fanout does nothing. |
 | `router_highlights_collisions` | Highlight mode lists the three lanes a straight head crosses, moves nothing, and commits as asked. |
 | `router_keeps_an_autorouted_board_drc_clean` | 30 pseudo-random routes and drags with shove on an autorouted board, with DRC after every commit. |
 | `c_api_router` | The C API end to end (`Core/tests/c_api_test.c`). |

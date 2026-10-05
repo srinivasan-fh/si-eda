@@ -132,6 +132,10 @@ struct PCBEditorView: View {
                 ToolStripButton(systemImage: "point.topleft.down.to.point.bottomright.curvepath.fill", help: "Auto Route (⇧⌘R)") {
                     Task { await store.autoRouteBoard() }
                 }
+                ToolStripButton(systemImage: "arrow.up.left.and.arrow.down.right",
+                                help: "Fan out the selected parts: an escape track and a via on each pad that still needs one") {
+                    store.fanoutSelection()
+                }
                 ToolStripButton(systemImage: "eraser", help: "Clear all tracks and vias") { store.clearRouting() }
                 ToolStripButton(systemImage: "checkmark.seal", help: "Design rule check") {
                     store.runDRC()
@@ -181,6 +185,20 @@ struct PCBEditorView: View {
                         Toggle("Differential pair", isOn: $routePair)
                             .toggleStyle(.checkbox)
                             .help("Route both nets of a differential pair (X_P / X_N) together at the pair gap")
+                            .onChange(of: routePair) { _, on in if on { store.routerBus = false } }
+                        Toggle("Bus", isOn: $store.routerBus)
+                            .toggleStyle(.checkbox)
+                            .help("Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track")
+                            .onChange(of: store.routerBus) { _, on in if on { routePair = false } }
+                        if store.routerBus {
+                            Picker("Bus width", selection: $store.routerBusWidth) {
+                                ForEach(2...8, id: \.self) { Text(verbatim: "\($0)").tag($0) }
+                            }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                            .fixedSize()
+                            .help("Number of nets in the bus")
+                        }
                         Picker("Via type", selection: $store.routerViaType) {
                             Text("Through").tag(RouterViaChoice.through)
                             Text("Blind / buried").tag(RouterViaChoice.blind)
@@ -774,7 +792,11 @@ struct PCBCanvas: View {
     /// reaches the net's pad (or a double-click) finishes the route.
     private func routeClick(at world: CGPoint) {
         guard store.routePreview != nil else {
-            store.beginRoute(at: world, layer: activeLayer.copperIndex ?? 0, pair: routePair)
+            if store.routerBus {
+                store.beginBus(at: world, layer: activeLayer.copperIndex ?? 0)
+            } else {
+                store.beginRoute(at: world, layer: activeLayer.copperIndex ?? 0, pair: routePair)
+            }
             return
         }
         store.moveRouteNow(to: world)
@@ -1159,7 +1181,7 @@ struct PCBCanvas: View {
                 CanvasOverlays.banner("Tune length — click a track; meanders go near the click", in: &ctx, size: size)
             }
         } else if routeTool {
-            CanvasOverlays.banner("Route — click a pad, via or track to start · \(routePair ? "differential pair" : "single track")",
+            CanvasOverlays.banner("Route — click a pad, via or track to start · \(store.routerBus ? "bus of \(store.routerBusWidth)" : routePair ? "differential pair" : "single track")",
                                   in: &ctx, size: size)
         }
 

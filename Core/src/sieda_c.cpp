@@ -2008,6 +2008,29 @@ char* sieda_router_begin_via_drag(SiedaProject* project, const char* options_jso
     }
 }
 
+char* sieda_router_begin_bus(SiedaProject* project, const char* options_json, double x, double y, int32_t layer,
+                             int32_t count) {
+    if (!project) return nullptr;
+    try {
+        applyRouterOptions(project, options_json);
+        return routerPreview(project, routerOf(project).beginBus({x, y}, layer, count));
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_pcb_fanout(SiedaProject* project, int32_t component_id, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        const FanoutOptions o =
+            fanoutOptionsFromJson(options_json && *options_json ? Json::parse(options_json) : Json::object());
+        if (project->router) project->router->cancel();
+        return dup(fanoutJson(fanoutComponent(project->project.pcb, project->project.schematic, component_id, o)).dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
 char* sieda_router_tune(SiedaProject* project, int32_t track_id, const char* options_json) {
     if (!project) return nullptr;
     try {

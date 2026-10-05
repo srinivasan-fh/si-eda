@@ -5050,6 +5050,36 @@ final class InteractiveRoutingStoreTests: XCTestCase {
         XCTAssertFalse(engine.runDRC().contains { $0.severity == .error })
     }
 
+    func testFanoutAndBusFromTheStore() throws {
+        let store = DesignStore()
+        let engine = store.engine
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        let r3 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 200, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 0), PinAddress(component: r3, pin: 1)))
+        engine.moveFootprint(r1, to: CGPoint(x: 20, y: 20))
+        engine.moveFootprint(r2, to: CGPoint(x: 40, y: 10))
+        engine.moveFootprint(r3, to: CGPoint(x: 40, y: 30))
+        store.refresh()
+        // Both pads of R1 go somewhere: a fanout gives each an escape and a via, as one undo step.
+        store.select(component: r1)
+        store.fanoutSelection()
+        XCTAssertEqual(store.snapshot.vias.count, 2)
+        XCTAssertFalse(engine.runDRC().contains { $0.severity == .error && $0.code != "DRC_UNROUTED" })
+        store.undo()
+        XCTAssertTrue(store.snapshot.vias.isEmpty)
+        // The same two pads as a bus of two.
+        let options = EDAEngine.routerOptions(mode: .shove, diagonal: true)
+        let bus = try XCTUnwrap(engine.routerBeginBus(at: CGPoint(x: 20.95, y: 20), layer: 0, count: 2, options: options))
+        XCTAssertNil(bus.error)
+        XCTAssertEqual(bus.kind, "bus")
+        XCTAssertEqual(bus.nets.count, 2)
+        let head = try XCTUnwrap(engine.routerMove(to: CGPoint(x: 20, y: 5)))
+        XCTAssertEqual(Set(head.head.map(\.net)).count, 2)
+        engine.routerCancel()
+    }
+
     func testHighlightModeListsCollisions() throws {
         let store = try routedStore()
         store.routerMode = .highlight

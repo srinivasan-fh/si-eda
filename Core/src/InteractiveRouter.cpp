@@ -1861,7 +1861,7 @@ struct InteractiveRouter::Impl {
     RouterOptions opt;
     std::unique_ptr<Base> base;
     World committed, current;
-    enum class Kind { None, Route, Pair, Drag, DragVia } kind = Kind::None;
+    enum class Kind { None, Route, Pair, Bus, Drag, DragVia } kind = Kind::None;
 
     struct Member {
         int net = -1;
@@ -1876,6 +1876,10 @@ struct InteractiveRouter::Impl {
     Vec2 centre;                 // pair: where the centre line continues
     std::vector<Vec2> centreHead;
     int side = 0;                // pair: members[0] lies on the left (+1) or right (-1) of the centre line
+    std::vector<double> busOffset;  // bus: each member's offset left of the centre line (fixed at the first corner)
+    Vec2 busAcross;                 // bus: across the start pads' row (the bundle leaves the row this way or back)
+    double busPadHalf = 0;          // bus: largest pad half-size across the row
+    Vec2 busFanOut;                 // bus, before the first corner: the side the bundle leaves the row (0 = later)
     Vec2 lastDir;                // direction of the last placed segment (0 = none)
     std::vector<Via> placedVias;
     bool reached = false, blocked = false;
@@ -1923,6 +1927,7 @@ struct InteractiveRouter::Impl {
         hasCursor = false;
         vdrag = ViaDrag{};
         groupTarget = 0;
+        busOffset.clear();
         prev = RoutePreview{};
     }
 
@@ -2380,6 +2385,203 @@ struct InteractiveRouter::Impl {
         return out;
     }
 
+    // ---------------------------------------------------------------------------------------------------- bus
+
+    bool beginBus(Vec2 at, int l, int count) {
+        reset();
+        base = std::make_unique<Base>(pcb, sch);
+        auto bail = [&](const std::string& why) {
+            base.reset();
+            return fail(why);
+        };
+        count = std::clamp(count, 2, 16);
+        if (l < 0 || l >= std::max(1, base->s.layerCount)) return bail("That copper layer is not in the stack-up");
+        StartHit st;
+        if (!findStart(at, l, st) || st.pad < 0) return bail("Start a bus on a pad of a part");
+        if (st.layer >= 0) l = st.layer;
+        const Pad& sp = base->pads[static_cast<size_t>(st.pad)];
+        auto it = base->compPads.find(sp.componentId);
+        if (it == base->compPads.end()) return bail("Start a bus on a pad of a part");
+        // The row: the part's pads on this layer in line with the clicked one (along the nearest neighbour).
+        long nearest = -1;
+        double nd = 1e18;
+        for (size_t q : it->second) {
+            const Pad& o = base->pads[q];
+            if (static_cast<long>(q) == st.pad || !o.onLayer(l)) continue;
+            const double d = (o.position - sp.position).length();
+            if (d < nd) {
+                nd = d;
+                nearest = static_cast<long>(q);
+            }
+        }
+        if (nearest < 0) return bail("The part has no other pad for a bus");
+        const Vec2 axis = std::fabs(base->pads[static_cast<size_t>(nearest)].position.x - sp.position.x) >=
+                                  std::fabs(base->pads[static_cast<size_t>(nearest)].position.y - sp.position.y)
+                              ? Vec2{1, 0}
+                              : Vec2{0, 1};
+        const Vec2 across{-axis.y, axis.x};
+        const double tol = std::max(0.05, 0.25 * std::min(sp.size.x, sp.size.y));
+        std::vector<size_t> row;
+        for (size_t q : it->second) {
+            const Pad& o = base->pads[q];
+            // Pads whose net goes somewhere (an unconnected pin's one-pin net has nothing to route to).
+            const bool wired = o.net >= 0 && static_cast<size_t>(o.net) < base->pinCount.size() &&
+                               base->pinCount[static_cast<size_t>(o.net)] >= 2;
+            if (o.onLayer(l) && wired &&
+                std::fabs((o.position - sp.position).dot(across)) <= tol)
+                row.push_back(q);
+        }
+        std::sort(row.begin(), row.end(), [&](size_t a, size_t b) {
+            return base->pads[a].position.dot(axis) < base->pads[b].position.dot(axis);
+        });
+        const long at0 = std::find(row.begin(), row.end(), static_cast<size_t>(st.pad)) - row.begin();
+        if (at0 >= static_cast<long>(row.size())) return bail("That pad's net connects to nothing else");
+        // From the clicked pad onwards along the row, then back the other way if the row ends first.
+        std::vector<size_t> pick;
+        std::vector<int> nets;
+        auto take = [&](size_t q) {
+            const int n = base->pads[q].net;
+            if (static_cast<int>(pick.size()) >= count || std::find(nets.begin(), nets.end(), n) != nets.end()) return;
+            pick.push_back(q);
+            nets.push_back(n);
+        };
+        for (long k = at0; k < static_cast<long>(row.size()); ++k) take(row[static_cast<size_t>(k)]);
+        for (long k = at0 - 1; k >= 0; --k) take(row[static_cast<size_t>(k)]);
+        if (pick.size() < 2) return bail("No other pad with a net next to it in its row");
+        if (!layerUsable(l, nets)) {
+            base.reset();
+            return false;
+        }
+        layer = l;
+        width = 0;
+        double clr = 0;
+        for (int n : nets) width = std::max(width, netWidth(n));
+        for (int a : nets)
+            for (int b : nets)
+                if (a != b) clr = std::max(clr, base->clearance(a, b));
+        spacing = width + clr;  // centre to centre
+        members.clear();
+        centre = {};
+        for (size_t q : pick) {
+            Member m;
+            m.net = base->pads[q].net;
+            m.end = base->pads[q].position;
+            m.startPad = static_cast<long>(q);
+            members.push_back(m);
+            centre = centre + m.end * (1.0 / static_cast<double>(pick.size()));
+        }
+        busAcross = across;
+        busPadHalf = 0;
+        for (size_t q : pick) busPadHalf = std::max(busPadHalf, std::fabs(base->pads[q].size.dot(across)) / 2);
+        kind = Kind::Bus;
+        startSession(nets);
+        status = "Routing a bus of " + std::to_string(members.size()) + " nets";
+        buildPreview();
+        return true;
+    }
+
+    /// Each member's offset left of a centre line leaving in direction `dir`: members keep their order across the
+    /// bundle (by where they start), `spacing` apart. Fixed once the first corner is placed.
+    std::vector<double> busOffsets(Vec2 dir) const {
+        if (!busOffset.empty()) return busOffset;
+        const Vec2 nrm = leftNormal(dir);
+        std::vector<size_t> order(members.size());
+        for (size_t k = 0; k < order.size(); ++k) order[k] = k;
+        std::stable_sort(order.begin(), order.end(),
+                         [&](size_t a, size_t b) { return (members[a].end - centre).dot(nrm) < (members[b].end - centre).dot(nrm); });
+        std::vector<double> off(members.size());
+        const double mid = (static_cast<double>(members.size()) - 1) / 2;
+        for (size_t r = 0; r < order.size(); ++r) off[order[r]] = (static_cast<double>(r) - mid) * spacing;
+        return off;
+    }
+
+    std::vector<HeadLine> busLines(const std::vector<Vec2>& c) const {
+        std::vector<HeadLine> out;
+        if (c.size() < 2) return out;
+        const std::vector<double> off = busOffsets(c[1] - c[0]);
+        for (size_t k = 0; k < members.size(); ++k) {
+            const std::vector<Vec2> o = offsetPath(c, off[k]);
+            std::vector<Vec2> pts{members[k].end};
+            if (busFanOut.length() > 0) {
+                // Fan-in: straight out of the pad past the row, 45° to the member's lane, straight into the bundle.
+                const Vec2 nrm = leftNormal(busFanOut);
+                const Vec2 p = members[k].end;
+                const Vec2 e = p + busFanOut * (busPadHalf + base->s.clearance + width / 2);
+                const double across = (o.front() - e).dot(nrm);
+                const Vec2 d = e + busFanOut * std::fabs(across) + nrm * across;
+                pts.push_back(e);
+                pts.push_back(d);
+                pts.push_back(o.front());
+            } else {
+                auto lead = postureLinks(members[k].end, o.front(), RoutePosture::Diagonal45, false);
+                pts.insert(pts.end(), lead.front().begin() + 1, lead.front().end());
+            }
+            pts.insert(pts.end(), o.begin() + 1, o.end());
+            out.push_back({members[k].net, simplifyPath(pts)});
+        }
+        return out;
+    }
+
+    void busHead(Vec2 cursor) {
+        current = committed;
+        centreHead.clear();
+        for (auto& m : members) m.head.clear();
+        reached = false;
+        blocked = false;
+        status = "Routing a bus of " + std::to_string(members.size()) + " nets";
+        if ((cursor - centre).length() < 1e-6) return;
+        std::vector<int> nets;
+        for (const auto& m : members) nets.push_back(m.net);
+        auto build = [&](const std::vector<Vec2>& c, bool) { return busLines(c); };
+        const double half = (static_cast<double>(members.size()) - 1) / 2 * spacing + width / 2;
+        // Before the first corner the bundle starts clear of the pad row, on the cursor's side: each pad leaves
+        // straight out and fans in at 45° to its place in the bundle without crossing its neighbours.
+        Vec2 from = centre;
+        Vec2 dir = lastDir;
+        if (busOffset.empty()) {
+            const Vec2 out = (cursor - centre).dot(busAcross) >= 0 ? busAcross : busAcross * -1.0;
+            const std::vector<double> off = busOffsets(out);
+            double fan = 0;
+            for (size_t k = 0; k < members.size(); ++k) {
+                const Vec2 q = centre + leftNormal(out) * off[k];
+                fan = std::max(fan, std::fabs((q - members[k].end).dot(leftNormal(out))));
+            }
+            from = centre + out * (fan + busPadHalf + base->s.clearance + width);
+            dir = out;
+            busFanOut = out;
+        } else {
+            busFanOut = {};
+        }
+        // After a placed corner the members end on the line across the centre: the bundle runs on straight by its
+        // half width before it may turn, so every member turns at its own miter point without doubling back.
+        bool prefix = false;
+        if (!busOffset.empty() && lastDir.length() > 0) {
+            double maxO = 0;
+            for (double o : busOffset) maxO = std::max(maxO, std::fabs(o));
+            from = centre + unit(lastDir) * maxO;
+            prefix = maxO > 1e-9;
+        }
+        if ((cursor - from).length() < 1e-6) return;
+        auto withPrefix = [&](std::vector<Vec2> c) {
+            if (prefix && !c.empty()) c.insert(c.begin(), centre);
+            return simplifyPath(c);
+        };
+        auto walk = [&] {
+            GridPath g = gridRoute(committed, nets, layer, half, from, cursor, opt.posture, dir);
+            if (g.pts.size() >= 2) g.pts = withPrefix(g.pts);
+            return g;
+        };
+        std::vector<Vec2> chosen;
+        std::vector<std::vector<Vec2>> links;
+        for (auto& l : postureLinks(from, cursor, opt.posture, opt.swapPosture))
+            if (!(dir.length() > 0 && l.size() >= 2 && acuteJoin(dir, l[1] - l[0]))) links.push_back(withPrefix(l));
+        solveHead(links, walk, build, cursor, chosen);
+        if (chosen.size() < 2) return;
+        centreHead = chosen;
+        const auto lines = busLines(chosen);
+        for (size_t k = 0; k < members.size() && k < lines.size(); ++k) members[k].head = lines[k].pts;
+    }
+
     void pairHead(Vec2 cursor) {
         current = committed;
         centreHead.clear();
@@ -2789,6 +2991,7 @@ struct InteractiveRouter::Impl {
         hasCursor = true;
         if (kind == Kind::Route) routeHead(cursor);
         if (kind == Kind::Pair) pairHead(cursor);
+        if (kind == Kind::Bus) busHead(cursor);
         if (kind == Kind::Drag) dragHead(cursor);
         if (kind == Kind::DragVia) viaDragHead(cursor);
         if (check()) {
@@ -2823,7 +3026,7 @@ struct InteractiveRouter::Impl {
     }
 
     bool fixHead() {
-        if (kind != Kind::Route && kind != Kind::Pair) return fail("Nothing to place");
+        if (kind != Kind::Route && kind != Kind::Pair && kind != Kind::Bus) return fail("Nothing to place");
         bool any = false;
         for (const auto& m : members) any = any || m.head.size() >= 2;
         if (!any) return fail("The head is empty");
@@ -2840,6 +3043,12 @@ struct InteractiveRouter::Impl {
                                                                                                 : members[0].placed.front().a - centre);
                 side = cr >= 0 ? 1 : -1;
             }
+            lastDir = centreHead.back() - centreHead[centreHead.size() - 2];
+            centre = centreHead.back();
+            centreHead.clear();
+        } else if (kind == Kind::Bus && centreHead.size() >= 2) {
+            if (busOffset.empty()) busOffset = busOffsets(centreHead[1] - centreHead[0]);
+            busFanOut = {};
             lastDir = centreHead.back() - centreHead[centreHead.size() - 2];
             centre = centreHead.back();
             centreHead.clear();
@@ -2896,6 +3105,7 @@ struct InteractiveRouter::Impl {
     }
 
     bool addVia(int toLayer) {
+        if (kind == Kind::Bus) return fail("A bus changes layer track by track: finish it, then continue each track with a via");
         if (kind != Kind::Route && kind != Kind::Pair) return fail("Start a route first");
         const BoardSettings& s = base->s;
         if (s.layerCount < 2) return fail("A single-sided board has no vias");
@@ -3028,7 +3238,7 @@ struct InteractiveRouter::Impl {
             ch.error = "No route in progress";
             return ch;
         }
-        if (kind == Kind::Route || kind == Kind::Pair) {
+        if (kind == Kind::Route || kind == Kind::Pair || kind == Kind::Bus) {
             bool any = false;
             for (const auto& m : members) any = any || m.head.size() >= 2;
             if (any) fixHead();
@@ -3155,7 +3365,11 @@ struct InteractiveRouter::Impl {
             prev = p;
             return;
         }
-        p.kind = kind == Kind::Route ? "route" : kind == Kind::Pair ? "pair" : kind == Kind::Drag ? "drag" : "via";
+        p.kind = kind == Kind::Route  ? "route"
+                 : kind == Kind::Pair ? "pair"
+                 : kind == Kind::Bus  ? "bus"
+                 : kind == Kind::Drag ? "drag"
+                                      : "via";
         p.status = status;
         p.blocked = blocked;
         p.reachedTarget = reached;
@@ -3179,7 +3393,7 @@ struct InteractiveRouter::Impl {
             p.placed.assign(round.begin(), round.begin() + static_cast<long>(h));
             p.head.assign(round.begin() + static_cast<long>(h), round.end());
         }
-        if (kind == Kind::Pair)
+        if (kind == Kind::Pair || kind == Kind::Bus)
             p.end = centreHead.size() >= 2 ? centreHead.back() : centre;
         else if (kind == Kind::DragVia)
             p.end = vdrag.at;
@@ -3244,6 +3458,10 @@ const RouterOptions& InteractiveRouter::options() const { return impl_->opt; }
 bool InteractiveRouter::beginRoute(Vec2 at, int layer) {
     impl_->err.clear();
     return impl_->beginRoute(at, layer);
+}
+bool InteractiveRouter::beginBus(Vec2 at, int layer, int count) {
+    impl_->err.clear();
+    return impl_->beginBus(at, layer, count);
 }
 bool InteractiveRouter::beginPair(Vec2 at, int layer) {
     impl_->err.clear();
@@ -3469,6 +3687,147 @@ Json lengthTuneJson(const LengthTuneResult& r) {
     j["addedTracks"] = added;
     j["removedTracks"] = removed;
     j["changes"] = routeChangesJson(r.changes);
+    return j;
+}
+
+// ================================================================================================== fanout
+
+FanoutResult fanoutComponent(PcbLayout& pcb, const Schematic& sch, int componentId, const FanoutOptions& options) {
+    FanoutResult res;
+    if (pcb.settings.layerCount < 2) {
+        res.message = "A single-sided board has no vias to fan out to";
+        return res;
+    }
+    const Component* comp = sch.find(componentId);
+    if (!comp || !comp->pcb.placed) {
+        res.message = "The part is not on the board";
+        return res;
+    }
+    std::vector<size_t> pinCount;
+    for (const auto& n : sch.nets()) pinCount.push_back(n.pins.size());
+    const std::vector<Pad> all = pcb.pads(sch);
+    std::vector<size_t> mine;
+    Vec2 centre;
+    for (size_t i = 0; i < all.size(); ++i)
+        if (all[i].componentId == componentId) {
+            mine.push_back(i);
+            centre = centre + all[i].position;
+        }
+    if (mine.empty()) {
+        res.message = "The part has no pads";
+        return res;
+    }
+    centre = centre * (1.0 / static_cast<double>(mine.size()));
+    const BoardSettings& s = pcb.settings;
+    RouterOptions ro;
+    ro.mode = options.shove ? RouterMode::Shove : RouterMode::Walkaround;
+    ro.viaType = options.viaType;
+    ro.snapToPads = false;
+    // Pads in pad order, so the result is the same every time.
+    std::stable_sort(mine.begin(), mine.end(), [&](size_t a, size_t b) { return all[a].padNumber < all[b].padNumber; });
+    for (size_t i : mine) {
+        const Pad pd = all[i];
+        if (pd.throughHole || pd.net < 0 || static_cast<size_t>(pd.net) >= pinCount.size() ||
+            pinCount[static_cast<size_t>(pd.net)] < 2) {
+            ++res.skipped;
+            continue;
+        }
+        if (options.onlyUnrouted) {
+            bool routed = false;
+            for (const auto& t : pcb.tracks)
+                routed = routed || (t.net == pd.net && t.layer == pd.smdLayer && padSegmentDistance(pd, t.a, t.b) <= t.width / 2);
+            for (const auto& v : pcb.vias)
+                routed = routed || (v.net == pd.net && v.spans(pd.smdLayer) && padDistance(pd, v.position) <= v.diameter / 2);
+            if (routed) {
+                ++res.skipped;
+                continue;
+            }
+        }
+        // Outward: along the pad's long side for gull-wing / QFN pads, diagonal for square pads (BGA dog-bone).
+        const Vec2 d = pd.position - centre;
+        Vec2 dir;
+        if (pd.size.x > 1.2 * pd.size.y)
+            dir = {d.x >= 0 ? 1.0 : -1.0, 0};
+        else if (pd.size.y > 1.2 * pd.size.x)
+            dir = {0, d.y >= 0 ? 1.0 : -1.0};
+        else if (std::fabs(d.x) < 1e-6 || std::fabs(d.y) < 1e-6)
+            dir = std::fabs(d.x) >= std::fabs(d.y) ? Vec2{d.x >= 0 ? 1.0 : -1.0, 0} : Vec2{0, d.y >= 0 ? 1.0 : -1.0};
+        else
+            dir = Vec2{d.x >= 0 ? 1.0 : -1.0, d.y >= 0 ? 1.0 : -1.0} * kInvSqrt2;
+        const double half = std::fabs(pd.size.x * dir.x) / 2 + std::fabs(pd.size.y * dir.y) / 2;
+        const double viaR = (options.viaType == RouterViaType::Micro ? s.microviaDiameter : s.viaDiameter) / 2;
+        const double base = options.distance > 0 ? options.distance : half + s.clearance + viaR + 0.05;
+        const Vec2 alt[3] = {dir, unit(dir + Vec2{-dir.y, dir.x}), unit(dir + Vec2{dir.y, -dir.x})};
+        bool done = false;
+        std::string why;
+        for (double extra : {0.0, 0.25, 0.5, 1.0}) {
+            for (const Vec2& a : alt) {
+                if (done) break;
+                const Vec2 to = pd.position + a * (base + extra);
+                InteractiveRouter r(pcb, sch);
+                r.setOptions(ro);
+                if (!r.beginRoute(pd.position, pd.smdLayer)) {
+                    why = r.error();
+                    continue;
+                }
+                const RoutePreview& pv = r.moveTo(to);
+                const double direct = (to - pd.position).length();
+                if (pv.blocked || (pv.end - to).length() > 1e-6 || pv.length > direct * 1.1 + 1e-6) {
+                    why = pv.status;
+                    r.cancel();
+                    continue;
+                }
+                if (!r.addVia()) {
+                    why = r.error();
+                    r.cancel();
+                    continue;
+                }
+                const RouteChanges ch = r.commit();
+                if (!ch.ok) {
+                    why = ch.error;
+                    continue;
+                }
+                done = true;
+            }
+            if (done) break;
+        }
+        if (done) {
+            ++res.fanned;
+        } else {
+            res.failedPads.push_back(pd.padNumber);
+            if (res.firstProblem.empty()) res.firstProblem = why;
+        }
+    }
+    res.ok = res.fanned > 0;
+    res.message = std::to_string(res.fanned) + " pad" + (res.fanned == 1 ? "" : "s") + " fanned out";
+    if (!res.failedPads.empty())
+        res.message += ", " + std::to_string(res.failedPads.size()) + " without room" +
+                       (res.firstProblem.empty() ? std::string() : " (" + res.firstProblem + ")");
+    return res;
+}
+
+FanoutOptions fanoutOptionsFromJson(const Json& j) {
+    FanoutOptions o;
+    if (!j.isObject()) return o;
+    if (j.has("shove")) o.shove = j.get("shove").asBool(o.shove);
+    if (j.has("onlyUnrouted")) o.onlyUnrouted = j.get("onlyUnrouted").asBool(o.onlyUnrouted);
+    o.distance = std::max(0.0, j.get("distance").asNumber(0));
+    const std::string vt = j.get("viaType").asString(std::string());
+    if (vt == "blind") o.viaType = RouterViaType::Blind;
+    if (vt == "micro") o.viaType = RouterViaType::Micro;
+    if (vt == "auto") o.viaType = RouterViaType::Auto;
+    return o;
+}
+
+Json fanoutJson(const FanoutResult& r) {
+    Json j = Json::object();
+    j["ok"] = r.ok;
+    j["message"] = r.message;
+    j["fanned"] = r.fanned;
+    j["skipped"] = r.skipped;
+    Json failed = Json::array();
+    for (int n : r.failedPads) failed.push(n);
+    j["failed"] = failed;
     return j;
 }
 
