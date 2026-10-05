@@ -15,8 +15,11 @@
   `Core/src/Instances.cpp` (`syncInstances` keeps channel copies in line; every Schematic edit calls it), graphical
   buses in `Core/src/Buses.cpp`, multi-unit parts in `Core/src/PartUnits.cpp` (kind PartUnit + hidden `packageOnly`
   package; the snapshot reports units as kind Custom with `unitOf`), find / replace and the net navigator in
-  `Core/src/SchematicSearch.cpp`, variant simulation via `Project::simulationSchematic`; app in
-  `SiEDA/Views/Schematic/`; guide in `docs/SCHEMATIC.md`. Nested repetition and per-channel values
+  `Core/src/SchematicSearch.cpp`, variant simulation via `Project::simulationSchematic`; Update PCB (forward ECO,
+  `pcbSync` baseline) in `Core/src/Eco.cpp`, PCB pin / gate swap in `Core/src/PcbSwap.cpp`, schematic PDF in
+  `Core/src/SchematicPdf.cpp` with TrueType subsetting in `Core/src/PdfFont.cpp`; app in `SiEDA/Views/Schematic/`;
+  guide in `docs/SCHEMATIC.md`. Symbol graphics: `SymbolSpec::graphics` (core) = `CustomPartSpec.SymbolGraphic`
+  (Swift); keep their JSON identical. Nested repetition and per-channel values
   (`channelOverrides`) are in `Instances.cpp` (`syncNestedSheets`); harnesses in `Harnesses.cpp`; net classes /
   directives in `Directives.cpp` (carried to the board by `Project::applySchematicRules`); align / copy / paste in
   `SchematicEdit.cpp`; back-annotation ECO in `Eco.cpp`; sheet templates and the PDF in `SchematicPdf.cpp`; unit

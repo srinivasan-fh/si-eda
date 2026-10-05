@@ -1025,14 +1025,14 @@ private struct ChannelParameterRows: View {
             .font(.caption)
             .help("Leave the part off (DNP) in this channel only; the other channels keep theirs")
         if bits & 4 != 0 {
-            override("This channel has its own SPICE model", what: "spice")
+            ownRow("This channel has its own SPICE model", what: "spice")
         }
         if bits & 8 != 0 {
-            override("This channel has its own firmware", what: "firmware")
+            ownRow("This channel has its own firmware", what: "firmware")
         }
     }
 
-    private func override(_ title: LocalizedStringKey, what: String) -> some View {
+    private func ownRow(_ title: LocalizedStringKey, what: String) -> some View {
         HStack {
             Text(title).font(.caption).foregroundStyle(Theme.textMuted)
             Spacer()
