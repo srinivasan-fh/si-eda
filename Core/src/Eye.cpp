@@ -234,6 +234,7 @@ EyeResult simulateEye(const TransferFn& transfer, double amplitude, double vMid,
     for (size_t k = 0; k < K; ++k)
         P[k] = T * sinc(freq[k] * T) * sinc(freq[k] * tr) * std::exp(cplx(0, -kPi * freq[k] * (T + tr)));
     const double peakHz = o.ctlePeakHz > 0 ? o.ctlePeakHz : o.bitRate / 2;
+    double rawPeak = 0;
     auto pulseWith = [&](double ctleDb) {
         std::vector<cplx> spec(K);
         for (size_t k = 0; k < K; ++k) {
@@ -241,8 +242,15 @@ EyeResult simulateEye(const TransferFn& transfer, double amplitude, double vMid,
             if (ctleDb < 0) v *= ctleResponse(freq[k], ctleDb, peakHz);
             spec[k] = v;
         }
-        return toTime(spec, N, dt);
+        std::vector<double> q = toTime(spec, N, dt);
+        // A gain stage after the CTLE restores the unequalised main cursor, so eye heights compare in volts.
+        const double pk = q[argmaxSigned(q)];
+        if (ctleDb >= 0) rawPeak = pk;
+        else if (pk > 0 && rawPeak > 0)
+            for (double& x : q) x *= rawPeak / pk;
+        return q;
     };
+    if (o.ctle) pulseWith(0);  // reference main cursor
     const int preUi = 3;
     // CTLE: fixed or the DC gain (0 … −20 dB) with the largest worst-case eye.
     double ctleDb = o.ctle ? std::min(0.0, o.ctleDcGainDb) : 0.0;

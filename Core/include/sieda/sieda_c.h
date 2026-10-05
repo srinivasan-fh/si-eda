@@ -383,6 +383,35 @@ char* sieda_pi_json(const SiedaProject* project);
 /* Every signal / power-integrity finding (SI_* and PI_* codes) as a violations array. Caller frees. */
 char* sieda_si_checks_json(const SiedaProject* project);
 
+/* ---- channel analysis: lossy lines, S-parameters, Touchstone, eye (see docs/SIGNAL_POWER_INTEGRITY.md) -------------- */
+/* Loss of every stack-up layer: {"foil","roughness","material","er","tanD","freq":[…],"layers":[{layer,name,line,width,
+ * z0,epsEff,dbPerInch:[…],conductorDbPerInch:[…],dielectricDbPerInch:[…],rlgc1GHz:{r,l,g,c,rdc}}]}. options_json
+ * {"foil","roughness":"huray"|"hammerstad"|"none","width" (mm, 0 = the single-ended impedance width),"fMax"}. */
+char* sieda_si_line_loss_json(const SiedaProject* project, const char* options_json);
+/* Copper foil of the board for loss: "smooth", "hvlp", "vlp", "rtf", "std"; "" = by laminate. 0 for an unknown id. */
+int32_t sieda_si_set_copper_foil(SiedaProject* project, const char* foil);
+/* A serial channel checked by sign-off (SI_EYE_MASK): bit rate (b/s), mask height (V) and width (UI). bit_rate 0
+ * removes it. */
+int32_t sieda_si_set_channel(SiedaProject* project, const char* net_name, double bit_rate, double mask_height,
+                             double mask_width_ui);
+/* Channel of a routed net (a differential pair as a 4-port with coupled sections). options_json: {"net","partner"
+ * ("" = by name, "none" = single-ended),"receiver","fMax","points","refOhms","foil","roughness","lossless",
+ * "driver":"model"|"ideal","swing","riseTime","sourceOhms","termOhms","eye":{bitRate,prbs,samplesPerUi,riseTime,ctle,
+ * ctleAuto,ctleDcGainDb,ctlePeakHz,ffe,ffeAuto,ffeTaps,ffePre,ffePost,rjRms,ber,maskWidthUi,maskHeight},
+ * "touchstone":"<text to cascade at the receiver>","touchstonePorts","portOrder":"13"|"12"}. Returns {net,partner,
+ * differential,ports,driver,receiver,length,skew,coupled:[…],freq:[…],curves:[{name,db}],nyquist,step:{time,lossy,
+ * lossless},eye:{…},notes} or {"error"}. Caller frees. */
+char* sieda_si_channel_json(const SiedaProject* project, const char* options_json);
+/* The channel as Touchstone 1.1 text (.s2p / .s4p). NULL with *error_out (caller frees) when it cannot be built. */
+char* sieda_si_channel_touchstone(const SiedaProject* project, const char* options_json, char** error_out);
+/* Parses a Touchstone file (ports_hint from the .sNp extension, 0 = infer; port_order "13" or "12" for 4-ports):
+ * {"ports","z0","points","fMin","fMax","format","parameter","version","freq":[…],"curves":[…],"comments":[…]}. NULL with
+ * *error_out for malformed files. */
+char* sieda_touchstone_parse(const char* text, int32_t ports_hint, const char* port_order, char** error_out);
+/* An imported 2-port / 4-port channel driven by an ideal source: preview plus {"step","eye"} (options as for
+ * sieda_si_channel_json: "swing","riseTime","sourceOhms","termOhms","portOrder","eye"). */
+char* sieda_touchstone_channel_json(const char* text, int32_t ports_hint, const char* options_json, char** error_out);
+
 /* ---- exports ------------------------------------------------------------------------------- */
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
  *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj". Returns NULL for unknown formats. */

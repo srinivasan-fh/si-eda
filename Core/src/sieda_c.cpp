@@ -37,6 +37,10 @@
 #include "sieda/Robotics.hpp"
 #include "sieda/SchematicSearch.hpp"
 #include "sieda/SignalIntegrity.hpp"
+#include "sieda/Channel.hpp"
+#include "sieda/Eye.hpp"
+#include "sieda/LossyLine.hpp"
+#include "sieda/Touchstone.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
@@ -2272,6 +2276,148 @@ int32_t sieda_set_title_block(SiedaProject* project, const char* json) {
         return 1;
     } catch (...) {
         return 0;
+    }
+}
+
+}  // extern "C"
+
+// ---- channel analysis: lossy lines, S-parameters, Touchstone, eye ------------------------------------------------------
+
+namespace {
+Json parseOptions(const char* json) {
+    if (!json || !*json) return Json::object();
+    try {
+        Json j = Json::parse(json);
+        return j.isObject() ? j : Json::object();
+    } catch (...) {
+        return Json::object();
+    }
+}
+
+LossOptions lossOptions(const Json& j, const SiSettings& si) {
+    LossOptions o;
+    o.foil = j.get("foil").asString(si.copperFoil);
+    o.roughness = roughnessFromString(j.get("roughness").asString("huray"));
+    o.lossless = j.get("lossless").asBool(false);
+    return o;
+}
+}  // namespace
+
+extern "C" {
+
+char* sieda_si_line_loss_json(const SiedaProject* project, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        const Json o = parseOptions(options_json);
+        return dup(lineLossJson(project->project.pcb.settings, lossOptions(o, project->project.si),
+                                std::clamp(o.get("width").asNumber(0), 0.0, 20.0), o.get("fMax").asNumber(20e9))
+                       .dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+int32_t sieda_si_set_copper_foil(SiedaProject* project, const char* foil) {
+    if (!project) return 0;
+    const std::string id = str(foil);
+    if (!id.empty() && std::none_of(copperFoils().begin(), copperFoils().end(), [&](const CopperFoil& f) { return f.id == id; }))
+        return 0;
+    project->project.si.copperFoil = id;
+    return 1;
+}
+
+int32_t sieda_si_set_channel(SiedaProject* project, const char* net_name, double bit_rate, double mask_height,
+                             double mask_width_ui) {
+    if (!project || !net_name || !*net_name || !(bit_rate >= 0) || !(mask_height >= 0) || !(mask_width_ui >= 0)) return 0;
+    auto& cs = project->project.si.channels;
+    auto it = std::find_if(cs.begin(), cs.end(), [&](const SiSettings::ChannelSpec& c) { return c.net == net_name; });
+    if (bit_rate == 0) {
+        if (it != cs.end()) cs.erase(it);
+        return 1;
+    }
+    SiSettings::ChannelSpec c;
+    c.net = net_name;
+    c.bitRate = std::min(bit_rate, 200e9);
+    c.maskHeight = std::min(mask_height, 100.0);
+    c.maskWidthUi = std::min(mask_width_ui, 0.99);
+    if (it != cs.end()) *it = c;
+    else cs.push_back(c);
+    return 1;
+}
+
+char* sieda_si_channel_json(const SiedaProject* project, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        const Json o = parseOptions(options_json);
+        ChannelOptions co = channelOptionsFromJson(o);
+        co.loss = lossOptions(o, project->project.si);
+        const ChannelDrive drive = channelDriveFromJson(o);
+        const bool wantEye = o.get("eye").isObject();
+        const EyeOptions eye = wantEye ? eyeOptionsFromJson(o.get("eye")) : EyeOptions();
+        std::unique_ptr<TouchstoneData> cascade;
+        const std::string ts = o.get("touchstone").asString("");
+        Json extraNote;
+        if (!ts.empty()) {
+            try {
+                TouchstoneData t = parseTouchstone(ts, std::clamp(o.get("touchstonePorts").asInt(0), 0, 64));
+                t.sp = reorderFourPort(t.sp, o.get("portOrder").asString("13"));
+                cascade = std::make_unique<TouchstoneData>(std::move(t));
+            } catch (const std::exception& e) {
+                extraNote = Json(std::string(e.what()));
+            }
+        }
+        Json j = channelJson(project->project, co, drive, wantEye ? &eye : nullptr, cascade.get());
+        if (extraNote.isString() && j.get("notes").isArray()) j["notes"].push(extraNote);
+        return dup(j.dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_si_channel_touchstone(const SiedaProject* project, const char* options_json, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    if (!project) return nullptr;
+    try {
+        const Json o = parseOptions(options_json);
+        ChannelOptions co = channelOptionsFromJson(o);
+        co.loss = lossOptions(o, project->project.si);
+        std::string err;
+        const std::string text = channelTouchstone(project->project, co, &err);
+        if (text.empty()) {
+            if (error_out) *error_out = dup(err.empty() ? std::string("No channel") : err);
+            return nullptr;
+        }
+        return dup(text);
+    } catch (const std::exception& e) {
+        if (error_out) *error_out = dup(e.what());
+        return nullptr;
+    }
+}
+
+char* sieda_touchstone_parse(const char* text, int32_t ports_hint, const char* port_order, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    try {
+        const TouchstoneData t = parseTouchstone(str(text), std::clamp(ports_hint, 0, 64));
+        return dup(touchstoneJson(t, port_order && *port_order ? port_order : "13").dump());
+    } catch (const std::exception& e) {
+        if (error_out) *error_out = dup(e.what());
+        return nullptr;
+    }
+}
+
+char* sieda_touchstone_channel_json(const char* text, int32_t ports_hint, const char* options_json, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    try {
+        const Json o = parseOptions(options_json);
+        const TouchstoneData t = parseTouchstone(str(text), std::clamp(ports_hint, 0, 64));
+        ChannelDrive drive = channelDriveFromJson(o);
+        drive.idealDriver = true;
+        const bool wantEye = o.get("eye").isObject();
+        const EyeOptions eye = wantEye ? eyeOptionsFromJson(o.get("eye")) : EyeOptions();
+        return dup(touchstoneChannelJson(t, o.get("portOrder").asString("13"), drive, wantEye ? &eye : nullptr).dump());
+    } catch (const std::exception& e) {
+        if (error_out) *error_out = dup(e.what());
+        return nullptr;
     }
 }
 

@@ -190,7 +190,7 @@ TouchstoneData parseTouchstone(const std::string& text, int portsHint) {
         if (perFreq == 0) perFreq = groupSize();
         if (firstLineCount < 0) firstLineCount = static_cast<int>(toks.size());
         // Version 1 two-port files may end with noise parameters: their first frequency is not above the last one.
-        if (values.empty() && !groups.empty()) {
+        if (values.empty() && !groups.empty() && ports == 2 && !v2) {
             double f0;
             if (!toks.empty() && number(toks[0], f0) && f0 * unit <= freqs.back()) {
                 noise = true;

@@ -448,3 +448,42 @@ int sieda_c_api_units_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Channel analysis through the C ABI: line loss, foil, channel JSON with an eye, Touchstone export / parse / eye. */
+int sieda_c_api_channel_test(const char* project_json) {
+    char* err = NULL;
+    char* json = NULL;
+    char* ts = NULL;
+    SiedaProject* p = sieda_project_load_json(project_json, &err);
+    if (!p) return 1;
+    json = sieda_si_line_loss_json(p, "{\"roughness\":\"hammerstad\"}");
+    if (!json || !strstr(json, "\"dbPerInch\"")) return 2;
+    sieda_string_free(json);
+    if (!sieda_si_set_copper_foil(p, "hvlp") || sieda_si_set_copper_foil(p, "gold")) return 3;
+    if (!sieda_si_set_channel(p, "D_P", 5e9, 0.1, 0.3) || !sieda_si_set_channel(p, "D_P", 0, 0, 0)) return 4;
+    json = sieda_si_channel_json(p, "{\"net\":\"D_P\",\"driver\":\"ideal\",\"eye\":{\"bitRate\":5e9}}");
+    if (!json || !strstr(json, "\"SDD21\"") || !strstr(json, "\"eyeHeight\"")) return 5;
+    sieda_string_free(json);
+    json = sieda_si_channel_json(p, "{\"net\":\"NOPE\"}");
+    if (!json || !strstr(json, "\"error\"")) return 6;
+    sieda_string_free(json);
+    json = sieda_si_channel_json(p, "not json");
+    if (!json || !strstr(json, "\"error\"")) return 7;
+    sieda_string_free(json);
+    ts = sieda_si_channel_touchstone(p, "{\"net\":\"D_P\",\"points\":21}", &err);
+    if (!ts || err) return 8;
+    json = sieda_touchstone_parse(ts, 4, "13", &err);
+    if (!json || err || !strstr(json, "\"ports\":4")) return 9;
+    sieda_string_free(json);
+    json = sieda_touchstone_channel_json(ts, 4, "{\"eye\":{\"bitRate\":2e9}}", &err);
+    if (!json || err || !strstr(json, "\"eye\"")) return 10;
+    sieda_string_free(json);
+    sieda_string_free(ts);
+    if (sieda_touchstone_parse("garbage", 2, "13", &err) != NULL || !err) return 11;
+    sieda_string_free(err);
+    err = NULL;
+    if (sieda_si_channel_touchstone(p, "{\"net\":\"NOPE\"}", &err) != NULL || !err) return 12;
+    sieda_string_free(err);
+    sieda_project_free(p);
+    return 0;
+}

@@ -9020,3 +9020,469 @@ TEST(si_lossy_line_physics) {
     const double rise = crossing(ls, 0.9 * 0.5) - crossing(ls, 0.1 * 0.5);
     CHECK(rise > 30e-12);  // loss and dispersion slow the edge
 }
+
+namespace {
+/// TX (1 TXP, 2 TXN outputs) → RX (3 RXP, 4 RXN inputs) differential link, 5 VDD, 6 GND; nets D_P / D_N.
+struct DiffBoard {
+    Project p;
+    int u1 = -1, u2 = -1, np = -1, nn = -1;
+};
+DiffBoard diffBoard(double gap, double width = 0.15, int layer = 0) {
+    DiffBoard b;
+    Project& p = b.p;
+    auto& s = p.schematic;
+    CustomPartSpec spec;
+    spec.name = "SI-SERDES";
+    spec.package.type = "SOIC";
+    spec.package.pinCount = 8;
+    auto add = [&](const char* number, const char* name, PinType type) {
+        CustomPin pin;
+        pin.number = number;
+        pin.name = name;
+        pin.type = type;
+        spec.pins.push_back(pin);
+    };
+    add("1", "TXP", PinType::Output);
+    add("2", "TXN", PinType::Output);
+    add("3", "RXP", PinType::Input);
+    add("4", "RXN", PinType::Input);
+    add("5", "VDD", PinType::PowerIn);
+    add("6", "GND", PinType::PowerIn);
+    add("7", "NC7", PinType::NoConnect);
+    add("8", "NC8", PinType::NoConnect);
+    const std::string part = p.addCustomPart(spec);
+    b.u1 = s.addCustomComponent(part, "", {0, 0});
+    b.u2 = s.addCustomComponent(part, "", {400, 0});
+    int lp = s.addComponent(ComponentKind::NetLabel, "D_P", {200, -50});
+    int ln = s.addComponent(ComponentKind::NetLabel, "D_N", {200, 50});
+    int vcc = s.addComponent(ComponentKind::NetLabel, "+3V3", {-100, -100});
+    int gnd = s.addComponent(ComponentKind::Ground, "", {-100, 100});
+    wire(s, b.u1, "TXP", b.u2, "RXP");
+    wire(s, b.u1, "TXN", b.u2, "RXN");
+    wire(s, b.u1, "TXP", lp, "N");
+    wire(s, b.u1, "TXN", ln, "N");
+    for (int u : {b.u1, b.u2}) {
+        wire(s, u, "VDD", vcc, "N");
+        wire(s, u, "GND", gnd, "GND");
+    }
+    p.schematicChanged();
+    p.pcb.settings.width = 140;
+    p.pcb.settings.height = 40;
+    p.pcb.settings.layerCount = 4;
+    siPlace(p, b.u1, {10, 20});
+    siPlace(p, b.u2, {120, 20});
+    b.np = s.netOf({b.u1, pin(s, b.u1, "TXP")});
+    b.nn = s.netOf({b.u1, pin(s, b.u1, "TXN")});
+    // Route: each pin straight down to its lane, the lanes run in parallel `gap` apart (edge to edge), then up.
+    const Vec2 tp = siPad(p, b.u1, "TXP"), tn = siPad(p, b.u1, "TXN"), rp = siPad(p, b.u2, "RXP"), rn = siPad(p, b.u2, "RXN");
+    const double yP = 32, yN = yP + gap + width;
+    siTrack(p, b.np, tp, {tp.x, yP}, layer, width);
+    siTrack(p, b.np, {tp.x, yP}, {rp.x, yP}, layer, width);
+    siTrack(p, b.np, {rp.x, yP}, rp, layer, width);
+    siTrack(p, b.nn, tn, {tn.x, yN}, layer, width);
+    siTrack(p, b.nn, {tn.x, yN}, {rn.x, yN}, layer, width);
+    siTrack(p, b.nn, {rn.x, yN}, rn, layer, width);
+    return b;
+}
+
+std::vector<double> linGrid(double fMax, int n) {
+    std::vector<double> f;
+    for (int k = 0; k < n; ++k) f.push_back(fMax * k / (n - 1));
+    return f;
+}
+}  // namespace
+
+TEST(si_channel_sparameters) {
+    // A single 70 Ω, 0.5 ns ideal line against the closed form (reference 50 Ω):
+    // S11 = Γ(1 − e^{−2jθ}) / (1 − Γ² e^{−2jθ}), S21 = (1 − Γ²) e^{−jθ} / (1 − Γ² e^{−2jθ}).
+    ChannelNetwork one;
+    one.addNode();
+    one.addNode();
+    one.lines.push_back({0, 1, LineModel::ideal(70, 0.5e-9 / 0.1), 0.1});
+    one.ports = {0, 1};
+    const auto freq = linGrid(10e9, 41);
+    const auto s1 = one.sParameters(freq, 50);
+    const double G = 20.0 / 120;
+    double worst = 0;
+    for (size_t k = 1; k < freq.size(); ++k) {
+        const cplx e = std::exp(cplx(0, -2 * kPi * freq[k] * 0.5e-9));
+        const cplx s11 = G * (1.0 - e * e) / (1.0 - G * G * e * e), s21 = (1 - G * G) * e / (1.0 - G * G * e * e);
+        worst = std::max({worst, std::abs(s1[k](0, 0) - s11), std::abs(s1[k](1, 0) - s21)});
+    }
+    CHECK(worst < 1e-5);
+    // Cascading two halves (Redheffer star product) equals the whole line.
+    ChannelNetwork half = one;
+    half.lines[0].length = 0.05;
+    const auto sh = half.sParameters(freq, 50);
+    double cw = 0;
+    for (size_t k = 0; k < freq.size(); ++k) {
+        const CMat c = cascadeStar(sh[k], sh[k]);
+        for (size_t q = 0; q < c.a.size(); ++q) cw = std::max(cw, std::abs(c.a[q] - s1[k].a[q]));
+    }
+    CHECK(cw < 1e-6);
+
+    // The routed clock of the SI board: reciprocal, passive, ≈ 0 dB at DC, a lossless twin that conserves power.
+    SiBoard b = siBoard();
+    siRouteClock(b);
+    ChannelOptions opt;
+    opt.net = b.p.schematic.nets()[static_cast<size_t>(b.clk)].name;
+    opt.partner = "none";
+    const ChannelModel m = extractChannel(b.p, opt);
+    CHECK(m.error.empty() && !m.differential && m.network.ports.size() == 2);
+    CHECK(m.lengthP > 90 && m.lengthP < 120);
+    const auto grid = linGrid(10e9, 101);
+    const SParams sp = channelSParams(m, grid, 50);
+    bool passive = true, reciprocal = true;
+    for (const auto& s : sp.s) {
+        passive = passive && std::norm(s(0, 0)) + std::norm(s(1, 0)) <= 1 + 1e-9;
+        reciprocal = reciprocal && std::abs(s(0, 1) - s(1, 0)) < 1e-9;
+    }
+    CHECK(passive && reciprocal);
+    CHECK(std::abs(sp.s[0](1, 0)) > 0.99);
+    CHECK(std::abs(sp.s.back()(1, 0)) < std::abs(sp.s[10](1, 0)));  // more loss at 10 GHz than at 1 GHz
+    ChannelOptions lo = opt;
+    lo.loss.lossless = true;
+    const SParams sl = channelSParams(extractChannel(b.p, lo), grid, 50);
+    double energy = 1;
+    for (const auto& s : sl.s) energy = std::min(energy, std::norm(s(0, 0)) + std::norm(s(1, 0)));
+    CHECK(energy > 0.999);
+    // The routed analysis (with its driver and receiver) and the Touchstone export.
+    EyeOptions eo;
+    eo.bitRate = 1e9;
+    const Json cj = channelJson(b.p, opt, ChannelDrive{}, &eo, nullptr);
+    CHECK(cj.get("error").isNull());
+    CHECK(cj.get("curves").size() == 3 && cj.get("curves")[0].get("name").asString() == "S21");
+    CHECK(cj.get("step").get("lossy").size() > 50 && cj.get("eye").get("eyeHeight").asNumber() > 1.0);
+    std::string err;
+    const std::string ts = channelTouchstone(b.p, opt, &err);
+    CHECK(err.empty() && ts.find("# Hz S RI R 50") != std::string::npos);
+    const TouchstoneData back = parseTouchstone(ts, 2);
+    const SParams ref = channelSParams(m, linGrid(opt.fMax, opt.points), 50);
+    CHECK(back.sp.ports == 2 && back.sp.freq.size() == ref.freq.size());
+    double rt = 0;
+    for (size_t k = 0; k < std::min(back.sp.s.size(), ref.s.size()); ++k)
+        for (size_t q = 0; q < 4; ++q) rt = std::max(rt, std::abs(back.sp.s[k].a[q] - ref.s[k].a[q]));
+    CHECK(rt < 1e-8);
+    // Unknown net.
+    ChannelOptions bad;
+    bad.net = "NOPE";
+    CHECK(!extractChannel(b.p, bad).error.empty());
+}
+
+TEST(si_touchstone_parser) {
+    // Version 1, 2-port, MA in GHz: S11 S21 S12 S22 order.
+    const TouchstoneData a = parseTouchstone("! test\n# GHz S MA R 50\n1 0.1 0 0.9 -90 0.9 -90 0.1 0\n2 0.2 0 0.8 -180 0.8 -180 0.2 0\n", 2);
+    CHECK(a.sp.ports == 2 && a.sp.freq.size() == 2 && a.sp.freq[1] == 2e9);
+    CHECK_NEAR(a.sp.s[0](1, 0).imag(), -0.9, 1e-12);
+    CHECK_NEAR(a.sp.s[1](0, 1).real(), -0.8, 1e-12);
+    CHECK(!a.comments.empty() && a.comments[0] == "test");
+    // DB and RI, MHz; the port count inferred from the first data line.
+    const TouchstoneData d = parseTouchstone("# MHz S DB R 50\n100 -20 0 -1 45 -1 45 -20 0\n", 0);
+    CHECK(d.sp.ports == 2 && d.sp.freq[0] == 100e6);
+    CHECK_NEAR(std::abs(d.sp.s[0](0, 0)), 0.1, 1e-12);
+    CHECK_NEAR(std::arg(d.sp.s[0](1, 0)), kPi / 4, 1e-12);
+    // Z-parameters, version 1 normalised to R: a 1-port of 2 × 50 Ω → S11 = (100 − 50)/(100 + 50).
+    const TouchstoneData z = parseTouchstone("# Hz Z RI R 50\n1e6 2 0\n", 1);
+    CHECK_NEAR(z.sp.s[0](0, 0).real(), 1.0 / 3, 1e-12);
+    const TouchstoneData y = parseTouchstone("# Hz Y RI R 50\n1e6 0.5 0\n", 1);  // Y·R = 0.5 → 100 Ω
+    CHECK_NEAR(y.sp.s[0](0, 0).real(), 1.0 / 3, 1e-12);
+    // Noise parameters after the 2-port data are skipped.
+    const TouchstoneData n = parseTouchstone("# GHz S RI R 50\n1 0 0 1 0 1 0 0 0\n2 0 0 1 0 1 0 0 0\n1 1.2 0.5 30 0.3\n", 2);
+    CHECK(n.sp.freq.size() == 2);
+    // Version 2: keywords, 12_21 order, a 4-port written as rows.
+    const std::string v2 = "[Version] 2.0\n# Hz S RI R 50\n[Number of Ports] 2\n[Two-Port Data Order] 12_21\n"
+                           "[Number of Frequencies] 1\n[Network Data]\n1e9 0 0 0.5 0 0.7 0 0 0\n[End]\n";
+    const TouchstoneData t2 = parseTouchstone(v2, 0);
+    CHECK(t2.version == "2.0" && t2.sp.ports == 2);
+    CHECK_NEAR(t2.sp.s[0](0, 1).real(), 0.5, 1e-12);
+    CHECK_NEAR(t2.sp.s[0](1, 0).real(), 0.7, 1e-12);
+    CHECK(touchstonePortsFromName("chan.S4P") == 4 && touchstonePortsFromName("x.txt") == 0 && touchstonePortsFromName("a.s2") == 0);
+    // Round trip of a 4-port through the writer.
+    SParams four;
+    four.ports = 4;
+    four.freq = {1e8, 2e8};
+    for (int k = 0; k < 2; ++k) {
+        CMat m(4);
+        for (int i = 0; i < 4; ++i)
+            for (int j = 0; j < 4; ++j) m(i, j) = cplx(0.01 * (i + 1) + k, -0.02 * (j + 1));
+        four.s.push_back(m);
+    }
+    const TouchstoneData f4 = parseTouchstone(writeTouchstone(four, "four"), 4);
+    CHECK(f4.sp.ports == 4 && f4.sp.s.size() == 2);
+    if (f4.sp.s.size() == 2) CHECK_NEAR(f4.sp.s[1](2, 3).imag(), -0.08, 1e-9);
+    // Malformed input is rejected with a message.
+    int rejected = 0;
+    for (const char* badText : {"", "hello", "[Version] 2.0\n# GHz S MA R 50\n[Number of Ports] 2\n[Network Data]\n2 0 0 1 0 1 0 0 0\n1 0 0 1 0 1 0 0 0\n",
+                                "# GHz S MA R 50\n1 0 0 1 0 1 0 0\n", "# GHz S XX R 50\n1 0 0\n", "# GHz S MA R -5\n1 0 0\n",
+                                "1 0 0 1 0 1 0 0 0\n", "# GHz S MA R 50\n1 nan 0 1 0 1 0 0 0\n", "# GHz G MA R 50\n1 0 0\n",
+                                "[Version] 2.0\n# Hz S RI R 50\n[Number of Ports] 99\n"}) {
+        try {
+            parseTouchstone(badText, 2);
+        } catch (const std::runtime_error&) {
+            ++rejected;
+        }
+    }
+    CHECK(rejected == 10);
+}
+
+TEST(si_touchstone_fuzz) {
+    // Random mutations of valid files and random token soup: the parser either succeeds or throws runtime_error.
+    const std::string seeds[] = {
+        "! c\n# GHz S MA R 50\n1 0.1 0 0.9 -90 0.9 -90 0.1 0\n2 0.2 0 0.8 -180 0.8 -180 0.2 0\n",
+        "[Version] 2.0\n# Hz S RI R 50\n[Number of Ports] 4\n[Number of Frequencies] 1\n[Network Data]\n1e9 "
+        "1 0 0 0 0 0 0 0\n0 0 1 0 0 0 0 0\n0 0 0 0 1 0 0 0\n0 0 0 0 0 0 1 0\n[End]\n",
+        "# MHz Z DB R 75\n10 1 2\n20 3 4\n"};
+    uint32_t rng = 12345;
+    auto next = [&]() {
+        rng ^= rng << 13;
+        rng ^= rng >> 17;
+        rng ^= rng << 5;
+        return rng;
+    };
+    const char alphabet[] = "0123456789.-+eE #![]!\n\t,SYZMADBRIHzkGgPortsNumber";
+    int ok = 0, rejected = 0, other = 0;
+    for (int it = 0; it < 3000; ++it) {
+        std::string t = seeds[it % 3];
+        const int edits = 1 + static_cast<int>(next() % 8);
+        for (int e = 0; e < edits && !t.empty(); ++e) {
+            const size_t at = next() % t.size();
+            switch (next() % 4) {
+                case 0: t[at] = alphabet[next() % (sizeof alphabet - 1)]; break;
+                case 1: t.erase(at, 1 + next() % 5); break;
+                case 2: t.insert(at, 1, alphabet[next() % (sizeof alphabet - 1)]); break;
+                default: t = t.substr(0, at); break;
+            }
+        }
+        if (it % 10 == 0) {
+            t.clear();
+            for (int k = 0; k < 200; ++k) t += alphabet[next() % (sizeof alphabet - 1)];
+        }
+        try {
+            const TouchstoneData d = parseTouchstone(t, static_cast<int>(next() % 5));
+            bool finite = d.sp.ports > 0 && d.sp.s.size() == d.sp.freq.size();
+            for (const auto& m : d.sp.s)
+                for (const auto& v : m.a) finite = finite && std::isfinite(v.real()) && std::isfinite(v.imag());
+            CHECK(finite);
+            ++ok;
+        } catch (const std::runtime_error&) {
+            ++rejected;
+        } catch (...) {
+            ++other;
+        }
+    }
+    CHECK(other == 0);
+    CHECK(ok > 0 && rejected > 0);
+}
+
+TEST(si_differential_pair_coupled_lines) {
+    // Mixed mode of two identical, uncoupled 50 Ω lines: SDD21 = S21, no mode conversion, matched (SDD11 = 0).
+    ChannelNetwork two;
+    for (int k = 0; k < 4; ++k) two.addNode();
+    two.lines.push_back({0, 2, LineModel::ideal(50, 6e-9), 0.1});
+    two.lines.push_back({1, 3, LineModel::ideal(50, 6e-9), 0.1});
+    two.ports = {0, 1, 2, 3};
+    const auto f = linGrid(5e9, 11);
+    const auto s4 = two.sParameters(f, 50);
+    for (size_t k = 1; k < f.size(); ++k) {
+        const CMat mm = mixedMode(s4[k]);
+        CHECK_NEAR(std::abs(mm(1, 0) - s4[k](2, 0)), 0.0, 1e-9);
+        CHECK(std::abs(mm(3, 0)) < 1e-9 && std::abs(mm(0, 0)) < 1e-6);
+    }
+    // Coupled pair referenced to its odd-mode impedance: matched differentially (SDD11 ≈ 0), not in common mode.
+    BoardSettings bs;
+    bs.layerCount = 4;
+    LossOptions ll;
+    ll.lossless = true;
+    const LineModel base = lineModel(bs, 1, 0.15, ll);
+    const CouplingEstimate ce = crosstalkCoupling(bs, 1, 0.15, 0.15, 0.15, 50, 1e-10);
+    CHECK(ce.kl > 0.01 && std::fabs(ce.kl - ce.kc) < 1e-12);  // stripline: homogeneous
+    ChannelNetwork cp;
+    for (int k = 0; k < 4; ++k) cp.addNode();
+    ChannelNetwork::Coupled cl;
+    cl.a1 = 0, cl.a2 = 1, cl.b1 = 2, cl.b2 = 3;
+    // Even / odd lines from the coupling coefficients (as the extractor builds them).
+    auto mode = [&](int sign) {
+        LineModel m = base;
+        const double lf = 1 + sign * ce.kl, cf = (1 - sign * ce.kc) / (1 - ce.kl * ce.kc);
+        m.z0 = base.z0 * std::sqrt(lf / cf);
+        m.epsEff = base.epsEff * lf * cf;
+        m.lExt = m.z0 * std::sqrt(m.epsEff) / kSpeedOfLight;
+        m.cAir = 1 / (m.z0 * std::sqrt(m.epsEff) * kSpeedOfLight);
+        return m;
+    };
+    cl.even = mode(+1);
+    cl.odd = mode(-1);
+    CHECK_NEAR(cl.even.epsEff, base.epsEff, 1e-9);  // homogeneous: both modes at c/√εr
+    CHECK(cl.odd.z0 < base.z0 && cl.even.z0 > base.z0);
+    cl.length = 0.05;
+    cp.coupled.push_back(cl);
+    cp.ports = {0, 1, 2, 3};
+    const auto sc = cp.sParameters(f, cl.odd.z0);
+    for (size_t k = 1; k < f.size(); ++k) {
+        const CMat mm = mixedMode(sc[k]);
+        CHECK(std::abs(mm(0, 0)) < 1e-4);         // SDD11
+        CHECK(std::abs(mm(1, 0)) > 0.9999);       // SDD21
+        CHECK(std::abs(mm(3, 0)) < 1e-9);         // SCD21: symmetric pair, no conversion
+    }
+    CHECK(std::abs(mixedMode(sc[5])(2, 2)) > 0.05);  // SCC11: common mode sees the even-mode impedance
+
+    // A routed pair: the coupled run is found, odd < single < even, equal legs have no skew, SDD21 ≈ 0 dB at DC.
+    DiffBoard d = diffBoard(0.15, 0.15, 0);
+    ChannelOptions opt;
+    opt.net = "D_P";
+    const ChannelModel m = extractChannel(d.p, opt);
+    CHECK(m.error.empty());
+    CHECK(m.differential && m.netN == "D_N" && m.network.ports.size() == 4);
+    CHECK(!m.coupled.empty() && m.coupledLength > 90);
+    if (!m.coupled.empty()) {
+        CHECK(m.coupled[0].zOdd < trackImpedance(d.p.pcb.settings, 0, 0.15) && m.coupled[0].zEven > trackImpedance(d.p.pcb.settings, 0, 0.15));
+        CHECK(m.coupled[0].epsOdd < m.coupled[0].epsEven);  // microstrip: the odd mode runs more in air
+        CHECK_NEAR(m.coupled[0].zDiff, 2 * m.coupled[0].zOdd, 1e-9);
+    }
+    CHECK(std::fabs(m.delayP - m.delayN) < 20e-12);
+    const SParams sp = channelSParams(m, linGrid(10e9, 51), 50);
+    CHECK(std::abs(mixedMode(sp.s[0])(1, 0)) > 0.98);
+    CHECK(std::abs(mixedMode(sp.s[25])(3, 0)) < 0.3);  // near-symmetric routing: little mode conversion
+    // Uncoupling the pair (far apart) changes the differential impedance seen.
+    DiffBoard far = diffBoard(0.6, 0.15, 0);
+    const ChannelModel mf = extractChannel(far.p, opt);
+    CHECK(mf.error.empty() && mf.coupled.empty() == false);
+    if (!m.coupled.empty() && !mf.coupled.empty()) CHECK(mf.coupled[0].zDiff > m.coupled[0].zDiff);
+    // The N net also finds its partner; the eye and the 4-port Touchstone.
+    ChannelOptions on = opt;
+    on.net = "D_N";
+    CHECK(extractChannel(d.p, on).netP == "D_P");
+    EyeOptions eo;
+    eo.bitRate = 5e9;
+    ChannelDrive ideal;
+    ideal.idealDriver = true;
+    const Json j = channelJson(d.p, opt, ideal, &eo, nullptr);
+    CHECK(j.get("differential").asBool() && j.get("curves")[0].get("name").asString() == "SDD21");
+    CHECK(j.get("eye").get("open").asBool());
+    std::string err;
+    const TouchstoneData t4 = parseTouchstone(channelTouchstone(d.p, opt, &err), 4);
+    CHECK(err.empty() && t4.sp.ports == 4);
+    // Cascading the imported block doubles the loss at the far end.
+    const Json jc = channelJson(d.p, opt, ideal, nullptr, &t4);
+    const Json j1 = channelJson(d.p, opt, ideal, nullptr, nullptr);
+    const double il1 = j1.get("curves")[0].get("db")[200].asNumber(), il2 = jc.get("curves")[0].get("db")[200].asNumber();
+    CHECK(il2 < il1 - 0.1 && std::fabs(il2 - 2 * il1) < 0.5 + 0.2 * std::fabs(il1));
+}
+
+TEST(si_eye_diagram) {
+    // PRBS: maximal-length sequences (2^n − 1 period, 2^(n−1) ones).
+    const auto p7 = prbsSequence(7, 254);
+    int ones = 0;
+    for (size_t k = 0; k < 127; ++k) ones += p7[k];
+    CHECK(ones == 64);
+    CHECK(std::equal(p7.begin(), p7.begin() + 127, p7.begin() + 127));
+    const auto p15 = prbsSequence(15, 32767);
+    CHECK(std::count(p15.begin(), p15.end(), 1) == 16384);
+
+    // Ideal channel (pure delay): the eye is fully open — height 2A, width one UI, no data-dependent jitter.
+    EyeOptions o;
+    o.bitRate = 10e9;
+    o.riseTime = 10e-12;
+    const TransferFn delay = [](const std::vector<double>& f) {
+        std::vector<cplx> h;
+        for (double x : f) h.push_back(std::exp(cplx(0, -2 * kPi * x * 0.3e-9)));
+        return h;
+    };
+    const EyeResult ideal = simulateEye(delay, 0.5, 0.25, 0.3e-9, o);
+    CHECK(ideal.error.empty() && ideal.open);
+    CHECK_NEAR(ideal.eyeHeight, 1.0, 0.01);
+    CHECK_NEAR(ideal.pdaHeight, 1.0, 0.01);
+    CHECK_NEAR(ideal.eyeWidth, 100e-12, 2e-12);
+    CHECK(ideal.djPeakToPeak < 2e-12);
+    CHECK(ideal.bits == 127);
+    CHECK(ideal.density.size() == static_cast<size_t>(ideal.rows * ideal.cols) && ideal.cols == 64);
+    // Random jitter widens the total jitter by 2·Q(BER)·RJ (Q(1e-12) = 7.034).
+    EyeOptions rj = o;
+    rj.rjRms = 1e-12;
+    CHECK_NEAR(simulateEye(delay, 0.5, 0.25, 0.3e-9, rj).totalJitter - ideal.djPeakToPeak, 2 * 7.034e-12, 0.05e-12);
+    // A mask inside the eye passes; one taller than the eye fails.
+    EyeOptions mk = o;
+    mk.maskWidthUi = 0.4;
+    mk.maskHeight = 0.5;
+    CHECK(simulateEye(delay, 0.5, 0.25, 0.3e-9, mk).maskPass);
+    mk.maskHeight = 1.2;
+    CHECK(!simulateEye(delay, 0.5, 0.25, 0.3e-9, mk).maskPass);
+
+    // RC channel, τ = T/2: the pulse response has cursors (1 − a)·a^k with a = e^{−T/τ}, so the worst-case (peak
+    // distortion) eye is 2A·(1 − 2a); PRBS7 contains the worst run (six equal bits) and closes to the same value.
+    const double T = 1 / o.bitRate, tau = T / 2;
+    const TransferFn rc = [tau](const std::vector<double>& f) {
+        std::vector<cplx> h;
+        for (double x : f) h.push_back(1.0 / cplx(1, 2 * kPi * x * tau));
+        return h;
+    };
+    EyeOptions sharp = o;
+    sharp.riseTime = 1e-13;
+    sharp.samplesPerUi = 64;
+    const EyeResult er = simulateEye(rc, 0.5, 0, 0, sharp);
+    const double a = std::exp(-T / tau);
+    CHECK_NEAR(er.pdaHeight, 1.0 * (1 - 2 * a), 0.02);
+    CHECK_NEAR(er.eyeHeight, er.pdaHeight, 0.02);
+    CHECK(er.eyeHeight < ideal.eyeHeight && er.djPeakToPeak > 1e-12);
+
+    // A lossy channel at a high rate: CTLE and FFE open the eye; automatic FFE taps sum to 1 in magnitude.
+    const TransferFn lossy = [](const std::vector<double>& f) {
+        std::vector<cplx> h;
+        for (double x : f) {
+            const double db = -1.2 * std::sqrt(x / 1e9) - 0.9 * (x / 1e9);  // skin + dielectric, −14 dB at 5 GHz
+            h.push_back(std::pow(10.0, db / 20) * std::exp(cplx(0, -2 * kPi * x * 1e-9)));
+        }
+        return h;
+    };
+    const EyeResult raw = simulateEye(lossy, 0.5, 0, 1e-9, o);
+    EyeOptions ctle = o;
+    ctle.ctle = ctle.ctleAuto = true;
+    const EyeResult eq = simulateEye(lossy, 0.5, 0, 1e-9, ctle);
+    CHECK(eq.ctleDcGainDb < 0 && eq.pdaHeight > raw.pdaHeight);
+    EyeOptions ffe = o;
+    ffe.ffe = ffe.ffeAuto = true;
+    const EyeResult ef = simulateEye(lossy, 0.5, 0, 1e-9, ffe);
+    double sum = 0;
+    for (double t : ef.ffeTaps) sum += std::fabs(t);
+    CHECK(ef.ffeTaps.size() == 4);
+    CHECK_NEAR(sum, 1.0, 1e-9);
+    CHECK(ef.pdaHeight > raw.pdaHeight);
+    // PRBS15 runs a full period.
+    EyeOptions l15 = o;
+    l15.prbs = 15;
+    CHECK(simulateEye(lossy, 0.5, 0, 1e-9, l15).bits == 32767);
+    // Options from JSON are clamped.
+    const EyeOptions parsed = eyeOptionsFromJson(Json::parse(R"({"bitRate":1e15,"prbs":9,"ffeTaps":[0.1,"x",0.8]})"));
+    CHECK(parsed.bitRate == 200e9 && parsed.prbs == 9 && parsed.ffeTaps.size() == 2);
+}
+
+extern "C" int sieda_c_api_channel_test(const char* project_json);
+
+TEST(si_channel_sign_off_and_c_api) {
+    DiffBoard d = diffBoard(0.15, 0.15, 0);
+    // Settings persist; a default project still writes none.
+    d.p.si.copperFoil = "rtf";
+    d.p.si.channels.push_back({"D_P", 5e9, 0.1, 0.3});
+    d.p.si.rails.push_back({"+3V3", 3, 0.4, 0.6, 0.004, 80e3});
+    Project q = Project::fromJson(d.p.toJson());
+    CHECK(q.si.copperFoil == "rtf" && q.si.channels.size() == 1 && q.si.channel("D_P"));
+    CHECK(q.si.channel("D_P") && q.si.channel("D_P")->maskWidthUi == 0.3);
+    CHECK(q.si.rail("+3V3") && q.si.rail("+3V3")->vrmR == 0.004 && q.si.rail("+3V3")->vrmBandwidth == 80e3);
+    CHECK(!Project().toJson().has("signalIntegrity"));
+    // A short coupled pair at 5 Gb/s passes a modest mask; at 40 Gb/s with a large mask it fails (SI_EYE_MASK).
+    const ChannelCheck good = checkChannel(d.p, d.p.si.channels[0]);
+    CHECK(good.ok && good.eyeHeight > 0.2);
+    SiSettings::ChannelSpec hard{"D_P", 40e9, 0.9, 0.6};
+    const ChannelCheck bad = checkChannel(d.p, hard);
+    CHECK(!bad.ok && bad.message.find("D_P / D_N") != std::string::npos);
+    d.p.si.channels = {hard};
+    bool found = false;
+    for (const auto& v : signalPowerIntegrityChecks(d.p)) found |= v.code == "SI_EYE_MASK";
+    CHECK(found);
+    // Without channel specs the checks are unchanged (no SI_EYE_MASK).
+    d.p.si.channels.clear();
+    found = false;
+    for (const auto& v : signalPowerIntegrityChecks(d.p)) found |= v.code == "SI_EYE_MASK";
+    CHECK(!found);
+    CHECK(sieda_c_api_channel_test(d.p.toJson().dump().c_str()) == 0);
+}

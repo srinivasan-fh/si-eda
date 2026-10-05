@@ -12,7 +12,9 @@
 #include <set>
 #include <tuple>
 
+#include "sieda/Channel.hpp"
 #include "sieda/CustomParts.hpp"
+#include "sieda/Eye.hpp"
 #include "sieda/PowerIntegrity.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/LengthMatch.hpp"
@@ -388,7 +390,14 @@ const PdnRailSettings* SiSettings::rail(const std::string& net) const {
 
 bool SiSettings::isDefault() const {
     return models.empty() && componentModels.empty() && pinModels.empty() && netModels.empty() && rails.empty() && !signOff &&
-           std::fabs(overshootLimit - 0.15) < 1e-12 && std::fabs(crosstalkLimit - 0.05) < 1e-12;
+           std::fabs(overshootLimit - 0.15) < 1e-12 && std::fabs(crosstalkLimit - 0.05) < 1e-12 && copperFoil.empty() &&
+           channels.empty();
+}
+
+const SiSettings::ChannelSpec* SiSettings::channel(const std::string& net) const {
+    for (const auto& c : channels)
+        if (c.net == net) return &c;
+    return nullptr;
 }
 
 Json SiSettings::toJson() const {
@@ -414,9 +423,24 @@ Json SiSettings::toJson() const {
         x["ripplePercent"] = r.ripplePercent;
         x["transientCurrent"] = r.transientCurrent;
         x["dcCurrent"] = r.dcCurrent;
+        if (r.vrmR > 0) x["vrmR"] = r.vrmR;
+        if (r.vrmBandwidth > 0) x["vrmBandwidth"] = r.vrmBandwidth;
         rs.push(x);
     }
     j["rails"] = rs;
+    if (!copperFoil.empty()) j["copperFoil"] = copperFoil;
+    if (!channels.empty()) {
+        Json cs = Json::array();
+        for (const auto& c : channels) {
+            Json x = Json::object();
+            x["net"] = c.net;
+            x["bitRate"] = c.bitRate;
+            x["maskHeight"] = c.maskHeight;
+            x["maskWidthUi"] = c.maskWidthUi;
+            cs.push(x);
+        }
+        j["channels"] = cs;
+    }
     return j;
 }
 
@@ -446,7 +470,19 @@ SiSettings SiSettings::fromJson(const Json& j) {
             x.ripplePercent = std::clamp(r.get("ripplePercent").asNumber(0), 0.0, 50.0);
             x.transientCurrent = std::clamp(r.get("transientCurrent").asNumber(0), 0.0, 1000.0);
             x.dcCurrent = std::clamp(r.get("dcCurrent").asNumber(0), 0.0, 1000.0);
+            x.vrmR = std::clamp(r.get("vrmR").asNumber(0), 0.0, 10.0);
+            x.vrmBandwidth = std::clamp(r.get("vrmBandwidth").asNumber(0), 0.0, 100e6);
             if (!x.net.empty()) s.rails.push_back(x);
+        }
+    s.copperFoil = j.get("copperFoil").asString("");
+    if (j.get("channels").isArray())
+        for (const auto& c : j.get("channels").items()) {
+            ChannelSpec x;
+            x.net = c.get("net").asString("");
+            x.bitRate = std::clamp(c.get("bitRate").asNumber(0), 0.0, 200e9);
+            x.maskHeight = std::clamp(c.get("maskHeight").asNumber(0), 0.0, 100.0);
+            x.maskWidthUi = std::clamp(c.get("maskWidthUi").asNumber(0), 0.0, 0.99);
+            if (!x.net.empty() && x.bitRate > 0) s.channels.push_back(x);
         }
     return s;
 }
@@ -1918,7 +1954,54 @@ std::vector<RuleViolation> signalPowerIntegrityChecks(const Project& project) {
                     " at " + formatEngineeringValue(rail.dcCurrent, "A", 3) + ": widen the supply track, add vias or pour the "
                     "rail as a plane (limit " + fmt("%.1f %%", rail.irLimitPercent) + ").");
     }
+    // Serial channels given a bit rate: the eye at the receiver against its mask.
+    for (const auto& spec : project.si.channels) {
+        const ChannelCheck c = checkChannel(project, spec);
+        if (!c.ok) add(Severity::Warning, "SI_EYE_MASK", c.message);
+    }
     return out;
+}
+
+ChannelCheck checkChannel(const Project& project, const SiSettings::ChannelSpec& spec) {
+    ChannelCheck c;
+    ChannelOptions co;
+    co.net = spec.net;
+    const ChannelModel m = extractChannel(project, co);
+    if (!m.error.empty()) {
+        c.ok = false;
+        c.message = "Channel " + spec.net + " cannot be analysed: " + m.error;
+        return c;
+    }
+    // An imported IBIS driver drives the channel; a logic-family default (not a SerDes model) is replaced by an ideal
+    // 50 Ω source and termination with a 1 V swing.
+    ChannelDrive drive;
+    drive.idealDriver = m.driver.source != "ibis";
+    EyeOptions eo;
+    eo.bitRate = spec.bitRate;
+    eo.maskHeight = spec.maskHeight;
+    eo.maskWidthUi = spec.maskWidthUi;
+    eo.prbs = 7;
+    eo.riseTime = drive.idealDriver ? 0.25 / spec.bitRate : m.driver.riseTime;
+    const double swing = drive.idealDriver ? drive.swing : m.driver.vHigh;
+    const double vMid = channelDcLevel(m, swing / 2, swing / 2, drive);
+    const EyeResult e = simulateEye([&](const std::vector<double>& f) { return channelTransfer(m, f, co.refOhms, drive); },
+                                    swing / 2, vMid, std::max(m.delayP, m.delayN), eo);
+    c.eyeHeight = e.eyeHeight;
+    c.eyeWidth = e.eyeWidth;
+    c.maskMargin = e.maskMargin;
+    const bool masked = spec.maskHeight > 0 && spec.maskWidthUi > 0;
+    c.ok = e.error.empty() && e.open && (!masked || e.maskPass);
+    const std::string name = spec.net + (m.differential ? " / " + m.netN : "");
+    c.message = "Channel " + name + " at " + formatEngineeringValue(spec.bitRate, "b/s", 3) + " (" +
+                (drive.idealDriver ? std::string("ideal 50 Ω driver") : m.driver.name) + "): eye height " +
+                formatEngineeringValue(e.eyeHeight, "V", 3) + ", width " + formatEngineeringValue(e.eyeWidth, "s", 3);
+    if (masked)
+        c.message += ", mask " + formatEngineeringValue(spec.maskHeight, "V", 3) + " × " + fmt("%.2f UI", spec.maskWidthUi) +
+                     (e.maskPass ? " passes" : " violated by " + formatEngineeringValue(-e.maskMargin, "V", 3));
+    if (!e.open) c.message += " — the eye is closed: shorten the channel, use a lower-loss laminate or add equalisation";
+    else if (!c.ok) c.message += ": add equalisation (CTLE / FFE) or reduce loss and reflections";
+    c.message += ".";
+    return c;
 }
 
 }  // namespace sieda

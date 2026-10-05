@@ -524,6 +524,8 @@ ChannelModel extractChannel(const Project& project, const ChannelOptions& opt) {
     ChannelModel m;
     const Schematic& sch = project.schematic;
     const BoardSettings& s = project.pcb.settings;
+    LossOptions loss = opt.loss;
+    if (loss.foil.empty()) loss.foil = project.si.copperFoil;
     int netP = findNet(sch, opt.net);
     if (netP < 0) {
         m.error = "Unknown net " + opt.net;
@@ -738,7 +740,7 @@ ChannelModel extractChannel(const Project& project, const ChannelOptions& opt) {
                 const double lenMm = 0.5 * (sa.length + sb.length);
                 cl.length = lenMm * 1e-3;
                 const double w = 0.5 * (a.width + b.width);
-                const LineModel base = lineModel(s, a.layer, w, opt.loss);
+                const LineModel base = lineModel(s, a.layer, w, loss);
                 const CouplingEstimate ce = crosstalkCoupling(s, a.layer, a.width, b.width, std::max(0.01, c.gap), lenMm, 1e-10);
                 cl.even = modeLine(base, ce.kl, ce.kc, +1);
                 cl.odd = modeLine(base, ce.kl, ce.kc, -1);
@@ -765,7 +767,7 @@ ChannelModel extractChannel(const Project& project, const ChannelOptions& opt) {
         NetCopperGraph::Edge e;
         e.width = sg.width;
         e.diameter = sg.diameter;
-        const LineModel lm = sg.via ? viaLine(s, e) : lineModel(s, sg.layer, sg.width, opt.loss);
+        const LineModel lm = sg.via ? viaLine(s, e) : lineModel(s, sg.layer, sg.width, loss);
         for (const auto& sb : subs[i]) {
             if (sb.used) continue;
             ChannelNetwork::Line l;

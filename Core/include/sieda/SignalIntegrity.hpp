@@ -119,6 +119,8 @@ struct PdnRailSettings {
     double ripplePercent = 0;     // allowed AC ripple, % of the rail
     double transientCurrent = 0;  // A, the load step the PDN must hold within the ripple
     double dcCurrent = 0;         // A, total DC load for IR drop
+    double vrmR = 0;              // Ω, regulator output resistance (0 = by regulator type)
+    double vrmBandwidth = 0;      // Hz, regulator loop bandwidth (0 = by regulator type)
 };
 
 /// Signal / power-integrity setup stored with the project.
@@ -131,6 +133,16 @@ struct SiSettings {
     bool signOff = false;          // add a "Signal & Power Integrity" stage to design verification
     double overshootLimit = 0.15;  // fraction of the swing
     double crosstalkLimit = 0.05;  // fraction of the victim's swing
+    std::string copperFoil;        // copper foil profile for loss ("" = by laminate, see LossyLine.hpp)
+    /// Serial channels checked in sign-off: an eye at `bitRate` against a mask (SI_EYE_MASK).
+    struct ChannelSpec {
+        std::string net;
+        double bitRate = 0;       // b/s
+        double maskHeight = 0;    // V
+        double maskWidthUi = 0;   // UI
+    };
+    std::vector<ChannelSpec> channels;
+    const ChannelSpec* channel(const std::string& net) const;
     /// Imported model, else a logic family; nullptr when unknown.
     const DriverModel* findModel(const std::string& id) const;
     const PdnRailSettings* rail(const std::string& net) const;
@@ -278,5 +290,14 @@ Json crosstalkJson(const Project& project);
 /// Every SI and PI finding as warnings / notes: overshoot, ringback, critical length, crosstalk, return path,
 /// PDN target impedance and anti-resonance, decoupling and IR drop. Codes SI_* and PI_*.
 std::vector<RuleViolation> signalPowerIntegrityChecks(const Project& project);
+
+/// Eye of a serial channel spec (PRBS7 at its bit rate, IBIS driver when assigned, else an ideal 50 Ω source and
+/// termination) against its mask: the SI_EYE_MASK finding.
+struct ChannelCheck {
+    bool ok = true;
+    double eyeHeight = 0, eyeWidth = 0, maskMargin = 0;
+    std::string message;
+};
+ChannelCheck checkChannel(const Project& project, const SiSettings::ChannelSpec& spec);
 
 }  // namespace sieda

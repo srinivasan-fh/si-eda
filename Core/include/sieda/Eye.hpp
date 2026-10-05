@@ -8,7 +8,8 @@
 //                   x⁹+x⁵+1, x¹⁵+x¹⁴+1, x²³+x¹⁸+1, x³¹+x²⁸+1), circular over a full period when it fits.
 //   Equalisation    Optional transmit FFE (taps on the symbols, Σ|c| = 1; "auto" = zero-forcing on the pre- / post-
 //                   cursors) and a receive CTLE H(s) = A·(1 + s/ωz) / ((1 + s/ωp1)(1 + s/ωp2)), ωz = A·ωp1, ωp2 = 3ωp1
-//                   (DC gain A, unity high-frequency gain; "auto" sweeps A for the largest eye).
+//                   (DC gain A, unity high-frequency gain, then a gain stage restoring the unequalised main cursor;
+//                   "auto" sweeps A from 0 to −20 dB for the largest worst-case eye).
 //   Measurements    Eye height at the best sampling phase (inner contour), eye width at the decision threshold,
 //                   deterministic jitter (data-dependent, from every threshold crossing), total jitter at the target BER
 //                   with an optional random jitter (dual-Dirac: TJ = DJ + 2·Q(BER)·RJ), the worst-case eye of peak
