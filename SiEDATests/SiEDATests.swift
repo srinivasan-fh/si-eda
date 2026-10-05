@@ -5166,3 +5166,171 @@ final class InteractiveRoutingStoreTests: XCTestCase {
         XCTAssertNil(store.routePreview)
     }
 }
+
+final class SimulationPackageTests: XCTestCase {
+    /// 5 V → 1 kΩ → diode → ground, built through the store so its snapshot knows the parts.
+    private func diodeCircuit(_ store: DesignStore) -> (diode: Int, anode: Int) {
+        var ids: [Int] = []
+        store.perform("Build") { engine in
+            let v = engine.addComponent(.voltageSource, value: "5", at: .zero)
+            let r = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+            let d = engine.addComponent(.diode, value: "1N4148", at: CGPoint(x: 200, y: 0))
+            let g = engine.addComponent(.ground, at: CGPoint(x: 0, y: 80))
+            _ = engine.connect(PinAddress(component: v, pin: 0), PinAddress(component: r, pin: 0))
+            _ = engine.connect(PinAddress(component: r, pin: 1), PinAddress(component: d, pin: 0))
+            _ = engine.connect(PinAddress(component: d, pin: 1), PinAddress(component: g, pin: 0))
+            _ = engine.connect(PinAddress(component: v, pin: 1), PinAddress(component: g, pin: 0))
+            ids = [d]
+        }
+        return (ids.first ?? -1, 0)
+    }
+
+    func testSpiceModelAttachCheckUndo() throws {
+        let store = DesignStore()
+        let (diode, _) = diodeCircuit(store)
+        let text = ".model DFAST D(IS=1n N=1.8 RS=0.5 CJO=4p TT=5n)\n.model JUNK NPN(BF=50)\n"
+        let parsed = EDAEngine.parseSpice(text)
+        XCTAssertTrue(parsed.ok)
+        XCTAssertEqual(parsed.entries.map(\.name), ["DFAST", "JUNK"])
+        XCTAssertEqual(parsed.entries.first?.ports, ["A", "K"])
+
+        let component = try XCTUnwrap(store.snapshot.component(diode))
+        XCTAssertTrue(DesignStore.acceptsSpiceModel(component))
+        let check = store.engine.checkSpiceModel(diode, text: text, model: "DFAST", pins: "")
+        XCTAssertTrue(check.ok, check.error)
+        XCTAssertEqual(check.defaultPins, "A K")
+        let wrong = store.engine.checkSpiceModel(diode, text: text, model: "JUNK", pins: "")
+        XCTAssertFalse(wrong.ok)  // a BJT model has no default mapping onto a diode's A / K
+
+        XCTAssertTrue(store.setSpiceModel(diode, text: text, model: "DFAST", pins: ""))
+        XCTAssertEqual(store.snapshot.component(diode)?.spice?.model, "DFAST")
+        let stored = try XCTUnwrap(store.engine.spiceModel(of: diode))
+        XCTAssertTrue(stored.text.contains("CJO=4p"))
+        XCTAssertFalse(stored.text.contains("JUNK"))  // only what the model needs is kept
+        XCTAssertTrue(store.engine.simulateDC().converged)
+
+        // A refused model leaves the design as it was.
+        XCTAssertFalse(store.setSpiceModel(diode, text: text, model: "MISSING", pins: ""))
+        XCTAssertEqual(store.snapshot.component(diode)?.spice?.model, "DFAST")
+
+        store.undo()
+        XCTAssertNil(store.snapshot.component(diode)?.spice)
+        XCTAssertFalse(EDAEngine.builtinSpiceModels.isEmpty)
+    }
+}
+
+final class NoiseAnalysisTests: XCTestCase {
+    func testNoiseOfAResistorDividerThroughTheEngine() throws {
+        let engine = EDAEngine(name: "Divider noise")
+        let v = engine.addComponent(.voltageSource, value: "0 AC 1", at: .zero)
+        let r1 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: -40))
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 200, y: -40))
+        let g = engine.addComponent(.ground, at: CGPoint(x: 0, y: 80))
+        XCTAssertNotNil(engine.connect(PinAddress(component: v, pin: 0), PinAddress(component: r1, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r2, pin: 1), PinAddress(component: g, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: v, pin: 1), PinAddress(component: g, pin: 0)))
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        let tap = try XCTUnwrap(snapshot.component(r1)?.pins[1].net)
+        let netName = try XCTUnwrap(snapshot.nets.first { $0.index == tap }?.name)
+
+        let result = engine.simulateNoise(output: netName, start: "10", stop: "10k", pointsPerDecade: 10, source: "")
+        XCTAssertTrue(result.ok, result.error)
+        XCTAssertEqual(result.inputSource, "V1")
+        let kT = 1.380649e-23 * 300.15
+        let density = try XCTUnwrap(result.outputDensity.first ?? nil)
+        XCTAssertEqual(density / (4 * kT * 500).squareRoot(), 1, accuracy: 1e-6)
+        let input = try XCTUnwrap(result.inputDensity?.first ?? nil)
+        XCTAssertEqual(input / density, 2, accuracy: 1e-6)
+        XCTAssertEqual(result.contributions.count, 2)
+        XCTAssertEqual(Set(result.contributions.map(\.ref)), ["R1", "R2"])
+
+        let bad = engine.simulateNoise(output: "no such net", start: "10", stop: "10k", pointsPerDecade: 10, source: "")
+        XCTAssertFalse(bad.ok)
+        XCTAssertFalse(bad.error.isEmpty)
+    }
+}
+
+final class SweepFFTMeasurementTests: XCTestCase {
+    private func rcFilter(_ source: String) -> (EDAEngine, Int) {
+        let engine = EDAEngine(name: "RC")
+        let v = engine.addComponent(.voltageSource, value: source, at: .zero)
+        let r = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: -40))
+        let c = engine.addComponent(.capacitor, value: "100n", at: CGPoint(x: 200, y: -40))
+        let g = engine.addComponent(.ground, at: CGPoint(x: 0, y: 80))
+        _ = engine.connect(PinAddress(component: v, pin: 0), PinAddress(component: r, pin: 0))
+        _ = engine.connect(PinAddress(component: r, pin: 1), PinAddress(component: c, pin: 0))
+        _ = engine.connect(PinAddress(component: c, pin: 1), PinAddress(component: g, pin: 0))
+        _ = engine.connect(PinAddress(component: v, pin: 1), PinAddress(component: g, pin: 0))
+        return (engine, c)
+    }
+
+    private func netName(_ engine: EDAEngine, component: Int, pin: Int) throws -> String {
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        let net = try XCTUnwrap(snapshot.component(component)?.pins[pin].net)
+        return try XCTUnwrap(snapshot.nets.first { $0.index == net }?.name)
+    }
+
+    func testParameterSweepAndFFTDecode() throws {
+        let (engine, c) = rcFilter("SIN(0 1 1k) AC 1")
+        let out = try netName(engine, component: c, pin: 0)
+        let dc = engine.simulateParamSweep(component: "R1", values: ["1k", "2k"], analysis: "dc", net: "",
+                                           start: "10", stop: "1MEG", step: "1u")
+        XCTAssertTrue(dc.ok, dc.error)
+        XCTAssertEqual(dc.runs.map(\.value), ["1k", "2k"])
+        let ac = engine.simulateParamSweep(component: "R1", values: ["1k", "10k"], analysis: "ac", net: out,
+                                           start: "10", stop: "1MEG", step: "1u")
+        XCTAssertTrue(ac.ok, ac.error)
+        let f1 = try XCTUnwrap(ac.runs.first?.nets.first?.metrics?.f3dbHz)
+        let f2 = try XCTUnwrap(ac.runs.last?.nets.first?.metrics?.f3dbHz)
+        XCTAssertEqual(f1 / f2, 10, accuracy: 0.05)  // ten times the resistance, a tenth of the corner
+
+        let fft = engine.simulateFFT(net: out, stop: "10m", step: "2u", fundamental: "", harmonics: 5)
+        XCTAssertTrue(fft.ok, fft.error)
+        XCTAssertEqual(fft.fundamentalHz, 1000, accuracy: 1e-6)
+        XCTAssertLessThan(fft.thdPercent, 1)  // a linear filter adds no distortion
+        XCTAssertEqual(fft.harmonics.first?.order, 1)
+    }
+
+    func testWaveformMeasurementsAndInterpolation() throws {
+        let time = stride(from: 0.0, through: 2e-3, by: 1e-6).map { $0 }
+        let values = time.map { 1 + sin(2 * Double.pi * 1000 * $0) }
+        XCTAssertEqual(try XCTUnwrap(WaveformMath.value(at: 0.25e-3, time: time, values: values)), 2, accuracy: 1e-4)
+        XCTAssertEqual(WaveformMath.value(at: -1, time: time, values: values), values.first)
+        XCTAssertNil(WaveformMath.value(at: 0, time: [], values: []))
+        let m = EDAEngine.measureWaveform(time: time, values: values)
+        XCTAssertTrue(m.ok, m.error)
+        XCTAssertEqual(try XCTUnwrap(m.average), 1, accuracy: 1e-4)
+        XCTAssertEqual(try XCTUnwrap(m.acRms), 1 / 2.0.squareRoot(), accuracy: 1e-4)
+        XCTAssertEqual(try XCTUnwrap(m.frequency), 1000, accuracy: 0.01)
+        let window = EDAEngine.measureWaveform(time: time, values: values, from: 0, to: 0.5e-3)
+        XCTAssertTrue(window.ok)
+        XCTAssertNil(window.frequency)
+        XCTAssertFalse(EDAEngine.measureWaveform(time: [0], values: [1]).ok)
+    }
+}
+
+final class TransientOptionsTests: XCTestCase {
+    func testAdaptiveTrapezoidalTransientThroughTheEngine() throws {
+        let engine = EDAEngine(name: "RC step")
+        let v = engine.addComponent(.voltageSource, value: "PULSE(0 5 2m)", at: .zero)
+        let r = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: -40))
+        let c = engine.addComponent(.capacitor, value: "100n", at: CGPoint(x: 200, y: -40))
+        let g = engine.addComponent(.ground, at: CGPoint(x: 0, y: 80))
+        _ = engine.connect(PinAddress(component: v, pin: 0), PinAddress(component: r, pin: 0))
+        _ = engine.connect(PinAddress(component: r, pin: 1), PinAddress(component: c, pin: 0))
+        _ = engine.connect(PinAddress(component: c, pin: 1), PinAddress(component: g, pin: 0))
+        _ = engine.connect(PinAddress(component: v, pin: 1), PinAddress(component: g, pin: 0))
+
+        let fixed = engine.simulateTransient(stop: 2e-3, step: 1e-6)
+        let same = engine.simulateTransient(stop: 2e-3, step: 1e-6, adaptive: false, trapezoidal: false)
+        XCTAssertEqual(fixed, same)  // both off is the established analysis
+        let adaptive = engine.simulateTransient(stop: 2e-3, step: 10e-6, adaptive: true, trapezoidal: true)
+        XCTAssertTrue(adaptive.ok, adaptive.error)
+        XCTAssertGreaterThan(adaptive.time.count, 10)
+        XCTAssertEqual(try XCTUnwrap(adaptive.time.last), 2e-3, accuracy: 1e-12)
+        // τ = 100 µs: settled to 5 V well before the end.
+        let out = try XCTUnwrap(adaptive.nets.first { ($0.values.last ?? 0) > 4.9 })
+        XCTAssertEqual(try XCTUnwrap(out.values.last), 5, accuracy: 0.01)
+    }
+}

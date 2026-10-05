@@ -306,6 +306,13 @@ bool Schematic::setFirmware(int id, const std::string& hex, const std::string& n
     return true;
 }
 
+bool Schematic::setSpiceModel(int id, const SpiceModelRef& model) {
+    Component* c = find(id);
+    if (!c) return false;
+    c->spice = model.text.empty() ? SpiceModelRef{} : model;
+    return true;
+}
+
 bool Schematic::setRef(int id, const std::string& ref) {
     if (const int pkg = unitPackage(masterOf(id)); pkg > 0) id = pkg;  // a unit's designator is its package's
     Component* c = find(masterOf(id));

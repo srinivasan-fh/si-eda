@@ -707,6 +707,89 @@ final class EDAEngine: @unchecked Sendable {
         return Self.decode(MonteCarloResult.self, from: json) ?? MonteCarloResult(error: "Simulator returned no result.")
     }
 
+    // MARK: - Transient options, noise, parameter sweep, FFT (docs/SIMULATION.md)
+
+    /// Transient with the trapezoidal rule and / or adaptive (LTE-controlled) time steps; both off is the
+    /// established fixed-step backward-Euler analysis.
+    func simulateTransient(stop: Double, step: Double, adaptive: Bool, trapezoidal: Bool) -> TransientResult {
+        guard adaptive || trapezoidal else { return simulateTransient(stop: stop, step: step) }
+        let options: [String: Any] = ["stop": stop, "step": step, "adaptive": adaptive, "method": trapezoidal ? "trap" : "be"]
+        let json = withHandle { Self.take(sieda_simulate_transient_ex($0, Self.optionsJSON(options))) }
+        return Self.decode(TransientResult.self, from: json) ?? TransientResult(error: "Simulator returned no result.")
+    }
+
+    /// Output noise of `output` over a log sweep; `source` is the input for input-referred noise ("" = automatic).
+    func simulateNoise(output: String, start: String, stop: String, pointsPerDecade: Int, source: String) -> NoiseAnalysisResult {
+        var options: [String: Any] = ["output": output, "start": start, "stop": stop, "pointsPerDecade": pointsPerDecade]
+        if !source.isEmpty { options["source"] = source }
+        let json = withHandle { Self.take(sieda_simulate_noise($0, Self.optionsJSON(options))) }
+        return Self.decode(NoiseAnalysisResult.self, from: json) ?? NoiseAnalysisResult(error: "Simulator returned no result.")
+    }
+
+    /// Runs `analysis` ("dc", "ac", "transient") once per value of `component`. AC uses start / stop; transient
+    /// stop / step; `net` limits the result to one node ("" = every node).
+    func simulateParamSweep(component: String, values: [String], analysis: String, net: String,
+                            start: String, stop: String, step: String) -> ParamSweepResult {
+        var options: [String: Any] = ["component": component, "values": values, "analysis": analysis]
+        if !net.isEmpty { options["net"] = net }
+        if analysis == "ac" {
+            options["start"] = start
+            options["stop"] = stop
+            options["pointsPerDecade"] = 20
+        } else if analysis == "transient" {
+            options["stop"] = stop
+            options["step"] = step
+        }
+        let json = withHandle { Self.take(sieda_simulate_param_sweep($0, Self.optionsJSON(options))) }
+        return Self.decode(ParamSweepResult.self, from: json) ?? ParamSweepResult(error: "Simulator returned no result.")
+    }
+
+    /// Spectrum and THD of `net` from a transient of `stop` / `step` ("" fundamental = the first SIN source).
+    func simulateFFT(net: String, stop: String, step: String, fundamental: String, harmonics: Int) -> FFTResult {
+        var options: [String: Any] = ["net": net, "stop": stop, "step": step, "harmonics": harmonics]
+        if !fundamental.isEmpty { options["fundamental"] = fundamental }
+        let json = withHandle { Self.take(sieda_simulate_fft($0, Self.optionsJSON(options))) }
+        return Self.decode(FFTResult.self, from: json) ?? FFTResult(error: "Simulator returned no result.")
+    }
+
+    /// Measures a waveform between `from` and `to` (nil: its ends): extremes, average, RMS, edges, period.
+    static func measureWaveform(time: [Double], values: [Double], from: Double? = nil, to: Double? = nil) -> WaveformMeasurementsInfo {
+        var request: [String: Any] = ["time": time.map { $0.isFinite ? $0 : 0 }, "values": values.map { $0.isFinite ? $0 : 0 }]
+        if let from, from.isFinite { request["from"] = from }
+        if let to, to.isFinite { request["to"] = to }
+        return decode(WaveformMeasurementsInfo.self, from: take(sieda_measure_waveform(optionsJSON(request))))
+            ?? WaveformMeasurementsInfo(ok: false, error: "The waveform could not be measured.")
+    }
+
+    // MARK: - SPICE models (docs/SIMULATION.md)
+
+    /// Models and subcircuits in vendor model text, with the parser's diagnostics.
+    static func parseSpice(_ text: String) -> SpiceParseResult {
+        decode(SpiceParseResult.self, from: take(sieda_spice_parse(text))) ?? SpiceParseResult()
+    }
+
+    /// Tries `model` of `text` on a part without changing the design (ports, default pin map, problems).
+    func checkSpiceModel(_ id: Int, text: String, model: String, pins: String) -> SpiceCheckResult {
+        let json = withHandle { Self.take(sieda_spice_check($0, Int32(id), text, model, pins)) }
+        return Self.decode(SpiceCheckResult.self, from: json) ?? SpiceCheckResult(ok: false, error: "The model could not be checked.")
+    }
+
+    /// Attaches a model to a part (an empty `text` removes it); the core stores what the model needs.
+    func setSpiceModel(_ id: Int, text: String, model: String, pins: String) throws {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let ok = withHandle { sieda_set_spice_model($0, Int32(id), text, model, pins, &errorPointer) } == 1
+        if !ok { throw EDAEngineError.operationFailed(Self.take(errorPointer) ?? "The model could not be attached.") }
+    }
+
+    /// The model attached to a part (nil when none).
+    func spiceModel(of id: Int) -> SpiceModelText? {
+        let model = Self.decode(SpiceModelText.self, from: withHandle { Self.take(sieda_component_spice_model($0, Int32(id))) })
+        return model?.text.isEmpty == false ? model : nil
+    }
+
+    static let builtinSpiceModels: [SpiceBuiltinModel] =
+        decode([SpiceBuiltinModel].self, from: take(sieda_spice_builtin_models())) ?? []
+
     private static func optionsJSON(_ options: [String: Any]) -> String {
         guard let data = try? JSONSerialization.data(withJSONObject: options) else { return "{}" }
         return String(decoding: data, as: UTF8.self)

@@ -612,6 +612,47 @@ char* sieda_net_places(const SiedaProject* project, int32_t net);
  * snapshot carries "titleBlock" (title defaults to the project name). 1 on success. */
 int32_t sieda_set_title_block(SiedaProject* project, const char* json);
 
+/* ---- SPICE model import (docs/SIMULATION.md) -------------------------------------------------------------------- */
+/* Parses vendor model text (.lib / .mod / .cir: .model, .subckt, .param, .func). Returns {"ok","entries":[{"name",
+ * "kind":"model"|"subckt","type":"D"|"NPN"|…|"SUBCKT","ports":[…],"line"}],"diagnostics":[{"level":"info"|
+ * "warning"|"error","line","message"}]}; "ok" is false when the text has errors. */
+char* sieda_spice_parse(const char* text);
+/* Checks model `model` of `text` on a component without changing the project: {"ok","error","kind","type","ports",
+ * "pins" (the pin map used: `pins`, or the default when it is empty),"defaultPins","diagnostics"}. */
+char* sieda_spice_check(const SiedaProject* project, int32_t component_id, const char* text, const char* model,
+                        const char* pins);
+/* Attaches model `model` of `text` to a component: the definition and everything it uses are stored in the project
+ * with the pin map (one entry per port: pin name / number, "0", "net:NAME", "dc:15", "nc"; ";" between instances;
+ * empty = default). An empty `text` removes the model. 1 on success, else 0 with *error_out (free it). */
+int32_t sieda_set_spice_model(SiedaProject* project, int32_t component_id, const char* text, const char* model,
+                              const char* pins, char** error_out);
+/* The component's model: {"text","model","pins"} (empty strings when none). */
+char* sieda_component_spice_model(const SiedaProject* project, int32_t component_id);
+/* Ready-made models of common parts: [{"name","description","text"}]. */
+char* sieda_spice_builtin_models(void);
+
+/* ---- noise analysis (docs/SIMULATION.md) ------------------------------------------------------------------------- */
+/* Output noise of a node over a log sweep. options: {"output": net, "reference"?: net (default ground), "source"?:
+ * the input for input-referred noise (default: the AC stimulus rule), "start","stop" (Hz, default 10 – 100k),
+ * "pointsPerDecade" (20), "temperature"? (°C, 27)}. Returns {"ok","error","output","reference","frequency":[…],
+ * "outputDensity":[V/√Hz…],"outputRms","inputSource","inputUnit":"V"|"A","inputDensity":[…]|null,"gain":[…]|null,
+ * "inputRms"|null,"contributions":[{"ref","kind":"thermal"|"shot"|"flicker"|"voltage"|"current","rms"}]} (largest
+ * first, at most 30). */
+char* sieda_simulate_noise(const SiedaProject* project, const char* options_json);
+
+/* ---- waveform measurements (".meas"-like; docs/SIMULATION.md) ----------------------------------------------------- */
+/* Measures a sampled waveform. request: {"time":[s…],"values":[…],"from"?,"to"?} (a window; default the whole
+ * waveform). Returns {"ok","error","from","to","samples","min","max","tMin","tMax","peakToPeak","average","rms",
+ * "acRms","initial","final","stepLike","riseTime","fallTime","overshootPercent","settlingTime","period","frequency",
+ * "dutyCycle","cycles"}; a quantity the window does not define is null. */
+char* sieda_measure_waveform(const char* request_json);
+
+/* ---- transient with options (docs/SIMULATION.md) ------------------------------------------------------------------ */
+/* Like sieda_simulate_transient, with options {"stop","step" (s or engineering text),"method":"be"|"trap",
+ * "adaptive": bool (step from the local truncation error, landing on every PULSE edge),"reltol" (1e-3),"vntol"
+ * (1e-6 V),"maxStep" (adaptive; default the step)}. Convergence aids are on. Same result JSON. */
+char* sieda_simulate_transient_ex(const SiedaProject* project, const char* options_json);
+
 #ifdef __cplusplus
 }
 #endif

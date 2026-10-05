@@ -28,7 +28,7 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 | F4 | Provider selection (Claude default, OpenAI/compatible, Gemini, Ollama, Offline); keys stored in the Keychain | ✅ |
 | F5 | Schematic editor: place, move, rotate, wire, delete, net labels, marquee, undo/redo | ✅ |
 | F6 | ERC with cross-probing | ✅ |
-| F7 | DC operating point and transient simulation, waveform charts, live probes; AC small-signal analysis with Bode plots, DC and parameter sweeps, Monte Carlo / worst-case tolerance analysis, FFT / THD (docs/SIMULATION.md) | ✅ |
+| F7 | DC operating point and transient simulation, waveform charts, live probes; AC small-signal analysis with Bode plots, DC and parameter sweeps, Monte Carlo / worst-case tolerance analysis, FFT / THD, noise analysis, imported SPICE models (.model / .subckt, vendor op-amp macromodels) with device capacitances, multi-pole op-amp macromodel, waveform cursors and measurements, trapezoidal and adaptive time steps (docs/SIMULATION.md) | ✅ |
 | F8 | PCB: auto-place, manual move/rotate/flip, autoroute, ratsnest, DRC, editable design rules | ✅ |
 | F9 | 3D assembly viewer with STL/OBJ export | ✅ |
 | F10 | Fabrication package: Gerber RS-274X, Excellon, BOM, pick-and-place, SPICE netlist | ✅ |
@@ -52,7 +52,6 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 ## Out of scope for v1
 - Importing KiCad or Altium library files and custom symbol graphics (the Footprint and Symbol Editors shipped; see
   F13, F14). Multi-unit symbols shipped (see docs/SCHEMATIC.md).
-- Noise analysis (AC small-signal analysis shipped; see F7).
 
 ## Roadmap
 (Shipped since v1: up to 24 layers, copper pours and planes with thermal reliefs, differential pairs, length tuning,
