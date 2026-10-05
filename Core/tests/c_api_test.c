@@ -445,6 +445,10 @@ int sieda_c_api_units_test(void) {
         sieda_string_free(changed);
     }
     if (sieda_find_component(p, "U1") < 0) return 8;
+    sieda_project_free(p);
+    return 0;
+}
+
 /* First integer after `key` in `json` (-1 when absent). */
 static int32_t c_api_first_int_after(const char* json, const char* key) {
     const char* at = json ? strstr(json, key) : NULL;
