@@ -1,10 +1,13 @@
 # Signal & Power Integrity
 
 SiEDA analyses the routed board for signal integrity (SI) and power integrity (PI) at board level, the job tools such
-as HyperLynx LineSim / BoardSim or Sigrity PowerSI do in their screening modes. It solves every net as a set of
-lossless transmission lines driven by IBIS or logic-family buffer models, estimates crosstalk between neighbouring
-tracks, checks return paths, and compares each supply rail's power-distribution network (PDN) impedance with its
-target. It also solves the DC voltage drop (IR drop) on supply copper.
+as HyperLynx LineSim / BoardSim, Sigrity or Altium's SI / PDN Analyzer do. It solves every net as a set of transmission
+lines driven by IBIS or logic-family buffer models, estimates crosstalk between neighbouring tracks (same layer and
+adjacent layer), and checks return paths. For serial links it builds the **channel** of a net or differential pair
+from frequency-dependent lossy lines, gives its S-parameters (Touchstone in and out) and runs a PRBS **eye diagram**
+with optional equalisation. For power it compares each rail's power-distribution network (PDN) impedance with its
+target, models the plane pair as a resonant cavity, proposes the decoupling that meets the target and maps the DC
+voltage drop (IR drop) and current density on the board.
 
 It is a screening tool built on closed-form physics from the standard references. It is **not** a full-wave 3D field
 solver. See [Limits](#limits) before you sign off a multi-gigabit or high-current design with it alone.
@@ -12,10 +15,14 @@ solver. See [Limits](#limits) before you sign off a multi-gigabit or high-curren
 - [Where to find it](#where-to-find-it)
 - [Driver and receiver models](#driver-and-receiver-models)
 - [Transmission-line analysis](#transmission-line-analysis)
+- [Lossy lines](#lossy-lines)
+- [Channel analysis](#channel-analysis)
+- [Eye diagram](#eye-diagram)
 - [Crosstalk](#crosstalk)
 - [Return path](#return-path)
 - [Power distribution network](#power-distribution-network)
 - [IR drop](#ir-drop)
+- [PI planning](#pi-planning)
 - [Verification and check codes](#verification-and-check-codes)
 - [C API](#c-api)
 - [Validation](#validation)
@@ -25,13 +32,14 @@ solver. See [Limits](#limits) before you sign off a multi-gigabit or high-curren
 
 ## Where to find it
 
-Open the **Simulation** workspace and switch the mode picker from **Circuit** to **SI / PI**. There are three tabs:
+Open the **Simulation** workspace and switch the mode picker from **Circuit** to **SI / PI**. There are four tabs:
 
 | Tab | What it shows |
 |---|---|
 | **Signals** | Every signal net, with critical and fast nets first. Select a net to see its driver and model, its line sections (layer, width, length, Z0, delay), the waveform at the driver pin and at the worst receiver, and the same receiver with the recommended series termination. Overshoot, undershoot, settling and flight time are listed for every receiver. The **Driver model** menu assigns a logic family or an imported IBIS model to the net. |
 | **Crosstalk** | Every aggressor → victim pair of parallel tracks with coupled length, spacing, NEXT, FEXT and the noise voltage against its limit. Below it, the return-path problems. |
-| **Power** | Every supply rail with its \|Z(f)\| curve on log–log axes, the target impedance (dashed line) and the 100 MHz band edge. It also lists decoupling capacitors (ESR, ESL with mounting, self-resonance), recommendations and the worst IR drop. **Ripple** (%) and **Load step** (A) set the target; 0 derives them from the design. |
+| **Power** | Every supply rail with its \|Z(f)\| curve on log–log axes, the target impedance (dashed line) and the 100 MHz band edge. It also lists decoupling capacitors (ESR, ESL with mounting, self-resonance), recommendations and the worst IR drop. **Ripple** (%) and **Load step** (A) set the target; 0 derives them from the design. Below: the **Regulator** model (output resistance, loop bandwidth), the **Plane cavity** curve against the lumped one, the **Decoupling plan** and the **IR-drop map** of the board (drop or current density). |
+| **Channel** | Pick a net (a differential pair is found by name and analysed as a pair; **Single-ended** analyses one leg). **Analyse** shows the insertion and return loss (S21 / S11, or SDD21 / SDD11 / SCD21 / SCC21), the Nyquist loss, skew and coupled sections, the step response lossy against lossless and the eye (bit rate, PRBS, **Ideal 50 Ω** or the net's driver model, **CTLE**, **FFE**, mask, random jitter). **Export Touchstone…** writes .s2p / .s4p; **Import Touchstone…** shows a vendor file's loss and eye and can **Cascade at receiver**. **Check in sign-off** adds the eye-mask check. **Roughness** and **Copper foil** set the conductor model; **Line loss per layer** plots dB / inch of every layer. |
 
 **Import IBIS…** reads a vendor `.ibs` file and adds every buffer model to the project. **Sign-off in verification**
 adds a **Signal & Power Integrity** stage to Design Checks (see [Verification](#verification-and-check-codes)).
@@ -161,6 +169,65 @@ simulated again with it, and the Signals tab shows that waveform beside the orig
 that does not match is flagged with the right value. With more than two receivers, the advice is a daisy chain with a
 far-end termination. On-die terminated receivers (DDR) get the ODT advice instead.
 
+
+## Lossy lines
+
+`Core/src/LossyLine.cpp` gives every track a per-unit-length model R(f), L(f), G(f), C(f). Its lossless limit is the
+line the reflection analysis uses (same Z0 and delay), so the two agree when losses are off.
+
+| Part | Model |
+|---|---|
+| L, C | From the stack-up line: `L = Z0·√εeff / c`, `C = √εeff / (Z0·c)` (IPC-2141 Z0, Hammerstad–Jensen εeff) |
+| Dielectric | **Djordjevic–Sarkar** wideband Debye model, `ε(ω) = ε∞ + Δε/(m2 − m1)·log10((ω2 + jω)/(ω1 + jω))` with ω1 = 10⁴ and ω2 = 10¹² rad/s, fitted so εr and tan δ equal the laminate's at 1 GHz. Causal (Kramers–Kronig consistent). A microstrip fills `q = (εeff − 1)/(εr − 1)` of its field with it: `Y = jω·C_air·(1 + q(ε(ω) − 1))` |
+| Conductor | `Z_int = R_dc·√(1 + jω/ωc)`: R_dc = ρ/(w·t) at low frequency, the skin-effect `Rs·K` with equal internal reactance at high frequency (causal). `K = R_ac / Rs` by **Wheeler's incremental-inductance rule**: stripline, Pozar's closed form (eq. 3.198, both branches); microstrip, the numerical Wheeler derivative of the Hammerstad–Jensen inductance with their thickness correction |
+| Roughness | **Huray** snowball model in its causal form (complex skin depth δ(1 − j)/√2), or **Hammerstad** `1 + (2/π)·atan(1.4 (Δ/δ)²)`, applied to the skin-effect part. Foils: smooth, HVLP, VLP, RTF, standard ED (typical profile parameters; fit your fabricator's data for sign-off). By default low-loss laminates (tan δ < 0.005) use HVLP and others standard ED; **Copper foil** overrides it per project |
+
+Time domain uses the frequency response and an inverse FFT (window ≥ 2× the span, raised-cosine taper above the
+evaluated band). The models are causal, so nothing arrives before the time of flight.
+
+## Channel analysis
+
+`Core/src/Channel.cpp` turns a routed net into a linear network:
+
+- **Elements.** Every track section is a lossy line; via barrel sections (and unused stubs, unless backdrilled) are
+  short lines with Johnson's L and C, as in the reflection analysis; pads, terminations, connectors and the other
+  receivers (C_in, C_pkg, ODT) are shunts. The driver pad and the receiver pad are the ports (the farthest receiver,
+  or the one named).
+- **Differential pairs** (found by name: `_P / _N`, `+ / −`, …) form one 4-port, ordered P near, N near, P far, N far.
+  Where P and N tracks run side by side on a layer, the sections are split so they pair up and become **coupled
+  lines**: from the coupling coefficients of the crosstalk model, `L_e,o = L(1 ± kl)`, `C_e,o = C11(1 ∓ kc)`,
+  `C11 = C/(1 − kl·kc)`. In a homogeneous stripline (kl = kc) both modes keep c/√εr; on a microstrip the odd mode runs
+  faster (more of it in air). The report lists Z_odd, Z_even, Z_diff = 2·Z_odd and Z_comm = Z_even/2 per layer and gap.
+- **Solution.** Each line stamps `Y11 = coth(γl)/Zc`, `Y12 = −csch(γl)/Zc` (a coupled pair: `(Ye ± Yo)/2`); every
+  non-port node is eliminated (Kron reduction in minimum-degree order) and `S = (I + Z0·Y)⁻¹(I − Z0·Y)`, Z0 = 50 Ω by
+  default. Mixed mode: `Smm = M·S·Mᵀ` (SDD, SDC / SCD, SCC; differential reference 2·Z0).
+- **Touchstone.** Export writes version 1.1 (`# Hz S RI R 50`; 2-port in the S11 S21 S12 S22 order, 4-ports as rows).
+  Import reads versions 1.x and 2.0: S, Y or Z data (Y / Z converted to S, normalised in 1.x), MA / DB / RI, any
+  frequency unit, `[Two-Port Data Order]`, `[Matrix Format]`, `[Number of Frequencies]`, a single `[Reference]`;
+  noise blocks are skipped. Malformed files are rejected with a reason (port count ≤ 64, 64 MB, finite numbers,
+  increasing frequencies); the parser is fuzz-tested. A 4-port can be ordered "13" (1→3 thru, the default) or "12".
+  An imported block **cascades** after the routed channel (Redheffer star product, renormalised to Z0); outside its
+  band the magnitude is held and the phase extrapolated (constant group delay).
+- **Drive.** The step response and the eye drive the channel from the driver model (R_out + R_pkg with C_comp, the
+  schematic's series resistor, C_pkg) into the receiver (C_in + C_pkg, ODT), or from an ideal 50 Ω source into 50 Ω
+  per leg. The port voltages come from the wave equations `(I − S·Γ)·b = S·c`.
+
+## Eye diagram
+
+`Core/src/Eye.cpp`. The pulse response of one unit interval with the driver's edge, `p(t) = IFFT[H(f)·P(f)]`, is
+superposed for every bit of a PRBS (7, 9, 15: a full period, circular; 23, 31: the first 32 767 bits): exact for a
+linear channel. The time window covers ≥ 128 UI and 80 channel delays so reflections settle.
+
+| Result | Definition |
+|---|---|
+| Eye height | Inner opening (lowest "1" minus highest "0") at the best sampling phase |
+| Eye width | UI minus the data-dependent jitter at the threshold |
+| Jitter | Every threshold crossing against its nominal boundary: peak-to-peak (DJ) and RMS. Total jitter `TJ = DJ + 2·Q(BER)·RJ` (dual Dirac, Q(10⁻¹²) = 7.03) with the random jitter you enter; width at BER = UI − TJ |
+| Worst-case eye | Peak distortion analysis: `2A·(c0 − Σ|ck|)` from the pulse cursors |
+| Mask | A hexagon (width in UI, height in V) centred on the eye; the margin is the smallest clearance |
+| CTLE | `H(s) = A(1 + s/ωz)/((1 + s/ωp1)(1 + s/ωp2))`, ωz = A·ωp1, ωp2 = 3ωp1, peak at Nyquist, followed by a gain stage restoring the unequalised main cursor; the DC gain is swept 0 … −20 dB for the largest worst-case eye |
+| FFE | Transmit taps (1 pre, 2 post) by zero forcing on the cursors, Σ\|c\| = 1 |
+
 ## Crosstalk
 
 Every pair of parallel tracks (|cos θ| ≥ 0.97, ≥ 0.5 mm overlap) on one layer is a candidate. One net of the pair must
@@ -182,6 +249,13 @@ From these, with `TD` = coupled length × delay per mm and `RT` the aggressor's 
 
 Coupling along several segments of the same pair is summed. The noise voltage is the larger of |NEXT| and |FEXT|
 times the aggressor's launched step `V·Z0/(Z0 + R_out)`. The limit is **5 %** of the victim's swing by default.
+
+**Broadside crosstalk.** A victim on the adjacent copper layer (no plane can lie between two adjacent layers that
+both carry tracks there), within three layer spacings laterally, is a broadside pair (shown as *Broadside*, layer
+"Top / Inner 1"). Its coupling uses the same image theory with the conductors at heights h1 and h2 over the nearest
+plane outside the pair: `Lm/L = ln((x² + (h1+h2)²)/(x² + (h1−h2)²)) / (2·√(ln(2h1/r)·ln(2h2/r)))`. Both layers buried:
+homogeneous, `Cm/C = Lm/L` and no FEXT; otherwise the air-filled share lowers Cm/C. The second plane on the far side
+is ignored, so the estimate errs high. NEXT and FEXT follow the formulas above.
 
 ## Return path
 
@@ -242,6 +316,27 @@ The rail's tracks, via barrels and pours form a resistive network solved by conj
 
 The drop limit is half the ripple budget (2.5 % on a 5 % rail).
 
+## PI planning
+
+`Core/src/PdnPlanning.cpp` (Power tab, below the rail's curve):
+
+- **Regulator.** Output resistance R and loop bandwidth f_bw per rail (0 = by regulator type, as above); the
+  inductance `R/(2π f_bw)` models the loop's roll-off.
+- **Plane cavity.** The rail pour and the ground pour as a rectangular cavity (the pour's bounding box, plate spacing
+  d). The impedance between ports is the modal sum of Lei, Mittra & Wang / Novak,
+  `Z_ij = jωμd/(ab)·Σ χm²χn²·cos(kx·xi)cos(ky·yi)cos(kx·xj)cos(ky·yj)·sinc(kx·w/2)·sinc(ky·w/2) / (k_mn² − k²)`,
+  `k² = ω²με(1 − j(tan δ + 2Rs/(ωμd)))` (conductor loss on the propagating modes; the (0,0) term is the plate
+  capacitor). Modes up to twice 3 GHz are summed dynamically, the higher ones as their static (inductive) sum. Every
+  decoupling capacitor (with its mounting inductance) and the regulator connect at their own positions; the curve is
+  the impedance at the loads' centre, beside the lumped one. The first resonances `f_mn = c/(2√εr)·√((m/a)² + (n/b)²)`
+  are listed.
+- **Decoupling plan.** Greedy: at each step the capacitor from 1 nF 0201, 10 nF / 100 nF / 1 µF 0402, 4.7 µF 0603,
+  10 / 22 µF 0805 and 47 µF 1206 that lowers the worst |Z| / target below 100 MHz most, at the rail's median mounting
+  inductance (0.5 nH without capacitors), until the rail complies (≤ 40 parts).
+- **IR-drop map.** The IR-drop solution per pour cell and track section: drop, and current density `|∇V|/ρ` (cells)
+  or `I/(w·t)` (tracks) in A/mm², drawn on the board outline with the source and the load pins. The five highest
+  densities are listed (above 30 A/mm² in amber; check IPC-2152 for the temperature rise).
+
 ## Verification and check codes
 
 SI / PI sign-off is **opt-in per project**, with the **Sign-off in verification** toggle or `sieda_si_set_options`.
@@ -261,6 +356,9 @@ assigned model, fast and long first.
 | `PI_NO_DECOUPLING` | warning | A rail feeds load pins but has no capacitor to ground |
 | `PI_TARGET_IMPEDANCE` | warning | \|Z\| above the target within 100 MHz (worst point, target and the first recommendation) |
 | `PI_IR_DROP` | warning | The worst load pin drops more than the limit |
+| `SI_EYE_MASK` | warning | A net given a bit rate (**Check in sign-off**) has a closed eye or violates its mask: PRBS7 with the net's IBIS driver, else an ideal 50 Ω source and termination with a 1 V swing |
+
+Broadside pairs report under `SI_CROSSTALK`. Projects without channel specs get no `SI_EYE_MASK` finding.
 
 ## C API
 
@@ -277,6 +375,17 @@ assigned model, fast and long first.
 | `sieda_si_crosstalk_json(project)` | Crosstalk pairs and return-path issues |
 | `sieda_pi_json(project)` | Every rail: inputs, elements, \|Z(f)\| curve, peaks, compliance, IR drop, recommendations |
 | `sieda_si_checks_json(project)` | All SI_* / PI_* findings |
+| `sieda_si_line_loss_json(project, options)` | Loss per layer (dB / inch, conductor and dielectric parts, RLGC at 1 GHz) |
+| `sieda_si_set_copper_foil(project, foil)` | Foil for loss: `smooth`, `hvlp`, `vlp`, `rtf`, `std`, "" = by laminate |
+| `sieda_si_channel_json(project, options)` | Channel of a net or pair: S-parameter curves, coupled sections, step response, eye (options in `sieda_c.h`) |
+| `sieda_si_channel_touchstone(project, options, &err)` | The channel as Touchstone .s2p / .s4p text |
+| `sieda_touchstone_parse(text, ports, order, &err)` | Touchstone preview (ports, band, curves) |
+| `sieda_touchstone_channel_json(text, ports, options, &err)` | An imported channel's step response and eye |
+| `sieda_si_set_channel(project, net, bit_rate, mask_v, mask_ui)` | Eye-mask check in sign-off (bit rate 0 removes) |
+| `sieda_pi_set_vrm(project, net, r_out, loop_bw)` | Regulator model of a rail (0 = by type) |
+| `sieda_pi_cavity_json(project, net)` | Plane-cavity model and modes |
+| `sieda_pi_decap_plan_json(project, net)` | Decoupling plan |
+| `sieda_pi_ir_map_json(project, net)` | IR-drop / current-density map |
 
 ## Validation
 
@@ -294,25 +403,55 @@ The core tests check the physics against reference values:
 - **IBIS:** a 25 Ω / 30 Ω I-V pair gives R_out 27.5 Ω, a 0.6 ns `[Ramp]` gives a 0.8 ns edge, and a rising waveform
   table gives its 20–80 % time × 4/3. Corners, package, selector, `NA`, `[Comment Char]` and error handling are
   covered.
+- **Lossy lines:** Djordjevic–Sarkar reproduces εr and tan δ at 1 GHz and stays causal; skin depth 2.09 µm and Rs
+  8.24 mΩ/□ at 1 GHz; R → R_dc at low frequency and ∝ √f above; Hammerstad–Jensen air microstrip 126.5 Ω at w = h;
+  Wheeler's rule → 2/w for a wide microstrip; **Pozar Example 3.5** (50 Ω stripline, 10 GHz): α_c = 0.122 Np/m and
+  α_d = 0.155 Np/m (exact TEM `π f √εr tan δ / c` to 0.2 %); Bogatin's 2.3·f·tan δ·√εr dB/inch; roughness limits
+  (Hammerstad → 2, Huray → 1 + SR). The lossless model equals the stack-up Z0 and delay.
+- **Frequency-domain time response:** the lossless lattice through the FFT path gives 4/3, 8/9 and 28/27 V at 1, 3 and
+  5 TD (as Bergeron's method); a 200 mm FR-4 stripline is causal (< 0.2 % before the time of flight), settles at the
+  DC divider including R_dc and has a slower edge.
+- **S-parameters:** a 70 Ω line against the closed form `S11 = Γ(1 − e^{−2jθ})/(1 − Γ²e^{−2jθ})` (10⁻⁵); two halves
+  cascaded equal the whole; routed nets are reciprocal and passive, and the lossless twin conserves power. Mixed mode:
+  uncoupled lines give SDD21 = S21 and no conversion; a coupled stripline referenced to Z_odd is matched
+  differentially; a routed pair finds its coupled run with Z_odd < Z0 < Z_even and ε_odd < ε_even on a microstrip.
+  Cascading the pair's own Touchstone doubles its loss.
+- **Touchstone:** formats, units, Y / Z conversion, orders, version 2 keywords, noise blocks, ten malformed files, a
+  4-port round trip, and 3 000 fuzzed inputs (mutations and random soup: success or a clean rejection, nothing else).
+- **Eye:** PRBS7 / 15 maximal length; an ideal channel opens fully (height 2A, width 1 UI, no DJ); an RC channel
+  (τ = T/2) matches the analytic worst-case eye `2A(1 − 2e^{−T/τ})` and PRBS7 reaches it; RJ adds 2·7.03·RJ to TJ;
+  masks pass and fail; CTLE and FFE open a −14 dB channel.
+- **Broadside:** strongest directly over, falls with offset, no FEXT when buried, negative FEXT with a microstrip side;
+  found on a board (Top over Inner 1).
+- **PI planning:** the cavity's low-frequency |Z| is the plate capacitance (2 %), its first peak at a corner port is
+  f10 = c/(2a√εr) (2 %), the centre port does not excite (1,0); the regulator override sets R and L = R/(2π f_bw);
+  the decoupling plan makes a bare rail compliant; the IR map's track density matches I/(w·t) (28.6 A/mm² for 0.5 A
+  in 0.5 mm × 35 µm).
 - **PDN:** target impedance, |Z| = ESR at self-resonance, plane capacitance (100 cm², 0.1 mm, FR-4 = 3.9 nF), 1 oz
   sheet resistance 0.49 mΩ/□. On a two-load rail, the IR drop matches the hand calculation `ρL/(wt)` to 0.2 mV.
 
 ## Limits
 
-- **Lossless lines.** No conductor (skin-effect) or dielectric loss, no dispersion and no frequency-dependent εr.
-  Fine for edge rates down to about 100 ps on short board traces. Not a channel analysis for multi-gigabit SerDes:
-  no eye diagrams, S-parameters, equalisation or jitter.
+- **Reflection analysis is lossless.** The Signals tab keeps Bergeron's lossless solver (its results are unchanged);
+  losses, dispersion and frequency-dependent εr are in the Channel tab. The lossy models are closed form: no proximity
+  effect between close conductors, no microstrip dispersion of εeff (Kirschning–Jansen), no glass-weave skew, the
+  return plane's DC resistance is ignored, and the roughness parameters are typical, not your fabricator's.
+- **Channel / eye.** Linear and noise-free: no crosstalk aggressors in the eye, no DFE, no receiver noise or
+  non-linearity, no IBIS-AMI. The driver is the linear IBIS reduction (R_out, edge) or an ideal source. Vias are lumped
+  L–C lines (Johnson), not a 3D via model; connectors need a vendor Touchstone file. Differential coupling uses the
+  same closed-form kl / kc as crosstalk (exact for a homogeneous stripline, an approximation on a microstrip).
 - **Linear buffers.** IBIS I-V and V-t curves are reduced to a resistance and a linear ramp. No clamp diodes, no
   non-linear drive and no simultaneous switching noise.
-- **Single-ended.** Differential pairs are analysed one leg at a time. Mode conversion and differential impedance
-  discontinuities are not computed; Board Setup sizes pair geometry.
-- **Closed-form coupling** for edge-coupled lines on one layer only. Broadside coupling between layers, coupling to
-  more than one neighbour at once and coupling through vias or connectors are not computed. Microstrip coupling is an
+- **Reflection analysis is single-ended.** The Signals tab analyses a differential pair one leg at a time; the Channel
+  tab treats it as a coupled 4-port with mode conversion (SCD21) and differential impedance.
+- **Closed-form coupling** for edge-coupled lines and broadside pairs on adjacent layers (image theory, errs high).
+  Coupling to more than one neighbour at once and coupling through vias or connectors are not computed. Microstrip coupling is an
   approximation (thin-strip image theory); treat it as an estimate and confirm tight couplings with a field solver.
 - **One driver per net.** Multi-master buses are analysed from the strongest output found.
-- **PDN** is board level: no package or die capacitance, spreading inductance as a single term, only the first cavity
-  resonance and no plane-mode analysis. The VRM is a two-element model. Load currents without a behavioural model are
-  estimates.
+- **PDN** is board level: no package or die capacitance. The compliance check uses the lumped model; the cavity model
+  (rectangular, the pour's bounding box, one plane pair, square ports) shows the plane modes beside it. The VRM is an
+  R–L model with a loop bandwidth, not a switching or control-loop simulation. Load currents without a behavioural
+  model are estimates.
 - **IR drop** uses the supply copper only. The ground return's own drop and the temperature rise of copper are not
   included.
 - **No full-wave 3D field solver.** Use a field solver for via transitions, connectors and anything above a few GHz.
@@ -324,6 +463,12 @@ The core tests check the physics against reference values:
 | IBIS parser, buffer reduction, logic families | `Core/include/sieda/Ibis.hpp`, `Core/src/Ibis.cpp` |
 | Physics, copper graph, line solver, net analysis, crosstalk, return path, checks | `Core/include/sieda/SignalIntegrity.hpp`, `Core/src/SignalIntegrity.cpp` |
 | PDN impedance, decap parasitics, IR drop | `Core/include/sieda/PowerIntegrity.hpp`, `Core/src/PowerIntegrity.cpp` |
+| Lossy lines (RLGC, roughness, Djordjevic–Sarkar) | `Core/include/sieda/LossyLine.hpp`, `Core/src/LossyLine.cpp` |
+| Channel network, S-parameters, mixed mode, cascading | `Core/include/sieda/Channel.hpp`, `Core/src/Channel.cpp` |
+| Touchstone parser / writer | `Core/include/sieda/Touchstone.hpp`, `Core/src/Touchstone.cpp` |
+| PRBS eye, CTLE / FFE, jitter, mask | `Core/include/sieda/Eye.hpp`, `Core/src/Eye.cpp` |
+| Plane cavity, decoupling plan, IR map | `Core/include/sieda/PdnPlanning.hpp`, `Core/src/PdnPlanning.cpp` |
+| Channel tab, Power-tab planning | `SiEDA/Views/Simulation/ChannelView.swift`, `SiEDA/Views/Simulation/PowerPlanningView.swift`, `SiEDA/Models/ChannelAnalysis.swift` |
 | Settings in the project (`Project::si`, `signalIntegrity` JSON) | `Core/include/sieda/Project.hpp`, `Core/src/Project.cpp` |
 | Verification stage | `Core/src/Verification.cpp` |
 | C API | `Core/include/sieda/sieda_c.h`, `Core/src/sieda_c.cpp` |
@@ -343,6 +488,15 @@ The core tests check the physics against reference values:
 - `si_crosstalk_and_return_path`
 - `pi_pdn_impedance_and_ir_drop`
 - `si_verification_sign_off`
+- `si_lossy_line_physics`
+- `si_channel_sparameters`
+- `si_touchstone_parser`
+- `si_touchstone_fuzz`
+- `si_differential_pair_coupled_lines`
+- `si_eye_diagram`
+- `si_channel_sign_off_and_c_api`
+- `si_broadside_crosstalk`
+- `pi_cavity_decap_plan_and_ir_map`
 
-`Core/tests/c_api_test.c` covers the C functions, and `SiEDATests/SiEDATests.swift`
-(`SignalIntegrityBridgeTests`) covers the Swift bridge.
+`Core/tests/c_api_test.c` covers the C functions (`sieda_c_api_channel_test`, `sieda_c_api_pi_test`), and
+`SiEDATests/SiEDATests.swift` (`SignalIntegrityBridgeTests`, `ChannelAnalysisBridgeTests`) covers the Swift bridge.

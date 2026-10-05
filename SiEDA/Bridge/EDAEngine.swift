@@ -911,6 +911,71 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_pi_set_rail($0, net, ripplePercent, transientAmps, dcAmps) } == 1
     }
 
+    // MARK: - Channel analysis and PI planning
+
+    /// Loss per stack-up layer at its single-ended width (`roughness`: "huray", "hammerstad" or "none").
+    func siLineLoss(roughness: String) -> SILineLossReport {
+        let options = Self.optionsJSON(["roughness": roughness])
+        return Self.decode(SILineLossReport.self, from: withHandle { Self.take(sieda_si_line_loss_json($0, options)) }) ?? .empty
+    }
+
+    /// Copper foil for loss ("" = by laminate). False for an unknown id.
+    @discardableResult
+    func setCopperFoil(_ foil: String) -> Bool { withHandle { sieda_si_set_copper_foil($0, foil) } == 1 }
+
+    /// S-parameters, step response and eye of a routed net or pair; `touchstone` text is cascaded at the receiver.
+    func siChannel(net: String, partner: String, settings: SIChannelSettings, touchstone: String? = nil,
+                   touchstonePorts: Int = 0) -> Result<SIChannelReport, EDAEngineError> {
+        let json = Self.optionsJSON(settings.options(net: net, partner: partner, touchstone: touchstone,
+                                                     touchstonePorts: touchstonePorts))
+        return Self.decodeChecked(SIChannelReport.self, from: withHandle { Self.take(sieda_si_channel_json($0, json)) })
+    }
+
+    /// The channel as Touchstone text (.s2p / .s4p).
+    func siChannelTouchstone(net: String, partner: String, settings: SIChannelSettings) throws -> String {
+        let json = Self.optionsJSON(settings.options(net: net, partner: partner, touchstone: nil, touchstonePorts: 0))
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let text = withHandle { Self.take(sieda_si_channel_touchstone($0, json, &errorPointer)) }
+        guard let text else { throw EDAEngineError.operationFailed(Self.take(errorPointer) ?? "No channel to export.") }
+        return text
+    }
+
+    /// An imported Touchstone file run as a channel with an ideal driver (bit rate, swing, port order of `settings`).
+    static func touchstoneChannel(_ text: String, ports: Int, settings: SIChannelSettings) throws -> SITouchstoneReport {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let options = optionsJSON(settings.options(net: "", partner: "", touchstone: nil, touchstonePorts: 0))
+        let json = take(sieda_touchstone_channel_json(text, Int32(clamping: ports), options, &errorPointer))
+        guard let json else { throw EDAEngineError.operationFailed(take(errorPointer) ?? "Not a Touchstone file.") }
+        guard let report = decode(SITouchstoneReport.self, from: json) else {
+            throw EDAEngineError.operationFailed("unreadable reply from the core")
+        }
+        return report
+    }
+
+    /// A serial channel checked by sign-off (bit rate 0 removes it).
+    @discardableResult
+    func setSIChannel(_ net: String, bitRate: Double, maskHeight: Double, maskWidthUi: Double) -> Bool {
+        withHandle { sieda_si_set_channel($0, net, bitRate, maskHeight, maskWidthUi) } == 1
+    }
+
+    /// Regulator output resistance (Ω) and loop bandwidth (Hz) of a rail; 0 derives them.
+    @discardableResult
+    func setPDNRegulator(_ net: String, outputOhms: Double, loopBandwidth: Double) -> Bool {
+        withHandle { sieda_pi_set_vrm($0, net, outputOhms, loopBandwidth) } == 1
+    }
+
+    func pdnCavity(_ net: String) -> PDNCavityReport? {
+        Self.decode(PDNCavityReport.self, from: withHandle { Self.take(sieda_pi_cavity_json($0, net)) })
+    }
+
+    func pdnDecapPlan(_ net: String) -> PDNDecapPlanReport? {
+        Self.decode(PDNDecapPlanReport.self, from: withHandle { Self.take(sieda_pi_decap_plan_json($0, net)) })
+    }
+
+    func pdnIRMap(_ net: String) -> PDNIRMapReport? {
+        Self.decode(PDNIRMapReport.self, from: withHandle { Self.take(sieda_pi_ir_map_json($0, net)) })
+    }
+
     @discardableResult
     func setSolderMask(_ mask: SolderMaskColour) -> Bool { withHandle { sieda_pcb_set_solder_mask($0, mask.rawValue) } == 1 }
 
