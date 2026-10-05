@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 import SwiftUI
 
 /// Interactive schematic canvas: drawing, hit-testing, selection, moving, wiring and placement.
@@ -103,6 +104,20 @@ struct SchematicCanvas: View {
                 guard tool == .bus, busPoints.count >= 2 else { return .ignored }
                 finishBus()
                 return .handled
+            }
+            // Edit ▸ Copy / Cut / Paste on the focused canvas: parts and the wires between them.
+            .onCopyCommand { store.selectionClip().map { [NSItemProvider(object: $0 as NSString)] } ?? [] }
+            .onCutCommand {
+                let items = store.selectionClip().map { [NSItemProvider(object: $0 as NSString)] } ?? []
+                store.deleteSelection()
+                return items
+            }
+            .onPasteCommand(of: [.plainText]) { providers in
+                guard let provider = providers.first else { return }
+                _ = provider.loadObject(ofClass: NSString.self) { object, _ in
+                    guard let text = object as? String else { return }
+                    DispatchQueue.main.async { store.paste(clip: text) }
+                }
             }
             .onKeyPress(.delete) { store.deleteSelection(); return .handled }
             .onKeyPress(.deleteForward) { store.deleteSelection(); return .handled }
@@ -241,6 +256,9 @@ struct SchematicCanvas: View {
     }
 
     private static func wirePath(_ a: CGPoint, _ b: CGPoint) -> [CGPoint] { WireGeometry.path(a, b) }
+
+    /// Drawing templates (A4 … ANSI E), read once.
+    static let templates: [SheetTemplateInfo] = EDAEngine.sheetTemplates()
 
     /// The wire under `world` and the point on it (on the grid) where a T-junction would go.
     private func wireHit(at world: CGPoint) -> (id: Int, point: CGPoint)? {
@@ -827,6 +845,21 @@ struct SchematicCanvas: View {
                          at: refPoint, anchor: anchor)
                 ctx.draw(Text(c.variantValue ?? c.value).font(.system(size: fontSize, design: .monospaced))
                             .foregroundColor(c.variantValue == nil ? Theme.valueLabel : Theme.warning), at: valPoint, anchor: anchor)
+            }
+        }
+
+        // Drawing template of the sheet (A4 … ANSI E): its frame, centred on the drawing (10 units = 2.54 mm).
+        if let shown = snap.sheet(snap.activeSheet), let size = shown.size, !size.isEmpty,
+           let template = Self.templates.first(where: { $0.name == size }) {
+            let content = Self.componentBounds(snap).reduce(CGRect.null) { $0.union($1.rect) }
+            let center = content.isNull ? CGPoint.zero : CGPoint(x: content.midX, y: content.midY)
+            let w = template.width / 0.254, h = template.height / 0.254
+            let frame = CGRect(x: center.x - w / 2, y: center.y - h / 2, width: w, height: h)
+            ctx.stroke(Path(frame.applying(screen)), with: .color(Theme.symbol.opacity(0.55)),
+                       style: StrokeStyle(lineWidth: 1, dash: [8, 5]))
+            if showLabels {
+                ctx.draw(Text(verbatim: template.name).font(.system(size: 11, weight: .semibold)).foregroundColor(Theme.textMuted),
+                         at: CGPoint(x: frame.minX + 6, y: frame.minY + 6).applying(screen), anchor: .topLeading)
             }
         }
 

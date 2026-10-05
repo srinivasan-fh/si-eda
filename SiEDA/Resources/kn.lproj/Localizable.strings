@@ -1,6 +1,8 @@
 /* SiEDA interface strings — kn. Keys are the English text; check with tools/check_localization.py. */
 
+"%lld errors · %lld warnings" = "%lld ದೋಷಗಳು · %lld ಎಚ್ಚರಿಕೆಗಳು";
 "%lld matches" = "%lld ಹೊಂದಾಣಿಕೆಗಳು";
+"%lld of %lld changes selected" = "%lld ಆಯ್ಕೆಯಾಗಿವೆ, ಒಟ್ಟು %lld ಬದಲಾವಣೆಗಳು";
 "%lld values" = "%lld ಮೌಲ್ಯಗಳು";
 "0 derives the value from the regulator type" = "0 ಆದರೆ ಮೌಲ್ಯವನ್ನು ರೆಗ್ಯುಲೇಟರ್ ಪ್ರಕಾರದಿಂದ ಪಡೆಯಲಾಗುತ್ತದೆ";
 "10 s" = "10 s";
@@ -56,6 +58,12 @@
 "Aerospace Mission" = "ಏರೋಸ್ಪೇಸ್ ಮಿಷನ್";
 "Agent Pipeline" = "ಏಜೆಂಟ್ ಪೈಪ್‌ಲೈನ್";
 "Agents" = "ಏಜೆಂಟ್‌ಗಳು";
+"Align Bottom" = "ಕೆಳಗೆ ಹೊಂದಿಸಿ";
+"Align Horizontal Centres" = "ಅಡ್ಡ ಕೇಂದ್ರಗಳನ್ನು ಹೊಂದಿಸಿ";
+"Align Left" = "ಎಡಕ್ಕೆ ಹೊಂದಿಸಿ";
+"Align Right" = "ಬಲಕ್ಕೆ ಹೊಂದಿಸಿ";
+"Align Top" = "ಮೇಲೆ ಹೊಂದಿಸಿ";
+"Align Vertical Centres" = "ಲಂಬ ಕೇಂದ್ರಗಳನ್ನು ಹೊಂದಿಸಿ";
 "All" = "ಎಲ್ಲಾ";
 "Amplitude" = "ವೈಶಾಲ್ಯ";
 "An entry (a local net label on the bus) for every member that has none yet" = "ಇನ್ನೂ ಇಲ್ಲದ ಪ್ರತಿಯೊಂದು ಸದಸ್ಯನಿಗೆ ಒಂದು ಎಂಟ್ರಿ (ಬಸ್ ಮೇಲಿನ ಸ್ಥಳೀಯ ನೆಟ್ ಲೇಬಲ್)";
@@ -70,11 +78,13 @@
 "Appends the imported block (connector, cable, backplane) after the routed channel" = "ಆಮದು ಮಾಡಿದ ಬ್ಲಾಕ್ (ಕನೆಕ್ಟರ್, ಕೇಬಲ್, ಬ್ಯಾಕ್‌ಪ್ಲೇನ್) ಅನ್ನು ರೂಟ್ ಮಾಡಿದ ಚಾನೆಲ್ ನಂತರ ಸೇರಿಸುತ್ತದೆ";
 "Appliance Type" = "ಉಪಕರಣದ ಪ್ರಕಾರ";
 "Apply" = "ಅನ್ವಯಿಸಿ";
+"Apply Changes" = "ಬದಲಾವಣೆಗಳನ್ನು ಅನ್ವಯಿಸಿ";
 "Apply Footprint" = "ಫುಟ್‌ಪ್ರಿಂಟ್ ಅನ್ವಯಿಸಿ";
 "Apply Outline" = "ಔಟ್‌ಲೈನ್ ಅನ್ವಯಿಸಿ";
 "Apply Prices to BOM" = "ಬೆಲೆಗಳನ್ನು BOM ಗೆ ಅನ್ವಯಿಸಿ";
 "Apply Symbol" = "ಸಿಂಬಲ್ ಅನ್ವಯಿಸಿ";
 "Apply Tuning" = "ಟ್ಯೂನಿಂಗ್ ಅನ್ವಯಿಸಿ";
+"Arrange" = "ಜೋಡಿಸಿ";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "ಸ್ಕೀಮ್ಯಾಟಿಕ್ ಸಿಂಬಲ್ ಜೋಡಿಸಿ: ಯಾವುದೇ ಬದಿಯಲ್ಲಿ ಪಿನ್‌ಗಳು, ಗುಂಪುಗಳು, ಸ್ಟ್ಯಾಕ್ ಮಾಡಿದ ಪವರ್ ಪಿನ್‌ಗಳು, ಸ್ವಯಂ ಜೋಡಣೆ";
 "Arrange the symbol, or define the gates of a multi-unit part" = "ಚಿಹ್ನೆಯನ್ನು ಜೋಡಿಸಿ ಅಥವಾ ಬಹು-ಯೂನಿಟ್ ಭಾಗದ ಗೇಟ್‌ಗಳನ್ನು ವ್ಯಾಖ್ಯಾನಿಸಿ";
 "Arranged symbol" = "ಜೋಡಿಸಿದ ಸಿಂಬಲ್";
@@ -87,6 +97,7 @@
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl), STL ಅಥವಾ OBJ ಮಾದರಿಯನ್ನು ಲಗತ್ತಿಸಿ ಫುಟ್‌ಪ್ರಿಂಟ್‌ಗೆ ಹೊಂದಿಸಿ";
 "Audience (optional)" = "ಪ್ರೇಕ್ಷಕರು (ಐಚ್ಛಿಕ)";
 "Auto" = "ಸ್ವಯಂ";
+"Auto (fits the drawing)" = "ಸ್ವಯಂ (ಚಿತ್ರಕ್ಕೆ ಸರಿಹೊಂದುತ್ತದೆ)";
 "Auto Arrange" = "ಸ್ವಯಂ ಜೋಡಣೆ";
 "Auto Route" = "ಆಟೋ ರೂಟ್";
 "Auto Route Board" = "ಬೋರ್ಡ್ ಅನ್ನು ಆಟೋ ರೂಟ್ ಮಾಡಿ";
@@ -99,6 +110,7 @@
 "BODY" = "ಬಾಡಿ";
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "ಅಸೆಂಬ್ಲಿಗಾಗಿ BOM (JLCPCB / PCBWay)…";
+"Back Annotate" = "ಬ್ಯಾಕ್ ಅನೋಟೇಟ್";
 "Backdrill via stubs on fast nets" = "ವೇಗದ ನೆಟ್‌ಗಳಲ್ಲಿ ವಯಾ ಸ್ಟಬ್‌ಗಳನ್ನು ಬ್ಯಾಕ್‌ಡ್ರಿಲ್ ಮಾಡಿ";
 "Backward Euler" = "ಬ್ಯಾಕ್‌ವರ್ಡ್ ಆಯ್ಲರ್";
 "Bandwidth" = "ಬ್ಯಾಂಡ್‌ವಿಡ್ತ್";
@@ -112,6 +124,7 @@
 "Block designator" = "ಬ್ಲಾಕ್ ಗುರುತು";
 "Block value: %@" = "ಬ್ಲಾಕ್ ಮೌಲ್ಯ: %@";
 "Board Setup" = "ಬೋರ್ಡ್ ಸೆಟಪ್";
+"Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review" = "ಬೋರ್ಡ್ ಬದಲಾವಣೆಗಳನ್ನು (ಡಿಸೈನೇಟರ್, ಪಿನ್ ಮತ್ತು ಗೇಟ್ ಸ್ವಾಪ್) ಪರಿಶೀಲನೆಗೆ ಸ್ಕೀಮ್ಯಾಟಿಕ್‌ಗೆ ಸೂಚಿಸಲಾಗುತ್ತದೆ";
 "Board default" = "ಬೋರ್ಡ್ ಡೀಫಾಲ್ಟ್";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "ಬೋರ್ಡ್ ಔಟ್‌ಲೈನ್ (ಕ್ವಾಡ್-X ಫ್ರೇಮ್, ದುಂಡಾದ, ವೃತ್ತ), ಮೌಂಟಿಂಗ್ ರಂಧ್ರಗಳು, ಕಾಪರ್ ಪೋರ್‌ಗಳು/ಪ್ಲೇನ್‌ಗಳು ಮತ್ತು ನೆಟ್ ಕ್ಲಾಸ್‌ಗಳು";
 "Board thickness" = "ಬೋರ್ಡ್ ದಪ್ಪ";
@@ -139,6 +152,7 @@
 "Cavity model" = "ಕುಹರ ಮಾದರಿ";
 "Centre" = "ಮಧ್ಯಕ್ಕೆ ತನ್ನಿ";
 "Centre the model on the footprint and put its lowest point on the board surface" = "ಮಾದರಿಯನ್ನು ಫುಟ್‌ಪ್ರಿಂಟ್ ಮಧ್ಯದಲ್ಲಿ ಇರಿಸಿ ಅದರ ಕಡಿಮೆ ಬಿಂದುವನ್ನು ಬೋರ್ಡ್ ಮೇಲ್ಮೈಯಲ್ಲಿ ಇರಿಸಿ";
+"Changes from a WAS / IS file" = "WAS / IS ಫೈಲ್‌ನಿಂದ ಬದಲಾವಣೆಗಳು";
 "Channel" = "ಚಾನೆಲ್";
 "Channel %@ of %@ — edits apply to every channel" = "ಚಾನಲ್ %@ (%@) — ಸಂಪಾದನೆಗಳು ಪ್ರತಿ ಚಾನಲ್‌ಗೆ ಅನ್ವಯಿಸುತ್ತವೆ";
 "Channel Designators" = "ಚಾನಲ್ ಗುರುತುಗಳು";
@@ -175,6 +189,8 @@
 "Close" = "ಮುಚ್ಚಿ";
 "Close Gaps" = "ಅಂತರಗಳನ್ನು ಮುಚ್ಚಿ";
 "Company" = "ಕಂಪನಿ";
+"Compile" = "ಕಂಪೈಲ್";
+"Compile to check every sheet." = "ಪ್ರತಿ ಶೀಟ್ ಪರಿಶೀಲಿಸಲು ಕಂಪೈಲ್ ಮಾಡಿ.";
 "Component Placement List (CPL)…" = "ಕಾಂಪೊನೆಂಟ್ ಪ್ಲೇಸ್‌ಮೆಂಟ್ ಪಟ್ಟಿ (CPL)…";
 "Components" = "ಕಾಂಪೊನೆಂಟ್‌ಗಳು";
 "Components (%lld)" = "ಕಾಂಪೊನೆಂಟ್‌ಗಳು (%lld)";
@@ -184,9 +200,13 @@
 "Conformal coating" = "ಕನ್ಫಾರ್ಮಲ್ ಕೋಟಿಂಗ್";
 "Connect to Part" = "ಭಾಗಕ್ಕೆ ಸಂಪರ್ಕಿಸಿ";
 "Construction" = "ರಚನೆ";
+"Copies" = "ಪ್ರತಿಗಳು";
+"Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "ಕ್ಲಿಪ್‌ಬೋರ್ಡ್‌ನ ಪ್ರತಿಗಳು, ಪ್ರತಿಯೊಂದೂ ಒಂದು ಹೆಜ್ಜೆ ಮುಂದೆ (ಸ್ಕೀಮ್ಯಾಟಿಕ್ ಘಟಕಗಳು, 10 = ಒಂದು ಗ್ರಿಡ್). ಭಾಗಗಳಿಗೆ ಮುಂದಿನ ಖಾಲಿ ಡಿಸೈನೇಟರ್ ಸಿಗುತ್ತದೆ; ನೆಟ್ ಲೇಬಲ್ ಸಂಖ್ಯೆಗಳು ಹೆಚ್ಚಳದಿಂದ ಏರುತ್ತವೆ (D0 → D1 …).";
 "Copper colours" = "ಕಾಪರ್ ಬಣ್ಣಗಳು";
 "Copper foil" = "ತಾಮ್ರದ ಹಾಳೆ";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "ಕಾಪರ್ ಲೇಯರ್‌ಗಳು: 1 = ಏಕ-ಬದಿ (ವಯಾಗಳಿಲ್ಲ), ಹೆಚ್ಚಿನ ಉತ್ಪನ್ನಗಳಿಗೆ 2–6, ಮದರ್‌ಬೋರ್ಡ್‌ಗಳು, ಸರ್ವರ್‌ಗಳು, ಮೇನ್‌ಫ್ರೇಮ್‌ಗಳು ಮತ್ತು GPU ಬೇಸ್‌ಬೋರ್ಡ್‌ಗಳಿಗೆ 8–24";
+"Copy" = "ನಕಲಿಸಿ";
+"Copy, paste, paste array (designators numbered on, labels counted up), align and distribute" = "ನಕಲು, ಅಂಟಿಸು, ಅರೇ ಅಂಟಿಸು (ಡಿಸೈನೇಟರ್ ಮುಂದುವರಿದ ಸಂಖ್ಯೆ, ಲೇಬಲ್ ಏರಿಕೆ), ಹೊಂದಿಸು ಮತ್ತು ಹಂಚು";
 "Corners" = "ಮೂಲೆಗಳು";
 "Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only" = "ಹೊಂದುವ ಮತ್ತು ಕ್ಲಿಯರೆನ್ಸ್ ಉಳಿಯುವಲ್ಲಿ ಮೂಲೆಗಳು ಚಾಪಗಳಾಗುತ್ತವೆ (ಚಿಕ್ಕ ನೇರ ಜ್ಯಾಗಳಿಂದ ಎಳೆಯಲಾಗಿದೆ); ಏಕ ಟ್ರ್ಯಾಕ್‌ಗಳಿಗೆ ಮಾತ್ರ";
 "Coupled sections" = "ಜೋಡಿತ ವಿಭಾಗಗಳು";
@@ -196,6 +216,7 @@
 "Current density" = "ವಿದ್ಯುತ್ ಸಾಂದ್ರತೆ";
 "Currents" = "ಕರೆಂಟ್‌ಗಳು";
 "Cursors & Measurements" = "ಕರ್ಸರ್‌ಗಳು ಮತ್ತು ಅಳತೆಗಳು";
+"Cut" = "ಕತ್ತರಿಸಿ";
 "DC" = "DC";
 "DC Operating Point" = "DC ಆಪರೇಟಿಂಗ್ ಪಾಯಿಂಟ್";
 "DC Sweep" = "DC ಸ್ವೀಪ್";
@@ -237,6 +258,8 @@
 "Differential pair" = "ಡಿಫರೆನ್ಷಿಯಲ್ ಜೋಡಿ";
 "Differential pair member" = "ಡಿಫರೆನ್ಶಿಯಲ್ ಪೇರ್ ಸದಸ್ಯ";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 ಹೊಂದಿರುವ DigiKey API ಅಪ್ಲಿಕೇಶನ್ (Production); ಕ್ಲೈಂಟ್ ಕ್ರೆಡೆನ್ಶಿಯಲ್ಸ್ ಫ್ಲೋ.";
+"Distribute Horizontally" = "ಅಡ್ಡವಾಗಿ ಹಂಚಿ";
+"Distribute Vertically" = "ಲಂಬವಾಗಿ ಹಂಚಿ";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "ಜೋಡಿಸಬೇಡಿ: ಬೋರ್ಡ್‌ನಲ್ಲಿದೆ ಆದರೆ ಅಳವಡಿಸಲಾಗುವುದಿಲ್ಲ; ಅಸೆಂಬ್ಲಿ BOM ಮತ್ತು CPL ನಿಂದ ಹೊರಗಿಡಲಾಗುತ್ತದೆ";
 "Done" = "ಮುಗಿದಿದೆ";
 "Down ↓" = "ಕೆಳಗೆ ↓";
@@ -251,6 +274,7 @@
 "Duty cycle" = "ಡ್ಯೂಟಿ ಸೈಕಲ್";
 "ECU Type" = "ECU ಪ್ರಕಾರ";
 "ELECTRONIC DESIGN AUTOMATION" = "ಎಲೆಕ್ಟ್ರಾನಿಕ್ ಡಿಸೈನ್ ಆಟೊಮೇಷನ್";
+"ENGINEERING CHANGE ORDER" = "ಎಂಜಿನಿಯರಿಂಗ್ ಬದಲಾವಣೆ ಆದೇಶ";
 "ERC" = "ERC";
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "ಪ್ರತಿ ಮೆಶ್ ನೆಟ್ ಸೆಕ್ಯೂರ್ ಎಲಿಮೆಂಟ್‌ನ ಡ್ರೈವ್ ಮತ್ತು ಸೆನ್ಸ್ ಪಿನ್‌ಗಳನ್ನು ಸೇರಿಸುತ್ತದೆ; ಆಟೋ ರೂಟ್ ಸರ್ಪೆಂಟೈನ್‌ಗಳನ್ನು ಹಾಕುವ ಲೇಯರ್: ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "ಪ್ರತಿ ವಯಾವನ್ನು ಅದು ಸಂಪರ್ಕಿಸುವ ಲೇಯರ್‌ಗಳವರೆಗೆ ಮಾತ್ರ ಕತ್ತರಿಸಲಾಗುತ್ತದೆ; ಒಂದು-ಡೈಎಲೆಕ್ಟ್ರಿಕ್ ವ್ಯಾಪ್ತಿಗಳು ತೆಳುವಾದ ಬಿಲ್ಡ್-ಅಪ್ ಲೇಯರ್‌ಗಳ ಮೇಲೆ ಲೇಸರ್ ಮೈಕ್ರೋವಯಾಗಳಾಗುತ್ತವೆ";
@@ -264,6 +288,7 @@
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "ಈ ಬಟನ್ ಸಕ್ರಿಯಗೊಳಿಸಲು ಮೇಲೆ ನಿಮ್ಮ ಐಡೆಂಟಿಟಿ ಪೂರೈಕೆದಾರರ ಇಶ್ಯೂಯರ್ URL ಮತ್ತು SiEDA ಕ್ಲೈಂಟ್ ID ನಮೂದಿಸಿ (ನಿಮ್ಮ IT ನಿರ್ವಾಹಕರನ್ನು ಕೇಳಿ).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "MIL-STD-901E ಆಘಾತವು ಅವುಗಳನ್ನು ಕಿತ್ತುಹಾಕದಂತೆ ಪ್ರೊಸೆಸರ್‌ಗಳು, BGA ಗಳು ಮತ್ತು ದೊಡ್ಡ ಕೆಪಾಸಿಟರ್‌ಗಳ ಕೆಳಗೆ ಎಪಾಕ್ಸಿ";
 "Errors" = "ದೋಷಗಳು";
+"Every ERC message of every sheet; click one to go there" = "ಪ್ರತಿ ಶೀಟ್‌ನ ಪ್ರತಿ ERC ಸಂದೇಶ; ಅಲ್ಲಿಗೆ ಹೋಗಲು ಒಂದರ ಮೇಲೆ ಕ್ಲಿಕ್ ಮಾಡಿ";
 "Every pin is placed once; no pins collide" = "ಪ್ರತಿ ಪಿನ್ ಒಮ್ಮೆ ಮಾತ್ರ ಇರಿಸಲಾಗಿದೆ; ಪಿನ್‌ಗಳು ಡಿಕ್ಕಿಯಾಗುವುದಿಲ್ಲ";
 "Every unit is valid" = "ಪ್ರತಿ ಯೂನಿಟ್ ಮಾನ್ಯವಾಗಿದೆ";
 "Exchange the wires of two interchangeable pins of this gate" = "ಈ ಗೇಟ್‌ನ ಎರಡು ಅದಲುಬದಲು ಮಾಡಬಹುದಾದ ಪಿನ್‌ಗಳ ತಂತಿಗಳನ್ನು ಬದಲಿಸಿ";
@@ -303,10 +328,14 @@
 "Footprint" = "ಫುಟ್‌ಪ್ರಿಂಟ್";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "ಪಾರ್ಟ್ ಅಳವಡಿಸುವ ಫುಟ್‌ಪ್ರಿಂಟ್: ಚಿಪ್ ಗಾತ್ರ, ಥ್ರೂ-ಹೋಲ್, ಟ್ಯಾಂಟಲಮ್ ಅಥವಾ ಎಲೆಕ್ಟ್ರೋಲೈಟಿಕ್ ಕೇಸ್";
 "Frequency" = "ಆವರ್ತನ";
+"From Board Positions (Columns)" = "ಬೋರ್ಡ್ ಸ್ಥಾನಗಳಿಂದ (ಕಾಲಮ್‌ಗಳು)";
+"From Board Positions (Rows)" = "ಬೋರ್ಡ್ ಸ್ಥಾನಗಳಿಂದ (ಸಾಲುಗಳು)";
+"From WAS / IS File…" = "WAS / IS ಫೈಲ್‌ನಿಂದ…";
 "Fundamental" = "ಮೂಲ ಆವರ್ತನ";
 "Gain" = "ಗೇನ್";
 "Gap Before" = "ಮುಂಚಿನ ಅಂತರ";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "ಮಿಯಾಂಡರ್ ಕಾಲುಗಳ ನಡುವಿನ ಅಂಚಿನಿಂದ ಅಂಚಿನ ಅಂತರ mm ನಲ್ಲಿ (ಖಾಲಿ: ಕೇಂದ್ರಗಳ ನಡುವೆ ಮೂರು ಟ್ರ್ಯಾಕ್ ಅಗಲ)";
+"Gate swap" = "ಗೇಟ್ ಸ್ವಾಪ್";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "ಬಹು-ಯೂನಿಟ್ ಭಾಗಗಳ ಗೇಟ್‌ಗಳು (ಕ್ವಾಡ್ ಆಪ್-ಆಂಪ್‌ನ A, B, C, D) ಸಂಖ್ಯೆ ನೀಡುವ ಮೊದಲು ಇರಿಸಿದ ಕ್ರಮದಲ್ಲಿ ಪ್ಯಾಕೇಜ್‌ಗಳನ್ನು ತುಂಬುತ್ತವೆ";
 "Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "ಒಂದೇ ಸ್ವಾಪ್ ಗುಂಪಿನ ಗೇಟ್‌ಗಳನ್ನು (ಅಥವಾ ಒಂದೇ ರೀತಿಯ ಗೇಟ್‌ಗಳನ್ನು) ಗೇಟ್ ಸ್ವಾಪ್ ಮತ್ತು ಪ್ಯಾಕಿಂಗ್‌ನಿಂದ ಬದಲಿಸಬಹುದು";
 "Generate Design" = "ಡಿಸೈನ್ ರಚಿಸಿ";
@@ -368,6 +397,7 @@
 "Issuer URL" = "ಇಶ್ಯೂಯರ್ URL";
 "Keep results for %lld hours" = "ಫಲಿತಾಂಶಗಳನ್ನು %lld ಗಂಟೆ ಇರಿಸಿ";
 "LAYERS" = "ಲೇಯರ್‌ಗಳು";
+"Label increment" = "ಲೇಬಲ್ ಏರಿಕೆ";
 "Laminate" = "ಲ್ಯಾಮಿನೇಟ್";
 "Language" = "ಭಾಷೆ";
 "Largest contributors" = "ಅತಿ ದೊಡ್ಡ ಕೊಡುಗೆದಾರರು";
@@ -400,6 +430,7 @@
 "Lossless" = "ನಷ್ಟರಹಿತ";
 "Lossy" = "ನಷ್ಟಸಹಿತ";
 "Lumped model" = "ಲಂಪ್ಡ್ ಮಾದರಿ";
+"MESSAGES" = "ಸಂದೇಶಗಳು";
 "Magnitude" = "ಮ್ಯಾಗ್ನಿಟ್ಯೂಡ್";
 "Make Swap Group" = "ಸ್ವಾಪ್ ಗುಂಪು ಮಾಡಿ";
 "Manufacturer part #" = "ತಯಾರಕರ ಭಾಗ ಸಂಖ್ಯೆ";
@@ -417,6 +448,7 @@
 "Medical Device Class" = "ವೈದ್ಯಕೀಯ ಸಾಧನ ವರ್ಗ";
 "Members" = "ಸದಸ್ಯರು";
 "Memory Design" = "ಮೆಮೊರಿ ಡಿಸೈನ್";
+"Messages" = "ಸಂದೇಶಗಳು";
 "Microvia" = "ಮೈಕ್ರೋವಯಾ";
 "Min" = "ಕನಿಷ್ಠ";
 "Mirror" = "ಮಿರರ್";
@@ -452,10 +484,12 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Supply ಸ್ಕೋಪ್ ಹೊಂದಿರುವ Nexar ಅಪ್ಲಿಕೇಶನ್ (ಕ್ಲೈಂಟ್ ಕ್ರೆಡೆನ್ಶಿಯಲ್ಸ್). Octopart ಡೇಟಾ: ಒಂದೇ ಹುಡುಕಾಟದಲ್ಲಿ ಅನೇಕ ವಿತರಕರ ಆಫರ್‌ಗಳು.";
 "No 3D model: the part shows its generated body." = "3D ಮಾದರಿ ಇಲ್ಲ: ಭಾಗವು ಅದರ ರಚಿತ ದೇಹವನ್ನು ತೋರಿಸುತ್ತದೆ.";
 "No API key: add one in Settings → Suppliers" = "API ಕೀ ಇಲ್ಲ: ಸೆಟ್ಟಿಂಗ್‌ಗಳು → ಸರಬರಾಜುದಾರರು ನಲ್ಲಿ ಸೇರಿಸಿ";
+"No changes: the schematic already matches the board." = "ಯಾವುದೇ ಬದಲಾವಣೆ ಇಲ್ಲ: ಸ್ಕೀಮ್ಯಾಟಿಕ್ ಈಗಾಗಲೇ ಬೋರ್ಡ್‌ಗೆ ಹೊಂದುತ್ತದೆ.";
 "No crosstalk or return-path problems found" = "ಕ್ರಾಸ್‌ಟಾಕ್ ಅಥವಾ ರಿಟರ್ನ್-ಪಾತ್ ಸಮಸ್ಯೆಗಳು ಕಂಡುಬಂದಿಲ್ಲ";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "ಈ ಡಿಸೈನ್‌ನಲ್ಲಿ ಡಿಫರೆನ್ಶಿಯಲ್ ಜೋಡಿಗಳು (…_P/_N, …+/-) ಅಥವಾ ಬಸ್‌ಗಳು (DQ0…, DATA[0..7], ADDR…) ಇಲ್ಲ.";
 "No distributor API keys yet" = "ಇನ್ನೂ ವಿತರಕ API ಕೀಗಳಿಲ್ಲ";
 "No distributor offers." = "ವಿತರಕ ಆಫರ್‌ಗಳಿಲ್ಲ.";
+"No errors or warnings." = "ಯಾವುದೇ ದೋಷ ಅಥವಾ ಎಚ್ಚರಿಕೆ ಇಲ್ಲ.";
 "No gates found in the pin names." = "ಪಿನ್ ಹೆಸರುಗಳಲ್ಲಿ ಯಾವುದೇ ಗೇಟ್ ಕಂಡುಬಂದಿಲ್ಲ.";
 "No imported model" = "ಆಮದು ಮಾಡಿದ ಮಾದರಿ ಇಲ್ಲ";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "ಇನ್‌ಪುಟ್ ಮೂಲವಿಲ್ಲ: ಇನ್‌ಪುಟ್‌ಗೆ ಉಲ್ಲೇಖಿತ ಶಬ್ದ ನೋಡಲು ಇನ್‌ಪುಟ್‌ಗೆ AC ಪ್ರಮಾಣ ನೀಡಿ ಅಥವಾ ಅದನ್ನು ಹೆಸರಿಸಿ.";
@@ -520,6 +554,8 @@
 "PAD ARRAY" = "ಪ್ಯಾಡ್ ಅರೇ";
 "PARAMETERS" = "ಪ್ಯಾರಾಮೀಟರ್‌ಗಳು";
 "PCB Layout" = "PCB ಲೇಔಟ್";
+"PDF" = "PDF";
+"PDF of every sheet with bookmarks, frames and title blocks" = "ಬುಕ್‌ಮಾರ್ಕ್, ಫ್ರೇಮ್ ಮತ್ತು ಶೀರ್ಷಿಕೆ ಬ್ಲಾಕ್‌ಗಳೊಂದಿಗೆ ಪ್ರತಿ ಶೀಟ್‌ನ PDF";
 "PIN SWAP" = "ಪಿನ್ ಸ್ವಾಪ್";
 "PINS" = "ಪಿನ್‌ಗಳು";
 "PRBS" = "PRBS";
@@ -535,7 +571,10 @@
 "Parts" = "ಪಾರ್ಟ್‌ಗಳು";
 "Parts you import, create or add from the standard library appear here and in the schematic device picker." = "ನೀವು ಆಮದು ಮಾಡಿದ, ರಚಿಸಿದ ಅಥವಾ ಸ್ಟ್ಯಾಂಡರ್ಡ್ ಲೈಬ್ರರಿಯಿಂದ ಸೇರಿಸಿದ ಪಾರ್ಟ್‌ಗಳು ಇಲ್ಲಿ ಮತ್ತು ಸ್ಕೀಮ್ಯಾಟಿಕ್ ಡಿವೈಸ್ ಪಿಕರ್‌ನಲ್ಲಿ ಕಾಣಿಸುತ್ತವೆ.";
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "ಪ್ರತ್ಯೇಕ ಗ್ಯಾಲ್ವನಿಕ್ ಡೊಮೇನ್‌ಗಳ (ಐಸೊಲೇಟರ್‌ಗಳು ಮತ್ತು ಐಸೊಲೇಟೆಡ್ ಕನ್ವರ್ಟರ್‌ಗಳಾದ್ಯಂತ) ಪಾರ್ಟ್‌ಗಳು, ಟ್ರ್ಯಾಕ್‌ಗಳು ಮತ್ತು ಪೋರ್‌ಗಳು ";
+"Paste" = "ಅಂಟಿಸಿ";
 "Paste API key" = "API ಕೀ ಅಂಟಿಸಿ";
+"Paste Array" = "ಅರೇ ಅಂಟಿಸು";
+"Paste Array…" = "ಅರೇ ಅಂಟಿಸು…";
 "Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "ತಯಾರಕರ ಮಾದರಿ ಪಠ್ಯವನ್ನು (.lib, .mod, .cir) ಅಂಟಿಸಿ ಅಥವಾ ತೆರೆಯಿರಿ: .model ಮತ್ತು .subckt ವ್ಯಾಖ್ಯಾನಗಳು.";
 "Pattern" = "ಪ್ಯಾಟರ್ನ್";
 "Peak" = "ಶಿಖರ";
@@ -546,6 +585,7 @@
 "Pin" = "ಪಿನ್";
 "Pin map" = "ಪಿನ್ ನಕ್ಷೆ";
 "Pin names" = "ಪಿನ್ ಹೆಸರುಗಳು";
+"Pin swap" = "ಪಿನ್ ಸ್ವಾಪ್";
 "Pins: " = "ಪಿನ್‌ಗಳು: ";
 "Place %@ Connector…" = "%@ ಕನೆಕ್ಟರ್ ಇರಿಸಿ…";
 "Place Harness Connector" = "ಹಾರ್ನೆಸ್ ಕನೆಕ್ಟರ್ ಇರಿಸಿ";
@@ -574,6 +614,8 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Re-annotate from the board (columns)" = "ಬೋರ್ಡ್‌ನಿಂದ ಮರು ಅನೋಟೇಟ್ (ಕಾಲಮ್‌ಗಳು)";
+"Re-annotate from the board (rows)" = "ಬೋರ್ಡ್‌ನಿಂದ ಮರು ಅನೋಟೇಟ್ (ಸಾಲುಗಳು)";
 "Re-verify" = "ಮರು-ಪರಿಶೀಲಿಸಿ";
 "Read Pins from Datasheet" = "ಡೇಟಾಶೀಟ್‌ನಿಂದ ಪಿನ್‌ಗಳನ್ನು ಓದಿ";
 "Ready" = "ಸಿದ್ಧ";
@@ -592,6 +634,7 @@
 "Remove the firmware" = "ಫರ್ಮ್‌ವೇರ್ ತೆಗೆದುಹಾಕಿ";
 "Remove the selected unit (its pins go to the power unit)" = "ಆಯ್ಕೆಮಾಡಿದ ಯೂನಿಟ್ ತೆಗೆದುಹಾಕಿ (ಅದರ ಪಿನ್‌ಗಳು ಪವರ್ ಯೂನಿಟ್‌ಗೆ ಹೋಗುತ್ತವೆ)";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "ಕೊನೆಯ ಸಂಪರ್ಕಿತ ಲೇಯರ್‌ನ ಕೆಳಗಿನ ಬಳಸದ ವಯಾ ಬ್ಯಾರೆಲ್ ಅನ್ನು ತೆಗೆದುಹಾಕುತ್ತದೆ (≥ 4 ಲೇಯರ್‌ಗಳು); ಬ್ಯಾಕ್-ಡ್ರಿಲ್ ಫೈಲ್ ಸೇರಿಸುತ್ತದೆ";
+"Rename" = "ಮರುಹೆಸರಿಸು";
 "Rename Channel" = "ಚಾನಲ್ ಹೆಸರು ಬದಲಿಸಿ";
 "Rename Channel…" = "ಚಾನಲ್ ಹೆಸರು ಬದಲಿಸಿ…";
 "Rename Sheet" = "ಶೀಟ್ ಮರುಹೆಸರಿಸಿ";
@@ -642,6 +685,7 @@
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "ಇದನ್ನು ಕಾರ್ಯಗತಗೊಳಿಸಲು ಟ್ರಾನ್ಸಿಯೆಂಟ್ ವಿಶ್ಲೇಷಣೆ ರನ್ ಮಾಡಿ: ಪಿನ್‌ಗಳು ಸರ್ಕ್ಯೂಟ್ ಅನ್ನು ಡ್ರೈವ್ ಮಾಡುತ್ತವೆ, ಇನ್‌ಪುಟ್‌ಗಳು ಮತ್ತು ADC ಅದನ್ನು ಓದುತ್ತವೆ, ಸೀರಿಯಲ್ ಔಟ್‌ಪುಟ್ ಸಿಮ್ಯುಲೇಶನ್‌ನಲ್ಲಿ ಕಾಣಿಸುತ್ತದೆ.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "ಬೋರ್ಡ್ ಅನ್ನು ರಿಯಲ್ ಟೈಮ್‌ನಲ್ಲಿ ರನ್ ಮಾಡಿ (⌘R): LED ಗಳು ಬೆಳಗುತ್ತವೆ, ಸ್ವಿಚ್‌ಗಳನ್ನು ಕ್ಲಿಕ್ ಮಾಡಿ, ಫರ್ಮ್‌ವೇರ್ ರನ್ ಆಗುತ್ತದೆ, ಲೈವ್ ಪ್ರೋಬ್‌ಗಳು";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "ಬೋರ್ಡ್ ಅನ್ನು ರಿಯಲ್ ಟೈಮ್‌ನಲ್ಲಿ ರನ್ ಮಾಡಿ: ಫರ್ಮ್‌ವೇರ್, LED ಗಳು, ಸ್ವಿಚ್‌ಗಳು, ಸ್ಕೋಪ್ ಮತ್ತು ಸೀರಿಯಲ್ ಮಾನಿಟರ್";
+"Run the electrical rule check on every sheet" = "ಪ್ರತಿ ಶೀಟ್‌ನಲ್ಲಿ ವಿದ್ಯುತ್ ನಿಯಮ ಪರಿಶೀಲನೆ ನಡೆಸಿ";
 "Runs" = "ರನ್‌ಗಳು";
 "S-parameters" = "S-ಪ್ಯಾರಾಮೀಟರ್‌ಗಳು";
 "SI / PI" = "SI / PI";
@@ -690,6 +734,7 @@
 "Shared by several gates" = "ಹಲವು ಗೇಟ್‌ಗಳು ಹಂಚಿಕೊಂಡಿವೆ";
 "Sheet" = "ಶೀಟ್";
 "Sheet %lld of %lld" = "ಶೀಟ್ %lld / %lld";
+"Sheet Size" = "ಶೀಟ್ ಗಾತ್ರ";
 "Sheet name" = "ಶೀಟ್ ಹೆಸರು";
 "Shot" = "ಶಾಟ್";
 "Shove" = "ತಳ್ಳು";
@@ -698,6 +743,8 @@
 "Show" = "ತೋರಿಸಿ";
 "Show Crash Reports" = "ಕ್ರ್ಯಾಶ್ ವರದಿಗಳನ್ನು ತೋರಿಸಿ";
 "Show Navigator" = "ನ್ಯಾವಿಗೇಟರ್ ತೋರಿಸಿ";
+"Show in Schematic" = "ಸ್ಕೀಮ್ಯಾಟಿಕ್‌ನಲ್ಲಿ ತೋರಿಸಿ";
+"Show on PCB" = "PCB ಮೇಲೆ ತೋರಿಸಿ";
 "Show one robot platform's production parts kit" = "ಒಂದು ರೋಬೋಟ್ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್‌ನ ಉತ್ಪಾದನಾ ಪಾರ್ಟ್ಸ್ ಕಿಟ್ ತೋರಿಸಿ";
 "Show splash screen at launch" = "ಪ್ರಾರಂಭದಲ್ಲಿ ಸ್ಪ್ಲ್ಯಾಶ್ ಸ್ಕ್ರೀನ್ ತೋರಿಸಿ";
 "Show these parts in the schematic" = "ಈ ಪಾರ್ಟ್‌ಗಳನ್ನು ಸ್ಕೀಮ್ಯಾಟಿಕ್‌ನಲ್ಲಿ ತೋರಿಸಿ";
@@ -736,6 +783,7 @@
 "Starting the design engine" = "ಡಿಸೈನ್ ಎಂಜಿನ್ ಪ್ರಾರಂಭವಾಗುತ್ತಿದೆ";
 "Step" = "ಸ್ಟೆಪ್";
 "Step response" = "ಹಂತ ಪ್ರತಿಕ್ರಿಯೆ";
+"Step x, y" = "ಹೆಜ್ಜೆ x, y";
 "Stitch vias at the selected (or every) power MOSFET's drain / tab pad" = "ಆಯ್ಕೆಮಾಡಿದ (ಅಥವಾ ಪ್ರತಿ) ಪವರ್ MOSFET ನ ಡ್ರೈನ್ / ಟ್ಯಾಬ್ ಪ್ಯಾಡ್‌ನಲ್ಲಿ ವಯಾಗಳನ್ನು ಸ್ಟಿಚ್ ಮಾಡಿ";
 "Stitch vias at the selected parts' drain / tab pads (every power MOSFET if none is selected)" = "ಆಯ್ಕೆಮಾಡಿದ ಪಾರ್ಟ್‌ಗಳ ಡ್ರೈನ್ / ಟ್ಯಾಬ್ ಪ್ಯಾಡ್‌ಗಳಲ್ಲಿ ವಯಾಗಳನ್ನು ಸ್ಟಿಚ್ ಮಾಡಿ (ಏನೂ ಆಯ್ಕೆಮಾಡದಿದ್ದರೆ ಪ್ರತಿ ಪವರ್ MOSFET)";
 "Stock" = "ಸ್ಟಾಕ್";

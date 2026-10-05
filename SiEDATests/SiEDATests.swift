@@ -6198,3 +6198,51 @@ final class DirectiveTests: XCTestCase {
         XCTAssertNotNil(store.directive(on: anchor))
     }
 }
+
+/// Schematic productivity through the store: align, copy / paste array, back-annotation review, sheet templates and
+/// the PDF of every sheet.
+@MainActor
+final class SchematicToolsTests: XCTestCase {
+    func testAlignCopyPasteArrayAndUndo() throws {
+        let store = DesignStore()
+        let a = store.addComponent(.resistor, at: .zero)
+        let b = store.addComponent(.resistor, at: CGPoint(x: 120, y: 50))
+        store.selection = [a, b]
+        store.align("top")
+        XCTAssertEqual(store.snapshot.component(b)?.y, 0)
+        store.undo()
+        XCTAssertEqual(store.snapshot.component(b)?.y, 50)
+        let label = store.addComponent(.netLabel, at: CGPoint(x: -60, y: 200))
+        XCTAssertTrue(store.engine.setValue(label, "D0"))
+        let clip = try XCTUnwrap(store.engine.copyComponents([label]))
+        XCTAssertTrue(DesignStore.isSchematicClip(clip))
+        store.paste(count: 3, step: CGSize(width: 0, height: 60), labelIncrement: 1, clip: clip)
+        let names = Set(store.snapshot.components.filter { $0.componentKind == .netLabel }.map(\.value))
+        XCTAssertTrue(names.isSuperset(of: ["D0", "D1", "D2", "D3"]))
+        XCTAssertEqual(store.selection.count, 3)
+        store.paste(clip: "not a clip")
+        XCTAssertEqual(store.selection.count, 3)
+    }
+
+    func testBackAnnotationTemplatesAndPDF() throws {
+        let store = DesignStore()
+        let r1 = store.addComponent(.resistor, at: .zero)
+        let r2 = store.addComponent(.resistor, at: CGPoint(x: 100, y: 0))
+        XCTAssertNotNil(store.engine.findComponent(ref: "R1"))
+        XCTAssertTrue(store.engine.moveFootprint(r1, to: CGPoint(x: 30, y: 20)))
+        XCTAssertTrue(store.engine.moveFootprint(r2, to: CGPoint(x: 10, y: 20)))
+        store.refresh()
+        let eco = store.ecoFromBoard()
+        XCTAssertEqual(eco.count, 2)
+        store.applyEco(eco)
+        XCTAssertEqual(store.snapshot.component(r2)?.ref, "R1")
+        XCTAssertEqual(store.snapshot.component(r1)?.ref, "R2")
+        let was = store.engine.ecoFromWasIs("R1 R5\nR77 R78\n")
+        XCTAssertEqual(was.filter(\.applicable).count, 1)
+        XCTAssertFalse(EDAEngine.sheetTemplates().isEmpty)
+        store.setSheetSize(1, size: "A3")
+        XCTAssertEqual(store.snapshot.sheet(1)?.size, "A3")
+        let pdf = try XCTUnwrap(store.engine.schematicPDF())
+        XCTAssertEqual(String(decoding: pdf.prefix(8), as: UTF8.self), "%PDF-1.4")
+    }
+}

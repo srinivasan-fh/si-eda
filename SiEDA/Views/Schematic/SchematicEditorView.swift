@@ -36,6 +36,12 @@ struct SchematicEditorView: View {
     @State private var wireStart: String?
     /// What P (and the "Place selected device" tool) arms: the device or custom part last chosen in the picker.
     @State private var placementTool: SchematicTool = .place(.resistor)
+    @State private var showMessages = false
+    @State private var pastingArray = false
+    @State private var arrayCount = "4"
+    @State private var arrayStep = "0, 60"
+    @State private var arrayIncrement = "1"
+    @State private var eco: (title: String, changes: [EcoChangeInfo])?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -109,6 +115,44 @@ struct SchematicEditorView: View {
                         .keyboardShortcut("f", modifiers: [.command])
                         .help("Find & Replace across every sheet (⌘F)")
                         .accessibilityLabel("Find and replace")
+                    Menu {
+                        Button("Copy") { store.copySelection() }.disabled(store.selection.isEmpty)
+                        Button("Cut") { store.cutSelection() }.disabled(store.selection.isEmpty)
+                        Button("Paste") { store.paste() }.disabled(!store.canPaste)
+                        Button("Paste Array…") { pastingArray = true }.disabled(!store.canPaste)
+                        Divider()
+                        Button("Align Left") { store.align("left") }
+                        Button("Align Right") { store.align("right") }
+                        Button("Align Top") { store.align("top") }
+                        Button("Align Bottom") { store.align("bottom") }
+                        Button("Align Horizontal Centres") { store.align("centerY") }
+                        Button("Align Vertical Centres") { store.align("centerX") }
+                        Button("Distribute Horizontally") { store.align("distributeX") }
+                        Button("Distribute Vertically") { store.align("distributeY") }
+                    } label: {
+                        Label("Arrange", systemImage: "square.on.square.dashed")
+                    }
+                    .fixedSize()
+                    .help("Copy, paste, paste array (designators numbered on, labels counted up), align and distribute")
+                    Menu {
+                        Button("From Board Positions (Rows)") {
+                            eco = (String(localized: "Re-annotate from the board (rows)"), store.ecoFromBoard())
+                        }
+                        Button("From Board Positions (Columns)") {
+                            eco = (String(localized: "Re-annotate from the board (columns)"), store.ecoFromBoard(byColumns: true))
+                        }
+                        Button("From WAS / IS File…") {
+                            if let changes = store.ecoFromWasIsFile() { eco = (String(localized: "Changes from a WAS / IS file"), changes) }
+                        }
+                    } label: {
+                        Label("Back Annotate", systemImage: "arrow.uturn.left.square")
+                    }
+                    .fixedSize()
+                    .help("Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review")
+                    Button { showMessages.toggle() } label: { Label("Messages", systemImage: "list.bullet.rectangle") }
+                        .help("Every ERC message of every sheet; click one to go there")
+                    Button { store.exportSchematicPDF() } label: { Label("PDF", systemImage: "doc.richtext") }
+                        .help("PDF of every sheet with bookmarks, frames and title blocks")
                     Spacer()
                     if !store.selection.isEmpty {
                         Text("\(store.selection.count) selected").foregroundStyle(Theme.skyBlue)
@@ -121,6 +165,7 @@ struct SchematicEditorView: View {
 
                 SheetBar()
 
+                VStack(spacing: 0) {
                 ZStack(alignment: .bottomLeading) {
                     SchematicCanvas(tool: $tool, viewport: $viewport, canvasSize: $canvasSize, wireStart: $wireStart,
                                     placementTool: placementTool, live: store.live)
@@ -177,9 +222,32 @@ struct SchematicEditorView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
+                if showMessages {
+                    Divider()
+                    SchematicMessagesPanel(isShown: $showMessages)
+                }
+                }
             }
         }
         .background(Theme.navy)
+        .sheet(isPresented: Binding(get: { eco != nil }, set: { if !$0 { eco = nil } })) {
+            if let eco { EcoReviewView(title: eco.title, changes: eco.changes).environmentObject(store) }
+        }
+        .alert("Paste Array", isPresented: $pastingArray) {
+            TextField("Copies", text: $arrayCount)
+            TextField("Step x, y", text: $arrayStep)
+            TextField("Label increment", text: $arrayIncrement)
+            Button("Paste") {
+                let parts = arrayStep.split(separator: ",").map { Double($0.trimmingCharacters(in: .whitespaces)) ?? 0 }
+                let step = CGSize(width: parts.first ?? 0, height: parts.count > 1 ? parts[1] : 0)
+                store.paste(count: max(1, min(256, Int(arrayCount.trimmingCharacters(in: .whitespaces)) ?? 1)),
+                            step: step == .zero ? CGSize(width: 0, height: 60) : step,
+                            labelIncrement: Int(arrayIncrement.trimmingCharacters(in: .whitespaces)) ?? 0)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …).")
+        }
         .sheet(isPresented: $store.showFind) { SchematicFindPanel().environmentObject(store) }
         .background(DeleteKeyMonitor { store.deleteSelection() } isActive: {
             store.selectedWire != nil || !store.selection.isEmpty
@@ -265,6 +333,14 @@ struct SheetBar: View {
                         Button("Repeat Sheet…") {
                             channelCount = "\(max(2, sheet.instances ?? 1))"
                             repeating = sheet
+                        }
+                    }
+                    Menu("Sheet Size") {
+                        Button("Auto (fits the drawing)") { store.setSheetSize(sheet.id, size: "") }
+                        ForEach(EDAEngine.sheetTemplates()) { template in
+                            Button(template.name + ((sheet.size ?? "") == template.name ? " ✓" : "")) {
+                                store.setSheetSize(sheet.id, size: template.name)
+                            }
                         }
                     }
                     if sheet.isRepeated {

@@ -1,6 +1,8 @@
 /* SiEDA interface strings — zh-Hans. Keys are the English text; check with tools/check_localization.py. */
 
+"%lld errors · %lld warnings" = "%lld 个错误 · %lld 个警告";
 "%lld matches" = "%lld 个匹配项";
+"%lld of %lld changes selected" = "已选择 %lld / %lld 项更改";
 "%lld values" = "%lld 个数值";
 "0 derives the value from the regulator type" = "0 表示按稳压器类型取值";
 "10 s" = "10 s";
@@ -56,6 +58,12 @@
 "Aerospace Mission" = "航空航天任务";
 "Agent Pipeline" = "智能体流水线";
 "Agents" = "智能体";
+"Align Bottom" = "底部对齐";
+"Align Horizontal Centres" = "水平居中对齐";
+"Align Left" = "左对齐";
+"Align Right" = "右对齐";
+"Align Top" = "顶部对齐";
+"Align Vertical Centres" = "垂直居中对齐";
 "All" = "全部";
 "Amplitude" = "振幅";
 "An entry (a local net label on the bus) for every member that has none yet" = "为每个尚无分支的成员建立分支（总线上的局部网络标签）";
@@ -70,11 +78,13 @@
 "Appends the imported block (connector, cable, backplane) after the routed channel" = "将导入的模块（连接器、电缆、背板）接在已布线通道之后";
 "Appliance Type" = "家电类型";
 "Apply" = "应用";
+"Apply Changes" = "应用更改";
 "Apply Footprint" = "应用封装";
 "Apply Outline" = "应用外形";
 "Apply Prices to BOM" = "将价格应用到 BOM";
 "Apply Symbol" = "应用符号";
 "Apply Tuning" = "应用调整";
+"Arrange" = "排列";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "排列原理图符号：引脚可置于任意一侧、分组、堆叠电源引脚、自动排列";
 "Arrange the symbol, or define the gates of a multi-unit part" = "排列符号，或定义多单元器件的门";
 "Arranged symbol" = "已排列的符号";
@@ -87,6 +97,7 @@
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "附加 VRML (.wrl)、STL 或 OBJ 模型并与封装对齐";
 "Audience (optional)" = "受众 (可选)";
 "Auto" = "自动";
+"Auto (fits the drawing)" = "自动（适合图面）";
 "Auto Arrange" = "自动排列";
 "Auto Route" = "自动布线";
 "Auto Route Board" = "自动布线电路板";
@@ -99,6 +110,7 @@
 "BODY" = "本体";
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "装配用 BOM (JLCPCB / PCBWay)…";
+"Back Annotate" = "反向标注";
 "Backdrill via stubs on fast nets" = "对高速网络的过孔残桩进行背钻";
 "Backward Euler" = "后向欧拉法";
 "Bandwidth" = "带宽";
@@ -112,6 +124,7 @@
 "Block designator" = "模块位号";
 "Block value: %@" = "块值：%@";
 "Board Setup" = "电路板设置";
+"Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review" = "将电路板变更（位号、引脚交换、门交换）提交原理图审查";
 "Board default" = "电路板默认";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "电路板外形 (四轴 X 形框架、圆角、圆形)、安装孔、铺铜/平面和网络类";
 "Board thickness" = "板厚";
@@ -139,6 +152,7 @@
 "Cavity model" = "谐振腔模型";
 "Centre" = "居中";
 "Centre the model on the footprint and put its lowest point on the board surface" = "将模型居中于封装，并使其最低点贴合板面";
+"Changes from a WAS / IS file" = "来自 WAS / IS 文件的更改";
 "Channel" = "通道";
 "Channel %@ of %@ — edits apply to every channel" = "通道 %@（%@）— 编辑会应用到每个通道";
 "Channel Designators" = "通道位号";
@@ -175,6 +189,8 @@
 "Close" = "关闭";
 "Close Gaps" = "消除空位";
 "Company" = "公司";
+"Compile" = "编译";
+"Compile to check every sheet." = "编译以检查每张图页。";
 "Component Placement List (CPL)…" = "元件坐标文件 (CPL)…";
 "Components" = "元件";
 "Components (%lld)" = "元件 (%lld)";
@@ -184,9 +200,13 @@
 "Conformal coating" = "三防漆涂覆";
 "Connect to Part" = "连接到元件";
 "Construction" = "结构";
+"Copies" = "份数";
+"Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "剪贴板的多份副本，每份再移一个步距（原理图单位，10 = 一格）。器件取得下一个可用位号；网络标签编号按增量递增（D0 → D1 …）。";
 "Copper colours" = "铜层颜色";
 "Copper foil" = "铜箔";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "铜层数：1 = 单面 (无过孔)，2–6 适用于大多数产品，8–24 适用于主板、服务器、大型机和 GPU 基板";
+"Copy" = "复制";
+"Copy, paste, paste array (designators numbered on, labels counted up), align and distribute" = "复制、粘贴、阵列粘贴（位号续编、标签递增）、对齐与分布";
 "Corners" = "拐角";
 "Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only" = "在放得下且保持间距的位置，拐角改为圆弧（用短直线段绘制）；仅限单根走线";
 "Coupled sections" = "耦合段";
@@ -196,6 +216,7 @@
 "Current density" = "电流密度";
 "Currents" = "电流";
 "Cursors & Measurements" = "光标与测量";
+"Cut" = "剪切";
 "DC" = "DC";
 "DC Operating Point" = "DC 工作点";
 "DC Sweep" = "DC 扫描";
@@ -237,6 +258,8 @@
 "Differential pair" = "差分对";
 "Differential pair member" = "差分对成员";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "带 Product Information v4 的 DigiKey API 应用（Production）；客户端凭据流程。";
+"Distribute Horizontally" = "水平分布";
+"Distribute Vertically" = "垂直分布";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "不贴装：在电路板上但不装配；不计入装配 BOM 和 CPL";
 "Done" = "完成";
 "Down ↓" = "向下 ↓";
@@ -251,6 +274,7 @@
 "Duty cycle" = "占空比";
 "ECU Type" = "ECU 类型";
 "ELECTRONIC DESIGN AUTOMATION" = "电子设计自动化";
+"ENGINEERING CHANGE ORDER" = "工程变更单";
 "ERC" = "ERC";
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "每条防篡改网格网络连接安全元件的驱动与检测引脚；自动布线将蛇形线布设于 ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "每个过孔只切到其连接的层；单介质层跨距在薄积层上变为激光微孔";
@@ -264,6 +288,7 @@
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "在上方输入身份提供商的颁发者 URL 和 SiEDA 的客户端 ID 以启用此按钮 (请咨询你的 IT 管理员)。";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "在处理器、BGA 和大电容下方填充环氧树脂，以防 MIL-STD-901E 冲击将其撕脱";
 "Errors" = "错误";
+"Every ERC message of every sheet; click one to go there" = "每张图页的所有 ERC 消息；点按即可前往";
 "Every pin is placed once; no pins collide" = "每个引脚只放置一次；引脚无冲突";
 "Every unit is valid" = "每个单元均有效";
 "Exchange the wires of two interchangeable pins of this gate" = "交换此门两个可互换引脚的导线";
@@ -303,10 +328,14 @@
 "Footprint" = "封装";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "元件安装所用的封装：片式尺寸、通孔、钽电容或电解电容外壳";
 "Frequency" = "频率";
+"From Board Positions (Columns)" = "按电路板位置（列）";
+"From Board Positions (Rows)" = "按电路板位置（行）";
+"From WAS / IS File…" = "从 WAS / IS 文件…";
 "Fundamental" = "基波";
 "Gain" = "增益";
 "Gap Before" = "前置空位";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "蛇形线各段之间的边到边间隙（mm，留空：中心距为三倍线宽）";
+"Gate swap" = "门交换";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "多单元元件的门 (四运放的 A、B、C、D) 按放置顺序填入封装后再编号";
 "Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "同一交换组的门（或相同的门）可通过“交换门”和封装合并互换";
 "Generate Design" = "生成设计";
@@ -368,6 +397,7 @@
 "Issuer URL" = "颁发者 URL";
 "Keep results for %lld hours" = "结果保留 %lld 小时";
 "LAYERS" = "层";
+"Label increment" = "标签增量";
 "Laminate" = "层压板";
 "Language" = "语言";
 "Largest contributors" = "主要贡献来源";
@@ -400,6 +430,7 @@
 "Lossless" = "无损";
 "Lossy" = "有损";
 "Lumped model" = "集总模型";
+"MESSAGES" = "消息";
 "Magnitude" = "幅度";
 "Make Swap Group" = "创建交换组";
 "Manufacturer part #" = "制造商料号";
@@ -417,6 +448,7 @@
 "Medical Device Class" = "医疗器械类别";
 "Members" = "成员";
 "Memory Design" = "存储器设计";
+"Messages" = "消息";
 "Microvia" = "微孔";
 "Min" = "最小";
 "Mirror" = "镜像";
@@ -452,10 +484,12 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "具有 Supply 范围的 Nexar 应用（客户端凭据）。Octopart 数据：一次搜索即可获得多家分销商的报价。";
 "No 3D model: the part shows its generated body." = "没有 3D 模型：器件显示自动生成的本体。";
 "No API key: add one in Settings → Suppliers" = "没有 API 密钥：请在“设置 → 供应商”中添加";
+"No changes: the schematic already matches the board." = "没有更改：原理图已与电路板一致。";
 "No crosstalk or return-path problems found" = "未发现串扰或回流路径问题";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "此设计中没有差分对 (…_P/_N, …+/-) 或总线 (DQ0…, DATA[0..7], ADDR…)。";
 "No distributor API keys yet" = "尚无分销商 API 密钥";
 "No distributor offers." = "没有分销商报价。";
+"No errors or warnings." = "没有错误或警告。";
 "No gates found in the pin names." = "引脚名称中未找到门。";
 "No imported model" = "没有导入的模型";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "没有输入源：为输入设置 AC 幅度或指定它，即可看到折算到输入的噪声。";
@@ -520,6 +554,8 @@
 "PAD ARRAY" = "焊盘阵列";
 "PARAMETERS" = "参数";
 "PCB Layout" = "PCB 布局";
+"PDF" = "PDF";
+"PDF of every sheet with bookmarks, frames and title blocks" = "每张图页的 PDF，含书签、图框与标题栏";
 "PIN SWAP" = "引脚交换";
 "PINS" = "引脚";
 "PRBS" = "PRBS";
@@ -535,7 +571,10 @@
 "Parts" = "元件";
 "Parts you import, create or add from the standard library appear here and in the schematic device picker." = "你导入、创建或从标准库添加的元件会显示在此处及原理图器件选择器中。";
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "分属不同电气隔离域 (跨隔离器和隔离式转换器) 的元件、走线和铺铜 ";
+"Paste" = "粘贴";
 "Paste API key" = "粘贴 API 密钥";
+"Paste Array" = "阵列粘贴";
+"Paste Array…" = "阵列粘贴…";
 "Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "粘贴或打开厂商模型文本（.lib、.mod、.cir）：.model 与 .subckt 定义。";
 "Pattern" = "阵列";
 "Peak" = "峰值";
@@ -546,6 +585,7 @@
 "Pin" = "引脚";
 "Pin map" = "引脚映射";
 "Pin names" = "引脚名称";
+"Pin swap" = "引脚交换";
 "Pins: " = "引脚: ";
 "Place %@ Connector…" = "放置 %@ 连接器…";
 "Place Harness Connector" = "放置线束连接器";
@@ -574,6 +614,8 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Re-annotate from the board (columns)" = "按电路板重新标注（列）";
+"Re-annotate from the board (rows)" = "按电路板重新标注（行）";
 "Re-verify" = "重新验证";
 "Read Pins from Datasheet" = "从数据手册读取引脚";
 "Ready" = "就绪";
@@ -592,6 +634,7 @@
 "Remove the firmware" = "移除固件";
 "Remove the selected unit (its pins go to the power unit)" = "移除所选单元（其引脚移至电源单元）";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "去除最后连接层以下未使用的过孔孔管 (≥ 4 层)；添加背钻文件";
+"Rename" = "重命名";
 "Rename Channel" = "重命名通道";
 "Rename Channel…" = "重命名通道…";
 "Rename Sheet" = "重命名图纸";
@@ -642,6 +685,7 @@
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "运行瞬态分析即可执行：引脚驱动电路，输入和 ADC 读取电路，串口输出显示在“仿真”中。";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "实时运行电路板 (⌘R)：LED 点亮、点击开关、固件运行、实时探针";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "实时运行电路板：固件、LED、开关、示波器和串口监视器";
+"Run the electrical rule check on every sheet" = "对每张图页运行电气规则检查";
 "Runs" = "次数";
 "S-parameters" = "S 参数";
 "SI / PI" = "SI / PI";
@@ -690,6 +734,7 @@
 "Shared by several gates" = "由多个门共用";
 "Sheet" = "图纸";
 "Sheet %lld of %lld" = "第 %lld 页，共 %lld 页";
+"Sheet Size" = "图页尺寸";
 "Sheet name" = "图纸名称";
 "Shot" = "散粒噪声";
 "Shove" = "推挤";
@@ -698,6 +743,8 @@
 "Show" = "显示";
 "Show Crash Reports" = "显示崩溃报告";
 "Show Navigator" = "显示导航器";
+"Show in Schematic" = "在原理图中显示";
+"Show on PCB" = "在 PCB 上显示";
 "Show one robot platform's production parts kit" = "显示某个机器人平台的量产元件套件";
 "Show splash screen at launch" = "启动时显示启动画面";
 "Show these parts in the schematic" = "在原理图中显示这些元件";
@@ -736,6 +783,7 @@
 "Starting the design engine" = "正在启动设计引擎";
 "Step" = "单步";
 "Step response" = "阶跃响应";
+"Step x, y" = "步距 x, y";
 "Stitch vias at the selected (or every) power MOSFET's drain / tab pad" = "在所选 (或全部) 功率 MOSFET 的漏极 / 散热片焊盘处添加缝合过孔";
 "Stitch vias at the selected parts' drain / tab pads (every power MOSFET if none is selected)" = "在所选元件的漏极 / 散热片焊盘处添加缝合过孔 (未选择时为所有功率 MOSFET)";
 "Stock" = "库存";

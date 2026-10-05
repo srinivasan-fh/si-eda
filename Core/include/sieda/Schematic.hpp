@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "sieda/Geometry.hpp"
+#include "sieda/Json.hpp"
 #include "sieda/Library.hpp"
 
 namespace sieda {
@@ -77,6 +78,8 @@ struct Sheet {
     std::string channel;
     /// Definition of a repeated sheet: how its channels' designators are made from the block's own designators.
     InstanceRefs refs = InstanceRefs::SheetNumber;
+    /// Drawing template ("A4", "A3", … "ANSI E", see SchematicPdf.hpp); empty = sized to the drawing.
+    std::string size;
 };
 
 /// Imported SPICE model attached to a part (docs/SIMULATION.md, sieda/SpiceModels.hpp): the simulator uses it instead
@@ -144,6 +147,21 @@ struct Component {
     bool hasFootprint() const { return !def().footprint.empty(); }
     /// The footprint the part is placed with: its package variant, else the kind's default.
     const std::string& footprintName() const;
+};
+
+/// Align / distribute (by the parts' positions on the 10-unit grid).
+enum class AlignMode { Left, Right, Top, Bottom, CenterX, CenterY, DistributeX, DistributeY };
+const char* alignModeName(AlignMode m);  // "left", "right", "top", "bottom", "centerX", "centerY", "distributeX", "distributeY"
+bool alignModeFromName(const std::string& name, AlignMode* out);
+
+/// Paste (smart paste / paste array): `count` copies, the first moved by `offset`, each next one by `step` more;
+/// net label names with a trailing number are counted up by `labelIncrement` per copy (D0 → D1, D2 …). Parts get
+/// the next free designators.
+struct PasteOptions {
+    Vec2 offset{0, 0};
+    int count = 1;
+    Vec2 step{0, 0};
+    int labelIncrement = 0;
 };
 
 /// A signal harness type (Altium's harness definition): a named bundle of signals, e.g. USB = {DP, DN, VBUS, GND}.
@@ -331,6 +349,8 @@ public:
     /// Adds a sheet (name trimmed, unique, non-empty) under `parent` (0 = top level). Returns its id or -1.
     int addSheet(const std::string& name, int parent = 0);
     bool renameSheet(int id, const std::string& name);
+    /// Drawing template of a sheet ("" = sized to its drawing). False for an unknown sheet or template name.
+    bool setSheetSize(int id, const std::string& size);
     /// Re-parents a sheet (0 = top level); refuses cycles.
     bool setSheetParent(int id, int parent);
     /// Moves a sheet to position `index` in the sheet order.
@@ -441,6 +461,19 @@ public:
     bool swapUnits(int unitA, int unitB);
     /// Pin swap: two pins of a placed unit in one of its pin-swap groups exchange their wires. False when not allowed.
     bool swapPins(int componentId, int pinA, int pinB);
+
+    // ---- editing productivity ----
+    /// Aligns or distributes components (channel copies move their block's part). Returns the number moved.
+    int alignComponents(const std::vector<int>& ids, AlignMode mode);
+    /// Clipboard of components and the wires between them (format "sieda.schematic-clip/1").
+    Json copyComponents(const std::vector<int>& ids) const;
+    /// Pastes a clipboard on the active sheet (see PasteOptions). Returns the new components' ids.
+    std::vector<int> pasteComponents(const Json& clip, const PasteOptions& options);
+    /// Makes a net label an entry of a harness label on its sheet (0 = an ordinary label again).
+    bool setHarnessOf(int labelId, int harnessLabel);
+    /// Back-annotated pin swap: the wires (and no-connect flags) of two pins of a part change places, whatever its
+    /// swap groups (the board decided). False for invalid pins, net symbols and hidden packages.
+    bool swapPinConnections(int componentId, int pinA, int pinB);
 
     // ---- signal harnesses (structured buses) ----
     const std::vector<HarnessType>& harnessTypes() const { return harnessTypes_; }

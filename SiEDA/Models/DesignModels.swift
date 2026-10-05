@@ -424,6 +424,9 @@ struct SheetInfo: Decodable, Equatable, Identifiable, Hashable {
     /// Repeat count of the block under one parent (nested blocks: per outer channel) and the channel path ("B/A").
     var channels: Int?
     var path: String?
+    /// Drawing template ("A4" … "ANSI E"; "" = sized to the drawing) and the one it prints on.
+    var size: String?
+    var template: String?
 
     var isRepeated: Bool { (instances ?? 0) > 1 }
     var isInstance: Bool { (instanceOf ?? 0) != 0 }
@@ -435,6 +438,28 @@ struct SheetInfo: Decodable, Equatable, Identifiable, Hashable {
 struct HarnessTypeInfo: Decodable, Equatable, Identifiable, Hashable {
     var name: String
     var entries: [String]
+    var id: String { name }
+}
+
+/// A change the board proposes to the schematic (back-annotation ECO).
+struct EcoChangeInfo: Codable, Equatable, Identifiable {
+    var kind: String  // "rename", "pinSwap", "gateSwap", "invalid"
+    var component: Int
+    var from: String
+    var to: String
+    var pinA: Int
+    var pinB: Int
+    var other: Int
+    var applicable: Bool
+    var note: String
+    var id: String { "\(kind)|\(component)|\(from)|\(to)|\(other)" }
+}
+
+/// A drawing sheet size (mm, landscape).
+struct SheetTemplateInfo: Decodable, Equatable, Identifiable, Hashable {
+    var name: String
+    var width: Double
+    var height: Double
     var id: String { name }
 }
 

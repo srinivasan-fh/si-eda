@@ -25,6 +25,9 @@ add_library(sieda_core STATIC
     Core/src/Buses.cpp
     Core/src/Harnesses.cpp
     Core/src/Directives.cpp
+    Core/src/SchematicEdit.cpp
+    Core/src/Eco.cpp
+    Core/src/SchematicPdf.cpp
     Core/src/PartUnits.cpp
     Core/src/SchematicSearch.cpp
     Core/src/Variants.cpp

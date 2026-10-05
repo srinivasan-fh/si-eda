@@ -1,6 +1,8 @@
 /* SiEDA interface strings — en. Keys are the English text; check with tools/check_localization.py. */
 
+"%lld errors · %lld warnings" = "%lld errors · %lld warnings";
 "%lld matches" = "%lld matches";
+"%lld of %lld changes selected" = "%lld of %lld changes selected";
 "%lld values" = "%lld values";
 "0 derives the value from the regulator type" = "0 derives the value from the regulator type";
 "10 s" = "10 s";
@@ -56,6 +58,12 @@
 "Aerospace Mission" = "Aerospace Mission";
 "Agent Pipeline" = "Agent Pipeline";
 "Agents" = "Agents";
+"Align Bottom" = "Align Bottom";
+"Align Horizontal Centres" = "Align Horizontal Centres";
+"Align Left" = "Align Left";
+"Align Right" = "Align Right";
+"Align Top" = "Align Top";
+"Align Vertical Centres" = "Align Vertical Centres";
 "All" = "All";
 "Amplitude" = "Amplitude";
 "An entry (a local net label on the bus) for every member that has none yet" = "An entry (a local net label on the bus) for every member that has none yet";
@@ -70,11 +78,13 @@
 "Appends the imported block (connector, cable, backplane) after the routed channel" = "Appends the imported block (connector, cable, backplane) after the routed channel";
 "Appliance Type" = "Appliance Type";
 "Apply" = "Apply";
+"Apply Changes" = "Apply Changes";
 "Apply Footprint" = "Apply Footprint";
 "Apply Outline" = "Apply Outline";
 "Apply Prices to BOM" = "Apply Prices to BOM";
 "Apply Symbol" = "Apply Symbol";
 "Apply Tuning" = "Apply Tuning";
+"Arrange" = "Arrange";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange";
 "Arrange the symbol, or define the gates of a multi-unit part" = "Arrange the symbol, or define the gates of a multi-unit part";
 "Arranged symbol" = "Arranged symbol";
@@ -87,6 +97,7 @@
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint";
 "Audience (optional)" = "Audience (optional)";
 "Auto" = "Auto";
+"Auto (fits the drawing)" = "Auto (fits the drawing)";
 "Auto Arrange" = "Auto Arrange";
 "Auto Route" = "Auto Route";
 "Auto Route Board" = "Auto Route Board";
@@ -99,6 +110,7 @@
 "BODY" = "BODY";
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM for Assembly (JLCPCB / PCBWay)…";
+"Back Annotate" = "Back Annotate";
 "Backdrill via stubs on fast nets" = "Backdrill via stubs on fast nets";
 "Backward Euler" = "Backward Euler";
 "Bandwidth" = "Bandwidth";
@@ -112,6 +124,7 @@
 "Block designator" = "Block designator";
 "Block value: %@" = "Block value: %@";
 "Board Setup" = "Board Setup";
+"Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review" = "Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review";
 "Board default" = "Board default";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes";
 "Board thickness" = "Board thickness";
@@ -139,6 +152,7 @@
 "Cavity model" = "Cavity model";
 "Centre" = "Centre";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Centre the model on the footprint and put its lowest point on the board surface";
+"Changes from a WAS / IS file" = "Changes from a WAS / IS file";
 "Channel" = "Channel";
 "Channel %@ of %@ — edits apply to every channel" = "Channel %@ of %@ — edits apply to every channel";
 "Channel Designators" = "Channel Designators";
@@ -175,6 +189,8 @@
 "Close" = "Close";
 "Close Gaps" = "Close Gaps";
 "Company" = "Company";
+"Compile" = "Compile";
+"Compile to check every sheet." = "Compile to check every sheet.";
 "Component Placement List (CPL)…" = "Component Placement List (CPL)…";
 "Components" = "Components";
 "Components (%lld)" = "Components (%lld)";
@@ -184,9 +200,13 @@
 "Conformal coating" = "Conformal coating";
 "Connect to Part" = "Connect to Part";
 "Construction" = "Construction";
+"Copies" = "Copies";
+"Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …).";
 "Copper colours" = "Copper colours";
 "Copper foil" = "Copper foil";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards";
+"Copy" = "Copy";
+"Copy, paste, paste array (designators numbered on, labels counted up), align and distribute" = "Copy, paste, paste array (designators numbered on, labels counted up), align and distribute";
 "Corners" = "Corners";
 "Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only" = "Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only";
 "Coupled sections" = "Coupled sections";
@@ -196,6 +216,7 @@
 "Current density" = "Current density";
 "Currents" = "Currents";
 "Cursors & Measurements" = "Cursors & Measurements";
+"Cut" = "Cut";
 "DC" = "DC";
 "DC Operating Point" = "DC Operating Point";
 "DC Sweep" = "DC Sweep";
@@ -237,6 +258,8 @@
 "Differential pair" = "Differential pair";
 "Differential pair member" = "Differential pair member";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "DigiKey API application (Production) with Product Information v4; client credentials flow.";
+"Distribute Horizontally" = "Distribute Horizontally";
+"Distribute Vertically" = "Distribute Vertically";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL";
 "Done" = "Done";
 "Down ↓" = "Down ↓";
@@ -251,6 +274,7 @@
 "Duty cycle" = "Duty cycle";
 "ECU Type" = "ECU Type";
 "ELECTRONIC DESIGN AUTOMATION" = "ELECTRONIC DESIGN AUTOMATION";
+"ENGINEERING CHANGE ORDER" = "ENGINEERING CHANGE ORDER";
 "ERC" = "ERC";
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers";
@@ -264,6 +288,7 @@
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off";
 "Errors" = "Errors";
+"Every ERC message of every sheet; click one to go there" = "Every ERC message of every sheet; click one to go there";
 "Every pin is placed once; no pins collide" = "Every pin is placed once; no pins collide";
 "Every unit is valid" = "Every unit is valid";
 "Exchange the wires of two interchangeable pins of this gate" = "Exchange the wires of two interchangeable pins of this gate";
@@ -303,10 +328,14 @@
 "Footprint" = "Footprint";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case";
 "Frequency" = "Frequency";
+"From Board Positions (Columns)" = "From Board Positions (Columns)";
+"From Board Positions (Rows)" = "From Board Positions (Rows)";
+"From WAS / IS File…" = "From WAS / IS File…";
 "Fundamental" = "Fundamental";
 "Gain" = "Gain";
 "Gap Before" = "Gap Before";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)";
+"Gate swap" = "Gate swap";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering";
 "Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing";
 "Generate Design" = "Generate Design";
@@ -368,6 +397,7 @@
 "Issuer URL" = "Issuer URL";
 "Keep results for %lld hours" = "Keep results for %lld hours";
 "LAYERS" = "LAYERS";
+"Label increment" = "Label increment";
 "Laminate" = "Laminate";
 "Language" = "Language";
 "Largest contributors" = "Largest contributors";
@@ -400,6 +430,7 @@
 "Lossless" = "Lossless";
 "Lossy" = "Lossy";
 "Lumped model" = "Lumped model";
+"MESSAGES" = "MESSAGES";
 "Magnitude" = "Magnitude";
 "Make Swap Group" = "Make Swap Group";
 "Manufacturer part #" = "Manufacturer part #";
@@ -417,6 +448,7 @@
 "Medical Device Class" = "Medical Device Class";
 "Members" = "Members";
 "Memory Design" = "Memory Design";
+"Messages" = "Messages";
 "Microvia" = "Microvia";
 "Min" = "Min";
 "Mirror" = "Mirror";
@@ -452,10 +484,12 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search.";
 "No 3D model: the part shows its generated body." = "No 3D model: the part shows its generated body.";
 "No API key: add one in Settings → Suppliers" = "No API key: add one in Settings → Suppliers";
+"No changes: the schematic already matches the board." = "No changes: the schematic already matches the board.";
 "No crosstalk or return-path problems found" = "No crosstalk or return-path problems found";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design.";
 "No distributor API keys yet" = "No distributor API keys yet";
 "No distributor offers." = "No distributor offers.";
+"No errors or warnings." = "No errors or warnings.";
 "No gates found in the pin names." = "No gates found in the pin names.";
 "No imported model" = "No imported model";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "No input source: give the input an AC magnitude or name it to see the input-referred noise.";
@@ -520,6 +554,8 @@
 "PAD ARRAY" = "PAD ARRAY";
 "PARAMETERS" = "PARAMETERS";
 "PCB Layout" = "PCB Layout";
+"PDF" = "PDF";
+"PDF of every sheet with bookmarks, frames and title blocks" = "PDF of every sheet with bookmarks, frames and title blocks";
 "PIN SWAP" = "PIN SWAP";
 "PINS" = "PINS";
 "PRBS" = "PRBS";
@@ -535,7 +571,10 @@
 "Parts" = "Parts";
 "Parts you import, create or add from the standard library appear here and in the schematic device picker." = "Parts you import, create or add from the standard library appear here and in the schematic device picker.";
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) ";
+"Paste" = "Paste";
 "Paste API key" = "Paste API key";
+"Paste Array" = "Paste Array";
+"Paste Array…" = "Paste Array…";
 "Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions.";
 "Pattern" = "Pattern";
 "Peak" = "Peak";
@@ -546,6 +585,7 @@
 "Pin" = "Pin";
 "Pin map" = "Pin map";
 "Pin names" = "Pin names";
+"Pin swap" = "Pin swap";
 "Pins: " = "Pins: ";
 "Place %@ Connector…" = "Place %@ Connector…";
 "Place Harness Connector" = "Place Harness Connector";
@@ -574,6 +614,8 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Re-annotate from the board (columns)" = "Re-annotate from the board (columns)";
+"Re-annotate from the board (rows)" = "Re-annotate from the board (rows)";
 "Re-verify" = "Re-verify";
 "Read Pins from Datasheet" = "Read Pins from Datasheet";
 "Ready" = "Ready";
@@ -592,6 +634,7 @@
 "Remove the firmware" = "Remove the firmware";
 "Remove the selected unit (its pins go to the power unit)" = "Remove the selected unit (its pins go to the power unit)";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file";
+"Rename" = "Rename";
 "Rename Channel" = "Rename Channel";
 "Rename Channel…" = "Rename Channel…";
 "Rename Sheet" = "Rename Sheet";
@@ -642,6 +685,7 @@
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "Run the board in real time: firmware, LEDs, switches, scope and serial monitor";
+"Run the electrical rule check on every sheet" = "Run the electrical rule check on every sheet";
 "Runs" = "Runs";
 "S-parameters" = "S-parameters";
 "SI / PI" = "SI / PI";
@@ -690,6 +734,7 @@
 "Shared by several gates" = "Shared by several gates";
 "Sheet" = "Sheet";
 "Sheet %lld of %lld" = "Sheet %lld of %lld";
+"Sheet Size" = "Sheet Size";
 "Sheet name" = "Sheet name";
 "Shot" = "Shot";
 "Shove" = "Shove";
@@ -698,6 +743,8 @@
 "Show" = "Show";
 "Show Crash Reports" = "Show Crash Reports";
 "Show Navigator" = "Show Navigator";
+"Show in Schematic" = "Show in Schematic";
+"Show on PCB" = "Show on PCB";
 "Show one robot platform's production parts kit" = "Show one robot platform's production parts kit";
 "Show splash screen at launch" = "Show splash screen at launch";
 "Show these parts in the schematic" = "Show these parts in the schematic";
@@ -736,6 +783,7 @@
 "Starting the design engine" = "Starting the design engine";
 "Step" = "Step";
 "Step response" = "Step response";
+"Step x, y" = "Step x, y";
 "Stitch vias at the selected (or every) power MOSFET's drain / tab pad" = "Stitch vias at the selected (or every) power MOSFET's drain / tab pad";
 "Stitch vias at the selected parts' drain / tab pads (every power MOSFET if none is selected)" = "Stitch vias at the selected parts' drain / tab pads (every power MOSFET if none is selected)";
 "Stock" = "Stock";

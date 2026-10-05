@@ -1,6 +1,8 @@
 /* SiEDA interface strings — ko. Keys are the English text; check with tools/check_localization.py. */
 
+"%lld errors · %lld warnings" = "오류 %lld개 · 경고 %lld개";
 "%lld matches" = "%lld개 일치";
+"%lld of %lld changes selected" = "변경 %lld/%lld개 선택됨";
 "%lld values" = "값 %lld개";
 "0 derives the value from the regulator type" = "0이면 레귤레이터 종류로 값을 정합니다";
 "10 s" = "10 s";
@@ -56,6 +58,12 @@
 "Aerospace Mission" = "항공우주 임무";
 "Agent Pipeline" = "에이전트 파이프라인";
 "Agents" = "에이전트";
+"Align Bottom" = "아래쪽 맞춤";
+"Align Horizontal Centres" = "가로 중심 맞춤";
+"Align Left" = "왼쪽 맞춤";
+"Align Right" = "오른쪽 맞춤";
+"Align Top" = "위쪽 맞춤";
+"Align Vertical Centres" = "세로 중심 맞춤";
 "All" = "전체";
 "Amplitude" = "진폭";
 "An entry (a local net label on the bus) for every member that has none yet" = "아직 엔트리가 없는 모든 멤버에 엔트리(버스 위의 로컬 넷 레이블) 생성";
@@ -70,11 +78,13 @@
 "Appends the imported block (connector, cable, backplane) after the routed channel" = "가져온 블록(커넥터, 케이블, 백플레인)을 배선된 채널 뒤에 연결합니다";
 "Appliance Type" = "가전 유형";
 "Apply" = "적용";
+"Apply Changes" = "변경 적용";
 "Apply Footprint" = "풋프린트 적용";
 "Apply Outline" = "외곽선 적용";
 "Apply Prices to BOM" = "BOM에 가격 적용";
 "Apply Symbol" = "심볼 적용";
 "Apply Tuning" = "튜닝 적용";
+"Arrange" = "정렬";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "회로도 심볼 배치: 모든 면에 핀, 그룹, 전원 핀 스택, 자동 배치";
 "Arrange the symbol, or define the gates of a multi-unit part" = "기호를 배치하거나 다중 단위 부품의 게이트를 정의합니다";
 "Arranged symbol" = "배치된 심볼";
@@ -87,6 +97,7 @@
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML(.wrl), STL 또는 OBJ 모델을 첨부하고 풋프린트에 맞춤";
 "Audience (optional)" = "대상 (선택 사항)";
 "Auto" = "자동";
+"Auto (fits the drawing)" = "자동(도면에 맞춤)";
 "Auto Arrange" = "자동 배치";
 "Auto Route" = "자동 배선";
 "Auto Route Board" = "보드 자동 배선";
@@ -99,6 +110,7 @@
 "BODY" = "BODY";
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "조립용 BOM (JLCPCB / PCBWay)…";
+"Back Annotate" = "역주석";
 "Backdrill via stubs on fast nets" = "고속 네트의 비아 스텁 백드릴";
 "Backward Euler" = "후진 오일러";
 "Bandwidth" = "대역폭";
@@ -112,6 +124,7 @@
 "Block designator" = "블록 참조 기호";
 "Block value: %@" = "블록 값: %@";
 "Board Setup" = "보드 설정";
+"Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review" = "보드 변경(지정자, 핀 교환, 게이트 교환)을 회로도에 제안해 검토합니다";
 "Board default" = "보드 기본값";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "보드 외곽선(쿼드 X 프레임, 둥근 모서리, 원형), 마운팅 홀, 동박 푸어/플레인 및 네트 클래스";
 "Board thickness" = "보드 두께";
@@ -139,6 +152,7 @@
 "Cavity model" = "공진기 모델";
 "Centre" = "중앙";
 "Centre the model on the footprint and put its lowest point on the board surface" = "모델을 풋프린트 중앙에 두고 가장 낮은 점을 기판 표면에 맞춤";
+"Changes from a WAS / IS file" = "WAS / IS 파일의 변경";
 "Channel" = "채널";
 "Channel %@ of %@ — edits apply to every channel" = "채널 %@ (%@) — 편집은 모든 채널에 적용됩니다";
 "Channel Designators" = "채널 참조 기호";
@@ -175,6 +189,8 @@
 "Close" = "닫기";
 "Close Gaps" = "간격 제거";
 "Company" = "회사";
+"Compile" = "컴파일";
+"Compile to check every sheet." = "모든 시트를 검사하려면 컴파일하세요.";
 "Component Placement List (CPL)…" = "부품 배치 목록 (CPL)…";
 "Components" = "부품";
 "Components (%lld)" = "부품 (%lld)";
@@ -184,9 +200,13 @@
 "Conformal coating" = "컨포멀 코팅";
 "Connect to Part" = "부품에 연결";
 "Construction" = "구조";
+"Copies" = "사본 수";
+"Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "클립보드의 사본을 한 단계씩 더 떨어뜨려 붙입니다(회로도 단위, 10 = 한 격자). 부품은 다음 빈 지정자를 받고, 네트 레이블 번호는 증분만큼 올라갑니다(D0 → D1 …).";
 "Copper colours" = "동박 색상";
 "Copper foil" = "동박";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "동박 레이어: 1 = 단면 (비아 없음), 대부분의 제품은 2–6, 마더보드·서버·메인프레임·GPU 베이스보드는 8–24";
+"Copy" = "복사";
+"Copy, paste, paste array (designators numbered on, labels counted up), align and distribute" = "복사, 붙여넣기, 배열 붙여넣기(지정자 이어 번호, 레이블 증가), 정렬과 분배";
 "Corners" = "모서리";
 "Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only" = "들어갈 자리가 있고 간격이 유지되는 곳에서 모서리가 호(짧은 직선 조각으로 그림)가 됩니다. 단일 트랙만";
 "Coupled sections" = "결합 구간";
@@ -196,6 +216,7 @@
 "Current density" = "전류 밀도";
 "Currents" = "전류";
 "Cursors & Measurements" = "커서 및 측정";
+"Cut" = "잘라내기";
 "DC" = "DC";
 "DC Operating Point" = "DC 동작점";
 "DC Sweep" = "DC 스윕";
@@ -237,6 +258,8 @@
 "Differential pair" = "차동 쌍";
 "Differential pair member" = "차동 쌍 멤버";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4가 포함된 DigiKey API 애플리케이션(Production), 클라이언트 자격 증명 방식.";
+"Distribute Horizontally" = "가로로 분배";
+"Distribute Vertically" = "세로로 분배";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "미실장: 보드에는 있지만 실장하지 않음. 조립용 BOM 및 CPL에서 제외";
 "Done" = "완료";
 "Down ↓" = "아래로 ↓";
@@ -251,6 +274,7 @@
 "Duty cycle" = "듀티 사이클";
 "ECU Type" = "ECU 유형";
 "ELECTRONIC DESIGN AUTOMATION" = "전자 설계 자동화";
+"ENGINEERING CHANGE ORDER" = "엔지니어링 변경 지시";
 "ERC" = "ERC";
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "각 메시 네트는 보안 소자의 구동 핀과 감지 핀을 연결합니다. 자동 배선이 서펜타인을 다음에 배치: ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "각 비아는 연결하는 레이어까지만 가공됩니다. 유전체 한 층 구간은 얇은 빌드업 레이어 위의 레이저 마이크로비아가 됩니다";
@@ -264,6 +288,7 @@
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "위에 ID 공급자의 발급자 URL과 SiEDA 클라이언트 ID를 입력하면 이 버튼이 활성화됩니다 (IT 관리자에게 문의하세요).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "프로세서, BGA 및 대형 커패시터 아래에 에폭시를 도포하여 MIL-STD-901E 충격에도 떨어지지 않도록 함";
 "Errors" = "오류";
+"Every ERC message of every sheet; click one to go there" = "모든 시트의 모든 ERC 메시지, 클릭하면 해당 위치로 이동";
 "Every pin is placed once; no pins collide" = "모든 핀이 한 번씩 배치되고 겹치는 핀이 없음";
 "Every unit is valid" = "모든 단위가 유효합니다";
 "Exchange the wires of two interchangeable pins of this gate" = "이 게이트의 교환 가능한 두 핀의 배선을 맞바꿉니다";
@@ -303,10 +328,14 @@
 "Footprint" = "풋프린트";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "부품이 실장되는 풋프린트: 칩 크기, 스루홀, 탄탈 또는 전해 케이스";
 "Frequency" = "주파수";
+"From Board Positions (Columns)" = "보드 위치에서(열)";
+"From Board Positions (Rows)" = "보드 위치에서(행)";
+"From WAS / IS File…" = "WAS / IS 파일에서…";
 "Fundamental" = "기본파";
 "Gain" = "이득";
 "Gap Before" = "앞 간격";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "미앤더 다리 사이의 가장자리 간격(mm, 비우면 중심 간 선폭의 3배)";
+"Gate swap" = "게이트 교환";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "다중 유닛 부품의 게이트(쿼드 op-amp의 A, B, C, D)를 배치 순서대로 패키지에 채운 뒤 번호를 매깁니다";
 "Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "같은 교환 그룹의 게이트(또는 동일한 게이트)는 게이트 교환과 패킹으로 맞바꿀 수 있습니다";
 "Generate Design" = "설계 생성";
@@ -368,6 +397,7 @@
 "Issuer URL" = "발급자 URL";
 "Keep results for %lld hours" = "결과를 %lld시간 보관";
 "LAYERS" = "레이어";
+"Label increment" = "레이블 증분";
 "Laminate" = "적층판";
 "Language" = "언어";
 "Largest contributors" = "주요 기여 요소";
@@ -400,6 +430,7 @@
 "Lossless" = "무손실";
 "Lossy" = "손실 있음";
 "Lumped model" = "집중 정수 모델";
+"MESSAGES" = "메시지";
 "Magnitude" = "크기";
 "Make Swap Group" = "교환 그룹 만들기";
 "Manufacturer part #" = "제조사 부품 번호";
@@ -417,6 +448,7 @@
 "Medical Device Class" = "의료기기 등급";
 "Members" = "멤버";
 "Memory Design" = "메모리 설계";
+"Messages" = "메시지";
 "Microvia" = "마이크로비아";
 "Min" = "최소";
 "Mirror" = "미러";
@@ -452,10 +484,12 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Supply 범위가 있는 Nexar 애플리케이션(클라이언트 자격 증명). Octopart 데이터: 한 번의 검색으로 여러 유통업체 견적.";
 "No 3D model: the part shows its generated body." = "3D 모델 없음: 부품에 생성된 몸체가 표시됩니다.";
 "No API key: add one in Settings → Suppliers" = "API 키 없음: 설정 → 공급업체에서 추가하세요";
+"No changes: the schematic already matches the board." = "변경 없음: 회로도가 이미 보드와 일치합니다.";
 "No crosstalk or return-path problems found" = "크로스토크나 리턴 경로 문제가 없습니다";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "이 설계에는 차동 쌍(…_P/_N, …+/-)이나 버스(DQ0…, DATA[0..7], ADDR…)가 없습니다.";
 "No distributor API keys yet" = "아직 유통업체 API 키가 없습니다";
 "No distributor offers." = "유통업체 견적이 없습니다.";
+"No errors or warnings." = "오류나 경고가 없습니다.";
 "No gates found in the pin names." = "핀 이름에서 게이트를 찾지 못했습니다.";
 "No imported model" = "가져온 모델 없음";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "입력 소스가 없습니다: 입력 환산 노이즈를 보려면 입력에 AC 크기를 지정하거나 입력으로 지정하세요.";
@@ -520,6 +554,8 @@
 "PAD ARRAY" = "패드 배열";
 "PARAMETERS" = "매개변수";
 "PCB Layout" = "PCB 레이아웃";
+"PDF" = "PDF";
+"PDF of every sheet with bookmarks, frames and title blocks" = "책갈피, 도면 틀, 표제란이 있는 모든 시트의 PDF";
 "PIN SWAP" = "핀 교환";
 "PINS" = "핀";
 "PRBS" = "PRBS";
@@ -535,7 +571,10 @@
 "Parts" = "부품";
 "Parts you import, create or add from the standard library appear here and in the schematic device picker." = "가져오거나 만들거나 표준 라이브러리에서 추가한 부품이 여기와 회로도 디바이스 선택기에 표시됩니다.";
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "분리된 갈바닉 도메인(아이솔레이터 및 절연형 컨버터 양측)의 부품, 트랙 및 푸어 ";
+"Paste" = "붙여넣기";
 "Paste API key" = "API 키 붙여넣기";
+"Paste Array" = "배열 붙여넣기";
+"Paste Array…" = "배열 붙여넣기…";
 "Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "제조사 모델 텍스트(.lib, .mod, .cir)를 붙여 넣거나 여세요: .model 및 .subckt 정의.";
 "Pattern" = "패턴";
 "Peak" = "피크";
@@ -546,6 +585,7 @@
 "Pin" = "핀";
 "Pin map" = "핀 매핑";
 "Pin names" = "핀 이름";
+"Pin swap" = "핀 교환";
 "Pins: " = "핀: ";
 "Place %@ Connector…" = "%@ 커넥터 배치…";
 "Place Harness Connector" = "하네스 커넥터 배치";
@@ -574,6 +614,8 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Re-annotate from the board (columns)" = "보드에서 다시 주석(열)";
+"Re-annotate from the board (rows)" = "보드에서 다시 주석(행)";
 "Re-verify" = "다시 검증";
 "Read Pins from Datasheet" = "데이터시트에서 핀 읽기";
 "Ready" = "준비됨";
@@ -592,6 +634,7 @@
 "Remove the firmware" = "펌웨어 제거";
 "Remove the selected unit (its pins go to the power unit)" = "선택한 단위를 제거합니다(핀은 전원 단위로 이동)";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "마지막으로 연결된 레이어 아래의 사용하지 않는 비아 배럴을 제거 (4층 이상). 백드릴 파일 추가";
+"Rename" = "이름 변경";
 "Rename Channel" = "채널 이름 변경";
 "Rename Channel…" = "채널 이름 변경…";
 "Rename Sheet" = "시트 이름 변경";
@@ -642,6 +685,7 @@
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "과도 해석을 실행하면 펌웨어가 동작합니다: 핀이 회로를 구동하고 입력과 ADC가 회로를 읽으며 시리얼 출력이 시뮬레이션에 표시됩니다.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "보드를 실시간으로 실행 (⌘R): LED 점등, 스위치 클릭, 펌웨어 실행, 라이브 프로브";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "보드를 실시간으로 실행: 펌웨어, LED, 스위치, 스코프 및 시리얼 모니터";
+"Run the electrical rule check on every sheet" = "모든 시트에서 전기 규칙 검사 실행";
 "Runs" = "반복 횟수";
 "S-parameters" = "S 파라미터";
 "SI / PI" = "SI / PI";
@@ -690,6 +734,7 @@
 "Shared by several gates" = "여러 게이트가 공유";
 "Sheet" = "시트";
 "Sheet %lld of %lld" = "%lld / %lld 시트";
+"Sheet Size" = "시트 크기";
 "Sheet name" = "시트 이름";
 "Shot" = "산탄 잡음";
 "Shove" = "밀어내기";
@@ -698,6 +743,8 @@
 "Show" = "표시";
 "Show Crash Reports" = "충돌 보고서 보기";
 "Show Navigator" = "네비게이터 보기";
+"Show in Schematic" = "회로도에서 보기";
+"Show on PCB" = "PCB에서 보기";
 "Show one robot platform's production parts kit" = "로봇 플랫폼 하나의 양산 부품 키트 보기";
 "Show splash screen at launch" = "실행 시 스플래시 화면 표시";
 "Show these parts in the schematic" = "이 부품을 회로도에 표시";
@@ -736,6 +783,7 @@
 "Starting the design engine" = "설계 엔진 시작 중";
 "Step" = "스텝";
 "Step response" = "계단 응답";
+"Step x, y" = "간격 x, y";
 "Stitch vias at the selected (or every) power MOSFET's drain / tab pad" = "선택한(또는 모든) 전력 MOSFET의 드레인 / 탭 패드에 스티칭 비아 배치";
 "Stitch vias at the selected parts' drain / tab pads (every power MOSFET if none is selected)" = "선택한 부품의 드레인 / 탭 패드에 스티칭 비아 배치 (선택하지 않으면 모든 전력 MOSFET)";
 "Stock" = "재고";

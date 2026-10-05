@@ -1540,3 +1540,62 @@ final class LiveSession: @unchecked Sendable {
 
     func sendSerial(_ id: Int, text: String) { _ = locked { sieda_live_serial_input($0, Int32(id), text) } }
 }
+
+// MARK: - Schematic capture: editing productivity, back-annotation, templates and PDF
+
+extension EDAEngine {
+    private static func idList(_ ids: [Int]) -> String { "[" + ids.map(String.init).joined(separator: ",") + "]" }
+
+    /// Aligns or distributes components: "left", "right", "top", "bottom", "centerX", "centerY", "distributeX",
+    /// "distributeY". The number moved (0 when nothing moved).
+    @discardableResult
+    func alignComponents(_ ids: [Int], mode: String) -> Int {
+        let ids = Self.idList(ids)
+        return max(0, Int(withHandle { sieda_align_components($0, ids, mode) }))
+    }
+
+    /// Clipboard text of components and the wires between them.
+    func copyComponents(_ ids: [Int]) -> String? {
+        let ids = Self.idList(ids)
+        return Self.take(withHandle { sieda_copy_components($0, ids) })
+    }
+
+    /// Pastes a clipboard (a paste array when `count` > 1); the new components' ids.
+    func pasteComponents(_ clip: String, offset: CGSize, count: Int = 1, step: CGSize = .zero, labelIncrement: Int = 0) -> [Int] {
+        let options = "{\"dx\":\(Double(offset.width)),\"dy\":\(Double(offset.height)),\"count\":\(count),"
+            + "\"stepX\":\(Double(step.width)),\"stepY\":\(Double(step.height)),\"labelIncrement\":\(labelIncrement)}"
+        return Self.decode([Int].self, from: Self.take(withHandle { sieda_paste_components($0, clip, options) })) ?? []
+    }
+
+    /// Back-annotation: designators re-numbered by board position (proposed, not applied).
+    func reannotateFromBoard(byColumns: Bool) -> [EcoChangeInfo] {
+        Self.decode([EcoChangeInfo].self, from: Self.take(withHandle { sieda_reannotate_from_board($0, byColumns ? 1 : 0) })) ?? []
+    }
+
+    /// Back-annotation: the changes of a WAS / IS text (proposed, not applied).
+    func ecoFromWasIs(_ text: String) -> [EcoChangeInfo] {
+        Self.decode([EcoChangeInfo].self, from: Self.take(withHandle { sieda_eco_from_was_is($0, text) })) ?? []
+    }
+
+    /// Applies the changes; the number applied.
+    @discardableResult
+    func applyEco(_ changes: [EcoChangeInfo]) -> Int {
+        let encoder = JSONEncoder()
+        guard let data = try? encoder.encode(changes) else { return 0 }
+        let json = String(decoding: data, as: UTF8.self)
+        return max(0, Int(withHandle { sieda_apply_eco($0, json) }))
+    }
+
+    @discardableResult
+    func setSheetSize(_ id: Int, size: String) -> Bool { withHandle { sieda_set_sheet_size($0, Int32(id), size) } == 1 }
+
+    /// Drawing templates (A4 … A0, ANSI A … E).
+    static func sheetTemplates() -> [SheetTemplateInfo] {
+        decode([SheetTemplateInfo].self, from: take(sieda_sheet_templates_json())) ?? []
+    }
+
+    /// PDF of every sheet with hierarchy bookmarks, frames and title blocks.
+    func schematicPDF() -> Data? {
+        Self.take(withHandle { sieda_export_schematic_pdf($0) }).map { Data($0.utf8) }
+    }
+}

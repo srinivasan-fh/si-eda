@@ -1013,3 +1013,41 @@ int sieda_c_api_directive_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Editing productivity, back-annotation, templates and PDF through the C API. Returns 0 or the failing step. */
+int sieda_c_api_schematic_tools_test(void) {
+    SiedaProject* p = sieda_project_new("Tools");
+    if (!p) return 1;
+    int32_t a = sieda_add_component(p, 0, "1k", 0, 0, 0, NULL);
+    int32_t b = sieda_add_component(p, 0, "2k", 130, 40, 0, NULL);
+    int32_t l = sieda_add_component(p, 15, "D0", -60, 0, 0, NULL);
+    if (a < 0 || b < 0 || l < 0 || sieda_connect(p, l, 0, a, 0) < 0) return 2;
+    char ids[64];
+    snprintf(ids, sizeof ids, "[%d,%d]", (int)a, (int)b);
+    if (sieda_align_components(p, ids, "top") != 1 || sieda_align_components(p, ids, "sideways") != -1) return 3;
+    snprintf(ids, sizeof ids, "[%d,%d]", (int)l, (int)a);
+    char* clip = sieda_copy_components(p, ids);
+    if (!clip || !strstr(clip, "sieda.schematic-clip/1")) return 4;
+    char* made = sieda_paste_components(p, clip, "{\"dy\":60,\"count\":2,\"stepY\":60,\"labelIncrement\":1}");
+    if (!made || made[0] != '[') return 5;
+    sieda_string_free(made);
+    sieda_string_free(clip);
+    if (sieda_paste_components(p, "{\"format\":\"x\"}", NULL) == NULL) return 6; /* nothing pasted: an empty list */
+    if (!sieda_swap_pin_connections(p, a, 0, 1) || sieda_swap_pin_connections(p, a, 0, 9)) return 7;
+    char* eco = sieda_eco_from_was_is(p, "R1 R7\nR42 R43\n");
+    if (!eco || !strstr(eco, "\"applicable\":true") || !strstr(eco, "No part R42")) return 8;
+    if (sieda_apply_eco(p, eco) != 1 || sieda_find_component(p, "R7") != a) return 9;
+    sieda_string_free(eco);
+    char* board = sieda_reannotate_from_board(p, 0);
+    if (!board || board[0] != '[') return 10;
+    sieda_string_free(board);
+    char* templates = sieda_sheet_templates_json();
+    if (!templates || !strstr(templates, "\"ANSI D\"")) return 11;
+    sieda_string_free(templates);
+    if (!sieda_set_sheet_size(p, 1, "A3") || sieda_set_sheet_size(p, 1, "Z9")) return 12;
+    char* pdf = sieda_export_schematic_pdf(p);
+    if (!pdf || strncmp(pdf, "%PDF-1.4", 8) != 0 || !strstr(pdf, "(A3)")) return 13;
+    sieda_string_free(pdf);
+    sieda_project_free(p);
+    return 0;
+}

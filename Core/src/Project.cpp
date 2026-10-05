@@ -1,5 +1,6 @@
 #include "sieda/Project.hpp"
 #include "sieda/Model3D.hpp"
+#include "sieda/SchematicPdf.hpp"
 
 #include "sieda/Aerospace.hpp"
 #include "sieda/Naval.hpp"
@@ -150,6 +151,7 @@ Json sheetsJson(const Schematic& sch) {
         if (s.instanceOf != 0) j["instanceOf"] = s.instanceOf;
         if (!s.channel.empty()) j["channel"] = s.channel;
         if (s.refs != InstanceRefs::SheetNumber) j["refs"] = instanceRefsName(s.refs);
+        if (!s.size.empty()) j["size"] = s.size;
         arr.push(j);
     }
     return arr;
@@ -764,6 +766,8 @@ Project Project::fromJson(const Json& root) {
             s.instanceOf = std::max(0, j.get("instanceOf").asInt(0));
             s.channel = j.get("channel").asString("");
             if (!instanceRefsFromName(j.get("refs").asString("sheet"), &s.refs)) s.refs = InstanceRefs::SheetNumber;
+            s.size = j.get("size").asString("");
+            if (!findSheetTemplate(s.size)) s.size.clear();  // unknown template: sized to the drawing
             sheets.push_back(s);
         }
         p.schematic.restoreSheets(sheets, root.get("activeSheet").asInt(0));
@@ -1022,6 +1026,8 @@ Json Project::snapshot() const {
             j["name"] = s.name;
             j["parent"] = s.parent;
             j["depth"] = schematic.sheetDepth(s.id);
+            j["size"] = s.size;
+            j["template"] = sheetTemplateFor(*this, s.id).name;
             Json ports = Json::array();
             for (const auto& port : schematic.sheetPorts(s.id)) ports.push(port);
             j["ports"] = ports;

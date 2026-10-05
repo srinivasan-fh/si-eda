@@ -1,6 +1,8 @@
 /* SiEDA interface strings — nl. Keys are the English text; check with tools/check_localization.py. */
 
+"%lld errors · %lld warnings" = "%lld fouten · %lld waarschuwingen";
 "%lld matches" = "%lld resultaten";
+"%lld of %lld changes selected" = "%lld van %lld wijzigingen geselecteerd";
 "%lld values" = "%lld waarden";
 "0 derives the value from the regulator type" = "0 leidt de waarde af van het regelaartype";
 "10 s" = "10 s";
@@ -56,6 +58,12 @@
 "Aerospace Mission" = "Ruimtevaartmissie";
 "Agent Pipeline" = "Agent-pijplijn";
 "Agents" = "Agents";
+"Align Bottom" = "Onder uitlijnen";
+"Align Horizontal Centres" = "Horizontale middens uitlijnen";
+"Align Left" = "Links uitlijnen";
+"Align Right" = "Rechts uitlijnen";
+"Align Top" = "Boven uitlijnen";
+"Align Vertical Centres" = "Verticale middens uitlijnen";
 "All" = "Alle";
 "Amplitude" = "Amplitude";
 "An entry (a local net label on the bus) for every member that has none yet" = "Een aftakking (lokaal netlabel op de bus) voor elk lid dat er nog geen heeft";
@@ -70,11 +78,13 @@
 "Appends the imported block (connector, cable, backplane) after the routed channel" = "Voegt het geïmporteerde blok (connector, kabel, backplane) toe na het gerouteerde kanaal";
 "Appliance Type" = "Type apparaat";
 "Apply" = "Pas toe";
+"Apply Changes" = "Wijzigingen toepassen";
 "Apply Footprint" = "Footprint toepassen";
 "Apply Outline" = "Omtrek toepassen";
 "Apply Prices to BOM" = "Prijzen toepassen op BOM";
 "Apply Symbol" = "Symbool toepassen";
 "Apply Tuning" = "Afstemming toepassen";
+"Arrange" = "Schikken";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Schemasymbool indelen: pinnen aan elke zijde, groepen, gestapelde voedingspinnen, automatisch indelen";
 "Arrange the symbol, or define the gates of a multi-unit part" = "Het symbool schikken of de poorten van een onderdeel met meerdere eenheden vastleggen";
 "Arranged symbol" = "Ingedeeld symbool";
@@ -87,6 +97,7 @@
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "Koppel een VRML- (.wrl), STL- of OBJ-model en lijn het uit op de footprint";
 "Audience (optional)" = "Doelgroep (optioneel)";
 "Auto" = "Auto";
+"Auto (fits the drawing)" = "Automatisch (past bij de tekening)";
 "Auto Arrange" = "Automatisch indelen";
 "Auto Route" = "Automatisch routeren";
 "Auto Route Board" = "Board automatisch routeren";
@@ -99,6 +110,7 @@
 "BODY" = "BODY";
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM voor assemblage (JLCPCB / PCBWay)…";
+"Back Annotate" = "Terug-annoteren";
 "Backdrill via stubs on fast nets" = "Via-stubs op snelle netten terugboren";
 "Backward Euler" = "Achterwaartse Euler";
 "Bandwidth" = "Bandbreedte";
@@ -112,6 +124,7 @@
 "Block designator" = "Blokreferentie";
 "Block value: %@" = "Blokwaarde: %@";
 "Board Setup" = "Board-instellingen";
+"Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review" = "Wijzigingen op de print (referenties, pinwissels, poortwissels) ter beoordeling voorgesteld aan het schema";
 "Board default" = "Standaard van de print";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Boardomtrek (quad-X-frame, afgerond, cirkel), montagegaten, kopervlakken/-planes en netklassen";
 "Board thickness" = "Boarddikte";
@@ -139,6 +152,7 @@
 "Cavity model" = "Resonatormodel";
 "Centre" = "Centreer";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Centreer het model op de footprint en zet het laagste punt op het printoppervlak";
+"Changes from a WAS / IS file" = "Wijzigingen uit een WAS / IS-bestand";
 "Channel" = "Kanaal";
 "Channel %@ of %@ — edits apply to every channel" = "Kanaal %@ van %@ — bewerkingen gelden voor elk kanaal";
 "Channel Designators" = "Kanaalreferenties";
@@ -175,6 +189,8 @@
 "Close" = "Sluiten";
 "Close Gaps" = "Gaten dichten";
 "Company" = "Bedrijf";
+"Compile" = "Compileren";
+"Compile to check every sheet." = "Compileer om elk blad te controleren.";
 "Component Placement List (CPL)…" = "Componentplaatsingslijst (CPL)…";
 "Components" = "Componenten";
 "Components (%lld)" = "Componenten (%lld)";
@@ -184,9 +200,13 @@
 "Conformal coating" = "Conformal coating";
 "Connect to Part" = "Verbinden met onderdeel";
 "Construction" = "Constructie";
+"Copies" = "Kopieën";
+"Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "Kopieën van het klembord, elk een stap verder (schema-eenheden, 10 = één raster). Onderdelen krijgen de volgende vrije referentie; nummers van netlabels tellen op met de stap (D0 → D1 …).";
 "Copper colours" = "Koperkleuren";
 "Copper foil" = "Koperfolie";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Koperlagen: 1 = enkelzijdig (geen vias), 2–6 voor de meeste producten, 8–24 voor moederborden, servers, mainframes en GPU-baseboards";
+"Copy" = "Kopiëren";
+"Copy, paste, paste array (designators numbered on, labels counted up), align and distribute" = "Kopiëren, plakken, plakken als reeks (referenties doorgenummerd, labels opgeteld), uitlijnen en verdelen";
 "Corners" = "Hoeken";
 "Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only" = "Hoeken worden bogen (getekend als korte rechte koorden) waar ze passen en de afstand houden; alleen enkele sporen";
 "Coupled sections" = "Gekoppelde secties";
@@ -196,6 +216,7 @@
 "Current density" = "Stroomdichtheid";
 "Currents" = "Stromen";
 "Cursors & Measurements" = "Cursors en metingen";
+"Cut" = "Knippen";
 "DC" = "DC";
 "DC Operating Point" = "DC-werkpunt";
 "DC Sweep" = "DC-sweep";
@@ -237,6 +258,8 @@
 "Differential pair" = "Differentieel paar";
 "Differential pair member" = "Lid van een differentieel paar";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "DigiKey-API-applicatie (Production) met Product Information v4; client-credentials-flow.";
+"Distribute Horizontally" = "Horizontaal verdelen";
+"Distribute Vertically" = "Verticaal verdelen";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Niet plaatsen: op het board maar niet gemonteerd; weggelaten uit de assemblage-BOM en CPL";
 "Done" = "Gereed";
 "Down ↓" = "Omlaag ↓";
@@ -251,6 +274,7 @@
 "Duty cycle" = "Duty cycle";
 "ECU Type" = "Type ECU";
 "ELECTRONIC DESIGN AUTOMATION" = "ELEKTRONISCHE ONTWERPAUTOMATISERING";
+"ENGINEERING CHANGE ORDER" = "ENGINEERING CHANGE ORDER";
 "ERC" = "ERC";
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "Elk mesh-net verbindt de drive- en sense-pinnen van het secure element; Automatisch routeren legt de serpentines op ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "Elke via wordt beperkt tot de lagen die hij verbindt; overspanningen van één diëlektricum worden lasermicrovias over dunne opbouwlagen";
@@ -264,6 +288,7 @@
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Voer hierboven de issuer-URL van je identiteitsprovider en de client-ID van SiEDA in om deze knop in te schakelen (vraag je IT-beheerder).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxy onder processors, BGA's en grote condensatoren zodat een MIL-STD-901E-schok ze niet losscheurt";
 "Errors" = "Fouten";
+"Every ERC message of every sheet; click one to go there" = "Elk ERC-bericht van elk blad; klik erop om erheen te gaan";
 "Every pin is placed once; no pins collide" = "Elke pin is één keer geplaatst; geen pinnen overlappen";
 "Every unit is valid" = "Elke eenheid is geldig";
 "Exchange the wires of two interchangeable pins of this gate" = "De draden van twee uitwisselbare pinnen van deze poort verwisselen";
@@ -303,10 +328,14 @@
 "Footprint" = "Footprint";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Footprint waarin het onderdeel gemonteerd wordt: chipformaat, through-hole, tantaal- of elco-behuizing";
 "Frequency" = "Frequentie";
+"From Board Positions (Columns)" = "Uit printposities (kolommen)";
+"From Board Positions (Rows)" = "Uit printposities (rijen)";
+"From WAS / IS File…" = "Uit WAS / IS-bestand…";
 "Fundamental" = "Grondtoon";
 "Gain" = "Versterking";
 "Gap Before" = "Ruimte ervoor";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Afstand tussen meanderbenen, rand tot rand, in mm (leeg: drie spoorbreedtes hart op hart)";
+"Gate swap" = "Poortwissel";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Poorten van onderdelen met meerdere eenheden (A, B, C, D van een viervoudige opamp) vullen behuizingen in plaatsingsvolgorde vóór de nummering";
 "Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "Poorten van één wisselgroep (of identieke poorten) kunnen worden verwisseld met Poorten wisselen en inpakken";
 "Generate Design" = "Ontwerp genereren";
@@ -368,6 +397,7 @@
 "Issuer URL" = "Issuer-URL";
 "Keep results for %lld hours" = "Resultaten %lld uur bewaren";
 "LAYERS" = "LAGEN";
+"Label increment" = "Labelstap";
 "Laminate" = "Laminaat";
 "Language" = "Taal";
 "Largest contributors" = "Grootste bijdragen";
@@ -400,6 +430,7 @@
 "Lossless" = "Verliesvrij";
 "Lossy" = "Met verlies";
 "Lumped model" = "Samengevoegd model";
+"MESSAGES" = "BERICHTEN";
 "Magnitude" = "Amplitude";
 "Make Swap Group" = "Wisselgroep maken";
 "Manufacturer part #" = "Fabrikantnummer";
@@ -417,6 +448,7 @@
 "Medical Device Class" = "Klasse medisch hulpmiddel";
 "Members" = "Leden";
 "Memory Design" = "Geheugenontwerp";
+"Messages" = "Berichten";
 "Microvia" = "Microvia";
 "Min" = "Min";
 "Mirror" = "Spiegel";
@@ -452,10 +484,12 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Nexar-applicatie met de Supply-scope (clientgegevens). Octopart-gegevens: aanbiedingen van veel distributeurs in één zoekopdracht.";
 "No 3D model: the part shows its generated body." = "Geen 3D-model: het onderdeel toont zijn gegenereerde behuizing.";
 "No API key: add one in Settings → Suppliers" = "Geen API-sleutel: voeg er een toe in Instellingen → Leveranciers";
+"No changes: the schematic already matches the board." = "Geen wijzigingen: het schema komt al overeen met de print.";
 "No crosstalk or return-path problems found" = "Geen overspraak- of retourpadproblemen gevonden";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Geen differentiële paren (…_P/_N, …+/-) of bussen (DQ0…, DATA[0..7], ADDR…) in dit ontwerp.";
 "No distributor API keys yet" = "Nog geen API-sleutels van distributeurs";
 "No distributor offers." = "Geen aanbiedingen van distributeurs.";
+"No errors or warnings." = "Geen fouten of waarschuwingen.";
 "No gates found in the pin names." = "Geen poorten gevonden in de pinnamen.";
 "No imported model" = "Geen geïmporteerd model";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "Geen ingangsbron: geef de ingang een AC-amplitude of noem hem om de naar de ingang herleide ruis te zien.";
@@ -520,6 +554,8 @@
 "PAD ARRAY" = "PAD-ARRAY";
 "PARAMETERS" = "PARAMETERS";
 "PCB Layout" = "PCB-layout";
+"PDF" = "PDF";
+"PDF of every sheet with bookmarks, frames and title blocks" = "PDF van elk blad met bladwijzers, kaders en titelblokken";
 "PIN SWAP" = "PINWISSEL";
 "PINS" = "PINNEN";
 "PRBS" = "PRBS";
@@ -535,7 +571,10 @@
 "Parts" = "Onderdelen";
 "Parts you import, create or add from the standard library appear here and in the schematic device picker." = "Onderdelen die je importeert, maakt of toevoegt uit de standaardbibliotheek verschijnen hier en in de componentkiezer van het schema.";
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "Onderdelen, sporen en vulvlakken van gescheiden galvanische domeinen (over isolatoren en geïsoleerde converters) ";
+"Paste" = "Plakken";
 "Paste API key" = "API-sleutel plakken";
+"Paste Array" = "Plakken als reeks";
+"Paste Array…" = "Plakken als reeks…";
 "Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "Plak of open modeltekst van de fabrikant (.lib, .mod, .cir): .model- en .subckt-definities.";
 "Pattern" = "Patroon";
 "Peak" = "Piek";
@@ -546,6 +585,7 @@
 "Pin" = "Pin";
 "Pin map" = "Pintoewijzing";
 "Pin names" = "Pinnamen";
+"Pin swap" = "Pinwissel";
 "Pins: " = "Pinnen: ";
 "Place %@ Connector…" = "%@-connector plaatsen…";
 "Place Harness Connector" = "Harnasconnector plaatsen";
@@ -574,6 +614,8 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Re-annotate from the board (columns)" = "Opnieuw annoteren vanaf de print (kolommen)";
+"Re-annotate from the board (rows)" = "Opnieuw annoteren vanaf de print (rijen)";
 "Re-verify" = "Opnieuw verifiëren";
 "Read Pins from Datasheet" = "Pinnen uit datasheet lezen";
 "Ready" = "Gereed";
@@ -592,6 +634,7 @@
 "Remove the firmware" = "Verwijder de firmware";
 "Remove the selected unit (its pins go to the power unit)" = "De geselecteerde eenheid verwijderen (haar pinnen gaan naar de voedingseenheid)";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "Verwijdert de ongebruikte viahuls onder de laatst verbonden laag (≥ 4 lagen); voegt een backdrill-bestand toe";
+"Rename" = "Hernoemen";
 "Rename Channel" = "Kanaal hernoemen";
 "Rename Channel…" = "Kanaal hernoemen…";
 "Rename Sheet" = "Blad hernoemen";
@@ -642,6 +685,7 @@
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "Voer een transiëntanalyse uit om het te draaien: pinnen sturen de schakeling aan, ingangen en de ADC lezen haar uit en de seriële uitvoer verschijnt in Simulatie.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "Draai het board in realtime (⌘R): LED's lichten op, klik op schakelaars, firmware draait, live probes";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "Draai het board in realtime: firmware, LED's, schakelaars, scope en seriële monitor";
+"Run the electrical rule check on every sheet" = "Elektrische regelcontrole op elk blad uitvoeren";
 "Runs" = "Runs";
 "S-parameters" = "S-parameters";
 "SI / PI" = "SI / PI";
@@ -690,6 +734,7 @@
 "Shared by several gates" = "Gedeeld door meerdere poorten";
 "Sheet" = "Blad";
 "Sheet %lld of %lld" = "Blad %lld van %lld";
+"Sheet Size" = "Bladformaat";
 "Sheet name" = "Bladnaam";
 "Shot" = "Hagel";
 "Shove" = "Duwen";
@@ -698,6 +743,8 @@
 "Show" = "Toon";
 "Show Crash Reports" = "Crashrapporten tonen";
 "Show Navigator" = "Navigator tonen";
+"Show in Schematic" = "Tonen in schema";
+"Show on PCB" = "Tonen op PCB";
 "Show one robot platform's production parts kit" = "Toon de productieonderdelenkit van één robotplatform";
 "Show splash screen at launch" = "Toon startscherm bij opstarten";
 "Show these parts in the schematic" = "Toon deze onderdelen in het schema";
@@ -736,6 +783,7 @@
 "Starting the design engine" = "Ontwerpengine starten";
 "Step" = "Stap";
 "Step response" = "Stapresponsie";
+"Step x, y" = "Stap x, y";
 "Stitch vias at the selected (or every) power MOSFET's drain / tab pad" = "Stitching-vias bij de drain-/tab-pad van de geselecteerde (of elke) vermogens-MOSFET";
 "Stitch vias at the selected parts' drain / tab pads (every power MOSFET if none is selected)" = "Stitching-vias bij de drain-/tab-pads van de geselecteerde onderdelen (elke vermogens-MOSFET als niets geselecteerd is)";
 "Stock" = "Voorraad";

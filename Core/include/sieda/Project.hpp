@@ -20,6 +20,18 @@ struct TitleBlock {
     bool empty() const { return title.empty() && company.empty() && revision.empty() && date.empty() && drawnBy.empty(); }
 };
 
+/// A change the board proposes to the schematic (back-annotation, Altium's ECO): a designator rename, a pin swap
+/// (two pins of a part exchange their connections) or a gate swap (two units exchange gates).
+struct EcoChange {
+    std::string kind;          // "rename", "pinSwap", "gateSwap"
+    int component = -1;        // the part (rename, pin swap; a multi-unit part's package) or the first unit
+    std::string from, to;      // rename: designators; pin / gate swap: what changes places
+    int pinA = -1, pinB = -1;  // pin swap: pins of the part
+    int other = -1;            // gate swap: the second unit
+    bool applicable = true;
+    std::string note;          // why it cannot be applied
+};
+
 class Project {
 public:
     std::string name = "Untitled";
@@ -100,6 +112,18 @@ public:
     /// replace those of the previous application in the board settings (nets the schematic never set keep theirs).
     /// Returns true when the board rules changed. Called by schematicChanged().
     bool applySchematicRules();
+
+    // ---- back-annotation (board → schematic ECO) ----
+    /// Designators re-numbered from the board: per prefix, the placed parts in board order (rows top to bottom then
+    /// left to right; or columns). Parts of repeated sheets keep theirs (their designators are generated). Only
+    /// changes are listed; nothing is applied.
+    std::vector<EcoChange> reannotateFromBoard(bool byColumns = false) const;
+    /// Changes from a WAS / IS text: "OLD NEW" renames, "PINSWAP REF PIN PIN" and "GATESWAP U1A U2B" lines ('#'
+    /// comments). Changes that cannot be applied are listed with a note.
+    std::vector<EcoChange> ecoFromWasIs(const std::string& text) const;
+    /// Applies the applicable changes (renames through temporary designators, so R1 ↔ R2 swaps work). Returns the
+    /// number applied.
+    int applyEco(const std::vector<EcoChange>& changes);
 
     Json toJson() const;
     static Project fromJson(const Json& j);  // throws JsonError on malformed input

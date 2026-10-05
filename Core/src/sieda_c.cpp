@@ -36,6 +36,7 @@
 #include "sieda/Project.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Robotics.hpp"
+#include "sieda/SchematicPdf.hpp"
 #include "sieda/SchematicSearch.hpp"
 #include "sieda/SignalIntegrity.hpp"
 #include "sieda/Channel.hpp"
@@ -3105,6 +3106,167 @@ char* sieda_net_rules_json(const SiedaProject* project) {
             arr.push(j);
         }
         return dup(arr.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+}  // extern "C"
+
+// ---- schematic capture: editing productivity, back-annotation, templates and PDF
+
+namespace {
+std::vector<int> idsFromJson(const char* json) {
+    std::vector<int> ids;
+    if (!json) return ids;
+    const Json parsed = Json::parse(json);
+    for (const auto& v : parsed.items()) ids.push_back(v.asInt(-1));
+    return ids;
+}
+
+Json ecoToJson(const std::vector<EcoChange>& changes) {
+    Json arr = Json::array();
+    for (const auto& e : changes) {
+        Json j = Json::object();
+        j["kind"] = e.kind;
+        j["component"] = e.component;
+        j["from"] = e.from;
+        j["to"] = e.to;
+        j["pinA"] = e.pinA;
+        j["pinB"] = e.pinB;
+        j["other"] = e.other;
+        j["applicable"] = e.applicable;
+        j["note"] = e.note;
+        arr.push(j);
+    }
+    return arr;
+}
+}  // namespace
+
+extern "C" {
+
+int32_t sieda_align_components(SiedaProject* project, const char* ids_json, const char* mode) {
+    if (!project) return -1;
+    try {
+        AlignMode m;
+        if (!alignModeFromName(str(mode), &m)) return -1;
+        const int moved = project->project.schematic.alignComponents(idsFromJson(ids_json), m);
+        if (moved > 0) project->project.schematicChanged();
+        return moved;
+    } catch (...) {
+        return -1;
+    }
+}
+
+char* sieda_copy_components(const SiedaProject* project, const char* ids_json) {
+    if (!project) return nullptr;
+    try {
+        return dup(project->project.schematic.copyComponents(idsFromJson(ids_json)).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_paste_components(SiedaProject* project, const char* clip_json, const char* options_json) {
+    if (!project || !clip_json) return nullptr;
+    try {
+        const Json clip = Json::parse(clip_json);
+        PasteOptions o;
+        if (options_json && *options_json) {
+            const Json j = Json::parse(options_json);
+            o.offset = {j.get("dx").asNumber(0), j.get("dy").asNumber(0)};
+            o.count = j.get("count").asInt(1);
+            o.step = {j.get("stepX").asNumber(0), j.get("stepY").asNumber(0)};
+            o.labelIncrement = std::clamp(j.get("labelIncrement").asInt(0), -1000, 1000);
+            if (!std::isfinite(o.offset.x) || !std::isfinite(o.offset.y) || !std::isfinite(o.step.x) || !std::isfinite(o.step.y))
+                return nullptr;
+        }
+        const auto ids = project->project.schematic.pasteComponents(clip, o);
+        if (!ids.empty()) project->project.schematicChanged();
+        Json arr = Json::array();
+        for (int id : ids) arr.push(id);
+        return dup(arr.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_swap_pin_connections(SiedaProject* project, int32_t component, int32_t pin_a, int32_t pin_b) {
+    if (!project) return 0;
+    return guarded([&] {
+        if (!project->project.schematic.swapPinConnections(component, pin_a, pin_b)) return 0;
+        project->project.schematicChanged();
+        return 1;
+    });
+}
+
+char* sieda_reannotate_from_board(const SiedaProject* project, int32_t by_columns) {
+    if (!project) return nullptr;
+    try {
+        return dup(ecoToJson(project->project.reannotateFromBoard(by_columns != 0)).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_eco_from_was_is(const SiedaProject* project, const char* text) {
+    if (!project) return nullptr;
+    try {
+        return dup(ecoToJson(project->project.ecoFromWasIs(str(text))).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_apply_eco(SiedaProject* project, const char* eco_json) {
+    if (!project || !eco_json) return -1;
+    try {
+        std::vector<EcoChange> changes;
+        const Json parsed = Json::parse(eco_json);
+        for (const auto& j : parsed.items()) {
+            EcoChange e;
+            e.kind = j.get("kind").asString("");
+            e.component = j.get("component").asInt(-1);
+            e.from = j.get("from").asString("");
+            e.to = j.get("to").asString("");
+            e.pinA = j.get("pinA").asInt(-1);
+            e.pinB = j.get("pinB").asInt(-1);
+            e.other = j.get("other").asInt(-1);
+            e.applicable = j.get("applicable").asBool(true);
+            if (e.kind == "rename" && e.to.empty()) continue;
+            changes.push_back(e);
+        }
+        return project->project.applyEco(changes);
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_set_sheet_size(SiedaProject* project, int32_t sheet, const char* size) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setSheetSize(sheet, str(size)) ? 1 : 0; });
+}
+
+char* sieda_sheet_templates_json(void) {
+    try {
+        Json arr = Json::array();
+        for (const auto& t : sheetTemplates()) {
+            Json j = Json::object();
+            j["name"] = t.name;
+            j["width"] = t.widthMm;
+            j["height"] = t.heightMm;
+            arr.push(j);
+        }
+        return dup(arr.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_export_schematic_pdf(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(exportSchematicPdf(project->project));
     } catch (...) {
         return nullptr;
     }

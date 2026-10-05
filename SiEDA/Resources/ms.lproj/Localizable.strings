@@ -1,6 +1,8 @@
 /* SiEDA interface strings — ms. Keys are the English text; check with tools/check_localization.py. */
 
+"%lld errors · %lld warnings" = "%lld ralat · %lld amaran";
 "%lld matches" = "%lld padanan";
+"%lld of %lld changes selected" = "%lld daripada %lld perubahan dipilih";
 "%lld values" = "%lld nilai";
 "0 derives the value from the regulator type" = "0 menentukan nilai daripada jenis pengatur";
 "10 s" = "10 s";
@@ -56,6 +58,12 @@
 "Aerospace Mission" = "Misi Aeroangkasa";
 "Agent Pipeline" = "Saluran Paip Ejen";
 "Agents" = "Ejen";
+"Align Bottom" = "Jajar Bawah";
+"Align Horizontal Centres" = "Jajar Pusat Mendatar";
+"Align Left" = "Jajar Kiri";
+"Align Right" = "Jajar Kanan";
+"Align Top" = "Jajar Atas";
+"Align Vertical Centres" = "Jajar Pusat Menegak";
 "All" = "Semua";
 "Amplitude" = "Amplitud";
 "An entry (a local net label on the bus) for every member that has none yet" = "Satu entri (label net setempat pada bas) bagi setiap ahli yang belum ada";
@@ -70,11 +78,13 @@
 "Appends the imported block (connector, cable, backplane) after the routed channel" = "Menyambung blok yang diimport (penyambung, kabel, satah belakang) selepas saluran yang dilaluankan";
 "Appliance Type" = "Jenis Perkakas";
 "Apply" = "Guna";
+"Apply Changes" = "Guna Perubahan";
 "Apply Footprint" = "Guna Tapak Kaki";
 "Apply Outline" = "Guna Garis Luar";
 "Apply Prices to BOM" = "Gunakan Harga pada BOM";
 "Apply Symbol" = "Guna Simbol";
 "Apply Tuning" = "Guna Penalaan";
+"Arrange" = "Susun";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Susun simbol skematik: pin di mana-mana sisi, kumpulan, pin kuasa bertindan, susun automatik";
 "Arrange the symbol, or define the gates of a multi-unit part" = "Susun simbol, atau takrifkan get bagi komponen berbilang unit";
 "Arranged symbol" = "Simbol tersusun";
@@ -87,6 +97,7 @@
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "Lampirkan model VRML (.wrl), STL atau OBJ dan jajarkan pada tapak";
 "Audience (optional)" = "Sasaran pembaca (pilihan)";
 "Auto" = "Auto";
+"Auto (fits the drawing)" = "Auto (muat lukisan)";
 "Auto Arrange" = "Susun Automatik";
 "Auto Route" = "Laluan Automatik";
 "Auto Route Board" = "Laluan Automatik Papan";
@@ -99,6 +110,7 @@
 "BODY" = "BADAN";
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM untuk Pemasangan (JLCPCB / PCBWay)…";
+"Back Annotate" = "Anotasi Balik";
 "Backdrill via stubs on fast nets" = "Gerudi balik stub via pada net laju";
 "Backward Euler" = "Euler ke belakang";
 "Bandwidth" = "Lebar jalur";
@@ -112,6 +124,7 @@
 "Block designator" = "Penanda blok";
 "Block value: %@" = "Nilai blok: %@";
 "Board Setup" = "Persediaan Papan";
+"Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review" = "Perubahan papan (penunjuk, tukar pin, tukar get) dicadangkan kepada skema untuk semakan";
 "Board default" = "Lalai papan";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Garis luar papan (bingkai quad-X, bulat, bulatan), lubang pelekap, tuangan/satah kuprum dan kelas net";
 "Board thickness" = "Ketebalan papan";
@@ -139,6 +152,7 @@
 "Cavity model" = "Model rongga";
 "Centre" = "Tengah";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Tengahkan model pada tapak dan letakkan titik terendahnya pada permukaan papan";
+"Changes from a WAS / IS file" = "Perubahan daripada fail WAS / IS";
 "Channel" = "Saluran";
 "Channel %@ of %@ — edits apply to every channel" = "Saluran %@ bagi %@ — suntingan berlaku pada setiap saluran";
 "Channel Designators" = "Penanda Saluran";
@@ -175,6 +189,8 @@
 "Close" = "Tutup";
 "Close Gaps" = "Rapatkan Jurang";
 "Company" = "Syarikat";
+"Compile" = "Kompil";
+"Compile to check every sheet." = "Kompil untuk menyemak setiap helaian.";
 "Component Placement List (CPL)…" = "Senarai Penempatan Komponen (CPL)…";
 "Components" = "Komponen";
 "Components (%lld)" = "Komponen (%lld)";
@@ -184,9 +200,13 @@
 "Conformal coating" = "Salutan konformal";
 "Connect to Part" = "Sambung ke Komponen";
 "Construction" = "Pembinaan";
+"Copies" = "Salinan";
+"Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "Salinan papan klip, setiap satu selangkah lebih jauh (unit skema, 10 = satu grid). Komponen mendapat penunjuk bebas seterusnya; nombor label net bertambah mengikut kenaikan (D0 → D1 …).";
 "Copper colours" = "Warna kuprum";
 "Copper foil" = "Kerajang kuprum";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Lapisan kuprum: 1 = satu sisi (tiada via), 2–6 untuk kebanyakan produk, 8–24 untuk papan induk, pelayan, kerangka utama dan papan asas GPU";
+"Copy" = "Salin";
+"Copy, paste, paste array (designators numbered on, labels counted up), align and distribute" = "Salin, tampal, tampal tatasusunan (penunjuk bernombor terus, label bertambah), jajar dan agih";
 "Corners" = "Penjuru";
 "Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only" = "Sudut menjadi lengkok (dilukis sebagai perentas lurus pendek) di mana ia muat dan mengekalkan kelegaan; trek tunggal sahaja";
 "Coupled sections" = "Bahagian terganding";
@@ -196,6 +216,7 @@
 "Current density" = "Ketumpatan arus";
 "Currents" = "Arus";
 "Cursors & Measurements" = "Kursor & Pengukuran";
+"Cut" = "Potong";
 "DC" = "DC";
 "DC Operating Point" = "Titik Operasi DC";
 "DC Sweep" = "Sapuan DC";
@@ -237,6 +258,8 @@
 "Differential pair" = "Pasangan pembeza";
 "Differential pair member" = "Ahli pasangan pembeza";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Aplikasi API DigiKey (Production) dengan Product Information v4; aliran kelayakan klien.";
+"Distribute Horizontally" = "Agih Mendatar";
+"Distribute Vertically" = "Agih Menegak";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Jangan pasang: ada pada papan tetapi tidak dipasang; dikecualikan daripada BOM pemasangan dan CPL";
 "Done" = "Selesai";
 "Down ↓" = "Bawah ↓";
@@ -251,6 +274,7 @@
 "Duty cycle" = "Kitar tugas";
 "ECU Type" = "Jenis ECU";
 "ELECTRONIC DESIGN AUTOMATION" = "AUTOMASI REKA BENTUK ELEKTRONIK";
+"ENGINEERING CHANGE ORDER" = "ARAHAN PERUBAHAN KEJURUTERAAN";
 "ERC" = "ERC";
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "Setiap net jaringan menyambungkan pin pemacu dan pin penderia elemen selamat; Laluan Automatik meletakkan serpentin pada ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "Setiap via dipotong ke lapisan yang disambungkannya; rentang satu dielektrik menjadi mikrovia laser di atas lapisan bina-naik nipis";
@@ -264,6 +288,7 @@
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Masukkan URL pengeluar penyedia identiti anda dan ID klien SiEDA di atas untuk mendayakan butang ini (tanya pentadbir IT anda).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoksi di bawah pemproses, BGA dan kapasitor besar supaya kejutan MIL-STD-901E tidak dapat menanggalkannya";
 "Errors" = "Ralat";
+"Every ERC message of every sheet; click one to go there" = "Setiap mesej ERC bagi setiap helaian; klik satu untuk pergi ke sana";
 "Every pin is placed once; no pins collide" = "Setiap pin diletakkan sekali; tiada pin bertembung";
 "Every unit is valid" = "Setiap unit sah";
 "Exchange the wires of two interchangeable pins of this gate" = "Tukar wayar dua pin boleh tukar ganti get ini";
@@ -303,10 +328,14 @@
 "Footprint" = "Tapak";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Tapak kaki komponen dipasang: saiz cip, lubang telus, kes tantalum atau elektrolitik";
 "Frequency" = "Frekuensi";
+"From Board Positions (Columns)" = "Dari Kedudukan Papan (Lajur)";
+"From Board Positions (Rows)" = "Dari Kedudukan Papan (Baris)";
+"From WAS / IS File…" = "Dari Fail WAS / IS…";
 "Fundamental" = "Asas";
 "Gain" = "Gandaan";
 "Gap Before" = "Jurang Sebelum";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Jarak antara kaki liku, tepi ke tepi, dalam mm (kosong: tiga lebar trek antara pusat)";
+"Gate swap" = "Tukar get";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Get komponen berbilang unit (A, B, C, D op-amp empat) mengisi pakej mengikut susunan peletakan sebelum penomboran";
 "Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "Get dalam satu kumpulan tukar (atau get yang sama) boleh ditukar melalui Tukar Get dan pembungkusan";
 "Generate Design" = "Jana Reka Bentuk";
@@ -368,6 +397,7 @@
 "Issuer URL" = "URL Pengeluar";
 "Keep results for %lld hours" = "Simpan hasil selama %lld jam";
 "LAYERS" = "LAPISAN";
+"Label increment" = "Kenaikan label";
 "Laminate" = "Lamina";
 "Language" = "Bahasa";
 "Largest contributors" = "Penyumbang terbesar";
@@ -400,6 +430,7 @@
 "Lossless" = "Tanpa lesapan";
 "Lossy" = "Berlesap";
 "Lumped model" = "Model tergumpal";
+"MESSAGES" = "MESEJ";
 "Magnitude" = "Magnitud";
 "Make Swap Group" = "Buat Kumpulan Tukar";
 "Manufacturer part #" = "No. komponen pengilang";
@@ -417,6 +448,7 @@
 "Medical Device Class" = "Kelas Peranti Perubatan";
 "Members" = "Ahli";
 "Memory Design" = "Reka Bentuk Memori";
+"Messages" = "Mesej";
 "Microvia" = "Mikrovia";
 "Min" = "Min";
 "Mirror" = "Cermin";
@@ -452,10 +484,12 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Aplikasi Nexar dengan skop Supply (kelayakan klien). Data Octopart: tawaran daripada banyak pengedar dalam satu carian.";
 "No 3D model: the part shows its generated body." = "Tiada model 3D: komponen menunjukkan badan yang dijana.";
 "No API key: add one in Settings → Suppliers" = "Tiada kunci API: tambah dalam Tetapan → Pembekal";
+"No changes: the schematic already matches the board." = "Tiada perubahan: skema sudah sepadan dengan papan.";
 "No crosstalk or return-path problems found" = "Tiada masalah cakap silang atau laluan balikan ditemui";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Tiada pasangan pembeza (…_P/_N, …+/-) atau bas (DQ0…, DATA[0..7], ADDR…) dalam reka bentuk ini.";
 "No distributor API keys yet" = "Belum ada kunci API pengedar";
 "No distributor offers." = "Tiada tawaran pengedar.";
+"No errors or warnings." = "Tiada ralat atau amaran.";
 "No gates found in the pin names." = "Tiada get ditemui dalam nama pin.";
 "No imported model" = "Tiada model diimport";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "Tiada sumber input: beri input magnitud AC atau namakannya untuk melihat hingar yang dirujuk ke input.";
@@ -520,6 +554,8 @@
 "PAD ARRAY" = "TATASUSUNAN PAD";
 "PARAMETERS" = "PARAMETER";
 "PCB Layout" = "Susun Atur PCB";
+"PDF" = "PDF";
+"PDF of every sheet with bookmarks, frames and title blocks" = "PDF setiap helaian dengan penanda halaman, bingkai dan blok tajuk";
 "PIN SWAP" = "TUKAR PIN";
 "PINS" = "PIN";
 "PRBS" = "PRBS";
@@ -535,7 +571,10 @@
 "Parts" = "Komponen";
 "Parts you import, create or add from the standard library appear here and in the schematic device picker." = "Komponen yang anda import, cipta atau tambah daripada pustaka standard dipaparkan di sini dan dalam pemilih peranti skematik.";
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "Komponen, trek dan tuangan domain galvanik berasingan (merentasi pengasing dan penukar terasing) ";
+"Paste" = "Tampal";
 "Paste API key" = "Tampal kunci API";
+"Paste Array" = "Tampal Tatasusunan";
+"Paste Array…" = "Tampal Tatasusunan…";
 "Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "Tampal atau buka teks model pembekal (.lib, .mod, .cir): takrifan .model dan .subckt.";
 "Pattern" = "Corak";
 "Peak" = "Puncak";
@@ -546,6 +585,7 @@
 "Pin" = "Pin";
 "Pin map" = "Peta pin";
 "Pin names" = "Nama pin";
+"Pin swap" = "Tukar pin";
 "Pins: " = "Pin: ";
 "Place %@ Connector…" = "Letak Penyambung %@…";
 "Place Harness Connector" = "Letak Penyambung Abah-abah";
@@ -574,6 +614,8 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Re-annotate from the board (columns)" = "Anotasi semula dari papan (lajur)";
+"Re-annotate from the board (rows)" = "Anotasi semula dari papan (baris)";
 "Re-verify" = "Sahkan Semula";
 "Read Pins from Datasheet" = "Baca Pin daripada Lembaran Data";
 "Ready" = "Sedia";
@@ -592,6 +634,7 @@
 "Remove the firmware" = "Buang perisian tegar";
 "Remove the selected unit (its pins go to the power unit)" = "Buang unit yang dipilih (pinnya pergi ke unit kuasa)";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "Membuang laras via yang tidak digunakan di bawah lapisan bersambung terakhir (≥ 4 lapisan); menambah fail gerudi balik";
+"Rename" = "Nama Semula";
 "Rename Channel" = "Namakan Semula Saluran";
 "Rename Channel…" = "Namakan Semula Saluran…";
 "Rename Sheet" = "Namakan Semula Helaian";
@@ -642,6 +685,7 @@
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "Jalankan analisis Fana untuk melaksanakannya: pin memacu litar, input dan ADC membacanya, dan output bersiri dipaparkan dalam Simulasi.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "Jalankan papan dalam masa nyata (⌘R): LED menyala, klik suis, perisian tegar berjalan, prob langsung";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "Jalankan papan dalam masa nyata: perisian tegar, LED, suis, skop dan pemantau bersiri";
+"Run the electrical rule check on every sheet" = "Jalankan semakan peraturan elektrik pada setiap helaian";
 "Runs" = "Larian";
 "S-parameters" = "Parameter S";
 "SI / PI" = "SI / PI";
@@ -690,6 +734,7 @@
 "Shared by several gates" = "Dikongsi oleh beberapa get";
 "Sheet" = "Helaian";
 "Sheet %lld of %lld" = "Helaian %lld daripada %lld";
+"Sheet Size" = "Saiz Helaian";
 "Sheet name" = "Nama helaian";
 "Shot" = "Tembakan";
 "Shove" = "Tolak";
@@ -698,6 +743,8 @@
 "Show" = "Tunjukkan";
 "Show Crash Reports" = "Tunjukkan Laporan Ranap";
 "Show Navigator" = "Tunjukkan Navigator";
+"Show in Schematic" = "Tunjuk dalam Skema";
+"Show on PCB" = "Tunjuk pada PCB";
 "Show one robot platform's production parts kit" = "Tunjukkan kit komponen pengeluaran satu platform robot";
 "Show splash screen at launch" = "Tunjukkan skrin percikan semasa pelancaran";
 "Show these parts in the schematic" = "Tunjukkan komponen ini dalam skematik";
@@ -736,6 +783,7 @@
 "Starting the design engine" = "Memulakan enjin reka bentuk";
 "Step" = "Langkah";
 "Step response" = "Sambutan langkah";
+"Step x, y" = "Langkah x, y";
 "Stitch vias at the selected (or every) power MOSFET's drain / tab pad" = "Jahit via pada pad salir / tab MOSFET kuasa terpilih (atau semua)";
 "Stitch vias at the selected parts' drain / tab pads (every power MOSFET if none is selected)" = "Jahit via pada pad salir / tab komponen terpilih (semua MOSFET kuasa jika tiada yang dipilih)";
 "Stock" = "Stok";

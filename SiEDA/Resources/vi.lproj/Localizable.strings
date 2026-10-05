@@ -1,6 +1,8 @@
 /* SiEDA interface strings — vi. Keys are the English text; check with tools/check_localization.py. */
 
+"%lld errors · %lld warnings" = "%lld lỗi · %lld cảnh báo";
 "%lld matches" = "%lld kết quả";
+"%lld of %lld changes selected" = "Đã chọn %lld trên %lld thay đổi";
 "%lld values" = "%lld giá trị";
 "0 derives the value from the regulator type" = "0 lấy giá trị theo loại bộ ổn áp";
 "10 s" = "10 s";
@@ -56,6 +58,12 @@
 "Aerospace Mission" = "Nhiệm vụ hàng không vũ trụ";
 "Agent Pipeline" = "Quy trình tác tử";
 "Agents" = "Tác tử";
+"Align Bottom" = "Căn dưới";
+"Align Horizontal Centres" = "Căn giữa theo chiều ngang";
+"Align Left" = "Căn trái";
+"Align Right" = "Căn phải";
+"Align Top" = "Căn trên";
+"Align Vertical Centres" = "Căn giữa theo chiều dọc";
 "All" = "Tất cả";
 "Amplitude" = "Biên độ";
 "An entry (a local net label on the bus) for every member that has none yet" = "Một nhánh (nhãn net cục bộ trên bus) cho mỗi thành viên chưa có";
@@ -70,11 +78,13 @@
 "Appends the imported block (connector, cable, backplane) after the routed channel" = "Nối khối đã nhập (đầu nối, cáp, bo mạch nền) sau kênh đã đi dây";
 "Appliance Type" = "Loại thiết bị gia dụng";
 "Apply" = "Áp dụng";
+"Apply Changes" = "Áp dụng thay đổi";
 "Apply Footprint" = "Áp dụng footprint";
 "Apply Outline" = "Áp dụng đường viền";
 "Apply Prices to BOM" = "Áp dụng giá vào BOM";
 "Apply Symbol" = "Áp dụng ký hiệu";
 "Apply Tuning" = "Áp dụng tinh chỉnh";
+"Arrange" = "Sắp xếp";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Sắp xếp ký hiệu sơ đồ: chân ở mọi cạnh, nhóm, xếp chồng chân nguồn, tự động sắp xếp";
 "Arrange the symbol, or define the gates of a multi-unit part" = "Sắp xếp ký hiệu hoặc định nghĩa các cổng của linh kiện nhiều đơn vị";
 "Arranged symbol" = "Ký hiệu đã sắp xếp";
@@ -87,6 +97,7 @@
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "Gắn mô hình VRML (.wrl), STL hoặc OBJ và căn theo footprint";
 "Audience (optional)" = "Đối tượng (tùy chọn)";
 "Auto" = "Tự động";
+"Auto (fits the drawing)" = "Tự động (vừa bản vẽ)";
 "Auto Arrange" = "Tự động sắp xếp";
 "Auto Route" = "Tự động đi dây";
 "Auto Route Board" = "Tự động đi dây bo mạch";
@@ -99,6 +110,7 @@
 "BODY" = "THÂN";
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM để lắp ráp (JLCPCB / PCBWay)…";
+"Back Annotate" = "Chú thích ngược";
 "Backdrill via stubs on fast nets" = "Khoan ngược stub via trên các net tốc độ cao";
 "Backward Euler" = "Euler lùi";
 "Bandwidth" = "Băng thông";
@@ -112,6 +124,7 @@
 "Block designator" = "Ký hiệu trong khối";
 "Block value: %@" = "Giá trị khối: %@";
 "Board Setup" = "Thiết lập bo mạch";
+"Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review" = "Thay đổi trên bo (ký hiệu, hoán đổi chân, hoán đổi cổng) đề xuất cho sơ đồ để xem xét";
 "Board default" = "Mặc định của bo mạch";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Đường viền bo (khung quad-X, bo góc, hình tròn), lỗ bắt vít, vùng đổ đồng/mặt phẳng và lớp net";
 "Board thickness" = "Độ dày bo mạch";
@@ -139,6 +152,7 @@
 "Cavity model" = "Mô hình hốc";
 "Centre" = "Căn giữa";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Căn giữa mô hình trên footprint và đặt điểm thấp nhất lên bề mặt bo";
+"Changes from a WAS / IS file" = "Thay đổi từ tệp WAS / IS";
 "Channel" = "Kênh";
 "Channel %@ of %@ — edits apply to every channel" = "Kênh %@ của %@ — chỉnh sửa áp dụng cho mọi kênh";
 "Channel Designators" = "Ký hiệu theo kênh";
@@ -175,6 +189,8 @@
 "Close" = "Đóng";
 "Close Gaps" = "Xóa khoảng trống";
 "Company" = "Công ty";
+"Compile" = "Biên dịch";
+"Compile to check every sheet." = "Biên dịch để kiểm tra mọi trang.";
 "Component Placement List (CPL)…" = "Danh sách vị trí linh kiện (CPL)…";
 "Components" = "Linh kiện";
 "Components (%lld)" = "Linh kiện (%lld)";
@@ -184,9 +200,13 @@
 "Conformal coating" = "Phủ bảo vệ (conformal coating)";
 "Connect to Part" = "Nối tới linh kiện";
 "Construction" = "Cấu trúc";
+"Copies" = "Số bản sao";
+"Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "Các bản sao của bộ nhớ tạm, mỗi bản cách thêm một bước (đơn vị sơ đồ, 10 = một lưới). Linh kiện nhận ký hiệu trống kế tiếp; số của nhãn net tăng theo bước (D0 → D1 …).";
 "Copper colours" = "Màu đồng";
 "Copper foil" = "Lá đồng";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Lớp đồng: 1 = một mặt (không via), 2–6 cho hầu hết sản phẩm, 8–24 cho bo mạch chủ, máy chủ, máy tính lớn và bo nền GPU";
+"Copy" = "Sao chép";
+"Copy, paste, paste array (designators numbered on, labels counted up), align and distribute" = "Sao chép, dán, dán mảng (ký hiệu đánh số tiếp, nhãn tăng dần), căn chỉnh và phân bố";
 "Corners" = "Góc";
 "Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only" = "Góc thành cung (vẽ bằng các dây cung thẳng ngắn) ở nơi vừa và giữ khoảng hở; chỉ cho đường đơn";
 "Coupled sections" = "Đoạn ghép";
@@ -196,6 +216,7 @@
 "Current density" = "Mật độ dòng";
 "Currents" = "Dòng điện";
 "Cursors & Measurements" = "Con trỏ & Đo lường";
+"Cut" = "Cắt";
 "DC" = "DC";
 "DC Operating Point" = "Điểm làm việc DC";
 "DC Sweep" = "Quét DC";
@@ -237,6 +258,8 @@
 "Differential pair" = "Cặp vi sai";
 "Differential pair member" = "Thành viên cặp vi sai";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Ứng dụng API DigiKey (Production) có Product Information v4; luồng thông tin xác thực máy khách.";
+"Distribute Horizontally" = "Phân bố theo chiều ngang";
+"Distribute Vertically" = "Phân bố theo chiều dọc";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Không lắp: có trên bo nhưng không hàn; loại khỏi BOM lắp ráp và CPL";
 "Done" = "Xong";
 "Down ↓" = "Xuống ↓";
@@ -251,6 +274,7 @@
 "Duty cycle" = "Chu kỳ làm việc";
 "ECU Type" = "Loại ECU";
 "ELECTRONIC DESIGN AUTOMATION" = "TỰ ĐỘNG HÓA THIẾT KẾ ĐIỆN TỬ";
+"ENGINEERING CHANGE ORDER" = "LỆNH THAY ĐỔI KỸ THUẬT";
 "ERC" = "ERC";
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "Mỗi net lưới nối chân điều khiển và chân cảm biến của phần tử bảo mật; Tự động đi dây đặt serpentine trên ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "Mỗi via chỉ khoan qua các lớp nó kết nối; các đoạn qua một lớp điện môi trở thành microvia laser trên các lớp build-up mỏng";
@@ -264,6 +288,7 @@
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Nhập URL issuer của nhà cung cấp danh tính và client ID của SiEDA ở trên để bật nút này (hỏi quản trị viên IT của bạn).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Phủ epoxy dưới vi xử lý, BGA và tụ điện lớn để chấn động MIL-STD-901E không làm bong chúng";
 "Errors" = "Lỗi";
+"Every ERC message of every sheet; click one to go there" = "Mọi thông báo ERC của mọi trang; nhấp vào một mục để đến đó";
 "Every pin is placed once; no pins collide" = "Mỗi chân được đặt một lần; không có chân nào chồng nhau";
 "Every unit is valid" = "Mọi đơn vị đều hợp lệ";
 "Exchange the wires of two interchangeable pins of this gate" = "Hoán đổi dây của hai chân hoán đổi được của cổng này";
@@ -303,10 +328,14 @@
 "Footprint" = "Footprint";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Footprint lắp linh kiện: kích thước chip, xuyên lỗ, vỏ tantalum hoặc tụ hóa";
 "Frequency" = "Tần số";
+"From Board Positions (Columns)" = "Từ vị trí trên bo (cột)";
+"From Board Positions (Rows)" = "Từ vị trí trên bo (hàng)";
+"From WAS / IS File…" = "Từ tệp WAS / IS…";
 "Fundamental" = "Sóng cơ bản";
 "Gain" = "Độ lợi";
 "Gap Before" = "Khoảng trống phía trước";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Khe giữa các nhánh uốn khúc, mép tới mép, mm (để trống: ba lần bề rộng đường giữa các tâm)";
+"Gate swap" = "Hoán đổi cổng";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Các cổng của linh kiện nhiều khối (A, B, C, D của op-amp bốn kênh) được xếp vào vỏ theo thứ tự đặt trước khi đánh số";
 "Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "Các cổng cùng nhóm hoán đổi (hoặc cổng giống hệt) có thể hoán đổi bằng Hoán đổi cổng và đóng gói";
 "Generate Design" = "Tạo thiết kế";
@@ -368,6 +397,7 @@
 "Issuer URL" = "URL issuer";
 "Keep results for %lld hours" = "Giữ kết quả trong %lld giờ";
 "LAYERS" = "LỚP";
+"Label increment" = "Bước tăng nhãn";
 "Laminate" = "Tấm nền";
 "Language" = "Ngôn ngữ";
 "Largest contributors" = "Nguồn đóng góp lớn nhất";
@@ -400,6 +430,7 @@
 "Lossless" = "Không suy hao";
 "Lossy" = "Có suy hao";
 "Lumped model" = "Mô hình tập trung";
+"MESSAGES" = "THÔNG BÁO";
 "Magnitude" = "Biên độ";
 "Make Swap Group" = "Tạo nhóm hoán đổi";
 "Manufacturer part #" = "Mã linh kiện NSX";
@@ -417,6 +448,7 @@
 "Medical Device Class" = "Phân loại thiết bị y tế";
 "Members" = "Thành viên";
 "Memory Design" = "Thiết kế bộ nhớ";
+"Messages" = "Thông báo";
 "Microvia" = "Vi via";
 "Min" = "Nhỏ nhất";
 "Mirror" = "Đối xứng";
@@ -452,10 +484,12 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Ứng dụng Nexar có phạm vi Supply (thông tin xác thực máy khách). Dữ liệu Octopart: báo giá từ nhiều nhà phân phối trong một lần tìm.";
 "No 3D model: the part shows its generated body." = "Không có mô hình 3D: linh kiện hiển thị thân được tạo.";
 "No API key: add one in Settings → Suppliers" = "Chưa có khóa API: thêm trong Cài đặt → Nhà cung cấp";
+"No changes: the schematic already matches the board." = "Không có thay đổi: sơ đồ đã khớp với bo.";
 "No crosstalk or return-path problems found" = "Không tìm thấy vấn đề nhiễu xuyên kênh hoặc đường hồi dòng";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Thiết kế này không có cặp vi sai (…_P/_N, …+/-) hoặc bus (DQ0…, DATA[0..7], ADDR…).";
 "No distributor API keys yet" = "Chưa có khóa API nhà phân phối";
 "No distributor offers." = "Không có báo giá nhà phân phối.";
+"No errors or warnings." = "Không có lỗi hay cảnh báo.";
 "No gates found in the pin names." = "Không tìm thấy cổng trong tên chân.";
 "No imported model" = "Chưa có mô hình được nhập";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "Không có nguồn vào: đặt biên độ AC cho đầu vào hoặc chỉ định nó để xem nhiễu quy về đầu vào.";
@@ -520,6 +554,8 @@
 "PAD ARRAY" = "MẢNG PAD";
 "PARAMETERS" = "THÔNG SỐ";
 "PCB Layout" = "Bố trí PCB";
+"PDF" = "PDF";
+"PDF of every sheet with bookmarks, frames and title blocks" = "PDF của mọi trang với dấu trang, khung và khung tên";
 "PIN SWAP" = "HOÁN ĐỔI CHÂN";
 "PINS" = "CHÂN";
 "PRBS" = "PRBS";
@@ -535,7 +571,10 @@
 "Parts" = "Linh kiện";
 "Parts you import, create or add from the standard library appear here and in the schematic device picker." = "Linh kiện bạn nhập, tạo hoặc thêm từ thư viện chuẩn sẽ xuất hiện ở đây và trong bộ chọn thiết bị của sơ đồ.";
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "Linh kiện, đường mạch và vùng đổ đồng của các miền galvanic riêng biệt (qua bộ cách ly và bộ chuyển đổi cách ly) ";
+"Paste" = "Dán";
 "Paste API key" = "Dán khóa API";
+"Paste Array" = "Dán mảng";
+"Paste Array…" = "Dán mảng…";
 "Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "Dán hoặc mở văn bản mô hình của nhà sản xuất (.lib, .mod, .cir): các định nghĩa .model và .subckt.";
 "Pattern" = "Mẫu";
 "Peak" = "Đỉnh";
@@ -546,6 +585,7 @@
 "Pin" = "Chân";
 "Pin map" = "Ánh xạ chân";
 "Pin names" = "Tên chân";
+"Pin swap" = "Hoán đổi chân";
 "Pins: " = "Chân: ";
 "Place %@ Connector…" = "Đặt đầu nối %@…";
 "Place Harness Connector" = "Đặt đầu nối bó dây";
@@ -574,6 +614,8 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Re-annotate from the board (columns)" = "Chú thích lại từ bo (cột)";
+"Re-annotate from the board (rows)" = "Chú thích lại từ bo (hàng)";
 "Re-verify" = "Xác minh lại";
 "Read Pins from Datasheet" = "Đọc chân từ datasheet";
 "Ready" = "Sẵn sàng";
@@ -592,6 +634,7 @@
 "Remove the firmware" = "Gỡ firmware";
 "Remove the selected unit (its pins go to the power unit)" = "Xóa đơn vị đã chọn (các chân của nó chuyển sang đơn vị nguồn)";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "Loại bỏ phần thân via không dùng bên dưới lớp kết nối cuối cùng (≥ 4 lớp); thêm tệp khoan ngược";
+"Rename" = "Đổi tên";
 "Rename Channel" = "Đổi tên kênh";
 "Rename Channel…" = "Đổi tên kênh…";
 "Rename Sheet" = "Đổi tên trang";
@@ -642,6 +685,7 @@
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "Chạy phân tích quá độ để thực thi: các chân điều khiển mạch, đầu vào và ADC đọc mạch, và đầu ra serial hiển thị trong Mô phỏng.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "Chạy bo mạch theo thời gian thực (⌘R): LED sáng, nhấp công tắc, firmware chạy, đầu dò trực tiếp";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "Chạy bo mạch theo thời gian thực: firmware, LED, công tắc, máy hiện sóng và màn hình serial";
+"Run the electrical rule check on every sheet" = "Chạy kiểm tra quy tắc điện trên mọi trang";
 "Runs" = "Số lần chạy";
 "S-parameters" = "Tham số S";
 "SI / PI" = "SI / PI";
@@ -690,6 +734,7 @@
 "Shared by several gates" = "Dùng chung bởi nhiều cổng";
 "Sheet" = "Trang";
 "Sheet %lld of %lld" = "Trang %lld / %lld";
+"Sheet Size" = "Kích thước trang";
 "Sheet name" = "Tên trang";
 "Shot" = "Bắn";
 "Shove" = "Đẩy";
@@ -698,6 +743,8 @@
 "Show" = "Hiển thị";
 "Show Crash Reports" = "Hiển thị báo cáo sự cố";
 "Show Navigator" = "Hiển thị bộ điều hướng";
+"Show in Schematic" = "Hiển thị trong sơ đồ";
+"Show on PCB" = "Hiển thị trên PCB";
 "Show one robot platform's production parts kit" = "Hiển thị bộ kit linh kiện sản xuất của một nền tảng robot";
 "Show splash screen at launch" = "Hiển thị màn hình chờ khi khởi động";
 "Show these parts in the schematic" = "Hiển thị các linh kiện này trong sơ đồ";
@@ -736,6 +783,7 @@
 "Starting the design engine" = "Đang khởi động công cụ thiết kế";
 "Step" = "Bước";
 "Step response" = "Đáp ứng bước";
+"Step x, y" = "Bước x, y";
 "Stitch vias at the selected (or every) power MOSFET's drain / tab pad" = "Khâu via tại pad drain / tab của MOSFET công suất đã chọn (hoặc tất cả)";
 "Stitch vias at the selected parts' drain / tab pads (every power MOSFET if none is selected)" = "Khâu via tại pad drain / tab của các linh kiện đã chọn (mọi MOSFET công suất nếu chưa chọn)";
 "Stock" = "Tồn kho";

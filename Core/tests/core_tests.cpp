@@ -13692,3 +13692,257 @@ TEST(c_api_directives) {
     if (rc != 0) std::printf("    C API directive test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+// ======================================================================= editing productivity, ECO, templates, PDF
+
+#include "sieda/SchematicPdf.hpp"
+
+TEST(align_distribute_copy_and_paste_array) {
+    Schematic s;
+    const int a = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    const int b = s.addComponent(ComponentKind::Resistor, "2k", {130, 40});
+    const int c = s.addComponent(ComponentKind::Resistor, "3k", {300, 90});
+    CHECK(s.alignComponents({a, b, c}, AlignMode::Top) == 2);
+    CHECK(s.find(a)->position.y == 0 && s.find(b)->position.y == 0 && s.find(c)->position.y == 0);
+    CHECK(s.alignComponents({a, b, c}, AlignMode::DistributeX) == 1);
+    CHECK(s.find(b)->position.x == 150);
+    CHECK(s.alignComponents({a, b}, AlignMode::DistributeX) == 0);  // needs three
+    CHECK(s.alignComponents({a}, AlignMode::Left) == 0);
+    CHECK(s.alignComponents({a, c}, AlignMode::CenterX) == 2 && s.find(a)->position.x == 150);
+    AlignMode m;
+    CHECK(alignModeFromName("distributeY", &m) && m == AlignMode::DistributeY && !alignModeFromName("diagonal", &m));
+    // Copy a resistor with a label D0 wired to it; paste an array of 3 with labels counted up.
+    const int label = s.addComponent(ComponentKind::NetLabel, "D0", {-60, 200});
+    const int r = s.addComponent(ComponentKind::Resistor, "10k", {0, 200});
+    CHECK(s.connect({label, 0}, {r, 0}) >= 0);
+    CHECK(s.setLabelScope(label, LabelScope::Local));
+    const Json clip = s.copyComponents({label, r});
+    CHECK(clip.get("components").size() == 2 && clip.get("wires").size() == 1);
+    PasteOptions o;
+    o.offset = {0, 60};
+    o.count = 3;
+    o.step = {0, 60};
+    o.labelIncrement = 1;
+    const auto made = s.pasteComponents(clip, o);
+    CHECK(made.size() == 6);
+    std::set<std::string> labels, refs;
+    for (int id : made) {
+        const Component* p = s.find(id);
+        if (p->kind == ComponentKind::NetLabel) {
+            labels.insert(p->value);
+            CHECK(p->scope == LabelScope::Local);
+        } else {
+            refs.insert(p->ref);
+            CHECK(p->value == "10k" && s.wireCount(id) == 1);
+        }
+    }
+    CHECK((labels == std::set<std::string>{"D1", "D2", "D3"}));
+    CHECK(refs.size() == 3 && !refs.count(s.find(r)->ref));
+    for (const auto& x : s.components())
+        if (!isNetSymbolKind(x.kind)) CHECK(std::count_if(s.components().begin(), s.components().end(), [&](const Component& y) {
+                                               return !isNetSymbolKind(y.kind) && y.ref == x.ref;
+                                           }) == 1);
+    CHECK(s.find(made[0])->position.y == 260);
+    // Zero-padded numbers keep their width; a clipboard of another format pastes nothing.
+    PasteOptions one;
+    one.labelIncrement = 1;
+    const int padded = s.addComponent(ComponentKind::NetLabel, "A07", {0, 900});
+    const auto p2 = s.pasteComponents(s.copyComponents({padded}), one);
+    CHECK(p2.size() == 1 && s.find(p2[0])->value == "A08");
+    Json bad = Json::object();
+    bad["format"] = "other";
+    CHECK(s.pasteComponents(bad, one).empty());
+    // A back-annotated pin swap exchanges the wires of two pins.
+    const int netBefore = s.netOf({r, 0});
+    CHECK(s.swapPinConnections(r, 0, 1) && s.netOf({r, 1}) == netBefore);
+    CHECK(!s.swapPinConnections(label, 0, 0) && !s.swapPinConnections(r, 0, 5));
+}
+
+TEST(paste_keeps_harness_connectors_and_units) {
+    Schematic s;
+    CHECK(s.setHarnessType("I2C", {"SCL", "SDA"}));
+    const int h = s.addHarnessConnector("I2C", "BUS1", {100, 0});
+    std::vector<int> ids{h};
+    for (const auto& c : s.components())
+        if (c.harnessOf == h) ids.push_back(c.id);
+    CHECK(ids.size() == 3);
+    PasteOptions o;
+    o.offset = {300, 0};
+    const auto made = s.pasteComponents(s.copyComponents(ids), o);
+    CHECK(made.size() == 3);
+    int harness = -1, entries = 0;
+    for (int id : made)
+        if (Schematic::isHarnessLabel(*s.find(id))) harness = id;
+    for (int id : made) entries += s.find(id)->harnessOf == harness;
+    CHECK(harness > 0 && entries == 2);
+    const auto part = CustomPartRegistry::instance().registerPart(quadOpAmpSpec());
+    const int a = s.addCustomUnits(part->id, "", {0, 400});
+    const int b = s.placeNextUnit(a, {200, 400});
+    const auto units = s.pasteComponents(s.copyComponents({b}), o);
+    CHECK(units.size() == 1 && s.find(units[0])->kind == ComponentKind::PartUnit && s.find(units[0])->unit == 2);
+    CHECK(s.unitPackage(units[0]) != s.unitPackage(b));
+}
+
+TEST(back_annotation_eco_renames_pin_and_gate_swaps) {
+    Project p;
+    Schematic& s = p.schematic;
+    const int r1 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    const int r2 = s.addComponent(ComponentKind::Resistor, "2k", {100, 0});
+    const int r3 = s.addComponent(ComponentKind::Resistor, "3k", {200, 0});
+    // On the board: R3 top left, R1 middle, R2 bottom right.
+    auto place = [&](int id, Vec2 at) {
+        s.find(id)->pcb.position = at;
+        s.find(id)->pcb.placed = true;
+    };
+    place(r3, {5, 5});
+    place(r1, {20, 15});
+    place(r2, {40, 30});
+    auto eco = p.reannotateFromBoard(false);
+    CHECK(eco.size() == 3);
+    std::map<int, std::string> to;
+    for (const auto& e : eco) to[e.component] = e.to;
+    CHECK(to[r3] == "R1" && to[r1] == "R2" && to[r2] == "R3");
+    CHECK(p.applyEco(eco) == 3);
+    CHECK(s.find(r3)->ref == "R1" && s.find(r1)->ref == "R2" && s.find(r2)->ref == "R3");
+    CHECK(p.reannotateFromBoard(false).empty());
+    // WAS / IS: a swap R1 ↔ R2, a pin swap, a gate swap; bad lines are listed, not applied.
+    const auto part = CustomPartRegistry::instance().registerPart(quadOpAmpSpec());
+    const int ua = s.addCustomUnits(part->id, "", {0, 300});
+    const int ub = s.placeNextUnit(ua, {200, 300});
+    const std::string pkg = s.find(s.unitPackage(ua))->ref;
+    const int lbl = s.addComponent(ComponentKind::NetLabel, "IN", {-100, 300});
+    CHECK(s.connect({lbl, 0}, {ua, 1}) >= 0);  // IN1- (pin 2)
+    const std::string text = "# board changes\nR1 R2\nR2 R1\nPINSWAP " + pkg + " 2 3\nGATESWAP " + pkg + "A " + pkg +
+                             "B\nR9 R10\nR1\nPINSWAP " + pkg + " 2 7\n";
+    eco = p.ecoFromWasIs(text);
+    CHECK(eco.size() == 7);
+    int applicable = 0;
+    for (const auto& e : eco) applicable += e.applicable;
+    CHECK(applicable == 4);  // R9 unknown, "R1" alone invalid, pins 2 and 7 on different units
+    CHECK(p.applyEco(eco) == 4);
+    CHECK(s.find(r3)->ref == "R2" && s.find(r1)->ref == "R1");
+    // The label now reaches pin 3 (IN1+) of the package; the gates changed places.
+    const int pkgId = s.unitPackage(ua);
+    CHECK(s.find(ua)->unit == 2 && s.find(ub)->unit == 1);
+    CHECK(s.netOf({lbl, 0}) == s.netOf({pkgId, s.pinIndex(pkgId, "5")}));
+    bool onPin = false;
+    for (const auto& w : s.wires())
+        if ((w.a.component == lbl || w.b.component == lbl)) onPin = true;
+    CHECK(onPin && pkgId > 0);
+    // A rename onto a designator another part keeps is refused.
+    eco = p.ecoFromWasIs("R1 R2\n");
+    CHECK(eco.size() == 1 && !eco[0].applicable);
+}
+
+TEST(sheet_templates_and_schematic_pdf) {
+    Project p;
+    Schematic& s = p.schematic;
+    p.titleBlock.title = "Pdf Test";
+    p.titleBlock.company = "ACME (R&D)";
+    const int child = s.addSheet("Filter", 1);
+    const int grand = s.addSheet("Stage", child);
+    s.setActiveSheet(1);
+    const int r = s.addComponent(ComponentKind::Resistor, "10k", {0, 0});
+    const int g = s.addComponent(ComponentKind::Ground, "", {100, 100});
+    CHECK(s.connect({r, 1}, {g, 0}) >= 0);
+    s.setActiveSheet(child);
+    const int port = s.addComponent(ComponentKind::NetLabel, "IN", {0, 0});
+    CHECK(s.setLabelScope(port, LabelScope::Port));
+    CHECK(s.placeSheetEntries(child, {300, 0}) == 1);
+    s.setActiveSheet(grand);
+    s.addComponent(ComponentKind::Capacitor, "100n", {0, 0});
+    // Templates.
+    CHECK(findSheetTemplate("A3") && findSheetTemplate("ANSI D") && !findSheetTemplate("B5"));
+    CHECK(sheetTemplateFor(p, 1).name == "A4");
+    CHECK(s.setSheetSize(child, "A3") && !s.setSheetSize(child, "B5") && !s.setSheetSize(999, "A4"));
+    CHECK(sheetTemplateFor(p, child).name == "A3");
+    // A wide drawing gets a bigger auto template.
+    s.setActiveSheet(1);
+    s.addComponent(ComponentKind::Resistor, "1k", {3000, 0});
+    CHECK(sheetTemplateFor(p, 1).name != "A4");
+    // The PDF: one page per sheet, bookmarks in the hierarchy, a valid cross-reference table.
+    const std::string pdf = exportSchematicPdf(p);
+    CHECK(pdf.rfind("%PDF-1.4", 0) == 0 && pdf.find("%%EOF") != std::string::npos);
+    size_t pages = 0;
+    for (size_t at = pdf.find("/Type /Page "); at != std::string::npos; at = pdf.find("/Type /Page ", at + 1)) ++pages;
+    CHECK(pages == 3);
+    CHECK(pdf.find("/Outlines 5 0 R") != std::string::npos && pdf.find("(Filter)") != std::string::npos);
+    CHECK(pdf.find("(Pdf Test)") != std::string::npos && pdf.find("(ACME \\(R&D\\))") != std::string::npos);
+    CHECK(pdf.find("(Sheet 2 of 3)") != std::string::npos && pdf.find("(10k)") != std::string::npos);
+    // The Stage bookmark sits under Filter's.
+    const size_t stageItem = pdf.find("/Title (Stage)");
+    CHECK(stageItem != std::string::npos && pdf.find("/First", pdf.rfind("/Title (Filter)")) != std::string::npos);
+    // Every xref offset points at its object.
+    const size_t xref = pdf.find("xref\n");
+    CHECK(xref != std::string::npos);
+    size_t at = pdf.find('\n', pdf.find('\n', xref) + 1) + 1 + 20;  // past the free entry
+    for (int obj = 1; obj <= 5; ++obj, at += 20) {
+        const size_t offset = static_cast<size_t>(std::stoull(pdf.substr(at, 10)));
+        CHECK(pdf.compare(offset, std::to_string(obj).size() + 6, std::to_string(obj) + " 0 obj") == 0);
+    }
+    for (char ch : pdf) CHECK(static_cast<unsigned char>(ch) < 0x80);
+    // Persisted when set (older files have no size).
+    const std::string saved = p.toJson().dump();
+    CHECK(saved.find("\"size\":\"A3\"") != std::string::npos);
+    Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.schematic.findSheet(child)->size == "A3");
+    CHECK(q.toJson().dump() == saved);
+}
+
+TEST(clipboard_and_was_is_fuzzed) {
+    Project p;
+    Schematic& s = p.schematic;
+    const int l = s.addComponent(ComponentKind::NetLabel, "D0", {0, 0});
+    const int r = s.addComponent(ComponentKind::Resistor, "1k", {60, 0});
+    CHECK(s.connect({l, 0}, {r, 0}) >= 0);
+    const std::string clip = s.copyComponents({l, r}).dump();
+    uint32_t seed = 7u;
+    auto rng = [&seed] {
+        seed = seed * 1664525u + 1013904223u;
+        return seed >> 8;
+    };
+    for (int round = 0; round < 200; ++round) {
+        Json j = Json::parse(clip);
+        Json comps = Json::array();
+        for (Json c : j.get("components").items()) {
+            const int k = static_cast<int>(rng() % 6);
+            if (k == 0) c["kind"] = static_cast<int>(rng() % 30) - 5;
+            if (k == 1) c["value"] = std::string(rng() % 2 ? "D999999999" : "");
+            if (k == 2) c["x"] = static_cast<double>(rng() % 100000) - 50000;
+            if (k == 3) c["customPart"] = std::string("NOPE");
+            comps.push(c);
+        }
+        j["components"] = comps;
+        Json wires = Json::array();
+        for (int k = 0, n = static_cast<int>(rng() % 4); k < n; ++k) {
+            Json w = Json::array();
+            for (int f = 0; f < 4; ++f) w.push(static_cast<int>(rng() % 6) - 2);
+            wires.push(w);
+        }
+        j["wires"] = wires;
+        PasteOptions o;
+        o.count = static_cast<int>(rng() % 4);
+        o.labelIncrement = static_cast<int>(rng() % 5) - 2;
+        (void)s.pasteComponents(j, o);
+        std::string text;
+        for (int k = 0, n = static_cast<int>(rng() % 6); k < n; ++k) {
+            const char* words[] = {"R1", "R2", "PINSWAP", "GATESWAP", "#", "R99", "1", "2", "U1A", "\t"};
+            for (int t = 0, m = static_cast<int>(rng() % 5); t < m; ++t) text += std::string(words[rng() % 10]) + " ";
+            text += "\n";
+        }
+        const auto eco = p.ecoFromWasIs(text);
+        (void)p.applyEco(eco);
+    }
+    std::set<std::string> refs;
+    for (const auto& c : s.components())
+        if (!isNetSymbolKind(c.kind) && c.kind != ComponentKind::PartUnit) CHECK(refs.insert(c.ref).second);
+    const std::string once = p.toJson().dump();
+    CHECK(Project::fromJson(Json::parse(once)).toJson().dump() == once);
+}
+
+extern "C" int sieda_c_api_schematic_tools_test(void);
+TEST(c_api_schematic_tools) {
+    const int rc = sieda_c_api_schematic_tools_test();
+    if (rc != 0) std::printf("    C API schematic tools test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}

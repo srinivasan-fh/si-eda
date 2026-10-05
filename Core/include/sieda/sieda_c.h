@@ -750,6 +750,33 @@ int32_t sieda_remove_directive(SiedaProject* project, int32_t id);
 /* [{net,netName,netClass,trackWidth,clearance,diffPair,partner}] for every net a directive reaches. Caller frees. */
 char* sieda_net_rules_json(const SiedaProject* project);
 
+/* ---- schematic capture: editing, back-annotation, templates and PDF (docs/SCHEMATIC.md) -------------------------- */
+/* Aligns / distributes components (ids_json [id,…]); mode "left","right","top","bottom","centerX","centerY",
+ * "distributeX","distributeY". The number moved, or -1. */
+int32_t sieda_align_components(SiedaProject* project, const char* ids_json, const char* mode);
+/* Clipboard JSON of components and the wires between them ("sieda.schematic-clip/1"). Caller frees. */
+char* sieda_copy_components(const SiedaProject* project, const char* ids_json);
+/* Pastes a clipboard on the active sheet: options {"dx","dy","count","stepX","stepY","labelIncrement"} (a paste array:
+ * `count` copies, each `step` further; label numbers counted up). Parts get the next free designators. Returns the new
+ * ids [id,…], or NULL. Caller frees. */
+char* sieda_paste_components(SiedaProject* project, const char* clip_json, const char* options_json);
+/* Two pins of a part exchange their wires (back-annotated pin swap). 1 on success. */
+int32_t sieda_swap_pin_connections(SiedaProject* project, int32_t component, int32_t pin_a, int32_t pin_b);
+/* Back-annotation (ECO): designators re-numbered by board position, or the changes of a WAS / IS text ("OLD NEW",
+ * "PINSWAP REF P1 P2", "GATESWAP U1A U2B"). [{kind:"rename"|"pinSwap"|"gateSwap"|"invalid",component,from,to,pinA,pinB,
+ * other,applicable,note}]; nothing is applied. Caller frees. */
+char* sieda_reannotate_from_board(const SiedaProject* project, int32_t by_columns);
+char* sieda_eco_from_was_is(const SiedaProject* project, const char* text);
+/* Applies the applicable changes of an ECO list (as returned above, possibly filtered). The number applied, or -1. */
+int32_t sieda_apply_eco(SiedaProject* project, const char* eco_json);
+/* Drawing template of a sheet ("A4" … "A0", "ANSI A" … "ANSI E"; "" = sized to the drawing). 1 on success. */
+int32_t sieda_set_sheet_size(SiedaProject* project, int32_t sheet, const char* size);
+/* [{"name","width","height"}] in millimetres, landscape. Caller frees. */
+char* sieda_sheet_templates_json(void);
+/* PDF of every sheet: one page per sheet on its template with frame, zones and title block; bookmarks follow the
+ * sheet hierarchy. The PDF text (ASCII), or NULL. Caller frees. */
+char* sieda_export_schematic_pdf(const SiedaProject* project);
+
 #ifdef __cplusplus
 }
 #endif

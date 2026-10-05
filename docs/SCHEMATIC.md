@@ -295,6 +295,41 @@ another value. The base design is what the schematic says (with each part's own 
   drawn-by. Each sheet shows it at the bottom right of its drawing with the sheet name and "Sheet n of N". It is saved
   with the project (only when set) and the title defaults to the project name.
 
+## Editing, back-annotation, messages, templates and PDF
+
+Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.cpp`; app
+`SiEDA/App/DesignStore+SchematicTools.swift`, `SiEDA/Views/Schematic/SchematicToolsViews.swift`.
+
+- **Rubber-banding**: wires follow parts while they are dragged (wires join pins, so they always did).
+- **Arrange** menu (options bar): **Align** left / right / top / bottom / centres and **Distribute** horizontally /
+  vertically (three or more parts, equal steps between the outermost) — by the parts' positions on the grid. One
+  undo step; a channel copy moves its block's part.
+- **Copy / Cut / Paste** (⌘C / ⌘X / ⌘V on the canvas, or the Arrange menu): parts and the wires between them,
+  label scopes, packages, no-connect marks, harness connectors with their entries. Pasted parts get the **next free
+  designators**. **Paste Array…** places *n* copies, each one step further, counting net label numbers up by the
+  increment (`D0` → `D1`, `D2` …; zero padding kept: `A07` → `A08`). A pasted sheet entry becomes a local label; a
+  pasted gate becomes a part of its own showing the same gate.
+- **Cross-probing both ways**: the inspector of a part has **Show on PCB** (switches to the board, selects and
+  zooms it; a unit shows its package) and, on the board, **Show in Schematic** (opens its sheet, selects and zooms
+  the part or its first unit).
+- **Back Annotate** (options bar): *From Board Positions (Rows / Columns)* re-numbers designators from the board,
+  per prefix, in board order (parts of repeated sheets keep theirs); *From WAS / IS File…* reads `OLD NEW` lines
+  (renames), `PINSWAP U1 2 3` (two pins exchange their connections) and `GATESWAP U1A U2B` (two gates exchange
+  places). The **ECO review** lists every change with a check box; changes that cannot be applied say why (unknown
+  part, target designator taken, pins on different units). **Apply Changes** is one undo step; renames go through
+  temporary designators so swaps (R1 ↔ R2) work, and the chosen set must keep designators unique.
+- **Messages**: the options bar's **Messages** panel lists every ERC finding of every sheet with its sheet name;
+  **Compile** re-runs ERC; click a message to show it on its sheet, selected and zoomed.
+- **Sheet templates**: right-click a sheet tab ▸ **Sheet Size** — A4 … A0, ANSI A … E, or *Auto* (the smallest A
+  size that holds the drawing at full scale). The canvas draws the template's frame around the drawing (10 units =
+  2.54 mm).
+- **PDF** (options bar): every sheet in sheet order, one page per sheet on its template, with a frame and zone markers
+  (1, 2, 3 … / A, B, C …), the title block (title, company, revision, date, drawn by, sheet name, size, "Sheet n of
+  N") and the drawing scaled down when it is larger than the sheet. The PDF's bookmarks follow the sheet hierarchy.
+  Symbols are simplified vector drawings (two-pin parts as boxes, capacitor plates and diode triangles; other parts
+  as a body box with pin stubs and names; ground symbols, label flags and sheet symbols) — the canvas draws more
+  detail. Text is plain ASCII (other characters print as `?`).
+
 ## Files and compatibility
 
 New project fields (all optional when reading):
@@ -331,7 +366,7 @@ Further optional fields (written only when used, so other designs' files are unc
 `packageOnly`, `harnessType` / `harnessOf` (net labels); wires `instanceOf`; top-level `buses`, `harnessTypes`
 (`[{"name","entries"}]`), `netClassDefs` (`[{"name","trackWidth"?,"clearance"?}]`), `directives`
 (`[{"id","component","pin","netClass"?,"diffPair"?,"trackWidth"?,"clearance"?}]`) and `titleBlock`; board
-`netClearances` and `schematicRuleNets` (the nets whose rules came from the schematic). A file is repaired on load: copies whose
+`netClearances` and `schematicRuleNets` (the nets whose rules came from the schematic); sheets `size`. A file is repaired on load: copies whose
 block part is gone, units without a valid package, packages without units, entries of missing buses and buses on
 missing sheets are dropped; an instance of a missing or nested definition becomes an ordinary sheet. Older versions of
 SiEDA open a file with repeated sheets as ordinary sheets (every channel's parts are real parts); a file with placed
@@ -377,6 +412,16 @@ int32_t sieda_add_directive(SiedaProject*, const char* json);      /* {"componen
 int32_t sieda_update_directive(SiedaProject*, int32_t id, const char* json);
 int32_t sieda_remove_directive(SiedaProject*, int32_t id);
 char*   sieda_net_rules_json(const SiedaProject*);
+int32_t sieda_align_components(SiedaProject*, const char* ids_json, const char* mode);
+char*   sieda_copy_components(const SiedaProject*, const char* ids_json);
+char*   sieda_paste_components(SiedaProject*, const char* clip_json, const char* options_json);
+int32_t sieda_swap_pin_connections(SiedaProject*, int32_t component, int32_t pin_a, int32_t pin_b);
+char*   sieda_reannotate_from_board(const SiedaProject*, int32_t by_columns);
+char*   sieda_eco_from_was_is(const SiedaProject*, const char* text);
+int32_t sieda_apply_eco(SiedaProject*, const char* eco_json);
+int32_t sieda_set_sheet_size(SiedaProject*, int32_t sheet, const char* size);
+char*   sieda_sheet_templates_json(void);
+char*   sieda_export_schematic_pdf(const SiedaProject*);
 ```
 
 Sheets, hierarchy, bus labels, annotation and variants:

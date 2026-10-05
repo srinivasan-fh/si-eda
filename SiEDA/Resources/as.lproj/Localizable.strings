@@ -1,6 +1,8 @@
 /* SiEDA interface strings — as. Keys are the English text; check with tools/check_localization.py. */
 
+"%lld errors · %lld warnings" = "%lld ত্ৰুটি · %lld সতৰ্কবাণী";
 "%lld matches" = "%lld টা মিল";
+"%lld of %lld changes selected" = "%lld টা বাছনি কৰা হৈছে, মুঠ %lld টা সলনি";
 "%lld values" = "%lld টা মান";
 "0 derives the value from the regulator type" = "0 হ'লে মান ৰেগুলেটৰৰ প্ৰকাৰৰ পৰা লোৱা হয়";
 "10 s" = "10 s";
@@ -56,6 +58,12 @@
 "Aerospace Mission" = "এৰোস্পেচ মিছন";
 "Agent Pipeline" = "এজেণ্ট পাইপলাইন";
 "Agents" = "এজেণ্ট";
+"Align Bottom" = "তলত সমান কৰক";
+"Align Horizontal Centres" = "অনুভূমিক কেন্দ্ৰ সমান কৰক";
+"Align Left" = "বাওঁফালে সমান কৰক";
+"Align Right" = "সোঁফালে সমান কৰক";
+"Align Top" = "ওপৰত সমান কৰক";
+"Align Vertical Centres" = "উলম্ব কেন্দ্ৰ সমান কৰক";
 "All" = "সকলো";
 "Amplitude" = "বিস্তাৰ";
 "An entry (a local net label on the bus) for every member that has none yet" = "যাৰ এতিয়াও নাই এনে প্ৰতিটো সদস্যৰ বাবে এটা প্ৰৱেশ (বাছত স্থানীয় নেট লেবেল)";
@@ -70,11 +78,13 @@
 "Appends the imported block (connector, cable, backplane) after the routed channel" = "আমদানি কৰা ব্লক (সংযোগকাৰী, কেবল, বেকপ্লেন) ৰুট কৰা চেনেলৰ পিছত যোগ কৰে";
 "Appliance Type" = "সঁজুলিৰ প্ৰকাৰ";
 "Apply" = "প্ৰয়োগ কৰক";
+"Apply Changes" = "সলনি প্ৰয়োগ কৰক";
 "Apply Footprint" = "ফুটপ্ৰিণ্ট প্ৰয়োগ কৰক";
 "Apply Outline" = "আউটলাইন প্ৰয়োগ কৰক";
 "Apply Prices to BOM" = "মূল্য BOM ত প্ৰয়োগ কৰক";
 "Apply Symbol" = "চিম্বল প্ৰয়োগ কৰক";
 "Apply Tuning" = "টিউনিং প্ৰয়োগ কৰক";
+"Arrange" = "সজাওক";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "স্কিমেটিক চিম্বল সজাওক: যিকোনো ফালে পিন, গোট, ষ্টেক কৰা পাৱাৰ পিন, অটো এৰেঞ্জ";
 "Arrange the symbol, or define the gates of a multi-unit part" = "চিহ্ন সজাওক, বা বহু-ইউনিট অংশৰ গেট নিৰ্ধাৰণ কৰক";
 "Arranged symbol" = "সজোৱা চিম্বল";
@@ -87,6 +97,7 @@
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl), STL বা OBJ মডেল সংলগ্ন কৰি ফুটপ্ৰিণ্টত মিলাওক";
 "Audience (optional)" = "দৰ্শক (ঐচ্ছিক)";
 "Auto" = "স্বয়ংক্ৰিয়";
+"Auto (fits the drawing)" = "স্বয়ংক্ৰিয় (অংকনৰ লগত মিলে)";
 "Auto Arrange" = "অটো এৰেঞ্জ";
 "Auto Route" = "অটো ৰুট";
 "Auto Route Board" = "বোৰ্ড অটো ৰুট কৰক";
@@ -99,6 +110,7 @@
 "BODY" = "বডি";
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "এছেম্বলীৰ বাবে BOM (JLCPCB / PCBWay)…";
+"Back Annotate" = "বেক এন'টেট";
 "Backdrill via stubs on fast nets" = "দ্ৰুত নেটত ভায়া ষ্টাব বেকড্ৰিল কৰক";
 "Backward Euler" = "বেকৱাৰ্ড অয়লাৰ";
 "Bandwidth" = "বেণ্ডৱিড্থ";
@@ -112,6 +124,7 @@
 "Block designator" = "ব্লক নিৰ্দেশক";
 "Block value: %@" = "ব্লকৰ মান: %@";
 "Board Setup" = "বোৰ্ড ছেটআপ";
+"Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review" = "ব'ৰ্ডৰ সলনি (ডিজাইনেটৰ, পিন আৰু গেট সলনি) পৰ্যালোচনাৰ বাবে স্কিমেটিকলৈ প্ৰস্তাৱিত";
 "Board default" = "ব'ৰ্ডৰ ডিফল্ট";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "বোৰ্ড আউটলাইন (কোৱাড-X ফ্ৰেম, গোলাকাৰ, বৃত্ত), মাউণ্টিং হ'ল, কপাৰ প'ৰ/প্লেন আৰু নেট ক্লাছ";
 "Board thickness" = "বোৰ্ডৰ ডাঠ";
@@ -139,6 +152,7 @@
 "Cavity model" = "কেভিটি আৰ্হি";
 "Centre" = "মাজত ৰাখক";
 "Centre the model on the footprint and put its lowest point on the board surface" = "মডেলটো ফুটপ্ৰিণ্টৰ মাজত ৰাখি ইয়াৰ আটাইতকৈ তলৰ বিন্দু বোৰ্ডৰ পৃষ্ঠত ৰাখক";
+"Changes from a WAS / IS file" = "WAS / IS ফাইলৰ পৰা সলনি";
 "Channel" = "চেনেল";
 "Channel %@ of %@ — edits apply to every channel" = "চেনেল %@ (%@) — সম্পাদনা প্ৰতিটো চেনেলত প্ৰযোজ্য";
 "Channel Designators" = "চেনেল নিৰ্দেশক";
@@ -175,6 +189,8 @@
 "Close" = "বন্ধ কৰক";
 "Close Gaps" = "ফাঁক বন্ধ কৰক";
 "Company" = "কোম্পানী";
+"Compile" = "কম্পাইল";
+"Compile to check every sheet." = "প্ৰতিখন শ্বীট পৰীক্ষা কৰিবলৈ কম্পাইল কৰক।";
 "Component Placement List (CPL)…" = "কম্পোনেণ্ট প্লেচমেণ্ট তালিকা (CPL)…";
 "Components" = "কম্পোনেণ্ট";
 "Components (%lld)" = "কম্পোনেণ্ট (%lld)";
@@ -184,9 +200,13 @@
 "Conformal coating" = "কনফৰ্মেল কোটিং";
 "Connect to Part" = "অংশৰ সৈতে সংযোগ কৰক";
 "Construction" = "নিৰ্মাণ";
+"Copies" = "প্ৰতিলিপি";
+"Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "ক্লিপব'ৰ্ডৰ প্ৰতিলিপি, প্ৰতিটো এখোজ আগত (স্কিমেটিক একক, 10 = এটা গ্ৰিড)। অংশবোৰে পিছৰ খালী ডিজাইনেটৰ পায়; নেট লেবেলৰ সংখ্যা বৃদ্ধিৰে বাঢ়ে (D0 → D1 …)।";
 "Copper colours" = "কপাৰৰ ৰং";
 "Copper foil" = "তামৰ পাত";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "কপাৰ লেয়াৰ: 1 = ছিংগল-চাইডেড (ভায়া নাই), বেছিভাগ সামগ্ৰীৰ বাবে 2–6, মাদাৰবোৰ্ড, চাৰ্ভাৰ, মেইনফ্ৰেম আৰু GPU বেছবোৰ্ডৰ বাবে 8–24";
+"Copy" = "প্ৰতিলিপি কৰক";
+"Copy, paste, paste array (designators numbered on, labels counted up), align and distribute" = "প্ৰতিলিপি, পেষ্ট, পেষ্ট এৰে (ডিজাইনেটৰ ক্ৰমে সংখ্যাযুক্ত, লেবেল বাঢ়ে), সমান কৰা আৰু বিতৰণ";
 "Corners" = "চুক";
 "Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only" = "য'ত সোমায় আৰু ক্লিয়াৰেন্স থাকে ত'ত চুকবোৰ বৃত্তচাপ হয় (চুটি পোন জ্যাৰে আঁকা); কেৱল একক ট্ৰেক";
 "Coupled sections" = "সংযুক্ত অংশ";
@@ -196,6 +216,7 @@
 "Current density" = "বিদ্যুৎ প্ৰবাহৰ ঘনত্ব";
 "Currents" = "কাৰেণ্ট";
 "Cursors & Measurements" = "কাৰ্ছৰ আৰু জোখ";
+"Cut" = "কাটক";
 "DC" = "DC";
 "DC Operating Point" = "DC অপাৰেটিং পইণ্ট";
 "DC Sweep" = "DC ছুইপ";
@@ -237,6 +258,8 @@
 "Differential pair" = "ডিফাৰেন্সিয়েল যোৰ";
 "Differential pair member" = "ডিফাৰেন্সিয়েল পেয়াৰৰ সদস্য";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 সহ DigiKey API এপ্লিকেচন (Production); ক্লায়েণ্ট ক্ৰেডেনচিয়েল প্ৰবাহ।";
+"Distribute Horizontally" = "অনুভূমিকভাৱে বিতৰণ";
+"Distribute Vertically" = "উলম্বভাৱে বিতৰণ";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "পপুলেট নকৰিব: বোৰ্ডত আছে কিন্তু লগোৱা নহয়; এছেম্বলী BOM আৰু CPL ৰ পৰা বাদ";
 "Done" = "সম্পূৰ্ণ";
 "Down ↓" = "তললৈ ↓";
@@ -251,6 +274,7 @@
 "Duty cycle" = "ডিউটি চক্ৰ";
 "ECU Type" = "ECU প্ৰকাৰ";
 "ELECTRONIC DESIGN AUTOMATION" = "ইলেক্ট্ৰনিক ডিজাইন অটোমেশ্বন";
+"ENGINEERING CHANGE ORDER" = "অভিযান্ত্ৰিক সলনি আদেশ";
 "ERC" = "ERC";
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "প্ৰতিটো মেশ্ব নেটে ছিকিউৰ এলিমেণ্টৰ ড্ৰাইভ আৰু ছেন্স পিন সংযোগ কৰে; অটো ৰুটে চাৰ্পেণ্টাইন ইয়াত পাৰে: ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "প্ৰতিটো ভায়া ই সংযোগ কৰা লেয়াৰলৈকে কটা হয়; এটা-ডাইইলেক্ট্ৰিক স্পেন পাতল বিল্ড-আপ লেয়াৰত লেজাৰ মাইক্ৰ'ভায়া হয়";
@@ -264,6 +288,7 @@
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "এই বুটাম সক্ষম কৰিবলৈ ওপৰত আপোনাৰ আইডেণ্টিটি প্ৰদানকাৰীৰ ইছুৱাৰ URL আৰু SiEDA ৰ ক্লায়েণ্ট ID দিয়ক (আপোনাৰ IT প্ৰশাসকক সোধক)।";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "প্ৰচেছৰ, BGA আৰু ডাঙৰ কেপাচিটৰৰ তলত ইপক্সি যাতে MIL-STD-901E শ্বকে সেইবোৰ উঘালিব নোৱাৰে";
 "Errors" = "ত্ৰুটি";
+"Every ERC message of every sheet; click one to go there" = "প্ৰতিখন শ্বীটৰ প্ৰতিটো ERC বাৰ্তা; তালৈ যাবলৈ এটাত ক্লিক কৰক";
 "Every pin is placed once; no pins collide" = "প্ৰতিটো পিন এবাৰ ৰখা হৈছে; কোনো পিন খুন্দা নাখায়";
 "Every unit is valid" = "প্ৰতিটো ইউনিট বৈধ";
 "Exchange the wires of two interchangeable pins of this gate" = "এই গেটৰ দুটা সলনিযোগ্য পিনৰ তাঁৰ সলনি কৰক";
@@ -303,10 +328,14 @@
 "Footprint" = "ফুটপ্ৰিণ্ট";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "পাৰ্ট লগোৱা ফুটপ্ৰিণ্ট: চিপৰ আকাৰ, থ্ৰু-হ'ল, টেণ্টেলাম বা ইলেক্ট্ৰ'লাইটিক কেছ";
 "Frequency" = "কম্পনাংক";
+"From Board Positions (Columns)" = "ব'ৰ্ডৰ অৱস্থানৰ পৰা (স্তম্ভ)";
+"From Board Positions (Rows)" = "ব'ৰ্ডৰ অৱস্থানৰ পৰা (শাৰী)";
+"From WAS / IS File…" = "WAS / IS ফাইলৰ পৰা…";
 "Fundamental" = "মৌলিক কম্পনাংক";
 "Gain" = "গেইন";
 "Gap Before" = "আগৰ ফাঁক";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "মিয়েণ্ডাৰৰ ভৰিৰ মাজৰ কাষৰ পৰা কাষলৈ ব্যৱধান mm ত (খালী: কেন্দ্ৰৰ মাজত তিনিটা ট্ৰেকৰ প্ৰস্থ)";
+"Gate swap" = "গেট সলনি";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "বহু-ইউনিট অংশৰ গেট (কোৱাড অপ-এম্পৰ A, B, C, D) নম্বৰ দিয়াৰ আগতে স্থাপনৰ ক্ৰমত পেকেজ পূৰ কৰে";
 "Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "এটা সলনি গোটৰ গেট (বা একে গেট) গেট সলনি আৰু পেকিঙেৰে সলনি কৰিব পাৰি";
 "Generate Design" = "ডিজাইন সৃষ্টি কৰক";
@@ -368,6 +397,7 @@
 "Issuer URL" = "ইছুৱাৰ URL";
 "Keep results for %lld hours" = "ফলাফল %lld ঘণ্টা ৰাখক";
 "LAYERS" = "লেয়াৰ";
+"Label increment" = "লেবেল বৃদ্ধি";
 "Laminate" = "লেমিনেট";
 "Language" = "ভাষা";
 "Largest contributors" = "সৰ্বাধিক অৰিহণাকাৰী";
@@ -400,6 +430,7 @@
 "Lossless" = "ক্ষতিহীন";
 "Lossy" = "ক্ষতিযুক্ত";
 "Lumped model" = "লাম্পড আৰ্হি";
+"MESSAGES" = "বাৰ্তা";
 "Magnitude" = "মেগনিচিউড";
 "Make Swap Group" = "সলনি গোট বনাওক";
 "Manufacturer part #" = "নিৰ্মাতাৰ অংশ নম্বৰ";
@@ -417,6 +448,7 @@
 "Medical Device Class" = "চিকিৎসা সঁজুলিৰ শ্ৰেণী";
 "Members" = "সদস্য";
 "Memory Design" = "মেমৰী ডিজাইন";
+"Messages" = "বাৰ্তা";
 "Microvia" = "মাইক্ৰ'ভায়া";
 "Min" = "নিম্নতম";
 "Mirror" = "মিৰৰ কৰক";
@@ -452,10 +484,12 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Supply স্কোপসহ Nexar এপ্লিকেচন (ক্লায়েণ্ট ক্ৰেডেনচিয়েল)। Octopart ডেটা: এটা সন্ধানতে বহু বিতৰকৰ অফাৰ।";
 "No 3D model: the part shows its generated body." = "3D মডেল নাই: অংশটোৱে ইয়াৰ সৃষ্টি কৰা বডি দেখুৱায়।";
 "No API key: add one in Settings → Suppliers" = "API চাবি নাই: ছেটিংছ → যোগানধাৰী ত যোগ কৰক";
+"No changes: the schematic already matches the board." = "কোনো সলনি নাই: স্কিমেটিক ইতিমধ্যে ব'ৰ্ডৰ লগত মিলে।";
 "No crosstalk or return-path problems found" = "কোনো ক্ৰছটক বা ৰিটাৰ্ণ-পাথ সমস্যা পোৱা নগ'ল";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "এই ডিজাইনত কোনো ডিফাৰেঞ্চিয়েল পেয়াৰ (…_P/_N, …+/-) বা বাছ (DQ0…, DATA[0..7], ADDR…) নাই।";
 "No distributor API keys yet" = "এতিয়ালৈকে বিতৰকৰ API চাবি নাই";
 "No distributor offers." = "বিতৰকৰ কোনো অফাৰ নাই।";
+"No errors or warnings." = "কোনো ত্ৰুটি বা সতৰ্কবাণী নাই।";
 "No gates found in the pin names." = "পিনৰ নামত কোনো গেট পোৱা নগ'ল।";
 "No imported model" = "আমদানি কৰা মডেল নাই";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "কোনো ইনপুট উৎস নাই: ইনপুটলৈ প্ৰতিফলিত নইজ চাবলৈ ইনপুটক AC মান দিয়ক বা ইয়াৰ নাম দিয়ক।";
@@ -520,6 +554,8 @@
 "PAD ARRAY" = "পেড এৰে";
 "PARAMETERS" = "পেৰামিটাৰ";
 "PCB Layout" = "PCB লেআউট";
+"PDF" = "PDF";
+"PDF of every sheet with bookmarks, frames and title blocks" = "বুকমাৰ্ক, ফ্ৰেম আৰু শিৰোনাম ব্লকসহ প্ৰতিখন শ্বীটৰ PDF";
 "PIN SWAP" = "পিন সলনি";
 "PINS" = "পিন";
 "PRBS" = "PRBS";
@@ -535,7 +571,10 @@
 "Parts" = "পাৰ্ট";
 "Parts you import, create or add from the standard library appear here and in the schematic device picker." = "আপুনি ইম্পৰ্ট কৰা, সৃষ্টি কৰা বা ষ্টেণ্ডাৰ্ড লাইব্ৰেৰীৰ পৰা যোগ কৰা পাৰ্টবোৰ ইয়াত আৰু স্কিমেটিক ডিভাইচ পিকাৰত দেখা যায়।";
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "পৃথক গেলভেনিক ড'মেইনৰ (আইছ'লেটৰ আৰু আইছ'লেটেড কনভাৰ্টাৰৰ সিপাৰে) পাৰ্ট, ট্ৰেক আৰু প'ৰ ";
+"Paste" = "পেষ্ট কৰক";
 "Paste API key" = "API কী পেষ্ট কৰক";
+"Paste Array" = "পেষ্ট এৰে";
+"Paste Array…" = "পেষ্ট এৰে…";
 "Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "নিৰ্মাতাৰ মডেল পাঠ (.lib, .mod, .cir) পেষ্ট কৰক বা খোলক: .model আৰু .subckt সংজ্ঞা।";
 "Pattern" = "পেটাৰ্ণ";
 "Peak" = "শিখৰ";
@@ -546,6 +585,7 @@
 "Pin" = "পিন";
 "Pin map" = "পিন মেপ";
 "Pin names" = "পিনৰ নাম";
+"Pin swap" = "পিন সলনি";
 "Pins: " = "পিন: ";
 "Place %@ Connector…" = "%@ সংযোজক ৰাখক…";
 "Place Harness Connector" = "হাৰ্নেছ সংযোজক ৰাখক";
@@ -574,6 +614,8 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Re-annotate from the board (columns)" = "ব'ৰ্ডৰ পৰা পুনৰ এন'টেট (স্তম্ভ)";
+"Re-annotate from the board (rows)" = "ব'ৰ্ডৰ পৰা পুনৰ এন'টেট (শাৰী)";
 "Re-verify" = "পুনৰ ভেৰিফাই কৰক";
 "Read Pins from Datasheet" = "ডেটাশ্বীটৰ পৰা পিন পঢ়ক";
 "Ready" = "সাজু";
@@ -592,6 +634,7 @@
 "Remove the firmware" = "ফাৰ্মৱেৰ আঁতৰাওক";
 "Remove the selected unit (its pins go to the power unit)" = "বাছনি কৰা ইউনিট আঁতৰাওক (ইয়াৰ পিন পাৱাৰ ইউনিটলৈ যায়)";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "শেষ সংযুক্ত লেয়াৰৰ তলৰ অব্যৱহৃত ভায়া বেৰেল আঁতৰায় (≥ 4 লেয়াৰ); এটা বেক-ড্ৰিল ফাইল যোগ কৰে";
+"Rename" = "নাম সলনি";
 "Rename Channel" = "চেনেলৰ নাম সলনি কৰক";
 "Rename Channel…" = "চেনেলৰ নাম সলনি কৰক…";
 "Rename Sheet" = "শ্বীটৰ নাম সলনি কৰক";
@@ -642,6 +685,7 @@
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "ইয়াক এক্সিকিউট কৰিবলৈ এটা ট্ৰেঞ্জিয়েণ্ট বিশ্লেষণ চলাওক: পিনে চাৰ্কিট ড্ৰাইভ কৰে, ইনপুট আৰু ADC য়ে ইয়াক পঢ়ে, আৰু ছিৰিয়েল আউটপুট ছিমুলেশ্বনত দেখা যায়।";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "বোৰ্ডখন ৰিয়েল টাইমত চলাওক (⌘R): LED জ্বলে, ছুইচত ক্লিক কৰক, ফাৰ্মৱেৰ চলে, লাইভ প্ৰ'ব";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "বোৰ্ডখন ৰিয়েল টাইমত চলাওক: ফাৰ্মৱেৰ, LED, ছুইচ, স্কোপ আৰু ছিৰিয়েল মনিটৰ";
+"Run the electrical rule check on every sheet" = "প্ৰতিখন শ্বীটত বৈদ্যুতিক নিয়ম পৰীক্ষা চলাওক";
 "Runs" = "ৰান";
 "S-parameters" = "S-পেৰামিটাৰ";
 "SI / PI" = "SI / PI";
@@ -690,6 +734,7 @@
 "Shared by several gates" = "কেইবাটাও গেটে ভাগ কৰা";
 "Sheet" = "শ্বীট";
 "Sheet %lld of %lld" = "পাত %lld / %lld";
+"Sheet Size" = "শ্বীটৰ আকাৰ";
 "Sheet name" = "শ্বীটৰ নাম";
 "Shot" = "শ্বট";
 "Shove" = "ঠেলা";
@@ -698,6 +743,8 @@
 "Show" = "দেখুৱাওক";
 "Show Crash Reports" = "ক্ৰেশ্ব ৰিপৰ্ট দেখুৱাওক";
 "Show Navigator" = "নেভিগেটৰ দেখুৱাওক";
+"Show in Schematic" = "স্কিমেটিকত দেখুৱাওক";
+"Show on PCB" = "PCB-ত দেখুৱাওক";
 "Show one robot platform's production parts kit" = "এটা ৰ'বট প্লেটফৰ্মৰ প্ৰডাকশ্বন পাৰ্টছ কিট দেখুৱাওক";
 "Show splash screen at launch" = "লঞ্চৰ সময়ত স্প্লেশ্ব স্ক্ৰীণ দেখুৱাওক";
 "Show these parts in the schematic" = "এই পাৰ্টবোৰ স্কিমেটিকত দেখুৱাওক";
@@ -736,6 +783,7 @@
 "Starting the design engine" = "ডিজাইন ইঞ্জিন আৰম্ভ হৈ আছে";
 "Step" = "ষ্টেপ";
 "Step response" = "ষ্টেপ প্ৰতিক্ৰিয়া";
+"Step x, y" = "খোজ x, y";
 "Stitch vias at the selected (or every) power MOSFET's drain / tab pad" = "বাছনি কৰা (বা প্ৰতিটো) পাৱাৰ MOSFET ৰ ড্ৰেইন / টেব পেডত ষ্টিচ ভায়া";
 "Stitch vias at the selected parts' drain / tab pads (every power MOSFET if none is selected)" = "বাছনি কৰা পাৰ্টৰ ড্ৰেইন / টেব পেডত ষ্টিচ ভায়া (একো বাছনি কৰা নাথাকিলে প্ৰতিটো পাৱাৰ MOSFET)";
 "Stock" = "ষ্টক";

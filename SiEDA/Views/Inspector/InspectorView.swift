@@ -138,6 +138,23 @@ private struct ComponentProperties: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                // Cross-probing both ways between the schematic and the board.
+                if !kind.isVirtual || component.unitOf != nil {
+                    if store.workspace == .pcb {
+                        Button { store.showInSchematic(component.id) } label: {
+                            Label("Show in Schematic", systemImage: "point.3.connected.trianglepath.dotted")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    } else {
+                        Button { store.showOnPCB(component.id) } label: {
+                            Label("Show on PCB", systemImage: "square.grid.3x3.square")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(!(store.snapshot.component(component.unitOf ?? component.id)?.pcb.placed ?? false))
+                    }
+                }
             }
 
             if kind == .netLabel && !component.isHarnessLabel {

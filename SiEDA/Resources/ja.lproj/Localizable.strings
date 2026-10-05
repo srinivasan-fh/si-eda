@@ -1,6 +1,8 @@
 /* SiEDA interface strings — ja. Keys are the English text; check with tools/check_localization.py. */
 
+"%lld errors · %lld warnings" = "エラー %lld 件 · 警告 %lld 件";
 "%lld matches" = "%lld 件一致";
+"%lld of %lld changes selected" = "%lld / %lld 件の変更を選択";
 "%lld values" = "%lld 個の値";
 "0 derives the value from the regulator type" = "0 でレギュレータの種類から値を決定";
 "10 s" = "10 s";
@@ -56,6 +58,12 @@
 "Aerospace Mission" = "航空宇宙ミッション";
 "Agent Pipeline" = "エージェントパイプライン";
 "Agents" = "エージェント";
+"Align Bottom" = "下揃え";
+"Align Horizontal Centres" = "水平中央揃え";
+"Align Left" = "左揃え";
+"Align Right" = "右揃え";
+"Align Top" = "上揃え";
+"Align Vertical Centres" = "垂直中央揃え";
 "All" = "すべて";
 "Amplitude" = "振幅";
 "An entry (a local net label on the bus) for every member that has none yet" = "まだエントリのないメンバーごとにエントリ（バス上のローカルネットラベル）を作成";
@@ -70,11 +78,13 @@
 "Appends the imported block (connector, cable, backplane) after the routed channel" = "インポートしたブロック（コネクタ、ケーブル、バックプレーン）を配線済みチャネルの後に接続";
 "Appliance Type" = "家電の種類";
 "Apply" = "適用";
+"Apply Changes" = "変更を適用";
 "Apply Footprint" = "フットプリントを適用";
 "Apply Outline" = "外形を適用";
 "Apply Prices to BOM" = "価格を BOM に適用";
 "Apply Symbol" = "シンボルを適用";
 "Apply Tuning" = "チューニングを適用";
+"Arrange" = "整列";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "回路図シンボルを配置：任意の辺へのピン配置、グループ、電源ピンの積み重ね、自動配置";
 "Arrange the symbol, or define the gates of a multi-unit part" = "シンボルを配置するか、マルチユニット部品のゲートを定義します";
 "Arranged symbol" = "配置済みシンボル";
@@ -87,6 +97,7 @@
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl)・STL・OBJ モデルを添付してフットプリントに合わせる";
 "Audience (optional)" = "対象者 (任意)";
 "Auto" = "自動";
+"Auto (fits the drawing)" = "自動（図面に合わせる）";
 "Auto Arrange" = "自動配置";
 "Auto Route" = "自動配線";
 "Auto Route Board" = "基板を自動配線";
@@ -99,6 +110,7 @@
 "BODY" = "ボディ";
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "実装用 BOM (JLCPCB / PCBWay)…";
+"Back Annotate" = "バックアノテーション";
 "Backdrill via stubs on fast nets" = "高速ネットのビアスタブをバックドリル";
 "Backward Euler" = "後退オイラー法";
 "Bandwidth" = "帯域幅";
@@ -112,6 +124,7 @@
 "Block designator" = "ブロック内リファレンス";
 "Block value: %@" = "ブロック値: %@";
 "Board Setup" = "基板設定";
+"Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review" = "基板の変更（リファレンス、ピン交換、ゲート交換）を回路図に提案してレビュー";
 "Board default" = "基板の既定値";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "基板外形 (クアッド X フレーム、角丸、円)、取付穴、銅ベタ/プレーン、ネットクラス";
 "Board thickness" = "基板厚";
@@ -139,6 +152,7 @@
 "Cavity model" = "共振器モデル";
 "Centre" = "中央に配置";
 "Centre the model on the footprint and put its lowest point on the board surface" = "モデルをフットプリントの中央に置き、最下点を基板表面に合わせる";
+"Changes from a WAS / IS file" = "WAS / IS ファイルからの変更";
 "Channel" = "チャネル";
 "Channel %@ of %@ — edits apply to every channel" = "チャネル %@（%@）— 編集はすべてのチャネルに反映されます";
 "Channel Designators" = "チャネルのリファレンス番号";
@@ -175,6 +189,8 @@
 "Close" = "閉じる";
 "Close Gaps" = "隙間を詰める";
 "Company" = "会社";
+"Compile" = "コンパイル";
+"Compile to check every sheet." = "コンパイルしてすべてのシートを確認します。";
 "Component Placement List (CPL)…" = "部品配置リスト (CPL)…";
 "Components" = "部品";
 "Components (%lld)" = "部品 (%lld)";
@@ -184,9 +200,13 @@
 "Conformal coating" = "コンフォーマルコーティング";
 "Connect to Part" = "部品に接続";
 "Construction" = "構造";
+"Copies" = "コピー数";
+"Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "クリップボードのコピーを1ステップずつずらして貼り付けます（回路図単位、10 = 1グリッド）。部品は次の空きリファレンスを、ネットラベルの番号は増分ずつ増えます（D0 → D1 …）。";
 "Copper colours" = "銅箔の色";
 "Copper foil" = "銅箔";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "銅層数：1 = 片面 (ビアなし)、2–6 はほとんどの製品向け、8–24 はマザーボード、サーバー、メインフレーム、GPU ベースボード向け";
+"Copy" = "コピー";
+"Copy, paste, paste array (designators numbered on, labels counted up), align and distribute" = "コピー、貼り付け、配列貼り付け（リファレンス連番、ラベル加算）、整列と分配";
 "Corners" = "コーナー";
 "Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only" = "収まりクリアランスを保てる箇所で角を円弧（短い直線の弦で描画）にします。単一トラックのみ";
 "Coupled sections" = "結合区間";
@@ -196,6 +216,7 @@
 "Current density" = "電流密度";
 "Currents" = "電流";
 "Cursors & Measurements" = "カーソルと測定";
+"Cut" = "カット";
 "DC" = "DC";
 "DC Operating Point" = "DC 動作点";
 "DC Sweep" = "DC スイープ";
@@ -237,6 +258,8 @@
 "Differential pair" = "差動ペア";
 "Differential pair member" = "差動ペアのメンバー";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 を含む DigiKey API アプリケーション（Production）、クライアント認証情報フロー。";
+"Distribute Horizontally" = "水平方向に分配";
+"Distribute Vertically" = "垂直方向に分配";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "未実装：基板上にはあるが実装しない。実装用 BOM と CPL から除外";
 "Done" = "完了";
 "Down ↓" = "下へ ↓";
@@ -251,6 +274,7 @@
 "Duty cycle" = "デューティ比";
 "ECU Type" = "ECU の種類";
 "ELECTRONIC DESIGN AUTOMATION" = "電子設計自動化";
+"ENGINEERING CHANGE ORDER" = "設計変更指示";
 "ERC" = "ERC";
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "各メッシュネットはセキュアエレメントの駆動ピンと検出ピンを接続します。自動配線がサーペンタインを配置する層: ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "各ビアは接続する層だけに加工され、1 誘電体層のスパンは薄いビルドアップ層上のレーザーマイクロビアになります";
@@ -264,6 +288,7 @@
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "上に ID プロバイダの発行者 URL と SiEDA のクライアント ID を入力すると、このボタンが有効になります (IT 管理者にお問い合わせください)。";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "プロセッサ、BGA、大型コンデンサの下にエポキシを充填し、MIL-STD-901E の衝撃で剥がれないようにします";
 "Errors" = "エラー";
+"Every ERC message of every sheet; click one to go there" = "すべてのシートの ERC メッセージ。クリックでその場所へ";
 "Every pin is placed once; no pins collide" = "すべてのピンが 1 回ずつ配置され、ピンの衝突なし";
 "Every unit is valid" = "すべてのユニットが有効です";
 "Exchange the wires of two interchangeable pins of this gate" = "このゲートの交換可能な2本のピンの配線を入れ替えます";
@@ -303,10 +328,14 @@
 "Footprint" = "フットプリント";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "部品のフットプリント：チップサイズ、スルーホール、タンタルまたは電解コンデンサのケース";
 "Frequency" = "周波数";
+"From Board Positions (Columns)" = "基板の位置から（列）";
+"From Board Positions (Rows)" = "基板の位置から（行）";
+"From WAS / IS File…" = "WAS / IS ファイルから…";
 "Fundamental" = "基本波";
 "Gain" = "ゲイン";
 "Gap Before" = "前に隙間";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "ミアンダの脚の間隔（エッジ間、mm、空欄：中心間でトラック幅の3倍）";
+"Gate swap" = "ゲート交換";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "マルチユニット部品のゲート (クワッドオペアンプの A、B、C、D) を配置順にパッケージへ詰めてから番号付け";
 "Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "同じスワップグループのゲート（または同一ゲート）は「ゲートを交換」とパッキングで入れ替えられます";
 "Generate Design" = "設計を生成";
@@ -368,6 +397,7 @@
 "Issuer URL" = "発行者 URL";
 "Keep results for %lld hours" = "結果を %lld 時間保持";
 "LAYERS" = "レイヤー";
+"Label increment" = "ラベル増分";
 "Laminate" = "積層板";
 "Language" = "言語";
 "Largest contributors" = "主な寄与元";
@@ -400,6 +430,7 @@
 "Lossless" = "無損失";
 "Lossy" = "損失あり";
 "Lumped model" = "集中定数モデル";
+"MESSAGES" = "メッセージ";
 "Magnitude" = "振幅";
 "Make Swap Group" = "スワップグループにする";
 "Manufacturer part #" = "メーカー品番";
@@ -417,6 +448,7 @@
 "Medical Device Class" = "医療機器クラス";
 "Members" = "メンバー";
 "Memory Design" = "メモリ設計";
+"Messages" = "メッセージ";
 "Microvia" = "マイクロビア";
 "Min" = "最小";
 "Mirror" = "ミラー";
@@ -452,10 +484,12 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Supply スコープ付きの Nexar アプリケーション（クライアント認証情報）。Octopart のデータ：1 回の検索で多数の販売代理店のオファー。";
 "No 3D model: the part shows its generated body." = "3D モデルなし：部品は生成された本体で表示されます。";
 "No API key: add one in Settings → Suppliers" = "API キーなし：設定 → サプライヤで追加してください";
+"No changes: the schematic already matches the board." = "変更なし：回路図はすでに基板と一致しています。";
 "No crosstalk or return-path problems found" = "クロストークやリターンパスの問題は見つかりません";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "この設計には差動ペア (…_P/_N, …+/-) やバス (DQ0…, DATA[0..7], ADDR…) がありません。";
 "No distributor API keys yet" = "販売代理店の API キーがまだありません";
 "No distributor offers." = "販売代理店のオファーはありません。";
+"No errors or warnings." = "エラーも警告もありません。";
 "No gates found in the pin names." = "ピン名からゲートが見つかりません。";
 "No imported model" = "インポートしたモデルなし";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "入力源がありません：入力換算ノイズを見るには、入力に AC 振幅を与えるか入力として指定してください。";
@@ -520,6 +554,8 @@
 "PAD ARRAY" = "パッドアレイ";
 "PARAMETERS" = "パラメータ";
 "PCB Layout" = "PCB レイアウト";
+"PDF" = "PDF";
+"PDF of every sheet with bookmarks, frames and title blocks" = "しおり・図枠・表題欄付きの全シートの PDF";
 "PIN SWAP" = "ピン交換";
 "PINS" = "ピン";
 "PRBS" = "PRBS";
@@ -535,7 +571,10 @@
 "Parts" = "部品";
 "Parts you import, create or add from the standard library appear here and in the schematic device picker." = "読み込み、作成、または標準ライブラリから追加した部品は、ここと回路図のデバイスピッカーに表示されます。";
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "別々のガルバニック絶縁ドメイン (アイソレータや絶縁型コンバータの両側) の部品、配線、ベタは ";
+"Paste" = "貼り付け";
 "Paste API key" = "API キーをペースト";
+"Paste Array" = "配列貼り付け";
+"Paste Array…" = "配列貼り付け…";
 "Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "メーカーのモデルテキスト（.lib、.mod、.cir）を貼り付けるか開きます：.model と .subckt の定義。";
 "Pattern" = "パターン";
 "Peak" = "ピーク";
@@ -546,6 +585,7 @@
 "Pin" = "ピン";
 "Pin map" = "ピン割り当て";
 "Pin names" = "ピン名";
+"Pin swap" = "ピン交換";
 "Pins: " = "ピン: ";
 "Place %@ Connector…" = "%@ コネクタを配置…";
 "Place Harness Connector" = "ハーネスコネクタを配置";
@@ -574,6 +614,8 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Re-annotate from the board (columns)" = "基板から再アノテーション（列）";
+"Re-annotate from the board (rows)" = "基板から再アノテーション（行）";
 "Re-verify" = "再検証";
 "Read Pins from Datasheet" = "データシートからピンを読み取る";
 "Ready" = "準備完了";
@@ -592,6 +634,7 @@
 "Remove the firmware" = "ファームウェアを削除";
 "Remove the selected unit (its pins go to the power unit)" = "選択したユニットを削除します（ピンは電源ユニットへ）";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "最後に接続された層より下の未使用ビアバレルを除去 (≥ 4 層)。バックドリルファイルを追加";
+"Rename" = "名前変更";
 "Rename Channel" = "チャネル名を変更";
 "Rename Channel…" = "チャネル名を変更…";
 "Rename Sheet" = "シート名を変更";
@@ -642,6 +685,7 @@
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "過渡解析を実行すると動作します：ピンが回路を駆動し、入力と ADC が回路を読み取り、シリアル出力が “シミュレーション” に表示されます。";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "基板をリアルタイムで実行 (⌘R)：LED 点灯、スイッチのクリック、ファームウェア実行、ライブプローブ";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "基板をリアルタイムで実行：ファームウェア、LED、スイッチ、スコープ、シリアルモニタ";
+"Run the electrical rule check on every sheet" = "すべてのシートで電気的ルールチェックを実行";
 "Runs" = "試行回数";
 "S-parameters" = "S パラメータ";
 "SI / PI" = "SI / PI";
@@ -690,6 +734,7 @@
 "Shared by several gates" = "複数のゲートで共有";
 "Sheet" = "シート";
 "Sheet %lld of %lld" = "シート %lld / %lld";
+"Sheet Size" = "シートサイズ";
 "Sheet name" = "シート名";
 "Shot" = "ショット雑音";
 "Shove" = "押しのけ";
@@ -698,6 +743,8 @@
 "Show" = "表示";
 "Show Crash Reports" = "クラッシュレポートを表示";
 "Show Navigator" = "ナビゲータを表示";
+"Show in Schematic" = "回路図で表示";
+"Show on PCB" = "PCB で表示";
 "Show one robot platform's production parts kit" = "ロボットプラットフォームの量産部品キットを表示";
 "Show splash screen at launch" = "起動時にスプラッシュ画面を表示";
 "Show these parts in the schematic" = "これらの部品を回路図に表示";
@@ -736,6 +783,7 @@
 "Starting the design engine" = "設計エンジンを起動中";
 "Step" = "ステップ";
 "Step response" = "ステップ応答";
+"Step x, y" = "ステップ x, y";
 "Stitch vias at the selected (or every) power MOSFET's drain / tab pad" = "選択した (またはすべての) パワー MOSFET のドレイン / タブパッドにステッチングビアを配置";
 "Stitch vias at the selected parts' drain / tab pads (every power MOSFET if none is selected)" = "選択した部品のドレイン / タブパッドにステッチングビアを配置 (未選択時はすべてのパワー MOSFET)";
 "Stock" = "在庫";
