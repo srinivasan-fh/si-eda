@@ -42,7 +42,7 @@ corners to arcs; arc tracks exact in DRC, connectivity, Gerber G02/G03, pours, l
 Select-tool track, corner, multi-track and via drag with shove, any-angle (free) routing, multi-route of picked nets
 with bundle vias, Tune Length tool with live preview and gauge (accordion / trombone / sawtooth, square / mitered / round corners,
 drag-along placement, coupled pair tuning, phase (skew) tuning; targets from length rules, match groups with xSignals
-through series parts, pair / bus groups; DRC_LENGTH), fanout of selected parts; head updates off the main thread (cancellable, latest wins; 400-part benchmark) | ✅ |
+through series parts, pair / bus groups; DRC_LENGTH), fanout of selected parts; head updates off the main thread (cancellable, latest wins; p99 under 30 ms on the 400- and 923-part benchmarks) | ✅ |
 | F17 | Schematic productivity: find / replace across sheets, net navigator, hierarchy cross-probing, title block | ✅ |
 | F18 | Part library: KiCad, Eagle and Altium (.SchLib / .PcbLib) import with a footprint choice per symbol; VRML / STL / OBJ 3D models per part (3D view, STL / OBJ export); live distributor search (Octopart / Nexar, DigiKey, Mouser) with stock, price breaks and lifecycle, Place Part with sourcing; BOM live pricing and cost per build quantity (docs/LIBRARY_IMPORT.md, docs/SUPPLIERS.md) | ✅ |
 

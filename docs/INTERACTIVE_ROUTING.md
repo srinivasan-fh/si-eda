@@ -495,9 +495,9 @@ never fails because of an old DRC problem elsewhere, and it never creates a new 
   corner; on one of several selected tracks: all of them); a press on a pad moves the footprint as before. Arcs are
   not dragged.
 - Auto Route rips up all routing, locked tracks included.
-- A blocked head on a dense board still takes up to about 0.1 s to compute (the router searches for the furthest
-  position that fits). It no longer stalls the window (see [Responsiveness](#responsiveness)), but the head lags the
-  cursor by that much there.
+- A blocked head on a dense board still takes up to about 50 ms to compute (the router searches for the furthest
+  position that fits; p99 under 30 ms). It never stalls the window (see [Responsiveness](#responsiveness)), but the
+  head lags the cursor by that much there. A shove drag of a segment into a crowded spot reaches 40 ms (p99).
 
 ## Responsiveness
 
@@ -509,22 +509,43 @@ click itself, so a step never waits for a slow head and never uses a stale one. 
 state from before it and reports `aborted` in its preview; the app drops such results, and results of a session that
 has since ended.
 
-Measured with `sieda_router_bench` (Release, gcc, one core of a shared 4-core Linux container): a generated board of
-422 parts, 512 nets and 8 layers (159 × 120 mm, 3335 tracks, 1185 vias, autorouted). Routes start on random pads (and
-drags on random tracks), the head moves to random points within 12 mm (1.5 mm for drags):
+Measured with `sieda_router_bench` (Release, gcc, one thread: `SIEDA_ROUTER_SERIAL=1`, a 4-core Linux container
+shared with other jobs, so ±20 %): a generated board of 422 parts, 512 nets and 8 layers (159 × 120 mm, 3341 tracks,
+1176 vias, autorouted). Routes start on random pads (and drags on random tracks), the head moves to random points
+within 12 mm (1.5 mm for drags). "Before" is the same benchmark, same board and same machine load, on the previous
+core:
 
-| Update | Median | p90 | p99 | Worst |
-|---|---|---|---|---|
-| Route head, Shove | 6.4 ms | 27 ms | 79 ms | 106 ms |
-| Route head, Walk around | 5.7 ms | 22 ms | 29 ms | 31 ms |
-| Segment drag, Shove | 0.08 ms | 26 ms | 113 ms | 113 ms |
-| Segment drag, Walk around | 0.05 ms | 0.09 ms | 0.19 ms | 0.19 ms |
-| Starting a route (board snapshot) | 3.7 ms | 4.1 ms | 8.5 ms | 8.5 ms |
-| Slow update (into another net's pad, far away) | 19 ms | 50 ms | 60 ms | 60 ms |
-| The same, cancelled after 1 ms (time to return, incl. the 1 ms) | 5.2 ms | 6.1 ms | 9.7 ms | 9.7 ms |
+| Update | Median | p90 | p99 | Worst | Before: p99 / worst |
+|---|---|---|---|---|---|
+| Route head, Shove | 4.1 ms | 13.7 ms | **29.4 ms** | 49.7 ms | 52.3 ms / 97.2 ms |
+| Route head, Walk around | 4.0 ms | 10.5 ms | **19.5 ms** | 21.9 ms | 31.7 ms / 34.2 ms |
+| Segment drag, Shove | 0.12 ms | 7.9 ms | 40.7 ms | 40.7 ms | 65.8 ms / 65.8 ms |
+| Segment drag, Walk around | 0.04 ms | 0.07 ms | 0.16 ms | 0.16 ms | 0.19 ms / 0.19 ms |
+| Starting a route (board snapshot) | 5.6 ms | 6.5 ms | 14.7 ms | 14.7 ms | 6.1 ms / 6.1 ms |
+| Slow update (into another net's pad, far away) | 11.6 ms | 33.3 ms | 33.8 ms | 33.8 ms | 70.5 ms / 70.5 ms |
+| The same, cancelled after 1 ms (time to return, incl. the 1 ms) | 5.3 ms | 6.4 ms | 9.8 ms | 9.8 ms | 11.9 ms / 11.9 ms |
 
-`./build/sieda_router_bench [--clusters 16 --layers 8 --seed 1 --moves 300]` reproduces it (the board takes about a
-minute to autoroute first).
+The 923-part board of [ROUTING.md](ROUTING.md) (32 clusters, FPGA and 4 BGAs, 8 layers, 234 × 176 mm, 8688 tracks,
+2996 vias; `--clusters 32 --fpga 1 --seed 3`) scales with it: route head p99 28.8 ms (Shove) and 26.7 ms (Walk
+around), segment drag p99 28.1 ms, a board snapshot 15 ms.
+
+What made it faster (every result is the same as before, bit for bit: the tests and the recorded router results are
+unchanged):
+
+- The clearance checks query a per-layer track grid, and the tracks a shove step adds and drops again are kept out
+  of the queries (a live list of the overlay's added copper instead of a scan over hundreds of dead ones).
+- Bounding-box gaps reject far pads and tracks before the exact distance, with a margin far above rounding; the
+  board-edge check is skipped where a straight track is well inside a rectangular board.
+- The walkaround grid search stops as soon as it has found the nearest reachable cell of an unreachable target (a
+  flood fill knows the region beforehand), and its open list and obstacle marking avoid indirect calls.
+- With spare cores (load average below cores − 1.5) the candidate heads and the two halves of each bisection step
+  ("how far does the head get") run side by side and are then taken in the sequential order, so the outcome never
+  depends on timing; on a busy machine everything runs on one thread. `SIEDA_ROUTER_SERIAL=1` forces one thread,
+  `SIEDA_ROUTER_PARALLEL=1` always uses threads (the tests run both ways).
+
+`./build/sieda_router_bench [--clusters 16 --layers 8 --seed 1 --moves 300] [--board routed.json] [--slowest 10]`
+reproduces it (the board takes about a minute to autoroute first; `--board` keeps it for the next run); it also
+prints the per-update CPU time.
 
 ## Code map
 

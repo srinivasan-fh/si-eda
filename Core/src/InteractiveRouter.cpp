@@ -18,13 +18,17 @@
 #include "sieda/InteractiveRouter.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <deque>
 #include <functional>
 #include <limits>
 #include <map>
 #include <queue>
 #include <set>
+#include <thread>
 #include <tuple>
 
 #include "sieda/Isolation.hpp"
@@ -51,6 +55,53 @@ struct AbortScope {
     ~AbortScope() { t_abort = saved; }
     AbortScope(const AbortScope&) = delete;
     AbortScope& operator=(const AbortScope&) = delete;
+};
+
+/// Runs independent, read-only jobs of one head update side by side (the first on this thread). Each job sees the
+/// caller's cancellation plus its own `stop` flag. The jobs' results are then used in the same order as a sequential
+/// run would, so the outcome never depends on the timing or on the number of cores.
+struct Parallel {
+    static bool enabled() {
+        // SIEDA_ROUTER_SERIAL=1 runs them one after the other (benchmarks; the results are the same).
+        static const unsigned cores = std::thread::hardware_concurrency();
+        static const bool allowed = cores > 1 && std::getenv("SIEDA_ROUTER_SERIAL") == nullptr;
+        if (!allowed) return false;
+        static const bool forced = std::getenv("SIEDA_ROUTER_PARALLEL") != nullptr;  // tests: always side by side
+        if (forced) return true;
+        // Only with spare cores: on a machine already busy, side-by-side trials just slow each other down.
+        thread_local std::chrono::steady_clock::time_point checked{};
+        thread_local bool spare = true;
+        const auto now = std::chrono::steady_clock::now();
+        if (now - checked > std::chrono::milliseconds(250)) {
+            double load[1] = {0};
+            spare = getloadavg(load, 1) != 1 || load[0] < static_cast<double>(cores) - 1.5;
+            checked = now;
+        }
+        return spare;
+    }
+    static void run(const std::vector<std::function<void()>>& jobs, std::atomic<bool>* stop = nullptr) {
+        if (jobs.empty()) return;
+        if (!enabled() || jobs.size() == 1) {
+            for (const auto& j : jobs) j();
+            return;
+        }
+        const std::function<bool()>* parent = t_abort;
+        const std::function<bool()> check = [parent, stop] {
+            return (stop && stop->load(std::memory_order_relaxed)) || (parent && (*parent)());
+        };
+        std::vector<std::thread> pool;
+        pool.reserve(jobs.size() - 1);
+        for (size_t k = 1; k < jobs.size(); ++k)
+            pool.emplace_back([&, k] {
+                AbortScope scope(&check);
+                jobs[k]();
+            });
+        {
+            AbortScope scope(&check);
+            jobs[0]();
+        }
+        for (auto& t : pool) t.join();
+    }
 };
 
 // ------------------------------------------------------------------------------------------------ geometry helpers
@@ -662,7 +713,6 @@ Shape padShape(const Pad& p) {
 
 struct Grid {
     std::vector<std::vector<size_t>> cells;
-    mutable std::vector<unsigned> stamp;
 };
 
 struct Base {
@@ -677,6 +727,7 @@ struct Base {
     std::vector<std::string> netNames;
     std::vector<size_t> pinCount;
     std::map<int, std::pair<double, double>> ranges;
+    std::vector<const std::pair<double, double>*> rangeOf;  // ranges by net index (fast lookup), null = unknown
     std::vector<int> domain;  // isolation domain per net (empty: no barrier rule)
     std::set<int> barrierComps;
     std::vector<int> planeNet;  // per copper layer: the net whose plane it is, -1 = none
@@ -691,8 +742,10 @@ struct Base {
     double cell = 2;
     int cols = 1, rows = 1;
     Grid padGrid, trackGrid, viaGrid;
-    mutable unsigned epoch = 0;
+    std::vector<Grid> layerTrackGrid;  // the tracks of each layer (the clearance checks look at one layer)
 
+    Base(const Base&) = delete;  // rangeOf points into ranges
+    Base& operator=(const Base&) = delete;
     Base(const PcbLayout& pcb, const Schematic& sch) {
         s = pcb.settings;
         pads = pcb.pads(sch);
@@ -705,6 +758,11 @@ struct Base {
             pinCount.push_back(n.pins.size());
         }
         ranges = netVoltageRanges(sch);
+        for (const auto& r : ranges)
+            if (r.first >= 0) {
+                if (static_cast<size_t>(r.first) >= rangeOf.size()) rangeOf.resize(static_cast<size_t>(r.first) + 1, nullptr);
+                rangeOf[static_cast<size_t>(r.first)] = &r.second;
+            }
         if (s.isolationGap > 0) {
             domain = galvanicDomains(sch).netDomain;
             for (const auto& c : sch.components())
@@ -756,9 +814,15 @@ struct Base {
             insert(trackGrid, trackBox(tracks[i], tracks[i].width / 2), i);
         for (size_t i = 0; i < vias.size(); ++i)
             insert(viaGrid, Rect::centered(vias[i].position, vias[i].diameter, vias[i].diameter), i);
-        padGrid.stamp.assign(pads.size(), 0);
-        trackGrid.stamp.assign(tracks.size(), 0);
-        viaGrid.stamp.assign(vias.size(), 0);
+        int layers = std::max(1, s.layerCount);
+        for (const auto& t : tracks) layers = std::max(layers, t.layer + 1);
+        layerTrackGrid.assign(static_cast<size_t>(layers), Grid{});
+        for (Grid& g : layerTrackGrid) {
+            g.cells.assign(static_cast<size_t>(cols * rows), {});
+        }
+        for (size_t i = 0; i < tracks.size(); ++i)
+            if (tracks[i].layer >= 0)
+                insert(layerTrackGrid[static_cast<size_t>(tracks[i].layer)], trackBox(tracks[i], tracks[i].width / 2), i);
     }
 
     int netIndex(const std::string& name) const {
@@ -784,37 +848,50 @@ struct Base {
         for (int j = j0; j <= j1; ++j)
             for (int i = i0; i <= i1; ++i) g.cells[static_cast<size_t>(j * cols + i)].push_back(idx);
     }
+    /// The items whose cells `r` touches, ascending, each once. Read-only: the de-duplication marks are per
+    /// thread, so several head searches may query one snapshot at once.
     void query(const Grid& g, const Rect& r, std::vector<size_t>& out) const {
         out.clear();
-        if (++epoch == 0) {
-            for (const Grid* q : {&padGrid, &trackGrid, &viaGrid}) std::fill(q->stamp.begin(), q->stamp.end(), 0u);
-            epoch = 1;
-        }
         int i0, i1, j0, j1;
         cellRange(r, i0, i1, j0, j1);
+        if (i0 == i1 && j0 == j1) {  // one cell: ascending already, no repeats
+            const auto& c = g.cells[static_cast<size_t>(j0 * cols + i0)];
+            out.assign(c.begin(), c.end());
+            return;
+        }
+        thread_local std::vector<unsigned> stamp;
+        thread_local unsigned epoch = 0;
+        if (++epoch == 0) {
+            std::fill(stamp.begin(), stamp.end(), 0u);
+            epoch = 1;
+        }
         for (int j = j0; j <= j1; ++j)
             for (int i = i0; i <= i1; ++i)
-                for (size_t idx : g.cells[static_cast<size_t>(j * cols + i)])
-                    if (g.stamp[idx] != epoch) {
-                        g.stamp[idx] = epoch;
+                for (size_t idx : g.cells[static_cast<size_t>(j * cols + i)]) {
+                    if (idx >= stamp.size()) stamp.resize(std::max(idx + 1, 2 * stamp.size()), 0u);
+                    if (stamp[idx] != epoch) {
+                        stamp[idx] = epoch;
                         out.push_back(idx);
                     }
+                }
         std::sort(out.begin(), out.end());
     }
 
     /// IPC-2221 spacing for the two nets' potential difference (0 when unknown) — the DRC's voltage rule.
     double voltageClearance(int a, int b) const {
         if (a < 0 || b < 0 || a == b) return 0;
-        auto ia = ranges.find(a), ib = ranges.find(b);
-        if (ia == ranges.end() || ib == ranges.end()) return 0;
-        if (pinCount[static_cast<size_t>(a)] < 2 || pinCount[static_cast<size_t>(b)] < 2) return 0;
-        const double dv = std::max(std::fabs(ia->second.second - ib->second.first),
-                                   std::fabs(ib->second.second - ia->second.first));
+        const size_t ua = static_cast<size_t>(a), ub = static_cast<size_t>(b);
+        const std::pair<double, double>* ra = ua < rangeOf.size() ? rangeOf[ua] : nullptr;
+        const std::pair<double, double>* rb = ub < rangeOf.size() ? rangeOf[ub] : nullptr;
+        if (!ra || !rb) return 0;
+        if (pinCount[ua] < 2 || pinCount[ub] < 2) return 0;
+        const double dv = std::max(std::fabs(ra->second - rb->first), std::fabs(rb->second - ra->first));
         const double need = ipc2221Clearance(dv, s.highAltitude, s.coated());
         return need > s.clearance + 1e-3 ? need : 0;
     }
     /// Copper-to-copper clearance between two nets: the design rule, the voltage spacing and the isolation gap.
     double clearance(int a, int b, bool barrierPad = false) const {
+        if (rangeOf.empty() && domain.empty()) return std::max(s.clearance, 0.0);  // no voltage or isolation rules
         double c = std::max(s.clearance, voltageClearance(a, b));
         if (!barrierPad && !domain.empty() && a >= 0 && b >= 0 && a != b) {
             const int da = a < static_cast<int>(domain.size()) ? domain[static_cast<size_t>(a)] : -1;
@@ -827,11 +904,54 @@ struct Base {
 
 // ------------------------------------------------------------------------------------------- overlay (World)
 
+/// Removed flags of a World's items (base, then added), plus the added items still alive in ascending order, so the
+/// clearance queries skip the many tracks a shove step adds and drops again.
+struct GoneFlags {
+    std::vector<char> f;
+    size_t base = 0;
+    std::vector<uint32_t> live;  // alive added items: index - base, ascending
+
+    struct Ref {
+        GoneFlags* g;
+        size_t i;
+        operator char() const { return g->f[i]; }
+        Ref& operator=(char c) {
+            g->set(i, c);
+            return *this;
+        }
+        Ref& operator=(const Ref& o) { return *this = static_cast<char>(o); }
+    };
+    GoneFlags() = default;
+    GoneFlags(size_t n, char c) : f(n, c), base(n) {}
+    char operator[](size_t i) const { return f[i]; }
+    Ref operator[](size_t i) { return {this, i}; }
+    size_t size() const { return f.size(); }
+    void push_back(char c) {
+        f.push_back(c);
+        if (!c) live.push_back(static_cast<uint32_t>(f.size() - 1 - base));
+    }
+    void set(size_t i, char c) {
+        if ((f[i] != 0) == (c != 0)) {
+            f[i] = c;
+            return;
+        }
+        f[i] = c;
+        if (i < base) return;
+        const auto k = static_cast<uint32_t>(i - base);
+        const auto at = std::lower_bound(live.begin(), live.end(), k);
+        if (c)
+            live.erase(at);
+        else
+            live.insert(at, k);
+    }
+};
+
 struct World {
     const Base* b = nullptr;
-    std::vector<char> goneT, goneV;  // base + added
+    GoneFlags goneT, goneV;  // base + added
     std::vector<Track> addT;
     std::vector<Via> addV;
+    std::vector<Rect> addTBox, addVBox;  // their copper extents (the overlay only grows)
     std::vector<char> fixAddT, fixAddV;  // added copper of the route itself is fixed
     std::vector<int> fixedNets;          // nets being routed: their copper is never shoved
 
@@ -859,6 +979,7 @@ struct World {
         t.id = -1;
         t.locked = false;
         addT.push_back(t);
+        addTBox.push_back(trackBox(t, t.width / 2));
         fixAddT.push_back(fixed);
         goneT.push_back(0);
         return nT() - 1;
@@ -866,35 +987,73 @@ struct World {
     size_t addVia(Via v, bool fixed) {
         v.id = -1;
         addV.push_back(v);
+        addVBox.push_back(Rect::centered(v.position, v.diameter, v.diameter));
         fixAddV.push_back(fixed);
         goneV.push_back(0);
         return nV() - 1;
     }
     void tracksIn(const Rect& r, std::vector<size_t>& out) const {
-        std::vector<size_t> base;
-        b->query(b->trackGrid, r, base);
-        out.clear();
-        for (size_t i : base)
-            if (aliveT(i)) out.push_back(i);
-        for (size_t k = 0; k < addT.size(); ++k) {
-            const size_t i = baseT() + k;
-            if (aliveT(i) && trackBox(addT[k], addT[k].width / 2).intersects(r)) out.push_back(i);
+        b->query(b->trackGrid, r, out);
+        out.erase(std::remove_if(out.begin(), out.end(), [&](size_t i) { return !aliveT(i); }), out.end());
+        for (uint32_t k : goneT.live)
+            if (addTBox[k].intersects(r)) out.push_back(baseT() + k);
+    }
+    /// tracksIn, only the tracks on `layer` (the same order).
+    void tracksOnLayer(const Rect& r, int layer, std::vector<size_t>& out) const {
+        if (layer < 0 || layer >= static_cast<int>(b->layerTrackGrid.size())) {
+            tracksIn(r, out);
+            out.erase(std::remove_if(out.begin(), out.end(), [&](size_t i) { return track(i).layer != layer; }), out.end());
+            return;
         }
+        b->query(b->layerTrackGrid[static_cast<size_t>(layer)], r, out);
+        out.erase(std::remove_if(out.begin(), out.end(), [&](size_t i) { return !aliveT(i); }), out.end());
+        for (uint32_t k : goneT.live)
+            if (addT[k].layer == layer && addTBox[k].intersects(r)) out.push_back(baseT() + k);
     }
     void viasIn(const Rect& r, std::vector<size_t>& out) const {
-        std::vector<size_t> base;
-        b->query(b->viaGrid, r, base);
-        out.clear();
-        for (size_t i : base)
-            if (aliveV(i)) out.push_back(i);
-        for (size_t k = 0; k < addV.size(); ++k) {
-            const size_t i = baseV() + k;
-            if (aliveV(i) && Rect::centered(addV[k].position, addV[k].diameter, addV[k].diameter).intersects(r))
-                out.push_back(i);
-        }
+        b->query(b->viaGrid, r, out);
+        out.erase(std::remove_if(out.begin(), out.end(), [&](size_t i) { return !aliveV(i); }), out.end());
+        for (uint32_t k : goneV.live)
+            if (addVBox[k].intersects(r)) out.push_back(baseV() + k);
     }
     void padsIn(const Rect& r, std::vector<size_t>& out) const { b->query(b->padGrid, r, out); }
 };
+
+/// One trial of a bisection: the value tried, the overlay it produced and whether it fits.
+struct Probe {
+    double at = 0;
+    World w;
+    bool ok = false;
+    std::string why;
+};
+
+/// Bisection for the furthest value that fits, exactly as `while (it < steps && wide(lo, hi)) { mid; eval; take }`
+/// runs it, but two steps at a time: the middle and both quarter points are tried side by side, then taken in the
+/// sequential order (the same points, the same result, whatever the timing).
+template <class Wide, class Eval, class Take>
+void bisect(double& lo, double& hi, int steps, const Wide& wide, const Eval& eval, const Take& take) {
+    int it = 0;
+    while (it < steps && wide(lo, hi) && !abortRequested()) {
+        Probe mid, low, high;
+        mid.at = (lo + hi) / 2;
+        low.at = (lo + mid.at) / 2;
+        high.at = (mid.at + hi) / 2;
+        const bool second = Parallel::enabled() && it + 1 < steps && wide(lo, mid.at) && wide(mid.at, hi);
+        if (second)
+            Parallel::run({[&] { eval(mid); }, [&] { eval(low); }, [&] { eval(high); }});
+        else
+            eval(mid);
+        const bool ok = mid.ok;
+        (ok ? lo : hi) = mid.at;
+        take(mid);
+        ++it;
+        if (!second || !(it < steps && wide(lo, hi) && !abortRequested())) continue;
+        Probe& next = ok ? high : low;
+        (next.ok ? lo : hi) = next.at;
+        take(next);
+        ++it;
+    }
+}
 
 // ------------------------------------------------------------------------------------------------ clearance checks
 
@@ -907,7 +1066,7 @@ struct Hit {
     bool operator<(const Hit& o) const { return std::tie(kind, index) < std::tie(o.kind, o.index); }
 };
 
-bool inNets(const std::vector<int>& nets, int n) { return n >= 0 && std::find(nets.begin(), nets.end(), n) != nets.end(); }
+inline bool inNets(const std::vector<int>& nets, int n) { return n >= 0 && std::find(nets.begin(), nets.end(), n) != nets.end(); }
 
 double clearanceTo(const Base& B, const std::vector<int>& nets, int other, bool barrierPad = false) {
     double c = 0;
@@ -929,12 +1088,17 @@ bool trackHits(const World& w, const std::vector<int>& nets, int layer, const Tr
         return out == nullptr;  // stop
     };
     const Rect box = trackBox(seg, hw + B.maxClearance + 0.05);
-    std::vector<size_t> found;
+    thread_local std::vector<size_t> found;  // no allocation per check (trackHits does not recurse)
+    // Quick rejection: the gap between the bounding boxes is a lower bound of the distance (with a margin far above
+    // rounding, so only items the exact check would pass are skipped).
+    const Rect sb = trackBox(seg, 0);
+    auto gap = [&](const Rect& r) { return std::max({0.0, r.x0 - sb.x1, sb.x0 - r.x1, r.y0 - sb.y1, sb.y0 - r.y1}); };
     w.padsIn(box, found);
     for (size_t i : found) {
         const Pad& p = B.pads[i];
         if (!p.onLayer(layer) || inNets(nets, p.net)) continue;
         const bool barrier = B.barrierComps.count(p.componentId) > 0;
+        if (gap(p.bounds()) - hw >= clearanceTo(B, nets, p.net, barrier) - kTol + 1e-9) continue;
         const double d = (seg.arc ? (p.round ? std::max(0.0, trackPointDistance(seg, p.position) - std::min(p.size.x, p.size.y) / 2)
                                              : trackRectDistance(seg, p.bounds()))
                                   : padSegmentDistance(p, a, b)) - hw;
@@ -957,12 +1121,14 @@ bool trackHits(const World& w, const std::vector<int>& nets, int layer, const Tr
         }
         if (hit(HitKind::Pad, i, true)) return true;
     }
-    w.tracksIn(box, found);
+    w.tracksOnLayer(box, layer, found);
     for (size_t i : found) {
         const Track& t = w.track(i);
         if (t.layer != layer || inNets(nets, t.net)) continue;
+        const double need = clearanceTo(B, nets, t.net);
+        if (gap(trackBox(t, t.width / 2)) - hw >= need - kTol + 1e-9) continue;
         const double d = trackTrackDistance(seg, t) - hw - t.width / 2;
-        if (d < clearanceTo(B, nets, t.net) - kTol && hit(HitKind::Track, i, w.trackFixed(i))) return true;
+        if (d < need - kTol && hit(HitKind::Track, i, w.trackFixed(i))) return true;
     }
     w.viasIn(box, found);
     for (size_t i : found) {
@@ -971,7 +1137,14 @@ bool trackHits(const World& w, const std::vector<int>& nets, int layer, const Tr
         const double d = trackPointDistance(seg, v.position) - hw - v.diameter / 2;
         if (d < clearanceTo(B, nets, v.net) - kTol && hit(HitKind::Via, i, w.viaFixed(i))) return true;
     }
-    if (s.trackEdgeDistance(seg) - hw < s.edgeClearance - kTol && hit(HitKind::Edge, 0, true)) return true;
+    // Board edge. On a rectangular board a straight track's distance to the edge is its nearer end's (to within
+    // rounding): one well clear of it needs no exact check.
+    bool nearEdge = true;
+    if (!seg.arc && !s.hasCustomOutline()) {
+        const double ends = std::min({a.x, a.y, s.width - a.x, s.height - a.y, b.x, b.y, s.width - b.x, s.height - b.y});
+        nearEdge = ends - hw < s.edgeClearance - kTol + 1e-6;
+    }
+    if (nearEdge && s.trackEdgeDistance(seg) - hw < s.edgeClearance - kTol && hit(HitKind::Edge, 0, true)) return true;
     for (size_t k = 0; k < s.holes.size(); ++k)
         if (trackPointDistance(seg, s.holes[k].position) - hw < s.holes[k].keepout / 2 - kTol &&
             hit(HitKind::Hole, k, true))
@@ -1103,7 +1276,7 @@ std::vector<Hit> contactsOf(const World& w, int net, int layer, const std::vecto
             if (v.net == net && v.spans(layer) && pointSegmentDistance(v.position, a, b) <= v.diameter / 2)
                 out.push_back({HitKind::Via, i, true});
         }
-        w.tracksIn(box, found);
+        w.tracksOnLayer(box, layer, found);
         for (size_t i : found) {
             const Track& t = w.track(i);
             if (t.net == net && t.layer == layer &&
@@ -1135,7 +1308,7 @@ struct Line {
 
 std::vector<size_t> tracksEndingAt(const World& w, int net, int layer, Vec2 p, size_t except) {
     std::vector<size_t> found, out;
-    w.tracksIn(Rect::centered(p, 2 * kJoin, 2 * kJoin), found);
+    w.tracksOnLayer(Rect::centered(p, 2 * kJoin, 2 * kJoin), layer, found);
     for (size_t i : found) {
         const Track& t = w.track(i);
         if (i != except && t.net == net && t.layer == layer && (samePoint(t.a, p) || samePoint(t.b, p))) out.push_back(i);
@@ -1218,7 +1391,7 @@ Vec2 otherEnd(const Track& t, Vec2 p) { return samePoint(t.a, p) ? t.b : t.a; }
 /// Alive tracks of `net` on `layer` with an end at `p`.
 std::vector<size_t> endsAt(const World& w, int net, int layer, Vec2 p) {
     std::vector<size_t> found, out;
-    w.tracksIn(Rect::centered(p, 2 * kJoin, 2 * kJoin), found);
+    w.tracksOnLayer(Rect::centered(p, 2 * kJoin, 2 * kJoin), layer, found);
     for (size_t i : found) {
         const Track& t = w.track(i);
         if (t.net == net && t.layer == layer && (samePoint(t.a, p) || samePoint(t.b, p))) out.push_back(i);
@@ -1623,7 +1796,7 @@ private:
             // Another line of the net already has copper there (two lines walked round the same hull): no double.
             bool covered = false;
             std::vector<size_t> found;
-            w_.tracksIn(segmentBox(a, b, 0.01), found);
+            w_.tracksOnLayer(segmentBox(a, b, 0.01), proto.layer, found);
             for (size_t i : found) {
                 const Track& o = w_.track(i);
                 if (o.net == proto.net && o.layer == proto.layer && o.width >= proto.width - 1e-9 &&
@@ -1891,7 +2064,7 @@ GridPath gridRoute(const World& w, const std::vector<int>& nets, int layer, doub
     auto idx = [&](int i, int j) { return static_cast<size_t>(j) * static_cast<size_t>(cols) + static_cast<size_t>(i); };
     std::vector<char> blocked(static_cast<size_t>(cols) * static_cast<size_t>(rows), 0);
     const double slack = cell * 0.75;
-    auto markRect = [&](const Rect& r, const std::function<bool(Vec2)>& bad) {
+    auto markRect = [&](const Rect& r, const auto& bad) {
         const int a0 = std::max(0, static_cast<int>(std::floor((r.x0 - start.x) / cell)) - i0);
         const int a1 = std::min(cols - 1, static_cast<int>(std::ceil((r.x1 - start.x) / cell)) - i0);
         const int b0 = std::max(0, static_cast<int>(std::floor((r.y0 - start.y) / cell)) - j0);
@@ -1936,11 +2109,22 @@ GridPath gridRoute(const World& w, const std::vector<int>& nets, int layer, doub
     for (const auto& m : B.meshes)
         if ((layer == m.layerA || layer == m.layerB) && !inNets(nets, m.netA) && !inNets(nets, m.netB))
             markRect(m.region.inflated(hw + slack), [](Vec2) { return true; });
+    // Board edge and mounting holes (the rectangular board's edge distance inline: the same values, per cell).
+    const bool rectBoard = !s.hasCustomOutline();
+    const Rect boardRect(0, 0, s.width, s.height);
     for (int j = 0; j < rows; ++j)
         for (int i = 0; i < cols; ++i) {
             if (blocked[idx(i, j)]) continue;
             const Vec2 c = centre(i, j);
-            if (s.edgeDistance(c) < s.edgeClearance + hw + slack || s.holeDistance(c) < hw + slack) blocked[idx(i, j)] = 1;
+            double ed;
+            if (rectBoard) {
+                ed = std::min({c.x, c.y, s.width - c.x, s.height - c.y});
+                if (ed < 0) ed = -pointRectDistance(c, boardRect);
+            } else {
+                ed = s.edgeDistance(c);
+            }
+            if (ed < s.edgeClearance + hw + slack || (!s.holes.empty() && s.holeDistance(c) < hw + slack))
+                blocked[idx(i, j)] = 1;
         }
     const int si = -i0, sj = -j0;
     if (si < 0 || sj < 0 || si >= cols || sj >= rows) return res;
@@ -1959,39 +2143,89 @@ GridPath gridRoute(const World& w, const std::vector<int>& nets, int layer, doub
     std::vector<double> g(n, std::numeric_limits<double>::max());
     std::vector<long> parent(n, -1);
     std::vector<char> closed(n, 0);
-    using QItem = std::tuple<double, double, size_t>;
-    std::priority_queue<QItem, std::vector<QItem>, std::greater<QItem>> open;
+    // Open list: a binary min-heap on (f, h, cell), a strict order, so the cells come out in exactly the order of
+    // any other priority queue on the same keys.
+    struct QItem {
+        double f, h;
+        size_t cell;
+    };
+    auto later = [](const QItem& a, const QItem& b) {
+        if (a.f != b.f) return a.f > b.f;
+        if (a.h != b.h) return a.h > b.h;
+        return a.cell > b.cell;
+    };
+    std::vector<QItem> open;
+    open.reserve(4096);
+    auto push = [&](QItem q) {
+        open.push_back(q);
+        std::push_heap(open.begin(), open.end(), later);
+    };
     const size_t s0 = idx(si, sj);
+    // A target the start cannot reach makes the search expand the start's whole region and keep the first cell
+    // it expands with the smallest h (nearest the target). A flood fill finds the region and that smallest h
+    // cheaply, so the search can stop as soon as it expands such a cell: the same cell, the same path. (Diagonal
+    // steps need both side cells free, so the region is the 4-connected one.)
+    double stopAtH = -1;
+    {
+        std::vector<char> seen(n, 0);
+        std::vector<size_t> stack{s0};
+        seen[s0] = 1;
+        bool goalIn = false;
+        double hmin = std::numeric_limits<double>::max();
+        size_t count = 0;
+        while (!stack.empty()) {
+            const size_t c = stack.back();
+            stack.pop_back();
+            ++count;
+            const int ci = static_cast<int>(c % static_cast<size_t>(cols)), cj = static_cast<int>(c / static_cast<size_t>(cols));
+            goalIn = goalIn || c == goal;
+            hmin = std::min(hmin, h(ci, cj));
+            for (int d = 0; d < 4; ++d) {
+                const int ni = ci + di[d], nj = cj + dj[d];
+                if (ni < 0 || nj < 0 || ni >= cols || nj >= rows) continue;
+                const size_t nx = idx(ni, nj);
+                if (blocked[nx] || seen[nx]) continue;
+                seen[nx] = 1;
+                stack.push_back(nx);
+            }
+        }
+        if (!goalIn && count < 600000) stopAtH = hmin;
+    }
     g[s0] = 0;
-    open.push({h(si, sj), h(si, sj), s0});
+    push({h(si, sj), h(si, sj), s0});
     size_t best = s0;
     double bestH = h(si, sj);
     size_t expanded = 0;
+    const double diag = std::sqrt(2.0);
     while (!open.empty() && expanded < 600000) {
         if ((expanded & 1023) == 1023 && abortRequested()) break;
-        const auto [f, hh, cur] = open.top();
-        open.pop();
-        (void)f;
+        std::pop_heap(open.begin(), open.end(), later);
+        const QItem top = open.back();
+        open.pop_back();
+        const size_t cur = top.cell;
         if (closed[cur]) continue;
         closed[cur] = 1;
         ++expanded;
-        if (hh < bestH) {
-            bestH = hh;
+        if (top.h < bestH) {
+            bestH = top.h;
             best = cur;
         }
+        if (top.h == stopAtH) break;  // the nearest cell of an unreachable target's region (see above)
         if (cur == goal) break;
         const int ci = static_cast<int>(cur % static_cast<size_t>(cols)), cj = static_cast<int>(cur / static_cast<size_t>(cols));
+        const double gc = g[cur];
         for (int d = 0; d < nd; ++d) {
             const int ni = ci + di[d], nj = cj + dj[d];
             if (ni < 0 || nj < 0 || ni >= cols || nj >= rows) continue;
             const size_t nx = idx(ni, nj);
             if (blocked[nx] || closed[nx]) continue;
             if (d >= 4 && (blocked[idx(ci + di[d], cj)] || blocked[idx(ci, cj + dj[d])])) continue;  // no corner cutting
-            const double ng = g[cur] + (d >= 4 ? std::sqrt(2.0) : 1.0);
+            const double ng = gc + (d >= 4 ? diag : 1.0);
             if (ng < g[nx] - 1e-12) {
                 g[nx] = ng;
                 parent[nx] = static_cast<long>(cur);
-                open.push({ng + h(ni, nj), h(ni, nj), nx});
+                const double hn = h(ni, nj);
+                push({ng + hn, hn, nx});
             }
         }
     }
@@ -2563,7 +2797,10 @@ struct InteractiveRouter::Impl {
                     Track& t = w.addT[k];
                     if (w.goneT[w.baseT() + k] || !w.fixAddT[k] || t.net != hl.net || t.arc || !samePoint(t.b, hl.trimFrom, 1e-9))
                         continue;
-                    if (pointSegmentDistance(hl.pts.front(), t.a, t.b) <= 1e-9) t.b = hl.pts.front();
+                    if (pointSegmentDistance(hl.pts.front(), t.a, t.b) <= 1e-9) {
+                        t.b = hl.pts.front();
+                        w.addTBox[k] = trackBox(t, t.width / 2);
+                    }
                 }
             for (size_t k = 0; k + 1 < hl.pts.size(); ++k) {
                 if ((hl.pts[k + 1] - hl.pts[k]).length() < 1e-9) continue;
@@ -2766,14 +3003,39 @@ struct InteractiveRouter::Impl {
             chosen = c.size() >= 2 ? c : std::vector<Vec2>{};
             return;
         }
-        for (const auto& c : candidates) {
-            if (abortRequested()) return;
-            World w = committed;
-            if (placeHead(w, build(c, true), shove, why)) {
-                current = w;
-                chosen = c;
+        // The candidates are tried side by side (with spare cores); the first in order that fits wins, exactly as
+        // one after the other would.
+        struct Try {
+            World w;
+            bool ok = false;
+            bool ran = false;
+            std::string why;
+        };
+        std::vector<Try> tries(candidates.size());
+        auto attempt = [&](size_t k) {
+            tries[k].w = committed;
+            tries[k].ok = placeHead(tries[k].w, build(candidates[k], true), shove, tries[k].why);
+            tries[k].ran = true;
+        };
+        if (Parallel::enabled() && candidates.size() > 1) {
+            std::vector<std::function<void()>> jobs;
+            for (size_t k = 0; k < candidates.size(); ++k) jobs.push_back([&, k] { attempt(k); });
+            Parallel::run(jobs);
+        } else {
+            for (size_t k = 0; k < candidates.size(); ++k) {
+                if (abortRequested()) return;
+                attempt(k);
+                if (tries[k].ok) break;
+            }
+        }
+        if (abortRequested()) return;
+        for (size_t k = 0; k < tries.size() && tries[k].ran; ++k) {
+            if (tries[k].ok) {
+                current = tries[k].w;
+                chosen = candidates[k];
                 return;
             }
+            why = tries[k].why;
             if (firstWhy.empty()) firstWhy = why;
         }
         // Walk around what cannot be shoved.
@@ -2795,20 +3057,22 @@ struct InteractiveRouter::Impl {
         std::vector<Vec2> bestPath;
         World bestWorld = committed;
         if (!candidates.empty()) {
+            // Bisection for the longest prefix that fits. Two steps at a time: the middle and both quarter points
+            // are tried side by side, then used as the sequential steps would (the same points, the same result).
             const auto& p = candidates.front();
             double lo = 0, hi = pathLength(p);
-            for (int it = 0; it < 12 && hi - lo > 1e-3 && !abortRequested(); ++it) {
-                const double mid = (lo + hi) / 2;
-                const auto q = pathPrefix(p, mid);
-                World w = committed;
-                if (q.size() >= 2 && placeHead(w, build(q, false), shove, why)) {
-                    lo = mid;
-                    bestPath = q;
-                    bestWorld = w;
-                } else {
-                    hi = mid;
-                }
-            }
+            bisect(
+                lo, hi, 12, [](double a, double b) { return b - a > 1e-3; },
+                [&](Probe& pr) {
+                    const auto q = pathPrefix(p, pr.at);
+                    pr.w = committed;
+                    pr.ok = q.size() >= 2 && placeHead(pr.w, build(q, false), shove, pr.why);
+                },
+                [&](Probe& pr) {
+                    if (!pr.ok) return;
+                    bestPath = pathPrefix(p, pr.at);
+                    bestWorld = std::move(pr.w);
+                });
         }
         if (walkPath.size() >= 2) {
             const double dw = (walkPath.back() - target).length();
@@ -3290,7 +3554,9 @@ struct InteractiveRouter::Impl {
         std::string why;
         blocked = false;
         status = "Dragging a track of " + base->netName(m.net);
-        auto tryDelta = [&](double d, World& w) { return placeHead(w, {{m.net, dragPath(d)}}, shove, why); };
+        auto tryDelta = [&](double d, World& w, std::string& whyOut) {
+            return placeHead(w, {{m.net, dragPath(d)}}, shove, whyOut);
+        };
         World w = committed;
         if (highlight()) {
             addHeadLines(w, {{m.net, dragPath(delta)}});
@@ -3298,7 +3564,15 @@ struct InteractiveRouter::Impl {
             m.head = dragPath(delta);
             return;
         }
-        if (tryDelta(delta, w)) {
+        // The full move and (in case it does not fit) the start run side by side.
+        World w0 = committed;
+        bool full = false, atStart = false;
+        std::string why0;
+        if (Parallel::enabled())
+            Parallel::run({[&] { full = tryDelta(delta, w, why); }, [&] { atStart = tryDelta(0, w0, why0); }});
+        else
+            full = tryDelta(delta, w, why);
+        if (full) {
             current = w;
             m.head = dragPath(delta);
             return;
@@ -3308,24 +3582,22 @@ struct InteractiveRouter::Impl {
         double lo = 0, hi = delta;
         World best = committed;
         bool any = false;
-        {
-            World w0 = committed;
-            if (tryDelta(0, w0)) {
-                best = w0;
-                any = true;
-            }
+        if (!Parallel::enabled()) atStart = tryDelta(0, w0, why0);
+        if (atStart) {
+            best = w0;
+            any = true;
         }
-        for (int it = 0; it < 14 && std::fabs(hi - lo) > 1e-3 && !abortRequested(); ++it) {
-            const double mid = (lo + hi) / 2;
-            World wm = committed;
-            if (tryDelta(mid, wm)) {
-                lo = mid;
-                best = wm;
+        bisect(
+            lo, hi, 14, [](double a, double b) { return std::fabs(b - a) > 1e-3; },
+            [&](Probe& pr) {
+                pr.w = committed;
+                pr.ok = tryDelta(pr.at, pr.w, pr.why);
+            },
+            [&](Probe& pr) {
+                if (!pr.ok) return;
+                best = std::move(pr.w);
                 any = true;
-            } else {
-                hi = mid;
-            }
-        }
+            });
         current = any ? best : committed;
         m.head = any ? dragPath(lo) : std::vector<Vec2>{};
     }
@@ -3577,17 +3849,18 @@ struct InteractiveRouter::Impl {
                 any = true;
             }
         }
-        for (int it = 0; it < 14 && (hi - lo) * d.length() > 1e-3 && !abortRequested(); ++it) {
-            const double mid = (lo + hi) / 2;
-            World wm = committed;
-            if (placeMulti(wm, d * mid, why)) {
-                lo = mid;
-                best = wm;
+        const double dl = d.length();
+        bisect(
+            lo, hi, 14, [dl](double a, double b) { return (b - a) * dl > 1e-3; },
+            [&](Probe& pr) {
+                pr.w = committed;
+                pr.ok = placeMulti(pr.w, d * pr.at, pr.why);
+            },
+            [&](Probe& pr) {
+                if (!pr.ok) return;
+                best = std::move(pr.w);
                 any = true;
-            } else {
-                hi = mid;
-            }
-        }
+            });
         mdrag.valid = any;
         current = any ? best : committed;
         mdrag.offset = d * lo;
@@ -3817,17 +4090,17 @@ struct InteractiveRouter::Impl {
             }
         }
         const double span = (to - from).length();
-        for (int it = 0; it < 14 && (hi - lo) * span > 1e-3 && !abortRequested(); ++it) {
-            const double mid = (lo + hi) / 2;
-            World wm = committed;
-            if (placeVia(wm, from + (to - from) * mid, why)) {
-                lo = mid;
-                best = wm;
+        bisect(
+            lo, hi, 14, [span](double a, double b) { return (b - a) * span > 1e-3; },
+            [&](Probe& pr) {
+                pr.w = committed;
+                pr.ok = placeVia(pr.w, from + (to - from) * pr.at, pr.why);
+            },
+            [&](Probe& pr) {
+                if (!pr.ok) return;
+                best = std::move(pr.w);
                 any = true;
-            } else {
-                hi = mid;
-            }
-        }
+            });
         vdrag.valid = any;
         if (any) {
             current = best;
