@@ -5167,6 +5167,7 @@ final class InteractiveRoutingStoreTests: XCTestCase {
     }
 }
 
+@MainActor
 final class SimulationPackageTests: XCTestCase {
     /// 5 V → 1 kΩ → diode → ground, built through the store so its snapshot knows the parts.
     private func diodeCircuit(_ store: DesignStore) -> (diode: Int, anode: Int) {
