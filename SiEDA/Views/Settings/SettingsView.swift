@@ -7,6 +7,8 @@ struct SettingsView: View {
                 .tabItem { Label("AI Models", systemImage: "sparkles") }
             AppearanceSettings()
                 .tabItem { Label("Appearance", systemImage: "paintpalette") }
+            LanguageSettingsView()
+                .tabItem { Label("Language", systemImage: "globe") }
             AboutSettings()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }

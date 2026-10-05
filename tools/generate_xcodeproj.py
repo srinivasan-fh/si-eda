@@ -57,6 +57,10 @@ test_swift = collect("SiEDATests", {".swift"})
 assets = "SiEDA/Assets.xcassets"
 entitlements = "SiEDA/SiEDA.entitlements"
 info_plist = "SiEDA/Info.plist"  # document types and UTIs, merged into the generated Info.plist
+# Interface translations: SiEDA/Resources/<language>.lproj/Localizable.strings, one variant group.
+strings_dir = os.path.join(ROOT, "SiEDA/Resources")
+localizations = sorted(d[:-len(".lproj")] for d in (os.listdir(strings_dir) if os.path.isdir(strings_dir) else [])
+                       if d.endswith(".lproj") and os.path.exists(os.path.join(strings_dir, d, "Localizable.strings")))
 docs = [p for p in ["README.md", "docs/ARCHITECTURE.md", "docs/PRD.md"] if os.path.exists(os.path.join(ROOT, p))]
 
 all_files = app_swift + core_cpp + core_headers + bridge_headers + test_swift + [assets, entitlements, info_plist] + docs
@@ -78,6 +82,21 @@ for p in all_files:
         ("sourceTree", '"<group>"'),
     ])
 
+strings_group = oid("variant", "SiEDA/Resources/Localizable.strings")
+strings_refs = []
+for lang in localizations:
+    ref = oid("ref", f"SiEDA/Resources/{lang}.lproj/Localizable.strings")
+    strings_refs.append(ref)
+    add(ref, "PBXFileReference", [
+        ("lastKnownFileType", "text.plist.strings"),
+        ("name", q(lang)),
+        ("path", q(f"{lang}.lproj/Localizable.strings")),
+        ("sourceTree", '"<group>"'),
+    ])
+if localizations:
+    add(strings_group, "PBXVariantGroup", [
+        ("children", strings_refs), ("name", "Localizable.strings"), ("sourceTree", '"<group>"')])
+
 app_product = oid("product", APP)
 test_product = oid("product", TESTS)
 add(app_product, "PBXFileReference", [
@@ -94,6 +113,9 @@ for p, bid in app_build_files.items():
     add(bid, "PBXBuildFile", [("fileRef", file_ref[p])])
 asset_build = oid("build", APP, assets)
 add(asset_build, "PBXBuildFile", [("fileRef", file_ref[assets])])
+strings_build = oid("build", APP, "SiEDA/Resources/Localizable.strings")
+if localizations:
+    add(strings_build, "PBXBuildFile", [("fileRef", strings_group)])
 test_build_files = {p: oid("build", TESTS, p) for p in test_swift}
 for p, bid in test_build_files.items():
     add(bid, "PBXBuildFile", [("fileRef", file_ref[p])])
@@ -119,6 +141,10 @@ for p in all_files:
     group_for(folder)
     groups[folder][1].append(file_ref[p])
 
+if localizations:
+    group_for("SiEDA/Resources")
+    groups["SiEDA/Resources"][1].append(strings_group)
+
 products_group = oid("group", "__Products__")
 groups["__Products__"] = (products_group, [app_product, test_product])
 groups[""][1].append(products_group)
@@ -142,7 +168,8 @@ add(app_sources_phase, "PBXSourcesBuildPhase", [
 add(app_frameworks_phase, "PBXFrameworksBuildPhase", [
     ("buildActionMask", "2147483647"), ("files", []), ("runOnlyForDeploymentPostprocessing", "0")])
 add(app_resources_phase, "PBXResourcesBuildPhase", [
-    ("buildActionMask", "2147483647"), ("files", [asset_build]), ("runOnlyForDeploymentPostprocessing", "0")])
+    ("buildActionMask", "2147483647"), ("files", [asset_build] + ([strings_build] if localizations else [])),
+    ("runOnlyForDeploymentPostprocessing", "0")])
 
 test_sources_phase = oid("phase", TESTS, "sources")
 test_frameworks_phase = oid("phase", TESTS, "frameworks")
@@ -293,7 +320,7 @@ add(project_id, "PBXProject", [
     ("compatibilityVersion", '"Xcode 14.0"'),
     ("developmentRegion", "en"),
     ("hasScannedForEncodings", "0"),
-    ("knownRegions", ["en", "Base"]),
+    ("knownRegions", [q(r) for r in ["en", "Base"] + [l for l in localizations if l != "en"]]),
     ("mainGroup", groups[""][0]),
     ("productRefGroup", products_group),
     ("projectDirPath", '""'),
@@ -318,7 +345,7 @@ def fmt(value, indent):
 
 
 order = ["PBXBuildFile", "PBXContainerItemProxy", "PBXFileReference", "PBXFrameworksBuildPhase", "PBXGroup",
-         "PBXNativeTarget", "PBXProject", "PBXResourcesBuildPhase", "PBXSourcesBuildPhase", "PBXTargetDependency",
+         "PBXNativeTarget", "PBXProject", "PBXResourcesBuildPhase", "PBXSourcesBuildPhase", "PBXTargetDependency", "PBXVariantGroup",
          "XCBuildConfiguration", "XCConfigurationList"]
 
 lines = ["// !$*UTF8*$!", "{", "\tarchiveVersion = 1;", "\tclasses = {", "\t};", "\tobjectVersion = 56;", "\tobjects = {", ""]

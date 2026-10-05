@@ -13,6 +13,9 @@
   (STM32H743 + SDRAM) must keep passing verification on 6 layers.
 - Launch splash: `SiEDA/App/SplashScreen.swift` (`SplashModel` preload steps, `SplashController` holds main windows from
   `applicationWillFinishLaunching`).
+- Interface languages: `SiEDA/App/AppLanguage.swift`, translations in `SiEDA/Resources/<code>.lproj/Localizable.strings`
+  (20 languages, English keys); guide in `docs/LOCALIZATION.md`. A new UI string needs a key in every table —
+  `python3 tools/check_localization.py --missing` lists the gaps.
 - Library parts live in `Core/src/StandardParts.cpp`; KiCad-derived pinouts are generated into
   `Core/src/StandardCatalog.inc` by `tools/fetch_catalog_parts.py` — don't edit that file by hand.
 

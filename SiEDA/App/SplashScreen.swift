@@ -58,7 +58,9 @@ final class SplashModel: ObservableObject {
 
     func status(at date: Date) -> String {
         let index = Self.statusIndex(progress: progress(at: date), total: steps.count)
-        return index < steps.count ? steps[index].title + "…" : "Ready"
+        let bundle = Bundle.main
+        return index < steps.count ? bundle.localizedString(forKey: steps[index].title, value: nil, table: nil) + "…"
+            : bundle.localizedString(forKey: "Ready", value: nil, table: nil)
     }
 
     /// Runs every step on the main thread (the core is not shared across threads), letting the splash draw between
