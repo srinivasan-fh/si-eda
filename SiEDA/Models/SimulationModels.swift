@@ -221,3 +221,47 @@ struct FFTResult: Decodable, Equatable {
         case ok, error, net, fundamentalHz, thdPercent, dc, cycles, windowStart, windowStop, frequency, magnitudeDb, harmonics
     }
 }
+
+// MARK: - Waveform measurements
+
+/// ".meas"-like measurements of one waveform over a window (sieda_measure_waveform); undefined quantities are nil.
+struct WaveformMeasurementsInfo: Decodable, Equatable {
+    var ok: Bool = false
+    var error: String = ""
+    var from: Double?
+    var to: Double?
+    var samples: Int?
+    var min: Double?
+    var max: Double?
+    var peakToPeak: Double?
+    var average: Double?
+    var rms: Double?
+    var acRms: Double?
+    var stepLike: Bool?
+    var riseTime: Double?
+    var fallTime: Double?
+    var overshootPercent: Double?
+    var settlingTime: Double?
+    var period: Double?
+    var frequency: Double?
+    var dutyCycle: Double?
+    var cycles: Int?
+}
+
+/// Linear interpolation of a sampled waveform at `t` (clamped to its ends); nil when empty.
+enum WaveformMath {
+    static func value(at t: Double, time: [Double], values: [Double]) -> Double? {
+        let n = min(time.count, values.count)
+        guard n > 0 else { return nil }
+        if t <= time[0] { return values[0] }
+        if t >= time[n - 1] { return values[n - 1] }
+        var lo = 0, hi = n - 1
+        while hi - lo > 1 {
+            let mid = (lo + hi) / 2
+            if time[mid] <= t { lo = mid } else { hi = mid }
+        }
+        let span = time[hi] - time[lo]
+        guard span > 0 else { return values[lo] }
+        return values[lo] + (values[hi] - values[lo]) * (t - time[lo]) / span
+    }
+}

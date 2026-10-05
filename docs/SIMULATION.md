@@ -3,7 +3,7 @@
 SiEDA's simulator is a Modified Nodal Analysis (MNA) solver in the C++ core (`Core/src/Simulator.cpp`,
 `Core/src/Analysis.cpp`). It runs the analyses below on the schematic as drawn; nothing is exported to an external
 SPICE. The **Simulation** workspace shows the DC operating point on the left and the selected analysis on the right
-(**Analysis type**: Transient, AC Sweep, DC Sweep, Monte Carlo).
+(**Analysis type**: Transient, AC Sweep, DC Sweep, Monte Carlo, Noise, Parameter Sweep, FFT / THD).
 
 | Analysis | What it computes | App | C API |
 |---|---|---|---|
@@ -11,9 +11,10 @@ SPICE. The **Simulation** workspace shows the DC operating point on the left and
 | Transient | Waveforms over time, microcontroller firmware co-simulation | Transient | `sieda_simulate_transient` |
 | AC small-signal | Magnitude / phase of every node over a log frequency sweep; bandwidth, peak, unity gain, phase margin | AC Sweep (Bode plot) | `sieda_simulate_ac` |
 | DC sweep | Operating point at each value of a swept source | DC Sweep | `sieda_simulate_dc_sweep` |
-| Parameter sweep | DC, AC or transient once per value of one component | — | `sieda_simulate_param_sweep` |
+| Parameter sweep | DC, AC or transient once per value of one component | Parameter Sweep | `sieda_simulate_param_sweep` |
 | Monte Carlo / worst case | Spread of a node's DC voltage, low-frequency gain, −3 dB frequency or peak frequency over R/C/L tolerances | Monte Carlo | `sieda_simulate_monte_carlo` |
-| FFT / THD | Spectrum and harmonic distortion of a node's transient waveform | — | `sieda_simulate_fft` |
+| FFT / THD | Spectrum and harmonic distortion of a node's transient waveform | FFT / THD | `sieda_simulate_fft` |
+| Waveform measurements | Cursors (Δt, 1/Δt, values) and `.meas`-like measurements of a transient waveform | Transient → Cursors & Measurements | `sieda_measure_waveform` |
 | Noise | Output and input-referred noise density, integrated RMS noise, contributions | Noise | `sieda_simulate_noise` |
 
 ## Sources
@@ -132,7 +133,12 @@ solves the operating point at every value, continuing from the previous solution
 stepping fallback when a point does not converge). Reports node voltages and component currents per point: transfer
 curves, diode I–V, transistor characteristics, regulator dropout. Up to 100 000 points.
 
-## Parameter sweep (C API)
+## Parameter sweep
+
+**Analysis type → Parameter Sweep**: name the part (**Part**, e.g. `R1`), its **Values** (`1k 2k2 4k7`, up to 100,
+part numbers such as `TL072` too) and the analysis. DC tabulates and plots every node's voltage per value; AC overlays
+the chosen **Net**'s magnitude per value (sweep range from the AC Sweep settings) with gain, −3 dB and unity-gain
+readouts; Transient overlays its waveform per value (stop and step from the Transient settings).
 
 `sieda_simulate_param_sweep` runs a DC operating point, an AC sweep or a transient once per value of one component
 (`"values"`: up to 100 value strings such as `"1k"`, `"2k2"`, `"TL072"`), on a copy of the schematic; the design is
@@ -194,7 +200,10 @@ give; a response with an interior optimum (for example a tuned circuit measured 
 Example: a 10 k / 10 k divider from 10 V with 1 % resistors measures 5 V nominal, 4.95 V – 5.05 V worst case, and
 σ ≈ 20 mV over uniform Monte Carlo runs (5 · √(2/3) · 1 % / 2).
 
-## FFT and THD (C API)
+## FFT and THD
+
+**Analysis type → FFT / THD**: the net, the transient stop time and step, and the number of harmonics. The panel shows
+THD in % and dB, the fundamental and DC, the spectrum up to the last harmonic and the harmonics table (amplitude, dBc).
 
 `sieda_simulate_fft` runs a transient analysis and analyses one node over the last whole number of fundamental
 periods after `"from"` (default: half the stop time, so start-up transients have settled). The window is resampled to
@@ -260,6 +269,24 @@ measures its step tolerance from the damped step (a stricter test than the built
 
 C API: `sieda_spice_parse`, `sieda_spice_check`, `sieda_set_spice_model`, `sieda_component_spice_model`,
 `sieda_spice_builtin_models` (see `sieda_c.h`).
+
+## Waveform cursors and measurements
+
+Under the transient chart, **Cursors & Measurements**: pick cursor A or B and click the chart to place it. The readout
+gives both times, Δt and 1/Δt (a frequency), and every shown signal's value at A, at B and B − A (linear
+interpolation). **Measure** runs `.meas`-like measurements of one signal in the core (`sieda_measure_waveform`) over the
+window between the cursors, or the whole run:
+
+| Measurement | Definition |
+|---|---|
+| Min, Max, Peak-to-peak | extremes of the samples in the window |
+| Average, RMS, AC RMS | time-weighted (trapezoidal; RMS exact for piecewise-linear samples); AC RMS about the average |
+| Rise / fall time | 10 % → 90 % (90 % → 10 %) of the step when the window holds one (final − initial ≥ half the peak-to-peak), else of min…max; the first such edge |
+| Overshoot, settling | beyond the final value in % of the step; time from the window start until it stays within ±2 % |
+| Frequency, period, duty cycle | from rising mid-level crossings with 10 % hysteresis, over whole periods |
+
+Measurements use the waveform the transient returns (at most 2000 points per signal; shorten the run or zoom with the
+cursors for fine edges).
 
 ## C API
 

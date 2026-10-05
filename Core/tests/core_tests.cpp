@@ -48,6 +48,7 @@
 #include "sieda/Simulator.hpp"
 #include "sieda/SpiceModels.hpp"
 #include "sieda/Noise.hpp"
+#include "sieda/Waveforms.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Validation.hpp"
 #include "sieda/Verification.hpp"
@@ -9758,4 +9759,91 @@ TEST(noise_analysis_closed_form) {
         CHECK(!noiseAnalysis(s, o).ok);
     }
     CHECK(sieda_c_api_noise_test() == 0);
+}
+
+TEST(waveform_measurements) {
+    // A 1 kHz sine of 2 V amplitude on 0.5 V: RMS √(0.25 + 2), AC RMS √2, frequency, duty 50 %, no step.
+    {
+        std::vector<double> t, v;
+        for (int i = 0; i <= 20000; ++i) {
+            t.push_back(i * 1e-7);
+            v.push_back(0.5 + 2 * std::sin(2 * kPi * 1e3 * t.back()));
+        }
+        WaveformMeasurements m = measureWaveform(t, v);
+        CHECK(m.ok && !m.stepLike);
+        CHECK_NEAR(m.max, 2.5, 1e-6);
+        CHECK_NEAR(m.min, -1.5, 1e-6);
+        CHECK_NEAR(m.peakToPeak, 4, 1e-6);
+        CHECK_NEAR(m.average, 0.5, 1e-6);
+        CHECK_NEAR(m.rms, std::sqrt(0.25 + 2.0), 1e-6);
+        CHECK_NEAR(m.acRms, std::sqrt(2.0), 1e-6);
+        CHECK_NEAR(m.frequency, 1e3, 1e-3);
+        CHECK(m.cycles == 1);
+        CHECK_NEAR(m.dutyCycle, 0.5, 1e-4);
+        // Rise 10 % → 90 % of a sine: (asin(0.8) − asin(−0.8)) / ω.
+        CHECK_NEAR(m.riseTime, 2 * std::asin(0.8) / (2 * kPi * 1e3), 1e-8);
+        CHECK_NEAR(m.fallTime, m.riseTime, 1e-8);
+        // A window: the first half period only.
+        WaveformMeasurements half = measureWaveform(t, v, 0, 0.5e-3);
+        CHECK(half.ok && std::isnan(half.frequency));
+        CHECK_NEAR(half.max, 2.5, 1e-6);
+    }
+    // RC step: rise 10 → 90 % = τ·ln 9, no overshoot, settled to 2 % after τ·ln 50.
+    {
+        const double tau = 1e-3;
+        std::vector<double> t, v;
+        for (int i = 0; i <= 100000; ++i) {
+            t.push_back(i * 1e-7);
+            v.push_back(5 * (1 - std::exp(-t.back() / tau)));
+        }
+        WaveformMeasurements m = measureWaveform(t, v);
+        CHECK(m.ok && m.stepLike);
+        // The window ends at 10τ, 0.005 % short of the final value.
+        CHECK_NEAR(m.riseTime / (tau * std::log(9.0)), 1.0, 1e-3);
+        CHECK_NEAR(m.overshootPercent, 0, 1e-9);
+        CHECK_NEAR(m.settlingTime / (tau * std::log(50.0)), 1.0, 2e-3);
+        CHECK(std::isnan(m.fallTime) && std::isnan(m.frequency));
+    }
+    // Underdamped second-order step: overshoot exp(−πζ/√(1−ζ²)).
+    {
+        const double zeta = 0.3, wn = 2 * kPi * 1e3, wd = wn * std::sqrt(1 - zeta * zeta);
+        std::vector<double> t, v;
+        for (int i = 0; i <= 200000; ++i) {
+            t.push_back(i * 1e-7);
+            const double x = t.back();
+            v.push_back(1 - std::exp(-zeta * wn * x) * (std::cos(wd * x) + zeta / std::sqrt(1 - zeta * zeta) * std::sin(wd * x)));
+        }
+        WaveformMeasurements m = measureWaveform(t, v);
+        CHECK(m.ok && m.stepLike);
+        CHECK_NEAR(m.overshootPercent, 100 * std::exp(-kPi * zeta / std::sqrt(1 - zeta * zeta)), 0.01);
+    }
+    // PWM at 25 % duty, 10 kHz: period, duty; flat lines and bad input.
+    {
+        std::vector<double> t, v;
+        for (int i = 0; i <= 10000; ++i) {
+            t.push_back(i * 1e-7);
+            v.push_back(std::fmod(t.back(), 1e-4) < 0.25e-4 ? 3.3 : 0.0);
+        }
+        WaveformMeasurements m = measureWaveform(t, v);
+        CHECK(m.ok);
+        CHECK_NEAR(m.period, 1e-4, 1e-9);
+        CHECK_NEAR(m.dutyCycle, 0.25, 0.002);
+        CHECK(m.cycles == 8);  // starts high: rising edges at 0.1 … 0.9 ms
+        WaveformMeasurements flat = measureWaveform({0, 1, 2}, {1, 1, 1});
+        CHECK(flat.ok && flat.peakToPeak == 0 && std::isnan(flat.riseTime));
+        CHECK(!measureWaveform({0}, {1}).ok);
+        CHECK(!measureWaveform({0, 1}, {1, NAN}).ok);
+        CHECK(!measureWaveform({1, 0}, {1, 2}).ok);
+        CHECK(!measureWaveform({0, 1, 2}, {0, 1, 2}, 5, 6).ok);
+    }
+    // C API.
+    char* r = sieda_measure_waveform("{\"time\":[0,1,2,3,4],\"values\":[0,0,1,1,1]}");
+    CHECK(r && std::string(r).find("\"ok\":true") != std::string::npos && std::string(r).find("\"riseTime\":0.8") != std::string::npos);
+    sieda_string_free(r);
+    char* bad = sieda_measure_waveform("{nope");
+    CHECK(bad && std::string(bad).find("\"ok\":false") != std::string::npos);
+    sieda_string_free(bad);
+    char* empty = sieda_measure_waveform(nullptr);
+    CHECK(empty && std::string(empty).find("\"ok\":false") != std::string::npos);
+    sieda_string_free(empty);
 }

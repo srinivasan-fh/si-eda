@@ -743,6 +743,15 @@ final class EDAEngine: @unchecked Sendable {
         return Self.decode(FFTResult.self, from: json) ?? FFTResult(error: "Simulator returned no result.")
     }
 
+    /// Measures a waveform between `from` and `to` (nil: its ends): extremes, average, RMS, edges, period.
+    static func measureWaveform(time: [Double], values: [Double], from: Double? = nil, to: Double? = nil) -> WaveformMeasurementsInfo {
+        var request: [String: Any] = ["time": time.map { $0.isFinite ? $0 : 0 }, "values": values.map { $0.isFinite ? $0 : 0 }]
+        if let from, from.isFinite { request["from"] = from }
+        if let to, to.isFinite { request["to"] = to }
+        return decode(WaveformMeasurementsInfo.self, from: take(sieda_measure_waveform(optionsJSON(request))))
+            ?? WaveformMeasurementsInfo(ok: false, error: "The waveform could not be measured.")
+    }
+
     // MARK: - SPICE models (docs/SIMULATION.md)
 
     /// Models and subcircuits in vendor model text, with the parser's diagnostics.

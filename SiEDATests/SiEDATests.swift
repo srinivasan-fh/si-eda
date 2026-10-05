@@ -4985,3 +4985,62 @@ final class NoiseAnalysisTests: XCTestCase {
         XCTAssertFalse(bad.error.isEmpty)
     }
 }
+
+final class SweepFFTMeasurementTests: XCTestCase {
+    private func rcFilter(_ source: String) -> (EDAEngine, Int) {
+        let engine = EDAEngine(name: "RC")
+        let v = engine.addComponent(.voltageSource, value: source, at: .zero)
+        let r = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: -40))
+        let c = engine.addComponent(.capacitor, value: "100n", at: CGPoint(x: 200, y: -40))
+        let g = engine.addComponent(.ground, at: CGPoint(x: 0, y: 80))
+        _ = engine.connect(PinAddress(component: v, pin: 0), PinAddress(component: r, pin: 0))
+        _ = engine.connect(PinAddress(component: r, pin: 1), PinAddress(component: c, pin: 0))
+        _ = engine.connect(PinAddress(component: c, pin: 1), PinAddress(component: g, pin: 0))
+        _ = engine.connect(PinAddress(component: v, pin: 1), PinAddress(component: g, pin: 0))
+        return (engine, c)
+    }
+
+    private func netName(_ engine: EDAEngine, component: Int, pin: Int) throws -> String {
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        let net = try XCTUnwrap(snapshot.component(component)?.pins[pin].net)
+        return try XCTUnwrap(snapshot.nets.first { $0.index == net }?.name)
+    }
+
+    func testParameterSweepAndFFTDecode() throws {
+        let (engine, c) = rcFilter("SIN(0 1 1k) AC 1")
+        let out = try netName(engine, component: c, pin: 0)
+        let dc = engine.simulateParamSweep(component: "R1", values: ["1k", "2k"], analysis: "dc", net: "",
+                                           start: "10", stop: "1MEG", step: "1u")
+        XCTAssertTrue(dc.ok, dc.error)
+        XCTAssertEqual(dc.runs.map(\.value), ["1k", "2k"])
+        let ac = engine.simulateParamSweep(component: "R1", values: ["1k", "10k"], analysis: "ac", net: out,
+                                           start: "10", stop: "1MEG", step: "1u")
+        XCTAssertTrue(ac.ok, ac.error)
+        let f1 = try XCTUnwrap(ac.runs.first?.nets.first?.metrics?.f3dbHz)
+        let f2 = try XCTUnwrap(ac.runs.last?.nets.first?.metrics?.f3dbHz)
+        XCTAssertEqual(f1 / f2, 10, accuracy: 0.05)  // ten times the resistance, a tenth of the corner
+
+        let fft = engine.simulateFFT(net: out, stop: "10m", step: "2u", fundamental: "", harmonics: 5)
+        XCTAssertTrue(fft.ok, fft.error)
+        XCTAssertEqual(fft.fundamentalHz, 1000, accuracy: 1e-6)
+        XCTAssertLessThan(fft.thdPercent, 1)  // a linear filter adds no distortion
+        XCTAssertEqual(fft.harmonics.first?.order, 1)
+    }
+
+    func testWaveformMeasurementsAndInterpolation() throws {
+        let time = stride(from: 0.0, through: 2e-3, by: 1e-6).map { $0 }
+        let values = time.map { 1 + sin(2 * Double.pi * 1000 * $0) }
+        XCTAssertEqual(try XCTUnwrap(WaveformMath.value(at: 0.25e-3, time: time, values: values)), 2, accuracy: 1e-4)
+        XCTAssertEqual(WaveformMath.value(at: -1, time: time, values: values), values.first)
+        XCTAssertNil(WaveformMath.value(at: 0, time: [], values: []))
+        let m = EDAEngine.measureWaveform(time: time, values: values)
+        XCTAssertTrue(m.ok, m.error)
+        XCTAssertEqual(try XCTUnwrap(m.average), 1, accuracy: 1e-4)
+        XCTAssertEqual(try XCTUnwrap(m.acRms), 1 / 2.0.squareRoot(), accuracy: 1e-4)
+        XCTAssertEqual(try XCTUnwrap(m.frequency), 1000, accuracy: 0.01)
+        let window = EDAEngine.measureWaveform(time: time, values: values, from: 0, to: 0.5e-3)
+        XCTAssertTrue(window.ok)
+        XCTAssertNil(window.frequency)
+        XCTAssertFalse(EDAEngine.measureWaveform(time: [0], values: [1]).ok)
+    }
+}

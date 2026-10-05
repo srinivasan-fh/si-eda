@@ -39,6 +39,7 @@
 #include "sieda/SignalIntegrity.hpp"
 #include "sieda/Noise.hpp"
 #include "sieda/SpiceModels.hpp"
+#include "sieda/Waveforms.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
@@ -2454,6 +2455,19 @@ char* sieda_spice_builtin_models(void) {
 
 char* sieda_simulate_noise(const SiedaProject* project, const char* options_json) {
     return runAnalysis(project, options_json, simulateNoiseJson);
+}
+
+char* sieda_measure_waveform(const char* request_json) {
+    try {
+        std::string text = str(request_json);
+        Json request = text.find_first_not_of(" \t\r\n") == std::string::npos ? Json::object() : Json::parse(text);
+        return dup(measureWaveformJson(request).dump());
+    } catch (const std::exception& e) {
+        Json j = Json::object();
+        j["ok"] = false;
+        j["error"] = std::string("Invalid measurement request: ") + e.what();
+        return dup(j.dump());
+    }
 }
 
 }  // extern "C"

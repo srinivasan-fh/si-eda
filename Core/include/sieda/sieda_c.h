@@ -567,6 +567,13 @@ char* sieda_spice_builtin_models(void);
  * first, at most 30). */
 char* sieda_simulate_noise(const SiedaProject* project, const char* options_json);
 
+/* ---- waveform measurements (".meas"-like; docs/SIMULATION.md) ----------------------------------------------------- */
+/* Measures a sampled waveform. request: {"time":[s…],"values":[…],"from"?,"to"?} (a window; default the whole
+ * waveform). Returns {"ok","error","from","to","samples","min","max","tMin","tMax","peakToPeak","average","rms",
+ * "acRms","initial","final","stepLike","riseTime","fallTime","overshootPercent","settlingTime","period","frequency",
+ * "dutyCycle","cycles"}; a quantity the window does not define is null. */
+char* sieda_measure_waveform(const char* request_json);
+
 #ifdef __cplusplus
 }
 #endif
