@@ -3,7 +3,10 @@
 // saturating op-amp), backward-Euler companion models for C and L in transient analysis.
 #pragma once
 
+#include <cmath>
+#include <complex>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -14,10 +17,13 @@
 
 namespace sieda {
 
-/// Independent source waveform: "5", "5V", "SIN(off amp freq)", "PULSE(v1 v2 period [duty])".
+/// Independent source waveform: "5", "5V", "SIN(off amp freq)", "PULSE(v1 v2 period [duty])", each optionally followed
+/// by a SPICE-style small-signal stimulus "AC mag [phase°]" ("0 AC 1", "SIN(0 1 1k) AC 1"; "AC 1" alone is DC 0).
 struct SourceSpec {
     enum class Kind { DC, Sine, Pulse } kind = Kind::DC;
     double dc = 0, offset = 0, amplitude = 0, frequency = 0, v1 = 0, v2 = 0, period = 0, duty = 0.5;
+    bool hasAc = false;  // the value carries an "AC mag [phase]" stimulus for AC analysis
+    double acMagnitude = 0, acPhaseDeg = 0;
 
     static std::optional<SourceSpec> parse(const std::string& text);
     double valueAt(double t) const;
@@ -62,6 +68,57 @@ struct TransientResult {
     std::vector<McuReport> mcus;                   // microcontrollers with their firmware's serial output
 };
 
+/// AC small-signal analysis settings (a logarithmic sweep, SPICE ".AC DEC points fstart fstop").
+struct AcOptions {
+    double fStart = 1;   // Hz
+    double fStop = 1e6;  // Hz
+    int pointsPerDecade = 50;
+    /// Component driven with the stimulus (its "AC mag phase" when the value has one, else 1 V / 1 A at 0°). -1: every
+    /// source whose value has an "AC" stimulus; when none has, the first SIN or AC source with AC 1.
+    int sourceId = -1;
+    /// Nets (schematic net indices) to measure (bandwidth, peak, unity gain, phase margin); empty = every node.
+    std::vector<int> measureNets;
+};
+
+/// Bode-plot readouts of one node. Frequencies outside the sweep are NaN.
+struct AcMetrics {
+    double lowFreqDb = 0;  // gain at the sweep start: the pass-band reference of a low-pass response
+    double peakDb = 0, peakHz = 0;
+    double f3dbHz = NAN;    // first frequency above the start where the gain is 3.01 dB (half power) below lowFreqDb
+    double bwLowHz = NAN;   // half-power points either side of an interior peak (band-pass, resonance)
+    double bwHighHz = NAN;
+    double unityHz = NAN;         // where the gain falls through 0 dB
+    double phaseMarginDeg = NAN;  // 180° + phase at unityHz, wrapped to (−180°, 180°]
+};
+
+struct AcResult {
+    bool ok = false;
+    std::string error;
+    std::vector<int> stimulus;                                  // component ids that drive the circuit
+    std::vector<double> frequency;                              // Hz
+    std::vector<std::vector<std::complex<double>>> netPhasors;  // [net][point], per unit stimulus
+    std::map<int, AcMetrics> metrics;                           // net index → readouts
+    std::vector<double> dcNetVoltages;                          // the operating point the circuit is linearised at
+};
+
+/// Gain in dB (floored at −400 dB for a zero response).
+double magnitudeDb(std::complex<double> h);
+/// Phase in degrees along a sweep, unwrapped so neighbouring points never differ by more than 180°.
+std::vector<double> unwrappedPhaseDeg(const std::vector<std::complex<double>>& h);
+/// Readouts of a response sampled at ascending `freq`. `eval` (optional) re-solves the circuit at any frequency; it
+/// refines the crossings and the peak to full precision. Without it they are interpolated (dB linear in log f).
+AcMetrics acMetrics(const std::vector<double>& freq, const std::vector<std::complex<double>>& h,
+                    const std::function<std::complex<double>(double)>& eval = nullptr);
+
+/// DC sweep of an independent source's value (SPICE ".DC").
+struct DcSweepResult {
+    bool ok = false;
+    std::string error;
+    std::vector<double> values;                    // swept source value per point
+    std::vector<std::vector<double>> netVoltages;  // [net][point]
+    std::map<int, std::vector<double>> currents;   // component id → current per point
+};
+
 class Simulator {
 public:
     explicit Simulator(const Schematic& schematic);
@@ -73,6 +130,14 @@ public:
     /// then drives every pin from the time it spent high, low or pulled up (25 Ω outputs, 35 kΩ pull-ups) and reads
     /// inputs and the ADC from the solved node voltages.
     TransientResult transient(double tStop, double tStep);
+    /// AC small-signal analysis: every device linearised at the DC operating point (diode, BJT and MOSFET small-signal
+    /// conductances; op-amps as a single-pole gain–bandwidth model), solved with complex MNA at each frequency.
+    AcResult ac(const AcOptions& options);
+    /// DC sweep of the independent source `componentId` from `start` to `stop` in steps of |step|.
+    DcSweepResult dcSweep(int componentId, double start, double stop, double step);
+    /// Multiplies the values of resistors, capacitors and inductors by a factor per component id (tolerance analysis).
+    /// Takes effect at the next analysis.
+    void setValueScale(std::map<int, double> scale) { valueScale_ = std::move(scale); }
 
     // ---- incremental (live) simulation --------------------------------------------------------------------------------
     /// Starts at the t = 0 operating point. False with `error` when the circuit cannot be simulated.
@@ -97,6 +162,8 @@ private:
     bool solve(double t, double h, std::vector<double>& x, int& iterations, double gminExtra, double sourceScale);
     void stamp(double t, double h, const std::vector<double>& x, double gminExtra, double sourceScale);
     std::vector<DeviceReading> readings(const std::vector<double>& x, double h) const;
+    /// Newton from `x`, then Gmin stepping, then source stepping (the DC operating point strategy).
+    bool operatingPoint(std::vector<double>& x, int& iterations);
 
     const Schematic& sch_;
     std::vector<int> netToNode_;  // net index → unknown index (-1 for ground)
@@ -109,6 +176,7 @@ private:
     std::vector<DeviceReading> lastReadings_;
     double t_ = 0;
     bool started_ = false;
+    std::map<int, double> valueScale_;
 
     void stepMcus(double h);
     void updateState();

@@ -2,6 +2,7 @@
 #include <map>
 #include <chrono>
 #include <cmath>
+#include <complex>
 #include <cstdio>
 #include <filesystem>
 #include <functional>
@@ -12,6 +13,7 @@
 
 #include <algorithm>
 
+#include "sieda/Analysis.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/CustomParts.hpp"
 #include "sieda/DeviceModels.hpp"
@@ -5189,4 +5191,506 @@ TEST(collinear_segments_are_not_a_crossing) {
     CHECK(std::fabs(segmentSegmentDistance(a, b, c, d) - (d - a).length()) < 1e-9);
     CHECK(segmentSegmentDistance(a, b, {16.95, 16.25}, {17.35, 15.85}) < 1e-9);  // overlapping collinear: touching
     CHECK(segmentsIntersect({0, 0}, {1, 1}, {0, 1}, {1, 0}));                     // a real crossing still is one
+}
+
+// ======================================================================= AC, sweeps, tolerances, spectrum
+
+namespace {
+// V1 (value `source`) → R1 (r) → OUT → C1 (c) → GND. Returns the OUT net index.
+int rcLowPass(Schematic& s, const char* source, const char* r, const char* c) {
+    int v = s.addComponent(ComponentKind::VoltageSource, source, {0, 0});
+    int rr = s.addComponent(ComponentKind::Resistor, r, {100, 0});
+    int cc = s.addComponent(ComponentKind::Capacitor, c, {200, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, v, "+", rr, "1");
+    wire(s, rr, "2", cc, "1");
+    wire(s, cc, "2", g, "GND");
+    wire(s, v, "-", g, "GND");
+    return s.netOf({rr, 1});
+}
+}  // namespace
+
+TEST(source_spec_ac_stimulus) {
+    auto a = SourceSpec::parse("0 AC 1");
+    CHECK(a && a->kind == SourceSpec::Kind::DC && a->dc == 0 && a->hasAc && a->acMagnitude == 1 && a->acPhaseDeg == 0);
+    auto b = SourceSpec::parse("SIN(2.5 1 1k) ac 2m 90");
+    CHECK(b && b->kind == SourceSpec::Kind::Sine && b->hasAc);
+    if (b) {
+        CHECK_NEAR(b->offset, 2.5, 1e-12);
+        CHECK_NEAR(b->acMagnitude, 2e-3, 1e-15);
+        CHECK_NEAR(b->acPhaseDeg, 90, 1e-12);
+    }
+    auto c = SourceSpec::parse("AC 1");
+    CHECK(c && c->dc == 0 && c->hasAc);
+    auto d = SourceSpec::parse("DC 5 AC 1");
+    CHECK(d && d->dc == 5 && d->hasAc);
+    CHECK(!SourceSpec::parse("5 AC"));
+    CHECK(!SourceSpec::parse("5 AC 1 2 3"));
+    CHECK(!SourceSpec::parse("5 AC x"));
+    auto plain = SourceSpec::parse("12V");  // existing values are unchanged
+    CHECK(plain && plain->dc == 12 && !plain->hasAc);
+    // The SPICE netlist carries the stimulus.
+    Schematic s;
+    rcLowPass(s, "SIN(0 1 1k) AC 1 -90", "1k", "100n");
+    CHECK(exportSpiceNetlist(s, "ac").find("SIN(0 1 1000) AC 1 -90") != std::string::npos);
+}
+
+TEST(ac_rc_lowpass_corner) {
+    Schematic s;
+    int out = rcLowPass(s, "0 AC 1", "1k", "100n");
+    const double fc = 1.0 / (2 * kPi * 1e3 * 100e-9);  // 1591.55 Hz
+    Simulator sim(s);
+    AcOptions o;
+    o.fStart = 10;
+    o.fStop = 1e6;
+    o.pointsPerDecade = 20;
+    AcResult r = sim.ac(o);
+    CHECK(r.ok);
+    if (!r.ok) return;
+    CHECK(r.frequency.size() == 101);
+    CHECK_NEAR(r.frequency.front(), 10, 1e-9);
+    CHECK_NEAR(r.frequency.back(), 1e6, 1e-6);
+    // Every point matches H = 1 / (1 + jωRC).
+    double worst = 0;
+    for (size_t i = 0; i < r.frequency.size(); ++i) {
+        std::complex<double> h = 1.0 / std::complex<double>(1.0, r.frequency[i] / fc);
+        worst = std::max(worst, std::abs(r.netPhasors[static_cast<size_t>(out)][i] - h));
+    }
+    CHECK(worst < 1e-8);
+    const AcMetrics& m = r.metrics[out];
+    // Half-power point relative to the gain at the sweep start (10 Hz): |H(f)|² = |H(10)|² / 2 → f = fc·√(1 + 2(10/fc)²).
+    CHECK_NEAR(m.f3dbHz / (fc * std::sqrt(1 + 2 * (10 / fc) * (10 / fc))), 1.0, 1e-7);  // refined on the circuit
+    CHECK(std::fabs(m.f3dbHz / fc - 1.0) < 0.005);                                     // the corner, within 0.5 %
+    CHECK_NEAR(m.lowFreqDb, 0.0, 1e-3);
+    CHECK(std::isnan(m.unityHz));
+    // Interpolated readouts (no re-solve) stay within 0.5 % even at 20 points per decade.
+    AcMetrics coarse = acMetrics(r.frequency, r.netPhasors[static_cast<size_t>(out)]);
+    CHECK(std::fabs(coarse.f3dbHz / fc - 1.0) < 0.005);
+    // Phase: −45° at the corner, approaching −90°.
+    auto phase = unwrappedPhaseDeg(r.netPhasors[static_cast<size_t>(out)]);
+    CHECK(phase.back() < -89 && phase.back() > -90.0001);
+    CHECK(phase.front() < 0 && phase.front() > -1);
+}
+
+TEST(ac_rlc_resonance) {
+    // Series RLC driven by V1: the resistor voltage is a band-pass peaking at f0 = 1/(2π√LC) with bandwidth R/(2πL);
+    // the capacitor voltage peaks at f0·√(1 − 1/(2Q²)) with Q/√(1 − 1/(4Q²)).
+    Schematic s;
+    int v = s.addComponent(ComponentKind::VoltageSource, "AC 1", {0, 0});
+    int l = s.addComponent(ComponentKind::Inductor, "10m", {100, 0});
+    int c = s.addComponent(ComponentKind::Capacitor, "100n", {200, 0});
+    int r = s.addComponent(ComponentKind::Resistor, "100", {300, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, v, "+", l, "1");
+    wire(s, l, "2", c, "1");
+    wire(s, c, "2", r, "1");
+    wire(s, r, "2", g, "GND");
+    wire(s, v, "-", g, "GND");
+    const double L = 10e-3, C = 100e-9, R = 100;
+    const double f0 = 1.0 / (2 * kPi * std::sqrt(L * C)), bw = R / (2 * kPi * L), q = std::sqrt(L / C) / R;
+    Simulator sim(s);
+    AcOptions o;
+    o.fStart = 100;
+    o.fStop = 100e3;
+    o.pointsPerDecade = 50;
+    AcResult res = sim.ac(o);
+    CHECK(res.ok);
+    if (!res.ok) return;
+    const AcMetrics& mr = res.metrics[s.netOf({r, 0})];
+    CHECK_NEAR(mr.peakHz / f0, 1.0, 1e-5);
+    CHECK_NEAR(mr.peakDb, 0.0, 1e-6);
+    CHECK_NEAR((mr.bwHighHz - mr.bwLowHz) / bw, 1.0, 1e-4);
+    CHECK_NEAR(std::sqrt(mr.bwHighHz * mr.bwLowHz) / f0, 1.0, 1e-4);  // geometric centre
+    // Reordered as R–L–C to ground, the capacitor node is the classic second-order low-pass.
+    Schematic s2;
+    int v2 = s2.addComponent(ComponentKind::VoltageSource, "AC 1", {0, 0});
+    int r2 = s2.addComponent(ComponentKind::Resistor, "100", {100, 0});
+    int l2 = s2.addComponent(ComponentKind::Inductor, "10m", {200, 0});
+    int c2 = s2.addComponent(ComponentKind::Capacitor, "100n", {300, 0});
+    int g2 = s2.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s2, v2, "+", r2, "1");
+    wire(s2, r2, "2", l2, "1");
+    wire(s2, l2, "2", c2, "1");
+    wire(s2, c2, "2", g2, "GND");
+    wire(s2, v2, "-", g2, "GND");
+    Simulator sim2(s2);
+    AcResult res2 = sim2.ac(o);
+    CHECK(res2.ok);
+    if (!res2.ok) return;
+    const AcMetrics& mc = res2.metrics[s2.netOf({c2, 0})];
+    CHECK_NEAR(mc.peakHz / (f0 * std::sqrt(1 - 1 / (2 * q * q))), 1.0, 1e-5);
+    CHECK_NEAR(mc.peakDb, 20 * std::log10(q / std::sqrt(1 - 1 / (4 * q * q))), 1e-5);
+    CHECK_NEAR(mc.lowFreqDb, 0.0, 0.01);
+}
+
+TEST(ac_opamp_gain_bandwidth) {
+    // Non-inverting gain 2 with an LM358 (GBW 1 MHz): 6.02 dB, closed-loop pole at GBW·β (≈ 500 kHz).
+    Schematic s;
+    int vin = s.addComponent(ComponentKind::VoltageSource, "1 AC 1", {0, 0});
+    int u = s.addComponent(ComponentKind::OpAmp, "LM358", {100, 0});
+    int rf = s.addComponent(ComponentKind::Resistor, "10k", {150, -60});
+    int rg = s.addComponent(ComponentKind::Resistor, "10k", {50, -60});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, vin, "+", u, "IN+");
+    wire(s, vin, "-", g, "GND");
+    wire(s, u, "OUT", rf, "2");
+    wire(s, rf, "1", u, "IN-");
+    wire(s, rg, "2", u, "IN-");
+    wire(s, rg, "1", g, "GND");
+    Simulator sim(s);
+    AcOptions o;
+    o.fStart = 10;
+    o.fStop = 10e6;
+    AcResult r = sim.ac(o);
+    CHECK(r.ok);
+    if (!r.ok) return;
+    int out = s.netOf({u, 2});
+    const AcMetrics& m = r.metrics[out];
+    CHECK_NEAR(m.lowFreqDb, 20 * std::log10(2.0), 1e-4);
+    // A(s) = A0 / (1 + s/ωp), ωp = 2π·GBW/A0 → closed-loop pole at fp·(1 + A0·β).
+    const double a0 = 1e6, fp = 1e6 / a0, expected = fp * (1 + a0 * 0.5);
+    CHECK_NEAR(m.f3dbHz / expected, 1.0, 1e-4);
+    CHECK_NEAR(r.dcNetVoltages[static_cast<size_t>(out)], 2.0, 1e-3);
+
+    // Open loop (TL072, GBW 3 MHz): unity gain at ≈ GBW with 90° phase margin (single pole).
+    Schematic ol;
+    int vs = ol.addComponent(ComponentKind::VoltageSource, "0 AC 1", {0, 0});
+    int a = ol.addComponent(ComponentKind::OpAmp, "TL072", {100, 0});
+    int gg = ol.addComponent(ComponentKind::Ground, "", {0, 80});
+    int rl = ol.addComponent(ComponentKind::Resistor, "10k", {200, 0});
+    wire(ol, vs, "+", a, "IN+");
+    wire(ol, vs, "-", gg, "GND");
+    wire(ol, a, "IN-", gg, "GND");
+    wire(ol, a, "OUT", rl, "1");
+    wire(ol, rl, "2", gg, "GND");
+    Simulator olSim(ol);
+    AcOptions oo;
+    oo.fStart = 0.01;
+    oo.fStop = 100e6;
+    AcResult olr = olSim.ac(oo);
+    CHECK(olr.ok);
+    if (!olr.ok) return;
+    const AcMetrics& om = olr.metrics[ol.netOf({a, 2})];
+    CHECK_NEAR(om.lowFreqDb, 120.0, 0.01);
+    CHECK_NEAR(om.unityHz / 3e6, 1.0, 1e-4);
+    CHECK_NEAR(om.phaseMarginDeg, 90.0, 0.01);
+    CHECK_NEAR(om.f3dbHz, 3.0, 1e-3);  // dominant pole GBW / A0
+}
+
+TEST(ac_semiconductor_small_signal) {
+    // Diode at 1 mA: r_d = n·V_T / (I + I_s).
+    {
+        Schematic s;
+        int i = s.addComponent(ComponentKind::CurrentSource, "1m AC 1u", {0, 0});
+        int d = s.addComponent(ComponentKind::Diode, "1N4148", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, i, "+", d, "A");
+        wire(s, d, "K", g, "GND");
+        wire(s, i, "-", g, "GND");
+        Simulator sim(s);
+        AcOptions o;
+        o.fStart = 100;
+        o.fStop = 1000;
+        o.pointsPerDecade = 2;
+        AcResult r = sim.ac(o);
+        CHECK(r.ok);
+        if (!r.ok) return;
+        const double rd = 1.752 * 0.025852 / (1e-3 + 2.52e-9);
+        CHECK_NEAR(std::abs(r.netPhasors[static_cast<size_t>(s.netOf({d, 0}))][0]) / (1e-6 * rd), 1.0, 1e-4);
+    }
+    // Common-emitter stage driven by a base current: v_c = −β·i_b·R_C (β = 200 for the BC847 model).
+    {
+        Schematic s;
+        int vcc = s.addComponent(ComponentKind::VoltageSource, "10", {0, 0});
+        int ib = s.addComponent(ComponentKind::CurrentSource, "10u AC 1u", {100, 0});
+        int rc = s.addComponent(ComponentKind::Resistor, "1k", {200, -80});
+        int q = s.addComponent(ComponentKind::NPN, "BC847", {200, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, ib, "+", q, "B");
+        wire(s, ib, "-", g, "GND");
+        wire(s, vcc, "+", rc, "1");
+        wire(s, rc, "2", q, "C");
+        wire(s, q, "E", g, "GND");
+        wire(s, vcc, "-", g, "GND");
+        Simulator sim(s);
+        AcOptions o;
+        o.fStart = 100;
+        o.fStop = 1000;
+        o.pointsPerDecade = 2;
+        AcResult r = sim.ac(o);
+        CHECK(r.ok);
+        if (!r.ok) return;
+        std::complex<double> vc = r.netPhasors[static_cast<size_t>(s.netOf({q, 1}))][0];
+        CHECK_NEAR(vc.real(), -200 * 1e-6 * 1e3, 1e-4);
+        CHECK_NEAR(vc.imag(), 0.0, 1e-9);
+        CHECK(r.stimulus.size() == 1 && r.stimulus[0] == ib);  // the DC supply is not a stimulus
+    }
+}
+
+TEST(ac_stimulus_selection_and_errors) {
+    {
+        Schematic s;  // no AC magnitude and no sine source
+        rcLowPass(s, "5", "1k", "100n");
+        Simulator sim(s);
+        AcResult r = sim.ac({});
+        CHECK(!r.ok && r.error.find("No AC stimulus") != std::string::npos);
+        AcOptions o;
+        o.sourceId = s.findByRef("V1")->id;  // an explicit input drives with 1 V
+        AcResult r2 = sim.ac(o);
+        CHECK(r2.ok);
+        o.sourceId = s.findByRef("R1")->id;
+        CHECK(!sim.ac(o).ok);
+    }
+    {
+        Schematic s;  // a SIN source is the stimulus by default
+        int out = rcLowPass(s, "SIN(0 1 1k)", "1k", "100n");
+        Simulator sim(s);
+        AcOptions o;
+        o.measureNets = {out};
+        AcResult r = sim.ac(o);
+        CHECK(r.ok && r.metrics.size() == 1);
+        AcOptions bad;
+        bad.fStart = 1e3;
+        bad.fStop = 10;
+        CHECK(!sim.ac(bad).ok);
+    }
+}
+
+TEST(dc_sweep_source) {
+    Schematic s;
+    int v = s.addComponent(ComponentKind::VoltageSource, "10", {0, 0});
+    int r1 = s.addComponent(ComponentKind::Resistor, "10k", {100, 0});
+    int r2 = s.addComponent(ComponentKind::Resistor, "30k", {200, 0});
+    int d = s.addComponent(ComponentKind::Diode, "1N4148", {300, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, v, "+", r1, "1");
+    wire(s, r1, "2", r2, "1");
+    wire(s, r2, "2", g, "GND");
+    wire(s, r1, "2", d, "A");
+    wire(s, d, "K", g, "GND");
+    wire(s, v, "-", g, "GND");
+    Simulator sim(s);
+    DcSweepResult r = sim.dcSweep(v, -5, 5, 0.25);
+    CHECK(r.ok);
+    if (!r.ok) return;
+    CHECK(r.values.size() == 41);
+    const auto& mid = r.netVoltages[static_cast<size_t>(s.netOf({r1, 1}))];
+    // Reverse biased: a plain 10k / 30k divider. Forward: clamped below ~0.75 V and rising monotonically.
+    CHECK_NEAR(mid[0], -5 * 0.75, 1e-4);  // only the diode's leakage loads the divider
+    CHECK(mid.back() > 0.5 && mid.back() < 0.75);
+    for (size_t i = 1; i < mid.size(); ++i) CHECK(mid[i] > mid[i - 1]);
+    // Same answer as a separate DC operating point.
+    s.setValue(v, "5");
+    Simulator op(s);
+    DcResult dc = op.dcOperatingPoint();
+    CHECK_NEAR(mid.back(), netV(s, dc, r1, "2"), 1e-6);
+    CHECK(r.currents.count(d) == 1 && r.currents.at(d).size() == 41);
+    CHECK(!sim.dcSweep(r1, 0, 1, 0.1).ok);  // not a source
+    CHECK(!sim.dcSweep(v, 0, 1, 0).ok);
+}
+
+TEST(parameter_sweep_dc_ac_transient) {
+    Schematic s;
+    int out = rcLowPass(s, "1 AC 1", "1k", "100n");
+    int r = s.findByRef("R1")->id;
+    ParamSweepOptions o;
+    o.componentId = r;
+    o.values = {"1k", "2k", "4k7"};
+    o.analysis = SweepAnalysis::Ac;
+    o.ac.fStart = 10;
+    o.ac.fStop = 1e6;
+    o.ac.measureNets = {out};
+    std::string err;
+    auto runs = parameterSweep(s, o, err);
+    CHECK(err.empty() && runs.size() == 3);
+    const double rs[] = {1e3, 2e3, 4.7e3};
+    for (size_t i = 0; i < runs.size(); ++i) {
+        CHECK(runs[i].ok());
+        const double fc = 1 / (2 * kPi * rs[i] * 100e-9);
+        CHECK_NEAR(runs[i].ac.metrics[out].f3dbHz / (fc * std::sqrt(1 + 2 * (10 / fc) * (10 / fc))), 1.0, 1e-7);
+    }
+    o.analysis = SweepAnalysis::Transient;
+    o.tStop = 1e-3;
+    o.tStep = 10e-6;
+    runs = parameterSweep(s, o, err);
+    CHECK(runs.size() == 3 && runs[0].ok() && runs[2].ok());
+    o.analysis = SweepAnalysis::Dc;
+    o.values = {"1k", "bogus"};
+    runs = parameterSweep(s, o, err);
+    CHECK(runs.size() == 2 && runs[0].ok() && !runs[1].ok() && runs[1].error().find("R1") != std::string::npos);
+    CHECK(s.findByRef("R1")->value == "1k");  // the design itself is untouched
+
+    // JSON form: the DC sweep of a divider's lower resistor.
+    Schematic d;
+    int v = d.addComponent(ComponentKind::VoltageSource, "10", {0, 0});
+    int a = d.addComponent(ComponentKind::Resistor, "10k", {100, 0});
+    int b = d.addComponent(ComponentKind::Resistor, "10k", {200, 0});
+    int g = d.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(d, v, "+", a, "1");
+    wire(d, a, "2", b, "1");
+    wire(d, b, "2", g, "GND");
+    wire(d, v, "-", g, "GND");
+    int mid = d.netOf({a, 1});
+    Json opts = Json::parse("{\"component\":\"R2\",\"values\":[\"10k\",\"30k\",90000],\"analysis\":\"dc\",\"net\":" +
+                            std::to_string(mid) + "}");
+    Json j = simulateParamSweepJson(d, opts);
+    CHECK(j.get("ok").asBool());
+    CHECK(j.get("runs").size() == 3);
+    if (j.get("runs").size() == 3) {
+        CHECK_NEAR(j.get("runs")[0].get("nets")[0].get("voltage").asNumber(), 5.0, 1e-6);
+        CHECK_NEAR(j.get("runs")[1].get("nets")[0].get("voltage").asNumber(), 7.5, 1e-6);
+        CHECK_NEAR(j.get("runs")[2].get("nets")[0].get("voltage").asNumber(), 9.0, 1e-6);
+    }
+}
+
+TEST(monte_carlo_and_worst_case_divider) {
+    Schematic s;
+    int v = s.addComponent(ComponentKind::VoltageSource, "10", {0, 0});
+    int r1 = s.addComponent(ComponentKind::Resistor, "10k", {100, 0});
+    int r2 = s.addComponent(ComponentKind::Resistor, "10k", {200, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, v, "+", r1, "1");
+    wire(s, r1, "2", r2, "1");
+    wire(s, r2, "2", g, "GND");
+    wire(s, v, "-", g, "GND");
+    Measurement m;
+    m.net = s.netOf({r1, 1});
+    ToleranceOptions o;
+    o.runs = 2000;
+    o.seed = 42;
+    ToleranceResult r = toleranceAnalysis(s, m, o);
+    CHECK(r.ok);
+    CHECK(r.parts.size() == 2 && r.failedRuns == 0 && r.samples.size() == 2000);
+    CHECK_NEAR(r.nominal, 5.0, 1e-6);
+    // Worst case with 1 % parts: 10·1.01 / (0.99 + 1.01) = 5.05 and 4.95.
+    CHECK(r.hasWorstCase);
+    CHECK_NEAR(r.worstMax, 5.05, 1e-6);
+    CHECK_NEAR(r.worstMin, 4.95, 1e-6);
+    CHECK_NEAR(r.worstMaxScale[r2], 1.01, 1e-12);
+    CHECK_NEAR(r.worstMaxScale[r1], 0.99, 1e-12);
+    CHECK(r.min >= r.worstMin - 1e-9 && r.max <= r.worstMax + 1e-9);
+    // Uniform ±1 %: V ≈ 5·(1 + (δ2 − δ1)/2) → σ = 5·√(2/3)·0.01 / 2 ≈ 20.4 mV.
+    CHECK_NEAR(r.mean, 5.0, 0.002);
+    CHECK_NEAR(r.sigma / (5 * std::sqrt(2.0 / 3.0) * 0.01 / 2), 1.0, 0.06);
+    // Seeded: the same seed repeats exactly, another seed differs.
+    ToleranceOptions small = o;
+    small.runs = 20;
+    small.worstCase = false;
+    auto a = toleranceAnalysis(s, m, small), b = toleranceAnalysis(s, m, small);
+    small.seed = 7;
+    auto c = toleranceAnalysis(s, m, small);
+    CHECK(a.samples == b.samples);
+    CHECK(a.samples != c.samples);
+    // A tolerance in the value overrides the default; Gaussian runs stay inside the bounds.
+    s.setValue(r1, "10k 5%");
+    small.gaussian = true;
+    small.runs = 200;
+    small.worstCase = true;
+    auto gsn = toleranceAnalysis(s, m, small);
+    CHECK(gsn.ok && gsn.parts.size() == 2 && gsn.parts[0].fromValue && !gsn.parts[1].fromValue);
+    CHECK_NEAR(gsn.parts[0].tolerance, 0.05, 1e-12);
+    CHECK_NEAR(gsn.worstMax, 10 * 1.01 / (0.95 + 1.01), 1e-6);
+    CHECK(gsn.min >= gsn.worstMin - 1e-9 && gsn.max <= gsn.worstMax + 1e-9);
+    // Portable RNG: SplitMix64 reference values for seed 0.
+    SeededRandom rng(0);
+    CHECK(rng.next() == 0xE220A8397B1DCDAFULL);
+    CHECK(rng.next() == 0x6E789E6AA1B965F4ULL);
+}
+
+TEST(monte_carlo_filter_corner) {
+    // RC low-pass with default tolerances (R 1 %, C 10 %): f_c = 1/(2πRC) spans fc/(1.01·1.1) … fc/(0.99·0.9).
+    Schematic s;
+    int out = rcLowPass(s, "0 AC 1", "1k", "100n");
+    Measurement m;
+    m.kind = Measurement::Kind::AcF3db;
+    m.net = out;
+    m.ac.fStart = 10;
+    m.ac.fStop = 1e6;
+    m.ac.pointsPerDecade = 20;
+    ToleranceOptions o;
+    o.runs = 50;
+    ToleranceResult r = toleranceAnalysis(s, m, o);
+    CHECK(r.ok);
+    const double fc = 1.0 / (2 * kPi * 1e3 * 100e-9);
+    // (Half-power points are referred to the 10 Hz gain: within 2e-4 of 1/(2πRC) here.)
+    CHECK_NEAR(r.nominal / fc, 1.0, 2e-4);
+    CHECK_NEAR(r.worstMax / (fc / (0.99 * 0.9)), 1.0, 2e-4);
+    CHECK_NEAR(r.worstMin / (fc / (1.01 * 1.1)), 1.0, 2e-4);
+    CHECK(r.min >= r.worstMin * (1 - 1e-9) && r.max <= r.worstMax * (1 + 1e-9));
+    Json j = simulateToleranceJson(
+        s, Json::parse("{\"net\":" + std::to_string(out) + ",\"measure\":\"f3db\",\"runs\":10,\"start\":10,\"stop\":\"1MEG\"}"));
+    CHECK(j.get("ok").asBool() && j.get("unit").asString("") == "Hz" && j.get("samples").size() == 10);
+    CHECK(j.get("histogram").get("counts").size() == 20);
+}
+
+TEST(spectrum_thd) {
+    // Synthetic: fundamental 1 kHz + 10 % third harmonic + DC.
+    std::vector<double> t, v;
+    for (int i = 0; i <= 5000; ++i) {
+        double ti = i * 2e-6;
+        t.push_back(ti);
+        v.push_back(0.5 + std::sin(2 * kPi * 1e3 * ti) + 0.1 * std::sin(2 * kPi * 3e3 * ti));
+    }
+    SpectrumResult r = spectrum(t, v, 1e3);
+    CHECK(r.ok && r.cycles == 10);
+    CHECK_NEAR(r.thd, 0.1, 1e-4);
+    CHECK_NEAR(r.dc, 0.5, 1e-4);
+    CHECK(r.harmonics.size() >= 3);
+    if (r.harmonics.size() >= 3) {
+        CHECK_NEAR(r.harmonics[0].amplitude, 1.0, 1e-4);
+        CHECK_NEAR(r.harmonics[2].dbc, -20.0, 0.01);
+    }
+    SpectrumResult detected = spectrum(t, v, 0);  // finds the 1 kHz fundamental itself
+    CHECK(detected.ok);
+    CHECK_NEAR(detected.fundamentalHz, 1e3, 5);
+    CHECK_NEAR(detected.thd, 0.1, 0.002);
+    CHECK(!spectrum(t, v, 10).ok);  // shorter than one period
+
+    // Circuit: a ±1 V square wave (PULSE) has odd harmonics 1/n → THD through the 10th = √(Σ 1/n², n = 3,5,7,9).
+    Schematic s;
+    int src = s.addComponent(ComponentKind::VoltageSource, "PULSE(-1 1 1m)", {0, 0});
+    int rl = s.addComponent(ComponentKind::Resistor, "1k", {100, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, src, "+", rl, "1");
+    wire(s, rl, "2", g, "GND");
+    wire(s, src, "-", g, "GND");
+    Json j = simulateFftJson(s, Json::parse("{\"net\":" + std::to_string(s.netOf({rl, 0})) +
+                                            ",\"stop\":\"10m\",\"step\":\"1u\",\"fundamental\":1000}"));
+    CHECK(j.get("ok").asBool());
+    const double square = 100 * std::sqrt(1 / 9.0 + 1 / 25.0 + 1 / 49.0 + 1 / 81.0);
+    CHECK_NEAR(j.get("thdPercent").asNumber(), square, 0.05);
+
+    // A clean sine through an RC filter: negligible distortion (the fundamental defaults to the SIN source).
+    Schematic f;
+    int out = rcLowPass(f, "SIN(0 1 1k)", "1k", "100n");
+    Json k = simulateFftJson(f, Json::parse("{\"net\":" + std::to_string(out) + ",\"stop\":\"20m\",\"step\":\"2u\"}"));
+    CHECK(k.get("ok").asBool());
+    CHECK_NEAR(k.get("fundamentalHz").asNumber(), 1000, 1e-9);
+    CHECK(k.get("thdPercent").asNumber() < 0.001);
+}
+
+TEST(analysis_json_api) {
+    Schematic s;
+    rcLowPass(s, "0 AC 1", "1k", "100n");
+    // Through text, as the app reads it.
+    Json ac = Json::parse(
+        simulateAcJson(s, Json::parse("{\"start\":\"10\",\"stop\":\"1MEG\",\"pointsPerDecade\":10}")).dump());
+    CHECK(ac.get("ok").asBool());
+    CHECK(ac.get("frequency").size() == 51);
+    CHECK(ac.get("stimulus").size() == 1 && ac.get("stimulus")[0].asString("") == "V1");
+    bool found = false;
+    for (size_t i = 0; i < ac.get("nets").size(); ++i) {
+        const Json& n = ac.get("nets")[i];
+        if (n.get("metrics").get("f3dbHz").isNumber()) {
+            found = true;
+            CHECK_NEAR(n.get("metrics").get("f3dbHz").asNumber(), 1591.612, 0.01);  // referred to the 10 Hz gain
+            CHECK(n.get("metrics").get("unityHz").isNull());  // NaN → null
+            CHECK(n.get("magnitudeDb").size() == 51 && n.get("phaseDeg").size() == 51);
+        }
+    }
+    CHECK(found);
+    CHECK(!simulateAcJson(s, Json::parse("{\"source\":\"V9\"}")).get("ok").asBool());
+    Json sweep = simulateDcSweepJson(s, Json::parse("{\"source\":\"V1\",\"start\":0,\"stop\":1,\"step\":\"250m\"}"));
+    CHECK(sweep.get("ok").asBool() && sweep.get("values").size() == 5 && sweep.get("unit").asString("") == "V");
+    CHECK(!simulateDcSweepJson(s, Json::object()).get("ok").asBool());
 }
