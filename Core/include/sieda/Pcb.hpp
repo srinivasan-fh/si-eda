@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -211,6 +212,19 @@ const char* viaKind(const Via& v, int layerCount);
 void setDrcBruteForce(bool on);
 bool drcBruteForce();
 
+/// Autorouter strategy. Auto (default): boards whose routing grid has at least 2 M nodes (cells × copper layers) use
+/// the corridor router — coarse global routing, detailed routing only inside each connection's corridor, independent
+/// nets on several threads, targeted rip-up — and smaller boards the classic whole-board router, whose results are
+/// unchanged. Classic / Corridor force one of them (tests, benchmarks). See docs/ROUTING.md.
+enum class RouterStrategy { Auto, Classic, Corridor };
+void setRouterStrategy(RouterStrategy strategy);
+RouterStrategy routerStrategy();
+/// Worker threads of the corridor router; 0 (default) = the hardware's concurrency, at most 8. The routed copper is
+/// the same for every thread count.
+void setRoutingThreads(int threads);
+int routingThreads();
+int effectiveRoutingThreads();
+
 /// Copper pour rule: fills the free area of `layer` with `net` copper, keeping clearance to every other net, the
 /// board edge and the mounting holes, with thermal-relief spokes on through-hole pads and floating islands removed.
 struct CopperZone {
@@ -267,6 +281,21 @@ struct TamperMeshGeometry {
     std::vector<size_t> endPads;
 };
 
+/// Where a running autoroute is (RouteControl::progress).
+struct RouteProgress {
+    enum Phase { Preparing = 0, Routing = 1, RipUp = 2, Finishing = 3 };
+    int phase = Preparing;
+    int pass = 0;              // routing pass: 0 the first, then rip-up / recovery passes
+    int done = 0, total = 0;   // nets routed in this pass, nets this pass routes
+    int unrouted = -1;         // connections the best pass so far leaves unrouted (-1 before the first pass ends)
+};
+
+/// Hooks for a long autoroute. `progress` is called on the routing thread (never concurrently, a few hundred times
+/// at most); returning false cancels the route.
+struct RouteControl {
+    std::function<bool(const RouteProgress&)> progress;
+};
+
 struct RouteStats {
     int connections = 0;
     int routed = 0;
@@ -274,6 +303,7 @@ struct RouteStats {
     int vias = 0;
     double trackLength = 0;
     int lengthTuned = 0;  // nets lengthened with serpentines (length / phase matching)
+    bool cancelled = false;  // the RouteControl cancelled the route: the board was left as it was
     std::vector<std::string> failedNets;
 };
 
@@ -305,9 +335,13 @@ public:
     /// Rips up existing routing and routes every net on `settings.layerCount` layers (grid A* with through vias,
     /// layer direction preferences and rip-up passes). A single-layer board routes on the top layer without vias.
     RouteStats autoRoute(const Schematic& sch);
+    /// The same, reporting progress and allowing cancellation (RouteControl). A cancelled route leaves the board
+    /// exactly as it was (tracks, vias, net classes) and returns stats with `cancelled` set.
+    RouteStats autoRoute(const Schematic& sch, const RouteControl& control);
 
 private:
-    RouteStats routeAll(const Schematic& sch);
+    RouteStats routeWithVoltageSpacing(const Schematic& sch, const RouteControl* control);
+    RouteStats routeAll(const Schematic& sch, const RouteControl* control);
 
 public:
     void clearRouting() { tracks.clear(); vias.clear(); }

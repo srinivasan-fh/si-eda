@@ -269,6 +269,7 @@
 "Find Parts Online…" = "இணையத்தில் பாகங்களைத் தேடு…";
 "Finish" = "முடி";
 "Finish the login in your browser…" = "உங்கள் உலாவியில் உள்நுழைவை முடிக்கவும்…";
+"Finishing the autoroute…" = "தானியங்கி வழித்தடமிடல் நிறைவடைகிறது…";
 "Firmware — 1 s, 100 µs" = "ஃபர்ம்வேர் — 1 s, 100 µs";
 "Fit Board to Components" = "போர்டை காம்போனன்ட்களுக்குப் பொருத்து";
 "Fits every pin" = "ஒவ்வொரு பின்னுக்கும் பொருந்தும்";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "போர்ட் (பெற்றோர் ஷீட்டுக்கு)";
 "Ports: %@" = "போர்ட்டுகள்: %@";
 "Power" = "பவர்";
+"Preparing the autoroute…" = "தானியங்கி வழித்தடமிடல் தயாராகிறது…";
 "Preview appears once the part has a name and pins." = "பார்ட்டுக்குப் பெயரும் பின்களும் வந்ததும் முன்னோட்டம் தோன்றும்.";
 "Product Page" = "தயாரிப்புப் பக்கம்";
 "Project Library" = "ப்ராஜெக்ட் லைப்ரரி";
@@ -557,6 +559,8 @@
 "Revision" = "திருத்தம்";
 "Right →" = "வலது →";
 "Rip Out Entries" = "பஸ் கிளைகளை வெளியே எடு";
+"Rip-up pass %lld" = "ரிப்-அப் சுற்று %lld";
+"Rip-up pass %lld: %lld unrouted" = "ரிப்-அப் சுற்று %lld: %lld வழித்தடமிடப்படவில்லை";
 "Ripple" = "ரிப்பிள்";
 "Rise time (10–90 %)" = "எழுச்சி நேரம் (10–90 %)";
 "Robot Platform" = "ரோபோ தளம்";
@@ -566,6 +570,7 @@
 "Rounded corners" = "வட்டமான மூலைகள்";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "டிஃபரன்ஷியல் ஜோடியின் இரு நெட்களையும் (X_P / X_N) ஜோடி இடைவெளியில் சேர்த்து ரூட் செய்க";
 "Router mode" = "ரூட்டர் பயன்முறை";
+"Routing nets: %lld of %lld" = "நெட்கள் வழித்தடமிடப்படுகின்றன: %lld / %lld";
 "Run" = "இயக்கு";
 "Run AC Sweep" = "AC ஸ்வீப் இயக்கு";
 "Run DC Sweep" = "DC ஸ்வீப் இயக்கு";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "Octopart, DigiKey, Mouser இலிருந்து இருப்பு, விலை, வாழ்க்கைச் சுழற்சி (EOL / NRND), உற்பத்தி அளவுக்கான செலவு";
 "Stop" = "நிறுத்து";
 "Stop Live" = "லைவை நிறுத்து";
+"Stop the autoroute; the board stays as it was" = "தானியங்கி வழித்தடமிடலை நிறுத்து; பலகை முன்பிருந்தபடியே இருக்கும்";
 "Stop the live simulation" = "லைவ் சிமுலேஷனை நிறுத்து";
 "Suggested" = "பரிந்துரைக்கப்பட்டது";
 "Super Intelligence" = "சூப்பர் இன்டெலிஜென்ஸ்";

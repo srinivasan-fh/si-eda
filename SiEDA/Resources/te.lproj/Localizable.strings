@@ -269,6 +269,7 @@
 "Find Parts Online…" = "ఆన్‌లైన్‌లో భాగాలు వెతకండి…";
 "Finish" = "ముగించు";
 "Finish the login in your browser…" = "మీ బ్రౌజర్‌లో లాగిన్ పూర్తి చేయండి…";
+"Finishing the autoroute…" = "ఆటోరూట్ ముగుస్తోంది…";
 "Firmware — 1 s, 100 µs" = "ఫర్మ్‌వేర్ — 1 s, 100 µs";
 "Fit Board to Components" = "బోర్డును కాంపోనెంట్లకు సరిపోయేలా చేయి";
 "Fits every pin" = "ప్రతి పిన్‌కు సరిపోతుంది";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "పోర్ట్ (పేరెంట్ షీట్‌కు)";
 "Ports: %@" = "పోర్ట్‌లు: %@";
 "Power" = "పవర్";
+"Preparing the autoroute…" = "ఆటోరూట్ సిద్ధమవుతోంది…";
 "Preview appears once the part has a name and pins." = "పార్ట్‌కు పేరు మరియు పిన్‌లు ఉన్న తర్వాత ప్రివ్యూ కనిపిస్తుంది.";
 "Product Page" = "ఉత్పత్తి పేజీ";
 "Project Library" = "ప్రాజెక్ట్ లైబ్రరీ";
@@ -557,6 +559,8 @@
 "Revision" = "సవరణ";
 "Right →" = "కుడి →";
 "Rip Out Entries" = "బస్ ఎంట్రీలను బయటకు తీయి";
+"Rip-up pass %lld" = "రిప్-అప్ పాస్ %lld";
+"Rip-up pass %lld: %lld unrouted" = "రిప్-అప్ పాస్ %lld: %lld రూట్ కాలేదు";
 "Ripple" = "రిపుల్";
 "Rise time (10–90 %)" = "రైజ్ టైమ్ (10–90 %)";
 "Robot Platform" = "రోబోట్ ప్లాట్‌ఫారమ్";
@@ -566,6 +570,7 @@
 "Rounded corners" = "గుండ్రని మూలలు";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "డిఫరెన్షియల్ జతలోని రెండు నెట్‌లను (X_P / X_N) జత గ్యాప్‌తో కలిసి రూట్ చేయండి";
 "Router mode" = "రౌటర్ మోడ్";
+"Routing nets: %lld of %lld" = "నెట్‌లు రూట్ అవుతున్నాయి: %lld / %lld";
 "Run" = "రన్ చేయి";
 "Run AC Sweep" = "AC స్వీప్ రన్ చేయి";
 "Run DC Sweep" = "DC స్వీప్ రన్ చేయి";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "Octopart, DigiKey, Mouser నుండి స్టాక్, ధరలు, లైఫ్‌సైకిల్ (EOL / NRND), బిల్డ్ పరిమాణానికి ఖర్చు";
 "Stop" = "ఆపు";
 "Stop Live" = "లైవ్ ఆపు";
+"Stop the autoroute; the board stays as it was" = "ఆటోరూట్‌ను ఆపండి; బోర్డు మునుపటిలాగే ఉంటుంది";
 "Stop the live simulation" = "లైవ్ సిమ్యులేషన్ ఆపు";
 "Suggested" = "సూచించబడింది";
 "Super Intelligence" = "సూపర్ ఇంటెలిజెన్స్";

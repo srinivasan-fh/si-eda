@@ -269,6 +269,7 @@
 "Find Parts Online…" = "Cari Komponen Dalam Talian…";
 "Finish" = "Selesai";
 "Finish the login in your browser…" = "Selesaikan log masuk dalam pelayar anda…";
+"Finishing the autoroute…" = "Menyelesaikan penghalaan automatik…";
 "Firmware — 1 s, 100 µs" = "Perisian tegar — 1 s, 100 µs";
 "Fit Board to Components" = "Muatkan Papan pada Komponen";
 "Fits every pin" = "Sesuai setiap pin";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "Port (ke helaian induk)";
 "Ports: %@" = "Port: %@";
 "Power" = "Kuasa";
+"Preparing the autoroute…" = "Menyediakan penghalaan automatik…";
 "Preview appears once the part has a name and pins." = "Pratonton dipaparkan setelah komponen mempunyai nama dan pin.";
 "Product Page" = "Halaman Produk";
 "Project Library" = "Pustaka Projek";
@@ -557,6 +559,8 @@
 "Revision" = "Semakan";
 "Right →" = "Kanan →";
 "Rip Out Entries" = "Keluarkan Entri";
+"Rip-up pass %lld" = "Laluan rip-up %lld";
+"Rip-up pass %lld: %lld unrouted" = "Laluan rip-up %lld: %lld belum dihalakan";
 "Ripple" = "Riak";
 "Rise time (10–90 %)" = "Masa naik (10–90 %)";
 "Robot Platform" = "Platform Robot";
@@ -566,6 +570,7 @@
 "Rounded corners" = "Sudut bulat";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Halakan kedua-dua net pasangan pembeza (X_P / X_N) bersama pada jurang pasangan";
 "Router mode" = "Mod penghala";
+"Routing nets: %lld of %lld" = "Menghalakan net: %lld daripada %lld";
 "Run" = "Jalankan";
 "Run AC Sweep" = "Jalankan Sapuan AC";
 "Run DC Sweep" = "Jalankan Sapuan DC";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "Stok, harga, kitaran hayat (EOL / NRND) dan kos bagi setiap kuantiti pengeluaran daripada Octopart, DigiKey dan Mouser";
 "Stop" = "Henti";
 "Stop Live" = "Henti Langsung";
+"Stop the autoroute; the board stays as it was" = "Hentikan penghalaan automatik; papan kekal seperti asal";
 "Stop the live simulation" = "Hentikan simulasi langsung";
 "Suggested" = "Dicadangkan";
 "Super Intelligence" = "Kecerdasan Super";

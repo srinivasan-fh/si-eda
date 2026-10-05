@@ -269,6 +269,7 @@
 "Find Parts Online…" = "線上尋找零件…";
 "Finish" = "完成";
 "Finish the login in your browser…" = "請在瀏覽器中完成登入…";
+"Finishing the autoroute…" = "正在完成自動佈線…";
 "Firmware — 1 s, 100 µs" = "韌體 — 1 s，100 µs";
 "Fit Board to Components" = "使電路板貼合元件";
 "Fits every pin" = "符合每個接腳";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "埠（連至上層圖紙）";
 "Ports: %@" = "埠：%@";
 "Power" = "電源";
+"Preparing the autoroute…" = "正在準備自動佈線…";
 "Preview appears once the part has a name and pins." = "元件有名稱與接腳後即顯示預覽。";
 "Product Page" = "產品頁面";
 "Project Library" = "專案元件庫";
@@ -557,6 +559,8 @@
 "Revision" = "版次";
 "Right →" = "向右 →";
 "Rip Out Entries" = "拉出匯流排分支";
+"Rip-up pass %lld" = "拆線重佈第 %lld 輪";
+"Rip-up pass %lld: %lld unrouted" = "拆線重佈第 %lld 輪：%lld 條未佈通";
 "Ripple" = "漣波";
 "Rise time (10–90 %)" = "上升時間（10–90 %）";
 "Robot Platform" = "機器人平台";
@@ -566,6 +570,7 @@
 "Rounded corners" = "圓角";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "以差分對間距同時佈線差分對的兩條網路 (X_P / X_N)";
 "Router mode" = "佈線模式";
+"Routing nets: %lld of %lld" = "正在佈線網路：%lld / %lld";
 "Run" = "執行";
 "Run AC Sweep" = "執行 AC 掃描";
 "Run DC Sweep" = "執行 DC 掃描";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "來自 Octopart、DigiKey 與 Mouser 的庫存、價格、生命週期 (EOL / NRND) 與各生產數量成本";
 "Stop" = "停止";
 "Stop Live" = "停止即時執行";
+"Stop the autoroute; the board stays as it was" = "停止自動佈線；電路板維持原樣";
 "Stop the live simulation" = "停止即時模擬";
 "Suggested" = "建議";
 "Super Intelligence" = "超級智慧";

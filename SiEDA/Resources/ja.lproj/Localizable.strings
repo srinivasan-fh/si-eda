@@ -269,6 +269,7 @@
 "Find Parts Online…" = "オンラインで部品を探す…";
 "Finish" = "完了";
 "Finish the login in your browser…" = "ブラウザでログインを完了してください…";
+"Finishing the autoroute…" = "自動配線を仕上げ中…";
 "Firmware — 1 s, 100 µs" = "ファームウェア — 1 s、100 µs";
 "Fit Board to Components" = "基板を部品に合わせる";
 "Fits every pin" = "すべてのピンに合う";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "ポート（親シートへ）";
 "Ports: %@" = "ポート：%@";
 "Power" = "電源";
+"Preparing the autoroute…" = "自動配線を準備中…";
 "Preview appears once the part has a name and pins." = "部品に名前とピンが設定されるとプレビューが表示されます。";
 "Product Page" = "製品ページ";
 "Project Library" = "プロジェクトライブラリ";
@@ -557,6 +559,8 @@
 "Revision" = "リビジョン";
 "Right →" = "右へ →";
 "Rip Out Entries" = "バスエントリを引き出す";
+"Rip-up pass %lld" = "引き剥がし再配線パス %lld";
+"Rip-up pass %lld: %lld unrouted" = "引き剥がし再配線パス %lld: 未配線 %lld";
 "Ripple" = "リップル";
 "Rise time (10–90 %)" = "立ち上がり時間（10–90 %）";
 "Robot Platform" = "ロボットプラットフォーム";
@@ -566,6 +570,7 @@
 "Rounded corners" = "角を丸める";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "差動ペアの 2 本のネット (X_P / X_N) をペア間隔で同時に配線";
 "Router mode" = "配線モード";
+"Routing nets: %lld of %lld" = "ネットを配線中: %lld / %lld";
 "Run" = "実行";
 "Run AC Sweep" = "AC スイープを実行";
 "Run DC Sweep" = "DC スイープを実行";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "Octopart・DigiKey・Mouser の在庫、価格、ライフサイクル (EOL / NRND)、製造数量ごとのコスト";
 "Stop" = "停止";
 "Stop Live" = "ライブを停止";
+"Stop the autoroute; the board stays as it was" = "自動配線を停止します。基板は元のままです";
 "Stop the live simulation" = "ライブシミュレーションを停止";
 "Suggested" = "推奨";
 "Super Intelligence" = "スーパーインテリジェンス";

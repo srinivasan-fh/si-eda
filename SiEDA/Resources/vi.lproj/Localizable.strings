@@ -269,6 +269,7 @@
 "Find Parts Online…" = "Tìm linh kiện trực tuyến…";
 "Finish" = "Hoàn tất";
 "Finish the login in your browser…" = "Hoàn tất đăng nhập trong trình duyệt…";
+"Finishing the autoroute…" = "Đang hoàn tất đi dây tự động…";
 "Firmware — 1 s, 100 µs" = "Firmware — 1 s, 100 µs";
 "Fit Board to Components" = "Khớp bo mạch với linh kiện";
 "Fits every pin" = "Khớp mọi chân";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "Cổng (tới trang cha)";
 "Ports: %@" = "Cổng: %@";
 "Power" = "Nguồn";
+"Preparing the autoroute…" = "Đang chuẩn bị đi dây tự động…";
 "Preview appears once the part has a name and pins." = "Bản xem trước xuất hiện khi linh kiện có tên và chân.";
 "Product Page" = "Trang sản phẩm";
 "Project Library" = "Thư viện dự án";
@@ -557,6 +559,8 @@
 "Revision" = "Phiên bản";
 "Right →" = "Phải →";
 "Rip Out Entries" = "Rút các nhánh bus";
+"Rip-up pass %lld" = "Lượt gỡ và đi lại %lld";
+"Rip-up pass %lld: %lld unrouted" = "Lượt gỡ và đi lại %lld: %lld chưa đi dây";
 "Ripple" = "Độ gợn";
 "Rise time (10–90 %)" = "Thời gian lên (10–90 %)";
 "Robot Platform" = "Nền tảng robot";
@@ -566,6 +570,7 @@
 "Rounded corners" = "Bo tròn góc";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Đi dây cả hai net của cặp vi sai (X_P / X_N) cùng nhau theo khoảng cách cặp";
 "Router mode" = "Chế độ đi dây";
+"Routing nets: %lld of %lld" = "Đang đi dây các net: %lld / %lld";
 "Run" = "Chạy";
 "Run AC Sweep" = "Chạy quét AC";
 "Run DC Sweep" = "Chạy quét DC";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "Tồn kho, giá, vòng đời (EOL / NRND) và chi phí theo số lượng sản xuất từ Octopart, DigiKey và Mouser";
 "Stop" = "Dừng";
 "Stop Live" = "Dừng trực tiếp";
+"Stop the autoroute; the board stays as it was" = "Dừng đi dây tự động; bo mạch giữ nguyên như cũ";
 "Stop the live simulation" = "Dừng mô phỏng trực tiếp";
 "Suggested" = "Đề xuất";
 "Super Intelligence" = "Siêu trí tuệ";

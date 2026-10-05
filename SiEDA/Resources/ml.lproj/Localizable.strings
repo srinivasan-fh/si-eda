@@ -269,6 +269,7 @@
 "Find Parts Online…" = "ഓൺലൈനായി ഭാഗങ്ങൾ കണ്ടെത്തുക…";
 "Finish" = "പൂർത്തിയാക്കുക";
 "Finish the login in your browser…" = "നിങ്ങളുടെ ബ്രൗസറിൽ ലോഗിൻ പൂർത്തിയാക്കുക…";
+"Finishing the autoroute…" = "ഓട്ടോറൂട്ട് പൂർത്തിയാക്കുന്നു…";
 "Firmware — 1 s, 100 µs" = "ഫേംവെയർ — 1 s, 100 µs";
 "Fit Board to Components" = "ബോർഡ് കംപോണന്റുകൾക്ക് അനുയോജ്യമാക്കുക";
 "Fits every pin" = "എല്ലാ പിന്നിനും ചേരുന്നു";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "പോർട്ട് (പാരന്റ് ഷീറ്റിലേക്ക്)";
 "Ports: %@" = "പോർട്ടുകൾ: %@";
 "Power" = "പവർ";
+"Preparing the autoroute…" = "ഓട്ടോറൂട്ട് തയ്യാറാക്കുന്നു…";
 "Preview appears once the part has a name and pins." = "പാർട്ടിന് പേരും പിനുകളും ആയാൽ പ്രിവ്യൂ ദൃശ്യമാകും.";
 "Product Page" = "ഉൽപ്പന്ന പേജ്";
 "Project Library" = "പ്രോജക്റ്റ് ലൈബ്രറി";
@@ -557,6 +559,8 @@
 "Revision" = "പുനരവലോകനം";
 "Right →" = "വലത്തേക്ക് →";
 "Rip Out Entries" = "ബസ് എൻട്രികൾ പുറത്തെടുക്കുക";
+"Rip-up pass %lld" = "റിപ്പ്-അപ്പ് പാസ് %lld";
+"Rip-up pass %lld: %lld unrouted" = "റിപ്പ്-അപ്പ് പാസ് %lld: %lld റൂട്ട് ചെയ്തിട്ടില്ല";
 "Ripple" = "റിപ്പിൾ";
 "Rise time (10–90 %)" = "ഉയർച്ച സമയം (10–90 %)";
 "Robot Platform" = "റോബോട്ട് പ്ലാറ്റ്ഫോം";
@@ -566,6 +570,7 @@
 "Rounded corners" = "വൃത്താകൃതിയിലുള്ള കോണുകൾ";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "ഡിഫറൻഷ്യൽ ജോഡിയിലെ രണ്ട് നെറ്റുകളും (X_P / X_N) ജോഡി അകലത്തിൽ ഒരുമിച്ച് റൂട്ട് ചെയ്യുക";
 "Router mode" = "റൂട്ടർ മോഡ്";
+"Routing nets: %lld of %lld" = "നെറ്റുകൾ റൂട്ട് ചെയ്യുന്നു: %lld / %lld";
 "Run" = "റൺ ചെയ്യുക";
 "Run AC Sweep" = "AC സ്വീപ്പ് റൺ ചെയ്യുക";
 "Run DC Sweep" = "DC സ്വീപ്പ് റൺ ചെയ്യുക";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "Octopart, DigiKey, Mouser എന്നിവയിൽ നിന്ന് സ്റ്റോക്ക്, വില, ലൈഫ്‌സൈക്കിൾ (EOL / NRND), ബിൽഡ് അളവനുസരിച്ചുള്ള ചെലവ്";
 "Stop" = "നിർത്തുക";
 "Stop Live" = "ലൈവ് നിർത്തുക";
+"Stop the autoroute; the board stays as it was" = "ഓട്ടോറൂട്ട് നിർത്തുക; ബോർഡ് മുമ്പത്തെപ്പോലെ തുടരും";
 "Stop the live simulation" = "ലൈവ് സിമുലേഷൻ നിർത്തുക";
 "Suggested" = "നിർദ്ദേശിച്ചത്";
 "Super Intelligence" = "സൂപ്പർ ഇന്റലിജൻസ്";

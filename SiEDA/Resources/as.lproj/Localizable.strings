@@ -269,6 +269,7 @@
 "Find Parts Online…" = "অনলাইনত অংশ বিচাৰক…";
 "Finish" = "সমাপ্ত কৰক";
 "Finish the login in your browser…" = "আপোনাৰ ব্ৰাউজাৰত লগইন সমাপ্ত কৰক…";
+"Finishing the autoroute…" = "অটোৰুট সম্পূৰ্ণ হৈ আছে…";
 "Firmware — 1 s, 100 µs" = "ফাৰ্মৱেৰ — 1 s, 100 µs";
 "Fit Board to Components" = "বোৰ্ড কম্পোনেণ্ট অনুসৰি ফিট কৰক";
 "Fits every pin" = "প্ৰতিটো পিনৰ সৈতে মিলে";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "প'ৰ্ট (পেৰেণ্ট শ্বীটলৈ)";
 "Ports: %@" = "প'ৰ্ট: %@";
 "Power" = "পাৱাৰ";
+"Preparing the autoroute…" = "অটোৰুটৰ প্ৰস্তুতি চলি আছে…";
 "Preview appears once the part has a name and pins." = "পাৰ্টৰ নাম আৰু পিন হ'লে প্ৰিভিউ দেখা যাব।";
 "Product Page" = "সামগ্ৰীৰ পৃষ্ঠা";
 "Project Library" = "প্ৰজেক্ট লাইব্ৰেৰী";
@@ -557,6 +559,8 @@
 "Revision" = "সংশোধন";
 "Right →" = "সোঁফালে →";
 "Rip Out Entries" = "বাছ প্ৰৱেশ উলিয়াওক";
+"Rip-up pass %lld" = "ৰিপ-আপ পাছ %lld";
+"Rip-up pass %lld: %lld unrouted" = "ৰিপ-আপ পাছ %lld: %lld ৰুট কৰা হোৱা নাই";
 "Ripple" = "ৰিপল";
 "Rise time (10–90 %)" = "উত্থান সময় (10–90 %)";
 "Robot Platform" = "ৰ'বট প্লেটফৰ্ম";
@@ -566,6 +570,7 @@
 "Rounded corners" = "ঘূৰণীয়া চুক";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "ডিফাৰেন্সিয়েল যোৰৰ দুয়োটা নেট (X_P / X_N) যোৰৰ ব্যৱধানত একেলগে ৰুট কৰক";
 "Router mode" = "ৰাউটাৰ মোড";
+"Routing nets: %lld of %lld" = "নেট ৰুট কৰা হৈছে: %lld / %lld";
 "Run" = "চলাওক";
 "Run AC Sweep" = "AC ছুইপ চলাওক";
 "Run DC Sweep" = "DC ছুইপ চলাওক";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "Octopart, DigiKey আৰু Mouser ৰ পৰা ষ্টক, মূল্য, লাইফচাইকেল (EOL / NRND) আৰু বিল্ড পৰিমাণ অনুসৰি খৰচ";
 "Stop" = "বন্ধ কৰক";
 "Stop Live" = "লাইভ বন্ধ কৰক";
+"Stop the autoroute; the board stays as it was" = "অটোৰুট বন্ধ কৰক; বৰ্ডখন আগৰ দৰেই থাকিব";
 "Stop the live simulation" = "লাইভ ছিমুলেশ্বন বন্ধ কৰক";
 "Suggested" = "পৰামৰ্শ দিয়া";
 "Super Intelligence" = "ছুপাৰ ইণ্টেলিজেন্স";

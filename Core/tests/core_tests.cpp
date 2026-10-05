@@ -12631,3 +12631,189 @@ TEST(standard_catalog_has_over_a_thousand_registrable_parts) {
     CHECK(hdr && hdr->spec.package.type == "HEADER2" && hdr->spec.pins.size() == 10 && hdr->spec.refPrefix == "J");
     std::printf("    %zu standard parts in %zu categories\n", parts.size(), categories.size());
 }
+
+// ============================================================================ corridor router (large boards)
+#include "../src/GlobalRouter.hpp"
+
+TEST(global_router_capacity_batches_and_threads) {
+    using namespace sieda::routing;
+    // A 6 × 3 tile grid whose middle row has no capacity across the vertical boundary at x = 2|3: a connection from
+    // (0,1) to (5,1) detours through row 0 or 2.
+    TileGrid tg;
+    tg.tile = 4;
+    tg.cols = 6;
+    tg.rows = 3;
+    std::vector<int> capE(18, 8), capS(18, 8);
+    capE[static_cast<size_t>(tg.id(2, 1))] = 0;
+    GlobalRouter gr(tg, capE, capS);
+    const auto paths = gr.route({{tg.id(0, 1), tg.id(5, 1), 4, false}, {tg.id(0, 0), tg.id(0, 0), 4, false}});
+    CHECK(paths.size() == 2);
+    CHECK(paths[0].front() == tg.id(0, 1) && paths[0].back() == tg.id(5, 1));
+    bool crossesBlocked = false;
+    for (size_t k = 1; k < paths[0].size(); ++k)
+        crossesBlocked |= (paths[0][k - 1] == tg.id(2, 1) && paths[0][k] == tg.id(3, 1));
+    CHECK(!crossesBlocked);
+    CHECK(paths[1].size() == 1);
+    // Congestion: ten connections across a boundary of capacity 2 connections spread over the rows.
+    std::vector<int> capE2(18, 8), capS2(18, 40);
+    GlobalRouter crowded(tg, capE2, capS2);
+    std::vector<GlobalConnection> many(10, GlobalConnection{tg.id(0, 1), tg.id(5, 1), 4, false});
+    const auto spread = crowded.route(many);
+    std::set<std::vector<int>> distinct(spread.begin(), spread.end());
+    CHECK(distinct.size() >= 2);
+    // Tile costs push a connection away unless it is exempt.
+    GlobalRouter hist(tg, capE2, capS2);
+    std::vector<int> cost(18, 0);
+    for (int x = 1; x < 5; ++x) cost[static_cast<size_t>(tg.id(x, 1))] = 1000;
+    hist.setTileCost(cost);
+    const auto avoid = hist.route({{tg.id(0, 1), tg.id(5, 1), 4, false}, {tg.id(0, 1), tg.id(5, 1), 4, true}});
+    CHECK(std::find(avoid[0].begin(), avoid[0].end(), tg.id(2, 1)) == avoid[0].end());
+    CHECK(avoid[1].size() == 6);  // straight along row 1
+    // Dilation.
+    CHECK(dilateTiles(tg, {tg.id(0, 0)}, 1).size() == 4);
+    CHECK(dilateTiles(tg, {tg.id(2, 1)}, 1).size() == 9);
+    // Batches: nets 0 and 1 overlap, 2 is far away and joins 0; 3 overlaps 1, which waits, so it may not overtake
+    // it; 4 is clear of everything.
+    std::vector<std::vector<int>> corr = {{0}, {1}, {5}, {2}, {12}}, reach = {{0, 1}, {0, 1, 2}, {4, 5}, {1, 2, 3}, {12}};
+    const auto batches = scheduleBatches(tg, corr, reach);
+    CHECK(batches.size() == 3);
+    CHECK(batches[0] == std::vector<int>({0, 2, 4}));
+    CHECK(batches[1] == std::vector<int>({1}));
+    CHECK(batches[2] == std::vector<int>({3}));
+    // Every index exactly once, whatever the thread count; exceptions come back to the caller.
+    for (int threads : {1, 3, 8}) {
+        std::vector<std::atomic<int>> hits(100);
+        parallelFor(100, threads, [&](int i, int worker) {
+            CHECK(worker >= 0 && worker < threads);
+            hits[static_cast<size_t>(i)].fetch_add(1);
+        });
+        bool once = true;
+        for (auto& h : hits) once &= h.load() == 1;
+        CHECK(once);
+        bool thrown = false;
+        try {
+            parallelFor(20, threads, [&](int i, int) {
+                if (i == 7) throw std::runtime_error("boom");
+            });
+        } catch (const std::runtime_error&) {
+            thrown = true;
+        }
+        CHECK(thrown);
+    }
+}
+
+namespace {
+/// Routed copper of a board, exactly (for comparing two routes bit for bit).
+std::string copperFingerprint(const PcbLayout& pcb) {
+    std::string out;
+    char buf[200];
+    for (const auto& t : pcb.tracks) {
+        std::snprintf(buf, sizeof buf, "T%d %d %a %a %a %a %a\n", t.net, t.layer, t.width, t.a.x, t.a.y, t.b.x, t.b.y);
+        out += buf;
+    }
+    for (const auto& v : pcb.vias) {
+        std::snprintf(buf, sizeof buf, "V%d %a %a %a %a %d %d\n", v.net, v.position.x, v.position.y, v.drill, v.diameter,
+                      v.fromLayer, v.toLayer);
+        out += buf;
+    }
+    return out;
+}
+int corridorDrcErrors(const Project& p) {
+    int errors = 0;
+    for (const auto& v : p.pcb.runDRC(p.schematic)) errors += v.severity == Severity::Error;
+    return errors;
+}
+struct RouterOverride {  // restores the process-wide router settings when a test ends
+    ~RouterOverride() {
+        setRouterStrategy(RouterStrategy::Auto);
+        setRoutingThreads(0);
+    }
+};
+}  // namespace
+
+TEST(corridor_router_same_copper_for_any_thread_count) {
+    // The medium benchmark board (4.6 M grid nodes: the corridor router by default) routed on 1, 2 and 4 threads:
+    // complete, DRC-clean and the same copper bit for bit.
+    RouterOverride restore;
+    std::string first;
+    for (int threads : {1, 2, 4}) {
+        setRoutingThreads(threads);
+        bench::BenchBoard b = bench::makeBenchBoard({1, 6, 6, true, false, 0.45});
+        b.project.pcb.autoPlace(b.project.schematic, true);
+        const RouteStats st = b.project.pcb.autoRoute(b.project.schematic);
+        CHECK(st.failed == 0 && st.routed == st.connections && st.connections > 300);
+        CHECK(corridorDrcErrors(b.project) == 0);
+        const std::string fp = copperFingerprint(b.project.pcb);
+        if (first.empty()) first = fp;
+        CHECK(fp == first);
+    }
+}
+
+TEST(corridor_router_forced_on_smaller_boards) {
+    // The corridor router forced on boards the classic router handles by default: DRC-clean apart from what is left
+    // unrouted; every board the classic router completes, it completes too; on the others (inner BGA balls on two
+    // signal layers, a two-layer board without planes) it leaves at most two more connections unrouted.
+    RouterOverride restore;
+    const std::vector<bench::BenchSpec> specs = {
+        {1, 2, 4, true, false, 0.45}, {4, 3, 4, false, false, 0.45}, {5, 6, 4, false, false, 0.45},
+        {3, 4, 6, true, false, 0.45}, {7, 3, 2, false, false, 0.45},
+    };
+    for (const auto& spec : specs) {
+        int failed[2] = {0, 0};
+        for (int mode = 0; mode < 2; ++mode) {
+            setRouterStrategy(mode == 0 ? RouterStrategy::Classic : RouterStrategy::Corridor);
+            bench::BenchBoard b = bench::makeBenchBoard(spec);
+            b.project.pcb.autoPlace(b.project.schematic, true);
+            const RouteStats st = b.project.pcb.autoRoute(b.project.schematic);
+            failed[mode] = st.failed;
+            int errors = 0;
+            for (const auto& v : b.project.pcb.runDRC(b.project.schematic))
+                errors += v.severity == Severity::Error && v.code != "DRC_UNROUTED";
+            CHECK(errors == 0);
+        }
+        std::printf("    seed %u, %d clusters, %d layers: unrouted classic %d, corridor %d\n", spec.seed, spec.clusters,
+                    spec.layers, failed[0], failed[1]);
+        CHECK(failed[0] == 0 ? failed[1] == 0 : failed[1] <= failed[0] + 2);
+    }
+}
+
+extern "C" int sieda_c_api_autoroute_progress_test(void);
+
+TEST(autoroute_progress_and_cancel) {
+    // Progress reports reach the end of the route; cancelling leaves tracks, vias and net classes untouched (classic
+    // and corridor router).
+    RouterOverride restore;
+    for (RouterStrategy strategy : {RouterStrategy::Classic, RouterStrategy::Corridor}) {
+        setRouterStrategy(strategy);
+        bench::BenchBoard b = bench::makeBenchBoard({2, 2, 4, true, false, 0.45});
+        Project& p = b.project;
+        p.pcb.autoPlace(p.schematic, true);
+        const auto widthsBefore = p.pcb.settings.netWidths;
+        const double gridBefore = p.pcb.settings.routingGrid;
+        int calls = 0, lastPhase = -1;
+        RouteControl stopEarly;
+        stopEarly.progress = [&](const RouteProgress& r) {
+            lastPhase = r.phase;
+            return ++calls < 3;  // cancel on the third report
+        };
+        const RouteStats cancelled = p.pcb.autoRoute(p.schematic, stopEarly);
+        CHECK(cancelled.cancelled && calls == 3);
+        CHECK(p.pcb.tracks.empty() && p.pcb.vias.empty());
+        CHECK(p.pcb.settings.netWidths == widthsBefore && p.pcb.settings.routingGrid == gridBefore);
+        int reports = 0, finishing = 0, maxDone = 0;
+        RouteControl watch;
+        watch.progress = [&](const RouteProgress& r) {
+            ++reports;
+            finishing += r.phase == RouteProgress::Finishing;
+            if (r.phase == RouteProgress::Routing) maxDone = std::max(maxDone, r.done);
+            CHECK(r.done >= 0 && r.done <= r.total);
+            return true;
+        };
+        const RouteStats st = p.pcb.autoRoute(p.schematic, watch);
+        CHECK(!st.cancelled && st.routed > 0 && !p.pcb.tracks.empty());
+        CHECK(reports >= 4 && finishing == 1 && maxDone > 10);
+    }
+    const int rc = sieda_c_api_autoroute_progress_test();
+    if (rc != 0) std::printf("    C API autoroute progress test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}

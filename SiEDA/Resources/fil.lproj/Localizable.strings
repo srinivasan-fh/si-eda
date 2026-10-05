@@ -269,6 +269,7 @@
 "Find Parts Online…" = "Maghanap ng Piyesa Online…";
 "Finish" = "Tapusin";
 "Finish the login in your browser…" = "Tapusin ang pag-login sa iyong browser…";
+"Finishing the autoroute…" = "Tinatapos ang autoroute…";
 "Firmware — 1 s, 100 µs" = "Firmware — 1 s, 100 µs";
 "Fit Board to Components" = "Iakma ang Board sa mga Component";
 "Fits every pin" = "Tugma sa bawat pin";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "Port (papunta sa parent sheet)";
 "Ports: %@" = "Mga port: %@";
 "Power" = "Power";
+"Preparing the autoroute…" = "Inihahanda ang autoroute…";
 "Preview appears once the part has a name and pins." = "Lalabas ang preview kapag may pangalan at pin na ang part.";
 "Product Page" = "Pahina ng Produkto";
 "Project Library" = "Project Library";
@@ -557,6 +559,8 @@
 "Revision" = "Rebisyon";
 "Right →" = "Pakanan →";
 "Rip Out Entries" = "Ilabas ang mga entry";
+"Rip-up pass %lld" = "Rip-up pass %lld";
+"Rip-up pass %lld: %lld unrouted" = "Rip-up pass %lld: %lld ang hindi pa naruruta";
 "Ripple" = "Ripple";
 "Rise time (10–90 %)" = "Rise time (10–90 %)";
 "Robot Platform" = "Robot Platform";
@@ -566,6 +570,7 @@
 "Rounded corners" = "Bilugang sulok";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "I-route nang magkasama ang dalawang net ng differential pair (X_P / X_N) sa pair gap";
 "Router mode" = "Mode ng router";
+"Routing nets: %lld of %lld" = "Niruruta ang mga net: %lld sa %lld";
 "Run" = "Patakbuhin";
 "Run AC Sweep" = "Patakbuhin ang AC Sweep";
 "Run DC Sweep" = "Patakbuhin ang DC Sweep";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "Stock, presyo, lifecycle (EOL / NRND) at gastos bawat build quantity mula sa Octopart, DigiKey at Mouser";
 "Stop" = "Ihinto";
 "Stop Live" = "Ihinto ang Live";
+"Stop the autoroute; the board stays as it was" = "Ihinto ang autoroute; mananatili ang board gaya ng dati";
 "Stop the live simulation" = "Ihinto ang live simulation";
 "Suggested" = "Iminumungkahi";
 "Super Intelligence" = "Super Intelligence";

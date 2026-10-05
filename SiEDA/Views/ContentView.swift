@@ -233,7 +233,9 @@ struct StatusBar: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            if store.isBusy || agents.isRunning {
+            if store.isBusy, let progress = store.routeProgress {
+                RouteProgressView(progress: progress) { store.cancelAutoRoute() }
+            } else if store.isBusy || agents.isRunning {
                 ProgressView().controlSize(.small)
                 Text(store.isBusy ? store.busyMessage : "AI agents working · \(agents.activeModel)")
                     .foregroundStyle(Theme.skyBlue)

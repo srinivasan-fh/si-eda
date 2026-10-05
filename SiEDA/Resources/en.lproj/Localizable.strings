@@ -269,6 +269,7 @@
 "Find Parts Online…" = "Find Parts Online…";
 "Finish" = "Finish";
 "Finish the login in your browser…" = "Finish the login in your browser…";
+"Finishing the autoroute…" = "Finishing the autoroute…";
 "Firmware — 1 s, 100 µs" = "Firmware — 1 s, 100 µs";
 "Fit Board to Components" = "Fit Board to Components";
 "Fits every pin" = "Fits every pin";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "Port (to parent sheet)";
 "Ports: %@" = "Ports: %@";
 "Power" = "Power";
+"Preparing the autoroute…" = "Preparing the autoroute…";
 "Preview appears once the part has a name and pins." = "Preview appears once the part has a name and pins.";
 "Product Page" = "Product Page";
 "Project Library" = "Project Library";
@@ -557,6 +559,8 @@
 "Revision" = "Revision";
 "Right →" = "Right →";
 "Rip Out Entries" = "Rip Out Entries";
+"Rip-up pass %lld" = "Rip-up pass %lld";
+"Rip-up pass %lld: %lld unrouted" = "Rip-up pass %lld: %lld unrouted";
 "Ripple" = "Ripple";
 "Rise time (10–90 %)" = "Rise time (10–90 %)";
 "Robot Platform" = "Robot Platform";
@@ -566,6 +570,7 @@
 "Rounded corners" = "Rounded corners";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Route both nets of a differential pair (X_P / X_N) together at the pair gap";
 "Router mode" = "Router mode";
+"Routing nets: %lld of %lld" = "Routing nets: %lld of %lld";
 "Run" = "Run";
 "Run AC Sweep" = "Run AC Sweep";
 "Run DC Sweep" = "Run DC Sweep";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser";
 "Stop" = "Stop";
 "Stop Live" = "Stop Live";
+"Stop the autoroute; the board stays as it was" = "Stop the autoroute; the board stays as it was";
 "Stop the live simulation" = "Stop the live simulation";
 "Suggested" = "Suggested";
 "Super Intelligence" = "Super Intelligence";

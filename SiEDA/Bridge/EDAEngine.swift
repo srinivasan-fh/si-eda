@@ -17,6 +17,49 @@ enum EDAEngineError: LocalizedError {
 ///
 /// All calls are serialized with a lock, so long-running work (autorouting, transient simulation)
 /// can be moved off the main thread while the UI keeps reading snapshots.
+/// Where a running autoroute is (`sieda_pcb_autoroute_progress`). `phase`: 0 preparing, 1 routing, 2 rip-up pass,
+/// 3 finishing. `done` of `total` nets of the current pass; `unrouted`: connections the best pass so far leaves
+/// unrouted (-1 until a pass has finished).
+struct RouteProgressReport: Equatable, Sendable {
+    var phase = 0
+    var pass = 0
+    var done = 0
+    var total = 0
+    var unrouted = -1
+
+    var fraction: Double { total > 0 ? min(1, max(0, Double(done) / Double(total))) : 0 }
+}
+
+/// Carries a running autoroute's progress from the routing thread to the app, and the user's cancel request back.
+/// Thread-safe: `onProgress` runs on the routing thread.
+final class RouteProgressChannel: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelRequested = false
+    private let onProgress: @Sendable (RouteProgressReport) -> Void
+
+    init(onProgress: @escaping @Sendable (RouteProgressReport) -> Void) {
+        self.onProgress = onProgress
+    }
+
+    func cancel() {
+        lock.lock()
+        cancelRequested = true
+        lock.unlock()
+    }
+
+    var isCancelled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return cancelRequested
+    }
+
+    /// Passes a report on; true when the route should stop.
+    fileprivate func deliver(_ report: RouteProgressReport) -> Bool {
+        onProgress(report)
+        return isCancelled
+    }
+}
+
 final class EDAEngine: @unchecked Sendable {
     private let lock = NSLock()
     private var handle: OpaquePointer
@@ -841,6 +884,29 @@ final class EDAEngine: @unchecked Sendable {
     func autoRouteChecked() -> Result<RouteStats, EDAEngineError> {
         Self.decodeChecked(RouteStats.self, from: withHandle { Self.take(sieda_pcb_autoroute($0)) })
     }
+
+    /// Autoroute with progress and cancel. `channel` receives progress on the routing thread; after
+    /// `channel.cancel()` the route stops at its next report and leaves the project as it was
+    /// (`RouteStats.cancelled`).
+    func autoRouteChecked(progress channel: RouteProgressChannel) -> Result<RouteStats, EDAEngineError> {
+        let context = Unmanaged.passRetained(channel)
+        defer { context.release() }
+        let json = withHandle { handle in
+            Self.take(sieda_pcb_autoroute_progress(handle, { user, phase, pass, done, total, unrouted in
+                guard let user else { return 0 }
+                let channel = Unmanaged<RouteProgressChannel>.fromOpaque(user).takeUnretainedValue()
+                let report = RouteProgressReport(phase: Int(phase), pass: Int(pass), done: Int(done), total: Int(total),
+                                                 unrouted: Int(unrouted))
+                return channel.deliver(report) ? 1 : 0
+            }, context.toOpaque()))
+        }
+        return Self.decodeChecked(RouteStats.self, from: json)
+    }
+
+    /// Autorouter strategy for the whole process (tests and benchmarks): 0 automatic, 1 classic, 2 corridor router.
+    static func setRouterStrategy(_ strategy: Int) { _ = sieda_router_set_strategy(Int32(strategy)) }
+    /// Threads of the corridor router (0 = the machine's cores, at most 8); the copper does not depend on it.
+    static func setRoutingThreads(_ threads: Int) { sieda_router_set_threads(Int32(threads)) }
 
     func clearRouting() { withHandle { sieda_pcb_clear_routing($0) } }
 

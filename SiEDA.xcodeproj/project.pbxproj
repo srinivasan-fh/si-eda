@@ -39,6 +39,7 @@
 		42ADAA8558FC86569362C286 = {isa = PBXBuildFile; fileRef = D2F5295A4BC6459A2A847173; };
 		439BC3E7E5F24341E3A5DF7D = {isa = PBXBuildFile; fileRef = 84F33B55A1FE9BE8666899F6; };
 		443E14D73B4434B4FDD2677B = {isa = PBXBuildFile; fileRef = 2A6E9FA74463A506F384BA53; };
+		445472D19D387B5FF2371B08 = {isa = PBXBuildFile; fileRef = 65884BAB0CDFF0EDFDC017EC; };
 		482CD12CF3DD25314FE03C7D = {isa = PBXBuildFile; fileRef = 19A32AB05C4FC519DD459887; };
 		48FB3527518FE55EE06380A1 = {isa = PBXBuildFile; fileRef = FD0349E3F008C96C569E5F1F; };
 		490492F5B0B030AB5D57C454 = {isa = PBXBuildFile; fileRef = 0CF3E02226CCD062D60E465B; };
@@ -82,6 +83,7 @@
 		96050B0A6DE1C7A3144FD467 = {isa = PBXBuildFile; fileRef = 8D23FAC4C1E972362B3DB3E7; };
 		976C2E17360605E19E2949BC = {isa = PBXBuildFile; fileRef = F459489B353E161C42FB7B2D; };
 		9BD1EFC37CFEB2FCF1B54EE8 = {isa = PBXBuildFile; fileRef = D3E15B9053DA257C9A5751E7; };
+		9D1071AAC3C84E5B9F9D6B39 = {isa = PBXBuildFile; fileRef = ADD9C234BD8825A5E6022F7A; };
 		9D123CFF6797C354E55BECE2 = {isa = PBXBuildFile; fileRef = B7A272C317609DD8A2D79E17; };
 		9EAA0CE5E58FE55480669B64 = {isa = PBXBuildFile; fileRef = AA4AB23447B95722FF60AB2A; };
 		A2CE916CEF229F47742B9BBA = {isa = PBXBuildFile; fileRef = BFA5BEE97DAC5DA4CD8D236B; };
@@ -234,6 +236,7 @@
 		5B677B1CF7DF150184E961B2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineProvider.swift; sourceTree = "<group>"; };
 		5C5A4E6673BC22FAFE753C09 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Industry.cpp; sourceTree = "<group>"; };
 		63B4849094802BB620C3F5F0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Retail.cpp; sourceTree = "<group>"; };
+		65884BAB0CDFF0EDFDC017EC = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = GlobalRouter.cpp; sourceTree = "<group>"; };
 		66AC72CF66455456B9721138 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AltiumLibrary.cpp; sourceTree = "<group>"; };
 		6A8BEE6FF3913BC0DAE15339 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = pa; path = pa.lproj/Localizable.strings; sourceTree = "<group>"; };
 		6C44D52C3E47659A6A7CAF85 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Pcb.hpp; sourceTree = "<group>"; };
@@ -295,6 +298,7 @@
 		AA5E1F9188A170B06640B91C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupplierSettingsView.swift; sourceTree = "<group>"; };
 		AC5F3ED740A4FD6618195715 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Zones.cpp; sourceTree = "<group>"; };
 		AD55190557EC704E38B2BEAA = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryImportView.swift; sourceTree = "<group>"; };
+		ADD9C234BD8825A5E6022F7A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteProgressView.swift; sourceTree = "<group>"; };
 		B23FD27DAD6BD2539569BEE1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Isolation.cpp; sourceTree = "<group>"; };
 		B2A9F5BB531C867B7C400084 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = InteractiveRouter.cpp; sourceTree = "<group>"; };
 		B2FEEB38AB0B19ADD19A0E30 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/Localizable.strings"; sourceTree = "<group>"; };
@@ -578,6 +582,7 @@
 				093215062DA71990759E16C7,
 				E75D7DE7D08DFA800FFAA790,
 				94640EC62FB04611BA180EDD,
+				65884BAB0CDFF0EDFDC017EC,
 				0836AEFC1E7F4EE048F49EC0,
 				5C5A4E6673BC22FAFE753C09,
 				262682BD136933576066443E,
@@ -668,6 +673,7 @@
 			children = (
 				28DA5CB541B843FE20EC60BA,
 				0B047E6B6CA14C24D4B0C2FD,
+				ADD9C234BD8825A5E6022F7A,
 			);
 			path = PCB;
 			sourceTree = "<group>";
@@ -960,6 +966,7 @@
 				55A70E104464C2281B0F9AA3,
 				BB309E505EC5272A3C86459C,
 				D0DE83284A0ADF3CE958D7F0,
+				9D1071AAC3C84E5B9F9D6B39,
 				22409A8BB039D0E0CC2751CF,
 				6821CCCDECA1EE3F41A956C7,
 				60AE10143DCFA6F2E918863A,
@@ -996,6 +1003,7 @@
 				E138F2F67368416125FE5114,
 				B49EF7DDF4B0D9905AA40643,
 				5CD6C55A8FE73A7847272E36,
+				445472D19D387B5FF2371B08,
 				B32F78DBF8B8E8DB951A5027,
 				6EB9D3E942D2E5293BA5CD69,
 				DC5962006FC36ACECF2C7F34,
