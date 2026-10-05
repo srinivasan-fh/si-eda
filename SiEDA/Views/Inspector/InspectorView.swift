@@ -70,7 +70,7 @@ private struct ComponentProperties: View {
 
     init(component: SnapComponent) {
         self.component = component
-        _ref = State(initialValue: component.ref)
+        _ref = State(initialValue: component.logicalRef ?? component.ref)
         _value = State(initialValue: component.value)
         _variantValue = State(initialValue: component.variantValue ?? "")
     }
@@ -92,11 +92,15 @@ private struct ComponentProperties: View {
 
             PropertyGroup(title: "General") {
                 if !kind.isVirtual {
-                    LabeledContent("Designator") {
+                    LabeledContent(component.logicalRef == nil ? "Designator" : "Block designator") {
                         TextField("Designator", text: $ref)
                             .textFieldStyle(.blue)
                             .focused($focus, equals: .ref)
                             .onSubmit { commitRef() }
+                    }
+                    if component.logicalRef != nil {
+                        // A part of a repeated sheet: its designator in this channel follows the block designator.
+                        PropertyRow(label: "Channel designator", value: component.ref)
                     }
                 }
                 LabeledContent(kind == .netLabel ? "Net name" : "Value") {
@@ -307,7 +311,8 @@ private struct ComponentProperties: View {
 
     private func commitRef() {
         let trimmed = ref.trimmingCharacters(in: .whitespaces)
-        if trimmed.isEmpty || trimmed == component.ref { ref = component.ref; return }
+        let current = component.logicalRef ?? component.ref
+        if trimmed.isEmpty || trimmed == current { ref = current; return }
         store.setRef(component.id, trimmed)
     }
 

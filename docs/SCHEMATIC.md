@@ -62,8 +62,32 @@ front of it — `Sensor/EN` — so every net name in the netlist, the PCB and th
 The canvas draws the sheet symbol as a box around the entries of each child sheet with the child's name above it;
 drag the entries (select them together) to move or reshape the symbol.
 
-Each child sheet is used once (single-instance hierarchy): there is no repeated instantiation of one sheet with
-per-instance designators.
+## Repeated sheets (multi-instance hierarchy)
+
+A block drawn once can be used several times — four identical amplifier channels, eight relay drivers. Right-click
+the block's tab → **Repeat Sheet…** and enter the number of channels (1 to 64; the sheet itself is the first).
+
+- Each extra channel is a sheet of its own, named `<block> [B]`, `[C]` …, under the same parent. The tab of the block
+  shows `×N`. Every channel without a sheet symbol gets one on the parent sheet, side by side; wire each channel's
+  entries to its own signals.
+- A channel holds copies of the block's parts and wires. Each copy is a real part with its **own designator, nets,
+  footprint placement and variant settings**; local labels and ports are per sheet, so each channel has its own
+  nets (named `Amp [B]/OUT` where a name repeats). Netlist, ERC, simulation, BOM, CPL and the board see every
+  channel — the stored design is still flat.
+- **Edit any channel**: moving, rotating, re-valuing, wiring, adding or deleting on a channel changes the block, and
+  every channel follows at once. A banner over the canvas says which channel is shown. Footprint placement, BOM
+  sourcing and variant fitting stay per channel.
+- **Designators.** Each block part has a block designator (`R1`, shown as *Block designator* in the inspector) and
+  one designator per channel. Right-click → **Channel Designators**: *By Sheet Number* (default; the n-th sheet
+  numbers from n·100 + 1: R1 → R201, R301, R401 — n·1000 for blocks with 100 or more of a prefix) or *With Channel
+  Suffix* (R1_A, R1_B …). **Rename Channel…** changes a channel label (letters, digits, `_`, `-`). **Annotate**
+  numbers each block inside itself and numbers the rest of the design around the channels' designators.
+- Repeating again with a smaller count removes the last channels (their parts, wires and sheet-symbol entries);
+  **1** ends the repetition and gives the parts their block designators back. Deleting the block's sheet deletes
+  its channels.
+- Only a sheet **without child sheets** can be repeated (no nested repetition), and no child sheet can be added
+  under a repeated block. Parts moved onto a channel join the block; parts of a channel cannot be moved out of it
+  (move them on the block's own sheet).
 
 ## Electrical rule checks across sheets
 
@@ -80,6 +104,7 @@ ERC findings carry the sheet they are on (`"sheet"` in the JSON); selecting one 
 | `ERC_LOCAL_LABEL_SPLIT` | warning | A local label name is used on several sheets; those nets are separate |
 | `ERC_BUS_LABEL` | warning | A single label is named like a bus (`D[0..7]`); it joins one net, not eight |
 | `ERC_GLOBAL_LABEL_ONE_SHEET` | info | In a multi-sheet design, a signal's global label is used on one sheet only (supply and ground nets are exempt) |
+| `ERC_GLOBAL_LABEL_IN_REPEAT` | warning | A signal's global label inside a repeated sheet joins every channel into one net (supply nets are exempt) |
 | `ERC_OUTPUT_CONFLICT` | warning | Existing rule; the message now names the sheets when the drivers are on different sheets |
 
 The multi-sheet rules never fire on a single-sheet design except `ERC_BUS_LABEL`.
@@ -182,7 +207,8 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
 
 ## Limits
 
-- Single-instance hierarchy only (a child sheet stands for one block, not several copies).
+- Repeated sheets cannot nest (a repeated block has no child sheets). An AI design plan made from a repeated
+  design carries every channel as ordinary parts: refining the design with the agents flattens the repetition.
 - No graphical bus wires or bus entries; buses connect through member labels, placed through the C API.
 - Variant values affect the assembly outputs only, not simulation or design checks.
 - The sheet symbol is drawn from its entries; it has no separate size or graphics of its own.

@@ -512,3 +512,16 @@
 "Target" = "Target";
 "Decoupling" = "Decoupling";
 "IR drop" = "IR drop";
+"Repeat Sheet…" = "Repeat Sheet…";
+"Repeat Sheet" = "Repeat Sheet";
+"Channels" = "Channels";
+"Channel Designators" = "Channel Designators";
+"By Sheet Number (R201, R301…)" = "By Sheet Number (R201, R301…)";
+"With Channel Suffix (R1_A, R1_B…)" = "With Channel Suffix (R1_A, R1_B…)";
+"Rename Channel…" = "Rename Channel…";
+"Rename Channel" = "Rename Channel";
+"Channel label" = "Channel label";
+"Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all.";
+"Block designator" = "Block designator";
+"Channel designator" = "Channel designator";
+"Channel %@ of %@ — edits apply to every channel" = "Channel %@ of %@ — edits apply to every channel";

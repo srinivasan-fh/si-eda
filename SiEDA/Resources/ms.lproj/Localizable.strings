@@ -512,3 +512,16 @@
 "Target" = "Sasaran";
 "Decoupling" = "Penyahgandingan";
 "IR drop" = "Susutan IR";
+"Repeat Sheet…" = "Ulang Helaian…";
+"Repeat Sheet" = "Ulang Helaian";
+"Channels" = "Saluran";
+"Channel Designators" = "Penanda Saluran";
+"By Sheet Number (R201, R301…)" = "Mengikut Nombor Helaian (R201, R301…)";
+"With Channel Suffix (R1_A, R1_B…)" = "Dengan Akhiran Saluran (R1_A, R1_B…)";
+"Rename Channel…" = "Namakan Semula Saluran…";
+"Rename Channel" = "Namakan Semula Saluran";
+"Channel label" = "Label saluran";
+"Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Gunakan helaian ini sebagai beberapa saluran yang sama (1 hingga 64). Setiap saluran mendapat penanda, net dan simbol helaiannya sendiri; menyunting mana-mana saluran menyunting semuanya.";
+"Block designator" = "Penanda blok";
+"Channel designator" = "Penanda saluran";
+"Channel %@ of %@ — edits apply to every channel" = "Saluran %@ bagi %@ — suntingan berlaku pada setiap saluran";

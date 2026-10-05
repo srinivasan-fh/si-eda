@@ -512,3 +512,16 @@
 "Target" = "Mục tiêu";
 "Decoupling" = "Tách ghép";
 "IR drop" = "Sụt áp IR";
+"Repeat Sheet…" = "Lặp lại trang…";
+"Repeat Sheet" = "Lặp lại trang";
+"Channels" = "Số kênh";
+"Channel Designators" = "Ký hiệu theo kênh";
+"By Sheet Number (R201, R301…)" = "Theo số trang (R201, R301…)";
+"With Channel Suffix (R1_A, R1_B…)" = "Thêm hậu tố kênh (R1_A, R1_B…)";
+"Rename Channel…" = "Đổi tên kênh…";
+"Rename Channel" = "Đổi tên kênh";
+"Channel label" = "Nhãn kênh";
+"Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Dùng trang này làm nhiều kênh giống nhau (1 đến 64). Mỗi kênh có ký hiệu, net và ký hiệu trang riêng; sửa một kênh là sửa tất cả.";
+"Block designator" = "Ký hiệu trong khối";
+"Channel designator" = "Ký hiệu theo kênh";
+"Channel %@ of %@ — edits apply to every channel" = "Kênh %@ của %@ — chỉnh sửa áp dụng cho mọi kênh";

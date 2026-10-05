@@ -512,3 +512,16 @@
 "Target" = "ଲକ୍ଷ୍ୟ";
 "Decoupling" = "ଡିକପ୍ଲିଂ";
 "IR drop" = "IR ଡ୍ରପ୍";
+"Repeat Sheet…" = "ସିଟ୍ ପୁନରାବୃତ୍ତି କରନ୍ତୁ…";
+"Repeat Sheet" = "ସିଟ୍ ପୁନରାବୃତ୍ତି କରନ୍ତୁ";
+"Channels" = "ଚ୍ୟାନେଲ୍";
+"Channel Designators" = "ଚ୍ୟାନେଲ୍ ଚିହ୍ନକ";
+"By Sheet Number (R201, R301…)" = "ସିଟ୍ ସଂଖ୍ୟା ଅନୁସାରେ (R201, R301…)";
+"With Channel Suffix (R1_A, R1_B…)" = "ଚ୍ୟାନେଲ୍ ପ୍ରତ୍ୟୟ ସହ (R1_A, R1_B…)";
+"Rename Channel…" = "ଚ୍ୟାନେଲ୍ ନାମ ବଦଳାନ୍ତୁ…";
+"Rename Channel" = "ଚ୍ୟାନେଲ୍ ନାମ ବଦଳାନ୍ତୁ";
+"Channel label" = "ଚ୍ୟାନେଲ୍ ଲେବେଲ୍";
+"Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "ଏହି ସିଟ୍‌କୁ ଅନେକ ସମାନ ଚ୍ୟାନେଲ୍ (1 ରୁ 64) ଭାବେ ବ୍ୟବହାର କରନ୍ତୁ। ପ୍ରତ୍ୟେକ ଚ୍ୟାନେଲ୍ ନିଜର ଚିହ୍ନକ, ନେଟ୍ ଓ ସିଟ୍ ପ୍ରତୀକ ପାଏ; ଯେକୌଣସି ଚ୍ୟାନେଲ୍ ସମ୍ପାଦନ କଲେ ସବୁ ସମ୍ପାଦିତ ହୁଏ।";
+"Block designator" = "ବ୍ଲକ୍ ଚିହ୍ନକ";
+"Channel designator" = "ଚ୍ୟାନେଲ୍ ଚିହ୍ନକ";
+"Channel %@ of %@ — edits apply to every channel" = "ଚ୍ୟାନେଲ୍ %@ (%@) — ସମ୍ପାଦନା ପ୍ରତ୍ୟେକ ଚ୍ୟାନେଲରେ ଲାଗୁ ହୁଏ";

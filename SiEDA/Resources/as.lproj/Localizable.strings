@@ -512,3 +512,16 @@
 "Target" = "লক্ষ্য";
 "Decoupling" = "ডিকাপলিং";
 "IR drop" = "IR ড্ৰপ";
+"Repeat Sheet…" = "পাত পুনৰাবৃত্তি কৰক…";
+"Repeat Sheet" = "পাত পুনৰাবৃত্তি কৰক";
+"Channels" = "চেনেল";
+"Channel Designators" = "চেনেল নিৰ্দেশক";
+"By Sheet Number (R201, R301…)" = "পাত নম্বৰ অনুসৰি (R201, R301…)";
+"With Channel Suffix (R1_A, R1_B…)" = "চেনেল প্ৰত্যয়সহ (R1_A, R1_B…)";
+"Rename Channel…" = "চেনেলৰ নাম সলনি কৰক…";
+"Rename Channel" = "চেনেলৰ নাম সলনি কৰক";
+"Channel label" = "চেনেল লেবেল";
+"Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "এই পাতখন কেইবাটাও একে চেনেল (১ৰ পৰা ৬৪) হিচাপে ব্যৱহাৰ কৰক। প্ৰতিটো চেনেলে নিজা নিৰ্দেশক, নেট আৰু পাত চিহ্ন পায়; যিকোনো চেনেল সম্পাদনা কৰিলে সকলো সম্পাদিত হয়।";
+"Block designator" = "ব্লক নিৰ্দেশক";
+"Channel designator" = "চেনেল নিৰ্দেশক";
+"Channel %@ of %@ — edits apply to every channel" = "চেনেল %@ (%@) — সম্পাদনা প্ৰতিটো চেনেলত প্ৰযোজ্য";

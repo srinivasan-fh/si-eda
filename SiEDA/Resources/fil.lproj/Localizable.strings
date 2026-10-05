@@ -512,3 +512,16 @@
 "Target" = "Target";
 "Decoupling" = "Decoupling";
 "IR drop" = "IR drop";
+"Repeat Sheet…" = "Ulitin ang Sheet…";
+"Repeat Sheet" = "Ulitin ang Sheet";
+"Channels" = "Mga channel";
+"Channel Designators" = "Mga designator ng channel";
+"By Sheet Number (R201, R301…)" = "Ayon sa numero ng sheet (R201, R301…)";
+"With Channel Suffix (R1_A, R1_B…)" = "May suffix ng channel (R1_A, R1_B…)";
+"Rename Channel…" = "Palitan ang pangalan ng channel…";
+"Rename Channel" = "Palitan ang pangalan ng channel";
+"Channel label" = "Label ng channel";
+"Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Gamitin ang sheet na ito bilang ilang magkakaparehong channel (1 hanggang 64). Bawat channel ay may sariling designator, net at sheet symbol; ang pag-edit sa alinmang channel ay nag-e-edit sa lahat.";
+"Block designator" = "Designator ng block";
+"Channel designator" = "Designator ng channel";
+"Channel %@ of %@ — edits apply to every channel" = "Channel %@ ng %@ — ang mga pag-edit ay para sa bawat channel";

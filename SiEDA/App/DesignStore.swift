@@ -479,6 +479,13 @@ final class DesignStore: ObservableObject {
 
     func setRef(_ id: Int, _ ref: String) {
         let trimmed = ref.trimmingCharacters(in: .whitespaces)
+        if let current = snapshot.component(id), let logical = current.logicalRef {
+            // A part of a repeated sheet: the designator inside the block; each channel's follows from it.
+            guard !trimmed.isEmpty, logical != trimmed else { return }
+            performChecked("Renamed to \(trimmed)", invalidatesAnalysis: false,
+                           failureMessage: "\(trimmed) is already used in this block") { $0.setRef(id, trimmed) }
+            return
+        }
         guard !trimmed.isEmpty, let current = snapshot.component(id), current.ref != trimmed else { return }
         if snapshot.component(ref: trimmed) != nil {
             alert = AlertItem(title: "Duplicate designator", message: "\(trimmed) is already used in this design.")
@@ -822,6 +829,44 @@ final class DesignStore: ObservableObject {
             $0.placeSheetEntries(child: child, at: origin) > 0
         }
         if placed { selectSheet(sheet.parent) }
+    }
+
+    /// Uses a sheet `count` times (channels) and gives every channel without one its sheet symbol on the parent
+    /// sheet, side by side to the right of the parent's parts. One undo step.
+    func repeatSheet(_ id: Int, count: Int) {
+        guard let sheet = snapshot.sheet(id), !sheet.isInstance, count >= 1, count <= 64 else { return }
+        let done = performChecked("\(sheet.name): \(count) channel(s)",
+                                  failureMessage: "Only a sheet without child sheets can be repeated") { engine in
+            guard engine.repeatSheet(id, count: count) != nil else { return false }
+            guard sheet.parent != 0, let snap = engine.snapshot() else { return true }
+            let parentParts = snap.onSheet(sheet.parent)
+            var x = SchematicCanvas.componentBounds(parentParts).reduce(CGRect.null) { $0.union($1.rect) }.maxX
+            if x.isInfinite || x.isNaN { x = 0 }
+            let top = SchematicCanvas.componentBounds(parentParts).map { $0.rect.minY }.min() ?? 0
+            for (index, channel) in snap.sheets.filter({ $0.definitionId == id }).enumerated() {
+                let hasEntries = snap.components.contains { $0.labelScope == "entry" && $0.targetSheet == channel.id }
+                if hasEntries { continue }
+                let origin = SchematicAutoLayout.snap(CGPoint(x: x + 80 + CGFloat(index) * 160, y: top))
+                engine.placeSheetEntries(child: channel.id, at: origin)
+            }
+            return true
+        }
+        if done { fitToken &+= 1 }
+    }
+
+    /// Channel designators of a repeated sheet: "sheet" (R201, R301…) or "suffix" (R1_A, R1_B…).
+    func setInstanceRefs(_ id: Int, scheme: String) {
+        guard let sheet = snapshot.sheet(id), sheet.isRepeated, sheet.refs != scheme else { return }
+        performChecked("Channel designators: \(scheme)", invalidatesAnalysis: false) { $0.setInstanceRefs(id, scheme: scheme) }
+    }
+
+    func setSheetChannel(_ id: Int, to channel: String) {
+        let label = channel.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let sheet = snapshot.sheet(id), sheet.isRepeated, !label.isEmpty, sheet.channel != label else { return }
+        performChecked("Channel \(label)", invalidatesAnalysis: false,
+                       failureMessage: "Channel labels are letters, digits, _ or -, unique in the block") {
+            $0.setSheetChannel(id, channel: label)
+        }
     }
 
     /// Re-numbers reference designators by sheet and position.

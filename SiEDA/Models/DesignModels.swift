@@ -207,6 +207,9 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     var fitted: Bool?
     /// Value fitted in the active variant, when it differs from the design value.
     var variantValue: String?
+    /// Part of a repeated sheet: the block part an instance copies, and the designator inside the block ("R1").
+    var instanceOf: Int?
+    var logicalRef: String?
 
     var sheetId: Int { sheet ?? 1 }
     var labelScope: String { scope ?? "global" }
@@ -352,6 +355,17 @@ struct SheetInfo: Decodable, Equatable, Identifiable, Hashable {
     var depth: Int
     /// Hierarchical port names on the sheet (the entries its sheet symbol offers).
     var ports: [String]
+    /// Repeated sheet (nil for an ordinary one): the definition an instance copies (0 on the definition), the channel
+    /// label, how channel designators are made ("sheet" or "suffix") and the number of channels.
+    var instanceOf: Int?
+    var channel: String?
+    var refs: String?
+    var instances: Int?
+
+    var isRepeated: Bool { (instances ?? 0) > 1 }
+    var isInstance: Bool { (instanceOf ?? 0) != 0 }
+    /// The definition sheet of a repeated block (the sheet itself otherwise).
+    var definitionId: Int { isInstance ? (instanceOf ?? id) : id }
 }
 
 /// A named assembly variant: parts fitted / not fitted and value overrides.

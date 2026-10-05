@@ -512,3 +512,16 @@
 "Target" = "Ziel";
 "Decoupling" = "Entkopplung";
 "IR drop" = "IR-Abfall";
+"Repeat Sheet…" = "Blatt wiederholen…";
+"Repeat Sheet" = "Blatt wiederholen";
+"Channels" = "Kanäle";
+"Channel Designators" = "Kanal-Bezeichner";
+"By Sheet Number (R201, R301…)" = "Nach Blattnummer (R201, R301…)";
+"With Channel Suffix (R1_A, R1_B…)" = "Mit Kanal-Suffix (R1_A, R1_B…)";
+"Rename Channel…" = "Kanal umbenennen…";
+"Rename Channel" = "Kanal umbenennen";
+"Channel label" = "Kanalbezeichnung";
+"Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Dieses Blatt als mehrere identische Kanäle verwenden (1 bis 64). Jeder Kanal erhält eigene Bezeichner, Netze und ein Blattsymbol; die Bearbeitung eines Kanals ändert alle.";
+"Block designator" = "Block-Bezeichner";
+"Channel designator" = "Kanal-Bezeichner";
+"Channel %@ of %@ — edits apply to every channel" = "Kanal %@ von %@ — Änderungen gelten für jeden Kanal";

@@ -512,3 +512,16 @@
 "Target" = "목표";
 "Decoupling" = "디커플링";
 "IR drop" = "IR 강하";
+"Repeat Sheet…" = "시트 반복…";
+"Repeat Sheet" = "시트 반복";
+"Channels" = "채널 수";
+"Channel Designators" = "채널 참조 기호";
+"By Sheet Number (R201, R301…)" = "시트 번호별 (R201, R301…)";
+"With Channel Suffix (R1_A, R1_B…)" = "채널 접미사 사용 (R1_A, R1_B…)";
+"Rename Channel…" = "채널 이름 변경…";
+"Rename Channel" = "채널 이름 변경";
+"Channel label" = "채널 레이블";
+"Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "이 시트를 여러 개의 동일한 채널(1~64)로 사용합니다. 각 채널은 고유한 참조 기호, 네트, 시트 심볼을 가지며, 한 채널을 편집하면 모든 채널이 편집됩니다.";
+"Block designator" = "블록 참조 기호";
+"Channel designator" = "채널 참조 기호";
+"Channel %@ of %@ — edits apply to every channel" = "채널 %@ (%@) — 편집은 모든 채널에 적용됩니다";

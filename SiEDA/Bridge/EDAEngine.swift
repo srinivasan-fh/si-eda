@@ -278,6 +278,26 @@ final class EDAEngine: @unchecked Sendable {
         return Self.decode(Reply.self, from: withHandle { Self.take(sieda_annotate($0, options)) })?.changed.count ?? 0
     }
 
+    // MARK: - Repeated sheets
+
+    /// Uses a sheet `count` times (channels, the sheet itself first); the number of channels, nil when it cannot be.
+    @discardableResult
+    func repeatSheet(_ id: Int, count: Int) -> Int? {
+        let n = withHandle { sieda_repeat_sheet($0, Int32(id), Int32(count)) }
+        return n > 0 ? Int(n) : nil
+    }
+
+    /// Channel designators of a repeated sheet: "sheet" (R201, R301…) or "suffix" (R1_A, R1_B…).
+    @discardableResult
+    func setInstanceRefs(_ id: Int, scheme: String) -> Bool {
+        withHandle { sieda_set_instance_refs($0, Int32(id), scheme) } == 1
+    }
+
+    @discardableResult
+    func setSheetChannel(_ id: Int, channel: String) -> Bool {
+        withHandle { sieda_set_sheet_channel($0, Int32(id), channel) } == 1
+    }
+
     // MARK: - Design variants
 
     @discardableResult

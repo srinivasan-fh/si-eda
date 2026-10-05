@@ -512,3 +512,16 @@
 "Target" = "Doel";
 "Decoupling" = "Ontkoppeling";
 "IR drop" = "IR-spanningsval";
+"Repeat Sheet…" = "Blad herhalen…";
+"Repeat Sheet" = "Blad herhalen";
+"Channels" = "Kanalen";
+"Channel Designators" = "Kanaalreferenties";
+"By Sheet Number (R201, R301…)" = "Per bladnummer (R201, R301…)";
+"With Channel Suffix (R1_A, R1_B…)" = "Met kanaalachtervoegsel (R1_A, R1_B…)";
+"Rename Channel…" = "Kanaal hernoemen…";
+"Rename Channel" = "Kanaal hernoemen";
+"Channel label" = "Kanaallabel";
+"Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Gebruik dit blad als meerdere identieke kanalen (1 tot 64). Elk kanaal krijgt eigen referenties, netten en een bladsymbool; een kanaal bewerken bewerkt ze allemaal.";
+"Block designator" = "Blokreferentie";
+"Channel designator" = "Kanaalreferentie";
+"Channel %@ of %@ — edits apply to every channel" = "Kanaal %@ van %@ — bewerkingen gelden voor elk kanaal";

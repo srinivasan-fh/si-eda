@@ -512,3 +512,16 @@
 "Target" = "இலக்கு";
 "Decoupling" = "டிகப்ளிங்";
 "IR drop" = "IR டிராப்";
+"Repeat Sheet…" = "தாளை மீண்டும் பயன்படுத்து…";
+"Repeat Sheet" = "தாளை மீண்டும் பயன்படுத்து";
+"Channels" = "சேனல்கள்";
+"Channel Designators" = "சேனல் குறியீடுகள்";
+"By Sheet Number (R201, R301…)" = "தாள் எண்ணின்படி (R201, R301…)";
+"With Channel Suffix (R1_A, R1_B…)" = "சேனல் பின்னொட்டுடன் (R1_A, R1_B…)";
+"Rename Channel…" = "சேனல் பெயரை மாற்று…";
+"Rename Channel" = "சேனல் பெயரை மாற்று";
+"Channel label" = "சேனல் லேபிள்";
+"Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "இந்தத் தாளை ஒரே மாதிரியான பல சேனல்களாக (1 முதல் 64) பயன்படுத்தவும். ஒவ்வொரு சேனலுக்கும் தனி குறியீடுகள், நெட்கள், தாள் குறியீடு கிடைக்கும்; எந்தச் சேனலைத் திருத்தினாலும் அனைத்தும் திருத்தப்படும்.";
+"Block designator" = "தொகுதி குறியீடு";
+"Channel designator" = "சேனல் குறியீடு";
+"Channel %@ of %@ — edits apply to every channel" = "சேனல் %@ (%@) — திருத்தங்கள் ஒவ்வொரு சேனலுக்கும் பொருந்தும்";

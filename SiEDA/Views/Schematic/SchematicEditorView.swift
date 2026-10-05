@@ -124,6 +124,20 @@ struct SchematicEditorView: View {
                     SimulationTransport(live: store.live)
                         .canvasScrollShield()
                         .padding(12)
+                    if let shown = store.snapshot.sheet(store.snapshot.activeSheet), shown.isRepeated,
+                       let definition = store.snapshot.sheet(shown.definitionId) {
+                        // A channel of a repeated sheet: every edit applies to the whole block.
+                        Text("Channel \(shown.channel ?? "") of \(definition.name) — edits apply to every channel")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Theme.iceBlue)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(Theme.deepBlue.opacity(0.95)))
+                            .overlay(Capsule().strokeBorder(Theme.skyBlue))
+                            .padding(10)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .allowsHitTesting(false)
+                    }
                     if store.snapshot.components.isEmpty {
                         VStack(spacing: 4) {
                             if settings.aiEnabled {
@@ -201,6 +215,10 @@ struct SheetBar: View {
     @State private var sheetName = ""
     @State private var addingVariant = false
     @State private var variantName = ""
+    @State private var repeating: SheetInfo?
+    @State private var channelCount = "2"
+    @State private var renamingChannel: SheetInfo?
+    @State private var channelName = ""
 
     var body: some View {
         OptionsBar {
@@ -209,8 +227,9 @@ struct SheetBar: View {
                 Button {
                     store.selectSheet(sheet.id)
                 } label: {
-                    // Child sheets are indented under their parent ("› Filter").
-                    Text(verbatim: String(repeating: "› ", count: sheet.depth) + sheet.name)
+                    // Child sheets are indented under their parent ("› Filter"); a repeated block shows its channels.
+                    Text(verbatim: String(repeating: "› ", count: sheet.depth) + sheet.name
+                         + (sheet.isRepeated && !sheet.isInstance ? " ×\(sheet.instances ?? 1)" : ""))
                         .fontWeight(active ? .semibold : .regular)
                         .foregroundStyle(active ? Theme.textPrimary : Theme.textSecondary)
                         .padding(.horizontal, 8)
@@ -226,6 +245,22 @@ struct SheetBar: View {
                     Button("Add Child Sheet") { store.addSheet(parent: sheet.id) }
                     if sheet.parent != 0 {
                         Button("Place Sheet Symbol") { store.placeSheetSymbol(for: sheet.id) }
+                    }
+                    if !sheet.isInstance {
+                        Button("Repeat Sheet…") {
+                            channelCount = "\(max(2, sheet.instances ?? 1))"
+                            repeating = sheet
+                        }
+                    }
+                    if sheet.isRepeated {
+                        Menu("Channel Designators") {
+                            Button("By Sheet Number (R201, R301…)") { store.setInstanceRefs(sheet.id, scheme: "sheet") }
+                            Button("With Channel Suffix (R1_A, R1_B…)") { store.setInstanceRefs(sheet.id, scheme: "suffix") }
+                        }
+                        Button("Rename Channel…") {
+                            channelName = sheet.channel ?? ""
+                            renamingChannel = sheet
+                        }
                     }
                     if !store.selection.isEmpty && !active {
                         Button("Move Selection Here") { store.moveSelection(toSheet: sheet.id) }
@@ -278,6 +313,26 @@ struct SheetBar: View {
                 renaming = nil
             }
             Button("Cancel", role: .cancel) { renaming = nil }
+        }
+        .alert("Repeat Sheet", isPresented: Binding(get: { repeating != nil }, set: { if !$0 { repeating = nil } })) {
+            TextField("Channels", text: $channelCount)
+            Button("OK") {
+                if let sheet = repeating, let count = Int(channelCount.trimmingCharacters(in: .whitespaces)) {
+                    store.repeatSheet(sheet.id, count: count)
+                }
+                repeating = nil
+            }
+            Button("Cancel", role: .cancel) { repeating = nil }
+        } message: {
+            Text("Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all.")
+        }
+        .alert("Rename Channel", isPresented: Binding(get: { renamingChannel != nil }, set: { if !$0 { renamingChannel = nil } })) {
+            TextField("Channel label", text: $channelName)
+            Button("OK") {
+                if let sheet = renamingChannel { store.setSheetChannel(sheet.id, to: channelName) }
+                renamingChannel = nil
+            }
+            Button("Cancel", role: .cancel) { renamingChannel = nil }
         }
         .alert("New Variant", isPresented: $addingVariant) {
             TextField("Variant name", text: $variantName)

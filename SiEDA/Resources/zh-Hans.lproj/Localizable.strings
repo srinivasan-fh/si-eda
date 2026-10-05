@@ -512,3 +512,16 @@
 "Target" = "目标";
 "Decoupling" = "去耦";
 "IR drop" = "IR 压降";
+"Repeat Sheet…" = "重复图页…";
+"Repeat Sheet" = "重复图页";
+"Channels" = "通道数";
+"Channel Designators" = "通道位号";
+"By Sheet Number (R201, R301…)" = "按图页编号 (R201, R301…)";
+"With Channel Suffix (R1_A, R1_B…)" = "加通道后缀 (R1_A, R1_B…)";
+"Rename Channel…" = "重命名通道…";
+"Rename Channel" = "重命名通道";
+"Channel label" = "通道标签";
+"Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "将此图页用作多个相同的通道 (1 至 64)。每个通道有自己的位号、网络和图页符号；编辑任一通道即编辑全部。";
+"Block designator" = "模块位号";
+"Channel designator" = "通道位号";
+"Channel %@ of %@ — edits apply to every channel" = "通道 %@（%@）— 编辑会应用到每个通道";

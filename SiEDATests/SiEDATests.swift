@@ -4737,3 +4737,39 @@ final class SignalIntegrityBridgeTests: XCTestCase {
         XCTAssertFalse(store.siSettings().signOff)
     }
 }
+
+/// Schematic capture: repeated sheets, buses, multi-unit parts, variants in simulation, search and navigation.
+@MainActor
+final class SchematicCaptureTests: XCTestCase {
+    func testRepeatedSheetChannelsThroughTheStore() throws {
+        let store = DesignStore()
+        let block = try XCTUnwrap(store.addSheet(named: "Amp", parent: 1))
+        let port = store.addComponent(.netLabel, at: .zero)
+        XCTAssertTrue(store.engine.setValue(port, "IN"))
+        XCTAssertTrue(store.engine.setLabelScope(port, scope: "port"))
+        let r = store.addComponent(.resistor, at: CGPoint(x: 80, y: 0))
+        XCTAssertTrue(store.connect(PinAddress(component: port, pin: 0), PinAddress(component: r, pin: 0)))
+        store.repeatSheet(block, count: 3)
+        let channels = store.snapshot.sheets.filter { $0.definitionId == block }
+        XCTAssertEqual(channels.count, 3)
+        XCTAssertEqual(store.snapshot.sheet(block)?.instances, 3)
+        XCTAssertEqual(store.snapshot.component(r)?.logicalRef, "R1")
+        XCTAssertEqual(store.snapshot.component(r)?.ref, "R201")
+        // Every channel got its sheet symbol on the parent sheet.
+        for channel in channels {
+            XCTAssertTrue(store.snapshot.components.contains { $0.labelScope == "entry" && $0.targetSheet == channel.id })
+        }
+        // The block designator is edited from a channel; every channel follows.
+        let copy = try XCTUnwrap(store.snapshot.components.first { $0.instanceOf == r })
+        store.setRef(copy.id, "R7")
+        XCTAssertEqual(store.snapshot.component(r)?.ref, "R207")
+        store.setInstanceRefs(block, scheme: "suffix")
+        XCTAssertEqual(store.snapshot.component(r)?.ref, "R7_A")
+        store.setSheetChannel(block, to: "L")
+        XCTAssertEqual(store.snapshot.component(r)?.ref, "R7_L")
+        store.undo()
+        XCTAssertEqual(store.snapshot.component(r)?.ref, "R7_A")
+        store.repeatSheet(block, count: 1)
+        XCTAssertEqual(store.snapshot.sheets.filter { $0.definitionId == block }.count, 1)
+    }
+}

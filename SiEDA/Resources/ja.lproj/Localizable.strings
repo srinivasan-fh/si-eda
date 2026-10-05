@@ -512,3 +512,16 @@
 "Target" = "目標";
 "Decoupling" = "デカップリング";
 "IR drop" = "IR ドロップ";
+"Repeat Sheet…" = "シートを繰り返す…";
+"Repeat Sheet" = "シートを繰り返す";
+"Channels" = "チャネル数";
+"Channel Designators" = "チャネルのリファレンス番号";
+"By Sheet Number (R201, R301…)" = "シート番号順 (R201, R301…)";
+"With Channel Suffix (R1_A, R1_B…)" = "チャネル接尾辞付き (R1_A, R1_B…)";
+"Rename Channel…" = "チャネル名を変更…";
+"Rename Channel" = "チャネル名を変更";
+"Channel label" = "チャネルラベル";
+"Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "このシートを複数の同一チャネル (1～64) として使います。各チャネルは独自のリファレンス番号、ネット、シートシンボルを持ち、どのチャネルを編集してもすべてに反映されます。";
+"Block designator" = "ブロック内リファレンス";
+"Channel designator" = "チャネルのリファレンス";
+"Channel %@ of %@ — edits apply to every channel" = "チャネル %@（%@）— 編集はすべてのチャネルに反映されます";

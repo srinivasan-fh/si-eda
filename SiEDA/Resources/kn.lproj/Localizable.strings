@@ -512,3 +512,16 @@
 "Target" = "ಗುರಿ";
 "Decoupling" = "ಡಿಕಪ್ಲಿಂಗ್";
 "IR drop" = "IR ಡ್ರಾಪ್";
+"Repeat Sheet…" = "ಶೀಟ್ ಪುನರಾವರ್ತಿಸಿ…";
+"Repeat Sheet" = "ಶೀಟ್ ಪುನರಾವರ್ತಿಸಿ";
+"Channels" = "ಚಾನಲ್‌ಗಳು";
+"Channel Designators" = "ಚಾನಲ್ ಗುರುತುಗಳು";
+"By Sheet Number (R201, R301…)" = "ಶೀಟ್ ಸಂಖ್ಯೆಯ ಪ್ರಕಾರ (R201, R301…)";
+"With Channel Suffix (R1_A, R1_B…)" = "ಚಾನಲ್ ಪ್ರತ್ಯಯದೊಂದಿಗೆ (R1_A, R1_B…)";
+"Rename Channel…" = "ಚಾನಲ್ ಹೆಸರು ಬದಲಿಸಿ…";
+"Rename Channel" = "ಚಾನಲ್ ಹೆಸರು ಬದಲಿಸಿ";
+"Channel label" = "ಚಾನಲ್ ಲೇಬಲ್";
+"Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "ಈ ಶೀಟ್ ಅನ್ನು ಹಲವು ಒಂದೇ ರೀತಿಯ ಚಾನಲ್‌ಗಳಾಗಿ (1 ರಿಂದ 64) ಬಳಸಿ. ಪ್ರತಿ ಚಾನಲ್‌ಗೆ ತನ್ನದೇ ಗುರುತುಗಳು, ನೆಟ್‌ಗಳು ಮತ್ತು ಶೀಟ್ ಚಿಹ್ನೆ ಇರುತ್ತದೆ; ಯಾವುದೇ ಚಾನಲ್ ಸಂಪಾದಿಸಿದರೆ ಎಲ್ಲವೂ ಸಂಪಾದನೆಯಾಗುತ್ತವೆ.";
+"Block designator" = "ಬ್ಲಾಕ್ ಗುರುತು";
+"Channel designator" = "ಚಾನಲ್ ಗುರುತು";
+"Channel %@ of %@ — edits apply to every channel" = "ಚಾನಲ್ %@ (%@) — ಸಂಪಾದನೆಗಳು ಪ್ರತಿ ಚಾನಲ್‌ಗೆ ಅನ್ವಯಿಸುತ್ತವೆ";

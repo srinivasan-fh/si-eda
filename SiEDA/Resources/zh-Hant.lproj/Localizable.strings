@@ -512,3 +512,16 @@
 "Target" = "目標";
 "Decoupling" = "去耦";
 "IR drop" = "IR 壓降";
+"Repeat Sheet…" = "重複圖頁…";
+"Repeat Sheet" = "重複圖頁";
+"Channels" = "通道數";
+"Channel Designators" = "通道參考編號";
+"By Sheet Number (R201, R301…)" = "依圖頁編號 (R201, R301…)";
+"With Channel Suffix (R1_A, R1_B…)" = "加通道後綴 (R1_A, R1_B…)";
+"Rename Channel…" = "重新命名通道…";
+"Rename Channel" = "重新命名通道";
+"Channel label" = "通道標籤";
+"Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "將此圖頁用作多個相同的通道 (1 至 64)。每個通道有自己的參考編號、網路和圖頁符號；編輯任一通道即編輯全部。";
+"Block designator" = "區塊參考編號";
+"Channel designator" = "通道參考編號";
+"Channel %@ of %@ — edits apply to every channel" = "通道 %@（%@）— 編輯會套用到每個通道";
