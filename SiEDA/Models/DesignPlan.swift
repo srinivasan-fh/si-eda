@@ -36,13 +36,16 @@ struct DesignPlan: Codable, Equatable {
     var applianceType: String?
     /// Memory design type ("sdram", "ddr", "lpddr", "dimm", "rdimm"): turns on the 5-segment memory checks.
     var memoryDesign: String?
+    /// Schematic sheets of a multi-sheet design, in order (empty: everything on one sheet).
+    var sheets: [PlannedSheet]
 
     init(title: String, summary: String, components: [PlannedComponent], connections: [PlannedConnection],
          notes: [String] = [], board: PlannedBoard = PlannedBoard(), industry: String? = nil,
          pours: [PlannedPour] = [], netClasses: [PlannedNetClass] = [], noConnect: [String] = [],
          robotPlatform: String? = nil, ecuType: String? = nil, aerospaceMission: String? = nil,
          navalPlatform: String? = nil, medicalClass: String? = nil, retailDevice: String? = nil,
-         tamperMeshes: [PlannedTamperMesh] = [], applianceType: String? = nil, memoryDesign: String? = nil) {
+         tamperMeshes: [PlannedTamperMesh] = [], applianceType: String? = nil, memoryDesign: String? = nil,
+         sheets: [PlannedSheet] = []) {
         self.title = title
         self.summary = summary
         self.components = components
@@ -62,6 +65,7 @@ struct DesignPlan: Codable, Equatable {
         self.tamperMeshes = tamperMeshes
         self.applianceType = applianceType
         self.memoryDesign = memoryDesign
+        self.sheets = sheets
     }
 
     init(from decoder: Decoder) throws {
@@ -85,11 +89,12 @@ struct DesignPlan: Codable, Equatable {
         tamperMeshes = try c.decodeIfPresent([PlannedTamperMesh].self, forKey: .tamperMeshes) ?? []
         applianceType = try c.decodeIfPresent(String.self, forKey: .applianceType)
         memoryDesign = try c.decodeIfPresent(String.self, forKey: .memoryDesign)
+        sheets = try c.decodeIfPresent([PlannedSheet].self, forKey: .sheets) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
         case title, summary, components, connections, notes, board, industry, pours, netClasses, noConnect, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass
-        case retailDevice, tamperMeshes, applianceType, memoryDesign
+        case retailDevice, tamperMeshes, applianceType, memoryDesign, sheets
     }
 
     func jsonString(pretty: Bool = true) -> String {
@@ -112,9 +117,14 @@ struct PlannedComponent: Codable, Equatable {
     /// Fixed board position (mm) and rotation: the footprint is placed there and locked, as designers fix
     /// connectors and matched-length bus parts before Auto Place fills in the rest.
     var pcb: PlannedPlacement?
+    /// Multi-sheet designs: the sheet (by name) the part is drawn on; nil = the first sheet.
+    var sheet: String?
+    /// Net labels: "local", "port" or "entry" (nil = global); a sheet entry leads into `targetSheet` (by name).
+    var scope: String?
+    var targetSheet: String?
 
     init(ref: String, kind: String, value: String, x: Double, y: Double, rotation: Int = 0, firmware: String? = nil,
-         pcb: PlannedPlacement? = nil) {
+         pcb: PlannedPlacement? = nil, sheet: String? = nil, scope: String? = nil, targetSheet: String? = nil) {
         self.ref = ref
         self.kind = kind
         self.value = value
@@ -123,6 +133,9 @@ struct PlannedComponent: Codable, Equatable {
         self.rotation = rotation
         self.firmware = firmware
         self.pcb = pcb
+        self.sheet = sheet
+        self.scope = scope
+        self.targetSheet = targetSheet
     }
 
     init(from decoder: Decoder) throws {
@@ -141,9 +154,18 @@ struct PlannedComponent: Codable, Equatable {
         }
         firmware = try c.decodeIfPresent(String.self, forKey: .firmware)
         pcb = try? c.decodeIfPresent(PlannedPlacement.self, forKey: .pcb)
+        sheet = try? c.decodeIfPresent(String.self, forKey: .sheet)
+        scope = try? c.decodeIfPresent(String.self, forKey: .scope)
+        targetSheet = try? c.decodeIfPresent(String.self, forKey: .targetSheet)
     }
 
-    private enum CodingKeys: String, CodingKey { case ref, kind, value, x, y, rotation, firmware, pcb }
+    private enum CodingKeys: String, CodingKey { case ref, kind, value, x, y, rotation, firmware, pcb, sheet, scope, targetSheet }
+}
+
+/// A schematic sheet of a multi-sheet plan; `parent` names the sheet whose sheet symbol stands for it.
+struct PlannedSheet: Codable, Equatable {
+    var name: String
+    var parent: String?
 }
 
 /// A locked footprint position on the board (mm, y down) with its rotation (multiple of 90°).
@@ -544,12 +566,37 @@ enum DesignPlanCompiler {
         if let type = plan.memoryDesign, !engine.setMemoryDesign(type) {
             report.warnings.append("Unknown memory design type '\(type)'.")
         }
+        // Sheets of a multi-sheet plan: the first takes over the blank project's sheet; parents are set by name.
+        var sheetIds: [String: Int] = [:]
+        for sheet in plan.sheets where sheetIds[sheet.name] == nil {
+            if sheetIds.isEmpty {
+                if engine.renameSheet(1, to: sheet.name) { sheetIds[sheet.name] = 1 }
+            } else if let id = engine.addSheet(sheet.name) {
+                sheetIds[sheet.name] = id
+            }
+        }
+        for sheet in plan.sheets {
+            if let parent = sheet.parent, let id = sheetIds[sheet.name], let parentId = sheetIds[parent] {
+                engine.setSheetParent(id, parent: parentId)
+            }
+        }
+
         var positions = plan.components.map { CGPoint(x: $0.x, y: $0.y) }
-        positions = SchematicAutoLayout.resolveOverlaps(positions)
+        if sheetIds.isEmpty {
+            positions = SchematicAutoLayout.resolveOverlaps(positions)
+        } else {
+            // Each sheet is its own drawing: overlaps are resolved sheet by sheet.
+            let groups = Dictionary(grouping: plan.components.indices) { plan.components[$0].sheet ?? "" }
+            for indices in groups.values {
+                let resolved = SchematicAutoLayout.resolveOverlaps(indices.map { positions[$0] })
+                for (k, i) in indices.enumerated() { positions[i] = resolved[k] }
+            }
+        }
 
         var seenRefs = Set<String>()
         let library = previous?.customParts ?? []
         for (index, item) in plan.components.enumerated() {
+            if !sheetIds.isEmpty { engine.setActiveSheet(item.sheet.flatMap { sheetIds[$0] } ?? 1) }
             if item.kind.lowercased().hasPrefix("custom:") {
                 let name = String(item.kind.dropFirst("custom:".count)).trimmingCharacters(in: .whitespaces)
                 var partId = library.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame })?.id
@@ -589,8 +636,13 @@ enum DesignPlanCompiler {
             if id >= 0 {
                 report.componentsAdded += 1
                 if !ref.isEmpty { seenRefs.insert(ref) }
+                if kind == .netLabel, let scope = item.scope, scope != "global",
+                   !engine.setLabelScope(id, scope: scope, targetSheet: item.targetSheet.flatMap { sheetIds[$0] } ?? 0) {
+                    report.warnings.append("\(item.ref): label scope '\(scope)' could not be set; the label stays global.")
+                }
             }
         }
+        if !sheetIds.isEmpty { engine.setActiveSheet(1) }
 
         for connection in plan.connections {
             guard let a = resolve(connection.from, engine: engine, report: &report),
@@ -734,9 +786,14 @@ enum DesignPlanCompiler {
     static func plan(from snapshot: DesignSnapshot) -> DesignPlan {
         let byId = Dictionary(uniqueKeysWithValues: snapshot.components.map { ($0.id, $0) })
         let junctions = Set(snapshot.components.filter { $0.componentKind == .junction }.map(\.id))
+        let multiSheet = snapshot.sheets.count > 1
         let components = snapshot.components.filter { !junctions.contains($0.id) }.map { c -> PlannedComponent in
             let kind = snapshot.customPart(for: c).map(\.planKind) ?? c.componentKind.planName
-            return PlannedComponent(ref: c.ref, kind: kind, value: c.value, x: c.x, y: c.y, rotation: c.rotation)
+            let scoped = c.componentKind == .netLabel && c.labelScope != "global"
+            return PlannedComponent(ref: c.ref, kind: kind, value: c.value, x: c.x, y: c.y, rotation: c.rotation,
+                                    sheet: multiSheet ? snapshot.sheet(c.sheetId)?.name : nil,
+                                    scope: scoped ? c.labelScope : nil,
+                                    targetSheet: c.targetSheet.flatMap { snapshot.sheet($0)?.name })
         }
         // Custom parts are addressed by datasheet pin number (names such as GND may repeat).
         func pinLabel(_ c: SnapComponent, _ pin: Int) -> String {
@@ -800,7 +857,10 @@ enum DesignPlanCompiler {
                               PlannedTamperMesh(component: $0.component, netA: $0.netA, netB: $0.netB, margin: $0.margin)
                           },
                           applianceType: snapshot.applianceType.isEmpty ? nil : snapshot.applianceType,
-                          memoryDesign: snapshot.memoryDesign.isEmpty ? nil : snapshot.memoryDesign)
+                          memoryDesign: snapshot.memoryDesign.isEmpty ? nil : snapshot.memoryDesign,
+                          sheets: multiSheet ? snapshot.sheets.map {
+                              PlannedSheet(name: $0.name, parent: $0.parent == 0 ? nil : snapshot.sheet($0.parent)?.name)
+                          } : [])
     }
 }
 

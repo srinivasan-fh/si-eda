@@ -9,6 +9,7 @@
 #include "sieda/Schematic.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/Validation.hpp"
+#include "sieda/Variants.hpp"
 
 namespace sieda {
 
@@ -47,6 +48,26 @@ public:
     PcbLayout pcb;
     /// Ids of custom parts (CustomPartRegistry) available in this project's component library.
     std::vector<std::string> customLibrary;
+    /// Assembly variants and the one the BOM, CPL and assembly exports follow ("" = the base design).
+    std::vector<DesignVariant> variants;
+    std::string activeVariant;
+
+    const DesignVariant* findVariant(const std::string& name) const;
+    /// Adds a variant (name trimmed, unique, non-empty), optionally a copy of `copyFrom`'s settings.
+    bool addVariant(const std::string& name, const std::string& copyFrom = "");
+    bool renameVariant(const std::string& name, const std::string& newName);
+    bool removeVariant(const std::string& name);
+    bool setVariantDescription(const std::string& name, const std::string& description);
+    /// Sets one component's fitting in a variant: fitted -1 (as the base design), 0 (not fitted) or 1 (fitted);
+    /// `value` overrides the value when non-null ("" = the base value). False for an unknown variant or a part
+    /// that is not a real component (net symbols).
+    bool setVariantPart(const std::string& name, int componentId, int fitted, const std::string* value);
+    /// "" selects the base design. False for an unknown name.
+    bool setActiveVariant(const std::string& name);
+    /// The schematic as `name` is assembled (the base design for "" or an unknown name).
+    Schematic variantSchematic(const std::string& name) const;
+    /// Re-numbers designators (see Schematic::annotate) and keeps tamper meshes on their parts.
+    std::vector<RefChange> annotate(const AnnotateOptions& options);
 
     /// Registers `spec` and adds it to the project library; returns the part id.
     std::string addCustomPart(const CustomPartSpec& spec);  // throws JsonError

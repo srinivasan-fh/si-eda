@@ -19,6 +19,8 @@ add_library(sieda_core STATIC
     Core/src/Validation.cpp
     Core/src/Verification.cpp
     Core/src/Schematic.cpp
+    Core/src/Sheets.cpp
+    Core/src/Variants.cpp
     Core/src/Simulator.cpp
     Core/src/Pcb.cpp
     Core/src/Zones.cpp

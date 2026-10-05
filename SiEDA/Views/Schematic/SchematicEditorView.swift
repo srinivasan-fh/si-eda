@@ -110,10 +110,12 @@ struct SchematicEditorView: View {
                                  setLevel: { store.requestView(.setLevel($0)) })
                 }
 
+                SheetBar()
+
                 ZStack(alignment: .bottomLeading) {
                     SchematicCanvas(tool: $tool, viewport: $viewport, canvasSize: $canvasSize, wireStart: $wireStart,
                                     placementTool: placementTool, live: store.live)
-                    if store.showNavigator, !store.snapshot.components.isEmpty {
+                    if store.showNavigator, !store.sheetSnapshot.components.isEmpty {
                         navigator
                             .canvasScrollShield()
                             .padding(12)
@@ -182,13 +184,106 @@ struct SchematicEditorView: View {
 
     /// Overview of the whole schematic; click or drag to move the view.
     private var navigator: some View {
-        let bounds = SchematicCanvas.componentBounds(store.snapshot)
+        let bounds = SchematicCanvas.componentBounds(store.sheetSnapshot)
         let extent = bounds.reduce(CGRect.null) { $0.union($1.rect) }.insetBy(dx: -40, dy: -40)
         return CanvasNavigator(extent: extent, items: bounds.map { $0.rect },
                                highlighted: bounds.filter { store.selection.contains($0.id) }.map { $0.rect },
                                viewport: viewport, canvasSize: canvasSize,
                                onCenter: { viewport.center(on: $0, in: canvasSize) },
                                onClose: { store.showNavigator = false })
+    }
+}
+
+/// Sheet tabs (multi-sheet / hierarchical design), designator annotation and the assembly variant picker.
+struct SheetBar: View {
+    @EnvironmentObject private var store: DesignStore
+    @State private var renaming: SheetInfo?
+    @State private var sheetName = ""
+    @State private var addingVariant = false
+    @State private var variantName = ""
+
+    var body: some View {
+        OptionsBar {
+            ForEach(store.snapshot.sheets) { sheet in
+                let active = sheet.id == store.snapshot.activeSheet
+                Button {
+                    store.selectSheet(sheet.id)
+                } label: {
+                    // Child sheets are indented under their parent ("› Filter").
+                    Text(verbatim: String(repeating: "› ", count: sheet.depth) + sheet.name)
+                        .fontWeight(active ? .semibold : .regular)
+                        .foregroundStyle(active ? Theme.textPrimary : Theme.textSecondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(RoundedRectangle(cornerRadius: 5).fill(active ? Theme.blue.opacity(0.35) : Color.clear))
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button("Rename Sheet…") {
+                        sheetName = sheet.name
+                        renaming = sheet
+                    }
+                    Button("Add Child Sheet") { store.addSheet(parent: sheet.id) }
+                    if sheet.parent != 0 {
+                        Button("Place Sheet Symbol") { store.placeSheetSymbol(for: sheet.id) }
+                    }
+                    if !store.selection.isEmpty && !active {
+                        Button("Move Selection Here") { store.moveSelection(toSheet: sheet.id) }
+                    }
+                    Divider()
+                    Button("Delete Sheet", role: .destructive) { store.removeSheet(sheet.id) }
+                        .disabled(store.snapshot.sheets.count < 2)
+                }
+            }
+            Button { store.addSheet() } label: { Image(systemName: "plus") }
+                .buttonStyle(.borderless)
+                .help("Add a sheet (right-click a tab for more)")
+            Spacer()
+            Menu {
+                Button("Number by Rows") { store.annotate() }
+                Button("Number by Columns") { store.annotate(byColumns: true) }
+                Button("Number by Sheet (R101, R201…)") { store.annotate(sheetNumbering: true) }
+                Button("Fix Duplicates Only") { store.annotate(keepExisting: true) }
+            } label: {
+                Label("Annotate", systemImage: "number")
+            }
+            .fixedSize()
+            Menu {
+                Button("Base Design") { store.selectVariant("") }
+                ForEach(store.snapshot.variants) { variant in
+                    Button(variant.name) { store.selectVariant(variant.name) }
+                }
+                Divider()
+                Button("New Variant…") {
+                    variantName = ""
+                    addingVariant = true
+                }
+                if !store.snapshot.activeVariant.isEmpty {
+                    Button("Delete Variant", role: .destructive) { store.removeVariant(store.snapshot.activeVariant) }
+                }
+            } label: {
+                if store.snapshot.activeVariant.isEmpty {
+                    Label("Base Design", systemImage: "square.stack.3d.up")
+                } else {
+                    Label(store.snapshot.activeVariant, systemImage: "square.stack.3d.up")
+                }
+            }
+            .fixedSize()
+            .help("Assembly variant for the BOM, CPL and assembly drawings")
+        }
+        .alert("Rename Sheet", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+            TextField("Sheet name", text: $sheetName)
+            Button("OK") {
+                if let sheet = renaming { store.renameSheet(sheet.id, to: sheetName) }
+                renaming = nil
+            }
+            Button("Cancel", role: .cancel) { renaming = nil }
+        }
+        .alert("New Variant", isPresented: $addingVariant) {
+            TextField("Variant name", text: $variantName)
+            Button("OK") { store.addVariant(named: variantName) }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 }
 

@@ -36,6 +36,7 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 | F12 | Component library: datasheet import, pin-table editor, standard parts catalog, symbol / footprint / 3D generation | ✅ |
 | F13 | Footprint Editor: draw any part's land pattern pad by pad (position, size, shape, drill, pin), pad arrays, undo, live checks (overlap, gap, annular ring, pin ↔ pad coverage); converts generated footprints | ✅ |
 | F14 | Symbol Editor: pins on any side and slot, gaps, stacked power pins (joined nets), Auto Arrange by name and type, live checks; library parts with 16+ pins arranged | ✅ |
+| F15 | Large designs: multi-sheet and single-instance hierarchical schematics (global / local / port labels, sheet symbols), cross-sheet ERC, bus notation and bus labels, annotation, assembly variants (DNP and value overrides) for BOM / CPL / assembly exports | ✅ |
 
 ## Non-functional requirements
 - **Correctness.** All AI output is schema-validated and checked by the core (ERC, simulation, DRC) before

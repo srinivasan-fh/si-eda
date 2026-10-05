@@ -92,3 +92,119 @@ int sieda_c_api_smoke_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Sheets, hierarchy, buses, annotation and design variants through the C ABI. */
+int sieda_c_api_sheets_test(void) {
+    SiedaProject* p = sieda_project_new("Sheets");
+    if (!p) return 1;
+    int32_t power = 1;
+    int32_t load = sieda_add_sheet(p, "Load", 0);
+    if (load <= power || sieda_add_sheet(p, "Load", 0) != -1) return 2;
+    if (!sieda_rename_sheet(p, power, "Power")) return 3;
+    int32_t v = sieda_add_component(p, 5, "5", 0, 0, 0, NULL);
+    int32_t g = sieda_add_component(p, 7, NULL, 0, 80, 0, NULL);
+    int32_t l1 = sieda_add_component(p, 15, "VIN", 60, 0, 0, NULL);
+    if (sieda_connect(p, v, 0, l1, 0) < 0 || sieda_connect(p, v, 1, g, 0) < 0) return 4;
+    if (!sieda_set_active_sheet(p, load) || sieda_set_active_sheet(p, 999)) return 5;
+    int32_t r = sieda_add_component(p, 0, "1k", 100, 0, 0, NULL);
+    int32_t l2 = sieda_add_component(p, 15, "VIN", 40, 0, 0, NULL);
+    int32_t g2 = sieda_add_component(p, 7, NULL, 160, 80, 0, NULL);
+    if (sieda_connect(p, l2, 0, r, 0) < 0 || sieda_connect(p, r, 1, g2, 0) < 0) return 6;
+    if (sieda_connect(p, v, 0, r, 0) != -1) return 7; /* wires never cross sheets */
+    {
+        char* dc = sieda_simulate_dc(p);
+        if (!dc || !strstr(dc, "\"converged\":true") || !strstr(dc, "\"name\":\"VIN\",\"voltage\":5")) return 8;
+        sieda_string_free(dc);
+    }
+    {
+        char* sheets = sieda_sheets_json(p);
+        if (!sheets || !strstr(sheets, "\"name\":\"Load\"") || !strstr(sheets, "\"components\":3")) return 9;
+        sieda_string_free(sheets);
+        char* snap = sieda_project_snapshot(p);
+        if (!snap || !strstr(snap, "\"sheets\":[") || !strstr(snap, "\"activeSheet\":")) return 10;
+        sieda_string_free(snap);
+    }
+    /* Hierarchy: a child sheet with a port, its entry on the parent. */
+    int32_t child = sieda_add_sheet(p, "Child", load);
+    if (child < 0 || !sieda_set_sheet_parent(p, child, load) || sieda_set_sheet_parent(p, load, child)) return 11;
+    sieda_set_active_sheet(p, child);
+    int32_t port = sieda_add_component(p, 15, "SIG", 0, 0, 0, NULL);
+    if (!sieda_set_label_scope(p, port, "port", 0) || sieda_set_label_scope(p, port, "bogus", 0)) return 12;
+    if (sieda_place_sheet_entries(p, child, 300, 0) != 1 || sieda_place_sheet_entries(p, power, 0, 0) != -1) return 13;
+    if (sieda_add_component(p, 15, "LOOSE", 0, 60, 0, NULL) < 0) return 14;
+    {
+        /* The port and its entry join (no dangling-label report for them); a loose label is reported with its sheet. */
+        char* erc = sieda_run_erc(p);
+        if (!erc || !strstr(erc, "\"code\":\"ERC_DANGLING_LABEL\"") || strstr(erc, "SIG") || !strstr(erc, "\"sheet\":")) return 14;
+        sieda_string_free(erc);
+    }
+    {
+        int32_t ids[1];
+        ids[0] = r;
+        if (sieda_move_to_sheet(p, ids, 1, power) != 1) return 15;
+        if (!sieda_reorder_sheet(p, child, 0)) return 16;
+    }
+    /* Buses. */
+    {
+        char* members = sieda_expand_bus("D[0..2]");
+        if (!members || strcmp(members, "[\"D0\",\"D1\",\"D2\"]") != 0) return 17;
+        sieda_string_free(members);
+        int32_t j = sieda_add_component(p, 12, NULL, 400, 0, 0, NULL);
+        int32_t pins[2] = {0, 1};
+        if (sieda_add_bus_labels(p, j, pins, 2, "A[1..0]", "local") != 2) return 18;
+        if (sieda_add_bus_labels(p, j, pins, 2, "A[0..5]", NULL) != -1) return 19;
+    }
+    /* Annotation. */
+    {
+        int32_t extra = sieda_add_component(p, 0, "2k", 0, 200, 0, "R1");
+        char* changed = sieda_annotate(p, "{\"order\":\"rows\",\"keepExisting\":true}");
+        if (!changed || !strstr(changed, "\"changed\":[{")) return 20;
+        sieda_string_free(changed);
+        if (sieda_find_component(p, "R1") < 0 || extra < 0) return 21;
+    }
+    /* Variants. */
+    if (!sieda_add_variant(p, "Lite", NULL) || sieda_add_variant(p, "Lite", NULL)) return 22;
+    if (!sieda_set_variant_part(p, "Lite", r, 0, NULL) || !sieda_set_variant_part(p, "Lite", r, 0, "4k7")) return 23;
+    if (sieda_set_variant_part(p, "Lite", g, 0, NULL)) return 24;
+    if (!sieda_add_variant(p, "Pro", "Lite") || !sieda_rename_variant(p, "Pro", "Full")) return 25;
+    if (!sieda_set_variant_description(p, "Full", "Everything fitted")) return 26;
+    {
+        char* bom = sieda_export_variant(p, "bom", "Lite");
+        if (!bom || !strstr(bom, "4k7") || !strstr(strchr(bom, 10), ",DNP\n")) return 27;
+        sieda_string_free(bom);
+        if (sieda_export_variant(p, "bom", "Nope") != NULL || sieda_export_variant(p, "gerber_top", "") != NULL) return 28;
+        char* base = sieda_export(p, "bom");
+        if (!base || strstr(strchr(base, 10), ",DNP\n")) return 29;
+        sieda_string_free(base);
+        if (!sieda_set_active_variant(p, "Lite") || sieda_set_active_variant(p, "Nope")) return 30;
+        char* active = sieda_export(p, "bom");
+        if (!active || !strstr(strchr(active, 10), ",DNP\n")) return 31;
+        sieda_string_free(active);
+        char* json = sieda_bom_json(p);
+        if (!json || !strstr(json, "\"dnp\":true")) return 32;
+        sieda_string_free(json);
+        char* list = sieda_variants_json(p);
+        if (!list || !strstr(list, "\"active\":\"Lite\"") || !strstr(list, "\"name\":\"Full\"")) return 33;
+        sieda_string_free(list);
+    }
+    /* Round trip. */
+    {
+        char* saved = sieda_project_save_json(p);
+        char* err = NULL;
+        SiedaProject* q = sieda_project_load_json(saved, &err);
+        sieda_string_free(saved);
+        if (!q || err) return 34;
+        char* list = sieda_variants_json(q);
+        if (!list || !strstr(list, "\"active\":\"Lite\"")) return 35;
+        sieda_string_free(list);
+        char* sheets = sieda_sheets_json(q);
+        if (!sheets || !strstr(sheets, "\"name\":\"Child\"")) return 36;
+        sieda_string_free(sheets);
+        sieda_project_free(q);
+    }
+    if (!sieda_remove_variant(p, "Lite") || sieda_remove_variant(p, "Lite")) return 37;
+    if (sieda_remove_sheet(p, power, 0)) return 38; /* still holds parts */
+    if (!sieda_remove_sheet(p, child, 1)) return 39;
+    sieda_project_free(p);
+    return 0;
+}

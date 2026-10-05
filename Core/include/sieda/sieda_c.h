@@ -291,6 +291,63 @@ void sieda_set_build_quantity(SiedaProject* project, int32_t quantity);
  * `base` names the files (NULL or "" = project name). Returns JSON {"ok":bool,"files":[…],"error":"…"}. */
 char* sieda_write_fabrication_package(const SiedaProject* project, const char* dir, const char* base);
 
+/* ---- sheets, hierarchy, buses, annotation -------------------------------------------------- */
+/* A design has one or more named sheets; components belong to one sheet and wires stay on it. Nets cross sheets
+ * through global net labels and ground symbols, and through hierarchical ports (labels with scope "port" on a child
+ * sheet) joined to sheet entries (scope "entry") on its parent sheet. Netlist, ERC, simulation and PCB always see the
+ * whole (flattened) design. New components are placed on the active sheet.
+ * {"active": id, "sheets":[{"id","name","parent" (0 = top level),"depth","components","ports":["…"]}]} */
+char* sieda_sheets_json(const SiedaProject* project);
+/* Adds a sheet (unique, non-empty name) under `parent` (0 = top level). Returns its id or -1. */
+int32_t sieda_add_sheet(SiedaProject* project, const char* name, int32_t parent);
+int32_t sieda_rename_sheet(SiedaProject* project, int32_t sheet, const char* name);
+/* Re-parents a sheet (0 = top level); 0 for a cycle. */
+int32_t sieda_set_sheet_parent(SiedaProject* project, int32_t sheet, int32_t parent);
+/* Moves a sheet to position `index` in the sheet order (tabs, annotation order). */
+int32_t sieda_reorder_sheet(SiedaProject* project, int32_t sheet, int32_t index);
+/* Removes a sheet; one that holds components only with delete_contents = 1. The last sheet stays. 1 on success. */
+int32_t sieda_remove_sheet(SiedaProject* project, int32_t sheet, int32_t delete_contents);
+/* The sheet new components go on. 1 on success. */
+int32_t sieda_set_active_sheet(SiedaProject* project, int32_t sheet);
+/* Moves `count` components to `sheet` (junctions joining only moved parts follow; wires that would cross sheets are
+ * removed). Returns the number moved. */
+int32_t sieda_move_to_sheet(SiedaProject* project, const int32_t* component_ids, int32_t count, int32_t sheet);
+/* Net label scope: "global" (default), "local" (its sheet only), "port" (hierarchical port) or "entry" (sheet entry
+ * into target_sheet). 1 on success. */
+int32_t sieda_set_label_scope(SiedaProject* project, int32_t component_id, const char* scope, int32_t target_sheet);
+/* Sheet symbol: adds a sheet entry on the parent sheet for every port of `child` that has none, stacked from (x, y).
+ * Returns the entries added, or -1 for an unknown or top-level sheet. */
+int32_t sieda_place_sheet_entries(SiedaProject* project, int32_t child, double x, double y);
+/* Bus notation ("D[0..7]", "A[15..12]", "D[0..3],WR") expanded to its members as a JSON array ("[]" if not a bus). */
+char* sieda_expand_bus(const char* bus);
+/* One net label per bus member on the given pins of a component (in order), placed outside each pin and wired.
+ * scope: "global", "local" or "port" (NULL = global). Returns the labels added or -1. */
+int32_t sieda_add_bus_labels(SiedaProject* project, int32_t component_id, const int32_t* pins, int32_t count,
+                             const char* bus, const char* scope);
+/* Re-numbers reference designators. options_json: {"order":"rows"|"columns","keepExisting":bool,
+ * "sheetNumbering":bool} (NULL = rows, renumber all). Returns {"changed":[{"component","from","to"}]}. */
+char* sieda_annotate(SiedaProject* project, const char* options_json);
+
+/* ---- design variants ----------------------------------------------------------------------- */
+/* Named assembly variants: per component fitted / not fitted (DNP) and value overrides. The active variant ("" =
+ * base design) drives sieda_bom_json, the "bom", "bom_assembly", "cpl", "pnp", "assembly_*" exports and the
+ * assembly files of the fabrication package. Variants never change connectivity, simulation or the board.
+ * {"active":"…","variants":[{"name","description","parts":[{"component","ref","fitted"?,"value"?}]}]} */
+char* sieda_variants_json(const SiedaProject* project);
+/* Adds a variant, optionally copying copy_from (NULL/"" = empty). 1 on success, 0 for an empty or taken name. */
+int32_t sieda_add_variant(SiedaProject* project, const char* name, const char* copy_from);
+int32_t sieda_rename_variant(SiedaProject* project, const char* name, const char* new_name);
+int32_t sieda_remove_variant(SiedaProject* project, const char* name);
+int32_t sieda_set_variant_description(SiedaProject* project, const char* name, const char* description);
+/* fitted: -1 as the base design, 0 not fitted (DNP), 1 fitted. value: NULL keeps the override, "" clears it. */
+int32_t sieda_set_variant_part(SiedaProject* project, const char* name, int32_t component_id, int32_t fitted,
+                               const char* value);
+/* "" or NULL selects the base design. 1 on success, 0 for an unknown variant. */
+int32_t sieda_set_active_variant(SiedaProject* project, const char* name);
+/* An assembly export ("bom", "bom_assembly", "cpl", "pnp", "assembly_top", "assembly_bottom") or the BOM JSON
+ * ("bom_json") for a given variant ("" = base design). NULL for an unknown format or variant. */
+char* sieda_export_variant(const SiedaProject* project, const char* format, const char* variant);
+
 /* ---- 3D ------------------------------------------------------------------------------------ */
 SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_components);
 /* Copper (tracks, pads, via lands) of one layer laid flat at Y = 0, for the X-ray layer-stack view. */

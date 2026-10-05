@@ -16,6 +16,7 @@
 "AI-native electronic design automation" = "Tự động hóa thiết kế điện tử dựa trên AI";
 "API key" = "Khóa API";
 "About" = "Giới thiệu";
+"Add Child Sheet" = "Thêm trang con";
 "Add Ground Pours" = "Thêm vùng đổ đồng GND";
 "Add Kit to Library" = "Thêm bộ kit vào thư viện";
 "Add Mesh" = "Thêm lưới";
@@ -25,6 +26,7 @@
 "Add Pour" = "Thêm vùng đổ đồng";
 "Add Thermal Vias" = "Thêm via tản nhiệt";
 "Add a pad like the last one (numbered next)" = "Thêm pad giống pad cuối (đánh số tiếp theo)";
+"Add a sheet (right-click a tab for more)" = "Thêm trang (nhấp chuột phải vào thẻ để xem thêm)";
 "Add every part of this kit to the project library so it shows in the device picker" = "Thêm mọi linh kiện của bộ kit này vào thư viện dự án để hiển thị trong bộ chọn thiết bị";
 "Add serpentine (accordion) tuning to the short members of each group" = "Thêm đường serpentine (accordion) để tinh chỉnh các thành viên ngắn trong mỗi nhóm";
 "Aerospace Mission" = "Nhiệm vụ hàng không vũ trụ";
@@ -34,6 +36,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "Bước thời gian analog: nhỏ hơn phân giải tín hiệu nhanh hơn, lớn hơn chạy nhanh hơn";
 "Analysis" = "Phân tích";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "Cài đặt sẵn phân tích — firmware vi điều khiển cần thời gian chạy dài hơn (vd: 1 s ở 100 µs)";
+"Annotate" = "Đánh số linh kiện";
 "Appearance" = "Giao diện";
 "Appliance Type" = "Loại thiết bị gia dụng";
 "Apply" = "Áp dụng";
@@ -44,6 +47,7 @@
 "Arranged symbol" = "Ký hiệu đã sắp xếp";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "Yêu cầu thay đổi — “đổi LED sang màu xanh lá và cấp nguồn 3.3 V”";
 "Assembly" = "Lắp ráp";
+"Assembly variant for the BOM, CPL and assembly drawings" = "Biến thể lắp ráp cho BOM, CPL và bản vẽ lắp ráp";
 "Audience (optional)" = "Đối tượng (tùy chọn)";
 "Auto Arrange" = "Tự động sắp xếp";
 "Auto Route" = "Tự động đi dây";
@@ -56,6 +60,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM để lắp ráp (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "Khoan ngược stub via trên các net tốc độ cao";
+"Base Design" = "Thiết kế gốc";
 "Base URL" = "URL gốc";
 "Bill of Materials" = "Danh mục vật tư";
 "Bill of Materials (CSV)…" = "Danh mục vật tư (CSV)…";
@@ -107,6 +112,8 @@
 "Default provider" = "Nhà cung cấp mặc định";
 "Delete" = "Xóa";
 "Delete Part" = "Xóa linh kiện";
+"Delete Sheet" = "Xóa trang";
+"Delete Variant" = "Xóa biến thể";
 "Delete Wire" = "Xóa dây";
 "Describe your product" = "Mô tả sản phẩm của bạn";
 "Description" = "Mô tả";
@@ -150,11 +157,14 @@
 "Finish the login in your browser…" = "Hoàn tất đăng nhập trong trình duyệt…";
 "Firmware — 1 s, 100 µs" = "Firmware — 1 s, 100 µs";
 "Fit Board to Components" = "Khớp bo mạch với linh kiện";
+"Fitted" = "Lắp";
+"Fix Duplicates Only" = "Chỉ sửa trùng lặp";
 "Flip" = "Lật";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Footprint lắp linh kiện: kích thước chip, xuyên lỗ, vỏ tantalum hoặc tụ hóa";
 "Gap Before" = "Khoảng trống phía trước";
 "Generate Design" = "Tạo thiết kế";
 "Give each selected pin its own slot" = "Đặt mỗi chân đã chọn vào một vị trí riêng";
+"Global" = "Toàn cục";
 "Global semiconductor countries" = "Các quốc gia bán dẫn toàn cầu";
 "Google Cloud project ID" = "ID dự án Google Cloud";
 "Grid" = "Lưới";
@@ -194,6 +204,7 @@
 "Loading memory & system design kits" = "Đang tải bộ kit thiết kế bộ nhớ & hệ thống";
 "Loading reference designs" = "Đang tải thiết kế tham chiếu";
 "Loading the component library" = "Đang tải thư viện linh kiện";
+"Local (this sheet)" = "Cục bộ (trang này)";
 "Locked (Auto Place keeps it)" = "Đã khóa (Tự động đặt giữ nguyên)";
 "Long firmware run — 5 s, 500 µs" = "Chạy firmware dài — 5 s, 500 µs";
 "Mask" = "Mặt nạ";
@@ -205,6 +216,7 @@
 "Model" = "Mô hình";
 "Model back-ends" = "Back-end mô hình";
 "Mounting" = "Lắp đặt";
+"Move Selection Here" = "Di chuyển vùng chọn đến đây";
 "Move the footprint origin to the centre of the pads" = "Di chuyển gốc footprint về tâm các pad";
 "Move the pad in the numbering; pads between shift by one" = "Di chuyển pad trong thứ tự đánh số; các pad ở giữa dịch đi một";
 "NAVIGATOR" = "BỘ ĐIỀU HƯỚNG";
@@ -214,6 +226,8 @@
 "Nets" = "Net";
 "Nets (%lld)" = "Net (%lld)";
 "New Project" = "Dự án mới";
+"New Variant" = "Biến thể mới";
+"New Variant…" = "Biến thể mới…";
 "New blank part" = "Linh kiện trống mới";
 "New from Example" = "Tạo mới từ mẫu";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Thiết kế này không có cặp vi sai (…_P/_N, …+/-) hoặc bus (DQ0…, DATA[0..7], ADDR…).";
@@ -233,6 +247,9 @@
 "Not naval" = "Không phải hải quân";
 "Not placed yet" = "Chưa được đặt";
 "Not retail" = "Không phải bán lẻ";
+"Number by Columns" = "Đánh số theo cột";
+"Number by Rows" = "Đánh số theo hàng";
+"Number by Sheet (R101, R201…)" = "Đánh số theo trang (R101, R201…)";
 "OBJ with vertex colours" = "OBJ có màu đỉnh";
 "OK" = "OK";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "Tắt: SiEDA hoạt động như một công cụ EDA thủ công truyền thống. Vẽ sơ đồ, mô phỏng, đi dây PCB, 3D, phân tích datasheet và xuất tệp đều chạy cục bộ, không có gì được gửi đến bất kỳ dịch vụ AI nào.";
@@ -256,9 +273,11 @@
 "Pin" = "Chân";
 "Pins: " = "Chân: ";
 "Place Now" = "Đặt ngay";
+"Place Sheet Symbol" = "Đặt ký hiệu trang";
 "Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)" = "Đặt các footprint chưa đặt vào trong đường viền bo, sau đó đi dây mọi kết nối và kiểm tra DRC (⇧⌘R)";
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "Sắp xếp linh kiện, đi dây, vùng đổ đồng, DRC, Gerber Edge.Cuts và bo mạch 3D tuân theo đường viền. ";
 "Plane" = "Mặt phẳng";
+"Port (to parent sheet)" = "Cổng (tới trang cha)";
 "Preview appears once the part has a name and pins." = "Bản xem trước xuất hiện khi linh kiện có tên và chân.";
 "Project Library" = "Thư viện dự án";
 "Project name" = "Tên dự án";
@@ -272,6 +291,8 @@
 "Remove the empty slots on every side" = "Xóa các vị trí trống ở mọi cạnh";
 "Remove the firmware" = "Gỡ firmware";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "Loại bỏ phần thân via không dùng bên dưới lớp kết nối cuối cùng (≥ 4 lớp); thêm tệp khoan ngược";
+"Rename Sheet" = "Đổi tên trang";
+"Rename Sheet…" = "Đổi tên trang…";
 "Renumber" = "Đánh số lại";
 "Reserve the layer for this net: other nets only pass through it with vias" = "Dành riêng lớp cho net này: các net khác chỉ đi qua bằng via";
 "Reset View" = "Đặt lại khung nhìn";
@@ -304,6 +325,7 @@
 "Schematic" = "Sơ đồ nguyên lý";
 "Schematic capture · SPICE-class simulation · PCB autorouting · DRC · 3D · Gerber/Excellon export" = "Vẽ sơ đồ · Mô phỏng cấp SPICE · Tự động đi dây PCB · DRC · 3D · Xuất Gerber/Excellon";
 "Schematic · Simulation · PCB · 3D · Fabrication" = "Sơ đồ · Mô phỏng · PCB · 3D · Sản xuất";
+"Scope" = "Phạm vi";
 "Scope, serial monitor and switches" = "Máy hiện sóng, màn hình serial và công tắc";
 "Scopes" = "Máy hiện sóng";
 "Scroll or pinch to zoom" = "Cuộn hoặc chụm để thu phóng";
@@ -317,6 +339,8 @@
 "Serial output — 200 ms, 10 µs" = "Đầu ra serial — 200 ms, 10 µs";
 "Set" = "Đặt";
 "Shape" = "Hình dạng";
+"Sheet" = "Trang";
+"Sheet name" = "Tên trang";
 "Show" = "Hiển thị";
 "Show Crash Reports" = "Hiển thị báo cáo sự cố";
 "Show Navigator" = "Hiển thị bộ điều hướng";
@@ -376,6 +400,7 @@
 "Validate" = "Xác thực";
 "Validate Circuit" = "Xác thực mạch";
 "Value" = "Giá trị";
+"Variant name" = "Tên biến thể";
 "Verify Design" = "Xác minh thiết kế";
 "Vertex AI region" = "Vùng Vertex AI";
 "Via-in-pad plated over (VIPPO, IPC-4761 Type VII)" = "Via-in-pad mạ phủ (VIPPO, IPC-4761 Type VII)";

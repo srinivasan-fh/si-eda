@@ -16,6 +16,7 @@
 "AI-native electronic design automation" = "AI-ନେଟିଭ୍ ଇଲେକ୍ଟ୍ରୋନିକ୍ ଡିଜାଇନ୍ ଅଟୋମେସନ୍";
 "API key" = "API କି";
 "About" = "ବିଷୟରେ";
+"Add Child Sheet" = "ଚାଇଲ୍ଡ ସିଟ୍ ଯୋଡ଼ନ୍ତୁ";
 "Add Ground Pours" = "ଗ୍ରାଉଣ୍ଡ ପୋର୍ ଯୋଡନ୍ତୁ";
 "Add Kit to Library" = "କିଟ୍‌କୁ ଲାଇବ୍ରେରୀରେ ଯୋଡନ୍ତୁ";
 "Add Mesh" = "ମେସ୍ ଯୋଡନ୍ତୁ";
@@ -25,6 +26,7 @@
 "Add Pour" = "ପୋର୍ ଯୋଡନ୍ତୁ";
 "Add Thermal Vias" = "ଥର୍ମାଲ୍ ଭାୟା ଯୋଡନ୍ତୁ";
 "Add a pad like the last one (numbered next)" = "ଶେଷଟି ଭଳି ଏକ ପ୍ୟାଡ୍ ଯୋଡନ୍ତୁ (ପରବର୍ତ୍ତୀ ନମ୍ବର ସହ)";
+"Add a sheet (right-click a tab for more)" = "ସିଟ୍ ଯୋଡ଼ନ୍ତୁ (ଅଧିକ ପାଇଁ ଟ୍ୟାବ୍‌ରେ ରାଇଟ୍-କ୍ଲିକ୍ କରନ୍ତୁ)";
 "Add every part of this kit to the project library so it shows in the device picker" = "ଏହି କିଟ୍‌ର ସମସ୍ତ ପାର୍ଟ ପ୍ରୋଜେକ୍ଟ ଲାଇବ୍ରେରୀରେ ଯୋଡନ୍ତୁ ଯାହାଦ୍ୱାରା ସେଗୁଡ଼ିକ ଡିଭାଇସ୍ ପିକରରେ ଦେଖାଯିବ";
 "Add serpentine (accordion) tuning to the short members of each group" = "ପ୍ରତ୍ୟେକ ଗ୍ରୁପ୍‌ର ଛୋଟ ସଦସ୍ୟମାନଙ୍କରେ ସର୍ପେଣ୍ଟାଇନ୍ (ଆକର୍ଡିଅନ୍) ଟ୍ୟୁନିଂ ଯୋଡନ୍ତୁ";
 "Aerospace Mission" = "ଏରୋସ୍ପେସ୍ ମିସନ୍";
@@ -34,6 +36,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "ଆନାଲଗ୍ ଟାଇମ୍ ଷ୍ଟେପ୍: ସୂକ୍ଷ୍ମ ଦ୍ରୁତ ସିଗନାଲ୍ ସ୍ପଷ୍ଟ କରେ, ମୋଟା ଶୀଘ୍ର ଚାଲେ";
 "Analysis" = "ବିଶ୍ଳେଷଣ";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "ବିଶ୍ଳେଷଣ ପ୍ରିସେଟ୍ — ମାଇକ୍ରୋକଣ୍ଟ୍ରୋଲର୍ ଫର୍ମୱେୟାରକୁ ଲମ୍ବା ରନ୍ ଦରକାର (ଯଥା 100 µs ରେ 1 s)";
+"Annotate" = "ଆନୋଟେଟ୍ କରନ୍ତୁ";
 "Appearance" = "ଦୃଶ୍ୟରୂପ";
 "Appliance Type" = "ଉପକରଣ ପ୍ରକାର";
 "Apply" = "ପ୍ରୟୋଗ କରନ୍ତୁ";
@@ -44,6 +47,7 @@
 "Arranged symbol" = "ସଜାଯାଇଥିବା ସିମ୍ବଲ୍";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "ଏକ ପରିବର୍ତ୍ତନ ମାଗନ୍ତୁ — “LED କୁ ସବୁଜ କରନ୍ତୁ ଏବଂ 3.3 V ରୁ ଚଲାନ୍ତୁ”";
 "Assembly" = "ଆସେମ୍ବ୍ଲି";
+"Assembly variant for the BOM, CPL and assembly drawings" = "BOM, CPL ଓ ଆସେମ୍ବ୍ଲି ଡ୍ରଇଂ ପାଇଁ ଆସେମ୍ବ୍ଲି ଭାରିଆଣ୍ଟ";
 "Audience (optional)" = "ଦର୍ଶକ (ଇଚ୍ଛାଧୀନ)";
 "Auto Arrange" = "ଅଟୋ ଆରେଞ୍ଜ";
 "Auto Route" = "ଅଟୋ ରୁଟ୍";
@@ -56,6 +60,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "ଆସେମ୍ବ୍ଲି ପାଇଁ BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "ଦ୍ରୁତ ନେଟ୍‌ରେ ଭାୟା ଷ୍ଟବ୍ ବ୍ୟାକଡ୍ରିଲ୍ କରନ୍ତୁ";
+"Base Design" = "ମୂଳ ଡିଜାଇନ୍";
 "Base URL" = "ବେସ୍ URL";
 "Bill of Materials" = "ବିଲ୍ ଅଫ୍ ମେଟେରିଆଲ୍ସ";
 "Bill of Materials (CSV)…" = "ବିଲ୍ ଅଫ୍ ମେଟେରିଆଲ୍ସ (CSV)…";
@@ -107,6 +112,8 @@
 "Default provider" = "ଡିଫଲ୍ଟ ପ୍ରଦାତା";
 "Delete" = "ଡିଲିଟ୍ କରନ୍ତୁ";
 "Delete Part" = "ପାର୍ଟ ଡିଲିଟ୍ କରନ୍ତୁ";
+"Delete Sheet" = "ସିଟ୍ ଡିଲିଟ୍ କରନ୍ତୁ";
+"Delete Variant" = "ଭାରିଆଣ୍ଟ ଡିଲିଟ୍ କରନ୍ତୁ";
 "Delete Wire" = "ୱାୟାର୍ ଡିଲିଟ୍ କରନ୍ତୁ";
 "Describe your product" = "ଆପଣଙ୍କ ଉତ୍ପାଦ ବର୍ଣ୍ଣନା କରନ୍ତୁ";
 "Description" = "ବର୍ଣ୍ଣନା";
@@ -150,11 +157,14 @@
 "Finish the login in your browser…" = "ଆପଣଙ୍କ ବ୍ରାଉଜରରେ ଲଗଇନ୍ ସମାପ୍ତ କରନ୍ତୁ…";
 "Firmware — 1 s, 100 µs" = "ଫର୍ମୱେୟାର — 1 s, 100 µs";
 "Fit Board to Components" = "ବୋର୍ଡକୁ କମ୍ପୋନେଣ୍ଟ ଅନୁସାରେ ଫିଟ୍ କରନ୍ତୁ";
+"Fitted" = "ଲଗାଯାଇଛି";
+"Fix Duplicates Only" = "କେବଳ ଡୁପ୍ଲିକେଟ୍ ଠିକ୍ କରନ୍ତୁ";
 "Flip" = "ଓଲଟାନ୍ତୁ";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "ପାର୍ଟ ଲାଗୁଥିବା ଫୁଟପ୍ରିଣ୍ଟ: ଚିପ୍ ସାଇଜ୍, ଥ୍ରୁ-ହୋଲ୍, ଟାଣ୍ଟାଲମ୍ ବା ଇଲେକ୍ଟ୍ରୋଲାଇଟିକ୍ କେସ୍";
 "Gap Before" = "ପୂର୍ବରୁ ଫାଙ୍କ";
 "Generate Design" = "ଡିଜାଇନ୍ ସୃଷ୍ଟି କରନ୍ତୁ";
 "Give each selected pin its own slot" = "ପ୍ରତ୍ୟେକ ବଛାଯାଇଥିବା ପିନ୍‌କୁ ନିଜର ସ୍ଲଟ୍ ଦିଅନ୍ତୁ";
+"Global" = "ଗ୍ଲୋବାଲ୍";
 "Global semiconductor countries" = "ବିଶ୍ୱ ସେମିକଣ୍ଡକ୍ଟର ଦେଶ";
 "Google Cloud project ID" = "Google Cloud ପ୍ରୋଜେକ୍ଟ ID";
 "Grid" = "ଗ୍ରିଡ୍";
@@ -194,6 +204,7 @@
 "Loading memory & system design kits" = "ମେମୋରୀ ଓ ସିଷ୍ଟମ୍ ଡିଜାଇନ୍ କିଟ୍ ଲୋଡ୍ ହେଉଛି";
 "Loading reference designs" = "ରେଫରେନ୍ସ ଡିଜାଇନ୍ ଲୋଡ୍ ହେଉଛି";
 "Loading the component library" = "କମ୍ପୋନେଣ୍ଟ ଲାଇବ୍ରେରୀ ଲୋଡ୍ ହେଉଛି";
+"Local (this sheet)" = "ଲୋକାଲ୍ (ଏହି ସିଟ୍)";
 "Locked (Auto Place keeps it)" = "ଲକ୍ ହୋଇଛି (ଅଟୋ ପ୍ଲେସ୍ ଏହାକୁ ରଖେ)";
 "Long firmware run — 5 s, 500 µs" = "ଲମ୍ବା ଫର୍ମୱେୟାର ରନ୍ — 5 s, 500 µs";
 "Mask" = "ମାସ୍କ";
@@ -205,6 +216,7 @@
 "Model" = "ମଡେଲ୍";
 "Model back-ends" = "ମଡେଲ୍ ବ୍ୟାକ୍-ଏଣ୍ଡ";
 "Mounting" = "ମାଉଣ୍ଟିଂ";
+"Move Selection Here" = "ଚୟନକୁ ଏଠାକୁ ଘୁଞ୍ଚାନ୍ତୁ";
 "Move the footprint origin to the centre of the pads" = "ଫୁଟପ୍ରିଣ୍ଟ ଅରିଜିନ୍ ପ୍ୟାଡ୍‌ଗୁଡ଼ିକର କେନ୍ଦ୍ରକୁ ଘୁଞ୍ଚାନ୍ତୁ";
 "Move the pad in the numbering; pads between shift by one" = "ନମ୍ବରିଂରେ ପ୍ୟାଡ୍ ଘୁଞ୍ଚାନ୍ତୁ; ମଝିରେ ଥିବା ପ୍ୟାଡ୍ ଗୋଟିଏ ଲେଖାଏଁ ଘୁଞ୍ଚିଯାଏ";
 "NAVIGATOR" = "ନେଭିଗେଟର୍";
@@ -214,6 +226,8 @@
 "Nets" = "ନେଟ୍";
 "Nets (%lld)" = "ନେଟ୍ (%lld)";
 "New Project" = "ନୂଆ ପ୍ରୋଜେକ୍ଟ";
+"New Variant" = "ନୂଆ ଭାରିଆଣ୍ଟ";
+"New Variant…" = "ନୂଆ ଭାରିଆଣ୍ଟ…";
 "New blank part" = "ନୂଆ ଖାଲି ପାର୍ଟ";
 "New from Example" = "ଉଦାହରଣରୁ ନୂଆ";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "ଏହି ଡିଜାଇନରେ କୌଣସି ଡିଫରେନ୍ସିଆଲ୍ ପେୟାର୍ (…_P/_N, …+/-) ବା ବସ୍ (DQ0…, DATA[0..7], ADDR…) ନାହିଁ।";
@@ -233,6 +247,9 @@
 "Not naval" = "ନୌସେନା ନୁହେଁ";
 "Not placed yet" = "ଏପର୍ଯ୍ୟନ୍ତ ରଖାଯାଇନାହିଁ";
 "Not retail" = "ରିଟେଲ୍ ନୁହେଁ";
+"Number by Columns" = "ସ୍ତମ୍ଭ ଅନୁସାରେ ନମ୍ବର ଦିଅନ୍ତୁ";
+"Number by Rows" = "ଧାଡ଼ି ଅନୁସାରେ ନମ୍ବର ଦିଅନ୍ତୁ";
+"Number by Sheet (R101, R201…)" = "ସିଟ୍ ଅନୁସାରେ ନମ୍ବର ଦିଅନ୍ତୁ (R101, R201…)";
 "OBJ with vertex colours" = "ଭର୍ଟେକ୍ସ ରଙ୍ଗ ସହିତ OBJ";
 "OK" = "ଠିକ ଅଛି";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "ବନ୍ଦ: SiEDA ଏକ କ୍ଲାସିକ୍ ମାନୁଆଲ୍ EDA ଟୁଲ୍ ଭାବେ କାମ କରେ। ସ୍କିମାଟିକ୍ କ୍ୟାପଚର୍, ସିମୁଲେସନ୍, PCB ରାଉଟିଂ, 3D, ଡାଟାସିଟ୍ ପାର୍ସିଂ ଏବଂ ଏକ୍ସପୋର୍ଟ ସବୁ ସ୍ଥାନୀୟ ଭାବେ ଚାଲେ, ଏବଂ କୌଣସି AI ସେବାକୁ କିଛି ପଠାଯାଏ ନାହିଁ।";
@@ -256,9 +273,11 @@
 "Pin" = "ପିନ୍";
 "Pins: " = "ପିନ୍: ";
 "Place Now" = "ବର୍ତ୍ତମାନ ରଖନ୍ତୁ";
+"Place Sheet Symbol" = "ସିଟ୍ ସିମ୍ବଲ୍ ରଖନ୍ତୁ";
 "Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)" = "ରଖାଯାଇନଥିବା ଫୁଟପ୍ରିଣ୍ଟ ବୋର୍ଡ ଆଉଟଲାଇନ୍ ଭିତରେ ରଖନ୍ତୁ, ତାପରେ ସମସ୍ତ ସଂଯୋଗ ରୁଟ୍ କରି DRC ଯାଞ୍ଚ କରନ୍ତୁ (⇧⌘R)";
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "ପ୍ଲେସମେଣ୍ଟ, ରାଉଟିଂ, ପୋର୍, DRC, Gerber Edge.Cuts ଏବଂ 3D ବୋର୍ଡ ଆଉଟଲାଇନ୍ ଅନୁସରଣ କରେ। ";
 "Plane" = "ପ୍ଲେନ୍";
+"Port (to parent sheet)" = "ପୋର୍ଟ (ପ୍ୟାରେଣ୍ଟ ସିଟ୍‌କୁ)";
 "Preview appears once the part has a name and pins." = "ପାର୍ଟର ନାମ ଓ ପିନ୍ ହେବା ପରେ ପ୍ରିଭ୍ୟୁ ଦେଖାଯିବ।";
 "Project Library" = "ପ୍ରୋଜେକ୍ଟ ଲାଇବ୍ରେରୀ";
 "Project name" = "ପ୍ରୋଜେକ୍ଟ ନାମ";
@@ -272,6 +291,8 @@
 "Remove the empty slots on every side" = "ସମସ୍ତ ପାର୍ଶ୍ୱରୁ ଖାଲି ସ୍ଲଟ୍ ହଟାନ୍ତୁ";
 "Remove the firmware" = "ଫର୍ମୱେୟାର ହଟାନ୍ତୁ";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "ଶେଷ ସଂଯୁକ୍ତ ଲେୟର ତଳେ ଅବ୍ୟବହୃତ ଭାୟା ବ୍ୟାରେଲ୍ ହଟାଏ (≥ 4 ଲେୟର); ଏକ ବ୍ୟାକ୍-ଡ୍ରିଲ୍ ଫାଇଲ୍ ଯୋଡେ";
+"Rename Sheet" = "ସିଟ୍‌ର ନାମ ବଦଳାନ୍ତୁ";
+"Rename Sheet…" = "ସିଟ୍‌ର ନାମ ବଦଳାନ୍ତୁ…";
 "Renumber" = "ପୁନଃ ନମ୍ବର ଦିଅନ୍ତୁ";
 "Reserve the layer for this net: other nets only pass through it with vias" = "ଏହି ନେଟ୍ ପାଇଁ ଲେୟର ସଂରକ୍ଷଣ କରନ୍ତୁ: ଅନ୍ୟ ନେଟ୍ କେବଳ ଭାୟା ଦେଇ ଏହା ଦେଇ ଯାଏ";
 "Reset View" = "ଭ୍ୟୁ ରିସେଟ୍ କରନ୍ତୁ";
@@ -304,6 +325,7 @@
 "Schematic" = "ସ୍କିମାଟିକ୍";
 "Schematic capture · SPICE-class simulation · PCB autorouting · DRC · 3D · Gerber/Excellon export" = "ସ୍କିମାଟିକ୍ କ୍ୟାପଚର୍ · SPICE-ଶ୍ରେଣୀ ସିମୁଲେସନ୍ · PCB ଅଟୋରାଉଟିଂ · DRC · 3D · Gerber/Excellon ଏକ୍ସପୋର୍ଟ";
 "Schematic · Simulation · PCB · 3D · Fabrication" = "ସ୍କିମାଟିକ୍ · ସିମୁଲେସନ୍ · PCB · 3D · ଫ୍ୟାବ୍ରିକେସନ୍";
+"Scope" = "ପରିସର";
 "Scope, serial monitor and switches" = "ସ୍କୋପ୍, ସିରିଆଲ୍ ମନିଟର୍ ଓ ସୁଇଚ୍";
 "Scopes" = "ସ୍କୋପ୍";
 "Scroll or pinch to zoom" = "ଜୁମ୍ କରିବାକୁ ସ୍କ୍ରୋଲ୍ ବା ପିଞ୍ଚ କରନ୍ତୁ";
@@ -317,6 +339,8 @@
 "Serial output — 200 ms, 10 µs" = "ସିରିଆଲ୍ ଆଉଟପୁଟ୍ — 200 ms, 10 µs";
 "Set" = "ସେଟ୍ କରନ୍ତୁ";
 "Shape" = "ଆକୃତି";
+"Sheet" = "ସିଟ୍";
+"Sheet name" = "ସିଟ୍‌ର ନାମ";
 "Show" = "ଦେଖାନ୍ତୁ";
 "Show Crash Reports" = "କ୍ରାସ୍ ରିପୋର୍ଟ ଦେଖାନ୍ତୁ";
 "Show Navigator" = "ନେଭିଗେଟର୍ ଦେଖାନ୍ତୁ";
@@ -376,6 +400,7 @@
 "Validate" = "ବୈଧତା ଯାଞ୍ଚ କରନ୍ତୁ";
 "Validate Circuit" = "ସର୍କିଟ୍ ବୈଧତା ଯାଞ୍ଚ କରନ୍ତୁ";
 "Value" = "ମୂଲ୍ୟ";
+"Variant name" = "ଭାରିଆଣ୍ଟର ନାମ";
 "Verify Design" = "ଡିଜାଇନ୍ ଭେରିଫାଇ କରନ୍ତୁ";
 "Vertex AI region" = "Vertex AI ଅଞ୍ଚଳ";
 "Via-in-pad plated over (VIPPO, IPC-4761 Type VII)" = "ପ୍ଲେଟ୍ କରି ଢାଙ୍କାଯାଇଥିବା ଭାୟା-ଇନ୍-ପ୍ୟାଡ୍ (VIPPO, IPC-4761 Type VII)";

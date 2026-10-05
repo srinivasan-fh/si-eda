@@ -47,7 +47,7 @@ struct SchematicCanvas: View {
             .contentShape(Rectangle())
             .accessibilityElement()
             .accessibilityLabel("Schematic canvas")
-            .accessibilityValue("\(store.snapshot.components.count) components, \(store.snapshot.wires.count) wires, "
+            .accessibilityValue("\(store.sheetSnapshot.components.count) components, \(store.sheetSnapshot.wires.count) wires, "
                 + "\(store.selection.count) selected")
             .gesture(dragGesture)
             .simultaneousGesture(
@@ -178,15 +178,15 @@ struct SchematicCanvas: View {
     }
 
     private func fitToContent(size: CGSize) {
-        let rect = Self.componentBounds(store.snapshot).reduce(CGRect.null) { $0.union($1.rect) }
+        let rect = Self.componentBounds(store.sheetSnapshot).reduce(CGRect.null) { $0.union($1.rect) }
         guard !rect.isNull else { return }
         viewport.fit(rect.insetBy(dx: -30, dy: -30), in: size, limits: scaleLimits)
     }
 
     private func fitSelection(size: CGSize) {
-        var rect = Self.componentBounds(store.snapshot).filter { store.selection.contains($0.id) }
+        var rect = Self.componentBounds(store.sheetSnapshot).filter { store.selection.contains($0.id) }
             .reduce(CGRect.null) { $0.union($1.rect) }
-        if let id = store.selectedWire, let w = store.snapshot.wires.first(where: { $0.id == id }) {
+        if let id = store.selectedWire, let w = store.sheetSnapshot.wires.first(where: { $0.id == id }) {
             rect = rect.union(CGRect(origin: w.start, size: .zero).union(CGRect(origin: w.end, size: .zero)))
         }
         guard !rect.isNull else { return fitToContent(size: size) }
@@ -198,7 +198,7 @@ struct SchematicCanvas: View {
     /// The pin under `world`. Junctions count as pins when wiring; in the select tool they are dragged instead.
     private func pin(at world: CGPoint, includeJunctions: Bool = true) -> (PinAddress, CGPoint)? {
         var best: (PinAddress, CGPoint, CGFloat)?
-        for c in store.snapshot.components where includeJunctions || c.componentKind != .junction {
+        for c in store.sheetSnapshot.components where includeJunctions || c.componentKind != .junction {
             for (i, p) in c.pins.enumerated() {
                 let d = hypot(CGFloat(p.x) - world.x, CGFloat(p.y) - world.y)
                 if d <= pickTolerance, d < (best?.2 ?? .greatestFiniteMagnitude) {
@@ -210,9 +210,9 @@ struct SchematicCanvas: View {
     }
 
     private func component(at world: CGPoint) -> Int? {
-        for c in store.snapshot.components.reversed() {
+        for c in store.sheetSnapshot.components.reversed() {
             let t = SchematicSymbols.transform(position: c.position, rotation: c.rotation).inverted()
-            if SchematicSymbols.bounds(c.componentKind, value: c.value, custom: store.snapshot.customPart(for: c)).contains(world.applying(t)) {
+            if SchematicSymbols.bounds(c.componentKind, value: c.value, custom: store.sheetSnapshot.customPart(for: c)).contains(world.applying(t)) {
                 return c.id
             }
         }
@@ -224,7 +224,7 @@ struct SchematicCanvas: View {
     /// The wire under `world` and the point on it (on the grid) where a T-junction would go.
     private func wireHit(at world: CGPoint) -> (id: Int, point: CGPoint)? {
         var best: (id: Int, point: CGPoint, distance: CGFloat)?
-        for w in store.snapshot.wires {
+        for w in store.sheetSnapshot.wires {
             let hit = WireGeometry.nearestPoint(on: w, to: world)
             if hit.distance <= pickTolerance, hit.distance < (best?.distance ?? .greatestFiniteMagnitude) {
                 best = (w.id, hit.point, hit.distance)
@@ -236,7 +236,7 @@ struct SchematicCanvas: View {
     private func wire(at world: CGPoint) -> Int? { wireHit(at: world)?.id }
 
     private func pinPosition(_ address: PinAddress) -> CGPoint? {
-        guard let c = store.snapshot.component(address.component), address.pin < c.pins.count else { return nil }
+        guard let c = store.sheetSnapshot.component(address.component), address.pin < c.pins.count else { return nil }
         return c.pins[address.pin].point
     }
 
@@ -245,7 +245,7 @@ struct SchematicCanvas: View {
         switch end {
         case .pin(let address): return pinPosition(address)
         case .wire(let id, let near):
-            return store.snapshot.wires.first { $0.id == id }.map { WireGeometry.nearestPoint(on: $0, to: near).point }
+            return store.sheetSnapshot.wires.first { $0.id == id }.map { WireGeometry.nearestPoint(on: $0, to: near).point }
         case .point(let p): return SchematicAutoLayout.snap(p)
         }
     }
@@ -254,7 +254,7 @@ struct SchematicCanvas: View {
     private func describe(_ end: WireEnd) -> String? {
         switch end {
         case .pin(let address):
-            guard let c = store.snapshot.component(address.component), address.pin < c.pins.count else { return nil }
+            guard let c = store.sheetSnapshot.component(address.component), address.pin < c.pins.count else { return nil }
             return c.componentKind == .junction ? "a wire corner" : "\(c.ref).\(c.pins[address.pin].name)"
         case .wire: return "a wire"
         case .point: return nil
@@ -343,7 +343,7 @@ struct SchematicCanvas: View {
                             let b = viewport.toWorld(CGPoint(x: rect.maxX, y: rect.maxY))
                             let worldRect = CGRect(origin: a, size: .zero).union(CGRect(origin: b, size: .zero))
                             // ⇧-drag adds every part the box touches to the selection.
-                            let boxed = Self.componentBounds(store.snapshot).filter { $0.rect.intersects(worldRect) }.map(\.id)
+                            let boxed = Self.componentBounds(store.sheetSnapshot).filter { $0.rect.intersects(worldRect) }.map(\.id)
                             store.selection.formUnion(boxed)
                             store.selectedWire = nil
                         }
@@ -369,7 +369,7 @@ struct SchematicCanvas: View {
         }
         let world = viewport.toWorld(screen)
         // While the board runs live, switches and push-buttons are operated, not edited.
-        if live.isRunning, let id = component(at: world), store.snapshot.component(id)?.componentKind == .switchSPST {
+        if live.isRunning, let id = component(at: world), store.sheetSnapshot.component(id)?.componentKind == .switchSPST {
             live.press(id, pressed: true)
             dragMode = .livePress(id)
             return
@@ -435,7 +435,7 @@ struct SchematicCanvas: View {
             }
             if let id = component(at: world) {
                 // Clicking a switch's lever flips it (like the real thing); the rest of its body just selects.
-                if !NSEvent.modifierFlags.contains(.shift), let c = store.snapshot.component(id), c.componentKind == .switchSPST {
+                if !NSEvent.modifierFlags.contains(.shift), let c = store.sheetSnapshot.component(id), c.componentKind == .switchSPST {
                     let local = world.applying(SchematicSymbols.transform(position: c.position, rotation: c.rotation).inverted())
                     if abs(local.x) <= 16 && abs(local.y) <= 14 { store.toggleSwitch(id) }
                 }
@@ -450,7 +450,7 @@ struct SchematicCanvas: View {
     }
 
     private func isJunction(_ end: WireEnd) -> Bool {
-        if case .pin(let address) = end { return store.snapshot.component(address.component)?.componentKind == .junction }
+        if case .pin(let address) = end { return store.sheetSnapshot.component(address.component)?.componentKind == .junction }
         return false
     }
 
@@ -476,7 +476,7 @@ struct SchematicCanvas: View {
     }
 
     private func draw(_ ctx: inout GraphicsContext, size: CGSize) {
-        let snap = store.snapshot
+        let snap = store.sheetSnapshot
         ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Theme.schematicBackground))
         drawGrid(&ctx, size: size)
 
@@ -552,6 +552,30 @@ struct SchematicCanvas: View {
             } else if let h = hover, tool == .select, hypot(h.x - s.x, h.y - s.y) < 10 {
                 // A bend shows a handle under the pointer: drag it to reshape the wire.
                 ctx.stroke(Path(CGRect(x: s.x - 3.5, y: s.y - 3.5, width: 7, height: 7)), with: .color(Theme.skyBlue), lineWidth: 1.4)
+            }
+        }
+
+        // Sheet symbols: a box around the entries of each child sheet (its pins on the left edge) with the sheet's name.
+        for child in snap.sheets where child.parent == snap.activeSheet {
+            let entries = snap.components.filter { $0.labelScope == "entry" && $0.targetSheet == child.id }
+            guard !entries.isEmpty else { continue }
+            var box = CGRect.null
+            for e in entries {
+                var position = e.position
+                if movingIds.contains(e.id) { position.x += delta.width; position.y += delta.height }
+                box = box.union(SchematicSymbols.bounds(.netLabel, value: e.value, custom: nil)
+                    .applying(SchematicSymbols.transform(position: position, rotation: e.rotation)))
+                box = box.union(CGRect(origin: position, size: .zero))
+            }
+            let left: CGFloat = entries.map { CGFloat($0.x) + (movingIds.contains($0.id) ? delta.width : 0) }.min() ?? box.minX
+            let frame = CGRect(x: left, y: box.minY - 16, width: max(80, box.maxX + 16 - left), height: box.height + 26)
+            guard frame.intersects(view) else { continue }
+            let rect = frame.applying(screen)
+            ctx.fill(Path(rect), with: .color(Theme.symbolFill))
+            ctx.stroke(Path(rect), with: .color(Theme.symbol), lineWidth: 1.6)
+            if showLabels {
+                ctx.draw(Text(verbatim: child.name).font(.system(size: max(8, min(13, 9 * viewport.scale / 1.6)), weight: .bold))
+                            .foregroundColor(Theme.label), at: CGPoint(x: rect.minX, y: rect.minY - 4), anchor: .bottomLeading)
             }
         }
 
@@ -642,8 +666,15 @@ struct SchematicCanvas: View {
             case .netLabel:
                 let width = SchematicSymbols.netLabelTextWidth(c.value)
                 let center = CGPoint(x: (width + 7) / 2, y: 0).applying(t)
+                // Global labels sky blue, sheet-local ones muted, hierarchical ports and sheet entries amber.
+                let colour: Color
+                switch c.labelScope {
+                case "local": colour = Theme.textMuted
+                case "port", "entry": colour = Theme.warning
+                default: colour = Theme.skyBlue
+                }
                 ctx.draw(Text(c.value).font(.system(size: fontSize, weight: .semibold, design: .monospaced))
-                            .foregroundColor(Theme.skyBlue), at: center)
+                            .foregroundColor(colour), at: center)
             default:
                 // Labels sit above/below wide symbols and to the right of tall ones, always upright.
                 let box = SchematicSymbols.bounds(c.componentKind, custom: custom).applying(local)
@@ -659,10 +690,12 @@ struct SchematicCanvas: View {
                     valPoint = CGPoint(x: box.maxX + 5, y: box.midY + 7).applying(screen)
                     anchor = .leading
                 }
-                ctx.draw(Text(c.ref).font(.system(size: fontSize, weight: .bold, design: .monospaced))
-                            .foregroundColor(selected ? Theme.selection : Theme.label), at: refPoint, anchor: anchor)
-                ctx.draw(Text(c.value).font(.system(size: fontSize, design: .monospaced))
-                            .foregroundColor(Theme.valueLabel), at: valPoint, anchor: anchor)
+                // A part the active variant leaves off is marked DNP; a variant value replaces the design value.
+                ctx.draw(Text(c.isFitted ? c.ref : c.ref + " DNP").font(.system(size: fontSize, weight: .bold, design: .monospaced))
+                            .foregroundColor(selected ? Theme.selection : (c.isFitted ? Theme.label : Theme.error)),
+                         at: refPoint, anchor: anchor)
+                ctx.draw(Text(c.variantValue ?? c.value).font(.system(size: fontSize, design: .monospaced))
+                            .foregroundColor(c.variantValue == nil ? Theme.valueLabel : Theme.warning), at: valPoint, anchor: anchor)
             }
         }
 

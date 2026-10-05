@@ -62,10 +62,14 @@ final class DesignStore: ObservableObject {
     let live = LiveSimulation()
 
     @Published private(set) var snapshot: DesignSnapshot = .empty
+    /// What the schematic canvas shows: the active sheet's components and wires (the whole design on one sheet).
+    @Published private(set) var sheetSnapshot: DesignSnapshot = .empty
     @Published var workspace: Workspace = .promptStudio {
         didSet { if workspace != oldValue { CrashReporter.note("Workspace: \(workspace.title)") } }
     }
-    @Published var selection: Set<Int> = []
+    @Published var selection: Set<Int> = [] {
+        didSet { if selection != oldValue { followSelectionToSheet() } }
+    }
     @Published var selectedWire: Int?
     @Published var ercResults: [RuleViolation] = []
     @Published var drcResults: [RuleViolation] = []
@@ -248,6 +252,7 @@ final class DesignStore: ObservableObject {
                 alert = AlertItem(title: "The design view could not be updated", message: error.localizedDescription)
             }
         }
+        sheetSnapshot = snapshot.onSheet(snapshot.activeSheet)
         selection = selection.filter { id in snapshot.components.contains { $0.id == id } }
         if let wire = selectedWire, !snapshot.wires.contains(where: { $0.id == wire }) { selectedWire = nil }
         revision &+= 1
@@ -682,6 +687,161 @@ final class DesignStore: ObservableObject {
         let text = EngineeringFormat.string(nearest, unit: "", digits: 3).replacingOccurrences(of: " ", with: "")
         guard text != c.value else { return }
         perform("\(c.ref) → \(text) (\(series.title))") { $0.setValue(id, text) }
+    }
+
+    // MARK: - Sheets
+
+    /// Shows another sheet in the schematic (and places new parts there). Not an edit: no undo step.
+    func selectSheet(_ id: Int, fit: Bool = true) {
+        guard id != snapshot.activeSheet, snapshot.sheet(id) != nil, engine.setActiveSheet(id) else { return }
+        selectedWire = nil
+        refresh()
+        selection = selection.filter { snapshot.component($0)?.sheetId == id }
+        if fit { fitToken &+= 1 }
+    }
+
+    /// Selecting parts on another sheet (from the checks, BOM or simulation lists) brings their sheet up.
+    private func followSelectionToSheet() {
+        guard snapshot.sheets.count > 1, !selection.isEmpty else { return }
+        let sheets = Set(selection.compactMap { snapshot.component($0)?.sheetId })
+        guard !sheets.isEmpty, !sheets.contains(snapshot.activeSheet), let target = sheets.min() else { return }
+        selectSheet(target)
+    }
+
+    /// "Sheet 2", "Sheet 3", … — the first free default name.
+    var nextSheetName: String {
+        var n = snapshot.sheets.count + 1
+        while snapshot.sheets.contains(where: { $0.name == "Sheet \(n)" }) { n += 1 }
+        return "Sheet \(n)"
+    }
+
+    /// Adds a sheet (a child of `parent`, 0 = top level) and shows it.
+    @discardableResult
+    func addSheet(named name: String? = nil, parent: Int = 0) -> Int? {
+        let title = (name ?? nextSheetName).trimmingCharacters(in: .whitespacesAndNewlines)
+        var id: Int?
+        performChecked("Added sheet \(title)", invalidatesAnalysis: false,
+                       failureMessage: "A sheet named \(title) already exists") { engine in
+            id = engine.addSheet(title, parent: parent)
+            if let id { engine.setActiveSheet(id) }
+            return id != nil
+        }
+        if id != nil {
+            selection = []
+            fitToken &+= 1
+        }
+        return id
+    }
+
+    func renameSheet(_ id: Int, to name: String) {
+        let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, let sheet = snapshot.sheet(id), sheet.name != title else { return }
+        performChecked("Renamed sheet \(sheet.name) to \(title)", invalidatesAnalysis: false,
+                       failureMessage: "A sheet named \(title) already exists") { $0.renameSheet(id, to: title) }
+    }
+
+    /// Deletes a sheet with everything on it (after confirmation when it holds parts). The last sheet stays.
+    func removeSheet(_ id: Int) {
+        guard snapshot.sheets.count > 1, let sheet = snapshot.sheet(id) else { return }
+        let count = snapshot.components.filter { $0.sheetId == id }.count
+        if count > 0 {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "Delete sheet “\(sheet.name)”?"
+            alert.informativeText = "Its \(count) component(s) and their wires are deleted with it, and the sheet entries "
+                + "that lead into it. Child sheets move up a level. You can undo this."
+            alert.addButton(withTitle: "Delete")
+            alert.addButton(withTitle: "Cancel")
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+        }
+        selection = []
+        performChecked("Deleted sheet \(sheet.name)") { $0.removeSheet(id, deleteContents: true) }
+        fitToken &+= 1
+    }
+
+    /// Moves the selected parts to another sheet (wires to parts left behind are removed) and shows that sheet.
+    func moveSelection(toSheet id: Int) {
+        let ids = Array(selection)
+        guard !ids.isEmpty, let sheet = snapshot.sheet(id) else { return }
+        let moved = performChecked("Moved \(ids.count) part(s) to \(sheet.name)",
+                                   failureMessage: "The selection is already on \(sheet.name)") { $0.moveToSheet(ids, sheet: id) > 0 }
+        if moved { selectSheet(id) }
+    }
+
+    /// Net label scope: "global", "local" or "port".
+    func setLabelScope(_ id: Int, scope: String) {
+        guard let c = snapshot.component(id), c.componentKind == .netLabel, c.labelScope != scope else { return }
+        performChecked("\(c.value): \(scope) label") { $0.setLabelScope(id, scope: scope) }
+    }
+
+    /// Sheet symbol of a child sheet: adds an entry on its parent sheet for every port that has none, to the right of
+    /// the parent's parts, and shows the parent sheet.
+    func placeSheetSymbol(for child: Int) {
+        guard let sheet = snapshot.sheet(child), sheet.parent != 0 else { return }
+        let bounds = SchematicCanvas.componentBounds(snapshot.onSheet(sheet.parent)).reduce(CGRect.null) { $0.union($1.rect) }
+        let origin = bounds.isNull ? .zero : SchematicAutoLayout.snap(CGPoint(x: bounds.maxX + 80, y: bounds.minY))
+        let placed = performChecked("Placed sheet symbol of \(sheet.name)",
+                                    failureMessage: "\(sheet.name) has no ports without an entry — make net labels on it Port labels first") {
+            $0.placeSheetEntries(child: child, at: origin) > 0
+        }
+        if placed { selectSheet(sheet.parent) }
+    }
+
+    /// Re-numbers reference designators by sheet and position.
+    func annotate(byColumns: Bool = false, keepExisting: Bool = false, sheetNumbering: Bool = false) {
+        var changed = 0
+        let done = performChecked("Annotated designators", invalidatesAnalysis: false,
+                                  failureMessage: "Designators are already in order") { engine in
+            changed = engine.annotate(byColumns: byColumns, keepExisting: keepExisting, sheetNumbering: sheetNumbering)
+            return changed > 0
+        }
+        if done { statusMessage = "Annotated: \(changed) designator(s) changed" }
+    }
+
+    // MARK: - Design variants
+
+    /// Adds a variant and makes it the active one.
+    @discardableResult
+    func addVariant(named name: String) -> Bool {
+        let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return false }
+        return performChecked("Added variant \(title)", invalidatesAnalysis: false,
+                              failureMessage: "A variant named \(title) already exists") { engine in
+            engine.addVariant(title, copying: snapshot.activeVariant.isEmpty ? nil : snapshot.activeVariant)
+                && engine.setActiveVariant(title)
+        }
+    }
+
+    func removeVariant(_ name: String) {
+        performChecked("Deleted variant \(name)", invalidatesAnalysis: false) { $0.removeVariant(name) }
+    }
+
+    /// "" shows and exports the base design.
+    func selectVariant(_ name: String) {
+        guard name != snapshot.activeVariant else { return }
+        performChecked(name.isEmpty ? "Variant: base design" : "Variant: \(name)", invalidatesAnalysis: false) {
+            $0.setActiveVariant(name)
+        }
+    }
+
+    /// Fits (or leaves off) a part in the active variant.
+    func setFittedInVariant(_ id: Int, _ fitted: Bool) {
+        let variant = snapshot.activeVariant
+        guard !variant.isEmpty, let c = snapshot.component(id), c.isFitted != fitted else { return }
+        performChecked(fitted ? "\(c.ref) fitted in \(variant)" : "\(c.ref) not fitted in \(variant)", invalidatesAnalysis: false) {
+            $0.setVariantPart(variant, component: id, fitted: fitted)
+        }
+    }
+
+    /// The value fitted in the active variant ("" = the design value).
+    func setVariantValue(_ id: Int, _ value: String) {
+        let variant = snapshot.activeVariant
+        let text = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !variant.isEmpty, let c = snapshot.component(id), (c.variantValue ?? "") != text else { return }
+        let state = snapshot.variants.first { $0.name == variant }?.part(id)?.fitted
+        performChecked("\(c.ref) = \(text.isEmpty ? c.value : text) in \(variant)", invalidatesAnalysis: false) {
+            $0.setVariantPart(variant, component: id, fitted: state, value: text)
+        }
     }
 
     // MARK: - Analysis

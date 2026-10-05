@@ -16,6 +16,7 @@
 "AI-native electronic design automation" = "AI-അധിഷ്ഠിത ഇലക്ട്രോണിക് ഡിസൈൻ ഓട്ടോമേഷൻ";
 "API key" = "API കീ";
 "About" = "കുറിച്ച്";
+"Add Child Sheet" = "ചൈൽഡ് ഷീറ്റ് ചേർക്കുക";
 "Add Ground Pours" = "ഗ്രൗണ്ട് പോറുകൾ ചേർക്കുക";
 "Add Kit to Library" = "കിറ്റ് ലൈബ്രറിയിലേക്ക് ചേർക്കുക";
 "Add Mesh" = "മെഷ് ചേർക്കുക";
@@ -25,6 +26,7 @@
 "Add Pour" = "പോർ ചേർക്കുക";
 "Add Thermal Vias" = "തെർമൽ വിയകൾ ചേർക്കുക";
 "Add a pad like the last one (numbered next)" = "അവസാനത്തേത് പോലെ ഒരു പാഡ് ചേർക്കുക (അടുത്ത നമ്പറോടെ)";
+"Add a sheet (right-click a tab for more)" = "ഷീറ്റ് ചേർക്കുക (കൂടുതലിനായി ടാബിൽ റൈറ്റ്-ക്ലിക്ക് ചെയ്യുക)";
 "Add every part of this kit to the project library so it shows in the device picker" = "ഈ കിറ്റിലെ എല്ലാ പാർട്ടുകളും ഡിവൈസ് പിക്കറിൽ കാണാൻ പ്രോജക്റ്റ് ലൈബ്രറിയിലേക്ക് ചേർക്കുക";
 "Add serpentine (accordion) tuning to the short members of each group" = "ഓരോ ഗ്രൂപ്പിലെയും ചെറിയ അംഗങ്ങൾക്ക് സർപ്പന്റൈൻ (അക്കോർഡിയൻ) ട്യൂണിംഗ് ചേർക്കുക";
 "Aerospace Mission" = "എയ്റോസ്പേസ് മിഷൻ";
@@ -34,6 +36,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "അനലോഗ് ടൈം സ്റ്റെപ്പ്: ചെറുത് വേഗമേറിയ സിഗ്നലുകൾ വ്യക്തമാക്കുന്നു, വലുത് വേഗത്തിൽ റൺ ചെയ്യുന്നു";
 "Analysis" = "വിശകലനം";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "വിശകലന പ്രീസെറ്റുകൾ — മൈക്രോകൺട്രോളർ ഫേംവെയറിന് ദൈർഘ്യമേറിയ റൺ ആവശ്യമാണ് (ഉദാ. 100 µs-ൽ 1 s)";
+"Annotate" = "അനോട്ടേറ്റ് ചെയ്യുക";
 "Appearance" = "രൂപഭാവം";
 "Appliance Type" = "അപ്ലയൻസ് തരം";
 "Apply" = "പ്രയോഗിക്കുക";
@@ -44,6 +47,7 @@
 "Arranged symbol" = "ക്രമീകരിച്ച സിംബൽ";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "ഒരു മാറ്റം ആവശ്യപ്പെടുക — “LED പച്ചയാക്കി 3.3 V-ൽ പ്രവർത്തിപ്പിക്കുക”";
 "Assembly" = "അസംബ്ലി";
+"Assembly variant for the BOM, CPL and assembly drawings" = "BOM, CPL, അസംബ്ലി ഡ്രോയിംഗുകൾ എന്നിവയ്ക്കുള്ള അസംബ്ലി വേരിയന്റ്";
 "Audience (optional)" = "പ്രേക്ഷകർ (ഓപ്ഷണൽ)";
 "Auto Arrange" = "ഓട്ടോ അറേഞ്ച്";
 "Auto Route" = "ഓട്ടോ റൂട്ട്";
@@ -56,6 +60,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "അസംബ്ലിക്കുള്ള BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "വേഗമേറിയ നെറ്റുകളിലെ വിയ സ്റ്റബുകൾ ബാക്ക്ഡ്രിൽ ചെയ്യുക";
+"Base Design" = "അടിസ്ഥാന ഡിസൈൻ";
 "Base URL" = "ബേസ് URL";
 "Bill of Materials" = "ബിൽ ഓഫ് മെറ്റീരിയൽസ്";
 "Bill of Materials (CSV)…" = "ബിൽ ഓഫ് മെറ്റീരിയൽസ് (CSV)…";
@@ -107,6 +112,8 @@
 "Default provider" = "ഡിഫോൾട്ട് പ്രൊവൈഡർ";
 "Delete" = "ഇല്ലാതാക്കുക";
 "Delete Part" = "പാർട്ട് ഇല്ലാതാക്കുക";
+"Delete Sheet" = "ഷീറ്റ് ഇല്ലാതാക്കുക";
+"Delete Variant" = "വേരിയന്റ് ഇല്ലാതാക്കുക";
 "Delete Wire" = "വയർ ഇല്ലാതാക്കുക";
 "Describe your product" = "നിങ്ങളുടെ ഉൽപ്പന്നം വിവരിക്കുക";
 "Description" = "വിവരണം";
@@ -150,11 +157,14 @@
 "Finish the login in your browser…" = "നിങ്ങളുടെ ബ്രൗസറിൽ ലോഗിൻ പൂർത്തിയാക്കുക…";
 "Firmware — 1 s, 100 µs" = "ഫേംവെയർ — 1 s, 100 µs";
 "Fit Board to Components" = "ബോർഡ് കംപോണന്റുകൾക്ക് അനുയോജ്യമാക്കുക";
+"Fitted" = "ഘടിപ്പിച്ചത്";
+"Fix Duplicates Only" = "ഡ്യൂപ്ലിക്കേറ്റുകൾ മാത്രം ശരിയാക്കുക";
 "Flip" = "ഫ്ലിപ്പ് ചെയ്യുക";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "പാർട്ട് ഘടിപ്പിക്കുന്ന ഫുട്പ്രിന്റ്: ചിപ്പ് വലുപ്പം, ത്രൂ-ഹോൾ, ടാന്റലം അല്ലെങ്കിൽ ഇലക്ട്രോലിറ്റിക് കേസ്";
 "Gap Before" = "മുമ്പുള്ള വിടവ്";
 "Generate Design" = "ഡിസൈൻ സൃഷ്ടിക്കുക";
 "Give each selected pin its own slot" = "തിരഞ്ഞെടുത്ത ഓരോ പിനിനും സ്വന്തം സ്ലോട്ട് നൽകുക";
+"Global" = "ഗ്ലോബൽ";
 "Global semiconductor countries" = "ആഗോള സെമികണ്ടക്ടർ രാജ്യങ്ങൾ";
 "Google Cloud project ID" = "Google Cloud പ്രോജക്റ്റ് ID";
 "Grid" = "ഗ്രിഡ്";
@@ -194,6 +204,7 @@
 "Loading memory & system design kits" = "മെമ്മറി & സിസ്റ്റം ഡിസൈൻ കിറ്റുകൾ ലോഡ് ചെയ്യുന്നു";
 "Loading reference designs" = "റഫറൻസ് ഡിസൈനുകൾ ലോഡ് ചെയ്യുന്നു";
 "Loading the component library" = "കംപോണന്റ് ലൈബ്രറി ലോഡ് ചെയ്യുന്നു";
+"Local (this sheet)" = "ലോക്കൽ (ഈ ഷീറ്റ്)";
 "Locked (Auto Place keeps it)" = "ലോക്ക് ചെയ്തു (ഓട്ടോ പ്ലേസ് ഇത് നിലനിർത്തുന്നു)";
 "Long firmware run — 5 s, 500 µs" = "ദീർഘ ഫേംവെയർ റൺ — 5 s, 500 µs";
 "Mask" = "മാസ്ക്";
@@ -205,6 +216,7 @@
 "Model" = "മോഡൽ";
 "Model back-ends" = "മോഡൽ ബാക്ക്-എൻഡുകൾ";
 "Mounting" = "മൗണ്ടിംഗ്";
+"Move Selection Here" = "തിരഞ്ഞെടുപ്പ് ഇവിടേക്ക് നീക്കുക";
 "Move the footprint origin to the centre of the pads" = "ഫുട്പ്രിന്റ് ഒറിജിൻ പാഡുകളുടെ മധ്യത്തിലേക്ക് നീക്കുക";
 "Move the pad in the numbering; pads between shift by one" = "നമ്പറിംഗിൽ പാഡ് നീക്കുക; ഇടയിലുള്ള പാഡുകൾ ഓരോ സ്ഥാനം നീങ്ങും";
 "NAVIGATOR" = "നാവിഗേറ്റർ";
@@ -214,6 +226,8 @@
 "Nets" = "നെറ്റുകൾ";
 "Nets (%lld)" = "നെറ്റുകൾ (%lld)";
 "New Project" = "പുതിയ പ്രോജക്റ്റ്";
+"New Variant" = "പുതിയ വേരിയന്റ്";
+"New Variant…" = "പുതിയ വേരിയന്റ്…";
 "New blank part" = "പുതിയ ശൂന്യ പാർട്ട്";
 "New from Example" = "ഉദാഹരണത്തിൽ നിന്ന് പുതിയത്";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "ഈ ഡിസൈനിൽ ഡിഫറൻഷ്യൽ പെയറുകളോ (…_P/_N, …+/-) ബസുകളോ (DQ0…, DATA[0..7], ADDR…) ഇല്ല.";
@@ -233,6 +247,9 @@
 "Not naval" = "നാവികം അല്ല";
 "Not placed yet" = "ഇതുവരെ സ്ഥാപിച്ചിട്ടില്ല";
 "Not retail" = "റീട്ടെയിൽ അല്ല";
+"Number by Columns" = "കോളം അനുസരിച്ച് നമ്പർ നൽകുക";
+"Number by Rows" = "വരി അനുസരിച്ച് നമ്പർ നൽകുക";
+"Number by Sheet (R101, R201…)" = "ഷീറ്റ് അനുസരിച്ച് നമ്പർ നൽകുക (R101, R201…)";
 "OBJ with vertex colours" = "വെർട്ടെക്സ് നിറങ്ങളുള്ള OBJ";
 "OK" = "ശരി";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "ഓഫ്: SiEDA ഒരു ക്ലാസിക് മാനുവൽ EDA ടൂളായി പ്രവർത്തിക്കുന്നു. സ്കീമാറ്റിക് ക്യാപ്‌ചർ, സിമുലേഷൻ, PCB റൂട്ടിംഗ്, 3D, ഡാറ്റാഷീറ്റ് പാഴ്സിംഗ്, എക്സ്പോർട്ടുകൾ എന്നിവയെല്ലാം ലോക്കലായി പ്രവർത്തിക്കുന്നു, ഒന്നും ഒരു AI സേവനത്തിലേക്കും അയയ്ക്കുന്നില്ല.";
@@ -256,9 +273,11 @@
 "Pin" = "പിൻ";
 "Pins: " = "പിനുകൾ: ";
 "Place Now" = "ഇപ്പോൾ സ്ഥാപിക്കുക";
+"Place Sheet Symbol" = "ഷീറ്റ് ചിഹ്നം സ്ഥാപിക്കുക";
 "Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)" = "സ്ഥാപിക്കാത്ത ഫുട്പ്രിന്റുകൾ ബോർഡ് ഔട്ട്‌ലൈനിനുള്ളിൽ സ്ഥാപിക്കുക, തുടർന്ന് എല്ലാ കണക്ഷനുകളും റൂട്ട് ചെയ്ത് DRC പരിശോധിക്കുക (⇧⌘R)";
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "പ്ലേസ്‌മെന്റ്, റൂട്ടിംഗ്, പോറുകൾ, DRC, Gerber Edge.Cuts, 3D ബോർഡ് എന്നിവ ഔട്ട്‌ലൈൻ പിന്തുടരുന്നു. ";
 "Plane" = "പ്ലെയിൻ";
+"Port (to parent sheet)" = "പോർട്ട് (പാരന്റ് ഷീറ്റിലേക്ക്)";
 "Preview appears once the part has a name and pins." = "പാർട്ടിന് പേരും പിനുകളും ആയാൽ പ്രിവ്യൂ ദൃശ്യമാകും.";
 "Project Library" = "പ്രോജക്റ്റ് ലൈബ്രറി";
 "Project name" = "പ്രോജക്റ്റിന്റെ പേര്";
@@ -272,6 +291,8 @@
 "Remove the empty slots on every side" = "എല്ലാ വശങ്ങളിലെയും ശൂന്യ സ്ലോട്ടുകൾ നീക്കം ചെയ്യുക";
 "Remove the firmware" = "ഫേംവെയർ നീക്കം ചെയ്യുക";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "അവസാനം ബന്ധിപ്പിച്ച ലെയറിന് താഴെയുള്ള ഉപയോഗിക്കാത്ത വിയ ബാരൽ നീക്കം ചെയ്യുന്നു (≥ 4 ലെയറുകൾ); ഒരു ബാക്ക്-ഡ്രിൽ ഫയൽ ചേർക്കുന്നു";
+"Rename Sheet" = "ഷീറ്റിന്റെ പേര് മാറ്റുക";
+"Rename Sheet…" = "ഷീറ്റിന്റെ പേര് മാറ്റുക…";
 "Renumber" = "പുനർനമ്പർ ചെയ്യുക";
 "Reserve the layer for this net: other nets only pass through it with vias" = "ഈ നെറ്റിനായി ലെയർ റിസർവ് ചെയ്യുക: മറ്റ് നെറ്റുകൾ വിയകളിലൂടെ മാത്രം ഇതിലൂടെ കടന്നുപോകും";
 "Reset View" = "വ്യൂ റീസെറ്റ് ചെയ്യുക";
@@ -304,6 +325,7 @@
 "Schematic" = "സ്കീമാറ്റിക്";
 "Schematic capture · SPICE-class simulation · PCB autorouting · DRC · 3D · Gerber/Excellon export" = "സ്കീമാറ്റിക് ക്യാപ്‌ചർ · SPICE-ക്ലാസ് സിമുലേഷൻ · PCB ഓട്ടോറൂട്ടിംഗ് · DRC · 3D · Gerber/Excellon എക്സ്പോർട്ട്";
 "Schematic · Simulation · PCB · 3D · Fabrication" = "സ്കീമാറ്റിക് · സിമുലേഷൻ · PCB · 3D · ഫാബ്രിക്കേഷൻ";
+"Scope" = "വ്യാപ്തി";
 "Scope, serial monitor and switches" = "സ്കോപ്പ്, സീരിയൽ മോണിറ്റർ, സ്വിച്ചുകൾ";
 "Scopes" = "സ്കോപ്പുകൾ";
 "Scroll or pinch to zoom" = "സൂം ചെയ്യാൻ സ്ക്രോൾ അല്ലെങ്കിൽ പിഞ്ച് ചെയ്യുക";
@@ -317,6 +339,8 @@
 "Serial output — 200 ms, 10 µs" = "സീരിയൽ ഔട്ട്പുട്ട് — 200 ms, 10 µs";
 "Set" = "സജ്ജമാക്കുക";
 "Shape" = "ആകൃതി";
+"Sheet" = "ഷീറ്റ്";
+"Sheet name" = "ഷീറ്റിന്റെ പേര്";
 "Show" = "കാണിക്കുക";
 "Show Crash Reports" = "ക്രാഷ് റിപ്പോർട്ടുകൾ കാണിക്കുക";
 "Show Navigator" = "നാവിഗേറ്റർ കാണിക്കുക";
@@ -376,6 +400,7 @@
 "Validate" = "സാധൂകരിക്കുക";
 "Validate Circuit" = "സർക്യൂട്ട് സാധൂകരിക്കുക";
 "Value" = "മൂല്യം";
+"Variant name" = "വേരിയന്റിന്റെ പേര്";
 "Verify Design" = "ഡിസൈൻ വെരിഫൈ ചെയ്യുക";
 "Vertex AI region" = "Vertex AI റീജിയൻ";
 "Via-in-pad plated over (VIPPO, IPC-4761 Type VII)" = "പ്ലേറ്റ് ചെയ്ത് മൂടിയ വിയ-ഇൻ-പാഡ് (VIPPO, IPC-4761 Type VII)";

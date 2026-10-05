@@ -16,6 +16,7 @@
 "AI-native electronic design automation" = "Electronic design automation na AI-native";
 "API key" = "API key";
 "About" = "Tungkol sa";
+"Add Child Sheet" = "Magdagdag ng Child Sheet";
 "Add Ground Pours" = "Magdagdag ng Ground Pour";
 "Add Kit to Library" = "Idagdag ang Kit sa Library";
 "Add Mesh" = "Magdagdag ng Mesh";
@@ -25,6 +26,7 @@
 "Add Pour" = "Magdagdag ng Pour";
 "Add Thermal Vias" = "Magdagdag ng Thermal Via";
 "Add a pad like the last one (numbered next)" = "Magdagdag ng pad na katulad ng huli (susunod na numero)";
+"Add a sheet (right-click a tab for more)" = "Magdagdag ng sheet (i-right-click ang tab para sa iba pa)";
 "Add every part of this kit to the project library so it shows in the device picker" = "Idagdag ang bawat part ng kit na ito sa project library para lumabas ito sa device picker";
 "Add serpentine (accordion) tuning to the short members of each group" = "Magdagdag ng serpentine (accordion) tuning sa maiikling miyembro ng bawat grupo";
 "Aerospace Mission" = "Misyong Aerospace";
@@ -34,6 +36,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "Analog time step: mas pino para sa mas mabibilis na signal, mas magaspang para mas mabilis tumakbo";
 "Analysis" = "Pagsusuri";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "Mga preset ng pagsusuri — mas mahabang run ang kailangan ng firmware ng microcontroller (hal. 1 s sa 100 µs)";
+"Annotate" = "I-annotate";
 "Appearance" = "Hitsura";
 "Appliance Type" = "Uri ng Appliance";
 "Apply" = "Ilapat";
@@ -44,6 +47,7 @@
 "Arranged symbol" = "Inayos na symbol";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "Humiling ng pagbabago — “gawing berde ang LED at paganahin sa 3.3 V”";
 "Assembly" = "Assembly";
+"Assembly variant for the BOM, CPL and assembly drawings" = "Assembly variant para sa BOM, CPL at mga assembly drawing";
 "Audience (optional)" = "Audience (opsyonal)";
 "Auto Arrange" = "Auto Arrange";
 "Auto Route" = "Auto Route";
@@ -56,6 +60,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM para sa Assembly (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "I-backdrill ang via stub sa mabibilis na net";
+"Base Design" = "Base na Disenyo";
 "Base URL" = "Base URL";
 "Bill of Materials" = "Bill of Materials";
 "Bill of Materials (CSV)…" = "Bill of Materials (CSV)…";
@@ -107,6 +112,8 @@
 "Default provider" = "Default na provider";
 "Delete" = "Burahin";
 "Delete Part" = "Burahin ang Part";
+"Delete Sheet" = "Burahin ang Sheet";
+"Delete Variant" = "Burahin ang Variant";
 "Delete Wire" = "Burahin ang Wire";
 "Describe your product" = "Ilarawan ang iyong produkto";
 "Description" = "Paglalarawan";
@@ -150,11 +157,14 @@
 "Finish the login in your browser…" = "Tapusin ang pag-login sa iyong browser…";
 "Firmware — 1 s, 100 µs" = "Firmware — 1 s, 100 µs";
 "Fit Board to Components" = "Iakma ang Board sa mga Component";
+"Fitted" = "Nakakabit";
+"Fix Duplicates Only" = "Ayusin ang mga Duplicate Lamang";
 "Flip" = "I-flip";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Footprint kung saan ikinakabit ang part: chip size, through-hole, tantalum o electrolytic case";
 "Gap Before" = "Puwang Bago";
 "Generate Design" = "Bumuo ng Disenyo";
 "Give each selected pin its own slot" = "Bigyan ng sariling slot ang bawat napiling pin";
+"Global" = "Global";
 "Global semiconductor countries" = "Mga bansa ng semiconductor sa mundo";
 "Google Cloud project ID" = "Google Cloud project ID";
 "Grid" = "Grid";
@@ -194,6 +204,7 @@
 "Loading memory & system design kits" = "Nilo-load ang memory at system design kit";
 "Loading reference designs" = "Nilo-load ang mga reference design";
 "Loading the component library" = "Nilo-load ang component library";
+"Local (this sheet)" = "Lokal (sheet na ito)";
 "Locked (Auto Place keeps it)" = "Naka-lock (pinapanatili ng Auto Place)";
 "Long firmware run — 5 s, 500 µs" = "Mahabang firmware run — 5 s, 500 µs";
 "Mask" = "Mask";
@@ -205,6 +216,7 @@
 "Model" = "Model";
 "Model back-ends" = "Mga model back-end";
 "Mounting" = "Pagkakabit";
+"Move Selection Here" = "Ilipat Dito ang Napili";
 "Move the footprint origin to the centre of the pads" = "Ilipat ang origin ng footprint sa gitna ng mga pad";
 "Move the pad in the numbering; pads between shift by one" = "Ilipat ang pad sa pagnunumero; uusog nang isa ang mga pad sa pagitan";
 "NAVIGATOR" = "NAVIGATOR";
@@ -214,6 +226,8 @@
 "Nets" = "Mga Net";
 "Nets (%lld)" = "Mga Net (%lld)";
 "New Project" = "Bagong Proyekto";
+"New Variant" = "Bagong Variant";
+"New Variant…" = "Bagong Variant…";
 "New blank part" = "Bagong blangkong part";
 "New from Example" = "Bago mula sa Halimbawa";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Walang differential pair (…_P/_N, …+/-) o bus (DQ0…, DATA[0..7], ADDR…) sa disenyong ito.";
@@ -233,6 +247,9 @@
 "Not naval" = "Hindi naval";
 "Not placed yet" = "Hindi pa nailalagay";
 "Not retail" = "Hindi retail";
+"Number by Columns" = "Bilangin ayon sa Column";
+"Number by Rows" = "Bilangin ayon sa Row";
+"Number by Sheet (R101, R201…)" = "Bilangin ayon sa Sheet (R101, R201…)";
 "OBJ with vertex colours" = "OBJ na may vertex colour";
 "OK" = "OK";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "Off: Gumagana ang SiEDA bilang klasikong manual na EDA tool. Lokal na tumatakbo ang schematic capture, simulation, PCB routing, 3D, datasheet parsing at export, at walang ipinapadala sa anumang AI service.";
@@ -256,9 +273,11 @@
 "Pin" = "Pin";
 "Pins: " = "Mga pin: ";
 "Place Now" = "Ilagay Ngayon";
+"Place Sheet Symbol" = "Ilagay ang Sheet Symbol";
 "Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)" = "Ilagay ang mga hindi pa nailalagay na footprint sa loob ng board outline, saka i-route ang lahat ng koneksyon at i-check ang DRC (⇧⌘R)";
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "Sinusundan ng placement, routing, pour, DRC, Gerber Edge.Cuts at 3D board ang outline. ";
 "Plane" = "Plane";
+"Port (to parent sheet)" = "Port (papunta sa parent sheet)";
 "Preview appears once the part has a name and pins." = "Lalabas ang preview kapag may pangalan at pin na ang part.";
 "Project Library" = "Project Library";
 "Project name" = "Pangalan ng proyekto";
@@ -272,6 +291,8 @@
 "Remove the empty slots on every side" = "Alisin ang mga bakanteng slot sa bawat gilid";
 "Remove the firmware" = "Alisin ang firmware";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "Inaalis ang hindi ginagamit na via barrel sa ilalim ng huling nakakonektang layer (≥ 4 layer); nagdaragdag ng back-drill file";
+"Rename Sheet" = "Palitan ang Pangalan ng Sheet";
+"Rename Sheet…" = "Palitan ang Pangalan ng Sheet…";
 "Renumber" = "I-renumber";
 "Reserve the layer for this net: other nets only pass through it with vias" = "Ireserba ang layer para sa net na ito: dadaan lang dito ang ibang net gamit ang via";
 "Reset View" = "I-reset ang View";
@@ -304,6 +325,7 @@
 "Schematic" = "Schematic";
 "Schematic capture · SPICE-class simulation · PCB autorouting · DRC · 3D · Gerber/Excellon export" = "Schematic capture · SPICE-class simulation · PCB autorouting · DRC · 3D · Gerber/Excellon export";
 "Schematic · Simulation · PCB · 3D · Fabrication" = "Schematic · Simulation · PCB · 3D · Fabrication";
+"Scope" = "Saklaw";
 "Scope, serial monitor and switches" = "Scope, serial monitor at mga switch";
 "Scopes" = "Mga Scope";
 "Scroll or pinch to zoom" = "Mag-scroll o mag-pinch para mag-zoom";
@@ -317,6 +339,8 @@
 "Serial output — 200 ms, 10 µs" = "Serial output — 200 ms, 10 µs";
 "Set" = "Itakda";
 "Shape" = "Hugis";
+"Sheet" = "Sheet";
+"Sheet name" = "Pangalan ng sheet";
 "Show" = "Ipakita";
 "Show Crash Reports" = "Ipakita ang mga Crash Report";
 "Show Navigator" = "Ipakita ang Navigator";
@@ -376,6 +400,7 @@
 "Validate" = "I-validate";
 "Validate Circuit" = "I-validate ang Circuit";
 "Value" = "Value";
+"Variant name" = "Pangalan ng variant";
 "Verify Design" = "I-verify ang Disenyo";
 "Vertex AI region" = "Vertex AI region";
 "Via-in-pad plated over (VIPPO, IPC-4761 Type VII)" = "Via-in-pad na plated over (VIPPO, IPC-4761 Type VII)";

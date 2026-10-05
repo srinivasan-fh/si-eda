@@ -16,6 +16,7 @@
 "AI-native electronic design automation" = "AI-ఆధారిత ఎలక్ట్రానిక్ డిజైన్ ఆటోమేషన్";
 "API key" = "API కీ";
 "About" = "గురించి";
+"Add Child Sheet" = "చైల్డ్ షీట్ జోడించండి";
 "Add Ground Pours" = "గ్రౌండ్ పోర్‌లను జోడించు";
 "Add Kit to Library" = "కిట్‌ను లైబ్రరీకి జోడించు";
 "Add Mesh" = "మెష్ జోడించు";
@@ -25,6 +26,7 @@
 "Add Pour" = "పోర్ జోడించు";
 "Add Thermal Vias" = "థర్మల్ వయాలు జోడించు";
 "Add a pad like the last one (numbered next)" = "చివరి దానిలాంటి ప్యాడ్‌ను జోడించు (తదుపరి సంఖ్యతో)";
+"Add a sheet (right-click a tab for more)" = "షీట్ జోడించండి (మరిన్నింటికి ట్యాబ్‌పై రైట్-క్లిక్ చేయండి)";
 "Add every part of this kit to the project library so it shows in the device picker" = "ఈ కిట్‌లోని ప్రతి పార్ట్‌ను ప్రాజెక్ట్ లైబ్రరీకి జోడించు, తద్వారా అది డివైస్ పికర్‌లో కనిపిస్తుంది";
 "Add serpentine (accordion) tuning to the short members of each group" = "ప్రతి గ్రూప్‌లోని చిన్న సభ్యులకు సర్పెంటైన్ (అకార్డియన్) ట్యూనింగ్ జోడించు";
 "Aerospace Mission" = "ఏరోస్పేస్ మిషన్";
@@ -34,6 +36,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "అనలాగ్ టైమ్ స్టెప్: సూక్ష్మమైనది వేగవంతమైన సిగ్నల్స్‌ను గుర్తిస్తుంది, స్థూలమైనది వేగంగా రన్ అవుతుంది";
 "Analysis" = "విశ్లేషణ";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "విశ్లేషణ ప్రీసెట్‌లు — మైక్రోకంట్రోలర్ ఫర్మ్‌వేర్‌కు ఎక్కువ రన్ అవసరం (ఉదా. 100 µs వద్ద 1 s)";
+"Annotate" = "అనోటేట్ చేయండి";
 "Appearance" = "రూపం";
 "Appliance Type" = "ఉపకరణ రకం";
 "Apply" = "వర్తింపజేయి";
@@ -44,6 +47,7 @@
 "Arranged symbol" = "అమర్చిన సింబల్";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "మార్పు అడగండి — “LED ని ఆకుపచ్చగా చేసి 3.3 V తో నడిపించు”";
 "Assembly" = "అసెంబ్లీ";
+"Assembly variant for the BOM, CPL and assembly drawings" = "BOM, CPL మరియు అసెంబ్లీ డ్రాయింగ్‌ల కోసం అసెంబ్లీ వేరియంట్";
 "Audience (optional)" = "ప్రేక్షకులు (ఐచ్ఛికం)";
 "Auto Arrange" = "ఆటో అమరిక";
 "Auto Route" = "ఆటో రూట్";
@@ -56,6 +60,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "అసెంబ్లీ కోసం BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "వేగవంతమైన నెట్‌లపై వయా స్టబ్‌లను బ్యాక్‌డ్రిల్ చేయి";
+"Base Design" = "మూల డిజైన్";
 "Base URL" = "బేస్ URL";
 "Bill of Materials" = "బిల్ ఆఫ్ మెటీరియల్స్";
 "Bill of Materials (CSV)…" = "బిల్ ఆఫ్ మెటీరియల్స్ (CSV)…";
@@ -107,6 +112,8 @@
 "Default provider" = "డిఫాల్ట్ ప్రొవైడర్";
 "Delete" = "తొలగించు";
 "Delete Part" = "పార్ట్ తొలగించు";
+"Delete Sheet" = "షీట్‌ను తొలగించండి";
+"Delete Variant" = "వేరియంట్‌ను తొలగించండి";
 "Delete Wire" = "వైర్ తొలగించు";
 "Describe your product" = "మీ ఉత్పత్తిని వివరించండి";
 "Description" = "వివరణ";
@@ -150,11 +157,14 @@
 "Finish the login in your browser…" = "మీ బ్రౌజర్‌లో లాగిన్ పూర్తి చేయండి…";
 "Firmware — 1 s, 100 µs" = "ఫర్మ్‌వేర్ — 1 s, 100 µs";
 "Fit Board to Components" = "బోర్డును కాంపోనెంట్లకు సరిపోయేలా చేయి";
+"Fitted" = "అమర్చబడింది";
+"Fix Duplicates Only" = "నకిలీలను మాత్రమే సరిచేయండి";
 "Flip" = "ఫ్లిప్ చేయి";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "పార్ట్ అమర్చబడే ఫుట్‌ప్రింట్: చిప్ సైజ్, త్రూ-హోల్, టాంటలమ్ లేదా ఎలక్ట్రోలైటిక్ కేస్";
 "Gap Before" = "ముందు ఖాళీ";
 "Generate Design" = "డిజైన్ రూపొందించు";
 "Give each selected pin its own slot" = "ఎంచుకున్న ప్రతి పిన్‌కు దాని స్వంత స్లాట్ ఇవ్వు";
+"Global" = "గ్లోబల్";
 "Global semiconductor countries" = "ప్రపంచ సెమీకండక్టర్ దేశాలు";
 "Google Cloud project ID" = "Google Cloud ప్రాజెక్ట్ ID";
 "Grid" = "గ్రిడ్";
@@ -194,6 +204,7 @@
 "Loading memory & system design kits" = "మెమరీ & సిస్టమ్ డిజైన్ కిట్‌లు లోడ్ అవుతున్నాయి";
 "Loading reference designs" = "రిఫరెన్స్ డిజైన్‌లు లోడ్ అవుతున్నాయి";
 "Loading the component library" = "కాంపోనెంట్ లైబ్రరీ లోడ్ అవుతోంది";
+"Local (this sheet)" = "లోకల్ (ఈ షీట్)";
 "Locked (Auto Place keeps it)" = "లాక్ చేయబడింది (ఆటో ప్లేస్ దీన్ని ఉంచుతుంది)";
 "Long firmware run — 5 s, 500 µs" = "దీర్ఘ ఫర్మ్‌వేర్ రన్ — 5 s, 500 µs";
 "Mask" = "మాస్క్";
@@ -205,6 +216,7 @@
 "Model" = "మోడల్";
 "Model back-ends" = "మోడల్ బ్యాక్-ఎండ్‌లు";
 "Mounting" = "మౌంటింగ్";
+"Move Selection Here" = "ఎంపికను ఇక్కడికి తరలించండి";
 "Move the footprint origin to the centre of the pads" = "ఫుట్‌ప్రింట్ ఆరిజిన్‌ను ప్యాడ్‌ల మధ్యకు తరలించు";
 "Move the pad in the numbering; pads between shift by one" = "నంబరింగ్‌లో ప్యాడ్‌ను తరలించు; మధ్యలోని ప్యాడ్‌లు ఒక్క స్థానం జరుగుతాయి";
 "NAVIGATOR" = "నావిగేటర్";
@@ -214,6 +226,8 @@
 "Nets" = "నెట్‌లు";
 "Nets (%lld)" = "నెట్‌లు (%lld)";
 "New Project" = "కొత్త ప్రాజెక్ట్";
+"New Variant" = "కొత్త వేరియంట్";
+"New Variant…" = "కొత్త వేరియంట్…";
 "New blank part" = "కొత్త ఖాళీ పార్ట్";
 "New from Example" = "ఉదాహరణ నుండి కొత్తది";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "ఈ డిజైన్‌లో డిఫరెన్షియల్ జతలు (…_P/_N, …+/-) లేదా బస్‌లు (DQ0…, DATA[0..7], ADDR…) లేవు.";
@@ -233,6 +247,9 @@
 "Not naval" = "నౌకాదళం కాదు";
 "Not placed yet" = "ఇంకా ఉంచబడలేదు";
 "Not retail" = "రిటైల్ కాదు";
+"Number by Columns" = "నిలువు వరుసల ప్రకారం సంఖ్యలు ఇవ్వండి";
+"Number by Rows" = "అడ్డు వరుసల ప్రకారం సంఖ్యలు ఇవ్వండి";
+"Number by Sheet (R101, R201…)" = "షీట్ ప్రకారం సంఖ్యలు ఇవ్వండి (R101, R201…)";
 "OBJ with vertex colours" = "వెర్టెక్స్ రంగులతో OBJ";
 "OK" = "సరే";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "ఆఫ్: SiEDA సాంప్రదాయ మాన్యువల్ EDA టూల్‌గా పని చేస్తుంది. స్కీమాటిక్ క్యాప్చర్, సిమ్యులేషన్, PCB రూటింగ్, 3D, డేటాషీట్ పార్సింగ్ మరియు ఎగుమతులు అన్నీ స్థానికంగా రన్ అవుతాయి, ఏ AI సేవకూ ఏమీ పంపబడదు.";
@@ -256,9 +273,11 @@
 "Pin" = "పిన్";
 "Pins: " = "పిన్‌లు: ";
 "Place Now" = "ఇప్పుడే ఉంచు";
+"Place Sheet Symbol" = "షీట్ సింబల్ ఉంచండి";
 "Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)" = "ఉంచని ఫుట్‌ప్రింట్‌లను బోర్డు అవుట్‌లైన్ లోపల ఉంచి, అన్ని కనెక్షన్‌లను రూట్ చేసి DRC తనిఖీ చేయి (⇧⌘R)";
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "ప్లేస్‌మెంట్, రూటింగ్, పోర్‌లు, DRC, Gerber Edge.Cuts మరియు 3D బోర్డు అవుట్‌లైన్‌ను అనుసరిస్తాయి. ";
 "Plane" = "ప్లేన్";
+"Port (to parent sheet)" = "పోర్ట్ (పేరెంట్ షీట్‌కు)";
 "Preview appears once the part has a name and pins." = "పార్ట్‌కు పేరు మరియు పిన్‌లు ఉన్న తర్వాత ప్రివ్యూ కనిపిస్తుంది.";
 "Project Library" = "ప్రాజెక్ట్ లైబ్రరీ";
 "Project name" = "ప్రాజెక్ట్ పేరు";
@@ -272,6 +291,8 @@
 "Remove the empty slots on every side" = "ప్రతి వైపు ఖాళీ స్లాట్‌లను తీసివేయి";
 "Remove the firmware" = "ఫర్మ్‌వేర్‌ను తీసివేయి";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "చివరి కనెక్ట్ అయిన లేయర్ కింద ఉపయోగించని వయా బ్యారెల్‌ను తీసివేస్తుంది (≥ 4 లేయర్లు); బ్యాక్-డ్రిల్ ఫైల్‌ను జోడిస్తుంది";
+"Rename Sheet" = "షీట్ పేరు మార్చండి";
+"Rename Sheet…" = "షీట్ పేరు మార్చండి…";
 "Renumber" = "మళ్లీ నంబర్ చేయి";
 "Reserve the layer for this net: other nets only pass through it with vias" = "ఈ నెట్ కోసం లేయర్‌ను రిజర్వ్ చేయి: ఇతర నెట్‌లు వయాల ద్వారా మాత్రమే దాని గుండా వెళ్తాయి";
 "Reset View" = "వ్యూ రీసెట్ చేయి";
@@ -304,6 +325,7 @@
 "Schematic" = "స్కీమాటిక్";
 "Schematic capture · SPICE-class simulation · PCB autorouting · DRC · 3D · Gerber/Excellon export" = "స్కీమాటిక్ క్యాప్చర్ · SPICE-స్థాయి సిమ్యులేషన్ · PCB ఆటోరూటింగ్ · DRC · 3D · Gerber/Excellon ఎగుమతి";
 "Schematic · Simulation · PCB · 3D · Fabrication" = "స్కీమాటిక్ · సిమ్యులేషన్ · PCB · 3D · ఫ్యాబ్రికేషన్";
+"Scope" = "పరిధి";
 "Scope, serial monitor and switches" = "స్కోప్, సీరియల్ మానిటర్ మరియు స్విచ్‌లు";
 "Scopes" = "స్కోప్‌లు";
 "Scroll or pinch to zoom" = "జూమ్ చేయడానికి స్క్రోల్ లేదా పించ్ చేయండి";
@@ -317,6 +339,8 @@
 "Serial output — 200 ms, 10 µs" = "సీరియల్ అవుట్‌పుట్ — 200 ms, 10 µs";
 "Set" = "సెట్ చేయి";
 "Shape" = "ఆకారం";
+"Sheet" = "షీట్";
+"Sheet name" = "షీట్ పేరు";
 "Show" = "చూపు";
 "Show Crash Reports" = "క్రాష్ నివేదికలను చూపు";
 "Show Navigator" = "నావిగేటర్ చూపు";
@@ -376,6 +400,7 @@
 "Validate" = "ధృవీకరించు";
 "Validate Circuit" = "సర్క్యూట్‌ను ధృవీకరించు";
 "Value" = "విలువ";
+"Variant name" = "వేరియంట్ పేరు";
 "Verify Design" = "డిజైన్‌ను వెరిఫై చేయి";
 "Vertex AI region" = "Vertex AI రీజియన్";
 "Via-in-pad plated over (VIPPO, IPC-4761 Type VII)" = "వయా-ఇన్-ప్యాడ్ ప్లేటెడ్ ఓవర్ (VIPPO, IPC-4761 Type VII)";

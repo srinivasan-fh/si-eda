@@ -38,6 +38,12 @@ struct DesignSnapshot: Decodable, Equatable {
     /// Active tamper meshes laid over secure elements by the autorouter.
     var tamperMeshes: [TamperMeshInfo] = []
     var zoneFills: [ZoneFillInfo] = []
+    /// Schematic sheets in tab order (one for a single-sheet design) and the sheet new parts are placed on.
+    var sheets: [SheetInfo] = []
+    var activeSheet = 1
+    /// Assembly variants and the active one ("" = the base design).
+    var variants: [VariantInfo] = []
+    var activeVariant = ""
 
     static let empty = DesignSnapshot(name: "Untitled", requirements: "", components: [], wires: [], nets: [],
                                       board: BoardInfo(), pads: [], tracks: [], vias: [], ratsnest: [], courtyards: [])
@@ -87,15 +93,31 @@ struct DesignSnapshot: Decodable, Equatable {
         tamperMeshes = try c.decodeIfPresent([TamperMeshInfo].self, forKey: .tamperMeshes) ?? []
         zones = try c.decodeIfPresent([CopperZoneInfo].self, forKey: .zones) ?? []
         zoneFills = try c.decodeIfPresent([ZoneFillInfo].self, forKey: .zoneFills) ?? []
+        sheets = try c.decodeIfPresent([SheetInfo].self, forKey: .sheets) ?? []
+        activeSheet = try c.decodeIfPresent(Int.self, forKey: .activeSheet) ?? 1
+        variants = try c.decodeIfPresent([VariantInfo].self, forKey: .variants) ?? []
+        activeVariant = try c.decodeIfPresent(String.self, forKey: .activeVariant) ?? ""
     }
 
     private enum CodingKeys: String, CodingKey {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
         case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
-        case tamperMeshes, applianceType, memoryDesign
+        case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant
     }
 
     func component(_ id: Int) -> SnapComponent? { components.first { $0.id == id } }
+    func sheet(_ id: Int) -> SheetInfo? { sheets.first { $0.id == id } }
+
+    /// The part of the design drawn on one sheet: its components and the wires between them (wires never cross
+    /// sheets). A single-sheet design is returned unchanged.
+    func onSheet(_ sheet: Int) -> DesignSnapshot {
+        guard sheets.count > 1 else { return self }
+        var copy = self
+        copy.components = components.filter { $0.sheetId == sheet }
+        let ids = Set(copy.components.map(\.id))
+        copy.wires = wires.filter { ids.contains($0.a.component) && ids.contains($0.b.component) }
+        return copy
+    }
     func customPart(_ id: String?) -> CustomPartInfo? {
         guard let id else { return nil }
         return customParts.first { $0.id == id }
@@ -176,6 +198,19 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     var package: String?
     /// Packages a passive / diode can be switched to (chip sizes, through-hole, tantalum…); nil for fixed parts.
     var packageOptions: [PackageOption]?
+    /// Sheet the component is drawn on (nil from an older core: the first sheet).
+    var sheet: Int?
+    /// Net labels: "global", "local", "port" or "entry" (sheet entry into `targetSheet`).
+    var scope: String?
+    var targetSheet: Int?
+    /// false when the part is not fitted in the active variant (or marked DNP); nil = fitted.
+    var fitted: Bool?
+    /// Value fitted in the active variant, when it differs from the design value.
+    var variantValue: String?
+
+    var sheetId: Int { sheet ?? 1 }
+    var labelScope: String { scope ?? "global" }
+    var isFitted: Bool { fitted ?? true }
 
     var componentKind: ComponentKind { ComponentKind(rawValue: kind) ?? .ic8 }
     var position: CGPoint { CGPoint(x: x, y: y) }
@@ -305,6 +340,34 @@ struct SourcingUpdate: Equatable {
         let data = (try? JSONSerialization.data(withJSONObject: fields)) ?? Data("{}".utf8)
         return String(decoding: data, as: UTF8.self)
     }
+}
+
+/// A schematic sheet (page): components belong to one sheet; nets cross sheets through global labels, ground and
+/// hierarchical ports joined to sheet entries.
+struct SheetInfo: Decodable, Equatable, Identifiable, Hashable {
+    var id: Int
+    var name: String
+    /// The sheet whose sheet symbol stands for this one; 0 = top level.
+    var parent: Int
+    var depth: Int
+    /// Hierarchical port names on the sheet (the entries its sheet symbol offers).
+    var ports: [String]
+}
+
+/// A named assembly variant: parts fitted / not fitted and value overrides.
+struct VariantInfo: Decodable, Equatable, Identifiable {
+    struct Part: Decodable, Equatable {
+        var component: Int
+        var ref: String
+        var fitted: Bool?
+        var value: String?
+    }
+    var name: String
+    var description: String
+    var parts: [Part]
+    var id: String { name }
+
+    func part(_ component: Int) -> Part? { parts.first { $0.component == component } }
 }
 
 struct SnapNet: Decodable, Equatable, Identifiable {
@@ -713,12 +776,14 @@ struct RuleViolation: Decodable, Equatable, Identifiable {
     var hasLocation: Bool
     var x: Double
     var y: Double
+    /// Schematic sheet of the location (ERC), nil when not a schematic location.
+    var sheet: Int? = nil
     /// Distinguishes identical findings (same rule, message and place), so list identities stay unique.
     var occurrence = 0
     var id: String { "\(code)|\(message)|\(x)|\(y)|\(occurrence)" }
 
     private enum CodingKeys: String, CodingKey {
-        case severity, code, message, components, hasLocation, x, y
+        case severity, code, message, components, hasLocation, x, y, sheet
     }
 }
 

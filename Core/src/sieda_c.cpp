@@ -78,6 +78,19 @@ int32_t guarded(F f) {
         return 0;
     }
 }
+
+/// Assembly outputs (they follow a design variant). False for any other format.
+bool assemblyExport(const Project& p, const Schematic& sch, const std::string& f, std::string* out) {
+    if (f == "bom") *out = exportBomCsv(sch);
+    else if (f == "pnp") *out = exportPickAndPlaceCsv(sch);
+    else if (f == "bom_assembly") *out = exportAssemblyBomCsv(sch);
+    else if (f == "cpl") *out = exportCplCsv(sch, p.pcb);
+    else if (f == "assembly_top") *out = exportAssemblySvg(sch, p.pcb, false, p.name);
+    else if (f == "assembly_bottom") *out = exportAssemblySvg(sch, p.pcb, true, p.name);
+    else if (f == "bom_json") *out = bomJson(sch, p.buildQuantity).dump();
+    else return false;
+    return true;
+}
 }  // namespace
 
 extern "C" {
@@ -1249,8 +1262,12 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         const auto& p = project->project;
         std::string f = format;
         if (f == "spice") return dup(exportSpiceNetlist(p.schematic, p.name));
-        if (f == "bom") return dup(exportBomCsv(p.schematic));
-        if (f == "pnp") return dup(exportPickAndPlaceCsv(p.schematic));
+        if (f != "bom_json") {
+            std::string text;
+            if (p.activeVariant.empty() ? assemblyExport(p, p.schematic, f, &text)
+                                        : assemblyExport(p, p.variantSchematic(p.activeVariant), f, &text))
+                return dup(text);
+        }
         if (f == "gerber_top") return dup(exportGerber(p.schematic, p.pcb, GerberLayer::TopCopper));
         if (f == "gerber_bottom") return dup(exportGerber(p.schematic, p.pcb, GerberLayer::BottomCopper));
         if (f == "gerber_mask_top") return dup(exportGerber(p.schematic, p.pcb, GerberLayer::TopMask));
@@ -1261,10 +1278,6 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         if (f == "gerber_paste_bottom") return dup(exportGerber(p.schematic, p.pcb, GerberLayer::BottomPaste));
         if (f == "gerber_silk_bottom") return dup(exportGerber(p.schematic, p.pcb, GerberLayer::BottomSilk));
         if (f == "ipc356") return dup(exportIpcD356(p.schematic, p.pcb, p.name));
-        if (f == "bom_assembly") return dup(exportAssemblyBomCsv(p.schematic));
-        if (f == "cpl") return dup(exportCplCsv(p.schematic, p.pcb));
-        if (f == "assembly_top") return dup(exportAssemblySvg(p.schematic, p.pcb, false, p.name));
-        if (f == "assembly_bottom") return dup(exportAssemblySvg(p.schematic, p.pcb, true, p.name));
         if (f == "gerber_job") return dup(exportGerberJob(p, fabricationPackage(p)));
         if (f == "fab_notes") {
             for (const auto& file : fabricationPackage(p))
@@ -1288,7 +1301,9 @@ char* sieda_export(const SiedaProject* project, const char* format) {
 char* sieda_bom_json(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
-        return dup(bomJson(project->project.schematic, project->project.buildQuantity).dump());
+        const Project& p = project->project;
+        if (p.activeVariant.empty()) return dup(bomJson(p.schematic, p.buildQuantity).dump());
+        return dup(bomJson(p.variantSchematic(p.activeVariant), p.buildQuantity).dump());
     } catch (...) {
         return nullptr;
     }
@@ -1366,5 +1381,221 @@ const float* sieda_mesh_normals(const SiedaMesh* m) { return m ? m->mesh.normals
 const float* sieda_mesh_colors(const SiedaMesh* m) { return m ? m->mesh.colors.data() : nullptr; }
 const uint8_t* sieda_mesh_surfaces(const SiedaMesh* m) { return m ? m->mesh.surfaces.data() : nullptr; }
 const uint32_t* sieda_mesh_indices(const SiedaMesh* m) { return m ? m->mesh.indices.data() : nullptr; }
+
+/* ---- sheets, hierarchy, buses, annotation ---- */
+
+char* sieda_sheets_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        const Schematic& sch = project->project.schematic;
+        std::map<int, int> counts;
+        for (const auto& c : sch.components()) ++counts[c.sheet];
+        Json out = Json::object();
+        out["active"] = sch.activeSheet();
+        Json arr = Json::array();
+        for (const auto& s : sch.sheets()) {
+            Json j = Json::object();
+            j["id"] = s.id;
+            j["name"] = s.name;
+            j["parent"] = s.parent;
+            j["depth"] = sch.sheetDepth(s.id);
+            j["components"] = counts[s.id];
+            Json ports = Json::array();
+            for (const auto& port : sch.sheetPorts(s.id)) ports.push(port);
+            j["ports"] = ports;
+            arr.push(j);
+        }
+        out["sheets"] = arr;
+        return dup(out.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_add_sheet(SiedaProject* project, const char* name, int32_t parent) {
+    if (!project) return -1;
+    try {
+        return project->project.schematic.addSheet(str(name), parent);
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_rename_sheet(SiedaProject* project, int32_t sheet, const char* name) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.renameSheet(sheet, str(name)) ? 1 : 0; });
+}
+
+int32_t sieda_set_sheet_parent(SiedaProject* project, int32_t sheet, int32_t parent) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setSheetParent(sheet, parent) ? 1 : 0; });
+}
+
+int32_t sieda_reorder_sheet(SiedaProject* project, int32_t sheet, int32_t index) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.reorderSheet(sheet, index) ? 1 : 0; });
+}
+
+int32_t sieda_remove_sheet(SiedaProject* project, int32_t sheet, int32_t delete_contents) {
+    if (!project) return 0;
+    return guarded([&] {
+        bool ok = project->project.schematic.removeSheet(sheet, delete_contents != 0);
+        if (ok) project->project.schematicChanged();
+        return ok ? 1 : 0;
+    });
+}
+
+int32_t sieda_set_active_sheet(SiedaProject* project, int32_t sheet) {
+    if (!project) return 0;
+    return project->project.schematic.setActiveSheet(sheet) ? 1 : 0;
+}
+
+int32_t sieda_move_to_sheet(SiedaProject* project, const int32_t* component_ids, int32_t count, int32_t sheet) {
+    if (!project || !component_ids || count <= 0) return 0;
+    return guarded([&] {
+        std::vector<int> ids(component_ids, component_ids + count);
+        int moved = project->project.schematic.moveToSheet(ids, sheet);
+        if (moved > 0) project->project.schematicChanged();
+        return moved;
+    });
+}
+
+int32_t sieda_set_label_scope(SiedaProject* project, int32_t component_id, const char* scope, int32_t target_sheet) {
+    if (!project || !scope) return 0;
+    return guarded([&] {
+        LabelScope s;
+        if (!labelScopeFromName(scope, &s)) return 0;
+        bool ok = project->project.schematic.setLabelScope(component_id, s, target_sheet);
+        if (ok) project->project.schematicChanged();
+        return ok ? 1 : 0;
+    });
+}
+
+int32_t sieda_place_sheet_entries(SiedaProject* project, int32_t child, double x, double y) {
+    if (!project) return -1;
+    try {
+        int added = project->project.schematic.placeSheetEntries(child, {x, y});
+        if (added > 0) project->project.schematicChanged();
+        return added;
+    } catch (...) {
+        return -1;
+    }
+}
+
+char* sieda_expand_bus(const char* bus) {
+    try {
+        Json arr = Json::array();
+        for (const auto& m : expandBus(str(bus))) arr.push(m);
+        return dup(arr.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_add_bus_labels(SiedaProject* project, int32_t component_id, const int32_t* pins, int32_t count,
+                             const char* bus, const char* scope) {
+    if (!project || !pins || count <= 0) return -1;
+    try {
+        LabelScope s = LabelScope::Global;
+        if (scope && *scope && !labelScopeFromName(scope, &s)) return -1;
+        std::vector<int> list(pins, pins + count);
+        int added = project->project.schematic.addBusLabels(component_id, list, str(bus), s);
+        if (added > 0) project->project.schematicChanged();
+        return added;
+    } catch (...) {
+        return -1;
+    }
+}
+
+char* sieda_annotate(SiedaProject* project, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        AnnotateOptions o;
+        if (options_json && *options_json) {
+            Json j = Json::parse(options_json);
+            o.byColumns = j.get("order").asString("rows") == "columns";
+            o.keepExisting = j.get("keepExisting").asBool(false);
+            o.sheetNumbering = j.get("sheetNumbering").asBool(false);
+        }
+        Json changed = Json::array();
+        for (const auto& ch : project->project.annotate(o)) {
+            Json c = Json::object();
+            c["component"] = ch.component;
+            c["from"] = ch.from;
+            c["to"] = ch.to;
+            changed.push(c);
+        }
+        Json out = Json::object();
+        out["changed"] = changed;
+        return dup(out.dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+/* ---- design variants ---- */
+
+char* sieda_variants_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        const Project& p = project->project;
+        Json out = Json::object();
+        out["active"] = p.activeVariant;
+        Json arr = Json::array();
+        for (const auto& v : p.variants) arr.push(variantToJson(v, p.schematic));
+        out["variants"] = arr;
+        return dup(out.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_add_variant(SiedaProject* project, const char* name, const char* copy_from) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.addVariant(str(name), str(copy_from)) ? 1 : 0; });
+}
+
+int32_t sieda_rename_variant(SiedaProject* project, const char* name, const char* new_name) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.renameVariant(str(name), str(new_name)) ? 1 : 0; });
+}
+
+int32_t sieda_remove_variant(SiedaProject* project, const char* name) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.removeVariant(str(name)) ? 1 : 0; });
+}
+
+int32_t sieda_set_variant_description(SiedaProject* project, const char* name, const char* description) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.setVariantDescription(str(name), str(description)) ? 1 : 0; });
+}
+
+int32_t sieda_set_variant_part(SiedaProject* project, const char* name, int32_t component_id, int32_t fitted,
+                               const char* value) {
+    if (!project) return 0;
+    return guarded([&] {
+        const std::string text = str(value);
+        return project->project.setVariantPart(str(name), component_id, fitted, value ? &text : nullptr) ? 1 : 0;
+    });
+}
+
+int32_t sieda_set_active_variant(SiedaProject* project, const char* name) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.setActiveVariant(str(name)) ? 1 : 0; });
+}
+
+char* sieda_export_variant(const SiedaProject* project, const char* format, const char* variant) {
+    if (!project || !format) return nullptr;
+    try {
+        const Project& p = project->project;
+        const std::string name = str(variant);
+        if (!name.empty() && !p.findVariant(name)) return nullptr;
+        std::string text;
+        if (!assemblyExport(p, p.variantSchematic(name), format, &text)) return nullptr;
+        return dup(text);
+    } catch (...) {
+        return nullptr;
+    }
+}
 
 }  // extern "C"
