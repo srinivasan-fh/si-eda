@@ -41,7 +41,8 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 - **Correctness.** All AI output is schema-validated and checked by the core (ERC, simulation, DRC) before
   it is presented.
 - **Performance.** Interactive editing of designs with up to 200 parts. Autorouting typical small boards
-  takes under one second.
+  takes under one second; a 400-part, 8-layer board with BGAs places, routes and checks in under a minute
+  (benchmark and limits in [ROUTING.md](ROUTING.md)).
 - **Privacy.** Keys live in the Keychain. Only the prompt and design context are sent to the selected provider.
 - **Portability.** The core is dependency-free C++17 and is tested on Linux and macOS in CI.
 
@@ -52,7 +53,7 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 
 ## Roadmap
 (Shipped since v1: up to 24 layers, copper pours and planes with thermal reliefs, differential pairs, length tuning,
-HDI vias and BGA fan-out.)
+HDI vias, BGA fan-out, and autorouting / DRC at the scale of 1000-part boards with negotiated-congestion recovery.)
 
 1. KiCad `.kicad_mod` / Altium footprint import into the Footprint Editor (user component libraries shipped).
 2. AC small-signal analysis and Bode plots.

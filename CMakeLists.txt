@@ -62,4 +62,7 @@ if(SIEDA_BUILD_TESTS)
     add_executable(sieda_core_tests Core/tests/core_tests.cpp Core/tests/c_api_test.c)
     target_link_libraries(sieda_core_tests PRIVATE sieda_core)
     add_test(NAME sieda_core_tests COMMAND sieda_core_tests)
+    # Scale benchmark: place / route / DRC timings on generated large boards (not part of ctest).
+    add_executable(sieda_route_bench Core/tests/bench/route_bench.cpp)
+    target_link_libraries(sieda_route_bench PRIVATE sieda_core)
 endif()

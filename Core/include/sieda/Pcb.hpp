@@ -204,6 +204,11 @@ struct Via {
 /// "through", "blind", "buried" or "microvia" (one dielectric, drill ≤ 0.15 mm).
 const char* viaKind(const Via& v, int layerCount);
 
+/// Testing aid: with brute force on, runDRC (and the copper-connectivity scan) tests every pair of items instead of
+/// only the candidates from its spatial index. Both paths give identical results; brute force is O(n²).
+void setDrcBruteForce(bool on);
+bool drcBruteForce();
+
 /// Copper pour rule: fills the free area of `layer` with `net` copper, keeping clearance to every other net, the
 /// board edge and the mounting holes, with thermal-relief spokes on through-hole pads and floating islands removed.
 struct CopperZone {
