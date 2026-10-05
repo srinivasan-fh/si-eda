@@ -157,6 +157,14 @@ std::vector<StandardPart> build() {
     parts.push_back(part("Op-Amps", "LM358", "Texas Instruments", "Dual low-power operational amplifier", "SOIC", 8, "U",
                          {{"OUT1", T::Output}, {"IN1-", T::Input}, {"IN1+", T::Input}, {"GND", T::PowerIn},
                           {"IN2+", T::Input}, {"IN2-", T::Input}, {"OUT2", T::Output}, {"VCC", T::PowerIn}}));
+    // Quad op-amp drawn gate by gate: units A–D and the power unit P (pins 4 and 11).
+    parts.push_back(part("Op-Amps", "LM324", "Texas Instruments", "Quad low-power operational amplifier (one symbol per gate)",
+                         "SOIC", 14, "U",
+                         {{"OUT1", T::Output}, {"IN1-", T::Input}, {"IN1+", T::Input}, {"V+", T::PowerIn},
+                          {"IN2+", T::Input}, {"IN2-", T::Input}, {"OUT2", T::Output}, {"OUT3", T::Output},
+                          {"IN3-", T::Input}, {"IN3+", T::Input}, {"V-", T::PowerIn}, {"IN4+", T::Input},
+                          {"IN4-", T::Input}, {"OUT4", T::Output}}));
+    parts.back().spec.units = {{"A", {"1", "2", "3"}}, {"B", {"7", "6", "5"}}, {"C", {"8", "9", "10"}}, {"D", {"14", "13", "12"}}};
     parts.push_back(part("Microcontrollers · Microchip", "ATtiny85", "Microchip", "8-bit AVR MCU, 8 KB flash", "DIP", 8, "U",
                          {{"PB5/RST", T::Bidirectional}, {"PB3", T::Bidirectional}, {"PB4", T::Bidirectional},
                           {"GND", T::PowerIn}, {"PB0", T::Bidirectional}, {"PB1", T::Bidirectional},

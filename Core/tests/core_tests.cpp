@@ -8412,3 +8412,256 @@ TEST(graphical_buses_c_api) {
     if (rc != 0) std::printf("    bus c api step %d failed\n", rc);
     CHECK(rc == 0);
 }
+
+// ======================================================================= multi-unit parts
+
+namespace {
+/// A quad op-amp (LM324 pinout): units A–D, supplies on pins 4 and 11 (the power unit).
+CustomPartSpec quadOpAmpSpec() {
+    CustomPartSpec spec;
+    spec.name = "LM324-TEST";
+    spec.package.type = "SOIC";
+    const char* names[] = {"OUT1", "IN1-", "IN1+", "V+", "IN2+", "IN2-", "OUT2", "OUT3", "IN3-", "IN3+", "V-", "IN4+", "IN4-", "OUT4"};
+    for (int i = 0; i < 14; ++i) {
+        CustomPin p;
+        p.number = std::to_string(i + 1);
+        p.name = names[i];
+        const std::string n = names[i];
+        p.type = n.rfind("OUT", 0) == 0 ? PinType::Output : (n == "V+" || n == "V-") ? PinType::PowerIn : PinType::Input;
+        spec.pins.push_back(p);
+    }
+    spec.units = {{"A", {"1", "2", "3"}}, {"B", {"7", "6", "5"}}, {"C", {"8", "9", "10"}}, {"D", {"14", "13", "12"}}};
+    return spec;
+}
+}  // namespace
+
+TEST(multi_unit_parts_units_package_netlist_erc_and_persistence) {
+    const auto part = CustomPartRegistry::instance().registerPart(quadOpAmpSpec());
+    CHECK(part->units.size() == 5);
+    if (part->units.size() != 5) return;
+    CHECK(part->units[4].name == "P" && part->units[4].power && !part->units[0].power);
+    CHECK(part->units[0].def.pins.size() == 3 && part->units[4].def.pins.size() == 2);
+    CHECK(part->units[1].pins[0] == 6);  // unit B's first pin is pin 7 (index 6)
+    CHECK(part->def.pins.size() == 14 && !part->footprint.pads.empty());
+    {
+        Json j = customPartToJson(*part);
+        CHECK(j.get("unitSymbols").size() == 5 && j.get("units").size() == 4);
+        CustomPartSpec back = customPartSpecFromJson(customPartSpecToJson(part->spec));
+        CHECK(back.units.size() == 4 && back.units[1].pins[0] == "7");
+        CHECK(CustomPartRegistry::instance().registerPart(back)->id == part->id);
+        CustomPartSpec bad = quadOpAmpSpec();
+        bad.units[0].pins.push_back("99");
+        bool threw = false;
+        try {
+            CustomPartRegistry::instance().registerPart(bad);
+        } catch (const JsonError&) {
+            threw = true;
+        }
+        CHECK(threw);
+        bool dup = false;
+        try {
+            customPartSpecFromJson(Json::parse("{\"name\":\"X\",\"pins\":[{\"number\":\"1\",\"name\":\"A\"}],"
+                                               "\"units\":[{\"name\":\"A\",\"pins\":[\"1\"]},{\"name\":\"A\",\"pins\":[\"1\"]}]}"));
+        } catch (const JsonError&) {
+            dup = true;
+        }
+        CHECK(dup);
+    }
+
+    Project p;
+    Schematic& s = p.schematic;
+    p.addCustomPart(part->spec);
+    const int a = s.addCustomUnits(part->id, "", {0, 0});
+    CHECK(a > 0 && s.find(a)->kind == ComponentKind::PartUnit && s.unitName(*s.find(a)) == "A");
+    const int pkg = s.unitPackage(a);
+    CHECK(pkg > 0 && s.find(pkg)->packageOnly && s.find(pkg)->kind == ComponentKind::Custom);
+    CHECK(s.displayRef(*s.find(a)) == "U1A" && s.find(a)->ref == "U1");
+    CHECK(s.addPartUnit(a, 1, {0, 0}) == -1);  // already placed
+    CHECK(s.addPartUnit(a, 9, {0, 0}) == -1);
+    const int b = s.placeNextUnit(a, {0, 200});
+    const int c = s.placeNextUnit(pkg, {0, 400});
+    const int d = s.placeNextUnit(a, {0, 600});
+    CHECK(b > 0 && c > 0 && d > 0 && s.unitName(*s.find(d)) == "D");
+    // Not all units placed: the power pins are open (error), and so on.
+    {
+        auto erc = s.runERC();
+        bool powerMessage = false;
+        for (const auto& v : erc)
+            if (v.code == "ERC_POWER_PIN_UNCONNECTED" && v.message.find("place unit P of U1") != std::string::npos) powerMessage = true;
+        CHECK(powerMessage);
+        CHECK(hasCode(erc, "ERC_FLOATING_COMPONENT"));  // the units are not wired yet
+    }
+    const int pwr = s.placeNextUnit(a, {200, 0});
+    CHECK(pwr > 0 && s.unitName(*s.find(pwr)) == "P" && s.placeNextUnit(a, {0, 0}) == -1);
+    CHECK((s.placedUnits(pkg) == std::vector<int>{a, b, c, d, pwr}));
+
+    // Wire unit A as a follower from a 5 V divider, supplies on P; units B–D tied off.
+    const int v = s.addComponent(ComponentKind::VoltageSource, "5", {-300, 0});
+    const int g = s.addComponent(ComponentKind::Ground, "", {-300, 200});
+    const int r1 = s.addComponent(ComponentKind::Resistor, "10k", {-200, 0});
+    const int r2 = s.addComponent(ComponentKind::Resistor, "10k", {-200, 100});
+    wire(s, v, "+", r1, "1");
+    wire(s, r1, "2", r2, "1");
+    wire(s, r2, "2", g, "GND");
+    wire(s, v, "-", g, "GND");
+    CHECK(s.connect({r1, 1}, {a, 2}) >= 0);    // IN1+
+    CHECK(s.connect({a, 0}, {a, 1}) >= 0);     // OUT1 → IN1-
+    CHECK(s.connect({pwr, 0}, {v, 0}) >= 0);   // V+
+    CHECK(s.connect({pwr, 1}, {g, 0}) >= 0);   // V-
+    for (int u : {b, c, d}) {
+        CHECK(s.connect({u, 0}, {u, 1}) >= 0);
+        CHECK(s.connect({u, 2}, {g, 0}) >= 0);
+    }
+    // A unit's pins are its package's pins; only the package's pins are net members.
+    CHECK(s.netOf({a, 2}) == s.netOf({pkg, 2}) && s.netOf({a, 2}) == s.netOf({r1, 1}));
+    CHECK(s.netOf({b, 0}) == s.netOf({pkg, 6}));
+    CHECK(s.netOf({pwr, 0}) == s.netOf({pkg, 3}));
+    for (const auto& n : s.nets())
+        for (const auto& pin : n.pins) CHECK(s.find(pin.component)->kind != ComponentKind::PartUnit);
+    CHECK(s.isPinConnected({a, 2}) && s.isPinConnected({pkg, 2}));
+    {
+        auto erc = s.runERC();
+        CHECK(!hasCode(erc, "ERC_POWER_PIN_UNCONNECTED") && !hasCode(erc, "ERC_UNIT_NOT_PLACED") &&
+              !hasCode(erc, "ERC_UNCONNECTED_PIN") && !hasCode(erc, "ERC_FLOATING_COMPONENT") &&
+              !hasCode(erc, "ERC_DUPLICATE_REF"));
+    }
+    // An open unit pin is reported with the unit's designator.
+    const int stray = s.addCustomUnits(part->id, "", {600, 0});
+    {
+        bool named = false;
+        for (const auto& vio : s.runERC())
+            if (vio.message.find("U2A") != std::string::npos) named = true;
+        CHECK(named && hasCode(s.runERC(), "ERC_UNIT_NOT_PLACED"));
+    }
+    CHECK(s.removeComponent(stray));
+    CHECK(!s.find(stray) && s.findByRef("U2") == nullptr);  // the last unit takes its package along
+
+    // One part on the board and in the BOM, with every pad.
+    p.schematicChanged();
+    p.pcb.autoPlace(s, true);
+    CHECK(s.find(pkg)->pcb.placed);
+    int pads = 0;
+    for (const auto& pad : p.pcb.pads(s)) pads += pad.componentId == pkg;
+    CHECK(pads == 14);
+    for (const auto& pad : p.pcb.pads(s)) CHECK(s.find(pad.componentId)->kind != ComponentKind::PartUnit);
+    const std::string bom = exportBomCsv(s);
+    CHECK(bom.find("U1") != std::string::npos && bom.find("U1A") == std::string::npos);
+    CHECK(Simulator(s).dcOperatingPoint().converged);
+
+    // The designator and value of any unit are the package's.
+    CHECK(s.setRef(c, "U7"));
+    CHECK(s.find(pkg)->ref == "U7" && s.find(a)->ref == "U7" && s.displayRef(*s.find(pwr)) == "U7P");
+    CHECK(s.setValue(b, "LM2902"));
+    CHECK(s.find(pkg)->value == "LM2902" && s.find(d)->value == "LM2902");
+    // Variants fit the package.
+    CHECK(p.addVariant("NoAmp") && p.setVariantPart("NoAmp", a, 0, nullptr));
+    CHECK(p.findVariant("NoAmp")->parts.count(pkg) == 1);
+    {
+        Json snap = p.snapshot();
+        int units = 0, hidden = 0;
+        for (const auto& comp : snap.get("components").items()) {
+            if (comp.has("unitOf")) {
+                ++units;
+                CHECK(comp.get("kind").asInt() == static_cast<int>(ComponentKind::Custom) && comp.get("unitOf").asInt() == pkg);
+            }
+            if (comp.get("unitPackage").asBool(false)) ++hidden;
+        }
+        CHECK(units == 5 && hidden == 1);
+    }
+
+    // Persistence: the same design comes back.
+    const std::string saved = p.toJson().dump();
+    Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.toJson().dump() == saved);
+    CHECK(q.schematic.netOf({a, 2}) == q.schematic.netOf({r1, 1}));
+    CHECK(q.schematic.placedUnits(pkg).size() == 5);
+    // Hostile: units of missing packages and out-of-range units are dropped on load; a package left without units goes.
+    std::string text = saved;
+    const std::string key = "\"unitOf\":" + std::to_string(pkg);
+    for (size_t k = text.find(key); k != std::string::npos; k = text.find(key, k + 1)) text.replace(k, key.size(), "\"unitOf\":424242");
+    Project h = Project::fromJson(Json::parse(text));
+    CHECK(h.schematic.find(a) == nullptr && h.schematic.find(pkg) == nullptr);
+    CHECK(h.schematic.find(r1) != nullptr);
+    std::string ranged = saved;
+    const std::string unitKey = "\"unit\":2";
+    const size_t at = ranged.find(unitKey);
+    CHECK(at != std::string::npos);
+    ranged.replace(at, unitKey.size(), "\"unit\":99");
+    Project h2 = Project::fromJson(Json::parse(ranged));
+    CHECK(h2.schematic.find(b) == nullptr && h2.schematic.find(a) != nullptr);
+    h2.schematic.runERC();
+
+    // Removing the package removes its units.
+    CHECK(s.removeComponent(pkg));
+    CHECK(!s.find(a) && !s.find(pwr));
+}
+
+TEST(multi_unit_parts_annotation_packs_units_and_repeated_sheets) {
+    const auto part = CustomPartRegistry::instance().registerPart(quadOpAmpSpec());
+    Schematic s;
+    // Two gates placed as two separate parts: packing puts them into one package as A and B.
+    const int g1 = s.addCustomUnits(part->id, "", {0, 0});
+    const int g2 = s.addCustomUnits(part->id, "", {200, 0});
+    const int p2 = s.placeNextUnit(g2, {200, 300});  // unit B of the second package
+    CHECK(s.unitPackage(g1) != s.unitPackage(g2));
+    AnnotateOptions o;
+    o.packUnits = true;
+    s.annotate(o);
+    CHECK(s.unitPackage(g1) == s.unitPackage(g2));
+    CHECK(s.unitName(*s.find(g1)) == "A" && s.unitName(*s.find(g2)) == "B");
+    CHECK(s.find(g1)->ref == "U1" && s.find(g2)->ref == "U1");
+    // The third gate (unit B of the old second package) fills slot C of the same quad package; the empty one goes.
+    CHECK(s.unitPackage(p2) == s.unitPackage(g1) && s.unitName(*s.find(p2)) == "C");
+    int packages = 0;
+    for (const auto& c : s.components()) packages += c.packageOnly;
+    CHECK(packages == 1);
+    // Five gates need two packages.
+    for (int k = 0; k < 2; ++k) s.addCustomUnits(part->id, "", {400.0 + 100 * k, 600});
+    s.annotate(o);
+    packages = 0;
+    for (const auto& c : s.components()) packages += c.packageOnly;
+    CHECK(packages == 2);
+    CHECK(s.findByRef("U1") && s.findByRef("U2") && !s.findByRef("U3"));
+
+    // Units on a repeated sheet: each channel's units belong to that channel's package.
+    Schematic t;
+    const int sheet = t.addSheet("Amp", 1);
+    t.setActiveSheet(sheet);
+    const int ua = t.addCustomUnits(part->id, "", {0, 0});
+    const int ub = t.placeNextUnit(ua, {0, 200});
+    CHECK(t.repeatSheet(sheet, 2) == 2);
+    const int inst = t.sheetInstances(sheet)[1];
+    const int ca = t.copyOn(ua, inst), cb = t.copyOn(ub, inst);
+    CHECK(ca > 0 && cb > 0 && t.unitPackage(ca) == t.unitPackage(cb));
+    CHECK(t.unitPackage(ca) != t.unitPackage(ua) && t.unitPackage(ca) == t.copyOn(t.unitPackage(ua), inst));
+    CHECK(t.find(ca)->ref == t.find(t.unitPackage(ca))->ref && t.find(ca)->ref != t.find(ua)->ref);
+    CHECK(instancesConsistent(t));
+    // A unit placed on a channel goes into the block.
+    t.setActiveSheet(inst);
+    const int uc = t.placeNextUnit(ca, {0, 400});
+    CHECK(uc > 0 && t.find(uc)->sheet == inst && t.find(t.masterOf(uc))->sheet == sheet);
+    CHECK(t.placedUnits(t.unitPackage(ua)).size() == 3);
+}
+
+extern "C" int sieda_c_api_units_test(void);
+
+TEST(multi_unit_parts_c_api) {
+    const int rc = sieda_c_api_units_test();
+    if (rc != 0) std::printf("    units c api step %d failed\n", rc);
+    CHECK(rc == 0);
+}
+
+TEST(multi_unit_standard_part_lm324) {
+    const StandardPart* lm324 = findStandardPart("lm324");
+    CHECK(lm324 != nullptr);
+    if (!lm324) return;
+    const auto part = CustomPartRegistry::instance().registerPart(lm324->spec);
+    CHECK(part->units.size() == 5 && part->units.back().name == "P" && part->units.back().power);
+    // Placed whole (as plans and older designs do) it is one 14-pin symbol, exactly as before units existed.
+    Schematic s;
+    const int whole = s.addCustomComponent(part->id, "", {0, 0});
+    CHECK(whole > 0 && s.find(whole)->def().pins.size() == 14 && !s.find(whole)->packageOnly);
+    const char* json = sieda_standard_parts_json();
+    CHECK(json && std::string(json).find("\"units\":[{\"name\":\"A\"") != std::string::npos);
+    sieda_string_free(const_cast<char*>(json));
+}

@@ -533,3 +533,7 @@
 "Connect to Part" = "Ikonekta sa piyesa";
 "Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "Ikabit ang mga miyembro sa mga pin na may parehong pangalan (D0 → D0), kung wala ay sa mga bukas na pin nang sunod-sunod";
 "Delete Bus" = "Burahin ang bus";
+"Pack Units into Packages" = "Ipunin ang mga unit sa mga package";
+"Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Ang mga gate ng multi-unit na piyesa (A, B, C, D ng quad op-amp) ay pinupuno sa mga package ayon sa pagkakalagay bago lagyan ng numero";
+"Place Next Unit" = "Ilagay ang susunod na unit";
+"Place Unit" = "Ilagay ang unit";

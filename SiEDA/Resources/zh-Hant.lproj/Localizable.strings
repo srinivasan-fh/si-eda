@@ -533,3 +533,7 @@
 "Connect to Part" = "連接到元件";
 "Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "將成員連到元件同名的接腳 (D0 → D0)，否則依序連到未連接的接腳";
 "Delete Bus" = "刪除匯流排";
+"Pack Units into Packages" = "將單元打包到封裝";
+"Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "多單元元件的閘 (四運放的 A、B、C、D) 依放置順序填入封裝後再編號";
+"Place Next Unit" = "放置下一個單元";
+"Place Unit" = "放置單元";

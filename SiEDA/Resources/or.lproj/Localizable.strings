@@ -533,3 +533,7 @@
 "Connect to Part" = "ଅଂଶ ସହ ଯୋଡନ୍ତୁ";
 "Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "ସଦସ୍ୟମାନଙ୍କୁ ସମାନ ନାମର ପିନ୍ (D0 → D0) ସହ, ନଚେତ୍ କ୍ରମରେ ଖୋଲା ପିନ୍ ସହ ଯୋଡନ୍ତୁ";
 "Delete Bus" = "ବସ୍ ବିଲୋପ କରନ୍ତୁ";
+"Pack Units into Packages" = "ୟୁନିଟ୍‌ଗୁଡ଼ିକୁ ପ୍ୟାକେଜରେ ସଜାନ୍ତୁ";
+"Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "ବହୁ-ୟୁନିଟ୍ ଅଂଶର ଗେଟ୍ (କ୍ୱାଡ୍ ଅପ୍-ଆମ୍ପର A, B, C, D) ନମ୍ବର ଦେବା ପୂର୍ବରୁ ରଖିବା କ୍ରମରେ ପ୍ୟାକେଜ୍ ଭରନ୍ତି";
+"Place Next Unit" = "ପରବର୍ତ୍ତୀ ୟୁନିଟ୍ ରଖନ୍ତୁ";
+"Place Unit" = "ୟୁନିଟ୍ ରଖନ୍ତୁ";

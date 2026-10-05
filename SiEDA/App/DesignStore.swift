@@ -690,10 +690,41 @@ final class DesignStore: ObservableObject {
     func addCustomComponent(partId: String, at point: CGPoint, rotation: Int = 0) -> Int {
         var id = -1
         let snapped = SchematicAutoLayout.snap(point)
-        let name = snapshot.customPart(partId)?.name ?? "part"
-        perform("Placed \(name)") { id = $0.addCustomComponent(partId: partId, at: snapped, rotation: rotation) }
+        let part = snapshot.customPart(partId)
+        let name = part?.name ?? "part"
+        if part?.isMultiUnit == true {
+            // A multi-unit part is placed gate by gate: unit A now, the others with Place Next Unit.
+            perform("Placed \(name) unit A") { id = $0.addCustomUnits(partId: partId, at: snapped, rotation: rotation) }
+        } else {
+            perform("Placed \(name)") { id = $0.addCustomComponent(partId: partId, at: snapped, rotation: rotation) }
+        }
         if id >= 0 { selection = [id] }
         return id
+    }
+
+    /// Places the next unit of a multi-unit part beside the last one placed and selects it.
+    func placeNextUnit(of id: Int) {
+        guard let c = snapshot.component(id), let package = c.unitOf ?? (c.isUnitPackage ? c.id : nil) else { return }
+        let placed = snapshot.components.filter { $0.unitOf == package && $0.sheetId == snapshot.activeSheet }
+        let anchor = placed.max { $0.x < $1.x }?.position ?? c.position
+        var unit: Int?
+        performChecked("Placed next unit of \(c.ref)", failureMessage: "Every unit of \(c.ref) is placed") {
+            unit = $0.placeNextUnit(of: package, at: SchematicAutoLayout.snap(CGPoint(x: anchor.x + 140, y: anchor.y)))
+            return unit != nil
+        }
+        if let unit { selection = [unit] }
+    }
+
+    /// Places one particular unit (1-based) of a multi-unit part.
+    func placeUnit(_ unit: Int, of id: Int) {
+        guard let c = snapshot.component(id), let package = c.unitOf ?? (c.isUnitPackage ? c.id : nil) else { return }
+        let anchor = c.position
+        var placed: Int?
+        performChecked("Placed unit of \(c.ref)", failureMessage: "That unit of \(c.ref) is placed already") {
+            placed = $0.addPartUnit(of: package, unit: unit, at: SchematicAutoLayout.snap(CGPoint(x: anchor.x + 140, y: anchor.y + 80)))
+            return placed != nil
+        }
+        if let placed { selection = [placed] }
     }
 
     /// Adds a built-in standard part to the project library (if needed) and returns its part id.
@@ -930,11 +961,12 @@ final class DesignStore: ObservableObject {
     }
 
     /// Re-numbers reference designators by sheet and position.
-    func annotate(byColumns: Bool = false, keepExisting: Bool = false, sheetNumbering: Bool = false) {
+    func annotate(byColumns: Bool = false, keepExisting: Bool = false, sheetNumbering: Bool = false, packUnits: Bool = false) {
         var changed = 0
         let done = performChecked("Annotated designators", invalidatesAnalysis: false,
                                   failureMessage: "Designators are already in order") { engine in
-            changed = engine.annotate(byColumns: byColumns, keepExisting: keepExisting, sheetNumbering: sheetNumbering)
+            changed = engine.annotate(byColumns: byColumns, keepExisting: keepExisting, sheetNumbering: sheetNumbering,
+                                      packUnits: packUnits)
             return changed > 0
         }
         if done { statusMessage = "Annotated: \(changed) designator(s) changed" }

@@ -1754,6 +1754,7 @@ char* sieda_annotate(SiedaProject* project, const char* options_json) {
             o.byColumns = j.get("order").asString("rows") == "columns";
             o.keepExisting = j.get("keepExisting").asBool(false);
             o.sheetNumbering = j.get("sheetNumbering").asBool(false);
+            o.packUnits = j.get("packUnits").asBool(false);
         }
         Json changed = Json::array();
         for (const auto& ch : project->project.annotate(o)) {
@@ -2098,6 +2099,46 @@ int32_t sieda_connect_bus_to_part(SiedaProject* project, int32_t bus, int32_t co
         const int n = project->project.schematic.connectBusToPart(bus, component_id, s);
         if (n > 0) project->project.schematicChanged();
         return n;
+    } catch (...) {
+        return -1;
+    }
+}
+
+}  // extern "C"
+
+// ---- multi-unit parts
+
+extern "C" {
+
+int32_t sieda_add_custom_units(SiedaProject* project, const char* part_id, const char* value, double x, double y,
+                               int32_t rotation, const char* ref) {
+    if (!project || !part_id) return -1;
+    try {
+        const int id = project->project.schematic.addCustomUnits(part_id, str(value), {x, y}, rotation, str(ref));
+        if (id >= 0) project->project.schematicChanged();
+        return id;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_add_part_unit(SiedaProject* project, int32_t component_id, int32_t unit, double x, double y, int32_t rotation) {
+    if (!project) return -1;
+    try {
+        const int id = project->project.schematic.addPartUnit(component_id, unit, {x, y}, rotation);
+        if (id >= 0) project->project.schematicChanged();
+        return id;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_place_next_unit(SiedaProject* project, int32_t component_id, double x, double y) {
+    if (!project) return -1;
+    try {
+        const int id = project->project.schematic.placeNextUnit(component_id, {x, y});
+        if (id >= 0) project->project.schematicChanged();
+        return id;
     } catch (...) {
         return -1;
     }

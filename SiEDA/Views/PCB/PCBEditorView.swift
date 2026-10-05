@@ -313,7 +313,7 @@ struct PCBEditorView: View {
     }
 
     private var unplacedCount: Int {
-        store.snapshot.components.filter { !$0.componentKind.isVirtual && !$0.pcb.placed }.count
+        store.snapshot.components.filter { !$0.componentKind.isVirtual && !$0.pcb.placed && $0.unitOf == nil }.count
     }
 
     private func ruleField(_ title: String, _ text: Binding<String>, unit: String) -> some View {

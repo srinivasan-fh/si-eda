@@ -68,6 +68,7 @@
 		9D123CFF6797C354E55BECE2 = {isa = PBXBuildFile; fileRef = B7A272C317609DD8A2D79E17; };
 		9EAA0CE5E58FE55480669B64 = {isa = PBXBuildFile; fileRef = AA4AB23447B95722FF60AB2A; };
 		A2CE916CEF229F47742B9BBA = {isa = PBXBuildFile; fileRef = BFA5BEE97DAC5DA4CD8D236B; };
+		A3C4A2F16130B3AC775D6A39 = {isa = PBXBuildFile; fileRef = C9FAD09E0643B4861F96EA94; };
 		A96A43532A4B39F999745661 = {isa = PBXBuildFile; fileRef = C7908EC042B9A2D79A33EA40; };
 		AAC385CA2568FFA26B026F63 = {isa = PBXBuildFile; fileRef = DF6ECA8D3A158AB03BF17024; };
 		AB875AA41AE0F100BA45A38C = {isa = PBXBuildFile; fileRef = 4F936263151D3C60C008BC98; };
@@ -247,6 +248,7 @@
 		C7908EC042B9A2D79A33EA40 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FootprintEditorView.swift; sourceTree = "<group>"; };
 		C89170449E2396D5C7CCEC71 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Robotics.hpp; sourceTree = "<group>"; };
 		C9668A0215AD47CFD79FAADA = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Project.hpp; sourceTree = "<group>"; };
+		C9FAD09E0643B4861F96EA94 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PartUnits.cpp; sourceTree = "<group>"; };
 		CB13CE4917657E806979BBC3 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		D167B535F3242C6A3552428F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
 		D3E15B9053DA257C9A5751E7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentLibraryView.swift; sourceTree = "<group>"; };
@@ -485,6 +487,7 @@
 				360A0133126B63E523F4E1AB,
 				41B79F22607C01D7C4BF744B,
 				95D82CBD596587E48DABCB80,
+				C9FAD09E0643B4861F96EA94,
 				2B421B324134866281AAE285,
 				41BE8E6FE79D683A25DC1EF5,
 				754F9843AC5AAB513A6742B2,
@@ -845,6 +848,7 @@
 				2287BB95287E1B91404A7E26,
 				C98936A9AF1F391BD51F67D5,
 				72601D5009959BDD1ABF3B98,
+				A3C4A2F16130B3AC775D6A39,
 				1D0CCCE3C0074105DFCF6C37,
 				803DA0F8680AFD0A3B8A435C,
 				4F54772D2F67B6B122050EB5,

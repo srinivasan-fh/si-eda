@@ -293,6 +293,7 @@ void Schematic::syncInstances() {
         for (auto& w : wires_) w.instanceOf = 0;
         for (auto& b : buses_) b.instanceOf = 0;
         if (changed) invalidate();
+        syncUnits();
         return;
     }
 
@@ -521,8 +522,22 @@ void Schematic::syncInstances() {
                 c.package = m.package;
                 c.scope = m.scope;
                 c.targetSheet = m.targetSheet;
+                c.unit = m.unit;
+                c.packageOnly = m.packageOnly;
             }
         }
+        // Units of multi-unit parts belong to the copies of their packages.
+        for (int sheet : instances)
+            for (int mid : masterIds) {
+                const int masterPkg = comp(mid)->unitOf;
+                Component& c = *comp(copyOf[{mid, sheet}]);
+                const auto pkg = copyOf.find({masterPkg, sheet});
+                const int unitOf = masterPkg != 0 && pkg != copyOf.end() ? pkg->second : 0;
+                if (c.unitOf != unitOf) {
+                    c.unitOf = unitOf;
+                    changed = true;
+                }
+            }
         // Bus entries of the copies belong to the copies of their bus.
         for (int sheet : instances)
             for (int mid : masterIds) {
@@ -592,6 +607,7 @@ void Schematic::syncInstances() {
             }
     }
     if (changed) invalidate();
+    syncUnits();
 }
 
 void Schematic::annotateBlocks(const AnnotateOptions& o) {

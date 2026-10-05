@@ -533,3 +533,7 @@
 "Connect to Part" = "부품에 연결";
 "Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "멤버를 같은 이름의 부품 핀(D0 → D0)에, 없으면 열린 핀에 순서대로 연결";
 "Delete Bus" = "버스 삭제";
+"Pack Units into Packages" = "유닛을 패키지로 묶기";
+"Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "다중 유닛 부품의 게이트(쿼드 op-amp의 A, B, C, D)를 배치 순서대로 패키지에 채운 뒤 번호를 매깁니다";
+"Place Next Unit" = "다음 유닛 배치";
+"Place Unit" = "유닛 배치";

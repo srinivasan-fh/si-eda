@@ -533,3 +533,7 @@
 "Connect to Part" = "பாகத்துடன் இணை";
 "Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "உறுப்பினர்களை அதே பெயருள்ள பின்களுடன் (D0 → D0), இல்லையெனில் வரிசையாகக் காலியான பின்களுடன் இணை";
 "Delete Bus" = "பஸ்ஸை நீக்கு";
+"Pack Units into Packages" = "அலகுகளைத் தொகுப்புகளில் அடுக்கு";
+"Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "பல-அலகு பாகங்களின் கேட்கள் (குவாட் ஆப்-ஆம்பின் A, B, C, D) எண்ணிடுவதற்கு முன் வைத்த வரிசையில் தொகுப்புகளை நிரப்பும்";
+"Place Next Unit" = "அடுத்த அலகை வை";
+"Place Unit" = "அலகை வை";

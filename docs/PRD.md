@@ -49,8 +49,8 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 - **Portability.** The core is dependency-free C++17 and is tested on Linux and macOS in CI.
 
 ## Out of scope for v1
-- Importing KiCad or Altium library files, multi-unit symbols (one gate per unit) and custom symbol graphics (the
-  Footprint and Symbol Editors shipped; see F13, F14).
+- Importing KiCad or Altium library files and custom symbol graphics (the Footprint and Symbol Editors shipped; see
+  F13, F14). Multi-unit symbols shipped (see docs/SCHEMATIC.md).
 - Noise analysis (AC small-signal analysis shipped; see F7).
 
 ## Roadmap

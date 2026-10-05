@@ -533,3 +533,7 @@
 "Connect to Part" = "部品に接続";
 "Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "メンバーを部品の同名ピン (D0 → D0) に、なければ空きピンに順に配線";
 "Delete Bus" = "バスを削除";
+"Pack Units into Packages" = "ユニットをパッケージにまとめる";
+"Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "マルチユニット部品のゲート (クワッドオペアンプの A、B、C、D) を配置順にパッケージへ詰めてから番号付け";
+"Place Next Unit" = "次のユニットを配置";
+"Place Unit" = "ユニットを配置";

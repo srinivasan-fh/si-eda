@@ -4802,3 +4802,32 @@ final class SchematicBusTests: XCTestCase {
         XCTAssertNotNil(store.snapshot.bus(bus))
     }
 }
+
+@MainActor
+final class MultiUnitPartTests: XCTestCase {
+    func testQuadOpAmpPlacedGateByGate() throws {
+        let store = DesignStore()
+        let lm324 = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "LM324" })
+        XCTAssertEqual(lm324.spec.units?.count, 4)
+        let partId = try XCTUnwrap(store.addStandardPartToLibrary(lm324))
+        XCTAssertTrue(try XCTUnwrap(store.snapshot.customPart(partId)).isMultiUnit)
+        let a = store.addCustomComponent(partId: partId, at: .zero)
+        let unitA = try XCTUnwrap(store.snapshot.component(a))
+        XCTAssertEqual(unitA.unitName, "A")
+        XCTAssertEqual(unitA.displayRef, "U1A")
+        XCTAssertEqual(store.snapshot.customPart(for: unitA)?.symbol.pins.count, 3)
+        let package = try XCTUnwrap(unitA.unitOf)
+        XCTAssertTrue(try XCTUnwrap(store.snapshot.component(package)).isUnitPackage)
+        // The package is not drawn; its units are.
+        XCTAssertNil(store.sheetSnapshot.component(package))
+        store.placeNextUnit(of: a)
+        store.placeUnit(5, of: a)
+        let units = store.snapshot.components.filter { $0.unitOf == package }.compactMap(\.unitName)
+        XCTAssertEqual(Set(units), ["A", "B", "P"])
+        // A plan carries the part whole.
+        let plan = DesignPlanCompiler.plan(from: store.snapshot)
+        XCTAssertEqual(plan.components.filter { $0.ref == "U1" }.count, 1)
+        store.deleteSelection()
+        XCTAssertFalse(store.snapshot.components.contains { $0.unitName == "P" })
+    }
+}

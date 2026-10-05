@@ -685,7 +685,8 @@ struct SchematicCanvas: View {
                 symbolValue = closed ? "on" : "off"
             }
             let shapes = custom.map(SchematicSymbols.customShapes) ?? SchematicSymbols.shapes(for: c.componentKind, value: symbolValue)
-            let selected = store.selection.contains(c.id)
+            // A unit is highlighted when it or its package (picked from the PCB, BOM or a check) is selected.
+            let selected = store.selection.contains(c.id) || (c.unitOf.map { store.selection.contains($0) } ?? false)
             if selected {
                 ctx.stroke(shapes.stroke.applying(t), with: .color(Theme.blue.opacity(0.55)), lineWidth: 6)
             }
@@ -783,7 +784,7 @@ struct SchematicCanvas: View {
                     anchor = .leading
                 }
                 // A part the active variant leaves off is marked DNP; a variant value replaces the design value.
-                ctx.draw(Text(c.isFitted ? c.ref : c.ref + " DNP").font(.system(size: fontSize, weight: .bold, design: .monospaced))
+                ctx.draw(Text(c.isFitted ? c.displayRef : c.displayRef + " DNP").font(.system(size: fontSize, weight: .bold, design: .monospaced))
                             .foregroundColor(selected ? Theme.selection : (c.isFitted ? Theme.label : Theme.error)),
                          at: refPoint, anchor: anchor)
                 ctx.draw(Text(c.variantValue ?? c.value).font(.system(size: fontSize, design: .monospaced))

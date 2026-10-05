@@ -533,3 +533,7 @@
 "Connect to Part" = "ഘടകവുമായി ബന്ധിപ്പിക്കുക";
 "Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "അംഗങ്ങളെ ഒരേ പേരുള്ള പിന്നുകളിലേക്ക് (D0 → D0), ഇല്ലെങ്കിൽ ഒഴിഞ്ഞ പിന്നുകളിലേക്ക് ക്രമമായി ബന്ധിപ്പിക്കുക";
 "Delete Bus" = "ബസ് ഇല്ലാതാക്കുക";
+"Pack Units into Packages" = "യൂണിറ്റുകൾ പാക്കേജുകളിലേക്ക് ചേർക്കുക";
+"Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "മൾട്ടി-യൂണിറ്റ് ഘടകങ്ങളുടെ ഗേറ്റുകൾ (ക്വാഡ് ഓപ്-ആംപിന്റെ A, B, C, D) നമ്പറിടുന്നതിന് മുമ്പ് സ്ഥാപിച്ച ക്രമത്തിൽ പാക്കേജുകൾ നിറയ്ക്കുന്നു";
+"Place Next Unit" = "അടുത്ത യൂണിറ്റ് സ്ഥാപിക്കുക";
+"Place Unit" = "യൂണിറ്റ് സ്ഥാപിക്കുക";

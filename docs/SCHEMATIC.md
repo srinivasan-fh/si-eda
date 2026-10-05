@@ -139,6 +139,30 @@ Bus notation names a group of nets: `D[0..7]` is D0 … D7, `A[15..12]` counts d
 `sieda_add_bus_labels` (core: `Schematic::addBusLabels`) puts one label per member on a list of pins of a part — in
 order, each just outside its pin, facing away from the part, wired to it — with the scope you choose.
 
+## Multi-unit parts
+
+A part with several identical gates — a quad op-amp, a hex inverter — can be drawn one gate per symbol.
+
+- A custom part spec lists its **units**: `"units":[{"name":"A","pins":["1","2","3"]},{"name":"B","pins":["7","6","5"]},…]`.
+  Pins in no unit form an extra **power unit** `P` (the shared supply pins). A pin listed in several units is shared:
+  one pin, drawn on each. Each unit gets its own symbol (from the part's symbol layout where it places every pin of
+  the unit, else arranged by pin type). The standard library's **LM324** is a quad op-amp with units A–D and P.
+- Placing a multi-unit part from the device picker places **unit A**. Select a unit and use **Place Next Unit** or
+  **Place Unit** in the inspector for the others; units may sit anywhere, on any sheet. A unit shows its designator
+  with the unit letter (`U1A`), and its value, designator and variant fitting are the part's.
+- One footprint: the units belong to a hidden package that carries every pin and the footprint. The netlist, BOM, CPL,
+  simulation and PCB see that one part (`U1`, 14 pads); a unit's pins are its package's pins. Deleting the last unit
+  deletes the part. Selecting the part on the board highlights its units.
+- **Annotate ▸ Pack Units into Packages** re-assigns interchangeable gates (same pins in the same places) to packages
+  in placement order — A, B, C, D of the first package, then the next — and gives the power units to the packages in
+  turn, before numbering. Gates on repeated sheets keep their packages (one per channel).
+- ERC: a unit's open pins are reported with the unit designator (`U1A.IN1+`); a unit that is not placed is reported
+  when its pins are open (`ERC_UNIT_NOT_PLACED`, warning), and the power pins of an unplaced power unit as
+  `ERC_POWER_PIN_UNCONNECTED` (error).
+- Placed through the C API with `sieda_add_custom_component` (and by AI design plans), such a part is still one whole
+  symbol, exactly as before; `sieda_add_custom_units`, `sieda_add_part_unit` and `sieda_place_next_unit` place it by
+  units. A plan made from a design carries the part whole: refining with the agents redraws it as one symbol.
+
 ## Annotation
 
 **Annotate** in the sheet bar re-numbers reference designators. Net symbols (ground, labels, junctions) keep theirs.
@@ -148,6 +172,7 @@ order, each just outside its pin, facing away from the part, wired to it — wit
 | Number by Rows | sheet by sheet (sheet-bar order), top to bottom, then left to right: R1, R2, … |
 | Number by Columns | sheet by sheet, left to right, then top to bottom |
 | Number by Sheet (R101, R201…) | parts on the n-th sheet are numbered from n·100 + 1 (n·1000 + 1 when a sheet holds 100 or more parts of one prefix) |
+| Pack Units into Packages | first re-assigns the gates of multi-unit parts to packages in placement order (see above), then numbers by rows |
 | Fix Duplicates Only | keeps every unique designator; the second and later uses of a designator and unnumbered ones (`R?`) get the next free number |
 
 Positions within one grid step count as the same row or column. Tamper meshes follow their part when its designator

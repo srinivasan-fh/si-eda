@@ -284,6 +284,9 @@ struct SheetBar: View {
                 Button("Number by Columns") { store.annotate(byColumns: true) }
                 Button("Number by Sheet (R101, R201…)") { store.annotate(sheetNumbering: true) }
                 Button("Fix Duplicates Only") { store.annotate(keepExisting: true) }
+                Divider()
+                Button("Pack Units into Packages") { store.annotate(packUnits: true) }
+                    .help("Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering")
             } label: {
                 Label("Annotate", systemImage: "number")
             }

@@ -109,6 +109,12 @@ struct Component {
     std::string logicalRef;
     /// Net labels: the bus this label is an entry of (Bus::id; 0 = an ordinary label).
     int bus = 0;
+    /// Multi-unit parts. A unit placed on its own (kind PartUnit): `unitOf` is its package and `unit` the 1-based unit
+    /// index into CustomPart::units. The package is a Custom component with every pin and the footprint, marked
+    /// `packageOnly`: it is not drawn on the schematic (its units are) but is the part the netlist, BOM and PCB see.
+    int unitOf = 0;
+    int unit = 0;
+    bool packageOnly = false;
 
     bool isNoConnect(int pin) const;
 
@@ -169,6 +175,9 @@ struct AnnotateOptions {
     /// Sheet-based numbers: parts on the n-th sheet are numbered from n·100 + 1 (R101, R102 … R201 …), or from
     /// n·1000 + 1 when a sheet holds 100 or more parts of one prefix.
     bool sheetNumbering = false;
+    /// Multi-unit parts: re-assign interchangeable units (the gates of a quad op-amp) to packages in placement order —
+    /// A, B, C, D of the first package, then the next — before numbering, so no package is left half used.
+    bool packUnits = false;
 };
 
 struct RefChange {
@@ -318,6 +327,25 @@ public:
     /// Adds a bus read from a file (call after the components; entries of unknown buses become plain labels).
     void restoreBus(const Bus& bus);
 
+    // ---- multi-unit parts (one symbol per gate, one footprint) ----
+    /// Places unit A of a multi-unit custom part: a hidden package (every pin, the footprint) and the unit's symbol.
+    /// Returns the unit's id, or -1 for an unknown part or one without units.
+    int addCustomUnits(const std::string& partId, const std::string& value, Vec2 position, int rotation = 0,
+                       const std::string& ref = "");
+    /// Places unit `unit` (1-based) of the package of `componentId` (the package or any of its units) on the active
+    /// sheet. Returns its id, or -1 (unknown part, unit out of range, or already placed).
+    int addPartUnit(int componentId, int unit, Vec2 position, int rotation = 0);
+    /// Places the first unit of the package that is not placed yet. -1 when every unit is placed.
+    int placeNextUnit(int componentId, Vec2 position);
+    /// The package of a unit (or the package itself); -1 for anything else.
+    int unitPackage(int componentId) const;
+    /// The units placed of a package, in order of their unit index.
+    std::vector<int> placedUnits(int packageId) const;
+    /// "A", "B", "P"… for a placed unit; "" otherwise.
+    std::string unitName(const Component& c) const;
+    /// Designator with the unit ("U1A") for a unit, the designator otherwise.
+    std::string displayRef(const Component& c) const;
+
     // ---- graphical buses ----
     const std::vector<Bus>& buses() const { return buses_; }
     const Bus* findBus(int id) const;
@@ -349,7 +377,15 @@ private:
     /// After an edit: keeps repeated sheets' instances in line (nothing to do in a design without them).
     void edited() {
         if (hasInstances()) syncInstances();
+        else syncUnits();
     }
+    /// Units follow their package (designator, value, part) and the package its first unit (sheet, position);
+    /// units without a valid package and packages without units go.
+    void syncUnits();
+    /// Annotation helper: see AnnotateOptions::packUnits.
+    void packUnits();
+    /// ERC of multi-unit parts: units not placed whose pins are left open.
+    void unitERC(std::vector<RuleViolation>& out) const;
     int masterWireOf(int wireId) const;
     int copyWireOn(int masterWire, int sheet) const;
     /// Designator of a block part (by its logical designator) on one of the block's sheets.

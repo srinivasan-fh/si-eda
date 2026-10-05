@@ -29,6 +29,11 @@ const ComponentDef& Component::def() const {
     if (kind == ComponentKind::Custom) {
         if (const CustomPart* part = CustomPartRegistry::instance().find(customPart)) return part->def;
     }
+    if (kind == ComponentKind::PartUnit) {
+        const CustomPart* part = CustomPartRegistry::instance().find(customPart);
+        if (part && unit >= 1 && unit <= static_cast<int>(part->units.size()))
+            return part->units[static_cast<size_t>(unit - 1)].def;
+    }
     return Library::instance().component(kind);
 }
 
@@ -64,7 +69,8 @@ std::string Schematic::nextRef(ComponentKind kind) const {
 
 int Schematic::addComponent(ComponentKind kind, const std::string& value, Vec2 position, int rotation,
                             const std::string& ref) {
-    if (!Library::isValidKind(static_cast<int>(kind)) || kind == ComponentKind::Custom) return -1;
+    if (!Library::isValidKind(static_cast<int>(kind)) || kind == ComponentKind::Custom || kind == ComponentKind::PartUnit)
+        return -1;
     if (const Sheet* s = findSheet(activeSheet_); s && s->instanceOf != 0 && findSheet(s->instanceOf)) {
         // Placed on an instance of a repeated sheet: it goes into the definition, and so into every instance.
         const int shown = activeSheet_;
@@ -256,6 +262,7 @@ bool Schematic::rotateComponent(int id, int deltaDeg) {
 }
 
 bool Schematic::setValue(int id, const std::string& value) {
+    if (const int pkg = unitPackage(masterOf(id)); pkg > 0) id = pkg;  // a unit's value is its package's
     Component* c = find(masterOf(id));
     if (!c) return false;
     c->value = value;
@@ -300,6 +307,7 @@ bool Schematic::setFirmware(int id, const std::string& hex, const std::string& n
 }
 
 bool Schematic::setRef(int id, const std::string& ref) {
+    if (const int pkg = unitPackage(masterOf(id)); pkg > 0) id = pkg;  // a unit's designator is its package's
     Component* c = find(masterOf(id));
     if (!c || ref.empty()) return false;
     if (hasInstances() && isRepeated(c->sheet) && !isNetSymbolKind(c->kind)) {
@@ -494,6 +502,17 @@ void Schematic::rebuildNets() const {
             if (!fresh) uf.unite(index[{c.id, it->second}], index[{c.id, static_cast<int>(p)}]);
         }
     }
+    // A placed unit's pins are its package's pins.
+    for (const auto& c : components_) {
+        if (c.kind != ComponentKind::PartUnit) continue;
+        const CustomPart* part = CustomPartRegistry::instance().find(c.customPart);
+        if (!part || c.unit < 1 || c.unit > static_cast<int>(part->units.size())) continue;
+        const auto& unitPins = part->units[static_cast<size_t>(c.unit - 1)].pins;
+        for (size_t p = 0; p < unitPins.size(); ++p) {
+            auto iu = index.find({c.id, static_cast<int>(p)}), ip = index.find({c.unitOf, unitPins[p]});
+            if (iu != index.end() && ip != index.end()) uf.unite(iu->second, ip->second);
+        }
+    }
     for (const auto& w : wires_) {
         auto ia = index.find(w.a), ib = index.find(w.b);
         if (ia != index.end() && ib != index.end()) uf.unite(ia->second, ib->second);
@@ -524,7 +543,11 @@ void Schematic::rebuildNets() const {
 
     // Junctions only join wires: they are not net members, and a net exists only where a real pin is.
     std::vector<bool> isJunction(pins.size());
-    for (size_t i = 0; i < pins.size(); ++i) isJunction[i] = find(pins[i].component)->kind == ComponentKind::Junction;
+    // Units' pins are not members either: their package's pins are.
+    for (size_t i = 0; i < pins.size(); ++i) {
+        const ComponentKind k = find(pins[i].component)->kind;
+        isJunction[i] = k == ComponentKind::Junction || k == ComponentKind::PartUnit;
+    }
     std::map<int, int> rootToNet;
     for (size_t i = 0; i < pins.size(); ++i) {
         if (isJunction[i]) continue;
@@ -605,6 +628,13 @@ bool Schematic::isPinConnected(PinRef pin) const {
     const int net = netOf(pin);
     if (net < 0) return false;
     const Component* self = find(pin.component);
+    if (self && self->kind == ComponentKind::PartUnit) {  // a unit's pin is its package's pin
+        const CustomPart* part = CustomPartRegistry::instance().find(self->customPart);
+        if (!part || self->unit < 1 || self->unit > static_cast<int>(part->units.size())) return false;
+        const auto& unitPins = part->units[static_cast<size_t>(self->unit - 1)].pins;
+        if (pin.pin < 0 || static_cast<size_t>(pin.pin) >= unitPins.size()) return false;
+        return isPinConnected({self->unitOf, unitPins[static_cast<size_t>(pin.pin)]});
+    }
     if (!self || pin.pin < 0 || static_cast<size_t>(pin.pin) >= self->def().pins.size()) return false;
     const Vec2 spot = self->def().pins[static_cast<size_t>(pin.pin)].offset;
     for (const auto& other : nets()[static_cast<size_t>(net)].pins) {
@@ -756,6 +786,29 @@ std::vector<RuleViolation> Schematic::runERC() const {
             if (wireCount(c.id) < 2)
                 add(Severity::Warning, "ERC_DANGLING_WIRE", "A wire ends in empty space (not on a pin or another wire).",
                     {c.id}, c.position);
+            continue;
+        }
+        if (c.packageOnly) continue;  // a multi-unit part is checked through its units (and unitERC)
+        if (c.kind == ComponentKind::PartUnit) {
+            const auto& unitPins = c.def().pins;
+            const std::string name = displayRef(c);
+            std::vector<size_t> open;
+            for (size_t p = 0; p < unitPins.size(); ++p)
+                if (!isPinConnected({c.id, static_cast<int>(p)})) open.push_back(p);
+            if (open.size() == unitPins.size() && unitPins.size() > 1) {
+                add(Severity::Warning, "ERC_FLOATING_COMPONENT", name + " is not connected to the circuit.", {c.id}, c.position);
+                continue;
+            }
+            for (size_t p : open) {
+                const auto type = static_cast<PinType>(unitPins[p].type);
+                if (c.isNoConnect(static_cast<int>(p)) || type == PinType::NoConnect) continue;
+                if (type == PinType::PowerIn)
+                    add(Severity::Error, "ERC_POWER_PIN_UNCONNECTED", "Power pin " + name + "." + unitPins[p].name + " is not connected.",
+                        {c.id}, c.position);
+                else
+                    add(Severity::Warning, "ERC_UNCONNECTED_PIN", "Pin " + name + "." + unitPins[p].name +
+                            " is unconnected — wire it or mark it no-connect if it is unused.", {c.id}, c.position);
+            }
             continue;
         }
         const auto& pins = c.def().pins;
@@ -916,6 +969,7 @@ std::vector<RuleViolation> Schematic::runERC() const {
     }
     hierarchyERC(out);
     busERC(out);
+    unitERC(out);
     return out;
 }
 

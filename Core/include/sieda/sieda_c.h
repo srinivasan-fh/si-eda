@@ -505,6 +505,22 @@ int32_t sieda_rip_bus_entries(SiedaProject* project, int32_t bus, const char* me
  * an entry on the bus. Returns the connections made, -1 for an unknown bus or part. */
 int32_t sieda_connect_bus_to_part(SiedaProject* project, int32_t bus, int32_t component_id, const char* scope);
 
+/* ---- schematic capture: multi-unit parts ---------------------------------------------------- */
+/* A custom part spec may list "units":[{"name":"A","pins":["1","2","3"]},…] (pins in no unit form a power unit "P").
+ * Placing it by units puts a hidden package (every pin, the footprint: what the netlist, BOM and PCB see) and the
+ * symbol of unit A; further units are placed on their own and join the same package. In the snapshot a unit is a
+ * custom part (kind 16) with "unit", "unitName" and "unitOf" (its package); the package has "unitPackage":true and
+ * "units"; custom part JSON adds "unitSymbols". sieda_annotate takes "packUnits":true to re-assign interchangeable
+ * units to packages in placement order. sieda_add_custom_component still places such a part whole.
+ * Returns the id of unit A, or -1 for an unknown part or one without units. */
+int32_t sieda_add_custom_units(SiedaProject* project, const char* part_id, const char* value, double x, double y,
+                               int32_t rotation, const char* ref);
+/* Places unit `unit` (1-based) of the package of component_id (the package or any of its units). -1 when the unit is
+ * out of range or already placed. */
+int32_t sieda_add_part_unit(SiedaProject* project, int32_t component_id, int32_t unit, double x, double y, int32_t rotation);
+/* Places the first unit not placed yet; -1 when all are placed. */
+int32_t sieda_place_next_unit(SiedaProject* project, int32_t component_id, double x, double y);
+
 #ifdef __cplusplus
 }
 #endif

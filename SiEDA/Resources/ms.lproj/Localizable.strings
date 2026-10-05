@@ -533,3 +533,7 @@
 "Connect to Part" = "Sambung ke Komponen";
 "Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "Sambung ahli ke pin komponen yang sama nama (D0 → D0), jika tiada ke pin terbuka mengikut urutan";
 "Delete Bus" = "Padam Bas";
+"Pack Units into Packages" = "Kumpul Unit ke dalam Pakej";
+"Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Get komponen berbilang unit (A, B, C, D op-amp empat) mengisi pakej mengikut susunan peletakan sebelum penomboran";
+"Place Next Unit" = "Letak Unit Seterusnya";
+"Place Unit" = "Letak Unit";

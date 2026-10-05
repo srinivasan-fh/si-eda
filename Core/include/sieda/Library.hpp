@@ -31,8 +31,11 @@ enum class ComponentKind : int {
     Battery = 17,    // DC cell / pack: a voltage source with a battery symbol (value = volts)
     ACSource = 18,   // AC mains / transformer secondary: a voltage source, value SIN(offset peak freq)
     Junction = 19,   // wire node: a T-junction or bend point; joins the wires that end on it (no part, no footprint)
+    /// One unit (gate) of a multi-unit part placed on its own (Component::unitOf names the part's package, a hidden
+    /// Custom component that carries every pin and the footprint). Its pins are the package's pins of that unit.
+    PartUnit = 20,
 };
-constexpr int kComponentKindCount = 20;
+constexpr int kComponentKindCount = 21;
 
 /// Kinds that are ideal voltage sources in the simulator (DC supply, battery, AC source).
 inline bool isVoltageSourceKind(ComponentKind k) {
@@ -40,7 +43,8 @@ inline bool isVoltageSourceKind(ComponentKind k) {
 }
 /// Schematic-only symbols that name or join nets rather than being parts (no reference designator in use).
 inline bool isNetSymbolKind(ComponentKind k) {
-    return k == ComponentKind::Ground || k == ComponentKind::NetLabel || k == ComponentKind::Junction;
+    return k == ComponentKind::Ground || k == ComponentKind::NetLabel || k == ComponentKind::Junction ||
+           k == ComponentKind::PartUnit;
 }
 /// Any independent source (voltage or current).
 inline bool isSourceKind(ComponentKind k) { return isVoltageSourceKind(k) || k == ComponentKind::CurrentSource; }

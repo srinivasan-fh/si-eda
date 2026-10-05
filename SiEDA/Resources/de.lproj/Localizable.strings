@@ -533,3 +533,7 @@
 "Connect to Part" = "Mit Bauteil verbinden";
 "Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "Mitglieder mit gleichnamigen Pins verbinden (D0 → D0), sonst der Reihe nach mit freien Pins";
 "Delete Bus" = "Bus löschen";
+"Pack Units into Packages" = "Einheiten in Gehäuse packen";
+"Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Gatter von Mehrfach-Bauteilen (A, B, C, D eines Vierfach-OPV) füllen die Gehäuse in Platzierungsreihenfolge vor der Nummerierung";
+"Place Next Unit" = "Nächste Einheit platzieren";
+"Place Unit" = "Einheit platzieren";

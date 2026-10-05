@@ -389,6 +389,7 @@ void Schematic::restoreSheets(const std::vector<Sheet>& sheets, int active) {
 std::vector<RefChange> Schematic::annotate(const AnnotateOptions& o) {
     // Repeated sheets are numbered inside the block (their logical designators); each channel's designators follow,
     // and the rest of the design is numbered around them.
+    if (o.packUnits) packUnits();
     std::map<int, std::string> blockRefs;
     const bool blocks = hasInstances();
     if (blocks) {
@@ -463,6 +464,7 @@ std::vector<RefChange> Schematic::annotate(const AnnotateOptions& o) {
     }
     for (const auto& [id, ref] : blockRefs)
         if (const Component* c = find(id); c && c->ref != ref) changes.push_back({id, ref, c->ref});
+    syncUnits();  // units take their packages' new designators
     return changes;
 }
 

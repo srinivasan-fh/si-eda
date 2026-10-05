@@ -533,3 +533,7 @@
 "Connect to Part" = "Nối tới linh kiện";
 "Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "Nối thành viên tới chân cùng tên (D0 → D0), nếu không thì tới các chân trống theo thứ tự";
 "Delete Bus" = "Xóa bus";
+"Pack Units into Packages" = "Gom các khối vào vỏ linh kiện";
+"Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Các cổng của linh kiện nhiều khối (A, B, C, D của op-amp bốn kênh) được xếp vào vỏ theo thứ tự đặt trước khi đánh số";
+"Place Next Unit" = "Đặt khối tiếp theo";
+"Place Unit" = "Đặt khối";

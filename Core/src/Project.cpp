@@ -153,6 +153,11 @@ void componentSheetJson(Json& j, const Component& c) {
     if (c.instanceOf != 0) j["instanceOf"] = c.instanceOf;
     if (!c.logicalRef.empty()) j["logicalRef"] = c.logicalRef;
     if (c.bus != 0) j["bus"] = c.bus;
+    if (c.kind == ComponentKind::PartUnit) {
+        j["unitOf"] = c.unitOf;
+        j["unit"] = c.unit;
+    }
+    if (c.packageOnly) j["packageOnly"] = true;
 }
 
 Json busesJson(const Schematic& sch, bool withMembers) {
@@ -260,6 +265,7 @@ bool Project::setVariantDescription(const std::string& n, const std::string& des
 }
 
 bool Project::setVariantPart(const std::string& n, int componentId, int fitted, const std::string* value) {
+    if (const int pkg = schematic.unitPackage(componentId); pkg > 0) componentId = pkg;  // a unit is fitted with its package
     const Component* c = schematic.find(componentId);
     if (!c || isNetSymbolKind(c->kind) || fitted < -1 || fitted > 1) return false;
     for (auto& v : variants) {
@@ -353,7 +359,7 @@ Json Project::toJson() const {
         j["x"] = c.position.x;
         j["y"] = c.position.y;
         j["rotation"] = c.rotation;
-        if (c.kind == ComponentKind::Custom) j["customPart"] = c.customPart;
+        if (c.kind == ComponentKind::Custom || c.kind == ComponentKind::PartUnit) j["customPart"] = c.customPart;
         if (!c.firmware.empty()) {
             j["firmware"] = c.firmware;
             j["firmwareName"] = c.firmwareName;
@@ -551,6 +557,12 @@ Project Project::fromJson(const Json& root) {
         c.id = j.get("id").asInt(-1);
         if (c.id < 0) throw JsonError("Component without id");
         c.kind = static_cast<ComponentKind>(kind);
+        if (c.kind == ComponentKind::PartUnit) {
+            c.unitOf = j.get("unitOf").asInt(0);
+            c.unit = j.get("unit").asInt(0);
+            c.customPart = idMap.count(j.get("customPart").asString("")) ? idMap[j.get("customPart").asString("")]
+                                                                        : j.get("customPart").asString("");
+        }
         c.ref = j.get("ref").asString("");
         c.value = j.get("value").asString(c.def().defaultValue);
         c.position = {j.get("x").asNumber(), j.get("y").asNumber()};
@@ -588,6 +600,7 @@ Project Project::fromJson(const Json& root) {
         c.instanceOf = std::max(0, j.get("instanceOf").asInt(0));
         c.logicalRef = j.get("logicalRef").asString("");
         c.bus = c.kind == ComponentKind::NetLabel ? std::max(0, j.get("bus").asInt(0)) : 0;
+        c.packageOnly = c.kind == ComponentKind::Custom && j.get("packageOnly").asBool(false);
         if (c.logicalRef.size() > 64) c.logicalRef.clear();
         p.schematic.restoreComponent(c);
     }
@@ -669,7 +682,22 @@ Json Project::snapshot() const {
     for (const auto& c : schematic.components()) {
         Json j = Json::object();
         j["id"] = c.id;
-        j["kind"] = static_cast<int>(c.kind);
+        // A placed unit of a multi-unit part is drawn like a library part (kind Custom) with its unit's symbol.
+        j["kind"] = static_cast<int>(c.kind == ComponentKind::PartUnit ? ComponentKind::Custom : c.kind);
+        if (c.kind == ComponentKind::PartUnit) {
+            j["unit"] = c.unit;
+            j["unitName"] = schematic.unitName(c);
+            j["unitOf"] = c.unitOf;
+        }
+        if (c.packageOnly) {
+            j["unitPackage"] = true;  // not drawn on the schematic: its units are
+            Json units = Json::array();
+            for (int id : schematic.placedUnits(c.id)) units.push(id);
+            j["units"] = units;
+        }
+        const Component* assembled = &c;  // a unit is fitted (and designated) with its package
+        if (c.kind == ComponentKind::PartUnit)
+            if (const Component* pkg = schematic.find(c.unitOf)) assembled = pkg;
         j["ref"] = c.ref;
         j["value"] = c.value;
         j["x"] = c.position.x;
@@ -684,14 +712,14 @@ Json Project::snapshot() const {
         }
         if (c.instanceOf != 0) j["instanceOf"] = c.instanceOf;
         if (c.bus != 0) j["bus"] = c.bus;
-        if (!c.logicalRef.empty()) j["logicalRef"] = c.logicalRef;
-        else if (c.instanceOf != 0)
-            if (const Component* m = schematic.find(c.instanceOf); m && !m->logicalRef.empty()) j["logicalRef"] = m->logicalRef;
-        if (!isNetSymbolKind(c.kind)) {
+        if (!assembled->logicalRef.empty()) j["logicalRef"] = assembled->logicalRef;
+        else if (assembled->instanceOf != 0)
+            if (const Component* m = schematic.find(assembled->instanceOf); m && !m->logicalRef.empty()) j["logicalRef"] = m->logicalRef;
+        if (!isNetSymbolKind(assembled->kind)) {
             // Fitting in the active variant (or the base design): not fitted parts and value overrides.
-            bool fitted = !c.sourcing.dnp;
+            bool fitted = !assembled->sourcing.dnp;
             if (const DesignVariant* v = findVariant(activeVariant)) {
-                auto it = v->parts.find(c.id);
+                auto it = v->parts.find(assembled->id);
                 if (it != v->parts.end()) {
                     if (it->second.fitted >= 0) fitted = it->second.fitted == 1;
                     if (!it->second.value.empty()) j["variantValue"] = it->second.value;
@@ -712,7 +740,7 @@ Json Project::snapshot() const {
                 j["packageOptions"] = options;
             }
         }
-        if (c.kind == ComponentKind::Custom) j["customPart"] = c.customPart;
+        if (c.kind == ComponentKind::Custom || c.kind == ComponentKind::PartUnit) j["customPart"] = c.customPart;
         if (c.kind == ComponentKind::Custom) {
             if (const CustomPart* part = CustomPartRegistry::instance().find(c.customPart)) {
                 if (auto model = mcuModelForPart(part->spec.name)) {
@@ -1068,6 +1096,7 @@ Json Project::transientToJson(const TransientResult& r, size_t maxPoints) const 
 Json Project::libraryJson() {
     Json arr = Json::array();
     for (const auto& d : Library::instance().components()) {
+        if (d.kind == ComponentKind::PartUnit) continue;  // placed through multi-unit custom parts, not on its own
         Json j = Json::object();
         j["kind"] = static_cast<int>(d.kind);
         j["name"] = d.name;

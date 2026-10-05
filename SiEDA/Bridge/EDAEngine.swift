@@ -272,8 +272,8 @@ final class EDAEngine: @unchecked Sendable {
 
     /// Re-numbers designators; returns the number changed.
     @discardableResult
-    func annotate(byColumns: Bool, keepExisting: Bool, sheetNumbering: Bool) -> Int {
-        let options = "{\"order\":\"\(byColumns ? "columns" : "rows")\",\"keepExisting\":\(keepExisting),\"sheetNumbering\":\(sheetNumbering)}"
+    func annotate(byColumns: Bool, keepExisting: Bool, sheetNumbering: Bool, packUnits: Bool = false) -> Int {
+        let options = "{\"order\":\"\(byColumns ? "columns" : "rows")\",\"keepExisting\":\(keepExisting),\"sheetNumbering\":\(sheetNumbering),\"packUnits\":\(packUnits)}"
         struct Reply: Decodable { struct Change: Decodable { let component: Int }; let changed: [Change] }
         return Self.decode(Reply.self, from: withHandle { Self.take(sieda_annotate($0, options)) })?.changed.count ?? 0
     }
@@ -447,6 +447,23 @@ final class EDAEngine: @unchecked Sendable {
         return Int(withHandle {
             sieda_add_custom_component($0, partId, v, Double(point.x), Double(point.y), Int32(rotation), r)
         })
+    }
+
+    /// Places unit A of a multi-unit part (with its hidden package); the unit's id, or -1.
+    func addCustomUnits(partId: String, at point: CGPoint, rotation: Int = 0) -> Int {
+        Int(withHandle { sieda_add_custom_units($0, partId, "", Double(point.x), Double(point.y), Int32(rotation), "") })
+    }
+
+    /// Places the next unit not placed yet of a unit's package; nil when every unit is placed.
+    func placeNextUnit(of component: Int, at point: CGPoint) -> Int? {
+        let id = withHandle { sieda_place_next_unit($0, Int32(component), Double(point.x), Double(point.y)) }
+        return id >= 0 ? Int(id) : nil
+    }
+
+    /// Places unit `unit` (1-based) of a unit's package; nil when it is placed already or out of range.
+    func addPartUnit(of component: Int, unit: Int, at point: CGPoint) -> Int? {
+        let id = withHandle { sieda_add_part_unit($0, Int32(component), Int32(unit), Double(point.x), Double(point.y), 0) }
+        return id >= 0 ? Int(id) : nil
     }
 
     // MARK: - Standards

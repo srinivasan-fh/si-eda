@@ -104,6 +104,7 @@ Library::Library() {
         {ComponentKind::Battery, "Battery", "BT", "9", "V", source, "PinHeader_1x02", true},
         {ComponentKind::ACSource, "AC Source", "VAC", "SIN(0 17 50)", "V", source, "PinHeader_1x02", true},
         {ComponentKind::Junction, "Junction", "JN", "", "", {{"J", {0, 0}}}, "", false},
+        {ComponentKind::PartUnit, "Part Unit", "U", "", "", {}, "", false},  // pins come from the part's unit
     };
 
     footprints_.push_back(twoPadSmd("R_0805", 1.9, 1.0, 1.3, 2.0, 1.25, 0.5, 0.10f, 0.10f, 0.11f));

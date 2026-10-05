@@ -408,3 +408,43 @@ int sieda_c_api_bus_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Multi-unit parts through the C API. Returns 0 or the failing step. */
+int sieda_c_api_units_test(void) {
+    SiedaProject* p = sieda_project_new("Units");
+    if (!p) return 1;
+    char* err = NULL;
+    char* info = sieda_custom_part_register(p,
+        "{\"name\":\"DUAL-CAPI\",\"refPrefix\":\"U\",\"package\":{\"type\":\"SOIC\"},\"pins\":["
+        "{\"number\":\"1\",\"name\":\"OUTA\",\"type\":\"output\"},{\"number\":\"2\",\"name\":\"INA-\",\"type\":\"input\"},"
+        "{\"number\":\"3\",\"name\":\"INA+\",\"type\":\"input\"},{\"number\":\"4\",\"name\":\"V-\",\"type\":\"power_in\"},"
+        "{\"number\":\"5\",\"name\":\"INB+\",\"type\":\"input\"},{\"number\":\"6\",\"name\":\"INB-\",\"type\":\"input\"},"
+        "{\"number\":\"7\",\"name\":\"OUTB\",\"type\":\"output\"},{\"number\":\"8\",\"name\":\"V+\",\"type\":\"power_in\"}],"
+        "\"units\":[{\"name\":\"A\",\"pins\":[\"1\",\"2\",\"3\"]},{\"name\":\"B\",\"pins\":[\"7\",\"6\",\"5\"]}]}",
+        &err);
+    if (!info || err) return 2;
+    const char* at = strstr(info, "\"id\":\"");
+    if (!at || !strstr(info, "\"unitSymbols\":[")) return 3;
+    char id[128];
+    at += 6;
+    size_t n = 0;
+    while (at[n] && at[n] != '"' && n < sizeof id - 1) { id[n] = at[n]; ++n; }
+    id[n] = 0;
+    sieda_string_free(info);
+    int32_t a = sieda_add_custom_units(p, id, NULL, 0, 0, 0, NULL);
+    if (a < 0 || sieda_add_custom_units(p, "NO-SUCH-PART", NULL, 0, 0, 0, NULL) != -1) return 4;
+    int32_t b = sieda_place_next_unit(p, a, 0, 200);
+    int32_t pw = sieda_add_part_unit(p, a, 3, 200, 0, 0);
+    if (b < 0 || pw < 0 || sieda_place_next_unit(p, a, 0, 0) != -1 || sieda_add_part_unit(p, a, 1, 0, 0, 0) != -1) return 5;
+    {
+        char* snap = sieda_project_snapshot(p);
+        if (!snap || !strstr(snap, "\"unitName\":\"P\"") || !strstr(snap, "\"unitPackage\":true")) return 6;
+        sieda_string_free(snap);
+        char* changed = sieda_annotate(p, "{\"packUnits\":true}");
+        if (!changed) return 7;
+        sieda_string_free(changed);
+    }
+    if (sieda_find_component(p, "U1") < 0) return 8;
+    sieda_project_free(p);
+    return 0;
+}

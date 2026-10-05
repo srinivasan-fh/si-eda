@@ -115,10 +115,10 @@ struct DesignSnapshot: Decodable, Equatable {
     /// The part of the design drawn on one sheet: its components and the wires between them (wires never cross
     /// sheets). A single-sheet design is returned unchanged.
     func onSheet(_ sheet: Int) -> DesignSnapshot {
-        guard sheets.count > 1 else { return self }
+        guard sheets.count > 1 || components.contains(where: { $0.isUnitPackage }) else { return self }
         var copy = self
         copy.buses = buses.filter { $0.sheet == sheet }
-        copy.components = components.filter { $0.sheetId == sheet }
+        copy.components = components.filter { $0.sheetId == sheet && !$0.isUnitPackage }
         let ids = Set(copy.components.map(\.id))
         copy.wires = wires.filter { ids.contains($0.a.component) && ids.contains($0.b.component) }
         return copy
@@ -128,7 +128,9 @@ struct DesignSnapshot: Decodable, Equatable {
         return customParts.first { $0.id == id }
     }
     func customPart(for component: SnapComponent) -> CustomPartInfo? {
-        component.componentKind == .custom ? customPart(component.customPart) : nil
+        guard component.componentKind == .custom, let part = customPart(component.customPart) else { return nil }
+        if let unit = component.unit { return part.forUnit(unit) }  // a placed unit draws its own symbol
+        return part
     }
     func component(ref: String) -> SnapComponent? { components.first { $0.ref == ref } }
     func net(_ index: Int) -> SnapNet? { index >= 0 && index < nets.count ? nets[index] : nil }
@@ -217,6 +219,17 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     var logicalRef: String?
     /// Bus entries: the bus the label leaves (BusInfo.id).
     var bus: Int?
+    /// Multi-unit parts: a placed unit (its 1-based index, name "A"… and package), or the package itself
+    /// (`unitPackage`: not drawn on the schematic; `units` lists the placed units).
+    var unit: Int?
+    var unitName: String?
+    var unitOf: Int?
+    var unitPackage: Bool?
+    var units: [Int]?
+
+    var isUnitPackage: Bool { unitPackage ?? false }
+    /// "U1A" for a unit, the designator otherwise.
+    var displayRef: String { ref + (unitName ?? "") }
 
     var sheetId: Int { sheet ?? 1 }
     var labelScope: String { scope ?? "global" }

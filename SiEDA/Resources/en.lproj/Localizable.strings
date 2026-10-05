@@ -533,3 +533,7 @@
 "Connect to Part" = "Connect to Part";
 "Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order";
 "Delete Bus" = "Delete Bus";
+"Pack Units into Packages" = "Pack Units into Packages";
+"Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering";
+"Place Next Unit" = "Place Next Unit";
+"Place Unit" = "Place Unit";

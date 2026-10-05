@@ -217,7 +217,33 @@ private struct ComponentProperties: View {
                 }
             }
 
-            if !kind.isVirtual {
+            if let unitName = component.unitName, let package = component.unitOf {
+                // A gate of a multi-unit part: its package carries the footprint; the other units are placed here.
+                PropertyGroup(title: "Unit \(unitName) of \(component.ref)") {
+                    let placed = store.snapshot.components.filter { $0.unitOf == package }.compactMap(\.unitName)
+                    PropertyRow(label: "Units placed", value: placed.joined(separator: " "))
+                    if let part = store.snapshot.customPart(component.customPart), let symbols = part.unitSymbols {
+                        let missing = symbols.indices.filter { !placed.contains(symbols[$0].name) }
+                        if !missing.isEmpty {
+                            Button { store.placeNextUnit(of: component.id) } label: {
+                                Label("Place Next Unit", systemImage: "plus.square.on.square")
+                            }
+                            Menu {
+                                ForEach(missing, id: \.self) { index in
+                                    Button(symbols[index].name) { store.placeUnit(index + 1, of: component.id) }
+                                }
+                            } label: {
+                                Label("Place Unit", systemImage: "square.grid.2x2")
+                            }
+                            .fixedSize()
+                        }
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+
+            if !kind.isVirtual && component.unitOf == nil {
                 PropertyGroup(title: "PCB Footprint") {
                     PropertyRow(label: "Footprint", value: component.footprint)
                     if component.pcb.placed {
