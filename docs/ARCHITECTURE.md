@@ -15,6 +15,7 @@
 │ Project ── Schematic (components, wires, nets, ERC)                                │
 │        ├── Simulator (MNA, Newton–Raphson, DC + transient)                         │
 │        ├── PcbLayout (pads, auto-place, A* autorouter, DRC, ratsnest)              │
+│        │     └── GlobalRouter (tiles, corridors, parallel batches)                 │
 │        ├── Mesh (3D assembly)       ├── Export (Gerber, Excellon, SPICE, BOM, STL) │
 │        └── Json (persistence + UI snapshots)                                       │
 └────────────────────────────────────────────────────────────────────────────────────┘
@@ -67,6 +68,13 @@ This gives us:
   - Failed nets are promoted to the front and the board is re-routed (up to 8 passes); the best result is kept. If
     connections remain unrouted, recovery passes route with negotiated congestion (history costs on the corridors the
     failed connections need) and are kept only when they route more. See [ROUTING.md](ROUTING.md).
+  - Large boards (2 M grid nodes or more) use the corridor router instead: `GlobalRouter` (`Core/src/GlobalRouter.cpp`)
+    routes every connection over ~2 mm tiles with negotiated congestion, the same A* then searches only that
+    corridor (search state paged per tile), nets with disjoint corridors run on several `std::thread`s against the
+    same board state and commit in routing order (identical copper for any thread count), and failures are repaired
+    by ripping up only the nets in their way. Smaller boards keep the classic router bit for bit.
+  - `RouteControl` reports progress from the routing thread and cancels (leaving the board unchanged); the app shows it
+    in the status bar with Stop.
 - **DRC.** Exact geometric checks on the routed copper (segment–segment, segment–rectangle and point–circle
   distances), edge clearance, courtyard overlap, and unrouted connections. Pairs are found through a uniform-grid
   spatial index, in the order of a full scan, so large boards check in O(n log n) with identical reports. Unrouted connections are found
