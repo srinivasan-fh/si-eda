@@ -261,6 +261,8 @@ final class DesignStore: ObservableObject {
         sheetSnapshot = snapshot.onSheet(snapshot.activeSheet)
         selection = selection.filter { id in snapshot.components.contains { $0.id == id } }
         if let wire = selectedWire, !snapshot.wires.contains(where: { $0.id == wire }) { selectedWire = nil }
+        // Undo, open or any edit that replaced the design ends a route in progress.
+        if routePreview != nil, !engine.routerActive { routePreview = nil }
         revision &+= 1
     }
 
@@ -685,6 +687,28 @@ final class DesignStore: ObservableObject {
         return saveCustomPart(part.spec)?.id
     }
 
+    /// Adds parts read by the library importer (KiCad / Eagle) to the project library as one undo step. Returns the
+    /// ids of the parts added; parts the core refuses are reported together.
+    @discardableResult
+    func importLibraryParts(_ specs: [CustomPartSpec]) -> [String] {
+        var added: [String] = []
+        var failures: [String] = []
+        performChecked("Imported \(specs.count) library parts", failureMessage: "No library parts were imported") { engine in
+            for spec in specs {
+                do {
+                    added.append(try engine.registerCustomPart(spec).id)
+                } catch {
+                    failures.append("\(spec.name): \(error.localizedDescription)")
+                }
+            }
+            return !added.isEmpty
+        }
+        if !failures.isEmpty {
+            present(EDAEngineError.operationFailed(failures.joined(separator: "\n")), title: "Some parts were not imported")
+        }
+        return added
+    }
+
     /// Places a built-in standard part (registering it in the project library first).
     @discardableResult
     func placeStandardPart(_ part: StandardPart, at point: CGPoint) -> Int {
@@ -1062,6 +1086,74 @@ final class DesignStore: ObservableObject {
 
     func lengthReport() -> LengthReport { engine.lengthReport() }
 
+    // MARK: - Signal & power integrity
+
+    func siSettings() -> SISettings { engine.siSettings() }
+    func siNets() -> [SINetSummary] { engine.siNets() }
+    func siNet(_ name: String, seriesOhms: Double? = nil) -> SINetAnalysis? { engine.siNet(name, seriesOhms: seriesOhms) }
+    func siCrosstalk() -> SICrosstalkReport { engine.siCrosstalk() }
+    func pdn() -> PDNReport { engine.pdn() }
+
+    /// SI / PI sign-off in design verification and its limits (fractions of the swing). Undoable.
+    func setSIOptions(signOff: Bool? = nil, overshootLimit: Double? = nil, crosstalkLimit: Double? = nil) {
+        let current = engine.siSettings()
+        let s = signOff ?? current.signOff
+        let o = overshootLimit ?? current.overshootLimit, c = crosstalkLimit ?? current.crosstalkLimit
+        guard s != current.signOff || o != current.overshootLimit || c != current.crosstalkLimit else { return }
+        performChecked(s ? "Signal & power integrity sign-off on" : "Signal & power integrity sign-off off",
+                       invalidatesAnalysis: false) { $0.setSIOptions(signOff: s, overshootLimit: o, crosstalkLimit: c) }
+    }
+
+    /// Driver / receiver model of a net ("" = automatic: the part's IBIS model or its logic family). Undoable.
+    func assignSIModel(net: String, modelID: String) {
+        performChecked(modelID.isEmpty ? "\(net): automatic driver model" : "\(net): driver model \(modelID)",
+                       invalidatesAnalysis: false) { $0.assignSIModel(kind: "net", target: net, modelID: modelID) }
+    }
+
+    /// PDN inputs of a rail: allowed ripple (%) and load step (A); 0 derives them from the design. Undoable.
+    func setPDNRail(_ net: String, ripplePercent: Double, transientAmps: Double) {
+        let dc = engine.siSettings().rails.first { $0.net == net }?.dcCurrent ?? 0
+        performChecked("\(net): PDN target", invalidatesAnalysis: false) {
+            $0.setPDNRail(net, ripplePercent: ripplePercent, transientAmps: transientAmps, dcAmps: dc)
+        }
+    }
+
+    /// Asks for an IBIS (.ibs) file and imports its buffer models; with `ref`, that part's pins use them. Undoable.
+    func importIBIS(assignTo ref: String = "") {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "ibs") ?? .data, .plainText]
+        panel.allowsMultipleSelection = false
+        panel.message = "Choose an IBIS model file (.ibs) from the part vendor."
+        panel.prompt = "Import"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let text: String
+        do {
+            text = try String(contentsOf: url, encoding: .utf8)
+        } catch {
+            guard let latin = try? String(contentsOf: url, encoding: .isoLatin1) else {
+                present(error, title: "Could not read \(url.lastPathComponent)")
+                return
+            }
+            text = latin
+        }
+        var failure: Error?
+        var count = 0
+        performChecked("Imported IBIS models from \(url.lastPathComponent)", invalidatesAnalysis: false,
+                       failureMessage: "\(url.lastPathComponent): no IBIS models imported") { engine in
+            do {
+                count = try engine.importIBIS(text, corner: "typ", ref: ref)
+                return true
+            } catch {
+                failure = error
+                return false
+            }
+        }
+        if let failure { present(failure, title: "Could not import \(url.lastPathComponent)") }
+        else { statusMessage = "Imported \(count) IBIS model(s) from \(url.lastPathComponent)" }
+    }
+
     /// Length / phase matching on Auto Route and its tolerances (mm). Undoable.
     func setLengthMatching(enabled: Bool? = nil, pairSkew: Double? = nil, bus: Double? = nil) {
         let b = snapshot.board
@@ -1099,6 +1191,82 @@ final class DesignStore: ObservableObject {
             statusMessage = "Added serpentines to \(tuned) net\(tuned == 1 ? "" : "s")"
             if !drcResults.isEmpty { runDRC() }
         }
+    }
+
+    // MARK: Interactive routing
+
+    /// The route in progress with the Route tool (nil when idle). The board itself changes only when it finishes.
+    @Published private(set) var routePreview: RoutePreview?
+    /// Route tool settings: push-and-shove (otherwise walkaround) and 45° corners (otherwise 90°).
+    @Published var routerShove = true {
+        didSet { if routerShove != oldValue { applyRouterOptions() } }
+    }
+    @Published var routerDiagonal = true {
+        didSet { if routerDiagonal != oldValue { applyRouterOptions() } }
+    }
+
+    private var routerOptions: String { EDAEngine.routerOptions(shove: routerShove, diagonal: routerDiagonal) }
+
+    /// Shows a router reply: a refused step keeps the route and reports why.
+    private func showRoute(_ preview: RoutePreview?) {
+        guard let preview else {
+            statusMessage = "Route: no reply from the core"
+            return
+        }
+        routePreview = preview.active ? preview : nil
+        statusMessage = preview.error ?? preview.status
+    }
+
+    /// Starts a route (or a differential pair) on the pad, via or track at `point` on copper layer `layer`.
+    func beginRoute(at point: CGPoint, layer: Int, pair: Bool) {
+        guard !isBusy else { return }
+        showRoute(engine.routerBegin(at: point, layer: layer, pair: pair, options: routerOptions))
+    }
+
+    /// Moves the head of the route to the cursor (shoving or walking around as set).
+    func moveRoute(to point: CGPoint) {
+        guard routePreview != nil, !isBusy else { return }
+        guard let preview = engine.routerMove(to: point) else { return }
+        routePreview = preview.active ? preview : nil
+        statusMessage = preview.status
+    }
+
+    /// Places the head as it is (a click); the route continues from its end.
+    func placeRouteCorner() {
+        guard routePreview != nil, !isBusy else { return }
+        showRoute(engine.routerFix())
+    }
+
+    /// Places a via at the end of the head and continues on the other side of the board (V).
+    func addRouteVia() {
+        guard routePreview != nil, !isBusy else { return }
+        showRoute(engine.routerAddVia())
+    }
+
+    /// Writes the route and every shoved track and via into the board as one undo step (Enter / double-click).
+    func finishRoute() {
+        guard routePreview != nil else { return }
+        var result = RouteCommitResult(ok: false, error: nil, addedTracks: [], addedVias: [])
+        let done = performChecked("Routed track", invalidatesAnalysis: false, failureMessage: "Nothing was routed") {
+            result = $0.routerCommit()
+            return result.ok && !(result.addedTracks.isEmpty && result.addedVias.isEmpty)
+        }
+        routePreview = nil
+        if !done, let error = result.error { statusMessage = error }
+        if done, !drcResults.isEmpty { runDRC() }
+    }
+
+    /// Drops the route in progress; the board is unchanged (Esc).
+    func cancelRoute() {
+        guard routePreview != nil else { return }
+        engine.routerCancel()
+        routePreview = nil
+        statusMessage = "Route cancelled"
+    }
+
+    private func applyRouterOptions() {
+        guard routePreview != nil, !isBusy else { return }
+        showRoute(engine.routerSetOptions(routerOptions))
     }
 
     /// Solder mask colour of the board (3D assembly view and fabrication order). Undoable.

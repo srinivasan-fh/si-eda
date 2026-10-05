@@ -25,6 +25,7 @@
 "Add Pattern" = "Thêm mẫu";
 "Add Pin" = "Thêm chân";
 "Add Pour" = "Thêm vùng đổ đồng";
+"Add Selected Parts" = "Thêm linh kiện đã chọn";
 "Add Thermal Vias" = "Thêm via tản nhiệt";
 "Add a pad like the last one (numbered next)" = "Thêm pad giống pad cuối (đánh số tiếp theo)";
 "Add a sheet (right-click a tab for more)" = "Thêm trang (nhấp chuột phải vào thẻ để xem thêm)";
@@ -104,6 +105,7 @@
 "Construction" = "Cấu trúc";
 "Copper colours" = "Màu đồng";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Lớp đồng: 1 = một mặt (không via), 2–6 cho hầu hết sản phẩm, 8–24 cho bo mạch chủ, máy chủ, máy tính lớn và bo nền GPU";
+"Corners" = "Góc";
 "Currents" = "Dòng điện";
 "DC" = "DC";
 "DC Operating Point" = "Điểm làm việc DC";
@@ -130,6 +132,7 @@
 "Design guidance" = "Hướng dẫn thiết kế";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "Cài đặt sẵn quy tắc thiết kế: kích thước đường mạch, khoảng cách, via và các giới hạn sản xuất tối thiểu mà DRC áp dụng";
 "Designator" = "Ký hiệu tham chiếu";
+"Differential pair" = "Cặp vi sai";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Không lắp: có trên bo nhưng không hàn; loại khỏi BOM lắp ráp và CPL";
 "Down ↓" = "Xuống ↓";
 "Drag to orbit" = "Kéo để xoay quanh";
@@ -182,6 +185,9 @@
 "Hold" = "Giữ";
 "Holographic data panels around the stack: copper per layer, net fan-out, parts, routing and a board map" = "Bảng dữ liệu toàn ký quanh chồng lớp: đồng theo lớp, fan-out net, linh kiện, đi dây và bản đồ bo mạch";
 "Import Datasheet…" = "Nhập datasheet…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "Nhập thư viện KiCad (.kicad_mod, .kicad_sym) hoặc Eagle (.lbr)";
+"Import Library" = "Nhập thư viện";
+"Import Library…" = "Nhập thư viện…";
 "Import PRD…" = "Nhập PRD…";
 "Indian semiconductor states" = "Các bang bán dẫn Ấn Độ";
 "Industry" = "Ngành";
@@ -319,6 +325,8 @@
 "Right →" = "Phải →";
 "Robot Platform" = "Nền tảng robot";
 "Rotate" = "Xoay";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Đi dây cả hai net của cặp vi sai (X_P / X_N) cùng nhau theo khoảng cách cặp";
+"Router mode" = "Chế độ đi dây";
 "Run" = "Chạy";
 "Run AC Sweep" = "Chạy quét AC";
 "Run DC Sweep" = "Chạy quét DC";
@@ -360,6 +368,8 @@
 "Shape" = "Hình dạng";
 "Sheet" = "Trang";
 "Sheet name" = "Tên trang";
+"Shove" = "Đẩy";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "Đẩy sẽ đẩy đường mạch và via của các net khác sang bên; Đi vòng sẽ đi dây vòng quanh chúng";
 "Show" = "Hiển thị";
 "Show Crash Reports" = "Hiển thị báo cáo sự cố";
 "Show Navigator" = "Hiển thị bộ điều hướng";
@@ -429,10 +439,12 @@
 "Vias" = "Via";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "Via trong pad SMD được nhà sản xuất lấp đầy và mạ phủ, nên fan-out BGA / QFN bước nhỏ có thể dùng chúng";
 "Voltages" = "Điện áp";
+"Walk around" = "Đi vòng";
 "Warnings" = "Cảnh báo";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "Mở rộng net theo độ rộng IPC-2221 cho dòng DC của chúng (+25 %)";
 "Width" = "Độ rộng";
 "Window" = "Cửa sổ";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "Từ khóa, hoặc bộ lọc: cat:sensors pkg:soic pins:8 mfr:ti";
 "Workspace" = "Không gian làm việc";
 "Workspaces" = "Không gian làm việc";
 "Worst case" = "Trường hợp xấu nhất";
@@ -465,3 +477,38 @@
 "us-central1" = "us-central1";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-kéo hoặc kéo hai ngón để di chuyển";
+
+/* Signal & power integrity (Simulation ▸ SI / PI) */
+"Circuit" = "Mạch";
+"SI / PI" = "SI / PI";
+"Signal & Power Integrity" = "Toàn vẹn tín hiệu & nguồn";
+"Signals" = "Tín hiệu";
+"Crosstalk" = "Nhiễu xuyên kênh";
+"Power" = "Nguồn";
+"Import IBIS…" = "Nhập IBIS…";
+"Import an IBIS (.ibs) file; assign its models to nets below" = "Nhập tệp IBIS (.ibs); gán các mô hình của nó cho các net bên dưới";
+"Sign-off in verification" = "Phê duyệt trong kiểm định";
+"Adds a Signal & Power Integrity stage to Design Checks" = "Thêm giai đoạn Toàn vẹn tín hiệu & nguồn vào Kiểm tra thiết kế";
+"Driver model" = "Mô hình bộ lái";
+"Automatic" = "Tự động";
+"No signal nets to analyse" = "Không có net tín hiệu để phân tích";
+"Select a net to analyse" = "Chọn một net để phân tích";
+"Return path" = "Đường hồi dòng";
+"No crosstalk or return-path problems found" = "Không tìm thấy vấn đề nhiễu xuyên kênh hoặc đường hồi dòng";
+"No supply rails to analyse" = "Không có đường nguồn để phân tích";
+"Ripple" = "Độ gợn";
+"Load step" = "Bước tải";
+"Length" = "Chiều dài";
+"Delay" = "Độ trễ";
+"Impedance" = "Trở kháng";
+"Critical length" = "Chiều dài tới hạn";
+"Overshoot" = "Vọt lố";
+"Undershoot" = "Vọt dưới";
+"Settling" = "Thời gian ổn định";
+"Flight time" = "Thời gian truyền";
+"Driver" = "Bộ lái";
+"Receiver" = "Bộ thu";
+"With series termination" = "Với điện trở phối hợp nối tiếp";
+"Target" = "Mục tiêu";
+"Decoupling" = "Tách ghép";
+"IR drop" = "Sụt áp IR";

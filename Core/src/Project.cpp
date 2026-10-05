@@ -301,6 +301,7 @@ Json Project::toJson() const {
     root["retailDevice"] = retailDevice;
     root["applianceType"] = applianceType;
     root["memoryDesign"] = memoryDesign;
+    if (!si.isDefault()) root["signalIntegrity"] = si.toJson();
     root["buildQuantity"] = buildQuantity;
     root["board"] = boardJson(pcb.settings);
 
@@ -376,6 +377,7 @@ Json Project::toJson() const {
         j["width"] = t.width;
         j["a"] = vec(t.a);
         j["b"] = vec(t.b);
+        if (t.locked) j["locked"] = true;
         tracks.push(j);
     }
     root["tracks"] = tracks;
@@ -419,6 +421,7 @@ Project Project::fromJson(const Json& root) {
     if (!p.applianceType.empty() && !findApplianceType(p.applianceType)) p.applianceType.clear();
     p.memoryDesign = root.get("memoryDesign").asString("");
     if (!p.memoryDesign.empty() && !findMemoryDesignType(p.memoryDesign)) p.memoryDesign.clear();
+    p.si = SiSettings::fromJson(root.get("signalIntegrity"));
     p.buildQuantity = std::max(1, root.get("buildQuantity").asInt(5));
     if (!findIndustry(p.industry)) p.industry = "general";
     const Json& b = root.get("board");
@@ -588,6 +591,7 @@ Project Project::fromJson(const Json& root) {
         t.width = j.get("width").asNumber(s.trackWidth);
         t.a = {j.get("a").get("x").asNumber(), j.get("a").get("y").asNumber()};
         t.b = {j.get("b").get("x").asNumber(), j.get("b").get("y").asNumber()};
+        t.locked = j.get("locked").asBool(false);
         p.pcb.addTrack(t);
     }
     for (const auto& j : root.get("vias").items()) {
@@ -785,6 +789,7 @@ Json Project::snapshot() const {
         j["ay"] = t.a.y;
         j["bx"] = t.b.x;
         j["by"] = t.b.y;
+        if (t.locked) j["locked"] = true;
         tracks.push(j);
     }
     root["tracks"] = tracks;

@@ -134,6 +134,16 @@ char* sieda_packages_json(void);
 /* Built-in standard parts: [{"category": "...", "spec": {<spec_json as above>}}, ...] */
 char* sieda_standard_parts_json(void);
 
+/* ---- library import (KiCad .kicad_mod / .kicad_sym, Eagle .lbr) ------------------------------ */
+/* request_json: {"files":[{"name":"LM358.kicad_sym","content":"<file text>"}, ...],
+ *                "pairs":{"<symbol name>":"<footprint name>"}}   (pairs optional)
+ * Reads the files, pairs symbols with footprints and validates every part with the symbol and land-pattern checks.
+ * Returns {"parts":[{"name","symbol","footprint","source","ok":bool,"error","warnings":[...],"spec":{<spec_json>}}],
+ *          "files":[{"name","format","symbols","footprints","error"}],"symbols":n,"footprints":n}.
+ * Parts with ok == true register as they are (sieda_custom_part_register with their spec). Malformed files are
+ * reported in files[].error; the call never fails on file content. Caller frees. */
+char* sieda_library_import(const char* request_json);
+
 /* ---- standard values --------------------------------------------------------------------- */
 /* Nearest IEC 60063 value; series = 12, 24 or 96. */
 double sieda_nearest_standard_value(double value, int32_t series);
@@ -295,6 +305,83 @@ void sieda_pcb_clear_zones(SiedaProject* project);
 int32_t sieda_pcb_add_tamper_mesh(SiedaProject* project, const char* ref, const char* net_a, const char* net_b,
                                   int32_t layer_a, int32_t layer_b, double margin_mm);
 void sieda_pcb_clear_tamper_meshes(SiedaProject* project);
+
+/* ---- interactive routing ---------------------------------------------------------------------------------------
+ * One route session per project. The router works on a copy of the board taken when the route begins and edits the
+ * layout only on commit; any other board edit in between makes the commit fail (call cancel first).
+ * options_json (NULL = keep the current options): {"mode":"shove"|"walkaround", "posture":"45"|"90"|"free",
+ *   "swapPosture":bool, "width":mm (0 = net class), "pairGap":mm (0 = stack-up), "snap":bool}.
+ * Begin / move / fix / via / options return the preview, caller frees:
+ *   {"active","kind":"route"|"pair"|"drag","status","blocked","reachedTarget","nets":[…],"layer","width","gap",
+ *    "endX","endY","length","placed":[track],"head":[track],"vias":[via],"shovedTracks":[track],"shovedVias":[via],
+ *    "hiddenTracks":[id],"hiddenVias":[id]}  (track = {id,net,layer,width,ax,ay,bx,by}; via = {id,net,x,y,drill,diameter})
+ * plus "error":"…" when that call failed (the preview is still the current state). */
+char* sieda_router_begin(SiedaProject* project, const char* options_json, double x, double y, int32_t layer);
+/* Differential pair from a pad of either member (nets X_P / X_N, X+ / X-, …). */
+char* sieda_router_begin_pair(SiedaProject* project, const char* options_json, double x, double y, int32_t layer);
+/* Drags track `track_id` grabbed at (x, y): it moves parallel to itself, neighbours follow, other nets are shoved. */
+char* sieda_router_begin_drag(SiedaProject* project, const char* options_json, int32_t track_id, double x, double y);
+char* sieda_router_move(SiedaProject* project, double x, double y);
+/* Places the head (a click): the route continues from its end. */
+char* sieda_router_fix(SiedaProject* project);
+/* Places the head and a through via at its end; continues on to_layer (-1 = the other outer layer). */
+char* sieda_router_add_via(SiedaProject* project, int32_t to_layer);
+char* sieda_router_set_options(SiedaProject* project, const char* options_json);
+/* Writes the route and every shoved item into the layout: {"ok","error","removedTracks":[track],"removedVias":[via],
+ * "addedTracks":[id],"addedVias":[id]}. The session ends either way. */
+char* sieda_router_commit(SiedaProject* project);
+void sieda_router_cancel(SiedaProject* project);
+int32_t sieda_router_active(const SiedaProject* project);
+/* Length tuning: accordion meanders on track `track_id` (then the net's other tracks) until its net is target_mm
+ * long; target_mm <= 0 matches the longest member of the net's pair / bus group. max_amplitude_mm <= 0 = 2 mm.
+ * {"ok","message","net","before","after","target","changes":{…as commit…}}. */
+char* sieda_router_tune_length(SiedaProject* project, int32_t track_id, double target_mm, double max_amplitude_mm);
+/* Locked tracks are never shoved or dragged. Returns 1 on success. */
+int32_t sieda_pcb_lock_track(SiedaProject* project, int32_t track_id, int32_t locked);
+/* Deletes one track / via by id. Returns 1 on success. */
+int32_t sieda_pcb_remove_track(SiedaProject* project, int32_t track_id);
+int32_t sieda_pcb_remove_via(SiedaProject* project, int32_t via_id);
+
+/* ---- signal & power integrity --------------------------------------------------------------------------------------- */
+/* Parses an IBIS (.ibs, IBIS 4.x / 5.x) file for preview at corner "typ", "min" (weak / slow) or "max" (strong / fast):
+ * {"version","fileName","components":[{name,manufacturer,pins:[{pin,signal,model}]}],"models":[{id,name,source,type,
+ * modelType,vHigh,riseTime,fallTime,rOut,cComp,cIn,vih,vil,rPkg,lPkg,cPkg,note}],"warnings":[...]}. NULL with *error_out
+ * (caller frees) when the text is not IBIS. Caller frees. */
+char* sieda_ibis_parse(const char* text, const char* corner, char** error_out);
+/* Imports every [Model] of an IBIS file into the project (ids "ibis:<model name>", replacing models of the same id). With
+ * `ref` naming a component, its pins are mapped by number to the models of the file's first [Pin] list. Returns the
+ * number of models imported, or 0 with *error_out (caller frees). */
+int32_t sieda_si_import_ibis(SiedaProject* project, const char* text, const char* corner, const char* ref, char** error_out);
+/* Assigns a driver / receiver model (a logic family id such as "lvcmos33", or "ibis:<model>") to `kind` "net" (net
+ * name), "component" (reference) or "pin" ("U1.12", reference.pin number or name). An empty model_id clears the
+ * assignment. 0 for an unknown kind or model. */
+int32_t sieda_si_assign_model(SiedaProject* project, const char* kind, const char* target, const char* model_id);
+/* sign_off = 1 adds the "Signal & Power Integrity" stage to design verification; overshoot and crosstalk limits are
+ * fractions of the signal swing (e.g. 0.15, 0.05). */
+int32_t sieda_si_set_options(SiedaProject* project, int32_t sign_off, double overshoot_limit, double crosstalk_limit);
+/* Power-integrity inputs of a rail: allowed ripple (%), load step (A) and DC load (A); 0 derives the value. */
+int32_t sieda_pi_set_rail(SiedaProject* project, const char* net_name, double ripple_percent, double transient_amps,
+                          double dc_amps);
+/* {"signOff","overshootLimit","crosstalkLimit","models":[...],"families":[...],"componentModels":{},"pinModels":{},
+ * "netModels":{},"rails":[{net,ripplePercent,transientCurrent,dcCurrent}]}. Caller frees. */
+char* sieda_si_settings_json(const SiedaProject* project);
+/* Signal nets for the SI panel, critical and fast first: [{net,name,length,delay,critical,criticalLength,driver,model,
+ * modelId,fast,routed,receivers}]. Caller frees. */
+char* sieda_si_net_list_json(const SiedaProject* project);
+/* Transmission-line analysis of one net: driver, terminations, line sections (layer, width, length, Z0, delay),
+ * receivers with overshoot / undershoot / ringback / settling / flight time, termination advice and the waveforms
+ * {"waveform":{time,source,driver,receiver},"terminatedWaveform":...}. series_ohms >= 0 adds a what-if series resistor
+ * at the driver (< 0: as designed). {"error":...} for an unknown or non-signal net. Caller frees. */
+char* sieda_si_net_json(const SiedaProject* project, const char* net_name, double series_ohms);
+/* Crosstalk pairs and return-path issues: {"pairs":[{aggressor,victim,layer,coupledLength,spacing,next,fext,noise,limit,
+ * ok,x,y}],"returnPath":[{code,net,message,x,y}],"limit"}. Caller frees. */
+char* sieda_si_crosstalk_json(const SiedaProject* project);
+/* Power distribution of every rail: {"rails":[{net,name,voltage,ripplePercent,transientCurrent,dcCurrent,target,vrmKind,
+ * decaps:[...],plane:{...},curve:{freq:[],z:[]},peaks:[{f,z}],worstZ,worstF,compliant,irDrop:{analyzed,worst,loads:[...]},
+ * recommendations:[...]}]}. Caller frees. */
+char* sieda_pi_json(const SiedaProject* project);
+/* Every signal / power-integrity finding (SI_* and PI_* codes) as a violations array. Caller frees. */
+char* sieda_si_checks_json(const SiedaProject* project);
 
 /* ---- exports ------------------------------------------------------------------------------- */
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",

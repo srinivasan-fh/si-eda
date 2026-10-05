@@ -25,6 +25,7 @@
 "Add Pattern" = "पैटर्न जोड़ें";
 "Add Pin" = "पिन जोड़ें";
 "Add Pour" = "पोर जोड़ें";
+"Add Selected Parts" = "चुने गए पार्ट जोड़ें";
 "Add Thermal Vias" = "थर्मल वाया जोड़ें";
 "Add a pad like the last one (numbered next)" = "पिछले जैसा पैड जोड़ें (अगला नंबर)";
 "Add a sheet (right-click a tab for more)" = "शीट जोड़ें (और विकल्पों के लिए टैब पर राइट-क्लिक करें)";
@@ -104,6 +105,7 @@
 "Construction" = "निर्माण";
 "Copper colours" = "कॉपर रंग";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "कॉपर लेयर: 1 = सिंगल-साइडेड (कोई वाया नहीं), अधिकांश उत्पादों के लिए 2–6, मदरबोर्ड, सर्वर, मेनफ़्रेम और GPU बेसबोर्ड के लिए 8–24";
+"Corners" = "कोने";
 "Currents" = "करंट";
 "DC" = "DC";
 "DC Operating Point" = "DC ऑपरेटिंग पॉइंट";
@@ -130,6 +132,7 @@
 "Design guidance" = "डिज़ाइन मार्गदर्शन";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "डिज़ाइन-नियम प्रीसेट: ट्रैक, क्लीयरेंस और वाया साइज़ तथा DRC द्वारा लागू फ़ैब्रिकेशन न्यूनतम";
 "Designator" = "डेज़िग्नेटर";
+"Differential pair" = "डिफ़रेंशियल पेयर";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "पॉप्युलेट न करें: बोर्ड पर है पर लगाया नहीं जाता; असेंबली BOM और CPL से बाहर";
 "Down ↓" = "नीचे ↓";
 "Drag to orbit" = "घुमाने के लिए ड्रैग करें";
@@ -182,6 +185,9 @@
 "Hold" = "होल्ड";
 "Holographic data panels around the stack: copper per layer, net fan-out, parts, routing and a board map" = "स्टैक के चारों ओर होलोग्राफ़िक डेटा पैनल: प्रति लेयर कॉपर, नेट फ़ैन-आउट, पार्ट, रूटिंग और बोर्ड मैप";
 "Import Datasheet…" = "डेटाशीट इम्पोर्ट करें…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad (.kicad_mod, .kicad_sym) या Eagle (.lbr) लाइब्रेरी इम्पोर्ट करें";
+"Import Library" = "लाइब्रेरी इम्पोर्ट करें";
+"Import Library…" = "लाइब्रेरी इम्पोर्ट करें…";
 "Import PRD…" = "PRD इम्पोर्ट करें…";
 "Indian semiconductor states" = "भारतीय सेमीकंडक्टर राज्य";
 "Industry" = "उद्योग";
@@ -319,6 +325,8 @@
 "Right →" = "दाएँ →";
 "Robot Platform" = "रोबोट प्लेटफ़ॉर्म";
 "Rotate" = "घुमाएँ";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "डिफ़रेंशियल पेयर के दोनों नेट (X_P / X_N) को पेयर गैप पर एक साथ रूट करें";
+"Router mode" = "राउटर मोड";
 "Run" = "चलाएँ";
 "Run AC Sweep" = "AC स्वीप चलाएँ";
 "Run DC Sweep" = "DC स्वीप चलाएँ";
@@ -360,6 +368,8 @@
 "Shape" = "शेप";
 "Sheet" = "शीट";
 "Sheet name" = "शीट का नाम";
+"Shove" = "धकेलें";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "धकेलें अन्य नेट के ट्रैक और वाया को किनारे हटाता है; घूमकर उनके चारों ओर रूट करता है";
 "Show" = "दिखाएँ";
 "Show Crash Reports" = "क्रैश रिपोर्ट दिखाएँ";
 "Show Navigator" = "नेविगेटर दिखाएँ";
@@ -429,10 +439,12 @@
 "Vias" = "वाया";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD पैड के वाया फ़ैब द्वारा भरे और कैप किए जाते हैं, इसलिए फ़ाइन-पिच BGA / QFN फ़ैन-आउट उनका उपयोग कर सकते हैं";
 "Voltages" = "वोल्टेज";
+"Walk around" = "घूमकर";
 "Warnings" = "चेतावनियाँ";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "नेट को उनके DC करंट के लिए IPC-2221 चौड़ाई तक चौड़ा करें (+25 %)";
 "Width" = "चौड़ाई";
 "Window" = "विंडो";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "शब्द, या फ़िल्टर: cat:sensors pkg:soic pins:8 mfr:ti";
 "Workspace" = "वर्कस्पेस";
 "Workspaces" = "वर्कस्पेस";
 "Worst case" = "सबसे खराब स्थिति";
@@ -465,3 +477,38 @@
 "us-central1" = "us-central1";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "पैन करने के लिए ⌥-ड्रैग या दो-उंगली ड्रैग करें";
+
+/* Signal & power integrity (Simulation ▸ SI / PI) */
+"Circuit" = "सर्किट";
+"SI / PI" = "SI / PI";
+"Signal & Power Integrity" = "सिग्नल व पावर इंटीग्रिटी";
+"Signals" = "सिग्नल";
+"Crosstalk" = "क्रॉसटॉक";
+"Power" = "पावर";
+"Import IBIS…" = "IBIS इम्पोर्ट करें…";
+"Import an IBIS (.ibs) file; assign its models to nets below" = "IBIS (.ibs) फ़ाइल इम्पोर्ट करें; इसके मॉडल नीचे नेट को असाइन करें";
+"Sign-off in verification" = "वेरिफ़िकेशन में साइन-ऑफ़";
+"Adds a Signal & Power Integrity stage to Design Checks" = "डिज़ाइन जाँच में सिग्नल व पावर इंटीग्रिटी चरण जोड़ता है";
+"Driver model" = "ड्राइवर मॉडल";
+"Automatic" = "स्वचालित";
+"No signal nets to analyse" = "विश्लेषण के लिए कोई सिग्नल नेट नहीं";
+"Select a net to analyse" = "विश्लेषण के लिए नेट चुनें";
+"Return path" = "रिटर्न पाथ";
+"No crosstalk or return-path problems found" = "कोई क्रॉसटॉक या रिटर्न-पाथ समस्या नहीं मिली";
+"No supply rails to analyse" = "विश्लेषण के लिए कोई सप्लाई रेल नहीं";
+"Ripple" = "रिपल";
+"Load step" = "लोड स्टेप";
+"Length" = "लंबाई";
+"Delay" = "विलंब";
+"Impedance" = "इम्पीडेंस";
+"Critical length" = "क्रिटिकल लंबाई";
+"Overshoot" = "ओवरशूट";
+"Undershoot" = "अंडरशूट";
+"Settling" = "सेटलिंग";
+"Flight time" = "फ़्लाइट टाइम";
+"Driver" = "ड्राइवर";
+"Receiver" = "रिसीवर";
+"With series termination" = "सीरीज़ टर्मिनेशन के साथ";
+"Target" = "लक्ष्य";
+"Decoupling" = "डीकपलिंग";
+"IR drop" = "IR ड्रॉप";

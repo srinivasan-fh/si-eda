@@ -25,6 +25,7 @@
 "Add Pattern" = "패턴 추가";
 "Add Pin" = "핀 추가";
 "Add Pour" = "푸어 추가";
+"Add Selected Parts" = "선택한 부품 추가";
 "Add Thermal Vias" = "서멀 비아 추가";
 "Add a pad like the last one (numbered next)" = "마지막 패드와 같은 패드 추가 (다음 번호)";
 "Add a sheet (right-click a tab for more)" = "시트 추가(탭을 오른쪽 클릭하면 더 보기)";
@@ -104,6 +105,7 @@
 "Construction" = "구조";
 "Copper colours" = "동박 색상";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "동박 레이어: 1 = 단면 (비아 없음), 대부분의 제품은 2–6, 마더보드·서버·메인프레임·GPU 베이스보드는 8–24";
+"Corners" = "모서리";
 "Currents" = "전류";
 "DC" = "DC";
 "DC Operating Point" = "DC 동작점";
@@ -130,6 +132,7 @@
 "Design guidance" = "설계 가이드";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "설계 규칙 프리셋: 트랙, 클리어런스 및 비아 크기와 DRC가 적용하는 제조 최소값";
 "Designator" = "참조 지정자";
+"Differential pair" = "차동 쌍";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "미실장: 보드에는 있지만 실장하지 않음. 조립용 BOM 및 CPL에서 제외";
 "Down ↓" = "아래로 ↓";
 "Drag to orbit" = "드래그하여 궤도 회전";
@@ -182,6 +185,9 @@
 "Hold" = "홀드";
 "Holographic data panels around the stack: copper per layer, net fan-out, parts, routing and a board map" = "스택 주변의 홀로그래픽 데이터 패널: 레이어별 동박, 네트 팬아웃, 부품, 배선 및 보드 맵";
 "Import Datasheet…" = "데이터시트 가져오기…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad(.kicad_mod, .kicad_sym) 또는 Eagle(.lbr) 라이브러리 가져오기";
+"Import Library" = "라이브러리 가져오기";
+"Import Library…" = "라이브러리 가져오기…";
 "Import PRD…" = "PRD 가져오기…";
 "Indian semiconductor states" = "인도 반도체 주";
 "Industry" = "산업";
@@ -319,6 +325,8 @@
 "Right →" = "오른쪽 →";
 "Robot Platform" = "로봇 플랫폼";
 "Rotate" = "회전";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "차동 쌍의 두 네트(X_P / X_N)를 쌍 간격으로 함께 배선";
+"Router mode" = "라우터 모드";
 "Run" = "실행";
 "Run AC Sweep" = "AC 스윕 실행";
 "Run DC Sweep" = "DC 스윕 실행";
@@ -360,6 +368,8 @@
 "Shape" = "모양";
 "Sheet" = "시트";
 "Sheet name" = "시트 이름";
+"Shove" = "밀어내기";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "밀어내기는 다른 네트의 트랙과 비아를 옆으로 밀고, 우회는 그 주위로 배선합니다";
 "Show" = "표시";
 "Show Crash Reports" = "충돌 보고서 보기";
 "Show Navigator" = "네비게이터 보기";
@@ -429,10 +439,12 @@
 "Vias" = "비아";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD 패드의 비아는 제조사가 충전 및 캡 도금하므로 파인 피치 BGA / QFN 팬아웃에 사용 가능";
 "Voltages" = "전압";
+"Walk around" = "우회";
 "Warnings" = "경고";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "네트를 DC 전류에 맞는 IPC-2221 폭으로 확장 (+25 %)";
 "Width" = "폭";
 "Window" = "윈도우";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "검색어 또는 필터: cat:sensors pkg:soic pins:8 mfr:ti";
 "Workspace" = "작업 공간";
 "Workspaces" = "작업 공간";
 "Worst case" = "최악 조건";
@@ -465,3 +477,38 @@
 "us-central1" = "us-central1";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-드래그 또는 두 손가락 드래그로 이동";
+
+/* Signal & power integrity (Simulation ▸ SI / PI) */
+"Circuit" = "회로";
+"SI / PI" = "SI / PI";
+"Signal & Power Integrity" = "신호 및 전원 무결성";
+"Signals" = "신호";
+"Crosstalk" = "크로스토크";
+"Power" = "전원";
+"Import IBIS…" = "IBIS 가져오기…";
+"Import an IBIS (.ibs) file; assign its models to nets below" = "IBIS 파일(.ibs)을 가져와 아래 넷에 모델을 할당합니다";
+"Sign-off in verification" = "검증에서 사인오프";
+"Adds a Signal & Power Integrity stage to Design Checks" = "설계 검사에 신호 및 전원 무결성 단계를 추가합니다";
+"Driver model" = "드라이버 모델";
+"Automatic" = "자동";
+"No signal nets to analyse" = "분석할 신호 넷이 없습니다";
+"Select a net to analyse" = "분석할 넷을 선택하세요";
+"Return path" = "리턴 경로";
+"No crosstalk or return-path problems found" = "크로스토크나 리턴 경로 문제가 없습니다";
+"No supply rails to analyse" = "분석할 전원 레일이 없습니다";
+"Ripple" = "리플";
+"Load step" = "부하 스텝";
+"Length" = "길이";
+"Delay" = "지연";
+"Impedance" = "임피던스";
+"Critical length" = "임계 길이";
+"Overshoot" = "오버슈트";
+"Undershoot" = "언더슈트";
+"Settling" = "세틀링";
+"Flight time" = "비행 시간";
+"Driver" = "드라이버";
+"Receiver" = "리시버";
+"With series termination" = "직렬 종단 적용";
+"Target" = "목표";
+"Decoupling" = "디커플링";
+"IR drop" = "IR 강하";

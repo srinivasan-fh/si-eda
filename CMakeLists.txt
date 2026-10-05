@@ -13,6 +13,7 @@ add_library(sieda_core STATIC
     Core/src/Units.cpp
     Core/src/Library.cpp
     Core/src/CustomParts.cpp
+    Core/src/LibraryImport.cpp
     Core/src/StandardParts.cpp
     Core/src/DeviceModels.cpp
     Core/src/Industry.cpp
@@ -34,6 +35,10 @@ add_library(sieda_core STATIC
     Core/src/Reliability.cpp
     Core/src/Stackup.cpp
     Core/src/LengthMatch.cpp
+    Core/src/InteractiveRouter.cpp
+    Core/src/Ibis.cpp
+    Core/src/SignalIntegrity.cpp
+    Core/src/PowerIntegrity.cpp
     Core/src/Embedded.cpp
     Core/src/Robotics.cpp
     Core/src/Automotive.cpp
@@ -64,5 +69,6 @@ if(SIEDA_BUILD_TESTS)
     enable_testing()
     add_executable(sieda_core_tests Core/tests/core_tests.cpp Core/tests/c_api_test.c)
     target_link_libraries(sieda_core_tests PRIVATE sieda_core)
+    target_compile_definitions(sieda_core_tests PRIVATE SIEDA_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/fixtures")
     add_test(NAME sieda_core_tests COMMAND sieda_core_tests)
 endif()

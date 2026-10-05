@@ -37,6 +37,7 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 | F13 | Footprint Editor: draw any part's land pattern pad by pad (position, size, shape, drill, pin), pad arrays, undo, live checks (overlap, gap, annular ring, pin ↔ pad coverage); converts generated footprints | ✅ |
 | F14 | Symbol Editor: pins on any side and slot, gaps, stacked power pins (joined nets), Auto Arrange by name and type, live checks; library parts with 16+ pins arranged | ✅ |
 | F15 | Large designs: multi-sheet and single-instance hierarchical schematics (global / local / port labels, sheet symbols), cross-sheet ERC, bus notation and bus labels, annotation, assembly variants (DNP and value overrides) for BOM / CPL / assembly exports | ✅ |
+| F16 | Interactive routing: Route tool with walkaround and push-and-shove (recursive, DRC rules kept; pads and locked tracks fixed), 45° / 90° corners, vias with layer change, snap to pads, commit / cancel / undo; differential pairs at the pair gap, segment drag with shove, length tuning with meanders | ✅ |
 
 ## Non-functional requirements
 - **Correctness.** All AI output is schema-validated and checked by the core (ERC, simulation, DRC) before
@@ -53,9 +54,11 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 
 ## Roadmap
 (Shipped since v1: up to 24 layers, copper pours and planes with thermal reliefs, differential pairs, length tuning,
-HDI vias and BGA fan-out.)
+HDI vias and BGA fan-out, and board-level signal / power integrity: IBIS import, reflections, crosstalk, return path,
+PDN impedance and IR drop.)
 
-1. KiCad `.kicad_mod` / Altium footprint import into the Footprint Editor (user component libraries shipped).
+1. ~~KiCad footprint import~~ shipped: Library Import reads KiCad `.kicad_mod` / `.kicad_sym` and Eagle `.lbr` libraries into project parts ([LIBRARY_IMPORT.md](LIBRARY_IMPORT.md)). Altium binary libraries (`.SchLib`, `.PcbLib`, `.IntLib`) are not supported; convert them in KiCad 8+ first. Still open: choosing the footprint for a symbol in the import sheet, and 3D model import.
 2. AC small-signal analysis and Bode plots — shipped (F7, docs/SIMULATION.md).
-3. Push-and-shove interactive routing.
+3. ~~Push-and-shove interactive routing.~~ **Shipped** (F16): walkaround and push-and-shove, differential pairs,
+   segment drag and length tuning. See [INTERACTIVE_ROUTING.md](INTERACTIVE_ROUTING.md).
 4. Team collaboration through a shared project repository.

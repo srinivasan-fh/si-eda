@@ -5,6 +5,7 @@
 #include <complex>
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <set>
 #include <sstream>
@@ -21,12 +22,17 @@
 #include "sieda/Embedded.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
+#include "sieda/Ibis.hpp"
+#include "sieda/PowerIntegrity.hpp"
+#include "sieda/SignalIntegrity.hpp"
 #include "sieda/Firmware.hpp"
 #include "sieda/Industry.hpp"
+#include "sieda/InteractiveRouter.hpp"
 #include "sieda/Json.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/LengthMatch.hpp"
+#include "sieda/LibraryImport.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Aerospace.hpp"
 #include "sieda/Isolation.hpp"
@@ -46,6 +52,8 @@
 #include "sieda/sieda_c.h"
 
 extern "C" int sieda_c_api_smoke_test(void);
+extern "C" int sieda_c_api_library_import_test(void);
+extern "C" int sieda_c_api_router_test(void);
 
 using namespace sieda;
 
@@ -2430,8 +2438,11 @@ TEST(c_api_smoke) {
     CHECK(rc == 0);
 }
 
-int main() {
+int main(int argc, char** argv) {
+    // Optional arguments: run only the named tests.
+    const std::set<std::string> only(argv + 1, argv + argc);
     for (const auto& t : registry()) {
+        if (!only.empty() && !only.count(t.name)) continue;
         int before = g_failures;
         std::printf("[ RUN  ] %s\n", t.name);
         t.fn();
@@ -2559,12 +2570,16 @@ TEST(microcontroller_library_by_vendor) {
     std::map<std::string, int> perGroup;
     for (const auto& p : standardParts())
         if (p.category.rfind("Microcontrollers · ", 0) == 0) ++perGroup[p.category];
-    CHECK(perGroup["Microcontrollers · Arm"] == 11);  // + the catalog's LPC1769 (CNC / 3D-printer boards)
-    // + the catalog's STM32F405 / H743 / F765 and the robotics spares STM32F446 / G474 / H723.
-    CHECK(perGroup["Microcontrollers · STMicroelectronics"] == 16);
+    // + the catalog's LPC1769 (CNC / 3D-printer boards) and the general-purpose RP2350B.
+    CHECK(perGroup["Microcontrollers · Arm"] == 12);
+    // + the catalog's STM32F405 / H743 / F765, the robotics spares STM32F446 / G474 / H723 and 11 general-purpose
+    // STM32s (F0, F1, F3, F4, G0, L0, L4, WB, C0).
+    CHECK(perGroup["Microcontrollers · STMicroelectronics"] == 27);
     CHECK(perGroup["Microcontrollers · Texas Instruments"] == 10);
-    // + ATmega328P, ATtiny85, the rad-tolerant ATmegaS128 and the catalog's ATMEGA328P-AU / -PU and SAM D51.
-    CHECK(perGroup["Microcontrollers · Microchip"] == 16);
+    // + ATmega328P, ATtiny85, the rad-tolerant ATmegaS128, the catalog's ATMEGA328P-AU / -PU and SAM D51, and 8
+    // general-purpose AVR / SAM D parts.
+    CHECK(perGroup["Microcontrollers · Microchip"] == 24);
+    CHECK(perGroup["Microcontrollers · Espressif"] == 3);  // ESP32-C3, ESP32-S3, ESP32-PICO-D4
     for (const auto& p : standardParts()) {
         if (p.category.rfind("Microcontrollers · ", 0) != 0) continue;
         bool ok = true;
@@ -5183,6 +5198,71 @@ TEST(library_footprints_keep_pads_apart) {
     }
 }
 
+TEST(general_purpose_catalog) {
+    // The general-purpose catalog (tools/fetch_catalog_parts.py from the KiCad library): MCUs, op-amps, regulators,
+    // interfaces, logic, drivers, memories, sensors, transistors and protection parts, each on its orderable package
+    // and registering with every pad on a pin.
+    const char* names[] = {
+        "STM32F030C8T6", "STM32F103RBT6", "STM32F303CCT6", "STM32F411RET6", "STM32F429ZIT6", "STM32G031K8T6",
+        "STM32L072CZT6", "STM32L476RGT6", "STM32WB55CGU6", "STM32C011F6P6", "STM32G071KBT6N", "ESP32-C3", "ESP32-S3",
+        "ESP32-PICO-D4", "ATTINY202-SSN", "ATTINY404-SSN", "ATTINY3216-SN", "ATMEGA328PB-AU", "ATMEGA1284P-AU",
+        "ATSAMD21J18A-AU", "ATSAMD11C14A-SSUT", "ATTINY84A-SSU", "RP2350B", "LM324DR", "LM324N", "TL072CDR",
+        "TL074CDR", "NE5532DR", "MCP6004T-I/SL", "OP07CDR", "TLV9062IDR", "LM339DR", "LM311DR", "AD620ARZ",
+        "INA128UA", "MCP6002T-I/SN", "LMV321IDBVR", "LMV358IDR", "OPA2340UA", "OPA2134UA", "LM386MX-1",
+        "PCM5102APWR", "PAM8403DR", "LM7905", "LM1117S-3.3", "MCP1700T-3302E/TT", "LP5907MFX-3.3", "MIC5219-3.3YM5",
+        "AP7361C-33E-13", "TLV75533PDBVR", "TPS5430DDAR", "MC34063ADR", "TPS563200DDCR", "MT3608", "LM2675M-5.0",
+        "AP63203WU-7", "LM2596S-3.3", "TL431AIDBZR", "LM4040AIM3-2.5", "REF3033AIDBZR", "LM1117MPX-3.3",
+        "AMS1117-5.0", "L78L05ACD13TR", "TPS54302DDCR", "TPS54360DDAR", "MCP73831T-2ACI/OT", "TPS3839G33DBZR",
+        "MCP130T-315I/TT", "BQ21040DBVR", "USBLC6-4SC6", "FT232RL", "FT231XS", "CH340C", "MAX232DR", "MCP2562-E/SN",
+        "SN65HVD231DR", "TCA9555PWR", "ENC28J60-I/SO", "THVD1400DR", "MCP23017-E/SO", "MCP23S17-E/SO",
+        "MCP23008-E/SO", "CH9102F", "CP2104-F03-GMR", "STUSB4500QTR", "MCP2021A-500E/SN", "W5100S-Q", "LAN8742A-CZ",
+        "DP83848IVV", "ISO7720DR", "ADUM1200ARZ", "74HC14D", "74HC04D", "74HC165D", "74HC245DW", "74HC4051D",
+        "74HC138D", "CD4051BM96", "74HC164D", "74HC02D", "74AHCT125D", "TLC5940PWP", "TC4427AEOA", "ULN2803ADWR",
+        "MAX7219CWG+", "MAX7219CNG+", "DRV8870DDAR", "A4950ELJTR-T", "W25Q32JVSSIQ", "AT24C02C-SSHM-T",
+        "25LC256-I/SN", "MCP9808-E/MS", "TMP36GSZ", "LIS3DHTR", "BME680", "MCP3008-I/SL", "ADS1015IDGSR", "HX711",
+        "MCP4921-E/SN", "LM75BD", "DS18B20Z+", "ADXL343BCCZ", "LSM6DS3TR-C", "LSM6DSLTR", "MPU-6000", "LPS22HHTR",
+        "LPS25HBTR", "SHTC3", "DRV5033FAQDBZR", "ACS712ELCTR-05B-T", "ADS1013IDGSR", "AO3401A", "2N7002", "BSS84",
+        "IRLML6402TRPBF", "IRLB8721PBF", "IRF9540NPBF", "MMBT3904", "MMBT3906", "BC817-40", "BC807-40", "TIP120",
+        "IRLML6244TRPBF", "IRLML0030TRPBF", "DMG3402L-7", "DMG2301L-7", "SI2319CDS-T1-GE3", "DS3231MZ+", "DS1307Z+",
+        "PCF8563T", "LMC555CMX", "TPD2E2U06DCKR",
+    };
+    CHECK(sizeof names / sizeof names[0] == 152);
+    std::set<std::string> unique;
+    for (const auto& sp : standardParts()) CHECK(unique.insert(sp.spec.name).second);  // no name twice
+    CHECK(standardParts().size() >= 420);
+    for (const char* name : names) {
+        const StandardPart* sp = findStandardPart(name);
+        CHECK(sp != nullptr);
+        if (!sp) {
+            std::printf("    missing %s\n", name);
+            continue;
+        }
+        bool ok = true;
+        try {
+            auto part = CustomPartRegistry::instance().registerPart(sp->spec);
+            ok = part->footprint.pads.size() >= sp->spec.pins.size() && !sp->spec.manufacturer.empty() &&
+                 !sp->spec.description.empty();
+            for (const auto& pad : part->footprint.pads) ok = ok && pad.pinIndex >= 0;
+        } catch (const std::exception& e) {
+            std::printf("    %s: %s\n", name, e.what());
+            ok = false;
+        }
+        CHECK(ok);
+    }
+    // Datasheet pin names and packages.
+    auto pin = [](const char* part, size_t i) { return findStandardPart(part)->spec.pins[i].name; };
+    CHECK(pin("LM324DR", 3) == "V+" && pin("LM324DR", 10) == "V-");
+    CHECK(pin("2N7002", 0) == "G" && pin("2N7002", 1) == "S" && pin("2N7002", 2) == "D");
+    CHECK(pin("FT232RL", 0) == "TXD" && findStandardPart("FT232RL")->spec.package.pinCount == 28);
+    CHECK(pin("TL431AIDBZR", 1) == "REF");
+    CHECK(pin("AMS1117-5.0", 1) == "VO" && findStandardPart("AMS1117-5.0")->spec.package.type == "SOT223");
+    CHECK(findStandardPart("ESP32-C3")->spec.pins.size() == 33 && findStandardPart("ESP32-C3")->spec.pins.back().number == "EP");
+    CHECK(findStandardPart("STM32F429ZIT6")->spec.package.pinCount == 144);
+    CHECK(findStandardPart("LIS3DHTR")->spec.package.type == "LGA");                 // exact KiCad land pattern
+    auto hsop = CustomPartRegistry::instance().registerPart(findStandardPart("TPS5430DDAR")->spec);
+    CHECK(hsop->footprint.pads.size() == 9 && hsop->def.pins[hsop->footprint.pads.back().pinIndex].name == "GNDPAD");
+}
+
 TEST(collinear_segments_are_not_a_crossing) {
     // Two dogbone stubs on one 45° diagonal, 0.57 mm apart: with fused multiply-add the orientation products come out
     // as tiny values of either sign, which used to read as a crossing (a false DRC short on Apple silicon).
@@ -6234,4 +6314,1464 @@ TEST(analysis_json_api) {
     Json sweep = simulateDcSweepJson(s, Json::parse("{\"source\":\"V1\",\"start\":0,\"stop\":1,\"step\":\"250m\"}"));
     CHECK(sweep.get("ok").asBool() && sweep.get("values").size() == 5 && sweep.get("unit").asString("") == "V");
     CHECK(!simulateDcSweepJson(s, Json::object()).get("ok").asBool());
+}
+
+// ------------------------------------------------------------------ library import (KiCad / Eagle)
+
+namespace {
+std::string readFixture(const std::string& name) {
+    std::ifstream f(std::string(SIEDA_FIXTURE_DIR) + "/library/" + name, std::ios::binary);
+    std::stringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+
+const ImportedPart* importedPart(const LibraryImport& r, const std::string& name) {
+    for (const auto& p : r.parts)
+        if (p.spec.name == name) return &p;
+    return nullptr;
+}
+
+bool anyContains(const std::vector<std::string>& lines, const std::string& text) {
+    for (const auto& l : lines)
+        if (l.find(text) != std::string::npos) return true;
+    return false;
+}
+
+SymbolPin layoutPin(const CustomPartSpec& spec, const std::string& number) {
+    for (const auto& p : spec.symbol.pins)
+        if (p.number == number) return p;
+    return SymbolPin{number, '?', -1};
+}
+
+const char* const kSoic = "SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod";
+const char* const kQfn = "QFN-16-1EP_3x3mm_P0.5mm_EP1.7x1.7mm.kicad_mod";
+const char* const kHeader = "PinHeader_1x04_P2.54mm_Vertical.kicad_mod";
+const char* const kSymbols = "test_parts.kicad_sym";
+const char* const kEagle = "test_parts.lbr";
+}  // namespace
+
+TEST(library_import_kicad_footprints) {
+    // KiCad 8 SOIC-8: roundrect pads become rectangles, the fab outline is the body, the courtyard the centre.
+    const ImportedFootprint soic = parseKicadFootprint(readFixture(kSoic), kSoic);
+    CHECK(soic.name == "SOIC-8_3.9x4.9mm_P1.27mm");
+    CHECK(soic.description.find("MS-012AA") != std::string::npos);
+    CHECK(soic.package.type == "CUSTOM" && soic.package.lands.size() == 8 && soic.padNumbers.size() == 8);
+    CHECK(std::fabs(soic.package.lands[0].x + 2.475) < 1e-9 && std::fabs(soic.package.lands[0].y + 1.905) < 1e-9);
+    CHECK(std::fabs(soic.package.lands[0].w - 1.95) < 1e-9 && std::fabs(soic.package.lands[0].h - 0.6) < 1e-9);
+    CHECK(std::fabs(soic.package.lands[4].x - 2.475) < 1e-9 && std::fabs(soic.package.lands[4].y - 1.905) < 1e-9);
+    CHECK(std::fabs(soic.package.bodySize - 3.9) < 1e-9 && std::fabs(soic.package.bodyDepth - 4.9) < 1e-9);
+    CHECK(soic.warnings.empty());
+
+    // QFN-16: pads rotated by 90° / 270° swap their sides; the exposed pad and its thermal vias are pin 17; paste-only
+    // apertures without copper are skipped.
+    const ImportedFootprint qfn = parseKicadFootprint(readFixture(kQfn), kQfn);
+    CHECK(qfn.package.lands.size() == 21);
+    CHECK(std::fabs(qfn.package.lands[4].w - 0.25) < 1e-9 && std::fabs(qfn.package.lands[4].h - 0.85) < 1e-9);
+    CHECK(std::fabs(qfn.package.lands[8].w - 0.85) < 1e-9);
+    CHECK(qfn.padNumbers[16] == "17" && qfn.padNumbers[20] == "17");
+    CHECK(qfn.package.lands[17].drill > 0.19 && qfn.package.lands[17].round);
+    CHECK(anyContains(qfn.warnings, "paste-only"));
+    CHECK(std::fabs(qfn.package.bodySize - 3) < 1e-9);
+
+    // KiCad 5 (module …) syntax, unquoted pad numbers, pin 1 at the origin: recentred on the courtyard; the
+    // non-plated hole is reported, not imported.
+    const ImportedFootprint header = parseKicadFootprint(readFixture(kHeader), kHeader);
+    CHECK(header.package.lands.size() == 4);
+    CHECK(std::fabs(header.package.lands[0].y + 3.8) < 1e-9 && std::fabs(header.package.lands[3].y - 3.82) < 1e-9);
+    CHECK(!header.package.lands[0].round && header.package.lands[1].round);
+    CHECK(std::fabs(header.package.lands[0].drill - 1.0) < 1e-9);
+    CHECK(std::fabs(header.package.bodySize - 2.54) < 1e-9 && std::fabs(header.package.bodyDepth - 10.16) < 1e-9);
+    CHECK(anyContains(header.warnings, "Origin moved") && anyContains(header.warnings, "non-plated"));
+
+    // A footprint on its own is a part: one passive pin per pad number, connectors get the J prefix.
+    const ImportedPart part = makeImportedPart(nullptr, &header);
+    CHECK(part.ok && part.spec.pins.size() == 4 && part.spec.refPrefix == "J");
+    CHECK(part.spec.pins[0].type == PinType::Passive && part.spec.pins[3].number == "4");
+    auto reg = CustomPartRegistry::instance().registerPart(part.spec);
+    CHECK(reg->footprint.pads.size() == 4 && reg->footprint.pads[0].throughHole && reg->footprint.pads[2].pinIndex == 2);
+    const ImportedPart qfnPart = makeImportedPart(nullptr, &qfn);
+    CHECK(qfnPart.ok && qfnPart.spec.pins.size() == 17 && qfnPart.spec.refPrefix == "U");
+    CHECK(checkLandPattern(qfnPart.spec).empty());
+
+    // Errors name the problem and the line.
+    auto fails = [](const std::string& text, const std::string& expect) {
+        try {
+            parseKicadFootprint(text);
+        } catch (const ImportError& e) {
+            if (std::string(e.what()).find(expect) != std::string::npos) return true;
+            std::printf("    unexpected message: %s\n", e.what());
+            return false;
+        }
+        return false;
+    };
+    CHECK(fails("", "expected '('"));
+    CHECK(fails("(footprint \"X\"\n  (pad \"1\" smd rect (at 0 0) (size 1 1) (layers \"F.Cu\"))\n", "line 3: missing ')'"));
+    CHECK(fails("(kicad_symbol_lib)", "not a KiCad footprint"));
+    CHECK(fails("(footprint \"X\" (pad \"1\" smd rect (at 0 0) (size 1 1) (layers \"F.Cu\"))"
+                " (pad \"2\" smd rect (at 130 0) (size 1 1) (layers \"F.Cu\")))",
+                "60 mm"));
+    CHECK(fails("(footprint \"X\" (pad \"1\" smd rect (at 0 0) (size 40 1) (layers \"F.Cu\")))", "larger than 30 mm"));
+    CHECK(fails("(footprint \"X\" (pad \"1\" smd rect (at 0 0) (layers \"F.Cu\")))", "no position or size"));
+    CHECK(fails("(footprint \"X\" (fp_line (start 0 0) (end 1 1) (layer \"F.SilkS\")))", "no copper pads"));
+    CHECK(fails("(footprint \"X\" (pad \"1\" smd rect (at 0 0) (size 1 1) (layers \"F.Cu\")) \"open", "unterminated string"));
+    std::string many = "(footprint \"BIG\"";
+    for (int i = 0; i < 600; ++i)
+        many += " (pad \"" + std::to_string(i + 1) + "\" smd rect (at " + std::to_string((i % 30) * 1.5 - 22) + " " +
+                std::to_string((i / 30) * 1.5 - 15) + ") (size 1 1) (layers \"F.Cu\"))";
+    CHECK(fails(many + ")", "up to 512"));
+    // Slots, oblique pads, drills as large as the pad, custom shapes and bottom pads import with a note.
+    const ImportedFootprint odd = parseKicadFootprint(
+        "(footprint \"ODD\" (pad \"1\" thru_hole oval (at -3 0) (size 1.2 2.4) (drill oval 0.8 1.6) (layers \"*.Cu\"))"
+        " (pad \"2\" smd rect (at 0 0 45) (size 1 1) (layers \"F.Cu\"))"
+        " (pad \"3\" thru_hole circle (at 3 0) (size 1 1) (drill 1) (layers \"*.Cu\"))"
+        " (pad \"4\" smd custom (at 0 4) (size 0.5 0.5) (layers \"F.Cu\") (primitives (gr_poly (pts (xy -1 -0.5) (xy 1 -0.5)"
+        " (xy 1 0.5) (xy -1 0.5)))))"
+        " (pad \"5\" smd rect (at 0 -4) (size 1 1) (layers \"B.Cu\")))");
+    CHECK(odd.package.lands.size() == 5);
+    CHECK(std::fabs(odd.package.lands[0].drill - 0.8) < 1e-9);
+    CHECK(std::fabs(odd.package.lands[1].w - std::sqrt(2.0)) < 1e-3);
+    CHECK(odd.package.lands[2].w > 1.15 && odd.package.lands[2].drill < odd.package.lands[2].w);
+    CHECK(std::fabs(odd.package.lands[3].w - 2) < 1e-9 && std::fabs(odd.package.lands[3].h - 1) < 1e-9);
+    for (const char* note : {"slotted", "at an angle", "enlarged", "custom-shaped", "bottom-side"})
+        CHECK(anyContains(odd.warnings, note));
+}
+
+TEST(library_import_kicad_symbols_and_pairing) {
+    const auto symbols = parseKicadSymbols(readFixture(kSymbols), kSymbols);
+    CHECK(symbols.size() == 5);
+    const ImportedSymbol& lm358 = symbols[0];
+    CHECK(lm358.name == "LM358" && lm358.units == 3 && lm358.pins.size() == 8 && lm358.refPrefix == "U");
+    CHECK(lm358.footprint == "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" && lm358.datasheet.find("lm2904") != std::string::npos);
+    // Derived symbol: the parent's pins and footprint, its own value and description.
+    CHECK(symbols[1].name == "LM2904" && symbols[1].pins.size() == 8 && symbols[1].footprint == lm358.footprint);
+    CHECK(symbols[1].description.find("automotive") != std::string::npos);
+
+    std::vector<ImportFile> files;
+    for (const char* f : {kSymbols, kSoic, kQfn, kHeader}) files.push_back({f, readFixture(f)});
+    const LibraryImport r = importLibraryFiles(files);
+    CHECK(r.files.size() == 4 && r.symbols.size() == 5 && r.footprints.size() == 3);
+    for (const auto& f : r.files) CHECK(f.error.empty());
+    CHECK(r.parts.size() == 6);  // 5 symbols + the header no symbol uses
+
+    // LM358 → its SOIC-8 by the footprint name. Units side by side: A (+ − out), a gap, B; supplies top and bottom.
+    const ImportedPart* op = importedPart(r, "LM358");
+    CHECK(op && op->ok && op->footprintName == "SOIC-8_3.9x4.9mm_P1.27mm");
+    if (op) {
+        CHECK(op->spec.pins.size() == 8 && op->spec.pins[0].number == "1" && op->spec.pins[7].number == "8");
+        CHECK(op->spec.pins[1].name == "-" && op->spec.pins[1].type == PinType::Input);
+        CHECK(layoutPin(op->spec, "3").side == 'L' && layoutPin(op->spec, "3").slot == 0);
+        CHECK(layoutPin(op->spec, "2").slot == 2 && layoutPin(op->spec, "5").slot == 4);
+        CHECK(layoutPin(op->spec, "1").side == 'R' && layoutPin(op->spec, "7").side == 'R');
+        CHECK(layoutPin(op->spec, "8").side == 'T' && layoutPin(op->spec, "4").side == 'B');
+        CHECK(checkSymbol(op->spec).empty() && checkLandPattern(op->spec).empty());
+        CHECK(anyContains(op->warnings, "3 units"));
+        auto part = CustomPartRegistry::instance().registerPart(op->spec);
+        CHECK(part->footprint.pads.size() == 8 && part->def.pins.size() == 8);
+        for (size_t i = 0; i < 8; ++i) CHECK(part->footprint.pads[i].pinIndex == static_cast<int>(i));
+    }
+    CHECK(importedPart(r, "LM2904") && importedPart(r, "LM2904")->ok);
+
+    // MCU → QFN-16: exposed pad and thermal vias on pin 17, layout kept (ports, reset, debug), stacked VDD.
+    const ImportedPart* mcu = importedPart(r, "TESTMCU-QFN16");
+    CHECK(mcu && mcu->ok && mcu->spec.manufacturer == "Example Semi");
+    if (mcu) {
+        CHECK(mcu->spec.pins.size() == 17 && mcu->spec.pins[4].name == "nRESET");
+        CHECK(mcu->spec.pins[15].type == PinType::PowerIn);  // the second VDD, "passive" in the file
+        CHECK(layoutPin(mcu->spec, "15").side == 'T' && layoutPin(mcu->spec, "16").slot == layoutPin(mcu->spec, "15").slot);
+        CHECK(layoutPin(mcu->spec, "17").side == 'B');                                // hidden ground pin
+        CHECK(layoutPin(mcu->spec, "5").slot == layoutPin(mcu->spec, "4").slot + 2);  // the gap in the file is kept
+        auto part = CustomPartRegistry::instance().registerPart(mcu->spec);
+        CHECK(part->footprint.pads.size() == 21);
+        for (size_t i = 16; i < part->footprint.pads.size(); ++i) CHECK(part->footprint.pads[i].pinIndex == 16);
+        CHECK(!anyContains(mcu->warnings, "auto-arranged"));
+    }
+    // No footprint file: a package SiEDA generates from the name; an unknown one is an error that says what to add.
+    const ImportedPart* ldo = importedPart(r, "AMS1117-3.3");
+    CHECK(ldo && ldo->ok && ldo->spec.package.type == "SOT223" && anyContains(ldo->warnings, "generated from its package name"));
+    const ImportedPart* odd = importedPart(r, "ODD-SENSOR");
+    CHECK(odd && !odd->ok && odd->error.find("Odd_Sensor_Module") != std::string::npos);
+    const ImportedPart* header = importedPart(r, "PinHeader_1x04_P2.54mm_Vertical");
+    CHECK(header && header->ok && header->symbolName.empty());
+
+    // Explicit pairs: unused pads become mechanical; a pin without a pad is refused with the check's message.
+    const LibraryImport paired = importLibraryFiles(files, {{"ODD-SENSOR", "SOIC-8_3.9x4.9mm_P1.27mm"},
+                                                           {"TESTMCU-QFN16", "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"},
+                                                           {"AMS1117-3.3", "Nope"}});
+    const ImportedPart* sensor = importedPart(paired, "ODD-SENSOR");
+    CHECK(sensor && sensor->ok && anyContains(sensor->warnings, "mechanical"));
+    if (sensor) CHECK(sensor->spec.package.lands[3].pin == "-" && sensor->spec.package.lands[0].pin.empty());
+    const ImportedPart* wrong = importedPart(paired, "TESTMCU-QFN16");
+    CHECK(wrong && !wrong->ok && wrong->error.find("has no pad") != std::string::npos);
+    const ImportedPart* missing = importedPart(paired, "AMS1117-3.3");
+    CHECK(missing && !missing->ok && missing->error.find("Nope") != std::string::npos);
+
+    // A single symbol + footprint download pairs even when the symbol names another footprint.
+    const LibraryImport single = importLibraryFiles(
+        {{"odd.kicad_sym", "(kicad_symbol_lib (symbol \"X1\" (property \"Reference\" \"Q?\") (property \"Footprint\" \"Vendor:X1\")"
+                           " (symbol \"X1_1_1\" (pin input line (at -5.08 0 0) (length 2.54) (name \"A\") (number \"1\"))"
+                           " (pin output line (at 5.08 0 180) (length 2.54) (name \"B\") (number \"2\")))))"},
+         {kSoic, readFixture(kSoic)}});
+    CHECK(single.parts.size() == 1 && single.parts[0].ok && single.parts[0].footprintName == "SOIC-8_3.9x4.9mm_P1.27mm");
+    CHECK(!single.parts.empty() && single.parts[0].spec.refPrefix == "Q");
+
+    // Footprint filters (ki_fp_filters) pick the matching footprint among several; a base symbol from another file
+    // (one file per symbol in a .kicad_symdir) gives a derived symbol its pins.
+    const LibraryImport filtered = importLibraryFiles(
+        {{"base.kicad_sym", "(kicad_symbol_lib (symbol \"OPA\" (property \"ki_fp_filters\" \"DIP*W7.62mm* SOIC*3.9x4.9mm*P1.27mm*\")"
+                            " (symbol \"OPA_1_1\" (pin input line (at -5.08 0 0) (length 2.54) (name \"IN\") (number \"3\"))"
+                            " (pin output line (at 5.08 0 180) (length 2.54) (name \"OUT\") (number \"6\")))))"},
+         {"derived.kicad_sym", "(kicad_symbol_lib (symbol \"OPA2\" (extends \"OPA\") (property \"Value\" \"OPA2\")))"},
+         {"orphan.kicad_sym", "(kicad_symbol_lib (symbol \"OPA3\" (extends \"NOWHERE\")))"},
+         {kQfn, readFixture(kQfn)},
+         {kSoic, readFixture(kSoic)}});
+    const ImportedPart* opa = importedPart(filtered, "OPA");
+    CHECK(opa && opa->ok && opa->footprintName == "SOIC-8_3.9x4.9mm_P1.27mm");
+    const ImportedPart* opa2 = importedPart(filtered, "OPA2");
+    CHECK(opa2 && opa2->ok && opa2->spec.pins.size() == 2 && opa2->footprintName == "SOIC-8_3.9x4.9mm_P1.27mm");
+    const ImportedPart* opa3 = importedPart(filtered, "OPA3");
+    CHECK(opa3 && !opa3->ok && opa3->error.find("NOWHERE.kicad_sym") != std::string::npos);
+
+    // Pads of two pins that share copper (USB-C: A1 and B12, both GND) join one pin; pins of different names on
+    // overlapping pads stay an error.
+    const std::string usbFootprint =
+        "(footprint \"USB_TEST\" (pad \"A1\" smd rect (at -1 0) (size 0.6 1.4) (layers \"F.Cu\"))"
+        " (pad \"B12\" smd rect (at -1 0) (size 0.6 1.4) (layers \"F.Cu\"))"
+        " (pad \"A6\" smd rect (at 0 0) (size 0.3 1.4) (layers \"F.Cu\"))"
+        " (pad \"SH\" thru_hole oval (at 3 0) (size 1 2) (drill 0.6) (layers \"*.Cu\")))";
+    auto usbSymbol = [](const char* b12Name) {
+        return std::string("(kicad_symbol_lib (symbol \"USB\" (property \"Reference\" \"J\") (property \"Footprint\" \"X:USB_TEST\")"
+                           " (symbol \"USB_1_1\" (pin power_in line (at 0 -7.62 90) (length 2.54) (name \"GND\") (number \"A1\"))"
+                           " (pin power_in line (at 0 -7.62 90) (length 2.54) (name \"") +
+               b12Name +
+               "\") (number \"B12\"))"
+               " (pin bidirectional line (at 7.62 0 180) (length 2.54) (name \"D+\") (number \"A6\"))"
+               " (pin passive line (at -7.62 0 0) (length 2.54) (name \"SHIELD\") (number \"SH\")))))";
+    };
+    const LibraryImport usb = importLibraryFiles({{"usb.kicad_sym", usbSymbol("GND")}, {"usb.kicad_mod", usbFootprint}});
+    const ImportedPart* usbPart = importedPart(usb, "USB");
+    CHECK(usbPart && usbPart->ok && usbPart->spec.pins.size() == 3 && anyContains(usbPart->warnings, "B12 into A1"));
+    if (usbPart) CHECK(usbPart->spec.package.lands[1].pin == "A1" && layoutPin(usbPart->spec, "B12").slot < 0);
+    const LibraryImport clashUsb = importLibraryFiles({{"usb.kicad_sym", usbSymbol("VBUS")}, {"usb.kicad_mod", usbFootprint}});
+    CHECK(importedPart(clashUsb, "USB") && !importedPart(clashUsb, "USB")->ok &&
+          importedPart(clashUsb, "USB")->error.find("overlap") != std::string::npos);
+    const LibraryImport usbAlone = importLibraryFiles({{"usb.kicad_mod", usbFootprint}});
+    CHECK(usbAlone.parts.size() == 1 && usbAlone.parts[0].ok && usbAlone.parts[0].spec.pins.size() == 3);
+    CHECK(!usbAlone.parts.empty() && usbAlone.parts[0].spec.refPrefix == "J");
+
+    // A layout with two different pins on one spot is auto-arranged with a note; a library without symbols is an error.
+    const auto clash = parseKicadSymbols(
+        "(kicad_symbol_lib (symbol \"C\" (symbol \"C_1_1\" (pin input line (at -5.08 0 0) (length 2.54) (name \"A\") (number \"1\"))"
+        " (pin input line (at -5.08 0 0) (length 2.54) (name \"B\") (number \"2\")))) )");
+    CHECK(clash.size() == 1 && clash[0].pins.size() == 2);
+    const ImportedFootprint soic = parseKicadFootprint(readFixture(kSoic));
+    const ImportedPart clashPart = makeImportedPart(&clash[0], &soic);
+    CHECK(clashPart.ok && checkSymbol(clashPart.spec).empty());
+    bool threw = false;
+    try {
+        parseKicadSymbols("(kicad_symbol_lib (version 1))");
+    } catch (const ImportError& e) {
+        threw = std::string(e.what()).find("no symbols") != std::string::npos;
+    }
+    CHECK(threw);
+
+    // JSON round trip of the result, as the app reads it.
+    const Json j = libraryImportToJson(r);
+    CHECK(j.get("parts").size() == 6 && j.get("symbols").asInt() == 5 && j.get("footprints").asInt() == 3);
+    const CustomPartSpec back = customPartSpecFromJson(j.get("parts")[0].get("spec"));
+    CHECK(back.name == r.parts[0].spec.name && back.package.lands.size() == r.parts[0].spec.package.lands.size());
+}
+
+TEST(library_import_eagle_libraries) {
+    LibraryImport r = importLibraryFiles({{kEagle, readFixture(kEagle)}});
+    CHECK(r.files.size() == 1 && r.files[0].format == "eagle_lbr" && r.files[0].error.empty());
+    CHECK(r.footprints.size() == 2 && r.parts.size() == 4);  // the GND supply symbol has no package: no part
+
+    const ImportedPart* op = importedPart(r, "LM358D");
+    CHECK(op && op->ok && op->spec.refPrefix == "IC" && op->footprintName == "SO08");
+    if (op) {
+        CHECK(op->spec.description == "Dual op amp Low power, single supply.");
+        CHECK(op->spec.pins.size() == 8 && op->spec.pins[0].number == "1" && op->spec.pins[0].name == "OUT");
+        CHECK(op->spec.pins[7].name == "V+" && op->spec.pins[7].type == PinType::PowerIn);
+        // Eagle's y points up: pad 1 (y = −2.6) is at the bottom, y = +2.6 in SiEDA.
+        CHECK(std::fabs(op->spec.package.lands[0].y - 2.6) < 1e-9 && std::fabs(op->spec.package.lands[4].y + 2.6) < 1e-9);
+        CHECK(std::fabs(op->spec.package.bodySize - 4.8) < 1e-9 && std::fabs(op->spec.package.bodyDepth - 3.8) < 1e-9);
+        CHECK(layoutPin(op->spec, "3").side == 'L' && layoutPin(op->spec, "1").side == 'R');
+        CHECK(layoutPin(op->spec, "8").side == 'T' && layoutPin(op->spec, "4").side == 'B');
+        CHECK(layoutPin(op->spec, "5").slot > layoutPin(op->spec, "2").slot);  // gate B below gate A
+        CHECK(checkSymbol(op->spec).empty());
+    }
+    // '*' takes the technology: one part per technology. Long round pads rotated by 90°, the hole reported.
+    const ImportedPart* bc = importedPart(r, "BC547B");
+    CHECK(bc && bc->ok && importedPart(r, "BC548C") && bc->spec.refPrefix == "Q");
+    if (bc) {
+        const auto& l = bc->spec.package.lands[0];
+        CHECK(std::fabs(l.w - 1.0) < 1e-9 && std::fabs(l.h - 2.0) < 1e-9 && std::fabs(l.drill - 0.6) < 1e-9 && l.round);
+        CHECK(anyContains(bc->warnings, "non-plated"));
+        CHECK(bc->spec.pins[1].name == "B" && layoutPin(bc->spec, "2").side == 'L');
+    }
+    // A pin on several pads: one pin per pad, stacked on the symbol and joined on the board.
+    const ImportedPart* fet = importedPart(r, "SI4410DY");
+    CHECK(fet && fet->ok && fet->spec.pins.size() == 8 && anyContains(fet->warnings, "stacked"));
+    if (fet) {
+        CHECK(fet->spec.pins[0].name == "S" && fet->spec.pins[2].name == "S" && fet->spec.pins[7].name == "D");
+        CHECK(layoutPin(fet->spec, "1").slot == layoutPin(fet->spec, "3").slot && layoutPin(fet->spec, "1").side == 'B');
+        auto part = CustomPartRegistry::instance().registerPart(fet->spec);
+        CHECK(part->footprint.pads.size() == 8);
+    }
+
+    // Malformed XML and unsupported content are reported with a line number; the import goes on.
+    auto error = [](const std::string& text) {
+        LibraryImport out = importLibraryFiles({{"x.lbr", text}});
+        return out.files.empty() ? std::string() : out.files[0].error;
+    };
+    CHECK(error("<eagle><drawing><library></drawing></eagle>").find("</drawing> closes <library>") != std::string::npos);
+    CHECK(error("<eagle>\n<drawing>").find("line 2") != std::string::npos);
+    CHECK(error("<schematic/>").find("not an Eagle library") != std::string::npos);
+    CHECK(error("<eagle><drawing/></eagle>").find("no <library>") != std::string::npos);
+    CHECK(error("<eagle a=b></eagle>").find("not quoted") != std::string::npos);
+    LibraryImport broken = importLibraryFiles(
+        {{"y.lbr", "<eagle><drawing><library><packages/><symbols/><devicesets><deviceset name=\"X\"><gates/><devices>"
+                   "<device name=\"\" package=\"GONE\"><connects/></device></devices></deviceset></devicesets></library>"
+                   "</drawing></eagle>"}});
+    CHECK(broken.parts.size() == 1 && !broken.parts[0].ok && broken.parts[0].error.find("GONE") != std::string::npos);
+}
+
+TEST(library_import_rejects_unsupported_formats_and_survives_fuzzing) {
+    auto fileError = [](const std::string& name, const std::string& content) {
+        LibraryImport out = importLibraryFiles({{name, content}});
+        return out.files.size() == 1 ? out.files[0].error : std::string("?");
+    };
+    CHECK(fileError("Parts.SchLib", std::string("\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1", 8)).find("Altium") != std::string::npos);
+    CHECK(fileError("Parts.PcbLib", "x").find("not supported") != std::string::npos);
+    CHECK(fileError("old.lib", "EESchema-LIBRARY Version 2.4\n").find("KiCad 5") != std::string::npos);
+    CHECK(fileError("notes.txt", "hello").find("unknown file type") != std::string::npos);
+    CHECK(fileError("deep.kicad_mod", std::string(100000, '(')).find("nesting too deep") != std::string::npos);
+    CHECK(fileError("lt.lbr", "<eagle>" + std::string(5000, '<')).find("line 1") != std::string::npos);
+    std::string nested = "<eagle>";
+    for (int i = 0; i < 1000; ++i) nested += "<a>";
+    CHECK(fileError("nested.lbr", nested).find("nesting too deep") != std::string::npos);
+    CHECK(importLibraryFiles({}).parts.empty());
+    // Content sniffing without an extension.
+    LibraryImport sniffed = importLibraryFiles({{"download", readFixture(kSoic)}});
+    CHECK(sniffed.files[0].format == "kicad_mod" && sniffed.parts.size() == 1 && sniffed.parts[0].ok);
+
+    // Deterministic fuzzing: truncations, byte flips, deleted, duplicated and inserted ranges of every fixture never
+    // crash or throw, and every part reported as importable registers.
+    uint32_t seed = 12345;
+    auto rnd = [&seed](size_t n) {
+        seed = seed * 1664525u + 1013904223u;
+        return n ? static_cast<size_t>((seed >> 8) % n) : size_t(0);
+    };
+    const char* noise[] = {"(", ")", "\"", "<", ">", "/>", "</a>", "&#x110000;", "&", "1e999", "-", "nan", "\xFF\xFE",
+                           " (pad \"9\" smd rect (at 70 0) (size 1 1) (layers \"F.Cu\"))"};
+    int runs = 0, okParts = 0;
+    bool allOk = true;
+    for (const char* name : {kSoic, kQfn, kHeader, kSymbols, kEagle}) {
+        const std::string original = readFixture(name);
+        for (int k = 0; k < 160; ++k) {
+            std::string text = original;
+            const int op = k % 5;
+            const size_t at = rnd(text.size());
+            if (op == 0) text.resize(at);
+            else if (op == 1) text[at] = static_cast<char>(rnd(256));
+            else if (op == 2) text.erase(at, rnd(200));
+            else if (op == 3) text.insert(at, text.substr(rnd(text.size()), rnd(300)));
+            else text.insert(at, noise[rnd(sizeof noise / sizeof noise[0])]);
+            try {
+                LibraryImport out = importLibraryFiles({{name, text}, {kSoic, readFixture(kSoic)}});
+                for (const auto& p : out.parts) {
+                    if (!p.ok) continue;
+                    ++okParts;
+                    CustomPartRegistry::instance().registerPart(customPartSpecFromJson(customPartSpecToJson(p.spec)));
+                }
+                (void)libraryImportToJson(out).dump();
+            } catch (const std::exception& e) {
+                std::printf("    %s mutation %d: %s\n", name, k, e.what());
+                allOk = false;
+            }
+            ++runs;
+        }
+    }
+    CHECK(allOk && runs == 800 && okParts > 400);
+}
+
+TEST(library_import_c_api) {
+    CHECK(sieda_c_api_library_import_test() == 0);
+}
+
+// ======================================================================= interactive router
+
+namespace {
+int placeR(Project& p, Vec2 at, int rotation = 0) {
+    const int id = p.schematic.addComponent(ComponentKind::Resistor, "1k", {at.x * 10, at.y * 10});
+    Component* c = p.schematic.find(id);
+    c->pcb.position = at;
+    c->pcb.rotation = rotation;
+    c->pcb.placed = true;
+    return id;
+}
+
+Vec2 padAt(const Project& p, int comp, int pin) {
+    for (const auto& pd : p.pcb.pads(p.schematic))
+        if (pd.componentId == comp && pd.pinIndex == pin) return pd.position;
+    return {-1, -1};
+}
+
+void addPath(PcbLayout& pcb, int net, int layer, double w, const std::vector<Vec2>& pts, bool locked = false) {
+    for (size_t k = 0; k + 1 < pts.size(); ++k) {
+        Track t;
+        t.net = net;
+        t.layer = layer;
+        t.width = w;
+        t.a = pts[k];
+        t.b = pts[k + 1];
+        t.locked = locked;
+        pcb.addTrack(t);
+    }
+}
+
+/// DRC errors (unrouted connections aside) and clearance warnings: what interactive routing must never cause.
+int routingProblems(const Project& p) {
+    int n = 0;
+    for (const auto& v : p.pcb.runDRC(p.schematic)) {
+        if ((v.severity == Severity::Error && v.code != "DRC_UNROUTED") || v.code == "DRC_CLEARANCE_RULE") {
+            ++n;
+            std::printf("    DRC %s: %s\n", v.code.c_str(), v.message.c_str());
+        }
+    }
+    return n;
+}
+
+/// No ratsnest line ends on a pad of `net`.
+bool netRouted(const Project& p, int net) {
+    const auto pads = p.pcb.pads(p.schematic);
+    for (const auto& l : p.pcb.ratsnest(p.schematic))
+        for (const auto& pd : pads)
+            if (pd.net == net && ((pd.position - l.first).length() < 1e-9 || (pd.position - l.second).length() < 1e-9))
+                return false;
+    return true;
+}
+
+double crossOf(Vec2 a, Vec2 b) { return a.x * b.y - a.y * b.x; }
+
+/// Three lanes (nets of resistor pairs) at 0.5 mm pitch along y = 22, 22.5 and 23, fanned out to pads at both
+/// ends, and a fourth net with pads below them.
+struct LaneBoard {
+    Project p;
+    int lane[3] = {-1, -1, -1};
+    int net = -1;
+    Vec2 from, to;
+};
+
+LaneBoard laneBoard() {
+    LaneBoard b;
+    auto& s = b.p.schematic;
+    b.p.pcb.settings.width = 70;
+    b.p.pcb.settings.height = 40;
+    int left[3], right[3];
+    for (int i = 0; i < 3; ++i) {
+        left[i] = placeR(b.p, {5, 6.0 + 3 * i});
+        right[i] = placeR(b.p, {65, 6.0 + 3 * i});
+        wire(s, left[i], "2", right[i], "1");
+    }
+    const int c1 = placeR(b.p, {14, 32}), c2 = placeR(b.p, {56, 32});
+    wire(s, c1, "2", c2, "1");
+    b.p.schematicChanged();
+    for (int i = 0; i < 3; ++i) {
+        b.lane[i] = s.netOf({left[i], 1});
+        const double y = 6.0 + 3 * i, Y = 22 + 0.5 * i, d = Y - y;
+        addPath(b.p.pcb, b.lane[i], 0, 0.25,
+                {padAt(b.p, left[i], 1), {8, y}, {8 + d, Y}, {62 - d, Y}, {62, y}, padAt(b.p, right[i], 0)});
+    }
+    b.net = s.netOf({c1, 1});
+    b.from = padAt(b.p, c1, 1);
+    b.to = padAt(b.p, c2, 0);
+    return b;
+}
+
+/// Routes the lane board's fourth net along the lanes, close enough to shove all three.
+RouteChanges routeAlongLanes(LaneBoard& b, std::string* previewDump = nullptr) {
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    CHECK(r.beginRoute(b.from, 0));
+    r.moveTo({20, 23.3});
+    CHECK(r.fixHead());
+    const RoutePreview& pv = r.moveTo({45, 23.3});
+    CHECK(!pv.blocked);
+    CHECK(!pv.shovedTracks.empty());
+    if (previewDump) *previewDump = routePreviewJson(pv).dump();
+    CHECK(r.fixHead());
+    const RoutePreview& end = r.moveTo(b.to);
+    CHECK(end.reachedTarget);
+    return r.commit();
+}
+}  // namespace
+
+TEST(router_shoves_a_chain_of_three_tracks) {
+    LaneBoard b = laneBoard();
+    CHECK(routingProblems(b.p) == 0);
+    const RouteChanges ch = routeAlongLanes(b);
+    CHECK(ch.ok);
+    CHECK(!ch.addedTracks.empty());
+    // Every lane was pushed (some of its tracks replaced), and stays connected pad to pad.
+    for (int lane : b.lane) {
+        int removed = 0;
+        for (const auto& t : ch.removedTracks) removed += t.net == lane ? 1 : 0;
+        CHECK(removed > 0);
+        CHECK(netRouted(b.p, lane));
+    }
+    CHECK(netRouted(b.p, b.net));
+    CHECK(routingProblems(b.p) == 0);
+    // Every pair of nets keeps the clearance.
+    for (const auto& t : b.p.pcb.tracks)
+        for (const auto& u : b.p.pcb.tracks)
+            if (t.net != u.net && t.layer == u.layer)
+                CHECK(segmentSegmentDistance(t.a, t.b, u.a, u.b) - (t.width + u.width) / 2 >= 0.2 - 1e-6);
+}
+
+TEST(router_is_deterministic) {
+    std::string d1, d2;
+    LaneBoard a = laneBoard(), b = laneBoard();
+    routeAlongLanes(a, &d1);
+    routeAlongLanes(b, &d2);
+    CHECK(!d1.empty() && d1 == d2);
+    bool same = a.p.pcb.tracks.size() == b.p.pcb.tracks.size();
+    for (size_t i = 0; same && i < a.p.pcb.tracks.size(); ++i)
+        same = a.p.pcb.tracks[i].a == b.p.pcb.tracks[i].a && a.p.pcb.tracks[i].b == b.p.pcb.tracks[i].b &&
+               a.p.pcb.tracks[i].net == b.p.pcb.tracks[i].net;
+    CHECK(same);
+}
+
+TEST(router_walkaround_finds_a_path) {
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {42, 20});
+    const int r3 = placeR(p, {25, 8}, 90), r4 = placeR(p, {25, 32}, 90);
+    wire(s, r1, "2", r2, "1");
+    wire(s, r3, "2", r4, "1");
+    p.schematicChanged();
+    const int netA = s.netOf({r1, 1}), netB = s.netOf({r3, 1});
+    addPath(p.pcb, netB, 0, 0.25, {padAt(p, r3, 1), padAt(p, r4, 0)});  // a wall across the direct path
+    const Track wall = p.pcb.tracks.front();
+    InteractiveRouter r(p.pcb, s);
+    RouterOptions o;
+    o.mode = RouterMode::Walkaround;
+    r.setOptions(o);
+    CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+    const RoutePreview& pv = r.moveTo(padAt(p, r2, 0));
+    CHECK(pv.reachedTarget);
+    CHECK(!pv.blocked);
+    CHECK(pv.shovedTracks.empty() && pv.hiddenTracks.empty());
+    CHECK(pv.length > (padAt(p, r2, 0) - padAt(p, r1, 1)).length() + 5);  // it went round the wall
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok && ch.removedTracks.empty());
+    CHECK(netRouted(p, netA));
+    CHECK(routingProblems(p) == 0);
+    bool wallKept = false;
+    for (const auto& t : p.pcb.tracks) wallKept = wallKept || (t.id == wall.id && t.a == wall.a && t.b == wall.b);
+    CHECK(wallKept);
+    // 45° posture: every segment is horizontal, vertical or diagonal.
+    for (const auto& t : p.pcb.tracks) {
+        const double dx = std::fabs(t.b.x - t.a.x), dy = std::fabs(t.b.y - t.a.y);
+        CHECK(dx < 1e-9 || dy < 1e-9 || std::fabs(dx - dy) < 1e-6);
+    }
+}
+
+TEST(router_refuses_to_shove_pads_and_locked_tracks) {
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20}), r2 = placeR(p, {30, 20}), r3 = placeR(p, {20, 20});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    // Pads are fixed: aiming into another net's pad stops the head short of it, clear of the pad.
+    {
+        InteractiveRouter r(p.pcb, s);
+        CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+        const RoutePreview& pv = r.moveTo(padAt(p, r3, 0));
+        CHECK(pv.blocked);
+        CHECK(!pv.head.empty());
+        CHECK(pv.status.find("pad") != std::string::npos);
+        CHECK(pv.end.x < padAt(p, r3, 0).x - 0.5 - 0.2 - 0.125 + 1e-3);
+        CHECK(r.commit().ok);
+        CHECK(routingProblems(p) == 0);
+    }
+    // A locked track is never shoved: the head walks around it. Unlocked, the same track is pushed aside.
+    for (bool locked : {true, false}) {
+        Project q;
+        auto& qs = q.schematic;
+        const int a = placeR(q, {10, 20}), b = placeR(q, {40, 30}), c = placeR(q, {40, 5}), d = placeR(q, {40, 36});
+        wire(qs, a, "2", b, "1");
+        wire(qs, c, "2", d, "1");
+        q.schematicChanged();
+        addPath(q.pcb, qs.netOf({c, 1}), 0, 0.25, {{20, 15}, {20, 25}}, locked);
+        InteractiveRouter r(q.pcb, qs);
+        CHECK(r.beginRoute(padAt(q, a, 1), 0));
+        const RoutePreview& pv = r.moveTo({25, 20});
+        CHECK(!pv.blocked);
+        CHECK(pv.hiddenTracks.empty() == locked);
+        CHECK(r.commit().ok);
+        CHECK(routingProblems(q) == 0);
+        bool kept = false;
+        for (const auto& t : q.pcb.tracks) kept = kept || (t.a == Vec2{20, 15} && t.b == Vec2{20, 25});
+        CHECK(kept == locked);
+    }
+}
+
+TEST(router_changes_layer_with_vias) {
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20}), r2 = placeR(p, {30, 20}), r3 = placeR(p, {45, 5}), r4 = placeR(p, {45, 35});
+    wire(s, r1, "2", r2, "1");
+    wire(s, r3, "2", r4, "1");
+    p.schematicChanged();
+    const int netA = s.netOf({r1, 1});
+    addPath(p.pcb, s.netOf({r3, 1}), 0, 0.25, {{20, 1}, {20, 39}}, true);  // a locked wall across the top layer
+    InteractiveRouter r(p.pcb, s);
+    CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+    r.moveTo({17, 20});
+    CHECK(r.addVia());
+    CHECK(r.preview().layer == 1 && r.preview().vias.size() == 1);
+    r.moveTo({23, 20});
+    CHECK(r.addVia(0));
+    CHECK(r.preview().layer == 0 && r.preview().vias.size() == 2);
+    const RoutePreview& pv = r.moveTo(padAt(p, r2, 0));
+    CHECK(pv.reachedTarget);
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok && ch.addedVias.size() == 2);
+    int vias = 0, bottom = 0;
+    for (const auto& v : p.pcb.vias) vias += v.net == netA ? 1 : 0;
+    for (const auto& t : p.pcb.tracks) bottom += t.net == netA && t.layer == 1 ? 1 : 0;
+    CHECK(vias == 2 && bottom >= 1);
+    CHECK(netRouted(p, netA));
+    CHECK(routingProblems(p) == 0);
+    // A single-sided board has no vias.
+    Project single;
+    const int a = placeR(single, {10, 20}), b = placeR(single, {30, 20});
+    wire(single.schematic, a, "2", b, "1");
+    single.pcb.settings.layerCount = 1;
+    single.schematicChanged();
+    InteractiveRouter rs(single.pcb, single.schematic);
+    CHECK(rs.beginRoute(padAt(single, a, 1), 0));
+    rs.moveTo({15, 20});
+    CHECK(!rs.addVia());
+    CHECK(!rs.error().empty());
+}
+
+TEST(router_routes_differential_pairs_at_the_pair_gap) {
+    Project p;
+    auto& s = p.schematic;
+    const int p1 = placeR(p, {10, 14}), p2 = placeR(p, {40, 14}), n1 = placeR(p, {10, 16}), n2 = placeR(p, {40, 16});
+    const int lp = s.addComponent(ComponentKind::NetLabel, "USB_P", {0, 0});
+    const int ln = s.addComponent(ComponentKind::NetLabel, "USB_N", {0, 50});
+    wire(s, p1, "2", p2, "1");
+    wire(s, n1, "2", n2, "1");
+    wire(s, lp, "N", p1, "2");
+    wire(s, ln, "N", n1, "2");
+    p.schematicChanged();
+    const int netP = s.netOf({p1, 1}), netN = s.netOf({n1, 1});
+    InteractiveRouter r(p.pcb, s);
+    RouterOptions o;
+    o.pairGap = 0.2;
+    r.setOptions(o);
+    CHECK(!r.beginPair({25, 25}, 0));  // not on a pad
+    CHECK(r.beginPair(padAt(p, p1, 1), 0));
+    CHECK(r.preview().kind == "pair" && r.preview().nets.size() == 2);
+    r.moveTo({25, 15});
+    CHECK(r.fixHead());
+    const RoutePreview& pv = r.moveTo(padAt(p, p2, 0));
+    CHECK(pv.reachedTarget);
+    CHECK_NEAR(pv.gap, 0.2, 1e-9);
+    CHECK(r.commit().ok);
+    CHECK(netRouted(p, netP) && netRouted(p, netN));
+    CHECK(routingProblems(p) == 0);
+    // The coupled run keeps exactly the pair gap; nowhere closer.
+    double minGap = 1e9, coupled = 0;
+    for (const auto& a : p.pcb.tracks)
+        for (const auto& b : p.pcb.tracks) {
+            if (a.net != netP || b.net != netN) continue;
+            const double g = segmentSegmentDistance(a.a, a.b, b.a, b.b) - (a.width + b.width) / 2;
+            minGap = std::min(minGap, g);
+            if (std::fabs(g - 0.2) < 1e-6 && std::fabs(crossOf(a.b - a.a, b.b - b.a)) < 1e-9)
+                coupled += std::min((a.b - a.a).length(), (b.b - b.a).length());
+        }
+    CHECK(minGap >= 0.2 - 1e-6);
+    CHECK(coupled > 20);
+    // Without an explicit gap the pair uses the stack-up's coupled gap, never below the clearance.
+    InteractiveRouter r2(p.pcb, s);
+    CHECK(r2.beginPair(padAt(p, n1, 1), 0));
+    CHECK(r2.preview().gap >= p.pcb.settings.clearance - 1e-9);
+    r2.cancel();
+    CHECK(!r2.active());
+    // V on a pair places two vias side by side, far enough apart for their clearance, and both change layer.
+    Project q;
+    auto& qs = q.schematic;
+    const int a1 = placeR(q, {10, 14}), a2 = placeR(q, {40, 14}), b1 = placeR(q, {10, 16}), b2 = placeR(q, {40, 16});
+    wire(qs, a1, "2", a2, "1");
+    wire(qs, b1, "2", b2, "1");
+    wire(qs, qs.addComponent(ComponentKind::NetLabel, "CLK+", {0, 0}), "N", a1, "2");
+    wire(qs, qs.addComponent(ComponentKind::NetLabel, "CLK-", {0, 50}), "N", b1, "2");
+    q.schematicChanged();
+    InteractiveRouter r3(q.pcb, qs);
+    r3.setOptions(o);
+    CHECK(r3.beginPair(padAt(q, a1, 1), 0));
+    r3.moveTo({20, 15});
+    CHECK(r3.addVia());
+    const RoutePreview& pv3 = r3.moveTo({30, 15});
+    CHECK(pv3.layer == 1 && pv3.vias.size() == 2);
+    if (pv3.vias.size() == 2) {
+        const double d = (pv3.vias[0].position - pv3.vias[1].position).length();
+        CHECK(d >= q.pcb.settings.viaDiameter + q.pcb.settings.clearance - 1e-6);
+    }
+    CHECK(!pv3.head.empty());
+    for (const auto& t : pv3.head) CHECK(t.layer == 1);
+    CHECK(r3.commit().ok);
+    CHECK(routingProblems(q) == 0);
+}
+
+TEST(router_drags_a_segment_and_shoves) {
+    LaneBoard b = laneBoard();
+    int id = -1;
+    for (const auto& t : b.p.pcb.tracks)
+        if (t.net == b.lane[2] && std::fabs(t.a.y - 23) < 1e-9 && std::fabs(t.b.y - 23) < 1e-9) id = t.id;
+    CHECK(id >= 0);
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    CHECK(r.beginDrag(id, {35, 23}));
+    CHECK(r.preview().active && r.preview().kind == "drag" && r.preview().hiddenTracks.size() >= 1);
+    const RoutePreview& pv = r.moveTo({35, 22.7});
+    CHECK(!pv.blocked);
+    CHECK(!pv.shovedTracks.empty());
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok);
+    for (int lane : b.lane) CHECK(netRouted(b.p, lane));
+    CHECK(routingProblems(b.p) == 0);
+    bool moved = false;
+    for (const auto& t : b.p.pcb.tracks)
+        moved = moved || (t.net == b.lane[2] && std::fabs(t.a.y - 22.7) < 1e-9 && std::fabs(t.b.y - 22.7) < 1e-9);
+    CHECK(moved);
+    // Cancel leaves the board untouched; a locked track cannot be dragged.
+    LaneBoard c = laneBoard();
+    const auto tracksBefore = c.p.pcb.tracks.size();
+    InteractiveRouter rc(c.p.pcb, c.p.schematic);
+    CHECK(rc.beginDrag(c.p.pcb.tracks[2].id, {30, 22}));
+    rc.moveTo({30, 25});
+    rc.cancel();
+    CHECK(c.p.pcb.tracks.size() == tracksBefore);
+    c.p.pcb.tracks[2].locked = true;
+    CHECK(!rc.beginDrag(c.p.pcb.tracks[2].id, {30, 22}));
+}
+
+TEST(router_commit_refuses_a_stale_board) {
+    LaneBoard b = laneBoard();
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    CHECK(r.beginRoute(b.from, 0));
+    r.moveTo({20, 26});
+    b.p.pcb.tracks.pop_back();  // the board changes behind the router's back
+    const auto n = b.p.pcb.tracks.size();
+    const RouteChanges ch = r.commit();
+    CHECK(!ch.ok && !ch.error.empty());
+    CHECK(b.p.pcb.tracks.size() == n);
+}
+
+TEST(router_tunes_length_with_meanders) {
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {42, 20});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 1});
+    InteractiveRouter r(p.pcb, s);
+    CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+    r.moveTo(padAt(p, r2, 0));
+    CHECK(r.commit().ok);
+    const double before = routedNetLength(p.pcb, net);
+    const LengthTuneResult t = tuneTrackLength(p.pcb, s, p.pcb.tracks.front().id, before + 3);
+    CHECK(t.ok);
+    CHECK_NEAR(t.after, before + 3, 0.05);
+    CHECK_NEAR(routedNetLength(p.pcb, net), before + 3, 0.05);
+    CHECK(netRouted(p, net));
+    CHECK(routingProblems(p) == 0);
+    // Without a target, a net outside any matched group has nothing to match.
+    CHECK(!tuneTrackLength(p.pcb, s, p.pcb.tracks.front().id, 0).ok);
+}
+
+TEST(c_api_router) {
+    const int rc = sieda_c_api_router_test();
+    if (rc != 0) std::printf("    c api router step %d failed\n", rc);
+    CHECK(rc == 0);
+}
+
+TEST(router_keeps_an_autorouted_board_drc_clean) {
+    // Routes and drags with shove at pseudo-random spots of an autorouted board; every commit must leave DRC as
+    // clean as it was (no new error, no clearance warning).
+    unsigned seed = 2024;
+    auto rnd = [&seed] {
+        seed = seed * 1103515245u + 12345u;
+        return ((seed >> 8) & 0xFFFFFF) / double(0xFFFFFF);
+    };
+    Project p;
+    auto& s = p.schematic;
+    std::vector<int> ids;
+    for (int i = 0; i < 24; ++i) ids.push_back(s.addComponent(ComponentKind::Resistor, "1k", {(i % 6) * 100.0, (i / 6) * 100.0}));
+    for (size_t k = 0; k < ids.size(); ++k) {
+        const size_t other = static_cast<size_t>(rnd() * ids.size()) % ids.size();
+        if (other != k) s.connect({ids[k], 1}, {ids[other], 0});
+    }
+    p.pcb.settings.width = 42;
+    p.pcb.settings.height = 30;
+    p.schematicChanged();
+    p.pcb.autoPlace(s, true);
+    p.pcb.autoRoute(s);
+    CHECK(routingProblems(p) == 0);
+    int commits = 0, shoved = 0;
+    for (int it = 0; it < 30; ++it) {
+        InteractiveRouter r(p.pcb, s);
+        const bool drag = rnd() < 0.35 && !p.pcb.tracks.empty();
+        bool ok;
+        if (drag) {
+            const Track& t = p.pcb.tracks[static_cast<size_t>(rnd() * p.pcb.tracks.size()) % p.pcb.tracks.size()];
+            ok = r.beginDrag(t.id, (t.a + t.b) * 0.5);
+        } else {
+            const auto pads = p.pcb.pads(s);
+            const Pad& pd = pads[static_cast<size_t>(rnd() * pads.size()) % pads.size()];
+            ok = r.beginRoute(pd.position, 0);
+        }
+        if (!ok) continue;
+        const Vec2 at = r.preview().end;
+        for (int m = 0; m < 3; ++m) {
+            const Vec2 c = drag ? at + Vec2{(rnd() - 0.5) * 2, (rnd() - 0.5) * 2}
+                                : Vec2{rnd() * p.pcb.settings.width, rnd() * p.pcb.settings.height};
+            shoved += r.moveTo(c).shovedTracks.empty() ? 0 : 1;
+            if (!drag && rnd() < 0.5) r.fixHead();
+        }
+        if (!r.commit().ok) continue;
+        ++commits;
+        const int problems = routingProblems(p);
+        CHECK(problems == 0);
+        if (problems) break;
+    }
+    CHECK(commits >= 20);
+    CHECK(shoved > 0);
+}
+
+// ======================================================================= signal and power integrity
+
+namespace {
+/// A logic part: 1 OUT (output), 2 IN (input), 3 VDD, 4 GND, 5–8 not connected; drawing `loadAmps` from VDD.
+CustomPartSpec siLogicPart(const char* name, double loadAmps) {
+    CustomPartSpec spec;
+    spec.name = name;
+    spec.package.type = "SOIC";
+    spec.package.pinCount = 8;
+    auto add = [&](const char* number, const char* pinName, PinType type) {
+        CustomPin p;
+        p.number = number;
+        p.name = pinName;
+        p.type = type;
+        spec.pins.push_back(p);
+    };
+    add("1", "OUT", PinType::Output);
+    add("2", "IN", PinType::Input);
+    add("3", "VDD", PinType::PowerIn);
+    add("4", "GND", PinType::PowerIn);
+    add("5", "NC5", PinType::NoConnect);
+    add("6", "NC6", PinType::NoConnect);
+    add("7", "NC7", PinType::NoConnect);
+    add("8", "NC8", PinType::NoConnect);
+    if (loadAmps > 0) spec.model.loads.push_back({"VDD", "GND", loadAmps});
+    return spec;
+}
+
+void siPlace(Project& p, int id, Vec2 at) {
+    Component* c = p.schematic.find(id);
+    c->pcb.placed = true;
+    c->pcb.position = at;
+}
+
+Vec2 siPad(const Project& p, int comp, const char* pinName) {
+    const int pin = p.schematic.pinIndex(comp, pinName);
+    for (const auto& pad : p.pcb.pads(p.schematic))
+        if (pad.componentId == comp && pad.pinIndex == pin) return pad.position;
+    CHECK(false);
+    return {};
+}
+
+void siTrack(Project& p, int net, Vec2 a, Vec2 b, int layer = 0, double width = 0.25) {
+    Track t;
+    t.net = net;
+    t.layer = layer;
+    t.width = width;
+    t.a = a;
+    t.b = b;
+    p.pcb.addTrack(t);
+}
+
+/// U1 (driver) → CLK → U2 (receiver), 120 × 40 mm, 4 layers, supplied from J1 (+3V3 / GND). U1 and U2 draw 0.25 A.
+struct SiBoard {
+    Project p;
+    int u1 = -1, u2 = -1, j1 = -1, clk = -1, vcc = -1;
+};
+SiBoard siBoard() {
+    SiBoard b;
+    Project& p = b.p;
+    auto& s = p.schematic;
+    const std::string part = p.addCustomPart(siLogicPart("SI-LOGIC", 0.25));
+    b.u1 = s.addCustomComponent(part, "", {0, 0});
+    b.u2 = s.addCustomComponent(part, "", {400, 0});
+    b.j1 = s.addComponent(ComponentKind::Connector, "PWR", {-200, 0});
+    int vcc = s.addComponent(ComponentKind::NetLabel, "+3V3", {-100, -100});
+    int gnd = s.addComponent(ComponentKind::Ground, "", {-100, 100});
+    wire(s, b.u1, "OUT", b.u2, "IN");
+    for (int u : {b.u1, b.u2}) {
+        wire(s, u, "VDD", vcc, "N");
+        wire(s, u, "GND", gnd, "GND");
+    }
+    wire(s, b.j1, "1", vcc, "N");
+    wire(s, b.j1, "2", gnd, "GND");
+    p.schematicChanged();
+    p.pcb.settings.width = 120;
+    p.pcb.settings.height = 40;
+    p.pcb.settings.layerCount = 4;
+    siPlace(p, b.u1, {10, 20});
+    siPlace(p, b.u2, {100, 20});
+    siPlace(p, b.j1, {5, 5});
+    b.clk = s.netOf({b.u1, pin(s, b.u1, "OUT")});
+    b.vcc = s.netOf({b.u1, pin(s, b.u1, "VDD")});
+    return b;
+}
+
+/// Routes CLK on the top layer: down from U1 OUT to y = 30, along it, and up into U2 IN.
+void siRouteClock(SiBoard& b) {
+    const Vec2 a = siPad(b.p, b.u1, "OUT"), c = siPad(b.p, b.u2, "IN");
+    siTrack(b.p, b.clk, a, {a.x, 30});
+    siTrack(b.p, b.clk, {a.x, 30}, {c.x, 30});
+    siTrack(b.p, b.clk, {c.x, 30}, c);
+}
+
+const char* kSampleIbis = R"(|  Sample IBIS 4.2 file for SiEDA tests
+[IBIS Ver]      4.2
+[File Name]     sample.ibs
+[Comment Char]  |_char
+[Component]     SAMPLE-MCU
+[Manufacturer]  Example Semiconductor
+[Package]
+| variable  typ     min     max
+R_pkg       0.25    0.2     0.3
+L_pkg       3.0nH   2.5nH   3.5nH
+C_pkg       0.5pF   0.4pF   0.6pF
+[Pin]  signal_name  model_name  R_pin  L_pin  C_pin
+1      PA0          GPIO_FAST   0.2    2.0nH  0.4pF
+2      PA1          IN_ONLY     NA     NA     NA
+3      VDD          POWER
+4      VSS          GND
+[Model Selector] GPIO
+GPIO_FAST   High drive
+GPIO_SLOW   Low drive
+[Model]  GPIO_FAST
+Model_type   I/O
+Polarity     Non-Inverting
+Vinl = 0.99V
+Vinh = 2.31V
+C_comp   4.0pF   3.0pF   5.0pF
+[Voltage Range]   3.3V   3.0V   3.6V
+[Pulldown]
+| V        I(typ)     I(min)     I(max)
+-3.3      -0.10      -0.08      -0.12
+ 0.0       0.0        0.0        0.0
+ 0.33      13.2mA     11mA       16.5mA
+ 0.66      26.4mA     22mA       33mA
+ 0.99      39.6mA     33mA       49.5mA
+ 3.3       60mA       50mA       75mA
+[Pullup]
+-3.3       0.10       0.08       0.12
+ 0.0       0.0        0.0        0.0
+ 0.33     -11mA      -9.4mA     -13.2mA
+ 0.66     -22mA      -18.9mA    -26.4mA
+ 0.99     -33mA      -28.3mA    -39.6mA
+ 3.3      -50mA      -42mA      -60mA
+[GND Clamp]
+-1.0      -50mA      NA         NA
+ 0.0       0          NA         NA
+[Ramp]
+| variable     typ          min          max
+dV/dt_r        1.2/0.6n     1.0/0.9n     1.4/0.4n
+dV/dt_f        1.2/0.75n    1.0/1.0n     1.4/0.5n
+R_load = 50
+[Model]  IN_ONLY
+Model_type   Input
+Vinl = 0.8
+Vinh = 2.0
+C_comp   2.5pF   NA   NA
+[Model]  GPIO_SLOW
+Model_type   Output
+C_comp   3pF
+[Voltage Range]   3.3   3.0   3.6
+[Rising Waveform]
+R_fixture = 50
+V_fixture = 0
+0.0ns    0.0     0.0    0.0
+1.0ns    0.4     0.3    0.5
+2.0ns    1.6     1.2    1.8
+3.0ns    2.0     1.6    2.2
+[End]
+)";
+}  // namespace
+
+TEST(si_ibis_import) {
+    IbisFile f = parseIbis(kSampleIbis);
+    CHECK(f.version == "4.2" && f.fileName == "sample.ibs");
+    CHECK(f.components.size() == 1 && f.components[0].name == "SAMPLE-MCU");
+    CHECK(f.components[0].manufacturer == "Example Semiconductor");
+    CHECK_NEAR(f.components[0].lPkg.typ, 3e-9, 1e-15);
+    CHECK(f.components[0].pins.size() == 4);
+    CHECK(f.components[0].pins[0].model == "GPIO_FAST");
+    CHECK_NEAR(f.components[0].pins[0].lPin, 2e-9, 1e-15);
+    CHECK(!std::isfinite(f.components[0].pins[1].rPin));  // "NA"
+    CHECK(f.models.size() == 3);
+    const IbisModel* m = f.findModel("gpio_fast");
+    CHECK(m && m->type == "I/O" && m->canDrive());
+    if (!m) return;
+    CHECK(f.findModel("GPIO") == m);  // a [Model Selector] resolves to its first model
+    CHECK(f.findModel("IN_ONLY") && !f.findModel("IN_ONLY")->canDrive());
+    CHECK_NEAR(m->cComp.max, 5e-12, 1e-18);
+    CHECK(m->pulldown.size() == 6 && m->pullup.size() == 6 && m->gndClamp.size() == 2);
+    CHECK_NEAR(m->rampRiseDt.typ, 0.6e-9, 1e-18);
+    CHECK_NEAR(m->rLoad, 50, 1e-12);
+    CHECK(f.warnings.empty());
+
+    // Typ corner: the pulldown is a 25 Ω line near 0 V and the pullup 30 Ω → 27.5 Ω; the 20–80 % ramp of 0.6 ns is a
+    // 0.8 ns 10–90 % edge; thresholds, C_comp and the pin's package parasitics come along.
+    const IbisPin* pin1 = &f.components[0].pins[0];
+    DriverModel d = driverFromIbis(*m, "typ", &f.components[0], pin1);
+    CHECK(d.source == "ibis" && d.id == "ibis:GPIO_FAST" && d.type == "io");
+    CHECK_NEAR(d.rOut, 27.5, 0.01);
+    CHECK_NEAR(d.riseTime, 0.8e-9, 1e-15);
+    CHECK_NEAR(d.fallTime, 1.0e-9, 1e-15);
+    CHECK_NEAR(d.cComp, 4e-12, 1e-18);
+    CHECK_NEAR(d.vih, 2.31, 1e-12);
+    CHECK_NEAR(d.vil, 0.99, 1e-12);
+    CHECK_NEAR(d.vHigh, 3.3, 1e-12);
+    CHECK_NEAR(d.lPkg, 2e-9, 1e-15);  // R_pin / L_pin / C_pin override [Package]
+    CHECK_NEAR(d.rPkg, 0.2, 1e-12);
+    // Max (strong / fast) corner: stiffer and faster; [Package] typ values when the pin has none.
+    DriverModel fast = driverFromIbis(*m, "max", &f.components[0]);
+    CHECK(fast.rOut < d.rOut && fast.riseTime < d.riseTime);
+    CHECK_NEAR(fast.lPkg, 3e-9, 1e-15);
+    // A model with a rising waveform but no [Ramp]: 20 % (0.4 V) at 1.0 ns, 80 % (1.6 V) at 2.0 ns.
+    DriverModel slow = driverFromIbis(*f.findModel("GPIO_SLOW"));
+    CHECK_NEAR(slow.riseTime, 1.0e-9 * 4 / 3, 1e-14);
+    // Errors and JSON.
+    bool threw = false;
+    try {
+        parseIbis("[IBIS Ver] 5.0\n[Component] X\n");
+    } catch (const IbisError&) {
+        threw = true;
+    }
+    CHECK(threw);
+    Json j = ibisFileJson(f);
+    CHECK(j.get("models").size() == 3 && j.get("components")[0].get("pins").size() == 4);
+    CHECK(driverModelFromJson(driverModelToJson(d)).rOut == d.rOut);
+    CHECK(findLogicFamily("lvcmos33") && findLogicFamily("sstl15")->rTerm > 0 && !findLogicFamily("nope"));
+}
+
+TEST(si_physics_reference_values) {
+    BoardSettings s;
+    s.layerCount = 4;
+    // FR-4 stripline propagates at √4.4 / c ≈ 7.0 ps/mm (≈ 178 ps/inch, the textbook figure).
+    CHECK_NEAR(propagationDelayPerMm(s, 1, 0.15) * 25.4e12, 178, 1.5);
+    // Microstrip εeff lies between (εr + 1)/2 and εr; Hammerstad–Jensen at w/h = 2 is 3.34 for εr 4.4.
+    const double h = impedanceReferenceHeight(s, 0);
+    CHECK_NEAR(effectivePermittivity(s, 0, 2 * h), 2.7 + 1.7 / std::sqrt(7.0), 1e-9);
+    CHECK(effectivePermittivity(s, 0, 0.05) > 2.7 && effectivePermittivity(s, 0, 50) < 4.4);
+    // Johnson & Graham §7.3 worked example: 0.063 in barrel, 0.028 in pad, 0.050 in anti-pad → 0.50 pF; about 1 nH for
+    // a 0.063 in via of 0.028 in diameter.
+    CHECK_NEAR(viaCapacitance(0.063 * 25.4, 0.028 * 25.4, 0.050 * 25.4, 4.4), 0.50e-12, 0.01e-12);
+    CHECK_NEAR(viaInductance(0.063 * 25.4, 0.028 * 25.4), 1.02e-9, 0.02e-9);
+    // Critical length: 1 ns edge on FR-4 stripline → about 24 mm ("1 inch per ns").
+    CHECK_NEAR(criticalLength(1e-9, propagationDelayPerMm(s, 1, 0.15)), 23.8, 0.3);
+    // Elliptic integral: K(0) = π/2, K(1/√2) = 1.854075.
+    CHECK_NEAR(ellipticK(0), kPi / 2, 1e-12);
+    CHECK_NEAR(ellipticK(std::sqrt(0.5)), 1.8540746773, 1e-9);
+    // Cohn's stripline in air at w/b = 1 against Pozar's closed form 30π·b/(W + 0.441b) = 65.4 Ω; far apart the even
+    // and odd modes meet the single line; close together they split.
+    auto zs = coupledStriplineImpedance(1.0, 1e3, 1.0, 1.0);
+    CHECK_NEAR(zs.first, zs.second, 1e-9);
+    CHECK_NEAR(zs.first, 30 * kPi / 1.441, 0.02 * 65.4);
+    auto zc = coupledStriplineImpedance(0.15, 0.15, 0.4, 4.4);
+    CHECK(zc.first > zc.second && zc.second > 0);
+}
+
+TEST(si_crosstalk_coupling) {
+    BoardSettings s;
+    s.layerCount = 4;
+    // Near-end crosstalk falls with spacing, saturates once 2·TD ≥ RT; the stripline has no far-end term.
+    auto m1 = crosstalkCoupling(s, 0, 0.3, 0.3, 0.3, 50, 0.5e-9);
+    auto m2 = crosstalkCoupling(s, 0, 0.3, 0.3, 0.9, 50, 0.5e-9);
+    CHECK(m1.next > m2.next && m2.next > 0);
+    CHECK(m1.next > 0.01 && m1.next < 0.15);  // a few percent for spacing = width over FR-4
+    CHECK(m1.fext < 0 && m1.kc < m1.kl);       // microstrip: inductive coupling dominates → negative FEXT
+    CHECK_NEAR(crosstalkCoupling(s, 0, 0.3, 0.3, 0.3, 500, 0.5e-9).next, m1.kb, 1e-12);  // saturated
+    CHECK(crosstalkCoupling(s, 0, 0.3, 0.3, 0.3, 2, 0.5e-9).next < m1.kb);
+    auto st = crosstalkCoupling(s, 1, 0.15, 0.15, 0.15, 50, 0.5e-9);
+    CHECK_NEAR(st.fext, 0, 1e-12);
+    CHECK_NEAR(st.kl, st.kc, 1e-12);
+    CHECK(st.kb > 0.005 && st.kb < 0.2);
+}
+
+TEST(si_transmission_line_lattice) {
+    // 25 Ω source, 50 Ω / 1 ns line, open end, a 1 V step with a 20 ps edge. Lattice diagram: the far end sees
+    // 2 × 2/3 = 1.333 V at TD, then 1.333 − 0.444 = 0.889 V at 3 TD (source reflection −1/3), 1.037 V at 5 TD.
+    TlNetwork n(2);
+    n.addLine(0, 1, 50, 1e-9);
+    n.driverNode = 0;
+    n.rSource = 25;
+    n.vHigh = 1;
+    n.riseTime = n.fallTime = 20e-12;
+    n.capacitance[1] = 1e-16;
+    const double dt = 1e-12;
+    TlRun run = simulateTl(n, {0, 1}, dt, 0.1e-9, 20e-9, 40e-9);
+    auto at = [&](size_t probe, double t) { return run.probes[probe][static_cast<size_t>(std::lround(t / dt))]; };
+    CHECK_NEAR(at(0, 0.6e-9), 2.0 / 3, 0.005);  // launched step
+    CHECK_NEAR(at(1, 0.9e-9), 0.0, 0.005);      // nothing has arrived yet
+    CHECK_NEAR(at(1, 1.6e-9), 4.0 / 3, 0.005);
+    CHECK_NEAR(at(1, 3.6e-9), 8.0 / 9, 0.005);
+    CHECK_NEAR(at(1, 5.6e-9), 28.0 / 27, 0.005);
+    CHECK_NEAR(at(1, 19e-9), 1.0, 0.01);  // settles to the source level
+    EdgeMetrics e = measureEdges(run, 1, 0.7, 0.3);
+    CHECK_NEAR(e.overshoot, 1.0 / 3, 0.01);
+    CHECK_NEAR(e.flightTime, 1e-9, 0.02e-9);
+    CHECK(e.reachesHigh && e.reachesLow && e.ringbackHigh > 0);
+    // Matched source (series termination): the far end steps cleanly to 1 V with no overshoot.
+    n.rSource = 50;
+    EdgeMetrics m = measureEdges(simulateTl(n, {0, 1}, dt, 0.1e-9, 20e-9, 40e-9), 1, 0.7, 0.3);
+    CHECK(m.overshoot < 0.01 && m.undershoot < 0.01);
+    // Parallel termination at the end to a 0.5 V rail: DC start at the divider, final level 0.5 + (1 − 0.5)·50/100.
+    TlNetwork t = n;
+    t.conductance[1] = 1 / 50.0;
+    t.railCurrent[1] = 0.5 / 50.0;
+    TlRun tr = simulateTl(t, {1}, dt, 0.1e-9, 20e-9, 40e-9);
+    CHECK_NEAR(tr.probes[0][10], 0.25, 1e-6);
+    CHECK_NEAR(tr.probes[0][static_cast<size_t>(15e-9 / dt)], 0.75, 0.005);
+    // RC: 1 kΩ into 1 nF (no line) reaches 63 % at τ = 1 µs.
+    TlNetwork rc(1);
+    rc.rSource = 1000;
+    rc.vHigh = 1;
+    rc.riseTime = rc.fallTime = 1e-12;
+    rc.capacitance[0] = 1e-9;
+    TlRun r2 = simulateTl(rc, {0}, 1e-9, 0, 10e-6, 20e-6);
+    CHECK_NEAR(r2.probes[0][1000], 1 - std::exp(-1.0), 0.003);
+}
+
+TEST(si_net_reflections_and_termination) {
+    SiBoard b = siBoard();
+    siRouteClock(b);
+    SiNetResult r = analyzeNet(b.p, b.clk);
+    CHECK(r.error.empty());
+    CHECK(r.routed && !r.estimated);
+    CHECK(r.driverComponent == b.u1 && !r.driverAssumed);
+    CHECK(r.driver.id == "lvcmos33");  // default family from the 3.3 V supply
+    CHECK(r.length > 90 && r.length < 120);
+    CHECK(r.critical && r.criticalLength < r.length);
+    CHECK_NEAR(r.z0Trunk, trackImpedance(b.p.pcb.settings, 0, 0.25), 1e-9);
+    CHECK(r.receivers.size() == 1 && r.receivers[0].connected);
+    if (r.receivers.empty()) return;
+    // An unterminated 30 Ω driver into a ~59 Ω, 100 mm line rings well past 15 %.
+    const EdgeMetrics e = r.receivers[0].metrics;
+    CHECK(!r.ok && e.overshoot / (e.vHigh - e.vLow) > 0.15);
+    CHECK_NEAR(e.vHigh, 3.3, 0.05);
+    CHECK(e.flightTime > 0.5e-9 && e.flightTime < 1.0e-9);
+    // Series termination advice: Z0 − R_out, E24; the what-if run with it overshoots far less.
+    CHECK_NEAR(r.recommendedSeriesR, nearestStandardValue(r.z0Trunk - 30, ESeries::E24), 1e-9);
+    CHECK(r.terminatedMetrics.overshoot < 0.5 * e.overshoot);
+    Json j = siNetJson(r, 300);
+    CHECK(j.get("waveform").get("time").size() <= 300);
+    CHECK(j.get("waveform").get("receiver").size() == j.get("waveform").get("time").size());
+    CHECK(j.get("terminatedWaveform").get("time").size() > 10);
+    CHECK(j.get("receivers")[0].get("metrics").get("overshootPercent").asNumber() > 15);
+    // The what-if parameter adds a series resistor.
+    SiNetResult w = analyzeNet(b.p, b.clk, r.recommendedSeriesR);
+    CHECK(!w.receivers.empty() && w.receivers[0].metrics.overshoot < 0.5 * e.overshoot);
+
+    // A 22 Ω series resistor in the schematic is found and used: the driver sits behind it.
+    SiBoard t = siBoard();
+    auto& s = t.p.schematic;
+    s.removeWire(s.wires().front().id);
+    int r1 = s.addComponent(ComponentKind::Resistor, "22", {200, 0});
+    wire(s, t.u1, "OUT", r1, "1");
+    wire(s, r1, "2", t.u2, "IN");
+    t.p.schematicChanged();
+    siPlace(t.p, r1, {16, 30});
+    const int line = s.netOf({r1, 1});
+    const Vec2 a = siPad(t.p, r1, "2"), c = siPad(t.p, t.u2, "IN");
+    siTrack(t.p, line, a, {c.x, a.y});
+    siTrack(t.p, line, {c.x, a.y}, c);
+    SiNetResult sr = analyzeNet(t.p, line);
+    CHECK(sr.error.empty());
+    CHECK(sr.seriesRef == s.find(r1)->ref && sr.seriesR == 22 && sr.driverComponent == t.u1);
+    CHECK(sr.receivers.size() == 1 && !sr.receivers.empty() && sr.receivers[0].metrics.overshoot < e.overshoot);
+
+    // Unrouted: estimated on straight-line lengths.
+    SiBoard u = siBoard();
+    SiNetResult ur = analyzeNet(u.p, u.clk);
+    CHECK(ur.error.empty() && ur.estimated && !ur.routed && ur.length > 80);
+
+    // Power nets are not signal nets.
+    CHECK(!analyzeNet(b.p, b.vcc).error.empty());
+    // The net list for the panel puts the critical clock first.
+    const Json nets = siNetsJson(b.p);
+    CHECK(nets.size() >= 1 && nets[0].get("net").asInt() == b.clk);
+    CHECK(nets.size() >= 1 && nets[0].get("critical").asBool());
+}
+
+TEST(si_ibis_model_drives_the_net) {
+    SiBoard b = siBoard();
+    siRouteClock(b);
+    IbisFile f = parseIbis(kSampleIbis);
+    DriverModel slow = driverFromIbis(*f.findModel("GPIO_FAST"), "min", &f.components[0]);
+    b.p.si.models.push_back(slow);
+    b.p.si.componentModels[b.p.schematic.find(b.u1)->ref] = slow.id;
+    SiNetResult r = analyzeNet(b.p, b.clk);
+    CHECK(r.driver.source == "ibis" && r.driver.id == "ibis:GPIO_FAST");
+    CHECK_NEAR(r.driver.riseTime, 0.9e-9 * 4 / 3, 1e-14);
+    // The IBIS model on U2's input pin sets the receiver.
+    b.p.si.pinModels[b.p.schematic.find(b.u2)->ref + ".2"] = slow.id;
+    SiNetResult r2 = analyzeNet(b.p, b.clk);
+    CHECK(!r2.receivers.empty() && r2.receivers[0].model == slow.name);
+    // Settings persist with the project.
+    b.p.si.signOff = true;
+    b.p.si.rails.push_back({"+3V3", 3, 0.4, 0.6});
+    Project q = Project::fromJson(b.p.toJson());
+    CHECK(q.si.signOff && q.si.models.size() == 1 && q.si.models[0].id == slow.id);
+    CHECK(!q.si.models.empty() && std::fabs(q.si.models[0].riseTime - slow.riseTime) < 1e-18);
+    CHECK(q.si.componentModels.size() == 1 && q.si.pinModels.size() == 1);
+    CHECK(q.si.rail("+3V3") && q.si.rail("+3V3")->transientCurrent == 0.4);
+    // A default project writes no SI settings.
+    CHECK(!Project().toJson().has("signalIntegrity"));
+}
+
+TEST(si_crosstalk_and_return_path) {
+    SiBoard b = siBoard();
+    siRouteClock(b);
+    auto& s = b.p.schematic;
+    // A victim net running 0.2 mm (edge to edge) beside the clock for 60 mm.
+    int v1 = s.addComponent(ComponentKind::Resistor, "1k", {200, 200});
+    int v2 = s.addComponent(ComponentKind::Resistor, "1k", {300, 200});
+    int lab = s.addComponent(ComponentKind::NetLabel, "SENSE", {250, 200});
+    wire(s, v1, "1", lab, "N");
+    wire(s, v2, "1", lab, "N");
+    b.p.schematicChanged();
+    const int victim = s.netOf({v1, 0});
+    siTrack(b.p, victim, {25, 30.45}, {85, 30.45});
+    auto pairs = crosstalkPairs(b.p);
+    const CrosstalkPair* hit = nullptr;
+    for (const auto& p : pairs)
+        if (p.aggressor == b.clk && p.victim == victim) hit = &p;
+    CHECK(hit != nullptr);
+    if (hit) {
+        CHECK_NEAR(hit->coupledLength, 60, 0.01);
+        CHECK_NEAR(hit->spacing, 0.2, 1e-6);
+        CHECK(hit->next > 0.01 && hit->fext < 0 && hit->noise > 0);
+    }
+    b.p.si.crosstalkLimit = 0.005;
+    bool flagged = false;
+    for (const auto& v : signalPowerIntegrityChecks(b.p)) flagged |= v.code == "SI_CROSSTALK";
+    CHECK(flagged);
+
+    // Return path: a GND plane on Inner 1 cut by a 2 mm wide +3V3 track running under the clock. The clock is not a
+    // "fast" net by name, so it is checked once a model is assigned to it.
+    SiBoard g = siBoard();
+    siRouteClock(g);
+    g.p.pcb.zones.push_back({"GND", 1, true, 0});
+    siTrack(g.p, g.vcc, {50, 2}, {50, 38}, 1, 2.0);
+    Via stitch;  // keeps the plane right of the cut connected (J1's ground pin anchors the left part)
+    stitch.net = g.p.schematic.groundNet();
+    stitch.position = {110, 10};
+    g.p.pcb.addVia(stitch);
+    CHECK(returnPathIssues(g.p).empty());
+    g.p.si.netModels[g.p.schematic.nets()[static_cast<size_t>(g.clk)].name] = "lvcmos33";
+    bool gapFound = false;
+    for (const auto& i : returnPathIssues(g.p)) gapFound |= i.code == "SI_PLANE_GAP" && i.net == g.clk && std::fabs(i.at.x - 50) < 3;
+    CHECK(gapFound);
+
+    // Reference change: the clock dives through a via from Top (over GND on Inner 1) to Bottom (over +3V3 on Inner 2).
+    SiBoard v = siBoard();
+    v.p.pcb.zones.push_back({"GND", 1, true, 0});
+    v.p.pcb.zones.push_back({"+3V3", 2, true, 0});
+    v.p.si.netModels[v.p.schematic.nets()[static_cast<size_t>(v.clk)].name] = "lvcmos33";
+    const Vec2 a = siPad(v.p, v.u1, "OUT"), c = siPad(v.p, v.u2, "IN");
+    Via via;
+    via.net = v.clk;
+    via.position = {60, 30};
+    v.p.pcb.addVia(via);
+    Via up;
+    up.net = v.clk;
+    up.position = {c.x, 30};
+    v.p.pcb.addVia(up);
+    siTrack(v.p, v.clk, a, {a.x, 30});
+    siTrack(v.p, v.clk, {a.x, 30}, {60, 30});
+    siTrack(v.p, v.clk, {60, 30}, {c.x, 30}, 3);
+    siTrack(v.p, v.clk, {c.x, 30}, c);
+    auto changes = [&] {
+        int n = 0;
+        for (const auto& i : returnPathIssues(v.p)) n += i.code == "SI_REFERENCE_CHANGE" && (i.at - Vec2(60, 30)).length() < 1e-6;
+        return n;
+    };
+    CHECK(changes() == 1);
+    // A stitching capacitor between the planes next to the via fixes it.
+    auto& vs = v.p.schematic;
+    int cs = vs.addComponent(ComponentKind::Capacitor, "100n", {100, 300});
+    int vl = vs.addComponent(ComponentKind::NetLabel, "+3V3", {80, 300});
+    int gl = vs.addComponent(ComponentKind::Ground, "", {120, 300});
+    wire(vs, cs, "1", vl, "N");
+    wire(vs, cs, "2", gl, "GND");
+    v.p.schematicChanged();
+    siPlace(v.p, cs, {62, 33});
+    CHECK(changes() == 0);
+    // The net's analysis follows both layers through the vias.
+    SiNetResult vr = analyzeNet(v.p, v.clk);
+    CHECK(vr.error.empty() && !vr.estimated && vr.vias >= 2 && vr.sections.size() == 2);
+}
+
+TEST(pi_pdn_impedance_and_ir_drop) {
+    // Formula checks.
+    CHECK_NEAR(targetImpedance(3.3, 5, 1.0), 0.165, 1e-12);
+    CHECK_NEAR(std::abs(capacitorImpedance(selfResonance(100e-9, 1e-9), 100e-9, 0.02, 1e-9)), 0.02, 1e-9);
+    CHECK_NEAR(planeCapacitance(10000, 0.1, 4.4), 3.896e-9, 0.005e-9);
+    CHECK_NEAR(sheetResistance(0.035), 0.491e-3, 0.002e-3);  // 1 oz copper ≈ 0.49 mΩ/□
+    CHECK(capacitorParasitics("C_0402", 100e-9).esl < capacitorParasitics("C_0805", 100e-9).esl);
+    CHECK(capacitorParasitics("CP_Radial_THT", 100e-6).esr > capacitorParasitics("C_0603", 1e-6).esr);
+
+    // The SI board's +3V3 rail: J1 feeds U1 and U2 (0.25 A each) through 0.5 mm tracks.
+    SiBoard b = siBoard();
+    const Vec2 j = siPad(b.p, b.j1, "1"), v1 = siPad(b.p, b.u1, "VDD"), v2 = siPad(b.p, b.u2, "VDD");
+    siTrack(b.p, b.vcc, j, {j.x, 2}, 0, 0.5);
+    siTrack(b.p, b.vcc, {j.x, 2}, {v1.x, 2}, 0, 0.5);
+    siTrack(b.p, b.vcc, {v1.x, 2}, v1, 0, 0.5);
+    siTrack(b.p, b.vcc, {v1.x, 2}, {v2.x, 2}, 0, 0.5);
+    siTrack(b.p, b.vcc, {v2.x, 2}, v2, 0, 0.5);
+    auto rail = [](const Project& p) {
+        for (const auto& x : analyzePdn(p))
+            if (x.name == "+3V3") return x;
+        return PdnRailResult{};
+    };
+    const PdnRailResult r = rail(b.p);
+    CHECK(r.name == "+3V3");
+    CHECK_NEAR(r.voltage, 3.3, 1e-12);
+    CHECK(!r.voltageEstimated && !r.currentEstimated);
+    CHECK_NEAR(r.dcCurrent, 0.5, 1e-12);
+    CHECK_NEAR(r.transientCurrent, 0.25, 1e-12);
+    CHECK_NEAR(r.target, 3.3 * 0.05 / 0.25, 1e-12);
+    CHECK(r.vrmKind == "connector" && r.decaps.empty());
+    CHECK(r.freq.size() == 241 && r.z.size() == 241);
+    // IR drop: R = ρ·L / (w·t). The common run from J1 to U1's corner carries 0.5 A, each branch 0.25 A.
+    const double rpm = kCopperResistivity * 1e-3 / (0.5e-3 * 0.035e-3);  // Ω per mm
+    const double common = (j.y - 2) + (v1.x - j.x), branch1 = v1.y - 2, run2 = (v2.x - v1.x) + (v2.y - 2);
+    CHECK(r.irAnalyzed);
+    double d1 = 0, d2 = 0;
+    for (const auto& l : r.loads) (l.componentId == b.u1 ? d1 : d2) = l.drop;
+    CHECK_NEAR(d1, rpm * (0.5 * common + 0.25 * branch1), 2e-4);
+    CHECK_NEAR(d2, rpm * (0.5 * common + 0.25 * run2), 2e-4);
+    CHECK_NEAR(r.irWorst, d2, 1e-12);
+    // No decoupling → a PI finding.
+    bool noDecap = false;
+    for (const auto& v : signalPowerIntegrityChecks(b.p)) noDecap |= v.code == "PI_NO_DECOUPLING";
+    CHECK(noDecap);
+
+    // Decoupling: two 100 nF 0402s at the loads, then a 10 µF bulk capacitor lowers the worst impedance.
+    auto& s = b.p.schematic;
+    auto addCap = [&](const char* value, const char* package, Vec2 at) {
+        int c = s.addComponent(ComponentKind::Capacitor, value, {600, 0});
+        s.setPackage(c, package);
+        int vl = s.addComponent(ComponentKind::NetLabel, "+3V3", {580, 0});
+        int gl = s.addComponent(ComponentKind::Ground, "", {620, 0});
+        wire(s, c, "1", vl, "N");
+        wire(s, c, "2", gl, "GND");
+        b.p.schematicChanged();
+        siPlace(b.p, c, at);
+        return c;
+    };
+    addCap("100n", "C_0402", {v1.x + 3, v1.y});
+    addCap("100n", "C_0402", {v2.x + 3, v2.y});
+    PdnRailResult before = rail(b.p);
+    CHECK(before.decaps.size() == 2);
+    if (before.decaps.size() == 2) {
+        CHECK_NEAR(before.decaps[0].esl, 0.4e-9, 1e-15);
+        CHECK(before.decaps[0].mounting > 0.1e-9);
+        CHECK(before.decaps[0].srf > 5e6 && before.decaps[0].srf < 30e6);
+    }
+    CHECK(!before.peaks.empty());  // the connector's inductance resonates with the 200 nF
+    addCap("10u", "C_1206", {20, 10});
+    PdnRailResult after = rail(b.p);
+    CHECK(after.decaps.size() == 3 && !after.decaps.empty() && std::fabs(after.decaps[0].c - 10e-6) < 1e-12);
+    CHECK(after.worstZ < before.worstZ);
+    if (!before.compliant) CHECK(!before.recommendations.empty());
+    Json pj = pdnJson(analyzePdn(b.p));
+    CHECK(pj.get("rails").size() >= 1 && pj.get("rails")[0].get("curve").get("freq").size() == 241);
+
+    // A rail poured as a plane over a GND plane adds plane capacitance ε0·εr·A/d.
+    SiBoard pl = siBoard();
+    pl.p.pcb.zones.push_back({"GND", 1, true, 0});
+    pl.p.pcb.zones.push_back({"+3V3", 2, true, 0});
+    const PdnRailResult x = rail(pl.p);
+    const double gapMm = dielectricBelow(pl.p.pcb.settings, 1) ;
+    CHECK(x.planeC > 0 && x.planeArea > 0.5 * 120 * 40);
+    CHECK_NEAR(x.planeC, planeCapacitance(x.planeArea, gapMm, 4.4), 0.05 * x.planeC);
+    CHECK(x.cavityResonance > 0.5e9 && x.cavityResonance < 1e9);  // c / (2 · 120 mm · √4.4)
+    CHECK(x.irAnalyzed);  // through the pour
+}
+
+TEST(si_verification_sign_off) {
+    SiBoard b = siBoard();
+    siRouteClock(b);
+    VerificationOptions opt;
+    opt.includeManufacturing = false;
+    auto stage = [](const VerificationReport& r) -> const VerificationStage* {
+        for (const auto& st : r.stages)
+            if (st.id == "si") return &st;
+        return nullptr;
+    };
+    VerificationReport off = verifyDesign(b.p, opt);
+    CHECK(stage(off) == nullptr);  // opt-in: designs without SI sign-off are unchanged
+    b.p.si.signOff = true;
+    VerificationReport on = verifyDesign(b.p, opt);
+    const VerificationStage* st = stage(on);
+    CHECK(st != nullptr);
+    if (st) {
+        CHECK(st->status == StageStatus::Warning);
+        std::set<std::string> codes;
+        for (const auto& v : st->findings) codes.insert(v.code);
+        CHECK(codes.count("SI_OVERSHOOT") || codes.count("SI_RINGBACK"));
+        CHECK(codes.count("PI_NO_DECOUPLING"));
+        for (const auto& v : st->findings) CHECK(v.severity != Severity::Error);
+    }
+
+    // The C API.
+    SiedaProject* api = sieda_project_new("si");
+    CHECK(api != nullptr);
+    char* err = nullptr;
+    CHECK(sieda_si_import_ibis(api, kSampleIbis, "typ", "", &err) == 3 && err == nullptr);
+    CHECK(sieda_si_import_ibis(api, "garbage", "typ", "", &err) == 0 && err != nullptr);
+    sieda_string_free(err);
+    err = nullptr;
+    char* settings = sieda_si_settings_json(api);
+    Json sj = Json::parse(settings);
+    sieda_string_free(settings);
+    CHECK(sj.get("models").size() == 3 && sj.get("families").size() == logicFamilies().size());
+    CHECK(sieda_si_assign_model(api, "net", "CLK", "ibis:GPIO_FAST") == 1);
+    CHECK(sieda_si_assign_model(api, "net", "CLK", "no-such-model") == 0);
+    CHECK(sieda_si_assign_model(api, "bogus", "CLK", "lvcmos33") == 0);
+    CHECK(sieda_si_assign_model(api, "net", "CLK", "") == 1);  // clears
+    CHECK(sieda_si_set_options(api, 1, 0.2, 0.08) == 1);
+    CHECK(sieda_pi_set_rail(api, "+3V3", 3, 0.5, 1.0) == 1);
+    char* preview = sieda_ibis_parse(kSampleIbis, "max", &err);
+    CHECK(preview && Json::parse(preview).get("models").size() == 3);
+    sieda_string_free(preview);
+    for (char* json : {sieda_si_net_list_json(api), sieda_si_crosstalk_json(api), sieda_pi_json(api), sieda_si_checks_json(api)}) {
+        CHECK(json != nullptr);
+        if (json) CHECK(!Json::parse(json).isNull());
+        sieda_string_free(json);
+    }
+    char* missing = sieda_si_net_json(api, "NOPE", -1);
+    CHECK(missing && Json::parse(missing).get("error").asString("").size() > 0);
+    sieda_string_free(missing);
+    sieda_project_free(api);
 }

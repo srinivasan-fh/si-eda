@@ -109,6 +109,31 @@ int sieda_c_api_smoke_test(void) {
         if (!sieda_parse_value("4k7", &parsed) || parsed < 4699.0 || parsed > 4701.0) return 23;
         if (sieda_parse_value("abc", &parsed)) return 24;
     }
+    {
+        /* Signal & power integrity: model assignment, sign-off, the analyses and an IBIS import error. */
+        char* ibisErr = NULL;
+        char* json = NULL;
+        if (sieda_si_import_ibis(p, "not an ibis file", "typ", "", &ibisErr) != 0 || !ibisErr) return 60;
+        sieda_string_free(ibisErr);
+        if (!sieda_si_assign_model(p, "component", "R1", "lvcmos33") || sieda_si_assign_model(p, "net", "X", "nope")) return 61;
+        if (!sieda_si_set_options(p, 1, 0.15, 0.05) || !sieda_pi_set_rail(p, "VCC", 5, 0.1, 0.2)) return 62;
+        json = sieda_si_net_list_json(p);
+        if (!json || json[0] != '[') return 63;
+        sieda_string_free(json);
+        json = sieda_pi_json(p);
+        if (!json || !strstr(json, "\"rails\"")) return 64;
+        sieda_string_free(json);
+        json = sieda_si_crosstalk_json(p);
+        if (!json || !strstr(json, "\"pairs\"")) return 65;
+        sieda_string_free(json);
+        json = sieda_run_verification(p);
+        if (!json || !strstr(json, "Signal & Power Integrity")) return 66;
+        sieda_string_free(json);
+        json = sieda_si_settings_json(p);
+        if (!json || !strstr(json, "\"families\"")) return 67;
+        sieda_string_free(json);
+        sieda_si_set_options(p, 0, 0.15, 0.05);
+    }
     sieda_project_free(p);
     return 0;
 }
@@ -225,6 +250,92 @@ int sieda_c_api_sheets_test(void) {
     if (!sieda_remove_variant(p, "Lite") || sieda_remove_variant(p, "Lite")) return 37;
     if (sieda_remove_sheet(p, power, 0)) return 38; /* still holds parts */
     if (!sieda_remove_sheet(p, child, 1)) return 39;
+    sieda_project_free(p);
+    return 0;
+}
+
+/* Library import: a KiCad footprint becomes an importable part; bad requests and files are reported, never NULL. */
+int sieda_c_api_library_import_test(void) {
+    char* result = sieda_library_import(
+        "{\"files\":[{\"name\":\"R.kicad_mod\",\"content\":\"(footprint \\\"R_0603\\\" "
+        "(pad \\\"1\\\" smd rect (at -0.8 0) (size 0.8 0.95) (layers \\\"F.Cu\\\")) "
+        "(pad \\\"2\\\" smd rect (at 0.8 0) (size 0.8 0.95) (layers \\\"F.Cu\\\")))\"},"
+        "{\"name\":\"bad.lbr\",\"content\":\"<eagle>\"}]}");
+    if (!result || !strstr(result, "\"ok\":true") || !strstr(result, "\"name\":\"R_0603\"")) return 1;
+    if (!strstr(result, "\"format\":\"eagle_lbr\"") || !strstr(result, "never closed")) return 2;
+    sieda_string_free(result);
+    result = sieda_library_import("not json");
+    if (!result || !strstr(result, "Invalid import request")) return 3;
+    sieda_string_free(result);
+    result = sieda_library_import(NULL);
+    if (!result || !strstr(result, "\"parts\":[]")) return 4;
+    sieda_string_free(result);
+    return 0;
+}
+
+/* Interactive routing through the C API: begin on a pad, preview, place a via, finish on the other pad, commit. */
+int sieda_c_api_router_test(void) {
+    SiedaProject* p = sieda_project_new("C API router");
+    if (!p) return 1;
+    int32_t r1 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 0, 0, NULL);
+    int32_t r2 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 0, 0, NULL);
+    if (r1 < 0 || r2 < 0 || sieda_connect(p, r1, 1, r2, 0) < 0) return 2;
+    if (!sieda_pcb_move_footprint(p, r1, 10, 20) || !sieda_pcb_move_footprint(p, r2, 30, 20)) return 3;
+    if (sieda_router_active(p)) return 4;
+
+    char* bad = sieda_router_begin(p, NULL, 2, 2, 0); /* nothing there */
+    if (!bad || !strstr(bad, "\"error\"") || sieda_router_active(p)) return 5;
+    sieda_string_free(bad);
+
+    char* begin = sieda_router_begin(p, "{\"mode\":\"shove\",\"posture\":\"45\"}", 10.95, 20, 0);
+    if (!begin || strstr(begin, "\"error\"") || !strstr(begin, "\"active\":true") || !sieda_router_active(p)) return 6;
+    sieda_string_free(begin);
+    char* move = sieda_router_move(p, 18, 20);
+    if (!move || !strstr(move, "\"head\":[{")) return 7;
+    sieda_string_free(move);
+    char* via = sieda_router_add_via(p, -1);
+    if (!via || strstr(via, "\"error\"") || !strstr(via, "\"layer\":1")) return 8;
+    sieda_string_free(via);
+    char* options = sieda_router_set_options(p, "{\"posture\":\"90\"}");
+    if (!options || strstr(options, "\"error\"")) return 9;
+    sieda_string_free(options);
+    char* across = sieda_router_move(p, 24, 20);
+    if (!across) return 9;
+    sieda_string_free(across);
+    char* back = sieda_router_add_via(p, 0); /* the target pad is an SMD pad on top */
+    if (!back || strstr(back, "\"error\"") || !strstr(back, "\"layer\":0")) return 9;
+    sieda_string_free(back);
+    char* end = sieda_router_move(p, 29.05, 20);
+    if (!end || !strstr(end, "\"reachedTarget\":true")) return 10;
+    sieda_string_free(end);
+    char* commit = sieda_router_commit(p);
+    if (!commit || !strstr(commit, "\"ok\":true") || !strstr(commit, "\"addedVias\":[")) return 11;
+    sieda_string_free(commit);
+    if (sieda_router_active(p)) return 12;
+
+    char* snap = sieda_project_snapshot(p);
+    if (!snap) return 13;
+    const char* tracksAt = strstr(snap, "\"tracks\":[{");
+    const char* idAt = tracksAt ? strstr(tracksAt, "\"id\":") : NULL;
+    if (!idAt) return 14;
+    int32_t track = 0;
+    for (const char* c = idAt + 5; *c >= '0' && *c <= '9'; ++c) track = track * 10 + (*c - '0');
+    sieda_string_free(snap);
+    if (!sieda_pcb_lock_track(p, track, 1) || sieda_pcb_lock_track(p, -5, 1)) return 15;
+    char* drag = sieda_router_begin_drag(p, NULL, track, 15, 20);
+    if (!drag || !strstr(drag, "\"error\"")) return 16; /* locked */
+    sieda_string_free(drag);
+    if (!sieda_pcb_lock_track(p, track, 0)) return 17;
+
+    char* tune = sieda_router_tune_length(p, track, 0, 0); /* not in a matched group */
+    if (!tune || !strstr(tune, "\"ok\":false")) return 18;
+    sieda_string_free(tune);
+    char* pair = sieda_router_begin_pair(p, NULL, 10.95, 20, 0); /* not a differential pair */
+    if (!pair || !strstr(pair, "\"error\"")) return 19;
+    sieda_string_free(pair);
+    sieda_router_cancel(p);
+
+    if (!sieda_pcb_remove_track(p, track) || sieda_pcb_remove_track(p, track)) return 20;
     sieda_project_free(p);
     return 0;
 }

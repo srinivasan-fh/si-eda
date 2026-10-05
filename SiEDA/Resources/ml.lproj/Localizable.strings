@@ -25,6 +25,7 @@
 "Add Pattern" = "പാറ്റേൺ ചേർക്കുക";
 "Add Pin" = "പിൻ ചേർക്കുക";
 "Add Pour" = "പോർ ചേർക്കുക";
+"Add Selected Parts" = "തിരഞ്ഞെടുത്ത പാർട്ടുകൾ ചേർക്കുക";
 "Add Thermal Vias" = "തെർമൽ വിയകൾ ചേർക്കുക";
 "Add a pad like the last one (numbered next)" = "അവസാനത്തേത് പോലെ ഒരു പാഡ് ചേർക്കുക (അടുത്ത നമ്പറോടെ)";
 "Add a sheet (right-click a tab for more)" = "ഷീറ്റ് ചേർക്കുക (കൂടുതലിനായി ടാബിൽ റൈറ്റ്-ക്ലിക്ക് ചെയ്യുക)";
@@ -104,6 +105,7 @@
 "Construction" = "നിർമ്മാണം";
 "Copper colours" = "കോപ്പർ നിറങ്ങൾ";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "കോപ്പർ ലെയറുകൾ: 1 = സിംഗിൾ-സൈഡഡ് (വിയകൾ ഇല്ല), മിക്ക ഉൽപ്പന്നങ്ങൾക്കും 2–6, മദർബോർഡുകൾ, സെർവറുകൾ, മെയിൻഫ്രെയിമുകൾ, GPU ബേസ്ബോർഡുകൾ എന്നിവയ്ക്ക് 8–24";
+"Corners" = "കോണുകൾ";
 "Currents" = "കറന്റുകൾ";
 "DC" = "DC";
 "DC Operating Point" = "DC ഓപ്പറേറ്റിംഗ് പോയിന്റ്";
@@ -130,6 +132,7 @@
 "Design guidance" = "ഡിസൈൻ മാർഗ്ഗനിർദ്ദേശം";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "ഡിസൈൻ-റൂൾ പ്രീസെറ്റ്: ട്രാക്ക്, ക്ലിയറൻസ്, വിയ വലുപ്പങ്ങളും DRC നടപ്പാക്കുന്ന ഫാബ്രിക്കേഷൻ മിനിമങ്ങളും";
 "Designator" = "ഡെസിഗ്നേറ്റർ";
+"Differential pair" = "ഡിഫറൻഷ്യൽ ജോഡി";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "പോപ്പുലേറ്റ് ചെയ്യരുത്: ബോർഡിൽ ഉണ്ടെങ്കിലും ഘടിപ്പിക്കില്ല; അസംബ്ലി BOM-ൽ നിന്നും CPL-ൽ നിന്നും ഒഴിവാക്കും";
 "Down ↓" = "താഴേക്ക് ↓";
 "Drag to orbit" = "ഓർബിറ്റ് ചെയ്യാൻ ഡ്രാഗ് ചെയ്യുക";
@@ -182,6 +185,9 @@
 "Hold" = "ഹോൾഡ്";
 "Holographic data panels around the stack: copper per layer, net fan-out, parts, routing and a board map" = "സ്റ്റാക്കിന് ചുറ്റുമുള്ള ഹോളോഗ്രാഫിക് ഡാറ്റ പാനലുകൾ: ഓരോ ലെയറിലെയും കോപ്പർ, നെറ്റ് ഫാൻ-ഔട്ട്, പാർട്ടുകൾ, റൂട്ടിംഗ്, ഒരു ബോർഡ് മാപ്പ്";
 "Import Datasheet…" = "ഡാറ്റാഷീറ്റ് ഇമ്പോർട്ട് ചെയ്യുക…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad (.kicad_mod, .kicad_sym) അല്ലെങ്കിൽ Eagle (.lbr) ലൈബ്രറികൾ ഇമ്പോർട്ട് ചെയ്യുക";
+"Import Library" = "ലൈബ്രറി ഇമ്പോർട്ട്";
+"Import Library…" = "ലൈബ്രറി ഇമ്പോർട്ട് ചെയ്യുക…";
 "Import PRD…" = "PRD ഇമ്പോർട്ട് ചെയ്യുക…";
 "Indian semiconductor states" = "ഇന്ത്യൻ സെമികണ്ടക്ടർ സംസ്ഥാനങ്ങൾ";
 "Industry" = "വ്യവസായം";
@@ -319,6 +325,8 @@
 "Right →" = "വലത്തേക്ക് →";
 "Robot Platform" = "റോബോട്ട് പ്ലാറ്റ്ഫോം";
 "Rotate" = "തിരിക്കുക";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "ഡിഫറൻഷ്യൽ ജോഡിയിലെ രണ്ട് നെറ്റുകളും (X_P / X_N) ജോഡി അകലത്തിൽ ഒരുമിച്ച് റൂട്ട് ചെയ്യുക";
+"Router mode" = "റൂട്ടർ മോഡ്";
 "Run" = "റൺ ചെയ്യുക";
 "Run AC Sweep" = "AC സ്വീപ്പ് റൺ ചെയ്യുക";
 "Run DC Sweep" = "DC സ്വീപ്പ് റൺ ചെയ്യുക";
@@ -360,6 +368,8 @@
 "Shape" = "ആകൃതി";
 "Sheet" = "ഷീറ്റ്";
 "Sheet name" = "ഷീറ്റിന്റെ പേര്";
+"Shove" = "തള്ളുക";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "തള്ളുക മറ്റ് നെറ്റുകളുടെ ട്രാക്കുകളും വയകളും വശത്തേക്ക് മാറ്റുന്നു; ചുറ്റിപ്പോകുക അവയെ ചുറ്റി റൂട്ട് ചെയ്യുന്നു";
 "Show" = "കാണിക്കുക";
 "Show Crash Reports" = "ക്രാഷ് റിപ്പോർട്ടുകൾ കാണിക്കുക";
 "Show Navigator" = "നാവിഗേറ്റർ കാണിക്കുക";
@@ -429,10 +439,12 @@
 "Vias" = "വിയകൾ";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD പാഡുകളിലെ വിയകൾ ഫാബ് നിറച്ച് ക്യാപ് ചെയ്യുന്നു, അതിനാൽ ഫൈൻ-പിച്ച് BGA / QFN ഫാൻ-ഔട്ടിന് അവ ഉപയോഗിക്കാം";
 "Voltages" = "വോൾട്ടേജുകൾ";
+"Walk around" = "ചുറ്റിപ്പോകുക";
 "Warnings" = "മുന്നറിയിപ്പുകൾ";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "നെറ്റുകൾ അവയുടെ DC കറന്റിനുള്ള IPC-2221 വീതിയിലേക്ക് വിശാലമാക്കുക (+25 %)";
 "Width" = "വീതി";
 "Window" = "വിൻഡോ";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "വാക്കുകൾ, അല്ലെങ്കിൽ ഫിൽട്ടറുകൾ: cat:sensors pkg:soic pins:8 mfr:ti";
 "Workspace" = "വർക്ക്‌സ്പേസ്";
 "Workspaces" = "വർക്ക്‌സ്പേസുകൾ";
 "Worst case" = "ഏറ്റവും മോശം സാഹചര്യം";
@@ -465,3 +477,38 @@
 "us-central1" = "us-central1";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "പാൻ ചെയ്യാൻ ⌥-ഡ്രാഗ് അല്ലെങ്കിൽ രണ്ട് വിരൽ ഉപയോഗിച്ച് ഡ്രാഗ് ചെയ്യുക";
+
+/* Signal & power integrity (Simulation ▸ SI / PI) */
+"Circuit" = "സർക്യൂട്ട്";
+"SI / PI" = "SI / PI";
+"Signal & Power Integrity" = "സിഗ്നൽ & പവർ ഇന്റഗ്രിറ്റി";
+"Signals" = "സിഗ്നലുകൾ";
+"Crosstalk" = "ക്രോസ്‌ടോക്ക്";
+"Power" = "പവർ";
+"Import IBIS…" = "IBIS ഇംപോർട്ട് ചെയ്യുക…";
+"Import an IBIS (.ibs) file; assign its models to nets below" = "ഒരു IBIS (.ibs) ഫയൽ ഇംപോർട്ട് ചെയ്യുക; അതിന്റെ മോഡലുകൾ താഴെയുള്ള നെറ്റുകൾക്ക് നൽകുക";
+"Sign-off in verification" = "വെരിഫിക്കേഷനിൽ സൈൻ-ഓഫ്";
+"Adds a Signal & Power Integrity stage to Design Checks" = "ഡിസൈൻ പരിശോധനകളിൽ സിഗ്നൽ & പവർ ഇന്റഗ്രിറ്റി ഘട്ടം ചേർക്കുന്നു";
+"Driver model" = "ഡ്രൈവർ മോഡൽ";
+"Automatic" = "സ്വയമേവ";
+"No signal nets to analyse" = "വിശകലനം ചെയ്യാൻ സിഗ്നൽ നെറ്റുകളില്ല";
+"Select a net to analyse" = "വിശകലനം ചെയ്യാൻ ഒരു നെറ്റ് തിരഞ്ഞെടുക്കുക";
+"Return path" = "റിട്ടേൺ പാത്ത്";
+"No crosstalk or return-path problems found" = "ക്രോസ്‌ടോക്ക് അല്ലെങ്കിൽ റിട്ടേൺ-പാത്ത് പ്രശ്നങ്ങളൊന്നും കണ്ടെത്തിയില്ല";
+"No supply rails to analyse" = "വിശകലനം ചെയ്യാൻ സപ്ലൈ റെയിലുകളില്ല";
+"Ripple" = "റിപ്പിൾ";
+"Load step" = "ലോഡ് സ്റ്റെപ്പ്";
+"Length" = "നീളം";
+"Delay" = "കാലതാമസം";
+"Impedance" = "ഇംപിഡൻസ്";
+"Critical length" = "ക്രിട്ടിക്കൽ നീളം";
+"Overshoot" = "ഓവർഷൂട്ട്";
+"Undershoot" = "അണ്ടർഷൂട്ട്";
+"Settling" = "സെറ്റ്ലിംഗ്";
+"Flight time" = "ഫ്ലൈറ്റ് ടൈം";
+"Driver" = "ഡ്രൈവർ";
+"Receiver" = "റിസീവർ";
+"With series termination" = "സീരീസ് ടെർമിനേഷനോടെ";
+"Target" = "ലക്ഷ്യം";
+"Decoupling" = "ഡികപ്ലിംഗ്";
+"IR drop" = "IR ഡ്രോപ്പ്";

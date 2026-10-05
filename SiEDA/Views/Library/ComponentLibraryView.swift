@@ -27,6 +27,7 @@ struct ComponentLibraryView: View {
     @State private var footprintSource: CustomPartSpec?
     @State private var symbolSource: CustomPartSpec?
     @State private var footprintError: String?
+    @State private var libraryImport: LibraryImportResult?
 
     enum ImportState: Equatable {
         case idle
@@ -110,6 +111,15 @@ struct ComponentLibraryView: View {
                 FootprintEditorView(spec: source) { edited in draft = edited }
             }
         }
+        .sheet(isPresented: Binding(get: { libraryImport != nil }, set: { if !$0 { libraryImport = nil } })) {
+            if let result = libraryImport {
+                LibraryImportView(result: result) { specs in
+                    let added = store.importLibraryParts(specs)
+                    if let first = added.first { selectedId = first }
+                    importState = .done("Added \(added.count) library parts.")
+                }
+            }
+        }
     }
 
     // MARK: - Library list
@@ -125,14 +135,13 @@ struct ComponentLibraryView: View {
         return Set(kit.flatMap(\.parts))
     }
 
-    /// Standard parts matching a search (name, category, manufacturer or description) and, if set, a robot kit.
+    /// Standard parts matching a search and, if set, a robot kit. The search is a `PartQuery`: words in the name,
+    /// category, manufacturer, description or package, and filters such as `cat:sensors pkg:soic pins:8 mfr:ti`.
     static func filterStandard(_ parts: [StandardPart], search: String, kit: Set<String>?) -> [StandardPart] {
-        let query = search.trimmingCharacters(in: .whitespaces).lowercased()
+        let query = PartQuery(search)
         return parts.filter { part in
             if let kit, !kit.contains(part.spec.name) { return false }
-            guard !query.isEmpty else { return true }
-            return [part.spec.name, part.category, part.spec.manufacturer, part.spec.description]
-                .contains { $0.lowercased().contains(query) }
+            return query.isEmpty || query.matches(part)
         }
     }
 
@@ -148,11 +157,15 @@ struct ComponentLibraryView: View {
                     .buttonStyle(.bordered)
                     .help("New blank part")
             }
+            Button { importLibrary() } label: { Label("Import Library…", systemImage: "books.vertical") }
+                .buttonStyle(.bordered)
+                .help("Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries")
             dropZone
             HStack(spacing: 6) {
                 TextField("Search parts", text: $standardSearch)
                     .textFieldStyle(.roundedBorder)
                     .accessibilityLabel("Search the standard library")
+                    .help("Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti")
                 Picker("", selection: $kitFilter) {
                     Text("All").tag("")
                     ForEach(robotKits) { Text($0.name).tag($0.id) }
@@ -623,6 +636,52 @@ struct ComponentLibraryView: View {
             let x = (store.snapshot.components.map(\.x).max() ?? 0) + 160
             store.addCustomComponent(partId: part.id, at: CGPoint(x: x, y: 0))
             store.workspace = .schematic
+        }
+    }
+
+    /// File types the library importer reads (KiCad footprints and symbol libraries, Eagle libraries).
+    static let libraryExtensions: Set<String> = ["kicad_mod", "kicad_sym", "lbr"]
+
+    /// Library import: KiCad / Eagle files, or folders of them (a KiCad .pretty or .kicad_symdir). The core reads,
+    /// pairs and checks the parts; the review sheet adds the chosen ones to the project library.
+    private func importLibrary() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowedContentTypes = Self.libraryExtensions.compactMap { UTType(filenameExtension: $0) } + [UTType.folder]
+        panel.message = "Choose KiCad footprints (.kicad_mod), symbol libraries (.kicad_sym), Eagle libraries (.lbr) or folders of them."
+        guard panel.runModal() == .OK else { return }
+        let files = Self.libraryFiles(at: panel.urls)
+        guard !files.isEmpty else {
+            importState = .failed("No .kicad_mod, .kicad_sym or .lbr files found.")
+            return
+        }
+        importState = .running("Reading \(files.count) library files…")
+        Task { @MainActor in
+            let result = await Task.detached(priority: .userInitiated) { EDAEngine.importLibrary(files: files) }.value
+            importState = .idle
+            libraryImport = result
+        }
+    }
+
+    /// The library files among `urls`, including those inside chosen folders; at most 2000 files of up to 32 MB.
+    static func libraryFiles(at urls: [URL]) -> [LibraryImportFile] {
+        var found: [URL] = []
+        for url in urls {
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
+            if isDirectory.boolValue {
+                let items = FileManager.default.enumerator(at: url, includingPropertiesForKeys: nil)?.allObjects as? [URL] ?? []
+                found += items.filter { libraryExtensions.contains($0.pathExtension.lowercased()) }
+                    .sorted { $0.lastPathComponent < $1.lastPathComponent }
+            } else {
+                found.append(url)
+            }
+        }
+        return found.prefix(2000).compactMap { url in
+            guard let data = try? Data(contentsOf: url), data.count <= 32 << 20 else { return nil }
+            return LibraryImportFile(name: url.lastPathComponent, content: String(decoding: data, as: UTF8.self))
         }
     }
 

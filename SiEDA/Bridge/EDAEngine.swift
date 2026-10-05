@@ -365,6 +365,19 @@ final class EDAEngine: @unchecked Sendable {
         decode([LandIssue].self, from: take(sieda_check_land_pattern(spec.jsonString(), minGap))) ?? []
     }
 
+    /// Library import: reads KiCad footprints (.kicad_mod), KiCad symbol libraries (.kicad_sym) and Eagle libraries
+    /// (.lbr), pairs symbols with footprints (`pairs`: symbol name → footprint name, optional) and validates every
+    /// part. Files that cannot be read are reported in `files[].error`.
+    static func importLibrary(files: [LibraryImportFile], pairs: [String: String] = [:]) -> LibraryImportResult {
+        struct Request: Encodable {
+            var files: [LibraryImportFile]
+            var pairs: [String: String]
+        }
+        guard let data = try? JSONEncoder().encode(Request(files: files, pairs: pairs)) else { return LibraryImportResult() }
+        let json = String(decoding: data, as: UTF8.self)
+        return decode(LibraryImportResult.self, from: take(sieda_library_import(json))) ?? LibraryImportResult()
+    }
+
     @discardableResult
     func removeCustomPart(_ id: String) -> Bool { withHandle { sieda_custom_part_remove($0, id) } == 1 }
 
@@ -693,8 +706,104 @@ final class EDAEngine: @unchecked Sendable {
         Self.decode(LengthReport.self, from: withHandle { Self.take(sieda_length_report_json($0)) }) ?? .empty
     }
 
+    // MARK: - Interactive routing
+
+    /// Options for `sieda_router_*`: push-and-shove or walkaround, 45° or 90° corners.
+    static func routerOptions(shove: Bool, diagonal: Bool) -> String {
+        "{\"mode\":\"\(shove ? "shove" : "walkaround")\",\"posture\":\"\(diagonal ? "45" : "90")\"}"
+    }
+
+    /// Starts a route (or a differential pair) on the pad, via or track at `point`; the preview carries `error` when
+    /// there is nothing to start from.
+    func routerBegin(at point: CGPoint, layer: Int, pair: Bool, options: String) -> RoutePreview? {
+        let json = withHandle { handle in
+            Self.take(pair ? sieda_router_begin_pair(handle, options, Double(point.x), Double(point.y), Int32(layer))
+                           : sieda_router_begin(handle, options, Double(point.x), Double(point.y), Int32(layer)))
+        }
+        return Self.decode(RoutePreview.self, from: json)
+    }
+
+    func routerMove(to point: CGPoint) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_move($0, Double(point.x), Double(point.y))) })
+    }
+
+    /// Places the head (a click): the route continues from its end.
+    func routerFix() -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_fix($0)) })
+    }
+
+    /// Places a via at the head's end and continues on `layer` (nil = the other outer layer).
+    func routerAddVia(toLayer layer: Int? = nil) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_add_via($0, Int32(layer ?? -1))) })
+    }
+
+    func routerSetOptions(_ options: String) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_set_options($0, options)) })
+    }
+
+    /// Writes the route and the shoved copper into the board; the session ends either way.
+    func routerCommit() -> RouteCommitResult {
+        Self.decode(RouteCommitResult.self, from: withHandle { Self.take(sieda_router_commit($0)) })
+            ?? RouteCommitResult(ok: false, error: "no reply from the core", addedTracks: [], addedVias: [])
+    }
+
+    func routerCancel() { withHandle { sieda_router_cancel($0) } }
+
+    var routerActive: Bool { withHandle { sieda_router_active($0) } == 1 }
+
     func stackup() -> StackupReport {
         Self.decode(StackupReport.self, from: withHandle { Self.take(sieda_stackup_json($0)) }) ?? .empty
+    }
+
+    // MARK: - Signal & power integrity
+
+    /// Imported IBIS models, logic-family defaults, model assignments, rail inputs and sign-off.
+    func siSettings() -> SISettings {
+        Self.decode(SISettings.self, from: withHandle { Self.take(sieda_si_settings_json($0)) }) ?? .empty
+    }
+
+    /// Signal nets for the SI panel, critical and fast nets first.
+    func siNets() -> [SINetSummary] {
+        Self.decode([SINetSummary].self, from: withHandle { Self.take(sieda_si_net_list_json($0)) }) ?? []
+    }
+
+    /// Transmission-line analysis of one net with its waveforms; `seriesOhms` adds a what-if series resistor.
+    func siNet(_ name: String, seriesOhms: Double? = nil) -> SINetAnalysis? {
+        Self.decode(SINetAnalysis.self, from: withHandle { Self.take(sieda_si_net_json($0, name, seriesOhms ?? -1)) })
+    }
+
+    func siCrosstalk() -> SICrosstalkReport {
+        Self.decode(SICrosstalkReport.self, from: withHandle { Self.take(sieda_si_crosstalk_json($0)) }) ?? .empty
+    }
+
+    func pdn() -> PDNReport {
+        Self.decode(PDNReport.self, from: withHandle { Self.take(sieda_pi_json($0)) }) ?? .empty
+    }
+
+    /// Imports every model of an IBIS file (corner "typ", "min" or "max"); with `ref`, maps that part's pins to them.
+    @discardableResult
+    func importIBIS(_ text: String, corner: String, ref: String) throws -> Int {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let count = withHandle { sieda_si_import_ibis($0, text, corner, ref, &errorPointer) }
+        if count <= 0 { throw EDAEngineError.operationFailed(Self.take(errorPointer) ?? "The IBIS file could not be read.") }
+        return Int(count)
+    }
+
+    /// Assigns a model id to a "net", "component" or "pin" ("U1.12"); an empty id clears the assignment.
+    @discardableResult
+    func assignSIModel(kind: String, target: String, modelID: String) -> Bool {
+        withHandle { sieda_si_assign_model($0, kind, target, modelID) } == 1
+    }
+
+    @discardableResult
+    func setSIOptions(signOff: Bool, overshootLimit: Double, crosstalkLimit: Double) -> Bool {
+        withHandle { sieda_si_set_options($0, signOff ? 1 : 0, overshootLimit, crosstalkLimit) } == 1
+    }
+
+    /// PDN inputs of a rail (0 derives the value from the design).
+    @discardableResult
+    func setPDNRail(_ net: String, ripplePercent: Double, transientAmps: Double, dcAmps: Double) -> Bool {
+        withHandle { sieda_pi_set_rail($0, net, ripplePercent, transientAmps, dcAmps) } == 1
     }
 
     @discardableResult
