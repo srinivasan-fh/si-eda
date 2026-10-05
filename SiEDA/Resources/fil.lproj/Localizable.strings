@@ -817,3 +817,7 @@
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Mga miyembro: pumili ng dalawa o higit pang net. Ang net na dumaraan sa serye na resistor o capacitor ay sinusukat mula pad hanggang pad sa kabila nito.";
 "Any angle" = "Anumang anggulo";
 "Route and drag at any angle: the head is one straight track to the pointer" = "Mag-route at mag-drag sa anumang anggulo: ang ulo ay isang tuwid na track papunta sa pointer";
+"Remove loops" = "Alisin ang mga loop";
+"Finishing a route removes the old path of the net it makes redundant" = "Ang pagtatapos ng route ay nag-aalis sa lumang daan ng net na ginawa nitong labis";
+"Auto teardrops" = "Awtomatikong teardrop";
+"Teardrops where each finished route meets pads and vias" = "Mga teardrop kung saan nagtatagpo ang bawat natapos na route at ang mga pad at via";

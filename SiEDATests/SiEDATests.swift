@@ -6135,3 +6135,63 @@ final class DragAndMultiRouteTests: XCTestCase {
         XCTAssertNil(store.routePreview)
     }
 }
+
+/// Teardrops, via stitching / shielding, glossing and loop removal from the store (docs/INTERACTIVE_ROUTING.md).
+@MainActor
+final class BoardCommandTests: XCTestCase {
+    private func routedStore() -> DesignStore {
+        let store = DesignStore()
+        let engine = store.engine
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        engine.moveFootprint(r1, to: CGPoint(x: 10, y: 10))
+        engine.moveFootprint(r2, to: CGPoint(x: 30, y: 20))
+        let options = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+        XCTAssertNil(engine.routerBegin(at: CGPoint(x: 10.95, y: 10), layer: 0, pair: false, options: options)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 29.05, y: 20))
+        XCTAssertTrue(engine.routerCommit().ok)
+        store.refresh()
+        return store
+    }
+
+    func testTeardropsToggleAndUndo() {
+        let store = routedStore()
+        let tracks = store.snapshot.tracks
+        XCTAssertFalse(tracks.contains { $0.teardrop == true })
+        store.toggleTeardrops()
+        XCTAssertTrue(store.snapshot.tracks.contains { $0.teardrop == true })
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        store.toggleTeardrops()  // again: removed
+        XCTAssertEqual(store.snapshot.tracks.map(\.id).sorted(), tracks.map(\.id).sorted())
+        store.undo()
+        XCTAssertTrue(store.snapshot.tracks.contains { $0.teardrop == true })
+        store.undo()
+        XCTAssertEqual(store.snapshot.tracks, tracks)
+    }
+
+    func testRouterOptionsCarryLoopsAndTeardrops() {
+        let json = EDAEngine.routingOptions(mode: .shove, diagonal: true, removeLoops: true, teardrops: true)
+        XCTAssertTrue(json.contains("\"removeLoops\":true"))
+        XCTAssertTrue(json.contains("\"teardrops\":true"))
+        let plain = EDAEngine.routingOptions(mode: .walkaround, diagonal: false)
+        XCTAssertTrue(plain.contains("\"removeLoops\":false"))
+        let store = DesignStore()
+        XCTAssertTrue(store.routerRemoveLoops)
+        XCTAssertFalse(store.routerTeardrops)
+    }
+
+    func testGlossStitchAndShieldReportWithoutChangingWhenNothingToDo() {
+        let store = routedStore()
+        let tracks = store.snapshot.tracks
+        store.glossTracks()  // a fresh route is already tight
+        XCTAssertEqual(store.snapshot.tracks, tracks)
+        store.stitchVias()  // no ground pours
+        XCTAssertTrue(store.snapshot.vias.isEmpty)
+        store.selectedTracks = []
+        store.shieldSelectedTracks()  // nothing selected
+        XCTAssertTrue(store.snapshot.vias.isEmpty)
+        XCTAssertFalse(store.statusMessage.isEmpty)
+        XCTAssertNotEqual(store.engine.gloss(tracks: [tracks[0].id])?.applied, true)
+    }
+}

@@ -212,6 +212,9 @@ struct Track {
     /// arc whose three points are collinear is the straight a–b. Measure tracks with TrackGeometry.hpp, never a–b.
     bool arc = false;
     Vec2 mid;
+    /// Part of a teardrop (InteractiveRouter.hpp addTeardrops): runs from inside a pad / via (`a`) onto the track
+    /// it widens (`b`). Ordinary copper for DRC, Gerber and connectivity; the router leaves it in place.
+    bool teardrop = false;
 };
 
 struct Via {

@@ -817,3 +817,7 @@
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "ସଦସ୍ୟ: ଦୁଇ କିମ୍ବା ଅଧିକ ନେଟ୍ ବାଛନ୍ତୁ। ସିରିଜ୍ ରେଜିଷ୍ଟର କିମ୍ବା କ୍ୟାପାସିଟର ଦେଇ ଯାଉଥିବା ନେଟ୍ ସେଗୁଡ଼ିକୁ ପାର କରି ପ୍ୟାଡ୍‌ରୁ ପ୍ୟାଡ୍ ପର୍ଯ୍ୟନ୍ତ ମପାଯାଏ।";
 "Any angle" = "ଯେକୌଣସି କୋଣ";
 "Route and drag at any angle: the head is one straight track to the pointer" = "ଯେକୌଣସି କୋଣରେ ରୁଟ୍ ଓ ଡ୍ରାଗ୍ କରନ୍ତୁ: ହେଡ୍ ପଏଣ୍ଟର ପର୍ଯ୍ୟନ୍ତ ଗୋଟିଏ ସିଧା ଟ୍ରାକ୍";
+"Remove loops" = "ଲୁପ୍ ହଟାନ୍ତୁ";
+"Finishing a route removes the old path of the net it makes redundant" = "ଏକ ରୁଟ୍ ସମାପ୍ତ କଲେ ତାହା ଅନାବଶ୍ୟକ କରୁଥିବା ନେଟ୍‌ର ପୁରୁଣା ପଥ ହଟାଯାଏ";
+"Auto teardrops" = "ସ୍ୱୟଂଚାଳିତ ଟିୟରଡ୍ରପ୍";
+"Teardrops where each finished route meets pads and vias" = "ପ୍ରତ୍ୟେକ ସମାପ୍ତ ରୁଟ୍ ପ୍ୟାଡ୍ ଓ ଭାୟାକୁ ମିଳୁଥିବା ସ୍ଥାନରେ ଟିୟରଡ୍ରପ୍";

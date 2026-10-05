@@ -817,3 +817,7 @@
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "メンバー：2つ以上のネットを選びます。直列の抵抗やコンデンサを通るネットは、それらをまたいでパッドからパッドまで測定します。";
 "Any angle" = "任意角度";
 "Route and drag at any angle: the head is one straight track to the pointer" = "任意角度で配線・ドラッグ：先端はポインタまでの1本の直線トラックです";
+"Remove loops" = "ループ除去";
+"Finishing a route removes the old path of the net it makes redundant" = "配線を確定すると、それによって不要になったネットの古い経路を削除します";
+"Auto teardrops" = "自動ティアドロップ";
+"Teardrops where each finished route meets pads and vias" = "確定した各配線がパッドやビアと接する箇所にティアドロップ";

@@ -158,3 +158,89 @@ char* sieda_length_targets_json(const SiedaProject* project) {
 }
 
 }  // extern "C"
+
+namespace {
+char* boardEditString(SiedaProject* project, const BoardEditResult& r) {
+    return dupString(boardEditJson(r, project->project.pcb.settings.layerCount).dump());
+}
+}  // namespace
+
+extern "C" {
+
+char* sieda_pcb_teardrops(SiedaProject* project, const char* track_ids_json, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        const std::vector<int> ids = idList(parseOr(track_ids_json, Json::array()));
+        const Json o = parseOr(options_json, Json::object());
+        if (project->router) project->router->cancel();
+        if (o.get("remove").asBool(false)) return boardEditString(project, removeTeardrops(project->project.pcb, ids));
+        TeardropOptions opt;
+        opt.trackIds = ids;
+        opt.pads = o.get("pads").asBool(true);
+        opt.vias = o.get("vias").asBool(true);
+        opt.length = o.get("length").asNumber(1.0);
+        opt.apply = o.get("apply").asBool(true);
+        return boardEditString(project, addTeardrops(project->project.pcb, project->project.schematic, opt));
+    } catch (const std::exception& e) {
+        return errorString(e);
+    }
+}
+
+}  // extern "C"
+
+namespace {
+ViaPatternOptions viaPatternFrom(const Json& o) {
+    ViaPatternOptions opt;
+    opt.net = o.get("net").asString(std::string());
+    opt.pitch = std::max(0.0, o.get("pitch").asNumber(0));
+    opt.offset = std::max(0.0, o.get("offset").asNumber(0));
+    if (o.has("x0") && o.has("y0") && o.has("x1") && o.has("y1")) {
+        opt.area = Rect(o.get("x0").asNumber(), o.get("y0").asNumber(), o.get("x1").asNumber(), o.get("y1").asNumber());
+        opt.hasArea = opt.area.width() > 0 && opt.area.height() > 0;
+    }
+    opt.apply = o.get("apply").asBool(true);
+    return opt;
+}
+}  // namespace
+
+extern "C" {
+
+char* sieda_pcb_stitch_vias(SiedaProject* project, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        const ViaPatternOptions opt = viaPatternFrom(parseOr(options_json, Json::object()));
+        if (project->router) project->router->cancel();
+        return boardEditString(project, stitchVias(project->project.pcb, project->project.schematic, opt));
+    } catch (const std::exception& e) {
+        return errorString(e);
+    }
+}
+
+char* sieda_pcb_shield_tracks(SiedaProject* project, const char* track_ids_json, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        const std::vector<int> ids = idList(parseOr(track_ids_json, Json::array()));
+        const ViaPatternOptions opt = viaPatternFrom(parseOr(options_json, Json::object()));
+        if (project->router) project->router->cancel();
+        return boardEditString(project, shieldTracks(project->project.pcb, project->project.schematic, ids, opt));
+    } catch (const std::exception& e) {
+        return errorString(e);
+    }
+}
+
+char* sieda_pcb_gloss(SiedaProject* project, const char* track_ids_json, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        const std::vector<int> ids = idList(parseOr(track_ids_json, Json::array()));
+        const Json o = parseOr(options_json, Json::object());
+        GlossOptions opt;
+        opt.retrace = o.get("retrace").asBool(true);
+        opt.apply = o.get("apply").asBool(true);
+        if (project->router) project->router->cancel();
+        return boardEditString(project, glossTracks(project->project.pcb, project->project.schematic, ids, opt));
+    } catch (const std::exception& e) {
+        return errorString(e);
+    }
+}
+
+}  // extern "C"

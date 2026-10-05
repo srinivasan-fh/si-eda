@@ -817,3 +817,7 @@
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Ahli: pilih dua atau lebih net. Net melalui perintang atau kapasitor bersiri diukur pad ke pad merentasinya.";
 "Any angle" = "Sebarang sudut";
 "Route and drag at any angle: the head is one straight track to the pointer" = "Halakan dan seret pada sebarang sudut: kepala ialah satu trek lurus ke penuding";
+"Remove loops" = "Buang gelung";
+"Finishing a route removes the old path of the net it makes redundant" = "Menamatkan halaan membuang laluan lama net yang menjadi berlebihan";
+"Auto teardrops" = "Titisan air mata automatik";
+"Teardrops where each finished route meets pads and vias" = "Titisan air mata di tempat setiap halaan siap bertemu pad dan via";

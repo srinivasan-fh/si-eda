@@ -91,6 +91,7 @@ Shoving never moves:
 - vias inside a pad of their own net;
 - the route itself, and other copper of the net being routed;
 - tamper-mesh stripes and their vias;
+- arcs and teardrop tracks (a teardrop whose track moved away is removed on commit);
 - the board edge, mounting-hole keep-outs and plane layers (a net cannot be routed on another net's plane layer).
 
 A track whose end sits on a pad or a junction can bend, but its end stays put. Shoving it past the obstacle has to
@@ -278,6 +279,47 @@ a locked track on it, and a via that a track runs straight through.
 
 Core: `InteractiveRouter::beginViaDrag` (C: `sieda_router_begin_via_drag`). The preview has kind `via`.
 
+## Teardrops
+
+**Teardrops** (tool strip, drop icon) adds teardrops where the selected tracks (or, with none selected, every
+track) meet pads and vias of their net; pressing it again on tracks that have them removes them. A teardrop is a
+fan of short tracks of the track's width (`Track::teardrop`, saved as `"teardrop": true`) from inside the pad or via
+onto the track, spaced closer than the track width so the copper is solid; it reaches as far beyond the pad edge as
+the pad / via is wide (option `length`, 0.3–3 × the size). Each teardrop keeps clearance to everything: one that does
+not fit is shortened to half once, otherwise left out ("without room"). Their ends on the track are 0.02 mm apart,
+so the DRC sees no acute angle and no dangling end. Teardrops are ordinary copper for DRC, connectivity, Gerber,
+3D and length (the track length the tuner measures excludes nothing; teardrops sit at the pads).
+
+**Auto teardrops** (Route tool options) adds them on every finished route. Teardrops whose track was moved away
+(dragged, shoved, deleted) are removed on the next commit.
+
+Core: `addTeardrops`, `removeTeardrops`, `pruneTeardrops`; C: `sieda_pcb_teardrops`; router option `"teardrops"`.
+
+## Via stitching and shielding
+
+**Via stitching** (grid icon) places ground vias on a grid (2 mm pitch, the board via size, through vias) wherever
+ground pours or planes overlap on two or more layers, inside the board and keeping every clearance; grid points
+without room are skipped. **Via shielding** (shield icon) places rows of ground vias on both sides of the selected
+tracks at 1 mm pitch, just clear of the track (half width + clearance + via radius), arcs included. Vias that reach no
+ground pour yet are counted in the message (pour the ground afterwards). Both are one undo step.
+
+Core: `stitchVias`, `shieldTracks` (`ViaPatternOptions`: net, pitch, offset, area); C: `sieda_pcb_stitch_vias`,
+`sieda_pcb_shield_tracks`.
+
+## Glossing and loop removal
+
+**Gloss** (wand icon) pulls the routes through the selected tracks (all routes with none selected) tight: each line
+(a chain of tracks between pads, vias and junctions) gets 45° shortcuts where they keep clearance and make no acute
+corner, then is searched again (walkaround on the router's grid) and the shorter result is kept. Arcs, locked tracks
+and teardrops end a line and stay. A line that cannot get shorter is left exactly as it was.
+
+**Remove loops** (Route tool options, on by default): when a finished route joins pads of its net that an older
+path already joined, the older tracks that were needed before but are redundant now are removed with the route, as
+are vias they leave unconnected (one undo step). Spare copper that was already redundant before stays. Nets with a
+pour or plane are left alone, and so are nets with more than 600 tracks.
+
+Core: `glossTracks`, `RouterOptions::removeLoops`; C: `sieda_pcb_gloss`, router option `"removeLoops"`.
+
 ## Length tuning
 
 The **Tune length** tool (**T**, the waveform button in the tool strip) lengthens a net with meanders:
@@ -383,6 +425,10 @@ All functions are in `sieda_c.h`. Each project has one route session.
 | `sieda_router_begin_corner_drag(project, options_json, track_id, x, y)` | Drag a corner |
 | `sieda_router_begin_multi_drag(project, options_json, track_ids_json, x, y)` | Drag several tracks together |
 | `sieda_router_begin_multi(project, options_json, points_json, layer)` | Multi-route `[{"x","y"}, …]` |
+| `sieda_pcb_teardrops(project, track_ids_json, options_json)` | Add (or `"remove"`) teardrops |
+| `sieda_pcb_stitch_vias(project, options_json)` | Via stitching of a net's pours |
+| `sieda_pcb_shield_tracks(project, track_ids_json, options_json)` | Via shielding along tracks |
+| `sieda_pcb_gloss(project, track_ids_json, options_json)` | Gloss / retrace routes |
 | `sieda_pcb_set_length_rule(project, net, target_mm, tolerance_mm)` | Length rule of a net (target 0 removes it) |
 | `sieda_pcb_set_match_group(project, group_json)` | Match group `{"name","nets":[…],"tolerance"}` (fewer than two nets removes it) |
 | `sieda_length_targets_json(project)` | Rules and groups with their members' xSignal lengths |
@@ -440,6 +486,10 @@ never fails because of an old DRC problem elsewhere, and it never creates a new 
   (not through ICs or multi-pin resistor networks) and measure track length (vias add nothing).
 - A bus (or multi-route) ends in the bundle; each track is finished to its pad on its own. Members all use the
   widest member's width. Bundle vias need a placed corner first (they are laid across the bundle's direction).
+- Teardrops are straight-track fans (no curved outline) on straight tracks, at pads and vias only (not at T
+  junctions between tracks); a track as wide as 90 % of the pad gets none. Stitching uses one via size on a square
+  grid (no hexagonal or edge-of-pour patterns). Glossing works line by line on one layer (it does not move vias).
+  Loop removal skips poured nets.
 - Fanout covers SMD pads only (through-hole pads already reach every layer) and walks around (it never shoves).
 - The Select-tool drag picks the via, then the track on the active layer, under the pointer (near a track's end: its
   corner; on one of several selected tracks: all of them); a press on a pad moves the footprint as before. Arcs are
@@ -532,6 +582,11 @@ Core (`Core/tests/core_tests.cpp`):
 | `router_routes_at_any_angle` | Free posture: one straight track at an arbitrary angle onto the pad. |
 | `router_multi_routes_nets_with_vias` | Three scattered nets route as one bundle; V places three vias at via pitch and the bundle continues on the bottom layer; DRC clean. |
 | `c_api_corner_multi_drag_and_multi_route` | Corner drag, multi drag and multi-route through the C API. |
+| `teardrops_on_pads_and_vias` | Six teardrops on a pad → via → via → pad route; DRC clean (no acute angle, no dangling end), saved, in the Gerber, removed exactly; auto teardrops on commit; pruning. |
+| `via_stitching_and_shielding` | Shielding rows clear of the track; stitching grid inside the area on two GND pours; DRC clean. |
+| `gloss_pulls_routes_tight` | A detour is pulled > 10 mm shorter, connected, DRC clean; a tight or locked route stays. |
+| `router_removes_loops_on_commit` | A new direct route removes the old detour, its stub and its two vias; without the option all stays. |
+| `c_api_board_commands` | Teardrops, gloss, shielding, stitching and the router options through the C API. |
 | `router_head_update_can_be_cancelled` | A cancelled update leaves the router exactly as before; the next one matches a router that was never cancelled; a request while idle changes nothing. |
 | `router_routes_a_bus_together` | A bus of four SOIC pins ends at track pitch in pin order; each track is then finished to its pad; DRC clean. |
 | `router_bus_turns_corners_at_pitch` | A bus through a 90° turn keeps the clearance between members, and is packed at it. |

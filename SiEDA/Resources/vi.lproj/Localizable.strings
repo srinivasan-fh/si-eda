@@ -817,3 +817,7 @@
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Thành viên: chọn hai net trở lên. Net đi qua điện trở hoặc tụ nối tiếp được đo từ pad đến pad xuyên qua chúng.";
 "Any angle" = "Góc bất kỳ";
 "Route and drag at any angle: the head is one straight track to the pointer" = "Đi dây và kéo ở góc bất kỳ: đầu là một đường thẳng tới con trỏ";
+"Remove loops" = "Xóa vòng lặp";
+"Finishing a route removes the old path of the net it makes redundant" = "Hoàn tất một tuyến sẽ xóa đường cũ của net mà tuyến đó làm cho thừa";
+"Auto teardrops" = "Giọt lệ tự động";
+"Teardrops where each finished route meets pads and vias" = "Giọt lệ tại nơi mỗi tuyến hoàn tất gặp pad và via";

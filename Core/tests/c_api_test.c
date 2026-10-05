@@ -1036,3 +1036,53 @@ int sieda_c_api_drag_multi_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+int sieda_c_api_board_commands_test(void) {
+    SiedaProject* p = sieda_project_new("C API board commands");
+    if (!p) return 1;
+    int32_t r1 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 0, 0, NULL);
+    int32_t r2 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 0, 0, NULL);
+    if (r1 < 0 || r2 < 0) return 2;
+    if (sieda_connect(p, r1, 1, r2, 0) < 0) return 3;
+    if (!sieda_pcb_move_footprint(p, r1, 10, 10) || !sieda_pcb_move_footprint(p, r2, 30, 20)) return 4;
+    char* s = sieda_router_begin(p, "{\"posture\":\"45\",\"teardrops\":true,\"removeLoops\":true}", 10.95, 10, 0);
+    if (!s || strstr(s, "\"error\"")) return 5;
+    sieda_string_free(s);
+    s = sieda_router_move(p, 29.05, 20);
+    if (!s || !strstr(s, "\"reachedTarget\":true")) return 6;
+    sieda_string_free(s);
+    s = sieda_router_commit(p);
+    if (!s || !strstr(s, "\"ok\":true")) return 7;
+    sieda_string_free(s);
+    char* snap = sieda_project_snapshot(p);
+    if (!snap || !strstr(snap, "\"teardrop\":true")) return 8; /* auto teardrops on commit */
+    const char* tracksAt = strstr(snap, "\"tracks\":[{");
+    const char* idAt = tracksAt ? strstr(tracksAt, "\"id\":") : NULL;
+    if (!idAt) return 9;
+    int32_t track = 0;
+    for (const char* c = idAt + 5; *c >= '0' && *c <= '9'; ++c) track = track * 10 + (*c - '0');
+    sieda_string_free(snap);
+    char* rm = sieda_pcb_teardrops(p, "[]", "{\"remove\":true}");
+    if (!rm || !strstr(rm, "\"ok\":true")) return 10;
+    sieda_string_free(rm);
+    char* td = sieda_pcb_teardrops(p, "[]", "{\"apply\":false}");
+    if (!td || !strstr(td, "\"ok\":true") || !strstr(td, "\"applied\":false")) return 11;
+    sieda_string_free(td);
+    char ids[32];
+    snprintf(ids, sizeof ids, "[%d]", (int)track);
+    char* g = sieda_pcb_gloss(p, ids, NULL);
+    if (!g || strstr(g, "\"error\"") || !strstr(g, "\"message\"")) return 12;
+    sieda_string_free(g);
+    char* sh = sieda_pcb_shield_tracks(p, ids, "{\"pitch\":1.5}");
+    if (!sh || strstr(sh, "\"error\"") || !strstr(sh, "\"ok\"")) return 13; /* no ground net: ok false */
+    sieda_string_free(sh);
+    char* st = sieda_pcb_stitch_vias(p, "{\"x0\":0,\"y0\":0,\"x1\":20,\"y1\":20}");
+    if (!st || !strstr(st, "\"ok\":false")) return 14; /* no pours */
+    sieda_string_free(st);
+    char* bad = sieda_pcb_gloss(p, "{nope", NULL);
+    if (!bad || !strstr(bad, "\"error\"")) return 15;
+    sieda_string_free(bad);
+    if (sieda_pcb_teardrops(NULL, "[]", NULL) != NULL || sieda_pcb_stitch_vias(NULL, NULL) != NULL) return 16;
+    sieda_project_free(p);
+    return 0;
+}

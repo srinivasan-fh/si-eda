@@ -817,3 +817,7 @@
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "உறுப்பினர்கள்: இரண்டு அல்லது அதற்கு மேற்பட்ட நெட்களைத் தேர்ந்தெடுக்கவும். தொடர் மின்தடையங்கள் அல்லது மின்தேக்கிகள் வழியாகச் செல்லும் நெட் அவற்றைக் கடந்து பேடு முதல் பேடு வரை அளவிடப்படும்.";
 "Any angle" = "எந்தக் கோணமும்";
 "Route and drag at any angle: the head is one straight track to the pointer" = "எந்தக் கோணத்திலும் வழியமைத்து இழுக்கவும்: தலை சுட்டி வரை ஒரே நேர் தடம்";
+"Remove loops" = "சுழல்களை நீக்கு";
+"Finishing a route removes the old path of the net it makes redundant" = "ஒரு வழித்தடத்தை முடித்தால் அது தேவையற்றதாக்கும் நெட்டின் பழைய பாதை நீக்கப்படும்";
+"Auto teardrops" = "தானியங்கு கண்ணீர்த்துளிகள்";
+"Teardrops where each finished route meets pads and vias" = "முடிந்த ஒவ்வொரு வழித்தடமும் பேட்கள் மற்றும் வயாக்களைச் சந்திக்கும் இடத்தில் கண்ணீர்த்துளிகள்";

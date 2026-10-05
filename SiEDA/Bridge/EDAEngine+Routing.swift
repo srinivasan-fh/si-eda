@@ -13,6 +13,19 @@ struct ArcCornersResult: Decodable, Equatable {
     var removedTracks: [Int]
 }
 
+/// Result of a board command (teardrops, via stitching / shielding, glossing): what was added or removed.
+struct BoardEditResult: Decodable, Equatable {
+    var ok: Bool
+    var message: String
+    var added: Int
+    var skipped: Int
+    var applied: Bool
+    var addedTracks: [SnapTrack]
+    var addedVias: [SnapVia]
+    var removedTracks: [Int]
+    var removedVias: [Int]
+}
+
 /// Meander pattern of the length tuning tool (`sieda_router_tune` "style").
 enum MeanderStyleChoice: String, CaseIterable, Identifiable {
     case accordion, trombone, sawtooth
@@ -62,10 +75,12 @@ extension EDAEngine {
     /// Router options JSON (`sieda_router_*`). `rounded`: corners get the automatic radius; `arcs`: as true arcs
     /// (pairs and buses on concentric arcs) instead of short chords.
     static func routingOptions(mode: RouterModeChoice, diagonal: Bool, via: RouterViaChoice = .through,
-                               rounded: Bool = false, arcs: Bool = true, anyAngle: Bool = false) -> String {
+                               rounded: Bool = false, arcs: Bool = true, anyAngle: Bool = false,
+                               removeLoops: Bool = false, teardrops: Bool = false) -> String {
         let posture = anyAngle ? "free" : (diagonal ? "45" : "90")
         return "{\"mode\":\"\(mode.rawValue)\",\"posture\":\"\(posture)\",\"viaType\":\"\(via.rawValue)\","
-            + "\"cornerRadius\":\(rounded ? -1 : 0),\"arcCorners\":\(rounded && arcs)}"
+            + "\"cornerRadius\":\(rounded ? -1 : 0),\"arcCorners\":\(rounded && arcs),"
+            + "\"removeLoops\":\(removeLoops),\"teardrops\":\(teardrops)}"
     }
 
     /// Drags the corner of `trackId` nearest to `point`.
@@ -155,5 +170,42 @@ extension EDAEngine {
         return Self.decode(ArcCornersResult.self, from: withHandle {
             Self.take(sieda_pcb_arc_corners($0, Self.idList(tracks), options))
         })
+    }
+
+    /// Adds teardrops where the tracks (empty: all) meet pads and vias, or (`remove`) removes theirs.
+    func teardrops(tracks: [Int], remove: Bool = false, apply: Bool = true) -> BoardEditResult? {
+        let options = "{\"remove\":\(remove),\"apply\":\(apply)}"
+        return Self.decode(BoardEditResult.self, from: withHandle {
+            Self.take(sieda_pcb_teardrops($0, Self.idList(tracks), options))
+        })
+    }
+
+    /// Via stitching of `net` (empty: ground) where its pours overlap on two or more layers.
+    func stitchVias(net: String = "", pitch: Double = 0) -> BoardEditResult? {
+        let options = Self.viaPatternOptions(net: net, pitch: pitch)
+        return Self.decode(BoardEditResult.self, from: withHandle { Self.take(sieda_pcb_stitch_vias($0, options)) })
+    }
+
+    /// Via shielding: rows of `net` (empty: ground) vias on both sides of the tracks.
+    func shieldTracks(_ tracks: [Int], net: String = "", pitch: Double = 0) -> BoardEditResult? {
+        let options = Self.viaPatternOptions(net: net, pitch: pitch)
+        return Self.decode(BoardEditResult.self, from: withHandle {
+            Self.take(sieda_pcb_shield_tracks($0, Self.idList(tracks), options))
+        })
+    }
+
+    /// Glossing: pulls the lines through the tracks tight (and re-searches them with `retrace`).
+    func gloss(tracks: [Int], retrace: Bool = true) -> BoardEditResult? {
+        let options = "{\"retrace\":\(retrace)}"
+        return Self.decode(BoardEditResult.self, from: withHandle {
+            Self.take(sieda_pcb_gloss($0, Self.idList(tracks), options))
+        })
+    }
+
+    static func viaPatternOptions(net: String, pitch: Double) -> String {
+        let object: [String: Any] = ["net": net, "pitch": pitch.isFinite ? max(0, pitch) : 0]
+        guard let data = try? JSONSerialization.data(withJSONObject: object),
+              let text = String(data: data, encoding: .utf8) else { return "{}" }
+        return text
     }
 }

@@ -73,6 +73,12 @@ struct RouterOptions {
     /// and buses, whose members then turn on concentric arcs at their exact spacing (the radius is the innermost
     /// member's).
     bool arcCorners = false;
+    /// Loop removal: on commit, old tracks of the routed nets that the new route makes redundant (they were needed
+    /// before, now another path joins the same pads) are removed, with vias left unconnected. Nets with pours or
+    /// planes are left alone.
+    bool removeLoops = false;
+    /// Teardrops on commit where the new tracks meet pads and vias (addTeardrops).
+    bool autoTeardrops = false;
 };
 
 /// What commit() changed, so a caller can undo it exactly: removed items (with their old geometry and ids) and the
@@ -314,6 +320,78 @@ ArcCornersResult convertCornersToArcs(PcbLayout& pcb, const Schematic& sch, cons
                                       const ArcCornersOptions& options = {});
 /// {"ok","message","converted","kept","applied","addedTracks":[track],"removedTracks":[id],"changes":{…}}
 Json arcCornersJson(const ArcCornersResult& r);
+
+// ------------------------------------------------------------------------------------------- board commands
+
+struct TeardropOptions {
+    /// Tracks whose ends get teardrops (empty: every track of the board).
+    std::vector<int> trackIds;
+    bool pads = true, vias = true;
+    /// Length of the teardrop beyond the pad / via edge, as a fraction of the pad / via size (0.3 … 3).
+    double length = 1.0;
+    /// False: compute the result without changing the board.
+    bool apply = true;
+};
+
+struct BoardEditResult {
+    bool ok = false;  // something was (or would be) added or changed
+    std::string message;
+    int added = 0;    // teardrops, vias or improved lines
+    int skipped = 0;  // places without room (clearance)
+    std::vector<Track> addedTracks;
+    std::vector<Via> addedVias;
+    std::vector<int> removedTracks;
+    std::vector<int> removedVias;
+    RouteChanges changes;
+    bool applied = false;
+};
+
+/// Teardrops where tracks meet pads and vias of their net: a fan of tracks (Track::teardrop) from the pad / via to the
+/// track, the gaps between them narrower than the track, so the copper fills the joint. Each teardrop keeps
+/// clearance to everything (shortened once, otherwise left out); ends on the track are staggered so the DRC sees no
+/// acute join. Tracks narrower than 90 % of the pad / via only; straight tracks only.
+BoardEditResult addTeardrops(PcbLayout& pcb, const Schematic& sch, const TeardropOptions& options = {});
+/// Removes the teardrops on the given tracks' ends (empty: all teardrops).
+BoardEditResult removeTeardrops(PcbLayout& pcb, const std::vector<int>& trackIds = {});
+/// Removes teardrops that no longer join a pad / via to a track of their net (after an edit moved the track).
+int pruneTeardrops(PcbLayout& pcb, const Schematic& sch, std::vector<Track>* removed = nullptr);
+
+struct ViaPatternOptions {
+    /// Net of the vias (empty: the ground net).
+    std::string net;
+    /// Via pitch (mm, centre to centre); 0 = 2 mm for stitching, 1 mm for shielding.
+    double pitch = 0;
+    /// Shielding: distance from the track's centre line to the via centres (0 = just clear: half width + clearance
+    /// + via radius).
+    double offset = 0;
+    /// Stitching: only inside this rectangle (empty = the whole board).
+    Rect area;
+    bool hasArea = false;
+    bool apply = true;
+};
+
+/// Via stitching: a grid of vias of the net (through vias, board via size) wherever its pours or planes overlap on
+/// two or more layers, keeping every clearance (grid points without room are skipped).
+BoardEditResult stitchVias(PcbLayout& pcb, const Schematic& sch, const ViaPatternOptions& options = {});
+/// Via shielding: rows of vias of the net (ground by default) on both sides of the given tracks, at `pitch` along
+/// them, keeping every clearance.
+BoardEditResult shieldTracks(PcbLayout& pcb, const Schematic& sch, const std::vector<int>& trackIds,
+                             const ViaPatternOptions& options = {});
+
+struct GlossOptions {
+    /// Also search a new path for each line (walkaround on a fine grid) and keep it when it is shorter.
+    bool retrace = true;
+    bool apply = true;
+};
+
+/// Glossing: each line (chain of tracks between pads, vias and junctions) through the given tracks is pulled tight
+/// with 45° shortcuts and (retrace) re-searched, kept when it gets shorter, keeping every rule. Arcs, locked tracks and
+/// teardrops stay as they are (they end the lines).
+BoardEditResult glossTracks(PcbLayout& pcb, const Schematic& sch, const std::vector<int>& trackIds,
+                            const GlossOptions& options = {});
+
+/// {"ok","message","added","skipped","applied","addedTracks","addedVias","removedTracks","removedVias","changes"}
+Json boardEditJson(const BoardEditResult& r, int layerCount = 0);
 
 /// Options from {"mode":"shove|walkaround","posture":"45|90|free","swapPosture","width","pairGap","snap"} — missing
 /// fields keep their value in `base`.

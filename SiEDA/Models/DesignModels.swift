@@ -843,6 +843,8 @@ struct SnapTrack: Decodable, Equatable, Identifiable {
     var radius: Double?
     var startAngle: Double?
     var sweep: Double?
+    /// Part of a teardrop (from inside a pad / via onto the track it widens).
+    var teardrop: Bool?
 }
 
 struct SnapVia: Decodable, Equatable, Identifiable {

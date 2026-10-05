@@ -722,6 +722,19 @@ char* sieda_router_begin_multi_drag(SiedaProject* project, const char* options_j
 /* Multi-route: the nets at points_json [{"x","y"}, …] (pads, vias or tracks; 2–16 nets) routed together as one bundle
  * (kind "multi"); sieda_router_add_via places a via per member. */
 char* sieda_router_begin_multi(SiedaProject* project, const char* options_json, const char* points_json, int32_t layer);
+/* Board commands. Each returns {"ok","message","added","skipped","applied","addedTracks","addedVias","removedTracks",
+ * "removedVias","changes"} (ok false: nothing to do), or {"error"}. Router options also take "removeLoops" (loop
+ * removal on commit) and "teardrops" (teardrops on the committed tracks). Tracks with "teardrop":true are teardrops. */
+/* Teardrops on the given tracks' ends at pads / vias ([] = every track); options {"pads","vias" (default true),
+ * "length" (fraction of the pad / via size, 0.3–3, default 1),"apply","remove" (remove them instead)}. */
+char* sieda_pcb_teardrops(SiedaProject* project, const char* track_ids_json, const char* options_json);
+/* Via stitching where the net's pours overlap on two or more layers; options {"net" (default the ground net),
+ * "pitch" (mm, default 2),"x0","y0","x1","y1" (area),"apply"}. */
+char* sieda_pcb_stitch_vias(SiedaProject* project, const char* options_json);
+/* Via shielding along the given tracks on both sides; options {"net","pitch" (default 1),"offset","apply"}. */
+char* sieda_pcb_shield_tracks(SiedaProject* project, const char* track_ids_json, const char* options_json);
+/* Glossing: pull the lines through the given tracks tight; options {"retrace" (default true),"apply"}. */
+char* sieda_pcb_gloss(SiedaProject* project, const char* track_ids_json, const char* options_json);
 
 #ifdef __cplusplus
 }

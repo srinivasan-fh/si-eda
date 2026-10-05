@@ -817,3 +817,7 @@
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "সদস্য: দুটা বা তাতকৈ বেছি নেট বাছক। ছিৰিজ ৰেজিষ্টৰ বা কেপাচিটৰৰ মাজেৰে যোৱা নেট সেইবোৰ পাৰ হৈ পেডৰ পৰা পেডলৈ জোখা হয়।";
 "Any angle" = "যিকোনো কোণ";
 "Route and drag at any angle: the head is one straight track to the pointer" = "যিকোনো কোণত ৰুট আৰু টানক: হেড পইণ্টাৰলৈ এডাল পোন ট্ৰেক";
+"Remove loops" = "লুপ আঁতৰাওক";
+"Finishing a route removes the old path of the net it makes redundant" = "এটা ৰুট সম্পূৰ্ণ কৰিলে ই অপ্ৰয়োজনীয় কৰা নেটৰ পুৰণি পথ আঁতৰায়";
+"Auto teardrops" = "স্বয়ংক্ৰিয় টিয়াৰড্ৰপ";
+"Teardrops where each finished route meets pads and vias" = "প্ৰতিটো সম্পূৰ্ণ ৰুটে পেড আৰু ভায়াক লগ পোৱা ঠাইত টিয়াৰড্ৰপ";

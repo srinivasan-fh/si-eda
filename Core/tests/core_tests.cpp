@@ -13662,3 +13662,207 @@ TEST(c_api_corner_multi_drag_and_multi_route) {
     if (rc != 0) std::printf("    C API drag / multi test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+// ======================================================================= teardrops, stitching, shielding, gloss, loops
+
+namespace {
+int teardropTracks(const Project& p) {
+    int n = 0;
+    for (const auto& t : p.pcb.tracks) n += t.teardrop ? 1 : 0;
+    return n;
+}
+
+Via testVia(const Project& p, int net, Vec2 at) {
+    Via v;
+    v.net = net;
+    v.position = at;
+    v.drill = p.pcb.settings.viaDrill;
+    v.diameter = p.pcb.settings.viaDiameter;
+    return v;
+}
+}  // namespace
+
+TEST(teardrops_on_pads_and_vias) {
+    // A route pad → via → via → pad gets six teardrops (both pads, every via end); DRC clean, connected; saved, drawn in
+    // the Gerber; removed again exactly. Auto teardrops on a router commit; teardrops whose track is gone are pruned.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20}), r2 = placeR(p, {34, 20});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 1});
+    const Vec2 from = padAt(p, r1, 1), to = padAt(p, r2, 0);
+    addPath(p.pcb, net, 0, 0.25, {from, {18, from.y}});
+    addPath(p.pcb, net, 1, 0.25, {{18, from.y}, {26, from.y}});
+    addPath(p.pcb, net, 0, 0.25, {{26, from.y}, to});
+    p.pcb.addVia(testVia(p, net, {18, from.y}));
+    p.pcb.addVia(testVia(p, net, {26, from.y}));
+    CHECK(netRouted(p, net));
+    const size_t plainCount = p.pcb.tracks.size();
+    const std::string plainGerber = exportGerber(s, p.pcb, GerberLayer::TopCopper);
+    TeardropOptions dry;
+    dry.apply = false;
+    const BoardEditResult preview = addTeardrops(p.pcb, s, dry);
+    std::printf("    teardrops: %s\n", preview.message.c_str());
+    CHECK(preview.ok && !preview.applied && preview.added == 6 && p.pcb.tracks.size() == plainCount);
+    const BoardEditResult r = addTeardrops(p.pcb, s);
+    CHECK(r.ok && r.applied && r.added == 6 && r.skipped == 0);
+    CHECK(teardropTracks(p) >= 12 && static_cast<size_t>(teardropTracks(p)) == r.addedTracks.size());
+    CHECK(routingProblems(p) == 0);
+    CHECK(acuteWarnings(p) == 0);
+    CHECK(drcCount(p, "DRC_DANGLING_TRACK") == 0);
+    CHECK(netRouted(p, net));
+    CHECK(addTeardrops(p.pcb, s).added == 0);  // already there
+    CHECK(pruneTeardrops(p.pcb, s) == 0);
+    CHECK(exportGerber(s, p.pcb, GerberLayer::TopCopper) != plainGerber);
+    const Project back = Project::fromJson(p.toJson());
+    CHECK(teardropTracks(back) == teardropTracks(p));
+    CHECK(boardEditJson(r, 2).get("addedTracks").size() == r.addedTracks.size());
+    const BoardEditResult gone = removeTeardrops(p.pcb);
+    CHECK(gone.ok && p.pcb.tracks.size() == plainCount && teardropTracks(p) == 0);
+    CHECK(exportGerber(s, p.pcb, GerberLayer::TopCopper) == plainGerber);
+
+    // Auto teardrops on commit.
+    Project q;
+    const int a = placeR(q, {10, 20}), b = placeR(q, {30, 20});
+    wire(q.schematic, a, "2", b, "1");
+    q.schematicChanged();
+    InteractiveRouter ir(q.pcb, q.schematic);
+    RouterOptions o;
+    o.autoTeardrops = true;
+    ir.setOptions(o);
+    CHECK(ir.beginRoute(padAt(q, a, 1), 0));
+    ir.moveTo(padAt(q, b, 0));
+    const RouteChanges ch = ir.commit();
+    CHECK(ch.ok && teardropTracks(q) >= 4);
+    CHECK(drcCount(q, "DRC_DANGLING_TRACK") == 0 && acuteWarnings(q) == 0);
+    CHECK(ch.addedTracks.size() == q.pcb.tracks.size());
+    CHECK(routingProblems(q) == 0);
+    // The track goes: its teardrops are pruned.
+    q.pcb.tracks.erase(std::remove_if(q.pcb.tracks.begin(), q.pcb.tracks.end(), [](const Track& t) { return !t.teardrop; }),
+                       q.pcb.tracks.end());
+    CHECK(pruneTeardrops(q.pcb, q.schematic) >= 4 && q.pcb.tracks.empty());
+}
+
+TEST(via_stitching_and_shielding) {
+    // A signal track gets rows of GND vias on both sides at the pitch, clear of it; GND pours on both layers get a
+    // stitching grid inside the area, DRC clean.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20}), r2 = placeR(p, {38, 20});
+    const int g = s.addComponent(ComponentKind::Ground, "", {0, 50});
+    wire(s, r1, "2", r2, "1");
+    wire(s, r1, "1", g, "GND");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 1});
+    addPath(p.pcb, net, 0, 0.25, {padAt(p, r1, 1), padAt(p, r2, 0)});
+    const int sig = p.pcb.tracks[0].id;
+    // Shielding first (no pours yet: the vias float, the message says so).
+    ViaPatternOptions so;
+    so.pitch = 2;
+    const BoardEditResult sh = shieldTracks(p.pcb, s, {sig}, so);
+    CHECK(sh.ok && sh.added >= 16);
+    CHECK(sh.message.find("reach no pour") != std::string::npos);
+    const Track t = p.pcb.tracks[0];
+    for (const auto& v : p.pcb.vias) {
+        CHECK(v.net == s.groundNet());
+        CHECK(trackPointDistance(t, v.position) >= t.width / 2 + v.diameter / 2 + p.pcb.settings.clearance - 1e-6);
+    }
+    CHECK(routingProblems(p) == 0);
+    CHECK(shieldTracks(p.pcb, s, {sig}, so).added == 0);  // no room left at the same places
+    // Stitching needs two layers of pour.
+    CHECK(!stitchVias(p.pcb, s).ok);
+    p.pcb.zones.push_back({"GND", 0, false, 0});
+    p.pcb.zones.push_back({"GND", 1, false, 0});
+    const size_t before = p.pcb.vias.size();
+    ViaPatternOptions st;
+    st.area = Rect(5, 5, 45, 35);
+    st.hasArea = true;
+    const BoardEditResult r = stitchVias(p.pcb, s, st);
+    CHECK(r.ok && r.added >= 40 && p.pcb.vias.size() == before + static_cast<size_t>(r.added));
+    for (const auto& v : r.addedVias) CHECK(st.area.contains(v.position));
+    CHECK(routingProblems(p) == 0);
+    CHECK(netRouted(p, net));
+    CHECK(boardEditJson(r, 2).get("addedVias").size() == static_cast<size_t>(r.added));
+}
+
+TEST(gloss_pulls_routes_tight) {
+    // A route with a needless detour is pulled tight (shorter, still connected, DRC clean); a tight route stays;
+    // locked tracks are left alone.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {36, 20});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 1});
+    const Vec2 from = padAt(p, r1, 1), to = padAt(p, r2, 0);
+    addPath(p.pcb, net, 0, 0.25, {from, {14, from.y}, {14, from.y + 8}, {28, from.y + 8}, {28, from.y}, to});
+    double lenBefore = 0;
+    for (const auto& t : p.pcb.tracks) lenBefore += trackLength(t);
+    const BoardEditResult r = glossTracks(p.pcb, s, {p.pcb.tracks[2].id});
+    CHECK(r.ok && r.added == 1);
+    double lenAfter = 0;
+    for (const auto& t : p.pcb.tracks) lenAfter += trackLength(t);
+    CHECK(lenAfter < lenBefore - 10);
+    CHECK(netRouted(p, net));
+    CHECK(routingProblems(p) == 0);
+    CHECK(acuteWarnings(p) == 0);
+    const BoardEditResult again = glossTracks(p.pcb, s, {p.pcb.tracks[0].id});
+    CHECK(!again.ok && again.added == 0);
+    Project q;
+    const int a = placeR(q, {8, 20}), b = placeR(q, {36, 20});
+    wire(q.schematic, a, "2", b, "1");
+    q.schematicChanged();
+    const int nq = q.schematic.netOf({a, 1});
+    const Vec2 qa = padAt(q, a, 1), qb = padAt(q, b, 0);
+    addPath(q.pcb, nq, 0, 0.25, {qa, {14, qa.y}, {14, qa.y + 8}, {28, qa.y + 8}, {28, qa.y}, qb}, true);
+    CHECK(!glossTracks(q.pcb, q.schematic, {q.pcb.tracks[2].id}).ok);
+}
+
+TEST(router_removes_loops_on_commit) {
+    // An old detour (with a via pair and a stub on it) is replaced by a new direct route: with loop removal the old
+    // tracks and the vias they leave unconnected go, in the same commit; without it everything stays.
+    for (bool remove : {true, false}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {36, 20});
+        wire(s, r1, "2", r2, "1");
+        p.schematicChanged();
+        const int net = s.netOf({r1, 1});
+        const Vec2 from = padAt(p, r1, 1), to = padAt(p, r2, 0);
+        // The detour leaves the pads at 45°, so the new straight route shares no copper with it.
+        addPath(p.pcb, net, 0, 0.25, {from, from + Vec2{3, 3}, {from.x + 3, from.y + 8}, {18, from.y + 8}});
+        addPath(p.pcb, net, 1, 0.25, {{18, from.y + 8}, {26, from.y + 8}});
+        addPath(p.pcb, net, 0, 0.25, {{26, from.y + 8}, {to.x - 3, from.y + 8}, to + Vec2{-3, 3}, to});
+        addPath(p.pcb, net, 0, 0.25, {{from.x + 3, from.y + 8}, {from.x + 3, from.y + 11}});  // a stub on the detour
+        p.pcb.addVia(testVia(p, net, {18, from.y + 8}));
+        p.pcb.addVia(testVia(p, net, {26, from.y + 8}));
+        const size_t oldTracks = p.pcb.tracks.size();
+        CHECK(netRouted(p, net));
+        InteractiveRouter ir(p.pcb, s);
+        RouterOptions o;
+        o.removeLoops = remove;
+        ir.setOptions(o);
+        CHECK(ir.beginRoute(from, 0));
+        ir.moveTo(to);
+        const RouteChanges ch = ir.commit();
+        CHECK(ch.ok);
+        CHECK(netRouted(p, net));
+        CHECK(routingProblems(p) == 0);
+        CHECK(drcCount(p, "DRC_DANGLING_TRACK") == 0 || !remove);
+        if (remove) {
+            CHECK(ch.removedTracks.size() == oldTracks);
+            CHECK(p.pcb.vias.empty() && ch.removedVias.size() == 2);
+            CHECK(p.pcb.tracks.size() == ch.addedTracks.size());
+        } else {
+            CHECK(p.pcb.tracks.size() > oldTracks && p.pcb.vias.size() == 2);
+        }
+    }
+}
+
+extern "C" int sieda_c_api_board_commands_test(void);
+TEST(c_api_board_commands) {
+    const int rc = sieda_c_api_board_commands_test();
+    if (rc != 0) std::printf("    C API board commands test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}

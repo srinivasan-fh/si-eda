@@ -69,4 +69,73 @@ extension DesignStore {
             if !drcResults.isEmpty { runDRC() }
         }
     }
+
+    /// Teardrops on the selected tracks (all tracks when none is selected); when they already have teardrops,
+    /// removes them instead.
+    func toggleTeardrops() {
+        let tracks = commandTracks
+        guard !tracks.isEmpty else {
+            statusMessage = "Teardrops: there are no tracks"
+            return
+        }
+        let ids = selectedTracks.isEmpty ? [] : tracks
+        let remove = ids.isEmpty ? snapshot.tracks.contains { $0.teardrop == true } : hasTeardrops(on: Set(ids))
+        runBoardCommand(remove ? "Removed teardrops" : "Added teardrops",
+                        failure: remove ? "Teardrops: none to remove" : "Teardrops: no pad or via end had room") {
+            $0.teardrops(tracks: ids, remove: remove)
+        }
+    }
+
+    /// Via stitching of the ground net wherever its pours or planes overlap on two or more layers.
+    func stitchVias() {
+        runBoardCommand("Via stitching", failure: "Via stitching: needs ground pours or planes on two layers") {
+            $0.stitchVias()
+        }
+    }
+
+    /// Via shielding: ground vias on both sides of the selected tracks.
+    func shieldSelectedTracks() {
+        guard !selectedTracks.isEmpty else {
+            statusMessage = "Via shielding: select the tracks to shield first"
+            return
+        }
+        let tracks = Array(selectedTracks).sorted()
+        runBoardCommand("Via shielding", failure: "Via shielding: no room for vias beside the tracks") {
+            $0.shieldTracks(tracks)
+        }
+    }
+
+    /// Glossing: pulls the selected routes (all tracks when none is selected) tight.
+    func glossTracks() {
+        let tracks = commandTracks
+        guard !tracks.isEmpty else {
+            statusMessage = "Gloss: there are no tracks"
+            return
+        }
+        runBoardCommand("Gloss", failure: "Gloss: the routes are already as tight as the board allows") {
+            $0.gloss(tracks: tracks)
+        }
+    }
+
+    /// Teardrops whose track end lies on one of `tracks` (a teardrop ends on the track it widens).
+    private func hasTeardrops(on tracks: Set<Int>) -> Bool {
+        let owners = snapshot.tracks.filter { tracks.contains($0.id) && $0.teardrop != true }
+        return snapshot.tracks.contains { drop in
+            guard drop.teardrop == true else { return false }
+            return owners.contains { $0.net == drop.net && $0.layer == drop.layer
+                && $0.distance(to: CGPoint(x: drop.bx, y: drop.by)) <= 1e-4 }
+        }
+    }
+
+    /// Runs one board command as one undo step and reports its message.
+    private func runBoardCommand(_ action: String, failure: String, _ body: (EDAEngine) -> BoardEditResult?) {
+        if routePreview != nil { cancelRoute() }
+        var result: BoardEditResult?
+        let done = performChecked(action, invalidatesAnalysis: false, failureMessage: failure) {
+            result = body($0)
+            return result?.applied == true
+        }
+        if let result, !result.message.isEmpty { statusMessage = result.message }
+        if done, !drcResults.isEmpty { runDRC() }
+    }
 }

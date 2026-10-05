@@ -817,3 +817,7 @@
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "成員：選擇兩個或更多網路。穿過串聯電阻或電容的網路會跨過它們從焊盤量到焊盤。";
 "Any angle" = "任意角度";
 "Route and drag at any angle: the head is one straight track to the pointer" = "以任意角度佈線和拖曳：前端是一條通往指標的直線";
+"Remove loops" = "移除迴路";
+"Finishing a route removes the old path of the net it makes redundant" = "完成佈線時移除該網路因此變得多餘的舊路徑";
+"Auto teardrops" = "自動淚滴";
+"Teardrops where each finished route meets pads and vias" = "在每條完成的佈線與焊盤和過孔相接處加入淚滴";

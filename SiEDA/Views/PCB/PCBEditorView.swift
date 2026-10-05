@@ -141,6 +141,22 @@ struct PCBEditorView: View {
                                 help: "Convert corners to arcs: the selected tracks (click a track, ⇧-click adds), or every track") {
                     store.convertCornersToArcs()
                 }
+                ToolStripButton(systemImage: "drop",
+                                help: "Teardrops where the selected tracks (or every track) meet pads and vias; again removes them") {
+                    store.toggleTeardrops()
+                }
+                ToolStripButton(systemImage: "wand.and.stars",
+                                help: "Gloss: pull the selected routes (or every route) tight and retrace them shorter") {
+                    store.glossTracks()
+                }
+                ToolStripButton(systemImage: "circle.grid.3x3",
+                                help: "Via stitching: ground vias wherever ground pours or planes overlap on two layers") {
+                    store.stitchVias()
+                }
+                ToolStripButton(systemImage: "shield.lefthalf.filled",
+                                help: "Via shielding: ground vias on both sides of the selected tracks") {
+                    store.shieldSelectedTracks()
+                }
                 ToolStripButton(systemImage: "eraser", help: "Clear all tracks and vias") { store.clearRouting() }
                 ToolStripButton(systemImage: "checkmark.seal", help: "Design rule check") {
                     store.runDRC()
@@ -187,6 +203,12 @@ struct PCBEditorView: View {
                         Toggle("Any angle", isOn: $store.routerAnyAngle)
                             .toggleStyle(.checkbox)
                             .help("Route and drag at any angle: the head is one straight track to the pointer")
+                        Toggle("Remove loops", isOn: $store.routerRemoveLoops)
+                            .toggleStyle(.checkbox)
+                            .help("Finishing a route removes the old path of the net it makes redundant")
+                        Toggle("Auto teardrops", isOn: $store.routerTeardrops)
+                            .toggleStyle(.checkbox)
+                            .help("Teardrops where each finished route meets pads and vias")
                         Toggle("Rounded corners", isOn: $store.routerRounded)
                             .toggleStyle(.checkbox)
                             .help("Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only")

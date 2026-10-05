@@ -817,3 +817,7 @@
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them.";
 "Any angle" = "Any angle";
 "Route and drag at any angle: the head is one straight track to the pointer" = "Route and drag at any angle: the head is one straight track to the pointer";
+"Remove loops" = "Remove loops";
+"Finishing a route removes the old path of the net it makes redundant" = "Finishing a route removes the old path of the net it makes redundant";
+"Auto teardrops" = "Auto teardrops";
+"Teardrops where each finished route meets pads and vias" = "Teardrops where each finished route meets pads and vias";

@@ -477,6 +477,7 @@ Json Project::toJson() const {
         j["b"] = vec(t.b);
         if (t.locked) j["locked"] = true;
         if (t.arc) j["mid"] = vec(t.mid);  // true arc a → mid → b (older files have none: straight)
+        if (t.teardrop) j["teardrop"] = true;
         tracks.push(j);
     }
     root["tracks"] = tracks;
@@ -754,6 +755,7 @@ Project Project::fromJson(const Json& root) {
             t.mid = {j.get("mid").get("x").asNumber(), j.get("mid").get("y").asNumber()};
             t.arc = std::isfinite(t.mid.x) && std::isfinite(t.mid.y);
         }
+        t.teardrop = j.get("teardrop").asBool(false);
         p.pcb.addTrack(t);
     }
     for (const auto& j : root.get("vias").items()) {
@@ -993,6 +995,7 @@ Json Project::snapshot() const {
         j["bx"] = t.b.x;
         j["by"] = t.b.y;
         if (t.locked) j["locked"] = true;
+        if (t.teardrop) j["teardrop"] = true;
         if (t.arc) {
             // True arc: the 3-point form plus centre, radius and angles (radians, sweep > 0 counter-clockwise) for
             // drawing; a degenerate arc reports no centre and is drawn straight.

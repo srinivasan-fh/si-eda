@@ -725,7 +725,7 @@ struct Base {
         trackFixed.resize(tracks.size());
         // Arcs stay where they are (the shove engine moves straight lines), like locked tracks.
         for (size_t i = 0; i < tracks.size(); ++i)
-            trackFixed[i] = tracks[i].locked || meshNets.count(tracks[i].net) || tracks[i].arc;
+            trackFixed[i] = tracks[i].locked || meshNets.count(tracks[i].net) || tracks[i].arc || tracks[i].teardrop;
         viaFixed.resize(vias.size());
         for (size_t i = 0; i < vias.size(); ++i) {
             bool inPad = false;
@@ -2061,6 +2061,7 @@ Json trackJson(const Track& t) {
     j["ay"] = t.a.y;
     j["bx"] = t.b.x;
     j["by"] = t.b.y;
+    if (t.teardrop) j["teardrop"] = true;
     if (t.arc) {  // true arc (see the snapshot's tracks)
         j["arc"] = true;
         j["mx"] = t.mid.x;
@@ -2149,6 +2150,57 @@ RouteChanges applyWorld(PcbLayout& pcb, const World& w, const std::vector<Track>
         if (!w.goneV[w.baseV() + k] && !w.fixAddV[k]) ch.addedVias.push_back(pcb.addVia(w.addV[k]));
     ch.ok = true;
     return ch;
+}
+
+/// Pads of `net` partitioned by the copper (tracks and vias of the net, minus `without`): label[i] is the smallest pad
+/// index (among `padsOfNet`) joined to pad i.
+std::vector<size_t> padPartition(const std::vector<Pad>& pads, const std::vector<size_t>& padsOfNet,
+                                 const std::vector<Track>& tracks, const std::vector<Via>& vias, int net,
+                                 const std::set<int>& without) {
+    std::vector<const Track*> ts;
+    for (const auto& t : tracks)
+        if (t.net == net && !without.count(t.id)) ts.push_back(&t);
+    std::vector<const Via*> vs;
+    for (const auto& v : vias)
+        if (v.net == net) vs.push_back(&v);
+    const size_t np = padsOfNet.size(), nt = ts.size(), nv = vs.size();
+    std::vector<size_t> parent(np + nt + nv);
+    for (size_t i = 0; i < parent.size(); ++i) parent[i] = i;
+    std::function<size_t(size_t)> find = [&](size_t x) {
+        while (parent[x] != x) x = parent[x] = parent[parent[x]];
+        return x;
+    };
+    auto unite = [&](size_t a, size_t b) { parent[find(a)] = find(b); };
+    for (size_t i = 0; i < nt; ++i) {
+        const Track& t = *ts[i];
+        for (size_t p = 0; p < np; ++p) {
+            const Pad& pd = pads[padsOfNet[p]];
+            if (!pd.onLayer(t.layer)) continue;
+            const bool touch = pd.round ? trackPointDistance(t, pd.position) <= std::min(pd.size.x, pd.size.y) / 2 + t.width / 2 - 1e-6
+                                        : trackRectDistance(t, pd.bounds()) <= t.width / 2 - 1e-6;
+            if (touch) unite(i + np, p);
+        }
+        for (size_t j = i + 1; j < nt; ++j)
+            if (ts[j]->layer == t.layer && trackTrackDistance(t, *ts[j]) <= std::min(t.width, ts[j]->width) / 2) unite(i + np, j + np);
+        for (size_t v = 0; v < nv; ++v)
+            if (vs[v]->spans(t.layer) && trackPointDistance(t, vs[v]->position) <= vs[v]->diameter / 2) unite(i + np, v + np + nt);
+    }
+    for (size_t v = 0; v < nv; ++v)
+        for (size_t p = 0; p < np; ++p) {
+            const Pad& pd = pads[padsOfNet[p]];
+            if ((pd.throughHole || vs[v]->spans(pd.smdLayer)) && padDistance(pd, vs[v]->position) <= vs[v]->diameter / 2 - 1e-6)
+                unite(v + np + nt, p);
+        }
+    std::vector<size_t> label(np);
+    for (size_t p = 0; p < np; ++p) {
+        label[p] = p;
+        for (size_t q = 0; q < p; ++q)
+            if (find(q) == find(p)) {
+                label[p] = q;
+                break;
+            }
+    }
+    return label;
 }
 
 }  // namespace
@@ -4172,9 +4224,130 @@ struct InteractiveRouter::Impl {
             }
             if (!covered) kept.push_back(t);
         }
+        std::unique_ptr<PcbLayout> before;
+        if (opt.removeLoops) before = std::make_unique<PcbLayout>(pcb);
         ch = applyWorld(pcb, committed, kept, routeVias);
+        if (before) removeLoops(*before, ch);
+        if (opt.autoTeardrops && !ch.addedTracks.empty()) {
+            TeardropOptions to;
+            to.trackIds = ch.addedTracks;
+            const BoardEditResult td = addTeardrops(pcb, sch, to);
+            for (int id : td.changes.addedTracks) ch.addedTracks.push_back(id);
+        }
+        std::vector<Track> pruned;
+        pruneTeardrops(pcb, sch, &pruned);
+        for (const Track& t : pruned) {
+            const auto it = std::find(ch.addedTracks.begin(), ch.addedTracks.end(), t.id);
+            if (it != ch.addedTracks.end())
+                ch.addedTracks.erase(it);
+            else
+                ch.removedTracks.push_back(t);
+        }
         reset();
         return ch;
+    }
+
+    /// Loop removal after a commit: old tracks of the routed nets that were needed before (removing one split the
+    /// net's pads) but are redundant now are removed one by one, then vias of those nets left touching nothing.
+    void removeLoops(const PcbLayout& before, RouteChanges& ch) {
+        const std::set<int> added(ch.addedTracks.begin(), ch.addedTracks.end());
+        std::set<int> nets;
+        for (const auto& t : pcb.tracks)
+            if (added.count(t.id) && t.net >= 0) nets.insert(t.net);
+        if (nets.empty()) return;
+        std::set<std::string> poured;
+        for (const auto& z : pcb.zones) poured.insert(z.net);
+        const auto& pads = base->pads;
+        std::set<int> goneIds;
+        for (int net : nets) {
+            if (net >= static_cast<int>(sch.nets().size()) || poured.count(sch.nets()[static_cast<size_t>(net)].name)) continue;
+            std::vector<size_t> padsOfNet;
+            for (size_t i = 0; i < pads.size(); ++i)
+                if (pads[i].net == net) padsOfNet.push_back(i);
+            if (padsOfNet.size() < 2) continue;
+            std::vector<int> cand;
+            size_t count = 0;
+            for (const auto& t : pcb.tracks)
+                if (t.net == net) {
+                    ++count;
+                    if (!added.count(t.id) && !t.locked && !t.arc && !t.teardrop) cand.push_back(t.id);
+                }
+            if (cand.empty() || count > 600) continue;
+            const std::set<int> none;
+            const auto ref = padPartition(pads, padsOfNet, pcb.tracks, pcb.vias, net, none);
+            const auto refBefore = padPartition(pads, padsOfNet, before.tracks, before.vias, net, none);
+            std::set<int> gone;
+            for (int id : cand) {
+                const std::set<int> one{id};
+                if (padPartition(pads, padsOfNet, before.tracks, before.vias, net, one) == refBefore) continue;  // was spare
+                std::set<int> trial = gone;
+                trial.insert(id);
+                if (padPartition(pads, padsOfNet, pcb.tracks, pcb.vias, net, trial) == ref) gone.insert(id);
+            }
+            // The rest of a removed path (stubs between removed tracks) goes too.
+            bool more = !gone.empty();
+            while (more) {
+                more = false;
+                for (int id : cand) {
+                    if (gone.count(id)) continue;
+                    const Track* t = nullptr;
+                    for (const auto& o : pcb.tracks)
+                        if (o.id == id) t = &o;
+                    if (t == nullptr) continue;
+                    // A stub: one end touches nothing kept of the net but removed tracks.
+                    for (const Vec2 e : {t->a, t->b}) {
+                        bool kept = false, touchedGone = false;
+                        for (const auto& o : pcb.tracks) {
+                            if (o.id == id || o.net != net || o.layer != t->layer || trackPointDistance(o, e) > o.width / 2) continue;
+                            if (gone.count(o.id))
+                                touchedGone = true;
+                            else
+                                kept = true;
+                        }
+                        for (const auto& v : pcb.vias) kept = kept || (v.net == net && (v.position - e).length() <= v.diameter / 2);
+                        for (size_t p : padsOfNet) kept = kept || (pads[p].onLayer(t->layer) && padDistance(pads[p], e) <= 0);
+                        if (touchedGone && !kept) {
+                            std::set<int> trial = gone;
+                            trial.insert(id);
+                            if (padPartition(pads, padsOfNet, pcb.tracks, pcb.vias, net, trial) == ref) {
+                                gone.insert(id);
+                                more = true;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            goneIds.insert(gone.begin(), gone.end());
+        }
+        if (goneIds.empty()) return;
+        std::set<int> touchedVias;
+        for (const auto& t : pcb.tracks)
+            if (goneIds.count(t.id))
+                for (const auto& v : pcb.vias)
+                    if (v.net == t.net && v.spans(t.layer) && trackPointDistance(t, v.position) <= v.diameter / 2) touchedVias.insert(v.id);
+        for (const auto& t : pcb.tracks)
+            if (goneIds.count(t.id)) ch.removedTracks.push_back(t);
+        pcb.tracks.erase(std::remove_if(pcb.tracks.begin(), pcb.tracks.end(), [&](const Track& t) { return goneIds.count(t.id) > 0; }),
+                         pcb.tracks.end());
+        std::set<int> goneVias;
+        for (const auto& v : pcb.vias) {
+            if (!touchedVias.count(v.id)) continue;
+            bool used = false;
+            for (const auto& t : pcb.tracks) used = used || (t.net == v.net && v.spans(t.layer) && trackPointDistance(t, v.position) <= v.diameter / 2);
+            for (const auto& p : pads) used = used || (p.net == v.net && padDistance(p, v.position) <= v.diameter / 2);
+            if (!used) goneVias.insert(v.id);
+        }
+        for (const auto& v : pcb.vias)
+            if (goneVias.count(v.id)) {
+                const auto it = std::find(ch.addedVias.begin(), ch.addedVias.end(), v.id);
+                if (it != ch.addedVias.end())
+                    ch.addedVias.erase(it);
+                else
+                    ch.removedVias.push_back(v);
+            }
+        pcb.vias.erase(std::remove_if(pcb.vias.begin(), pcb.vias.end(), [&](const Via& v) { return goneVias.count(v.id) > 0; }),
+                       pcb.vias.end());
     }
 
     /// What the session's own copper (route, dragged track or via) violates in the current overlay.
@@ -5335,6 +5508,403 @@ Json arcCornersJson(const ArcCornersResult& r) {
     return j;
 }
 
+// ========================================================================================== board commands
+
+namespace {
+
+std::vector<Track> straightTracks(const std::vector<Vec2>& pts, const Track& proto) {
+    std::vector<Track> out;
+    for (size_t k = 0; k + 1 < pts.size(); ++k) {
+        if ((pts[k + 1] - pts[k]).length() < 1e-9) continue;
+        Track t = proto;
+        t.id = -1;
+        t.locked = false;
+        t.arc = false;
+        t.teardrop = false;
+        t.a = pts[k];
+        t.b = pts[k + 1];
+        out.push_back(t);
+    }
+    return out;
+}
+
+int netByName(const Schematic& sch, const std::string& name) {
+    if (name.empty()) return sch.groundNet();
+    for (const auto& n : sch.nets())
+        if (n.name == name) return n.index;
+    return -1;
+}
+
+/// A straight-line pull-tight of a polyline with 45° shortcuts that `clear` accepts and make no acute corner.
+std::vector<Vec2> tightenPolyline(const std::vector<Vec2>& pts, const std::function<bool(const std::vector<Vec2>&)>& clear) {
+    const size_t n = pts.size();
+    if (n < 3) return pts;
+    std::vector<Vec2> out{pts[0]};
+    size_t i = 0;
+    while (i + 1 < n) {
+        bool done = false;
+        for (size_t j = n - 1; j >= i + 2 && !done; --j) {
+            double orig = 0;
+            for (size_t k = i; k < j; ++k) orig += (pts[k + 1] - pts[k]).length();
+            for (const auto& link : postureLinks(pts[i], pts[j], RoutePosture::Diagonal45, false)) {
+                if (link.size() < 2 || pathLength(link) >= orig - 1e-6) continue;
+                const Vec2 inDir = out.size() >= 2 ? out.back() - out[out.size() - 2] : Vec2{};
+                if (acuteJoin(inDir, link[1] - link[0])) continue;
+                if (j + 1 < n && acuteJoin(link.back() - link[link.size() - 2], pts[j + 1] - pts[j])) continue;
+                if (!clear(link)) continue;
+                out.insert(out.end(), link.begin() + 1, link.end());
+                i = j;
+                done = true;
+                break;
+            }
+        }
+        if (!done) {
+            out.push_back(pts[i + 1]);
+            ++i;
+        }
+    }
+    return simplifyPath(out);
+}
+
+BoardEditResult finishEdit(PcbLayout& pcb, World& w, BoardEditResult& r, const std::vector<Track>& tracks,
+                           const std::vector<Via>& vias, bool apply) {
+    r.addedTracks = tracks;
+    r.addedVias = vias;
+    for (size_t i = 0; i < w.baseT(); ++i)
+        if (w.goneT[i]) r.removedTracks.push_back(w.b->tracks[i].id);
+    for (size_t i = 0; i < w.baseV(); ++i)
+        if (w.goneV[i]) r.removedVias.push_back(w.b->vias[i].id);
+    r.ok = !tracks.empty() || !vias.empty() || !r.removedTracks.empty();
+    if (r.ok && apply) {
+        r.changes = applyWorld(pcb, w, tracks, vias);
+        r.applied = true;
+    }
+    return r;
+}
+
+}  // namespace
+
+BoardEditResult addTeardrops(PcbLayout& pcb, const Schematic& sch, const TeardropOptions& opt) {
+    BoardEditResult r;
+    Base B(pcb, sch);
+    World w(&B);
+    const std::set<int> want(opt.trackIds.begin(), opt.trackIds.end());
+    const double frac = std::clamp(opt.length, 0.3, 3.0);
+    std::vector<Track> added;
+    std::vector<size_t> found;
+    for (size_t i = 0; i < B.tracks.size(); ++i) {
+        const Track t = B.tracks[i];
+        if (t.teardrop || t.arc || t.net < 0 || (!want.empty() && !want.count(t.id))) continue;
+        const double L = trackLength(t);
+        if (L < 1e-6) continue;
+        for (int e = 0; e < 2; ++e) {
+            const Vec2 E = e == 0 ? t.a : t.b;
+            const Vec2 u = unit((e == 0 ? t.b : t.a) - E), nrm{-u.y, u.x};
+            // The via or pad the end sits in: its size across the track and its depth along it.
+            double across = 0, depth = 0;
+            Vec2 C;
+            bool isVia = false;
+            long padIdx = -1;
+            if (opt.vias)
+                for (size_t v = 0; v < B.vias.size() && across <= 0; ++v) {
+                    const Via& via = B.vias[v];
+                    if (via.net == t.net && via.spans(t.layer) && (via.position - E).length() <= via.diameter / 2 - 1e-9) {
+                        across = depth = via.diameter;
+                        C = via.position;
+                        isVia = true;
+                    }
+                }
+            if (across <= 0 && opt.pads) {
+                w.padsIn(Rect::centered(E, 1e-3, 1e-3), found);
+                for (size_t pi : found) {
+                    const Pad& p = B.pads[pi];
+                    if (p.net != t.net || !p.onLayer(t.layer) || padDistance(p, E) > 0) continue;
+                    across = p.round ? std::min(p.size.x, p.size.y) : std::fabs(p.size.x * u.y) + std::fabs(p.size.y * u.x);
+                    depth = p.round ? across : std::fabs(p.size.x * u.x) + std::fabs(p.size.y * u.y);
+                    C = p.position;
+                    padIdx = static_cast<long>(pi);
+                    break;
+                }
+            }
+            if (across <= 0 || t.width >= 0.9 * across) continue;
+            // Already has a teardrop at this end.
+            bool has = false;
+            auto mine = [&](const Track& o) {
+                return o.teardrop && o.net == t.net && o.layer == t.layer && (o.a - E).length() <= across / 2 + 1e-6 &&
+                       trackPointDistance(t, o.b) <= 1e-6;
+            };
+            for (const auto& o : B.tracks) has = has || mine(o);
+            for (const auto& o : added) has = has || mine(o);
+            if (has) continue;
+            const double edge = std::max(0.0, (C - E).dot(u) + depth / 2);
+            const double half = across / 2 - t.width / 2;
+            const double step = 0.8 * t.width;
+            const int K = std::max(1, static_cast<int>(std::ceil(half / step)));
+            bool ok = false;
+            for (double scale : {1.0, 0.5}) {
+                double ltd = frac * across * scale;
+                ltd = std::min(ltd, 0.8 * L - edge);
+                if (ltd < t.width) break;
+                std::vector<Track> lines;
+                int idx = 0;
+                for (int k = 1; k <= K; ++k)
+                    for (double sgn : {1.0, -1.0}) {
+                        const double o = sgn * std::min(k * step, half);
+                        Track td = t;
+                        td.id = -1;
+                        td.locked = false;
+                        td.teardrop = true;
+                        td.a = E + nrm * o;
+                        td.b = E + u * (edge + ltd - 0.02 * idx++);  // staggered ends: no two lines share one
+                        lines.push_back(td);
+                    }
+                bool fits = true;
+                for (const Track& td : lines) {
+                    const bool inside = isVia ? (td.a - C).length() <= across / 2 - td.width / 2 + 1e-9
+                                              : padDistance(B.pads[static_cast<size_t>(padIdx)], td.a) <= 0;
+                    fits = fits && inside && !trackHits(w, {t.net}, t.layer, td, td.width / 2, nullptr);
+                }
+                if (!fits) continue;
+                for (const Track& td : lines) {
+                    w.addTrack(td, true);
+                    added.push_back(td);
+                }
+                ok = true;
+                break;
+            }
+            if (ok)
+                ++r.added;
+            else
+                ++r.skipped;
+        }
+    }
+    finishEdit(pcb, w, r, added, {}, opt.apply);
+    r.message = std::to_string(r.added) + (r.added == 1 ? " teardrop" : " teardrops") +
+                (r.skipped > 0 ? ", " + std::to_string(r.skipped) + " without room" : std::string());
+    return r;
+}
+
+BoardEditResult removeTeardrops(PcbLayout& pcb, const std::vector<int>& trackIds) {
+    BoardEditResult r;
+    const std::set<int> want(trackIds.begin(), trackIds.end());
+    std::vector<const Track*> owners;
+    for (const auto& t : pcb.tracks)
+        if (!t.teardrop && want.count(t.id)) owners.push_back(&t);
+    std::set<int> gone;
+    for (const auto& t : pcb.tracks) {
+        if (!t.teardrop) continue;
+        bool hit = want.empty();
+        for (const Track* o : owners)
+            hit = hit || (o->net == t.net && o->layer == t.layer && trackPointDistance(*o, t.b) <= 1e-6);
+        if (hit) gone.insert(t.id);
+    }
+    for (const auto& t : pcb.tracks)
+        if (gone.count(t.id)) r.changes.removedTracks.push_back(t);
+    pcb.tracks.erase(std::remove_if(pcb.tracks.begin(), pcb.tracks.end(), [&](const Track& t) { return gone.count(t.id) > 0; }),
+                     pcb.tracks.end());
+    r.removedTracks.assign(gone.begin(), gone.end());
+    r.added = static_cast<int>(gone.size());
+    r.ok = !gone.empty();
+    r.applied = r.ok;
+    r.changes.ok = true;
+    r.message = std::to_string(gone.size()) + " teardrop track" + (gone.size() == 1 ? "" : "s") + " removed";
+    return r;
+}
+
+int pruneTeardrops(PcbLayout& pcb, const Schematic& sch, std::vector<Track>* removed) {
+    bool any = false;
+    for (const auto& t : pcb.tracks) any = any || t.teardrop;
+    if (!any) return 0;
+    const auto pads = pcb.pads(sch);
+    std::set<int> gone;
+    for (const auto& t : pcb.tracks) {
+        if (!t.teardrop) continue;
+        bool onTrack = false, inCopper = false;
+        for (const auto& o : pcb.tracks)
+            onTrack = onTrack || (!o.teardrop && o.net == t.net && o.layer == t.layer && trackPointDistance(o, t.b) <= 1e-6);
+        for (const auto& v : pcb.vias) inCopper = inCopper || (v.net == t.net && v.spans(t.layer) && (v.position - t.a).length() <= v.diameter / 2);
+        for (const auto& p : pads) inCopper = inCopper || (p.net == t.net && p.onLayer(t.layer) && padDistance(p, t.a) <= 0);
+        if (!onTrack || !inCopper) gone.insert(t.id);
+    }
+    if (removed)
+        for (const auto& t : pcb.tracks)
+            if (gone.count(t.id)) removed->push_back(t);
+    pcb.tracks.erase(std::remove_if(pcb.tracks.begin(), pcb.tracks.end(), [&](const Track& t) { return gone.count(t.id) > 0; }),
+                     pcb.tracks.end());
+    return static_cast<int>(gone.size());
+}
+
+BoardEditResult stitchVias(PcbLayout& pcb, const Schematic& sch, const ViaPatternOptions& opt) {
+    BoardEditResult r;
+    const int net = netByName(sch, opt.net);
+    if (net < 0) {
+        r.message = "No such net";
+        return r;
+    }
+    const auto& fills = pcb.zoneFills(sch);
+    std::vector<const ZoneFill*> own;
+    for (const auto& f : fills)
+        if (f.net == net && f.islands > 0) own.push_back(&f);
+    std::set<int> layers;
+    for (const ZoneFill* f : own) layers.insert(f->layer);
+    if (layers.size() < 2) {
+        r.message = "Stitching needs pours or planes of the net on two layers";
+        return r;
+    }
+    Base B(pcb, sch);
+    World w(&B);
+    const BoardSettings& s = pcb.settings;
+    const double pitch = opt.pitch > 0 ? std::max(opt.pitch, s.viaDiameter + s.clearance) : 2.0;
+    const Rect area = opt.hasArea ? opt.area : Rect(0, 0, s.width, s.height);
+    Via proto;
+    proto.net = net;
+    proto.drill = s.viaDrill;
+    proto.diameter = s.viaDiameter;
+    std::vector<Via> added;
+    for (double y = area.y0 + pitch / 2; y <= area.y1 - pitch / 2 + 1e-9; y += pitch)
+        for (double x = area.x0 + pitch / 2; x <= area.x1 - pitch / 2 + 1e-9; x += pitch) {
+            Via v = proto;
+            v.position = {x, y};
+            if (!s.contains(v.position)) continue;
+            std::set<int> on;
+            for (const ZoneFill* f : own)
+                if (f->islandNear(v.position, v.diameter / 2) >= 0 && f->islandAt(v.position) >= 0) on.insert(f->layer);
+            if (on.size() < 2) continue;
+            if (viaHits(w, v, SIZE_MAX, nullptr)) {
+                ++r.skipped;
+                continue;
+            }
+            w.addVia(v, true);
+            added.push_back(v);
+        }
+    r.added = static_cast<int>(added.size());
+    finishEdit(pcb, w, r, {}, added, opt.apply);
+    r.message = std::to_string(r.added) + " stitching vias" +
+                (r.skipped > 0 ? ", " + std::to_string(r.skipped) + " grid points without room" : std::string());
+    return r;
+}
+
+BoardEditResult shieldTracks(PcbLayout& pcb, const Schematic& sch, const std::vector<int>& trackIds, const ViaPatternOptions& opt) {
+    BoardEditResult r;
+    const int net = netByName(sch, opt.net);
+    if (net < 0) {
+        r.message = "No ground net to shield with";
+        return r;
+    }
+    Base B(pcb, sch);
+    World w(&B);
+    const BoardSettings& s = pcb.settings;
+    const double pitch = opt.pitch > 0 ? std::max(opt.pitch, s.viaDiameter + s.clearance) : 1.0;
+    Via proto;
+    proto.net = net;
+    proto.drill = s.viaDrill;
+    proto.diameter = s.viaDiameter;
+    const std::set<int> want(trackIds.begin(), trackIds.end());
+    std::vector<Via> added;
+    int floating = 0;
+    const auto& fills = pcb.zoneFills(sch);
+    for (const auto& t : B.tracks) {
+        if (!want.count(t.id) || t.net == net || t.teardrop) continue;
+        const double L = trackLength(t);
+        if (L < pitch / 2) continue;
+        const double d = opt.offset > 0 ? opt.offset : t.width / 2 + B.clearance(t.net, net) + proto.diameter / 2 + 1e-3;
+        for (double at = pitch / 2; at <= L - pitch / 4 + 1e-9; at += pitch) {
+            const double f = at / L;
+            const Vec2 p = trackPointAt(t, f);
+            const Vec2 tan = unit(trackPointAt(t, std::min(1.0, f + 1e-4)) - trackPointAt(t, std::max(0.0, f - 1e-4)));
+            const Vec2 nrm{-tan.y, tan.x};
+            for (double side : {1.0, -1.0}) {
+                Via v = proto;
+                v.position = p + nrm * (side * d);
+                if (viaHits(w, v, SIZE_MAX, nullptr)) {
+                    ++r.skipped;
+                    continue;
+                }
+                bool connected = false;
+                for (const auto& z : fills) connected = connected || (z.net == net && z.islandAt(v.position) >= 0);
+                floating += connected ? 0 : 1;
+                w.addVia(v, true);
+                added.push_back(v);
+            }
+        }
+    }
+    r.added = static_cast<int>(added.size());
+    finishEdit(pcb, w, r, {}, added, opt.apply);
+    r.message = std::to_string(r.added) + " shielding vias" +
+                (r.skipped > 0 ? ", " + std::to_string(r.skipped) + " places without room" : std::string()) +
+                (floating > 0 ? "; " + std::to_string(floating) + " reach no pour or plane of the net yet" : std::string());
+    return r;
+}
+
+BoardEditResult glossTracks(PcbLayout& pcb, const Schematic& sch, const std::vector<int>& trackIds, const GlossOptions& opt) {
+    BoardEditResult r;
+    Base B(pcb, sch);
+    World w(&B);
+    const std::set<int> want(trackIds.begin(), trackIds.end());
+    std::set<size_t> seen;
+    std::vector<Track> added;
+    double saved = 0;
+    for (size_t i = 0; i < B.tracks.size(); ++i) {
+        const Track& t = B.tracks[i];
+        if (!want.count(t.id) || seen.count(i) || B.trackFixed[i] || t.teardrop || t.net < 0) continue;
+        const Line L = extractLine(w, i);
+        for (size_t sgm : L.segs) seen.insert(sgm);
+        bool skip = false;
+        for (size_t sgm : L.segs) skip = skip || B.tracks[sgm].teardrop || B.tracks[sgm].arc;
+        if (skip) continue;
+        const double orig = pathLength(L.pts);
+        for (size_t sgm : L.segs) w.goneT[sgm] = 1;
+        auto clear = [&](const std::vector<Vec2>& q) { return pathClear(w, {L.net}, L.layer, q, L.width / 2); };
+        std::vector<Vec2> better = tightenPolyline(L.pts, clear);
+        if (opt.retrace) {
+            const GridPath g = gridRoute(w, {L.net}, L.layer, L.width / 2, L.pts.front(), L.pts.back(),
+                                         RoutePosture::Diagonal45, Vec2{});
+            if (g.reached && g.pts.size() >= 2 && samePoint(g.pts.front(), L.pts.front(), 1e-9) &&
+                samePoint(g.pts.back(), L.pts.back(), 1e-9) && pathLength(g.pts) < pathLength(better) - 1e-3 && clear(g.pts))
+                better = g.pts;
+        }
+        const double now = pathLength(better);
+        if (now < orig - 1e-4) {
+            std::vector<size_t> idx;
+            const std::vector<Track> news = straightTracks(better, B.tracks[L.segs.front()]);
+            for (const Track& nt : news) idx.push_back(w.addTrack(nt, true));
+            if (newAcuteJoins(w).empty()) {
+                added.insert(added.end(), news.begin(), news.end());
+                saved += orig - now;
+                ++r.added;
+                continue;
+            }
+            for (size_t k : idx) w.goneT[k] = 1;
+        }
+        for (size_t sgm : L.segs) w.goneT[sgm] = 0;
+    }
+    finishEdit(pcb, w, r, added, {}, opt.apply);
+    char buf[120];
+    std::snprintf(buf, sizeof buf, "%d line%s improved, %.2f mm shorter", r.added, r.added == 1 ? "" : "s", saved);
+    r.message = r.added > 0 ? buf : "The selected lines are already as tight as the board allows";
+    return r;
+}
+
+Json boardEditJson(const BoardEditResult& r, int layerCount) {
+    Json j = Json::object();
+    j["ok"] = r.ok;
+    j["message"] = r.message;
+    j["added"] = r.added;
+    j["skipped"] = r.skipped;
+    j["applied"] = r.applied;
+    Json ts = Json::array(), vs = Json::array(), rt = Json::array(), rv = Json::array();
+    for (const Track& t : r.addedTracks) ts.push(trackJson(t));
+    for (const Via& v : r.addedVias) vs.push(viaJson(v, layerCount));
+    for (int id : r.removedTracks) rt.push(id);
+    for (int id : r.removedVias) rv.push(id);
+    j["addedTracks"] = ts;
+    j["addedVias"] = vs;
+    j["removedTracks"] = rt;
+    j["removedVias"] = rv;
+    j["changes"] = routeChangesJson(r.changes);
+    return j;
+}
+
 // ================================================================================================= JSON
 
 RouterOptions routerOptionsFromJson(const Json& j, RouterOptions o) {
@@ -5359,6 +5929,8 @@ RouterOptions routerOptionsFromJson(const Json& j, RouterOptions o) {
     if (vt == "auto") o.viaType = RouterViaType::Auto;
     if (j.has("cornerRadius")) o.cornerRadius = j.get("cornerRadius").asNumber(o.cornerRadius);
     if (j.has("arcCorners")) o.arcCorners = j.get("arcCorners").asBool(o.arcCorners);
+    if (j.has("removeLoops")) o.removeLoops = j.get("removeLoops").asBool(o.removeLoops);
+    if (j.has("teardrops")) o.autoTeardrops = j.get("teardrops").asBool(o.autoTeardrops);
     if (j.has("shoveLimit")) o.shoveLimit = std::clamp(j.get("shoveLimit").asInt(o.shoveLimit), 1, 10000);
     return o;
 }

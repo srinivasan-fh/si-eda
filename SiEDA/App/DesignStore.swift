@@ -1549,9 +1549,20 @@ final class DesignStore: ObservableObject {
     /// Multi-route: start points picked with ⇧-click in the Route tool; the next plain click routes them together.
     @Published var multiStarts: [CGPoint] = []
 
+    /// Loop removal: finishing a route removes the old path it makes redundant (and vias left unconnected).
+    @Published var routerRemoveLoops = true {
+        didSet { if routerRemoveLoops != oldValue { applyRouterOptions() } }
+    }
+
+    /// Teardrops on every finished route where it meets pads and vias.
+    @Published var routerTeardrops = false {
+        didSet { if routerTeardrops != oldValue { applyRouterOptions() } }
+    }
+
     private var routerOptions: String {
         EDAEngine.routingOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType, rounded: routerRounded,
-                                 arcs: routerArcs, anyAngle: routerAnyAngle)
+                                 arcs: routerArcs, anyAngle: routerAnyAngle, removeLoops: routerRemoveLoops,
+                                 teardrops: routerTeardrops)
     }
 
     /// Shows a router reply: a refused step keeps the route and reports why.
