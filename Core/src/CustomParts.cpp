@@ -115,6 +115,18 @@ Json customPartSpecToJson(const CustomPartSpec& s) {
         sym["pins"] = sp;
         j["symbolLayout"] = sym;  // "symbol" is the generated geometry in customPartToJson
     }
+    if (!s.units.empty()) {  // only for multi-unit parts, so other parts keep their ids
+        Json units = Json::array();
+        for (const auto& u : s.units) {
+            Json uj = Json::object();
+            uj["name"] = u.name;
+            Json pins = Json::array();
+            for (const auto& p : u.pins) pins.push(p);
+            uj["pins"] = pins;
+            units.push(uj);
+        }
+        j["units"] = units;
+    }
     if (!s.model.empty()) {  // only when present, so ids of model-less parts stay stable
         Json m = Json::object();
         if (s.model.hasRegulator) {
@@ -274,6 +286,18 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
         if (p.name.empty()) p.name = p.number;
         if (p.number.empty()) p.number = std::to_string(s.pins.size() + 1);
         s.pins.push_back(p);
+    }
+    for (const auto& uj : j.get("units").items()) {
+        UnitSpec u;
+        u.name = trim(uj.get("name").asString(""));
+        for (const auto& pj : uj.get("pins").items())
+            u.pins.push_back(trim(pj.isNumber() ? std::to_string(pj.asInt()) : pj.asString("")));
+        if (u.name.empty() || u.name.size() > 8) throw JsonError("Every unit needs a name of 1…8 characters.");
+        if (u.pins.empty() || u.pins.size() > 512) throw JsonError("Unit " + u.name + " needs 1…512 pins.");
+        for (const auto& other : s.units)
+            if (other.name == u.name) throw JsonError("Duplicate unit name " + u.name + ".");
+        if (s.units.size() >= 32) throw JsonError("A part has at most 32 units.");
+        s.units.push_back(u);
     }
     const Json& sym = j.get("symbolLayout");
     if (sym.isObject()) {
@@ -823,6 +847,57 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
     }
     part->footprint = fp;
 
+    if (!spec.units.empty()) {
+        // Multi-unit part: one symbol per unit, generated from a part made of the unit's pins (its own layout taken
+        // from the part's symbol layout where that places every pin, else arranged by pin type).
+        std::vector<UnitSpec> units = spec.units;
+        std::set<std::string> assigned;
+        for (const auto& u : units)
+            for (const auto& number : u.pins) {
+                if (spec.pinIndex(number) < 0) throw JsonError("Unit " + u.name + " names pin " + number + ", which the part does not have.");
+                assigned.insert(upper(number));
+            }
+        UnitSpec common;
+        for (const auto& p : spec.pins)
+            if (!assigned.count(upper(p.number))) common.pins.push_back(p.number);
+        if (!common.pins.empty()) {
+            common.name = "P";
+            for (int k = 2; std::any_of(units.begin(), units.end(), [&](const UnitSpec& u) { return u.name == common.name; }); ++k)
+                common.name = "P" + std::to_string(k);
+            units.push_back(common);
+        }
+        for (const auto& u : units) {
+            CustomPartSpec sub;
+            sub.name = spec.name + " unit " + u.name;
+            sub.refPrefix = spec.refPrefix;
+            sub.package.type = "HEADER";
+            PartUnitDef unit;
+            unit.name = u.name;
+            std::set<std::string> seen;
+            for (const auto& number : u.pins) {
+                const int index = spec.pinIndex(number);
+                if (index < 0 || !seen.insert(upper(number)).second) continue;
+                sub.pins.push_back(spec.pins[static_cast<size_t>(index)]);
+                unit.pins.push_back(index);
+            }
+            for (const auto& sp : spec.symbol.pins)
+                if (seen.count(upper(sp.number))) sub.symbol.pins.push_back(sp);
+            if (sub.symbol.pins.size() != sub.pins.size()) sub.symbol = autoArrangeSymbol(sub, false);
+            unit.power = std::all_of(sub.pins.begin(), sub.pins.end(), [](const CustomPin& p) {
+                return p.type == PinType::PowerIn || p.type == PinType::PowerOut;
+            });
+            const auto generated = registerPart(sub);
+            unit.def = generated->def;
+            unit.def.kind = ComponentKind::PartUnit;
+            unit.def.footprint.clear();
+            unit.def.simulated = false;
+            unit.def.name = spec.name;
+            unit.halfWidth = generated->symbolHalfWidth;
+            unit.halfHeight = generated->symbolHalfHeight;
+            part->units.push_back(unit);
+        }
+    }
+
     std::lock_guard<std::mutex> lock(mutex_);
     auto [it, inserted] = parts_.emplace(part->id, part);
     return it->second;
@@ -1113,6 +1188,32 @@ Json customPartToJson(const CustomPart& part) {
     }
     symbol["pins"] = pins;
     j["symbol"] = symbol;
+    if (!part.units.empty()) {
+        Json units = Json::array();
+        for (const auto& u : part.units) {
+            Json uj = Json::object();
+            uj["name"] = u.name;
+            uj["power"] = u.power;
+            Json us = Json::object();
+            us["halfWidth"] = u.halfWidth;
+            us["halfHeight"] = u.halfHeight;
+            Json ups = Json::array();
+            for (const auto& p : u.def.pins) {
+                Json pj = Json::object();
+                pj["name"] = p.name;
+                pj["number"] = p.number;
+                pj["type"] = pinTypeName(static_cast<PinType>(p.type));
+                pj["x"] = p.offset.x;
+                pj["y"] = p.offset.y;
+                pj["side"] = std::string(1, p.side ? p.side : (p.offset.x < 0 ? 'L' : 'R'));
+                ups.push(pj);
+            }
+            us["pins"] = ups;
+            uj["symbol"] = us;
+            units.push(uj);
+        }
+        j["unitSymbols"] = units;  // "units" (name + pin numbers) is the spec's
+    }
     Json pads = Json::array();
     int number = 1;
     for (const auto& p : part.footprint.pads) {

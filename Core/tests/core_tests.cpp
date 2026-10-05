@@ -7962,3 +7962,927 @@ TEST(scale_benchmark_medium_board) {
     CHECK(total < 60.0);  // ~5 s in a release build; generous for debug and sanitiser builds
     if (std::getenv("SIEDA_BENCH_LARGE")) run({2, 32, 8, true, true, 0.45}, false);
 }
+
+// ======================================================================= repeated (multi-instance) sheets
+
+namespace {
+/// A divider block on its own sheet: port IN → R1 → port OUT, R2 from OUT to ground.
+struct DividerBlock {
+    int sheet = 0, in = 0, r1 = 0, r2 = 0, out = 0, gnd = 0;
+};
+DividerBlock dividerBlock(Schematic& s) {
+    DividerBlock b;
+    b.sheet = s.addSheet("Channel", 1);
+    s.setActiveSheet(b.sheet);
+    b.in = s.addComponent(ComponentKind::NetLabel, "IN", {0, 0});
+    b.r1 = s.addComponent(ComponentKind::Resistor, "10k", {80, 0});
+    b.r2 = s.addComponent(ComponentKind::Resistor, "10k", {160, 60}, 90);
+    b.out = s.addComponent(ComponentKind::NetLabel, "OUT", {240, 0});
+    b.gnd = s.addComponent(ComponentKind::Ground, "", {160, 140});
+    s.setLabelScope(b.in, LabelScope::Port);
+    s.setLabelScope(b.out, LabelScope::Port);
+    wire(s, b.in, "N", b.r1, "1");
+    wire(s, b.r1, "2", b.out, "N");
+    wire(s, b.out, "N", b.r2, "1");
+    wire(s, b.r2, "2", b.gnd, "GND");
+    return b;
+}
+
+int countOn(const Schematic& s, int sheet) {
+    int n = 0;
+    for (const auto& c : s.components()) n += c.sheet == sheet;
+    return n;
+}
+
+/// Every wire stays on one sheet and every copy matches its original (the invariants of a repeated design).
+bool instancesConsistent(const Schematic& s) {
+    for (const auto& w : s.wires()) {
+        const Component* a = s.find(w.a.component);
+        const Component* b = s.find(w.b.component);
+        if (!a || !b) return false;
+        // Only a hand-edited file can join two sheets with a wire (ERC reports it); never on a channel.
+        if (a->sheet != b->sheet && (s.findSheet(a->sheet)->instanceOf != 0 || s.findSheet(b->sheet)->instanceOf != 0)) return false;
+    }
+    for (const auto& c : s.components()) {
+        const Sheet* sh = s.findSheet(c.sheet);
+        if (!sh) return false;
+        if (sh->instanceOf != 0) {
+            const Component* m = s.find(c.instanceOf);
+            if (!m || m->sheet != sh->instanceOf || m->kind != c.kind || m->value != c.value) return false;
+        } else if (c.instanceOf != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+}  // namespace
+
+TEST(repeated_sheets_channels_nets_designators_and_flattening) {
+    Project p;
+    Schematic& s = p.schematic;
+    DividerBlock b = dividerBlock(s);
+    CHECK(s.repeatSheet(b.sheet, 3) == 3);
+    const auto group = s.sheetInstances(b.sheet);
+    CHECK(group.size() == 3 && group[0] == b.sheet);
+    if (group.size() != 3) return;
+    CHECK(s.findSheet(group[1])->name == "Channel [B]" && s.findSheet(group[2])->channel == "C");
+    CHECK(s.findSheet(b.sheet)->channel == "A");
+    CHECK(s.definitionSheet(group[2]) == b.sheet && s.isRepeated(group[1]) && !s.isRepeated(1));
+    CHECK(countOn(s, group[1]) == countOn(s, b.sheet) && countOn(s, group[2]) == countOn(s, b.sheet));
+    CHECK(instancesConsistent(s));
+    // Designators per channel: R1 inside the block, R201 / R301 / R401 by sheet number.
+    CHECK(s.find(b.r1)->logicalRef == "R1" && s.find(b.r1)->ref == "R201");
+    const int r1b = s.copyOn(b.r1, group[1]), r1c = s.copyOn(b.r1, group[2]);
+    CHECK(r1b > 0 && r1c > 0 && r1b != r1c);
+    CHECK(s.find(r1b)->ref == "R301" && s.find(r1c)->ref == "R401");
+    CHECK(s.masterOf(r1c) == b.r1 && s.masterOf(b.r1) == b.r1);
+    // Each channel has its own nets: ports and local labels are per sheet.
+    CHECK(s.netOf({b.r1, 1}) != s.netOf({r1b, 1}));
+    CHECK(s.netOf({r1b, 1}) != s.netOf({r1c, 1}));
+
+    // The parent sheet uses each channel through its own sheet symbol.
+    s.setActiveSheet(1);
+    for (size_t k = 0; k < group.size(); ++k) CHECK(s.placeSheetEntries(group[k], {300, 100.0 * static_cast<double>(k)}) == 2);
+    const int g = s.addComponent(ComponentKind::Ground, "", {0, 400});
+    const double volts[] = {10, 5, 2};
+    std::vector<int> loads;
+    for (size_t k = 0; k < group.size(); ++k) {
+        int in = -1, out = -1;
+        for (const auto& c : s.components())
+            if (c.scope == LabelScope::SheetEntry && c.targetSheet == group[k]) (c.value == "IN" ? in : out) = c.id;
+        CHECK(in > 0 && out > 0);
+        const int v = s.addComponent(ComponentKind::VoltageSource, std::to_string(static_cast<int>(volts[k])),
+                                     {0, 100.0 * static_cast<double>(k)});
+        const int rl = s.addComponent(ComponentKind::Resistor, "1meg", {500, 100.0 * static_cast<double>(k)});
+        wire(s, v, "+", in, "N");
+        wire(s, v, "-", g, "GND");
+        wire(s, out, "N", rl, "1");
+        wire(s, rl, "2", g, "GND");
+        loads.push_back(rl);
+    }
+    p.schematicChanged();
+    DcResult dc = Simulator(s).dcOperatingPoint();
+    CHECK(dc.converged);
+    for (size_t k = 0; k < group.size(); ++k) CHECK_NEAR(netV(s, dc, loads[k], "1"), volts[k] * 0.4975, 0.01);
+    auto erc = s.runERC();
+    CHECK(!hasCode(erc, "ERC_LOCAL_LABEL_SPLIT"));
+    CHECK(!hasCode(erc, "ERC_DUPLICATE_REF"));
+    CHECK(!hasCode(erc, "ERC_PORT_UNUSED"));
+    // Net names stay unique: the channels' OUT nets are qualified by their sheet.
+    std::set<std::string> names;
+    for (const auto& n : s.nets()) CHECK(names.insert(n.name).second);
+
+    // Flattened outputs: three of every block part in the BOM, netlist and on the board.
+    p.pcb.autoPlace(s, true);
+    int placed = 0;
+    for (const auto& c : s.components()) placed += c.hasFootprint() && c.pcb.placed;
+    CHECK(placed == 2 * 3 + 3 + 3);  // the block resistors of three channels, the sources and the loads
+    const std::string bom = exportBomCsv(s);
+    for (const char* ref : {"R201", "R301", "R401", "R202", "R302", "R402"}) CHECK(bom.find(ref) != std::string::npos);
+
+    // Editing a copy edits the block: value, position, new parts and wires reach every channel.
+    CHECK(s.setValue(s.copyOn(b.r2, group[2]), "20k"));
+    CHECK(s.find(b.r2)->value == "20k" && s.find(s.copyOn(b.r2, group[1]))->value == "20k");
+    CHECK(s.moveComponent(r1b, {90, 0}));
+    CHECK(s.find(b.r1)->position.x == 90 && s.find(r1c)->position.x == 90);
+    CHECK(s.find(r1b)->pcb.placed);  // footprints keep their own placement through block edits
+    s.setActiveSheet(group[1]);
+    const int cap = s.addComponent(ComponentKind::Capacitor, "100n", {300, 60});
+    CHECK(cap > 0 && s.find(cap) && s.find(cap)->sheet == group[1]);
+    const int capMaster = s.masterOf(cap);
+    CHECK(capMaster != cap && s.find(capMaster)->sheet == b.sheet);
+    CHECK(s.copyOn(capMaster, group[2]) > 0);
+    const int w = s.connect({cap, 0}, {s.copyOn(b.out, group[1]), 0});
+    CHECK(w > 0);
+    CHECK(s.netOf({s.copyOn(capMaster, group[2]), 0}) == s.netOf({s.copyOn(b.r1, group[2]), 1}));
+    CHECK(s.netOf({capMaster, 0}) == s.netOf({b.r1, 1}));
+    CHECK(instancesConsistent(s));
+    // A wire split on an instance bends the block's wire everywhere.
+    const int j = s.splitWire(w, {300, 0});
+    CHECK(j > 0 && s.find(j) && s.find(j)->sheet == group[1]);
+    CHECK(s.netOf({s.copyOn(capMaster, group[2]), 0}) == s.netOf({s.copyOn(b.r1, group[2]), 1}));
+    CHECK(instancesConsistent(s));
+    // Designators: the block designator is edited from any channel.
+    CHECK(s.setRef(r1c, "R9"));
+    CHECK(s.find(b.r1)->logicalRef == "R9" && s.find(b.r1)->ref == "R209" && s.find(r1b)->ref == "R309");
+    CHECK(!s.setRef(r1b, "R2"));  // taken inside the block
+    // Removing a copy removes the part from the block.
+    CHECK(s.removeComponent(s.copyOn(capMaster, group[2])));
+    CHECK(!s.find(cap) && !s.find(capMaster));
+    CHECK(instancesConsistent(s));
+
+    // Variants are per channel: one channel's R2 not fitted.
+    CHECK(p.addVariant("Two channels"));
+    CHECK(p.setVariantPart("Two channels", s.copyOn(b.r2, group[2]), 0, nullptr));
+    Schematic two = p.variantSchematic("Two channels");
+    CHECK(two.find(s.copyOn(b.r2, group[2]))->sourcing.dnp && !two.find(b.r2)->sourcing.dnp);
+
+    // Persistence: the block, its channels and designators survive a round trip unchanged.
+    p.schematicChanged();
+    const std::string saved = p.toJson().dump();
+    Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.toJson().dump() == saved);
+    CHECK(q.schematic.sheetInstances(b.sheet).size() == 3);
+    CHECK(q.schematic.find(r1c) && q.schematic.find(r1c)->ref == "R409");
+    CHECK(q.schematic.nets().size() == s.nets().size());
+    CHECK(instancesConsistent(q.schematic));
+    {
+        Json snap = q.snapshot();
+        bool sawInstance = false;
+        for (const auto& sh : snap.get("sheets").items())
+            if (sh.get("id").asInt() == group[1]) {
+                sawInstance = true;
+                CHECK(sh.get("instanceOf").asInt() == b.sheet && sh.get("channel").asString() == "B");
+                CHECK(sh.get("instances").asInt() == 3);
+            }
+        CHECK(sawInstance);
+        for (const auto& c : snap.get("components").items())
+            if (c.get("id").asInt() == r1c) CHECK(c.get("logicalRef").asString() == "R9" && c.get("instanceOf").asInt() == b.r1);
+    }
+
+    // Suffix designators: R9_A, R9_B, R9_C.
+    CHECK(s.setInstanceRefs(group[1], InstanceRefs::Suffix));
+    CHECK(s.find(b.r1)->ref == "R9_A" && s.find(r1b)->ref == "R9_B" && s.find(r1c)->ref == "R9_C");
+    CHECK(s.setSheetChannel(group[2], "CH3"));
+    CHECK(s.find(r1c)->ref == "R9_CH3");
+    CHECK(!s.setSheetChannel(group[2], "B"));    // used by another channel
+    CHECK(!s.setSheetChannel(group[2], "a b"));  // not a label
+    // Fewer channels: the last goes with its sheet symbol; one channel ends the repetition.
+    CHECK(s.repeatSheet(b.sheet, 2) == 2);
+    CHECK(!s.findSheet(group[2]) && !s.find(r1c));
+    for (const auto& c : s.components()) CHECK(!(c.scope == LabelScope::SheetEntry && c.targetSheet == group[2]));
+    CHECK(s.repeatSheet(b.sheet, 1) == 1);
+    CHECK(!s.isRepeated(b.sheet) && !s.findSheet(group[1]));
+    CHECK(s.find(b.r1)->ref == "R9" && s.find(b.r1)->logicalRef.empty());
+    CHECK(instancesConsistent(s));
+}
+
+TEST(repeated_sheets_rules_annotation_and_erc) {
+    Schematic s;
+    DividerBlock b = dividerBlock(s);
+    // Only a leaf sheet can be repeated, and not an instance; counts are 1 … 64.
+    CHECK(s.repeatSheet(b.sheet, 0) == -1 && s.repeatSheet(b.sheet, 65) == -1 && s.repeatSheet(999, 2) == -1);
+    const int child = s.addSheet("Sub", b.sheet);
+    CHECK(s.repeatSheet(b.sheet, 2) == -1);
+    CHECK(s.removeSheet(child, true));
+    CHECK(s.repeatSheet(b.sheet, 2) == 2);
+    const int inst = s.sheetInstances(b.sheet)[1];
+    CHECK(s.repeatSheet(inst, 3) == -1);
+    CHECK(s.addSheet("Nested", b.sheet) == -1 && s.addSheet("Nested", inst) == -1);
+    const int other = s.addSheet("Other", 1);
+    CHECK(!s.setSheetParent(other, inst));
+    // Moving a part onto an instance moves it into the block; copies cannot be moved out of it.
+    s.setActiveSheet(1);
+    const int loose = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    CHECK(s.moveToSheet({loose}, inst) == 1);
+    CHECK(s.find(loose)->sheet == b.sheet && s.copyOn(loose, inst) > 0);
+    CHECK(s.moveToSheet({s.copyOn(loose, inst)}, 1) == 0);
+    CHECK(s.moveToSheet({loose}, 1) == 1);  // out of the block again: its copy goes
+    CHECK(s.copyOn(loose, inst) == -1);
+
+    // Annotation numbers the block inside itself and the rest of the design around the channels' designators.
+    s.setActiveSheet(1);
+    for (int k = 0; k < 3; ++k) s.addComponent(ComponentKind::Resistor, "1k", {100.0 * k, 300}, 0, "R?");
+    auto changes = s.annotate({});
+    std::set<std::string> refs;
+    for (const auto& c : s.components())
+        if (!isNetSymbolKind(c.kind)) CHECK(refs.insert(c.ref).second);
+    CHECK(s.find(b.r1)->logicalRef == "R1" && s.find(b.r2)->logicalRef == "R2");
+    CHECK(s.find(loose)->ref == "R1");  // top sheet: numbered from 1, clear of the channels' designators
+    CHECK(!changes.empty());
+    // ERC: a signal's global label inside the block joins every channel.
+    s.setActiveSheet(b.sheet);
+    const int glabel = s.addComponent(ComponentKind::NetLabel, "SYNC", {0, 100});
+    wire(s, glabel, "N", b.r1, "1");
+    CHECK(hasCode(s.runERC(), "ERC_GLOBAL_LABEL_IN_REPEAT"));
+    CHECK(s.setLabelScope(glabel, LabelScope::Local));
+    CHECK(!hasCode(s.runERC(), "ERC_GLOBAL_LABEL_IN_REPEAT"));
+    // Deleting the definition deletes its instances.
+    CHECK(!s.removeSheet(b.sheet, false));
+    CHECK(s.removeSheet(b.sheet, true));
+    CHECK(!s.findSheet(inst) && !s.find(b.r1));
+    CHECK(instancesConsistent(s));
+}
+
+TEST(repeated_sheets_hostile_files_load_safely) {
+    Project p;
+    DividerBlock b = dividerBlock(p.schematic);
+    p.schematic.repeatSheet(b.sheet, 3);
+    const std::string good = p.toJson().dump();
+    // Mutations of the saved links: the file still loads, and the design is consistent afterwards.
+    std::vector<std::pair<std::string, std::string>> edits = {
+        {"\"instanceOf\":" + std::to_string(b.sheet), "\"instanceOf\":999"},
+        {"\"instanceOf\":" + std::to_string(b.sheet), "\"instanceOf\":-4"},
+        {"\"instanceOf\":" + std::to_string(b.sheet), "\"instanceOf\":\"x\""},
+        {"\"instanceOf\":" + std::to_string(b.r1), "\"instanceOf\":" + std::to_string(b.r2)},
+        {"\"instanceOf\":" + std::to_string(b.r1), "\"instanceOf\":123456"},
+        {"\"logicalRef\":\"R1\"", "\"logicalRef\":\"R2\""},
+        {"\"logicalRef\":\"R1\"", "\"logicalRef\":\"" + std::string(200, 'Q') + "\""},
+        {"\"channel\":\"B\"", "\"channel\":\"A\""},
+        {"\"channel\":\"B\"", "\"channel\":\"  \""},
+        {"\"parent\":1", "\"parent\":" + std::to_string(b.sheet)},
+    };
+    int loaded = 0;
+    for (const auto& [from, to] : edits) {
+        std::string text = good;
+        for (size_t at = text.find(from); at != std::string::npos; at = text.find(from, at + to.size()))
+            text.replace(at, from.size(), to);
+        try {
+            Project q = Project::fromJson(Json::parse(text));
+            ++loaded;
+            CHECK(instancesConsistent(q.schematic));
+            // A second sync changes nothing.
+            const std::string once = q.toJson().dump();
+            q.schematic.syncInstances();
+            CHECK(q.toJson().dump() == once);
+            std::set<std::string> refs;
+            for (const auto& c : q.schematic.components())
+                if (!isNetSymbolKind(c.kind) && q.schematic.isRepeated(c.sheet)) CHECK(refs.insert(c.ref).second);
+        } catch (const JsonError&) {
+        }
+    }
+    CHECK(loaded == static_cast<int>(edits.size()));
+    // Random byte damage never crashes the loader.
+    unsigned seed = 12345;
+    for (int round = 0; round < 200; ++round) {
+        std::string text = good;
+        for (int k = 0; k < 4; ++k) {
+            seed = seed * 1103515245u + 12345u;
+            const size_t at = (seed >> 8) % text.size();
+            text[at] = "0123456789-\"{}[],:x"[(seed >> 20) % 19];
+        }
+        try {
+            Project q = Project::fromJson(Json::parse(text));
+            CHECK(instancesConsistent(q.schematic));
+        } catch (const std::exception&) {
+        }
+    }
+}
+
+extern "C" int sieda_c_api_capture_test(void);
+
+TEST(schematic_capture_c_api) {
+    const int rc = sieda_c_api_capture_test();
+    if (rc != 0) std::printf("    capture c api step %d failed\n", rc);
+    CHECK(rc == 0);
+}
+
+// ======================================================================= graphical buses
+
+namespace {
+/// A registered test part with data pins D0 … D3 and supply pins.
+std::string busPart(const std::string& name) {
+    CustomPartSpec spec;
+    spec.name = name;
+    spec.package.type = "SOIC";
+    const char* pins[] = {"D0", "D1", "D2", "D3", "VCC", "GND"};
+    for (int i = 0; i < 6; ++i) {
+        CustomPin p;
+        p.number = std::to_string(i + 1);
+        p.name = pins[i];
+        p.type = i < 4 ? PinType::Bidirectional : PinType::PowerIn;
+        spec.pins.push_back(p);
+    }
+    return CustomPartRegistry::instance().registerPart(spec)->id;
+}
+}  // namespace
+
+TEST(graphical_buses_entries_connectivity_erc_and_persistence) {
+    Project p;
+    Schematic& s = p.schematic;
+    const int mcu = s.addCustomComponent(busPart("BUSMCU"), "", {0, 0});
+    const int mem = s.addCustomComponent(busPart("BUSMEM"), "", {400, 0});
+    CHECK(s.addBus("not a bus", {{100, -60}, {100, 60}}) == -1);
+    CHECK(s.addBus("D[0..3]", {{100, -60}}) == -1);
+    const int bus = s.addBus("D[0..3]", {{200, -80}, {200, 80}});
+    CHECK(bus > 0 && s.findBus(bus) && s.busMembers(bus).size() == 4);
+    CHECK(hasCode(s.runERC(), "ERC_BUS_NO_ENTRIES"));
+    CHECK(s.connectBusToPart(bus, mcu) == 4);
+    CHECK(s.connectBusToPart(bus, mem) == 4);
+    CHECK(s.connectBusToPart(bus, 9999) == -1);
+    for (int i = 0; i < 4; ++i) CHECK(s.netOf({mcu, i}) == s.netOf({mem, i}) && s.netOf({mcu, i}) >= 0);
+    CHECK(s.netOf({mcu, 0}) != s.netOf({mcu, 1}));
+    int entries = 0;
+    for (const auto& c : s.components())
+        if (c.bus == bus) {
+            ++entries;
+            CHECK(c.kind == ComponentKind::NetLabel && c.scope == LabelScope::Local);
+            const Vec2 q = s.nearestBusPoint(bus, c.position);
+            CHECK(std::hypot(q.x - c.position.x, q.y - c.position.y) < 15);  // drawn on the bus
+        }
+    CHECK(entries == 8);
+    auto erc = s.runERC();
+    CHECK(!hasCode(erc, "ERC_BUS_NO_ENTRIES") && !hasCode(erc, "ERC_BUS_MEMBER_UNCONNECTED") &&
+          !hasCode(erc, "ERC_BUS_ENTRY_NOT_MEMBER") && !hasCode(erc, "ERC_BUS_LABEL"));
+    // A member ripped out at one place only leads nowhere; an entry that is not a member is an error.
+    int memD3 = -1;
+    for (const auto& c : s.components())
+        if (c.bus == bus && c.value == "D3" && s.netOf({c.id, 0}) == s.netOf({mem, 3})) {
+            for (const auto& w : s.wires())
+                if ((w.a.component == c.id && w.b.component == mem) || (w.b.component == c.id && w.a.component == mem)) memD3 = c.id;
+        }
+    CHECK(memD3 > 0);
+    CHECK(s.removeComponent(memD3));
+    CHECK(hasCode(s.runERC(), "ERC_BUS_MEMBER_UNCONNECTED"));
+    CHECK(s.connectBusToPart(bus, mem) == 1);  // only D3 was open: reconnected
+    CHECK(!hasCode(s.runERC(), "ERC_BUS_MEMBER_UNCONNECTED"));
+    // Ripping entries: every member once; unknown members refused.
+    const int bus2 = s.addBus("A[7..0]", {{0, 200}, {300, 200}, {300, 300}});
+    CHECK(s.ripBusEntries(bus2, {"X9"}) == -1);
+    CHECK(s.ripBusEntries(bus2, {"A1", "A0"}) == 2);
+    CHECK(s.ripBusEntries(bus2, {}) == 6);
+    CHECK(s.ripBusEntries(bus2, {}) == 0);
+    int labelOnBus2 = -1;
+    for (const auto& c : s.components())
+        if (c.bus == bus2) labelOnBus2 = c.id;
+    const Vec2 before = s.find(labelOnBus2)->position;
+    CHECK(s.moveBus(bus2, {20, 10}));
+    CHECK(s.find(labelOnBus2)->position.x == before.x + 20 && s.findBus(bus2)->points[0].y == 210);
+    CHECK(s.setValue(labelOnBus2, "Q1"));
+    CHECK(hasCode(s.runERC(), "ERC_BUS_ENTRY_NOT_MEMBER"));
+    CHECK(s.renameBus(bus2, "A[7..0],Q1") && !s.renameBus(bus2, "nope"));
+    CHECK(!hasCode(s.runERC(), "ERC_BUS_ENTRY_NOT_MEMBER"));
+
+    // Persistence round trip, snapshot.
+    p.schematicChanged();
+    const std::string saved = p.toJson().dump();
+    Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.toJson().dump() == saved);
+    CHECK(q.schematic.buses().size() == 2);
+    CHECK(q.schematic.netOf({mcu, 2}) == q.schematic.netOf({mem, 2}));
+    Json snap = q.snapshot();
+    CHECK(snap.get("buses").size() == 2 && snap.get("buses")[0].get("members").size() == 4);
+    // Removing a bus removes its entries.
+    CHECK(s.removeBus(bus2) && !s.findBus(bus2) && !s.find(labelOnBus2));
+    // A file without buses still loads as before.
+    CHECK(Project::fromJson(Json::parse(ledProject().toJson().dump())).schematic.buses().empty());
+
+    // Buses on a repeated sheet are copied into every channel, with their entries.
+    Project r;
+    Schematic& t = r.schematic;
+    const int sheet = t.addSheet("Chan", 1);
+    t.setActiveSheet(sheet);
+    const int a = t.addCustomComponent(busPart("BUSMCU"), "", {0, 0});
+    const int b2 = t.addCustomComponent(busPart("BUSMEM"), "", {400, 0});
+    const int tb = t.addBus("D[0..3]", {{200, -80}, {200, 80}});
+    CHECK(t.connectBusToPart(tb, a) == 4 && t.connectBusToPart(tb, b2) == 4);
+    CHECK(t.repeatSheet(sheet, 2) == 2);
+    const int inst = t.sheetInstances(sheet)[1];
+    int copyBus = -1;
+    for (const auto& bb : t.buses())
+        if (bb.sheet == inst) copyBus = bb.id;
+    CHECK(copyBus > 0 && t.findBus(copyBus)->instanceOf == tb);
+    int copyEntries = 0;
+    for (const auto& c : t.components()) copyEntries += c.sheet == inst && c.bus == copyBus;
+    CHECK(copyEntries == 8);
+    CHECK(t.netOf({t.copyOn(a, inst), 1}) == t.netOf({t.copyOn(b2, inst), 1}));
+    CHECK(t.netOf({t.copyOn(a, inst), 1}) != t.netOf({a, 1}));  // local entries: per channel
+    CHECK(t.moveBus(copyBus, {10, 0}) && t.findBus(tb)->points[0].x == 210 && t.findBus(copyBus)->points[0].x == 210);
+    CHECK(instancesConsistent(t));
+    const std::string repeated = r.toJson().dump();
+    CHECK(Project::fromJson(Json::parse(repeated)).toJson().dump() == repeated);
+
+    // Hostile bus data: bad points, duplicate ids, unknown sheets and entries of missing buses load safely.
+    std::string text = saved;
+    const std::string from = "\"buses\":[";
+    const size_t at = text.find(from);
+    CHECK(at != std::string::npos);
+    text.insert(at + from.size(),
+                "{\"id\":1,\"sheet\":1,\"name\":\"D[0..1]\",\"points\":[{\"x\":0,\"y\":0},{\"x\":1,\"y\":1}]},"
+                "{\"id\":77,\"sheet\":42,\"name\":\"D[0..1]\",\"points\":[{\"x\":0,\"y\":0},{\"x\":1,\"y\":1}]},"
+                "{\"id\":78,\"sheet\":1,\"name\":\"D[0..1]\",\"points\":[{\"x\":0}]},"
+                "{\"id\":79,\"sheet\":1,\"name\":\"\",\"points\":\"x\"},");
+    for (size_t k = text.find("\"bus\":"); k != std::string::npos; k = text.find("\"bus\":", k + 1)) {
+        text.replace(k, 6, "\"bus\":9");  // every entry now names bus 9…
+        break;
+    }
+    try {
+        Project h = Project::fromJson(Json::parse(text));
+        CHECK(h.schematic.buses().size() == 2);  // the duplicate id, missing sheet and bad shapes are dropped
+        for (const auto& c : h.schematic.components())
+            if (c.bus != 0) CHECK(h.schematic.findBus(c.bus) && h.schematic.findBus(c.bus)->sheet == c.sheet);
+        h.schematic.runERC();
+    } catch (const JsonError&) {
+        CHECK(false);
+    }
+}
+
+extern "C" int sieda_c_api_bus_test(void);
+
+TEST(graphical_buses_c_api) {
+    const int rc = sieda_c_api_bus_test();
+    if (rc != 0) std::printf("    bus c api step %d failed\n", rc);
+    CHECK(rc == 0);
+}
+
+// ======================================================================= multi-unit parts
+
+namespace {
+/// A quad op-amp (LM324 pinout): units A–D, supplies on pins 4 and 11 (the power unit).
+CustomPartSpec quadOpAmpSpec() {
+    CustomPartSpec spec;
+    spec.name = "LM324-TEST";
+    spec.package.type = "SOIC";
+    const char* names[] = {"OUT1", "IN1-", "IN1+", "V+", "IN2+", "IN2-", "OUT2", "OUT3", "IN3-", "IN3+", "V-", "IN4+", "IN4-", "OUT4"};
+    for (int i = 0; i < 14; ++i) {
+        CustomPin p;
+        p.number = std::to_string(i + 1);
+        p.name = names[i];
+        const std::string n = names[i];
+        p.type = n.rfind("OUT", 0) == 0 ? PinType::Output : (n == "V+" || n == "V-") ? PinType::PowerIn : PinType::Input;
+        spec.pins.push_back(p);
+    }
+    spec.units = {{"A", {"1", "2", "3"}}, {"B", {"7", "6", "5"}}, {"C", {"8", "9", "10"}}, {"D", {"14", "13", "12"}}};
+    return spec;
+}
+}  // namespace
+
+TEST(multi_unit_parts_units_package_netlist_erc_and_persistence) {
+    const auto part = CustomPartRegistry::instance().registerPart(quadOpAmpSpec());
+    CHECK(part->units.size() == 5);
+    if (part->units.size() != 5) return;
+    CHECK(part->units[4].name == "P" && part->units[4].power && !part->units[0].power);
+    CHECK(part->units[0].def.pins.size() == 3 && part->units[4].def.pins.size() == 2);
+    CHECK(part->units[1].pins[0] == 6);  // unit B's first pin is pin 7 (index 6)
+    CHECK(part->def.pins.size() == 14 && !part->footprint.pads.empty());
+    {
+        Json j = customPartToJson(*part);
+        CHECK(j.get("unitSymbols").size() == 5 && j.get("units").size() == 4);
+        CustomPartSpec back = customPartSpecFromJson(customPartSpecToJson(part->spec));
+        CHECK(back.units.size() == 4 && back.units[1].pins[0] == "7");
+        CHECK(CustomPartRegistry::instance().registerPart(back)->id == part->id);
+        CustomPartSpec bad = quadOpAmpSpec();
+        bad.units[0].pins.push_back("99");
+        bool threw = false;
+        try {
+            CustomPartRegistry::instance().registerPart(bad);
+        } catch (const JsonError&) {
+            threw = true;
+        }
+        CHECK(threw);
+        bool dup = false;
+        try {
+            customPartSpecFromJson(Json::parse("{\"name\":\"X\",\"pins\":[{\"number\":\"1\",\"name\":\"A\"}],"
+                                               "\"units\":[{\"name\":\"A\",\"pins\":[\"1\"]},{\"name\":\"A\",\"pins\":[\"1\"]}]}"));
+        } catch (const JsonError&) {
+            dup = true;
+        }
+        CHECK(dup);
+    }
+
+    Project p;
+    Schematic& s = p.schematic;
+    p.addCustomPart(part->spec);
+    const int a = s.addCustomUnits(part->id, "", {0, 0});
+    CHECK(a > 0 && s.find(a)->kind == ComponentKind::PartUnit && s.unitName(*s.find(a)) == "A");
+    const int pkg = s.unitPackage(a);
+    CHECK(pkg > 0 && s.find(pkg)->packageOnly && s.find(pkg)->kind == ComponentKind::Custom);
+    CHECK(s.displayRef(*s.find(a)) == "U1A" && s.find(a)->ref == "U1");
+    CHECK(s.addPartUnit(a, 1, {0, 0}) == -1);  // already placed
+    CHECK(s.addPartUnit(a, 9, {0, 0}) == -1);
+    const int b = s.placeNextUnit(a, {0, 200});
+    const int c = s.placeNextUnit(pkg, {0, 400});
+    const int d = s.placeNextUnit(a, {0, 600});
+    CHECK(b > 0 && c > 0 && d > 0 && s.unitName(*s.find(d)) == "D");
+    // Not all units placed: the power pins are open (error), and so on.
+    {
+        auto erc = s.runERC();
+        bool powerMessage = false;
+        for (const auto& v : erc)
+            if (v.code == "ERC_POWER_PIN_UNCONNECTED" && v.message.find("place unit P of U1") != std::string::npos) powerMessage = true;
+        CHECK(powerMessage);
+        CHECK(hasCode(erc, "ERC_FLOATING_COMPONENT"));  // the units are not wired yet
+    }
+    const int pwr = s.placeNextUnit(a, {200, 0});
+    CHECK(pwr > 0 && s.unitName(*s.find(pwr)) == "P" && s.placeNextUnit(a, {0, 0}) == -1);
+    CHECK((s.placedUnits(pkg) == std::vector<int>{a, b, c, d, pwr}));
+
+    // Wire unit A as a follower from a 5 V divider, supplies on P; units B–D tied off.
+    const int v = s.addComponent(ComponentKind::VoltageSource, "5", {-300, 0});
+    const int g = s.addComponent(ComponentKind::Ground, "", {-300, 200});
+    const int r1 = s.addComponent(ComponentKind::Resistor, "10k", {-200, 0});
+    const int r2 = s.addComponent(ComponentKind::Resistor, "10k", {-200, 100});
+    wire(s, v, "+", r1, "1");
+    wire(s, r1, "2", r2, "1");
+    wire(s, r2, "2", g, "GND");
+    wire(s, v, "-", g, "GND");
+    CHECK(s.connect({r1, 1}, {a, 2}) >= 0);    // IN1+
+    CHECK(s.connect({a, 0}, {a, 1}) >= 0);     // OUT1 → IN1-
+    CHECK(s.connect({pwr, 0}, {v, 0}) >= 0);   // V+
+    CHECK(s.connect({pwr, 1}, {g, 0}) >= 0);   // V-
+    for (int u : {b, c, d}) {
+        CHECK(s.connect({u, 0}, {u, 1}) >= 0);
+        CHECK(s.connect({u, 2}, {g, 0}) >= 0);
+    }
+    // A unit's pins are its package's pins; only the package's pins are net members.
+    CHECK(s.netOf({a, 2}) == s.netOf({pkg, 2}) && s.netOf({a, 2}) == s.netOf({r1, 1}));
+    CHECK(s.netOf({b, 0}) == s.netOf({pkg, 6}));
+    CHECK(s.netOf({pwr, 0}) == s.netOf({pkg, 3}));
+    for (const auto& n : s.nets())
+        for (const auto& pin : n.pins) CHECK(s.find(pin.component)->kind != ComponentKind::PartUnit);
+    CHECK(s.isPinConnected({a, 2}) && s.isPinConnected({pkg, 2}));
+    {
+        auto erc = s.runERC();
+        CHECK(!hasCode(erc, "ERC_POWER_PIN_UNCONNECTED") && !hasCode(erc, "ERC_UNIT_NOT_PLACED") &&
+              !hasCode(erc, "ERC_UNCONNECTED_PIN") && !hasCode(erc, "ERC_FLOATING_COMPONENT") &&
+              !hasCode(erc, "ERC_DUPLICATE_REF"));
+    }
+    // An open unit pin is reported with the unit's designator.
+    const int stray = s.addCustomUnits(part->id, "", {600, 0});
+    {
+        bool named = false;
+        for (const auto& vio : s.runERC())
+            if (vio.message.find("U2A") != std::string::npos) named = true;
+        CHECK(named && hasCode(s.runERC(), "ERC_UNIT_NOT_PLACED"));
+    }
+    CHECK(s.removeComponent(stray));
+    CHECK(!s.find(stray) && s.findByRef("U2") == nullptr);  // the last unit takes its package along
+
+    // One part on the board and in the BOM, with every pad.
+    p.schematicChanged();
+    p.pcb.autoPlace(s, true);
+    CHECK(s.find(pkg)->pcb.placed);
+    int pads = 0;
+    for (const auto& pad : p.pcb.pads(s)) pads += pad.componentId == pkg;
+    CHECK(pads == 14);
+    for (const auto& pad : p.pcb.pads(s)) CHECK(s.find(pad.componentId)->kind != ComponentKind::PartUnit);
+    const std::string bom = exportBomCsv(s);
+    CHECK(bom.find("U1") != std::string::npos && bom.find("U1A") == std::string::npos);
+    CHECK(Simulator(s).dcOperatingPoint().converged);
+
+    // The designator and value of any unit are the package's.
+    CHECK(s.setRef(c, "U7"));
+    CHECK(s.find(pkg)->ref == "U7" && s.find(a)->ref == "U7" && s.displayRef(*s.find(pwr)) == "U7P");
+    CHECK(s.setValue(b, "LM2902"));
+    CHECK(s.find(pkg)->value == "LM2902" && s.find(d)->value == "LM2902");
+    // Variants fit the package.
+    CHECK(p.addVariant("NoAmp") && p.setVariantPart("NoAmp", a, 0, nullptr));
+    CHECK(p.findVariant("NoAmp")->parts.count(pkg) == 1);
+    {
+        Json snap = p.snapshot();
+        int units = 0, hidden = 0;
+        for (const auto& comp : snap.get("components").items()) {
+            if (comp.has("unitOf")) {
+                ++units;
+                CHECK(comp.get("kind").asInt() == static_cast<int>(ComponentKind::Custom) && comp.get("unitOf").asInt() == pkg);
+            }
+            if (comp.get("unitPackage").asBool(false)) ++hidden;
+        }
+        CHECK(units == 5 && hidden == 1);
+    }
+
+    // Persistence: the same design comes back.
+    const std::string saved = p.toJson().dump();
+    Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.toJson().dump() == saved);
+    CHECK(q.schematic.netOf({a, 2}) == q.schematic.netOf({r1, 1}));
+    CHECK(q.schematic.placedUnits(pkg).size() == 5);
+    // Hostile: units of missing packages and out-of-range units are dropped on load; a package left without units goes.
+    std::string text = saved;
+    const std::string key = "\"unitOf\":" + std::to_string(pkg);
+    for (size_t k = text.find(key); k != std::string::npos; k = text.find(key, k + 1)) text.replace(k, key.size(), "\"unitOf\":424242");
+    Project h = Project::fromJson(Json::parse(text));
+    CHECK(h.schematic.find(a) == nullptr && h.schematic.find(pkg) == nullptr);
+    CHECK(h.schematic.find(r1) != nullptr);
+    std::string ranged = saved;
+    const std::string unitKey = "\"unit\":2";
+    const size_t at = ranged.find(unitKey);
+    CHECK(at != std::string::npos);
+    ranged.replace(at, unitKey.size(), "\"unit\":99");
+    Project h2 = Project::fromJson(Json::parse(ranged));
+    CHECK(h2.schematic.find(b) == nullptr && h2.schematic.find(a) != nullptr);
+    h2.schematic.runERC();
+
+    // Removing the package removes its units.
+    CHECK(s.removeComponent(pkg));
+    CHECK(!s.find(a) && !s.find(pwr));
+}
+
+TEST(multi_unit_parts_annotation_packs_units_and_repeated_sheets) {
+    const auto part = CustomPartRegistry::instance().registerPart(quadOpAmpSpec());
+    Schematic s;
+    // Two gates placed as two separate parts: packing puts them into one package as A and B.
+    const int g1 = s.addCustomUnits(part->id, "", {0, 0});
+    const int g2 = s.addCustomUnits(part->id, "", {200, 0});
+    const int p2 = s.placeNextUnit(g2, {200, 300});  // unit B of the second package
+    CHECK(s.unitPackage(g1) != s.unitPackage(g2));
+    AnnotateOptions o;
+    o.packUnits = true;
+    s.annotate(o);
+    CHECK(s.unitPackage(g1) == s.unitPackage(g2));
+    CHECK(s.unitName(*s.find(g1)) == "A" && s.unitName(*s.find(g2)) == "B");
+    CHECK(s.find(g1)->ref == "U1" && s.find(g2)->ref == "U1");
+    // The third gate (unit B of the old second package) fills slot C of the same quad package; the empty one goes.
+    CHECK(s.unitPackage(p2) == s.unitPackage(g1) && s.unitName(*s.find(p2)) == "C");
+    int packages = 0;
+    for (const auto& c : s.components()) packages += c.packageOnly;
+    CHECK(packages == 1);
+    // Five gates need two packages.
+    for (int k = 0; k < 2; ++k) s.addCustomUnits(part->id, "", {400.0 + 100 * k, 600});
+    s.annotate(o);
+    packages = 0;
+    for (const auto& c : s.components()) packages += c.packageOnly;
+    CHECK(packages == 2);
+    CHECK(s.findByRef("U1") && s.findByRef("U2") && !s.findByRef("U3"));
+
+    // Units on a repeated sheet: each channel's units belong to that channel's package.
+    Schematic t;
+    const int sheet = t.addSheet("Amp", 1);
+    t.setActiveSheet(sheet);
+    const int ua = t.addCustomUnits(part->id, "", {0, 0});
+    const int ub = t.placeNextUnit(ua, {0, 200});
+    CHECK(t.repeatSheet(sheet, 2) == 2);
+    const int inst = t.sheetInstances(sheet)[1];
+    const int ca = t.copyOn(ua, inst), cb = t.copyOn(ub, inst);
+    CHECK(ca > 0 && cb > 0 && t.unitPackage(ca) == t.unitPackage(cb));
+    CHECK(t.unitPackage(ca) != t.unitPackage(ua) && t.unitPackage(ca) == t.copyOn(t.unitPackage(ua), inst));
+    CHECK(t.find(ca)->ref == t.find(t.unitPackage(ca))->ref && t.find(ca)->ref != t.find(ua)->ref);
+    CHECK(instancesConsistent(t));
+    // A unit placed on a channel goes into the block.
+    t.setActiveSheet(inst);
+    const int uc = t.placeNextUnit(ca, {0, 400});
+    CHECK(uc > 0 && t.find(uc)->sheet == inst && t.find(t.masterOf(uc))->sheet == sheet);
+    CHECK(t.placedUnits(t.unitPackage(ua)).size() == 3);
+}
+
+extern "C" int sieda_c_api_units_test(void);
+
+TEST(multi_unit_parts_c_api) {
+    const int rc = sieda_c_api_units_test();
+    if (rc != 0) std::printf("    units c api step %d failed\n", rc);
+    CHECK(rc == 0);
+}
+
+TEST(multi_unit_standard_part_lm324) {
+    const StandardPart* lm324 = findStandardPart("lm324");
+    CHECK(lm324 != nullptr);
+    if (!lm324) return;
+    const auto part = CustomPartRegistry::instance().registerPart(lm324->spec);
+    CHECK(part->units.size() == 5 && part->units.back().name == "P" && part->units.back().power);
+    // Placed whole (as plans and older designs do) it is one 14-pin symbol, exactly as before units existed.
+    Schematic s;
+    const int whole = s.addCustomComponent(part->id, "", {0, 0});
+    CHECK(whole > 0 && s.find(whole)->def().pins.size() == 14 && !s.find(whole)->packageOnly);
+    const char* json = sieda_standard_parts_json();
+    CHECK(json && std::string(json).find("\"units\":[{\"name\":\"A\"") != std::string::npos);
+    sieda_string_free(const_cast<char*>(json));
+}
+
+// ======================================================================= variants drive simulation
+
+TEST(variants_drive_simulation_values_and_unfitted_parts) {
+    Project p = ledProject();
+    const int r = p.schematic.findByRef("R1")->id;
+    const int d = p.schematic.findByRef("D1")->id;
+    // No variant, nothing DNP: the simulated circuit is the design, bit for bit.
+    {
+        const Schematic circuit = p.simulationSchematic();
+        CHECK(!circuit.omitsFromSimulation(*circuit.find(d)));
+        DcResult a = Simulator(p.schematic).dcOperatingPoint(), b = Simulator(circuit).dcOperatingPoint();
+        CHECK(a.converged && b.converged && a.netVoltages == b.netVoltages);
+        CHECK(p.unfittedRefs().empty());
+    }
+    const double base = reading(Simulator(p.schematic).dcOperatingPoint(), r)->current;
+    CHECK(base > 0.008 && base < 0.012);
+    // A variant with R1 = 1k: a third of the current.
+    const std::string k1 = "1k";
+    CHECK(p.addVariant("Dim") && p.setVariantPart("Dim", r, -1, &k1) && p.setActiveVariant("Dim"));
+    {
+        const Schematic circuit = p.simulationSchematic();
+        DcResult dc = Simulator(circuit).dcOperatingPoint();
+        CHECK(dc.converged);
+        CHECK_NEAR(reading(dc, r)->current, base * 330.0 / 1000.0, base * 0.15);
+        CHECK(circuit.nets().size() == p.schematic.nets().size());
+    }
+    // A variant without the LED: no current flows, the resistor's far end rises to the supply.
+    CHECK(p.addVariant("NoLed") && p.setVariantPart("NoLed", d, 0, nullptr) && p.setActiveVariant("NoLed"));
+    {
+        const Schematic circuit = p.simulationSchematic();
+        CHECK(circuit.omitsFromSimulation(*circuit.find(d)));
+        DcResult dc = Simulator(circuit).dcOperatingPoint();
+        CHECK(dc.converged);
+        CHECK(std::fabs(reading(dc, r)->current) < 1e-6);
+        CHECK_NEAR(netV(circuit, dc, r, "2"), 5.0, 0.01);
+        CHECK(reading(dc, d) == nullptr);
+        CHECK((p.unfittedRefs() == std::vector<std::string>{"D1"}));
+        CHECK(exportSpiceNetlist(circuit, "x").find("* D1 not fitted (DNP)") != std::string::npos);
+        // Transient too.
+        TransientResult tr = Simulator(circuit).transient(1e-3, 1e-4);
+        CHECK(tr.ok);
+    }
+    // The design itself is untouched, and a base-design DNP flag is honoured as well.
+    CHECK(!p.schematic.find(d)->sourcing.dnp);
+    CHECK(p.setActiveVariant(""));
+    p.schematic.find(d)->sourcing.dnp = true;
+    CHECK(p.simulationSchematic().omitsFromSimulation(*p.simulationSchematic().find(d)));
+    p.schematic.find(d)->sourcing.dnp = false;
+
+    // Through the C API: results name the variant and the parts left out.
+    SiedaProject* api = sieda_project_load_json(p.toJson().dump().c_str(), nullptr);
+    CHECK(api != nullptr);
+    if (!api) return;
+    CHECK(sieda_set_active_variant(api, "NoLed") == 1);
+    char* dc = sieda_simulate_dc(api);
+    CHECK(dc && std::string(dc).find("\"variant\":\"NoLed\"") != std::string::npos &&
+          std::string(dc).find("\"omitted\":[\"D1\"]") != std::string::npos);
+    sieda_string_free(dc);
+    char* ac = sieda_simulate_ac(api, "{}");
+    CHECK(ac && std::string(ac).find("\"omitted\":[\"D1\"]") != std::string::npos);
+    sieda_string_free(ac);
+    char* spice = sieda_spice_netlist(api);
+    CHECK(spice && std::string(spice).find("not fitted") != std::string::npos);
+    sieda_string_free(spice);
+    CHECK(sieda_set_active_variant(api, "") == 1);
+    char* plain = sieda_simulate_dc(api);
+    CHECK(plain && std::string(plain).find("\"omitted\"") == std::string::npos);
+    sieda_string_free(plain);
+    sieda_project_free(api);
+}
+
+#include "sieda/SchematicSearch.hpp"
+
+// ======================================================================= find / replace, net navigator, title block
+
+TEST(schematic_find_replace_net_navigator_and_title_block) {
+    Project p = twoSheetProject();
+    Schematic& s = p.schematic;
+    const int r = s.addComponent(ComponentKind::Resistor, "4k7", {300, 300});
+    SearchOptions all;
+    // Designators, values and labels across sheets, in sheet order.
+    auto hits = findInSchematic(s, "4k7", all);
+    CHECK(hits.size() == 1 && hits[0].component == r && hits[0].field == "value");
+    hits = findInSchematic(s, "r", all);
+    CHECK(!hits.empty());
+    for (size_t i = 1; i < hits.size(); ++i)
+        if (hits[i].component >= 0 && hits[i - 1].component >= 0)
+            CHECK(s.sheetIndex(hits[i - 1].sheet) <= s.sheetIndex(hits[i].sheet) || hits[i].field == "net");
+    SearchOptions exact;
+    exact.matchCase = true;
+    exact.wholeWord = true;
+    CHECK(findInSchematic(s, "4K7", exact).empty());
+    CHECK(findInSchematic(s, "", all).empty());
+    // Every label of a net, on every sheet, and the net itself.
+    int labelHits = 0, netHits = 0;
+    for (const auto& h : findInSchematic(s, "VIN", all)) {
+        labelHits += h.field == "label";
+        netHits += h.field == "net";
+    }
+    CHECK(labelHits >= 2 && netHits == 1);
+    // Replace in values and label names; designators are left to annotation.
+    SearchOptions values;
+    values.refs = values.nets = values.pins = false;
+    CHECK(replaceInSchematic(s, "4k7", "10k", values) == 1);
+    CHECK(s.find(r)->value == "10k");
+    const int before = static_cast<int>(s.nets().size());
+    CHECK(replaceInSchematic(s, "VIN", "VSUP", values) >= 2);
+    CHECK(findInSchematic(s, "VIN", all).empty());
+    CHECK(static_cast<int>(s.nets().size()) == before);  // the renamed labels still join
+    CHECK(replaceInSchematic(s, "VSUP", "", values) == 0);  // a label never loses its name
+
+    // Net navigator: every place, sheet by sheet.
+    const Component* label = nullptr;
+    for (const auto& c : s.components())
+        if (c.kind == ComponentKind::NetLabel && c.value == "VSUP") label = &c;
+    CHECK(label != nullptr);
+    if (!label) return;
+    const int net = s.netOf({label->id, 0});
+    const auto places = netPlaces(s, net);
+    std::set<int> sheets;
+    int pins = 0, globals = 0;
+    for (const auto& pl : places) {
+        sheets.insert(pl.sheet);
+        pins += pl.kind == "pin";
+        globals += pl.kind == "global";
+    }
+    CHECK(sheets.size() == 2 && pins >= 2 && globals >= 2);
+    CHECK(netPlaces(s, -1).empty() && netPlaces(s, 99999).empty());
+
+    // Repeated blocks and multi-unit parts: one edit each.
+    Project q;
+    DividerBlock b = dividerBlock(q.schematic);
+    q.schematic.repeatSheet(b.sheet, 3);
+    CHECK(findInSchematic(q.schematic, "10k", all).size() == 6);  // found where drawn: 2 per channel
+    CHECK(replaceInSchematic(q.schematic, "10k", "22k", values) == 2);
+    CHECK(q.schematic.find(q.schematic.copyOn(b.r1, q.schematic.sheetInstances(b.sheet)[2]))->value == "22k");
+
+    // Title block: saved when set, defaults to the project name in the snapshot.
+    CHECK(p.snapshot().get("titleBlock").get("title").asString() == p.name);
+    p.titleBlock.company = "Acme";
+    p.titleBlock.revision = "B";
+    const std::string saved = p.toJson().dump();
+    Project back = Project::fromJson(Json::parse(saved));
+    CHECK(back.titleBlock.company == "Acme" && back.titleBlock.revision == "B");
+    CHECK(Project::fromJson(Json::parse(ledProject().toJson().dump())).titleBlock.empty());
+    CHECK(ledProject().toJson().dump().find("titleBlock") == std::string::npos);
+
+    // C API.
+    SiedaProject* api = sieda_project_load_json(saved.c_str(), nullptr);
+    CHECK(api != nullptr);
+    if (!api) return;
+    char* found = sieda_schematic_find(api, "{\"text\":\"VSUP\",\"fields\":[\"label\"]}");
+    CHECK(found && std::string(found).find("\"field\":\"label\"") != std::string::npos);
+    sieda_string_free(found);
+    char* bad = sieda_schematic_find(api, "{");
+    CHECK(bad && std::string(bad).find("\"error\"") != std::string::npos);
+    sieda_string_free(bad);
+    CHECK(sieda_schematic_replace(api, "{\"text\":\"VSUP\",\"replacement\":\"VCC_IN\"}") >= 2);
+    CHECK(sieda_schematic_replace(api, "not json") == 0);
+    char* nav = sieda_net_places(api, net);
+    CHECK(nav && std::string(nav).find("\"name\":\"VCC_IN\"") != std::string::npos &&
+          std::string(nav).find("\"kind\":\"global\"") != std::string::npos);
+    sieda_string_free(nav);
+    CHECK(sieda_set_title_block(api, "{\"title\":\"Board\",\"drawnBy\":\"SN\"}") == 1);
+    CHECK(sieda_set_title_block(api, "[1]") == 0 && sieda_set_title_block(api, "x") == 0);
+    char* snap = sieda_project_snapshot(api);
+    CHECK(snap && std::string(snap).find("\"drawnBy\":\"SN\"") != std::string::npos &&
+          std::string(snap).find("\"company\":\"Acme\"") != std::string::npos);
+    sieda_string_free(snap);
+    sieda_project_free(api);
+}
+
+TEST(schematic_capture_hostile_inputs) {
+    // Unit lists in part specs: malformed entries are refused with JsonError, never crash.
+    for (const char* units : {"[{\"name\":\"\",\"pins\":[\"1\"]}]", "[{\"name\":\"A\",\"pins\":[]}]", "[{\"name\":\"TOOLONGNAME\",\"pins\":[\"1\"]}]",
+                              "[{\"name\":\"A\",\"pins\":[\"9\"]}]", "[1,2,3]", "{\"x\":1}", "[{\"name\":\"A\",\"pins\":[1]}]"}) {
+        const std::string spec = std::string("{\"name\":\"FUZZ\",\"package\":{\"type\":\"SOIC\"},\"pins\":[{\"number\":\"1\",\"name\":\"A\"},"
+                                             "{\"number\":\"2\",\"name\":\"B\"}],\"units\":") + units + "}";
+        try {
+            CustomPartRegistry::instance().registerPart(customPartSpecFromJson(Json::parse(spec)));
+        } catch (const JsonError&) {
+        }
+    }
+    // A project with repeated sheets, buses and placed units survives random damage to its file.
+    Project p;
+    DividerBlock b = dividerBlock(p.schematic);
+    const auto part = CustomPartRegistry::instance().registerPart(quadOpAmpSpec());
+    p.addCustomPart(part->spec);
+    const int a = p.schematic.addCustomUnits(part->id, "", {300, 300});
+    p.schematic.placeNextUnit(a, {400, 300});
+    const int bus = p.schematic.addBus("X[0..1]", {{0, 400}, {200, 400}});
+    p.schematic.ripBusEntries(bus, {});
+    p.schematic.repeatSheet(b.sheet, 2);
+    p.titleBlock.title = "Fuzz";
+    const std::string good = p.toJson().dump();
+    unsigned seed = 777;
+    int loaded = 0;
+    for (int round = 0; round < 300; ++round) {
+        std::string text = good;
+        for (int k = 0; k < 3; ++k) {
+            seed = seed * 1664525u + 1013904223u;
+            text[(seed >> 7) % text.size()] = "0123456789-\"{}[],:tfx"[(seed >> 22) % 21];
+        }
+        try {
+            Project q = Project::fromJson(Json::parse(text));
+            ++loaded;
+            CHECK(instancesConsistent(q.schematic));
+            for (const auto& c : q.schematic.components()) {
+                if (c.kind == ComponentKind::PartUnit) CHECK(q.schematic.unitPackage(c.id) > 0);
+                if (c.bus != 0) CHECK(q.schematic.findBus(c.bus) != nullptr);
+            }
+            q.schematic.runERC();
+            (void)q.snapshot();
+        } catch (const std::exception&) {
+        }
+    }
+    CHECK(loaded > 0);
+}

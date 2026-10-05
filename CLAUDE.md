@@ -11,6 +11,12 @@
 - Memory (RAM) design segments: core in `Core/src/Memory.cpp` (`memoryChecks`, `memorySegments`), app via
   `EDAEngine.memorySegments` / `DesignStore.setMemoryDesign`; guide in `docs/MEMORY_DESIGN.md`. The memory reference design
   (STM32H743 + SDRAM) must keep passing verification on 6 layers.
+- Schematic capture: sheets / hierarchy / bus labels / annotation in `Core/src/Sheets.cpp`, repeated sheets in
+  `Core/src/Instances.cpp` (`syncInstances` keeps channel copies in line; every Schematic edit calls it), graphical
+  buses in `Core/src/Buses.cpp`, multi-unit parts in `Core/src/PartUnits.cpp` (kind PartUnit + hidden `packageOnly`
+  package; the snapshot reports units as kind Custom with `unitOf`), find / replace and the net navigator in
+  `Core/src/SchematicSearch.cpp`, variant simulation via `Project::simulationSchematic`; app in
+  `SiEDA/Views/Schematic/`; guide in `docs/SCHEMATIC.md`.
 - Launch splash: `SiEDA/App/SplashScreen.swift` (`SplashModel` preload steps, `SplashController` holds main windows from
   `applicationWillFinishLaunching`).
 - Interface languages: `SiEDA/App/AppLanguage.swift`, translations in `SiEDA/Resources/<code>.lproj/Localizable.strings`

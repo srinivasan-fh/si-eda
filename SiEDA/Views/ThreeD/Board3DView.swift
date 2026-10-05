@@ -94,7 +94,7 @@ struct Board3DWorkspace: View {
     /// Live read-outs for the holographic HUD.
     private var hudReadouts: [(String, String)] {
         let b = store.snapshot.board
-        let parts = store.snapshot.components.filter { !$0.componentKind.isVirtual }.count
+        let parts = store.snapshot.components.filter { !$0.componentKind.isVirtual && $0.unitOf == nil }.count
         return [("Board", String(format: "%.1f × %.1f mm", b.width, b.height)),
                 ("Stack", "\(b.layerCount) layers · \(b.material.uppercased())"),
                 ("Parts", "\(parts)"),

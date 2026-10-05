@@ -29,6 +29,11 @@ const ComponentDef& Component::def() const {
     if (kind == ComponentKind::Custom) {
         if (const CustomPart* part = CustomPartRegistry::instance().find(customPart)) return part->def;
     }
+    if (kind == ComponentKind::PartUnit) {
+        const CustomPart* part = CustomPartRegistry::instance().find(customPart);
+        if (part && unit >= 1 && unit <= static_cast<int>(part->units.size()))
+            return part->units[static_cast<size_t>(unit - 1)].def;
+    }
     return Library::instance().component(kind);
 }
 
@@ -64,7 +69,16 @@ std::string Schematic::nextRef(ComponentKind kind) const {
 
 int Schematic::addComponent(ComponentKind kind, const std::string& value, Vec2 position, int rotation,
                             const std::string& ref) {
-    if (!Library::isValidKind(static_cast<int>(kind)) || kind == ComponentKind::Custom) return -1;
+    if (!Library::isValidKind(static_cast<int>(kind)) || kind == ComponentKind::Custom || kind == ComponentKind::PartUnit)
+        return -1;
+    if (const Sheet* s = findSheet(activeSheet_); s && s->instanceOf != 0 && findSheet(s->instanceOf)) {
+        // Placed on an instance of a repeated sheet: it goes into the definition, and so into every instance.
+        const int shown = activeSheet_;
+        activeSheet_ = s->instanceOf;
+        const int id = addComponent(kind, value, position, rotation, ref);
+        activeSheet_ = shown;
+        return id < 0 ? id : copyOn(id, shown);
+    }
     Component c;
     c.id = nextComponentId_++;
     c.kind = kind;
@@ -75,6 +89,7 @@ int Schematic::addComponent(ComponentKind kind, const std::string& value, Vec2 p
     c.sheet = activeSheet_;
     components_.push_back(c);
     invalidate();
+    edited();
     return c.id;
 }
 
@@ -82,6 +97,13 @@ int Schematic::addCustomComponent(const std::string& partId, const std::string& 
                                   const std::string& ref) {
     const CustomPart* part = CustomPartRegistry::instance().find(partId);
     if (!part) return -1;
+    if (const Sheet* s = findSheet(activeSheet_); s && s->instanceOf != 0 && findSheet(s->instanceOf)) {
+        const int shown = activeSheet_;
+        activeSheet_ = s->instanceOf;
+        const int id = addCustomComponent(partId, value, position, rotation, ref);
+        activeSheet_ = shown;
+        return id < 0 ? id : copyOn(id, shown);
+    }
     Component c;
     c.id = nextComponentId_++;
     c.kind = ComponentKind::Custom;
@@ -93,6 +115,7 @@ int Schematic::addCustomComponent(const std::string& partId, const std::string& 
     c.sheet = activeSheet_;
     components_.push_back(c);
     invalidate();
+    edited();
     return c.id;
 }
 
@@ -128,6 +151,7 @@ int Schematic::replaceCustomPart(const std::string& oldId, const std::string& ne
     }
     wires_ = std::move(kept);
     invalidate();
+    edited();
     return count;
 }
 
@@ -136,15 +160,17 @@ bool Component::isNoConnect(int pin) const {
 }
 
 bool Schematic::setPinNoConnect(int componentId, int pin, bool nc) {
-    Component* c = find(componentId);
+    Component* c = find(masterOf(componentId));
     if (!c || pin < 0 || pin >= static_cast<int>(c->def().pins.size())) return false;
     auto it = std::find(c->noConnect.begin(), c->noConnect.end(), pin);
     if (nc && it == c->noConnect.end()) c->noConnect.push_back(pin);
     if (!nc && it != c->noConnect.end()) c->noConnect.erase(it);
+    edited();
     return true;
 }
 
 bool Schematic::removeComponent(int id) {
+    id = masterOf(id);  // a part of a repeated sheet's instance goes from the definition, so from every instance
     auto it = std::find_if(components_.begin(), components_.end(), [&](const Component& c) { return c.id == id; });
     if (it == components_.end()) return false;
     // Deleting a bend point (a junction joining exactly two wires) keeps the connection: the wire is straightened.
@@ -162,6 +188,7 @@ bool Schematic::removeComponent(int id) {
                  wires_.end());
     if (heal.size() == 2) connect(heal[0], heal[1]);
     invalidate();
+    edited();
     return true;
 }
 
@@ -173,6 +200,15 @@ int Schematic::wireCount(int componentId) const {
 }
 
 int Schematic::splitWire(int wireId, Vec2 position) {
+    if (const int master = masterWireOf(wireId); master != wireId) {
+        // A wire of a repeated sheet's instance: split the definition's wire; return this instance's junction.
+        auto copy = std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == wireId; });
+        const Component* end = copy == wires_.end() ? nullptr : find(copy->a.component);
+        if (!end) return -1;
+        const int sheet = end->sheet;
+        const int j = splitWire(master, position);
+        return j < 0 ? j : copyOn(j, sheet);
+    }
     auto it = std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == wireId; });
     if (it == wires_.end()) return -1;
     const Wire old = *it;
@@ -180,18 +216,21 @@ int Schematic::splitWire(int wireId, Vec2 position) {
         if (const Component* c = find(end.component); c && c->kind == ComponentKind::Junction &&
                                                       c->position.x == position.x && c->position.y == position.y)
             return c->id;
+    const int shown = activeSheet_;
+    if (const Component* end = find(old.a.component)) activeSheet_ = end->sheet;  // on the wire's sheet
     int j = addComponent(ComponentKind::Junction, "", position);
-    if (const Component* end = find(old.a.component)) find(j)->sheet = end->sheet;  // on the wire's sheet
+    activeSheet_ = shown;
     wires_.erase(std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == wireId; }));
     connect(old.a, {j, 0});
     connect({j, 0}, old.b);
     invalidate();
+    edited();
     return j;
 }
 
 int Schematic::removeDanglingJunctions(int junctionId) {
     int removed = 0;
-    for (int id = junctionId; id >= 0;) {
+    for (int id = masterOf(junctionId); id >= 0;) {
         const Component* c = find(id);
         if (!c || c->kind != ComponentKind::Junction || wireCount(id) > 1) break;
         int next = -1;
@@ -207,29 +246,33 @@ int Schematic::removeDanglingJunctions(int junctionId) {
 }
 
 bool Schematic::moveComponent(int id, Vec2 position) {
-    Component* c = find(id);
+    Component* c = find(masterOf(id));
     if (!c) return false;
     c->position = position;
+    edited();
     return true;  // geometry only; connectivity unchanged
 }
 
 bool Schematic::rotateComponent(int id, int deltaDeg) {
-    Component* c = find(id);
+    Component* c = find(masterOf(id));
     if (!c) return false;
     c->rotation = (((c->rotation + deltaDeg) % 360) + 360) % 360;
+    edited();
     return true;
 }
 
 bool Schematic::setValue(int id, const std::string& value) {
-    Component* c = find(id);
+    if (const int pkg = unitPackage(masterOf(id)); pkg > 0) id = pkg;  // a unit's value is its package's
+    Component* c = find(masterOf(id));
     if (!c) return false;
     c->value = value;
     if (c->kind == ComponentKind::NetLabel || c->kind == ComponentKind::Ground) invalidate();
+    edited();
     return true;
 }
 
 bool Schematic::setLabelScope(int id, LabelScope scope, int targetSheet) {
-    Component* c = find(id);
+    Component* c = find(masterOf(id));
     if (!c || c->kind != ComponentKind::NetLabel) return false;
     if (scope == LabelScope::SheetEntry) {
         if (!findSheet(targetSheet) || targetSheet == c->sheet) return false;
@@ -239,31 +282,44 @@ bool Schematic::setLabelScope(int id, LabelScope scope, int targetSheet) {
     c->scope = scope;
     c->targetSheet = targetSheet;
     invalidate();
+    edited();
     return true;
 }
 
 bool Schematic::setPackage(int id, const std::string& package) {
-    Component* c = find(id);
+    Component* c = find(masterOf(id));
     if (!c) return false;
     const auto variants = Library::packageVariants(c->kind);
     if (!package.empty() && std::find(variants.begin(), variants.end(), package) == variants.end()) return false;
     c->package = package == c->def().footprint ? std::string() : package;
+    edited();
     return true;
 }
 
 bool Schematic::setFirmware(int id, const std::string& hex, const std::string& name, double clockHz) {
-    Component* c = find(id);
+    Component* c = find(masterOf(id));
     if (!c) return false;
     c->firmware = hex;
     c->firmwareName = hex.empty() ? std::string() : name;
     c->clockHz = clockHz > 0 ? clockHz : 0;
+    edited();
     return true;
 }
 
 bool Schematic::setRef(int id, const std::string& ref) {
-    Component* c = find(id);
+    if (const int pkg = unitPackage(masterOf(id)); pkg > 0) id = pkg;  // a unit's designator is its package's
+    Component* c = find(masterOf(id));
     if (!c || ref.empty()) return false;
+    if (hasInstances() && isRepeated(c->sheet) && !isNetSymbolKind(c->kind)) {
+        // A part of a repeated sheet: `ref` is its designator inside the block; each channel's follows from it.
+        for (const auto& o : components_)
+            if (o.sheet == c->sheet && o.id != c->id && o.logicalRef == ref) return false;
+        c->logicalRef = ref;
+        syncInstances();
+        return true;
+    }
     c->ref = ref;
+    edited();
     return true;
 }
 
@@ -271,6 +327,12 @@ int Schematic::connect(PinRef a, PinRef b) {
     const Component* ca = find(a.component);
     const Component* cb = find(b.component);
     if (!ca || !cb || a == b) return -1;
+    if (ca->instanceOf != 0 && cb->instanceOf != 0 && ca->sheet == cb->sheet) {
+        // Between parts of a repeated sheet's instance: the wire is drawn on the definition, so in every instance.
+        const int sheet = ca->sheet;
+        const int w = connect({masterOf(a.component), a.pin}, {masterOf(b.component), b.pin});
+        return w < 0 ? w : copyWireOn(w, sheet);
+    }
     if (ca->sheet != cb->sheet) return -1;  // wires stay on one sheet; labels and ports join sheets
     if (a.pin < 0 || a.pin >= static_cast<int>(ca->def().pins.size())) return -1;
     if (b.pin < 0 || b.pin >= static_cast<int>(cb->def().pins.size())) return -1;
@@ -282,10 +344,12 @@ int Schematic::connect(PinRef a, PinRef b) {
     w.b = b;
     wires_.push_back(w);
     invalidate();
+    edited();
     return w.id;
 }
 
 bool Schematic::removeWire(int id) {
+    id = masterWireOf(id);
     auto it = std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == id; });
     if (it == wires_.end()) return false;
     const Wire old = *it;
@@ -296,12 +360,15 @@ bool Schematic::removeWire(int id) {
         if (c && c->kind == ComponentKind::Junction && wireCount(end) == 0) removeComponent(end);
     }
     invalidate();
+    edited();
     return true;
 }
 
 void Schematic::clear() {
     components_.clear();
     wires_.clear();
+    buses_.clear();
+    nextBusId_ = 1;
     sheets_ = {Sheet{1, "Main", 0}};
     activeSheet_ = 1;
     nextSheetId_ = 2;
@@ -335,6 +402,9 @@ Component* Schematic::find(int id) {
 }
 
 const Component* Schematic::findByRef(const std::string& ref) const {
+    // The part itself, not one of its placed units (a multi-unit part's units share its designator).
+    for (const auto& c : components_)
+        if (c.ref == ref && c.kind != ComponentKind::PartUnit) return &c;
     for (const auto& c : components_)
         if (c.ref == ref) return &c;
     return nullptr;
@@ -435,6 +505,17 @@ void Schematic::rebuildNets() const {
             if (!fresh) uf.unite(index[{c.id, it->second}], index[{c.id, static_cast<int>(p)}]);
         }
     }
+    // A placed unit's pins are its package's pins.
+    for (const auto& c : components_) {
+        if (c.kind != ComponentKind::PartUnit) continue;
+        const CustomPart* part = CustomPartRegistry::instance().find(c.customPart);
+        if (!part || c.unit < 1 || c.unit > static_cast<int>(part->units.size())) continue;
+        const auto& unitPins = part->units[static_cast<size_t>(c.unit - 1)].pins;
+        for (size_t p = 0; p < unitPins.size(); ++p) {
+            auto iu = index.find({c.id, static_cast<int>(p)}), ip = index.find({c.unitOf, unitPins[p]});
+            if (iu != index.end() && ip != index.end()) uf.unite(iu->second, ip->second);
+        }
+    }
     for (const auto& w : wires_) {
         auto ia = index.find(w.a), ib = index.find(w.b);
         if (ia != index.end() && ib != index.end()) uf.unite(ia->second, ib->second);
@@ -465,7 +546,11 @@ void Schematic::rebuildNets() const {
 
     // Junctions only join wires: they are not net members, and a net exists only where a real pin is.
     std::vector<bool> isJunction(pins.size());
-    for (size_t i = 0; i < pins.size(); ++i) isJunction[i] = find(pins[i].component)->kind == ComponentKind::Junction;
+    // Units' pins are not members either: their package's pins are.
+    for (size_t i = 0; i < pins.size(); ++i) {
+        const ComponentKind k = find(pins[i].component)->kind;
+        isJunction[i] = k == ComponentKind::Junction || k == ComponentKind::PartUnit;
+    }
     std::map<int, int> rootToNet;
     for (size_t i = 0; i < pins.size(); ++i) {
         if (isJunction[i]) continue;
@@ -546,6 +631,13 @@ bool Schematic::isPinConnected(PinRef pin) const {
     const int net = netOf(pin);
     if (net < 0) return false;
     const Component* self = find(pin.component);
+    if (self && self->kind == ComponentKind::PartUnit) {  // a unit's pin is its package's pin
+        const CustomPart* part = CustomPartRegistry::instance().find(self->customPart);
+        if (!part || self->unit < 1 || self->unit > static_cast<int>(part->units.size())) return false;
+        const auto& unitPins = part->units[static_cast<size_t>(self->unit - 1)].pins;
+        if (pin.pin < 0 || static_cast<size_t>(pin.pin) >= unitPins.size()) return false;
+        return isPinConnected({self->unitOf, unitPins[static_cast<size_t>(pin.pin)]});
+    }
     if (!self || pin.pin < 0 || static_cast<size_t>(pin.pin) >= self->def().pins.size()) return false;
     const Vec2 spot = self->def().pins[static_cast<size_t>(pin.pin)].offset;
     for (const auto& other : nets()[static_cast<size_t>(net)].pins) {
@@ -697,6 +789,29 @@ std::vector<RuleViolation> Schematic::runERC() const {
             if (wireCount(c.id) < 2)
                 add(Severity::Warning, "ERC_DANGLING_WIRE", "A wire ends in empty space (not on a pin or another wire).",
                     {c.id}, c.position);
+            continue;
+        }
+        if (c.packageOnly) continue;  // a multi-unit part is checked through its units (and unitERC)
+        if (c.kind == ComponentKind::PartUnit) {
+            const auto& unitPins = c.def().pins;
+            const std::string name = displayRef(c);
+            std::vector<size_t> open;
+            for (size_t p = 0; p < unitPins.size(); ++p)
+                if (!isPinConnected({c.id, static_cast<int>(p)})) open.push_back(p);
+            if (open.size() == unitPins.size() && unitPins.size() > 1) {
+                add(Severity::Warning, "ERC_FLOATING_COMPONENT", name + " is not connected to the circuit.", {c.id}, c.position);
+                continue;
+            }
+            for (size_t p : open) {
+                const auto type = static_cast<PinType>(unitPins[p].type);
+                if (c.isNoConnect(static_cast<int>(p)) || type == PinType::NoConnect) continue;
+                if (type == PinType::PowerIn)
+                    add(Severity::Error, "ERC_POWER_PIN_UNCONNECTED", "Power pin " + name + "." + unitPins[p].name + " is not connected.",
+                        {c.id}, c.position);
+                else
+                    add(Severity::Warning, "ERC_UNCONNECTED_PIN", "Pin " + name + "." + unitPins[p].name +
+                            " is unconnected — wire it or mark it no-connect if it is unused.", {c.id}, c.position);
+            }
             continue;
         }
         const auto& pins = c.def().pins;
@@ -856,6 +971,8 @@ std::vector<RuleViolation> Schematic::runERC() const {
         }
     }
     hierarchyERC(out);
+    busERC(out);
+    unitERC(out);
     return out;
 }
 

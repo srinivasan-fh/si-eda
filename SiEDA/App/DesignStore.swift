@@ -71,6 +71,10 @@ final class DesignStore: ObservableObject {
         didSet { if selection != oldValue { followSelectionToSheet() } }
     }
     @Published var selectedWire: Int?
+    /// The graphical bus selected on the schematic (its inspector rips entries and connects parts).
+    @Published var selectedBus: Int?
+    /// The schematic's Find & Replace panel.
+    @Published var showFind = false
     @Published var ercResults: [RuleViolation] = []
     @Published var drcResults: [RuleViolation] = []
     @Published var validationResults: [RuleViolation] = []
@@ -261,6 +265,7 @@ final class DesignStore: ObservableObject {
         sheetSnapshot = snapshot.onSheet(snapshot.activeSheet)
         selection = selection.filter { id in snapshot.components.contains { $0.id == id } }
         if let wire = selectedWire, !snapshot.wires.contains(where: { $0.id == wire }) { selectedWire = nil }
+        if let bus = selectedBus, sheetSnapshot.bus(bus) == nil { selectedBus = nil }
         // Undo, open or any edit that replaced the design ends a route in progress.
         if routePreview != nil, !engine.routerActive { routePreview = nil }
         revision &+= 1
@@ -380,6 +385,11 @@ final class DesignStore: ObservableObject {
     }
 
     func deleteSelection() {
+        if let bus = selectedBus {
+            perform("Deleted bus") { $0.removeBus(bus) }
+            selectedBus = nil
+            return
+        }
         if let wire = selectedWire {
             perform("Deleted wire") { $0.removeWire(wire) }
             selectedWire = nil
@@ -479,6 +489,13 @@ final class DesignStore: ObservableObject {
 
     func setRef(_ id: Int, _ ref: String) {
         let trimmed = ref.trimmingCharacters(in: .whitespaces)
+        if let current = snapshot.component(id), let logical = current.logicalRef {
+            // A part of a repeated sheet: the designator inside the block; each channel's follows from it.
+            guard !trimmed.isEmpty, logical != trimmed else { return }
+            performChecked("Renamed to \(trimmed)", invalidatesAnalysis: false,
+                           failureMessage: "\(trimmed) is already used in this block") { $0.setRef(id, trimmed) }
+            return
+        }
         guard !trimmed.isEmpty, let current = snapshot.component(id), current.ref != trimmed else { return }
         if snapshot.component(ref: trimmed) != nil {
             alert = AlertItem(title: "Duplicate designator", message: "\(trimmed) is already used in this design.")
@@ -624,6 +641,7 @@ final class DesignStore: ObservableObject {
 
     func select(component id: Int?, extend: Bool = false) {
         selectedWire = nil
+        selectedBus = nil
         guard let id else {
             if !extend { selection = [] }
             return
@@ -674,10 +692,41 @@ final class DesignStore: ObservableObject {
     func addCustomComponent(partId: String, at point: CGPoint, rotation: Int = 0) -> Int {
         var id = -1
         let snapped = SchematicAutoLayout.snap(point)
-        let name = snapshot.customPart(partId)?.name ?? "part"
-        perform("Placed \(name)") { id = $0.addCustomComponent(partId: partId, at: snapped, rotation: rotation) }
+        let part = snapshot.customPart(partId)
+        let name = part?.name ?? "part"
+        if part?.isMultiUnit == true {
+            // A multi-unit part is placed gate by gate: unit A now, the others with Place Next Unit.
+            perform("Placed \(name) unit A") { id = $0.addCustomUnits(partId: partId, at: snapped, rotation: rotation) }
+        } else {
+            perform("Placed \(name)") { id = $0.addCustomComponent(partId: partId, at: snapped, rotation: rotation) }
+        }
         if id >= 0 { selection = [id] }
         return id
+    }
+
+    /// Places the next unit of a multi-unit part beside the last one placed and selects it.
+    func placeNextUnit(of id: Int) {
+        guard let c = snapshot.component(id), let package = c.unitOf ?? (c.isUnitPackage ? c.id : nil) else { return }
+        let placed = snapshot.components.filter { $0.unitOf == package && $0.sheetId == snapshot.activeSheet }
+        let anchor = placed.max { $0.x < $1.x }?.position ?? c.position
+        var unit: Int?
+        performChecked("Placed next unit of \(c.ref)", failureMessage: "Every unit of \(c.ref) is placed") {
+            unit = $0.placeNextUnit(of: package, at: SchematicAutoLayout.snap(CGPoint(x: anchor.x + 140, y: anchor.y)))
+            return unit != nil
+        }
+        if let unit { selection = [unit] }
+    }
+
+    /// Places one particular unit (1-based) of a multi-unit part.
+    func placeUnit(_ unit: Int, of id: Int) {
+        guard let c = snapshot.component(id), let package = c.unitOf ?? (c.isUnitPackage ? c.id : nil) else { return }
+        let anchor = c.position
+        var placed: Int?
+        performChecked("Placed unit of \(c.ref)", failureMessage: "That unit of \(c.ref) is placed already") {
+            placed = $0.addPartUnit(of: package, unit: unit, at: SchematicAutoLayout.snap(CGPoint(x: anchor.x + 140, y: anchor.y + 80)))
+            return placed != nil
+        }
+        if let placed { selection = [placed] }
     }
 
     /// Adds a built-in standard part to the project library (if needed) and returns its part id.
@@ -824,12 +873,150 @@ final class DesignStore: ObservableObject {
         if placed { selectSheet(sheet.parent) }
     }
 
+    /// Uses a sheet `count` times (channels) and gives every channel without one its sheet symbol on the parent
+    /// sheet, side by side to the right of the parent's parts. One undo step.
+    func repeatSheet(_ id: Int, count: Int) {
+        guard let sheet = snapshot.sheet(id), !sheet.isInstance, count >= 1, count <= 64 else { return }
+        let done = performChecked("\(sheet.name): \(count) channel(s)",
+                                  failureMessage: "Only a sheet without child sheets can be repeated") { engine in
+            guard engine.repeatSheet(id, count: count) != nil else { return false }
+            guard sheet.parent != 0, let snap = engine.snapshot() else { return true }
+            let parentParts = snap.onSheet(sheet.parent)
+            var x = SchematicCanvas.componentBounds(parentParts).reduce(CGRect.null) { $0.union($1.rect) }.maxX
+            if x.isInfinite || x.isNaN { x = 0 }
+            let top = SchematicCanvas.componentBounds(parentParts).map { $0.rect.minY }.min() ?? 0
+            for (index, channel) in snap.sheets.filter({ $0.definitionId == id }).enumerated() {
+                let hasEntries = snap.components.contains { $0.labelScope == "entry" && $0.targetSheet == channel.id }
+                if hasEntries { continue }
+                let origin = SchematicAutoLayout.snap(CGPoint(x: x + 80 + CGFloat(index) * 160, y: top))
+                engine.placeSheetEntries(child: channel.id, at: origin)
+            }
+            return true
+        }
+        if done { fitToken &+= 1 }
+    }
+
+    /// Channel designators of a repeated sheet: "sheet" (R201, R301…) or "suffix" (R1_A, R1_B…).
+    func setInstanceRefs(_ id: Int, scheme: String) {
+        guard let sheet = snapshot.sheet(id), sheet.isRepeated, sheet.refs != scheme else { return }
+        performChecked("Channel designators: \(scheme)", invalidatesAnalysis: false) { $0.setInstanceRefs(id, scheme: scheme) }
+    }
+
+    func setSheetChannel(_ id: Int, to channel: String) {
+        let label = channel.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let sheet = snapshot.sheet(id), sheet.isRepeated, !label.isEmpty, sheet.channel != label else { return }
+        performChecked("Channel \(label)", invalidatesAnalysis: false,
+                       failureMessage: "Channel labels are letters, digits, _ or -, unique in the block") {
+            $0.setSheetChannel(id, channel: label)
+        }
+    }
+
+    // MARK: - Find / replace and cross-probing
+
+    func find(_ text: String, matchCase: Bool, wholeWord: Bool, pins: Bool) -> [SchematicSearchHit] {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return [] }
+        return engine.find(trimmed, matchCase: matchCase, wholeWord: wholeWord, pins: pins)
+    }
+
+    /// Replaces text in part values and net label names on every sheet, as one undo step. Returns the count.
+    @discardableResult
+    func replaceAll(_ text: String, with replacement: String, matchCase: Bool, wholeWord: Bool) -> Int {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return 0 }
+        var count = 0
+        let done = performChecked("Replaced \(trimmed) with \(replacement)", failureMessage: "Nothing to replace") {
+            count = $0.replace(trimmed, with: replacement, matchCase: matchCase, wholeWord: wholeWord)
+            return count > 0
+        }
+        if done { statusMessage = "Replaced \(count) value(s) and label(s)" }
+        return count
+    }
+
+    /// Shows a place on its sheet and selects it (find results, the net navigator, sheet entries and ports).
+    func crossProbe(component id: Int, sheet: Int) {
+        if sheet != snapshot.activeSheet, snapshot.sheet(sheet) != nil { selectSheet(sheet, fit: false) }
+        select(component: id)
+        requestView(.fitSelection)
+    }
+
+    /// The other end of a hierarchical connection: a sheet entry opens its child sheet's port, a port its entry.
+    func crossProbeHierarchy(from id: Int) {
+        guard let c = snapshot.component(id), c.componentKind == .netLabel else { return }
+        if c.labelScope == "entry", let child = c.targetSheet,
+           let port = snapshot.components.first(where: { $0.sheetId == child && $0.labelScope == "port" && $0.value == c.value }) {
+            crossProbe(component: port.id, sheet: child)
+        } else if c.labelScope == "port",
+                  let entry = snapshot.components.first(where: { $0.labelScope == "entry" && $0.targetSheet == c.sheetId && $0.value == c.value }) {
+            crossProbe(component: entry.id, sheet: entry.sheetId)
+        }
+    }
+
+    func netPlaces(_ net: Int) -> NetPlacesReport? { net >= 0 ? engine.netPlaces(net) : nil }
+
+    func setTitleBlock(_ block: TitleBlockInfo) {
+        guard block != snapshot.titleBlock else { return }
+        performChecked("Title block", invalidatesAnalysis: false) { $0.setTitleBlock(block) }
+    }
+
+    // MARK: - Graphical buses
+
+    /// Draws a bus through `points` (snapped to the grid) and selects it.
+    @discardableResult
+    func addBus(named name: String, points: [CGPoint]) -> Int? {
+        let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        var id: Int?
+        performChecked("Drew bus \(title)", failureMessage: "\(title) is not bus notation — use e.g. D[0..7] or A[15..0],WR") {
+            id = $0.addBus(title, points: points.map(SchematicAutoLayout.snap))
+            return id != nil
+        }
+        if let id {
+            selection = []
+            selectedWire = nil
+            selectedBus = id
+        }
+        return id
+    }
+
+    func renameBus(_ id: Int, to name: String) {
+        let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let bus = sheetSnapshot.bus(id), bus.name != title, !title.isEmpty else { return }
+        performChecked("Renamed bus to \(title)", failureMessage: "\(title) is not bus notation") { $0.renameBus(id, to: title) }
+    }
+
+    func moveBus(_ id: Int, by delta: CGSize) {
+        guard delta != .zero else { return }
+        perform("Moved bus", invalidatesAnalysis: false) { $0.moveBus(id, by: delta) }
+    }
+
+    /// Rips an entry out of the bus for every member that has none yet.
+    func ripBusEntries(_ id: Int) {
+        var added = 0
+        let done = performChecked("Ripped out bus entries", failureMessage: "Every member already has an entry") {
+            added = $0.ripBusEntries(id)
+            return added > 0
+        }
+        if done { statusMessage = "Ripped out \(added) bus entries" }
+    }
+
+    /// Wires the bus members to a part's pins of the same names (else its open pins), through entries on the bus.
+    func connectBus(_ id: Int, toPart component: Int) {
+        guard let part = snapshot.component(component) else { return }
+        var made = 0
+        let done = performChecked("Connected bus to \(part.ref)", failureMessage: "\(part.ref) has no open pins for this bus") {
+            made = $0.connectBus(id, toPart: component)
+            return made > 0
+        }
+        if done { statusMessage = "Connected \(made) bus members to \(part.ref)" }
+    }
+
     /// Re-numbers reference designators by sheet and position.
-    func annotate(byColumns: Bool = false, keepExisting: Bool = false, sheetNumbering: Bool = false) {
+    func annotate(byColumns: Bool = false, keepExisting: Bool = false, sheetNumbering: Bool = false, packUnits: Bool = false) {
         var changed = 0
         let done = performChecked("Annotated designators", invalidatesAnalysis: false,
                                   failureMessage: "Designators are already in order") { engine in
-            changed = engine.annotate(byColumns: byColumns, keepExisting: keepExisting, sheetNumbering: sheetNumbering)
+            changed = engine.annotate(byColumns: byColumns, keepExisting: keepExisting, sheetNumbering: sheetNumbering,
+                                      packUnits: packUnits)
             return changed > 0
         }
         if done { statusMessage = "Annotated: \(changed) designator(s) changed" }
@@ -856,7 +1043,8 @@ final class DesignStore: ObservableObject {
     /// "" shows and exports the base design.
     func selectVariant(_ name: String) {
         guard name != snapshot.activeVariant else { return }
-        performChecked(name.isEmpty ? "Variant: base design" : "Variant: \(name)", invalidatesAnalysis: false) {
+        // Simulation follows the active variant: its results are cleared.
+        performChecked(name.isEmpty ? "Variant: base design" : "Variant: \(name)") {
             $0.setActiveVariant(name)
         }
     }
@@ -865,7 +1053,7 @@ final class DesignStore: ObservableObject {
     func setFittedInVariant(_ id: Int, _ fitted: Bool) {
         let variant = snapshot.activeVariant
         guard !variant.isEmpty, let c = snapshot.component(id), c.isFitted != fitted else { return }
-        performChecked(fitted ? "\(c.ref) fitted in \(variant)" : "\(c.ref) not fitted in \(variant)", invalidatesAnalysis: false) {
+        performChecked(fitted ? "\(c.ref) fitted in \(variant)" : "\(c.ref) not fitted in \(variant)") {
             $0.setVariantPart(variant, component: id, fitted: fitted)
         }
     }
@@ -876,7 +1064,7 @@ final class DesignStore: ObservableObject {
         let text = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !variant.isEmpty, let c = snapshot.component(id), (c.variantValue ?? "") != text else { return }
         let state = snapshot.variants.first { $0.name == variant }?.part(id)?.fitted
-        performChecked("\(c.ref) = \(text.isEmpty ? c.value : text) in \(variant)", invalidatesAnalysis: false) {
+        performChecked("\(c.ref) = \(text.isEmpty ? c.value : text) in \(variant)") {
             $0.setVariantPart(variant, component: id, fitted: state, value: text)
         }
     }

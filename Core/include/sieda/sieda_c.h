@@ -442,7 +442,9 @@ char* sieda_annotate(SiedaProject* project, const char* options_json);
 /* ---- design variants ----------------------------------------------------------------------- */
 /* Named assembly variants: per component fitted / not fitted (DNP) and value overrides. The active variant ("" =
  * base design) drives sieda_bom_json, the "bom", "bom_assembly", "cpl", "pnp", "assembly_*" exports and the
- * assembly files of the fabrication package. Variants never change connectivity, simulation or the board.
+ * assembly files of the fabrication package, and simulation: sieda_simulate_*, the live board and
+ * sieda_spice_netlist run the variant as assembled (values applied, unfitted / DNP parts left out; their results add
+ * "variant" and "omitted":[refs]). Variants never change connectivity or the board.
  * {"active":"…","variants":[{"name","description","parts":[{"component","ref","fitted"?,"value"?}]}]} */
 char* sieda_variants_json(const SiedaProject* project);
 /* Adds a variant, optionally copying copy_from (NULL/"" = empty). 1 on success, 0 for an empty or taken name. */
@@ -473,6 +475,69 @@ const float* sieda_mesh_colors(const SiedaMesh* mesh);    /* 4 floats per vertex
    6 silkscreen, 7 plastic, 8 ceramic, 9 glass, 10 drilled hole, 11 package marking). */
 const uint8_t* sieda_mesh_surfaces(const SiedaMesh* mesh);
 const uint32_t* sieda_mesh_indices(const SiedaMesh* mesh);
+
+/* ---- schematic capture: repeated sheets ----------------------------------------------------- */
+/* Repeated (multi-instance) sheet: one block drawn once and used `count` times (the sheet itself is the first
+ * channel). Each extra channel is a sheet of its own ("<name> [B]" …, same parent) holding copies of the block with
+ * their own designators, nets, footprints and variant settings; edits to any channel go to the block. Only a sheet
+ * without child sheets can be repeated; 1 ends the repetition. Returns the number of channels, or -1.
+ * sieda_sheets_json and the snapshot add "instanceOf" (definition sheet; 0 on the definition), "channel", "refs" and
+ * "instances" to repeated sheets; components add "instanceOf" (the block part copied) and "logicalRef". */
+int32_t sieda_repeat_sheet(SiedaProject* project, int32_t sheet, int32_t count);
+/* Channel designators: "sheet" (R1 → R201, R301 … by sheet number) or "suffix" (R1_A, R1_B …). 1 on success. */
+int32_t sieda_set_instance_refs(SiedaProject* project, int32_t sheet, const char* scheme);
+/* Channel label of a repeated sheet (letters, digits, '_' or '-'; unique in the block). 1 on success. */
+int32_t sieda_set_sheet_channel(SiedaProject* project, int32_t sheet, const char* channel);
+
+/* ---- schematic capture: graphical buses ---------------------------------------------------- */
+/* A bus is a named polyline ("D[0..7]") on a sheet. Its members leave it through bus entries: net labels attached to
+ * it ("bus": id in the snapshot) that join nets by name (scope "local" by default). The snapshot lists
+ * "buses":[{"id","sheet","name","points":[{x,y}],"members":[…],"instanceOf"?}].
+ * Adds a bus on the active sheet; points_json is [{"x":…,"y":…},…] (2 … 256 points). Returns its id or -1. */
+int32_t sieda_add_bus(SiedaProject* project, const char* name, const char* points_json);
+/* Removes a bus with its entries. 1 on success. */
+int32_t sieda_remove_bus(SiedaProject* project, int32_t bus);
+int32_t sieda_rename_bus(SiedaProject* project, int32_t bus, const char* name);
+/* Moves a bus and its entries. 1 on success. */
+int32_t sieda_move_bus(SiedaProject* project, int32_t bus, double dx, double dy);
+/* Rips entries out for the members in members_json (["D0","D1"]; NULL or "[]" = every member without one), spaced
+ * along the bus. scope: "local" (NULL), "global" or "port". Returns the entries added, -1 on bad input. */
+int32_t sieda_rip_bus_entries(SiedaProject* project, int32_t bus, const char* members_json, const char* scope);
+/* Wires bus members to the pins of a part they name (D0 → pin "D0"), else to its open pins in order, each through
+ * an entry on the bus. Returns the connections made, -1 for an unknown bus or part. */
+int32_t sieda_connect_bus_to_part(SiedaProject* project, int32_t bus, int32_t component_id, const char* scope);
+
+/* ---- schematic capture: multi-unit parts ---------------------------------------------------- */
+/* A custom part spec may list "units":[{"name":"A","pins":["1","2","3"]},…] (pins in no unit form a power unit "P").
+ * Placing it by units puts a hidden package (every pin, the footprint: what the netlist, BOM and PCB see) and the
+ * symbol of unit A; further units are placed on their own and join the same package. In the snapshot a unit is a
+ * custom part (kind 16) with "unit", "unitName" and "unitOf" (its package); the package has "unitPackage":true and
+ * "units"; custom part JSON adds "unitSymbols". sieda_annotate takes "packUnits":true to re-assign interchangeable
+ * units to packages in placement order. sieda_add_custom_component still places such a part whole.
+ * Returns the id of unit A, or -1 for an unknown part or one without units. */
+int32_t sieda_add_custom_units(SiedaProject* project, const char* part_id, const char* value, double x, double y,
+                               int32_t rotation, const char* ref);
+/* Places unit `unit` (1-based) of the package of component_id (the package or any of its units). -1 when the unit is
+ * out of range or already placed. */
+int32_t sieda_add_part_unit(SiedaProject* project, int32_t component_id, int32_t unit, double x, double y, int32_t rotation);
+/* Places the first unit not placed yet; -1 when all are placed. */
+int32_t sieda_place_next_unit(SiedaProject* project, int32_t component_id, double x, double y);
+
+/* ---- schematic capture: find / replace, net navigator, title block ------------------------- */
+/* Finds text across every sheet. request: {"text","matchCase"?,"wholeWord"?,"fields"?:["ref","value","label","net",
+ * "pin"]} (default: all but pins). Returns {"hits":[{"component","net","pin","sheet","field","text"}]} in sheet
+ * order (a net hit names the first place the net appears). */
+char* sieda_schematic_find(const SiedaProject* project, const char* request_json);
+/* Replaces text in part values and net label names. request: {"text","replacement","matchCase"?,"wholeWord"?,
+ * "fields"?:["value","label"]}. Repeated-sheet blocks and multi-unit parts are edited once. Returns the fields
+ * changed (0 on bad input). */
+int32_t sieda_schematic_replace(SiedaProject* project, const char* request_json);
+/* Net navigator: {"net","name","places":[{"component","pin","sheet","x","y","kind":"pin"|"label"|"global"|"port"|
+ * "entry"|"bus"|"ground","ref","name"}]}, in sheet order. */
+char* sieda_net_places(const SiedaProject* project, int32_t net);
+/* Title block fields (any of "title","company","revision","date","drawnBy"; up to 256 characters each). The
+ * snapshot carries "titleBlock" (title defaults to the project name). 1 on success. */
+int32_t sieda_set_title_block(SiedaProject* project, const char* json);
 
 #ifdef __cplusplus
 }

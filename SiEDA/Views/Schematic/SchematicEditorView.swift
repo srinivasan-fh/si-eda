@@ -4,6 +4,7 @@ import SwiftUI
 enum SchematicTool: Equatable {
     case select
     case wire
+    case bus
     case noConnect
     case pan
     case place(ComponentKind)
@@ -13,6 +14,7 @@ enum SchematicTool: Equatable {
         switch self {
         case .select: return "Select / Move"
         case .wire: return "Wire"
+        case .bus: return "Bus"
         case .noConnect: return "No Connect"
         case .pan: return "Hand (Pan)"
         case .place(let kind): return "Place \(kind.displayName)"
@@ -41,6 +43,8 @@ struct SchematicEditorView: View {
                 ToolStripButton(systemImage: "cursorarrow", help: "Select / move (V)", isActive: tool == .select) { tool = .select }
                 ToolStripButton(systemImage: "hand.raised", help: "Pan (H)", isActive: tool == .pan) { tool = .pan }
                 ToolStripButton(systemImage: "line.diagonal", help: "Wire (W) — click two pins", isActive: tool == .wire) { tool = .wire }
+                ToolStripButton(systemImage: "line.3.horizontal", help: "Bus (B) — click the corners, click the last point again (or Return) to name it",
+                                isActive: tool == .bus) { tool = .bus }
                 ToolStripButton(systemImage: "xmark", help: "No connect (Q) — click a pin to mark it intentionally open",
                                 isActive: tool == .noConnect) { tool = .noConnect }
                 ToolStripDivider()
@@ -100,6 +104,11 @@ struct SchematicEditorView: View {
                     Toggle("Live probes", isOn: $store.showDCOverlay)
                         .toggleStyle(.switch)
                         .controlSize(.mini)
+                    Button { store.showFind = true } label: { Image(systemName: "magnifyingglass") }
+                        .buttonStyle(.borderless)
+                        .keyboardShortcut("f", modifiers: [.command])
+                        .help("Find & Replace across every sheet (⌘F)")
+                        .accessibilityLabel("Find and replace")
                     Spacer()
                     if !store.selection.isEmpty {
                         Text("\(store.selection.count) selected").foregroundStyle(Theme.skyBlue)
@@ -124,6 +133,20 @@ struct SchematicEditorView: View {
                     SimulationTransport(live: store.live)
                         .canvasScrollShield()
                         .padding(12)
+                    if let shown = store.snapshot.sheet(store.snapshot.activeSheet), shown.isRepeated,
+                       let definition = store.snapshot.sheet(shown.definitionId) {
+                        // A channel of a repeated sheet: every edit applies to the whole block.
+                        Text("Channel \(shown.channel ?? "") of \(definition.name) — edits apply to every channel")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Theme.iceBlue)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(Theme.deepBlue.opacity(0.95)))
+                            .overlay(Capsule().strokeBorder(Theme.skyBlue))
+                            .padding(10)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .allowsHitTesting(false)
+                    }
                     if store.snapshot.components.isEmpty {
                         VStack(spacing: 4) {
                             if settings.aiEnabled {
@@ -157,6 +180,7 @@ struct SchematicEditorView: View {
             }
         }
         .background(Theme.navy)
+        .sheet(isPresented: $store.showFind) { SchematicFindPanel().environmentObject(store) }
         .background(DeleteKeyMonitor { store.deleteSelection() } isActive: {
             store.selectedWire != nil || !store.selection.isEmpty
         })
@@ -179,6 +203,7 @@ struct SchematicEditorView: View {
         case .noConnect: return "Click a pin to mark it intentionally unconnected (click again to clear) · ERC stops reporting it"
         case .pan: return "Drag, scroll or arrow keys pan · pinch, ⌘-scroll or +/− zoom · Z zoom to area · Home fits"
         case .place, .placeCustom: return "Click to place (repeats) · Space or R rotates before placing · Esc returns to Select"
+        case .bus: return "Click the bus corners · click the last point again or press Return to name it (D[0..7]) · Esc cancels"
         }
     }
 
@@ -201,6 +226,10 @@ struct SheetBar: View {
     @State private var sheetName = ""
     @State private var addingVariant = false
     @State private var variantName = ""
+    @State private var repeating: SheetInfo?
+    @State private var channelCount = "2"
+    @State private var renamingChannel: SheetInfo?
+    @State private var channelName = ""
 
     var body: some View {
         OptionsBar {
@@ -209,8 +238,9 @@ struct SheetBar: View {
                 Button {
                     store.selectSheet(sheet.id)
                 } label: {
-                    // Child sheets are indented under their parent ("› Filter").
-                    Text(verbatim: String(repeating: "› ", count: sheet.depth) + sheet.name)
+                    // Child sheets are indented under their parent ("› Filter"); a repeated block shows its channels.
+                    Text(verbatim: String(repeating: "› ", count: sheet.depth) + sheet.name
+                         + (sheet.isRepeated && !sheet.isInstance ? " ×\(sheet.instances ?? 1)" : ""))
                         .fontWeight(active ? .semibold : .regular)
                         .foregroundStyle(active ? Theme.textPrimary : Theme.textSecondary)
                         .padding(.horizontal, 8)
@@ -226,6 +256,22 @@ struct SheetBar: View {
                     Button("Add Child Sheet") { store.addSheet(parent: sheet.id) }
                     if sheet.parent != 0 {
                         Button("Place Sheet Symbol") { store.placeSheetSymbol(for: sheet.id) }
+                    }
+                    if !sheet.isInstance {
+                        Button("Repeat Sheet…") {
+                            channelCount = "\(max(2, sheet.instances ?? 1))"
+                            repeating = sheet
+                        }
+                    }
+                    if sheet.isRepeated {
+                        Menu("Channel Designators") {
+                            Button("By Sheet Number (R201, R301…)") { store.setInstanceRefs(sheet.id, scheme: "sheet") }
+                            Button("With Channel Suffix (R1_A, R1_B…)") { store.setInstanceRefs(sheet.id, scheme: "suffix") }
+                        }
+                        Button("Rename Channel…") {
+                            channelName = sheet.channel ?? ""
+                            renamingChannel = sheet
+                        }
                     }
                     if !store.selection.isEmpty && !active {
                         Button("Move Selection Here") { store.moveSelection(toSheet: sheet.id) }
@@ -244,6 +290,9 @@ struct SheetBar: View {
                 Button("Number by Columns") { store.annotate(byColumns: true) }
                 Button("Number by Sheet (R101, R201…)") { store.annotate(sheetNumbering: true) }
                 Button("Fix Duplicates Only") { store.annotate(keepExisting: true) }
+                Divider()
+                Button("Pack Units into Packages") { store.annotate(packUnits: true) }
+                    .help("Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering")
             } label: {
                 Label("Annotate", systemImage: "number")
             }
@@ -278,6 +327,26 @@ struct SheetBar: View {
                 renaming = nil
             }
             Button("Cancel", role: .cancel) { renaming = nil }
+        }
+        .alert("Repeat Sheet", isPresented: Binding(get: { repeating != nil }, set: { if !$0 { repeating = nil } })) {
+            TextField("Channels", text: $channelCount)
+            Button("OK") {
+                if let sheet = repeating, let count = Int(channelCount.trimmingCharacters(in: .whitespaces)) {
+                    store.repeatSheet(sheet.id, count: count)
+                }
+                repeating = nil
+            }
+            Button("Cancel", role: .cancel) { repeating = nil }
+        } message: {
+            Text("Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all.")
+        }
+        .alert("Rename Channel", isPresented: Binding(get: { renamingChannel != nil }, set: { if !$0 { renamingChannel = nil } })) {
+            TextField("Channel label", text: $channelName)
+            Button("OK") {
+                if let sheet = renamingChannel { store.setSheetChannel(sheet.id, to: channelName) }
+                renamingChannel = nil
+            }
+            Button("Cancel", role: .cancel) { renamingChannel = nil }
         }
         .alert("New Variant", isPresented: $addingVariant) {
             TextField("Variant name", text: $variantName)
@@ -516,6 +585,13 @@ struct SimulationTransport: View {
                     Text(dc.converged ? "DC ✓" : "DC ✗")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(dc.converged ? Theme.skyBlue : Theme.error)
+                    if !dc.variant.isEmpty || !dc.omitted.isEmpty {
+                        // The simulated assembly: the active variant, with its unfitted parts left out.
+                        (dc.variant.isEmpty ? Text("Base Design") : Text(verbatim: dc.variant))
+                            .font(.caption)
+                            .foregroundStyle(Theme.warning)
+                            .help("Simulated as assembled: variant values applied, parts not fitted left out (\(dc.omitted.joined(separator: ", ")))")
+                    }
                 }
             }
         }
