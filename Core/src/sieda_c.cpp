@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cctype>
 #include <map>
+#include <memory>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -24,6 +25,7 @@
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
 #include "sieda/Industry.hpp"
+#include "sieda/InteractiveRouter.hpp"
 #include "sieda/LengthMatch.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
@@ -37,6 +39,7 @@
 
 struct SiedaProject {
     sieda::Project project;
+    std::unique_ptr<sieda::InteractiveRouter> router;  // interactive route session (created on first use)
 };
 
 struct SiedaMesh {
@@ -1366,5 +1369,164 @@ const float* sieda_mesh_normals(const SiedaMesh* m) { return m ? m->mesh.normals
 const float* sieda_mesh_colors(const SiedaMesh* m) { return m ? m->mesh.colors.data() : nullptr; }
 const uint8_t* sieda_mesh_surfaces(const SiedaMesh* m) { return m ? m->mesh.surfaces.data() : nullptr; }
 const uint32_t* sieda_mesh_indices(const SiedaMesh* m) { return m ? m->mesh.indices.data() : nullptr; }
+
+}  // extern "C"
+
+// ---- interactive routing
+
+namespace {
+InteractiveRouter& routerOf(SiedaProject* project) {
+    if (!project->router) project->router = std::make_unique<InteractiveRouter>(project->project.pcb, project->project.schematic);
+    return *project->router;
+}
+
+void applyRouterOptions(SiedaProject* project, const char* options_json) {
+    if (!options_json || !*options_json) return;
+    InteractiveRouter& r = routerOf(project);
+    r.setOptions(routerOptionsFromJson(Json::parse(options_json), r.options()));
+}
+
+char* routerPreview(SiedaProject* project, bool ok) {
+    InteractiveRouter& r = routerOf(project);
+    Json j = routePreviewJson(r.preview());
+    if (!ok) j["error"] = r.error().empty() ? std::string("Not possible here") : r.error();
+    return dup(j.dump());
+}
+}  // namespace
+
+extern "C" {
+
+char* sieda_router_begin(SiedaProject* project, const char* options_json, double x, double y, int32_t layer) {
+    if (!project) return nullptr;
+    try {
+        applyRouterOptions(project, options_json);
+        return routerPreview(project, routerOf(project).beginRoute({x, y}, layer));
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_router_begin_pair(SiedaProject* project, const char* options_json, double x, double y, int32_t layer) {
+    if (!project) return nullptr;
+    try {
+        applyRouterOptions(project, options_json);
+        return routerPreview(project, routerOf(project).beginPair({x, y}, layer));
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_router_begin_drag(SiedaProject* project, const char* options_json, int32_t track_id, double x, double y) {
+    if (!project) return nullptr;
+    try {
+        applyRouterOptions(project, options_json);
+        return routerPreview(project, routerOf(project).beginDrag(track_id, {x, y}));
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_router_move(SiedaProject* project, double x, double y) {
+    if (!project) return nullptr;
+    try {
+        routerOf(project).moveTo({x, y});
+        return routerPreview(project, true);
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_router_fix(SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return routerPreview(project, routerOf(project).fixHead());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_router_add_via(SiedaProject* project, int32_t to_layer) {
+    if (!project) return nullptr;
+    try {
+        return routerPreview(project, routerOf(project).addVia(to_layer));
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_router_set_options(SiedaProject* project, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        applyRouterOptions(project, options_json);
+        InteractiveRouter& r = routerOf(project);
+        if (r.active()) r.moveTo({r.preview().end.x, r.preview().end.y});
+        return routerPreview(project, true);
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_router_commit(SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(routeChangesJson(routerOf(project).commit()).dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+void sieda_router_cancel(SiedaProject* project) {
+    if (project && project->router) project->router->cancel();
+}
+
+int32_t sieda_router_active(const SiedaProject* project) {
+    return project && project->router && project->router->active() ? 1 : 0;
+}
+
+char* sieda_router_tune_length(SiedaProject* project, int32_t track_id, double target_mm, double max_amplitude_mm) {
+    if (!project) return nullptr;
+    try {
+        if (project->router) project->router->cancel();
+        const LengthTuneResult r =
+            tuneTrackLength(project->project.pcb, project->project.schematic, track_id, target_mm, max_amplitude_mm);
+        Json j = Json::object();
+        j["ok"] = r.ok;
+        j["message"] = r.message;
+        j["net"] = r.net;
+        j["before"] = r.before;
+        j["after"] = r.after;
+        j["target"] = r.target;
+        j["changes"] = routeChangesJson(r.changes);
+        return dup(j.dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+int32_t sieda_pcb_lock_track(SiedaProject* project, int32_t track_id, int32_t locked) {
+    if (!project) return 0;
+    for (auto& t : project->project.pcb.tracks)
+        if (t.id == track_id) {
+            t.locked = locked != 0;
+            return 1;
+        }
+    return 0;
+}
+
+int32_t sieda_pcb_remove_track(SiedaProject* project, int32_t track_id) {
+    if (!project) return 0;
+    auto& tracks = project->project.pcb.tracks;
+    const auto n = tracks.size();
+    tracks.erase(std::remove_if(tracks.begin(), tracks.end(), [&](const Track& t) { return t.id == track_id; }), tracks.end());
+    return tracks.size() < n ? 1 : 0;
+}
+
+int32_t sieda_pcb_remove_via(SiedaProject* project, int32_t via_id) {
+    if (!project) return 0;
+    auto& vias = project->project.pcb.vias;
+    const auto n = vias.size();
+    vias.erase(std::remove_if(vias.begin(), vias.end(), [&](const Via& v) { return v.id == via_id; }), vias.end());
+    return vias.size() < n ? 1 : 0;
+}
 
 }  // extern "C"

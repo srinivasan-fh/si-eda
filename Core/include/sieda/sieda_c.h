@@ -272,6 +272,42 @@ int32_t sieda_pcb_add_tamper_mesh(SiedaProject* project, const char* ref, const 
                                   int32_t layer_a, int32_t layer_b, double margin_mm);
 void sieda_pcb_clear_tamper_meshes(SiedaProject* project);
 
+/* ---- interactive routing ---------------------------------------------------------------------------------------
+ * One route session per project. The router works on a copy of the board taken when the route begins and edits the
+ * layout only on commit; any other board edit in between makes the commit fail (call cancel first).
+ * options_json (NULL = keep the current options): {"mode":"shove"|"walkaround", "posture":"45"|"90"|"free",
+ *   "swapPosture":bool, "width":mm (0 = net class), "pairGap":mm (0 = stack-up), "snap":bool}.
+ * Begin / move / fix / via / options return the preview, caller frees:
+ *   {"active","kind":"route"|"pair"|"drag","status","blocked","reachedTarget","nets":[…],"layer","width","gap",
+ *    "endX","endY","length","placed":[track],"head":[track],"vias":[via],"shovedTracks":[track],"shovedVias":[via],
+ *    "hiddenTracks":[id],"hiddenVias":[id]}  (track = {id,net,layer,width,ax,ay,bx,by}; via = {id,net,x,y,drill,diameter})
+ * plus "error":"…" when that call failed (the preview is still the current state). */
+char* sieda_router_begin(SiedaProject* project, const char* options_json, double x, double y, int32_t layer);
+/* Differential pair from a pad of either member (nets X_P / X_N, X+ / X-, …). */
+char* sieda_router_begin_pair(SiedaProject* project, const char* options_json, double x, double y, int32_t layer);
+/* Drags track `track_id` grabbed at (x, y): it moves parallel to itself, neighbours follow, other nets are shoved. */
+char* sieda_router_begin_drag(SiedaProject* project, const char* options_json, int32_t track_id, double x, double y);
+char* sieda_router_move(SiedaProject* project, double x, double y);
+/* Places the head (a click): the route continues from its end. */
+char* sieda_router_fix(SiedaProject* project);
+/* Places the head and a through via at its end; continues on to_layer (-1 = the other outer layer). */
+char* sieda_router_add_via(SiedaProject* project, int32_t to_layer);
+char* sieda_router_set_options(SiedaProject* project, const char* options_json);
+/* Writes the route and every shoved item into the layout: {"ok","error","removedTracks":[track],"removedVias":[via],
+ * "addedTracks":[id],"addedVias":[id]}. The session ends either way. */
+char* sieda_router_commit(SiedaProject* project);
+void sieda_router_cancel(SiedaProject* project);
+int32_t sieda_router_active(const SiedaProject* project);
+/* Length tuning: accordion meanders on track `track_id` (then the net's other tracks) until its net is target_mm
+ * long; target_mm <= 0 matches the longest member of the net's pair / bus group. max_amplitude_mm <= 0 = 2 mm.
+ * {"ok","message","net","before","after","target","changes":{…as commit…}}. */
+char* sieda_router_tune_length(SiedaProject* project, int32_t track_id, double target_mm, double max_amplitude_mm);
+/* Locked tracks are never shoved or dragged. Returns 1 on success. */
+int32_t sieda_pcb_lock_track(SiedaProject* project, int32_t track_id, int32_t locked);
+/* Deletes one track / via by id. Returns 1 on success. */
+int32_t sieda_pcb_remove_track(SiedaProject* project, int32_t track_id);
+int32_t sieda_pcb_remove_via(SiedaProject* project, int32_t via_id);
+
 /* ---- exports ------------------------------------------------------------------------------- */
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
  *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj". Returns NULL for unknown formats. */

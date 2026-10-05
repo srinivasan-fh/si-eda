@@ -31,6 +31,7 @@ add_library(sieda_core STATIC
     Core/src/Reliability.cpp
     Core/src/Stackup.cpp
     Core/src/LengthMatch.cpp
+    Core/src/InteractiveRouter.cpp
     Core/src/Embedded.cpp
     Core/src/Robotics.cpp
     Core/src/Automotive.cpp
