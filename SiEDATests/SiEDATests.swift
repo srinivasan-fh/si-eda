@@ -6011,3 +6011,124 @@ final class UnitEditorTests: XCTestCase {
         XCTAssertTrue(store.canUndo)
     }
 }
+
+/// AI refinement keeps the design's structure: a plan made from a design with nested repeated sheets, per-channel
+/// values, a bus with entries and a multi-unit part rebuilds the same structure, and a refined plan that leaves the
+/// structure out gets it back.
+@MainActor
+final class StructuredPlanTests: XCTestCase {
+    /// Amp (×3) holding Stage (×2): R1 in Stage, its channel B/A at 12k; a bus with two entries on Main; an LM324
+    /// placed as units A and B.
+    private func structuredEngine() throws -> EDAEngine {
+        let engine = EDAEngine(name: "Structured")
+        let amp = try XCTUnwrap(engine.addSheet("Amp", parent: 1))
+        let stage = try XCTUnwrap(engine.addSheet("Stage", parent: amp))
+        XCTAssertTrue(engine.setActiveSheet(stage))
+        let port = engine.addComponent(.netLabel, value: "IN", at: .zero)
+        XCTAssertTrue(engine.setLabelScope(port, scope: "port"))
+        let r = engine.addComponent(.resistor, value: "10k", at: CGPoint(x: 80, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: port, pin: 0), PinAddress(component: r, pin: 0)))
+        XCTAssertEqual(engine.repeatSheet(stage, count: 2), 2)
+        XCTAssertEqual(engine.repeatSheet(amp, count: 3), 3)
+        XCTAssertTrue(engine.setInstanceRefs(amp, scheme: "suffix"))
+        let snap = try XCTUnwrap(engine.snapshot())
+        let copy = try XCTUnwrap(snap.components.first { $0.instanceOf == r && snap.sheet($0.sheetId)?.path == "B/A" })
+        XCTAssertTrue(engine.setChannelValue(copy.id, "12k"))
+        // Main: a bus with entries D0, D1 wired to a connector.
+        XCTAssertTrue(engine.setActiveSheet(1))
+        let j = engine.addComponent(.connector, at: CGPoint(x: 300, y: 0))
+        let bus = try XCTUnwrap(engine.addBus("D[0..1]", points: [CGPoint(x: 200, y: -50), CGPoint(x: 200, y: 50)]))
+        XCTAssertGreaterThan(engine.connectBus(bus, toPart: j), 0)
+        // An LM324 gate by gate.
+        let lm324 = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "LM324" })
+        let partId = try engine.registerCustomPart(lm324.spec).id
+        let a = engine.addCustomUnits(partId: partId, at: CGPoint(x: 0, y: 300))
+        XCTAssertGreaterThan(a, 0)
+        XCTAssertNotNil(engine.addPartUnit(of: a, unit: 2, at: CGPoint(x: 200, y: 300)))
+        return engine
+    }
+
+    func testPlanRoundTripKeepsStructure() throws {
+        let engine = try structuredEngine()
+        let before = try XCTUnwrap(engine.snapshot())
+        let plan = DesignPlanCompiler.plan(from: before)
+        // Drawn once: the plan holds the block's parts, not the channels' copies.
+        XCTAssertEqual(plan.components.filter { $0.kind == "resistor" }.count, 1)
+        let r = try XCTUnwrap(plan.components.first { $0.kind == "resistor" })
+        XCTAssertEqual(r.blockRef, "R1")
+        XCTAssertEqual(r.channelValues, ["B/A": "12k"])
+        XCTAssertEqual(plan.sheets.first { $0.name == "Amp" }?.channels, 3)
+        XCTAssertEqual(plan.sheets.first { $0.name == "Stage" }?.channels, 2)
+        XCTAssertEqual(plan.buses?.count, 1)
+        XCTAssertEqual(plan.components.filter { $0.bus == 0 }.count, 2)
+        let opamp = try XCTUnwrap(plan.components.first { $0.kind == "custom:LM324" })
+        XCTAssertEqual(opamp.units?.map(\.unit), ["A", "B"])
+
+        // Rebuilt from the plan: the same sheets, channels, designators, values, bus and units.
+        let rebuilt = EDAEngine(name: "Rebuilt")
+        let report = DesignPlanCompiler.apply(plan, to: rebuilt, previous: before)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        let after = try XCTUnwrap(rebuilt.snapshot())
+        XCTAssertEqual(after.sheets.map(\.name), before.sheets.map(\.name))
+        XCTAssertEqual(after.sheets.map(\.path), before.sheets.map(\.path))
+        XCTAssertEqual(Set(after.components.map(\.ref)), Set(before.components.map(\.ref)))
+        XCTAssertEqual(after.components.first { $0.ref == "R1_B_A" }?.value, "12k")
+        XCTAssertEqual(after.components.first { $0.ref == "R1_C_B" }?.value, "10k")
+        XCTAssertEqual(after.buses.count, before.buses.count)
+        XCTAssertEqual(after.components.filter { $0.bus != nil }.count, before.components.filter { $0.bus != nil }.count)
+        XCTAssertEqual(Set(after.components.compactMap(\.unitName)), ["A", "B"])
+        XCTAssertEqual(after.nets.count, before.nets.count)
+        // The plan made from the rebuilt design has the same structure.
+        let again = DesignPlanCompiler.plan(from: after)
+        XCTAssertEqual(again.sheets, plan.sheets)
+        XCTAssertEqual(again.components.map(\.ref).sorted(), plan.components.map(\.ref).sorted())
+        XCTAssertEqual(again.components.first { $0.kind == "resistor" }?.channelValues, ["B/A": "12k"])
+    }
+
+    func testRefinedPlanGetsItsStructureBack() throws {
+        let engine = try structuredEngine()
+        let current = DesignPlanCompiler.plan(from: try XCTUnwrap(engine.snapshot()))
+        // An agent's answer without any of the structure (the fields the schema does not ask for).
+        var refined = current
+        refined.sheets = []
+        refined.buses = nil
+        for i in refined.components.indices {
+            refined.components[i].sheet = nil
+            refined.components[i].scope = nil
+            refined.components[i].targetSheet = nil
+            refined.components[i].blockRef = nil
+            refined.components[i].channelValues = nil
+            refined.components[i].units = nil
+            refined.components[i].bus = nil
+        }
+        refined.components.append(PlannedComponent(ref: "C99", kind: "capacitor", value: "1u", x: 400, y: 400))
+        if let first = current.components.first(where: { $0.kind == "resistor" }) {
+            refined.connections.append(PlannedConnection(from: "C99.1", to: "\(first.ref).2"))
+        }
+        let merged = DesignPlanCompiler.preservingStructure(refined, from: current)
+        XCTAssertEqual(merged.sheets, current.sheets)
+        XCTAssertEqual(merged.buses, current.buses)
+        for c in current.components {
+            let m = try XCTUnwrap(merged.components.first { $0.ref == c.ref })
+            XCTAssertEqual(m, c)
+        }
+        // The new capacitor joins the sheet of the resistor it connects to.
+        XCTAssertEqual(merged.components.first { $0.ref == "C99" }?.sheet, "Stage")
+        // What the agent did set stays.
+        var renamed = refined
+        renamed.components[0].value = "47k"
+        XCTAssertEqual(DesignPlanCompiler.preservingStructure(renamed, from: current).components[0].value, "47k")
+    }
+
+    func testPlainPlansAreUnchanged() throws {
+        let engine = EDAEngine(name: "Plain")
+        let r = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let g = engine.addComponent(.ground, at: CGPoint(x: 0, y: 100))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r, pin: 1), PinAddress(component: g, pin: 0)))
+        let plan = DesignPlanCompiler.plan(from: try XCTUnwrap(engine.snapshot()))
+        let json = plan.jsonString(pretty: false)
+        for key in ["buses", "blockRef", "channelValues", "units", "\"bus\"", "channels"] {
+            XCTAssertFalse(json.contains(key), key)
+        }
+    }
+}

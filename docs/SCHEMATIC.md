@@ -181,9 +181,9 @@ A part with several identical gates — a quad op-amp, a hex inverter — can be
 - ERC: a unit's open pins are reported with the unit designator (`U1A.IN1+`); a unit that is not placed is reported
   when its pins are open (`ERC_UNIT_NOT_PLACED`, warning), and the power pins of an unplaced power unit as
   `ERC_POWER_PIN_UNCONNECTED` (error).
-- Placed through the C API with `sieda_add_custom_component` (and by AI design plans), such a part is still one whole
-  symbol, exactly as before; `sieda_add_custom_units`, `sieda_add_part_unit` and `sieda_place_next_unit` place it by
-  units. A plan made from a design carries the part whole: refining with the agents redraws it as one symbol.
+- Placed through the C API with `sieda_add_custom_component`, such a part is still one whole symbol, exactly as
+  before; `sieda_add_custom_units`, `sieda_add_part_unit` and `sieda_place_next_unit` place it by units. An AI design
+  plan carries the part with its `units` (where each gate sits): refining with the agents keeps it gate by gate.
 
 ## Annotation
 
@@ -258,8 +258,15 @@ New project fields (all optional when reading):
 - Invalid entries in hand-edited files are repaired on load: unknown sheets move components to the first sheet, a
   parent cycle is broken, an entry into a missing sheet becomes a local label, an unknown scope from a newer version is
   read as local.
-- AI design plans carry `"sheets"` and each component's `"sheet"`, `"scope"` and `"targetSheet"`, so asking the
-  agents to change a multi-sheet design keeps its sheets and label scopes.
+- AI design plans keep the design's structure (no flattening). A plan made from a design carries `"sheets"` (with
+  `"channels"`, `"channel"`, `"refs"` on a repeated block and `"instanceOf"` on its channel sheets), each
+  component's `"sheet"`, `"scope"`, `"targetSheet"`, `"blockRef"` (designator inside a block), `"channelValues"`
+  (per-channel values by channel path, `{"B/A": "12k"}`), `"units"` (a multi-unit part gate by gate) and `"bus"`
+  (index of the bus a label is an entry of), and top-level `"buses"`. A repeated block is drawn once in the plan;
+  applying the plan repeats it again (inner blocks first), names and labels the channels as planned, points sheet
+  entries into the channels and restores block designators and channel values. When the agents' answer leaves any
+  of this out, it is merged back from the plan the refinement started from (by sheet name and designator); new
+  parts without a sheet go on the sheet of a part they connect to.
 
 Further optional fields (written only when used, so other designs' files are unchanged): sheets `instanceOf`,
 `channel`, `refs` (a nested block's channels have a channel sheet as `parent`); components `instanceOf`,
@@ -342,5 +349,5 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
   A unit of a multi-unit part inside a repeated sheet stays on that sheet with its package.
 - Multi-unit parts: unit symbols are generated from the part's symbol layout (or arranged by pin type); a unit has no
   hand-drawn layout of its own. Gate swap works between units on one sheet. Unit packing re-assigns only interchangeable gates.
-  Placing such a part from an AI design plan draws it as one symbol.
+  A new multi-unit part an agent adds without `units` is drawn as one symbol.
 - Find & Replace edits values and net label names only; designators are changed by annotation.

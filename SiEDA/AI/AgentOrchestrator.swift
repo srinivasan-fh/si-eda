@@ -187,7 +187,10 @@ final class AgentOrchestrator: ObservableObject {
         let planText = try await provider.complete(
             AgentPrompts.refineRequest(instruction: instruction, current: current, requirements: requirements,
                                        customParts: store.snapshot.customParts))
-        var plan = try JSONExtraction.decode(DesignPlan.self, from: planText)
+        // The design's structure (sheets, repeated sheets, buses, multi-unit parts) survives the refinement even
+        // where the agent leaves it out.
+        var plan = DesignPlanCompiler.preservingStructure(try JSONExtraction.decode(DesignPlan.self, from: planText),
+                                                         from: current)
         if plan.board.width < 10 || plan.board.height < 10 { plan.board = current.board }
         finish(index, .done, "\(plan.components.count) parts, \(plan.connections.count) connections")
         try Task.checkCancellation()

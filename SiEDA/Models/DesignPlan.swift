@@ -38,6 +38,8 @@ struct DesignPlan: Codable, Equatable {
     var memoryDesign: String?
     /// Schematic sheets of a multi-sheet design, in order (empty: everything on one sheet).
     var sheets: [PlannedSheet]
+    /// Graphical buses (nil: none); bus entries are net labels naming their bus by index (`PlannedComponent.bus`).
+    var buses: [PlannedBus]?
 
     init(title: String, summary: String, components: [PlannedComponent], connections: [PlannedConnection],
          notes: [String] = [], board: PlannedBoard = PlannedBoard(), industry: String? = nil,
@@ -90,11 +92,12 @@ struct DesignPlan: Codable, Equatable {
         applianceType = try c.decodeIfPresent(String.self, forKey: .applianceType)
         memoryDesign = try c.decodeIfPresent(String.self, forKey: .memoryDesign)
         sheets = try c.decodeIfPresent([PlannedSheet].self, forKey: .sheets) ?? []
+        buses = try? c.decodeIfPresent([PlannedBus].self, forKey: .buses)
     }
 
     private enum CodingKeys: String, CodingKey {
         case title, summary, components, connections, notes, board, industry, pours, netClasses, noConnect, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass
-        case retailDevice, tamperMeshes, applianceType, memoryDesign, sheets
+        case retailDevice, tamperMeshes, applianceType, memoryDesign, sheets, buses
     }
 
     func jsonString(pretty: Bool = true) -> String {
@@ -122,6 +125,15 @@ struct PlannedComponent: Codable, Equatable {
     /// Net labels: "local", "port" or "entry" (nil = global); a sheet entry leads into `targetSheet` (by name).
     var scope: String?
     var targetSheet: String?
+    /// Part of a repeated sheet: its designator inside the block ("R1"; `ref` is the first channel's, R201 / R1_A).
+    var blockRef: String?
+    /// Per-channel values of a repeated sheet's part, by channel path ("B", nested "B/A"); nil = every channel the same.
+    var channelValues: [String: String]?
+    /// Multi-unit part placed gate by gate: where each unit sits (nil = drawn as one symbol). Connections still name
+    /// the part's pins ("U1.7"); they reach the unit that draws the pin.
+    var units: [PlannedUnit]?
+    /// Bus entries: index into `DesignPlan.buses` of the bus the label leaves.
+    var bus: Int?
 
     init(ref: String, kind: String, value: String, x: Double, y: Double, rotation: Int = 0, firmware: String? = nil,
          pcb: PlannedPlacement? = nil, sheet: String? = nil, scope: String? = nil, targetSheet: String? = nil) {
@@ -157,15 +169,59 @@ struct PlannedComponent: Codable, Equatable {
         sheet = try? c.decodeIfPresent(String.self, forKey: .sheet)
         scope = try? c.decodeIfPresent(String.self, forKey: .scope)
         targetSheet = try? c.decodeIfPresent(String.self, forKey: .targetSheet)
+        blockRef = try? c.decodeIfPresent(String.self, forKey: .blockRef)
+        channelValues = try? c.decodeIfPresent([String: String].self, forKey: .channelValues)
+        units = try? c.decodeIfPresent([PlannedUnit].self, forKey: .units)
+        bus = try? c.decodeIfPresent(Int.self, forKey: .bus)
     }
 
-    private enum CodingKeys: String, CodingKey { case ref, kind, value, x, y, rotation, firmware, pcb, sheet, scope, targetSheet }
+    private enum CodingKeys: String, CodingKey {
+        case ref, kind, value, x, y, rotation, firmware, pcb, sheet, scope, targetSheet, blockRef, channelValues, units, bus
+    }
 }
 
 /// A schematic sheet of a multi-sheet plan; `parent` names the sheet whose sheet symbol stands for it.
 struct PlannedSheet: Codable, Equatable {
     var name: String
     var parent: String?
+    /// Repeated sheet (multi-channel block): on the block, its channel count, own channel label and channel
+    /// designator scheme ("sheet" | "suffix"); on each other channel, the block it repeats (`instanceOf`, by name) and
+    /// its label. Channels hold no parts in a plan: the block's parts are drawn once.
+    var channels: Int?
+    var channel: String?
+    var refs: String?
+    var instanceOf: String?
+
+    init(name: String, parent: String? = nil, channels: Int? = nil, channel: String? = nil, refs: String? = nil,
+         instanceOf: String? = nil) {
+        self.name = name
+        self.parent = parent
+        self.channels = channels
+        self.channel = channel
+        self.refs = refs
+        self.instanceOf = instanceOf
+    }
+}
+
+/// One placed unit (gate) of a multi-unit part in a plan.
+struct PlannedUnit: Codable, Equatable {
+    var unit: String  // unit name: "A", "B", "P"
+    var x: Double
+    var y: Double
+    var rotation: Int = 0
+    var sheet: String?
+}
+
+/// A graphical bus in a plan: its name in bus notation ("D[0..7]"), sheet and polyline.
+struct PlannedBus: Codable, Equatable {
+    var name: String
+    var sheet: String?
+    var points: [PlannedPoint]
+}
+
+struct PlannedPoint: Codable, Equatable {
+    var x: Double
+    var y: Double
 }
 
 /// A locked footprint position on the board (mm, y down) with its rotation (multiple of 90°).
@@ -425,6 +481,29 @@ enum DesignSchemas {
                             "x": ["type": "number"],
                             "y": ["type": "number"],
                             "rotation": ["type": "integer", "enum": [0, 90, 180, 270]] as [String: Any],
+                            "sheet": ["type": "string", "description": "Multi-sheet designs: the sheet (by name) the part is on"],
+                            "scope": ["type": "string", "enum": ["global", "local", "port", "entry"],
+                                      "description": "Net labels: how far the label reaches; keep the current plan's"] as [String: Any],
+                            "targetSheet": ["type": "string", "description": "Sheet entries: the child sheet (by name)"],
+                            "blockRef": ["type": "string",
+                                         "description": "Parts of a repeated sheet: the designator inside the block; keep it"],
+                        ] as [String: Any],
+                    ] as [String: Any],
+                ] as [String: Any],
+                "sheets": [
+                    "type": "array",
+                    "description": "Schematic sheets of a multi-sheet design: keep the current plan's sheets, hierarchy and repeated channels",
+                    "items": [
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["name"],
+                        "properties": [
+                            "name": ["type": "string"],
+                            "parent": ["type": "string", "description": "Parent sheet (by name)"],
+                            "channels": ["type": "integer", "description": "Repeated sheet: number of channels (block only)"],
+                            "channel": ["type": "string", "description": "Channel label"],
+                            "refs": ["type": "string", "enum": ["sheet", "suffix"]] as [String: Any],
+                            "instanceOf": ["type": "string", "description": "A channel sheet: the block it repeats (by name)"],
                         ] as [String: Any],
                     ] as [String: Any],
                 ] as [String: Any],
@@ -567,17 +646,32 @@ enum DesignPlanCompiler {
             report.warnings.append("Unknown memory design type '\(type)'.")
         }
         // Sheets of a multi-sheet plan: the first takes over the blank project's sheet; parents are set by name.
+        // Channels of repeated sheets are made by repeating their block (below), not drawn: parts an agent put on a
+        // channel go to the block.
         var sheetIds: [String: Int] = [:]
-        for sheet in plan.sheets where sheetIds[sheet.name] == nil {
+        let channelOf = Dictionary(plan.sheets.compactMap { s in s.instanceOf.map { (s.name, $0) } },
+                                   uniquingKeysWith: { a, _ in a })
+        func blockSheet(_ name: String?) -> String? { name.map { channelOf[$0] ?? $0 } }
+        for sheet in plan.sheets where sheetIds[sheet.name] == nil && sheet.instanceOf == nil {
             if sheetIds.isEmpty {
                 if engine.renameSheet(1, to: sheet.name) { sheetIds[sheet.name] = 1 }
             } else if let id = engine.addSheet(sheet.name) {
                 sheetIds[sheet.name] = id
             }
         }
-        for sheet in plan.sheets {
+        for sheet in plan.sheets where sheet.instanceOf == nil {
             if let parent = sheet.parent, let id = sheetIds[sheet.name], let parentId = sheetIds[parent] {
                 engine.setSheetParent(id, parent: parentId)
+            }
+        }
+        // Buses, before their entries.
+        var busIds: [Int: Int] = [:]
+        for (index, bus) in (plan.buses ?? []).enumerated() {
+            if !sheetIds.isEmpty { engine.setActiveSheet(blockSheet(bus.sheet).flatMap { sheetIds[$0] } ?? 1) }
+            if let id = engine.addBus(bus.name, points: bus.points.map { CGPoint(x: $0.x, y: $0.y) }) {
+                busIds[index] = id
+            } else {
+                report.warnings.append("Bus '\(bus.name)' could not be drawn.")
             }
         }
 
@@ -586,7 +680,7 @@ enum DesignPlanCompiler {
             positions = SchematicAutoLayout.resolveOverlaps(positions)
         } else {
             // Each sheet is its own drawing: overlaps are resolved sheet by sheet.
-            let groups = Dictionary(grouping: plan.components.indices) { plan.components[$0].sheet ?? "" }
+            let groups = Dictionary(grouping: plan.components.indices) { blockSheet(plan.components[$0].sheet) ?? "" }
             for indices in groups.values {
                 let resolved = SchematicAutoLayout.resolveOverlaps(indices.map { positions[$0] })
                 for (k, i) in indices.enumerated() { positions[i] = resolved[k] }
@@ -595,8 +689,11 @@ enum DesignPlanCompiler {
 
         var seenRefs = Set<String>()
         let library = previous?.customParts ?? []
+        var unitPins: [String: [String: PinAddress]] = [:]  // multi-unit part ref → pin number → the unit pin drawing it
+        var deferredScopes: [(id: Int, ref: String, scope: String, target: String)] = []  // entries into channels
+        var placedIds: [Int: Int] = [:]  // plan index → component id
         for (index, item) in plan.components.enumerated() {
-            if !sheetIds.isEmpty { engine.setActiveSheet(item.sheet.flatMap { sheetIds[$0] } ?? 1) }
+            if !sheetIds.isEmpty { engine.setActiveSheet(blockSheet(item.sheet).flatMap { sheetIds[$0] } ?? 1) }
             if item.kind.lowercased().hasPrefix("custom:") {
                 let name = String(item.kind.dropFirst("custom:".count)).trimmingCharacters(in: .whitespaces)
                 var partId = library.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame })?.id
@@ -612,9 +709,18 @@ enum DesignPlanCompiler {
                 var ref = item.ref.trimmingCharacters(in: .whitespaces)
                 if seenRefs.contains(ref) { ref = "" }
                 let rotation = ((item.rotation % 360) + 360) % 360 / 90 * 90
+                if let units = item.units, !units.isEmpty,
+                   let id = placeUnits(units, partId: partId, item: item, ref: ref, engine: engine, library: library, sheetIds: sheetIds,
+                                       blockSheet: blockSheet, unitPins: &unitPins, report: &report) {
+                    placedIds[index] = id
+                    report.componentsAdded += 1
+                    if !ref.isEmpty { seenRefs.insert(ref) }
+                    continue
+                }
                 let id = engine.addCustomComponent(partId: partId, value: item.value.isEmpty ? nil : item.value,
                                                    at: positions[index], rotation: rotation, ref: ref.isEmpty ? nil : ref)
                 if id >= 0 {
+                    placedIds[index] = id
                     report.componentsAdded += 1
                     if !ref.isEmpty { seenRefs.insert(ref) }
                 }
@@ -634,21 +740,34 @@ enum DesignPlanCompiler {
             let id = engine.addComponent(kind, value: value, at: positions[index], rotation: rotation,
                                          ref: ref.isEmpty ? nil : ref)
             if id >= 0 {
+                placedIds[index] = id
                 report.componentsAdded += 1
                 if !ref.isEmpty { seenRefs.insert(ref) }
-                if kind == .netLabel, let scope = item.scope, scope != "global",
-                   !engine.setLabelScope(id, scope: scope, targetSheet: item.targetSheet.flatMap { sheetIds[$0] } ?? 0) {
-                    report.warnings.append("\(item.ref): label scope '\(scope)' could not be set; the label stays global.")
+                if kind == .netLabel, let scope = item.scope, scope != "global" {
+                    if scope == "entry", let target = item.targetSheet, channelOf[target] != nil {
+                        deferredScopes.append((id, item.ref, scope, target))  // its channel exists once the block repeats
+                    } else if !engine.setLabelScope(id, scope: scope, targetSheet: item.targetSheet.flatMap { sheetIds[$0] } ?? 0) {
+                        report.warnings.append("\(item.ref): label scope '\(scope)' could not be set; the label stays global.")
+                    }
+                }
+                if kind == .netLabel, let bus = item.bus {
+                    if busIds[bus].map({ engine.setLabelBus(id, bus: $0) }) != true {
+                        report.warnings.append("\(item.ref): not an entry of bus \(bus).")
+                    }
                 }
             }
         }
         if !sheetIds.isEmpty { engine.setActiveSheet(1) }
 
         for connection in plan.connections {
-            guard let a = resolve(connection.from, engine: engine, report: &report),
-                  let b = resolve(connection.to, engine: engine, report: &report) else { continue }
+            guard let a = resolve(connection.from, engine: engine, report: &report, unitPins: unitPins),
+                  let b = resolve(connection.to, engine: engine, report: &report, unitPins: unitPins) else { continue }
             if a == b { continue }
             if engine.connect(a, b) != nil { report.connectionsMade += 1 }
+        }
+        if plan.sheets.contains(where: { $0.channels ?? 1 > 1 || $0.instanceOf != nil }) {
+            applyRepeatedSheets(plan, engine: engine, sheetIds: &sheetIds, placedIds: placedIds,
+                                deferredScopes: deferredScopes, report: &report)
         }
 
         let board = plan.board
@@ -722,7 +841,7 @@ enum DesignPlanCompiler {
             engine.setNetWidth(netClass.net, width: min(5, netClass.width))
         }
         for endpoint in plan.noConnect {
-            if let pin = resolve(endpoint, engine: engine, report: &report) { engine.setPinNoConnect(pin, true) }
+            if let pin = resolve(endpoint, engine: engine, report: &report, unitPins: unitPins) { engine.setPinNoConnect(pin, true) }
         }
         engine.clearTamperMeshes()
         for mesh in plan.tamperMeshes
@@ -761,8 +880,144 @@ enum DesignPlanCompiler {
         return report
     }
 
-    /// "R1.2" → (component id, pin index)
-    static func resolve(_ endpoint: String, engine: EDAEngine, report: inout PlanApplyReport) -> PinAddress? {
+    /// Places a multi-unit part gate by gate where the plan puts its units. Returns the id of a placed unit (the part
+    /// answers to it), and records which unit draws each pin of the part (by number, and by name when unique).
+    private static func placeUnits(_ units: [PlannedUnit], partId: String, item: PlannedComponent, ref: String,
+                                   engine: EDAEngine, library: [CustomPartInfo], sheetIds: [String: Int],
+                                   blockSheet: (String?) -> String?,
+                                   unitPins: inout [String: [String: PinAddress]],
+                                   report: inout PlanApplyReport) -> Int? {
+        guard let part = library.first(where: { $0.id == partId }) ?? engine.snapshot()?.customPart(partId),
+              let symbols = part.unitSymbols, !symbols.isEmpty else {
+            return nil
+        }
+        let wanted: [(unit: PlannedUnit, index: Int)] = units.compactMap { u in
+            symbols.firstIndex { $0.name == u.unit }.map { (u, $0 + 1) }
+        }
+        guard !wanted.isEmpty else { return nil }
+        func activate(_ u: PlannedUnit) {
+            if !sheetIds.isEmpty { engine.setActiveSheet(blockSheet(u.sheet).flatMap { sheetIds[$0] } ?? 1) }
+        }
+        func rotation(_ r: Int) -> Int { ((r % 360) + 360) % 360 / 90 * 90 }
+        // Unit A comes with the package; when the plan leaves A out it only anchors the package and goes again.
+        let anchor = wanted.first { $0.index == 1 } ?? wanted[0]
+        activate(anchor.unit)
+        let first = engine.addCustomUnits(partId: partId, value: item.value.isEmpty ? nil : item.value,
+                                          at: CGPoint(x: anchor.unit.x, y: anchor.unit.y),
+                                          rotation: rotation(anchor.unit.rotation), ref: ref.isEmpty ? nil : ref)
+        guard first >= 0 else { return nil }
+        var placed: [Int: Int] = [1: first]
+        for (u, index) in wanted where index != 1 {
+            activate(u)
+            if let id = engine.addPartUnit(of: first, unit: index, at: CGPoint(x: u.x, y: u.y), rotation: rotation(u.rotation)) {
+                placed[index] = id
+            } else {
+                report.warnings.append("\(item.ref): unit \(u.unit) could not be placed.")
+            }
+        }
+        if anchor.index != 1, placed.count > 1 {
+            engine.removeComponent(first)
+            placed[1] = nil
+        }
+        var pins: [String: PinAddress] = [:]
+        var nameCount: [String: Int] = [:]
+        for symbol in symbols { for pin in symbol.symbol.pins { nameCount[pin.name, default: 0] += 1 } }
+        for (index, id) in placed.sorted(by: { $0.key < $1.key }) {
+            for (k, pin) in symbols[index - 1].symbol.pins.enumerated() {
+                let address = PinAddress(component: id, pin: k)
+                if pins[pin.number] == nil { pins[pin.number] = address }
+                if nameCount[pin.name] == 1, pins[pin.name] == nil { pins[pin.name] = address }
+            }
+        }
+        unitPins[item.ref.trimmingCharacters(in: .whitespaces)] = pins
+        engine.setActiveSheet(sheetIds.isEmpty ? 1 : (blockSheet(item.sheet).flatMap { sheetIds[$0] } ?? 1))
+        return placed.sorted { $0.key < $1.key }.first?.value
+    }
+
+    /// Repeated sheets of a plan: repeats every block (inner blocks first), names and labels its channels as planned,
+    /// points the sheet entries into the channels, gives the block parts their block designators and sets the
+    /// per-channel values.
+    private static func applyRepeatedSheets(_ plan: DesignPlan, engine: EDAEngine, sheetIds: inout [String: Int],
+                                            placedIds: [Int: Int],
+                                            deferredScopes: [(id: Int, ref: String, scope: String, target: String)],
+                                            report: inout PlanApplyReport) {
+        let parentOf = Dictionary(plan.sheets.map { ($0.name, $0.parent) }, uniquingKeysWith: { a, _ in a })
+        func depth(_ name: String) -> Int {
+            var d = 0
+            var current = parentOf[name] ?? nil
+            while let c = current, d < 64 {
+                d += 1
+                current = parentOf[c] ?? nil
+            }
+            return d
+        }
+        // Inner blocks first: a block's child sheets must be repeated blocks before it can be repeated itself. A
+        // block with one channel inside a repeated block is repeated twice first and brought back to one after.
+        let blocks = plan.sheets.filter { $0.instanceOf == nil && $0.channels != nil }.sorted { depth($0.name) > depth($1.name) }
+        var single: [Int] = []
+        for block in blocks {
+            guard let id = sheetIds[block.name], let count = block.channels, count >= 1 else { continue }
+            if let label = block.channel, !label.isEmpty { engine.setSheetChannel(id, channel: label) }
+            if engine.repeatSheet(id, count: min(64, max(2, count))) == nil {
+                report.warnings.append("Sheet \(block.name) could not be repeated ×\(count).")
+                continue
+            }
+            if count == 1 { single.append(id) }
+            if let refs = block.refs { engine.setInstanceRefs(id, scheme: refs) }
+        }
+        for id in single { engine.repeatSheet(id, count: 1) }
+        // Channel sheets: the planned names and labels (outer channels come before the channels inside them).
+        if let snap = engine.snapshot() {
+            for planned in plan.sheets {
+                guard let blockName = planned.instanceOf, let def = sheetIds[blockName],
+                      let block = snap.sheets.first(where: { $0.id == def }) else { continue }
+                let parentId = planned.parent.flatMap { sheetIds[$0] } ?? block.parent
+                let group = snap.sheets.filter { $0.id == def && $0.parent == parentId }
+                    + snap.sheets.filter { $0.instanceOf == def && $0.id != def && $0.parent == parentId }
+                var plannedGroup: [String] = []
+                if (parentOf[blockName].flatMap { $0 }.flatMap { sheetIds[$0] } ?? 0) == parentId { plannedGroup.append(blockName) }
+                plannedGroup += plan.sheets.filter {
+                    $0.instanceOf == blockName && ($0.parent.flatMap { sheetIds[$0] } ?? block.parent) == parentId
+                }.map(\.name)
+                guard let k = plannedGroup.firstIndex(of: planned.name), k < group.count else {
+                    report.warnings.append("Channel sheet \(planned.name) has no channel of \(blockName) to match.")
+                    continue
+                }
+                let target = group[k]
+                if target.name != planned.name { engine.renameSheet(target.id, to: planned.name) }
+                sheetIds[planned.name] = target.id
+                if let label = planned.channel, !label.isEmpty, target.channel != label {
+                    engine.setSheetChannel(target.id, channel: label)
+                }
+            }
+        }
+        for entry in deferredScopes where !engine.setLabelScope(entry.id, scope: entry.scope, targetSheet: sheetIds[entry.target] ?? 0) {
+            report.warnings.append("\(entry.ref): sheet entry into \(entry.target) could not be set; the label stays global.")
+        }
+        // Block designators, then the channels' own values.
+        for (index, item) in plan.components.enumerated() {
+            guard let id = placedIds[index], let block = item.blockRef, !block.isEmpty else { continue }
+            engine.setRef(id, block)
+        }
+        let valued = plan.components.indices.filter { !(plan.components[$0].channelValues ?? [:]).isEmpty }
+        guard !valued.isEmpty, let snap = engine.snapshot() else { return }
+        for index in valued {
+            guard let id = placedIds[index] else { continue }
+            let item = plan.components[index]
+            for (path, value) in (item.channelValues ?? [:]).sorted(by: { $0.key < $1.key }) {
+                if let copy = snap.components.first(where: { $0.instanceOf == id && snap.sheet($0.sheetId)?.path == path }),
+                   engine.setChannelValue(copy.id, value) {
+                    continue
+                }
+                report.warnings.append("\(item.ref): no channel \(path) for its value \(value).")
+            }
+        }
+    }
+
+    /// "R1.2" → (component id, pin index). A multi-unit part placed gate by gate answers through `unitPins`: the
+    /// unit that draws the pin.
+    static func resolve(_ endpoint: String, engine: EDAEngine, report: inout PlanApplyReport,
+                        unitPins: [String: [String: PinAddress]] = [:]) -> PinAddress? {
         let trimmed = endpoint.trimmingCharacters(in: .whitespaces)
         guard let dot = trimmed.lastIndex(of: ".") else {
             report.warnings.append("Connection endpoint '\(endpoint)' is not in REF.PIN form.")
@@ -770,6 +1025,11 @@ enum DesignPlanCompiler {
         }
         let ref = String(trimmed[..<dot])
         let pinName = String(trimmed[trimmed.index(after: dot)...])
+        if let pins = unitPins[ref] {
+            if let address = pins[pinName] ?? pins[pinName.uppercased()] { return address }
+            report.warnings.append("Part \(ref) has no pin '\(pinName)' on its placed units.")
+            return nil
+        }
         guard let component = engine.findComponent(ref: ref) else {
             report.warnings.append("Connection references unknown part '\(ref)'.")
             return nil
@@ -782,27 +1042,62 @@ enum DesignPlanCompiler {
         return PinAddress(component: component, pin: pin)
     }
 
-    /// Converts the current schematic back into a plan (context for refinement requests).
+    /// Converts the current schematic back into a plan (context for refinement requests). The plan keeps the
+    /// design's structure: sheets and hierarchy, repeated sheets (the block drawn once, its channels as sheets with
+    /// labels and per-channel values), graphical buses with their entries, and multi-unit parts gate by gate.
     static func plan(from snapshot: DesignSnapshot) -> DesignPlan {
         let byId = Dictionary(uniqueKeysWithValues: snapshot.components.map { ($0.id, $0) })
         let junctions = Set(snapshot.components.filter { $0.componentKind == .junction }.map(\.id))
         let multiSheet = snapshot.sheets.count > 1
-        // A multi-unit part is planned whole (its package); connections to its units name the package's pins.
-        let components = snapshot.components.filter { !junctions.contains($0.id) && $0.unitOf == nil }.map { c -> PlannedComponent in
+        // Channels of repeated sheets hold copies of their block: the plan draws the block once.
+        let channelSheets = Set(snapshot.sheets.filter(\.isInstance).map(\.id))
+        let onChannel: (SnapComponent) -> Bool = { channelSheets.contains($0.sheetId) }
+        // Buses drawn on a block (not their channel copies), indexed for their entries.
+        let plannedBuses = snapshot.buses.filter { $0.instanceOf == nil && !channelSheets.contains($0.sheet) }
+        let busIndex = Dictionary(uniqueKeysWithValues: plannedBuses.enumerated().map { ($0.element.id, $0.offset) })
+        // Per-channel values: the copies that set their own, by the channel path of their sheet.
+        var channelValues: [Int: [String: String]] = [:]
+        for c in snapshot.components where onChannel(c) {
+            guard let master = c.instanceOf, (c.channelOverride ?? 0) & 1 != 0,
+                  let path = snapshot.sheet(c.sheetId)?.path, !path.isEmpty else { continue }
+            channelValues[master, default: [:]][path] = c.value
+        }
+        // A multi-unit part is planned whole (its package) with where each unit sits; connections to its units name
+        // the package's pins.
+        var unitsOf: [Int: [PlannedUnit]] = [:]
+        for c in snapshot.components where !onChannel(c) {
+            guard let package = c.unitOf, let name = c.unitName else { continue }
+            unitsOf[package, default: []].append(PlannedUnit(unit: name, x: c.x, y: c.y, rotation: c.rotation,
+                                                             sheet: multiSheet ? snapshot.sheet(c.sheetId)?.name : nil))
+        }
+        let planned = snapshot.components.filter { !junctions.contains($0.id) && $0.unitOf == nil && !onChannel($0) }
+        let components = planned.map { c -> PlannedComponent in
             let kind = snapshot.customPart(for: c).map(\.planKind) ?? c.componentKind.planName
             let scoped = c.componentKind == .netLabel && c.labelScope != "global"
-            return PlannedComponent(ref: c.ref, kind: kind, value: c.value, x: c.x, y: c.y, rotation: c.rotation,
-                                    sheet: multiSheet ? snapshot.sheet(c.sheetId)?.name : nil,
-                                    scope: scoped ? c.labelScope : nil,
-                                    targetSheet: c.targetSheet.flatMap { snapshot.sheet($0)?.name })
+            var item = PlannedComponent(ref: c.ref, kind: kind, value: c.blockValue ?? c.value, x: c.x, y: c.y,
+                                        rotation: c.rotation, sheet: multiSheet ? snapshot.sheet(c.sheetId)?.name : nil,
+                                        scope: scoped ? c.labelScope : nil,
+                                        targetSheet: c.targetSheet.flatMap { snapshot.sheet($0)?.name })
+            item.blockRef = c.logicalRef
+            item.channelValues = channelValues[c.id]
+            item.units = unitsOf[c.id].map { units in units.sorted { $0.unit < $1.unit } }
+            item.bus = c.bus.flatMap { busIndex[$0] }
+            return item
         }
+        let plannedIds = Set(planned.map(\.id))
         // Custom parts are addressed by datasheet pin number (names such as GND may repeat).
         func pinLabel(_ c: SnapComponent, _ pin: Int) -> String {
             if let part = snapshot.customPart(for: c), pin < part.symbol.pins.count { return part.symbol.pins[pin].number }
             return c.pins[pin].name
         }
+        /// "REF.PIN" of a pin of a planned part, or of a unit of one (named by its package's designator).
         func label(_ address: PinAddress) -> String? {
-            guard let c = byId[address.component], address.pin < c.pins.count else { return nil }
+            guard let c = byId[address.component], address.pin < c.pins.count, !onChannel(c) else { return nil }
+            if let package = c.unitOf {
+                guard plannedIds.contains(package) else { return nil }
+            } else if !plannedIds.contains(c.id) {
+                return nil
+            }
             return "\(c.ref).\(pinLabel(c, address.pin))"
         }
         var connections: [PlannedConnection] = snapshot.wires.compactMap { wire in
@@ -833,35 +1128,114 @@ enum DesignPlanCompiler {
         }
         var noConnect: [String] = []
         for c in snapshot.components {
-            for (index, pin) in c.pins.enumerated() where pin.noConnect { noConnect.append("\(c.ref).\(pinLabel(c, index))") }
+            for (index, pin) in c.pins.enumerated() where pin.noConnect {
+                if let text = label(PinAddress(component: c.id, pin: index)), !noConnect.contains(text) { noConnect.append(text) }
+            }
+        }
+        let sheets: [PlannedSheet] = multiSheet ? snapshot.sheets.map { s in
+            var sheet = PlannedSheet(name: s.name, parent: s.parent == 0 ? nil : snapshot.sheet(s.parent)?.name)
+            if s.isRepeated {
+                sheet.channel = s.channel
+                if s.isInstance {
+                    sheet.instanceOf = snapshot.sheet(s.definitionId)?.name
+                } else {
+                    sheet.channels = s.channels ?? s.instances
+                    sheet.refs = s.refs
+                }
+            }
+            return sheet
+        } : []
+        let buses = plannedBuses.map { b in
+            PlannedBus(name: b.name, sheet: multiSheet ? snapshot.sheet(b.sheet)?.name : nil,
+                       points: b.points.map { PlannedPoint(x: $0.x, y: $0.y) })
         }
         let bottom = snapshot.board.bottomLayer
-        return DesignPlan(title: snapshot.name, summary: "", components: components, connections: connections,
-                          notes: [], board: PlannedBoard(width: snapshot.board.width, height: snapshot.board.height,
-                                                         layers: snapshot.board.layerCount, outline: "keep",
-                                                         mountingHoleSpacing: -1),
-                          industry: snapshot.industry,
-                          pours: snapshot.zones.map {
-                              PlannedPour(net: $0.net, layer: $0.layer == bottom && bottom > 0 ? -1 : $0.layer, plane: $0.plane)
-                          },
-                          netClasses: snapshot.board.netWidths.keys.sorted().map {
-                              PlannedNetClass(net: $0, width: snapshot.board.netWidths[$0] ?? 0)
-                          },
-                          noConnect: noConnect,
-                          robotPlatform: snapshot.robotPlatform.isEmpty ? nil : snapshot.robotPlatform,
-                          ecuType: snapshot.ecuType.isEmpty ? nil : snapshot.ecuType,
-                          aerospaceMission: snapshot.aerospaceMission.isEmpty ? nil : snapshot.aerospaceMission,
-                          navalPlatform: snapshot.navalPlatform.isEmpty ? nil : snapshot.navalPlatform,
-                          medicalClass: snapshot.medicalClass.isEmpty ? nil : snapshot.medicalClass,
-                          retailDevice: snapshot.retailDevice.isEmpty ? nil : snapshot.retailDevice,
-                          tamperMeshes: snapshot.tamperMeshes.map {
-                              PlannedTamperMesh(component: $0.component, netA: $0.netA, netB: $0.netB, margin: $0.margin)
-                          },
-                          applianceType: snapshot.applianceType.isEmpty ? nil : snapshot.applianceType,
-                          memoryDesign: snapshot.memoryDesign.isEmpty ? nil : snapshot.memoryDesign,
-                          sheets: multiSheet ? snapshot.sheets.map {
-                              PlannedSheet(name: $0.name, parent: $0.parent == 0 ? nil : snapshot.sheet($0.parent)?.name)
-                          } : [])
+        var plan = DesignPlan(title: snapshot.name, summary: "", components: components, connections: connections,
+                              notes: [], board: PlannedBoard(width: snapshot.board.width, height: snapshot.board.height,
+                                                             layers: snapshot.board.layerCount, outline: "keep",
+                                                             mountingHoleSpacing: -1),
+                              industry: snapshot.industry,
+                              pours: snapshot.zones.map {
+                                  PlannedPour(net: $0.net, layer: $0.layer == bottom && bottom > 0 ? -1 : $0.layer, plane: $0.plane)
+                              },
+                              netClasses: snapshot.board.netWidths.keys.sorted().map {
+                                  PlannedNetClass(net: $0, width: snapshot.board.netWidths[$0] ?? 0)
+                              },
+                              noConnect: noConnect,
+                              robotPlatform: snapshot.robotPlatform.isEmpty ? nil : snapshot.robotPlatform,
+                              ecuType: snapshot.ecuType.isEmpty ? nil : snapshot.ecuType,
+                              aerospaceMission: snapshot.aerospaceMission.isEmpty ? nil : snapshot.aerospaceMission,
+                              navalPlatform: snapshot.navalPlatform.isEmpty ? nil : snapshot.navalPlatform,
+                              medicalClass: snapshot.medicalClass.isEmpty ? nil : snapshot.medicalClass,
+                              retailDevice: snapshot.retailDevice.isEmpty ? nil : snapshot.retailDevice,
+                              tamperMeshes: snapshot.tamperMeshes.map {
+                                  PlannedTamperMesh(component: $0.component, netA: $0.netA, netB: $0.netB, margin: $0.margin)
+                              },
+                              applianceType: snapshot.applianceType.isEmpty ? nil : snapshot.applianceType,
+                              memoryDesign: snapshot.memoryDesign.isEmpty ? nil : snapshot.memoryDesign,
+                              sheets: sheets)
+        plan.buses = buses.isEmpty ? nil : buses
+        return plan
+    }
+
+    /// A refined plan from an agent keeps the structure of the plan it was made from: when the agent leaves out
+    /// sheets, repeated-sheet settings, buses, bus entries, block designators, per-channel values or unit
+    /// placements, they come back from `current` (matched by sheet name and reference designator). A new part with
+    /// no sheet goes on the sheet of a part it connects to. Nothing the agent did set is overridden.
+    static func preservingStructure(_ refined: DesignPlan, from current: DesignPlan) -> DesignPlan {
+        var plan = refined
+        if plan.sheets.isEmpty {
+            plan.sheets = current.sheets
+        } else {
+            let old = Dictionary(current.sheets.map { ($0.name, $0) }, uniquingKeysWith: { a, _ in a })
+            for i in plan.sheets.indices {
+                guard let was = old[plan.sheets[i].name] else { continue }
+                if plan.sheets[i].parent == nil { plan.sheets[i].parent = was.parent }
+                if plan.sheets[i].channels == nil { plan.sheets[i].channels = was.channels }
+                if plan.sheets[i].channel == nil { plan.sheets[i].channel = was.channel }
+                if plan.sheets[i].refs == nil { plan.sheets[i].refs = was.refs }
+                if plan.sheets[i].instanceOf == nil { plan.sheets[i].instanceOf = was.instanceOf }
+            }
+        }
+        if plan.buses == nil { plan.buses = current.buses }
+        let busCount = plan.buses?.count ?? 0
+        let old = Dictionary(current.components.map { ($0.ref, $0) }, uniquingKeysWith: { a, _ in a })
+        let sheetNames = Set(plan.sheets.map(\.name))
+        for i in plan.components.indices {
+            guard let was = old[plan.components[i].ref] else { continue }
+            var c = plan.components[i]
+            if c.sheet == nil, let s = was.sheet, sheetNames.contains(s) { c.sheet = s }
+            if c.kind == was.kind {
+                if c.scope == nil { c.scope = was.scope }
+                if c.targetSheet == nil, let t = was.targetSheet, sheetNames.contains(t) { c.targetSheet = t }
+                if c.blockRef == nil { c.blockRef = was.blockRef }
+                if c.channelValues == nil { c.channelValues = was.channelValues }
+                if c.units == nil { c.units = was.units }
+                if c.bus == nil, let b = was.bus, b < busCount { c.bus = b }
+            }
+            plan.components[i] = c
+        }
+        // New parts without a sheet: the sheet of a part they connect to.
+        if !plan.sheets.isEmpty {
+            let sheetOf = Dictionary(plan.components.compactMap { c in c.sheet.map { (c.ref, $0) } },
+                                     uniquingKeysWith: { a, _ in a })
+            func ref(_ endpoint: String) -> String {
+                guard let dot = endpoint.lastIndex(of: ".") else { return endpoint }
+                return String(endpoint[..<dot]).trimmingCharacters(in: .whitespaces)
+            }
+            for i in plan.components.indices where plan.components[i].sheet == nil {
+                let me = plan.components[i].ref
+                for link in plan.connections {
+                    let a = ref(link.from), b = ref(link.to)
+                    let other = a == me ? b : b == me ? a : nil
+                    if let other, let sheet = sheetOf[other] {
+                        plan.components[i].sheet = sheet
+                        break
+                    }
+                }
+            }
+        }
+        return plan
     }
 }
 

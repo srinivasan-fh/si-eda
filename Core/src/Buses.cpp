@@ -347,4 +347,17 @@ void Schematic::busERC(std::vector<RuleViolation>& out) const {
     }
 }
 
+bool Schematic::setLabelBus(int labelId, int busId) {
+    Component* c = find(masterOf(labelId));
+    if (!c || c->kind != ComponentKind::NetLabel) return false;
+    if (busId != 0) {
+        busId = masterBusOf(busId);
+        const Bus* b = findBus(busId);
+        if (!b || b->sheet != c->sheet) return false;  // an entry leaves a bus on its own sheet
+    }
+    c->bus = busId;
+    edited();
+    return true;
+}
+
 }  // namespace sieda

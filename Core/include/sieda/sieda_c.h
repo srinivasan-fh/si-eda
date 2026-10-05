@@ -717,6 +717,9 @@ char* sieda_check_units(const char* spec_json);
 int32_t sieda_swap_units(SiedaProject* project, int32_t unit_a, int32_t unit_b);
 int32_t sieda_swap_pins(SiedaProject* project, int32_t component, int32_t pin_a, int32_t pin_b);
 
+/* Makes a net label an entry of a bus on the same sheet (bus 0: an ordinary label again). 1 on success. */
+int32_t sieda_set_label_bus(SiedaProject* project, int32_t label, int32_t bus);
+
 #ifdef __cplusplus
 }
 #endif

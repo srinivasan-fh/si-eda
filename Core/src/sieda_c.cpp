@@ -2947,3 +2947,14 @@ int32_t sieda_swap_pins(SiedaProject* project, int32_t component, int32_t pin_a,
 }
 
 }  // extern "C"
+
+// ---- schematic capture: bus entries
+
+extern "C" {
+
+int32_t sieda_set_label_bus(SiedaProject* project, int32_t label, int32_t bus) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setLabelBus(label, bus) ? 1 : 0; });
+}
+
+}  // extern "C"

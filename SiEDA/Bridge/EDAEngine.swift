@@ -381,6 +381,10 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func removeBus(_ id: Int) -> Bool { withHandle { sieda_remove_bus($0, Int32(id)) } == 1 }
 
+    /// Makes a net label an entry of a bus on its sheet (0: an ordinary label again).
+    @discardableResult
+    func setLabelBus(_ label: Int, bus: Int) -> Bool { withHandle { sieda_set_label_bus($0, Int32(label), Int32(bus)) } == 1 }
+
     @discardableResult
     func renameBus(_ id: Int, to name: String) -> Bool { withHandle { sieda_rename_bus($0, Int32(id), name) } == 1 }
 
@@ -561,8 +565,10 @@ final class EDAEngine: @unchecked Sendable {
     }
 
     /// Places unit A of a multi-unit part (with its hidden package); the unit's id, or -1.
-    func addCustomUnits(partId: String, at point: CGPoint, rotation: Int = 0) -> Int {
-        Int(withHandle { sieda_add_custom_units($0, partId, "", Double(point.x), Double(point.y), Int32(rotation), "") })
+    func addCustomUnits(partId: String, value: String? = nil, at point: CGPoint, rotation: Int = 0, ref: String? = nil) -> Int {
+        let v = value ?? ""
+        let r = ref ?? ""
+        return Int(withHandle { sieda_add_custom_units($0, partId, v, Double(point.x), Double(point.y), Int32(rotation), r) })
     }
 
     /// Places the next unit not placed yet of a unit's package; nil when every unit is placed.
@@ -572,8 +578,10 @@ final class EDAEngine: @unchecked Sendable {
     }
 
     /// Places unit `unit` (1-based) of a unit's package; nil when it is placed already or out of range.
-    func addPartUnit(of component: Int, unit: Int, at point: CGPoint) -> Int? {
-        let id = withHandle { sieda_add_part_unit($0, Int32(component), Int32(unit), Double(point.x), Double(point.y), 0) }
+    func addPartUnit(of component: Int, unit: Int, at point: CGPoint, rotation: Int = 0) -> Int? {
+        let id = withHandle {
+            sieda_add_part_unit($0, Int32(component), Int32(unit), Double(point.x), Double(point.y), Int32(rotation))
+        }
         return id >= 0 ? Int(id) : nil
     }
 

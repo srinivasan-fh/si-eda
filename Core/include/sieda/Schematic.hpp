@@ -408,6 +408,8 @@ public:
     bool removeBus(int id);
     /// Renames a bus (entries whose names are no longer members are reported by ERC).
     bool renameBus(int id, const std::string& name);
+    /// Makes a net label an entry of a bus on its sheet (0 = an ordinary label again). False for anything else.
+    bool setLabelBus(int labelId, int busId);
     /// Moves a bus and its entries by `delta`.
     bool moveBus(int id, Vec2 delta);
     bool setBusPoints(int id, const std::vector<Vec2>& points);

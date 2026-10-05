@@ -421,7 +421,8 @@ int Schematic::pinIndex(int componentId, const std::string& pinName) const {
     const Component* c = find(componentId);
     if (!c) return -1;
     const auto& pins = c->def().pins;
-    if (c->kind == ComponentKind::Custom) {  // datasheet pin numbers take precedence ("U1.4", "U1.EP")
+    if (c->kind == ComponentKind::Custom || c->kind == ComponentKind::PartUnit) {
+        // Datasheet pin numbers take precedence ("U1.4", "U1.EP"); a unit answers to its package's pin numbers.
         for (size_t i = 0; i < pins.size(); ++i)
             if (pins[i].number == pinName) return static_cast<int>(i);
     }
