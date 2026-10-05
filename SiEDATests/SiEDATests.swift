@@ -4900,3 +4900,76 @@ final class SchematicFindAndNavigateTests: XCTestCase {
         XCTAssertEqual(reopened.snapshot()?.titleBlock.revision, "C")
     }
 }
+
+@MainActor
+final class ChannelAnalysisBridgeTests: XCTestCase {
+    private func routedStore() -> DesignStore {
+        let store = DesignStore()
+        DesignPlanCompiler.apply(OfflineProvider.templates[5].plan, to: store.engine, previous: nil)
+        store.refresh()
+        store.autoPlace(all: true)
+        _ = store.engine.autoRoute()
+        store.refresh()
+        return store
+    }
+
+    func testChannelLineLossAndTouchstone() throws {
+        let store = routedStore()
+        let loss = store.siLineLoss(roughness: "huray")
+        XCTAssertFalse(loss.layers.isEmpty)
+        for layer in loss.layers { XCTAssertEqual(layer.dbPerInch.count, loss.freq.count) }
+        var settings = SIChannelSettings()
+        settings.bitRate = 1e9
+        if let net = store.siNets().first(where: { $0.receivers > 0 && $0.routed }) {
+            let result = store.engine.siChannel(net: net.name, partner: "none", settings: settings)
+            switch result {
+            case .success(let report):
+                XCTAssertEqual(report.net, net.name)
+                XCTAssertEqual(report.ports, 2)
+                XCTAssertFalse(report.curves.isEmpty)
+                XCTAssertEqual(report.curves.first?.db.count, report.freq.count)
+                XCTAssertEqual(report.step.time.count, report.step.lossy.count)
+                let eye = try XCTUnwrap(report.eye)
+                XCTAssertEqual(eye.density.count, eye.rows * eye.cols)
+                let text = try store.engine.siChannelTouchstone(net: net.name, partner: "none", settings: settings)
+                let imported = try EDAEngine.touchstoneChannel(text, ports: 2, settings: settings)
+                XCTAssertEqual(imported.ports, 2)
+                XCTAssertNotNil(imported.eye)
+            case .failure(let error):
+                // A net without a logic receiver reports why; anything else is a failure.
+                XCTAssertFalse(error.localizedDescription.isEmpty)
+            }
+        }
+        if case .success = store.engine.siChannel(net: "NO SUCH NET", partner: "", settings: settings) {
+            XCTFail("an unknown net must fail")
+        }
+        XCTAssertThrowsError(try EDAEngine.touchstoneChannel("not touchstone", ports: 2, settings: settings))
+    }
+
+    func testCopperFoilChannelSpecAndRegulatorAreUndoable() throws {
+        let store = routedStore()
+        store.setCopperFoil("hvlp")
+        XCTAssertEqual(store.siSettings().copperFoil, "hvlp")
+        store.undo()
+        XCTAssertNil(store.siSettings().copperFoil)
+        if let net = store.siNets().first {
+            store.setSIChannel(net.name, bitRate: 2e9, maskHeight: 0.1, maskWidthUi: 0.3)
+            XCTAssertEqual(store.siSettings().channels?.first?.bitRate, 2e9)
+            let reopened = EDAEngine()
+            try reopened.load(json: store.engine.saveJSON())
+            XCTAssertEqual(reopened.siSettings().channels?.count, 1)
+        }
+        if let rail = store.pdn().rails.first {
+            store.setPDNRegulator(rail.name, outputOhms: 0.004, loopBandwidth: 80e3)
+            let updated = try XCTUnwrap(store.pdn().rails.first { $0.name == rail.name })
+            XCTAssertEqual(updated.vrmR, 0.004, accuracy: 1e-12)
+            XCTAssertEqual(updated.vrmBandwidth ?? 0, 80e3, accuracy: 1e-6)
+            XCTAssertNotNil(store.pdnCavity(rail.name))
+            XCTAssertNotNil(store.pdnDecapPlan(rail.name))
+            let map = try XCTUnwrap(store.pdnIRMap(rail.name))
+            XCTAssertEqual(map.rail, rail.name)
+            XCTAssertFalse(map.board.outline.isEmpty)
+        }
+        XCTAssertNil(store.pdnIRMap("NO SUCH RAIL"))
+    }
+}

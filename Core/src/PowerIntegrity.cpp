@@ -339,7 +339,15 @@ std::vector<PdnRailResult> analyzePdn(const Project& project) {
             r.vrmR = 0.05;
             fbw = 10e3;
         }
+        // User overrides of the regulator's output resistance and loop bandwidth.
+        if (rs && rs->vrmR > 0) r.vrmR = rs->vrmR;
+        if (rs && rs->vrmBandwidth > 0) fbw = rs->vrmBandwidth;
+        r.vrmBandwidth = fbw;
         r.vrmL = r.vrmR / (2 * kPi * fbw);
+        if (!sourcePads.empty()) {
+            r.vrmPosition = pads[sourcePads.front()].position;
+            r.hasVrmPosition = true;
+        }
 
         // Loads.
         double total = 0;
@@ -360,6 +368,7 @@ std::vector<PdnRailResult> analyzePdn(const Project& project) {
                     l.ref = c->ref;
                     l.pin = pinName(*c, pads[k].pinIndex);
                     l.current = amps / static_cast<double>(mine.size());
+                    l.position = pads[k].position;
                     r.loads.push_back(l);
                 }
                 total += amps;
@@ -453,6 +462,7 @@ std::vector<PdnRailResult> analyzePdn(const Project& project) {
             if (gndPad) d.mounting += sideInductance(*gndPad, gndPad->net, gndFills, loadGndPos);
             d.srf = selfResonance(d.c, d.esl + d.mounting);
             d.distance = railPad ? nearest(loadPos, railPad->position) : 0;
+            d.position = railPad ? railPad->position : c.pcb.position;
             if (!std::isfinite(d.distance)) d.distance = 0;
             r.decaps.push_back(d);
         }
@@ -488,6 +498,12 @@ std::vector<PdnRailResult> analyzePdn(const Project& project) {
                         y1 = std::max(y1, rc.y1);
                     }
                     const double span = std::max(x1 - x0, y1 - y0);
+                    r.planeLayer = rf.layer;
+                    r.groundLayer = gf.layer;
+                    r.planeX0 = x0;
+                    r.planeY0 = y0;
+                    r.planeX1 = x1;
+                    r.planeY1 = y1;
                     r.cavityResonance = span > 0 ? kLight / (2 * span * 1e-3 * std::sqrt(er)) : 0;
                 }
             }
@@ -666,6 +682,53 @@ std::vector<PdnRailResult> analyzePdn(const Project& project) {
                 }
             }
             if (unreached) r.irNote = std::to_string(unreached) + " load pin(s) not connected to the source by copper (unrouted).";
+            // The map: drop and current density of every pour cell and track section.
+            auto finite = [&](int node) { return node >= 0 && std::isfinite(drop[static_cast<size_t>(node)]); };
+            for (const auto& mesh : meshes) {
+                const ZoneFill& f = fills[mesh.fill];
+                for (int jj = 0; jj < mesh.rows; ++jj)
+                    for (int ii = 0; ii < mesh.cols; ++ii) {
+                        const int a = mesh.node[static_cast<size_t>(jj * mesh.cols + ii)];
+                        if (!finite(a)) continue;
+                        auto at = [&](int i2, int j2) {
+                            if (i2 < 0 || j2 < 0 || i2 >= mesh.cols || j2 >= mesh.rows) return -1;
+                            const int nd = mesh.node[static_cast<size_t>(j2 * mesh.cols + i2)];
+                            return finite(nd) ? nd : -1;
+                        };
+                        auto grad = [&](int lo, int hi) {
+                            const double va = drop[static_cast<size_t>(a)];
+                            if (lo >= 0 && hi >= 0) return (drop[static_cast<size_t>(hi)] - drop[static_cast<size_t>(lo)]) / (2 * mesh.cg);
+                            if (hi >= 0) return (drop[static_cast<size_t>(hi)] - va) / mesh.cg;
+                            if (lo >= 0) return (va - drop[static_cast<size_t>(lo)]) / mesh.cg;
+                            return 0.0;
+                        };
+                        const double gx = grad(at(ii - 1, jj), at(ii + 1, jj)), gy = grad(at(ii, jj - 1), at(ii, jj + 1));  // V/mm
+                        PdnIrCell cell;
+                        cell.x = (ii + 0.5) * mesh.cg;
+                        cell.y = (jj + 0.5) * mesh.cg;
+                        cell.size = mesh.cg;
+                        cell.layer = f.layer;
+                        cell.drop = drop[static_cast<size_t>(a)];
+                        // J = E / ρ with E in V/m, as A/mm².
+                        cell.density = std::hypot(gx, gy) * 1e3 / kCopperResistivity * 1e-6;
+                        r.irMaxDensity = std::max(r.irMaxDensity, cell.density);
+                        r.irCells.push_back(cell);
+                    }
+            }
+            for (const auto& e : g.edges) {
+                if (e.via || !finite(e.a) || !finite(e.b)) continue;
+                const double res = kCopperResistivity * e.length * 1e-3 / (std::max(0.01, e.width) * cu * 1e-6);
+                PdnIrSegment sg;
+                sg.a = g.nodes[static_cast<size_t>(e.a)].p;
+                sg.b = g.nodes[static_cast<size_t>(e.b)].p;
+                sg.layer = e.layer;
+                sg.width = e.width;
+                sg.current = std::fabs(drop[static_cast<size_t>(e.a)] - drop[static_cast<size_t>(e.b)]) / std::max(1e-9, res);
+                sg.density = sg.current / (std::max(0.01, e.width) * cu);
+                sg.drop = 0.5 * (drop[static_cast<size_t>(e.a)] + drop[static_cast<size_t>(e.b)]);
+                r.irMaxDensity = std::max(r.irMaxDensity, sg.density);
+                r.irSegments.push_back(sg);
+            }
             r.irLimitPercent = std::max(0.5, r.ripplePercent / 2);
         }
         out.push_back(std::move(r));
@@ -692,6 +755,7 @@ Json pdnJson(const std::vector<PdnRailResult>& rails) {
         j["vrmKind"] = r.vrmKind;
         j["vrmR"] = r.vrmR;
         j["vrmL"] = r.vrmL;
+        j["vrmBandwidth"] = r.vrmBandwidth;
         Json decaps = Json::array();
         for (const auto& d : r.decaps) {
             Json x = Json::object();
