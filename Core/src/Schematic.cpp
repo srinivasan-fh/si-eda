@@ -359,6 +359,8 @@ bool Schematic::removeWire(int id) {
 void Schematic::clear() {
     components_.clear();
     wires_.clear();
+    buses_.clear();
+    nextBusId_ = 1;
     sheets_ = {Sheet{1, "Main", 0}};
     activeSheet_ = 1;
     nextSheetId_ = 2;
@@ -913,6 +915,7 @@ std::vector<RuleViolation> Schematic::runERC() const {
         }
     }
     hierarchyERC(out);
+    busERC(out);
     return out;
 }
 

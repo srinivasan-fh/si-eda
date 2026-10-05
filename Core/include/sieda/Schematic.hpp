@@ -107,6 +107,8 @@ struct Component {
     /// On the definition of a repeated sheet: the part's designator inside the block ("R1"); `ref` is its designator
     /// in the definition's own channel (R201, R1_A). Empty everywhere else.
     std::string logicalRef;
+    /// Net labels: the bus this label is an entry of (Bus::id; 0 = an ordinary label).
+    int bus = 0;
 
     bool isNoConnect(int pin) const;
 
@@ -114,6 +116,18 @@ struct Component {
     bool hasFootprint() const { return !def().footprint.empty(); }
     /// The footprint the part is placed with: its package variant, else the kind's default.
     const std::string& footprintName() const;
+};
+
+/// A graphical bus on a sheet: a named polyline ("D[0..7]", see expandBus). Its members leave it through bus entries —
+/// net labels attached to it (Component::bus) — and join nets by name like any label; the bus itself carries no
+/// connection.
+struct Bus {
+    int id = -1;
+    int sheet = 1;
+    std::string name;
+    std::vector<Vec2> points;  // schematic units, at least two
+    /// On an instance of a repeated sheet: the bus of the definition sheet this one copies (0 = none).
+    int instanceOf = 0;
 };
 
 struct Wire {
@@ -301,6 +315,33 @@ public:
     /// Replaces the sheet list (invalid or duplicate entries are dropped; an empty list leaves one default sheet)
     /// and the active sheet. Components on unknown sheets move to the first sheet.
     void restoreSheets(const std::vector<Sheet>& sheets, int active);
+    /// Adds a bus read from a file (call after the components; entries of unknown buses become plain labels).
+    void restoreBus(const Bus& bus);
+
+    // ---- graphical buses ----
+    const std::vector<Bus>& buses() const { return buses_; }
+    const Bus* findBus(int id) const;
+    /// Draws a bus on the active sheet (on a repeated sheet's instance: on its definition). `name` must be bus
+    /// notation; 2 … 256 points. Returns its id or -1.
+    int addBus(const std::string& name, const std::vector<Vec2>& points);
+    /// Removes a bus with its entries (and their wires).
+    bool removeBus(int id);
+    /// Renames a bus (entries whose names are no longer members are reported by ERC).
+    bool renameBus(int id, const std::string& name);
+    /// Moves a bus and its entries by `delta`.
+    bool moveBus(int id, Vec2 delta);
+    bool setBusPoints(int id, const std::vector<Vec2>& points);
+    /// Members of a bus in order (expandBus of its name).
+    std::vector<std::string> busMembers(int id) const;
+    /// Point of the bus nearest to `p`.
+    Vec2 nearestBusPoint(int id, Vec2 p) const;
+    /// Rips entries out of a bus for `members` (all members when empty) that have none yet, spaced along it.
+    /// Returns the entries added, or -1 for an unknown bus or a name that is not a member.
+    int ripBusEntries(int id, const std::vector<std::string>& members, LabelScope scope = LabelScope::Local);
+    /// Connects bus members to a part's pins: each member that names a pin of the part (D0 → pin "D0" or "PB0/D0")
+    /// gets an entry on the bus, near the pin, wired to it; with no names in common, the members go to the part's
+    /// unconnected pins in order. Returns the connections made, or -1 for an unknown bus or part.
+    int connectBusToPart(int id, int componentId, LabelScope scope = LabelScope::Local);
 
 private:
     void invalidate() { netsDirty_ = true; }
@@ -315,12 +356,19 @@ private:
     std::string channelRef(const std::string& logical, int sheet, int step) const;
     /// Instance-aware parts of annotate(): numbers the blocks' logical designators.
     void annotateBlocks(const AnnotateOptions& options);
+    /// Drops buses on missing sheets and detaches entries from buses that are gone or on another sheet.
+    void repairBusLinks();
+    int masterBusOf(int id) const;
+    /// Bus checks: entries that are not members, members that reach one pin only, buses without entries.
+    void busERC(std::vector<RuleViolation>& out) const;
     void rebuildNets() const;
     /// Multi-sheet checks: ports, sheet entries, labels split across sheets, wires between sheets, bus labels.
     void hierarchyERC(std::vector<RuleViolation>& out) const;
 
     std::vector<Component> components_;
     std::vector<Wire> wires_;
+    std::vector<Bus> buses_;
+    int nextBusId_ = 1;
     std::vector<Sheet> sheets_{Sheet{1, "Main", 0}};
     int activeSheet_ = 1;
     int nextSheetId_ = 2;

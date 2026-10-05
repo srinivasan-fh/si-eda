@@ -158,6 +158,7 @@ int Schematic::repeatSheet(int sheet, int count) {
         const int index = sheetIndex(victim);
         sheets_.erase(sheets_.begin() + index);
         if (activeSheet_ == victim) activeSheet_ = sheet;
+        repairBusLinks();
     }
     if (count > static_cast<int>(group.size())) {
         std::set<std::string> channels, names;
@@ -231,6 +232,7 @@ std::string Schematic::channelRef(const std::string& logical, int sheet, int ste
 }
 
 void Schematic::syncInstances() {
+    repairBusLinks();
     // Sheets: an instance points at a definition that exists and is not an instance itself.
     std::map<int, std::vector<int>> groups;  // definition → its instance sheets, in sheet order
     std::map<int, int> defOf;                // instance sheet → definition
@@ -289,6 +291,7 @@ void Schematic::syncInstances() {
         }
     if (groups.empty()) {
         for (auto& w : wires_) w.instanceOf = 0;
+        for (auto& b : buses_) b.instanceOf = 0;
         if (changed) invalidate();
         return;
     }
@@ -387,6 +390,59 @@ void Schematic::syncInstances() {
         wires_ = std::move(kept);
     }
 
+    // Buses: those drawn on an instance join the definition; copies of buses that are gone go.
+    {
+        std::set<std::pair<int, int>> seen;
+        std::vector<Bus> kept;
+        for (Bus b : buses_) {
+            const auto d = defOf.find(b.sheet);
+            if (d == defOf.end()) {
+                b.instanceOf = 0;
+                kept.push_back(b);
+                continue;
+            }
+            if (b.instanceOf == 0) {
+                b.sheet = d->second;  // drawn on a channel: becomes the block's
+                for (auto& c : components_)
+                    if (c.bus == b.id) c.bus = 0;  // its entries there were copies-to-be; re-ripped on the block
+                kept.push_back(b);
+                changed = true;
+                continue;
+            }
+            const Bus* m = findBus(b.instanceOf);
+            if (!m || m->instanceOf != 0 || m->sheet != d->second || !seen.insert({b.instanceOf, b.sheet}).second) {
+                changed = true;
+                continue;
+            }
+            kept.push_back(b);
+        }
+        buses_ = std::move(kept);
+        for (auto& [def, instances] : groups)
+            for (int sheet : instances) {
+                std::vector<Bus> originals;
+                for (const auto& b : buses_)
+                    if (b.sheet == def && b.instanceOf == 0) originals.push_back(b);
+                for (const auto& m : originals) {
+                    auto it = std::find_if(buses_.begin(), buses_.end(),
+                                           [&](const Bus& b) { return b.instanceOf == m.id && b.sheet == sheet; });
+                    if (it == buses_.end()) {
+                        Bus c = m;
+                        c.id = nextBusId_++;
+                        c.sheet = sheet;
+                        c.instanceOf = m.id;
+                        buses_.push_back(c);
+                        changed = true;
+                    } else if (it->name != m.name || it->points.size() != m.points.size() ||
+                               !std::equal(it->points.begin(), it->points.end(), m.points.begin(),
+                                           [](Vec2 a, Vec2 b) { return a.x == b.x && a.y == b.y; })) {
+                        it->name = m.name;
+                        it->points = m.points;
+                        changed = true;
+                    }
+                }
+            }
+    }
+
     for (auto& [def, instances] : groups) {
         // Block designators: each part of the definition keeps a unique one; new parts take their own designator
         // when it is free in the block, else the next free number of their prefix.
@@ -467,6 +523,20 @@ void Schematic::syncInstances() {
                 c.targetSheet = m.targetSheet;
             }
         }
+        // Bus entries of the copies belong to the copies of their bus.
+        for (int sheet : instances)
+            for (int mid : masterIds) {
+                const int masterBus = comp(mid)->bus;
+                Component& c = *comp(copyOf[{mid, sheet}]);
+                int bus = 0;
+                if (masterBus != 0)
+                    for (const auto& b : buses_)
+                        if (b.instanceOf == masterBus && b.sheet == sheet) bus = b.id;
+                if (c.bus != bus) {
+                    c.bus = bus;
+                    changed = true;
+                }
+            }
         // Designators for every channel, the definition's own included.
         for (int mid : masterIds) {
             Component& m = *comp(mid);

@@ -22,6 +22,7 @@ add_library(sieda_core STATIC
     Core/src/Schematic.cpp
     Core/src/Sheets.cpp
     Core/src/Instances.cpp
+    Core/src/Buses.cpp
     Core/src/Variants.cpp
     Core/src/Simulator.cpp
     Core/src/Analysis.cpp

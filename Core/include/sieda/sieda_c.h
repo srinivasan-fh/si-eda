@@ -487,6 +487,24 @@ int32_t sieda_set_instance_refs(SiedaProject* project, int32_t sheet, const char
 /* Channel label of a repeated sheet (letters, digits, '_' or '-'; unique in the block). 1 on success. */
 int32_t sieda_set_sheet_channel(SiedaProject* project, int32_t sheet, const char* channel);
 
+/* ---- schematic capture: graphical buses ---------------------------------------------------- */
+/* A bus is a named polyline ("D[0..7]") on a sheet. Its members leave it through bus entries: net labels attached to
+ * it ("bus": id in the snapshot) that join nets by name (scope "local" by default). The snapshot lists
+ * "buses":[{"id","sheet","name","points":[{x,y}],"members":[…],"instanceOf"?}].
+ * Adds a bus on the active sheet; points_json is [{"x":…,"y":…},…] (2 … 256 points). Returns its id or -1. */
+int32_t sieda_add_bus(SiedaProject* project, const char* name, const char* points_json);
+/* Removes a bus with its entries. 1 on success. */
+int32_t sieda_remove_bus(SiedaProject* project, int32_t bus);
+int32_t sieda_rename_bus(SiedaProject* project, int32_t bus, const char* name);
+/* Moves a bus and its entries. 1 on success. */
+int32_t sieda_move_bus(SiedaProject* project, int32_t bus, double dx, double dy);
+/* Rips entries out for the members in members_json (["D0","D1"]; NULL or "[]" = every member without one), spaced
+ * along the bus. scope: "local" (NULL), "global" or "port". Returns the entries added, -1 on bad input. */
+int32_t sieda_rip_bus_entries(SiedaProject* project, int32_t bus, const char* members_json, const char* scope);
+/* Wires bus members to the pins of a part they name (D0 → pin "D0"), else to its open pins in order, each through
+ * an entry on the bus. Returns the connections made, -1 for an unknown bus or part. */
+int32_t sieda_connect_bus_to_part(SiedaProject* project, int32_t bus, int32_t component_id, const char* scope);
+
 #ifdef __cplusplus
 }
 #endif

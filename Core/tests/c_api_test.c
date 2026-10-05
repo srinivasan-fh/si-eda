@@ -376,3 +376,35 @@ int sieda_c_api_capture_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Graphical buses through the C API. Returns 0 or the failing step. */
+int sieda_c_api_bus_test(void) {
+    SiedaProject* p = sieda_project_new("Buses");
+    if (!p) return 1;
+    int32_t j1 = sieda_add_component(p, 12, NULL, 0, 0, 0, NULL);
+    int32_t j2 = sieda_add_component(p, 12, NULL, 300, 0, 0, NULL);
+    if (sieda_add_bus(p, "nope", "[{\"x\":0,\"y\":0},{\"x\":0,\"y\":50}]") != -1) return 2;
+    if (sieda_add_bus(p, "D[0..1]", "not json") != -1 || sieda_add_bus(p, "D[0..1]", NULL) != -1) return 3;
+    int32_t bus = sieda_add_bus(p, "D[0..1]", "[{\"x\":150,\"y\":-50},{\"x\":150,\"y\":50}]");
+    if (bus <= 0) return 4;
+    if (sieda_connect_bus_to_part(p, bus, j1, NULL) != 2 || sieda_connect_bus_to_part(p, bus, j2, "local") != 2) return 5;
+    if (sieda_connect_bus_to_part(p, bus, j1, "entry") != -1 || sieda_connect_bus_to_part(p, 999, j1, NULL) != -1) return 6;
+    {
+        char* snap = sieda_project_snapshot(p);
+        if (!snap || !strstr(snap, "\"buses\":[{") || !strstr(snap, "\"members\":[\"D0\",\"D1\"]") ||
+            !strstr(snap, "\"bus\":")) return 7;
+        sieda_string_free(snap);
+    }
+    int32_t bus2 = sieda_add_bus(p, "A[0..3]", "[{\"x\":0,\"y\":200},{\"x\":200,\"y\":200}]");
+    if (sieda_rip_bus_entries(p, bus2, "[\"A0\"]", NULL) != 1 || sieda_rip_bus_entries(p, bus2, NULL, "global") != 3) return 8;
+    if (sieda_rip_bus_entries(p, bus2, "[\"Z\"]", NULL) != -1 || sieda_rip_bus_entries(p, bus2, "{", NULL) != -1) return 9;
+    if (!sieda_move_bus(p, bus2, 10, 0) || !sieda_rename_bus(p, bus2, "A[0..4]") || sieda_rename_bus(p, bus2, "x")) return 10;
+    {
+        char* erc = sieda_run_erc(p);
+        if (!erc || !strstr(erc, "ERC_DANGLING_LABEL")) return 11; /* the ripped entries are not wired yet */
+        sieda_string_free(erc);
+    }
+    if (!sieda_remove_bus(p, bus2) || sieda_remove_bus(p, bus2)) return 12;
+    sieda_project_free(p);
+    return 0;
+}

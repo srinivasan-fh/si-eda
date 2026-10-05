@@ -2025,3 +2025,82 @@ int32_t sieda_set_sheet_channel(SiedaProject* project, int32_t sheet, const char
 }
 
 }  // extern "C"
+
+// ---- graphical buses
+
+namespace {
+bool busScope(const char* scope, LabelScope* out) {
+    if (!scope || !*scope) {
+        *out = LabelScope::Local;
+        return true;
+    }
+    return labelScopeFromName(scope, out) && *out != LabelScope::SheetEntry;
+}
+}  // namespace
+
+extern "C" {
+
+int32_t sieda_add_bus(SiedaProject* project, const char* name, const char* points_json) {
+    if (!project || !points_json) return -1;
+    try {
+        std::vector<Vec2> points;
+        const Json list = Json::parse(points_json);
+        for (const auto& p : list.items()) points.push_back({p.get("x").asNumber(), p.get("y").asNumber()});
+        return project->project.schematic.addBus(str(name), points);
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_remove_bus(SiedaProject* project, int32_t bus) {
+    if (!project) return 0;
+    return guarded([&] {
+        const bool ok = project->project.schematic.removeBus(bus);
+        if (ok) project->project.schematicChanged();
+        return ok ? 1 : 0;
+    });
+}
+
+int32_t sieda_rename_bus(SiedaProject* project, int32_t bus, const char* name) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.renameBus(bus, str(name)) ? 1 : 0; });
+}
+
+int32_t sieda_move_bus(SiedaProject* project, int32_t bus, double dx, double dy) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.moveBus(bus, {dx, dy}) ? 1 : 0; });
+}
+
+int32_t sieda_rip_bus_entries(SiedaProject* project, int32_t bus, const char* members_json, const char* scope) {
+    if (!project) return -1;
+    try {
+        LabelScope s;
+        if (!busScope(scope, &s)) return -1;
+        std::vector<std::string> members;
+        if (members_json && *members_json)
+        {
+            const Json list = Json::parse(members_json);
+            for (const auto& m : list.items()) members.push_back(m.asString(""));
+        }
+        const int n = project->project.schematic.ripBusEntries(bus, members, s);
+        if (n > 0) project->project.schematicChanged();
+        return n;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_connect_bus_to_part(SiedaProject* project, int32_t bus, int32_t component_id, const char* scope) {
+    if (!project) return -1;
+    try {
+        LabelScope s;
+        if (!busScope(scope, &s)) return -1;
+        const int n = project->project.schematic.connectBusToPart(bus, component_id, s);
+        if (n > 0) project->project.schematicChanged();
+        return n;
+    } catch (...) {
+        return -1;
+    }
+}
+
+}  // extern "C"

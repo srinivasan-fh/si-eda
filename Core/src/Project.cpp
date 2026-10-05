@@ -152,6 +152,28 @@ void componentSheetJson(Json& j, const Component& c) {
     }
     if (c.instanceOf != 0) j["instanceOf"] = c.instanceOf;
     if (!c.logicalRef.empty()) j["logicalRef"] = c.logicalRef;
+    if (c.bus != 0) j["bus"] = c.bus;
+}
+
+Json busesJson(const Schematic& sch, bool withMembers) {
+    Json arr = Json::array();
+    for (const auto& b : sch.buses()) {
+        Json j = Json::object();
+        j["id"] = b.id;
+        j["sheet"] = b.sheet;
+        j["name"] = b.name;
+        Json pts = Json::array();
+        for (const auto& p : b.points) pts.push(vec(p));
+        j["points"] = pts;
+        if (b.instanceOf != 0) j["instanceOf"] = b.instanceOf;
+        if (withMembers) {
+            Json members = Json::array();
+            for (const auto& m : expandBus(b.name)) members.push(m);
+            j["members"] = members;
+        }
+        arr.push(j);
+    }
+    return arr;
 }
 
 std::string trimmedName(const std::string& s) {
@@ -370,6 +392,7 @@ Json Project::toJson() const {
     root["wires"] = wires;
     root["sheets"] = sheetsJson(schematic);
     root["activeSheet"] = schematic.activeSheet();
+    if (!schematic.buses().empty()) root["buses"] = busesJson(schematic, false);
     if (!variants.empty()) {
         Json vs = Json::array();
         for (const auto& v : variants) vs.push(variantToJson(v, schematic));
@@ -564,6 +587,7 @@ Project Project::fromJson(const Json& root) {
         c.targetSheet = c.scope == LabelScope::SheetEntry ? j.get("targetSheet").asInt(0) : 0;
         c.instanceOf = std::max(0, j.get("instanceOf").asInt(0));
         c.logicalRef = j.get("logicalRef").asString("");
+        c.bus = c.kind == ComponentKind::NetLabel ? std::max(0, j.get("bus").asInt(0)) : 0;
         if (c.logicalRef.size() > 64) c.logicalRef.clear();
         p.schematic.restoreComponent(c);
     }
@@ -587,6 +611,15 @@ Project Project::fromJson(const Json& root) {
         if (w.id < 0 || !p.schematic.find(w.a.component) || !p.schematic.find(w.b.component)) continue;
         w.instanceOf = std::max(0, j.get("instanceOf").asInt(0));
         p.schematic.restoreWire(w);
+    }
+    for (const auto& j : root.get("buses").items()) {
+        Bus b;
+        b.id = j.get("id").asInt(-1);
+        b.sheet = j.get("sheet").asInt(1);
+        b.name = j.get("name").asString("");
+        b.instanceOf = j.get("instanceOf").asInt(0);
+        for (const auto& pt : j.get("points").items()) b.points.push_back({pt.get("x").asNumber(), pt.get("y").asNumber()});
+        p.schematic.restoreBus(b);
     }
     p.schematic.syncInstances();  // repeated sheets: checks the instances against their definitions (no-op otherwise)
     for (const auto& j : root.get("variants").items()) {
@@ -650,6 +683,7 @@ Json Project::snapshot() const {
             if (c.scope == LabelScope::SheetEntry) j["targetSheet"] = c.targetSheet;
         }
         if (c.instanceOf != 0) j["instanceOf"] = c.instanceOf;
+        if (c.bus != 0) j["bus"] = c.bus;
         if (!c.logicalRef.empty()) j["logicalRef"] = c.logicalRef;
         else if (c.instanceOf != 0)
             if (const Component* m = schematic.find(c.instanceOf); m && !m->logicalRef.empty()) j["logicalRef"] = m->logicalRef;
@@ -769,6 +803,7 @@ Json Project::snapshot() const {
         }
         root["sheets"] = sheets;
         root["activeSheet"] = schematic.activeSheet();
+        root["buses"] = busesJson(schematic, true);
         Json vs = Json::array();
         for (const auto& v : variants) vs.push(variantToJson(v, schematic));
         root["variants"] = vs;

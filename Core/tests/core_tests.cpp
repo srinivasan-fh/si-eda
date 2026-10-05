@@ -8264,3 +8264,151 @@ TEST(schematic_capture_c_api) {
     if (rc != 0) std::printf("    capture c api step %d failed\n", rc);
     CHECK(rc == 0);
 }
+
+// ======================================================================= graphical buses
+
+namespace {
+/// A registered test part with data pins D0 … D3 and supply pins.
+std::string busPart(const std::string& name) {
+    CustomPartSpec spec;
+    spec.name = name;
+    spec.package.type = "SOIC";
+    const char* pins[] = {"D0", "D1", "D2", "D3", "VCC", "GND"};
+    for (int i = 0; i < 6; ++i) {
+        CustomPin p;
+        p.number = std::to_string(i + 1);
+        p.name = pins[i];
+        p.type = i < 4 ? PinType::Bidirectional : PinType::PowerIn;
+        spec.pins.push_back(p);
+    }
+    return CustomPartRegistry::instance().registerPart(spec)->id;
+}
+}  // namespace
+
+TEST(graphical_buses_entries_connectivity_erc_and_persistence) {
+    Project p;
+    Schematic& s = p.schematic;
+    const int mcu = s.addCustomComponent(busPart("BUSMCU"), "", {0, 0});
+    const int mem = s.addCustomComponent(busPart("BUSMEM"), "", {400, 0});
+    CHECK(s.addBus("not a bus", {{100, -60}, {100, 60}}) == -1);
+    CHECK(s.addBus("D[0..3]", {{100, -60}}) == -1);
+    const int bus = s.addBus("D[0..3]", {{200, -80}, {200, 80}});
+    CHECK(bus > 0 && s.findBus(bus) && s.busMembers(bus).size() == 4);
+    CHECK(hasCode(s.runERC(), "ERC_BUS_NO_ENTRIES"));
+    CHECK(s.connectBusToPart(bus, mcu) == 4);
+    CHECK(s.connectBusToPart(bus, mem) == 4);
+    CHECK(s.connectBusToPart(bus, 9999) == -1);
+    for (int i = 0; i < 4; ++i) CHECK(s.netOf({mcu, i}) == s.netOf({mem, i}) && s.netOf({mcu, i}) >= 0);
+    CHECK(s.netOf({mcu, 0}) != s.netOf({mcu, 1}));
+    int entries = 0;
+    for (const auto& c : s.components())
+        if (c.bus == bus) {
+            ++entries;
+            CHECK(c.kind == ComponentKind::NetLabel && c.scope == LabelScope::Local);
+            const Vec2 q = s.nearestBusPoint(bus, c.position);
+            CHECK(std::hypot(q.x - c.position.x, q.y - c.position.y) < 15);  // drawn on the bus
+        }
+    CHECK(entries == 8);
+    auto erc = s.runERC();
+    CHECK(!hasCode(erc, "ERC_BUS_NO_ENTRIES") && !hasCode(erc, "ERC_BUS_MEMBER_UNCONNECTED") &&
+          !hasCode(erc, "ERC_BUS_ENTRY_NOT_MEMBER") && !hasCode(erc, "ERC_BUS_LABEL"));
+    // A member ripped out at one place only leads nowhere; an entry that is not a member is an error.
+    int memD3 = -1;
+    for (const auto& c : s.components())
+        if (c.bus == bus && c.value == "D3" && s.netOf({c.id, 0}) == s.netOf({mem, 3})) {
+            for (const auto& w : s.wires())
+                if ((w.a.component == c.id && w.b.component == mem) || (w.b.component == c.id && w.a.component == mem)) memD3 = c.id;
+        }
+    CHECK(memD3 > 0);
+    CHECK(s.removeComponent(memD3));
+    CHECK(hasCode(s.runERC(), "ERC_BUS_MEMBER_UNCONNECTED"));
+    CHECK(s.connectBusToPart(bus, mem) == 1);  // only D3 was open: reconnected
+    CHECK(!hasCode(s.runERC(), "ERC_BUS_MEMBER_UNCONNECTED"));
+    // Ripping entries: every member once; unknown members refused.
+    const int bus2 = s.addBus("A[7..0]", {{0, 200}, {300, 200}, {300, 300}});
+    CHECK(s.ripBusEntries(bus2, {"X9"}) == -1);
+    CHECK(s.ripBusEntries(bus2, {"A1", "A0"}) == 2);
+    CHECK(s.ripBusEntries(bus2, {}) == 6);
+    CHECK(s.ripBusEntries(bus2, {}) == 0);
+    int labelOnBus2 = -1;
+    for (const auto& c : s.components())
+        if (c.bus == bus2) labelOnBus2 = c.id;
+    const Vec2 before = s.find(labelOnBus2)->position;
+    CHECK(s.moveBus(bus2, {20, 10}));
+    CHECK(s.find(labelOnBus2)->position.x == before.x + 20 && s.findBus(bus2)->points[0].y == 210);
+    CHECK(s.setValue(labelOnBus2, "Q1"));
+    CHECK(hasCode(s.runERC(), "ERC_BUS_ENTRY_NOT_MEMBER"));
+    CHECK(s.renameBus(bus2, "A[7..0],Q1") && !s.renameBus(bus2, "nope"));
+    CHECK(!hasCode(s.runERC(), "ERC_BUS_ENTRY_NOT_MEMBER"));
+
+    // Persistence round trip, snapshot.
+    p.schematicChanged();
+    const std::string saved = p.toJson().dump();
+    Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.toJson().dump() == saved);
+    CHECK(q.schematic.buses().size() == 2);
+    CHECK(q.schematic.netOf({mcu, 2}) == q.schematic.netOf({mem, 2}));
+    Json snap = q.snapshot();
+    CHECK(snap.get("buses").size() == 2 && snap.get("buses")[0].get("members").size() == 4);
+    // Removing a bus removes its entries.
+    CHECK(s.removeBus(bus2) && !s.findBus(bus2) && !s.find(labelOnBus2));
+    // A file without buses still loads as before.
+    CHECK(Project::fromJson(Json::parse(ledProject().toJson().dump())).schematic.buses().empty());
+
+    // Buses on a repeated sheet are copied into every channel, with their entries.
+    Project r;
+    Schematic& t = r.schematic;
+    const int sheet = t.addSheet("Chan", 1);
+    t.setActiveSheet(sheet);
+    const int a = t.addCustomComponent(busPart("BUSMCU"), "", {0, 0});
+    const int b2 = t.addCustomComponent(busPart("BUSMEM"), "", {400, 0});
+    const int tb = t.addBus("D[0..3]", {{200, -80}, {200, 80}});
+    CHECK(t.connectBusToPart(tb, a) == 4 && t.connectBusToPart(tb, b2) == 4);
+    CHECK(t.repeatSheet(sheet, 2) == 2);
+    const int inst = t.sheetInstances(sheet)[1];
+    int copyBus = -1;
+    for (const auto& bb : t.buses())
+        if (bb.sheet == inst) copyBus = bb.id;
+    CHECK(copyBus > 0 && t.findBus(copyBus)->instanceOf == tb);
+    int copyEntries = 0;
+    for (const auto& c : t.components()) copyEntries += c.sheet == inst && c.bus == copyBus;
+    CHECK(copyEntries == 8);
+    CHECK(t.netOf({t.copyOn(a, inst), 1}) == t.netOf({t.copyOn(b2, inst), 1}));
+    CHECK(t.netOf({t.copyOn(a, inst), 1}) != t.netOf({a, 1}));  // local entries: per channel
+    CHECK(t.moveBus(copyBus, {10, 0}) && t.findBus(tb)->points[0].x == 210 && t.findBus(copyBus)->points[0].x == 210);
+    CHECK(instancesConsistent(t));
+    const std::string repeated = r.toJson().dump();
+    CHECK(Project::fromJson(Json::parse(repeated)).toJson().dump() == repeated);
+
+    // Hostile bus data: bad points, duplicate ids, unknown sheets and entries of missing buses load safely.
+    std::string text = saved;
+    const std::string from = "\"buses\":[";
+    const size_t at = text.find(from);
+    CHECK(at != std::string::npos);
+    text.insert(at + from.size(),
+                "{\"id\":1,\"sheet\":1,\"name\":\"D[0..1]\",\"points\":[{\"x\":0,\"y\":0},{\"x\":1,\"y\":1}]},"
+                "{\"id\":77,\"sheet\":42,\"name\":\"D[0..1]\",\"points\":[{\"x\":0,\"y\":0},{\"x\":1,\"y\":1}]},"
+                "{\"id\":78,\"sheet\":1,\"name\":\"D[0..1]\",\"points\":[{\"x\":0}]},"
+                "{\"id\":79,\"sheet\":1,\"name\":\"\",\"points\":\"x\"},");
+    for (size_t k = text.find("\"bus\":"); k != std::string::npos; k = text.find("\"bus\":", k + 1)) {
+        text.replace(k, 6, "\"bus\":9");  // every entry now names bus 9…
+        break;
+    }
+    try {
+        Project h = Project::fromJson(Json::parse(text));
+        CHECK(h.schematic.buses().size() == 2);  // the duplicate id, missing sheet and bad shapes are dropped
+        for (const auto& c : h.schematic.components())
+            if (c.bus != 0) CHECK(h.schematic.findBus(c.bus) && h.schematic.findBus(c.bus)->sheet == c.sheet);
+        h.schematic.runERC();
+    } catch (const JsonError&) {
+        CHECK(false);
+    }
+}
+
+extern "C" int sieda_c_api_bus_test(void);
+
+TEST(graphical_buses_c_api) {
+    const int rc = sieda_c_api_bus_test();
+    if (rc != 0) std::printf("    bus c api step %d failed\n", rc);
+    CHECK(rc == 0);
+}

@@ -205,6 +205,7 @@ bool Schematic::removeSheet(int id, bool deleteContents) {
     const int index = sheetIndex(id);
     sheets_.erase(sheets_.begin() + index);
     if (activeSheet_ == id) activeSheet_ = sheets_[static_cast<size_t>(std::max(0, index - 1))].id;
+    repairBusLinks();
     invalidate();
     edited();
     return true;
@@ -267,6 +268,7 @@ int Schematic::moveToSheet(const std::vector<int>& ids, int sheet) {
                                     return a && b && a->sheet != b->sheet;
                                 }),
                  wires_.end());
+    repairBusLinks();  // entries moved away from their bus become plain labels
     invalidate();
     edited();
     return moved;
