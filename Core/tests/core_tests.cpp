@@ -4,6 +4,7 @@
 #include <cmath>
 #include <complex>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -50,6 +51,8 @@
 #include "sieda/Verification.hpp"
 #include "sieda/Units.hpp"
 #include "sieda/sieda_c.h"
+
+#include "bench/BoardGenerator.hpp"
 
 extern "C" int sieda_c_api_smoke_test(void);
 extern "C" int sieda_c_api_library_import_test(void);
@@ -7774,4 +7777,188 @@ TEST(si_verification_sign_off) {
     CHECK(missing && Json::parse(missing).get("error").asString("").size() > 0);
     sieda_string_free(missing);
     sieda_project_free(api);
+}
+
+// ---- Scale: spatial-index DRC equivalence and the large-board benchmark -------------------------------------------
+
+namespace {
+/// A board crowded with deliberately bad copper (overlaps, near misses, acute joins, stubs, vias in pads, tight
+/// holes) so that every DRC check fires, for comparing the spatial-index DRC against the pairwise scan.
+Project messyBoard(uint32_t seed) {
+    bench::detail::Lcg rng{seed * 2654435761u + 7u};
+    Project p;
+    auto& s = p.schematic;
+    std::vector<int> parts;
+    const int gnd = s.addComponent(ComponentKind::Ground, "", {0, 0});
+    // A 48 V supply (IPC-2221 voltage spacing above the design clearance) through an isolated converter to a
+    // patient-side load (two galvanic domains for the isolation-barrier check).
+    const int src = s.addComponent(ComponentKind::VoltageSource, "48", {0, -100});
+    const int src5 = s.addComponent(ComponentKind::VoltageSource, "5", {0, -200});
+    const int hv = s.addComponent(ComponentKind::Resistor, "10k", {100, -100});
+    const int dc = s.addCustomComponent(p.addCustomPart(findStandardPart("ISO-DCDC-MED")->spec), "", {200, -100});
+    const int pgnd = s.addComponent(ComponentKind::NetLabel, "PGND", {300, -50});
+    const int load = s.addComponent(ComponentKind::Resistor, "1k", {300, -100});
+    wire(s, src, "-", gnd, "GND");
+    wire(s, src, "+", hv, "1");
+    wire(s, hv, "2", gnd, "GND");
+    wire(s, src5, "-", gnd, "GND");
+    wire(s, src5, "+", dc, "+VIN");
+    wire(s, dc, "-VIN", gnd, "GND");
+    wire(s, dc, "+VOUT", load, "1");
+    wire(s, dc, "-VOUT", pgnd, "N");
+    wire(s, load, "2", pgnd, "N");
+    for (int k = 0; k < 14; ++k) {
+        const int r = s.addComponent(k % 3 == 0 ? ComponentKind::Capacitor : ComponentKind::Resistor, "1k", {100.0 * k, 0});
+        if (k % 2) s.setPackage(r, k % 3 == 0 ? "C_0603" : "R_0603");
+        parts.push_back(r);
+    }
+    // Fine-pitch pads (their unconnected pins are checked against each other too); the passives get random nets.
+    s.addComponent(ComponentKind::OpAmp, "LM358", {0, 200});
+    s.addCustomComponent(p.addCustomPart(findStandardPart("STM32G431CBU6")->spec), "", {400, 200});
+    for (int k = 0; k < 40; ++k) {
+        const int a = parts[rng.next() % parts.size()], b = parts[rng.next() % parts.size()];
+        const int pa = static_cast<int>(rng.next() % s.find(a)->def().pins.size());
+        const int pb = static_cast<int>(rng.next() % s.find(b)->def().pins.size());
+        if (a != b) s.connect({a, pa}, {b, pb});
+    }
+    for (int k = 0; k < 4; ++k) s.connect({parts[rng.next() % 14], 1}, {gnd, 0});
+    p.pcb.settings.width = 45;
+    p.pcb.settings.height = 35;
+    p.pcb.settings.layerCount = seed % 2 ? 2 : 4;
+    if (seed % 3 == 0) p.pcb.settings.isolationGap = 2.0;
+    if (seed % 2 == 0) p.pcb.zones.push_back({"GND", 0, false, 0});
+    p.pcb.settings.holes.push_back({{6, 6}, 3.2, 6.4});
+    p.pcb.autoPlace(s, true);
+    const auto pads = p.pcb.pads(s);
+    auto anyPad = [&]() -> const Pad& { return pads[rng.next() % pads.size()]; };
+    auto jitter = [&](Vec2 at, double r) { return at + Vec2{(rng.unit() - 0.5) * 2 * r, (rng.unit() - 0.5) * 2 * r}; };
+    // Copper of the 48 V and the patient-side nets reaching toward the others.
+    for (const Pad& a : pads)
+        if (a.componentId == hv || a.componentId == load)
+            for (int k = 0; k < 4; ++k) {
+                Track t;
+                t.net = a.net;
+                t.layer = a.smdLayer;
+                t.width = 0.2;
+                t.a = a.position;
+                t.b = jitter(anyPad().position, 1.0);
+                p.pcb.addTrack(t);
+            }
+    for (int k = 0; k < 160; ++k) {
+        const Pad& a = anyPad();
+        const Pad& b = anyPad();
+        Track t;
+        t.net = a.net >= 0 ? a.net : b.net;
+        t.layer = a.throughHole ? static_cast<int>(rng.next() % 2) * (p.pcb.settings.layerCount - 1) : a.smdLayer;
+        t.width = 0.12 + 0.05 * (rng.next() % 6);
+        t.a = a.position;
+        t.b = k % 4 == 0 ? jitter(b.position, 0.4) : jitter(a.position, 3.0);
+        p.pcb.addTrack(t);
+        if (k % 5 == 0) {  // a second piece from the end: acute or right-angle joins, collinear runs
+            Track u = t;
+            u.a = t.b;
+            u.b = jitter(t.a, 1.5);
+            p.pcb.addTrack(u);
+        }
+    }
+    for (int k = 0; k < 40; ++k) {
+        Via v;
+        const Pad& a = anyPad();
+        v.net = a.net;
+        v.position = k % 3 == 0 ? a.position : jitter(a.position, 2.0);
+        v.drill = k % 7 == 0 ? 0.15 : 0.3;
+        v.diameter = k % 5 == 0 ? 0.45 : 0.6;
+        p.pcb.addVia(v);
+    }
+    return p;
+}
+
+bool sameViolations(const std::vector<RuleViolation>& a, const std::vector<RuleViolation>& b) {
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); ++i)
+        if (a[i].code != b[i].code || a[i].message != b[i].message || a[i].severity != b[i].severity ||
+            a[i].components != b[i].components || a[i].location.x != b[i].location.x || a[i].location.y != b[i].location.y)
+            return false;
+    return true;
+}
+}  // namespace
+
+TEST(drc_spatial_index_matches_brute_force) {
+    // The spatial-index DRC (and the copper connectivity, ratsnest and routing clean-up built on the same index) must
+    // report exactly what the pairwise scan reports, in the same order, on boards full of violations.
+    std::set<std::string> codes;
+    for (uint32_t seed = 1; seed <= 6; ++seed) {
+        Project p = messyBoard(seed);
+        const auto& s = p.schematic;
+        const auto fast = p.pcb.runDRC(s);
+        const auto fastRats = p.pcb.ratsnest(s);
+        PcbLayout fastClean = p.pcb;
+        fastClean.cleanupRouting(s);
+        setDrcBruteForce(true);
+        const auto slow = p.pcb.runDRC(s);
+        const auto slowRats = p.pcb.ratsnest(s);
+        PcbLayout slowClean = p.pcb;
+        slowClean.cleanupRouting(s);
+        setDrcBruteForce(false);
+        CHECK(fast.size() > 20);
+        CHECK(!netVoltageRanges(s).empty());  // the DC operating point converged: voltage spacing is checked
+        CHECK(sameViolations(fast, slow));
+        CHECK(fastRats == slowRats);
+        bool sameTracks = fastClean.tracks.size() == slowClean.tracks.size();
+        for (size_t i = 0; sameTracks && i < fastClean.tracks.size(); ++i) {
+            const Track &x = fastClean.tracks[i], &y = slowClean.tracks[i];
+            sameTracks = x.net == y.net && x.layer == y.layer && x.width == y.width && x.a.x == y.a.x && x.a.y == y.a.y &&
+                         x.b.x == y.b.x && x.b.y == y.b.y;
+        }
+        CHECK(sameTracks);
+        for (const auto& v : fast) codes.insert(v.code);
+    }
+    // The boards exercise every pairwise check.
+    for (const char* code : {"DRC_SHORT", "DRC_CLEARANCE", "DRC_CLEARANCE_RULE", "DRC_HV_CLEARANCE", "DRC_FINE_PITCH_PADS",
+                             "DRC_DANGLING_TRACK", "DRC_ACUTE_ANGLE", "DRC_HOLE_SPACING", "DRC_VIA_IN_PAD", "DRC_ISOLATION_GAP",
+                             "DRC_DRILL_SIZE", "DRC_UNROUTED"}) {
+        if (!codes.count(code)) std::printf("    not exercised: %s\n", code);
+        CHECK(codes.count(code) == 1);
+    }
+    // A routed board too.
+    Project r = bench::makeBenchBoard({5, 2, 6, true, false, 0.45}).project;
+    r.pcb.autoPlace(r.schematic, true);
+    r.pcb.autoRoute(r.schematic);
+    const auto fast = r.pcb.runDRC(r.schematic);
+    setDrcBruteForce(true);
+    const auto slow = r.pcb.runDRC(r.schematic);
+    setDrcBruteForce(false);
+    CHECK(sameViolations(fast, slow));
+}
+
+TEST(scale_benchmark_medium_board) {
+    // The CI case of the scale benchmark (Core/tests/bench, `sieda_route_bench` for the large boards): 166 parts —
+    // two 96-ball BGAs, QFN / LQFP / TSSOP ICs and their passives — on 6 layers with GND and +3V3 planes. It places,
+    // routes completely and passes DRC in seconds; SIEDA_BENCH_LARGE=1 also runs the 900-part, 8-layer FPGA board.
+    using clock = std::chrono::steady_clock;
+    auto secs = [](clock::time_point a) { return std::chrono::duration<double>(clock::now() - a).count(); };
+    auto run = [&](const bench::BenchSpec& spec, bool requireComplete) {
+        bench::BenchBoard b = bench::makeBenchBoard(spec);
+        Project& p = b.project;
+        auto t0 = clock::now();
+        p.pcb.autoPlace(p.schematic, true);
+        const double place = secs(t0);
+        t0 = clock::now();
+        const RouteStats st = p.pcb.autoRoute(p.schematic);
+        const double route = secs(t0);
+        t0 = clock::now();
+        int errors = 0;
+        for (const auto& v : p.pcb.runDRC(p.schematic)) errors += v.severity == Severity::Error;
+        const double drc = secs(t0);
+        std::printf("    %d parts, %d nets, %d layers: place %.2f s, route %.2f s (%d / %d), DRC %.2f s, %d errors\n",
+                    b.components, b.nets, spec.layers, place, route, st.routed, st.connections, drc, errors);
+        for (const auto& c : p.schematic.components()) CHECK(!c.hasFootprint() || c.pcb.placed);
+        if (requireComplete) {
+            CHECK(st.failed == 0 && errors == 0);
+        }
+        return place + route + drc;
+    };
+    const double total = run({1, 6, 6, true, false, 0.45}, true);
+    CHECK(total < 60.0);  // ~5 s in a release build; generous for debug and sanitiser builds
+    if (std::getenv("SIEDA_BENCH_LARGE")) run({2, 32, 8, true, true, 0.45}, false);
 }

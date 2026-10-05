@@ -64,9 +64,12 @@ This gives us:
   - Moves can be orthogonal or 45°. Each layer has a preferred direction, turns cost extra, and vias are penalised.
   - Each net is built as a Steiner-like tree: every new connection may start from any copper already on that net.
   - Keep-out grids enforce clearance: track to track, track to pad, and via to everything.
-  - Failed nets are promoted to the front and the board is re-routed (up to 4 passes); the best result is kept.
+  - Failed nets are promoted to the front and the board is re-routed (up to 8 passes); the best result is kept. If
+    connections remain unrouted, recovery passes route with negotiated congestion (history costs on the corridors the
+    failed connections need) and are kept only when they route more. See [ROUTING.md](ROUTING.md).
 - **DRC.** Exact geometric checks on the routed copper (segment–segment, segment–rectangle and point–circle
-  distances), edge clearance, courtyard overlap, and unrouted connections. Unrouted connections are found
+  distances), edge clearance, courtyard overlap, and unrouted connections. Pairs are found through a uniform-grid
+  spatial index, in the order of a full scan, so large boards check in O(n log n) with identical reports. Unrouted connections are found
   from copper connectivity, not from router bookkeeping.
 - **Edits after routing.** After schematic edits, copper is re-associated with nets through its contact with
   pads. Copper that no longer touches any pad is pruned.
