@@ -1635,6 +1635,12 @@ char* sieda_sheets_json(const SiedaProject* project) {
             Json ports = Json::array();
             for (const auto& port : sch.sheetPorts(s.id)) ports.push(port);
             j["ports"] = ports;
+            if (sch.isRepeated(s.id)) {
+                j["instanceOf"] = s.instanceOf;
+                j["channel"] = s.channel;
+                j["refs"] = instanceRefsName(sch.findSheet(sch.definitionSheet(s.id))->refs);
+                j["instances"] = static_cast<int>(sch.sheetInstances(s.id).size());
+            }
             arr.push(j);
         }
         out["sheets"] = arr;
@@ -1985,6 +1991,37 @@ int32_t sieda_pcb_remove_via(SiedaProject* project, int32_t via_id) {
     const auto n = vias.size();
     vias.erase(std::remove_if(vias.begin(), vias.end(), [&](const Via& v) { return v.id == via_id; }), vias.end());
     return vias.size() < n ? 1 : 0;
+}
+
+}  // extern "C"
+
+// ---- schematic capture: repeated sheets, graphical buses, multi-unit parts, search and navigation
+
+extern "C" {
+
+int32_t sieda_repeat_sheet(SiedaProject* project, int32_t sheet, int32_t count) {
+    if (!project) return -1;
+    try {
+        const int n = project->project.schematic.repeatSheet(sheet, count);
+        if (n > 0) project->project.schematicChanged();
+        return n;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_set_instance_refs(SiedaProject* project, int32_t sheet, const char* scheme) {
+    if (!project || !scheme) return 0;
+    return guarded([&] {
+        InstanceRefs refs;
+        if (!instanceRefsFromName(scheme, &refs)) return 0;
+        return project->project.schematic.setInstanceRefs(sheet, refs) ? 1 : 0;
+    });
+}
+
+int32_t sieda_set_sheet_channel(SiedaProject* project, int32_t sheet, const char* channel) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setSheetChannel(sheet, str(channel)) ? 1 : 0; });
 }
 
 }  // extern "C"

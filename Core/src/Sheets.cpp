@@ -125,6 +125,7 @@ int Schematic::sheetDepth(int id) const {
 int Schematic::addSheet(const std::string& rawName, int parent) {
     const std::string name = trimmed(rawName);
     if (name.empty() || (parent != 0 && !findSheet(parent))) return -1;
+    if (parent != 0 && isRepeated(parent)) return -1;  // a repeated block has no child sheets
     for (const auto& s : sheets_)
         if (s.name == name) return -1;
     Sheet s;
@@ -148,6 +149,7 @@ bool Schematic::renameSheet(int id, const std::string& rawName) {
 
 bool Schematic::setSheetParent(int id, int parent) {
     if (!findSheet(id) || (parent != 0 && !findSheet(parent)) || parent == id) return false;
+    if (parent != 0 && isRepeated(parent)) return false;  // a repeated block has no child sheets
     for (int up = parent, guard = 0; up != 0 && guard <= static_cast<int>(sheets_.size()); ++guard) {
         if (up == id) return false;  // would make a cycle
         const Sheet* s = findSheet(up);
@@ -165,12 +167,26 @@ bool Schematic::reorderSheet(int id, int index) {
     Sheet s = sheets_[static_cast<size_t>(from)];
     sheets_.erase(sheets_.begin() + from);
     sheets_.insert(sheets_.begin() + index, s);
+    edited();  // sheet-numbered designators of repeated sheets follow the order
     return true;
 }
 
 bool Schematic::removeSheet(int id, bool deleteContents) {
     const Sheet* sheet = findSheet(id);
     if (!sheet || sheets_.size() <= 1) return false;
+    if (sheet->instanceOf == 0 && isRepeated(id)) {
+        // The definition of a repeated sheet goes with all its instances.
+        const std::vector<int> group = sheetInstances(id);
+        if (sheets_.size() <= group.size()) return false;
+        const bool any = std::any_of(components_.begin(), components_.end(), [&](const Component& c) {
+            return std::find(group.begin(), group.end(), c.sheet) != group.end();
+        });
+        if (any && !deleteContents) return false;
+        for (auto it = group.rbegin(); it != group.rend(); ++it)
+            if (*it != id && !removeSheet(*it, true)) return false;
+        sheet = findSheet(id);
+        if (!sheet) return false;
+    }
     const int parent = sheet->parent;
     const bool hasContents =
         std::any_of(components_.begin(), components_.end(), [&](const Component& c) { return c.sheet == id; });
@@ -190,6 +206,7 @@ bool Schematic::removeSheet(int id, bool deleteContents) {
     sheets_.erase(sheets_.begin() + index);
     if (activeSheet_ == id) activeSheet_ = sheets_[static_cast<size_t>(std::max(0, index - 1))].id;
     invalidate();
+    edited();
     return true;
 }
 
@@ -201,9 +218,10 @@ bool Schematic::setActiveSheet(int id) {
 
 int Schematic::moveToSheet(const std::vector<int>& ids, int sheet) {
     if (!findSheet(sheet)) return 0;
+    sheet = definitionSheet(sheet);  // parts moved onto a repeated sheet's instance join its definition
     std::set<int> moving;
     for (int id : ids)
-        if (find(id)) moving.insert(id);
+        if (const Component* c = find(id); c && c->instanceOf == 0) moving.insert(id);  // copies stay with their block
     if (moving.empty()) return 0;
     // Junction clusters (junctions wired to each other) go along when every part they join is moving.
     std::map<int, std::vector<int>> neighbours;
@@ -250,6 +268,7 @@ int Schematic::moveToSheet(const std::vector<int>& ids, int sheet) {
                                 }),
                  wires_.end());
     invalidate();
+    edited();
     return moved;
 }
 
@@ -322,6 +341,29 @@ void Schematic::restoreSheets(const std::vector<Sheet>& sheets, int active) {
             up = p ? p->parent : 0;
         }
     }
+    // Repeated sheets: an instance points at an existing definition (not an instance itself), and a repeated block
+    // has no child sheets (nested repetition is not supported): anything else is read as ordinary sheets.
+    for (auto& s : sheets_) {
+        if (s.instanceOf == 0) continue;
+        const Sheet* d = findSheet(s.instanceOf);
+        if (!d || d->instanceOf != 0 || s.instanceOf == s.id) s.instanceOf = 0;
+    }
+    for (auto& s : sheets_) {
+        if (s.instanceOf == 0) continue;
+        const int def = s.instanceOf;
+        const bool nested = std::any_of(sheets_.begin(), sheets_.end(), [&](const Sheet& o) {
+            if (o.parent == 0) return false;
+            const Sheet* p = findSheet(o.parent);
+            return p && (p->id == def || p->instanceOf == def);
+        });
+        if (nested)
+            for (auto& o : sheets_)
+                if (o.instanceOf == def) o.instanceOf = 0;
+    }
+    for (auto& s : sheets_) {
+        s.channel = trimmed(s.channel);
+        if (s.channel.size() > 16) s.channel.clear();
+    }
     nextSheetId_ = 1;
     for (const auto& s : sheets_) nextSheetId_ = std::max(nextSheetId_, s.id + 1);
     activeSheet_ = findSheet(active) ? active : sheets_.front().id;
@@ -343,6 +385,16 @@ void Schematic::restoreSheets(const std::vector<Sheet>& sheets, int active) {
 // ---------------------------------------------------------------- annotation
 
 std::vector<RefChange> Schematic::annotate(const AnnotateOptions& o) {
+    // Repeated sheets are numbered inside the block (their logical designators); each channel's designators follow,
+    // and the rest of the design is numbered around them.
+    std::map<int, std::string> blockRefs;
+    const bool blocks = hasInstances();
+    if (blocks) {
+        for (const auto& c : components_)
+            if (!isNetSymbolKind(c.kind) && isRepeated(c.sheet)) blockRefs[c.id] = c.ref;
+        annotateBlocks(o);
+        syncInstances();
+    }
     struct Item {
         size_t at;
         std::string prefix;
@@ -352,7 +404,7 @@ std::vector<RefChange> Schematic::annotate(const AnnotateOptions& o) {
     std::vector<Item> items;
     for (size_t i = 0; i < components_.size(); ++i) {
         const Component& c = components_[i];
-        if (isNetSymbolKind(c.kind)) continue;
+        if (isNetSymbolKind(c.kind) || (blocks && blockRefs.count(c.id))) continue;
         std::string prefix = c.def().refPrefix.empty() ? "U" : c.def().refPrefix;
         // Positions within one grid step count as one row (or column).
         const double x = std::round(c.position.x / 10.0), y = std::round(c.position.y / 10.0);
@@ -379,6 +431,8 @@ std::vector<RefChange> Schematic::annotate(const AnnotateOptions& o) {
 
     std::vector<std::string> fresh(components_.size());
     std::set<std::string> used;
+    for (const auto& [id, ref] : blockRefs)
+        if (const Component* c = find(id)) used.insert(c->ref);  // the channels' designators are taken
     std::vector<const Item*> pending;
     if (o.keepExisting) {
         for (const auto& it : items) {
@@ -405,12 +459,15 @@ std::vector<RefChange> Schematic::annotate(const AnnotateOptions& o) {
         changes.push_back({c.id, c.ref, fresh[it.at]});
         c.ref = fresh[it.at];
     }
+    for (const auto& [id, ref] : blockRefs)
+        if (const Component* c = find(id); c && c->ref != ref) changes.push_back({id, ref, c->ref});
     return changes;
 }
 
 // ---------------------------------------------------------------- bus labels
 
 int Schematic::addBusLabels(int componentId, const std::vector<int>& pins, const std::string& bus, LabelScope scope) {
+    componentId = masterOf(componentId);  // on a repeated sheet's instance: labelled on the definition
     const Component* part = find(componentId);
     if (!part || scope == LabelScope::SheetEntry || isNetSymbolKind(part->kind)) return -1;
     const auto members = expandBus(bus);
@@ -535,12 +592,31 @@ void Schematic::hierarchyERC(std::vector<RuleViolation>& out) const {
     }
     for (const auto& [name, sheets] : localSheets) {
         if (sheets.size() < 2) continue;
+        // The channels of one repeated sheet are meant to keep their local nets apart.
+        std::set<int> blocks;
+        for (int id : sheets) blocks.insert(definitionSheet(id));
+        if (blocks.size() < 2) continue;
         std::string list;
         for (int id : sheets) list += (list.empty() ? "" : ", ") + sheetName(id);
         const Component* at = firstLocal[name];
         add(Severity::Warning, "ERC_LOCAL_LABEL_SPLIT",
             "Local label " + name + " is used on sheets " + list +
                 "; these are separate nets. Use a global label if they should connect.", *at);
+    }
+    // A signal's global label inside a repeated sheet joins every channel into one net — almost always a mistake.
+    {
+        std::set<std::string> reportedBlock;
+        for (const auto& c : components_) {
+            if (c.kind != ComponentKind::NetLabel || c.scope != LabelScope::Global || isGround(c) || c.instanceOf != 0) continue;
+            if (!isRepeated(c.sheet) || !reportedBlock.insert(c.value).second) continue;
+            const int net = netOf({c.id, 0});
+            if (net < 0 || netRole(net) != NetRole::Signal) continue;  // supply rails are shared on purpose
+            const auto channels = sheetInstances(c.sheet);
+            add(Severity::Warning, "ERC_GLOBAL_LABEL_IN_REPEAT",
+                "Global label " + c.value + " is inside repeated sheet " + sheetName(c.sheet) + ": it joins all " +
+                    std::to_string(channels.size()) + " channels into one net. Make it a port or a local label to keep " +
+                    "each channel's own net.", c);
+        }
     }
     if (sheets_.size() > 1) {
         for (const auto& [name, sheets] : globalSheets) {

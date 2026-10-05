@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "sieda/Geometry.hpp"
@@ -51,13 +52,31 @@ const char* labelScopeName(LabelScope s);  // "global", "local", "port", "entry"
 /// Parses a scope name; false for an unknown name.
 bool labelScopeFromName(const std::string& name, LabelScope* out);
 
+/// Designators of a repeated sheet's channels, made from each part's designator inside the block ("R1").
+enum class InstanceRefs {
+    SheetNumber = 0,  // the n-th sheet numbers from n·100 + 1: R1 → R201 on sheet 2, R301 on sheet 3 (·1000 for big blocks)
+    Suffix = 1,       // the channel label is appended: R1 → R1_A, R1_B, …
+};
+const char* instanceRefsName(InstanceRefs r);  // "sheet", "suffix"
+bool instanceRefsFromName(const std::string& name, InstanceRefs* out);
+
 /// A schematic sheet (page). Components belong to exactly one sheet; wires never cross sheets — nets reach other
 /// sheets through global labels, ground symbols and hierarchical ports / sheet entries.
 struct Sheet {
+    Sheet() = default;
+    Sheet(int id_, std::string name_, int parent_) : id(id_), name(std::move(name_)), parent(parent_) {}
     int id = 1;
     std::string name;
     /// The sheet whose sheet symbol stands for this one (hierarchical design); 0 = a top-level sheet.
     int parent = 0;
+    /// Repeated (multi-instance) sheet: the definition sheet this instance mirrors; 0 = an ordinary sheet or a
+    /// definition. The components and wires of an instance are kept as copies of its definition's (see
+    /// Schematic::repeatSheet), each with its own id, designator, nets, footprint placement and variant settings.
+    int instanceOf = 0;
+    /// Channel label of a repeated sheet ("A", "B", …): on the definition and on each of its instances.
+    std::string channel;
+    /// Definition of a repeated sheet: how its channels' designators are made from the block's own designators.
+    InstanceRefs refs = InstanceRefs::SheetNumber;
 };
 
 struct Component {
@@ -83,6 +102,11 @@ struct Component {
     /// Net labels only: how far the label reaches; for a sheet entry, the child sheet it connects into.
     LabelScope scope = LabelScope::Global;
     int targetSheet = 0;
+    /// On an instance of a repeated sheet: the component of the definition sheet this one copies (0 = none).
+    int instanceOf = 0;
+    /// On the definition of a repeated sheet: the part's designator inside the block ("R1"); `ref` is its designator
+    /// in the definition's own channel (R201, R1_A). Empty everywhere else.
+    std::string logicalRef;
 
     bool isNoConnect(int pin) const;
 
@@ -95,6 +119,8 @@ struct Component {
 struct Wire {
     int id = -1;
     PinRef a, b;
+    /// On an instance of a repeated sheet: the wire of the definition sheet this one copies (0 = none).
+    int instanceOf = 0;
 };
 
 struct Net {
@@ -240,6 +266,32 @@ public:
     int addBusLabels(int componentId, const std::vector<int>& pins, const std::string& bus,
                      LabelScope scope = LabelScope::Global);
 
+    // ---- repeated (multi-instance) sheets: one definition sheet used several times (channels). Each instance is a
+    // sheet of its own holding copies of the definition's components and wires, with their own ids, designators,
+    // nets (local labels and ports are per sheet), footprints and variant settings; the stored design stays flat.
+    // Edits to a copy go to the definition and every instance follows. ----
+    /// Uses `sheet` `count` times in all (itself first): adds or removes instance sheets ("<name> [B]" …, under the
+    /// same parent, after it in the sheet order). Only a sheet without child sheets or sheet entries can be repeated,
+    /// and not an instance; 1 ends the repetition. Returns the number of instances, or -1.
+    int repeatSheet(int sheet, int count);
+    /// The definition sheet of an instance; any other sheet is its own.
+    int definitionSheet(int sheet) const;
+    /// The definition followed by its instances in sheet order (just `sheet` when it is not repeated).
+    std::vector<int> sheetInstances(int sheet) const;
+    /// True for the definition of a repeated sheet and for its instances.
+    bool isRepeated(int sheet) const;
+    /// How the channels' designators are made (definition or any instance of it).
+    bool setInstanceRefs(int sheet, InstanceRefs refs);
+    /// Channel label (non-empty, unique within the block, letters, digits, '_' or '-').
+    bool setSheetChannel(int sheet, const std::string& channel);
+    /// Brings every instance in line with its definition (components, wires, designators) and repairs stale links.
+    /// Every edit through this class does it; call it after changing components through mutableComponents().
+    void syncInstances();
+    /// For an id on an instance sheet, the definition component it copies; otherwise `id`.
+    int masterOf(int id) const;
+    /// The copy of definition component `masterId` on `sheet` (`masterId` itself on the definition), or -1.
+    int copyOn(int masterId, int sheet) const;
+
     std::string nextRef(ComponentKind kind) const;
     std::string nextRef(const std::string& prefix) const;
 
@@ -252,6 +304,17 @@ public:
 
 private:
     void invalidate() { netsDirty_ = true; }
+    bool hasInstances() const;
+    /// After an edit: keeps repeated sheets' instances in line (nothing to do in a design without them).
+    void edited() {
+        if (hasInstances()) syncInstances();
+    }
+    int masterWireOf(int wireId) const;
+    int copyWireOn(int masterWire, int sheet) const;
+    /// Designator of a block part (by its logical designator) on one of the block's sheets.
+    std::string channelRef(const std::string& logical, int sheet, int step) const;
+    /// Instance-aware parts of annotate(): numbers the blocks' logical designators.
+    void annotateBlocks(const AnnotateOptions& options);
     void rebuildNets() const;
     /// Multi-sheet checks: ports, sheet entries, labels split across sheets, wires between sheets, bus labels.
     void hierarchyERC(std::vector<RuleViolation>& out) const;

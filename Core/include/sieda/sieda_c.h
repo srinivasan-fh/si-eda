@@ -474,6 +474,19 @@ const float* sieda_mesh_colors(const SiedaMesh* mesh);    /* 4 floats per vertex
 const uint8_t* sieda_mesh_surfaces(const SiedaMesh* mesh);
 const uint32_t* sieda_mesh_indices(const SiedaMesh* mesh);
 
+/* ---- schematic capture: repeated sheets ----------------------------------------------------- */
+/* Repeated (multi-instance) sheet: one block drawn once and used `count` times (the sheet itself is the first
+ * channel). Each extra channel is a sheet of its own ("<name> [B]" …, same parent) holding copies of the block with
+ * their own designators, nets, footprints and variant settings; edits to any channel go to the block. Only a sheet
+ * without child sheets can be repeated; 1 ends the repetition. Returns the number of channels, or -1.
+ * sieda_sheets_json and the snapshot add "instanceOf" (definition sheet; 0 on the definition), "channel", "refs" and
+ * "instances" to repeated sheets; components add "instanceOf" (the block part copied) and "logicalRef". */
+int32_t sieda_repeat_sheet(SiedaProject* project, int32_t sheet, int32_t count);
+/* Channel designators: "sheet" (R1 → R201, R301 … by sheet number) or "suffix" (R1_A, R1_B …). 1 on success. */
+int32_t sieda_set_instance_refs(SiedaProject* project, int32_t sheet, const char* scheme);
+/* Channel label of a repeated sheet (letters, digits, '_' or '-'; unique in the block). 1 on success. */
+int32_t sieda_set_sheet_channel(SiedaProject* project, int32_t sheet, const char* channel);
+
 #ifdef __cplusplus
 }
 #endif

@@ -339,3 +339,40 @@ int sieda_c_api_router_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Schematic capture: repeated sheets (channels). Returns 0 or the failing step. */
+int sieda_c_api_capture_test(void) {
+    SiedaProject* p = sieda_project_new("Capture");
+    if (!p) return 1;
+    int32_t block = sieda_add_sheet(p, "Amp", 1);
+    if (block < 0 || !sieda_set_active_sheet(p, block)) return 2;
+    int32_t in = sieda_add_component(p, 15, "IN", 0, 0, 0, NULL);
+    int32_t r = sieda_add_component(p, 0, "10k", 80, 0, 0, NULL);
+    if (!sieda_set_label_scope(p, in, "port", 0) || sieda_connect(p, in, 0, r, 0) < 0) return 3;
+    if (sieda_repeat_sheet(p, block, 4) != 4 || sieda_repeat_sheet(p, block, 0) != -1) return 4;
+    if (sieda_find_component(p, "R201") != r || sieda_find_component(p, "R501") < 0) return 5;
+    {
+        char* sheets = sieda_sheets_json(p);
+        if (!sheets || !strstr(sheets, "\"name\":\"Amp [D]\"") || !strstr(sheets, "\"instances\":4") ||
+            !strstr(sheets, "\"channel\":\"C\"")) return 6;
+        sieda_string_free(sheets);
+    }
+    if (!sieda_set_instance_refs(p, block, "suffix") || sieda_set_instance_refs(p, block, "bogus")) return 7;
+    if (sieda_find_component(p, "R1_D") < 0 || sieda_find_component(p, "R1_A") != r) return 8;
+    if (!sieda_set_sheet_channel(p, block, "L") || sieda_set_sheet_channel(p, block, "") ||
+        sieda_find_component(p, "R1_L") != r) return 9;
+    {
+        char* snap = sieda_project_snapshot(p);
+        if (!snap || !strstr(snap, "\"logicalRef\":\"R1\"") || !strstr(snap, "\"instanceOf\":")) return 10;
+        sieda_string_free(snap);
+        char* saved = sieda_project_save_json(p);
+        char* err = NULL;
+        SiedaProject* q = sieda_project_load_json(saved, &err);
+        sieda_string_free(saved);
+        if (!q || err || sieda_find_component(q, "R1_D") < 0) return 11;
+        sieda_project_free(q);
+    }
+    if (sieda_repeat_sheet(p, block, 1) != 1 || sieda_find_component(p, "R1") != r) return 12;
+    sieda_project_free(p);
+    return 0;
+}

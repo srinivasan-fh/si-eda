@@ -134,6 +134,10 @@ Json sheetsJson(const Schematic& sch) {
         j["id"] = s.id;
         j["name"] = s.name;
         j["parent"] = s.parent;
+        // Repeated sheets (written only when used, so other designs' files are unchanged).
+        if (s.instanceOf != 0) j["instanceOf"] = s.instanceOf;
+        if (!s.channel.empty()) j["channel"] = s.channel;
+        if (s.refs != InstanceRefs::SheetNumber) j["refs"] = instanceRefsName(s.refs);
         arr.push(j);
     }
     return arr;
@@ -146,6 +150,8 @@ void componentSheetJson(Json& j, const Component& c) {
         j["scope"] = labelScopeName(c.scope);
         if (c.scope == LabelScope::SheetEntry) j["targetSheet"] = c.targetSheet;
     }
+    if (c.instanceOf != 0) j["instanceOf"] = c.instanceOf;
+    if (!c.logicalRef.empty()) j["logicalRef"] = c.logicalRef;
 }
 
 std::string trimmedName(const std::string& s) {
@@ -358,6 +364,7 @@ Json Project::toJson() const {
         j["id"] = w.id;
         j["a"] = pinRef(w.a);
         j["b"] = pinRef(w.b);
+        if (w.instanceOf != 0) j["instanceOf"] = w.instanceOf;
         wires.push(j);
     }
     root["wires"] = wires;
@@ -555,13 +562,21 @@ Project Project::fromJson(const Json& root) {
         if (c.kind == ComponentKind::NetLabel && !labelScopeFromName(j.get("scope").asString("global"), &c.scope))
             c.scope = LabelScope::Local;  // a scope from a newer version: keep the label to its sheet
         c.targetSheet = c.scope == LabelScope::SheetEntry ? j.get("targetSheet").asInt(0) : 0;
+        c.instanceOf = std::max(0, j.get("instanceOf").asInt(0));
+        c.logicalRef = j.get("logicalRef").asString("");
+        if (c.logicalRef.size() > 64) c.logicalRef.clear();
         p.schematic.restoreComponent(c);
     }
     {
         // Files from before multi-sheet designs have no sheet list: everything is on one sheet.
         std::vector<Sheet> sheets;
-        for (const auto& j : root.get("sheets").items())
-            sheets.push_back(Sheet{j.get("id").asInt(0), j.get("name").asString(""), j.get("parent").asInt(0)});
+        for (const auto& j : root.get("sheets").items()) {
+            Sheet s{j.get("id").asInt(0), j.get("name").asString(""), j.get("parent").asInt(0)};
+            s.instanceOf = std::max(0, j.get("instanceOf").asInt(0));
+            s.channel = j.get("channel").asString("");
+            if (!instanceRefsFromName(j.get("refs").asString("sheet"), &s.refs)) s.refs = InstanceRefs::SheetNumber;
+            sheets.push_back(s);
+        }
         p.schematic.restoreSheets(sheets, root.get("activeSheet").asInt(0));
     }
     for (const auto& j : root.get("wires").items()) {
@@ -570,8 +585,10 @@ Project Project::fromJson(const Json& root) {
         w.a = pinRefFrom(j.get("a"));
         w.b = pinRefFrom(j.get("b"));
         if (w.id < 0 || !p.schematic.find(w.a.component) || !p.schematic.find(w.b.component)) continue;
+        w.instanceOf = std::max(0, j.get("instanceOf").asInt(0));
         p.schematic.restoreWire(w);
     }
+    p.schematic.syncInstances();  // repeated sheets: checks the instances against their definitions (no-op otherwise)
     for (const auto& j : root.get("variants").items()) {
         if (j.get("name").asString("").empty()) continue;
         DesignVariant v = variantFromJson(j);
@@ -632,6 +649,10 @@ Json Project::snapshot() const {
             j["scope"] = labelScopeName(c.scope);
             if (c.scope == LabelScope::SheetEntry) j["targetSheet"] = c.targetSheet;
         }
+        if (c.instanceOf != 0) j["instanceOf"] = c.instanceOf;
+        if (!c.logicalRef.empty()) j["logicalRef"] = c.logicalRef;
+        else if (c.instanceOf != 0)
+            if (const Component* m = schematic.find(c.instanceOf); m && !m->logicalRef.empty()) j["logicalRef"] = m->logicalRef;
         if (!isNetSymbolKind(c.kind)) {
             // Fitting in the active variant (or the base design): not fitted parts and value overrides.
             bool fitted = !c.sourcing.dnp;
@@ -738,6 +759,12 @@ Json Project::snapshot() const {
             Json ports = Json::array();
             for (const auto& port : schematic.sheetPorts(s.id)) ports.push(port);
             j["ports"] = ports;
+            if (schematic.isRepeated(s.id)) {
+                j["instanceOf"] = s.instanceOf;
+                j["channel"] = s.channel;
+                j["refs"] = instanceRefsName(schematic.findSheet(schematic.definitionSheet(s.id))->refs);
+                j["instances"] = static_cast<int>(schematic.sheetInstances(s.id).size());
+            }
             sheets.push(j);
         }
         root["sheets"] = sheets;

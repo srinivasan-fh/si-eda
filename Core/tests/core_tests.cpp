@@ -7962,3 +7962,305 @@ TEST(scale_benchmark_medium_board) {
     CHECK(total < 60.0);  // ~5 s in a release build; generous for debug and sanitiser builds
     if (std::getenv("SIEDA_BENCH_LARGE")) run({2, 32, 8, true, true, 0.45}, false);
 }
+
+// ======================================================================= repeated (multi-instance) sheets
+
+namespace {
+/// A divider block on its own sheet: port IN → R1 → port OUT, R2 from OUT to ground.
+struct DividerBlock {
+    int sheet = 0, in = 0, r1 = 0, r2 = 0, out = 0, gnd = 0;
+};
+DividerBlock dividerBlock(Schematic& s) {
+    DividerBlock b;
+    b.sheet = s.addSheet("Channel", 1);
+    s.setActiveSheet(b.sheet);
+    b.in = s.addComponent(ComponentKind::NetLabel, "IN", {0, 0});
+    b.r1 = s.addComponent(ComponentKind::Resistor, "10k", {80, 0});
+    b.r2 = s.addComponent(ComponentKind::Resistor, "10k", {160, 60}, 90);
+    b.out = s.addComponent(ComponentKind::NetLabel, "OUT", {240, 0});
+    b.gnd = s.addComponent(ComponentKind::Ground, "", {160, 140});
+    s.setLabelScope(b.in, LabelScope::Port);
+    s.setLabelScope(b.out, LabelScope::Port);
+    wire(s, b.in, "N", b.r1, "1");
+    wire(s, b.r1, "2", b.out, "N");
+    wire(s, b.out, "N", b.r2, "1");
+    wire(s, b.r2, "2", b.gnd, "GND");
+    return b;
+}
+
+int countOn(const Schematic& s, int sheet) {
+    int n = 0;
+    for (const auto& c : s.components()) n += c.sheet == sheet;
+    return n;
+}
+
+/// Every wire stays on one sheet and every copy matches its original (the invariants of a repeated design).
+bool instancesConsistent(const Schematic& s) {
+    for (const auto& w : s.wires()) {
+        const Component* a = s.find(w.a.component);
+        const Component* b = s.find(w.b.component);
+        if (!a || !b || a->sheet != b->sheet) return false;
+    }
+    for (const auto& c : s.components()) {
+        const Sheet* sh = s.findSheet(c.sheet);
+        if (!sh) return false;
+        if (sh->instanceOf != 0) {
+            const Component* m = s.find(c.instanceOf);
+            if (!m || m->sheet != sh->instanceOf || m->kind != c.kind || m->value != c.value) return false;
+        } else if (c.instanceOf != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+}  // namespace
+
+TEST(repeated_sheets_channels_nets_designators_and_flattening) {
+    Project p;
+    Schematic& s = p.schematic;
+    DividerBlock b = dividerBlock(s);
+    CHECK(s.repeatSheet(b.sheet, 3) == 3);
+    const auto group = s.sheetInstances(b.sheet);
+    CHECK(group.size() == 3 && group[0] == b.sheet);
+    if (group.size() != 3) return;
+    CHECK(s.findSheet(group[1])->name == "Channel [B]" && s.findSheet(group[2])->channel == "C");
+    CHECK(s.findSheet(b.sheet)->channel == "A");
+    CHECK(s.definitionSheet(group[2]) == b.sheet && s.isRepeated(group[1]) && !s.isRepeated(1));
+    CHECK(countOn(s, group[1]) == countOn(s, b.sheet) && countOn(s, group[2]) == countOn(s, b.sheet));
+    CHECK(instancesConsistent(s));
+    // Designators per channel: R1 inside the block, R201 / R301 / R401 by sheet number.
+    CHECK(s.find(b.r1)->logicalRef == "R1" && s.find(b.r1)->ref == "R201");
+    const int r1b = s.copyOn(b.r1, group[1]), r1c = s.copyOn(b.r1, group[2]);
+    CHECK(r1b > 0 && r1c > 0 && r1b != r1c);
+    CHECK(s.find(r1b)->ref == "R301" && s.find(r1c)->ref == "R401");
+    CHECK(s.masterOf(r1c) == b.r1 && s.masterOf(b.r1) == b.r1);
+    // Each channel has its own nets: ports and local labels are per sheet.
+    CHECK(s.netOf({b.r1, 1}) != s.netOf({r1b, 1}));
+    CHECK(s.netOf({r1b, 1}) != s.netOf({r1c, 1}));
+
+    // The parent sheet uses each channel through its own sheet symbol.
+    s.setActiveSheet(1);
+    for (size_t k = 0; k < group.size(); ++k) CHECK(s.placeSheetEntries(group[k], {300, 100.0 * static_cast<double>(k)}) == 2);
+    const int g = s.addComponent(ComponentKind::Ground, "", {0, 400});
+    const double volts[] = {10, 5, 2};
+    std::vector<int> loads;
+    for (size_t k = 0; k < group.size(); ++k) {
+        int in = -1, out = -1;
+        for (const auto& c : s.components())
+            if (c.scope == LabelScope::SheetEntry && c.targetSheet == group[k]) (c.value == "IN" ? in : out) = c.id;
+        CHECK(in > 0 && out > 0);
+        const int v = s.addComponent(ComponentKind::VoltageSource, std::to_string(static_cast<int>(volts[k])),
+                                     {0, 100.0 * static_cast<double>(k)});
+        const int rl = s.addComponent(ComponentKind::Resistor, "1meg", {500, 100.0 * static_cast<double>(k)});
+        wire(s, v, "+", in, "N");
+        wire(s, v, "-", g, "GND");
+        wire(s, out, "N", rl, "1");
+        wire(s, rl, "2", g, "GND");
+        loads.push_back(rl);
+    }
+    p.schematicChanged();
+    DcResult dc = Simulator(s).dcOperatingPoint();
+    CHECK(dc.converged);
+    for (size_t k = 0; k < group.size(); ++k) CHECK_NEAR(netV(s, dc, loads[k], "1"), volts[k] * 0.4975, 0.01);
+    auto erc = s.runERC();
+    CHECK(!hasCode(erc, "ERC_LOCAL_LABEL_SPLIT"));
+    CHECK(!hasCode(erc, "ERC_DUPLICATE_REF"));
+    CHECK(!hasCode(erc, "ERC_PORT_UNUSED"));
+    // Net names stay unique: the channels' OUT nets are qualified by their sheet.
+    std::set<std::string> names;
+    for (const auto& n : s.nets()) CHECK(names.insert(n.name).second);
+
+    // Flattened outputs: three of every block part in the BOM, netlist and on the board.
+    p.pcb.autoPlace(s, true);
+    int placed = 0;
+    for (const auto& c : s.components()) placed += c.hasFootprint() && c.pcb.placed;
+    CHECK(placed == 2 * 3 + 3 + 3);  // the block resistors of three channels, the sources and the loads
+    const std::string bom = exportBomCsv(s);
+    for (const char* ref : {"R201", "R301", "R401", "R202", "R302", "R402"}) CHECK(bom.find(ref) != std::string::npos);
+
+    // Editing a copy edits the block: value, position, new parts and wires reach every channel.
+    CHECK(s.setValue(s.copyOn(b.r2, group[2]), "20k"));
+    CHECK(s.find(b.r2)->value == "20k" && s.find(s.copyOn(b.r2, group[1]))->value == "20k");
+    CHECK(s.moveComponent(r1b, {90, 0}));
+    CHECK(s.find(b.r1)->position.x == 90 && s.find(r1c)->position.x == 90);
+    CHECK(s.find(r1b)->pcb.placed);  // footprints keep their own placement through block edits
+    s.setActiveSheet(group[1]);
+    const int cap = s.addComponent(ComponentKind::Capacitor, "100n", {300, 60});
+    CHECK(cap > 0 && s.find(cap) && s.find(cap)->sheet == group[1]);
+    const int capMaster = s.masterOf(cap);
+    CHECK(capMaster != cap && s.find(capMaster)->sheet == b.sheet);
+    CHECK(s.copyOn(capMaster, group[2]) > 0);
+    const int w = s.connect({cap, 0}, {s.copyOn(b.out, group[1]), 0});
+    CHECK(w > 0);
+    CHECK(s.netOf({s.copyOn(capMaster, group[2]), 0}) == s.netOf({s.copyOn(b.r1, group[2]), 1}));
+    CHECK(s.netOf({capMaster, 0}) == s.netOf({b.r1, 1}));
+    CHECK(instancesConsistent(s));
+    // A wire split on an instance bends the block's wire everywhere.
+    const int j = s.splitWire(w, {300, 0});
+    CHECK(j > 0 && s.find(j) && s.find(j)->sheet == group[1]);
+    CHECK(s.netOf({s.copyOn(capMaster, group[2]), 0}) == s.netOf({s.copyOn(b.r1, group[2]), 1}));
+    CHECK(instancesConsistent(s));
+    // Designators: the block designator is edited from any channel.
+    CHECK(s.setRef(r1c, "R9"));
+    CHECK(s.find(b.r1)->logicalRef == "R9" && s.find(b.r1)->ref == "R209" && s.find(r1b)->ref == "R309");
+    CHECK(!s.setRef(r1b, "R2"));  // taken inside the block
+    // Removing a copy removes the part from the block.
+    CHECK(s.removeComponent(s.copyOn(capMaster, group[2])));
+    CHECK(!s.find(cap) && !s.find(capMaster));
+    CHECK(instancesConsistent(s));
+
+    // Variants are per channel: one channel's R2 not fitted.
+    CHECK(p.addVariant("Two channels"));
+    CHECK(p.setVariantPart("Two channels", s.copyOn(b.r2, group[2]), 0, nullptr));
+    Schematic two = p.variantSchematic("Two channels");
+    CHECK(two.find(s.copyOn(b.r2, group[2]))->sourcing.dnp && !two.find(b.r2)->sourcing.dnp);
+
+    // Persistence: the block, its channels and designators survive a round trip unchanged.
+    p.schematicChanged();
+    const std::string saved = p.toJson().dump();
+    Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.toJson().dump() == saved);
+    CHECK(q.schematic.sheetInstances(b.sheet).size() == 3);
+    CHECK(q.schematic.find(r1c) && q.schematic.find(r1c)->ref == "R409");
+    CHECK(q.schematic.nets().size() == s.nets().size());
+    CHECK(instancesConsistent(q.schematic));
+    {
+        Json snap = q.snapshot();
+        bool sawInstance = false;
+        for (const auto& sh : snap.get("sheets").items())
+            if (sh.get("id").asInt() == group[1]) {
+                sawInstance = true;
+                CHECK(sh.get("instanceOf").asInt() == b.sheet && sh.get("channel").asString() == "B");
+                CHECK(sh.get("instances").asInt() == 3);
+            }
+        CHECK(sawInstance);
+        for (const auto& c : snap.get("components").items())
+            if (c.get("id").asInt() == r1c) CHECK(c.get("logicalRef").asString() == "R9" && c.get("instanceOf").asInt() == b.r1);
+    }
+
+    // Suffix designators: R9_A, R9_B, R9_C.
+    CHECK(s.setInstanceRefs(group[1], InstanceRefs::Suffix));
+    CHECK(s.find(b.r1)->ref == "R9_A" && s.find(r1b)->ref == "R9_B" && s.find(r1c)->ref == "R9_C");
+    CHECK(s.setSheetChannel(group[2], "CH3"));
+    CHECK(s.find(r1c)->ref == "R9_CH3");
+    CHECK(!s.setSheetChannel(group[2], "B"));    // used by another channel
+    CHECK(!s.setSheetChannel(group[2], "a b"));  // not a label
+    // Fewer channels: the last goes with its sheet symbol; one channel ends the repetition.
+    CHECK(s.repeatSheet(b.sheet, 2) == 2);
+    CHECK(!s.findSheet(group[2]) && !s.find(r1c));
+    for (const auto& c : s.components()) CHECK(!(c.scope == LabelScope::SheetEntry && c.targetSheet == group[2]));
+    CHECK(s.repeatSheet(b.sheet, 1) == 1);
+    CHECK(!s.isRepeated(b.sheet) && !s.findSheet(group[1]));
+    CHECK(s.find(b.r1)->ref == "R9" && s.find(b.r1)->logicalRef.empty());
+    CHECK(instancesConsistent(s));
+}
+
+TEST(repeated_sheets_rules_annotation_and_erc) {
+    Schematic s;
+    DividerBlock b = dividerBlock(s);
+    // Only a leaf sheet can be repeated, and not an instance; counts are 1 … 64.
+    CHECK(s.repeatSheet(b.sheet, 0) == -1 && s.repeatSheet(b.sheet, 65) == -1 && s.repeatSheet(999, 2) == -1);
+    const int child = s.addSheet("Sub", b.sheet);
+    CHECK(s.repeatSheet(b.sheet, 2) == -1);
+    CHECK(s.removeSheet(child, true));
+    CHECK(s.repeatSheet(b.sheet, 2) == 2);
+    const int inst = s.sheetInstances(b.sheet)[1];
+    CHECK(s.repeatSheet(inst, 3) == -1);
+    CHECK(s.addSheet("Nested", b.sheet) == -1 && s.addSheet("Nested", inst) == -1);
+    const int other = s.addSheet("Other", 1);
+    CHECK(!s.setSheetParent(other, inst));
+    // Moving a part onto an instance moves it into the block; copies cannot be moved out of it.
+    s.setActiveSheet(1);
+    const int loose = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    CHECK(s.moveToSheet({loose}, inst) == 1);
+    CHECK(s.find(loose)->sheet == b.sheet && s.copyOn(loose, inst) > 0);
+    CHECK(s.moveToSheet({s.copyOn(loose, inst)}, 1) == 0);
+    CHECK(s.moveToSheet({loose}, 1) == 1);  // out of the block again: its copy goes
+    CHECK(s.copyOn(loose, inst) == -1);
+
+    // Annotation numbers the block inside itself and the rest of the design around the channels' designators.
+    s.setActiveSheet(1);
+    for (int k = 0; k < 3; ++k) s.addComponent(ComponentKind::Resistor, "1k", {100.0 * k, 300}, 0, "R?");
+    auto changes = s.annotate({});
+    std::set<std::string> refs;
+    for (const auto& c : s.components())
+        if (!isNetSymbolKind(c.kind)) CHECK(refs.insert(c.ref).second);
+    CHECK(s.find(b.r1)->logicalRef == "R1" && s.find(b.r2)->logicalRef == "R2");
+    CHECK(s.find(loose)->ref == "R1");  // top sheet: numbered from 1, clear of the channels' designators
+    CHECK(!changes.empty());
+    // ERC: a signal's global label inside the block joins every channel.
+    s.setActiveSheet(b.sheet);
+    const int glabel = s.addComponent(ComponentKind::NetLabel, "SYNC", {0, 100});
+    wire(s, glabel, "N", b.r1, "1");
+    CHECK(hasCode(s.runERC(), "ERC_GLOBAL_LABEL_IN_REPEAT"));
+    CHECK(s.setLabelScope(glabel, LabelScope::Local));
+    CHECK(!hasCode(s.runERC(), "ERC_GLOBAL_LABEL_IN_REPEAT"));
+    // Deleting the definition deletes its instances.
+    CHECK(!s.removeSheet(b.sheet, false));
+    CHECK(s.removeSheet(b.sheet, true));
+    CHECK(!s.findSheet(inst) && !s.find(b.r1));
+    CHECK(instancesConsistent(s));
+}
+
+TEST(repeated_sheets_hostile_files_load_safely) {
+    Project p;
+    DividerBlock b = dividerBlock(p.schematic);
+    p.schematic.repeatSheet(b.sheet, 3);
+    const std::string good = p.toJson().dump();
+    // Mutations of the saved links: the file still loads, and the design is consistent afterwards.
+    std::vector<std::pair<std::string, std::string>> edits = {
+        {"\"instanceOf\":" + std::to_string(b.sheet), "\"instanceOf\":999"},
+        {"\"instanceOf\":" + std::to_string(b.sheet), "\"instanceOf\":-4"},
+        {"\"instanceOf\":" + std::to_string(b.sheet), "\"instanceOf\":\"x\""},
+        {"\"instanceOf\":" + std::to_string(b.r1), "\"instanceOf\":" + std::to_string(b.r2)},
+        {"\"instanceOf\":" + std::to_string(b.r1), "\"instanceOf\":123456"},
+        {"\"logicalRef\":\"R1\"", "\"logicalRef\":\"R2\""},
+        {"\"logicalRef\":\"R1\"", "\"logicalRef\":\"" + std::string(200, 'Q') + "\""},
+        {"\"channel\":\"B\"", "\"channel\":\"A\""},
+        {"\"channel\":\"B\"", "\"channel\":\"  \""},
+        {"\"parent\":1", "\"parent\":" + std::to_string(b.sheet)},
+    };
+    int loaded = 0;
+    for (const auto& [from, to] : edits) {
+        std::string text = good;
+        for (size_t at = text.find(from); at != std::string::npos; at = text.find(from, at + to.size()))
+            text.replace(at, from.size(), to);
+        try {
+            Project q = Project::fromJson(Json::parse(text));
+            ++loaded;
+            CHECK(instancesConsistent(q.schematic));
+            // A second sync changes nothing.
+            const std::string once = q.toJson().dump();
+            q.schematic.syncInstances();
+            CHECK(q.toJson().dump() == once);
+            std::set<std::string> refs;
+            for (const auto& c : q.schematic.components())
+                if (!isNetSymbolKind(c.kind) && q.schematic.isRepeated(c.sheet)) CHECK(refs.insert(c.ref).second);
+        } catch (const JsonError&) {
+        }
+    }
+    CHECK(loaded == static_cast<int>(edits.size()));
+    // Random byte damage never crashes the loader.
+    unsigned seed = 12345;
+    for (int round = 0; round < 200; ++round) {
+        std::string text = good;
+        for (int k = 0; k < 4; ++k) {
+            seed = seed * 1103515245u + 12345u;
+            const size_t at = (seed >> 8) % text.size();
+            text[at] = "0123456789-\"{}[],:x"[(seed >> 20) % 19];
+        }
+        try {
+            Project q = Project::fromJson(Json::parse(text));
+            CHECK(instancesConsistent(q.schematic));
+        } catch (const std::exception&) {
+        }
+    }
+}
+
+extern "C" int sieda_c_api_capture_test(void);
+
+TEST(schematic_capture_c_api) {
+    const int rc = sieda_c_api_capture_test();
+    if (rc != 0) std::printf("    capture c api step %d failed\n", rc);
+    CHECK(rc == 0);
+}
