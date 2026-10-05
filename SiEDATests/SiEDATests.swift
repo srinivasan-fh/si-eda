@@ -6454,10 +6454,14 @@ final class DragAndMultiRouteTests: XCTestCase {
         let store = store(withRoute: true)
         // The route has a corner where two tracks meet away from the pads: drag it.
         let tracks = store.snapshot.tracks
-        let corner = try XCTUnwrap(tracks.flatMap { [$0.start, $0.end] }.first { p in
-            tracks.filter { $0.start == p || $0.end == p }.count == 2 && hypot(p.x - 10.95, p.y - 10) > 0.5
-                && hypot(p.x - 29.05, p.y - 20) > 0.5
-        })
+        let ends: [CGPoint] = tracks.flatMap { [$0.start, $0.end] }
+        func isInnerCorner(_ p: CGPoint) -> Bool {
+            let joined = tracks.filter { $0.start == p || $0.end == p }.count
+            let awayFromA = hypot(p.x - 10.95, p.y - 10) > 0.5
+            let awayFromB = hypot(p.x - 29.05, p.y - 20) > 0.5
+            return joined == 2 && awayFromA && awayFromB
+        }
+        let corner = try XCTUnwrap(ends.first(where: isInnerCorner))
         let track = try XCTUnwrap(tracks.first { $0.start == corner || $0.end == corner })
         XCTAssertTrue(store.beginCornerDrag(track.id, at: corner))
         XCTAssertEqual(store.routePreview?.kind, "corner")
