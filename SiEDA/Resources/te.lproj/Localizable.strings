@@ -260,6 +260,7 @@
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 తో DigiKey API అప్లికేషన్ (Production); క్లయింట్ క్రెడెన్షియల్స్ ఫ్లో.";
 "Distribute Horizontally" = "అడ్డంగా పంపిణీ";
 "Distribute Vertically" = "నిలువుగా పంపిణీ";
+"Do Not Report" = "నివేదించవద్దు";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "పాపులేట్ చేయవద్దు: బోర్డుపై ఉంటుంది కానీ అమర్చబడదు; అసెంబ్లీ BOM మరియు CPL నుండి మినహాయించబడుతుంది";
 "Done" = "పూర్తయింది";
 "Down ↓" = "కిందకు ↓";
@@ -645,6 +646,9 @@
 "Replace All" = "అన్నీ మార్చు";
 "Replace with" = "దీనితో మార్చు";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "ప్రతి షీట్‌లో భాగాల విలువలు, నెట్ లేబుల్ పేర్లలో పాఠ్యాన్ని మారుస్తుంది (నిర్దేశకాలకు: అనొటేట్ ఉపయోగించండి)";
+"Report as Error" = "లోపంగా నివేదించు";
+"Report as Info" = "సమాచారంగా నివేదించు";
+"Report as Warning" = "హెచ్చరికగా నివేదించు";
 "Reserve the layer for this net: other nets only pass through it with vias" = "ఈ నెట్ కోసం లేయర్‌ను రిజర్వ్ చేయి: ఇతర నెట్‌లు వయాల ద్వారా మాత్రమే దాని గుండా వెళ్తాయి";
 "Reset" = "రీసెట్ చేయి";
 "Reset View" = "వ్యూ రీసెట్ చేయి";
@@ -670,6 +674,7 @@
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "డిఫరెన్షియల్ జతలోని రెండు నెట్‌లను (X_P / X_N) జత గ్యాప్‌తో కలిసి రూట్ చేయండి";
 "Router mode" = "రౌటర్ మోడ్";
 "Routing nets: %lld of %lld" = "నెట్‌లు రూట్ అవుతున్నాయి: %lld / %lld";
+"Rule's Own Severity" = "నియమం స్వంత తీవ్రత";
 "Run" = "రన్ చేయి";
 "Run AC Sweep" = "AC స్వీప్ రన్ చేయి";
 "Run DC Sweep" = "DC స్వీప్ రన్ చేయి";

@@ -260,6 +260,7 @@
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "DigiKey-API-applicatie (Production) met Product Information v4; client-credentials-flow.";
 "Distribute Horizontally" = "Horizontaal verdelen";
 "Distribute Vertically" = "Verticaal verdelen";
+"Do Not Report" = "Niet melden";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Niet plaatsen: op het board maar niet gemonteerd; weggelaten uit de assemblage-BOM en CPL";
 "Done" = "Gereed";
 "Down ↓" = "Omlaag ↓";
@@ -645,6 +646,9 @@
 "Replace All" = "Alles vervangen";
 "Replace with" = "Vervangen door";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "Vervangt de tekst in onderdeelwaarden en netlabelnamen op alle bladen (referenties: gebruik Annoteren)";
+"Report as Error" = "Melden als fout";
+"Report as Info" = "Melden als info";
+"Report as Warning" = "Melden als waarschuwing";
 "Reserve the layer for this net: other nets only pass through it with vias" = "Reserveer de laag voor dit net: andere netten gaan er alleen met vias doorheen";
 "Reset" = "Herstellen";
 "Reset View" = "Herstel weergave";
@@ -670,6 +674,7 @@
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Route beide netten van een differentieel paar (X_P / X_N) samen op de paarafstand";
 "Router mode" = "Routermodus";
 "Routing nets: %lld of %lld" = "Netten routeren: %lld van %lld";
+"Rule's Own Severity" = "Eigen ernst van de regel";
 "Run" = "Voer uit";
 "Run AC Sweep" = "AC-sweep uitvoeren";
 "Run DC Sweep" = "DC-sweep uitvoeren";

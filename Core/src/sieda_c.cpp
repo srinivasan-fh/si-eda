@@ -3273,3 +3273,20 @@ char* sieda_export_schematic_pdf(const SiedaProject* project) {
 }
 
 }  // extern "C"
+
+// ---- schematic capture: ERC error reporting
+
+extern "C" {
+
+int32_t sieda_set_erc_severity(SiedaProject* project, const char* code, const char* level) {
+    if (!project || !code || !level) return 0;
+    return guarded([&] {
+        Schematic& s = project->project.schematic;
+        const std::string l = level;
+        if (l == "default") return s.clearErcSeverity(code) ? 1 : 0;
+        const int n = l == "off" ? -1 : l == "info" ? 0 : l == "warning" ? 1 : l == "error" ? 2 : -2;
+        return n >= -1 && s.setErcSeverity(code, n) ? 1 : 0;
+    });
+}
+
+}  // extern "C"

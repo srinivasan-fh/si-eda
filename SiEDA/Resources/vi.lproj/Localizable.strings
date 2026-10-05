@@ -260,6 +260,7 @@
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Ứng dụng API DigiKey (Production) có Product Information v4; luồng thông tin xác thực máy khách.";
 "Distribute Horizontally" = "Phân bố theo chiều ngang";
 "Distribute Vertically" = "Phân bố theo chiều dọc";
+"Do Not Report" = "Không báo cáo";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Không lắp: có trên bo nhưng không hàn; loại khỏi BOM lắp ráp và CPL";
 "Done" = "Xong";
 "Down ↓" = "Xuống ↓";
@@ -645,6 +646,9 @@
 "Replace All" = "Thay tất cả";
 "Replace with" = "Thay bằng";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "Thay văn bản trong giá trị linh kiện và tên nhãn net trên mọi trang (ký hiệu: dùng Đánh số)";
+"Report as Error" = "Báo cáo là lỗi";
+"Report as Info" = "Báo cáo là thông tin";
+"Report as Warning" = "Báo cáo là cảnh báo";
 "Reserve the layer for this net: other nets only pass through it with vias" = "Dành riêng lớp cho net này: các net khác chỉ đi qua bằng via";
 "Reset" = "Đặt lại";
 "Reset View" = "Đặt lại khung nhìn";
@@ -670,6 +674,7 @@
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Đi dây cả hai net của cặp vi sai (X_P / X_N) cùng nhau theo khoảng cách cặp";
 "Router mode" = "Chế độ đi dây";
 "Routing nets: %lld of %lld" = "Đang đi dây các net: %lld / %lld";
+"Rule's Own Severity" = "Mức độ riêng của quy tắc";
 "Run" = "Chạy";
 "Run AC Sweep" = "Chạy quét AC";
 "Run DC Sweep" = "Chạy quét DC";

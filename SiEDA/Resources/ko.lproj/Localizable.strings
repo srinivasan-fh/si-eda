@@ -260,6 +260,7 @@
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4가 포함된 DigiKey API 애플리케이션(Production), 클라이언트 자격 증명 방식.";
 "Distribute Horizontally" = "가로로 분배";
 "Distribute Vertically" = "세로로 분배";
+"Do Not Report" = "보고 안 함";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "미실장: 보드에는 있지만 실장하지 않음. 조립용 BOM 및 CPL에서 제외";
 "Done" = "완료";
 "Down ↓" = "아래로 ↓";
@@ -645,6 +646,9 @@
 "Replace All" = "모두 바꾸기";
 "Replace with" = "바꿀 내용";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "모든 시트의 부품 값과 넷 레이블 이름에서 텍스트를 바꿉니다(참조 기호는 주석 사용)";
+"Report as Error" = "오류로 보고";
+"Report as Info" = "정보로 보고";
+"Report as Warning" = "경고로 보고";
 "Reserve the layer for this net: other nets only pass through it with vias" = "이 네트 전용 레이어로 예약: 다른 네트는 비아로만 통과";
 "Reset" = "재설정";
 "Reset View" = "보기 재설정";
@@ -670,6 +674,7 @@
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "차동 쌍의 두 네트(X_P / X_N)를 쌍 간격으로 함께 배선";
 "Router mode" = "라우터 모드";
 "Routing nets: %lld of %lld" = "네트 배선 중: %lld / %lld";
+"Rule's Own Severity" = "규칙 자체 심각도";
 "Run" = "실행";
 "Run AC Sweep" = "AC 스윕 실행";
 "Run DC Sweep" = "DC 스윕 실행";

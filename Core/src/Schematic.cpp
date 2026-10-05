@@ -1017,7 +1017,29 @@ std::vector<RuleViolation> Schematic::runERC() const {
         }))
         harnessERC(out);
     if (!directives_.empty()) directiveERC(out);
+    if (!ercSeverity_.empty()) {
+        // Error reporting: rules reported at another severity, or left out.
+        std::vector<RuleViolation> kept;
+        for (auto& v : out) {
+            auto it = ercSeverity_.find(v.code);
+            if (it == ercSeverity_.end()) {
+                kept.push_back(std::move(v));
+            } else if (it->second >= 0) {
+                v.severity = static_cast<Severity>(it->second);
+                kept.push_back(std::move(v));
+            }
+        }
+        out = std::move(kept);
+    }
     return out;
 }
+
+bool Schematic::setErcSeverity(const std::string& code, int level) {
+    if (code.empty() || code.size() > 64 || level < -1 || level > 2) return false;
+    ercSeverity_[code] = level;
+    return true;
+}
+
+bool Schematic::clearErcSeverity(const std::string& code) { return ercSeverity_.erase(code) > 0; }
 
 }  // namespace sieda

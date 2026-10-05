@@ -260,6 +260,7 @@
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "带 Product Information v4 的 DigiKey API 应用（Production）；客户端凭据流程。";
 "Distribute Horizontally" = "水平分布";
 "Distribute Vertically" = "垂直分布";
+"Do Not Report" = "不报告";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "不贴装：在电路板上但不装配；不计入装配 BOM 和 CPL";
 "Done" = "完成";
 "Down ↓" = "向下 ↓";
@@ -645,6 +646,9 @@
 "Replace All" = "全部替换";
 "Replace with" = "替换为";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "在所有图页替换元件值与网络标签名称中的文字（位号请用自动编号）";
+"Report as Error" = "报告为错误";
+"Report as Info" = "报告为信息";
+"Report as Warning" = "报告为警告";
 "Reserve the layer for this net: other nets only pass through it with vias" = "为此网络保留该层：其他网络只能通过过孔穿过";
 "Reset" = "重置";
 "Reset View" = "重置视图";
@@ -670,6 +674,7 @@
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "按差分对间距同时布线差分对的两条网络 (X_P / X_N)";
 "Router mode" = "布线模式";
 "Routing nets: %lld of %lld" = "正在布线网络：%lld / %lld";
+"Rule's Own Severity" = "规则本身的严重性";
 "Run" = "运行";
 "Run AC Sweep" = "运行 AC 扫描";
 "Run DC Sweep" = "运行 DC 扫描";

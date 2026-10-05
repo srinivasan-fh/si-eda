@@ -129,4 +129,15 @@ extension DesignStore {
             present(error, title: "Export failed")
         }
     }
+
+    // MARK: - ERC error reporting
+
+    /// Reports an ERC rule at another severity ("error", "warning", "info", "off") or its own ("default"), then
+    /// re-checks.
+    func setErcSeverity(_ code: String, level: String) {
+        let current = snapshot.ercSeverities[code] ?? "default"
+        guard current != level else { return }
+        performChecked("\(code): \(level)", invalidatesAnalysis: false) { $0.setErcSeverity(code, level: level) }
+        runERC()
+    }
 }

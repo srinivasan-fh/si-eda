@@ -58,6 +58,8 @@ struct DesignSnapshot: Decodable, Equatable {
     /// Schematic directives: net classes and the directives on nets (the source of the board's net rules).
     var netClassDefs: [NetClassDefInfo] = []
     var directives: [DirectiveInfo] = []
+    /// ERC error reporting: rule code → "error", "warning", "info" or "off" (rules reported at another severity).
+    var ercSeverities: [String: String] = [:]
 
     static let empty = DesignSnapshot(name: "Untitled", requirements: "", components: [], wires: [], nets: [],
                                       board: BoardInfo(), pads: [], tracks: [], vias: [], ratsnest: [], courtyards: [])
@@ -117,6 +119,7 @@ struct DesignSnapshot: Decodable, Equatable {
         harnessTypes = try c.decodeIfPresent([HarnessTypeInfo].self, forKey: .harnessTypes) ?? []
         netClassDefs = try c.decodeIfPresent([NetClassDefInfo].self, forKey: .netClassDefs) ?? []
         directives = try c.decodeIfPresent([DirectiveInfo].self, forKey: .directives) ?? []
+        ercSeverities = try c.decodeIfPresent([String: String].self, forKey: .ercSeverities) ?? [:]
         componentIndex = Self.index(of: components)
     }
 
@@ -130,7 +133,7 @@ struct DesignSnapshot: Decodable, Equatable {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
         case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
         case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant, buses, titleBlock
-        case harnessTypes, netClassDefs, directives
+        case harnessTypes, netClassDefs, directives, ercSeverities
     }
 
     func component(_ id: Int) -> SnapComponent? {

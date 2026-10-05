@@ -777,6 +777,10 @@ char* sieda_sheet_templates_json(void);
  * sheet hierarchy. The PDF text (ASCII), or NULL. Caller frees. */
 char* sieda_export_schematic_pdf(const SiedaProject* project);
 
+/* ERC error reporting: report rule `code` ("ERC_UNCONNECTED_PIN" …) as "error", "warning", "info" or "off", or
+ * "default" (its own severity again). The snapshot lists "ercSeverities" {code: level}. 1 on success. */
+int32_t sieda_set_erc_severity(SiedaProject* project, const char* code, const char* level);
+
 #ifdef __cplusplus
 }
 #endif

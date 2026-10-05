@@ -260,6 +260,7 @@
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 を含む DigiKey API アプリケーション（Production）、クライアント認証情報フロー。";
 "Distribute Horizontally" = "水平方向に分配";
 "Distribute Vertically" = "垂直方向に分配";
+"Do Not Report" = "報告しない";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "未実装：基板上にはあるが実装しない。実装用 BOM と CPL から除外";
 "Done" = "完了";
 "Down ↓" = "下へ ↓";
@@ -645,6 +646,9 @@
 "Replace All" = "すべて置換";
 "Replace with" = "置換後の文字列";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "すべてのシートの部品値とネットラベル名の文字列を置換します (リファレンスは自動採番を使用)";
+"Report as Error" = "エラーとして報告";
+"Report as Info" = "情報として報告";
+"Report as Warning" = "警告として報告";
 "Reserve the layer for this net: other nets only pass through it with vias" = "このネット専用にレイヤーを確保：他のネットはビアで通過のみ";
 "Reset" = "リセット";
 "Reset View" = "表示をリセット";
@@ -670,6 +674,7 @@
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "差動ペアの 2 本のネット (X_P / X_N) をペア間隔で同時に配線";
 "Router mode" = "配線モード";
 "Routing nets: %lld of %lld" = "ネットを配線中: %lld / %lld";
+"Rule's Own Severity" = "ルール本来の重大度";
 "Run" = "実行";
 "Run AC Sweep" = "AC スイープを実行";
 "Run DC Sweep" = "DC スイープを実行";

@@ -48,6 +48,21 @@ struct SchematicMessagesPanel: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        // Error reporting: this rule at another severity, everywhere in the project.
+                        let current = store.snapshot.ercSeverities[v.code] ?? "default"
+                        ForEach(Self.levels, id: \.self) { level in
+                            Button {
+                                store.setErcSeverity(v.code, level: level)
+                            } label: {
+                                if current == level {
+                                    Label(LocalizedStringKey(Self.levelTitle(level)), systemImage: "checkmark")
+                                } else {
+                                    Text(LocalizedStringKey(Self.levelTitle(level)))
+                                }
+                            }
+                        }
+                    }
                 }
                 .listStyle(.plain)
             }
@@ -55,6 +70,18 @@ struct SchematicMessagesPanel: View {
         .frame(height: 170)
         .background(Theme.deepBlue.opacity(0.92))
         .onAppear { if store.ercResults.isEmpty { store.runERC() } }
+    }
+
+    static let levels = ["default", "error", "warning", "info", "off"]
+
+    static func levelTitle(_ level: String) -> String {
+        switch level {
+        case "error": return "Report as Error"
+        case "warning": return "Report as Warning"
+        case "info": return "Report as Info"
+        case "off": return "Do Not Report"
+        default: return "Rule's Own Severity"
+        }
     }
 
     private func sheetName(_ v: RuleViolation) -> String {

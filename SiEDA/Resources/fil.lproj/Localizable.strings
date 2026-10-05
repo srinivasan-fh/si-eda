@@ -260,6 +260,7 @@
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "DigiKey API application (Production) na may Product Information v4; client credentials flow.";
 "Distribute Horizontally" = "Ipamahagi nang Pahalang";
 "Distribute Vertically" = "Ipamahagi nang Patayo";
+"Do Not Report" = "Huwag Iulat";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Huwag i-populate: nasa board pero hindi ikinakabit; hindi kasama sa assembly BOM at CPL";
 "Done" = "Tapos";
 "Down ↓" = "Pababa ↓";
@@ -645,6 +646,9 @@
 "Replace All" = "Palitan Lahat";
 "Replace with" = "Palitan ng";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "Pinapalitan ang teksto sa mga value ng piyesa at pangalan ng net label sa bawat sheet (designator: gamitin ang Annotate)";
+"Report as Error" = "Iulat bilang Error";
+"Report as Info" = "Iulat bilang Impormasyon";
+"Report as Warning" = "Iulat bilang Babala";
 "Reserve the layer for this net: other nets only pass through it with vias" = "Ireserba ang layer para sa net na ito: dadaan lang dito ang ibang net gamit ang via";
 "Reset" = "I-reset";
 "Reset View" = "I-reset ang View";
@@ -670,6 +674,7 @@
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "I-route nang magkasama ang dalawang net ng differential pair (X_P / X_N) sa pair gap";
 "Router mode" = "Mode ng router";
 "Routing nets: %lld of %lld" = "Niruruta ang mga net: %lld sa %lld";
+"Rule's Own Severity" = "Sariling Kalubhaan ng Panuntunan";
 "Run" = "Patakbuhin";
 "Run AC Sweep" = "Patakbuhin ang AC Sweep";
 "Run DC Sweep" = "Patakbuhin ang DC Sweep";

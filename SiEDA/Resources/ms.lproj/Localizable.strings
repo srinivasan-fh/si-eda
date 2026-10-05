@@ -260,6 +260,7 @@
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Aplikasi API DigiKey (Production) dengan Product Information v4; aliran kelayakan klien.";
 "Distribute Horizontally" = "Agih Mendatar";
 "Distribute Vertically" = "Agih Menegak";
+"Do Not Report" = "Jangan Laporkan";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Jangan pasang: ada pada papan tetapi tidak dipasang; dikecualikan daripada BOM pemasangan dan CPL";
 "Done" = "Selesai";
 "Down ↓" = "Bawah ↓";
@@ -645,6 +646,9 @@
 "Replace All" = "Ganti Semua";
 "Replace with" = "Ganti dengan";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "Menggantikan teks dalam nilai komponen dan nama label net pada setiap helaian (penanda: gunakan Anotasi)";
+"Report as Error" = "Laporkan sebagai Ralat";
+"Report as Info" = "Laporkan sebagai Maklumat";
+"Report as Warning" = "Laporkan sebagai Amaran";
 "Reserve the layer for this net: other nets only pass through it with vias" = "Tempah lapisan untuk net ini: net lain hanya melaluinya dengan via";
 "Reset" = "Tetap Semula";
 "Reset View" = "Tetapkan Semula Paparan";
@@ -670,6 +674,7 @@
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Halakan kedua-dua net pasangan pembeza (X_P / X_N) bersama pada jurang pasangan";
 "Router mode" = "Mod penghala";
 "Routing nets: %lld of %lld" = "Menghalakan net: %lld daripada %lld";
+"Rule's Own Severity" = "Keterukan Asal Peraturan";
 "Run" = "Jalankan";
 "Run AC Sweep" = "Jalankan Sapuan AC";
 "Run DC Sweep" = "Jalankan Sapuan DC";

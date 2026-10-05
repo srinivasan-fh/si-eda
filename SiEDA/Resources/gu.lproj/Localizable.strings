@@ -260,6 +260,7 @@
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 સાથેની DigiKey API એપ્લિકેશન (Production); ક્લાયન્ટ ક્રેડેન્શિયલ્સ ફ્લો.";
 "Distribute Horizontally" = "આડું વિતરણ";
 "Distribute Vertically" = "ઊભું વિતરણ";
+"Do Not Report" = "જાણ કરશો નહીં";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "પૉપ્યુલેટ ન કરો: બોર્ડ પર છે પણ લગાવેલ નથી; એસેમ્બલી BOM અને CPL માંથી બાકાત";
 "Done" = "થઈ ગયું";
 "Down ↓" = "નીચે ↓";
@@ -645,6 +646,9 @@
 "Replace All" = "બધું બદલો";
 "Replace with" = "આનાથી બદલો";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "દરેક શીટ પર ભાગોના મૂલ્યો અને નેટ લેબલ નામોમાં લખાણ બદલે છે (નિર્દેશકો: એનોટેટ વાપરો)";
+"Report as Error" = "ભૂલ તરીકે જાણ કરો";
+"Report as Info" = "માહિતી તરીકે જાણ કરો";
+"Report as Warning" = "ચેતવણી તરીકે જાણ કરો";
 "Reserve the layer for this net: other nets only pass through it with vias" = "આ નેટ માટે લેયર અનામત રાખો: અન્ય નેટ તેમાંથી ફક્ત વાયા દ્વારા પસાર થાય છે";
 "Reset" = "રીસેટ કરો";
 "Reset View" = "વ્યૂ રીસેટ કરો";
@@ -670,6 +674,7 @@
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "ડિફરન્શિયલ જોડીના બંને નેટ (X_P / X_N) ને જોડીના અંતરે સાથે રૂટ કરો";
 "Router mode" = "રાઉટર મોડ";
 "Routing nets: %lld of %lld" = "નેટ રૂટ થઈ રહ્યા છે: %lld / %lld";
+"Rule's Own Severity" = "નિયમની પોતાની તીવ્રતા";
 "Run" = "ચલાવો";
 "Run AC Sweep" = "AC સ્વીપ ચલાવો";
 "Run DC Sweep" = "DC સ્વીપ ચલાવો";

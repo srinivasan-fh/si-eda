@@ -260,6 +260,7 @@
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 वाला DigiKey API एप्लिकेशन (Production); क्लाइंट क्रेडेंशियल फ़्लो।";
 "Distribute Horizontally" = "क्षैतिज वितरित करें";
 "Distribute Vertically" = "ऊर्ध्वाधर वितरित करें";
+"Do Not Report" = "रिपोर्ट न करें";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "पॉप्युलेट न करें: बोर्ड पर है पर लगाया नहीं जाता; असेंबली BOM और CPL से बाहर";
 "Done" = "हो गया";
 "Down ↓" = "नीचे ↓";
@@ -645,6 +646,9 @@
 "Replace All" = "सभी बदलें";
 "Replace with" = "इससे बदलें";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "हर शीट पर पुर्ज़ों के मान और नेट लेबल नामों में पाठ बदलता है (संदर्भ चिह्न: एनोटेट का उपयोग करें)";
+"Report as Error" = "त्रुटि के रूप में रिपोर्ट करें";
+"Report as Info" = "सूचना के रूप में रिपोर्ट करें";
+"Report as Warning" = "चेतावनी के रूप में रिपोर्ट करें";
 "Reserve the layer for this net: other nets only pass through it with vias" = "इस नेट के लिए लेयर आरक्षित करें: अन्य नेट इससे केवल वाया द्वारा गुज़रते हैं";
 "Reset" = "रीसेट करें";
 "Reset View" = "व्यू रीसेट करें";
@@ -670,6 +674,7 @@
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "डिफ़रेंशियल पेयर के दोनों नेट (X_P / X_N) को पेयर गैप पर एक साथ रूट करें";
 "Router mode" = "राउटर मोड";
 "Routing nets: %lld of %lld" = "नेट रूट हो रहे हैं: %lld / %lld";
+"Rule's Own Severity" = "नियम की अपनी गंभीरता";
 "Run" = "चलाएँ";
 "Run AC Sweep" = "AC स्वीप चलाएँ";
 "Run DC Sweep" = "DC स्वीप चलाएँ";

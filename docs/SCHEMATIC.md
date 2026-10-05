@@ -320,6 +320,9 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
   temporary designators so swaps (R1 ↔ R2) work, and the chosen set must keep designators unique.
 - **Messages**: the options bar's **Messages** panel lists every ERC finding of every sheet with its sheet name;
   **Compile** re-runs ERC; click a message to show it on its sheet, selected and zoomed.
+- **Error reporting** (Altium's project options ▸ Error Reporting): right-click a message ▸ *Report as Error /
+  Warning / Info*, *Do Not Report*, or *Rule's Own Severity* — for that rule everywhere in the project (saved with
+  it as `ercSeverities`; one undo step). C API `sieda_set_erc_severity`.
 - **Sheet templates**: right-click a sheet tab ▸ **Sheet Size** — A4 … A0, ANSI A … E, or *Auto* (the smallest A
   size that holds the drawing at full scale). The canvas draws the template's frame around the drawing (10 units =
   2.54 mm).
@@ -366,7 +369,8 @@ Further optional fields (written only when used, so other designs' files are unc
 `packageOnly`, `harnessType` / `harnessOf` (net labels); wires `instanceOf`; top-level `buses`, `harnessTypes`
 (`[{"name","entries"}]`), `netClassDefs` (`[{"name","trackWidth"?,"clearance"?}]`), `directives`
 (`[{"id","component","pin","netClass"?,"diffPair"?,"trackWidth"?,"clearance"?}]`) and `titleBlock`; board
-`netClearances` and `schematicRuleNets` (the nets whose rules came from the schematic); sheets `size`. A file is repaired on load: copies whose
+`netClearances` and `schematicRuleNets` (the nets whose rules came from the schematic); sheets `size`; top-level
+`ercSeverities` (`{"ERC_…": "error" | "warning" | "info" | "off"}`). A file is repaired on load: copies whose
 block part is gone, units without a valid package, packages without units, entries of missing buses and buses on
 missing sheets are dropped; an instance of a missing or nested definition becomes an ordinary sheet. Older versions of
 SiEDA open a file with repeated sheets as ordinary sheets (every channel's parts are real parts); a file with placed
@@ -422,6 +426,7 @@ int32_t sieda_apply_eco(SiedaProject*, const char* eco_json);
 int32_t sieda_set_sheet_size(SiedaProject*, int32_t sheet, const char* size);
 char*   sieda_sheet_templates_json(void);
 char*   sieda_export_schematic_pdf(const SiedaProject*);
+int32_t sieda_set_erc_severity(SiedaProject*, const char* code, const char* level); /* "error"…"off", "default" */
 ```
 
 Sheets, hierarchy, bus labels, annotation and variants:

@@ -331,6 +331,12 @@ public:
     NetRole netRole(int net) const;
 
     std::vector<RuleViolation> runERC() const;
+    /// ERC error reporting (Altium's project options ▸ Error Reporting): a rule code reported at another severity
+    /// (0 info, 1 warning, 2 error) or not at all (-1). Returns false for an empty code or a level outside -1…2.
+    bool setErcSeverity(const std::string& code, int level);
+    /// Back to the rule's own severity.
+    bool clearErcSeverity(const std::string& code);
+    const std::map<std::string, int>& ercSeverities() const { return ercSeverity_; }
 
     /// Simulating an assembly (a design variant): parts not fitted (Sourcing::dnp) are left out of the simulated
     /// circuit — their nets stay, only their elements go. Off by default (the design as drawn).
@@ -602,6 +608,7 @@ private:
     /// Drops directives whose anchor is gone (true when it changed anything).
     bool repairDirectives();
     std::vector<NetClassDef> netClassDefs_;
+    std::map<std::string, int> ercSeverity_;
     std::vector<NetDirective> directives_;
     int nextDirectiveId_ = 1;
 

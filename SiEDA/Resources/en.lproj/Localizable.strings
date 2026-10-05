@@ -260,6 +260,7 @@
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "DigiKey API application (Production) with Product Information v4; client credentials flow.";
 "Distribute Horizontally" = "Distribute Horizontally";
 "Distribute Vertically" = "Distribute Vertically";
+"Do Not Report" = "Do Not Report";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL";
 "Done" = "Done";
 "Down ↓" = "Down ↓";
@@ -645,6 +646,9 @@
 "Replace All" = "Replace All";
 "Replace with" = "Replace with";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "Replaces the text in part values and net label names on every sheet (designators: use Annotate)";
+"Report as Error" = "Report as Error";
+"Report as Info" = "Report as Info";
+"Report as Warning" = "Report as Warning";
 "Reserve the layer for this net: other nets only pass through it with vias" = "Reserve the layer for this net: other nets only pass through it with vias";
 "Reset" = "Reset";
 "Reset View" = "Reset View";
@@ -670,6 +674,7 @@
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Route both nets of a differential pair (X_P / X_N) together at the pair gap";
 "Router mode" = "Router mode";
 "Routing nets: %lld of %lld" = "Routing nets: %lld of %lld";
+"Rule's Own Severity" = "Rule's Own Severity";
 "Run" = "Run";
 "Run AC Sweep" = "Run AC Sweep";
 "Run DC Sweep" = "Run DC Sweep";

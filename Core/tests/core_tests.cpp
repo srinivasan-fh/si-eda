@@ -13946,3 +13946,40 @@ TEST(c_api_schematic_tools) {
     if (rc != 0) std::printf("    C API schematic tools test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+TEST(erc_error_reporting_overrides) {
+    Project p;
+    Schematic& s = p.schematic;
+    s.addComponent(ComponentKind::Resistor, "1k", {0, 0});  // floating
+    auto count = [&](const std::string& code, Severity sev) {
+        int n = 0;
+        for (const auto& v : s.runERC()) n += v.code == code && v.severity == sev;
+        return n;
+    };
+    CHECK(count("ERC_FLOATING_COMPONENT", Severity::Warning) == 1);
+    CHECK(s.setErcSeverity("ERC_FLOATING_COMPONENT", 2));
+    CHECK(count("ERC_FLOATING_COMPONENT", Severity::Error) == 1);
+    CHECK(s.setErcSeverity("ERC_FLOATING_COMPONENT", -1));
+    CHECK(count("ERC_FLOATING_COMPONENT", Severity::Warning) + count("ERC_FLOATING_COMPONENT", Severity::Error) == 0);
+    CHECK(!s.setErcSeverity("", 1) && !s.setErcSeverity("X", 3) && !s.setErcSeverity("X", -2));
+    const std::string saved = p.toJson().dump();
+    CHECK(saved.find("\"ercSeverities\":{\"ERC_FLOATING_COMPONENT\":\"off\"}") != std::string::npos);
+    Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.schematic.ercSeverities().at("ERC_FLOATING_COMPONENT") == -1 && q.toJson().dump() == saved);
+    CHECK(s.clearErcSeverity("ERC_FLOATING_COMPONENT") && !s.clearErcSeverity("ERC_FLOATING_COMPONENT"));
+    CHECK(count("ERC_FLOATING_COMPONENT", Severity::Warning) == 1);
+    CHECK(p.toJson().dump().find("ercSeverities") == std::string::npos);
+    // A hand-edited level that is not known is ignored.
+    Json j = Json::parse(saved);
+    Json levels = Json::object();
+    levels["ERC_FLOATING_COMPONENT"] = "sometimes";
+    j["ercSeverities"] = levels;
+    CHECK(Project::fromJson(j).schematic.ercSeverities().empty());
+}
+
+extern "C" int sieda_c_api_erc_severity_test(void);
+TEST(c_api_erc_severity) {
+    const int rc = sieda_c_api_erc_severity_test();
+    if (rc != 0) std::printf("    C API ERC severity test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}

@@ -177,6 +177,23 @@ void componentSheetJson(Json& j, const Component& c) {
     if (c.harnessOf != 0) j["harnessOf"] = c.harnessOf;
 }
 
+const char* ercLevelName(int level) {
+    switch (level) {
+        case -1: return "off";
+        case 0: return "info";
+        case 1: return "warning";
+        default: return "error";
+    }
+}
+
+int ercLevelFromName(const std::string& name) {
+    if (name == "off") return -1;
+    if (name == "info") return 0;
+    if (name == "warning") return 1;
+    if (name == "error") return 2;
+    return -2;
+}
+
 Json netClassDefsJson(const Schematic& sch) {
     Json arr = Json::array();
     for (const auto& d : sch.netClassDefs()) {
@@ -522,6 +539,11 @@ Json Project::toJson() const {
     if (!schematic.harnessTypes().empty()) root["harnessTypes"] = harnessTypesJson(schematic);
     if (!schematic.netClassDefs().empty()) root["netClassDefs"] = netClassDefsJson(schematic);
     if (!schematic.directives().empty()) root["directives"] = directivesJson(schematic, false);
+    if (!schematic.ercSeverities().empty()) {
+        Json levels = Json::object();
+        for (const auto& [code, level] : schematic.ercSeverities()) levels[code] = ercLevelName(level);
+        root["ercSeverities"] = levels;
+    }
     if (!variants.empty()) {
         Json vs = Json::array();
         for (const auto& v : variants) vs.push(variantToJson(v, schematic));
@@ -802,6 +824,14 @@ Project Project::fromJson(const Json& root) {
         p.schematic.restoreHarnessTypes(types);
         p.schematic.repairHarnessLinks();
     }
+    {
+        const Json& levels = root.get("ercSeverities");
+        if (levels.isObject())
+            for (const auto& [code, level] : levels.fields()) {
+                const int l = ercLevelFromName(level.asString(""));
+                if (l >= -1) p.schematic.setErcSeverity(code, l);
+            }
+    }
     for (const auto& j : root.get("netClassDefs").items()) {
         NetClassDef d;
         d.name = j.get("name").asString("");
@@ -1049,6 +1079,11 @@ Json Project::snapshot() const {
         root["harnessTypes"] = harnessTypesJson(schematic);
         root["netClassDefs"] = netClassDefsJson(schematic);
         root["directives"] = directivesJson(schematic, true);
+        {
+            Json levels = Json::object();
+            for (const auto& [code, level] : schematic.ercSeverities()) levels[code] = ercLevelName(level);
+            root["ercSeverities"] = levels;
+        }
         Json tb = Json::object();
         tb["title"] = titleBlock.title.empty() ? name : titleBlock.title;
         tb["company"] = titleBlock.company;

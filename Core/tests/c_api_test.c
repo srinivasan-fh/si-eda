@@ -1051,3 +1051,20 @@ int sieda_c_api_schematic_tools_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* ERC error reporting through the C API. Returns 0 or the failing step. */
+int sieda_c_api_erc_severity_test(void) {
+    SiedaProject* p = sieda_project_new("ERC levels");
+    if (!p) return 1;
+    if (sieda_add_component(p, 0, "1k", 0, 0, 0, NULL) < 0) return 2;
+    if (sieda_set_erc_severity(p, "ERC_FLOATING_COMPONENT", "off") != 1) return 3;
+    char* erc = sieda_run_erc(p);
+    if (!erc || strstr(erc, "ERC_FLOATING_COMPONENT")) return 4;
+    sieda_string_free(erc);
+    if (sieda_set_erc_severity(p, "ERC_FLOATING_COMPONENT", "loud") != 0) return 5;
+    if (sieda_set_erc_severity(p, "ERC_FLOATING_COMPONENT", "default") != 1) return 6;
+    if (sieda_set_erc_severity(p, "ERC_FLOATING_COMPONENT", "default") != 0) return 7;
+    if (sieda_set_erc_severity(NULL, "X", "off") != 0) return 8;
+    sieda_project_free(p);
+    return 0;
+}

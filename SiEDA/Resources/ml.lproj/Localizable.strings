@@ -260,6 +260,7 @@
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 ഉള്ള DigiKey API ആപ്ലിക്കേഷൻ (Production); ക്ലയന്റ് ക്രെഡൻഷ്യൽസ് ഫ്ലോ.";
 "Distribute Horizontally" = "തിരശ്ചീനമായി വിതരണം";
 "Distribute Vertically" = "ലംബമായി വിതരണം";
+"Do Not Report" = "റിപ്പോർട്ട് ചെയ്യരുത്";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "പോപ്പുലേറ്റ് ചെയ്യരുത്: ബോർഡിൽ ഉണ്ടെങ്കിലും ഘടിപ്പിക്കില്ല; അസംബ്ലി BOM-ൽ നിന്നും CPL-ൽ നിന്നും ഒഴിവാക്കും";
 "Done" = "പൂർത്തിയായി";
 "Down ↓" = "താഴേക്ക് ↓";
@@ -645,6 +646,9 @@
 "Replace All" = "എല്ലാം മാറ്റുക";
 "Replace with" = "ഇതുകൊണ്ട് മാറ്റുക";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "എല്ലാ ഷീറ്റിലും ഘടക മൂല്യങ്ങളിലും നെറ്റ് ലേബൽ പേരുകളിലും വാചകം മാറ്റുന്നു (ഡിസൈനേറ്ററുകൾക്ക്: അനോട്ടേറ്റ് ഉപയോഗിക്കുക)";
+"Report as Error" = "പിശകായി റിപ്പോർട്ട് ചെയ്യുക";
+"Report as Info" = "വിവരമായി റിപ്പോർട്ട് ചെയ്യുക";
+"Report as Warning" = "മുന്നറിയിപ്പായി റിപ്പോർട്ട് ചെയ്യുക";
 "Reserve the layer for this net: other nets only pass through it with vias" = "ഈ നെറ്റിനായി ലെയർ റിസർവ് ചെയ്യുക: മറ്റ് നെറ്റുകൾ വിയകളിലൂടെ മാത്രം ഇതിലൂടെ കടന്നുപോകും";
 "Reset" = "പുനഃസജ്ജമാക്കുക";
 "Reset View" = "വ്യൂ റീസെറ്റ് ചെയ്യുക";
@@ -670,6 +674,7 @@
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "ഡിഫറൻഷ്യൽ ജോഡിയിലെ രണ്ട് നെറ്റുകളും (X_P / X_N) ജോഡി അകലത്തിൽ ഒരുമിച്ച് റൂട്ട് ചെയ്യുക";
 "Router mode" = "റൂട്ടർ മോഡ്";
 "Routing nets: %lld of %lld" = "നെറ്റുകൾ റൂട്ട് ചെയ്യുന്നു: %lld / %lld";
+"Rule's Own Severity" = "നിയമത്തിന്റെ സ്വന്തം ഗൗരവം";
 "Run" = "റൺ ചെയ്യുക";
 "Run AC Sweep" = "AC സ്വീപ്പ് റൺ ചെയ്യുക";
 "Run DC Sweep" = "DC സ്വീപ്പ് റൺ ചെയ്യുക";

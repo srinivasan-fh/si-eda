@@ -260,6 +260,7 @@
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "DigiKey-API-Anwendung (Production) mit Product Information v4; Client-Credentials-Ablauf.";
 "Distribute Horizontally" = "Horizontal verteilen";
 "Distribute Vertically" = "Vertikal verteilen";
+"Do Not Report" = "Nicht melden";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Nicht bestücken: auf der Platine, aber nicht bestückt; nicht in Bestückungs-BOM und CPL enthalten";
 "Done" = "Fertig";
 "Down ↓" = "Nach unten ↓";
@@ -645,6 +646,9 @@
 "Replace All" = "Alle ersetzen";
 "Replace with" = "Ersetzen durch";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "Ersetzt den Text in Bauteilwerten und Netzlabel-Namen auf allen Blättern (Bezeichner: Annotieren verwenden)";
+"Report as Error" = "Als Fehler melden";
+"Report as Info" = "Als Hinweis melden";
+"Report as Warning" = "Als Warnung melden";
 "Reserve the layer for this net: other nets only pass through it with vias" = "Lage für dieses Netz reservieren: andere Netze durchqueren sie nur mit Vias";
 "Reset" = "Zurücksetzen";
 "Reset View" = "Ansicht zurücksetzen";
@@ -670,6 +674,7 @@
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Beide Netze eines differenziellen Paars (X_P / X_N) gemeinsam im Paarabstand routen";
 "Router mode" = "Router-Modus";
 "Routing nets: %lld of %lld" = "Netze werden geroutet: %lld von %lld";
+"Rule's Own Severity" = "Eigene Schwere der Regel";
 "Run" = "Ausführen";
 "Run AC Sweep" = "AC-Sweep ausführen";
 "Run DC Sweep" = "DC-Sweep ausführen";

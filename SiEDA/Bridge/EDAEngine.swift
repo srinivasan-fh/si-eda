@@ -1599,3 +1599,11 @@ extension EDAEngine {
         Self.take(withHandle { sieda_export_schematic_pdf($0) }).map { Data($0.utf8) }
     }
 }
+
+extension EDAEngine {
+    /// ERC error reporting: report `code` as "error", "warning", "info" or "off"; "default" restores its severity.
+    @discardableResult
+    func setErcSeverity(_ code: String, level: String) -> Bool {
+        withHandle { sieda_set_erc_severity($0, code, level) } == 1
+    }
+}

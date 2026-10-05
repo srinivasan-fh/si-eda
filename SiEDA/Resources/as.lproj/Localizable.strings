@@ -260,6 +260,7 @@
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 সহ DigiKey API এপ্লিকেচন (Production); ক্লায়েণ্ট ক্ৰেডেনচিয়েল প্ৰবাহ।";
 "Distribute Horizontally" = "অনুভূমিকভাৱে বিতৰণ";
 "Distribute Vertically" = "উলম্বভাৱে বিতৰণ";
+"Do Not Report" = "প্ৰতিবেদন নকৰিব";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "পপুলেট নকৰিব: বোৰ্ডত আছে কিন্তু লগোৱা নহয়; এছেম্বলী BOM আৰু CPL ৰ পৰা বাদ";
 "Done" = "সম্পূৰ্ণ";
 "Down ↓" = "তললৈ ↓";
@@ -645,6 +646,9 @@
 "Replace All" = "সকলো সলনি কৰক";
 "Replace with" = "ইয়াৰে সলনি কৰক";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "সকলো পাতত অংশৰ মান আৰু নেট লেবেলৰ নামত পাঠ সলনি কৰে (নিৰ্দেশক: এনোটেট ব্যৱহাৰ কৰক)";
+"Report as Error" = "ত্ৰুটি হিচাপে প্ৰতিবেদন";
+"Report as Info" = "তথ্য হিচাপে প্ৰতিবেদন";
+"Report as Warning" = "সতৰ্কবাণী হিচাপে প্ৰতিবেদন";
 "Reserve the layer for this net: other nets only pass through it with vias" = "এই নেটৰ বাবে লেয়াৰ সংৰক্ষণ কৰক: আন নেটবোৰ কেৱল ভায়াৰে ইয়াৰ মাজেৰে পাৰ হয়";
 "Reset" = "পুনৰ ছেট কৰক";
 "Reset View" = "ভিউ ৰিছেট কৰক";
@@ -670,6 +674,7 @@
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "ডিফাৰেন্সিয়েল যোৰৰ দুয়োটা নেট (X_P / X_N) যোৰৰ ব্যৱধানত একেলগে ৰুট কৰক";
 "Router mode" = "ৰাউটাৰ মোড";
 "Routing nets: %lld of %lld" = "নেট ৰুট কৰা হৈছে: %lld / %lld";
+"Rule's Own Severity" = "নিয়মৰ নিজৰ গুৰুত্ব";
 "Run" = "চলাওক";
 "Run AC Sweep" = "AC ছুইপ চলাওক";
 "Run DC Sweep" = "DC ছুইপ চলাওক";
