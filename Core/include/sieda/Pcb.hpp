@@ -32,6 +32,21 @@ struct MatchGroup {
     double tolerance = 0.1;
 };
 
+/// Autorouter strategy options (Board Setup → Routing strategy; docs/ROUTING.md). Every option defaults to the
+/// router's classic behaviour, so a board whose options are all default routes exactly as before.
+struct AutorouteOptions {
+    /// Differential pairs (differentialPairs(): net names and schematic directives) route as coupled pairs: both
+    /// members together at the pair gap, symmetric fan-out from their pads, coupled vias side by side. A pair the
+    /// coupled router cannot lay out routes as two single nets, as before.
+    bool coupledPairs = false;
+    /// Edge-to-edge gap of coupled pairs (mm); 0 = the stack-up's gap for the differential impedance target (never
+    /// below the pair's clearance).
+    double pairGap = 0;
+    bool operator==(const AutorouteOptions& o) const;
+    bool operator!=(const AutorouteOptions& o) const { return !(*this == o); }
+    bool isDefault() const { return *this == AutorouteOptions{}; }
+};
+
 /// Copper layer index: 0 = top, `BoardSettings::bottomLayer()` = bottom, anything between = inner layer.
 constexpr int kTopLayer = 0;
 
@@ -102,6 +117,8 @@ struct BoardSettings {
     /// Length rules per net and match groups (Board Setup; the length tuning tool and the DRC use them).
     std::vector<LengthRule> lengthRules;
     std::vector<MatchGroup> matchGroups;
+    /// Autorouter strategy (saved with the board only when it differs from the defaults).
+    AutorouteOptions autorouter;
     /// The autorouter first widens net classes to the IPC-2221 width for each net's simulated current.
     bool autoSizeNets = true;
     double widthFor(const std::string& netName) const {
@@ -335,7 +352,23 @@ struct RouteControl {
     std::function<bool(const RouteProgress&)> progress;
 };
 
+/// A differential pair after autorouting (RouteReport::pairs).
+struct PairRouteReport {
+    std::string positive, negative;  // net names
+    bool coupled = false;            // laid out by the coupled pair router (false: routed as two single nets)
+    std::string reason;              // why it was not coupled ("" when it was)
+    double width = 0, gap = 0;       // mm
+    double coupledLength = 0;        // centre-line length the members run side by side at the gap (mm)
+    double uncoupledLength = 0;      // fan-out stubs and via jogs, both members together (mm)
+    double skew = 0;                 // |length P − length N| of the routed copper after tuning (mm)
+    int viaPairs = 0;                // coupled via transitions
+};
+/// What an autoroute did beyond the counts in RouteStats (the routing report sheet in the app).
+struct RouteReport {
+    std::vector<PairRouteReport> pairs;
+};
 struct RouteStats {
+    RouteReport report;
     int connections = 0;
     int routed = 0;
     int failed = 0;

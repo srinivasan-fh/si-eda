@@ -16010,3 +16010,147 @@ TEST(router_keeps_net_class_clearance) {
             gap = std::min(gap, segmentSegmentDistance(t.a, t.b, wall.a, wall.b) - t.width / 2 - wall.width / 2);
     CHECK(gap >= classGap - 1e-6);
 }
+
+// ======================================================================= autorouter: coupled differential pairs
+
+namespace {
+/// Errors in a DRC report other than unrouted connections.
+std::vector<std::string> routeDrcErrors(const Project& p) {
+    std::vector<std::string> out;
+    for (const auto& v : p.pcb.runDRC(p.schematic))
+        if (v.severity == Severity::Error && v.code != "DRC_UNROUTED") out.push_back(v.code + ": " + v.message);
+    return out;
+}
+double netCopperLength(const Project& p, int net) {
+    double len = 0;
+    for (const auto& t : p.pcb.tracks)
+        if (t.net == net) len += trackLength(t);
+    return len;
+}
+/// Tracks of `a` that run parallel to a track of `b` exactly `pitch` apart (centre lines), at least 1 mm long.
+int parallelAt(const Project& p, int a, int b, double pitch) {
+    int n = 0;
+    for (const auto& x : p.pcb.tracks)
+        for (const auto& y : p.pcb.tracks) {
+            if (x.net != a || y.net != b || x.layer != y.layer || x.arc || y.arc) continue;
+            const Vec2 dx = x.b - x.a, dy = y.b - y.a;
+            if (dx.length() < 1.0 || dy.length() < 1.0 || std::fabs(dx.x * dy.y - dx.y * dy.x) > 1e-6 * dx.length() * dy.length())
+                continue;
+            if (std::fabs(pointSegmentDistance(x.a, y.a, y.b) - pitch) < 1e-6) ++n;
+        }
+    return n;
+}
+}  // namespace
+
+TEST(autoroute_coupled_differential_pair) {
+    DiffBoard b = diffBoard(0.2);
+    Project& p = b.p;
+    p.pcb.clearRouting();
+    // Default options: the pair routes as two nets, exactly as before (no pair report).
+    RouteStats plain = p.pcb.autoRoute(p.schematic);
+    CHECK(plain.failed == 0 && plain.report.pairs.empty());
+    p.pcb.clearRouting();
+    p.pcb.settings.autorouter.coupledPairs = true;
+    RouteStats st = p.pcb.autoRoute(p.schematic);
+    CHECK(st.failed == 0);
+    CHECK(st.report.pairs.size() == 1);
+    if (st.report.pairs.size() != 1) return;
+    const PairRouteReport& pr = st.report.pairs.front();
+    if (!pr.coupled) std::printf("    pair not coupled: %s\n", pr.reason.c_str());
+    CHECK(pr.coupled && pr.positive == "D_P" && pr.negative == "D_N");
+    CHECK(pr.gap >= p.pcb.settings.clearance - 1e-9 && pr.width > 0);
+    // Coupled from pad to pad, apart from the short symmetric fan-out at each end.
+    const double span = (siPad(p, b.u2, "RXP") - siPad(p, b.u1, "TXP")).length();
+    CHECK(pr.coupledLength > 0.85 * span);
+    CHECK(pr.uncoupledLength < 0.1 * span);
+    CHECK(pr.skew <= p.pcb.settings.pairSkewTolerance + 1e-6);
+    CHECK(std::fabs(netCopperLength(p, b.np) - netCopperLength(p, b.nn)) <= p.pcb.settings.pairSkewTolerance + 1e-6);
+    // The members run side by side: P tracks parallel to N tracks exactly one pitch (width + gap) away.
+    CHECK(parallelAt(p, b.np, b.nn, pr.gap + pr.width) >= 1);
+    const auto errors = routeDrcErrors(p);
+    for (const auto& e : errors) std::printf("    %s\n", e.c_str());
+    CHECK(errors.empty());
+    // Saved with the board, and only when it differs from the default.
+    Project q = Project::fromJson(p.toJson());
+    CHECK(q.pcb.settings.autorouter.coupledPairs);
+    CHECK(Project().toJson().dump().find("autorouter") == std::string::npos);
+}
+
+TEST(autoroute_coupled_pair_changes_layer_with_coupled_vias) {
+    // The receiver sits on the bottom side: the pair has to change layer, both members together.
+    DiffBoard b = diffBoard(0.2);
+    Project& p = b.p;
+    p.schematic.find(b.u2)->pcb.bottom = true;
+    p.pcb.clearRouting();
+    p.pcb.settings.autorouter.coupledPairs = true;
+    RouteStats st = p.pcb.autoRoute(p.schematic);
+    CHECK(st.failed == 0 && st.report.pairs.size() == 1);
+    if (st.report.pairs.size() != 1) return;
+    const PairRouteReport& pr = st.report.pairs.front();
+    if (!pr.coupled) std::printf("    pair not coupled: %s\n", pr.reason.c_str());
+    CHECK(pr.coupled && pr.viaPairs >= 1);
+    // Coupled vias: one per member, side by side across the pair, at least a via plus clearance apart.
+    std::vector<Via> vp, vn;
+    for (const auto& v : p.pcb.vias) {
+        if (v.net == b.np) vp.push_back(v);
+        if (v.net == b.nn) vn.push_back(v);
+    }
+    CHECK(vp.size() == vn.size() && !vp.empty());
+    for (size_t k = 0; k < vp.size() && k < vn.size(); ++k) {
+        const double d = (vp[k].position - vn[k].position).length();
+        CHECK(d >= vp[k].diameter + p.pcb.settings.clearance - 1e-6 && d < 2 * vp[k].diameter + 1.0);
+    }
+    CHECK(pr.skew <= p.pcb.settings.pairSkewTolerance + 1e-6);
+    const auto errors = routeDrcErrors(p);
+    for (const auto& e : errors) std::printf("    %s\n", e.c_str());
+    CHECK(errors.empty());
+    // A pair that cannot be coupled (here: a member with a third pad) routes as two nets.
+    const int tap = placeR(p, {60, 34});
+    wire(p.schematic, b.u1, "TXN", tap, "1");
+    p.schematicChanged();
+    p.pcb.clearRouting();
+    RouteStats wide = p.pcb.autoRoute(p.schematic);
+    CHECK(wide.failed == 0 && wide.report.pairs.size() == 1);
+    if (!wide.report.pairs.empty()) CHECK(!wide.report.pairs.front().coupled && !wide.report.pairs.front().reason.empty());
+}
+
+TEST(autoroute_keeps_net_class_clearance) {
+    // A net class (schematic directive) asks for more than the board clearance: the autorouter keeps it between that
+    // net's copper and every other net's, whichever was routed first.
+    Project p = amplifierProject();
+    p.pcb.settings.width = 40;
+    p.pcb.settings.height = 30;
+    p.pcb.autoPlace(p.schematic, true);
+    const auto ps = p.pcb.pads(p.schematic);
+    int widest = -1;
+    size_t most = 0;
+    std::map<int, size_t> count;
+    for (const auto& pd : ps)
+        if (pd.net >= 0 && p.schematic.netRole(pd.net) == NetRole::Signal && ++count[pd.net] > most) {
+            most = count[pd.net];
+            widest = pd.net;
+        }
+    CHECK(widest >= 0);
+    if (widest < 0) return;
+    const std::string name = p.schematic.nets()[static_cast<size_t>(widest)].name;
+    const double cls = p.pcb.settings.clearance + 0.25;
+    p.pcb.settings.netClearances[name] = cls;
+    RouteStats st = p.pcb.autoRoute(p.schematic);
+    CHECK(st.failed == 0);
+    double gap = 1e9;
+    for (const auto& t : p.pcb.tracks) {
+        if (t.net != widest) continue;
+        for (const auto& u : p.pcb.tracks)
+            if (u.net != widest && u.layer == t.layer) gap = std::min(gap, trackTrackDistance(t, u) - t.width / 2 - u.width / 2);
+        for (const auto& v : p.pcb.vias)
+            if (v.net != widest) gap = std::min(gap, trackPointDistance(t, v.position) - t.width / 2 - v.diameter / 2);
+    }
+    for (const auto& v : p.pcb.vias) {
+        if (v.net != widest) continue;
+        for (const auto& u : p.pcb.tracks)
+            if (u.net != widest) gap = std::min(gap, trackPointDistance(u, v.position) - u.width / 2 - v.diameter / 2);
+    }
+    std::printf("    class clearance %.3f mm, closest other copper %.3f mm\n", cls, gap);
+    CHECK(gap >= cls - 1e-6);
+    CHECK(routeDrcErrors(p).empty());
+}

@@ -1245,23 +1245,97 @@ public:
         const double need = s_.clearance + half - 1e-9;
         for (Vec2 p : {a, b})
             if (s_.edgeDistance(p) < s_.edgeClearance + half - 1e-9 || s_.holeDistance(p) < half) return false;
-        Rect box = Rect(a.x, a.y, b.x, b.y).inflated(need + maxHalf_);
+        Rect box = Rect(a.x, a.y, b.x, b.y).inflated(need + maxHalf_ + maxClassExtra_);
         bool clash = false;
         forBuckets(box, 0, padBuckets_, [&](size_t id) {
             const Pad& p = pads_[id];
             if (clash || (p.net == net && net >= 0) || !p.onLayer(l)) return;
             double d = p.round ? std::max(0.0, pointSegmentDistance(p.position, a, b) - std::min(p.size.x, p.size.y) / 2)
                                : segmentRectDistance(a, b, p.bounds());
+            if (d < need + classExtra(p.net)) clash = true;
+        });
+        if (clash) return false;
+        forBuckets(box, 1, buckets_, [&](size_t id) {
+            const Copper& c = copperItems_[id];
+            if (clash || c.net == net || (c.layer >= 0 && c.layer != l)) return;
+            if (segmentSegmentDistance(a, b, c.a, c.b) - c.half < need + classExtra(c.net)) clash = true;
+        });
+        return !clash;
+    }
+
+    /// Exact clearance of a track a–b of half-width `half` on layer l for `net` (coupled pair router): the board edge,
+    /// hole keep-outs, other nets' pads and every other net's recorded copper, at the board clearance plus
+    /// `extraOf` of both nets (net-class and 3W spacing). Plane layers of other nets are closed.
+    template <typename Extra>
+    bool trackClearExact(int l, Vec2 a, Vec2 b, double half, int net, const Extra& extraOf) const {
+        if (l < 0 || l >= layers_ || !layerOpen(l, net)) return false;
+        if (s_.segmentEdgeDistance(a, b) < s_.edgeClearance + half - 1e-9) return false;
+        for (const auto& h : s_.holes)
+            if (pointSegmentDistance(h.position, a, b) < h.keepout / 2 + half - 1e-9) return false;
+        const double own = extraOf(net);
+        const double reach = s_.clearance + own + half + maxExtra_ + 1e-6;
+        Rect box = Rect(std::min(a.x, b.x), std::min(a.y, b.y), std::max(a.x, b.x), std::max(a.y, b.y)).inflated(reach + maxHalf_);
+        bool clash = false;
+        forBuckets(box, 0, padBuckets_, [&](size_t id) {
+            const Pad& p = pads_[id];
+            if (clash || (p.net == net && net >= 0) || !p.onLayer(l)) return;
+            const double need = s_.clearance + std::max(own, p.net >= 0 ? extraOf(p.net) : 0.0) + half - 1e-9;
+            const double d = p.round ? std::max(0.0, pointSegmentDistance(p.position, a, b) - std::min(p.size.x, p.size.y) / 2)
+                                     : segmentRectDistance(a, b, p.bounds());
             if (d < need) clash = true;
         });
         if (clash) return false;
         forBuckets(box, 1, buckets_, [&](size_t id) {
             const Copper& c = copperItems_[id];
             if (clash || c.net == net || (c.layer >= 0 && c.layer != l)) return;
+            const double need = s_.clearance + std::max(own, c.net >= 0 ? extraOf(c.net) : 0.0) + half - 1e-9;
             if (segmentSegmentDistance(a, b, c.a, c.b) - c.half < need) clash = true;
         });
         return !clash;
     }
+    /// Exact test for a through via of `net` (diameter / drill) at any point (coupled pair router): the board edge,
+    /// hole keep-outs, other nets' pads and copper at clearance, hole-to-hole spacing to drilled pads and vias, and no
+    /// via inside an SMD pad of its own net (unless via-in-pad is allowed).
+    template <typename Extra>
+    bool viaClearExact(Vec2 at, int net, double diameter, double drill, const Extra& extraOf) const {
+        if (layers_ < 2) return false;
+        if (s_.edgeDistance(at) < s_.edgeClearance + diameter / 2 - 1e-9) return false;
+        if (s_.holeDistance(at) < s_.clearance + diameter / 2 - 1e-9) return false;
+        const double own = extraOf(net);
+        const double q = diameter / 2 + s_.clearance + own + maxExtra_ + std::max(maxPadReach_, drill + s_.minHoleToHole) + 1e-6;
+        bool clash = false;
+        forBuckets(Rect::centered(at, 2 * q, 2 * q), 0, padBuckets_, [&](size_t id) {
+            if (clash) return;
+            const Pad& p = pads_[id];
+            const double holeNeed = p.throughHole && p.drill > 0 ? (p.drill + drill) / 2 + s_.minHoleToHole : 0.0;
+            if (holeNeed > 0 && (at - p.position).length() < holeNeed - 1e-9) clash = true;
+            else if (p.net == net && net >= 0) {
+                if (!p.throughHole && !s_.viaInPad && padDistance(p, at) < diameter / 2 + 1e-6) clash = true;
+            } else if (padDistance(p, at) < diameter / 2 + s_.clearance + std::max(own, p.net >= 0 ? extraOf(p.net) : 0.0) - 1e-9) {
+                clash = true;
+            }
+        });
+        if (clash) return false;
+        forNearbyCopper(at, q + maxHalf_, [&](const Copper& c) {
+            if (clash) return;
+            if (c.drill > 0 && (at - c.a).length() < (c.drill + drill) / 2 + s_.minHoleToHole - 1e-9) clash = true;
+            const double need = diameter / 2 + s_.clearance + std::max(own, c.net >= 0 ? extraOf(c.net) : 0.0) - 1e-9;
+            if (c.net != net && pointSegmentDistance(at, c.a, c.b) - c.half < need) clash = true;
+        });
+        return !clash;
+    }
+    /// Net-class clearance beyond the board clearance, per net (schematic directives): other nets' vias and wide
+    /// tracks keep it from this net's pads and copper in the exact checks (wideClear, viaAllowed). Empty = none.
+    void setClassExtra(std::vector<double> extra) {
+        classExtra_ = std::move(extra);
+        maxClassExtra_ = 0;
+        for (double e : classExtra_) maxClassExtra_ = std::max(maxClassExtra_, e);
+    }
+    double classExtra(int net) const {
+        return net >= 0 && static_cast<size_t>(net) < classExtra_.size() ? classExtra_[static_cast<size_t>(net)] : 0.0;
+    }
+    /// Largest net-class extra clearance any net has (the reach of trackClearExact / viaClearExact queries).
+    void setMaxExtra(double e) { maxExtra_ = std::max(0.0, e); }
 
     bool viaAllowed(size_t c, int net) const {
         int ci = static_cast<int>(c % static_cast<size_t>(cols_)), cj = static_cast<int>(c / static_cast<size_t>(cols_));
@@ -1287,23 +1361,24 @@ public:
         double need = s_.viaDiameter / 2 + s_.clearance - 1e-9;
         // Only pads within the largest reach can matter (the bucket index holds every pad by its rectangle).
         bool padClash = false;
-        const double q = std::max(need, maxPadReach_) + 1e-6;
+        const double q = std::max(need, maxPadReach_) + maxClassExtra_ + 1e-6;
         forBuckets(Rect(at.x - q, at.y - q, at.x + q, at.y + q), 0, padBuckets_, [&](size_t id) {
             if (padClash) return;
             const Pad& p = pads_[id];
+            const double padNeed = need + classExtra(p.net);
             double holeNeed = p.throughHole && p.drill > 0 ? (p.drill + s_.viaDrill) / 2 + s_.minHoleToHole : 0.0;
-            double reach = std::max(need, holeNeed - std::min(p.size.x, p.size.y) / 2);
+            double reach = std::max(padNeed, holeNeed - std::min(p.size.x, p.size.y) / 2);
             Rect b = p.bounds();
             if (at.x < b.x0 - reach || at.x > b.x1 + reach || at.y < b.y0 - reach || at.y > b.y1 + reach) return;
             if (holeNeed > 0 && (at - p.position).length() < holeNeed) padClash = true;
-            else if (!(p.net == net && net >= 0) && padDistance(p, at) < need) padClash = true;
+            else if (!(p.net == net && net >= 0) && padDistance(p, at) < padNeed) padClash = true;
         });
         if (padClash) return false;
         // Tracks and vias are also tracked exactly (the grid only records their centrelines).
         bool clash = false;
-        forNearbyCopper(at, need + maxHalf_ + s_.viaDrill + s_.minHoleToHole, [&](const Copper& c) {
+        forNearbyCopper(at, need + maxHalf_ + s_.viaDrill + s_.minHoleToHole + maxClassExtra_, [&](const Copper& c) {
             if (c.drill > 0 && (at - c.a).length() < (c.drill + s_.viaDrill) / 2 + s_.minHoleToHole - 1e-9) clash = true;
-            if (c.net != net && pointSegmentDistance(at, c.a, c.b) < need + c.half) clash = true;
+            if (c.net != net && pointSegmentDistance(at, c.a, c.b) < need + c.half + classExtra(c.net)) clash = true;
         });
         return !clash;
     }
@@ -1353,19 +1428,19 @@ public:
             return false;
         const double need = s_.viaDiameter / 2 + s_.clearance - 1e-9;
         bool clash = false;
-        const double q = std::max(need, maxPadReach_) + 1e-6;
+        const double q = std::max(need, maxPadReach_) + maxClassExtra_ + 1e-6;
         forBuckets(Rect(at.x - q, at.y - q, at.x + q, at.y + q), 0, padBuckets_, [&](size_t id) {
             if (clash) return;
             const Pad& p = pads_[id];
             const double holeNeed = p.throughHole && p.drill > 0 ? (p.drill + s_.viaDrill) / 2 + s_.minHoleToHole : 0.0;
             if (holeNeed > 0 && (at - p.position).length() < holeNeed) clash = true;
-            else if (!(p.net == net && net >= 0) && padDistance(p, at) < need) clash = true;
+            else if (!(p.net == net && net >= 0) && padDistance(p, at) < need + classExtra(p.net)) clash = true;
         });
         if (clash) return false;
-        forNearbyCopper(at, need + maxHalf_ + s_.viaDrill + s_.minHoleToHole, [&](const Copper& cu) {
+        forNearbyCopper(at, need + maxHalf_ + s_.viaDrill + s_.minHoleToHole + maxClassExtra_, [&](const Copper& cu) {
             if (clash || !fixedItem(static_cast<size_t>(&cu - copperItems_.data()))) return;
             if (cu.drill > 0 && (at - cu.a).length() < (cu.drill + s_.viaDrill) / 2 + s_.minHoleToHole - 1e-9) clash = true;
-            if (cu.net != net && pointSegmentDistance(at, cu.a, cu.b) < need + cu.half) clash = true;
+            if (cu.net != net && pointSegmentDistance(at, cu.a, cu.b) < need + cu.half + classExtra(cu.net)) clash = true;
         });
         return !clash;
     }
@@ -1564,6 +1639,9 @@ private:
     std::vector<std::vector<size_t>> buckets_;
     int bCols_ = 1, bRows_ = 1;
     double maxHalf_ = 0;
+    double maxExtra_ = 0;  // largest net-class extra clearance (setMaxExtra; exact checks of the pair router)
+    std::vector<double> classExtra_;  // per net: net-class clearance beyond the board's (setClassExtra)
+    double maxClassExtra_ = 0;
     size_t fixedCopper_ = 0;  // copperItems_ before this index are fixed (markFixedEnd)
     std::vector<char> rippable_;  // per net: routed copper may be ripped up (setRippable)
     double maxPadReach_ = 0;  // largest hole-to-hole reach beyond a drilled pad's rectangle (viaAllowed)
@@ -1717,7 +1795,7 @@ public:
 
 private:
     friend RouteResult astar(const RoutingGrid&, int, const std::vector<std::pair<int, size_t>>&, AStarWorkspace&, Vec2,
-                             double, double, bool, const std::function<bool(int, size_t)>*, const Congestion*);
+                             double, double, bool, const std::function<bool(int, size_t)>*, const Congestion*, double);
     template <typename T>
     static void bump(uint32_t& gen, std::vector<T>& stamps) {
         if (++gen == 0) {  // wrapped: forget every old stamp
@@ -1832,10 +1910,12 @@ constexpr size_t kLargeGridMinBudget = 1u << 20;  // a large grid's search budge
 
 /// A* from `sources` to the workspace's target cells (or, with `lazyTarget`, to the cells that predicate accepts:
 /// tested only for the cells the search reaches). `useNeck`: the workspace's neck zones apply (fine-pitch pads of
-/// this net, see neckDown). `congestion`: recovery passes' history costs.
+/// this net, see neckDown). `congestion`: recovery passes' history costs. `viaHalf` > 0: a via also keeps that
+/// half-width plus the board clearance to the copper on every layer (net-class clearance).
 RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int, size_t>>& sources, AStarWorkspace& ws,
                   Vec2 targetCentre, double viaCost, double wideHalf, bool useNeck,
-                  const std::function<bool(int, size_t)>* lazyTarget = nullptr, const Congestion* congestion = nullptr) {
+                  const std::function<bool(int, size_t)>* lazyTarget = nullptr, const Congestion* congestion = nullptr,
+                  double viaHalf = 0) {
     const int cols = g.cols(), rows = g.rows();
     const size_t n = static_cast<size_t>(cols * rows);
     const int layers = g.layers();
@@ -1964,6 +2044,9 @@ RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int
                 viaState = ws.viaCached(c);
                 if (viaState < 0) {
                     viaState = g.viaAllowed(c, net) && ws.ownViasAllow(g.pos(i, j), g.settings()) ? 1 : 0;
+                    // Net-class clearance: the via body keeps the class's clearance to the copper already there.
+                    for (int vl = 0; vl < layers && viaState == 1 && viaHalf > 0; ++vl)
+                        if (!g.wideClear(vl, g.pos(i, j), g.pos(i, j), net, viaHalf)) viaState = 0;
                     ws.setVia(c, viaState);
                 }
             }
@@ -2031,6 +2114,8 @@ struct NetRouteOutcome {
     std::vector<Via> vias;
     int connections = 0, routed = 0;
 };
+
+#include "CoupledPairRouter.inc"
 }  // namespace
 
 namespace {
@@ -2341,6 +2426,21 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return hpwl(a) < hpwl(b); });
 
     const double w = settings.trackWidth, clr = settings.clearance;
+    // Net classes from the schematic's directives (BoardSettings::clearanceFor): a net's own tracks and vias keep its
+    // class clearance to the copper already on the board (exact checks, the extra clearance added to the
+    // half-width); copper laid after it keeps away through `extra`. Boards without net-class clearances are unchanged.
+    auto classExtra = [&](int net) {
+        if (settings.netClearances.empty() || net < 0) return 0.0;
+        return std::max(0.0, settings.clearanceFor(nets[static_cast<size_t>(net)].name) - settings.clearance);
+    };
+    auto trackHalf = [&](int net, double wn) {
+        const double wide = wn > w + 1e-9 ? wn / 2 : 0.0, e = classExtra(net);
+        return e > 1e-9 ? std::max(wide, wn / 2 + e) : wide;
+    };
+    auto viaHalfFor = [&](int net) {
+        const double e = classExtra(net);
+        return e > 1e-9 ? settings.viaDiameter / 2 + e : 0.0;
+    };
     const std::vector<double> neckWidths = padNeckWidths(ps);
     const auto padsByNet = groupPads(ps, true);
     // Escape routing first: nets with a fine-pitch pad (one a base-width track must neck down to leave) route
@@ -2474,7 +2574,12 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             if (z.plane) grid.setPlane(z.layer, zn);
             else grid.setPour(z.layer, zn);
         }
-        for (const auto& p : ps) grid.markPad(p, clr + w / 2);
+        if (!settings.netClearances.empty()) {
+            std::vector<double> ce(nets.size(), 0.0);
+            for (size_t n = 0; n < nets.size(); ++n) ce[n] = classExtra(static_cast<int>(n));
+            grid.setClassExtra(std::move(ce));
+        }
+        for (const auto& p : ps) grid.markPad(p, clr + classExtra(p.net) + w / 2);
         if (spacing.gap > 0) {
             double widest = settings.trackWidth;
             for (const auto& [name, width] : settings.netWidths) widest = std::max(widest, width);
@@ -2599,6 +2704,63 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         int net;
         size_t pad;  // the pad that could not be reached
     };
+    // Coupled differential pairs (AutorouteOptions::coupledPairs): laid out in the first pass after the fixed copper
+    // (BGA fan-outs, tamper meshes) and before any other net, and laid again as they were in later passes — fixed
+    // copper for the rest of the route. A pair the coupled router cannot lay out routes as two single nets.
+    const AutorouteOptions& ropt = settings.autorouter;
+    std::vector<PairPlan> pairPlans;
+    std::vector<PairRouteReport> pairReports;  // one per differential pair, planned or not
+    std::vector<size_t> pairReportOf;          // per plan: its report
+    std::vector<PairLayout> pairLayouts;       // per plan, from the first pass
+    double maxExtraAll = 0;
+    for (const auto& [net, x] : extraClearance) maxExtraAll = std::max(maxExtraAll, x);
+    if (ropt.coupledPairs) {
+        for (auto [pNet, nNet] : differentialPairs(sch)) {
+            PairRouteReport rep;
+            rep.positive = nets[static_cast<size_t>(pNet)].name;
+            rep.negative = nets[static_cast<size_t>(nNet)].name;
+            const auto& lp = netPads[pNet];
+            const auto& ln = netPads[nNet];
+            if (isZoneNet(sch, pNet) || isZoneNet(sch, nNet) || isMeshNet(pNet) || isMeshNet(nNet)) rep.reason = "pour or mesh net";
+            else if (spacing.gap > 0) rep.reason = "isolation barrier board";
+            else if (lp.size() != 2 || ln.size() != 2) rep.reason = "members need exactly two pads each";
+            if (!rep.reason.empty()) {
+                pairReports.push_back(rep);
+                continue;
+            }
+            PairPlan pl;
+            pl.netP = pNet;
+            pl.netN = nNet;
+            // End 0 pairs the first P pad with the N pad next to it (same part first), end 1 the other two.
+            auto nearN = [&](size_t pi) {
+                double d0 = (ps[pi].position - ps[ln[0]].position).length() + (ps[pi].componentId == ps[ln[0]].componentId ? 0 : 1000);
+                double d1 = (ps[pi].position - ps[ln[1]].position).length() + (ps[pi].componentId == ps[ln[1]].componentId ? 0 : 1000);
+                return d1 < d0 ? 1 : 0;
+            };
+            const int k = nearN(lp[0]);
+            pl.padP[0] = lp[0];
+            pl.padN[0] = ln[static_cast<size_t>(k)];
+            pl.padP[1] = lp[1];
+            pl.padN[1] = ln[static_cast<size_t>(1 - k)];
+            pl.width = std::max(settings.widthFor(rep.positive), settings.widthFor(rep.negative));
+            const double pairClearance = std::max(settings.clearanceFor(rep.positive), settings.clearanceFor(rep.negative));
+            double gap = ropt.pairGap;
+            if (gap <= 0) {
+                const double geo = differentialPairGeometry(settings, kTopLayer, settings.differentialImpedance).second;
+                gap = geo > 0 && geo <= 1.0 ? geo : settings.clearance;
+            }
+            pl.minGap = pairClearance;
+            pl.gap = std::max(gap, pairClearance);
+            pl.viaDiameter = settings.viaDiameter;
+            pl.viaDrill = settings.viaDrill;
+            rep.width = pl.width;
+            rep.gap = pl.gap;
+            pairReportOf.push_back(pairReports.size());
+            pairReports.push_back(rep);
+            pairPlans.push_back(pl);
+        }
+    }
+    bool pairsRouted = false;
     for (int pass = 0;; ++pass) {
         progressNow.phase = pass == 0 ? RouteProgress::Routing : RouteProgress::RipUp;
         progressNow.pass = pass;
@@ -2747,10 +2909,11 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             ws.beginTargets();
             for (auto [l, c] : targetCells) ws.addTarget(static_cast<size_t>(l) * gridCells + c);
             const double wn = settings.widthFor(nets[static_cast<size_t>(net)].name);
-            const double wideHalf = wn > w + 1e-9 ? wn / 2 : 0.0;
+            const double wideHalf = trackHalf(net, wn);
             neckZones(ws, list, wn);
             RouteResult rr;
-            if (!corridorMode) rr = astar(grid, net, tree, ws, tp.position, passViaCost, wideHalf, true, nullptr, passCongestion);
+            if (!corridorMode)
+                rr = astar(grid, net, tree, ws, tp.position, passViaCost, wideHalf, true, nullptr, passCongestion, viaHalfFor(net));
             // Corridor mode: the search covers the area around the pad, widened until it succeeds.
             for (double radius : {4.0, 12.0, 40.0}) {
                 if (!corridorMode || rr.ok) break;
@@ -2758,7 +2921,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                 ws.beginTargets();
                 for (auto [l, c] : targetCells) ws.addTarget(static_cast<size_t>(l) * gridCells + c);
                 neckZones(ws, list, wn);
-                rr = astar(grid, net, tree, ws, tp.position, passViaCost, wideHalf, true, nullptr, passCongestion);
+                rr = astar(grid, net, tree, ws, tp.position, passViaCost, wideHalf, true, nullptr, passCongestion, viaHalfFor(net));
             }
             for (auto tc : targetCells) tree.push_back(tc);  // later pads may still reach it
             if (!rr.ok) return false;
@@ -2783,6 +2946,9 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                 if (std::abs(i - ci) > k || std::abs(j - cj) > k) return false;
                 if (!grid.inside(i, j) || (grid.pos(i, j) - pad.position).length() > reach) return false;
                 if (!grid.passable(layer, c, net) || !grid.viaAllowed(c, net)) return false;
+                if (const double vh = viaHalfFor(net); vh > 0)
+                    for (int vl = 0; vl < grid.layers(); ++vl)
+                        if (!grid.wideClear(vl, grid.pos(i, j), grid.pos(i, j), net, vh)) return false;
                 return !(wn > w + 1e-9 &&
                          !grid.wideClear(layer, grid.pos(i, j), grid.pos(i, j), net, std::max(wn, settings.viaDiameter) / 2));
             };
@@ -2797,7 +2963,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             for (size_t c : grid.padCoreCells(pad)) src.push_back({layer, c});
             focus(ws, pad.position, pad.position, reach + 1.0);
             neckZones(ws, {pi}, wn);
-            RouteResult rr = astar(grid, net, src, ws, pad.position, 1e6, wn > w + 1e-9 ? wn / 2 : 0.0, true, &viaSite);
+            RouteResult rr = astar(grid, net, src, ws, pad.position, 1e6, trackHalf(net, wn), true, &viaSite);
             if (!rr.ok || rr.path.empty() || rr.path.back().layer != layer) return false;
             std::vector<std::pair<int, size_t>> scratch;
             commit(net, wn, rr, scratch);
@@ -2888,6 +3054,39 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             }
         }
 
+        if (!pairPlans.empty()) {
+            grid.setMaxExtra(maxExtraAll);
+            auto extraOf = [&](int net) { return extra(net); };
+            auto lay = [&](const PairLayout& pl) {
+                for (const Track& t : pl.tracks) {
+                    outT.push_back(t);
+                    markFixedTrack(grid, t);
+                    stats.trackLength += trackLength(t);
+                }
+                for (const Via& v : pl.vias) {
+                    outV.push_back(v);
+                    markFixedVia(grid, v);
+                    ++stats.vias;
+                }
+            };
+            if (!pairsRouted) {
+                for (const PairPlan& plan : pairPlans) {
+                    pairLayouts.push_back(routeCoupledPair(grid, ps, plan, extraOf, size_t{400000}));
+                    if (pairLayouts.back().ok) lay(pairLayouts.back());
+                }
+                pairsRouted = true;
+            } else {
+                for (const PairLayout& pl : pairLayouts)
+                    if (pl.ok) lay(pl);
+            }
+            for (size_t k = 0; k < pairPlans.size(); ++k) {
+                if (!pairLayouts[k].ok) continue;
+                stats.connections += 2;
+                stats.routed += 2;
+                const int pNet = pairPlans[k].netP, nNet = pairPlans[k].netN;
+                order.erase(std::remove_if(order.begin(), order.end(), [&](int n) { return n == pNet || n == nNet; }), order.end());
+            }
+        }
         fixedTracks = outT.size();
         fixedVias = outV.size();
         // Corridor rip-up passes: the nets the previous pass kept are laid again as they were — before the pour
@@ -3081,7 +3280,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                     }
                     tw.clearOwnVias();
                     const double wn = settings.widthFor(nets[static_cast<size_t>(net)].name);
-                    const double wideHalf = wn > w + 1e-9 ? wn / 2 : 0.0;
+                    const double wideHalf = trackHalf(net, wn);
                     for (size_t k = 0; k < steps[n]->size(); ++k) {
                         ConnResult cr;
                         const Pad& tp = ps[list[(*steps[n])[k].first]];
@@ -3090,7 +3289,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                         tw.beginTargets();
                         for (auto [l, c] : cr.targetCells) tw.addTarget(static_cast<size_t>(l) * gridCells + c);
                         neckZones(tw, list, wn);
-                        cr.rr = astar(grid, net, out.tree, tw, tp.position, passViaCost, wideHalf, true, nullptr, passCongestion);
+                        cr.rr = astar(grid, net, out.tree, tw, tp.position, passViaCost, wideHalf, true, nullptr, passCongestion,
+                                      viaHalfFor(net));
                         cr.ok = cr.rr.ok;
                         if (cr.ok) {
                             const auto& path = cr.rr.path;
@@ -3158,7 +3358,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                     ConnResult& cr = found[n].conns[k];
                     NetSearch& ns = found[n];
                     const double wn = settings.widthFor(nets[static_cast<size_t>(net)].name);
-                    const double wideHalf = wn > w + 1e-9 ? wn / 2 : 0.0;
+                    const double wideHalf = trackHalf(net, wn);
                     // From the pad's island (with what later pads joined to it) to the rest of the net.
                     const int mine = ns.find(cr.island);
                     std::vector<std::pair<int, size_t>> from, to;
@@ -3185,7 +3385,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                         ws.beginTargets();
                         for (auto [l, c] : to) ws.addTarget(static_cast<size_t>(l) * gridCells + c);
                         neckZones(ws, list, wn);
-                        const RouteResult rr = astar(grid, net, from, ws, tp.position, passViaCost, wideHalf, true, nullptr, passCongestion);
+                        const RouteResult rr =
+                            astar(grid, net, from, ws, tp.position, passViaCost, wideHalf, true, nullptr, passCongestion, viaHalfFor(net));
                         if (!rr.ok) continue;
                         const int other = ns.islandOf(rr.path[0], grid.idx(rr.path[0].i, rr.path[0].j));
                         std::vector<std::pair<int, size_t>> cells;
@@ -3658,6 +3859,26 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     // Length / phase matching: serpentines on the short members of differential pairs and buses.
     if (settings.lengthTuning) best.lengthTuned = tuneLengths(*this, sch);
     if (best.failed == std::numeric_limits<int>::max()) best.failed = 0;
+    // Report: every differential pair, coupled or not, with its skew after tuning.
+    for (size_t k = 0; k < pairPlans.size() && k < pairLayouts.size(); ++k) {
+        PairRouteReport& rep = pairReports[pairReportOf[k]];
+        const PairLayout& pl = pairLayouts[k];
+        rep.coupled = pl.ok;
+        rep.reason = pl.ok ? "" : pl.reason;
+        rep.coupledLength = pl.coupledLength;
+        rep.uncoupledLength = pl.uncoupledLength;
+        rep.viaPairs = pl.viaPairs;
+    }
+    for (PairRouteReport& rep : pairReports) {
+        double lp = 0, ln = 0;
+        for (const Track& t : tracks) {
+            if (t.net < 0 || static_cast<size_t>(t.net) >= nets.size()) continue;
+            if (nets[static_cast<size_t>(t.net)].name == rep.positive) lp += trackLength(t);
+            else if (nets[static_cast<size_t>(t.net)].name == rep.negative) ln += trackLength(t);
+        }
+        rep.skew = std::fabs(lp - ln);
+    }
+    best.report.pairs = std::move(pairReports);
     return best;
 }
 
