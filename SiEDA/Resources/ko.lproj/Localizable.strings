@@ -570,3 +570,5 @@
 "Meander height limit in mm (empty: 2 mm)" = "미앤더 높이 한계(mm, 비우면 2 mm)";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "미앤더 다리 사이의 가장자리 간격(mm, 비우면 중심 간 선폭의 3배)";
 "Tune to the longest member of the net's differential pair or bus" = "넷의 차동 쌍 또는 버스 중 가장 긴 멤버에 맞춤";
+"Highlight" = "강조";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red" = "밀기는 다른 넷의 트랙과 비아를 밀어내고, 우회는 그 주위로 배선하며, 강조는 가리킨 곳으로 가면서 모든 충돌을 빨간색으로 표시합니다";

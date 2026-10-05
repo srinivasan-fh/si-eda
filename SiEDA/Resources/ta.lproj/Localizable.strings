@@ -570,3 +570,5 @@
 "Meander height limit in mm (empty: 2 mm)" = "வளைவு உயர வரம்பு mm இல் (காலி: 2 mm)";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "வளைவுக் கால்களுக்கு இடையிலான விளிம்பு-விளிம்பு இடைவெளி mm இல் (காலி: மையங்களுக்கு இடையே மூன்று தட அகலம்)";
 "Tune to the longest member of the net's differential pair or bus" = "நெட்டின் வேறுபாட்டு இணை அல்லது பஸ்ஸின் மிக நீளமான உறுப்பினருக்கு ஏற்ப சரிசெய்";
+"Highlight" = "முன்னிலைப்படுத்து";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red" = "தள்ளு மற்ற நெட்களின் தடங்களையும் வயாக்களையும் ஒதுக்குகிறது; சுற்றிச் செல் அவற்றைச் சுற்றி வழியமைக்கிறது; முன்னிலைப்படுத்து நீங்கள் சுட்டும் இடத்துக்குச் சென்று ஒவ்வொரு மோதலையும் சிவப்பில் குறிக்கிறது";

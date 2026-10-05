@@ -815,7 +815,12 @@ final class EDAEngine: @unchecked Sendable {
 
     /// Options for `sieda_router_*`: push-and-shove or walkaround, 45° or 90° corners.
     static func routerOptions(shove: Bool, diagonal: Bool) -> String {
-        "{\"mode\":\"\(shove ? "shove" : "walkaround")\",\"posture\":\"\(diagonal ? "45" : "90")\"}"
+        routerOptions(mode: shove ? .shove : .walkaround, diagonal: diagonal)
+    }
+
+    /// Options for `sieda_router_*` with any router mode (Highlight lets the head go anywhere and lists collisions).
+    static func routerOptions(mode: RouterModeChoice, diagonal: Bool) -> String {
+        "{\"mode\":\"\(mode.rawValue)\",\"posture\":\"\(diagonal ? "45" : "90")\"}"
     }
 
     /// Starts a route (or a differential pair) on the pad, via or track at `point`; the preview carries `error` when

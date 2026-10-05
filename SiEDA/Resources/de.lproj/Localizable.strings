@@ -570,3 +570,5 @@
 "Meander height limit in mm (empty: 2 mm)" = "Höchste Mäanderhöhe in mm (leer: 2 mm)";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Abstand der Mäanderschenkel, Kante zu Kante, in mm (leer: drei Leiterbahnbreiten Mittenabstand)";
 "Tune to the longest member of the net's differential pair or bus" = "Auf das längste Mitglied des Differenzpaars oder Busses des Netzes abstimmen";
+"Highlight" = "Hervorheben";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red" = "Schieben drückt Leiterbahnen und Vias anderer Netze beiseite; Umgehen führt um sie herum; Hervorheben geht dorthin, wohin Sie zeigen, und markiert jede Kollision rot";

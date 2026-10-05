@@ -570,3 +570,5 @@
 "Meander height limit in mm (empty: 2 mm)" = "ಮಿಯಾಂಡರ್ ಎತ್ತರದ ಮಿತಿ mm ನಲ್ಲಿ (ಖಾಲಿ: 2 mm)";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "ಮಿಯಾಂಡರ್ ಕಾಲುಗಳ ನಡುವಿನ ಅಂಚಿನಿಂದ ಅಂಚಿನ ಅಂತರ mm ನಲ್ಲಿ (ಖಾಲಿ: ಕೇಂದ್ರಗಳ ನಡುವೆ ಮೂರು ಟ್ರ್ಯಾಕ್ ಅಗಲ)";
 "Tune to the longest member of the net's differential pair or bus" = "ನೆಟ್‌ನ ಡಿಫರೆನ್ಷಿಯಲ್ ಜೋಡಿ ಅಥವಾ ಬಸ್‌ನ ಅತಿ ಉದ್ದದ ಸದಸ್ಯನಿಗೆ ಟ್ಯೂನ್ ಮಾಡಿ";
+"Highlight" = "ಹೈಲೈಟ್";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red" = "ತಳ್ಳು ಇತರ ನೆಟ್‌ಗಳ ಟ್ರ್ಯಾಕ್ ಮತ್ತು ವಯಾಗಳನ್ನು ಪಕ್ಕಕ್ಕೆ ತಳ್ಳುತ್ತದೆ; ಸುತ್ತಿ ಹೋಗು ಅವುಗಳ ಸುತ್ತ ರೂಟ್ ಮಾಡುತ್ತದೆ; ಹೈಲೈಟ್ ನೀವು ತೋರಿಸಿದಲ್ಲಿಗೆ ಹೋಗಿ ಪ್ರತಿಯೊಂದು ಘರ್ಷಣೆಯನ್ನು ಕೆಂಪಿನಲ್ಲಿ ಗುರುತಿಸುತ್ತದೆ";

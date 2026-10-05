@@ -570,3 +570,5 @@
 "Meander height limit in mm (empty: 2 mm)" = "蛇形线高度上限（mm，留空：2 mm）";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "蛇形线各段之间的边到边间隙（mm，留空：中心距为三倍线宽）";
 "Tune to the longest member of the net's differential pair or bus" = "调整到该网络所属差分对或总线中最长的成员";
+"Highlight" = "标示";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red" = "推挤：把其他网络的走线和过孔推开；绕行：绕过它们；标示：走到你指向的位置，并用红色标出每个冲突";

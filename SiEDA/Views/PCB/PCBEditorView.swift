@@ -157,14 +157,15 @@ struct PCBEditorView: View {
                         tuneControls
                     } else if !panMode {
                         Divider().frame(height: 18)
-                        Picker("Router mode", selection: $store.routerShove) {
-                            Text("Shove").tag(true)
-                            Text("Walk around").tag(false)
+                        Picker("Router mode", selection: $store.routerMode) {
+                            Text("Shove").tag(RouterModeChoice.shove)
+                            Text("Walk around").tag(RouterModeChoice.walkaround)
+                            Text("Highlight").tag(RouterModeChoice.highlight)
                         }
                         .pickerStyle(.segmented)
                         .labelsHidden()
                         .fixedSize()
-                        .help("Shove pushes other nets' tracks and vias aside; Walk around routes around them")
+                        .help("Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red")
                     }
                     if routeTool {
                         Picker("Corners", selection: $store.routerDiagonal) {
@@ -1004,6 +1005,27 @@ struct PCBCanvas: View {
                 let hole = CGRect(x: v.x - v.drill / 2, y: v.y - v.drill / 2, width: v.drill, height: v.drill)
                 ctx.fill(Path(ellipseIn: hole).applying(screen), with: .color(Theme.pcbBackground))
             }
+        }
+        // Highlight mode: what the route violates, in red.
+        for c in route?.collisions ?? [] {
+            var mark = Path()
+            switch c.kind {
+            case "track":
+                mark.move(to: CGPoint(x: c.ax, y: c.ay))
+                mark.addLine(to: CGPoint(x: c.bx, y: c.by))
+                ctx.stroke(mark.applying(screen), with: .color(Theme.error.opacity(0.85)),
+                           style: StrokeStyle(lineWidth: max(2, c.width * k), lineCap: .round))
+                continue
+            case "via", "hole":
+                mark.addEllipse(in: CGRect(x: c.ax - c.width / 2, y: c.ay - c.width / 2, width: c.width, height: c.width))
+            case "pad":
+                mark.addRect(CGRect(x: c.ax - c.w / 2, y: c.ay - c.h / 2, width: c.w, height: c.h))
+            default:
+                break
+            }
+            if !mark.isEmpty { ctx.stroke(mark.applying(screen), with: .color(Theme.error), lineWidth: 2) }
+            let s = CGPoint(x: c.x, y: c.y).applying(screen)
+            ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 6, y: s.y - 6, width: 12, height: 12)), with: .color(Theme.error), lineWidth: 2)
         }
         if let tune {
             var outline = Path()

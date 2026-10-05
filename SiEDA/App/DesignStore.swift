@@ -1387,14 +1387,15 @@ final class DesignStore: ObservableObject {
     /// The route in progress with the Route tool (nil when idle). The board itself changes only when it finishes.
     @Published private(set) var routePreview: RoutePreview?
     /// Route tool settings: push-and-shove (otherwise walkaround) and 45° corners (otherwise 90°).
-    @Published var routerShove = true {
-        didSet { if routerShove != oldValue { applyRouterOptions() } }
+    /// Shove (push other nets aside), Walk around (route round them) or Highlight (go anywhere, list collisions).
+    @Published var routerMode: RouterModeChoice = .shove {
+        didSet { if routerMode != oldValue { applyRouterOptions() } }
     }
     @Published var routerDiagonal = true {
         didSet { if routerDiagonal != oldValue { applyRouterOptions() } }
     }
 
-    private var routerOptions: String { EDAEngine.routerOptions(shove: routerShove, diagonal: routerDiagonal) }
+    private var routerOptions: String { EDAEngine.routerOptions(mode: routerMode, diagonal: routerDiagonal) }
 
     /// Shows a router reply: a refused step keeps the route and reports why.
     private func showRoute(_ preview: RoutePreview?) {

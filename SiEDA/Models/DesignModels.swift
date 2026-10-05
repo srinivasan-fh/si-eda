@@ -863,6 +863,30 @@ struct RoutePreview: Decodable, Equatable {
     /// The routed net's whole length with this route, and the length its matched-length group asks for (0 = none).
     var netLength: Double?
     var targetLength: Double?
+    /// Highlight mode: what the route violates (nil / empty otherwise).
+    var collisions: [RouteCollision]?
+}
+
+/// Interactive router mode (`sieda_router_*` options "mode").
+enum RouterModeChoice: String, CaseIterable, Identifiable {
+    case shove, walkaround, highlight
+    var id: String { rawValue }
+}
+
+/// Copper or a board rule the route violates in Highlight mode: `kind` "track" (a-b, width), "via" (a, width =
+/// diameter), "pad" (a = centre, w × h), "hole" (a, width = keep-out), or "edge" / "plane" / "mesh" (x, y only).
+struct RouteCollision: Decodable, Equatable {
+    var kind: String
+    var id: Int
+    var x: Double
+    var y: Double
+    var ax: Double
+    var ay: Double
+    var bx: Double
+    var by: Double
+    var w: Double
+    var h: Double
+    var width: Double
 }
 
 /// Interactive length tuning (`sieda_router_tune`): the meanders it would add (or added) and the lengths.

@@ -852,6 +852,86 @@ Line extractLine(const World& w, size_t ti) {
     return L;
 }
 
+// ------------------------------------------------------------------------------------------- joint optimiser
+
+/// Two track ends meeting at `p` with directions `da`, `db` pointing away from it make an acute (< 89°) join: the
+/// DRC's DRC_ACUTE_ANGLE (an acid trap). 0° is two tracks running over each other.
+bool acuteAway(Vec2 da, Vec2 db) {
+    const double l = da.length() * db.length();
+    return l > 0 && da.dot(db) > 0.01745 * l;
+}
+
+Vec2 awayFrom(const Track& t, Vec2 p) { return samePoint(t.a, p) ? t.b - t.a : t.a - t.b; }
+Vec2 otherEnd(const Track& t, Vec2 p) { return samePoint(t.a, p) ? t.b : t.a; }
+
+/// Alive tracks of `net` on `layer` with an end at `p`.
+std::vector<size_t> endsAt(const World& w, int net, int layer, Vec2 p) {
+    std::vector<size_t> found, out;
+    w.tracksIn(Rect::centered(p, 2 * kJoin, 2 * kJoin), found);
+    for (size_t i : found) {
+        const Track& t = w.track(i);
+        if (t.net == net && t.layer == layer && (samePoint(t.a, p) || samePoint(t.b, p))) out.push_back(i);
+    }
+    return out;
+}
+
+/// A join inside a pad or via of the net is covered by copper (the DRC does not report it).
+bool joinCovered(const World& w, int net, int layer, Vec2 p) {
+    long via = -1;
+    return nodeAnchored(w, net, layer, p, &via);
+}
+
+/// The board as it was already had an acute join of the net at `p` (tolerated, like every old violation).
+bool acuteBefore(const Base& B, int net, int layer, Vec2 p) {
+    std::vector<size_t> found, at;
+    B.query(B.trackGrid, Rect::centered(p, 2 * kJoin, 2 * kJoin), found);
+    for (size_t i : found) {
+        const Track& t = B.tracks[i];
+        if (t.net == net && t.layer == layer && (samePoint(t.a, p) || samePoint(t.b, p))) at.push_back(i);
+    }
+    for (size_t x = 0; x < at.size(); ++x)
+        for (size_t y = x + 1; y < at.size(); ++y)
+            if (acuteAway(awayFrom(B.tracks[at[x]], p), awayFrom(B.tracks[at[y]], p))) return true;
+    return false;
+}
+
+struct AcuteJoin {
+    Vec2 at;
+    size_t a = 0, b = 0;
+};
+
+/// Acute joins this session made: at an end of a track it added, between two tracks of which at least one is not
+/// part of the route itself (the route's own corners are built non-acute by the posture). Old ones are tolerated.
+std::vector<AcuteJoin> newAcuteJoins(const World& w) {
+    std::vector<AcuteJoin> out;
+    std::set<std::tuple<long long, long long, int>> seen;
+    for (size_t k = w.baseT(); k < w.nT(); ++k) {
+        if (!w.aliveT(k)) continue;
+        const Track& t = w.track(k);
+        for (Vec2 p : {t.a, t.b}) {
+            const auto key = std::make_tuple(std::llround(p.x * 1e5), std::llround(p.y * 1e5), t.layer);
+            if (!seen.insert(key).second) continue;
+            const auto at = endsAt(w, t.net, t.layer, p);
+            if (at.size() < 2 || joinCovered(w, t.net, t.layer, p)) continue;
+            bool old = false, checkedOld = false;
+            for (size_t x = 0; x < at.size(); ++x)
+                for (size_t y = x + 1; y < at.size(); ++y) {
+                    const size_t i = at[x], j = at[y];
+                    if (i < w.baseT() && j < w.baseT()) continue;
+                    const bool fi = i >= w.baseT() && w.fixAddT[i - w.baseT()], fj = j >= w.baseT() && w.fixAddT[j - w.baseT()];
+                    if (fi && fj) continue;
+                    if (!acuteAway(awayFrom(w.track(i), p), awayFrom(w.track(j), p))) continue;
+                    if (!checkedOld) {
+                        old = acuteBefore(*w.b, t.net, t.layer, p);
+                        checkedOld = true;
+                    }
+                    if (!old) out.push_back({p, i, j});
+                }
+        }
+    }
+    return out;
+}
+
 // ------------------------------------------------------------------------------------------------------ shove
 
 class Shover {
@@ -889,8 +969,128 @@ public:
                 why = "Shoved copper would break clearance";
                 return false;
             }
+        return cleanJoins(why);
+    }
+
+    /// Post-shove optimiser: removes overlaps (0° joins) and chamfers acute joins that shoving made, keeping every
+    /// clearance and connection. Fails when an acute join would be left (the DRC would warn about it).
+    bool cleanJoins(std::string& why) {
+        for (int pass = 0; pass < 8; ++pass) {
+            const auto joins = newAcuteJoins(w_);
+            if (joins.empty()) return true;
+            bool progress = false;
+            for (const auto& j : joins)
+                if (w_.aliveT(j.a) && w_.aliveT(j.b) && fixJoin(j)) progress = true;
+            if (!progress) break;
+        }
+        if (newAcuteJoins(w_).empty()) return true;
+        why = "Shoving here would leave an acute corner";
+        return false;
+    }
+
+private:
+    /// Replaces tracks `olds` by `news` when the new copper keeps clearance and every connection of the old.
+    bool tryReplace(const std::vector<size_t>& olds, const std::vector<Track>& news) {
+        if (olds.empty()) return false;
+        const Track proto = w_.track(olds.front());
+        std::vector<Hit> grand;
+        for (size_t o : olds) {
+            auto g = grandfathered_.find({false, o});
+            if (g != grandfathered_.end()) grand.insert(grand.end(), g->second.begin(), g->second.end());
+            w_.goneT[o] = 1;
+        }
+        std::vector<Hit> before;
+        for (size_t o : olds) {
+            const Track& t = w_.track(o);
+            const auto c = contactsOf(w_, t.net, t.layer, {t.a, t.b}, t.width / 2);
+            before.insert(before.end(), c.begin(), c.end());
+        }
+        std::vector<size_t> added;
+        for (const Track& t : news) added.push_back(w_.addTrack(t, false));
+        auto isNew = [&](const Hit& h) {
+            return h.kind == HitKind::Track && std::find(added.begin(), added.end(), h.index) != added.end();
+        };
+        bool ok = true;
+        std::vector<Hit> after;
+        for (size_t i : added) {
+            const Track& t = w_.track(i);
+            for (const Hit& h : rawHits({false, i}))
+                if (std::find(grand.begin(), grand.end(), h) == grand.end()) ok = false;
+            const auto c = contactsOf(w_, t.net, t.layer, {t.a, t.b}, t.width / 2);
+            for (const Hit& h : c)
+                if (!isNew(h)) after.push_back(h);
+        }
+        auto norm = [](std::vector<Hit>& v) {
+            std::sort(v.begin(), v.end());
+            v.erase(std::unique(v.begin(), v.end()), v.end());
+        };
+        norm(before);
+        norm(after);
+        before.erase(std::remove_if(before.begin(), before.end(),
+                                    [&](const Hit& h) {
+                                        return h.kind == HitKind::Track &&
+                                               std::find(olds.begin(), olds.end(), h.index) != olds.end();
+                                    }),
+                     before.end());
+        ok = ok && std::includes(after.begin(), after.end(), before.begin(), before.end());
+        if (!ok) {
+            for (size_t i : added) w_.goneT[i] = 1;
+            for (size_t o : olds) w_.goneT[o] = 0;
+            return false;
+        }
+        for (size_t i : added) {
+            grandfathered_[{false, i}] = grand;
+            touched_.push_back({false, i});
+        }
+        (void)proto;
         return true;
     }
+
+    bool fixJoin(const AcuteJoin& j) {
+        const Track A = w_.track(j.a), Bt = w_.track(j.b);
+        const Vec2 p = j.at, da = awayFrom(A, p), db = awayFrom(Bt, p);
+        const bool ma = !w_.trackFixed(j.a), mb = !w_.trackFixed(j.b);
+        const double la = da.length(), lb = db.length();
+        if (std::fabs(cross(unit(da), unit(db))) < 1e-6) {
+            // Two tracks running over each other: the longer is trimmed to start where the shorter ends, or the
+            // shorter (covered by the longer) goes.
+            const bool aShort = la <= lb;
+            const size_t s = aShort ? j.a : j.b, l = aShort ? j.b : j.a;
+            const Track& S = aShort ? A : Bt;
+            const Track& Lt = aShort ? Bt : A;
+            const bool ms = aShort ? ma : mb, ml = aShort ? mb : ma;
+            const Vec2 sEnd = otherEnd(S, p), lEnd = otherEnd(Lt, p);
+            if (ml) {
+                std::vector<Track> rest;
+                if ((lEnd - sEnd).length() > 1e-6) {
+                    Track t = Lt;
+                    t.a = sEnd;
+                    t.b = lEnd;
+                    rest.push_back(t);
+                }
+                if (tryReplace({l}, rest)) return true;
+            }
+            return ms && S.width <= Lt.width + 1e-9 && tryReplace({s}, {});
+        }
+        if (!ma || !mb || A.layer != Bt.layer || endsAt(w_, A.net, A.layer, p).size() != 2) return false;
+        const double wd = std::min(A.width, Bt.width);
+        for (double cut : {wd, 2 * wd, 0.5 * wd, 4 * wd, 0.25 * wd}) {
+            if (cut >= 0.5 * la || cut >= 0.5 * lb) continue;
+            const Vec2 p1 = p + unit(da) * cut, p2 = p + unit(db) * cut;
+            Track a2 = A, b2 = Bt, c = wd == A.width ? A : Bt;
+            a2.a = p1;
+            a2.b = otherEnd(A, p);
+            b2.a = p2;
+            b2.b = otherEnd(Bt, p);
+            c.a = p1;
+            c.b = p2;
+            if (acuteAway(a2.b - p1, p2 - p1) || acuteAway(b2.b - p2, p1 - p2)) continue;
+            if (tryReplace({j.a, j.b}, {a2, c, b2})) return true;
+        }
+        return false;
+    }
+
+public:
 
 private:
     struct Item {
@@ -1128,14 +1328,22 @@ private:
                     clear = true;
                     break;
                 }
-                if (h.kind != HitKind::Pad && h.kind != HitKind::Track && h.kind != HitKind::Via) {
+                if (h.kind == HitKind::Hole) {
+                    // A mounting-hole keep-out is a circle the line walks round (no clearance beyond the keep-out).
+                    const auto& mh = B_.s.holes[h.index];
+                    hull = makeOctagon({mh.position}, mh.keepout / 2 + hw + kMargin);
+                } else if (h.kind == HitKind::Mesh) {
+                    const Rect& r = B_.meshes[h.index].region;
+                    hull = makeOctagon({{r.x0, r.y0}, {r.x1, r.y0}, {r.x1, r.y1}, {r.x0, r.y1}}, hw + kMargin);
+                } else if (h.kind != HitKind::Pad && h.kind != HitKind::Track && h.kind != HitKind::Via) {
                     why = "A track of " + B_.netName(L.net) + " cannot be shoved past " + describeHit(w_, h);
                     restore();
                     return false;
+                } else {
+                    const Shape s = shapeOfHit(h);
+                    const bool barrier = h.kind == HitKind::Pad && B_.barrierComps.count(B_.pads[h.index].componentId) > 0;
+                    hull = makeOctagon(s.points(), s.radius + B_.clearance(L.net, netOfHit(h), barrier) + hw + kMargin);
                 }
-                const Shape s = shapeOfHit(h);
-                const bool barrier = h.kind == HitKind::Pad && B_.barrierComps.count(B_.pads[h.index].componentId) > 0;
-                hull = makeOctagon(s.points(), s.radius + B_.clearance(L.net, netOfHit(h), barrier) + hw + kMargin);
             }
             std::vector<Vec2> c1, c2;
             const bool ok1 = walkAround(pts, hull, true, c1), ok2 = walkAround(pts, hull, false, c2);
@@ -1230,6 +1438,10 @@ private:
         std::vector<std::pair<double, int>> cand;
         for (int k = 0; k < 8; ++k) cand.push_back({std::max(0.0, hull.h[k] - kDirs[k].dot(v.position)), k});
         std::sort(cand.begin(), cand.end());
+        // Further out on the same sides (one via pitch beyond), tried only when no nearest side is free.
+        const double pitch = v.diameter + B_.s.clearance;
+        for (int k = 0; k < 8; ++k) cand.push_back({std::max(0.0, hull.h[k] - kDirs[k].dot(v.position)) + pitch, k});
+        std::sort(cand.begin() + 8, cand.end());
         w_.goneV[vi] = 1;
         for (const auto& a : attached)
             for (size_t s : a.line.segs) w_.goneT[s] = 1;
@@ -1607,6 +1819,8 @@ struct InteractiveRouter::Impl {
         Vec2 a, b, grab, dir, normal;
         Vec2 anchorA, anchorB;
         bool anchoredA = true, anchoredB = true;
+        /// Direction of the copper beyond a free anchor: arriving at anchorA / leaving anchorB (0 = none or several).
+        Vec2 intoA, outOfB;
     } drag;
 
     /// Via drag: the via and the lines that end on it (each oriented to start at the via).
@@ -1747,6 +1961,11 @@ struct InteractiveRouter::Impl {
         members = {m};
         kind = Kind::Route;
         startSession({st.net});
+        // Starting at the free end of a track: the route continues it, so its first corner must not fold back.
+        if (st.pad < 0 && !joinCovered(committed, st.net, l, st.point)) {
+            const auto at = endsAt(committed, st.net, l, st.point);
+            if (at.size() == 1) lastDir = st.point - otherEnd(committed.track(at[0]), st.point);
+        }
         status = "Routing " + base->netName(st.net);
         buildPreview();
         return true;
@@ -1879,8 +2098,8 @@ struct InteractiveRouter::Impl {
         std::vector<Vec2> pts;
     };
 
-    /// Lays the head lines into `w` as fixed copper and makes room for them (shove) or checks them (walkaround).
-    bool placeHead(World& w, const std::vector<HeadLine>& lines, bool shove, std::string& why) const {
+    /// Adds the head lines to `w` as fixed copper (no checks).
+    std::vector<size_t> addHeadLines(World& w, const std::vector<HeadLine>& lines) const {
         std::vector<size_t> added;
         for (const auto& hl : lines)
             for (size_t k = 0; k + 1 < hl.pts.size(); ++k) {
@@ -1893,6 +2112,14 @@ struct InteractiveRouter::Impl {
                 t.b = hl.pts[k + 1];
                 added.push_back(w.addTrack(t, true));
             }
+        return added;
+    }
+
+    bool highlight() const { return opt.mode == RouterMode::Highlight; }
+
+    /// Lays the head lines into `w` as fixed copper and makes room for them (shove) or checks them (walkaround).
+    bool placeHead(World& w, const std::vector<HeadLine>& lines, bool shove, std::string& why) const {
+        const std::vector<size_t> added = addHeadLines(w, lines);
         if (shove) {
             Shover sh(w, opt);
             return sh.run(added, {}, why);
@@ -1905,6 +2132,10 @@ struct InteractiveRouter::Impl {
                 return false;
             }
         }
+        if (!newAcuteJoins(w).empty()) {
+            why = "The head would make an acute corner here";
+            return false;
+        }
         return true;
     }
 
@@ -1916,6 +2147,16 @@ struct InteractiveRouter::Impl {
         const bool shove = opt.mode == RouterMode::Shove;
         std::string why, firstWhy;
         blocked = false;
+        if (highlight()) {
+            // Straight where pointed: nothing moves, nothing stops the head; collisions are listed in the preview.
+            std::vector<Vec2> c = candidates.empty() ? std::vector<Vec2>{} : candidates.front();
+            if (c.size() < 2) c = walkSearch().pts;
+            World w = committed;
+            if (c.size() >= 2) addHeadLines(w, build(c, true));
+            current = w;
+            chosen = c.size() >= 2 ? c : std::vector<Vec2>{};
+            return;
+        }
         for (const auto& c : candidates) {
             World w = committed;
             if (placeHead(w, build(c, true), shove, why)) {
@@ -2118,6 +2359,13 @@ struct InteractiveRouter::Impl {
                     const Track& n = committed.track(at[0]);
                     anchor = samePoint(n.a, p) ? n.b : n.a;
                     committed.goneT[at[0]] = 1;
+                    // The track beyond the anchor: the dragged legs must not fold back onto it (acute corner).
+                    const auto beyond = tracksEndingAt(committed, t.net, t.layer, anchor, at[0]);
+                    if (beyond.size() == 1) {
+                        const Track& f = committed.track(beyond[0]);
+                        const Vec2 far = samePoint(f.a, anchor) ? f.b : f.a;
+                        (e == 0 ? drag.intoA : drag.outOfB) = e == 0 ? anchor - far : far - anchor;
+                    }
                 } else {
                     anchored = true;
                 }
@@ -2152,7 +2400,7 @@ struct InteractiveRouter::Impl {
             auto links = postureLinks(drag.anchorA, a1, opt.posture, false);
             std::vector<Vec2> pick = links.front();
             for (const auto& l : links)
-                if (l.size() < 2 || !acuteJoin(l.back() - l[l.size() - 2], drag.dir)) {
+                if (l.size() < 2 || (!acuteJoin(l.back() - l[l.size() - 2], drag.dir) && !acuteJoin(drag.intoA, l[1] - l[0]))) {
                     pick = l;
                     break;
                 }
@@ -2168,7 +2416,7 @@ struct InteractiveRouter::Impl {
             auto links = postureLinks(b1, drag.anchorB, opt.posture, false);
             std::vector<Vec2> pick = links.front();
             for (const auto& l : links)
-                if (l.size() < 2 || !acuteJoin(drag.dir, l[1] - l[0])) {
+                if (l.size() < 2 || (!acuteJoin(drag.dir, l[1] - l[0]) && !acuteJoin(l.back() - l[l.size() - 2], drag.outOfB))) {
                     pick = l;
                     break;
                 }
@@ -2186,6 +2434,12 @@ struct InteractiveRouter::Impl {
         status = "Dragging a track of " + base->netName(m.net);
         auto tryDelta = [&](double d, World& w) { return placeHead(w, {{m.net, dragPath(d)}}, shove, why); };
         World w = committed;
+        if (highlight()) {
+            addHeadLines(w, {{m.net, dragPath(delta)}});
+            current = w;
+            m.head = dragPath(delta);
+            return;
+        }
         if (tryDelta(delta, w)) {
             current = w;
             m.head = dragPath(delta);
@@ -2318,6 +2572,7 @@ struct InteractiveRouter::Impl {
         std::vector<size_t> tracks;
         for (const Track& t : viaLines(pos)) tracks.push_back(w.addTrack(t, true));
         const size_t vi = w.addVia(nv, true);
+        if (highlight()) return true;
         if (opt.mode == RouterMode::Shove) {
             Shover sh(w, opt);
             return sh.run(tracks, {vi}, why);
@@ -2333,6 +2588,10 @@ struct InteractiveRouter::Impl {
                 why = "Blocked by " + describeHit(w, hits.front());
                 return false;
             }
+        }
+        if (!newAcuteJoins(w).empty()) {
+            why = "The via's tracks would make an acute corner here";
+            return false;
         }
         return true;
     }
@@ -2514,6 +2773,8 @@ struct InteractiveRouter::Impl {
         if (opt.mode == RouterMode::Shove) {
             Shover sh(w, opt);
             ok = sh.run(newTracks, newVias, why);
+        } else if (highlight()) {
+            ok = true;  // placed as asked; the preview lists what it violates
         } else {
             ok = true;
             for (size_t i : newVias) {
@@ -2627,6 +2888,73 @@ struct InteractiveRouter::Impl {
         return ch;
     }
 
+    /// What the session's own copper (route, dragged track or via) violates in the current overlay.
+    std::vector<RouteCollision> collisions() const {
+        std::vector<RouteCollision> out;
+        std::set<Hit> seen;
+        const World& w = current;
+        auto record = [&](const Hit& h, Vec2 a, Vec2 b) {
+            if (!seen.insert(h).second) return;
+            RouteCollision c;
+            c.at = (a + b) * 0.5;
+            switch (h.kind) {
+                case HitKind::Pad: {
+                    const Pad& pd = w.b->pads[h.index];
+                    c.kind = "pad";
+                    c.a = pd.position;
+                    c.size = pd.size;
+                    c.at = closestOnSegment(pd.position, a, b);
+                    break;
+                }
+                case HitKind::Track: {
+                    const Track& t = w.track(h.index);
+                    c.kind = "track";
+                    c.id = h.index < w.baseT() ? t.id : -1;
+                    c.a = t.a;
+                    c.b = t.b;
+                    c.width = t.width;
+                    break;
+                }
+                case HitKind::Via: {
+                    const Via& v = w.via(h.index);
+                    c.kind = "via";
+                    c.id = h.index < w.baseV() ? v.id : -1;
+                    c.a = v.position;
+                    c.width = v.diameter;
+                    c.at = closestOnSegment(v.position, a, b);
+                    break;
+                }
+                case HitKind::Edge: c.kind = "edge"; break;
+                case HitKind::Hole:
+                    c.kind = "hole";
+                    c.a = w.b->s.holes[h.index].position;
+                    c.width = w.b->s.holes[h.index].keepout;
+                    c.at = closestOnSegment(c.a, a, b);
+                    break;
+                case HitKind::Plane: c.kind = "plane"; break;
+                case HitKind::Mesh: c.kind = "mesh"; break;
+            }
+            out.push_back(c);
+        };
+        std::vector<Hit> hits;
+        for (size_t k = 0; k < w.addT.size(); ++k) {
+            const size_t i = w.baseT() + k;
+            if (!w.aliveT(i) || !w.fixAddT[k]) continue;
+            const Track& t = w.track(i);
+            hits.clear();
+            segmentHits(w, {t.net}, t.layer, t.a, t.b, t.width / 2, &hits);
+            for (const Hit& h : hits) record(h, t.a, t.b);
+        }
+        for (size_t k = 0; k < w.addV.size(); ++k) {
+            const size_t i = w.baseV() + k;
+            if (!w.aliveV(i) || !w.fixAddV[k]) continue;
+            hits.clear();
+            viaHits(w, w.via(i), i, &hits);
+            for (const Hit& h : hits) record(h, w.via(i).position, w.via(i).position);
+        }
+        return out;
+    }
+
     void buildPreview() {
         RoutePreview p;
         p.active = kind != Kind::None;
@@ -2675,6 +3003,12 @@ struct InteractiveRouter::Impl {
         } else if (!members.empty()) {
             for (const Track& t : members[0].placed) p.length += (t.b - t.a).length();
             p.length += pathLength(members[0].head);
+        }
+        if (highlight()) {
+            p.collisions = collisions();
+            if (!p.collisions.empty())
+                p.status = std::to_string(p.collisions.size()) +
+                           (p.collisions.size() == 1 ? " collision" : " collisions") + " — the DRC will report them";
         }
         // The net's whole length: its copper in the overlay (the session's own pieces aside) plus the route.
         if (!members.empty()) {
@@ -2939,6 +3273,7 @@ RouterOptions routerOptionsFromJson(const Json& j, RouterOptions o) {
     const std::string mode = j.get("mode").asString(std::string());
     if (mode == "shove") o.mode = RouterMode::Shove;
     if (mode == "walkaround") o.mode = RouterMode::Walkaround;
+    if (mode == "highlight") o.mode = RouterMode::Highlight;
     const Json& posture = j.get("posture");
     const std::string ps = posture.isNumber() ? std::to_string(posture.asInt()) : posture.asString(std::string());
     if (ps == "45") o.posture = RoutePosture::Diagonal45;
@@ -2992,6 +3327,23 @@ Json routePreviewJson(const RoutePreview& p) {
     j["shovedVias"] = vias(p.shovedVias);
     j["hiddenTracks"] = ids(p.hiddenTracks);
     j["hiddenVias"] = ids(p.hiddenVias);
+    Json col = Json::array();
+    for (const RouteCollision& c : p.collisions) {
+        Json k = Json::object();
+        k["kind"] = c.kind;
+        k["id"] = c.id;
+        k["x"] = c.at.x;
+        k["y"] = c.at.y;
+        k["ax"] = c.a.x;
+        k["ay"] = c.a.y;
+        k["bx"] = c.b.x;
+        k["by"] = c.b.y;
+        k["w"] = c.size.x;
+        k["h"] = c.size.y;
+        k["width"] = c.width;
+        col.push(k);
+    }
+    j["collisions"] = col;
     return j;
 }
 

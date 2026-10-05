@@ -570,3 +570,5 @@
 "Meander height limit in mm (empty: 2 mm)" = "ミアンダ高さの上限（mm、空欄：2 mm）";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "ミアンダの脚の間隔（エッジ間、mm、空欄：中心間でトラック幅の3倍）";
 "Tune to the longest member of the net's differential pair or bus" = "ネットの差動ペアまたはバスの最長メンバーに合わせる";
+"Highlight" = "ハイライト";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red" = "押しのけは他ネットの配線とビアを押しやり、回避はそれらを迂回し、ハイライトは指した位置へ進んですべての衝突を赤で示します";

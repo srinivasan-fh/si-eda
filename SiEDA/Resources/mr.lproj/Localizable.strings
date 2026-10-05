@@ -570,3 +570,5 @@
 "Meander height limit in mm (empty: 2 mm)" = "मिअँडर उंचीची मर्यादा mm मध्ये (रिकामे: 2 mm)";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "मिअँडर भुजांमधील कडेपासून कडेपर्यंत अंतर mm मध्ये (रिकामे: केंद्रांमध्ये तीन ट्रॅक रुंदी)";
 "Tune to the longest member of the net's differential pair or bus" = "नेटच्या डिफरेन्शियल जोडी किंवा बसमधील सर्वात लांब सदस्यानुसार ट्यून करा";
+"Highlight" = "हायलाइट";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red" = "ढकला इतर नेटचे ट्रॅक आणि वाया बाजूला सारते; वळसा त्यांच्या भोवती रूट करते; हायलाइट तुम्ही दाखवाल तिथे जाते आणि प्रत्येक टक्कर लाल रंगात दाखवते";

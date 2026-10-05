@@ -9081,3 +9081,130 @@ TEST(c_api_router_drag_and_tune) {
     if (rc != 0) std::printf("    c api drag / tune step %d failed\n", rc);
     CHECK(rc == 0);
 }
+
+TEST(router_shoved_copper_adds_no_drc_warning) {
+    // Routes, drags and via drags with shove at pseudo-random spots of autorouted boards (several seeds, 2 and 4
+    // layers): no commit may add a DRC error, a clearance warning or an acute-angle warning.
+    int commits = 0, shoved = 0, newAcute = 0;
+    for (unsigned seed : {7u, 11u, 2024u, 99u}) {
+        auto rnd = [&seed] {
+            seed = seed * 1103515245u + 12345u;
+            return ((seed >> 8) & 0xFFFFFF) / double(0xFFFFFF);
+        };
+        Project p;
+        auto& s = p.schematic;
+        std::vector<int> ids;
+        for (int i = 0; i < 24; ++i) ids.push_back(s.addComponent(ComponentKind::Resistor, "1k", {(i % 6) * 100.0, (i / 6) * 100.0}));
+        for (size_t k = 0; k < ids.size(); ++k) {
+            const size_t other = static_cast<size_t>(rnd() * ids.size()) % ids.size();
+            if (other != k) s.connect({ids[k], 1}, {ids[other], 0});
+        }
+        p.pcb.settings.width = 40;
+        p.pcb.settings.height = 30;
+        p.pcb.settings.layerCount = seed % 2 ? 2 : 4;
+        p.schematicChanged();
+        p.pcb.autoPlace(s, true);
+        p.pcb.autoRoute(s);
+        int acute = acuteWarnings(p);
+        CHECK(routingProblems(p) == 0);
+        for (int it = 0; it < 40; ++it) {
+            InteractiveRouter r(p.pcb, s);
+            const double pick = rnd();
+            bool ok = false;
+            if (pick < 0.3 && !p.pcb.tracks.empty()) {
+                const Track& t = p.pcb.tracks[static_cast<size_t>(rnd() * p.pcb.tracks.size()) % p.pcb.tracks.size()];
+                ok = r.beginDrag(t.id, (t.a + t.b) * 0.5);
+            } else if (pick < 0.45 && !p.pcb.vias.empty()) {
+                const Via& v = p.pcb.vias[static_cast<size_t>(rnd() * p.pcb.vias.size()) % p.pcb.vias.size()];
+                ok = r.beginViaDrag(v.id, v.position);
+            } else {
+                const auto pads = p.pcb.pads(s);
+                const Pad& pd = pads[static_cast<size_t>(rnd() * pads.size()) % pads.size()];
+                ok = r.beginRoute(pd.position, 0);
+            }
+            if (!ok) continue;
+            const Vec2 at = r.preview().end;
+            const bool local = r.preview().kind != "route";
+            for (int m = 0; m < 3; ++m) {
+                const Vec2 c = local ? at + Vec2{(rnd() - 0.5) * 2, (rnd() - 0.5) * 2}
+                                     : Vec2{rnd() * p.pcb.settings.width, rnd() * p.pcb.settings.height};
+                shoved += r.moveTo(c).shovedTracks.empty() ? 0 : 1;
+                if (!local && rnd() < 0.5) r.fixHead();
+            }
+            if (!r.commit().ok) continue;
+            ++commits;
+            const int problems = routingProblems(p);
+            CHECK(problems == 0);
+            const int now = acuteWarnings(p);
+            if (now > acute) {
+                ++newAcute;
+                std::printf("    seed %u step %d: %d new acute-angle warning(s)\n", seed, it, now - acute);
+            }
+            acute = now;
+            if (problems) break;
+        }
+    }
+    std::printf("    %d commits, %d shoving moves, %d commits added acute angles\n", commits, shoved, newAcute);
+    CHECK(commits >= 80);
+    CHECK(shoved > 20);
+    CHECK(newAcute == 0);
+}
+
+TEST(router_shoves_lines_around_hole_keepouts) {
+    // Net B runs straight down x = 21; a mounting hole sits just right of it. Routing net A up to x = 21.6 pushes B
+    // right, into the keep-out: B walks round the keep-out instead of refusing (which left the head blocked).
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20});
+    const int r3 = placeR(p, {21, 8}, 90), r4 = placeR(p, {21, 32}, 90);
+    const int r5 = placeR(p, {40, 20});
+    wire(s, r1, "2", r5, "1");
+    wire(s, r3, "2", r4, "1");
+    p.schematicChanged();
+    p.pcb.settings.holes.push_back({{23, 20}, 1.0, 2.0});
+    const int netB = s.netOf({r3, 1});
+    addPath(p.pcb, netB, 0, 0.25, {padAt(p, r3, 1), padAt(p, r4, 0)});
+    CHECK(routingProblems(p) == 0);
+    InteractiveRouter r(p.pcb, s);
+    CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+    const RoutePreview& pv = r.moveTo({21.6, 20});
+    CHECK(!pv.blocked);
+    CHECK(!pv.shovedTracks.empty());
+    bool beyondHole = false;
+    for (const auto& t : pv.shovedTracks) beyondHole = beyondHole || std::max(t.a.x, t.b.x) > 24;
+    CHECK(beyondHole);
+    CHECK(r.commit().ok);
+    CHECK(routingProblems(p) == 0);
+    CHECK(acuteWarnings(p) == 0);
+    CHECK(netRouted(p, netB));
+}
+
+TEST(router_highlights_collisions) {
+    // Highlight mode: the head goes straight through the lanes; nothing moves and each lane it crosses is listed.
+    LaneBoard b = laneBoard();
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    RouterOptions o;
+    o.mode = RouterMode::Highlight;
+    r.setOptions(o);
+    CHECK(r.beginRoute(b.from, 0));
+    const RoutePreview& pv = r.moveTo({b.from.x, 4});
+    CHECK(!pv.blocked);
+    CHECK(pv.shovedTracks.empty() && pv.hiddenTracks.empty());
+    std::set<int> lanes;
+    for (const auto& c : pv.collisions)
+        if (c.kind == "track")
+            for (const auto& t : b.p.pcb.tracks)
+                if (t.id == c.id) lanes.insert(t.net);
+    CHECK(lanes.size() == 3);
+    CHECK(pv.status.find("collision") != std::string::npos);
+    CHECK(routePreviewJson(pv).dump().find("\"kind\":\"track\"") != std::string::npos);
+    CHECK(routerOptionsFromJson(Json::parse("{\"mode\":\"highlight\"}")).mode == RouterMode::Highlight);
+    // Placed as asked: the DRC reports the crossings.
+    CHECK(r.commit().ok);
+    CHECK(routingProblems(b.p) > 0);
+    // The other modes never report collisions.
+    LaneBoard c = laneBoard();
+    InteractiveRouter rs(c.p.pcb, c.p.schematic);
+    CHECK(rs.beginRoute(c.from, 0));
+    CHECK(rs.moveTo({c.from.x, 4}).collisions.empty());
+}

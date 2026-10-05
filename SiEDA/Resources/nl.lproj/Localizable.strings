@@ -570,3 +570,5 @@
 "Meander height limit in mm (empty: 2 mm)" = "Maximale meanderhoogte in mm (leeg: 2 mm)";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Afstand tussen meanderbenen, rand tot rand, in mm (leeg: drie spoorbreedtes hart op hart)";
 "Tune to the longest member of the net's differential pair or bus" = "Afstemmen op het langste lid van het differentiële paar of de bus van het net";
+"Highlight" = "Markeren";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red" = "Duwen schuift sporen en via's van andere netten opzij; Omheen loopt eromheen; Markeren gaat waar u wijst en kleurt elke botsing rood";

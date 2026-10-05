@@ -21,6 +21,17 @@ namespace sieda {
 enum class RouterMode {
     Walkaround,  // the head goes around everything that is in its way
     Shove,       // the head pushes other nets' tracks and vias aside; falls back to walkaround when that fails
+    Highlight,   // the head goes where it is pointed; nothing moves and what it violates is listed (`collisions`)
+};
+
+/// Copper (or a board rule) the route violates in Highlight mode. `kind` is "track", "via", "pad", "edge", "hole",
+/// "plane" or "mesh"; `at` is the nearest point of the route; tracks give `a`-`b` and `width`, vias `a` and `width`
+/// (diameter), pads `a` (centre) and `size`.
+struct RouteCollision {
+    std::string kind;
+    int id = -1;  // track / via id on the board (-1 for pads, board rules and copper the session moved)
+    Vec2 at, a, b, size;
+    double width = 0;
 };
 
 enum class RoutePosture {
@@ -83,6 +94,8 @@ struct RoutePreview {
     /// the length it should match: the longest other member of its matched-length group (0 = not in a group).
     double netLength = 0;
     double targetLength = 0;
+    /// Highlight mode: what the route's copper violates (empty in the other modes, which never violate anything).
+    std::vector<RouteCollision> collisions;
 };
 
 class InteractiveRouter {

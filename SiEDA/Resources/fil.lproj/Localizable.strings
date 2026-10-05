@@ -570,3 +570,5 @@
 "Meander height limit in mm (empty: 2 mm)" = "Hangganan ng taas ng meander sa mm (walang laman: 2 mm)";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Pagitan ng mga binti ng meander, gilid sa gilid, sa mm (walang laman: tatlong lapad ng track sa pagitan ng mga gitna)";
 "Tune to the longest member of the net's differential pair or bus" = "I-tune sa pinakamahabang miyembro ng differential pair o bus ng net";
+"Highlight" = "I-highlight";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red" = "Itinutulak ng Shove ang mga track at via ng ibang net; Iniikutan sila ng Walk around; Pumupunta ang Highlight kung saan ka tumuturo at minamarkahan ng pula ang bawat banggaan";

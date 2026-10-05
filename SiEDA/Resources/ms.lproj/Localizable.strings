@@ -570,3 +570,5 @@
 "Meander height limit in mm (empty: 2 mm)" = "Had tinggi liku dalam mm (kosong: 2 mm)";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Jarak antara kaki liku, tepi ke tepi, dalam mm (kosong: tiga lebar trek antara pusat)";
 "Tune to the longest member of the net's differential pair or bus" = "Tala kepada ahli terpanjang pasangan pembeza atau bas net";
+"Highlight" = "Serlah";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red" = "Tolak menolak trek dan via net lain ke tepi; Kelilingi mengelak di sekelilingnya; Serlah pergi ke tempat yang anda tunjuk dan menanda setiap perlanggaran dengan merah";

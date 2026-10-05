@@ -4983,4 +4983,17 @@ final class InteractiveRoutingStoreTests: XCTestCase {
         store.cancelTune()
         XCTAssertNil(store.tuneSession)
     }
+
+    func testHighlightModeListsCollisions() throws {
+        let store = try routedStore()
+        store.routerMode = .highlight
+        store.beginRoute(at: CGPoint(x: 39.05, y: 20), layer: 0, pair: false)
+        XCTAssertNotNil(store.routePreview)
+        // Straight off the board: nothing stops the head, the edge is listed as a collision.
+        let preview = try XCTUnwrap(store.engine.routerMove(to: CGPoint(x: 39.05, y: -5)))
+        XCTAssertFalse(preview.blocked)
+        XCTAssertTrue(preview.collisions?.contains { $0.kind == "edge" } ?? false)
+        store.cancelRoute()
+        XCTAssertNil(store.routePreview)
+    }
 }

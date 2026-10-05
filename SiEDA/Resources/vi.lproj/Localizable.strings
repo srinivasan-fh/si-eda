@@ -570,3 +570,5 @@
 "Meander height limit in mm (empty: 2 mm)" = "Giới hạn chiều cao uốn khúc, mm (để trống: 2 mm)";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Khe giữa các nhánh uốn khúc, mép tới mép, mm (để trống: ba lần bề rộng đường giữa các tâm)";
 "Tune to the longest member of the net's differential pair or bus" = "Tinh chỉnh theo thành viên dài nhất của cặp vi sai hoặc bus của net";
+"Highlight" = "Đánh dấu";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red" = "Đẩy sẽ đẩy đường mạch và via của net khác sang bên; Đi vòng sẽ đi vòng quanh chúng; Đánh dấu đi tới nơi bạn chỉ và tô đỏ mọi va chạm";
