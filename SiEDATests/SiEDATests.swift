@@ -4526,6 +4526,7 @@ final class LocalizationTests: XCTestCase {
     }
 }
 
+@MainActor
 final class PartQueryTests: XCTestCase {
     func testParametricFiltersParseAndMatch() {
         let query = PartQuery("cat:sensors pkg:soic-8 pins:8 temperature")

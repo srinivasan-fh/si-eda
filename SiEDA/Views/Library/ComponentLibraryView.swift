@@ -649,7 +649,7 @@ struct ComponentLibraryView: View {
         panel.allowsMultipleSelection = true
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
-        panel.allowedContentTypes = Self.libraryExtensions.compactMap { UTType(filenameExtension: $0) } + [.folder]
+        panel.allowedContentTypes = Self.libraryExtensions.compactMap { UTType(filenameExtension: $0) } + [UTType.folder]
         panel.message = "Choose KiCad footprints (.kicad_mod), symbol libraries (.kicad_sym), Eagle libraries (.lbr) or folders of them."
         guard panel.runModal() == .OK else { return }
         let files = Self.libraryFiles(at: panel.urls)
