@@ -592,8 +592,11 @@ const uint32_t* sieda_mesh_indices(const SiedaMesh* mesh);
 /* ---- schematic capture: repeated sheets ----------------------------------------------------- */
 /* Repeated (multi-instance) sheet: one block drawn once and used `count` times (the sheet itself is the first
  * channel). Each extra channel is a sheet of its own ("<name> [B]" …, same parent) holding copies of the block with
- * their own designators, nets, footprints and variant settings; edits to any channel go to the block. Only a sheet
- * without child sheets can be repeated; 1 ends the repetition. Returns the number of channels, or -1.
+ * their own designators, nets, footprints and variant settings; edits to any channel go to the block. A sheet whose
+ * child sheets are all repeated blocks can be repeated too (nested repetition: each channel gets its own channels of
+ * the inner blocks, "Sub [B/A]", designators R1_B_A); a block inside a repeated block is repeated per outer channel.
+ * 1 ends the repetition. Returns the number of channels (per parent channel), or -1. Repeated sheets also report
+ * "channels" (the repeat count) and "path" ("B/A").
  * sieda_sheets_json and the snapshot add "instanceOf" (definition sheet; 0 on the definition), "channel", "refs" and
  * "instances" to repeated sheets; components add "instanceOf" (the block part copied) and "logicalRef". */
 int32_t sieda_repeat_sheet(SiedaProject* project, int32_t sheet, int32_t count);
@@ -692,6 +695,94 @@ char* sieda_measure_waveform(const char* request_json);
  * "adaptive": bool (step from the local truncation error, landing on every PULSE edge),"reltol" (1e-3),"vntol"
  * (1e-6 V),"maxStep" (adaptive; default the step)}. Convergence aids are on. Same result JSON. */
 char* sieda_simulate_transient_ex(const SiedaProject* project, const char* options_json);
+
+/* ---- schematic capture: channel parameters (docs/SCHEMATIC.md) -------------------------------------------------- */
+/* A part of a repeated sheet takes its own value / package in one channel (empty value: the block's again). On the
+ * block's own channel the other channels keep their current value. Elsewhere it is an ordinary value change. The
+ * snapshot reports an overridden channel's "channelOverride" (1 value, 2 package) and "blockValue". 1 on success. */
+int32_t sieda_set_channel_value(SiedaProject* project, int32_t component, const char* value);
+int32_t sieda_set_channel_package(SiedaProject* project, int32_t component, const char* package);
+int32_t sieda_clear_channel_overrides(SiedaProject* project, int32_t component);
+
+/* ---- schematic capture: units (gates) --------------------------------------------------------------------------- */
+/* A multi-unit spec's units may carry "swap" (0 automatic: identical gates are interchangeable; n > 0 a swap group;
+ * -1 never) and "pinSwap" ([["1","2"]]: interchangeable pins of the unit). Unit editor checks of a spec:
+ * [{severity,code,message,pins}] with codes UNIT_INVALID, UNIT_DUPLICATE, UNIT_EMPTY, UNIT_UNKNOWN_PIN,
+ * UNIT_PIN_TWICE, UNIT_SWAP_PIN (errors), UNIT_SHARED_SIGNAL, UNIT_UNASSIGNED_SIGNAL, UNIT_SWAP_MISMATCH,
+ * UNIT_SWAP_TYPES (warnings), UNIT_SHARED, UNIT_POWER (info). Caller frees. */
+char* sieda_check_units(const char* spec_json);
+/* Gate swap: two placed units of interchangeable gates of the same part and value on one sheet exchange their gates
+ * (package and unit); symbols and wires stay. Pin swap: two pins of a unit in one pin-swap group exchange their
+ * wires. 1 on success, 0 when not allowed. */
+int32_t sieda_swap_units(SiedaProject* project, int32_t unit_a, int32_t unit_b);
+int32_t sieda_swap_pins(SiedaProject* project, int32_t component, int32_t pin_a, int32_t pin_b);
+
+/* Makes a net label an entry of a bus on the same sheet (bus 0: an ordinary label again). 1 on success. */
+int32_t sieda_set_label_bus(SiedaProject* project, int32_t label, int32_t bus);
+
+/* ---- schematic capture: signal harnesses (docs/SCHEMATIC.md) -------------------------------------------------- */
+/* A harness type is a named bundle of signals: [{"name":"USB","entries":["DP","DN","VBUS"]}]. A harness label (net
+ * label with "harnessType") stands for a bundle named by its value ("USB1"); its entries (labels with "harnessOf" =
+ * the harness label) join the member nets "USB1.DP" … on their sheet. A harness port and its harness sheet entry, or
+ * global harness labels, carry every member across sheets. The snapshot lists "harnessTypes" and, per component,
+ * "harnessType" / "harnessOf". */
+char* sieda_harness_types_json(const SiedaProject* project);
+/* Defines or replaces a type (entries_json ["DP","DN",…]); empty or NULL entries remove it. 1 on success. */
+int32_t sieda_set_harness_type(SiedaProject* project, const char* name, const char* entries_json);
+/* Makes a net label a harness label of `type` ("" = an ordinary label again). 1 on success. */
+int32_t sieda_set_label_harness(SiedaProject* project, int32_t label, const char* type);
+/* Harness connector on the active sheet: a harness label `name` of `type` with one entry per member. Its id or -1. */
+int32_t sieda_add_harness_connector(SiedaProject* project, const char* type, const char* name, double x, double y);
+/* Adds the missing member entries of a harness label. The number added, or -1. */
+int32_t sieda_place_harness_entries(SiedaProject* project, int32_t label);
+
+/* ---- schematic capture: directives (docs/SCHEMATIC.md) --------------------------------------------------------- */
+/* The schematic is the source of the board's net rules. A net class {"name","trackWidth"?,"clearance"?} (mm; 0 = the
+ * board default); a directive {"component","pin","netClass"?,"diffPair"?,"trackWidth"?,"clearance"?} on the net of a
+ * pin (a parameter set overrides its class; diffPair pairs the net with its X_P / X_N partner). Every change carries
+ * the rules into the board settings (net widths and clearances) used by routing and DRC. The snapshot lists
+ * "netClassDefs" and "directives" (with "net" / "netName"). 1 on success; add returns the id or -1. */
+int32_t sieda_set_net_class(SiedaProject* project, const char* json);
+int32_t sieda_remove_net_class(SiedaProject* project, const char* name);
+int32_t sieda_add_directive(SiedaProject* project, const char* json);
+int32_t sieda_update_directive(SiedaProject* project, int32_t id, const char* json);
+int32_t sieda_remove_directive(SiedaProject* project, int32_t id);
+/* [{net,netName,netClass,trackWidth,clearance,diffPair,partner}] for every net a directive reaches. Caller frees. */
+char* sieda_net_rules_json(const SiedaProject* project);
+
+/* ---- schematic capture: editing, back-annotation, templates and PDF (docs/SCHEMATIC.md) -------------------------- */
+/* Aligns / distributes components (ids_json [id,…]); mode "left","right","top","bottom","centerX","centerY",
+ * "distributeX","distributeY". The number moved, or -1. */
+int32_t sieda_align_components(SiedaProject* project, const char* ids_json, const char* mode);
+/* Clipboard JSON of components and the wires between them ("sieda.schematic-clip/1"). Caller frees. */
+char* sieda_copy_components(const SiedaProject* project, const char* ids_json);
+/* Pastes a clipboard on the active sheet: options {"dx","dy","count","stepX","stepY","labelIncrement"} (a paste array:
+ * `count` copies, each `step` further; label numbers counted up). Parts get the next free designators. Returns the new
+ * ids [id,…], or NULL. Caller frees. */
+char* sieda_paste_components(SiedaProject* project, const char* clip_json, const char* options_json);
+/* Two pins of a part exchange their wires (back-annotated pin swap). 1 on success. */
+int32_t sieda_swap_pin_connections(SiedaProject* project, int32_t component, int32_t pin_a, int32_t pin_b);
+/* Back-annotation (ECO): designators re-numbered by board position, or the changes of a WAS / IS text ("OLD NEW",
+ * "PINSWAP REF P1 P2", "GATESWAP U1A U2B"). [{kind:"rename"|"pinSwap"|"gateSwap"|"invalid",component,from,to,pinA,pinB,
+ * other,applicable,note}]; nothing is applied. Caller frees. */
+char* sieda_reannotate_from_board(const SiedaProject* project, int32_t by_columns);
+char* sieda_eco_from_was_is(const SiedaProject* project, const char* text);
+/* Applies the applicable changes of an ECO list (as returned above, possibly filtered). The number applied, or -1. */
+int32_t sieda_apply_eco(SiedaProject* project, const char* eco_json);
+/* Drawing template of a sheet ("A4" … "A0", "ANSI A" … "ANSI E"; "" = sized to the drawing). 1 on success. */
+int32_t sieda_set_sheet_size(SiedaProject* project, int32_t sheet, const char* size);
+/* [{"name","width","height"}] in millimetres, landscape. Caller frees. */
+char* sieda_sheet_templates_json(void);
+/* PDF of every sheet: one page per sheet on its template with frame, zones and title block; bookmarks follow the
+ * sheet hierarchy. The PDF text (ASCII), or NULL. Caller frees. */
+char* sieda_export_schematic_pdf(const SiedaProject* project);
+
+/* ERC error reporting: report rule `code` ("ERC_UNCONNECTED_PIN" …) as "error", "warning", "info" or "off", or
+ * "default" (its own severity again). The snapshot lists "ercSeverities" {code: level}. 1 on success. */
+int32_t sieda_set_erc_severity(SiedaProject* project, const char* code, const char* level);
+
+/* Makes a net label an entry of a harness label on its sheet (harness 0: an ordinary label again). 1 on success. */
+int32_t sieda_set_harness_entry(SiedaProject* project, int32_t label, int32_t harness);
 
 #ifdef __cplusplus
 }

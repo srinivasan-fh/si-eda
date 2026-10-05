@@ -36,6 +36,12 @@ struct SchematicEditorView: View {
     @State private var wireStart: String?
     /// What P (and the "Place selected device" tool) arms: the device or custom part last chosen in the picker.
     @State private var placementTool: SchematicTool = .place(.resistor)
+    @State private var showMessages = false
+    @State private var pastingArray = false
+    @State private var arrayCount = "4"
+    @State private var arrayStep = "0, 60"
+    @State private var arrayIncrement = "1"
+    @State private var eco: (title: String, changes: [EcoChangeInfo])?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -93,7 +99,7 @@ struct SchematicEditorView: View {
             }
 
             VStack(spacing: 0) {
-                OptionsBar(scrollsWhenNarrow: false) {
+                OptionsBar {  // scrolls sideways on narrow windows: the Arrange, Back Annotate, Messages and PDF controls need the room
                     Image(systemName: "wrench.and.screwdriver").foregroundStyle(Theme.blue)
                     Text(tool.title).foregroundStyle(Theme.textPrimary).fontWeight(.semibold)
                     Divider().frame(height: 18)
@@ -109,6 +115,44 @@ struct SchematicEditorView: View {
                         .keyboardShortcut("f", modifiers: [.command])
                         .help("Find & Replace across every sheet (⌘F)")
                         .accessibilityLabel("Find and replace")
+                    Menu {
+                        Button("Copy") { store.copySelection() }.disabled(store.selection.isEmpty)
+                        Button("Cut") { store.cutSelection() }.disabled(store.selection.isEmpty)
+                        Button("Paste") { store.paste() }.disabled(!store.canPaste)
+                        Button("Paste Array…") { pastingArray = true }.disabled(!store.canPaste)
+                        Divider()
+                        Button("Align Left") { store.align("left") }
+                        Button("Align Right") { store.align("right") }
+                        Button("Align Top") { store.align("top") }
+                        Button("Align Bottom") { store.align("bottom") }
+                        Button("Align Horizontal Centres") { store.align("centerY") }
+                        Button("Align Vertical Centres") { store.align("centerX") }
+                        Button("Distribute Horizontally") { store.align("distributeX") }
+                        Button("Distribute Vertically") { store.align("distributeY") }
+                    } label: {
+                        Label("Arrange", systemImage: "square.on.square.dashed")
+                    }
+                    .fixedSize()
+                    .help("Copy, paste, paste array (designators numbered on, labels counted up), align and distribute")
+                    Menu {
+                        Button("From Board Positions (Rows)") {
+                            eco = (String(localized: "Re-annotate from the board (rows)"), store.ecoFromBoard())
+                        }
+                        Button("From Board Positions (Columns)") {
+                            eco = (String(localized: "Re-annotate from the board (columns)"), store.ecoFromBoard(byColumns: true))
+                        }
+                        Button("From WAS / IS File…") {
+                            if let changes = store.ecoFromWasIsFile() { eco = (String(localized: "Changes from a WAS / IS file"), changes) }
+                        }
+                    } label: {
+                        Label("Back Annotate", systemImage: "arrow.uturn.left.square")
+                    }
+                    .fixedSize()
+                    .help("Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review")
+                    Button { showMessages.toggle() } label: { Label("Messages", systemImage: "list.bullet.rectangle") }
+                        .help("Every ERC message of every sheet; click one to go there")
+                    Button { store.exportSchematicPDF() } label: { Label("PDF", systemImage: "doc.richtext") }
+                        .help("PDF of every sheet with bookmarks, frames and title blocks")
                     Spacer()
                     if !store.selection.isEmpty {
                         Text("\(store.selection.count) selected").foregroundStyle(Theme.skyBlue)
@@ -121,6 +165,7 @@ struct SchematicEditorView: View {
 
                 SheetBar()
 
+                VStack(spacing: 0) {
                 ZStack(alignment: .bottomLeading) {
                     SchematicCanvas(tool: $tool, viewport: $viewport, canvasSize: $canvasSize, wireStart: $wireStart,
                                     placementTool: placementTool, live: store.live)
@@ -177,9 +222,32 @@ struct SchematicEditorView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
+                if showMessages {
+                    Divider()
+                    SchematicMessagesPanel(isShown: $showMessages)
+                }
+                }
             }
         }
         .background(Theme.navy)
+        .sheet(isPresented: Binding(get: { eco != nil }, set: { if !$0 { eco = nil } })) {
+            if let eco { EcoReviewView(title: eco.title, changes: eco.changes).environmentObject(store) }
+        }
+        .alert("Paste Array", isPresented: $pastingArray) {
+            TextField("Copies", text: $arrayCount)
+            TextField("Step x, y", text: $arrayStep)
+            TextField("Label increment", text: $arrayIncrement)
+            Button("Paste") {
+                let parts = arrayStep.split(separator: ",").map { Double($0.trimmingCharacters(in: .whitespaces)) ?? 0 }
+                let step = CGSize(width: parts.first ?? 0, height: parts.count > 1 ? parts[1] : 0)
+                store.paste(count: max(1, min(256, Int(arrayCount.trimmingCharacters(in: .whitespaces)) ?? 1)),
+                            step: step == .zero ? CGSize(width: 0, height: 60) : step,
+                            labelIncrement: Int(arrayIncrement.trimmingCharacters(in: .whitespaces)) ?? 0)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …).")
+        }
         .sheet(isPresented: $store.showFind) { SchematicFindPanel().environmentObject(store) }
         .background(DeleteKeyMonitor { store.deleteSelection() } isActive: {
             store.selectedWire != nil || !store.selection.isEmpty
@@ -230,6 +298,10 @@ struct SheetBar: View {
     @State private var channelCount = "2"
     @State private var renamingChannel: SheetInfo?
     @State private var channelName = ""
+    @State private var editingHarnesses = false
+    @State private var editingNetClasses = false
+    @State private var harnessConnectorType: HarnessTypeInfo?
+    @State private var harnessName = ""
 
     var body: some View {
         OptionsBar {
@@ -240,7 +312,7 @@ struct SheetBar: View {
                 } label: {
                     // Child sheets are indented under their parent ("› Filter"); a repeated block shows its channels.
                     Text(verbatim: String(repeating: "› ", count: sheet.depth) + sheet.name
-                         + (sheet.isRepeated && !sheet.isInstance ? " ×\(sheet.instances ?? 1)" : ""))
+                         + (sheet.isRepeated && !sheet.isInstance ? " ×\(sheet.channels ?? sheet.instances ?? 1)" : ""))
                         .fontWeight(active ? .semibold : .regular)
                         .foregroundStyle(active ? Theme.textPrimary : Theme.textSecondary)
                         .padding(.horizontal, 8)
@@ -261,6 +333,14 @@ struct SheetBar: View {
                         Button("Repeat Sheet…") {
                             channelCount = "\(max(2, sheet.instances ?? 1))"
                             repeating = sheet
+                        }
+                    }
+                    Menu("Sheet Size") {
+                        Button("Auto (fits the drawing)") { store.setSheetSize(sheet.id, size: "") }
+                        ForEach(EDAEngine.sheetTemplates()) { template in
+                            Button(template.name + ((sheet.size ?? "") == template.name ? " ✓" : "")) {
+                                store.setSheetSize(sheet.id, size: template.name)
+                            }
                         }
                     }
                     if sheet.isRepeated {
@@ -297,6 +377,22 @@ struct SheetBar: View {
                 Label("Annotate", systemImage: "number")
             }
             .fixedSize()
+            Button { editingNetClasses = true } label: { Label("Net Classes", systemImage: "ruler") }
+                .help("Net classes for the directives on nets: the schematic is the source of the board's net rules")
+            Menu {
+                Button("Harness Types…") { editingHarnesses = true }
+                Divider()
+                ForEach(store.snapshot.harnessTypes) { type in
+                    Button("Place \(type.name) Connector…") {
+                        harnessName = type.name + "1"
+                        harnessConnectorType = type
+                    }
+                }
+            } label: {
+                Label("Harnesses", systemImage: "cable.connector.horizontal")
+            }
+            .fixedSize()
+            .help("Signal harnesses: named bundles of signals carried across sheets as one")
             Menu {
                 Button("Base Design") { store.selectVariant("") }
                 ForEach(store.snapshot.variants) { variant in
@@ -347,6 +443,19 @@ struct SheetBar: View {
                 renamingChannel = nil
             }
             Button("Cancel", role: .cancel) { renamingChannel = nil }
+        }
+        .sheet(isPresented: $editingHarnesses) { HarnessTypesView().environmentObject(store) }
+        .sheet(isPresented: $editingNetClasses) { NetClassesView().environmentObject(store) }
+        .alert("Place Harness Connector", isPresented: Binding(get: { harnessConnectorType != nil },
+                                                               set: { if !$0 { harnessConnectorType = nil } })) {
+            TextField("Harness name", text: $harnessName)
+            Button("OK") {
+                if let type = harnessConnectorType { store.placeHarnessConnector(type: type.name, name: harnessName) }
+                harnessConnectorType = nil
+            }
+            Button("Cancel", role: .cancel) { harnessConnectorType = nil }
+        } message: {
+            Text("A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet.")
         }
         .alert("New Variant", isPresented: $addingVariant) {
             TextField("Variant name", text: $variantName)

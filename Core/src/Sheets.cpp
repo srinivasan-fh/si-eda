@@ -150,6 +150,11 @@ bool Schematic::renameSheet(int id, const std::string& rawName) {
 bool Schematic::setSheetParent(int id, int parent) {
     if (!findSheet(id) || (parent != 0 && !findSheet(parent)) || parent == id) return false;
     if (parent != 0 && isRepeated(parent)) return false;  // a repeated block has no child sheets
+    if (isRepeated(id)) {
+        // A block nested in a repeated block stays where it is (its channels live in every outer channel).
+        const Sheet* def = findSheet(definitionSheet(id));
+        if (def && def->parent != 0 && isRepeated(def->parent)) return false;
+    }
     for (int up = parent, guard = 0; up != 0 && guard <= static_cast<int>(sheets_.size()); ++guard) {
         if (up == id) return false;  // would make a cycle
         const Sheet* s = findSheet(up);
@@ -182,10 +187,21 @@ bool Schematic::removeSheet(int id, bool deleteContents) {
             return std::find(group.begin(), group.end(), c.sheet) != group.end();
         });
         if (any && !deleteContents) return false;
+        // Every channel goes with everything below it (copies only); the block's own child sheets move up.
         for (auto it = group.rbegin(); it != group.rend(); ++it)
-            if (*it != id && !removeSheet(*it, true)) return false;
+            if (*it != id) eraseSheetTree(*it);
         sheet = findSheet(id);
         if (!sheet) return false;
+    } else if (sheet->instanceOf != 0 && findSheet(sheet->instanceOf)) {
+        // One channel: it goes with the copies below it. A channel inside another channel follows its block.
+        const Sheet* def = findSheet(sheet->instanceOf);
+        if (sheet->parent != def->parent) return false;
+        const bool hasContents =
+            std::any_of(components_.begin(), components_.end(), [&](const Component& c) { return c.sheet == id; });
+        if (hasContents && !deleteContents) return false;
+        eraseSheetTree(id);
+        edited();
+        return true;
     }
     const int parent = sheet->parent;
     const bool hasContents =
@@ -305,6 +321,16 @@ int Schematic::placeSheetEntries(int child, Vec2 origin) {
     const Sheet* s = findSheet(child);
     if (!s || s->parent == 0 || !findSheet(s->parent)) return -1;
     const int parent = s->parent;
+    if (const Sheet* ps = findSheet(parent); ps && ps->instanceOf != 0 && findSheet(ps->instanceOf)) {
+        // The parent is a channel of a repeated block: the symbol goes on the block (for the same nested channel).
+        const int def = s->instanceOf != 0 ? s->instanceOf : s->id;
+        const auto from = occurrencesUnder(def, parent);
+        const auto to = occurrencesUnder(def, ps->instanceOf);
+        const auto it = std::find(from.begin(), from.end(), child);
+        const size_t k = static_cast<size_t>(it - from.begin());
+        if (it == from.end() || k >= to.size()) return -1;
+        return placeSheetEntries(to[k], origin);
+    }
     std::set<std::string> present;
     bool any = false;
     double column = origin.x, lowest = origin.y;
@@ -326,12 +352,20 @@ int Schematic::placeSheetEntries(int child, Vec2 origin) {
         if (Component* c = find(id)) {
             c->scope = LabelScope::SheetEntry;
             c->targetSheet = child;
+            // A harness port gets a harness entry of its type: the whole bundle crosses here.
+            for (const auto& p : components_)
+                if (p.kind == ComponentKind::NetLabel && p.scope == LabelScope::Port && p.sheet == child && p.value == port &&
+                    isHarnessLabel(p)) {
+                    c->harnessType = p.harnessType;
+                    break;
+                }
         }
         at.y += 20;
         ++added;
     }
     activeSheet_ = saved;
     invalidate();
+    if (added > 0) edited();  // a repeated parent: the channels' copies take the entries' scope and target
     return added;
 }
 
@@ -369,18 +403,7 @@ void Schematic::restoreSheets(const std::vector<Sheet>& sheets, int active) {
         const Sheet* d = findSheet(s.instanceOf);
         if (!d || d->instanceOf != 0 || s.instanceOf == s.id) s.instanceOf = 0;
     }
-    for (auto& s : sheets_) {
-        if (s.instanceOf == 0) continue;
-        const int def = s.instanceOf;
-        const bool nested = std::any_of(sheets_.begin(), sheets_.end(), [&](const Sheet& o) {
-            if (o.parent == 0) return false;
-            const Sheet* p = findSheet(o.parent);
-            return p && (p->id == def || p->instanceOf == def);
-        });
-        if (nested)
-            for (auto& o : sheets_)
-                if (o.instanceOf == def) o.instanceOf = 0;
-    }
+    // Nested repetition (child sheets below a repeated block) is checked and completed by syncInstances().
     for (auto& s : sheets_) {
         s.channel = trimmed(s.channel);
         if (s.channel.size() > 16) s.channel.clear();
@@ -577,6 +600,7 @@ void Schematic::hierarchyERC(std::vector<RuleViolation>& out) const {
                 firstGlobal.emplace(c.value, &c);
                 break;
             case LabelScope::Local:
+                if (c.harnessOf != 0 || isHarnessLabel(c)) break;  // harness members cross sheets through their harness
                 localSheets[c.value].insert(c.sheet);
                 firstLocal.emplace(c.value, &c);
                 break;

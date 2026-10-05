@@ -381,6 +381,9 @@ void Schematic::clear() {
     nextSheetId_ = 2;
     nextComponentId_ = 1;
     nextWireId_ = 1;
+    // Directives sit on components; the design's definitions (harness types, net classes, ERC levels) stay.
+    directives_.clear();
+    nextDirectiveId_ = 1;
     invalidate();
 }
 
@@ -421,7 +424,8 @@ int Schematic::pinIndex(int componentId, const std::string& pinName) const {
     const Component* c = find(componentId);
     if (!c) return -1;
     const auto& pins = c->def().pins;
-    if (c->kind == ComponentKind::Custom) {  // datasheet pin numbers take precedence ("U1.4", "U1.EP")
+    if (c->kind == ComponentKind::Custom || c->kind == ComponentKind::PartUnit) {
+        // Datasheet pin numbers take precedence ("U1.4", "U1.EP"); a unit answers to its package's pin numbers.
         for (size_t i = 0; i < pins.size(); ++i)
             if (pins[i].number == pinName) return static_cast<int>(i);
     }
@@ -501,7 +505,26 @@ void Schematic::rebuildNets() const {
             pins.push_back(r);
         }
     }
-    UnionFind uf(pins.size());
+    // Signal harnesses: each harness sheet entry joins its members on the child sheet to the same members on its own
+    // sheet, each global harness label its sheet's members to the global ones. The member keys get nodes of their
+    // own (after the pins) so a bundle can join names that no pin carries yet. (sheet 0 = the global namespace.)
+    std::map<std::pair<int, std::string>, int> memberNode;
+    std::vector<std::pair<int, int>> bridges;
+    for (const auto& c : components_) {
+        if (!isHarnessLabel(c) || (c.scope != LabelScope::SheetEntry && c.scope != LabelScope::Global)) continue;
+        const HarnessType* type = findHarnessType(c.harnessType);
+        if (!type) continue;
+        for (const auto& e : type->entries) {
+            const std::string member = c.value + "." + e;
+            const std::pair<int, std::string> here{c.sheet, member};
+            const std::pair<int, std::string> there{c.scope == LabelScope::SheetEntry ? c.targetSheet : 0, member};
+            const int a = memberNode.emplace(here, static_cast<int>(pins.size() + memberNode.size())).first->second;
+            const int b = memberNode.emplace(there, static_cast<int>(pins.size() + memberNode.size())).first->second;
+            bridges.push_back({a, b});
+        }
+    }
+    UnionFind uf(pins.size() + memberNode.size());
+    for (const auto& [a, b] : bridges) uf.unite(a, b);
     // Stacked symbol pins (several pins of one part drawn on the same spot, e.g. repeated VDD / GND) are one node.
     for (const auto& c : components_) {
         if (c.kind != ComponentKind::Custom) continue;
@@ -536,18 +559,27 @@ void Schematic::rebuildNets() const {
             int i = index[{c.id, 0}];
             if (groundRoot < 0) groundRoot = i;
             else uf.unite(groundRoot, i);
-        } else if (c.kind == ComponentKind::NetLabel && c.scope == LabelScope::Global) {
+        } else if (c.kind == ComponentKind::NetLabel && isHarnessLabel(c)) {
+            continue;  // a bundle: its members are joined above, its own pin joins nothing
+        } else if (c.kind == ComponentKind::NetLabel && c.scope == LabelScope::Global && c.harnessOf == 0) {
             int i = index[{c.id, 0}];
             auto it = labelRoot.find(c.value);
             if (it == labelRoot.end()) labelRoot[c.value] = i;
             else uf.unite(it->second, i);
+            if (!memberNode.empty())
+                if (auto m = memberNode.find({0, c.value}); m != memberNode.end()) uf.unite(m->second, i);
         } else if (c.kind == ComponentKind::NetLabel) {
-            // A sheet entry joins the ports (and local labels) of its name on the sheet it stands for.
+            // A sheet entry joins the ports (and local labels) of its name on the sheet it stands for; a harness entry
+            // joins its member ("USB1.DP") on its own sheet.
             int i = index[{c.id, 0}];
-            auto key = std::make_pair(c.scope == LabelScope::SheetEntry ? c.targetSheet : c.sheet, c.value);
+            const bool member = c.harnessOf != 0;
+            auto key = std::make_pair(c.scope == LabelScope::SheetEntry && !member ? c.targetSheet : c.sheet,
+                                      member ? labelNetName(c) : c.value);
             auto it = sheetLabelRoot.find(key);
             if (it == sheetLabelRoot.end()) sheetLabelRoot[key] = i;
             else uf.unite(it->second, i);
+            if (!memberNode.empty())
+                if (auto m = memberNode.find(key); m != memberNode.end()) uf.unite(m->second, i);
         }
     }
 
@@ -555,8 +587,9 @@ void Schematic::rebuildNets() const {
     std::vector<bool> isJunction(pins.size());
     // Units' pins are not members either: their package's pins are.
     for (size_t i = 0; i < pins.size(); ++i) {
-        const ComponentKind k = find(pins[i].component)->kind;
-        isJunction[i] = k == ComponentKind::Junction || k == ComponentKind::PartUnit;
+        const Component* owner = find(pins[i].component);
+        const ComponentKind k = owner->kind;
+        isJunction[i] = k == ComponentKind::Junction || k == ComponentKind::PartUnit || isHarnessLabel(*owner);
     }
     std::map<int, int> rootToNet;
     for (size_t i = 0; i < pins.size(); ++i) {
@@ -592,12 +625,13 @@ void Schematic::rebuildNets() const {
             const Component* c = find(p.component);
             if (c->kind == ComponentKind::Ground || (c->kind == ComponentKind::NetLabel && isGroundName(c->value))) {
                 n.isGround = true;
-            } else if (c->kind == ComponentKind::NetLabel && c->scope == LabelScope::Global) {
+            } else if (c->kind == ComponentKind::NetLabel && c->scope == LabelScope::Global && c->harnessOf == 0) {
                 if (label.empty() || c->value < label) label = c->value;
             } else if (c->kind == ComponentKind::NetLabel) {
                 int depth = sheetDepth(c->sheet);
-                if (depth < localDepth || (depth == localDepth && c->value < local)) {
-                    local = c->value;
+                const std::string name = labelNetName(*c);
+                if (depth < localDepth || (depth == localDepth && name < local)) {
+                    local = name;
                     localDepth = depth;
                     localSheet = c->sheet;
                 }
@@ -832,6 +866,7 @@ std::vector<RuleViolation> Schematic::runERC() const {
                 openIdx.push_back(static_cast<int>(p));
             }
         }
+        if (isHarnessLabel(c)) continue;  // a bundle: checked by harnessERC
         if (c.kind == ComponentKind::NetLabel || c.kind == ComponentKind::Ground) {
             if (unconnected)
                 add(Severity::Warning, "ERC_DANGLING_LABEL", c.ref + " (" + c.value + ") is not connected to anything.",
@@ -980,7 +1015,34 @@ std::vector<RuleViolation> Schematic::runERC() const {
     hierarchyERC(out);
     busERC(out);
     unitERC(out);
+    if (!harnessTypes_.empty() || std::any_of(components_.begin(), components_.end(), [](const Component& c) {
+            return !c.harnessType.empty();
+        }))
+        harnessERC(out);
+    if (!directives_.empty()) directiveERC(out);
+    if (!ercSeverity_.empty()) {
+        // Error reporting: rules reported at another severity, or left out.
+        std::vector<RuleViolation> kept;
+        for (auto& v : out) {
+            auto it = ercSeverity_.find(v.code);
+            if (it == ercSeverity_.end()) {
+                kept.push_back(std::move(v));
+            } else if (it->second >= 0) {
+                v.severity = static_cast<Severity>(it->second);
+                kept.push_back(std::move(v));
+            }
+        }
+        out = std::move(kept);
+    }
     return out;
 }
+
+bool Schematic::setErcSeverity(const std::string& code, int level) {
+    if (code.empty() || code.size() > 64 || level < -1 || level > 2) return false;
+    ercSeverity_[code] = level;
+    return true;
+}
+
+bool Schematic::clearErcSeverity(const std::string& code) { return ercSeverity_.erase(code) > 0; }
 
 }  // namespace sieda

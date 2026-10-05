@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "sieda/Geometry.hpp"
+#include "sieda/Json.hpp"
 #include "sieda/Library.hpp"
 
 namespace sieda {
@@ -77,6 +78,8 @@ struct Sheet {
     std::string channel;
     /// Definition of a repeated sheet: how its channels' designators are made from the block's own designators.
     InstanceRefs refs = InstanceRefs::SheetNumber;
+    /// Drawing template ("A4", "A3", … "ANSI E", see SchematicPdf.hpp); empty = sized to the drawing.
+    std::string size;
 };
 
 /// Imported SPICE model attached to a part (docs/SIMULATION.md, sieda/SpiceModels.hpp): the simulator uses it instead
@@ -127,6 +130,16 @@ struct Component {
     int unitOf = 0;
     int unit = 0;
     bool packageOnly = false;
+    /// On a copy in a repeated sheet's channel: the parameters this channel sets itself instead of taking the block's
+    /// (bits of ChannelOverride). 0 everywhere else.
+    int channelOverrides = 0;
+    /// Signal harnesses (net labels only). A harness label (`harnessType` set) stands for a bundle named by its value
+    /// ("USB1"): through its scope — port, sheet entry or global — it carries every member net "USB1.DP", "USB1.DN" …
+    /// of its type across sheets; its own pin joins nothing. A harness entry (`harnessOf` = a harness label on the
+    /// same sheet) is a label named by one entry of the type ("DP") that joins the member net "USB1.DP" on its sheet:
+    /// the entries of a harness connector.
+    std::string harnessType;
+    int harnessOf = 0;
 
     bool isNoConnect(int pin) const;
 
@@ -134,6 +147,64 @@ struct Component {
     bool hasFootprint() const { return !def().footprint.empty(); }
     /// The footprint the part is placed with: its package variant, else the kind's default.
     const std::string& footprintName() const;
+};
+
+/// Align / distribute (by the parts' positions on the 10-unit grid).
+enum class AlignMode { Left, Right, Top, Bottom, CenterX, CenterY, DistributeX, DistributeY };
+const char* alignModeName(AlignMode m);  // "left", "right", "top", "bottom", "centerX", "centerY", "distributeX", "distributeY"
+bool alignModeFromName(const std::string& name, AlignMode* out);
+
+/// Paste (smart paste / paste array): `count` copies, the first moved by `offset`, each next one by `step` more;
+/// net label names with a trailing number are counted up by `labelIncrement` per copy (D0 → D1, D2 …). Parts get
+/// the next free designators.
+struct PasteOptions {
+    Vec2 offset{0, 0};
+    int count = 1;
+    Vec2 step{0, 0};
+    int labelIncrement = 0;
+};
+
+/// A signal harness type (Altium's harness definition): a named bundle of signals, e.g. USB = {DP, DN, VBUS, GND}.
+struct HarnessType {
+    std::string name;
+    std::vector<std::string> entries;
+};
+
+/// A net class defined on the schematic (Altium's net class directive): the design rules the board takes for its
+/// nets. 0 = the board's default.
+struct NetClassDef {
+    std::string name;
+    double trackWidth = 0;  // mm
+    double clearance = 0;   // mm, to other nets' copper
+};
+
+/// A schematic directive on a net (Altium's parameter set / differential pair / net class directives), attached to a
+/// component pin: the net that pin is on — in every channel of a repeated sheet — gets it.
+struct NetDirective {
+    int id = -1;
+    int component = -1;
+    int pin = 0;
+    std::string netClass;   // "" = none
+    bool diffPair = false;  // a differential pair member: paired with the net of the opposite suffix (X_P / X_N …)
+    double trackWidth = 0;  // parameter set: overrides the class (mm; 0 = none)
+    double clearance = 0;
+};
+
+/// The rules a net gets from the schematic's directives.
+struct NetRule {
+    int net = -1;
+    std::string netName;
+    std::string netClass;
+    double trackWidth = 0;
+    double clearance = 0;
+    bool diffPair = false;
+    int partner = -1;  // the other net of its differential pair (-1 = none)
+};
+
+/// Per-channel parameters of a repeated sheet's part (Component::channelOverrides).
+enum ChannelOverride : int {
+    kOverrideValue = 1,    // the channel's own value (R1 = 10k in channel A, 12k in channel B)
+    kOverridePackage = 2,  // the channel's own package variant
 };
 
 /// A graphical bus on a sheet: a named polyline ("D[0..7]", see expandBus). Its members leave it through bus entries —
@@ -260,6 +331,12 @@ public:
     NetRole netRole(int net) const;
 
     std::vector<RuleViolation> runERC() const;
+    /// ERC error reporting (Altium's project options ▸ Error Reporting): a rule code reported at another severity
+    /// (0 info, 1 warning, 2 error) or not at all (-1). Returns false for an empty code or a level outside -1…2.
+    bool setErcSeverity(const std::string& code, int level);
+    /// Back to the rule's own severity.
+    bool clearErcSeverity(const std::string& code);
+    const std::map<std::string, int>& ercSeverities() const { return ercSeverity_; }
 
     /// Simulating an assembly (a design variant): parts not fitted (Sourcing::dnp) are left out of the simulated
     /// circuit — their nets stay, only their elements go. Off by default (the design as drawn).
@@ -278,6 +355,8 @@ public:
     /// Adds a sheet (name trimmed, unique, non-empty) under `parent` (0 = top level). Returns its id or -1.
     int addSheet(const std::string& name, int parent = 0);
     bool renameSheet(int id, const std::string& name);
+    /// Drawing template of a sheet ("" = sized to its drawing). False for an unknown sheet or template name.
+    bool setSheetSize(int id, const std::string& size);
     /// Re-parents a sheet (0 = top level); refuses cycles.
     bool setSheetParent(int id, int parent);
     /// Moves a sheet to position `index` in the sheet order.
@@ -330,6 +409,24 @@ public:
     /// Brings every instance in line with its definition (components, wires, designators) and repairs stale links.
     /// Every edit through this class does it; call it after changing components through mutableComponents().
     void syncInstances();
+    /// Per-channel parameters. On a part of a repeated sheet, sets the value of this channel only (a copy keeps it
+    /// while the block's value changes; on the block's own sheet the other channels keep the old value). Setting the
+    /// block's value clears the override. On any other part it is setValue. False for an unknown id or a net symbol.
+    bool setChannelValue(int id, const std::string& value);
+    /// Package variant of this channel only (see setChannelValue); "" = the kind's default footprint.
+    bool setChannelPackage(int id, const std::string& package);
+    /// The channel takes the block's value and package again.
+    bool clearChannelOverrides(int id);
+    /// The value every channel of a repeated part takes unless it sets its own (the part's value elsewhere).
+    std::string blockValue(int id) const;
+    /// Channel path of a sheet in a (nested) repeated hierarchy, outermost first: {"B", "A"} for channel A of a
+    /// sub-block inside channel B of a block. Only repeated levels count; empty for an ordinary sheet.
+    std::vector<std::string> channelPath(int sheet) const;
+    /// Occurrences of definition sheet `def` whose parent is `parent`: the definition first when it is there, then
+    /// its instances in sheet order.
+    std::vector<int> occurrencesUnder(int def, int parent) const;
+    /// Number of channels of a repeated sheet's block under one parent (its repeat count); 1 for an ordinary sheet.
+    int channelCount(int sheet) const;
     /// For an id on an instance sheet, the definition component it copies; otherwise `id`.
     int masterOf(int id) const;
     /// The copy of definition component `masterId` on `sheet` (`masterId` itself on the definition), or -1.
@@ -365,6 +462,71 @@ public:
     std::string unitName(const Component& c) const;
     /// Designator with the unit ("U1A") for a unit, the designator otherwise.
     std::string displayRef(const Component& c) const;
+    /// Gate swap: two placed units of interchangeable gates (UnitSpec::swapGroup) of the same part and value, on one
+    /// sheet, exchange their gates (package and unit); the symbols and wires stay. False when not allowed.
+    bool swapUnits(int unitA, int unitB);
+    /// Pin swap: two pins of a placed unit in one of its pin-swap groups exchange their wires. False when not allowed.
+    bool swapPins(int componentId, int pinA, int pinB);
+
+    // ---- editing productivity ----
+    /// Aligns or distributes components (channel copies move their block's part). Returns the number moved.
+    int alignComponents(const std::vector<int>& ids, AlignMode mode);
+    /// Clipboard of components and the wires between them (format "sieda.schematic-clip/1").
+    Json copyComponents(const std::vector<int>& ids) const;
+    /// Pastes a clipboard on the active sheet (see PasteOptions). Returns the new components' ids.
+    std::vector<int> pasteComponents(const Json& clip, const PasteOptions& options);
+    /// Makes a net label an entry of a harness label on its sheet (0 = an ordinary label again).
+    bool setHarnessOf(int labelId, int harnessLabel);
+    /// Back-annotated pin swap: the wires (and no-connect flags) of two pins of a part change places, whatever its
+    /// swap groups (the board decided). False for invalid pins, net symbols and hidden packages.
+    bool swapPinConnections(int componentId, int pinA, int pinB);
+
+    // ---- signal harnesses (structured buses) ----
+    const std::vector<HarnessType>& harnessTypes() const { return harnessTypes_; }
+    const HarnessType* findHarnessType(const std::string& name) const;
+    /// Defines or replaces a harness type: a name (letters, digits, '_' or '-', 1…32) and 1…256 unique entry names
+    /// (no '.' or spaces). False when invalid.
+    bool setHarnessType(const std::string& name, const std::vector<std::string>& entries);
+    /// Removes a type; its harness labels stay (ERC reports them until the type is defined again).
+    bool removeHarnessType(const std::string& name);
+    /// Makes a net label a harness label of `type` ("" = an ordinary label again; its entries become plain labels).
+    bool setLabelHarness(int labelId, const std::string& type);
+    /// Harness connector on the active sheet: a local harness label named `name` with one entry per member of
+    /// `type`, stacked below `position`. Returns the harness label's id, or -1 (unknown type, invalid name).
+    int addHarnessConnector(const std::string& type, const std::string& name, Vec2 position);
+    /// Adds an entry for every member of a harness label's type that has none. Returns the entries added, or -1.
+    int placeHarnessEntries(int harnessLabel);
+    /// The net a label joins by name: "USB1.DP" for a harness entry, the label's value otherwise.
+    std::string labelNetName(const Component& c) const;
+    /// True for a harness label (a bundle, not a net).
+    static bool isHarnessLabel(const Component& c) {
+        return c.kind == ComponentKind::NetLabel && !c.harnessType.empty() && c.harnessOf == 0;
+    }
+    /// Detaches harness entries whose harness is gone or on another sheet (true when it changed anything).
+    bool repairHarnessLinks();
+    /// Replaces the harness types (persistence; invalid entries dropped).
+    void restoreHarnessTypes(const std::vector<HarnessType>& types);
+
+    // ---- schematic directives: net classes, differential pairs, parameter sets (the source of the PCB rules) ----
+    const std::vector<NetClassDef>& netClassDefs() const { return netClassDefs_; }
+    const NetClassDef* findNetClassDef(const std::string& name) const;
+    /// Defines or replaces a net class (name: letters, digits, '_' or '-', 1…32; width / clearance 0 or 0.05…10 mm).
+    bool setNetClassDef(const NetClassDef& def);
+    bool removeNetClassDef(const std::string& name);
+    const std::vector<NetDirective>& directives() const { return directives_; }
+    const NetDirective* findDirective(int id) const;
+    /// Adds a directive on the net of (component, pin); a copy in a repeated sheet's channel anchors it on its block.
+    /// Returns its id, or -1 (unknown pin, invalid values).
+    int addDirective(const NetDirective& d);
+    bool updateDirective(int id, const NetDirective& d);
+    bool removeDirective(int id);
+    /// Persistence: adds a directive read from a file (invalid ones dropped).
+    void restoreDirective(const NetDirective& d);
+    /// The rules every net with a directive gets: class values, overridden by the directive's own; differential pair
+    /// members with their partner nets. Sorted by net.
+    std::vector<NetRule> netRules() const;
+    /// Differential pairs marked by directives: (positive, negative) nets.
+    std::vector<std::pair<int, int>> directiveDiffPairs() const;
 
     // ---- graphical buses ----
     const std::vector<Bus>& buses() const { return buses_; }
@@ -376,6 +538,8 @@ public:
     bool removeBus(int id);
     /// Renames a bus (entries whose names are no longer members are reported by ERC).
     bool renameBus(int id, const std::string& name);
+    /// Makes a net label an entry of a bus on its sheet (0 = an ordinary label again). False for anything else.
+    bool setLabelBus(int labelId, int busId);
     /// Moves a bus and its entries by `delta`.
     bool moveBus(int id, Vec2 delta);
     bool setBusPoints(int id, const std::vector<Vec2>& points);
@@ -396,6 +560,8 @@ private:
     bool hasInstances() const;
     /// After an edit: keeps repeated sheets' instances in line (nothing to do in a design without them).
     void edited() {
+        repairHarnessLinks();
+        if (!directives_.empty()) repairDirectives();
         if (hasInstances()) syncInstances();
         else syncUnits();
     }
@@ -408,8 +574,19 @@ private:
     void unitERC(std::vector<RuleViolation>& out) const;
     int masterWireOf(int wireId) const;
     int copyWireOn(int masterWire, int sheet) const;
-    /// Designator of a block part (by its logical designator) on one of the block's sheets.
-    std::string channelRef(const std::string& logical, int sheet, int step) const;
+    /// Designator of a block part (by its logical designator) on one of the block's sheets; `path` is the sheet's
+    /// channel path joined by '_' (the suffix scheme).
+    std::string channelRef(const std::string& logical, int sheet, int step, const std::string& path) const;
+    /// Nested repeated sheets: every occurrence of a block's parent holds the same channels of it as the parent's
+    /// definition does (created / removed / relabelled here). True when it changed anything.
+    bool syncNestedSheets();
+    /// Removes a sheet with every sheet below it, their components, wires and the sheet entries leading into them.
+    void eraseSheetTree(int id);
+    /// A sheet entry copied from `defSheet` onto its instance `instSheet`: the matching occurrence of its target.
+    int mapEntryTarget(int target, int defSheet, int instSheet) const;
+    /// Unique name for a new instance sheet ("Amp [B]", nested: "Sub [B/A]").
+    std::string instanceSheetName(int sheet) const;
+    bool setChannelField(int id, const std::string& text, int bit);
     /// Instance-aware parts of annotate(): numbers the blocks' logical designators.
     void annotateBlocks(const AnnotateOptions& options);
     /// Drops buses on missing sheets and detaches entries from buses that are gone or on another sheet.
@@ -422,6 +599,18 @@ private:
     void rebuildNets() const;
     /// Multi-sheet checks: ports, sheet entries, labels split across sheets, wires between sheets, bus labels.
     void hierarchyERC(std::vector<RuleViolation>& out) const;
+    /// Harness checks: unknown types, entries that are not members, mismatched types through the hierarchy, members
+    /// that reach nothing.
+    void harnessERC(std::vector<RuleViolation>& out) const;
+    std::vector<HarnessType> harnessTypes_;
+    /// Directive checks: unknown classes, directives on no net, conflicting classes, unpaired differential pairs.
+    void directiveERC(std::vector<RuleViolation>& out) const;
+    /// Drops directives whose anchor is gone (true when it changed anything).
+    bool repairDirectives();
+    std::vector<NetClassDef> netClassDefs_;
+    std::map<std::string, int> ercSeverity_;
+    std::vector<NetDirective> directives_;
+    int nextDirectiveId_ = 1;
 
     std::vector<Component> components_;
     std::vector<Wire> wires_;

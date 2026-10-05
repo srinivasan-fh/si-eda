@@ -53,6 +53,13 @@ struct DesignSnapshot: Decodable, Equatable {
     var buses: [BusInfo] = []
     /// Title block printed on every schematic sheet.
     var titleBlock = TitleBlockInfo()
+    /// Signal harness types (named bundles of signals).
+    var harnessTypes: [HarnessTypeInfo] = []
+    /// Schematic directives: net classes and the directives on nets (the source of the board's net rules).
+    var netClassDefs: [NetClassDefInfo] = []
+    var directives: [DirectiveInfo] = []
+    /// ERC error reporting: rule code → "error", "warning", "info" or "off" (rules reported at another severity).
+    var ercSeverities: [String: String] = [:]
 
     static let empty = DesignSnapshot(name: "Untitled", requirements: "", components: [], wires: [], nets: [],
                                       board: BoardInfo(), pads: [], tracks: [], vias: [], ratsnest: [], courtyards: [])
@@ -109,6 +116,10 @@ struct DesignSnapshot: Decodable, Equatable {
         activeVariant = try c.decodeIfPresent(String.self, forKey: .activeVariant) ?? ""
         buses = try c.decodeIfPresent([BusInfo].self, forKey: .buses) ?? []
         titleBlock = try c.decodeIfPresent(TitleBlockInfo.self, forKey: .titleBlock) ?? TitleBlockInfo()
+        harnessTypes = try c.decodeIfPresent([HarnessTypeInfo].self, forKey: .harnessTypes) ?? []
+        netClassDefs = try c.decodeIfPresent([NetClassDefInfo].self, forKey: .netClassDefs) ?? []
+        directives = try c.decodeIfPresent([DirectiveInfo].self, forKey: .directives) ?? []
+        ercSeverities = try c.decodeIfPresent([String: String].self, forKey: .ercSeverities) ?? [:]
         componentIndex = Self.index(of: components)
     }
 
@@ -122,6 +133,7 @@ struct DesignSnapshot: Decodable, Equatable {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
         case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
         case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant, buses, titleBlock
+        case harnessTypes, netClassDefs, directives, ercSeverities
     }
 
     func component(_ id: Int) -> SnapComponent? {
@@ -239,8 +251,17 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     /// Part of a repeated sheet: the block part an instance copies, and the designator inside the block ("R1").
     var instanceOf: Int?
     var logicalRef: String?
+    /// Per-channel parameters of a repeated sheet's part: what this channel sets itself (1 value, 2 package) and the
+    /// value the block gives the other channels; nil when the channel takes the block's.
+    var channelOverride: Int?
+    var blockValue: String?
     /// Bus entries: the bus the label leaves (BusInfo.id).
     var bus: Int?
+    /// Signal harnesses: a harness label's type (a bundle named by its value), and for a harness entry the harness
+    /// label it belongs to (its member net is "<harness>.<entry>").
+    var harnessType: String?
+    var harnessOf: Int?
+    var isHarnessLabel: Bool { componentKind == .netLabel && harnessType != nil && harnessOf == nil }
     /// Multi-unit parts: a placed unit (its 1-based index, name "A"… and package), or the package itself
     /// (`unitPackage`: not drawn on the schematic; `units` lists the placed units).
     var unit: Int?
@@ -403,11 +424,79 @@ struct SheetInfo: Decodable, Equatable, Identifiable, Hashable {
     var channel: String?
     var refs: String?
     var instances: Int?
+    /// Repeat count of the block under one parent (nested blocks: per outer channel) and the channel path ("B/A").
+    var channels: Int?
+    var path: String?
+    /// Drawing template ("A4" … "ANSI E"; "" = sized to the drawing) and the one it prints on.
+    var size: String?
+    var template: String?
 
     var isRepeated: Bool { (instances ?? 0) > 1 }
     var isInstance: Bool { (instanceOf ?? 0) != 0 }
     /// The definition sheet of a repeated block (the sheet itself otherwise).
     var definitionId: Int { isInstance ? (instanceOf ?? id) : id }
+}
+
+/// A signal harness type: a named bundle of signals (USB = DP, DN, VBUS, GND).
+struct HarnessTypeInfo: Decodable, Equatable, Identifiable, Hashable {
+    var name: String
+    var entries: [String]
+    var id: String { name }
+}
+
+/// A change the board proposes to the schematic (back-annotation ECO).
+struct EcoChangeInfo: Codable, Equatable, Identifiable {
+    var kind: String  // "rename", "pinSwap", "gateSwap", "invalid"
+    var component: Int
+    var from: String
+    var to: String
+    var pinA: Int
+    var pinB: Int
+    var other: Int
+    var applicable: Bool
+    var note: String
+    var id: String { "\(kind)|\(component)|\(from)|\(to)|\(other)" }
+}
+
+/// A drawing sheet size (mm, landscape).
+struct SheetTemplateInfo: Decodable, Equatable, Identifiable, Hashable {
+    var name: String
+    var width: Double
+    var height: Double
+    var id: String { name }
+}
+
+/// A net class defined on the schematic: track width and clearance (mm; nil = the board default).
+struct NetClassDefInfo: Decodable, Equatable, Identifiable, Hashable {
+    var name: String
+    var trackWidth: Double?
+    var clearance: Double?
+    var id: String { name }
+}
+
+/// A directive on a net, anchored on a component pin: a net class, a differential-pair marker and / or a parameter
+/// set (its own width and clearance).
+struct DirectiveInfo: Decodable, Equatable, Identifiable {
+    var id: Int
+    var component: Int
+    var pin: Int
+    var netClass: String?
+    var diffPair: Bool?
+    var trackWidth: Double?
+    var clearance: Double?
+    var net: Int?
+    var netName: String?
+
+    var isDiffPair: Bool { diffPair ?? false }
+    /// "HS ◆ diff 0.2 mm" — what the canvas shows beside the anchor.
+    var summary: String {
+        var parts: [String] = []
+        if let c = netClass, !c.isEmpty { parts.append(c) }
+        if isDiffPair { parts.append("⇄") }
+        if let w = trackWidth, w > 0 { parts.append(String(format: "w%.2f", w)) }
+        if let c = clearance, c > 0 { parts.append(String(format: "c%.2f", c)) }
+        return parts.joined(separator: " ")
+    }
 }
 
 /// Schematic title block fields (the title defaults to the project name).

@@ -18,6 +18,7 @@ namespace sieda {
 
 namespace {
 constexpr int kMaxInstances = 64;
+constexpr size_t kMaxSheets = 1024;  // nested repetition multiplies sheets: a whole design stays below this
 
 std::string trimmedText(const std::string& s) {
     size_t a = 0, b = s.size();
@@ -130,41 +131,155 @@ int Schematic::copyWireOn(int masterWire, int sheet) const {
     return -1;
 }
 
+std::vector<int> Schematic::occurrencesUnder(int def, int parent) const {
+    std::vector<int> out;
+    const Sheet* d = findSheet(def);
+    if (!d) return out;
+    if (d->parent == parent) out.push_back(def);
+    for (const auto& s : sheets_)
+        if (s.instanceOf == def && s.id != def && s.parent == parent) out.push_back(s.id);
+    return out;
+}
+
+int Schematic::channelCount(int sheet) const {
+    if (!findSheet(sheet) || !isRepeated(sheet)) return 1;
+    const int def = definitionSheet(sheet);
+    const Sheet* d = findSheet(def);
+    return d ? std::max<int>(1, static_cast<int>(occurrencesUnder(def, d->parent).size())) : 1;
+}
+
+std::vector<std::string> Schematic::channelPath(int sheet) const {
+    std::vector<std::string> out;
+    if (!hasInstances()) return out;
+    int cur = sheet;
+    for (size_t guard = 0; cur != 0 && guard <= sheets_.size(); ++guard) {
+        const Sheet* s = findSheet(cur);
+        if (!s) break;
+        if (isRepeated(cur) && channelCount(cur) > 1) out.push_back(s->channel.empty() ? std::to_string(cur) : s->channel);
+        cur = s->parent;
+    }
+    std::reverse(out.begin(), out.end());
+    return out;
+}
+
+std::string Schematic::instanceSheetName(int sheet) const {
+    const Sheet* s = findSheet(sheet);
+    const Sheet* d = findSheet(definitionSheet(sheet));
+    if (!s || !d) return "Sheet";
+    std::string path;
+    for (const auto& c : channelPath(sheet)) path += (path.empty() ? "" : "/") + c;
+    if (path.empty()) path = s->channel;
+    const std::string base = d->name + " [" + path + "]";
+    std::string name = base;
+    auto taken = [&](const std::string& n) {
+        return std::any_of(sheets_.begin(), sheets_.end(), [&](const Sheet& o) { return o.id != sheet && o.name == n; });
+    };
+    for (int k = 2; taken(name); ++k) name = base + " " + std::to_string(k);
+    return name;
+}
+
+namespace {
+/// A sheet and every sheet below it.
+std::set<int> sheetTree(const std::vector<Sheet>& sheets, int id) {
+    std::set<int> tree{id};
+    for (bool grew = true; grew;) {
+        grew = false;
+        for (const auto& s : sheets)
+            if (s.parent != 0 && tree.count(s.parent) && tree.insert(s.id).second) grew = true;
+    }
+    return tree;
+}
+
+/// Position after the last sheet of `id`'s tree in the sheet order.
+int afterTree(const std::vector<Sheet>& sheets, int id) {
+    const std::set<int> tree = sheetTree(sheets, id);
+    int at = 0;
+    for (size_t i = 0; i < sheets.size(); ++i)
+        if (tree.count(sheets[i].id)) at = static_cast<int>(i) + 1;
+    return at;
+}
+}  // namespace
+
+void Schematic::eraseSheetTree(int id) {
+    const std::set<int> tree = sheetTree(sheets_, id);
+    int fallback = 0;
+    if (const Sheet* root = findSheet(id)) {
+        if (root->instanceOf != 0 && !tree.count(root->instanceOf) && findSheet(root->instanceOf)) fallback = root->instanceOf;
+        else if (root->parent != 0 && !tree.count(root->parent)) fallback = root->parent;
+    }
+    std::vector<Sheet> kept;
+    for (const auto& s : sheets_)
+        if (!tree.count(s.id)) kept.push_back(s);
+    if (kept.empty()) return;  // never removes the last sheet
+    std::set<int> gone;
+    for (const auto& c : components_)
+        if (tree.count(c.sheet) ||
+            (c.kind == ComponentKind::NetLabel && c.scope == LabelScope::SheetEntry && tree.count(c.targetSheet)))
+            gone.insert(c.id);
+    components_.erase(std::remove_if(components_.begin(), components_.end(),
+                                     [&](const Component& c) { return gone.count(c.id) > 0; }),
+                      components_.end());
+    wires_.erase(std::remove_if(wires_.begin(), wires_.end(),
+                                [&](const Wire& w) { return gone.count(w.a.component) || gone.count(w.b.component); }),
+                 wires_.end());
+    sheets_ = std::move(kept);
+    if (tree.count(activeSheet_)) activeSheet_ = findSheet(fallback) ? fallback : sheets_.front().id;
+    repairBusLinks();
+    invalidate();
+}
+
+int Schematic::mapEntryTarget(int target, int defSheet, int instSheet) const {
+    const Sheet* t = findSheet(target);
+    if (!t || t->parent != defSheet) return target;
+    const int tdef = t->instanceOf != 0 ? t->instanceOf : t->id;
+    const auto from = occurrencesUnder(tdef, defSheet);
+    const auto to = occurrencesUnder(tdef, instSheet);
+    const auto it = std::find(from.begin(), from.end(), target);
+    if (it == from.end()) return target;
+    const size_t k = static_cast<size_t>(it - from.begin());
+    return k < to.size() ? to[k] : target;
+}
+
 int Schematic::repeatSheet(int sheet, int count) {
     const Sheet* def = findSheet(sheet);
     if (!def || def->instanceOf != 0 || count < 1 || count > kMaxInstances) return -1;
-    // Nested hierarchy inside a repeated block is not supported: the block must be a leaf.
+    // Nested repetition: a block may hold child sheets only when each is a repeated block itself (repeat inside
+    // repeat); its sheet entries must lead into those child sheets.
     for (const auto& s : sheets_)
-        if (s.parent == sheet) return -1;
+        if (s.parent == sheet && s.instanceOf == 0 && !isRepeated(s.id)) return -1;
     for (const auto& c : components_)
-        if (c.sheet == sheet && c.kind == ComponentKind::NetLabel && c.scope == LabelScope::SheetEntry) return -1;
-    std::vector<int> group = sheetInstances(sheet);
-    if (group.front() != sheet) return -1;
-    // Instances beyond `count` go, last first (their components, wires and the sheet entries leading into them).
-    while (static_cast<int>(group.size()) > count) {
-        const int victim = group.back();
-        group.pop_back();
-        std::set<int> gone;
-        for (const auto& c : components_)
-            if (c.sheet == victim ||
-                (c.kind == ComponentKind::NetLabel && c.scope == LabelScope::SheetEntry && c.targetSheet == victim))
-                gone.insert(c.id);
-        components_.erase(std::remove_if(components_.begin(), components_.end(),
-                                         [&](const Component& c) { return gone.count(c.id) > 0; }),
-                          components_.end());
-        wires_.erase(std::remove_if(wires_.begin(), wires_.end(),
-                                    [&](const Wire& w) { return gone.count(w.a.component) || gone.count(w.b.component); }),
-                     wires_.end());
-        const int index = sheetIndex(victim);
-        sheets_.erase(sheets_.begin() + index);
-        if (activeSheet_ == victim) activeSheet_ = sheet;
-        repairBusLinks();
+        if (c.sheet == sheet && c.kind == ComponentKind::NetLabel && c.scope == LabelScope::SheetEntry) {
+            const Sheet* t = findSheet(c.targetSheet);
+            if (!t || t->parent != sheet) return -1;
+        }
+    const int parent = def->parent;
+    // Every occurrence of the parent (just the parent unless it is repeated itself) holds `count` channels.
+    std::vector<int> parents{parent};
+    if (parent != 0)
+        for (const auto& s : sheets_)
+            if (s.instanceOf == parent) parents.push_back(s.id);
+    {
+        // Nested repetition multiplies sheets: the whole design stays within kMaxSheets.
+        const size_t per = sheetTree(sheets_, sheet).size();
+        const size_t now = occurrencesUnder(sheet, parent).size() * parents.size() * per;
+        const size_t want = static_cast<size_t>(count) * parents.size() * per;
+        if (want > now && sheets_.size() + (want - now) > kMaxSheets) return -1;
     }
+    for (int p : parents) {
+        std::vector<int> group = occurrencesUnder(sheet, p);
+        while (static_cast<int>(group.size()) > count && group.back() != sheet) {
+            // Channels beyond `count` go, last first, with everything below them and the entries leading into them.
+            const bool wasActive = activeSheet_ == group.back();
+            eraseSheetTree(group.back());
+            if (wasActive) activeSheet_ = sheet;
+            group.pop_back();
+        }
+    }
+    std::vector<int> group = occurrencesUnder(sheet, parent);
     if (count > static_cast<int>(group.size())) {
-        std::set<std::string> channels, names;
+        std::set<std::string> channels;
         for (int id : group)
             if (const Sheet* s = findSheet(id)) channels.insert(s->channel);
-        for (const auto& s : sheets_) names.insert(s.name);
         int next = 0;
         auto freshChannel = [&] {
             std::string label;
@@ -175,19 +290,17 @@ int Schematic::repeatSheet(int sheet, int count) {
         };
         for (auto& s : sheets_)
             if (s.id == sheet && s.channel.empty()) s.channel = freshChannel();
-        const Sheet base = *findSheet(sheet);
-        int insertAt = sheetIndex(group.back()) + 1;
         while (static_cast<int>(group.size()) < count) {
             Sheet s;
             s.id = nextSheetId_++;
-            s.parent = base.parent;
+            s.parent = parent;
             s.instanceOf = sheet;
             s.channel = freshChannel();
-            std::string name = base.name + " [" + s.channel + "]";
-            for (int k = 2; names.count(name); ++k) name = base.name + " [" + s.channel + "] " + std::to_string(k);
-            names.insert(name);
-            s.name = name;
-            sheets_.insert(sheets_.begin() + insertAt++, s);
+            s.name = "\x01";  // named once it is in place
+            sheets_.insert(sheets_.begin() + afterTree(sheets_, group.back()), s);
+            const std::string name = instanceSheetName(s.id);
+            for (auto& o : sheets_)
+                if (o.id == s.id) o.name = name;
             group.push_back(s.id);
         }
     }
@@ -196,31 +309,230 @@ int Schematic::repeatSheet(int sheet, int count) {
     return static_cast<int>(group.size());
 }
 
+bool Schematic::syncNestedSheets() {
+    if (!hasInstances()) return false;
+    bool changed = false;
+    for (auto& s : sheets_) {
+        if (s.instanceOf == 0) continue;
+        const Sheet* d = findSheet(s.instanceOf);
+        if (!d || d->instanceOf != 0 || s.instanceOf == s.id) {
+            s.instanceOf = 0;
+            changed = true;
+        }
+    }
+    auto isAncestor = [&](int anc, int of) {
+        for (int up = of, guard = 0; up != 0 && guard <= static_cast<int>(sheets_.size()); ++guard) {
+            if (up == anc) return true;
+            const Sheet* p = findSheet(up);
+            up = p ? p->parent : 0;
+        }
+        return false;
+    };
+    // A sheet of its own below a channel (a hand-edited file) belongs below the block's definition.
+    for (auto& s : sheets_) {
+        if (s.instanceOf != 0 || s.parent == 0) continue;
+        const Sheet* p = findSheet(s.parent);
+        if (!p || p->instanceOf == 0) continue;
+        const int to = p->instanceOf;
+        s.parent = isAncestor(s.id, to) ? 0 : to;
+        changed = true;
+    }
+    auto hasInst = [&](int id) {
+        return std::any_of(sheets_.begin(), sheets_.end(), [&](const Sheet& o) { return o.instanceOf == id; });
+    };
+    // A channel of a block inside a repeated block sits under an occurrence of the block's parent.
+    for (auto& s : sheets_) {
+        if (s.instanceOf == 0) continue;
+        const Sheet* d = findSheet(s.instanceOf);
+        const int parent = d ? d->parent : 0;
+        if (parent == 0 || s.parent == parent || !hasInst(parent)) continue;
+        const Sheet* p = findSheet(s.parent);
+        if (p && p->instanceOf == parent) continue;
+        s.parent = parent;
+        changed = true;
+    }
+    // Every occurrence of a repeated parent holds the channels its definition holds (outer blocks first).
+    std::vector<int> nested;
+    for (const auto& s : sheets_)
+        if (s.instanceOf == 0 && s.parent != 0 && hasInst(s.parent)) nested.push_back(s.id);
+    std::stable_sort(nested.begin(), nested.end(), [&](int a, int b) { return sheetDepth(a) < sheetDepth(b); });
+    for (int def : nested) {
+        const Sheet* d = findSheet(def);
+        if (!d) continue;
+        const int parent = d->parent;
+        const std::vector<int> model = occurrencesUnder(def, parent);
+        std::vector<std::string> labels;
+        for (int id : model) labels.push_back(findSheet(id)->channel);
+        std::vector<int> parents;
+        for (const auto& s : sheets_)
+            if (s.instanceOf == parent) parents.push_back(s.id);
+        for (int p : parents) {
+            std::vector<int> g = occurrencesUnder(def, p);
+            while (g.size() > model.size()) {
+                eraseSheetTree(g.back());
+                g.pop_back();
+                changed = true;
+            }
+            while (g.size() < model.size()) {
+                Sheet s;
+                s.id = nextSheetId_++;
+                s.parent = p;
+                s.instanceOf = def;
+                s.channel = labels[g.size()];
+                s.name = "\x01";
+                sheets_.insert(sheets_.begin() + afterTree(sheets_, p), s);
+                const std::string name = instanceSheetName(s.id);
+                for (auto& o : sheets_)
+                    if (o.id == s.id) o.name = name;
+                g.push_back(s.id);
+                changed = true;
+            }
+            for (size_t i = 0; i < g.size(); ++i)
+                for (auto& o : sheets_)
+                    if (o.id == g[i] && o.channel != labels[i]) {
+                        o.channel = labels[i];
+                        changed = true;
+                    }
+        }
+    }
+    if (changed) invalidate();
+    return changed;
+}
+
+namespace {
+bool samePackage(const Component& c, const std::string& package) {
+    const std::string p = package == c.def().footprint ? std::string() : package;
+    return c.package == p;
+}
+}  // namespace
+
+bool Schematic::setChannelField(int id, const std::string& text, int bit) {
+    if (const int pkg = unitPackage(masterOf(id)); pkg > 0) {
+        // A unit's value and package are its package's: the package of the same channel.
+        const Component* u = find(id);
+        const Component* master = find(pkg);
+        if (!u || !master) return false;
+        const int onSheet = copyOn(pkg, u->sheet);
+        id = onSheet > 0 ? onSheet : pkg;
+    }
+    Component* c = find(id);
+    if (!c || isNetSymbolKind(c->kind)) return false;
+    std::string value = text;
+    if (bit == kOverridePackage) {
+        const auto variants = Library::packageVariants(c->kind);
+        if (!value.empty() && std::find(variants.begin(), variants.end(), value) == variants.end()) return false;
+        if (value == c->def().footprint) value.clear();
+    }
+    if (!isRepeated(c->sheet)) return bit == kOverrideValue ? setValue(id, value) : setPackage(id, value);
+    auto field = [bit](Component& k) -> std::string& { return bit == kOverrideValue ? k.value : k.package; };
+    if (c->instanceOf != 0) {
+        Component* m = find(c->instanceOf);
+        if (!m) return false;
+        if (value == field(*m)) c->channelOverrides &= ~bit;
+        else c->channelOverrides |= bit;
+        field(*c) = value;
+    } else {
+        // The block's own channel: the other channels keep what they have now.
+        const std::string old = field(*c);
+        if (value == old) return true;
+        for (auto& o : components_) {
+            if (o.instanceOf != c->id) continue;
+            if (!(o.channelOverrides & bit)) {
+                o.channelOverrides |= bit;
+                field(o) = old;
+            } else if (field(o) == value) {
+                o.channelOverrides &= ~bit;
+            }
+        }
+        field(*c) = value;
+    }
+    invalidate();
+    edited();
+    return true;
+}
+
+bool Schematic::setChannelValue(int id, const std::string& value) { return setChannelField(id, value, kOverrideValue); }
+
+bool Schematic::setChannelPackage(int id, const std::string& package) {
+    const Component* c = find(id);
+    if (c && samePackage(*c, package) && c->instanceOf == 0 && !isRepeated(c->sheet)) return setPackage(id, package);
+    return setChannelField(id, package, kOverridePackage);
+}
+
+bool Schematic::clearChannelOverrides(int id) {
+    if (const int pkg = unitPackage(masterOf(id)); pkg > 0) {
+        const Component* u = find(id);
+        const int onSheet = u ? copyOn(pkg, u->sheet) : -1;
+        id = onSheet > 0 ? onSheet : pkg;
+    }
+    Component* c = find(id);
+    if (!c) return false;
+    c->channelOverrides = 0;
+    invalidate();
+    edited();
+    return true;
+}
+
+std::string Schematic::blockValue(int id) const {
+    if (const int pkg = unitPackage(masterOf(id)); pkg > 0) id = pkg;
+    const Component* m = find(masterOf(id));
+    return m ? m->value : std::string();
+}
+
 bool Schematic::setInstanceRefs(int sheet, InstanceRefs refs) {
     if (!findSheet(sheet)) return false;
-    const int def = definitionSheet(sheet);
+    // The block and every block nested in it number their channels the same way.
+    std::set<int> tree{definitionSheet(sheet)};
+    for (bool grew = true; grew;) {
+        grew = false;
+        for (const auto& s : sheets_)
+            if (s.instanceOf == 0 && s.parent != 0 && tree.count(s.parent) && tree.insert(s.id).second) grew = true;
+    }
     for (auto& s : sheets_)
-        if (s.id == def) s.refs = refs;
+        if (tree.count(s.id)) s.refs = refs;
     syncInstances();
     return true;
 }
 
 bool Schematic::setSheetChannel(int sheet, const std::string& raw) {
     const std::string channel = trimmedText(raw);
-    if (!findSheet(sheet) || !validChannel(channel)) return false;
-    for (int id : sheetInstances(sheet))
-        if (id != sheet)
-            if (const Sheet* s = findSheet(id); s && s->channel == channel) return false;
+    const Sheet* target = findSheet(sheet);
+    if (!target || !validChannel(channel)) return false;
+    const int def = definitionSheet(sheet);
+    const Sheet* d = findSheet(def);
+    const bool nested = d && d->parent != 0 && std::any_of(sheets_.begin(), sheets_.end(), [&](const Sheet& o) {
+        return o.instanceOf == d->parent;
+    });
+    if (!nested) {
+        for (int id : sheetInstances(sheet))
+            if (id != sheet)
+                if (const Sheet* s = findSheet(id); s && s->channel == channel) return false;
+        for (auto& s : sheets_)
+            if (s.id == sheet) s.channel = channel;
+        syncInstances();
+        return true;
+    }
+    // Nested: the channel has the same label inside every channel of the outer block (the definition's channels
+    // are the model the others follow).
+    const std::vector<int> local = occurrencesUnder(def, target->parent);
+    const auto it = std::find(local.begin(), local.end(), sheet);
+    if (it == local.end()) return false;
+    const size_t k = static_cast<size_t>(it - local.begin());
+    const std::vector<int> model = occurrencesUnder(def, d->parent);
+    if (k >= model.size()) return false;
+    for (size_t i = 0; i < model.size(); ++i)
+        if (i != k && findSheet(model[i])->channel == channel) return false;
     for (auto& s : sheets_)
-        if (s.id == sheet) s.channel = channel;
+        if (s.id == model[k]) s.channel = channel;
     syncInstances();
     return true;
 }
 
-std::string Schematic::channelRef(const std::string& logical, int sheet, int step) const {
+std::string Schematic::channelRef(const std::string& logical, int sheet, int step, const std::string& path) const {
     const Sheet* s = findSheet(sheet);
     const Sheet* def = findSheet(definitionSheet(sheet));
-    const std::string channel = s && !s->channel.empty() ? s->channel : std::to_string(sheet);
+    std::string channel = s && !s->channel.empty() ? s->channel : std::to_string(sheet);
+    if (!path.empty()) channel = path;  // nested blocks: every repeated level, outermost first (R1_B_A)
     std::string prefix;
     int number = 0;
     if (def && def->refs == InstanceRefs::SheetNumber && step > 0 && splitDesignator(logical, prefix, number) &&
@@ -240,6 +552,7 @@ void Schematic::syncInstances() {
 
 bool Schematic::syncInstancesOnce() {
     bool changed = repairBusLinks();
+    changed |= syncNestedSheets();  // nested repetition: channels inside every channel
     // Sheets: an instance points at a definition that exists and is not an instance itself.
     std::map<int, std::vector<int>> groups;  // definition → its instance sheets, in sheet order
     std::map<int, int> defOf;                // instance sheet → definition
@@ -253,26 +566,41 @@ bool Schematic::syncInstancesOnce() {
         groups[s.instanceOf].push_back(s.id);
         defOf[s.id] = s.instanceOf;
     }
-    // Channel labels: present, valid and unique within each block.
-    for (const auto& [def, instances] : groups) {
-        std::vector<int> members{def};
-        members.insert(members.end(), instances.begin(), instances.end());
-        std::set<std::string> seen;
-        std::vector<int> fix;
-        for (int id : members) {
-            const Sheet* s = findSheet(id);
-            if (!validChannel(s->channel) || !seen.insert(s->channel).second) fix.push_back(id);
+    // Channel labels: present, valid and unique within each block (within each parent channel when nested).
+    {
+        auto nestedParent = [&](int sheet) {
+            const Sheet* s = findSheet(sheet);
+            const Sheet* d = s ? findSheet(definitionSheet(sheet)) : nullptr;
+            if (!s || !d || d->parent == 0) return -1;
+            const int dp = d->parent;
+            const bool repeatedParent =
+                std::any_of(sheets_.begin(), sheets_.end(), [&](const Sheet& o) { return o.instanceOf == dp; });
+            return repeatedParent ? s->parent : -1;
+        };
+        std::map<std::pair<int, int>, std::vector<int>> blocks;
+        for (const auto& [def, instances] : groups) {
+            blocks[{def, nestedParent(def)}].push_back(def);
+            for (int id : instances) blocks[{def, nestedParent(id)}].push_back(id);
         }
-        int next = 0;
-        for (int id : fix)
-            for (auto& s : sheets_)
-                if (s.id == id) {
-                    std::string label;
-                    do label = channelLabel(next++);
-                    while (seen.count(label));
-                    seen.insert(label);
-                    s.channel = label;
-                }
+        for (const auto& [key, members] : blocks) {
+            std::set<std::string> seen;
+            std::vector<int> fix;
+            for (int id : members) {
+                const Sheet* s = findSheet(id);
+                if (!validChannel(s->channel) || !seen.insert(s->channel).second) fix.push_back(id);
+            }
+            int next = 0;
+            for (int id : fix)
+                for (auto& s : sheets_)
+                    if (s.id == id) {
+                        std::string label;
+                        do label = channelLabel(next++);
+                        while (seen.count(label));
+                        seen.insert(label);
+                        s.channel = label;
+                        changed = true;
+                    }
+        }
     }
 
     // A part that is no longer on a repeated definition gets its block designator back (when it is free).
@@ -290,11 +618,16 @@ bool Schematic::syncInstancesOnce() {
             changed = true;
         }
     }
-    for (auto& c : components_)
+    for (auto& c : components_) {
         if (c.instanceOf != 0 && !defOf.count(c.sheet)) {
             c.instanceOf = 0;
             changed = true;
         }
+        if (c.instanceOf == 0 && c.channelOverrides != 0) {  // per-channel parameters live on channel copies only
+            c.channelOverrides = 0;
+            changed = true;
+        }
+    }
     if (groups.empty()) {
         for (auto& w : wires_) w.instanceOf = 0;
         for (auto& b : buses_) b.instanceOf = 0;
@@ -449,6 +782,18 @@ bool Schematic::syncInstancesOnce() {
             }
     }
 
+    std::map<int, std::string> paths;  // sheet → channel path joined by '_' (designators of nested blocks)
+    auto pathOf = [&](int sheet) -> const std::string& {
+        auto it = paths.find(sheet);
+        if (it != paths.end()) return it->second;
+        std::string joined;
+        const auto path = channelPath(sheet);
+        const Sheet* own = findSheet(sheet);
+        const bool plain = path.size() == 1 && own && path[0] == (own->channel.empty() ? std::to_string(sheet) : own->channel);
+        if (!plain)  // a channel of a block nested in another: every repeated level, outermost first
+            for (const auto& c : path) joined += (joined.empty() ? "" : "_") + c;
+        return paths.emplace(sheet, joined).first->second;
+    };
     for (auto& [def, instances] : groups) {
         // Block designators: each part of the definition keeps a unique one; new parts take their own designator
         // when it is free in the block, else the next free number of their prefix.
@@ -507,6 +852,8 @@ bool Schematic::syncInstancesOnce() {
                     c.instanceOf = mid;
                     c.logicalRef.clear();
                     c.pcb = PcbPlacement{};
+                    c.channelOverrides = 0;
+                    if (c.targetSheet != 0) c.targetSheet = mapEntryTarget(c.targetSheet, def, sheet);
                     components_.push_back(c);
                     at[c.id] = components_.size() - 1;
                     copyOf[{mid, sheet}] = c.id;
@@ -517,7 +864,7 @@ bool Schematic::syncInstancesOnce() {
                 Component& c = *comp(it->second);
                 c.kind = m.kind;
                 c.customPart = m.customPart;
-                c.value = m.value;
+                if (!(c.channelOverrides & kOverrideValue)) c.value = m.value;
                 c.position = m.position;
                 c.rotation = m.rotation;
                 c.noConnect = m.noConnect;
@@ -525,13 +872,28 @@ bool Schematic::syncInstancesOnce() {
                 c.firmwareName = m.firmwareName;
                 c.clockHz = m.clockHz;
                 c.spice = m.spice;
-                c.package = m.package;
+                if (!(c.channelOverrides & kOverridePackage)) c.package = m.package;
                 c.scope = m.scope;
-                c.targetSheet = m.targetSheet;
+                c.targetSheet = m.targetSheet != 0 ? mapEntryTarget(m.targetSheet, def, sheet) : 0;
                 c.unit = m.unit;
                 c.packageOnly = m.packageOnly;
+                c.harnessType = m.harnessType;
             }
         }
+        // Harness entries of the copies belong to the copies of their harness label.
+        for (int sheet : instances)
+            for (int mid : masterIds) {
+                const int masterHarness = comp(mid)->harnessOf;
+                const auto copyIt = copyOf.find({mid, sheet});
+                Component* copy = copyIt == copyOf.end() ? nullptr : comp(copyIt->second);
+                if (!copy) continue;
+                const auto h = copyOf.find({masterHarness, sheet});
+                const int harnessOf = masterHarness != 0 && h != copyOf.end() ? h->second : 0;
+                if (copy->harnessOf != harnessOf) {
+                    copy->harnessOf = harnessOf;
+                    changed = true;
+                }
+            }
         // Units of multi-unit parts belong to the copies of their packages.
         for (int sheet : instances)
             for (int mid : masterIds) {
@@ -571,7 +933,7 @@ bool Schematic::syncInstancesOnce() {
             const std::string logical = m.logicalRef;
             const std::string netSymbolRef = m.ref;
             if (part) {
-                const std::string ref = channelRef(logical, def, step);
+                const std::string ref = channelRef(logical, def, step, pathOf(def));
                 if (m.ref != ref) {
                     m.ref = ref;
                     changed = true;
@@ -582,7 +944,7 @@ bool Schematic::syncInstancesOnce() {
                 Component* copy = copyIt == copyOf.end() ? nullptr : comp(copyIt->second);
                 if (!copy) continue;
                 Component& c = *copy;
-                const std::string ref = part ? channelRef(logical, sheet, step) : netSymbolRef;
+                const std::string ref = part ? channelRef(logical, sheet, step, pathOf(sheet)) : netSymbolRef;
                 if (c.ref != ref) {
                     c.ref = ref;
                     changed = true;
@@ -625,6 +987,13 @@ bool Schematic::syncInstancesOnce() {
             }
     }
     changed |= repairBusLinks();  // entries moved onto the block above may have left their bus behind
+    for (auto& c : components_)
+        if (c.kind == ComponentKind::NetLabel && c.scope == LabelScope::SheetEntry &&
+            (c.targetSheet == c.sheet || !findSheet(c.targetSheet))) {
+            c.scope = LabelScope::Local;  // as on loading: an entry into nothing keeps its net to its own sheet
+            c.targetSheet = 0;
+            changed = true;
+        }
     if (changed) invalidate();
     return syncUnits() || changed;
 }

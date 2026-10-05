@@ -18,13 +18,6 @@ namespace sieda {
 namespace {
 const CustomPart* partOf(const Component& c) { return CustomPartRegistry::instance().find(c.customPart); }
 
-/// Units that can stand in for each other: the same pins in the same places with the same electrical types.
-std::string unitSignature(const PartUnitDef& u) {
-    std::string sig;
-    for (const auto& p : u.def.pins)
-        sig += std::to_string(p.type) + "@" + std::to_string(p.offset.x) + "," + std::to_string(p.offset.y) + ";";
-    return sig;
-}
 }  // namespace
 
 int Schematic::unitPackage(int componentId) const {
@@ -213,13 +206,13 @@ void Schematic::packUnits() {
         const CustomPart* part = CustomPartRegistry::instance().find(key.first);
         if (!part) continue;
         std::vector<int> signal;  // unit indices (1-based) of the signal units
-        std::set<std::string> signatures;
         for (size_t i = 0; i < part->units.size(); ++i)
-            if (!part->units[i].power) {
-                signal.push_back(static_cast<int>(i) + 1);
-                signatures.insert(unitSignature(part->units[i]));
-            }
-        if (signal.size() < 2 || signatures.size() != 1) continue;
+            if (!part->units[i].power) signal.push_back(static_cast<int>(i) + 1);
+        // Only interchangeable gates (the same pins in the same places, or one swap group) are re-assigned.
+        const bool interchangeable = std::all_of(signal.begin(), signal.end(), [&](int u) {
+            return unitsInterchangeable(part->units[static_cast<size_t>(signal.front() - 1)], part->units[static_cast<size_t>(u - 1)]);
+        });
+        if (signal.size() < 2 || !interchangeable) continue;
         // Packages in a repeated sheet keep their units (each channel is its own copy).
         if (std::any_of(packages.begin(), packages.end(), [&](int id) { return isRepeated(find(id)->sheet); })) continue;
         std::vector<int> units;
@@ -307,6 +300,58 @@ void Schematic::unitERC(std::vector<RuleViolation>& out) const {
             }
         }
     }
+}
+
+bool Schematic::swapUnits(int a, int b) {
+    a = masterOf(a);
+    b = masterOf(b);
+    Component* ua = find(a);
+    Component* ub = find(b);
+    if (!ua || !ub || a == b || ua->kind != ComponentKind::PartUnit || ub->kind != ComponentKind::PartUnit) return false;
+    if (ua->customPart != ub->customPart || ua->sheet != ub->sheet) return false;
+    const CustomPart* part = partOf(*ua);
+    if (!part) return false;
+    const int n = static_cast<int>(part->units.size());
+    if (ua->unit < 1 || ua->unit > n || ub->unit < 1 || ub->unit > n) return false;
+    if (!unitsInterchangeable(part->units[static_cast<size_t>(ua->unit - 1)], part->units[static_cast<size_t>(ub->unit - 1)]))
+        return false;
+    const Component* pa = find(ua->unitOf);
+    const Component* pb = find(ub->unitOf);
+    if (!pa || !pb || pa->value != pb->value) return false;
+    // The symbols stay where they are; the gates (package and unit index) change places.
+    std::swap(ua->unitOf, ub->unitOf);
+    std::swap(ua->unit, ub->unit);
+    invalidate();
+    edited();
+    return true;
+}
+
+bool Schematic::swapPins(int componentId, int pinA, int pinB) {
+    const int id = masterOf(componentId);
+    Component* c = find(id);
+    if (!c || c->kind != ComponentKind::PartUnit || pinA == pinB) return false;
+    const CustomPart* part = partOf(*c);
+    if (!part || c->unit < 1 || c->unit > static_cast<int>(part->units.size())) return false;
+    const PartUnitDef& unit = part->units[static_cast<size_t>(c->unit - 1)];
+    const bool allowed = std::any_of(unit.pinSwap.begin(), unit.pinSwap.end(), [&](const std::vector<int>& g) {
+        return std::find(g.begin(), g.end(), pinA) != g.end() && std::find(g.begin(), g.end(), pinB) != g.end();
+    });
+    if (!allowed) return false;
+    // The wires (and no-connect flags) of the two pins change places: the same nets now reach the other pin.
+    for (auto& w : wires_) {
+        for (PinRef* end : {&w.a, &w.b}) {
+            if (end->component != id) continue;
+            if (end->pin == pinA) end->pin = pinB;
+            else if (end->pin == pinB) end->pin = pinA;
+        }
+    }
+    for (auto& nc : c->noConnect) {
+        if (nc == pinA) nc = pinB;
+        else if (nc == pinB) nc = pinA;
+    }
+    invalidate();
+    edited();
+    return true;
 }
 
 }  // namespace sieda

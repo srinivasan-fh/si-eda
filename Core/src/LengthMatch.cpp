@@ -72,6 +72,14 @@ std::vector<std::pair<int, int>> differentialPairs(const Schematic& sch) {
             }
         }
     }
+    // Pairs marked by schematic directives (nets of any name pattern the directive pairs).
+    for (const auto& pr : sch.directiveDiffPairs()) {
+        const bool known = std::any_of(out.begin(), out.end(), [&](const std::pair<int, int>& o) {
+            return o == pr || (o.first == pr.second && o.second == pr.first) || o.first == pr.first || o.second == pr.second ||
+                   o.first == pr.second || o.second == pr.first;
+        });
+        if (!known) out.push_back(pr);
+    }
     return out;
 }
 

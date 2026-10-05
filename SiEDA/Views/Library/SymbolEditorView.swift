@@ -20,6 +20,12 @@ struct SymbolEditorView: View {
     @State private var dragLocation: CGPoint?
     @State private var stackDuplicates = true
     @State private var arrangeError: String?
+    /// Symbol layout or the units (gates) of a multi-unit part.
+    @State private var mode = Mode.symbol
+    @State private var units: UnitDraft
+    @State private var unitErrors = 0
+
+    private enum Mode: Hashable { case symbol, units }
 
     init(spec: CustomPartSpec, onApply: @escaping (CustomPartSpec) -> Void) {
         self.spec = spec
@@ -27,19 +33,24 @@ struct SymbolEditorView: View {
         var initial = SymbolDraft(spec: spec)
         initial.reconcile(with: spec.pins)
         _draft = State(initialValue: initial)
+        _units = State(initialValue: UnitDraft(spec: spec))
     }
 
     var body: some View {
         VStack(spacing: 0) {
             toolbar
             Divider()
-            HStack(spacing: 0) {
-                canvas
-                    .frame(minWidth: 460, maxWidth: .infinity, maxHeight: .infinity)
-                Divider()
-                ScrollView { sidePanel.padding(12) }
-                    .frame(width: 320)
-                    .background(Theme.deepBlue.opacity(0.45))
+            if mode == .units {
+                UnitEditorPanel(spec: draft.applied(to: spec), draft: $units, errorCount: $unitErrors)
+            } else {
+                HStack(spacing: 0) {
+                    canvas
+                        .frame(minWidth: 460, maxWidth: .infinity, maxHeight: .infinity)
+                    Divider()
+                    ScrollView { sidePanel.padding(12) }
+                        .frame(width: 320)
+                        .background(Theme.deepBlue.opacity(0.45))
+                }
             }
             Divider()
             footer
@@ -56,6 +67,14 @@ struct SymbolEditorView: View {
         HStack(spacing: 8) {
             Text("SYMBOL EDITOR · \(spec.name.isEmpty ? "untitled" : spec.name)")
                 .font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+            Picker("Edit", selection: $mode) {
+                Text("Symbol").tag(Mode.symbol)
+                Text("Units").tag(Mode.units)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help("Arrange the symbol, or define the gates of a multi-unit part")
             Spacer()
             Toggle("Stack repeated power pins", isOn: $stackDuplicates)
                 .toggleStyle(.checkbox)
@@ -371,7 +390,7 @@ struct SymbolEditorView: View {
 
     private var footer: some View {
         HStack {
-            let errors = issues.filter(\.isError).count
+            let errors = issues.filter(\.isError).count + unitErrors
             let spots = Set(draft.placements.map { "\($0.side.rawValue)\($0.slot)" }).count
             Text("\(spec.pins.count) pins on \(spots) spots" + (errors > 0 ? " · \(errors) errors" : ""))
                 .font(.caption).foregroundStyle(errors > 0 ? Theme.error : Theme.textMuted)
@@ -380,7 +399,7 @@ struct SymbolEditorView: View {
             Button("Cancel") { dismiss() }
                 .keyboardShortcut(.cancelAction)
             Button("Apply Symbol") {
-                onApply(draft.applied(to: spec))
+                onApply(units.applied(to: draft.applied(to: spec)))
                 dismiss()
             }
             .keyboardShortcut(.defaultAction)
