@@ -5,7 +5,8 @@ Core/src/StandardCatalog.inc.
 Pin numbers, names and electrical types come straight from the KiCad symbols (which follow the vendor datasheets);
 the package is the orderable variant's (e.g. LM358DR = SOIC-8, LM358N = DIP-8). Parts KiCad does not carry are
 written by hand in StandardParts.cpp. Run from the repository root:  python3 tools/fetch_catalog_parts.py
-(needs network access to gitlab.com).
+(needs network access to gitlab.com). `--discover` and `--extra` grow the catalog from whole KiCad libraries into
+Core/src/StandardCatalogExtra.inc (see the end of this file).
 """
 import os, re, sys, urllib.parse, urllib.request
 
@@ -727,6 +728,10 @@ def package(footprint):
         return "SOIC", 8, 2.54, 6.62, fp
     if "POLOLU_BREAKOUT-16" in u:  # StepStick carrier: two 1 × 8 headers 12.7 mm apart, numbered like a DIP
         return "DIP", 16, 2.54, 12.7, fp
+    hdr = re.search(r"PIN(?:HEADER|SOCKET)_(\d)X(\d+)_P2\.54MM", u)
+    if hdr:  # 2.54 mm pin headers and sockets (1 × N, or 2 × N numbered odd / even)
+        rows, n = int(hdr.group(1)), int(hdr.group(2))
+        return ("HEADER", n, 2.54, 0, fp) if rows == 1 else ("HEADER2", 2 * n, 2.54, 0, fp)
     if "TO-220-15" in u:
         return "MULTIWATT", 15, 1.27, 0, fp
     if "TO-220-3" in u:
@@ -818,5 +823,258 @@ def entry(category, lib, sym, name, maker, desc, ref, override, summary):
     return out
 
 
+# ---------------------------------------------------------------- catalog growth: more KiCad symbols, discovered
+#
+# `--discover` lists the symbols of the libraries below, keeps those whose KiCad symbol names one footprint that
+# SiEDA's packages draw exactly (and a manufacturer it can name), and freezes the list in
+# tools/catalog_extra_parts.tsv. `--extra` turns that frozen list into Core/src/StandardCatalogExtra.inc with the same
+# generator as the main catalog, so a regeneration does not depend on what KiCad's master branch holds that day, and
+# Core/src/StandardCatalog.inc (the parts above) is never touched by it.
+
+EXTRA_LIST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "catalog_extra_parts.tsv")
+EXTRA_OUT = "Core/src/StandardCatalogExtra.inc"
+TREE = "https://gitlab.com/api/v4/projects/kicad%2Flibraries%2Fkicad-symbols/repository/tree?path={}&per_page=100&page={}"
+
+# (KiCad library, SiEDA category, at most this many parts)
+DISCOVER = [
+    ("Regulator_Linear", "Regulators", 110), ("Regulator_Switching", "Regulators", 110),
+    ("Regulator_Controller", "Regulators", 25), ("Reference_Voltage", "Power", 30),
+    ("Power_Supervisor", "Power", 30), ("Power_Protection", "Power", 30), ("Power_Management", "Power", 40),
+    ("Battery_Management", "Power", 35),
+    ("Amplifier_Operational", "Op-Amps", 60), ("Amplifier_Instrumentation", "Op-Amps", 15),
+    ("Amplifier_Difference", "Op-Amps", 10), ("Amplifier_Current", "Sensors", 30), ("Amplifier_Audio", "Audio", 25),
+    ("Comparator", "Op-Amps", 25),
+    ("Interface_CAN_LIN", "Interface", 35), ("Interface_UART", "Interface", 40), ("Interface_USB", "Interface", 40),
+    ("Interface_Ethernet", "Interface", 15), ("Interface_Expansion", "Interface", 25), ("Interface_LineDriver", "Interface", 15),
+    ("Interface_CurrentLoop", "Interface", 10), ("Logic_LevelTranslator", "Logic", 20), ("Isolator", "Interface", 30),
+    ("74xx", "Logic", 70), ("4xxx", "Logic", 40), ("Timer", "Timing", 15), ("Timer_RTC", "Timing", 20),
+    ("Memory_EEPROM", "Memory", 30), ("Memory_Flash", "Memory", 30), ("Memory_RAM", "Memory", 20),
+    ("Analog_ADC", "Data Converters", 50), ("Analog_DAC", "Data Converters", 40), ("Analog_Switch", "Analog", 30),
+    ("Driver_Motor", "Motor Control", 30), ("Driver_FET", "Motor Control", 30), ("Driver_LED", "Drivers", 30),
+    ("Sensor_Temperature", "Sensors", 30), ("Sensor_Magnetic", "Sensors", 20), ("Sensor_Current", "Sensors", 20),
+    ("MCU_Microchip_ATtiny", "MCU · Microchip AVR", 40), ("MCU_Microchip_ATmega", "MCU · Microchip AVR", 30),
+    ("MCU_Microchip_PIC16", "MCU · Microchip PIC", 30), ("MCU_Microchip_PIC18", "MCU · Microchip PIC", 20),
+]
+
+# Datasheet link → manufacturer (the KiCad symbols name their datasheet, not their maker).
+MAKERS = [
+    ("ti.com", "Texas Instruments"), ("analog.com", "Analog Devices"), ("linear.com", "Analog Devices"),
+    ("maximintegrated", "Analog Devices (Maxim)"), ("maxim-ic", "Analog Devices (Maxim)"), ("st.com", "STMicroelectronics"),
+    ("microchip.com", "Microchip"), ("atmel.com", "Microchip"), ("nxp.com", "NXP"), ("onsemi", "onsemi"),
+    ("fairchildsemi", "onsemi"), ("infineon.com", "Infineon"), ("irf.com", "Infineon"), ("diodes.com", "Diodes Inc."),
+    ("silabs.com", "Silicon Labs"), ("renesas.com", "Renesas"), ("intersil.com", "Renesas"), ("idt.com", "Renesas"),
+    ("rohm.", "ROHM"), ("toshiba", "Toshiba"), ("vishay.com", "Vishay"), ("nexperia.com", "Nexperia"),
+    ("monolithicpower", "Monolithic Power Systems"), ("richtek", "Richtek"), ("torexsemi", "Torex"),
+    ("ftdichip", "FTDI"), ("wch.cn", "WCH"), ("wch-ic", "WCH"), ("melexis", "Melexis"), ("allegromicro", "Allegro"),
+    ("ams.com", "ams OSRAM"), ("ams-osram", "ams OSRAM"), ("semtech", "Semtech"), ("littelfuse", "Littelfuse"),
+    ("issi.com", "ISSI"), ("winbond", "Winbond"), ("macronix", "Macronix"), ("cypress.com", "Infineon (Cypress)"),
+    ("micron.com", "Micron"), ("espressif", "Espressif"), ("ablic", "ABLIC"), ("mouser.com", ""), ("lcsc.com", ""),
+    ("xlsemi", "XLSEMI"), ("jrc.co.jp", "Nisshinbo"), ("nisshinbo", "Nisshinbo"), ("trinamic", "Trinamic (ADI)"),
+    ("power.com", "Power Integrations"), ("powerint", "Power Integrations"), ("sipex", "MaxLinear"),
+    ("exar.com", "MaxLinear"), ("maxlinear", "MaxLinear"), ("holtek", "Holtek"), ("murata", "Murata"),
+]
+
+
+# Symbols whose KiCad pins and SiEDA's parametric package disagree (an exposed pad on a SOIC, SOT-23-8, TO-263
+# with more than 7 leads, pins on no pad), found by registering every generated part in the core: left out.
+EXCLUDE = {
+    # TO-263 parts whose tab is not a pin of the symbol:
+    "AZ1117S-ADJ", "LM22678TJ-5", "LM22678TJ-ADJ", "AUIPS7081S", "AUIPS7111S", "AUIR3313S", "AUIR3314S", "AUIR3315S", "AUIR3316S", "AUIR3320S", "BTN8982TA",
+    "ADP7142ARDZ", "ADP7142ARDZ-1.8", "ADP7142ARDZ-2.5", "ADP7142ARDZ-3.3", "ADP7142ARDZ-5.0", "ADP2302ARDZ",
+    "ADP2302ARDZ-2.5", "ADP2302ARDZ-3.3", "ADP2302ARDZ-5.0", "ADP2303ARDZ", "ADP2303ARDZ-2.5", "ADP2303ARDZ-3.3",
+    "ADP2303ARDZ-5.0", "LM22676MR-5", "LM22676MR-ADJ", "MAX6369", "MAX6370", "MAX6371", "MAX6372", "MAX6373",
+    "MAX6374", "D3V3X8U9LP3810", "AUIPS6044G", "BTS40K2-1EJC", "BQ25798", "ADA4625-1ARDZ", "ADA4625-2ARDZ",
+    "ADA4817-1ARD", "ADA4898-1YRDZ", "ADA4898-2", "IR4302", "IR4312", "IR4322", "LM4755TS", "LM4950TS", "MC3486N",
+    "DAC7513_DCN", "A4950E", "A4950K", "A4953_LJ", "HIP2100_EPSOIC", "HIP2101_EPSOIC", "LM94021", "PIC18F2450-ISO",
+}
+
+def maker_for(datasheet, lib):
+    d = datasheet.lower()
+    for key, name in MAKERS:
+        if key in d:
+            return name
+    if lib.startswith("MCU_Microchip"):
+        return "Microchip"
+    return ""
+
+
+def fetch_retry(lib, sym):
+    import time, urllib.error
+    for attempt in range(6):
+        try:
+            return kicad.pins(lib, sym), kicad.fetch(lib, sym)
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 500, 502, 503) and attempt < 5:
+                time.sleep(2 * (attempt + 1))
+                continue
+            raise
+
+
+def prefetch(lib, symbols, workers=8):
+    """Downloads the symbol files not cached yet, a few at a time, retrying on rate limits."""
+    import concurrent.futures, time, urllib.error
+
+    def one(sym):
+        for attempt in range(6):
+            try:
+                kicad.fetch(lib, sym)
+                return
+            except urllib.error.HTTPError as e:
+                if e.code in (429, 500, 502, 503):
+                    time.sleep(3 * (attempt + 1))
+                    continue
+                return
+            except Exception:
+                time.sleep(1)
+        return
+
+    todo = [s for s in symbols if not os.path.exists(os.path.join(kicad.CACHE, f"{lib}__{s}.kicad_sym"))]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+        list(pool.map(one, todo))
+
+
+def library_symbols(lib):
+    import json, time
+    cache = os.path.join(kicad.CACHE, f"tree__{lib}.json")
+    if os.path.exists(cache):
+        return json.load(open(cache))
+    names, page = [], 1
+    while True:
+        url = TREE.format(urllib.parse.quote(f"{lib}.kicad_symdir", safe=""), page)
+        with urllib.request.urlopen(url, timeout=60) as r:
+            items = json.loads(r.read())
+        names += [i["name"][:-len(".kicad_sym")] for i in items if i["name"].endswith(".kicad_sym")]
+        if len(items) < 100:
+            break
+        page += 1
+        time.sleep(0.3)
+    os.makedirs(kicad.CACHE, exist_ok=True)
+    json.dump(names, open(cache, "w"))
+    return names
+
+
+def existing_names():
+    """Every part name already in the standard library (catalog, MCUs and the hand-written parts)."""
+    names = set()
+    for path, pattern in (("Core/src/StandardCatalog.inc", r'^catalog\(parts, "[^"]*", "([^"]+)"'),
+                          ("Core/src/StandardMcus.inc", r'^mcu\(parts, "[^"]*", "([^"]+)"'),
+                          ("Core/src/StandardParts.cpp", r'\bpart\("[^"]*",\s*"([^"]+)"')):
+        names |= set(m.group(1).upper() for m in re.finditer(pattern, open(path, encoding="utf-8").read(), re.M))
+    return names
+
+
+def clean_text(s, limit=160):
+    s = re.sub(r"\s+", " ", s.replace("\\n", " ")).strip()
+    return s if len(s) <= limit else s[:limit - 1].rstrip(" ,;") + "…"
+
+
+def connectors():
+    """Pin headers and sockets (KiCad Connector_Generic symbols on their KiCad footprints): verified numbering."""
+    rows = []
+    for n in range(2, 21):
+        rows.append(("Connectors", "Connector_Generic", f"Conn_01x{n:02d}", f"PinHeader_1x{n:02d}_P2.54mm", "Generic",
+                     f"Pin header 1 × {n}, 2.54 mm pitch, vertical, through-hole", "J",
+                     f"Connector_PinHeader_2.54mm:PinHeader_1x{n:02d}_P2.54mm_Vertical"))
+        rows.append(("Connectors", "Connector_Generic", f"Conn_01x{n:02d}", f"PinSocket_1x{n:02d}_P2.54mm", "Generic",
+                     f"Pin socket (female header) 1 × {n}, 2.54 mm pitch, vertical, through-hole", "J",
+                     f"Connector_PinSocket_2.54mm:PinSocket_1x{n:02d}_P2.54mm_Vertical"))
+    for n in range(2, 21):
+        rows.append(("Connectors", "Connector_Generic", f"Conn_02x{n:02d}_Odd_Even", f"PinHeader_2x{n:02d}_P2.54mm",
+                     "Generic", f"Pin header 2 × {n} ({2 * n} pins), 2.54 mm pitch, odd / even numbering, through-hole",
+                     "J", f"Connector_PinHeader_2.54mm:PinHeader_2x{n:02d}_P2.54mm_Vertical"))
+        rows.append(("Connectors", "Connector_Generic", f"Conn_02x{n:02d}_Odd_Even", f"PinSocket_2x{n:02d}_P2.54mm",
+                     "Generic", f"Pin socket 2 × {n} ({2 * n} pins), 2.54 mm pitch, odd / even numbering, through-hole",
+                     "J", f"Connector_PinSocket_2.54mm:PinSocket_2x{n:02d}_P2.54mm_Vertical"))
+    return rows
+
+
+def discover():
+    import time
+    taken = existing_names() | set(p[3].upper() for p in PARTS)
+    rows = []
+    for row in connectors():
+        if row[3].upper() not in taken:
+            taken.add(row[3].upper())
+            rows.append(row)
+    for lib, category, cap in DISCOVER:
+        kept = 0
+        try:
+            symbols = library_symbols(lib)
+        except Exception as e:  # report and go on with the next library
+            print(f"{lib}: cannot list ({e})")
+            continue
+        # Fetch the candidates eight at a time (into the symbol cache), then judge them in name order.
+        wanted = [s for s in sorted(symbols) if "x" not in s and s.upper() not in taken and len(s) <= 40]
+        prefetch(lib, wanted)
+        for sym in sorted(symbols):
+            if kept >= cap:
+                break
+            if "x" in sym or sym.upper() in taken or len(sym) > 40 or sym in EXCLUDE:  # lower-case x: KiCad's wildcard placeholder
+                continue
+            try:
+                (found, footprint), text = fetch_retry(lib, sym)
+                time.sleep(0.05)
+            except Exception as e:
+                print(f"{lib}:{sym}: {e}")
+                continue
+            if not footprint or ":" not in footprint or irregular(footprint):
+                continue
+            datasheet = kicad.prop(text, "Datasheet")
+            parent = re.search(r'\(extends "([^"]+)"\)', text)
+            if not datasheet and parent:
+                datasheet = kicad.prop(kicad.fetch(lib, parent.group(1)), "Datasheet")
+            desc = kicad.prop(text, "Description") or kicad.prop(text, "ki_description")
+            if not desc and parent:
+                ptext = kicad.fetch(lib, parent.group(1))
+                desc = kicad.prop(ptext, "Description") or kicad.prop(ptext, "ki_description")
+            maker = maker_for(datasheet, lib)
+            if not maker or not desc:
+                continue
+            row = (category, lib, sym, sym, maker, clean_text(desc), "U", "")
+            try:
+                entry(*row, [])  # the generator accepts it (package drawn, numeric pins, pins on pads)
+            except (SystemExit, Exception):
+                continue
+            taken.add(sym.upper())
+            rows.append(row)
+            kept += 1
+        print(f"{lib}: {kept} parts")
+    with open(EXTRA_LIST, "w", encoding="utf-8") as f:
+        f.write("# Frozen by tools/fetch_catalog_parts.py --discover (category, library, symbol, name, manufacturer, "
+                "description, reference prefix, footprint override). Edit by re-running --discover.\n")
+        for row in rows:
+            f.write("\t".join(row) + "\n")
+    print(f"{len(rows)} parts written to {EXTRA_LIST}")
+
+
+def extra():
+    rows = []
+    for line in open(EXTRA_LIST, encoding="utf-8"):
+        if line.startswith("#") or not line.strip():
+            continue
+        fields = line.rstrip("\n").split("\t")
+        if len(fields) != 8:
+            raise SystemExit(f"bad line in {EXTRA_LIST}: {line!r}")
+        if fields[3] not in EXCLUDE:
+            rows.append(tuple(fields))
+    out = ["// Generated by tools/fetch_catalog_parts.py --extra from tools/catalog_extra_parts.tsv and the KiCad symbol",
+           "// library (pin numbers, names and electrical types as published there). Do not edit by hand.", ""]
+    summary, errors = [], []
+    for row in rows:
+        try:
+            out.extend(entry(*row, summary))
+        except (SystemExit, Exception) as e:
+            errors.append(f"{row[3]}: {e}")
+    if errors:
+        raise SystemExit("\n".join(errors))
+    open(EXTRA_OUT, "w").write("\n".join(out) + "\n")
+    print(f"{len(rows)} parts written to {EXTRA_OUT}")
+
+
 if __name__ == "__main__":
-    main()
+    if "--discover" in sys.argv:
+        discover()
+    elif "--extra" in sys.argv:
+        extra()
+    else:
+        main()

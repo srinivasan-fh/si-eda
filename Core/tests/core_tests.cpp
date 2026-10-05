@@ -11582,3 +11582,1052 @@ TEST(spice_standard_waveforms) {
         CHECK_NEAR(w[45], 0, 1e-6);   // 4.5 µs: after the 2 µs width
     }
 }
+
+// ------------------------------------------------------------------ supplier part data (Nexar, DigiKey, Mouser)
+
+#include "sieda/Suppliers.hpp"
+
+extern "C" int sieda_c_api_supplier_test(void);
+
+namespace {
+std::string readSupplierFixture(const std::string& name) {
+    std::ifstream f(std::string(SIEDA_FIXTURE_DIR) + "/suppliers/" + name, std::ios::binary);
+    std::stringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+
+const SupplierPart* supplierPart(const std::vector<SupplierPart>& parts, const std::string& mpn) {
+    for (const auto& p : parts)
+        if (p.mpn == mpn) return &p;
+    return nullptr;
+}
+}  // namespace
+
+TEST(supplier_lifecycle_prices_and_quotes) {
+    CHECK(partLifecycleFromText("Active") == PartLifecycle::Active);
+    CHECK(partLifecycleFromText("Production (Last Updated: 2 years ago)") == PartLifecycle::Active);
+    CHECK(partLifecycleFromText("Not Recommended for New Designs") == PartLifecycle::Nrnd);
+    CHECK(partLifecycleFromText("NRND") == PartLifecycle::Nrnd);
+    CHECK(partLifecycleFromText("Not For New Designs") == PartLifecycle::Nrnd);
+    CHECK(partLifecycleFromText("End of Life") == PartLifecycle::Eol);
+    CHECK(partLifecycleFromText("Last Time Buy") == PartLifecycle::Eol);
+    CHECK(partLifecycleFromText("EOL") == PartLifecycle::Eol);
+    CHECK(partLifecycleFromText("Obsolete") == PartLifecycle::Obsolete);
+    CHECK(partLifecycleFromText("Discontinued at Digi-Key") == PartLifecycle::Obsolete);
+    CHECK(partLifecycleFromText("New Product") == PartLifecycle::New);
+    CHECK(partLifecycleFromText("Preliminary") == PartLifecycle::New);
+    CHECK(partLifecycleFromText("") == PartLifecycle::Unknown);
+    CHECK(partLifecycleFromText("Develop") == PartLifecycle::Unknown);  // "eol" only as a word
+    CHECK(lifecycleNeedsAttention(PartLifecycle::Nrnd) && !lifecycleNeedsAttention(PartLifecycle::Active));
+    CHECK(partLifecycleFromName(partLifecycleName(PartLifecycle::Eol)) == PartLifecycle::Eol);
+
+    CHECK_NEAR(parsePriceText("$0.452"), 0.452, 1e-12);
+    CHECK_NEAR(parsePriceText("0,45 \xE2\x82\xAC"), 0.45, 1e-12);
+    CHECK_NEAR(parsePriceText("1.234,56 \xE2\x82\xAC"), 1234.56, 1e-9);
+    CHECK_NEAR(parsePriceText("1,234.50"), 1234.5, 1e-9);
+    CHECK_NEAR(parsePriceText("1,234"), 1234, 1e-9);
+    CHECK_NEAR(parsePriceText("0,452"), 0.452, 1e-12);
+    CHECK_NEAR(parsePriceText("12,5"), 12.5, 1e-12);
+    CHECK_NEAR(parsePriceText("\xC2\xA5" "63"), 63, 1e-12);
+    CHECK_NEAR(parsePriceText("1 234,56"), 1234.56, 1e-9);
+    CHECK(std::isnan(parsePriceText("Quote")));
+    CHECK(std::isnan(parsePriceText("")));
+    CHECK(normalizeMpn("ltc4359ims8#pbf") == "LTC4359IMS8PBF");
+
+    SupplierOffer o;
+    o.currency = "USD";
+    o.stock = 1000;
+    o.prices = {{1, 0.50}, {10, 0.40}, {100, 0.20}};
+    PriceQuote q = quoteOffer(o, 5);
+    CHECK(q.ok && q.orderQuantity == 5 && std::fabs(q.unitPrice - 0.5) < 1e-12 && q.inStock);
+    q = quoteOffer(o, 90);  // 90 x 0.40 = 36 > 100 x 0.20 = 20: buy 100
+    CHECK(q.orderQuantity == 100 && std::fabs(q.extended - 20) < 1e-9);
+    o.moq = 25;
+    o.multiple = 25;
+    q = quoteOffer(o, 30);  // MOQ and multiple: 50 at 0.40
+    CHECK(q.orderQuantity == 50 && std::fabs(q.unitPrice - 0.40) < 1e-12);
+    o.stock = 40;
+    CHECK(!quoteOffer(o, 30).inStock);
+    o.stock = -1;
+    CHECK(!quoteOffer(o, 1).inStock);  // stock not reported: not confirmed
+    SupplierOffer reel;
+    reel.prices = {{2500, 0.1}};
+    q = quoteOffer(reel, 3);
+    CHECK(q.orderQuantity == 2500 && std::fabs(q.extended - 250) < 1e-9);
+    CHECK(!quoteOffer(SupplierOffer{}, 3).ok);
+    q = quoteOffer(o, 2000000000);  // no overflow on silly quantities
+    CHECK(q.ok && q.orderQuantity > 0 && std::isfinite(q.extended));
+
+    SupplierPart part;
+    part.mpn = "X";
+    SupplierOffer cheapNoStock = o, dearInStock = o;
+    cheapNoStock.stock = 0;
+    cheapNoStock.moq = cheapNoStock.multiple = 1;
+    dearInStock.stock = 500;
+    dearInStock.moq = dearInStock.multiple = 1;
+    dearInStock.prices = {{1, 0.9}};
+    SupplierOffer euro = dearInStock;
+    euro.currency = "EUR";
+    euro.prices = {{1, 0.01}};
+    part.offers = {cheapNoStock, dearInStock, euro};
+    OfferChoice c = bestOffer(part, 10, "USD");
+    CHECK(c.offerIndex == 1);  // in stock beats cheaper but out of stock; EUR ignored while USD offers exist
+    c = bestOffer(part, 10, "");
+    CHECK(c.offerIndex == 2);
+    c = bestOffer(part, 10, "GBP");  // nothing in GBP: any currency
+    CHECK(c.offerIndex == 2);
+}
+
+TEST(supplier_parsers_read_recorded_replies) {
+    // Mouser v2 keyword search.
+    const SupplierSearchResult m = parseMouserResponse(readSupplierFixture("mouser_v2_keyword_lm358dr.json"));
+    CHECK(m.error.empty() && m.source == "mouser" && m.total == 3 && m.parts.size() == 3);
+    const SupplierPart* dr = supplierPart(m.parts, "LM358DR");
+    CHECK(dr != nullptr);
+    if (dr) {
+        CHECK(dr->manufacturer == "Texas Instruments" && dr->lifecycle == PartLifecycle::Unknown);
+        CHECK(dr->datasheet == "https://www.ti.com/lit/ds/symlink/lm358.pdf");
+        CHECK(dr->offers.size() == 1 && dr->offers[0].sku == "595-LM358DR" && dr->offers[0].stock == 23764);
+        CHECK(dr->offers[0].prices.size() == 5 && std::fabs(dr->offers[0].prices[2].price - 0.184) < 1e-12);
+        CHECK(dr->offers[0].currency == "USD" && dr->offers[0].leadTimeDays == 42 && dr->offers[0].packaging == "Reel");
+    }
+    const SupplierPart* g4 = supplierPart(m.parts, "LM358DRG4");
+    CHECK(g4 && g4->lifecycle == PartLifecycle::Nrnd && g4->offers.size() == 1 && g4->offers[0].stock == 0 &&
+          g4->offers[0].moq == 2500 && g4->offers[0].multiple == 2500 && g4->offers[0].leadTimeDays == 42);
+    const SupplierPart* on = supplierPart(m.parts, "LM358DR2G");
+    CHECK(on && on->lifecycle == PartLifecycle::Eol && on->datasheet.empty());  // javascript: link dropped
+    CHECK(on && on->productUrl == "https://www.mouser.de/ProductDetail/onsemi/LM358DR2G");
+    CHECK(on && on->offers[0].currency == "EUR" && std::fabs(on->offers[0].prices[0].price - 0.41) < 1e-12 &&
+          std::fabs(on->offers[0].prices[2].price - 1234.5) < 1e-9);
+    const SupplierSearchResult me = parseMouserResponse(readSupplierFixture("mouser_v2_error_invalid_key.json"));
+    CHECK(me.parts.empty() && me.errorKind == "auth" && me.error.find("Invalid unique identifier") != std::string::npos);
+
+    // DigiKey v4 keyword search: exact matches first, no duplicates.
+    const SupplierSearchResult d = parseDigikeyResponse(readSupplierFixture("digikey_v4_keyword_lm358dr.json"));
+    CHECK(d.error.empty() && d.total == 41 && d.parts.size() == 2);
+    if (d.parts.size() == 2) {
+        CHECK(d.parts[0].mpn == "LM358DR" && d.parts[0].offers.size() == 1);
+        const SupplierPart& e4 = d.parts[1];
+        CHECK(e4.mpn == "LM358DRE4" && e4.lifecycle == PartLifecycle::Obsolete);
+        CHECK(e4.datasheet == "https://www.ti.com/lit/ds/symlink/lm358.pdf");  // "//host" made https
+        CHECK(e4.offers.size() == 1 && e4.offers[0].stock == 0 && e4.offers[0].prices.empty());
+    }
+    // The full product as listed in "Products": three packagings, the reel in whole reels.
+    {
+        Json root = Json::parse(readSupplierFixture("digikey_v4_keyword_lm358dr.json"));
+        Json only = Json::object();
+        Json products = Json::array();
+        products.push(root.get("Products")[0]);
+        only["Products"] = products;
+        const SupplierSearchResult full = parseDigikeyResponse(only.dump());
+        CHECK(full.parts.size() == 1);
+        if (full.parts.size() == 1) {
+            const SupplierPart& p = full.parts[0];
+            CHECK(p.offers.size() == 3 && p.package == "8-SOIC" && p.rohs == "ROHS3 Compliant");
+            CHECK(p.lifecycle == PartLifecycle::Active && p.category == "Instrumentation, Op Amps, Buffer Amps");
+            CHECK(p.offers.size() == 3 && p.offers[0].sku == "296-1014-1-ND" && p.offers[0].packaging == "Cut Tape (CT)" &&
+                  p.offers[0].stock == 18342);
+            if (p.offers.size() == 3) {
+                CHECK(p.offers[1].multiple == 2500 && p.offers[1].moq == 2500);
+                CHECK(p.offers[2].multiple == 1);  // Digi-Reel: any quantity
+                CHECK(p.offers[0].leadTimeDays == 42 && p.offers[0].currency == "USD");
+            }
+            CHECK(p.totalStock() == 18342 + 17500 + 18342);
+            CHECK(bestOffer(p, 3000, "USD").offerIndex >= 0);
+        }
+    }
+    const SupplierSearchResult de = parseDigikeyResponse(readSupplierFixture("digikey_v4_error_401.json"));
+    CHECK(de.parts.empty() && de.errorKind == "auth" && de.error.find("expired") != std::string::npos);
+
+    // Nexar supSearchMpn: specs carry lifecycle and package; converted prices; bad links dropped.
+    const SupplierSearchResult n = parseNexarResponse(readSupplierFixture("nexar_supsearchmpn_mcp2551.json"));
+    CHECK(n.error.empty() && n.total == 2 && n.parts.size() == 2);
+    const SupplierPart* mcp = supplierPart(n.parts, "MCP2551-I/SN");
+    CHECK(mcp && mcp->lifecycle == PartLifecycle::Nrnd && mcp->package == "SOIC" && mcp->offers.size() == 3);
+    if (mcp && mcp->offers.size() == 3) {
+        CHECK(mcp->offers[1].supplier == "Farnell" && mcp->offers[1].currency == "USD" &&
+              std::fabs(mcp->offers[1].prices[0].price - 1.33) < 1e-12);
+        CHECK(mcp->offers[2].url.empty() && mcp->offers[2].stock == -1 && mcp->offers[2].moq == 100);
+        CHECK(mcp->offers[2].prices.size() == 2);  // the EUR ladder entry is not mixed in
+        CHECK(mcp->offers[0].leadTimeDays == 49);
+    }
+    const SupplierPart* t = supplierPart(n.parts, "MCP2551T-I/SN");
+    CHECK(t && t->lifecycle == PartLifecycle::Active && t->offers.empty());
+    const SupplierSearchResult ne = parseNexarResponse(readSupplierFixture("nexar_error_unauthenticated.json"));
+    CHECK(ne.parts.empty() && ne.errorKind == "auth");
+
+    CHECK(parseSupplierResponse("octopart", readSupplierFixture("nexar_error_unauthenticated.json")).errorKind == "auth");
+    CHECK(parseSupplierResponse("lcsc", "{}").errorKind == "source");
+
+    // Normalised JSON round trip (the app's offline cache) keeps every field.
+    const Json j = supplierSearchToJson(n, "USD");
+    CHECK(j.get("schema").asString() == "sieda.supplier/1" && j.get("parts").size() == 2);
+    const SupplierPart back = supplierPartFromJson(Json::parse(j.dump()).get("parts")[0]);
+    CHECK(back.mpn == "MCP2551-I/SN" && back.lifecycle == PartLifecycle::Nrnd && back.offers.size() == 3 &&
+          back.sources == std::vector<std::string>{"nexar"});
+    CHECK(!back.offers.empty() && back.offers[0].prices.size() == 3 && back.offers[0].stock == 5210);
+    const Json& pricing = j.get("parts")[0].get("pricing");
+    CHECK(pricing.size() == 4);
+    if (pricing.size() == 4) {
+        CHECK(std::fabs(pricing[0].get("unitPrice").asNumber() - 1.18) < 1e-12);
+        CHECK(std::fabs(pricing[2].get("unitPrice").asNumber() - 0.9) < 1e-12);
+    }
+}
+
+TEST(supplier_merge_rollup_and_catalog_match) {
+    const SupplierSearchResult m = parseMouserResponse(readSupplierFixture("mouser_v2_keyword_lm358dr.json"));
+    const SupplierSearchResult d = parseDigikeyResponse(readSupplierFixture("digikey_v4_keyword_lm358dr.json"));
+    const auto merged = mergeSupplierParts({m, d});
+    const SupplierPart* dr = supplierPart(merged, "LM358DR");
+    CHECK(dr && dr->offers.size() == 2 && dr->sources.size() == 2);  // Mouser + Digi-Key cut tape
+    CHECK(merged.size() == 4);  // LM358DR, LM358DRG4, LM358DR2G, LM358DRE4
+    // The worst lifecycle wins when distributors disagree.
+    SupplierSearchResult a, b;
+    SupplierPart pa, pb;
+    pa.mpn = pb.mpn = "ABC123";
+    pa.lifecycle = PartLifecycle::Active;
+    pb.lifecycle = PartLifecycle::Eol;
+    pb.lifecycleText = "Last Time Buy";
+    a.parts = {pa};
+    b.parts = {pb};
+    const auto worst = mergeSupplierParts({a, b});
+    CHECK(worst.size() == 1 && worst[0].lifecycle == PartLifecycle::Eol && worst[0].lifecycleText == "Last Time Buy");
+
+    // Roll-up over the merged parts.
+    Json req = Json::object();
+    req["currency"] = "USD";
+    Json qs = Json::array();
+    for (int q : {1, 100}) qs.push(q);
+    req["quantities"] = qs;
+    req["buildQuantity"] = 10;
+    Json lines = Json::array();
+    auto line = [&](int item, std::vector<std::string> refs, int qty, const std::string& mpn, bool dnp = false) {
+        Json l = Json::object();
+        l["item"] = item;
+        Json r = Json::array();
+        for (const auto& s : refs) r.push(s);
+        l["refs"] = r;
+        l["quantity"] = qty;
+        l["mpn"] = mpn;
+        l["manufacturer"] = "";
+        l["dnp"] = dnp;
+        lines.push(l);
+    };
+    line(1, {"U1", "U2"}, 2, "lm358-dr");  // matched on the normalised MPN
+    line(2, {"U3"}, 1, "LM358DRG4");       // NRND, reel only, none in stock
+    line(3, {"R1"}, 1, "");
+    line(4, {"U4"}, 1, "NOPE123");
+    line(5, {"U5"}, 1, "LM358DR", true);
+    req["lines"] = lines;
+    Json parts = Json::array();
+    for (const auto& p : merged) parts.push(supplierPartToJson(p));
+    req["parts"] = parts;
+    const Json r = supplierBomRollup(Json::parse(req.dump()));
+    CHECK(r.get("lines").size() == 5 && r.get("totals").size() == 3);  // 1, 10 (build) and 100 boards
+    if (r.get("lines").size() == 5) {
+        const Json& l1 = r.get("lines")[0];
+        CHECK(l1.get("status").asString() == "priced" && l1.get("offers").size() == 3);
+        if (l1.get("offers").size() == 3) {
+            CHECK(std::fabs(l1.get("offers")[0].get("extended").asNumber() - 0.90) < 1e-9);  // 2 at 0.45
+            CHECK(l1.get("offers")[2].get("needed").asNumber() == 200);
+        }
+        const Json& l2 = r.get("lines")[1];
+        CHECK(l2.get("lifecycle").asString() == "nrnd" &&
+              l2.get("warning").asString().find("not recommended") != std::string::npos);
+        CHECK(l2.get("offers").size() == 3 && l2.get("offers")[0].get("orderQuantity").asInt() == 2500 &&
+              !l2.get("offers")[0].get("inStock").asBool());
+        CHECK(r.get("lines")[2].get("status").asString() == "no_mpn");
+        CHECK(r.get("lines")[3].get("status").asString() == "not_found");
+        CHECK(r.get("lines")[4].get("status").asString() == "dnp" && r.get("lines")[4].get("offers").size() == 0);
+    }
+    if (r.get("totals").size() == 3) {
+        const Json& t1 = r.get("totals")[0];
+        CHECK(t1.get("boards").asInt() == 1 && t1.get("priced").asInt() == 2 && t1.get("unpriced").asInt() == 2 &&
+              t1.get("shortages").asInt() == 1 && !t1.get("complete").asBool());
+        CHECK(std::fabs(t1.get("cost").asNumber() - (0.90 + 255.0)) < 1e-6);  // 2 x 0.45 + a reel of 2500 x 0.102
+        const Json& t100 = r.get("totals")[2];
+        CHECK(std::fabs(t100.get("perBoard").asNumber() - t100.get("cost").asNumber() / 100) < 1e-12);
+    }
+    CHECK(r.get("warnings").size() >= 1 && !r.get("mixedCurrency").asBool());
+    // Garbage requests give a roll-up, never an exception.
+    CHECK(supplierBomRollup(Json::parse("{\"lines\":[1,\"x\",{}],\"parts\":[null,{\"mpn\":7}]}")).get("lines").size() == 3);
+    CHECK(supplierBomRollup(Json()).get("totals").size() == 4);
+
+    // Catalog matching.
+    Json cm = catalogMatchForMpn("LM358DR");
+    CHECK(cm.get("match").asString() == "LM358DR" && cm.get("exact").asBool());
+    cm = catalogMatchForMpn("lm358dr");
+    CHECK(cm.get("match").asString() == "LM358DR" && cm.get("exact").asBool());
+    cm = catalogMatchForMpn("MAX485ESA+");  // catalog: MAX485ESA+T (reel)
+    CHECK(cm.get("match").asString() == "MAX485ESA+T" && !cm.get("exact").asBool() && !cm.get("note").asString().empty());
+    cm = catalogMatchForMpn("LTC4359IMS8#TRPBF");  // catalog: LTC4359IMS8#PBF
+    CHECK(cm.get("match").asString() == "LTC4359IMS8#PBF");
+    cm = catalogMatchForMpn("LM358DGKR");  // a different package: only a candidate
+    CHECK(cm.get("match").asString().empty() && cm.get("candidates").size() >= 1);
+    CHECK(catalogMatchForMpn("").get("match").asString().empty());
+    CHECK(catalogMatchForMpn("ZZZZ99999").get("candidates").size() == 0);
+}
+
+TEST(supplier_parsers_survive_hostile_replies) {
+    // Deep nesting, huge and empty bodies, non-JSON (an HTML error page), wrong types everywhere.
+    CHECK(parseMouserResponse(std::string(100000, '[')).errorKind == "parse");
+    CHECK(parseNexarResponse("{\"data\":" + std::string(5000, '{')).errorKind == "parse");
+    CHECK(parseDigikeyResponse("").errorKind == "parse");
+    CHECK(parseDigikeyResponse("<html><body>502 Bad Gateway</body></html>").errorKind == "service");
+    CHECK(parseMouserResponse(std::string(SupplierLimits::maxBody + 1, ' ')).errorKind == "parse");
+    CHECK(parseMouserResponse("[1,2,3]").errorKind == "parse");
+    CHECK(parseMouserResponse("{\"SearchResults\":{\"Parts\":7}}").parts.empty());
+    CHECK(parseDigikeyResponse("{\"Products\":[{\"ManufacturerProductNumber\":{},\"ProductVariations\":\"x\"}]}").parts.empty());
+    const SupplierSearchResult weird = parseMouserResponse(
+        "{\"SearchResults\":{\"Parts\":[{\"ManufacturerPartNumber\":\"A\\u0000B\\u0007\\ud800C\",\"Min\":-5,\"Mult\":1e300,"
+        "\"PriceBreaks\":[{\"Quantity\":-1,\"Price\":\"$1\"},{\"Quantity\":1e30,\"Price\":\"$1e9\"},{\"Quantity\":5,\"Price\":1e400},"
+        "{\"Quantity\":2,\"Price\":\"NaN\"},{\"Quantity\":3,\"Price\":\"$0.5\"}],\"AvailabilityInStock\":\"99999999999999999999\"}]}}");
+    CHECK(weird.parts.size() == 1);
+    if (weird.parts.size() == 1 && weird.parts[0].offers.size() == 1) {
+        const SupplierOffer& o = weird.parts[0].offers[0];
+        CHECK(o.moq == 1 && o.multiple >= 1);
+        CHECK(o.stock == 1000000000000LL);
+        for (const auto& b : o.prices) CHECK(b.quantity >= 1 && b.price > 0 && b.price <= 1e7);
+        CHECK(weird.parts[0].mpn.find('\0') == std::string::npos);
+    }
+    // Too many parts: capped with a note.
+    std::string many = "{\"SearchResults\":{\"Parts\":[";
+    for (int i = 0; i < 260; ++i) many += std::string(i ? "," : "") + "{\"ManufacturerPartNumber\":\"P" + std::to_string(i) + "\"}";
+    many += "]}}";
+    const SupplierSearchResult capped = parseMouserResponse(many);
+    CHECK(capped.parts.size() == SupplierLimits::maxParts && !capped.notes.empty());
+    // A 100 kB description is cut.
+    const SupplierSearchResult longText = parseMouserResponse(
+        "{\"SearchResults\":{\"Parts\":[{\"ManufacturerPartNumber\":\"X\",\"Description\":\"" + std::string(100000, 'a') + "\"}]}}");
+    CHECK(longText.parts.size() == 1 && longText.parts[0].description.size() <= SupplierLimits::maxString);
+
+    // Deterministic mutations of every fixture: the parsers never throw and their output stays within the limits.
+    const char* fixtures[][2] = {{"mouser", "mouser_v2_keyword_lm358dr.json"},
+                                 {"digikey", "digikey_v4_keyword_lm358dr.json"},
+                                 {"nexar", "nexar_supsearchmpn_mcp2551.json"},
+                                 {"mouser", "mouser_v2_error_invalid_key.json"},
+                                 {"digikey", "digikey_v4_error_401.json"},
+                                 {"nexar", "nexar_error_unauthenticated.json"}};
+    uint32_t seed = 0x5EDA5EDAu;
+    auto rnd = [&]() {
+        seed ^= seed << 13;
+        seed ^= seed >> 17;
+        seed ^= seed << 5;
+        return seed;
+    };
+    int parsed = 0;
+    for (const auto& fx : fixtures) {
+        const std::string original = readSupplierFixture(fx[1]);
+        CHECK(!original.empty());
+        for (int k = 0; k < 250; ++k) {
+            std::string s = original;
+            const size_t a = rnd() % (s.size() + 1), len = rnd() % 64;
+            switch (k % 6) {
+                case 0: s.resize(a); break;
+                case 1:
+                    for (int f = 0; f < 8 && !s.empty(); ++f) s[rnd() % s.size()] = static_cast<char>(rnd());
+                    break;
+                case 2: s.erase(a, len); break;
+                case 3: s.insert(a, s.substr(a, len)); break;
+                case 4: s.insert(a, std::string(len, "[{\"\\,:"[rnd() % 6])); break;
+                default: s.insert(a, "\"Price\":\"$-1e999\",\"Quantity\":1e999,"); break;
+            }
+            try {
+                const SupplierSearchResult r = parseSupplierResponse(fx[0], s);
+                parsed += r.error.empty();
+                CHECK(r.parts.size() <= SupplierLimits::maxParts);
+                for (const auto& p : r.parts) {
+                    CHECK(!p.mpn.empty() && p.offers.size() <= SupplierLimits::maxOffers);
+                    for (const auto& o : p.offers) {
+                        CHECK(o.moq >= 1 && o.multiple >= 1);
+                        for (const auto& b : o.prices) CHECK(b.quantity >= 1 && b.price > 0 && std::isfinite(b.price));
+                        CHECK(quoteOffer(o, 7).extended >= 0);
+                    }
+                    const Json j = supplierPartToJson(p, "USD");
+                    CHECK(!Json::parse(j.dump()).get("mpn").asString().empty());
+                }
+            } catch (const std::exception& e) {
+                std::printf("    %s mutation %d threw: %s\n", fx[1], k, e.what());
+                CHECK(false);
+            }
+        }
+    }
+    CHECK(parsed > 100);  // most single mutations still read
+}
+
+TEST(supplier_c_api) { CHECK(sieda_c_api_supplier_test() == 0); }
+
+// ------------------------------------------------------------------ imported 3D models (VRML, STL, OBJ)
+
+#include <cstring>
+
+#include "sieda/Model3D.hpp"
+
+#define M3_THROWS(expr)                   \
+    do {                                  \
+        bool threw_ = false;              \
+        try {                             \
+            (void)(expr);                 \
+        } catch (const std::exception&) { \
+            threw_ = true;                \
+        }                                 \
+        CHECK(threw_);                    \
+    } while (0)
+#define M3_NOTHROW(expr)                  \
+    do {                                  \
+        bool threw_ = false;              \
+        try {                             \
+            (void)(expr);                 \
+        } catch (const std::exception&) { \
+            threw_ = true;                \
+        }                                 \
+        CHECK(!threw_);                   \
+    } while (0)
+
+extern "C" int sieda_c_api_model3d_test(void);
+
+namespace {
+std::string readModelFixture(const std::string& name) {
+    std::ifstream f(std::string(SIEDA_FIXTURE_DIR) + "/models/" + name, std::ios::binary);
+    std::stringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+
+const char* const kSoicModel = "SOIC-8_3.9x4.9mm_P1.27mm.wrl";
+
+/// A unit cube [0, 1]³ as an ASCII STL.
+std::string cubeStlAscii() {
+    const float v[8][3] = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}, {0, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1}};
+    const int f[12][3] = {{0, 2, 1}, {0, 3, 2}, {4, 5, 6}, {4, 6, 7}, {0, 1, 5}, {0, 5, 4},
+                          {1, 2, 6}, {1, 6, 5}, {2, 3, 7}, {2, 7, 6}, {3, 0, 4}, {3, 4, 7}};
+    std::string s = "solid cube\n";
+    for (const auto& t : f) {
+        s += "  facet normal 0 0 0\n    outer loop\n";
+        for (int k : t) {
+            char buf[96];
+            std::snprintf(buf, sizeof buf, "      vertex %g %g %g\n", v[k][0], v[k][1], v[k][2]);
+            s += buf;
+        }
+        s += "    endloop\n  endfacet\n";
+    }
+    return s + "endsolid cube\n";
+}
+
+/// The same cube as a binary STL (the header starts with "solid", as some exporters write it).
+std::string cubeStlBinary() {
+    const Model3DMesh ascii = parseStl(cubeStlAscii());
+    std::string s(80, ' ');
+    s.replace(0, 5, "solid");
+    const uint32_t n = static_cast<uint32_t>(ascii.triangleCount());
+    for (int k = 0; k < 4; ++k) s += static_cast<char>((n >> (8 * k)) & 0xFF);
+    for (size_t t = 0; t < n; ++t) {
+        s += std::string(12, '\0');
+        for (int k = 0; k < 3; ++k) {
+            const uint32_t vi = ascii.indices[3 * t + static_cast<size_t>(k)];
+            for (int c = 0; c < 3; ++c) {
+                float x = ascii.positions[3 * vi + static_cast<size_t>(c)];
+                uint32_t bits;
+                std::memcpy(&bits, &x, 4);
+                for (int b = 0; b < 4; ++b) s += static_cast<char>((bits >> (8 * b)) & 0xFF);
+            }
+        }
+        s += std::string(2, '\0');
+    }
+    return s;
+}
+
+std::string base64(const std::string& bytes) {
+    static const char* t = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string out;
+    size_t i = 0;
+    for (; i + 2 < bytes.size(); i += 3) {
+        const uint32_t v = (static_cast<unsigned char>(bytes[i]) << 16) | (static_cast<unsigned char>(bytes[i + 1]) << 8) |
+                           static_cast<unsigned char>(bytes[i + 2]);
+        for (int k = 3; k >= 0; --k) out += t[(v >> (6 * k)) & 63];
+    }
+    if (i < bytes.size()) {
+        uint32_t v = static_cast<unsigned char>(bytes[i]) << 16;
+        if (i + 1 < bytes.size()) v |= static_cast<unsigned char>(bytes[i + 1]) << 8;
+        out += t[(v >> 18) & 63];
+        out += t[(v >> 12) & 63];
+        out += i + 1 < bytes.size() ? t[(v >> 6) & 63] : '=';
+        out += '=';
+    }
+    return out;
+}
+
+/// Highest point (mesh Y) of the vertices tagged with surfaces other than the board's own.
+double partTop(const Mesh& m) {
+    double top = -1e9;
+    for (size_t i = 0; i < m.vertexCount(); ++i) {
+        const Surface s = static_cast<Surface>(m.surfaces[i]);
+        if (s == Surface::Plastic || s == Surface::Tin || s == Surface::Gold || s == Surface::Glass)
+            top = std::max(top, static_cast<double>(m.positions[3 * i + 1]));
+    }
+    return top;
+}
+}  // namespace
+
+TEST(model3d_readers_vrml_stl_obj) {
+    // KiCad-style VRML 2.0: DEF / USE of materials and shapes, transforms, comments and commas.
+    const Model3DMesh soic = parseVrml(readModelFixture(kSoicModel), kSoicModel);
+    CHECK(soic.format == "vrml" && soic.triangleCount() == 12 * 10);  // body + DEF'd pin + 8 instances
+    CHECK(soic.groups.size() == 2 && soic.groups[0].count == 36);
+    CHECK(soic.groups[0].r < 0.2f && soic.groups[1].r > 0.8f);
+    const auto b = soic.bounds();
+    CHECK_NEAR(b[0], -1.1811, 1e-3);
+    CHECK_NEAR(b[3], 1.1811, 1e-3);
+    CHECK_NEAR(b[5], 0.689, 1e-4);
+    CHECK(soic.warnings.empty());
+
+    M3_THROWS(parseVrml("#VRML V1.0 ascii\nSeparator { }"));
+    M3_THROWS(parseVrml("#VRML V2.0 utf8\nShape { geometry IndexedFaceSet { coordIndex [ 0 1 2 -1 ]"));
+    try {
+        parseVrml("#VRML V2.0 utf8\nShape {\n appearance Appearance {\n material Material { diffuseColor 1 1 } }\n"
+                  " geometry IndexedFaceSet { coord Coordinate { point [ 0 0 0 } } }");
+        CHECK(false);
+    } catch (const Model3DError& e) {
+        CHECK(std::string(e.what()).find("line 5") != std::string::npos);
+    }
+    std::string deep = "#VRML V2.0 utf8\n";
+    for (int i = 0; i < 400; ++i) deep += "Group { children [ ";
+    M3_THROWS(parseVrml(deep));
+    // Boxes, PROTOs, ROUTEs, unknown USEs and Inline references are handled or reported.
+    const Model3DMesh boxes = parseVrml(
+        "#VRML V2.0 utf8\nPROTO Foo [ field SFFloat x 1 ] { Group { } }\n"
+        "Transform { translation 1 0 0 children [ Shape { geometry Box { size 2 2 2 } } ] }\n"
+        "Shape { geometry Sphere { radius 1 } }\nShape { geometry USE NOWHERE }\nInline { url \"other.wrl\" }\n"
+        "DEF T TimeSensor { }\nROUTE T.fraction_changed TO X.set_fraction\n");
+    CHECK(boxes.triangleCount() == 12 && boxes.warnings.size() == 4);
+    CHECK_NEAR(boxes.bounds()[3], 2.0, 1e-6);
+    // Quads and polygons are fanned; bad indices skip the face.
+    const Model3DMesh faces = parseVrml(
+        "#VRML V2.0 utf8\nShape { geometry IndexedFaceSet { coord Coordinate { point [0 0 0, 1 0 0, 1 1 0, 0 1 0, 0.5 1.5 0] }"
+        " coordIndex [0 1 2 4 3 -1, 0 1 9 -1, 0 1 2] } }");
+    CHECK(faces.triangleCount() == 4 && faces.warnings.size() == 1);
+
+    // STL: ASCII and binary read to the same welded cube.
+    const Model3DMesh a = parseStl(cubeStlAscii(), "cube.stl");
+    CHECK(a.triangleCount() == 12 && a.vertexCount() == 8 && a.format == "stl");
+    const Model3DMesh bin = parseStl(cubeStlBinary(), "cube.stl");
+    CHECK(bin.triangleCount() == 12 && bin.vertexCount() == 8);
+    CHECK(bin.positions == a.positions);
+    M3_THROWS(parseStl("garbage that is not an stl file"));
+    M3_THROWS(parseStl("solid x\nfacet normal 0 0 1\nouter loop\nvertex 0 0\n"));
+    {
+        std::string huge(84, '\0');
+        const uint32_t n = 200001;
+        for (int k = 0; k < 4; ++k) huge[80 + static_cast<size_t>(k)] = static_cast<char>((n >> (8 * k)) & 0xFF);
+        huge.resize(84 + 50ull * n, '\0');
+        M3_THROWS(parseStl(huge));  // over the triangle budget
+    }
+
+    // OBJ: quads, slashed and negative indices, materials by name.
+    const Model3DMesh obj = parseObj(
+        "# cube\nv 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nv 0 0 1\nv 1 0 1\nv 1 1 1\nv 0 1 1\n"
+        "usemtl Body_Black\nf 1 4 3 2\nf 5 6 7 8\nf 1/1/1 2/2/2 6/6/6 5/5/5\nusemtl Pin_Gold\nf -7 -6 -2 -3\nf 3 4 8 7\nf 4 1 5 8\n"
+        "f 1 2 99\n");
+    CHECK(obj.triangleCount() == 12 && obj.groups.size() == 2);
+    CHECK(obj.groups.size() == 2 && obj.groups[0].r < 0.2f && obj.groups[1].r > 0.8f && obj.groups[1].b < 0.4f);
+    CHECK(obj.warnings.size() == 2);  // bad face, guessed materials
+    M3_THROWS(parseObj("v 1 2\nf 1 2 3\n"));
+
+    // STEP is refused with the reason; unknown types too.
+    try {
+        parseModel3D("ISO-10303-21;", "part.step");
+        CHECK(false);
+    } catch (const Model3DError& e) {
+        CHECK(std::string(e.what()).find(".wrl") != std::string::npos);
+    }
+    M3_THROWS(parseModel3D("x", "part.3ds"));
+    CHECK(isModel3DFile("A.WRL") && isModel3DFile("b.stp") && !isModel3DFile("c.kicad_mod"));
+    CHECK(defaultModelUnit("vrml") == 2.54 && defaultModelUnit("stl") == 1.0);
+    CHECK(decodeBase64(base64("hello 3D")) == "hello 3D");
+    M3_THROWS(decodeBase64("not*base64"));
+}
+
+TEST(model3d_alignment_assembly_and_project_file) {
+    Model3DMesh soic = parseVrml(readModelFixture(kSoicModel), kSoicModel);
+    const std::string id = Model3DRegistry::instance().add(soic);
+    CHECK(id.size() == 17 && id[0] == 'm' && Model3DRegistry::instance().add(soic) == id);  // content-addressed
+    Model3DRef ref;
+    ref.id = id;
+    ref.name = kSoicModel;
+    ref.unit = 2.54;
+    std::array<double, 6> b{};
+    CHECK(model3dAlignedBounds(ref, b));
+    CHECK_NEAR(b[3], 3.0, 1e-3);   // pin tips at 3.0 mm
+    CHECK_NEAR(b[4], 2.45, 1e-3);  // body length 4.9 mm
+    CHECK_NEAR(b[5], 1.75, 1e-3);  // 1.75 mm tall
+    ref.rotate = {0, 0, 90};
+    CHECK(model3dAlignedBounds(ref, b));
+    CHECK_NEAR(b[3], 2.45, 1e-3);  // a quarter turn swaps x and y
+    CHECK_NEAR(b[4], 3.0, 1e-3);
+    ref.rotate = {0, 0, 0};
+    ref.offset = {1, -2, 0.5};
+    const Model3DRef seated = model3dSeated(ref);
+    CHECK(model3dAlignedBounds(seated, b));
+    CHECK_NEAR(b[0] + b[3], 0, 1e-3);
+    CHECK_NEAR(b[1] + b[4], 0, 1e-3);
+    CHECK_NEAR(b[2], 0, 1e-3);
+    Model3DRef unknown;
+    unknown.id = "m0000000000000000";
+    CHECK(!model3dAlignedBounds(unknown, b));
+
+    // A part with the model: its JSON keeps the alignment, invalid alignments are refused.
+    const StandardPart* lm358 = findStandardPart("LM358DR");
+    CHECK(lm358 != nullptr);
+    if (!lm358) return;
+    CustomPartSpec spec = lm358->spec;
+    spec.model3d = model3dSeated(ref);
+    const CustomPartSpec back = customPartSpecFromJson(Json::parse(customPartSpecToJson(spec).dump()));
+    CHECK(back.model3d.id == id && back.model3d.unit == 2.54 && back.model3d.name == kSoicModel);
+    CHECK(customPartSpecToJson(lm358->spec).get("model3d").isNull());  // parts without a model keep their ids
+    {
+        Json bad = customPartSpecToJson(spec);
+        bad["model3d"]["scale"] = Json::parse("[1, 0, 1]");
+        M3_THROWS(customPartSpecFromJson(bad));
+        bad = customPartSpecToJson(spec);
+        bad["model3d"]["offset"] = Json::parse("[1, 2]");
+        M3_THROWS(customPartSpecFromJson(bad));
+        bad["model3d"]["offset"] = Json::parse("[1e9, 0, 0]");
+        M3_THROWS(customPartSpecFromJson(bad));
+    }
+
+    // In the assembly: the model replaces the generated body, on top and mirrored under the board.
+    auto build = [&](const CustomPartSpec& s, bool bottom) {
+        Project p;
+        const std::string pid = p.addCustomPart(s);
+        const int cid = p.schematic.addCustomComponent(pid, "", {0, 0}, 0, "U1");
+        Component* c = p.schematic.find(cid);
+        c->pcb.placed = true;
+        c->pcb.position = {20, 15};
+        c->pcb.bottom = bottom;
+        c->pcb.rotation = 90;
+        return p;
+    };
+    Project withModel = build(spec, false);
+    Project generated = build(lm358->spec, false);
+    const Mesh mm = buildAssemblyMesh(withModel.schematic, withModel.pcb);
+    const Mesh gm = buildAssemblyMesh(generated.schematic, generated.pcb);
+    CHECK(mm.vertexCount() != gm.vertexCount());
+    CHECK_NEAR(partTop(mm), 0.035 + 1.75, 1e-3);
+    // Rotated a quarter turn: the 4.9 mm body length now runs along board x.
+    double xMin = 1e9, xMax = -1e9;
+    for (size_t i = 0; i < mm.vertexCount(); ++i)
+        if (static_cast<Surface>(mm.surfaces[i]) == Surface::Plastic) {
+            xMin = std::min(xMin, static_cast<double>(mm.positions[3 * i]));
+            xMax = std::max(xMax, static_cast<double>(mm.positions[3 * i]));
+        }
+    CHECK_NEAR(xMax - xMin, 4.9, 1e-3);
+    CHECK_NEAR((xMax + xMin) / 2, 20, 1e-3);
+    const Project under = build(spec, true);
+    const Mesh um = buildAssemblyMesh(under.schematic, under.pcb);
+    double lowest = 1e9;
+    for (size_t i = 0; i < um.vertexCount(); ++i)
+        if (static_cast<Surface>(um.surfaces[i]) == Surface::Plastic)
+            lowest = std::min(lowest, static_cast<double>(um.positions[3 * i + 1]));
+    CHECK_NEAR(lowest, -1.6 - 0.035 - 1.75, 1e-3);
+    CHECK(exportStl(mm, "t").find("facet normal") != std::string::npos);
+
+    // Saved with the project and read back; a damaged entry falls back to the generated body.
+    const Json saved = withModel.toJson();
+    CHECK(saved.get("models3d").size() == 1 && saved.get("models3d")[0].get("id").asString() == id);
+    CHECK(generated.toJson().get("models3d").isNull());
+    const Project reloaded = Project::fromJson(Json::parse(saved.dump()));
+    CHECK(buildAssemblyMesh(reloaded.schematic, reloaded.pcb).vertexCount() == mm.vertexCount());
+    Json entry = saved.get("models3d")[0];
+    entry["id"] = "m00000000000000ab";  // an id from another build: kept as an alias
+    CHECK(model3dFromJson(entry) == "m00000000000000ab" && Model3DRegistry::instance().get("m00000000000000ab"));
+    Json broken = entry;
+    broken["indices"] = Json::parse("[0, 1, 99999999]");
+    M3_THROWS(model3dFromJson(broken));
+    Json damaged = saved;
+    Json models = Json::array();
+    models.push(broken);
+    damaged["models3d"] = models;
+    M3_NOTHROW(Project::fromJson(damaged));
+    CustomPartSpec missing = spec;
+    missing.model3d.id = "m0123456789abcdef";  // never registered: the generated body
+    Project fallback = build(missing, false);
+    CHECK(buildAssemblyMesh(fallback.schematic, fallback.pcb).vertexCount() == gm.vertexCount());
+
+    // The C API entry points.
+    CHECK(sieda_c_api_model3d_test() == 0);
+}
+
+TEST(library_import_attaches_kicad_3d_models) {
+    const std::string soicFp = readFixture(kSoic), header = readFixture(kHeader);
+    const ImportedFootprint fp = parseKicadFootprint(soicFp, kSoic);
+    CHECK(fp.modelPath.find("SOIC-8_3.9x4.9mm_P1.27mm.wrl") != std::string::npos);
+    const ImportedFootprint hd = parseKicadFootprint(header, kHeader);
+    CHECK(hd.modelPath.find("PinHeader_1x04") != std::string::npos);
+    CHECK(hd.centreY > 3 && hd.centreY < 4.5);  // pin 1 at the origin: centred on the courtyard
+
+    // Footprint + its .wrl: the part gets the model, in KiCad's 0.1 inch units.
+    LibraryImport r = importLibraryFiles({{kSoic, soicFp}, {kSoicModel, readModelFixture(kSoicModel)}});
+    const ImportedPart* soic = nullptr;
+    for (const auto& p : r.parts)
+        if (p.footprintName == "SOIC-8_3.9x4.9mm_P1.27mm") soic = &p;
+    CHECK(soic != nullptr);
+    if (soic) {
+        CHECK(!soic->spec.model3d.empty() && soic->spec.model3d.unit == 2.54);
+        CHECK(std::any_of(soic->warnings.begin(), soic->warnings.end(),
+                          [](const std::string& w) { return w.find("3D model") != std::string::npos; }));
+        CHECK(CustomPartRegistry::instance().registerPart(soic->spec) != nullptr);
+    }
+    CHECK(r.files.size() == 2 && r.files[1].format == "model3d" && r.files[1].error.empty());
+
+    // A footprint whose model was not imported says how to attach it; the pin header's model moves with its pads.
+    r = importLibraryFiles({{kHeader, header}});
+    CHECK(r.parts.size() == 1 && r.parts[0].spec.model3d.empty());
+    CHECK(std::any_of(r.parts[0].warnings.begin(), r.parts[0].warnings.end(),
+                      [](const std::string& w) { return w.find(".3dshapes") != std::string::npos; }));
+    r = importLibraryFiles({{kHeader, header}, {"PinHeader_1x04_P2.54mm_Vertical.stl", cubeStlAscii()}});
+    CHECK(r.parts.size() == 1 && !r.parts[0].spec.model3d.empty());
+    if (r.parts.size() == 1) {
+        CHECK(r.parts[0].spec.model3d.unit == 1.0);
+        CHECK_NEAR(r.parts[0].spec.model3d.offset[1], hd.centreY, 1e-6);  // the model moves with the pads
+    }
+
+    // Binary files travel as base64 through the C API's request; STEP files are reported.
+    Json req = Json::object();
+    Json files = Json::array();
+    Json f1 = Json::object();
+    f1["name"] = kSoic;
+    f1["content"] = soicFp;
+    files.push(f1);
+    Json f2 = Json::object();
+    f2["name"] = "SOIC-8_3.9x4.9mm_P1.27mm.stl";
+    f2["contentBase64"] = base64(cubeStlBinary());
+    files.push(f2);
+    Json f3 = Json::object();
+    f3["name"] = "SOIC-8_3.9x4.9mm_P1.27mm.step";
+    f3["content"] = "ISO-10303-21;";
+    files.push(f3);
+    req["files"] = files;
+    const Json out = importLibraryRequest(req);
+    bool attached = false;
+    for (const auto& p : out.get("parts").items())
+        attached = attached || p.get("spec").get("model3d").get("unit").asNumber(0) == 1.0;
+    CHECK(attached);
+    CHECK(out.get("files")[2].get("error").asString().find("STEP") != std::string::npos);
+}
+
+TEST(model3d_readers_survive_fuzzing) {
+    const std::vector<std::pair<std::string, std::string>> inputs = {
+        {kSoicModel, readModelFixture(kSoicModel)},
+        {"cube.stl", cubeStlAscii()},
+        {"cube.stl", cubeStlBinary()},
+        {"cube.obj", "v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nusemtl metal\nf 1 2 3 4\nf -1 -2 -3\n"}};
+    uint32_t seed = 0x3D3D3D3Du;
+    auto rnd = [&]() {
+        seed ^= seed << 13;
+        seed ^= seed >> 17;
+        seed ^= seed << 5;
+        return seed;
+    };
+    int ok = 0, refused = 0;
+    for (const auto& [name, original] : inputs) {
+        for (int k = 0; k < 300; ++k) {
+            std::string s = original;
+            const size_t a = rnd() % (s.size() + 1), len = rnd() % 48;
+            switch (k % 6) {
+                case 0: s.resize(a); break;
+                case 1:
+                    for (int f = 0; f < 6 && !s.empty(); ++f) s[rnd() % s.size()] = static_cast<char>(rnd());
+                    break;
+                case 2: s.erase(a, len); break;
+                case 3: s.insert(a, s.substr(a, len)); break;
+                case 4: s.insert(a, std::string(len, "{[ -1e30"[rnd() % 8])); break;
+                default: s.insert(a, " 1e308 -1e308 nan 4294967295 "); break;
+            }
+            try {
+                const Model3DMesh m = parseModel3D(s, name);
+                ++ok;
+                CHECK(!m.indices.empty() && m.triangleCount() <= Model3DLimits::maxTriangles);
+                for (uint32_t i : m.indices) CHECK(i < m.vertexCount());
+                for (float v : m.positions) CHECK(std::isfinite(v));
+                uint64_t covered = 0;
+                for (const auto& g : m.groups) covered += g.count;
+                CHECK(covered == m.indices.size());
+                CHECK(!Model3DRegistry::instance().add(m).empty());
+            } catch (const Model3DError&) {
+                ++refused;
+            } catch (const std::exception& e) {
+                std::printf("    %s mutation %d: unexpected %s\n", name.c_str(), k, e.what());
+                CHECK(false);
+            }
+        }
+    }
+    CHECK(ok > 300 && refused > 50);
+}
+
+// ------------------------------------------------------------------ Altium libraries (OLE compound files)
+
+#include "sieda/AltiumLibrary.hpp"
+
+namespace {
+std::string readAltiumFixture(const std::string& name) {
+    std::ifstream f(std::string(SIEDA_FIXTURE_DIR) + "/altium/" + name, std::ios::binary);
+    std::stringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+
+const ImportedPart* altiumPart(const LibraryImport& r, const std::string& name) {
+    for (const auto& p : r.parts)
+        if (p.spec.name == name) return &p;
+    return nullptr;
+}
+
+char sideOf(const CustomPartSpec& s, const std::string& number) {
+    for (const auto& p : s.symbol.pins)
+        if (p.number == number) return p.side;
+    return '?';
+}
+}  // namespace
+
+TEST(altium_compound_file_reader) {
+    const std::string sch = readAltiumFixture("Test.SchLib");
+    CHECK(sch.size() > 4096 && CompoundFile::looksLikeCompoundFile(sch));
+    const CompoundFile cfb(sch);
+    std::set<std::string> names;
+    for (int c : cfb.entries()[0].children) names.insert(cfb.entries()[static_cast<size_t>(c)].name);
+    CHECK(names == std::set<std::string>({"FileHeader", "Storage", "LM358", "NE555", "Padding"}));
+    const int lm = cfb.child(CompoundFile::root(), "lm358");  // case-insensitive
+    CHECK(lm > 0 && cfb.child(lm, "DATA") > 0);
+    CHECK(cfb.read(cfb.child(cfb.child(CompoundFile::root(), "Padding"), "Blob")).size() == 5000);  // regular sectors
+    CHECK(cfb.read(cfb.child(lm, "Data")).size() > 200);                                             // mini stream
+    CHECK(altiumLibraryKind(cfb, "x") == "schlib");
+    const std::string pcb = readAltiumFixture("Test.PcbLib");
+    CHECK(altiumLibraryKind(CompoundFile(pcb), "x") == "pcblib");
+    const std::string intlib = readAltiumFixture("Test.IntLib");
+    CHECK(altiumLibraryKind(CompoundFile(intlib), "Parts.IntLib") == "intlib");
+    CHECK(altiumProperties("|RECORD=2|NAME=A|%UTF8%NAME=\xC3\xA9|TEXT=\xB5" "F").at("NAME") == "\xC3\xA9");
+    CHECK(altiumProperties("|TEXT=\xB5" "F").at("TEXT") == "\xC2\xB5" "F");
+
+    // Damaged containers are refused, never read out of bounds or looped over.
+    auto refused = [](const std::string& bytes) {
+        try {
+            CompoundFile c(bytes);
+            for (size_t i = 0; i < c.entries().size(); ++i)
+                if (c.entries()[i].type == CompoundFile::EntryType::Stream) c.read(static_cast<int>(i));
+            return false;
+        } catch (const CfbError&) {
+            return true;
+        }
+    };
+    CHECK(refused(sch.substr(0, 511)));
+    CHECK(refused(std::string("\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1", 8) + std::string(600, '\0')));
+    std::string truncated = sch.substr(0, sch.size() - 1536);
+    CHECK(refused(truncated));
+    std::string loop = sch;  // first directory sector's FAT entry points to itself: a chain without end is cut
+    const uint32_t firstFat = static_cast<unsigned char>(loop[0x4C]) | (static_cast<unsigned char>(loop[0x4D]) << 8);
+    const size_t fatAt = (firstFat + 1) * 512;
+    for (size_t i = 0; i < 128; ++i) {
+        const uint32_t self = static_cast<uint32_t>(i);
+        for (int k = 0; k < 4; ++k) loop[fatAt + 4 * i + static_cast<size_t>(k)] = static_cast<char>((self >> (8 * k)) & 0xFF);
+    }
+    try {
+        CompoundFile c(loop);
+        for (size_t i = 0; i < c.entries().size(); ++i)
+            if (c.entries()[i].type == CompoundFile::EntryType::Stream) c.read(static_cast<int>(i));
+    } catch (const CfbError&) {
+    }
+    CHECK(true);  // reaching here: no hang, no crash
+}
+
+TEST(library_import_reads_altium_libraries) {
+    const LibraryImport r = importLibraryFiles(
+        {{"Test.SchLib", readAltiumFixture("Test.SchLib")}, {"Test.PcbLib", readAltiumFixture("Test.PcbLib")}});
+    CHECK(r.files.size() == 2 && r.files[0].format == "altium" && r.files[0].symbols == 2 && r.files[0].error.empty());
+    CHECK(r.files[1].footprints == 3 && r.files[1].error.empty());
+    // A multi-part op-amp paired with its current footprint model.
+    const ImportedPart* lm = altiumPart(r, "LM358");
+    CHECK(lm && lm->ok);
+    if (lm && lm->ok) {
+        CHECK(lm->footprintName == "SOIC8_TI");
+        CHECK(lm->spec.pins.size() == 8 && lm->spec.refPrefix == "U");
+        CHECK(lm->spec.manufacturer == "Texas Instruments");
+        CHECK(lm->spec.datasheet == "https://www.ti.com/lit/ds/symlink/lm358.pdf");
+        CHECK(lm->spec.description == "Dual op-amp, \xC2\xB1" "16 V");  // Windows-1252 ± read as UTF-8
+        const int out = lm->spec.pinIndex("1"), vplus = lm->spec.pinIndex("8"), inb = lm->spec.pinIndex("5");
+        CHECK(out >= 0 && lm->spec.pins[static_cast<size_t>(out)].type == PinType::Output);
+        CHECK(vplus >= 0 && lm->spec.pins[static_cast<size_t>(vplus)].type == PinType::PowerIn);
+        CHECK(inb >= 0 && lm->spec.pins[static_cast<size_t>(inb)].name == "+INB");
+        CHECK(sideOf(lm->spec, "1") == 'R' && sideOf(lm->spec, "2") == 'L' && sideOf(lm->spec, "8") == 'T' &&
+              sideOf(lm->spec, "4") == 'B');
+        CHECK(std::any_of(lm->warnings.begin(), lm->warnings.end(),
+                          [](const std::string& w) { return w.find("units") != std::string::npos; }));
+        CHECK(lm->spec.package.lands.size() == 8);
+        // Pad 1 top left (Altium's y up flipped), pad 6 turned 90° back to a horizontal pad, body from the overlay.
+        CHECK(lm->spec.package.lands[0].x < 0 && lm->spec.package.lands[0].y < 0);
+        CHECK_NEAR(lm->spec.package.lands[5].w, 1.55, 1e-6);
+        CHECK_NEAR(lm->spec.package.lands[5].h, 0.6, 1e-6);
+        CHECK_NEAR(lm->spec.package.bodySize, 3.9, 1e-6);
+        CHECK_NEAR(lm->spec.package.bodyDepth, 4.9, 1e-6);
+        CHECK(CustomPartRegistry::instance().registerPart(lm->spec) != nullptr);
+    }
+    // A single-part symbol: overbar, UTF-8 description, a footprint model not in the import (generated DIP-8).
+    const ImportedPart* ne = altiumPart(r, "NE555");
+    CHECK(ne && ne->ok);
+    if (ne && ne->ok) {
+        const int reset = ne->spec.pinIndex("4");
+        CHECK(reset >= 0 && ne->spec.pins[static_cast<size_t>(reset)].name == "nRESET");
+        CHECK(ne->spec.description == "Precision timer, 4.5\xE2\x80\x93" "16 V");
+        CHECK(ne->spec.package.type == "DIP" && ne->spec.pins.size() == 8);
+    }
+    // Footprints of their own: a through-hole header (mounting hole skipped), and one with an unknown primitive.
+    const ImportedPart* hdr = altiumPart(r, "HDR1X4");
+    CHECK(hdr && hdr->ok);
+    if (hdr && hdr->ok) {
+        CHECK(hdr->spec.package.lands.size() == 4 && hdr->spec.package.lands[0].drill > 0.9);
+        CHECK(!hdr->spec.package.lands[0].round && hdr->spec.package.lands[1].round);
+        CHECK(std::any_of(hdr->warnings.begin(), hdr->warnings.end(),
+                          [](const std::string& w) { return w.find("non-plated") != std::string::npos; }));
+    }
+    const ImportedPart* bad = altiumPart(r, "BAD");
+    CHECK(bad && bad->spec.package.lands.size() == 1);
+    if (bad)
+        CHECK(std::any_of(bad->warnings.begin(), bad->warnings.end(),
+                          [](const std::string& w) { return w.find("unknown primitive") != std::string::npos; }));
+    // Explicit pairs work with Altium footprints too.
+    const LibraryImport paired = importLibraryFiles(
+        {{"Test.SchLib", readAltiumFixture("Test.SchLib")}, {"Test.PcbLib", readAltiumFixture("Test.PcbLib")}},
+        {{"NE555", "SOIC8_TI"}});
+    const ImportedPart* ne2 = altiumPart(paired, "NE555");
+    CHECK(ne2 && ne2->ok && ne2->footprintName == "SOIC8_TI");
+    // Integrated libraries are refused with what to do instead.
+    const LibraryImport il = importLibraryFiles({{"Parts.IntLib", readAltiumFixture("Test.IntLib")}});
+    CHECK(il.files.size() == 1 && il.files[0].error.find("Extract") != std::string::npos);
+
+    // Through the C API's request, as base64 (binary files).
+    Json req = Json::object();
+    Json files = Json::array();
+    Json f = Json::object();
+    f["name"] = "Test.PcbLib";
+    f["contentBase64"] = base64(readAltiumFixture("Test.PcbLib"));
+    files.push(f);
+    req["files"] = files;
+    const Json out = importLibraryRequest(req);
+    CHECK(out.get("footprints").asInt() == 3 && out.get("parts").size() == 3);
+}
+
+TEST(library_import_altium_survives_fuzzing) {
+    const std::vector<std::pair<std::string, std::string>> inputs = {{"Test.SchLib", readAltiumFixture("Test.SchLib")},
+                                                                     {"Test.PcbLib", readAltiumFixture("Test.PcbLib")}};
+    uint32_t seed = 0xA171u;
+    auto rnd = [&]() {
+        seed ^= seed << 13;
+        seed ^= seed >> 17;
+        seed ^= seed << 5;
+        return seed;
+    };
+    int imported = 0, refused = 0;
+    for (const auto& [name, original] : inputs) {
+        for (int k = 0; k < 400; ++k) {
+            std::string s = original;
+            const size_t a = 512 + rnd() % (s.size() - 512), len = 1 + rnd() % 64;
+            switch (k % 5) {
+                case 0: s.resize(a); break;
+                case 1:
+                    for (int i = 0; i < 12; ++i) s[rnd() % s.size()] = static_cast<char>(rnd());
+                    break;
+                case 2:
+                    for (int i = 0; i < 4; ++i) s[0x4C + rnd() % 400] = static_cast<char>(rnd());  // header and DIFAT
+                    break;
+                case 3: s.replace(a, std::min(len, s.size() - a), std::string(std::min(len, s.size() - a), '\xFF')); break;
+                default:
+                    for (size_t i = a; i < std::min(s.size(), a + len); ++i) s[i] = static_cast<char>(s[i] ^ 0x5A);
+                    break;
+            }
+            try {
+                const LibraryImport r = importLibraryFiles({{name, s}});
+                for (const auto& p : r.parts) {
+                    if (!p.ok) continue;
+                    ++imported;
+                    CHECK(CustomPartRegistry::instance().registerPart(p.spec) != nullptr);
+                }
+                refused += !r.files[0].error.empty();
+            } catch (const std::exception& e) {
+                std::printf("    %s mutation %d threw: %s\n", name.c_str(), k, e.what());
+                CHECK(false);
+            }
+        }
+    }
+    CHECK(imported > 100 && refused > 20);
+}
+
+// ------------------------------------------------------------------ import sheet: choosing a symbol's footprint
+
+TEST(library_import_footprint_candidates_for_the_sheet) {
+    std::vector<ImportFile> files;
+    for (const char* f : {kSymbols, kSoic, kQfn, kHeader}) files.push_back({f, readFixture(f)});
+    const LibraryImport r = importLibraryFiles(files);
+    const Json j = libraryImportToJson(r);
+    CHECK(j.get("footprintList").size() == 3);
+    const Json* lm = nullptr;
+    for (const auto& p : j.get("parts").items())
+        if (p.get("symbol").asString() == "LM358") lm = &p;
+    CHECK(lm != nullptr);
+    if (lm) {
+        CHECK(lm->get("pairable").asBool());
+        const Json& c = lm->get("candidates");
+        CHECK(c.size() == 2);  // the SOIC it names first, then the QFN (pads 1…16 cover pins 1…8); not the 4-pin header
+        if (c.size() == 2) {
+            CHECK(c[0].asString() == "SOIC-8_3.9x4.9mm_P1.27mm");
+            CHECK(c[1].asString() == "QFN-16-1EP_3x3mm_P0.5mm_EP1.7x1.7mm");
+        }
+    }
+    // A footprint-only part offers no choice.
+    for (const auto& p : j.get("parts").items())
+        if (p.get("symbol").asString().empty()) CHECK(p.get("pairable").isNull());
+    // Choosing a candidate re-pairs the symbol; a choice that does not fit is reported on the part.
+    const LibraryImport repaired = importLibraryFiles(files, {{"AMS1117-3.3", "PinHeader_1x04_P2.54mm_Vertical"},
+                                                              {"LM358", "QFN-16-1EP_3x3mm_P0.5mm_EP1.7x1.7mm"}});
+    for (const auto& p : repaired.parts) {
+        if (p.symbolName == "AMS1117-3.3") CHECK(p.ok && p.footprintName == "PinHeader_1x04_P2.54mm_Vertical");
+        if (p.symbolName == "LM358") CHECK(!p.ok && p.error.find("overlap") != std::string::npos);
+    }
+    // Eagle device sets are paired by their connects: no choice there.
+    const Json eagle = libraryImportToJson(importLibraryFiles({{kEagle, readFixture(kEagle)}}));
+    for (const auto& p : eagle.get("parts").items()) CHECK(p.get("pairable").isNull());
+    CHECK(eagle.get("footprintList").size() == 0);
+}
+
+// ------------------------------------------------------------------ catalog growth (StandardCatalogExtra.inc)
+
+TEST(standard_catalog_has_over_a_thousand_registrable_parts) {
+    const auto& parts = standardParts();
+    CHECK(parts.size() >= 1000);
+    std::set<std::string> names;
+    std::map<std::string, int> categories;
+    int failures = 0;
+    for (const auto& sp : parts) {
+        CHECK(names.insert(sp.spec.name).second);
+        ++categories[sp.category];
+        bool ok = !sp.spec.manufacturer.empty() && !sp.spec.description.empty() && !sp.spec.pins.empty();
+        try {
+            auto part = CustomPartRegistry::instance().registerPart(sp.spec);
+            std::set<int> padded;
+            for (const auto& pad : part->footprint.pads)
+                if (pad.pinIndex >= 0) padded.insert(pad.pinIndex);
+            ok = ok && padded.size() == sp.spec.pins.size();  // every pin on a pad
+            for (const auto& issue : checkSymbol(sp.spec)) ok = ok && issue.severity != "error";  // arranged symbols
+        } catch (const std::exception& e) {
+            std::printf("    %s: %s\n", sp.spec.name.c_str(), e.what());
+            ok = false;
+        }
+        if (!ok && ++failures < 10) std::printf("    not usable: %s\n", sp.spec.name.c_str());
+    }
+    CHECK(failures == 0);
+    // Connectors, regulators, MCUs and interface ICs are all represented.
+    for (const char* c : {"Connectors", "Regulators", "Interface", "Logic", "Memory", "Data Converters", "Op-Amps"})
+        CHECK(categories[c] >= 10);
+    const StandardPart* hdr = findStandardPart("PinHeader_2x05_P2.54mm");
+    CHECK(hdr && hdr->spec.package.type == "HEADER2" && hdr->spec.pins.size() == 10 && hdr->spec.refPrefix == "J");
+    std::printf("    %zu standard parts in %zu categories\n", parts.size(), categories.size());
+}

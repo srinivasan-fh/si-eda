@@ -1,0 +1,84 @@
+{
+  "Errors": [],
+  "SearchResults": {
+    "NumberOfResult": 3,
+    "Parts": [
+      {
+        "Availability": "23,764 In Stock",
+        "DataSheetUrl": "https://www.ti.com/lit/ds/symlink/lm358.pdf",
+        "Description": "Operational Amplifiers - Op Amps Dual Gen Pur Op Amp",
+        "FactoryStock": "0",
+        "ImagePath": "https://www.mouser.com/images/texasinstruments/images/ITP_TI_SOIC-8_D_t.jpg",
+        "Category": "Operational Amplifiers - Op Amps",
+        "LeadTime": "42 Days",
+        "LifecycleStatus": null,
+        "Manufacturer": "Texas Instruments",
+        "ManufacturerPartNumber": "LM358DR",
+        "Min": "1",
+        "Mult": "1",
+        "MouserPartNumber": "595-LM358DR",
+        "ProductAttributes": [
+          {"AttributeName": "Packaging", "AttributeValue": "Reel"},
+          {"AttributeName": "Packaging", "AttributeValue": "Cut Tape"},
+          {"AttributeName": "Standard Pack Qty", "AttributeValue": "2500"}
+        ],
+        "PriceBreaks": [
+          {"Quantity": 1, "Price": "$0.45", "Currency": "USD"},
+          {"Quantity": 10, "Price": "$0.308", "Currency": "USD"},
+          {"Quantity": 100, "Price": "$0.184", "Currency": "USD"},
+          {"Quantity": 1000, "Price": "$0.119", "Currency": "USD"},
+          {"Quantity": 2500, "Price": "$0.093", "Currency": "USD"}
+        ],
+        "AlternatePackagings": null,
+        "ProductDetailUrl": "https://www.mouser.com/ProductDetail/Texas-Instruments/LM358DR?qs=example",
+        "Reeling": true,
+        "ROHSStatus": "RoHS Compliant",
+        "SuggestedReplacement": "",
+        "AvailabilityInStock": "23764",
+        "AvailabilityOnOrder": [],
+        "InfoMessages": []
+      },
+      {
+        "Availability": "None",
+        "DataSheetUrl": "https://www.ti.com/lit/ds/symlink/lm358.pdf",
+        "Description": "Operational Amplifiers - Op Amps Dual Gen Pur Op Amp",
+        "Category": "Operational Amplifiers - Op Amps",
+        "LeadTime": "6 Weeks",
+        "LifecycleStatus": "Not Recommended for New Designs",
+        "Manufacturer": "Texas Instruments",
+        "ManufacturerPartNumber": "LM358DRG4",
+        "Min": "2500",
+        "Mult": "2500",
+        "MouserPartNumber": "595-LM358DRG4",
+        "ProductAttributes": [{"AttributeName": "Packaging", "AttributeValue": "Reel"}],
+        "PriceBreaks": [
+          {"Quantity": 2500, "Price": "$0.102", "Currency": "USD"}
+        ],
+        "ProductDetailUrl": "https://www.mouser.com/ProductDetail/Texas-Instruments/LM358DRG4?qs=example",
+        "ROHSStatus": "RoHS Compliant",
+        "AvailabilityInStock": null
+      },
+      {
+        "Availability": "512 In Stock",
+        "DataSheetUrl": "javascript:alert(1)",
+        "Description": "Operational Amplifiers - Op Amps Dual Op Amp µPower",
+        "Category": "Operational Amplifiers - Op Amps",
+        "LeadTime": "",
+        "LifecycleStatus": "End of Life",
+        "Manufacturer": "onsemi",
+        "ManufacturerPartNumber": "LM358DR2G",
+        "Min": "1",
+        "Mult": "1",
+        "MouserPartNumber": "863-LM358DR2G",
+        "ProductAttributes": [],
+        "PriceBreaks": [
+          {"Quantity": 1, "Price": "0,41 €", "Currency": "EUR"},
+          {"Quantity": 100, "Price": "0,152 €", "Currency": "EUR"},
+          {"Quantity": 1000, "Price": "1.234,50 €", "Currency": "EUR"}
+        ],
+        "ProductDetailUrl": "//www.mouser.de/ProductDetail/onsemi/LM358DR2G",
+        "ROHSStatus": "RoHS Compliant"
+      }
+    ]
+  }
+}

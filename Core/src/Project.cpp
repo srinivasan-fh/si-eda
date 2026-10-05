@@ -1,4 +1,5 @@
 #include "sieda/Project.hpp"
+#include "sieda/Model3D.hpp"
 
 #include "sieda/Aerospace.hpp"
 #include "sieda/Naval.hpp"
@@ -367,6 +368,8 @@ Json Project::toJson() const {
             library.push(pj);
         }
     root["customParts"] = library;
+    // Imported 3D models of the library parts (Model3D.hpp); only when there are any.
+    if (Json models = models3dForParts(customLibrary); models.size() > 0) root["models3d"] = models;
 
     Json comps = Json::array();
     for (const auto& c : schematic.components()) {
@@ -580,6 +583,7 @@ Project Project::fromJson(const Json& root) {
 
     // Custom parts first so components can resolve them; ids are re-derived and remapped if they changed.
     std::map<std::string, std::string> idMap;
+    registerModels3d(root.get("models3d"));  // before the parts: their specs refer to the meshes
     for (const auto& j : root.get("customParts").items()) {
         std::string newId = p.addCustomPart(customPartSpecFromJson(j.get("spec")));
         idMap[j.get("id").asString(newId)] = newId;

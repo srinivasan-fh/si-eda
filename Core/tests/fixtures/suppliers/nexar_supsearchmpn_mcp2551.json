@@ -1,0 +1,93 @@
+{
+  "data": {
+    "supSearchMpn": {
+      "hits": 2,
+      "results": [
+        {
+          "part": {
+            "mpn": "MCP2551-I/SN",
+            "manufacturer": {"name": "Microchip"},
+            "shortDescription": "High-Speed CAN Transceiver, 1 Mbit/s, SOIC-8",
+            "category": {"name": "CAN Interface ICs"},
+            "bestDatasheet": {"url": "https://ww1.microchip.com/downloads/en/DeviceDoc/20001667G.pdf"},
+            "bestImage": {"url": "https://sigma.octopart.com/12345/image/Microchip-MCP2551-I-SN.jpg"},
+            "octopartUrl": "https://octopart.com/mcp2551-i%2Fsn-microchip-1234567",
+            "specs": [
+              {"attribute": {"name": "Lifecycle Status", "shortname": "lifecyclestatus"}, "displayValue": "NRND (Last Updated: 3 months ago)"},
+              {"attribute": {"name": "Case/Package", "shortname": "case_package"}, "displayValue": "SOIC"},
+              {"attribute": {"name": "Number of Pins", "shortname": "numberofpins"}, "displayValue": "8"},
+              {"attribute": {"name": "RoHS", "shortname": "rohs"}, "displayValue": "Compliant"}
+            ],
+            "sellers": [
+              {
+                "company": {"name": "Digi-Key", "homepageUrl": "https://www.digikey.com"},
+                "offers": [
+                  {
+                    "sku": "MCP2551-I/SN-ND",
+                    "inventoryLevel": 5210,
+                    "moq": 1,
+                    "orderMultiple": 1,
+                    "packaging": "Tube",
+                    "factoryLeadDays": 49,
+                    "clickUrl": "https://octopart.com/click/track?ct=offers&sid=459",
+                    "updated": "2026-09-30T12:00:00Z",
+                    "prices": [
+                      {"quantity": 1, "price": 1.18, "currency": "USD", "convertedPrice": 1.18, "convertedCurrency": "USD"},
+                      {"quantity": 25, "price": 0.99, "currency": "USD", "convertedPrice": 0.99, "convertedCurrency": "USD"},
+                      {"quantity": 100, "price": 0.9, "currency": "USD", "convertedPrice": 0.9, "convertedCurrency": "USD"}
+                    ]
+                  }
+                ]
+              },
+              {
+                "company": {"name": "Farnell"},
+                "offers": [
+                  {
+                    "sku": "9758569",
+                    "inventoryLevel": 870,
+                    "moq": 1,
+                    "orderMultiple": 1,
+                    "packaging": "Each",
+                    "clickUrl": "https://octopart.com/click/track?ct=offers&sid=819",
+                    "prices": [
+                      {"quantity": 1, "price": 1.05, "currency": "GBP", "convertedPrice": 1.33, "convertedCurrency": "USD"},
+                      {"quantity": 10, "price": 0.96, "currency": "GBP", "convertedPrice": 1.22, "convertedCurrency": "USD"},
+                      {"quantity": 100, "price": 0.71, "currency": "GBP", "convertedPrice": 0.9, "convertedCurrency": "USD"}
+                    ]
+                  }
+                ]
+              },
+              {
+                "company": {"name": "Arrow Electronics"},
+                "offers": [
+                  {
+                    "sku": "MCP2551-I/SN",
+                    "inventoryLevel": null,
+                    "moq": 100,
+                    "orderMultiple": 100,
+                    "packaging": "Tube",
+                    "clickUrl": "file:///etc/passwd",
+                    "prices": [
+                      {"quantity": 100, "price": 0.82, "currency": "USD"},
+                      {"quantity": 1000, "price": 0.74, "currency": "USD"},
+                      {"quantity": 1000, "price": 0.69, "currency": "EUR"}
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "part": {
+            "mpn": "MCP2551T-I/SN",
+            "manufacturer": {"name": "Microchip Technology"},
+            "shortDescription": "CAN Transceiver, tape and reel",
+            "specs": [{"attribute": {"name": "Lifecycle Status", "shortname": "lifecyclestatus"}, "displayValue": "Production"}],
+            "sellers": []
+          }
+        }
+      ]
+    }
+  }
+}

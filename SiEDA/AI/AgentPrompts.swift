@@ -14,13 +14,24 @@ enum AgentPrompts {
         return StandardLibrary.parts.filter { !names.contains($0.spec.name.lowercased()) }
     }
 
-    /// Every "custom:<NAME>" kind a plan may use: project library parts plus the standard parts.
-    static func customPlanKinds(_ parts: [CustomPartInfo]) -> [String] {
-        parts.map(\.planKind) + standardPartsOutsideLibrary(parts).map { "custom:\($0.spec.name)" }
+    /// The standard parts a prompt details (CatalogDigest): those the brief names or matches, the staples and the
+    /// parts `plan` already uses. The whole catalog (1000+ parts) would cost far more tokens than a request should.
+    static func detailedStandardParts(_ parts: [CustomPartInfo], brief: String, plan: DesignPlan? = nil) -> [StandardPart] {
+        let used = Set((plan?.components ?? []).compactMap { c -> String? in
+            guard c.kind.lowercased().hasPrefix("custom:") else { return nil }
+            return String(c.kind.dropFirst("custom:".count)).trimmingCharacters(in: .whitespaces).lowercased()
+        })
+        return CatalogDigest.selection(standardPartsOutsideLibrary(parts), brief: brief, always: used)
     }
 
-    /// Project library and standard parts, addressed as kind "custom:<NAME>" with pins referenced by number.
-    static func customCatalog(_ parts: [CustomPartInfo]) -> String {
+    /// Every "custom:<NAME>" kind a plan may use: project library parts plus the detailed standard parts.
+    static func customPlanKinds(_ parts: [CustomPartInfo], brief: String = "", plan: DesignPlan? = nil) -> [String] {
+        parts.map(\.planKind) + detailedStandardParts(parts, brief: brief, plan: plan).map { "custom:\($0.spec.name)" }
+    }
+
+    /// Project library and standard parts, addressed as kind "custom:<NAME>" with pins referenced by number. Standard
+    /// parts are a digest: the ones relevant to `brief` (and `plan`) with pins, then an index of the catalog.
+    static func customCatalog(_ parts: [CustomPartInfo], brief: String = "", plan: DesignPlan? = nil) -> String {
         var text = ""
         if !parts.isEmpty {
             let lines = parts.map { part in
@@ -35,7 +46,7 @@ enum AgentPrompts {
             \(lines.joined(separator: "\n"))
             """
         }
-        let standard = standardPartsOutsideLibrary(parts)
+        let standard = detailedStandardParts(parts, brief: brief, plan: plan)
         if !standard.isEmpty {
             let lines = standard.map { part in
                 let pins = part.spec.pins.map { "\($0.number)=\($0.name)(\($0.type.rawValue))" }.joined(separator: ", ")
@@ -49,6 +60,13 @@ enum AgentPrompts {
             or driver IC). Reference pins by NUMBER, connect every power_in pin and add a 100n decoupling capacitor \
             from each IC supply pin to ground:
             \(lines.joined(separator: "\n"))
+            """
+            let all = standardPartsOutsideLibrary(parts)
+            text += """
+
+            The standard catalog has \(all.count) parts in these categories (only the parts listed above with their pins \
+            may be used; the user can add any other one to the project library first):
+            \(CatalogDigest.index(all))
             """
         }
         return text
@@ -202,7 +220,7 @@ enum AgentPrompts {
     }
 
     static func architectRequest(brief: String, spec: RequirementsSpec, customParts: [CustomPartInfo] = []) -> AIRequest {
-        AIRequest(system: architectSystem + customCatalog(customParts),
+        AIRequest(system: architectSystem + customCatalog(customParts, brief: brief + " " + spec.jsonString()),
                   prompt: """
                   <requirements>
                   \(brief)
@@ -214,12 +232,13 @@ enum AgentPrompts {
 
                   Design the complete circuit as a design plan.
                   """,
-                  schemaName: "design_plan", schema: DesignSchemas.designPlanSchema(customKinds: customPlanKinds(customParts)))
+                  schemaName: "design_plan",
+                  schema: DesignSchemas.designPlanSchema(customKinds: customPlanKinds(customParts, brief: brief + " " + spec.jsonString())))
     }
 
     static func refineRequest(instruction: String, current: DesignPlan, requirements: String,
                               customParts: [CustomPartInfo] = []) -> AIRequest {
-        AIRequest(system: architectSystem + customCatalog(customParts),
+        AIRequest(system: architectSystem + customCatalog(customParts, brief: requirements + " " + instruction, plan: current),
                   prompt: """
                   <requirements>
                   \(requirements)
@@ -236,7 +255,9 @@ enum AgentPrompts {
                   Apply the change request and return the COMPLETE updated design plan. Keep reference designators \
                   and positions of parts that do not need to change.
                   """,
-                  schemaName: "design_plan", schema: DesignSchemas.designPlanSchema(customKinds: customPlanKinds(customParts)))
+                  schemaName: "design_plan",
+                  schema: DesignSchemas.designPlanSchema(customKinds: customPlanKinds(customParts, brief: requirements + " " + instruction,
+                                                                                      plan: current)))
     }
 
     static func reviewRequest(spec: RequirementsSpec?, brief: String, plan: DesignPlan, erc: [RuleViolation],
@@ -257,7 +278,7 @@ enum AgentPrompts {
                 dcText = "Did not converge: \(dc.error)"
             }
         }
-        return AIRequest(system: reviewerSystem + customCatalog(customParts),
+        return AIRequest(system: reviewerSystem + customCatalog(customParts, brief: brief, plan: plan),
                          prompt: """
                          <requirements>
                          \(brief)
@@ -281,6 +302,7 @@ enum AgentPrompts {
 
                          Review the design.
                          """,
-                         schemaName: "design_review", schema: DesignSchemas.reviewSchema(customKinds: customPlanKinds(customParts)))
+                         schemaName: "design_review",
+                         schema: DesignSchemas.reviewSchema(customKinds: customPlanKinds(customParts, brief: brief, plan: plan)))
     }
 }

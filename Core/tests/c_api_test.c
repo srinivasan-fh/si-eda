@@ -725,3 +725,79 @@ int sieda_c_api_transient_ex_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Supplier data through the C API: parse, merge, roll-up, catalog match and hostile input. */
+int sieda_c_api_supplier_test(void) {
+    const char* body =
+        "{\"SearchResults\":{\"NumberOfResult\":1,\"Parts\":[{\"ManufacturerPartNumber\":\"NE555DR\",\"Manufacturer\":"
+        "\"Texas Instruments\",\"MouserPartNumber\":\"595-NE555DR\",\"AvailabilityInStock\":\"100\",\"Min\":\"1\","
+        "\"Mult\":\"1\",\"PriceBreaks\":[{\"Quantity\":1,\"Price\":\"$0.30\",\"Currency\":\"USD\"}]}]}}";
+    char* parsed = sieda_supplier_parse("mouser", body, "USD");
+    if (!parsed || !strstr(parsed, "\"mpn\":\"NE555DR\"") || !strstr(parsed, "\"schema\":\"sieda.supplier/1\"")) return 1;
+    char request[8192];
+    snprintf(request, sizeof request, "{\"currency\":\"USD\",\"results\":[%s]}", parsed);
+    sieda_string_free(parsed);
+    char* merged = sieda_supplier_merge(request);
+    if (!merged || !strstr(merged, "\"595-NE555DR\"")) return 2;
+    sieda_string_free(merged);
+    char* rollup = sieda_supplier_bom_rollup(
+        "{\"quantities\":[1],\"lines\":[{\"item\":1,\"refs\":[\"U1\"],\"quantity\":1,\"mpn\":\"NE555DR\"}],"
+        "\"parts\":[{\"mpn\":\"NE555DR\",\"offers\":[{\"supplier\":\"Mouser\",\"currency\":\"USD\",\"stock\":5,"
+        "\"prices\":[{\"quantity\":1,\"price\":0.3}]}]}]}");
+    if (!rollup || !strstr(rollup, "\"status\":\"priced\"")) return 3;
+    sieda_string_free(rollup);
+    char* match = sieda_supplier_catalog_match("NE555");
+    if (!match || !strstr(match, "\"match\":\"NE555\"")) return 4;
+    sieda_string_free(match);
+    char* bad = sieda_supplier_parse(NULL, NULL, NULL);
+    if (!bad || !strstr(bad, "\"errorKind\":\"source\"")) return 5;
+    sieda_string_free(bad);
+    bad = sieda_supplier_merge("not json");
+    if (!bad || !strstr(bad, "\"parts\":[]")) return 6;
+    sieda_string_free(bad);
+    bad = sieda_supplier_bom_rollup(NULL);
+    if (!bad || !strstr(bad, "\"error\"")) return 7;
+    sieda_string_free(bad);
+    bad = sieda_supplier_parse("nexar", "[[[[[[[[", "");
+    if (!bad || !strstr(bad, "\"errorKind\":\"parse\"")) return 8;
+    sieda_string_free(bad);
+    return 0;
+}
+
+/* 3D models through the C API: import (text and base64), fit, preview mesh and bad requests. */
+int sieda_c_api_model3d_test(void) {
+    const char* cube =
+        "{\"name\":\"cube.obj\",\"content\":\"v 0 0 0\\nv 2 0 0\\nv 2 2 0\\nv 0 2 0\\nv 0 0 1\\nv 2 0 1\\nv 2 2 1\\nv 0 2 1\\n"
+        "f 1 4 3 2\\nf 5 6 7 8\\nf 1 2 6 5\\nf 2 3 7 6\\nf 3 4 8 7\\nf 4 1 5 8\\n\"}";
+    char* imported = sieda_model3d_import(cube);
+    if (!imported || !strstr(imported, "\"ok\":true") || !strstr(imported, "\"triangles\":12")) return 1;
+    const char* at = strstr(imported, "\"id\":\"");
+    if (!at) return 2;
+    char id[32] = {0};
+    memcpy(id, at + 6, 17);
+    sieda_string_free(imported);
+    char spec[1024];
+    snprintf(spec, sizeof spec,
+             "{\"name\":\"CUBEPART\",\"package\":{\"type\":\"SOIC\",\"pinCount\":8},\"pins\":[{\"number\":\"1\",\"name\":\"A\"}],"
+             "\"model3d\":{\"id\":\"%s\",\"name\":\"cube.obj\",\"unit\":1,\"offset\":[5,5,5]}}", id);
+    char* fit = sieda_model3d_fit(spec);
+    if (!fit || !strstr(fit, "\"ok\":true") || !strstr(fit, "\"offset\":[-1,-1,0]")) return 3;
+    sieda_string_free(fit);
+    SiedaMesh* preview = sieda_model3d_preview(spec);
+    if (!preview || sieda_mesh_vertex_count(preview) <= 0) return 4;
+    sieda_mesh_free(preview);
+    char* bad = sieda_model3d_import("{\"name\":\"x.step\",\"content\":\"ISO-10303-21;\"}");
+    if (!bad || !strstr(bad, "\"ok\":false") || !strstr(bad, "STEP")) return 5;
+    sieda_string_free(bad);
+    bad = sieda_model3d_import("{\"name\":\"x.stl\",\"contentBase64\":\"!!!\"}");
+    if (!bad || !strstr(bad, "\"ok\":false")) return 6;
+    sieda_string_free(bad);
+    bad = sieda_model3d_import(NULL);
+    if (!bad || !strstr(bad, "\"ok\":false")) return 7;
+    sieda_string_free(bad);
+    bad = sieda_model3d_fit("{\"name\":\"X\",\"pins\":[{\"number\":\"1\"}]}");
+    if (!bad || !strstr(bad, "\"ok\":false")) return 8;
+    sieda_string_free(bad);
+    if (sieda_model3d_preview("not json") != NULL) return 9;
+    return 0;
+}

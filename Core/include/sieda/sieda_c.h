@@ -144,6 +144,20 @@ char* sieda_standard_parts_json(void);
  * reported in files[].error; the call never fails on file content. Caller frees. */
 char* sieda_library_import(const char* request_json);
 
+/* ---- supplier part data (docs/SUPPLIERS.md) --------------------------------------------------- */
+/* Reads a distributor reply body (source "nexar", "digikey" or "mouser") into the normalised supplier schema
+ * {"schema":"sieda.supplier/1","source","total","error","errorKind","notes","parts":[{mpn,manufacturer,description,
+ *  category,package,datasheet,productUrl,lifecycle,lifecycleText,parameters,offers:[{supplier,sku,stock,moq,multiple,
+ *  packaging,currency,leadTimeDays,url,prices:[{quantity,price}]}],stock,pricing}]}. currency ("USD", NULL = any)
+ * picks the offers "pricing" prefers. Never fails: errors are in "error". Caller frees. */
+char* sieda_supplier_parse(const char* source, const char* body, const char* currency);
+/* {"results":[normalised results],"currency"} -> {"parts":[merged parts],"errors":[{source,error,errorKind}]}. */
+char* sieda_supplier_merge(const char* request_json);
+/* BOM cost roll-up with stock and lifecycle warnings (see Suppliers.hpp, supplierBomRollup). */
+char* sieda_supplier_bom_rollup(const char* request_json);
+/* Standard-catalog part for a manufacturer part number: {"match","exact","note","candidates":[names]}. */
+char* sieda_supplier_catalog_match(const char* mpn);
+
 /* ---- standard values --------------------------------------------------------------------- */
 /* Nearest IEC 60063 value; series = 12, 24 or 96. */
 double sieda_nearest_standard_value(double value, int32_t series);
@@ -539,6 +553,18 @@ SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_compone
 /* Copper (tracks, pads, via lands) of one layer laid flat at Y = 0, for the X-ray layer-stack view. */
 SiedaMesh* sieda_mesh_build_layer(const SiedaProject* project, int32_t layer);
 void sieda_mesh_free(SiedaMesh* mesh);
+/* Imported 3D models of parts (docs/LIBRARY_IMPORT.md#3d-models): VRML 2.0 (.wrl), STL (ASCII / binary), OBJ.
+ * request {"name":"SOIC-8.wrl","content":"<text>"} or {"name":"part.stl","contentBase64":"…"} →
+ * {"ok","error","id","name","format","unit","vertices","triangles","bounds":[minx,miny,minz,maxx,maxy,maxz],
+ *  "warnings":[…]}. The mesh is registered; a part refers to it with spec "model3d":{"id","name","unit","scale":[3],
+ *  "rotate":[3],"offset":[3]} and it is saved with the project. STEP files are refused with the reason. Caller frees. */
+char* sieda_model3d_import(const char* request_json);
+/* Aligned bounds (mm, footprint frame, z up) of a spec's model and the alignment that centres it on the footprint
+ * and seats it on the board: {"ok","error","bounds":[6],"seated":{model3d}}. Caller frees. */
+char* sieda_model3d_fit(const char* spec_json);
+/* The part alone on a small board (pads, solder, its 3D model or generated body), for the alignment preview.
+ * NULL for an invalid spec. Free with sieda_mesh_free. */
+SiedaMesh* sieda_model3d_preview(const char* spec_json);
 int32_t sieda_mesh_vertex_count(const SiedaMesh* mesh);
 int32_t sieda_mesh_index_count(const SiedaMesh* mesh);
 const float* sieda_mesh_positions(const SiedaMesh* mesh); /* 3 floats per vertex */

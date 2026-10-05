@@ -1,0 +1,39 @@
+#VRML V2.0 utf8
+# Synthetic test model written for SiEDA's VRML reader, laid out like the models KiCad's library ships
+# (0.1 inch units, materials DEF'd once and USEd, one IndexedFaceSet per part of the body).
+# SOIC-8: moulded body 3.9 x 4.9 x 1.65 mm (0.1 mm stand-off) and eight gull-wing pins (as boxes).
+WorldInfo { title "SOIC-8 test model" info [ "not a real vendor model" ] }
+Shape {
+  appearance Appearance {
+    material DEF BODY-EPOXY Material {
+      ambientIntensity 0.2
+      diffuseColor 0.15 0.15 0.16
+      specularColor 0.3 0.3 0.3
+      shininess 0.25
+      transparency 0
+    }
+  }
+  geometry IndexedFaceSet {
+    creaseAngle 0.5
+    coord Coordinate { point [
+      -0.7677 -0.9646 0.0394, 0.7677 -0.9646 0.0394, 0.7677 0.9646 0.0394, -0.7677 0.9646 0.0394,
+      -0.7677 -0.9646 0.6890, 0.7677 -0.9646 0.6890, 0.7677 0.9646 0.6890, -0.7677 0.9646 0.6890 ] }
+    coordIndex [ 0 3 2 1 -1, 4 5 6 7 -1, 0 1 5 4 -1, 1 2 6 5 -1, 2 3 7 6 -1, 3 0 4 7 -1 ]
+  }
+}
+DEF PIN-SHAPE Shape {
+  appearance Appearance { material DEF PIN-01 Material { diffuseColor 0.82 0.82 0.84 } }
+  geometry IndexedFaceSet {
+    coord Coordinate { point [ -0.2067 -0.0807 0, 0.2067 -0.0807 0, 0.2067 0.0807 0, -0.2067 0.0807 0,
+                               -0.2067 -0.0807 0.0984, 0.2067 -0.0807 0.0984, 0.2067 0.0807 0.0984, -0.2067 0.0807 0.0984 ] }
+    coordIndex [ 0 3 2 1 -1 4 5 6 7 -1 0 1 5 4 -1 1 2 6 5 -1 2 3 7 6 -1 3 0 4 7 -1 ]
+  }
+}
+Transform { translation -0.9744 0.75 0 children [ USE PIN-SHAPE ] }
+Transform { translation -0.9744 0.25 0 children [ USE PIN-SHAPE ] }
+Transform { translation -0.9744 -0.25 0 children [ USE PIN-SHAPE ] }
+Transform { translation -0.9744 -0.75 0 children [ USE PIN-SHAPE ] }
+Transform { translation 0.9744 -0.75 0 children [ USE PIN-SHAPE ] }
+Transform { translation 0.9744 -0.25 0 children [ USE PIN-SHAPE ] }
+Transform { translation 0.9744 0.25 0 rotation 0 0 1 3.14159265 children [ USE PIN-SHAPE ] }
+Transform { translation 0.9744 0.75 0 scale 1 1 1 children [ USE PIN-SHAPE ] }

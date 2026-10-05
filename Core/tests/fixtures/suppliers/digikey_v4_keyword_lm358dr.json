@@ -1,0 +1,125 @@
+{
+  "Products": [
+    {
+      "Description": {
+        "ProductDescription": "IC OPAMP GP 2 CIRCUIT 8SOIC",
+        "DetailedDescription": "General Purpose Amplifier 2 Circuit 8-SOIC"
+      },
+      "Manufacturer": {"Id": 296, "Name": "Texas Instruments"},
+      "ManufacturerProductNumber": "LM358DR",
+      "UnitPrice": 0.45,
+      "ProductUrl": "https://www.digikey.com/en/products/detail/texas-instruments/LM358DR/555834",
+      "DatasheetUrl": "https://www.ti.com/general/docs/suppproductinfo.tsp?distId=10&gotoUrl=https%3A%2F%2Fwww.ti.com%2Flit%2Fgpn%2Flm358",
+      "PhotoUrl": "https://mm.digikey.com/Volume0/opasdata/d220001/medias/images/4097/296~4040047~D~8.jpg",
+      "ProductVariations": [
+        {
+          "DigiKeyProductNumber": "296-1014-1-ND",
+          "PackageType": {"Id": 2, "Name": "Cut Tape (CT)"},
+          "StandardPricing": [
+            {"BreakQuantity": 1, "UnitPrice": 0.45, "TotalPrice": 0.45},
+            {"BreakQuantity": 10, "UnitPrice": 0.315, "TotalPrice": 3.15},
+            {"BreakQuantity": 25, "UnitPrice": 0.2768, "TotalPrice": 6.92},
+            {"BreakQuantity": 100, "UnitPrice": 0.1896, "TotalPrice": 18.96},
+            {"BreakQuantity": 500, "UnitPrice": 0.14708, "TotalPrice": 73.54},
+            {"BreakQuantity": 1000, "UnitPrice": 0.12392, "TotalPrice": 123.92}
+          ],
+          "MyPricing": [],
+          "MarketPlace": false,
+          "TariffActive": false,
+          "DigiReelFee": 0,
+          "QuantityAvailableforPackageType": 18342,
+          "MaxQuantityForDistribution": 0,
+          "MinimumOrderQuantity": 1,
+          "StandardPackage": 0,
+          "Supplier": {"Id": 296, "Name": "Texas Instruments"}
+        },
+        {
+          "DigiKeyProductNumber": "296-1014-2-ND",
+          "PackageType": {"Id": 1, "Name": "Tape & Reel (TR)"},
+          "StandardPricing": [
+            {"BreakQuantity": 2500, "UnitPrice": 0.0961, "TotalPrice": 240.25},
+            {"BreakQuantity": 5000, "UnitPrice": 0.08896, "TotalPrice": 444.8}
+          ],
+          "QuantityAvailableforPackageType": 17500,
+          "MinimumOrderQuantity": 2500,
+          "StandardPackage": 2500
+        },
+        {
+          "DigiKeyProductNumber": "296-1014-6-ND",
+          "PackageType": {"Id": 243, "Name": "Digi-Reel®"},
+          "StandardPricing": [
+            {"BreakQuantity": 1, "UnitPrice": 0.45, "TotalPrice": 0.45}
+          ],
+          "QuantityAvailableforPackageType": 18342,
+          "MinimumOrderQuantity": 1,
+          "StandardPackage": 0
+        }
+      ],
+      "QuantityAvailable": 35842,
+      "ProductStatus": {"Id": 0, "Status": "Active"},
+      "BackOrderNotAllowed": false,
+      "NormallyStocking": true,
+      "Discontinued": false,
+      "EndOfLife": false,
+      "Ncnr": false,
+      "PrimaryVideoUrl": null,
+      "Parameters": [
+        {"ParameterId": 2058, "ParameterText": "Amplifier Type", "ParameterType": "String", "ValueId": "", "ValueText": "General Purpose"},
+        {"ParameterId": 16, "ParameterText": "Package / Case", "ParameterType": "String", "ValueId": "", "ValueText": "8-SOIC (0.154\", 3.90mm Width)"},
+        {"ParameterId": 1291, "ParameterText": "Supplier Device Package", "ParameterType": "String", "ValueId": "", "ValueText": "8-SOIC"},
+        {"ParameterId": 2094, "ParameterText": "Number of Circuits", "ParameterType": "String", "ValueId": "", "ValueText": "2"}
+      ],
+      "BaseProductNumber": {"Id": 0, "Name": "LM358"},
+      "Category": {"CategoryId": 687, "ParentId": 2, "Name": "Instrumentation, Op Amps, Buffer Amps"},
+      "DateLastBuyChance": null,
+      "ManufacturerLeadWeeks": "6",
+      "ManufacturerPublicQuantity": 0,
+      "Series": {"Id": 0, "Name": "-"},
+      "ShippingInfo": null,
+      "Classifications": {
+        "ReachStatus": "REACH Unaffected",
+        "RohsStatus": "ROHS3 Compliant",
+        "MoistureSensitivityLevel": "1  (Unlimited)",
+        "ExportControlClassNumber": "EAR99",
+        "HtsusCode": "8542.33.0001"
+      },
+      "OtherNames": ["296-1014-1", "LM358DR-ND"]
+    },
+    {
+      "Description": {"ProductDescription": "IC OPAMP GP 2 CIRCUIT 8SOIC", "DetailedDescription": ""},
+      "Manufacturer": {"Id": 296, "Name": "Texas Instruments"},
+      "ManufacturerProductNumber": "LM358DRE4",
+      "ProductUrl": "https://www.digikey.com/en/products/detail/texas-instruments/LM358DRE4/1588416",
+      "DatasheetUrl": "//www.ti.com/lit/ds/symlink/lm358.pdf",
+      "ProductVariations": [],
+      "QuantityAvailable": 0,
+      "ProductStatus": {"Id": 7, "Status": "Obsolete"},
+      "Discontinued": false,
+      "EndOfLife": true,
+      "Parameters": [],
+      "Category": {"Name": "Instrumentation, Op Amps, Buffer Amps"}
+    }
+  ],
+  "ProductsCount": 41,
+  "ExactMatches": [
+    {
+      "Description": {"ProductDescription": "IC OPAMP GP 2 CIRCUIT 8SOIC"},
+      "Manufacturer": {"Id": 296, "Name": "Texas Instruments"},
+      "ManufacturerProductNumber": "LM358DR",
+      "ProductUrl": "https://www.digikey.com/en/products/detail/texas-instruments/LM358DR/555834",
+      "ProductVariations": [
+        {
+          "DigiKeyProductNumber": "296-1014-1-ND",
+          "PackageType": {"Id": 2, "Name": "Cut Tape (CT)"},
+          "StandardPricing": [{"BreakQuantity": 1, "UnitPrice": 0.45, "TotalPrice": 0.45}],
+          "QuantityAvailableforPackageType": 18342,
+          "MinimumOrderQuantity": 1
+        }
+      ],
+      "ProductStatus": {"Id": 0, "Status": "Active"}
+    }
+  ],
+  "FilterOptions": {"Manufacturers": [{"Id": 296, "Value": "Texas Instruments", "ProductCount": 41}]},
+  "SearchLocaleUsed": {"Site": "US", "Language": "en", "Currency": "USD"},
+  "AppliedParametricFiltersDto": []
+}
