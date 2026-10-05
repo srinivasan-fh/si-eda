@@ -17,6 +17,9 @@
 
 namespace sieda {
 
+struct NoiseOptions;  // sieda/Noise.hpp
+struct NoiseResult;
+
 /// Independent source waveform: "5", "5V", "SIN(off amp freq)", "PULSE(v1 v2 period [duty])", each optionally followed
 /// by a SPICE-style small-signal stimulus "AC mag [phase°]" ("0 AC 1", "SIN(0 1 1k) AC 1"; "AC 1" alone is DC 0).
 struct SourceSpec {
@@ -138,6 +141,8 @@ public:
     AcResult ac(const AcOptions& options);
     /// DC sweep of the independent source `componentId` from `start` to `stop` in steps of |step|.
     DcSweepResult dcSweep(int componentId, double start, double stop, double step);
+    /// Small-signal noise analysis (sieda/Noise.hpp, Noise.cpp).
+    NoiseResult noise(const NoiseOptions& options);
     /// Multiplies the values of resistors, capacitors and inductors by a factor per component id (tolerance analysis).
     /// Takes effect at the next analysis.
     void setValueScale(std::map<int, double> scale) { valueScale_ = std::move(scale); }
@@ -179,6 +184,10 @@ private:
     void addModelAdmittance(const Element& e, double w, const std::vector<double>& x,
                             std::vector<std::complex<double>>& M) const;
     void updateCharges(Element& e) const;
+    /// The complex MNA matrix at `freq`: the small-signal conductances G plus every reactive element at operating
+    /// point x (shared by AC and noise analysis).
+    void acMatrix(double freq, const std::vector<double>& G, const std::vector<double>& x,
+                  std::vector<std::complex<double>>& M) const;
     DeviceReading modelReading(const Element& e, const std::vector<double>& x, double h) const;
     void terminalCurrents(const Element& e, const std::vector<double>& x, double h,
                           std::vector<std::pair<int, double>>& out) const;

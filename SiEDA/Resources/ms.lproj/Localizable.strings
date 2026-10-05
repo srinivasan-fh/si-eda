@@ -576,3 +576,19 @@
 "The imported model replaces the built-in one in every analysis." = "Model yang diimport menggantikan model terbina dalam dalam setiap analisis.";
 "SPICE Model for %@" = "Model SPICE untuk %@";
 "Ports: %@" = "Port: %@";
+
+/* Simulation: noise analysis */
+"Noise" = "Hingar";
+"Run Noise" = "Jalankan Hingar";
+"Output" = "Output";
+"Output noise" = "Hingar output";
+"Input-referred" = "Dirujuk ke input";
+"Integrated output noise" = "Hingar output bersepadu";
+"Integrated input noise" = "Hingar input bersepadu";
+"Largest contributors" = "Penyumbang terbesar";
+"No input source: give the input an AC magnitude or name it to see the input-referred noise." = "Tiada sumber input: beri input magnitud AC atau namakannya untuk melihat hingar yang dirujuk ke input.";
+"Thermal" = "Terma";
+"Shot" = "Tembakan";
+"Flicker (1/f)" = "Kelipan (1/f)";
+"Op-amp voltage noise" = "Hingar voltan op-amp";
+"Op-amp current noise" = "Hingar arus op-amp";

@@ -47,6 +47,7 @@
 #include "sieda/Stackup.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/SpiceModels.hpp"
+#include "sieda/Noise.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Validation.hpp"
 #include "sieda/Verification.hpp"
@@ -9609,4 +9610,152 @@ TEST(opamp_multipole_macromodel) {
         std::string error = Simulator(s).dcOperatingPoint().error;
         CHECK(error.find("VOH must be above VOL") != std::string::npos);
     }
+}
+
+extern "C" int sieda_c_api_noise_test(void);
+
+TEST(noise_analysis_closed_form) {
+    const double kT = 1.380649e-23 * 300.15, q = 1.602176634e-19;
+    // Divider of two 1 kΩ resistors: 4kT·(R1 ∥ R2) at the tap, ×2 referred to the input.
+    {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "0 AC 1", {0, 0});
+        int r1 = s.addComponent(ComponentKind::Resistor, "1k", {50, 0});
+        int r2 = s.addComponent(ComponentKind::Resistor, "1k", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", r1, "1");
+        wire(s, r1, "2", r2, "1");
+        wire(s, r2, "2", g, "GND");
+        wire(s, v, "-", g, "GND");
+        NoiseOptions o;
+        o.outputNet = s.netOf({r1, 1});
+        o.fStart = 10;
+        o.fStop = 1e4;
+        NoiseResult r = noiseAnalysis(s, o);
+        CHECK(r.ok);
+        if (r.ok) {
+            CHECK_NEAR(r.outputDensity[5] / std::sqrt(4 * kT * 500), 1.0, 1e-9);
+            CHECK(r.inputSource == v && !r.inputIsCurrent);
+            CHECK_NEAR(r.gain[5], 0.5, 1e-8);
+            CHECK_NEAR(r.inputDensity[5] / (2 * std::sqrt(4 * kT * 500)), 1.0, 1e-9);
+            CHECK_NEAR(r.outputRms / std::sqrt(4 * kT * 500 * (1e4 - 10)), 1.0, 1e-9);  // white: exact
+            CHECK(r.contributions.size() == 2 && r.contributions[0].kind == "thermal");
+            CHECK_NEAR(r.contributions[0].rms, std::sqrt(4 * kT * 250 * (1e4 - 10)), 1e-15);
+        }
+        o.temperature = 2 * 300.15;  // noise power scales with T
+        NoiseResult hot = noiseAnalysis(s, o);
+        CHECK(hot.ok && std::fabs(hot.outputDensity[0] / r.outputDensity[0] - std::sqrt(2.0)) < 1e-9);
+    }
+    // RC low-pass: integrated output noise → kT/C over the band (here the arctangent of the sweep limits).
+    {
+        Schematic s;
+        rcLowPass(s, "0 AC 1", "1k", "1n");
+        int c = -1;
+        for (const auto& comp : s.components())
+            if (comp.kind == ComponentKind::Capacitor) c = comp.id;
+        NoiseOptions o;
+        o.outputNet = s.netOf({c, 0});
+        o.fStart = 1;
+        o.fStop = 1e10;
+        o.pointsPerDecade = 200;
+        NoiseResult r = noiseAnalysis(s, o);
+        CHECK(r.ok);
+        const double fc = 1 / (2 * kPi * 1e3 * 1e-9);
+        const double expected = std::sqrt(kT / 1e-9 * 2 / kPi * (std::atan(1e10 / fc) - std::atan(1 / fc)));
+        if (r.ok) CHECK_NEAR(r.outputRms / expected, 1.0, 2e-3);
+    }
+    // Shot noise of a forward diode fed by a current: √(2qI)·r_d.
+    {
+        Schematic s;
+        int i = s.addComponent(ComponentKind::CurrentSource, "1m AC 1", {0, 0});
+        int d = s.addComponent(ComponentKind::Diode, "1N4148", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, i, "+", d, "A");
+        wire(s, d, "K", g, "GND");
+        wire(s, i, "-", g, "GND");
+        NoiseOptions o;
+        o.outputNet = s.netOf({d, 0});
+        NoiseResult r = noiseAnalysis(s, o);
+        CHECK(r.ok);
+        const double rd = 1.752 * 0.025852 / (1e-3 + 2.52e-9);
+        if (r.ok) {
+            CHECK_NEAR(r.outputDensity[0] / (std::sqrt(2 * q * 1e-3) * rd), 1.0, 1e-3);
+            CHECK(r.inputIsCurrent);
+            CHECK_NEAR(r.inputDensity[0] / std::sqrt(2 * q * 1e-3), 1.0, 1e-3);  // referred to the input current
+        }
+        // Flicker noise of an imported model: S = (2qI + KF·I^AF / f)·r_d².
+        s.setSpiceModel(d, SpiceModelRef{".model DF D(IS=1e-14 KF=1e-14 AF=1)", "DF", ""});
+        o.fStart = 1;
+        o.fStop = 1e4;
+        o.pointsPerDecade = 1;
+        NoiseResult f = noiseAnalysis(s, o);
+        CHECK(f.ok);
+        if (f.ok) {
+            const double rd2 = spicedevVt() / 1e-3;
+            for (size_t k = 0; k < f.frequency.size(); ++k) {
+                const double expected = std::sqrt((2 * q * 1e-3 + 1e-14 * 1e-3 / f.frequency[k])) * rd2;
+                CHECK_NEAR(f.outputDensity[k] / expected, 1.0, 2e-3);
+            }
+            bool flicker = false;
+            for (const auto& cc : f.contributions) flicker |= cc.kind == "flicker" && cc.componentId == d;
+            CHECK(flicker);
+        }
+    }
+    // Op-amp noise densities: a follower passes EN; through 10 kΩ the current noise adds IN·10 kΩ and the resistor
+    // its thermal noise. Both the single-pole model and the macromodel.
+    for (const char* value : {"generic EN=10n IN=1p", "generic EN=10n IN=1p SR=1V/us"}) {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "0 AC 1", {0, 0});
+        int rs = s.addComponent(ComponentKind::Resistor, "10k", {50, 0});
+        int a = s.addComponent(ComponentKind::OpAmp, value, {100, 0});
+        int rl = s.addComponent(ComponentKind::Resistor, "10k", {200, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", rs, "1");
+        wire(s, rs, "2", a, "IN+");
+        wire(s, a, "OUT", a, "IN-");
+        wire(s, a, "OUT", rl, "1");
+        wire(s, rl, "2", g, "GND");
+        wire(s, v, "-", g, "GND");
+        NoiseOptions o;
+        o.outputNet = s.netOf({a, 2});
+        o.fStart = 10;
+        o.fStop = 100;
+        NoiseResult r = noiseAnalysis(s, o);
+        CHECK(r.ok);
+        const double expected = std::sqrt(1e-16 + 1e-24 * 1e8 + 4 * kT * 1e4);
+        if (r.ok) CHECK_NEAR(r.outputDensity[0] / expected, 1.0, 1e-4);
+    }
+    // A BJT stage: collector shot noise and the resistors all contribute; the largest is listed first.
+    {
+        Schematic s;
+        int vcc = s.addComponent(ComponentKind::VoltageSource, "10", {0, 0});
+        int rb = s.addComponent(ComponentKind::Resistor, "470k", {100, 0});
+        int rc = s.addComponent(ComponentKind::Resistor, "4.7k", {200, -80});
+        int q1 = s.addComponent(ComponentKind::NPN, "BC847", {200, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, vcc, "+", rb, "1");
+        wire(s, rb, "2", q1, "B");
+        wire(s, vcc, "+", rc, "1");
+        wire(s, rc, "2", q1, "C");
+        wire(s, q1, "E", g, "GND");
+        wire(s, vcc, "-", g, "GND");
+        NoiseOptions o;
+        o.outputNet = s.netOf({q1, 1});
+        o.sourceId = vcc;
+        NoiseResult r = noiseAnalysis(s, o);
+        CHECK(r.ok && r.contributions.size() >= 3);
+        if (r.ok)
+            for (size_t k = 1; k < r.contributions.size(); ++k) CHECK(r.contributions[k - 1].rms >= r.contributions[k].rms);
+    }
+    // Errors.
+    {
+        Schematic s;
+        rcLowPass(s, "0 AC 1", "1k", "1n");
+        NoiseOptions o;
+        CHECK(noiseAnalysis(s, o).error.find("output") != std::string::npos);
+        o.outputNet = 0;
+        o.fStop = 0;
+        CHECK(!noiseAnalysis(s, o).ok);
+    }
+    CHECK(sieda_c_api_noise_test() == 0);
 }

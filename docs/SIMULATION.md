@@ -14,6 +14,7 @@ SPICE. The **Simulation** workspace shows the DC operating point on the left and
 | Parameter sweep | DC, AC or transient once per value of one component | — | `sieda_simulate_param_sweep` |
 | Monte Carlo / worst case | Spread of a node's DC voltage, low-frequency gain, −3 dB frequency or peak frequency over R/C/L tolerances | Monte Carlo | `sieda_simulate_monte_carlo` |
 | FFT / THD | Spectrum and harmonic distortion of a node's transient waveform | — | `sieda_simulate_fft` |
+| Noise | Output and input-referred noise density, integrated RMS noise, contributions | Noise | `sieda_simulate_noise` |
 
 ## Sources
 
@@ -136,6 +137,39 @@ curves, diode I–V, transistor characteristics, regulator dropout. Up to 100 00
 `sieda_simulate_param_sweep` runs a DC operating point, an AC sweep or a transient once per value of one component
 (`"values"`: up to 100 value strings such as `"1k"`, `"2k2"`, `"TL072"`), on a copy of the schematic; the design is
 not modified. With `"net"` only that node is returned (transient waveforms are decimated to 1000 points).
+
+## Noise analysis
+
+**Analysis type → Noise** (C API `sieda_simulate_noise`): the noise density at an output net (or between two nets)
+over a logarithmic sweep, like SPICE `.NOISE V(out) Vin dec 20 10 100k`. The circuit is linearised at its DC operating
+point exactly as for the AC analysis; each noise source is carried to the output by the adjoint of the AC system (one
+complex solve per frequency, however many sources there are) and the powers add (sources are uncorrelated).
+
+| Source | Power spectral density | Between |
+|---|---|---|
+| Resistor (also inside imported models; not switches) | 4kT / R | its terminals |
+| Diode (built-in and imported) | 2qI_D + KF·I_D^AF / f | anode – cathode (series resistance thermal separately) |
+| BJT | 2qI_C; 2qI_B + KF·I_B^AF / f | collector – emitter; base – emitter (RB, RC, RE thermal separately) |
+| N-MOSFET (built-in), MOSFET / JFET (imported) | (8/3)kT·g_m + KF·I_D^AF / (f·Cox·L²) (KF·I_D^AF / f without TOX) | drain – source |
+| Op-amp with `EN=` / `IN=` (V/√Hz, A/√Hz) | EN²·(1 + FNC / f) at the input; IN²·(1 + FNC / f) from each input to ground | — |
+
+T = 300.15 K (27 °C; the C API's `"temperature"` in °C changes it). Results: the output density (V/√Hz), the gain from
+the input source and the input-referred density (V/√Hz for a voltage source, A/√Hz for a current source), the RMS noise
+integrated over the sweep (trapezoidal in f, so a fine sweep integrates a 1/f slope well), and every part's
+integrated contribution, largest first. The input is the source named as **Input**, else the AC stimulus rule.
+Without an input source only the output noise is reported.
+
+The panel plots output and input-referred density on log–log axes and lists the integrated noise and the twelve largest
+contributors with their share of the output noise power.
+
+**Verification:** a 1 k / 1 k divider reads √(4kT·500 Ω) at the tap (exact) and twice that at the input; an RC
+low-pass integrates to √(kT/C) over its band (0.2 %); a diode at 1 mA reads √(2qI)·r_d, and with KF its 1/f term
+exactly; an op-amp follower through 10 kΩ adds EN, IN·10 kΩ and the resistor's thermal noise in quadrature (10⁻⁴).
+
+**Limits.** Built-in regulators, IC loads, the INA333 and microcontroller pins are noiseless; controlled sources are
+noiseless (as in SPICE); resistors inside vendor macromodels contribute their thermal noise, which for macromodels
+without explicit noise sources is not the part's datasheet noise (as in SPICE). No correlated sources, no excess
+(1/f) resistor noise.
 
 ## Monte Carlo and worst case
 

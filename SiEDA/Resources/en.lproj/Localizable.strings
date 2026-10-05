@@ -576,3 +576,19 @@
 "The imported model replaces the built-in one in every analysis." = "The imported model replaces the built-in one in every analysis.";
 "SPICE Model for %@" = "SPICE Model for %@";
 "Ports: %@" = "Ports: %@";
+
+/* Simulation: noise analysis */
+"Noise" = "Noise";
+"Run Noise" = "Run Noise";
+"Output" = "Output";
+"Output noise" = "Output noise";
+"Input-referred" = "Input-referred";
+"Integrated output noise" = "Integrated output noise";
+"Integrated input noise" = "Integrated input noise";
+"Largest contributors" = "Largest contributors";
+"No input source: give the input an AC magnitude or name it to see the input-referred noise." = "No input source: give the input an AC magnitude or name it to see the input-referred noise.";
+"Thermal" = "Thermal";
+"Shot" = "Shot";
+"Flicker (1/f)" = "Flicker (1/f)";
+"Op-amp voltage noise" = "Op-amp voltage noise";
+"Op-amp current noise" = "Op-amp current noise";

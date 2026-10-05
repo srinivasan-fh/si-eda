@@ -52,7 +52,6 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 ## Out of scope for v1
 - Importing KiCad or Altium library files and custom symbol graphics (the Footprint and Symbol Editors shipped; see
   F13, F14). Multi-unit symbols shipped (see docs/SCHEMATIC.md).
-- Noise analysis (AC small-signal analysis shipped; see F7).
 
 ## Roadmap
 (Shipped since v1: up to 24 layers, copper pours and planes with thermal reliefs, differential pairs, length tuning,

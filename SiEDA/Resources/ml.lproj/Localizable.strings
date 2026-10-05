@@ -576,3 +576,19 @@
 "The imported model replaces the built-in one in every analysis." = "ഇറക്കുമതി ചെയ്ത മോഡൽ എല്ലാ വിശകലനത്തിലും അന്തർനിർമ്മിത മോഡലിന് പകരമാകുന്നു.";
 "SPICE Model for %@" = "%@ നുള്ള SPICE മോഡൽ";
 "Ports: %@" = "പോർട്ടുകൾ: %@";
+
+/* Simulation: noise analysis */
+"Noise" = "നോയ്സ്";
+"Run Noise" = "നോയ്സ് വിശകലനം നടത്തുക";
+"Output" = "ഔട്ട്പുട്ട്";
+"Output noise" = "ഔട്ട്പുട്ട് നോയ്സ്";
+"Input-referred" = "ഇൻപുട്ടിലേക്ക് പരാമർശിച്ച";
+"Integrated output noise" = "സമാകലിത ഔട്ട്പുട്ട് നോയ്സ്";
+"Integrated input noise" = "സമാകലിത ഇൻപുട്ട് നോയ്സ്";
+"Largest contributors" = "ഏറ്റവും വലിയ സംഭാവകർ";
+"No input source: give the input an AC magnitude or name it to see the input-referred noise." = "ഇൻപുട്ട് സ്രോതസ്സില്ല: ഇൻപുട്ടിലേക്ക് പരാമർശിച്ച നോയ്സ് കാണാൻ ഇൻപുട്ടിന് AC മാഗ്നിറ്റ്യൂഡ് നൽകുക അല്ലെങ്കിൽ അതിന്റെ പേര് നൽകുക.";
+"Thermal" = "താപ";
+"Shot" = "ഷോട്ട്";
+"Flicker (1/f)" = "ഫ്ലിക്കർ (1/f)";
+"Op-amp voltage noise" = "ഓപ്-ആമ്പ് വോൾട്ടേജ് നോയ്സ്";
+"Op-amp current noise" = "ഓപ്-ആമ്പ് കറന്റ് നോയ്സ്";

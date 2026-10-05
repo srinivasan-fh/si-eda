@@ -576,3 +576,19 @@
 "The imported model replaces the built-in one in every analysis." = "இறக்குமதி செய்த மாதிரி ஒவ்வொரு பகுப்பாய்விலும் உள்ளமைந்த மாதிரிக்குப் பதிலாகப் பயன்படும்.";
 "SPICE Model for %@" = "%@ க்கான SPICE மாதிரி";
 "Ports: %@" = "போர்ட்டுகள்: %@";
+
+/* Simulation: noise analysis */
+"Noise" = "இரைச்சல்";
+"Run Noise" = "இரைச்சல் பகுப்பாய்வை இயக்கு";
+"Output" = "வெளியீடு";
+"Output noise" = "வெளியீட்டு இரைச்சல்";
+"Input-referred" = "உள்ளீட்டுக்குக் குறிக்கப்பட்ட";
+"Integrated output noise" = "தொகுக்கப்பட்ட வெளியீட்டு இரைச்சல்";
+"Integrated input noise" = "தொகுக்கப்பட்ட உள்ளீட்டு இரைச்சல்";
+"Largest contributors" = "மிகப்பெரிய பங்களிப்பாளர்கள்";
+"No input source: give the input an AC magnitude or name it to see the input-referred noise." = "உள்ளீட்டு மூலம் இல்லை: உள்ளீட்டுக்குக் குறிக்கப்பட்ட இரைச்சலைக் காண உள்ளீட்டுக்கு AC அளவு கொடுக்கவும் அல்லது அதன் பெயரைக் குறிப்பிடவும்.";
+"Thermal" = "வெப்ப";
+"Shot" = "ஷாட்";
+"Flicker (1/f)" = "மினுக்கு (1/f)";
+"Op-amp voltage noise" = "ஆப்-ஆம்ப் மின்னழுத்த இரைச்சல்";
+"Op-amp current noise" = "ஆப்-ஆம்ப் மின்னோட்ட இரைச்சல்";

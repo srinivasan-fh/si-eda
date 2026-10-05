@@ -1143,6 +1143,41 @@ AcMetrics acMetrics(const std::vector<double>& freq, const std::vector<std::comp
     return m;
 }
 
+void Simulator::acMatrix(double freq, const std::vector<double>& G, const std::vector<double>& x,
+                         std::vector<std::complex<double>>& M) const {
+    using Cplx = std::complex<double>;
+    const int n = unknowns_;
+    const double w = 2 * kPi * freq;
+    M.assign(G.begin(), G.end());
+    auto add = [&](int r, int c, Cplx v) {
+        if (r >= 0 && c >= 0) M[static_cast<size_t>(r * n + c)] += v;
+    };
+    for (const auto& e : elements_) {
+        int a = e.n[0], bb = e.n[1];
+        switch (e.type) {
+            case ElemType::Capacitor: {
+                Cplx y(0.0, w * e.value);
+                add(a, a, y);
+                add(bb, bb, y);
+                add(a, bb, -y);
+                add(bb, a, -y);
+                break;
+            }
+            case ElemType::Inductor: add(e.branch, e.branch, Cplx(0.0, -w * e.value)); break;
+            case ElemType::Device:
+            case ElemType::Coupling: addModelAdmittance(e, w, x, M); break;
+            case ElemType::OpAmp: {
+                // Single pole that keeps the gain–bandwidth product: (1 + jf·A'/GBW)·Vo − A'·(V+ − V−) = 0, with
+                // A' the open-loop gain at the operating point (falling towards 0 as the output saturates).
+                double th = std::tanh(kOpAmpGain * (nodeV(x, e.n[0]) - nodeV(x, e.n[1])) / e.vsat);
+                add(e.branch, e.n[2], Cplx(0.0, freq * kOpAmpGain * (1.0 - th * th) / e.gbw));
+                break;
+            }
+            default: break;
+        }
+    }
+}
+
 AcResult Simulator::ac(const AcOptions& o) {
     AcResult res;
     if (!(o.fStart > 0) || !(o.fStop > o.fStart) || !std::isfinite(o.fStop)) {
@@ -1213,35 +1248,7 @@ AcResult Simulator::ac(const AcOptions& o) {
     const int n = unknowns_;
     std::vector<Cplx> M, rhs;
     auto solveAt = [&](double freq) -> bool {
-        const double w = 2 * kPi * freq;
-        M.assign(G.begin(), G.end());
-        auto add = [&](int r, int c, Cplx v) {
-            if (r >= 0 && c >= 0) M[static_cast<size_t>(r * n + c)] += v;
-        };
-        for (const auto& e : elements_) {
-            int a = e.n[0], bb = e.n[1];
-            switch (e.type) {
-                case ElemType::Capacitor: {
-                    Cplx y(0.0, w * e.value);
-                    add(a, a, y);
-                    add(bb, bb, y);
-                    add(a, bb, -y);
-                    add(bb, a, -y);
-                    break;
-                }
-                case ElemType::Inductor: add(e.branch, e.branch, Cplx(0.0, -w * e.value)); break;
-                case ElemType::Device:
-                case ElemType::Coupling: addModelAdmittance(e, w, x, M); break;
-                case ElemType::OpAmp: {
-                    // Single pole that keeps the gain–bandwidth product: (1 + jf·A'/GBW)·Vo − A'·(V+ − V−) = 0, with
-                    // A' the open-loop gain at the operating point (falling towards 0 as the output saturates).
-                    double th = std::tanh(kOpAmpGain * (nodeV(x, e.n[0]) - nodeV(x, e.n[1])) / e.vsat);
-                    add(e.branch, e.n[2], Cplx(0.0, freq * kOpAmpGain * (1.0 - th * th) / e.gbw));
-                    break;
-                }
-                default: break;
-            }
-        }
+        acMatrix(freq, G, x, M);
         rhs.assign(static_cast<size_t>(n), Cplx(0.0, 0.0));
         for (const auto& d : drives) {
             const Element& e = elements_[d.elem];

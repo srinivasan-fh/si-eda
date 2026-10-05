@@ -576,3 +576,19 @@
 "The imported model replaces the built-in one in every analysis." = "导入的模型会在每项分析中取代内置模型。";
 "SPICE Model for %@" = "%@ 的 SPICE 模型";
 "Ports: %@" = "端口：%@";
+
+/* Simulation: noise analysis */
+"Noise" = "噪声";
+"Run Noise" = "运行噪声分析";
+"Output" = "输出";
+"Output noise" = "输出噪声";
+"Input-referred" = "折算到输入";
+"Integrated output noise" = "积分输出噪声";
+"Integrated input noise" = "积分输入噪声";
+"Largest contributors" = "主要贡献来源";
+"No input source: give the input an AC magnitude or name it to see the input-referred noise." = "没有输入源：为输入设置 AC 幅度或指定它，即可看到折算到输入的噪声。";
+"Thermal" = "热噪声";
+"Shot" = "散粒噪声";
+"Flicker (1/f)" = "闪烁噪声 (1/f)";
+"Op-amp voltage noise" = "运放电压噪声";
+"Op-amp current noise" = "运放电流噪声";

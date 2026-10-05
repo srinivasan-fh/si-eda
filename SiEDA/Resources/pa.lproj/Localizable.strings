@@ -576,3 +576,19 @@
 "The imported model replaces the built-in one in every analysis." = "ਆਯਾਤ ਕੀਤਾ ਮਾਡਲ ਹਰ ਵਿਸ਼ਲੇਸ਼ਣ ਵਿੱਚ ਬਿਲਟ-ਇਨ ਮਾਡਲ ਦੀ ਥਾਂ ਲੈਂਦਾ ਹੈ।";
 "SPICE Model for %@" = "%@ ਲਈ SPICE ਮਾਡਲ";
 "Ports: %@" = "ਪੋਰਟ: %@";
+
+/* Simulation: noise analysis */
+"Noise" = "ਨੌਇਜ਼";
+"Run Noise" = "ਨੌਇਜ਼ ਵਿਸ਼ਲੇਸ਼ਣ ਚਲਾਓ";
+"Output" = "ਆਉਟਪੁੱਟ";
+"Output noise" = "ਆਉਟਪੁੱਟ ਨੌਇਜ਼";
+"Input-referred" = "ਇਨਪੁੱਟ-ਸੰਦਰਭਿਤ";
+"Integrated output noise" = "ਏਕੀਕ੍ਰਿਤ ਆਉਟਪੁੱਟ ਨੌਇਜ਼";
+"Integrated input noise" = "ਏਕੀਕ੍ਰਿਤ ਇਨਪੁੱਟ ਨੌਇਜ਼";
+"Largest contributors" = "ਸਭ ਤੋਂ ਵੱਡੇ ਯੋਗਦਾਨੀ";
+"No input source: give the input an AC magnitude or name it to see the input-referred noise." = "ਕੋਈ ਇਨਪੁੱਟ ਸਰੋਤ ਨਹੀਂ: ਇਨਪੁੱਟ-ਸੰਦਰਭਿਤ ਨੌਇਜ਼ ਦੇਖਣ ਲਈ ਇਨਪੁੱਟ ਨੂੰ AC ਮਾਤਰਾ ਦਿਓ ਜਾਂ ਉਸਦਾ ਨਾਮ ਦਿਓ।";
+"Thermal" = "ਤਾਪੀ";
+"Shot" = "ਸ਼ਾਟ";
+"Flicker (1/f)" = "ਫਲਿੱਕਰ (1/f)";
+"Op-amp voltage noise" = "ਆਪ-ਐਂਪ ਵੋਲਟੇਜ ਨੌਇਜ਼";
+"Op-amp current noise" = "ਆਪ-ਐਂਪ ਕਰੰਟ ਨੌਇਜ਼";

@@ -558,6 +558,15 @@ char* sieda_component_spice_model(const SiedaProject* project, int32_t component
 /* Ready-made models of common parts: [{"name","description","text"}]. */
 char* sieda_spice_builtin_models(void);
 
+/* ---- noise analysis (docs/SIMULATION.md) ------------------------------------------------------------------------- */
+/* Output noise of a node over a log sweep. options: {"output": net, "reference"?: net (default ground), "source"?:
+ * the input for input-referred noise (default: the AC stimulus rule), "start","stop" (Hz, default 10 – 100k),
+ * "pointsPerDecade" (20), "temperature"? (°C, 27)}. Returns {"ok","error","output","reference","frequency":[…],
+ * "outputDensity":[V/√Hz…],"outputRms","inputSource","inputUnit":"V"|"A","inputDensity":[…]|null,"gain":[…]|null,
+ * "inputRms"|null,"contributions":[{"ref","kind":"thermal"|"shot"|"flicker"|"voltage"|"current","rms"}]} (largest
+ * first, at most 30). */
+char* sieda_simulate_noise(const SiedaProject* project, const char* options_json);
+
 #ifdef __cplusplus
 }
 #endif

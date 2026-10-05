@@ -576,3 +576,19 @@
 "The imported model replaces the built-in one in every analysis." = "インポートしたモデルは、すべての解析で組み込みモデルの代わりに使われます。";
 "SPICE Model for %@" = "%@ の SPICE モデル";
 "Ports: %@" = "ポート：%@";
+
+/* Simulation: noise analysis */
+"Noise" = "ノイズ";
+"Run Noise" = "ノイズ解析を実行";
+"Output" = "出力";
+"Output noise" = "出力ノイズ";
+"Input-referred" = "入力換算";
+"Integrated output noise" = "積分出力ノイズ";
+"Integrated input noise" = "積分入力換算ノイズ";
+"Largest contributors" = "主な寄与元";
+"No input source: give the input an AC magnitude or name it to see the input-referred noise." = "入力源がありません：入力換算ノイズを見るには、入力に AC 振幅を与えるか入力として指定してください。";
+"Thermal" = "熱雑音";
+"Shot" = "ショット雑音";
+"Flicker (1/f)" = "フリッカ (1/f)";
+"Op-amp voltage noise" = "オペアンプ電圧ノイズ";
+"Op-amp current noise" = "オペアンプ電流ノイズ";

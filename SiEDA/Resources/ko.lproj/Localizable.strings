@@ -576,3 +576,19 @@
 "The imported model replaces the built-in one in every analysis." = "가져온 모델이 모든 해석에서 기본 제공 모델을 대신합니다.";
 "SPICE Model for %@" = "%@의 SPICE 모델";
 "Ports: %@" = "포트: %@";
+
+/* Simulation: noise analysis */
+"Noise" = "노이즈";
+"Run Noise" = "노이즈 해석 실행";
+"Output" = "출력";
+"Output noise" = "출력 노이즈";
+"Input-referred" = "입력 환산";
+"Integrated output noise" = "적분 출력 노이즈";
+"Integrated input noise" = "적분 입력 노이즈";
+"Largest contributors" = "주요 기여 요소";
+"No input source: give the input an AC magnitude or name it to see the input-referred noise." = "입력 소스가 없습니다: 입력 환산 노이즈를 보려면 입력에 AC 크기를 지정하거나 입력으로 지정하세요.";
+"Thermal" = "열 잡음";
+"Shot" = "산탄 잡음";
+"Flicker (1/f)" = "플리커 (1/f)";
+"Op-amp voltage noise" = "연산증폭기 전압 노이즈";
+"Op-amp current noise" = "연산증폭기 전류 노이즈";

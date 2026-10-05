@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Analyses of the Simulation workspace's right-hand panel (the DC operating point always shows on the left).
 enum SimulationAnalysis: Hashable {
-    case transient, ac, dcSweep, monteCarlo
+    case transient, ac, dcSweep, monteCarlo, noise
 }
 
 /// Toggle chips that show or hide the series of a chart (same look as the transient chips).

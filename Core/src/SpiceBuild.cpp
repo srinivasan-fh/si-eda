@@ -453,10 +453,7 @@ bool Simulator::addSpiceModel(const Component& c, std::string& error) {
     return true;
 }
 
-namespace {
-/// "KEY=value" in an op-amp value (case-insensitive, a whole word): engineering notation ("5MEG", "100k"), a slew
-/// rate in V/µs, V/ns, V/ms or V/s ("SR=0.5V/us"), a gain in dB ("AOL=100dB"), a noise density ("EN=10n").
-bool opAmpParam(const std::string& value, const char* key, double& out) {
+bool simdetail::opAmpValueParam(const std::string& value, const char* key, double& out) {
     const std::string up = upperCase(value), k = std::string(key) + "=";
     for (size_t pos = up.find(k); pos != std::string::npos; pos = up.find(k, pos + 1)) {
         if (pos > 0 && !std::isspace(static_cast<unsigned char>(up[pos - 1])) && up[pos - 1] != ',' && up[pos - 1] != ';')
@@ -485,6 +482,9 @@ bool opAmpParam(const std::string& value, const char* key, double& out) {
     }
     return false;
 }
+
+namespace {
+bool opAmpParam(const std::string& value, const char* key, double& out) { return opAmpValueParam(value, key, out); }
 }  // namespace
 
 bool Simulator::opAmpMacromodelRequested(const std::string& value) {

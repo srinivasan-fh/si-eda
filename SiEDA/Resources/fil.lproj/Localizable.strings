@@ -576,3 +576,19 @@
 "The imported model replaces the built-in one in every analysis." = "Pinapalitan ng in-import na model ang built-in sa bawat pagsusuri.";
 "SPICE Model for %@" = "SPICE Model para sa %@";
 "Ports: %@" = "Mga port: %@";
+
+/* Simulation: noise analysis */
+"Noise" = "Ingay";
+"Run Noise" = "Patakbuhin ang Ingay";
+"Output" = "Output";
+"Output noise" = "Ingay ng output";
+"Input-referred" = "Tinukoy sa input";
+"Integrated output noise" = "Kabuuang ingay ng output";
+"Integrated input noise" = "Kabuuang ingay ng input";
+"Largest contributors" = "Pinakamalaking ambag";
+"No input source: give the input an AC magnitude or name it to see the input-referred noise." = "Walang input source: bigyan ang input ng AC magnitude o pangalanan ito para makita ang ingay na tinukoy sa input.";
+"Thermal" = "Thermal";
+"Shot" = "Shot";
+"Flicker (1/f)" = "Flicker (1/f)";
+"Op-amp voltage noise" = "Ingay ng boltahe ng op-amp";
+"Op-amp current noise" = "Ingay ng kuryente ng op-amp";

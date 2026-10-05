@@ -707,6 +707,42 @@ final class EDAEngine: @unchecked Sendable {
         return Self.decode(MonteCarloResult.self, from: json) ?? MonteCarloResult(error: "Simulator returned no result.")
     }
 
+    // MARK: - Noise, parameter sweep, FFT (docs/SIMULATION.md)
+
+    /// Output noise of `output` over a log sweep; `source` is the input for input-referred noise ("" = automatic).
+    func simulateNoise(output: String, start: String, stop: String, pointsPerDecade: Int, source: String) -> NoiseAnalysisResult {
+        var options: [String: Any] = ["output": output, "start": start, "stop": stop, "pointsPerDecade": pointsPerDecade]
+        if !source.isEmpty { options["source"] = source }
+        let json = withHandle { Self.take(sieda_simulate_noise($0, Self.optionsJSON(options))) }
+        return Self.decode(NoiseAnalysisResult.self, from: json) ?? NoiseAnalysisResult(error: "Simulator returned no result.")
+    }
+
+    /// Runs `analysis` ("dc", "ac", "transient") once per value of `component`. AC uses start / stop; transient
+    /// stop / step; `net` limits the result to one node ("" = every node).
+    func simulateParamSweep(component: String, values: [String], analysis: String, net: String,
+                            start: String, stop: String, step: String) -> ParamSweepResult {
+        var options: [String: Any] = ["component": component, "values": values, "analysis": analysis]
+        if !net.isEmpty { options["net"] = net }
+        if analysis == "ac" {
+            options["start"] = start
+            options["stop"] = stop
+            options["pointsPerDecade"] = 20
+        } else if analysis == "transient" {
+            options["stop"] = stop
+            options["step"] = step
+        }
+        let json = withHandle { Self.take(sieda_simulate_param_sweep($0, Self.optionsJSON(options))) }
+        return Self.decode(ParamSweepResult.self, from: json) ?? ParamSweepResult(error: "Simulator returned no result.")
+    }
+
+    /// Spectrum and THD of `net` from a transient of `stop` / `step` ("" fundamental = the first SIN source).
+    func simulateFFT(net: String, stop: String, step: String, fundamental: String, harmonics: Int) -> FFTResult {
+        var options: [String: Any] = ["net": net, "stop": stop, "step": step, "harmonics": harmonics]
+        if !fundamental.isEmpty { options["fundamental"] = fundamental }
+        let json = withHandle { Self.take(sieda_simulate_fft($0, Self.optionsJSON(options))) }
+        return Self.decode(FFTResult.self, from: json) ?? FFTResult(error: "Simulator returned no result.")
+    }
+
     // MARK: - SPICE models (docs/SIMULATION.md)
 
     /// Models and subcircuits in vendor model text, with the parser's diagnostics.

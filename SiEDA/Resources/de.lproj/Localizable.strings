@@ -576,3 +576,19 @@
 "The imported model replaces the built-in one in every analysis." = "Das importierte Modell ersetzt das eingebaute in jeder Analyse.";
 "SPICE Model for %@" = "SPICE-Modell für %@";
 "Ports: %@" = "Ports: %@";
+
+/* Simulation: noise analysis */
+"Noise" = "Rauschen";
+"Run Noise" = "Rauschanalyse starten";
+"Output" = "Ausgang";
+"Output noise" = "Ausgangsrauschen";
+"Input-referred" = "Eingangsbezogen";
+"Integrated output noise" = "Integriertes Ausgangsrauschen";
+"Integrated input noise" = "Integriertes Eingangsrauschen";
+"Largest contributors" = "Größte Beiträge";
+"No input source: give the input an AC magnitude or name it to see the input-referred noise." = "Keine Eingangsquelle: Geben Sie dem Eingang eine AC-Amplitude oder nennen Sie ihn, um das eingangsbezogene Rauschen zu sehen.";
+"Thermal" = "Thermisch";
+"Shot" = "Schrot";
+"Flicker (1/f)" = "Funkel (1/f)";
+"Op-amp voltage noise" = "OPV-Spannungsrauschen";
+"Op-amp current noise" = "OPV-Stromrauschen";

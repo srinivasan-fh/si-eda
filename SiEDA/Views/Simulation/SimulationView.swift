@@ -22,6 +22,11 @@ struct SimulationView: View {
     @State private var mcBandwidth = false
     @State private var mcRuns = "200"
     @State private var mode: AnalysisMode = .circuit
+    @State private var noiseOutput = ""
+    @State private var noiseStart = "10"
+    @State private var noiseStop = "100k"
+    @State private var noisePoints = "20"
+    @State private var noiseSource = ""
 
     var body: some View {
         if mode == .integrity {
@@ -48,6 +53,7 @@ struct SimulationView: View {
                     Text("AC Sweep").tag(SimulationAnalysis.ac)
                     Text("DC Sweep").tag(SimulationAnalysis.dcSweep)
                     Text("Monte Carlo").tag(SimulationAnalysis.monteCarlo)
+                    Text("Noise").tag(SimulationAnalysis.noise)
                 }
                 .labelsHidden()
                 .fixedSize()
@@ -110,6 +116,20 @@ struct SimulationView: View {
                     Button {
                         runMonteCarlo()
                     } label: { Label("Run Monte Carlo", systemImage: "chart.bar") }
+                case .noise:
+                    Text("Output").foregroundStyle(Theme.textMuted)
+                    TextField("Net", text: $noiseOutput).textFieldStyle(.blue).frame(width: 64)
+                    Text("from").foregroundStyle(Theme.textMuted)
+                    TextField("from", text: $noiseStart).textFieldStyle(.blue).frame(width: 52)
+                    Text("to").foregroundStyle(Theme.textMuted)
+                    TextField("to", text: $noiseStop).textFieldStyle(.blue).frame(width: 52)
+                    TextField("20", text: $noisePoints).textFieldStyle(.blue).frame(width: 36)
+                    Text("points/decade").foregroundStyle(Theme.textMuted)
+                    Text("Input").foregroundStyle(Theme.textMuted)
+                    TextField("auto", text: $noiseSource).textFieldStyle(.blue).frame(width: 48)
+                    Button {
+                        runNoise()
+                    } label: { Label("Run Noise", systemImage: "waveform.badge.magnifyingglass") }
                 }
                 Spacer()
                 Button {
@@ -165,6 +185,16 @@ struct SimulationView: View {
         Task { await store.simulateMonteCarlo(net: net, measure: mcBandwidth ? "f3db" : "dc", runs: runs) }
     }
 
+    private func runNoise() {
+        let output = noiseOutput.trimmingCharacters(in: .whitespaces)
+        guard !output.isEmpty, let points = Int(noisePoints.trimmingCharacters(in: .whitespaces)), points > 0 else {
+            store.alert = AlertItem(title: "Invalid analysis settings", message: "Name the output net (e.g. OUT) and a whole number of points per decade, e.g. 20.")
+            return
+        }
+        let source = noiseSource.trimmingCharacters(in: .whitespaces)
+        Task { await store.simulateNoise(output: output, start: noiseStart, stop: noiseStop, pointsPerDecade: points, source: source) }
+    }
+
     // MARK: Analyses
 
     @ViewBuilder private var analysisPanel: some View {
@@ -190,6 +220,17 @@ struct SimulationView: View {
                     BlueEmptyState(systemImage: "chart.line.uptrend.xyaxis", title: "DC sweep",
                                    message: "Steps a voltage or current source (by reference, e.g. V1) and solves the operating point at every value: transfer curves, diode and transistor characteristics.",
                                    actionTitle: "Run DC Sweep") { runDCSweep() }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+        case .noise:
+            resultPanel {
+                if let noise = store.noiseResult {
+                    if noise.ok { NoisePanel(result: noise) } else { failure(noise.error) }
+                } else {
+                    BlueEmptyState(systemImage: "waveform.badge.magnifyingglass", title: "Noise analysis",
+                                   message: "Output noise density of a net over frequency: resistor thermal noise, diode and transistor shot and flicker noise, op-amp EN= / IN= densities. Referred to the input source and integrated to an RMS value.",
+                                   actionTitle: "Run Noise") { runNoise() }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }

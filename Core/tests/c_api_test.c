@@ -1,4 +1,5 @@
 /* Compiled as C to guarantee sieda_c.h stays a valid C header (it is what Swift imports). */
+#include <stdio.h>
 #include <string.h>
 
 #include "sieda/sieda_c.h"
@@ -505,6 +506,40 @@ int sieda_c_api_spice_test(void) {
     char* garbage = sieda_spice_parse(NULL);
     if (!garbage) return 19;
     sieda_string_free(garbage);
+    sieda_project_free(p);
+    return 0;
+}
+
+/* Noise analysis through the C API: JSON in, densities and contributions out; bad options reported, never thrown. */
+int sieda_c_api_noise_test(void) {
+    SiedaProject* p = sieda_project_new("noise");
+    if (!p) return 1;
+    int32_t v = sieda_add_component(p, 5 /* VoltageSource */, "0 AC 1", 0, 0, 0, NULL);
+    int32_t r = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 0, 0, NULL);
+    int32_t c = sieda_add_component(p, 1 /* Capacitor */, "1n", 200, 0, 0, NULL);
+    int32_t g = sieda_add_component(p, 7 /* Ground */, NULL, 0, 80, 0, NULL);
+    if (sieda_connect(p, v, 0, r, 0) < 0 || sieda_connect(p, r, 1, c, 0) < 0 || sieda_connect(p, c, 1, g, 0) < 0 ||
+        sieda_connect(p, v, 1, g, 0) < 0)
+        return 2;
+    char* bad = sieda_simulate_noise(p, "{\"output\":\"nope\"}");
+    if (!bad || !strstr(bad, "\"ok\":false")) return 3;
+    sieda_string_free(bad);
+    char* junk = sieda_simulate_noise(p, "{oops");
+    if (!junk || !strstr(junk, "\"ok\":false")) return 4;
+    sieda_string_free(junk);
+    if (sieda_simulate_noise(NULL, "{}") != NULL) return 5;
+    /* Nets by index: one of the first nets is the RC node (numbering is the core's). */
+    int found = 0;
+    for (int net = 0; net < 4 && !found; ++net) {
+        char options[160];
+        snprintf(options, sizeof options, "{\"output\":%d,\"start\":10,\"stop\":\"1MEG\",\"pointsPerDecade\":5}", net);
+        char* ok = sieda_simulate_noise(p, options);
+        if (!ok) return 6;
+        found = strstr(ok, "\"ok\":true") && strstr(ok, "\"outputDensity\":[") && strstr(ok, "\"kind\":\"thermal\"") &&
+                strstr(ok, "\"inputSource\":\"V1\"");
+        sieda_string_free(ok);
+    }
+    if (!found) return 7;
     sieda_project_free(p);
     return 0;
 }

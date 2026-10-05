@@ -576,3 +576,19 @@
 "The imported model replaces the built-in one in every analysis." = "Mô hình đã nhập thay cho mô hình tích hợp trong mọi phân tích.";
 "SPICE Model for %@" = "Mô hình SPICE cho %@";
 "Ports: %@" = "Cổng: %@";
+
+/* Simulation: noise analysis */
+"Noise" = "Nhiễu";
+"Run Noise" = "Chạy phân tích nhiễu";
+"Output" = "Đầu ra";
+"Output noise" = "Nhiễu đầu ra";
+"Input-referred" = "Quy về đầu vào";
+"Integrated output noise" = "Nhiễu đầu ra tích phân";
+"Integrated input noise" = "Nhiễu đầu vào tích phân";
+"Largest contributors" = "Nguồn đóng góp lớn nhất";
+"No input source: give the input an AC magnitude or name it to see the input-referred noise." = "Không có nguồn vào: đặt biên độ AC cho đầu vào hoặc chỉ định nó để xem nhiễu quy về đầu vào.";
+"Thermal" = "Nhiệt";
+"Shot" = "Bắn";
+"Flicker (1/f)" = "Nhấp nháy (1/f)";
+"Op-amp voltage noise" = "Nhiễu điện áp op-amp";
+"Op-amp current noise" = "Nhiễu dòng op-amp";

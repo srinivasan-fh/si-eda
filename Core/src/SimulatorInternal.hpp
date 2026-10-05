@@ -121,6 +121,10 @@ struct Simulator::Element {
 };
 
 namespace simdetail {
+/// "KEY=value" in an op-amp value (case-insensitive, a whole word): engineering notation ("5MEG", "100k"), a slew
+/// rate in V/µs, V/ns, V/ms or V/s ("SR=0.5V/us"), a gain in dB ("AOL=100dB"), a noise density ("EN=10n").
+bool opAmpValueParam(const std::string& value, const char* key, double& out);
+
 inline double nodeV(const std::vector<double>& x, int i) { return i < 0 ? 0.0 : x[static_cast<size_t>(i)]; }
 
 // Terminal currents flowing *into* a non-linear device from each terminal.

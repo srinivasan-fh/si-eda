@@ -4953,3 +4953,35 @@ final class SimulationPackageTests: XCTestCase {
         XCTAssertFalse(EDAEngine.builtinSpiceModels.isEmpty)
     }
 }
+
+final class NoiseAnalysisTests: XCTestCase {
+    func testNoiseOfAResistorDividerThroughTheEngine() throws {
+        let engine = EDAEngine(name: "Divider noise")
+        let v = engine.addComponent(.voltageSource, value: "0 AC 1", at: .zero)
+        let r1 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: -40))
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 200, y: -40))
+        let g = engine.addComponent(.ground, at: CGPoint(x: 0, y: 80))
+        XCTAssertNotNil(engine.connect(PinAddress(component: v, pin: 0), PinAddress(component: r1, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r2, pin: 1), PinAddress(component: g, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: v, pin: 1), PinAddress(component: g, pin: 0)))
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        let tap = try XCTUnwrap(snapshot.component(r1)?.pins[1].net)
+        let netName = try XCTUnwrap(snapshot.nets.first { $0.index == tap }?.name)
+
+        let result = engine.simulateNoise(output: netName, start: "10", stop: "10k", pointsPerDecade: 10, source: "")
+        XCTAssertTrue(result.ok, result.error)
+        XCTAssertEqual(result.inputSource, "V1")
+        let kT = 1.380649e-23 * 300.15
+        let density = try XCTUnwrap(result.outputDensity.first ?? nil)
+        XCTAssertEqual(density / (4 * kT * 500).squareRoot(), 1, accuracy: 1e-6)
+        let input = try XCTUnwrap(result.inputDensity?.first ?? nil)
+        XCTAssertEqual(input / density, 2, accuracy: 1e-6)
+        XCTAssertEqual(result.contributions.count, 2)
+        XCTAssertEqual(Set(result.contributions.map(\.ref)), ["R1", "R2"])
+
+        let bad = engine.simulateNoise(output: "no such net", start: "10", stop: "10k", pointsPerDecade: 10, source: "")
+        XCTAssertFalse(bad.ok)
+        XCTAssertFalse(bad.error.isEmpty)
+    }
+}

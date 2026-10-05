@@ -576,3 +576,19 @@
 "The imported model replaces the built-in one in every analysis." = "దిగుమతి చేసిన మోడల్ ప్రతి విశ్లేషణలో అంతర్నిర్మిత మోడల్‌ను భర్తీ చేస్తుంది.";
 "SPICE Model for %@" = "%@ కోసం SPICE మోడల్";
 "Ports: %@" = "పోర్ట్‌లు: %@";
+
+/* Simulation: noise analysis */
+"Noise" = "నాయిస్";
+"Run Noise" = "నాయిస్ విశ్లేషణ నడుపు";
+"Output" = "అవుట్‌పుట్";
+"Output noise" = "అవుట్‌పుట్ నాయిస్";
+"Input-referred" = "ఇన్‌పుట్‌కు సూచించిన";
+"Integrated output noise" = "సమాకలిత అవుట్‌పుట్ నాయిస్";
+"Integrated input noise" = "సమాకలిత ఇన్‌పుట్ నాయిస్";
+"Largest contributors" = "అతిపెద్ద తోడ్పాటుదారులు";
+"No input source: give the input an AC magnitude or name it to see the input-referred noise." = "ఇన్‌పుట్ మూలం లేదు: ఇన్‌పుట్‌కు సూచించిన నాయిస్ చూడటానికి ఇన్‌పుట్‌కు AC పరిమాణం ఇవ్వండి లేదా దాని పేరు ఇవ్వండి.";
+"Thermal" = "ఉష్ణ";
+"Shot" = "షాట్";
+"Flicker (1/f)" = "ఫ్లికర్ (1/f)";
+"Op-amp voltage noise" = "ఆప్-ఆంప్ వోల్టేజ్ నాయిస్";
+"Op-amp current noise" = "ఆప్-ఆంప్ కరెంట్ నాయిస్";

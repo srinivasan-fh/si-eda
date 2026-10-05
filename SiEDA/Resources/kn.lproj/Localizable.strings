@@ -576,3 +576,19 @@
 "The imported model replaces the built-in one in every analysis." = "ಆಮದು ಮಾಡಿದ ಮಾದರಿ ಪ್ರತಿಯೊಂದು ವಿಶ್ಲೇಷಣೆಯಲ್ಲೂ ಅಂತರ್ನಿರ್ಮಿತ ಮಾದರಿಯ ಬದಲಿಗೆ ಬಳಸಲ್ಪಡುತ್ತದೆ.";
 "SPICE Model for %@" = "%@ ಗಾಗಿ SPICE ಮಾದರಿ";
 "Ports: %@" = "ಪೋರ್ಟ್‌ಗಳು: %@";
+
+/* Simulation: noise analysis */
+"Noise" = "ಶಬ್ದ";
+"Run Noise" = "ಶಬ್ದ ವಿಶ್ಲೇಷಣೆ ನಡೆಸಿ";
+"Output" = "ಔಟ್‌ಪುಟ್";
+"Output noise" = "ಔಟ್‌ಪುಟ್ ಶಬ್ದ";
+"Input-referred" = "ಇನ್‌ಪುಟ್‌ಗೆ ಉಲ್ಲೇಖಿತ";
+"Integrated output noise" = "ಸಂಯೋಜಿತ ಔಟ್‌ಪುಟ್ ಶಬ್ದ";
+"Integrated input noise" = "ಸಂಯೋಜಿತ ಇನ್‌ಪುಟ್ ಶಬ್ದ";
+"Largest contributors" = "ಅತಿ ದೊಡ್ಡ ಕೊಡುಗೆದಾರರು";
+"No input source: give the input an AC magnitude or name it to see the input-referred noise." = "ಇನ್‌ಪುಟ್ ಮೂಲವಿಲ್ಲ: ಇನ್‌ಪುಟ್‌ಗೆ ಉಲ್ಲೇಖಿತ ಶಬ್ದ ನೋಡಲು ಇನ್‌ಪುಟ್‌ಗೆ AC ಪ್ರಮಾಣ ನೀಡಿ ಅಥವಾ ಅದನ್ನು ಹೆಸರಿಸಿ.";
+"Thermal" = "ಉಷ್ಣ";
+"Shot" = "ಶಾಟ್";
+"Flicker (1/f)" = "ಫ್ಲಿಕರ್ (1/f)";
+"Op-amp voltage noise" = "ಆಪ್-ಆಂಪ್ ವೋಲ್ಟೇಜ್ ಶಬ್ದ";
+"Op-amp current noise" = "ಆಪ್-ಆಂಪ್ ಕರೆಂಟ್ ಶಬ್ದ";

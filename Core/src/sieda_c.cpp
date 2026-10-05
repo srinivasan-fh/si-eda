@@ -37,6 +37,7 @@
 #include "sieda/Robotics.hpp"
 #include "sieda/SchematicSearch.hpp"
 #include "sieda/SignalIntegrity.hpp"
+#include "sieda/Noise.hpp"
 #include "sieda/SpiceModels.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/StandardParts.hpp"
@@ -2449,6 +2450,10 @@ char* sieda_spice_builtin_models(void) {
         a.push(j);
     }
     return dup(a.dump());
+}
+
+char* sieda_simulate_noise(const SiedaProject* project, const char* options_json) {
+    return runAnalysis(project, options_json, simulateNoiseJson);
 }
 
 }  // extern "C"

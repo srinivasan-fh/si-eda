@@ -576,3 +576,19 @@
 "The imported model replaces the built-in one in every analysis." = "Het geïmporteerde model vervangt het ingebouwde in elke analyse.";
 "SPICE Model for %@" = "SPICE-model voor %@";
 "Ports: %@" = "Poorten: %@";
+
+/* Simulation: noise analysis */
+"Noise" = "Ruis";
+"Run Noise" = "Ruis uitvoeren";
+"Output" = "Uitgang";
+"Output noise" = "Uitgangsruis";
+"Input-referred" = "Naar ingang herleid";
+"Integrated output noise" = "Geïntegreerde uitgangsruis";
+"Integrated input noise" = "Geïntegreerde ingangsruis";
+"Largest contributors" = "Grootste bijdragen";
+"No input source: give the input an AC magnitude or name it to see the input-referred noise." = "Geen ingangsbron: geef de ingang een AC-amplitude of noem hem om de naar de ingang herleide ruis te zien.";
+"Thermal" = "Thermisch";
+"Shot" = "Hagel";
+"Flicker (1/f)" = "Flikker (1/f)";
+"Op-amp voltage noise" = "Spanningsruis opamp";
+"Op-amp current noise" = "Stroomruis opamp";

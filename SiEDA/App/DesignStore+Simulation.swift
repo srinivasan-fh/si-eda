@@ -34,6 +34,40 @@ extension DesignStore {
         return ok
     }
 
+    // MARK: - Noise, parameter sweep, FFT
+
+    func simulateNoise(output: String, start: String, stop: String, pointsPerDecade: Int, source: String) async {
+        guard !isBusy else { return }  // one analysis at a time
+        let engine = self.engine
+        let result = await runBusy("Running noise analysis…") {
+            engine.simulateNoise(output: output, start: start, stop: stop, pointsPerDecade: pointsPerDecade, source: source)
+        }
+        noiseResult = result
+        statusMessage = result.ok ? "Noise analysis: \(result.frequency.count) frequencies" : "Noise analysis failed: \(result.error)"
+    }
+
+    func simulateParamSweep(component: String, values: [String], analysis: String, net: String,
+                            start: String, stop: String, step: String) async {
+        guard !isBusy else { return }
+        let engine = self.engine
+        let result = await runBusy("Running parameter sweep…") {
+            engine.simulateParamSweep(component: component, values: values, analysis: analysis, net: net,
+                                      start: start, stop: stop, step: step)
+        }
+        paramSweepResult = result
+        statusMessage = result.ok ? "Parameter sweep: \(result.runs.count) values of \(component)" : "Parameter sweep failed: \(result.error)"
+    }
+
+    func simulateFFT(net: String, stop: String, step: String, fundamental: String, harmonics: Int) async {
+        guard !isBusy else { return }
+        let engine = self.engine
+        let result = await runBusy("Running FFT…") {
+            engine.simulateFFT(net: net, stop: stop, step: step, fundamental: fundamental, harmonics: harmonics)
+        }
+        fftResult = result
+        statusMessage = result.ok ? String(format: "FFT: THD %.3f %%", result.thdPercent) : "FFT failed: \(result.error)"
+    }
+
     /// Asks for a vendor model file (.lib, .mod, .cir, .sub …) and returns its text; nil when cancelled.
     func chooseSpiceModelFile() -> String? {
         let panel = NSOpenPanel()
