@@ -9,6 +9,7 @@
 "3D Viewer" = "Trình xem 3D";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "Quét AC";
 "AI Assistance" = "Hỗ trợ AI";
 "AI Models" = "Mô hình AI";
 "AI Off" = "Tắt AI";
@@ -34,6 +35,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "Bước thời gian analog: nhỏ hơn phân giải tín hiệu nhanh hơn, lớn hơn chạy nhanh hơn";
 "Analysis" = "Phân tích";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "Cài đặt sẵn phân tích — firmware vi điều khiển cần thời gian chạy dài hơn (vd: 1 s ở 100 µs)";
+"Analysis type" = "Loại phân tích";
 "Appearance" = "Giao diện";
 "Appliance Type" = "Loại thiết bị gia dụng";
 "Apply" = "Áp dụng";
@@ -56,6 +58,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM để lắp ráp (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "Khoan ngược stub via trên các net tốc độ cao";
+"Bandwidth" = "Băng thông";
 "Base URL" = "URL gốc";
 "Bill of Materials" = "Danh mục vật tư";
 "Bill of Materials (CSV)…" = "Danh mục vật tư (CSV)…";
@@ -99,7 +102,9 @@
 "Currents" = "Dòng điện";
 "DC" = "DC";
 "DC Operating Point" = "Điểm làm việc DC";
+"DC Sweep" = "Quét DC";
 "DC operating point (⇧⌘D)" = "Điểm làm việc DC (⇧⌘D)";
+"DC voltage" = "Điện áp DC";
 "DEVICES" = "THIẾT BỊ";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -152,6 +157,7 @@
 "Fit Board to Components" = "Khớp bo mạch với linh kiện";
 "Flip" = "Lật";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Footprint lắp linh kiện: kích thước chip, xuyên lỗ, vỏ tantalum hoặc tụ hóa";
+"Gain" = "Độ lợi";
 "Gap Before" = "Khoảng trống phía trước";
 "Generate Design" = "Tạo thiết kế";
 "Give each selected pin its own slot" = "Đặt mỗi chân đã chọn vào một vị trí riêng";
@@ -172,6 +178,7 @@
 "Industry Profile" = "Hồ sơ ngành";
 "Infer Types" = "Suy luận loại";
 "Info" = "Thông tin";
+"Input" = "Đầu vào";
 "Insert an empty slot before the pin to separate a group" = "Chèn một vị trí trống trước chân để tách nhóm";
 "Inspector" = "Trình kiểm tra";
 "Interface language" = "Ngôn ngữ giao diện";
@@ -196,7 +203,10 @@
 "Loading the component library" = "Đang tải thư viện linh kiện";
 "Locked (Auto Place keeps it)" = "Đã khóa (Tự động đặt giữ nguyên)";
 "Long firmware run — 5 s, 500 µs" = "Chạy firmware dài — 5 s, 500 µs";
+"Magnitude" = "Biên độ";
 "Mask" = "Mặt nạ";
+"Mean" = "Trung bình";
+"Measure" = "Đại lượng đo";
 "Medical Device Class" = "Phân loại thiết bị y tế";
 "Memory Design" = "Thiết kế bộ nhớ";
 "Mirror" = "Đối xứng";
@@ -204,6 +214,7 @@
 "Mode" = "Chế độ";
 "Model" = "Mô hình";
 "Model back-ends" = "Back-end mô hình";
+"Monte Carlo" = "Monte Carlo";
 "Mounting" = "Lắp đặt";
 "Move the footprint origin to the centre of the pads" = "Di chuyển gốc footprint về tâm các pad";
 "Move the pad in the numbering; pads between shift by one" = "Di chuyển pad trong thứ tự đánh số; các pad ở giữa dịch đi một";
@@ -222,6 +233,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "Không có vùng đổ đồng. Vùng đổ đồng GND rút ngắn đường hồi tiếp, dẫn dòng lớn và giúp ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "Không có công tắc. Thêm một Switch vào sơ đồ (giá trị \"push\" cho nút nhấn).";
 "No." = "STT";
+"Nominal" = "Danh định";
 "None" = "Không";
 "None (mechanical)" = "Không (cơ khí)";
 "Not a memory design" = "Không phải thiết kế bộ nhớ";
@@ -253,6 +265,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "Linh kiện, đường mạch và vùng đổ đồng của các miền galvanic riêng biệt (qua bộ cách ly và bộ chuyển đổi cách ly) ";
 "Paste API key" = "Dán khóa API";
 "Pattern" = "Mẫu";
+"Peak" = "Đỉnh";
+"Phase" = "Pha";
+"Phase margin" = "Độ dự trữ pha";
 "Pin" = "Chân";
 "Pins: " = "Chân: ";
 "Place Now" = "Đặt ngay";
@@ -284,14 +299,18 @@
 "Robot Platform" = "Nền tảng robot";
 "Rotate" = "Xoay";
 "Run" = "Chạy";
+"Run AC Sweep" = "Chạy quét AC";
+"Run DC Sweep" = "Chạy quét DC";
 "Run Design Rule Check" = "Chạy kiểm tra quy tắc thiết kế";
 "Run ERC and DRC" = "Chạy ERC và DRC";
 "Run Electrical Rule Check" = "Chạy kiểm tra quy tắc điện";
 "Run Live" = "Chạy trực tiếp";
+"Run Monte Carlo" = "Chạy Monte Carlo";
 "Run Transient" = "Chạy phân tích quá độ";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "Chạy phân tích quá độ để thực thi: các chân điều khiển mạch, đầu vào và ADC đọc mạch, và đầu ra serial hiển thị trong Mô phỏng.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "Chạy bo mạch theo thời gian thực (⌘R): LED sáng, nhấp công tắc, firmware chạy, đầu dò trực tiếp";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "Chạy bo mạch theo thời gian thực: firmware, LED, công tắc, máy hiện sóng và màn hình serial";
+"Runs" = "Số lần chạy";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "Netlist SPICE";
 "STL (ASCII)" = "STL (ASCII)";
@@ -334,6 +353,7 @@
 "Simulation" = "Mô phỏng";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "Tốc độ mô phỏng so với thời gian thực (chuyển động chậm hiển thị tín hiệu nhanh)";
 "Solve the DC operating point once — shows voltage probes" = "Giải điểm làm việc DC một lần — hiển thị đầu dò điện áp";
+"Source" = "Nguồn";
 "Speed" = "Tốc độ";
 "Spin" = "Quay";
 "Stack" = "Xếp chồng";
@@ -362,6 +382,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Trình thiết kế ngoại tuyến dùng các mạch tham chiếu tích hợp của SiEDA. Không cần mạng hay khóa API — lý tưởng cho demo và phòng thí nghiệm cách ly mạng.";
 "The plain box: pins in number order down the left, then up the right" = "Hộp cơ bản: chân theo thứ tự số đi xuống bên trái, rồi đi lên bên phải";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "Màn hình chờ tải trước thư viện linh kiện và thiết kế tham chiếu trong năm giây, sau đó mở cửa sổ chính. Nhấp vào hoặc nhấn Esc để bỏ qua khi đã tải xong.";
+"Transient" = "Quá độ";
 "Transient analysis" = "Phân tích quá độ";
 "Transient: stop" = "Quá độ: dừng";
 "Tune Lengths" = "Tinh chỉnh chiều dài";
@@ -371,6 +392,7 @@
 "Undo (⌘Z)" = "Hoàn tác (⌘Z)";
 "Undo the last footprint edit" = "Hoàn tác lần sửa footprint cuối";
 "Undo the last symbol edit" = "Hoàn tác lần sửa ký hiệu cuối";
+"Unity gain" = "Độ lợi đơn vị";
 "Unstack" = "Bỏ xếp chồng";
 "Upload .hex…" = "Tải lên .hex…";
 "Validate" = "Xác thực";
@@ -388,6 +410,7 @@
 "Window" = "Cửa sổ";
 "Workspace" = "Không gian làm việc";
 "Workspaces" = "Không gian làm việc";
+"Worst case" = "Trường hợp xấu nhất";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "Viết prompt hoặc dán PRD. Nhóm tác tử sẽ biến nó thành sơ đồ đã xác minh, PCB đã đi dây và mô hình 3D.";
 "X-Ray Stack" = "Chồng lớp X-Ray";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "Bạn có thể hoàn tác bằng ⌘Z. Không thể xóa các linh kiện đã được đặt trong sơ đồ.";
@@ -402,13 +425,18 @@
 "Zoom to Selection" = "Phóng to vùng chọn";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "Vừa khung nhìn / Home (Home, 0 hoặc ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "Phóng to vùng chọn (⇧Z hoặc ⌥⌘0)";
+"auto" = "tự động";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "vd: “Đèn ngủ 9 V chạy pin, bật một LED trắng…”";
+"from" = "từ";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "điểm/decade";
 "public client id" = "client id công khai";
 "standard" = "tiêu chuẩn";
 "step" = "bước";
 "stop" = "dừng";
+"to" = "đến";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-kéo hoặc kéo hai ngón để di chuyển";

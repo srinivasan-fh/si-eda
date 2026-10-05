@@ -464,6 +464,40 @@ final class EDAEngine: @unchecked Sendable {
         return Self.decode(TransientResult.self, from: json) ?? TransientResult(error: "Simulator returned no result.")
     }
 
+    // MARK: - AC, DC sweep and tolerance analyses (values are engineering text, parsed by the core: "10", "1MEG")
+
+    /// AC small-signal sweep from `start` to `stop` Hz; `source` is the input's reference ("" = the source with an
+    /// "AC" value, else the first SIN source).
+    func simulateAC(start: String, stop: String, pointsPerDecade: Int, source: String) -> ACResult {
+        var options: [String: Any] = ["start": start, "stop": stop, "pointsPerDecade": pointsPerDecade]
+        if !source.isEmpty { options["source"] = source }
+        let json = withHandle { Self.take(sieda_simulate_ac($0, Self.optionsJSON(options))) }
+        return Self.decode(ACResult.self, from: json) ?? ACResult(error: "Simulator returned no result.")
+    }
+
+    /// DC sweep of source `source` (a reference such as "V1") from `start` to `stop` in steps of `step`.
+    func simulateDCSweep(source: String, start: String, stop: String, step: String) -> DCSweepResult {
+        let options: [String: Any] = ["source": source, "start": start, "stop": stop, "step": step]
+        let json = withHandle { Self.take(sieda_simulate_dc_sweep($0, Self.optionsJSON(options))) }
+        return Self.decode(DCSweepResult.self, from: json) ?? DCSweepResult(error: "Simulator returned no result.")
+    }
+
+    /// Monte Carlo + worst case of `net`: `measure` "dc" (voltage) or "f3db" (AC bandwidth, swept 1 Hz – 100 MHz).
+    func simulateMonteCarlo(net: String, measure: String, runs: Int, seed: Int) -> MonteCarloResult {
+        var options: [String: Any] = ["net": net, "measure": measure, "runs": runs, "seed": seed]
+        if measure != "dc" {
+            options["start"] = 1
+            options["stop"] = 1e8
+        }
+        let json = withHandle { Self.take(sieda_simulate_monte_carlo($0, Self.optionsJSON(options))) }
+        return Self.decode(MonteCarloResult.self, from: json) ?? MonteCarloResult(error: "Simulator returned no result.")
+    }
+
+    private static func optionsJSON(_ options: [String: Any]) -> String {
+        guard let data = try? JSONSerialization.data(withJSONObject: options) else { return "{}" }
+        return String(decoding: data, as: UTF8.self)
+    }
+
     // MARK: - PCB
 
     func setLayerCount(_ layers: Int) { withHandle { sieda_pcb_set_layer_count($0, Int32(layers)) } }

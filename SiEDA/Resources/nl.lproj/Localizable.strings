@@ -9,6 +9,7 @@
 "3D Viewer" = "3D-viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "AC-sweep";
 "AI Assistance" = "AI-assistentie";
 "AI Models" = "AI-modellen";
 "AI Off" = "AI uit";
@@ -34,6 +35,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "Analoge tijdstap: fijner lost snellere signalen op, grover rekent sneller";
 "Analysis" = "Analyse";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "Analysevoorinstellingen — microcontrollerfirmware heeft een langere run nodig (bijv. 1 s bij 100 µs)";
+"Analysis type" = "Analysetype";
 "Appearance" = "Weergave";
 "Appliance Type" = "Type apparaat";
 "Apply" = "Pas toe";
@@ -56,6 +58,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM voor assemblage (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "Via-stubs op snelle netten terugboren";
+"Bandwidth" = "Bandbreedte";
 "Base URL" = "Basis-URL";
 "Bill of Materials" = "Stuklijst";
 "Bill of Materials (CSV)…" = "Stuklijst (CSV)…";
@@ -99,7 +102,9 @@
 "Currents" = "Stromen";
 "DC" = "DC";
 "DC Operating Point" = "DC-werkpunt";
+"DC Sweep" = "DC-sweep";
 "DC operating point (⇧⌘D)" = "DC-werkpunt (⇧⌘D)";
+"DC voltage" = "DC-spanning";
 "DEVICES" = "APPARATEN";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -152,6 +157,7 @@
 "Fit Board to Components" = "Board passend maken op componenten";
 "Flip" = "Draai om";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Footprint waarin het onderdeel gemonteerd wordt: chipformaat, through-hole, tantaal- of elco-behuizing";
+"Gain" = "Versterking";
 "Gap Before" = "Ruimte ervoor";
 "Generate Design" = "Ontwerp genereren";
 "Give each selected pin its own slot" = "Geef elke geselecteerde pin een eigen positie";
@@ -172,6 +178,7 @@
 "Industry Profile" = "Brancheprofiel";
 "Infer Types" = "Typen afleiden";
 "Info" = "Info";
+"Input" = "Ingang";
 "Insert an empty slot before the pin to separate a group" = "Voeg een lege positie in vóór de pin om een groep te scheiden";
 "Inspector" = "Inspector";
 "Interface language" = "Interfacetaal";
@@ -196,7 +203,10 @@
 "Loading the component library" = "Componentenbibliotheek laden";
 "Locked (Auto Place keeps it)" = "Vergrendeld (Automatisch plaatsen behoudt het)";
 "Long firmware run — 5 s, 500 µs" = "Lange firmwarerun — 5 s, 500 µs";
+"Magnitude" = "Amplitude";
 "Mask" = "Masker";
+"Mean" = "Gemiddelde";
+"Measure" = "Meetgrootheid";
 "Medical Device Class" = "Klasse medisch hulpmiddel";
 "Memory Design" = "Geheugenontwerp";
 "Mirror" = "Spiegel";
@@ -204,6 +214,7 @@
 "Mode" = "Modus";
 "Model" = "Model";
 "Model back-ends" = "Model-back-ends";
+"Monte Carlo" = "Monte Carlo";
 "Mounting" = "Montage";
 "Move the footprint origin to the centre of the pads" = "Verplaats de oorsprong van de footprint naar het midden van de pads";
 "Move the pad in the numbering; pads between shift by one" = "Verplaats de pad in de nummering; tussenliggende pads schuiven één op";
@@ -222,6 +233,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "Geen vulvlakken. Massavlakken verkorten retourpaden, voeren hoge stromen en laten de ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "Geen schakelaars. Voeg een Switch toe aan het schema (waarde \"push\" voor een drukknop).";
 "No." = "Nr.";
+"Nominal" = "Nominaal";
 "None" = "Geen";
 "None (mechanical)" = "Geen (mechanisch)";
 "Not a memory design" = "Geen geheugenontwerp";
@@ -253,6 +265,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "Onderdelen, sporen en vulvlakken van gescheiden galvanische domeinen (over isolatoren en geïsoleerde converters) ";
 "Paste API key" = "API-sleutel plakken";
 "Pattern" = "Patroon";
+"Peak" = "Piek";
+"Phase" = "Fase";
+"Phase margin" = "Fasemarge";
 "Pin" = "Pin";
 "Pins: " = "Pinnen: ";
 "Place Now" = "Nu plaatsen";
@@ -284,14 +299,18 @@
 "Robot Platform" = "Robotplatform";
 "Rotate" = "Roteer";
 "Run" = "Voer uit";
+"Run AC Sweep" = "AC-sweep uitvoeren";
+"Run DC Sweep" = "DC-sweep uitvoeren";
 "Run Design Rule Check" = "Ontwerpregelcontrole uitvoeren";
 "Run ERC and DRC" = "ERC en DRC uitvoeren";
 "Run Electrical Rule Check" = "Elektrische regelcontrole uitvoeren";
 "Run Live" = "Live uitvoeren";
+"Run Monte Carlo" = "Monte Carlo uitvoeren";
 "Run Transient" = "Transient uitvoeren";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "Voer een transiëntanalyse uit om het te draaien: pinnen sturen de schakeling aan, ingangen en de ADC lezen haar uit en de seriële uitvoer verschijnt in Simulatie.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "Draai het board in realtime (⌘R): LED's lichten op, klik op schakelaars, firmware draait, live probes";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "Draai het board in realtime: firmware, LED's, schakelaars, scope en seriële monitor";
+"Runs" = "Runs";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "SPICE-netlijst";
 "STL (ASCII)" = "STL (ASCII)";
@@ -334,6 +353,7 @@
 "Simulation" = "Simulatie";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "Simulatiesnelheid ten opzichte van realtime (slow motion toont snelle signalen)";
 "Solve the DC operating point once — shows voltage probes" = "Bereken het DC-werkpunt eenmalig — toont spanningsprobes";
+"Source" = "Bron";
 "Speed" = "Snelheid";
 "Spin" = "Draaien";
 "Stack" = "Stapel";
@@ -362,6 +382,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "De offline ontwerper gebruikt de ingebouwde referentieschakelingen van SiEDA. Geen netwerk of API-sleutel nodig — ideaal voor demo's en air-gapped labs.";
 "The plain box: pins in number order down the left, then up the right" = "De eenvoudige rechthoek: pinnen in nummervolgorde links omlaag, daarna rechts omhoog";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "Het startscherm laadt vijf seconden lang de componentenbibliotheek en referentieontwerpen en opent daarna het hoofdvenster. Klik erop of druk op Esc om over te slaan zodra het laden klaar is.";
+"Transient" = "Transiënt";
 "Transient analysis" = "Transiëntanalyse";
 "Transient: stop" = "Transient: stop";
 "Tune Lengths" = "Lengtes afstemmen";
@@ -371,6 +392,7 @@
 "Undo (⌘Z)" = "Herstel (⌘Z)";
 "Undo the last footprint edit" = "Herstel de laatste footprintbewerking";
 "Undo the last symbol edit" = "Herstel de laatste symboolbewerking";
+"Unity gain" = "Eenheidsversterking";
 "Unstack" = "Ontstapel";
 "Upload .hex…" = ".hex uploaden…";
 "Validate" = "Valideer";
@@ -388,6 +410,7 @@
 "Window" = "Venster";
 "Workspace" = "Werkruimte";
 "Workspaces" = "Werkruimten";
+"Worst case" = "Slechtste geval";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "Schrijf een prompt of plak een PRD. Het agentteam maakt er een geverifieerd schema, een gerouteerde PCB en een 3D-model van.";
 "X-Ray Stack" = "Röntgen-stack";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "Je kunt dit ongedaan maken met ⌘Z. Onderdelen die in het schema zijn geplaatst, kunnen niet worden verwijderd.";
@@ -402,13 +425,18 @@
 "Zoom to Selection" = "Zoom naar selectie";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "Zoom passend / Home (Home, 0 of ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "Zoom naar selectie (⇧Z of ⌥⌘0)";
+"auto" = "auto";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "bijv. “Een nachtlampje op een 9 V-batterij dat een witte LED inschakelt…”";
+"from" = "van";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "punten/decade";
 "public client id" = "openbare client-ID";
 "standard" = "standaard";
 "step" = "stap";
 "stop" = "stop";
+"to" = "tot";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-slepen of met twee vingers slepen om te pannen";

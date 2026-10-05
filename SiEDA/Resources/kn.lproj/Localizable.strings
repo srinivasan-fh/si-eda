@@ -9,6 +9,7 @@
 "3D Viewer" = "3D ವೀಕ್ಷಕ";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "AC ಸ್ವೀಪ್";
 "AI Assistance" = "AI ಸಹಾಯ";
 "AI Models" = "AI ಮಾಡೆಲ್‌ಗಳು";
 "AI Off" = "AI ಆಫ್";
@@ -34,6 +35,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "ಅನಲಾಗ್ ಟೈಮ್ ಸ್ಟೆಪ್: ಸೂಕ್ಷ್ಮವಾದದ್ದು ವೇಗದ ಸಿಗ್ನಲ್‌ಗಳನ್ನು ಸ್ಪಷ್ಟಗೊಳಿಸುತ್ತದೆ, ಸ್ಥೂಲವಾದದ್ದು ವೇಗವಾಗಿ ರನ್ ಆಗುತ್ತದೆ";
 "Analysis" = "ವಿಶ್ಲೇಷಣೆ";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "ವಿಶ್ಲೇಷಣೆ ಪ್ರೀಸೆಟ್‌ಗಳು — ಮೈಕ್ರೋಕಂಟ್ರೋಲರ್ ಫರ್ಮ್‌ವೇರ್‌ಗೆ ದೀರ್ಘ ರನ್ ಅಗತ್ಯ (ಉದಾ. 100 µs ನಲ್ಲಿ 1 s)";
+"Analysis type" = "ವಿಶ್ಲೇಷಣೆಯ ಪ್ರಕಾರ";
 "Appearance" = "ಗೋಚರತೆ";
 "Appliance Type" = "ಉಪಕರಣದ ಪ್ರಕಾರ";
 "Apply" = "ಅನ್ವಯಿಸಿ";
@@ -56,6 +58,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "ಅಸೆಂಬ್ಲಿಗಾಗಿ BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "ವೇಗದ ನೆಟ್‌ಗಳಲ್ಲಿ ವಯಾ ಸ್ಟಬ್‌ಗಳನ್ನು ಬ್ಯಾಕ್‌ಡ್ರಿಲ್ ಮಾಡಿ";
+"Bandwidth" = "ಬ್ಯಾಂಡ್‌ವಿಡ್ತ್";
 "Base URL" = "ಬೇಸ್ URL";
 "Bill of Materials" = "ಬಿಲ್ ಆಫ್ ಮೆಟೀರಿಯಲ್ಸ್";
 "Bill of Materials (CSV)…" = "ಬಿಲ್ ಆಫ್ ಮೆಟೀರಿಯಲ್ಸ್ (CSV)…";
@@ -99,7 +102,9 @@
 "Currents" = "ಕರೆಂಟ್‌ಗಳು";
 "DC" = "DC";
 "DC Operating Point" = "DC ಆಪರೇಟಿಂಗ್ ಪಾಯಿಂಟ್";
+"DC Sweep" = "DC ಸ್ವೀಪ್";
 "DC operating point (⇧⌘D)" = "DC ಆಪರೇಟಿಂಗ್ ಪಾಯಿಂಟ್ (⇧⌘D)";
+"DC voltage" = "DC ವೋಲ್ಟೇಜ್";
 "DEVICES" = "ಡಿವೈಸ್‌ಗಳು";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -152,6 +157,7 @@
 "Fit Board to Components" = "ಬೋರ್ಡ್ ಅನ್ನು ಕಾಂಪೊನೆಂಟ್‌ಗಳಿಗೆ ಹೊಂದಿಸಿ";
 "Flip" = "ಫ್ಲಿಪ್ ಮಾಡಿ";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "ಪಾರ್ಟ್ ಅಳವಡಿಸುವ ಫುಟ್‌ಪ್ರಿಂಟ್: ಚಿಪ್ ಗಾತ್ರ, ಥ್ರೂ-ಹೋಲ್, ಟ್ಯಾಂಟಲಮ್ ಅಥವಾ ಎಲೆಕ್ಟ್ರೋಲೈಟಿಕ್ ಕೇಸ್";
+"Gain" = "ಗೇನ್";
 "Gap Before" = "ಮುಂಚಿನ ಅಂತರ";
 "Generate Design" = "ಡಿಸೈನ್ ರಚಿಸಿ";
 "Give each selected pin its own slot" = "ಆಯ್ಕೆಮಾಡಿದ ಪ್ರತಿ ಪಿನ್‌ಗೆ ತನ್ನದೇ ಸ್ಲಾಟ್ ನೀಡಿ";
@@ -172,6 +178,7 @@
 "Industry Profile" = "ಉದ್ಯಮ ಪ್ರೊಫೈಲ್";
 "Infer Types" = "ಪ್ರಕಾರಗಳನ್ನು ಊಹಿಸಿ";
 "Info" = "ಮಾಹಿತಿ";
+"Input" = "ಇನ್‌ಪುಟ್";
 "Insert an empty slot before the pin to separate a group" = "ಗುಂಪನ್ನು ಬೇರ್ಪಡಿಸಲು ಪಿನ್‌ಗಿಂತ ಮೊದಲು ಖಾಲಿ ಸ್ಲಾಟ್ ಸೇರಿಸಿ";
 "Inspector" = "ಇನ್‌ಸ್ಪೆಕ್ಟರ್";
 "Interface language" = "ಇಂಟರ್‌ಫೇಸ್ ಭಾಷೆ";
@@ -196,7 +203,10 @@
 "Loading the component library" = "ಕಾಂಪೊನೆಂಟ್ ಲೈಬ್ರರಿ ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ";
 "Locked (Auto Place keeps it)" = "ಲಾಕ್ ಮಾಡಲಾಗಿದೆ (ಆಟೋ ಪ್ಲೇಸ್ ಇದನ್ನು ಉಳಿಸಿಕೊಳ್ಳುತ್ತದೆ)";
 "Long firmware run — 5 s, 500 µs" = "ದೀರ್ಘ ಫರ್ಮ್‌ವೇರ್ ರನ್ — 5 s, 500 µs";
+"Magnitude" = "ಮ್ಯಾಗ್ನಿಟ್ಯೂಡ್";
 "Mask" = "ಮಾಸ್ಕ್";
+"Mean" = "ಸರಾಸರಿ";
+"Measure" = "ಅಳತೆ";
 "Medical Device Class" = "ವೈದ್ಯಕೀಯ ಸಾಧನ ವರ್ಗ";
 "Memory Design" = "ಮೆಮೊರಿ ಡಿಸೈನ್";
 "Mirror" = "ಮಿರರ್";
@@ -204,6 +214,7 @@
 "Mode" = "ಮೋಡ್";
 "Model" = "ಮಾಡೆಲ್";
 "Model back-ends" = "ಮಾಡೆಲ್ ಬ್ಯಾಕ್-ಎಂಡ್‌ಗಳು";
+"Monte Carlo" = "ಮಾಂಟೆ ಕಾರ್ಲೋ";
 "Mounting" = "ಮೌಂಟಿಂಗ್";
 "Move the footprint origin to the centre of the pads" = "ಫುಟ್‌ಪ್ರಿಂಟ್ ಮೂಲಬಿಂದುವನ್ನು ಪ್ಯಾಡ್‌ಗಳ ಮಧ್ಯಕ್ಕೆ ಸರಿಸಿ";
 "Move the pad in the numbering; pads between shift by one" = "ಸಂಖ್ಯಾಕ್ರಮದಲ್ಲಿ ಪ್ಯಾಡ್ ಸರಿಸಿ; ನಡುವಿನ ಪ್ಯಾಡ್‌ಗಳು ಒಂದು ಸ್ಥಾನ ಸರಿಯುತ್ತವೆ";
@@ -222,6 +233,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "ಪೋರ್‌ಗಳಿಲ್ಲ. ಗ್ರೌಂಡ್ ಪೋರ್‌ಗಳು ರಿಟರ್ನ್ ಪಾತ್‌ಗಳನ್ನು ಕಡಿಮೆ ಮಾಡುತ್ತವೆ, ಹೆಚ್ಚಿನ ಕರೆಂಟ್‌ಗಳನ್ನು ಸಾಗಿಸುತ್ತವೆ ಮತ್ತು ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "ಸ್ವಿಚ್‌ಗಳಿಲ್ಲ. ಸ್ಕೀಮ್ಯಾಟಿಕ್‌ಗೆ Switch ಸೇರಿಸಿ (ಪುಶ್-ಬಟನ್‌ಗೆ ಮೌಲ್ಯ \"push\").";
 "No." = "ಸಂ.";
+"Nominal" = "ನಾಮಮಾತ್ರ ಮೌಲ್ಯ";
 "None" = "ಯಾವುದೂ ಇಲ್ಲ";
 "None (mechanical)" = "ಯಾವುದೂ ಇಲ್ಲ (ಮೆಕ್ಯಾನಿಕಲ್)";
 "Not a memory design" = "ಮೆಮೊರಿ ಡಿಸೈನ್ ಅಲ್ಲ";
@@ -253,6 +265,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "ಪ್ರತ್ಯೇಕ ಗ್ಯಾಲ್ವನಿಕ್ ಡೊಮೇನ್‌ಗಳ (ಐಸೊಲೇಟರ್‌ಗಳು ಮತ್ತು ಐಸೊಲೇಟೆಡ್ ಕನ್ವರ್ಟರ್‌ಗಳಾದ್ಯಂತ) ಪಾರ್ಟ್‌ಗಳು, ಟ್ರ್ಯಾಕ್‌ಗಳು ಮತ್ತು ಪೋರ್‌ಗಳು ";
 "Paste API key" = "API ಕೀ ಅಂಟಿಸಿ";
 "Pattern" = "ಪ್ಯಾಟರ್ನ್";
+"Peak" = "ಶಿಖರ";
+"Phase" = "ಫೇಸ್";
+"Phase margin" = "ಫೇಸ್ ಮಾರ್ಜಿನ್";
 "Pin" = "ಪಿನ್";
 "Pins: " = "ಪಿನ್‌ಗಳು: ";
 "Place Now" = "ಈಗ ಇರಿಸಿ";
@@ -284,14 +299,18 @@
 "Robot Platform" = "ರೋಬೋಟ್ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್";
 "Rotate" = "ತಿರುಗಿಸಿ";
 "Run" = "ರನ್ ಮಾಡಿ";
+"Run AC Sweep" = "AC ಸ್ವೀಪ್ ರನ್ ಮಾಡಿ";
+"Run DC Sweep" = "DC ಸ್ವೀಪ್ ರನ್ ಮಾಡಿ";
 "Run Design Rule Check" = "ಡಿಸೈನ್ ರೂಲ್ ಚೆಕ್ ರನ್ ಮಾಡಿ";
 "Run ERC and DRC" = "ERC ಮತ್ತು DRC ರನ್ ಮಾಡಿ";
 "Run Electrical Rule Check" = "ಎಲೆಕ್ಟ್ರಿಕಲ್ ರೂಲ್ ಚೆಕ್ ರನ್ ಮಾಡಿ";
 "Run Live" = "ಲೈವ್ ರನ್ ಮಾಡಿ";
+"Run Monte Carlo" = "ಮಾಂಟೆ ಕಾರ್ಲೋ ರನ್ ಮಾಡಿ";
 "Run Transient" = "ಟ್ರಾನ್ಸಿಯೆಂಟ್ ರನ್ ಮಾಡಿ";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "ಇದನ್ನು ಕಾರ್ಯಗತಗೊಳಿಸಲು ಟ್ರಾನ್ಸಿಯೆಂಟ್ ವಿಶ್ಲೇಷಣೆ ರನ್ ಮಾಡಿ: ಪಿನ್‌ಗಳು ಸರ್ಕ್ಯೂಟ್ ಅನ್ನು ಡ್ರೈವ್ ಮಾಡುತ್ತವೆ, ಇನ್‌ಪುಟ್‌ಗಳು ಮತ್ತು ADC ಅದನ್ನು ಓದುತ್ತವೆ, ಸೀರಿಯಲ್ ಔಟ್‌ಪುಟ್ ಸಿಮ್ಯುಲೇಶನ್‌ನಲ್ಲಿ ಕಾಣಿಸುತ್ತದೆ.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "ಬೋರ್ಡ್ ಅನ್ನು ರಿಯಲ್ ಟೈಮ್‌ನಲ್ಲಿ ರನ್ ಮಾಡಿ (⌘R): LED ಗಳು ಬೆಳಗುತ್ತವೆ, ಸ್ವಿಚ್‌ಗಳನ್ನು ಕ್ಲಿಕ್ ಮಾಡಿ, ಫರ್ಮ್‌ವೇರ್ ರನ್ ಆಗುತ್ತದೆ, ಲೈವ್ ಪ್ರೋಬ್‌ಗಳು";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "ಬೋರ್ಡ್ ಅನ್ನು ರಿಯಲ್ ಟೈಮ್‌ನಲ್ಲಿ ರನ್ ಮಾಡಿ: ಫರ್ಮ್‌ವೇರ್, LED ಗಳು, ಸ್ವಿಚ್‌ಗಳು, ಸ್ಕೋಪ್ ಮತ್ತು ಸೀರಿಯಲ್ ಮಾನಿಟರ್";
+"Runs" = "ರನ್‌ಗಳು";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "SPICE ನೆಟ್‌ಲಿಸ್ಟ್";
 "STL (ASCII)" = "STL (ASCII)";
@@ -334,6 +353,7 @@
 "Simulation" = "ಸಿಮ್ಯುಲೇಶನ್";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "ರಿಯಲ್ ಟೈಮ್‌ಗೆ ಹೋಲಿಸಿದರೆ ಸಿಮ್ಯುಲೇಶನ್ ವೇಗ (ಸ್ಲೋ ಮೋಷನ್ ವೇಗದ ಸಿಗ್ನಲ್‌ಗಳನ್ನು ತೋರಿಸುತ್ತದೆ)";
 "Solve the DC operating point once — shows voltage probes" = "DC ಆಪರೇಟಿಂಗ್ ಪಾಯಿಂಟ್ ಅನ್ನು ಒಮ್ಮೆ ಪರಿಹರಿಸಿ — ವೋಲ್ಟೇಜ್ ಪ್ರೋಬ್‌ಗಳನ್ನು ತೋರಿಸುತ್ತದೆ";
+"Source" = "ಮೂಲ";
 "Speed" = "ವೇಗ";
 "Spin" = "ಸ್ಪಿನ್";
 "Stack" = "ಸ್ಟ್ಯಾಕ್ ಮಾಡಿ";
@@ -362,6 +382,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ಆಫ್‌ಲೈನ್ ಡಿಸೈನರ್ SiEDA ಯ ಅಂತರ್ನಿರ್ಮಿತ ರೆಫರೆನ್ಸ್ ಸರ್ಕ್ಯೂಟ್‌ಗಳನ್ನು ಬಳಸುತ್ತದೆ. ನೆಟ್‌ವರ್ಕ್ ಅಥವಾ API ಕೀ ಅಗತ್ಯವಿಲ್ಲ — ಡೆಮೊಗಳು ಮತ್ತು ಏರ್-ಗ್ಯಾಪ್ಡ್ ಲ್ಯಾಬ್‌ಗಳಿಗೆ ಸೂಕ್ತ.";
 "The plain box: pins in number order down the left, then up the right" = "ಸರಳ ಬಾಕ್ಸ್: ಪಿನ್‌ಗಳು ಸಂಖ್ಯಾ ಕ್ರಮದಲ್ಲಿ ಎಡಭಾಗದಲ್ಲಿ ಕೆಳಕ್ಕೆ, ನಂತರ ಬಲಭಾಗದಲ್ಲಿ ಮೇಲಕ್ಕೆ";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "ಸ್ಪ್ಲ್ಯಾಶ್ ಕಾಂಪೊನೆಂಟ್ ಲೈಬ್ರರಿ ಮತ್ತು ರೆಫರೆನ್ಸ್ ಡಿಸೈನ್‌ಗಳನ್ನು ಐದು ಸೆಕೆಂಡುಗಳ ಕಾಲ ಮುಂಚಿತವಾಗಿ ಲೋಡ್ ಮಾಡಿ, ನಂತರ ಮುಖ್ಯ ವಿಂಡೋ ತೆರೆಯುತ್ತದೆ. ಲೋಡಿಂಗ್ ಮುಗಿದ ನಂತರ ಬಿಟ್ಟುಬಿಡಲು ಅದನ್ನು ಕ್ಲಿಕ್ ಮಾಡಿ ಅಥವಾ Esc ಒತ್ತಿ.";
+"Transient" = "ಟ್ರಾನ್ಸಿಯೆಂಟ್";
 "Transient analysis" = "ಟ್ರಾನ್ಸಿಯೆಂಟ್ ವಿಶ್ಲೇಷಣೆ";
 "Transient: stop" = "ಟ್ರಾನ್ಸಿಯೆಂಟ್: ನಿಲುಗಡೆ";
 "Tune Lengths" = "ಉದ್ದಗಳನ್ನು ಟ್ಯೂನ್ ಮಾಡಿ";
@@ -371,6 +392,7 @@
 "Undo (⌘Z)" = "ರದ್ದುಗೊಳಿಸಿ (⌘Z)";
 "Undo the last footprint edit" = "ಕೊನೆಯ ಫುಟ್‌ಪ್ರಿಂಟ್ ಸಂಪಾದನೆಯನ್ನು ರದ್ದುಗೊಳಿಸಿ";
 "Undo the last symbol edit" = "ಕೊನೆಯ ಸಿಂಬಲ್ ಸಂಪಾದನೆಯನ್ನು ರದ್ದುಗೊಳಿಸಿ";
+"Unity gain" = "ಯೂನಿಟಿ ಗೇನ್";
 "Unstack" = "ಅನ್‌ಸ್ಟ್ಯಾಕ್ ಮಾಡಿ";
 "Upload .hex…" = ".hex ಅಪ್‌ಲೋಡ್ ಮಾಡಿ…";
 "Validate" = "ಮೌಲ್ಯೀಕರಿಸಿ";
@@ -388,6 +410,7 @@
 "Window" = "ವಿಂಡೋ";
 "Workspace" = "ವರ್ಕ್‌ಸ್ಪೇಸ್";
 "Workspaces" = "ವರ್ಕ್‌ಸ್ಪೇಸ್‌ಗಳು";
+"Worst case" = "ಅತ್ಯಂತ ಕೆಟ್ಟ ಸ್ಥಿತಿ";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "ಪ್ರಾಂಪ್ಟ್ ಬರೆಯಿರಿ ಅಥವಾ PRD ಅಂಟಿಸಿ. ಏಜೆಂಟ್ ತಂಡವು ಅದನ್ನು ಪರಿಶೀಲಿಸಿದ ಸ್ಕೀಮ್ಯಾಟಿಕ್, ರೂಟ್ ಮಾಡಿದ PCB ಮತ್ತು 3D ಮಾಡೆಲ್ ಆಗಿ ಪರಿವರ್ತಿಸುತ್ತದೆ.";
 "X-Ray Stack" = "X-ರೇ ಸ್ಟ್ಯಾಕ್";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "ಇದನ್ನು ⌘Z ಮೂಲಕ ರದ್ದುಗೊಳಿಸಬಹುದು. ಸ್ಕೀಮ್ಯಾಟಿಕ್‌ನಲ್ಲಿ ಇರಿಸಿದ ಪಾರ್ಟ್‌ಗಳನ್ನು ಅಳಿಸಲಾಗುವುದಿಲ್ಲ.";
@@ -402,13 +425,18 @@
 "Zoom to Selection" = "ಆಯ್ಕೆಗೆ ಜೂಮ್ ಮಾಡಿ";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "ಹೊಂದುವಂತೆ ಜೂಮ್ / ಹೋಮ್ (Home, 0 ಅಥವಾ ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "ಆಯ್ಕೆಗೆ ಜೂಮ್ (⇧Z ಅಥವಾ ⌥⌘0)";
+"auto" = "ಸ್ವಯಂ";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "ಉದಾ. “ಬಿಳಿ LED ಅನ್ನು ಬೆಳಗಿಸುವ ಬ್ಯಾಟರಿ ಚಾಲಿತ 9 V ರಾತ್ರಿ ದೀಪ…”";
+"from" = "ಆರಂಭ";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "ಪಾಯಿಂಟ್‌ಗಳು/ಡಿಕೇಡ್";
 "public client id" = "ಸಾರ್ವಜನಿಕ ಕ್ಲೈಂಟ್ ID";
 "standard" = "ಪ್ರಮಾಣಿತ";
 "step" = "ಸ್ಟೆಪ್";
 "stop" = "ನಿಲ್ಲಿಸಿ";
+"to" = "ಅಂತ್ಯ";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "ಪ್ಯಾನ್ ಮಾಡಲು ⌥-ಡ್ರ್ಯಾಗ್ ಅಥವಾ ಎರಡು ಬೆರಳುಗಳಿಂದ ಡ್ರ್ಯಾಗ್ ಮಾಡಿ";

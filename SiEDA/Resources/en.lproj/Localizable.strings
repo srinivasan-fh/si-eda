@@ -9,6 +9,7 @@
 "3D Viewer" = "3D Viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "AC Sweep";
 "AI Assistance" = "AI Assistance";
 "AI Models" = "AI Models";
 "AI Off" = "AI Off";
@@ -34,6 +35,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "Analog time step: finer resolves faster signals, coarser runs faster";
 "Analysis" = "Analysis";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)";
+"Analysis type" = "Analysis type";
 "Appearance" = "Appearance";
 "Appliance Type" = "Appliance Type";
 "Apply" = "Apply";
@@ -56,6 +58,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM for Assembly (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "Backdrill via stubs on fast nets";
+"Bandwidth" = "Bandwidth";
 "Base URL" = "Base URL";
 "Bill of Materials" = "Bill of Materials";
 "Bill of Materials (CSV)…" = "Bill of Materials (CSV)…";
@@ -99,7 +102,9 @@
 "Currents" = "Currents";
 "DC" = "DC";
 "DC Operating Point" = "DC Operating Point";
+"DC Sweep" = "DC Sweep";
 "DC operating point (⇧⌘D)" = "DC operating point (⇧⌘D)";
+"DC voltage" = "DC voltage";
 "DEVICES" = "DEVICES";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -152,6 +157,7 @@
 "Fit Board to Components" = "Fit Board to Components";
 "Flip" = "Flip";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case";
+"Gain" = "Gain";
 "Gap Before" = "Gap Before";
 "Generate Design" = "Generate Design";
 "Give each selected pin its own slot" = "Give each selected pin its own slot";
@@ -172,6 +178,7 @@
 "Industry Profile" = "Industry Profile";
 "Infer Types" = "Infer Types";
 "Info" = "Info";
+"Input" = "Input";
 "Insert an empty slot before the pin to separate a group" = "Insert an empty slot before the pin to separate a group";
 "Inspector" = "Inspector";
 "Interface language" = "Interface language";
@@ -196,7 +203,10 @@
 "Loading the component library" = "Loading the component library";
 "Locked (Auto Place keeps it)" = "Locked (Auto Place keeps it)";
 "Long firmware run — 5 s, 500 µs" = "Long firmware run — 5 s, 500 µs";
+"Magnitude" = "Magnitude";
 "Mask" = "Mask";
+"Mean" = "Mean";
+"Measure" = "Measure";
 "Medical Device Class" = "Medical Device Class";
 "Memory Design" = "Memory Design";
 "Mirror" = "Mirror";
@@ -204,6 +214,7 @@
 "Mode" = "Mode";
 "Model" = "Model";
 "Model back-ends" = "Model back-ends";
+"Monte Carlo" = "Monte Carlo";
 "Mounting" = "Mounting";
 "Move the footprint origin to the centre of the pads" = "Move the footprint origin to the centre of the pads";
 "Move the pad in the numbering; pads between shift by one" = "Move the pad in the numbering; pads between shift by one";
@@ -222,6 +233,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "No pours. Ground pours shorten return paths, carry high currents and leave the ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "No switches. Add a Switch to the schematic (value \"push\" for a push-button).";
 "No." = "No.";
+"Nominal" = "Nominal";
 "None" = "None";
 "None (mechanical)" = "None (mechanical)";
 "Not a memory design" = "Not a memory design";
@@ -253,6 +265,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) ";
 "Paste API key" = "Paste API key";
 "Pattern" = "Pattern";
+"Peak" = "Peak";
+"Phase" = "Phase";
+"Phase margin" = "Phase margin";
 "Pin" = "Pin";
 "Pins: " = "Pins: ";
 "Place Now" = "Place Now";
@@ -284,14 +299,18 @@
 "Robot Platform" = "Robot Platform";
 "Rotate" = "Rotate";
 "Run" = "Run";
+"Run AC Sweep" = "Run AC Sweep";
+"Run DC Sweep" = "Run DC Sweep";
 "Run Design Rule Check" = "Run Design Rule Check";
 "Run ERC and DRC" = "Run ERC and DRC";
 "Run Electrical Rule Check" = "Run Electrical Rule Check";
 "Run Live" = "Run Live";
+"Run Monte Carlo" = "Run Monte Carlo";
 "Run Transient" = "Run Transient";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "Run the board in real time: firmware, LEDs, switches, scope and serial monitor";
+"Runs" = "Runs";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "SPICE Netlist";
 "STL (ASCII)" = "STL (ASCII)";
@@ -334,6 +353,7 @@
 "Simulation" = "Simulation";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "Simulation speed relative to real time (slow motion shows fast signals)";
 "Solve the DC operating point once — shows voltage probes" = "Solve the DC operating point once — shows voltage probes";
+"Source" = "Source";
 "Speed" = "Speed";
 "Spin" = "Spin";
 "Stack" = "Stack";
@@ -362,6 +382,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs.";
 "The plain box: pins in number order down the left, then up the right" = "The plain box: pins in number order down the left, then up the right";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done.";
+"Transient" = "Transient";
 "Transient analysis" = "Transient analysis";
 "Transient: stop" = "Transient: stop";
 "Tune Lengths" = "Tune Lengths";
@@ -371,6 +392,7 @@
 "Undo (⌘Z)" = "Undo (⌘Z)";
 "Undo the last footprint edit" = "Undo the last footprint edit";
 "Undo the last symbol edit" = "Undo the last symbol edit";
+"Unity gain" = "Unity gain";
 "Unstack" = "Unstack";
 "Upload .hex…" = "Upload .hex…";
 "Validate" = "Validate";
@@ -388,6 +410,7 @@
 "Window" = "Window";
 "Workspace" = "Workspace";
 "Workspaces" = "Workspaces";
+"Worst case" = "Worst case";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model.";
 "X-Ray Stack" = "X-Ray Stack";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted.";
@@ -402,13 +425,18 @@
 "Zoom to Selection" = "Zoom to Selection";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "Zoom to fit / Home (Home, 0 or ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "Zoom to selection (⇧Z or ⌥⌘0)";
+"auto" = "auto";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "e.g. “A battery-powered 9 V night light that turns on a white LED…”";
+"from" = "from";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "points/decade";
 "public client id" = "public client id";
 "standard" = "standard";
 "step" = "step";
 "stop" = "stop";
+"to" = "to";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-drag or two-finger drag to pan";

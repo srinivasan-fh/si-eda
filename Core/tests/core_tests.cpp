@@ -5375,6 +5375,12 @@ TEST(ac_opamp_gain_bandwidth) {
     CHECK_NEAR(om.unityHz / 3e6, 1.0, 1e-4);
     CHECK_NEAR(om.phaseMarginDeg, 90.0, 0.01);
     CHECK_NEAR(om.f3dbHz, 3.0, 1e-3);  // dominant pole GBW / A0
+    // An explicit "GBW=" in the value overrides the part table.
+    ol.setValue(a, "generic GBW=10MEG");
+    Simulator gbwSim(ol);
+    AcResult gr = gbwSim.ac(oo);
+    CHECK(gr.ok);
+    if (gr.ok) CHECK_NEAR(gr.metrics[ol.netOf({a, 2})].unityHz / 10e6, 1.0, 1e-4);
 }
 
 TEST(ac_semiconductor_small_signal) {

@@ -1204,7 +1204,7 @@ AcMetrics acMetrics(const std::vector<double>& freq, const std::vector<std::comp
             }
     }
     for (size_t i = 0; i + 1 < n; ++i)
-        if (db[i] >= 0 && db[i + 1] < -1e-9) {  // a real fall, not round-off around a flat 0 dB
+        if (db[i] >= 0 && db[i + 1] < 0 && db[i] - db[i + 1] > 1e-9) {  // a real fall, not round-off on a flat 0 dB
             double fu = crossing(i, 0.0);
             double t = (std::log10(fu) - std::log10(f[i])) / (std::log10(f[i + 1]) - std::log10(f[i]));
             double p = phase[i] + t * (phase[i + 1] - phase[i]);

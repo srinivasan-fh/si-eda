@@ -892,6 +892,150 @@ struct TransientResult: Decodable, Equatable {
     private enum CodingKeys: String, CodingKey { case ok, error, time, nets, currents, mcus }
 }
 
+/// Bode readouts of one node (`sieda_simulate_ac`); nil where the sweep does not reach the point.
+struct ACMetrics: Decodable, Equatable {
+    var lowFreqDb: Double?
+    var peakDb: Double?
+    var peakHz: Double?
+    var f3dbHz: Double?
+    var bwLowHz: Double?
+    var bwHighHz: Double?
+    var unityHz: Double?
+    var phaseMarginDeg: Double?
+}
+
+struct ACNetResponse: Decodable, Equatable, Identifiable {
+    var index: Int
+    var name: String
+    var dc: Double?
+    var magnitudeDb: [Double]
+    var phaseDeg: [Double]
+    var metrics: ACMetrics?
+    var id: Int { index }
+}
+
+/// AC small-signal sweep: magnitude / phase per node over a logarithmic frequency axis.
+struct ACResult: Decodable, Equatable {
+    var ok: Bool
+    var error: String
+    var stimulus: [String]
+    var frequency: [Double]
+    var nets: [ACNetResponse]
+
+    init(ok: Bool = false, error: String = "", stimulus: [String] = [], frequency: [Double] = [], nets: [ACNetResponse] = []) {
+        self.ok = ok
+        self.error = error
+        self.stimulus = stimulus
+        self.frequency = frequency
+        self.nets = nets
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        ok = try c.decodeIfPresent(Bool.self, forKey: .ok) ?? false
+        error = try c.decodeIfPresent(String.self, forKey: .error) ?? ""
+        stimulus = try c.decodeIfPresent([String].self, forKey: .stimulus) ?? []
+        frequency = try c.decodeIfPresent([Double].self, forKey: .frequency) ?? []
+        nets = try c.decodeIfPresent([ACNetResponse].self, forKey: .nets) ?? []
+    }
+
+    private enum CodingKeys: String, CodingKey { case ok, error, stimulus, frequency, nets }
+}
+
+/// DC sweep of a source: node voltages and device currents per swept value.
+struct DCSweepResult: Decodable, Equatable {
+    var ok: Bool
+    var error: String
+    var source: String
+    var unit: String
+    var values: [Double]
+    var nets: [WaveformSeries]
+    var currents: [WaveformSeries]
+
+    init(ok: Bool = false, error: String = "", source: String = "", unit: String = "V", values: [Double] = [],
+         nets: [WaveformSeries] = [], currents: [WaveformSeries] = []) {
+        self.ok = ok
+        self.error = error
+        self.source = source
+        self.unit = unit
+        self.values = values
+        self.nets = nets
+        self.currents = currents
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        ok = try c.decodeIfPresent(Bool.self, forKey: .ok) ?? false
+        error = try c.decodeIfPresent(String.self, forKey: .error) ?? ""
+        source = try c.decodeIfPresent(String.self, forKey: .source) ?? ""
+        unit = try c.decodeIfPresent(String.self, forKey: .unit) ?? "V"
+        values = try c.decodeIfPresent([Double].self, forKey: .values) ?? []
+        nets = try c.decodeIfPresent([WaveformSeries].self, forKey: .nets) ?? []
+        currents = try c.decodeIfPresent([WaveformSeries].self, forKey: .currents) ?? []
+    }
+
+    private enum CodingKeys: String, CodingKey { case ok, error, source, unit, values, nets, currents }
+}
+
+/// Monte Carlo and worst-case tolerance analysis of one measured quantity (`sieda_simulate_monte_carlo`).
+struct MonteCarloResult: Decodable, Equatable {
+    struct Histogram: Decodable, Equatable {
+        var edges: [Double] = []
+        var counts: [Int] = []
+    }
+    struct WorstCase: Decodable, Equatable {
+        var min: Double
+        var max: Double
+    }
+    struct Part: Decodable, Equatable, Identifiable {
+        var ref: String
+        var value: String
+        var tolerance: Double
+        var fromValue: Bool
+        var sensitivity: Double?
+        var id: String { ref }
+    }
+
+    var ok = false
+    var error = ""
+    var net = ""
+    var unit = "V"
+    var nominal = 0.0
+    var runs = 0
+    var failedRuns = 0
+    var min = 0.0
+    var max = 0.0
+    var mean = 0.0
+    var sigma = 0.0
+    var histogram = Histogram()
+    var worstCase: WorstCase?
+    var parts: [Part] = []
+
+    init(error: String) { self.error = error }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        ok = try c.decodeIfPresent(Bool.self, forKey: .ok) ?? false
+        error = try c.decodeIfPresent(String.self, forKey: .error) ?? ""
+        net = try c.decodeIfPresent(String.self, forKey: .net) ?? ""
+        unit = try c.decodeIfPresent(String.self, forKey: .unit) ?? "V"
+        nominal = try c.decodeIfPresent(Double.self, forKey: .nominal) ?? 0
+        runs = try c.decodeIfPresent(Int.self, forKey: .runs) ?? 0
+        failedRuns = try c.decodeIfPresent(Int.self, forKey: .failedRuns) ?? 0
+        min = try c.decodeIfPresent(Double.self, forKey: .min) ?? 0
+        max = try c.decodeIfPresent(Double.self, forKey: .max) ?? 0
+        mean = try c.decodeIfPresent(Double.self, forKey: .mean) ?? 0
+        sigma = try c.decodeIfPresent(Double.self, forKey: .sigma) ?? 0
+        histogram = try c.decodeIfPresent(Histogram.self, forKey: .histogram) ?? Histogram()
+        worstCase = try c.decodeIfPresent(WorstCase.self, forKey: .worstCase)
+        parts = try c.decodeIfPresent([Part].self, forKey: .parts) ?? []
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case ok, error, net, unit, nominal, runs, failedRuns, min, max, mean, sigma, histogram, worstCase, parts
+    }
+}
+
 struct RouteStats: Decodable, Equatable {
     var connections: Int = 0
     var routed: Int = 0

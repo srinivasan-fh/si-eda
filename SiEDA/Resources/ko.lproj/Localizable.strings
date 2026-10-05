@@ -9,6 +9,7 @@
 "3D Viewer" = "3D 뷰어";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "AC 스윕";
 "AI Assistance" = "AI 지원";
 "AI Models" = "AI 모델";
 "AI Off" = "AI 끔";
@@ -34,6 +35,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "아날로그 시간 스텝: 작을수록 빠른 신호를 분해, 클수록 빠르게 실행";
 "Analysis" = "해석";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "해석 프리셋 — 마이크로컨트롤러 펌웨어는 더 긴 실행이 필요 (예: 100 µs로 1 s)";
+"Analysis type" = "해석 유형";
 "Appearance" = "모양";
 "Appliance Type" = "가전 유형";
 "Apply" = "적용";
@@ -56,6 +58,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "조립용 BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "고속 네트의 비아 스텁 백드릴";
+"Bandwidth" = "대역폭";
 "Base URL" = "기본 URL";
 "Bill of Materials" = "부품 명세서";
 "Bill of Materials (CSV)…" = "부품 명세서 (CSV)…";
@@ -99,7 +102,9 @@
 "Currents" = "전류";
 "DC" = "DC";
 "DC Operating Point" = "DC 동작점";
+"DC Sweep" = "DC 스윕";
 "DC operating point (⇧⌘D)" = "DC 동작점 (⇧⌘D)";
+"DC voltage" = "DC 전압";
 "DEVICES" = "디바이스";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -152,6 +157,7 @@
 "Fit Board to Components" = "보드를 부품에 맞추기";
 "Flip" = "뒤집기";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "부품이 실장되는 풋프린트: 칩 크기, 스루홀, 탄탈 또는 전해 케이스";
+"Gain" = "이득";
 "Gap Before" = "앞 간격";
 "Generate Design" = "설계 생성";
 "Give each selected pin its own slot" = "선택한 각 핀에 개별 슬롯 지정";
@@ -172,6 +178,7 @@
 "Industry Profile" = "산업 프로필";
 "Infer Types" = "유형 추론";
 "Info" = "정보";
+"Input" = "입력";
 "Insert an empty slot before the pin to separate a group" = "그룹을 구분하기 위해 핀 앞에 빈 슬롯 삽입";
 "Inspector" = "인스펙터";
 "Interface language" = "인터페이스 언어";
@@ -196,7 +203,10 @@
 "Loading the component library" = "부품 라이브러리 불러오는 중";
 "Locked (Auto Place keeps it)" = "잠금 (자동 배치 시 유지)";
 "Long firmware run — 5 s, 500 µs" = "긴 펌웨어 실행 — 5 s, 500 µs";
+"Magnitude" = "크기";
 "Mask" = "마스크";
+"Mean" = "평균";
+"Measure" = "측정 항목";
 "Medical Device Class" = "의료기기 등급";
 "Memory Design" = "메모리 설계";
 "Mirror" = "미러";
@@ -204,6 +214,7 @@
 "Mode" = "모드";
 "Model" = "모델";
 "Model back-ends" = "모델 백엔드";
+"Monte Carlo" = "몬테카를로";
 "Mounting" = "실장";
 "Move the footprint origin to the centre of the pads" = "풋프린트 원점을 패드 중앙으로 이동";
 "Move the pad in the numbering; pads between shift by one" = "번호 순서에서 패드 이동. 사이의 패드는 하나씩 밀림";
@@ -222,6 +233,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "푸어 없음. 그라운드 푸어는 리턴 경로를 줄이고 대전류를 흘리며 ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "스위치 없음. 회로도에 스위치를 추가하세요 (푸시 버튼은 값 \"push\").";
 "No." = "번호";
+"Nominal" = "공칭값";
 "None" = "없음";
 "None (mechanical)" = "없음 (기구)";
 "Not a memory design" = "메모리 설계 아님";
@@ -253,6 +265,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "분리된 갈바닉 도메인(아이솔레이터 및 절연형 컨버터 양측)의 부품, 트랙 및 푸어 ";
 "Paste API key" = "API 키 붙여넣기";
 "Pattern" = "패턴";
+"Peak" = "피크";
+"Phase" = "위상";
+"Phase margin" = "위상 여유";
 "Pin" = "핀";
 "Pins: " = "핀: ";
 "Place Now" = "지금 배치";
@@ -284,14 +299,18 @@
 "Robot Platform" = "로봇 플랫폼";
 "Rotate" = "회전";
 "Run" = "실행";
+"Run AC Sweep" = "AC 스윕 실행";
+"Run DC Sweep" = "DC 스윕 실행";
 "Run Design Rule Check" = "설계 규칙 검사 실행";
 "Run ERC and DRC" = "ERC 및 DRC 실행";
 "Run Electrical Rule Check" = "전기 규칙 검사 실행";
 "Run Live" = "라이브 실행";
+"Run Monte Carlo" = "몬테카를로 실행";
 "Run Transient" = "과도 해석 실행";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "과도 해석을 실행하면 펌웨어가 동작합니다: 핀이 회로를 구동하고 입력과 ADC가 회로를 읽으며 시리얼 출력이 시뮬레이션에 표시됩니다.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "보드를 실시간으로 실행 (⌘R): LED 점등, 스위치 클릭, 펌웨어 실행, 라이브 프로브";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "보드를 실시간으로 실행: 펌웨어, LED, 스위치, 스코프 및 시리얼 모니터";
+"Runs" = "반복 횟수";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "SPICE 넷리스트";
 "STL (ASCII)" = "STL (ASCII)";
@@ -334,6 +353,7 @@
 "Simulation" = "시뮬레이션";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "실시간 대비 시뮬레이션 속도 (슬로 모션으로 빠른 신호 확인)";
 "Solve the DC operating point once — shows voltage probes" = "DC 동작점을 한 번 계산 — 전압 프로브 표시";
+"Source" = "소스";
 "Speed" = "속도";
 "Spin" = "자동 회전";
 "Stack" = "스택";
@@ -362,6 +382,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "오프라인 설계 도구는 SiEDA에 내장된 레퍼런스 회로를 사용합니다. 네트워크나 API 키가 필요 없어 데모 및 폐쇄망 실험실에 적합합니다.";
 "The plain box: pins in number order down the left, then up the right" = "기본 상자: 핀 번호 순서대로 왼쪽을 따라 내려간 뒤 오른쪽을 따라 올라감";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "스플래시 화면에서 5초 동안 부품 라이브러리와 레퍼런스 설계를 미리 불러온 후 메인 윈도우를 엽니다. 로딩이 끝나면 클릭하거나 Esc를 눌러 건너뛸 수 있습니다.";
+"Transient" = "과도";
 "Transient analysis" = "과도 해석";
 "Transient: stop" = "과도: 정지";
 "Tune Lengths" = "길이 튜닝";
@@ -371,6 +392,7 @@
 "Undo (⌘Z)" = "실행 취소 (⌘Z)";
 "Undo the last footprint edit" = "마지막 풋프린트 편집 실행 취소";
 "Undo the last symbol edit" = "마지막 심볼 편집 실행 취소";
+"Unity gain" = "단위 이득";
 "Unstack" = "스택 해제";
 "Upload .hex…" = ".hex 업로드…";
 "Validate" = "검증";
@@ -388,6 +410,7 @@
 "Window" = "윈도우";
 "Workspace" = "작업 공간";
 "Workspaces" = "작업 공간";
+"Worst case" = "최악 조건";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "프롬프트를 작성하거나 PRD를 붙여넣으세요. 에이전트 팀이 이를 검증된 회로도, 배선된 PCB 및 3D 모델로 만듭니다.";
 "X-Ray Stack" = "X-Ray 스택";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "⌘Z로 실행 취소할 수 있습니다. 회로도에 배치된 부품은 삭제할 수 없습니다.";
@@ -402,13 +425,18 @@
 "Zoom to Selection" = "선택 항목 확대";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "화면에 맞추기 / 홈 (Home, 0 또는 ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "선택 항목 확대 (⇧Z 또는 ⌥⌘0)";
+"auto" = "자동";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "예: “흰색 LED를 켜는 배터리 구동 9 V 야간 조명…”";
+"from" = "시작";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "포인트/디케이드";
 "public client id" = "퍼블릭 클라이언트 ID";
 "standard" = "표준";
 "step" = "스텝";
 "stop" = "정지";
+"to" = "끝";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-드래그 또는 두 손가락 드래그로 이동";

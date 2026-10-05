@@ -9,6 +9,7 @@
 "3D Viewer" = "3D வியூவர்";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "AC ஸ்வீப்";
 "AI Assistance" = "AI உதவி";
 "AI Models" = "AI மாடல்கள்";
 "AI Off" = "AI ஆஃப்";
@@ -34,6 +35,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "அனலாக் டைம் ஸ்டெப்: நுண்ணியது வேகமான சிக்னல்களைத் தெளிவாக்கும், பெரியது வேகமாக இயங்கும்";
 "Analysis" = "பகுப்பாய்வு";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "பகுப்பாய்வு முன்னமைவுகள் — மைக்ரோகண்ட்ரோலர் ஃபர்ம்வேருக்கு நீண்ட ரன் தேவை (எ.கா. 100 µs இல் 1 s)";
+"Analysis type" = "பகுப்பாய்வு வகை";
 "Appearance" = "தோற்றம்";
 "Appliance Type" = "சாதன வகை";
 "Apply" = "பயன்படுத்து";
@@ -56,6 +58,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "அசெம்பிளிக்கான BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "வேகமான நெட்களில் வயா ஸ்டப்களை பேக்டிரில் செய்";
+"Bandwidth" = "பேண்ட்வித்";
 "Base URL" = "அடிப்படை URL";
 "Bill of Materials" = "பில் ஆஃப் மெட்டீரியல்ஸ்";
 "Bill of Materials (CSV)…" = "பில் ஆஃப் மெட்டீரியல்ஸ் (CSV)…";
@@ -99,7 +102,9 @@
 "Currents" = "கரண்ட்கள்";
 "DC" = "DC";
 "DC Operating Point" = "DC ஆப்பரேட்டிங் பாயின்ட்";
+"DC Sweep" = "DC ஸ்வீப்";
 "DC operating point (⇧⌘D)" = "DC ஆப்பரேட்டிங் பாயின்ட் (⇧⌘D)";
+"DC voltage" = "DC வோல்டேஜ்";
 "DEVICES" = "டிவைஸ்கள்";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -152,6 +157,7 @@
 "Fit Board to Components" = "போர்டை காம்போனன்ட்களுக்குப் பொருத்து";
 "Flip" = "புரட்டு";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "பார்ட் பொருத்தப்படும் ஃபுட்பிரிண்ட்: சிப் அளவு, த்ரூ-ஹோல், டான்டலம் அல்லது எலக்ட்ரோலைட்டிக் கேஸ்";
+"Gain" = "கெயின்";
 "Gap Before" = "முன் இடைவெளி";
 "Generate Design" = "டிசைனை உருவாக்கு";
 "Give each selected pin its own slot" = "தேர்ந்தெடுத்த ஒவ்வொரு பின்னுக்கும் தனி ஸ்லாட் கொடு";
@@ -172,6 +178,7 @@
 "Industry Profile" = "தொழில்துறை சுயவிவரம்";
 "Infer Types" = "வகைகளை ஊகி";
 "Info" = "தகவல்";
+"Input" = "உள்ளீடு";
 "Insert an empty slot before the pin to separate a group" = "ஒரு குழுவைப் பிரிக்க பின்னுக்கு முன் வெற்று ஸ்லாட்டைச் செருகு";
 "Inspector" = "இன்ஸ்பெக்டர்";
 "Interface language" = "இடைமுக மொழி";
@@ -196,7 +203,10 @@
 "Loading the component library" = "காம்போனன்ட் லைப்ரரி ஏற்றப்படுகிறது";
 "Locked (Auto Place keeps it)" = "பூட்டப்பட்டது (ஆட்டோ பிளேஸ் இதை மாற்றாது)";
 "Long firmware run — 5 s, 500 µs" = "நீண்ட ஃபர்ம்வேர் ரன் — 5 s, 500 µs";
+"Magnitude" = "மேக்னிட்யூட்";
 "Mask" = "மாஸ்க்";
+"Mean" = "சராசரி";
+"Measure" = "அளவீடு";
 "Medical Device Class" = "மருத்துவ சாதன வகுப்பு";
 "Memory Design" = "மெமரி டிசைன்";
 "Mirror" = "மிரர்";
@@ -204,6 +214,7 @@
 "Mode" = "பயன்முறை";
 "Model" = "மாடல்";
 "Model back-ends" = "மாடல் பேக்-எண்டுகள்";
+"Monte Carlo" = "மான்டே கார்லோ";
 "Mounting" = "மவுண்டிங்";
 "Move the footprint origin to the centre of the pads" = "ஃபுட்பிரிண்ட் ஆரிஜினை பேட்களின் மையத்துக்கு நகர்த்து";
 "Move the pad in the numbering; pads between shift by one" = "எண்வரிசையில் பேடை நகர்த்து; இடையில் உள்ள பேட்கள் ஒரு இடம் நகரும்";
@@ -222,6 +233,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "போர்கள் இல்லை. கிரவுண்ட் போர்கள் ரிட்டர்ன் பாதைகளைக் குறைக்கின்றன, அதிக கரண்ட்களைச் சுமக்கின்றன மற்றும் ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "ஸ்விட்சுகள் இல்லை. ஸ்கீமாட்டிக்கில் ஒரு Switch ஐச் சேர்க்கவும் (புஷ்-பட்டனுக்கு மதிப்பு \"push\").";
 "No." = "எண்";
+"Nominal" = "பெயரளவு மதிப்பு";
 "None" = "எதுவுமில்லை";
 "None (mechanical)" = "எதுவுமில்லை (மெக்கானிக்கல்)";
 "Not a memory design" = "மெமரி டிசைன் அல்ல";
@@ -253,6 +265,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "தனித்தனி கால்வானிக் டொமைன்களின் (ஐசொலேட்டர்கள் மற்றும் ஐசொலேட்டட் கன்வெர்ட்டர்கள் வழியாக) பார்ட்கள், டிராக்குகள் மற்றும் போர்கள் ";
 "Paste API key" = "API கீயை ஒட்டவும்";
 "Pattern" = "பேட்டர்ன்";
+"Peak" = "உச்சம்";
+"Phase" = "ஃபேஸ்";
+"Phase margin" = "ஃபேஸ் மார்ஜின்";
 "Pin" = "பின்";
 "Pins: " = "பின்கள்: ";
 "Place Now" = "இப்போது வை";
@@ -284,14 +299,18 @@
 "Robot Platform" = "ரோபோ தளம்";
 "Rotate" = "சுழற்று";
 "Run" = "இயக்கு";
+"Run AC Sweep" = "AC ஸ்வீப் இயக்கு";
+"Run DC Sweep" = "DC ஸ்வீப் இயக்கு";
 "Run Design Rule Check" = "டிசைன் ரூல் செக் இயக்கு";
 "Run ERC and DRC" = "ERC மற்றும் DRC இயக்கு";
 "Run Electrical Rule Check" = "எலக்ட்ரிக்கல் ரூல் செக் இயக்கு";
 "Run Live" = "லைவ் இயக்கு";
+"Run Monte Carlo" = "மான்டே கார்லோ இயக்கு";
 "Run Transient" = "டிரான்சியன்ட் இயக்கு";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "இதைச் செயல்படுத்த டிரான்சியன்ட் பகுப்பாய்வை இயக்கவும்: பின்கள் சர்க்யூட்டை இயக்கும், இன்புட்களும் ADC யும் அதைப் படிக்கும், சீரியல் அவுட்புட் சிமுலேஷனில் தோன்றும்.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "போர்டை நிகழ்நேரத்தில் இயக்கு (⌘R): LED கள் ஒளிரும், ஸ்விட்சுகளைக் கிளிக் செய்யலாம், ஃபர்ம்வேர் இயங்கும், லைவ் ப்ரோப்கள்";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "போர்டை நிகழ்நேரத்தில் இயக்கு: ஃபர்ம்வேர், LED கள், ஸ்விட்சுகள், ஸ்கோப் மற்றும் சீரியல் மானிட்டர்";
+"Runs" = "ஓட்டங்கள்";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "SPICE நெட்லிஸ்ட்";
 "STL (ASCII)" = "STL (ASCII)";
@@ -334,6 +353,7 @@
 "Simulation" = "சிமுலேஷன்";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "நிகழ்நேரத்துடன் ஒப்பிடும் சிமுலேஷன் வேகம் (ஸ்லோ மோஷன் வேகமான சிக்னல்களைக் காட்டும்)";
 "Solve the DC operating point once — shows voltage probes" = "DC ஆப்பரேட்டிங் பாயின்ட்டை ஒருமுறை தீர் — வோல்டேஜ் ப்ரோப்களைக் காட்டும்";
+"Source" = "மூலம்";
 "Speed" = "வேகம்";
 "Spin" = "ஸ்பின்";
 "Stack" = "அடுக்கு";
@@ -362,6 +382,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ஆஃப்லைன் டிசைனர் SiEDA இன் உள்ளமைந்த ரெஃபரன்ஸ் சர்க்யூட்களைப் பயன்படுத்துகிறது. நெட்வொர்க் அல்லது API கீ தேவையில்லை — டெமோக்கள் மற்றும் ஏர்-கேப்டு ஆய்வகங்களுக்கு ஏற்றது.";
 "The plain box: pins in number order down the left, then up the right" = "எளிய பெட்டி: பின்கள் எண் வரிசையில் இடதுபுறம் கீழாக, பின்னர் வலதுபுறம் மேலாக";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "ஸ்பிளாஷ் காம்போனன்ட் லைப்ரரி மற்றும் ரெஃபரன்ஸ் டிசைன்களை ஐந்து வினாடிகள் முன்கூட்டியே ஏற்றி, பின்னர் முதன்மைச் சாளரத்தைத் திறக்கும். ஏற்றுதல் முடிந்ததும் தவிர்க்க அதைக் கிளிக் செய்யவும் அல்லது Esc அழுத்தவும்.";
+"Transient" = "டிரான்சியன்ட்";
 "Transient analysis" = "டிரான்சியன்ட் பகுப்பாய்வு";
 "Transient: stop" = "டிரான்சியன்ட்: நிறுத்தம்";
 "Tune Lengths" = "நீளங்களை டியூன் செய்";
@@ -371,6 +392,7 @@
 "Undo (⌘Z)" = "செயல்தவிர் (⌘Z)";
 "Undo the last footprint edit" = "கடைசி ஃபுட்பிரிண்ட் திருத்தத்தைச் செயல்தவிர்";
 "Undo the last symbol edit" = "கடைசி சிம்பல் திருத்தத்தைச் செயல்தவிர்";
+"Unity gain" = "யூனிட்டி கெயின்";
 "Unstack" = "அடுக்கைப் பிரி";
 "Upload .hex…" = ".hex பதிவேற்று…";
 "Validate" = "சரிபார்";
@@ -388,6 +410,7 @@
 "Window" = "சாளரம்";
 "Workspace" = "வொர்க்ஸ்பேஸ்";
 "Workspaces" = "வொர்க்ஸ்பேஸ்கள்";
+"Worst case" = "மிக மோசமான நிலை";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "ஒரு ப்ராம்ப்ட்டை எழுதவும் அல்லது PRD ஐ ஒட்டவும். ஏஜென்ட் குழு அதைச் சரிபார்க்கப்பட்ட ஸ்கீமாட்டிக், ரூட் செய்யப்பட்ட PCB மற்றும் 3D மாடலாக மாற்றும்.";
 "X-Ray Stack" = "X-ரே ஸ்டாக்";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "இதை ⌘Z மூலம் செயல்தவிர்க்கலாம். ஸ்கீமாட்டிக்கில் வைக்கப்பட்ட பார்ட்களை நீக்க முடியாது.";
@@ -402,13 +425,18 @@
 "Zoom to Selection" = "தேர்வுக்கு ஜூம் செய்";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "பொருந்தும்படி ஜூம் / ஹோம் (Home, 0 அல்லது ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "தேர்வுக்கு ஜூம் (⇧Z அல்லது ⌥⌘0)";
+"auto" = "தானியங்கு";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "எ.கா. “வெள்ளை LED ஐ ஒளிரச் செய்யும் பேட்டரியில் இயங்கும் 9 V இரவு விளக்கு…”";
+"from" = "தொடக்கம்";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "புள்ளிகள்/டெகேட்";
 "public client id" = "பொது கிளையன்ட் ID";
 "standard" = "நிலையானது";
 "step" = "ஸ்டெப்";
 "stop" = "நிறுத்து";
+"to" = "முடிவு";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "நகர்த்த ⌥-இழுக்கவும் அல்லது இரு விரல்களால் இழுக்கவும்";

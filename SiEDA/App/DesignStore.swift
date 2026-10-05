@@ -75,6 +75,9 @@ final class DesignStore: ObservableObject {
     @Published private(set) var verifiedRevision = -1
     @Published var dcResult: DCResult?
     @Published var transientResult: TransientResult?
+    @Published var acResult: ACResult?
+    @Published var dcSweepResult: DCSweepResult?
+    @Published var monteCarloResult: MonteCarloResult?
     @Published var routeStats: RouteStats?
     /// Design revision the DRC results and route statistics describe; after any edit they are stale.
     @Published private(set) var drcRevision = -1
@@ -216,6 +219,9 @@ final class DesignStore: ObservableObject {
             selectedWire = nil
             dcResult = nil
             transientResult = nil
+            acResult = nil
+            dcSweepResult = nil
+            monteCarloResult = nil
             resetChecks()
             refresh()
             isDirty = true
@@ -282,6 +288,9 @@ final class DesignStore: ObservableObject {
         if invalidatesAnalysis {
             dcResult = nil
             transientResult = nil
+            acResult = nil
+            dcSweepResult = nil
+            monteCarloResult = nil
         }
         refresh()
         statusMessage = actionName
@@ -310,6 +319,9 @@ final class DesignStore: ObservableObject {
             isDirty = true
             dcResult = nil
             transientResult = nil
+            acResult = nil
+            dcSweepResult = nil
+            monteCarloResult = nil
             refresh()
             statusMessage = message
             CrashReporter.note(message)
@@ -749,6 +761,36 @@ final class DesignStore: ObservableObject {
         let result = await runBusy("Running transient analysis…") { engine.simulateTransient(stop: stop, step: step) }
         transientResult = result
         statusMessage = result.ok ? "Transient analysis: \(result.time.count) points" : "Transient failed: \(result.error)"
+    }
+
+    func simulateAC(start: String, stop: String, pointsPerDecade: Int, source: String) async {
+        guard !isBusy else { return }  // one analysis at a time
+        let engine = self.engine
+        let result = await runBusy("Running AC analysis…") {
+            engine.simulateAC(start: start, stop: stop, pointsPerDecade: pointsPerDecade, source: source)
+        }
+        acResult = result
+        statusMessage = result.ok ? "AC analysis: \(result.frequency.count) frequencies" : "AC analysis failed: \(result.error)"
+    }
+
+    func simulateDCSweep(source: String, start: String, stop: String, step: String) async {
+        guard !isBusy else { return }  // one analysis at a time
+        let engine = self.engine
+        let result = await runBusy("Running DC sweep…") {
+            engine.simulateDCSweep(source: source, start: start, stop: stop, step: step)
+        }
+        dcSweepResult = result
+        statusMessage = result.ok ? "DC sweep: \(result.values.count) points" : "DC sweep failed: \(result.error)"
+    }
+
+    func simulateMonteCarlo(net: String, measure: String, runs: Int) async {
+        guard !isBusy else { return }  // one analysis at a time
+        let engine = self.engine
+        let result = await runBusy("Running Monte Carlo analysis…") {
+            engine.simulateMonteCarlo(net: net, measure: measure, runs: runs, seed: 1)
+        }
+        monteCarloResult = result
+        statusMessage = result.ok ? "Monte Carlo: \(result.runs) runs" : "Monte Carlo failed: \(result.error)"
     }
 
     // MARK: - PCB
@@ -1340,6 +1382,9 @@ final class DesignStore: ObservableObject {
             selectedWire = nil
             dcResult = nil
             transientResult = nil
+            acResult = nil
+            dcSweepResult = nil
+            monteCarloResult = nil
             resetChecks()
             refresh()
             fitToken &+= 1

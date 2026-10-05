@@ -9,6 +9,7 @@
 "3D Viewer" = "3D 檢視器";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "AC 掃描";
 "AI Assistance" = "AI 輔助";
 "AI Models" = "AI 模型";
 "AI Off" = "AI 已關閉";
@@ -34,6 +35,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "類比時間步長：越細可解析越快的訊號，越粗執行越快";
 "Analysis" = "分析";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "分析預設 — 微控制器韌體需要更長的執行時間 (例如 1 s，100 µs 步長)";
+"Analysis type" = "分析類型";
 "Appearance" = "外觀";
 "Appliance Type" = "家電類型";
 "Apply" = "套用";
@@ -56,6 +58,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "組裝用 BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "對高速網路的導通孔殘段進行背鑽";
+"Bandwidth" = "頻寬";
 "Base URL" = "基礎 URL";
 "Bill of Materials" = "材料清單";
 "Bill of Materials (CSV)…" = "材料清單 (CSV)…";
@@ -99,7 +102,9 @@
 "Currents" = "電流";
 "DC" = "DC";
 "DC Operating Point" = "DC 工作點";
+"DC Sweep" = "DC 掃描";
 "DC operating point (⇧⌘D)" = "DC 工作點 (⇧⌘D)";
+"DC voltage" = "直流電壓";
 "DEVICES" = "裝置";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -152,6 +157,7 @@
 "Fit Board to Components" = "使電路板貼合元件";
 "Flip" = "翻轉";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "元件安裝所用的封裝：晶片尺寸、通孔、鉭質或電解電容外殼";
+"Gain" = "增益";
 "Gap Before" = "前置空位";
 "Generate Design" = "產生設計";
 "Give each selected pin its own slot" = "為每個所選接腳分配獨立槽位";
@@ -172,6 +178,7 @@
 "Industry Profile" = "產業設定檔";
 "Infer Types" = "推斷類型";
 "Info" = "資訊";
+"Input" = "輸入";
 "Insert an empty slot before the pin to separate a group" = "在接腳前插入空槽位以分隔群組";
 "Inspector" = "檢閱器";
 "Interface language" = "介面語言";
@@ -196,7 +203,10 @@
 "Loading the component library" = "正在載入元件庫";
 "Locked (Auto Place keeps it)" = "已鎖定 (自動擺放會保留)";
 "Long firmware run — 5 s, 500 µs" = "長時間韌體執行 — 5 s，500 µs";
+"Magnitude" = "幅度";
 "Mask" = "防焊";
+"Mean" = "平均值";
+"Measure" = "量測項目";
 "Medical Device Class" = "醫療器材類別";
 "Memory Design" = "記憶體設計";
 "Mirror" = "鏡像";
@@ -204,6 +214,7 @@
 "Mode" = "模式";
 "Model" = "模型";
 "Model back-ends" = "模型後端";
+"Monte Carlo" = "蒙地卡羅";
 "Mounting" = "安裝方式";
 "Move the footprint origin to the centre of the pads" = "將封裝原點移至焊墊中心";
 "Move the pad in the numbering; pads between shift by one" = "在編號中移動焊墊；之間的焊墊依序順移一位";
@@ -222,6 +233,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "無鋪銅。接地鋪銅可縮短回流路徑、承載大電流，並且 ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "沒有開關。請在電路圖中加入開關 (值設為 \"push\" 即為按鈕)。";
 "No." = "編號";
+"Nominal" = "標稱值";
 "None" = "無";
 "None (mechanical)" = "無 (機構)";
 "Not a memory design" = "非記憶體設計";
@@ -253,6 +265,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "分屬不同電氣隔離域 (跨隔離器與隔離式轉換器) 的元件、走線與鋪銅 ";
 "Paste API key" = "貼上 API 金鑰";
 "Pattern" = "陣列";
+"Peak" = "峰值";
+"Phase" = "相位";
+"Phase margin" = "相位裕度";
 "Pin" = "接腳";
 "Pins: " = "接腳: ";
 "Place Now" = "立即擺放";
@@ -284,14 +299,18 @@
 "Robot Platform" = "機器人平台";
 "Rotate" = "旋轉";
 "Run" = "執行";
+"Run AC Sweep" = "執行 AC 掃描";
+"Run DC Sweep" = "執行 DC 掃描";
 "Run Design Rule Check" = "執行設計規則檢查";
 "Run ERC and DRC" = "執行 ERC 與 DRC";
 "Run Electrical Rule Check" = "執行電氣規則檢查";
 "Run Live" = "即時執行";
+"Run Monte Carlo" = "執行蒙地卡羅分析";
 "Run Transient" = "執行暫態分析";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "執行暫態分析即可運行：接腳驅動電路，輸入與 ADC 讀取電路，序列輸出顯示在“模擬”中。";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "即時執行電路板 (⌘R)：LED 點亮、按一下開關、韌體執行、即時探針";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "即時執行電路板：韌體、LED、開關、示波器與序列埠監視器";
+"Runs" = "次數";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "SPICE 網表";
 "STL (ASCII)" = "STL (ASCII)";
@@ -334,6 +353,7 @@
 "Simulation" = "模擬";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "相對於即時的模擬速度 (慢動作可顯示快速訊號)";
 "Solve the DC operating point once — shows voltage probes" = "求解一次 DC 工作點 — 顯示電壓探針";
+"Source" = "電源";
 "Speed" = "速度";
 "Spin" = "自轉";
 "Stack" = "堆疊";
@@ -362,6 +382,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "離線設計器使用 SiEDA 內建的參考電路。無需網路或 API 金鑰 — 非常適合展示與實體隔離的實驗室。";
 "The plain box: pins in number order down the left, then up the right" = "一般方框：接腳依編號順序沿左側向下，再沿右側向上";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "啟動畫面會預先載入元件庫與參考設計五秒鐘，然後打開主視窗。載入完成後，按一下它或按 Esc 即可略過。";
+"Transient" = "暫態";
 "Transient analysis" = "暫態分析";
 "Transient: stop" = "暫態：停止時間";
 "Tune Lengths" = "等長調整";
@@ -371,6 +392,7 @@
 "Undo (⌘Z)" = "還原 (⌘Z)";
 "Undo the last footprint edit" = "還原上一次封裝編輯";
 "Undo the last symbol edit" = "還原上一次符號編輯";
+"Unity gain" = "單位增益";
 "Unstack" = "取消堆疊";
 "Upload .hex…" = "上傳 .hex…";
 "Validate" = "驗證";
@@ -388,6 +410,7 @@
 "Window" = "視窗";
 "Workspace" = "工作區";
 "Workspaces" = "工作區";
+"Worst case" = "最壞情況";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "撰寫提示詞或貼上 PRD。代理程式團隊會將其轉換為經過驗證的電路圖、已佈線的 PCB 與 3D 模型。";
 "X-Ray Stack" = "X 光層疊";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "可以用 ⌘Z 還原此操作。已擺放在電路圖中的元件無法刪除。";
@@ -402,13 +425,18 @@
 "Zoom to Selection" = "縮放至所選範圍";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "縮放至符合大小 / 首頁 (Home、0 或 ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "縮放至所選範圍 (⇧Z 或 ⌥⌘0)";
+"auto" = "自動";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "例如“一款電池供電的 9 V 小夜燈，可點亮一顆白色 LED…”";
+"from" = "從";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "點/十倍頻";
 "public client id" = "公開用戶端 ID";
 "standard" = "標準";
 "step" = "步長";
 "stop" = "停止";
+"to" = "至";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "按住 ⌥ 拖曳或雙指拖曳以平移";
