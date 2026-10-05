@@ -819,8 +819,11 @@ final class EDAEngine: @unchecked Sendable {
     }
 
     /// Options for `sieda_router_*` with any router mode (Highlight lets the head go anywhere and lists collisions).
-    static func routerOptions(mode: RouterModeChoice, diagonal: Bool, via: RouterViaChoice = .through) -> String {
-        "{\"mode\":\"\(mode.rawValue)\",\"posture\":\"\(diagonal ? "45" : "90")\",\"viaType\":\"\(via.rawValue)\"}"
+    /// `rounded`: corners become arcs (short chords) of the automatic radius where they fit (single tracks).
+    static func routerOptions(mode: RouterModeChoice, diagonal: Bool, via: RouterViaChoice = .through,
+                              rounded: Bool = false) -> String {
+        "{\"mode\":\"\(mode.rawValue)\",\"posture\":\"\(diagonal ? "45" : "90")\",\"viaType\":\"\(via.rawValue)\","
+            + "\"cornerRadius\":\(rounded ? -1 : 0)}"
     }
 
     /// Starts a route (or a differential pair) on the pad, via or track at `point`; the preview carries `error` when

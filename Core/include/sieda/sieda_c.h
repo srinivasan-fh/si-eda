@@ -311,7 +311,8 @@ void sieda_pcb_clear_tamper_meshes(SiedaProject* project);
  * layout only on commit; any other board edit in between makes the commit fail (call cancel first).
  * options_json (NULL = keep the current options): {"mode":"shove"|"walkaround"|"highlight",
  *   "posture":"45"|"90"|"free", "swapPosture":bool, "width":mm (0 = net class), "pairGap":mm (0 = stack-up),
- *   "snap":bool, "viaType":"through"|"blind"|"micro"|"auto" (blind / micro need HDI on ≥ 4 layers)}.
+ *   "snap":bool, "viaType":"through"|"blind"|"micro"|"auto" (blind / micro need HDI on ≥ 4 layers),
+ *   "cornerRadius":mm (rounded corners of single tracks as ≤ 15° chords; 0 = sharp, < 0 = 4 × width)}.
  * Begin / move / fix / via / options return the preview, caller frees:
  *   {"active","kind":"route"|"pair"|"drag"|"via","status","blocked","reachedTarget","nets":[…],"layer","width","gap",
  *    "endX","endY","length","netLength","targetLength","placed":[track],"head":[track],"vias":[via],

@@ -1400,8 +1400,13 @@ final class DesignStore: ObservableObject {
         didSet { if routerViaType != oldValue { applyRouterOptions() } }
     }
 
+    /// Rounded corners: arcs (as short chords) instead of sharp 45° / 90° corners on single-track routes.
+    @Published var routerRounded = false {
+        didSet { if routerRounded != oldValue { applyRouterOptions() } }
+    }
+
     private var routerOptions: String {
-        EDAEngine.routerOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType)
+        EDAEngine.routerOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType, rounded: routerRounded)
     }
 
     /// Shows a router reply: a refused step keeps the route and reports why.

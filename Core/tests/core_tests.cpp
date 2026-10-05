@@ -9290,3 +9290,64 @@ TEST(router_places_blind_buried_and_micro_vias) {
     CHECK(routerOptionsFromJson(Json::parse("{\"viaType\":\"micro\"}")).viaType == RouterViaType::Micro);
     CHECK(routerOptionsFromJson(Json::parse("{\"viaType\":\"auto\"}")).viaType == RouterViaType::Auto);
 }
+
+TEST(router_rounds_corners) {
+    // Rounded corners: a route with a 45° and a 90° corner is written with arcs of short chords (each join turns at
+    // most 15°), exactly as previewed, connected and DRC clean. A via of another net inside a corner keeps it sharp.
+    for (bool obstacle : {false, true}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {40, 32}), r3 = placeR(p, {45, 5}), r4 = placeR(p, {45, 10});
+        wire(s, r1, "2", r2, "1");
+        wire(s, r3, "2", r4, "1");
+        p.schematicChanged();
+        const int net = s.netOf({r1, 1});
+        if (obstacle) {
+            Via v;
+            v.net = s.netOf({r3, 1});
+            v.position = {19.732, 20.647};  // on the bisector, 0.7 mm inside the first corner at (20, 20)
+            p.pcb.addVia(v);
+        }
+        InteractiveRouter r(p.pcb, s);
+        RouterOptions o;
+        o.cornerRadius = 2;
+        r.setOptions(o);
+        CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+        r.moveTo({20, 20});
+        CHECK(r.fixHead());
+        r.moveTo({28, 28});  // 45° corner at (20, 20)
+        CHECK(r.fixHead());
+        const RoutePreview& pv = r.moveTo(padAt(p, r2, 0));  // a 45° corner at (28, 28) onto the pad's row
+        CHECK(pv.reachedTarget);
+        double previewLength = 0;
+        for (const auto& t : pv.placed) previewLength += (t.b - t.a).length();
+        for (const auto& t : pv.head) previewLength += (t.b - t.a).length();
+        CHECK(r.commit().ok);
+        CHECK(netRouted(p, net));
+        CHECK(routingProblems(p) == 0);
+        CHECK(acuteWarnings(p) == 0);
+        CHECK_NEAR(routedNetLength(p.pcb, net), previewLength, 1e-6);
+        // Joins between the route's own segments.
+        double sharpest = 180;
+        int chords = 0;
+        for (const auto& a : p.pcb.tracks)
+            for (const auto& b : p.pcb.tracks) {
+                if (a.id >= b.id || a.net != net || b.net != net) continue;
+                for (Vec2 pa : {a.a, a.b})
+                    for (Vec2 pb : {b.a, b.b}) {
+                        if ((pa - pb).length() > 1e-6) continue;
+                        const Vec2 da = (pa == a.a ? a.b : a.a) - pa, db = (pb == b.a ? b.b : b.a) - pb;
+                        const double ang = std::acos(std::clamp(da.dot(db) / (da.length() * db.length()), -1.0, 1.0)) * 180 / kPi;
+                        sharpest = std::min(sharpest, ang);
+                        chords += ang < 179.9 ? 1 : 0;
+                    }
+            }
+        if (obstacle) {
+            CHECK(sharpest < 136);  // the corner next to the via stays a plain 45° corner
+        } else {
+            CHECK(sharpest > 164.9);  // every corner became an arc
+            CHECK(chords >= 6);
+        }
+    }
+    CHECK(routerOptionsFromJson(Json::parse("{\"cornerRadius\":-1}")).cornerRadius < 0);
+}

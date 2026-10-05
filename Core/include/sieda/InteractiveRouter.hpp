@@ -63,6 +63,10 @@ struct RouterOptions {
     bool snapToPads = true;
     /// Most line / via shoves one step may make before it gives up (keeps a step fast on dense boards).
     int shoveLimit = 120;
+    /// Rounded corners (single-track routes): every corner becomes an arc of this radius (mm), drawn as short
+    /// straight chords of at most 15°, where it fits between its neighbours and keeps clearance; otherwise the
+    /// corner stays sharp. 0 = sharp corners, < 0 = automatic (4 × track width, at least 0.5 mm).
+    double cornerRadius = 0;
 };
 
 /// What commit() changed, so a caller can undo it exactly: removed items (with their old geometry and ids) and the

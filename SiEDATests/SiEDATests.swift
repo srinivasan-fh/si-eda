@@ -5006,6 +5006,26 @@ final class InteractiveRoutingStoreTests: XCTestCase {
         engine.routerCancel()
     }
 
+    func testRoundedCornersWriteArcs() throws {
+        let engine = EDAEngine(name: "Rounded")
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        engine.moveFootprint(r1, to: CGPoint(x: 8, y: 20))
+        engine.moveFootprint(r2, to: CGPoint(x: 40, y: 32))
+        let options = EDAEngine.routerOptions(mode: .shove, diagonal: true, rounded: true)
+        XCTAssertNil(engine.routerBegin(at: CGPoint(x: 8.95, y: 20), layer: 0, pair: false, options: options)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 20, y: 20))
+        _ = engine.routerFix()
+        let head = try XCTUnwrap(engine.routerMove(to: CGPoint(x: 39.05, y: 32)))
+        XCTAssertTrue(head.reachedTarget)
+        XCTAssertTrue(engine.routerCommit().ok)
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        XCTAssertGreaterThan(snapshot.tracks.count, 4)  // the corners are arcs of short chords
+        XCTAssertTrue(snapshot.ratsnest.isEmpty)
+        XCTAssertFalse(engine.runDRC().contains { $0.severity == .error })
+    }
+
     func testHighlightModeListsCollisions() throws {
         let store = try routedStore()
         store.routerMode = .highlight

@@ -161,6 +161,58 @@ std::vector<Vec2> offsetPath(const std::vector<Vec2>& c, double d) {
     return out;
 }
 
+/// The polyline with corners replaced by arcs of `radius` drawn as chords of at most 15°. An arc may use up to half
+/// of each neighbouring segment (all of an end segment); where that is too short the radius shrinks, and below
+/// `minRadius` (or when `clear` refuses the arc) the corner stays sharp. `vertexOut[i]` is where vertex i's
+/// replacement starts in the result.
+std::vector<Vec2> filletPath(const std::vector<Vec2>& pts, double radius, double minRadius,
+                             const std::function<bool(const std::vector<Vec2>&)>& clear, std::vector<size_t>* vertexOut) {
+    const size_t n = pts.size();
+    std::vector<Vec2> out;
+    if (vertexOut) vertexOut->assign(n, 0);
+    if (n == 0) return out;
+    out.push_back(pts[0]);
+    for (size_t i = 1; i + 1 < n; ++i) {
+        if (vertexOut) (*vertexOut)[i] = out.size();
+        const Vec2 d1 = pts[i] - pts[i - 1], d2 = pts[i + 1] - pts[i];
+        const double l1 = d1.length(), l2 = d2.length();
+        const Vec2 u1 = l1 > 0 ? d1 * (1 / l1) : Vec2{}, u2 = l2 > 0 ? d2 * (1 / l2) : Vec2{};
+        const double turn = std::acos(std::clamp(u1.dot(u2), -1.0, 1.0));  // 0 = straight on
+        bool done = false;
+        if (l1 > 1e-9 && l2 > 1e-9 && turn > 0.02 && turn < 2.0) {  // up to ~115°: 45° and 90° corners
+            const double avail = std::min(i == 1 ? l1 : l1 / 2, i + 2 == n ? l2 : l2 / 2);
+            double r = std::min(radius, avail / std::tan(turn / 2));
+            for (int attempt = 0; attempt < 2 && !done && r >= minRadius; ++attempt, r /= 2) {
+                const double t = r * std::tan(turn / 2);
+                const Vec2 a = pts[i] - u1 * t, b = pts[i] + u2 * t;
+                const double side = cross(u1, u2) > 0 ? 1 : -1;
+                const Vec2 nrm = Vec2{-u1.y, u1.x} * side;  // towards the inside of the turn
+                const Vec2 c = a + nrm * r;
+                const int steps = std::max(2, static_cast<int>(std::ceil(turn / (kPi / 12))));
+                std::vector<Vec2> arc{a};
+                const Vec2 ra = a - c;
+                for (int k = 1; k < steps; ++k) {
+                    const double ang = side * turn * k / steps;
+                    const double cs = std::cos(ang), sn = std::sin(ang);
+                    arc.push_back(c + Vec2{ra.x * cs - ra.y * sn, ra.x * sn + ra.y * cs});
+                }
+                arc.push_back(b);
+                if (!clear(arc)) continue;
+                out.insert(out.end(), arc.begin(), arc.end());
+                done = true;
+            }
+        }
+        if (!done) out.push_back(pts[i]);
+    }
+    if (vertexOut && n >= 1) (*vertexOut)[n - 1] = out.size();
+    out.push_back(pts[n - 1]);
+    // Only drop repeated points: the chords are nearly collinear and must stay.
+    std::vector<Vec2> clean;
+    for (Vec2 q : out)
+        if (clean.empty() || !samePoint(clean.back(), q, 1e-7)) clean.push_back(q);
+    return clean;
+}
+
 // --------------------------------------------------------------------------------------------- octagonal hulls
 
 const Vec2 kDirs[8] = {{1, 0},  {kInvSqrt2, kInvSqrt2},   {0, 1},  {-kInvSqrt2, kInvSqrt2},
@@ -2117,6 +2169,49 @@ struct InteractiveRouter::Impl {
 
     bool highlight() const { return opt.mode == RouterMode::Highlight; }
 
+    double cornerRadius() const {
+        if (opt.cornerRadius > 0) return opt.cornerRadius;
+        return opt.cornerRadius < 0 ? std::max(0.5, 4 * width) : 0;
+    }
+
+    /// Rounded corners for a single-track route: `tracks` (in path order, `headFrom` = index of the first head
+    /// track) as runs of joined segments of one layer, each run filleted where the arcs keep clearance in `w`.
+    /// Returns the rounded tracks; `headOut` receives the index where the head's part starts.
+    std::vector<Track> roundRoute(const std::vector<Track>& tracks, size_t headFrom, const World& w, size_t* headOut) const {
+        std::vector<Track> out;
+        if (headOut) *headOut = std::numeric_limits<size_t>::max();
+        const double r = cornerRadius();
+        size_t i = 0;
+        while (i < tracks.size()) {
+            size_t j = i + 1;
+            while (j < tracks.size() && tracks[j].layer == tracks[i].layer && std::fabs(tracks[j].width - tracks[i].width) < 1e-12 &&
+                   samePoint(tracks[j].a, tracks[j - 1].b, 1e-9))
+                ++j;
+            std::vector<Vec2> pts{tracks[i].a};
+            for (size_t k = i; k < j; ++k) pts.push_back(tracks[k].b);
+            const Track& t0 = tracks[i];
+            auto clear = [&](const std::vector<Vec2>& arc) { return pathClear(w, {t0.net}, t0.layer, arc, t0.width / 2); };
+            std::vector<size_t> vo;
+            const std::vector<Vec2> q = r > 0 ? filletPath(pts, r, std::max(t0.width, 0.05), clear, &vo) : pts;
+            if (r <= 0) {
+                vo.resize(pts.size());
+                for (size_t k = 0; k < pts.size(); ++k) vo[k] = k;
+            }
+            for (size_t k = 0; k + 1 < q.size(); ++k) {
+                if (headOut && *headOut == std::numeric_limits<size_t>::max() && headFrom >= i && headFrom < j &&
+                    k >= vo[headFrom - i])
+                    *headOut = out.size();
+                Track t = t0;
+                t.a = q[k];
+                t.b = q[k + 1];
+                out.push_back(t);
+            }
+            i = j;
+        }
+        if (headOut && *headOut == std::numeric_limits<size_t>::max()) *headOut = out.size();
+        return out;
+    }
+
     /// Lays the head lines into `w` as fixed copper and makes room for them (shove) or checks them (walkaround).
     bool placeHead(World& w, const std::vector<HeadLine>& lines, bool shove, std::string& why) const {
         const std::vector<size_t> added = addHeadLines(w, lines);
@@ -2911,7 +3006,10 @@ struct InteractiveRouter::Impl {
                 routeTracks.push_back(t);
         } else {
             for (const auto& m : members)
-                for (const Track& t : mergeCollinear(m.placed)) routeTracks.push_back(t);
+                for (const Track& t : mergeCollinear(kind == Kind::Route && cornerRadius() > 0
+                                                         ? roundRoute(m.placed, m.placed.size(), committed, nullptr)
+                                                         : m.placed))
+                    routeTracks.push_back(t);
         }
         // Route pieces that run exactly over copper the net already has add nothing.
         std::vector<Track> kept;
@@ -3019,6 +3117,17 @@ struct InteractiveRouter::Impl {
         for (const auto& m : members) {
             p.placed.insert(p.placed.end(), m.placed.begin(), m.placed.end());
             for (const Track& t : toTracks(m.head, m.net, layer, width)) p.head.push_back(t);
+        }
+        if (kind == Kind::Route && cornerRadius() > 0 && !members.empty()) {
+            // Show the corners as they will be written: the whole route rounded, split where the head begins.
+            std::vector<Track> all = p.placed;
+            const size_t headFrom = all.size();
+            all.insert(all.end(), p.head.begin(), p.head.end());
+            size_t h = 0;
+            const std::vector<Track> round = roundRoute(all, headFrom, current, &h);
+            h = std::min(h, round.size());
+            p.placed.assign(round.begin(), round.begin() + static_cast<long>(h));
+            p.head.assign(round.begin() + static_cast<long>(h), round.end());
         }
         if (kind == Kind::Pair)
             p.end = centreHead.size() >= 2 ? centreHead.back() : centre;
@@ -3333,6 +3442,7 @@ RouterOptions routerOptionsFromJson(const Json& j, RouterOptions o) {
     if (vt == "blind") o.viaType = RouterViaType::Blind;
     if (vt == "micro") o.viaType = RouterViaType::Micro;
     if (vt == "auto") o.viaType = RouterViaType::Auto;
+    if (j.has("cornerRadius")) o.cornerRadius = j.get("cornerRadius").asNumber(o.cornerRadius);
     if (j.has("shoveLimit")) o.shoveLimit = std::clamp(j.get("shoveLimit").asInt(o.shoveLimit), 1, 10000);
     return o;
 }

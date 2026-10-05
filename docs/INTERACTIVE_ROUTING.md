@@ -40,6 +40,7 @@ The options bar shows the router settings while the Route tool is active:
   and a vertical segment.
 - **Differential pair**: the next route starts as a pair (see [Differential pairs](#differential-pairs)).
 - **Via type**: Through, Blind / buried, Microvia or Auto (see [Vias and HDI](#vias-and-hdi)).
+- **Rounded corners**: corners become arcs (see [Rounded corners](#rounded-corners)).
 
 The banner at the top of the canvas shows what the router is doing, the route length so far, and why the head stopped
 if it is blocked. A blocked head is outlined in amber.
@@ -103,6 +104,20 @@ that would break a connection is refused.
 Committing a route therefore adds no DRC error and no clearance warning. The tests run the DRC after every commit to
 check this. The DRC can still report an unrouted connection if you finish a route in free space. A track that ends
 in free space is reported as a dangling track.
+
+## Rounded corners
+
+With **Rounded corners** set, every corner of a single-track route becomes an arc. The radius is 4 × the track width
+(at least 0.5 mm; `cornerRadius` in the options sets it in mm). An arc may use up to half of each neighbouring segment
+(all of an end segment); on short segments the radius shrinks. The arc is cut into straight chords of at most 15°
+(a 45° corner gets 3, a 90° corner 6), so each join turns by 15° or less. Every arc is checked for clearance against
+the board as shoved; where it does not fit, the radius is halved once, and otherwise that corner stays sharp. The
+preview shows the corners as they will be written.
+
+SiEDA's data model has no arc track primitive, so the arcs are chords, not true arcs. This was chosen on purpose: a
+new arc segment type would have to be carried through the DRC, Gerber and drill export, the 3D view, length
+calculation and the autorouter in one go. Chords keep all of these exact (lengths are the chord lengths, which for
+15° chords differ from the true arc by under 0.3 %). Differential pairs keep 45° / 90° corners.
 
 ## Vias and HDI
 
@@ -223,7 +238,7 @@ All functions are in `sieda_c.h`. Each project has one route session.
 | `sieda_pcb_lock_track`, `sieda_pcb_remove_track`, `sieda_pcb_remove_via` | Track editing |
 
 Options JSON: `{"mode":"shove"|"walkaround"|"highlight", "posture":"45"|"90"|"free", "swapPosture":bool, "width":mm,
-"pairGap":mm, "snap":bool, "viaType":"through"|"blind"|"micro"|"auto"}`. Fields that are left out keep their value.
+"pairGap":mm, "snap":bool, "viaType":"through"|"blind"|"micro"|"auto", "cornerRadius":mm (0 sharp, < 0 auto)}`. Fields that are left out keep their value.
 
 Preview JSON: `active`, `kind` (`route` / `pair` / `drag` / `via`), `status`, `blocked`, `reachedTarget`, `nets`,
 `layer`, `width`, `gap`, `endX`, `endY`, `length`, `netLength`, `targetLength`, `placed`, `head`, `vias`,
@@ -259,7 +274,9 @@ never fails because of an old DRC problem elsewhere, and it never creates a new 
 
 ## Limits
 
-- Arcs are not supported. Corners are 45° or 90°, or free-angle with posture `free` (core and C API only).
+- Rounded corners are chords of at most 15°, not true arcs (no arc primitive in the data model), and only on
+  single-track routes; pairs, drags and shoved copper keep 45° / 90° corners. Free-angle routing is posture `free`
+  (core and C API only).
 - The shove engine moves tracks and vias, not footprints.
 - Shoving a meandered (length-tuned) track can flatten part of the meander. Run length tuning again afterwards.
 - Highlight mode lets you commit copper that violates the rules (the DRC reports it); the other modes never do.
@@ -302,6 +319,7 @@ Core (`Core/tests/core_tests.cpp`):
 | `router_shoved_copper_adds_no_drc_warning` | 160 routes, segment drags and via drags with shove on four autorouted boards (2 and 4 layers): no commit adds a DRC error, a clearance warning or an acute-angle warning (before the optimiser, 15 of 160 commits added acute corners). |
 | `router_shoves_lines_around_hole_keepouts` | A shoved line walks round a mounting-hole keep-out instead of stopping the head. |
 | `router_places_blind_buried_and_micro_vias` | Microvia, buried microvia, blind and through vias on a 4-layer HDI board with the asked spans and sizes; a microvia refuses a non-neighbouring layer; Auto and the no-HDI cases. |
+| `router_rounds_corners` | 45° corners become chord arcs (every join ≥ 165°), written exactly as previewed and DRC clean; a via inside a corner keeps that corner sharp. |
 | `router_highlights_collisions` | Highlight mode lists the three lanes a straight head crosses, moves nothing, and commits as asked. |
 | `router_keeps_an_autorouted_board_drc_clean` | 30 pseudo-random routes and drags with shove on an autorouted board, with DRC after every commit. |
 | `c_api_router` | The C API end to end (`Core/tests/c_api_test.c`). |
