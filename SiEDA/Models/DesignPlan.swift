@@ -956,7 +956,7 @@ enum DesignPlanCompiler {
             return nil
         }
         let wanted: [(unit: PlannedUnit, index: Int)] = units.compactMap { u in
-            symbols.firstIndex { $0.name == u.unit }.map { (u, $0 + 1) }
+            symbols.firstIndex { $0.name == u.unit }.map { (unit: u, index: $0 + 1) }
         }
         guard !wanted.isEmpty else { return nil }
         func activate(_ u: PlannedUnit) {

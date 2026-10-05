@@ -3,7 +3,9 @@
 This guide covers the large-design features of schematic capture: multi-sheet and hierarchical schematics, label
 scopes, sheet symbols, repeated (multi-instance) sheets, the cross-sheet electrical rule checks, graphical buses,
 multi-unit parts, designator annotation, assembly variants (BOM, assembly and simulation), find / replace, the net
-navigator and the title block. Core code: `Core/src/Sheets.cpp` (sheets, hierarchy, bus labels, annotation,
+navigator and the title block; nested repeated sheets and per-channel values, signal harnesses, schematic directives
+(net classes and differential pairs as the source of the PCB rules), and the editing tools (arrange, smart paste,
+cross-probing, back-annotation, messages, sheet templates and PDF). Core code: `Core/src/Sheets.cpp` (sheets, hierarchy, bus labels, annotation,
 cross-sheet ERC), `Core/src/Instances.cpp` (repeated sheets), `Core/src/Buses.cpp` (graphical buses),
 `Core/src/PartUnits.cpp` (multi-unit parts), `Core/src/SchematicSearch.cpp` (find / replace, net navigator),
 `Core/src/Schematic.cpp` (connectivity and net naming), `Core/src/Variants.cpp` and `Project.cpp` (variants,
@@ -476,3 +478,16 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
   hand-drawn layout of its own. Gate swap works between units on one sheet. Unit packing re-assigns only interchangeable gates.
   A new multi-unit part an agent adds without `units` is drawn as one symbol.
 - Find & Replace edits values and net label names only; designators are changed by annotation.
+- Harnesses are name based: a harness connector is a harness label plus entry labels (no drawn connector body or
+  harness wire); harness types are flat (no nested harnesses inside harnesses). Harness labels are not shown on the
+  PCB (their members are ordinary nets).
+- Directives sit on pins (labels, part pins); per-net clearance is honoured by the autorouter and DRC, but the
+  interactive router keeps the board clearance and its differential-pair gap comes from the impedance target, not
+  from the net class. There is no "No ERC" marker (use ERC error reporting per rule, or no-connect flags on pins).
+- Align / distribute uses the parts' origins (not their symbol outlines). Paste places parts on the shown sheet; a
+  pasted gate becomes a part of its own.
+- Back-annotation reads designator renames, pin swaps and gate swaps (board re-annotation or a WAS / IS text); the PCB
+  editor itself has no pin- or gate-swap tool yet, and repeated-sheet parts are not renamed from the board.
+- The PDF is drawn by the core with simplified symbols and base-14 fonts (ASCII text); sheet templates frame the
+  drawing (centred on it on the canvas) rather than fixing an origin.
+- Copy / paste does not carry buses, directives or variant settings.
