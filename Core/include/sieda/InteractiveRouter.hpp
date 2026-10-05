@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "sieda/Json.hpp"
+#include "sieda/LengthRules.hpp"
 #include "sieda/Pcb.hpp"
 #include "sieda/Schematic.hpp"
 
@@ -190,7 +191,19 @@ struct LengthTuneResult {
     std::vector<Track> addedTracks;
     std::vector<int> removedTracks;
     bool applied = false;  // the board was changed (false for a preview)
+    /// Where the target came from: "typed", "partner", "rule:<net>", "group:<name>" ("" for the classic path).
+    std::string targetSource;
+    /// The nets measured (the xSignal through series parts; empty for the classic path).
+    std::vector<int> xsignalNets;
+    bool coupled = false;
+    int partnerNet = -1;
 };
+
+/// Meander pattern of the length tuning tool: accordion (rectangular bumps), trombone (one bump as wide as the span)
+/// or sawtooth (triangular teeth, never sharper than 90°).
+enum class MeanderStyle { Accordion, Trombone, Sawtooth };
+/// Corners of the meander: square, mitered (45° chamfers) or round (true arcs).
+enum class MeanderCorner { Square, Mitered, Round };
 
 struct LengthTuneOptions {
     /// Target length (mm); <= 0 tunes to the longest member of the net's matched-length group (pair or bus).
@@ -205,6 +218,17 @@ struct LengthTuneOptions {
     Vec2 near;
     /// False: compute the result and its copper (addedTracks / removedTracks) without changing the board.
     bool apply = true;
+    MeanderStyle style = MeanderStyle::Accordion;
+    MeanderCorner corner = MeanderCorner::Square;
+    /// Drag-along: the meanders go only between the points of the selected track nearest to spanFrom and spanTo.
+    bool hasSpan = false;
+    Vec2 spanFrom, spanTo;
+    /// Differential pair: both members are tuned together (the pattern on the pair's centre line, the members at
+    /// their gap), on the stretch where the selected track and its partner's track run side by side.
+    bool coupled = false;
+    /// Skew (phase) tuning of one pair member to its partner's length: small bumps on the side away from the
+    /// partner (height 2 × width unless maxAmplitude is given).
+    bool phase = false;
 };
 
 /// Interactive length tuning: lengthens the net of track `trackId` to `target` mm with accordion meanders, on that
@@ -218,7 +242,9 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
 /// {"ok","message","net","group","groupKind","tolerance","before","after","target","applied",
 ///  "addedTracks":[track],"removedTracks":[id],"changes":{…}}
 Json lengthTuneJson(const LengthTuneResult& r);
-/// Options from {"target","maxAmplitude","spacing","x","y","apply"} (x and y together set the near point).
+/// Options from {"target","maxAmplitude","spacing","x","y","apply","style":"accordion|trombone|sawtooth",
+/// "corner":"square|mitered|round","fromX","fromY","toX","toY" (drag-along span),"coupled","phase"} (x and y
+/// together set the near point).
 LengthTuneOptions lengthTuneOptionsFromJson(const Json& j);
 
 struct FanoutOptions {

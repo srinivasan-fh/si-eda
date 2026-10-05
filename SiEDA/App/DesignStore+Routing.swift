@@ -30,6 +30,25 @@ extension DesignStore {
         selectedTracks.isEmpty ? snapshot.tracks.map(\.id) : Array(selectedTracks).sorted()
     }
 
+    /// Sets (target > 0) or removes a net's length rule (target ± tolerance mm, pad to pad). Undoable.
+    func setLengthRule(net: String, target: Double, tolerance: Double) {
+        guard !net.isEmpty, target.isFinite, tolerance.isFinite else { return }
+        perform(target > 0 ? "Set length rule" : "Removed length rule", invalidatesAnalysis: false) {
+            _ = $0.setLengthRule(net: net, target: max(0, target), tolerance: max(0, tolerance))
+        }
+        if tuneSession != nil { setTuneTarget(tuneSession?.target ?? 0) }
+    }
+
+    /// Sets or (fewer than two nets) removes a match group. Undoable.
+    func setMatchGroup(name: String, nets: [String], tolerance: Double) {
+        let name = name.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty, tolerance.isFinite else { return }
+        perform(nets.count >= 2 ? "Set match group" : "Removed match group", invalidatesAnalysis: false) {
+            _ = $0.setMatchGroup(name: name, nets: nets, tolerance: max(0, tolerance))
+        }
+        if tuneSession != nil { setTuneTarget(tuneSession?.target ?? 0) }
+    }
+
     /// Converts the corners between the selected tracks (all tracks when none is selected) to true arcs.
     func convertCornersToArcs() {
         let tracks = commandTracks

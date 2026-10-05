@@ -99,6 +99,30 @@ Json boardJson(const BoardSettings& s) {
     Json widths = Json::object();
     for (const auto& [net, w] : s.netWidths) widths[net] = w;
     b["netWidths"] = widths;
+    if (!s.lengthRules.empty()) {
+        Json rules = Json::array();
+        for (const auto& r : s.lengthRules) {
+            Json j = Json::object();
+            j["net"] = r.net;
+            j["target"] = r.target;
+            j["tolerance"] = r.tolerance;
+            rules.push(j);
+        }
+        b["lengthRules"] = rules;
+    }
+    if (!s.matchGroups.empty()) {
+        Json groups = Json::array();
+        for (const auto& g : s.matchGroups) {
+            Json j = Json::object();
+            j["name"] = g.name;
+            j["tolerance"] = g.tolerance;
+            Json nets = Json::array();
+            for (const auto& n : g.nets) nets.push(n);
+            j["nets"] = nets;
+            groups.push(j);
+        }
+        b["matchGroups"] = groups;
+    }
     b["autoSizeNets"] = s.autoSizeNets;
     Json outline = Json::array();
     for (const auto& v : s.outline) outline.push(vec(v));
@@ -544,6 +568,21 @@ Project Project::fromJson(const Json& root) {
     if (widths.isObject())
         for (const auto& [net, w] : widths.fields())
             if (w.asNumber(0) > 0) s.netWidths[net] = w.asNumber(0);
+    for (const auto& j : b.get("lengthRules").items()) {
+        LengthRule r;
+        r.net = j.get("net").asString("");
+        r.target = j.get("target").asNumber(0);
+        r.tolerance = std::clamp(j.get("tolerance").asNumber(0.1), 0.0, 100.0);
+        if (!r.net.empty() && r.target > 0 && std::isfinite(r.target)) s.lengthRules.push_back(r);
+    }
+    for (const auto& j : b.get("matchGroups").items()) {
+        MatchGroup g;
+        g.name = j.get("name").asString("");
+        g.tolerance = std::clamp(j.get("tolerance").asNumber(0.1), 0.0, 100.0);
+        for (const auto& n : j.get("nets").items())
+            if (n.isString() && !n.asString().empty()) g.nets.push_back(n.asString());
+        if (!g.name.empty() && g.nets.size() >= 2) s.matchGroups.push_back(g);
+    }
     s.maxTempRise = std::max(1.0, b.get("maxTempRise").asNumber(s.maxTempRise));
     s.autoSizeNets = b.get("autoSizeNets").asBool(true);
     {

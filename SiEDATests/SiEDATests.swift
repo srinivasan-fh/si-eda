@@ -5994,3 +5994,74 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertEqual(store.snapshot.tracks.count, before)
     }
 }
+
+/// Length tuning parity (docs/INTERACTIVE_ROUTING.md, Length tuning): patterns and corner shapes, drag-along tuning,
+/// length rules and match groups from the store, each an undo step.
+@MainActor
+final class LengthTuningParityTests: XCTestCase {
+    private func routedStore() throws -> (DesignStore, SnapTrack) {
+        let store = DesignStore()
+        let engine = store.engine
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        engine.moveFootprint(r1, to: CGPoint(x: 10, y: 20))
+        engine.moveFootprint(r2, to: CGPoint(x: 40, y: 20))
+        let options = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+        XCTAssertNil(engine.routerBegin(at: CGPoint(x: 10.95, y: 20), layer: 0, pair: false, options: options)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 39.05, y: 20))
+        XCTAssertTrue(engine.routerCommit().ok)
+        store.refresh()
+        return (store, try XCTUnwrap(store.snapshot.tracks.first))
+    }
+
+    func testPatternsCornersAndDragAlong() throws {
+        let (store, track) = try routedStore()
+        store.tuneStyle = .sawtooth
+        store.tuneCorner = .round
+        store.beginTune(track: track.id, at: CGPoint(x: 15, y: 20))
+        store.setTuneTarget(track.length + 2)
+        let preview = try XCTUnwrap(store.tuneSession?.preview)
+        XCTAssertTrue(preview.ok)
+        XCTAssertEqual(preview.targetSource, "typed")
+        XCTAssertEqual(preview.after, track.length + 2, accuracy: 0.01)
+        // Drag along: the meanders stay between the press and the pointer.
+        store.dragTune(to: CGPoint(x: 30, y: 20))
+        let span = try XCTUnwrap(store.tuneSession?.preview)
+        XCTAssertTrue(span.ok)
+        for t in span.addedTracks where abs(t.ay - 20) > 1e-6 || abs(t.by - 20) > 1e-6 {
+            XCTAssertGreaterThanOrEqual(min(t.ax, t.bx), 15 - 1e-6)
+            XCTAssertLessThanOrEqual(max(t.ax, t.bx), 30 + 1e-6)
+        }
+        store.applyTune()
+        XCTAssertTrue(store.snapshot.tracks.contains { $0.isArc })
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        store.undo()
+        XCTAssertFalse(store.snapshot.tracks.contains { $0.isArc })
+        XCTAssertTrue(EDAEngine.TuneRequest(target: 1, amplitude: 0, spacing: 0, near: .zero, spanEnd: CGPoint(x: 5, y: 0),
+                                            style: .trombone, corner: .mitered, coupled: true, phase: false, apply: false)
+            .json.contains("\"toX\":5.000000"))
+    }
+
+    func testLengthRulesAndMatchGroupsFromTheStore() throws {
+        let (store, track) = try routedStore()
+        let net = try XCTUnwrap(store.snapshot.nets.first { $0.index == track.net }?.name)
+        store.setLengthRule(net: net, target: track.length + 3, tolerance: 0.1)
+        var targets = store.engine.lengthTargets()
+        XCTAssertEqual(targets.rules.map(\.net), [net])
+        XCTAssertFalse(targets.rules[0].ok)
+        // The tuning tool takes the rule's target.
+        store.beginTune(track: track.id, at: CGPoint(x: 20, y: 20))
+        XCTAssertEqual(store.tuneSession?.preview?.targetSource, "rule:\(net)")
+        store.applyTune()
+        targets = store.engine.lengthTargets()
+        XCTAssertTrue(targets.rules[0].ok)
+        store.undo()  // the tuning
+        store.undo()  // the rule
+        XCTAssertTrue(store.engine.lengthTargets().rules.isEmpty)
+        store.setMatchGroup(name: "G", nets: [net, "OTHER"], tolerance: 0.2)
+        XCTAssertEqual(store.engine.lengthTargets().groups.map(\.name), ["G"])
+        store.setMatchGroup(name: "G", nets: [], tolerance: 0)
+        XCTAssertTrue(store.engine.lengthTargets().groups.isEmpty)
+    }
+}

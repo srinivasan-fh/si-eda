@@ -794,3 +794,24 @@
 /* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
 "True arcs" = "Echte Bögen";
 "True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "Echte Bögen (G02/G03 im Gerber); Paare und Busse biegen auf konzentrischen Bögen ab. Aus: kurze gerade Sehnen";
+"Accordion" = "Akkordeon";
+"Trombone" = "Posaune";
+"Sawtooth" = "Sägezahn";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "Akkordeon: rechteckige Mäander; Posaune: eine breite Schleife; Sägezahn: dreieckige Zähne";
+"Meander corners" = "Mäanderecken";
+"Square" = "Rechtwinklig";
+"Mitered" = "Abgeschrägt";
+"Round" = "Rund";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "Ecken der Mäander: rechtwinklig, 45° abgeschrägt oder rund (echte Bögen)";
+"Coupled" = "Gekoppelt";
+"Differential pair: meander both members together at their gap" = "Differenzielles Paar: beide Leitungen gemeinsam im Paarabstand mäandern";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "Skew-Abgleich eines Paarmitglieds: kleine Ausbuchtungen auf der vom Partner abgewandten Seite, bis zur Länge des Partners";
+"Length Rules" = "Längenregeln";
+"Length targets per net and match groups, measured pad to pad through series parts" = "Längenziele je Netz und Abgleichgruppen, von Pad zu Pad über Serienbauteile gemessen";
+"Remove the length rule" = "Längenregel entfernen";
+"Tolerance" = "Toleranz";
+"Match Groups" = "Abgleichgruppen";
+"Remove the match group" = "Abgleichgruppe entfernen";
+"Group name" = "Gruppenname";
+"Add Group" = "Gruppe hinzufügen";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Mitglieder: zwei oder mehr Netze wählen. Ein Netz über Serienwiderstände oder -kondensatoren wird von Pad zu Pad über sie hinweg gemessen.";

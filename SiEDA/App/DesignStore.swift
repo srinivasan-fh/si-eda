@@ -1723,12 +1723,27 @@ final class DesignStore: ObservableObject {
     struct TuneSession: Equatable {
         var track: Int
         var point: CGPoint
-        /// Target length (mm); 0 = the longest member of the net's pair / bus group.
+        /// Target length (mm); 0 = the length rule, match group, or the longest member of the net's pair / bus.
         var target: Double
         var preview: TunePreview?
+        /// Drag-along: the meanders go between `point` and this point of the track (nil: anywhere on the net).
+        var spanEnd: CGPoint?
     }
 
     @Published private(set) var tuneSession: TuneSession?
+    /// Meander pattern and corner shape, coupled pair tuning and phase (skew) bumps.
+    @Published var tuneStyle: MeanderStyleChoice = .accordion {
+        didSet { if tuneStyle != oldValue { updateTunePreview() } }
+    }
+    @Published var tuneCorner: MeanderCornerChoice = .square {
+        didSet { if tuneCorner != oldValue { updateTunePreview() } }
+    }
+    @Published var tuneCoupled = false {
+        didSet { if tuneCoupled != oldValue { updateTunePreview() } }
+    }
+    @Published var tunePhase = false {
+        didSet { if tunePhase != oldValue { updateTunePreview() } }
+    }
     /// Meander height limit and leg spacing (edge to edge) in mm; 0 = the core's defaults.
     @Published var tuneAmplitude = 0.0 {
         didSet { if tuneAmplitude != oldValue { updateTunePreview() } }
@@ -1741,7 +1756,7 @@ final class DesignStore: ObservableObject {
     func beginTune(track trackId: Int, at point: CGPoint) {
         guard !isBusy else { return }
         if routePreview != nil { cancelRoute() }
-        tuneSession = TuneSession(track: trackId, point: point, target: 0, preview: nil)
+        tuneSession = TuneSession(track: trackId, point: point, target: 0, preview: nil, spanEnd: nil)
         updateTunePreview()
         // A net outside any pair / bus group has nothing to match: start from its length plus 1 mm.
         if let preview = tuneSession?.preview, !preview.ok, preview.group.isEmpty {
@@ -1757,10 +1772,22 @@ final class DesignStore: ObservableObject {
         updateTunePreview()
     }
 
+    /// Drag-along tuning: the meanders' stretch follows the pointer along the track (Tune tool drag).
+    func dragTune(to point: CGPoint) {
+        guard tuneSession != nil, point.x.isFinite, point.y.isFinite else { return }
+        tuneSession?.spanEnd = point
+        updateTunePreview()
+    }
+
+    private func tuneRequest(_ session: TuneSession, apply: Bool) -> EDAEngine.TuneRequest {
+        EDAEngine.TuneRequest(target: session.target, amplitude: tuneAmplitude, spacing: tuneSpacing, near: session.point,
+                              spanEnd: session.spanEnd, style: tuneStyle, corner: tuneCorner, coupled: tuneCoupled,
+                              phase: tunePhase, apply: apply)
+    }
+
     private func updateTunePreview() {
         guard let session = tuneSession, !isBusy else { return }
-        let preview = engine.routerTune(track: session.track, target: session.target, amplitude: tuneAmplitude,
-                                        spacing: tuneSpacing, near: session.point, apply: false)
+        let preview = engine.routerTune(track: session.track, request: tuneRequest(session, apply: false))
         tuneSession?.preview = preview
         statusMessage = preview?.message ?? "Tune: no reply from the core"
     }
@@ -1770,8 +1797,7 @@ final class DesignStore: ObservableObject {
         guard let session = tuneSession else { return }
         var result: TunePreview?
         let done = performChecked("Tuned length", invalidatesAnalysis: false, failureMessage: "Length not changed") {
-            result = $0.routerTune(track: session.track, target: session.target, amplitude: tuneAmplitude,
-                                   spacing: tuneSpacing, near: session.point, apply: true)
+            result = $0.routerTune(track: session.track, request: tuneRequest(session, apply: true))
             return result?.applied == true
         }
         tuneSession = nil

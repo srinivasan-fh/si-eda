@@ -13,6 +13,49 @@ struct ArcCornersResult: Decodable, Equatable {
     var removedTracks: [Int]
 }
 
+/// Meander pattern of the length tuning tool (`sieda_router_tune` "style").
+enum MeanderStyleChoice: String, CaseIterable, Identifiable {
+    case accordion, trombone, sawtooth
+    var id: String { rawValue }
+}
+
+/// Meander corner shape ("corner"): square, 45° mitered or round (true arcs).
+enum MeanderCornerChoice: String, CaseIterable, Identifiable {
+    case square, mitered, round
+    var id: String { rawValue }
+}
+
+/// Length rules, match groups and their members' current lengths (`sieda_length_targets_json`).
+struct LengthTargets: Decodable, Equatable {
+    struct Rule: Decodable, Equatable, Identifiable {
+        var net: String
+        var target: Double
+        var tolerance: Double
+        var length: Double
+        var ok: Bool
+        var routed: Bool
+        var id: String { net }
+    }
+    struct Member: Decodable, Equatable, Identifiable {
+        var net: String
+        var xsignal: [String]
+        var length: Double
+        var ok: Bool
+        var routed: Bool
+        var id: String { net }
+    }
+    struct Group: Decodable, Equatable, Identifiable {
+        var name: String
+        var tolerance: Double
+        var target: Double
+        var members: [Member]
+        var id: String { name }
+    }
+    var rules: [Rule]
+    var groups: [Group]
+    static let empty = LengthTargets(rules: [], groups: [])
+}
+
 /// Interactive-routing additions of the core (docs/INTERACTIVE_ROUTING.md): router options with true arcs,
 /// corner-to-arc conversion and the other routing commands.
 extension EDAEngine {
@@ -25,6 +68,61 @@ extension EDAEngine {
     }
 
     static func idList(_ ids: [Int]) -> String { "[" + ids.map(String.init).joined(separator: ",") + "]" }
+
+    /// Everything the Tune Length tool asks for: target (0 = rule / group / pair), meander height and spacing (0 =
+    /// defaults), the click point (meanders go near it), the drag-along end, pattern, corners, coupled, phase.
+    struct TuneRequest: Equatable {
+        var target: Double
+        var amplitude: Double
+        var spacing: Double
+        var near: CGPoint?
+        var spanEnd: CGPoint?
+        var style: MeanderStyleChoice
+        var corner: MeanderCornerChoice
+        var coupled: Bool
+        var phase: Bool
+        var apply: Bool
+
+        var json: String {
+            var fields = [String(format: "\"target\":%.6f", max(0, target)),
+                          String(format: "\"maxAmplitude\":%.6f", max(0, amplitude)),
+                          String(format: "\"spacing\":%.6f", max(0, spacing)),
+                          "\"apply\":\(apply)", "\"style\":\"\(style.rawValue)\"", "\"corner\":\"\(corner.rawValue)\"",
+                          "\"coupled\":\(coupled)", "\"phase\":\(phase)"]
+            if let near, near.x.isFinite, near.y.isFinite {
+                fields.append(String(format: "\"x\":%.6f,\"y\":%.6f", Double(near.x), Double(near.y)))
+                if let end = spanEnd, end.x.isFinite, end.y.isFinite, hypot(end.x - near.x, end.y - near.y) > 0.05 {
+                    fields.append(String(format: "\"fromX\":%.6f,\"fromY\":%.6f,\"toX\":%.6f,\"toY\":%.6f",
+                                         Double(near.x), Double(near.y), Double(end.x), Double(end.y)))
+                }
+            }
+            return "{" + fields.joined(separator: ",") + "}"
+        }
+    }
+
+    /// Length tuning of the net of `trackId` with every option: a preview (`apply` false) or the change itself.
+    func routerTune(track trackId: Int, request: TuneRequest) -> TunePreview? {
+        let options = request.json
+        return Self.decode(TunePreview.self, from: withHandle { Self.take(sieda_router_tune($0, Int32(trackId), options)) })
+    }
+
+    /// Length rule of a net (target ± tolerance mm, pad to pad through series parts); target 0 removes it.
+    @discardableResult
+    func setLengthRule(net: String, target: Double, tolerance: Double) -> Bool {
+        withHandle { sieda_pcb_set_length_rule($0, net, target, tolerance) } == 1
+    }
+
+    /// Match group: these nets' xSignal lengths match the longest within `tolerance`; fewer than two nets removes it.
+    @discardableResult
+    func setMatchGroup(name: String, nets: [String], tolerance: Double) -> Bool {
+        guard let body = try? JSONSerialization.data(withJSONObject: ["name": name, "nets": nets, "tolerance": tolerance])
+        else { return false }
+        return withHandle { sieda_pcb_set_match_group($0, String(decoding: body, as: UTF8.self)) } == 1
+    }
+
+    func lengthTargets() -> LengthTargets {
+        Self.decode(LengthTargets.self, from: withHandle { Self.take(sieda_length_targets_json($0)) }) ?? .empty
+    }
 
     /// Converts the corners between the given tracks to true arcs (radius 0 = automatic); `apply` false previews.
     func arcCorners(tracks: [Int], radius: Double = 0, apply: Bool = true) -> ArcCornersResult? {

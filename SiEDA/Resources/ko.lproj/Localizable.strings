@@ -794,3 +794,24 @@
 /* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
 "True arcs" = "실제 원호";
 "True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "실제 원호(Gerber의 G02/G03), 차동 쌍과 버스는 동심 원호로 꺾입니다. 끄면: 짧은 직선 현";
+"Accordion" = "아코디언";
+"Trombone" = "트롬본";
+"Sawtooth" = "톱니";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "아코디언: 사각형 미앤더, 트롬본: 넓은 루프 하나, 톱니: 삼각형 톱니";
+"Meander corners" = "미앤더 모서리";
+"Square" = "직각";
+"Mitered" = "모따기";
+"Round" = "둥글게";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "미앤더의 모서리: 직각, 45° 모따기 또는 둥글게(실제 원호)";
+"Coupled" = "결합";
+"Differential pair: meander both members together at their gap" = "차동 쌍: 두 선을 간격을 유지하며 함께 미앤더";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "쌍 멤버의 스큐 조정: 상대 선 반대쪽에 작은 돌기를 넣어 상대 길이에 맞춤";
+"Length Rules" = "길이 규칙";
+"Length targets per net and match groups, measured pad to pad through series parts" = "네트별 길이 목표와 매치 그룹, 직렬 부품을 거쳐 패드에서 패드까지 측정";
+"Remove the length rule" = "길이 규칙 제거";
+"Tolerance" = "허용 오차";
+"Match Groups" = "매치 그룹";
+"Remove the match group" = "매치 그룹 제거";
+"Group name" = "그룹 이름";
+"Add Group" = "그룹 추가";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "멤버: 네트를 두 개 이상 고르세요. 직렬 저항이나 커패시터를 지나는 네트는 그것들을 건너 패드에서 패드까지 측정합니다.";

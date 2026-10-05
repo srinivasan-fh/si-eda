@@ -919,3 +919,59 @@ int sieda_c_api_arc_test(void) {
     }
     return 0;
 }
+
+/* Length rules and the new tuning options through the C API: a rule on a labelled net, the targets JSON, a
+ * trombone with round corners tuned to the rule, match groups, bad input. */
+int sieda_c_api_length_test(void) {
+    SiedaProject* p = sieda_project_new("C API length");
+    if (!p) return 1;
+    int32_t r1 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 0, 0, NULL);
+    int32_t r2 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 0, 0, NULL);
+    int32_t label = sieda_add_component(p, 15 /* NetLabel */, "SIG", 50, -40, 0, NULL);
+    if (r1 < 0 || r2 < 0 || label < 0) return 2;
+    if (sieda_connect(p, r1, 1, r2, 0) < 0 || sieda_connect(p, label, 0, r1, 1) < 0) return 3;
+    if (!sieda_pcb_move_footprint(p, r1, 10, 20) || !sieda_pcb_move_footprint(p, r2, 40, 20)) return 4;
+    char* s = sieda_router_begin(p, NULL, 10.95, 20, 0);
+    if (!s || strstr(s, "\"error\"")) return 5;
+    sieda_string_free(s);
+    s = sieda_router_move(p, 39.05, 20);
+    sieda_string_free(s);
+    s = sieda_router_commit(p);
+    if (!s || !strstr(s, "\"ok\":true")) return 6;
+    sieda_string_free(s);
+    char* snap = sieda_project_snapshot(p);
+    const char* tracksAt = snap ? strstr(snap, "\"tracks\":[{") : NULL;
+    const char* idAt = tracksAt ? strstr(tracksAt, "\"id\":") : NULL;
+    if (!idAt) return 7;
+    int32_t track = 0;
+    for (const char* c = idAt + 5; *c >= '0' && *c <= '9'; ++c) track = track * 10 + (*c - '0');
+    sieda_string_free(snap);
+
+    if (sieda_pcb_set_length_rule(p, "SIG", 35, 0.1) != 1) return 8;
+    char* targets = sieda_length_targets_json(p);
+    if (!targets || !strstr(targets, "\"net\":\"SIG\"") || !strstr(targets, "\"ok\":false")) return 9;
+    sieda_string_free(targets);
+    char* tune = sieda_router_tune(p, track, "{\"style\":\"trombone\",\"corner\":\"round\",\"maxAmplitude\":4,\"apply\":true}");
+    if (!tune || !strstr(tune, "\"ok\":true") || !strstr(tune, "\"targetSource\":\"rule:SIG\"")) return 10;
+    sieda_string_free(tune);
+    targets = sieda_length_targets_json(p);
+    if (!targets || !strstr(targets, "\"ok\":true")) return 11;
+    sieda_string_free(targets);
+    char* drc = sieda_pcb_run_drc(p);
+    if (!drc || strstr(drc, "DRC_LENGTH")) return 12;
+    sieda_string_free(drc);
+
+    if (sieda_pcb_set_match_group(p, "{\"name\":\"G\",\"nets\":[\"SIG\",\"OTHER\"],\"tolerance\":0.2}") != 1) return 13;
+    targets = sieda_length_targets_json(p);
+    if (!targets || !strstr(targets, "\"name\":\"G\"")) return 14;
+    sieda_string_free(targets);
+    if (sieda_pcb_set_match_group(p, "{\"name\":\"G\",\"nets\":[]}") != 1) return 15;  /* removed */
+    if (sieda_pcb_set_match_group(p, "{not json") != 0 || sieda_pcb_set_match_group(p, "{\"nets\":[]}") != 0) return 16;
+    if (sieda_pcb_set_length_rule(p, "SIG", 0, 0) != 1) return 17;  /* removed */
+    targets = sieda_length_targets_json(p);
+    if (!targets || strcmp(targets, "{\"groups\":[],\"rules\":[]}") != 0) return 18;
+    sieda_string_free(targets);
+    if (sieda_pcb_set_length_rule(NULL, "SIG", 1, 1) != 0 || sieda_length_targets_json(NULL) != NULL) return 19;
+    sieda_project_free(p);
+    return 0;
+}

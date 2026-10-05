@@ -3,6 +3,7 @@
 #include "sieda/Embedded.hpp"
 #include "sieda/Isolation.hpp"
 #include "sieda/LengthMatch.hpp"
+#include "sieda/LengthRules.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Stackup.hpp"
 
@@ -4448,6 +4449,10 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                 break;
             }
     }
+
+    // Length rules and match groups (only when the board has any).
+    if (!settings.lengthRules.empty() || !settings.matchGroups.empty())
+        for (auto& v : lengthRuleViolations(*this, sch)) out.push_back(std::move(v));
 
     // Connectivity.
     auto lines = ratsnest(sch);

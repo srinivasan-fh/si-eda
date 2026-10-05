@@ -35,6 +35,7 @@
 		2F37DBCC1B97825D126178A5 = {isa = PBXBuildFile; fileRef = E0E3155DFC35436C47F59BCE; };
 		37BD21DBF119615DF2A75BF7 = {isa = PBXBuildFile; fileRef = 6AAB6F1355AA4B30013134F8; };
 		38C7757A6EC0C2A1C2BDA96E = {isa = PBXBuildFile; fileRef = 88C2002B0D092ECD340FA1F5; };
+		39E82F038A0777A2DD3C329A = {isa = PBXBuildFile; fileRef = 27476DDBA2D0F9C1BF663B95; };
 		3D5D45FB5BEA3347870ADE14 = {isa = PBXBuildFile; fileRef = 3B8AAF03382758779EE08604; };
 		3ED20566BE159D1479B983DC = {isa = PBXBuildFile; fileRef = 12BA3643F29BE4C857019229; };
 		42ADAA8558FC86569362C286 = {isa = PBXBuildFile; fileRef = D2F5295A4BC6459A2A847173; };
@@ -45,6 +46,7 @@
 		48FB3527518FE55EE06380A1 = {isa = PBXBuildFile; fileRef = FD0349E3F008C96C569E5F1F; };
 		490492F5B0B030AB5D57C454 = {isa = PBXBuildFile; fileRef = 0CF3E02226CCD062D60E465B; };
 		49D121232DDFBC0445D83F9B = {isa = PBXBuildFile; fileRef = 9B780D9F59521D3BDF902353; };
+		49FFCD9ED7D39BDF262448B3 = {isa = PBXBuildFile; fileRef = A4F49264D60406CCCE1EA9A8; };
 		4B8107A57118B84C609B7113 = {isa = PBXBuildFile; fileRef = 54E109672561428616FE3D2D; };
 		4F54772D2F67B6B122050EB5 = {isa = PBXBuildFile; fileRef = 754F9843AC5AAB513A6742B2; };
 		4FC0095A92FE567B91899350 = {isa = PBXBuildFile; fileRef = B2A9F5BB531C867B7C400084; };
@@ -184,6 +186,7 @@
 		18727F0EE2701CB46EA779A5 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = as; path = as.lproj/Localizable.strings; sourceTree = "<group>"; };
 		190FD291891208916B99A706 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignPlan.swift; sourceTree = "<group>"; };
 		19A32AB05C4FC519DD459887 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Export.cpp; sourceTree = "<group>"; };
+		1BD8153FB063FA691B4391C6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = LengthRules.hpp; sourceTree = "<group>"; };
 		1CACA716AE8E02FF5628D6DE = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Isolation.hpp; sourceTree = "<group>"; };
 		1DB297246101A1F77E0719A3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Library.hpp; sourceTree = "<group>"; };
 		1DC2001261854B1018467136 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Units.hpp; sourceTree = "<group>"; };
@@ -193,6 +196,7 @@
 		262682BD136933576066443E = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Instances.cpp; sourceTree = "<group>"; };
 		26947D07ECF33FE13550E88A = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Units.cpp; sourceTree = "<group>"; };
 		26FD023DF8F0B468EE302413 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Waveforms.cpp; sourceTree = "<group>"; };
+		27476DDBA2D0F9C1BF663B95 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LengthRules.cpp; sourceTree = "<group>"; };
 		27F3B185D30AF8F6453A8E28 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Reliability.hpp; sourceTree = "<group>"; };
 		2803DF6FC30693BE00F1F0FC = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimulationView.swift; sourceTree = "<group>"; };
 		281968485D39656793209D6D = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SiEDA.entitlements; sourceTree = "<group>"; };
@@ -300,6 +304,7 @@
 		A3D89B8BF0303F825673F91D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiEDATests.swift; sourceTree = "<group>"; };
 		A45E448C357B4A89C66CFE33 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectorView.swift; sourceTree = "<group>"; };
 		A4EEF06B763841210168AEB3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelView.swift; sourceTree = "<group>"; };
+		A4F49264D60406CCCE1EA9A8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LengthRulesPanel.swift; sourceTree = "<group>"; };
 		A5389408EEF183EEC611E330 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Noise.cpp; sourceTree = "<group>"; };
 		A78F3BD58AF9FE19CC35A068 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Robotics.cpp; sourceTree = "<group>"; };
 		A933E8C328957019A2A82CCD = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };
@@ -505,6 +510,7 @@
 				1CACA716AE8E02FF5628D6DE,
 				0930B17E77DDC99D62455EBA,
 				294CA3D13E83A6848CF71840,
+				1BD8153FB063FA691B4391C6,
 				1DB297246101A1F77E0719A3,
 				2203C35E66E22D99B6209035,
 				B6CD4CB57F05C06F88DEAA2C,
@@ -603,6 +609,7 @@
 				B23FD27DAD6BD2539569BEE1,
 				3B8AAF03382758779EE08604,
 				4948511C3F66BCF11536263B,
+				27476DDBA2D0F9C1BF663B95,
 				E0E3155DFC35436C47F59BCE,
 				E07F7BBC0D69042C454EADE6,
 				B3FB7A6C6435E513AE1809AC,
@@ -688,6 +695,7 @@
 			isa = PBXGroup;
 			children = (
 				28DA5CB541B843FE20EC60BA,
+				A4F49264D60406CCCE1EA9A8,
 				0B047E6B6CA14C24D4B0C2FD,
 				ADD9C234BD8825A5E6022F7A,
 			);
@@ -985,6 +993,7 @@
 				074AD328E3F9B94F0D6D5EE4,
 				55A70E104464C2281B0F9AA3,
 				BB309E505EC5272A3C86459C,
+				49FFCD9ED7D39BDF262448B3,
 				D0DE83284A0ADF3CE958D7F0,
 				9D1071AAC3C84E5B9F9D6B39,
 				22409A8BB039D0E0CC2751CF,
@@ -1031,6 +1040,7 @@
 				C352E7ADF695CB6669D52EFE,
 				3D5D45FB5BEA3347870ADE14,
 				8A31929501458CDAC3444CA1,
+				39E82F038A0777A2DD3C329A,
 				2F37DBCC1B97825D126178A5,
 				0387ADBBCD02EF68D164ABC6,
 				B578FB8A18545C46C71EC967,

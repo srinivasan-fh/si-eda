@@ -794,3 +794,24 @@
 /* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
 "True arcs" = "真圓弧";
 "True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "真圓弧（Gerber 中為 G02/G03）；差分對與匯流排以同心圓弧轉彎。關閉：短直線弦段";
+"Accordion" = "手風琴";
+"Trombone" = "長號";
+"Sawtooth" = "鋸齒";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "手風琴：矩形蛇形線；長號：一個寬迴圈；鋸齒：三角形齒";
+"Meander corners" = "蛇形線轉角";
+"Square" = "直角";
+"Mitered" = "斜切";
+"Round" = "圓角";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "蛇形線的轉角：直角、45° 斜切或圓角（真圓弧）";
+"Coupled" = "耦合";
+"Differential pair: meander both members together at their gap" = "差分對：兩條線一起以其間距做蛇形線";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "差分對成員的時滯調整：在遠離另一條線的一側加小凸起，調到另一條線的長度";
+"Length Rules" = "長度規則";
+"Length targets per net and match groups, measured pad to pad through series parts" = "每個網路的長度目標與匹配群組，從焊盤量到焊盤並穿過串聯元件";
+"Remove the length rule" = "移除長度規則";
+"Tolerance" = "公差";
+"Match Groups" = "匹配群組";
+"Remove the match group" = "移除匹配群組";
+"Group name" = "群組名稱";
+"Add Group" = "加入群組";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "成員：選擇兩個或更多網路。穿過串聯電阻或電容的網路會跨過它們從焊盤量到焊盤。";

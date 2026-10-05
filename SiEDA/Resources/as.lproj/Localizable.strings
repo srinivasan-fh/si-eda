@@ -794,3 +794,24 @@
 /* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
 "True arcs" = "প্ৰকৃত চাপ";
 "True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "প্ৰকৃত চাপ (Gerber ত G02/G03); যোৰ আৰু বাছ এককেন্দ্ৰিক চাপত ঘূৰে। বন্ধ: চুটি পোন জ্যা";
+"Accordion" = "একৰ্ডিয়ন";
+"Trombone" = "ট্ৰম্বোন";
+"Sawtooth" = "কৰতৰ দাঁত";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "একৰ্ডিয়ন: আয়তাকাৰ মিয়েণ্ডাৰ; ট্ৰম্বোন: এটা বহল লুপ; কৰতৰ দাঁত: ত্ৰিভুজাকাৰ দাঁত";
+"Meander corners" = "মিয়েণ্ডাৰৰ চুক";
+"Square" = "সমকোণ";
+"Mitered" = "হেলনীয়াকৈ কটা";
+"Round" = "ঘূৰণীয়া";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "মিয়েণ্ডাৰৰ চুক: সমকোণ, 45° হেলনীয়াকৈ কটা বা ঘূৰণীয়া (প্ৰকৃত চাপ)";
+"Coupled" = "যুগ্মিত";
+"Differential pair: meander both members together at their gap" = "ডিফাৰেন্সিয়েল যোৰ: দুয়োটা সদস্যক সিহঁতৰ ফাঁকত একেলগে মিয়েণ্ডাৰ কৰক";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "যোৰৰ সদস্যৰ স্কিউ টিউনিং: সংগীৰ পৰা আঁতৰৰ ফালে সৰু উঁচা, সংগীৰ দৈৰ্ঘ্যলৈকে";
+"Length Rules" = "দৈৰ্ঘ্যৰ নিয়ম";
+"Length targets per net and match groups, measured pad to pad through series parts" = "প্ৰতিটো নেটৰ দৈৰ্ঘ্যৰ লক্ষ্য আৰু মিল গোট, ছিৰিজ অংশৰ মাজেৰে পেডৰ পৰা পেডলৈ জোখা";
+"Remove the length rule" = "দৈৰ্ঘ্যৰ নিয়ম আঁতৰাওক";
+"Tolerance" = "সহনশীলতা";
+"Match Groups" = "মিল গোট";
+"Remove the match group" = "মিল গোট আঁতৰাওক";
+"Group name" = "গোটৰ নাম";
+"Add Group" = "গোট যোগ কৰক";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "সদস্য: দুটা বা তাতকৈ বেছি নেট বাছক। ছিৰিজ ৰেজিষ্টৰ বা কেপাচিটৰৰ মাজেৰে যোৱা নেট সেইবোৰ পাৰ হৈ পেডৰ পৰা পেডলৈ জোখা হয়।";

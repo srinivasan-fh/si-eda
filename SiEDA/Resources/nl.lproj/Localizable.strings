@@ -794,3 +794,24 @@
 /* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
 "True arcs" = "Echte bogen";
 "True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "Echte bogen (G02/G03 in Gerber); paren en bussen draaien op concentrische bogen. Uit: korte rechte koorden";
+"Accordion" = "Accordeon";
+"Trombone" = "Trombone";
+"Sawtooth" = "Zaagtand";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "Accordeon: rechthoekige meanders; Trombone: één brede lus; Zaagtand: driehoekige tanden";
+"Meander corners" = "Meanderhoeken";
+"Square" = "Haaks";
+"Mitered" = "Afgeschuind";
+"Round" = "Rond";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "Hoeken van de meanders: haaks, 45° afgeschuind of rond (echte bogen)";
+"Coupled" = "Gekoppeld";
+"Differential pair: meander both members together at their gap" = "Differentieel paar: beide leden samen meanderen op hun tussenruimte";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "Skew-afstemming van een paarlid: kleine bulten aan de kant weg van zijn partner, tot de lengte van de partner";
+"Length Rules" = "Lengteregels";
+"Length targets per net and match groups, measured pad to pad through series parts" = "Lengtedoelen per net en matchgroepen, gemeten van pad tot pad via seriecomponenten";
+"Remove the length rule" = "Lengteregel verwijderen";
+"Tolerance" = "Tolerantie";
+"Match Groups" = "Matchgroepen";
+"Remove the match group" = "Matchgroep verwijderen";
+"Group name" = "Groepsnaam";
+"Add Group" = "Groep toevoegen";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Leden: kies twee of meer netten. Een net via serieweerstanden of -condensatoren wordt van pad tot pad over ze heen gemeten.";

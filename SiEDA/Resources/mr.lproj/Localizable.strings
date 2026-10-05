@@ -794,3 +794,24 @@
 /* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
 "True arcs" = "खरे चाप";
 "True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "खरे चाप (Gerber मध्ये G02/G03); जोड्या आणि बस समकेंद्री चापांवर वळतात. बंद: लहान सरळ जीवा";
+"Accordion" = "अकॉर्डियन";
+"Trombone" = "ट्रॉम्बोन";
+"Sawtooth" = "करवतीचे दात";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "अकॉर्डियन: आयताकृती मिअँडर; ट्रॉम्बोन: एक रुंद लूप; करवतीचे दात: त्रिकोणी दात";
+"Meander corners" = "मिअँडरचे कोपरे";
+"Square" = "काटकोन";
+"Mitered" = "तिरपा कापलेला";
+"Round" = "गोलाकार";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "मिअँडरचे कोपरे: काटकोन, 45° तिरपे कापलेले किंवा गोलाकार (खरे चाप)";
+"Coupled" = "जोडलेले";
+"Differential pair: meander both members together at their gap" = "डिफरेन्शियल जोडी: दोन्ही सदस्यांना त्यांच्या अंतरावर एकत्र मिअँडर करा";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "जोडीतील सदस्याचे स्क्यू ट्यूनिंग: जोडीदारापासून दूरच्या बाजूला लहान उंचवटे, जोडीदाराच्या लांबीपर्यंत";
+"Length Rules" = "लांबीचे नियम";
+"Length targets per net and match groups, measured pad to pad through series parts" = "प्रत्येक नेटचे लांबी लक्ष्य आणि मॅच गट, मालिका भागांमधून पॅडपासून पॅडपर्यंत मोजलेले";
+"Remove the length rule" = "लांबीचा नियम काढा";
+"Tolerance" = "सहनशीलता";
+"Match Groups" = "मॅच गट";
+"Remove the match group" = "मॅच गट काढा";
+"Group name" = "गटाचे नाव";
+"Add Group" = "गट जोडा";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "सदस्य: दोन किंवा अधिक नेट निवडा. मालिका रेझिस्टर किंवा कॅपॅसिटरमधून जाणारे नेट त्यांच्या पलीकडे पॅडपासून पॅडपर्यंत मोजले जाते.";

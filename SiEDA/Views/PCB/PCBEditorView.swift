@@ -71,6 +71,7 @@ struct PCBEditorView: View {
     @State private var tuneSpacingText = ""
     @State private var showLayersPanel = true
     @State private var showBoardSetup = false
+    @State private var showLengthRules = false
 
     @State private var boardWidth = ""
     @State private var boardHeight = ""
@@ -392,6 +393,33 @@ struct PCBEditorView: View {
                 .frame(width: 44)
                 .onSubmit { store.tuneSpacing = max(0, Double(tuneSpacingText) ?? 0) }
                 .help("Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)")
+            Picker("Pattern", selection: $store.tuneStyle) {
+                Text("Accordion").tag(MeanderStyleChoice.accordion)
+                Text("Trombone").tag(MeanderStyleChoice.trombone)
+                Text("Sawtooth").tag(MeanderStyleChoice.sawtooth)
+            }
+            .pickerStyle(.menu)
+            .fixedSize()
+            .help("Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth")
+            Picker("Meander corners", selection: $store.tuneCorner) {
+                Text("Square").tag(MeanderCornerChoice.square)
+                Text("Mitered").tag(MeanderCornerChoice.mitered)
+                Text("Round").tag(MeanderCornerChoice.round)
+            }
+            .pickerStyle(.menu)
+            .fixedSize()
+            .help("Corners of the meanders: square, 45° mitered or round (true arcs)")
+            Toggle("Coupled", isOn: $store.tuneCoupled)
+                .toggleStyle(.checkbox)
+                .help("Differential pair: meander both members together at their gap")
+            Toggle("Phase", isOn: $store.tunePhase)
+                .toggleStyle(.checkbox)
+                .help("Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length")
+            Button("Length Rules") { showLengthRules.toggle() }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Length targets per net and match groups, measured pad to pad through series parts")
+                .popover(isPresented: $showLengthRules, arrowEdge: .bottom) { LengthRulesPanel().environmentObject(store) }
             Button("Apply Tuning") { store.applyTune() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
@@ -586,6 +614,8 @@ struct PCBCanvas: View {
         /// Select tool on a track or via: the shove-drag starts once the pointer has moved a few points.
         case dragTrack(Int, CGPoint)
         case dragVia(Int, CGPoint)
+        /// Tune tool drag along a track: the meanders' stretch follows the pointer.
+        case tuneDrag(Int, CGPoint)
     }
 
     /// A track or via drag session is running in the router.
@@ -826,6 +856,8 @@ struct PCBCanvas: View {
                     } else if spaceHeld {
                         spaceUsedForPan = true
                         dragMode = .pan(viewport.offset)
+                    } else if tuneTool, !panMode, let hit = copperHit(at: world, vias: false) {
+                        dragMode = .tuneDrag(hit.id, world)
                     } else if !panMode, !routeTool, !tuneTool, pad(at: world) == nil, let hit = copperHit(at: world) {
                         dragMode = hit.isVia ? .dragVia(hit.id, world) : .dragTrack(hit.id, world)
                     } else if !panMode, !routeTool, !tuneTool, let id = footprint(at: world) {
@@ -851,6 +883,10 @@ struct PCBCanvas: View {
                     copperDrag(id, isVia: false, grab: grab, value: value)
                 case .dragVia(let id, let grab):
                     copperDrag(id, isVia: true, grab: grab, value: value)
+                case .tuneDrag(let id, let start):
+                    guard hypot(value.translation.width, value.translation.height) > 3 else { break }
+                    if store.tuneSession?.track != id || store.tuneSession?.point != start { store.beginTune(track: id, at: start) }
+                    store.dragTune(to: viewport.toWorld(value.location))
                 case nil: break
                 }
             }
@@ -874,6 +910,8 @@ struct PCBCanvas: View {
                     routeClick(at: viewport.toWorld(value.location))
                 } else if !moved && tuneTool && !spaceHeld {
                     tuneClick(at: viewport.toWorld(value.location))
+                } else if case .tuneDrag = dragMode {
+                    // Drag-along tuning: the preview stays; Enter or Apply Tuning writes it.
                 } else if !moved {
                     if !spaceHeld && !panMode {  // a Space-click or a Hand-tool click pans, it doesn't select
                         let world = viewport.toWorld(value.location)
@@ -1203,6 +1241,11 @@ struct PCBCanvas: View {
             let hint = route.kind == "drag" || route.kind == "via" ? "release to drop · Esc cancels"
                 : "click places a corner · V via · Enter finishes · Esc cancels"
             CanvasOverlays.banner("\(route.status) · \(length) · \(hint)", in: &ctx, size: size)
+            if let net = route.netLength, let target = route.targetLength, target > 0 {
+                // Live length gauge of the routed net against its target.
+                LengthGauge.draw(in: &ctx, rect: CGRect(x: size.width / 2 - 90, y: 40, width: 180, height: 8), length: net,
+                                 target: target, tolerance: 0.1)
+            }
         } else if tuneTool {
             if let preview = store.tuneSession?.preview {
                 let name = snap.net(preview.net)?.name ?? "net"
@@ -1213,8 +1256,12 @@ struct PCBCanvas: View {
                              name, group, preview.before, preview.after, preview.target, skew, max(preview.tolerance, 0.01))
                     : "\(name) · \(preview.message)"
                 CanvasOverlays.banner(text, in: &ctx, size: size)
+                if preview.target > 0 {
+                    LengthGauge.draw(in: &ctx, rect: CGRect(x: size.width / 2 - 90, y: 40, width: 180, height: 8),
+                                     length: preview.after, target: preview.target, tolerance: max(preview.tolerance, 0.01))
+                }
             } else {
-                CanvasOverlays.banner("Tune length — click a track; meanders go near the click", in: &ctx, size: size)
+                CanvasOverlays.banner("Tune length — click a track (meanders go near the click), or drag along it", in: &ctx, size: size)
             }
         } else if routeTool {
             CanvasOverlays.banner("Route — click a pad, via or track to start · \(store.routerBus ? "bus of \(store.routerBusWidth)" : routePair ? "differential pair" : "single track")",

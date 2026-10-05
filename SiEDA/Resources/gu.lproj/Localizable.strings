@@ -794,3 +794,24 @@
 /* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
 "True arcs" = "સાચા ચાપ";
 "True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "સાચા ચાપ (Gerber માં G02/G03); જોડી અને બસ સમકેન્દ્રી ચાપ પર વળે છે. બંધ: ટૂંકી સીધી જીવા";
+"Accordion" = "એકોર્ડિયન";
+"Trombone" = "ટ્રોમ્બોન";
+"Sawtooth" = "કરવતના દાંત";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "એકોર્ડિયન: લંબચોરસ મીઆન્ડર; ટ્રોમ્બોન: એક પહોળો લૂપ; કરવતના દાંત: ત્રિકોણાકાર દાંત";
+"Meander corners" = "મીઆન્ડરના ખૂણા";
+"Square" = "કાટખૂણો";
+"Mitered" = "ત્રાંસો કાપેલો";
+"Round" = "ગોળ";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "મીઆન્ડરના ખૂણા: કાટખૂણો, 45° ત્રાંસો કાપેલો અથવા ગોળ (સાચા ચાપ)";
+"Coupled" = "જોડાયેલ";
+"Differential pair: meander both members together at their gap" = "ડિફરન્શિયલ જોડી: બંને સભ્યોને તેમના અંતર પર સાથે મીઆન્ડર કરો";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "જોડીના સભ્યનું સ્ક્યૂ ટ્યુનિંગ: સાથીથી દૂરની બાજુએ નાના ઉભાર, સાથીની લંબાઈ સુધી";
+"Length Rules" = "લંબાઈના નિયમો";
+"Length targets per net and match groups, measured pad to pad through series parts" = "દરેક નેટ માટે લંબાઈ લક્ષ્ય અને મેચ જૂથો, શ્રેણી ભાગોમાંથી પેડથી પેડ સુધી માપેલા";
+"Remove the length rule" = "લંબાઈનો નિયમ દૂર કરો";
+"Tolerance" = "સહનશીલતા";
+"Match Groups" = "મેચ જૂથો";
+"Remove the match group" = "મેચ જૂથ દૂર કરો";
+"Group name" = "જૂથનું નામ";
+"Add Group" = "જૂથ ઉમેરો";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "સભ્યો: બે કે વધુ નેટ પસંદ કરો. શ્રેણી રેઝિસ્ટર અથવા કેપેસિટરમાંથી પસાર થતું નેટ તેમને પાર કરીને પેડથી પેડ સુધી મપાય છે.";

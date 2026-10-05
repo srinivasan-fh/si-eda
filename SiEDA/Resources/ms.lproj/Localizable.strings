@@ -794,3 +794,24 @@
 /* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
 "True arcs" = "Lengkok sebenar";
 "True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "Lengkok sebenar (G02/G03 dalam Gerber); pasangan dan bas membelok pada lengkok sepusat. Mati: perentas lurus pendek";
+"Accordion" = "Akordion";
+"Trombone" = "Trombon";
+"Sawtooth" = "Gigi gergaji";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "Akordion: liku segi empat; Trombon: satu gelung lebar; Gigi gergaji: gigi segi tiga";
+"Meander corners" = "Sudut liku";
+"Square" = "Segi empat";
+"Mitered" = "Serong";
+"Round" = "Bulat";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "Sudut liku: segi empat, serong 45° atau bulat (lengkok sebenar)";
+"Coupled" = "Berganding";
+"Differential pair: meander both members together at their gap" = "Pasangan pembeza: likukan kedua-dua ahli bersama pada jaraknya";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "Penalaan sisihan ahli pasangan: bonjolan kecil di sisi yang jauh dari pasangannya, hingga panjang pasangannya";
+"Length Rules" = "Peraturan panjang";
+"Length targets per net and match groups, measured pad to pad through series parts" = "Sasaran panjang setiap net dan kumpulan padanan, diukur pad ke pad melalui komponen bersiri";
+"Remove the length rule" = "Buang peraturan panjang";
+"Tolerance" = "Toleransi";
+"Match Groups" = "Kumpulan padanan";
+"Remove the match group" = "Buang kumpulan padanan";
+"Group name" = "Nama kumpulan";
+"Add Group" = "Tambah kumpulan";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Ahli: pilih dua atau lebih net. Net melalui perintang atau kapasitor bersiri diukur pad ke pad merentasinya.";

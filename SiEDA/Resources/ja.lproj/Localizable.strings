@@ -794,3 +794,24 @@
 /* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
 "True arcs" = "真円弧";
 "True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "真円弧（Gerber では G02/G03）。差動ペアとバスは同心円弧で曲がります。オフ：短い直線の弦";
+"Accordion" = "アコーディオン";
+"Trombone" = "トロンボーン";
+"Sawtooth" = "のこぎり歯";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "アコーディオン：長方形のミアンダ、トロンボーン：幅の広いループ1つ、のこぎり歯：三角形の歯";
+"Meander corners" = "ミアンダの角";
+"Square" = "直角";
+"Mitered" = "面取り";
+"Round" = "丸め";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "ミアンダの角：直角、45° 面取り、または丸め（真円弧）";
+"Coupled" = "結合";
+"Differential pair: meander both members together at their gap" = "差動ペア：両方の線を間隔を保って一緒にミアンダ";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "ペアメンバーのスキュー調整：相手と反対側に小さな凸を付けて相手の長さに合わせます";
+"Length Rules" = "長さルール";
+"Length targets per net and match groups, measured pad to pad through series parts" = "ネットごとの長さ目標とマッチグループ。直列部品を通してパッドからパッドまで測定";
+"Remove the length rule" = "長さルールを削除";
+"Tolerance" = "許容差";
+"Match Groups" = "マッチグループ";
+"Remove the match group" = "マッチグループを削除";
+"Group name" = "グループ名";
+"Add Group" = "グループを追加";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "メンバー：2つ以上のネットを選びます。直列の抵抗やコンデンサを通るネットは、それらをまたいでパッドからパッドまで測定します。";

@@ -15,6 +15,22 @@ namespace sieda {
 
 struct Track;
 
+/// A net class's length rule: the net's routed length, pad to pad through series parts (its xSignal, see
+/// LengthRules.hpp), should be `target` ± `tolerance` mm.
+struct LengthRule {
+    std::string net;
+    double target = 0;
+    double tolerance = 0.1;
+};
+
+/// A match group (as xSignal classes in other tools): the routed lengths of these nets' xSignals should match the
+/// longest of them within `tolerance` mm.
+struct MatchGroup {
+    std::string name;
+    std::vector<std::string> nets;
+    double tolerance = 0.1;
+};
+
 /// Copper layer index: 0 = top, `BoardSettings::bottomLayer()` = bottom, anything between = inner layer.
 constexpr int kTopLayer = 0;
 
@@ -82,6 +98,9 @@ struct BoardSettings {
     std::string solderMask = "green";
     /// Net classes: track width (mm) per net name, e.g. {"VBAT": 0.8} for motor and battery currents.
     std::map<std::string, double> netWidths;
+    /// Length rules per net and match groups (Board Setup; the length tuning tool and the DRC use them).
+    std::vector<LengthRule> lengthRules;
+    std::vector<MatchGroup> matchGroups;
     /// The autorouter first widens net classes to the IPC-2221 width for each net's simulated current.
     bool autoSizeNets = true;
     double widthFor(const std::string& netName) const {

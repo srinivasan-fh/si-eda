@@ -247,10 +247,11 @@ Core: `InteractiveRouter::beginViaDrag` (C: `sieda_router_begin_via_drag`). The 
 
 ## Length tuning
 
-The **Tune length** tool (**T**, the waveform button in the tool strip) lengthens a net with accordion meanders:
+The **Tune length** tool (**T**, the waveform button in the tool strip) lengthens a net with meanders:
 
 1. Click a routed track. The meanders are placed near the click first, then on the net's other straight tracks,
-   longest first.
+   longest first. Or **drag along the track**: the meanders go only between where you pressed and the pointer,
+   and the preview follows the pointer (drag-along tuning); release keeps the preview, **Enter** writes it.
 2. The target starts at the longest member of the net's matched-length group: the other member of its differential
    pair (intra-pair skew) or the longest net of its bus (`DQ0…DQ7`, `ADDR…`, see `lengthGroups`). A net outside any
    group starts at its own length plus 1 mm. Type another target in the options bar, or **Match Group** to go back.
@@ -261,12 +262,47 @@ The **Tune length** tool (**T**, the waveform button in the tool strip) lengthen
    outlined in blue when it reaches the target, amber when the free space runs out first.
 5. **Enter** or **Apply Tuning** writes it (one undo step). **Esc** drops it.
 
+**Pattern** and **Meander corners** in the options bar shape the meanders:
+
+| Pattern | Shape |
+|---|---|
+| Accordion | Rectangular bumps side by side, one pitch apart (the default). |
+| Trombone | One loop as wide as the stretch; its height grows to the target. |
+| Sawtooth | Triangular teeth two pitches wide, never sharper than 90° (no acid trap). |
+
+Corners are **Square**, **Mitered** (45° chamfers) or **Round** (true arcs). For every pattern the number of bumps is
+the fewest that can reach the target at the allowed height, and then the height is solved exactly, so the net ends
+within 0.01 mm of the target whatever the corners take off.
+
+**Coupled** tunes a differential pair as one: click a track of either member where the two run side by side; the
+pattern is laid on the pair's centre line and both members follow it at their gap (round corners are concentric
+arcs), so each member gains exactly the same length and the gap stays exact everywhere. **Phase** tunes the skew of a
+pair: the clicked member is brought to its partner's length with small bumps (2 × the track width unless an
+amplitude is given) on the side away from the partner, so the coupling is kept.
+
+**Length rules and match groups** (the **Length Rules** button of the Tune tool, also in the project file):
+
+- A *length rule* gives a net a target length ± tolerance (a net class's length constraint).
+- A *match group* lists nets whose lengths must match the longest of them within a tolerance (an xSignal class).
+- Lengths are measured as **xSignals**: from pad to pad, through two-pin series parts (resistors, capacitors,
+  inductors, fuses, ferrite beads) whose both pins are on signal nets; a net with a series termination resistor is
+  measured from the driver's pad through the resistor to the receiver's pad. Vias add nothing (as everywhere else).
+- With no typed target, the Tune tool tunes to the net's rule, else its match group's longest member, else (as
+  before) the pair / bus group. The preview reports where the target came from (`targetSource`) and the nets
+  measured.
+- The DRC reports a routed net outside its rule or group tolerance (`DRC_LENGTH`, warning).
+- The panel lists every rule and group with a **gauge** per net (green inside the tolerance, amber short, red long).
+  A gauge also shows under the banner while tuning and while routing a net that has a target.
+
 Every meander keeps clearance to other nets, to the net's other pads and to the board edge. While routing, the banner
 also shows the net's whole length against its group's target (`netLength` / `targetLength` in the preview).
 
-Core: `tuneTrackLength(pcb, sch, trackId, LengthTuneOptions)` with `apply = false` for the preview; C:
-`sieda_router_tune(project, track_id, options_json)` (the older `sieda_router_tune_length` still works). Board-wide
-pair and bus matching after Auto Route is unchanged (`tuneLengths`, **Board Setup → Stack-up & Impedance**).
+Core: `tuneTrackLength(pcb, sch, trackId, LengthTuneOptions)` with `apply = false` for the preview (`style`,
+`corner`, `hasSpan` / `spanFrom` / `spanTo`, `coupled`, `phase`); targets in `LengthRules.hpp` (`xSignalOf`,
+`xSignalLength`, `lengthTargetFor`, `lengthTargetsJson`); C: `sieda_router_tune(project, track_id, options_json)` (the
+older `sieda_router_tune_length` still works), `sieda_pcb_set_length_rule`, `sieda_pcb_set_match_group`,
+`sieda_length_targets_json`. Plain accordion tuning without rules is exactly as before. Board-wide pair and bus
+matching after Auto Route is unchanged (`tuneLengths`, **Board Setup → Stack-up & Impedance**).
 
 ## Core API
 
@@ -308,9 +344,12 @@ All functions are in `sieda_c.h`. Each project has one route session.
 | `sieda_router_begin_via_drag(project, options_json, via_id, x, y)` | Drag a via |
 | `sieda_router_begin_bus(project, options_json, x, y, layer, count)` | Start a bus of `count` nets from a pad row |
 | `sieda_pcb_fanout(project, component_id, options_json)` | Fanout: escape + via per pad (`{"shove","onlyUnrouted","distance","viaType"}`) |
-| `sieda_router_tune(project, track_id, options_json)` | Length tuning with preview: `{"target","maxAmplitude","spacing","x","y","apply"}` |
+| `sieda_router_tune(project, track_id, options_json)` | Length tuning with preview: `{"target","maxAmplitude","spacing","x","y","apply","style","corner","fromX","fromY","toX","toY","coupled","phase"}` |
 | `sieda_router_tune_length(project, track_id, target_mm, max_amplitude_mm)` | Length tuning (applies at once) |
 | `sieda_pcb_arc_corners(project, track_ids_json, options_json)` | Convert corners to arcs: `[id, …]`, `{"radius","apply"}` |
+| `sieda_pcb_set_length_rule(project, net, target_mm, tolerance_mm)` | Length rule of a net (target 0 removes it) |
+| `sieda_pcb_set_match_group(project, group_json)` | Match group `{"name","nets":[…],"tolerance"}` (fewer than two nets removes it) |
+| `sieda_length_targets_json(project)` | Rules and groups with their members' xSignal lengths |
 | `sieda_pcb_lock_track`, `sieda_pcb_remove_track`, `sieda_pcb_remove_via` | Track editing |
 
 Options JSON: `{"mode":"shove"|"walkaround"|"highlight", "posture":"45"|"90"|"free", "swapPosture":bool, "width":mm,
@@ -360,9 +399,9 @@ never fails because of an old DRC problem elsewhere, and it never creates a new 
 - Highlight mode lets you commit copper that violates the rules (the DRC reports it); the other modes never do.
 - The walkaround search covers the area around the head: about 4 mm, or ¾ of the head length, beyond the start and
   the cursor. A detour further away needs a corner placed on the way.
-- Length tuning a pair member meanders that member alone (skew tuning); there are no coupled pair meanders, and
-  tuning is applied as a whole (no meander drawn by dragging along the track). Targets come from a typed length or
-  the pair / bus group; net classes carry widths only, not length targets.
+- Meanders go on straight tracks (not on arcs). Coupled tuning needs the two members side by side on one straight
+  stretch; drag-along works on the track pressed (not across a corner). xSignals follow two-pin series parts only
+  (not through ICs or multi-pin resistor networks) and measure track length (vias add nothing).
 - A bus starts from one row of one part and ends in the bundle; each track is finished on its own, and vias are
   placed track by track. Members all use the widest member's width.
 - Fanout covers SMD pads only (through-hole pads already reach every layer) and walks around (it never shoves).
@@ -446,6 +485,11 @@ Core (`Core/tests/core_tests.cpp`):
 | `convert_corners_to_arcs_command` | Preview changes nothing; corners become arcs, the net gets shorter, DRC clean; a via halves the radius; a 0.2 mm jog stays sharp. |
 | `router_respects_arc_tracks` | A route past an arc's bulge keeps clearance to the arc in walkaround and shove, and never moves the arc. |
 | `c_api_arc_corners` | Arc corners and `sieda_pcb_arc_corners` through the C API. |
+| `length_tuning_patterns_and_corners` | Accordion, trombone and sawtooth with square, mitered and round corners: within 0.01 mm of the target, written as previewed, DRC clean, no acute corner. |
+| `length_tuning_drags_along_the_track` | Drag-along: meanders only between the two points; a short stretch takes what fits. |
+| `length_tuning_couples_pairs_and_tunes_phase` | Coupled pair tuning: both members gain the same length, the gap stays exact (square and round); phase tuning matches the partner with bumps away from it. |
+| `length_rules_match_groups_and_xsignals` | xSignal through a series resistor measured pad to pad; match group and length rule targets, `DRC_LENGTH`, saved and loaded. |
+| `c_api_length_tuning_and_rules` | Rules, groups, targets JSON and the new tuning options through the C API. |
 | `router_head_update_can_be_cancelled` | A cancelled update leaves the router exactly as before; the next one matches a router that was never cancelled; a request while idle changes nothing. |
 | `router_routes_a_bus_together` | A bus of four SOIC pins ends at track pitch in pin order; each track is then finished to its pad; DRC clean. |
 | `router_bus_turns_corners_at_pitch` | A bus through a 90° turn keeps the clearance between members, and is packed at it. |

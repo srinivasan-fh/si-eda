@@ -794,3 +794,24 @@
 /* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
 "True arcs" = "ପ୍ରକୃତ ଚାପ";
 "True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "ପ୍ରକୃତ ଚାପ (Gerber ରେ G02/G03); ଯୋଡ଼ି ଓ ବସ୍ ଏକକେନ୍ଦ୍ରିକ ଚାପରେ ମୋଡ଼ନ୍ତି। ବନ୍ଦ: ଛୋଟ ସିଧା ଜ୍ୟା";
+"Accordion" = "ଆକର୍ଡିଅନ୍";
+"Trombone" = "ଟ୍ରମ୍ବୋନ୍";
+"Sawtooth" = "କରତ ଦାନ୍ତ";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "ଆକର୍ଡିଅନ୍: ଆୟତାକାର ମିଆଣ୍ଡର; ଟ୍ରମ୍ବୋନ୍: ଗୋଟିଏ ଚଉଡ଼ା ଲୁପ୍; କରତ ଦାନ୍ତ: ତ୍ରିଭୁଜାକାର ଦାନ୍ତ";
+"Meander corners" = "ମିଆଣ୍ଡର କୋଣ";
+"Square" = "ସମକୋଣ";
+"Mitered" = "ତେର୍ଛା କଟା";
+"Round" = "ଗୋଲାକାର";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "ମିଆଣ୍ଡରର କୋଣ: ସମକୋଣ, 45° ତେର୍ଛା କଟା କିମ୍ବା ଗୋଲାକାର (ପ୍ରକୃତ ଚାପ)";
+"Coupled" = "ଯୁଗ୍ମିତ";
+"Differential pair: meander both members together at their gap" = "ଡିଫରେନ୍ସିଆଲ ଯୋଡ଼ି: ଦୁଇଟି ସଦସ୍ୟଙ୍କୁ ସେମାନଙ୍କ ଫାଙ୍କରେ ଏକାଠି ମିଆଣ୍ଡର କରନ୍ତୁ";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "ଯୋଡ଼ି ସଦସ୍ୟର ସ୍କ୍ୟୁ ଟ୍ୟୁନିଂ: ସାଥୀଠାରୁ ଦୂର ପାର୍ଶ୍ୱରେ ଛୋଟ ଉଠାଣ, ସାଥୀର ଦୈର୍ଘ୍ୟ ପର୍ଯ୍ୟନ୍ତ";
+"Length Rules" = "ଦୈର୍ଘ୍ୟ ନିୟମ";
+"Length targets per net and match groups, measured pad to pad through series parts" = "ପ୍ରତି ନେଟ୍‌ର ଦୈର୍ଘ୍ୟ ଲକ୍ଷ୍ୟ ଓ ମେଳ ଗୋଷ୍ଠୀ, ସିରିଜ୍ ଅଂଶ ଦେଇ ପ୍ୟାଡ୍‌ରୁ ପ୍ୟାଡ୍ ପର୍ଯ୍ୟନ୍ତ ମପାଯାଏ";
+"Remove the length rule" = "ଦୈର୍ଘ୍ୟ ନିୟମ ହଟାନ୍ତୁ";
+"Tolerance" = "ସହନଶୀଳତା";
+"Match Groups" = "ମେଳ ଗୋଷ୍ଠୀ";
+"Remove the match group" = "ମେଳ ଗୋଷ୍ଠୀ ହଟାନ୍ତୁ";
+"Group name" = "ଗୋଷ୍ଠୀ ନାମ";
+"Add Group" = "ଗୋଷ୍ଠୀ ଯୋଡ଼ନ୍ତୁ";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "ସଦସ୍ୟ: ଦୁଇ କିମ୍ବା ଅଧିକ ନେଟ୍ ବାଛନ୍ତୁ। ସିରିଜ୍ ରେଜିଷ୍ଟର କିମ୍ବା କ୍ୟାପାସିଟର ଦେଇ ଯାଉଥିବା ନେଟ୍ ସେଗୁଡ଼ିକୁ ପାର କରି ପ୍ୟାଡ୍‌ରୁ ପ୍ୟାଡ୍ ପର୍ଯ୍ୟନ୍ତ ମପାଯାଏ।";

@@ -13302,3 +13302,227 @@ TEST(c_api_arc_corners) {
     if (rc != 0) std::printf("    C API arc test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+// ======================================================================= length tuning parity (interactive routing 10/10)
+
+namespace {
+/// Two resistors 30 mm apart joined by one straight track on the top layer.
+struct TuneBoard {
+    Project p;
+    int net = -1, track = -1;
+};
+TuneBoard tuneBoard() {
+    TuneBoard b;
+    auto& s = b.p.schematic;
+    const int r1 = placeR(b.p, {10, 20}), r2 = placeR(b.p, {40, 20});
+    wire(s, r1, "2", r2, "1");
+    b.p.schematicChanged();
+    b.net = s.netOf({r1, 1});
+    addPath(b.p.pcb, b.net, 0, 0.25, {padAt(b.p, r1, 1), padAt(b.p, r2, 0)});
+    b.track = b.p.pcb.tracks.back().id;
+    return b;
+}
+}  // namespace
+
+TEST(length_tuning_patterns_and_corners) {
+    // Accordion, trombone and sawtooth meanders with square, mitered and round (true arc) corners: each reaches the
+    // typed target within 0.01 mm (the height is solved exactly), writes exactly the preview, and leaves the board DRC
+    // clean with no acute corner; round corners are arcs.
+    for (MeanderStyle style : {MeanderStyle::Accordion, MeanderStyle::Trombone, MeanderStyle::Sawtooth})
+        for (MeanderCorner corner : {MeanderCorner::Square, MeanderCorner::Mitered, MeanderCorner::Round}) {
+            TuneBoard b = tuneBoard();
+            const double before = routedNetLength(b.p.pcb, b.net);
+            LengthTuneOptions o;
+            o.target = before + (style == MeanderStyle::Sawtooth ? 2.0 : 3.0);
+            o.style = style;
+            o.corner = corner;
+            o.apply = false;
+            const LengthTuneResult pre = tuneTrackLength(b.p.pcb, b.p.schematic, b.track, o);
+            CHECK(pre.ok && !pre.applied);
+            CHECK_NEAR(pre.after, o.target, 0.01);
+            const bool classic = style == MeanderStyle::Accordion && corner == MeanderCorner::Square;  // the old path
+            CHECK(pre.targetSource == (classic ? "" : "typed"));
+            o.apply = true;
+            const LengthTuneResult res = tuneTrackLength(b.p.pcb, b.p.schematic, b.track, o);
+            CHECK(res.ok && res.applied);
+            CHECK_NEAR(routedNetLength(b.p.pcb, b.net), o.target, 0.01);
+            CHECK_NEAR(res.after, pre.after, 1e-9);
+            CHECK(routingProblems(b.p) == 0);
+            CHECK(acuteWarnings(b.p) == 0);
+            CHECK(netRouted(b.p, b.net));
+            int arcs = 0;
+            for (const auto& t : b.p.pcb.tracks) arcs += t.arc ? 1 : 0;
+            CHECK((arcs > 0) == (corner == MeanderCorner::Round));
+        }
+    // Options from JSON.
+    const LengthTuneOptions j = lengthTuneOptionsFromJson(Json::parse(
+        "{\"style\":\"sawtooth\",\"corner\":\"round\",\"fromX\":1,\"fromY\":2,\"toX\":3,\"toY\":4,\"coupled\":true,\"phase\":true}"));
+    CHECK(j.style == MeanderStyle::Sawtooth && j.corner == MeanderCorner::Round && j.hasSpan && j.coupled && j.phase);
+    CHECK(j.spanTo.x == 3 && j.spanTo.y == 4);
+}
+
+TEST(length_tuning_drags_along_the_track) {
+    // Drag-along: the meanders go only between the two points of the drag; a short drag lengthens as far as that
+    // stretch allows; the plain accordion without new options is unchanged.
+    TuneBoard b = tuneBoard();
+    LengthTuneOptions o;
+    o.target = routedNetLength(b.p.pcb, b.net) + 4;
+    o.hasSpan = true;
+    o.spanFrom = {14, 20};
+    o.spanTo = {24, 20};
+    o.apply = false;
+    const LengthTuneResult r = tuneTrackLength(b.p.pcb, b.p.schematic, b.track, o);
+    CHECK(r.ok);
+    CHECK_NEAR(r.after, o.target, 0.01);
+    for (const auto& t : r.addedTracks) {
+        const bool bump = std::fabs(t.a.y - 20) > 1e-6 || std::fabs(t.b.y - 20) > 1e-6;
+        if (bump) CHECK(t.a.x >= 14 - 1e-6 && t.b.x <= 24 + 1e-6 && t.a.x <= 24 + 1e-6 && t.b.x >= 14 - 1e-6);
+    }
+    // A 2 mm drag cannot take 4 mm at the default 2 mm height... it takes what fits.
+    o.spanFrom = {20, 20};
+    o.spanTo = {21.6, 20};
+    o.maxAmplitude = 0.5;
+    const LengthTuneResult s = tuneTrackLength(b.p.pcb, b.p.schematic, b.track, o);
+    CHECK(s.ok && s.after < o.target - 1 && s.after > s.before);
+    CHECK(s.message == "Lengthened as far as the free space allows");
+}
+
+TEST(length_tuning_couples_pairs_and_tunes_phase) {
+    // A routed differential pair: coupled tuning meanders both members together (each gains the same length, the gap
+    // stays exact everywhere, DRC clean); phase tuning brings one member to its partner's length with small bumps on
+    // the side away from the partner.
+    Project p;
+    auto& s = p.schematic;
+    const int p1 = placeR(p, {10, 14}), p2 = placeR(p, {45, 14}), n1 = placeR(p, {10, 16}), n2 = placeR(p, {45, 16});
+    wire(s, p1, "2", p2, "1");
+    wire(s, n1, "2", n2, "1");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_P", {0, 0}), "N", p1, "2");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_N", {0, 50}), "N", n1, "2");
+    p.schematicChanged();
+    const int netP = s.netOf({p1, 1}), netN = s.netOf({n1, 1});
+    {
+        InteractiveRouter r(p.pcb, s);
+        RouterOptions ro;
+        ro.pairGap = 0.2;
+        r.setOptions(ro);
+        CHECK(r.beginPair(padAt(p, p1, 1), 0));
+        CHECK(r.moveTo(padAt(p, p2, 0)).reachedTarget);
+        CHECK(r.commit().ok);
+    }
+    CHECK(routingProblems(p) == 0);
+    int longP = -1;
+    double best = 0;
+    for (const auto& t : p.pcb.tracks)
+        if (t.net == netP && trackLength(t) > best) {
+            best = trackLength(t);
+            longP = t.id;
+        }
+    const double beforeP = routedNetLength(p.pcb, netP), beforeN = routedNetLength(p.pcb, netN);
+    LengthTuneOptions o;
+    o.coupled = true;
+    o.target = beforeP + 3;
+    for (MeanderCorner corner : {MeanderCorner::Square, MeanderCorner::Round}) {
+        Project q = p;
+        o.corner = corner;
+        const LengthTuneResult r = tuneTrackLength(q.pcb, q.schematic, longP, o);
+        CHECK(r.ok && r.applied && r.coupled && r.partnerNet == netN);
+        const double dP = routedNetLength(q.pcb, netP) - beforeP, dN = routedNetLength(q.pcb, netN) - beforeN;
+        CHECK_NEAR(dP, 3, 0.01);
+        CHECK_NEAR(dP, dN, 1e-6);
+        double minGap = 1e9;
+        for (const auto& a : q.pcb.tracks)
+            for (const auto& c : q.pcb.tracks)
+                if (a.net == netP && c.net == netN) minGap = std::min(minGap, trackTrackDistance(a, c) - (a.width + c.width) / 2);
+        CHECK(minGap >= 0.2 - 1e-6);
+        CHECK(routingProblems(q) == 0);
+        CHECK(acuteWarnings(q) == 0);
+    }
+    // Phase: P is made 0.6 mm longer alone, then N is phase-tuned to it.
+    LengthTuneOptions lp;
+    lp.target = beforeP + 0.6;
+    CHECK(tuneTrackLength(p.pcb, s, longP, lp).ok);
+    int longN = -1;
+    best = 0;
+    for (const auto& t : p.pcb.tracks)
+        if (t.net == netN && trackLength(t) > best) {
+            best = trackLength(t);
+            longN = t.id;
+        }
+    LengthTuneOptions ph;
+    ph.phase = true;
+    const LengthTuneResult r = tuneTrackLength(p.pcb, s, longN, ph);
+    CHECK(r.ok && r.applied && r.targetSource == "partner");
+    CHECK(std::fabs(routedNetLength(p.pcb, netN) - routedNetLength(p.pcb, netP)) <= 0.07);
+    for (const auto& t : r.addedTracks)  // N runs below P (larger y): its bumps go further down, never up
+        CHECK(std::min(t.a.y, t.b.y) >= 15.225 - 1e-6);
+    CHECK(routingProblems(p) == 0);
+}
+
+TEST(length_rules_match_groups_and_xsignals) {
+    // xSignal A → R5 → B is measured pad to pad through the series resistor. A match group with net C reports the
+    // shorter one in the DRC (DRC_LENGTH) and the tuning tool takes the group's target; a length rule on C does the
+    // same with its own target; rules and groups are saved; the router's banner target follows them.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20}), r5 = placeR(p, {25, 20}), r2 = placeR(p, {40, 20});
+    const int r3 = placeR(p, {10, 30}), r4 = placeR(p, {40.5, 30});
+    wire(s, r1, "2", r5, "1");
+    wire(s, r5, "2", r2, "1");
+    wire(s, r3, "2", r4, "1");
+    p.schematicChanged();
+    const int netA = s.netOf({r1, 1}), netB = s.netOf({r5, 1}), netC = s.netOf({r3, 1});
+    addPath(p.pcb, netA, 0, 0.25, {padAt(p, r1, 1), padAt(p, r5, 0)});
+    const int trackA = p.pcb.tracks.back().id;
+    addPath(p.pcb, netB, 0, 0.25, {padAt(p, r5, 1), padAt(p, r2, 0)});
+    addPath(p.pcb, netC, 0, 0.25, {padAt(p, r3, 1), padAt(p, r4, 0)});
+    const int trackC = p.pcb.tracks.back().id;
+    const auto pads = p.pcb.pads(s);
+    const XSignal x = xSignalOf(s, pads, netA);
+    CHECK(x.nets.size() == 2 && x.seriesParts.size() == 1 && x.endPads.size() == 2);
+    CHECK_NEAR(xSignalLength(p.pcb, pads, x), 13.1 + 13.1, 1e-6);
+    const double lenC = 30.5 - 1.9;
+    CHECK_NEAR(xSignalLength(p.pcb, pads, xSignalOf(s, pads, netC)), lenC, 1e-6);
+    CHECK(drcCount(p, "DRC_LENGTH") == 0);
+    MatchGroup g;
+    g.name = "DATA";
+    g.nets = {s.nets()[static_cast<size_t>(netA)].name, s.nets()[static_cast<size_t>(netC)].name};
+    g.tolerance = 0.1;
+    p.pcb.settings.matchGroups.push_back(g);
+    CHECK(drcCount(p, "DRC_LENGTH") == 1);
+    LengthTarget lt;
+    CHECK(lengthTargetFor(p.pcb, s, pads, netA, lt) && lt.source == "group:DATA");
+    CHECK_NEAR(lt.target, lenC, 1e-6);
+    const LengthTuneResult r = tuneTrackLength(p.pcb, s, trackA, LengthTuneOptions{});
+    CHECK(r.ok && r.applied && r.targetSource == "group:DATA");
+    CHECK(r.xsignalNets.size() == 2);
+    CHECK_NEAR(xSignalLength(p.pcb, p.pcb.pads(s), xSignalOf(s, p.pcb.pads(s), netA)), lenC, 0.05 + 1e-6);
+    CHECK(drcCount(p, "DRC_LENGTH") == 0);
+    CHECK(routingProblems(p) == 0);
+    // A length rule on C: 30 ± 0.1 mm.
+    LengthRule rule;
+    rule.net = s.nets()[static_cast<size_t>(netC)].name;
+    rule.target = 30;
+    rule.tolerance = 0.1;
+    p.pcb.settings.lengthRules.push_back(rule);
+    CHECK(drcCount(p, "DRC_LENGTH") >= 1);
+    const Json targets = lengthTargetsJson(p.pcb, s);
+    CHECK(targets.get("rules").size() == 1 && targets.get("groups").size() == 1);
+    CHECK(!targets.get("rules")[0].get("ok").asBool());
+    const LengthTuneResult rc = tuneTrackLength(p.pcb, s, trackC, LengthTuneOptions{});
+    CHECK(rc.ok && rc.targetSource == "rule:" + rule.net);
+    CHECK_NEAR(xSignalLength(p.pcb, p.pcb.pads(s), xSignalOf(s, p.pcb.pads(s), netC)), 30, 0.05 + 1e-6);
+    // Saved and loaded.
+    const Project back = Project::fromJson(p.toJson());
+    CHECK(back.pcb.settings.lengthRules.size() == 1 && back.pcb.settings.matchGroups.size() == 1);
+    CHECK(back.pcb.settings.matchGroups[0].nets.size() == 2 && back.pcb.settings.lengthRules[0].target == 30);
+    CHECK(p.toJson().get("board").has("lengthRules"));
+    Project plain;
+    CHECK(!plain.toJson().get("board").has("lengthRules") && !plain.toJson().get("board").has("matchGroups"));
+}
+
+extern "C" int sieda_c_api_length_test(void);
+TEST(c_api_length_tuning_and_rules) {
+    const int rc = sieda_c_api_length_test();
+    if (rc != 0) std::printf("    C API length test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}

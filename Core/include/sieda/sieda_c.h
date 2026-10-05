@@ -701,6 +701,17 @@ char* sieda_simulate_transient_ex(const SiedaProject* project, const char* optio
  * "apply" (default true)}. Returns {"ok","message","converted","kept","applied","addedTracks","removedTracks",
  * "changes"}. */
 char* sieda_pcb_arc_corners(SiedaProject* project, const char* track_ids_json, const char* options_json);
+/* Length tuning (sieda_router_tune) also takes {"style":"accordion"|"trombone"|"sawtooth","corner":"square"|"mitered"|
+ * "round","fromX","fromY","toX","toY" (drag-along span),"coupled" (pair together),"phase" (skew bumps)}; the result
+ * then adds "targetSource","xsignalNets","coupled","partnerNet". */
+/* Length rule of a net (its xSignal length, pad to pad through series parts): target ± tolerance mm; target <= 0
+ * removes it. 1 on success. */
+int32_t sieda_pcb_set_length_rule(SiedaProject* project, const char* net_name, double target_mm, double tolerance_mm);
+/* Match group {"name","nets":[names],"tolerance"}: replaces the group of that name; fewer than two nets removes it. */
+int32_t sieda_pcb_set_match_group(SiedaProject* project, const char* group_json);
+/* {"rules":[{"net","target","tolerance","length","ok","routed"}],"groups":[{"name","tolerance","target","members":
+ * [{"net","xsignal":[names],"length","ok","routed"}]}]} */
+char* sieda_length_targets_json(const SiedaProject* project);
 
 #ifdef __cplusplus
 }

@@ -794,3 +794,24 @@
 /* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
 "True arcs" = "Totoong arko";
 "True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "Totoong arko (G02/G03 sa Gerber); lumiliko ang mga pares at bus sa magkakonsentrikong arko. Off: maiikling tuwid na chord";
+"Accordion" = "Akordiyon";
+"Trombone" = "Trombone";
+"Sawtooth" = "Ngipin ng lagari";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "Akordiyon: parihabang meander; Trombone: isang malapad na loop; Ngipin ng lagari: tatsulok na ngipin";
+"Meander corners" = "Mga sulok ng meander";
+"Square" = "Parisukat";
+"Mitered" = "Tinapyas";
+"Round" = "Bilog";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "Mga sulok ng meander: parisukat, tinapyas na 45° o bilog (totoong arko)";
+"Coupled" = "Magkapares";
+"Differential pair: meander both members together at their gap" = "Differential pair: i-meander ang dalawang miyembro nang magkasama sa kanilang puwang";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "Skew tuning ng miyembro ng pares: maliliit na umbok sa gilid na malayo sa kapares, hanggang sa haba ng kapares";
+"Length Rules" = "Mga tuntunin sa haba";
+"Length targets per net and match groups, measured pad to pad through series parts" = "Mga target na haba bawat net at mga match group, sinusukat mula pad hanggang pad sa mga serye na piyesa";
+"Remove the length rule" = "Alisin ang tuntunin sa haba";
+"Tolerance" = "Tolerance";
+"Match Groups" = "Mga match group";
+"Remove the match group" = "Alisin ang match group";
+"Group name" = "Pangalan ng grupo";
+"Add Group" = "Magdagdag ng grupo";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Mga miyembro: pumili ng dalawa o higit pang net. Ang net na dumaraan sa serye na resistor o capacitor ay sinusukat mula pad hanggang pad sa kabila nito.";

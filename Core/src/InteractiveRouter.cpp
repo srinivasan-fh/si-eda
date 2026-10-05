@@ -29,6 +29,7 @@
 
 #include "sieda/Isolation.hpp"
 #include "sieda/LengthMatch.hpp"
+#include "sieda/LengthRules.hpp"
 #include "sieda/Stackup.hpp"
 
 namespace sieda {
@@ -2304,6 +2305,9 @@ struct InteractiveRouter::Impl {
                 for (int n : g.nets)
                     if (n != nets[0]) groupTarget = std::max(groupTarget, routedNetLength(pcb, n));
             }
+        // A length rule or match group sets the target instead (boards without any are unchanged).
+        LengthTarget lt;
+        if (!nets.empty() && nets[0] >= 0 && lengthTargetFor(pcb, sch, base->pads, nets[0], lt)) groupTarget = lt.target;
     }
 
     // ------------------------------------------------------------------------------------------------ routing
@@ -3987,6 +3991,390 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
     return tuneTrackLength(pcb, sch, trackId, o);
 }
 
+
+// --------------------------------------------------------------------------------- length tuning: patterns, spans
+
+namespace {
+
+/// One meander pattern along the line a → b between `s0` and `s1` (distances from a): `n` units of `style` with
+/// height `amp` on side `side` (+1 = the left normal) and leg pitch `pitch`, centred on `centre` (clamped into the
+/// span). Returns the whole polyline from a to b. Accordion: n rectangular bumps (up, across one pitch, down, one pitch
+/// on); trombone: one bump as wide as the span (n ignored); sawtooth: n triangular teeth two pitches wide.
+std::vector<Vec2> meanderPolyline(Vec2 a, Vec2 b, double s0, double s1, MeanderStyle style, int n, double amp, double side,
+                                  double pitch, double centre) {
+    const Vec2 u = unit(b - a), nrm = Vec2{-u.y, u.x} * side;
+    double run = 0;
+    switch (style) {
+        case MeanderStyle::Accordion: run = 2 * pitch * n - pitch; break;  // the last unit ends on its down leg
+        case MeanderStyle::Trombone: run = s1 - s0 - 2 * pitch; break;  // clear of the stretch ends (pads)
+        case MeanderStyle::Sawtooth: run = 2 * pitch * n; break;
+    }
+    run = std::clamp(run, std::min(pitch, s1 - s0), s1 - s0);
+    const double start = std::clamp(centre - run / 2, s0, std::max(s0, s1 - run));
+    std::vector<Vec2> pts{a};
+    Vec2 p = a + u * start;
+    pts.push_back(p);
+    switch (style) {
+        case MeanderStyle::Accordion:
+            for (int i = 0; i < n; ++i) {
+                if (i > 0) {
+                    p = p + u * pitch;
+                    pts.push_back(p);
+                }
+                p = p + nrm * amp;
+                pts.push_back(p);
+                p = p + u * pitch;
+                pts.push_back(p);
+                p = p - nrm * amp;
+                pts.push_back(p);
+            }
+            break;
+        case MeanderStyle::Trombone:
+            p = p + nrm * amp;
+            pts.push_back(p);
+            p = p + u * run;
+            pts.push_back(p);
+            p = p - nrm * amp;
+            pts.push_back(p);
+            break;
+        case MeanderStyle::Sawtooth:
+            for (int i = 0; i < n; ++i) {
+                pts.push_back(p + u * pitch + nrm * amp);
+                p = p + u * (2 * pitch);
+                pts.push_back(p);
+            }
+            break;
+    }
+    pts.push_back(b);
+    return simplifyPath(pts);
+}
+
+/// 45° chamfers at the polyline's corners that turn by 80° or more (`cut` along each leg, at most 45 % of it).
+std::vector<Vec2> chamferCorners(const std::vector<Vec2>& pts, double cut) {
+    if (pts.size() < 3) return pts;
+    std::vector<Vec2> out{pts[0]};
+    for (size_t i = 1; i + 1 < pts.size(); ++i) {
+        const Vec2 d1 = pts[i] - pts[i - 1], d2 = pts[i + 1] - pts[i];
+        const double l1 = d1.length(), l2 = d2.length();
+        if (l1 < 1e-9 || l2 < 1e-9 || unit(d1).dot(unit(d2)) > std::cos(80 * kPi / 180)) {
+            out.push_back(pts[i]);
+            continue;
+        }
+        const double c = std::min({cut, 0.45 * l1, 0.45 * l2});
+        out.push_back(pts[i] - unit(d1) * c);
+        out.push_back(pts[i] + unit(d2) * c);
+    }
+    out.push_back(pts.back());
+    return out;
+}
+
+double tracksLength(const std::vector<Track>& ts) {
+    double l = 0;
+    for (const Track& t : ts) l += trackLength(t);
+    return l;
+}
+
+}  // namespace
+
+namespace {
+/// Advanced interactive length tuning (styles, corner shapes, drag-along spans, coupled pairs, phase tuning, length
+/// rules / match groups / xSignals). The plain accordion path of tuneTrackLength is kept bit for bit.
+LengthTuneResult tuneTrackLengthAdvanced(PcbLayout& pcb, const Schematic& sch, size_t ti, const LengthTuneOptions& opt) {
+    LengthTuneResult r;
+    const Track sel = pcb.tracks[ti];
+    r.net = sel.net;
+    if (sel.arc) {
+        r.message = "Tune on a straight track (arcs are not meandered)";
+        return r;
+    }
+    const auto pads = pcb.pads(sch);
+    // What is measured: the net's xSignal (pad to pad through series parts) when a length rule or match group applies
+    // or the signal passes series parts; otherwise the net's routed copper.
+    LengthTarget lt;
+    const bool ruled = lengthTargetFor(pcb, sch, pads, sel.net, lt);
+    if (!ruled) lt.xsignal = xSignalOf(sch, pads, sel.net);
+    const bool viaX = ruled || !lt.xsignal.seriesParts.empty();
+    auto measure = [&](const PcbLayout& p) {
+        if (!viaX) return routedNetLength(p, sel.net);
+        const double l = xSignalLength(p, pads, lt.xsignal);
+        return l > 0 ? l : routedNetLength(p, sel.net);
+    };
+    r.before = measure(pcb);
+    for (int n : lt.xsignal.nets) r.xsignalNets.push_back(n);
+    // Pair partner (differential pair group).
+    int partner = -1;
+    double groupLongest = 0, groupTol = 0;
+    for (const auto& g : lengthGroups(sch, pcb.settings)) {
+        if (std::find(g.nets.begin(), g.nets.end(), sel.net) == g.nets.end()) continue;
+        if (r.group.empty()) {
+            r.group = g.name;
+            r.groupKind = g.kind;
+        }
+        if (g.kind == "pair" && g.nets.size() == 2) partner = g.nets[0] == sel.net ? g.nets[1] : g.nets[0];
+        for (int n : g.nets) groupLongest = std::max(groupLongest, routedNetLength(pcb, n));
+        groupTol = std::max(groupTol, g.tolerance / 2);
+    }
+    double target = opt.target, tolerance = 0.01;
+    if (target > 0) {
+        r.targetSource = "typed";
+    } else if (opt.phase && partner >= 0) {
+        target = routedNetLength(pcb, partner);
+        tolerance = std::max(tolerance, groupTol);
+        r.targetSource = "partner";
+    } else if (ruled) {
+        target = lt.target;
+        tolerance = std::max(tolerance, lt.tolerance / 2);
+        r.targetSource = lt.source;
+    } else if (!r.group.empty() && !opt.coupled) {
+        target = groupLongest;
+        tolerance = std::max(tolerance, groupTol);
+        r.targetSource = "group:" + r.group;
+    }
+    if (target <= 0) {
+        r.message = opt.coupled ? "Coupled tuning needs a target: type one, or give the pair a length rule or match group"
+                                : "The net has no length target — type one, or give it a length rule or match group";
+        return r;
+    }
+    r.target = target;
+    r.tolerance = tolerance;
+    r.after = r.before;
+    double want = target - r.before;
+    if (want <= tolerance) {
+        r.ok = true;
+        r.changes.ok = true;
+        r.message = want < -tolerance ? "The net is already longer than the target" : "The net is already at the target length";
+        return r;
+    }
+    Base base(pcb, sch);
+    World w(&base);
+    const double clr = base.s.clearance;
+    const double wd = sel.width;
+    double maxAmp = opt.maxAmplitude > 0 ? opt.maxAmplitude : 2.0;
+    if (opt.phase && opt.maxAmplitude <= 0) maxAmp = std::max(2 * wd, clr + wd);  // phase bumps stay small
+    double pitch = opt.spacing > 0 ? std::max(wd + clr, opt.spacing + wd) : std::max(wd + clr, 3 * wd);
+    if (opt.phase && opt.spacing <= 0) pitch = wd + clr + wd;
+    const double margin = std::max(2 * wd, 0.5);
+
+    // Partner track side by side with the selected one (coupled tuning; phase bumps point away from it).
+    long ptrack = -1;
+    double pairOffset = 0;  // signed distance of the partner line from the selected line along its left normal
+    if (partner >= 0) {
+        const Vec2 u = unit(sel.b - sel.a), nl{-u.y, u.x};
+        double best = 1e18;
+        for (size_t i = 0; i < base.tracks.size(); ++i) {
+            const Track& o = base.tracks[i];
+            if (o.net != partner || o.layer != sel.layer || o.arc || base.trackFixed[i]) continue;
+            const Vec2 v = unit(o.b - o.a);
+            if (std::fabs(cross(u, v)) > 1e-6) continue;
+            const double off = (o.a - sel.a).dot(nl);
+            if (std::fabs(off) > 4 * (wd + o.width + clr) || std::fabs(off) < 1e-6) continue;
+            const double t0 = (o.a - sel.a).dot(u), t1 = (o.b - sel.a).dot(u);
+            const double overlap = std::min(std::max(t0, t1), (sel.b - sel.a).length()) - std::max(std::min(t0, t1), 0.0);
+            if (overlap < 2 * margin) continue;
+            if (std::fabs(off) < best) {
+                best = std::fabs(off);
+                ptrack = static_cast<long>(i);
+                pairOffset = off;
+            }
+        }
+    }
+    if (opt.coupled && ptrack < 0) {
+        r.message = "Coupled tuning: no track of the pair partner runs alongside this one";
+        return r;
+    }
+    r.coupled = opt.coupled;
+    r.partnerNet = partner;
+
+    // Candidate tracks: the selected one first; without a span or coupling, then the measured nets' other tracks.
+    std::vector<size_t> cand{ti};
+    if (!opt.hasSpan && !opt.coupled) {
+        std::vector<size_t> others;
+        for (size_t i = 0; i < base.tracks.size(); ++i)
+            if (i != ti && !base.trackFixed[i] && !base.tracks[i].arc &&
+                std::find(lt.xsignal.nets.begin(), lt.xsignal.nets.end(), base.tracks[i].net) != lt.xsignal.nets.end())
+                others.push_back(i);
+        std::stable_sort(others.begin(), others.end(),
+                         [&](size_t a, size_t b) { return trackLength(base.tracks[a]) > trackLength(base.tracks[b]); });
+        cand.insert(cand.end(), others.begin(), others.end());
+    }
+    auto clearOwnPads = [&](const Track& t, const Track& piece) {
+        for (const auto& pd : base.pads)
+            if (pd.net == t.net && pd.onLayer(t.layer) &&
+                (pd.round ? std::max(0.0, trackPointDistance(piece, pd.position) - std::min(pd.size.x, pd.size.y) / 2)
+                          : trackRectDistance(piece, pd.bounds())) - t.width / 2 < clr - kTol)
+                return false;
+        return true;
+    };
+    // Tracks of polyline `pts` with the corner shape asked for (`proto`'s net, layer and width).
+    auto shape = [&](const std::vector<std::vector<Vec2>>& lines, const std::vector<Track>& protos, double amp) {
+        std::vector<std::vector<Track>> out(lines.size());
+        if (opt.corner == MeanderCorner::Round) {
+            const double rad = std::max(0.05, std::min(amp, pitch) / 2 * 0.999);
+            out = filletArcRuns(lines, protos, rad, std::max(0.01, std::min(rad, wd / 2)),
+                                [](size_t, const Track&) { return true; }, {}, nullptr);
+        } else {
+            for (size_t k = 0; k < lines.size(); ++k) {
+                const auto& pts = lines[k];
+                for (size_t i = 0; i + 1 < pts.size(); ++i) {
+                    if ((pts[i + 1] - pts[i]).length() < 1e-9) continue;
+                    Track t = protos[k];
+                    t.a = pts[i];
+                    t.b = pts[i + 1];
+                    out[k].push_back(t);
+                }
+            }
+        }
+        return out;
+    };
+    for (size_t ci : cand) {
+        if (want <= tolerance) break;
+        const Track t = base.tracks[ci];
+        if (t.arc) continue;
+        const double L = trackLength(t);
+        const Vec2 u = unit(t.b - t.a);
+        double s0 = margin, s1 = L - margin;
+        if (opt.hasSpan && ci == ti) {
+            const double p0 = (opt.spanFrom - t.a).dot(u), p1 = (opt.spanTo - t.a).dot(u);
+            s0 = std::max(s0, std::min(p0, p1));
+            s1 = std::min(s1, std::max(p0, p1));
+        }
+        // Coupled: the pair's centre line over the stretch both tracks share.
+        Track partnerTrack;
+        Vec2 la = t.a, lb = t.b;  // the line the pattern runs along
+        double half = 0;
+        if (opt.coupled) {
+            partnerTrack = base.tracks[static_cast<size_t>(ptrack)];
+            const double q0 = (partnerTrack.a - t.a).dot(u), q1 = (partnerTrack.b - t.a).dot(u);
+            s0 = std::max(s0, std::min(q0, q1) + margin);
+            s1 = std::min(s1, std::max(q0, q1) - margin);
+            half = pairOffset / 2;
+        }
+        if (s1 - s0 < pitch) continue;
+        double centre = (s0 + s1) / 2;
+        if (opt.hasNear && ci == ti && !opt.hasSpan) centre = (opt.near - t.a).dot(u);
+        const double coupledPitch = opt.coupled ? pitch + std::fabs(pairOffset) : pitch;
+        const double stylePitch = coupledPitch;
+        const double capAmp = opt.style == MeanderStyle::Sawtooth ? std::min(maxAmp, stylePitch) : maxAmp;
+        int maxN = 1;
+        if (opt.style == MeanderStyle::Accordion) maxN = static_cast<int>(std::floor((s1 - s0 + stylePitch) / (2 * stylePitch)));
+        if (opt.style == MeanderStyle::Sawtooth) maxN = static_cast<int>(std::floor((s1 - s0) / (2 * stylePitch)));
+        if (maxN < 1) continue;
+        std::vector<double> sides;
+        if (opt.phase && ptrack >= 0)
+            sides = {pairOffset > 0 ? -1.0 : 1.0};  // away from the partner
+        else if (opt.coupled)
+            sides = {1.0, -1.0};
+        else
+            sides = {1.0, -1.0};
+        bool done = false;
+        for (double sd : sides) {
+            if (done) break;
+            // The pattern on the line (the centre line when coupled), and the tracks it becomes for each member.
+            auto build = [&](int n, double amp, std::vector<std::vector<Track>>& out) {
+                const Vec2 off = Vec2{-u.y, u.x} * half;
+                const Vec2 ca = la + off, cb = lb + off;
+                std::vector<Vec2> centrePts = meanderPolyline(ca, cb, s0, s1, opt.style, n, amp, sd, stylePitch, centre);
+                // Chamfers on the centre line, so a pair's members keep their gap through them too.
+                if (opt.corner == MeanderCorner::Mitered) centrePts = chamferCorners(centrePts, std::min(amp, stylePitch) / 3);
+                if (!opt.coupled) {
+                    out = shape({centrePts}, {t}, amp);
+                    return;
+                }
+                // Members: the centre pattern offset by half the pair offset each way (miter joins keep the gap), run
+                // from each member's own track ends.
+                std::vector<Vec2> mine = offsetPath(centrePts, -half), theirs = offsetPath(centrePts, half);
+                mine.front() = t.a;
+                mine.back() = t.b;
+                const double pa = (partnerTrack.a - t.a).dot(u), pb = (partnerTrack.b - t.a).dot(u);
+                theirs.front() = pa <= pb ? partnerTrack.a : partnerTrack.b;
+                theirs.back() = pa <= pb ? partnerTrack.b : partnerTrack.a;
+                out = shape({simplifyPath(mine), simplifyPath(theirs)}, {t, partnerTrack}, amp);
+            };
+            auto added = [&](const std::vector<std::vector<Track>>& out) {
+                return tracksLength(out[0]) - L;
+            };
+            // Fewest units that reach the target at the largest height, then the height that hits it exactly.
+            int n = maxN;
+            std::vector<std::vector<Track>> trial;
+            if (opt.style != MeanderStyle::Trombone)
+                for (int k = 1; k <= maxN; ++k) {
+                    build(k, capAmp, trial);
+                    if (added(trial) >= want) {
+                        n = k;
+                        break;
+                    }
+                }
+            double lo = 0.02, hi = capAmp;
+            build(n, hi, trial);
+            if (added(trial) > want) {
+                for (int it = 0; it < 40 && hi - lo > 1e-7; ++it) {
+                    const double mid = (lo + hi) / 2;
+                    build(n, mid, trial);
+                    (added(trial) > want ? hi : lo) = mid;
+                }
+            }
+            for (int shrink = 0; shrink < 4 && !done; ++shrink) {
+                const double amp = hi / (1 << shrink);
+                if (amp < 0.02) break;
+                std::vector<std::vector<Track>> out;
+                build(n, amp, out);
+                w.goneT[ci] = 1;
+                if (opt.coupled) w.goneT[static_cast<size_t>(ptrack)] = 1;
+                bool ok = true;
+                std::vector<size_t> addedIdx;
+                for (size_t k = 0; k < out.size() && ok; ++k) {
+                    const Track& proto = k == 0 ? t : partnerTrack;
+                    for (size_t i = 0; i < out[k].size() && ok; ++i) {
+                        const Track& piece = out[k][i];
+                        ok = !trackHits(w, {proto.net}, proto.layer, piece, proto.width / 2, nullptr);
+                        if (ok && i > 0 && i + 1 < out[k].size()) ok = clearOwnPads(proto, piece);
+                    }
+                    if (!ok) break;
+                    for (const Track& piece : out[k]) addedIdx.push_back(w.addTrack(piece, false));
+                }
+                if (ok) ok = newAcuteJoins(w).empty();
+                if (!ok) {
+                    for (size_t idx : addedIdx) w.goneT[idx] = 1;
+                    w.goneT[ci] = 0;
+                    if (opt.coupled) w.goneT[static_cast<size_t>(ptrack)] = 0;
+                    continue;
+                }
+                want -= added(out);
+                done = true;
+            }
+        }
+    }
+    // Copper this session added (some may have been withdrawn again).
+    double added = 0;
+    for (size_t k = 0; k < w.addT.size(); ++k) {
+        if (w.goneT[w.baseT() + k]) continue;
+        r.addedTracks.push_back(w.addT[k]);
+        if (w.addT[k].net == sel.net) added += trackLength(w.addT[k]);
+    }
+    if (r.addedTracks.empty()) {
+        r.message = "No room for a meander here";
+        return r;
+    }
+    for (size_t i = 0; i < w.baseT(); ++i)
+        if (w.goneT[i]) {
+            r.removedTracks.push_back(base.tracks[i].id);
+            if (base.tracks[i].net == sel.net) added -= trackLength(base.tracks[i]);
+        }
+    r.ok = true;
+    r.message = want <= tolerance ? (opt.coupled ? "Pair tuned to the target length" : "Tuned to the target length")
+                                  : "Lengthened as far as the free space allows";
+    if (!opt.apply) {
+        r.after = r.before + added;
+        r.changes.ok = true;
+        return r;
+    }
+    r.changes = applyWorld(pcb, w, {}, {});
+    r.after = measure(pcb);
+    r.applied = true;
+    return r;
+}
+}  // namespace
+
 LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int trackId, const LengthTuneOptions& opt) {
     LengthTuneResult r;
     long ti = -1;
@@ -3996,6 +4384,11 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
         r.message = "No track with that id";
         return r;
     }
+    // Patterns, corner shapes, drag-along spans, coupled pairs, phase tuning and length rules take the advanced path;
+    // the plain accordion stays exactly as it was.
+    if (opt.style != MeanderStyle::Accordion || opt.corner != MeanderCorner::Square || opt.hasSpan || opt.coupled ||
+        opt.phase || !pcb.settings.lengthRules.empty() || !pcb.settings.matchGroups.empty())
+        return tuneTrackLengthAdvanced(pcb, sch, static_cast<size_t>(ti), opt);
     const Track sel = pcb.tracks[static_cast<size_t>(ti)];
     r.net = sel.net;
     if (sel.net < 0) {
@@ -4142,6 +4535,19 @@ LengthTuneOptions lengthTuneOptionsFromJson(const Json& j) {
         o.near = {j.get("x").asNumber(0), j.get("y").asNumber(0)};
     }
     if (j.has("apply")) o.apply = j.get("apply").asBool(true);
+    const std::string style = j.get("style").asString("accordion");
+    if (style == "trombone") o.style = MeanderStyle::Trombone;
+    if (style == "sawtooth") o.style = MeanderStyle::Sawtooth;
+    const std::string corner = j.get("corner").asString("square");
+    if (corner == "mitered") o.corner = MeanderCorner::Mitered;
+    if (corner == "round") o.corner = MeanderCorner::Round;
+    if (j.get("fromX").isNumber() && j.get("fromY").isNumber() && j.get("toX").isNumber() && j.get("toY").isNumber()) {
+        o.hasSpan = true;
+        o.spanFrom = {j.get("fromX").asNumber(0), j.get("fromY").asNumber(0)};
+        o.spanTo = {j.get("toX").asNumber(0), j.get("toY").asNumber(0)};
+    }
+    o.coupled = j.get("coupled").asBool(false);
+    o.phase = j.get("phase").asBool(false);
     return o;
 }
 
@@ -4163,6 +4569,14 @@ Json lengthTuneJson(const LengthTuneResult& r) {
     j["addedTracks"] = added;
     j["removedTracks"] = removed;
     j["changes"] = routeChangesJson(r.changes);
+    if (!r.targetSource.empty()) {
+        j["targetSource"] = r.targetSource;
+        Json xs = Json::array();
+        for (int n : r.xsignalNets) xs.push(n);
+        j["xsignalNets"] = xs;
+        j["coupled"] = r.coupled;
+        j["partnerNet"] = r.partnerNet;
+    }
     return j;
 }
 

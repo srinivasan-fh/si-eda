@@ -951,6 +951,12 @@ struct TunePreview: Decodable, Equatable {
     var applied: Bool
     var addedTracks: [SnapTrack]
     var removedTracks: [Int]
+    /// Where the target came from ("typed", "partner", "rule:<net>", "group:<name>"); nil for the plain accordion.
+    var targetSource: String?
+    /// Nets measured (the xSignal through series parts), a coupled pair tuning and the pair partner.
+    var xsignalNets: [Int]?
+    var coupled: Bool?
+    var partnerNet: Int?
 
     /// Within tolerance of the target.
     var onTarget: Bool { abs(after - target) <= max(tolerance, 0.01) + 1e-6 }
