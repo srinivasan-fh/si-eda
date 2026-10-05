@@ -45,6 +45,7 @@ enum class CtrlKind {
     Table,      // TABLE {expression} = (x, y) …, piecewise linear
     TanhStage,  // op-amp input stage: coeffs = {gm, imax}: imax·tanh(gm·u / imax)
     Clamp,      // op-amp output limiter: coeffs = {lo, hi}: u clamped smoothly into [lo, hi]
+    DeadZone,   // op-amp internal-node clamp: coeffs = {g, vc}: g·(softplus(u − vc) − softplus(−u − vc))
 };
 
 // Microcontroller pins: 25 Ω push-pull outputs, 35 kΩ pull-ups (ATmega328P datasheet typical values).

@@ -1049,6 +1049,10 @@ public:
             for (size_t i = 0; i < roles.size(); ++i) p.nodes.push_back("#" + std::to_string(i));
             out_.ports = roles;
             if (!loadModel(p, *m, global_, m->line)) return false;
+            if (p.type == 'M') {  // W / L given on the model card (some vendors do) size the device
+                if (auto it = p.model.find("L"); it != p.model.end() && it->second > 0) p.l = it->second;
+                if (auto it = p.model.find("W"); it != p.model.end() && it->second > 0) p.w = it->second;
+            }
             out_.prims.push_back(std::move(p));
             return finish();
         }

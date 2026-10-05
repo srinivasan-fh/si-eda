@@ -54,6 +54,8 @@ small-signal conductance matrix, so every non-linear device is linearised exactl
 | N-MOSFET | g_m and g_ds of the square-law model (λ included) |
 | Op-amp | single-pole gain–bandwidth model: A(f) = A′ / (1 + j·f·A′ / GBW), A′ the open-loop gain at the operating point (10⁶ in the linear region, falling as the output saturates) |
 | Regulators, INA333, IC loads | their linearisation at the operating point (frequency independent) |
+| Imported SPICE devices | conductances from the Newton Jacobian plus jω·∂q/∂v of their charge model: junction (CJO / CJE / CJC / CBD …) and diffusion (TT / TF / TR) capacitance at the bias point, MOSFET gate capacitances |
+| Op-amp macromodel (SR=, P2=, …) | its internal integrator, second pole and output stage as elements (see *Op-amp macromodel*) |
 
 The complex MNA system is solved by LU decomposition with partial pivoting at each frequency of a logarithmic sweep
 (SPICE `.AC DEC`): `start`, `stop` and `pointsPerDecade` (default 1 Hz – 1 MHz, 50 points per decade, at most
@@ -87,9 +89,40 @@ nodes are interpolated (dB linear in log f, typically within 0.05 % at 50 points
 referred to the gain at the sweep *start*: start the sweep at least a decade below the corner (an RC low-pass swept
 from fc / 100 reads 0.01 % high, from fc / 10 about 1 % high).
 
-**Limits.** No junction or diffusion capacitances (diodes, BJTs and MOSFETs are purely resistive in AC, so their
-high-frequency roll-off is not modelled), op-amps have one pole (no second pole, slew rate or output impedance), and
-regulators and the INA333 are frequency independent. There is no noise analysis.
+**Limits.** The built-in diode, NPN and N-MOSFET models have no capacitances (they stay as they were, so existing
+results do not move): attach a SPICE model for junction and diffusion capacitance. The built-in op-amp has one pole
+unless its value asks for the macromodel. Regulators and the INA333 are frequency independent.
+
+## Device capacitances in transient analysis
+
+Imported diodes, BJTs, MOSFETs and JFETs store charge: the depletion charge of each junction (SPICE formula,
+linearised above FC·VJ), the diffusion charge TT·I_D (diode) and TF·I_CC / q_b, TR·I_EC (BJT), MOSFET overlap and
+junction charges and the intrinsic gate charge. The transient integrates them with the same companion model as
+capacitors (backward Euler i = (q − q_prev) / h, or trapezoidal when chosen), so reverse recovery, Miller plateaus and
+switching edges follow from the model. The charge formulation conserves charge: a junction with M = 0 reproduces a
+linear capacitor sample for sample (tested).
+
+## Op-amp macromodel
+
+An op-amp whose value has any of `SR=`, `P2=`, `VOH=`, `VOL=`, `ROUT=`, `AOL=`, `EN=`, `IN=` is simulated with a
+two-stage dynamic model in every analysis (DC, AC, transient, noise); values without them keep the single-pole model
+above, unchanged.
+
+| Parameter | Meaning | Default |
+|---|---|---|
+| `GBW=10MEG` | gain–bandwidth product (or the part table) | 1 MHz |
+| `AOL=1MEG`, `AOL=100dB` | DC open-loop gain | 10⁶ |
+| `P2=20MEG` | second pole | none |
+| `SR=13V/us` (V/µs, V/ns, V/ms, V/s or a plain number in V/s) | slew rate | 2π·GBW·10 V (effectively unlimited) |
+| `VOH=4.9 VOL=0.1` | output limits | ±15 V |
+| `ROUT=50` | output resistance | 0 |
+
+Input stage: a transconductance I = I_max·tanh(g_m·(V+ − V−) / I_max) into an integrator R₁ = AOL / g_m, C₁ = g_m /
+(2π·GBW) (g_m = 1 S), so the DC gain is AOL, the dominant pole GBW / AOL and the slew rate I_max / C₁ = SR. The
+integrator node is clamped 1 V beyond the output limits (as the second stage is in a real part), so it recovers from
+saturation without wind-up. A unity-gain buffer with a pole at P2 follows, then the output: the stage voltage clamped
+smoothly (10 mV knee) into [VOL, VOH], behind ROUT. Example: `TL072 GBW=3MEG P2=12MEG SR=13V/us VOH=13.5 VOL=-13.5`.
+Vendor macromodels (`.subckt`) can be attached instead (see *Imported SPICE models*).
 
 ## DC sweep
 

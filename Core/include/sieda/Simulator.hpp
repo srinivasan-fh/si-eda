@@ -172,6 +172,9 @@ private:
     bool spiceModelApplies(const Component& c) const;
     bool addSpiceModel(const Component& c, std::string& error);
     int newInternalNode();
+    /// Op-amp value with any of SR=, P2=, VOH=, VOL=, ROUT=, AOL=, EN=, IN=: the dynamic macromodel.
+    static bool opAmpMacromodelRequested(const std::string& value);
+    bool addOpAmpMacromodel(const Component& c, double gbw, std::string& error);
     void stampModelElement(const Element& e, double t, double h, const std::vector<double>& x);
     void addModelAdmittance(const Element& e, double w, const std::vector<double>& x,
                             std::vector<std::complex<double>>& M) const;

@@ -9358,3 +9358,255 @@ TEST(spice_models_hostile_input) {
     if (rc) std::printf("    SPICE C API test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+TEST(spice_device_capacitances_ac) {
+    const double vt = spicedevVt();
+    // Reverse-biased junction behind 1 kΩ: corner at 1 / (2π·R·Cj(V)), Cj = CJO / (1 + V/VJ)^M.
+    {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "5 AC 1", {0, 0});
+        int r = s.addComponent(ComponentKind::Resistor, "1k", {50, 0});
+        int d = s.addComponent(ComponentKind::Diode, "", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", r, "1");
+        wire(s, r, "2", d, "K");
+        wire(s, d, "A", g, "GND");
+        wire(s, v, "-", g, "GND");
+        s.setSpiceModel(d, SpiceModelRef{".model DC D(IS=1e-15 CJO=100p VJ=0.7 M=0.5)", "DC", ""});
+        AcOptions o;
+        o.fStart = 1e4;
+        o.fStop = 1e9;
+        AcResult r1 = Simulator(s).ac(o);
+        CHECK(r1.ok);
+        if (r1.ok) {
+            const double cj = 100e-12 / std::sqrt(1 + 5 / 0.7);
+            CHECK_NEAR(r1.metrics[s.netOf({d, 1})].f3dbHz * 2 * kPi * 1e3 * cj, 1.0, 2e-3);
+        }
+        // Without capacitances the built-in diode is flat.
+        s.setSpiceModel(d, SpiceModelRef{});
+        AcResult r0 = Simulator(s).ac(o);
+        CHECK(r0.ok && std::isnan(r0.metrics[s.netOf({d, 1})].f3dbHz));
+    }
+    // Forward diode fed by a current: r_d ∥ C_d with C_d = TT·g_d, so the corner is 1 / (2π·TT).
+    {
+        Schematic s;
+        int i = s.addComponent(ComponentKind::CurrentSource, "1m AC 1u", {0, 0});
+        int d = s.addComponent(ComponentKind::Diode, "", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, i, "+", d, "A");
+        wire(s, d, "K", g, "GND");
+        wire(s, i, "-", g, "GND");
+        s.setSpiceModel(d, SpiceModelRef{".model DT D(IS=1e-14 TT=1n)", "DT", ""});
+        AcOptions o;
+        o.fStart = 1e5;
+        o.fStop = 1e10;
+        AcResult r = Simulator(s).ac(o);
+        CHECK(r.ok);
+        if (r.ok) {
+            const AcMetrics& m = r.metrics[s.netOf({d, 0})];
+            CHECK_NEAR(m.f3dbHz * 2 * kPi * 1e-9, 1.0, 1e-3);
+            CHECK_NEAR(std::pow(10.0, m.lowFreqDb / 20) / 1e-6, vt / (1e-3 + 1e-14), 1e-3 * vt / 1e-3);
+        }
+    }
+    // BJT transit time: with a 1 Ω collector load the current gain falls to unity at f_T ≈ 1 / (2π·TF).
+    {
+        Schematic s;
+        int vcc = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+        int ib = s.addComponent(ComponentKind::CurrentSource, "10u AC 1", {100, 0});
+        int rc = s.addComponent(ComponentKind::Resistor, "1", {200, -80});
+        int q = s.addComponent(ComponentKind::NPN, "", {200, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, ib, "+", q, "B");
+        wire(s, ib, "-", g, "GND");
+        wire(s, vcc, "+", rc, "1");
+        wire(s, rc, "2", q, "C");
+        wire(s, q, "E", g, "GND");
+        wire(s, vcc, "-", g, "GND");
+        s.setSpiceModel(q, SpiceModelRef{".model QT NPN(IS=1e-15 BF=200 TF=1n)", "QT", ""});
+        AcOptions o;
+        o.fStart = 1e3;
+        o.fStop = 1e10;
+        AcResult r = Simulator(s).ac(o);
+        CHECK(r.ok);
+        if (r.ok) {
+            const AcMetrics& m = r.metrics[s.netOf({q, 1})];
+            CHECK_NEAR(m.lowFreqDb, 20 * std::log10(200.0), 0.05);
+            CHECK_NEAR(m.unityHz * 2 * kPi * 1e-9, 1.0, 0.01);  // β / (1 + jωβ·TF): unity at ≈ 1/(2π·TF)
+        }
+    }
+    // MOSFET overlap capacitances: gate through 10 kΩ, drain and source at AC ground: pole at 1/(2π·R·(Cgs + Cgd)).
+    {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "3 AC 1", {0, 0});
+        int vd = s.addComponent(ComponentKind::VoltageSource, "5", {0, 100});
+        int r = s.addComponent(ComponentKind::Resistor, "10k", {50, 0});
+        int m = s.addComponent(ComponentKind::NMOS, "", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", r, "1");
+        wire(s, r, "2", m, "G");
+        wire(s, vd, "+", m, "D");
+        wire(s, m, "S", g, "GND");
+        wire(s, v, "-", g, "GND");
+        wire(s, vd, "-", g, "GND");
+        s.setSpiceModel(m, SpiceModelRef{".model MC NMOS(VTO=1 KP=1m CGSO=200p CGDO=50p W=1 L=1)", "MC", ""});
+        AcOptions o;
+        o.fStart = 1e3;
+        o.fStop = 1e8;
+        AcResult res = Simulator(s).ac(o);
+        CHECK(res.ok);
+        if (res.ok) CHECK_NEAR(res.metrics[s.netOf({m, 0})].f3dbHz * 2 * kPi * 1e4 * 250e-12, 1.0, 1e-3);
+    }
+}
+
+TEST(spice_device_capacitances_transient) {
+    // A junction with M = 0 is a linear capacitor CJO: its RC step response matches a real capacitor sample by sample,
+    // with backward Euler and with the trapezoidal rule alike.
+    auto run = [](bool diode) {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "PULSE(0 -5 1)", {0, 0});
+        int r = s.addComponent(ComponentKind::Resistor, "1k", {50, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        int part;
+        if (diode) {
+            part = s.addComponent(ComponentKind::Diode, "", {100, 0});
+            s.setSpiceModel(part, SpiceModelRef{".model DL D(IS=1e-20 CJO=1n M=0)", "DL", ""});
+            wire(s, r, "2", part, "A");
+            wire(s, part, "K", g, "GND");
+        } else {
+            part = s.addComponent(ComponentKind::Capacitor, "1n", {100, 0});
+            wire(s, r, "2", part, "1");
+            wire(s, part, "2", g, "GND");
+        }
+        wire(s, v, "+", r, "1");
+        wire(s, v, "-", g, "GND");
+        TransientResult tr = Simulator(s).transient(5e-6, 10e-9);
+        return std::make_pair(tr, s.netOf({part, 0}));
+    };
+    auto [cap, capNet] = run(false);
+    auto [dio, dioNet] = run(true);
+    CHECK(cap.ok && dio.ok);
+    if (cap.ok && dio.ok) {
+        double worst = 0;
+        for (size_t i = 0; i < cap.time.size(); ++i)
+            worst = std::max(worst, std::fabs(cap.netVoltages[static_cast<size_t>(capNet)][i] - dio.netVoltages[static_cast<size_t>(dioNet)][i]));
+        CHECK(worst < 1e-6);
+        CHECK_NEAR(dio.netVoltages[static_cast<size_t>(dioNet)][100], -5 * (1 - std::exp(-1.0)), 0.02);  // τ = 1 µs
+    }
+    // Reverse recovery: a diode with TT conducts backwards for a while after the drive reverses; without TT it does not.
+    auto recovery = [](const char* model) {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "PULSE(5 -5 2u 0.5)", {0, 0});
+        int r = s.addComponent(ComponentKind::Resistor, "100", {50, 0});
+        int d = s.addComponent(ComponentKind::Diode, "", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", r, "1");
+        wire(s, r, "2", d, "A");
+        wire(s, d, "K", g, "GND");
+        wire(s, v, "-", g, "GND");
+        s.setSpiceModel(d, SpiceModelRef{model, "DR", ""});
+        TransientResult tr = Simulator(s).transient(2e-6, 2e-9);
+        double reverse = 0;  // charge carried backwards (A·s)
+        if (tr.ok)
+            for (size_t i = 1; i < tr.time.size(); ++i)
+                if (tr.currents[d][i] < 0) reverse += -tr.currents[d][i] * (tr.time[i] - tr.time[i - 1]);
+        return tr.ok ? reverse : NAN;
+    };
+    const double withTT = recovery(".model DR D(IS=1e-14 TT=100n)");
+    const double without = recovery(".model DR D(IS=1e-14)");
+    // Stored charge ≈ TT·I_F = 100 ns · 43 mA ≈ 4.3 nC comes back out.
+    CHECK(withTT > 2e-9 && withTT < 6e-9);
+    CHECK(without < 1e-11);
+}
+
+TEST(opamp_multipole_macromodel) {
+    // Open loop with GBW 1 MHz and a second pole at 2 MHz: |A(fu)| = 1 where fu²·(1 + fu²/P2²) = GBW², phase margin
+    // 90° − atan(fu / P2).
+    auto openLoop = [](const std::string& value) {
+        Schematic s;
+        int vs = s.addComponent(ComponentKind::VoltageSource, "0 AC 1", {0, 0});
+        int a = s.addComponent(ComponentKind::OpAmp, value, {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        int rl = s.addComponent(ComponentKind::Resistor, "10k", {200, 0});
+        wire(s, vs, "+", a, "IN+");
+        wire(s, vs, "-", g, "GND");
+        wire(s, a, "IN-", g, "GND");
+        wire(s, a, "OUT", rl, "1");
+        wire(s, rl, "2", g, "GND");
+        AcOptions o;
+        o.fStart = 0.01;
+        o.fStop = 100e6;
+        AcResult r = Simulator(s).ac(o);
+        return std::make_pair(r, r.ok ? r.metrics[s.netOf({a, 2})] : AcMetrics{});
+    };
+    {
+        auto [r, m] = openLoop("generic GBW=1MEG P2=2MEG");
+        CHECK(r.ok);
+        const double gbw = 1e6, p2 = 2e6;
+        const double fu = std::sqrt((-1 + std::sqrt(1 + 4 * gbw * gbw / (p2 * p2))) / 2) * p2;
+        CHECK_NEAR(m.lowFreqDb, 120.0, 0.01);
+        CHECK_NEAR(m.unityHz / fu, 1.0, 1e-3);
+        CHECK_NEAR(m.phaseMarginDeg, 90.0 - std::atan(fu / p2) * 180 / kPi, 0.1);
+    }
+    {
+        // GBW alone keeps the established single-pole model; AOL changes the DC gain of the macromodel.
+        auto [r, m] = openLoop("generic GBW=10MEG AOL=100dB P2=1G");
+        CHECK(r.ok);
+        CHECK_NEAR(m.lowFreqDb, 100.0, 0.01);
+        CHECK_NEAR(m.unityHz / 10e6, 1.0, 0.01);
+    }
+    // Slew rate and output limits in a follower stepping 0 → 5 V.
+    auto follower = [](const std::string& value, double stop) {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "PULSE(0 5 1)", {0, 0});
+        int a = s.addComponent(ComponentKind::OpAmp, value, {100, 0});
+        int rl = s.addComponent(ComponentKind::Resistor, "10k", {200, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", a, "IN+");
+        wire(s, v, "-", g, "GND");
+        wire(s, a, "OUT", a, "IN-");
+        wire(s, a, "OUT", rl, "1");
+        wire(s, rl, "2", g, "GND");
+        TransientResult tr = Simulator(s).transient(stop, stop / 2000);
+        return std::make_pair(tr, s.netOf({a, 2}));
+    };
+    {
+        auto [tr, out] = follower("generic GBW=10MEG SR=1V/us", 10e-6);
+        CHECK(tr.ok);
+        if (tr.ok) {
+            const auto& w = tr.netVoltages[static_cast<size_t>(out)];
+            double t1 = NAN, t4 = NAN;
+            for (size_t i = 0; i < w.size(); ++i) {
+                if (std::isnan(t1) && w[i] > 1.0) t1 = tr.time[i];
+                if (std::isnan(t4) && w[i] > 4.0) t4 = tr.time[i];
+            }
+            CHECK_NEAR(3.0 / (t4 - t1) / 1e6, 1.0, 0.03);  // 1 V/µs
+            CHECK_NEAR(w.back(), 5.0, 1e-3);
+        }
+    }
+    {
+        auto [tr, out] = follower("generic SR=1V/us VOH=3.3 VOL=0", 20e-6);
+        CHECK(tr.ok);
+        if (tr.ok) CHECK_NEAR(tr.netVoltages[static_cast<size_t>(out)].back(), 3.3, 0.02);  // clipped at VOH
+    }
+    {
+        // Saturated at VOH = 4 V behind ROUT = 100 Ω into 100 Ω: 2 V; the reading is the delivered current.
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "1", {0, 0});
+        int a = s.addComponent(ComponentKind::OpAmp, "generic VOH=4 VOL=-4 ROUT=100", {100, 0});
+        int rl = s.addComponent(ComponentKind::Resistor, "100", {200, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", a, "IN+");
+        wire(s, v, "-", g, "GND");
+        wire(s, a, "IN-", g, "GND");
+        wire(s, a, "OUT", rl, "1");
+        wire(s, rl, "2", g, "GND");
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged);
+        CHECK_NEAR(netV(s, dc, a, "OUT"), 2.0, 0.01);
+        CHECK(reading(dc, a) && std::fabs(reading(dc, a)->current - 0.02) < 1e-4);
+        CHECK(reading(dc, a) && std::fabs(reading(dc, a)->voltage - 2.0) < 0.01);
+        s.setValue(a, "generic VOH=1 VOL=2");
+        std::string error = Simulator(s).dcOperatingPoint().error;
+        CHECK(error.find("VOH must be above VOL") != std::string::npos);
+    }
+}

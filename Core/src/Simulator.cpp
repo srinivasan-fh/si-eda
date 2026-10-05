@@ -336,6 +336,10 @@ bool Simulator::build(std::string& error) {
                 }
                 break;
             case ComponentKind::OpAmp:
+                if (opAmpMacromodelRequested(c.value)) {  // SR=, P2=, VOH= …: the multi-pole dynamic model
+                    if (!addOpAmpMacromodel(c, opAmpGainBandwidth(c.value), error)) return false;
+                    continue;
+                }
                 e.type = ElemType::OpAmp;
                 e.n = {node(c.id, 0), node(c.id, 1), node(c.id, 2)};  // IN+, IN-, OUT
                 e.branch = unknowns_++;

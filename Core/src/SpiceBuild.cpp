@@ -8,6 +8,8 @@
 #include "SimulatorInternal.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/CustomParts.hpp"
+#include "sieda/Geometry.hpp"
+#include "sieda/Units.hpp"
 
 namespace sieda {
 
@@ -63,6 +65,13 @@ double ctrlEval(const Simulator::Element& e, const std::vector<double>& vals, do
             auto sig = [&](double z) { return z / s > 30 ? 1.0 : z / s < -30 ? 0.0 : 1.0 / (1.0 + std::exp(-z / s)); };
             addGrad(e.pairs[0], sig(u - lo) - sig(u - hi));
             return lo + sp(u - lo) - sp(u - hi);
+        }
+        case CtrlKind::DeadZone: {
+            const double u = pairValue(e.pairs[0]), g = e.coeffs[0], vc = e.coeffs[1], s = 0.01;
+            auto sp = [&](double z) { return z / s > 30 ? z : s * std::log1p(std::exp(z / s)); };
+            auto sig = [&](double z) { return z / s > 30 ? 1.0 : z / s < -30 ? 0.0 : 1.0 / (1.0 + std::exp(-z / s)); };
+            addGrad(e.pairs[0], g * (sig(u - vc) + sig(-u - vc)));
+            return g * (sp(u - vc) - sp(-u - vc));
         }
         case CtrlKind::Expr:
         case CtrlKind::Table: {
@@ -440,6 +449,170 @@ bool Simulator::addSpiceModel(const Component& c, std::string& error) {
     } else {
         ports.aux = {npins > 0 ? 0 : -1, npins > 0 ? 0 : -1, npins > 1 ? 1 : -1};
     }
+    elements_.push_back(ports);
+    return true;
+}
+
+namespace {
+/// "KEY=value" in an op-amp value (case-insensitive, a whole word): engineering notation ("5MEG", "100k"), a slew
+/// rate in V/µs, V/ns, V/ms or V/s ("SR=0.5V/us"), a gain in dB ("AOL=100dB"), a noise density ("EN=10n").
+bool opAmpParam(const std::string& value, const char* key, double& out) {
+    const std::string up = upperCase(value), k = std::string(key) + "=";
+    for (size_t pos = up.find(k); pos != std::string::npos; pos = up.find(k, pos + 1)) {
+        if (pos > 0 && !std::isspace(static_cast<unsigned char>(up[pos - 1])) && up[pos - 1] != ',' && up[pos - 1] != ';')
+            continue;
+        std::string tok = value.substr(pos + k.size());
+        tok = tok.substr(0, tok.find_first_of(" \t,;"));
+        std::string utok = upperCase(tok);
+        double scale = 1;
+        auto strip = [&](const char* suffix, double s) {
+            const std::string sfx = suffix;
+            if (utok.size() > sfx.size() && utok.compare(utok.size() - sfx.size(), sfx.size(), sfx) == 0) {
+                tok = tok.substr(0, tok.size() - sfx.size());
+                utok = utok.substr(0, utok.size() - sfx.size());
+                scale = s;
+                return true;
+            }
+            return false;
+        };
+        bool db = false;
+        if (!strip("V/US", 1e6) && !strip("V/\xC2\xB5S", 1e6) && !strip("V/NS", 1e9) && !strip("V/MS", 1e3) && !strip("V/S", 1.0))
+            db = strip("DB", 1.0);
+        auto v = parseEngineeringValue(tok);
+        if (!v || !std::isfinite(*v)) return false;
+        out = db ? std::pow(10.0, *v / 20.0) : *v * scale;
+        return true;
+    }
+    return false;
+}
+}  // namespace
+
+bool Simulator::opAmpMacromodelRequested(const std::string& value) {
+    double v = 0;
+    for (const char* k : {"SR", "P2", "VOH", "VOL", "ROUT", "AOL", "EN", "IN"})
+        if (opAmpParam(value, k, v)) return true;
+    return false;
+}
+
+bool Simulator::addOpAmpMacromodel(const Component& c, double gbw, std::string& error) {
+    // Two-stage macromodel (all internal):
+    //   input stage   i1 = Imax·tanh(gm·(V+ − V−) / Imax) into n1, with R1 = AOL / gm and C1 = gm / (2π·GBW) to
+    //                 ground: DC gain AOL, dominant pole GBW / AOL, slew rate Imax / C1 = SR (gm = 1 S); n1 is
+    //                 clamped 1 V beyond the output limits;
+    //   second pole   unity-gain buffer n1 → n2 through R2 = 1 Ω, C2 = 1 / (2π·P2) (only with P2=);
+    //   output        V = clamp(V(n2), VOL, VOH), smooth at the limits, behind ROUT.
+    double aol = kOpAmpGain, sr = 0, p2 = 0, voh = 15, vol = -15, rout = 0, dummy = 0;
+    opAmpParam(c.value, "AOL", aol);
+    opAmpParam(c.value, "SR", sr);
+    opAmpParam(c.value, "P2", p2);
+    opAmpParam(c.value, "VOH", voh);
+    opAmpParam(c.value, "VOL", vol);
+    opAmpParam(c.value, "ROUT", rout);
+    auto bad = [&](const char* what) {
+        error = c.ref + ": invalid op-amp " + what + " in '" + c.value + "'";
+        return false;
+    };
+    if (!(aol >= 1) || !std::isfinite(aol)) return bad("AOL (open-loop gain, at least 1)");
+    if (!(gbw > 0)) return bad("GBW");
+    if (sr < 0 || (opAmpParam(c.value, "SR", dummy) && !(sr > 0))) return bad("SR (slew rate)");
+    if (p2 < 0 || (opAmpParam(c.value, "P2", dummy) && !(p2 > 0))) return bad("P2 (second pole)");
+    if (!(voh > vol)) return bad("output limits (VOH must be above VOL)");
+    if (rout < 0) return bad("ROUT");
+    auto pinNode = [&](int pin) {
+        const int net = sch_.netOf({c.id, pin});
+        return net < 0 ? -1 : netToNode_[static_cast<size_t>(net)];
+    };
+    const int inp = pinNode(0), inm = pinNode(1), out = pinNode(2);
+    const size_t first = elements_.size();
+    auto base = [&](ElemType t) {
+        Element e{};
+        e.type = t;
+        e.componentId = c.id;
+        e.internal = true;
+        return e;
+    };
+    auto ref = [](Element& e, int unknown) -> int {
+        if (unknown < 0) return -1;
+        e.refs.push_back(unknown);
+        return static_cast<int>(e.refs.size() - 1);
+    };
+    const double gm = 1.0, c1 = gm / (2 * kPi * gbw);
+    const int n1 = newInternalNode();
+    {
+        Element s = base(ElemType::Ctrl);
+        s.ctrl = CtrlKind::TanhStage;
+        s.n = {-1, n1, -1};  // from ground into n1
+        int a = ref(s, inp), b = ref(s, inm);
+        s.pairs = {{a, b}};
+        // Without SR= the stage is linear to ±10 V of input (slew 2π·GBW·10 V, far above any real part).
+        s.coeffs = {gm, sr > 0 ? sr * c1 : gm * 10.0};
+        elements_.push_back(s);
+        // The integrating node stays within 1 V beyond the output limits (as the rails bound a real second stage),
+        // so it recovers from saturation at once and Newton never has to walk it to AOL·V.
+        Element z = base(ElemType::Ctrl);
+        z.ctrl = CtrlKind::DeadZone;
+        z.n = {n1, -1, -1};
+        int zn = ref(z, n1);
+        z.pairs = {{zn, -1}};
+        z.coeffs = {100.0, std::max(std::fabs(voh), std::fabs(vol)) + 1.0};
+        elements_.push_back(z);
+        Element r = base(ElemType::Resistor);
+        r.n = {n1, -1, -1};
+        r.value = aol / gm;
+        elements_.push_back(r);
+        Element cap = base(ElemType::Capacitor);
+        cap.n = {n1, -1, -1};
+        cap.value = c1;
+        elements_.push_back(cap);
+    }
+    int stage = n1;
+    if (p2 > 0) {
+        const int n2 = newInternalNode();
+        Element s = base(ElemType::Ctrl);
+        s.ctrl = CtrlKind::Poly;
+        s.n = {-1, n2, -1};
+        int a = ref(s, n1);
+        s.pairs = {{a, -1}};
+        s.coeffs = {0.0, 1.0};
+        s.terms = spicePolyTerms(1, 2);
+        elements_.push_back(s);
+        Element r = base(ElemType::Resistor);
+        r.n = {n2, -1, -1};
+        r.value = 1.0;
+        elements_.push_back(r);
+        Element cap = base(ElemType::Capacitor);
+        cap.n = {n2, -1, -1};
+        cap.value = 1.0 / (2 * kPi * p2);
+        elements_.push_back(cap);
+        stage = n2;
+    }
+    {
+        const int driven = rout > 0 ? newInternalNode() : out;
+        Element o = base(ElemType::Ctrl);
+        o.ctrl = CtrlKind::Clamp;
+        o.voltageOut = true;
+        o.n = {driven, -1, -1};
+        int a = ref(o, stage);
+        o.pairs = {{a, -1}};
+        o.coeffs = {vol, voh};
+        o.branch = unknowns_++;
+        elements_.push_back(o);
+        if (rout > 0) {
+            Element r = base(ElemType::Resistor);
+            r.n = {driven, out, -1};
+            r.value = rout;
+            elements_.push_back(r);
+        }
+    }
+    Element ports{};
+    ports.type = ElemType::ModelPorts;
+    ports.componentId = c.id;
+    ports.pinNodes = {inp, inm, out};
+    ports.first = first;
+    ports.last = elements_.size();
+    ports.partKind = ComponentKind::OpAmp;
+    ports.aux = {2, 2, -1};
+    ports.value = -1;
     elements_.push_back(ports);
     return true;
 }
