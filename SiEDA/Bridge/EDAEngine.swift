@@ -1607,3 +1607,11 @@ extension EDAEngine {
         withHandle { sieda_set_erc_severity($0, code, level) } == 1
     }
 }
+
+extension EDAEngine {
+    /// Makes a net label an entry of a harness label on its sheet (0: an ordinary label again).
+    @discardableResult
+    func setHarnessEntry(_ label: Int, harness: Int) -> Bool {
+        withHandle { sieda_set_harness_entry($0, Int32(label), Int32(harness)) } == 1
+    }
+}

@@ -1068,3 +1068,20 @@ int sieda_c_api_erc_severity_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* A label made a harness entry through the C API. Returns 0 or the failing step. */
+int sieda_c_api_harness_entry_test(void) {
+    SiedaProject* p = sieda_project_new("Harness entry");
+    if (!p) return 1;
+    if (!sieda_set_harness_type(p, "PAIR", "[\"P\",\"N\"]")) return 2;
+    int32_t h = sieda_add_component(p, 15, "LINK", 0, 0, 0, NULL);
+    int32_t e = sieda_add_component(p, 15, "P", 0, 40, 0, NULL);
+    if (h < 0 || e < 0 || !sieda_set_label_harness(p, h, "PAIR")) return 3;
+    if (!sieda_set_harness_entry(p, e, h) || sieda_set_harness_entry(p, h, e)) return 4;
+    char* snap = sieda_project_snapshot(p);
+    if (!snap || !strstr(snap, "\"harnessOf\":")) return 5;
+    sieda_string_free(snap);
+    if (!sieda_set_harness_entry(p, e, 0)) return 6;
+    sieda_project_free(p);
+    return 0;
+}

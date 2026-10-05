@@ -381,6 +381,9 @@ void Schematic::clear() {
     nextSheetId_ = 2;
     nextComponentId_ = 1;
     nextWireId_ = 1;
+    // Directives sit on components; the design's definitions (harness types, net classes, ERC levels) stay.
+    directives_.clear();
+    nextDirectiveId_ = 1;
     invalidate();
 }
 

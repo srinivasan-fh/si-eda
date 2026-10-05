@@ -6246,3 +6246,33 @@ final class SchematicToolsTests: XCTestCase {
         XCTAssertEqual(String(decoding: pdf.prefix(8), as: UTF8.self), "%PDF-1.4")
     }
 }
+
+/// AI plans keep harnesses and directives too: a plan made from a design with a harness connector and a net
+/// directive rebuilds them.
+@MainActor
+final class StructuredPlanHarnessTests: XCTestCase {
+    func testHarnessAndDirectivesSurviveAPlan() throws {
+        let engine = EDAEngine(name: "Harness plan")
+        XCTAssertTrue(engine.setHarnessType("SPI", entries: ["SCK", "MOSI"]))
+        XCTAssertTrue(engine.setNetClass("HS", trackWidth: 0.2, clearance: 0))
+        let j = engine.addComponent(.connector, at: .zero)
+        let harness = try XCTUnwrap(engine.addHarnessConnector(type: "SPI", name: "BUS0", at: CGPoint(x: 200, y: 0)))
+        let snap = try XCTUnwrap(engine.snapshot())
+        let sck = try XCTUnwrap(snap.components.first { $0.harnessOf == harness && $0.value == "SCK" })
+        XCTAssertNotNil(engine.connect(PinAddress(component: j, pin: 0), PinAddress(component: sck.id, pin: 0)))
+        XCTAssertNotNil(engine.addDirective(component: sck.id, pin: 0, netClass: "HS", diffPair: false, trackWidth: 0, clearance: 0))
+        let before = try XCTUnwrap(engine.snapshot())
+        let plan = DesignPlanCompiler.plan(from: before)
+        XCTAssertEqual(plan.harnessTypes?.first?.name, "SPI")
+        XCTAssertEqual(plan.directives?.count, 1)
+        XCTAssertEqual(plan.components.filter { $0.harnessOf != nil }.count, 2)
+        let rebuilt = EDAEngine(name: "Rebuilt")
+        let report = DesignPlanCompiler.apply(plan, to: rebuilt, previous: before)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        let after = try XCTUnwrap(rebuilt.snapshot())
+        XCTAssertEqual(after.components.filter(\.isHarnessLabel).count, 1)
+        XCTAssertEqual(after.components.filter { $0.harnessOf != nil }.count, 2)
+        XCTAssertEqual(after.directives.first?.netName, "BUS0.SCK")
+        XCTAssertEqual(after.board.netWidths["BUS0.SCK"], 0.2)
+    }
+}

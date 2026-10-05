@@ -40,6 +40,10 @@ struct DesignPlan: Codable, Equatable {
     var sheets: [PlannedSheet]
     /// Graphical buses (nil: none); bus entries are net labels naming their bus by index (`PlannedComponent.bus`).
     var buses: [PlannedBus]?
+    /// Signal harness types, schematic net classes and the directives on nets (nil: none).
+    var harnessTypes: [PlannedHarnessType]?
+    var netClassDefs: [PlannedNetClassDef]?
+    var directives: [PlannedDirective]?
 
     init(title: String, summary: String, components: [PlannedComponent], connections: [PlannedConnection],
          notes: [String] = [], board: PlannedBoard = PlannedBoard(), industry: String? = nil,
@@ -93,11 +97,14 @@ struct DesignPlan: Codable, Equatable {
         memoryDesign = try c.decodeIfPresent(String.self, forKey: .memoryDesign)
         sheets = try c.decodeIfPresent([PlannedSheet].self, forKey: .sheets) ?? []
         buses = try? c.decodeIfPresent([PlannedBus].self, forKey: .buses)
+        harnessTypes = try? c.decodeIfPresent([PlannedHarnessType].self, forKey: .harnessTypes)
+        netClassDefs = try? c.decodeIfPresent([PlannedNetClassDef].self, forKey: .netClassDefs)
+        directives = try? c.decodeIfPresent([PlannedDirective].self, forKey: .directives)
     }
 
     private enum CodingKeys: String, CodingKey {
         case title, summary, components, connections, notes, board, industry, pours, netClasses, noConnect, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass
-        case retailDevice, tamperMeshes, applianceType, memoryDesign, sheets, buses
+        case retailDevice, tamperMeshes, applianceType, memoryDesign, sheets, buses, harnessTypes, netClassDefs, directives
     }
 
     func jsonString(pretty: Bool = true) -> String {
@@ -134,6 +141,9 @@ struct PlannedComponent: Codable, Equatable {
     var units: [PlannedUnit]?
     /// Bus entries: index into `DesignPlan.buses` of the bus the label leaves.
     var bus: Int?
+    /// Signal harnesses: a harness label's type, and for a harness entry the reference of its harness label.
+    var harness: String?
+    var harnessOf: String?
 
     init(ref: String, kind: String, value: String, x: Double, y: Double, rotation: Int = 0, firmware: String? = nil,
          pcb: PlannedPlacement? = nil, sheet: String? = nil, scope: String? = nil, targetSheet: String? = nil) {
@@ -173,10 +183,13 @@ struct PlannedComponent: Codable, Equatable {
         channelValues = try? c.decodeIfPresent([String: String].self, forKey: .channelValues)
         units = try? c.decodeIfPresent([PlannedUnit].self, forKey: .units)
         bus = try? c.decodeIfPresent(Int.self, forKey: .bus)
+        harness = try? c.decodeIfPresent(String.self, forKey: .harness)
+        harnessOf = try? c.decodeIfPresent(String.self, forKey: .harnessOf)
     }
 
     private enum CodingKeys: String, CodingKey {
         case ref, kind, value, x, y, rotation, firmware, pcb, sheet, scope, targetSheet, blockRef, channelValues, units, bus
+        case harness, harnessOf
     }
 }
 
@@ -217,6 +230,28 @@ struct PlannedBus: Codable, Equatable {
     var name: String
     var sheet: String?
     var points: [PlannedPoint]
+}
+
+/// A signal harness type in a plan.
+struct PlannedHarnessType: Codable, Equatable {
+    var name: String
+    var entries: [String]
+}
+
+/// A schematic net class in a plan (mm; nil = the board default).
+struct PlannedNetClassDef: Codable, Equatable {
+    var name: String
+    var trackWidth: Double?
+    var clearance: Double?
+}
+
+/// A directive on the net of a pin ("REF.PIN", as in connections).
+struct PlannedDirective: Codable, Equatable {
+    var at: String
+    var netClass: String?
+    var diffPair: Bool?
+    var trackWidth: Double?
+    var clearance: Double?
 }
 
 struct PlannedPoint: Codable, Equatable {
@@ -664,6 +699,14 @@ enum DesignPlanCompiler {
                 engine.setSheetParent(id, parent: parentId)
             }
         }
+        // Harness types and net classes, before the labels and directives that use them.
+        for type in plan.harnessTypes ?? [] where !engine.setHarnessType(type.name, entries: type.entries) {
+            report.warnings.append("Harness type '\(type.name)' could not be defined.")
+        }
+        for def in plan.netClassDefs ?? []
+        where !engine.setNetClass(def.name, trackWidth: def.trackWidth ?? 0, clearance: def.clearance ?? 0) {
+            report.warnings.append("Net class '\(def.name)' could not be defined.")
+        }
         // Buses, before their entries.
         var busIds: [Int: Int] = [:]
         for (index, bus) in (plan.buses ?? []).enumerated() {
@@ -765,9 +808,30 @@ enum DesignPlanCompiler {
             if a == b { continue }
             if engine.connect(a, b) != nil { report.connectionsMade += 1 }
         }
+        // Harness labels, then their entries (after the wiring: an entry joins its member net by name).
+        for (index, item) in plan.components.enumerated() {
+            guard let id = placedIds[index], let type = item.harness, !type.isEmpty else { continue }
+            if !engine.setLabelHarness(id, type: type) { report.warnings.append("\(item.ref): harness '\(type)' could not be set.") }
+        }
+        let refIndex = Dictionary(plan.components.enumerated().map { ($0.element.ref, $0.offset) }, uniquingKeysWith: { a, _ in a })
+        for (index, item) in plan.components.enumerated() {
+            guard let id = placedIds[index], let owner = item.harnessOf, let ownerIndex = refIndex[owner],
+                  let harness = placedIds[ownerIndex] else { continue }
+            if !engine.setHarnessEntry(id, harness: harness) {
+                report.warnings.append("\(item.ref): not an entry of harness \(owner).")
+            }
+        }
         if plan.sheets.contains(where: { $0.channels ?? 1 > 1 || $0.instanceOf != nil }) {
             applyRepeatedSheets(plan, engine: engine, sheetIds: &sheetIds, placedIds: placedIds,
                                 deferredScopes: deferredScopes, report: &report)
+        }
+        for directive in plan.directives ?? [] {
+            guard let pin = resolve(directive.at, engine: engine, report: &report, unitPins: unitPins) else { continue }
+            if engine.addDirective(component: pin.component, pin: pin.pin, netClass: directive.netClass ?? "",
+                                   diffPair: directive.diffPair ?? false, trackWidth: directive.trackWidth ?? 0,
+                                   clearance: directive.clearance ?? 0) == nil {
+                report.warnings.append("Directive on \(directive.at) could not be added.")
+            }
         }
 
         let board = plan.board
@@ -1082,6 +1146,8 @@ enum DesignPlanCompiler {
             item.channelValues = channelValues[c.id]
             item.units = unitsOf[c.id].map { units in units.sorted { $0.unit < $1.unit } }
             item.bus = c.bus.flatMap { busIndex[$0] }
+            if c.isHarnessLabel { item.harness = c.harnessType }
+            item.harnessOf = c.harnessOf.flatMap { byId[$0]?.ref }
             return item
         }
         let plannedIds = Set(planned.map(\.id))
@@ -1175,6 +1241,20 @@ enum DesignPlanCompiler {
                               memoryDesign: snapshot.memoryDesign.isEmpty ? nil : snapshot.memoryDesign,
                               sheets: sheets)
         plan.buses = buses.isEmpty ? nil : buses
+        if !snapshot.harnessTypes.isEmpty {
+            plan.harnessTypes = snapshot.harnessTypes.map { PlannedHarnessType(name: $0.name, entries: $0.entries) }
+        }
+        if !snapshot.netClassDefs.isEmpty {
+            plan.netClassDefs = snapshot.netClassDefs.map {
+                PlannedNetClassDef(name: $0.name, trackWidth: $0.trackWidth, clearance: $0.clearance)
+            }
+        }
+        let directives = snapshot.directives.compactMap { d -> PlannedDirective? in
+            guard let at = label(PinAddress(component: d.component, pin: d.pin)) else { return nil }
+            return PlannedDirective(at: at, netClass: d.netClass, diffPair: d.diffPair, trackWidth: d.trackWidth,
+                                    clearance: d.clearance)
+        }
+        plan.directives = directives.isEmpty ? nil : directives
         return plan
     }
 
@@ -1198,6 +1278,9 @@ enum DesignPlanCompiler {
             }
         }
         if plan.buses == nil { plan.buses = current.buses }
+        if plan.harnessTypes == nil { plan.harnessTypes = current.harnessTypes }
+        if plan.netClassDefs == nil { plan.netClassDefs = current.netClassDefs }
+        if plan.directives == nil { plan.directives = current.directives }
         let busCount = plan.buses?.count ?? 0
         let old = Dictionary(current.components.map { ($0.ref, $0) }, uniquingKeysWith: { a, _ in a })
         let sheetNames = Set(plan.sheets.map(\.name))
@@ -1212,6 +1295,8 @@ enum DesignPlanCompiler {
                 if c.channelValues == nil { c.channelValues = was.channelValues }
                 if c.units == nil { c.units = was.units }
                 if c.bus == nil, let b = was.bus, b < busCount { c.bus = b }
+                if c.harness == nil { c.harness = was.harness }
+                if c.harnessOf == nil { c.harnessOf = was.harnessOf }
             }
             plan.components[i] = c
         }

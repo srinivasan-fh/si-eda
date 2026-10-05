@@ -3290,3 +3290,12 @@ int32_t sieda_set_erc_severity(SiedaProject* project, const char* code, const ch
 }
 
 }  // extern "C"
+
+extern "C" {
+
+int32_t sieda_set_harness_entry(SiedaProject* project, int32_t label, int32_t harness) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setHarnessOf(label, harness) ? 1 : 0; });
+}
+
+}  // extern "C"

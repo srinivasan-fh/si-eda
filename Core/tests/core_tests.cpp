@@ -13983,3 +13983,24 @@ TEST(c_api_erc_severity) {
     if (rc != 0) std::printf("    C API ERC severity test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+extern "C" int sieda_c_api_harness_entry_test(void);
+TEST(c_api_harness_entry) {
+    const int rc = sieda_c_api_harness_entry_test();
+    if (rc != 0) std::printf("    C API harness entry test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}
+
+TEST(clear_drops_directives_but_keeps_definitions) {
+    Schematic s;
+    const int a = s.addComponent(ComponentKind::NetLabel, "X_P", {0, 0});
+    CHECK(s.setNetClassDef({"HS", 0.2, 0}) && s.setHarnessType("PAIR", {"P", "N"}));
+    NetDirective d;
+    d.component = a;
+    d.netClass = "HS";
+    CHECK(s.addDirective(d) > 0);
+    s.clear();
+    CHECK(s.directives().empty() && s.findNetClassDef("HS") && s.findHarnessType("PAIR"));
+    const int b = s.addComponent(ComponentKind::NetLabel, "Y", {0, 0});
+    CHECK(b == a && s.netRules().empty());  // the new part with the old id carries no stale directive
+}

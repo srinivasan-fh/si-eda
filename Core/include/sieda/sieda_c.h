@@ -781,6 +781,9 @@ char* sieda_export_schematic_pdf(const SiedaProject* project);
  * "default" (its own severity again). The snapshot lists "ercSeverities" {code: level}. 1 on success. */
 int32_t sieda_set_erc_severity(SiedaProject* project, const char* code, const char* level);
 
+/* Makes a net label an entry of a harness label on its sheet (harness 0: an ordinary label again). 1 on success. */
+int32_t sieda_set_harness_entry(SiedaProject* project, int32_t label, int32_t harness);
+
 #ifdef __cplusplus
 }
 #endif
