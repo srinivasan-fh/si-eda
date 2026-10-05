@@ -341,6 +341,102 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_set_sheet_channel($0, Int32(id), channel) } == 1
     }
 
+    /// Gate swap between two placed units of interchangeable gates.
+    @discardableResult
+    func swapUnits(_ a: Int, _ b: Int) -> Bool {
+        withHandle { sieda_swap_units($0, Int32(a), Int32(b)) } == 1
+    }
+
+    /// Pin swap inside a unit (pins of one pin-swap group exchange their wires).
+    @discardableResult
+    func swapPins(_ component: Int, _ a: Int, _ b: Int) -> Bool {
+        withHandle { sieda_swap_pins($0, Int32(component), Int32(a), Int32(b)) } == 1
+    }
+
+    /// Value of one channel of a repeated sheet's part ("" = the block's value again).
+    @discardableResult
+    func setChannelValue(_ id: Int, _ value: String) -> Bool {
+        withHandle { sieda_set_channel_value($0, Int32(id), value) } == 1
+    }
+
+    @discardableResult
+    func setChannelPackage(_ id: Int, _ package: String) -> Bool {
+        withHandle { sieda_set_channel_package($0, Int32(id), package) } == 1
+    }
+
+    @discardableResult
+    func clearChannelOverrides(_ id: Int) -> Bool {
+        withHandle { sieda_clear_channel_overrides($0, Int32(id)) } == 1
+    }
+
+    // MARK: - Schematic directives
+
+    private static func json(_ object: [String: Any]) -> String {
+        (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+    }
+
+    /// Defines or replaces a net class (0 = the board default).
+    @discardableResult
+    func setNetClass(_ name: String, trackWidth: Double, clearance: Double) -> Bool {
+        let body = Self.json(["name": name, "trackWidth": trackWidth, "clearance": clearance])
+        return withHandle { sieda_set_net_class($0, body) } == 1
+    }
+
+    @discardableResult
+    func removeNetClass(_ name: String) -> Bool { withHandle { sieda_remove_net_class($0, name) } == 1 }
+
+    private static func directiveJSON(component: Int, pin: Int, netClass: String, diffPair: Bool, trackWidth: Double,
+                                      clearance: Double) -> String {
+        json(["component": component, "pin": pin, "netClass": netClass, "diffPair": diffPair, "trackWidth": trackWidth,
+              "clearance": clearance])
+    }
+
+    /// Adds a directive on the net of a pin; its id, nil when refused.
+    func addDirective(component: Int, pin: Int, netClass: String, diffPair: Bool, trackWidth: Double, clearance: Double) -> Int? {
+        let body = Self.directiveJSON(component: component, pin: pin, netClass: netClass, diffPair: diffPair,
+                                      trackWidth: trackWidth, clearance: clearance)
+        let id = withHandle { sieda_add_directive($0, body) }
+        return id > 0 ? Int(id) : nil
+    }
+
+    @discardableResult
+    func updateDirective(_ id: Int, component: Int, pin: Int, netClass: String, diffPair: Bool, trackWidth: Double,
+                         clearance: Double) -> Bool {
+        let body = Self.directiveJSON(component: component, pin: pin, netClass: netClass, diffPair: diffPair,
+                                      trackWidth: trackWidth, clearance: clearance)
+        return withHandle { sieda_update_directive($0, Int32(id), body) } == 1
+    }
+
+    @discardableResult
+    func removeDirective(_ id: Int) -> Bool { withHandle { sieda_remove_directive($0, Int32(id)) } == 1 }
+
+    // MARK: - Signal harnesses
+
+    /// Defines or replaces a harness type; an empty entry list removes it.
+    @discardableResult
+    func setHarnessType(_ name: String, entries: [String]) -> Bool {
+        let json = (try? JSONSerialization.data(withJSONObject: entries)).map { String(decoding: $0, as: UTF8.self) } ?? "[]"
+        return withHandle { sieda_set_harness_type($0, name, json) } == 1
+    }
+
+    /// Makes a net label a harness label of `type` ("" = an ordinary label again).
+    @discardableResult
+    func setLabelHarness(_ label: Int, type: String) -> Bool {
+        withHandle { sieda_set_label_harness($0, Int32(label), type) } == 1
+    }
+
+    /// Harness connector on the active sheet (a harness label with one entry per member); its id, nil on failure.
+    func addHarnessConnector(type: String, name: String, at point: CGPoint) -> Int? {
+        let id = withHandle { sieda_add_harness_connector($0, type, name, Double(point.x), Double(point.y)) }
+        return id >= 0 ? Int(id) : nil
+    }
+
+    /// Adds the missing member entries of a harness label; the number added, nil when it is not a harness.
+    func placeHarnessEntries(_ label: Int) -> Int? {
+        let n = withHandle { sieda_place_harness_entries($0, Int32(label)) }
+        return n >= 0 ? Int(n) : nil
+    }
+
     // MARK: - Graphical buses
 
     /// Draws a bus ("D[0..7]") through `points` on the active sheet; its id, nil when the name is not a bus.
@@ -352,6 +448,10 @@ final class EDAEngine: @unchecked Sendable {
 
     @discardableResult
     func removeBus(_ id: Int) -> Bool { withHandle { sieda_remove_bus($0, Int32(id)) } == 1 }
+
+    /// Makes a net label an entry of a bus on its sheet (0: an ordinary label again).
+    @discardableResult
+    func setLabelBus(_ label: Int, bus: Int) -> Bool { withHandle { sieda_set_label_bus($0, Int32(label), Int32(bus)) } == 1 }
 
     @discardableResult
     func renameBus(_ id: Int, to name: String) -> Bool { withHandle { sieda_rename_bus($0, Int32(id), name) } == 1 }
@@ -490,6 +590,11 @@ final class EDAEngine: @unchecked Sendable {
         decode([SymbolIssue].self, from: take(sieda_check_symbol(spec.jsonString()))) ?? []
     }
 
+    /// Unit (gate) editor checks of a multi-unit spec (codes UNIT_*; same shape as the symbol checks).
+    static func checkUnits(_ spec: CustomPartSpec) -> [SymbolIssue] {
+        decode([SymbolIssue].self, from: take(sieda_check_units(spec.jsonString()))) ?? []
+    }
+
     /// Footprint editor checks: overlapping pads, copper gaps below `minGap` mm, annular rings, pads without pins and
     /// pins without pads.
     static func checkLandPattern(_ spec: CustomPartSpec, minGap: Double = 0.1) -> [LandIssue] {
@@ -528,8 +633,10 @@ final class EDAEngine: @unchecked Sendable {
     }
 
     /// Places unit A of a multi-unit part (with its hidden package); the unit's id, or -1.
-    func addCustomUnits(partId: String, at point: CGPoint, rotation: Int = 0) -> Int {
-        Int(withHandle { sieda_add_custom_units($0, partId, "", Double(point.x), Double(point.y), Int32(rotation), "") })
+    func addCustomUnits(partId: String, value: String? = nil, at point: CGPoint, rotation: Int = 0, ref: String? = nil) -> Int {
+        let v = value ?? ""
+        let r = ref ?? ""
+        return Int(withHandle { sieda_add_custom_units($0, partId, v, Double(point.x), Double(point.y), Int32(rotation), r) })
     }
 
     /// Places the next unit not placed yet of a unit's package; nil when every unit is placed.
@@ -539,8 +646,10 @@ final class EDAEngine: @unchecked Sendable {
     }
 
     /// Places unit `unit` (1-based) of a unit's package; nil when it is placed already or out of range.
-    func addPartUnit(of component: Int, unit: Int, at point: CGPoint) -> Int? {
-        let id = withHandle { sieda_add_part_unit($0, Int32(component), Int32(unit), Double(point.x), Double(point.y), 0) }
+    func addPartUnit(of component: Int, unit: Int, at point: CGPoint, rotation: Int = 0) -> Int? {
+        let id = withHandle {
+            sieda_add_part_unit($0, Int32(component), Int32(unit), Double(point.x), Double(point.y), Int32(rotation))
+        }
         return id >= 0 ? Int(id) : nil
     }
 
@@ -1430,4 +1539,79 @@ final class LiveSession: @unchecked Sendable {
     func setSwitch(_ id: Int, closed: Bool) { _ = locked { sieda_live_set_switch($0, Int32(id), closed ? 1 : 0) } }
 
     func sendSerial(_ id: Int, text: String) { _ = locked { sieda_live_serial_input($0, Int32(id), text) } }
+}
+
+// MARK: - Schematic capture: editing productivity, back-annotation, templates and PDF
+
+extension EDAEngine {
+    private static func idList(_ ids: [Int]) -> String { "[" + ids.map(String.init).joined(separator: ",") + "]" }
+
+    /// Aligns or distributes components: "left", "right", "top", "bottom", "centerX", "centerY", "distributeX",
+    /// "distributeY". The number moved (0 when nothing moved).
+    @discardableResult
+    func alignComponents(_ ids: [Int], mode: String) -> Int {
+        let ids = Self.idList(ids)
+        return max(0, Int(withHandle { sieda_align_components($0, ids, mode) }))
+    }
+
+    /// Clipboard text of components and the wires between them.
+    func copyComponents(_ ids: [Int]) -> String? {
+        let ids = Self.idList(ids)
+        return Self.take(withHandle { sieda_copy_components($0, ids) })
+    }
+
+    /// Pastes a clipboard (a paste array when `count` > 1); the new components' ids.
+    func pasteComponents(_ clip: String, offset: CGSize, count: Int = 1, step: CGSize = .zero, labelIncrement: Int = 0) -> [Int] {
+        let options = "{\"dx\":\(Double(offset.width)),\"dy\":\(Double(offset.height)),\"count\":\(count),"
+            + "\"stepX\":\(Double(step.width)),\"stepY\":\(Double(step.height)),\"labelIncrement\":\(labelIncrement)}"
+        return Self.decode([Int].self, from: Self.take(withHandle { sieda_paste_components($0, clip, options) })) ?? []
+    }
+
+    /// Back-annotation: designators re-numbered by board position (proposed, not applied).
+    func reannotateFromBoard(byColumns: Bool) -> [EcoChangeInfo] {
+        Self.decode([EcoChangeInfo].self, from: Self.take(withHandle { sieda_reannotate_from_board($0, byColumns ? 1 : 0) })) ?? []
+    }
+
+    /// Back-annotation: the changes of a WAS / IS text (proposed, not applied).
+    func ecoFromWasIs(_ text: String) -> [EcoChangeInfo] {
+        Self.decode([EcoChangeInfo].self, from: Self.take(withHandle { sieda_eco_from_was_is($0, text) })) ?? []
+    }
+
+    /// Applies the changes; the number applied.
+    @discardableResult
+    func applyEco(_ changes: [EcoChangeInfo]) -> Int {
+        let encoder = JSONEncoder()
+        guard let data = try? encoder.encode(changes) else { return 0 }
+        let json = String(decoding: data, as: UTF8.self)
+        return max(0, Int(withHandle { sieda_apply_eco($0, json) }))
+    }
+
+    @discardableResult
+    func setSheetSize(_ id: Int, size: String) -> Bool { withHandle { sieda_set_sheet_size($0, Int32(id), size) } == 1 }
+
+    /// Drawing templates (A4 … A0, ANSI A … E).
+    static func sheetTemplates() -> [SheetTemplateInfo] {
+        decode([SheetTemplateInfo].self, from: take(sieda_sheet_templates_json())) ?? []
+    }
+
+    /// PDF of every sheet with hierarchy bookmarks, frames and title blocks.
+    func schematicPDF() -> Data? {
+        Self.take(withHandle { sieda_export_schematic_pdf($0) }).map { Data($0.utf8) }
+    }
+}
+
+extension EDAEngine {
+    /// ERC error reporting: report `code` as "error", "warning", "info" or "off"; "default" restores its severity.
+    @discardableResult
+    func setErcSeverity(_ code: String, level: String) -> Bool {
+        withHandle { sieda_set_erc_severity($0, code, level) } == 1
+    }
+}
+
+extension EDAEngine {
+    /// Makes a net label an entry of a harness label on its sheet (0: an ordinary label again).
+    @discardableResult
+    func setHarnessEntry(_ label: Int, harness: Int) -> Bool {
+        withHandle { sieda_set_harness_entry($0, Int32(label), Int32(harness)) } == 1
+    }
 }

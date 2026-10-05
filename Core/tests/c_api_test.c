@@ -873,3 +873,215 @@ int sieda_c_api_autoroute_progress_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Schematic capture package: nested repeated sheets and channel parameters. Returns 0 or the failing step. */
+int sieda_c_api_schematic_pro_test(void) {
+    SiedaProject* p = sieda_project_new("Schematic pro");
+    if (!p) return 1;
+    int32_t amp = sieda_add_sheet(p, "Amp", 1);
+    int32_t stage = sieda_add_sheet(p, "Stage", amp);
+    if (amp < 0 || stage < 0 || !sieda_set_active_sheet(p, stage)) return 2;
+    int32_t in = sieda_add_component(p, 15, "IN", 0, 0, 0, NULL);
+    int32_t r = sieda_add_component(p, 0, "10k", 80, 0, 0, NULL);
+    if (!sieda_set_label_scope(p, in, "port", 0) || sieda_connect(p, in, 0, r, 0) < 0) return 3;
+    if (sieda_repeat_sheet(p, amp, 2) != -1) return 4; /* Stage is not repeated yet */
+    if (sieda_repeat_sheet(p, stage, 2) != 2 || sieda_repeat_sheet(p, amp, 3) != 3) return 5;
+    {
+        char* sheets = sieda_sheets_json(p);
+        if (!sheets || !strstr(sheets, "\"name\":\"Stage [C/B]\"") || !strstr(sheets, "\"channels\":3") ||
+            !strstr(sheets, "\"path\":\"B/A\""))
+            return 6;
+        sieda_string_free(sheets);
+    }
+    if (!sieda_set_instance_refs(p, amp, "suffix") || sieda_find_component(p, "R1_C_B") < 0) return 7;
+    int32_t rcb = sieda_find_component(p, "R1_C_B");
+    if (!sieda_set_channel_value(p, rcb, "12k") || sieda_set_channel_value(NULL, rcb, "1k")) return 8;
+    {
+        char* snap = sieda_project_snapshot(p);
+        if (!snap || !strstr(snap, "\"blockValue\":\"10k\"") || !strstr(snap, "\"value\":\"12k\"")) return 9;
+        sieda_string_free(snap);
+    }
+    if (!sieda_set_channel_value(p, rcb, "") || !sieda_clear_channel_overrides(p, rcb)) return 10;
+    if (!sieda_set_channel_package(p, rcb, "") || sieda_set_channel_package(p, rcb, "NOT_A_PACKAGE")) return 11;
+    sieda_project_free(p);
+    return 0;
+}
+
+/* Unit (gate) editor checks, gate swap and pin swap through the C API. Returns 0 or the failing step. */
+int sieda_c_api_unit_editor_test(void) {
+    const char* spec =
+        "{\"name\":\"C-API-NAND\",\"package\":{\"type\":\"SOIC\",\"pinCount\":14},\"pins\":["
+        "{\"number\":\"1\",\"name\":\"1A\",\"type\":\"input\"},{\"number\":\"2\",\"name\":\"1B\",\"type\":\"input\"},"
+        "{\"number\":\"3\",\"name\":\"1Y\",\"type\":\"output\"},{\"number\":\"4\",\"name\":\"2A\",\"type\":\"input\"},"
+        "{\"number\":\"5\",\"name\":\"2B\",\"type\":\"input\"},{\"number\":\"6\",\"name\":\"2Y\",\"type\":\"output\"},"
+        "{\"number\":\"7\",\"name\":\"GND\",\"type\":\"power_in\"},{\"number\":\"8\",\"name\":\"3Y\",\"type\":\"output\"},"
+        "{\"number\":\"9\",\"name\":\"3A\",\"type\":\"input\"},{\"number\":\"10\",\"name\":\"3B\",\"type\":\"input\"},"
+        "{\"number\":\"11\",\"name\":\"4Y\",\"type\":\"output\"},{\"number\":\"12\",\"name\":\"4A\",\"type\":\"input\"},"
+        "{\"number\":\"13\",\"name\":\"4B\",\"type\":\"input\"},{\"number\":\"14\",\"name\":\"VCC\",\"type\":\"power_in\"}],"
+        "\"units\":[{\"name\":\"A\",\"pins\":[\"1\",\"2\",\"3\"],\"pinSwap\":[[\"1\",\"2\"]]},"
+        "{\"name\":\"B\",\"pins\":[\"4\",\"5\",\"6\"],\"pinSwap\":[[\"4\",\"5\"]]},"
+        "{\"name\":\"C\",\"pins\":[\"9\",\"10\",\"8\"],\"swap\":-1},{\"name\":\"D\",\"pins\":[\"12\",\"13\",\"11\"]}]}";
+    char* issues = sieda_check_units(spec);
+    if (!issues || !strstr(issues, "UNIT_POWER") || strstr(issues, "\"error\"")) return 1;
+    sieda_string_free(issues);
+    issues = sieda_check_units("{\"name\":\"X\",\"pins\":[{\"number\":\"1\",\"name\":\"A\"}],\"units\":[{\"name\":\"A\",\"pins\":[]}]}");
+    if (!issues || !strstr(issues, "UNIT_INVALID")) return 2;
+    sieda_string_free(issues);
+    SiedaProject* p = sieda_project_new("Units");
+    if (!p) return 3;
+    char* err = NULL;
+    char* part = sieda_custom_part_register(p, spec, &err);
+    if (!part || err) return 4;
+    const char* idStart = strstr(part, "\"id\":\"");
+    if (!idStart) return 5;
+    char id[128] = {0};
+    {
+        const char* s = idStart + 6;
+        size_t n = 0;
+        while (s[n] && s[n] != '"' && n + 1 < sizeof id) {
+            id[n] = s[n];
+            ++n;
+        }
+    }
+    sieda_string_free(part);
+    int32_t a = sieda_add_custom_units(p, id, NULL, 0, 0, 0, NULL);
+    int32_t b = sieda_place_next_unit(p, a, 200, 0);
+    int32_t c = sieda_place_next_unit(p, a, 400, 0);
+    if (a < 0 || b < 0 || c < 0) return 6;
+    if (!sieda_swap_pins(p, a, 0, 1) || sieda_swap_pins(p, a, 0, 2)) return 7;
+    if (!sieda_swap_units(p, a, b) || sieda_swap_units(p, a, c) || sieda_swap_units(NULL, a, b)) return 8;
+    sieda_project_free(p);
+    return 0;
+}
+
+/* Signal harnesses and bus entries through the C API. Returns 0 or the failing step. */
+int sieda_c_api_harness_test(void) {
+    SiedaProject* p = sieda_project_new("Harness");
+    if (!p) return 1;
+    if (!sieda_set_harness_type(p, "I2C", "[\"SCL\",\"SDA\"]") || sieda_set_harness_type(p, "bad name", "[\"A\"]")) return 2;
+    char* types = sieda_harness_types_json(p);
+    if (!types || !strstr(types, "\"SDA\"")) return 3;
+    sieda_string_free(types);
+    int32_t h = sieda_add_harness_connector(p, "I2C", "BUS1", 100, 0);
+    if (h < 0 || sieda_add_harness_connector(p, "NOPE", "X", 0, 0) != -1) return 4;
+    if (sieda_place_harness_entries(p, h) != 0) return 5;
+    {
+        char* snap = sieda_project_snapshot(p);
+        if (!snap || !strstr(snap, "\"harnessOf\":") || !strstr(snap, "\"harnessType\":\"I2C\"")) return 6;
+        sieda_string_free(snap);
+    }
+    if (!sieda_set_label_harness(p, h, "") || !sieda_set_label_harness(p, h, "I2C")) return 7;
+    if (sieda_place_harness_entries(p, h) != 2) return 8;
+    if (!sieda_set_harness_type(p, "I2C", NULL) || sieda_set_harness_type(p, "I2C", "[]")) return 9;
+    /* Bus entries by label. */
+    int32_t bus = sieda_add_bus(p, "D[0..1]", "[{\"x\":0,\"y\":0},{\"x\":0,\"y\":100}]");
+    int32_t label = sieda_add_component(p, 15, "D0", 20, 20, 0, NULL);
+    if (bus <= 0 || !sieda_set_label_bus(p, label, bus) || sieda_set_label_bus(p, label, 999) ||
+        sieda_set_label_bus(NULL, label, bus))
+        return 10;
+    sieda_project_free(p);
+    return 0;
+}
+
+/* Schematic directives and net classes through the C API. Returns 0 or the failing step. */
+int sieda_c_api_directive_test(void) {
+    SiedaProject* p = sieda_project_new("Directives");
+    if (!p) return 1;
+    int32_t j = sieda_add_component(p, 12, "USB", 0, 0, 0, NULL);
+    int32_t lp = sieda_add_component(p, 15, "D_P", 100, 0, 0, NULL);
+    int32_t ln = sieda_add_component(p, 15, "D_N", 100, 40, 0, NULL);
+    if (j < 0 || lp < 0 || ln < 0) return 2;
+    if (sieda_connect(p, j, 0, lp, 0) < 0 || sieda_connect(p, j, 1, ln, 0) < 0) return 3;
+    if (!sieda_set_net_class(p, "{\"name\":\"HS\",\"trackWidth\":0.2,\"clearance\":0.3}") ||
+        sieda_set_net_class(p, "{\"name\":\"bad name\"}"))
+        return 4;
+    char json[160];
+    snprintf(json, sizeof json, "{\"component\":%d,\"pin\":0,\"netClass\":\"HS\",\"diffPair\":true}", (int)lp);
+    int32_t id = sieda_add_directive(p, json);
+    if (id <= 0 || sieda_add_directive(p, "{\"component\":-5}") != -1) return 5;
+    char* rules = sieda_net_rules_json(p);
+    if (!rules || !strstr(rules, "\"netName\":\"D_P\"") || !strstr(rules, "\"netName\":\"D_N\"") || !strstr(rules, "\"diffPair\":true"))
+        return 6;
+    sieda_string_free(rules);
+    char* snap = sieda_project_snapshot(p);
+    if (!snap || !strstr(snap, "\"netClassDefs\"") || !strstr(snap, "\"netClearances\"")) return 7;
+    sieda_string_free(snap);
+    snprintf(json, sizeof json, "{\"component\":%d,\"pin\":0,\"trackWidth\":0.5}", (int)lp);
+    if (!sieda_update_directive(p, id, json) || sieda_update_directive(p, 999, json)) return 8;
+    if (!sieda_remove_directive(p, id) || sieda_remove_directive(p, id)) return 9;
+    if (!sieda_remove_net_class(p, "HS") || sieda_remove_net_class(p, "HS")) return 10;
+    sieda_project_free(p);
+    return 0;
+}
+
+/* Editing productivity, back-annotation, templates and PDF through the C API. Returns 0 or the failing step. */
+int sieda_c_api_schematic_tools_test(void) {
+    SiedaProject* p = sieda_project_new("Tools");
+    if (!p) return 1;
+    int32_t a = sieda_add_component(p, 0, "1k", 0, 0, 0, NULL);
+    int32_t b = sieda_add_component(p, 0, "2k", 130, 40, 0, NULL);
+    int32_t l = sieda_add_component(p, 15, "D0", -60, 0, 0, NULL);
+    if (a < 0 || b < 0 || l < 0 || sieda_connect(p, l, 0, a, 0) < 0) return 2;
+    char ids[64];
+    snprintf(ids, sizeof ids, "[%d,%d]", (int)a, (int)b);
+    if (sieda_align_components(p, ids, "top") != 1 || sieda_align_components(p, ids, "sideways") != -1) return 3;
+    snprintf(ids, sizeof ids, "[%d,%d]", (int)l, (int)a);
+    char* clip = sieda_copy_components(p, ids);
+    if (!clip || !strstr(clip, "sieda.schematic-clip/1")) return 4;
+    char* made = sieda_paste_components(p, clip, "{\"dy\":60,\"count\":2,\"stepY\":60,\"labelIncrement\":1}");
+    if (!made || made[0] != '[') return 5;
+    sieda_string_free(made);
+    sieda_string_free(clip);
+    if (sieda_paste_components(p, "{\"format\":\"x\"}", NULL) == NULL) return 6; /* nothing pasted: an empty list */
+    if (!sieda_swap_pin_connections(p, a, 0, 1) || sieda_swap_pin_connections(p, a, 0, 9)) return 7;
+    char* eco = sieda_eco_from_was_is(p, "R1 R7\nR42 R43\n");
+    if (!eco || !strstr(eco, "\"applicable\":true") || !strstr(eco, "No part R42")) return 8;
+    if (sieda_apply_eco(p, eco) != 1 || sieda_find_component(p, "R7") != a) return 9;
+    sieda_string_free(eco);
+    char* board = sieda_reannotate_from_board(p, 0);
+    if (!board || board[0] != '[') return 10;
+    sieda_string_free(board);
+    char* templates = sieda_sheet_templates_json();
+    if (!templates || !strstr(templates, "\"ANSI D\"")) return 11;
+    sieda_string_free(templates);
+    if (!sieda_set_sheet_size(p, 1, "A3") || sieda_set_sheet_size(p, 1, "Z9")) return 12;
+    char* pdf = sieda_export_schematic_pdf(p);
+    if (!pdf || strncmp(pdf, "%PDF-1.4", 8) != 0 || !strstr(pdf, "(A3)")) return 13;
+    sieda_string_free(pdf);
+    sieda_project_free(p);
+    return 0;
+}
+
+/* ERC error reporting through the C API. Returns 0 or the failing step. */
+int sieda_c_api_erc_severity_test(void) {
+    SiedaProject* p = sieda_project_new("ERC levels");
+    if (!p) return 1;
+    if (sieda_add_component(p, 0, "1k", 0, 0, 0, NULL) < 0) return 2;
+    if (sieda_set_erc_severity(p, "ERC_FLOATING_COMPONENT", "off") != 1) return 3;
+    char* erc = sieda_run_erc(p);
+    if (!erc || strstr(erc, "ERC_FLOATING_COMPONENT")) return 4;
+    sieda_string_free(erc);
+    if (sieda_set_erc_severity(p, "ERC_FLOATING_COMPONENT", "loud") != 0) return 5;
+    if (sieda_set_erc_severity(p, "ERC_FLOATING_COMPONENT", "default") != 1) return 6;
+    if (sieda_set_erc_severity(p, "ERC_FLOATING_COMPONENT", "default") != 0) return 7;
+    if (sieda_set_erc_severity(NULL, "X", "off") != 0) return 8;
+    sieda_project_free(p);
+    return 0;
+}
+
+/* A label made a harness entry through the C API. Returns 0 or the failing step. */
+int sieda_c_api_harness_entry_test(void) {
+    SiedaProject* p = sieda_project_new("Harness entry");
+    if (!p) return 1;
+    if (!sieda_set_harness_type(p, "PAIR", "[\"P\",\"N\"]")) return 2;
+    int32_t h = sieda_add_component(p, 15, "LINK", 0, 0, 0, NULL);
+    int32_t e = sieda_add_component(p, 15, "P", 0, 40, 0, NULL);
+    if (h < 0 || e < 0 || !sieda_set_label_harness(p, h, "PAIR")) return 3;
+    if (!sieda_set_harness_entry(p, e, h) || sieda_set_harness_entry(p, h, e)) return 4;
+    char* snap = sieda_project_snapshot(p);
+    if (!snap || !strstr(snap, "\"harnessOf\":")) return 5;
+    sieda_string_free(snap);
+    if (!sieda_set_harness_entry(p, e, 0)) return 6;
+    sieda_project_free(p);
+    return 0;
+}

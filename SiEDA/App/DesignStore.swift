@@ -733,6 +733,23 @@ final class DesignStore: ObservableObject {
         if let unit { selection = [unit] }
     }
 
+    /// Gate swap: two selected units of interchangeable gates exchange their gates (symbols and wires stay).
+    func swapGates(_ a: Int, _ b: Int) {
+        guard let ua = snapshot.component(a), let ub = snapshot.component(b) else { return }
+        performChecked("Swapped gates \(ua.displayRef) ↔ \(ub.displayRef)",
+                       failureMessage: "\(ua.displayRef) and \(ub.displayRef) are not interchangeable gates of the same part") {
+            $0.swapUnits(a, b)
+        }
+    }
+
+    /// Pin swap: two pins of a unit's pin-swap group exchange their wires.
+    func swapPins(of id: Int, _ a: Int, _ b: Int) {
+        guard let c = snapshot.component(id) else { return }
+        performChecked("Swapped pins of \(c.displayRef)", failureMessage: "These pins of \(c.displayRef) are not swappable") {
+            $0.swapPins(id, a, b)
+        }
+    }
+
     /// Places one particular unit (1-based) of a multi-unit part.
     func placeUnit(_ unit: Int, of id: Int) {
         guard let c = snapshot.component(id), let package = c.unitOf ?? (c.isUnitPackage ? c.id : nil) else { return }
@@ -894,7 +911,7 @@ final class DesignStore: ObservableObject {
     func repeatSheet(_ id: Int, count: Int) {
         guard let sheet = snapshot.sheet(id), !sheet.isInstance, count >= 1, count <= 64 else { return }
         let done = performChecked("\(sheet.name): \(count) channel(s)",
-                                  failureMessage: "Only a sheet without child sheets can be repeated") { engine in
+                                  failureMessage: "Only a sheet whose child sheets are repeated blocks can be repeated") { engine in
             guard engine.repeatSheet(id, count: count) != nil else { return false }
             guard sheet.parent != 0, let snap = engine.snapshot() else { return true }
             let parentParts = snap.onSheet(sheet.parent)
@@ -925,6 +942,103 @@ final class DesignStore: ObservableObject {
                        failureMessage: "Channel labels are letters, digits, _ or -, unique in the block") {
             $0.setSheetChannel(id, channel: label)
         }
+    }
+
+    /// Value of this channel only (a part of a repeated sheet); the block's value when `value` is empty.
+    func setChannelValue(_ id: Int, _ value: String) {
+        let text = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let c = snapshot.component(id), c.logicalRef != nil, text != c.value || c.channelOverride != nil else { return }
+        if text.isEmpty {
+            performChecked("\(c.displayRef) takes the block value") { $0.clearChannelOverrides(id) }
+        } else {
+            performChecked("\(c.displayRef) = \(text) in this channel") { $0.setChannelValue(id, text) }
+        }
+    }
+
+    // MARK: - Schematic directives (the source of the board's net rules)
+
+    @discardableResult
+    func setNetClass(_ name: String, trackWidth: Double, clearance: Double) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return performChecked("Net class \(trimmed)",
+                              failureMessage: "A net class needs a name (letters, digits, _ or -) and sizes of 0.05–10 mm (0 = board default)") {
+            $0.setNetClass(trimmed, trackWidth: trackWidth, clearance: clearance)
+        }
+    }
+
+    func removeNetClass(_ name: String) {
+        performChecked("Removed net class \(name)") { $0.removeNetClass(name) }
+    }
+
+    /// The directive anchored on a pin (nil when there is none).
+    func directive(on anchor: PinAddress) -> DirectiveInfo? {
+        snapshot.directives.first { $0.component == anchor.component && $0.pin == anchor.pin }
+    }
+
+    /// Sets the directive on a pin's net: adds, updates or (when it says nothing) removes it.
+    func setDirective(on anchor: PinAddress, netClass: String, diffPair: Bool, trackWidth: Double, clearance: Double) {
+        let empty = netClass.isEmpty && !diffPair && trackWidth <= 0 && clearance <= 0
+        if let existing = directive(on: anchor) {
+            if empty {
+                performChecked("Removed directive") { $0.removeDirective(existing.id) }
+            } else {
+                performChecked("Directive", failureMessage: "Widths and clearances are 0.05–10 mm (0 = none)") {
+                    $0.updateDirective(existing.id, component: anchor.component, pin: anchor.pin, netClass: netClass,
+                                       diffPair: diffPair, trackWidth: trackWidth, clearance: clearance)
+                }
+            }
+        } else if !empty {
+            performChecked("Directive", failureMessage: "Widths and clearances are 0.05–10 mm (0 = none)") {
+                $0.addDirective(component: anchor.component, pin: anchor.pin, netClass: netClass, diffPair: diffPair,
+                                trackWidth: trackWidth, clearance: clearance) != nil
+            }
+        }
+    }
+
+    // MARK: - Signal harnesses
+
+    /// Defines or replaces a harness type from a name and its members ("DP, DN, VBUS").
+    @discardableResult
+    func setHarnessType(_ name: String, entries text: String) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let entries = text.split(whereSeparator: { $0 == "," || $0 == "\n" || $0 == ";" })
+            .map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        guard !trimmed.isEmpty, !entries.isEmpty else { return false }
+        return performChecked("Harness type \(trimmed)", invalidatesAnalysis: false,
+                              failureMessage: "A harness type needs a name (letters, digits, _ or -) and unique member names without dots") {
+            $0.setHarnessType(trimmed, entries: entries)
+        }
+    }
+
+    func removeHarnessType(_ name: String) {
+        performChecked("Removed harness type \(name)", invalidatesAnalysis: false) { $0.setHarnessType(name, entries: []) }
+    }
+
+    /// Makes the label a harness label of `type` ("" = an ordinary label).
+    func setLabelHarness(_ id: Int, type: String) {
+        guard let c = snapshot.component(id), (c.harnessType ?? "") != type else { return }
+        performChecked(type.isEmpty ? "\(c.value) is a single signal" : "\(c.value) carries harness \(type)",
+                       failureMessage: "A harness label needs a name of letters, digits, _ or -") {
+            $0.setLabelHarness(id, type: type)
+        }
+    }
+
+    /// Places a harness connector of `type` named `name` on the shown sheet, to the right of its parts.
+    func placeHarnessConnector(type: String, name: String) {
+        let parts = sheetSnapshot.components
+        var x = SchematicCanvas.componentBounds(parts).reduce(CGRect.null) { $0.union($1.rect) }.maxX
+        if x.isInfinite || x.isNaN { x = 0 }
+        let origin = SchematicAutoLayout.snap(CGPoint(x: x + 120, y: 0))
+        var placed: Int?
+        let done = performChecked("Placed harness \(name)", failureMessage: "Harness names are letters, digits, _ or -") {
+            placed = $0.addHarnessConnector(type: type, name: name.trimmingCharacters(in: .whitespaces), at: origin)
+            return placed != nil
+        }
+        if done, let placed { selection = [placed] }
+    }
+
+    func placeHarnessEntries(_ id: Int) {
+        performChecked("Added harness entries", failureMessage: "Every member has its entry") { ($0.placeHarnessEntries(id) ?? 0) > 0 }
     }
 
     // MARK: - Find / replace and cross-probing

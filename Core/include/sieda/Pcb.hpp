@@ -5,6 +5,7 @@
 #include <cmath>
 #include <functional>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -86,6 +87,14 @@ struct BoardSettings {
         auto it = netWidths.find(netName);
         return it == netWidths.end() ? trackWidth : std::max(minTrackWidth, it->second);
     }
+    /// Net classes from the schematic's directives: clearance (mm) per net name, kept at least `clearance`.
+    std::map<std::string, double> netClearances;
+    double clearanceFor(const std::string& netName) const {
+        auto it = netClearances.find(netName);
+        return it == netClearances.end() ? clearance : std::max(clearance, it->second);
+    }
+    /// Nets whose width / clearance came from schematic directives (Project::applySchematicRules replaces them).
+    std::set<std::string> schematicRuleNets;
 
     /// Board outline polygon (mm, inside [0,width]×[0,height]); empty = the width × height rectangle.
     std::vector<Vec2> outline;

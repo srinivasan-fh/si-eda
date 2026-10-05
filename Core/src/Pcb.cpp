@@ -2294,6 +2294,12 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         double w3 = 2 * settings.widthFor(sch.nets()[static_cast<size_t>(net)].name);  // 3W rule: 2 widths edge to edge
         extraClearance[net] = std::max(extraClearance[net], w3 - settings.clearance);
     }
+    // Net classes from the schematic's directives: their clearance to other nets' copper.
+    if (!settings.netClearances.empty())
+        for (const auto& n : sch.nets()) {
+            const double need = settings.clearanceFor(n.name) - settings.clearance;
+            if (need > 1e-9) extraClearance[n.index] = std::max(extraClearance[n.index], need);
+        }
     auto extra = [&](int net) {
         auto it = extraClearance.find(net);
         return it == extraClearance.end() ? 0.0 : it->second;
@@ -3912,13 +3918,23 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             add(Severity::Error, "DRC_HV_CLEARANCE", what + hv, loc, std::move(comps));
             return;
         }
-        if (d >= clr - eps) return;
+        // A net class from the schematic asks for more than the board's rule.
+        double need = clr;
+        if (!settings.netClearances.empty()) {
+            const auto& ns = sch.nets();
+            for (int n : {netA, netB})
+                if (n >= 0 && n < static_cast<int>(ns.size())) need = std::max(need, settings.clearanceFor(ns[static_cast<size_t>(n)].name));
+        }
+        if (d >= need - eps) return;
         char buf[96];
         if (d <= 0) {
             add(Severity::Error, "DRC_SHORT", what + " — copper overlaps (short circuit).", loc, std::move(comps));
         } else if (d < fabClr - eps) {
             std::snprintf(buf, sizeof buf, " (fabrication minimum %.3f mm)", fabClr);
             add(Severity::Error, "DRC_CLEARANCE", what + buf + ".", loc, std::move(comps));
+        } else if (d >= clr - eps) {
+            std::snprintf(buf, sizeof buf, " (net class %.3f mm)", need);
+            add(Severity::Warning, "DRC_NET_CLASS_CLEARANCE", what + buf + ".", loc, std::move(comps));
         } else {
             std::snprintf(buf, sizeof buf, " (design rule %.3f mm)", clr);
             add(Severity::Warning, "DRC_CLEARANCE_RULE", what + buf + ".", loc, std::move(comps));
@@ -3930,6 +3946,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     // them applies (design clearance, the etch limit, or the IPC-2221 spacing for the board's largest voltage
     // difference; the table only grows with voltage), so only pairs within that distance are examined.
     double reach = std::max(clr, 0.1);
+    for (const auto& [name, c] : settings.netClearances) reach = std::max(reach, c);
     if (!netRange.empty()) {
         double lo = std::numeric_limits<double>::max(), hi = -std::numeric_limits<double>::max();
         for (const auto& [net, range] : netRange) {

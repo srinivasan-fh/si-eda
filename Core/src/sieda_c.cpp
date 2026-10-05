@@ -36,6 +36,7 @@
 #include "sieda/Project.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Robotics.hpp"
+#include "sieda/SchematicPdf.hpp"
 #include "sieda/SchematicSearch.hpp"
 #include "sieda/SignalIntegrity.hpp"
 #include "sieda/Channel.hpp"
@@ -1789,6 +1790,10 @@ char* sieda_sheets_json(const SiedaProject* project) {
                 j["channel"] = s.channel;
                 j["refs"] = instanceRefsName(sch.findSheet(sch.definitionSheet(s.id))->refs);
                 j["instances"] = static_cast<int>(sch.sheetInstances(s.id).size());
+                j["channels"] = sch.channelCount(s.id);
+                std::string path;
+                for (const auto& c : sch.channelPath(s.id)) path += (path.empty() ? "" : "/") + c;
+                j["path"] = path;
             }
             arr.push(j);
         }
@@ -2876,6 +2881,421 @@ char* sieda_simulate_transient_ex(const SiedaProject* project, const char* optio
         j["error"] = std::string("Invalid transient options: ") + e.what();
         return dup(j.dump());
     }
+}
+
+}  // extern "C"
+
+// ---- schematic capture: channel parameters
+
+extern "C" {
+
+int32_t sieda_set_channel_value(SiedaProject* project, int32_t component, const char* value) {
+    if (!project || !value) return 0;
+    return guarded([&] {
+        Schematic& s = project->project.schematic;
+        const std::string v = value;
+        if (v.empty()) return s.clearChannelOverrides(component) ? 1 : 0;
+        return s.setChannelValue(component, v) ? 1 : 0;
+    });
+}
+
+int32_t sieda_set_channel_package(SiedaProject* project, int32_t component, const char* package) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setChannelPackage(component, str(package)) ? 1 : 0; });
+}
+
+int32_t sieda_clear_channel_overrides(SiedaProject* project, int32_t component) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.clearChannelOverrides(component) ? 1 : 0; });
+}
+
+}  // extern "C"
+
+// ---- schematic capture: units (gates) — editor checks, gate swap and pin swap
+
+extern "C" {
+
+char* sieda_check_units(const char* spec_json) {
+    Json arr = Json::array();
+    auto add = [&](const std::string& severity, const std::string& code, const std::string& message,
+                   const std::vector<std::string>& pins) {
+        Json j = Json::object();
+        j["severity"] = severity;
+        j["code"] = code;
+        j["message"] = message;
+        Json pj = Json::array();
+        for (const auto& p : pins) pj.push(p);
+        j["pins"] = pj;
+        arr.push(j);
+    };
+    try {
+        for (const auto& i : checkUnits(customPartSpecFromJson(Json::parse(str(spec_json)))))
+            add(i.severity, i.code, i.message, i.pins);
+    } catch (const std::exception& e) {
+        add("error", "UNIT_INVALID", e.what(), {});
+    }
+    return dup(arr.dump());
+}
+
+int32_t sieda_swap_units(SiedaProject* project, int32_t unit_a, int32_t unit_b) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.swapUnits(unit_a, unit_b) ? 1 : 0; });
+}
+
+int32_t sieda_swap_pins(SiedaProject* project, int32_t component, int32_t pin_a, int32_t pin_b) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.swapPins(component, pin_a, pin_b) ? 1 : 0; });
+}
+
+}  // extern "C"
+
+// ---- schematic capture: bus entries
+
+extern "C" {
+
+int32_t sieda_set_label_bus(SiedaProject* project, int32_t label, int32_t bus) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setLabelBus(label, bus) ? 1 : 0; });
+}
+
+}  // extern "C"
+
+// ---- schematic capture: signal harnesses
+
+extern "C" {
+
+char* sieda_harness_types_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        Json arr = Json::array();
+        for (const auto& t : project->project.schematic.harnessTypes()) {
+            Json j = Json::object();
+            j["name"] = t.name;
+            Json entries = Json::array();
+            for (const auto& e : t.entries) entries.push(e);
+            j["entries"] = entries;
+            arr.push(j);
+        }
+        return dup(arr.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_set_harness_type(SiedaProject* project, const char* name, const char* entries_json) {
+    if (!project || !name) return 0;
+    return guarded([&] {
+        Schematic& s = project->project.schematic;
+        std::vector<std::string> entries;
+        if (entries_json && *entries_json) {
+            const Json parsed = Json::parse(entries_json);
+            for (const auto& e : parsed.items()) entries.push_back(e.asString(""));
+        }
+        if (entries.empty()) return s.removeHarnessType(name) ? 1 : 0;
+        return s.setHarnessType(name, entries) ? 1 : 0;
+    });
+}
+
+int32_t sieda_set_label_harness(SiedaProject* project, int32_t label, const char* type) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setLabelHarness(label, str(type)) ? 1 : 0; });
+}
+
+int32_t sieda_add_harness_connector(SiedaProject* project, const char* type, const char* name, double x, double y) {
+    if (!project || !type || !name) return -1;
+    try {
+        return project->project.schematic.addHarnessConnector(type, name, {x, y});
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_place_harness_entries(SiedaProject* project, int32_t label) {
+    if (!project) return -1;
+    try {
+        return project->project.schematic.placeHarnessEntries(label);
+    } catch (...) {
+        return -1;
+    }
+}
+
+}  // extern "C"
+
+// ---- schematic capture: directives (net classes, differential pairs, parameter sets)
+
+namespace {
+NetDirective directiveFromJson(const Json& j) {
+    NetDirective d;
+    d.component = j.get("component").asInt(-1);
+    d.pin = j.get("pin").asInt(0);
+    d.netClass = j.get("netClass").asString("");
+    d.diffPair = j.get("diffPair").asBool(false);
+    d.trackWidth = j.get("trackWidth").asNumber(0);
+    d.clearance = j.get("clearance").asNumber(0);
+    return d;
+}
+}  // namespace
+
+extern "C" {
+
+int32_t sieda_set_net_class(SiedaProject* project, const char* json) {
+    if (!project || !json) return 0;
+    return guarded([&] {
+        const Json j = Json::parse(json);
+        NetClassDef d;
+        d.name = j.get("name").asString("");
+        d.trackWidth = j.get("trackWidth").asNumber(0);
+        d.clearance = j.get("clearance").asNumber(0);
+        if (!project->project.schematic.setNetClassDef(d)) return 0;
+        project->project.schematicChanged();
+        return 1;
+    });
+}
+
+int32_t sieda_remove_net_class(SiedaProject* project, const char* name) {
+    if (!project) return 0;
+    return guarded([&] {
+        if (!project->project.schematic.removeNetClassDef(str(name))) return 0;
+        project->project.schematicChanged();
+        return 1;
+    });
+}
+
+int32_t sieda_add_directive(SiedaProject* project, const char* json) {
+    if (!project || !json) return -1;
+    try {
+        const int id = project->project.schematic.addDirective(directiveFromJson(Json::parse(json)));
+        if (id > 0) project->project.schematicChanged();
+        return id;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_update_directive(SiedaProject* project, int32_t id, const char* json) {
+    if (!project || !json) return 0;
+    return guarded([&] {
+        if (!project->project.schematic.updateDirective(id, directiveFromJson(Json::parse(json)))) return 0;
+        project->project.schematicChanged();
+        return 1;
+    });
+}
+
+int32_t sieda_remove_directive(SiedaProject* project, int32_t id) {
+    if (!project) return 0;
+    return guarded([&] {
+        if (!project->project.schematic.removeDirective(id)) return 0;
+        project->project.schematicChanged();
+        return 1;
+    });
+}
+
+char* sieda_net_rules_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        Json arr = Json::array();
+        for (const auto& r : project->project.schematic.netRules()) {
+            Json j = Json::object();
+            j["net"] = r.net;
+            j["netName"] = r.netName;
+            j["netClass"] = r.netClass;
+            j["trackWidth"] = r.trackWidth;
+            j["clearance"] = r.clearance;
+            j["diffPair"] = r.diffPair;
+            j["partner"] = r.partner;
+            arr.push(j);
+        }
+        return dup(arr.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+}  // extern "C"
+
+// ---- schematic capture: editing productivity, back-annotation, templates and PDF
+
+namespace {
+std::vector<int> idsFromJson(const char* json) {
+    std::vector<int> ids;
+    if (!json) return ids;
+    const Json parsed = Json::parse(json);
+    for (const auto& v : parsed.items()) ids.push_back(v.asInt(-1));
+    return ids;
+}
+
+Json ecoToJson(const std::vector<EcoChange>& changes) {
+    Json arr = Json::array();
+    for (const auto& e : changes) {
+        Json j = Json::object();
+        j["kind"] = e.kind;
+        j["component"] = e.component;
+        j["from"] = e.from;
+        j["to"] = e.to;
+        j["pinA"] = e.pinA;
+        j["pinB"] = e.pinB;
+        j["other"] = e.other;
+        j["applicable"] = e.applicable;
+        j["note"] = e.note;
+        arr.push(j);
+    }
+    return arr;
+}
+}  // namespace
+
+extern "C" {
+
+int32_t sieda_align_components(SiedaProject* project, const char* ids_json, const char* mode) {
+    if (!project) return -1;
+    try {
+        AlignMode m;
+        if (!alignModeFromName(str(mode), &m)) return -1;
+        const int moved = project->project.schematic.alignComponents(idsFromJson(ids_json), m);
+        if (moved > 0) project->project.schematicChanged();
+        return moved;
+    } catch (...) {
+        return -1;
+    }
+}
+
+char* sieda_copy_components(const SiedaProject* project, const char* ids_json) {
+    if (!project) return nullptr;
+    try {
+        return dup(project->project.schematic.copyComponents(idsFromJson(ids_json)).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_paste_components(SiedaProject* project, const char* clip_json, const char* options_json) {
+    if (!project || !clip_json) return nullptr;
+    try {
+        const Json clip = Json::parse(clip_json);
+        PasteOptions o;
+        if (options_json && *options_json) {
+            const Json j = Json::parse(options_json);
+            o.offset = {j.get("dx").asNumber(0), j.get("dy").asNumber(0)};
+            o.count = j.get("count").asInt(1);
+            o.step = {j.get("stepX").asNumber(0), j.get("stepY").asNumber(0)};
+            o.labelIncrement = std::clamp(j.get("labelIncrement").asInt(0), -1000, 1000);
+            if (!std::isfinite(o.offset.x) || !std::isfinite(o.offset.y) || !std::isfinite(o.step.x) || !std::isfinite(o.step.y))
+                return nullptr;
+        }
+        const auto ids = project->project.schematic.pasteComponents(clip, o);
+        if (!ids.empty()) project->project.schematicChanged();
+        Json arr = Json::array();
+        for (int id : ids) arr.push(id);
+        return dup(arr.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_swap_pin_connections(SiedaProject* project, int32_t component, int32_t pin_a, int32_t pin_b) {
+    if (!project) return 0;
+    return guarded([&] {
+        if (!project->project.schematic.swapPinConnections(component, pin_a, pin_b)) return 0;
+        project->project.schematicChanged();
+        return 1;
+    });
+}
+
+char* sieda_reannotate_from_board(const SiedaProject* project, int32_t by_columns) {
+    if (!project) return nullptr;
+    try {
+        return dup(ecoToJson(project->project.reannotateFromBoard(by_columns != 0)).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_eco_from_was_is(const SiedaProject* project, const char* text) {
+    if (!project) return nullptr;
+    try {
+        return dup(ecoToJson(project->project.ecoFromWasIs(str(text))).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_apply_eco(SiedaProject* project, const char* eco_json) {
+    if (!project || !eco_json) return -1;
+    try {
+        std::vector<EcoChange> changes;
+        const Json parsed = Json::parse(eco_json);
+        for (const auto& j : parsed.items()) {
+            EcoChange e;
+            e.kind = j.get("kind").asString("");
+            e.component = j.get("component").asInt(-1);
+            e.from = j.get("from").asString("");
+            e.to = j.get("to").asString("");
+            e.pinA = j.get("pinA").asInt(-1);
+            e.pinB = j.get("pinB").asInt(-1);
+            e.other = j.get("other").asInt(-1);
+            e.applicable = j.get("applicable").asBool(true);
+            if (e.kind == "rename" && e.to.empty()) continue;
+            changes.push_back(e);
+        }
+        return project->project.applyEco(changes);
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_set_sheet_size(SiedaProject* project, int32_t sheet, const char* size) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setSheetSize(sheet, str(size)) ? 1 : 0; });
+}
+
+char* sieda_sheet_templates_json(void) {
+    try {
+        Json arr = Json::array();
+        for (const auto& t : sheetTemplates()) {
+            Json j = Json::object();
+            j["name"] = t.name;
+            j["width"] = t.widthMm;
+            j["height"] = t.heightMm;
+            arr.push(j);
+        }
+        return dup(arr.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_export_schematic_pdf(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(exportSchematicPdf(project->project));
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+}  // extern "C"
+
+// ---- schematic capture: ERC error reporting
+
+extern "C" {
+
+int32_t sieda_set_erc_severity(SiedaProject* project, const char* code, const char* level) {
+    if (!project || !code || !level) return 0;
+    return guarded([&] {
+        Schematic& s = project->project.schematic;
+        const std::string l = level;
+        if (l == "default") return s.clearErcSeverity(code) ? 1 : 0;
+        const int n = l == "off" ? -1 : l == "info" ? 0 : l == "warning" ? 1 : l == "error" ? 2 : -2;
+        return n >= -1 && s.setErcSeverity(code, n) ? 1 : 0;
+    });
+}
+
+}  // extern "C"
+
+extern "C" {
+
+int32_t sieda_set_harness_entry(SiedaProject* project, int32_t label, int32_t harness) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setHarnessOf(label, harness) ? 1 : 0; });
 }
 
 }  // extern "C"

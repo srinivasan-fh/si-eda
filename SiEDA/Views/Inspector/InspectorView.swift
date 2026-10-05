@@ -13,7 +13,7 @@ struct InspectorView: View {
                     JunctionProperties(junction: c)
                 } else if selected.count == 1, let c = selected.first {
                     ComponentProperties(component: c)
-                        .id("\(c.id)|\(c.ref)|\(c.value)|\(store.snapshot.activeVariant)|\(c.variantValue ?? "")")
+                        .id("\(c.id)|\(c.ref)|\(c.value)|\(store.snapshot.activeVariant)|\(c.variantValue ?? "")|\(c.blockValue ?? "")")
                 } else if selected.count > 1 {
                     MultiSelectionProperties(count: selected.count)
                 } else if let busId = store.selectedBus, let bus = store.sheetSnapshot.bus(busId) {
@@ -67,6 +67,7 @@ private struct ComponentProperties: View {
     @State private var ref: String
     @State private var value: String
     @State private var variantValue: String
+    @State private var channelValue: String
     @FocusState private var focus: Field?
 
     private enum Field { case ref, value }
@@ -74,8 +75,9 @@ private struct ComponentProperties: View {
     init(component: SnapComponent) {
         self.component = component
         _ref = State(initialValue: component.logicalRef ?? component.ref)
-        _value = State(initialValue: component.value)
+        _value = State(initialValue: component.blockValue ?? component.value)
         _variantValue = State(initialValue: component.variantValue ?? "")
+        _channelValue = State(initialValue: component.value)
     }
 
     var body: some View {
@@ -113,12 +115,54 @@ private struct ComponentProperties: View {
                         .onSubmit { commitValue() }
                 }
                 Text(kind.valueHint).font(.caption).foregroundStyle(Theme.textMuted)
+                if component.logicalRef != nil && !kind.isVirtual {
+                    // Per-channel parameter: this channel's own value; the Value field above sets the whole block.
+                    LabeledContent("Channel value") {
+                        TextField(component.blockValue ?? component.value, text: $channelValue)
+                            .textFieldStyle(.blue)
+                            .onSubmit { store.setChannelValue(component.id, channelValue) }
+                    }
+                    .help("Value of this channel only; the other channels keep theirs")
+                    if let block = component.blockValue, component.channelOverride != nil {
+                        HStack {
+                            Text("Block value: \(block)").font(.caption).foregroundStyle(Theme.textMuted)
+                            Spacer()
+                            Button("Use Block Value") { store.setChannelValue(component.id, "") }
+                                .controlSize(.small)
+                        }
+                    }
+                }
                 HStack {
                     Button { store.rotateSelection() } label: { Label("Rotate", systemImage: "rotate.right") }
                     Button(role: .destructive) { store.deleteSelection() } label: { Label("Delete", systemImage: "trash") }
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                // Cross-probing both ways between the schematic and the board.
+                if !kind.isVirtual || component.unitOf != nil {
+                    if store.workspace == .pcb {
+                        Button { store.showInSchematic(component.id) } label: {
+                            Label("Show in Schematic", systemImage: "point.3.connected.trianglepath.dotted")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    } else {
+                        Button { store.showOnPCB(component.id) } label: {
+                            Label("Show on PCB", systemImage: "square.grid.3x3.square")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(!(store.snapshot.component(component.unitOf ?? component.id)?.pcb.placed ?? false))
+                    }
+                }
+            }
+
+            if kind == .netLabel && !component.isHarnessLabel {
+                // Net directive (net class, differential pair, parameter set) on the label's net.
+                let anchor = PinAddress(component: component.instanceOf ?? component.id, pin: 0)
+                let existing = store.directive(on: anchor)
+                NetDirectiveEditor(anchor: anchor, directive: existing)
+                    .id("directive|\(anchor.component)|\(existing?.id ?? 0)|\(existing?.summary ?? "")")
             }
 
             let series = ESeries.preferred(for: kind)
@@ -216,6 +260,26 @@ private struct ComponentProperties: View {
                         Text("Port (to parent sheet)").tag("port")
                     }
                 }
+                if kind == .netLabel && component.harnessOf == nil
+                    && (!store.snapshot.harnessTypes.isEmpty || component.harnessType != nil) {
+                    Picker("Harness", selection: Binding(get: { component.harnessType ?? "" },
+                                                         set: { store.setLabelHarness(component.id, type: $0) })) {
+                        Text("None (single signal)").tag("")
+                        ForEach(store.snapshot.harnessTypes) { Text(verbatim: $0.name).tag($0.name) }
+                    }
+                    .help("A harness label carries every member of its type across sheets (port, sheet entry or global)")
+                    if component.isHarnessLabel {
+                        if let type = store.snapshot.harnessTypes.first(where: { $0.name == component.harnessType }) {
+                            PropertyRow(label: "Members", value: type.entries.map { component.value + "." + $0 }.joined(separator: ", "))
+                        }
+                        Button("Add Missing Entries") { store.placeHarnessEntries(component.id) }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                    }
+                }
+                if let owner = component.harnessOf, let harness = store.snapshot.component(owner) {
+                    PropertyRow(label: "Harness member", value: harness.value + "." + component.value)
+                }
             }
 
             if !kind.isVirtual && !store.snapshot.activeVariant.isEmpty {
@@ -249,6 +313,27 @@ private struct ComponentProperties: View {
                                 Label("Place Unit", systemImage: "square.grid.2x2")
                             }
                             .fixedSize()
+                        }
+                        // Pin swap: interchangeable pins of this gate (the unit's pin-swap groups).
+                        if let unit = component.unit, unit >= 1, unit <= symbols.count, let groups = symbols[unit - 1].pinSwap,
+                           !groups.isEmpty {
+                            let pins = symbols[unit - 1].symbol.pins
+                            Menu {
+                                ForEach(Array(groups.enumerated()), id: \.offset) { _, group in
+                                    ForEach(Self.pairs(group), id: \.self) { pair in
+                                        if let a = pins.firstIndex(where: { $0.number == pair[0] }),
+                                           let b = pins.firstIndex(where: { $0.number == pair[1] }) {
+                                            Button(String(pins[a].name + " ↔ " + pins[b].name)) {
+                                                store.swapPins(of: component.id, a, b)
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                Label("Swap Pins", systemImage: "arrow.left.arrow.right")
+                            }
+                            .fixedSize()
+                            .help("Exchange the wires of two interchangeable pins of this gate")
                         }
                     }
                 }
@@ -362,8 +447,17 @@ private struct ComponentProperties: View {
         store.setRef(component.id, trimmed)
     }
 
+    /// Every pair of a pin-swap group, in order.
+    static func pairs(_ group: [String]) -> [[String]] {
+        var out: [[String]] = []
+        for i in group.indices {
+            for j in group.indices where j > i { out.append([group[i], group[j]]) }
+        }
+        return out
+    }
+
     private func commitValue() {
-        if value != component.value { store.setValue(component.id, value) }
+        if value != (component.blockValue ?? component.value) { store.setValue(component.id, value) }
     }
 }
 
@@ -486,6 +580,14 @@ private struct MultiSelectionProperties: View {
                 Button(role: .destructive) { store.deleteSelection() } label: { Label("Delete", systemImage: "trash") }
             }
             .buttonStyle(.bordered)
+            let units = store.selectedComponents.filter { $0.unit != nil && $0.unitOf != nil }
+            if units.count == 2 && units[0].customPart == units[1].customPart {
+                Button { store.swapGates(units[0].id, units[1].id) } label: {
+                    Label("Swap Gates", systemImage: "arrow.triangle.swap")
+                }
+                .buttonStyle(.bordered)
+                .help("The two gates exchange places in their packages; the symbols and wires stay")
+            }
         }
     }
 }
@@ -544,15 +646,31 @@ private struct WireProperties: View {
     var wire: SnapWire
 
     var body: some View {
-        PropertyGroup(title: "Wire") {
-            PropertyRow(label: "Net", value: store.snapshot.net(wire.net)?.name ?? "—")
-            if let v = store.dcResult?.voltage(net: wire.net) {
-                PropertyRow(label: "DC voltage", value: EngineeringFormat.string(v, unit: "V", digits: 4))
+        VStack(alignment: .leading, spacing: 12) {
+            PropertyGroup(title: "Wire") {
+                PropertyRow(label: "Net", value: store.snapshot.net(wire.net)?.name ?? "—")
+                if let v = store.dcResult?.voltage(net: wire.net) {
+                    PropertyRow(label: "DC voltage", value: EngineeringFormat.string(v, unit: "V", digits: 4))
+                }
+                NetNavigatorView(net: wire.net)
+                Button(role: .destructive) { store.deleteSelection() } label: { Label("Delete Wire", systemImage: "trash") }
+                    .buttonStyle(.bordered)
             }
-            NetNavigatorView(net: wire.net)
-            Button(role: .destructive) { store.deleteSelection() } label: { Label("Delete Wire", systemImage: "trash") }
-                .buttonStyle(.bordered)
+            if let anchor = directiveAnchor {
+                let existing = store.directive(on: anchor)
+                NetDirectiveEditor(anchor: anchor, directive: existing)
+                    .id("directive|\(anchor.component)|\(anchor.pin)|\(existing?.id ?? 0)|\(existing?.summary ?? "")")
+            }
         }
+    }
+
+    /// The pin a directive on this wire's net sits on: an end that is a real pin (a block part's for a channel copy).
+    private var directiveAnchor: PinAddress? {
+        for end in [wire.a, wire.b] {
+            guard let c = store.snapshot.component(end.component), c.componentKind != .junction else { continue }
+            return PinAddress(component: c.instanceOf ?? c.id, pin: end.pin)
+        }
+        return nil
     }
 }
 

@@ -1,5 +1,6 @@
 #include "sieda/Project.hpp"
 #include "sieda/Model3D.hpp"
+#include "sieda/SchematicPdf.hpp"
 
 #include "sieda/Aerospace.hpp"
 #include "sieda/Naval.hpp"
@@ -99,6 +100,16 @@ Json boardJson(const BoardSettings& s) {
     Json widths = Json::object();
     for (const auto& [net, w] : s.netWidths) widths[net] = w;
     b["netWidths"] = widths;
+    if (!s.netClearances.empty()) {  // net classes from the schematic (written only when used)
+        Json clearances = Json::object();
+        for (const auto& [net, c] : s.netClearances) clearances[net] = c;
+        b["netClearances"] = clearances;
+    }
+    if (!s.schematicRuleNets.empty()) {
+        Json owned = Json::array();
+        for (const auto& n : s.schematicRuleNets) owned.push(n);
+        b["schematicRuleNets"] = owned;
+    }
     b["autoSizeNets"] = s.autoSizeNets;
     Json outline = Json::array();
     for (const auto& v : s.outline) outline.push(vec(v));
@@ -140,6 +151,7 @@ Json sheetsJson(const Schematic& sch) {
         if (s.instanceOf != 0) j["instanceOf"] = s.instanceOf;
         if (!s.channel.empty()) j["channel"] = s.channel;
         if (s.refs != InstanceRefs::SheetNumber) j["refs"] = instanceRefsName(s.refs);
+        if (!s.size.empty()) j["size"] = s.size;
         arr.push(j);
     }
     return arr;
@@ -160,6 +172,72 @@ void componentSheetJson(Json& j, const Component& c) {
         j["unit"] = c.unit;
     }
     if (c.packageOnly) j["packageOnly"] = true;
+    if (c.channelOverrides != 0) j["channelOverride"] = c.channelOverrides;
+    if (!c.harnessType.empty()) j["harnessType"] = c.harnessType;
+    if (c.harnessOf != 0) j["harnessOf"] = c.harnessOf;
+}
+
+const char* ercLevelName(int level) {
+    switch (level) {
+        case -1: return "off";
+        case 0: return "info";
+        case 1: return "warning";
+        default: return "error";
+    }
+}
+
+int ercLevelFromName(const std::string& name) {
+    if (name == "off") return -1;
+    if (name == "info") return 0;
+    if (name == "warning") return 1;
+    if (name == "error") return 2;
+    return -2;
+}
+
+Json netClassDefsJson(const Schematic& sch) {
+    Json arr = Json::array();
+    for (const auto& d : sch.netClassDefs()) {
+        Json j = Json::object();
+        j["name"] = d.name;
+        if (d.trackWidth > 0) j["trackWidth"] = d.trackWidth;
+        if (d.clearance > 0) j["clearance"] = d.clearance;
+        arr.push(j);
+    }
+    return arr;
+}
+
+Json directivesJson(const Schematic& sch, bool withNets) {
+    Json arr = Json::array();
+    for (const auto& d : sch.directives()) {
+        Json j = Json::object();
+        j["id"] = d.id;
+        j["component"] = d.component;
+        j["pin"] = d.pin;
+        if (!d.netClass.empty()) j["netClass"] = d.netClass;
+        if (d.diffPair) j["diffPair"] = true;
+        if (d.trackWidth > 0) j["trackWidth"] = d.trackWidth;
+        if (d.clearance > 0) j["clearance"] = d.clearance;
+        if (withNets) {
+            const int net = sch.netOf({d.component, d.pin});
+            j["net"] = net;
+            j["netName"] = net >= 0 ? sch.nets()[static_cast<size_t>(net)].name : std::string();
+        }
+        arr.push(j);
+    }
+    return arr;
+}
+
+Json harnessTypesJson(const Schematic& sch) {
+    Json arr = Json::array();
+    for (const auto& t : sch.harnessTypes()) {
+        Json j = Json::object();
+        j["name"] = t.name;
+        Json entries = Json::array();
+        for (const auto& e : t.entries) entries.push(e);
+        j["entries"] = entries;
+        arr.push(j);
+    }
+    return arr;
 }
 
 Json busesJson(const Schematic& sch, bool withMembers) {
@@ -218,7 +296,37 @@ PartRatings Project::partRatings() const {
     return profile ? deratedRatings(*profile) : PartRatings{};
 }
 
-void Project::schematicChanged() { pcb.pruneStaleRouting(schematic); }
+void Project::schematicChanged() {
+    pcb.pruneStaleRouting(schematic);
+    applySchematicRules();
+}
+
+bool Project::applySchematicRules() {
+    BoardSettings& s = pcb.settings;
+    if (schematic.directives().empty() && s.schematicRuleNets.empty()) return false;
+    std::map<std::string, double> widths = s.netWidths, clearances = s.netClearances;
+    for (const auto& name : s.schematicRuleNets) {
+        widths.erase(name);
+        clearances.erase(name);
+    }
+    std::set<std::string> owned;
+    for (const auto& r : schematic.netRules()) {
+        if (r.netName.empty()) continue;
+        if (r.trackWidth > 0) {
+            widths[r.netName] = std::max(s.minTrackWidth, r.trackWidth);
+            owned.insert(r.netName);
+        }
+        if (r.clearance > 0) {
+            clearances[r.netName] = r.clearance;
+            owned.insert(r.netName);
+        }
+    }
+    if (widths == s.netWidths && clearances == s.netClearances && owned == s.schematicRuleNets) return false;
+    s.netWidths = widths;
+    s.netClearances = clearances;
+    s.schematicRuleNets = owned;
+    return true;
+}
 
 const DesignVariant* Project::findVariant(const std::string& n) const {
     for (const auto& v : variants)
@@ -428,6 +536,14 @@ Json Project::toJson() const {
     root["sheets"] = sheetsJson(schematic);
     root["activeSheet"] = schematic.activeSheet();
     if (!schematic.buses().empty()) root["buses"] = busesJson(schematic, false);
+    if (!schematic.harnessTypes().empty()) root["harnessTypes"] = harnessTypesJson(schematic);
+    if (!schematic.netClassDefs().empty()) root["netClassDefs"] = netClassDefsJson(schematic);
+    if (!schematic.directives().empty()) root["directives"] = directivesJson(schematic, false);
+    if (!schematic.ercSeverities().empty()) {
+        Json levels = Json::object();
+        for (const auto& [code, level] : schematic.ercSeverities()) levels[code] = ercLevelName(level);
+        root["ercSeverities"] = levels;
+    }
     if (!variants.empty()) {
         Json vs = Json::array();
         for (const auto& v : variants) vs.push(variantToJson(v, schematic));
@@ -543,6 +659,14 @@ Project Project::fromJson(const Json& root) {
     if (widths.isObject())
         for (const auto& [net, w] : widths.fields())
             if (w.asNumber(0) > 0) s.netWidths[net] = w.asNumber(0);
+    const Json& clearances = b.get("netClearances");
+    if (clearances.isObject())
+        for (const auto& [net, c] : clearances.fields()) {
+            const double v = c.asNumber(0);
+            if (std::isfinite(v) && v > 0 && v <= 10) s.netClearances[net] = v;
+        }
+    for (const auto& n : b.get("schematicRuleNets").items())
+        if (!n.asString("").empty()) s.schematicRuleNets.insert(n.asString(""));
     s.maxTempRise = std::max(1.0, b.get("maxTempRise").asNumber(s.maxTempRise));
     s.autoSizeNets = b.get("autoSizeNets").asBool(true);
     {
@@ -646,6 +770,12 @@ Project Project::fromJson(const Json& root) {
         c.logicalRef = j.get("logicalRef").asString("");
         c.bus = c.kind == ComponentKind::NetLabel ? std::max(0, j.get("bus").asInt(0)) : 0;
         c.packageOnly = c.kind == ComponentKind::Custom && j.get("packageOnly").asBool(false);
+        c.channelOverrides = std::clamp(j.get("channelOverride").asInt(0), 0, kOverrideValue | kOverridePackage);
+        if (c.kind == ComponentKind::NetLabel) {
+            c.harnessType = j.get("harnessType").asString("");
+            if (c.harnessType.size() > 32) c.harnessType.clear();
+            c.harnessOf = std::max(0, j.get("harnessOf").asInt(0));
+        }
         if (c.logicalRef.size() > 64) c.logicalRef.clear();
         if (c.id == 0 || p.schematic.find(c.id)) continue;  // id 0 or a duplicate (hand-edited file): the first stands
         p.schematic.restoreComponent(c);
@@ -658,6 +788,8 @@ Project Project::fromJson(const Json& root) {
             s.instanceOf = std::max(0, j.get("instanceOf").asInt(0));
             s.channel = j.get("channel").asString("");
             if (!instanceRefsFromName(j.get("refs").asString("sheet"), &s.refs)) s.refs = InstanceRefs::SheetNumber;
+            s.size = j.get("size").asString("");
+            if (!findSheetTemplate(s.size)) s.size.clear();  // unknown template: sized to the drawing
             sheets.push_back(s);
         }
         p.schematic.restoreSheets(sheets, root.get("activeSheet").asInt(0));
@@ -680,6 +812,43 @@ Project Project::fromJson(const Json& root) {
         b.instanceOf = j.get("instanceOf").asInt(0);
         for (const auto& pt : j.get("points").items()) b.points.push_back({pt.get("x").asNumber(), pt.get("y").asNumber()});
         p.schematic.restoreBus(b);
+    }
+    {
+        std::vector<HarnessType> types;
+        for (const auto& j : root.get("harnessTypes").items()) {
+            HarnessType t;
+            t.name = j.get("name").asString("");
+            for (const auto& e : j.get("entries").items()) t.entries.push_back(e.asString(""));
+            types.push_back(t);
+        }
+        p.schematic.restoreHarnessTypes(types);
+        p.schematic.repairHarnessLinks();
+    }
+    {
+        const Json& levels = root.get("ercSeverities");
+        if (levels.isObject())
+            for (const auto& [code, level] : levels.fields()) {
+                const int l = ercLevelFromName(level.asString(""));
+                if (l >= -1) p.schematic.setErcSeverity(code, l);
+            }
+    }
+    for (const auto& j : root.get("netClassDefs").items()) {
+        NetClassDef d;
+        d.name = j.get("name").asString("");
+        d.trackWidth = j.get("trackWidth").asNumber(0);
+        d.clearance = j.get("clearance").asNumber(0);
+        if (!p.schematic.findNetClassDef(d.name)) p.schematic.setNetClassDef(d);
+    }
+    for (const auto& j : root.get("directives").items()) {
+        NetDirective d;
+        d.id = j.get("id").asInt(-1);
+        d.component = j.get("component").asInt(-1);
+        d.pin = j.get("pin").asInt(0);
+        d.netClass = j.get("netClass").asString("");
+        d.diffPair = j.get("diffPair").asBool(false);
+        d.trackWidth = j.get("trackWidth").asNumber(0);
+        d.clearance = j.get("clearance").asNumber(0);
+        p.schematic.restoreDirective(d);
     }
     p.schematic.syncInstances();  // repeated sheets: checks the instances against their definitions (no-op otherwise)
     for (const auto& j : root.get("variants").items()) {
@@ -767,6 +936,13 @@ Json Project::snapshot() const {
         }
         if (c.instanceOf != 0) j["instanceOf"] = c.instanceOf;
         if (c.bus != 0) j["bus"] = c.bus;
+        if (!c.harnessType.empty()) j["harnessType"] = c.harnessType;
+        if (c.harnessOf != 0) j["harnessOf"] = c.harnessOf;
+        if (assembled->channelOverrides != 0) {
+            // Per-channel parameters of a repeated sheet's part: what this channel sets and the block's value.
+            j["channelOverride"] = assembled->channelOverrides;
+            j["blockValue"] = schematic.blockValue(assembled->id);
+        }
         if (!assembled->logicalRef.empty()) j["logicalRef"] = assembled->logicalRef;
         else if (assembled->instanceOf != 0)
             if (const Component* m = schematic.find(assembled->instanceOf); m && !m->logicalRef.empty()) j["logicalRef"] = m->logicalRef;
@@ -880,6 +1056,8 @@ Json Project::snapshot() const {
             j["name"] = s.name;
             j["parent"] = s.parent;
             j["depth"] = schematic.sheetDepth(s.id);
+            j["size"] = s.size;
+            j["template"] = sheetTemplateFor(*this, s.id).name;
             Json ports = Json::array();
             for (const auto& port : schematic.sheetPorts(s.id)) ports.push(port);
             j["ports"] = ports;
@@ -888,12 +1066,24 @@ Json Project::snapshot() const {
                 j["channel"] = s.channel;
                 j["refs"] = instanceRefsName(schematic.findSheet(schematic.definitionSheet(s.id))->refs);
                 j["instances"] = static_cast<int>(schematic.sheetInstances(s.id).size());
+                j["channels"] = schematic.channelCount(s.id);
+                std::string path;
+                for (const auto& c : schematic.channelPath(s.id)) path += (path.empty() ? "" : "/") + c;
+                j["path"] = path;
             }
             sheets.push(j);
         }
         root["sheets"] = sheets;
         root["activeSheet"] = schematic.activeSheet();
         root["buses"] = busesJson(schematic, true);
+        root["harnessTypes"] = harnessTypesJson(schematic);
+        root["netClassDefs"] = netClassDefsJson(schematic);
+        root["directives"] = directivesJson(schematic, true);
+        {
+            Json levels = Json::object();
+            for (const auto& [code, level] : schematic.ercSeverities()) levels[code] = ercLevelName(level);
+            root["ercSeverities"] = levels;
+        }
         Json tb = Json::object();
         tb["title"] = titleBlock.title.empty() ? name : titleBlock.title;
         tb["company"] = titleBlock.company;

@@ -123,6 +123,17 @@ Json customPartSpecToJson(const CustomPartSpec& s) {
             Json pins = Json::array();
             for (const auto& p : u.pins) pins.push(p);
             uj["pins"] = pins;
+            // Swap settings only when used, so the ids of existing multi-unit parts stay stable.
+            if (u.swapGroup != 0) uj["swap"] = u.swapGroup;
+            if (!u.pinSwap.empty()) {
+                Json groups = Json::array();
+                for (const auto& g : u.pinSwap) {
+                    Json gj = Json::array();
+                    for (const auto& n : g) gj.push(n);
+                    groups.push(gj);
+                }
+                uj["pinSwap"] = groups;
+            }
             units.push(uj);
         }
         j["units"] = units;
@@ -309,6 +320,16 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
             u.pins.push_back(trim(pj.isNumber() ? std::to_string(pj.asInt()) : pj.asString("")));
         if (u.name.empty() || u.name.size() > 8) throw JsonError("Every unit needs a name of 1…8 characters.");
         if (u.pins.empty() || u.pins.size() > 512) throw JsonError("Unit " + u.name + " needs 1…512 pins.");
+        u.swapGroup = std::clamp(uj.get("swap").asInt(0), -1, 999);
+        for (const auto& gj : uj.get("pinSwap").items()) {
+            std::vector<std::string> group;
+            for (const auto& pj : gj.items()) {
+                const std::string n = trim(pj.isNumber() ? std::to_string(pj.asInt()) : pj.asString(""));
+                if (!n.empty() && std::find(group.begin(), group.end(), n) == group.end()) group.push_back(n);
+            }
+            if (group.size() > 512 || u.pinSwap.size() >= 64) throw JsonError("Unit " + u.name + " has too many pin-swap groups.");
+            if (group.size() >= 2) u.pinSwap.push_back(group);
+        }
         for (const auto& other : s.units)
             if (other.name == u.name) throw JsonError("Duplicate unit name " + u.name + ".");
         if (s.units.size() >= 32) throw JsonError("A part has at most 32 units.");
@@ -914,6 +935,7 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
             sub.package.type = "HEADER";
             PartUnitDef unit;
             unit.name = u.name;
+            unit.swapGroup = u.swapGroup;
             std::set<std::string> seen;
             for (const auto& number : u.pins) {
                 const int index = spec.pinIndex(number);
@@ -935,6 +957,15 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
             unit.def.name = spec.name;
             unit.halfWidth = generated->symbolHalfWidth;
             unit.halfHeight = generated->symbolHalfHeight;
+            for (const auto& group : u.pinSwap) {
+                std::vector<int> indices;
+                for (const auto& number : group)
+                    for (size_t k = 0; k < unit.pins.size(); ++k)
+                        if (upper(spec.pins[static_cast<size_t>(unit.pins[k])].number) == upper(number) &&
+                            std::find(indices.begin(), indices.end(), static_cast<int>(k)) == indices.end())
+                            indices.push_back(static_cast<int>(k));
+                if (indices.size() >= 2) unit.pinSwap.push_back(indices);
+            }
             part->units.push_back(unit);
         }
     }
@@ -1235,6 +1266,16 @@ Json customPartToJson(const CustomPart& part) {
             Json uj = Json::object();
             uj["name"] = u.name;
             uj["power"] = u.power;
+            if (u.swapGroup != 0) uj["swap"] = u.swapGroup;
+            if (!u.pinSwap.empty()) {
+                Json groups = Json::array();
+                for (const auto& g : u.pinSwap) {
+                    Json gj = Json::array();
+                    for (int k : g) gj.push(u.def.pins[static_cast<size_t>(k)].number);
+                    groups.push(gj);
+                }
+                uj["pinSwap"] = groups;
+            }
             Json us = Json::object();
             us["halfWidth"] = u.halfWidth;
             us["halfHeight"] = u.halfHeight;
@@ -1279,6 +1320,113 @@ Json customPartToJson(const CustomPart& part) {
     fpj["bodyH"] = part.footprint.body.height;
     j["footprintGeometry"] = fpj;
     return j;
+}
+
+// ---------------------------------------------------------------- units (gates)
+
+namespace {
+std::string unitShape(const PartUnitDef& u) {
+    std::string sig;
+    for (const auto& p : u.def.pins)
+        sig += std::to_string(p.type) + "@" + std::to_string(p.offset.x) + "," + std::to_string(p.offset.y) + ";";
+    return sig;
+}
+
+bool supplyType(PinType t) { return t == PinType::PowerIn || t == PinType::PowerOut; }
+}  // namespace
+
+bool unitsInterchangeable(const PartUnitDef& a, const PartUnitDef& b) {
+    if (a.power || b.power || a.swapGroup < 0 || b.swapGroup < 0) return false;
+    if (a.swapGroup > 0 || b.swapGroup > 0) return a.swapGroup == b.swapGroup && a.def.pins.size() == b.def.pins.size();
+    return unitShape(a) == unitShape(b);
+}
+
+std::vector<SymbolIssue> checkUnits(const CustomPartSpec& spec) {
+    std::vector<SymbolIssue> out;
+    if (spec.units.empty()) return out;
+    auto issue = [&](const char* severity, const char* code, std::string message, std::vector<std::string> pins) {
+        out.push_back({severity, code, std::move(message), std::move(pins)});
+    };
+    std::map<std::string, size_t> byNumber;  // upper-case number → pin index
+    for (size_t i = 0; i < spec.pins.size(); ++i) byNumber.emplace(upper(spec.pins[i].number), i);
+    std::map<std::string, std::vector<std::string>> unitsOfPin;  // pin number → units it is drawn on
+    std::set<std::string> names;
+    std::map<int, std::vector<const UnitSpec*>> swapGroups;
+    if (spec.units.size() > 32) issue("error", "UNIT_INVALID", "A part has at most 32 units.", {});
+    for (const auto& u : spec.units) {
+        const std::string label = u.name.empty() ? std::string("?") : u.name;
+        if (u.name.empty() || u.name.size() > 8)
+            issue("error", "UNIT_INVALID", "Every unit needs a name of 1…8 characters.", {});
+        else if (!names.insert(u.name).second)
+            issue("error", "UNIT_DUPLICATE", "Two units are named " + u.name + ".", {});
+        if (u.pins.empty()) issue("error", "UNIT_EMPTY", "Unit " + label + " has no pins.", {});
+        std::set<std::string> seen;
+        for (const auto& n : u.pins) {
+            const std::string key = upper(n);
+            if (!byNumber.count(key)) {
+                issue("error", "UNIT_UNKNOWN_PIN", "Unit " + label + " names pin " + n + ", which the part does not have.", {n});
+            } else if (!seen.insert(key).second) {
+                issue("error", "UNIT_PIN_TWICE", "Unit " + label + " lists pin " + n + " twice.", {n});
+            } else {
+                unitsOfPin[spec.pins[byNumber[key]].number].push_back(label);
+            }
+        }
+        for (const auto& group : u.pinSwap) {
+            std::set<int> types;
+            for (const auto& n : group) {
+                const std::string key = upper(n);
+                if (!seen.count(key)) {
+                    issue("error", "UNIT_SWAP_PIN", "A pin-swap group of unit " + label + " names pin " + n + ", which is not on the unit.", {n});
+                    continue;
+                }
+                types.insert(static_cast<int>(spec.pins[byNumber[key]].type));
+            }
+            if (types.size() > 1)
+                issue("warning", "UNIT_SWAP_TYPES", "Unit " + label + " swaps pins of different electrical types.", group);
+        }
+        if (u.swapGroup > 0) swapGroups[u.swapGroup].push_back(&u);
+    }
+    for (const auto& [number, units] : unitsOfPin) {
+        if (units.size() < 2) continue;
+        const CustomPin& p = spec.pins[byNumber[upper(number)]];
+        std::string list;
+        for (const auto& u : units) list += (list.empty() ? "" : ", ") + u;
+        if (supplyType(p.type))
+            issue("info", "UNIT_SHARED", "Pin " + number + " (" + p.name + ") is shared by units " + list + ": one pin, drawn on each.", {number});
+        else
+            issue("warning", "UNIT_SHARED_SIGNAL", "Signal pin " + number + " (" + p.name + ") is shared by units " + list +
+                                                   ": wiring it on one unit wires it on all.", {number});
+    }
+    std::vector<std::string> unassigned, unassignedSignal;
+    for (const auto& p : spec.pins) {
+        if (unitsOfPin.count(p.number)) continue;
+        unassigned.push_back(p.number);
+        if (!supplyType(p.type) && p.type != PinType::NoConnect) unassignedSignal.push_back(p.number);
+    }
+    if (!unassigned.empty()) {
+        std::string list;
+        for (const auto& n : unassigned) list += (list.empty() ? "" : ", ") + n;
+        issue("info", "UNIT_POWER", "Pins " + list + " are on no unit: they form the power unit P.", unassigned);
+    }
+    if (!unassignedSignal.empty())
+        issue("warning", "UNIT_UNASSIGNED_SIGNAL", "Signal pins on no unit go to the power unit P with the supplies.", unassignedSignal);
+    for (const auto& [group, units] : swapGroups) {
+        if (units.size() < 2) continue;
+        auto types = [&](const UnitSpec& u) {
+            std::vector<int> t;
+            for (const auto& n : u.pins)
+                if (auto it = byNumber.find(upper(n)); it != byNumber.end()) t.push_back(static_cast<int>(spec.pins[it->second].type));
+            return t;
+        };
+        const auto first = types(*units.front());
+        for (const UnitSpec* u : units)
+            if (types(*u) != first) {
+                issue("warning", "UNIT_SWAP_MISMATCH", "Units of swap group " + std::to_string(group) +
+                                                           " differ in their pins: gate swapping would change the circuit.", {});
+                break;
+            }
+    }
+    return out;
 }
 
 }  // namespace sieda

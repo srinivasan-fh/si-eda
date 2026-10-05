@@ -5918,3 +5918,361 @@ final class LargeDesignScaleTests: XCTestCase {
         XCTAssertEqual(results[0].failed, 0)
     }
 }
+
+/// Unit (gate) editor: the document (assign / share / power / swap groups), gate detection from pin names, the
+/// encoding the core reads, the core's unit checks, and gate / pin swap through the store.
+@MainActor
+final class UnitEditorTests: XCTestCase {
+    /// A quad 2-input NAND (74HC00 pinout).
+    private func nand() -> CustomPartSpec {
+        var s = CustomPartSpec()
+        s.name = "UNIT-EDITOR-NAND"
+        s.package = CustomPartSpec.Package(type: "SOIC", pinCount: 14)
+        let names = ["1A", "1B", "1Y", "2A", "2B", "2Y", "GND", "3Y", "3A", "3B", "4Y", "4A", "4B", "VCC"]
+        s.pins = names.enumerated().map { index, name in
+            let type: PinElectricalType = name == "GND" || name == "VCC" ? .powerIn : name.hasSuffix("Y") ? .output : .input
+            return CustomPartSpec.Pin(number: "\(index + 1)", name: name, type: type)
+        }
+        return s
+    }
+
+    func testDetectGatesFromPinNames() throws {
+        let gates = try XCTUnwrap(UnitDraft.detectGates(nand().pins))
+        XCTAssertEqual(gates.map(\.name), ["A", "B", "C", "D"])
+        XCTAssertEqual(gates[0].pins, ["1", "2", "3"])
+        XCTAssertEqual(Set(gates[2].pins), ["8", "9", "10"])
+        // Supplies stay on the power unit.
+        XCTAssertEqual(UnitDraft(units: gates).powerPins(nand().pins), ["7", "14"])
+        var opamp = CustomPartSpec()
+        opamp.pins = ["OUT1", "IN1-", "IN1+", "V+", "IN2+", "IN2-", "OUT2", "V-"].enumerated().map {
+            CustomPartSpec.Pin(number: "\($0.offset + 1)", name: $0.element, type: $0.element.hasPrefix("V") ? .powerIn : .input)
+        }
+        XCTAssertEqual(UnitDraft.detectGates(opamp.pins)?.count, 2)
+        XCTAssertNil(UnitDraft.detectGates([CustomPartSpec.Pin(number: "1", name: "VCC", type: .powerIn)]))
+    }
+
+    func testAssignSharePowerAndSwapGroups() {
+        var d = UnitDraft(units: [])
+        d.addUnit(pins: ["1", "2", "3"])
+        d.addUnit(pins: ["4", "5", "6"])
+        XCTAssertEqual(d.units.map(\.name), ["A", "B"])
+        d.share(["14"])
+        XCTAssertEqual(d.units(of: "14"), [0, 1])
+        d.makePower(["14"])
+        XCTAssertTrue(d.units(of: "14").isEmpty)
+        d.assign(["4"], to: 0)
+        XCTAssertEqual(d.units(of: "4"), [0])
+        d.makePinSwapGroup(["1", "2"], unit: 0)
+        XCTAssertEqual(d.units[0].pinSwap, [["1", "2"]])
+        d.toggle("2", unit: 0)  // off the unit: out of its swap group too
+        XCTAssertNil(d.units[0].pinSwap)
+        d.setSwap(-1, unit: 1)
+        d.setSwap(0, unit: 0)
+        XCTAssertEqual(d.units[1].swap, -1)
+        XCTAssertNil(d.units[0].swap)
+        XCTAssertFalse(d.rename(1, to: "A"))
+        XCTAssertTrue(d.rename(1, to: "G2"))
+        var spec = nand()
+        UnitDraft(units: []).apply(to: &spec)
+        XCTAssertNil(spec.units)
+    }
+
+    func testEncodingMatchesTheCoreAndChecksRun() throws {
+        var spec = nand()
+        var d = UnitDraft(units: try XCTUnwrap(UnitDraft.detectGates(spec.pins)))
+        d.makePinSwapGroup(["1", "2"], unit: 0)
+        d.apply(to: &spec)
+        let json = spec.jsonString()
+        XCTAssertTrue(json.contains("\"pinSwap\":[[\"1\",\"2\"]]"))
+        XCTAssertFalse(json.contains("\"swap\""))
+        XCTAssertFalse(EDAEngine.checkUnits(spec).contains(where: \.isError))
+        let part = try EDAEngine.previewCustomPart(spec).get()
+        XCTAssertEqual(part.unitSymbols?.count, 5)
+        XCTAssertEqual(part.unitSymbols?.first?.pinSwap, [["1", "2"]])
+        // A pin on no part pin is an error.
+        spec.units?[1].pins.append("99")
+        XCTAssertTrue(EDAEngine.checkUnits(spec).contains { $0.code == "UNIT_UNKNOWN_PIN" })
+    }
+
+    func testGateAndPinSwapThroughTheStore() throws {
+        var spec = nand()
+        var d = UnitDraft(units: try XCTUnwrap(UnitDraft.detectGates(spec.pins)))
+        d.makePinSwapGroup(["1", "2"], unit: 0)
+        d.apply(to: &spec)
+        let store = DesignStore()
+        let partId = try store.engine.registerCustomPart(spec).id
+        let a = store.engine.addCustomUnits(partId: partId, at: .zero)
+        XCTAssertGreaterThan(a, 0)
+        let b = try XCTUnwrap(store.engine.placeNextUnit(of: a, at: CGPoint(x: 200, y: 0)))
+        store.refresh()
+        store.swapGates(a, b)
+        XCTAssertEqual(store.snapshot.component(a)?.unit, 2)
+        store.swapPins(of: a, 0, 1)
+        XCTAssertTrue(store.canUndo)
+    }
+}
+
+/// AI refinement keeps the design's structure: a plan made from a design with nested repeated sheets, per-channel
+/// values, a bus with entries and a multi-unit part rebuilds the same structure, and a refined plan that leaves the
+/// structure out gets it back.
+@MainActor
+final class StructuredPlanTests: XCTestCase {
+    /// Amp (×3) holding Stage (×2): R1 in Stage, its channel B/A at 12k; a bus with two entries on Main; an LM324
+    /// placed as units A and B.
+    private func structuredEngine() throws -> EDAEngine {
+        let engine = EDAEngine(name: "Structured")
+        let amp = try XCTUnwrap(engine.addSheet("Amp", parent: 1))
+        let stage = try XCTUnwrap(engine.addSheet("Stage", parent: amp))
+        XCTAssertTrue(engine.setActiveSheet(stage))
+        let port = engine.addComponent(.netLabel, value: "IN", at: .zero)
+        XCTAssertTrue(engine.setLabelScope(port, scope: "port"))
+        let r = engine.addComponent(.resistor, value: "10k", at: CGPoint(x: 80, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: port, pin: 0), PinAddress(component: r, pin: 0)))
+        XCTAssertEqual(engine.repeatSheet(stage, count: 2), 2)
+        XCTAssertEqual(engine.repeatSheet(amp, count: 3), 3)
+        XCTAssertTrue(engine.setInstanceRefs(amp, scheme: "suffix"))
+        let snap = try XCTUnwrap(engine.snapshot())
+        let copy = try XCTUnwrap(snap.components.first { $0.instanceOf == r && snap.sheet($0.sheetId)?.path == "B/A" })
+        XCTAssertTrue(engine.setChannelValue(copy.id, "12k"))
+        // Main: a bus with entries D0, D1 wired to a connector.
+        XCTAssertTrue(engine.setActiveSheet(1))
+        let j = engine.addComponent(.connector, at: CGPoint(x: 300, y: 0))
+        let bus = try XCTUnwrap(engine.addBus("D[0..1]", points: [CGPoint(x: 200, y: -50), CGPoint(x: 200, y: 50)]))
+        XCTAssertGreaterThan(engine.connectBus(bus, toPart: j), 0)
+        // An LM324 gate by gate.
+        let lm324 = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "LM324" })
+        let partId = try engine.registerCustomPart(lm324.spec).id
+        let a = engine.addCustomUnits(partId: partId, at: CGPoint(x: 0, y: 300))
+        XCTAssertGreaterThan(a, 0)
+        XCTAssertNotNil(engine.addPartUnit(of: a, unit: 2, at: CGPoint(x: 200, y: 300)))
+        return engine
+    }
+
+    func testPlanRoundTripKeepsStructure() throws {
+        let engine = try structuredEngine()
+        let before = try XCTUnwrap(engine.snapshot())
+        let plan = DesignPlanCompiler.plan(from: before)
+        // Drawn once: the plan holds the block's parts, not the channels' copies.
+        XCTAssertEqual(plan.components.filter { $0.kind == "resistor" }.count, 1)
+        let r = try XCTUnwrap(plan.components.first { $0.kind == "resistor" })
+        XCTAssertEqual(r.blockRef, "R1")
+        XCTAssertEqual(r.channelValues, ["B/A": "12k"])
+        XCTAssertEqual(plan.sheets.first { $0.name == "Amp" }?.channels, 3)
+        XCTAssertEqual(plan.sheets.first { $0.name == "Stage" }?.channels, 2)
+        XCTAssertEqual(plan.buses?.count, 1)
+        XCTAssertEqual(plan.components.filter { $0.bus == 0 }.count, 2)
+        let opamp = try XCTUnwrap(plan.components.first { $0.kind == "custom:LM324" })
+        XCTAssertEqual(opamp.units?.map(\.unit), ["A", "B"])
+
+        // Rebuilt from the plan: the same sheets, channels, designators, values, bus and units.
+        let rebuilt = EDAEngine(name: "Rebuilt")
+        let report = DesignPlanCompiler.apply(plan, to: rebuilt, previous: before)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        let after = try XCTUnwrap(rebuilt.snapshot())
+        XCTAssertEqual(after.sheets.map(\.name), before.sheets.map(\.name))
+        XCTAssertEqual(after.sheets.map(\.path), before.sheets.map(\.path))
+        XCTAssertEqual(Set(after.components.map(\.ref)), Set(before.components.map(\.ref)))
+        XCTAssertEqual(after.components.first { $0.ref == "R1_B_A" }?.value, "12k")
+        XCTAssertEqual(after.components.first { $0.ref == "R1_C_B" }?.value, "10k")
+        XCTAssertEqual(after.buses.count, before.buses.count)
+        XCTAssertEqual(after.components.filter { $0.bus != nil }.count, before.components.filter { $0.bus != nil }.count)
+        XCTAssertEqual(Set(after.components.compactMap(\.unitName)), ["A", "B"])
+        XCTAssertEqual(after.nets.count, before.nets.count)
+        // The plan made from the rebuilt design has the same structure.
+        let again = DesignPlanCompiler.plan(from: after)
+        XCTAssertEqual(again.sheets, plan.sheets)
+        XCTAssertEqual(again.components.map(\.ref).sorted(), plan.components.map(\.ref).sorted())
+        XCTAssertEqual(again.components.first { $0.kind == "resistor" }?.channelValues, ["B/A": "12k"])
+    }
+
+    func testRefinedPlanGetsItsStructureBack() throws {
+        let engine = try structuredEngine()
+        let current = DesignPlanCompiler.plan(from: try XCTUnwrap(engine.snapshot()))
+        // An agent's answer without any of the structure (the fields the schema does not ask for).
+        var refined = current
+        refined.sheets = []
+        refined.buses = nil
+        for i in refined.components.indices {
+            refined.components[i].sheet = nil
+            refined.components[i].scope = nil
+            refined.components[i].targetSheet = nil
+            refined.components[i].blockRef = nil
+            refined.components[i].channelValues = nil
+            refined.components[i].units = nil
+            refined.components[i].bus = nil
+        }
+        refined.components.append(PlannedComponent(ref: "C99", kind: "capacitor", value: "1u", x: 400, y: 400))
+        if let first = current.components.first(where: { $0.kind == "resistor" }) {
+            refined.connections.append(PlannedConnection(from: "C99.1", to: "\(first.ref).2"))
+        }
+        let merged = DesignPlanCompiler.preservingStructure(refined, from: current)
+        XCTAssertEqual(merged.sheets, current.sheets)
+        XCTAssertEqual(merged.buses, current.buses)
+        for c in current.components {
+            let m = try XCTUnwrap(merged.components.first { $0.ref == c.ref })
+            XCTAssertEqual(m, c)
+        }
+        // The new capacitor joins the sheet of the resistor it connects to.
+        XCTAssertEqual(merged.components.first { $0.ref == "C99" }?.sheet, "Stage")
+        // What the agent did set stays.
+        var renamed = refined
+        renamed.components[0].value = "47k"
+        XCTAssertEqual(DesignPlanCompiler.preservingStructure(renamed, from: current).components[0].value, "47k")
+    }
+
+    func testPlainPlansAreUnchanged() throws {
+        let engine = EDAEngine(name: "Plain")
+        let r = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let g = engine.addComponent(.ground, at: CGPoint(x: 0, y: 100))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r, pin: 1), PinAddress(component: g, pin: 0)))
+        let plan = DesignPlanCompiler.plan(from: try XCTUnwrap(engine.snapshot()))
+        let json = plan.jsonString(pretty: false)
+        for key in ["buses", "blockRef", "channelValues", "units", "\"bus\"", "channels"] {
+            XCTAssertFalse(json.contains(key), key)
+        }
+    }
+}
+
+/// Signal harnesses through the store: a type, a connector on each of two sheets made global, the bundle joining
+/// the members, undo.
+@MainActor
+final class HarnessTests: XCTestCase {
+    func testHarnessConnectorsJoinMembersAcrossSheets() throws {
+        let store = DesignStore()
+        XCTAssertTrue(store.setHarnessType("SPI", entries: "SCK, MOSI, MISO"))
+        XCTAssertEqual(store.snapshot.harnessTypes.first?.entries, ["SCK", "MOSI", "MISO"])
+        XCTAssertFalse(store.setHarnessType("SPI", entries: "A.B"))
+        var parts: [Int] = []
+        var harnesses: [Int] = []
+        for sheetName in ["A", "B"] {
+            let sheet = try XCTUnwrap(store.addSheet(named: sheetName, parent: 0))
+            store.selectSheet(sheet)
+            let j = store.addComponent(.connector, at: .zero)
+            store.placeHarnessConnector(type: "SPI", name: "BUS0")
+            let harness = try XCTUnwrap(store.snapshot.components.first { $0.isHarnessLabel && $0.sheetId == sheet })
+            let sck = try XCTUnwrap(store.snapshot.components.first { $0.harnessOf == harness.id && $0.value == "SCK" })
+            XCTAssertTrue(store.connect(PinAddress(component: j, pin: 0), PinAddress(component: sck.id, pin: 0)))
+            store.setLabelScope(harness.id, scope: "global")
+            parts.append(j)
+            harnesses.append(harness.id)
+        }
+        let a = try XCTUnwrap(store.snapshot.component(parts[0])), b = try XCTUnwrap(store.snapshot.component(parts[1]))
+        XCTAssertEqual(a.pins[0].net, b.pins[0].net)
+        XCTAssertEqual(store.snapshot.net(a.pins[0].net)?.name, "BUS0.SCK")
+        store.setLabelHarness(harnesses[0], type: "")
+        XCTAssertNil(store.snapshot.component(harnesses[0])?.harnessType)
+        store.undo()
+        XCTAssertEqual(store.snapshot.component(harnesses[0])?.harnessType, "SPI")
+    }
+}
+
+/// Schematic directives through the store: a net class, a differential pair directive on a label, the board rules
+/// following, undo.
+@MainActor
+final class DirectiveTests: XCTestCase {
+    func testDirectivesDriveTheBoardRules() throws {
+        let store = DesignStore()
+        let j = store.addComponent(.connector, at: .zero)
+        let p = store.addComponent(.netLabel, at: CGPoint(x: 100, y: 0))
+        let n = store.addComponent(.netLabel, at: CGPoint(x: 100, y: 40))
+        XCTAssertTrue(store.engine.setValue(p, "D_P"))
+        XCTAssertTrue(store.engine.setValue(n, "D_N"))
+        XCTAssertTrue(store.connect(PinAddress(component: j, pin: 0), PinAddress(component: p, pin: 0)))
+        XCTAssertTrue(store.connect(PinAddress(component: j, pin: 1), PinAddress(component: n, pin: 0)))
+        XCTAssertTrue(store.setNetClass("HS", trackWidth: 0.25, clearance: 0.3))
+        XCTAssertFalse(store.setNetClass("bad name", trackWidth: 0.25, clearance: 0))
+        XCTAssertEqual(store.snapshot.netClassDefs.first?.trackWidth, 0.25)
+        let anchor = PinAddress(component: p, pin: 0)
+        store.setDirective(on: anchor, netClass: "HS", diffPair: true, trackWidth: 0, clearance: 0)
+        let directive = try XCTUnwrap(store.directive(on: anchor))
+        XCTAssertEqual(directive.netName, "D_P")
+        XCTAssertTrue(directive.isDiffPair)
+        XCTAssertEqual(store.snapshot.board.netWidths["D_P"], 0.25)
+        // A parameter set on the net wins over its class; clearing everything removes the directive.
+        store.setDirective(on: anchor, netClass: "HS", diffPair: true, trackWidth: 0.4, clearance: 0)
+        XCTAssertEqual(store.snapshot.board.netWidths["D_P"], 0.4)
+        store.setDirective(on: anchor, netClass: "", diffPair: false, trackWidth: 0, clearance: 0)
+        XCTAssertNil(store.directive(on: anchor))
+        XCTAssertNil(store.snapshot.board.netWidths["D_P"])
+        store.undo()
+        XCTAssertNotNil(store.directive(on: anchor))
+    }
+}
+
+/// Schematic productivity through the store: align, copy / paste array, back-annotation review, sheet templates and
+/// the PDF of every sheet.
+@MainActor
+final class SchematicToolsTests: XCTestCase {
+    func testAlignCopyPasteArrayAndUndo() throws {
+        let store = DesignStore()
+        let a = store.addComponent(.resistor, at: .zero)
+        let b = store.addComponent(.resistor, at: CGPoint(x: 120, y: 50))
+        store.selection = [a, b]
+        store.align("top")
+        XCTAssertEqual(store.snapshot.component(b)?.y, 0)
+        store.undo()
+        XCTAssertEqual(store.snapshot.component(b)?.y, 50)
+        let label = store.addComponent(.netLabel, at: CGPoint(x: -60, y: 200))
+        XCTAssertTrue(store.engine.setValue(label, "D0"))
+        let clip = try XCTUnwrap(store.engine.copyComponents([label]))
+        XCTAssertTrue(DesignStore.isSchematicClip(clip))
+        store.paste(count: 3, step: CGSize(width: 0, height: 60), labelIncrement: 1, clip: clip)
+        let names = Set(store.snapshot.components.filter { $0.componentKind == .netLabel }.map(\.value))
+        XCTAssertTrue(names.isSuperset(of: ["D0", "D1", "D2", "D3"]))
+        XCTAssertEqual(store.selection.count, 3)
+        store.paste(clip: "not a clip")
+        XCTAssertEqual(store.selection.count, 3)
+    }
+
+    func testBackAnnotationTemplatesAndPDF() throws {
+        let store = DesignStore()
+        let r1 = store.addComponent(.resistor, at: .zero)
+        let r2 = store.addComponent(.resistor, at: CGPoint(x: 100, y: 0))
+        XCTAssertNotNil(store.engine.findComponent(ref: "R1"))
+        XCTAssertTrue(store.engine.moveFootprint(r1, to: CGPoint(x: 30, y: 20)))
+        XCTAssertTrue(store.engine.moveFootprint(r2, to: CGPoint(x: 10, y: 20)))
+        store.refresh()
+        let eco = store.ecoFromBoard()
+        XCTAssertEqual(eco.count, 2)
+        store.applyEco(eco)
+        XCTAssertEqual(store.snapshot.component(r2)?.ref, "R1")
+        XCTAssertEqual(store.snapshot.component(r1)?.ref, "R2")
+        let was = store.engine.ecoFromWasIs("R1 R5\nR77 R78\n")
+        XCTAssertEqual(was.filter(\.applicable).count, 1)
+        XCTAssertFalse(EDAEngine.sheetTemplates().isEmpty)
+        store.setSheetSize(1, size: "A3")
+        XCTAssertEqual(store.snapshot.sheet(1)?.size, "A3")
+        let pdf = try XCTUnwrap(store.engine.schematicPDF())
+        XCTAssertEqual(String(decoding: pdf.prefix(8), as: UTF8.self), "%PDF-1.4")
+    }
+}
+
+/// AI plans keep harnesses and directives too: a plan made from a design with a harness connector and a net
+/// directive rebuilds them.
+@MainActor
+final class StructuredPlanHarnessTests: XCTestCase {
+    func testHarnessAndDirectivesSurviveAPlan() throws {
+        let engine = EDAEngine(name: "Harness plan")
+        XCTAssertTrue(engine.setHarnessType("SPI", entries: ["SCK", "MOSI"]))
+        XCTAssertTrue(engine.setNetClass("HS", trackWidth: 0.2, clearance: 0))
+        let j = engine.addComponent(.connector, at: .zero)
+        let harness = try XCTUnwrap(engine.addHarnessConnector(type: "SPI", name: "BUS0", at: CGPoint(x: 200, y: 0)))
+        let snap = try XCTUnwrap(engine.snapshot())
+        let sck = try XCTUnwrap(snap.components.first { $0.harnessOf == harness && $0.value == "SCK" })
+        XCTAssertNotNil(engine.connect(PinAddress(component: j, pin: 0), PinAddress(component: sck.id, pin: 0)))
+        XCTAssertNotNil(engine.addDirective(component: sck.id, pin: 0, netClass: "HS", diffPair: false, trackWidth: 0, clearance: 0))
+        let before = try XCTUnwrap(engine.snapshot())
+        let plan = DesignPlanCompiler.plan(from: before)
+        XCTAssertEqual(plan.harnessTypes?.first?.name, "SPI")
+        XCTAssertEqual(plan.directives?.count, 1)
+        XCTAssertEqual(plan.components.filter { $0.harnessOf != nil }.count, 2)
+        let rebuilt = EDAEngine(name: "Rebuilt")
+        let report = DesignPlanCompiler.apply(plan, to: rebuilt, previous: before)
+        XCTAssertTrue(report.warnings.isEmpty, "\(report.warnings)")
+        let after = try XCTUnwrap(rebuilt.snapshot())
+        XCTAssertEqual(after.components.filter(\.isHarnessLabel).count, 1)
+        XCTAssertEqual(after.components.filter { $0.harnessOf != nil }.count, 2)
+        XCTAssertEqual(after.directives.first?.netName, "BUS0.SCK")
+        XCTAssertEqual(after.board.netWidths["BUS0.SCK"], 0.2)
+    }
+}

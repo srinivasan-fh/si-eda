@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 import SwiftUI
 
 /// Interactive schematic canvas: drawing, hit-testing, selection, moving, wiring and placement.
@@ -103,6 +104,20 @@ struct SchematicCanvas: View {
                 guard tool == .bus, busPoints.count >= 2 else { return .ignored }
                 finishBus()
                 return .handled
+            }
+            // Edit ▸ Copy / Cut / Paste on the focused canvas: parts and the wires between them.
+            .onCopyCommand { store.selectionClip().map { [NSItemProvider(object: $0 as NSString)] } ?? [] }
+            .onCutCommand {
+                let items = store.selectionClip().map { [NSItemProvider(object: $0 as NSString)] } ?? []
+                store.deleteSelection()
+                return items
+            }
+            .onPasteCommand(of: [.plainText]) { providers in
+                guard let provider = providers.first else { return }
+                _ = provider.loadObject(ofClass: NSString.self) { object, _ in
+                    guard let text = object as? String else { return }
+                    DispatchQueue.main.async { store.paste(clip: text) }
+                }
             }
             .onKeyPress(.delete) { store.deleteSelection(); return .handled }
             .onKeyPress(.deleteForward) { store.deleteSelection(); return .handled }
@@ -241,6 +256,9 @@ struct SchematicCanvas: View {
     }
 
     private static func wirePath(_ a: CGPoint, _ b: CGPoint) -> [CGPoint] { WireGeometry.path(a, b) }
+
+    /// Drawing templates (A4 … ANSI E), read once.
+    static let templates: [SheetTemplateInfo] = EDAEngine.sheetTemplates()
 
     /// The wire under `world` and the point on it (on the grid) where a T-junction would go.
     private func wireHit(at world: CGPoint) -> (id: Int, point: CGPoint)? {
@@ -640,6 +658,30 @@ struct SchematicCanvas: View {
             stub.addLine(to: at.applying(screen))
             ctx.stroke(stub, with: .color(Theme.lightBlue), lineWidth: 2)
         }
+        // Harness connectors: each entry is joined to its harness label by a thin harness-coloured stub.
+        for c in snap.components where c.harnessOf != nil {
+            guard let owner = c.harnessOf, let harness = snap.component(owner) else { continue }
+            var a = harness.position, b = c.position
+            if movingIds.contains(owner) { a.x += delta.width; a.y += delta.height }
+            if movingIds.contains(c.id) { b.x += delta.width; b.y += delta.height }
+            var stub = Path()
+            stub.move(to: a.applying(screen))
+            stub.addLine(to: CGPoint(x: a.x, y: b.y).applying(screen))
+            stub.addLine(to: b.applying(screen))
+            ctx.stroke(stub, with: .color(Theme.harness.opacity(0.7)), lineWidth: 1.5)
+        }
+        // Net directives: a small flag beside the pin they sit on (net class, ⇄ for a differential pair, sizes).
+        if showLabels {
+            for d in snap.directives {
+                // The block part's pin on its own sheet, or its copy's on a channel sheet shown now.
+                guard let c = snap.components.first(where: { $0.id == d.component || $0.instanceOf == d.component }),
+                      d.pin < c.pins.count else { continue }
+                let pin = c.pins[d.pin].point
+                let at = CGPoint(x: pin.x + 6, y: pin.y - 10).applying(screen)
+                ctx.draw(Text(verbatim: "◆ " + d.summary).font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .foregroundColor(Theme.liveOn), at: at, anchor: .bottomLeading)
+            }
+        }
         // The bus being drawn.
         if tool == .bus, !busPoints.isEmpty {
             var path = Path()
@@ -771,13 +813,16 @@ struct SchematicCanvas: View {
                 let width = SchematicSymbols.netLabelTextWidth(c.value)
                 let center = CGPoint(x: (width + 7) / 2, y: 0).applying(t)
                 // Global labels sky blue, sheet-local ones muted, hierarchical ports and sheet entries amber.
+                // Harness labels (a bundle) and their entries are drawn in the harness colour, the bundle marked ≡.
                 let colour: Color
                 switch c.labelScope {
+                case _ where c.harnessType != nil: colour = Theme.harness
                 case "local": colour = Theme.textMuted
                 case "port", "entry": colour = Theme.warning
                 default: colour = Theme.skyBlue
                 }
-                ctx.draw(Text(c.value).font(.system(size: fontSize, weight: .semibold, design: .monospaced))
+                ctx.draw(Text(verbatim: c.isHarnessLabel ? c.value + " ≡" : c.value)
+                            .font(.system(size: fontSize, weight: c.isHarnessLabel ? .heavy : .semibold, design: .monospaced))
                             .foregroundColor(colour), at: center)
             default:
                 // Labels sit above/below wide symbols and to the right of tall ones, always upright.
@@ -800,6 +845,21 @@ struct SchematicCanvas: View {
                          at: refPoint, anchor: anchor)
                 ctx.draw(Text(c.variantValue ?? c.value).font(.system(size: fontSize, design: .monospaced))
                             .foregroundColor(c.variantValue == nil ? Theme.valueLabel : Theme.warning), at: valPoint, anchor: anchor)
+            }
+        }
+
+        // Drawing template of the sheet (A4 … ANSI E): its frame, centred on the drawing (10 units = 2.54 mm).
+        if let shown = snap.sheet(snap.activeSheet), let size = shown.size, !size.isEmpty,
+           let template = Self.templates.first(where: { $0.name == size }) {
+            let content = Self.componentBounds(snap).reduce(CGRect.null) { $0.union($1.rect) }
+            let center = content.isNull ? CGPoint.zero : CGPoint(x: content.midX, y: content.midY)
+            let w = template.width / 0.254, h = template.height / 0.254
+            let frame = CGRect(x: center.x - w / 2, y: center.y - h / 2, width: w, height: h)
+            ctx.stroke(Path(frame.applying(screen)), with: .color(Theme.symbol.opacity(0.55)),
+                       style: StrokeStyle(lineWidth: 1, dash: [8, 5]))
+            if showLabels {
+                ctx.draw(Text(verbatim: template.name).font(.system(size: 11, weight: .semibold)).foregroundColor(Theme.textMuted),
+                         at: CGPoint(x: frame.minX + 6, y: frame.minY + 6).applying(screen), anchor: .topLeading)
             }
         }
 
