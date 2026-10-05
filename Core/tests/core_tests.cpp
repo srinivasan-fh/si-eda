@@ -5726,6 +5726,8 @@ TEST(sheets_and_variants_c_api) {
     int rc = sieda_c_api_sheets_test();
     if (rc != 0) std::printf("    sheets c api step %d failed\n", rc);
     CHECK(rc == 0);
+}
+
 // ======================================================================= AC, sweeps, tolerances, spectrum
 
 namespace {
