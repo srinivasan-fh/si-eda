@@ -86,10 +86,65 @@ std::optional<SourceSpec> SourceSpec::parse(const std::string& raw) {
         s.amplitude = (*a)[1];
         s.frequency = (*a)[2];
         if (s.frequency <= 0) return std::nullopt;
+        if (a->size() > 6) return std::nullopt;
+        s.sinDelay = a->size() > 3 ? (*a)[3] : 0.0;
+        s.sinDamping = a->size() > 4 ? (*a)[4] : 0.0;
+        s.sinPhaseDeg = a->size() > 5 ? (*a)[5] : 0.0;
+        s.sineExtended = s.sinDelay != 0 || s.sinDamping != 0 || s.sinPhaseDeg != 0;
+        if (s.sinDelay < 0) return std::nullopt;
+        if (s.sineExtended) s.spiceText = trim(raw);
+        return s;
+    }
+    if (text.rfind("PWL", 0) == 0) {  // PWL(t1 v1 t2 v2 …): times ascending
+        auto a = args(3);
+        if (!a || a->size() < 2 || a->size() % 2 != 0 || a->size() > 20000) return std::nullopt;
+        s.kind = Kind::Pulse;
+        s.shape = Shape::Pwl;
+        s.pwl = *a;
+        s.v1 = s.v2 = (*a)[1];
+        for (size_t i = 0; i < a->size(); i += 2) {
+            if ((*a)[i] < 0 || (i >= 2 && (*a)[i] < (*a)[i - 2])) return std::nullopt;
+            s.v1 = std::min(s.v1, (*a)[i + 1]);
+            s.v2 = std::max(s.v2, (*a)[i + 1]);
+        }
+        s.period = 0;
+        s.spiceText = trim(raw);
+        return s;
+    }
+    if (text.rfind("EXP", 0) == 0) {  // EXP(v1 v2 td1 tau1 [td2 tau2])
+        auto a = args(3);
+        if (!a || a->size() < 4 || a->size() > 6 || a->size() == 5) return std::nullopt;
+        s.kind = Kind::Pulse;
+        s.shape = Shape::Exp;
+        s.v1 = (*a)[0];
+        s.v2 = (*a)[1];
+        s.td = (*a)[2];
+        s.tau1 = (*a)[3];
+        s.td2 = a->size() > 4 ? (*a)[4] : 1e300;
+        s.tau2 = a->size() > 5 ? (*a)[5] : s.tau1;
+        if (s.td < 0 || !(s.tau1 > 0) || !(s.tau2 > 0) || s.td2 < s.td) return std::nullopt;
+        s.period = 0;
+        s.spiceText = trim(raw);
         return s;
     }
     if (text.rfind("PULSE", 0) == 0) {
         auto a = args(5);
+        if (a && a->size() >= 5 && a->size() <= 7) {  // SPICE PULSE(v1 v2 td tr tf pw [per])
+            s.kind = Kind::Pulse;
+            s.shape = Shape::Spice;
+            s.v1 = (*a)[0];
+            s.v2 = (*a)[1];
+            s.td = (*a)[2];
+            s.tr = (*a)[3];
+            s.tf = (*a)[4];
+            s.pw = a->size() > 5 ? (*a)[5] : 1e300;
+            s.period = a->size() > 6 ? (*a)[6] : 0.0;
+            if (s.td < 0 || s.tr < 0 || s.tf < 0 || s.pw < 0 || s.period < 0) return std::nullopt;
+            if (s.period > 0 && s.period < s.tr + s.pw + s.tf) return std::nullopt;
+            if (s.period > 0) s.duty = std::clamp((s.tr / 2 + s.pw + s.tf / 2) / s.period, 0.0, 1.0);
+            s.spiceText = trim(raw);
+            return s;
+        }
         if (!a || a->size() < 3) return std::nullopt;
         s.kind = Kind::Pulse;
         s.v1 = (*a)[0];
@@ -111,8 +166,41 @@ std::optional<SourceSpec> SourceSpec::parse(const std::string& raw) {
 double SourceSpec::valueAt(double t) const {
     switch (kind) {
         case Kind::DC: return dc;
-        case Kind::Sine: return offset + amplitude * std::sin(2 * kPi * frequency * t);
+        case Kind::Sine:
+            if (sineExtended) {  // SPICE: vo + va·sin(phase) until td, then the damped sine
+                const double ph = sinPhaseDeg * kPi / 180.0;
+                if (t < sinDelay) return offset + amplitude * std::sin(ph);
+                const double u = t - sinDelay;
+                return offset + amplitude * std::exp(-sinDamping * u) * std::sin(2 * kPi * frequency * u + ph);
+            }
+            return offset + amplitude * std::sin(2 * kPi * frequency * t);
         case Kind::Pulse: {
+            if (shape == Shape::Spice) {
+                double u = t - td;
+                if (u <= 0) return v1;
+                if (period > 0) u = std::fmod(u, period);
+                if (u < tr) return v1 + (v2 - v1) * u / tr;
+                if (u < tr + pw) return v2;
+                if (u < tr + pw + tf) return v2 + (v1 - v2) * (u - tr - pw) / tf;
+                return v1;
+            }
+            if (shape == Shape::Pwl) {
+                const size_t n = pwl.size() / 2;
+                if (n == 0) return 0.0;
+                if (t <= pwl[0]) return pwl[1];
+                for (size_t k = 1; k < n; ++k)
+                    if (t <= pwl[2 * k]) {
+                        const double t0 = pwl[2 * k - 2], t1 = pwl[2 * k];
+                        return t1 > t0 ? pwl[2 * k - 1] + (pwl[2 * k + 1] - pwl[2 * k - 1]) * (t - t0) / (t1 - t0) : pwl[2 * k + 1];
+                    }
+                return pwl[2 * n - 1];
+            }
+            if (shape == Shape::Exp) {
+                if (t <= td) return v1;
+                double v = v1 + (v2 - v1) * (1 - std::exp(-(t - td) / tau1));
+                if (t > td2) v += (v1 - v2) * (1 - std::exp(-(t - td2) / tau2));
+                return v;
+            }
             if (t <= 0) return v1;  // SPICE semantics: the pulse rises from v1 after t = 0
             double phase = std::fmod(t, period) / period;
             return phase < duty ? v2 : v1;

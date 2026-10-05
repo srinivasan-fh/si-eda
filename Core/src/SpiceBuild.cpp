@@ -305,6 +305,8 @@ bool Simulator::addSpiceModel(const Component& c, std::string& error) {
                 Element e = base(ElemType::VSource);
                 e.n = {nodeOf(p.nodes[0]), nodeOf(p.nodes[1]), -1};
                 e.source.dc = p.value;
+                if (!p.waveform.empty())
+                    if (auto spec = SourceSpec::parse(p.waveform)) e.source = *spec;
                 e.branch = unknowns_++;
                 vbranch[p.name] = e.branch;
                 elements_.push_back(e);
@@ -333,6 +335,8 @@ bool Simulator::addSpiceModel(const Component& c, std::string& error) {
                     Element e = base(ElemType::ISource);
                     e.n = {nodeOf(p.nodes[1]), nodeOf(p.nodes[0]), -1};
                     e.source.dc = p.value;
+                    if (!p.waveform.empty())
+                        if (auto spec = SourceSpec::parse(p.waveform)) e.source = *spec;
                     elements_.push_back(e);
                     break;
                 }

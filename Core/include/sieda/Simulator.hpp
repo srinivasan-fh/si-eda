@@ -27,6 +27,18 @@ struct SourceSpec {
     double dc = 0, offset = 0, amplitude = 0, frequency = 0, v1 = 0, v2 = 0, period = 0, duty = 0.5;
     bool hasAc = false;  // the value carries an "AC mag [phase]" stimulus for AC analysis
     double acMagnitude = 0, acPhaseDeg = 0;
+    // SPICE-standard waveforms. They are Kind::Pulse (levels v1 … v2, period 0 unless periodic) so code that only
+    // needs a source's range keeps working; `shape` says how valueAt draws them:
+    //   Spice  PULSE(v1 v2 td tr tf pw [per]) — 5 or more arguments (4 or fewer: the square wave above)
+    //   Pwl    PWL(t1 v1 t2 v2 …), held before the first and after the last point
+    //   Exp    EXP(v1 v2 td1 tau1 [td2 tau2])
+    enum class Shape { Square, Spice, Pwl, Exp } shape = Shape::Square;
+    double td = 0, tr = 0, tf = 0, pw = 0, tau1 = 0, td2 = 0, tau2 = 0;
+    std::vector<double> pwl;  // t0 v0 t1 v1 …
+    // SIN(vo va freq td theta phase) — the delay, damping and phase of a sine with more than three arguments.
+    bool sineExtended = false;
+    double sinDelay = 0, sinDamping = 0, sinPhaseDeg = 0;
+    std::string spiceText;  // the SPICE-standard waveform as written (the netlist export passes it through)
 
     static std::optional<SourceSpec> parse(const std::string& text);
     double valueAt(double t) const;

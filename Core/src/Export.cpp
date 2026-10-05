@@ -35,6 +35,14 @@ std::string spiceSource(const std::string& value) {
     auto spec = SourceSpec::parse(value);
     if (!spec) return "DC 0";
     char buf[160];
+    if (!spec->spiceText.empty()) {  // SPICE-standard PULSE / PWL / EXP / SIN: already in SPICE syntax
+        std::string out = spec->spiceText;
+        if (spec->hasAc) {
+            std::snprintf(buf, sizeof buf, " AC %g %g", spec->acMagnitude, spec->acPhaseDeg);
+            out += buf;
+        }
+        return out;
+    }
     switch (spec->kind) {
         case SourceSpec::Kind::DC: std::snprintf(buf, sizeof buf, "DC %g", spec->dc); break;
         case SourceSpec::Kind::Sine:

@@ -103,6 +103,28 @@ std::vector<double> Simulator::sourceBreakpoints(double tStop) const {
     std::vector<double> out;
     for (const auto& e : elements_) {
         if ((e.type != ElemType::VSource && e.type != ElemType::ISource) || e.source.kind != SourceSpec::Kind::Pulse) continue;
+        const SourceSpec& src = e.source;
+        if (src.shape == SourceSpec::Shape::Pwl) {
+            for (size_t i = 0; i < src.pwl.size(); i += 2)
+                if (src.pwl[i] > 0 && src.pwl[i] <= tStop) out.push_back(src.pwl[i]);
+            continue;
+        }
+        if (src.shape == SourceSpec::Shape::Exp) {
+            for (double t : {src.td, src.td2})
+                if (t > 0 && t <= tStop) out.push_back(t);
+            continue;
+        }
+        if (src.shape == SourceSpec::Shape::Spice) {
+            const double per = src.period > 0 ? src.period : 1e300;
+            const double cycles = src.period > 0 ? std::floor(std::max(0.0, tStop - src.td) / per) + 1 : 1;
+            if (cycles > 1e6) continue;
+            for (double k = 0; k < cycles; ++k) {
+                const double base = src.td + k * (src.period > 0 ? per : 0.0);
+                for (double t : {base, base + src.tr, base + src.tr + src.pw, base + src.tr + src.pw + src.tf})
+                    if (t > 0 && t <= tStop) out.push_back(t);
+            }
+            continue;
+        }
         const double p = e.source.period;
         if (!(p > 0)) continue;
         const double cycles = std::floor(tStop / p) + 1;

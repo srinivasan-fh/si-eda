@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <functional>
 #include <mutex>
@@ -1495,17 +1496,49 @@ private:
                         continue;
                     }
                     if (u == "SIN" || u == "PULSE" || u == "PWL" || u == "EXP" || u == "SFFM" || u == "AM") {
-                        waveform = true;
-                        if (!have && u != "PWL" && i + 1 < tok.size()) {
-                            if (u == "SIN" || u == "PULSE" || u == "EXP") {
-                                double v0 = 0;
-                                if (evalValue(c, tok[i + 1], v0, line, name)) {
-                                    p.value = v0;
-                                    have = true;
-                                }
+                        // The waveform's numbers (until AC / DC or the end), evaluated here.
+                        std::vector<double> args;
+                        size_t j = i + 1;
+                        for (; j < tok.size(); ++j) {
+                            const std::string uj = upper(tok[j]);
+                            std::string k, v;
+                            if (uj == "AC" || uj == "DC" || splitAssign(tok[j], k, v)) break;
+                            double x = 0;
+                            if (!evalValue(c, tok[j], x, line, name + " " + u)) return;
+                            args.push_back(x);
+                        }
+                        auto num = [](double x) {
+                            char b[40];
+                            std::snprintf(b, sizeof b, "%.17g", x);
+                            return std::string(b);
+                        };
+                        std::string w;
+                        if (u == "PULSE" && args.size() >= 2 && args.size() <= 7) {
+                            // SPICE defaults: no delay, ideal edges, one pulse that lasts to the end.
+                            const double defaults[7] = {0, 0, 0, 0, 0, 1e300, 0};
+                            while (args.size() < 7) args.push_back(defaults[args.size()]);
+                        }
+                        const bool usable = (u == "PULSE" && args.size() == 7) || (u == "SIN" && args.size() >= 3 && args.size() <= 6) ||
+                                            (u == "PWL" && args.size() >= 2 && args.size() % 2 == 0) ||
+                                            (u == "EXP" && (args.size() == 4 || args.size() == 6));
+                        if (usable) {
+                            w = u + "(";
+                            for (size_t k = 0; k < args.size(); ++k) w += (k ? " " : "") + num(args[k]);
+                            w += ")";
+                            p.waveform = w;
+                            if (!have) {
+                                p.value = u == "SIN" ? args[0] : u == "PWL" ? args[1] : args[0];
+                                have = true;
+                            }
+                        } else {
+                            waveform = true;
+                            if (!have && !args.empty()) {
+                                p.value = args[0];
+                                have = true;
                             }
                         }
-                        break;
+                        i = j - 1;
+                        continue;
                     }
                     std::string k, v;
                     if (splitAssign(tok[i], k, v)) continue;
@@ -1515,7 +1548,7 @@ private:
                     }
                 }
                 if (waveform)
-                    warn(line, name + ": its transient waveform is not simulated inside a model; it is held at its DC value.");
+                    warn(line, name + ": its waveform (SFFM, AM or incomplete arguments) is not simulated; it is held at its DC value.");
                 addPrim(std::move(p));
                 return;
             }

@@ -116,6 +116,7 @@ struct SpicePrimitive {
     std::string name;                // hierarchical: "Q3", "X1.Q3"
     std::vector<std::string> nodes;  // flattened node names: "0" ground, kSpicePortTag + index for the model's ports
     double value = 0;                // R, C, L; V / I DC value; K coupling factor; E/F/G/H linear gain
+    std::string waveform;            // V / I: "PULSE(v1 v2 td tr tf pw per)", "SIN(…)", "PWL(…)", "EXP(…)" (numbers)
     // Controlled sources: controlling voltages as node pairs (E, G) or controlling V sources (F, H, POLY F/H; for K
     // the two inductors). `coeffs` is the polynomial (SPICE POLY order: constant, linear, then products).
     std::vector<std::pair<std::string, std::string>> controlNodes;

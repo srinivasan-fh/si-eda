@@ -10060,3 +10060,94 @@ TEST(spice_netlist_export_with_models) {
     SpiceLibrary lib = parseSpiceLibrary(net);
     CHECK(flattenSpiceModel(lib, "UA741").ok && flattenSpiceModel(lib, "DX").ok);
 }
+
+TEST(spice_standard_waveforms) {
+    // SPICE PULSE(v1 v2 td tr tf pw per): delay, ramps, width, period.
+    auto pulse = SourceSpec::parse("PULSE(0 5 1u 1u 2u 3u 10u)");
+    CHECK(pulse && pulse->shape == SourceSpec::Shape::Spice);
+    if (pulse) {
+        CHECK_NEAR(pulse->valueAt(0.5e-6), 0, 1e-12);
+        CHECK_NEAR(pulse->valueAt(1.5e-6), 2.5, 1e-9);
+        CHECK_NEAR(pulse->valueAt(3e-6), 5, 1e-12);
+        CHECK_NEAR(pulse->valueAt(6e-6), 2.5, 1e-9);
+        CHECK_NEAR(pulse->valueAt(8e-6), 0, 1e-12);
+        CHECK_NEAR(pulse->valueAt(13e-6), 5, 1e-9);  // next period
+        CHECK(pulse->v1 == 0 && pulse->v2 == 5);      // the range other checks read
+    }
+    // The established square-wave form is untouched.
+    auto square = SourceSpec::parse("PULSE(0 5 1m)");
+    CHECK(square && square->shape == SourceSpec::Shape::Square && square->spiceText.empty());
+    auto pwl = SourceSpec::parse("PWL(0 0 1m 1 2m 1 3m 0)");
+    CHECK(pwl && pwl->shape == SourceSpec::Shape::Pwl);
+    if (pwl) {
+        CHECK_NEAR(pwl->valueAt(0.5e-3), 0.5, 1e-12);
+        CHECK_NEAR(pwl->valueAt(1.5e-3), 1, 1e-12);
+        CHECK_NEAR(pwl->valueAt(2.5e-3), 0.5, 1e-12);
+        CHECK_NEAR(pwl->valueAt(9e-3), 0, 1e-12);
+    }
+    auto ex = SourceSpec::parse("EXP(0 1 1m 1m 5m 1m)");
+    CHECK(ex && ex->shape == SourceSpec::Shape::Exp);
+    if (ex) {
+        CHECK_NEAR(ex->valueAt(2e-3), 1 - std::exp(-1.0), 1e-12);
+        CHECK_NEAR(ex->valueAt(6e-3), (1 - std::exp(-5.0)) - (1 - std::exp(-1.0)), 1e-12);
+    }
+    auto sine = SourceSpec::parse("SIN(0 1 1k 1m 100 90)");
+    CHECK(sine && sine->sineExtended);
+    if (sine) {
+        CHECK_NEAR(sine->valueAt(0.5e-3), 1, 1e-12);  // vo + va·sin(phase) before the delay
+        CHECK_NEAR(sine->valueAt(1e-3 + 0.5e-3), std::exp(-100 * 0.5e-3) * std::sin(kPi + kPi / 2), 1e-12);
+    }
+    CHECK(SourceSpec::parse("SIN(0 1 1k)") && !SourceSpec::parse("SIN(0 1 1k)")->sineExtended);
+    for (const char* bad : {"PWL(0 0 1m)", "PWL(1m 0 0 1)", "EXP(0 1 1m 0)", "PULSE(0 5 0 1u 1u 5u 2u)", "SIN(0 1 1k -1)"})
+        CHECK(!SourceSpec::parse(bad));
+    // In a circuit: an RC driven by a PWL ramp; the adaptive transient lands on its corners and the export keeps it.
+    Schematic s;
+    const int outNet = rcLowPass(s, "PWL(0 0 1m 5 2m 5 2.5m 0)", "1k", "100n");
+    int v = -1;
+    for (const auto& comp : s.components())
+        if (comp.kind == ComponentKind::VoltageSource) v = comp.id;
+    TransientOptions o;
+    o.tStop = 4e-3;
+    o.tStep = 50e-6;
+    o.adaptive = true;
+    o.trapezoidal = true;
+    TransientResult tr = Simulator(s).transient(o);
+    CHECK(tr.ok);
+    if (tr.ok) {
+        for (double corner : {1e-3, 2e-3, 2.5e-3}) {
+            bool hit = false;
+            for (double t : tr.time) hit |= std::fabs(t - corner) < 1e-12;
+            CHECK(hit);
+        }
+        // Ramp of 5 V/ms through τ = 0.1 ms: the output lags the input by τ at the end of the ramp.
+        const int net = outNet;
+        double at1 = NAN;
+        for (size_t i = 0; i < tr.time.size(); ++i)
+            if (std::fabs(tr.time[i] - 1e-3) < 1e-12) at1 = tr.netVoltages[static_cast<size_t>(net)][i];
+        CHECK_NEAR(at1, 5 * (1e-3 - 1e-4 * (1 - std::exp(-10.0))) / 1e-3, 0.01);
+    }
+    CHECK(exportSpiceNetlist(s, "pwl").find("PWL(0 0 1m 5 2m 5 2.5m 0)") != std::string::npos);
+    (void)v;
+    // Inside a model: a PULSE source drives the output through a buffer.
+    const std::string sub = ".subckt GEN in out\nV1 a 0 PULSE(0 2 1u 0 0 2u)\nE1 out 0 a 0 1\nR1 in 0 1k\n.ends\n";
+    SpiceFlatCircuit flat = flattenSpiceModel(parseSpiceLibrary(sub), "GEN");
+    CHECK(flat.ok && !hasDiag(flat.diagnostics, SpiceDiagnostic::Level::Warning, "held at its DC value"));
+    Schematic m;
+    int src = m.addComponent(ComponentKind::VoltageSource, "0", {0, 0});
+    int u = m.addComponent(ComponentKind::IC8, "IC", {100, 0});
+    int rl = m.addComponent(ComponentKind::Resistor, "1k", {200, 0});
+    int g = m.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(m, src, "+", u, "1");
+    wire(m, src, "-", g, "GND");
+    wire(m, u, "2", rl, "1");
+    wire(m, rl, "2", g, "GND");
+    m.setSpiceModel(u, SpiceModelRef{sub, "GEN", "1 2"});
+    TransientResult mt = Simulator(m).transient(5e-6, 0.1e-6);
+    CHECK(mt.ok);
+    if (mt.ok) {
+        const auto& w = mt.netVoltages[static_cast<size_t>(m.netOf({u, 1}))];
+        CHECK_NEAR(w[5], 0, 1e-9);    // 0.5 µs: before the delay
+        CHECK_NEAR(w[20], 2, 1e-6);   // 2 µs: high
+        CHECK_NEAR(w[45], 0, 1e-6);   // 4.5 µs: after the 2 µs width
+    }
+}

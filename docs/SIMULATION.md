@@ -26,7 +26,15 @@ A voltage source, battery, AC source or current source takes its value as text:
 | `5`, `5V`, `DC 5` | DC |
 | `SIN(off amp freq)` | Sine: offset, peak amplitude, frequency |
 | `PULSE(v1 v2 period [duty])` | Square wave from `v1` to `v2` (SPICE semantics: `v1` at t = 0) |
+| `PULSE(v1 v2 td tr tf pw [per])` | SPICE pulse (five or more arguments): delay, rise, fall, width, period |
+| `SIN(vo va freq td theta phase)` | SPICE sine with delay, damping (1/s) and phase (°) — more than three arguments |
+| `PWL(t1 v1 t2 v2 …)` | Piecewise linear, held before the first and after the last point |
+| `EXP(v1 v2 td1 tau1 [td2 tau2])` | SPICE exponential rise and fall |
 | `… AC mag [phase]` | Adds a small-signal stimulus for AC analysis, e.g. `0 AC 1`, `SIN(0 1 1k) AC 1`, `2.5 AC 1 90`. `AC 1` alone means DC 0, AC 1 |
+
+The SPICE-standard forms are written to the netlist export as they are; the adaptive transient lands a step on every
+corner and edge of them. Sources inside imported models take the same forms (`V1 a 0 PULSE(0 2 1u 0 0 2u)`, arguments
+may be `{expressions}`); SFFM / AM are held at their DC value.
 
 The AC part does not change the DC operating point or the transient; it only sets which source drives the AC
 analysis and with what phasor. The SPICE netlist export writes it as `AC mag phase`.
@@ -375,8 +383,8 @@ established strategy failed, and only in the app's entry points.
 - Imported models: no temperature dependence (27 °C), no BSIM / VBIC / HICUM / EKV, no LAPLACE / FREQ sources, no
   `ddt` / `idt`, no transmission lines or digital / XSPICE primitives (all reported as errors with their line); MOSFET
   level 3 is level 1 with THETA (ETA, VMAX, KAPPA ignored); the intrinsic gate charge is the saturation value; BJT
-  XTF / RBM / substrate capacitance ignored; switches have no hysteresis; waveforms of V / I sources inside a model
-  are held at their DC value; `.include` is not followed (paste the file).
+  XTF / RBM / substrate capacitance ignored; switches have no hysteresis; SFFM / AM sources inside a model are held
+  at their DC value; `.include` is not followed (paste the file).
 - The built-in diode, NPN and N-MOSFET have no capacitances and no noise flicker term; the built-in op-amp without
   macromodel parameters has one pole; regulators, IC loads and the INA333 are frequency independent and noiseless.
 - Noise: no correlated sources, no resistor excess noise; macromodel resistors contribute thermal noise as in SPICE.
