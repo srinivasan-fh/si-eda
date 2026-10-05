@@ -67,8 +67,14 @@ inline double pointSegmentDistance(Vec2 p, Vec2 a, Vec2 b) {
     return (p - (a + ab * t)).length();
 }
 
+/// Proper crossing of two segments. Orientations within a rounding error of zero count as collinear (no crossing;
+/// touching and overlapping collinear segments are then measured by `segmentSegmentDistance`): with fused
+/// multiply-add (clang on Apple silicon) collinear points give tiny products of either sign.
 inline bool segmentsIntersect(Vec2 a, Vec2 b, Vec2 c, Vec2 d) {
-    auto orient = [](Vec2 p, Vec2 q, Vec2 r) { return (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x); };
+    auto orient = [](Vec2 p, Vec2 q, Vec2 r) {
+        const double v = (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+        return std::fabs(v) < 1e-9 ? 0.0 : v;
+    };
     double d1 = orient(c, d, a), d2 = orient(c, d, b), d3 = orient(a, b, c), d4 = orient(a, b, d);
     return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
 }

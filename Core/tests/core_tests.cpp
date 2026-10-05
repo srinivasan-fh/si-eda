@@ -5057,3 +5057,136 @@ TEST(memory_design_segments_and_checks) {
     CHECK(sieda_set_memory_design(api, "") == 1);
     sieda_project_free(api);
 }
+
+namespace {
+/// DDR3L / FPGA / generic routing test boards: HDI rules, the given planes, auto-placed and fitted.
+int routeErrors(Project& p, int layers, std::initializer_list<std::pair<const char*, int>> planes, RouteStats& st) {
+    p.pcb.settings.applyPreset("HDI / Fine-Pitch BGA (IPC-2226)");
+    p.pcb.settings.width = 70;
+    p.pcb.settings.height = 50;
+    p.pcb.settings.layerCount = layers;
+    for (const auto& [net, layer] : planes) p.pcb.zones.push_back({net, layer, true, 0});
+    p.pcb.autoPlace(p.schematic, true);
+    p.pcb.fitBoardToComponents(p.schematic, 2.5);
+    st = p.pcb.autoRoute(p.schematic);
+    int errors = 0;
+    for (const auto& v : p.pcb.runDRC(p.schematic)) errors += v.severity == Severity::Error;
+    return errors;
+}
+}  // namespace
+
+TEST(bga_fanout_fpga_and_ddr3_memory_down) {
+    // An Artix-7 (324-ball, 0.8 mm) talking to a DDR3L x16 (96-ball) over 50 lines, on 8 layers with GND / 1.0 V /
+    // 1.35 V planes: every ball fans out (dogbone) and the bus routes completely with no DRC error.
+    auto norm = [](std::string s) {
+        std::string o;
+        for (char c : s)
+            if (c != '{' && c != '}') o += c;
+        if (o.size() > 2 && o[0] == 'V' && o[1] == '_') o.erase(1, 1);
+        return o;
+    };
+    Project p;
+    auto& sch = p.schematic;
+    int f = sch.addCustomComponent(p.addCustomPart(findStandardPart("XC7A35T-1CSG324I")->spec), "", {0, 0});
+    int m = sch.addCustomComponent(p.addCustomPart(findStandardPart("MT41K256M16HA-125")->spec), "", {600, 0});
+    int g = sch.addComponent(ComponentKind::Ground, "", {0, 400});
+    int v33 = sch.addComponent(ComponentKind::NetLabel, "+3V3", {0, -400});
+    int v1 = sch.addComponent(ComponentKind::NetLabel, "+1V0", {100, -400});
+    int v135 = sch.addComponent(ComponentKind::NetLabel, "+1V35", {200, -400});
+    const auto& fpins = sch.find(f)->def().pins;
+    const auto& mpins = sch.find(m)->def().pins;
+    std::vector<int> io;
+    for (int i = 0; i < static_cast<int>(fpins.size()); ++i) {
+        const std::string& n = fpins[static_cast<size_t>(i)].name;
+        if (n.rfind("IO_", 0) == 0) io.push_back(i);
+        else if (n == "GND" || n == "GNDADC_0") sch.connect({f, i}, {g, 0});
+        else if (n == "VCCO_34" || n == "VCCO_35") sch.connect({f, i}, {v135, 0});
+        else if (n.rfind("VCCO", 0) == 0 || n == "VCCADC_0" || n == "VCCBATT_0" || n == "VCCAUX") sch.connect({f, i}, {v33, 0});
+        else if (n == "VCCINT" || n == "VCCBRAM") sch.connect({f, i}, {v1, 0});
+    }
+    int k = 0;
+    for (int i = 0; i < static_cast<int>(mpins.size()); ++i) {
+        const std::string n = norm(mpins[static_cast<size_t>(i)].name);
+        if (n == "VSS" || n == "VSSQ") sch.connect({m, i}, {g, 0});
+        else if (n == "VDD" || n == "VDDQ") sch.connect({m, i}, {v135, 0});
+        else if (n != "NC" && n.rfind("VREF", 0) != 0) sch.connect({m, i}, {f, io[static_cast<size_t>(k++)]});
+    }
+    CHECK(k == 50);
+    RouteStats st;
+    CHECK(routeErrors(p, 8, {{"GND", 1}, {"+1V0", 5}, {"+1V35", 6}}, st) == 0);
+    CHECK(st.failed == 0 && st.routed == st.connections && st.connections > 150);
+    // Every signal ball has its fan-out via in the gap between four balls (not in the pad: VIPPO is off).
+    int fanned = 0;
+    for (const auto& pad : p.pcb.pads(sch)) {
+        if (pad.componentId != m || pad.net < 0) continue;
+        for (const auto& v : p.pcb.vias)
+            if (v.net == pad.net && std::fabs((v.position - pad.position).length() - 0.8 / std::sqrt(2.0)) < 0.01) {
+                ++fanned;
+                break;
+            }
+    }
+    CHECK(fanned > 60);
+    CHECK(p.pcb.settings.routingGrid == 0.25);  // the finer BGA grid is only used while routing
+}
+
+TEST(every_package_type_autoroutes) {
+    // One library part of every package type (DIP, SOIC, TSSOP, QFN, LQFP, SON, SOT-23, SOT-223, TO-220, TO-263,
+    // Multiwatt, LGA, BGA, modules, headers, crystals, discs): its pins wired to resistors, auto-routed on 4 layers
+    // with a GND plane — every connection routes and DRC is clean.
+    std::map<std::string, const StandardPart*> byType;
+    for (const auto& sp : standardParts()) byType.emplace(sp.spec.package.type, &sp);
+    CHECK(byType.size() >= 20);
+    for (const auto& [type, sp] : byType) {
+        Project p;
+        auto& sch = p.schematic;
+        int u = sch.addCustomComponent(p.addCustomPart(sp->spec), "", {0, 0});
+        int g = sch.addComponent(ComponentKind::Ground, "", {0, 400});
+        const auto& pins = sch.find(u)->def().pins;
+        int sig = 0;
+        for (int i = 0; i < static_cast<int>(pins.size()) && sig < 16; ++i) {
+            if (pins[static_cast<size_t>(i)].type == static_cast<int>(PinType::NoConnect)) continue;
+            int r = sch.addComponent(ComponentKind::Resistor, "1k", {300.0 + 60 * (sig % 8), 60.0 * (sig / 8)});
+            sch.connect({u, i}, {r, 0});
+            sch.connect({r, 1}, {g, 0});
+            ++sig;
+        }
+        RouteStats st;
+        const int errors = routeErrors(p, 4, {{"GND", 1}}, st);
+        if (errors != 0 || st.failed != 0)
+            std::printf("    %s (%s): %d/%d routed, %d DRC errors\n", type.c_str(), sp->spec.name.c_str(), st.routed,
+                        st.connections, errors);
+        CHECK(errors == 0 && st.failed == 0);
+    }
+}
+
+TEST(library_footprints_keep_pads_apart) {
+    // No footprint puts copper of two different pins closer than 0.1 mm (an exposed pad or a corner pad touching a
+    // pin pad would short them on the board).
+    for (const auto& sp : standardParts()) {
+        auto part = CustomPartRegistry::instance().registerPart(sp.spec);
+        const auto& pads = part->footprint.pads;
+        double worst = 1e9;
+        for (size_t i = 0; i < pads.size(); ++i)
+            for (size_t j = i + 1; j < pads.size(); ++j) {
+                if (pads[i].pinIndex >= 0 && pads[i].pinIndex == pads[j].pinIndex) continue;
+                const Rect a = Rect::centered(pads[i].offset, pads[i].size.x, pads[i].size.y);
+                const Rect b = Rect::centered(pads[j].offset, pads[j].size.x, pads[j].size.y);
+                double gap = std::hypot(std::max({0.0, b.x0 - a.x1, a.x0 - b.x1}), std::max({0.0, b.y0 - a.y1, a.y0 - b.y1}));
+                if (pads[i].round && pads[j].round)
+                    gap = std::max(0.0, (pads[i].offset - pads[j].offset).length() - pads[i].size.x / 2 - pads[j].size.x / 2);
+                worst = std::min(worst, gap);
+            }
+        if (worst < 0.099) std::printf("    %s: pads %.3f mm apart\n", sp.spec.name.c_str(), worst);
+        CHECK(worst >= 0.099);
+    }
+}
+
+TEST(collinear_segments_are_not_a_crossing) {
+    // Two dogbone stubs on one 45° diagonal, 0.57 mm apart: with fused multiply-add the orientation products come out
+    // as tiny values of either sign, which used to read as a crossing (a false DRC short on Apple silicon).
+    const Vec2 a{16.75, 16.45}, b{17.15, 16.05}, c{15.95, 17.25}, d{16.35, 16.85};
+    CHECK(!segmentsIntersect(a, b, c, d));
+    CHECK(std::fabs(segmentSegmentDistance(a, b, c, d) - (d - a).length()) < 1e-9);
+    CHECK(segmentSegmentDistance(a, b, {16.95, 16.25}, {17.35, 15.85}) < 1e-9);  // overlapping collinear: touching
+    CHECK(segmentsIntersect({0, 0}, {1, 1}, {0, 1}, {1, 0}));                     // a real crossing still is one
+}

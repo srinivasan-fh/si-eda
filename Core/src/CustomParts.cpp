@@ -412,6 +412,16 @@ std::vector<PadPlacement> packagePads(const std::string& type, int n, double pit
     auto quad = [&](double pitch, double padCentre, Vec2 size) {
         int perSide = std::max(1, n / 4);
         double s0 = -(perSide - 1) * pitch / 2;
+        // Corner pads of neighbouring sides keep at least 0.15 mm between them: when the rows run too close to the
+        // corner, each pad is shortened from its inner end (the outer end, where the lead lands, stays put).
+        const double cornerX = std::fabs(s0) + size.y / 2 + 0.15 / std::sqrt(2.0);
+        if (padCentre - size.x / 2 < cornerX) {
+            const double outer = padCentre + size.x / 2, len = outer - cornerX;
+            if (len >= 0.4) {
+                size.x = len;
+                padCentre = outer - len / 2;
+            }
+        }
         for (int i = 0; i < n; ++i) {
             int side = std::min(3, i / perSide), k = i % perSide;
             PadPlacement p;
@@ -791,6 +801,19 @@ std::shared_ptr<const CustomPart> CustomPartRegistry::registerPart(const CustomP
                     ep.size = {fp.body.width * 0.28, fp.body.width * 0.28};
                     ep.offset = {0, fp.body.depth * 0.1};
                 }
+                // Keep the paddle at least 0.15 mm (a 6-mil fab gap) from every other pad: on small, fine-pitch
+                // bodies the generic size would touch the pin pads and short them to the paddle. A pad beside the
+                // paddle limits its width, one above or below it its height.
+                const double gap = 0.15;
+                double hx = ep.size.x / 2, hy = ep.size.y / 2;
+                for (const auto& o : fp.pads) {
+                    if (o.pinIndex == ep.pinIndex) continue;
+                    const double dx = std::fabs(o.offset.x - ep.offset.x) - o.size.x / 2 - gap;
+                    const double dy = std::fabs(o.offset.y - ep.offset.y) - o.size.y / 2 - gap;
+                    if (dx >= dy) hx = std::min(hx, dx);
+                    else hy = std::min(hy, dy);
+                }
+                ep.size = {std::max(0.3, 2 * hx), std::max(0.3, 2 * hy)};
                 fp.pads.push_back(ep);
                 break;
             }

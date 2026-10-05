@@ -46,14 +46,15 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 - **Portability.** The core is dependency-free C++17 and is tested on Linux and macOS in CI.
 
 ## Out of scope for v1
-- Boards with more than two layers, copper pours, differential pairs and length tuning.
 - Importing KiCad or Altium library files, multi-unit symbols (one gate per unit) and custom symbol graphics (the
   Footprint and Symbol Editors shipped; see F13, F14).
 - AC and noise analysis.
 
 ## Roadmap
-1. Copper pours (GND plane) and thermal reliefs.
-2. KiCad `.kicad_mod` / Altium footprint import into the Footprint Editor (user component libraries shipped).
-3. AC small-signal analysis and Bode plots.
-4. Push-and-shove interactive routing.
-5. Team collaboration through a shared project repository.
+(Shipped since v1: up to 24 layers, copper pours and planes with thermal reliefs, differential pairs, length tuning,
+HDI vias and BGA fan-out.)
+
+1. KiCad `.kicad_mod` / Altium footprint import into the Footprint Editor (user component libraries shipped).
+2. AC small-signal analysis and Bode plots.
+3. Push-and-shove interactive routing.
+4. Team collaboration through a shared project repository.
