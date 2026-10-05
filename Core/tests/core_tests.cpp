@@ -9486,3 +9486,47 @@ TEST(si_channel_sign_off_and_c_api) {
     CHECK(!found);
     CHECK(sieda_c_api_channel_test(d.p.toJson().dump().c_str()) == 0);
 }
+
+TEST(si_broadside_crosstalk) {
+    BoardSettings s;
+    s.layerCount = 6;
+    // Directly above each other the coupling is strongest; it falls with lateral offset; buried pairs have no FEXT.
+    const CouplingEstimate on = broadsideCoupling(s, 1, 2, 0.15, 0.15, 0, 50, 0.5e-9);
+    const CouplingEstimate off = broadsideCoupling(s, 1, 2, 0.15, 0.15, 1.0, 50, 0.5e-9);
+    CHECK(on.kl > off.kl && off.kl > 0 && on.kl < 0.9);
+    CHECK_NEAR(on.kc, on.kl, 1e-12);
+    CHECK_NEAR(on.fext, 0, 1e-12);
+    CHECK(on.next > 0.02);
+    // Top over Inner 1: microstrip side in air → FEXT negative.
+    CHECK(broadsideCoupling(s, 0, 1, 0.15, 0.15, 0, 50, 0.5e-9).fext < 0);
+    // Equal heights reduce to the edge-coupled image formula's form (symmetric in the two layers).
+    CHECK_NEAR(broadsideCoupling(s, 2, 3, 0.15, 0.15, 0.3, 50, 1e-9).kl, broadsideCoupling(s, 3, 2, 0.15, 0.15, 0.3, 50, 1e-9).kl,
+               1e-12);
+
+    // On the SI board: a victim on Inner 1 right under the clock is found as a broadside pair.
+    SiBoard b = siBoard();
+    siRouteClock(b);
+    auto& sch = b.p.schematic;
+    int v1 = sch.addComponent(ComponentKind::Resistor, "1k", {200, 200});
+    int v2 = sch.addComponent(ComponentKind::Resistor, "1k", {300, 200});
+    int lab = sch.addComponent(ComponentKind::NetLabel, "SENSE", {250, 200});
+    wire(sch, v1, "1", lab, "N");
+    wire(sch, v2, "1", lab, "N");
+    b.p.schematicChanged();
+    const int victim = sch.netOf({v1, 0});
+    siTrack(b.p, victim, {25, 30}, {85, 30}, 1, 0.25);
+    const CrosstalkPair* hit = nullptr;
+    const auto pairs = crosstalkPairs(b.p);
+    for (const auto& p : pairs)
+        if (p.aggressor == b.clk && p.victim == victim) hit = &p;
+    CHECK(hit != nullptr);
+    if (hit) {
+        CHECK(hit->broadside && hit->layer == "Top / Inner 1");
+        CHECK_NEAR(hit->coupledLength, 60, 0.01);
+        CHECK(hit->next > 0.02 && hit->fext < 0);
+    }
+    const Json j = crosstalkJson(b.p);
+    bool flagged = false;
+    for (size_t k = 0; k < j.get("pairs").size(); ++k) flagged |= j.get("pairs")[k].get("broadside").asBool();
+    CHECK(flagged);
+}

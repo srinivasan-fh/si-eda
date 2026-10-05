@@ -131,6 +131,40 @@ CouplingEstimate crosstalkCoupling(const BoardSettings& s, int layer, double w1,
     return e;
 }
 
+CouplingEstimate broadsideCoupling(const BoardSettings& s, int layerA, int layerB, double w1, double w2, double offset,
+                                   double coupledMm, double riseTime) {
+    CouplingEstimate e;
+    const int lo = std::min(layerA, layerB), hi = std::max(layerA, layerB);
+    const int n = std::max(1, s.layerCount);
+    const double t = copperThickness(s);
+    const double w = std::max(0.01, 0.5 * (w1 + w2));
+    const double d = dielectricBelow(s, lo) + t;  // centre to centre, vertically
+    // Image plane: the nearest plane outside the pair (below the lower conductor, or above the upper one on top).
+    double h2;
+    if (hi + 1 < n) h2 = dielectricBelow(s, hi) + t / 2;
+    else h2 = lo > 0 ? dielectricBelow(s, lo - 1) + t / 2 : d;  // the pair's own spacing when no plane is found
+    const double h1 = h2 + d;
+    const double r = (w + t) / 4;
+    const double x = std::max(0.0, offset);
+    const double l1 = std::log(std::max(1.2, 2 * h1 / r)), l2 = std::log(std::max(1.2, 2 * h2 / r));
+    const double mutual = std::log((x * x + (h1 + h2) * (h1 + h2)) / std::max(1e-12, x * x + (h1 - h2) * (h1 - h2)));
+    e.kl = std::min(0.9, mutual / (2 * std::sqrt(l1 * l2)));
+    const bool buried = isStriplineLayer(s, layerA) && isStriplineLayer(s, layerB);
+    if (buried) {
+        e.kc = e.kl;
+    } else {
+        const double er = boardLaminate(s).er;
+        const int outer = isStriplineLayer(s, layerA) ? layerB : layerA;
+        e.kc = e.kl * std::clamp((er + 1) / 2 / effectivePermittivity(s, outer, w), 0.0, 1.0);
+    }
+    e.kb = (e.kl + e.kc) / 4;
+    const int layer = isStriplineLayer(s, layerA) ? layerA : layerB;
+    const double td = coupledMm * propagationDelayPerMm(s, layer, w), tr = std::max(1e-13, riseTime);
+    e.next = e.kb * std::min(1.0, 2 * td / tr);
+    e.fext = std::clamp(0.5 * (e.kc - e.kl) * td / tr, -0.5, 0.5);
+    return e;
+}
+
 // ---- time-domain network ---------------------------------------------------------------------------------------------
 
 TlNetwork::TlNetwork(int n)
@@ -1551,7 +1585,7 @@ std::vector<CrosstalkPair> crosstalkPairs(const Project& project) {
     }
     struct Acc {
         double coupled = 0, nextSum = 0, fext = 0, spacing = 1e9, maxKb = 0;
-        int layer = 0;
+        int layer = 0, layerB = -1;  // layerB: the victim's layer of a broadside pair
         Vec2 at;
         double tdSum = 0;
     };
@@ -1566,7 +1600,10 @@ std::vector<CrosstalkPair> crosstalkPairs(const Project& project) {
         const double reach = 6 * std::max(0.1, impedanceReferenceHeight(s, a.layer)) + a.width;
         const Rect box = Rect(a.a.x, a.a.y, a.b.x, a.b.y).inflated(reach);
         for (const auto& b : pcb.tracks) {
-            if (b.layer != a.layer || b.net == a.net || !signal(b.net) || pairNets.count({a.net, b.net})) continue;
+            // Same layer (edge coupled), or the next layer (broadside: no plane can lie between adjacent layers that both
+            // carry tracks here).
+            const bool broadside = std::abs(b.layer - a.layer) == 1;
+            if ((b.layer != a.layer && !broadside) || b.net == a.net || !signal(b.net) || pairNets.count({a.net, b.net})) continue;
             if (!box.intersects(Rect(b.a.x, b.a.y, b.b.x, b.b.y).inflated(1e-6))) continue;
             const Vec2 db = b.b - b.a;
             const double lb = db.length();
@@ -1574,10 +1611,21 @@ std::vector<CrosstalkPair> crosstalkPairs(const Project& project) {
             const double t0 = (b.a - a.a).dot(u), t1 = (b.b - a.a).dot(u);
             const double overlap = std::min(la, std::max(t0, t1)) - std::max(0.0, std::min(t0, t1));
             if (overlap < 0.5) continue;
-            const double gap = std::max(0.0, pointSegmentDistance(b.a, a.a, a.b) - (a.width + b.width) / 2);
-            if (gap > reach) continue;
             const DriverModel& m = ait->second;
-            CouplingEstimate e = crosstalkCoupling(s, a.layer, a.width, b.width, gap, overlap, m.riseTime);
+            double gap;
+            CouplingEstimate e;
+            if (broadside) {
+                // Lateral offset of the centre lines; coupling within three layer spacings of overlap.
+                const double off = (pointSegmentDistance(b.a, a.a, a.b) + pointSegmentDistance(b.b, a.a, a.b)) / 2;
+                const double vert = dielectricBelow(s, std::min(a.layer, b.layer)) + copperThickness(s);
+                if (off > (a.width + b.width) / 2 + 3 * vert) continue;
+                gap = std::max(0.0, off - (a.width + b.width) / 2);
+                e = broadsideCoupling(s, a.layer, b.layer, a.width, b.width, off, overlap, m.riseTime);
+            } else {
+                gap = std::max(0.0, pointSegmentDistance(b.a, a.a, a.b) - (a.width + b.width) / 2);
+                if (gap > reach) continue;
+                e = crosstalkCoupling(s, a.layer, a.width, b.width, gap, overlap, m.riseTime);
+            }
             Acc& x = acc[{a.net, b.net}];
             x.coupled += overlap;
             x.fext += e.fext;
@@ -1586,6 +1634,7 @@ std::vector<CrosstalkPair> crosstalkPairs(const Project& project) {
             if (gap < x.spacing) {
                 x.spacing = gap;
                 x.layer = a.layer;
+                x.layerB = broadside ? b.layer : -1;
                 x.at = (a.a + a.b) * 0.5;
             }
             x.maxKb = std::max(x.maxKb, e.kb);
@@ -1597,6 +1646,8 @@ std::vector<CrosstalkPair> crosstalkPairs(const Project& project) {
         p.aggressor = key.first;
         p.victim = key.second;
         p.layer = copperLayerName(x.layer, s.layerCount);
+        p.broadside = x.layerB >= 0;
+        if (p.broadside) p.layer += " / " + copperLayerName(x.layerB, s.layerCount);
         p.coupledLength = x.coupled;
         p.spacing = x.spacing;
         const double kbAvg = x.coupled > 0 ? x.nextSum / x.coupled : 0;
@@ -1814,6 +1865,7 @@ Json crosstalkJson(const Project& project) {
         j["noise"] = p.noise;
         j["limit"] = p.limit;
         j["ok"] = p.ok;
+        j["broadside"] = p.broadside;
         j["x"] = p.at.x;
         j["y"] = p.at.y;
         pairs.push(j);

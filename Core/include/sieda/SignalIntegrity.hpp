@@ -62,6 +62,14 @@ double ellipticK(double k);
 CouplingEstimate crosstalkCoupling(const BoardSettings& s, int layer, double w1, double w2, double gap, double coupledMm,
                                    double riseTime);
 
+/// Broadside coupling of tracks on adjacent layers `layerA` / `layerB` whose centre lines are `offset` apart laterally:
+/// the same thin-wire image theory as the microstrip case (C. R. Paul) with the conductors at heights h1 and h2 over
+/// the nearest plane outside the pair, Lm/L = ln((x² + (h1+h2)²)/(x² + (h1−h2)²)) / (2·√(ln(2h1/r)·ln(2h2/r))). Both
+/// layers buried: homogeneous (Cm/C = Lm/L, no FEXT); otherwise the air-filled share lowers Cm/C as on a microstrip.
+/// The second plane on the other side is ignored, so the estimate errs high (conservative). NEXT / FEXT as above.
+CouplingEstimate broadsideCoupling(const BoardSettings& s, int layerA, int layerB, double w1, double w2, double offset,
+                                   double coupledMm, double riseTime);
+
 // ---- time-domain transmission-line network ----------------------------------------------------------------------------
 
 /// A network of lossless lines and lumped elements to ground, driven by a Thévenin source with linear edges. Solved
@@ -271,8 +279,10 @@ struct CrosstalkPair {
     double limit = 0;          // allowed noise (V)
     Vec2 at;
     bool ok = true;
+    bool broadside = false;  // the victim runs on the adjacent layer ("Top / In1")
 };
-/// Parallel neighbours of fast / driven nets on the same layer (differential-pair partners excluded).
+/// Parallel neighbours of fast / driven nets on the same layer (edge coupled) or the adjacent layer (broadside),
+/// differential-pair partners excluded.
 std::vector<CrosstalkPair> crosstalkPairs(const Project& project);
 
 struct ReturnPathIssue {
