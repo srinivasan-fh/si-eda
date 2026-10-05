@@ -1961,6 +1961,28 @@ char* sieda_router_tune_length(SiedaProject* project, int32_t track_id, double t
     }
 }
 
+char* sieda_router_begin_via_drag(SiedaProject* project, const char* options_json, int32_t via_id, double x, double y) {
+    if (!project) return nullptr;
+    try {
+        applyRouterOptions(project, options_json);
+        return routerPreview(project, routerOf(project).beginViaDrag(via_id, {x, y}));
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_router_tune(SiedaProject* project, int32_t track_id, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        const LengthTuneOptions o =
+            lengthTuneOptionsFromJson(options_json && *options_json ? Json::parse(options_json) : Json::object());
+        if (o.apply && project->router) project->router->cancel();
+        return dup(lengthTuneJson(tuneTrackLength(project->project.pcb, project->project.schematic, track_id, o)).dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
 int32_t sieda_pcb_lock_track(SiedaProject* project, int32_t track_id, int32_t locked) {
     if (!project) return 0;
     for (auto& t : project->project.pcb.tracks)

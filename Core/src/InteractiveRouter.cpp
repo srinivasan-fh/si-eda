@@ -1496,7 +1496,8 @@ Json trackJson(const Track& t) {
     return j;
 }
 
-Json viaJson(const Via& v) {
+/// A via as JSON; with the board's layer count also its span (`toLayer` resolved) and kind, as in the snapshot.
+Json viaJson(const Via& v, int layerCount = 0) {
     Json j = Json::object();
     j["id"] = v.id;
     j["net"] = v.net;
@@ -1504,6 +1505,11 @@ Json viaJson(const Via& v) {
     j["y"] = v.position.y;
     j["drill"] = v.drill;
     j["diameter"] = v.diameter;
+    if (layerCount > 0) {
+        j["fromLayer"] = v.fromLayer;
+        j["toLayer"] = v.lastLayer(layerCount);
+        j["kind"] = viaKind(v, layerCount);
+    }
     return j;
 }
 
@@ -1574,7 +1580,7 @@ struct InteractiveRouter::Impl {
     RouterOptions opt;
     std::unique_ptr<Base> base;
     World committed, current;
-    enum class Kind { None, Route, Pair, Drag } kind = Kind::None;
+    enum class Kind { None, Route, Pair, Drag, DragVia } kind = Kind::None;
 
     struct Member {
         int net = -1;
@@ -1603,6 +1609,18 @@ struct InteractiveRouter::Impl {
         bool anchoredA = true, anchoredB = true;
     } drag;
 
+    /// Via drag: the via and the lines that end on it (each oriented to start at the via).
+    struct ViaDrag {
+        Via via;
+        Vec2 grab;
+        std::vector<Line> lines;
+        size_t index = 0;           // the via in the board snapshot
+        Vec2 at;                    // where the via is now
+        std::vector<Track> tracks;  // the lines as they follow the via (per-line layer and width)
+        bool valid = false;         // false: the via fits nowhere along the way (commit changes nothing)
+    } vdrag;
+    double groupTarget = 0;     // longest other member of the net's matched-length group (0 = none)
+
     RoutePreview prev;
 
     Impl(PcbLayout& p, const Schematic& s) : pcb(p), sch(s) {}
@@ -1620,6 +1638,8 @@ struct InteractiveRouter::Impl {
         lastDir = {};
         status.clear();
         hasCursor = false;
+        vdrag = ViaDrag{};
+        groupTarget = 0;
         prev = RoutePreview{};
     }
 
@@ -1690,6 +1710,13 @@ struct InteractiveRouter::Impl {
         committed = World(base.get());
         committed.fixedNets = nets;
         current = committed;
+        groupTarget = 0;
+        if (!nets.empty() && nets[0] >= 0)
+            for (const auto& g : lengthGroups(sch, base->s)) {
+                if (std::find(g.nets.begin(), g.nets.end(), nets[0]) == g.nets.end()) continue;
+                for (int n : g.nets)
+                    if (n != nets[0]) groupTarget = std::max(groupTarget, routedNetLength(pcb, n));
+            }
     }
 
     // ------------------------------------------------------------------------------------------------ routing
@@ -2191,6 +2218,179 @@ struct InteractiveRouter::Impl {
         m.head = any ? dragPath(lo) : std::vector<Vec2>{};
     }
 
+    // ----------------------------------------------------------------------------------------------- via drag
+
+    bool beginViaDrag(int viaId, Vec2 grab) {
+        reset();
+        base = std::make_unique<Base>(pcb, sch);
+        auto bail = [&](const std::string& why) {
+            base.reset();
+            return fail(why);
+        };
+        long vi = -1;
+        for (size_t i = 0; i < base->vias.size(); ++i)
+            if (base->vias[i].id == viaId) vi = static_cast<long>(i);
+        if (vi < 0) return bail("No via with that id");
+        const Via v = base->vias[static_cast<size_t>(vi)];
+        if (v.net < 0) return bail("The via has no net");
+        if (base->viaFixed[static_cast<size_t>(vi)]) return bail("The via sits in a pad of its net or on the tamper mesh");
+        startSession({v.net});
+        const size_t idx = static_cast<size_t>(vi);
+        // Tracks ending on the via follow it; one running through it (or a locked one) holds it in place.
+        const double r = v.diameter / 2;
+        std::vector<size_t> found;
+        committed.tracksIn(Rect::centered(v.position, v.diameter, v.diameter), found);
+        std::vector<Line> lines;
+        for (size_t i : found) {
+            const Track& t = committed.track(i);
+            if (t.net != v.net || !v.spans(t.layer)) continue;
+            const bool aIn = (t.a - v.position).length() <= r, bIn = (t.b - v.position).length() <= r;
+            if (!aIn && !bIn) {
+                if (pointSegmentDistance(v.position, t.a, t.b) <= r) return bail("A track runs through the via");
+                continue;
+            }
+            if (aIn && bIn) return bail("A short track inside the via's land holds it");
+            if (base->trackFixed[i]) return bail("A locked track ends on the via");
+            Line L = extractLine(committed, i);
+            if ((L.pts.back() - v.position).length() <= r && (L.pts.front() - v.position).length() > r) {
+                std::reverse(L.pts.begin(), L.pts.end());
+                std::reverse(L.segs.begin(), L.segs.end());
+                std::swap(L.viaAt[0], L.viaAt[1]);
+            }
+            if ((L.pts.front() - v.position).length() > r) continue;
+            if ((L.pts.back() - v.position).length() <= r) return bail("A track loops back to the via");
+            bool dup = false;
+            for (const auto& o : lines) dup = dup || o.segs == L.segs;
+            if (!dup) lines.push_back(L);
+        }
+        committed.goneV[idx] = 1;
+        for (const auto& L : lines)
+            for (size_t s : L.segs) committed.goneT[s] = 1;
+        vdrag.via = v;
+        vdrag.grab = grab;
+        vdrag.lines = lines;
+        vdrag.index = idx;
+        vdrag.at = v.position;
+        layer = v.fromLayer;
+        width = lines.empty() ? base->s.trackWidth : lines.front().width;
+        Member m;
+        m.net = v.net;
+        m.end = v.position;
+        members = {m};
+        current = committed;
+        kind = Kind::DragVia;
+        status = "Dragging a via of " + base->netName(v.net);
+        computeHead(grab);
+        return true;
+    }
+
+    /// The lines on a via at `pos`: each starts at the via and rejoins its old path with a 45° link, skipping a
+    /// corner when that makes a shorter join without an acute corner.
+    std::vector<Track> viaLines(Vec2 pos) const {
+        std::vector<Track> out;
+        for (const Line& L : vdrag.lines) {
+            const std::vector<Vec2>& p = L.pts;
+            std::vector<Vec2> best;
+            double bestLen = std::numeric_limits<double>::max();
+            for (size_t k = 1; k < p.size() && k <= 2; ++k) {
+                for (const auto& link : postureLinks(pos, p[k], RoutePosture::Diagonal45, false)) {
+                    std::vector<Vec2> q = link;
+                    q.insert(q.end(), p.begin() + static_cast<long>(k) + 1, p.end());
+                    q = simplifyPath(q);
+                    bool acute = false;
+                    for (size_t j = 1; j + 1 < q.size(); ++j) acute = acute || acuteJoin(q[j] - q[j - 1], q[j + 1] - q[j]);
+                    const double len = pathLength(q) + (acute ? 1e6 : 0.0);
+                    if (len < bestLen - 1e-9) {
+                        bestLen = len;
+                        best = q;
+                    }
+                }
+            }
+            if (best.size() < 2) best = {pos, p.back()};
+            for (const Track& t : toTracks(best, L.net, L.layer, L.width)) out.push_back(t);
+        }
+        return out;
+    }
+
+    bool placeVia(World& w, Vec2 pos, std::string& why) const {
+        Via nv = vdrag.via;
+        nv.position = pos;
+        std::vector<size_t> tracks;
+        for (const Track& t : viaLines(pos)) tracks.push_back(w.addTrack(t, true));
+        const size_t vi = w.addVia(nv, true);
+        if (opt.mode == RouterMode::Shove) {
+            Shover sh(w, opt);
+            return sh.run(tracks, {vi}, why);
+        }
+        std::vector<Hit> hits;
+        if (viaHits(w, w.via(vi), vi, &hits)) {
+            why = "Blocked by " + describeHit(w, hits.front());
+            return false;
+        }
+        for (size_t i : tracks) {
+            const Track& t = w.track(i);
+            if (segmentHits(w, {t.net}, t.layer, t.a, t.b, t.width / 2, &hits)) {
+                why = "Blocked by " + describeHit(w, hits.front());
+                return false;
+            }
+        }
+        return true;
+    }
+
+    void viaDragHead(Vec2 cursor) {
+        const Vec2 from = vdrag.via.position, to = from + (cursor - vdrag.grab);
+        status = "Dragging a via of " + base->netName(vdrag.via.net);
+        blocked = false;
+        std::string why;
+        World w = committed;
+        if (placeVia(w, to, why)) {
+            current = w;
+            vdrag.at = to;
+            vdrag.tracks = viaLines(to);
+            vdrag.valid = true;
+            return;
+        }
+        // Stop at the furthest point along the way that fits.
+        blocked = true;
+        status = why;
+        double lo = 0, hi = 1;
+        World best = committed;
+        bool any = false;
+        {
+            World w0 = committed;
+            if (placeVia(w0, from, why)) {
+                best = w0;
+                any = true;
+            }
+        }
+        const double span = (to - from).length();
+        for (int it = 0; it < 14 && (hi - lo) * span > 1e-3; ++it) {
+            const double mid = (lo + hi) / 2;
+            World wm = committed;
+            if (placeVia(wm, from + (to - from) * mid, why)) {
+                lo = mid;
+                best = wm;
+                any = true;
+            } else {
+                hi = mid;
+            }
+        }
+        vdrag.valid = any;
+        if (any) {
+            current = best;
+            vdrag.at = from + (to - from) * lo;
+            vdrag.tracks = viaLines(vdrag.at);
+            return;
+        }
+        // Nowhere fits: show the via and its tracks where they are; commit leaves the board alone.
+        current = committed;
+        current.goneV[vdrag.index] = 0;
+        for (const Line& L : vdrag.lines)
+            for (size_t s : L.segs) current.goneT[s] = 0;
+        vdrag.at = from;
+        vdrag.tracks.clear();
+    }
+
     // ------------------------------------------------------------------------------------------- session steps
 
     void computeHead(Vec2 cursor) {
@@ -2199,6 +2399,7 @@ struct InteractiveRouter::Impl {
         if (kind == Kind::Route) routeHead(cursor);
         if (kind == Kind::Pair) pairHead(cursor);
         if (kind == Kind::Drag) dragHead(cursor);
+        if (kind == Kind::DragVia) viaDragHead(cursor);
         buildPreview();
     }
 
@@ -2387,7 +2588,18 @@ struct InteractiveRouter::Impl {
             return ch;
         }
         std::vector<Track> routeTracks;
-        if (kind == Kind::Drag) {
+        std::vector<Via> routeVias = placedVias;
+        if (kind == Kind::DragVia) {
+            if (!vdrag.valid) {
+                reset();
+                ch.ok = true;  // nothing changed
+                return ch;
+            }
+            committed = current;
+            routeVias = {vdrag.via};
+            routeVias[0].position = vdrag.at;
+            routeTracks = mergeCollinear(vdrag.tracks);
+        } else if (kind == Kind::Drag) {
             committed = current;
             for (const Track& t : mergeCollinear(toTracks(members[0].head, members[0].net, layer, width)))
                 routeTracks.push_back(t);
@@ -2410,7 +2622,7 @@ struct InteractiveRouter::Impl {
             }
             if (!covered) kept.push_back(t);
         }
-        ch = applyWorld(pcb, committed, kept, placedVias);
+        ch = applyWorld(pcb, committed, kept, routeVias);
         reset();
         return ch;
     }
@@ -2422,12 +2634,13 @@ struct InteractiveRouter::Impl {
             prev = p;
             return;
         }
-        p.kind = kind == Kind::Route ? "route" : kind == Kind::Pair ? "pair" : "drag";
+        p.kind = kind == Kind::Route ? "route" : kind == Kind::Pair ? "pair" : kind == Kind::Drag ? "drag" : "via";
         p.status = status;
         p.blocked = blocked;
         p.reachedTarget = reached;
         for (const auto& m : members) p.nets.push_back(m.net);
         p.layer = layer;
+        p.layerCount = std::max(1, base->s.layerCount);
         p.width = width;
         p.gap = kind == Kind::Pair ? gap : 0;
         for (const auto& m : members) {
@@ -2436,9 +2649,19 @@ struct InteractiveRouter::Impl {
         }
         if (kind == Kind::Pair)
             p.end = centreHead.size() >= 2 ? centreHead.back() : centre;
+        else if (kind == Kind::DragVia)
+            p.end = vdrag.at;
         else
             p.end = !members.empty() ? (members[0].head.size() >= 2 ? members[0].head.back() : members[0].end) : Vec2{};
         p.vias = placedVias;
+        if (kind == Kind::DragVia) {
+            p.head = vdrag.tracks;
+            if (vdrag.valid) {
+                Via v = vdrag.via;
+                v.position = vdrag.at;
+                p.vias = {v};
+            }
+        }
         for (size_t k = 0; k < current.addT.size(); ++k)
             if (!current.goneT[current.baseT() + k] && !current.fixAddT[k]) p.shovedTracks.push_back(current.addT[k]);
         for (size_t k = 0; k < current.addV.size(); ++k)
@@ -2447,9 +2670,23 @@ struct InteractiveRouter::Impl {
             if (current.goneT[i]) p.hiddenTracks.push_back(base->tracks[i].id);
         for (size_t i = 0; i < current.baseV(); ++i)
             if (current.goneV[i]) p.hiddenVias.push_back(base->vias[i].id);
-        if (!members.empty()) {
+        if (kind == Kind::DragVia) {
+            for (const Track& t : vdrag.tracks) p.length += (t.b - t.a).length();
+        } else if (!members.empty()) {
             for (const Track& t : members[0].placed) p.length += (t.b - t.a).length();
             p.length += pathLength(members[0].head);
+        }
+        // The net's whole length: its copper in the overlay (the session's own pieces aside) plus the route.
+        if (!members.empty()) {
+            const int net = members[0].net;
+            double other = 0;
+            for (size_t i = 0; i < current.nT(); ++i) {
+                if (!current.aliveT(i) || (i >= current.baseT() && current.fixAddT[i - current.baseT()])) continue;
+                const Track& t = current.track(i);
+                if (t.net == net) other += (t.b - t.a).length();
+            }
+            p.netLength = other + p.length;
+            p.targetLength = groupTarget;
         }
         prev = p;
     }
@@ -2477,6 +2714,10 @@ bool InteractiveRouter::beginPair(Vec2 at, int layer) {
 bool InteractiveRouter::beginDrag(int trackId, Vec2 grab) {
     impl_->err.clear();
     return impl_->beginDrag(trackId, grab);
+}
+bool InteractiveRouter::beginViaDrag(int viaId, Vec2 grab) {
+    impl_->err.clear();
+    return impl_->beginViaDrag(viaId, grab);
 }
 const RoutePreview& InteractiveRouter::moveTo(Vec2 cursor) {
     if (impl_->kind != Impl::Kind::None) impl_->computeHead(cursor);
@@ -2506,6 +2747,13 @@ const std::string& InteractiveRouter::error() const { return impl_->err; }
 // ============================================================================================== length tuning
 
 LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int trackId, double target, double maxAmplitude) {
+    LengthTuneOptions o;
+    o.target = target;
+    o.maxAmplitude = maxAmplitude;
+    return tuneTrackLength(pcb, sch, trackId, o);
+}
+
+LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int trackId, const LengthTuneOptions& opt) {
     LengthTuneResult r;
     long ti = -1;
     for (size_t i = 0; i < pcb.tracks.size(); ++i)
@@ -2521,21 +2769,27 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
         return r;
     }
     r.before = routedNetLength(pcb, sel.net);
+    double target = opt.target;
     double tolerance = 0.01;
-    if (target <= 0) {
-        bool inGroup = false;
-        for (const auto& g : lengthGroups(sch, pcb.settings)) {
-            if (std::find(g.nets.begin(), g.nets.end(), sel.net) == g.nets.end()) continue;
-            inGroup = true;
-            for (int n : g.nets) target = std::max(target, routedNetLength(pcb, n));
-            tolerance = std::max(tolerance, g.tolerance / 2);
+    double groupLongest = 0;
+    for (const auto& g : lengthGroups(sch, pcb.settings)) {
+        if (std::find(g.nets.begin(), g.nets.end(), sel.net) == g.nets.end()) continue;
+        if (r.group.empty()) {
+            r.group = g.name;
+            r.groupKind = g.kind;
         }
-        if (!inGroup) {
+        for (int n : g.nets) groupLongest = std::max(groupLongest, routedNetLength(pcb, n));
+        if (target <= 0) tolerance = std::max(tolerance, g.tolerance / 2);
+    }
+    if (target <= 0) {
+        if (r.group.empty()) {
             r.message = "The net is not in a matched-length group — give a target length";
             return r;
         }
+        target = groupLongest;
     }
     r.target = target;
+    r.tolerance = tolerance;
     r.after = r.before;
     double want = target - r.before;
     if (want <= tolerance) {
@@ -2547,7 +2801,7 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
     Base base(pcb, sch);
     World w(&base);
     const double clr = base.s.clearance;
-    const double maxAmp = maxAmplitude > 0 ? maxAmplitude : 2.0;
+    const double maxAmp = opt.maxAmplitude > 0 ? opt.maxAmplitude : 2.0;
     // The selected track first, then the net's other unlocked tracks, longest first.
     std::vector<size_t> cand{static_cast<size_t>(ti)};
     std::vector<size_t> others;
@@ -2567,13 +2821,13 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
             if (pd.net == t.net && pd.onLayer(t.layer) && padSegmentDistance(pd, a, b) - t.width / 2 < clr - kTol) return false;
         return true;
     };
-    std::vector<Track> added;
     for (size_t ci : cand) {
         if (want <= tolerance) break;
         if (base.trackFixed[ci]) continue;
         const Track t = base.tracks[ci];
         const double wd = t.width, L = (t.b - t.a).length();
-        const double pitch = std::max(wd + clr, 3 * wd);
+        // Leg pitch (centre to centre): the requested edge-to-edge spacing, never closer than width + clearance.
+        const double pitch = opt.spacing > 0 ? std::max(wd + clr, opt.spacing + wd) : std::max(wd + clr, 3 * wd);
         const double margin = std::max(2 * wd, 0.5);
         const int maxBumps = static_cast<int>(std::floor((L - 2 * margin) / (2 * pitch)));
         if (maxBumps < 1) continue;
@@ -2585,9 +2839,14 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
                 const double amp = std::min(amax, want / (2.0 * bumps));
                 if (amp < 0.05) break;
                 const double run = 2.0 * pitch * bumps;
-                for (double where : {0.5, 0.0, 1.0}) {
+                std::vector<double> starts;
+                if (opt.hasNear && ci == static_cast<size_t>(ti)) {
+                    const double along = (opt.near - t.a).dot(unit(t.b - t.a));
+                    starts.push_back(std::clamp(along - run / 2, margin, std::max(margin, L - margin - run)));
+                }
+                for (double where : {0.5, 0.0, 1.0}) starts.push_back(margin + (L - 2 * margin - run) * where);
+                for (double start : starts) {
                     if (done) break;
-                    const double start = margin + (L - 2 * margin - run) * where;
                     for (double sd : {1.0, -1.0}) {
                         const auto pts = accordion(t, amp, sd, pitch, bumps, start);
                         w.goneT[ci] = 1;
@@ -2615,11 +2874,62 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
         r.message = "No room for a meander on the net's tracks";
         return r;
     }
-    r.changes = applyWorld(pcb, w, {}, {});
-    r.after = routedNetLength(pcb, sel.net);
+    double added = 0;
+    for (const Track& t : w.addT) {
+        r.addedTracks.push_back(t);
+        added += (t.b - t.a).length();
+    }
+    for (size_t i = 0; i < w.baseT(); ++i)
+        if (w.goneT[i]) {
+            r.removedTracks.push_back(base.tracks[i].id);
+            added -= (base.tracks[i].b - base.tracks[i].a).length();
+        }
     r.ok = true;
     r.message = want <= tolerance ? "Tuned to the target length" : "Lengthened as far as the free space allows";
+    if (!opt.apply) {
+        r.after = r.before + added;
+        r.changes.ok = true;
+        return r;
+    }
+    r.changes = applyWorld(pcb, w, {}, {});
+    r.after = routedNetLength(pcb, sel.net);
+    r.applied = true;
     return r;
+}
+
+LengthTuneOptions lengthTuneOptionsFromJson(const Json& j) {
+    LengthTuneOptions o;
+    if (!j.isObject()) return o;
+    o.target = std::max(0.0, j.get("target").asNumber(0));
+    o.maxAmplitude = std::max(0.0, j.get("maxAmplitude").asNumber(0));
+    o.spacing = std::max(0.0, j.get("spacing").asNumber(0));
+    if (j.has("x") && j.has("y") && j.get("x").isNumber() && j.get("y").isNumber()) {
+        o.hasNear = true;
+        o.near = {j.get("x").asNumber(0), j.get("y").asNumber(0)};
+    }
+    if (j.has("apply")) o.apply = j.get("apply").asBool(true);
+    return o;
+}
+
+Json lengthTuneJson(const LengthTuneResult& r) {
+    Json j = Json::object();
+    j["ok"] = r.ok;
+    j["message"] = r.message;
+    j["net"] = r.net;
+    j["group"] = r.group;
+    j["groupKind"] = r.groupKind;
+    j["tolerance"] = r.tolerance;
+    j["before"] = r.before;
+    j["after"] = r.after;
+    j["target"] = r.target;
+    j["applied"] = r.applied;
+    Json added = Json::array(), removed = Json::array();
+    for (const Track& t : r.addedTracks) added.push(trackJson(t));
+    for (int id : r.removedTracks) removed.push(id);
+    j["addedTracks"] = added;
+    j["removedTracks"] = removed;
+    j["changes"] = routeChangesJson(r.changes);
+    return j;
 }
 
 // ================================================================================================= JSON
@@ -2658,14 +2968,16 @@ Json routePreviewJson(const RoutePreview& p) {
     j["endX"] = p.end.x;
     j["endY"] = p.end.y;
     j["length"] = p.length;
+    j["netLength"] = p.netLength;
+    j["targetLength"] = p.targetLength;
     auto tracks = [](const std::vector<Track>& ts) {
         Json a = Json::array();
         for (const Track& t : ts) a.push(trackJson(t));
         return a;
     };
-    auto vias = [](const std::vector<Via>& vs) {
+    auto vias = [&](const std::vector<Via>& vs) {
         Json a = Json::array();
-        for (const Via& v : vs) a.push(viaJson(v));
+        for (const Via& v : vs) a.push(viaJson(v, p.layerCount));
         return a;
     };
     auto ids = [](const std::vector<int>& v) {

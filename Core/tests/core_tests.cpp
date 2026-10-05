@@ -7962,3 +7962,199 @@ TEST(scale_benchmark_medium_board) {
     CHECK(total < 60.0);  // ~5 s in a release build; generous for debug and sanitiser builds
     if (std::getenv("SIEDA_BENCH_LARGE")) run({2, 32, 8, true, true, 0.45}, false);
 }
+
+// ======================================================================= interactive router: drag, via drag, tuning
+
+namespace {
+/// Net A runs r1 → top → via V1 (18, 20) → bottom → via V2 (26, 20) → top → r2; net B is a vertical top-layer track
+/// at x = 21 between two pads.
+struct ViaBoard {
+    Project p;
+    int netA = -1, netB = -1;
+    int via1 = -1;
+};
+
+ViaBoard viaBoard() {
+    ViaBoard b;
+    auto& s = b.p.schematic;
+    const int r1 = placeR(b.p, {10, 20}), r2 = placeR(b.p, {34, 20});
+    const int r3 = placeR(b.p, {21, 8}, 90), r4 = placeR(b.p, {21, 32}, 90);
+    wire(s, r1, "2", r2, "1");
+    wire(s, r3, "2", r4, "1");
+    b.p.schematicChanged();
+    b.netA = s.netOf({r1, 1});
+    b.netB = s.netOf({r3, 1});
+    addPath(b.p.pcb, b.netA, 0, 0.25, {padAt(b.p, r1, 1), {18, 20}});
+    addPath(b.p.pcb, b.netA, 1, 0.25, {{18, 20}, {26, 20}});
+    addPath(b.p.pcb, b.netA, 0, 0.25, {{26, 20}, padAt(b.p, r2, 0)});
+    addPath(b.p.pcb, b.netB, 0, 0.25, {padAt(b.p, r3, 1), padAt(b.p, r4, 0)});
+    Via v;
+    v.net = b.netA;
+    v.position = {18, 20};
+    b.via1 = b.p.pcb.addVia(v);
+    v.position = {26, 20};
+    b.p.pcb.addVia(v);
+    return b;
+}
+
+/// Acute-angle (acid trap) warnings of the DRC.
+int acuteWarnings(const Project& p) {
+    int n = 0;
+    for (const auto& v : p.pcb.runDRC(p.schematic)) n += v.code == "DRC_ACUTE_ANGLE" ? 1 : 0;
+    return n;
+}
+}  // namespace
+
+TEST(router_drags_a_via_and_shoves) {
+    ViaBoard b = viaBoard();
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(netRouted(b.p, b.netA) && netRouted(b.p, b.netB));
+    {
+        InteractiveRouter r(b.p.pcb, b.p.schematic);
+        CHECK(r.beginViaDrag(b.via1, {18, 20}));
+        CHECK(r.preview().kind == "via");
+        CHECK(r.preview().hiddenVias.size() == 1);
+        // Pushed into net B's track: the track is shoved aside, the via lands where it was dropped.
+        const RoutePreview& pv = r.moveTo({20.5, 20.3});
+        CHECK(!pv.blocked);
+        CHECK(!pv.shovedTracks.empty());
+        CHECK(pv.vias.size() == 1);
+        CHECK(pv.head.size() >= 2);  // the top and bottom tracks follow the via
+        CHECK(std::fabs(pv.end.x - 20.5) < 1e-9 && std::fabs(pv.end.y - 20.3) < 1e-9);
+        const RouteChanges ch = r.commit();
+        CHECK(ch.ok && ch.addedVias.size() == 1 && ch.removedVias.size() == 1);
+    }
+    bool moved = false;
+    for (const auto& v : b.p.pcb.vias) moved = moved || (std::fabs(v.position.x - 20.5) < 1e-9 && v.net == b.netA);
+    CHECK(moved);
+    CHECK(netRouted(b.p, b.netA) && netRouted(b.p, b.netB));
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    // Walk around: nothing moves, the via stops short of net B's track.
+    ViaBoard c = viaBoard();
+    {
+        InteractiveRouter r(c.p.pcb, c.p.schematic);
+        RouterOptions o;
+        o.mode = RouterMode::Walkaround;
+        r.setOptions(o);
+        CHECK(r.beginViaDrag(c.via1, {18, 20}));
+        const RoutePreview& pv = r.moveTo({21, 20});
+        CHECK(pv.blocked);
+        CHECK(pv.shovedTracks.empty());
+        CHECK(pv.end.x < 21 - 0.3 - 0.2 - 0.125 + 1e-3);
+        CHECK(r.commit().ok);
+        CHECK(routingProblems(c.p) == 0);
+        CHECK(netRouted(c.p, c.netA));
+    }
+    // Cancel leaves the board alone; a via in a pad of its net and an unknown via cannot be dragged.
+    ViaBoard d = viaBoard();
+    const auto vias = d.p.pcb.vias;
+    InteractiveRouter rd(d.p.pcb, d.p.schematic);
+    CHECK(rd.beginViaDrag(d.via1, {18, 20}));
+    rd.moveTo({16, 24});
+    rd.cancel();
+    CHECK(d.p.pcb.vias.size() == vias.size() && d.p.pcb.vias[0].position == vias[0].position);
+    CHECK(!rd.beginViaDrag(-7, {0, 0}));
+    Via inPad;
+    inPad.net = d.netA;
+    inPad.position = d.p.pcb.tracks.front().a;  // r1's pad centre
+    const int padVia = d.p.pcb.addVia(inPad);
+    CHECK(!rd.beginViaDrag(padVia, inPad.position));
+    CHECK(!rd.error().empty());
+}
+
+TEST(router_previews_length_tuning) {
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {42, 20});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 1});
+    addPath(p.pcb, net, 0, 0.25, {padAt(p, r1, 1), padAt(p, r2, 0)});
+    const int id = p.pcb.tracks.front().id;
+    const double before = routedNetLength(p.pcb, net);
+    LengthTuneOptions o;
+    o.target = before + 4;
+    o.spacing = 0.6;
+    o.hasNear = true;
+    o.near = {15, 20};
+    o.apply = false;
+    const LengthTuneResult pv = tuneTrackLength(p.pcb, s, id, o);
+    CHECK(pv.ok && !pv.applied);
+    CHECK(pv.group.empty());
+    CHECK_NEAR(pv.after, before + 4, 0.05);
+    CHECK(pv.removedTracks.size() == 1 && pv.removedTracks[0] == id);
+    CHECK(pv.addedTracks.size() > 4);
+    CHECK(p.pcb.tracks.size() == 1 && p.pcb.tracks.front().id == id);  // a preview leaves the board alone
+    // The meander sits near the requested point, with legs 0.6 mm apart edge to edge.
+    std::vector<double> legs;
+    for (const auto& t : pv.addedTracks)
+        if (std::fabs(t.a.x - t.b.x) < 1e-9) legs.push_back(t.a.x);
+    CHECK(legs.size() >= 2);
+    double mid = 0;
+    for (double x : legs) mid += x / static_cast<double>(legs.size());
+    CHECK(std::fabs(mid - 15) < 2);
+    for (size_t k = 1; k < legs.size(); ++k) CHECK_NEAR(std::fabs(legs[k] - legs[k - 1]), 0.6 + 0.25, 1e-6);
+    // Applying the same options writes exactly the previewed copper.
+    o.apply = true;
+    const LengthTuneResult ap = tuneTrackLength(p.pcb, s, id, o);
+    CHECK(ap.ok && ap.applied);
+    CHECK_NEAR(ap.after, pv.after, 1e-9);
+    CHECK(p.pcb.tracks.size() == pv.addedTracks.size());
+    CHECK(netRouted(p, net));
+    CHECK(routingProblems(p) == 0);
+    CHECK(acuteWarnings(p) == 0);
+    // JSON round trip of the options and the result.
+    const LengthTuneOptions jo =
+        lengthTuneOptionsFromJson(Json::parse("{\"target\":12.5,\"spacing\":0.4,\"x\":3,\"y\":4,\"apply\":false}"));
+    CHECK(jo.target == 12.5 && jo.spacing == 0.4 && jo.hasNear && jo.near == Vec2(3, 4) && !jo.apply);
+    CHECK(lengthTuneJson(pv).dump().find("\"addedTracks\":[{") != std::string::npos);
+}
+
+TEST(router_tunes_pair_skew_and_reports_the_target) {
+    // USB_P runs straight; USB_N takes a detour, so it is longer: tuning P with no target matches it to N.
+    Project p;
+    auto& s = p.schematic;
+    const int p1 = placeR(p, {10, 14}), p2 = placeR(p, {40, 14}), n1 = placeR(p, {10, 18}), n2 = placeR(p, {40, 18});
+    wire(s, p1, "2", p2, "1");
+    wire(s, n1, "2", n2, "1");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_P", {0, 0}), "N", p1, "2");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_N", {0, 50}), "N", n1, "2");
+    p.schematicChanged();
+    const int netP = s.netOf({p1, 1}), netN = s.netOf({n1, 1});
+    addPath(p.pcb, netP, 0, 0.25, {padAt(p, p1, 1), padAt(p, p2, 0)});
+    const Vec2 a = padAt(p, n1, 1), b = padAt(p, n2, 0);
+    addPath(p.pcb, netN, 0, 0.25, {a, {a.x + 4, a.y}, {a.x + 6, a.y + 2}, {b.x - 6, b.y + 2}, {b.x - 4, b.y}, b});
+    const double lenN = routedNetLength(p.pcb, netN);
+    CHECK(lenN > routedNetLength(p.pcb, netP) + 1);
+    // The route preview reports the net's length and the length its pair partner has.
+    {
+        InteractiveRouter r(p.pcb, s);
+        CHECK(r.beginRoute(padAt(p, p1, 1), 0));
+        const RoutePreview& pv = r.moveTo({20, 12});
+        CHECK_NEAR(pv.targetLength, lenN, 1e-9);
+        CHECK_NEAR(pv.netLength, routedNetLength(p.pcb, netP) + pv.length, 1e-9);
+        r.cancel();
+    }
+    LengthTuneOptions o;
+    o.apply = false;
+    const LengthTuneResult pv = tuneTrackLength(p.pcb, s, p.pcb.tracks.front().id, o);
+    CHECK(pv.ok);
+    CHECK(pv.groupKind == "pair");
+    CHECK_NEAR(pv.target, lenN, 1e-9);
+    CHECK(std::fabs(pv.after - lenN) <= pv.tolerance + 1e-6);
+    o.apply = true;
+    const LengthTuneResult ap = tuneTrackLength(p.pcb, s, p.pcb.tracks.front().id, o);
+    CHECK(ap.ok && ap.applied);
+    CHECK(std::fabs(routedNetLength(p.pcb, netP) - lenN) <= p.pcb.settings.pairSkewTolerance / 2 + 1e-6);
+    CHECK(routingProblems(p) == 0);
+    CHECK(netRouted(p, netP) && netRouted(p, netN));
+}
+
+extern "C" int sieda_c_api_router_drag_tune_test(void);
+
+TEST(c_api_router_drag_and_tune) {
+    const int rc = sieda_c_api_router_drag_tune_test();
+    if (rc != 0) std::printf("    c api drag / tune step %d failed\n", rc);
+    CHECK(rc == 0);
+}

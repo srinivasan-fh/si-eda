@@ -61,12 +61,13 @@ struct RouteChanges {
 /// other nets' items at their shoved positions (`hiddenTracks` / `hiddenVias` are the layout items they replace).
 struct RoutePreview {
     bool active = false;
-    std::string kind;          // "route", "pair" or "drag"
+    std::string kind;          // "route", "pair", "drag" (a track segment) or "via" (a dragged via)
     std::string status;        // what the router is doing / why the head stopped
     bool blocked = false;      // the head stops short of the cursor
     bool reachedTarget = false;  // the head ends on a pad / via / track of its own net (the route can finish)
     std::vector<int> nets;     // routed net(s): one, or the positive and negative member of a pair
     int layer = 0;
+    int layerCount = 0;        // the board's copper layers (via spans in the JSON)
     double width = 0;
     double gap = 0;            // differential pairs: edge-to-edge gap
     Vec2 end;                  // where the head ends (the pair's centre line for a pair)
@@ -78,6 +79,10 @@ struct RoutePreview {
     std::vector<int> hiddenTracks;
     std::vector<int> hiddenVias;
     double length = 0;          // route length so far (placed + head, first member of a pair)
+    /// The routed net's whole length with this route (its other copper plus `length`; first member of a pair), and
+    /// the length it should match: the longest other member of its matched-length group (0 = not in a group).
+    double netLength = 0;
+    double targetLength = 0;
 };
 
 class InteractiveRouter {
@@ -101,6 +106,10 @@ public:
     /// Drags a track segment: it moves parallel to itself with the cursor, its neighbours follow with 45° joints,
     /// and (shove mode) other nets' copper is pushed aside.
     bool beginDrag(int trackId, Vec2 grab);
+    /// Drags a via: it follows the cursor, the tracks ending on it follow with 45° joints, and (shove mode) other
+    /// nets' copper is pushed aside. Vias inside a pad of their net, mesh vias and vias held by a locked track or a
+    /// track running through them stay put.
+    bool beginViaDrag(int viaId, Vec2 grab);
 
     /// Moves the head to the cursor and returns the preview.
     const RoutePreview& moveTo(Vec2 cursor);
@@ -128,6 +137,28 @@ struct LengthTuneResult {
     int net = -1;
     double before = 0, after = 0, target = 0;
     RouteChanges changes;
+    /// Matched-length group of the net ("" when none), its kind ("pair" / "bus") and the tolerance tuned to (mm).
+    std::string group, groupKind;
+    double tolerance = 0;
+    /// The copper the tuning adds and the ids of the tracks it replaces (also filled for a preview).
+    std::vector<Track> addedTracks;
+    std::vector<int> removedTracks;
+    bool applied = false;  // the board was changed (false for a preview)
+};
+
+struct LengthTuneOptions {
+    /// Target length (mm); <= 0 tunes to the longest member of the net's matched-length group (pair or bus).
+    double target = 0;
+    /// Meander height limit (mm, 0 = 2 mm).
+    double maxAmplitude = 0;
+    /// Gap between neighbouring meander legs, edge to edge (mm); 0 = the default pitch (3 × width, at least
+    /// width + clearance between leg centres).
+    double spacing = 0;
+    /// Meanders go near this point of the selected track first (e.g. where it was clicked).
+    bool hasNear = false;
+    Vec2 near;
+    /// False: compute the result and its copper (addedTracks / removedTracks) without changing the board.
+    bool apply = true;
 };
 
 /// Interactive length tuning: lengthens the net of track `trackId` to `target` mm with accordion meanders, on that
@@ -136,6 +167,13 @@ struct LengthTuneResult {
 /// `maxAmplitude` limits the meander height (mm, 0 = 2 mm).
 LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int trackId, double target,
                                  double maxAmplitude = 0);
+/// The same with every option, including a preview that leaves the board alone (`options.apply = false`).
+LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int trackId, const LengthTuneOptions& options);
+/// {"ok","message","net","group","groupKind","tolerance","before","after","target","applied",
+///  "addedTracks":[track],"removedTracks":[id],"changes":{…}}
+Json lengthTuneJson(const LengthTuneResult& r);
+/// Options from {"target","maxAmplitude","spacing","x","y","apply"} (x and y together set the near point).
+LengthTuneOptions lengthTuneOptionsFromJson(const Json& j);
 
 /// Options from {"mode":"shove|walkaround","posture":"45|90|free","swapPosture","width","pairGap","snap"} — missing
 /// fields keep their value in `base`.
