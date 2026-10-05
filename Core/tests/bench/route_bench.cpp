@@ -75,6 +75,9 @@ void run(const bench::BenchSpec& spec, bool brute) {
         warnings += v.severity == Severity::Warning;
     }
     std::printf("  drc     %8.2f s   %d errors, %d warnings\n", drcTime, errors, warnings);
+    if (std::getenv("SIEDA_BENCH_VERBOSE"))
+        for (const auto& v : drc)
+            if (v.severity == Severity::Error) std::printf("    %s: %s\n", v.code.c_str(), v.message.c_str());
     if (brute) {
         setDrcBruteForce(true);
         t0 = clock::now();
