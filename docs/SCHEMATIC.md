@@ -215,8 +215,9 @@ The schematic is the source of the board's net rules (as in Altium). Code: `Core
   pin and is drawn as a small `◆` flag with its class, `⇄` for a pair and its sizes. On a repeated sheet it applies
   in every channel.
 - **Carried to the PCB** at every change: the widths become the board's net widths, the clearances its per-net
-  clearances — the autorouter keeps other nets' copper that far away and DRC reports copper closer than a net's
-  class clearance (`DRC_NET_CLASS_CLEARANCE`, warning). Pairs marked by directives join the name-based differential
+  clearances — the autorouter and the interactive router (route, pair, bus, drag, shove and walkaround; a pair's gap
+  is at least its nets' class clearance) keep other nets' copper that far away, and DRC reports copper closer than a
+  net's class clearance (`DRC_NET_CLASS_CLEARANCE`, warning). Pairs marked by directives join the name-based differential
   pairs used by the autorouter (impedance width), the interactive differential router, length tuning and the
   signal-integrity checks. Removing a directive gives the board its own rules back; widths the designer set on the
   board for other nets stay.
@@ -548,13 +549,16 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
 - Harnesses are name based: a harness connector is a harness label plus entry labels (no drawn connector body or
   harness wire); harness types are flat (no nested harnesses inside harnesses). Harness labels are not shown on the
   PCB (their members are ordinary nets).
-- Directives sit on pins (labels, part pins); per-net clearance is honoured by the autorouter and DRC, but the
-  interactive router keeps the board clearance and its differential-pair gap comes from the impedance target, not
-  from the net class. There is no "No ERC" marker (use ERC error reporting per rule, or no-connect flags on pins).
-- Align / distribute uses the parts' origins (not their symbol outlines). Paste places parts on the shown sheet; a
-  pasted gate becomes a part of its own.
-- Back-annotation reads designator renames, pin swaps and gate swaps (board re-annotation or a WAS / IS text); the PCB
-  editor itself has no pin- or gate-swap tool yet, and repeated-sheet parts are not renamed from the board.
-- The PDF is drawn by the core with simplified symbols and base-14 fonts (ASCII text); sheet templates frame the
-  drawing (centred on it on the canvas) rather than fixing an origin.
-- Copy / paste does not carry buses, directives or variant settings.
+- Directives sit on pins (labels, part pins). A net class has a width and a clearance, no pair gap of its own: a
+  differential pair's gap comes from the impedance target (or the router's pair-gap option), at least the class
+  clearance. There is no "No ERC" marker (use ERC error reporting per rule, or no-connect flags on pins).
+- Paste places parts on the shown sheet; a pasted gate becomes a part of its own. Variant settings go only to
+  variants of the same name in the target design.
+- Back-annotation reads designator renames, pin swaps and gate swaps (board re-annotation, a WAS / IS text or the
+  board's pin / gate swap tool); repeated-sheet parts are not renamed from the board.
+- The PDF's text is unshaped (one glyph per character) and needs a glyf-outline TrueType font for scripts beyond
+  Latin / Greek; CFF (`.otf`) fonts are not embedded. A frame fixed so that the drawing sticks out of it prints
+  scaled to fit, as before.
+- Update PCB places new parts with the automatic placer (not at a chosen spot). The board reads parts and nets from
+  the schematic live (one design), so removed parts, new designators, values and footprints are already on it:
+  executing those changes records them (and removes routing that no longer fits) rather than moving copper.

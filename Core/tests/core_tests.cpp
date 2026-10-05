@@ -14821,3 +14821,35 @@ TEST(c_api_pcb_swap) {
     if (rc != 0) std::printf("    C API PCB swap test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+// ======================================================================= interactive router: net-class clearance
+
+TEST(router_keeps_net_class_clearance) {
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {42, 20});
+    const int r3 = placeR(p, {25, 8}, 90), r4 = placeR(p, {25, 32}, 90);
+    wire(s, r1, "2", r2, "1");
+    wire(s, r3, "2", r4, "1");
+    p.schematicChanged();
+    const int netA = s.netOf({r1, 1}), netB = s.netOf({r3, 1});
+    addPath(p.pcb, netB, 0, 0.25, {padAt(p, r3, 1), padAt(p, r4, 0)});  // a wall across the direct path
+    // The wall's net class asks for 1.2 mm (the board rule is smaller): the route keeps that much from it.
+    const double classGap = 1.2;
+    CHECK(p.pcb.settings.clearance < classGap);
+    p.pcb.settings.netClearances[s.nets()[static_cast<size_t>(netB)].name] = classGap;
+    const Track wall = p.pcb.tracks.front();
+    InteractiveRouter r(p.pcb, s);
+    RouterOptions o;
+    o.mode = RouterMode::Walkaround;
+    r.setOptions(o);
+    CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+    CHECK(r.moveTo(padAt(p, r2, 0)).reachedTarget);
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok && netRouted(p, netA));
+    double gap = 1e9;
+    for (const auto& t : p.pcb.tracks)
+        if (t.net == netA)
+            gap = std::min(gap, segmentSegmentDistance(t.a, t.b, wall.a, wall.b) - t.width / 2 - wall.width / 2);
+    CHECK(gap >= classGap - 1e-6);
+}
