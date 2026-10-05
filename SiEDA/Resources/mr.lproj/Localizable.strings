@@ -102,6 +102,7 @@
 "Bit rate (Gb/s)" = "बिट दर (Gb/s)";
 "Blind / buried" = "ब्लाइंड / बरीड";
 "Block designator" = "ब्लॉक संदर्भ चिन्ह";
+"Block value: %@" = "ब्लॉक मूल्य: %@";
 "Board Setup" = "बोर्ड सेटअप";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "बोर्ड आउटलाइन (quad-X फ्रेम, गोलाकार, वर्तुळ), माउंटिंग होल, कॉपर पोर/प्लेन आणि नेट क्लास";
 "Board thickness" = "बोर्ड जाडी";
@@ -133,6 +134,7 @@
 "Channel Designators" = "चॅनेल संदर्भ चिन्हे";
 "Channel designator" = "चॅनेल संदर्भ चिन्ह";
 "Channel label" = "चॅनेल लेबल";
+"Channel value" = "चॅनेल मूल्य";
 "Channels" = "चॅनेल";
 "Check" = "तपासा";
 "Check in sign-off" = "साइन-ऑफमध्ये तपासा";
@@ -727,12 +729,14 @@
 "Unity gain" = "युनिटी गेन";
 "Unstack" = "अनस्टॅक करा";
 "Upload .hex…" = ".hex अपलोड करा…";
+"Use Block Value" = "ब्लॉक मूल्य वापरा";
 "Use the generated body again" = "पुन्हा तयार केलेली बॉडी वापरा";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "ही शीट अनेक समान चॅनेल (1 ते 64) म्हणून वापरा. प्रत्येक चॅनेलला स्वतःची संदर्भ चिन्हे, नेट आणि शीट चिन्ह मिळते; कोणतेही चॅनेल संपादित केल्यास सर्व संपादित होतात.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (KiCad लायब्ररी देतात ती .wrl), STL किंवा OBJ. STEP फाइल वाचता येत नाहीत: शेजारची .wrl वापरा.";
 "Validate" = "प्रमाणित करा";
 "Validate Circuit" = "सर्किट प्रमाणित करा";
 "Value" = "मूल्य";
+"Value of this channel only; the other channels keep theirs" = "फक्त या चॅनेलचे मूल्य; इतर चॅनेल त्यांचे मूल्य ठेवतात";
 "Values" = "मूल्ये";
 "Values separated by spaces or commas (up to 100)" = "स्पेस किंवा स्वल्पविरामाने वेगळी केलेली मूल्ये (100 पर्यंत)";
 "Variant name" = "व्हेरिएंटचे नाव";

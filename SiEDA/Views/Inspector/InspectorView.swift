@@ -13,7 +13,7 @@ struct InspectorView: View {
                     JunctionProperties(junction: c)
                 } else if selected.count == 1, let c = selected.first {
                     ComponentProperties(component: c)
-                        .id("\(c.id)|\(c.ref)|\(c.value)|\(store.snapshot.activeVariant)|\(c.variantValue ?? "")")
+                        .id("\(c.id)|\(c.ref)|\(c.value)|\(store.snapshot.activeVariant)|\(c.variantValue ?? "")|\(c.blockValue ?? "")")
                 } else if selected.count > 1 {
                     MultiSelectionProperties(count: selected.count)
                 } else if let busId = store.selectedBus, let bus = store.sheetSnapshot.bus(busId) {
@@ -67,6 +67,7 @@ private struct ComponentProperties: View {
     @State private var ref: String
     @State private var value: String
     @State private var variantValue: String
+    @State private var channelValue: String
     @FocusState private var focus: Field?
 
     private enum Field { case ref, value }
@@ -74,8 +75,9 @@ private struct ComponentProperties: View {
     init(component: SnapComponent) {
         self.component = component
         _ref = State(initialValue: component.logicalRef ?? component.ref)
-        _value = State(initialValue: component.value)
+        _value = State(initialValue: component.blockValue ?? component.value)
         _variantValue = State(initialValue: component.variantValue ?? "")
+        _channelValue = State(initialValue: component.value)
     }
 
     var body: some View {
@@ -113,6 +115,23 @@ private struct ComponentProperties: View {
                         .onSubmit { commitValue() }
                 }
                 Text(kind.valueHint).font(.caption).foregroundStyle(Theme.textMuted)
+                if component.logicalRef != nil && !kind.isVirtual {
+                    // Per-channel parameter: this channel's own value; the Value field above sets the whole block.
+                    LabeledContent("Channel value") {
+                        TextField(component.blockValue ?? component.value, text: $channelValue)
+                            .textFieldStyle(.blue)
+                            .onSubmit { store.setChannelValue(component.id, channelValue) }
+                    }
+                    .help("Value of this channel only; the other channels keep theirs")
+                    if let block = component.blockValue, component.channelOverride != nil {
+                        HStack {
+                            Text("Block value: \(block)").font(.caption).foregroundStyle(Theme.textMuted)
+                            Spacer()
+                            Button("Use Block Value") { store.setChannelValue(component.id, "") }
+                                .controlSize(.small)
+                        }
+                    }
+                }
                 HStack {
                     Button { store.rotateSelection() } label: { Label("Rotate", systemImage: "rotate.right") }
                     Button(role: .destructive) { store.deleteSelection() } label: { Label("Delete", systemImage: "trash") }
@@ -363,7 +382,7 @@ private struct ComponentProperties: View {
     }
 
     private func commitValue() {
-        if value != component.value { store.setValue(component.id, value) }
+        if value != (component.blockValue ?? component.value) { store.setValue(component.id, value) }
     }
 }
 

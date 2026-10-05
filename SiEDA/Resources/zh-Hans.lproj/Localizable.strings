@@ -102,6 +102,7 @@
 "Bit rate (Gb/s)" = "比特率 (Gb/s)";
 "Blind / buried" = "盲孔／埋孔";
 "Block designator" = "模块位号";
+"Block value: %@" = "块值：%@";
 "Board Setup" = "电路板设置";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "电路板外形 (四轴 X 形框架、圆角、圆形)、安装孔、铺铜/平面和网络类";
 "Board thickness" = "板厚";
@@ -133,6 +134,7 @@
 "Channel Designators" = "通道位号";
 "Channel designator" = "通道位号";
 "Channel label" = "通道标签";
+"Channel value" = "通道值";
 "Channels" = "通道数";
 "Check" = "检查";
 "Check in sign-off" = "在签核中检查";
@@ -727,12 +729,14 @@
 "Unity gain" = "单位增益";
 "Unstack" = "取消堆叠";
 "Upload .hex…" = "上传 .hex…";
+"Use Block Value" = "使用块值";
 "Use the generated body again" = "改回使用自动生成的本体";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "将此图页用作多个相同的通道 (1 至 64)。每个通道有自己的位号、网络和图页符号；编辑任一通道即编辑全部。";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML（.wrl，KiCad 库附带）、STL 或 OBJ。无法读取 STEP 文件：请改用旁边的 .wrl。";
 "Validate" = "验证";
 "Validate Circuit" = "验证电路";
 "Value" = "值";
+"Value of this channel only; the other channels keep theirs" = "仅此通道的值；其他通道保留各自的值";
 "Values" = "数值";
 "Values separated by spaces or commas (up to 100)" = "以空格或逗号分隔的数值（最多 100 个）";
 "Variant name" = "变体名称";

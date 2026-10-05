@@ -341,6 +341,22 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_set_sheet_channel($0, Int32(id), channel) } == 1
     }
 
+    /// Value of one channel of a repeated sheet's part ("" = the block's value again).
+    @discardableResult
+    func setChannelValue(_ id: Int, _ value: String) -> Bool {
+        withHandle { sieda_set_channel_value($0, Int32(id), value) } == 1
+    }
+
+    @discardableResult
+    func setChannelPackage(_ id: Int, _ package: String) -> Bool {
+        withHandle { sieda_set_channel_package($0, Int32(id), package) } == 1
+    }
+
+    @discardableResult
+    func clearChannelOverrides(_ id: Int) -> Bool {
+        withHandle { sieda_clear_channel_overrides($0, Int32(id)) } == 1
+    }
+
     // MARK: - Graphical buses
 
     /// Draws a bus ("D[0..7]") through `points` on the active sheet; its id, nil when the name is not a bus.

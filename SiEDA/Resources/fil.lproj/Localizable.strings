@@ -102,6 +102,7 @@
 "Bit rate (Gb/s)" = "Bit rate (Gb/s)";
 "Blind / buried" = "Bulag / nakabaon";
 "Block designator" = "Designator ng block";
+"Block value: %@" = "Halaga ng block: %@";
 "Board Setup" = "Setup ng Board";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Board outline (quad-X frame, rounded, bilog), mounting hole, copper pour/plane at net class";
 "Board thickness" = "Kapal ng board";
@@ -133,6 +134,7 @@
 "Channel Designators" = "Mga designator ng channel";
 "Channel designator" = "Designator ng channel";
 "Channel label" = "Label ng channel";
+"Channel value" = "Halaga ng channel";
 "Channels" = "Mga channel";
 "Check" = "Suriin";
 "Check in sign-off" = "Suriin sa sign-off";
@@ -727,12 +729,14 @@
 "Unity gain" = "Unity gain";
 "Unstack" = "I-unstack";
 "Upload .hex…" = "I-upload ang .hex…";
+"Use Block Value" = "Gamitin ang Halaga ng Block";
 "Use the generated body again" = "Gamitin muli ang ginawang katawan";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Gamitin ang sheet na ito bilang ilang magkakaparehong channel (1 hanggang 64). Bawat channel ay may sariling designator, net at sheet symbol; ang pag-edit sa alinmang channel ay nag-e-edit sa lahat.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, gaya ng mga KiCad library), STL o OBJ. Hindi mabasa ang STEP file: gamitin ang .wrl sa tabi nito.";
 "Validate" = "I-validate";
 "Validate Circuit" = "I-validate ang Circuit";
 "Value" = "Value";
+"Value of this channel only; the other channels keep theirs" = "Halaga ng channel na ito lamang; pinananatili ng ibang channel ang sa kanila";
 "Values" = "Mga value";
 "Values separated by spaces or commas (up to 100)" = "Mga value na pinaghihiwalay ng espasyo o kuwit (hanggang 100)";
 "Variant name" = "Pangalan ng variant";

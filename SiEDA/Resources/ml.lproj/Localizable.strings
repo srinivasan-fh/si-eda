@@ -102,6 +102,7 @@
 "Bit rate (Gb/s)" = "ബിറ്റ് നിരക്ക് (Gb/s)";
 "Blind / buried" = "ബ്ലൈൻഡ് / ബറീഡ്";
 "Block designator" = "ബ്ലോക്ക് ഡിസൈനേറ്റർ";
+"Block value: %@" = "ബ്ലോക്ക് മൂല്യം: %@";
 "Board Setup" = "ബോർഡ് സജ്ജീകരണം";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "ബോർഡ് ഔട്ട്‌ലൈൻ (ക്വാഡ്-X ഫ്രെയിം, റൗണ്ടഡ്, വൃത്തം), മൗണ്ടിംഗ് ഹോളുകൾ, കോപ്പർ പോറുകൾ/പ്ലെയിനുകൾ, നെറ്റ് ക്ലാസുകൾ";
 "Board thickness" = "ബോർഡ് കനം";
@@ -133,6 +134,7 @@
 "Channel Designators" = "ചാനൽ ഡിസൈനേറ്ററുകൾ";
 "Channel designator" = "ചാനൽ ഡിസൈനേറ്റർ";
 "Channel label" = "ചാനൽ ലേബൽ";
+"Channel value" = "ചാനൽ മൂല്യം";
 "Channels" = "ചാനലുകൾ";
 "Check" = "പരിശോധിക്കുക";
 "Check in sign-off" = "സൈൻ-ഓഫിൽ പരിശോധിക്കുക";
@@ -727,12 +729,14 @@
 "Unity gain" = "യൂണിറ്റി ഗെയിൻ";
 "Unstack" = "അൺസ്റ്റാക്ക് ചെയ്യുക";
 "Upload .hex…" = ".hex അപ്‌ലോഡ് ചെയ്യുക…";
+"Use Block Value" = "ബ്ലോക്ക് മൂല്യം ഉപയോഗിക്കുക";
 "Use the generated body again" = "വീണ്ടും സൃഷ്ടിച്ച ബോഡി ഉപയോഗിക്കുക";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "ഈ ഷീറ്റ് ഒരേപോലെയുള്ള നിരവധി ചാനലുകളായി (1 മുതൽ 64 വരെ) ഉപയോഗിക്കുക. ഓരോ ചാനലിനും സ്വന്തം ഡിസൈനേറ്ററുകൾ, നെറ്റുകൾ, ഷീറ്റ് ചിഹ്നം ലഭിക്കും; ഏത് ചാനൽ എഡിറ്റ് ചെയ്താലും എല്ലാം മാറും.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (KiCad ലൈബ്രറികൾ നൽകുന്ന .wrl), STL അല്ലെങ്കിൽ OBJ. STEP ഫയലുകൾ വായിക്കാനാവില്ല: അടുത്തുള്ള .wrl ഉപയോഗിക്കുക.";
 "Validate" = "സാധൂകരിക്കുക";
 "Validate Circuit" = "സർക്യൂട്ട് സാധൂകരിക്കുക";
 "Value" = "മൂല്യം";
+"Value of this channel only; the other channels keep theirs" = "ഈ ചാനലിന്റെ മൂല്യം മാത്രം; മറ്റ് ചാനലുകൾ അവയുടേത് നിലനിർത്തുന്നു";
 "Values" = "മൂല്യങ്ങൾ";
 "Values separated by spaces or commas (up to 100)" = "സ്പേസോ കോമയോ കൊണ്ട് വേർതിരിച്ച മൂല്യങ്ങൾ (100 വരെ)";
 "Variant name" = "വേരിയന്റിന്റെ പേര്";

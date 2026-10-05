@@ -12817,3 +12817,265 @@ TEST(autoroute_progress_and_cancel) {
     if (rc != 0) std::printf("    C API autoroute progress test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+// ======================================================================= nested repeated sheets, channel parameters
+
+namespace {
+/// Amp (child of Main) holding Stage (child of Amp): Stage is a divider IN → R1 → OUT, R2 to ground, with ports;
+/// Amp has Stage's sheet symbol (one per Stage channel) and C1 on the last Stage channel's OUT.
+struct NestedDesign {
+    int amp = 0, stage = 0, r1 = 0, r2 = 0, c1 = 0;
+};
+NestedDesign nestedDesign(Schematic& s, int stageChannels, int ampChannels) {
+    NestedDesign d;
+    d.amp = s.addSheet("Amp", 1);
+    d.stage = s.addSheet("Stage", d.amp);
+    s.setActiveSheet(d.stage);
+    const int in = s.addComponent(ComponentKind::NetLabel, "IN", {0, 0});
+    d.r1 = s.addComponent(ComponentKind::Resistor, "10k", {80, 0});
+    d.r2 = s.addComponent(ComponentKind::Resistor, "10k", {160, 60}, 90);
+    const int out = s.addComponent(ComponentKind::NetLabel, "OUT", {240, 0});
+    const int gnd = s.addComponent(ComponentKind::Ground, "", {160, 140});
+    s.setLabelScope(in, LabelScope::Port);
+    s.setLabelScope(out, LabelScope::Port);
+    wire(s, in, "N", d.r1, "1");
+    wire(s, d.r1, "2", out, "N");
+    wire(s, out, "N", d.r2, "1");
+    wire(s, d.r2, "2", gnd, "GND");
+    CHECK(s.repeatSheet(d.amp, 2) == -1 || stageChannels < 1);  // Stage is not repeated yet: Amp cannot be
+    CHECK(s.repeatSheet(d.stage, stageChannels) == stageChannels);
+    // A sheet symbol per Stage channel on Amp; the last channel's OUT drives C1.
+    const auto stages = s.occurrencesUnder(d.stage, d.amp);
+    for (size_t k = 0; k < stages.size(); ++k) CHECK(s.placeSheetEntries(stages[k], {400.0, 200.0 * k}) == 2);
+    s.setActiveSheet(d.amp);
+    d.c1 = s.addComponent(ComponentKind::Capacitor, "100n", {600, 0});
+    const int g2 = s.addComponent(ComponentKind::Ground, "", {600, 100});
+    int lastOut = -1;
+    for (const auto& c : s.components())
+        if (c.sheet == d.amp && c.scope == LabelScope::SheetEntry && c.value == "OUT" && c.targetSheet == stages.back())
+            lastOut = c.id;
+    CHECK(lastOut > 0);
+    wire(s, lastOut, "N", d.c1, "1");
+    wire(s, d.c1, "2", g2, "GND");
+    CHECK(s.repeatSheet(d.amp, ampChannels) == ampChannels);
+    return d;
+}
+}  // namespace
+
+TEST(nested_repeated_sheets_structure_designators_and_nets) {
+    Project p;
+    Schematic& s = p.schematic;
+    NestedDesign d = nestedDesign(s, 2, 3);
+    // Main + 3 Amp channels + 2 Stage channels in each.
+    CHECK(s.sheets().size() == 10);
+    CHECK(s.channelCount(d.amp) == 3 && s.channelCount(d.stage) == 2);
+    CHECK(s.sheetInstances(d.stage).size() == 6 && s.sheetInstances(d.amp).size() == 3);
+    // Every Stage occurrence sits under an Amp occurrence, two per Amp channel, labelled like the model.
+    for (int amp : s.sheetInstances(d.amp)) {
+        const auto stages = s.occurrencesUnder(d.stage, amp);
+        CHECK(stages.size() == 2);
+        CHECK(s.findSheet(stages[0])->channel == "A" && s.findSheet(stages[1])->channel == "B");
+    }
+    // Channel paths, outermost first; names show them.
+    const int ampB = s.sheetInstances(d.amp)[1];
+    const int stageBB = s.occurrencesUnder(d.stage, ampB)[1];
+    CHECK((s.channelPath(stageBB) == std::vector<std::string>{"B", "B"}));
+    CHECK((s.channelPath(d.stage) == std::vector<std::string>{"A", "A"}));
+    CHECK(s.findSheet(stageBB)->name == "Stage [B/B]");
+    // Designators: unique everywhere; the suffix scheme spells the path.
+    std::set<std::string> refs;
+    for (const auto& c : s.components())
+        if (!isNetSymbolKind(c.kind)) CHECK(refs.insert(c.ref).second);
+    CHECK(refs.size() == 12 + 3);  // 2 resistors × 6 stages, C1 × 3
+    CHECK(s.setInstanceRefs(d.amp, InstanceRefs::Suffix));
+    std::set<std::string> r1s;
+    for (const auto& c : s.components())
+        if (s.masterOf(c.id) == d.r1) r1s.insert(c.ref);
+    CHECK((r1s == std::set<std::string>{"R1_A_A", "R1_A_B", "R1_B_A", "R1_B_B", "R1_C_A", "R1_C_B"}));
+    CHECK(s.find(s.copyOn(d.r1, stageBB))->ref == "R1_B_B");
+    // Copies of sheet entries lead into the Stage channels of their own Amp channel.
+    for (const auto& c : s.components())
+        if (c.scope == LabelScope::SheetEntry) CHECK(s.findSheet(c.targetSheet)->parent == c.sheet);
+    // Nets: every Stage channel has its own OUT; C1 of each Amp channel is on the OUT of that channel's Stage B.
+    std::set<int> outs;
+    for (int st : s.sheetInstances(d.stage)) outs.insert(s.netOf({s.copyOn(d.r1, st), 1}));
+    CHECK(outs.size() == 6);
+    for (int amp : s.sheetInstances(d.amp)) {
+        const int st = s.occurrencesUnder(d.stage, amp)[1];
+        CHECK(s.netOf({s.copyOn(d.c1, amp), 0}) == s.netOf({s.copyOn(d.r1, st), 1}));
+    }
+    // ERC: the hierarchy is complete (no entry without port, no port without entry inside the blocks).
+    for (const auto& v : s.runERC())
+        CHECK(v.code != "ERC_SHEET_ENTRY_NO_PORT" && v.code != "ERC_SHEET_ENTRY_PLACEMENT" &&
+              v.code != "ERC_SHEET_ENTRY_NO_SHEET" && v.code != "ERC_CROSS_SHEET_WIRE");
+    // Edits on any channel go to the block: a wire drawn in Stage [B/B] appears in all six.
+    const size_t wiresBefore = s.wires().size();
+    s.setActiveSheet(stageBB);
+    const int r3 = s.addComponent(ComponentKind::Resistor, "1k", {300, 300});
+    CHECK(r3 > 0 && s.find(r3)->sheet == stageBB && s.masterOf(r3) != r3);
+    wire(s, r3, "1", s.copyOn(d.r1, stageBB), "1");
+    CHECK(s.wires().size() == wiresBefore + 6);
+    // A nested channel cannot be deleted on its own, nor the nested block moved.
+    CHECK(!s.removeSheet(stageBB, true));
+    CHECK(!s.setSheetParent(d.stage, 1));
+    CHECK(s.addSheet("X", stageBB) == -1);
+
+    // Round trip: the file keeps the nested structure exactly.
+    const std::string saved = p.toJson().dump();
+    Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.toJson().dump() == saved);
+
+    // Fewer Stage channels: one per Amp channel (still nested: R1_A, R1_B, R1_C).
+    CHECK(s.repeatSheet(d.stage, 1) == 1);
+    CHECK(s.sheets().size() == 7 && s.sheetInstances(d.stage).size() == 3);
+    r1s.clear();
+    for (const auto& c : s.components())
+        if (s.masterOf(c.id) == d.r1) r1s.insert(c.ref);
+    CHECK((r1s == std::set<std::string>{"R1_A", "R1_B", "R1_C"}));
+    // Ending the outer repetition removes every nested copy; the block designators come back.
+    CHECK(s.repeatSheet(d.amp, 1) == 1);
+    CHECK(s.sheets().size() == 3 && !s.isRepeated(d.stage) && !s.isRepeated(d.amp));
+    CHECK(s.find(d.r1)->ref == "R1" && s.find(d.r1)->logicalRef.empty());
+    // Deleting a repeated block with nested channels: the copies go, its own child sheets move up.
+    CHECK(s.repeatSheet(d.stage, 2) == 2 && s.repeatSheet(d.amp, 2) == 2);
+    CHECK(s.removeSheet(d.amp, true));
+    CHECK(s.findSheet(d.stage) && s.findSheet(d.stage)->parent == 1 && s.channelCount(d.stage) == 2);
+    CHECK(s.sheetInstances(d.stage).size() == 2);
+}
+
+TEST(nested_repeated_sheets_size_limit_and_refusals) {
+    Schematic s;
+    NestedDesign d = nestedDesign(s, 8, 2);
+    // 64 × 8 Stage sheets and more would pass the design's sheet limit.
+    CHECK(s.repeatSheet(d.amp, 64) == 64);
+    CHECK(s.sheets().size() == 1 + 64 + 64 * 8);
+    CHECK(s.repeatSheet(d.stage, 32) == -1);
+    CHECK(s.channelCount(d.stage) == 8);
+    // An instance is not repeated on its own; an Amp channel's Stage channel is not a definition.
+    CHECK(s.repeatSheet(s.sheetInstances(d.amp)[3], 2) == -1);
+    CHECK(s.repeatSheet(s.sheetInstances(d.stage)[9], 2) == -1);
+    // Renaming a Stage channel renames it inside every Amp channel.
+    const int ampC = s.sheetInstances(d.amp)[2];
+    const int stage = s.occurrencesUnder(d.stage, ampC)[3];
+    CHECK(s.setSheetChannel(stage, "S4"));
+    for (int amp : s.sheetInstances(d.amp)) CHECK(s.findSheet(s.occurrencesUnder(d.stage, amp)[3])->channel == "S4");
+    CHECK(!s.setSheetChannel(stage, "A"));  // taken by another Stage channel
+    CHECK(s.repeatSheet(d.amp, 2) == 2);
+    CHECK(s.sheets().size() == 1 + 2 + 2 * 8);
+}
+
+TEST(channel_parameters_override_values_per_channel) {
+    Project p;
+    Schematic& s = p.schematic;
+    DividerBlock b = dividerBlock(s);
+    CHECK(s.repeatSheet(b.sheet, 3) == 3);
+    const auto group = s.sheetInstances(b.sheet);
+    const int r1b = s.copyOn(b.r1, group[1]), r1c = s.copyOn(b.r1, group[2]);
+    // Channel B: 12k; the block and channel C stay 10k.
+    CHECK(s.setChannelValue(r1b, "12k"));
+    CHECK(s.find(r1b)->value == "12k" && s.find(b.r1)->value == "10k" && s.find(r1c)->value == "10k");
+    CHECK(s.find(r1b)->channelOverrides == kOverrideValue && s.blockValue(r1b) == "10k");
+    // The block's value changes every channel that does not set its own.
+    CHECK(s.setValue(r1c, "22k"));
+    CHECK(s.find(b.r1)->value == "22k" && s.find(r1c)->value == "22k" && s.find(r1b)->value == "12k");
+    // Channel A on its own: the others keep what they have.
+    CHECK(s.setChannelValue(b.r1, "4k7"));
+    CHECK(s.find(b.r1)->value == "4k7" && s.find(r1b)->value == "12k" && s.find(r1c)->value == "22k");
+    CHECK(s.find(r1c)->channelOverrides == kOverrideValue);
+    // Setting the block's value on a channel clears its override.
+    CHECK(s.setChannelValue(r1c, "4k7") && s.find(r1c)->channelOverrides == 0);
+    // Package per channel.
+    CHECK(s.setChannelPackage(r1b, "R_1206") || Library::packageVariants(ComponentKind::Resistor).empty());
+    // Simulation, the netlist and the BOM see each channel's own value.
+    const std::string net = exportSpiceNetlist(p.simulationSchematic(), "t");
+    CHECK(net.find("12k") != std::string::npos && net.find("4k7") != std::string::npos);
+    const std::string bom = exportBomCsv(s);
+    CHECK(bom.find("12k") != std::string::npos);
+    // Persisted; older readers just see the copies' values.
+    const std::string saved = p.toJson().dump();
+    CHECK(saved.find("\"channelOverride\"") != std::string::npos);
+    Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.schematic.find(r1b)->value == "12k" && q.schematic.find(r1b)->channelOverrides != 0);
+    CHECK(q.toJson().dump() == saved);
+    // The snapshot names the block value of an overridden channel.
+    const Json snap = p.snapshot();
+    bool seen = false;
+    for (const auto& c : snap.get("components").items())
+        if (c.get("id").asInt() == r1b) seen = c.get("blockValue").asString() == "4k7" && c.get("channelOverride").asInt() != 0;
+    CHECK(seen);
+    // Clear: the channel follows the block again; ending the repetition drops every override.
+    CHECK(s.clearChannelOverrides(r1b) && s.find(r1b)->value == "4k7");
+    CHECK(s.setChannelValue(r1b, "1k"));
+    CHECK(s.repeatSheet(b.sheet, 1) == 1);
+    for (const auto& c : s.components()) CHECK(c.channelOverrides == 0);
+    // An ordinary part: setChannelValue is setValue.
+    s.setActiveSheet(1);
+    const int r = s.addComponent(ComponentKind::Resistor, "1k", {0, 500});
+    CHECK(s.setChannelValue(r, "2k") && s.find(r)->value == "2k" && s.find(r)->channelOverrides == 0);
+    CHECK(!s.setChannelValue(b.gnd, "x"));
+}
+
+TEST(nested_repeated_sheets_fuzzed_files_load_consistently) {
+    Project p;
+    NestedDesign d = nestedDesign(p.schematic, 2, 2);
+    p.schematic.setChannelValue(p.schematic.copyOn(d.r1, p.schematic.sheetInstances(d.stage)[2]), "33k");
+    const std::string saved = p.toJson().dump();
+    uint32_t seed = 20261005u;
+    auto rng = [&seed] {
+        seed = seed * 1664525u + 1013904223u;
+        return seed >> 8;
+    };
+    int loaded = 0;
+    for (int round = 0; round < 300; ++round) {
+        Json j = Json::parse(saved);
+        // Scramble sheet parents, instance links, channels and component sheets / links.
+        Json sheets = Json::array();
+        for (Json sh : j.get("sheets").items()) {
+            const int r = static_cast<int>(rng() % 8);
+            if (r == 0) sh["parent"] = static_cast<int>(rng() % 12);
+            if (r == 1) sh["instanceOf"] = static_cast<int>(rng() % 12);
+            if (r == 2) sh["channel"] = std::string(rng() % 2 ? "" : "A");
+            if (r == 3) sh["id"] = static_cast<int>(rng() % 12);
+            sheets.push(sh);
+        }
+        j["sheets"] = sheets;
+        Json comps = Json::array();
+        for (Json c : j.get("components").items()) {
+            const int r = static_cast<int>(rng() % 10);
+            if (r == 0) c["sheet"] = static_cast<int>(rng() % 12);
+            if (r == 1) c["instanceOf"] = static_cast<int>(rng() % 40);
+            if (r == 2) c["targetSheet"] = static_cast<int>(rng() % 12);
+            if (r == 3) c["channelOverride"] = static_cast<int>(rng() % 9) - 2;
+            comps.push(c);
+        }
+        j["components"] = comps;
+        try {
+            Project q = Project::fromJson(j);
+            ++loaded;
+            const Schematic& s = q.schematic;
+            // Invariants: copies live on instance sheets of their original's sheet; overrides only on copies.
+            for (const auto& c : s.components()) {
+                const Sheet* sh = s.findSheet(c.sheet);
+                CHECK(sh != nullptr);
+                if (c.instanceOf != 0) {
+                    const Component* m = s.find(c.instanceOf);
+                    CHECK(m && sh && m->sheet == sh->instanceOf);
+                } else {
+                    CHECK(c.channelOverrides == 0);
+                }
+            }
+            // Loading is a fixed point: saving and loading again changes nothing.
+            const std::string once = q.toJson().dump();
+            CHECK(Project::fromJson(Json::parse(once)).toJson().dump() == once);
+        } catch (const JsonError&) {
+        }
+    }
+    CHECK(loaded > 200);
+}
+
+extern "C" int sieda_c_api_schematic_pro_test(void);
+TEST(c_api_schematic_pro) {
+    const int rc = sieda_c_api_schematic_pro_test();
+    if (rc != 0) std::printf("    C API schematic pro test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}

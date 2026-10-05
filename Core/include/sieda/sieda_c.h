@@ -592,8 +592,11 @@ const uint32_t* sieda_mesh_indices(const SiedaMesh* mesh);
 /* ---- schematic capture: repeated sheets ----------------------------------------------------- */
 /* Repeated (multi-instance) sheet: one block drawn once and used `count` times (the sheet itself is the first
  * channel). Each extra channel is a sheet of its own ("<name> [B]" …, same parent) holding copies of the block with
- * their own designators, nets, footprints and variant settings; edits to any channel go to the block. Only a sheet
- * without child sheets can be repeated; 1 ends the repetition. Returns the number of channels, or -1.
+ * their own designators, nets, footprints and variant settings; edits to any channel go to the block. A sheet whose
+ * child sheets are all repeated blocks can be repeated too (nested repetition: each channel gets its own channels of
+ * the inner blocks, "Sub [B/A]", designators R1_B_A); a block inside a repeated block is repeated per outer channel.
+ * 1 ends the repetition. Returns the number of channels (per parent channel), or -1. Repeated sheets also report
+ * "channels" (the repeat count) and "path" ("B/A").
  * sieda_sheets_json and the snapshot add "instanceOf" (definition sheet; 0 on the definition), "channel", "refs" and
  * "instances" to repeated sheets; components add "instanceOf" (the block part copied) and "logicalRef". */
 int32_t sieda_repeat_sheet(SiedaProject* project, int32_t sheet, int32_t count);
@@ -692,6 +695,14 @@ char* sieda_measure_waveform(const char* request_json);
  * "adaptive": bool (step from the local truncation error, landing on every PULSE edge),"reltol" (1e-3),"vntol"
  * (1e-6 V),"maxStep" (adaptive; default the step)}. Convergence aids are on. Same result JSON. */
 char* sieda_simulate_transient_ex(const SiedaProject* project, const char* options_json);
+
+/* ---- schematic capture: channel parameters (docs/SCHEMATIC.md) -------------------------------------------------- */
+/* A part of a repeated sheet takes its own value / package in one channel (empty value: the block's again). On the
+ * block's own channel the other channels keep their current value. Elsewhere it is an ordinary value change. The
+ * snapshot reports an overridden channel's "channelOverride" (1 value, 2 package) and "blockValue". 1 on success. */
+int32_t sieda_set_channel_value(SiedaProject* project, int32_t component, const char* value);
+int32_t sieda_set_channel_package(SiedaProject* project, int32_t component, const char* package);
+int32_t sieda_clear_channel_overrides(SiedaProject* project, int32_t component);
 
 #ifdef __cplusplus
 }

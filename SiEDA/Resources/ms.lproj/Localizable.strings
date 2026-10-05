@@ -102,6 +102,7 @@
 "Bit rate (Gb/s)" = "Kadar bit (Gb/s)";
 "Blind / buried" = "Buta / tertanam";
 "Block designator" = "Penanda blok";
+"Block value: %@" = "Nilai blok: %@";
 "Board Setup" = "Persediaan Papan";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Garis luar papan (bingkai quad-X, bulat, bulatan), lubang pelekap, tuangan/satah kuprum dan kelas net";
 "Board thickness" = "Ketebalan papan";
@@ -133,6 +134,7 @@
 "Channel Designators" = "Penanda Saluran";
 "Channel designator" = "Penanda saluran";
 "Channel label" = "Label saluran";
+"Channel value" = "Nilai saluran";
 "Channels" = "Saluran";
 "Check" = "Semak";
 "Check in sign-off" = "Semak dalam pengesahan";
@@ -727,12 +729,14 @@
 "Unity gain" = "Gandaan uniti";
 "Unstack" = "Nyahtindan";
 "Upload .hex…" = "Muat Naik .hex…";
+"Use Block Value" = "Guna Nilai Blok";
 "Use the generated body again" = "Gunakan semula badan yang dijana";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Gunakan helaian ini sebagai beberapa saluran yang sama (1 hingga 64). Setiap saluran mendapat penanda, net dan simbol helaiannya sendiri; menyunting mana-mana saluran menyunting semuanya.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, seperti dalam pustaka KiCad), STL atau OBJ. Fail STEP tidak boleh dibaca: gunakan .wrl di sebelahnya.";
 "Validate" = "Sahkan";
 "Validate Circuit" = "Sahkan Litar";
 "Value" = "Nilai";
+"Value of this channel only; the other channels keep theirs" = "Nilai saluran ini sahaja; saluran lain mengekalkan nilai masing-masing";
 "Values" = "Nilai";
 "Values separated by spaces or commas (up to 100)" = "Nilai dipisahkan dengan ruang atau koma (sehingga 100)";
 "Variant name" = "Nama varian";

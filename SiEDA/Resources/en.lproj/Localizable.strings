@@ -102,6 +102,7 @@
 "Bit rate (Gb/s)" = "Bit rate (Gb/s)";
 "Blind / buried" = "Blind / buried";
 "Block designator" = "Block designator";
+"Block value: %@" = "Block value: %@";
 "Board Setup" = "Board Setup";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes";
 "Board thickness" = "Board thickness";
@@ -133,6 +134,7 @@
 "Channel Designators" = "Channel Designators";
 "Channel designator" = "Channel designator";
 "Channel label" = "Channel label";
+"Channel value" = "Channel value";
 "Channels" = "Channels";
 "Check" = "Check";
 "Check in sign-off" = "Check in sign-off";
@@ -727,12 +729,14 @@
 "Unity gain" = "Unity gain";
 "Unstack" = "Unstack";
 "Upload .hex…" = "Upload .hex…";
+"Use Block Value" = "Use Block Value";
 "Use the generated body again" = "Use the generated body again";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them.";
 "Validate" = "Validate";
 "Validate Circuit" = "Validate Circuit";
 "Value" = "Value";
+"Value of this channel only; the other channels keep theirs" = "Value of this channel only; the other channels keep theirs";
 "Values" = "Values";
 "Values separated by spaces or commas (up to 100)" = "Values separated by spaces or commas (up to 100)";
 "Variant name" = "Variant name";

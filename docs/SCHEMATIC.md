@@ -89,9 +89,22 @@ the block's tab → **Repeat Sheet…** and enter the number of channels (1 to 6
 - Repeating again with a smaller count removes the last channels (their parts, wires and sheet-symbol entries);
   **1** ends the repetition and gives the parts their block designators back. Deleting the block's sheet deletes
   its channels.
-- Only a sheet **without child sheets** can be repeated (no nested repetition), and no child sheet can be added
-  under a repeated block. Parts moved onto a channel join the block; parts of a channel cannot be moved out of it
-  (move them on the block's own sheet).
+- **Nested repetition** (repeat inside repeat): a sheet whose child sheets are all repeated blocks can be repeated
+  itself. Build the hierarchy first — *Amp* with its child *Stage* — repeat *Stage* (×2), then *Amp* (×4): every
+  Amp channel gets its own two Stage channels (`Stage [B/A]`, `Stage [B/B]` …), with sheet entries that lead into
+  its own Stage channels. Designators follow the channel path: *With Channel Suffix* gives `R1_B_A` (outer channel
+  first); *By Sheet Number* numbers each channel's sheet. Changing the Stage count changes it in every Amp channel;
+  renaming a Stage channel renames it in every Amp channel. Up to 1024 sheets in a design.
+- An ordinary sheet (not repeated) cannot sit inside a repeated block, and no child sheet can be added under one —
+  repeat the inner sheet first, or end the outer repetition to restructure. A nested block's channels cannot be
+  deleted or moved on their own (change the repeat count). Parts moved onto a channel join the block; parts of a
+  channel cannot be moved out of it (move them on the block's own sheet).
+- **Per-channel parameters**: select a part on any channel; the inspector's **Channel value** sets the value of that
+  channel only (R1 = 10k in A, 12k in B), and **Use Block Value** goes back to the block's. The **Value** field
+  still sets the block's value: every channel that does not set its own follows. Setting a channel value on the
+  block's own sheet (channel A) keeps the other channels' current values. The core also keeps a per-channel package
+  (`sieda_set_channel_package`). The netlist, ERC, BOM, simulation and board all see each channel's own value —
+  the copies are real parts.
 
 ## Electrical rule checks across sheets
 
@@ -244,7 +257,8 @@ New project fields (all optional when reading):
   agents to change a multi-sheet design keeps its sheets and label scopes.
 
 Further optional fields (written only when used, so other designs' files are unchanged): sheets `instanceOf`,
-`channel`, `refs`; components `instanceOf`, `logicalRef`, `bus`, `unitOf` / `unit` (kind 20, a placed unit) and
+`channel`, `refs` (a nested block's channels have a channel sheet as `parent`); components `instanceOf`,
+`logicalRef`, `channelOverride` (1 value, 2 package: the copy keeps its own), `bus`, `unitOf` / `unit` (kind 20, a placed unit) and
 `packageOnly`; wires `instanceOf`; top-level `buses` and `titleBlock`. A file is repaired on load: copies whose
 block part is gone, units without a valid package, packages without units, entries of missing buses and buses on
 missing sheets are dropped; an instance of a missing or nested definition becomes an ordinary sheet. Older versions of
@@ -273,6 +287,9 @@ char*   sieda_schematic_find(const SiedaProject*, const char* request_json);
 int32_t sieda_schematic_replace(SiedaProject*, const char* request_json);
 char*   sieda_net_places(const SiedaProject*, int32_t net);
 int32_t sieda_set_title_block(SiedaProject*, const char* json);
+int32_t sieda_set_channel_value(SiedaProject*, int32_t component, const char* value);   /* "" = block value */
+int32_t sieda_set_channel_package(SiedaProject*, int32_t component, const char* package);
+int32_t sieda_clear_channel_overrides(SiedaProject*, int32_t component);
 ```
 
 Sheets, hierarchy, bus labels, annotation and variants:
@@ -308,15 +325,16 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
 
 ## Limits
 
-- Repeated sheets cannot nest (a repeated block has no child sheets). An AI design plan made from a repeated
-  design carries every channel as ordinary parts: refining the design with the agents flattens the repetition.
+- Nested repetition needs every sheet inside a repeated block to be repeated itself (an ordinary helper sheet inside
+  a channel is not supported); a design holds at most 1024 sheets. Per-channel parameters cover value and package;
+  other properties (SPICE model, firmware, symbol) are the block's.
 - A bus line has no electrical meaning of its own: members connect through their entries' names. Buses are not
   shown in the PCB editor (their members are ordinary nets there).
 - Variants affect the assembly outputs and simulation, not ERC, verification or the board.
 - The sheet symbol is drawn from its entries; it has no separate size or graphics of its own.
 - Wires never cross sheets; parts moved to another sheet lose their wires to parts left behind.
-- Every channel of a repeated sheet has the same values; a channel that differs is made with a design variant
-  (per-channel DNP or value). A unit of a multi-unit part inside a repeated sheet stays on that sheet with its package.
+- A channel's own value is a per-channel parameter; per-channel fitting (DNP) is still made with a design variant.
+  A unit of a multi-unit part inside a repeated sheet stays on that sheet with its package.
 - Multi-unit parts: units are defined in the part spec (JSON or the C API); the Symbol Editor edits the whole part's
   symbol, not the units' (unit symbols are generated from it). Unit packing re-assigns only interchangeable gates.
   Placing such a part from an AI design plan draws it as one symbol.

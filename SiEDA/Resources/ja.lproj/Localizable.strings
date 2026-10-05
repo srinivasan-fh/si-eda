@@ -102,6 +102,7 @@
 "Bit rate (Gb/s)" = "ビットレート (Gb/s)";
 "Blind / buried" = "ブラインド／ベリード";
 "Block designator" = "ブロック内リファレンス";
+"Block value: %@" = "ブロック値: %@";
 "Board Setup" = "基板設定";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "基板外形 (クアッド X フレーム、角丸、円)、取付穴、銅ベタ/プレーン、ネットクラス";
 "Board thickness" = "基板厚";
@@ -133,6 +134,7 @@
 "Channel Designators" = "チャネルのリファレンス番号";
 "Channel designator" = "チャネルのリファレンス";
 "Channel label" = "チャネルラベル";
+"Channel value" = "チャネル値";
 "Channels" = "チャネル数";
 "Check" = "チェック";
 "Check in sign-off" = "サインオフで検証";
@@ -727,12 +729,14 @@
 "Unity gain" = "ユニティゲイン";
 "Unstack" = "積み重ねを解除";
 "Upload .hex…" = ".hex をアップロード…";
+"Use Block Value" = "ブロック値を使う";
 "Use the generated body again" = "生成された本体に戻す";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "このシートを複数の同一チャネル (1～64) として使います。各チャネルは独自のリファレンス番号、ネット、シートシンボルを持ち、どのチャネルを編集してもすべてに反映されます。";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML（KiCad ライブラリ同梱の .wrl）、STL または OBJ。STEP ファイルは読めません：隣の .wrl を使用してください。";
 "Validate" = "検証";
 "Validate Circuit" = "回路を検証";
 "Value" = "値";
+"Value of this channel only; the other channels keep theirs" = "このチャネルだけの値。他のチャネルはそれぞれの値のままです";
 "Values" = "値";
 "Values separated by spaces or commas (up to 100)" = "スペースまたはカンマで区切った値（最大 100 個）";
 "Variant name" = "バリアント名";

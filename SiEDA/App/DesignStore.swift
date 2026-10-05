@@ -894,7 +894,7 @@ final class DesignStore: ObservableObject {
     func repeatSheet(_ id: Int, count: Int) {
         guard let sheet = snapshot.sheet(id), !sheet.isInstance, count >= 1, count <= 64 else { return }
         let done = performChecked("\(sheet.name): \(count) channel(s)",
-                                  failureMessage: "Only a sheet without child sheets can be repeated") { engine in
+                                  failureMessage: "Only a sheet whose child sheets are repeated blocks can be repeated") { engine in
             guard engine.repeatSheet(id, count: count) != nil else { return false }
             guard sheet.parent != 0, let snap = engine.snapshot() else { return true }
             let parentParts = snap.onSheet(sheet.parent)
@@ -924,6 +924,17 @@ final class DesignStore: ObservableObject {
         performChecked("Channel \(label)", invalidatesAnalysis: false,
                        failureMessage: "Channel labels are letters, digits, _ or -, unique in the block") {
             $0.setSheetChannel(id, channel: label)
+        }
+    }
+
+    /// Value of this channel only (a part of a repeated sheet); the block's value when `value` is empty.
+    func setChannelValue(_ id: Int, _ value: String) {
+        let text = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let c = snapshot.component(id), c.logicalRef != nil, text != c.value || c.channelOverride != nil else { return }
+        if text.isEmpty {
+            performChecked("\(c.displayRef) takes the block value") { $0.clearChannelOverrides(id) }
+        } else {
+            performChecked("\(c.displayRef) = \(text) in this channel") { $0.setChannelValue(id, text) }
         }
     }
 

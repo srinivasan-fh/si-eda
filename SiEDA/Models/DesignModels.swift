@@ -239,6 +239,10 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     /// Part of a repeated sheet: the block part an instance copies, and the designator inside the block ("R1").
     var instanceOf: Int?
     var logicalRef: String?
+    /// Per-channel parameters of a repeated sheet's part: what this channel sets itself (1 value, 2 package) and the
+    /// value the block gives the other channels; nil when the channel takes the block's.
+    var channelOverride: Int?
+    var blockValue: String?
     /// Bus entries: the bus the label leaves (BusInfo.id).
     var bus: Int?
     /// Multi-unit parts: a placed unit (its 1-based index, name "A"… and package), or the package itself
@@ -403,6 +407,9 @@ struct SheetInfo: Decodable, Equatable, Identifiable, Hashable {
     var channel: String?
     var refs: String?
     var instances: Int?
+    /// Repeat count of the block under one parent (nested blocks: per outer channel) and the channel path ("B/A").
+    var channels: Int?
+    var path: String?
 
     var isRepeated: Bool { (instances ?? 0) > 1 }
     var isInstance: Bool { (instanceOf ?? 0) != 0 }

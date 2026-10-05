@@ -102,6 +102,7 @@
 "Bit rate (Gb/s)" = "Bitsnelheid (Gb/s)";
 "Blind / buried" = "Blind / begraven";
 "Block designator" = "Blokreferentie";
+"Block value: %@" = "Blokwaarde: %@";
 "Board Setup" = "Board-instellingen";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Boardomtrek (quad-X-frame, afgerond, cirkel), montagegaten, kopervlakken/-planes en netklassen";
 "Board thickness" = "Boarddikte";
@@ -133,6 +134,7 @@
 "Channel Designators" = "Kanaalreferenties";
 "Channel designator" = "Kanaalreferentie";
 "Channel label" = "Kanaallabel";
+"Channel value" = "Kanaalwaarde";
 "Channels" = "Kanalen";
 "Check" = "Controleer";
 "Check in sign-off" = "Controleren bij sign-off";
@@ -727,12 +729,14 @@
 "Unity gain" = "Eenheidsversterking";
 "Unstack" = "Ontstapel";
 "Upload .hex…" = ".hex uploaden…";
+"Use Block Value" = "Blokwaarde gebruiken";
 "Use the generated body again" = "Weer de gegenereerde behuizing gebruiken";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Gebruik dit blad als meerdere identieke kanalen (1 tot 64). Elk kanaal krijgt eigen referenties, netten en een bladsymbool; een kanaal bewerken bewerkt ze allemaal.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, zoals KiCad-bibliotheken leveren), STL of OBJ. STEP-bestanden kunnen niet worden gelezen: gebruik de .wrl ernaast.";
 "Validate" = "Valideer";
 "Validate Circuit" = "Schakeling valideren";
 "Value" = "Waarde";
+"Value of this channel only; the other channels keep theirs" = "Waarde van alleen dit kanaal; de andere kanalen houden de hunne";
 "Values" = "Waarden";
 "Values separated by spaces or commas (up to 100)" = "Waarden gescheiden door spaties of komma's (maximaal 100)";
 "Variant name" = "Variantnaam";

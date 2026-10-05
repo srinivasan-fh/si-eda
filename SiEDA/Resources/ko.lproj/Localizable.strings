@@ -102,6 +102,7 @@
 "Bit rate (Gb/s)" = "비트 전송률 (Gb/s)";
 "Blind / buried" = "블라인드 / 베리드";
 "Block designator" = "블록 참조 기호";
+"Block value: %@" = "블록 값: %@";
 "Board Setup" = "보드 설정";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "보드 외곽선(쿼드 X 프레임, 둥근 모서리, 원형), 마운팅 홀, 동박 푸어/플레인 및 네트 클래스";
 "Board thickness" = "보드 두께";
@@ -133,6 +134,7 @@
 "Channel Designators" = "채널 참조 기호";
 "Channel designator" = "채널 참조 기호";
 "Channel label" = "채널 레이블";
+"Channel value" = "채널 값";
 "Channels" = "채널 수";
 "Check" = "검사";
 "Check in sign-off" = "사인오프에서 검사";
@@ -727,12 +729,14 @@
 "Unity gain" = "단위 이득";
 "Unstack" = "스택 해제";
 "Upload .hex…" = ".hex 업로드…";
+"Use Block Value" = "블록 값 사용";
 "Use the generated body again" = "생성된 몸체를 다시 사용";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "이 시트를 여러 개의 동일한 채널(1~64)로 사용합니다. 각 채널은 고유한 참조 기호, 네트, 시트 심볼을 가지며, 한 채널을 편집하면 모든 채널이 편집됩니다.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML(KiCad 라이브러리에 포함된 .wrl), STL 또는 OBJ. STEP 파일은 읽을 수 없으니 옆의 .wrl을 사용하세요.";
 "Validate" = "검증";
 "Validate Circuit" = "회로 검증";
 "Value" = "값";
+"Value of this channel only; the other channels keep theirs" = "이 채널의 값만 변경하며 다른 채널은 각자의 값을 유지합니다";
 "Values" = "값";
 "Values separated by spaces or commas (up to 100)" = "공백이나 쉼표로 구분한 값(최대 100개)";
 "Variant name" = "변형 이름";

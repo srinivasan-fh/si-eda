@@ -102,6 +102,7 @@
 "Bit rate (Gb/s)" = "பிட் வீதம் (Gb/s)";
 "Blind / buried" = "குருட்டு / புதைந்த";
 "Block designator" = "தொகுதி குறியீடு";
+"Block value: %@" = "தொகுதி மதிப்பு: %@";
 "Board Setup" = "போர்டு அமைப்பு";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "போர்டு அவுட்லைன் (குவாட்-X ஃப்ரேம், வட்டமூலை, வட்டம்), மவுண்டிங் துளைகள், காப்பர் போர்கள்/பிளேன்கள் மற்றும் நெட் கிளாஸ்கள்";
 "Board thickness" = "போர்டு தடிமன்";
@@ -133,6 +134,7 @@
 "Channel Designators" = "சேனல் குறியீடுகள்";
 "Channel designator" = "சேனல் குறியீடு";
 "Channel label" = "சேனல் லேபிள்";
+"Channel value" = "சேனல் மதிப்பு";
 "Channels" = "சேனல்கள்";
 "Check" = "சரிபார்";
 "Check in sign-off" = "ஒப்புதலில் சரிபார்";
@@ -727,12 +729,14 @@
 "Unity gain" = "யூனிட்டி கெயின்";
 "Unstack" = "அடுக்கைப் பிரி";
 "Upload .hex…" = ".hex பதிவேற்று…";
+"Use Block Value" = "தொகுதி மதிப்பைப் பயன்படுத்து";
 "Use the generated body again" = "மீண்டும் உருவாக்கப்பட்ட உடலைப் பயன்படுத்து";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "இந்தத் தாளை ஒரே மாதிரியான பல சேனல்களாக (1 முதல் 64) பயன்படுத்தவும். ஒவ்வொரு சேனலுக்கும் தனி குறியீடுகள், நெட்கள், தாள் குறியீடு கிடைக்கும்; எந்தச் சேனலைத் திருத்தினாலும் அனைத்தும் திருத்தப்படும்.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (KiCad லைப்ரரிகள் தரும் .wrl), STL அல்லது OBJ. STEP கோப்புகளைப் படிக்க முடியாது: அருகிலுள்ள .wrl ஐப் பயன்படுத்து.";
 "Validate" = "சரிபார்";
 "Validate Circuit" = "சர்க்யூட்டைச் சரிபார்";
 "Value" = "மதிப்பு";
+"Value of this channel only; the other channels keep theirs" = "இந்த சேனலின் மதிப்பு மட்டும்; மற்ற சேனல்கள் தங்களுடையதை வைத்திருக்கும்";
 "Values" = "மதிப்புகள்";
 "Values separated by spaces or commas (up to 100)" = "இடைவெளி அல்லது காற்புள்ளியால் பிரிக்கப்பட்ட மதிப்புகள் (100 வரை)";
 "Variant name" = "வேரியண்ட் பெயர்";

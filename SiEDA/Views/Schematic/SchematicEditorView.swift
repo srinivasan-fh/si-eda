@@ -240,7 +240,7 @@ struct SheetBar: View {
                 } label: {
                     // Child sheets are indented under their parent ("› Filter"); a repeated block shows its channels.
                     Text(verbatim: String(repeating: "› ", count: sheet.depth) + sheet.name
-                         + (sheet.isRepeated && !sheet.isInstance ? " ×\(sheet.instances ?? 1)" : ""))
+                         + (sheet.isRepeated && !sheet.isInstance ? " ×\(sheet.channels ?? sheet.instances ?? 1)" : ""))
                         .fontWeight(active ? .semibold : .regular)
                         .foregroundStyle(active ? Theme.textPrimary : Theme.textSecondary)
                         .padding(.horizontal, 8)

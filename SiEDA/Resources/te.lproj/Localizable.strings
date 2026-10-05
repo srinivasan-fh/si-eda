@@ -102,6 +102,7 @@
 "Bit rate (Gb/s)" = "బిట్ రేట్ (Gb/s)";
 "Blind / buried" = "బ్లైండ్ / బరీడ్";
 "Block designator" = "బ్లాక్ నిర్దేశకం";
+"Block value: %@" = "బ్లాక్ విలువ: %@";
 "Board Setup" = "బోర్డు సెటప్";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "బోర్డు అవుట్‌లైన్ (క్వాడ్-X ఫ్రేమ్, గుండ్రని, వృత్తం), మౌంటింగ్ రంధ్రాలు, కాపర్ పోర్‌లు/ప్లేన్‌లు మరియు నెట్ క్లాస్‌లు";
 "Board thickness" = "బోర్డు మందం";
@@ -133,6 +134,7 @@
 "Channel Designators" = "ఛానెల్ నిర్దేశకాలు";
 "Channel designator" = "ఛానెల్ నిర్దేశకం";
 "Channel label" = "ఛానెల్ లేబుల్";
+"Channel value" = "ఛానల్ విలువ";
 "Channels" = "ఛానెళ్లు";
 "Check" = "తనిఖీ చేయి";
 "Check in sign-off" = "సైన్-ఆఫ్‌లో తనిఖీ చేయి";
@@ -727,12 +729,14 @@
 "Unity gain" = "యూనిటీ గెయిన్";
 "Unstack" = "అన్‌స్టాక్ చేయి";
 "Upload .hex…" = ".hex అప్‌లోడ్ చేయి…";
+"Use Block Value" = "బ్లాక్ విలువను ఉపయోగించు";
 "Use the generated body again" = "మళ్లీ సృష్టించిన బాడీని వాడండి";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "ఈ షీట్‌ను అనేక సమాన ఛానెళ్లుగా (1 నుండి 64) ఉపయోగించండి. ప్రతి ఛానెల్‌కు సొంత నిర్దేశకాలు, నెట్‌లు, షీట్ చిహ్నం ఉంటాయి; ఏ ఛానెల్‌ను సవరించినా అన్నీ సవరించబడతాయి.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (KiCad లైబ్రరీలు ఇచ్చే .wrl), STL లేదా OBJ. STEP ఫైళ్లు చదవలేము: వాటి పక్కన ఉన్న .wrl వాడండి.";
 "Validate" = "ధృవీకరించు";
 "Validate Circuit" = "సర్క్యూట్‌ను ధృవీకరించు";
 "Value" = "విలువ";
+"Value of this channel only; the other channels keep theirs" = "ఈ ఛానల్ విలువ మాత్రమే; ఇతర ఛానల్‌లు తమ విలువలను ఉంచుకుంటాయి";
 "Values" = "విలువలు";
 "Values separated by spaces or commas (up to 100)" = "స్పేస్‌లు లేదా కామాలతో వేరు చేసిన విలువలు (గరిష్ఠంగా 100)";
 "Variant name" = "వేరియంట్ పేరు";

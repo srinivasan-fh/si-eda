@@ -160,6 +160,7 @@ void componentSheetJson(Json& j, const Component& c) {
         j["unit"] = c.unit;
     }
     if (c.packageOnly) j["packageOnly"] = true;
+    if (c.channelOverrides != 0) j["channelOverride"] = c.channelOverrides;
 }
 
 Json busesJson(const Schematic& sch, bool withMembers) {
@@ -646,6 +647,7 @@ Project Project::fromJson(const Json& root) {
         c.logicalRef = j.get("logicalRef").asString("");
         c.bus = c.kind == ComponentKind::NetLabel ? std::max(0, j.get("bus").asInt(0)) : 0;
         c.packageOnly = c.kind == ComponentKind::Custom && j.get("packageOnly").asBool(false);
+        c.channelOverrides = std::clamp(j.get("channelOverride").asInt(0), 0, kOverrideValue | kOverridePackage);
         if (c.logicalRef.size() > 64) c.logicalRef.clear();
         if (c.id == 0 || p.schematic.find(c.id)) continue;  // id 0 or a duplicate (hand-edited file): the first stands
         p.schematic.restoreComponent(c);
@@ -767,6 +769,11 @@ Json Project::snapshot() const {
         }
         if (c.instanceOf != 0) j["instanceOf"] = c.instanceOf;
         if (c.bus != 0) j["bus"] = c.bus;
+        if (assembled->channelOverrides != 0) {
+            // Per-channel parameters of a repeated sheet's part: what this channel sets and the block's value.
+            j["channelOverride"] = assembled->channelOverrides;
+            j["blockValue"] = schematic.blockValue(assembled->id);
+        }
         if (!assembled->logicalRef.empty()) j["logicalRef"] = assembled->logicalRef;
         else if (assembled->instanceOf != 0)
             if (const Component* m = schematic.find(assembled->instanceOf); m && !m->logicalRef.empty()) j["logicalRef"] = m->logicalRef;
@@ -888,6 +895,10 @@ Json Project::snapshot() const {
                 j["channel"] = s.channel;
                 j["refs"] = instanceRefsName(schematic.findSheet(schematic.definitionSheet(s.id))->refs);
                 j["instances"] = static_cast<int>(schematic.sheetInstances(s.id).size());
+                j["channels"] = schematic.channelCount(s.id);
+                std::string path;
+                for (const auto& c : schematic.channelPath(s.id)) path += (path.empty() ? "" : "/") + c;
+                j["path"] = path;
             }
             sheets.push(j);
         }

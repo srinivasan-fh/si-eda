@@ -873,3 +873,36 @@ int sieda_c_api_autoroute_progress_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Schematic capture package: nested repeated sheets and channel parameters. Returns 0 or the failing step. */
+int sieda_c_api_schematic_pro_test(void) {
+    SiedaProject* p = sieda_project_new("Schematic pro");
+    if (!p) return 1;
+    int32_t amp = sieda_add_sheet(p, "Amp", 1);
+    int32_t stage = sieda_add_sheet(p, "Stage", amp);
+    if (amp < 0 || stage < 0 || !sieda_set_active_sheet(p, stage)) return 2;
+    int32_t in = sieda_add_component(p, 15, "IN", 0, 0, 0, NULL);
+    int32_t r = sieda_add_component(p, 0, "10k", 80, 0, 0, NULL);
+    if (!sieda_set_label_scope(p, in, "port", 0) || sieda_connect(p, in, 0, r, 0) < 0) return 3;
+    if (sieda_repeat_sheet(p, amp, 2) != -1) return 4; /* Stage is not repeated yet */
+    if (sieda_repeat_sheet(p, stage, 2) != 2 || sieda_repeat_sheet(p, amp, 3) != 3) return 5;
+    {
+        char* sheets = sieda_sheets_json(p);
+        if (!sheets || !strstr(sheets, "\"name\":\"Stage [C/B]\"") || !strstr(sheets, "\"channels\":3") ||
+            !strstr(sheets, "\"path\":\"B/A\""))
+            return 6;
+        sieda_string_free(sheets);
+    }
+    if (!sieda_set_instance_refs(p, amp, "suffix") || sieda_find_component(p, "R1_C_B") < 0) return 7;
+    int32_t rcb = sieda_find_component(p, "R1_C_B");
+    if (!sieda_set_channel_value(p, rcb, "12k") || sieda_set_channel_value(NULL, rcb, "1k")) return 8;
+    {
+        char* snap = sieda_project_snapshot(p);
+        if (!snap || !strstr(snap, "\"blockValue\":\"10k\"") || !strstr(snap, "\"value\":\"12k\"")) return 9;
+        sieda_string_free(snap);
+    }
+    if (!sieda_set_channel_value(p, rcb, "") || !sieda_clear_channel_overrides(p, rcb)) return 10;
+    if (!sieda_set_channel_package(p, rcb, "") || sieda_set_channel_package(p, rcb, "NOT_A_PACKAGE")) return 11;
+    sieda_project_free(p);
+    return 0;
+}

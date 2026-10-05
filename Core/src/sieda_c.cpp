@@ -1789,6 +1789,10 @@ char* sieda_sheets_json(const SiedaProject* project) {
                 j["channel"] = s.channel;
                 j["refs"] = instanceRefsName(sch.findSheet(sch.definitionSheet(s.id))->refs);
                 j["instances"] = static_cast<int>(sch.sheetInstances(s.id).size());
+                j["channels"] = sch.channelCount(s.id);
+                std::string path;
+                for (const auto& c : sch.channelPath(s.id)) path += (path.empty() ? "" : "/") + c;
+                j["path"] = path;
             }
             arr.push(j);
         }
@@ -2876,6 +2880,32 @@ char* sieda_simulate_transient_ex(const SiedaProject* project, const char* optio
         j["error"] = std::string("Invalid transient options: ") + e.what();
         return dup(j.dump());
     }
+}
+
+}  // extern "C"
+
+// ---- schematic capture: channel parameters
+
+extern "C" {
+
+int32_t sieda_set_channel_value(SiedaProject* project, int32_t component, const char* value) {
+    if (!project || !value) return 0;
+    return guarded([&] {
+        Schematic& s = project->project.schematic;
+        const std::string v = value;
+        if (v.empty()) return s.clearChannelOverrides(component) ? 1 : 0;
+        return s.setChannelValue(component, v) ? 1 : 0;
+    });
+}
+
+int32_t sieda_set_channel_package(SiedaProject* project, int32_t component, const char* package) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setChannelPackage(component, str(package)) ? 1 : 0; });
+}
+
+int32_t sieda_clear_channel_overrides(SiedaProject* project, int32_t component) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.clearChannelOverrides(component) ? 1 : 0; });
 }
 
 }  // extern "C"

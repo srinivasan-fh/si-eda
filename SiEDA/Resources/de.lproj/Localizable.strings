@@ -102,6 +102,7 @@
 "Bit rate (Gb/s)" = "Bitrate (Gb/s)";
 "Blind / buried" = "Blind / vergraben";
 "Block designator" = "Block-Bezeichner";
+"Block value: %@" = "Blockwert: %@";
 "Board Setup" = "Platineneinrichtung";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Platinenumriss (Quad-X-Rahmen, abgerundet, Kreis), Montagebohrungen, Kupferflächen/-ebenen und Netzklassen";
 "Board thickness" = "Platinendicke";
@@ -133,6 +134,7 @@
 "Channel Designators" = "Kanal-Bezeichner";
 "Channel designator" = "Kanal-Bezeichner";
 "Channel label" = "Kanalbezeichnung";
+"Channel value" = "Kanalwert";
 "Channels" = "Kanäle";
 "Check" = "Prüfen";
 "Check in sign-off" = "In der Freigabe prüfen";
@@ -727,12 +729,14 @@
 "Unity gain" = "Transitfrequenz";
 "Unstack" = "Entstapeln";
 "Upload .hex…" = ".hex hochladen …";
+"Use Block Value" = "Blockwert verwenden";
 "Use the generated body again" = "Wieder den erzeugten Körper verwenden";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Dieses Blatt als mehrere identische Kanäle verwenden (1 bis 64). Jeder Kanal erhält eigene Bezeichner, Netze und ein Blattsymbol; die Bearbeitung eines Kanals ändert alle.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, wie KiCad-Bibliotheken sie liefern), STL oder OBJ. STEP-Dateien können nicht gelesen werden: die .wrl daneben verwenden.";
 "Validate" = "Validieren";
 "Validate Circuit" = "Schaltung validieren";
 "Value" = "Wert";
+"Value of this channel only; the other channels keep theirs" = "Wert nur dieses Kanals; die anderen Kanäle behalten ihren";
 "Values" = "Werte";
 "Values separated by spaces or commas (up to 100)" = "Werte durch Leerzeichen oder Kommas getrennt (bis zu 100)";
 "Variant name" = "Variantenname";

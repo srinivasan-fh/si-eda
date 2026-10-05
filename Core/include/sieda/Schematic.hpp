@@ -127,6 +127,9 @@ struct Component {
     int unitOf = 0;
     int unit = 0;
     bool packageOnly = false;
+    /// On a copy in a repeated sheet's channel: the parameters this channel sets itself instead of taking the block's
+    /// (bits of ChannelOverride). 0 everywhere else.
+    int channelOverrides = 0;
 
     bool isNoConnect(int pin) const;
 
@@ -134,6 +137,12 @@ struct Component {
     bool hasFootprint() const { return !def().footprint.empty(); }
     /// The footprint the part is placed with: its package variant, else the kind's default.
     const std::string& footprintName() const;
+};
+
+/// Per-channel parameters of a repeated sheet's part (Component::channelOverrides).
+enum ChannelOverride : int {
+    kOverrideValue = 1,    // the channel's own value (R1 = 10k in channel A, 12k in channel B)
+    kOverridePackage = 2,  // the channel's own package variant
 };
 
 /// A graphical bus on a sheet: a named polyline ("D[0..7]", see expandBus). Its members leave it through bus entries —
@@ -330,6 +339,24 @@ public:
     /// Brings every instance in line with its definition (components, wires, designators) and repairs stale links.
     /// Every edit through this class does it; call it after changing components through mutableComponents().
     void syncInstances();
+    /// Per-channel parameters. On a part of a repeated sheet, sets the value of this channel only (a copy keeps it
+    /// while the block's value changes; on the block's own sheet the other channels keep the old value). Setting the
+    /// block's value clears the override. On any other part it is setValue. False for an unknown id or a net symbol.
+    bool setChannelValue(int id, const std::string& value);
+    /// Package variant of this channel only (see setChannelValue); "" = the kind's default footprint.
+    bool setChannelPackage(int id, const std::string& package);
+    /// The channel takes the block's value and package again.
+    bool clearChannelOverrides(int id);
+    /// The value every channel of a repeated part takes unless it sets its own (the part's value elsewhere).
+    std::string blockValue(int id) const;
+    /// Channel path of a sheet in a (nested) repeated hierarchy, outermost first: {"B", "A"} for channel A of a
+    /// sub-block inside channel B of a block. Only repeated levels count; empty for an ordinary sheet.
+    std::vector<std::string> channelPath(int sheet) const;
+    /// Occurrences of definition sheet `def` whose parent is `parent`: the definition first when it is there, then
+    /// its instances in sheet order.
+    std::vector<int> occurrencesUnder(int def, int parent) const;
+    /// Number of channels of a repeated sheet's block under one parent (its repeat count); 1 for an ordinary sheet.
+    int channelCount(int sheet) const;
     /// For an id on an instance sheet, the definition component it copies; otherwise `id`.
     int masterOf(int id) const;
     /// The copy of definition component `masterId` on `sheet` (`masterId` itself on the definition), or -1.
@@ -408,8 +435,19 @@ private:
     void unitERC(std::vector<RuleViolation>& out) const;
     int masterWireOf(int wireId) const;
     int copyWireOn(int masterWire, int sheet) const;
-    /// Designator of a block part (by its logical designator) on one of the block's sheets.
-    std::string channelRef(const std::string& logical, int sheet, int step) const;
+    /// Designator of a block part (by its logical designator) on one of the block's sheets; `path` is the sheet's
+    /// channel path joined by '_' (the suffix scheme).
+    std::string channelRef(const std::string& logical, int sheet, int step, const std::string& path) const;
+    /// Nested repeated sheets: every occurrence of a block's parent holds the same channels of it as the parent's
+    /// definition does (created / removed / relabelled here). True when it changed anything.
+    bool syncNestedSheets();
+    /// Removes a sheet with every sheet below it, their components, wires and the sheet entries leading into them.
+    void eraseSheetTree(int id);
+    /// A sheet entry copied from `defSheet` onto its instance `instSheet`: the matching occurrence of its target.
+    int mapEntryTarget(int target, int defSheet, int instSheet) const;
+    /// Unique name for a new instance sheet ("Amp [B]", nested: "Sub [B/A]").
+    std::string instanceSheetName(int sheet) const;
+    bool setChannelField(int id, const std::string& text, int bit);
     /// Instance-aware parts of annotate(): numbers the blocks' logical designators.
     void annotateBlocks(const AnnotateOptions& options);
     /// Drops buses on missing sheets and detaches entries from buses that are gone or on another sheet.
