@@ -315,3 +315,9 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
 - Variants affect the assembly outputs and simulation, not ERC, verification or the board.
 - The sheet symbol is drawn from its entries; it has no separate size or graphics of its own.
 - Wires never cross sheets; parts moved to another sheet lose their wires to parts left behind.
+- Every channel of a repeated sheet has the same values; a channel that differs is made with a design variant
+  (per-channel DNP or value). A unit of a multi-unit part inside a repeated sheet stays on that sheet with its package.
+- Multi-unit parts: units are defined in the part spec (JSON or the C API); the Symbol Editor edits the whole part's
+  symbol, not the units' (unit symbols are generated from it). Unit packing re-assigns only interchangeable gates.
+  Placing such a part from an AI design plan draws it as one symbol.
+- Find & Replace edits values and net label names only; designators are changed by annotation.

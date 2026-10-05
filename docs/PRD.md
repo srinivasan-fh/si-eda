@@ -36,7 +36,8 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 | F12 | Component library: datasheet import, pin-table editor, standard parts catalog, symbol / footprint / 3D generation | ✅ |
 | F13 | Footprint Editor: draw any part's land pattern pad by pad (position, size, shape, drill, pin), pad arrays, undo, live checks (overlap, gap, annular ring, pin ↔ pad coverage); converts generated footprints | ✅ |
 | F14 | Symbol Editor: pins on any side and slot, gaps, stacked power pins (joined nets), Auto Arrange by name and type, live checks; library parts with 16+ pins arranged | ✅ |
-| F15 | Large designs: multi-sheet and single-instance hierarchical schematics (global / local / port labels, sheet symbols), cross-sheet ERC, bus notation and bus labels, annotation, assembly variants (DNP and value overrides) for BOM / CPL / assembly exports | ✅ |
+| F15 | Large designs: multi-sheet hierarchical schematics (global / local / port labels, sheet symbols), repeated multi-instance sheets with per-channel designators, nets and footprints, cross-sheet ERC, graphical buses with bus entries and bus ERC, multi-unit symbols on one footprint, annotation with unit packing, assembly variants (DNP and value overrides) for BOM / CPL / assembly exports and simulation (docs/SCHEMATIC.md) | ✅ |
+| F17 | Schematic productivity: find / replace across sheets, net navigator, hierarchy cross-probing, title block | ✅ |
 | F16 | Interactive routing: Route tool with walkaround and push-and-shove (recursive, DRC rules kept; pads and locked tracks fixed), 45° / 90° corners, vias with layer change, snap to pads, commit / cancel / undo; differential pairs at the pair gap, segment drag with shove, length tuning with meanders | ✅ |
 
 ## Non-functional requirements
