@@ -4973,3 +4973,196 @@ final class ChannelAnalysisBridgeTests: XCTestCase {
         XCTAssertNil(store.pdnIRMap("NO SUCH RAIL"))
     }
 }
+
+@MainActor
+final class InteractiveRoutingStoreTests: XCTestCase {
+    /// Track geometry independent of ids and order (undo reloads the design).
+    private static func shapes(_ tracks: [SnapTrack]) -> [String] {
+        tracks.map { String(format: "%d %d %.4f %.4f %.4f %.4f %.4f", $0.net, $0.layer, $0.width, $0.ax, $0.ay, $0.bx, $0.by) }
+            .sorted()
+    }
+
+    /// Two resistors 30 mm apart joined by a routed track with a through via at (18, 20).
+    private func routedStore() throws -> DesignStore {
+        let store = DesignStore()
+        let engine = store.engine
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        engine.moveFootprint(r1, to: CGPoint(x: 10, y: 20))
+        engine.moveFootprint(r2, to: CGPoint(x: 40, y: 20))
+        let options = EDAEngine.routerOptions(shove: true, diagonal: true)
+        XCTAssertNotNil(engine.routerBegin(at: CGPoint(x: 10.95, y: 20), layer: 0, pair: false, options: options))
+        _ = engine.routerMove(to: CGPoint(x: 18, y: 20))
+        XCTAssertNil(engine.routerAddVia()?.error)
+        _ = engine.routerMove(to: CGPoint(x: 30, y: 20))
+        XCTAssertNil(engine.routerAddVia(toLayer: 0)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 39.05, y: 20))
+        XCTAssertTrue(engine.routerCommit().ok)
+        store.refresh()
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        return store
+    }
+
+    func testDraggingATrackAndAViaIsOneUndoStep() throws {
+        let store = try routedStore()
+        let bottom = try XCTUnwrap(store.snapshot.tracks.first { $0.layer == 1 })
+        let before = store.snapshot.tracks
+        let grab = CGPoint(x: (bottom.ax + bottom.bx) / 2, y: (bottom.ay + bottom.by) / 2)
+        XCTAssertTrue(store.beginTrackDrag(bottom.id, at: grab))
+        XCTAssertEqual(store.routePreview?.kind, "drag")
+        store.finishRoute(at: CGPoint(x: grab.x, y: grab.y + 2))
+        XCTAssertNil(store.routePreview)
+        XCTAssertNotEqual(store.snapshot.tracks, before)
+        XCTAssertTrue(store.snapshot.tracks.contains { $0.layer == 1 && abs($0.ay - 22) < 1e-6 && abs($0.by - 22) < 1e-6 })
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        store.undo()
+        XCTAssertEqual(Self.shapes(store.snapshot.tracks), Self.shapes(before))
+
+        let via = try XCTUnwrap(store.snapshot.vias.first)
+        XCTAssertTrue(store.beginViaDrag(via.id, at: CGPoint(x: via.x, y: via.y)))
+        XCTAssertEqual(store.routePreview?.kind, "via")
+        store.finishRoute(at: CGPoint(x: via.x, y: via.y - 3))
+        XCTAssertTrue(store.snapshot.vias.contains { abs($0.x - via.x) < 1e-6 && abs($0.y - (via.y - 3)) < 1e-6 })
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        XCTAssertFalse(store.engine.runDRC().contains { $0.severity == .error })
+        // A refused drag (unknown via) starts nothing.
+        XCTAssertFalse(store.beginViaDrag(-4, at: .zero))
+        XCTAssertNil(store.routePreview)
+    }
+
+    func testLengthTuningPreviewsThenApplies() throws {
+        let store = try routedStore()
+        let top = try XCTUnwrap(store.snapshot.tracks.first { $0.layer == 0 && hypot($0.bx - $0.ax, $0.by - $0.ay) > 6 })
+        let tracks = store.snapshot.tracks
+        store.beginTune(track: top.id, at: CGPoint(x: (top.ax + top.bx) / 2, y: top.ay))
+        let preview = try XCTUnwrap(store.tuneSession?.preview)
+        XCTAssertTrue(preview.ok, preview.message)
+        XCTAssertTrue(preview.group.isEmpty)
+        XCTAssertGreaterThan(preview.target, preview.before)  // no group: starts at its length + 1 mm
+        XCTAssertFalse(preview.applied)
+        XCTAssertFalse(preview.addedTracks.isEmpty)
+        XCTAssertEqual(store.snapshot.tracks, tracks)  // a preview leaves the board alone
+        store.setTuneTarget(preview.before + 0.5)
+        XCTAssertEqual(store.tuneSession?.preview?.target ?? 0, preview.before + 0.5, accuracy: 1e-9)
+        store.applyTune()
+        XCTAssertNil(store.tuneSession)
+        let length = store.snapshot.tracks.reduce(0.0) { $0 + hypot($1.bx - $1.ax, $1.by - $1.ay) }
+        XCTAssertEqual(length, preview.before + 0.5, accuracy: 0.05)
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        store.undo()
+        XCTAssertEqual(Self.shapes(store.snapshot.tracks), Self.shapes(tracks))
+        store.beginTune(track: top.id, at: .zero)
+        store.cancelTune()
+        XCTAssertNil(store.tuneSession)
+    }
+
+    func testHeadUpdatesRunOffTheMainThreadLatestWins() async throws {
+        let store = try routedStore()
+        store.beginRoute(at: CGPoint(x: 39.05, y: 20), layer: 0, pair: false)
+        XCTAssertNotNil(store.routePreview)
+        // A burst of moves: they do not block, and the head ends at the last one.
+        for x in stride(from: 39.0, through: 30.0, by: -1.0) { store.moveRoute(to: CGPoint(x: x, y: 28)) }
+        var waited = 0
+        while abs((store.routePreview?.endX ?? 0) - 30) > 1e-6 && waited < 500 {
+            try await Task.sleep(nanoseconds: 10_000_000)
+            waited += 1
+        }
+        XCTAssertEqual(store.routePreview?.endX ?? 0, 30, accuracy: 1e-6)
+        XCTAssertEqual(store.routePreview?.endY ?? 0, 28, accuracy: 1e-6)
+        // A click places what is under the cursor now, even with an update queued.
+        store.moveRoute(to: CGPoint(x: 34, y: 25))
+        store.moveRouteNow(to: CGPoint(x: 33, y: 26))
+        store.placeRouteCorner()
+        try await Task.sleep(nanoseconds: 100_000_000)  // the stale background result must not come back
+        XCTAssertEqual(store.routePreview?.endX ?? 0, 33, accuracy: 1e-6)
+        store.cancelRoute()
+        XCTAssertNil(store.routePreview)
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+    }
+
+    func testRouterPlacesMicroviasOnHDIBoards() throws {
+        let engine = EDAEngine(name: "HDI router")
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        engine.moveFootprint(r1, to: CGPoint(x: 10, y: 20))
+        engine.moveFootprint(r2, to: CGPoint(x: 40, y: 20))
+        engine.setLayerCount(4)
+        XCTAssertTrue(engine.setHDI(enabled: true, microviaDrill: 0.1, microviaDiameter: 0.25, viaInPad: false))
+        let options = EDAEngine.routerOptions(mode: .shove, diagonal: true, via: .micro)
+        XCTAssertNil(engine.routerBegin(at: CGPoint(x: 10.95, y: 20), layer: 0, pair: false, options: options)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 16, y: 20))
+        let down = try XCTUnwrap(engine.routerAddVia())
+        XCTAssertNil(down.error)
+        XCTAssertEqual(down.layer, 1)
+        XCTAssertEqual(down.vias.first?.kind, "microvia")
+        XCTAssertEqual(down.vias.first?.toLayer, 1)
+        let back = try XCTUnwrap(engine.routerAddVia(reverse: true))  // the next layer the other way: top again
+        XCTAssertEqual(back.layer, 0)
+        engine.routerCancel()
+    }
+
+    func testRoundedCornersWriteArcs() throws {
+        let engine = EDAEngine(name: "Rounded")
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        engine.moveFootprint(r1, to: CGPoint(x: 8, y: 20))
+        engine.moveFootprint(r2, to: CGPoint(x: 40, y: 32))
+        let options = EDAEngine.routerOptions(mode: .shove, diagonal: true, rounded: true)
+        XCTAssertNil(engine.routerBegin(at: CGPoint(x: 8.95, y: 20), layer: 0, pair: false, options: options)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 20, y: 20))
+        _ = engine.routerFix()
+        let head = try XCTUnwrap(engine.routerMove(to: CGPoint(x: 39.05, y: 32)))
+        XCTAssertTrue(head.reachedTarget)
+        XCTAssertTrue(engine.routerCommit().ok)
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        XCTAssertGreaterThan(snapshot.tracks.count, 4)  // the corners are arcs of short chords
+        XCTAssertTrue(snapshot.ratsnest.isEmpty)
+        XCTAssertFalse(engine.runDRC().contains { $0.severity == .error })
+    }
+
+    func testFanoutAndBusFromTheStore() throws {
+        let store = DesignStore()
+        let engine = store.engine
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        let r3 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 200, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 0), PinAddress(component: r3, pin: 1)))
+        engine.moveFootprint(r1, to: CGPoint(x: 20, y: 20))
+        engine.moveFootprint(r2, to: CGPoint(x: 40, y: 10))
+        engine.moveFootprint(r3, to: CGPoint(x: 40, y: 30))
+        store.refresh()
+        // Both pads of R1 go somewhere: a fanout gives each an escape and a via, as one undo step.
+        store.select(component: r1)
+        store.fanoutSelection()
+        XCTAssertEqual(store.snapshot.vias.count, 2)
+        XCTAssertFalse(engine.runDRC().contains { $0.severity == .error && $0.code != "DRC_UNROUTED" })
+        store.undo()
+        XCTAssertTrue(store.snapshot.vias.isEmpty)
+        // The same two pads as a bus of two.
+        let options = EDAEngine.routerOptions(mode: .shove, diagonal: true)
+        let bus = try XCTUnwrap(engine.routerBeginBus(at: CGPoint(x: 20.95, y: 20), layer: 0, count: 2, options: options))
+        XCTAssertNil(bus.error)
+        XCTAssertEqual(bus.kind, "bus")
+        XCTAssertEqual(bus.nets.count, 2)
+        let head = try XCTUnwrap(engine.routerMove(to: CGPoint(x: 20, y: 5)))
+        XCTAssertEqual(Set(head.head.map(\.net)).count, 2)
+        engine.routerCancel()
+    }
+
+    func testHighlightModeListsCollisions() throws {
+        let store = try routedStore()
+        store.routerMode = .highlight
+        store.beginRoute(at: CGPoint(x: 39.05, y: 20), layer: 0, pair: false)
+        XCTAssertNotNil(store.routePreview)
+        // Straight off the board: nothing stops the head, the edge is listed as a collision.
+        let preview = try XCTUnwrap(store.engine.routerMove(to: CGPoint(x: 39.05, y: -5)))
+        XCTAssertFalse(preview.blocked)
+        XCTAssertTrue(preview.collisions?.contains { $0.kind == "edge" } ?? false)
+        store.cancelRoute()
+        XCTAssertNil(store.routePreview)
+    }
+}

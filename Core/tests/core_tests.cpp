@@ -1,5 +1,6 @@
 // SiEDA core unit tests — dependency-free; run via `ctest` or directly.
 #include <map>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <complex>
@@ -12,6 +13,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <thread>
 
 #include <algorithm>
 
@@ -9652,4 +9654,666 @@ TEST(si_channel_ends_at_connector) {
     ideal.idealDriver = true;
     const Json j = channelJson(b.p, o, ideal, &e, nullptr);
     CHECK(j.get("error").isNull() && j.get("eye").get("open").asBool());
+}
+
+// ======================================================================= interactive router: drag, via drag, tuning
+
+namespace {
+/// Net A runs r1 → top → via V1 (18, 20) → bottom → via V2 (26, 20) → top → r2; net B is a vertical top-layer track
+/// at x = 21 between two pads.
+struct ViaBoard {
+    Project p;
+    int netA = -1, netB = -1;
+    int via1 = -1;
+};
+
+ViaBoard viaBoard() {
+    ViaBoard b;
+    auto& s = b.p.schematic;
+    const int r1 = placeR(b.p, {10, 20}), r2 = placeR(b.p, {34, 20});
+    const int r3 = placeR(b.p, {21, 8}, 90), r4 = placeR(b.p, {21, 32}, 90);
+    wire(s, r1, "2", r2, "1");
+    wire(s, r3, "2", r4, "1");
+    b.p.schematicChanged();
+    b.netA = s.netOf({r1, 1});
+    b.netB = s.netOf({r3, 1});
+    addPath(b.p.pcb, b.netA, 0, 0.25, {padAt(b.p, r1, 1), {18, 20}});
+    addPath(b.p.pcb, b.netA, 1, 0.25, {{18, 20}, {26, 20}});
+    addPath(b.p.pcb, b.netA, 0, 0.25, {{26, 20}, padAt(b.p, r2, 0)});
+    addPath(b.p.pcb, b.netB, 0, 0.25, {padAt(b.p, r3, 1), padAt(b.p, r4, 0)});
+    Via v;
+    v.net = b.netA;
+    v.position = {18, 20};
+    b.via1 = b.p.pcb.addVia(v);
+    v.position = {26, 20};
+    b.p.pcb.addVia(v);
+    return b;
+}
+
+/// Acute-angle (acid trap) warnings of the DRC.
+int acuteWarnings(const Project& p) {
+    int n = 0;
+    for (const auto& v : p.pcb.runDRC(p.schematic)) n += v.code == "DRC_ACUTE_ANGLE" ? 1 : 0;
+    return n;
+}
+}  // namespace
+
+TEST(router_drags_a_via_and_shoves) {
+    ViaBoard b = viaBoard();
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(netRouted(b.p, b.netA) && netRouted(b.p, b.netB));
+    {
+        InteractiveRouter r(b.p.pcb, b.p.schematic);
+        CHECK(r.beginViaDrag(b.via1, {18, 20}));
+        CHECK(r.preview().kind == "via");
+        CHECK(r.preview().hiddenVias.size() == 1);
+        // Pushed into net B's track: the track is shoved aside, the via lands where it was dropped.
+        const RoutePreview& pv = r.moveTo({20.5, 20.3});
+        CHECK(!pv.blocked);
+        CHECK(!pv.shovedTracks.empty());
+        CHECK(pv.vias.size() == 1);
+        CHECK(pv.head.size() >= 2);  // the top and bottom tracks follow the via
+        CHECK(std::fabs(pv.end.x - 20.5) < 1e-9 && std::fabs(pv.end.y - 20.3) < 1e-9);
+        const RouteChanges ch = r.commit();
+        CHECK(ch.ok && ch.addedVias.size() == 1 && ch.removedVias.size() == 1);
+    }
+    bool moved = false;
+    for (const auto& v : b.p.pcb.vias) moved = moved || (std::fabs(v.position.x - 20.5) < 1e-9 && v.net == b.netA);
+    CHECK(moved);
+    CHECK(netRouted(b.p, b.netA) && netRouted(b.p, b.netB));
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    // Walk around: nothing moves, the via stops short of net B's track.
+    ViaBoard c = viaBoard();
+    {
+        InteractiveRouter r(c.p.pcb, c.p.schematic);
+        RouterOptions o;
+        o.mode = RouterMode::Walkaround;
+        r.setOptions(o);
+        CHECK(r.beginViaDrag(c.via1, {18, 20}));
+        const RoutePreview& pv = r.moveTo({21, 20});
+        CHECK(pv.blocked);
+        CHECK(pv.shovedTracks.empty());
+        CHECK(pv.end.x < 21 - 0.3 - 0.2 - 0.125 + 1e-3);
+        CHECK(r.commit().ok);
+        CHECK(routingProblems(c.p) == 0);
+        CHECK(netRouted(c.p, c.netA));
+    }
+    // Cancel leaves the board alone; a via in a pad of its net and an unknown via cannot be dragged.
+    ViaBoard d = viaBoard();
+    const auto vias = d.p.pcb.vias;
+    InteractiveRouter rd(d.p.pcb, d.p.schematic);
+    CHECK(rd.beginViaDrag(d.via1, {18, 20}));
+    rd.moveTo({16, 24});
+    rd.cancel();
+    CHECK(d.p.pcb.vias.size() == vias.size() && d.p.pcb.vias[0].position == vias[0].position);
+    CHECK(!rd.beginViaDrag(-7, {0, 0}));
+    Via inPad;
+    inPad.net = d.netA;
+    inPad.position = d.p.pcb.tracks.front().a;  // r1's pad centre
+    const int padVia = d.p.pcb.addVia(inPad);
+    CHECK(!rd.beginViaDrag(padVia, inPad.position));
+    CHECK(!rd.error().empty());
+}
+
+TEST(router_previews_length_tuning) {
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {42, 20});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 1});
+    addPath(p.pcb, net, 0, 0.25, {padAt(p, r1, 1), padAt(p, r2, 0)});
+    const int id = p.pcb.tracks.front().id;
+    const double before = routedNetLength(p.pcb, net);
+    LengthTuneOptions o;
+    o.target = before + 4;
+    o.spacing = 0.6;
+    o.hasNear = true;
+    o.near = {15, 20};
+    o.apply = false;
+    const LengthTuneResult pv = tuneTrackLength(p.pcb, s, id, o);
+    CHECK(pv.ok && !pv.applied);
+    CHECK(pv.group.empty());
+    CHECK_NEAR(pv.after, before + 4, 0.05);
+    CHECK(pv.removedTracks.size() == 1 && pv.removedTracks[0] == id);
+    CHECK(pv.addedTracks.size() > 4);
+    CHECK(p.pcb.tracks.size() == 1 && p.pcb.tracks.front().id == id);  // a preview leaves the board alone
+    // The meander sits near the requested point, with legs 0.6 mm apart edge to edge.
+    std::vector<double> legs;
+    for (const auto& t : pv.addedTracks)
+        if (std::fabs(t.a.x - t.b.x) < 1e-9) legs.push_back(t.a.x);
+    CHECK(legs.size() >= 2);
+    double mid = 0;
+    for (double x : legs) mid += x / static_cast<double>(legs.size());
+    CHECK(std::fabs(mid - 15) < 2);
+    for (size_t k = 1; k < legs.size(); ++k) CHECK_NEAR(std::fabs(legs[k] - legs[k - 1]), 0.6 + 0.25, 1e-6);
+    // Applying the same options writes exactly the previewed copper.
+    o.apply = true;
+    const LengthTuneResult ap = tuneTrackLength(p.pcb, s, id, o);
+    CHECK(ap.ok && ap.applied);
+    CHECK_NEAR(ap.after, pv.after, 1e-9);
+    CHECK(p.pcb.tracks.size() == pv.addedTracks.size());
+    CHECK(netRouted(p, net));
+    CHECK(routingProblems(p) == 0);
+    CHECK(acuteWarnings(p) == 0);
+    // JSON round trip of the options and the result.
+    const LengthTuneOptions jo =
+        lengthTuneOptionsFromJson(Json::parse("{\"target\":12.5,\"spacing\":0.4,\"x\":3,\"y\":4,\"apply\":false}"));
+    CHECK(jo.target == 12.5 && jo.spacing == 0.4 && jo.hasNear && jo.near == Vec2(3, 4) && !jo.apply);
+    CHECK(lengthTuneJson(pv).dump().find("\"addedTracks\":[{") != std::string::npos);
+}
+
+TEST(router_tunes_pair_skew_and_reports_the_target) {
+    // USB_P runs straight; USB_N takes a detour, so it is longer: tuning P with no target matches it to N.
+    Project p;
+    auto& s = p.schematic;
+    const int p1 = placeR(p, {10, 14}), p2 = placeR(p, {40, 14}), n1 = placeR(p, {10, 18}), n2 = placeR(p, {40, 18});
+    wire(s, p1, "2", p2, "1");
+    wire(s, n1, "2", n2, "1");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_P", {0, 0}), "N", p1, "2");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_N", {0, 50}), "N", n1, "2");
+    p.schematicChanged();
+    const int netP = s.netOf({p1, 1}), netN = s.netOf({n1, 1});
+    addPath(p.pcb, netP, 0, 0.25, {padAt(p, p1, 1), padAt(p, p2, 0)});
+    const Vec2 a = padAt(p, n1, 1), b = padAt(p, n2, 0);
+    addPath(p.pcb, netN, 0, 0.25, {a, {a.x + 4, a.y}, {a.x + 6, a.y + 2}, {b.x - 6, b.y + 2}, {b.x - 4, b.y}, b});
+    const double lenN = routedNetLength(p.pcb, netN);
+    CHECK(lenN > routedNetLength(p.pcb, netP) + 1);
+    // The route preview reports the net's length and the length its pair partner has.
+    {
+        InteractiveRouter r(p.pcb, s);
+        CHECK(r.beginRoute(padAt(p, p1, 1), 0));
+        const RoutePreview& pv = r.moveTo({20, 12});
+        CHECK_NEAR(pv.targetLength, lenN, 1e-9);
+        CHECK_NEAR(pv.netLength, routedNetLength(p.pcb, netP) + pv.length, 1e-9);
+        r.cancel();
+    }
+    LengthTuneOptions o;
+    o.apply = false;
+    const LengthTuneResult pv = tuneTrackLength(p.pcb, s, p.pcb.tracks.front().id, o);
+    CHECK(pv.ok);
+    CHECK(pv.groupKind == "pair");
+    CHECK_NEAR(pv.target, lenN, 1e-9);
+    CHECK(std::fabs(pv.after - lenN) <= pv.tolerance + 1e-6);
+    o.apply = true;
+    const LengthTuneResult ap = tuneTrackLength(p.pcb, s, p.pcb.tracks.front().id, o);
+    CHECK(ap.ok && ap.applied);
+    CHECK(std::fabs(routedNetLength(p.pcb, netP) - lenN) <= p.pcb.settings.pairSkewTolerance / 2 + 1e-6);
+    CHECK(routingProblems(p) == 0);
+    CHECK(netRouted(p, netP) && netRouted(p, netN));
+}
+
+extern "C" int sieda_c_api_router_drag_tune_test(void);
+
+TEST(c_api_router_drag_and_tune) {
+    const int rc = sieda_c_api_router_drag_tune_test();
+    if (rc != 0) std::printf("    c api drag / tune step %d failed\n", rc);
+    CHECK(rc == 0);
+}
+
+TEST(router_shoved_copper_adds_no_drc_warning) {
+    // Routes, drags and via drags with shove at pseudo-random spots of autorouted boards (several seeds, 2 and 4
+    // layers): no commit may add a DRC error, a clearance warning or an acute-angle warning.
+    int commits = 0, shoved = 0, newAcute = 0;
+    for (unsigned seed : {7u, 11u, 2024u, 99u}) {
+        auto rnd = [&seed] {
+            seed = seed * 1103515245u + 12345u;
+            return ((seed >> 8) & 0xFFFFFF) / double(0xFFFFFF);
+        };
+        Project p;
+        auto& s = p.schematic;
+        std::vector<int> ids;
+        for (int i = 0; i < 24; ++i) ids.push_back(s.addComponent(ComponentKind::Resistor, "1k", {(i % 6) * 100.0, (i / 6) * 100.0}));
+        for (size_t k = 0; k < ids.size(); ++k) {
+            const size_t other = static_cast<size_t>(rnd() * ids.size()) % ids.size();
+            if (other != k) s.connect({ids[k], 1}, {ids[other], 0});
+        }
+        p.pcb.settings.width = 40;
+        p.pcb.settings.height = 30;
+        p.pcb.settings.layerCount = seed % 2 ? 2 : 4;
+        p.schematicChanged();
+        p.pcb.autoPlace(s, true);
+        p.pcb.autoRoute(s);
+        int acute = acuteWarnings(p);
+        CHECK(routingProblems(p) == 0);
+        for (int it = 0; it < 40; ++it) {
+            InteractiveRouter r(p.pcb, s);
+            const double pick = rnd();
+            bool ok = false;
+            if (pick < 0.3 && !p.pcb.tracks.empty()) {
+                const Track& t = p.pcb.tracks[static_cast<size_t>(rnd() * p.pcb.tracks.size()) % p.pcb.tracks.size()];
+                ok = r.beginDrag(t.id, (t.a + t.b) * 0.5);
+            } else if (pick < 0.45 && !p.pcb.vias.empty()) {
+                const Via& v = p.pcb.vias[static_cast<size_t>(rnd() * p.pcb.vias.size()) % p.pcb.vias.size()];
+                ok = r.beginViaDrag(v.id, v.position);
+            } else {
+                const auto pads = p.pcb.pads(s);
+                const Pad& pd = pads[static_cast<size_t>(rnd() * pads.size()) % pads.size()];
+                ok = r.beginRoute(pd.position, 0);
+            }
+            if (!ok) continue;
+            const Vec2 at = r.preview().end;
+            const bool local = r.preview().kind != "route";
+            for (int m = 0; m < 3; ++m) {
+                const Vec2 c = local ? at + Vec2{(rnd() - 0.5) * 2, (rnd() - 0.5) * 2}
+                                     : Vec2{rnd() * p.pcb.settings.width, rnd() * p.pcb.settings.height};
+                shoved += r.moveTo(c).shovedTracks.empty() ? 0 : 1;
+                if (!local && rnd() < 0.5) r.fixHead();
+            }
+            if (!r.commit().ok) continue;
+            ++commits;
+            const int problems = routingProblems(p);
+            CHECK(problems == 0);
+            const int now = acuteWarnings(p);
+            if (now > acute) {
+                ++newAcute;
+                std::printf("    seed %u step %d: %d new acute-angle warning(s)\n", seed, it, now - acute);
+            }
+            acute = now;
+            if (problems) break;
+        }
+    }
+    std::printf("    %d commits, %d shoving moves, %d commits added acute angles\n", commits, shoved, newAcute);
+    CHECK(commits >= 80);
+    CHECK(shoved > 20);
+    CHECK(newAcute == 0);
+}
+
+TEST(router_shoves_lines_around_hole_keepouts) {
+    // Net B runs straight down x = 21; a mounting hole sits just right of it. Routing net A up to x = 21.6 pushes B
+    // right, into the keep-out: B walks round the keep-out instead of refusing (which left the head blocked).
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20});
+    const int r3 = placeR(p, {21, 8}, 90), r4 = placeR(p, {21, 32}, 90);
+    const int r5 = placeR(p, {40, 20});
+    wire(s, r1, "2", r5, "1");
+    wire(s, r3, "2", r4, "1");
+    p.schematicChanged();
+    p.pcb.settings.holes.push_back({{23, 20}, 1.0, 2.0});
+    const int netB = s.netOf({r3, 1});
+    addPath(p.pcb, netB, 0, 0.25, {padAt(p, r3, 1), padAt(p, r4, 0)});
+    CHECK(routingProblems(p) == 0);
+    InteractiveRouter r(p.pcb, s);
+    CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+    const RoutePreview& pv = r.moveTo({21.6, 20});
+    CHECK(!pv.blocked);
+    CHECK(!pv.shovedTracks.empty());
+    bool beyondHole = false;
+    for (const auto& t : pv.shovedTracks) beyondHole = beyondHole || std::max(t.a.x, t.b.x) > 24;
+    CHECK(beyondHole);
+    CHECK(r.commit().ok);
+    CHECK(routingProblems(p) == 0);
+    CHECK(acuteWarnings(p) == 0);
+    CHECK(netRouted(p, netB));
+}
+
+TEST(router_highlights_collisions) {
+    // Highlight mode: the head goes straight through the lanes; nothing moves and each lane it crosses is listed.
+    LaneBoard b = laneBoard();
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    RouterOptions o;
+    o.mode = RouterMode::Highlight;
+    r.setOptions(o);
+    CHECK(r.beginRoute(b.from, 0));
+    const RoutePreview& pv = r.moveTo({b.from.x, 4});
+    CHECK(!pv.blocked);
+    CHECK(pv.shovedTracks.empty() && pv.hiddenTracks.empty());
+    std::set<int> lanes;
+    for (const auto& c : pv.collisions)
+        if (c.kind == "track")
+            for (const auto& t : b.p.pcb.tracks)
+                if (t.id == c.id) lanes.insert(t.net);
+    CHECK(lanes.size() == 3);
+    CHECK(pv.status.find("collision") != std::string::npos);
+    CHECK(routePreviewJson(pv).dump().find("\"kind\":\"track\"") != std::string::npos);
+    CHECK(routerOptionsFromJson(Json::parse("{\"mode\":\"highlight\"}")).mode == RouterMode::Highlight);
+    // Placed as asked: the DRC reports the crossings.
+    CHECK(r.commit().ok);
+    CHECK(routingProblems(b.p) > 0);
+    // The other modes never report collisions.
+    LaneBoard c = laneBoard();
+    InteractiveRouter rs(c.p.pcb, c.p.schematic);
+    CHECK(rs.beginRoute(c.from, 0));
+    CHECK(rs.moveTo({c.from.x, 4}).collisions.empty());
+}
+
+TEST(router_places_blind_buried_and_micro_vias) {
+    // 4-layer HDI board: top → microvia to Inner 1 → microvia to Inner 2 (buried) → blind via to the bottom → through
+    // via back to the top pad. Every span is what was asked for, and the board stays DRC clean.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {44, 20});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    p.pcb.settings.layerCount = 4;
+    p.pcb.settings.hdi = true;
+    const int net = s.netOf({r1, 1});
+    InteractiveRouter r(p.pcb, s);
+    RouterOptions o;
+    o.viaType = RouterViaType::Micro;
+    r.setOptions(o);
+    CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+    r.moveTo({14, 20});
+    CHECK(!r.addVia(2));  // a microvia joins neighbouring layers only
+    CHECK(r.error().find("neighbouring") != std::string::npos);
+    CHECK(r.addVia());  // the next layer down
+    CHECK(r.preview().layer == 1);
+    r.moveTo({20, 20});
+    CHECK(r.addVia());
+    CHECK(r.preview().layer == 2);
+    o.viaType = RouterViaType::Blind;
+    r.setOptions(o);
+    r.moveTo({26, 20});
+    CHECK(r.addVia(3));
+    CHECK(r.preview().layer == 3);
+    o.viaType = RouterViaType::Through;
+    r.setOptions(o);
+    r.moveTo({32, 20});
+    CHECK(r.addVia(0));
+    const RoutePreview& pv = r.moveTo(padAt(p, r2, 0));
+    CHECK(pv.reachedTarget);
+    CHECK(pv.vias.size() == 4);
+    CHECK(routePreviewJson(pv).dump().find("\"kind\":\"microvia\"") != std::string::npos);
+    CHECK(r.commit().ok);
+    std::vector<std::string> kinds;
+    for (const auto& v : p.pcb.vias) kinds.push_back(viaKind(v, 4));
+    CHECK(kinds.size() == 4);
+    if (kinds.size() == 4) {
+        CHECK(kinds[0] == "microvia" && p.pcb.vias[0].fromLayer == 0 && p.pcb.vias[0].toLayer == 1);
+        CHECK(kinds[1] == "microvia" && p.pcb.vias[1].fromLayer == 1 && p.pcb.vias[1].toLayer == 2);
+        CHECK(kinds[2] == "blind" && p.pcb.vias[2].fromLayer == 2 && p.pcb.vias[2].toLayer == -1);
+        CHECK(kinds[3] == "through");
+        CHECK_NEAR(p.pcb.vias[0].drill, p.pcb.settings.microviaDrill, 1e-12);
+    }
+    CHECK(netRouted(p, net));
+    CHECK(routingProblems(p) == 0);
+    CHECK(acuteWarnings(p) == 0);
+    // Auto picks a microvia for the next layer on an HDI board, a through via without HDI; blind / micro need HDI.
+    {
+        Project q = p;
+        q.pcb.clearRouting();
+        InteractiveRouter ra(q.pcb, q.schematic);
+        RouterOptions oa;
+        oa.viaType = RouterViaType::Auto;
+        ra.setOptions(oa);
+        CHECK(ra.beginRoute(padAt(q, r1, 1), 0));
+        ra.moveTo({14, 20});
+        CHECK(ra.addVia());
+        CHECK(ra.preview().layer == 1 && ra.preview().vias.size() == 1);
+        if (ra.preview().vias.size() == 1) CHECK(std::string(viaKind(ra.preview().vias[0], 4)) == "microvia");
+        ra.cancel();
+        q.pcb.settings.hdi = false;
+        CHECK(ra.beginRoute(padAt(q, r1, 1), 0));
+        ra.moveTo({14, 20});
+        CHECK(ra.addVia());
+        CHECK(ra.preview().layer == 3);  // no HDI: a through via to the other side
+        ra.cancel();
+        oa.viaType = RouterViaType::Blind;
+        ra.setOptions(oa);
+        CHECK(ra.beginRoute(padAt(q, r1, 1), 0));
+        ra.moveTo({14, 20});
+        CHECK(!ra.addVia());
+        CHECK(ra.error().find("HDI") != std::string::npos);
+    }
+    CHECK(routerOptionsFromJson(Json::parse("{\"viaType\":\"micro\"}")).viaType == RouterViaType::Micro);
+    CHECK(routerOptionsFromJson(Json::parse("{\"viaType\":\"auto\"}")).viaType == RouterViaType::Auto);
+}
+
+TEST(router_rounds_corners) {
+    // Rounded corners: a route with a 45° and a 90° corner is written with arcs of short chords (each join turns at
+    // most 15°), exactly as previewed, connected and DRC clean. A via of another net inside a corner keeps it sharp.
+    for (bool obstacle : {false, true}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {40, 32}), r3 = placeR(p, {45, 5}), r4 = placeR(p, {45, 10});
+        wire(s, r1, "2", r2, "1");
+        wire(s, r3, "2", r4, "1");
+        p.schematicChanged();
+        const int net = s.netOf({r1, 1});
+        if (obstacle) {
+            Via v;
+            v.net = s.netOf({r3, 1});
+            v.position = {19.732, 20.647};  // on the bisector, 0.7 mm inside the first corner at (20, 20)
+            p.pcb.addVia(v);
+        }
+        InteractiveRouter r(p.pcb, s);
+        RouterOptions o;
+        o.cornerRadius = 2;
+        r.setOptions(o);
+        CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+        r.moveTo({20, 20});
+        CHECK(r.fixHead());
+        r.moveTo({28, 28});  // 45° corner at (20, 20)
+        CHECK(r.fixHead());
+        const RoutePreview& pv = r.moveTo(padAt(p, r2, 0));  // a 45° corner at (28, 28) onto the pad's row
+        CHECK(pv.reachedTarget);
+        double previewLength = 0;
+        for (const auto& t : pv.placed) previewLength += (t.b - t.a).length();
+        for (const auto& t : pv.head) previewLength += (t.b - t.a).length();
+        CHECK(r.commit().ok);
+        CHECK(netRouted(p, net));
+        CHECK(routingProblems(p) == 0);
+        CHECK(acuteWarnings(p) == 0);
+        CHECK_NEAR(routedNetLength(p.pcb, net), previewLength, 1e-6);
+        // Joins between the route's own segments.
+        double sharpest = 180;
+        int chords = 0;
+        for (const auto& a : p.pcb.tracks)
+            for (const auto& b : p.pcb.tracks) {
+                if (a.id >= b.id || a.net != net || b.net != net) continue;
+                for (Vec2 pa : {a.a, a.b})
+                    for (Vec2 pb : {b.a, b.b}) {
+                        if ((pa - pb).length() > 1e-6) continue;
+                        const Vec2 da = (pa == a.a ? a.b : a.a) - pa, db = (pb == b.a ? b.b : b.a) - pb;
+                        const double ang = std::acos(std::clamp(da.dot(db) / (da.length() * db.length()), -1.0, 1.0)) * 180 / kPi;
+                        sharpest = std::min(sharpest, ang);
+                        chords += ang < 179.9 ? 1 : 0;
+                    }
+            }
+        if (obstacle) {
+            CHECK(sharpest < 136);  // the corner next to the via stays a plain 45° corner
+        } else {
+            CHECK(sharpest > 164.9);  // every corner became an arc
+            CHECK(chords >= 6);
+        }
+    }
+    CHECK(routerOptionsFromJson(Json::parse("{\"cornerRadius\":-1}")).cornerRadius < 0);
+}
+
+TEST(router_head_update_can_be_cancelled) {
+    // A cancelled head update leaves the router exactly as before it; the next update is unaffected and gives the
+    // same result as on a router that was never cancelled. A request made while nothing runs changes nothing.
+    LaneBoard a = laneBoard(), b = laneBoard();
+    InteractiveRouter ra(a.p.pcb, a.p.schematic), rb(b.p.pcb, b.p.schematic);
+    std::atomic<unsigned> counter{0};
+    ra.setAbortSource(&counter);
+    CHECK(ra.beginRoute(a.from, 0) && rb.beginRoute(b.from, 0));
+    ra.moveTo({20, 23.3});
+    rb.moveTo({20, 23.3});
+    const std::string before = routePreviewJson(ra.preview()).dump();
+    ra.requestAbort();  // nothing runs: no effect on what follows
+    counter.fetch_add(1);
+    CHECK(!ra.moveTo({20, 23.3}).aborted);
+    CHECK(routePreviewJson(ra.preview()).dump() == before);
+    // Cancel while a slow update runs (aimed into another net's pad: shove, walk-around search and a binary search
+    // for the furthest fit take milliseconds): a helper thread keeps bumping the counter.
+    std::atomic<bool> stop{false};
+    std::thread bumper([&] {
+        while (!stop.load()) counter.fetch_add(1);
+    });
+    const unsigned started = counter.load();
+    while (counter.load() - started < 1000) std::this_thread::yield();  // the helper is running
+    int cancelledMoves = 0;
+    bool unchanged = true;
+    for (int attempt = 0; attempt < 20 && cancelledMoves == 0; ++attempt) {
+        RoutePreview cancelled = ra.moveTo(padAt(a.p, a.p.schematic.components()[1].id, 0));
+        if (!cancelled.aborted) {
+            ra.moveTo({20, 23.3});  // completed instead: back to the state before, try again
+            continue;
+        }
+        ++cancelledMoves;
+        cancelled.aborted = false;
+        unchanged = unchanged && routePreviewJson(cancelled).dump() == before;
+    }
+    stop = true;
+    bumper.join();
+    CHECK(cancelledMoves > 0);
+    CHECK(unchanged);
+    // The next update runs normally and matches the router that was never cancelled.
+    const std::string next = routePreviewJson(ra.moveTo({45, 23.3})).dump();
+    CHECK(!ra.preview().aborted);
+    CHECK(next == routePreviewJson(rb.moveTo({45, 23.3})).dump());
+    CHECK(ra.commit().ok && rb.commit().ok);
+    CHECK(routingProblems(a.p) == 0);
+    // C API: abort is a no-op without a router, and safe to call at any time.
+    SiedaProject* p = sieda_project_new("abort");
+    sieda_router_abort(p);
+    sieda_router_abort(nullptr);
+    CHECK(sieda_router_active(p) == 0);
+    sieda_project_free(p);
+}
+
+namespace {
+/// Two SOIC-8 parts 30 mm apart; U1's right-hand pins 5…8 are wired to U2's left-hand pins 4…1 (same rows).
+struct BusBoard {
+    Project p;
+    int u1 = -1, u2 = -1;
+    std::vector<int> nets;  // U1 pin 5, 6, 7, 8
+};
+
+BusBoard busBoard() {
+    BusBoard b;
+    auto& s = b.p.schematic;
+    CustomPartSpec spec;
+    spec.name = "BUS-SOIC8";
+    spec.package.type = "SOIC";
+    spec.package.pinCount = 8;
+    for (int i = 1; i <= 8; ++i) {
+        CustomPin pin;
+        pin.number = std::to_string(i);
+        pin.name = "P" + std::to_string(i);
+        pin.type = PinType::Passive;
+        spec.pins.push_back(pin);
+    }
+    const std::string part = b.p.addCustomPart(spec);
+    b.u1 = s.addCustomComponent(part, "", {0, 0});
+    b.u2 = s.addCustomComponent(part, "", {400, 0});
+    for (int k = 0; k < 4; ++k) wire(s, b.u1, ("P" + std::to_string(5 + k)).c_str(), b.u2, ("P" + std::to_string(4 - k)).c_str());
+    b.p.schematicChanged();
+    for (auto [id, x] : {std::pair<int, double>{b.u1, 12}, {b.u2, 42}}) {
+        Component* c = s.find(id);
+        c->pcb.position = {x, 20};
+        c->pcb.placed = true;
+    }
+    for (int k = 0; k < 4; ++k) b.nets.push_back(s.netOf({b.u1, pin(s, b.u1, ("P" + std::to_string(5 + k)).c_str())}));
+    return b;
+}
+}  // namespace
+
+TEST(router_routes_a_bus_together) {
+    BusBoard b = busBoard();
+    auto& s = b.p.schematic;
+    const Vec2 p8 = padAt(b.p, b.u1, pin(s, b.u1, "P8"));
+    InteractiveRouter r(b.p.pcb, s);
+    CHECK(!r.beginBus({1, 1}, 0, 4));  // not on a pad
+    CHECK(r.beginBus(p8, 0, 4));
+    CHECK(r.preview().kind == "bus" && r.preview().nets.size() == 4);
+    const RoutePreview& pv = r.moveTo({30, 20});
+    CHECK(!pv.blocked);
+    CHECK(!r.addVia());  // vias track by track, after the bus
+    CHECK(r.commit().ok);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    // Each member ends in the bundle at x = 30: four parallel ends at track pitch (width + clearance), in pin order.
+    const double pitch = b.p.pcb.settings.trackWidth + b.p.pcb.settings.clearance;
+    std::vector<std::pair<double, int>> ends;
+    for (const auto& t : b.p.pcb.tracks)
+        for (Vec2 e : {t.a, t.b})
+            if (std::fabs(e.x - 30) < 1e-6) ends.push_back({e.y, t.net});
+    std::sort(ends.begin(), ends.end());
+    CHECK(ends.size() == 4);
+    for (size_t k = 1; k < ends.size(); ++k) CHECK_NEAR(ends[k].first - ends[k - 1].first, pitch, 1e-6);
+    // Each track is then finished on its own, onto its pad of U2: everything routed, DRC clean.
+    for (size_t k = 0; k < ends.size(); ++k) {
+        InteractiveRouter rk(b.p.pcb, s);
+        CHECK(rk.beginRoute({30, ends[k].first}, 0));
+        Vec2 target{-1, -1};
+        for (const auto& pd : b.p.pcb.pads(s))
+            if (pd.net == ends[k].second && pd.componentId == b.u2) target = pd.position;
+        const RoutePreview& fk = rk.moveTo(target);
+        CHECK(fk.reachedTarget);
+        CHECK(rk.commit().ok);
+    }
+    for (int n : b.nets) CHECK(netRouted(b.p, n));
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+}
+
+TEST(router_bus_turns_corners_at_pitch) {
+    // The bundle turns a 90° corner (45° posture: two 45° bends) and stays at pitch: no member comes closer to
+    // another than the clearance anywhere, and DRC stays clean.
+    BusBoard b = busBoard();
+    auto& s = b.p.schematic;
+    InteractiveRouter r(b.p.pcb, s);
+    CHECK(r.beginBus(padAt(b.p, b.u1, pin(s, b.u1, "P5")), 0, 4));
+    r.moveTo({24, 20});
+    CHECK(r.fixHead());
+    const RoutePreview& pv = r.moveTo({30, 34});
+    CHECK(!pv.blocked);
+    CHECK(r.commit().ok);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    double closest = 1e9;
+    for (const auto& t : b.p.pcb.tracks)
+        for (const auto& u : b.p.pcb.tracks)
+            if (t.net != u.net) closest = std::min(closest, segmentSegmentDistance(t.a, t.b, u.a, u.b) - (t.width + u.width) / 2);
+    CHECK(closest >= b.p.pcb.settings.clearance - 1e-6);
+    CHECK(closest <= b.p.pcb.settings.clearance + 1e-6);  // packed at pitch somewhere
+}
+
+TEST(router_fans_out_a_part) {
+    // U1's four wired pins get an escape and a via each, straight out of the pad row; its four unconnected pins are
+    // skipped. A second fanout finds nothing left to do. The board stays DRC clean.
+    BusBoard b = busBoard();
+    const FanoutResult f = fanoutComponent(b.p.pcb, b.p.schematic, b.u1);
+    CHECK(f.ok);
+    CHECK(f.fanned == 4 && f.skipped == 4 && f.failedPads.empty());
+    CHECK(b.p.pcb.vias.size() == 4);
+    for (const auto& v : b.p.pcb.vias) CHECK(v.position.x > 14.7 + 0.775);  // outside the right-hand pad column
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    const FanoutResult again = fanoutComponent(b.p.pcb, b.p.schematic, b.u1);
+    CHECK(!again.ok && again.fanned == 0 && again.skipped == 8);
+    CHECK(b.p.pcb.vias.size() == 4);
+    CHECK(!fanoutComponent(b.p.pcb, b.p.schematic, -1).ok);
+    const FanoutOptions o = fanoutOptionsFromJson(Json::parse("{\"viaType\":\"micro\",\"shove\":true,\"distance\":1.5}"));
+    CHECK(o.viaType == RouterViaType::Micro && o.shove && o.distance == 1.5);
+    CHECK(fanoutJson(f).dump().find("\"fanned\":4") != std::string::npos);
+}
+
+TEST(router_fans_out_two_pin_parts_and_starts_their_bus) {
+    // The app test's board: R1 at (20, 20) wired to R2 and R3 on both pins. Fanout gives both pads a via; the same
+    // two pads also start a bus of two.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {20, 20}), r2 = placeR(p, {40, 10}), r3 = placeR(p, {40, 30});
+    wire(s, r1, "2", r2, "1");
+    wire(s, r1, "1", r3, "2");
+    p.schematicChanged();
+    {
+        Project q = p;
+        const FanoutResult f = fanoutComponent(q.pcb, q.schematic, r1);
+        CHECK(f.fanned == 2 && q.pcb.vias.size() == 2);
+        CHECK(routingProblems(q) == 0);
+        CHECK(acuteWarnings(q) == 0);
+    }
+    InteractiveRouter r(p.pcb, s);
+    CHECK(r.beginBus(padAt(p, r1, 1), 0, 2));
+    const RoutePreview& pv = r.moveTo({20, 5});
+    std::set<int> nets;
+    for (const auto& t : pv.head) nets.insert(t.net);
+    CHECK(nets.size() == 2);
+    CHECK(!pv.blocked);
 }

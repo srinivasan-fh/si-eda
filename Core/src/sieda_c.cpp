@@ -13,6 +13,7 @@
 #include "sieda/Firmware.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <map>
 #include <memory>
@@ -51,6 +52,8 @@
 struct SiedaProject {
     sieda::Project project;
     std::unique_ptr<sieda::InteractiveRouter> router;  // interactive route session (created on first use)
+    /// sieda_router_abort bumps it (lock-free, from any thread) to cancel the router's head computation in flight.
+    std::atomic<unsigned> routerAbort{0};
 };
 
 struct SiedaMesh {
@@ -1870,7 +1873,10 @@ char* sieda_export_variant(const SiedaProject* project, const char* format, cons
 
 namespace {
 InteractiveRouter& routerOf(SiedaProject* project) {
-    if (!project->router) project->router = std::make_unique<InteractiveRouter>(project->project.pcb, project->project.schematic);
+    if (!project->router) {
+        project->router = std::make_unique<InteractiveRouter>(project->project.pcb, project->project.schematic);
+        project->router->setAbortSource(&project->routerAbort);
+    }
     return *project->router;
 }
 
@@ -1971,6 +1977,10 @@ void sieda_router_cancel(SiedaProject* project) {
     if (project && project->router) project->router->cancel();
 }
 
+void sieda_router_abort(SiedaProject* project) {
+    if (project) project->routerAbort.fetch_add(1, std::memory_order_relaxed);
+}
+
 int32_t sieda_router_active(const SiedaProject* project) {
     return project && project->router && project->router->active() ? 1 : 0;
 }
@@ -1990,6 +2000,51 @@ char* sieda_router_tune_length(SiedaProject* project, int32_t track_id, double t
         j["target"] = r.target;
         j["changes"] = routeChangesJson(r.changes);
         return dup(j.dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_router_begin_via_drag(SiedaProject* project, const char* options_json, int32_t via_id, double x, double y) {
+    if (!project) return nullptr;
+    try {
+        applyRouterOptions(project, options_json);
+        return routerPreview(project, routerOf(project).beginViaDrag(via_id, {x, y}));
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_router_begin_bus(SiedaProject* project, const char* options_json, double x, double y, int32_t layer,
+                             int32_t count) {
+    if (!project) return nullptr;
+    try {
+        applyRouterOptions(project, options_json);
+        return routerPreview(project, routerOf(project).beginBus({x, y}, layer, count));
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_pcb_fanout(SiedaProject* project, int32_t component_id, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        const FanoutOptions o =
+            fanoutOptionsFromJson(options_json && *options_json ? Json::parse(options_json) : Json::object());
+        if (project->router) project->router->cancel();
+        return dup(fanoutJson(fanoutComponent(project->project.pcb, project->project.schematic, component_id, o)).dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_router_tune(SiedaProject* project, int32_t track_id, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        const LengthTuneOptions o =
+            lengthTuneOptionsFromJson(options_json && *options_json ? Json::parse(options_json) : Json::object());
+        if (o.apply && project->router) project->router->cancel();
+        return dup(lengthTuneJson(tuneTrackLength(project->project.pcb, project->project.schematic, track_id, o)).dump());
     } catch (const std::exception& e) {
         return errorJson(e);
     }

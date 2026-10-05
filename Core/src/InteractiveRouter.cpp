@@ -40,6 +40,18 @@ constexpr double kJoin = 1e-4;      // track ends closer than this are one node
 constexpr double kMinEtchGap = 0.1; // DRC: gap inside one footprint where a track is still in its own pad
 constexpr double kInvSqrt2 = 0.70710678118654752440;
 
+/// Cancellation of a head computation: set for the duration of one computeHead() on its thread, polled by the long
+/// loops (shove queue, grid search, binary searches).
+thread_local const std::function<bool()>* t_abort = nullptr;
+bool abortRequested() { return t_abort && (*t_abort)(); }
+struct AbortScope {
+    const std::function<bool()>* saved;
+    explicit AbortScope(const std::function<bool()>* f) : saved(t_abort) { t_abort = f; }
+    ~AbortScope() { t_abort = saved; }
+    AbortScope(const AbortScope&) = delete;
+    AbortScope& operator=(const AbortScope&) = delete;
+};
+
 // ------------------------------------------------------------------------------------------------ geometry helpers
 
 double cross(Vec2 a, Vec2 b) { return a.x * b.y - a.y * b.x; }
@@ -159,6 +171,58 @@ std::vector<Vec2> offsetPath(const std::vector<Vec2>& c, double d) {
         }
     }
     return out;
+}
+
+/// The polyline with corners replaced by arcs of `radius` drawn as chords of at most 15°. An arc may use up to half
+/// of each neighbouring segment (all of an end segment); where that is too short the radius shrinks, and below
+/// `minRadius` (or when `clear` refuses the arc) the corner stays sharp. `vertexOut[i]` is where vertex i's
+/// replacement starts in the result.
+std::vector<Vec2> filletPath(const std::vector<Vec2>& pts, double radius, double minRadius,
+                             const std::function<bool(const std::vector<Vec2>&)>& clear, std::vector<size_t>* vertexOut) {
+    const size_t n = pts.size();
+    std::vector<Vec2> out;
+    if (vertexOut) vertexOut->assign(n, 0);
+    if (n == 0) return out;
+    out.push_back(pts[0]);
+    for (size_t i = 1; i + 1 < n; ++i) {
+        if (vertexOut) (*vertexOut)[i] = out.size();
+        const Vec2 d1 = pts[i] - pts[i - 1], d2 = pts[i + 1] - pts[i];
+        const double l1 = d1.length(), l2 = d2.length();
+        const Vec2 u1 = l1 > 0 ? d1 * (1 / l1) : Vec2{}, u2 = l2 > 0 ? d2 * (1 / l2) : Vec2{};
+        const double turn = std::acos(std::clamp(u1.dot(u2), -1.0, 1.0));  // 0 = straight on
+        bool done = false;
+        if (l1 > 1e-9 && l2 > 1e-9 && turn > 0.02 && turn < 2.0) {  // up to ~115°: 45° and 90° corners
+            const double avail = std::min(i == 1 ? l1 : l1 / 2, i + 2 == n ? l2 : l2 / 2);
+            double r = std::min(radius, avail / std::tan(turn / 2));
+            for (int attempt = 0; attempt < 2 && !done && r >= minRadius; ++attempt, r /= 2) {
+                const double t = r * std::tan(turn / 2);
+                const Vec2 a = pts[i] - u1 * t, b = pts[i] + u2 * t;
+                const double side = cross(u1, u2) > 0 ? 1 : -1;
+                const Vec2 nrm = Vec2{-u1.y, u1.x} * side;  // towards the inside of the turn
+                const Vec2 c = a + nrm * r;
+                const int steps = std::max(2, static_cast<int>(std::ceil(turn / (kPi / 12))));
+                std::vector<Vec2> arc{a};
+                const Vec2 ra = a - c;
+                for (int k = 1; k < steps; ++k) {
+                    const double ang = side * turn * k / steps;
+                    const double cs = std::cos(ang), sn = std::sin(ang);
+                    arc.push_back(c + Vec2{ra.x * cs - ra.y * sn, ra.x * sn + ra.y * cs});
+                }
+                arc.push_back(b);
+                if (!clear(arc)) continue;
+                out.insert(out.end(), arc.begin(), arc.end());
+                done = true;
+            }
+        }
+        if (!done) out.push_back(pts[i]);
+    }
+    if (vertexOut && n >= 1) (*vertexOut)[n - 1] = out.size();
+    out.push_back(pts[n - 1]);
+    // Only drop repeated points: the chords are nearly collinear and must stay.
+    std::vector<Vec2> clean;
+    for (Vec2 q : out)
+        if (clean.empty() || !samePoint(clean.back(), q, 1e-7)) clean.push_back(q);
+    return clean;
 }
 
 // --------------------------------------------------------------------------------------------- octagonal hulls
@@ -852,6 +916,86 @@ Line extractLine(const World& w, size_t ti) {
     return L;
 }
 
+// ------------------------------------------------------------------------------------------- joint optimiser
+
+/// Two track ends meeting at `p` with directions `da`, `db` pointing away from it make an acute (< 89°) join: the
+/// DRC's DRC_ACUTE_ANGLE (an acid trap). 0° is two tracks running over each other.
+bool acuteAway(Vec2 da, Vec2 db) {
+    const double l = da.length() * db.length();
+    return l > 0 && da.dot(db) > 0.01745 * l;
+}
+
+Vec2 awayFrom(const Track& t, Vec2 p) { return samePoint(t.a, p) ? t.b - t.a : t.a - t.b; }
+Vec2 otherEnd(const Track& t, Vec2 p) { return samePoint(t.a, p) ? t.b : t.a; }
+
+/// Alive tracks of `net` on `layer` with an end at `p`.
+std::vector<size_t> endsAt(const World& w, int net, int layer, Vec2 p) {
+    std::vector<size_t> found, out;
+    w.tracksIn(Rect::centered(p, 2 * kJoin, 2 * kJoin), found);
+    for (size_t i : found) {
+        const Track& t = w.track(i);
+        if (t.net == net && t.layer == layer && (samePoint(t.a, p) || samePoint(t.b, p))) out.push_back(i);
+    }
+    return out;
+}
+
+/// A join inside a pad or via of the net is covered by copper (the DRC does not report it).
+bool joinCovered(const World& w, int net, int layer, Vec2 p) {
+    long via = -1;
+    return nodeAnchored(w, net, layer, p, &via);
+}
+
+/// The board as it was already had an acute join of the net at `p` (tolerated, like every old violation).
+bool acuteBefore(const Base& B, int net, int layer, Vec2 p) {
+    std::vector<size_t> found, at;
+    B.query(B.trackGrid, Rect::centered(p, 2 * kJoin, 2 * kJoin), found);
+    for (size_t i : found) {
+        const Track& t = B.tracks[i];
+        if (t.net == net && t.layer == layer && (samePoint(t.a, p) || samePoint(t.b, p))) at.push_back(i);
+    }
+    for (size_t x = 0; x < at.size(); ++x)
+        for (size_t y = x + 1; y < at.size(); ++y)
+            if (acuteAway(awayFrom(B.tracks[at[x]], p), awayFrom(B.tracks[at[y]], p))) return true;
+    return false;
+}
+
+struct AcuteJoin {
+    Vec2 at;
+    size_t a = 0, b = 0;
+};
+
+/// Acute joins this session made: at an end of a track it added, between two tracks of which at least one is not
+/// part of the route itself (the route's own corners are built non-acute by the posture). Old ones are tolerated.
+std::vector<AcuteJoin> newAcuteJoins(const World& w) {
+    std::vector<AcuteJoin> out;
+    std::set<std::tuple<long long, long long, int>> seen;
+    for (size_t k = w.baseT(); k < w.nT(); ++k) {
+        if (!w.aliveT(k)) continue;
+        const Track& t = w.track(k);
+        for (Vec2 p : {t.a, t.b}) {
+            const auto key = std::make_tuple(std::llround(p.x * 1e5), std::llround(p.y * 1e5), t.layer);
+            if (!seen.insert(key).second) continue;
+            const auto at = endsAt(w, t.net, t.layer, p);
+            if (at.size() < 2 || joinCovered(w, t.net, t.layer, p)) continue;
+            bool old = false, checkedOld = false;
+            for (size_t x = 0; x < at.size(); ++x)
+                for (size_t y = x + 1; y < at.size(); ++y) {
+                    const size_t i = at[x], j = at[y];
+                    if (i < w.baseT() && j < w.baseT()) continue;
+                    const bool fi = i >= w.baseT() && w.fixAddT[i - w.baseT()], fj = j >= w.baseT() && w.fixAddT[j - w.baseT()];
+                    if (fi && fj) continue;
+                    if (!acuteAway(awayFrom(w.track(i), p), awayFrom(w.track(j), p))) continue;
+                    if (!checkedOld) {
+                        old = acuteBefore(*w.b, t.net, t.layer, p);
+                        checkedOld = true;
+                    }
+                    if (!old) out.push_back({p, i, j});
+                }
+        }
+    }
+    return out;
+}
+
 // ------------------------------------------------------------------------------------------------------ shove
 
 class Shover {
@@ -866,6 +1010,10 @@ public:
             const Item p = queue_.front();
             queue_.pop_front();
             if (!alive(p)) continue;
+            if (abortRequested()) {
+                why = "Cancelled";
+                return false;
+            }
             for (;;) {
                 std::vector<Hit> hits = hitsOf(p);
                 if (hits.empty()) break;
@@ -889,8 +1037,128 @@ public:
                 why = "Shoved copper would break clearance";
                 return false;
             }
+        return cleanJoins(why);
+    }
+
+    /// Post-shove optimiser: removes overlaps (0° joins) and chamfers acute joins that shoving made, keeping every
+    /// clearance and connection. Fails when an acute join would be left (the DRC would warn about it).
+    bool cleanJoins(std::string& why) {
+        for (int pass = 0; pass < 8; ++pass) {
+            const auto joins = newAcuteJoins(w_);
+            if (joins.empty()) return true;
+            bool progress = false;
+            for (const auto& j : joins)
+                if (w_.aliveT(j.a) && w_.aliveT(j.b) && fixJoin(j)) progress = true;
+            if (!progress) break;
+        }
+        if (newAcuteJoins(w_).empty()) return true;
+        why = "Shoving here would leave an acute corner";
+        return false;
+    }
+
+private:
+    /// Replaces tracks `olds` by `news` when the new copper keeps clearance and every connection of the old.
+    bool tryReplace(const std::vector<size_t>& olds, const std::vector<Track>& news) {
+        if (olds.empty()) return false;
+        const Track proto = w_.track(olds.front());
+        std::vector<Hit> grand;
+        for (size_t o : olds) {
+            auto g = grandfathered_.find({false, o});
+            if (g != grandfathered_.end()) grand.insert(grand.end(), g->second.begin(), g->second.end());
+            w_.goneT[o] = 1;
+        }
+        std::vector<Hit> before;
+        for (size_t o : olds) {
+            const Track& t = w_.track(o);
+            const auto c = contactsOf(w_, t.net, t.layer, {t.a, t.b}, t.width / 2);
+            before.insert(before.end(), c.begin(), c.end());
+        }
+        std::vector<size_t> added;
+        for (const Track& t : news) added.push_back(w_.addTrack(t, false));
+        auto isNew = [&](const Hit& h) {
+            return h.kind == HitKind::Track && std::find(added.begin(), added.end(), h.index) != added.end();
+        };
+        bool ok = true;
+        std::vector<Hit> after;
+        for (size_t i : added) {
+            const Track& t = w_.track(i);
+            for (const Hit& h : rawHits({false, i}))
+                if (std::find(grand.begin(), grand.end(), h) == grand.end()) ok = false;
+            const auto c = contactsOf(w_, t.net, t.layer, {t.a, t.b}, t.width / 2);
+            for (const Hit& h : c)
+                if (!isNew(h)) after.push_back(h);
+        }
+        auto norm = [](std::vector<Hit>& v) {
+            std::sort(v.begin(), v.end());
+            v.erase(std::unique(v.begin(), v.end()), v.end());
+        };
+        norm(before);
+        norm(after);
+        before.erase(std::remove_if(before.begin(), before.end(),
+                                    [&](const Hit& h) {
+                                        return h.kind == HitKind::Track &&
+                                               std::find(olds.begin(), olds.end(), h.index) != olds.end();
+                                    }),
+                     before.end());
+        ok = ok && std::includes(after.begin(), after.end(), before.begin(), before.end());
+        if (!ok) {
+            for (size_t i : added) w_.goneT[i] = 1;
+            for (size_t o : olds) w_.goneT[o] = 0;
+            return false;
+        }
+        for (size_t i : added) {
+            grandfathered_[{false, i}] = grand;
+            touched_.push_back({false, i});
+        }
+        (void)proto;
         return true;
     }
+
+    bool fixJoin(const AcuteJoin& j) {
+        const Track A = w_.track(j.a), Bt = w_.track(j.b);
+        const Vec2 p = j.at, da = awayFrom(A, p), db = awayFrom(Bt, p);
+        const bool ma = !w_.trackFixed(j.a), mb = !w_.trackFixed(j.b);
+        const double la = da.length(), lb = db.length();
+        if (std::fabs(cross(unit(da), unit(db))) < 1e-6) {
+            // Two tracks running over each other: the longer is trimmed to start where the shorter ends, or the
+            // shorter (covered by the longer) goes.
+            const bool aShort = la <= lb;
+            const size_t s = aShort ? j.a : j.b, l = aShort ? j.b : j.a;
+            const Track& S = aShort ? A : Bt;
+            const Track& Lt = aShort ? Bt : A;
+            const bool ms = aShort ? ma : mb, ml = aShort ? mb : ma;
+            const Vec2 sEnd = otherEnd(S, p), lEnd = otherEnd(Lt, p);
+            if (ml) {
+                std::vector<Track> rest;
+                if ((lEnd - sEnd).length() > 1e-6) {
+                    Track t = Lt;
+                    t.a = sEnd;
+                    t.b = lEnd;
+                    rest.push_back(t);
+                }
+                if (tryReplace({l}, rest)) return true;
+            }
+            return ms && S.width <= Lt.width + 1e-9 && tryReplace({s}, {});
+        }
+        if (!ma || !mb || A.layer != Bt.layer || endsAt(w_, A.net, A.layer, p).size() != 2) return false;
+        const double wd = std::min(A.width, Bt.width);
+        for (double cut : {wd, 2 * wd, 0.5 * wd, 4 * wd, 0.25 * wd}) {
+            if (cut >= 0.5 * la || cut >= 0.5 * lb) continue;
+            const Vec2 p1 = p + unit(da) * cut, p2 = p + unit(db) * cut;
+            Track a2 = A, b2 = Bt, c = wd == A.width ? A : Bt;
+            a2.a = p1;
+            a2.b = otherEnd(A, p);
+            b2.a = p2;
+            b2.b = otherEnd(Bt, p);
+            c.a = p1;
+            c.b = p2;
+            if (acuteAway(a2.b - p1, p2 - p1) || acuteAway(b2.b - p2, p1 - p2)) continue;
+            if (tryReplace({j.a, j.b}, {a2, c, b2})) return true;
+        }
+        return false;
+    }
+
+public:
 
 private:
     struct Item {
@@ -1128,14 +1396,22 @@ private:
                     clear = true;
                     break;
                 }
-                if (h.kind != HitKind::Pad && h.kind != HitKind::Track && h.kind != HitKind::Via) {
+                if (h.kind == HitKind::Hole) {
+                    // A mounting-hole keep-out is a circle the line walks round (no clearance beyond the keep-out).
+                    const auto& mh = B_.s.holes[h.index];
+                    hull = makeOctagon({mh.position}, mh.keepout / 2 + hw + kMargin);
+                } else if (h.kind == HitKind::Mesh) {
+                    const Rect& r = B_.meshes[h.index].region;
+                    hull = makeOctagon({{r.x0, r.y0}, {r.x1, r.y0}, {r.x1, r.y1}, {r.x0, r.y1}}, hw + kMargin);
+                } else if (h.kind != HitKind::Pad && h.kind != HitKind::Track && h.kind != HitKind::Via) {
                     why = "A track of " + B_.netName(L.net) + " cannot be shoved past " + describeHit(w_, h);
                     restore();
                     return false;
+                } else {
+                    const Shape s = shapeOfHit(h);
+                    const bool barrier = h.kind == HitKind::Pad && B_.barrierComps.count(B_.pads[h.index].componentId) > 0;
+                    hull = makeOctagon(s.points(), s.radius + B_.clearance(L.net, netOfHit(h), barrier) + hw + kMargin);
                 }
-                const Shape s = shapeOfHit(h);
-                const bool barrier = h.kind == HitKind::Pad && B_.barrierComps.count(B_.pads[h.index].componentId) > 0;
-                hull = makeOctagon(s.points(), s.radius + B_.clearance(L.net, netOfHit(h), barrier) + hw + kMargin);
             }
             std::vector<Vec2> c1, c2;
             const bool ok1 = walkAround(pts, hull, true, c1), ok2 = walkAround(pts, hull, false, c2);
@@ -1230,6 +1506,10 @@ private:
         std::vector<std::pair<double, int>> cand;
         for (int k = 0; k < 8; ++k) cand.push_back({std::max(0.0, hull.h[k] - kDirs[k].dot(v.position)), k});
         std::sort(cand.begin(), cand.end());
+        // Further out on the same sides (one via pitch beyond), tried only when no nearest side is free.
+        const double pitch = v.diameter + B_.s.clearance;
+        for (int k = 0; k < 8; ++k) cand.push_back({std::max(0.0, hull.h[k] - kDirs[k].dot(v.position)) + pitch, k});
+        std::sort(cand.begin() + 8, cand.end());
         w_.goneV[vi] = 1;
         for (const auto& a : attached)
             for (size_t s : a.line.segs) w_.goneT[s] = 1;
@@ -1401,6 +1681,7 @@ GridPath gridRoute(const World& w, const std::vector<int>& nets, int layer, doub
     double bestH = h(si, sj);
     size_t expanded = 0;
     while (!open.empty() && expanded < 600000) {
+        if ((expanded & 1023) == 1023 && abortRequested()) break;
         const auto [f, hh, cur] = open.top();
         open.pop();
         (void)f;
@@ -1496,7 +1777,8 @@ Json trackJson(const Track& t) {
     return j;
 }
 
-Json viaJson(const Via& v) {
+/// A via as JSON; with the board's layer count also its span (`toLayer` resolved) and kind, as in the snapshot.
+Json viaJson(const Via& v, int layerCount = 0) {
     Json j = Json::object();
     j["id"] = v.id;
     j["net"] = v.net;
@@ -1504,6 +1786,11 @@ Json viaJson(const Via& v) {
     j["y"] = v.position.y;
     j["drill"] = v.drill;
     j["diameter"] = v.diameter;
+    if (layerCount > 0) {
+        j["fromLayer"] = v.fromLayer;
+        j["toLayer"] = v.lastLayer(layerCount);
+        j["kind"] = viaKind(v, layerCount);
+    }
     return j;
 }
 
@@ -1574,7 +1861,7 @@ struct InteractiveRouter::Impl {
     RouterOptions opt;
     std::unique_ptr<Base> base;
     World committed, current;
-    enum class Kind { None, Route, Pair, Drag } kind = Kind::None;
+    enum class Kind { None, Route, Pair, Bus, Drag, DragVia } kind = Kind::None;
 
     struct Member {
         int net = -1;
@@ -1589,6 +1876,10 @@ struct InteractiveRouter::Impl {
     Vec2 centre;                 // pair: where the centre line continues
     std::vector<Vec2> centreHead;
     int side = 0;                // pair: members[0] lies on the left (+1) or right (-1) of the centre line
+    std::vector<double> busOffset;  // bus: each member's offset left of the centre line (fixed at the first corner)
+    Vec2 busAcross;                 // bus: across the start pads' row (the bundle leaves the row this way or back)
+    double busPadHalf = 0;          // bus: largest pad half-size across the row
+    Vec2 busFanOut;                 // bus, before the first corner: the side the bundle leaves the row (0 = later)
     Vec2 lastDir;                // direction of the last placed segment (0 = none)
     std::vector<Via> placedVias;
     bool reached = false, blocked = false;
@@ -1601,7 +1892,21 @@ struct InteractiveRouter::Impl {
         Vec2 a, b, grab, dir, normal;
         Vec2 anchorA, anchorB;
         bool anchoredA = true, anchoredB = true;
+        /// Direction of the copper beyond a free anchor: arriving at anchorA / leaving anchorB (0 = none or several).
+        Vec2 intoA, outOfB;
     } drag;
+
+    /// Via drag: the via and the lines that end on it (each oriented to start at the via).
+    struct ViaDrag {
+        Via via;
+        Vec2 grab;
+        std::vector<Line> lines;
+        size_t index = 0;           // the via in the board snapshot
+        Vec2 at;                    // where the via is now
+        std::vector<Track> tracks;  // the lines as they follow the via (per-line layer and width)
+        bool valid = false;         // false: the via fits nowhere along the way (commit changes nothing)
+    } vdrag;
+    double groupTarget = 0;     // longest other member of the net's matched-length group (0 = none)
 
     RoutePreview prev;
 
@@ -1620,6 +1925,9 @@ struct InteractiveRouter::Impl {
         lastDir = {};
         status.clear();
         hasCursor = false;
+        vdrag = ViaDrag{};
+        groupTarget = 0;
+        busOffset.clear();
         prev = RoutePreview{};
     }
 
@@ -1690,6 +1998,13 @@ struct InteractiveRouter::Impl {
         committed = World(base.get());
         committed.fixedNets = nets;
         current = committed;
+        groupTarget = 0;
+        if (!nets.empty() && nets[0] >= 0)
+            for (const auto& g : lengthGroups(sch, base->s)) {
+                if (std::find(g.nets.begin(), g.nets.end(), nets[0]) == g.nets.end()) continue;
+                for (int n : g.nets)
+                    if (n != nets[0]) groupTarget = std::max(groupTarget, routedNetLength(pcb, n));
+            }
     }
 
     // ------------------------------------------------------------------------------------------------ routing
@@ -1720,6 +2035,11 @@ struct InteractiveRouter::Impl {
         members = {m};
         kind = Kind::Route;
         startSession({st.net});
+        // Starting at the free end of a track: the route continues it, so its first corner must not fold back.
+        if (st.pad < 0 && !joinCovered(committed, st.net, l, st.point)) {
+            const auto at = endsAt(committed, st.net, l, st.point);
+            if (at.size() == 1) lastDir = st.point - otherEnd(committed.track(at[0]), st.point);
+        }
         status = "Routing " + base->netName(st.net);
         buildPreview();
         return true;
@@ -1852,8 +2172,8 @@ struct InteractiveRouter::Impl {
         std::vector<Vec2> pts;
     };
 
-    /// Lays the head lines into `w` as fixed copper and makes room for them (shove) or checks them (walkaround).
-    bool placeHead(World& w, const std::vector<HeadLine>& lines, bool shove, std::string& why) const {
+    /// Adds the head lines to `w` as fixed copper (no checks).
+    std::vector<size_t> addHeadLines(World& w, const std::vector<HeadLine>& lines) const {
         std::vector<size_t> added;
         for (const auto& hl : lines)
             for (size_t k = 0; k + 1 < hl.pts.size(); ++k) {
@@ -1866,6 +2186,57 @@ struct InteractiveRouter::Impl {
                 t.b = hl.pts[k + 1];
                 added.push_back(w.addTrack(t, true));
             }
+        return added;
+    }
+
+    bool highlight() const { return opt.mode == RouterMode::Highlight; }
+
+    double cornerRadius() const {
+        if (opt.cornerRadius > 0) return opt.cornerRadius;
+        return opt.cornerRadius < 0 ? std::max(0.5, 4 * width) : 0;
+    }
+
+    /// Rounded corners for a single-track route: `tracks` (in path order, `headFrom` = index of the first head
+    /// track) as runs of joined segments of one layer, each run filleted where the arcs keep clearance in `w`.
+    /// Returns the rounded tracks; `headOut` receives the index where the head's part starts.
+    std::vector<Track> roundRoute(const std::vector<Track>& tracks, size_t headFrom, const World& w, size_t* headOut) const {
+        std::vector<Track> out;
+        if (headOut) *headOut = std::numeric_limits<size_t>::max();
+        const double r = cornerRadius();
+        size_t i = 0;
+        while (i < tracks.size()) {
+            size_t j = i + 1;
+            while (j < tracks.size() && tracks[j].layer == tracks[i].layer && std::fabs(tracks[j].width - tracks[i].width) < 1e-12 &&
+                   samePoint(tracks[j].a, tracks[j - 1].b, 1e-9))
+                ++j;
+            std::vector<Vec2> pts{tracks[i].a};
+            for (size_t k = i; k < j; ++k) pts.push_back(tracks[k].b);
+            const Track& t0 = tracks[i];
+            auto clear = [&](const std::vector<Vec2>& arc) { return pathClear(w, {t0.net}, t0.layer, arc, t0.width / 2); };
+            std::vector<size_t> vo;
+            const std::vector<Vec2> q = r > 0 ? filletPath(pts, r, std::max(t0.width, 0.05), clear, &vo) : pts;
+            if (r <= 0) {
+                vo.resize(pts.size());
+                for (size_t k = 0; k < pts.size(); ++k) vo[k] = k;
+            }
+            for (size_t k = 0; k + 1 < q.size(); ++k) {
+                if (headOut && *headOut == std::numeric_limits<size_t>::max() && headFrom >= i && headFrom < j &&
+                    k >= vo[headFrom - i])
+                    *headOut = out.size();
+                Track t = t0;
+                t.a = q[k];
+                t.b = q[k + 1];
+                out.push_back(t);
+            }
+            i = j;
+        }
+        if (headOut && *headOut == std::numeric_limits<size_t>::max()) *headOut = out.size();
+        return out;
+    }
+
+    /// Lays the head lines into `w` as fixed copper and makes room for them (shove) or checks them (walkaround).
+    bool placeHead(World& w, const std::vector<HeadLine>& lines, bool shove, std::string& why) const {
+        const std::vector<size_t> added = addHeadLines(w, lines);
         if (shove) {
             Shover sh(w, opt);
             return sh.run(added, {}, why);
@@ -1878,6 +2249,10 @@ struct InteractiveRouter::Impl {
                 return false;
             }
         }
+        if (!newAcuteJoins(w).empty()) {
+            why = "The head would make an acute corner here";
+            return false;
+        }
         return true;
     }
 
@@ -1889,7 +2264,18 @@ struct InteractiveRouter::Impl {
         const bool shove = opt.mode == RouterMode::Shove;
         std::string why, firstWhy;
         blocked = false;
+        if (highlight()) {
+            // Straight where pointed: nothing moves, nothing stops the head; collisions are listed in the preview.
+            std::vector<Vec2> c = candidates.empty() ? std::vector<Vec2>{} : candidates.front();
+            if (c.size() < 2) c = walkSearch().pts;
+            World w = committed;
+            if (c.size() >= 2) addHeadLines(w, build(c, true));
+            current = w;
+            chosen = c.size() >= 2 ? c : std::vector<Vec2>{};
+            return;
+        }
         for (const auto& c : candidates) {
+            if (abortRequested()) return;
             World w = committed;
             if (placeHead(w, build(c, true), shove, why)) {
                 current = w;
@@ -1919,7 +2305,7 @@ struct InteractiveRouter::Impl {
         if (!candidates.empty()) {
             const auto& p = candidates.front();
             double lo = 0, hi = pathLength(p);
-            for (int it = 0; it < 12 && hi - lo > 1e-3; ++it) {
+            for (int it = 0; it < 12 && hi - lo > 1e-3 && !abortRequested(); ++it) {
                 const double mid = (lo + hi) / 2;
                 const auto q = pathPrefix(p, mid);
                 World w = committed;
@@ -1997,6 +2383,203 @@ struct InteractiveRouter::Impl {
             out.push_back({members[k].net, simplifyPath(pts)});
         }
         return out;
+    }
+
+    // ---------------------------------------------------------------------------------------------------- bus
+
+    bool beginBus(Vec2 at, int l, int count) {
+        reset();
+        base = std::make_unique<Base>(pcb, sch);
+        auto bail = [&](const std::string& why) {
+            base.reset();
+            return fail(why);
+        };
+        count = std::clamp(count, 2, 16);
+        if (l < 0 || l >= std::max(1, base->s.layerCount)) return bail("That copper layer is not in the stack-up");
+        StartHit st;
+        if (!findStart(at, l, st) || st.pad < 0) return bail("Start a bus on a pad of a part");
+        if (st.layer >= 0) l = st.layer;
+        const Pad& sp = base->pads[static_cast<size_t>(st.pad)];
+        auto it = base->compPads.find(sp.componentId);
+        if (it == base->compPads.end()) return bail("Start a bus on a pad of a part");
+        // The row: the part's pads on this layer in line with the clicked one (along the nearest neighbour).
+        long nearest = -1;
+        double nd = 1e18;
+        for (size_t q : it->second) {
+            const Pad& o = base->pads[q];
+            if (static_cast<long>(q) == st.pad || !o.onLayer(l)) continue;
+            const double d = (o.position - sp.position).length();
+            if (d < nd) {
+                nd = d;
+                nearest = static_cast<long>(q);
+            }
+        }
+        if (nearest < 0) return bail("The part has no other pad for a bus");
+        const Vec2 axis = std::fabs(base->pads[static_cast<size_t>(nearest)].position.x - sp.position.x) >=
+                                  std::fabs(base->pads[static_cast<size_t>(nearest)].position.y - sp.position.y)
+                              ? Vec2{1, 0}
+                              : Vec2{0, 1};
+        const Vec2 across{-axis.y, axis.x};
+        const double tol = std::max(0.05, 0.25 * std::min(sp.size.x, sp.size.y));
+        std::vector<size_t> row;
+        for (size_t q : it->second) {
+            const Pad& o = base->pads[q];
+            // Pads whose net goes somewhere (an unconnected pin's one-pin net has nothing to route to).
+            const bool wired = o.net >= 0 && static_cast<size_t>(o.net) < base->pinCount.size() &&
+                               base->pinCount[static_cast<size_t>(o.net)] >= 2;
+            if (o.onLayer(l) && wired &&
+                std::fabs((o.position - sp.position).dot(across)) <= tol)
+                row.push_back(q);
+        }
+        std::sort(row.begin(), row.end(), [&](size_t a, size_t b) {
+            return base->pads[a].position.dot(axis) < base->pads[b].position.dot(axis);
+        });
+        const long at0 = std::find(row.begin(), row.end(), static_cast<size_t>(st.pad)) - row.begin();
+        if (at0 >= static_cast<long>(row.size())) return bail("That pad's net connects to nothing else");
+        // From the clicked pad onwards along the row, then back the other way if the row ends first.
+        std::vector<size_t> pick;
+        std::vector<int> nets;
+        auto take = [&](size_t q) {
+            const int n = base->pads[q].net;
+            if (static_cast<int>(pick.size()) >= count || std::find(nets.begin(), nets.end(), n) != nets.end()) return;
+            pick.push_back(q);
+            nets.push_back(n);
+        };
+        for (long k = at0; k < static_cast<long>(row.size()); ++k) take(row[static_cast<size_t>(k)]);
+        for (long k = at0 - 1; k >= 0; --k) take(row[static_cast<size_t>(k)]);
+        if (pick.size() < 2) return bail("No other pad with a net next to it in its row");
+        if (!layerUsable(l, nets)) {
+            base.reset();
+            return false;
+        }
+        layer = l;
+        width = 0;
+        double clr = 0;
+        for (int n : nets) width = std::max(width, netWidth(n));
+        for (int a : nets)
+            for (int b : nets)
+                if (a != b) clr = std::max(clr, base->clearance(a, b));
+        spacing = width + clr;  // centre to centre
+        members.clear();
+        centre = {};
+        for (size_t q : pick) {
+            Member m;
+            m.net = base->pads[q].net;
+            m.end = base->pads[q].position;
+            m.startPad = static_cast<long>(q);
+            members.push_back(m);
+            centre = centre + m.end * (1.0 / static_cast<double>(pick.size()));
+        }
+        busAcross = across;
+        busPadHalf = 0;
+        for (size_t q : pick) busPadHalf = std::max(busPadHalf, std::fabs(base->pads[q].size.dot(across)) / 2);
+        kind = Kind::Bus;
+        startSession(nets);
+        status = "Routing a bus of " + std::to_string(members.size()) + " nets";
+        buildPreview();
+        return true;
+    }
+
+    /// Each member's offset left of a centre line leaving in direction `dir`: members keep their order across the
+    /// bundle (by where they start), `spacing` apart. Fixed once the first corner is placed.
+    std::vector<double> busOffsets(Vec2 dir) const {
+        if (!busOffset.empty()) return busOffset;
+        const Vec2 nrm = leftNormal(dir);
+        std::vector<size_t> order(members.size());
+        for (size_t k = 0; k < order.size(); ++k) order[k] = k;
+        std::stable_sort(order.begin(), order.end(),
+                         [&](size_t a, size_t b) { return (members[a].end - centre).dot(nrm) < (members[b].end - centre).dot(nrm); });
+        std::vector<double> off(members.size());
+        const double mid = (static_cast<double>(members.size()) - 1) / 2;
+        for (size_t r = 0; r < order.size(); ++r) off[order[r]] = (static_cast<double>(r) - mid) * spacing;
+        return off;
+    }
+
+    std::vector<HeadLine> busLines(const std::vector<Vec2>& c) const {
+        std::vector<HeadLine> out;
+        if (c.size() < 2) return out;
+        const std::vector<double> off = busOffsets(c[1] - c[0]);
+        for (size_t k = 0; k < members.size(); ++k) {
+            const std::vector<Vec2> o = offsetPath(c, off[k]);
+            std::vector<Vec2> pts{members[k].end};
+            if (busFanOut.length() > 0) {
+                // Fan-in: straight out of the pad past the row, 45° to the member's lane, straight into the bundle.
+                const Vec2 nrm = leftNormal(busFanOut);
+                const Vec2 p = members[k].end;
+                const Vec2 e = p + busFanOut * (busPadHalf + base->s.clearance + width / 2);
+                const double across = (o.front() - e).dot(nrm);
+                const Vec2 d = e + busFanOut * std::fabs(across) + nrm * across;
+                pts.push_back(e);
+                pts.push_back(d);
+                pts.push_back(o.front());
+            } else {
+                auto lead = postureLinks(members[k].end, o.front(), RoutePosture::Diagonal45, false);
+                pts.insert(pts.end(), lead.front().begin() + 1, lead.front().end());
+            }
+            pts.insert(pts.end(), o.begin() + 1, o.end());
+            out.push_back({members[k].net, simplifyPath(pts)});
+        }
+        return out;
+    }
+
+    void busHead(Vec2 cursor) {
+        current = committed;
+        centreHead.clear();
+        for (auto& m : members) m.head.clear();
+        reached = false;
+        blocked = false;
+        status = "Routing a bus of " + std::to_string(members.size()) + " nets";
+        if ((cursor - centre).length() < 1e-6) return;
+        std::vector<int> nets;
+        for (const auto& m : members) nets.push_back(m.net);
+        auto build = [&](const std::vector<Vec2>& c, bool) { return busLines(c); };
+        const double half = (static_cast<double>(members.size()) - 1) / 2 * spacing + width / 2;
+        // Before the first corner the bundle starts clear of the pad row, on the cursor's side: each pad leaves
+        // straight out and fans in at 45° to its place in the bundle without crossing its neighbours.
+        Vec2 from = centre;
+        Vec2 dir = lastDir;
+        if (busOffset.empty()) {
+            const Vec2 out = (cursor - centre).dot(busAcross) >= 0 ? busAcross : busAcross * -1.0;
+            const std::vector<double> off = busOffsets(out);
+            double fan = 0;
+            for (size_t k = 0; k < members.size(); ++k) {
+                const Vec2 q = centre + leftNormal(out) * off[k];
+                fan = std::max(fan, std::fabs((q - members[k].end).dot(leftNormal(out))));
+            }
+            from = centre + out * (fan + busPadHalf + base->s.clearance + width);
+            dir = out;
+            busFanOut = out;
+        } else {
+            busFanOut = {};
+        }
+        // After a placed corner the members end on the line across the centre: the bundle runs on straight by its
+        // half width before it may turn, so every member turns at its own miter point without doubling back.
+        bool prefix = false;
+        if (!busOffset.empty() && lastDir.length() > 0) {
+            double maxO = 0;
+            for (double o : busOffset) maxO = std::max(maxO, std::fabs(o));
+            from = centre + unit(lastDir) * maxO;
+            prefix = maxO > 1e-9;
+        }
+        if ((cursor - from).length() < 1e-6) return;
+        auto withPrefix = [&](std::vector<Vec2> c) {
+            if (prefix && !c.empty()) c.insert(c.begin(), centre);
+            return simplifyPath(c);
+        };
+        auto walk = [&] {
+            GridPath g = gridRoute(committed, nets, layer, half, from, cursor, opt.posture, dir);
+            if (g.pts.size() >= 2) g.pts = withPrefix(g.pts);
+            return g;
+        };
+        std::vector<Vec2> chosen;
+        std::vector<std::vector<Vec2>> links;
+        for (auto& l : postureLinks(from, cursor, opt.posture, opt.swapPosture))
+            if (!(dir.length() > 0 && l.size() >= 2 && acuteJoin(dir, l[1] - l[0]))) links.push_back(withPrefix(l));
+        solveHead(links, walk, build, cursor, chosen);
+        if (chosen.size() < 2) return;
+        centreHead = chosen;
+        const auto lines = busLines(chosen);
+        for (size_t k = 0; k < members.size() && k < lines.size(); ++k) members[k].head = lines[k].pts;
     }
 
     void pairHead(Vec2 cursor) {
@@ -2091,6 +2674,13 @@ struct InteractiveRouter::Impl {
                     const Track& n = committed.track(at[0]);
                     anchor = samePoint(n.a, p) ? n.b : n.a;
                     committed.goneT[at[0]] = 1;
+                    // The track beyond the anchor: the dragged legs must not fold back onto it (acute corner).
+                    const auto beyond = tracksEndingAt(committed, t.net, t.layer, anchor, at[0]);
+                    if (beyond.size() == 1) {
+                        const Track& f = committed.track(beyond[0]);
+                        const Vec2 far = samePoint(f.a, anchor) ? f.b : f.a;
+                        (e == 0 ? drag.intoA : drag.outOfB) = e == 0 ? anchor - far : far - anchor;
+                    }
                 } else {
                     anchored = true;
                 }
@@ -2125,7 +2715,7 @@ struct InteractiveRouter::Impl {
             auto links = postureLinks(drag.anchorA, a1, opt.posture, false);
             std::vector<Vec2> pick = links.front();
             for (const auto& l : links)
-                if (l.size() < 2 || !acuteJoin(l.back() - l[l.size() - 2], drag.dir)) {
+                if (l.size() < 2 || (!acuteJoin(l.back() - l[l.size() - 2], drag.dir) && !acuteJoin(drag.intoA, l[1] - l[0]))) {
                     pick = l;
                     break;
                 }
@@ -2141,7 +2731,7 @@ struct InteractiveRouter::Impl {
             auto links = postureLinks(b1, drag.anchorB, opt.posture, false);
             std::vector<Vec2> pick = links.front();
             for (const auto& l : links)
-                if (l.size() < 2 || !acuteJoin(drag.dir, l[1] - l[0])) {
+                if (l.size() < 2 || (!acuteJoin(drag.dir, l[1] - l[0]) && !acuteJoin(l.back() - l[l.size() - 2], drag.outOfB))) {
                     pick = l;
                     break;
                 }
@@ -2159,6 +2749,12 @@ struct InteractiveRouter::Impl {
         status = "Dragging a track of " + base->netName(m.net);
         auto tryDelta = [&](double d, World& w) { return placeHead(w, {{m.net, dragPath(d)}}, shove, why); };
         World w = committed;
+        if (highlight()) {
+            addHeadLines(w, {{m.net, dragPath(delta)}});
+            current = w;
+            m.head = dragPath(delta);
+            return;
+        }
         if (tryDelta(delta, w)) {
             current = w;
             m.head = dragPath(delta);
@@ -2176,7 +2772,7 @@ struct InteractiveRouter::Impl {
                 any = true;
             }
         }
-        for (int it = 0; it < 14 && std::fabs(hi - lo) > 1e-3; ++it) {
+        for (int it = 0; it < 14 && std::fabs(hi - lo) > 1e-3 && !abortRequested(); ++it) {
             const double mid = (lo + hi) / 2;
             World wm = committed;
             if (tryDelta(mid, wm)) {
@@ -2191,14 +2787,226 @@ struct InteractiveRouter::Impl {
         m.head = any ? dragPath(lo) : std::vector<Vec2>{};
     }
 
+    // ----------------------------------------------------------------------------------------------- via drag
+
+    bool beginViaDrag(int viaId, Vec2 grab) {
+        reset();
+        base = std::make_unique<Base>(pcb, sch);
+        auto bail = [&](const std::string& why) {
+            base.reset();
+            return fail(why);
+        };
+        long vi = -1;
+        for (size_t i = 0; i < base->vias.size(); ++i)
+            if (base->vias[i].id == viaId) vi = static_cast<long>(i);
+        if (vi < 0) return bail("No via with that id");
+        const Via v = base->vias[static_cast<size_t>(vi)];
+        if (v.net < 0) return bail("The via has no net");
+        if (base->viaFixed[static_cast<size_t>(vi)]) return bail("The via sits in a pad of its net or on the tamper mesh");
+        startSession({v.net});
+        const size_t idx = static_cast<size_t>(vi);
+        // Tracks ending on the via follow it; one running through it (or a locked one) holds it in place.
+        const double r = v.diameter / 2;
+        std::vector<size_t> found;
+        committed.tracksIn(Rect::centered(v.position, v.diameter, v.diameter), found);
+        std::vector<Line> lines;
+        for (size_t i : found) {
+            const Track& t = committed.track(i);
+            if (t.net != v.net || !v.spans(t.layer)) continue;
+            const bool aIn = (t.a - v.position).length() <= r, bIn = (t.b - v.position).length() <= r;
+            if (!aIn && !bIn) {
+                if (pointSegmentDistance(v.position, t.a, t.b) <= r) return bail("A track runs through the via");
+                continue;
+            }
+            if (aIn && bIn) return bail("A short track inside the via's land holds it");
+            if (base->trackFixed[i]) return bail("A locked track ends on the via");
+            Line L = extractLine(committed, i);
+            if ((L.pts.back() - v.position).length() <= r && (L.pts.front() - v.position).length() > r) {
+                std::reverse(L.pts.begin(), L.pts.end());
+                std::reverse(L.segs.begin(), L.segs.end());
+                std::swap(L.viaAt[0], L.viaAt[1]);
+            }
+            if ((L.pts.front() - v.position).length() > r) continue;
+            if ((L.pts.back() - v.position).length() <= r) return bail("A track loops back to the via");
+            bool dup = false;
+            for (const auto& o : lines) dup = dup || o.segs == L.segs;
+            if (!dup) lines.push_back(L);
+        }
+        committed.goneV[idx] = 1;
+        for (const auto& L : lines)
+            for (size_t s : L.segs) committed.goneT[s] = 1;
+        vdrag.via = v;
+        vdrag.grab = grab;
+        vdrag.lines = lines;
+        vdrag.index = idx;
+        vdrag.at = v.position;
+        layer = v.fromLayer;
+        width = lines.empty() ? base->s.trackWidth : lines.front().width;
+        Member m;
+        m.net = v.net;
+        m.end = v.position;
+        members = {m};
+        current = committed;
+        kind = Kind::DragVia;
+        status = "Dragging a via of " + base->netName(v.net);
+        computeHead(grab);
+        return true;
+    }
+
+    /// The lines on a via at `pos`: each starts at the via and rejoins its old path with a 45° link, skipping a
+    /// corner when that makes a shorter join without an acute corner.
+    std::vector<Track> viaLines(Vec2 pos) const {
+        std::vector<Track> out;
+        for (const Line& L : vdrag.lines) {
+            const std::vector<Vec2>& p = L.pts;
+            std::vector<Vec2> best;
+            double bestLen = std::numeric_limits<double>::max();
+            for (size_t k = 1; k < p.size() && k <= 2; ++k) {
+                for (const auto& link : postureLinks(pos, p[k], RoutePosture::Diagonal45, false)) {
+                    std::vector<Vec2> q = link;
+                    q.insert(q.end(), p.begin() + static_cast<long>(k) + 1, p.end());
+                    q = simplifyPath(q);
+                    bool acute = false;
+                    for (size_t j = 1; j + 1 < q.size(); ++j) acute = acute || acuteJoin(q[j] - q[j - 1], q[j + 1] - q[j]);
+                    const double len = pathLength(q) + (acute ? 1e6 : 0.0);
+                    if (len < bestLen - 1e-9) {
+                        bestLen = len;
+                        best = q;
+                    }
+                }
+            }
+            if (best.size() < 2) best = {pos, p.back()};
+            for (const Track& t : toTracks(best, L.net, L.layer, L.width)) out.push_back(t);
+        }
+        return out;
+    }
+
+    bool placeVia(World& w, Vec2 pos, std::string& why) const {
+        Via nv = vdrag.via;
+        nv.position = pos;
+        std::vector<size_t> tracks;
+        for (const Track& t : viaLines(pos)) tracks.push_back(w.addTrack(t, true));
+        const size_t vi = w.addVia(nv, true);
+        if (highlight()) return true;
+        if (opt.mode == RouterMode::Shove) {
+            Shover sh(w, opt);
+            return sh.run(tracks, {vi}, why);
+        }
+        std::vector<Hit> hits;
+        if (viaHits(w, w.via(vi), vi, &hits)) {
+            why = "Blocked by " + describeHit(w, hits.front());
+            return false;
+        }
+        for (size_t i : tracks) {
+            const Track& t = w.track(i);
+            if (segmentHits(w, {t.net}, t.layer, t.a, t.b, t.width / 2, &hits)) {
+                why = "Blocked by " + describeHit(w, hits.front());
+                return false;
+            }
+        }
+        if (!newAcuteJoins(w).empty()) {
+            why = "The via's tracks would make an acute corner here";
+            return false;
+        }
+        return true;
+    }
+
+    void viaDragHead(Vec2 cursor) {
+        const Vec2 from = vdrag.via.position, to = from + (cursor - vdrag.grab);
+        status = "Dragging a via of " + base->netName(vdrag.via.net);
+        blocked = false;
+        std::string why;
+        World w = committed;
+        if (placeVia(w, to, why)) {
+            current = w;
+            vdrag.at = to;
+            vdrag.tracks = viaLines(to);
+            vdrag.valid = true;
+            return;
+        }
+        // Stop at the furthest point along the way that fits.
+        blocked = true;
+        status = why;
+        double lo = 0, hi = 1;
+        World best = committed;
+        bool any = false;
+        {
+            World w0 = committed;
+            if (placeVia(w0, from, why)) {
+                best = w0;
+                any = true;
+            }
+        }
+        const double span = (to - from).length();
+        for (int it = 0; it < 14 && (hi - lo) * span > 1e-3 && !abortRequested(); ++it) {
+            const double mid = (lo + hi) / 2;
+            World wm = committed;
+            if (placeVia(wm, from + (to - from) * mid, why)) {
+                lo = mid;
+                best = wm;
+                any = true;
+            } else {
+                hi = mid;
+            }
+        }
+        vdrag.valid = any;
+        if (any) {
+            current = best;
+            vdrag.at = from + (to - from) * lo;
+            vdrag.tracks = viaLines(vdrag.at);
+            return;
+        }
+        // Nowhere fits: show the via and its tracks where they are; commit leaves the board alone.
+        current = committed;
+        current.goneV[vdrag.index] = 0;
+        for (const Line& L : vdrag.lines)
+            for (size_t s : L.segs) current.goneT[s] = 0;
+        vdrag.at = from;
+        vdrag.tracks.clear();
+    }
+
     // ------------------------------------------------------------------------------------------- session steps
 
+    std::atomic<unsigned> ownAbort{0};
+    const std::atomic<unsigned>* extAbort = nullptr;
+
     void computeHead(Vec2 cursor) {
+        // Cancellable: a request made while this runs (requestAbort / the external counter) stops it, and the
+        // state from before it comes back, so the preview never shows a half-computed head.
+        const unsigned own0 = ownAbort.load(std::memory_order_relaxed);
+        const unsigned ext0 = extAbort ? extAbort->load(std::memory_order_relaxed) : 0;
+        const std::function<bool()> check = [&] {
+            return ownAbort.load(std::memory_order_relaxed) != own0 ||
+                   (extAbort && extAbort->load(std::memory_order_relaxed) != ext0);
+        };
+        AbortScope scope(&check);
+        World savedCurrent = current;
+        const std::vector<Member> savedMembers = members;
+        const std::vector<Vec2> savedCentre = centreHead;
+        const ViaDrag savedVia = vdrag;
+        const bool savedReached = reached, savedBlocked = blocked, savedHas = hasCursor;
+        const std::string savedStatus = status;
+        const Vec2 savedCursor = lastCursor;
         lastCursor = cursor;
         hasCursor = true;
         if (kind == Kind::Route) routeHead(cursor);
         if (kind == Kind::Pair) pairHead(cursor);
+        if (kind == Kind::Bus) busHead(cursor);
         if (kind == Kind::Drag) dragHead(cursor);
+        if (kind == Kind::DragVia) viaDragHead(cursor);
+        if (check()) {
+            current = std::move(savedCurrent);
+            members = savedMembers;
+            centreHead = savedCentre;
+            vdrag = savedVia;
+            reached = savedReached;
+            blocked = savedBlocked;
+            hasCursor = savedHas;
+            status = savedStatus;
+            lastCursor = savedCursor;
+            prev.aborted = true;
+            return;
+        }
         buildPreview();
     }
 
@@ -2218,7 +3026,7 @@ struct InteractiveRouter::Impl {
     }
 
     bool fixHead() {
-        if (kind != Kind::Route && kind != Kind::Pair) return fail("Nothing to place");
+        if (kind != Kind::Route && kind != Kind::Pair && kind != Kind::Bus) return fail("Nothing to place");
         bool any = false;
         for (const auto& m : members) any = any || m.head.size() >= 2;
         if (!any) return fail("The head is empty");
@@ -2238,6 +3046,12 @@ struct InteractiveRouter::Impl {
             lastDir = centreHead.back() - centreHead[centreHead.size() - 2];
             centre = centreHead.back();
             centreHead.clear();
+        } else if (kind == Kind::Bus && centreHead.size() >= 2) {
+            if (busOffset.empty()) busOffset = busOffsets(centreHead[1] - centreHead[0]);
+            busFanOut = {};
+            lastDir = centreHead.back() - centreHead[centreHead.size() - 2];
+            centre = centreHead.back();
+            centreHead.clear();
         } else if (kind == Kind::Route && !members[0].placed.empty()) {
             lastDir = members[0].placed.back().b - members[0].placed.back().a;
         }
@@ -2245,12 +3059,62 @@ struct InteractiveRouter::Impl {
         return true;
     }
 
+    /// Via of `net` at `pos` from the route's layer to `to` for the via type: its span and drill / pad size.
+    bool makeVia(int net, Vec2 pos, int to, Via& v) {
+        const BoardSettings& s = base->s;
+        const int n = std::max(1, s.layerCount);
+        const int lo = std::min(layer, to), hi = std::max(layer, to);
+        v = Via{};
+        v.net = net;
+        v.position = pos;
+        v.drill = s.viaDrill;
+        v.diameter = s.viaDiameter;
+        RouterViaType type = opt.viaType;
+        const bool hdi = s.hdi && n >= 4;
+        if (type == RouterViaType::Auto) {
+            if (!hdi || (lo == 0 && hi == n - 1)) type = RouterViaType::Through;
+            else type = hi - lo == 1 ? RouterViaType::Micro : RouterViaType::Blind;
+        }
+        if (type == RouterViaType::Through) return true;  // 0 … bottom
+        if (!hdi) return fail("Blind, buried and micro vias need HDI on a board of 4 or more layers (Board Setup)");
+        if (type == RouterViaType::Micro) {
+            if (hi - lo != 1) return fail("A microvia joins neighbouring layers only — pick the next layer");
+            const double ring = std::min(s.minAnnularRing, 0.075);
+            v.drill = s.microviaDrill;
+            v.diameter = std::min(s.viaDiameter, std::max(s.microviaDiameter, v.drill + 2 * ring));
+        }
+        v.fromLayer = lo;
+        v.toLayer = hi >= n - 1 ? -1 : hi;
+        return true;
+    }
+
+    /// The layer V goes to: -1 = the other outer layer (through vias) or the next layer towards the other side
+    /// (blind / micro / auto on an HDI board); -2 = the next layer the other way.
+    int viaTarget(int toLayer) const {
+        const BoardSettings& s = base->s;
+        if (toLayer >= 0) return toLayer;
+        const int bottom = s.bottomLayer();
+        const bool stepwise = opt.viaType == RouterViaType::Blind || opt.viaType == RouterViaType::Micro ||
+                              (opt.viaType == RouterViaType::Auto && s.hdi && s.layerCount >= 4);
+        if (!stepwise) return layer == 0 ? bottom : 0;
+        // Towards the far side: down from the top half, up from the bottom half; -2 reverses.
+        int dir = layer < (bottom + 1) / 2 ? 1 : -1;
+        if (toLayer == -2) dir = -dir;
+        const int t = layer + dir;
+        return t < 0 || t > bottom ? layer - dir : t;
+    }
+
     bool addVia(int toLayer) {
+        if (kind == Kind::Bus) return fail("A bus changes layer track by track: finish it, then continue each track with a via");
         if (kind != Kind::Route && kind != Kind::Pair) return fail("Start a route first");
         const BoardSettings& s = base->s;
         if (s.layerCount < 2) return fail("A single-sided board has no vias");
-        const int to = toLayer >= 0 ? toLayer : (layer == 0 ? s.bottomLayer() : 0);
+        const int to = viaTarget(toLayer);
         if (to == layer) return fail("The route is already on that layer");
+        {
+            Via probe;
+            if (!makeVia(-1, {}, to, probe)) return false;
+        }
         std::vector<int> nets;
         for (const auto& m : members) nets.push_back(m.net);
         if (!layerUsable(to, nets)) return false;
@@ -2278,10 +3142,7 @@ struct InteractiveRouter::Impl {
                 return true;
             }
             Via v;
-            v.net = m.net;
-            v.position = m.end;
-            v.drill = s.viaDrill;
-            v.diameter = s.viaDiameter;
+            makeVia(m.net, m.end, to, v);
             vias.push_back(v);
         } else {
             Vec2 dir = lastDir;
@@ -2291,14 +3152,13 @@ struct InteractiveRouter::Impl {
             }
             dir = unit(dir);
             const Vec2 n = leftNormal(dir);
-            const double off = std::max(spacing / 2, (s.viaDiameter + base->clearance(members[0].net, members[1].net)) / 2 + kMargin);
+            Via proto;
+            makeVia(members[0].net, {}, to, proto);
+            const double off = std::max(spacing / 2, (proto.diameter + base->clearance(members[0].net, members[1].net)) / 2 + kMargin);
             int sd = side != 0 ? side : (cross(dir, members[0].end - centre) >= 0 ? 1 : -1);
             for (size_t k = 0; k < 2; ++k) {
                 Via v;
-                v.net = members[k].net;
-                v.position = centre + n * ((k == 0 ? sd : -sd) * off);
-                v.drill = s.viaDrill;
-                v.diameter = s.viaDiameter;
+                makeVia(members[k].net, centre + n * ((k == 0 ? sd : -sd) * off), to, v);
                 vias.push_back(v);
                 if (!samePoint(members[k].end, v.position, 1e-9)) {
                     auto lead = postureLinks(members[k].end, v.position, RoutePosture::Diagonal45, false).front();
@@ -2313,6 +3173,8 @@ struct InteractiveRouter::Impl {
         if (opt.mode == RouterMode::Shove) {
             Shover sh(w, opt);
             ok = sh.run(newTracks, newVias, why);
+        } else if (highlight()) {
+            ok = true;  // placed as asked; the preview lists what it violates
         } else {
             ok = true;
             for (size_t i : newVias) {
@@ -2376,7 +3238,7 @@ struct InteractiveRouter::Impl {
             ch.error = "No route in progress";
             return ch;
         }
-        if (kind == Kind::Route || kind == Kind::Pair) {
+        if (kind == Kind::Route || kind == Kind::Pair || kind == Kind::Bus) {
             bool any = false;
             for (const auto& m : members) any = any || m.head.size() >= 2;
             if (any) fixHead();
@@ -2387,13 +3249,27 @@ struct InteractiveRouter::Impl {
             return ch;
         }
         std::vector<Track> routeTracks;
-        if (kind == Kind::Drag) {
+        std::vector<Via> routeVias = placedVias;
+        if (kind == Kind::DragVia) {
+            if (!vdrag.valid) {
+                reset();
+                ch.ok = true;  // nothing changed
+                return ch;
+            }
+            committed = current;
+            routeVias = {vdrag.via};
+            routeVias[0].position = vdrag.at;
+            routeTracks = mergeCollinear(vdrag.tracks);
+        } else if (kind == Kind::Drag) {
             committed = current;
             for (const Track& t : mergeCollinear(toTracks(members[0].head, members[0].net, layer, width)))
                 routeTracks.push_back(t);
         } else {
             for (const auto& m : members)
-                for (const Track& t : mergeCollinear(m.placed)) routeTracks.push_back(t);
+                for (const Track& t : mergeCollinear(kind == Kind::Route && cornerRadius() > 0
+                                                         ? roundRoute(m.placed, m.placed.size(), committed, nullptr)
+                                                         : m.placed))
+                    routeTracks.push_back(t);
         }
         // Route pieces that run exactly over copper the net already has add nothing.
         std::vector<Track> kept;
@@ -2410,9 +3286,76 @@ struct InteractiveRouter::Impl {
             }
             if (!covered) kept.push_back(t);
         }
-        ch = applyWorld(pcb, committed, kept, placedVias);
+        ch = applyWorld(pcb, committed, kept, routeVias);
         reset();
         return ch;
+    }
+
+    /// What the session's own copper (route, dragged track or via) violates in the current overlay.
+    std::vector<RouteCollision> collisions() const {
+        std::vector<RouteCollision> out;
+        std::set<Hit> seen;
+        const World& w = current;
+        auto record = [&](const Hit& h, Vec2 a, Vec2 b) {
+            if (!seen.insert(h).second) return;
+            RouteCollision c;
+            c.at = (a + b) * 0.5;
+            switch (h.kind) {
+                case HitKind::Pad: {
+                    const Pad& pd = w.b->pads[h.index];
+                    c.kind = "pad";
+                    c.a = pd.position;
+                    c.size = pd.size;
+                    c.at = closestOnSegment(pd.position, a, b);
+                    break;
+                }
+                case HitKind::Track: {
+                    const Track& t = w.track(h.index);
+                    c.kind = "track";
+                    c.id = h.index < w.baseT() ? t.id : -1;
+                    c.a = t.a;
+                    c.b = t.b;
+                    c.width = t.width;
+                    break;
+                }
+                case HitKind::Via: {
+                    const Via& v = w.via(h.index);
+                    c.kind = "via";
+                    c.id = h.index < w.baseV() ? v.id : -1;
+                    c.a = v.position;
+                    c.width = v.diameter;
+                    c.at = closestOnSegment(v.position, a, b);
+                    break;
+                }
+                case HitKind::Edge: c.kind = "edge"; break;
+                case HitKind::Hole:
+                    c.kind = "hole";
+                    c.a = w.b->s.holes[h.index].position;
+                    c.width = w.b->s.holes[h.index].keepout;
+                    c.at = closestOnSegment(c.a, a, b);
+                    break;
+                case HitKind::Plane: c.kind = "plane"; break;
+                case HitKind::Mesh: c.kind = "mesh"; break;
+            }
+            out.push_back(c);
+        };
+        std::vector<Hit> hits;
+        for (size_t k = 0; k < w.addT.size(); ++k) {
+            const size_t i = w.baseT() + k;
+            if (!w.aliveT(i) || !w.fixAddT[k]) continue;
+            const Track& t = w.track(i);
+            hits.clear();
+            segmentHits(w, {t.net}, t.layer, t.a, t.b, t.width / 2, &hits);
+            for (const Hit& h : hits) record(h, t.a, t.b);
+        }
+        for (size_t k = 0; k < w.addV.size(); ++k) {
+            const size_t i = w.baseV() + k;
+            if (!w.aliveV(i) || !w.fixAddV[k]) continue;
+            hits.clear();
+            viaHits(w, w.via(i), i, &hits);
+            for (const Hit& h : hits) record(h, w.via(i).position, w.via(i).position);
+        }
+        return out;
     }
 
     void buildPreview() {
@@ -2422,23 +3365,49 @@ struct InteractiveRouter::Impl {
             prev = p;
             return;
         }
-        p.kind = kind == Kind::Route ? "route" : kind == Kind::Pair ? "pair" : "drag";
+        p.kind = kind == Kind::Route  ? "route"
+                 : kind == Kind::Pair ? "pair"
+                 : kind == Kind::Bus  ? "bus"
+                 : kind == Kind::Drag ? "drag"
+                                      : "via";
         p.status = status;
         p.blocked = blocked;
         p.reachedTarget = reached;
         for (const auto& m : members) p.nets.push_back(m.net);
         p.layer = layer;
+        p.layerCount = std::max(1, base->s.layerCount);
         p.width = width;
         p.gap = kind == Kind::Pair ? gap : 0;
         for (const auto& m : members) {
             p.placed.insert(p.placed.end(), m.placed.begin(), m.placed.end());
             for (const Track& t : toTracks(m.head, m.net, layer, width)) p.head.push_back(t);
         }
-        if (kind == Kind::Pair)
+        if (kind == Kind::Route && cornerRadius() > 0 && !members.empty()) {
+            // Show the corners as they will be written: the whole route rounded, split where the head begins.
+            std::vector<Track> all = p.placed;
+            const size_t headFrom = all.size();
+            all.insert(all.end(), p.head.begin(), p.head.end());
+            size_t h = 0;
+            const std::vector<Track> round = roundRoute(all, headFrom, current, &h);
+            h = std::min(h, round.size());
+            p.placed.assign(round.begin(), round.begin() + static_cast<long>(h));
+            p.head.assign(round.begin() + static_cast<long>(h), round.end());
+        }
+        if (kind == Kind::Pair || kind == Kind::Bus)
             p.end = centreHead.size() >= 2 ? centreHead.back() : centre;
+        else if (kind == Kind::DragVia)
+            p.end = vdrag.at;
         else
             p.end = !members.empty() ? (members[0].head.size() >= 2 ? members[0].head.back() : members[0].end) : Vec2{};
         p.vias = placedVias;
+        if (kind == Kind::DragVia) {
+            p.head = vdrag.tracks;
+            if (vdrag.valid) {
+                Via v = vdrag.via;
+                v.position = vdrag.at;
+                p.vias = {v};
+            }
+        }
         for (size_t k = 0; k < current.addT.size(); ++k)
             if (!current.goneT[current.baseT() + k] && !current.fixAddT[k]) p.shovedTracks.push_back(current.addT[k]);
         for (size_t k = 0; k < current.addV.size(); ++k)
@@ -2447,9 +3416,29 @@ struct InteractiveRouter::Impl {
             if (current.goneT[i]) p.hiddenTracks.push_back(base->tracks[i].id);
         for (size_t i = 0; i < current.baseV(); ++i)
             if (current.goneV[i]) p.hiddenVias.push_back(base->vias[i].id);
-        if (!members.empty()) {
+        if (kind == Kind::DragVia) {
+            for (const Track& t : vdrag.tracks) p.length += (t.b - t.a).length();
+        } else if (!members.empty()) {
             for (const Track& t : members[0].placed) p.length += (t.b - t.a).length();
             p.length += pathLength(members[0].head);
+        }
+        if (highlight()) {
+            p.collisions = collisions();
+            if (!p.collisions.empty())
+                p.status = std::to_string(p.collisions.size()) +
+                           (p.collisions.size() == 1 ? " collision" : " collisions") + " — the DRC will report them";
+        }
+        // The net's whole length: its copper in the overlay (the session's own pieces aside) plus the route.
+        if (!members.empty()) {
+            const int net = members[0].net;
+            double other = 0;
+            for (size_t i = 0; i < current.nT(); ++i) {
+                if (!current.aliveT(i) || (i >= current.baseT() && current.fixAddT[i - current.baseT()])) continue;
+                const Track& t = current.track(i);
+                if (t.net == net) other += (t.b - t.a).length();
+            }
+            p.netLength = other + p.length;
+            p.targetLength = groupTarget;
         }
         prev = p;
     }
@@ -2470,6 +3459,10 @@ bool InteractiveRouter::beginRoute(Vec2 at, int layer) {
     impl_->err.clear();
     return impl_->beginRoute(at, layer);
 }
+bool InteractiveRouter::beginBus(Vec2 at, int layer, int count) {
+    impl_->err.clear();
+    return impl_->beginBus(at, layer, count);
+}
 bool InteractiveRouter::beginPair(Vec2 at, int layer) {
     impl_->err.clear();
     return impl_->beginPair(at, layer);
@@ -2478,6 +3471,12 @@ bool InteractiveRouter::beginDrag(int trackId, Vec2 grab) {
     impl_->err.clear();
     return impl_->beginDrag(trackId, grab);
 }
+bool InteractiveRouter::beginViaDrag(int viaId, Vec2 grab) {
+    impl_->err.clear();
+    return impl_->beginViaDrag(viaId, grab);
+}
+void InteractiveRouter::requestAbort() { impl_->ownAbort.fetch_add(1, std::memory_order_relaxed); }
+void InteractiveRouter::setAbortSource(const std::atomic<unsigned>* counter) { impl_->extAbort = counter; }
 const RoutePreview& InteractiveRouter::moveTo(Vec2 cursor) {
     if (impl_->kind != Impl::Kind::None) impl_->computeHead(cursor);
     return impl_->prev;
@@ -2506,6 +3505,13 @@ const std::string& InteractiveRouter::error() const { return impl_->err; }
 // ============================================================================================== length tuning
 
 LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int trackId, double target, double maxAmplitude) {
+    LengthTuneOptions o;
+    o.target = target;
+    o.maxAmplitude = maxAmplitude;
+    return tuneTrackLength(pcb, sch, trackId, o);
+}
+
+LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int trackId, const LengthTuneOptions& opt) {
     LengthTuneResult r;
     long ti = -1;
     for (size_t i = 0; i < pcb.tracks.size(); ++i)
@@ -2521,21 +3527,27 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
         return r;
     }
     r.before = routedNetLength(pcb, sel.net);
+    double target = opt.target;
     double tolerance = 0.01;
-    if (target <= 0) {
-        bool inGroup = false;
-        for (const auto& g : lengthGroups(sch, pcb.settings)) {
-            if (std::find(g.nets.begin(), g.nets.end(), sel.net) == g.nets.end()) continue;
-            inGroup = true;
-            for (int n : g.nets) target = std::max(target, routedNetLength(pcb, n));
-            tolerance = std::max(tolerance, g.tolerance / 2);
+    double groupLongest = 0;
+    for (const auto& g : lengthGroups(sch, pcb.settings)) {
+        if (std::find(g.nets.begin(), g.nets.end(), sel.net) == g.nets.end()) continue;
+        if (r.group.empty()) {
+            r.group = g.name;
+            r.groupKind = g.kind;
         }
-        if (!inGroup) {
+        for (int n : g.nets) groupLongest = std::max(groupLongest, routedNetLength(pcb, n));
+        if (target <= 0) tolerance = std::max(tolerance, g.tolerance / 2);
+    }
+    if (target <= 0) {
+        if (r.group.empty()) {
             r.message = "The net is not in a matched-length group — give a target length";
             return r;
         }
+        target = groupLongest;
     }
     r.target = target;
+    r.tolerance = tolerance;
     r.after = r.before;
     double want = target - r.before;
     if (want <= tolerance) {
@@ -2547,7 +3559,7 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
     Base base(pcb, sch);
     World w(&base);
     const double clr = base.s.clearance;
-    const double maxAmp = maxAmplitude > 0 ? maxAmplitude : 2.0;
+    const double maxAmp = opt.maxAmplitude > 0 ? opt.maxAmplitude : 2.0;
     // The selected track first, then the net's other unlocked tracks, longest first.
     std::vector<size_t> cand{static_cast<size_t>(ti)};
     std::vector<size_t> others;
@@ -2567,13 +3579,13 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
             if (pd.net == t.net && pd.onLayer(t.layer) && padSegmentDistance(pd, a, b) - t.width / 2 < clr - kTol) return false;
         return true;
     };
-    std::vector<Track> added;
     for (size_t ci : cand) {
         if (want <= tolerance) break;
         if (base.trackFixed[ci]) continue;
         const Track t = base.tracks[ci];
         const double wd = t.width, L = (t.b - t.a).length();
-        const double pitch = std::max(wd + clr, 3 * wd);
+        // Leg pitch (centre to centre): the requested edge-to-edge spacing, never closer than width + clearance.
+        const double pitch = opt.spacing > 0 ? std::max(wd + clr, opt.spacing + wd) : std::max(wd + clr, 3 * wd);
         const double margin = std::max(2 * wd, 0.5);
         const int maxBumps = static_cast<int>(std::floor((L - 2 * margin) / (2 * pitch)));
         if (maxBumps < 1) continue;
@@ -2585,9 +3597,14 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
                 const double amp = std::min(amax, want / (2.0 * bumps));
                 if (amp < 0.05) break;
                 const double run = 2.0 * pitch * bumps;
-                for (double where : {0.5, 0.0, 1.0}) {
+                std::vector<double> starts;
+                if (opt.hasNear && ci == static_cast<size_t>(ti)) {
+                    const double along = (opt.near - t.a).dot(unit(t.b - t.a));
+                    starts.push_back(std::clamp(along - run / 2, margin, std::max(margin, L - margin - run)));
+                }
+                for (double where : {0.5, 0.0, 1.0}) starts.push_back(margin + (L - 2 * margin - run) * where);
+                for (double start : starts) {
                     if (done) break;
-                    const double start = margin + (L - 2 * margin - run) * where;
                     for (double sd : {1.0, -1.0}) {
                         const auto pts = accordion(t, amp, sd, pitch, bumps, start);
                         w.goneT[ci] = 1;
@@ -2615,11 +3632,203 @@ LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int track
         r.message = "No room for a meander on the net's tracks";
         return r;
     }
-    r.changes = applyWorld(pcb, w, {}, {});
-    r.after = routedNetLength(pcb, sel.net);
+    double added = 0;
+    for (const Track& t : w.addT) {
+        r.addedTracks.push_back(t);
+        added += (t.b - t.a).length();
+    }
+    for (size_t i = 0; i < w.baseT(); ++i)
+        if (w.goneT[i]) {
+            r.removedTracks.push_back(base.tracks[i].id);
+            added -= (base.tracks[i].b - base.tracks[i].a).length();
+        }
     r.ok = true;
     r.message = want <= tolerance ? "Tuned to the target length" : "Lengthened as far as the free space allows";
+    if (!opt.apply) {
+        r.after = r.before + added;
+        r.changes.ok = true;
+        return r;
+    }
+    r.changes = applyWorld(pcb, w, {}, {});
+    r.after = routedNetLength(pcb, sel.net);
+    r.applied = true;
     return r;
+}
+
+LengthTuneOptions lengthTuneOptionsFromJson(const Json& j) {
+    LengthTuneOptions o;
+    if (!j.isObject()) return o;
+    o.target = std::max(0.0, j.get("target").asNumber(0));
+    o.maxAmplitude = std::max(0.0, j.get("maxAmplitude").asNumber(0));
+    o.spacing = std::max(0.0, j.get("spacing").asNumber(0));
+    if (j.has("x") && j.has("y") && j.get("x").isNumber() && j.get("y").isNumber()) {
+        o.hasNear = true;
+        o.near = {j.get("x").asNumber(0), j.get("y").asNumber(0)};
+    }
+    if (j.has("apply")) o.apply = j.get("apply").asBool(true);
+    return o;
+}
+
+Json lengthTuneJson(const LengthTuneResult& r) {
+    Json j = Json::object();
+    j["ok"] = r.ok;
+    j["message"] = r.message;
+    j["net"] = r.net;
+    j["group"] = r.group;
+    j["groupKind"] = r.groupKind;
+    j["tolerance"] = r.tolerance;
+    j["before"] = r.before;
+    j["after"] = r.after;
+    j["target"] = r.target;
+    j["applied"] = r.applied;
+    Json added = Json::array(), removed = Json::array();
+    for (const Track& t : r.addedTracks) added.push(trackJson(t));
+    for (int id : r.removedTracks) removed.push(id);
+    j["addedTracks"] = added;
+    j["removedTracks"] = removed;
+    j["changes"] = routeChangesJson(r.changes);
+    return j;
+}
+
+// ================================================================================================== fanout
+
+FanoutResult fanoutComponent(PcbLayout& pcb, const Schematic& sch, int componentId, const FanoutOptions& options) {
+    FanoutResult res;
+    if (pcb.settings.layerCount < 2) {
+        res.message = "A single-sided board has no vias to fan out to";
+        return res;
+    }
+    const Component* comp = sch.find(componentId);
+    if (!comp || !comp->pcb.placed) {
+        res.message = "The part is not on the board";
+        return res;
+    }
+    std::vector<size_t> pinCount;
+    for (const auto& n : sch.nets()) pinCount.push_back(n.pins.size());
+    const std::vector<Pad> all = pcb.pads(sch);
+    std::vector<size_t> mine;
+    Vec2 centre;
+    for (size_t i = 0; i < all.size(); ++i)
+        if (all[i].componentId == componentId) {
+            mine.push_back(i);
+            centre = centre + all[i].position;
+        }
+    if (mine.empty()) {
+        res.message = "The part has no pads";
+        return res;
+    }
+    centre = centre * (1.0 / static_cast<double>(mine.size()));
+    const BoardSettings& s = pcb.settings;
+    RouterOptions ro;
+    ro.mode = options.shove ? RouterMode::Shove : RouterMode::Walkaround;
+    ro.viaType = options.viaType;
+    ro.snapToPads = false;
+    // Pads in pad order, so the result is the same every time.
+    std::stable_sort(mine.begin(), mine.end(), [&](size_t a, size_t b) { return all[a].padNumber < all[b].padNumber; });
+    for (size_t i : mine) {
+        const Pad pd = all[i];
+        if (pd.throughHole || pd.net < 0 || static_cast<size_t>(pd.net) >= pinCount.size() ||
+            pinCount[static_cast<size_t>(pd.net)] < 2) {
+            ++res.skipped;
+            continue;
+        }
+        if (options.onlyUnrouted) {
+            bool routed = false;
+            for (const auto& t : pcb.tracks)
+                routed = routed || (t.net == pd.net && t.layer == pd.smdLayer && padSegmentDistance(pd, t.a, t.b) <= t.width / 2);
+            for (const auto& v : pcb.vias)
+                routed = routed || (v.net == pd.net && v.spans(pd.smdLayer) && padDistance(pd, v.position) <= v.diameter / 2);
+            if (routed) {
+                ++res.skipped;
+                continue;
+            }
+        }
+        // Outward: along the pad's long side for gull-wing / QFN pads, diagonal for square pads (BGA dog-bone).
+        const Vec2 d = pd.position - centre;
+        Vec2 dir;
+        if (pd.size.x > 1.2 * pd.size.y)
+            dir = {d.x >= 0 ? 1.0 : -1.0, 0};
+        else if (pd.size.y > 1.2 * pd.size.x)
+            dir = {0, d.y >= 0 ? 1.0 : -1.0};
+        else if (std::fabs(d.x) < 1e-6 || std::fabs(d.y) < 1e-6)
+            dir = std::fabs(d.x) >= std::fabs(d.y) ? Vec2{d.x >= 0 ? 1.0 : -1.0, 0} : Vec2{0, d.y >= 0 ? 1.0 : -1.0};
+        else
+            dir = Vec2{d.x >= 0 ? 1.0 : -1.0, d.y >= 0 ? 1.0 : -1.0} * kInvSqrt2;
+        const double half = std::fabs(pd.size.x * dir.x) / 2 + std::fabs(pd.size.y * dir.y) / 2;
+        const double viaR = (options.viaType == RouterViaType::Micro ? s.microviaDiameter : s.viaDiameter) / 2;
+        const double base = options.distance > 0 ? options.distance : half + s.clearance + viaR + 0.05;
+        const Vec2 alt[3] = {dir, unit(dir + Vec2{-dir.y, dir.x}), unit(dir + Vec2{dir.y, -dir.x})};
+        bool done = false;
+        std::string why;
+        for (double extra : {0.0, 0.25, 0.5, 1.0}) {
+            for (const Vec2& a : alt) {
+                if (done) break;
+                const Vec2 to = pd.position + a * (base + extra);
+                InteractiveRouter r(pcb, sch);
+                r.setOptions(ro);
+                if (!r.beginRoute(pd.position, pd.smdLayer)) {
+                    why = r.error();
+                    continue;
+                }
+                const RoutePreview& pv = r.moveTo(to);
+                const double direct = (to - pd.position).length();
+                if (pv.blocked || (pv.end - to).length() > 1e-6 || pv.length > direct * 1.1 + 1e-6) {
+                    why = pv.status;
+                    r.cancel();
+                    continue;
+                }
+                if (!r.addVia()) {
+                    why = r.error();
+                    r.cancel();
+                    continue;
+                }
+                const RouteChanges ch = r.commit();
+                if (!ch.ok) {
+                    why = ch.error;
+                    continue;
+                }
+                done = true;
+            }
+            if (done) break;
+        }
+        if (done) {
+            ++res.fanned;
+        } else {
+            res.failedPads.push_back(pd.padNumber);
+            if (res.firstProblem.empty()) res.firstProblem = why;
+        }
+    }
+    res.ok = res.fanned > 0;
+    res.message = std::to_string(res.fanned) + " pad" + (res.fanned == 1 ? "" : "s") + " fanned out";
+    if (!res.failedPads.empty())
+        res.message += ", " + std::to_string(res.failedPads.size()) + " without room" +
+                       (res.firstProblem.empty() ? std::string() : " (" + res.firstProblem + ")");
+    return res;
+}
+
+FanoutOptions fanoutOptionsFromJson(const Json& j) {
+    FanoutOptions o;
+    if (!j.isObject()) return o;
+    if (j.has("shove")) o.shove = j.get("shove").asBool(o.shove);
+    if (j.has("onlyUnrouted")) o.onlyUnrouted = j.get("onlyUnrouted").asBool(o.onlyUnrouted);
+    o.distance = std::max(0.0, j.get("distance").asNumber(0));
+    const std::string vt = j.get("viaType").asString(std::string());
+    if (vt == "blind") o.viaType = RouterViaType::Blind;
+    if (vt == "micro") o.viaType = RouterViaType::Micro;
+    if (vt == "auto") o.viaType = RouterViaType::Auto;
+    return o;
+}
+
+Json fanoutJson(const FanoutResult& r) {
+    Json j = Json::object();
+    j["ok"] = r.ok;
+    j["message"] = r.message;
+    j["fanned"] = r.fanned;
+    j["skipped"] = r.skipped;
+    Json failed = Json::array();
+    for (int n : r.failedPads) failed.push(n);
+    j["failed"] = failed;
+    return j;
 }
 
 // ================================================================================================= JSON
@@ -2629,6 +3838,7 @@ RouterOptions routerOptionsFromJson(const Json& j, RouterOptions o) {
     const std::string mode = j.get("mode").asString(std::string());
     if (mode == "shove") o.mode = RouterMode::Shove;
     if (mode == "walkaround") o.mode = RouterMode::Walkaround;
+    if (mode == "highlight") o.mode = RouterMode::Highlight;
     const Json& posture = j.get("posture");
     const std::string ps = posture.isNumber() ? std::to_string(posture.asInt()) : posture.asString(std::string());
     if (ps == "45") o.posture = RoutePosture::Diagonal45;
@@ -2638,6 +3848,12 @@ RouterOptions routerOptionsFromJson(const Json& j, RouterOptions o) {
     if (j.has("width")) o.width = std::max(0.0, j.get("width").asNumber(o.width));
     if (j.has("pairGap")) o.pairGap = std::max(0.0, j.get("pairGap").asNumber(o.pairGap));
     if (j.has("snap")) o.snapToPads = j.get("snap").asBool(o.snapToPads);
+    const std::string vt = j.get("viaType").asString(std::string());
+    if (vt == "through") o.viaType = RouterViaType::Through;
+    if (vt == "blind") o.viaType = RouterViaType::Blind;
+    if (vt == "micro") o.viaType = RouterViaType::Micro;
+    if (vt == "auto") o.viaType = RouterViaType::Auto;
+    if (j.has("cornerRadius")) o.cornerRadius = j.get("cornerRadius").asNumber(o.cornerRadius);
     if (j.has("shoveLimit")) o.shoveLimit = std::clamp(j.get("shoveLimit").asInt(o.shoveLimit), 1, 10000);
     return o;
 }
@@ -2658,14 +3874,17 @@ Json routePreviewJson(const RoutePreview& p) {
     j["endX"] = p.end.x;
     j["endY"] = p.end.y;
     j["length"] = p.length;
+    j["netLength"] = p.netLength;
+    if (p.aborted) j["aborted"] = true;
+    j["targetLength"] = p.targetLength;
     auto tracks = [](const std::vector<Track>& ts) {
         Json a = Json::array();
         for (const Track& t : ts) a.push(trackJson(t));
         return a;
     };
-    auto vias = [](const std::vector<Via>& vs) {
+    auto vias = [&](const std::vector<Via>& vs) {
         Json a = Json::array();
-        for (const Via& v : vs) a.push(viaJson(v));
+        for (const Via& v : vs) a.push(viaJson(v, p.layerCount));
         return a;
     };
     auto ids = [](const std::vector<int>& v) {
@@ -2680,6 +3899,23 @@ Json routePreviewJson(const RoutePreview& p) {
     j["shovedVias"] = vias(p.shovedVias);
     j["hiddenTracks"] = ids(p.hiddenTracks);
     j["hiddenVias"] = ids(p.hiddenVias);
+    Json col = Json::array();
+    for (const RouteCollision& c : p.collisions) {
+        Json k = Json::object();
+        k["kind"] = c.kind;
+        k["id"] = c.id;
+        k["x"] = c.at.x;
+        k["y"] = c.at.y;
+        k["ax"] = c.a.x;
+        k["ay"] = c.a.y;
+        k["bx"] = c.b.x;
+        k["by"] = c.b.y;
+        k["w"] = c.size.x;
+        k["h"] = c.size.y;
+        k["width"] = c.width;
+        col.push(k);
+    }
+    j["collisions"] = col;
     return j;
 }
 

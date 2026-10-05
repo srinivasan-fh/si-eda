@@ -522,3 +522,83 @@ int sieda_c_api_pi_test(const char* project_json) {
     sieda_project_free(p);
     return 0;
 }
+
+/* First integer after `key` in `json` (-1 when absent). */
+static int32_t c_api_first_int_after(const char* json, const char* key) {
+    const char* at = json ? strstr(json, key) : NULL;
+    if (!at) return -1;
+    at += strlen(key);
+    while (*at && (*at < '0' || *at > '9')) ++at;
+    if (!*at) return -1;
+    int32_t v = 0;
+    for (; *at >= '0' && *at <= '9'; ++at) v = v * 10 + (*at - '0');
+    return v;
+}
+
+/* Via drag and interactive length tuning through the C API. */
+int sieda_c_api_router_drag_tune_test(void) {
+    SiedaProject* p = sieda_project_new("C API drag and tune");
+    if (!p) return 1;
+    int32_t r1 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 0, 0, NULL);
+    int32_t r2 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 0, 0, NULL);
+    if (r1 < 0 || r2 < 0 || sieda_connect(p, r1, 1, r2, 0) < 0) return 2;
+    if (!sieda_pcb_move_footprint(p, r1, 10, 20) || !sieda_pcb_move_footprint(p, r2, 40, 20)) return 3;
+    char* s = sieda_router_begin(p, "{\"mode\":\"shove\",\"posture\":\"45\"}", 10.95, 20, 0);
+    sieda_string_free(s);
+    s = sieda_router_move(p, 18, 20);
+    sieda_string_free(s);
+    s = sieda_router_add_via(p, -1);
+    if (!s || strstr(s, "\"error\"") || !strstr(s, "\"kind\":\"through\"")) return 4;
+    sieda_string_free(s);
+    s = sieda_router_move(p, 30, 20);
+    sieda_string_free(s);
+    s = sieda_router_add_via(p, 0);
+    sieda_string_free(s);
+    s = sieda_router_move(p, 39.05, 20);
+    if (!s || !strstr(s, "\"reachedTarget\":true") || !strstr(s, "\"netLength\":")) return 5;
+    sieda_string_free(s);
+    char* commit = sieda_router_commit(p);
+    const int32_t via = c_api_first_int_after(commit, "\"addedVias\":[");
+    const int32_t track = c_api_first_int_after(commit, "\"addedTracks\":[");
+    sieda_string_free(commit);
+    if (via < 0 || track < 0) return 6;
+
+    char* drag = sieda_router_begin_via_drag(p, NULL, via, 18, 20);
+    if (!drag || strstr(drag, "\"error\"") || !strstr(drag, "\"kind\":\"via\"")) return 7;
+    sieda_string_free(drag);
+    char* move = sieda_router_move(p, 18, 23);
+    if (!move || !strstr(move, "\"vias\":[{") || !strstr(move, "\"hiddenVias\":[")) return 8;
+    sieda_string_free(move);
+    char* done = sieda_router_commit(p);
+    if (!done || !strstr(done, "\"ok\":true") || !strstr(done, "\"removedVias\":[{")) return 9;
+    sieda_string_free(done);
+    char* missing = sieda_router_begin_via_drag(p, NULL, -3, 0, 0);
+    if (!missing || !strstr(missing, "\"error\"")) return 10;
+    sieda_string_free(missing);
+
+    char* snap = sieda_project_snapshot(p);
+    const int32_t first = c_api_first_int_after(snap ? strstr(snap, "\"tracks\":[{") : NULL, "\"id\":");
+    sieda_string_free(snap);
+    if (first < 0) return 11;
+    char* preview = sieda_router_tune(p, first, "{\"target\":200,\"apply\":false,\"spacing\":0.5}");
+    if (!preview || !strstr(preview, "\"ok\":true") || !strstr(preview, "\"applied\":false") ||
+        !strstr(preview, "\"addedTracks\":[{"))
+        return 12;
+    sieda_string_free(preview);
+    char* applied = sieda_router_tune(p, first, "{\"target\":200}");
+    if (!applied || !strstr(applied, "\"applied\":true")) return 13;
+    sieda_string_free(applied);
+    char* bad = sieda_router_tune(p, first, "{not json");
+    if (!bad || !strstr(bad, "\"error\"")) return 14;
+    sieda_string_free(bad);
+    /* A resistor's other pad has no net: no bus to start there. */
+    char* bus = sieda_router_begin_bus(p, NULL, 10.95, 20, 0, 4);
+    if (!bus || !strstr(bus, "\"error\"") || sieda_router_active(p)) return 15;
+    sieda_string_free(bus);
+    /* Both pads of R1 that matter are routed already: nothing to fan out. */
+    char* fan = sieda_pcb_fanout(p, r1, "{\"viaType\":\"through\"}");
+    if (!fan || !strstr(fan, "\"fanned\":0") || !strstr(fan, "\"ok\":false")) return 16;
+    sieda_string_free(fan);
+    sieda_project_free(p);
+    return 0;
+}

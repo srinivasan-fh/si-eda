@@ -815,7 +815,15 @@ final class EDAEngine: @unchecked Sendable {
 
     /// Options for `sieda_router_*`: push-and-shove or walkaround, 45° or 90° corners.
     static func routerOptions(shove: Bool, diagonal: Bool) -> String {
-        "{\"mode\":\"\(shove ? "shove" : "walkaround")\",\"posture\":\"\(diagonal ? "45" : "90")\"}"
+        routerOptions(mode: shove ? .shove : .walkaround, diagonal: diagonal)
+    }
+
+    /// Options for `sieda_router_*` with any router mode (Highlight lets the head go anywhere and lists collisions).
+    /// `rounded`: corners become arcs (short chords) of the automatic radius where they fit (single tracks).
+    static func routerOptions(mode: RouterModeChoice, diagonal: Bool, via: RouterViaChoice = .through,
+                              rounded: Bool = false) -> String {
+        "{\"mode\":\"\(mode.rawValue)\",\"posture\":\"\(diagonal ? "45" : "90")\",\"viaType\":\"\(via.rawValue)\","
+            + "\"cornerRadius\":\(rounded ? -1 : 0)}"
     }
 
     /// Starts a route (or a differential pair) on the pad, via or track at `point`; the preview carries `error` when
@@ -828,6 +836,46 @@ final class EDAEngine: @unchecked Sendable {
         return Self.decode(RoutePreview.self, from: json)
     }
 
+    /// Drags track segment `trackId` grabbed at `point` (it moves parallel to itself; other nets are shoved).
+    func routerBeginDrag(track trackId: Int, at point: CGPoint, options: String) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle {
+            Self.take(sieda_router_begin_drag($0, options, Int32(trackId), Double(point.x), Double(point.y)))
+        })
+    }
+
+    /// Drags via `viaId` grabbed at `point`; the tracks ending on it follow.
+    func routerBeginViaDrag(via viaId: Int, at point: CGPoint, options: String) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle {
+            Self.take(sieda_router_begin_via_drag($0, options, Int32(viaId), Double(point.x), Double(point.y)))
+        })
+    }
+
+    /// Length tuning of the net of `trackId`: a preview (`apply` false) or the change itself. `target` 0 = the
+    /// longest member of the net's pair / bus group; `amplitude` / `spacing` 0 = defaults.
+    func routerTune(track trackId: Int, target: Double, amplitude: Double, spacing: Double, near point: CGPoint?,
+                    apply: Bool) -> TunePreview? {
+        var fields = [String(format: "\"target\":%.6f", max(0, target)),
+                      String(format: "\"maxAmplitude\":%.6f", max(0, amplitude)),
+                      String(format: "\"spacing\":%.6f", max(0, spacing)),
+                      "\"apply\":\(apply ? "true" : "false")"]
+        if let point { fields.append(String(format: "\"x\":%.6f,\"y\":%.6f", Double(point.x), Double(point.y))) }
+        let options = "{" + fields.joined(separator: ",") + "}"
+        return Self.decode(TunePreview.self, from: withHandle { Self.take(sieda_router_tune($0, Int32(trackId), options)) })
+    }
+
+    /// Starts a bus on the pad at `point`: it and the next pads of its part's row (up to `count` nets) route together.
+    func routerBeginBus(at point: CGPoint, layer: Int, count: Int, options: String) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle {
+            Self.take(sieda_router_begin_bus($0, options, Double(point.x), Double(point.y), Int32(layer), Int32(count)))
+        })
+    }
+
+    /// Fanout of a part: an escape track and a via on every SMD pad whose net has other pins and no copper yet.
+    func fanout(component: Int, via: RouterViaChoice = .through) -> FanoutResult? {
+        let options = "{\"viaType\":\"\(via.rawValue)\"}"
+        return Self.decode(FanoutResult.self, from: withHandle { Self.take(sieda_pcb_fanout($0, Int32(component), options)) })
+    }
+
     func routerMove(to point: CGPoint) -> RoutePreview? {
         Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_move($0, Double(point.x), Double(point.y))) })
     }
@@ -837,9 +885,11 @@ final class EDAEngine: @unchecked Sendable {
         Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_fix($0)) })
     }
 
-    /// Places a via at the head's end and continues on `layer` (nil = the other outer layer).
-    func routerAddVia(toLayer layer: Int? = nil) -> RoutePreview? {
-        Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_add_via($0, Int32(layer ?? -1))) })
+    /// Places a via at the head's end and continues on `layer` (nil = the default layer for the via type: the other
+    /// outer layer for through vias, the next layer for blind / micro vias; `reverse` = the next layer the other way).
+    func routerAddVia(toLayer layer: Int? = nil, reverse: Bool = false) -> RoutePreview? {
+        let target = layer ?? (reverse ? -2 : -1)
+        return Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_add_via($0, Int32(target))) })
     }
 
     func routerSetOptions(_ options: String) -> RoutePreview? {
@@ -853,6 +903,11 @@ final class EDAEngine: @unchecked Sendable {
     }
 
     func routerCancel() { withHandle { sieda_router_cancel($0) } }
+
+    /// Cancels the head update running on another thread (`routerMove` off the main thread): it returns soon with
+    /// the preview from before it, marked `aborted`. Lock-free, so it does not wait for that update; call it from the
+    /// main thread (the only thread that replaces the project handle).
+    func routerAbort() { sieda_router_abort(handle) }
 
     var routerActive: Bool { withHandle { sieda_router_active($0) } == 1 }
 

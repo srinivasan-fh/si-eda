@@ -83,4 +83,7 @@ if(SIEDA_BUILD_TESTS)
     # Scale benchmark: place / route / DRC timings on generated large boards (not part of ctest).
     add_executable(sieda_route_bench Core/tests/bench/route_bench.cpp)
     target_link_libraries(sieda_route_bench PRIVATE sieda_core)
+    # Interactive-router benchmark: head-update times on a generated, autorouted ~400-part board (not part of ctest).
+    add_executable(sieda_router_bench Core/tests/bench/router_bench.cpp)
+    target_link_libraries(sieda_router_bench PRIVATE sieda_core)
 endif()
