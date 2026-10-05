@@ -580,8 +580,88 @@ ChannelModel extractChannel(const Project& project, const ChannelOptions& opt) {
             }
         }
         if (rx[k] < 0) {
-            m.error = (k == 0 ? m.netP : m.netN) + ": no logic receiver on the net";
-            return m;
+            // No logic input (a connector, a cable, a test point ends the net): the farthest pad by copper is the
+            // receiver port, with no device model (the ideal termination, or an open end with the net's model).
+            const auto pads = project.pcb.pads(sch);
+            const NetCopperGraph& g = circ[k].graph;
+            const size_t n = g.nodes.size();
+            std::vector<double> dist(n, std::numeric_limits<double>::infinity()), delay(n, 0.0);
+            std::vector<std::vector<std::pair<int, size_t>>> adj(n);
+            for (size_t e = 0; e < g.edges.size(); ++e) {
+                adj[static_cast<size_t>(g.edges[e].a)].push_back({g.edges[e].b, e});
+                adj[static_cast<size_t>(g.edges[e].b)].push_back({g.edges[e].a, e});
+            }
+            const int start = circ[k].driverNode;
+            if (start >= 0 && static_cast<size_t>(start) < n) {
+                using Item = std::pair<double, int>;
+                std::vector<Item> heap{{0.0, start}};
+                dist[static_cast<size_t>(start)] = 0;
+                while (!heap.empty()) {
+                    std::pop_heap(heap.begin(), heap.end(), std::greater<Item>());
+                    const auto [d0, x] = heap.back();
+                    heap.pop_back();
+                    if (d0 > dist[static_cast<size_t>(x)]) continue;
+                    for (const auto& [y, e] : adj[static_cast<size_t>(x)]) {
+                        const auto& ed = g.edges[e];
+                        const double len = ed.via ? 0.0 : ed.length;
+                        if (d0 + len + 1e-9 < dist[static_cast<size_t>(y)]) {
+                            dist[static_cast<size_t>(y)] = d0 + len + 1e-9;
+                            NetCopperGraph::Edge v = ed;
+                            const double tpd = ed.via ? viaLine(s, v).lExt * viaLine(s, v).cAir : 0;
+                            delay[static_cast<size_t>(y)] =
+                                delay[static_cast<size_t>(x)] + (ed.via ? std::sqrt(std::max(0.0, tpd)) * ed.length * 1e-3
+                                                                        : ed.length * propagationDelayPerMm(s, ed.layer, ed.width));
+                            heap.push_back({dist[static_cast<size_t>(y)], y});
+                            std::push_heap(heap.begin(), heap.end(), std::greater<Item>());
+                        }
+                    }
+                }
+            }
+            double far = -1;
+            size_t farPad = 0;
+            int farNode = -1;
+            for (const auto& [pi, node] : g.padNode) {
+                if (node == start || node < 0 || static_cast<size_t>(node) >= n || !std::isfinite(dist[static_cast<size_t>(node)]))
+                    continue;
+                double score = dist[static_cast<size_t>(node)];
+                if (k == 1 && !circ[0].receivers.empty() && pi < pads.size() &&
+                    pads[pi].componentId == circ[0].receivers[static_cast<size_t>(rx[0])].componentId)
+                    score += 1e6;
+                if (score > far) {
+                    far = score;
+                    farPad = pi;
+                    farNode = node;
+                }
+            }
+            if (farNode < 0 || farPad >= pads.size()) {
+                m.error = (k == 0 ? m.netP : m.netN) + ": the driver's copper reaches no other pad";
+                return m;
+            }
+            SiNetCircuit::Receiver r;
+            r.node = farNode;
+            r.pad = farPad;
+            r.componentId = pads[farPad].componentId;
+            const Component* c = sch.find(r.componentId);
+            r.ref = c ? c->ref : "";
+            const auto* pinDef = c && pads[farPad].pinIndex >= 0 && pads[farPad].pinIndex < static_cast<int>(c->def().pins.size())
+                                     ? &c->def().pins[static_cast<size_t>(pads[farPad].pinIndex)]
+                                     : nullptr;
+            r.pin = pinDef ? (pinDef->number.empty() ? pinDef->name : pinDef->number) : "";
+            r.model.name = "open end (no receiver model)";
+            r.model.cIn = 0;
+            r.model.cComp = 0;
+            r.result = res[k].receivers.size();
+            SiReceiver sr;
+            sr.componentId = r.componentId;
+            sr.ref = r.ref;
+            sr.pin = r.pin;
+            sr.pathLength = dist[static_cast<size_t>(farNode)];
+            sr.pathDelay = delay[static_cast<size_t>(farNode)];
+            res[k].receivers.push_back(sr);
+            circ[k].receivers.push_back(r);
+            rx[k] = static_cast<int>(circ[k].receivers.size()) - 1;
+            m.notes.push_back((k == 0 ? m.netP : m.netN) + ": no logic receiver — the channel ends at " + r.ref + " " + r.pin +
+                              " (its load beyond the pad is not modelled; import its Touchstone model to cascade it)");
         }
     }
     const SiNetCircuit::Receiver& rxP = circ[0].receivers[static_cast<size_t>(rx[0])];

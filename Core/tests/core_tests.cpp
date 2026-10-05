@@ -9626,3 +9626,30 @@ TEST(pi_cavity_decap_plan_and_ir_map) {
     b.p.si.rails.clear();
     CHECK(sieda_c_api_pi_test(b.p.toJson().dump().c_str()) == 0);
 }
+
+TEST(si_channel_ends_at_connector) {
+    // U2 OUT → J2 (a connector, no logic input): the channel ends at the connector pad.
+    SiBoard b = siBoard();
+    auto& s = b.p.schematic;
+    int j2 = s.addComponent(ComponentKind::Connector, "OUT", {600, 0});
+    wire(s, b.u2, "OUT", j2, "1");
+    b.p.schematicChanged();
+    siPlace(b.p, j2, {110, 8});
+    const int net = s.netOf({b.u2, pin(s, b.u2, "OUT")});
+    const Vec2 a = siPad(b.p, b.u2, "OUT"), c = siPad(b.p, j2, "1");
+    siTrack(b.p, net, a, {a.x, c.y});
+    siTrack(b.p, net, {a.x, c.y}, c);
+    ChannelOptions o;
+    o.net = s.nets()[static_cast<size_t>(net)].name;
+    o.partner = "none";
+    const ChannelModel m = extractChannel(b.p, o);
+    CHECK(m.error.empty());
+    CHECK(m.receiverRef == s.find(j2)->ref && m.lengthP > 5);
+    CHECK(!m.notes.empty() && m.notes.back().find("no logic receiver") != std::string::npos);
+    EyeOptions e;
+    e.bitRate = 1e9;
+    ChannelDrive ideal;
+    ideal.idealDriver = true;
+    const Json j = channelJson(b.p, o, ideal, &e, nullptr);
+    CHECK(j.get("error").isNull() && j.get("eye").get("open").asBool());
+}

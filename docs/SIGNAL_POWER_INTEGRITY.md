@@ -192,7 +192,8 @@ evaluated band). The models are causal, so nothing arrives before the time of fl
 - **Elements.** Every track section is a lossy line; via barrel sections (and unused stubs, unless backdrilled) are
   short lines with Johnson's L and C, as in the reflection analysis; pads, terminations, connectors and the other
   receivers (C_in, C_pkg, ODT) are shunts. The driver pad and the receiver pad are the ports (the farthest receiver,
-  or the one named).
+  or the one named). A net with no logic input (it ends at a connector or a test point) ends at its farthest pad,
+  with no load model beyond it: cascade the connector or cable as Touchstone.
 - **Differential pairs** (found by name: `_P / _N`, `+ / −`, …) form one 4-port, ordered P near, N near, P far, N far.
   Where P and N tracks run side by side on a layer, the sections are split so they pair up and become **coupled
   lines**: from the coupling coefficients of the crosstalk model, `L_e,o = L(1 ± kl)`, `C_e,o = C11(1 ∓ kc)`,
@@ -497,6 +498,7 @@ The core tests check the physics against reference values:
 - `si_channel_sign_off_and_c_api`
 - `si_broadside_crosstalk`
 - `pi_cavity_decap_plan_and_ir_map`
+- `si_channel_ends_at_connector`
 
 `Core/tests/c_api_test.c` covers the C functions (`sieda_c_api_channel_test`, `sieda_c_api_pi_test`), and
 `SiEDATests/SiEDATests.swift` (`SignalIntegrityBridgeTests`, `ChannelAnalysisBridgeTests`) covers the Swift bridge.
