@@ -4506,7 +4506,9 @@ final class LocalizationTests: XCTestCase {
 
         XCTAssertEqual(LanguageSettings(defaults: defaults).code, "te", "the choice survives a relaunch")
         settings.code = ""
-        XCTAssertNil(defaults.object(forKey: "AppleLanguages"))
+        // The override is gone from the app's own domain (reading the key falls through to the system's list).
+        XCTAssertNil(defaults.persistentDomain(forName: suite)?["AppleLanguages"])
+        XCTAssertNil(defaults.persistentDomain(forName: suite)?[LanguageSettings.defaultsKey])
         XCTAssertFalse(settings.needsRelaunch)
 
         defaults.set("xx", forKey: LanguageSettings.defaultsKey)
