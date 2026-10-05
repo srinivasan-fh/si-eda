@@ -892,7 +892,8 @@ struct Base {
     }
     /// Copper-to-copper clearance between two nets: the design rule, the voltage spacing and the isolation gap.
     double clearance(int a, int b, bool barrierPad = false) const {
-        if (rangeOf.empty() && domain.empty()) return std::max(s.clearance, 0.0);  // no voltage or isolation rules
+        if (rangeOf.empty() && domain.empty() && s.netClearances.empty())
+            return std::max(s.clearance, 0.0);  // no voltage, isolation or net-class rules
         double c = std::max(s.clearance, voltageClearance(a, b));
         if (!s.netClearances.empty()) c = std::max({c, s.clearanceFor(netName(a)), s.clearanceFor(netName(b))});  // net classes
         if (!barrierPad && !domain.empty() && a >= 0 && b >= 0 && a != b) {
