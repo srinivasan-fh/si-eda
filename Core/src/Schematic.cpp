@@ -402,6 +402,9 @@ Component* Schematic::find(int id) {
 }
 
 const Component* Schematic::findByRef(const std::string& ref) const {
+    // The part itself, not one of its placed units (a multi-unit part's units share its designator).
+    for (const auto& c : components_)
+        if (c.ref == ref && c.kind != ComponentKind::PartUnit) return &c;
     for (const auto& c : components_)
         if (c.ref == ref) return &c;
     return nullptr;

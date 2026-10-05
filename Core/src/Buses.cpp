@@ -61,14 +61,20 @@ void Schematic::restoreBus(const Bus& in) {
     nextBusId_ = std::max(nextBusId_, b.id + 1);
 }
 
-void Schematic::repairBusLinks() {
+bool Schematic::repairBusLinks() {
+    const size_t before = buses_.size();
     buses_.erase(std::remove_if(buses_.begin(), buses_.end(), [&](const Bus& b) { return !findSheet(b.sheet); }),
                  buses_.end());
+    bool changed = buses_.size() != before;
     for (auto& c : components_) {
         if (c.bus == 0) continue;
         const Bus* b = findBus(c.bus);
-        if (c.kind != ComponentKind::NetLabel || !b || b->sheet != c.sheet || c.scope == LabelScope::SheetEntry) c.bus = 0;
+        if (c.kind != ComponentKind::NetLabel || !b || b->sheet != c.sheet || c.scope == LabelScope::SheetEntry) {
+            c.bus = 0;
+            changed = true;
+        }
     }
+    return changed;
 }
 
 int Schematic::masterBusOf(int id) const {

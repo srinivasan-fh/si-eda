@@ -18,6 +18,7 @@
 #include <cctype>
 #include <iterator>
 #include <map>
+#include <set>
 
 namespace sieda {
 
@@ -629,6 +630,7 @@ Project Project::fromJson(const Json& root) {
         c.bus = c.kind == ComponentKind::NetLabel ? std::max(0, j.get("bus").asInt(0)) : 0;
         c.packageOnly = c.kind == ComponentKind::Custom && j.get("packageOnly").asBool(false);
         if (c.logicalRef.size() > 64) c.logicalRef.clear();
+        if (c.id == 0 || p.schematic.find(c.id)) continue;  // id 0 or a duplicate (hand-edited file): the first stands
         p.schematic.restoreComponent(c);
     }
     {
@@ -643,12 +645,13 @@ Project Project::fromJson(const Json& root) {
         }
         p.schematic.restoreSheets(sheets, root.get("activeSheet").asInt(0));
     }
+    std::set<int> wireIds;  // a duplicate wire id (hand-edited file): the first one stands
     for (const auto& j : root.get("wires").items()) {
         Wire w;
         w.id = j.get("id").asInt(-1);
         w.a = pinRefFrom(j.get("a"));
         w.b = pinRefFrom(j.get("b"));
-        if (w.id < 0 || !p.schematic.find(w.a.component) || !p.schematic.find(w.b.component)) continue;
+        if (w.id < 0 || !p.schematic.find(w.a.component) || !p.schematic.find(w.b.component) || !wireIds.insert(w.id).second) continue;
         w.instanceOf = std::max(0, j.get("instanceOf").asInt(0));
         p.schematic.restoreWire(w);
     }

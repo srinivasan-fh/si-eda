@@ -232,7 +232,14 @@ std::string Schematic::channelRef(const std::string& logical, int sheet, int ste
 }
 
 void Schematic::syncInstances() {
-    repairBusLinks();
+    // Repairs of a damaged file can enable further ones (a stray part joins the block, then its package goes): a few
+    // passes reach the fixed point, so syncing a synced design changes nothing.
+    for (int pass = 0; pass < 8 && syncInstancesOnce(); ++pass) {
+    }
+}
+
+bool Schematic::syncInstancesOnce() {
+    bool changed = repairBusLinks();
     // Sheets: an instance points at a definition that exists and is not an instance itself.
     std::map<int, std::vector<int>> groups;  // definition → its instance sheets, in sheet order
     std::map<int, int> defOf;                // instance sheet → definition
@@ -268,7 +275,6 @@ void Schematic::syncInstances() {
                 }
     }
 
-    bool changed = false;
     // A part that is no longer on a repeated definition gets its block designator back (when it is free).
     {
         std::set<std::string> refs;
@@ -293,8 +299,7 @@ void Schematic::syncInstances() {
         for (auto& w : wires_) w.instanceOf = 0;
         for (auto& b : buses_) b.instanceOf = 0;
         if (changed) invalidate();
-        syncUnits();
-        return;
+        return syncUnits() || changed;
     }
 
     std::unordered_map<int, size_t> at;
@@ -530,7 +535,10 @@ void Schematic::syncInstances() {
         for (int sheet : instances)
             for (int mid : masterIds) {
                 const int masterPkg = comp(mid)->unitOf;
-                Component& c = *comp(copyOf[{mid, sheet}]);
+                const auto copyIt = copyOf.find({mid, sheet});
+                Component* copy = copyIt == copyOf.end() ? nullptr : comp(copyIt->second);
+                if (!copy) continue;
+                Component& c = *copy;
                 const auto pkg = copyOf.find({masterPkg, sheet});
                 const int unitOf = masterPkg != 0 && pkg != copyOf.end() ? pkg->second : 0;
                 if (c.unitOf != unitOf) {
@@ -542,7 +550,10 @@ void Schematic::syncInstances() {
         for (int sheet : instances)
             for (int mid : masterIds) {
                 const int masterBus = comp(mid)->bus;
-                Component& c = *comp(copyOf[{mid, sheet}]);
+                const auto copyIt = copyOf.find({mid, sheet});
+                Component* copy = copyIt == copyOf.end() ? nullptr : comp(copyIt->second);
+                if (!copy) continue;
+                Component& c = *copy;
                 int bus = 0;
                 if (masterBus != 0)
                     for (const auto& b : buses_)
@@ -566,7 +577,10 @@ void Schematic::syncInstances() {
                 }
             }
             for (int sheet : instances) {
-                Component& c = *comp(copyOf[{mid, sheet}]);
+                const auto copyIt = copyOf.find({mid, sheet});
+                Component* copy = copyIt == copyOf.end() ? nullptr : comp(copyIt->second);
+                if (!copy) continue;
+                Component& c = *copy;
                 const std::string ref = part ? channelRef(logical, sheet, step) : netSymbolRef;
                 if (c.ref != ref) {
                     c.ref = ref;
@@ -582,11 +596,14 @@ void Schematic::syncInstances() {
         std::vector<Wire> originals;
         for (const auto& w : wires_) {
             const Component* a = comp(w.a.component);
-            if (w.instanceOf == 0 && a && a->sheet == def) originals.push_back(w);
+            const Component* b = comp(w.b.component);
+            if (w.instanceOf == 0 && a && b && a->sheet == def && b->sheet == def) originals.push_back(w);
         }
         for (int sheet : instances)
             for (const auto& w : originals) {
-                const PinRef a{copyOf[{w.a.component, sheet}], w.a.pin}, b{copyOf[{w.b.component, sheet}], w.b.pin};
+                const auto ca = copyOf.find({w.a.component, sheet}), cb = copyOf.find({w.b.component, sheet});
+                if (ca == copyOf.end() || cb == copyOf.end()) continue;
+                const PinRef a{ca->second, w.a.pin}, b{cb->second, w.b.pin};
                 auto it = wireCopy.find({w.id, sheet});
                 if (it == wireCopy.end()) {
                     Wire c;
@@ -606,8 +623,9 @@ void Schematic::syncInstances() {
                 }
             }
     }
+    changed |= repairBusLinks();  // entries moved onto the block above may have left their bus behind
     if (changed) invalidate();
-    syncUnits();
+    return syncUnits() || changed;
 }
 
 void Schematic::annotateBlocks(const AnnotateOptions& o) {

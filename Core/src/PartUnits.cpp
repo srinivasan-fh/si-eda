@@ -97,8 +97,10 @@ int Schematic::addPartUnit(int componentId, int unit, Vec2 position, int rotatio
     u.value = pkg->value;
     u.position = position;
     u.rotation = ((rotation % 360) + 360) % 360;
-    // A unit goes on the sheet shown (on a repeated sheet's channel: into the block).
+    // A unit goes on the sheet shown (on a repeated sheet's channel: into the block); a unit cannot be apart from its
+    // package across a repeated sheet's boundary, so then it goes on the package's sheet.
     u.sheet = definitionSheet(activeSheet_);
+    if (u.sheet != pkg->sheet && (isRepeated(u.sheet) || isRepeated(pkg->sheet))) u.sheet = pkg->sheet;
     components_.push_back(u);
     const int shown = activeSheet_;
     invalidate();
@@ -122,14 +124,14 @@ int Schematic::placeNextUnit(int componentId, Vec2 position) {
     return -1;
 }
 
-void Schematic::syncUnits() {
+bool Schematic::syncUnits() {
     bool any = false;
     for (const auto& c : components_)
         if (c.kind == ComponentKind::PartUnit || c.packageOnly) {
             any = true;
             break;
         }
-    if (!any) return;
+    if (!any) return false;
     std::unordered_map<int, size_t> at;
     for (size_t i = 0; i < components_.size(); ++i) at[components_[i].id] = i;
     auto comp = [&](int id) -> Component* {
@@ -144,7 +146,9 @@ void Schematic::syncUnits() {
         if (c.kind != ComponentKind::PartUnit) continue;
         const Component* pkg = comp(c.unitOf);
         const CustomPart* part = pkg ? partOf(*pkg) : nullptr;
-        if (!pkg || !pkg->packageOnly || pkg->kind != ComponentKind::Custom || !part || c.unit < 1 ||
+        // A unit may sit on another sheet than its package, but not across a repeated sheet's boundary.
+        const bool apart = pkg && pkg->sheet != c.sheet && (isRepeated(pkg->sheet) || isRepeated(c.sheet));
+        if (!pkg || !pkg->packageOnly || pkg->kind != ComponentKind::Custom || !part || c.unit < 1 || apart ||
             c.unit > static_cast<int>(part->units.size()) || !seen.insert({c.unitOf, c.unit}).second) {
             gone.insert(c.id);
             continue;
@@ -170,20 +174,24 @@ void Schematic::syncUnits() {
         for (int id : units) {
             Component* u = comp(id);
             if (!u) continue;
-            if (u->customPart != pkg->customPart) {
+            if (u->customPart != pkg->customPart || u->ref != pkg->ref || u->value != pkg->value) {
                 u->customPart = pkg->customPart;
+                u->ref = pkg->ref;
+                u->value = pkg->value;
                 changed = true;
             }
-            u->ref = pkg->ref;
-            u->value = pkg->value;
         }
         // The package sits with its first unit (its sheet; the position orders it for annotation).
         if (const Component* first = comp(units.front())) {
-            pkg->sheet = first->sheet;
-            pkg->position = first->position;
+            if (!isRepeated(pkg->sheet) && !isRepeated(first->sheet) && pkg->sheet != first->sheet) {
+                pkg->sheet = first->sheet;
+                changed = true;
+            }
+            if (pkg->sheet == first->sheet) pkg->position = first->position;
         }
     }
     if (changed) invalidate();
+    return changed;
 }
 
 void Schematic::packUnits() {

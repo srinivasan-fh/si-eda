@@ -7999,7 +7999,9 @@ bool instancesConsistent(const Schematic& s) {
     for (const auto& w : s.wires()) {
         const Component* a = s.find(w.a.component);
         const Component* b = s.find(w.b.component);
-        if (!a || !b || a->sheet != b->sheet) return false;
+        if (!a || !b) return false;
+        // Only a hand-edited file can join two sheets with a wire (ERC reports it); never on a channel.
+        if (a->sheet != b->sheet && (s.findSheet(a->sheet)->instanceOf != 0 || s.findSheet(b->sheet)->instanceOf != 0)) return false;
     }
     for (const auto& c : s.components()) {
         const Sheet* sh = s.findSheet(c.sheet);
@@ -8836,4 +8838,51 @@ TEST(schematic_find_replace_net_navigator_and_title_block) {
           std::string(snap).find("\"company\":\"Acme\"") != std::string::npos);
     sieda_string_free(snap);
     sieda_project_free(api);
+}
+
+TEST(schematic_capture_hostile_inputs) {
+    // Unit lists in part specs: malformed entries are refused with JsonError, never crash.
+    for (const char* units : {"[{\"name\":\"\",\"pins\":[\"1\"]}]", "[{\"name\":\"A\",\"pins\":[]}]", "[{\"name\":\"TOOLONGNAME\",\"pins\":[\"1\"]}]",
+                              "[{\"name\":\"A\",\"pins\":[\"9\"]}]", "[1,2,3]", "{\"x\":1}", "[{\"name\":\"A\",\"pins\":[1]}]"}) {
+        const std::string spec = std::string("{\"name\":\"FUZZ\",\"package\":{\"type\":\"SOIC\"},\"pins\":[{\"number\":\"1\",\"name\":\"A\"},"
+                                             "{\"number\":\"2\",\"name\":\"B\"}],\"units\":") + units + "}";
+        try {
+            CustomPartRegistry::instance().registerPart(customPartSpecFromJson(Json::parse(spec)));
+        } catch (const JsonError&) {
+        }
+    }
+    // A project with repeated sheets, buses and placed units survives random damage to its file.
+    Project p;
+    DividerBlock b = dividerBlock(p.schematic);
+    const auto part = CustomPartRegistry::instance().registerPart(quadOpAmpSpec());
+    p.addCustomPart(part->spec);
+    const int a = p.schematic.addCustomUnits(part->id, "", {300, 300});
+    p.schematic.placeNextUnit(a, {400, 300});
+    const int bus = p.schematic.addBus("X[0..1]", {{0, 400}, {200, 400}});
+    p.schematic.ripBusEntries(bus, {});
+    p.schematic.repeatSheet(b.sheet, 2);
+    p.titleBlock.title = "Fuzz";
+    const std::string good = p.toJson().dump();
+    unsigned seed = 777;
+    int loaded = 0;
+    for (int round = 0; round < 300; ++round) {
+        std::string text = good;
+        for (int k = 0; k < 3; ++k) {
+            seed = seed * 1664525u + 1013904223u;
+            text[(seed >> 7) % text.size()] = "0123456789-\"{}[],:tfx"[(seed >> 22) % 21];
+        }
+        try {
+            Project q = Project::fromJson(Json::parse(text));
+            ++loaded;
+            CHECK(instancesConsistent(q.schematic));
+            for (const auto& c : q.schematic.components()) {
+                if (c.kind == ComponentKind::PartUnit) CHECK(q.schematic.unitPackage(c.id) > 0);
+                if (c.bus != 0) CHECK(q.schematic.findBus(c.bus) != nullptr);
+            }
+            q.schematic.runERC();
+            (void)q.snapshot();
+        } catch (const std::exception&) {
+        }
+    }
+    CHECK(loaded > 0);
 }

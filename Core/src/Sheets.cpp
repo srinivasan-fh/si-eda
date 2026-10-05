@@ -255,6 +255,25 @@ int Schematic::moveToSheet(const std::vector<int>& ids, int sheet) {
         if (!parts.empty() && std::all_of(parts.begin(), parts.end(), [&](int p) { return moving.count(p) > 0; }))
             moving.insert(cluster.begin(), cluster.end());
     }
+    // Multi-unit parts: a package goes along when all its units move; a unit and its package stay together when a
+    // repeated sheet is involved (each channel has its own package).
+    {
+        std::map<int, std::pair<int, int>> units;  // package → (units, units moving)
+        for (const auto& c : components_)
+            if (c.kind == ComponentKind::PartUnit) {
+                auto& n = units[c.unitOf];
+                ++n.first;
+                n.second += moving.count(c.id) ? 1 : 0;
+            }
+        for (const auto& [pkg, n] : units)
+            if (n.first > 0 && n.first == n.second) moving.insert(pkg);
+        for (auto it = moving.begin(); it != moving.end();) {
+            const Component* c = find(*it);
+            const Component* pkg = c && c->kind == ComponentKind::PartUnit ? find(c->unitOf) : nullptr;
+            const bool split = pkg && !moving.count(pkg->id) && (isRepeated(sheet) || isRepeated(pkg->sheet)) && pkg->sheet != sheet;
+            it = split ? moving.erase(it) : std::next(it);
+        }
+    }
     int moved = 0;
     for (auto& c : components_) {
         if (!moving.count(c.id) || c.sheet == sheet) continue;

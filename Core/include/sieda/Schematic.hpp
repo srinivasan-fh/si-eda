@@ -388,7 +388,7 @@ private:
     }
     /// Units follow their package (designator, value, part) and the package its first unit (sheet, position);
     /// units without a valid package and packages without units go.
-    void syncUnits();
+    bool syncUnits();  // true when it changed anything
     /// Annotation helper: see AnnotateOptions::packUnits.
     void packUnits();
     /// ERC of multi-unit parts: units not placed whose pins are left open.
@@ -400,7 +400,9 @@ private:
     /// Instance-aware parts of annotate(): numbers the blocks' logical designators.
     void annotateBlocks(const AnnotateOptions& options);
     /// Drops buses on missing sheets and detaches entries from buses that are gone or on another sheet.
-    void repairBusLinks();
+    bool repairBusLinks();  // true when it changed anything
+    /// One pass of syncInstances(); true when it changed anything (a repair can enable another).
+    bool syncInstancesOnce();
     int masterBusOf(int id) const;
     /// Bus checks: entries that are not members, members that reach one pin only, buses without entries.
     void busERC(std::vector<RuleViolation>& out) const;
