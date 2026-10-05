@@ -96,6 +96,7 @@
 "Construction" = "నిర్మాణం";
 "Copper colours" = "కాపర్ రంగులు";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "కాపర్ లేయర్లు: 1 = సింగిల్-సైడెడ్ (వయాలు లేవు), చాలా ఉత్పత్తులకు 2–6, మదర్‌బోర్డులు, సర్వర్లు, మెయిన్‌ఫ్రేమ్‌లు మరియు GPU బేస్‌బోర్డులకు 8–24";
+"Corners" = "మూలలు";
 "Currents" = "కరెంట్లు";
 "DC" = "DC";
 "DC Operating Point" = "DC ఆపరేటింగ్ పాయింట్";
@@ -118,6 +119,7 @@
 "Design guidance" = "డిజైన్ మార్గదర్శకం";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "డిజైన్-రూల్ ప్రీసెట్: ట్రాక్, క్లియరెన్స్ మరియు వయా పరిమాణాలు, DRC అమలు చేసే ఫ్యాబ్రికేషన్ కనిష్ఠాలు";
 "Designator" = "డిజిగ్నేటర్";
+"Differential pair" = "డిఫరెన్షియల్ జత";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "పాపులేట్ చేయవద్దు: బోర్డుపై ఉంటుంది కానీ అమర్చబడదు; అసెంబ్లీ BOM మరియు CPL నుండి మినహాయించబడుతుంది";
 "Down ↓" = "కిందకు ↓";
 "Drag to orbit" = "ఆర్బిట్ చేయడానికి డ్రాగ్ చేయండి";
@@ -283,6 +285,8 @@
 "Right →" = "కుడి →";
 "Robot Platform" = "రోబోట్ ప్లాట్‌ఫారమ్";
 "Rotate" = "తిప్పు";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "డిఫరెన్షియల్ జతలోని రెండు నెట్‌లను (X_P / X_N) జత గ్యాప్‌తో కలిసి రూట్ చేయండి";
+"Router mode" = "రౌటర్ మోడ్";
 "Run" = "రన్ చేయి";
 "Run Design Rule Check" = "డిజైన్ రూల్ చెక్ రన్ చేయి";
 "Run ERC and DRC" = "ERC మరియు DRC రన్ చేయి";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "సీరియల్ అవుట్‌పుట్ — 200 ms, 10 µs";
 "Set" = "సెట్ చేయి";
 "Shape" = "ఆకారం";
+"Shove" = "నెట్టు";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "నెట్టు ఇతర నెట్‌ల ట్రాక్‌లు, వయాలను పక్కకు నెడుతుంది; చుట్టూ వెళ్ళు వాటి చుట్టూ రూట్ చేస్తుంది";
 "Show" = "చూపు";
 "Show Crash Reports" = "క్రాష్ నివేదికలను చూపు";
 "Show Navigator" = "నావిగేటర్ చూపు";
@@ -382,6 +388,7 @@
 "Vias" = "వయాలు";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD ప్యాడ్‌లలోని వయాలు ఫ్యాబ్ ద్వారా నింపబడి క్యాప్ చేయబడతాయి, కాబట్టి ఫైన్-పిచ్ BGA / QFN ఫ్యాన్-అవుట్ వాటిని ఉపయోగించవచ్చు";
 "Voltages" = "వోల్టేజ్‌లు";
+"Walk around" = "చుట్టూ వెళ్ళు";
 "Warnings" = "హెచ్చరికలు";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "నెట్‌లను వాటి DC కరెంట్‌కు తగిన IPC-2221 వెడల్పుకు విస్తరించు (+25 %)";
 "Width" = "వెడల్పు";

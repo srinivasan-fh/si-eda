@@ -96,6 +96,7 @@
 "Construction" = "Aufbau";
 "Copper colours" = "Kupferfarben";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Kupferlagen: 1 = einseitig (keine Vias), 2–6 für die meisten Produkte, 8–24 für Mainboards, Server, Mainframes und GPU-Baseboards";
+"Corners" = "Ecken";
 "Currents" = "Ströme";
 "DC" = "DC";
 "DC Operating Point" = "DC-Arbeitspunkt";
@@ -118,6 +119,7 @@
 "Design guidance" = "Design-Hinweise";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "Designregel-Vorgabe: Leiterbahn-, Abstands- und Via-Größen plus die Fertigungsminima, die DRC durchsetzt";
 "Designator" = "Bauteilbezeichner";
+"Differential pair" = "Differenzielles Paar";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Nicht bestücken: auf der Platine, aber nicht bestückt; nicht in Bestückungs-BOM und CPL enthalten";
 "Down ↓" = "Nach unten ↓";
 "Drag to orbit" = "Ziehen zum Drehen";
@@ -283,6 +285,8 @@
 "Right →" = "Rechts →";
 "Robot Platform" = "Roboterplattform";
 "Rotate" = "Drehen";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Beide Netze eines differenziellen Paars (X_P / X_N) gemeinsam im Paarabstand routen";
+"Router mode" = "Router-Modus";
 "Run" = "Ausführen";
 "Run Design Rule Check" = "Designregelprüfung ausführen";
 "Run ERC and DRC" = "ERC und DRC ausführen";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "Serielle Ausgabe — 200 ms, 10 µs";
 "Set" = "Festlegen";
 "Shape" = "Form";
+"Shove" = "Schieben";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "Schieben drückt Leiterbahnen und Vias anderer Netze beiseite; Umgehen routet um sie herum";
 "Show" = "Einblenden";
 "Show Crash Reports" = "Absturzberichte anzeigen";
 "Show Navigator" = "Navigator einblenden";
@@ -382,6 +388,7 @@
 "Vias" = "Vias";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "Vias in SMD-Pads werden vom Hersteller gefüllt und abgedeckt, sodass Fine-Pitch-BGA-/QFN-Fan-out sie nutzen kann";
 "Voltages" = "Spannungen";
+"Walk around" = "Umgehen";
 "Warnings" = "Warnungen";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "Netze auf die IPC-2221-Breite für ihren Gleichstrom verbreitern (+25 %)";
 "Width" = "Breite";

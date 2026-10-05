@@ -96,6 +96,7 @@
 "Construction" = "रचना";
 "Copper colours" = "कॉपर रंग";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "कॉपर लेयर: 1 = सिंगल-साइडेड (व्हाया नाहीत), बहुतेक उत्पादनांसाठी 2–6, मदरबोर्ड, सर्व्हर, मेनफ्रेम आणि GPU बेसबोर्डसाठी 8–24";
+"Corners" = "कोपरे";
 "Currents" = "करंट";
 "DC" = "DC";
 "DC Operating Point" = "DC ऑपरेटिंग पॉइंट";
@@ -118,6 +119,7 @@
 "Design guidance" = "डिझाइन मार्गदर्शन";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "डिझाइन-नियम प्रीसेट: ट्रॅक, क्लिअरन्स आणि व्हाया आकार तसेच DRC लागू करत असलेली फॅब्रिकेशन किमान मूल्ये";
 "Designator" = "डेझिग्नेटर";
+"Differential pair" = "डिफरेन्शियल जोडी";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "पॉप्युलेट करू नका: बोर्डवर आहे पण बसवलेला नाही; असेंब्ली BOM आणि CPL मधून वगळला";
 "Down ↓" = "खाली ↓";
 "Drag to orbit" = "फिरवण्यासाठी ड्रॅग करा";
@@ -283,6 +285,8 @@
 "Right →" = "उजवीकडे →";
 "Robot Platform" = "रोबोट प्लॅटफॉर्म";
 "Rotate" = "फिरवा";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "डिफरेन्शियल जोडीचे दोन्ही नेट (X_P / X_N) जोडी अंतरावर एकत्र रूट करा";
+"Router mode" = "राउटर मोड";
 "Run" = "चालवा";
 "Run Design Rule Check" = "डिझाइन रूल चेक चालवा";
 "Run ERC and DRC" = "ERC आणि DRC चालवा";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "सिरियल आउटपुट — 200 ms, 10 µs";
 "Set" = "सेट करा";
 "Shape" = "शेप";
+"Shove" = "ढकला";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "ढकला इतर नेटचे ट्रॅक आणि व्हाया बाजूला सरकवते; वळसा त्यांच्याभोवती रूट करते";
 "Show" = "दाखवा";
 "Show Crash Reports" = "क्रॅश अहवाल दाखवा";
 "Show Navigator" = "नेव्हिगेटर दाखवा";
@@ -382,6 +388,7 @@
 "Vias" = "व्हाया";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD पॅडमधील व्हाया फॅबद्वारे भरले आणि कॅप केले जातात, त्यामुळे फाइन-पिच BGA / QFN फॅन-आउट ते वापरू शकतात";
 "Voltages" = "व्होल्टेज";
+"Walk around" = "वळसा";
 "Warnings" = "इशारे";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "नेट त्यांच्या DC करंटसाठी IPC-2221 रुंदीपर्यंत रुंद करा (+25 %)";
 "Width" = "रुंदी";

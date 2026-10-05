@@ -96,6 +96,7 @@
 "Construction" = "ರಚನೆ";
 "Copper colours" = "ಕಾಪರ್ ಬಣ್ಣಗಳು";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "ಕಾಪರ್ ಲೇಯರ್‌ಗಳು: 1 = ಏಕ-ಬದಿ (ವಯಾಗಳಿಲ್ಲ), ಹೆಚ್ಚಿನ ಉತ್ಪನ್ನಗಳಿಗೆ 2–6, ಮದರ್‌ಬೋರ್ಡ್‌ಗಳು, ಸರ್ವರ್‌ಗಳು, ಮೇನ್‌ಫ್ರೇಮ್‌ಗಳು ಮತ್ತು GPU ಬೇಸ್‌ಬೋರ್ಡ್‌ಗಳಿಗೆ 8–24";
+"Corners" = "ಮೂಲೆಗಳು";
 "Currents" = "ಕರೆಂಟ್‌ಗಳು";
 "DC" = "DC";
 "DC Operating Point" = "DC ಆಪರೇಟಿಂಗ್ ಪಾಯಿಂಟ್";
@@ -118,6 +119,7 @@
 "Design guidance" = "ಡಿಸೈನ್ ಮಾರ್ಗದರ್ಶನ";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "ಡಿಸೈನ್-ರೂಲ್ ಪ್ರೀಸೆಟ್: ಟ್ರ್ಯಾಕ್, ಕ್ಲಿಯರೆನ್ಸ್ ಮತ್ತು ವಯಾ ಗಾತ್ರಗಳು ಹಾಗೂ DRC ಜಾರಿಗೊಳಿಸುವ ಫ್ಯಾಬ್ರಿಕೇಶನ್ ಕನಿಷ್ಠಗಳು";
 "Designator" = "ಡೆಸಿಗ್ನೇಟರ್";
+"Differential pair" = "ಡಿಫರೆನ್ಷಿಯಲ್ ಜೋಡಿ";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "ಜೋಡಿಸಬೇಡಿ: ಬೋರ್ಡ್‌ನಲ್ಲಿದೆ ಆದರೆ ಅಳವಡಿಸಲಾಗುವುದಿಲ್ಲ; ಅಸೆಂಬ್ಲಿ BOM ಮತ್ತು CPL ನಿಂದ ಹೊರಗಿಡಲಾಗುತ್ತದೆ";
 "Down ↓" = "ಕೆಳಗೆ ↓";
 "Drag to orbit" = "ಆರ್ಬಿಟ್ ಮಾಡಲು ಡ್ರ್ಯಾಗ್ ಮಾಡಿ";
@@ -283,6 +285,8 @@
 "Right →" = "ಬಲ →";
 "Robot Platform" = "ರೋಬೋಟ್ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್";
 "Rotate" = "ತಿರುಗಿಸಿ";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "ಡಿಫರೆನ್ಷಿಯಲ್ ಜೋಡಿಯ ಎರಡೂ ನೆಟ್‌ಗಳನ್ನು (X_P / X_N) ಜೋಡಿ ಅಂತರದಲ್ಲಿ ಒಟ್ಟಿಗೆ ರೂಟ್ ಮಾಡಿ";
+"Router mode" = "ರೂಟರ್ ಮೋಡ್";
 "Run" = "ರನ್ ಮಾಡಿ";
 "Run Design Rule Check" = "ಡಿಸೈನ್ ರೂಲ್ ಚೆಕ್ ರನ್ ಮಾಡಿ";
 "Run ERC and DRC" = "ERC ಮತ್ತು DRC ರನ್ ಮಾಡಿ";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "ಸೀರಿಯಲ್ ಔಟ್‌ಪುಟ್ — 200 ms, 10 µs";
 "Set" = "ಹೊಂದಿಸಿ";
 "Shape" = "ಆಕಾರ";
+"Shove" = "ತಳ್ಳು";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "ತಳ್ಳು ಇತರ ನೆಟ್‌ಗಳ ಟ್ರ್ಯಾಕ್ ಮತ್ತು ವಯಾಗಳನ್ನು ಪಕ್ಕಕ್ಕೆ ತಳ್ಳುತ್ತದೆ; ಸುತ್ತಿ ಹೋಗು ಅವುಗಳ ಸುತ್ತ ರೂಟ್ ಮಾಡುತ್ತದೆ";
 "Show" = "ತೋರಿಸಿ";
 "Show Crash Reports" = "ಕ್ರ್ಯಾಶ್ ವರದಿಗಳನ್ನು ತೋರಿಸಿ";
 "Show Navigator" = "ನ್ಯಾವಿಗೇಟರ್ ತೋರಿಸಿ";
@@ -382,6 +388,7 @@
 "Vias" = "ವಯಾಗಳು";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD ಪ್ಯಾಡ್‌ಗಳಲ್ಲಿನ ವಯಾಗಳನ್ನು ಫ್ಯಾಬ್ ತುಂಬಿ ಮುಚ್ಚುತ್ತದೆ, ಆದ್ದರಿಂದ ಫೈನ್-ಪಿಚ್ BGA / QFN ಫ್ಯಾನ್-ಔಟ್ ಅವುಗಳನ್ನು ಬಳಸಬಹುದು";
 "Voltages" = "ವೋಲ್ಟೇಜ್‌ಗಳು";
+"Walk around" = "ಸುತ್ತಿ ಹೋಗು";
 "Warnings" = "ಎಚ್ಚರಿಕೆಗಳು";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "ನೆಟ್‌ಗಳನ್ನು ಅವುಗಳ DC ಕರೆಂಟ್‌ಗೆ ತಕ್ಕ IPC-2221 ಅಗಲಕ್ಕೆ ವಿಸ್ತರಿಸಿ (+25 %)";
 "Width" = "ಅಗಲ";

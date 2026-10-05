@@ -96,6 +96,7 @@
 "Construction" = "নিৰ্মাণ";
 "Copper colours" = "কপাৰৰ ৰং";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "কপাৰ লেয়াৰ: 1 = ছিংগল-চাইডেড (ভায়া নাই), বেছিভাগ সামগ্ৰীৰ বাবে 2–6, মাদাৰবোৰ্ড, চাৰ্ভাৰ, মেইনফ্ৰেম আৰু GPU বেছবোৰ্ডৰ বাবে 8–24";
+"Corners" = "চুক";
 "Currents" = "কাৰেণ্ট";
 "DC" = "DC";
 "DC Operating Point" = "DC অপাৰেটিং পইণ্ট";
@@ -118,6 +119,7 @@
 "Design guidance" = "ডিজাইন নিৰ্দেশনা";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "ডিজাইন-নিয়ম প্ৰিছেট: ট্ৰেক, ক্লিয়াৰেন্স আৰু ভায়াৰ আকাৰৰ লগতে DRC য়ে বলবৎ কৰা ফেব্ৰিকেশ্বনৰ ন্যূনতম মান";
 "Designator" = "ডেজিগনেটৰ";
+"Differential pair" = "ডিফাৰেন্সিয়েল যোৰ";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "পপুলেট নকৰিব: বোৰ্ডত আছে কিন্তু লগোৱা নহয়; এছেম্বলী BOM আৰু CPL ৰ পৰা বাদ";
 "Down ↓" = "তললৈ ↓";
 "Drag to orbit" = "অৰবিট কৰিবলৈ ড্ৰেগ কৰক";
@@ -283,6 +285,8 @@
 "Right →" = "সোঁফালে →";
 "Robot Platform" = "ৰ'বট প্লেটফৰ্ম";
 "Rotate" = "ঘূৰাওক";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "ডিফাৰেন্সিয়েল যোৰৰ দুয়োটা নেট (X_P / X_N) যোৰৰ ব্যৱধানত একেলগে ৰুট কৰক";
+"Router mode" = "ৰাউটাৰ মোড";
 "Run" = "চলাওক";
 "Run Design Rule Check" = "ডিজাইন ৰুল চেক চলাওক";
 "Run ERC and DRC" = "ERC আৰু DRC চলাওক";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "ছিৰিয়েল আউটপুট — 200 ms, 10 µs";
 "Set" = "ছেট কৰক";
 "Shape" = "আকৃতি";
+"Shove" = "ঠেলা";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "ঠেলাই অন্য নেটৰ ট্ৰেক আৰু ভায়া কাষলৈ ঠেলি দিয়ে; ঘূৰি যোৱাই সেইবোৰৰ চাৰিওফালে ৰুট কৰে";
 "Show" = "দেখুৱাওক";
 "Show Crash Reports" = "ক্ৰেশ্ব ৰিপৰ্ট দেখুৱাওক";
 "Show Navigator" = "নেভিগেটৰ দেখুৱাওক";
@@ -382,6 +388,7 @@
 "Vias" = "ভায়া";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD পেডত থকা ভায়া ফেবে পূৰ কৰি কেপ কৰে, সেয়ে ফাইন-পিচ BGA / QFN ফেন-আউটে সেইবোৰ ব্যৱহাৰ কৰিব পাৰে";
 "Voltages" = "ভ'ল্টেজ";
+"Walk around" = "ঘূৰি যোৱা";
 "Warnings" = "সতৰ্কবাণী";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "নেটবোৰক সিহঁতৰ DC কাৰেণ্টৰ বাবে IPC-2221 প্ৰস্থলৈ বহল কৰক (+25 %)";
 "Width" = "প্ৰস্থ";

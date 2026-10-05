@@ -96,6 +96,7 @@
 "Construction" = "നിർമ്മാണം";
 "Copper colours" = "കോപ്പർ നിറങ്ങൾ";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "കോപ്പർ ലെയറുകൾ: 1 = സിംഗിൾ-സൈഡഡ് (വിയകൾ ഇല്ല), മിക്ക ഉൽപ്പന്നങ്ങൾക്കും 2–6, മദർബോർഡുകൾ, സെർവറുകൾ, മെയിൻഫ്രെയിമുകൾ, GPU ബേസ്ബോർഡുകൾ എന്നിവയ്ക്ക് 8–24";
+"Corners" = "കോണുകൾ";
 "Currents" = "കറന്റുകൾ";
 "DC" = "DC";
 "DC Operating Point" = "DC ഓപ്പറേറ്റിംഗ് പോയിന്റ്";
@@ -118,6 +119,7 @@
 "Design guidance" = "ഡിസൈൻ മാർഗ്ഗനിർദ്ദേശം";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "ഡിസൈൻ-റൂൾ പ്രീസെറ്റ്: ട്രാക്ക്, ക്ലിയറൻസ്, വിയ വലുപ്പങ്ങളും DRC നടപ്പാക്കുന്ന ഫാബ്രിക്കേഷൻ മിനിമങ്ങളും";
 "Designator" = "ഡെസിഗ്നേറ്റർ";
+"Differential pair" = "ഡിഫറൻഷ്യൽ ജോഡി";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "പോപ്പുലേറ്റ് ചെയ്യരുത്: ബോർഡിൽ ഉണ്ടെങ്കിലും ഘടിപ്പിക്കില്ല; അസംബ്ലി BOM-ൽ നിന്നും CPL-ൽ നിന്നും ഒഴിവാക്കും";
 "Down ↓" = "താഴേക്ക് ↓";
 "Drag to orbit" = "ഓർബിറ്റ് ചെയ്യാൻ ഡ്രാഗ് ചെയ്യുക";
@@ -283,6 +285,8 @@
 "Right →" = "വലത്തേക്ക് →";
 "Robot Platform" = "റോബോട്ട് പ്ലാറ്റ്ഫോം";
 "Rotate" = "തിരിക്കുക";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "ഡിഫറൻഷ്യൽ ജോഡിയിലെ രണ്ട് നെറ്റുകളും (X_P / X_N) ജോഡി അകലത്തിൽ ഒരുമിച്ച് റൂട്ട് ചെയ്യുക";
+"Router mode" = "റൂട്ടർ മോഡ്";
 "Run" = "റൺ ചെയ്യുക";
 "Run Design Rule Check" = "ഡിസൈൻ റൂൾ ചെക്ക് റൺ ചെയ്യുക";
 "Run ERC and DRC" = "ERC, DRC എന്നിവ റൺ ചെയ്യുക";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "സീരിയൽ ഔട്ട്പുട്ട് — 200 ms, 10 µs";
 "Set" = "സജ്ജമാക്കുക";
 "Shape" = "ആകൃതി";
+"Shove" = "തള്ളുക";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "തള്ളുക മറ്റ് നെറ്റുകളുടെ ട്രാക്കുകളും വയകളും വശത്തേക്ക് മാറ്റുന്നു; ചുറ്റിപ്പോകുക അവയെ ചുറ്റി റൂട്ട് ചെയ്യുന്നു";
 "Show" = "കാണിക്കുക";
 "Show Crash Reports" = "ക്രാഷ് റിപ്പോർട്ടുകൾ കാണിക്കുക";
 "Show Navigator" = "നാവിഗേറ്റർ കാണിക്കുക";
@@ -382,6 +388,7 @@
 "Vias" = "വിയകൾ";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD പാഡുകളിലെ വിയകൾ ഫാബ് നിറച്ച് ക്യാപ് ചെയ്യുന്നു, അതിനാൽ ഫൈൻ-പിച്ച് BGA / QFN ഫാൻ-ഔട്ടിന് അവ ഉപയോഗിക്കാം";
 "Voltages" = "വോൾട്ടേജുകൾ";
+"Walk around" = "ചുറ്റിപ്പോകുക";
 "Warnings" = "മുന്നറിയിപ്പുകൾ";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "നെറ്റുകൾ അവയുടെ DC കറന്റിനുള്ള IPC-2221 വീതിയിലേക്ക് വിശാലമാക്കുക (+25 %)";
 "Width" = "വീതി";

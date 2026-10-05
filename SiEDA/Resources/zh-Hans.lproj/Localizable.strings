@@ -96,6 +96,7 @@
 "Construction" = "结构";
 "Copper colours" = "铜层颜色";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "铜层数：1 = 单面 (无过孔)，2–6 适用于大多数产品，8–24 适用于主板、服务器、大型机和 GPU 基板";
+"Corners" = "拐角";
 "Currents" = "电流";
 "DC" = "DC";
 "DC Operating Point" = "DC 工作点";
@@ -118,6 +119,7 @@
 "Design guidance" = "设计指导";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "设计规则预设：走线、间距和过孔尺寸，以及 DRC 强制执行的制造最小值";
 "Designator" = "位号";
+"Differential pair" = "差分对";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "不贴装：在电路板上但不装配；不计入装配 BOM 和 CPL";
 "Down ↓" = "向下 ↓";
 "Drag to orbit" = "拖动以环绕旋转";
@@ -283,6 +285,8 @@
 "Right →" = "向右 →";
 "Robot Platform" = "机器人平台";
 "Rotate" = "旋转";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "按差分对间距同时布线差分对的两条网络 (X_P / X_N)";
+"Router mode" = "布线模式";
 "Run" = "运行";
 "Run Design Rule Check" = "运行设计规则检查";
 "Run ERC and DRC" = "运行 ERC 和 DRC";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "串口输出 — 200 ms，10 µs";
 "Set" = "设置";
 "Shape" = "形状";
+"Shove" = "推挤";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "推挤会将其他网络的走线和过孔推开；绕行则绕过它们";
 "Show" = "显示";
 "Show Crash Reports" = "显示崩溃报告";
 "Show Navigator" = "显示导航器";
@@ -382,6 +388,7 @@
 "Vias" = "过孔";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD 焊盘中的过孔由板厂填充并加盖，因此细间距 BGA / QFN 扇出可以使用";
 "Voltages" = "电压";
+"Walk around" = "绕行";
 "Warnings" = "警告";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "将网络加宽至其 DC 电流对应的 IPC-2221 线宽 (+25 %)";
 "Width" = "宽度";

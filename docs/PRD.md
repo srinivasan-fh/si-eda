@@ -36,6 +36,7 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 | F12 | Component library: datasheet import, pin-table editor, standard parts catalog, symbol / footprint / 3D generation | ✅ |
 | F13 | Footprint Editor: draw any part's land pattern pad by pad (position, size, shape, drill, pin), pad arrays, undo, live checks (overlap, gap, annular ring, pin ↔ pad coverage); converts generated footprints | ✅ |
 | F14 | Symbol Editor: pins on any side and slot, gaps, stacked power pins (joined nets), Auto Arrange by name and type, live checks; library parts with 16+ pins arranged | ✅ |
+| F15 | Interactive routing: Route tool with walkaround and push-and-shove (recursive, DRC rules kept; pads and locked tracks fixed), 45° / 90° corners, vias with layer change, snap to pads, commit / cancel / undo; differential pairs at the pair gap, segment drag with shove, length tuning with meanders | ✅ |
 
 ## Non-functional requirements
 - **Correctness.** All AI output is schema-validated and checked by the core (ERC, simulation, DRC) before
@@ -56,5 +57,6 @@ HDI vias and BGA fan-out.)
 
 1. KiCad `.kicad_mod` / Altium footprint import into the Footprint Editor (user component libraries shipped).
 2. AC small-signal analysis and Bode plots.
-3. Push-and-shove interactive routing.
+3. ~~Push-and-shove interactive routing.~~ **Shipped** (F15): walkaround and push-and-shove, differential pairs,
+   segment drag and length tuning. See [INTERACTIVE_ROUTING.md](INTERACTIVE_ROUTING.md).
 4. Team collaboration through a shared project repository.

@@ -96,6 +96,7 @@
 "Construction" = "ନିର୍ମାଣ";
 "Copper colours" = "କପର ରଙ୍ଗ";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "କପର ଲେୟର: 1 = ସିଙ୍ଗଲ୍-ସାଇଡେଡ୍ (ଭାୟା ନାହିଁ), ଅଧିକାଂଶ ଉତ୍ପାଦ ପାଇଁ 2–6, ମଦରବୋର୍ଡ, ସର୍ଭର, ମେନଫ୍ରେମ୍ ଏବଂ GPU ବେସବୋର୍ଡ ପାଇଁ 8–24";
+"Corners" = "କୋଣ";
 "Currents" = "କରେଣ୍ଟ";
 "DC" = "DC";
 "DC Operating Point" = "DC ଅପରେଟିଂ ପଏଣ୍ଟ";
@@ -118,6 +119,7 @@
 "Design guidance" = "ଡିଜାଇନ୍ ମାର୍ଗଦର୍ଶନ";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "ଡିଜାଇନ୍-ନିୟମ ପ୍ରିସେଟ୍: ଟ୍ରାକ୍, କ୍ଲିୟରାନ୍ସ ଓ ଭାୟା ଆକାର ସହ DRC ଲାଗୁ କରୁଥିବା ଫ୍ୟାବ୍ରିକେସନ୍ ସର୍ବନିମ୍ନ ମାନ";
 "Designator" = "ଡେଜିଗ୍ନେଟର୍";
+"Differential pair" = "ଡିଫରେନ୍ସିଆଲ ଯୋଡ଼ି";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "ପପୁଲେଟ୍ କରନ୍ତୁ ନାହିଁ: ବୋର୍ଡରେ ଅଛି କିନ୍ତୁ ଲଗାଯାଇନାହିଁ; ଆସେମ୍ବ୍ଲି BOM ଓ CPL ରୁ ବାଦ୍";
 "Down ↓" = "ତଳକୁ ↓";
 "Drag to orbit" = "ଅର୍ବିଟ୍ କରିବାକୁ ଡ୍ରାଗ୍ କରନ୍ତୁ";
@@ -283,6 +285,8 @@
 "Right →" = "ଡାହାଣକୁ →";
 "Robot Platform" = "ରୋବଟ୍ ପ୍ଲାଟଫର୍ମ";
 "Rotate" = "ଘୂରାନ୍ତୁ";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "ଡିଫରେନ୍ସିଆଲ ଯୋଡ଼ିର ଦୁଇଟି ନେଟ୍ (X_P / X_N) କୁ ଯୋଡ଼ି ବ୍ୟବଧାନରେ ଏକାସାଙ୍ଗରେ ରୁଟ୍ କରନ୍ତୁ";
+"Router mode" = "ରାଉଟର ମୋଡ୍";
 "Run" = "ଚଲାନ୍ତୁ";
 "Run Design Rule Check" = "ଡିଜାଇନ୍ ରୁଲ୍ ଚେକ୍ ଚଲାନ୍ତୁ";
 "Run ERC and DRC" = "ERC ଓ DRC ଚଲାନ୍ତୁ";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "ସିରିଆଲ୍ ଆଉଟପୁଟ୍ — 200 ms, 10 µs";
 "Set" = "ସେଟ୍ କରନ୍ତୁ";
 "Shape" = "ଆକୃତି";
+"Shove" = "ଠେଲନ୍ତୁ";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "ଠେଲନ୍ତୁ ଅନ୍ୟ ନେଟ୍‌ର ଟ୍ରାକ୍ ଓ ଭାୟାକୁ ପାଖକୁ ଘୁଞ୍ଚାଏ; ବୁଲି ଯାଆନ୍ତୁ ସେଗୁଡ଼ିକ ଚାରିପାଖରେ ରୁଟ୍ କରେ";
 "Show" = "ଦେଖାନ୍ତୁ";
 "Show Crash Reports" = "କ୍ରାସ୍ ରିପୋର୍ଟ ଦେଖାନ୍ତୁ";
 "Show Navigator" = "ନେଭିଗେଟର୍ ଦେଖାନ୍ତୁ";
@@ -382,6 +388,7 @@
 "Vias" = "ଭାୟା";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD ପ୍ୟାଡ୍‌ରେ ଥିବା ଭାୟା ଫ୍ୟାବ୍ ଦ୍ୱାରା ଭରି କ୍ୟାପ୍ କରାଯାଏ, ତେଣୁ ଫାଇନ୍-ପିଚ୍ BGA / QFN ଫ୍ୟାନ୍-ଆଉଟ୍ ସେଗୁଡ଼ିକ ବ୍ୟବହାର କରିପାରେ";
 "Voltages" = "ଭୋଲ୍ଟେଜ୍";
+"Walk around" = "ବୁଲି ଯାଆନ୍ତୁ";
 "Warnings" = "ଚେତାବନୀ";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "ନେଟ୍‌ଗୁଡ଼ିକୁ ସେମାନଙ୍କ DC କରେଣ୍ଟ ପାଇଁ IPC-2221 ପ୍ରସ୍ଥକୁ ଚଉଡା କରନ୍ତୁ (+25 %)";
 "Width" = "ପ୍ରସ୍ଥ";

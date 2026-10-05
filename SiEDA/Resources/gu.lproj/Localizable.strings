@@ -96,6 +96,7 @@
 "Construction" = "બાંધકામ";
 "Copper colours" = "કૉપર રંગો";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "કૉપર લેયર: 1 = સિંગલ-સાઇડેડ (વાયા નહીં), મોટાભાગનાં ઉત્પાદનો માટે 2–6, મધરબોર્ડ, સર્વર, મેઇનફ્રેમ અને GPU બેઝબોર્ડ માટે 8–24";
+"Corners" = "ખૂણા";
 "Currents" = "કરંટ";
 "DC" = "DC";
 "DC Operating Point" = "DC ઑપરેટિંગ પૉઇન્ટ";
@@ -118,6 +119,7 @@
 "Design guidance" = "ડિઝાઇન માર્ગદર્શન";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "ડિઝાઇન-નિયમ પ્રીસેટ: ટ્રૅક, ક્લિયરન્સ અને વાયા કદ તથા DRC લાગુ કરે છે તે ફૅબ્રિકેશન લઘુતમ મૂલ્યો";
 "Designator" = "ડેઝિગ્નેટર";
+"Differential pair" = "ડિફરન્શિયલ જોડી";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "પૉપ્યુલેટ ન કરો: બોર્ડ પર છે પણ લગાવેલ નથી; એસેમ્બલી BOM અને CPL માંથી બાકાત";
 "Down ↓" = "નીચે ↓";
 "Drag to orbit" = "ફેરવવા ડ્રૅગ કરો";
@@ -283,6 +285,8 @@
 "Right →" = "જમણે →";
 "Robot Platform" = "રોબોટ પ્લૅટફૉર્મ";
 "Rotate" = "ફેરવો";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "ડિફરન્શિયલ જોડીના બંને નેટ (X_P / X_N) ને જોડીના અંતરે સાથે રૂટ કરો";
+"Router mode" = "રાઉટર મોડ";
 "Run" = "ચલાવો";
 "Run Design Rule Check" = "ડિઝાઇન રૂલ ચેક ચલાવો";
 "Run ERC and DRC" = "ERC અને DRC ચલાવો";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "સિરિયલ આઉટપુટ — 200 ms, 10 µs";
 "Set" = "સેટ કરો";
 "Shape" = "આકાર";
+"Shove" = "ધકેલો";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "ધકેલો અન્ય નેટના ટ્રેક અને વાયાને બાજુએ ખસેડે છે; ફરીને તેમની આસપાસ રૂટ કરે છે";
 "Show" = "બતાવો";
 "Show Crash Reports" = "ક્રૅશ રિપોર્ટ બતાવો";
 "Show Navigator" = "નેવિગેટર બતાવો";
@@ -382,6 +388,7 @@
 "Vias" = "વાયા";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD પૅડમાંના વાયા ફૅબ દ્વારા ભરાય અને કૅપ થાય છે, તેથી ફાઇન-પિચ BGA / QFN ફૅન-આઉટ તેનો ઉપયોગ કરી શકે છે";
 "Voltages" = "વોલ્ટેજ";
+"Walk around" = "ફરીને";
 "Warnings" = "ચેતવણીઓ";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "નેટને તેમના DC કરંટ માટે IPC-2221 પહોળાઈ સુધી પહોળા કરો (+25 %)";
 "Width" = "પહોળાઈ";

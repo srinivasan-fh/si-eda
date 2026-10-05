@@ -96,6 +96,7 @@
 "Construction" = "निर्माण";
 "Copper colours" = "कॉपर रंग";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "कॉपर लेयर: 1 = सिंगल-साइडेड (कोई वाया नहीं), अधिकांश उत्पादों के लिए 2–6, मदरबोर्ड, सर्वर, मेनफ़्रेम और GPU बेसबोर्ड के लिए 8–24";
+"Corners" = "कोने";
 "Currents" = "करंट";
 "DC" = "DC";
 "DC Operating Point" = "DC ऑपरेटिंग पॉइंट";
@@ -118,6 +119,7 @@
 "Design guidance" = "डिज़ाइन मार्गदर्शन";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "डिज़ाइन-नियम प्रीसेट: ट्रैक, क्लीयरेंस और वाया साइज़ तथा DRC द्वारा लागू फ़ैब्रिकेशन न्यूनतम";
 "Designator" = "डेज़िग्नेटर";
+"Differential pair" = "डिफ़रेंशियल पेयर";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "पॉप्युलेट न करें: बोर्ड पर है पर लगाया नहीं जाता; असेंबली BOM और CPL से बाहर";
 "Down ↓" = "नीचे ↓";
 "Drag to orbit" = "घुमाने के लिए ड्रैग करें";
@@ -283,6 +285,8 @@
 "Right →" = "दाएँ →";
 "Robot Platform" = "रोबोट प्लेटफ़ॉर्म";
 "Rotate" = "घुमाएँ";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "डिफ़रेंशियल पेयर के दोनों नेट (X_P / X_N) को पेयर गैप पर एक साथ रूट करें";
+"Router mode" = "राउटर मोड";
 "Run" = "चलाएँ";
 "Run Design Rule Check" = "डिज़ाइन रूल चेक चलाएँ";
 "Run ERC and DRC" = "ERC और DRC चलाएँ";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "सीरियल आउटपुट — 200 ms, 10 µs";
 "Set" = "सेट करें";
 "Shape" = "शेप";
+"Shove" = "धकेलें";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "धकेलें अन्य नेट के ट्रैक और वाया को किनारे हटाता है; घूमकर उनके चारों ओर रूट करता है";
 "Show" = "दिखाएँ";
 "Show Crash Reports" = "क्रैश रिपोर्ट दिखाएँ";
 "Show Navigator" = "नेविगेटर दिखाएँ";
@@ -382,6 +388,7 @@
 "Vias" = "वाया";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD पैड के वाया फ़ैब द्वारा भरे और कैप किए जाते हैं, इसलिए फ़ाइन-पिच BGA / QFN फ़ैन-आउट उनका उपयोग कर सकते हैं";
 "Voltages" = "वोल्टेज";
+"Walk around" = "घूमकर";
 "Warnings" = "चेतावनियाँ";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "नेट को उनके DC करंट के लिए IPC-2221 चौड़ाई तक चौड़ा करें (+25 %)";
 "Width" = "चौड़ाई";

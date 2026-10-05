@@ -96,6 +96,7 @@
 "Construction" = "Konstruksiyon";
 "Copper colours" = "Mga kulay ng copper";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Mga copper layer: 1 = single-sided (walang via), 2–6 para sa karamihan ng produkto, 8–24 para sa motherboard, server, mainframe at GPU baseboard";
+"Corners" = "Mga kanto";
 "Currents" = "Mga Current";
 "DC" = "DC";
 "DC Operating Point" = "DC Operating Point";
@@ -118,6 +119,7 @@
 "Design guidance" = "Gabay sa disenyo";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "Preset ng design rule: laki ng track, clearance at via kasama ang fabrication minimum na ipinapatupad ng DRC";
 "Designator" = "Designator";
+"Differential pair" = "Differential pair";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Huwag i-populate: nasa board pero hindi ikinakabit; hindi kasama sa assembly BOM at CPL";
 "Down ↓" = "Pababa ↓";
 "Drag to orbit" = "I-drag para umikot";
@@ -283,6 +285,8 @@
 "Right →" = "Pakanan →";
 "Robot Platform" = "Robot Platform";
 "Rotate" = "I-rotate";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "I-route nang magkasama ang dalawang net ng differential pair (X_P / X_N) sa pair gap";
+"Router mode" = "Mode ng router";
 "Run" = "Patakbuhin";
 "Run Design Rule Check" = "Patakbuhin ang Design Rule Check";
 "Run ERC and DRC" = "Patakbuhin ang ERC at DRC";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "Serial output — 200 ms, 10 µs";
 "Set" = "Itakda";
 "Shape" = "Hugis";
+"Shove" = "Itulak";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "Itinutulak ng Itulak sa gilid ang mga track at via ng ibang net; iniikutan sila ng Umikot";
 "Show" = "Ipakita";
 "Show Crash Reports" = "Ipakita ang mga Crash Report";
 "Show Navigator" = "Ipakita ang Navigator";
@@ -382,6 +388,7 @@
 "Vias" = "Mga Via";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "Pinupunan at tinatakpan ng fab ang mga via sa SMD pad, kaya magagamit ito ng fine-pitch BGA / QFN fan-out";
 "Voltages" = "Mga Voltage";
+"Walk around" = "Umikot";
 "Warnings" = "Mga Babala";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "Palaparin ang mga net sa IPC-2221 width para sa kanilang DC current (+25 %)";
 "Width" = "Lapad";

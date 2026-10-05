@@ -5495,6 +5495,30 @@ TEST(router_routes_differential_pairs_at_the_pair_gap) {
     CHECK(r2.preview().gap >= p.pcb.settings.clearance - 1e-9);
     r2.cancel();
     CHECK(!r2.active());
+    // V on a pair places two vias side by side, far enough apart for their clearance, and both change layer.
+    Project q;
+    auto& qs = q.schematic;
+    const int a1 = placeR(q, {10, 14}), a2 = placeR(q, {40, 14}), b1 = placeR(q, {10, 16}), b2 = placeR(q, {40, 16});
+    wire(qs, a1, "2", a2, "1");
+    wire(qs, b1, "2", b2, "1");
+    wire(qs, qs.addComponent(ComponentKind::NetLabel, "CLK+", {0, 0}), "N", a1, "2");
+    wire(qs, qs.addComponent(ComponentKind::NetLabel, "CLK-", {0, 50}), "N", b1, "2");
+    q.schematicChanged();
+    InteractiveRouter r3(q.pcb, qs);
+    r3.setOptions(o);
+    CHECK(r3.beginPair(padAt(q, a1, 1), 0));
+    r3.moveTo({20, 15});
+    CHECK(r3.addVia());
+    const RoutePreview& pv3 = r3.moveTo({30, 15});
+    CHECK(pv3.layer == 1 && pv3.vias.size() == 2);
+    if (pv3.vias.size() == 2) {
+        const double d = (pv3.vias[0].position - pv3.vias[1].position).length();
+        CHECK(d >= q.pcb.settings.viaDiameter + q.pcb.settings.clearance - 1e-6);
+    }
+    CHECK(!pv3.head.empty());
+    for (const auto& t : pv3.head) CHECK(t.layer == 1);
+    CHECK(r3.commit().ok);
+    CHECK(routingProblems(q) == 0);
 }
 
 TEST(router_drags_a_segment_and_shoves) {

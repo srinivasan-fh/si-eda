@@ -96,6 +96,7 @@
 "Construction" = "ਬਣਤਰ";
 "Copper colours" = "ਕਾਪਰ ਰੰਗ";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "ਕਾਪਰ ਲੇਅਰਾਂ: 1 = ਸਿੰਗਲ-ਸਾਈਡਡ (ਕੋਈ ਵਾਇਆ ਨਹੀਂ), ਜ਼ਿਆਦਾਤਰ ਉਤਪਾਦਾਂ ਲਈ 2–6, ਮਦਰਬੋਰਡਾਂ, ਸਰਵਰਾਂ, ਮੇਨਫ੍ਰੇਮਾਂ ਅਤੇ GPU ਬੇਸਬੋਰਡਾਂ ਲਈ 8–24";
+"Corners" = "ਕੋਨੇ";
 "Currents" = "ਕਰੰਟ";
 "DC" = "DC";
 "DC Operating Point" = "DC ਓਪਰੇਟਿੰਗ ਪੁਆਇੰਟ";
@@ -118,6 +119,7 @@
 "Design guidance" = "ਡਿਜ਼ਾਈਨ ਮਾਰਗਦਰਸ਼ਨ";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "ਡਿਜ਼ਾਈਨ-ਨਿਯਮ ਪ੍ਰੀਸੈੱਟ: ਟ੍ਰੈਕ, ਕਲੀਅਰੈਂਸ ਅਤੇ ਵਾਇਆ ਆਕਾਰ ਅਤੇ DRC ਦੁਆਰਾ ਲਾਗੂ ਫੈਬਰੀਕੇਸ਼ਨ ਘੱਟੋ-ਘੱਟ ਮੁੱਲ";
 "Designator" = "ਡੈਜ਼ੀਗਨੇਟਰ";
+"Differential pair" = "ਡਿਫਰੈਂਸ਼ੀਅਲ ਜੋੜੀ";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "ਪੌਪੂਲੇਟ ਨਾ ਕਰੋ: ਬੋਰਡ 'ਤੇ ਹੈ ਪਰ ਲਗਾਇਆ ਨਹੀਂ ਜਾਂਦਾ; ਅਸੈਂਬਲੀ BOM ਅਤੇ CPL ਤੋਂ ਬਾਹਰ";
 "Down ↓" = "ਹੇਠਾਂ ↓";
 "Drag to orbit" = "ਘੁਮਾਉਣ ਲਈ ਡਰੈਗ ਕਰੋ";
@@ -283,6 +285,8 @@
 "Right →" = "ਸੱਜੇ →";
 "Robot Platform" = "ਰੋਬੋਟ ਪਲੇਟਫਾਰਮ";
 "Rotate" = "ਘੁਮਾਓ";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "ਡਿਫਰੈਂਸ਼ੀਅਲ ਜੋੜੀ ਦੇ ਦੋਵੇਂ ਨੈੱਟ (X_P / X_N) ਜੋੜੀ ਦੇ ਫ਼ਾਸਲੇ 'ਤੇ ਇਕੱਠੇ ਰੂਟ ਕਰੋ";
+"Router mode" = "ਰਾਊਟਰ ਮੋਡ";
 "Run" = "ਚਲਾਓ";
 "Run Design Rule Check" = "ਡਿਜ਼ਾਈਨ ਰੂਲ ਚੈੱਕ ਚਲਾਓ";
 "Run ERC and DRC" = "ERC ਅਤੇ DRC ਚਲਾਓ";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "ਸੀਰੀਅਲ ਆਉਟਪੁਟ — 200 ms, 10 µs";
 "Set" = "ਸੈੱਟ ਕਰੋ";
 "Shape" = "ਸ਼ਕਲ";
+"Shove" = "ਧੱਕੋ";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "ਧੱਕੋ ਹੋਰ ਨੈੱਟਾਂ ਦੇ ਟਰੈਕ ਅਤੇ ਵਾਇਆ ਨੂੰ ਪਾਸੇ ਕਰਦਾ ਹੈ; ਘੁੰਮ ਕੇ ਉਨ੍ਹਾਂ ਦੇ ਦੁਆਲੇ ਰੂਟ ਕਰਦਾ ਹੈ";
 "Show" = "ਦਿਖਾਓ";
 "Show Crash Reports" = "ਕ੍ਰੈਸ਼ ਰਿਪੋਰਟਾਂ ਦਿਖਾਓ";
 "Show Navigator" = "ਨੈਵੀਗੇਟਰ ਦਿਖਾਓ";
@@ -382,6 +388,7 @@
 "Vias" = "ਵਾਇਆ";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD ਪੈਡਾਂ ਵਿਚਲੇ ਵਾਇਆ ਫੈਬ ਦੁਆਰਾ ਭਰੇ ਅਤੇ ਕੈਪ ਕੀਤੇ ਜਾਂਦੇ ਹਨ, ਇਸ ਲਈ ਫਾਈਨ-ਪਿੱਚ BGA / QFN ਫੈਨ-ਆਊਟ ਇਹਨਾਂ ਨੂੰ ਵਰਤ ਸਕਦਾ ਹੈ";
 "Voltages" = "ਵੋਲਟੇਜ";
+"Walk around" = "ਘੁੰਮ ਕੇ";
 "Warnings" = "ਚੇਤਾਵਨੀਆਂ";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "ਨੈੱਟਾਂ ਨੂੰ ਉਹਨਾਂ ਦੇ DC ਕਰੰਟ ਲਈ IPC-2221 ਚੌੜਾਈ ਤੱਕ ਚੌੜਾ ਕਰੋ (+25 %)";
 "Width" = "ਚੌੜਾਈ";

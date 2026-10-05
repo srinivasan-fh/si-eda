@@ -61,6 +61,9 @@ struct PCBEditorView: View {
     @State private var visible: Set<PCBLayer> = PCBLayer.defaultVisible
     @State private var activeLayer: PCBLayer = .copper(0)
     @State private var panMode = false
+    /// Route tool (X): interactive routing with walkaround / push-and-shove.
+    @State private var routeTool = false
+    @State private var routePair = false
     @State private var showLayersPanel = true
     @State private var showBoardSetup = false
 
@@ -84,8 +87,20 @@ struct PCBEditorView: View {
     var body: some View {
         HStack(spacing: 0) {
             ToolStrip {
-                ToolStripButton(systemImage: "cursorarrow", help: "Select / move footprints (V)", isActive: !panMode) { panMode = false }
-                ToolStripButton(systemImage: "hand.raised", help: "Pan (H)", isActive: panMode) { panMode = true }
+                ToolStripButton(systemImage: "cursorarrow", help: "Select / move footprints (V)", isActive: !panMode && !routeTool) {
+                    panMode = false
+                    routeTool = false
+                }
+                ToolStripButton(systemImage: "hand.raised", help: "Pan (H)", isActive: panMode) {
+                    panMode = true
+                    routeTool = false
+                }
+                ToolStripButton(systemImage: "scribble.variable",
+                                help: "Route tracks (X): click a pad, click to place corners, V adds a via, Enter or double-click finishes, Esc cancels",
+                                isActive: routeTool) {
+                    panMode = false
+                    routeTool = true
+                }
                 ToolStripDivider()
                 ToolStripButton(systemImage: "rotate.right", help: "Rotate footprint (Space or R)") { store.rotateFootprints() }
                 ToolStripButton(systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right", help: "Flip to other side (F)") {
@@ -121,6 +136,27 @@ struct PCBEditorView: View {
             VStack(spacing: 0) {
                 OptionsBar {
                     autoRouteButton
+                    if routeTool {
+                        Divider().frame(height: 18)
+                        Picker("Router mode", selection: $store.routerShove) {
+                            Text("Shove").tag(true)
+                            Text("Walk around").tag(false)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                        .help("Shove pushes other nets' tracks and vias aside; Walk around routes around them")
+                        Picker("Corners", selection: $store.routerDiagonal) {
+                            Text(verbatim: "45°").tag(true)
+                            Text(verbatim: "90°").tag(false)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                        Toggle("Differential pair", isOn: $routePair)
+                            .toggleStyle(.checkbox)
+                            .help("Route both nets of a differential pair (X_P / X_N) together at the pair gap")
+                    }
                     Divider().frame(height: 18)
                     Image(systemName: "square.3.layers.3d.down.right").foregroundStyle(Theme.blue)
                     Picker("Layers", selection: Binding(get: { store.snapshot.board.layerCount },
@@ -185,8 +221,8 @@ struct PCBEditorView: View {
                 }
 
                 ZStack(alignment: .topTrailing) {
-                    PCBCanvas(viewport: $viewport, canvasSize: $canvasSize, panMode: $panMode, visible: visible,
-                              activeLayer: activeLayer)
+                    PCBCanvas(viewport: $viewport, canvasSize: $canvasSize, panMode: $panMode, routeTool: $routeTool,
+                              routePair: routePair, visible: visible, activeLayer: activeLayer)
                         .disabled(store.isBusy)  // the engine is busy autorouting
                     if store.showNavigator, !store.snapshot.pads.isEmpty {
                         navigator
@@ -252,10 +288,16 @@ struct PCBEditorView: View {
         }
         .background(Theme.pcbBackground)
         .onAppear { syncRuleFields() }
+        .onDisappear { store.cancelRoute() }
         .onChange(of: store.snapshot.board) { old, board in
             syncRuleFields(changedFrom: old)
             if let index = activeLayer.copperIndex, index >= board.layerCount { activeLayer = .copper(0) }
         }
+        // A via moves the route to another layer: that layer becomes the active (top-drawn) one.
+        .onChange(of: store.routePreview?.layer) { _, layer in
+            if let layer, layer < store.snapshot.board.layerCount { activeLayer = .copper(layer) }
+        }
+        .onChange(of: routeTool) { _, on in if !on { store.cancelRoute() } }
     }
 
     /// Overview of the board; click or drag to move the view.
@@ -422,6 +464,8 @@ struct PCBCanvas: View {
     @Binding var viewport: Viewport
     @Binding var canvasSize: CGSize
     @Binding var panMode: Bool
+    @Binding var routeTool: Bool
+    var routePair: Bool
     var visible: Set<PCBLayer>
     var activeLayer: PCBLayer
     /// Copper coloured by what it carries (power red, ground blue, …) or by layer (top red, bottom blue, …).
@@ -470,7 +514,10 @@ struct PCBCanvas: View {
                                   onPan: { viewport.pan(by: $0) })
                 .onContinuousHover { phase in
                     switch phase {
-                    case .active(let p): hover = p
+                    case .active(let p):
+                        hover = p
+                        // The route's head follows the cursor (shoving or walking around as set).
+                        if routeTool, store.routePreview != nil { store.moveRoute(to: viewport.toWorld(p)) }
                     case .ended: hover = nil
                     }
                 }
@@ -495,19 +542,44 @@ struct PCBCanvas: View {
                 }
                 .onChange(of: focused) { _, isFocused in if !isFocused { spaceHeld = false } }
                 // Single-letter keys; ⌘/⌥/⌃ combinations belong to menus and text editing.
-                .onKeyPress(keys: ["r", "f", "v", "h"], phases: .down) { press in
+                .onKeyPress(keys: ["r", "f", "v", "h", "x"], phases: .down) { press in
                     guard press.modifiers.subtracting(.shift).isEmpty else { return .ignored }
                     switch press.key {
                     case KeyEquivalent("r"): store.rotateFootprints()
                     case KeyEquivalent("f"): store.flipFootprints()
-                    case KeyEquivalent("v"): panMode = false
-                    case KeyEquivalent("h"): panMode = true
+                    case KeyEquivalent("v"):
+                        // While routing, V places a via and continues on the other side (as in other PCB tools).
+                        if store.routePreview != nil {
+                            store.addRouteVia()
+                        } else {
+                            panMode = false
+                            routeTool = false
+                        }
+                    case KeyEquivalent("h"):
+                        panMode = true
+                        routeTool = false
+                    case KeyEquivalent("x"):
+                        panMode = false
+                        routeTool = true
                     default: return .ignored
                     }
                     return .handled
                 }
                 .onKeyPress(.escape) {
-                    if zoomArmed { zoomArmed = false } else { store.select(component: nil) }
+                    if store.routePreview != nil {
+                        store.cancelRoute()
+                    } else if zoomArmed {
+                        zoomArmed = false
+                    } else if routeTool {
+                        routeTool = false
+                    } else {
+                        store.select(component: nil)
+                    }
+                    return .handled
+                }
+                .onKeyPress(.return) {
+                    guard store.routePreview != nil else { return .ignored }
+                    store.finishRoute()
                     return .handled
                 }
                 .onAppear {
@@ -553,6 +625,21 @@ struct PCBCanvas: View {
         store.snapshot.pads.first { $0.rect.insetBy(dx: -0.1, dy: -0.1).contains(world) }
     }
 
+    /// Route tool click: the first click starts on a pad, via or track; later clicks place corners, and a click that
+    /// reaches the net's pad (or a double-click) finishes the route.
+    private func routeClick(at world: CGPoint) {
+        guard store.routePreview != nil else {
+            store.beginRoute(at: world, layer: activeLayer.copperIndex ?? 0, pair: routePair)
+            return
+        }
+        store.moveRoute(to: world)
+        if (NSApp.currentEvent?.clickCount ?? 1) >= 2 || store.routePreview?.reachedTarget == true {
+            store.finishRoute()
+        } else if store.routePreview?.head.isEmpty == false {
+            store.placeRouteCorner()
+        }
+    }
+
     private var drag: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
@@ -563,7 +650,7 @@ struct PCBCanvas: View {
                     } else if spaceHeld {
                         spaceUsedForPan = true
                         dragMode = .pan(viewport.offset)
-                    } else if !panMode, let id = footprint(at: world) {
+                    } else if !panMode, !routeTool, let id = footprint(at: world) {
                         // ⇧ adds on release (select toggles); selecting here as well would toggle it straight back off.
                         let shift = NSEvent.modifierFlags.contains(.shift)
                         if !store.selection.contains(id) && !shift { store.select(component: id) }
@@ -598,6 +685,8 @@ struct PCBCanvas: View {
                     } else {
                         viewport.zoom(by: 2, anchor: value.location, limits: limits)
                     }
+                } else if !moved && routeTool && !spaceHeld {
+                    routeClick(at: viewport.toWorld(value.location))
                 } else if !moved {
                     if !spaceHeld && !panMode {  // a Space-click or a Hand-tool click pans, it doesn't select
                         let world = viewport.toWorld(value.location)
@@ -680,6 +769,19 @@ struct PCBCanvas: View {
             ctx.stroke(Path(ellipseIn: bore).applying(screen), with: .color(Theme.boardEdge), lineWidth: 1)
         }
 
+        // While routing, the board's copper shows as the router has shoved it.
+        let route = store.routePreview
+        let boardTracks: [SnapTrack]
+        let boardVias: [SnapVia]
+        if let route {
+            let hiddenTracks = Set(route.hiddenTracks), hiddenVias = Set(route.hiddenVias)
+            boardTracks = snap.tracks.filter { !hiddenTracks.contains($0.id) } + route.shovedTracks
+            boardVias = snap.vias.filter { !hiddenVias.contains($0.id) } + route.shovedVias
+        } else {
+            boardTracks = snap.tracks
+            boardVias = snap.vias
+        }
+
         // Copper: bottom-most layers first, the active copper layer last so it sits on top.
         let layerCount = max(1, snap.board.layerCount)
         let activeCopper = activeLayer.copperIndex ?? 0
@@ -687,7 +789,7 @@ struct PCBCanvas: View {
         for layer in order where layer < layerCount {
             guard visible.contains(.copper(layer)) else { continue }
             let isActive = layer == activeCopper
-            for t in snap.tracks where t.layer == layer && onScreen(t.ax, t.ay, t.bx, t.by, pad: t.width) {
+            for t in boardTracks where t.layer == layer && onScreen(t.ax, t.ay, t.bx, t.by, pad: t.width) {
                 var path = Path()
                 path.move(to: CGPoint(x: t.ax, y: t.ay))
                 path.addLine(to: CGPoint(x: t.bx, y: t.by))
@@ -714,7 +816,7 @@ struct PCBCanvas: View {
                 let hole = CGRect(x: c.x - p.drill / 2, y: c.y - p.drill / 2, width: p.drill, height: p.drill)
                 ctx.fill(Path(ellipseIn: hole).applying(screen), with: .color(Theme.pcbBackground))
             }
-            for v in snap.vias where onScreen(v.x, v.y, v.x, v.y, pad: v.diameter) {
+            for v in boardVias where onScreen(v.x, v.y, v.x, v.y, pad: v.diameter) {
                 let r = CGRect(x: v.x - v.diameter / 2, y: v.y - v.diameter / 2, width: v.diameter, height: v.diameter)
                 ctx.fill(Path(ellipseIn: r).applying(screen), with: .color(Theme.via))
                 if !v.isThrough {
@@ -722,6 +824,31 @@ struct PCBCanvas: View {
                     ctx.stroke(Path(ellipseIn: r.insetBy(dx: -0.05, dy: -0.05)).applying(screen),
                                with: .color(v.kind == "microvia" ? Theme.iceBlue : Theme.lightBlue), lineWidth: 1)
                 }
+                let hole = CGRect(x: v.x - v.drill / 2, y: v.y - v.drill / 2, width: v.drill, height: v.drill)
+                ctx.fill(Path(ellipseIn: hole).applying(screen), with: .color(Theme.pcbBackground))
+            }
+        }
+
+        // The route in progress on top: placed segments in their copper colour, the head following the cursor
+        // outlined, and its vias.
+        if let route {
+            for t in route.placed + route.head {
+                var path = Path()
+                path.move(to: CGPoint(x: t.ax, y: t.ay))
+                path.addLine(to: CGPoint(x: t.bx, y: t.by))
+                ctx.stroke(path.applying(screen), with: .color(copper(t.net, t.layer)),
+                           style: StrokeStyle(lineWidth: max(1, t.width * k), lineCap: .round, lineJoin: .round))
+            }
+            for t in route.head {
+                var path = Path()
+                path.move(to: CGPoint(x: t.ax, y: t.ay))
+                path.addLine(to: CGPoint(x: t.bx, y: t.by))
+                ctx.stroke(path.applying(screen), with: .color(route.blocked ? Theme.warning : Theme.iceBlue),
+                           style: StrokeStyle(lineWidth: 1, lineCap: .round, lineJoin: .round))
+            }
+            for v in route.vias {
+                let r = CGRect(x: v.x - v.diameter / 2, y: v.y - v.diameter / 2, width: v.diameter, height: v.diameter)
+                ctx.fill(Path(ellipseIn: r).applying(screen), with: .color(Theme.via))
                 let hole = CGRect(x: v.x - v.drill / 2, y: v.y - v.drill / 2, width: v.drill, height: v.drill)
                 ctx.fill(Path(ellipseIn: hole).applying(screen), with: .color(Theme.pcbBackground))
             }
@@ -814,6 +941,13 @@ struct PCBCanvas: View {
         }
         if zoomArmed {
             CanvasOverlays.banner("Zoom to area — drag a rectangle (click zooms 2×) · Esc cancels", in: &ctx, size: size)
+        } else if let route {
+            let length = String(format: "%.2f mm", route.length)
+            CanvasOverlays.banner("\(route.status) · \(length) · click places a corner · V via · Enter finishes · Esc cancels",
+                                  in: &ctx, size: size)
+        } else if routeTool {
+            CanvasOverlays.banner("Route — click a pad, via or track to start · \(routePair ? "differential pair" : "single track")",
+                                  in: &ctx, size: size)
         }
 
         // Cursor read-out

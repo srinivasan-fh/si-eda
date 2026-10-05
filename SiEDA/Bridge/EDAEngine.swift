@@ -563,6 +563,51 @@ final class EDAEngine: @unchecked Sendable {
         Self.decode(LengthReport.self, from: withHandle { Self.take(sieda_length_report_json($0)) }) ?? .empty
     }
 
+    // MARK: - Interactive routing
+
+    /// Options for `sieda_router_*`: push-and-shove or walkaround, 45° or 90° corners.
+    static func routerOptions(shove: Bool, diagonal: Bool) -> String {
+        "{\"mode\":\"\(shove ? "shove" : "walkaround")\",\"posture\":\"\(diagonal ? "45" : "90")\"}"
+    }
+
+    /// Starts a route (or a differential pair) on the pad, via or track at `point`; the preview carries `error` when
+    /// there is nothing to start from.
+    func routerBegin(at point: CGPoint, layer: Int, pair: Bool, options: String) -> RoutePreview? {
+        let json = withHandle { handle in
+            Self.take(pair ? sieda_router_begin_pair(handle, options, Double(point.x), Double(point.y), Int32(layer))
+                           : sieda_router_begin(handle, options, Double(point.x), Double(point.y), Int32(layer)))
+        }
+        return Self.decode(RoutePreview.self, from: json)
+    }
+
+    func routerMove(to point: CGPoint) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_move($0, Double(point.x), Double(point.y))) })
+    }
+
+    /// Places the head (a click): the route continues from its end.
+    func routerFix() -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_fix($0)) })
+    }
+
+    /// Places a via at the head's end and continues on `layer` (nil = the other outer layer).
+    func routerAddVia(toLayer layer: Int? = nil) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_add_via($0, Int32(layer ?? -1))) })
+    }
+
+    func routerSetOptions(_ options: String) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_set_options($0, options)) })
+    }
+
+    /// Writes the route and the shoved copper into the board; the session ends either way.
+    func routerCommit() -> RouteCommitResult {
+        Self.decode(RouteCommitResult.self, from: withHandle { Self.take(sieda_router_commit($0)) })
+            ?? RouteCommitResult(ok: false, error: "no reply from the core", addedTracks: [], addedVias: [])
+    }
+
+    func routerCancel() { withHandle { sieda_router_cancel($0) } }
+
+    var routerActive: Bool { withHandle { sieda_router_active($0) } == 1 }
+
     func stackup() -> StackupReport {
         Self.decode(StackupReport.self, from: withHandle { Self.take(sieda_stackup_json($0)) }) ?? .empty
     }

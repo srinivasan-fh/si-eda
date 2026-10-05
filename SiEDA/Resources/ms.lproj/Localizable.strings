@@ -96,6 +96,7 @@
 "Construction" = "Pembinaan";
 "Copper colours" = "Warna kuprum";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Lapisan kuprum: 1 = satu sisi (tiada via), 2–6 untuk kebanyakan produk, 8–24 untuk papan induk, pelayan, kerangka utama dan papan asas GPU";
+"Corners" = "Penjuru";
 "Currents" = "Arus";
 "DC" = "DC";
 "DC Operating Point" = "Titik Operasi DC";
@@ -118,6 +119,7 @@
 "Design guidance" = "Panduan reka bentuk";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "Praset peraturan reka bentuk: saiz trek, kelegaan dan via serta had minimum fabrikasi yang dikuatkuasakan DRC";
 "Designator" = "Penanda";
+"Differential pair" = "Pasangan pembeza";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Jangan pasang: ada pada papan tetapi tidak dipasang; dikecualikan daripada BOM pemasangan dan CPL";
 "Down ↓" = "Bawah ↓";
 "Drag to orbit" = "Seret untuk mengorbit";
@@ -283,6 +285,8 @@
 "Right →" = "Kanan →";
 "Robot Platform" = "Platform Robot";
 "Rotate" = "Putar";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Halakan kedua-dua net pasangan pembeza (X_P / X_N) bersama pada jurang pasangan";
+"Router mode" = "Mod penghala";
 "Run" = "Jalankan";
 "Run Design Rule Check" = "Jalankan Semakan Peraturan Reka Bentuk";
 "Run ERC and DRC" = "Jalankan ERC dan DRC";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "Output bersiri — 200 ms, 10 µs";
 "Set" = "Tetapkan";
 "Shape" = "Bentuk";
+"Shove" = "Tolak";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "Tolak menolak trek dan via net lain ke tepi; Lalu sekeliling menghala di sekelilingnya";
 "Show" = "Tunjukkan";
 "Show Crash Reports" = "Tunjukkan Laporan Ranap";
 "Show Navigator" = "Tunjukkan Navigator";
@@ -382,6 +388,7 @@
 "Vias" = "Via";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "Via dalam pad SMD diisi dan ditutup oleh pengilang, jadi fan-out BGA / QFN pic halus boleh menggunakannya";
 "Voltages" = "Voltan";
+"Walk around" = "Lalu sekeliling";
 "Warnings" = "Amaran";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "Lebarkan net ke lebar IPC-2221 untuk arus DC masing-masing (+25 %)";
 "Width" = "Lebar";

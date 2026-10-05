@@ -96,6 +96,7 @@
 "Construction" = "Construction";
 "Copper colours" = "Copper colours";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards";
+"Corners" = "Corners";
 "Currents" = "Currents";
 "DC" = "DC";
 "DC Operating Point" = "DC Operating Point";
@@ -118,6 +119,7 @@
 "Design guidance" = "Design guidance";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces";
 "Designator" = "Designator";
+"Differential pair" = "Differential pair";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL";
 "Down ↓" = "Down ↓";
 "Drag to orbit" = "Drag to orbit";
@@ -283,6 +285,8 @@
 "Right →" = "Right →";
 "Robot Platform" = "Robot Platform";
 "Rotate" = "Rotate";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Route both nets of a differential pair (X_P / X_N) together at the pair gap";
+"Router mode" = "Router mode";
 "Run" = "Run";
 "Run Design Rule Check" = "Run Design Rule Check";
 "Run ERC and DRC" = "Run ERC and DRC";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "Serial output — 200 ms, 10 µs";
 "Set" = "Set";
 "Shape" = "Shape";
+"Shove" = "Shove";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "Shove pushes other nets' tracks and vias aside; Walk around routes around them";
 "Show" = "Show";
 "Show Crash Reports" = "Show Crash Reports";
 "Show Navigator" = "Show Navigator";
@@ -382,6 +388,7 @@
 "Vias" = "Vias";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them";
 "Voltages" = "Voltages";
+"Walk around" = "Walk around";
 "Warnings" = "Warnings";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "Widen nets to the IPC-2221 width for their DC current (+25 %)";
 "Width" = "Width";

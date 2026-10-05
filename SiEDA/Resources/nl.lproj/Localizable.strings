@@ -96,6 +96,7 @@
 "Construction" = "Constructie";
 "Copper colours" = "Koperkleuren";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Koperlagen: 1 = enkelzijdig (geen vias), 2–6 voor de meeste producten, 8–24 voor moederborden, servers, mainframes en GPU-baseboards";
+"Corners" = "Hoeken";
 "Currents" = "Stromen";
 "DC" = "DC";
 "DC Operating Point" = "DC-werkpunt";
@@ -118,6 +119,7 @@
 "Design guidance" = "Ontwerprichtlijnen";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "Ontwerpregelpreset: spoor-, isolatie- en viamaten plus de productieminima die DRC afdwingt";
 "Designator" = "Referentieaanduiding";
+"Differential pair" = "Differentieel paar";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Niet plaatsen: op het board maar niet gemonteerd; weggelaten uit de assemblage-BOM en CPL";
 "Down ↓" = "Omlaag ↓";
 "Drag to orbit" = "Sleep om te draaien";
@@ -283,6 +285,8 @@
 "Right →" = "Rechts →";
 "Robot Platform" = "Robotplatform";
 "Rotate" = "Roteer";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Route beide netten van een differentieel paar (X_P / X_N) samen op de paarafstand";
+"Router mode" = "Routermodus";
 "Run" = "Voer uit";
 "Run Design Rule Check" = "Ontwerpregelcontrole uitvoeren";
 "Run ERC and DRC" = "ERC en DRC uitvoeren";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "Seriële uitvoer — 200 ms, 10 µs";
 "Set" = "Stel in";
 "Shape" = "Vorm";
+"Shove" = "Duwen";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "Duwen schuift sporen en via's van andere netten opzij; Omheen leidt eromheen";
 "Show" = "Toon";
 "Show Crash Reports" = "Crashrapporten tonen";
 "Show Navigator" = "Navigator tonen";
@@ -382,6 +388,7 @@
 "Vias" = "Vias";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "Vias in SMD-pads worden door de fabrikant gevuld en afgedekt, zodat fine-pitch BGA- / QFN-fan-out ze kan gebruiken";
 "Voltages" = "Spanningen";
+"Walk around" = "Omheen";
 "Warnings" = "Waarschuwingen";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "Verbreed netten naar de IPC-2221-breedte voor hun DC-stroom (+25 %)";
 "Width" = "Breedte";

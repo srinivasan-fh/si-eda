@@ -96,6 +96,7 @@
 "Construction" = "Cấu trúc";
 "Copper colours" = "Màu đồng";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Lớp đồng: 1 = một mặt (không via), 2–6 cho hầu hết sản phẩm, 8–24 cho bo mạch chủ, máy chủ, máy tính lớn và bo nền GPU";
+"Corners" = "Góc";
 "Currents" = "Dòng điện";
 "DC" = "DC";
 "DC Operating Point" = "Điểm làm việc DC";
@@ -118,6 +119,7 @@
 "Design guidance" = "Hướng dẫn thiết kế";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "Cài đặt sẵn quy tắc thiết kế: kích thước đường mạch, khoảng cách, via và các giới hạn sản xuất tối thiểu mà DRC áp dụng";
 "Designator" = "Ký hiệu tham chiếu";
+"Differential pair" = "Cặp vi sai";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Không lắp: có trên bo nhưng không hàn; loại khỏi BOM lắp ráp và CPL";
 "Down ↓" = "Xuống ↓";
 "Drag to orbit" = "Kéo để xoay quanh";
@@ -283,6 +285,8 @@
 "Right →" = "Phải →";
 "Robot Platform" = "Nền tảng robot";
 "Rotate" = "Xoay";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Đi dây cả hai net của cặp vi sai (X_P / X_N) cùng nhau theo khoảng cách cặp";
+"Router mode" = "Chế độ đi dây";
 "Run" = "Chạy";
 "Run Design Rule Check" = "Chạy kiểm tra quy tắc thiết kế";
 "Run ERC and DRC" = "Chạy ERC và DRC";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "Đầu ra serial — 200 ms, 10 µs";
 "Set" = "Đặt";
 "Shape" = "Hình dạng";
+"Shove" = "Đẩy";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "Đẩy sẽ đẩy đường mạch và via của các net khác sang bên; Đi vòng sẽ đi dây vòng quanh chúng";
 "Show" = "Hiển thị";
 "Show Crash Reports" = "Hiển thị báo cáo sự cố";
 "Show Navigator" = "Hiển thị bộ điều hướng";
@@ -382,6 +388,7 @@
 "Vias" = "Via";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "Via trong pad SMD được nhà sản xuất lấp đầy và mạ phủ, nên fan-out BGA / QFN bước nhỏ có thể dùng chúng";
 "Voltages" = "Điện áp";
+"Walk around" = "Đi vòng";
 "Warnings" = "Cảnh báo";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "Mở rộng net theo độ rộng IPC-2221 cho dòng DC của chúng (+25 %)";
 "Width" = "Độ rộng";

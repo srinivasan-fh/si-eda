@@ -96,6 +96,7 @@
 "Construction" = "கட்டமைப்பு";
 "Copper colours" = "காப்பர் நிறங்கள்";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "காப்பர் லேயர்கள்: 1 = ஒற்றைப் பக்கம் (வயாக்கள் இல்லை), பெரும்பாலான தயாரிப்புகளுக்கு 2–6, மதர்போர்டுகள், சர்வர்கள், மெயின்ஃப்ரேம்கள் மற்றும் GPU பேஸ்போர்டுகளுக்கு 8–24";
+"Corners" = "மூலைகள்";
 "Currents" = "கரண்ட்கள்";
 "DC" = "DC";
 "DC Operating Point" = "DC ஆப்பரேட்டிங் பாயின்ட்";
@@ -118,6 +119,7 @@
 "Design guidance" = "டிசைன் வழிகாட்டல்";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "டிசைன்-ரூல் முன்னமைவு: டிராக், கிளியரன்ஸ் மற்றும் வயா அளவுகள், DRC செயல்படுத்தும் ஃபேப்ரிகேஷன் குறைந்தபட்சங்கள்";
 "Designator" = "டெசிக்னேட்டர்";
+"Differential pair" = "டிஃபரன்ஷியல் ஜோடி";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "பொருத்த வேண்டாம்: போர்டில் உள்ளது ஆனால் பொருத்தப்படாது; அசெம்பிளி BOM மற்றும் CPL இலிருந்து விலக்கப்படும்";
 "Down ↓" = "கீழே ↓";
 "Drag to orbit" = "சுற்ற இழுக்கவும்";
@@ -283,6 +285,8 @@
 "Right →" = "வலது →";
 "Robot Platform" = "ரோபோ தளம்";
 "Rotate" = "சுழற்று";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "டிஃபரன்ஷியல் ஜோடியின் இரு நெட்களையும் (X_P / X_N) ஜோடி இடைவெளியில் சேர்த்து ரூட் செய்க";
+"Router mode" = "ரூட்டர் பயன்முறை";
 "Run" = "இயக்கு";
 "Run Design Rule Check" = "டிசைன் ரூல் செக் இயக்கு";
 "Run ERC and DRC" = "ERC மற்றும் DRC இயக்கு";
@@ -317,6 +321,8 @@
 "Serial output — 200 ms, 10 µs" = "சீரியல் அவுட்புட் — 200 ms, 10 µs";
 "Set" = "அமை";
 "Shape" = "வடிவம்";
+"Shove" = "தள்ளு";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "தள்ளு மற்ற நெட்களின் டிராக்குகளையும் வயாக்களையும் ஓரமாகத் தள்ளும்; சுற்றிச் செல் அவற்றைச் சுற்றி ரூட் செய்யும்";
 "Show" = "காட்டு";
 "Show Crash Reports" = "கிராஷ் அறிக்கைகளைக் காட்டு";
 "Show Navigator" = "நேவிகேட்டரைக் காட்டு";
@@ -382,6 +388,7 @@
 "Vias" = "வயாக்கள்";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD பேட்களில் உள்ள வயாக்கள் ஃபேபால் நிரப்பப்பட்டு மூடப்படும், எனவே ஃபைன்-பிட்ச் BGA / QFN ஃபேன்-அவுட் அவற்றைப் பயன்படுத்தலாம்";
 "Voltages" = "வோல்டேஜ்கள்";
+"Walk around" = "சுற்றிச் செல்";
 "Warnings" = "எச்சரிக்கைகள்";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "நெட்களை அவற்றின் DC கரண்ட்டுக்கான IPC-2221 அகலத்துக்கு விரிவாக்கு (+25 %)";
 "Width" = "அகலம்";
