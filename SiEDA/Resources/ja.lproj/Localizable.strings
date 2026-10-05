@@ -561,3 +561,18 @@
 "Go to Port" = "ポートへ移動";
 "Go to Sheet Entry" = "シートエントリへ移動";
 "Sheet %lld of %lld" = "シート %lld / %lld";
+
+/* Simulation: imported SPICE models */
+"Attach" = "割り当て";
+"Attach SPICE Model…" = "SPICE モデルを割り当て…";
+"Built-in model" = "組み込みモデル";
+"Edit SPICE Model…" = "SPICE モデルを編集…";
+"No models or subcircuits found." = "モデルもサブサーキットも見つかりません。";
+"One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "モデルのポートごとに順に 1 項目：ピン名または番号、0（グランド）、net:NAME、dc:15（理想電源）、nc のいずれか。インスタンスは ; で区切ります。";
+"Open File…" = "ファイルを開く…";
+"Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "メーカーのモデルテキスト（.lib、.mod、.cir）を貼り付けるか開きます：.model と .subckt の定義。";
+"Pin map" = "ピン割り当て";
+"Remove the SPICE model" = "SPICE モデルを削除";
+"The imported model replaces the built-in one in every analysis." = "インポートしたモデルは、すべての解析で組み込みモデルの代わりに使われます。";
+"SPICE Model for %@" = "%@ の SPICE モデル";
+"Ports: %@" = "ポート：%@";

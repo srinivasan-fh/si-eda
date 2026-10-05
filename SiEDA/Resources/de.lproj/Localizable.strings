@@ -561,3 +561,18 @@
 "Go to Port" = "Zum Port";
 "Go to Sheet Entry" = "Zum Blatteingang";
 "Sheet %lld of %lld" = "Blatt %lld von %lld";
+
+/* Simulation: imported SPICE models */
+"Attach" = "Zuweisen";
+"Attach SPICE Model…" = "SPICE-Modell zuweisen…";
+"Built-in model" = "Eingebautes Modell";
+"Edit SPICE Model…" = "SPICE-Modell bearbeiten…";
+"No models or subcircuits found." = "Keine Modelle oder Subcircuits gefunden.";
+"One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "Ein Eintrag pro Modellport, der Reihe nach: Pinname oder -nummer, 0 (Masse), net:NAME, dc:15 (ideale Versorgung) oder nc; Instanzen mit ; trennen.";
+"Open File…" = "Datei öffnen…";
+"Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "Herstellermodelltext einfügen oder öffnen (.lib, .mod, .cir): .model- und .subckt-Definitionen.";
+"Pin map" = "Pinzuordnung";
+"Remove the SPICE model" = "SPICE-Modell entfernen";
+"The imported model replaces the built-in one in every analysis." = "Das importierte Modell ersetzt das eingebaute in jeder Analyse.";
+"SPICE Model for %@" = "SPICE-Modell für %@";
+"Ports: %@" = "Ports: %@";

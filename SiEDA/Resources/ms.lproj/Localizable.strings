@@ -561,3 +561,18 @@
 "Go to Port" = "Pergi ke Port";
 "Go to Sheet Entry" = "Pergi ke Entri Helaian";
 "Sheet %lld of %lld" = "Helaian %lld daripada %lld";
+
+/* Simulation: imported SPICE models */
+"Attach" = "Lampirkan";
+"Attach SPICE Model…" = "Lampirkan Model SPICE…";
+"Built-in model" = "Model terbina dalam";
+"Edit SPICE Model…" = "Edit Model SPICE…";
+"No models or subcircuits found." = "Tiada model atau sublitar ditemui.";
+"One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "Satu entri bagi setiap port model, mengikut urutan: nama atau nombor pin, 0 (bumi), net:NAME, dc:15 (bekalan unggul) atau nc; pisahkan tika dengan ;.";
+"Open File…" = "Buka Fail…";
+"Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "Tampal atau buka teks model pembekal (.lib, .mod, .cir): takrifan .model dan .subckt.";
+"Pin map" = "Peta pin";
+"Remove the SPICE model" = "Buang model SPICE";
+"The imported model replaces the built-in one in every analysis." = "Model yang diimport menggantikan model terbina dalam dalam setiap analisis.";
+"SPICE Model for %@" = "Model SPICE untuk %@";
+"Ports: %@" = "Port: %@";

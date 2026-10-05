@@ -561,3 +561,18 @@
 "Go to Port" = "Đến cổng";
 "Go to Sheet Entry" = "Đến điểm vào trang";
 "Sheet %lld of %lld" = "Trang %lld / %lld";
+
+/* Simulation: imported SPICE models */
+"Attach" = "Gắn";
+"Attach SPICE Model…" = "Gắn mô hình SPICE…";
+"Built-in model" = "Mô hình tích hợp";
+"Edit SPICE Model…" = "Sửa mô hình SPICE…";
+"No models or subcircuits found." = "Không tìm thấy mô hình hay mạch con nào.";
+"One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "Mỗi cổng của mô hình một mục, theo thứ tự: tên hoặc số chân, 0 (đất), net:NAME, dc:15 (nguồn lý tưởng) hoặc nc; ngăn cách các phiên bản bằng ;.";
+"Open File…" = "Mở tệp…";
+"Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "Dán hoặc mở văn bản mô hình của nhà sản xuất (.lib, .mod, .cir): các định nghĩa .model và .subckt.";
+"Pin map" = "Ánh xạ chân";
+"Remove the SPICE model" = "Gỡ mô hình SPICE";
+"The imported model replaces the built-in one in every analysis." = "Mô hình đã nhập thay cho mô hình tích hợp trong mọi phân tích.";
+"SPICE Model for %@" = "Mô hình SPICE cho %@";
+"Ports: %@" = "Cổng: %@";

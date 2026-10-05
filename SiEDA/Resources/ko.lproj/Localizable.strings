@@ -561,3 +561,18 @@
 "Go to Port" = "포트로 이동";
 "Go to Sheet Entry" = "시트 엔트리로 이동";
 "Sheet %lld of %lld" = "%lld / %lld 시트";
+
+/* Simulation: imported SPICE models */
+"Attach" = "연결";
+"Attach SPICE Model…" = "SPICE 모델 연결…";
+"Built-in model" = "기본 제공 모델";
+"Edit SPICE Model…" = "SPICE 모델 편집…";
+"No models or subcircuits found." = "모델이나 서브서킷을 찾을 수 없습니다.";
+"One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "모델 포트마다 순서대로 하나씩: 핀 이름 또는 번호, 0(접지), net:NAME, dc:15(이상 전원) 또는 nc. 인스턴스는 ;로 구분합니다.";
+"Open File…" = "파일 열기…";
+"Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "제조사 모델 텍스트(.lib, .mod, .cir)를 붙여 넣거나 여세요: .model 및 .subckt 정의.";
+"Pin map" = "핀 매핑";
+"Remove the SPICE model" = "SPICE 모델 제거";
+"The imported model replaces the built-in one in every analysis." = "가져온 모델이 모든 해석에서 기본 제공 모델을 대신합니다.";
+"SPICE Model for %@" = "%@의 SPICE 모델";
+"Ports: %@" = "포트: %@";

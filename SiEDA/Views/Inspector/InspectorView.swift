@@ -322,6 +322,10 @@ private struct ComponentProperties: View {
                 FirmwareProperties(component: component, mcu: mcu)
             }
 
+            if DesignStore.acceptsSpiceModel(component) {
+                SpiceModelProperties(component: component)
+            }
+
             if let reading = store.dcResult?.reading(component: component.id) {
                 PropertyGroup(title: "Operating Point") {
                     PropertyRow(label: kind == .npn ? "I_C" : (kind == .nmos ? "I_D" : "Current"),
@@ -422,6 +426,50 @@ private struct FirmwareProperties: View {
                 .font(.caption2)
                 .foregroundStyle(Theme.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// The part's simulation model: built-in, or an imported SPICE .model / .subckt (SpiceModelSheet).
+private struct SpiceModelProperties: View {
+    @EnvironmentObject private var store: DesignStore
+    var component: SnapComponent
+    @State private var editing = false
+
+    var body: some View {
+        PropertyGroup(title: "SPICE Model") {
+            if let spice = component.spice {
+                HStack(spacing: 6) {
+                    Image(systemName: "function").foregroundStyle(Theme.skyBlue)
+                    Text(verbatim: spice.model).foregroundStyle(Theme.textPrimary).lineLimit(1).truncationMode(.middle)
+                    Spacer()
+                    Button(role: .destructive) {
+                        store.setSpiceModel(component.id, text: "", model: "", pins: "")
+                    } label: { Image(systemName: "trash") }
+                    .buttonStyle(.borderless)
+                    .help("Remove the SPICE model")
+                    .accessibilityLabel("Remove the SPICE model")
+                }
+                if !spice.pins.isEmpty {
+                    HStack {
+                        Text("Pin map").foregroundStyle(Theme.textMuted)
+                        Spacer()
+                        Text(verbatim: spice.pins).foregroundStyle(Theme.textPrimary).font(.callout.monospaced()).textSelection(.enabled)
+                    }
+                    .font(.callout)
+                }
+                Button { editing = true } label: { Label("Edit SPICE Model…", systemImage: "pencil") }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            } else {
+                Text("Built-in model").font(.caption).foregroundStyle(Theme.textMuted)
+                Button { editing = true } label: { Label("Attach SPICE Model…", systemImage: "square.and.arrow.down") }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+        }
+        .sheet(isPresented: $editing) {
+            SpiceModelSheet(component: component).environmentObject(store)
         }
     }
 }

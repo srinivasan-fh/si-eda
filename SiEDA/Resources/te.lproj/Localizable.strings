@@ -561,3 +561,18 @@
 "Go to Port" = "పోర్ట్‌కు వెళ్లు";
 "Go to Sheet Entry" = "షీట్ ఎంట్రీకి వెళ్లు";
 "Sheet %lld of %lld" = "షీట్ %lld / %lld";
+
+/* Simulation: imported SPICE models */
+"Attach" = "జోడించు";
+"Attach SPICE Model…" = "SPICE మోడల్ జోడించు…";
+"Built-in model" = "అంతర్నిర్మిత మోడల్";
+"Edit SPICE Model…" = "SPICE మోడల్ సవరించు…";
+"No models or subcircuits found." = "మోడల్‌లు లేదా సబ్‌సర్క్యూట్‌లు కనబడలేదు.";
+"One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "ప్రతి మోడల్ పోర్ట్‌కు క్రమంలో ఒక నమోదు: పిన్ పేరు లేదా సంఖ్య, 0 (గ్రౌండ్), net:NAME, dc:15 (ఆదర్శ సరఫరా) లేదా nc; ఇన్‌స్టాన్స్‌లను ; తో వేరు చేయండి.";
+"Open File…" = "ఫైల్ తెరువు…";
+"Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "తయారీదారు మోడల్ టెక్స్ట్ (.lib, .mod, .cir)ను అతికించండి లేదా తెరవండి: .model మరియు .subckt నిర్వచనాలు.";
+"Pin map" = "పిన్ మ్యాప్";
+"Remove the SPICE model" = "SPICE మోడల్‌ను తీసివేయి";
+"The imported model replaces the built-in one in every analysis." = "దిగుమతి చేసిన మోడల్ ప్రతి విశ్లేషణలో అంతర్నిర్మిత మోడల్‌ను భర్తీ చేస్తుంది.";
+"SPICE Model for %@" = "%@ కోసం SPICE మోడల్";
+"Ports: %@" = "పోర్ట్‌లు: %@";

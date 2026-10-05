@@ -139,6 +139,61 @@ spectrum is returned as peak amplitudes in dB (dBV for a voltage), up to 4096 bi
 Distortion components below about −100 dBc are limited by the transient's fixed-step backward-Euler integration and
 the linear resampling; use a step of 1/500 of the fundamental period or finer.
 
+## Imported SPICE models
+
+Any diode, LED, NPN, N-MOSFET, op-amp, 8-pin IC or catalog part (except the simulated microcontrollers) can take a
+vendor SPICE model instead of its built-in model: **Properties → SPICE Model → Attach SPICE Model…** opens the model
+editor. Paste the text or **Open File…** a `.lib` / `.mod` / `.cir` / `.sub`, or pick one from **Library** (generic
+1N4148, 1N4007, 1N5819, BZX84C5V1, 2N3904, 2N3906, BC847B, 2N7002, BSS84 and the µA741 Boyle macromodel). Pick the
+`.model` or `.subckt`, check the pin map and **Attach**. The editor re-checks the model on the part as you type and lists
+every diagnostic with its line. Only the definition and what it uses (`.param`, `.func`, referenced `.model` and
+`.subckt` blocks) is stored in the project (`Component::spice`, `"spice": {"text", "model", "pins"}` in the file); the
+rest of the vendor file is not kept. Undo removes an attachment, the trash button removes it. Parts without a model are
+simulated exactly as before (see *Verification*).
+
+**What is read.** `.model` cards of type D, NPN, PNP, NMOS, PMOS (LEVEL 1–3), NJF, PJF, SW / CSW / VSWITCH / ISWITCH, with
+`AKO:` inheritance and PSpice `DEV` / `LOT` tolerances skipped; `.subckt` with `PARAMS:` defaults and instance
+overrides, nested and local definitions; `.param`, `.func`; continuation lines (`+`), comments (`*`, `;`, ` $`),
+`{expressions}` and `'expressions'` with SPICE scale factors (`MEG`, `MIL`, `k`, `u`, …, case-insensitive); elements
+R C L K V I E F G H B D Q M J S W X. Controlled sources accept the linear form, `POLY(n)` (SPICE coefficient order),
+`VALUE = {…}` and `TABLE {…} = (x, y) …`; B sources take `V=` or `I=` expressions of `V(a)`, `V(a,b)`, `I(Vx)` and
+`time` with + − * / `**` `^` comparisons, `&& || !`, `?:` and abs sqrt exp ln log log10 sin cos tan asin acos atan
+atan2 sinh cosh tanh min max pow pwr pwrs sgn sign u uramp limit if floor ceil round int table. Simulation commands
+(`.tran`, `.options`, …) and test-circuit elements outside a `.subckt` are ignored with an info line; `.include` /
+`.lib file` are reported (paste the included text). Anything the simulator cannot honour is an error with its line:
+T / O / U / A / Z elements, LAPLACE / FREQ sources, `ddt` / `idt`, MOSFET LEVEL ≥ 4 (BSIM), BJT LEVEL > 1 (VBIC). Model
+parameters it does not use are listed as a warning (or an info line for temperature coefficients, ratings and vendor
+metadata — the simulation is at 27 °C).
+
+**Device equations.** Diode: Shockley with emission coefficient, series resistance, reverse breakdown (BV, IBV, NBV),
+depletion charge (CJO, VJ, M, FC) and diffusion charge (TT). BJT: Gummel–Poon level 1 — IS, BF, BR, NF, NR, Early
+voltages VAF / VAR, high injection IKF / IKR, leakage ISE / NE, ISC / NC, RB / RC / RE, junction charges CJE / VJE /
+MJE, CJC / VJC / MJC and transit times TF / TR (XTF, RBM, CJS ignored). MOSFET: Shichman–Hodges level 1 with body effect
+(GAMMA, PHI), λ, RD / RS, KP or UO·Cox, LD, overlap capacitances CGSO / CGDO / CGBO, bulk junctions (IS, CBD / CBS or
+CJ·AD / AS + CJSW·PD / PS, PB, MJ, MJSW) and, when TOX is given, an intrinsic gate charge of ⅔·Cox·W·L; LEVEL 3 adds
+THETA mobility reduction (ETA, VMAX, KAPPA ignored). JFET: Shichman–Hodges with gate diodes and CGS / CGD. Switches are
+smooth log-interpolated conductances between ROFF and RON across the threshold (no hysteresis). Model temperature is
+27 °C (V_T = 25.865 mV); built-in models keep their 300 K value.
+
+**Pin map.** One entry per model port, in port order: a pin name or number of the part, `0` (ground), `net:NAME` (a
+schematic net), `dc:15` (an ideal supply to ground) or `nc` (left open); `;` separates instances (`3 2 8 4 1; 5 6 8 4 7`
+puts a single-op-amp model into both halves of an LM358). Empty means the default: model terminals map to pins of the
+same name (`A K`, `C B E`, `D G S`, MOSFET bulk to `B` / `BULK` or the source), subcircuit ports to pins of the same
+name, a five-port op-amp macromodel on the op-amp symbol to IN+ IN− V+ V− OUT with ±15 V rails, otherwise ports in pin
+order when the counts agree. A pin that is not connected floats.
+
+**Readings.** The part's DC reading and transient current trace are taken at its pins: the collector / drain current
+and V_CE / V_DS for transistors (pins named C / E or D / S on catalog parts), the output voltage and delivered current
+for op-amps, otherwise the current into the first pin; power is the total the model absorbs, rails included.
+
+**Robustness.** The parser never throws. It refuses text over 8 MB or 200 000 lines, cards over 1 MB, expressions
+nested deeper than 200, subcircuits nested deeper than 40 (recursive definitions) and models that flatten to more than
+100 000 elements; every refusal is a diagnostic. With an imported model in the circuit the Newton iteration also
+measures its step tolerance from the damped step (a stricter test than the built-in models keep for compatibility).
+
+C API: `sieda_spice_parse`, `sieda_spice_check`, `sieda_set_spice_model`, `sieda_component_spice_model`,
+`sieda_spice_builtin_models` (see `sieda_c.h`).
+
 ## C API
 
 All five functions take a JSON options object (a `NULL` or empty string means defaults) and return JSON

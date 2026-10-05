@@ -707,6 +707,35 @@ final class EDAEngine: @unchecked Sendable {
         return Self.decode(MonteCarloResult.self, from: json) ?? MonteCarloResult(error: "Simulator returned no result.")
     }
 
+    // MARK: - SPICE models (docs/SIMULATION.md)
+
+    /// Models and subcircuits in vendor model text, with the parser's diagnostics.
+    static func parseSpice(_ text: String) -> SpiceParseResult {
+        decode(SpiceParseResult.self, from: take(sieda_spice_parse(text))) ?? SpiceParseResult()
+    }
+
+    /// Tries `model` of `text` on a part without changing the design (ports, default pin map, problems).
+    func checkSpiceModel(_ id: Int, text: String, model: String, pins: String) -> SpiceCheckResult {
+        let json = withHandle { Self.take(sieda_spice_check($0, Int32(id), text, model, pins)) }
+        return Self.decode(SpiceCheckResult.self, from: json) ?? SpiceCheckResult(ok: false, error: "The model could not be checked.")
+    }
+
+    /// Attaches a model to a part (an empty `text` removes it); the core stores what the model needs.
+    func setSpiceModel(_ id: Int, text: String, model: String, pins: String) throws {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let ok = withHandle { sieda_set_spice_model($0, Int32(id), text, model, pins, &errorPointer) } == 1
+        if !ok { throw EDAEngineError.operationFailed(Self.take(errorPointer) ?? "The model could not be attached.") }
+    }
+
+    /// The model attached to a part (nil when none).
+    func spiceModel(of id: Int) -> SpiceModelText? {
+        let model = Self.decode(SpiceModelText.self, from: withHandle { Self.take(sieda_component_spice_model($0, Int32(id))) })
+        return model?.text.isEmpty == false ? model : nil
+    }
+
+    static let builtinSpiceModels: [SpiceBuiltinModel] =
+        decode([SpiceBuiltinModel].self, from: take(sieda_spice_builtin_models())) ?? []
+
     private static func optionsJSON(_ options: [String: Any]) -> String {
         guard let data = try? JSONSerialization.data(withJSONObject: options) else { return "{}" }
         return String(decoding: data, as: UTF8.self)

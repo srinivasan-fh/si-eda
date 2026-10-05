@@ -561,3 +561,18 @@
 "Go to Port" = "ପୋର୍ଟକୁ ଯାଆନ୍ତୁ";
 "Go to Sheet Entry" = "ସିଟ୍ ଏଣ୍ଟ୍ରିକୁ ଯାଆନ୍ତୁ";
 "Sheet %lld of %lld" = "ସିଟ୍ %lld / %lld";
+
+/* Simulation: imported SPICE models */
+"Attach" = "ଯୋଡନ୍ତୁ";
+"Attach SPICE Model…" = "SPICE ମଡେଲ ଯୋଡନ୍ତୁ…";
+"Built-in model" = "ଅନ୍ତର୍ନିର୍ମିତ ମଡେଲ";
+"Edit SPICE Model…" = "SPICE ମଡେଲ ସମ୍ପାଦନ କରନ୍ତୁ…";
+"No models or subcircuits found." = "କୌଣସି ମଡେଲ କିମ୍ବା ସବସର୍କିଟ ମିଳିଲା ନାହିଁ।";
+"One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "ପ୍ରତ୍ୟେକ ମଡେଲ ପୋର୍ଟ ପାଇଁ କ୍ରମରେ ଗୋଟିଏ ଏଣ୍ଟ୍ରି: ପିନ୍ ନାମ ବା ନମ୍ବର, 0 (ଗ୍ରାଉଣ୍ଡ), net:NAME, dc:15 (ଆଦର୍ଶ ଯୋଗାଣ) କିମ୍ବା nc; ଇନଷ୍ଟାନ୍ସଗୁଡ଼ିକୁ ; ଦ୍ୱାରା ଅଲଗା କରନ୍ତୁ।";
+"Open File…" = "ଫାଇଲ ଖୋଲନ୍ତୁ…";
+"Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "ନିର୍ମାତାଙ୍କ ମଡେଲ ପାଠ (.lib, .mod, .cir) ପେଷ୍ଟ କରନ୍ତୁ କିମ୍ବା ଖୋଲନ୍ତୁ: .model ଓ .subckt ସଂଜ୍ଞା।";
+"Pin map" = "ପିନ୍ ମ୍ୟାପ୍";
+"Remove the SPICE model" = "SPICE ମଡେଲ ହଟାନ୍ତୁ";
+"The imported model replaces the built-in one in every analysis." = "ଆମଦାନି କରାଯାଇଥିବା ମଡେଲ ପ୍ରତ୍ୟେକ ବିଶ୍ଳେଷଣରେ ଅନ୍ତର୍ନିର୍ମିତ ମଡେଲର ସ୍ଥାନ ନିଏ।";
+"SPICE Model for %@" = "%@ ପାଇଁ SPICE ମଡେଲ";
+"Ports: %@" = "ପୋର୍ଟ: %@";

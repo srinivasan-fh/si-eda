@@ -561,3 +561,18 @@
 "Go to Port" = "Pumunta sa Port";
 "Go to Sheet Entry" = "Pumunta sa Sheet Entry";
 "Sheet %lld of %lld" = "Sheet %lld ng %lld";
+
+/* Simulation: imported SPICE models */
+"Attach" = "Ikabit";
+"Attach SPICE Model…" = "Ikabit ang SPICE Model…";
+"Built-in model" = "Built-in na model";
+"Edit SPICE Model…" = "I-edit ang SPICE Model…";
+"No models or subcircuits found." = "Walang nahanap na model o subcircuit.";
+"One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "Isang entry bawat port ng model, ayon sa pagkakasunod: pangalan o numero ng pin, 0 (ground), net:NAME, dc:15 (ideal na supply) o nc; paghiwalayin ang mga instance gamit ang ;.";
+"Open File…" = "Buksan ang File…";
+"Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "I-paste o buksan ang model text ng vendor (.lib, .mod, .cir): mga depinisyon ng .model at .subckt.";
+"Pin map" = "Pin map";
+"Remove the SPICE model" = "Alisin ang SPICE model";
+"The imported model replaces the built-in one in every analysis." = "Pinapalitan ng in-import na model ang built-in sa bawat pagsusuri.";
+"SPICE Model for %@" = "SPICE Model para sa %@";
+"Ports: %@" = "Mga port: %@";

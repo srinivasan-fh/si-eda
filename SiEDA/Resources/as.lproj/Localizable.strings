@@ -561,3 +561,18 @@
 "Go to Port" = "পৰ্টলৈ যাওক";
 "Go to Sheet Entry" = "পাত প্ৰৱেশলৈ যাওক";
 "Sheet %lld of %lld" = "পাত %lld / %lld";
+
+/* Simulation: imported SPICE models */
+"Attach" = "সংলগ্ন কৰক";
+"Attach SPICE Model…" = "SPICE মডেল সংলগ্ন কৰক…";
+"Built-in model" = "অন্তৰ্নিৰ্মিত মডেল";
+"Edit SPICE Model…" = "SPICE মডেল সম্পাদনা কৰক…";
+"No models or subcircuits found." = "কোনো মডেল বা উপ-বৰ্তনী পোৱা নগ'ল।";
+"One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "প্ৰতিটো মডেল প'ৰ্টৰ বাবে ক্ৰমে এটা প্ৰৱিষ্টি: পিনৰ নাম বা নম্বৰ, 0 (গ্ৰাউণ্ড), net:NAME, dc:15 (আদৰ্শ যোগান) বা nc; ইনষ্টেন্সবোৰ ; ৰে পৃথক কৰক।";
+"Open File…" = "ফাইল খোলক…";
+"Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "নিৰ্মাতাৰ মডেল পাঠ (.lib, .mod, .cir) পেষ্ট কৰক বা খোলক: .model আৰু .subckt সংজ্ঞা।";
+"Pin map" = "পিন মেপ";
+"Remove the SPICE model" = "SPICE মডেল আঁতৰাওক";
+"The imported model replaces the built-in one in every analysis." = "আমদানি কৰা মডেলে প্ৰতিটো বিশ্লেষণত অন্তৰ্নিৰ্মিত মডেলৰ ঠাই লয়।";
+"SPICE Model for %@" = "%@ৰ বাবে SPICE মডেল";
+"Ports: %@" = "প'ৰ্ট: %@";

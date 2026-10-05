@@ -561,3 +561,18 @@
 "Go to Port" = "போர்ட்டுக்குச் செல்";
 "Go to Sheet Entry" = "தாள் நுழைவுக்குச் செல்";
 "Sheet %lld of %lld" = "தாள் %lld / %lld";
+
+/* Simulation: imported SPICE models */
+"Attach" = "இணை";
+"Attach SPICE Model…" = "SPICE மாதிரியை இணை…";
+"Built-in model" = "உள்ளமைந்த மாதிரி";
+"Edit SPICE Model…" = "SPICE மாதிரியைத் திருத்து…";
+"No models or subcircuits found." = "மாதிரிகளோ துணைச்சுற்றுகளோ கிடைக்கவில்லை.";
+"One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "ஒவ்வொரு மாதிரி போர்ட்டுக்கும் வரிசையாக ஒரு பதிவு: பின் பெயர் அல்லது எண், 0 (தரை), net:NAME, dc:15 (இலட்சிய மின்வழங்கல்) அல்லது nc; நிகழ்வுகளை ; கொண்டு பிரிக்கவும்.";
+"Open File…" = "கோப்பைத் திற…";
+"Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "தயாரிப்பாளரின் மாதிரி உரையை (.lib, .mod, .cir) ஒட்டவும் அல்லது திறக்கவும்: .model மற்றும் .subckt வரையறைகள்.";
+"Pin map" = "பின் வரைபடம்";
+"Remove the SPICE model" = "SPICE மாதிரியை நீக்கு";
+"The imported model replaces the built-in one in every analysis." = "இறக்குமதி செய்த மாதிரி ஒவ்வொரு பகுப்பாய்விலும் உள்ளமைந்த மாதிரிக்குப் பதிலாகப் பயன்படும்.";
+"SPICE Model for %@" = "%@ க்கான SPICE மாதிரி";
+"Ports: %@" = "போர்ட்டுகள்: %@";

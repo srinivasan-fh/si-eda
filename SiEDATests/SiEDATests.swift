@@ -4900,3 +4900,56 @@ final class SchematicFindAndNavigateTests: XCTestCase {
         XCTAssertEqual(reopened.snapshot()?.titleBlock.revision, "C")
     }
 }
+
+@MainActor
+final class SimulationPackageTests: XCTestCase {
+    /// 5 V → 1 kΩ → diode → ground, built through the store so its snapshot knows the parts.
+    private func diodeCircuit(_ store: DesignStore) -> (diode: Int, anode: Int) {
+        var ids: [Int] = []
+        store.perform("Build") { engine in
+            let v = engine.addComponent(.voltageSource, value: "5", at: .zero)
+            let r = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+            let d = engine.addComponent(.diode, value: "1N4148", at: CGPoint(x: 200, y: 0))
+            let g = engine.addComponent(.ground, at: CGPoint(x: 0, y: 80))
+            _ = engine.connect(PinAddress(component: v, pin: 0), PinAddress(component: r, pin: 0))
+            _ = engine.connect(PinAddress(component: r, pin: 1), PinAddress(component: d, pin: 0))
+            _ = engine.connect(PinAddress(component: d, pin: 1), PinAddress(component: g, pin: 0))
+            _ = engine.connect(PinAddress(component: v, pin: 1), PinAddress(component: g, pin: 0))
+            ids = [d]
+        }
+        return (ids.first ?? -1, 0)
+    }
+
+    func testSpiceModelAttachCheckUndo() throws {
+        let store = DesignStore()
+        let (diode, _) = diodeCircuit(store)
+        let text = ".model DFAST D(IS=1n N=1.8 RS=0.5 CJO=4p TT=5n)\n.model JUNK NPN(BF=50)\n"
+        let parsed = EDAEngine.parseSpice(text)
+        XCTAssertTrue(parsed.ok)
+        XCTAssertEqual(parsed.entries.map(\.name), ["DFAST", "JUNK"])
+        XCTAssertEqual(parsed.entries.first?.ports, ["A", "K"])
+
+        let component = try XCTUnwrap(store.snapshot.component(diode))
+        XCTAssertTrue(DesignStore.acceptsSpiceModel(component))
+        let check = store.engine.checkSpiceModel(diode, text: text, model: "DFAST", pins: "")
+        XCTAssertTrue(check.ok, check.error)
+        XCTAssertEqual(check.defaultPins, "A K")
+        let wrong = store.engine.checkSpiceModel(diode, text: text, model: "JUNK", pins: "")
+        XCTAssertFalse(wrong.ok)  // a BJT model has no default mapping onto a diode's A / K
+
+        XCTAssertTrue(store.setSpiceModel(diode, text: text, model: "DFAST", pins: ""))
+        XCTAssertEqual(store.snapshot.component(diode)?.spice?.model, "DFAST")
+        let stored = try XCTUnwrap(store.engine.spiceModel(of: diode))
+        XCTAssertTrue(stored.text.contains("CJO=4p"))
+        XCTAssertFalse(stored.text.contains("JUNK"))  // only what the model needs is kept
+        XCTAssertTrue(store.engine.simulateDC().converged)
+
+        // A refused model leaves the design as it was.
+        XCTAssertFalse(store.setSpiceModel(diode, text: text, model: "MISSING", pins: ""))
+        XCTAssertEqual(store.snapshot.component(diode)?.spice?.model, "DFAST")
+
+        store.undo()
+        XCTAssertNil(store.snapshot.component(diode)?.spice)
+        XCTAssertFalse(EDAEngine.builtinSpiceModels.isEmpty)
+    }
+}

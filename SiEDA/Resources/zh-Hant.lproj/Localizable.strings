@@ -561,3 +561,18 @@
 "Go to Port" = "前往埠";
 "Go to Sheet Entry" = "前往圖頁入口";
 "Sheet %lld of %lld" = "第 %lld 頁，共 %lld 頁";
+
+/* Simulation: imported SPICE models */
+"Attach" = "附加";
+"Attach SPICE Model…" = "附加 SPICE 模型…";
+"Built-in model" = "內建模型";
+"Edit SPICE Model…" = "編輯 SPICE 模型…";
+"No models or subcircuits found." = "找不到模型或子電路。";
+"One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "每個模型埠一項，依序填寫：接腳名稱或編號、0（接地）、net:NAME、dc:15（理想電源）或 nc；多個實例以 ; 分隔。";
+"Open File…" = "開啟檔案…";
+"Paste or open vendor model text (.lib, .mod, .cir): .model and .subckt definitions." = "貼上或開啟廠商模型文字（.lib、.mod、.cir）：.model 與 .subckt 定義。";
+"Pin map" = "接腳對應";
+"Remove the SPICE model" = "移除 SPICE 模型";
+"The imported model replaces the built-in one in every analysis." = "匯入的模型會在每項分析中取代內建模型。";
+"SPICE Model for %@" = "%@ 的 SPICE 模型";
+"Ports: %@" = "埠：%@";
