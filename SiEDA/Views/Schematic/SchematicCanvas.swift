@@ -803,6 +803,36 @@ struct SchematicCanvas: View {
             }
         }
 
+        // Title block at the bottom right of the sheet's drawing.
+        if showLabels, !snap.components.isEmpty {
+            let content = Self.componentBounds(snap).reduce(CGRect.null) { $0.union($1.rect) }
+            if !content.isNull {
+                let block = CGRect(x: content.maxX - 220, y: content.maxY + 40, width: 260, height: 64)
+                if block.intersects(view) {
+                    let rect = block.applying(screen)
+                    ctx.stroke(Path(rect), with: .color(Theme.symbol.opacity(0.8)), lineWidth: 1.2)
+                    var rule = Path()
+                    rule.move(to: CGPoint(x: rect.minX, y: rect.midY))
+                    rule.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+                    ctx.stroke(rule, with: .color(Theme.symbol.opacity(0.5)), lineWidth: 0.8)
+                    let size = max(7, min(12, 8 * viewport.scale / 1.6))
+                    let tb = store.snapshot.titleBlock
+                    let index = (snap.sheets.firstIndex { $0.id == snap.activeSheet } ?? 0) + 1
+                    let total = max(1, snap.sheets.count)
+                    ctx.draw(Text(verbatim: tb.title).font(.system(size: size + 1, weight: .bold)).foregroundColor(Theme.label),
+                             at: CGPoint(x: rect.minX + 6, y: rect.minY + 4), anchor: .topLeading)
+                    ctx.draw(Text(verbatim: snap.sheet(snap.activeSheet)?.name ?? "").font(.system(size: size)).foregroundColor(Theme.valueLabel),
+                             at: CGPoint(x: rect.maxX - 6, y: rect.minY + 4), anchor: .topTrailing)
+                    ctx.draw(Text("Sheet \(index) of \(total)").font(.system(size: size)).foregroundColor(Theme.valueLabel),
+                             at: CGPoint(x: rect.maxX - 6, y: rect.midY - 3), anchor: .bottomTrailing)
+                    let lower = [tb.company, tb.revision.isEmpty ? "" : "Rev " + tb.revision, tb.date, tb.drawnBy]
+                        .filter { !$0.isEmpty }.joined(separator: "  ·  ")
+                    ctx.draw(Text(verbatim: lower).font(.system(size: size)).foregroundColor(Theme.valueLabel),
+                             at: CGPoint(x: rect.minX + 6, y: rect.midY + 4), anchor: .topLeading)
+                }
+            }
+        }
+
         // Live board: switches show their state (LEDs are lit where they are drawn).
         if live.isRunning, let liveState = live.state {
             for sw in liveState.switches {

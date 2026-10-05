@@ -4857,3 +4857,46 @@ final class VariantSimulationTests: XCTestCase {
         XCTAssertEqual(engine.snapshot()?.component(d)?.isFitted, false)
     }
 }
+
+@MainActor
+final class SchematicFindAndNavigateTests: XCTestCase {
+    func testFindReplaceNetNavigatorCrossProbeAndTitleBlock() throws {
+        let store = DesignStore()
+        let v = store.addComponent(.voltageSource, at: .zero)
+        let label = store.addComponent(.netLabel, at: CGPoint(x: 60, y: -40))
+        store.setValue(label, "VIN")
+        XCTAssertTrue(store.connect(PinAddress(component: v, pin: 0), PinAddress(component: label, pin: 0)))
+        let load = try XCTUnwrap(store.addSheet(named: "Load"))
+        let r = store.addComponent(.resistor, at: CGPoint(x: 100, y: 0))
+        let label2 = store.addComponent(.netLabel, at: CGPoint(x: 0, y: 0))
+        store.setValue(label2, "VIN")
+        XCTAssertTrue(store.connect(PinAddress(component: label2, pin: 0), PinAddress(component: r, pin: 0)))
+        let hits = store.find("VIN", matchCase: false, wholeWord: true, pins: false)
+        XCTAssertEqual(hits.filter { $0.field == "label" }.count, 2)
+        XCTAssertEqual(hits.filter { $0.field == "net" }.count, 1)
+        // The net navigator lists both sheets; cross-probing shows the other sheet.
+        let net = try XCTUnwrap(store.snapshot.component(r)?.pins[0].net)
+        let places = try XCTUnwrap(store.netPlaces(net)).places
+        XCTAssertEqual(Set(places.map(\.sheet)).count, 2)
+        store.crossProbe(component: v, sheet: 1)
+        XCTAssertEqual(store.snapshot.activeSheet, 1)
+        XCTAssertEqual(store.selection, [v])
+        store.crossProbe(component: r, sheet: load)
+        XCTAssertEqual(store.snapshot.activeSheet, load)
+        // Replace renames both labels in one undo step; the net still joins.
+        XCTAssertEqual(store.replaceAll("VIN", with: "VSUP", matchCase: true, wholeWord: true), 2)
+        XCTAssertTrue(store.find("VIN", matchCase: false, wholeWord: false, pins: false).isEmpty)
+        XCTAssertEqual(store.snapshot.component(r)?.pins[0].net, store.snapshot.component(v)?.pins[0].net)
+        store.undo()
+        XCTAssertEqual(store.find("VIN", matchCase: false, wholeWord: true, pins: false).filter { $0.field == "label" }.count, 2)
+        // Title block.
+        var block = store.snapshot.titleBlock
+        block.company = "Acme"
+        block.revision = "C"
+        store.setTitleBlock(block)
+        XCTAssertEqual(store.snapshot.titleBlock.company, "Acme")
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        XCTAssertEqual(reopened.snapshot()?.titleBlock.revision, "C")
+    }
+}

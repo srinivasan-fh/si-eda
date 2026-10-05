@@ -46,6 +46,8 @@ struct DesignSnapshot: Decodable, Equatable {
     var activeVariant = ""
     /// Graphical buses on every sheet (filtered to one sheet by `onSheet`).
     var buses: [BusInfo] = []
+    /// Title block printed on every schematic sheet.
+    var titleBlock = TitleBlockInfo()
 
     static let empty = DesignSnapshot(name: "Untitled", requirements: "", components: [], wires: [], nets: [],
                                       board: BoardInfo(), pads: [], tracks: [], vias: [], ratsnest: [], courtyards: [])
@@ -100,12 +102,13 @@ struct DesignSnapshot: Decodable, Equatable {
         variants = try c.decodeIfPresent([VariantInfo].self, forKey: .variants) ?? []
         activeVariant = try c.decodeIfPresent(String.self, forKey: .activeVariant) ?? ""
         buses = try c.decodeIfPresent([BusInfo].self, forKey: .buses) ?? []
+        titleBlock = try c.decodeIfPresent(TitleBlockInfo.self, forKey: .titleBlock) ?? TitleBlockInfo()
     }
 
     private enum CodingKeys: String, CodingKey {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
         case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
-        case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant, buses
+        case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant, buses, titleBlock
     }
 
     func component(_ id: Int) -> SnapComponent? { components.first { $0.id == id } }
@@ -386,6 +389,44 @@ struct SheetInfo: Decodable, Equatable, Identifiable, Hashable {
     var isInstance: Bool { (instanceOf ?? 0) != 0 }
     /// The definition sheet of a repeated block (the sheet itself otherwise).
     var definitionId: Int { isInstance ? (instanceOf ?? id) : id }
+}
+
+/// Schematic title block fields (the title defaults to the project name).
+struct TitleBlockInfo: Codable, Equatable {
+    var title = ""
+    var company = ""
+    var revision = ""
+    var date = ""
+    var drawnBy = ""
+}
+
+/// A find result (`sieda_schematic_find`): a designator, value, label, pin or net that matches.
+struct SchematicSearchHit: Decodable, Equatable, Identifiable {
+    var component: Int
+    var net: Int
+    var pin: Int
+    var sheet: Int
+    var field: String  // "ref", "value", "label", "net", "pin"
+    var text: String
+    var id: String { "\(field)|\(component)|\(net)|\(pin)|\(text)" }
+}
+
+/// Net navigator (`sieda_net_places`): every place a net appears, sheet by sheet.
+struct NetPlacesReport: Decodable, Equatable {
+    struct Place: Decodable, Equatable, Identifiable {
+        var component: Int
+        var pin: Int
+        var sheet: Int
+        var x: Double
+        var y: Double
+        var kind: String  // "pin", "label", "global", "port", "entry", "bus", "ground"
+        var ref: String
+        var name: String
+        var id: String { "\(component).\(pin)" }
+    }
+    var net: Int
+    var name: String
+    var places: [Place]
 }
 
 /// A graphical bus: a named polyline ("D[0..7]") whose members leave it through bus entries (net labels with `bus`).

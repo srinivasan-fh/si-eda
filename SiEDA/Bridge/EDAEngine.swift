@@ -331,6 +331,41 @@ final class EDAEngine: @unchecked Sendable {
         max(0, Int(withHandle { sieda_connect_bus_to_part($0, Int32(id), Int32(component), scope) }))
     }
 
+    // MARK: - Find / replace, net navigator, title block
+
+    /// Finds text in designators, values, labels and nets (and pin names with `pins`) across every sheet.
+    func find(_ text: String, matchCase: Bool = false, wholeWord: Bool = false, pins: Bool = false) -> [SchematicSearchHit] {
+        var fields = ["ref", "value", "label", "net"]
+        if pins { fields.append("pin") }
+        let request: [String: Any] = ["text": text, "matchCase": matchCase, "wholeWord": wholeWord, "fields": fields]
+        guard let data = try? JSONSerialization.data(withJSONObject: request) else { return [] }
+        let json = String(decoding: data, as: UTF8.self)
+        struct Reply: Decodable { var hits: [SchematicSearchHit] }
+        return Self.decode(Reply.self, from: withHandle { Self.take(sieda_schematic_find($0, json)) })?.hits ?? []
+    }
+
+    /// Replaces text in part values and net label names; the number of fields changed.
+    @discardableResult
+    func replace(_ text: String, with replacement: String, matchCase: Bool = false, wholeWord: Bool = false) -> Int {
+        let request: [String: Any] = ["text": text, "replacement": replacement, "matchCase": matchCase, "wholeWord": wholeWord,
+                                      "fields": ["value", "label"]]
+        guard let data = try? JSONSerialization.data(withJSONObject: request) else { return 0 }
+        let json = String(decoding: data, as: UTF8.self)
+        return Int(withHandle { sieda_schematic_replace($0, json) })
+    }
+
+    /// Every place a net appears (net navigator).
+    func netPlaces(_ net: Int) -> NetPlacesReport? {
+        Self.decode(NetPlacesReport.self, from: withHandle { Self.take(sieda_net_places($0, Int32(net))) })
+    }
+
+    @discardableResult
+    func setTitleBlock(_ block: TitleBlockInfo) -> Bool {
+        guard let data = try? JSONEncoder().encode(block) else { return false }
+        let json = String(decoding: data, as: UTF8.self)
+        return withHandle { sieda_set_title_block($0, json) } == 1
+    }
+
     // MARK: - Design variants
 
     @discardableResult

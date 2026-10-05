@@ -1,10 +1,14 @@
 # Schematic sheets, hierarchy, variants, buses and annotation
 
 This guide covers the large-design features of schematic capture: multi-sheet and hierarchical schematics, label
-scopes, sheet symbols, the cross-sheet electrical rule checks, bus labels, designator annotation and assembly
-variants. Core code: `Core/src/Sheets.cpp` (sheets, hierarchy, buses, annotation, cross-sheet ERC),
-`Core/src/Schematic.cpp` (connectivity and net naming), `Core/src/Variants.cpp` and `Project.cpp` (variants and
-persistence). App: the sheet bar and the inspector in `SiEDA/Views/Schematic/SchematicEditorView.swift` and
+scopes, sheet symbols, repeated (multi-instance) sheets, the cross-sheet electrical rule checks, graphical buses,
+multi-unit parts, designator annotation, assembly variants (BOM, assembly and simulation), find / replace, the net
+navigator and the title block. Core code: `Core/src/Sheets.cpp` (sheets, hierarchy, bus labels, annotation,
+cross-sheet ERC), `Core/src/Instances.cpp` (repeated sheets), `Core/src/Buses.cpp` (graphical buses),
+`Core/src/PartUnits.cpp` (multi-unit parts), `Core/src/SchematicSearch.cpp` (find / replace, net navigator),
+`Core/src/Schematic.cpp` (connectivity and net naming), `Core/src/Variants.cpp` and `Project.cpp` (variants,
+simulation of a variant, title block, persistence). App: the sheet bar and the inspector in
+`SiEDA/Views/Schematic/SchematicEditorView.swift`, `SchematicCanvas.swift`, `SchematicFindView.swift` and
 `SiEDA/Views/Inspector/InspectorView.swift`.
 
 ## The model in one paragraph
@@ -201,6 +205,21 @@ another value. The base design is what the schematic says (with each part's own 
 - Variants are keyed by component id, so re-annotating designators does not disturb them. Settings for deleted parts
   are dropped when the project is saved.
 
+## Find & replace, net navigator, cross-probing, title block
+
+- **Find & Replace** (⌘F, or the magnifier in the schematic options bar) searches designators, values, net labels
+  and net names — and pin names when asked — on every sheet, in sheet order. Click a result to show it on its sheet,
+  selected and zoomed. **Replace All** replaces the text in part values and net label names everywhere as one undo
+  step (designators are re-numbered with Annotate). *Whole field* matches a complete value only. A repeated block's
+  part and a multi-unit part are edited once.
+- **Net navigator**: the inspector of a wire or a net label lists every place its net appears — pins, global and
+  local labels, ports, sheet entries, bus entries, ground — sheet by sheet; click one to go there.
+- **Cross-probing through the hierarchy**: a sheet entry's inspector has **Go to Port** (opens the child sheet on
+  the port), a port's has **Go to Sheet Entry**. Picking a part on the PCB, in the BOM or in a check opens its sheet.
+- **Title block**: with nothing selected, the inspector's *Title Block* group sets title, company, revision, date and
+  drawn-by. Each sheet shows it at the bottom right of its drawing with the sheet name and "Sheet n of N". It is saved
+  with the project (only when set) and the title defaults to the project name.
+
 ## Files and compatibility
 
 New project fields (all optional when reading):
@@ -224,7 +243,39 @@ New project fields (all optional when reading):
 - AI design plans carry `"sheets"` and each component's `"sheet"`, `"scope"` and `"targetSheet"`, so asking the
   agents to change a multi-sheet design keeps its sheets and label scopes.
 
+Further optional fields (written only when used, so other designs' files are unchanged): sheets `instanceOf`,
+`channel`, `refs`; components `instanceOf`, `logicalRef`, `bus`, `unitOf` / `unit` (kind 20, a placed unit) and
+`packageOnly`; wires `instanceOf`; top-level `buses` and `titleBlock`. A file is repaired on load: copies whose
+block part is gone, units without a valid package, packages without units, entries of missing buses and buses on
+missing sheets are dropped; an instance of a missing or nested definition becomes an ordinary sheet. Older versions of
+SiEDA open a file with repeated sheets as ordinary sheets (every channel's parts are real parts); a file with placed
+units needs this version.
+
 ## C API
+
+Repeated sheets, buses, multi-unit parts, find / replace and the title block:
+
+```c
+int32_t sieda_repeat_sheet(SiedaProject*, int32_t sheet, int32_t count);       /* channels, or -1 */
+int32_t sieda_set_instance_refs(SiedaProject*, int32_t sheet, const char* scheme); /* "sheet" | "suffix" */
+int32_t sieda_set_sheet_channel(SiedaProject*, int32_t sheet, const char* channel);
+int32_t sieda_add_bus(SiedaProject*, const char* name, const char* points_json);
+int32_t sieda_remove_bus(SiedaProject*, int32_t bus);
+int32_t sieda_rename_bus(SiedaProject*, int32_t bus, const char* name);
+int32_t sieda_move_bus(SiedaProject*, int32_t bus, double dx, double dy);
+int32_t sieda_rip_bus_entries(SiedaProject*, int32_t bus, const char* members_json, const char* scope);
+int32_t sieda_connect_bus_to_part(SiedaProject*, int32_t bus, int32_t component, const char* scope);
+int32_t sieda_add_custom_units(SiedaProject*, const char* part_id, const char* value, double x, double y,
+                               int32_t rotation, const char* ref);
+int32_t sieda_add_part_unit(SiedaProject*, int32_t component, int32_t unit, double x, double y, int32_t rotation);
+int32_t sieda_place_next_unit(SiedaProject*, int32_t component, double x, double y);
+char*   sieda_schematic_find(const SiedaProject*, const char* request_json);
+int32_t sieda_schematic_replace(SiedaProject*, const char* request_json);
+char*   sieda_net_places(const SiedaProject*, int32_t net);
+int32_t sieda_set_title_block(SiedaProject*, const char* json);
+```
+
+Sheets, hierarchy, bus labels, annotation and variants:
 
 ```c
 char*   sieda_sheets_json(const SiedaProject*);                 /* {"active", "sheets":[{id,name,parent,depth,components,ports}]} */

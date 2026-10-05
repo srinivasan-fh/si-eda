@@ -195,6 +195,19 @@ private struct ComponentProperties: View {
                         }
                     }
                 }
+                if kind == .netLabel && (component.labelScope == "entry" || component.labelScope == "port") {
+                    // Cross-probe through the hierarchy: an entry to its child sheet's port, a port to its entry.
+                    Button {
+                        store.crossProbeHierarchy(from: component.id)
+                    } label: {
+                        Label(component.labelScope == "entry" ? "Go to Port" : "Go to Sheet Entry", systemImage: "arrow.up.right.square")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                if kind == .netLabel, let net = component.pins.first?.net, net >= 0 {
+                    NetNavigatorView(net: net)
+                }
                 if kind == .netLabel && component.labelScope != "entry" {
                     Picker("Scope", selection: Binding(get: { component.labelScope },
                                                        set: { store.setLabelScope(component.id, scope: $0) })) {
@@ -487,6 +500,7 @@ private struct WireProperties: View {
             if let v = store.dcResult?.voltage(net: wire.net) {
                 PropertyRow(label: "DC voltage", value: EngineeringFormat.string(v, unit: "V", digits: 4))
             }
+            NetNavigatorView(net: wire.net)
             Button(role: .destructive) { store.deleteSelection() } label: { Label("Delete Wire", systemImage: "trash") }
                 .buttonStyle(.bordered)
         }
@@ -532,6 +546,9 @@ private struct ProjectProperties: View {
                 PropertyRow(label: "Components", value: "\(store.snapshot.components.filter { !$0.componentKind.isVirtual }.count)")
                 PropertyRow(label: "Nets", value: "\(store.snapshot.nets.filter { $0.pinCount > 1 }.count)")
                 PropertyRow(label: "Wires", value: "\(store.snapshot.wires.count)")
+            }
+            PropertyGroup(title: "Title Block") {
+                TitleBlockEditor()
             }
             IndustryProperties()
             RobotSystemProperties()

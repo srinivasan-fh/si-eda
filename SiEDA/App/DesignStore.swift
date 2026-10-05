@@ -73,6 +73,8 @@ final class DesignStore: ObservableObject {
     @Published var selectedWire: Int?
     /// The graphical bus selected on the schematic (its inspector rips entries and connects parts).
     @Published var selectedBus: Int?
+    /// The schematic's Find & Replace panel.
+    @Published var showFind = false
     @Published var ercResults: [RuleViolation] = []
     @Published var drcResults: [RuleViolation] = []
     @Published var validationResults: [RuleViolation] = []
@@ -907,6 +909,54 @@ final class DesignStore: ObservableObject {
                        failureMessage: "Channel labels are letters, digits, _ or -, unique in the block") {
             $0.setSheetChannel(id, channel: label)
         }
+    }
+
+    // MARK: - Find / replace and cross-probing
+
+    func find(_ text: String, matchCase: Bool, wholeWord: Bool, pins: Bool) -> [SchematicSearchHit] {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return [] }
+        return engine.find(trimmed, matchCase: matchCase, wholeWord: wholeWord, pins: pins)
+    }
+
+    /// Replaces text in part values and net label names on every sheet, as one undo step. Returns the count.
+    @discardableResult
+    func replaceAll(_ text: String, with replacement: String, matchCase: Bool, wholeWord: Bool) -> Int {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return 0 }
+        var count = 0
+        let done = performChecked("Replaced \(trimmed) with \(replacement)", failureMessage: "Nothing to replace") {
+            count = $0.replace(trimmed, with: replacement, matchCase: matchCase, wholeWord: wholeWord)
+            return count > 0
+        }
+        if done { statusMessage = "Replaced \(count) value(s) and label(s)" }
+        return count
+    }
+
+    /// Shows a place on its sheet and selects it (find results, the net navigator, sheet entries and ports).
+    func crossProbe(component id: Int, sheet: Int) {
+        if sheet != snapshot.activeSheet, snapshot.sheet(sheet) != nil { selectSheet(sheet, fit: false) }
+        select(component: id)
+        requestView(.fitSelection)
+    }
+
+    /// The other end of a hierarchical connection: a sheet entry opens its child sheet's port, a port its entry.
+    func crossProbeHierarchy(from id: Int) {
+        guard let c = snapshot.component(id), c.componentKind == .netLabel else { return }
+        if c.labelScope == "entry", let child = c.targetSheet,
+           let port = snapshot.components.first(where: { $0.sheetId == child && $0.labelScope == "port" && $0.value == c.value }) {
+            crossProbe(component: port.id, sheet: child)
+        } else if c.labelScope == "port",
+                  let entry = snapshot.components.first(where: { $0.labelScope == "entry" && $0.targetSheet == c.sheetId && $0.value == c.value }) {
+            crossProbe(component: entry.id, sheet: entry.sheetId)
+        }
+    }
+
+    func netPlaces(_ net: Int) -> NetPlacesReport? { net >= 0 ? engine.netPlaces(net) : nil }
+
+    func setTitleBlock(_ block: TitleBlockInfo) {
+        guard block != snapshot.titleBlock else { return }
+        performChecked("Title block", invalidatesAnalysis: false) { $0.setTitleBlock(block) }
     }
 
     // MARK: - Graphical buses

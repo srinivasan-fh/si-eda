@@ -104,6 +104,11 @@ struct SchematicEditorView: View {
                     Toggle("Live probes", isOn: $store.showDCOverlay)
                         .toggleStyle(.switch)
                         .controlSize(.mini)
+                    Button { store.showFind = true } label: { Image(systemName: "magnifyingglass") }
+                        .buttonStyle(.borderless)
+                        .keyboardShortcut("f", modifiers: [.command])
+                        .help("Find & Replace across every sheet (⌘F)")
+                        .accessibilityLabel("Find and replace")
                     Spacer()
                     if !store.selection.isEmpty {
                         Text("\(store.selection.count) selected").foregroundStyle(Theme.skyBlue)
@@ -175,6 +180,7 @@ struct SchematicEditorView: View {
             }
         }
         .background(Theme.navy)
+        .sheet(isPresented: $store.showFind) { SchematicFindPanel().environmentObject(store) }
         .background(DeleteKeyMonitor { store.deleteSelection() } isActive: {
             store.selectedWire != nil || !store.selection.isEmpty
         })
