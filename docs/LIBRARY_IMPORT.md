@@ -38,7 +38,13 @@ brings the models of the `X.3dshapes` folder next to it.
 1. Open the **Component Library** workspace.
 2. Click **Import Library…** and choose files or folders.
 3. Review the parts in the sheet. Parts that can be imported are selected. Each row shows the footprint, the pin
-   count, the source file and any notes. Parts that cannot be imported say why, in red.
+   count, the source file and any notes. Parts that cannot be imported say why, in red. The selected row's symbol
+   and footprint are previewed on the right.
+   - **Choosing a footprint.** For a KiCad or Altium symbol, the **Footprint** menu offers *Automatic* (the pairing
+     below), then **Fits every pin**: the imported footprints with a pad for every pin, best first (the footprint the
+     symbol names, then one pad per pin, then those its footprint filters accept, then the fewest extra pads), then
+     the **Other footprints**. Choosing one reads the files again with that pair; a footprint that does not fit (for
+     example overlapping pads of different pins) shows why on the row. Your selection of rows is kept.
 4. Click **Add Selected Parts**. The parts join the project library in one step; **Edit → Undo** removes them again.
 
 To fix a part after the import, select it in the library and use **Edit Symbol…** or **Edit Footprint…**.
@@ -47,7 +53,8 @@ To fix a part after the import, select it in the library and use **Edit Symbol�
 
 A KiCad symbol is paired with an imported footprint by the first rule that applies:
 
-1. **Explicit pair.** The core API takes `pairs` (symbol name → footprint name). The app does not set them yet.
+1. **Explicit pair.** The footprint you choose for the symbol in the import sheet (the core API's `pairs`, symbol
+   name → footprint name).
 2. **The footprint the symbol names.** For example, `Package_SO:SOIC-8_3.9x4.9mm_P1.27mm` matches an imported
    footprint named `SOIC-8_3.9x4.9mm_P1.27mm`. The library prefix and case are ignored.
 3. **The symbol's footprint filters** (`ki_fp_filters`, such as `SOIC*3.9x4.9mm*P1.27mm*`). The first imported
@@ -241,8 +248,6 @@ KiCad ships beside each `.step`, or export VRML / STL / OBJ from the CAD tool.
 - **Paste and mask.** Paste and solder-mask expansions are SiEDA's own; per-pad overrides are ignored.
 - **Pad shapes.** Round-rectangle corner radii and chamfers are imported as plain rectangles.
 - **Units and body styles.** Multi-unit symbols become one symbol, and De Morgan alternatives are dropped.
-- **Pairing in the app.** The app pairs symbols and footprints automatically; choosing another footprint for a
-  symbol is available in the core API (`pairs`) only.
 
 ## Parametric search
 
@@ -278,10 +283,12 @@ The result:
     {"name": "LM358", "symbol": "LM358", "footprint": "SOIC-8_3.9x4.9mm_P1.27mm",
      "source": "LM358.kicad_sym, SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod",
      "ok": true, "error": "", "warnings": ["The symbol's 3 units are drawn as one symbol, …"],
+     "pairable": true, "candidates": ["SOIC-8_3.9x4.9mm_P1.27mm"],
      "spec": { "name": "LM358", "pins": [...], "package": {"type": "CUSTOM", "lands": [...]},
                "symbolLayout": {"pins": [...]} }}
   ],
   "files": [{"name": "LM358.kicad_sym", "format": "kicad_sym", "symbols": 1, "footprints": 0, "error": ""}],
+  "footprintList": [{"name": "SOIC-8_3.9x4.9mm_P1.27mm", "source": "SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod", "pads": 8}],
   "symbols": 1, "footprints": 1
 }
 ```
@@ -345,6 +352,8 @@ empty `parts` list with the reason.
     - content sniffing;
     - 800 deterministic mutations of the fixtures (truncation, byte flips, deleted, duplicated and inserted
       ranges): the import never throws, and every part it offers registers.
+  - `library_import_footprint_candidates_for_the_sheet`: candidate ranking, re-pairing, a choice that does not fit,
+    no choice for Eagle devices.
   - `library_import_c_api` (`Core/tests/c_api_test.c`): the C entry point, bad files and bad requests.
   - `altium_compound_file_reader`, `library_import_reads_altium_libraries`, `library_import_altium_survives_fuzzing`
     (800 mutations of the container and records): the CFB reader (mini stream and regular sectors, case-insensitive

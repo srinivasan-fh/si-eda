@@ -10631,3 +10631,40 @@ TEST(library_import_altium_survives_fuzzing) {
     }
     CHECK(imported > 100 && refused > 20);
 }
+
+// ------------------------------------------------------------------ import sheet: choosing a symbol's footprint
+
+TEST(library_import_footprint_candidates_for_the_sheet) {
+    std::vector<ImportFile> files;
+    for (const char* f : {kSymbols, kSoic, kQfn, kHeader}) files.push_back({f, readFixture(f)});
+    const LibraryImport r = importLibraryFiles(files);
+    const Json j = libraryImportToJson(r);
+    CHECK(j.get("footprintList").size() == 3);
+    const Json* lm = nullptr;
+    for (const auto& p : j.get("parts").items())
+        if (p.get("symbol").asString() == "LM358") lm = &p;
+    CHECK(lm != nullptr);
+    if (lm) {
+        CHECK(lm->get("pairable").asBool());
+        const Json& c = lm->get("candidates");
+        CHECK(c.size() == 2);  // the SOIC it names first, then the QFN (pads 1…16 cover pins 1…8); not the 4-pin header
+        if (c.size() == 2) {
+            CHECK(c[0].asString() == "SOIC-8_3.9x4.9mm_P1.27mm");
+            CHECK(c[1].asString() == "QFN-16-1EP_3x3mm_P0.5mm_EP1.7x1.7mm");
+        }
+    }
+    // A footprint-only part offers no choice.
+    for (const auto& p : j.get("parts").items())
+        if (p.get("symbol").asString().empty()) CHECK(p.get("pairable").isNull());
+    // Choosing a candidate re-pairs the symbol; a choice that does not fit is reported on the part.
+    const LibraryImport repaired = importLibraryFiles(files, {{"AMS1117-3.3", "PinHeader_1x04_P2.54mm_Vertical"},
+                                                              {"LM358", "QFN-16-1EP_3x3mm_P0.5mm_EP1.7x1.7mm"}});
+    for (const auto& p : repaired.parts) {
+        if (p.symbolName == "AMS1117-3.3") CHECK(p.ok && p.footprintName == "PinHeader_1x04_P2.54mm_Vertical");
+        if (p.symbolName == "LM358") CHECK(!p.ok && p.error.find("overlap") != std::string::npos);
+    }
+    // Eagle device sets are paired by their connects: no choice there.
+    const Json eagle = libraryImportToJson(importLibraryFiles({{kEagle, readFixture(kEagle)}}));
+    for (const auto& p : eagle.get("parts").items()) CHECK(p.get("pairable").isNull());
+    CHECK(eagle.get("footprintList").size() == 0);
+}

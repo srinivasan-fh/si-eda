@@ -699,3 +699,10 @@
 
 /* Altium library import */
 "Import KiCad (.kicad_mod, .kicad_sym), Eagle (.lbr) or Altium (.SchLib, .PcbLib) libraries" = "KiCad- (.kicad_mod, .kicad_sym), Eagle- (.lbr) of Altium-bibliotheken (.SchLib, .PcbLib) importeren";
+
+/* Import sheet footprint choice */
+"Fits every pin" = "Past bij elke pin";
+"Other footprints" = "Andere footprints";
+"Choose the footprint for this symbol: the import is read again with this pair" = "Kies de footprint voor dit symbool: de import wordt opnieuw gelezen met dit paar";
+"Select an importable part to preview it." = "Selecteer een importeerbaar onderdeel om het te bekijken.";
+"Footprint" = "Footprint";

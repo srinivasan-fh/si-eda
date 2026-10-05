@@ -699,3 +699,10 @@
 
 /* Altium library import */
 "Import KiCad (.kicad_mod, .kicad_sym), Eagle (.lbr) or Altium (.SchLib, .PcbLib) libraries" = "KiCad(.kicad_mod, .kicad_sym), Eagle(.lbr) 또는 Altium(.SchLib, .PcbLib) 라이브러리 가져오기";
+
+/* Import sheet footprint choice */
+"Fits every pin" = "모든 핀에 맞음";
+"Other footprints" = "기타 풋프린트";
+"Choose the footprint for this symbol: the import is read again with this pair" = "이 심벌의 풋프린트를 선택: 이 조합으로 가져오기를 다시 읽습니다";
+"Select an importable part to preview it." = "미리 보려면 가져올 수 있는 부품을 선택하세요.";
+"Footprint" = "풋프린트";

@@ -3,6 +3,7 @@
 #include "sieda/Model3D.hpp"
 
 #include <algorithm>
+#include <tuple>
 #include <memory>
 #include <cctype>
 #include <cmath>
@@ -1959,9 +1960,43 @@ LibraryImport importLibraryFiles(const std::vector<ImportFile>& files, const std
     return out;
 }
 
+std::vector<std::string> footprintCandidates(const LibraryImport& result, const ImportedSymbol& sym) {
+    struct Scored {
+        int exactCount, named, filtered;
+        size_t padGap;
+        std::string name;
+    };
+    std::vector<Scored> found;
+    std::set<std::string> eagleFiles;
+    for (const auto& f : result.files)
+        if (f.format == "eagle_lbr") eagleFiles.insert(f.name);
+    for (const auto& fp : result.footprints) {
+        if (eagleFiles.count(fp.source) || !coversPins(fp, sym)) continue;
+        std::set<std::string> pads;
+        for (const auto& n : fp.padNumbers) pads.insert(upper(n));
+        bool filtered = false;
+        for (const auto& f : sym.footprintFilters) filtered = filtered || globMatch(f, fp.name);
+        const size_t pins = sym.pins.size();
+        found.push_back({pads.size() == pins ? 0 : 1, upper(baseName(sym.footprint)) == upper(fp.name) ? 0 : 1,
+                         filtered ? 0 : 1, pads.size() > pins ? pads.size() - pins : pins - pads.size(), fp.name});
+    }
+    std::sort(found.begin(), found.end(), [](const Scored& a, const Scored& b) {
+        return std::tie(a.named, a.exactCount, a.filtered, a.padGap, a.name) <
+               std::tie(b.named, b.exactCount, b.filtered, b.padGap, b.name);
+    });
+    std::vector<std::string> out;
+    for (const auto& s : found) {
+        if (out.size() >= 30) break;
+        if (std::find(out.begin(), out.end(), s.name) == out.end()) out.push_back(s.name);
+    }
+    return out;
+}
+
 Json libraryImportToJson(const LibraryImport& result) {
     Json j = Json::object();
     Json parts = Json::array();
+    std::map<std::string, const ImportedSymbol*> symbolsByName;  // KiCad / Altium symbols: their footprint can be chosen
+    for (const auto& s : result.symbols) symbolsByName.emplace(s.name, &s);
     for (const auto& p : result.parts) {
         Json pj = Json::object();
         pj["name"] = p.spec.name;
@@ -1974,9 +2009,31 @@ Json libraryImportToJson(const LibraryImport& result) {
         for (const auto& s : p.warnings) w.push(s);
         pj["warnings"] = w;
         pj["spec"] = customPartSpecToJson(p.spec);
+        auto sym = p.symbolName.empty() ? symbolsByName.end() : symbolsByName.find(p.symbolName);
+        if (sym != symbolsByName.end()) {
+            pj["pairable"] = true;
+            Json c = Json::array();
+            for (const auto& name : footprintCandidates(result, *sym->second)) c.push(name);
+            pj["candidates"] = c;
+        }
         parts.push(pj);
     }
     j["parts"] = parts;
+    Json list = Json::array();
+    {
+        std::set<std::string> eagleFiles;
+        for (const auto& f : result.files)
+            if (f.format == "eagle_lbr") eagleFiles.insert(f.name);
+        for (const auto& fp : result.footprints) {
+            if (eagleFiles.count(fp.source) || list.size() >= 2000) continue;
+            Json fj = Json::object();
+            fj["name"] = fp.name;
+            fj["source"] = fp.source;
+            fj["pads"] = static_cast<int>(fp.package.lands.size());
+            list.push(fj);
+        }
+    }
+    j["footprintList"] = list;
     Json files = Json::array();
     for (const auto& f : result.files) {
         Json fj = Json::object();

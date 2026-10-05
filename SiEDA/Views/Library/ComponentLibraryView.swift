@@ -29,6 +29,8 @@ struct ComponentLibraryView: View {
     @State private var footprintError: String?
     @State private var libraryImport: LibraryImportResult?
     @State private var showSupplierSearch = false
+    /// The files of the last library import (read again when a footprint is chosen for a symbol).
+    @State private var libraryImportFiles: [LibraryImportFile] = []
     @State private var model3dSource: CustomPartSpec?
     /// Sourcing of a distributor part being drawn in the pin table: applied when it is saved and placed.
     @State private var pendingSourcing: SourcingUpdate?
@@ -129,7 +131,7 @@ struct ComponentLibraryView: View {
         }
         .sheet(isPresented: Binding(get: { libraryImport != nil }, set: { if !$0 { libraryImport = nil } })) {
             if let result = libraryImport {
-                LibraryImportView(result: result) { specs in
+                LibraryImportView(result: result, files: libraryImportFiles) { specs in
                     let added = store.importLibraryParts(specs)
                     if let first = added.first { selectedId = first }
                     importState = .done("Added \(added.count) library parts.")
@@ -771,6 +773,7 @@ struct ComponentLibraryView: View {
         Task { @MainActor in
             let result = await Task.detached(priority: .userInitiated) { EDAEngine.importLibrary(files: files) }.value
             importState = .idle
+            libraryImportFiles = files
             libraryImport = result
         }
     }

@@ -108,7 +108,12 @@ ImportedPart makeImportedPart(const ImportedSymbol* symbol, const ImportedFootpr
 /// per pad number).
 LibraryImport importLibraryFiles(const std::vector<ImportFile>& files, const std::map<std::string, std::string>& pairs = {});
 
-/// {"parts":[{name,symbol,footprint,source,ok,error,warnings,spec}],"files":[{name,format,symbols,footprints,error}],
+/// Imported KiCad / Altium footprints that have a pad for every pin of `symbol`, best first: the footprint the symbol
+/// names, then those with exactly one pad per pin, those its footprint filters accept, the fewest extra pads, by name.
+std::vector<std::string> footprintCandidates(const LibraryImport& result, const ImportedSymbol& symbol);
+
+/// {"parts":[{name,symbol,footprint,source,ok,error,warnings,spec, pairable?, candidates?}],
+///  "footprintList":[{name,source,pads}],"files":[{name,format,symbols,footprints,error}],
 ///  "symbols":n,"footprints":n}
 Json libraryImportToJson(const LibraryImport& result);
 

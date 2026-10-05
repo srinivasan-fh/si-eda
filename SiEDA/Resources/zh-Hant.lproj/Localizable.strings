@@ -699,3 +699,10 @@
 
 /* Altium library import */
 "Import KiCad (.kicad_mod, .kicad_sym), Eagle (.lbr) or Altium (.SchLib, .PcbLib) libraries" = "匯入 KiCad (.kicad_mod、.kicad_sym)、Eagle (.lbr) 或 Altium (.SchLib、.PcbLib) 元件庫";
+
+/* Import sheet footprint choice */
+"Fits every pin" = "符合每個接腳";
+"Other footprints" = "其他封裝";
+"Choose the footprint for this symbol: the import is read again with this pair" = "為此符號選擇封裝：會以此配對重新讀取匯入內容";
+"Select an importable part to preview it." = "選擇可匯入的零件以預覽。";
+"Footprint" = "封裝";

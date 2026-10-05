@@ -699,3 +699,10 @@
 
 /* Altium library import */
 "Import KiCad (.kicad_mod, .kicad_sym), Eagle (.lbr) or Altium (.SchLib, .PcbLib) libraries" = "KiCad (.kicad_mod, .kicad_sym), Eagle (.lbr) లేదా Altium (.SchLib, .PcbLib) లైబ్రరీలను దిగుమతి చేయండి";
+
+/* Import sheet footprint choice */
+"Fits every pin" = "ప్రతి పిన్‌కు సరిపోతుంది";
+"Other footprints" = "ఇతర ఫుట్‌ప్రింట్‌లు";
+"Choose the footprint for this symbol: the import is read again with this pair" = "ఈ సింబల్‌కు ఫుట్‌ప్రింట్ ఎంచుకోండి: ఈ జతతో దిగుమతి మళ్లీ చదవబడుతుంది";
+"Select an importable part to preview it." = "ప్రివ్యూ కోసం దిగుమతి చేయగల భాగాన్ని ఎంచుకోండి.";
+"Footprint" = "ఫుట్‌ప్రింట్";

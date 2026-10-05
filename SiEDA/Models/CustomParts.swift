@@ -563,6 +563,17 @@ struct LibraryImportResult: Decodable, Equatable {
         var error: String
         var warnings: [String]
         var spec: CustomPartSpec
+        /// A symbol whose footprint can be chosen (KiCad, Altium): the imported footprints with a pad for every pin,
+        /// best match first.
+        var pairable: Bool?
+        var candidates: [String]?
+    }
+
+    /// An imported footprint the import sheet can pair a symbol with.
+    struct Footprint: Decodable, Equatable {
+        var name: String
+        var source: String
+        var pads: Int
     }
 
     struct File: Decodable, Equatable {
@@ -575,6 +586,8 @@ struct LibraryImportResult: Decodable, Equatable {
 
     var parts: [Part] = []
     var files: [File] = []
+    /// Footprints a symbol can be paired with (KiCad and Altium footprints).
+    var footprintList: [Footprint]?
 
     var importable: [Part] { parts.filter(\.ok) }
 }

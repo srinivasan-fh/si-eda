@@ -5370,3 +5370,32 @@ final class AltiumImportTests: XCTestCase {
         XCTAssertTrue(result.files.first?.error.contains("Extract") == true, result.files.first?.error ?? "")
     }
 }
+
+// MARK: - Import sheet: choosing a symbol's footprint
+
+final class LibraryImportPairingTests: XCTestCase {
+    private func fixture(_ name: String) throws -> LibraryImportFile {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Core/tests/fixtures/library/\(name)")
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { throw XCTSkip("fixture \(name) not in this build") }
+        return LibraryImportFile(name: name, content: text)
+    }
+
+    func testCandidatesAndRepairing() throws {
+        let files = [try fixture("test_parts.kicad_sym"), try fixture("SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod"),
+                     try fixture("QFN-16-1EP_3x3mm_P0.5mm_EP1.7x1.7mm.kicad_mod"),
+                     try fixture("PinHeader_1x04_P2.54mm_Vertical.kicad_mod")]
+        let result = EDAEngine.importLibrary(files: files)
+        XCTAssertEqual(result.footprintList?.count, 3)
+        let lm358 = try XCTUnwrap(result.parts.first { $0.symbol == "LM358" })
+        XCTAssertEqual(lm358.pairable, true)
+        XCTAssertEqual(lm358.candidates?.first, "SOIC-8_3.9x4.9mm_P1.27mm")
+        XCTAssertFalse(lm358.candidates?.contains("PinHeader_1x04_P2.54mm_Vertical") ?? true)
+        let repaired = EDAEngine.importLibrary(files: files, pairs: ["AMS1117-3.3": "PinHeader_1x04_P2.54mm_Vertical"])
+        let ams = try XCTUnwrap(repaired.parts.first { $0.symbol == "AMS1117-3.3" })
+        XCTAssertTrue(ams.ok, ams.error)
+        XCTAssertEqual(ams.footprint, "PinHeader_1x04_P2.54mm_Vertical")
+        // The sheet keys parts by symbol, so a selection survives the re-import.
+        XCTAssertEqual(LibraryImportView.key(ams), LibraryImportView.key(try XCTUnwrap(result.parts.first { $0.symbol == "AMS1117-3.3" })))
+    }
+}
