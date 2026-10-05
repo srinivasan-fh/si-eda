@@ -9,11 +9,14 @@
 #include "sieda/Simulator.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <functional>
 #include <limits>
 #include <map>
+#include <memory>
 #include <tuple>
+#include <unordered_map>
 #include <numeric>
 #include <queue>
 #include <mutex>
@@ -70,6 +73,12 @@ int mountPlane(const Component& c, const BoardSettings& s) {
     return c.pcb.bottom ? 1 : 0;
 }
 }  // namespace
+
+namespace {
+std::atomic<bool> g_drcBruteForce{false};
+}  // namespace
+void setDrcBruteForce(bool on) { g_drcBruteForce = on; }
+bool drcBruteForce() { return g_drcBruteForce; }
 
 const std::vector<DesignRulePreset>& designRulePresets() {
     static const std::vector<DesignRulePreset> presets = {
@@ -418,30 +427,60 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
                     degree[b] += w;
                 }
     }
-    auto w = [&](int a, int b) {
-        auto it = weight.find({std::min(a, b), std::max(a, b)});
-        return it == weight.end() ? 0.0 : it->second;
-    };
-
     // Greedy ordering: start with the most connected part, then always the part most connected to the placed set.
+    // A part's score is the sum of its weights to the placed parts, added in ascending id order (exactly as a scan
+    // over the placed set would), kept per part and updated only for the neighbours of each newly placed part.
     std::vector<size_t> order;
     std::vector<bool> used(comps.size(), false);
     std::set<int> placedIds;
     for (const auto& c : comps)
         if (c.hasFootprint() && c.pcb.placed) placedIds.insert(c.id);
+    std::map<int, std::vector<std::pair<int, double>>> neighbours;  // ascending neighbour id
+    for (const auto& [pair, weightAB] : weight) {
+        neighbours[pair.first].push_back({pair.second, weightAB});
+        neighbours[pair.second].push_back({pair.first, weightAB});
+    }
+    for (auto& [id, list] : neighbours) std::sort(list.begin(), list.end());
+    std::map<int, double> placedSum;  // per todo part: Σ weight × 10 over placed neighbours, ascending id
+    std::map<int, int> lastPlaced;    // per todo part: largest placed neighbour id in that sum
+    auto rescore = [&](int id) {
+        double sum = 0;
+        int last = std::numeric_limits<int>::min();
+        if (auto it = neighbours.find(id); it != neighbours.end())
+            for (const auto& [nb, wt] : it->second)
+                if (placedIds.count(nb)) {
+                    sum += wt * 10.0;
+                    last = nb;
+                }
+        placedSum[id] = sum;
+        lastPlaced[id] = last;
+    };
+    for (size_t idx : todo) rescore(comps[idx].id);
     while (order.size() < todo.size()) {
         size_t best = todo[0];
         double bestScore = -1;
         for (size_t idx : todo) {
             if (used[idx]) continue;
-            double s = 0;
-            for (int pid : placedIds) s += w(comps[idx].id, pid) * 10.0;
+            double s = placedSum[comps[idx].id];
             s += degree[comps[idx].id] * 0.01;
             if (s > bestScore) { bestScore = s; best = idx; }
         }
         used[best] = true;
         order.push_back(best);
-        placedIds.insert(comps[best].id);
+        const int bestId = comps[best].id;
+        placedIds.insert(bestId);
+        if (auto it = neighbours.find(bestId); it != neighbours.end())
+            for (const auto& [nb, wt] : it->second) {
+                auto sum = placedSum.find(nb);
+                if (sum == placedSum.end() || placedIds.count(nb)) continue;
+                // Appending the largest id keeps the ascending order; otherwise the sum is redone in order.
+                if (bestId > lastPlaced[nb]) {
+                    sum->second += wt * 10.0;
+                    lastPlaced[nb] = bestId;
+                } else {
+                    rescore(nb);
+                }
+            }
     }
 
     const bool custom = settings.hasCustomOutline();
@@ -535,20 +574,55 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
                 double hw = cy0.width() / 2, hh = cy0.height() / 2;
                 double e = settings.edgeClearance + 0.5 + (meshKeep.count(c.id) ? meshKeep[c.id] : 0.0);
                 // Candidates on the placement grid itself, so the final snap does not move a checked position.
-                for (double y = std::ceil((e + hh) / step - 1e-9) * step; y <= settings.height - e - hh + 1e-9; y += step) {
-                    for (double x = std::ceil((e + hw) / step - 1e-9) * step; x <= settings.width - e - hw + 1e-9; x += step) {
-                        Rect cy = Rect::centered({x, y}, cy0.width(), cy0.height()).inflated(margin / 2 + escapeOf[c.id]);
+                std::vector<double> xs, ys;
+                for (double y = std::ceil((e + hh) / step - 1e-9) * step; y <= settings.height - e - hh + 1e-9; y += step) ys.push_back(y);
+                for (double x = std::ceil((e + hw) / step - 1e-9) * step; x <= settings.width - e - hw + 1e-9; x += step) xs.push_back(x);
+                // Keep-out clashes for every candidate at once: a candidate's inflated courtyard overlaps a keep-out
+                // when both its x and its y extent do, and each extent grows with the position, so every keep-out
+                // blocks one block of candidates (marked in a 2-D difference array instead of testing each pair).
+                const double inflate = margin / 2 + escapeOf[c.id];
+                std::vector<double> cx0(xs.size()), cx1(xs.size()), cyLo(ys.size()), cyHi(ys.size());
+                for (size_t ix = 0; ix < xs.size(); ++ix) {
+                    const Rect r = Rect::centered({xs[ix], 0}, cy0.width(), cy0.height()).inflated(inflate);
+                    cx0[ix] = r.x0;
+                    cx1[ix] = r.x1;
+                }
+                for (size_t iy = 0; iy < ys.size(); ++iy) {
+                    const Rect r = Rect::centered({0, ys[iy]}, cy0.width(), cy0.height()).inflated(inflate);
+                    cyLo[iy] = r.y0;
+                    cyHi[iy] = r.y1;
+                }
+                const size_t nx = xs.size(), ny = ys.size();
+                std::vector<int> blocked((nx + 1) * (ny + 1), 0);
+                for (const Rect& k : keepOut) {
+                    // x: k.x0 < cx1 && cx0 < k.x1 (both extents non-decreasing in x).
+                    const size_t xa = static_cast<size_t>(std::upper_bound(cx1.begin(), cx1.end(), k.x0) - cx1.begin());
+                    const size_t xb = static_cast<size_t>(std::lower_bound(cx0.begin(), cx0.end(), k.x1) - cx0.begin());
+                    const size_t ya = static_cast<size_t>(std::upper_bound(cyHi.begin(), cyHi.end(), k.y0) - cyHi.begin());
+                    const size_t yb = static_cast<size_t>(std::lower_bound(cyLo.begin(), cyLo.end(), k.y1) - cyLo.begin());
+                    if (xa >= xb || ya >= yb) continue;
+                    blocked[ya * (nx + 1) + xa] += 1;
+                    blocked[ya * (nx + 1) + xb] -= 1;
+                    blocked[yb * (nx + 1) + xa] -= 1;
+                    blocked[yb * (nx + 1) + xb] += 1;
+                }
+                for (size_t iy = 0; iy <= ny; ++iy)
+                    for (size_t ix = 0; ix <= nx; ++ix) {
+                        int& b = blocked[iy * (nx + 1) + ix];
+                        if (ix > 0) b += blocked[iy * (nx + 1) + ix - 1];
+                        if (iy > 0) b += blocked[(iy - 1) * (nx + 1) + ix];
+                        if (ix > 0 && iy > 0) b -= blocked[(iy - 1) * (nx + 1) + ix - 1];
+                    }
+                for (size_t iy = 0; iy < ny; ++iy) {
+                    const double y = ys[iy];
+                    for (size_t ix = 0; ix < nx; ++ix) {
+                        const double x = xs[ix];
+                        if (blocked[iy * (nx + 1) + ix] > 0) continue;
                         if (custom && !settings.rectInside(Rect::centered({x, y}, cy0.width(), cy0.height()), e)) continue;
                         if (!custom && !settings.holes.empty() &&
                             !settings.rectInside(Rect::centered({x, y}, cy0.width(), cy0.height()), 0))
                             continue;
                         bool clash = false;
-                        for (const Rect& k : keepOut)
-                            if (k.intersects(cy)) {
-                                clash = true;
-                                break;
-                            }
-                        if (clash) continue;
                         if (strict) {
                             const Rect body = Rect::centered({x, y}, cy0.width(), cy0.height());
                             if (mlcc)
@@ -599,6 +673,113 @@ void PcbLayout::autoPlace(Schematic& sch, bool all) {
         }
     }
 }
+
+// ===================================================================== spatial index
+
+namespace {
+/// Uniform-grid index over item rectangles, for the pairwise copper checks (DRC, connectivity, clean-up): a query
+/// returns the ids whose rectangle touches the query rectangle, sorted ascending, so callers visit candidates in the
+/// same order as a full scan and produce identical results in O(n log n) instead of O(n²). In brute-force mode
+/// (setDrcBruteForce) every id is returned, which is the reference the equivalence test compares against.
+class RectIndex {
+public:
+    explicit RectIndex(std::vector<Rect> boxes) : boxes_(std::move(boxes)), brute_(drcBruteForce()) {
+        const size_t n = boxes_.size();
+        if (brute_ || n == 0) return;
+        Rect all = boxes_[0];
+        double sumW = 0, sumH = 0;
+        for (const Rect& r : boxes_) {
+            all = Rect(std::min(all.x0, r.x0), std::min(all.y0, r.y0), std::max(all.x1, r.x1), std::max(all.y1, r.y1));
+            sumW += r.width();
+            sumH += r.height();
+        }
+        origin_ = {all.x0, all.y0};
+        // About one item per cell, but no smaller than the typical item (long tracks would fill many cells).
+        const double area = std::max(1e-6, all.width() * all.height());
+        cell_ = std::max({std::sqrt(area / static_cast<double>(n)), 0.5 * (sumW + sumH) / static_cast<double>(n), 0.05});
+        // Never more than about four cells per item (an outlier far away must not blow up the grid).
+        while ((all.width() / cell_ + 1) * (all.height() / cell_ + 1) > 4.0 * static_cast<double>(n) + 16) cell_ *= 1.5;
+        cols_ = std::max(1, std::min(4096, static_cast<int>(all.width() / cell_) + 1));
+        rows_ = std::max(1, std::min(4096, static_cast<int>(all.height() / cell_) + 1));
+        start_.assign(static_cast<size_t>(cols_ * rows_) + 1, 0);
+        for (size_t id = 0; id < n; ++id) forCells(boxes_[id], [&](size_t c) { ++start_[c + 1]; });
+        for (size_t c = 1; c < start_.size(); ++c) start_[c] += start_[c - 1];
+        items_.resize(start_.back());
+        std::vector<size_t> fill(start_.begin(), start_.end() - 1);
+        for (size_t id = 0; id < n; ++id) forCells(boxes_[id], [&](size_t c) { items_[fill[c]++] = id; });
+        seen_.assign(n, 0);
+    }
+    size_t size() const { return boxes_.size(); }
+    const Rect& box(size_t id) const { return boxes_[id]; }
+    /// Ids (ascending) whose rectangle touches `q` (closed rectangles); with `after`, only ids greater than it.
+    const std::vector<size_t>& query(const Rect& q, long long after = -1) const {
+        out_.clear();
+        const size_t from = static_cast<size_t>(after + 1);
+        if (brute_) {
+            for (size_t id = from; id < boxes_.size(); ++id) out_.push_back(id);
+            return out_;
+        }
+        if (boxes_.empty()) return out_;
+        if (++stamp_ == 0) {
+            std::fill(seen_.begin(), seen_.end(), 0u);
+            stamp_ = 1;
+        }
+        forCells(q, [&](size_t c) {
+            for (size_t k = start_[c]; k < start_[c + 1]; ++k) {
+                const size_t id = items_[k];
+                if (id < from || seen_[id] == stamp_) continue;
+                seen_[id] = stamp_;
+                const Rect& r = boxes_[id];
+                if (r.x0 <= q.x1 && q.x0 <= r.x1 && r.y0 <= q.y1 && q.y0 <= r.y1) out_.push_back(id);
+            }
+        });
+        std::sort(out_.begin(), out_.end());
+        return out_;
+    }
+
+private:
+    template <typename F>
+    void forCells(const Rect& r, F f) const {
+        auto clampCell = [](double v, int count) {
+            if (!(v > 0)) return 0;  // also catches NaN
+            return v >= count - 1 ? count - 1 : static_cast<int>(v);
+        };
+        const int i0 = clampCell((r.x0 - origin_.x) / cell_, cols_), i1 = clampCell((r.x1 - origin_.x) / cell_, cols_);
+        const int j0 = clampCell((r.y0 - origin_.y) / cell_, rows_), j1 = clampCell((r.y1 - origin_.y) / cell_, rows_);
+        for (int j = j0; j <= j1; ++j)
+            for (int i = i0; i <= i1; ++i) f(static_cast<size_t>(j * cols_ + i));
+    }
+    std::vector<Rect> boxes_;
+    bool brute_ = false;
+    Vec2 origin_{0, 0};
+    double cell_ = 1;
+    int cols_ = 1, rows_ = 1;
+    std::vector<size_t> start_, items_;
+    mutable std::vector<unsigned> seen_;
+    mutable unsigned stamp_ = 0;
+    mutable std::vector<size_t> out_;
+};
+
+Rect segmentBox(Vec2 a, Vec2 b, double half) { return Rect(a.x, a.y, b.x, b.y).inflated(half); }
+std::vector<Rect> padBoxes(const std::vector<Pad>& ps) {
+    std::vector<Rect> out;
+    out.reserve(ps.size());
+    for (const auto& p : ps) out.push_back(p.bounds());
+    return out;
+}
+std::vector<Rect> trackBoxes(const std::vector<Track>& ts) {
+    std::vector<Rect> out;
+    out.reserve(ts.size());
+    for (const auto& t : ts) out.push_back(segmentBox(t.a, t.b, t.width / 2));
+    return out;
+}
+std::vector<Rect> viaBoxes(const std::vector<Via>& vs) {
+    std::vector<Rect> out;
+    out.reserve(vs.size());
+    for (const auto& v : vs) out.push_back(Rect::centered(v.position, v.diameter, v.diameter));
+    return out;
+}
+}  // namespace
 
 // ===================================================================== copper connectivity
 
@@ -686,16 +867,21 @@ DSU copperClusters(const std::vector<Pad>& pads, const std::vector<Track>& track
             base += static_cast<size_t>(f.islands);
         }
     }
+    // Contact tests on spatial-index candidates, in the order of a full scan (the same unions in the same order).
+    const RectIndex padIx(padBoxes(pads)), trackIx(trackBoxes(tracks)), viaIx(viaBoxes(vias));
+    const double slack = 1e-6;
     for (size_t t = 0; t < nt; ++t) {
-        for (size_t p = 0; p < np; ++p)
-            if (trackTouchesPad(tracks[t], pads[p])) d.unite(np + t, p);
-        for (size_t u = t + 1; u < nt; ++u)
-            if (tracksTouch(tracks[t], tracks[u])) d.unite(np + t, np + u);
-        for (size_t v = 0; v < nv; ++v)
-            if (viaTouchesTrack(vias[v], tracks[t])) d.unite(np + t, np + nt + v);
+        const Track& tr = tracks[t];
+        const Rect body = segmentBox(tr.a, tr.b, tr.width / 2 + slack);
+        for (size_t p : padIx.query(body))
+            if (trackTouchesPad(tr, pads[p])) d.unite(np + t, p);
+        for (size_t u : trackIx.query(body, static_cast<long long>(t)))
+            if (tracksTouch(tr, tracks[u])) d.unite(np + t, np + u);
+        for (size_t v : viaIx.query(segmentBox(tr.a, tr.b, slack)))
+            if (viaTouchesTrack(vias[v], tr)) d.unite(np + t, np + nt + v);
     }
     for (size_t v = 0; v < nv; ++v)
-        for (size_t p = 0; p < np; ++p)
+        for (size_t p : padIx.query(Rect::centered(vias[v].position, vias[v].diameter + slack, vias[v].diameter + slack)))
             if (viaTouchesPad(vias[v], pads[p])) d.unite(np + nt + v, p);
     return d;
 }
@@ -744,29 +930,138 @@ std::vector<std::pair<Vec2, Vec2>> PcbLayout::ratsnest(const Schematic& sch) con
     std::map<int, std::vector<size_t>> byNet;
     for (size_t i = 0; i < ps.size(); ++i)
         if (ps[i].net >= 0) byNet[ps[i].net].push_back(i);
-    for (auto& [net, list] : byNet) {
+    for (const auto& entry : byNet) {
+        const std::vector<size_t>& list = entry.second;  // a plain reference: lambdas below capture it
         if (list.size() < 2) continue;
-        // Prim over clusters.
-        std::set<size_t> connectedClusters{d.find(list[0])};
-        std::set<size_t> allClusters;
-        for (size_t i : list) allClusters.insert(d.find(i));
-        while (connectedClusters.size() < allClusters.size()) {
-            double best = std::numeric_limits<double>::max();
-            size_t ba = 0, bb = 0;
-            for (size_t i : list) {
-                if (!connectedClusters.count(d.find(i))) continue;
-                for (size_t j : list) {
-                    if (connectedClusters.count(d.find(j))) continue;
-                    double dist = (ps[i].position - ps[j].position).length();
-                    if (dist < best) { best = dist; ba = i; bb = j; }
+        if (drcBruteForce()) {  // reference: the pairwise scan the incremental Prim below must reproduce
+            std::set<size_t> connectedClusters{d.find(list[0])};
+            std::set<size_t> allClusters;
+            for (size_t i : list) allClusters.insert(d.find(i));
+            while (connectedClusters.size() < allClusters.size()) {
+                double best = std::numeric_limits<double>::max();
+                size_t ba = 0, bb = 0;
+                for (size_t i : list) {
+                    if (!connectedClusters.count(d.find(i))) continue;
+                    for (size_t j : list) {
+                        if (connectedClusters.count(d.find(j))) continue;
+                        double dist = (ps[i].position - ps[j].position).length();
+                        if (dist < best) { best = dist; ba = i; bb = j; }
+                    }
+                }
+                lines.push_back({ps[ba].position, ps[bb].position});
+                connectedClusters.insert(d.find(bb));
+            }
+            continue;
+        }
+        // Prim over clusters: each step adds the shortest line from a connected pad to an unconnected one (ties: the
+        // first connected pad in list order, then the first unconnected one). Each unconnected pad keeps its nearest
+        // connected pad, so a step costs O(k) instead of O(k²).
+        const size_t k = list.size();
+        std::vector<size_t> cluster(k);
+        for (size_t a = 0; a < k; ++a) cluster[a] = d.find(list[a]);
+        std::set<size_t> connectedClusters;
+        std::vector<char> connected(k, 0);
+        std::vector<double> nearest(k, std::numeric_limits<double>::max());
+        std::vector<size_t> nearestFrom(k, k);  // list position of that connected pad
+        auto join = [&](size_t root) {
+            connectedClusters.insert(root);
+            std::vector<size_t> added;
+            for (size_t a = 0; a < k; ++a)
+                if (!connected[a] && cluster[a] == root) {
+                    connected[a] = 1;
+                    added.push_back(a);
+                }
+            for (size_t b = 0; b < k; ++b) {
+                if (connected[b]) continue;
+                for (size_t a : added) {
+                    const double dist = (ps[list[a]].position - ps[list[b]].position).length();
+                    if (dist < nearest[b] || (dist == nearest[b] && a < nearestFrom[b])) {
+                        nearest[b] = dist;
+                        nearestFrom[b] = a;
+                    }
                 }
             }
-            lines.push_back({ps[ba].position, ps[bb].position});
-            connectedClusters.insert(d.find(bb));
+        };
+        join(cluster[0]);
+        std::set<size_t> allClusters(cluster.begin(), cluster.end());
+        while (connectedClusters.size() < allClusters.size()) {
+            size_t bj = k;
+            for (size_t b = 0; b < k; ++b) {
+                if (connected[b] || nearestFrom[b] == k) continue;
+                if (bj == k || nearest[b] < nearest[bj] || (nearest[b] == nearest[bj] && nearestFrom[b] < nearestFrom[bj])) bj = b;
+            }
+            if (bj == k) break;  // unreachable: every pad has a distance to the connected set
+            lines.push_back({ps[list[nearestFrom[bj]]].position, ps[list[bj]].position});
+            join(cluster[bj]);
         }
     }
     return lines;
 }
+
+namespace {
+/// Pad indices grouped by component (or by net), each group in pad order.
+std::unordered_map<int, std::vector<size_t>> groupPads(const std::vector<Pad>& ps, bool byNet) {
+    std::unordered_map<int, std::vector<size_t>> out;
+    for (size_t i = 0; i < ps.size(); ++i) out[byNet ? ps[i].net : ps[i].componentId].push_back(i);
+    return out;
+}
+
+/// neckDown with the pads' neck widths and the pads grouped by net computed once (routing calls it per track).
+void neckDownWith(std::vector<Track>& out, const std::vector<Pad>& ps, const std::vector<double>& neck,
+                  const std::unordered_map<int, std::vector<size_t>>& padsByNet, double clearance) {
+    static const std::vector<size_t> kNone;
+    for (int iter = 0; iter < 4; ++iter) {
+        bool changed = false;
+        std::vector<Track> result;
+        for (const Track& t : out) {
+            bool split = false;
+            auto group = padsByNet.find(t.net);
+            const std::vector<size_t>& own = group == padsByNet.end() ? kNone : group->second;
+            for (size_t gi = 0; gi < own.size() && !split; ++gi) {
+                const size_t k = own[gi];
+                const Pad& p = ps[k];
+                if (p.net != t.net || !p.onLayer(t.layer) || neck[k] >= t.width - 1e-9) continue;
+                Rect zone = p.bounds().inflated(clearance + t.width / 2);
+                // Liang–Barsky clip of the segment to the zone.
+                double t0 = 0, t1 = 1;
+                Vec2 d = t.b - t.a;
+                const double pq[4][2] = {{-d.x, t.a.x - zone.x0}, {d.x, zone.x1 - t.a.x}, {-d.y, t.a.y - zone.y0}, {d.y, zone.y1 - t.a.y}};
+                bool inside = true;
+                for (const auto& e : pq) {
+                    if (std::fabs(e[0]) < 1e-12) {
+                        if (e[1] < 0) inside = false;
+                        continue;
+                    }
+                    double r = e[1] / e[0];
+                    if (e[0] < 0) t0 = std::max(t0, r);
+                    else t1 = std::min(t1, r);
+                }
+                if (!inside || t1 - t0 < 1e-9) continue;
+                Vec2 a = t.a + d * t0, b = t.a + d * t1;
+                if (t0 > 1e-9 && (a - t.a).length() > 1e-6) {
+                    Track head = t;
+                    head.b = a;
+                    result.push_back(head);
+                }
+                Track mid = t;
+                mid.a = a;
+                mid.b = b;
+                mid.width = neck[k];
+                result.push_back(mid);
+                if (t1 < 1 - 1e-9 && (t.b - b).length() > 1e-6) {
+                    Track tail = t;
+                    tail.a = b;
+                    result.push_back(tail);
+                }
+                split = changed = true;
+            }
+            if (!split) result.push_back(t);
+        }
+        out = std::move(result);
+        if (!changed) break;
+    }
+}
+}  // namespace
 
 // ===================================================================== autorouter
 
@@ -795,6 +1090,18 @@ public:
         padBuckets_.assign(static_cast<size_t>(bCols_ * bRows_), {});
         planeNet_.assign(static_cast<size_t>(layers_), -1);
         pourNet_.assign(static_cast<size_t>(layers_), -1);
+        {
+            // Other-net copper must stay outside the via radius + clearance + half a track (copper_ marks
+            // centrelines); the barrel ring beyond half a track must lie in cells the via's net may route through.
+            const double rCopper = s.viaDiameter / 2 + s.clearance + s.trackWidth / 2;
+            const double rBody = std::max(0.0, s.viaDiameter / 2 - s.trackWidth / 2) + 1e-9;
+            const int k = static_cast<int>(std::ceil(rCopper / g_));
+            for (int dj = -k; dj <= k; ++dj)
+                for (int di = -k; di <= k; ++di) {
+                    const double d = std::sqrt(double(di * di + dj * dj)) * g_;
+                    if (d <= rCopper) viaDisc_.push_back({di, dj, d <= rBody});
+                }
+        }
         double e = s.edgeClearance + s.trackWidth / 2;
         for (int j = 0; j < rows_; ++j)
             for (int i = 0; i < cols_; ++i) {
@@ -813,11 +1120,10 @@ public:
     /// Escape band around a fine-pitch package: tracks may cross it but not run along it.
     void addEscapeBand(const Rect& body, double width) {
         Rect outer = body.inflated(width);
-        for (int j = 0; j < rows_; ++j)
-            for (int i = 0; i < cols_; ++i) {
-                Vec2 p = pos(i, j);
-                if (outer.contains(p) && !body.contains(p)) band_[idx(i, j)] = 1;
-            }
+        forCellsIn(outer, [&](int i, int j) {
+            Vec2 p = pos(i, j);
+            if (outer.contains(p) && !body.contains(p)) band_[idx(i, j)] = 1;
+        });
     }
     float bandCost(size_t c) const { return band_[c] ? 4.0f : 1.0f; }
     int cols() const { return cols_; }
@@ -899,9 +1205,9 @@ public:
     /// Keeps the area `r` to domain `d` only (e.g. a radio module and its antenna kept clear of mains nets).
     void fenceArea(const Rect& r, int d) {
         if (isoGap_ <= 0 || d < 0) return;
-        for (int j = 0; j < rows_; ++j)
-            for (int i = 0; i < cols_; ++i)
-                if (r.contains(pos(i, j))) fenceCell(-1, idx(i, j), d);
+        forCellsIn(r, [&](int i, int j) {
+            if (r.contains(pos(i, j))) fenceCell(-1, idx(i, j), d);
+        });
     }
     /// Exact clearance test for a wide (net-class) track segment a–b of half-width `half` on layer l: the grid only
     /// guarantees clearance for the base track width, so wide tracks are checked against the real copper.
@@ -929,40 +1235,40 @@ public:
 
     bool viaAllowed(size_t c, int net) const {
         int ci = static_cast<int>(c % static_cast<size_t>(cols_)), cj = static_cast<int>(c / static_cast<size_t>(cols_));
-        // Other-net copper must stay outside (via radius + clearance + half a track, since copper_ marks centrelines).
-        double rCopper = s_.viaDiameter / 2 + s_.clearance + s_.trackWidth / 2;
-        // The via barrel is wider than a track: the extra ring must lie in cells this net may route through.
-        double rBody = std::max(0.0, s_.viaDiameter / 2 - s_.trackWidth / 2) + 1e-9;
-        int k = static_cast<int>(std::ceil(rCopper / g_));
         if (layers_ < 2) return false;  // single-sided boards have no vias
         if (noVia_[c]) return false;    // never inside an SMD pad (DRC_VIA_IN_PAD)
+        // The disc around the via (viaDisc_): other-net copper must stay outside it, and its inner part (the barrel)
+        // must lie in cells this net may route through.
+        for (const ViaDiscCell& o : viaDisc_)
+            if (!inside(ci + o.di, cj + o.dj)) return false;
         for (int l = 0; l < layers_; ++l) {  // through via: every layer must allow it
             if (!passable(l, c, net)) return false;
-            for (int dj = -k; dj <= k; ++dj)
-                for (int di = -k; di <= k; ++di) {
-                    int i = ci + di, j = cj + dj;
-                    double d = std::sqrt(double(di * di + dj * dj)) * g_;
-                    if (d > rCopper) continue;
-                    if (!inside(i, j)) return false;
-                    size_t cc = idx(i, j);
-                    int cu = copper_[L(l)][cc];
-                    if (cu != -1 && cu != net) return false;
-                    if (d <= rBody && !passable(l, cc, net)) return false;
-                }
+            const std::vector<int>& copper = copper_[L(l)];
+            for (const ViaDiscCell& o : viaDisc_) {
+                const size_t cc = idx(ci + o.di, cj + o.dj);
+                const int cu = copper[cc];
+                if (cu != -1 && cu != net) return false;
+                if (o.body && !passable(l, cc, net)) return false;
+            }
         }
         // Pad copper is sampled on the grid, so a pad edge can sit up to half a cell diagonal closer than the cells
         // suggest: check other-net pads exactly, and hole-to-hole spacing to drilled pads.
         Vec2 at = pos(ci, cj);
         double need = s_.viaDiameter / 2 + s_.clearance - 1e-9;
-        for (const Pad& p : pads_) {
+        // Only pads within the largest reach can matter (the bucket index holds every pad by its rectangle).
+        bool padClash = false;
+        const double q = std::max(need, maxPadReach_) + 1e-6;
+        forBuckets(Rect(at.x - q, at.y - q, at.x + q, at.y + q), padStamp_, padSeen_, padBuckets_, [&](size_t id) {
+            if (padClash) return;
+            const Pad& p = pads_[id];
             double holeNeed = p.throughHole && p.drill > 0 ? (p.drill + s_.viaDrill) / 2 + s_.minHoleToHole : 0.0;
             double reach = std::max(need, holeNeed - std::min(p.size.x, p.size.y) / 2);
             Rect b = p.bounds();
-            if (at.x < b.x0 - reach || at.x > b.x1 + reach || at.y < b.y0 - reach || at.y > b.y1 + reach) continue;
-            if (holeNeed > 0 && (at - p.position).length() < holeNeed) return false;
-            if (p.net == net && net >= 0) continue;
-            if (padDistance(p, at) < need) return false;
-        }
+            if (at.x < b.x0 - reach || at.x > b.x1 + reach || at.y < b.y0 - reach || at.y > b.y1 + reach) return;
+            if (holeNeed > 0 && (at - p.position).length() < holeNeed) padClash = true;
+            else if (!(p.net == net && net >= 0) && padDistance(p, at) < need) padClash = true;
+        });
+        if (padClash) return false;
         // Tracks and vias are also tracked exactly (the grid only records their centrelines).
         bool clash = false;
         forNearbyCopper(at, need + maxHalf_ + s_.viaDrill + s_.minHoleToHole, [&](const Copper& c) {
@@ -995,6 +1301,8 @@ public:
     void markPad(const Pad& p, double keepout) {
         Rect r = p.bounds();
         pads_.push_back(p);
+        if (p.throughHole && p.drill > 0)
+            maxPadReach_ = std::max(maxPadReach_, (p.drill + s_.viaDrill) / 2 + s_.minHoleToHole - std::min(p.size.x, p.size.y) / 2);
         for (int by = bucketOf(r.y0, bRows_); by <= bucketOf(r.y1, bRows_); ++by)
             for (int bx = bucketOf(r.x0, bCols_); bx <= bucketOf(r.x1, bCols_); ++bx)
                 padBuckets_[static_cast<size_t>(by * bCols_ + bx)].push_back(pads_.size() - 1);
@@ -1078,6 +1386,17 @@ private:
                    [&](size_t id) { f(copperItems_[id]); });
     }
     static size_t L(int l) { return static_cast<size_t>(l); }
+    /// Visits the cells whose centres may lie in `r` (a cell of margin on each side; callers test exactly), in the
+    /// row-major order of a full scan.
+    template <typename F>
+    void forCellsIn(const Rect& r, F f) const {
+        const int i0 = std::max(0, static_cast<int>(std::floor(r.x0 / g_)) - 1);
+        const int i1 = std::min(cols_ - 1, static_cast<int>(std::ceil(r.x1 / g_)) + 1);
+        const int j0 = std::max(0, static_cast<int>(std::floor(r.y0 / g_)) - 1);
+        const int j1 = std::min(rows_ - 1, static_cast<int>(std::ceil(r.y1 / g_)) + 1);
+        for (int j = j0; j <= j1; ++j)
+            for (int i = i0; i <= i1; ++i) f(i, j);
+    }
     void claim(int l, size_t c, int net) {
         int& o = owner_[L(l)][c];
         if (o == -1) o = net;
@@ -1135,6 +1454,12 @@ private:
     std::vector<std::vector<size_t>> buckets_;
     int bCols_ = 1, bRows_ = 1;
     double maxHalf_ = 0;
+    double maxPadReach_ = 0;  // largest hole-to-hole reach beyond a drilled pad's rectangle (viaAllowed)
+    struct ViaDiscCell {
+        int di, dj;
+        bool body;  // within the via barrel (beyond half a track): must be routable for the via's net
+    };
+    std::vector<ViaDiscCell> viaDisc_;  // cell offsets within a via's copper keep-out (viaAllowed)
     mutable std::vector<unsigned> seen_, padSeen_;
     mutable unsigned stamp_ = 0, padStamp_ = 0;
     std::vector<std::vector<size_t>> padBuckets_;
@@ -1150,46 +1475,148 @@ struct RouteResult {
     std::vector<PathNode> path;
 };
 
-RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int, size_t>>& sources,
-                  const std::vector<std::vector<char>>& targetMask, Vec2 targetCentre, double viaCost,
-                  double wideHalf = 0, const std::vector<float>* neckHalf = nullptr) {
+struct Congestion;
+
+/// Reusable search state for astar over one routing grid. The arrays are sized once per grid and invalidated by a
+/// generation stamp instead of being cleared, so a connection on a large board costs only the cells it visits (the
+/// old per-call allocation of cost / parent / target arrays over the whole grid dominated routing time).
+class AStarWorkspace {
+public:
+    explicit AStarWorkspace(size_t total, size_t cells)
+        : cells_(cells), cost_(total), parent_(total), stamp_(total, 0), target_(cells, 0), targetLayers_(cells, 0),
+          neck_(cells, 0.0f), neckStamp_(cells, 0), via_(cells, 0), viaStamp_(cells, 0) {}
+    /// Target cells of the next search (cleared by beginTargets): per grid cell, a mask of its target layers.
+    void beginTargets() { bump(targetGen_, target_); }
+    void addTarget(size_t node) {
+        const size_t c = node % cells_;
+        if (target_[c] != targetGen_) {
+            target_[c] = targetGen_;
+            targetLayers_[c] = 0;
+        }
+        targetLayers_[c] |= 1u << (node / cells_);
+    }
+    bool isTarget(size_t node) const {
+        const size_t c = node % cells_;
+        return target_[c] == targetGen_ && (targetLayers_[c] >> (node / cells_) & 1u);
+    }
+    /// Neck-down half-widths per cell (0 outside every neck zone), cleared by beginNeck.
+    void beginNeck() {
+        bump(neckGen_, neckStamp_);
+        hasNeck_ = false;
+    }
+    float neck(size_t c) const { return neckStamp_[c] == neckGen_ ? neck_[c] : 0.0f; }
+    void setNeck(size_t c, float h) {
+        neck_[c] = h;
+        neckStamp_[c] = neckGen_;
+        hasNeck_ = true;
+    }
+    bool hasNeck() const { return hasNeck_; }
+
+private:
+    friend RouteResult astar(const RoutingGrid&, int, const std::vector<std::pair<int, size_t>>&, AStarWorkspace&, Vec2,
+                             double, double, bool, const std::function<bool(int, size_t)>*, const Congestion*);
+    template <typename T>
+    static void bump(uint32_t& gen, std::vector<T>& stamps) {
+        if (++gen == 0) {  // wrapped: forget every old stamp
+            std::fill(stamps.begin(), stamps.end(), T{0});
+            gen = 1;
+        }
+    }
+    void beginSearch() {
+        bump(gen_, stamp_);
+        bump(viaGen_, viaStamp_);
+        open_.clear();
+    }
+    float cost(size_t s) const { return stamp_[s] == gen_ ? cost_[s] : std::numeric_limits<float>::infinity(); }
+    int parent(size_t s) const { return stamp_[s] == gen_ ? parent_[s] : -1; }
+    void set(size_t s, float c, int p) {
+        cost_[s] = c;
+        parent_[s] = p;
+        stamp_[s] = gen_;
+    }
+    size_t cells_;
+    std::vector<float> cost_;
+    std::vector<int> parent_;
+    std::vector<uint32_t> stamp_, target_, targetLayers_;
+    std::vector<float> neck_;
+    std::vector<uint32_t> neckStamp_;
+    std::vector<char> via_;  // viaAllowed per cell for the current search (net and grid are fixed during a search)
+    std::vector<uint32_t> viaStamp_;
+    std::vector<std::pair<float, int>> open_;
+    uint32_t gen_ = 0, targetGen_ = 0, neckGen_ = 0, viaGen_ = 0;
+    bool hasNeck_ = false;
+};
+
+/// Negotiated-congestion history (PathFinder style) for the recovery passes: per routing node, the extra cost of
+/// stepping onto it, and the one net that wanted it (that net does not pay; -1: several did, everyone pays).
+struct Congestion {
+    std::vector<float> cost;
+    std::vector<int> net;
+    float at(size_t node, int forNet) const { return net[node] == forNet ? 0.0f : cost[node]; }
+};
+
+/// Grids of at least this many routing nodes (cells × layers) are "large": searches there get a budget (astar).
+/// Every board of the regression suite and the reference designs is below it (the largest is under 1 M).
+constexpr size_t kLargeGrid = 2000000;
+constexpr size_t kLargeGridMinBudget = 1u << 20;  // a large grid's search budget is never below this
+
+/// A* from `sources` to the workspace's target cells (or, with `lazyTarget`, to the cells that predicate accepts:
+/// tested only for the cells the search reaches). `useNeck`: the workspace's neck zones apply (fine-pitch pads of
+/// this net, see neckDown). `congestion`: recovery passes' history costs.
+RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int, size_t>>& sources, AStarWorkspace& ws,
+                  Vec2 targetCentre, double viaCost, double wideHalf, bool useNeck,
+                  const std::function<bool(int, size_t)>* lazyTarget = nullptr, const Congestion* congestion = nullptr) {
     const int cols = g.cols(), rows = g.rows();
     const size_t n = static_cast<size_t>(cols * rows);
     const int layers = g.layers();
     const size_t total = static_cast<size_t>(layers) * n;
-    std::vector<float> cost(total, std::numeric_limits<float>::infinity());
-    std::vector<int> parent(total, -1);
+    ws.beginSearch();
     using QE = std::pair<float, int>;
-    std::priority_queue<QE, std::vector<QE>, std::greater<QE>> open;
+    // The same binary heap std::priority_queue<QE, std::vector<QE>, std::greater<QE>> keeps (identical pop order),
+    // on a buffer reused across searches.
+    std::vector<QE>& open = ws.open_;
+    const std::greater<QE> later;
+    auto push = [&](float f, int s) {
+        open.push_back({f, s});
+        std::push_heap(open.begin(), open.end(), later);
+    };
+    const bool neckOn = useNeck && ws.hasNeck();
+    auto neckAt = [&](size_t c) { return neckOn ? ws.neck(c) : 0.0f; };
+    const double tx = targetCentre.x / g.pitch(), ty = targetCentre.y / g.pitch();
     auto h = [&](int i, int j) {
-        double dx = std::fabs(i - targetCentre.x / g.pitch()), dy = std::fabs(j - targetCentre.y / g.pitch());
+        double dx = std::fabs(i - tx), dy = std::fabs(j - ty);
         return static_cast<float>(std::max(dx, dy) + 0.414 * std::min(dx, dy));
     };
     for (auto [l, c] : sources) {
         int s = static_cast<int>(static_cast<size_t>(l) * n + c);
-        if (cost[static_cast<size_t>(s)] == 0) continue;
-        cost[static_cast<size_t>(s)] = 0;
+        if (ws.cost(static_cast<size_t>(s)) == 0) continue;
+        ws.set(static_cast<size_t>(s), 0, -1);
         int i = static_cast<int>(c % static_cast<size_t>(cols)), j = static_cast<int>(c / static_cast<size_t>(cols));
-        open.push({h(i, j), s});
+        push(h(i, j), s);
     }
     static const int di[8] = {1, -1, 0, 0, 1, 1, -1, -1};
     static const int dj[8] = {0, 0, 1, -1, 1, -1, 1, -1};
     int found = -1;
     size_t expanded = 0;
+    // Search budget. On a large grid a connection that cannot be routed would otherwise flood the whole grid (tens of
+    // millions of nodes) before failing. Routable connections need far less: at most 3.7 % of the grid on the
+    // benchmark boards (542 k of 14.8 M nodes), so a search stops after an eighth of it.
+    const size_t budget = total >= kLargeGrid ? std::max(kLargeGridMinBudget, total / 8) : 4 * total;
     while (!open.empty()) {
-        auto [f, s] = open.top();
-        open.pop();
+        std::pop_heap(open.begin(), open.end(), later);
+        auto [f, s] = open.back();
+        open.pop_back();
         int l = s / static_cast<int>(n);
         size_t c = static_cast<size_t>(s) % n;
         int i = static_cast<int>(c % static_cast<size_t>(cols)), j = static_cast<int>(c / static_cast<size_t>(cols));
-        float gc = cost[static_cast<size_t>(s)];
+        float gc = ws.cost(static_cast<size_t>(s));
         if (f - h(i, j) > gc + 1e-3f) continue;  // stale entry
-        if (targetMask[static_cast<size_t>(l)][c]) { found = s; break; }
-        if (++expanded > 4 * total) break;
+        if (lazyTarget ? (*lazyTarget)(l, c) : ws.isTarget(static_cast<size_t>(s))) { found = s; break; }
+        if (++expanded > budget) break;
         const bool lateral = g.layerOpen(l, net);  // on another net's plane only a via may pass
         // Incoming direction (approximate turn penalty keeps tracks straight and avoids zig-zags).
         int inDi = 0, inDj = 0;
-        int ps = parent[static_cast<size_t>(s)];
+        int ps = ws.parent(static_cast<size_t>(s));
         if (ps >= 0 && ps / static_cast<int>(n) == l) {
             size_t pc = static_cast<size_t>(ps) % n;
             inDi = i - static_cast<int>(pc % static_cast<size_t>(cols));
@@ -1201,7 +1628,7 @@ RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int
             size_t nc = g.idx(ni, nj);
             // Next to its own fine-pitch pads the track is necked down (neckDown), so there the necked copper is
             // checked exactly against its neighbours instead of the base-width grid keep-outs.
-            const float nh = neckHalf ? (*neckHalf)[nc] : 0.0f;
+            const float nh = neckAt(nc);
             if (nh > 0) {
                 if (!g.inside(ni, nj) || !g.wideClear(l, g.pos(i, j), g.pos(ni, nj), net, nh)) continue;
             } else {
@@ -1220,33 +1647,40 @@ RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int
             if (layers > 1 && ((l % 2 == 0 && vertical) || (l % 2 == 1 && horizontal))) step *= 1.25f;
             if ((inDi != 0 || inDj != 0) && (inDi != di[k] || inDj != dj[k])) step += 0.6f;
             int ns = static_cast<int>(static_cast<size_t>(l) * n + nc);
+            if (congestion) step += congestion->at(static_cast<size_t>(ns), net);
             float nc2 = gc + step;
-            if (nc2 < cost[static_cast<size_t>(ns)]) {
-                cost[static_cast<size_t>(ns)] = nc2;
-                parent[static_cast<size_t>(ns)] = s;
-                open.push({nc2 + h(ni, nj), ns});
+            if (nc2 < ws.cost(static_cast<size_t>(ns))) {
+                ws.set(static_cast<size_t>(ns), nc2, s);
+                push(nc2 + h(ni, nj), ns);
             }
         }
-        // Through via to any other layer (checked lazily: viaAllowed is the expensive test).
+        // Through via to any other layer (checked lazily: viaAllowed is the expensive test, and its answer for a cell
+        // holds for the whole search).
         int viaState = -1;  // -1 unknown, 0 no, 1 yes
         for (int ol = 0; ol < layers; ++ol) {
             if (ol == l || !g.layerOpen(ol, net)) continue;
             int os = static_cast<int>(static_cast<size_t>(ol) * n + c);
             float nc2 = gc + static_cast<float>(viaCost) + 0.5f * static_cast<float>(std::abs(ol - l) - 1);
-            if (nc2 >= cost[static_cast<size_t>(os)] || !g.passable(ol, c, net)) continue;
+            if (congestion) nc2 += congestion->at(static_cast<size_t>(os), net);
+            if (nc2 >= ws.cost(static_cast<size_t>(os)) || !g.passable(ol, c, net)) continue;
             // A wide track continues from the via on the other layer: its body must fit there too.
-            if (wideHalf > 0 && !(neckHalf && (*neckHalf)[c] > 0) && !g.wideClear(ol, g.pos(i, j), g.pos(i, j), net, wideHalf))
+            if (wideHalf > 0 && !(neckAt(c) > 0) && !g.wideClear(ol, g.pos(i, j), g.pos(i, j), net, wideHalf))
                 continue;
-            if (viaState < 0) viaState = g.viaAllowed(c, net) ? 1 : 0;
+            if (viaState < 0) {
+                if (ws.viaStamp_[c] != ws.viaGen_) {
+                    ws.via_[c] = g.viaAllowed(c, net) ? 1 : 0;
+                    ws.viaStamp_[c] = ws.viaGen_;
+                }
+                viaState = ws.via_[c];
+            }
             if (viaState == 0) break;
-            cost[static_cast<size_t>(os)] = nc2;
-            parent[static_cast<size_t>(os)] = s;
-            open.push({nc2 + h(i, j), os});
+            ws.set(static_cast<size_t>(os), nc2, s);
+            push(nc2 + h(i, j), os);
         }
     }
     RouteResult r;
     if (found < 0) return r;
-    for (int s = found; s >= 0; s = parent[static_cast<size_t>(s)]) {
+    for (int s = found; s >= 0; s = ws.parent(static_cast<size_t>(s))) {
         int l = s / static_cast<int>(n);
         size_t c = static_cast<size_t>(s) % n;
         r.path.push_back({l, static_cast<int>(c % static_cast<size_t>(cols)), static_cast<int>(c / static_cast<size_t>(cols))});
@@ -1255,6 +1689,46 @@ RouteResult astar(const RoutingGrid& g, int net, const std::vector<std::pair<int
     r.ok = true;
     return r;
 }
+
+/// The next pad a net connects: the unconnected pad nearest to a connected one (ties: the first connected pad in list
+/// order, then the first unconnected one; with nothing connected, the first unconnected pad). The same choice as a
+/// scan over every pair, kept incrementally: O(k) per connected pad instead of O(k²) per step.
+class NearestPad {
+public:
+    NearestPad(const std::vector<Pad>& ps, const std::vector<size_t>& list)
+        : ps_(ps), list_(list), connected_(list.size(), false), dist_(list.size(), std::numeric_limits<double>::max()),
+          from_(list.size(), kNone) {}
+    void connect(size_t a) {
+        if (connected_[a]) return;
+        connected_[a] = true;
+        for (size_t b = 0; b < list_.size(); ++b) {
+            if (connected_[b]) continue;
+            const double d = (ps_[list_[a]].position - ps_[list_[b]].position).length();
+            if (d < dist_[b] || (d == dist_[b] && a < from_[b])) {
+                dist_[b] = d;
+                from_[b] = a;
+            }
+        }
+    }
+    size_t next() const {
+        size_t best = kNone, firstOpen = kNone;
+        for (size_t b = 0; b < list_.size(); ++b) {
+            if (connected_[b]) continue;
+            if (firstOpen == kNone) firstOpen = b;
+            if (from_[b] == kNone) continue;
+            if (best == kNone || dist_[b] < dist_[best] || (dist_[b] == dist_[best] && from_[b] < from_[best])) best = b;
+        }
+        return best == kNone ? (firstOpen == kNone ? 0 : firstOpen) : best;
+    }
+
+private:
+    static constexpr size_t kNone = std::numeric_limits<size_t>::max();
+    const std::vector<Pad>& ps_;
+    const std::vector<size_t>& list_;
+    std::vector<bool> connected_;
+    std::vector<double> dist_;
+    std::vector<size_t> from_;
+};
 
 struct NetRouteOutcome {
     std::vector<Track> tracks;
@@ -1537,6 +2011,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
 
     const double w = settings.trackWidth, clr = settings.clearance;
     const std::vector<double> neckWidths = padNeckWidths(ps);
+    const auto padsByNet = groupPads(ps, true);
     // Escape routing first: nets with a fine-pitch pad (one a base-width track must neck down to leave) route
     // before the rest, which would otherwise box those pads in.
     auto fineNet = [&](int net) {
@@ -1659,9 +2134,9 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
     std::set<size_t> forcedConnect;
     std::map<int, std::vector<std::pair<int, size_t>>> mainPour;
     const SpacingDomains spacing = spacingDomains(sch, settings);
-    for (int pass = 0; pass < 8; ++pass) {
-        const size_t forcedBefore = forcedConnect.size();
-        RoutingGrid grid(settings);
+    // The routing grid before any net routes: planes and pours, pad keep-outs, isolation fences, tamper meshes and the
+    // escape bands around fine-pitch packages.
+    auto prepareGrid = [&](RoutingGrid& grid) {
         for (const auto& z : zones) {
             int zn = netIndex(z.net);
             if (zn < 0) continue;
@@ -1701,6 +2176,53 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
             }
             for (const auto& [id, body] : fine) grid.addEscapeBand(body, 1.0);
         }
+    };
+    // Marks fixed copper (fan-out stubs and vias) on a grid, the way routing commits it.
+    auto markFixedTrack = [&](RoutingGrid& grid, const Track& t) {
+        grid.markSegment(t.layer, t.a, t.b, t.width / 2 + clr + extra(t.net) + w / 2, t.net);
+        grid.markCopperSegment(t.layer, t.a, t.b, t.width / 2 + 1e-6, t.net);
+        grid.addCopper(t.a, t.b, t.width / 2, t.net, t.layer);
+        grid.fenceCopper(t.a, t.b, t.width / 2, t.net, t.layer);
+    };
+    auto markFixedVia = [&](RoutingGrid& grid, const Via& v) {
+        const double r = v.diameter / 2 + clr + extra(v.net) + w / 2;
+        for (int l = 0; l < grid.layers(); ++l) {
+            grid.markDisc(l, v.position, r, v.net);
+            grid.markCopperSegment(l, v.position, v.position, v.diameter / 2, v.net);
+        }
+        grid.addCopper(v.position, v.position, v.diameter / 2, v.net, -1, v.drill);
+        grid.fenceCopper(v.position, v.position, v.diameter / 2, v.net);
+    };
+    std::unique_ptr<AStarWorkspace> astarWs;
+    // Recovery: when the rip-up passes still leave connections unrouted, up to kRecoveryPasses more passes route
+    // with negotiated congestion — each unrouted connection's unobstructed path (pads only) raises the cost of its
+    // corridor for every other net, so they make room — and a cheaper via. A recovery pass's result is kept only
+    // when it routes strictly more, so boards the rip-up passes complete are never affected.
+    constexpr int kRipUpPasses = 8, kRecoveryPasses = 8, kRecoveryStall = 3;
+    constexpr double kViaCost = 12.0, kRecoveryViaCost = 8.0;
+    constexpr float kHistoryStep = 2.0f;  // corridor cost added per unrouted connection and recovery pass
+    const std::vector<int> stableOrder = order;
+    bool recovery = false;
+    int recoveryPass = 0, recoveryStall = 0;
+    std::unique_ptr<Congestion> congestion;
+    struct FailedConnection {
+        int net;
+        size_t pad;  // the pad that could not be reached
+    };
+    for (int pass = 0;; ++pass) {
+        const size_t forcedBefore = forcedConnect.size();
+        const double passViaCost = recovery ? kRecoveryViaCost : kViaCost;
+        const Congestion* passCongestion = recovery ? congestion.get() : nullptr;
+        std::vector<FailedConnection> failedConnections;
+        size_t fixedTracks = 0, fixedVias = 0;  // copper laid before any net routes (BGA fan-outs, tamper meshes)
+        RoutingGrid grid(settings);
+        // One search workspace for every pass (the grid's size is the same in each).
+        if (!astarWs)
+            astarWs = std::make_unique<AStarWorkspace>(static_cast<size_t>(grid.layers() * grid.cols() * grid.rows()),
+                                                       static_cast<size_t>(grid.cols() * grid.rows()));
+        AStarWorkspace& ws = *astarWs;
+        const size_t gridCells = static_cast<size_t>(grid.cols() * grid.rows());
+        prepareGrid(grid);
         std::vector<Track> outT;
         std::vector<Via> outV;
         RouteStats stats;
@@ -1759,7 +2281,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
                         stats.trackLength += (t.b - t.a).length();
                         // Neck down now, so the grid keeps out only what the final (narrowed) copper needs.
                         std::vector<Track> pieces{t};
-                        neckDown(pieces, ps);
+                        neckDownWith(pieces, ps, neckWidths, padsByNet, settings.clearance);
                         for (const Track& piece : pieces) {
                             outT.push_back(piece);
                             grid.markSegment(layer, piece.a, piece.b, piece.width / 2 + clr + extra(net) + w / 2, net);
@@ -1780,10 +2302,9 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
         // Neck zones of the given pads for a track of width wn: per cell the necked half-width (0 outside), the same
         // zones and widths neckDown applies afterwards.
         auto neckZones = [&](const std::vector<size_t>& padList, double wn) {
-            std::vector<float> neck;
+            ws.beginNeck();
             for (size_t pi : padList) {
                 if (neckWidths[pi] >= wn - 1e-9) continue;
-                if (neck.empty()) neck.assign(static_cast<size_t>(grid.cols() * grid.rows()), 0.0f);
                 Rect zone = ps[pi].bounds().inflated(clr + wn / 2);
                 int i0 = std::max(0, static_cast<int>(std::ceil(zone.x0 / grid.pitch() - 1e-9)));
                 int i1 = std::min(grid.cols() - 1, static_cast<int>(std::floor(zone.x1 / grid.pitch() + 1e-9)));
@@ -1792,25 +2313,23 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
                 const float half = static_cast<float>(neckWidths[pi] / 2);
                 for (int j = j0; j <= j1; ++j)
                     for (int i = i0; i <= i1; ++i) {
-                        float& h = neck[grid.idx(i, j)];
-                        h = h > 0 ? std::min(h, half) : half;
+                        const float h = ws.neck(grid.idx(i, j));
+                        ws.setNeck(grid.idx(i, j), h > 0 ? std::min(h, half) : half);
                     }
             }
-            return neck;
         };
         // Routes from `tree` to pad `tp` and commits the copper; returns false if no path exists.
         auto connect = [&](int net, const std::vector<size_t>& list, std::vector<std::pair<int, size_t>>& tree,
                            const Pad& tp, const std::vector<std::pair<int, size_t>>* extraTargets = nullptr) {
-            std::vector<std::vector<char>> mask(static_cast<size_t>(grid.layers()),
-                                                std::vector<char>(static_cast<size_t>(grid.cols() * grid.rows()), 0));
             std::vector<std::pair<int, size_t>> targetCells;
             padCells(tp, targetCells);
             if (extraTargets) targetCells.insert(targetCells.end(), extraTargets->begin(), extraTargets->end());
-            for (auto [l, c] : targetCells) mask[static_cast<size_t>(l)][c] = 1;
+            ws.beginTargets();
+            for (auto [l, c] : targetCells) ws.addTarget(static_cast<size_t>(l) * gridCells + c);
             const double wn = settings.widthFor(nets[static_cast<size_t>(net)].name);
             const double wideHalf = wn > w + 1e-9 ? wn / 2 : 0.0;
-            std::vector<float> neck = neckZones(list, wn);
-            RouteResult rr = astar(grid, net, tree, mask, tp.position, 12.0, wideHalf, neck.empty() ? nullptr : &neck);
+            neckZones(list, wn);
+            RouteResult rr = astar(grid, net, tree, ws, tp.position, passViaCost, wideHalf, true, nullptr, passCongestion);
             for (auto tc : targetCells) tree.push_back(tc);  // later pads may still reach it
             if (!rr.ok) return false;
             commit(net, wn, rr, tree);
@@ -1822,30 +2341,32 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
             const Pad& pad = ps[pi];
             const int layer = pad.smdLayer;
             const double wn = settings.widthFor(nets[static_cast<size_t>(net)].name);
-            const size_t n = static_cast<size_t>(grid.cols() * grid.rows());
-            std::vector<std::vector<char>> mask(static_cast<size_t>(grid.layers()), std::vector<char>(n, 0));
             const double reach = 3.0;
             const int ci = static_cast<int>(std::lround(pad.position.x / grid.pitch()));
             const int cj = static_cast<int>(std::lround(pad.position.y / grid.pitch()));
             const int k = static_cast<int>(std::ceil(reach / grid.pitch()));
+            // A via site within reach of the pad: tested only where the search arrives (viaAllowed is expensive and
+            // the nearest site is usually a few cells away).
+            const std::function<bool(int, size_t)> viaSite = [&](int l, size_t c) {
+                if (l != layer) return false;
+                const int i = static_cast<int>(c % static_cast<size_t>(grid.cols())), j = static_cast<int>(c / static_cast<size_t>(grid.cols()));
+                if (std::abs(i - ci) > k || std::abs(j - cj) > k) return false;
+                if (!grid.inside(i, j) || (grid.pos(i, j) - pad.position).length() > reach) return false;
+                if (!grid.passable(layer, c, net) || !grid.viaAllowed(c, net)) return false;
+                return !(wn > w + 1e-9 &&
+                         !grid.wideClear(layer, grid.pos(i, j), grid.pos(i, j), net, std::max(wn, settings.viaDiameter) / 2));
+            };
             bool any = false;
-            for (int dj = -k; dj <= k; ++dj)
-                for (int di = -k; di <= k; ++di) {
-                    int i = ci + di, j = cj + dj;
-                    if (!grid.inside(i, j) || (grid.pos(i, j) - pad.position).length() > reach) continue;
-                    size_t c = grid.idx(i, j);
-                    if (!grid.passable(layer, c, net) || !grid.viaAllowed(c, net)) continue;
-                    if (wn > w + 1e-9 && !grid.wideClear(layer, grid.pos(i, j), grid.pos(i, j), net, std::max(wn, settings.viaDiameter) / 2))
-                        continue;
-                    mask[static_cast<size_t>(layer)][c] = 1;
-                    any = true;
+            for (int dj = -k; dj <= k && !any; ++dj)
+                for (int di = -k; di <= k && !any; ++di) {
+                    const int i = ci + di, j = cj + dj;
+                    if (grid.inside(i, j)) any = viaSite(layer, grid.idx(i, j));
                 }
             if (!any) return false;
             std::vector<std::pair<int, size_t>> src;
             for (size_t c : grid.padCoreCells(pad)) src.push_back({layer, c});
-            std::vector<float> neck = neckZones({pi}, wn);
-            RouteResult rr = astar(grid, net, src, mask, pad.position, 1e6, wn > w + 1e-9 ? wn / 2 : 0.0,
-                                   neck.empty() ? nullptr : &neck);
+            neckZones({pi}, wn);
+            RouteResult rr = astar(grid, net, src, ws, pad.position, 1e6, wn > w + 1e-9 ? wn / 2 : 0.0, true, &viaSite);
             if (!rr.ok || rr.path.empty() || rr.path.back().layer != layer) return false;
             std::vector<std::pair<int, size_t>> scratch;
             commit(net, wn, rr, scratch);
@@ -1913,14 +2434,13 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
                 const Pad& pad = ps[m.endPads[e]];
                 std::vector<std::pair<int, size_t>> src;
                 padCells(pad, src);
-                std::vector<std::vector<char>> mask(static_cast<size_t>(grid.layers()),
-                                                    std::vector<char>(static_cast<size_t>(grid.cols() * grid.rows()), 0));
+                ws.beginTargets();
                 const int ci = static_cast<int>(std::lround(m.ends[e].x / grid.pitch()));
                 const int cj = static_cast<int>(std::lround(m.ends[e].y / grid.pitch()));
                 if (grid.inside(ci, cj))
                     for (int l = 0; l < grid.layers(); ++l)
-                        if (l != tm.layerA && l != tm.layerB) mask[static_cast<size_t>(l)][grid.idx(ci, cj)] = 1;
-                RouteResult rr = astar(grid, net, src, mask, m.ends[e], 12.0);
+                        if (l != tm.layerA && l != tm.layerB) ws.addTarget(static_cast<size_t>(l) * gridCells + grid.idx(ci, cj));
+                RouteResult rr = astar(grid, net, src, ws, m.ends[e], 12.0, 0.0, false);
                 if (rr.ok) {
                     std::vector<std::pair<int, size_t>> scratch;
                     commit(net, settings.widthFor(nets[static_cast<size_t>(net)].name), rr, scratch);
@@ -1936,23 +2456,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
             }
         }
 
-        auto nearestUnconnected = [&](const std::vector<size_t>& list, const std::vector<bool>& connected) {
-            size_t target = 0;
-            double bestD = std::numeric_limits<double>::max();
-            for (size_t a = 0; a < list.size(); ++a) {
-                if (!connected[a]) continue;
-                for (size_t b = 0; b < list.size(); ++b) {
-                    if (connected[b]) continue;
-                    double d = (ps[list[a]].position - ps[list[b]].position).length();
-                    if (d < bestD) { bestD = d; target = b; }
-                }
-            }
-            if (bestD == std::numeric_limits<double>::max())
-                for (size_t b = 0; b < list.size(); ++b)
-                    if (!connected[b]) return b;
-            return target;
-        };
-
+        fixedTracks = outT.size();
+        fixedVias = outV.size();
         if (grid.layers() > 1)
             for (int net : zoneOrder)
                 for (size_t pi : netPads[net]) {
@@ -1974,17 +2479,20 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
 
         for (int net : order) {
             const auto& list = netPads[net];
-            std::vector<bool> connected(list.size(), false);
-            connected[0] = true;
+            NearestPad nearest(ps, list);
+            nearest.connect(0);
             std::vector<std::pair<int, size_t>> tree;
             padCells(ps[list[0]], tree);
             bool netFailed = false;
             for (size_t done = 1; done < list.size(); ++done) {
-                size_t target = nearestUnconnected(list, connected);
-                connected[target] = true;
+                size_t target = nearest.next();
+                nearest.connect(target);
                 ++stats.connections;
                 if (connect(net, list, tree, ps[list[target]])) ++stats.routed;
-                else netFailed = true;
+                else {
+                    netFailed = true;
+                    failedConnections.push_back({net, list[target]});
+                }
             }
             if (netFailed) {
                 failedNets.push_back(net);
@@ -2051,14 +2559,18 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
                 mainPour[net].clear();
                 clusterCells(seed, mainPour[net]);
                 std::vector<bool> connected(list.size(), false);
-                for (size_t a = 0; a < list.size(); ++a) connected[a] = joined.count(d.find(list[a])) > 0;
+                NearestPad nearest(ps, list);
+                for (size_t a = 0; a < list.size(); ++a) {
+                    connected[a] = joined.count(d.find(list[a])) > 0;
+                    if (connected[a]) nearest.connect(a);
+                }
                 bool netFailed = false;
                 stats.connections += static_cast<int>(list.size()) - 1;
                 int pending = 0;
                 for (size_t a = 0; a < list.size(); ++a) pending += !connected[a];
                 stats.routed += static_cast<int>(list.size()) - 1 - pending;
                 while (pending > 0) {
-                    size_t target = nearestUnconnected(list, connected);
+                    size_t target = nearest.next();
                     size_t cluster = d.find(list[target]);
                     std::vector<std::pair<int, size_t>> clusterTargets;
                     clusterCells(cluster, clusterTargets);
@@ -2068,6 +2580,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
                     for (size_t a = 0; a < list.size(); ++a) {
                         if (connected[a] || d.find(list[a]) != cluster) continue;
                         connected[a] = true;
+                        nearest.connect(a);
                         --pending;
                         if (ok) ++stats.routed;
                         else netFailed = true;
@@ -2081,7 +2594,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
             }
         }
         stats.failed = stats.connections - stats.routed;
-        if (stats.failed < best.failed) {
+        const bool improved = stats.failed < best.failed;
+        if (improved) {
             best = stats;
             bestTracks = outT;
             bestVias = outV;
@@ -2093,13 +2607,58 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
             if (std::find(order.begin(), order.end(), n) != order.end()) next.push_back(n);
         for (int n : order)
             if (std::find(next.begin(), next.end(), n) == next.end()) next.push_back(n);
-        if (next == order && pass > 0 && forcedConnect.size() == forcedBefore) break;
-        order = next;
+        if (!recovery) {
+            const bool stuck = next == order && pass > 0 && forcedConnect.size() == forcedBefore;
+            if (!stuck) order = next;
+            if (!stuck && pass + 1 < kRipUpPasses) continue;
+            recovery = true;  // the rip-up passes are done: recover what they left
+        } else {
+            // Negotiation keeps the original order: the history costs, not promotion, make room for what failed.
+            order = stableOrder;
+            recoveryStall = improved ? 0 : recoveryStall + 1;
+            if (++recoveryPass >= kRecoveryPasses || recoveryStall >= kRecoveryStall) break;
+        }
+        if (failedConnections.empty()) break;  // nothing a corridor can help (zone nets only)
+        // The unobstructed grid: only pads, fences and the fixed fan-out copper.
+        RoutingGrid unobstructed(settings);
+        prepareGrid(unobstructed);
+        for (size_t t = 0; t < fixedTracks; ++t) markFixedTrack(unobstructed, outT[t]);
+        for (size_t v = 0; v < fixedVias; ++v) markFixedVia(unobstructed, outV[v]);
+        // Negotiated congestion: each unrouted connection's unobstructed path raises the cost of its corridor (one
+        // track plus clearance either side) for every other net.
+        if (!congestion) {
+            congestion = std::make_unique<Congestion>();
+            congestion->cost.assign(static_cast<size_t>(grid.layers()) * gridCells, 0.0f);
+            congestion->net.assign(static_cast<size_t>(grid.layers()) * gridCells, -2);
+        }
+        for (const FailedConnection& f : failedConnections) {
+            std::vector<std::pair<int, size_t>> from, to;
+            for (size_t pi : netPads[f.net])
+                if (pi != f.pad) padCells(ps[pi], from);
+            padCells(ps[f.pad], to);
+            ws.beginTargets();
+            for (auto [l, c] : to) ws.addTarget(static_cast<size_t>(l) * gridCells + c);
+            const double wn = settings.widthFor(nets[static_cast<size_t>(f.net)].name);
+            neckZones(netPads[f.net], wn);
+            const RouteResult rr = astar(unobstructed, f.net, from, ws, ps[f.pad].position, passViaCost,
+                                         wn > w + 1e-9 ? wn / 2 : 0.0, true);
+            if (!rr.ok) continue;
+            const int k = static_cast<int>(std::ceil((wn / 2 + clr + w / 2) / grid.pitch()));
+            for (const PathNode& node : rr.path)
+                for (int dj = -k; dj <= k; ++dj)
+                    for (int di = -k; di <= k; ++di) {
+                        if (!grid.inside(node.i + di, node.j + dj)) continue;
+                        const size_t at = static_cast<size_t>(node.layer) * gridCells + grid.idx(node.i + di, node.j + dj);
+                        congestion->cost[at] += kHistoryStep;
+                        int& owner = congestion->net[at];
+                        owner = owner == -2 || owner == f.net ? f.net : -1;
+                    }
+        }
     }
 
     tracks.clear();
     vias.clear();
-    neckDown(bestTracks, ps);
+    neckDownWith(bestTracks, ps, neckWidths, padsByNet, settings.clearance);
     for (auto& t : bestTracks) addTrack(t);
     for (auto& v : bestVias) addVia(v);
     cleanupRouting(sch);
@@ -2168,28 +2727,45 @@ int PcbLayout::cleanupRouting(const Schematic& sch) {
     auto key = [](int layer, Vec2 p) {
         return std::make_tuple(layer, std::llround(p.x * 1e4), std::llround(p.y * 1e4));
     };
+    // Pads and vias do not change here; tracks are indexed at the start of each pass (see mergedInto below).
+    const RectIndex padIx(padBoxes(ps)), viaIx(viaBoxes(vias));
+    double widestTrack = 0;
+    for (const auto& t : tracks) widestTrack = std::max(widestTrack, t.width);
+    std::unique_ptr<RectIndex> trackIx;
+    std::vector<size_t> mergedInto;  // per track of this pass: the track it was merged into (a longer one), or none
+    std::vector<size_t> nearTracks;
     // A joint can be reshaped only where two pieces of one track meet in open board: no pad or via there.
     auto anchored = [&](int layer, Vec2 p) {
-        for (const auto& pd : ps)
-            if (pd.onLayer(layer) && padDistance(pd, p) <= 1e-6) return true;
-        for (const auto& v : vias)
-            if ((v.position - p).length() <= 1e-6) return true;
+        const Rect at = Rect::centered(p, 4e-6, 4e-6);
+        for (size_t pi : padIx.query(at))
+            if (ps[pi].onLayer(layer) && padDistance(ps[pi], p) <= 1e-6) return true;
+        for (size_t vi : viaIx.query(at))
+            if ((vias[vi].position - p).length() <= 1e-6) return true;
         return false;
     };
     // Clearance of a new piece of copper (segment a–b, width w, net) to everything of other nets on its layer.
     auto clear = [&](int layer, int net, Vec2 a, Vec2 b, double w, size_t skipA, size_t skipB) {
-        for (size_t i = 0; i < tracks.size(); ++i) {
+        const Rect reach = segmentBox(a, b, w / 2 + clr + 1e-3);
+        // A track that absorbed another one this pass now also spans that one's rectangle.
+        nearTracks.clear();
+        for (size_t i : trackIx->query(reach.inflated(widestTrack / 2))) {
+            nearTracks.push_back(i);
+            if (mergedInto[i] != std::numeric_limits<size_t>::max()) nearTracks.push_back(mergedInto[i]);
+        }
+        for (size_t i : nearTracks) {
             const Track& t = tracks[i];
             if (i == skipA || i == skipB || t.layer != layer || t.net == net) continue;
             if (segmentSegmentDistance(a, b, t.a, t.b) - (w + t.width) / 2 < clr - 1e-6) return false;
         }
-        for (const auto& pd : ps) {
+        for (size_t pi : padIx.query(reach)) {
+            const Pad& pd = ps[pi];
             if (!pd.onLayer(layer) || (pd.net == net && net >= 0)) continue;
             double d = pd.round ? pointSegmentDistance(pd.position, a, b) - std::min(pd.size.x, pd.size.y) / 2
                                 : segmentRectDistance(a, b, pd.bounds());
             if (d - w / 2 < clr - 1e-6) return false;
         }
-        for (const auto& v : vias) {
+        for (size_t vi : viaIx.query(reach)) {
+            const Via& v = vias[vi];
             if (v.net == net || !v.spans(layer)) continue;
             if (pointSegmentDistance(v.position, a, b) - v.diameter / 2 - w / 2 < clr - 1e-6) return false;
         }
@@ -2198,6 +2774,8 @@ int PcbLayout::cleanupRouting(const Schematic& sch) {
     };
 
     for (int pass = 0; pass < 4; ++pass) {
+        trackIx = std::make_unique<RectIndex>(trackBoxes(tracks));
+        mergedInto.assign(tracks.size(), std::numeric_limits<size_t>::max());
         std::map<std::tuple<int, long long, long long>, std::vector<size_t>> ends;
         for (size_t i = 0; i < tracks.size(); ++i) {
             ends[key(tracks[i].layer, tracks[i].a)].push_back(i);
@@ -2223,6 +2801,7 @@ int PcbLayout::cleanupRouting(const Schematic& sch) {
             double cosine = (u.x * v.x + u.y * v.y) / (li * lj);
             if (cosine < -0.99999) {  // collinear: one segment
                 (iAtA ? ti.a : ti.b) = oj;
+                mergedInto[j] = i;
                 removed[j] = true;
                 touched[i] = true;
                 ++changes;
@@ -2261,11 +2840,12 @@ std::vector<double> PcbLayout::padNeckWidths(const std::vector<Pad>& ps) const {
     // Widest track that can leave a pad between its package neighbours: the pad's own width, limited so the track
     // keeps the clearance to the nearest other-net pad of the same footprint; never below the fabrication minimum.
     std::vector<double> out(ps.size());
+    const auto byComponent = groupPads(ps, false);
     for (size_t i = 0; i < ps.size(); ++i) {
         const Pad& p = ps[i];
         double minor = std::min(p.size.x, p.size.y);
         double gap = std::numeric_limits<double>::max();
-        for (size_t j = 0; j < ps.size(); ++j) {
+        for (size_t j : byComponent.at(p.componentId)) {
             const Pad& o = ps[j];
             if (j == i || o.componentId != p.componentId || (o.net == p.net && p.net >= 0)) continue;
             bool share = false;
@@ -2282,54 +2862,7 @@ void PcbLayout::neckDown(std::vector<Track>& out, const std::vector<Pad>& ps) co
     // Wherever a track runs within a clearance of one of its own pads that is narrower than the track (or whose
     // package neighbours are too close for it), that stretch is narrowed to the pad's neck width, so it never
     // overhangs into the gap to the neighbouring fine-pitch pads.
-    const auto neck = padNeckWidths(ps);
-    for (int iter = 0; iter < 4; ++iter) {
-        bool changed = false;
-        std::vector<Track> result;
-        for (const Track& t : out) {
-            bool split = false;
-            for (size_t k = 0; k < ps.size() && !split; ++k) {
-                const Pad& p = ps[k];
-                if (p.net != t.net || !p.onLayer(t.layer) || neck[k] >= t.width - 1e-9) continue;
-                Rect zone = p.bounds().inflated(settings.clearance + t.width / 2);
-                // Liang–Barsky clip of the segment to the zone.
-                double t0 = 0, t1 = 1;
-                Vec2 d = t.b - t.a;
-                const double pq[4][2] = {{-d.x, t.a.x - zone.x0}, {d.x, zone.x1 - t.a.x}, {-d.y, t.a.y - zone.y0}, {d.y, zone.y1 - t.a.y}};
-                bool inside = true;
-                for (const auto& e : pq) {
-                    if (std::fabs(e[0]) < 1e-12) {
-                        if (e[1] < 0) inside = false;
-                        continue;
-                    }
-                    double r = e[1] / e[0];
-                    if (e[0] < 0) t0 = std::max(t0, r);
-                    else t1 = std::min(t1, r);
-                }
-                if (!inside || t1 - t0 < 1e-9) continue;
-                Vec2 a = t.a + d * t0, b = t.a + d * t1;
-                if (t0 > 1e-9 && (a - t.a).length() > 1e-6) {
-                    Track head = t;
-                    head.b = a;
-                    result.push_back(head);
-                }
-                Track mid = t;
-                mid.a = a;
-                mid.b = b;
-                mid.width = neck[k];
-                result.push_back(mid);
-                if (t1 < 1 - 1e-9 && (t.b - b).length() > 1e-6) {
-                    Track tail = t;
-                    tail.a = b;
-                    result.push_back(tail);
-                }
-                split = changed = true;
-            }
-            if (!split) result.push_back(t);
-        }
-        out = std::move(result);
-        if (!changed) break;
-    }
+    neckDownWith(out, ps, padNeckWidths(ps), groupPads(ps, true), settings.clearance);
 }
 
 std::map<std::string, double> PcbLayout::autoNetWidths(const Schematic& sch) {
@@ -2421,6 +2954,19 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     };
     const auto& nets = sch.nets();
     auto netName = [&](int n) { return n >= 0 && n < static_cast<int>(nets.size()) ? nets[static_cast<size_t>(n)].name : std::string("(none)"); };
+    // Spatial index reach: no spacing check can fire between copper further apart than the largest spacing any of
+    // them applies (design clearance, the etch limit, or the IPC-2221 spacing for the board's largest voltage
+    // difference; the table only grows with voltage), so only pairs within that distance are examined.
+    double reach = std::max(clr, 0.1);
+    if (!netRange.empty()) {
+        double lo = std::numeric_limits<double>::max(), hi = -std::numeric_limits<double>::max();
+        for (const auto& [net, range] : netRange) {
+            lo = std::min({lo, range.first, range.second});
+            hi = std::max({hi, range.first, range.second});
+        }
+        if (hi >= lo) reach = std::max(reach, ipc2221Clearance(hi - lo, settings.highAltitude, settings.coated()));
+    }
+    reach += 0.01;  // beyond every tolerance (eps) the checks use
     auto fmt = [](double v) {
         char b[32];
         std::snprintf(b, sizeof b, "%.3f mm", v);
@@ -2453,8 +2999,11 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                     c.pcb.position, {c.id});
         }
     }
+    std::vector<Rect> courtyards;
+    for (const Component* c : placed) courtyards.push_back(courtyard(*c));
+    const RectIndex courtyardIx(courtyards);
     for (size_t i = 0; i < placed.size(); ++i)
-        for (size_t j = i + 1; j < placed.size(); ++j)
+        for (size_t j : courtyardIx.query(courtyards[i], static_cast<long long>(i)))
             if (mountPlane(*placed[i], settings) == mountPlane(*placed[j], settings) &&
                 courtyard(*placed[i]).intersects(courtyard(*placed[j])))
                 add(Severity::Warning, "DRC_COURTYARD_OVERLAP",
@@ -2490,9 +3039,16 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             add(Severity::Info, "DRC_FINE_PITCH_PADS", what + b, loc, std::move(comps));
         }
     };
+    // Spatial indexes of the copper (candidates come back in index order, so every check below runs in the order of
+    // a full pairwise scan and reports exactly what it would).
+    const RectIndex padIx(padBoxes(ps)), trackIx(trackBoxes(tracks)), viaIx(viaBoxes(vias));
+    const auto padsOfComponent = groupPads(ps, false);
+    double widestTrack = 0, widestVia = 0;
+    for (const auto& t : tracks) widestTrack = std::max(widestTrack, t.width);
+    for (const auto& v : vias) widestVia = std::max(widestVia, v.diameter);
     // Pad ↔ pad.
     for (size_t i = 0; i < ps.size(); ++i)
-        for (size_t j = i + 1; j < ps.size(); ++j) {
+        for (size_t j : padIx.query(ps[i].bounds().inflated(reach), static_cast<long long>(i))) {
             if (ps[i].net == ps[j].net && ps[i].net >= 0) continue;
             bool share = false;
             for (int l = 0; l < settings.layerCount && !share; ++l) share = ps[i].onLayer(l) && ps[j].onLayer(l);
@@ -2519,7 +3075,9 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                     h.position);
                 break;
             }
-        for (const auto& p : ps) {
+        const Rect trackReach = segmentBox(tr.a, tr.b, tr.width / 2 + reach);
+        for (size_t pi : padIx.query(trackReach)) {
+            const Pad& p = ps[pi];
             if (p.net == tr.net || !p.onLayer(tr.layer)) continue;
             double d = (p.round ? std::max(0.0, pointSegmentDistance(p.position, tr.a, tr.b) - std::min(p.size.x, p.size.y) / 2)
                                 : segmentRectDistance(tr.a, tr.b, p.bounds())) -
@@ -2530,10 +3088,12 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             double tt = len2 > 0 ? std::clamp((p.position - tr.a).dot(ab) / len2, 0.0, 1.0) : 0.0;
             Vec2 closest = tr.a + ab * tt;
             bool inOwnPad = false;
-            for (const auto& own : ps)
+            for (size_t oi : padsOfComponent.at(p.componentId)) {
+                const Pad& own = ps[oi];
                 if (own.net == tr.net && own.componentId == p.componentId && own.onLayer(tr.layer) &&
                     padDistance(own, closest) <= 0)
                     inOwnPad = true;
+            }
             if (inOwnPad) {
                 footprintCheck(d, "Track (" + netName(tr.net) + ") to pad (" + netName(p.net) + ") clearance " +
                                       fmt(std::max(0.0, d)), p.position, {p.componentId}, tr.net, p.net);
@@ -2541,25 +3101,28 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             }
             clearanceCheck(d, "Track (" + netName(tr.net) + ") to pad (" + netName(p.net) + ") clearance " + fmt(std::max(0.0, d)), p.position, {p.componentId}, tr.net, p.net);
         }
-        for (size_t u = t + 1; u < tracks.size(); ++u) {
+        for (size_t u : trackIx.query(trackReach, static_cast<long long>(t))) {
             const Track& o = tracks[u];
             if (o.net == tr.net || o.layer != tr.layer) continue;
             double d = segmentSegmentDistance(tr.a, tr.b, o.a, o.b) - (tr.width + o.width) / 2;
             clearanceCheck(d, "Track clearance " + fmt(std::max(0.0, d)) + " between " + netName(tr.net) + " and " + netName(o.net), (tr.a + tr.b) * 0.5, {}, tr.net, o.net);
         }
-        for (const auto& v : vias) {
+        for (size_t vi : viaIx.query(trackReach)) {
+            const Via& v = vias[vi];
             if (v.net == tr.net || !v.spans(tr.layer)) continue;
             double d = pointSegmentDistance(v.position, tr.a, tr.b) - tr.width / 2 - v.diameter / 2;
             clearanceCheck(d, "Via (" + netName(v.net) + ") to track (" + netName(tr.net) + ") clearance " + fmt(std::max(0.0, d)), v.position, {}, v.net, tr.net);
         }
     }
     for (size_t i = 0; i < vias.size(); ++i) {
-        for (const auto& p : ps) {
+        const Rect viaReach = Rect::centered(vias[i].position, vias[i].diameter, vias[i].diameter).inflated(reach);
+        for (size_t pi : padIx.query(viaReach)) {
+            const Pad& p = ps[pi];
             if (p.net == vias[i].net || !(p.throughHole || vias[i].spans(p.smdLayer))) continue;
             double d = padDistance(p, vias[i].position) - vias[i].diameter / 2;
             clearanceCheck(d, "Via (" + netName(vias[i].net) + ") to pad (" + netName(p.net) + ") clearance " + fmt(std::max(0.0, d)), vias[i].position, {p.componentId}, vias[i].net, p.net);
         }
-        for (size_t j = i + 1; j < vias.size(); ++j) {
+        for (size_t j : viaIx.query(viaReach, static_cast<long long>(i))) {
             if (vias[i].net == vias[j].net || !vias[i].overlaps(vias[j])) continue;
             double d = (vias[i].position - vias[j].position).length() - (vias[i].diameter + vias[j].diameter) / 2;
             clearanceCheck(d, "Via-to-via clearance " + fmt(std::max(0.0, d)), vias[i].position, {}, vias[i].net, vias[j].net);
@@ -2617,8 +3180,11 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             add(Severity::Error, "DRC_ANNULAR_RING", buf, p.position, {p.componentId});
         }
     }
+    std::vector<Rect> holeBoxes;
+    for (const auto& h : holes) holeBoxes.push_back(Rect::centered(h.at, h.drill, h.drill));
+    const RectIndex holeIx(holeBoxes);
     for (size_t i = 0; i < holes.size(); ++i)
-        for (size_t j = i + 1; j < holes.size(); ++j) {
+        for (size_t j : holeIx.query(holeBoxes[i].inflated(settings.minHoleToHole + 0.01), static_cast<long long>(i))) {
             double gap = (holes[i].at - holes[j].at).length() - (holes[i].drill + holes[j].drill) / 2;
             if (gap < settings.minHoleToHole - eps) {
                 std::snprintf(buf, sizeof buf, "%s-to-%s hole spacing %.3f mm is below the minimum %.3f mm.",
@@ -2629,7 +3195,8 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
 
     // Vias inside SMD pads wick solder away from the joint — unless they are filled and plated over (VIPPO).
     for (const auto& v : vias)
-        for (const auto& p : ps)
+        for (size_t pi : padIx.query(Rect::centered(v.position, 1e-6, 1e-6))) {
+            const Pad& p = ps[pi];
             if (!settings.viaInPad && !p.throughHole && p.net == v.net && v.spans(p.smdLayer) &&
                 padDistance(p, v.position) <= 0) {
                 add(Severity::Warning, "DRC_VIA_IN_PAD",
@@ -2638,6 +3205,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                     {p.componentId});
                 break;
             }
+        }
 
     // Track geometry: dangling ends and acute (< 90°) joins that trap etchant.
     const auto& fills = zoneFills(sch);
@@ -2645,11 +3213,16 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
         const Track& t = tracks[self];
         for (const auto& f : fills)
             if (f.net == t.net && f.layer == t.layer && f.islandNear(end, t.width / 2) >= 0) return true;
-        for (const auto& p : ps)
+        const Rect near = Rect::centered(end, 0, 0).inflated(t.width / 2 + 1e-6);
+        for (size_t pi : padIx.query(near)) {
+            const Pad& p = ps[pi];
             if (p.net == t.net && p.onLayer(t.layer) && padDistance(p, end) <= t.width / 2) return true;
-        for (const auto& v : vias)
+        }
+        for (size_t vi : viaIx.query(Rect::centered(end, 1e-6, 1e-6))) {
+            const Via& v = vias[vi];
             if (v.net == t.net && (v.position - end).length() <= v.diameter / 2) return true;
-        for (size_t k = 0; k < tracks.size(); ++k) {
+        }
+        for (size_t k : trackIx.query(Rect::centered(end, 0, 0).inflated((widestTrack + t.width) / 4 + 1e-6))) {
             if (k == self || tracks[k].net != t.net || tracks[k].layer != t.layer) continue;
             if (pointSegmentDistance(end, tracks[k].a, tracks[k].b) <= (tracks[k].width + t.width) / 4) return true;
         }
@@ -2663,7 +3236,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                 break;
             }
     for (size_t t = 0; t < tracks.size(); ++t)
-        for (size_t u = t + 1; u < tracks.size(); ++u) {
+        for (size_t u : trackIx.query(segmentBox(tracks[t].a, tracks[t].b, 1e-5), static_cast<long long>(t))) {
             const Track& a = tracks[t];
             const Track& b = tracks[u];
             if (a.net != b.net || a.layer != b.layer) continue;
@@ -2676,10 +3249,11 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                     double angle = std::acos(std::clamp(da.dot(db) / (la * lb), -1.0, 1.0)) * 180.0 / kPi;
                     // A join inside a pad or via is covered by copper and cannot trap etchant.
                     bool covered = false;
-                    for (const auto& p : ps)
-                        if (p.net == a.net && p.onLayer(a.layer) && padDistance(p, pa) <= 0) covered = true;
-                    for (const auto& v : vias)
-                        if (v.net == a.net && (v.position - pa).length() <= v.diameter / 2) covered = true;
+                    const Rect at = Rect::centered(pa, 1e-6, 1e-6);
+                    for (size_t pi : padIx.query(at))
+                        if (ps[pi].net == a.net && ps[pi].onLayer(a.layer) && padDistance(ps[pi], pa) <= 0) covered = true;
+                    for (size_t vi : viaIx.query(at))
+                        if (vias[vi].net == a.net && (vias[vi].position - pa).length() <= vias[vi].diameter / 2) covered = true;
                     if (angle < 89.0 && !covered) {
                         std::snprintf(buf, sizeof buf, "Acute %.0f° track join on %s (acid trap) — use 90° or 135° corners.",
                                       angle, netName(a.net).c_str());
@@ -2801,8 +3375,12 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             return false;
         };
         int reported = 0;
+        std::vector<Rect> itemBoxes;
+        for (const Item& x : items) itemBoxes.push_back(x.pad ? x.pad->bounds() : Rect(x.a.x, x.a.y, x.b.x, x.b.y).inflated(x.half));
+        const RectIndex itemIx(itemBoxes);
         for (size_t i = 0; i < items.size() && reported < 5; ++i)
-            for (size_t j = i + 1; j < items.size() && reported < 5; ++j) {
+            for (size_t j : itemIx.query(itemBoxes[i].inflated(gap + 1e-6), static_cast<long long>(i))) {
+                if (reported >= 5) break;
                 const Item &x = items[i], &y = items[j];
                 if (x.dom == y.dom) continue;
                 if (x.layer >= 0 && y.layer >= 0 && x.layer != y.layer) continue;
