@@ -44,8 +44,10 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 ## Non-functional requirements
 - **Correctness.** All AI output is schema-validated and checked by the core (ERC, simulation, DRC) before
   it is presented.
-- **Performance.** Interactive editing of designs with up to 200 parts. Autorouting typical small boards
-  takes under one second; a 400-part, 8-layer board with BGAs places, routes and checks in under a minute
+- **Performance.** Interactive editing of designs with 1000+ parts (O(1) part lookup, culled and batched
+  drawing). Autorouting typical small boards takes under one second; a 400-part, 8-layer board with BGAs routes in
+  about 20 s, and a 923-part, 8-layer board with an FPGA and four BGAs routes completely in under two minutes in
+  under 1 GB (corridor router: global routing, parallel nets, targeted rip-up), with progress and Stop in the app
   (benchmark and limits in [ROUTING.md](ROUTING.md)).
 - **Privacy.** Keys live in the Keychain. Only the prompt and design context are sent to the selected provider.
 - **Portability.** The core is dependency-free C++17 and is tested on Linux and macOS in CI.
@@ -58,7 +60,8 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 
 ## Roadmap
 (Shipped since v1: up to 24 layers, copper pours and planes with thermal reliefs, differential pairs, length tuning,
-HDI vias and BGA fan-out, autorouting / DRC at the scale of 1000-part boards with negotiated-congestion recovery, and
+HDI vias and BGA fan-out, autorouting / DRC at the scale of 1000-part boards (corridor router with global routing,
+parallel nets and targeted rip-up; negotiated-congestion recovery), and
 board-level signal / power integrity: IBIS import, reflections, crosstalk, return path, PDN impedance and IR drop;
 then channel analysis: frequency-dependent lossy lines, S-parameters and Touchstone, coupled differential pairs, PRBS
 eye diagrams with CTLE / FFE, broadside crosstalk, plane-cavity PDN, decoupling plans and the IR-drop heat map —

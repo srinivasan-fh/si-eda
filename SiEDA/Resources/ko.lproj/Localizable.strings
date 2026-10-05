@@ -269,6 +269,7 @@
 "Find Parts Online…" = "온라인 부품 찾기…";
 "Finish" = "완료";
 "Finish the login in your browser…" = "브라우저에서 로그인을 완료하세요…";
+"Finishing the autoroute…" = "자동 배선 마무리 중…";
 "Firmware — 1 s, 100 µs" = "펌웨어 — 1 s, 100 µs";
 "Fit Board to Components" = "보드를 부품에 맞추기";
 "Fits every pin" = "모든 핀에 맞음";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "포트(상위 시트로)";
 "Ports: %@" = "포트: %@";
 "Power" = "전원";
+"Preparing the autoroute…" = "자동 배선 준비 중…";
 "Preview appears once the part has a name and pins." = "부품에 이름과 핀이 있으면 미리보기가 표시됩니다.";
 "Product Page" = "제품 페이지";
 "Project Library" = "프로젝트 라이브러리";
@@ -557,6 +559,8 @@
 "Revision" = "리비전";
 "Right →" = "오른쪽 →";
 "Rip Out Entries" = "버스 엔트리 꺼내기";
+"Rip-up pass %lld" = "립업 패스 %lld";
+"Rip-up pass %lld: %lld unrouted" = "립업 패스 %lld: 미배선 %lld개";
 "Ripple" = "리플";
 "Rise time (10–90 %)" = "상승 시간(10–90 %)";
 "Robot Platform" = "로봇 플랫폼";
@@ -566,6 +570,7 @@
 "Rounded corners" = "둥근 모서리";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "차동 쌍의 두 네트(X_P / X_N)를 쌍 간격으로 함께 배선";
 "Router mode" = "라우터 모드";
+"Routing nets: %lld of %lld" = "네트 배선 중: %lld / %lld";
 "Run" = "실행";
 "Run AC Sweep" = "AC 스윕 실행";
 "Run DC Sweep" = "DC 스윕 실행";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "Octopart, DigiKey, Mouser의 재고, 가격, 수명 주기(EOL / NRND), 생산 수량별 비용";
 "Stop" = "정지";
 "Stop Live" = "라이브 정지";
+"Stop the autoroute; the board stays as it was" = "자동 배선을 중지합니다. 보드는 그대로 유지됩니다";
 "Stop the live simulation" = "라이브 시뮬레이션 정지";
 "Suggested" = "추천";
 "Super Intelligence" = "슈퍼 인텔리전스";

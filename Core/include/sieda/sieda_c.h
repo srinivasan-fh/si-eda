@@ -258,6 +258,20 @@ int32_t sieda_pcb_flip_footprint(SiedaProject* project, int32_t component_id);
 /* Resizes the board outline to the placed footprints plus margin_mm, keeping parts and copper together. */
 int32_t sieda_pcb_fit_board(SiedaProject* project, double margin_mm);
 char* sieda_pcb_autoroute(SiedaProject* project); /* JSON route statistics */
+/* Autoroute with progress and cancel: as sieda_pcb_autoroute, but calls progress(user, phase, pass, done, total,
+ * unrouted) every few nets, always on the calling thread and never concurrently. phase: 0 preparing, 1 routing,
+ * 2 rip-up pass, 3 finishing; done / total: nets of the current pass; unrouted: connections the best pass so far
+ * leaves unrouted (-1 before the first pass ends). Returning non-zero cancels: the project is left exactly as it was
+ * and the JSON has "cancelled": true. progress may be NULL. */
+typedef int32_t (*SiedaRouteProgress)(void* user, int32_t phase, int32_t pass, int32_t done, int32_t total,
+                                      int32_t unrouted);
+char* sieda_pcb_autoroute_progress(SiedaProject* project, SiedaRouteProgress progress, void* user);
+/* Autorouter strategy, process-wide: 0 auto (default: the corridor router on boards of 2 M grid nodes or more),
+ * 1 classic, 2 corridor. Returns 1 when valid. */
+int32_t sieda_router_set_strategy(int32_t strategy);
+int32_t sieda_router_strategy(void);
+/* Corridor-router threads (0 = the hardware's concurrency, at most 8). The routed copper is the same for any count. */
+void sieda_router_set_threads(int32_t threads);
 void sieda_pcb_clear_routing(SiedaProject* project);
 char* sieda_pcb_run_drc(const SiedaProject* project);
 /* Standard design-rule presets: [{"name","description","trackWidth",…,"minHoleToHole"}] */

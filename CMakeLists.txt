@@ -35,6 +35,7 @@ add_library(sieda_core STATIC
     Core/src/Convergence.cpp
     Core/src/Waveforms.cpp
     Core/src/Pcb.cpp
+    Core/src/GlobalRouter.cpp
     Core/src/Zones.cpp
   Core/src/Avr.cpp
   Core/src/Firmware.cpp
@@ -71,6 +72,8 @@ add_library(sieda_core STATIC
     Core/src/sieda_c.cpp
 )
 target_include_directories(sieda_core PUBLIC Core/include)
+find_package(Threads REQUIRED)
+target_link_libraries(sieda_core PUBLIC Threads::Threads)  # the autorouter routes independent nets in parallel
 if(MSVC)
     target_compile_options(sieda_core PRIVATE /W4)
 else()

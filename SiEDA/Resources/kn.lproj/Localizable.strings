@@ -269,6 +269,7 @@
 "Find Parts Online…" = "ಆನ್‌ಲೈನ್‌ನಲ್ಲಿ ಭಾಗಗಳನ್ನು ಹುಡುಕಿ…";
 "Finish" = "ಮುಗಿಸಿ";
 "Finish the login in your browser…" = "ನಿಮ್ಮ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಲಾಗಿನ್ ಪೂರ್ಣಗೊಳಿಸಿ…";
+"Finishing the autoroute…" = "ಆಟೋರೂಟ್ ಪೂರ್ಣಗೊಳ್ಳುತ್ತಿದೆ…";
 "Firmware — 1 s, 100 µs" = "ಫರ್ಮ್‌ವೇರ್ — 1 s, 100 µs";
 "Fit Board to Components" = "ಬೋರ್ಡ್ ಅನ್ನು ಕಾಂಪೊನೆಂಟ್‌ಗಳಿಗೆ ಹೊಂದಿಸಿ";
 "Fits every pin" = "ಪ್ರತಿ ಪಿನ್‌ಗೆ ಹೊಂದುತ್ತದೆ";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "ಪೋರ್ಟ್ (ಪೋಷಕ ಶೀಟ್‌ಗೆ)";
 "Ports: %@" = "ಪೋರ್ಟ್‌ಗಳು: %@";
 "Power" = "ಪವರ್";
+"Preparing the autoroute…" = "ಆಟೋರೂಟ್ ಸಿದ್ಧವಾಗುತ್ತಿದೆ…";
 "Preview appears once the part has a name and pins." = "ಪಾರ್ಟ್‌ಗೆ ಹೆಸರು ಮತ್ತು ಪಿನ್‌ಗಳು ಬಂದ ನಂತರ ಪೂರ್ವವೀಕ್ಷಣೆ ಕಾಣಿಸುತ್ತದೆ.";
 "Product Page" = "ಉತ್ಪನ್ನ ಪುಟ";
 "Project Library" = "ಪ್ರಾಜೆಕ್ಟ್ ಲೈಬ್ರರಿ";
@@ -557,6 +559,8 @@
 "Revision" = "ಪರಿಷ್ಕರಣೆ";
 "Right →" = "ಬಲ →";
 "Rip Out Entries" = "ಬಸ್ ಎಂಟ್ರಿಗಳನ್ನು ಹೊರತೆಗೆಯಿರಿ";
+"Rip-up pass %lld" = "ರಿಪ್-ಅಪ್ ಪಾಸ್ %lld";
+"Rip-up pass %lld: %lld unrouted" = "ರಿಪ್-ಅಪ್ ಪಾಸ್ %lld: %lld ರೂಟ್ ಆಗಿಲ್ಲ";
 "Ripple" = "ರಿಪಲ್";
 "Rise time (10–90 %)" = "ಏರಿಕೆ ಸಮಯ (10–90 %)";
 "Robot Platform" = "ರೋಬೋಟ್ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್";
@@ -566,6 +570,7 @@
 "Rounded corners" = "ದುಂಡಾದ ಮೂಲೆಗಳು";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "ಡಿಫರೆನ್ಷಿಯಲ್ ಜೋಡಿಯ ಎರಡೂ ನೆಟ್‌ಗಳನ್ನು (X_P / X_N) ಜೋಡಿ ಅಂತರದಲ್ಲಿ ಒಟ್ಟಿಗೆ ರೂಟ್ ಮಾಡಿ";
 "Router mode" = "ರೂಟರ್ ಮೋಡ್";
+"Routing nets: %lld of %lld" = "ನೆಟ್‌ಗಳನ್ನು ರೂಟ್ ಮಾಡಲಾಗುತ್ತಿದೆ: %lld / %lld";
 "Run" = "ರನ್ ಮಾಡಿ";
 "Run AC Sweep" = "AC ಸ್ವೀಪ್ ರನ್ ಮಾಡಿ";
 "Run DC Sweep" = "DC ಸ್ವೀಪ್ ರನ್ ಮಾಡಿ";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "Octopart, DigiKey ಮತ್ತು Mouser ನಿಂದ ಸ್ಟಾಕ್, ಬೆಲೆಗಳು, ಲೈಫ್‌ಸೈಕಲ್ (EOL / NRND) ಮತ್ತು ಬಿಲ್ಡ್ ಪ್ರಮಾಣಕ್ಕೆ ವೆಚ್ಚ";
 "Stop" = "ನಿಲ್ಲಿಸಿ";
 "Stop Live" = "ಲೈವ್ ನಿಲ್ಲಿಸಿ";
+"Stop the autoroute; the board stays as it was" = "ಆಟೋರೂಟ್ ನಿಲ್ಲಿಸಿ; ಬೋರ್ಡ್ ಹಿಂದಿನಂತೆಯೇ ಉಳಿಯುತ್ತದೆ";
 "Stop the live simulation" = "ಲೈವ್ ಸಿಮ್ಯುಲೇಶನ್ ನಿಲ್ಲಿಸಿ";
 "Suggested" = "ಸೂಚಿಸಲಾಗಿದೆ";
 "Super Intelligence" = "ಸೂಪರ್ ಇಂಟೆಲಿಜೆನ್ಸ್";

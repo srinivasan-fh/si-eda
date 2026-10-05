@@ -269,6 +269,7 @@
 "Find Parts Online…" = "Bauteile online suchen…";
 "Finish" = "Fertigstellen";
 "Finish the login in your browser…" = "Anmeldung im Browser abschließen …";
+"Finishing the autoroute…" = "Autorouting wird abgeschlossen…";
 "Firmware — 1 s, 100 µs" = "Firmware — 1 s, 100 µs";
 "Fit Board to Components" = "Platine an Bauteile anpassen";
 "Fits every pin" = "Passt zu jedem Pin";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "Port (zum übergeordneten Blatt)";
 "Ports: %@" = "Ports: %@";
 "Power" = "Versorgung";
+"Preparing the autoroute…" = "Autorouting wird vorbereitet…";
 "Preview appears once the part has a name and pins." = "Die Vorschau erscheint, sobald das Bauteil einen Namen und Pins hat.";
 "Product Page" = "Produktseite";
 "Project Library" = "Projektbibliothek";
@@ -557,6 +559,8 @@
 "Revision" = "Revision";
 "Right →" = "Rechts →";
 "Rip Out Entries" = "Buseinträge herausführen";
+"Rip-up pass %lld" = "Rip-up-Durchgang %lld";
+"Rip-up pass %lld: %lld unrouted" = "Rip-up-Durchgang %lld: %lld nicht geroutet";
 "Ripple" = "Welligkeit";
 "Rise time (10–90 %)" = "Anstiegszeit (10–90 %)";
 "Robot Platform" = "Roboterplattform";
@@ -566,6 +570,7 @@
 "Rounded corners" = "Abgerundete Ecken";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Beide Netze eines differenziellen Paars (X_P / X_N) gemeinsam im Paarabstand routen";
 "Router mode" = "Router-Modus";
+"Routing nets: %lld of %lld" = "Netze werden geroutet: %lld von %lld";
 "Run" = "Ausführen";
 "Run AC Sweep" = "AC-Sweep ausführen";
 "Run DC Sweep" = "DC-Sweep ausführen";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "Bestand, Preise, Lebenszyklus (EOL / NRND) und Kosten je Fertigungsmenge von Octopart, DigiKey und Mouser";
 "Stop" = "Stopp";
 "Stop Live" = "Live stoppen";
+"Stop the autoroute; the board stays as it was" = "Autorouting anhalten; die Platine bleibt unverändert";
 "Stop the live simulation" = "Live-Simulation stoppen";
 "Suggested" = "Vorgeschlagen";
 "Super Intelligence" = "Super Intelligence";

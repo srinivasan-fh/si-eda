@@ -2,12 +2,14 @@
 //
 //   sieda_route_bench                      medium board (the CI case) and the large board
 //   sieda_route_bench --clusters 32 --layers 8 --seed 3 [--fpga] [--no-bga] [--drc-brute]
+//                     [--threads N] [--router auto|classic|corridor] [--snapshot out.json]
 //
 // Prints component / net counts, the time of each stage, routing completion and the peak resident memory.
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <string>
 
 #if defined(__unix__) || defined(__APPLE__)
@@ -51,11 +53,13 @@ void run(const bench::BenchSpec& spec, bool brute) {
     std::printf("  place   %8.2f s   (board %.0f × %.0f mm)\n", place, p.pcb.settings.width, p.pcb.settings.height);
     std::fflush(stdout);
     t0 = clock::now();
+    const std::clock_t c0 = std::clock();
     const RouteStats st = p.pcb.autoRoute(p.schematic);
     const double route = secs(t0);
-    std::printf("  route   %8.2f s   %d / %d connections (%.1f %%), %d vias, %zu tracks, %.0f mm\n", route, st.routed,
-                st.connections, st.connections ? 100.0 * st.routed / st.connections : 100.0, st.vias,
-                p.pcb.tracks.size(), st.trackLength);
+    const double cpu = static_cast<double>(std::clock() - c0) / CLOCKS_PER_SEC;
+    std::printf("  route   %8.2f s   %d / %d connections (%.1f %%), %d vias, %zu tracks, %.0f mm (CPU %.1f s, %d threads)\n",
+                route, st.routed, st.connections, st.connections ? 100.0 * st.routed / st.connections : 100.0, st.vias,
+                p.pcb.tracks.size(), st.trackLength, cpu, effectiveRoutingThreads());
     if (std::getenv("SIEDA_BENCH_VERBOSE")) {
         std::printf("  failed nets:");
         for (const auto& n : st.failedNets) std::printf(" %s", n.c_str());
@@ -71,6 +75,9 @@ void run(const bench::BenchSpec& spec, bool brute) {
         warnings += v.severity == Severity::Warning;
     }
     std::printf("  drc     %8.2f s   %d errors, %d warnings\n", drcTime, errors, warnings);
+    if (std::getenv("SIEDA_BENCH_VERBOSE"))
+        for (const auto& v : drc)
+            if (v.severity == Severity::Error) std::printf("    %s: %s\n", v.code.c_str(), v.message.c_str());
     if (brute) {
         setDrcBruteForce(true);
         t0 = clock::now();
@@ -82,6 +89,14 @@ void run(const bench::BenchSpec& spec, bool brute) {
             same = ref[i].code == drc[i].code && ref[i].message == drc[i].message;
         std::printf("  drc (brute force) %8.2f s — %s\n", bruteTime, same ? "identical" : "DIFFERENT");
     }
+    // What the app redraws from after every edit: the snapshot (pads, copper, ratsnest, pours) as JSON.
+    t0 = clock::now();
+    const size_t ratsLines = p.pcb.ratsnest(p.schematic).size();
+    const double ratsTime = secs(t0);
+    t0 = clock::now();
+    const size_t snapBytes = p.snapshot().dump().size();
+    std::printf("  ratsnest %7.3f s (%zu lines), snapshot %.3f s (%.1f MB JSON)\n", ratsTime, ratsLines, secs(t0),
+                static_cast<double>(snapBytes) / 1e6);
     if (!g_snapshot.empty())
         if (FILE* f = std::fopen(g_snapshot.c_str(), "w")) {
             const std::string json = p.snapshot().dump();
@@ -114,8 +129,13 @@ int main(int argc, char** argv) {
             custom = true;
         } else if (a == "--drc-brute") brute = true;
         else if (a == "--snapshot" && i + 1 < argc) g_snapshot = argv[++i];
+        else if (a == "--threads" && i + 1 < argc) setRoutingThreads(std::atoi(argv[++i]));
+        else if (a == "--router" && i + 1 < argc) {
+            const std::string r = argv[++i];
+            setRouterStrategy(r == "classic" ? RouterStrategy::Classic : r == "corridor" ? RouterStrategy::Corridor : RouterStrategy::Auto);
+        }
         else {
-            std::printf("usage: sieda_route_bench [--clusters N] [--layers L] [--seed S] [--fpga] [--no-bga] [--drc-brute] [--snapshot file.json]\n");
+            std::printf("usage: sieda_route_bench [--clusters N] [--layers L] [--seed S] [--fpga] [--no-bga] [--drc-brute] [--snapshot file.json] [--threads N] [--router auto|classic|corridor]\n");
             return 2;
         }
     }

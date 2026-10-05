@@ -1132,15 +1132,23 @@ void sieda_pcb_set_layer_count(SiedaProject* project, int32_t layers) {
                     pcb.zones.end());
 }
 
-char* sieda_pcb_autoroute(SiedaProject* project) {
+namespace {
+char* autorouteJson(SiedaProject* project, const RouteControl& control) {
     if (!project) return nullptr;
     try {
+        // A cancelled route leaves the project exactly as it was, placement of new parts included.
+        std::unique_ptr<Project> before = control.progress ? std::make_unique<Project>(project->project) : nullptr;
         project->project.pcb.autoPlace(project->project.schematic, false);
-        RouteStats s = project->project.pcb.autoRoute(project->project.schematic);
-        // Robots: stitched thermal vias under the power FETs (motion-control segment).
-        const int thermal = autoThermalVias(project->project);
+        RouteStats s = project->project.pcb.autoRoute(project->project.schematic, control);
         Json j = Json::object();
-        j["thermalVias"] = thermal;
+        if (s.cancelled) {
+            if (before) project->project = std::move(*before);
+            j["cancelled"] = true;
+            j["thermalVias"] = 0;
+        } else {
+            // Robots: stitched thermal vias under the power FETs (motion-control segment).
+            j["thermalVias"] = autoThermalVias(project->project);
+        }
         j["connections"] = s.connections;
         j["routed"] = s.routed;
         j["failed"] = s.failed;
@@ -1155,6 +1163,28 @@ char* sieda_pcb_autoroute(SiedaProject* project) {
         return errorJson(e);
     }
 }
+}  // namespace
+
+char* sieda_pcb_autoroute(SiedaProject* project) { return autorouteJson(project, RouteControl{}); }
+
+char* sieda_pcb_autoroute_progress(SiedaProject* project, SiedaRouteProgress progress, void* user) {
+    RouteControl control;
+    if (progress)
+        control.progress = [progress, user](const RouteProgress& p) {
+            return progress(user, p.phase, p.pass, p.done, p.total, p.unrouted) == 0;
+        };
+    return autorouteJson(project, control);
+}
+
+int32_t sieda_router_set_strategy(int32_t strategy) {
+    if (strategy < 0 || strategy > 2) return 0;
+    setRouterStrategy(static_cast<RouterStrategy>(strategy));
+    return 1;
+}
+
+int32_t sieda_router_strategy(void) { return static_cast<int32_t>(routerStrategy()); }
+
+void sieda_router_set_threads(int32_t threads) { setRoutingThreads(threads); }
 
 void sieda_pcb_clear_routing(SiedaProject* project) {
     if (project) project->project.pcb.clearRouting();

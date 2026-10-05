@@ -550,6 +550,13 @@ struct LayerTabs: View {
 }
 
 /// The PCB drawing surface (millimetre world coordinates, y down).
+/// Tracks drawn with one stroke: same highlight, colour role and width (µm).
+private struct TrackBatch: Hashable {
+    let highlight: Bool
+    let role: NetRole?
+    let microns: Int
+}
+
 struct PCBCanvas: View {
     @EnvironmentObject private var store: DesignStore
     @Binding var viewport: Viewport
@@ -973,14 +980,22 @@ struct PCBCanvas: View {
         for layer in order where layer < layerCount {
             guard visible.contains(.copper(layer)) else { continue }
             let isActive = layer == activeCopper
+            // Tracks are batched by colour and width: one stroke per batch instead of one per track (a large board
+            // has tens of thousands of segments).
+            var batches: [TrackBatch: Path] = [:]
             for t in boardTracks where t.layer == layer && onScreen(t.ax, t.ay, t.bx, t.by, pad: t.width) {
-                var path = Path()
-                path.move(to: CGPoint(x: t.ax, y: t.ay))
-                path.addLine(to: CGPoint(x: t.bx, y: t.by))
-                let highlight = hoveredNet == t.net
-                let base = copper(t.net, layer)
-                ctx.stroke(path.applying(screen), with: .color(highlight ? Theme.iceBlue : base.opacity(isActive ? 1 : 0.45)),
-                           style: StrokeStyle(lineWidth: max(1, t.width * k), lineCap: .round, lineJoin: .round))
+                let key = TrackBatch(highlight: hoveredNet == t.net, role: colourByNet ? (roles[t.net] ?? .signal) : nil,
+                                     microns: Int((t.width * 1000).rounded()))
+                batches[key, default: Path()].move(to: CGPoint(x: t.ax, y: t.ay))
+                batches[key, default: Path()].addLine(to: CGPoint(x: t.bx, y: t.by))
+            }
+            // Highlighted net last (on top), the rest in a fixed order.
+            for (key, path) in batches.sorted(by: { ($0.key.highlight ? 1 : 0, $0.key.microns, $0.key.role?.rawValue ?? "")
+                                                    < ($1.key.highlight ? 1 : 0, $1.key.microns, $1.key.role?.rawValue ?? "") }) {
+                let base = key.role.map { Theme.netColor($0, layer: layer, layerCount: layerTotal) }
+                    ?? Theme.copperColor(layer, layerCount: layerTotal)
+                ctx.stroke(path.applying(screen), with: .color(key.highlight ? Theme.iceBlue : base.opacity(isActive ? 1 : 0.45)),
+                           style: StrokeStyle(lineWidth: max(1, Double(key.microns) / 1000 * k), lineCap: .round, lineJoin: .round))
             }
             for p in snap.pads where !p.throughHole && (p.layer ?? (p.bottom ? snap.board.bottomLayer : 0)) == layer
                 && (moving.contains(p.component) || onScreen(p.x, p.y, p.x, p.y, pad: max(p.w, p.h))) {

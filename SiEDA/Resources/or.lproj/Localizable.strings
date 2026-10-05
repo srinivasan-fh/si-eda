@@ -269,6 +269,7 @@
 "Find Parts Online…" = "ଅନଲାଇନ୍‌ରେ ପାର୍ଟ ଖୋଜନ୍ତୁ…";
 "Finish" = "ସମାପ୍ତ କରନ୍ତୁ";
 "Finish the login in your browser…" = "ଆପଣଙ୍କ ବ୍ରାଉଜରରେ ଲଗଇନ୍ ସମାପ୍ତ କରନ୍ତୁ…";
+"Finishing the autoroute…" = "ଅଟୋରୁଟ୍ ସମାପ୍ତ ହେଉଛି…";
 "Firmware — 1 s, 100 µs" = "ଫର୍ମୱେୟାର — 1 s, 100 µs";
 "Fit Board to Components" = "ବୋର୍ଡକୁ କମ୍ପୋନେଣ୍ଟ ଅନୁସାରେ ଫିଟ୍ କରନ୍ତୁ";
 "Fits every pin" = "ପ୍ରତ୍ୟେକ ପିନ୍‌ରେ ଖାପ ଖାଏ";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "ପୋର୍ଟ (ପ୍ୟାରେଣ୍ଟ ସିଟ୍‌କୁ)";
 "Ports: %@" = "ପୋର୍ଟ: %@";
 "Power" = "ପାୱାର୍";
+"Preparing the autoroute…" = "ଅଟୋରୁଟ୍ ପ୍ରସ୍ତୁତ ହେଉଛି…";
 "Preview appears once the part has a name and pins." = "ପାର୍ଟର ନାମ ଓ ପିନ୍ ହେବା ପରେ ପ୍ରିଭ୍ୟୁ ଦେଖାଯିବ।";
 "Product Page" = "ଉତ୍ପାଦ ପୃଷ୍ଠା";
 "Project Library" = "ପ୍ରୋଜେକ୍ଟ ଲାଇବ୍ରେରୀ";
@@ -557,6 +559,8 @@
 "Revision" = "ସଂଶୋଧନ";
 "Right →" = "ଡାହାଣକୁ →";
 "Rip Out Entries" = "ବସ୍ ଏଣ୍ଟ୍ରି ବାହାର କରନ୍ତୁ";
+"Rip-up pass %lld" = "ରିପ୍-ଅପ୍ ପାସ୍ %lld";
+"Rip-up pass %lld: %lld unrouted" = "ରିପ୍-ଅପ୍ ପାସ୍ %lld: %lld ରୁଟ୍ ହୋଇନାହିଁ";
 "Ripple" = "ରିପଲ୍";
 "Rise time (10–90 %)" = "ଉଠିବା ସମୟ (10–90 %)";
 "Robot Platform" = "ରୋବଟ୍ ପ୍ଲାଟଫର୍ମ";
@@ -566,6 +570,7 @@
 "Rounded corners" = "ଗୋଲାକାର କୋଣ";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "ଡିଫରେନ୍ସିଆଲ ଯୋଡ଼ିର ଦୁଇଟି ନେଟ୍ (X_P / X_N) କୁ ଯୋଡ଼ି ବ୍ୟବଧାନରେ ଏକାସାଙ୍ଗରେ ରୁଟ୍ କରନ୍ତୁ";
 "Router mode" = "ରାଉଟର ମୋଡ୍";
+"Routing nets: %lld of %lld" = "ନେଟ୍ ରୁଟ୍ ହେଉଛି: %lld / %lld";
 "Run" = "ଚଲାନ୍ତୁ";
 "Run AC Sweep" = "AC ସ୍ୱିପ୍ ଚଲାନ୍ତୁ";
 "Run DC Sweep" = "DC ସ୍ୱିପ୍ ଚଲାନ୍ତୁ";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "Octopart, DigiKey ଓ Mouser ରୁ ଷ୍ଟକ୍, ମୂଲ୍ୟ, ଲାଇଫସାଇକେଲ୍ (EOL / NRND) ଓ ପ୍ରତି ବିଲ୍ଡ ପରିମାଣର ଖର୍ଚ୍ଚ";
 "Stop" = "ବନ୍ଦ କରନ୍ତୁ";
 "Stop Live" = "ଲାଇଭ୍ ବନ୍ଦ କରନ୍ତୁ";
+"Stop the autoroute; the board stays as it was" = "ଅଟୋରୁଟ୍ ବନ୍ଦ କରନ୍ତୁ; ବୋର୍ଡ ପୂର୍ବପରି ରହିବ";
 "Stop the live simulation" = "ଲାଇଭ୍ ସିମୁଲେସନ୍ ବନ୍ଦ କରନ୍ତୁ";
 "Suggested" = "ପ୍ରସ୍ତାବିତ";
 "Super Intelligence" = "ସୁପର ଇଣ୍ଟେଲିଜେନ୍ସ";

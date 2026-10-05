@@ -269,6 +269,7 @@
 "Find Parts Online…" = "Onderdelen online zoeken…";
 "Finish" = "Voltooi";
 "Finish the login in your browser…" = "Voltooi het inloggen in je browser…";
+"Finishing the autoroute…" = "Autorouting afronden…";
 "Firmware — 1 s, 100 µs" = "Firmware — 1 s, 100 µs";
 "Fit Board to Components" = "Board passend maken op componenten";
 "Fits every pin" = "Past bij elke pin";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "Poort (naar bovenliggend blad)";
 "Ports: %@" = "Poorten: %@";
 "Power" = "Voeding";
+"Preparing the autoroute…" = "Autorouting voorbereiden…";
 "Preview appears once the part has a name and pins." = "Voorbeeld verschijnt zodra het onderdeel een naam en pinnen heeft.";
 "Product Page" = "Productpagina";
 "Project Library" = "Projectbibliotheek";
@@ -557,6 +559,8 @@
 "Revision" = "Revisie";
 "Right →" = "Rechts →";
 "Rip Out Entries" = "Aftakkingen uittrekken";
+"Rip-up pass %lld" = "Rip-up-ronde %lld";
+"Rip-up pass %lld: %lld unrouted" = "Rip-up-ronde %lld: %lld niet gerouteerd";
 "Ripple" = "Rimpel";
 "Rise time (10–90 %)" = "Stijgtijd (10–90 %)";
 "Robot Platform" = "Robotplatform";
@@ -566,6 +570,7 @@
 "Rounded corners" = "Afgeronde hoeken";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Route beide netten van een differentieel paar (X_P / X_N) samen op de paarafstand";
 "Router mode" = "Routermodus";
+"Routing nets: %lld of %lld" = "Netten routeren: %lld van %lld";
 "Run" = "Voer uit";
 "Run AC Sweep" = "AC-sweep uitvoeren";
 "Run DC Sweep" = "DC-sweep uitvoeren";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "Voorraad, prijzen, levenscyclus (EOL / NRND) en kosten per productieaantal van Octopart, DigiKey en Mouser";
 "Stop" = "Stop";
 "Stop Live" = "Stop live";
+"Stop the autoroute; the board stays as it was" = "Autorouting stoppen; de printplaat blijft ongewijzigd";
 "Stop the live simulation" = "Stop de live simulatie";
 "Suggested" = "Voorgesteld";
 "Super Intelligence" = "Super Intelligence";

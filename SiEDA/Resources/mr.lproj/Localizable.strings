@@ -269,6 +269,7 @@
 "Find Parts Online…" = "ऑनलाइन पार्ट शोधा…";
 "Finish" = "फिनिश";
 "Finish the login in your browser…" = "तुमच्या ब्राउझरमध्ये लॉगिन पूर्ण करा…";
+"Finishing the autoroute…" = "ऑटोरूट पूर्ण होत आहे…";
 "Firmware — 1 s, 100 µs" = "फर्मवेअर — 1 s, 100 µs";
 "Fit Board to Components" = "बोर्ड कंपोनंटनुसार फिट करा";
 "Fits every pin" = "प्रत्येक पिनला बसते";
@@ -509,6 +510,7 @@
 "Port (to parent sheet)" = "पोर्ट (पालक शीटकडे)";
 "Ports: %@" = "पोर्ट: %@";
 "Power" = "पॉवर";
+"Preparing the autoroute…" = "ऑटोरूटची तयारी सुरू आहे…";
 "Preview appears once the part has a name and pins." = "पार्टला नाव आणि पिन मिळाल्यावर प्रिव्ह्यू दिसेल.";
 "Product Page" = "उत्पादन पृष्ठ";
 "Project Library" = "प्रोजेक्ट लायब्ररी";
@@ -557,6 +559,8 @@
 "Revision" = "आवृत्ती";
 "Right →" = "उजवीकडे →";
 "Rip Out Entries" = "बस नोंदी बाहेर काढा";
+"Rip-up pass %lld" = "रिप-अप पास %lld";
+"Rip-up pass %lld: %lld unrouted" = "रिप-अप पास %lld: %lld रूट झालेले नाहीत";
 "Ripple" = "रिपल";
 "Rise time (10–90 %)" = "राइज टाइम (10–90 %)";
 "Robot Platform" = "रोबोट प्लॅटफॉर्म";
@@ -566,6 +570,7 @@
 "Rounded corners" = "गोलाकार कोपरे";
 "Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "डिफरेन्शियल जोडीचे दोन्ही नेट (X_P / X_N) जोडी अंतरावर एकत्र रूट करा";
 "Router mode" = "राउटर मोड";
+"Routing nets: %lld of %lld" = "नेट रूट होत आहेत: %lld / %lld";
 "Run" = "चालवा";
 "Run AC Sweep" = "AC स्वीप चालवा";
 "Run DC Sweep" = "DC स्वीप चालवा";
@@ -675,6 +680,7 @@
 "Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser" = "Octopart, DigiKey आणि Mouser कडून स्टॉक, किंमती, लाइफसायकल (EOL / NRND) आणि प्रत्येक बिल्ड प्रमाणाचा खर्च";
 "Stop" = "थांबवा";
 "Stop Live" = "लाइव्ह थांबवा";
+"Stop the autoroute; the board stays as it was" = "ऑटोरूट थांबवा; बोर्ड पूर्वीसारखाच राहील";
 "Stop the live simulation" = "लाइव्ह सिम्युलेशन थांबवा";
 "Suggested" = "सुचवलेले";
 "Super Intelligence" = "सुपर इंटेलिजन्स";
