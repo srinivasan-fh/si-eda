@@ -103,6 +103,9 @@ final class DesignStore: ObservableObject {
     /// Custom part the Component Library should open (set when jumping from the inspector).
     @Published var libraryFocusPartId: String?
     @Published private(set) var isBusy = false
+    /// Progress of the running autoroute (nil when none runs); `cancelAutoRoute()` stops it.
+    @Published private(set) var routeProgress: RouteProgressReport?
+    private var routeChannel: RouteProgressChannel?
     @Published private(set) var busyMessage = ""
     @Published var statusMessage = "Ready"
     @Published private(set) var documentURL: URL?
@@ -263,7 +266,7 @@ final class DesignStore: ObservableObject {
             }
         }
         sheetSnapshot = snapshot.onSheet(snapshot.activeSheet)
-        selection = selection.filter { id in snapshot.components.contains { $0.id == id } }
+        selection = selection.filter { snapshot.component($0) != nil }  // O(1) per part (large designs)
         if let wire = selectedWire, !snapshot.wires.contains(where: { $0.id == wire }) { selectedWire = nil }
         if let bus = selectedBus, sheetSnapshot.bus(bus) == nil { selectedBus = nil }
         // Undo, open or any edit that replaced the design ends a route in progress.
@@ -1201,7 +1204,27 @@ final class DesignStore: ObservableObject {
             if empty { fitToken &+= 1 }
         }
         let engine = self.engine
-        let result = await runBusy(placeMissing ? "Placing and routing…" : "Autorouting…") { engine.autoRouteChecked() }
+        // Progress arrives on the routing thread; it is shown on the main actor while this route runs.
+        let channel = RouteProgressChannel { report in
+            Task { @MainActor [weak self] in
+                guard let self, self.routeChannel != nil else { return }
+                self.routeProgress = report
+            }
+        }
+        routeChannel = channel
+        routeProgress = RouteProgressReport()
+        let result = await runBusy(placeMissing ? "Placing and routing…" : "Autorouting…") {
+            engine.autoRouteChecked(progress: channel)
+        }
+        routeChannel = nil
+        routeProgress = nil
+        if case .success(let stats) = result, stats.cancelled == true {
+            // The core left the project as it was; the rip-up and placement made before routing are undone too.
+            if placeMissing || clearFirst { try? engine.load(json: before) }
+            refresh()
+            statusMessage = "Autoroute stopped — the board is as it was"
+            return
+        }
         func recordUndo() {
             pushUndo(before)
             isDirty = true
@@ -1224,6 +1247,11 @@ final class DesignStore: ObservableObject {
         statusMessage = (placeMissing ? "Placed footprints inside the board outline and " : "") + routed
             + ((stats.lengthTuned ?? 0) > 0 ? ", \(stats.lengthTuned ?? 0) nets length-matched with serpentines" : "")
         statusMessage = statusMessage.prefix(1).uppercased() + statusMessage.dropFirst()
+    }
+
+    /// Stops the running autoroute at its next progress report; the board is left as it was.
+    func cancelAutoRoute() {
+        routeChannel?.cancel()
     }
 
     func clearRouting() {

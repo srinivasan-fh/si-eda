@@ -640,3 +640,11 @@
 "Bus width" = "Busbreite";
 "Number of nets in the bus" = "Anzahl der Netze im Bus";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "Pad anklicken: es und die folgenden Pads seiner Reihe werden zusammen als Bündel im Leiterbahnraster geroutet; abschließen, dann jede Leiterbahn einzeln weiterführen";
+
+/* Autoroute progress (status bar) */
+"Preparing the autoroute…" = "Autorouting wird vorbereitet…";
+"Routing nets: %lld of %lld" = "Netze werden geroutet: %lld von %lld";
+"Rip-up pass %lld: %lld unrouted" = "Rip-up-Durchgang %lld: %lld nicht geroutet";
+"Rip-up pass %lld" = "Rip-up-Durchgang %lld";
+"Finishing the autoroute…" = "Autorouting wird abgeschlossen…";
+"Stop the autoroute; the board stays as it was" = "Autorouting anhalten; die Platine bleibt unverändert";

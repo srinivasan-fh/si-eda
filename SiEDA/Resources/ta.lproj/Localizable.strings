@@ -640,3 +640,11 @@
 "Bus width" = "பஸ் அகலம்";
 "Number of nets in the bus" = "பஸ்ஸில் உள்ள நெட்களின் எண்ணிக்கை";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "ஒரு பேடைச் சொடுக்கவும்: அதுவும் அதன் வரிசையின் அடுத்த பேடுகளும் தட இடைவெளியில் ஒரு கட்டாக ஒன்றாக வழியமைக்கப்படும்; முடித்த பின் ஒவ்வொரு தடத்தையும் தொடரவும்";
+
+/* Autoroute progress (status bar) */
+"Preparing the autoroute…" = "தானியங்கி வழித்தடமிடல் தயாராகிறது…";
+"Routing nets: %lld of %lld" = "நெட்கள் வழித்தடமிடப்படுகின்றன: %lld / %lld";
+"Rip-up pass %lld: %lld unrouted" = "ரிப்-அப் சுற்று %lld: %lld வழித்தடமிடப்படவில்லை";
+"Rip-up pass %lld" = "ரிப்-அப் சுற்று %lld";
+"Finishing the autoroute…" = "தானியங்கி வழித்தடமிடல் நிறைவடைகிறது…";
+"Stop the autoroute; the board stays as it was" = "தானியங்கி வழித்தடமிடலை நிறுத்து; பலகை முன்பிருந்தபடியே இருக்கும்";

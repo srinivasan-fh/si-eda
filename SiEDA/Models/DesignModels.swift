@@ -6,7 +6,12 @@ import Foundation
 struct DesignSnapshot: Decodable, Equatable {
     var name: String
     var requirements: String
-    var components: [SnapComponent]
+    var components: [SnapComponent] {
+        didSet { componentIndex = Self.index(of: components) }
+    }
+    /// Component id → its position in `components`, so `component(_:)` is O(1): the canvases look parts up for every
+    /// wire end and courtyard of every frame, which made drawing O(n²) on designs with 1000+ parts.
+    private(set) var componentIndex: [Int: Int] = [:]
     var wires: [SnapWire]
     var nets: [SnapNet]
     var board: BoardInfo
@@ -68,6 +73,7 @@ struct DesignSnapshot: Decodable, Equatable {
         self.courtyards = courtyards
         self.bodies = bodies
         self.customParts = customParts
+        componentIndex = Self.index(of: components)
     }
 
     init(from decoder: Decoder) throws {
@@ -103,6 +109,13 @@ struct DesignSnapshot: Decodable, Equatable {
         activeVariant = try c.decodeIfPresent(String.self, forKey: .activeVariant) ?? ""
         buses = try c.decodeIfPresent([BusInfo].self, forKey: .buses) ?? []
         titleBlock = try c.decodeIfPresent(TitleBlockInfo.self, forKey: .titleBlock) ?? TitleBlockInfo()
+        componentIndex = Self.index(of: components)
+    }
+
+    private static func index(of components: [SnapComponent]) -> [Int: Int] {
+        var index = [Int: Int](minimumCapacity: components.count)
+        for (i, c) in components.enumerated() where index[c.id] == nil { index[c.id] = i }
+        return index
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -111,7 +124,12 @@ struct DesignSnapshot: Decodable, Equatable {
         case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant, buses, titleBlock
     }
 
-    func component(_ id: Int) -> SnapComponent? { components.first { $0.id == id } }
+    func component(_ id: Int) -> SnapComponent? {
+        guard let i = componentIndex[id], i < components.count, components[i].id == id else {
+            return componentIndex.isEmpty && !components.isEmpty ? components.first { $0.id == id } : nil
+        }
+        return components[i]
+    }
     func sheet(_ id: Int) -> SheetInfo? { sheets.first { $0.id == id } }
     func bus(_ id: Int) -> BusInfo? { buses.first { $0.id == id } }
 
@@ -1313,6 +1331,8 @@ struct RouteStats: Decodable, Equatable {
     /// Nets lengthened with serpentines (length / phase matching).
     var lengthTuned: Int?
     var failedNets: [String] = []
+    /// The user stopped the route (`sieda_pcb_autoroute_progress`): the board was left as it was.
+    var cancelled: Bool?
 }
 
 /// The seven robot design segments (`sieda_robot_segments_json`) or the six automotive ECU segments

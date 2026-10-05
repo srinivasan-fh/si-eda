@@ -640,3 +640,11 @@
 "Bus width" = "বাছৰ প্ৰস্থ";
 "Number of nets in the bus" = "বাছত থকা নেটৰ সংখ্যা";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "এটা পেডত ক্লিক কৰক: সেইটো আৰু তাৰ শাৰীৰ পৰৱৰ্তী পেডবোৰ ট্ৰেক পিচত এটা বান্দোন হিচাপে একেলগে ৰুট হয়; শেষ কৰক, তাৰ পাছত প্ৰতিটো ট্ৰেক আগবঢ়াওক";
+
+/* Autoroute progress (status bar) */
+"Preparing the autoroute…" = "অটোৰুটৰ প্ৰস্তুতি চলি আছে…";
+"Routing nets: %lld of %lld" = "নেট ৰুট কৰা হৈছে: %lld / %lld";
+"Rip-up pass %lld: %lld unrouted" = "ৰিপ-আপ পাছ %lld: %lld ৰুট কৰা হোৱা নাই";
+"Rip-up pass %lld" = "ৰিপ-আপ পাছ %lld";
+"Finishing the autoroute…" = "অটোৰুট সম্পূৰ্ণ হৈ আছে…";
+"Stop the autoroute; the board stays as it was" = "অটোৰুট বন্ধ কৰক; বৰ্ডখন আগৰ দৰেই থাকিব";

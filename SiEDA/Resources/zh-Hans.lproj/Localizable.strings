@@ -640,3 +640,11 @@
 "Bus width" = "总线宽度";
 "Number of nets in the bus" = "总线中的网络数";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "点击一个焊盘：它与同一排后续焊盘以走线间距成束一起布线；完成后再逐条延续各走线";
+
+/* Autoroute progress (status bar) */
+"Preparing the autoroute…" = "正在准备自动布线…";
+"Routing nets: %lld of %lld" = "正在布线网络：%lld / %lld";
+"Rip-up pass %lld: %lld unrouted" = "拆线重布第 %lld 轮：%lld 条未布通";
+"Rip-up pass %lld" = "拆线重布第 %lld 轮";
+"Finishing the autoroute…" = "正在完成自动布线…";
+"Stop the autoroute; the board stays as it was" = "停止自动布线；电路板保持原样";

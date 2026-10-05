@@ -640,3 +640,11 @@
 "Bus width" = "バス幅";
 "Number of nets in the bus" = "バスに含めるネット数";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "パッドをクリック：そのパッドと同じ列の続くパッドがトラックピッチで束になって一緒に配線されます。終えたら各トラックを個別に続けます";
+
+/* Autoroute progress (status bar) */
+"Preparing the autoroute…" = "自動配線を準備中…";
+"Routing nets: %lld of %lld" = "ネットを配線中: %lld / %lld";
+"Rip-up pass %lld: %lld unrouted" = "引き剥がし再配線パス %lld: 未配線 %lld";
+"Rip-up pass %lld" = "引き剥がし再配線パス %lld";
+"Finishing the autoroute…" = "自動配線を仕上げ中…";
+"Stop the autoroute; the board stays as it was" = "自動配線を停止します。基板は元のままです";

@@ -5166,3 +5166,126 @@ final class InteractiveRoutingStoreTests: XCTestCase {
         XCTAssertNil(store.routePreview)
     }
 }
+
+/// Large designs (the autorouting and scale package): a 1000-part design with 1000 nets loads, refreshes and draws
+/// its schematic and PCB within time budgets; an autoroute reports progress, can be stopped (leaving the board as it
+/// was) and runs off the main thread.
+@MainActor
+final class LargeDesignScaleTests: XCTestCase {
+    /// `parts` resistors in a chain (one two-pin net between neighbours), placed on a 6 mm grid, 40 per row.
+    private func chainStore(parts: Int) -> DesignStore {
+        let store = DesignStore()
+        let engine = store.engine
+        var ids: [Int] = []
+        ids.reserveCapacity(parts)
+        for k in 0..<parts {
+            ids.append(engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 60 * (k % 40), y: 60 * (k / 40))))
+        }
+        for k in 1..<parts {
+            _ = engine.connect(PinAddress(component: ids[k - 1], pin: 1), PinAddress(component: ids[k], pin: 0))
+        }
+        let rows = (parts + 39) / 40
+        engine.setBoard(width: 6.0 * 40 + 10, height: 6.0 * Double(rows) + 10, trackWidth: 0, clearance: 0)
+        for (k, id) in ids.enumerated() {
+            _ = engine.moveFootprint(id, to: CGPoint(x: 8 + 6.0 * Double(k % 40), y: 8 + 6.0 * Double(k / 40)))
+        }
+        store.refresh()
+        return store
+    }
+
+    private func render<V: View>(_ view: V, store: DesignStore) throws -> TimeInterval {
+        let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.LargeDesignScaleTests")))
+        let host = NSHostingView(rootView: view.environmentObject(store).environmentObject(settings)
+            .environmentObject(AgentOrchestrator()))
+        host.frame = NSRect(x: 0, y: 0, width: 1400, height: 900)
+        let started = Date()
+        host.layoutSubtreeIfNeeded()
+        let rep = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.cacheDisplay(in: host.bounds, to: rep)
+        return Date().timeIntervalSince(started)
+    }
+
+    func testThousandPartDesignRefreshesAndDrawsWithinBudget() throws {
+        let store = chainStore(parts: 1000)
+        XCTAssertEqual(store.snapshot.components.count, 1000)
+        XCTAssertGreaterThanOrEqual(store.snapshot.nets.count, 999)
+        // Component lookup is O(1) (the canvases look parts up for every wire end and courtyard of every frame).
+        let lookups = Date()
+        for c in store.snapshot.components { XCTAssertEqual(store.snapshot.component(c.id)?.id, c.id) }
+        XCTAssertLessThan(Date().timeIntervalSince(lookups), 0.5)
+        XCTAssertNil(store.snapshot.component(-42))
+        // A full refresh (snapshot from the core, decoding, sheet view) after an edit.
+        let refreshed = Date()
+        store.refresh()
+        XCTAssertLessThan(Date().timeIntervalSince(refreshed), 3.0)
+        // Select everything: the refresh keeps the selection in O(n).
+        store.selection = Set(store.snapshot.components.map(\.id))
+        let selected = Date()
+        store.refresh()
+        XCTAssertEqual(store.selection.count, 1000)
+        XCTAssertLessThan(Date().timeIntervalSince(selected), 3.0)
+        // Both canvases draw the whole design (zoomed to fit) within a few seconds.
+        store.workspace = .schematic
+        XCTAssertLessThan(try render(ContentView.workspaceView(.schematic), store: store), 8.0)
+        store.workspace = .pcb
+        XCTAssertLessThan(try render(ContentView.workspaceView(.pcb), store: store), 8.0)
+    }
+
+    func testAutorouteReportsProgressAndCanBeStopped() async throws {
+        let store = chainStore(parts: 120)
+        let before = store.engine.saveJSON()
+        // Stop as soon as the first report arrives: nothing changes.
+        let routing = Task { await store.autoRoute() }
+        let deadline = Date().addingTimeInterval(20)
+        while store.routeProgress == nil && Date() < deadline { try await Task.sleep(nanoseconds: 1_000_000) }
+        XCTAssertTrue(store.isBusy, "the route runs off the main thread while the UI stays responsive")
+        store.cancelAutoRoute()
+        await routing.value
+        XCTAssertFalse(store.isBusy)
+        XCTAssertNil(store.routeProgress)
+        if store.snapshot.tracks.isEmpty {
+            XCTAssertTrue(store.statusMessage.contains("stopped"))
+            XCTAssertEqual(store.engine.saveJSON(), before)
+        }
+        // A route left to finish reports progress and routes the chain.
+        let log = PhaseLog()
+        let channel = RouteProgressChannel { report in log.add(report.phase) }
+        let engine = store.engine
+        let stats = try await Task.detached { try engine.autoRouteChecked(progress: channel).get() }.value
+        XCTAssertNotEqual(stats.cancelled, true)
+        XCTAssertEqual(stats.failed, 0)
+        XCTAssertTrue(log.phases.contains(1) && log.phases.contains(3))
+    }
+
+    /// Progress phases seen on the routing thread.
+    private final class PhaseLog: @unchecked Sendable {
+        private let lock = NSLock()
+        private var seen = Set<Int>()
+        func add(_ phase: Int) {
+            lock.lock()
+            seen.insert(phase)
+            lock.unlock()
+        }
+        var phases: Set<Int> {
+            lock.lock()
+            defer { lock.unlock() }
+            return seen
+        }
+    }
+
+    func testCorridorRouterThroughTheBridgeMatchesAcrossThreadCounts() throws {
+        defer {
+            EDAEngine.setRouterStrategy(0)
+            EDAEngine.setRoutingThreads(0)
+        }
+        EDAEngine.setRouterStrategy(2)  // corridor router on a small board
+        var results: [RouteStats] = []
+        for threads in [1, 4] {
+            EDAEngine.setRoutingThreads(threads)
+            let store = chainStore(parts: 80)
+            results.append(try store.engine.autoRouteChecked().get())
+        }
+        XCTAssertEqual(results[0], results[1])
+        XCTAssertEqual(results[0].failed, 0)
+    }
+}

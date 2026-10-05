@@ -640,3 +640,11 @@
 "Bus width" = "बस चौड़ाई";
 "Number of nets in the bus" = "बस में नेट की संख्या";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "पैड पर क्लिक करें: वह और उसकी पंक्ति के अगले पैड ट्रैक पिच पर एक बंडल के रूप में साथ रूट होते हैं; पूरा करें, फिर हर ट्रैक को आगे बढ़ाएँ";
+
+/* Autoroute progress (status bar) */
+"Preparing the autoroute…" = "ऑटोरूट की तैयारी हो रही है…";
+"Routing nets: %lld of %lld" = "नेट रूट हो रहे हैं: %lld / %lld";
+"Rip-up pass %lld: %lld unrouted" = "रिप-अप पास %lld: %lld अनरूटेड";
+"Rip-up pass %lld" = "रिप-अप पास %lld";
+"Finishing the autoroute…" = "ऑटोरूट पूरा हो रहा है…";
+"Stop the autoroute; the board stays as it was" = "ऑटोरूट रोकें; बोर्ड पहले जैसा रहेगा";

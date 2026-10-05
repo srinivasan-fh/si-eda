@@ -602,3 +602,76 @@ int sieda_c_api_router_drag_tune_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Autoroute progress and cancel, router strategy and threads. Returns 0 or the failing step. */
+typedef struct {
+    int calls;
+    int cancelAt;   /* cancel on this call (1-based), 0 = never */
+    int lastPhase;
+    int phaseBackwards;
+} C_ApiRouteProgress;
+
+static int32_t c_api_route_progress(void* user, int32_t phase, int32_t pass, int32_t done, int32_t total,
+                                    int32_t unrouted) {
+    C_ApiRouteProgress* p = (C_ApiRouteProgress*)user;
+    (void)pass;
+    (void)unrouted;
+    ++p->calls;
+    if (phase < p->lastPhase && phase != 2) p->phaseBackwards = 1; /* rip-up passes may follow routing */
+    if (done < 0 || total < 0 || done > total + 1) p->phaseBackwards = 1;
+    p->lastPhase = phase;
+    return p->cancelAt > 0 && p->calls >= p->cancelAt ? 1 : 0;
+}
+
+int sieda_c_api_autoroute_progress_test(void) {
+    SiedaProject* p = sieda_project_new("C API autoroute progress");
+    if (!p) return 1;
+    int32_t r[4];
+    for (int k = 0; k < 4; ++k) {
+        r[k] = sieda_add_component(p, 0 /* Resistor */, "1k", 40.0 * k, 0, 0, NULL);
+        if (r[k] < 0) return 2;
+        if (!sieda_pcb_move_footprint(p, r[k], 10 + 8.0 * k, 10 + 3.0 * k)) return 3;
+    }
+    for (int k = 0; k + 1 < 4; ++k)
+        if (sieda_connect(p, r[k], 1, r[k + 1], 0) < 0) return 4;
+    sieda_pcb_set_board(p, 50, 30, 0, 0);
+    char* before = sieda_project_snapshot(p);
+    if (!before) return 5;
+
+    /* Cancel at the first report: nothing changes. */
+    C_ApiRouteProgress cancel = {0, 1, 0, 0};
+    char* stopped = sieda_pcb_autoroute_progress(p, c_api_route_progress, &cancel);
+    if (!stopped || !strstr(stopped, "\"cancelled\":true") || cancel.calls != 1) return 6;
+    sieda_string_free(stopped);
+    char* after = sieda_project_snapshot(p);
+    if (!after || strcmp(before, after) != 0) return 7;
+    sieda_string_free(after);
+
+    /* A full route reports progress and routes everything. */
+    C_ApiRouteProgress watch = {0, 0, 0, 0};
+    char* routed = sieda_pcb_autoroute_progress(p, c_api_route_progress, &watch);
+    if (!routed || strstr(routed, "\"cancelled\"") || !strstr(routed, "\"failed\":0") || watch.calls < 3 ||
+        watch.phaseBackwards || watch.lastPhase != 3)
+        return 8;
+    sieda_string_free(routed);
+
+    /* The corridor router (forced) on the same board, single-threaded and on four threads: the same result (the core
+     * tests compare the copper bit for bit). */
+    if (!sieda_router_set_strategy(0) || sieda_router_set_strategy(7) || sieda_router_strategy() != 0) return 9;
+    if (!sieda_router_set_strategy(2) || sieda_router_strategy() != 2) return 10;
+    char* snaps[2] = {NULL, NULL};
+    for (int t = 0; t < 2; ++t) {
+        sieda_router_set_threads(t == 0 ? 1 : 4);
+        sieda_pcb_clear_routing(p);
+        snaps[t] = sieda_pcb_autoroute_progress(p, NULL, NULL);
+        if (!snaps[t] || !strstr(snaps[t], "\"failed\":0")) return 11;
+    }
+    sieda_router_set_strategy(0);
+    sieda_router_set_threads(0);
+    if (!snaps[0] || !snaps[1] || strcmp(snaps[0], snaps[1]) != 0) return 12;
+    sieda_string_free(snaps[0]);
+    sieda_string_free(snaps[1]);
+    sieda_string_free(before);
+    sieda_project_free(p);
+    return 0;
+}

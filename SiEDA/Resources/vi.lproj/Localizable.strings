@@ -640,3 +640,11 @@
 "Bus width" = "Độ rộng bus";
 "Number of nets in the bus" = "Số net trong bus";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "Nhấp một pad: pad đó và các pad kế tiếp cùng hàng được đi dây cùng nhau thành bó theo bước đường mạch; kết thúc rồi nối tiếp từng đường";
+
+/* Autoroute progress (status bar) */
+"Preparing the autoroute…" = "Đang chuẩn bị đi dây tự động…";
+"Routing nets: %lld of %lld" = "Đang đi dây các net: %lld / %lld";
+"Rip-up pass %lld: %lld unrouted" = "Lượt gỡ và đi lại %lld: %lld chưa đi dây";
+"Rip-up pass %lld" = "Lượt gỡ và đi lại %lld";
+"Finishing the autoroute…" = "Đang hoàn tất đi dây tự động…";
+"Stop the autoroute; the board stays as it was" = "Dừng đi dây tự động; bo mạch giữ nguyên như cũ";

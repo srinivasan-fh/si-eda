@@ -640,3 +640,11 @@
 "Bus width" = "Bus width";
 "Number of nets in the bus" = "Number of nets in the bus";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track";
+
+/* Autoroute progress (status bar) */
+"Preparing the autoroute…" = "Preparing the autoroute…";
+"Routing nets: %lld of %lld" = "Routing nets: %lld of %lld";
+"Rip-up pass %lld: %lld unrouted" = "Rip-up pass %lld: %lld unrouted";
+"Rip-up pass %lld" = "Rip-up pass %lld";
+"Finishing the autoroute…" = "Finishing the autoroute…";
+"Stop the autoroute; the board stays as it was" = "Stop the autoroute; the board stays as it was";

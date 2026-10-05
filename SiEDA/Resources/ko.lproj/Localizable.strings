@@ -640,3 +640,11 @@
 "Bus width" = "버스 폭";
 "Number of nets in the bus" = "버스의 넷 수";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "패드를 클릭: 그 패드와 같은 줄의 다음 패드들이 트랙 피치로 한 묶음이 되어 함께 배선됩니다. 마친 뒤 각 트랙을 이어 가세요";
+
+/* Autoroute progress (status bar) */
+"Preparing the autoroute…" = "자동 배선 준비 중…";
+"Routing nets: %lld of %lld" = "네트 배선 중: %lld / %lld";
+"Rip-up pass %lld: %lld unrouted" = "립업 패스 %lld: 미배선 %lld개";
+"Rip-up pass %lld" = "립업 패스 %lld";
+"Finishing the autoroute…" = "자동 배선 마무리 중…";
+"Stop the autoroute; the board stays as it was" = "자동 배선을 중지합니다. 보드는 그대로 유지됩니다";
