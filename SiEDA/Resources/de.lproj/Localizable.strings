@@ -85,6 +85,7 @@
 "Apply Prices to BOM" = "Preise in die Stückliste übernehmen";
 "Apply Symbol" = "Symbol anwenden";
 "Apply Tuning" = "Abstimmung anwenden";
+"Arc" = "Bogen";
 "Arrange" = "Anordnen";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Schaltplansymbol anordnen: Pins auf jeder Seite, Gruppen, gestapelte Versorgungspins, automatisch anordnen";
 "Arrange the symbol, or define the gates of a multi-unit part" = "Symbol anordnen oder die Gatter eines mehrteiligen Bauteils festlegen";
@@ -130,6 +131,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Platinenumriss (Quad-X-Rahmen, abgerundet, Kreis), Montagebohrungen, Kupferflächen/-ebenen und Netzklassen";
 "Board thickness" = "Platinendicke";
 "Boards per order, for the order cost" = "Platinen pro Bestellung, für die Bestellkosten";
+"Body box" = "Gehäuserahmen";
 "Broadside" = "Breitseitig";
 "Built-in model" = "Eingebautes Modell";
 "Bus" = "Bus";
@@ -170,6 +172,7 @@
 "Choose a part" = "Bauteil auswählen";
 "Choose the footprint for this symbol: the import is read again with this pair" = "Footprint für dieses Symbol wählen: der Import wird mit diesem Paar neu gelesen";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "Kinoreifes Head-up-Display: Projektor, Partikel, Bauteil-Callouts, Datensäulen und Anzeigen";
+"Circle" = "Kreis";
 "Circuit" = "Schaltung";
 "Circuit — 5 ms, 5 µs" = "Schaltung — 5 ms, 5 µs";
 "Class / board" = "Klasse / Platine";
@@ -228,6 +231,7 @@
 "DEVICES" = "BAUTEILE";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "ZEICHNUNG";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "Datenblatt";
@@ -245,6 +249,7 @@
 "Delete Type" = "Typ löschen";
 "Delete Variant" = "Variante löschen";
 "Delete Wire" = "Leitung löschen";
+"Delete the selected drawing" = "Ausgewählte Zeichnung löschen";
 "Describe your product" = "Produkt beschreiben";
 "Description" = "Beschreibung";
 "Design" = "Design";
@@ -268,7 +273,9 @@
 "Done" = "Fertig";
 "Down ↓" = "Nach unten ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "Datenblatt-PDF des Distributors laden und die Pin-Tabelle auslesen";
+"Drag to draw · click to place a text · Esc returns to selecting" = "Ziehen zum Zeichnen · Klicken setzt einen Text · Esc kehrt zur Auswahl zurück";
 "Drag to orbit" = "Ziehen zum Drehen";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "Den erzeugten Rahmen zeichnen; ausschalten, wenn die Zeichnungen das Gehäuse bilden";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "Landepattern Pad für Pad zeichnen: Position, Größe, Form, Bohrung und Pin jedes Pads";
 "Drawn by" = "Gezeichnet von";
 "Driver" = "Treiber";
@@ -289,6 +296,7 @@
 "Edit Symbol…" = "Symbol bearbeiten …";
 "Effort" = "Aufwand";
 "Enable AI assistance" = "KI-Unterstützung aktivieren";
+"End %lld°" = "Ende %lld°";
 "Engineering change order: review and execute the schematic's changes on the board" = "Änderungsauftrag: Änderungen des Schaltplans prüfen und auf der Platine ausführen";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Issuer-URL des Identitätsanbieters und Client-ID von SiEDA oben eingeben, um diese Taste zu aktivieren (IT-Administration fragen).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxid unter Prozessoren, BGAs und großen Kondensatoren, damit ein MIL-STD-901E-Schock sie nicht abreißt";
@@ -315,6 +323,7 @@
 "File unit" = "Dateieinheit";
 "Fill Suggested Part Numbers" = "Vorgeschlagene Teilenummern eintragen";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "In jede Zeile die Lieferanten-Artikelnummer und den Stückpreis des besten Angebots bei der Fertigungsmenge eintragen";
+"Filled" = "Gefüllt";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "Trägt Standard-Teilenummern ein, wo sie sich aus Wert und Gehäuse ergeben (z. B. Yageo RC0805 ";
 "Find" = "Suchen";
 "Find & Replace" = "Suchen & Ersetzen";
@@ -328,6 +337,7 @@
 "Fit Board to Components" = "Platine an Bauteile anpassen";
 "Fits every pin" = "Passt zu jedem Pin";
 "Fitted" = "Bestückt";
+"Fitted to Entries" = "An Einträge angepasst";
 "Fix Duplicates Only" = "Nur Duplikate korrigieren";
 "Flicker (1/f)" = "Funkel (1/f)";
 "Flight time" = "Laufzeit";
@@ -415,8 +425,10 @@
 "Length" = "Länge";
 "Library" = "Bibliothek";
 "Lifecycle" = "Lebenszyklus";
+"Line" = "Linie";
 "Line loss per layer" = "Leitungsverlust je Lage";
 "Line total" = "Zeilensumme";
+"Line width %@" = "Linienbreite %@";
 "Live Pricing" = "Live-Preise";
 "Live Pricing…" = "Live-Preise…";
 "Live board" = "Live-Platine";
@@ -467,6 +479,8 @@
 "Mounting" = "Montage";
 "Mouser Search API key (API Hub → Search API)." = "Mouser-Such-API-Schlüssel (API Hub → Search API).";
 "Move Selection Here" = "Auswahl hierher verschieben";
+"Move drawing" = "Zeichnung verschieben";
+"Move the drawing half a grid step" = "Zeichnung um einen halben Rasterschritt verschieben";
 "Move the footprint origin to the centre of the pads" = "Footprint-Ursprung in die Mitte der Pads verschieben";
 "Move the pad in the numbering; pads between shift by one" = "Pad in der Nummerierung verschieben; dazwischenliegende Pads rücken um eins";
 "NAVIGATOR" = "NAVIGATOR";
@@ -497,6 +511,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Keine differenziellen Paare (…_P/_N, …+/-) oder Busse (DQ0…, DATA[0..7], ADDR…) in diesem Design.";
 "No distributor API keys yet" = "Noch keine Distributor-API-Schlüssel";
 "No distributor offers." = "Keine Distributorangebote.";
+"No drawings yet: pick a tool and drag on the symbol." = "Noch keine Zeichnungen: Werkzeug wählen und auf dem Symbol ziehen.";
 "No errors or warnings." = "Keine Fehler oder Warnungen.";
 "No gates found in the pin names." = "In den Pinnamen wurden keine Gatter gefunden.";
 "No imported model" = "Kein importiertes Modell";
@@ -609,6 +624,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "Platzierung, Routing, Kupferflächen, DRC, Gerber Edge.Cuts und die 3D-Platine folgen dem Umriss. ";
 "Plane" = "Ebene";
 "Plane cavity" = "Ebenenresonator";
+"Polygon" = "Polygon";
 "Port (to parent sheet)" = "Port (zum übergeordneten Blatt)";
 "Ports: %@" = "Ports: %@";
 "Power" = "Versorgung";
@@ -623,6 +639,7 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "Radius %lld";
 "Re-annotate from the board (columns)" = "Von der Platine neu annotieren (Spalten)";
 "Re-annotate from the board (rows)" = "Von der Platine neu annotieren (Zeilen)";
 "Re-verify" = "Erneut verifizieren";
@@ -731,11 +748,13 @@
 "Search parts" = "Teile suchen";
 "Searching…" = "Suche läuft…";
 "Seat on Board" = "Auf die Platine setzen";
+"Select" = "Auswählen";
 "Select a net to analyse" = "Netz zur Analyse auswählen";
 "Select a net to analyse its channel" = "Netz auswählen, um seinen Kanal zu analysieren";
 "Select a pad to edit its position, size, shape, drill and pin." = "Pad auswählen, um Position, Größe, Form, Bohrung und Pin zu bearbeiten.";
 "Select a part on the schematic or PCB to edit its properties." = "Bauteil im Schaltplan oder auf der Platine auswählen, um seine Eigenschaften zu bearbeiten.";
 "Select an importable part to preview it." = "Wählen Sie ein importierbares Bauteil für die Vorschau.";
+"Select and move pins and drawings" = "Pins und Zeichnungen auswählen und verschieben";
 "Select pins to move them to a side, stack them or change their order." = "Pins auswählen, um sie auf eine Seite zu verschieben, zu stapeln oder ihre Reihenfolge zu ändern.";
 "Send" = "Senden";
 "Send to" = "Senden an";
@@ -749,6 +768,7 @@
 "Sheet" = "Blatt";
 "Sheet %lld of %lld" = "Blatt %lld von %lld";
 "Sheet Size" = "Blattgröße";
+"Sheet Symbol Size" = "Größe des Plansymbols";
 "Sheet name" = "Blattname";
 "Shot" = "Schrot";
 "Shove" = "Schieben";
@@ -781,6 +801,7 @@
 "Simulation" = "Simulation";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "Simulationsgeschwindigkeit relativ zur Echtzeit (Zeitlupe zeigt schnelle Signale)";
 "Single-ended" = "Single-ended";
+"Size %lld" = "Größe %lld";
 "Skew" = "Laufzeitversatz";
 "Smooth" = "Glatt";
 "Solve the DC operating point once — shows voltage probes" = "DC-Arbeitspunkt einmal berechnen — zeigt Spannungstastköpfe";
@@ -794,6 +815,7 @@
 "Stack repeated power pins" = "Wiederholte Versorgungspins stapeln";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "Lagenaufbau aus der Einstellung „Lagen“ im PCB-Layout: 1 Lage lässt die Unterseite als blankes FR-4; ";
 "Standard ED" = "Standard-ED";
+"Start %lld°" = "Anfang %lld°";
 "Starting the design engine" = "Design-Engine wird gestartet";
 "Step" = "Schritt";
 "Step response" = "Sprungantwort";
@@ -826,6 +848,7 @@
 "Tamper mesh over" = "Tamper-Mesh über";
 "Target" = "Ziel";
 "Test Connection" = "Verbindung testen";
+"Text" = "Text";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "Der Autorouter dimensioniert HF-Leitungen und differenzielle Paare (…_P/_N) auf diese Impedanzen (IPC-2141).";
 "The board is up to date with the schematic." = "Die Platine ist auf dem Stand des Schaltplans.";
 "The imported model replaces the built-in one in every analysis." = "Das importierte Modell ersetzt das eingebaute in jeder Analyse.";

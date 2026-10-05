@@ -6293,3 +6293,46 @@ final class UpdatePcbTests: XCTestCase {
         XCTAssertTrue(store.updatePCB(keys: []).isEmpty)
     }
 }
+
+
+/// Symbol graphics: drawings made in the Symbol Editor encode like the core's, survive the preview round trip and
+/// enlarge the symbol's hit box; a sheet symbol takes a drawn size.
+@MainActor
+final class SymbolGraphicsTests: XCTestCase {
+    func testDrawingsRoundTripThroughTheCore() throws {
+        var spec = CustomPartSpec()
+        spec.name = "GFX"
+        spec.package.type = PackageKind.dip.rawValue
+        spec.pins = (1...4).map { CustomPartSpec.Pin(number: String($0), name: "P\($0)", type: .passive) }
+        var draft = SymbolDraft(spec: spec)
+        XCTAssertTrue(draft.graphics.isEmpty && draft.body)
+        let line = try XCTUnwrap(SymbolDraft.drawing(.line, from: CGPoint(x: -21, y: -9), to: CGPoint(x: 19, y: 11)))
+        XCTAssertEqual(line.cgPoints, [CGPoint(x: -20, y: -10), CGPoint(x: 20, y: 10)])  // snapped
+        XCTAssertNil(SymbolDraft.drawing(.rect, from: .zero, to: CGPoint(x: 1, y: 1)))
+        var arc = try XCTUnwrap(SymbolDraft.drawing(.arc, from: .zero, to: CGPoint(x: 30, y: 0)))
+        arc.fill = true
+        let text = try XCTUnwrap(SymbolDraft.drawing(.text, from: CGPoint(x: -30, y: 40), to: .zero))
+        draft.graphics = [line, arc, text]
+        draft.body = false
+        XCTAssertEqual(draft.drawing(at: CGPoint(x: 0, y: 0)), 1)
+        let edited = draft.applied(to: spec)
+        let info = try EDAEngine.previewCustomPart(edited).get()
+        XCTAssertEqual(info.symbolLayout?.graphics, draft.graphics)
+        XCTAssertEqual(info.symbolLayout?.body, false)
+        XCTAssertEqual(SymbolDraft(spec: edited).graphics.count, 3)
+        let box = SchematicSymbols.bounds(.custom, custom: info)
+        XCTAssertGreaterThanOrEqual(box.maxY, 44)  // the text below the body
+        let data = try JSONEncoder().encode(edited)
+        XCTAssertEqual(try JSONDecoder().decode(CustomPartSpec.self, from: data), edited)
+    }
+
+    func testSheetSymbolSize() throws {
+        let store = DesignStore()
+        let child = try XCTUnwrap(store.addSheet(named: "Child", parent: 1))
+        store.setSheetSymbolSize(child, width: 200, height: 120)
+        XCTAssertEqual(store.snapshot.sheet(child)?.symbolWidth, 200)
+        XCTAssertEqual(store.snapshot.sheet(child)?.symbolHeight, 120)
+        store.setSheetSymbolSize(child, width: 0, height: 0)
+        XCTAssertEqual(store.snapshot.sheet(child)?.symbolWidth, 0)
+    }
+}

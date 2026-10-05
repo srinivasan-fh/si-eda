@@ -85,6 +85,7 @@
 "Apply Prices to BOM" = "Áp dụng giá vào BOM";
 "Apply Symbol" = "Áp dụng ký hiệu";
 "Apply Tuning" = "Áp dụng tinh chỉnh";
+"Arc" = "Cung";
 "Arrange" = "Sắp xếp";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Sắp xếp ký hiệu sơ đồ: chân ở mọi cạnh, nhóm, xếp chồng chân nguồn, tự động sắp xếp";
 "Arrange the symbol, or define the gates of a multi-unit part" = "Sắp xếp ký hiệu hoặc định nghĩa các cổng của linh kiện nhiều đơn vị";
@@ -130,6 +131,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Đường viền bo (khung quad-X, bo góc, hình tròn), lỗ bắt vít, vùng đổ đồng/mặt phẳng và lớp net";
 "Board thickness" = "Độ dày bo mạch";
 "Boards per order, for the order cost" = "Số bo mỗi đơn hàng, để tính chi phí";
+"Body box" = "Khung thân";
 "Broadside" = "Ghép mặt rộng";
 "Built-in model" = "Mô hình tích hợp";
 "Bus" = "Bus";
@@ -170,6 +172,7 @@
 "Choose a part" = "Chọn linh kiện";
 "Choose the footprint for this symbol: the import is read again with this pair" = "Chọn footprint cho ký hiệu này: dữ liệu nhập được đọc lại với cặp này";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "Màn hình HUD điện ảnh: máy chiếu, hạt, chú thích linh kiện, cột dữ liệu và chỉ số";
+"Circle" = "Hình tròn";
 "Circuit" = "Mạch";
 "Circuit — 5 ms, 5 µs" = "Mạch — 5 ms, 5 µs";
 "Class / board" = "Lớp / bo mạch";
@@ -228,6 +231,7 @@
 "DEVICES" = "THIẾT BỊ";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "HÌNH VẼ";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "Datasheet";
@@ -245,6 +249,7 @@
 "Delete Type" = "Xóa kiểu";
 "Delete Variant" = "Xóa biến thể";
 "Delete Wire" = "Xóa dây";
+"Delete the selected drawing" = "Xóa hình vẽ đã chọn";
 "Describe your product" = "Mô tả sản phẩm của bạn";
 "Description" = "Mô tả";
 "Design" = "Thiết kế";
@@ -268,7 +273,9 @@
 "Done" = "Xong";
 "Down ↓" = "Xuống ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "Tải PDF datasheet của nhà phân phối và trích bảng chân";
+"Drag to draw · click to place a text · Esc returns to selecting" = "Kéo để vẽ · nhấp để đặt văn bản · Esc quay lại chọn";
 "Drag to orbit" = "Kéo để xoay quanh";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "Vẽ hình chữ nhật được tạo; tắt khi các hình vẽ là thân";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "Vẽ land pattern từng pad: vị trí, kích thước, hình dạng, lỗ khoan và chân của mỗi pad";
 "Drawn by" = "Người vẽ";
 "Driver" = "Bộ lái";
@@ -289,6 +296,7 @@
 "Edit Symbol…" = "Sửa ký hiệu…";
 "Effort" = "Mức suy luận";
 "Enable AI assistance" = "Bật hỗ trợ AI";
+"End %lld°" = "Kết thúc %lld°";
 "Engineering change order: review and execute the schematic's changes on the board" = "Lệnh thay đổi kỹ thuật: xem xét và thực hiện các thay đổi của sơ đồ nguyên lý trên bo mạch";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Nhập URL issuer của nhà cung cấp danh tính và client ID của SiEDA ở trên để bật nút này (hỏi quản trị viên IT của bạn).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Phủ epoxy dưới vi xử lý, BGA và tụ điện lớn để chấn động MIL-STD-901E không làm bong chúng";
@@ -315,6 +323,7 @@
 "File unit" = "Đơn vị tệp";
 "Fill Suggested Part Numbers" = "Điền mã linh kiện đề xuất";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "Điền mã linh kiện của nhà cung cấp và đơn giá của báo giá tốt nhất ở số lượng sản xuất vào mỗi dòng";
+"Filled" = "Tô đầy";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "Điền mã linh kiện tiêu chuẩn suy ra từ giá trị và kiểu vỏ (vd: Yageo RC0805 ";
 "Find" = "Tìm";
 "Find & Replace" = "Tìm & thay thế";
@@ -328,6 +337,7 @@
 "Fit Board to Components" = "Khớp bo mạch với linh kiện";
 "Fits every pin" = "Khớp mọi chân";
 "Fitted" = "Lắp";
+"Fitted to Entries" = "Vừa với các entry";
 "Fix Duplicates Only" = "Chỉ sửa trùng lặp";
 "Flicker (1/f)" = "Nhấp nháy (1/f)";
 "Flight time" = "Thời gian truyền";
@@ -415,8 +425,10 @@
 "Length" = "Chiều dài";
 "Library" = "Thư viện";
 "Lifecycle" = "Vòng đời";
+"Line" = "Đường";
 "Line loss per layer" = "Suy hao đường truyền theo lớp";
 "Line total" = "Thành tiền";
+"Line width %@" = "Độ dày nét %@";
 "Live Pricing" = "Giá trực tiếp";
 "Live Pricing…" = "Giá trực tiếp…";
 "Live board" = "Bo mạch trực tiếp";
@@ -467,6 +479,8 @@
 "Mounting" = "Lắp đặt";
 "Mouser Search API key (API Hub → Search API)." = "Khóa API tìm kiếm của Mouser (API Hub → Search API).";
 "Move Selection Here" = "Di chuyển vùng chọn đến đây";
+"Move drawing" = "Di chuyển hình vẽ";
+"Move the drawing half a grid step" = "Di chuyển hình vẽ nửa bước lưới";
 "Move the footprint origin to the centre of the pads" = "Di chuyển gốc footprint về tâm các pad";
 "Move the pad in the numbering; pads between shift by one" = "Di chuyển pad trong thứ tự đánh số; các pad ở giữa dịch đi một";
 "NAVIGATOR" = "BỘ ĐIỀU HƯỚNG";
@@ -497,6 +511,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Thiết kế này không có cặp vi sai (…_P/_N, …+/-) hoặc bus (DQ0…, DATA[0..7], ADDR…).";
 "No distributor API keys yet" = "Chưa có khóa API nhà phân phối";
 "No distributor offers." = "Không có báo giá nhà phân phối.";
+"No drawings yet: pick a tool and drag on the symbol." = "Chưa có hình vẽ: chọn công cụ và kéo trên ký hiệu.";
 "No errors or warnings." = "Không có lỗi hay cảnh báo.";
 "No gates found in the pin names." = "Không tìm thấy cổng trong tên chân.";
 "No imported model" = "Chưa có mô hình được nhập";
@@ -609,6 +624,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "Sắp xếp linh kiện, đi dây, vùng đổ đồng, DRC, Gerber Edge.Cuts và bo mạch 3D tuân theo đường viền. ";
 "Plane" = "Mặt phẳng";
 "Plane cavity" = "Hốc cộng hưởng mặt phẳng";
+"Polygon" = "Đa giác";
 "Port (to parent sheet)" = "Cổng (tới trang cha)";
 "Ports: %@" = "Cổng: %@";
 "Power" = "Nguồn";
@@ -623,6 +639,7 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "Bán kính %lld";
 "Re-annotate from the board (columns)" = "Chú thích lại từ bo (cột)";
 "Re-annotate from the board (rows)" = "Chú thích lại từ bo (hàng)";
 "Re-verify" = "Xác minh lại";
@@ -731,11 +748,13 @@
 "Search parts" = "Tìm linh kiện";
 "Searching…" = "Đang tìm…";
 "Seat on Board" = "Đặt lên bo";
+"Select" = "Chọn";
 "Select a net to analyse" = "Chọn một net để phân tích";
 "Select a net to analyse its channel" = "Chọn một net để phân tích kênh của nó";
 "Select a pad to edit its position, size, shape, drill and pin." = "Chọn một pad để sửa vị trí, kích thước, hình dạng, lỗ khoan và chân.";
 "Select a part on the schematic or PCB to edit its properties." = "Chọn một linh kiện trên sơ đồ hoặc PCB để sửa thuộc tính.";
 "Select an importable part to preview it." = "Chọn một linh kiện có thể nhập để xem trước.";
+"Select and move pins and drawings" = "Chọn và di chuyển chân và hình vẽ";
 "Select pins to move them to a side, stack them or change their order." = "Chọn chân để chuyển sang cạnh khác, xếp chồng hoặc thay đổi thứ tự.";
 "Send" = "Gửi";
 "Send to" = "Gửi đến";
@@ -749,6 +768,7 @@
 "Sheet" = "Trang";
 "Sheet %lld of %lld" = "Trang %lld / %lld";
 "Sheet Size" = "Kích thước trang";
+"Sheet Symbol Size" = "Kích thước ký hiệu trang";
 "Sheet name" = "Tên trang";
 "Shot" = "Bắn";
 "Shove" = "Đẩy";
@@ -781,6 +801,7 @@
 "Simulation" = "Mô phỏng";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "Tốc độ mô phỏng so với thời gian thực (chuyển động chậm hiển thị tín hiệu nhanh)";
 "Single-ended" = "Đơn cực";
+"Size %lld" = "Cỡ %lld";
 "Skew" = "Độ lệch";
 "Smooth" = "Nhẵn";
 "Solve the DC operating point once — shows voltage probes" = "Giải điểm làm việc DC một lần — hiển thị đầu dò điện áp";
@@ -794,6 +815,7 @@
 "Stack repeated power pins" = "Xếp chồng các chân nguồn lặp lại";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "Cấu trúc lớp theo cài đặt Lớp trong Bố trí PCB: 1 lớp để mặt dưới là FR-4 trần; ";
 "Standard ED" = "ED tiêu chuẩn";
+"Start %lld°" = "Bắt đầu %lld°";
 "Starting the design engine" = "Đang khởi động công cụ thiết kế";
 "Step" = "Bước";
 "Step response" = "Đáp ứng bước";
@@ -826,6 +848,7 @@
 "Tamper mesh over" = "Lưới chống can thiệp phủ trên";
 "Target" = "Mục tiêu";
 "Test Connection" = "Kiểm tra kết nối";
+"Text" = "Văn bản";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "Bộ đi dây tự động định cỡ đường RF và cặp vi sai (…_P/_N) theo các trở kháng này (IPC-2141).";
 "The board is up to date with the schematic." = "Bo mạch đã cập nhật theo sơ đồ nguyên lý.";
 "The imported model replaces the built-in one in every analysis." = "Mô hình đã nhập thay cho mô hình tích hợp trong mọi phân tích.";

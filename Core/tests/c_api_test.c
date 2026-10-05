@@ -1108,3 +1108,18 @@ int sieda_c_api_update_pcb_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Drawn sheet-symbol size through the C API. Returns 0 or the failing step. */
+int sieda_c_api_sheet_symbol_size_test(void) {
+    SiedaProject* p = sieda_project_new("Sheet symbol");
+    if (!p) return 1;
+    int32_t child = sieda_add_sheet(p, "Child", 1);
+    if (child <= 0) return 2;
+    if (sieda_set_sheet_symbol_size(p, child, 160, 80) != 1) return 3;
+    if (sieda_set_sheet_symbol_size(p, 999, 1, 1) != 0 || sieda_set_sheet_symbol_size(NULL, child, 1, 1) != 0) return 4;
+    char* json = sieda_project_save_json(p);
+    if (!json || !strstr(json, "symbolSize") || !strstr(json, "160")) return 5;
+    sieda_string_free(json);
+    sieda_project_free(p);
+    return 0;
+}

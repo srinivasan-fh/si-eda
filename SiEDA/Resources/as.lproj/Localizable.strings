@@ -85,6 +85,7 @@
 "Apply Prices to BOM" = "মূল্য BOM ত প্ৰয়োগ কৰক";
 "Apply Symbol" = "চিম্বল প্ৰয়োগ কৰক";
 "Apply Tuning" = "টিউনিং প্ৰয়োগ কৰক";
+"Arc" = "চাপ";
 "Arrange" = "সজাওক";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "স্কিমেটিক চিম্বল সজাওক: যিকোনো ফালে পিন, গোট, ষ্টেক কৰা পাৱাৰ পিন, অটো এৰেঞ্জ";
 "Arrange the symbol, or define the gates of a multi-unit part" = "চিহ্ন সজাওক, বা বহু-ইউনিট অংশৰ গেট নিৰ্ধাৰণ কৰক";
@@ -130,6 +131,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "বোৰ্ড আউটলাইন (কোৱাড-X ফ্ৰেম, গোলাকাৰ, বৃত্ত), মাউণ্টিং হ'ল, কপাৰ প'ৰ/প্লেন আৰু নেট ক্লাছ";
 "Board thickness" = "বোৰ্ডৰ ডাঠ";
 "Boards per order, for the order cost" = "অৰ্ডাৰ খৰচৰ বাবে প্ৰতি অৰ্ডাৰত বোৰ্ড";
+"Body box" = "বডি বাকচ";
 "Broadside" = "ব্ৰডছাইড";
 "Built-in model" = "অন্তৰ্নিৰ্মিত মডেল";
 "Bus" = "বাছ";
@@ -170,6 +172,7 @@
 "Choose a part" = "এটা পাৰ্ট বাছক";
 "Choose the footprint for this symbol: the import is read again with this pair" = "এই চিম্বলৰ বাবে ফুটপ্ৰিণ্ট বাছক: এই যোৰৰে ইম্পৰ্ট পুনৰ পঢ়া হয়";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "চিনেমেটিক হেডছ-আপ ডিছপ্লে: প্ৰজেক্টৰ, কণিকা, পাৰ্ট কল-আউট, ডাটা পিলাৰ আৰু ৰিড-আউট";
+"Circle" = "বৃত্ত";
 "Circuit" = "চাৰ্কিট";
 "Circuit — 5 ms, 5 µs" = "চাৰ্কিট — 5 ms, 5 µs";
 "Class / board" = "শ্ৰেণী / ব'ৰ্ড";
@@ -228,6 +231,7 @@
 "DEVICES" = "ডিভাইচ";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "অংকন";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "ডেটাশ্বীট";
@@ -245,6 +249,7 @@
 "Delete Type" = "প্ৰকাৰ মচক";
 "Delete Variant" = "ভেৰিয়েণ্ট মচি পেলাওক";
 "Delete Wire" = "ৱায়াৰ মচি পেলাওক";
+"Delete the selected drawing" = "বাছনি কৰা অংকন মচক";
 "Describe your product" = "আপোনাৰ সামগ্ৰীৰ বিৱৰণ দিয়ক";
 "Description" = "বিৱৰণ";
 "Design" = "ডিজাইন";
@@ -268,7 +273,9 @@
 "Done" = "সম্পূৰ্ণ";
 "Down ↓" = "তললৈ ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "বিতৰকৰ ডেটাশ্বীট PDF ডাউনলোড কৰি পিন তালিকা উলিয়াওক";
+"Drag to draw · click to place a text · Esc returns to selecting" = "আঁকিবলৈ টানক · পাঠ ৰাখিবলৈ ক্লিক কৰক · Esc বাছনিলৈ উভতি যায়";
 "Drag to orbit" = "অৰবিট কৰিবলৈ ড্ৰেগ কৰক";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "সৃষ্টি কৰা আয়তটো আঁকক; অংকনবোৰেই বডি হ'লে বন্ধ কৰক";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "লেণ্ড পেটাৰ্ণ পেডে পেডে আঁকক: প্ৰতিটো পেডৰ স্থান, আকাৰ, আকৃতি, ড্ৰিল আৰু পিন";
 "Drawn by" = "অংকনকাৰী";
 "Driver" = "ড্ৰাইভাৰ";
@@ -289,6 +296,7 @@
 "Edit Symbol…" = "চিম্বল সম্পাদনা কৰক…";
 "Effort" = "প্ৰচেষ্টা";
 "Enable AI assistance" = "AI সহায় সক্ষম কৰক";
+"End %lld°" = "শেষ %lld°";
 "Engineering change order: review and execute the schematic's changes on the board" = "ইঞ্জিনিয়াৰিং পৰিৱৰ্তন আদেশ: স্কিমেটিকৰ সলনিসমূহ পৰীক্ষা কৰি বৰ্ডত কাৰ্যকৰী কৰক";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "এই বুটাম সক্ষম কৰিবলৈ ওপৰত আপোনাৰ আইডেণ্টিটি প্ৰদানকাৰীৰ ইছুৱাৰ URL আৰু SiEDA ৰ ক্লায়েণ্ট ID দিয়ক (আপোনাৰ IT প্ৰশাসকক সোধক)।";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "প্ৰচেছৰ, BGA আৰু ডাঙৰ কেপাচিটৰৰ তলত ইপক্সি যাতে MIL-STD-901E শ্বকে সেইবোৰ উঘালিব নোৱাৰে";
@@ -315,6 +323,7 @@
 "File unit" = "ফাইলৰ একক";
 "Fill Suggested Part Numbers" = "পৰামৰ্শ দিয়া পাৰ্ট নম্বৰ পূৰণ কৰক";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "প্ৰতিটো শাৰীত বিল্ড পৰিমাণত সৰ্বোত্তম অফাৰৰ যোগানধাৰী অংশ নম্বৰ আৰু একক মূল্য ভৰাওক";
+"Filled" = "পূৰ্ণ";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "য'ত মান আৰু পেকেজৰ পৰা নিৰ্ণয় কৰিব পাৰি, তাত ষ্টেণ্ডাৰ্ড পাৰ্ট নম্বৰ পূৰণ কৰে (যেনে Yageo RC0805 ";
 "Find" = "বিচাৰক";
 "Find & Replace" = "বিচাৰক আৰু সলনি কৰক";
@@ -328,6 +337,7 @@
 "Fit Board to Components" = "বোৰ্ড কম্পোনেণ্ট অনুসৰি ফিট কৰক";
 "Fits every pin" = "প্ৰতিটো পিনৰ সৈতে মিলে";
 "Fitted" = "লগোৱা";
+"Fitted to Entries" = "এণ্ট্ৰীৰ লগত মিলোৱা";
 "Fix Duplicates Only" = "কেৱল ডুপ্লিকেট শুধৰাওক";
 "Flicker (1/f)" = "ফ্লিকাৰ (1/f)";
 "Flight time" = "ফ্লাইট টাইম";
@@ -415,8 +425,10 @@
 "Length" = "দৈৰ্ঘ্য";
 "Library" = "লাইব্ৰেৰী";
 "Lifecycle" = "লাইফচাইকেল";
+"Line" = "ৰেখা";
 "Line loss per layer" = "প্ৰতি স্তৰৰ লাইন ক্ষতি";
 "Line total" = "শাৰীৰ মুঠ";
+"Line width %@" = "ৰেখাৰ প্ৰস্থ %@";
 "Live Pricing" = "লাইভ মূল্য";
 "Live Pricing…" = "লাইভ মূল্য…";
 "Live board" = "লাইভ বোৰ্ড";
@@ -467,6 +479,8 @@
 "Mounting" = "মাউণ্টিং";
 "Mouser Search API key (API Hub → Search API)." = "Mouser সন্ধান API চাবি (API Hub → Search API)।";
 "Move Selection Here" = "বাছনি ইয়ালৈ নিয়ক";
+"Move drawing" = "অংকন আঁতৰাওক";
+"Move the drawing half a grid step" = "অংকনটো আধা গ্ৰিড আঁতৰাওক";
 "Move the footprint origin to the centre of the pads" = "ফুটপ্ৰিণ্টৰ অৰিজিন পেডবোৰৰ মাজলৈ নিয়ক";
 "Move the pad in the numbering; pads between shift by one" = "নম্বৰিঙত পেড স্থানান্তৰ কৰক; মাজৰ পেডবোৰ এটাকৈ আঁতৰি যায়";
 "NAVIGATOR" = "নেভিগেটৰ";
@@ -497,6 +511,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "এই ডিজাইনত কোনো ডিফাৰেঞ্চিয়েল পেয়াৰ (…_P/_N, …+/-) বা বাছ (DQ0…, DATA[0..7], ADDR…) নাই।";
 "No distributor API keys yet" = "এতিয়ালৈকে বিতৰকৰ API চাবি নাই";
 "No distributor offers." = "বিতৰকৰ কোনো অফাৰ নাই।";
+"No drawings yet: pick a tool and drag on the symbol." = "এতিয়াও কোনো অংকন নাই: সঁজুলি বাছি চিহ্নত টানক।";
 "No errors or warnings." = "কোনো ত্ৰুটি বা সতৰ্কবাণী নাই।";
 "No gates found in the pin names." = "পিনৰ নামত কোনো গেট পোৱা নগ'ল।";
 "No imported model" = "আমদানি কৰা মডেল নাই";
@@ -609,6 +624,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "প্লেচমেণ্ট, ৰাউটিং, প'ৰ, DRC, Gerber Edge.Cuts আৰু 3D বোৰ্ডে আউটলাইন অনুসৰণ কৰে। ";
 "Plane" = "প্লেন";
 "Plane cavity" = "প্লেন কেভিটি";
+"Polygon" = "বহুভুজ";
 "Port (to parent sheet)" = "প'ৰ্ট (পেৰেণ্ট শ্বীটলৈ)";
 "Ports: %@" = "প'ৰ্ট: %@";
 "Power" = "পাৱাৰ";
@@ -623,6 +639,7 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "ব্যাসাৰ্ধ %lld";
 "Re-annotate from the board (columns)" = "ব'ৰ্ডৰ পৰা পুনৰ এন'টেট (স্তম্ভ)";
 "Re-annotate from the board (rows)" = "ব'ৰ্ডৰ পৰা পুনৰ এন'টেট (শাৰী)";
 "Re-verify" = "পুনৰ ভেৰিফাই কৰক";
@@ -731,11 +748,13 @@
 "Search parts" = "পাৰ্ট সন্ধান কৰক";
 "Searching…" = "সন্ধান কৰি আছে…";
 "Seat on Board" = "বোৰ্ডত বহুৱাওক";
+"Select" = "বাছক";
 "Select a net to analyse" = "বিশ্লেষণৰ বাবে এটা নেট বাছক";
 "Select a net to analyse its channel" = "চেনেল বিশ্লেষণৰ বাবে এটা নেট বাছক";
 "Select a pad to edit its position, size, shape, drill and pin." = "স্থান, আকাৰ, আকৃতি, ড্ৰিল আৰু পিন সম্পাদনা কৰিবলৈ এটা পেড বাছক।";
 "Select a part on the schematic or PCB to edit its properties." = "বৈশিষ্ট্য সম্পাদনা কৰিবলৈ স্কিমেটিক বা PCB ত এটা পাৰ্ট বাছক।";
 "Select an importable part to preview it." = "পূৰ্বদৰ্শনৰ বাবে ইম্পৰ্ট কৰিব পৰা অংশ বাছক।";
+"Select and move pins and drawings" = "পিন আৰু অংকন বাছি আঁতৰাওক";
 "Select pins to move them to a side, stack them or change their order." = "পিনবোৰ এটা ফাললৈ নিবলৈ, ষ্টেক কৰিবলৈ বা ক্ৰম সলনি কৰিবলৈ সেইবোৰ বাছক।";
 "Send" = "পঠিয়াওক";
 "Send to" = "ইয়ালৈ পঠিয়াওক";
@@ -749,6 +768,7 @@
 "Sheet" = "শ্বীট";
 "Sheet %lld of %lld" = "পাত %lld / %lld";
 "Sheet Size" = "শ্বীটৰ আকাৰ";
+"Sheet Symbol Size" = "শ্বীট চিহ্নৰ আকাৰ";
 "Sheet name" = "শ্বীটৰ নাম";
 "Shot" = "শ্বট";
 "Shove" = "ঠেলা";
@@ -781,6 +801,7 @@
 "Simulation" = "ছিমুলেশ্বন";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "ৰিয়েল টাইমৰ তুলনাত ছিমুলেশ্বনৰ গতি (স্ল' মোশ্বনে দ্ৰুত ছিগনেল দেখুৱায়)";
 "Single-ended" = "ছিংগল-এণ্ডেড";
+"Size %lld" = "আকাৰ %lld";
 "Skew" = "স্কিউ";
 "Smooth" = "মসৃণ";
 "Solve the DC operating point once — shows voltage probes" = "DC অপাৰেটিং পইণ্ট এবাৰ সমাধান কৰক — ভ'ল্টেজ প্ৰ'ব দেখুৱায়";
@@ -794,6 +815,7 @@
 "Stack repeated power pins" = "পুনৰাবৃত্ত পাৱাৰ পিন ষ্টেক কৰক";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "PCB লেআউটৰ লেয়াৰ ছেটিঙৰ পৰা ষ্টেক-আপ: 1 লেয়াৰে তলৰ ফালটো উদং FR-4 হিচাপে এৰে; ";
 "Standard ED" = "মানক ED";
+"Start %lld°" = "আৰম্ভ %lld°";
 "Starting the design engine" = "ডিজাইন ইঞ্জিন আৰম্ভ হৈ আছে";
 "Step" = "ষ্টেপ";
 "Step response" = "ষ্টেপ প্ৰতিক্ৰিয়া";
@@ -826,6 +848,7 @@
 "Tamper mesh over" = "টেম্পাৰ মেশ্ব ইয়াৰ ওপৰত";
 "Target" = "লক্ষ্য";
 "Test Connection" = "সংযোগ পৰীক্ষা কৰক";
+"Text" = "পাঠ";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "অটোৰাউটাৰে RF লাইন আৰু ডিফাৰেঞ্চিয়েল পেয়াৰ (…_P/_N) এই ইম্পিডেন্স অনুসৰি আকাৰ দিয়ে (IPC-2141)।";
 "The board is up to date with the schematic." = "বৰ্ডখন স্কিমেটিকৰ সৈতে হালনাগাদ।";
 "The imported model replaces the built-in one in every analysis." = "আমদানি কৰা মডেলে প্ৰতিটো বিশ্লেষণত অন্তৰ্নিৰ্মিত মডেলৰ ঠাই লয়।";

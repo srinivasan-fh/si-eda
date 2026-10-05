@@ -1589,6 +1589,11 @@ extension EDAEngine {
     @discardableResult
     func setSheetSize(_ id: Int, size: String) -> Bool { withHandle { sieda_set_sheet_size($0, Int32(id), size) } == 1 }
 
+    /// Drawn size of a sheet's sheet symbol (schematic units; 0 × 0 = fitted to its entries).
+    func setSheetSymbolSize(_ id: Int, width: Double, height: Double) -> Bool {
+        withHandle { sieda_set_sheet_symbol_size($0, Int32(id), width, height) } == 1
+    }
+
     /// Drawing templates (A4 … A0, ANSI A … E).
     static func sheetTemplates() -> [SheetTemplateInfo] {
         decode([SheetTemplateInfo].self, from: take(sieda_sheet_templates_json())) ?? []

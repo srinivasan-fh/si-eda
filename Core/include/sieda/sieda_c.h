@@ -792,6 +792,8 @@ char* sieda_pcb_eco_preview(const SiedaProject* project);
  * footprints, removes pours on nets that are gone, carries the net rules, records the new baseline. Returns
  * {"executed": n, "report": [line…]}. Caller frees. */
 char* sieda_apply_pcb_eco(SiedaProject* project, const char* keys_json);
+/* Drawn size of a sheet's sheet symbol in schematic units (0 = fitted to its entries; clamped to 4000). 1 on success. */
+int32_t sieda_set_sheet_symbol_size(SiedaProject* project, int32_t sheet, double width, double height);
 
 #ifdef __cplusplus
 }

@@ -325,15 +325,19 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
 - **Error reporting** (Altium's project options ▸ Error Reporting): right-click a message ▸ *Report as Error /
   Warning / Info*, *Do Not Report*, or *Rule's Own Severity* — for that rule everywhere in the project (saved with
   it as `ercSeverities`; one undo step). C API `sieda_set_erc_severity`.
+- **Drawn sheet symbols and harness connectors**: right-click a child sheet's tab ▸ **Sheet Symbol Size** — *Fitted to
+  Entries* or a fixed size (120 × 80 … 360 × 280 units); the box never shrinks below what its entries need (saved as
+  the sheet's `symbolSize`; C API `sieda_set_sheet_symbol_size`). A harness connector is drawn as a body around its
+  entries, notched on the side its harness label leaves from, on the canvas and in the PDF.
 - **Sheet templates**: right-click a sheet tab ▸ **Sheet Size** — A4 … A0, ANSI A … E, or *Auto* (the smallest A
   size that holds the drawing at full scale). The canvas draws the template's frame around the drawing (10 units =
   2.54 mm).
 - **PDF** (options bar): every sheet in sheet order, one page per sheet on its template, with a frame and zone markers
   (1, 2, 3 … / A, B, C …), the title block (title, company, revision, date, drawn by, sheet name, size, "Sheet n of
   N") and the drawing scaled down when it is larger than the sheet. The PDF's bookmarks follow the sheet hierarchy.
-  Symbols are simplified vector drawings (two-pin parts as boxes, capacitor plates and diode triangles; other parts
-  as a body box with pin stubs and names; ground symbols, label flags and sheet symbols) — the canvas draws more
-  detail. Text is plain ASCII (other characters print as `?`).
+  Symbols are simplified vector drawings (two-pin parts as boxes, capacitor plates and diode triangles; library parts
+  with their own body box and Symbol Editor drawings; other parts as a body box with pin stubs and names; ground
+  symbols, label flags, sheet symbols and harness connector bodies) — the canvas draws more detail. Text is plain ASCII (other characters print as `?`).
 - **Update PCB** (options bar; Altium's *Design ▸ Update PCB* engineering change order): lists every change from the
   schematic to the board since the last update, grouped as **Components** (new parts to place, removed parts,
   changed designator / footprint / value), **Nets** (new, removed, changed pin lists), **Copper Pours** (pours on
@@ -380,7 +384,7 @@ Further optional fields (written only when used, so other designs' files are unc
 (`[{"name","entries"}]`), `netClassDefs` (`[{"name","trackWidth"?,"clearance"?}]`), `directives`
 (`[{"id","component","pin","netClass"?,"diffPair"?,"trackWidth"?,"clearance"?}]`) and `titleBlock`; board
 `netClearances` and `schematicRuleNets` (the nets whose rules came from the schematic); sheets `size`; top-level
-`ercSeverities` (`{"ERC_…": "error" | "warning" | "info" | "off"}`). `pcbSync` (`{"parts":[{"id","ref","footprint","value"}],"nets":{name:[pins]}}`,
+`ercSeverities` (`{"ERC_…": "error" | "warning" | "info" | "off"}`); sheets `symbolSize` (`[width, height]`). `pcbSync` (`{"parts":[{"id","ref","footprint","value"}],"nets":{name:[pins]}}`,
 the Update PCB baseline; written only while the board is behind the schematic, and a file without it is in step). A file is repaired on load: copies whose
 block part is gone, units without a valid package, packages without units, entries of missing buses and buses on
 missing sheets are dropped; an instance of a missing or nested definition becomes an ordinary sheet. Older versions of
@@ -440,6 +444,7 @@ char*   sieda_export_schematic_pdf(const SiedaProject*);
 int32_t sieda_set_erc_severity(SiedaProject*, const char* code, const char* level); /* "error"…"off", "default" */
 char*   sieda_pcb_eco_preview(const SiedaProject*);               /* [{section,action,object,detail,key,applicable,note}] */
 char*   sieda_apply_pcb_eco(SiedaProject*, const char* keys_json); /* NULL = all; {"executed","report"} */
+int32_t sieda_set_sheet_symbol_size(SiedaProject*, int32_t sheet, double width, double height); /* 0, 0 = fitted */
 ```
 
 Sheets, hierarchy, bus labels, annotation and variants:
@@ -481,7 +486,8 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
 - A bus line has no electrical meaning of its own: members connect through their entries' names. Buses are not
   shown in the PCB editor (their members are ordinary nets there).
 - Variants affect the assembly outputs and simulation, not ERC, verification or the board.
-- The sheet symbol is drawn from its entries; it has no separate size or graphics of its own.
+- A sheet symbol is a rectangle (fitted to its entries or a drawn size); it has no free-form graphics of its own, and
+  its entries stay where they were placed (they are not snapped to the box's edge when the box grows).
 - Wires never cross sheets; parts moved to another sheet lose their wires to parts left behind.
 - A channel's own value is a per-channel parameter; per-channel fitting (DNP) is still made with a design variant.
   A unit of a multi-unit part inside a repeated sheet stays on that sheet with its package.

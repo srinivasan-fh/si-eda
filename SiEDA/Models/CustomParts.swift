@@ -286,6 +286,102 @@ struct CustomPartSpec: Codable, Equatable {
         /// Body width in schematic units (nil = from the pin names).
         var width: Double?
         var pins: [Pin]
+        /// Free-form drawings over (or, with `body` false, instead of) the generated body box.
+        var graphics: [SymbolGraphic]?
+        /// false = the generated body box is not drawn (nil = drawn).
+        var body: Bool?
+
+        init(width: Double?, pins: [Pin], graphics: [SymbolGraphic]? = nil, body: Bool? = nil) {
+            self.width = width
+            self.pins = pins
+            self.graphics = graphics
+            self.body = body
+        }
+    }
+
+    /// A drawing on a symbol (encoded like the core's `SymbolGraphic`): symbol units from the centre, y down.
+    /// line: polyline through `points`; rect: two corners; circle / arc: centre, `radius`, angles in degrees clockwise
+    /// from +x; polygon: closed through `points`; text: `text` with its left end at `points[0]`, `size` high.
+    struct SymbolGraphic: Codable, Equatable {
+        enum Kind: String, CaseIterable, Identifiable {
+            case line, rect, circle, arc, polygon, text
+            var id: String { rawValue }
+            var title: String {
+                switch self {
+                case .line: return "Line"
+                case .rect: return "Rectangle"
+                case .circle: return "Circle"
+                case .arc: return "Arc"
+                case .polygon: return "Polygon"
+                case .text: return "Text"
+                }
+            }
+            var systemImage: String {
+                switch self {
+                case .line: return "line.diagonal"
+                case .rect: return "rectangle"
+                case .circle: return "circle"
+                case .arc: return "circle.bottomhalf.filled"
+                case .polygon: return "pentagon"
+                case .text: return "textformat"
+                }
+            }
+        }
+
+        var kind: String
+        var points: [[Double]]
+        var radius: Double?
+        var startAngle: Double?
+        var endAngle: Double?
+        var text: String?
+        var size: Double?
+        var lineWidth: Double?
+        var fill: Bool?
+
+        init(kind: Kind, points: [CGPoint]) {
+            self.kind = kind.rawValue
+            self.points = points.map { [Double($0.x), Double($0.y)] }
+            switch kind {
+            case .circle, .arc:
+                radius = 10
+                if kind == .arc {
+                    startAngle = 180
+                    endAngle = 360
+                }
+            case .text:
+                text = "Text"
+                size = 8
+            default:
+                break
+            }
+        }
+
+        var shapeKind: Kind { Kind(rawValue: kind) ?? .line }
+        var cgPoints: [CGPoint] { points.compactMap { $0.count >= 2 ? CGPoint(x: $0[0], y: $0[1]) : nil } }
+        var isFilled: Bool { fill ?? false }
+
+        /// Moved by (dx, dy) symbol units.
+        func moved(dx: Double, dy: Double) -> SymbolGraphic {
+            var copy = self
+            copy.points = points.map { $0.count >= 2 ? [$0[0] + dx, $0[1] + dy] : $0 }
+            return copy
+        }
+
+        /// Bounding box in symbol coordinates (text estimated at 0.6 × size per character).
+        var bounds: CGRect {
+            let pts = cgPoints
+            guard let first = pts.first else { return .null }
+            switch shapeKind {
+            case .circle, .arc:
+                let r = radius ?? 0
+                return CGRect(x: first.x - r, y: first.y - r, width: 2 * r, height: 2 * r)
+            case .text:
+                let s = size ?? 8
+                return CGRect(x: first.x, y: first.y - s / 2, width: 0.6 * s * Double((text ?? "").utf8.count), height: s)
+            default:
+                return pts.reduce(CGRect.null) { $0.union(CGRect(origin: $1, size: .zero)) }
+            }
+        }
     }
 
     struct Pin: Codable, Equatable, Identifiable {
@@ -454,6 +550,7 @@ struct CustomPartInfo: Decodable, Equatable, Identifiable {
         guard let symbols = unitSymbols, unit >= 1, unit <= symbols.count else { return self }
         var copy = self
         copy.symbol = symbols[unit - 1].symbol
+        copy.symbolLayout = nil  // a unit is drawn as its generated box, without the part's drawings
         return copy
     }
 

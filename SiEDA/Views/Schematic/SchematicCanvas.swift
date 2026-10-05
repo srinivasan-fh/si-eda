@@ -675,6 +675,8 @@ struct SchematicCanvas: View {
             stub.addLine(to: b.applying(screen))
             ctx.stroke(stub, with: .color(Theme.harness.opacity(0.7)), lineWidth: 1.5)
         }
+        // Harness connector bodies: a box around each harness label's entries, notched towards the harness.
+        drawHarnessBodies(&ctx, snap: snap, screen: screen, moving: movingIds, delta: delta)
         // Net directives: a small flag beside the pin they sit on (net class, ⇄ for a differential pair, sizes).
         if showLabels {
             for d in snap.directives {
@@ -707,7 +709,9 @@ struct SchematicCanvas: View {
                 box = box.union(CGRect(origin: position, size: .zero))
             }
             let left: CGFloat = entries.map { CGFloat($0.x) + (movingIds.contains($0.id) ? delta.width : 0) }.min() ?? box.minX
-            let frame = CGRect(x: left, y: box.minY - 16, width: max(80, box.maxX + 16 - left), height: box.height + 26)
+            // A drawn size (sheet tab ▸ Sheet Symbol Size) enlarges the fitted box.
+            let frame = CGRect(x: left, y: box.minY - 16, width: max(80, box.maxX + 16 - left, CGFloat(child.symbolWidth ?? 0)),
+                               height: max(box.height + 26, CGFloat(child.symbolHeight ?? 0)))
             guard frame.intersects(view) else { continue }
             let rect = frame.applying(screen)
             ctx.fill(Path(rect), with: .color(Theme.symbolFill))
@@ -988,6 +992,33 @@ struct SchematicCanvas: View {
         if let h = hover {
             let w = viewport.toWorld(h)
             CanvasOverlays.readout(String(format: "X %.0f  Y %.0f", w.x, w.y), in: &ctx, size: size)
+        }
+    }
+
+    private func drawHarnessBodies(_ ctx: inout GraphicsContext, snap: DesignSnapshot, screen: CGAffineTransform,
+                                   moving: Set<Int>, delta: CGSize) {
+        for h in snap.components where h.isHarnessLabel {
+            var box = CGRect.null
+            for e in snap.components where e.harnessOf == h.id {
+                var p = e.position
+                if moving.contains(e.id) { p.x += delta.width; p.y += delta.height }
+                box = box.union(CGRect(x: p.x - 6, y: p.y - 10, width: SchematicSymbols.netLabelTextWidth(e.value) + 16, height: 20))
+            }
+            guard !box.isNull else { continue }
+            var anchor = h.position
+            if moving.contains(h.id) { anchor.x += delta.width; anchor.y += delta.height }
+            var outline = Path()
+            let notch: CGFloat = 8
+            if anchor.x < box.midX {
+                outline.addLines([CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY), CGPoint(x: box.maxX, y: box.maxY),
+                                  CGPoint(x: box.minX, y: box.maxY), CGPoint(x: box.minX - notch, y: box.midY)])
+            } else {
+                outline.addLines([CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY), CGPoint(x: box.maxX + notch, y: box.midY),
+                                  CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)])
+            }
+            outline.closeSubpath()
+            ctx.fill(outline.applying(screen), with: .color(Theme.harness.opacity(0.08)))
+            ctx.stroke(outline.applying(screen), with: .color(Theme.harness.opacity(0.8)), lineWidth: 1.4)
         }
     }
 

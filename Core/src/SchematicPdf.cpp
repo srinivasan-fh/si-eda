@@ -108,6 +108,14 @@ public:
         for (size_t i = 1; i < pts.size(); ++i) out_ << ' ' << num(pts[i].x * kPt) << ' ' << num((h_ - pts[i].y) * kPt) << " l";
         out_ << (fill ? " f\n" : " s\n");
     }
+    /// An open polyline, or a closed outline (filled light, stroked) when `closed`.
+    void path(const std::vector<Vec2>& pts, bool closed, bool fill) {
+        if (pts.size() < 2) return;
+        if (fill) out_ << "0.92 g\n";
+        out_ << num(pts[0].x * kPt) << ' ' << num((h_ - pts[0].y) * kPt) << " m";
+        for (size_t i = 1; i < pts.size(); ++i) out_ << ' ' << num(pts[i].x * kPt) << ' ' << num((h_ - pts[i].y) * kPt) << " l";
+        out_ << (!closed ? " S\n" : fill ? " b\n0 g\n" : " s\n");
+    }
     void dot(double x, double y, double r) {
         rect(x - r, y - r, 2 * r, 2 * r, true);
     }
@@ -138,6 +146,41 @@ struct Mapping {
     double ox = 0, oy = 0;            // page mm of schematic (0, 0)
     Vec2 operator()(Vec2 p) const { return {ox + p.x * scale, oy + p.y * scale}; }
 };
+
+/// A part's free-form symbol drawings (Symbol Editor graphics), turned with the component and placed on the page.
+void drawSymbolGraphics(Canvas& cv, const Mapping& m, const Component& c, const std::vector<SymbolGraphic>& graphics) {
+    const double u = m.scale;
+    auto at = [&](Vec2 p) { return m(c.position + rotate90(p, c.rotation)); };
+    for (const auto& g : graphics) {
+        if (g.points.empty()) continue;
+        cv.width(std::max(0.1, 1.4 * u * std::max(0.25, g.lineWidth)));
+        std::vector<Vec2> pts;
+        bool closed = false;
+        if (g.kind == "rect" && g.points.size() >= 2) {
+            const Vec2 a = g.points[0], b = g.points[1];
+            pts = {at(a), at({b.x, a.y}), at(b), at({a.x, b.y})};
+            closed = true;
+        } else if (g.kind == "circle" || g.kind == "arc") {
+            const bool full = g.kind == "circle";
+            const double a0 = full ? 0 : g.startAngle, a1 = full ? 360 : g.endAngle;
+            const double sweep = std::clamp(a1 - a0, -360.0, 360.0);
+            const int steps = std::max(4, static_cast<int>(std::ceil(std::fabs(sweep) / 6)));
+            for (int i = 0; i <= steps; ++i) {
+                const double rad = (a0 + sweep * i / steps) * 3.14159265358979323846 / 180;
+                pts.push_back(at({g.points[0].x + g.radius * std::cos(rad), g.points[0].y + g.radius * std::sin(rad)}));
+            }
+            closed = full;
+        } else if (g.kind == "text") {
+            const Vec2 p = at(g.points[0]);
+            cv.text(p.x, p.y + 0.35 * g.size * u, std::max(0.8, g.size * u), g.text);
+            continue;
+        } else {
+            for (const auto& p : g.points) pts.push_back(at(p));
+            closed = g.kind == "polygon";
+        }
+        cv.path(pts, closed, closed && g.fill);
+    }
+}
 
 void drawFrame(Canvas& cv, const SheetTemplate& t) {
     const double x0 = kMargin, y0 = kMargin, x1 = t.widthMm - kMargin, y1 = t.heightMm - kMargin;
@@ -252,9 +295,34 @@ void drawSheet(Canvas& cv, const Project& p, const Sheet& sheet, const SheetTemp
                 box.add(c.position + Vec2{std::max(60.0, 7.0 * static_cast<double>(c.value.size()) + 20), 12});
             }
         if (box.empty()) continue;
-        const Vec2 a = m({box.minX, box.minY - 10}), c = m({box.maxX + 10, box.maxY + 4});
+        // A drawn size (Sheet::symbolWidth / symbolHeight) enlarges the fitted box.
+        const double right = std::max(box.maxX + 10, box.minX + child.symbolWidth);
+        const double bottom = std::max(box.maxY + 4, box.minY - 10 + child.symbolHeight);
+        const Vec2 a = m({box.minX, box.minY - 10}), c = m({right, bottom});
         cv.rect(a.x, a.y, c.x - a.x, c.y - a.y);
         cv.text(a.x, a.y - 1, text, child.name, 0, true);
+    }
+    // Harness connectors: a body around each harness label's entries, its notched side towards the harness.
+    for (const auto& h : s.components()) {
+        if (h.sheet != sheet.id || !s.isHarnessLabel(h)) continue;
+        Box box;
+        for (const auto& e : s.components())
+            if (e.harnessOf == h.id && e.sheet == sheet.id) {
+                box.add(e.position + Vec2{-6, -8});
+                box.add(e.position + Vec2{std::max(40.0, 7.0 * static_cast<double>(e.value.size()) + 16), 8});
+            }
+        if (box.empty()) continue;
+        const bool left = h.position.x < (box.minX + box.maxX) / 2;
+        const double notch = 8, midY = (box.minY + box.maxY) / 2;
+        std::vector<Vec2> outline;
+        if (left)
+            outline = {{box.minX, box.minY}, {box.maxX, box.minY}, {box.maxX, box.maxY}, {box.minX, box.maxY},
+                       {box.minX - notch, midY}};
+        else
+            outline = {{box.minX, box.minY}, {box.maxX, box.minY}, {box.maxX + notch, midY}, {box.maxX, box.maxY},
+                       {box.minX, box.maxY}};
+        for (auto& p : outline) p = m(p);
+        cv.polygon(outline, false);
     }
     // Parts and net symbols.
     for (const auto& c : s.components()) {
@@ -327,18 +395,30 @@ void drawSheet(Canvas& cv, const Project& p, const Sheet& sheet, const SheetTemp
             cv.text(tx, ty + text * 1.2, text, c.value);
             continue;
         }
-        // Other parts: a body box inside the pins, pin stubs and names.
-        Box body;
-        for (const auto& pd : pins) body.add(c.position + rotate90(pd.offset, c.rotation));
-        if (body.empty()) body.add(c.position);
-        const double inset = 10;
-        Vec2 a = m({body.minX + inset, body.minY - (body.maxY - body.minY < 1 ? 15 : -inset + 10)});
-        Vec2 b = m({body.maxX - inset, body.maxY + (body.maxY - body.minY < 1 ? 15 : -inset + 10)});
-        if (b.x - a.x < 4 * u) {
-            a.x -= 15 * u;
-            b.x += 15 * u;
+        // Other parts: a body box inside the pins (a library part's own body and drawings), pin stubs and names.
+        const CustomPart* part = c.kind == ComponentKind::Custom ? CustomPartRegistry::instance().find(c.customPart) : nullptr;
+        Vec2 a, b;
+        if (part) {
+            const Vec2 p0 = m(c.position + rotate90({-part->symbolHalfWidth, -part->symbolHalfHeight}, c.rotation));
+            const Vec2 p1 = m(c.position + rotate90({part->symbolHalfWidth, part->symbolHalfHeight}, c.rotation));
+            a = {std::min(p0.x, p1.x), std::min(p0.y, p1.y)};
+            b = {std::max(p0.x, p1.x), std::max(p0.y, p1.y)};
+        } else {
+            Box body;
+            for (const auto& pd : pins) body.add(c.position + rotate90(pd.offset, c.rotation));
+            if (body.empty()) body.add(c.position);
+            const double inset = 10;
+            a = m({body.minX + inset, body.minY - (body.maxY - body.minY < 1 ? 15 : -inset + 10)});
+            b = m({body.maxX - inset, body.maxY + (body.maxY - body.minY < 1 ? 15 : -inset + 10)});
+            if (b.x - a.x < 4 * u) {
+                a.x -= 15 * u;
+                b.x += 15 * u;
+            }
         }
-        cv.rect(std::min(a.x, b.x), std::min(a.y, b.y), std::fabs(b.x - a.x), std::fabs(b.y - a.y));
+        if (!part || part->spec.symbol.body)
+            cv.rect(std::min(a.x, b.x), std::min(a.y, b.y), std::fabs(b.x - a.x), std::fabs(b.y - a.y));
+        if (part) drawSymbolGraphics(cv, m, c, part->spec.symbol.graphics);
+        cv.width(std::max(0.15, 1.4 * u));
         for (size_t p = 0; p < ends.size(); ++p) {
             const Vec2 e = ends[p];
             const Vec2 inner{std::clamp(e.x, std::min(a.x, b.x), std::max(a.x, b.x)), std::clamp(e.y, std::min(a.y, b.y), std::max(a.y, b.y))};

@@ -80,6 +80,9 @@ struct Sheet {
     InstanceRefs refs = InstanceRefs::SheetNumber;
     /// Drawing template ("A4", "A3", … "ANSI E", see SchematicPdf.hpp); empty = sized to the drawing.
     std::string size;
+    /// Drawn size of this sheet's sheet symbol on its parent (schematic units); 0 = fitted around its entries. The
+    /// symbol is never smaller than its entries need.
+    double symbolWidth = 0, symbolHeight = 0;
 };
 
 /// Imported SPICE model attached to a part (docs/SIMULATION.md, sieda/SpiceModels.hpp): the simulator uses it instead
@@ -357,6 +360,8 @@ public:
     bool renameSheet(int id, const std::string& name);
     /// Drawing template of a sheet ("" = sized to its drawing). False for an unknown sheet or template name.
     bool setSheetSize(int id, const std::string& size);
+    /// Drawn size of a sheet's sheet symbol (0 = fitted to its entries; at most 4000 units). False for an unknown sheet.
+    bool setSheetSymbolSize(int id, double width, double height);
     /// Re-parents a sheet (0 = top level); refuses cycles.
     bool setSheetParent(int id, int parent);
     /// Moves a sheet to position `index` in the sheet order.

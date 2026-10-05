@@ -3347,4 +3347,9 @@ char* sieda_apply_pcb_eco(SiedaProject* project, const char* keys_json) {
     }
 }
 
+int32_t sieda_set_sheet_symbol_size(SiedaProject* project, int32_t sheet, double width, double height) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setSheetSymbolSize(sheet, width, height) ? 1 : 0; });
+}
+
 }  // extern "C"

@@ -85,6 +85,7 @@
 "Apply Prices to BOM" = "将价格应用到 BOM";
 "Apply Symbol" = "应用符号";
 "Apply Tuning" = "应用调整";
+"Arc" = "圆弧";
 "Arrange" = "排列";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "排列原理图符号：引脚可置于任意一侧、分组、堆叠电源引脚、自动排列";
 "Arrange the symbol, or define the gates of a multi-unit part" = "排列符号，或定义多单元器件的门";
@@ -130,6 +131,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "电路板外形 (四轴 X 形框架、圆角、圆形)、安装孔、铺铜/平面和网络类";
 "Board thickness" = "板厚";
 "Boards per order, for the order cost" = "每次订购的板数，用于计算订单成本";
+"Body box" = "本体方框";
 "Broadside" = "宽边耦合";
 "Built-in model" = "内置模型";
 "Bus" = "总线";
@@ -170,6 +172,7 @@
 "Choose a part" = "选择元件";
 "Choose the footprint for this symbol: the import is read again with this pair" = "为此符号选择封装：将以此配对重新读取导入内容";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "电影风格平视显示：投影仪、粒子、元件标注、数据柱和读数";
+"Circle" = "圆形";
 "Circuit" = "电路";
 "Circuit — 5 ms, 5 µs" = "电路 — 5 ms，5 µs";
 "Class / board" = "类别／电路板";
@@ -228,6 +231,7 @@
 "DEVICES" = "器件";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "绘图";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "数据手册";
@@ -245,6 +249,7 @@
 "Delete Type" = "删除类型";
 "Delete Variant" = "删除变体";
 "Delete Wire" = "删除导线";
+"Delete the selected drawing" = "删除所选图形";
 "Describe your product" = "描述你的产品";
 "Description" = "描述";
 "Design" = "设计";
@@ -268,7 +273,9 @@
 "Done" = "完成";
 "Down ↓" = "向下 ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "下载分销商的数据手册 PDF 并提取引脚表";
+"Drag to draw · click to place a text · Esc returns to selecting" = "拖动以绘制 · 点击以放置文本 · Esc 返回选择";
 "Drag to orbit" = "拖动以环绕旋转";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "绘制生成的矩形；当图形就是本体时请关闭";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "逐个绘制焊盘图形：每个焊盘的位置、尺寸、形状、钻孔和引脚";
 "Drawn by" = "绘制者";
 "Driver" = "驱动器";
@@ -289,6 +296,7 @@
 "Edit Symbol…" = "编辑符号…";
 "Effort" = "推理强度";
 "Enable AI assistance" = "启用 AI 辅助";
+"End %lld°" = "终点 %lld°";
 "Engineering change order: review and execute the schematic's changes on the board" = "工程变更单：审阅并在电路板上执行原理图的更改";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "在上方输入身份提供商的颁发者 URL 和 SiEDA 的客户端 ID 以启用此按钮 (请咨询你的 IT 管理员)。";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "在处理器、BGA 和大电容下方填充环氧树脂，以防 MIL-STD-901E 冲击将其撕脱";
@@ -315,6 +323,7 @@
 "File unit" = "文件单位";
 "Fill Suggested Part Numbers" = "填写建议料号";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "在每一行填入生产数量下最佳报价的供应商料号和单价";
+"Filled" = "填充";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "根据值和封装填写标准料号 (例如 Yageo RC0805 ";
 "Find" = "查找";
 "Find & Replace" = "查找和替换";
@@ -328,6 +337,7 @@
 "Fit Board to Components" = "使电路板适配元件";
 "Fits every pin" = "匹配每个引脚";
 "Fitted" = "贴装";
+"Fitted to Entries" = "适配入口";
 "Fix Duplicates Only" = "仅修复重复项";
 "Flicker (1/f)" = "闪烁噪声 (1/f)";
 "Flight time" = "飞行时间";
@@ -415,8 +425,10 @@
 "Length" = "长度";
 "Library" = "库";
 "Lifecycle" = "生命周期";
+"Line" = "线条";
 "Line loss per layer" = "各层传输线损耗";
 "Line total" = "小计";
+"Line width %@" = "线宽 %@";
 "Live Pricing" = "实时报价";
 "Live Pricing…" = "实时报价…";
 "Live board" = "实时电路板";
@@ -467,6 +479,8 @@
 "Mounting" = "安装方式";
 "Mouser Search API key (API Hub → Search API)." = "Mouser 搜索 API 密钥（API Hub → Search API）。";
 "Move Selection Here" = "将所选内容移到此处";
+"Move drawing" = "移动图形";
+"Move the drawing half a grid step" = "将图形移动半个网格";
 "Move the footprint origin to the centre of the pads" = "将封装原点移至焊盘中心";
 "Move the pad in the numbering; pads between shift by one" = "在编号中移动焊盘；中间的焊盘依次顺移一位";
 "NAVIGATOR" = "导航器";
@@ -497,6 +511,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "此设计中没有差分对 (…_P/_N, …+/-) 或总线 (DQ0…, DATA[0..7], ADDR…)。";
 "No distributor API keys yet" = "尚无分销商 API 密钥";
 "No distributor offers." = "没有分销商报价。";
+"No drawings yet: pick a tool and drag on the symbol." = "尚无图形：选择工具并在符号上拖动。";
 "No errors or warnings." = "没有错误或警告。";
 "No gates found in the pin names." = "引脚名称中未找到门。";
 "No imported model" = "没有导入的模型";
@@ -609,6 +624,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "放置、布线、铺铜、DRC、Gerber Edge.Cuts 和 3D 电路板都跟随外形。 ";
 "Plane" = "平面";
 "Plane cavity" = "平面谐振腔";
+"Polygon" = "多边形";
 "Port (to parent sheet)" = "端口（连至父图纸）";
 "Ports: %@" = "端口：%@";
 "Power" = "电源";
@@ -623,6 +639,7 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "半径 %lld";
 "Re-annotate from the board (columns)" = "按电路板重新标注（列）";
 "Re-annotate from the board (rows)" = "按电路板重新标注（行）";
 "Re-verify" = "重新验证";
@@ -731,11 +748,13 @@
 "Search parts" = "搜索元件";
 "Searching…" = "正在搜索…";
 "Seat on Board" = "贴合电路板";
+"Select" = "选择";
 "Select a net to analyse" = "选择要分析的网络";
 "Select a net to analyse its channel" = "选择一个网络以分析其通道";
 "Select a pad to edit its position, size, shape, drill and pin." = "选择一个焊盘以编辑其位置、尺寸、形状、钻孔和引脚。";
 "Select a part on the schematic or PCB to edit its properties." = "在原理图或 PCB 上选择一个元件以编辑其属性。";
 "Select an importable part to preview it." = "选择可导入的器件以预览。";
+"Select and move pins and drawings" = "选择并移动引脚和图形";
 "Select pins to move them to a side, stack them or change their order." = "选择引脚以将其移到某一侧、堆叠或更改顺序。";
 "Send" = "发送";
 "Send to" = "发送到";
@@ -749,6 +768,7 @@
 "Sheet" = "图纸";
 "Sheet %lld of %lld" = "第 %lld 页，共 %lld 页";
 "Sheet Size" = "图页尺寸";
+"Sheet Symbol Size" = "图纸符号大小";
 "Sheet name" = "图纸名称";
 "Shot" = "散粒噪声";
 "Shove" = "推挤";
@@ -781,6 +801,7 @@
 "Simulation" = "仿真";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "相对于实时的仿真速度 (慢动作可显示快速信号)";
 "Single-ended" = "单端";
+"Size %lld" = "大小 %lld";
 "Skew" = "偏斜";
 "Smooth" = "光滑";
 "Solve the DC operating point once — shows voltage probes" = "求解一次 DC 工作点 — 显示电压探针";
@@ -794,6 +815,7 @@
 "Stack repeated power pins" = "堆叠重复的电源引脚";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "层叠取自 PCB 布局中的“层”设置：1 层时底面为裸露 FR-4； ";
 "Standard ED" = "标准 ED";
+"Start %lld°" = "起点 %lld°";
 "Starting the design engine" = "正在启动设计引擎";
 "Step" = "单步";
 "Step response" = "阶跃响应";
@@ -826,6 +848,7 @@
 "Tamper mesh over" = "防篡改网格覆盖于";
 "Target" = "目标";
 "Test Connection" = "测试连接";
+"Text" = "文本";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "自动布线器会将 RF 线路和差分对 (…_P/_N) 调整到这些阻抗 (IPC-2141)。";
 "The board is up to date with the schematic." = "电路板已与原理图同步。";
 "The imported model replaces the built-in one in every analysis." = "导入的模型会在每项分析中取代内置模型。";

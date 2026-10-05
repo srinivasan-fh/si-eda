@@ -152,6 +152,12 @@ Json sheetsJson(const Schematic& sch) {
         if (!s.channel.empty()) j["channel"] = s.channel;
         if (s.refs != InstanceRefs::SheetNumber) j["refs"] = instanceRefsName(s.refs);
         if (!s.size.empty()) j["size"] = s.size;
+        if (s.symbolWidth > 0 || s.symbolHeight > 0) {
+            Json box = Json::array();
+            box.push(s.symbolWidth);
+            box.push(s.symbolHeight);
+            j["symbolSize"] = box;
+        }
         arr.push(j);
     }
     return arr;
@@ -807,6 +813,11 @@ Project Project::fromJson(const Json& root) {
             if (!instanceRefsFromName(j.get("refs").asString("sheet"), &s.refs)) s.refs = InstanceRefs::SheetNumber;
             s.size = j.get("size").asString("");
             if (!findSheetTemplate(s.size)) s.size.clear();  // unknown template: sized to the drawing
+            const Json& box = j.get("symbolSize");
+            for (int k = 0; k < 2; ++k) {
+                const double v = box[static_cast<size_t>(k)].asNumber(0);
+                (k == 0 ? s.symbolWidth : s.symbolHeight) = std::isfinite(v) ? std::clamp(v, 0.0, 4000.0) : 0.0;
+            }
             sheets.push_back(s);
         }
         p.schematic.restoreSheets(sheets, root.get("activeSheet").asInt(0));
@@ -1087,6 +1098,8 @@ Json Project::snapshot() const {
             j["depth"] = schematic.sheetDepth(s.id);
             j["size"] = s.size;
             j["template"] = sheetTemplateFor(*this, s.id).name;
+            j["symbolWidth"] = s.symbolWidth;
+            j["symbolHeight"] = s.symbolHeight;
             Json ports = Json::array();
             for (const auto& port : schematic.sheetPorts(s.id)) ports.push(port);
             j["ports"] = ports;

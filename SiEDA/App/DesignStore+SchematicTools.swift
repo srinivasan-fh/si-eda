@@ -112,6 +112,14 @@ extension DesignStore {
         }
     }
 
+    /// Sets the drawn size of a sheet's sheet symbol (0 × 0 = fitted to its entries); one undo step.
+    func setSheetSymbolSize(_ id: Int, width: Double, height: Double) {
+        guard let sheet = snapshot.sheet(id), sheet.symbolWidth != width || sheet.symbolHeight != height else { return }
+        performChecked("\(sheet.name): sheet symbol size", invalidatesAnalysis: false) {
+            $0.setSheetSymbolSize(id, width: width, height: height)
+        }
+    }
+
     /// Saves the PDF of every sheet (bookmarks follow the hierarchy; frames and title blocks on every page).
     func exportSchematicPDF() {
         guard let data = engine.schematicPDF() else {

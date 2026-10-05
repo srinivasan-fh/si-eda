@@ -295,4 +295,14 @@ bool Schematic::setSheetSize(int id, const std::string& size) {
     return true;
 }
 
+bool Schematic::setSheetSymbolSize(int id, double width, double height) {
+    if (!findSheet(id) || !std::isfinite(width) || !std::isfinite(height)) return false;
+    for (auto& s : sheets_)
+        if (s.id == id) {
+            s.symbolWidth = std::clamp(width, 0.0, 4000.0);
+            s.symbolHeight = std::clamp(height, 0.0, 4000.0);
+        }
+    return true;
+}
+
 }  // namespace sieda

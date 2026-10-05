@@ -85,6 +85,7 @@
 "Apply Prices to BOM" = "ಬೆಲೆಗಳನ್ನು BOM ಗೆ ಅನ್ವಯಿಸಿ";
 "Apply Symbol" = "ಸಿಂಬಲ್ ಅನ್ವಯಿಸಿ";
 "Apply Tuning" = "ಟ್ಯೂನಿಂಗ್ ಅನ್ವಯಿಸಿ";
+"Arc" = "ಚಾಪ";
 "Arrange" = "ಜೋಡಿಸಿ";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "ಸ್ಕೀಮ್ಯಾಟಿಕ್ ಸಿಂಬಲ್ ಜೋಡಿಸಿ: ಯಾವುದೇ ಬದಿಯಲ್ಲಿ ಪಿನ್‌ಗಳು, ಗುಂಪುಗಳು, ಸ್ಟ್ಯಾಕ್ ಮಾಡಿದ ಪವರ್ ಪಿನ್‌ಗಳು, ಸ್ವಯಂ ಜೋಡಣೆ";
 "Arrange the symbol, or define the gates of a multi-unit part" = "ಚಿಹ್ನೆಯನ್ನು ಜೋಡಿಸಿ ಅಥವಾ ಬಹು-ಯೂನಿಟ್ ಭಾಗದ ಗೇಟ್‌ಗಳನ್ನು ವ್ಯಾಖ್ಯಾನಿಸಿ";
@@ -130,6 +131,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "ಬೋರ್ಡ್ ಔಟ್‌ಲೈನ್ (ಕ್ವಾಡ್-X ಫ್ರೇಮ್, ದುಂಡಾದ, ವೃತ್ತ), ಮೌಂಟಿಂಗ್ ರಂಧ್ರಗಳು, ಕಾಪರ್ ಪೋರ್‌ಗಳು/ಪ್ಲೇನ್‌ಗಳು ಮತ್ತು ನೆಟ್ ಕ್ಲಾಸ್‌ಗಳು";
 "Board thickness" = "ಬೋರ್ಡ್ ದಪ್ಪ";
 "Boards per order, for the order cost" = "ಆರ್ಡರ್ ವೆಚ್ಚಕ್ಕಾಗಿ ಪ್ರತಿ ಆರ್ಡರ್‌ಗೆ ಬೋರ್ಡ್‌ಗಳು";
+"Body box" = "ಬಾಡಿ ಬಾಕ್ಸ್";
 "Broadside" = "ಬ್ರಾಡ್‌ಸೈಡ್";
 "Built-in model" = "ಅಂತರ್ನಿರ್ಮಿತ ಮಾದರಿ";
 "Bus" = "ಬಸ್";
@@ -170,6 +172,7 @@
 "Choose a part" = "ಪಾರ್ಟ್ ಆಯ್ಕೆಮಾಡಿ";
 "Choose the footprint for this symbol: the import is read again with this pair" = "ಈ ಸಿಂಬಲ್‌ಗೆ ಫುಟ್‌ಪ್ರಿಂಟ್ ಆಯ್ಕೆಮಾಡಿ: ಈ ಜೋಡಿಯೊಂದಿಗೆ ಆಮದನ್ನು ಮತ್ತೆ ಓದಲಾಗುತ್ತದೆ";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "ಸಿನಿಮ್ಯಾಟಿಕ್ ಹೆಡ್ಸ್-ಅಪ್ ಡಿಸ್‌ಪ್ಲೇ: ಪ್ರೊಜೆಕ್ಟರ್, ಕಣಗಳು, ಪಾರ್ಟ್ ಕಾಲ್-ಔಟ್‌ಗಳು, ಡೇಟಾ ಸ್ತಂಭಗಳು ಮತ್ತು ರೀಡ್-ಔಟ್‌ಗಳು";
+"Circle" = "ವೃತ್ತ";
 "Circuit" = "ಸರ್ಕ್ಯೂಟ್";
 "Circuit — 5 ms, 5 µs" = "ಸರ್ಕ್ಯೂಟ್ — 5 ms, 5 µs";
 "Class / board" = "ವರ್ಗ / ಬೋರ್ಡ್";
@@ -228,6 +231,7 @@
 "DEVICES" = "ಡಿವೈಸ್‌ಗಳು";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "ರೇಖಾಚಿತ್ರ";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "ಡೇಟಾಶೀಟ್";
@@ -245,6 +249,7 @@
 "Delete Type" = "ಪ್ರಕಾರ ಅಳಿಸಿ";
 "Delete Variant" = "ವೇರಿಯಂಟ್ ಅಳಿಸಿ";
 "Delete Wire" = "ವೈರ್ ಅಳಿಸಿ";
+"Delete the selected drawing" = "ಆಯ್ದ ರೇಖಾಚಿತ್ರವನ್ನು ಅಳಿಸಿ";
 "Describe your product" = "ನಿಮ್ಮ ಉತ್ಪನ್ನವನ್ನು ವಿವರಿಸಿ";
 "Description" = "ವಿವರಣೆ";
 "Design" = "ಡಿಸೈನ್";
@@ -268,7 +273,9 @@
 "Done" = "ಮುಗಿದಿದೆ";
 "Down ↓" = "ಕೆಳಗೆ ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "ವಿತರಕರ ಡೇಟಾಶೀಟ್ PDF ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಅದರ ಪಿನ್ ಕೋಷ್ಟಕವನ್ನು ಹೊರತೆಗೆಯಿರಿ";
+"Drag to draw · click to place a text · Esc returns to selecting" = "ಬರೆಯಲು ಎಳೆಯಿರಿ · ಪಠ್ಯ ಇಡಲು ಕ್ಲಿಕ್ ಮಾಡಿ · Esc ಆಯ್ಕೆಗೆ ಹಿಂತಿರುಗುತ್ತದೆ";
 "Drag to orbit" = "ಆರ್ಬಿಟ್ ಮಾಡಲು ಡ್ರ್ಯಾಗ್ ಮಾಡಿ";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "ರಚಿಸಿದ ಆಯತವನ್ನು ಬರೆಯಿರಿ; ರೇಖಾಚಿತ್ರಗಳೇ ಬಾಡಿ ಆಗಿದ್ದರೆ ಆಫ್ ಮಾಡಿ";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "ಲ್ಯಾಂಡ್ ಪ್ಯಾಟರ್ನ್ ಅನ್ನು ಪ್ಯಾಡ್‌ನಿಂದ ಪ್ಯಾಡ್‌ಗೆ ಬರೆಯಿರಿ: ಪ್ರತಿ ಪ್ಯಾಡ್‌ನ ಸ್ಥಾನ, ಗಾತ್ರ, ಆಕಾರ, ಡ್ರಿಲ್ ಮತ್ತು ಪಿನ್";
 "Drawn by" = "ರಚಿಸಿದವರು";
 "Driver" = "ಡ್ರೈವರ್";
@@ -289,6 +296,7 @@
 "Edit Symbol…" = "ಸಿಂಬಲ್ ಸಂಪಾದಿಸಿ…";
 "Effort" = "ಪ್ರಯತ್ನ";
 "Enable AI assistance" = "AI ಸಹಾಯವನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ";
+"End %lld°" = "ಅಂತ್ಯ %lld°";
 "Engineering change order: review and execute the schematic's changes on the board" = "ಎಂಜಿನಿಯರಿಂಗ್ ಬದಲಾವಣೆ ಆದೇಶ: ಸ್ಕೀಮ್ಯಾಟಿಕ್ ಬದಲಾವಣೆಗಳನ್ನು ಪರಿಶೀಲಿಸಿ ಬೋರ್ಡ್‌ನಲ್ಲಿ ಕಾರ್ಯಗತಗೊಳಿಸಿ";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "ಈ ಬಟನ್ ಸಕ್ರಿಯಗೊಳಿಸಲು ಮೇಲೆ ನಿಮ್ಮ ಐಡೆಂಟಿಟಿ ಪೂರೈಕೆದಾರರ ಇಶ್ಯೂಯರ್ URL ಮತ್ತು SiEDA ಕ್ಲೈಂಟ್ ID ನಮೂದಿಸಿ (ನಿಮ್ಮ IT ನಿರ್ವಾಹಕರನ್ನು ಕೇಳಿ).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "MIL-STD-901E ಆಘಾತವು ಅವುಗಳನ್ನು ಕಿತ್ತುಹಾಕದಂತೆ ಪ್ರೊಸೆಸರ್‌ಗಳು, BGA ಗಳು ಮತ್ತು ದೊಡ್ಡ ಕೆಪಾಸಿಟರ್‌ಗಳ ಕೆಳಗೆ ಎಪಾಕ್ಸಿ";
@@ -315,6 +323,7 @@
 "File unit" = "ಫೈಲ್ ಘಟಕ";
 "Fill Suggested Part Numbers" = "ಸೂಚಿಸಿದ ಪಾರ್ಟ್ ಸಂಖ್ಯೆಗಳನ್ನು ತುಂಬಿಸಿ";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "ಪ್ರತಿ ಸಾಲಿನಲ್ಲಿ ಬಿಲ್ಡ್ ಪ್ರಮಾಣದಲ್ಲಿ ಅತ್ಯುತ್ತಮ ಆಫರ್‌ನ ಸರಬರಾಜುದಾರ ಭಾಗ ಸಂಖ್ಯೆ ಮತ್ತು ಘಟಕ ಬೆಲೆಯನ್ನು ತುಂಬಿ";
+"Filled" = "ತುಂಬಿದ";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "ಮೌಲ್ಯ ಮತ್ತು ಪ್ಯಾಕೇಜ್‌ನಿಂದ ನಿರ್ಧರಿಸಬಹುದಾದಲ್ಲಿ ಪ್ರಮಾಣಿತ ಪಾರ್ಟ್ ಸಂಖ್ಯೆಗಳನ್ನು ತುಂಬುತ್ತದೆ (ಉದಾ. Yageo RC0805 ";
 "Find" = "ಹುಡುಕಿ";
 "Find & Replace" = "ಹುಡುಕಿ ಮತ್ತು ಬದಲಿಸಿ";
@@ -328,6 +337,7 @@
 "Fit Board to Components" = "ಬೋರ್ಡ್ ಅನ್ನು ಕಾಂಪೊನೆಂಟ್‌ಗಳಿಗೆ ಹೊಂದಿಸಿ";
 "Fits every pin" = "ಪ್ರತಿ ಪಿನ್‌ಗೆ ಹೊಂದುತ್ತದೆ";
 "Fitted" = "ಅಳವಡಿಸಲಾಗಿದೆ";
+"Fitted to Entries" = "ಎಂಟ್ರಿಗಳಿಗೆ ಹೊಂದಿಸಿದ";
 "Fix Duplicates Only" = "ನಕಲುಗಳನ್ನು ಮಾತ್ರ ಸರಿಪಡಿಸಿ";
 "Flicker (1/f)" = "ಫ್ಲಿಕರ್ (1/f)";
 "Flight time" = "ಫ್ಲೈಟ್ ಟೈಮ್";
@@ -415,8 +425,10 @@
 "Length" = "ಉದ್ದ";
 "Library" = "ಲೈಬ್ರರಿ";
 "Lifecycle" = "ಲೈಫ್‌ಸೈಕಲ್";
+"Line" = "ರೇಖೆ";
 "Line loss per layer" = "ಪ್ರತಿ ಪದರದ ಲೈನ್ ನಷ್ಟ";
 "Line total" = "ಸಾಲಿನ ಒಟ್ಟು";
+"Line width %@" = "ರೇಖೆಯ ಅಗಲ %@";
 "Live Pricing" = "ಲೈವ್ ಬೆಲೆಗಳು";
 "Live Pricing…" = "ಲೈವ್ ಬೆಲೆಗಳು…";
 "Live board" = "ಲೈವ್ ಬೋರ್ಡ್";
@@ -467,6 +479,8 @@
 "Mounting" = "ಮೌಂಟಿಂಗ್";
 "Mouser Search API key (API Hub → Search API)." = "Mouser ಸರ್ಚ್ API ಕೀ (API Hub → Search API).";
 "Move Selection Here" = "ಆಯ್ಕೆಯನ್ನು ಇಲ್ಲಿಗೆ ಸರಿಸಿ";
+"Move drawing" = "ರೇಖಾಚಿತ್ರ ಸರಿಸಿ";
+"Move the drawing half a grid step" = "ರೇಖಾಚಿತ್ರವನ್ನು ಅರ್ಧ ಗ್ರಿಡ್ ಸರಿಸಿ";
 "Move the footprint origin to the centre of the pads" = "ಫುಟ್‌ಪ್ರಿಂಟ್ ಮೂಲಬಿಂದುವನ್ನು ಪ್ಯಾಡ್‌ಗಳ ಮಧ್ಯಕ್ಕೆ ಸರಿಸಿ";
 "Move the pad in the numbering; pads between shift by one" = "ಸಂಖ್ಯಾಕ್ರಮದಲ್ಲಿ ಪ್ಯಾಡ್ ಸರಿಸಿ; ನಡುವಿನ ಪ್ಯಾಡ್‌ಗಳು ಒಂದು ಸ್ಥಾನ ಸರಿಯುತ್ತವೆ";
 "NAVIGATOR" = "ನ್ಯಾವಿಗೇಟರ್";
@@ -497,6 +511,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "ಈ ಡಿಸೈನ್‌ನಲ್ಲಿ ಡಿಫರೆನ್ಶಿಯಲ್ ಜೋಡಿಗಳು (…_P/_N, …+/-) ಅಥವಾ ಬಸ್‌ಗಳು (DQ0…, DATA[0..7], ADDR…) ಇಲ್ಲ.";
 "No distributor API keys yet" = "ಇನ್ನೂ ವಿತರಕ API ಕೀಗಳಿಲ್ಲ";
 "No distributor offers." = "ವಿತರಕ ಆಫರ್‌ಗಳಿಲ್ಲ.";
+"No drawings yet: pick a tool and drag on the symbol." = "ಇನ್ನೂ ರೇಖಾಚಿತ್ರಗಳಿಲ್ಲ: ಉಪಕರಣ ಆರಿಸಿ ಚಿಹ್ನೆಯ ಮೇಲೆ ಎಳೆಯಿರಿ.";
 "No errors or warnings." = "ಯಾವುದೇ ದೋಷ ಅಥವಾ ಎಚ್ಚರಿಕೆ ಇಲ್ಲ.";
 "No gates found in the pin names." = "ಪಿನ್ ಹೆಸರುಗಳಲ್ಲಿ ಯಾವುದೇ ಗೇಟ್ ಕಂಡುಬಂದಿಲ್ಲ.";
 "No imported model" = "ಆಮದು ಮಾಡಿದ ಮಾದರಿ ಇಲ್ಲ";
@@ -609,6 +624,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "ಪ್ಲೇಸ್‌ಮೆಂಟ್, ರೂಟಿಂಗ್, ಪೋರ್‌ಗಳು, DRC, Gerber Edge.Cuts ಮತ್ತು 3D ಬೋರ್ಡ್ ಔಟ್‌ಲೈನ್ ಅನ್ನು ಅನುಸರಿಸುತ್ತವೆ. ";
 "Plane" = "ಪ್ಲೇನ್";
 "Plane cavity" = "ಪ್ಲೇನ್ ಕುಹರ";
+"Polygon" = "ಬಹುಭುಜ";
 "Port (to parent sheet)" = "ಪೋರ್ಟ್ (ಪೋಷಕ ಶೀಟ್‌ಗೆ)";
 "Ports: %@" = "ಪೋರ್ಟ್‌ಗಳು: %@";
 "Power" = "ಪವರ್";
@@ -623,6 +639,7 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "ತ್ರಿಜ್ಯ %lld";
 "Re-annotate from the board (columns)" = "ಬೋರ್ಡ್‌ನಿಂದ ಮರು ಅನೋಟೇಟ್ (ಕಾಲಮ್‌ಗಳು)";
 "Re-annotate from the board (rows)" = "ಬೋರ್ಡ್‌ನಿಂದ ಮರು ಅನೋಟೇಟ್ (ಸಾಲುಗಳು)";
 "Re-verify" = "ಮರು-ಪರಿಶೀಲಿಸಿ";
@@ -731,11 +748,13 @@
 "Search parts" = "ಪಾರ್ಟ್‌ಗಳನ್ನು ಹುಡುಕಿ";
 "Searching…" = "ಹುಡುಕಲಾಗುತ್ತಿದೆ…";
 "Seat on Board" = "ಬೋರ್ಡ್ ಮೇಲೆ ಕೂರಿಸಿ";
+"Select" = "ಆರಿಸಿ";
 "Select a net to analyse" = "ವಿಶ್ಲೇಷಿಸಲು ನೆಟ್ ಆಯ್ಕೆಮಾಡಿ";
 "Select a net to analyse its channel" = "ಚಾನೆಲ್ ವಿಶ್ಲೇಷಿಸಲು ಒಂದು ನೆಟ್ ಆಯ್ಕೆಮಾಡಿ";
 "Select a pad to edit its position, size, shape, drill and pin." = "ಪ್ಯಾಡ್‌ನ ಸ್ಥಾನ, ಗಾತ್ರ, ಆಕಾರ, ಡ್ರಿಲ್ ಮತ್ತು ಪಿನ್ ಸಂಪಾದಿಸಲು ಅದನ್ನು ಆಯ್ಕೆಮಾಡಿ.";
 "Select a part on the schematic or PCB to edit its properties." = "ಗುಣಲಕ್ಷಣಗಳನ್ನು ಸಂಪಾದಿಸಲು ಸ್ಕೀಮ್ಯಾಟಿಕ್ ಅಥವಾ PCB ಯಲ್ಲಿ ಒಂದು ಪಾರ್ಟ್ ಆಯ್ಕೆಮಾಡಿ.";
 "Select an importable part to preview it." = "ಪೂರ್ವವೀಕ್ಷಣೆಗೆ ಆಮದು ಮಾಡಬಹುದಾದ ಭಾಗವನ್ನು ಆಯ್ಕೆಮಾಡಿ.";
+"Select and move pins and drawings" = "ಪಿನ್‌ಗಳು ಮತ್ತು ರೇಖಾಚಿತ್ರಗಳನ್ನು ಆರಿಸಿ ಸರಿಸಿ";
 "Select pins to move them to a side, stack them or change their order." = "ಪಿನ್‌ಗಳನ್ನು ಒಂದು ಬದಿಗೆ ಸರಿಸಲು, ಸ್ಟ್ಯಾಕ್ ಮಾಡಲು ಅಥವಾ ಅವುಗಳ ಕ್ರಮ ಬದಲಿಸಲು ಅವುಗಳನ್ನು ಆಯ್ಕೆಮಾಡಿ.";
 "Send" = "ಕಳುಹಿಸಿ";
 "Send to" = "ಇಲ್ಲಿಗೆ ಕಳುಹಿಸಿ";
@@ -749,6 +768,7 @@
 "Sheet" = "ಶೀಟ್";
 "Sheet %lld of %lld" = "ಶೀಟ್ %lld / %lld";
 "Sheet Size" = "ಶೀಟ್ ಗಾತ್ರ";
+"Sheet Symbol Size" = "ಶೀಟ್ ಚಿಹ್ನೆಯ ಗಾತ್ರ";
 "Sheet name" = "ಶೀಟ್ ಹೆಸರು";
 "Shot" = "ಶಾಟ್";
 "Shove" = "ತಳ್ಳು";
@@ -781,6 +801,7 @@
 "Simulation" = "ಸಿಮ್ಯುಲೇಶನ್";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "ರಿಯಲ್ ಟೈಮ್‌ಗೆ ಹೋಲಿಸಿದರೆ ಸಿಮ್ಯುಲೇಶನ್ ವೇಗ (ಸ್ಲೋ ಮೋಷನ್ ವೇಗದ ಸಿಗ್ನಲ್‌ಗಳನ್ನು ತೋರಿಸುತ್ತದೆ)";
 "Single-ended" = "ಸಿಂಗಲ್-ಎಂಡೆಡ್";
+"Size %lld" = "ಗಾತ್ರ %lld";
 "Skew" = "ಸ್ಕ್ಯೂ";
 "Smooth" = "ನಯವಾದ";
 "Solve the DC operating point once — shows voltage probes" = "DC ಆಪರೇಟಿಂಗ್ ಪಾಯಿಂಟ್ ಅನ್ನು ಒಮ್ಮೆ ಪರಿಹರಿಸಿ — ವೋಲ್ಟೇಜ್ ಪ್ರೋಬ್‌ಗಳನ್ನು ತೋರಿಸುತ್ತದೆ";
@@ -794,6 +815,7 @@
 "Stack repeated power pins" = "ಪುನರಾವರ್ತಿತ ಪವರ್ ಪಿನ್‌ಗಳನ್ನು ಸ್ಟ್ಯಾಕ್ ಮಾಡಿ";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "PCB ಲೇಔಟ್‌ನ ಲೇಯರ್‌ಗಳ ಸೆಟ್ಟಿಂಗ್‌ನಿಂದ ಸ್ಟ್ಯಾಕ್-ಅಪ್: 1 ಲೇಯರ್ ಕೆಳಭಾಗವನ್ನು ಖಾಲಿ FR-4 ಆಗಿ ಬಿಡುತ್ತದೆ; ";
 "Standard ED" = "ಪ್ರಮಾಣಿತ ED";
+"Start %lld°" = "ಆರಂಭ %lld°";
 "Starting the design engine" = "ಡಿಸೈನ್ ಎಂಜಿನ್ ಪ್ರಾರಂಭವಾಗುತ್ತಿದೆ";
 "Step" = "ಸ್ಟೆಪ್";
 "Step response" = "ಹಂತ ಪ್ರತಿಕ್ರಿಯೆ";
@@ -826,6 +848,7 @@
 "Tamper mesh over" = "ಟ್ಯಾಂಪರ್ ಮೆಶ್ ಇದರ ಮೇಲೆ";
 "Target" = "ಗುರಿ";
 "Test Connection" = "ಸಂಪರ್ಕ ಪರೀಕ್ಷಿಸಿ";
+"Text" = "ಪಠ್ಯ";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "ಆಟೋರೂಟರ್ RF ಲೈನ್‌ಗಳು ಮತ್ತು ಡಿಫರೆನ್ಶಿಯಲ್ ಜೋಡಿಗಳ (…_P/_N) ಗಾತ್ರವನ್ನು ಈ ಇಂಪೆಡೆನ್ಸ್‌ಗಳಿಗೆ ತಕ್ಕಂತೆ ನಿರ್ಧರಿಸುತ್ತದೆ (IPC-2141).";
 "The board is up to date with the schematic." = "ಬೋರ್ಡ್ ಸ್ಕೀಮ್ಯಾಟಿಕ್‌ನೊಂದಿಗೆ ನವೀಕೃತವಾಗಿದೆ.";
 "The imported model replaces the built-in one in every analysis." = "ಆಮದು ಮಾಡಿದ ಮಾದರಿ ಪ್ರತಿಯೊಂದು ವಿಶ್ಲೇಷಣೆಯಲ್ಲೂ ಅಂತರ್ನಿರ್ಮಿತ ಮಾದರಿಯ ಬದಲಿಗೆ ಬಳಸಲ್ಪಡುತ್ತದೆ.";

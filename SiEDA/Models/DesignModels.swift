@@ -430,6 +430,9 @@ struct SheetInfo: Decodable, Equatable, Identifiable, Hashable {
     /// Drawing template ("A4" … "ANSI E"; "" = sized to the drawing) and the one it prints on.
     var size: String?
     var template: String?
+    /// Drawn size of the sheet's sheet symbol on its parent (schematic units; 0 = fitted to its entries).
+    var symbolWidth: Double?
+    var symbolHeight: Double?
 
     var isRepeated: Bool { (instances ?? 0) > 1 }
     var isInstance: Bool { (instanceOf ?? 0) != 0 }

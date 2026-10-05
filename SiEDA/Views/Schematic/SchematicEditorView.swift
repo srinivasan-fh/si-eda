@@ -339,6 +339,16 @@ struct SheetBar: View {
                             repeating = sheet
                         }
                     }
+                    if sheet.parent != 0 {
+                        Menu("Sheet Symbol Size") {
+                            Button("Fitted to Entries") { store.setSheetSymbolSize(sheet.id, width: 0, height: 0) }
+                            ForEach([[120.0, 80.0], [160, 120], [200, 160], [280, 200], [360, 280]], id: \.self) { wh in
+                                Button { store.setSheetSymbolSize(sheet.id, width: wh[0], height: wh[1]) } label: {
+                                    Text(verbatim: "\(Int(wh[0])) × \(Int(wh[1]))")
+                                }
+                            }
+                        }
+                    }
                     Menu("Sheet Size") {
                         Button("Auto (fits the drawing)") { store.setSheetSize(sheet.id, size: "") }
                         ForEach(EDAEngine.sheetTemplates()) { template in

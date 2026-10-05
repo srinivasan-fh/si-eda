@@ -14077,3 +14077,152 @@ TEST(c_api_update_pcb) {
     if (rc != 0) std::printf("    C API Update PCB test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+// ======================================================================= symbol graphics, drawn sheet symbols
+
+TEST(symbol_graphics_persist_and_draw) {
+    CustomPartSpec spec = ne555Spec("SOIC");
+    spec.name = "NE555_GFX";
+    const std::string plain = customPartSpecToJson(spec).dump();
+    CHECK(plain.find("graphics") == std::string::npos && plain.find("symbolLayout") == std::string::npos);
+    SymbolGraphic line, rect, arc, poly, text;
+    line.points = {{-20, -10}, {0, 10}, {20, -10}};
+    rect.kind = "rect";
+    rect.points = {{-30, -30}, {30, 30}};
+    rect.fill = true;
+    arc.kind = "arc";
+    arc.points = {{0, 0}};
+    arc.radius = 12;
+    arc.startAngle = 180;
+    arc.endAngle = 360;
+    poly.kind = "polygon";
+    poly.points = {{-5, -5}, {5, 0}, {-5, 5}};
+    poly.fill = true;
+    poly.lineWidth = 2;
+    text.kind = "text";
+    text.points = {{-25, 20}};
+    text.text = "TIMER";
+    text.size = 6;
+    spec.symbol.graphics = {line, rect, arc, poly, text};
+    spec.symbol.body = false;
+    const std::string drawn = customPartSpecToJson(spec).dump();
+    CHECK(drawn.find("\"graphics\"") != std::string::npos && drawn.find("\"body\":false") != std::string::npos);
+    const CustomPartSpec back = customPartSpecFromJson(Json::parse(drawn));
+    CHECK(back.symbol.graphics == spec.symbol.graphics && !back.symbol.body && back.symbol.pins.empty());
+    CHECK(customPartSpecToJson(back).dump() == drawn);
+    const auto b = symbolGraphicsBounds(back.symbol.graphics);
+    CHECK(b[0] == -30 && b[1] == -30 && b[2] == 30 && b[3] == 30);
+    // Invalid drawings are refused.
+    for (const char* bad : {R"({"kind":"blob","points":[[0,0]]})", R"({"kind":"rect","points":[[0,0]]})",
+                            R"({"kind":"line","points":[[0,0],[1e9,0]]})", R"({"kind":"text","points":[[0,0]]})",
+                            R"({"kind":"circle","points":[[0,0]],"radius":-1})", R"("line")"}) {
+        Json j = Json::parse(plain);
+        Json sym = Json::object();
+        Json gs = Json::array();
+        gs.push(Json::parse(bad));
+        sym["graphics"] = gs;
+        j["symbolLayout"] = sym;
+        bool threw = false;
+        try {
+            (void)customPartSpecFromJson(j);
+        } catch (const JsonError&) {
+            threw = true;
+        }
+        CHECK(threw);
+    }
+    // The registered part keeps its drawings; the PDF draws them (a filled outline, the text).
+    const auto part = CustomPartRegistry::instance().registerPart(back);
+    CHECK(part->spec.symbol.graphics.size() == 5 && customPartToJson(*part).dump().find("TIMER") != std::string::npos);
+    Project p;
+    CHECK(p.schematic.addCustomComponent(part->id, "NE555", {0, 0}, 90) > 0);
+    const std::string pdf = exportSchematicPdf(p);
+    CHECK(pdf.find("(TIMER)") != std::string::npos && pdf.find(" b\n0 g\n") != std::string::npos);
+}
+
+TEST(sheet_symbol_size_and_harness_connector_body) {
+    Project p;
+    Schematic& s = p.schematic;
+    const int child = s.addSheet("Child", 1);
+    CHECK(child > 0);
+    s.setActiveSheet(child);
+    const int port = s.addComponent(ComponentKind::NetLabel, "IN", {0, 0});
+    CHECK(s.setLabelScope(port, LabelScope::Port));
+    s.setActiveSheet(1);
+    CHECK(s.placeSheetEntries(child, {100, 0}) == 1);
+    const std::string fitted = p.toJson().dump();
+    CHECK(fitted.find("symbolSize") == std::string::npos);
+    CHECK(s.setSheetSymbolSize(child, 200, 120) && !s.setSheetSymbolSize(999, 1, 1));
+    CHECK(s.setSheetSymbolSize(child, 200, 1e9) && s.findSheet(child)->symbolHeight == 4000);
+    CHECK(s.setSheetSymbolSize(child, 200, 120) && !s.setSheetSymbolSize(child, NAN, 0));
+    const std::string saved = p.toJson().dump();
+    CHECK(saved.find("\"symbolSize\":[200,120]") != std::string::npos);
+    const Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.schematic.findSheet(child)->symbolWidth == 200 && q.toJson().dump() == saved);
+    CHECK(p.snapshot().dump().find("\"symbolWidth\":200") != std::string::npos);
+    // A bogus size in a file is dropped.
+    std::string bogus = saved;
+    bogus.replace(bogus.find("[200,120]"), 9, "[\"x\",-5]");
+    CHECK(Project::fromJson(Json::parse(bogus)).schematic.findSheet(child)->symbolWidth == 0);
+    // A harness connector is drawn as a body around its entries in the PDF.
+    CHECK(s.setHarnessType("SPI", {"SCK", "MOSI"}));
+    const size_t before = exportSchematicPdf(p).size();
+    CHECK(s.addHarnessConnector("SPI", "BUS0", {0, 200}) > 0);
+    CHECK(exportSchematicPdf(p).size() > before);
+}
+
+TEST(symbol_graphics_fuzzed) {
+    uint32_t seed = 4242u;
+    auto rng = [&seed] {
+        seed = seed * 1664525u + 1013904223u;
+        return seed >> 8;
+    };
+    const std::string base = customPartSpecToJson(ne555Spec("DIP")).dump();
+    const char* kinds[] = {"line", "rect", "circle", "arc", "polygon", "text", "blob", ""};
+    int parsed = 0;
+    for (int round = 0; round < 400; ++round) {
+        Json j = Json::parse(base);
+        Json sym = Json::object();
+        Json gs = Json::array();
+        for (int g = 0, n = static_cast<int>(rng() % 6); g < n; ++g) {
+            Json gj = Json::object();
+            gj["kind"] = std::string(kinds[rng() % 8]);
+            Json pts = Json::array();
+            for (int k = 0, m = static_cast<int>(rng() % 5); k < m; ++k) {
+                Json pj = Json::array();
+                pj.push(static_cast<double>(static_cast<int>(rng() % 9000) - 4500));
+                if (rng() % 9) pj.push(static_cast<double>(static_cast<int>(rng() % 200) - 100));
+                pts.push(rng() % 11 ? pj : Json("x"));
+            }
+            gj["points"] = pts;
+            if (rng() % 2) gj["radius"] = static_cast<double>(static_cast<int>(rng() % 100) - 10);
+            if (rng() % 2) gj["startAngle"] = static_cast<double>(rng() % 8000) - 4000;
+            if (rng() % 2) gj["text"] = rng() % 5 ? Json(std::string("Ω µ ") + std::to_string(rng() % 99)) : Json(3);
+            if (rng() % 2) gj["size"] = static_cast<double>(rng() % 300);
+            if (rng() % 2) gj["lineWidth"] = static_cast<double>(rng() % 30) - 5;
+            if (rng() % 2) gj["fill"] = rng() % 2 == 0;
+            gs.push(rng() % 13 ? gj : Json(7));
+        }
+        sym["graphics"] = rng() % 9 ? gs : Json("bogus");
+        if (rng() % 2) sym["body"] = rng() % 2 == 0;
+        j["symbolLayout"] = sym;
+        try {
+            const CustomPartSpec spec = customPartSpecFromJson(j);
+            ++parsed;
+            const std::string once = customPartSpecToJson(spec).dump();
+            CHECK(customPartSpecToJson(customPartSpecFromJson(Json::parse(once))).dump() == once);
+            const auto part = CustomPartRegistry::instance().registerPart(spec);
+            Project p;
+            if (p.schematic.addCustomComponent(part->id, "", {0, 0}, static_cast<int>(rng() % 4) * 90) > 0)
+                CHECK(exportSchematicPdf(p).rfind("%PDF", 0) == 0);
+        } catch (const JsonError&) {
+        }
+    }
+    CHECK(parsed > 50);
+}
+
+extern "C" int sieda_c_api_sheet_symbol_size_test(void);
+TEST(c_api_sheet_symbol_size) {
+    const int rc = sieda_c_api_sheet_symbol_size_test();
+    if (rc != 0) std::printf("    C API sheet symbol size test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}

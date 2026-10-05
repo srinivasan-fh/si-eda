@@ -110,6 +110,7 @@
 		B9A516DA1DD603FA83F89C1D = {isa = PBXBuildFile; fileRef = C277541433091BF5ACFA3A26; };
 		BA6D45241A0139FD8B4C26A9 = {isa = PBXBuildFile; fileRef = 51E84E9D7C3595879CC30FA4; };
 		BB309E505EC5272A3C86459C = {isa = PBXBuildFile; fileRef = 28DA5CB541B843FE20EC60BA; };
+		BD380793330A391C12C67523 = {isa = PBXBuildFile; fileRef = B216F8BE4FB9512FCEE1C947; };
 		BE6C4761295EB3ECD966260A = {isa = PBXBuildFile; fileRef = 7390FF29C91C1F7CA969E087; };
 		C1512C5968EF4A24C368E681 = {isa = PBXBuildFile; fileRef = 7F594F5664EF7D8FB682ECA0; };
 		C22B231D09108E5DE6098FC1 = {isa = PBXBuildFile; fileRef = 0CFD6B6919610A29BB650C7E; };
@@ -323,6 +324,7 @@
 		AC5F3ED740A4FD6618195715 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Zones.cpp; sourceTree = "<group>"; };
 		AD55190557EC704E38B2BEAA = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryImportView.swift; sourceTree = "<group>"; };
 		ADD9C234BD8825A5E6022F7A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteProgressView.swift; sourceTree = "<group>"; };
+		B216F8BE4FB9512FCEE1C947 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolDrawingPanel.swift; sourceTree = "<group>"; };
 		B23FD27DAD6BD2539569BEE1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Isolation.cpp; sourceTree = "<group>"; };
 		B2A9F5BB531C867B7C400084 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = InteractiveRouter.cpp; sourceTree = "<group>"; };
 		B2FEEB38AB0B19ADD19A0E30 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/Localizable.strings"; sourceTree = "<group>"; };
@@ -464,6 +466,7 @@
 				AD55190557EC704E38B2BEAA,
 				E601822186D76BB1C045BDAB,
 				925CBB387F15965A68C80542,
+				B216F8BE4FB9512FCEE1C947,
 				055CDC196B757E80767362D1,
 				25D8A72BCBE227BB87A6F906,
 			);
@@ -1004,6 +1007,7 @@
 				D303B72146ED6E93F970928C,
 				AAB619501746C228207AAE9E,
 				074AD328E3F9B94F0D6D5EE4,
+				BD380793330A391C12C67523,
 				55A70E104464C2281B0F9AA3,
 				614BF00B3F1BE2ADA8F7F963,
 				BB309E505EC5272A3C86459C,

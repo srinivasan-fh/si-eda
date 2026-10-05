@@ -85,6 +85,7 @@
 "Apply Prices to BOM" = "Apply Prices to BOM";
 "Apply Symbol" = "Apply Symbol";
 "Apply Tuning" = "Apply Tuning";
+"Arc" = "Arc";
 "Arrange" = "Arrange";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange";
 "Arrange the symbol, or define the gates of a multi-unit part" = "Arrange the symbol, or define the gates of a multi-unit part";
@@ -130,6 +131,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes";
 "Board thickness" = "Board thickness";
 "Boards per order, for the order cost" = "Boards per order, for the order cost";
+"Body box" = "Body box";
 "Broadside" = "Broadside";
 "Built-in model" = "Built-in model";
 "Bus" = "Bus";
@@ -170,6 +172,7 @@
 "Choose a part" = "Choose a part";
 "Choose the footprint for this symbol: the import is read again with this pair" = "Choose the footprint for this symbol: the import is read again with this pair";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs";
+"Circle" = "Circle";
 "Circuit" = "Circuit";
 "Circuit — 5 ms, 5 µs" = "Circuit — 5 ms, 5 µs";
 "Class / board" = "Class / board";
@@ -228,6 +231,7 @@
 "DEVICES" = "DEVICES";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "DRAWING";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "Datasheet";
@@ -245,6 +249,7 @@
 "Delete Type" = "Delete Type";
 "Delete Variant" = "Delete Variant";
 "Delete Wire" = "Delete Wire";
+"Delete the selected drawing" = "Delete the selected drawing";
 "Describe your product" = "Describe your product";
 "Description" = "Description";
 "Design" = "Design";
@@ -268,7 +273,9 @@
 "Done" = "Done";
 "Down ↓" = "Down ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "Download the distributor's datasheet PDF and extract its pin table";
+"Drag to draw · click to place a text · Esc returns to selecting" = "Drag to draw · click to place a text · Esc returns to selecting";
 "Drag to orbit" = "Drag to orbit";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "Draw the generated rectangle; turn it off when the drawings are the body";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad";
 "Drawn by" = "Drawn by";
 "Driver" = "Driver";
@@ -289,6 +296,7 @@
 "Edit Symbol…" = "Edit Symbol…";
 "Effort" = "Effort";
 "Enable AI assistance" = "Enable AI assistance";
+"End %lld°" = "End %lld°";
 "Engineering change order: review and execute the schematic's changes on the board" = "Engineering change order: review and execute the schematic's changes on the board";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off";
@@ -315,6 +323,7 @@
 "File unit" = "File unit";
 "Fill Suggested Part Numbers" = "Fill Suggested Part Numbers";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "Fill the supplier part number and unit price of the best offer at the build quantity into each line";
+"Filled" = "Filled";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 ";
 "Find" = "Find";
 "Find & Replace" = "Find & Replace";
@@ -328,6 +337,7 @@
 "Fit Board to Components" = "Fit Board to Components";
 "Fits every pin" = "Fits every pin";
 "Fitted" = "Fitted";
+"Fitted to Entries" = "Fitted to Entries";
 "Fix Duplicates Only" = "Fix Duplicates Only";
 "Flicker (1/f)" = "Flicker (1/f)";
 "Flight time" = "Flight time";
@@ -415,8 +425,10 @@
 "Length" = "Length";
 "Library" = "Library";
 "Lifecycle" = "Lifecycle";
+"Line" = "Line";
 "Line loss per layer" = "Line loss per layer";
 "Line total" = "Line total";
+"Line width %@" = "Line width %@";
 "Live Pricing" = "Live Pricing";
 "Live Pricing…" = "Live Pricing…";
 "Live board" = "Live board";
@@ -467,6 +479,8 @@
 "Mounting" = "Mounting";
 "Mouser Search API key (API Hub → Search API)." = "Mouser Search API key (API Hub → Search API).";
 "Move Selection Here" = "Move Selection Here";
+"Move drawing" = "Move drawing";
+"Move the drawing half a grid step" = "Move the drawing half a grid step";
 "Move the footprint origin to the centre of the pads" = "Move the footprint origin to the centre of the pads";
 "Move the pad in the numbering; pads between shift by one" = "Move the pad in the numbering; pads between shift by one";
 "NAVIGATOR" = "NAVIGATOR";
@@ -497,6 +511,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design.";
 "No distributor API keys yet" = "No distributor API keys yet";
 "No distributor offers." = "No distributor offers.";
+"No drawings yet: pick a tool and drag on the symbol." = "No drawings yet: pick a tool and drag on the symbol.";
 "No errors or warnings." = "No errors or warnings.";
 "No gates found in the pin names." = "No gates found in the pin names.";
 "No imported model" = "No imported model";
@@ -609,6 +624,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. ";
 "Plane" = "Plane";
 "Plane cavity" = "Plane cavity";
+"Polygon" = "Polygon";
 "Port (to parent sheet)" = "Port (to parent sheet)";
 "Ports: %@" = "Ports: %@";
 "Power" = "Power";
@@ -623,6 +639,7 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "Radius %lld";
 "Re-annotate from the board (columns)" = "Re-annotate from the board (columns)";
 "Re-annotate from the board (rows)" = "Re-annotate from the board (rows)";
 "Re-verify" = "Re-verify";
@@ -731,11 +748,13 @@
 "Search parts" = "Search parts";
 "Searching…" = "Searching…";
 "Seat on Board" = "Seat on Board";
+"Select" = "Select";
 "Select a net to analyse" = "Select a net to analyse";
 "Select a net to analyse its channel" = "Select a net to analyse its channel";
 "Select a pad to edit its position, size, shape, drill and pin." = "Select a pad to edit its position, size, shape, drill and pin.";
 "Select a part on the schematic or PCB to edit its properties." = "Select a part on the schematic or PCB to edit its properties.";
 "Select an importable part to preview it." = "Select an importable part to preview it.";
+"Select and move pins and drawings" = "Select and move pins and drawings";
 "Select pins to move them to a side, stack them or change their order." = "Select pins to move them to a side, stack them or change their order.";
 "Send" = "Send";
 "Send to" = "Send to";
@@ -749,6 +768,7 @@
 "Sheet" = "Sheet";
 "Sheet %lld of %lld" = "Sheet %lld of %lld";
 "Sheet Size" = "Sheet Size";
+"Sheet Symbol Size" = "Sheet Symbol Size";
 "Sheet name" = "Sheet name";
 "Shot" = "Shot";
 "Shove" = "Shove";
@@ -781,6 +801,7 @@
 "Simulation" = "Simulation";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "Simulation speed relative to real time (slow motion shows fast signals)";
 "Single-ended" = "Single-ended";
+"Size %lld" = "Size %lld";
 "Skew" = "Skew";
 "Smooth" = "Smooth";
 "Solve the DC operating point once — shows voltage probes" = "Solve the DC operating point once — shows voltage probes";
@@ -794,6 +815,7 @@
 "Stack repeated power pins" = "Stack repeated power pins";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; ";
 "Standard ED" = "Standard ED";
+"Start %lld°" = "Start %lld°";
 "Starting the design engine" = "Starting the design engine";
 "Step" = "Step";
 "Step response" = "Step response";
@@ -826,6 +848,7 @@
 "Tamper mesh over" = "Tamper mesh over";
 "Target" = "Target";
 "Test Connection" = "Test Connection";
+"Text" = "Text";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141).";
 "The board is up to date with the schematic." = "The board is up to date with the schematic.";
 "The imported model replaces the built-in one in every analysis." = "The imported model replaces the built-in one in every analysis.";

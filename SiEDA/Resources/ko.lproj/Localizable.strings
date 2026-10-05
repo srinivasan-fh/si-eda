@@ -85,6 +85,7 @@
 "Apply Prices to BOM" = "BOM에 가격 적용";
 "Apply Symbol" = "심볼 적용";
 "Apply Tuning" = "튜닝 적용";
+"Arc" = "호";
 "Arrange" = "정렬";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "회로도 심볼 배치: 모든 면에 핀, 그룹, 전원 핀 스택, 자동 배치";
 "Arrange the symbol, or define the gates of a multi-unit part" = "기호를 배치하거나 다중 단위 부품의 게이트를 정의합니다";
@@ -130,6 +131,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "보드 외곽선(쿼드 X 프레임, 둥근 모서리, 원형), 마운팅 홀, 동박 푸어/플레인 및 네트 클래스";
 "Board thickness" = "보드 두께";
 "Boards per order, for the order cost" = "주문당 보드 수 (주문 비용 계산용)";
+"Body box" = "본체 상자";
 "Broadside" = "브로드사이드";
 "Built-in model" = "기본 제공 모델";
 "Bus" = "버스";
@@ -170,6 +172,7 @@
 "Choose a part" = "부품 선택";
 "Choose the footprint for this symbol: the import is read again with this pair" = "이 심벌의 풋프린트를 선택: 이 조합으로 가져오기를 다시 읽습니다";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "시네마틱 헤드업 디스플레이: 프로젝터, 파티클, 부품 콜아웃, 데이터 기둥 및 판독값";
+"Circle" = "원";
 "Circuit" = "회로";
 "Circuit — 5 ms, 5 µs" = "회로 — 5 ms, 5 µs";
 "Class / board" = "클래스 / 보드";
@@ -228,6 +231,7 @@
 "DEVICES" = "디바이스";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "그리기";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "데이터시트";
@@ -245,6 +249,7 @@
 "Delete Type" = "유형 삭제";
 "Delete Variant" = "변형 삭제";
 "Delete Wire" = "와이어 삭제";
+"Delete the selected drawing" = "선택한 그림 삭제";
 "Describe your product" = "제품 설명 입력";
 "Description" = "설명";
 "Design" = "설계";
@@ -268,7 +273,9 @@
 "Done" = "완료";
 "Down ↓" = "아래로 ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "유통업체 데이터시트 PDF를 내려받아 핀 표를 추출";
+"Drag to draw · click to place a text · Esc returns to selecting" = "드래그하여 그리기 · 클릭하여 텍스트 배치 · Esc로 선택으로 돌아가기";
 "Drag to orbit" = "드래그하여 궤도 회전";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "생성된 사각형을 그립니다. 그림이 본체일 때는 끄세요";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "랜드 패턴을 패드 단위로 그리기: 각 패드의 위치, 크기, 모양, 드릴 및 핀";
 "Drawn by" = "작성자";
 "Driver" = "드라이버";
@@ -289,6 +296,7 @@
 "Edit Symbol…" = "심볼 편집…";
 "Effort" = "추론 강도";
 "Enable AI assistance" = "AI 지원 사용";
+"End %lld°" = "끝 %lld°";
 "Engineering change order: review and execute the schematic's changes on the board" = "엔지니어링 변경 지시: 회로도의 변경 사항을 검토하고 보드에서 실행";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "위에 ID 공급자의 발급자 URL과 SiEDA 클라이언트 ID를 입력하면 이 버튼이 활성화됩니다 (IT 관리자에게 문의하세요).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "프로세서, BGA 및 대형 커패시터 아래에 에폭시를 도포하여 MIL-STD-901E 충격에도 떨어지지 않도록 함";
@@ -315,6 +323,7 @@
 "File unit" = "파일 단위";
 "Fill Suggested Part Numbers" = "추천 부품 번호 채우기";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "각 줄에 생산 수량 기준 최적 견적의 공급업체 부품 번호와 단가를 입력";
+"Filled" = "채우기";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "값과 패키지로 결정되는 표준 부품 번호를 채웁니다 (예: Yageo RC0805 ";
 "Find" = "찾기";
 "Find & Replace" = "찾기 및 바꾸기";
@@ -328,6 +337,7 @@
 "Fit Board to Components" = "보드를 부품에 맞추기";
 "Fits every pin" = "모든 핀에 맞음";
 "Fitted" = "실장";
+"Fitted to Entries" = "엔트리에 맞춤";
 "Fix Duplicates Only" = "중복만 수정";
 "Flicker (1/f)" = "플리커 (1/f)";
 "Flight time" = "비행 시간";
@@ -415,8 +425,10 @@
 "Length" = "길이";
 "Library" = "라이브러리";
 "Lifecycle" = "수명 주기";
+"Line" = "선";
 "Line loss per layer" = "레이어별 선로 손실";
 "Line total" = "줄 합계";
+"Line width %@" = "선 굵기 %@";
 "Live Pricing" = "실시간 가격";
 "Live Pricing…" = "실시간 가격…";
 "Live board" = "라이브 보드";
@@ -467,6 +479,8 @@
 "Mounting" = "실장";
 "Mouser Search API key (API Hub → Search API)." = "Mouser 검색 API 키(API Hub → Search API).";
 "Move Selection Here" = "선택 항목을 여기로 이동";
+"Move drawing" = "그림 이동";
+"Move the drawing half a grid step" = "그림을 격자 반 칸 이동";
 "Move the footprint origin to the centre of the pads" = "풋프린트 원점을 패드 중앙으로 이동";
 "Move the pad in the numbering; pads between shift by one" = "번호 순서에서 패드 이동. 사이의 패드는 하나씩 밀림";
 "NAVIGATOR" = "네비게이터";
@@ -497,6 +511,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "이 설계에는 차동 쌍(…_P/_N, …+/-)이나 버스(DQ0…, DATA[0..7], ADDR…)가 없습니다.";
 "No distributor API keys yet" = "아직 유통업체 API 키가 없습니다";
 "No distributor offers." = "유통업체 견적이 없습니다.";
+"No drawings yet: pick a tool and drag on the symbol." = "아직 그림이 없습니다. 도구를 골라 심볼 위에서 드래그하세요.";
 "No errors or warnings." = "오류나 경고가 없습니다.";
 "No gates found in the pin names." = "핀 이름에서 게이트를 찾지 못했습니다.";
 "No imported model" = "가져온 모델 없음";
@@ -609,6 +624,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "배치, 배선, 푸어, DRC, Gerber Edge.Cuts 및 3D 보드가 외곽선을 따릅니다. ";
 "Plane" = "플레인";
 "Plane cavity" = "플레인 공진기";
+"Polygon" = "다각형";
 "Port (to parent sheet)" = "포트(상위 시트로)";
 "Ports: %@" = "포트: %@";
 "Power" = "전원";
@@ -623,6 +639,7 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "반지름 %lld";
 "Re-annotate from the board (columns)" = "보드에서 다시 주석(열)";
 "Re-annotate from the board (rows)" = "보드에서 다시 주석(행)";
 "Re-verify" = "다시 검증";
@@ -731,11 +748,13 @@
 "Search parts" = "부품 검색";
 "Searching…" = "검색 중…";
 "Seat on Board" = "기판에 안착";
+"Select" = "선택";
 "Select a net to analyse" = "분석할 넷을 선택하세요";
 "Select a net to analyse its channel" = "채널을 분석할 넷을 선택하세요";
 "Select a pad to edit its position, size, shape, drill and pin." = "패드를 선택하여 위치, 크기, 모양, 드릴 및 핀을 편집하세요.";
 "Select a part on the schematic or PCB to edit its properties." = "회로도 또는 PCB에서 부품을 선택하여 속성을 편집하세요.";
 "Select an importable part to preview it." = "미리 보려면 가져올 수 있는 부품을 선택하세요.";
+"Select and move pins and drawings" = "핀과 그림 선택 및 이동";
 "Select pins to move them to a side, stack them or change their order." = "핀을 선택하여 다른 면으로 이동하거나 스택하거나 순서를 변경하세요.";
 "Send" = "보내기";
 "Send to" = "보낼 대상";
@@ -749,6 +768,7 @@
 "Sheet" = "시트";
 "Sheet %lld of %lld" = "%lld / %lld 시트";
 "Sheet Size" = "시트 크기";
+"Sheet Symbol Size" = "시트 심볼 크기";
 "Sheet name" = "시트 이름";
 "Shot" = "산탄 잡음";
 "Shove" = "밀어내기";
@@ -781,6 +801,7 @@
 "Simulation" = "시뮬레이션";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "실시간 대비 시뮬레이션 속도 (슬로 모션으로 빠른 신호 확인)";
 "Single-ended" = "싱글엔드";
+"Size %lld" = "크기 %lld";
 "Skew" = "스큐";
 "Smooth" = "매끄러움";
 "Solve the DC operating point once — shows voltage probes" = "DC 동작점을 한 번 계산 — 전압 프로브 표시";
@@ -794,6 +815,7 @@
 "Stack repeated power pins" = "반복되는 전원 핀 스택";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "PCB 레이아웃의 레이어 설정에 따른 적층 구조: 1층은 하면이 FR-4 그대로 노출됩니다. ";
 "Standard ED" = "표준 ED";
+"Start %lld°" = "시작 %lld°";
 "Starting the design engine" = "설계 엔진 시작 중";
 "Step" = "스텝";
 "Step response" = "계단 응답";
@@ -826,6 +848,7 @@
 "Tamper mesh over" = "탬퍼 메시 적용 대상";
 "Target" = "목표";
 "Test Connection" = "연결 테스트";
+"Text" = "텍스트";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "자동 배선기가 RF 라인과 차동 쌍(…_P/_N)을 이 임피던스에 맞게 크기를 정합니다 (IPC-2141).";
 "The board is up to date with the schematic." = "보드가 회로도와 최신 상태입니다.";
 "The imported model replaces the built-in one in every analysis." = "가져온 모델이 모든 해석에서 기본 제공 모델을 대신합니다.";

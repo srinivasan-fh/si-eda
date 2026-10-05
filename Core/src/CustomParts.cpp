@@ -58,7 +58,96 @@ std::string landPin(const PackageSpec& pkg, size_t i) {
     for (auto& c : u) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
     return u;
 }
+
+const char* const kGraphicKinds[] = {"line", "rect", "circle", "arc", "polygon", "text"};
+
+Json symbolGraphicToJson(const SymbolGraphic& g) {
+    Json j = Json::object();
+    j["kind"] = g.kind;
+    Json pts = Json::array();
+    for (const auto& p : g.points) {
+        Json pj = Json::array();
+        pj.push(p.x);
+        pj.push(p.y);
+        pts.push(pj);
+    }
+    j["points"] = pts;
+    if (g.kind == "circle" || g.kind == "arc") j["radius"] = g.radius;
+    if (g.kind == "arc") {
+        j["startAngle"] = g.startAngle;
+        j["endAngle"] = g.endAngle;
+    }
+    if (g.kind == "text") {
+        j["text"] = g.text;
+        j["size"] = g.size;
+    }
+    if (g.lineWidth != 1) j["lineWidth"] = g.lineWidth;
+    if (g.fill) j["fill"] = true;
+    return j;
+}
+
+SymbolGraphic symbolGraphicFromJson(const Json& j) {
+    if (!j.isObject()) throw JsonError("A symbol drawing must be an object.");
+    SymbolGraphic g;
+    g.kind = j.get("kind").asString("line");
+    bool known = false;
+    for (const char* k : kGraphicKinds) known |= g.kind == k;
+    if (!known) throw JsonError("Symbol drawings are line, rect, circle, arc, polygon or text.");
+    auto finite = [](double v, double lim) { return std::isfinite(v) && std::fabs(v) <= lim; };
+    for (const auto& pj : j.get("points").items()) {
+        if (g.points.size() >= 256) throw JsonError("A symbol drawing has at most 256 points.");
+        const Vec2 p{pj[size_t{0}].asNumber(NAN), pj[size_t{1}].asNumber(NAN)};
+        if (!finite(p.x, 4000) || !finite(p.y, 4000)) throw JsonError("Symbol drawing points must be numbers within ±4000.");
+        g.points.push_back(p);
+    }
+    const size_t need = g.kind == "line" || g.kind == "rect" ? 2 : g.kind == "polygon" ? 3 : 1;
+    if (g.points.size() < need) throw JsonError("A symbol " + g.kind + " needs " + std::to_string(need) + " point(s).");
+    g.radius = j.get("radius").asNumber(0);
+    g.startAngle = j.get("startAngle").asNumber(0);
+    g.endAngle = j.get("endAngle").asNumber(360);
+    g.size = j.get("size").asNumber(8);
+    g.lineWidth = j.get("lineWidth").asNumber(1);
+    if (!finite(g.radius, 4000) || g.radius < 0) throw JsonError("A symbol circle's radius must be 0…4000.");
+    if (!finite(g.startAngle, 3600) || !finite(g.endAngle, 3600)) throw JsonError("Arc angles must be within ±3600°.");
+    if (!finite(g.size, 200) || g.size < 1) throw JsonError("Symbol text size must be 1…200.");
+    if (!finite(g.lineWidth, 20) || g.lineWidth < 0) throw JsonError("Symbol line width must be 0…20.");
+    g.text = j.get("text").asString("");
+    if (g.text.size() > 256) throw JsonError("Symbol text is at most 256 bytes.");
+    if (g.kind == "text" && g.text.empty()) throw JsonError("A symbol text needs its text.");
+    g.fill = j.get("fill").asBool(false);
+    return g;
+}
 }  // namespace
+
+std::array<double, 4> symbolGraphicsBounds(const std::vector<SymbolGraphic>& graphics) {
+    double x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+    bool any = false;
+    auto add = [&](double x, double y) {
+        if (!any) {
+            x0 = x1 = x;
+            y0 = y1 = y;
+            any = true;
+        }
+        x0 = std::min(x0, x);
+        y0 = std::min(y0, y);
+        x1 = std::max(x1, x);
+        y1 = std::max(y1, y);
+    };
+    for (const auto& g : graphics) {
+        if (g.points.empty()) continue;
+        if (g.kind == "circle" || g.kind == "arc") {
+            add(g.points[0].x - g.radius, g.points[0].y - g.radius);
+            add(g.points[0].x + g.radius, g.points[0].y + g.radius);
+        } else if (g.kind == "text") {
+            const double w = 0.6 * g.size * static_cast<double>(g.text.size());
+            add(g.points[0].x, g.points[0].y - g.size / 2);
+            add(g.points[0].x + w, g.points[0].y + g.size / 2);
+        } else {
+            for (const auto& p : g.points) add(p.x, p.y);
+        }
+    }
+    return {x0, y0, x1, y1};
+}
 
 // ------------------------------------------------------------------ JSON
 
@@ -101,9 +190,15 @@ Json customPartSpecToJson(const CustomPartSpec& s) {
         pins.push(pj);
     }
     j["pins"] = pins;
-    if (!s.symbol.empty()) {  // only when laid out, so ids of generated-symbol parts stay stable
+    if (!s.symbol.empty() || !s.symbol.graphics.empty() || !s.symbol.body) {  // only when laid out (stable ids)
         Json sym = Json::object();
         if (s.symbol.width > 0) sym["width"] = s.symbol.width;
+        if (!s.symbol.body) sym["body"] = false;
+        if (!s.symbol.graphics.empty()) {
+            Json gs = Json::array();
+            for (const auto& g : s.symbol.graphics) gs.push(symbolGraphicToJson(g));
+            sym["graphics"] = gs;
+        }
         Json sp = Json::array();
         for (const auto& p : s.symbol.pins) {
             Json pj = Json::object();
@@ -352,6 +447,11 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
             if (p.slot < 0 || p.slot > 511) throw JsonError("Symbol pin slots are 0…511.");
             if (s.symbol.pins.size() >= 1024) throw JsonError("Symbol has too many pins.");
             s.symbol.pins.push_back(p);
+        }
+        s.symbol.body = sym.get("body").asBool(true);
+        for (const auto& gj : sym.get("graphics").items()) {
+            if (s.symbol.graphics.size() >= 512) throw JsonError("A symbol has at most 512 drawings.");
+            s.symbol.graphics.push_back(symbolGraphicFromJson(gj));
         }
     }
     const Json& m = j.get("model");

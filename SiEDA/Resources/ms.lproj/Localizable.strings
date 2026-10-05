@@ -85,6 +85,7 @@
 "Apply Prices to BOM" = "Gunakan Harga pada BOM";
 "Apply Symbol" = "Guna Simbol";
 "Apply Tuning" = "Guna Penalaan";
+"Arc" = "Lengkok";
 "Arrange" = "Susun";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Susun simbol skematik: pin di mana-mana sisi, kumpulan, pin kuasa bertindan, susun automatik";
 "Arrange the symbol, or define the gates of a multi-unit part" = "Susun simbol, atau takrifkan get bagi komponen berbilang unit";
@@ -130,6 +131,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Garis luar papan (bingkai quad-X, bulat, bulatan), lubang pelekap, tuangan/satah kuprum dan kelas net";
 "Board thickness" = "Ketebalan papan";
 "Boards per order, for the order cost" = "Bilangan papan setiap pesanan, untuk kos pesanan";
+"Body box" = "Kotak badan";
 "Broadside" = "Sisi lebar";
 "Built-in model" = "Model terbina dalam";
 "Bus" = "Bas";
@@ -170,6 +172,7 @@
 "Choose a part" = "Pilih komponen";
 "Choose the footprint for this symbol: the import is read again with this pair" = "Pilih tapak untuk simbol ini: import dibaca semula dengan pasangan ini";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "Paparan kepala sinematik: projektor, zarah, label komponen, tiang data dan bacaan";
+"Circle" = "Bulatan";
 "Circuit" = "Litar";
 "Circuit — 5 ms, 5 µs" = "Litar — 5 ms, 5 µs";
 "Class / board" = "Kelas / papan";
@@ -228,6 +231,7 @@
 "DEVICES" = "PERANTI";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "LUKISAN";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "Lembaran data";
@@ -245,6 +249,7 @@
 "Delete Type" = "Padam Jenis";
 "Delete Variant" = "Padam Varian";
 "Delete Wire" = "Padam Wayar";
+"Delete the selected drawing" = "Padam lukisan yang dipilih";
 "Describe your product" = "Huraikan produk anda";
 "Description" = "Keterangan";
 "Design" = "Reka Bentuk";
@@ -268,7 +273,9 @@
 "Done" = "Selesai";
 "Down ↓" = "Bawah ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "Muat turun PDF lembaran data pengedar dan ekstrak jadual pinnya";
+"Drag to draw · click to place a text · Esc returns to selecting" = "Seret untuk melukis · klik untuk meletakkan teks · Esc kembali memilih";
 "Drag to orbit" = "Seret untuk mengorbit";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "Lukis segi empat yang dijana; matikan apabila lukisan ialah badannya";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "Lukis corak tanah pad demi pad: kedudukan, saiz, bentuk, gerudi dan pin setiap pad";
 "Drawn by" = "Dilukis oleh";
 "Driver" = "Pemacu";
@@ -289,6 +296,7 @@
 "Edit Symbol…" = "Edit Simbol…";
 "Effort" = "Usaha";
 "Enable AI assistance" = "Dayakan bantuan AI";
+"End %lld°" = "Tamat %lld°";
 "Engineering change order: review and execute the schematic's changes on the board" = "Arahan perubahan kejuruteraan: semak dan laksanakan perubahan skema pada papan";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Masukkan URL pengeluar penyedia identiti anda dan ID klien SiEDA di atas untuk mendayakan butang ini (tanya pentadbir IT anda).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoksi di bawah pemproses, BGA dan kapasitor besar supaya kejutan MIL-STD-901E tidak dapat menanggalkannya";
@@ -315,6 +323,7 @@
 "File unit" = "Unit fail";
 "Fill Suggested Part Numbers" = "Isi Nombor Komponen Dicadangkan";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "Isi nombor komponen pembekal dan harga seunit tawaran terbaik pada kuantiti pengeluaran ke dalam setiap baris";
+"Filled" = "Diisi";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "Mengisi nombor komponen standard yang boleh ditentukan daripada nilai dan pakej (cth. Yageo RC0805 ";
 "Find" = "Cari";
 "Find & Replace" = "Cari & Ganti";
@@ -328,6 +337,7 @@
 "Fit Board to Components" = "Muatkan Papan pada Komponen";
 "Fits every pin" = "Sesuai setiap pin";
 "Fitted" = "Dipasang";
+"Fitted to Entries" = "Dimuatkan pada entri";
 "Fix Duplicates Only" = "Betulkan Pendua Sahaja";
 "Flicker (1/f)" = "Kelipan (1/f)";
 "Flight time" = "Masa perambatan";
@@ -415,8 +425,10 @@
 "Length" = "Panjang";
 "Library" = "Pustaka";
 "Lifecycle" = "Kitaran hayat";
+"Line" = "Garisan";
 "Line loss per layer" = "Kehilangan talian setiap lapisan";
 "Line total" = "Jumlah baris";
+"Line width %@" = "Lebar garisan %@";
 "Live Pricing" = "Harga Langsung";
 "Live Pricing…" = "Harga Langsung…";
 "Live board" = "Papan langsung";
@@ -467,6 +479,8 @@
 "Mounting" = "Pelekapan";
 "Mouser Search API key (API Hub → Search API)." = "Kunci API Carian Mouser (API Hub → Search API).";
 "Move Selection Here" = "Alih Pilihan ke Sini";
+"Move drawing" = "Gerakkan lukisan";
+"Move the drawing half a grid step" = "Gerakkan lukisan setengah langkah grid";
 "Move the footprint origin to the centre of the pads" = "Alihkan asalan tapak kaki ke tengah pad";
 "Move the pad in the numbering; pads between shift by one" = "Alihkan pad dalam penomboran; pad di antaranya beranjak satu";
 "NAVIGATOR" = "NAVIGATOR";
@@ -497,6 +511,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Tiada pasangan pembeza (…_P/_N, …+/-) atau bas (DQ0…, DATA[0..7], ADDR…) dalam reka bentuk ini.";
 "No distributor API keys yet" = "Belum ada kunci API pengedar";
 "No distributor offers." = "Tiada tawaran pengedar.";
+"No drawings yet: pick a tool and drag on the symbol." = "Belum ada lukisan: pilih alat dan seret pada simbol.";
 "No errors or warnings." = "Tiada ralat atau amaran.";
 "No gates found in the pin names." = "Tiada get ditemui dalam nama pin.";
 "No imported model" = "Tiada model diimport";
@@ -609,6 +624,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "Penempatan, penghalaan, tuangan, DRC, Gerber Edge.Cuts dan papan 3D mengikut garis luar. ";
 "Plane" = "Satah";
 "Plane cavity" = "Rongga satah";
+"Polygon" = "Poligon";
 "Port (to parent sheet)" = "Port (ke helaian induk)";
 "Ports: %@" = "Port: %@";
 "Power" = "Kuasa";
@@ -623,6 +639,7 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "Jejari %lld";
 "Re-annotate from the board (columns)" = "Anotasi semula dari papan (lajur)";
 "Re-annotate from the board (rows)" = "Anotasi semula dari papan (baris)";
 "Re-verify" = "Sahkan Semula";
@@ -731,11 +748,13 @@
 "Search parts" = "Cari komponen";
 "Searching…" = "Mencari…";
 "Seat on Board" = "Dudukkan pada Papan";
+"Select" = "Pilih";
 "Select a net to analyse" = "Pilih net untuk dianalisis";
 "Select a net to analyse its channel" = "Pilih net untuk menganalisis salurannya";
 "Select a pad to edit its position, size, shape, drill and pin." = "Pilih pad untuk mengedit kedudukan, saiz, bentuk, gerudi dan pinnya.";
 "Select a part on the schematic or PCB to edit its properties." = "Pilih komponen pada skematik atau PCB untuk mengedit sifatnya.";
 "Select an importable part to preview it." = "Pilih komponen yang boleh diimport untuk pratonton.";
+"Select and move pins and drawings" = "Pilih dan gerakkan pin dan lukisan";
 "Select pins to move them to a side, stack them or change their order." = "Pilih pin untuk mengalihkannya ke sisi lain, menindannya atau menukar susunannya.";
 "Send" = "Hantar";
 "Send to" = "Hantar ke";
@@ -749,6 +768,7 @@
 "Sheet" = "Helaian";
 "Sheet %lld of %lld" = "Helaian %lld daripada %lld";
 "Sheet Size" = "Saiz Helaian";
+"Sheet Symbol Size" = "Saiz Simbol Helaian";
 "Sheet name" = "Nama helaian";
 "Shot" = "Tembakan";
 "Shove" = "Tolak";
@@ -781,6 +801,7 @@
 "Simulation" = "Simulasi";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "Kelajuan simulasi berbanding masa nyata (gerak perlahan menunjukkan isyarat pantas)";
 "Single-ended" = "Hujung tunggal";
+"Size %lld" = "Saiz %lld";
 "Skew" = "Pencong";
 "Smooth" = "Licin";
 "Solve the DC operating point once — shows voltage probes" = "Selesaikan titik operasi DC sekali — menunjukkan prob voltan";
@@ -794,6 +815,7 @@
 "Stack repeated power pins" = "Tindan pin kuasa berulang";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "Tindanan lapisan daripada tetapan Lapisan dalam Susun Atur PCB: 1 lapisan membiarkan bahagian bawah FR-4 terdedah; ";
 "Standard ED" = "ED standard";
+"Start %lld°" = "Mula %lld°";
 "Starting the design engine" = "Memulakan enjin reka bentuk";
 "Step" = "Langkah";
 "Step response" = "Sambutan langkah";
@@ -826,6 +848,7 @@
 "Tamper mesh over" = "Jaringan anti-ganggu di atas";
 "Target" = "Sasaran";
 "Test Connection" = "Uji Sambungan";
+"Text" = "Teks";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "Penghala automatik menentukan saiz talian RF dan pasangan pembeza (…_P/_N) mengikut impedans ini (IPC-2141).";
 "The board is up to date with the schematic." = "Papan adalah terkini dengan skema.";
 "The imported model replaces the built-in one in every analysis." = "Model yang diimport menggantikan model terbina dalam dalam setiap analisis.";
