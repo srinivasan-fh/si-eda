@@ -696,3 +696,6 @@
 "Offset (mm)" = "오프셋(mm)";
 "Rotation (°)" = "회전(°)";
 "Scale" = "배율";
+
+/* Altium library import */
+"Import KiCad (.kicad_mod, .kicad_sym), Eagle (.lbr) or Altium (.SchLib, .PcbLib) libraries" = "KiCad(.kicad_mod, .kicad_sym), Eagle(.lbr) 또는 Altium(.SchLib, .PcbLib) 라이브러리 가져오기";

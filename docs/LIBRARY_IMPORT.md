@@ -1,7 +1,7 @@
 # Library Import
 
 Library Import turns third-party part libraries into project-library parts. It reads KiCad footprints, KiCad symbol
-libraries and Eagle libraries, pairs each symbol with its footprint, and checks every part with the same rules as the
+libraries, Eagle libraries and Altium schematic / PCB libraries, pairs each symbol with its footprint, and checks every part with the same rules as the
 Symbol and Footprint Editors. Imported parts behave like any other library part: you can place them, edit them in
 both editors and save them with the project.
 
@@ -10,6 +10,7 @@ both editors and save them with the project.
 - [How symbols pair with footprints](#how-symbols-pair-with-footprints)
 - [What is imported, and how](#what-is-imported-and-how)
 - [Checks and messages](#checks-and-messages)
+- [Altium libraries](#altium-libraries)
 - [3D models](#3d-models)
 - [Not supported](#not-supported)
 - [Parametric search](#parametric-search)
@@ -24,6 +25,8 @@ both editors and save them with the project.
 | `.kicad_mod` (KiCad 6–9, and KiCad 5 `(module …)` files) | One footprint: pads, drills, layers, rotation, courtyard, fab and silkscreen outlines | A land pattern (package type `CUSTOM`) |
 | `.kicad_sym` (KiCad 6–9) | One or many symbols: pins with number, name, electrical type, position and orientation; multi-unit symbols; derived symbols (`extends`) | A part's pins and its symbol layout |
 | `.lbr` (Eagle 6–9, Fusion Electronics libraries exported as `.lbr`) | Packages, symbols, device sets with their devices, technologies and pin–pad connects | Complete parts, one per device and technology |
+| `.SchLib` (Altium Designer binary schematic library) | Components: pins with designator, name, electrical type, position and orientation; multi-part components; designator prefix, parameters (manufacturer, datasheet) and the PCB footprint models they link | A part's pins and symbol layout, paired with the linked footprint |
+| `.PcbLib` (Altium Designer binary PCB library) | Footprints: pads with position, size, shape, drill, layer and rotation; top overlay outline | A land pattern |
 | `.wrl` (VRML 2.0 / 97), `.stl` (ASCII or binary), `.obj` | A 3D model | The 3D body of the footprint that names it (see [3D models](#3d-models)) |
 
 You can pick several files at once, or folders. A folder is searched for these file types, so a KiCad `.pretty`
@@ -153,6 +156,42 @@ still import. Malformed or hostile files cannot crash the app:
 - every number is range-checked;
 - text is cleaned to valid UTF-8.
 
+## Altium libraries
+
+Altium `.SchLib` and `.PcbLib` files are OLE compound files (the container of old Office documents). SiEDA reads the
+container itself and then the Altium records inside:
+
+- **Symbols** (`.SchLib`, one storage per component): the component record (name, description, part count), pins in
+  both the text and the binary record forms (designator, name, electrical type, location, length, orientation,
+  hidden flag, owner part), the designator (`U?` → prefix `U`), parameters (`Manufacturer`, `Datasheet`, …) and the
+  PCB footprint models (`MODELNAME`, the current one first). Overbars (`R\E\S\E\T\`) become `nRESET`; pins of
+  alternate display modes (De Morgan) are skipped; multi-part components are drawn as one symbol like KiCad units.
+  Electrical types: input, I/O, output, open collector, passive, hi-Z (bidirectional), open emitter (open
+  collector), power (power in).
+- **Footprints** (`.PcbLib`, one storage per footprint): pads on the top, bottom or all layers, with position, top
+  size, round / rectangular / octagonal / rounded shape, drill, plating and rotation (right angles swap the sides,
+  other angles take the bounding box). Non-plated holes are skipped with a note; tracks on the top overlay give the
+  body outline. Arcs, texts, fills, regions, vias and 3D bodies are skipped; an unknown primitive stops the reading of
+  that footprint with a note.
+- **Pairing.** A symbol pairs with the footprint its current model names, like a KiCad symbol with its footprint
+  field; import the `.SchLib` and the `.PcbLib` together. Without the footprint, the package is generated from the
+  model name when SiEDA knows it (`DIP8`, `SOIC8`, `SOT223`…).
+- **Not read:** integrated libraries (`.IntLib`, which keep compressed copies of their libraries: use Altium's
+  *Extract Sources*, or KiCad 8, and import the `.SchLib` / `.PcbLib`), ASCII-format libraries, database libraries,
+  symbol graphics other than pins, pad stacks with different sizes per layer (the top size is used), and footprint
+  3D bodies (attach a model with **3D Model…**).
+- **Robustness.** The compound file's header, DIFAT, FAT, mini FAT, mini stream and directory tree are checked:
+  sector numbers in range, chains without loops, sizes within the file, at most 65 536 directory entries. A damaged
+  file is reported ("Altium library: the compound file is damaged (a sector chain is broken)") and the other files
+  still import.
+
+**Provenance of the tests.** No Altium-made library can be redistributed with the tests, so
+`Core/tests/fixtures/altium/Test.SchLib`, `Test.PcbLib` and `Test.IntLib` are written by
+`tools/make_altium_fixtures.py`: an MS-CFB version 3 writer (512-byte sectors, mini stream, FAT / mini FAT, directory
+tree) and the Altium record layouts as published by the reverse-engineering in KiCad's open-source Altium importer.
+The containers are cross-checked with the independent `olefile` reader when it is installed. The records follow that
+published layout; libraries saved by every Altium version could not be tested here.
+
 ## 3D models
 
 A part can carry an imported 3D model instead of SiEDA's generated body: VRML 2.0 / 97 (`.wrl`, what KiCad's
@@ -192,9 +231,8 @@ KiCad ships beside each `.step`, or export VRML / STL / OBJ from the CAD tool.
 
 ## Not supported
 
-- **Altium** `.SchLib`, `.PcbLib` and `.IntLib` are binary (OLE compound) files and are **not supported**. They are
-  recognised and refused with a message. KiCad 8 or later can import Altium libraries; save them from KiCad as
-  `.kicad_sym` / `.kicad_mod` and import those.
+- **Altium integrated libraries** (`.IntLib`) and ASCII Altium libraries are refused with a message (see
+  [Altium libraries](#altium-libraries)); binary `.SchLib` and `.PcbLib` are read.
 - **KiCad 5 `.lib` symbol libraries** (`EESchema-LIBRARY`) are refused; open them in KiCad 6 or later and save them
   as `.kicad_sym`. KiCad 5 footprints (`.kicad_mod` with `(module …)`) are supported.
 - **STEP 3D models** (see [3D models](#3d-models)); VRML, STL and OBJ models are imported.
@@ -276,6 +314,8 @@ empty `parts` list with the reason.
 | Store | `SiEDA/App/DesignStore.swift` | `importLibraryParts(_:)` (one undo step) |
 | View | `SiEDA/Views/Library/ComponentLibraryView.swift` | **Import Library…**, file and folder selection (`libraryFiles(at:)`) |
 | View | `SiEDA/Views/Library/LibraryImportView.swift` | the review sheet |
+| Core | `Core/include/sieda/AltiumLibrary.hpp`, `Core/src/AltiumLibrary.cpp` | `CompoundFile` (MS-CFB reader), `readAltiumSchLib`, `readAltiumPcbLib`; the conversion to symbols and land patterns is `importAltium` in `LibraryImport.cpp` |
+| Tool | `tools/make_altium_fixtures.py` | writes the synthetic Altium test libraries |
 | Core | `Core/include/sieda/Model3D.hpp`, `Core/src/Model3D.cpp` | VRML / STL / OBJ readers, mesh registry, alignment, project `models3d`, `appendModel3D` (used by `buildAssemblyMesh`) |
 | Bridge | `SiEDA/Bridge/EDAEngine+Model3D.swift` | `importModel3D`, `fitModel3D`, `model3DPreviewMesh` |
 | View | `SiEDA/Views/Library/Model3DEditorView.swift` | **3D Model…** sheet with the alignment preview |
@@ -300,12 +340,16 @@ empty `parts` list with the reason.
   - `library_import_eagle_libraries`: device sets with gates, technologies, multi-pad connects, long pads, y
     flipping, description HTML, and malformed XML.
   - `library_import_rejects_unsupported_formats_and_survives_fuzzing`:
-    - Altium and KiCad 5 libraries are refused;
+    - ASCII / damaged Altium files and KiCad 5 libraries are refused;
     - deep nesting;
     - content sniffing;
     - 800 deterministic mutations of the fixtures (truncation, byte flips, deleted, duplicated and inserted
       ranges): the import never throws, and every part it offers registers.
   - `library_import_c_api` (`Core/tests/c_api_test.c`): the C entry point, bad files and bad requests.
+  - `altium_compound_file_reader`, `library_import_reads_altium_libraries`, `library_import_altium_survives_fuzzing`
+    (800 mutations of the container and records): the CFB reader (mini stream and regular sectors, case-insensitive
+    names, truncation and looping chains), the SchLib / PcbLib records, pairing, explicit pairs, `.IntLib` refusal and
+    base64 transport.
   - `model3d_readers_vrml_stl_obj`, `model3d_alignment_assembly_and_project_file`,
     `library_import_attaches_kicad_3d_models`, `model3d_readers_survive_fuzzing` (1200 mutations): the readers and
     their limits, alignment, the model in the assembly on both sides, project save / load, KiCad model attachment,

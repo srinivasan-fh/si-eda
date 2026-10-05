@@ -61,6 +61,7 @@ add_library(sieda_core STATIC
     Core/src/Project.cpp
     Core/src/Suppliers.cpp
     Core/src/Model3D.cpp
+    Core/src/AltiumLibrary.cpp
     Core/src/sieda_c.cpp
 )
 target_include_directories(sieda_core PUBLIC Core/include)

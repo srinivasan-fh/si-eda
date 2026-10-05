@@ -696,3 +696,6 @@
 "Offset (mm)" = "位移 (mm)";
 "Rotation (°)" = "旋轉 (°)";
 "Scale" = "縮放";
+
+/* Altium library import */
+"Import KiCad (.kicad_mod, .kicad_sym), Eagle (.lbr) or Altium (.SchLib, .PcbLib) libraries" = "匯入 KiCad (.kicad_mod、.kicad_sym)、Eagle (.lbr) 或 Altium (.SchLib、.PcbLib) 元件庫";

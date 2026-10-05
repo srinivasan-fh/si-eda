@@ -1,7 +1,9 @@
 #include "sieda/LibraryImport.hpp"
+#include "sieda/AltiumLibrary.hpp"
 #include "sieda/Model3D.hpp"
 
 #include <algorithm>
+#include <memory>
 #include <cctype>
 #include <cmath>
 #include <cstdint>
@@ -1356,6 +1358,160 @@ void parseEagleLibrary(const std::string& text, const std::string& source, Libra
     }
 }
 
+// ------------------------------------------------------------------ Altium (.SchLib, .PcbLib)
+
+namespace {
+
+PinType altiumPinType(int electrical) {
+    switch (electrical) {
+        case 0: return PinType::Input;
+        case 1: return PinType::Bidirectional;
+        case 2: return PinType::Output;
+        case 3: return PinType::OpenCollector;
+        case 5: return PinType::Bidirectional;   // hi-Z (tri-state)
+        case 6: return PinType::OpenCollector;   // open emitter
+        case 7: return PinType::PowerIn;
+        default: return PinType::Passive;
+    }
+}
+
+ImportedSymbol altiumSymbol(const AltiumSymbol& a, const std::string& source) {
+    ImportedSymbol sym;
+    sym.name = clean(a.name, 80);
+    sym.value = sym.name;
+    sym.refPrefix = refPrefixOf(a.designatorPrefix);
+    sym.description = clean(a.description, 300);
+    sym.footprint = clean(a.footprint, 120);
+    sym.source = source;
+    sym.units = a.partCount;
+    auto param = [&](std::initializer_list<const char*> names) {
+        for (const char* n : names)
+            for (const auto& kv : a.parameters)
+                if (upper(kv.first) == upper(n)) return clean(kv.second, 300);
+        return std::string();
+    };
+    sym.manufacturer = param({"Manufacturer", "Manufacturer 1", "MFR"});
+    sym.datasheet = param({"Datasheet", "DatasheetURL", "HelpURL", "ComponentLink1URL"});
+    std::set<std::string> seen;
+    std::vector<PlacedPin> placed;
+    for (const auto& p : a.pins) {
+        CustomPin pin;
+        pin.number = clean(p.designator, 16);
+        if (pin.number.empty() || !seen.insert(upper(pin.number)).second) continue;
+        pin.name = clean(p.name, 40);
+        if (pin.name.empty()) pin.name = pin.number;
+        pin.type = altiumPinType(p.electrical);
+        sym.pins.push_back(pin);
+        PlacedPin pp;
+        pp.number = pin.number;
+        pp.name = pin.name;
+        pp.side = p.side;
+        pp.x = p.x;
+        pp.y = p.y;
+        pp.unit = p.part;
+        pp.hidden = p.hidden;
+        pp.ground = groundName(pin.name);
+        pp.power = pin.type == PinType::PowerIn;
+        placed.push_back(pp);
+    }
+    promoteRepeatedSupplies(sym.pins);
+    sym.symbol = layoutFromPositions(placed);
+    for (const auto& w : a.warnings) sym.warnings.push_back(clean(w, 200));
+    return sym;
+}
+
+ImportedFootprint altiumFootprint(const AltiumFootprint& a, const std::string& source) {
+    ImportedFootprint fp;
+    fp.name = clean(a.name, 80);
+    if (fp.name.empty()) throw ImportError("a footprint has no name");
+    fp.description = clean(a.description, 300);
+    fp.source = source;
+    std::vector<RawPad> pads;
+    int holes = 0, bottom = 0, oblique = 0, grown = 0;
+    for (const auto& p : a.pads) {
+        if (p.drill > 0 && !p.plated) {
+            ++holes;
+            continue;
+        }
+        RawPad r;
+        r.number = clean(p.name, 16);
+        r.x = tidy(p.x);
+        r.y = tidy(p.y);
+        r.w = p.w;
+        r.h = p.h;
+        bool angled = false;
+        rotateSize(p.rotation, r.w, r.h, angled);
+        oblique += angled;
+        r.drill = p.drill > 0 ? tidy(p.drill) : 0;
+        if (r.drill > 0 && r.drill > std::min(r.w, r.h) - 0.2) {
+            r.w = std::max(r.w, r.drill + 0.2);
+            r.h = std::max(r.h, r.drill + 0.2);
+            ++grown;
+        }
+        r.w = tidy(r.w);
+        r.h = tidy(r.h);
+        r.round = p.shape == 1;
+        if (p.layer == 32 && r.drill == 0) ++bottom;
+        pads.push_back(r);
+    }
+    Box body;
+    if (a.hasOutline) {
+        body.add(a.outlineX0, a.outlineY0);
+        body.add(a.outlineX1, a.outlineY1);
+    }
+    finishLands(fp, pads, Box{}, body);
+    if (holes)
+        fp.warnings.push_back(std::to_string(holes) +
+                              " non-plated hole(s) not imported (mounting / locating holes: add them on the board).");
+    if (oblique) fp.warnings.push_back(std::to_string(oblique) + " pad(s) at an angle imported as their bounding box.");
+    if (bottom) fp.warnings.push_back(std::to_string(bottom) + " bottom-side pad(s) imported on the top side.");
+    if (grown) fp.warnings.push_back(std::to_string(grown) + " pad(s) enlarged to leave a 0.1 mm ring around the drill.");
+    for (const auto& w : a.warnings) fp.warnings.push_back(clean(w, 200));
+    return fp;
+}
+
+/// An Altium binary library: symbols (.SchLib) or footprints (.PcbLib).
+void importAltium(const ImportFile& f, const std::string& name, LibraryImport& out, LibraryImport::FileResult& res) {
+    if (!CompoundFile::looksLikeCompoundFile(f.content))
+        throw ImportError("this Altium library is not a binary (OLE compound) file: ASCII Altium libraries are not "
+                          "supported; save it as a binary .SchLib / .PcbLib in Altium");
+    std::unique_ptr<CompoundFile> cfb;
+    try {
+        cfb = std::make_unique<CompoundFile>(f.content);
+    } catch (const CfbError& e) {
+        throw ImportError(std::string("Altium library: the compound file is damaged (") + e.what() + ")");
+    }
+    const std::string kind = altiumLibraryKind(*cfb, f.name);
+    if (kind == "intlib")
+        throw ImportError("Altium integrated libraries (.IntLib) are not read: extract the .SchLib and .PcbLib inside it "
+                          "(Altium: Extract Sources; or KiCad 8) and import those");
+    try {
+        if (kind == "schlib") {
+            for (const auto& a : readAltiumSchLib(*cfb)) {
+                if (out.symbols.size() >= kMaxParts) throw ImportError("too many symbols in one import");
+                out.symbols.push_back(altiumSymbol(a, name));
+                ++res.symbols;
+            }
+        } else if (kind == "pcblib") {
+            for (const auto& a : readAltiumPcbLib(*cfb)) {
+                if (out.footprints.size() >= kMaxParts) throw ImportError("too many footprints in one import");
+                try {
+                    out.footprints.push_back(altiumFootprint(a, name));
+                    ++res.footprints;
+                } catch (const ImportError& e) {
+                    res.error += (res.error.empty() ? "" : "; ") + clean(a.name, 80) + ": " + e.what();
+                }
+            }
+        } else {
+            throw ImportError("Altium compound file of an unknown kind: import .SchLib or .PcbLib files");
+        }
+    } catch (const CfbError& e) {
+        throw ImportError(std::string("Altium library: ") + e.what());
+    }
+}
+
+}  // namespace
+
 // ------------------------------------------------------------------ pairing and validation
 
 namespace {
@@ -1687,8 +1843,7 @@ LibraryImport importLibraryFiles(const std::vector<ImportFile>& files, const std
             } else if (fr.format == "eagle_lbr") {
                 parseEagleLibrary(f.content, fr.name, out);
             } else if (fr.format == "altium") {
-                throw ImportError("Altium binary libraries (.SchLib, .PcbLib, .IntLib) are not supported. Import them "
-                                  "into KiCad (8 or later) and import the .kicad_sym / .kicad_mod files here.");
+                importAltium(f, fr.name, out, res);
             } else if (fr.format == "model3d") {
                 if (models.size() >= 2000) throw ImportError("too many 3D models in one import");
                 Model3DMesh mesh = parseModel3D(f.content, fr.name);

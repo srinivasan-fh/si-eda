@@ -696,3 +696,6 @@
 "Offset (mm)" = "ऑफसेट (mm)";
 "Rotation (°)" = "फिरवणे (°)";
 "Scale" = "स्केल";
+
+/* Altium library import */
+"Import KiCad (.kicad_mod, .kicad_sym), Eagle (.lbr) or Altium (.SchLib, .PcbLib) libraries" = "KiCad (.kicad_mod, .kicad_sym), Eagle (.lbr) किंवा Altium (.SchLib, .PcbLib) लायब्ररी इम्पोर्ट करा";

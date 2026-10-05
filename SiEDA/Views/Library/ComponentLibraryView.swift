@@ -175,7 +175,7 @@ struct ComponentLibraryView: View {
             }
             Button { importLibrary() } label: { Label("Import Library…", systemImage: "books.vertical") }
                 .buttonStyle(.bordered)
-                .help("Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries")
+                .help("Import KiCad (.kicad_mod, .kicad_sym), Eagle (.lbr) or Altium (.SchLib, .PcbLib) libraries")
             Button { showSupplierSearch = true } label: { Label("Find Parts Online…", systemImage: "shippingbox") }
                 .buttonStyle(.bordered)
                 .help("Search Octopart, DigiKey and Mouser: stock, prices, lifecycle and datasheets")
@@ -744,7 +744,9 @@ struct ComponentLibraryView: View {
     }
 
     /// File types the library importer reads (KiCad footprints and symbol libraries, Eagle libraries).
-    static let libraryExtensions: Set<String> = ["kicad_mod", "kicad_sym", "lbr"]
+    static let libraryExtensions: Set<String> = ["kicad_mod", "kicad_sym", "lbr", "schlib", "pcblib", "intlib"]
+    /// Binary library files, sent to the core as base64 (Altium compound files).
+    static let binaryExtensions: Set<String> = ["schlib", "pcblib", "intlib", "stl"]
     /// 3D models imported with the footprints that name them (KiCad .3dshapes folders).
     static let modelExtensions: Set<String> = ["wrl", "vrml", "stl", "obj"]
 
@@ -757,11 +759,12 @@ struct ComponentLibraryView: View {
         panel.canChooseDirectories = true
         panel.allowedContentTypes = (Self.libraryExtensions.union(Self.modelExtensions)).compactMap { UTType(filenameExtension: $0) }
             + [UTType.folder]
-        panel.message = "Choose KiCad footprints (.kicad_mod), symbol libraries (.kicad_sym), Eagle libraries (.lbr) or folders of them."
+        panel.message = "Choose KiCad footprints (.kicad_mod), symbol libraries (.kicad_sym), Eagle libraries (.lbr), "
+            + "Altium libraries (.SchLib, .PcbLib), 3D models (.wrl, .stl, .obj) or folders of them."
         guard panel.runModal() == .OK else { return }
         let files = Self.libraryFiles(at: panel.urls)
         guard !files.isEmpty else {
-            importState = .failed("No .kicad_mod, .kicad_sym or .lbr files found.")
+            importState = .failed("No .kicad_mod, .kicad_sym, .lbr, .SchLib or .PcbLib files found.")
             return
         }
         importState = .running("Reading \(files.count) library files…")
@@ -805,7 +808,7 @@ struct ComponentLibraryView: View {
             + found.filter { modelExtensions.contains($0.pathExtension.lowercased()) } + models
         return ordered.prefix(2000).compactMap { url in
             guard let data = try? Data(contentsOf: url), data.count <= 32 << 20 else { return nil }
-            if url.pathExtension.lowercased() == "stl" {  // may be binary
+            if binaryExtensions.contains(url.pathExtension.lowercased()) {  // binary STL, Altium compound files
                 return LibraryImportFile(name: url.lastPathComponent, content: "", contentBase64: data.base64EncodedString())
             }
             return LibraryImportFile(name: url.lastPathComponent, content: String(decoding: data, as: UTF8.self))

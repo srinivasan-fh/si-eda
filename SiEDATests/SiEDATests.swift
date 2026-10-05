@@ -5336,3 +5336,37 @@ final class Model3DImportTests: XCTestCase {
         XCTAssertTrue(part.warnings.contains { $0.contains("3D model") })
     }
 }
+
+// MARK: - Altium libraries
+
+@MainActor
+final class AltiumImportTests: XCTestCase {
+    /// The synthetic fixtures written by tools/make_altium_fixtures.py (read from the source tree).
+    private func fixture(_ name: String) throws -> URL {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Core/tests/fixtures/altium/\(name)")
+        guard FileManager.default.fileExists(atPath: url.path) else { throw XCTSkip("fixture \(name) not in this build") }
+        return url
+    }
+
+    func testSchLibAndPcbLibImportAsBase64() throws {
+        let files = ComponentLibraryView.libraryFiles(at: [try fixture("Test.SchLib"), try fixture("Test.PcbLib")])
+        XCTAssertEqual(files.count, 2)
+        XCTAssertTrue(files.allSatisfy { $0.contentBase64 != nil })
+        let result = EDAEngine.importLibrary(files: files)
+        let lm358 = try XCTUnwrap(result.parts.first { $0.name == "LM358" })
+        XCTAssertTrue(lm358.ok, lm358.error)
+        XCTAssertEqual(lm358.footprint, "SOIC8_TI")
+        XCTAssertEqual(lm358.spec.pins.count, 8)
+        XCTAssertEqual(lm358.spec.manufacturer, "Texas Instruments")
+        XCTAssertTrue(result.parts.contains { $0.name == "HDR1X4" && $0.ok })
+        let store = DesignStore()
+        XCTAssertEqual(store.importLibraryParts(result.importable.map(\.spec)).count, result.importable.count)
+    }
+
+    func testIntegratedLibrariesAreRefusedWithTheWayOut() throws {
+        let files = ComponentLibraryView.libraryFiles(at: [try fixture("Test.IntLib")])
+        let result = EDAEngine.importLibrary(files: files)
+        XCTAssertTrue(result.files.first?.error.contains("Extract") == true, result.files.first?.error ?? "")
+    }
+}

@@ -696,3 +696,6 @@
 "Offset (mm)" = "Ofset (mm)";
 "Rotation (°)" = "Putaran (°)";
 "Scale" = "Skala";
+
+/* Altium library import */
+"Import KiCad (.kicad_mod, .kicad_sym), Eagle (.lbr) or Altium (.SchLib, .PcbLib) libraries" = "Import pustaka KiCad (.kicad_mod, .kicad_sym), Eagle (.lbr) atau Altium (.SchLib, .PcbLib)";

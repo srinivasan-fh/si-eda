@@ -696,3 +696,6 @@
 "Offset (mm)" = "Versatz (mm)";
 "Rotation (°)" = "Drehung (°)";
 "Scale" = "Skalierung";
+
+/* Altium library import */
+"Import KiCad (.kicad_mod, .kicad_sym), Eagle (.lbr) or Altium (.SchLib, .PcbLib) libraries" = "KiCad- (.kicad_mod, .kicad_sym), Eagle- (.lbr) oder Altium-Bibliotheken (.SchLib, .PcbLib) importieren";

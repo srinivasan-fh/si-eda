@@ -10435,3 +10435,199 @@ TEST(model3d_readers_survive_fuzzing) {
     }
     CHECK(ok > 300 && refused > 50);
 }
+
+// ------------------------------------------------------------------ Altium libraries (OLE compound files)
+
+#include "sieda/AltiumLibrary.hpp"
+
+namespace {
+std::string readAltiumFixture(const std::string& name) {
+    std::ifstream f(std::string(SIEDA_FIXTURE_DIR) + "/altium/" + name, std::ios::binary);
+    std::stringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+
+const ImportedPart* altiumPart(const LibraryImport& r, const std::string& name) {
+    for (const auto& p : r.parts)
+        if (p.spec.name == name) return &p;
+    return nullptr;
+}
+
+char sideOf(const CustomPartSpec& s, const std::string& number) {
+    for (const auto& p : s.symbol.pins)
+        if (p.number == number) return p.side;
+    return '?';
+}
+}  // namespace
+
+TEST(altium_compound_file_reader) {
+    const std::string sch = readAltiumFixture("Test.SchLib");
+    CHECK(sch.size() > 4096 && CompoundFile::looksLikeCompoundFile(sch));
+    const CompoundFile cfb(sch);
+    std::set<std::string> names;
+    for (int c : cfb.entries()[0].children) names.insert(cfb.entries()[static_cast<size_t>(c)].name);
+    CHECK(names == std::set<std::string>({"FileHeader", "Storage", "LM358", "NE555", "Padding"}));
+    const int lm = cfb.child(CompoundFile::root(), "lm358");  // case-insensitive
+    CHECK(lm > 0 && cfb.child(lm, "DATA") > 0);
+    CHECK(cfb.read(cfb.child(cfb.child(CompoundFile::root(), "Padding"), "Blob")).size() == 5000);  // regular sectors
+    CHECK(cfb.read(cfb.child(lm, "Data")).size() > 200);                                             // mini stream
+    CHECK(altiumLibraryKind(cfb, "x") == "schlib");
+    const std::string pcb = readAltiumFixture("Test.PcbLib");
+    CHECK(altiumLibraryKind(CompoundFile(pcb), "x") == "pcblib");
+    const std::string intlib = readAltiumFixture("Test.IntLib");
+    CHECK(altiumLibraryKind(CompoundFile(intlib), "Parts.IntLib") == "intlib");
+    CHECK(altiumProperties("|RECORD=2|NAME=A|%UTF8%NAME=\xC3\xA9|TEXT=\xB5" "F").at("NAME") == "\xC3\xA9");
+    CHECK(altiumProperties("|TEXT=\xB5" "F").at("TEXT") == "\xC2\xB5" "F");
+
+    // Damaged containers are refused, never read out of bounds or looped over.
+    auto refused = [](const std::string& bytes) {
+        try {
+            CompoundFile c(bytes);
+            for (size_t i = 0; i < c.entries().size(); ++i)
+                if (c.entries()[i].type == CompoundFile::EntryType::Stream) c.read(static_cast<int>(i));
+            return false;
+        } catch (const CfbError&) {
+            return true;
+        }
+    };
+    CHECK(refused(sch.substr(0, 511)));
+    CHECK(refused(std::string("\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1", 8) + std::string(600, '\0')));
+    std::string truncated = sch.substr(0, sch.size() - 1536);
+    CHECK(refused(truncated));
+    std::string loop = sch;  // first directory sector's FAT entry points to itself: a chain without end is cut
+    const uint32_t firstFat = static_cast<unsigned char>(loop[0x4C]) | (static_cast<unsigned char>(loop[0x4D]) << 8);
+    const size_t fatAt = (firstFat + 1) * 512;
+    for (size_t i = 0; i < 128; ++i) {
+        const uint32_t self = static_cast<uint32_t>(i);
+        for (int k = 0; k < 4; ++k) loop[fatAt + 4 * i + static_cast<size_t>(k)] = static_cast<char>((self >> (8 * k)) & 0xFF);
+    }
+    try {
+        CompoundFile c(loop);
+        for (size_t i = 0; i < c.entries().size(); ++i)
+            if (c.entries()[i].type == CompoundFile::EntryType::Stream) c.read(static_cast<int>(i));
+    } catch (const CfbError&) {
+    }
+    CHECK(true);  // reaching here: no hang, no crash
+}
+
+TEST(library_import_reads_altium_libraries) {
+    const LibraryImport r = importLibraryFiles(
+        {{"Test.SchLib", readAltiumFixture("Test.SchLib")}, {"Test.PcbLib", readAltiumFixture("Test.PcbLib")}});
+    CHECK(r.files.size() == 2 && r.files[0].format == "altium" && r.files[0].symbols == 2 && r.files[0].error.empty());
+    CHECK(r.files[1].footprints == 3 && r.files[1].error.empty());
+    // A multi-part op-amp paired with its current footprint model.
+    const ImportedPart* lm = altiumPart(r, "LM358");
+    CHECK(lm && lm->ok);
+    if (lm && lm->ok) {
+        CHECK(lm->footprintName == "SOIC8_TI");
+        CHECK(lm->spec.pins.size() == 8 && lm->spec.refPrefix == "U");
+        CHECK(lm->spec.manufacturer == "Texas Instruments");
+        CHECK(lm->spec.datasheet == "https://www.ti.com/lit/ds/symlink/lm358.pdf");
+        CHECK(lm->spec.description == "Dual op-amp, \xC2\xB1" "16 V");  // Windows-1252 ± read as UTF-8
+        const int out = lm->spec.pinIndex("1"), vplus = lm->spec.pinIndex("8"), inb = lm->spec.pinIndex("5");
+        CHECK(out >= 0 && lm->spec.pins[static_cast<size_t>(out)].type == PinType::Output);
+        CHECK(vplus >= 0 && lm->spec.pins[static_cast<size_t>(vplus)].type == PinType::PowerIn);
+        CHECK(inb >= 0 && lm->spec.pins[static_cast<size_t>(inb)].name == "+INB");
+        CHECK(sideOf(lm->spec, "1") == 'R' && sideOf(lm->spec, "2") == 'L' && sideOf(lm->spec, "8") == 'T' &&
+              sideOf(lm->spec, "4") == 'B');
+        CHECK(std::any_of(lm->warnings.begin(), lm->warnings.end(),
+                          [](const std::string& w) { return w.find("units") != std::string::npos; }));
+        CHECK(lm->spec.package.lands.size() == 8);
+        // Pad 1 top left (Altium's y up flipped), pad 6 turned 90° back to a horizontal pad, body from the overlay.
+        CHECK(lm->spec.package.lands[0].x < 0 && lm->spec.package.lands[0].y < 0);
+        CHECK_NEAR(lm->spec.package.lands[5].w, 1.55, 1e-6);
+        CHECK_NEAR(lm->spec.package.lands[5].h, 0.6, 1e-6);
+        CHECK_NEAR(lm->spec.package.bodySize, 3.9, 1e-6);
+        CHECK_NEAR(lm->spec.package.bodyDepth, 4.9, 1e-6);
+        CHECK(CustomPartRegistry::instance().registerPart(lm->spec) != nullptr);
+    }
+    // A single-part symbol: overbar, UTF-8 description, a footprint model not in the import (generated DIP-8).
+    const ImportedPart* ne = altiumPart(r, "NE555");
+    CHECK(ne && ne->ok);
+    if (ne && ne->ok) {
+        const int reset = ne->spec.pinIndex("4");
+        CHECK(reset >= 0 && ne->spec.pins[static_cast<size_t>(reset)].name == "nRESET");
+        CHECK(ne->spec.description == "Precision timer, 4.5\xE2\x80\x93" "16 V");
+        CHECK(ne->spec.package.type == "DIP" && ne->spec.pins.size() == 8);
+    }
+    // Footprints of their own: a through-hole header (mounting hole skipped), and one with an unknown primitive.
+    const ImportedPart* hdr = altiumPart(r, "HDR1X4");
+    CHECK(hdr && hdr->ok);
+    if (hdr && hdr->ok) {
+        CHECK(hdr->spec.package.lands.size() == 4 && hdr->spec.package.lands[0].drill > 0.9);
+        CHECK(!hdr->spec.package.lands[0].round && hdr->spec.package.lands[1].round);
+        CHECK(std::any_of(hdr->warnings.begin(), hdr->warnings.end(),
+                          [](const std::string& w) { return w.find("non-plated") != std::string::npos; }));
+    }
+    const ImportedPart* bad = altiumPart(r, "BAD");
+    CHECK(bad && bad->spec.package.lands.size() == 1);
+    if (bad)
+        CHECK(std::any_of(bad->warnings.begin(), bad->warnings.end(),
+                          [](const std::string& w) { return w.find("unknown primitive") != std::string::npos; }));
+    // Explicit pairs work with Altium footprints too.
+    const LibraryImport paired = importLibraryFiles(
+        {{"Test.SchLib", readAltiumFixture("Test.SchLib")}, {"Test.PcbLib", readAltiumFixture("Test.PcbLib")}},
+        {{"NE555", "SOIC8_TI"}});
+    const ImportedPart* ne2 = altiumPart(paired, "NE555");
+    CHECK(ne2 && ne2->ok && ne2->footprintName == "SOIC8_TI");
+    // Integrated libraries are refused with what to do instead.
+    const LibraryImport il = importLibraryFiles({{"Parts.IntLib", readAltiumFixture("Test.IntLib")}});
+    CHECK(il.files.size() == 1 && il.files[0].error.find("Extract") != std::string::npos);
+
+    // Through the C API's request, as base64 (binary files).
+    Json req = Json::object();
+    Json files = Json::array();
+    Json f = Json::object();
+    f["name"] = "Test.PcbLib";
+    f["contentBase64"] = base64(readAltiumFixture("Test.PcbLib"));
+    files.push(f);
+    req["files"] = files;
+    const Json out = importLibraryRequest(req);
+    CHECK(out.get("footprints").asInt() == 3 && out.get("parts").size() == 3);
+}
+
+TEST(library_import_altium_survives_fuzzing) {
+    const std::vector<std::pair<std::string, std::string>> inputs = {{"Test.SchLib", readAltiumFixture("Test.SchLib")},
+                                                                     {"Test.PcbLib", readAltiumFixture("Test.PcbLib")}};
+    uint32_t seed = 0xA171u;
+    auto rnd = [&]() {
+        seed ^= seed << 13;
+        seed ^= seed >> 17;
+        seed ^= seed << 5;
+        return seed;
+    };
+    int imported = 0, refused = 0;
+    for (const auto& [name, original] : inputs) {
+        for (int k = 0; k < 400; ++k) {
+            std::string s = original;
+            const size_t a = 512 + rnd() % (s.size() - 512), len = 1 + rnd() % 64;
+            switch (k % 5) {
+                case 0: s.resize(a); break;
+                case 1:
+                    for (int i = 0; i < 12; ++i) s[rnd() % s.size()] = static_cast<char>(rnd());
+                    break;
+                case 2:
+                    for (int i = 0; i < 4; ++i) s[0x4C + rnd() % 400] = static_cast<char>(rnd());  // header and DIFAT
+                    break;
+                case 3: s.replace(a, std::min(len, s.size() - a), std::string(std::min(len, s.size() - a), '\xFF')); break;
+                default:
+                    for (size_t i = a; i < std::min(s.size(), a + len); ++i) s[i] = static_cast<char>(s[i] ^ 0x5A);
+                    break;
+            }
+            try {
+                const LibraryImport r = importLibraryFiles({{name, s}});
+                for (const auto& p : r.parts) {
+                    if (!p.ok) continue;
+                    ++imported;
+                    CHECK(CustomPartRegistry::instance().registerPart(p.spec) != nullptr);
+                }
+                refused += !r.files[0].error.empty();
+            } catch (const std::exception& e) {
+                std::printf("    %s mutation %d threw: %s\n", name.c_str(), k, e.what());
+                CHECK(false);
+            }
+        }
+    }
+    CHECK(imported > 100 && refused > 20);
+}

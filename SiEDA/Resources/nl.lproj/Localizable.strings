@@ -696,3 +696,6 @@
 "Offset (mm)" = "Verschuiving (mm)";
 "Rotation (°)" = "Rotatie (°)";
 "Scale" = "Schaal";
+
+/* Altium library import */
+"Import KiCad (.kicad_mod, .kicad_sym), Eagle (.lbr) or Altium (.SchLib, .PcbLib) libraries" = "KiCad- (.kicad_mod, .kicad_sym), Eagle- (.lbr) of Altium-bibliotheken (.SchLib, .PcbLib) importeren";
