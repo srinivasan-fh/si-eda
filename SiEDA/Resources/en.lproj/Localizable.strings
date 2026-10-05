@@ -18,6 +18,7 @@
 "3D Viewer" = "3D Viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "A child sheet every channel of this block gets a copy of";
 "A class still used by a directive cannot be deleted" = "A class still used by a directive cannot be deleted";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "A harness label carries every member of its type across sheets (port, sheet entry or global)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet.";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "Adaptive time step";
 "Add Child Sheet" = "Add Child Sheet";
 "Add Ground Pours" = "Add Ground Pours";
+"Add Helper Sheet" = "Add Helper Sheet";
 "Add Kit to Library" = "Add Kit to Library";
 "Add Mesh" = "Add Mesh";
 "Add Missing Entries" = "Add Missing Entries";
@@ -65,6 +67,7 @@
 "Align Right" = "Align Right";
 "Align Top" = "Align Top";
 "Align Vertical Centres" = "Align Vertical Centres";
+"Align by Symbol Outline" = "Align by Symbol Outline";
 "All" = "All";
 "Amplitude" = "Amplitude";
 "An entry (a local net label on the bus) for every member that has none yet" = "An entry (a local net label on the bus) for every member that has none yet";
@@ -85,6 +88,7 @@
 "Apply Prices to BOM" = "Apply Prices to BOM";
 "Apply Symbol" = "Apply Symbol";
 "Apply Tuning" = "Apply Tuning";
+"Arc" = "Arc";
 "Arrange" = "Arrange";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange";
 "Arrange the symbol, or define the gates of a multi-unit part" = "Arrange the symbol, or define the gates of a multi-unit part";
@@ -96,6 +100,7 @@
 "Attach" = "Attach";
 "Attach SPICE Model…" = "Attach SPICE Model…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "Attach the model to this channel of the repeated sheet; the other channels keep theirs";
 "Audience (optional)" = "Audience (optional)";
 "Auto" = "Auto";
 "Auto (fits the drawing)" = "Auto (fits the drawing)";
@@ -130,6 +135,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes";
 "Board thickness" = "Board thickness";
 "Boards per order, for the order cost" = "Boards per order, for the order cost";
+"Body box" = "Body box";
 "Broadside" = "Broadside";
 "Built-in model" = "Built-in model";
 "Bus" = "Bus";
@@ -152,8 +158,10 @@
 "Cascade at receiver" = "Cascade at receiver";
 "Cavity model" = "Cavity model";
 "Centre" = "Centre";
+"Centre Frame on Drawing" = "Centre Frame on Drawing";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Centre the model on the footprint and put its lowest point on the board surface";
 "Changes from a WAS / IS file" = "Changes from a WAS / IS file";
+"Changes from the schematic to the board since the last update." = "Changes from the schematic to the board since the last update.";
 "Channel" = "Channel";
 "Channel %@ of %@ — edits apply to every channel" = "Channel %@ of %@ — edits apply to every channel";
 "Channel Designators" = "Channel Designators";
@@ -169,6 +177,7 @@
 "Choose a part" = "Choose a part";
 "Choose the footprint for this symbol: the import is read again with this pair" = "Choose the footprint for this symbol: the import is read again with this pair";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs";
+"Circle" = "Circle";
 "Circuit" = "Circuit";
 "Circuit — 5 ms, 5 µs" = "Circuit — 5 ms, 5 µs";
 "Class / board" = "Class / board";
@@ -203,6 +212,7 @@
 "Construction" = "Construction";
 "Copies" = "Copies";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …).";
+"Copper Pours" = "Copper Pours";
 "Copper colours" = "Copper colours";
 "Copper foil" = "Copper foil";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards";
@@ -226,6 +236,7 @@
 "DEVICES" = "DEVICES";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "DRAWING";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "Datasheet";
@@ -243,6 +254,7 @@
 "Delete Type" = "Delete Type";
 "Delete Variant" = "Delete Variant";
 "Delete Wire" = "Delete Wire";
+"Delete the selected drawing" = "Delete the selected drawing";
 "Describe your product" = "Describe your product";
 "Description" = "Description";
 "Design" = "Design";
@@ -266,7 +278,9 @@
 "Done" = "Done";
 "Down ↓" = "Down ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "Download the distributor's datasheet PDF and extract its pin table";
+"Drag to draw · click to place a text · Esc returns to selecting" = "Drag to draw · click to place a text · Esc returns to selecting";
 "Drag to orbit" = "Drag to orbit";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "Draw the generated rectangle; turn it off when the drawings are the body";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad";
 "Drawn by" = "Drawn by";
 "Driver" = "Driver";
@@ -287,6 +301,8 @@
 "Edit Symbol…" = "Edit Symbol…";
 "Effort" = "Effort";
 "Enable AI assistance" = "Enable AI assistance";
+"End %lld°" = "End %lld°";
+"Engineering change order: review and execute the schematic's changes on the board" = "Engineering change order: review and execute the schematic's changes on the board";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off";
 "Errors" = "Errors";
@@ -294,6 +310,8 @@
 "Every pin is placed once; no pins collide" = "Every pin is placed once; no pins collide";
 "Every unit is valid" = "Every unit is valid";
 "Exchange the wires of two interchangeable pins of this gate" = "Exchange the wires of two interchangeable pins of this gate";
+"Execute Changes" = "Execute Changes";
+"Executed" = "Executed";
 "Export" = "Export";
 "Export 3D" = "Export 3D";
 "Export Fabrication Package…" = "Export Fabrication Package…";
@@ -310,6 +328,7 @@
 "File unit" = "File unit";
 "Fill Suggested Part Numbers" = "Fill Suggested Part Numbers";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "Fill the supplier part number and unit price of the best offer at the build quantity into each line";
+"Filled" = "Filled";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 ";
 "Find" = "Find";
 "Find & Replace" = "Find & Replace";
@@ -323,6 +342,8 @@
 "Fit Board to Components" = "Fit Board to Components";
 "Fits every pin" = "Fits every pin";
 "Fitted" = "Fitted";
+"Fitted in this channel" = "Fitted in this channel";
+"Fitted to Entries" = "Fitted to Entries";
 "Fix Duplicates Only" = "Fix Duplicates Only";
 "Flicker (1/f)" = "Flicker (1/f)";
 "Flight time" = "Flight time";
@@ -407,11 +428,14 @@
 "Layer" = "Layer";
 "Layer separation (exploded view)" = "Layer separation (exploded view)";
 "Layers" = "Layers";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "Leave the part off (DNP) in this channel only; the other channels keep theirs";
 "Length" = "Length";
 "Library" = "Library";
 "Lifecycle" = "Lifecycle";
+"Line" = "Line";
 "Line loss per layer" = "Line loss per layer";
 "Line total" = "Line total";
+"Line width %@" = "Line width %@";
 "Live Pricing" = "Live Pricing";
 "Live Pricing…" = "Live Pricing…";
 "Live board" = "Live board";
@@ -435,6 +459,8 @@
 "MESSAGES" = "MESSAGES";
 "Magnitude" = "Magnitude";
 "Make Swap Group" = "Make Swap Group";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "Make the swaps that shorten this part's connections most; the schematic follows";
+"Make this swap on the board and in the schematic" = "Make this swap on the board and in the schematic";
 "Manufacturer part #" = "Manufacturer part #";
 "Manufacturer part number or keywords" = "Manufacturer part number or keywords";
 "Mask" = "Mask";
@@ -462,6 +488,8 @@
 "Mounting" = "Mounting";
 "Mouser Search API key (API Hub → Search API)." = "Mouser Search API key (API Hub → Search API).";
 "Move Selection Here" = "Move Selection Here";
+"Move drawing" = "Move drawing";
+"Move the drawing half a grid step" = "Move the drawing half a grid step";
 "Move the footprint origin to the centre of the pads" = "Move the footprint origin to the centre of the pads";
 "Move the pad in the numbering; pads between shift by one" = "Move the pad in the numbering; pads between shift by one";
 "NAVIGATOR" = "NAVIGATOR";
@@ -472,6 +500,7 @@
 "Net" = "Net";
 "Net Classes" = "Net Classes";
 "Net Navigator" = "Net Navigator";
+"Net Rules" = "Net Rules";
 "Net class" = "Net class";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "Net classes for the directives on nets: the schematic is the source of the board's net rules";
 "Net model" = "Net model";
@@ -491,6 +520,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design.";
 "No distributor API keys yet" = "No distributor API keys yet";
 "No distributor offers." = "No distributor offers.";
+"No drawings yet: pick a tool and drag on the symbol." = "No drawings yet: pick a tool and drag on the symbol.";
 "No errors or warnings." = "No errors or warnings.";
 "No gates found in the pin names." = "No gates found in the pin names.";
 "No imported model" = "No imported model";
@@ -547,6 +577,7 @@
 "Open the design verification report" = "Open the design verification report";
 "Open the offer on the distributor's site" = "Open the offer on the distributor's site";
 "Open…" = "Open…";
+"Optimize Swaps" = "Optimize Swaps";
 "Other footprints" = "Other footprints";
 "Output" = "Output";
 "Output noise" = "Output noise";
@@ -558,6 +589,7 @@
 "PCB Layout" = "PCB Layout";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "PDF of every sheet with bookmarks, frames and title blocks";
+"PIN / GATE SWAP" = "PIN / GATE SWAP";
 "PIN SWAP" = "PIN SWAP";
 "PINS" = "PINS";
 "PRBS" = "PRBS";
@@ -603,6 +635,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. ";
 "Plane" = "Plane";
 "Plane cavity" = "Plane cavity";
+"Polygon" = "Polygon";
 "Port (to parent sheet)" = "Port (to parent sheet)";
 "Ports: %@" = "Ports: %@";
 "Power" = "Power";
@@ -617,10 +650,12 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "Radius %lld";
 "Re-annotate from the board (columns)" = "Re-annotate from the board (columns)";
 "Re-annotate from the board (rows)" = "Re-annotate from the board (rows)";
 "Re-verify" = "Re-verify";
 "Read Pins from Datasheet" = "Read Pins from Datasheet";
+"Read the changes again from the schematic" = "Read the changes again from the schematic";
 "Ready" = "Ready";
 "Receive equaliser, peaking chosen for the widest eye" = "Receive equaliser, peaking chosen for the widest eye";
 "Receiver" = "Receiver";
@@ -645,6 +680,7 @@
 "Renumber" = "Renumber";
 "Repeat Sheet" = "Repeat Sheet";
 "Repeat Sheet…" = "Repeat Sheet…";
+"Repeat With Its Block" = "Repeat With Its Block";
 "Replace All" = "Replace All";
 "Replace with" = "Replace with";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "Replaces the text in part values and net label names on every sheet (designators: use Annotate)";
@@ -724,11 +760,13 @@
 "Search parts" = "Search parts";
 "Searching…" = "Searching…";
 "Seat on Board" = "Seat on Board";
+"Select" = "Select";
 "Select a net to analyse" = "Select a net to analyse";
 "Select a net to analyse its channel" = "Select a net to analyse its channel";
 "Select a pad to edit its position, size, shape, drill and pin." = "Select a pad to edit its position, size, shape, drill and pin.";
 "Select a part on the schematic or PCB to edit its properties." = "Select a part on the schematic or PCB to edit its properties.";
 "Select an importable part to preview it." = "Select an importable part to preview it.";
+"Select and move pins and drawings" = "Select and move pins and drawings";
 "Select pins to move them to a side, stack them or change their order." = "Select pins to move them to a side, stack them or change their order.";
 "Send" = "Send";
 "Send to" = "Send to";
@@ -742,6 +780,7 @@
 "Sheet" = "Sheet";
 "Sheet %lld of %lld" = "Sheet %lld of %lld";
 "Sheet Size" = "Sheet Size";
+"Sheet Symbol Size" = "Sheet Symbol Size";
 "Sheet name" = "Sheet name";
 "Shot" = "Shot";
 "Shove" = "Shove";
@@ -774,6 +813,7 @@
 "Simulation" = "Simulation";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "Simulation speed relative to real time (slow motion shows fast signals)";
 "Single-ended" = "Single-ended";
+"Size %lld" = "Size %lld";
 "Skew" = "Skew";
 "Smooth" = "Smooth";
 "Solve the DC operating point once — shows voltage probes" = "Solve the DC operating point once — shows voltage probes";
@@ -787,6 +827,7 @@
 "Stack repeated power pins" = "Stack repeated power pins";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; ";
 "Standard ED" = "Standard ED";
+"Start %lld°" = "Start %lld°";
 "Starting the design engine" = "Starting the design engine";
 "Step" = "Step";
 "Step response" = "Step response";
@@ -819,7 +860,9 @@
 "Tamper mesh over" = "Tamper mesh over";
 "Target" = "Target";
 "Test Connection" = "Test Connection";
+"Text" = "Text";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141).";
+"The board is up to date with the schematic." = "The board is up to date with the schematic.";
 "The imported model replaces the built-in one in every analysis." = "The imported model replaces the built-in one in every analysis.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs.";
@@ -829,6 +872,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "The two gates exchange places in their packages; the symbols and wires stay";
 "The victim runs on the adjacent layer, over or under the aggressor" = "The victim runs on the adjacent layer, over or under the aggressor";
 "Thermal" = "Thermal";
+"This channel has its own SPICE model" = "This channel has its own SPICE model";
+"This channel has its own firmware" = "This channel has its own firmware";
+"This channel only" = "This channel only";
 "Through" = "Through";
 "Title" = "Title";
 "Total jitter" = "Total jitter";
@@ -844,6 +890,7 @@
 "Type a designator, value, label or net name." = "Type a designator, value, label or net name.";
 "UNIT %@" = "UNIT %@";
 "UNITS" = "UNITS";
+"UPDATE PCB" = "UPDATE PCB";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / corner-bond heavy parts (shock)";
 "Undershoot" = "Undershoot";
@@ -856,8 +903,10 @@
 "Units" = "Units";
 "Unity gain" = "Unity gain";
 "Unstack" = "Unstack";
+"Update PCB" = "Update PCB";
 "Upload .hex…" = "Upload .hex…";
 "Use Block Value" = "Use Block Value";
+"Use Block's" = "Use Block's";
 "Use the generated body again" = "Use the generated body again";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them.";

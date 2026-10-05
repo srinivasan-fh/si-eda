@@ -97,8 +97,14 @@ the block's tab → **Repeat Sheet…** and enter the number of channels (1 to 6
   its own Stage channels. Designators follow the channel path: *With Channel Suffix* gives `R1_B_A` (outer channel
   first); *By Sheet Number* numbers each channel's sheet. Changing the Stage count changes it in every Amp channel;
   renaming a Stage channel renames it in every Amp channel. Up to 1024 sheets in a design.
-- An ordinary sheet (not repeated) cannot sit inside a repeated block, and no child sheet can be added under one —
-  repeat the inner sheet first, or end the outer repetition to restructure. A nested block's channels cannot be
+- **Helper sheets** (ordinary child sheets inside a block): right-click a repeated block's tab (or any channel's) ▸
+  **Add Helper Sheet** adds a child sheet that every channel gets its own copy of (`Bias [B]`, with its own
+  designators and nets, and the channel's sheet entries leading into its own copy) — a nested block of one channel.
+  Before repeating, a child sheet is marked with right-click ▸ **Repeat With Its Block**; a plain child sheet (not
+  marked) still keeps its parent from being repeated, and **Add Child Sheet** is not offered on a repeated block.
+  The mark is saved as the sheet's `"helper": true`; it cannot be removed while the block is repeated. C API
+  `sieda_add_helper_sheet`, `sieda_set_helper_sheet`.
+- A nested block's channels cannot be
   deleted or moved on their own (change the repeat count). Parts moved onto a channel join the block; parts of a
   channel cannot be moved out of it (move them on the block's own sheet).
 - **Per-channel parameters**: select a part on any channel; the inspector's **Channel value** sets the value of that
@@ -107,6 +113,13 @@ the block's tab → **Repeat Sheet…** and enter the number of channels (1 to 6
   block's own sheet (channel A) keeps the other channels' current values. The core also keeps a per-channel package
   (`sieda_set_channel_package`). The netlist, ERC, BOM, simulation and board all see each channel's own value —
   the copies are real parts.
+- **More per-channel parameters**: **Fitted in this channel** (inspector) leaves the part off (DNP) in that channel
+  only — BOM sourcing (manufacturer, MPN, supplier part, price, DNP) was always per channel. The SPICE model sheet's
+  **This channel only** attaches an imported model to one channel; per-channel firmware is in the C API
+  (`sieda_set_channel_firmware`). The inspector shows which parameters a channel has of its own, each with
+  **Use Block's**. Saved in the copy's `channelOverride` bits (1 value, 2 package, 4 SPICE model, 8 firmware);
+  an older SiEDA reads bits 4 and 8 as unknown and drops them (the channel then takes the block's model). C API
+  `sieda_set_channel_spice_model`, `sieda_clear_channel_override`, `sieda_set_channel_fitted`.
 
 ## Electrical rule checks across sheets
 
@@ -202,8 +215,9 @@ The schematic is the source of the board's net rules (as in Altium). Code: `Core
   pin and is drawn as a small `◆` flag with its class, `⇄` for a pair and its sizes. On a repeated sheet it applies
   in every channel.
 - **Carried to the PCB** at every change: the widths become the board's net widths, the clearances its per-net
-  clearances — the autorouter keeps other nets' copper that far away and DRC reports copper closer than a net's
-  class clearance (`DRC_NET_CLASS_CLEARANCE`, warning). Pairs marked by directives join the name-based differential
+  clearances — the autorouter and the interactive router (route, pair, bus, drag, shove and walkaround; a pair's gap
+  is at least its nets' class clearance) keep other nets' copper that far away, and DRC reports copper closer than a
+  net's class clearance (`DRC_NET_CLASS_CLEARANCE`, warning). Pairs marked by directives join the name-based differential
   pairs used by the autorouter (impedance width), the interactive differential router, length tuning and the
   signal-integrity checks. Removing a directive gives the board its own rules back; widths the designer set on the
   board for other nets stay.
@@ -304,10 +318,13 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
 
 - **Rubber-banding**: wires follow parts while they are dragged (wires join pins, so they always did).
 - **Arrange** menu (options bar): **Align** left / right / top / bottom / centres and **Distribute** horizontally /
-  vertically (three or more parts, equal steps between the outermost) — by the parts' positions on the grid. One
-  undo step; a channel copy moves its block's part.
+  vertically (three or more parts) — by the symbols' outlines with **Align by Symbol Outline** on (the default:
+  left edges line up, distributing leaves equal gaps between outlines; positions stay on the grid), or by the parts'
+  reference points with it off. One undo step; a channel copy moves its block's part. C API `sieda_align_outlines`.
 - **Copy / Cut / Paste** (⌘C / ⌘X / ⌘V on the canvas, or the Arrange menu): parts and the wires between them,
-  label scopes, packages, no-connect marks, harness connectors with their entries. Pasted parts get the **next free
+  label scopes, packages, no-connect marks, harness connectors with their entries, the **buses** the copied bus
+  entries belong to (and a selected bus), **net directives** on the copied pins, BOM **sourcing** and each part's
+  **variant settings** (applied to the variants of the same name where it is pasted). Pasted parts get the **next free
   designators**. **Paste Array…** places *n* copies, each one step further, counting net label numbers up by the
   increment (`D0` → `D1`, `D2` …; zero padding kept: `A07` → `A08`). A pasted sheet entry becomes a local label; a
   pasted gate becomes a part of its own showing the same gate.
@@ -320,20 +337,50 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
   places). The **ECO review** lists every change with a check box; changes that cannot be applied say why (unknown
   part, target designator taken, pins on different units). **Apply Changes** is one undo step; renames go through
   temporary designators so swaps (R1 ↔ R2) work, and the chosen set must keep designators unique.
+- **Pin / gate swap on the board** (Altium's PCB pin / gate swapping): select a multi-unit part's footprint (or one of
+  its gates) in the PCB editor; the inspector's **Pin / Gate Swap** lists the swaps its package allows — two pins of
+  one swap group of a gate, or two interchangeable gates (of this package or another of the same part and value) —
+  each with the ratsnest it saves (nearest-pad estimate). **Swap** makes one; **Optimize Swaps** makes the best ones
+  for the part, one after another, while they shorten the connections. Every swap is back-annotated: the schematic's
+  wires (pin swap) or gates (gate swap) change, the board's nets follow, routing that no longer fits is removed, and
+  Update PCB has nothing to bring over. One undo step. Units of a repeated sheet's channels are swapped on the
+  block's own sheet. C API `sieda_pcb_swap_options`, `sieda_apply_pcb_swap`, `sieda_optimize_pcb_swaps` (all
+  packages with -1).
 - **Messages**: the options bar's **Messages** panel lists every ERC finding of every sheet with its sheet name;
   **Compile** re-runs ERC; click a message to show it on its sheet, selected and zoomed.
 - **Error reporting** (Altium's project options ▸ Error Reporting): right-click a message ▸ *Report as Error /
   Warning / Info*, *Do Not Report*, or *Rule's Own Severity* — for that rule everywhere in the project (saved with
   it as `ercSeverities`; one undo step). C API `sieda_set_erc_severity`.
+- **Drawn sheet symbols and harness connectors**: right-click a child sheet's tab ▸ **Sheet Symbol Size** — *Fitted to
+  Entries* or a fixed size (120 × 80 … 360 × 280 units); the box never shrinks below what its entries need (saved as
+  the sheet's `symbolSize`; C API `sieda_set_sheet_symbol_size`). A harness connector is drawn as a body around its
+  entries, notched on the side its harness label leaves from, on the canvas and in the PDF.
 - **Sheet templates**: right-click a sheet tab ▸ **Sheet Size** — A4 … A0, ANSI A … E, or *Auto* (the smallest A
-  size that holds the drawing at full scale). The canvas draws the template's frame around the drawing (10 units =
-  2.54 mm).
+  size that holds the drawing at full scale). Choosing a template **fixes the frame** where it is drawn (centred on
+  the drawing; 10 units = 2.54 mm): it stays put while parts move, like a real sheet border, and the PDF prints the
+  sheet at full scale with the drawing where it sits in the frame. **Centre Frame on Drawing** moves it again. Saved as
+  the sheet's `frame` (`[x, y]`, top-left); files without it keep the frame centred on the drawing. C API
+  `sieda_set_sheet_frame`.
 - **PDF** (options bar): every sheet in sheet order, one page per sheet on its template, with a frame and zone markers
   (1, 2, 3 … / A, B, C …), the title block (title, company, revision, date, drawn by, sheet name, size, "Sheet n of
-  N") and the drawing scaled down when it is larger than the sheet. The PDF's bookmarks follow the sheet hierarchy.
-  Symbols are simplified vector drawings (two-pin parts as boxes, capacitor plates and diode triangles; other parts
-  as a body box with pin stubs and names; ground symbols, label flags and sheet symbols) — the canvas draws more
-  detail. Text is plain ASCII (other characters print as `?`).
+  N") and the drawing (at full scale in a fixed frame; scaled down when it is larger than the sheet or sticks out of
+  its frame). The PDF's bookmarks follow the sheet hierarchy (Unicode titles). Symbols are the canvas's: resistor
+  zigzags, capacitor plates, inductor loops, diode / LED, sources, battery, transistors, op-amp, switch, connector,
+  IC, fuse and ground turned with the part; library parts with their own body box and Symbol Editor drawings, units
+  with their unit box; label flags, sheet symbols and harness connector bodies. **Text**: Latin (WinAnsi) in
+  Helvetica, Greek letters and math signs (Ω, µ, ≤, ∞ …) from the Symbol font, and every other script from a
+  subset of a system TrueType font embedded in the file (macOS: *Arial Unicode*; glyphs one per character — scripts
+  that need shaping, such as Devanagari conjuncts or Arabic joining, print unshaped). Without such a font those
+  characters print as `?`. The file stays plain ASCII (the font as hex). C API
+  `sieda_export_schematic_pdf_with_font`.
+- **Update PCB** (options bar ▸ Back Annotate menu ▸ Update PCB; Altium's *Design ▸ Update PCB* engineering change order): lists every change from the
+  schematic to the board since the last update, grouped as **Components** (new parts to place, removed parts,
+  changed designator / footprint / value), **Nets** (new, removed, changed pin lists), **Copper Pours** (pours on
+  nets that no longer exist, to remove) and **Net Rules** (widths / clearances from directives that the board lacks
+  or holds differently). Each change has a check box; **Validate** reads the changes again; **Execute Changes**
+  carries out the chosen ones as one undo step (new parts are placed next to the board; removed parts and pours
+  leave it; rules are written from the schematic) and lists what was done. Unchosen changes stay pending. The
+  baseline (what the board was last updated from) is saved as `pcbSync` only while an update is pending.
 
 ## Files and compatibility
 
@@ -367,12 +414,13 @@ New project fields (all optional when reading):
 
 Further optional fields (written only when used, so other designs' files are unchanged): sheets `instanceOf`,
 `channel`, `refs` (a nested block's channels have a channel sheet as `parent`); components `instanceOf`,
-`logicalRef`, `channelOverride` (1 value, 2 package: the copy keeps its own), `bus`, `unitOf` / `unit` (kind 20, a placed unit) and
+`logicalRef`, `channelOverride` (1 value, 2 package, 4 SPICE model, 8 firmware: the copy keeps its own), `bus`, `unitOf` / `unit` (kind 20, a placed unit) and
 `packageOnly`, `harnessType` / `harnessOf` (net labels); wires `instanceOf`; top-level `buses`, `harnessTypes`
 (`[{"name","entries"}]`), `netClassDefs` (`[{"name","trackWidth"?,"clearance"?}]`), `directives`
 (`[{"id","component","pin","netClass"?,"diffPair"?,"trackWidth"?,"clearance"?}]`) and `titleBlock`; board
 `netClearances` and `schematicRuleNets` (the nets whose rules came from the schematic); sheets `size`; top-level
-`ercSeverities` (`{"ERC_…": "error" | "warning" | "info" | "off"}`). A file is repaired on load: copies whose
+`ercSeverities` (`{"ERC_…": "error" | "warning" | "info" | "off"}`); sheets `symbolSize` (`[width, height]`), `helper`, `frame` (`[x, y]`). `pcbSync` (`{"parts":[{"id","ref","footprint","value"}],"nets":{name:[pins]}}`,
+the Update PCB baseline; written only while the board is behind the schematic, and a file without it is in step). A file is repaired on load: copies whose
 block part is gone, units without a valid package, packages without units, entries of missing buses and buses on
 missing sheets are dropped; an instance of a missing or nested definition becomes an ordinary sheet. Older versions of
 SiEDA open a file with repeated sheets as ordinary sheets (every channel's parts are real parts); a file with placed
@@ -428,7 +476,23 @@ int32_t sieda_apply_eco(SiedaProject*, const char* eco_json);
 int32_t sieda_set_sheet_size(SiedaProject*, int32_t sheet, const char* size);
 char*   sieda_sheet_templates_json(void);
 char*   sieda_export_schematic_pdf(const SiedaProject*);
+char*   sieda_export_schematic_pdf_with_font(const SiedaProject*, const char* font_path);
+int32_t sieda_align_outlines(SiedaProject*, const char* ids_json, const char* mode);
+int32_t sieda_set_sheet_frame(SiedaProject*, int32_t sheet, int32_t fixed, double x, double y);
+char*   sieda_pcb_swap_options(const SiedaProject*, int32_t component);
+int32_t sieda_apply_pcb_swap(SiedaProject*, const char* option_json);
+int32_t sieda_optimize_pcb_swaps(SiedaProject*, int32_t component, int32_t max_swaps);
 int32_t sieda_set_erc_severity(SiedaProject*, const char* code, const char* level); /* "error"…"off", "default" */
+char*   sieda_pcb_eco_preview(const SiedaProject*);               /* [{section,action,object,detail,key,applicable,note}] */
+char*   sieda_apply_pcb_eco(SiedaProject*, const char* keys_json); /* NULL = all; {"executed","report"} */
+int32_t sieda_set_sheet_symbol_size(SiedaProject*, int32_t sheet, double width, double height); /* 0, 0 = fitted */
+int32_t sieda_set_channel_spice_model(SiedaProject*, int32_t component, const char* text, const char* model,
+                                      const char* pins, char** error_out);
+int32_t sieda_set_channel_firmware(SiedaProject*, int32_t component, const char* hex, const char* name, double clock_hz);
+int32_t sieda_clear_channel_override(SiedaProject*, int32_t component, const char* what); /* value|package|spice|firmware */
+int32_t sieda_set_channel_fitted(SiedaProject*, int32_t component, int32_t fitted);
+int32_t sieda_add_helper_sheet(SiedaProject*, const char* name, int32_t parent);
+int32_t sieda_set_helper_sheet(SiedaProject*, int32_t sheet, int32_t helper);
 ```
 
 Sheets, hierarchy, bus labels, annotation and variants:
@@ -464,30 +528,37 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
 
 ## Limits
 
-- Nested repetition needs every sheet inside a repeated block to be repeated itself (an ordinary helper sheet inside
-  a channel is not supported); a design holds at most 1024 sheets. Per-channel parameters cover value and package;
-  other properties (SPICE model, firmware, symbol) are the block's.
+- A plain child sheet inside a block must be marked as a helper (or repeated) before the block is repeated; a
+  design holds at most 1024 sheets. Per-channel parameters cover value, package, SPICE model, firmware and BOM
+  sourcing / DNP; the symbol, pins, wiring and footprint geometry are the block's. Per-channel firmware has no
+  inspector control yet (C API only).
 - A bus line has no electrical meaning of its own: members connect through their entries' names. Buses are not
   shown in the PCB editor (their members are ordinary nets there).
 - Variants affect the assembly outputs and simulation, not ERC, verification or the board.
-- The sheet symbol is drawn from its entries; it has no separate size or graphics of its own.
+- A sheet symbol is a rectangle (fitted to its entries or a drawn size); it has no free-form graphics of its own, and
+  its entries stay where they were placed (they are not snapped to the box's edge when the box grows).
 - Wires never cross sheets; parts moved to another sheet lose their wires to parts left behind.
 - A channel's own value is a per-channel parameter; per-channel fitting (DNP) is still made with a design variant.
   A unit of a multi-unit part inside a repeated sheet stays on that sheet with its package.
 - Multi-unit parts: unit symbols are generated from the part's symbol layout (or arranged by pin type); a unit has no
   hand-drawn layout of its own. Gate swap works between units on one sheet. Unit packing re-assigns only interchangeable gates.
-  A new multi-unit part an agent adds without `units` is drawn as one symbol.
+  A new multi-unit part an agent adds without `units` is drawn as one symbol. Board-side swaps judge by the nearest pad
+  of each net (not routed length), swap gates only between units on one sheet, and are offered for a selected part
+  (the whole-board optimisation is in the C API).
 - Find & Replace edits values and net label names only; designators are changed by annotation.
 - Harnesses are name based: a harness connector is a harness label plus entry labels (no drawn connector body or
   harness wire); harness types are flat (no nested harnesses inside harnesses). Harness labels are not shown on the
   PCB (their members are ordinary nets).
-- Directives sit on pins (labels, part pins); per-net clearance is honoured by the autorouter and DRC, but the
-  interactive router keeps the board clearance and its differential-pair gap comes from the impedance target, not
-  from the net class. There is no "No ERC" marker (use ERC error reporting per rule, or no-connect flags on pins).
-- Align / distribute uses the parts' origins (not their symbol outlines). Paste places parts on the shown sheet; a
-  pasted gate becomes a part of its own.
-- Back-annotation reads designator renames, pin swaps and gate swaps (board re-annotation or a WAS / IS text); the PCB
-  editor itself has no pin- or gate-swap tool yet, and repeated-sheet parts are not renamed from the board.
-- The PDF is drawn by the core with simplified symbols and base-14 fonts (ASCII text); sheet templates frame the
-  drawing (centred on it on the canvas) rather than fixing an origin.
-- Copy / paste does not carry buses, directives or variant settings.
+- Directives sit on pins (labels, part pins). A net class has a width and a clearance, no pair gap of its own: a
+  differential pair's gap comes from the impedance target (or the router's pair-gap option), at least the class
+  clearance. There is no "No ERC" marker (use ERC error reporting per rule, or no-connect flags on pins).
+- Paste places parts on the shown sheet; a pasted gate becomes a part of its own. Variant settings go only to
+  variants of the same name in the target design.
+- Back-annotation reads designator renames, pin swaps and gate swaps (board re-annotation, a WAS / IS text or the
+  board's pin / gate swap tool); repeated-sheet parts are not renamed from the board.
+- The PDF's text is unshaped (one glyph per character) and needs a glyf-outline TrueType font for scripts beyond
+  Latin / Greek; CFF (`.otf`) fonts are not embedded. A frame fixed so that the drawing sticks out of it prints
+  scaled to fit, as before.
+- Update PCB places new parts with the automatic placer (not at a chosen spot). The board reads parts and nets from
+  the schematic live (one design), so removed parts, new designators, values and footprints are already on it:
+  executing those changes records them (and removes routing that no longer fits) rather than moving copper.

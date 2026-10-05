@@ -64,6 +64,14 @@ in a check finding are red and selected pins are white.
   - **Gap Before** inserts an empty slot to separate a group;
   - **Stack** and **Unstack**.
 - **Body width:** Auto (from the pin names), or a fixed width in steps of 20 units.
+- **Drawing** (Altium's symbol graphics): tools for **Line**, **Rectangle**, **Circle**, **Arc**, **Polygon** and
+  **Text**. Drag on the canvas to draw (a line or rectangle between the two points, a circle or arc centred where the
+  drag starts, a triangle polygon in the dragged box), click to place a text; points snap to half a grid step. Pick
+  the arrow (or press Esc) to select again: click a drawing on the canvas or in the list, drag it to move it, and
+  change its fill, line width, text and size, radius and arc angles in the panel, nudge it or delete it. **Body box**
+  off hides the generated rectangle (and its pin-1 dot) so the drawings are the body; the pins keep their places.
+  Drawings are drawn on the schematic, in previews and in the schematic PDF, turned with the component; text stays
+  upright. Every edit is undoable.
 - **Checks:** the live findings. Click one to select its pins.
 - **Pin list** per side, slot by slot, with gaps shown. Click a row to select it.
 
@@ -176,6 +184,12 @@ The layout is part of the custom-part spec, under `symbolLayout`:
   - a skipped slot is a gap.
 - **`width`** is the body width in schematic units; leave it out for automatic.
 - A spec without `symbolLayout` uses the generated box, so its part id is unchanged.
+- **`graphics`** (optional): drawings in symbol units from the centre, y down —
+  `{"kind": "line" | "rect" | "circle" | "arc" | "polygon" | "text", "points": [[x, y], …], "radius", "startAngle",
+  "endAngle" (degrees, clockwise from +x), "text", "size", "lineWidth" (1 = normal), "fill"}`. A line needs two
+  points, a rectangle two corners, a polygon three points, a circle / arc / text one. Limits: 512 drawings, 256 points
+  each, coordinates within ±4000, text 256 bytes. **`body": false`** hides the generated box. Both are written only
+  when used, so other parts keep their ids. Units of a multi-unit part are drawn without the drawings.
 
 **Geometry.** All pin ends land on the 10-unit grid:
 - left / right pins are at x = ∓(half width + 20);
@@ -189,7 +203,8 @@ room above and below the side pins.
 | Layer | File | What |
 |---|---|---|
 | Core | `Core/include/sieda/CustomParts.hpp` | `SymbolPin`, `SymbolSpec`, `autoArrangeSymbol`, `SymbolIssue`, `checkSymbol` |
-| Core | `Core/src/CustomParts.cpp` | layout JSON and validation, four-sided pin placement, auto-arrange, checks |
+| Core | `Core/src/CustomParts.cpp` | layout JSON and validation, four-sided pin placement, auto-arrange, checks, `SymbolGraphic` JSON and `symbolGraphicsBounds` |
+| Core | `Core/src/SchematicPdf.cpp` | the part's body box and drawings in the schematic PDF |
 | Core | `Core/src/Schematic.cpp` | stacked pins joined in the netlist; `isPinConnected` (an unwired stack stays open) |
 | Core | `Core/src/StandardParts.cpp` | auto-arranged symbols for library parts with 16+ pins |
 | C ABI | `Core/include/sieda/sieda_c.h` | `sieda_symbol_auto_arrange`, `sieda_check_symbol` |
@@ -198,6 +213,7 @@ room above and below the side pins.
 | Model | `SiEDA/Models/SymbolDraft.swift` | `SymbolDraft` (move, stack, gaps, swap, nudge, mirror, reconcile), `SymbolIssue` |
 | Model | `SiEDA/Models/FootprintDraft.swift` | `EditHistory` (undo / redo shared with the Footprint Editor) |
 | View | `SiEDA/Views/Library/SymbolEditorView.swift` | the editor sheet |
+| View | `SiEDA/Views/Library/SymbolDrawingPanel.swift` | drawing tools, drawing list and inspector |
 | View | `SiEDA/Views/Schematic/SchematicSymbols.swift` | four-sided symbol drawing, `drawPinLabels` (used by the schematic, previews and the editor) |
 
 ## Tests

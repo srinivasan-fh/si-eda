@@ -28,6 +28,8 @@ add_library(sieda_core STATIC
     Core/src/SchematicEdit.cpp
     Core/src/Eco.cpp
     Core/src/SchematicPdf.cpp
+    Core/src/PdfFont.cpp
+    Core/src/PcbSwap.cpp
     Core/src/PartUnits.cpp
     Core/src/SchematicSearch.cpp
     Core/src/Variants.cpp

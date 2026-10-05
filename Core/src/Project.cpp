@@ -176,6 +176,19 @@ Json sheetsJson(const Schematic& sch) {
         if (!s.channel.empty()) j["channel"] = s.channel;
         if (s.refs != InstanceRefs::SheetNumber) j["refs"] = instanceRefsName(s.refs);
         if (!s.size.empty()) j["size"] = s.size;
+        if (s.helper) j["helper"] = true;
+        if (s.frameFixed) {
+            Json f = Json::array();
+            f.push(s.frameOrigin.x);
+            f.push(s.frameOrigin.y);
+            j["frame"] = f;
+        }
+        if (s.symbolWidth > 0 || s.symbolHeight > 0) {
+            Json box = Json::array();
+            box.push(s.symbolWidth);
+            box.push(s.symbolHeight);
+            j["symbolSize"] = box;
+        }
         arr.push(j);
     }
     return arr;
@@ -583,6 +596,23 @@ Json Project::toJson() const {
         tb["drawnBy"] = titleBlock.drawnBy;
         root["titleBlock"] = tb;
     }
+    if (!(pcbSync == currentSync())) {  // the board's baseline, only while an Update PCB is pending
+        Json sync = Json::object();
+        Json parts = Json::array();
+        for (const auto& [id, part] : pcbSync.parts) {
+            Json j = Json::object();
+            j["id"] = id;
+            j["ref"] = part[0];
+            j["footprint"] = part[1];
+            j["value"] = part[2];
+            parts.push(j);
+        }
+        sync["parts"] = parts;
+        Json nets = Json::object();
+        for (const auto& [name, pins] : pcbSync.nets) nets[name] = pins;
+        sync["nets"] = nets;
+        root["pcbSync"] = sync;
+    }
 
     Json tracks = Json::array();
     for (const auto& t : pcb.tracks) {
@@ -811,7 +841,7 @@ Project Project::fromJson(const Json& root) {
         c.logicalRef = j.get("logicalRef").asString("");
         c.bus = c.kind == ComponentKind::NetLabel ? std::max(0, j.get("bus").asInt(0)) : 0;
         c.packageOnly = c.kind == ComponentKind::Custom && j.get("packageOnly").asBool(false);
-        c.channelOverrides = std::clamp(j.get("channelOverride").asInt(0), 0, kOverrideValue | kOverridePackage);
+        c.channelOverrides = std::clamp(j.get("channelOverride").asInt(0), 0, static_cast<int>(kOverrideAll));
         if (c.kind == ComponentKind::NetLabel) {
             c.harnessType = j.get("harnessType").asString("");
             if (c.harnessType.size() > 32) c.harnessType.clear();
@@ -831,6 +861,18 @@ Project Project::fromJson(const Json& root) {
             if (!instanceRefsFromName(j.get("refs").asString("sheet"), &s.refs)) s.refs = InstanceRefs::SheetNumber;
             s.size = j.get("size").asString("");
             if (!findSheetTemplate(s.size)) s.size.clear();  // unknown template: sized to the drawing
+            s.helper = j.get("helper").asBool(false);
+            {
+                const Json& f = j.get("frame");
+                const double fx = f[size_t{0}].asNumber(NAN), fy = f[size_t{1}].asNumber(NAN);
+                s.frameFixed = !s.size.empty() && std::isfinite(fx) && std::isfinite(fy) && std::fabs(fx) <= 1e6 && std::fabs(fy) <= 1e6;
+                if (s.frameFixed) s.frameOrigin = {fx, fy};
+            }
+            const Json& box = j.get("symbolSize");
+            for (int k = 0; k < 2; ++k) {
+                const double v = box[static_cast<size_t>(k)].asNumber(0);
+                (k == 0 ? s.symbolWidth : s.symbolHeight) = std::isfinite(v) ? std::clamp(v, 0.0, 4000.0) : 0.0;
+            }
             sheets.push_back(s);
         }
         p.schematic.restoreSheets(sheets, root.get("activeSheet").asInt(0));
@@ -939,6 +981,18 @@ Project Project::fromJson(const Json& root) {
         p.pcb.addVia(v);
     }
     p.schematicChanged();  // assigns nets to copper from pad contact
+    // The board's baseline for Update PCB: a file without one is in sync with its schematic.
+    if (const Json& sync = root.get("pcbSync"); sync.isObject()) {
+        for (const auto& j : sync.get("parts").items())
+            p.pcbSync.parts[j.get("id").asInt(-1)] = {j.get("ref").asString(""), j.get("footprint").asString(""),
+                                                      j.get("value").asString("")};
+        p.pcbSync.parts.erase(-1);
+        const Json& nets = sync.get("nets");
+        if (nets.isObject())
+            for (const auto& [name, pins] : nets.fields()) p.pcbSync.nets[name] = pins.asString("");
+    } else {
+        p.pcbSync = p.currentSync();
+    }
     return p;
 }
 
@@ -1104,6 +1158,13 @@ Json Project::snapshot() const {
             j["depth"] = schematic.sheetDepth(s.id);
             j["size"] = s.size;
             j["template"] = sheetTemplateFor(*this, s.id).name;
+            j["symbolWidth"] = s.symbolWidth;
+            j["symbolHeight"] = s.symbolHeight;
+            j["helper"] = s.helper;
+            if (s.frameFixed) {
+                j["frameX"] = s.frameOrigin.x;
+                j["frameY"] = s.frameOrigin.y;
+            }
             Json ports = Json::array();
             for (const auto& port : schematic.sheetPorts(s.id)) ports.push(port);
             j["ports"] = ports;

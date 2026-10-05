@@ -37,10 +37,16 @@ struct SymbolDraft: Equatable {
     var placements: [Placement]
     /// Body width in schematic units (0 = from the pin names).
     var width: Double
+    /// Free-form drawings (lines, rectangles, circles, arcs, polygons, text) in symbol units from the centre.
+    var graphics: [CustomPartSpec.SymbolGraphic] = []
+    /// Draw the generated body box (false: the drawings are the body).
+    var body = true
 
     /// The part's layout, or the generated one (pins in number order down the left, then up the right).
     init(spec: CustomPartSpec) {
         width = spec.symbolLayout?.width ?? 0
+        graphics = spec.symbolLayout?.graphics ?? []
+        body = spec.symbolLayout?.body ?? true
         if let layout = spec.symbolLayout, !layout.pins.isEmpty {
             placements = layout.pins.map { Placement(number: $0.number, side: Side(rawValue: $0.side) ?? .left, slot: $0.slot) }
         } else {
@@ -65,7 +71,45 @@ struct SymbolDraft: Equatable {
 
     var layout: CustomPartSpec.SymbolLayout {
         CustomPartSpec.SymbolLayout(width: width > 0 ? width : nil,
-                                    pins: placements.map { .init(number: $0.number, side: $0.side.rawValue, slot: $0.slot) })
+                                    pins: placements.map { .init(number: $0.number, side: $0.side.rawValue, slot: $0.slot) },
+                                    graphics: graphics.isEmpty ? nil : graphics, body: body ? nil : false)
+    }
+
+    // MARK: - Drawings
+
+    /// Snaps a symbol point to the drawing grid (half a pin step).
+    static func snap(_ p: CGPoint, step: Double = 5) -> CGPoint {
+        CGPoint(x: (p.x / step).rounded() * step, y: (p.y / step).rounded() * step)
+    }
+
+    /// A new drawing of `kind` dragged from `a` to `b` (symbol units): a line or rectangle between them, a circle or
+    /// arc centred on `a` reaching `b`, a triangle polygon in their box, a text at `a`.
+    static func drawing(_ kind: CustomPartSpec.SymbolGraphic.Kind, from a: CGPoint, to b: CGPoint) -> CustomPartSpec.SymbolGraphic? {
+        let a = snap(a), b = snap(b)
+        switch kind {
+        case .line, .rect:
+            guard a != b else { return nil }
+            return .init(kind: kind, points: [a, b])
+        case .circle, .arc:
+            let r = hypot(b.x - a.x, b.y - a.y)
+            guard r >= 2 else { return nil }
+            var g = CustomPartSpec.SymbolGraphic(kind: kind, points: [a])
+            g.radius = (r * 2).rounded() / 2
+            return g
+        case .polygon:
+            guard abs(b.x - a.x) >= 2, abs(b.y - a.y) >= 2 else { return nil }
+            return .init(kind: kind, points: [a, CGPoint(x: b.x, y: (a.y + b.y) / 2), CGPoint(x: a.x, y: b.y)])
+        case .text:
+            return .init(kind: kind, points: [a])
+        }
+    }
+
+    /// Index of the drawing nearest a symbol point (within `reach` units), topmost first.
+    func drawing(at p: CGPoint, reach: Double = 4) -> Int? {
+        for (i, g) in graphics.enumerated().reversed() where g.bounds.insetBy(dx: -reach, dy: -reach).contains(p) {
+            return i
+        }
+        return nil
     }
 
     /// Writes the layout into the part (the pins themselves are untouched).

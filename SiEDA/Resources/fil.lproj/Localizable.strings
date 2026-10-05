@@ -18,6 +18,7 @@
 "3D Viewer" = "3D Viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "Isang child sheet na makakakuha ng kopya ang bawat channel ng block na ito";
 "A class still used by a directive cannot be deleted" = "Hindi mabubura ang klaseng ginagamit pa ng isang direktiba";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Dinadala ng harness label ang bawat miyembro ng uri nito sa mga sheet (port, sheet entry o global)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Harness label na may isang entry bawat miyembro; ikabit ang bawat entry sa signal nito. Bigyan ang port o sheet entry ng parehong pangalan at uri para dalhin ang bundle sa ibang sheet.";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "Adaptive na time step";
 "Add Child Sheet" = "Magdagdag ng Child Sheet";
 "Add Ground Pours" = "Magdagdag ng Ground Pour";
+"Add Helper Sheet" = "Magdagdag ng Helper Sheet";
 "Add Kit to Library" = "Idagdag ang Kit sa Library";
 "Add Mesh" = "Magdagdag ng Mesh";
 "Add Missing Entries" = "Idagdag ang Kulang na Entry";
@@ -65,6 +67,7 @@
 "Align Right" = "I-align sa Kanan";
 "Align Top" = "I-align sa Itaas";
 "Align Vertical Centres" = "I-align ang Patayong Gitna";
+"Align by Symbol Outline" = "I-align ayon sa Balangkas ng Simbolo";
 "All" = "Lahat";
 "Amplitude" = "Amplitude";
 "An entry (a local net label on the bus) for every member that has none yet" = "Isang entry (lokal na net label sa bus) para sa bawat miyembrong wala pa";
@@ -85,6 +88,7 @@
 "Apply Prices to BOM" = "Ilapat ang mga Presyo sa BOM";
 "Apply Symbol" = "Ilapat ang Symbol";
 "Apply Tuning" = "Ilapat ang Pag-tune";
+"Arc" = "Arko";
 "Arrange" = "Ayusin";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Ayusin ang schematic symbol: pin sa anumang gilid, mga grupo, naka-stack na power pin, auto arrange";
 "Arrange the symbol, or define the gates of a multi-unit part" = "Ayusin ang simbolo, o tukuyin ang mga gate ng bahaging maraming unit";
@@ -96,6 +100,7 @@
 "Attach" = "Ikabit";
 "Attach SPICE Model…" = "Ikabit ang SPICE Model…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "Mag-attach ng VRML (.wrl), STL o OBJ model at ihanay ito sa footprint";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "Ikabit ang model sa channel na ito ng inulit na sheet; pinapanatili ng ibang channel ang sa kanila";
 "Audience (optional)" = "Audience (opsyonal)";
 "Auto" = "Awto";
 "Auto (fits the drawing)" = "Auto (kasya sa guhit)";
@@ -130,6 +135,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Board outline (quad-X frame, rounded, bilog), mounting hole, copper pour/plane at net class";
 "Board thickness" = "Kapal ng board";
 "Boards per order, for the order cost" = "Bilang ng board bawat order, para sa halaga ng order";
+"Body box" = "Kahon ng katawan";
 "Broadside" = "Broadside";
 "Built-in model" = "Built-in na model";
 "Bus" = "Bus";
@@ -152,8 +158,10 @@
 "Cascade at receiver" = "I-cascade sa receiver";
 "Cavity model" = "Modelo ng cavity";
 "Centre" = "Igitna";
+"Centre Frame on Drawing" = "Igitna ang Frame sa Guhit";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Igitna ang model sa footprint at ilagay ang pinakamababang punto nito sa ibabaw ng board";
 "Changes from a WAS / IS file" = "Mga pagbabago mula sa WAS / IS na file";
+"Changes from the schematic to the board since the last update." = "Mga pagbabago mula sa schematic papunta sa board mula noong huling update.";
 "Channel" = "Channel";
 "Channel %@ of %@ — edits apply to every channel" = "Channel %@ ng %@ — ang mga pag-edit ay para sa bawat channel";
 "Channel Designators" = "Mga designator ng channel";
@@ -169,6 +177,7 @@
 "Choose a part" = "Pumili ng part";
 "Choose the footprint for this symbol: the import is read again with this pair" = "Piliin ang footprint para sa simbolong ito: babasahin muli ang import gamit ang pares na ito";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "Cinematic heads-up display: projector, particle, part call-out, data pillar at read-out";
+"Circle" = "Bilog";
 "Circuit" = "Circuit";
 "Circuit — 5 ms, 5 µs" = "Circuit — 5 ms, 5 µs";
 "Class / board" = "Klase / board";
@@ -203,6 +212,7 @@
 "Construction" = "Konstruksiyon";
 "Copies" = "Mga kopya";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "Mga kopya ng clipboard, bawat isa ay isang hakbang pa (mga yunit ng eskematiko, 10 = isang grid). Makukuha ng mga bahagi ang susunod na bakanteng designator; tataas ang numero ng net label ayon sa increment (D0 → D1 …).";
+"Copper Pours" = "Mga Copper Pour";
 "Copper colours" = "Mga kulay ng copper";
 "Copper foil" = "Copper foil";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Mga copper layer: 1 = single-sided (walang via), 2–6 para sa karamihan ng produkto, 8–24 para sa motherboard, server, mainframe at GPU baseboard";
@@ -226,6 +236,7 @@
 "DEVICES" = "MGA DEVICE";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "GUHIT";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "Datasheet";
@@ -243,6 +254,7 @@
 "Delete Type" = "Burahin ang Uri";
 "Delete Variant" = "Burahin ang Variant";
 "Delete Wire" = "Burahin ang Wire";
+"Delete the selected drawing" = "Burahin ang napiling guhit";
 "Describe your product" = "Ilarawan ang iyong produkto";
 "Description" = "Paglalarawan";
 "Design" = "Disenyo";
@@ -266,7 +278,9 @@
 "Done" = "Tapos";
 "Down ↓" = "Pababa ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "I-download ang datasheet PDF ng distributor at kunin ang pin table nito";
+"Drag to draw · click to place a text · Esc returns to selecting" = "I-drag para gumuhit · i-click para maglagay ng teksto · Esc pabalik sa pagpili";
 "Drag to orbit" = "I-drag para umikot";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "Iguhit ang nabuong parihaba; i-off kapag ang mga guhit ang katawan";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "Iguhit ang land pattern nang pad por pad: posisyon, laki, hugis, drill at pin ng bawat pad";
 "Drawn by" = "Iginuhit ni";
 "Driver" = "Driver";
@@ -287,6 +301,8 @@
 "Edit Symbol…" = "I-edit ang Symbol…";
 "Effort" = "Effort";
 "Enable AI assistance" = "I-enable ang tulong ng AI";
+"End %lld°" = "Wakas %lld°";
+"Engineering change order: review and execute the schematic's changes on the board" = "Engineering change order: suriin at isagawa ang mga pagbabago ng schematic sa board";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Ilagay sa itaas ang issuer URL ng iyong identity provider at ang client ID ng SiEDA para ma-enable ang button na ito (tanungin ang iyong IT administrator).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxy sa ilalim ng processor, BGA at malalaking capacitor para hindi matanggal ng MIL-STD-901E shock";
 "Errors" = "Mga Error";
@@ -294,6 +310,8 @@
 "Every pin is placed once; no pins collide" = "Isang beses inilagay ang bawat pin; walang nagbabanggaang pin";
 "Every unit is valid" = "Valid ang bawat unit";
 "Exchange the wires of two interchangeable pins of this gate" = "Pagpalitin ang mga wire ng dalawang mapagpapalit na pin ng gate na ito";
+"Execute Changes" = "Isagawa ang mga Pagbabago";
+"Executed" = "Naisagawa";
 "Export" = "I-export";
 "Export 3D" = "I-export ang 3D";
 "Export Fabrication Package…" = "I-export ang Fabrication Package…";
@@ -310,6 +328,7 @@
 "File unit" = "Unit ng file";
 "Fill Suggested Part Numbers" = "Punan ang mga Iminumungkahing Part Number";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "Ilagay sa bawat linya ang supplier part number at unit price ng pinakamagandang alok sa build quantity";
+"Filled" = "May laman";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "Pinupunan ang standard part number kung matutukoy mula sa value at package (hal. Yageo RC0805 ";
 "Find" = "Hanapin";
 "Find & Replace" = "Hanapin at Palitan";
@@ -323,6 +342,8 @@
 "Fit Board to Components" = "Iakma ang Board sa mga Component";
 "Fits every pin" = "Tugma sa bawat pin";
 "Fitted" = "Nakakabit";
+"Fitted in this channel" = "Nakakabit sa channel na ito";
+"Fitted to Entries" = "Akma sa mga entry";
 "Fix Duplicates Only" = "Ayusin ang mga Duplicate Lamang";
 "Flicker (1/f)" = "Flicker (1/f)";
 "Flight time" = "Flight time";
@@ -407,11 +428,14 @@
 "Layer" = "Layer";
 "Layer separation (exploded view)" = "Pagitan ng mga layer (exploded view)";
 "Layers" = "Mga Layer";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "Huwag ikabit ang piyesa (DNP) sa channel na ito lamang; pinapanatili ng ibang channel ang sa kanila";
 "Length" = "Haba";
 "Library" = "Library";
 "Lifecycle" = "Lifecycle";
+"Line" = "Linya";
 "Line loss per layer" = "Pagkawala ng linya bawat layer";
 "Line total" = "Kabuuan ng linya";
+"Line width %@" = "Kapal ng linya %@";
 "Live Pricing" = "Live na Presyo";
 "Live Pricing…" = "Live na Presyo…";
 "Live board" = "Live board";
@@ -435,6 +459,8 @@
 "MESSAGES" = "MGA MENSAHE";
 "Magnitude" = "Magnitude";
 "Make Swap Group" = "Gumawa ng Swap Group";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "Gawin ang mga swap na pinakamaikling nagpapaikli sa mga koneksyon ng piyesang ito; sumusunod ang schematic";
+"Make this swap on the board and in the schematic" = "Gawin ang swap na ito sa board at sa schematic";
 "Manufacturer part #" = "Part # ng manufacturer";
 "Manufacturer part number or keywords" = "Part number ng manufacturer o mga keyword";
 "Mask" = "Mask";
@@ -462,6 +488,8 @@
 "Mounting" = "Pagkakabit";
 "Mouser Search API key (API Hub → Search API)." = "Mouser Search API key (API Hub → Search API).";
 "Move Selection Here" = "Ilipat Dito ang Napili";
+"Move drawing" = "Ilipat ang guhit";
+"Move the drawing half a grid step" = "Ilipat ang guhit nang kalahating hakbang ng grid";
 "Move the footprint origin to the centre of the pads" = "Ilipat ang origin ng footprint sa gitna ng mga pad";
 "Move the pad in the numbering; pads between shift by one" = "Ilipat ang pad sa pagnunumero; uusog nang isa ang mga pad sa pagitan";
 "NAVIGATOR" = "NAVIGATOR";
@@ -472,6 +500,7 @@
 "Net" = "Net";
 "Net Classes" = "Mga Net Class";
 "Net Navigator" = "Navigator ng net";
+"Net Rules" = "Mga Panuntunan ng Net";
 "Net class" = "Net class";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "Mga net class para sa mga direktiba sa net: ang eskematiko ang pinagmumulan ng mga panuntunan ng net ng board";
 "Net model" = "Modelo ng net";
@@ -491,6 +520,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Walang differential pair (…_P/_N, …+/-) o bus (DQ0…, DATA[0..7], ADDR…) sa disenyong ito.";
 "No distributor API keys yet" = "Wala pang API key ng distributor";
 "No distributor offers." = "Walang alok mula sa distributor.";
+"No drawings yet: pick a tool and drag on the symbol." = "Wala pang guhit: pumili ng tool at i-drag sa simbolo.";
 "No errors or warnings." = "Walang error o babala.";
 "No gates found in the pin names." = "Walang nakitang gate sa mga pangalan ng pin.";
 "No imported model" = "Walang in-import na model";
@@ -547,6 +577,7 @@
 "Open the design verification report" = "Buksan ang design verification report";
 "Open the offer on the distributor's site" = "Buksan ang alok sa site ng distributor";
 "Open…" = "Buksan…";
+"Optimize Swaps" = "I-optimize ang mga Swap";
 "Other footprints" = "Iba pang footprint";
 "Output" = "Output";
 "Output noise" = "Ingay ng output";
@@ -558,6 +589,7 @@
 "PCB Layout" = "PCB Layout";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "PDF ng bawat sheet na may bookmark, frame at title block";
+"PIN / GATE SWAP" = "PAGPALIT NG PIN / GATE";
 "PIN SWAP" = "PAGPAPALIT NG PIN";
 "PINS" = "MGA PIN";
 "PRBS" = "PRBS";
@@ -603,6 +635,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "Sinusundan ng placement, routing, pour, DRC, Gerber Edge.Cuts at 3D board ang outline. ";
 "Plane" = "Plane";
 "Plane cavity" = "Plane cavity";
+"Polygon" = "Polygon";
 "Port (to parent sheet)" = "Port (papunta sa parent sheet)";
 "Ports: %@" = "Mga port: %@";
 "Power" = "Power";
@@ -617,10 +650,12 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "Radius %lld";
 "Re-annotate from the board (columns)" = "Muling i-annotate mula sa board (hanay)";
 "Re-annotate from the board (rows)" = "Muling i-annotate mula sa board (hilera)";
 "Re-verify" = "I-verify Muli";
 "Read Pins from Datasheet" = "Basahin ang mga Pin mula sa Datasheet";
+"Read the changes again from the schematic" = "Basahin muli ang mga pagbabago mula sa schematic";
 "Ready" = "Handa";
 "Receive equaliser, peaking chosen for the widest eye" = "Receive equaliser, pinili ang peaking para sa pinakamalapad na mata";
 "Receiver" = "Receiver";
@@ -645,6 +680,7 @@
 "Renumber" = "I-renumber";
 "Repeat Sheet" = "Ulitin ang Sheet";
 "Repeat Sheet…" = "Ulitin ang Sheet…";
+"Repeat With Its Block" = "Ulitin Kasama ang Block Nito";
 "Replace All" = "Palitan Lahat";
 "Replace with" = "Palitan ng";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "Pinapalitan ang teksto sa mga value ng piyesa at pangalan ng net label sa bawat sheet (designator: gamitin ang Annotate)";
@@ -724,11 +760,13 @@
 "Search parts" = "Maghanap ng part";
 "Searching…" = "Naghahanap…";
 "Seat on Board" = "Iupo sa Board";
+"Select" = "Pumili";
 "Select a net to analyse" = "Pumili ng net na susuriin";
 "Select a net to analyse its channel" = "Pumili ng net para suriin ang channel nito";
 "Select a pad to edit its position, size, shape, drill and pin." = "Pumili ng pad para i-edit ang posisyon, laki, hugis, drill at pin nito.";
 "Select a part on the schematic or PCB to edit its properties." = "Pumili ng part sa schematic o PCB para i-edit ang mga property nito.";
 "Select an importable part to preview it." = "Pumili ng piyesang maaaring i-import para i-preview.";
+"Select and move pins and drawings" = "Pumili at ilipat ang mga pin at guhit";
 "Select pins to move them to a side, stack them or change their order." = "Pumili ng mga pin para ilipat sa isang gilid, i-stack o baguhin ang pagkakasunod.";
 "Send" = "Ipadala";
 "Send to" = "Ipadala sa";
@@ -742,6 +780,7 @@
 "Sheet" = "Sheet";
 "Sheet %lld of %lld" = "Sheet %lld ng %lld";
 "Sheet Size" = "Laki ng Sheet";
+"Sheet Symbol Size" = "Laki ng Sheet Symbol";
 "Sheet name" = "Pangalan ng sheet";
 "Shot" = "Shot";
 "Shove" = "Itulak";
@@ -774,6 +813,7 @@
 "Simulation" = "Simulation";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "Bilis ng simulation kumpara sa real time (ipinapakita ng slow motion ang mabibilis na signal)";
 "Single-ended" = "Single-ended";
+"Size %lld" = "Laki %lld";
 "Skew" = "Skew";
 "Smooth" = "Makinis";
 "Solve the DC operating point once — shows voltage probes" = "Lutasin nang isang beses ang DC operating point — ipinapakita ang voltage probe";
@@ -787,6 +827,7 @@
 "Stack repeated power pins" = "I-stack ang paulit-ulit na power pin";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "Stack-up mula sa Layers setting sa PCB Layout: iniiwan ng 1 layer na hubad na FR-4 ang ilalim; ";
 "Standard ED" = "Karaniwang ED";
+"Start %lld°" = "Simula %lld°";
 "Starting the design engine" = "Sinisimulan ang design engine";
 "Step" = "Step";
 "Step response" = "Step response";
@@ -819,7 +860,9 @@
 "Tamper mesh over" = "Tamper mesh sa ibabaw ng";
 "Target" = "Target";
 "Test Connection" = "Subukan ang Koneksyon";
+"Text" = "Teksto";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "Sinusukat ng autorouter ang RF line at differential pair (…_P/_N) sa mga impedance na ito (IPC-2141).";
+"The board is up to date with the schematic." = "Napapanahon ang board sa schematic.";
 "The imported model replaces the built-in one in every analysis." = "Pinapalitan ng in-import na model ang built-in sa bawat pagsusuri.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "Sinusunod ng interface ang wikang ito. Nananatiling Ingles ang mga engineering term, part number, unit, net name at mensahe ng design check para tumugma sa mga datasheet at fabrication file.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Ginagamit ng offline designer ang mga built-in na reference circuit ng SiEDA. Hindi kailangan ng network o API key — mainam para sa demo at air-gapped na lab.";
@@ -829,6 +872,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "Nagpapalit ng puwesto sa package ang dalawang gate; nananatili ang mga simbolo at wire";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Ang biktima ay nasa katabing layer, sa itaas o ilalim ng aggressor";
 "Thermal" = "Thermal";
+"This channel has its own SPICE model" = "May sariling SPICE model ang channel na ito";
+"This channel has its own firmware" = "May sariling firmware ang channel na ito";
+"This channel only" = "Ang channel na ito lamang";
 "Through" = "Tagos";
 "Title" = "Pamagat";
 "Total jitter" = "Kabuuang jitter";
@@ -844,6 +890,7 @@
 "Type a designator, value, label or net name." = "Mag-type ng designator, value, label o pangalan ng net.";
 "UNIT %@" = "UNIT %@";
 "UNITS" = "MGA UNIT";
+"UPDATE PCB" = "I-UPDATE ANG PCB";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / corner-bond sa mabibigat na part (shock)";
 "Undershoot" = "Undershoot";
@@ -856,8 +903,10 @@
 "Units" = "Mga Unit";
 "Unity gain" = "Unity gain";
 "Unstack" = "I-unstack";
+"Update PCB" = "I-update ang PCB";
 "Upload .hex…" = "I-upload ang .hex…";
 "Use Block Value" = "Gamitin ang Halaga ng Block";
+"Use Block's" = "Gamitin ang sa Block";
 "Use the generated body again" = "Gamitin muli ang ginawang katawan";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Gamitin ang sheet na ito bilang ilang magkakaparehong channel (1 hanggang 64). Bawat channel ay may sariling designator, net at sheet symbol; ang pag-edit sa alinmang channel ay nag-e-edit sa lahat.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, gaya ng mga KiCad library), STL o OBJ. Hindi mabasa ang STEP file: gamitin ang .wrl sa tabi nito.";

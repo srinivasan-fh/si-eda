@@ -1,6 +1,8 @@
 // SiEDA Core — a complete design: schematic + PCB layout, with persistence and UI snapshots.
 #pragma once
 
+#include <array>
+#include <map>
 #include <string>
 
 #include "sieda/CustomParts.hpp"
@@ -30,6 +32,35 @@ struct EcoChange {
     int other = -1;            // gate swap: the second unit
     bool applicable = true;
     std::string note;          // why it cannot be applied
+};
+
+/// A change the schematic makes to the board (Altium's Update PCB ECO): parts added, removed or changed since the
+/// last update, nets whose pins changed, copper zones on nets that are gone, and net rules from the schematic.
+struct PcbEcoChange {
+    std::string section;  // "component", "net", "zone", "rule"
+    std::string action;   // "add", "remove", "change"
+    std::string object;   // "R5", "VCC", "HS"
+    std::string detail;   // what the update does
+    std::string key;      // stable identity, for executing a chosen subset
+    bool applicable = true;
+    std::string note;     // why it cannot be executed
+};
+
+/// What the board was last updated from: each part (designator, footprint, value) and each net's pins.
+/// A pin or gate swap a placed multi-unit part allows on the board (Project::pcbSwapOptions).
+struct PcbSwapOption {
+    std::string kind;       // "pin" (two pins of one swap group of a gate) or "gate" (two interchangeable gates)
+    int component = -1;     // the placed unit (gate)
+    int other = -1;         // gate swap: the other unit
+    int pinA = -1, pinB = -1;  // pin swap: unit pin indices
+    std::string label;      // "U1A: pins 2 ↔ 3", "U1A ↔ U2B"
+    double gain = 0;        // ratsnest saved (mm, nearest-pad estimate; negative = longer)
+};
+
+struct PcbSyncBaseline {
+    std::map<int, std::array<std::string, 3>> parts;  // component id → ref, footprint, value
+    std::map<std::string, std::string> nets;          // net name → "R1.1 R2.2 …"
+    bool operator==(const PcbSyncBaseline& o) const { return parts == o.parts && nets == o.nets; }
 };
 
 class Project {
@@ -112,6 +143,35 @@ public:
     /// replace those of the previous application in the board settings (nets the schematic never set keep theirs).
     /// Returns true when the board rules changed. Called by schematicChanged().
     bool applySchematicRules();
+
+    // ---- forward annotation (schematic → board, "Update PCB") ----
+    /// The board's baseline: what the last update put on it (a project read from a file without one is in sync).
+    PcbSyncBaseline pcbSync;
+
+    /// Clipboard of components (Schematic::copyComponents) with their BOM sourcing and their settings in every
+    /// assembly variant.
+    Json copyComponents(const std::vector<int>& ids, const std::vector<int>& busIds = {}) const;
+    /// Pastes a clipboard (Schematic::pasteComponents): sourcing comes along, and variant settings go to the
+    /// variants of the same name in this project. Returns the new components' ids.
+    std::vector<int> pasteComponents(const Json& clip, const PasteOptions& options);
+
+    /// Pin / gate swaps for the package of `componentId` (the footprint or any of its units), best first. Units on
+    /// a repeated sheet's channel copies are left out (their block's are listed).
+    std::vector<PcbSwapOption> pcbSwapOptions(int componentId) const;
+    /// Carries a swap out in the schematic (back-annotation): the nets of the pads change places, routing that no
+    /// longer fits is removed, and the Update PCB baseline follows when the board was in step. False when refused.
+    bool applyPcbSwap(const PcbSwapOption& option, std::vector<std::string>* report = nullptr);
+    /// Automatic pin / gate swap: makes the swap that saves most ratsnest, again and again (at most `maxSwaps`), for
+    /// one package (`componentId`) or every placed package (-1). Returns the number made.
+    int optimizePcbSwaps(int componentId, int maxSwaps = 100, std::vector<std::string>* report = nullptr);
+    /// The schematic as the board would take it now.
+    PcbSyncBaseline currentSync() const;
+    /// The changes an update would make, by section; nothing is changed.
+    std::vector<PcbEcoChange> pcbEcoPreview() const;
+    /// Executes the changes with these keys (all when `keys` is empty): places added footprints, removes copper zones
+    /// on nets that are gone, carries the schematic's net rules to the board and records the new baseline for what
+    /// was executed. `report` gets one line per executed change. Returns the number executed.
+    int applyPcbEco(const std::vector<std::string>& keys, std::vector<std::string>* report = nullptr);
 
     // ---- back-annotation (board → schematic ECO) ----
     /// Designators re-numbered from the board: per prefix, the placed parts in board order (rows top to bottom then

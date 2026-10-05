@@ -131,6 +131,7 @@ private struct ComponentProperties: View {
                                 .controlSize(.small)
                         }
                     }
+                    ChannelParameterRows(component: component)
                 }
                 HStack {
                     Button { store.rotateSelection() } label: { Label("Rotate", systemImage: "rotate.right") }
@@ -146,6 +147,7 @@ private struct ComponentProperties: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
+                        PcbSwapPanel(component: component.unitOf ?? component.id)
                     } else {
                         Button { store.showOnPCB(component.id) } label: {
                             Label("Show on PCB", systemImage: "square.grid.3x3.square")
@@ -1005,6 +1007,72 @@ private struct IndustryProperties: View {
                 }
                 .font(.caption)
                 .foregroundStyle(Theme.skyBlue)
+            }
+        }
+    }
+}
+
+/// Per-channel parameters of a part on a repeated sheet beyond its value: fitted in this channel, and this channel's
+/// own SPICE model or firmware (set from the SPICE model sheet's "This channel only") with a way back to the block's.
+private struct ChannelParameterRows: View {
+    @EnvironmentObject private var store: DesignStore
+    var component: SnapComponent
+
+    var body: some View {
+        let bits = component.channelOverride ?? 0
+        Toggle("Fitted in this channel", isOn: Binding(get: { component.isFitted }, set: { store.setChannelFitted(component.id, $0) }))
+            .toggleStyle(.checkbox)
+            .font(.caption)
+            .help("Leave the part off (DNP) in this channel only; the other channels keep theirs")
+        if bits & 4 != 0 {
+            ownRow("This channel has its own SPICE model", what: "spice")
+        }
+        if bits & 8 != 0 {
+            ownRow("This channel has its own firmware", what: "firmware")
+        }
+    }
+
+    private func ownRow(_ title: LocalizedStringKey, what: String) -> some View {
+        HStack {
+            Text(title).font(.caption).foregroundStyle(Theme.textMuted)
+            Spacer()
+            Button("Use Block's") { store.clearChannelOverride(component.id, what) }
+                .controlSize(.small)
+        }
+    }
+}
+
+/// PCB pin / gate swap (Altium's PCB pin / gate swapping): the swaps the selected part's package allows — pins of one
+/// swap group, interchangeable gates — with the ratsnest each saves; Swap makes one, Optimize makes the best ones
+/// for this part. Every swap is back-annotated to the schematic.
+private struct PcbSwapPanel: View {
+    @EnvironmentObject private var store: DesignStore
+    var component: Int
+
+    var body: some View {
+        let options = store.engine.pcbSwapOptions(component)
+        if !options.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("PIN / GATE SWAP").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
+                ForEach(options.prefix(8)) { option in
+                    HStack(spacing: 6) {
+                        Image(systemName: option.kind == "gate" ? "square.on.square" : "arrow.left.arrow.right")
+                            .foregroundStyle(Theme.skyBlue)
+                        Text(verbatim: option.label).font(.caption.monospaced()).lineLimit(1)
+                        Spacer()
+                        Text(verbatim: String(format: "%+.1f mm", -option.gain)).font(.caption2.monospaced())
+                            .foregroundStyle(option.gain > 0.01 ? Theme.liveOn : Theme.textMuted)
+                        Button("Swap") { store.swapOnBoard(option) }
+                            .controlSize(.small)
+                            .help("Make this swap on the board and in the schematic")
+                    }
+                }
+                Button { store.optimizeSwaps(component: component) } label: {
+                    Label("Optimize Swaps", systemImage: "wand.and.stars")
+                }
+                .controlSize(.small)
+                .disabled(!options.contains { $0.gain > 0.01 })
+                .help("Make the swaps that shorten this part's connections most; the schematic follows")
             }
         }
     }

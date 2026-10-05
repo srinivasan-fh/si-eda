@@ -18,6 +18,7 @@
 "3D Viewer" = "3D-viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "Een subblad waarvan elk kanaal van dit blok een kopie krijgt";
 "A class still used by a directive cannot be deleted" = "Een klasse die nog door een richtlijn wordt gebruikt, kan niet worden verwijderd";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Een harnaslabel draagt elk lid van zijn type over de bladen (poort, bladingang of globaal)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Een harnaslabel met één ingang per lid; verbind elke ingang met zijn signaal. Geef een poort of bladingang dezelfde naam en hetzelfde type om de bundel naar een ander blad te brengen.";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "Adaptieve tijdstap";
 "Add Child Sheet" = "Subblad toevoegen";
 "Add Ground Pours" = "Massavlakken toevoegen";
+"Add Helper Sheet" = "Hulpblad toevoegen";
 "Add Kit to Library" = "Kit aan bibliotheek toevoegen";
 "Add Mesh" = "Mesh toevoegen";
 "Add Missing Entries" = "Ontbrekende ingangen toevoegen";
@@ -65,6 +67,7 @@
 "Align Right" = "Rechts uitlijnen";
 "Align Top" = "Boven uitlijnen";
 "Align Vertical Centres" = "Verticale middens uitlijnen";
+"Align by Symbol Outline" = "Uitlijnen op symboolomtrek";
 "All" = "Alle";
 "Amplitude" = "Amplitude";
 "An entry (a local net label on the bus) for every member that has none yet" = "Een aftakking (lokaal netlabel op de bus) voor elk lid dat er nog geen heeft";
@@ -85,6 +88,7 @@
 "Apply Prices to BOM" = "Prijzen toepassen op BOM";
 "Apply Symbol" = "Symbool toepassen";
 "Apply Tuning" = "Afstemming toepassen";
+"Arc" = "Boog";
 "Arrange" = "Schikken";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Schemasymbool indelen: pinnen aan elke zijde, groepen, gestapelde voedingspinnen, automatisch indelen";
 "Arrange the symbol, or define the gates of a multi-unit part" = "Het symbool schikken of de poorten van een onderdeel met meerdere eenheden vastleggen";
@@ -96,6 +100,7 @@
 "Attach" = "Koppelen";
 "Attach SPICE Model…" = "SPICE-model koppelen…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "Koppel een VRML- (.wrl), STL- of OBJ-model en lijn het uit op de footprint";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "Koppel het model aan dit kanaal van het herhaalde blad; de andere kanalen houden het hunne";
 "Audience (optional)" = "Doelgroep (optioneel)";
 "Auto" = "Auto";
 "Auto (fits the drawing)" = "Automatisch (past bij de tekening)";
@@ -130,6 +135,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Boardomtrek (quad-X-frame, afgerond, cirkel), montagegaten, kopervlakken/-planes en netklassen";
 "Board thickness" = "Boarddikte";
 "Boards per order, for the order cost" = "Boards per bestelling, voor de bestelkosten";
+"Body box" = "Behuizingskader";
 "Broadside" = "Broadside";
 "Built-in model" = "Ingebouwd model";
 "Bus" = "Bus";
@@ -152,8 +158,10 @@
 "Cascade at receiver" = "Cascaderen bij ontvanger";
 "Cavity model" = "Resonatormodel";
 "Centre" = "Centreer";
+"Centre Frame on Drawing" = "Kader centreren op tekening";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Centreer het model op de footprint en zet het laagste punt op het printoppervlak";
 "Changes from a WAS / IS file" = "Wijzigingen uit een WAS / IS-bestand";
+"Changes from the schematic to the board since the last update." = "Wijzigingen van het schema naar het bord sinds de laatste update.";
 "Channel" = "Kanaal";
 "Channel %@ of %@ — edits apply to every channel" = "Kanaal %@ van %@ — bewerkingen gelden voor elk kanaal";
 "Channel Designators" = "Kanaalreferenties";
@@ -169,6 +177,7 @@
 "Choose a part" = "Kies een onderdeel";
 "Choose the footprint for this symbol: the import is read again with this pair" = "Kies de footprint voor dit symbool: de import wordt opnieuw gelezen met dit paar";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "Filmische heads-up display: projector, deeltjes, onderdeellabels, datazuilen en uitlezingen";
+"Circle" = "Cirkel";
 "Circuit" = "Schakeling";
 "Circuit — 5 ms, 5 µs" = "Schakeling — 5 ms, 5 µs";
 "Class / board" = "Klasse / print";
@@ -203,6 +212,7 @@
 "Construction" = "Constructie";
 "Copies" = "Kopieën";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "Kopieën van het klembord, elk een stap verder (schema-eenheden, 10 = één raster). Onderdelen krijgen de volgende vrije referentie; nummers van netlabels tellen op met de stap (D0 → D1 …).";
+"Copper Pours" = "Koperen vlakken";
 "Copper colours" = "Koperkleuren";
 "Copper foil" = "Koperfolie";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Koperlagen: 1 = enkelzijdig (geen vias), 2–6 voor de meeste producten, 8–24 voor moederborden, servers, mainframes en GPU-baseboards";
@@ -226,6 +236,7 @@
 "DEVICES" = "APPARATEN";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "TEKENING";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "Datasheet";
@@ -243,6 +254,7 @@
 "Delete Type" = "Type verwijderen";
 "Delete Variant" = "Variant verwijderen";
 "Delete Wire" = "Draad verwijderen";
+"Delete the selected drawing" = "Geselecteerde tekening verwijderen";
 "Describe your product" = "Beschrijf je product";
 "Description" = "Beschrijving";
 "Design" = "Ontwerp";
@@ -266,7 +278,9 @@
 "Done" = "Gereed";
 "Down ↓" = "Omlaag ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "Download de datasheet-PDF van de distributeur en haal de pintabel eruit";
+"Drag to draw · click to place a text · Esc returns to selecting" = "Sleep om te tekenen · klik om tekst te plaatsen · Esc keert terug naar selecteren";
 "Drag to orbit" = "Sleep om te draaien";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "Teken de gegenereerde rechthoek; zet uit als de tekeningen de behuizing vormen";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "Teken het landpatroon pad voor pad: positie, grootte, vorm, boring en pin van elke pad";
 "Drawn by" = "Getekend door";
 "Driver" = "Driver";
@@ -287,6 +301,8 @@
 "Edit Symbol…" = "Symbool bewerken…";
 "Effort" = "Inspanning";
 "Enable AI assistance" = "AI-assistentie inschakelen";
+"End %lld°" = "Einde %lld°";
+"Engineering change order: review and execute the schematic's changes on the board" = "Engineering change order: bekijk de wijzigingen van het schema en voer ze uit op het bord";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Voer hierboven de issuer-URL van je identiteitsprovider en de client-ID van SiEDA in om deze knop in te schakelen (vraag je IT-beheerder).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxy onder processors, BGA's en grote condensatoren zodat een MIL-STD-901E-schok ze niet losscheurt";
 "Errors" = "Fouten";
@@ -294,6 +310,8 @@
 "Every pin is placed once; no pins collide" = "Elke pin is één keer geplaatst; geen pinnen overlappen";
 "Every unit is valid" = "Elke eenheid is geldig";
 "Exchange the wires of two interchangeable pins of this gate" = "De draden van twee uitwisselbare pinnen van deze poort verwisselen";
+"Execute Changes" = "Wijzigingen uitvoeren";
+"Executed" = "Uitgevoerd";
 "Export" = "Exporteer";
 "Export 3D" = "3D exporteren";
 "Export Fabrication Package…" = "Productiepakket exporteren…";
@@ -310,6 +328,7 @@
 "File unit" = "Bestandseenheid";
 "Fill Suggested Part Numbers" = "Voorgestelde onderdeelnummers invullen";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "Vul in elke regel het leveranciersnummer en de stukprijs van het beste aanbod bij de productieaantallen in";
+"Filled" = "Gevuld";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "Vult standaard onderdeelnummers in waar ze volgen uit waarde en behuizing (bijv. Yageo RC0805 ";
 "Find" = "Zoeken";
 "Find & Replace" = "Zoeken en vervangen";
@@ -323,6 +342,8 @@
 "Fit Board to Components" = "Board passend maken op componenten";
 "Fits every pin" = "Past bij elke pin";
 "Fitted" = "Geplaatst";
+"Fitted in this channel" = "Geplaatst in dit kanaal";
+"Fitted to Entries" = "Passend bij ingangen";
 "Fix Duplicates Only" = "Alleen duplicaten herstellen";
 "Flicker (1/f)" = "Flikker (1/f)";
 "Flight time" = "Looptijd";
@@ -407,11 +428,14 @@
 "Layer" = "Laag";
 "Layer separation (exploded view)" = "Laagscheiding (exploded view)";
 "Layers" = "Lagen";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "Laat het onderdeel alleen in dit kanaal weg (DNP); de andere kanalen houden het hunne";
 "Length" = "Lengte";
 "Library" = "Bibliotheek";
 "Lifecycle" = "Levenscyclus";
+"Line" = "Lijn";
 "Line loss per layer" = "Lijnverlies per laag";
 "Line total" = "Regeltotaal";
+"Line width %@" = "Lijndikte %@";
 "Live Pricing" = "Actuele prijzen";
 "Live Pricing…" = "Actuele prijzen…";
 "Live board" = "Live board";
@@ -435,6 +459,8 @@
 "MESSAGES" = "BERICHTEN";
 "Magnitude" = "Amplitude";
 "Make Swap Group" = "Wisselgroep maken";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "Voer de wissels uit die de verbindingen van dit onderdeel het meest verkorten; het schema volgt";
+"Make this swap on the board and in the schematic" = "Deze wissel uitvoeren op het bord en in het schema";
 "Manufacturer part #" = "Fabrikantnummer";
 "Manufacturer part number or keywords" = "Fabrikantnummer of trefwoorden";
 "Mask" = "Masker";
@@ -462,6 +488,8 @@
 "Mounting" = "Montage";
 "Mouser Search API key (API Hub → Search API)." = "Mouser Search-API-sleutel (API Hub → Search API).";
 "Move Selection Here" = "Selectie hierheen verplaatsen";
+"Move drawing" = "Tekening verplaatsen";
+"Move the drawing half a grid step" = "Tekening een halve rasterstap verplaatsen";
 "Move the footprint origin to the centre of the pads" = "Verplaats de oorsprong van de footprint naar het midden van de pads";
 "Move the pad in the numbering; pads between shift by one" = "Verplaats de pad in de nummering; tussenliggende pads schuiven één op";
 "NAVIGATOR" = "NAVIGATOR";
@@ -472,6 +500,7 @@
 "Net" = "Net";
 "Net Classes" = "Netklassen";
 "Net Navigator" = "Netnavigator";
+"Net Rules" = "Netregels";
 "Net class" = "Netklasse";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "Netklassen voor de richtlijnen op netten: het schema is de bron van de netregels van de print";
 "Net model" = "Netmodel";
@@ -491,6 +520,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Geen differentiële paren (…_P/_N, …+/-) of bussen (DQ0…, DATA[0..7], ADDR…) in dit ontwerp.";
 "No distributor API keys yet" = "Nog geen API-sleutels van distributeurs";
 "No distributor offers." = "Geen aanbiedingen van distributeurs.";
+"No drawings yet: pick a tool and drag on the symbol." = "Nog geen tekeningen: kies een gereedschap en sleep op het symbool.";
 "No errors or warnings." = "Geen fouten of waarschuwingen.";
 "No gates found in the pin names." = "Geen poorten gevonden in de pinnamen.";
 "No imported model" = "Geen geïmporteerd model";
@@ -547,6 +577,7 @@
 "Open the design verification report" = "Open het ontwerpverificatierapport";
 "Open the offer on the distributor's site" = "Open het aanbod op de site van de distributeur";
 "Open…" = "Open…";
+"Optimize Swaps" = "Wissels optimaliseren";
 "Other footprints" = "Andere footprints";
 "Output" = "Uitgang";
 "Output noise" = "Uitgangsruis";
@@ -558,6 +589,7 @@
 "PCB Layout" = "PCB-layout";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "PDF van elk blad met bladwijzers, kaders en titelblokken";
+"PIN / GATE SWAP" = "PIN- / POORTWISSEL";
 "PIN SWAP" = "PINWISSEL";
 "PINS" = "PINNEN";
 "PRBS" = "PRBS";
@@ -603,6 +635,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "Plaatsing, routering, vulvlakken, DRC, Gerber Edge.Cuts en het 3D-board volgen de omtrek. ";
 "Plane" = "Vlak";
 "Plane cavity" = "Vlakkenresonator";
+"Polygon" = "Veelhoek";
 "Port (to parent sheet)" = "Poort (naar bovenliggend blad)";
 "Ports: %@" = "Poorten: %@";
 "Power" = "Voeding";
@@ -617,10 +650,12 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "Straal %lld";
 "Re-annotate from the board (columns)" = "Opnieuw annoteren vanaf de print (kolommen)";
 "Re-annotate from the board (rows)" = "Opnieuw annoteren vanaf de print (rijen)";
 "Re-verify" = "Opnieuw verifiëren";
 "Read Pins from Datasheet" = "Pinnen uit datasheet lezen";
+"Read the changes again from the schematic" = "Lees de wijzigingen opnieuw uit het schema";
 "Ready" = "Gereed";
 "Receive equaliser, peaking chosen for the widest eye" = "Ontvangstequalizer, piek gekozen voor het breedste oog";
 "Receiver" = "Ontvanger";
@@ -645,6 +680,7 @@
 "Renumber" = "Hernummer";
 "Repeat Sheet" = "Blad herhalen";
 "Repeat Sheet…" = "Blad herhalen…";
+"Repeat With Its Block" = "Herhalen met zijn blok";
 "Replace All" = "Alles vervangen";
 "Replace with" = "Vervangen door";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "Vervangt de tekst in onderdeelwaarden en netlabelnamen op alle bladen (referenties: gebruik Annoteren)";
@@ -724,11 +760,13 @@
 "Search parts" = "Zoek onderdelen";
 "Searching…" = "Zoeken…";
 "Seat on Board" = "Op de print zetten";
+"Select" = "Selecteren";
 "Select a net to analyse" = "Kies een net om te analyseren";
 "Select a net to analyse its channel" = "Selecteer een net om het kanaal te analyseren";
 "Select a pad to edit its position, size, shape, drill and pin." = "Selecteer een pad om de positie, grootte, vorm, boring en pin te bewerken.";
 "Select a part on the schematic or PCB to edit its properties." = "Selecteer een onderdeel in het schema of de PCB om de eigenschappen te bewerken.";
 "Select an importable part to preview it." = "Selecteer een importeerbaar onderdeel om het te bekijken.";
+"Select and move pins and drawings" = "Pinnen en tekeningen selecteren en verplaatsen";
 "Select pins to move them to a side, stack them or change their order." = "Selecteer pinnen om ze naar een zijde te verplaatsen, te stapelen of de volgorde te wijzigen.";
 "Send" = "Verstuur";
 "Send to" = "Stuur naar";
@@ -742,6 +780,7 @@
 "Sheet" = "Blad";
 "Sheet %lld of %lld" = "Blad %lld van %lld";
 "Sheet Size" = "Bladformaat";
+"Sheet Symbol Size" = "Grootte bladsymbool";
 "Sheet name" = "Bladnaam";
 "Shot" = "Hagel";
 "Shove" = "Duwen";
@@ -774,6 +813,7 @@
 "Simulation" = "Simulatie";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "Simulatiesnelheid ten opzichte van realtime (slow motion toont snelle signalen)";
 "Single-ended" = "Enkelzijdig";
+"Size %lld" = "Grootte %lld";
 "Skew" = "Scheefheid";
 "Smooth" = "Glad";
 "Solve the DC operating point once — shows voltage probes" = "Bereken het DC-werkpunt eenmalig — toont spanningsprobes";
@@ -787,6 +827,7 @@
 "Stack repeated power pins" = "Herhaalde voedingspinnen stapelen";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "Opbouw uit de instelling Lagen in PCB-layout: 1 laag laat de onderkant als kaal FR-4; ";
 "Standard ED" = "Standaard ED";
+"Start %lld°" = "Begin %lld°";
 "Starting the design engine" = "Ontwerpengine starten";
 "Step" = "Stap";
 "Step response" = "Stapresponsie";
@@ -819,7 +860,9 @@
 "Tamper mesh over" = "Tamper-mesh over";
 "Target" = "Doel";
 "Test Connection" = "Test verbinding";
+"Text" = "Tekst";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "De autorouter dimensioneert RF-lijnen en differentiële paren (…_P/_N) op deze impedanties (IPC-2141).";
+"The board is up to date with the schematic." = "Het bord is bijgewerkt met het schema.";
 "The imported model replaces the built-in one in every analysis." = "Het geïmporteerde model vervangt het ingebouwde in elke analyse.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "De interface volgt deze taal. Technische termen, onderdeelnummers, eenheden, netnamen en ontwerpcontrolemeldingen blijven in het Engels zodat ze overeenkomen met datasheets en productiebestanden.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "De offline ontwerper gebruikt de ingebouwde referentieschakelingen van SiEDA. Geen netwerk of API-sleutel nodig — ideaal voor demo's en air-gapped labs.";
@@ -829,6 +872,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "De twee poorten wisselen van plaats in hun behuizingen; symbolen en draden blijven";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Het slachtoffer loopt op de aangrenzende laag, boven of onder de agressor";
 "Thermal" = "Thermisch";
+"This channel has its own SPICE model" = "Dit kanaal heeft een eigen SPICE-model";
+"This channel has its own firmware" = "Dit kanaal heeft eigen firmware";
+"This channel only" = "Alleen dit kanaal";
 "Through" = "Doorlopend";
 "Title" = "Titel";
 "Total jitter" = "Totale jitter";
@@ -844,6 +890,7 @@
 "Type a designator, value, label or net name." = "Typ een referentie, waarde, label of netnaam.";
 "UNIT %@" = "EENHEID %@";
 "UNITS" = "EENHEDEN";
+"UPDATE PCB" = "PCB BIJWERKEN";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / hoekverlijming van zware onderdelen (schok)";
 "Undershoot" = "Undershoot";
@@ -856,8 +903,10 @@
 "Units" = "Eenheden";
 "Unity gain" = "Eenheidsversterking";
 "Unstack" = "Ontstapel";
+"Update PCB" = "PCB bijwerken";
 "Upload .hex…" = ".hex uploaden…";
 "Use Block Value" = "Blokwaarde gebruiken";
+"Use Block's" = "Die van het blok gebruiken";
 "Use the generated body again" = "Weer de gegenereerde behuizing gebruiken";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Gebruik dit blad als meerdere identieke kanalen (1 tot 64). Elk kanaal krijgt eigen referenties, netten en een bladsymbool; een kanaal bewerken bewerkt ze allemaal.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, zoals KiCad-bibliotheken leveren), STL of OBJ. STEP-bestanden kunnen niet worden gelezen: gebruik de .wrl ernaast.";

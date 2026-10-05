@@ -803,6 +803,7 @@ struct Base {
             maxClearance = std::max(maxClearance, ipc2221Clearance(hi - lo, s.highAltitude, s.coated()));
         }
         maxClearance = std::max(maxClearance, kMinEtchGap);
+        for (const auto& nc : s.netClearances) maxClearance = std::max(maxClearance, nc.second);  // net classes
 
         area = Rect(0, 0, std::max(1.0, s.width), std::max(1.0, s.height)).inflated(20);
         cell = std::max(1.0, std::max(area.width(), area.height()) / 160);
@@ -893,6 +894,7 @@ struct Base {
     double clearance(int a, int b, bool barrierPad = false) const {
         if (rangeOf.empty() && domain.empty()) return std::max(s.clearance, 0.0);  // no voltage or isolation rules
         double c = std::max(s.clearance, voltageClearance(a, b));
+        if (!s.netClearances.empty()) c = std::max({c, s.clearanceFor(netName(a)), s.clearanceFor(netName(b))});  // net classes
         if (!barrierPad && !domain.empty() && a >= 0 && b >= 0 && a != b) {
             const int da = a < static_cast<int>(domain.size()) ? domain[static_cast<size_t>(a)] : -1;
             const int db = b < static_cast<int>(domain.size()) ? domain[static_cast<size_t>(b)] : -1;

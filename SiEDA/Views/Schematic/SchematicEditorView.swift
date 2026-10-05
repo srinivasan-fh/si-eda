@@ -42,6 +42,9 @@ struct SchematicEditorView: View {
     @State private var arrayStep = "0, 60"
     @State private var arrayIncrement = "1"
     @State private var eco: (title: String, changes: [EcoChangeInfo])?
+    @State private var updatingPCB = false
+    /// Arrange by the symbols' outlines (edges line up) rather than their reference points.
+    @AppStorage("schematic.alignByOutline") private var alignByOutline = true
 
     var body: some View {
         HStack(spacing: 0) {
@@ -121,14 +124,15 @@ struct SchematicEditorView: View {
                         Button("Paste") { store.paste() }.disabled(!store.canPaste)
                         Button("Paste Array…") { pastingArray = true }.disabled(!store.canPaste)
                         Divider()
-                        Button("Align Left") { store.align("left") }
-                        Button("Align Right") { store.align("right") }
-                        Button("Align Top") { store.align("top") }
-                        Button("Align Bottom") { store.align("bottom") }
-                        Button("Align Horizontal Centres") { store.align("centerY") }
-                        Button("Align Vertical Centres") { store.align("centerX") }
-                        Button("Distribute Horizontally") { store.align("distributeX") }
-                        Button("Distribute Vertically") { store.align("distributeY") }
+                        Button("Align Left") { store.align("left", byOutline: alignByOutline) }
+                        Button("Align Right") { store.align("right", byOutline: alignByOutline) }
+                        Button("Align Top") { store.align("top", byOutline: alignByOutline) }
+                        Button("Align Bottom") { store.align("bottom", byOutline: alignByOutline) }
+                        Button("Align Horizontal Centres") { store.align("centerY", byOutline: alignByOutline) }
+                        Button("Align Vertical Centres") { store.align("centerX", byOutline: alignByOutline) }
+                        Button("Distribute Horizontally") { store.align("distributeX", byOutline: alignByOutline) }
+                        Button("Distribute Vertically") { store.align("distributeY", byOutline: alignByOutline) }
+                        Toggle("Align by Symbol Outline", isOn: $alignByOutline)
                     } label: {
                         Label("Arrange", systemImage: "square.on.square.dashed")
                     }
@@ -144,6 +148,10 @@ struct SchematicEditorView: View {
                         Button("From WAS / IS File…") {
                             if let changes = store.ecoFromWasIsFile() { eco = (String(localized: "Changes from a WAS / IS file"), changes) }
                         }
+                        Divider()
+                        // Forward annotation (schematic → board) lives here too, so the options bar keeps its width.
+                        Button("Update PCB") { updatingPCB = true }
+                            .help("Engineering change order: review and execute the schematic's changes on the board")
                     } label: {
                         Label("Back Annotate", systemImage: "arrow.uturn.left.square")
                     }
@@ -230,6 +238,7 @@ struct SchematicEditorView: View {
             }
         }
         .background(Theme.navy)
+        .sheet(isPresented: $updatingPCB) { UpdatePcbView().environmentObject(store) }
         .sheet(isPresented: Binding(get: { eco != nil }, set: { if !$0 { eco = nil } })) {
             if let eco { EcoReviewView(title: eco.title, changes: eco.changes).environmentObject(store) }
         }
@@ -325,7 +334,16 @@ struct SheetBar: View {
                         sheetName = sheet.name
                         renaming = sheet
                     }
-                    Button("Add Child Sheet") { store.addSheet(parent: sheet.id) }
+                    if sheet.isRepeated || sheet.isInstance {
+                        Button("Add Helper Sheet") { store.addHelperSheet(parent: sheet.id) }
+                            .help("A child sheet every channel of this block gets a copy of")
+                    } else {
+                        Button("Add Child Sheet") { store.addSheet(parent: sheet.id) }
+                    }
+                    if sheet.parent != 0 && !sheet.isRepeated {
+                        Toggle("Repeat With Its Block", isOn: Binding(get: { sheet.helper ?? false },
+                                                                      set: { store.setHelperSheet(sheet.id, $0) }))
+                    }
                     if sheet.parent != 0 {
                         Button("Place Sheet Symbol") { store.placeSheetSymbol(for: sheet.id) }
                     }
@@ -335,7 +353,20 @@ struct SheetBar: View {
                             repeating = sheet
                         }
                     }
+                    if sheet.parent != 0 {
+                        Menu("Sheet Symbol Size") {
+                            Button("Fitted to Entries") { store.setSheetSymbolSize(sheet.id, width: 0, height: 0) }
+                            ForEach([[120.0, 80.0], [160, 120], [200, 160], [280, 200], [360, 280]], id: \.self) { wh in
+                                Button { store.setSheetSymbolSize(sheet.id, width: wh[0], height: wh[1]) } label: {
+                                    Text(verbatim: "\(Int(wh[0])) × \(Int(wh[1]))")
+                                }
+                            }
+                        }
+                    }
                     Menu("Sheet Size") {
+                        if !(sheet.size ?? "").isEmpty {
+                            Button("Centre Frame on Drawing") { store.centerSheetFrame(sheet.id) }
+                        }
                         Button("Auto (fits the drawing)") { store.setSheetSize(sheet.id, size: "") }
                         ForEach(EDAEngine.sheetTemplates()) { template in
                             Button(template.name + ((sheet.size ?? "") == template.name ? " ✓" : "")) {

@@ -6598,3 +6598,131 @@ final class StopModeAndMatchLengthTests: XCTestCase {
         XCTAssertGreaterThan(direct.target, 0)
     }
 }
+
+/// Update PCB (schematic → board ECO): the preview lists the new parts and nets; executing every change leaves the
+/// board in step with the schematic, as one undo step.
+@MainActor
+final class UpdatePcbTests: XCTestCase {
+    func testUpdatePcbExecutesTheChanges() {
+        let store = DesignStore()
+        let r1 = store.addComponent(.resistor, at: .zero)
+        _ = store.addComponent(.resistor, at: CGPoint(x: 100, y: 0))
+        let changes = store.engine.pcbEcoPreview()
+        XCTAssertTrue(changes.contains { $0.key == "component:\(r1)" })
+        let report = store.updatePCB(keys: changes.filter(\.applicable).map(\.key))
+        XCTAssertFalse(report.isEmpty)
+        XCTAssertTrue(store.engine.pcbEcoPreview().isEmpty)
+        XCTAssertTrue(store.updatePCB(keys: []).isEmpty)
+    }
+}
+
+
+/// Symbol graphics: drawings made in the Symbol Editor encode like the core's, survive the preview round trip and
+/// enlarge the symbol's hit box; a sheet symbol takes a drawn size.
+@MainActor
+final class SymbolGraphicsTests: XCTestCase {
+    func testDrawingsRoundTripThroughTheCore() throws {
+        var spec = CustomPartSpec()
+        spec.name = "GFX"
+        spec.package.type = PackageKind.dip.rawValue
+        spec.pins = (1...4).map { CustomPartSpec.Pin(number: String($0), name: "P\($0)", type: .passive) }
+        var draft = SymbolDraft(spec: spec)
+        XCTAssertTrue(draft.graphics.isEmpty && draft.body)
+        let line = try XCTUnwrap(SymbolDraft.drawing(.line, from: CGPoint(x: -21, y: -9), to: CGPoint(x: 19, y: 11)))
+        XCTAssertEqual(line.cgPoints, [CGPoint(x: -20, y: -10), CGPoint(x: 20, y: 10)])  // snapped
+        XCTAssertNil(SymbolDraft.drawing(.rect, from: .zero, to: CGPoint(x: 1, y: 1)))
+        var arc = try XCTUnwrap(SymbolDraft.drawing(.arc, from: .zero, to: CGPoint(x: 30, y: 0)))
+        arc.fill = true
+        let text = try XCTUnwrap(SymbolDraft.drawing(.text, from: CGPoint(x: -30, y: 40), to: .zero))
+        draft.graphics = [line, arc, text]
+        draft.body = false
+        XCTAssertEqual(draft.drawing(at: CGPoint(x: 0, y: 0)), 1)
+        let edited = draft.applied(to: spec)
+        let info = try EDAEngine.previewCustomPart(edited).get()
+        XCTAssertEqual(info.symbolLayout?.graphics, draft.graphics)
+        XCTAssertEqual(info.symbolLayout?.body, false)
+        XCTAssertEqual(SymbolDraft(spec: edited).graphics.count, 3)
+        let box = SchematicSymbols.bounds(.custom, custom: info)
+        XCTAssertGreaterThanOrEqual(box.maxY, 44)  // the text below the body
+        let data = try JSONEncoder().encode(edited)
+        XCTAssertEqual(try JSONDecoder().decode(CustomPartSpec.self, from: data), edited)
+    }
+
+    func testSheetSymbolSize() throws {
+        let store = DesignStore()
+        let child = try XCTUnwrap(store.addSheet(named: "Child", parent: 1))
+        store.setSheetSymbolSize(child, width: 200, height: 120)
+        XCTAssertEqual(store.snapshot.sheet(child)?.symbolWidth, 200)
+        XCTAssertEqual(store.snapshot.sheet(child)?.symbolHeight, 120)
+        store.setSheetSymbolSize(child, width: 0, height: 0)
+        XCTAssertEqual(store.snapshot.sheet(child)?.symbolWidth, 0)
+    }
+}
+
+
+/// Helper sheets inside a repeated block and per-channel parameters beyond the value, through the store.
+@MainActor
+final class HelperSheetAndChannelParameterTests: XCTestCase {
+    func testHelperSheetRepeatsWithItsBlock() throws {
+        let store = DesignStore()
+        let block = try XCTUnwrap(store.addSheet(named: "Block", parent: 1))
+        _ = store.addComponent(.resistor, at: .zero)
+        let helper = try XCTUnwrap(store.addHelperSheet(parent: block))
+        XCTAssertEqual(store.snapshot.sheet(helper)?.helper, true)
+        store.repeatSheet(block, count: 3)
+        XCTAssertEqual(store.snapshot.sheets.filter { $0.definitionId == helper }.count, 3)
+        let r = try XCTUnwrap(store.snapshot.components.first { $0.componentKind == .resistor && $0.sheet == block })
+        let copy = try XCTUnwrap(store.snapshot.components.first { $0.instanceOf == r.id })
+        store.setChannelFitted(copy.id, false)
+        XCTAssertEqual(store.snapshot.component(copy.id)?.isFitted, false)
+        XCTAssertEqual(store.snapshot.component(r.id)?.isFitted, true)
+        XCTAssertTrue(store.engine.setChannelFirmware(copy.id, hex: "", name: "", clockHz: 0))
+    }
+}
+
+
+/// Clipboard with a selected bus, alignment by symbol outline, a fixed sheet frame and the PDF with Unicode text.
+@MainActor
+final class SchematicPolishTests: XCTestCase {
+    func testClipboardAlignFrameAndPDF() throws {
+        let store = DesignStore()
+        let r = store.addComponent(.resistor, at: .zero)
+        let amp = store.addComponent(.opAmp, at: CGPoint(x: 200, y: 100))
+        let bus = try XCTUnwrap(store.addBus(named: "D[0..3]", points: [CGPoint(x: 0, y: 200), CGPoint(x: 300, y: 200)]))
+        store.selection = [r]
+        store.selectedBus = bus
+        let clip = try XCTUnwrap(store.selectionClip())
+        XCTAssertTrue(clip.contains("\"buses\""))
+        store.selectedBus = nil
+        store.selection = [r, amp]
+        store.align("left", byOutline: true)
+        XCTAssertEqual(componentX(store, r) - 30, componentX(store, amp) - 40)  // left edges of the outlines
+        store.setSheetSize(1, size: "A4")
+        XCTAssertNotNil(store.snapshot.sheet(1)?.frameX)
+        store.centerSheetFrame(1)
+        XCTAssertNotNil(store.snapshot.sheet(1)?.frameY)
+        _ = store.engine.setTitleBlock(TitleBlockInfo(title: "Ωmega 日本"))
+        let pdf = try XCTUnwrap(store.engine.schematicPDF(fontPath: nil))
+        XCTAssertEqual(String(decoding: pdf.prefix(5), as: UTF8.self), "%PDF-")
+    }
+
+    private func componentX(_ store: DesignStore, _ id: Int) -> Double {
+        Double(store.snapshot.component(id)?.x ?? 0)
+    }
+}
+
+
+/// PCB pin / gate swap: a part without gates has no swaps; the automatic swap leaves a board without any alone.
+@MainActor
+final class PcbSwapTests: XCTestCase {
+    func testSwapOptionsAndOptimizeOnAPlainBoard() {
+        let store = DesignStore()
+        let r = store.addComponent(.resistor, at: .zero)
+        XCTAssertTrue(store.engine.pcbSwapOptions(r).isEmpty)
+        XCTAssertEqual(store.engine.optimizePcbSwaps(nil), 0)
+        let option = PcbSwapOptionInfo(kind: "pin", component: r, other: -1, pinA: 0, pinB: 1, label: "R1", gain: 1)
+        XCTAssertFalse(store.engine.applyPcbSwap(option))  // a resistor has no swap groups
+        store.optimizeSwaps(component: r)
+        XCTAssertEqual(store.snapshot.component(r)?.ref, "R1")
+    }
+}

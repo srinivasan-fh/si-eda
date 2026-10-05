@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "sieda/Geometry.hpp"
 #include "sieda/Json.hpp"
 #include "sieda/Library.hpp"
 
@@ -100,11 +101,40 @@ struct SymbolPin {
     int slot = 0;
 };
 
+/// A free-form drawing on a part's symbol (Altium's symbol graphics), in symbol coordinates: schematic units (grid =
+/// 10) from the symbol's centre, y down, before the component's rotation.
+///   line    — a polyline through `points` (two or more)
+///   rect    — `points[0]` and `points[1]` are opposite corners
+///   circle  — centre `points[0]`, `radius`
+///   arc     — centre `points[0]`, `radius`, from `startAngle` to `endAngle` (degrees, clockwise on screen from +x)
+///   polygon — closed through `points` (three or more)
+///   text    — `text` with its left end at `points[0]`, `size` high
+struct SymbolGraphic {
+    std::string kind = "line";
+    std::vector<Vec2> points;
+    double radius = 0;
+    double startAngle = 0, endAngle = 360;
+    std::string text;
+    double size = 8;
+    double lineWidth = 1;  // multiples of the normal symbol line
+    bool fill = false;     // filled with the symbol fill colour (rect, circle, polygon)
+    bool operator==(const SymbolGraphic& o) const {
+        return kind == o.kind && points == o.points && radius == o.radius && startAngle == o.startAngle &&
+               endAngle == o.endAngle && text == o.text && size == o.size && lineWidth == o.lineWidth && fill == o.fill;
+    }
+};
+
+/// The symbol coordinates' bounding box of drawings (text estimated at 0.6 × size per character). Empty → {0,0,0,0}.
+std::array<double, 4> symbolGraphicsBounds(const std::vector<SymbolGraphic>& graphics);
+
 /// A part's schematic symbol layout (the Symbol Editor's document). Empty = the generated layout: pins in number
-/// order down the left side, then up the right.
+/// order down the left side, then up the right. Graphics are drawn over the body; with `body` false they replace it
+/// (pin leads then start where the generated body's edge would be).
 struct SymbolSpec {
     std::vector<SymbolPin> pins;
     double width = 0;  // body width in schematic units (grid = 10); 0 = from the pin names
+    std::vector<SymbolGraphic> graphics;
+    bool body = true;
     bool empty() const { return pins.empty(); }
 };
 

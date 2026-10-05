@@ -754,7 +754,9 @@ char* sieda_net_rules_json(const SiedaProject* project);
 /* Aligns / distributes components (ids_json [id,…]); mode "left","right","top","bottom","centerX","centerY",
  * "distributeX","distributeY". The number moved, or -1. */
 int32_t sieda_align_components(SiedaProject* project, const char* ids_json, const char* mode);
-/* Clipboard JSON of components and the wires between them ("sieda.schematic-clip/1"). Caller frees. */
+/* Clipboard JSON of components and the wires between them ("sieda.schematic-clip/1"), with their buses, net
+ * directives, BOM sourcing and variant settings. ids_json: [ids…] or {"components":[ids…],"buses":[bus ids…]}.
+ * Caller frees. */
 char* sieda_copy_components(const SiedaProject* project, const char* ids_json);
 /* Pastes a clipboard on the active sheet: options {"dx","dy","count","stepX","stepY","labelIncrement"} (a paste array:
  * `count` copies, each `step` further; label numbers counted up). Parts get the next free designators. Returns the new
@@ -830,6 +832,46 @@ char* sieda_pcb_gloss(SiedaProject* project, const char* track_ids_json, const c
  * "corner","maxAmplitude","spacing") plus "tolerance" (mm, default 0.1). Returns {"ok","message","target","tuned",
  * "matched","short","nets":[tune result]}. Router options also take "mode":"stop" (stop at the first obstacle). */
 char* sieda_pcb_match_lengths(SiedaProject* project, const char* track_ids_json, const char* options_json);
+
+/* ---- forward annotation: "Update PCB" ECO (docs/SCHEMATIC.md) ---------------------------------------------------- */
+/* The changes an update from the schematic would make to the board since the last one: [{section: "component" |
+ * "net" | "zone" | "rule", action: "add" | "remove" | "change", object, detail, key, applicable, note}]. Caller frees. */
+char* sieda_pcb_eco_preview(const SiedaProject* project);
+/* Executes the changes whose keys are listed (keys_json ["component:7",…]; NULL = all; [] = none): places added
+ * footprints, removes pours on nets that are gone, carries the net rules, records the new baseline. Returns
+ * {"executed": n, "report": [line…]}. Caller frees. */
+char* sieda_apply_pcb_eco(SiedaProject* project, const char* keys_json);
+/* Drawn size of a sheet's sheet symbol in schematic units (0 = fitted to its entries; clamped to 4000). 1 on success. */
+int32_t sieda_set_sheet_symbol_size(SiedaProject* project, int32_t sheet, double width, double height);
+/* Per-channel parameters of a part on a repeated sheet (see sieda_set_channel_value): this channel's own SPICE model
+ * (checked like sieda_set_spice_model; empty text = no model in this channel) and firmware; one parameter back to
+ * the block's ("value" | "package" | "spice" | "firmware"); fitted or DNP in this channel only. 1 on success. */
+int32_t sieda_set_channel_spice_model(SiedaProject* project, int32_t component_id, const char* text, const char* model,
+                                      const char* pins, char** error_out);
+int32_t sieda_set_channel_firmware(SiedaProject* project, int32_t component_id, const char* hex, const char* name,
+                                   double clock_hz);
+int32_t sieda_clear_channel_override(SiedaProject* project, int32_t component_id, const char* what);
+int32_t sieda_set_channel_fitted(SiedaProject* project, int32_t component_id, int32_t fitted);
+/* Helper sheets: an ordinary child sheet of a block that every channel gets a copy of. Adds one below `parent` (a
+ * channel stands for its block); returns its id or -1. Marks / unmarks an existing child sheet; 1 on success. */
+int32_t sieda_add_helper_sheet(SiedaProject* project, const char* name, int32_t parent);
+int32_t sieda_set_helper_sheet(SiedaProject* project, int32_t sheet, int32_t helper);
+/* Like sieda_align_components, by the symbols' outlines (edges line up; distributing leaves equal gaps). */
+int32_t sieda_align_outlines(SiedaProject* project, const char* ids_json, const char* mode);
+/* Fixes a sheet's template frame with its top-left corner at (x, y) schematic units, or lets it follow the drawing
+ * (fixed 0). Choosing a template fixes it centred on the drawing. 1 on success (the sheet needs a template). */
+int32_t sieda_set_sheet_frame(SiedaProject* project, int32_t sheet, int32_t fixed, double x, double y);
+/* Like sieda_export_schematic_pdf, embedding a subset of the TrueType font at font_path (.ttf / .ttc with glyf
+ * outlines) for text outside Latin / Greek; an unreadable or unsupported font is ignored. Still plain ASCII. */
+char* sieda_export_schematic_pdf_with_font(const SiedaProject* project, const char* font_path);
+/* PCB pin / gate swap (back-annotated to the schematic). The swaps the package of a component allows, best first:
+ * [{"kind":"pin"|"gate","component","other","pinA","pinB","label","gain"}] (gain: ratsnest mm saved). Caller frees. */
+char* sieda_pcb_swap_options(const SiedaProject* project, int32_t component_id);
+/* Makes one swap (an option as listed). 1 on success, 0 when refused. */
+int32_t sieda_apply_pcb_swap(SiedaProject* project, const char* option_json);
+/* Automatic swap: the best swap again and again (at most max_swaps) for one package (component_id) or all (-1).
+ * The number made, or -1. */
+int32_t sieda_optimize_pcb_swaps(SiedaProject* project, int32_t component_id, int32_t max_swaps);
 
 #ifdef __cplusplus
 }

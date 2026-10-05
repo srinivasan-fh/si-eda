@@ -12,12 +12,20 @@ extension DesignStore {
     // MARK: - Align and distribute
 
     /// "left", "right", "top", "bottom", "centerX", "centerY", "distributeX", "distributeY".
-    func align(_ mode: String) {
+    func align(_ mode: String, byOutline: Bool = false) {
         let ids = Array(selection)
         guard ids.count >= 2 else { return }
         performChecked("Align \(mode)", failureMessage: mode.hasPrefix("distribute")
                        ? "Select at least three parts to distribute" : "The selection is already aligned") {
-            $0.alignComponents(ids, mode: mode) > 0
+            (byOutline ? $0.alignOutlines(ids, mode: mode) : $0.alignComponents(ids, mode: mode)) > 0
+        }
+    }
+
+    /// Centres a sheet's fixed template frame on its drawing again.
+    func centerSheetFrame(_ id: Int) {
+        guard let sheet = snapshot.sheet(id), let size = sheet.size, !size.isEmpty else { return }
+        performChecked("\(sheet.name): frame centred on the drawing", invalidatesAnalysis: false) {
+            $0.setSheetFrame(id, fixed: false) && $0.setSheetSize(id, size: size)
         }
     }
 
@@ -28,7 +36,8 @@ extension DesignStore {
     /// The clipboard text of the selection (nil when nothing is selected).
     func selectionClip() -> String? {
         let ids = Array(selection)
-        return ids.isEmpty ? nil : engine.copyComponents(ids)
+        let buses = selectedBus.map { [$0] } ?? []
+        return ids.isEmpty && buses.isEmpty ? nil : engine.copyComponents(ids, buses: buses)
     }
 
     /// Copies the selected parts and the wires between them.
@@ -112,6 +121,70 @@ extension DesignStore {
         }
     }
 
+    // MARK: - Helper sheets and per-channel parameters
+
+    /// Adds a helper sheet below a block (every channel gets a copy) and shows it.
+    @discardableResult
+    func addHelperSheet(parent: Int) -> Int? {
+        var id: Int?
+        let title = nextSheetName
+        performChecked("Added helper sheet \(title)", invalidatesAnalysis: false, failureMessage: "The helper sheet could not be added") {
+            id = $0.addHelperSheet(title, parent: parent)
+            if let id { $0.setActiveSheet(id) }
+            return id != nil
+        }
+        return id
+    }
+
+    func setHelperSheet(_ id: Int, _ helper: Bool) {
+        guard let sheet = snapshot.sheet(id), (sheet.helper ?? false) != helper else { return }
+        performChecked(helper ? "\(sheet.name) repeats with its block" : "\(sheet.name) is an ordinary child sheet",
+                       invalidatesAnalysis: false, failureMessage: "The sheet's block is repeated: its channels hold copies of it") {
+            $0.setHelperSheet(id, helper)
+        }
+    }
+
+    /// Fitted or DNP in this channel only; one undo step.
+    func setChannelFitted(_ id: Int, _ fitted: Bool) {
+        guard let c = snapshot.component(id) else { return }
+        performChecked(fitted ? "\(c.displayRef) fitted in this channel" : "\(c.displayRef) not fitted in this channel") {
+            $0.setChannelFitted(id, fitted)
+        }
+    }
+
+    /// One per-channel parameter back to the block's ("value", "package", "spice", "firmware").
+    func clearChannelOverride(_ id: Int, _ what: String) {
+        guard let c = snapshot.component(id) else { return }
+        performChecked("\(c.displayRef) takes the block's \(what)") { $0.clearChannelOverride(id, what) }
+    }
+
+    /// This channel's own SPICE model; undoable, refused with the core's reason.
+    @discardableResult
+    func setChannelSpiceModel(_ id: Int, text: String, model: String, pins: String) -> Bool {
+        guard let c = snapshot.component(id) else { return false }
+        var failure: Error?
+        let ok = performChecked("\(c.displayRef): SPICE model \(model) in this channel",
+                                failureMessage: "\(c.displayRef): SPICE model not attached") { engine in
+            do {
+                try engine.setChannelSpiceModel(id, text: text, model: model, pins: pins)
+                return true
+            } catch {
+                failure = error
+                return false
+            }
+        }
+        if let failure { present(failure, title: "Could not attach the SPICE model") }
+        return ok
+    }
+
+    /// Sets the drawn size of a sheet's sheet symbol (0 × 0 = fitted to its entries); one undo step.
+    func setSheetSymbolSize(_ id: Int, width: Double, height: Double) {
+        guard let sheet = snapshot.sheet(id), sheet.symbolWidth != width || sheet.symbolHeight != height else { return }
+        performChecked("\(sheet.name): sheet symbol size", invalidatesAnalysis: false) {
+            $0.setSheetSymbolSize(id, width: width, height: height)
+        }
+    }
+
     /// Saves the PDF of every sheet (bookmarks follow the hierarchy; frames and title blocks on every page).
     func exportSchematicPDF() {
         guard let data = engine.schematicPDF() else {
@@ -139,5 +212,36 @@ extension DesignStore {
         guard current != level else { return }
         performChecked("\(code): \(level)", invalidatesAnalysis: false) { $0.setErcSeverity(code, level: level) }
         runERC()
+    }
+
+    // MARK: - Update PCB (schematic → board ECO)
+
+    /// Executes the chosen Update PCB changes as one undo step; what was done.
+    func updatePCB(keys: [String]) -> [String] {
+        guard !keys.isEmpty else { return [] }
+        var report: [String] = []
+        performChecked("Update PCB (\(keys.count) change(s))", failureMessage: "None of the changes could be executed") {
+            report = $0.applyPcbEco(keys: keys)
+            return !report.isEmpty
+        }
+        if !report.isEmpty { statusMessage = "Updated the board: \(report.count) change(s)" }
+        return report
+    }
+
+    // MARK: - PCB pin / gate swap (back-annotated)
+
+    /// Makes a pin or gate swap on the board; the schematic follows (one undo step).
+    func swapOnBoard(_ option: PcbSwapOptionInfo) {
+        performChecked("Swap \(option.label)", failureMessage: "The swap is not allowed") { $0.applyPcbSwap(option) }
+    }
+
+    /// Automatic pin / gate swap: the swaps that shorten the ratsnest most, for one package or the whole board.
+    func optimizeSwaps(component: Int?) {
+        var made = 0
+        performChecked("Automatic pin / gate swap", failureMessage: "No swap shortens the connections") {
+            made = $0.optimizePcbSwaps(component)
+            return made > 0
+        }
+        if made > 0 { statusMessage = "Made \(made) swap(s), back-annotated to the schematic" }
     }
 }

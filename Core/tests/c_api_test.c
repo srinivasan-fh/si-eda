@@ -1299,6 +1299,29 @@ int sieda_c_api_board_commands_test(void) {
     return 0;
 }
 
+/* Forward annotation (Update PCB ECO) through the C API. Returns 0 or the failing step. */
+int sieda_c_api_update_pcb_test(void) {
+    SiedaProject* p = sieda_project_new("Update PCB");
+    if (!p) return 1;
+    int32_t r = sieda_add_component(p, 0, "1k", 0, 0, 0, NULL);
+    if (r < 0) return 2;
+    char* eco = sieda_pcb_eco_preview(p);
+    if (!eco || !strstr(eco, "\"section\":\"component\"") || !strstr(eco, "\"action\":\"add\"")) return 3;
+    sieda_string_free(eco);
+    char* none = sieda_apply_pcb_eco(p, "[]");
+    if (!none || !strstr(none, "\"executed\":0")) return 4;
+    sieda_string_free(none);
+    char* all = sieda_apply_pcb_eco(p, NULL);
+    if (!all || strstr(all, "\"executed\":0") || !strstr(all, "\"report\"")) return 5;
+    sieda_string_free(all);
+    eco = sieda_pcb_eco_preview(p);
+    if (!eco || strcmp(eco, "[]") != 0) return 6;
+    sieda_string_free(eco);
+    if (sieda_pcb_eco_preview(NULL) != NULL) return 7;
+    sieda_project_free(p);
+    return 0;
+}
+
 int sieda_c_api_match_lengths_test(void) {
     SiedaProject* p = sieda_project_new("C API match lengths");
     if (!p) return 1;
@@ -1356,6 +1379,88 @@ int sieda_c_api_match_lengths_test(void) {
     if (!bad || !strstr(bad, "\"error\"")) return 13;
     sieda_string_free(bad);
     if (sieda_pcb_match_lengths(NULL, "[]", NULL) != NULL) return 14;
+    sieda_project_free(p);
+    return 0;
+}
+
+/* Drawn sheet-symbol size through the C API. Returns 0 or the failing step. */
+int sieda_c_api_sheet_symbol_size_test(void) {
+    SiedaProject* p = sieda_project_new("Sheet symbol");
+    if (!p) return 1;
+    int32_t child = sieda_add_sheet(p, "Child", 1);
+    if (child <= 0) return 2;
+    if (sieda_set_sheet_symbol_size(p, child, 160, 80) != 1) return 3;
+    if (sieda_set_sheet_symbol_size(p, 999, 1, 1) != 0 || sieda_set_sheet_symbol_size(NULL, child, 1, 1) != 0) return 4;
+    char* json = sieda_project_save_json(p);
+    if (!json || !strstr(json, "symbolSize") || !strstr(json, "160")) return 5;
+    sieda_string_free(json);
+    sieda_project_free(p);
+    return 0;
+}
+
+/* Helper sheets and per-channel parameters through the C API. Returns 0 or the failing step. */
+int sieda_c_api_helper_sheets_test(void) {
+    SiedaProject* p = sieda_project_new("Helpers");
+    if (!p) return 1;
+    int32_t block = sieda_add_sheet(p, "Block", 1);
+    if (block <= 0) return 2;
+    sieda_set_active_sheet(p, block);
+    int32_t r = sieda_add_component(p, 0, "1k", 0, 0, 0, NULL);
+    if (r < 0) return 3;
+    int32_t helper = sieda_add_helper_sheet(p, "Helper", block);
+    if (helper <= 0 || sieda_add_helper_sheet(NULL, "X", block) != -1 || sieda_add_helper_sheet(p, "", block) != -1) return 4;
+    if (sieda_repeat_sheet(p, block, 2) != 2) return 5;
+    if (sieda_set_helper_sheet(p, helper, 0) != 0 || sieda_set_helper_sheet(p, 999, 1) != 0) return 6;
+    if (sieda_set_channel_fitted(p, r, 0) != 1 || sieda_set_channel_fitted(p, 9999, 0) != 0) return 7;
+    if (sieda_set_channel_firmware(p, r, "", "", 0) != 1) return 8;
+    if (sieda_clear_channel_override(p, r, "spice") != 1 || sieda_clear_channel_override(p, r, "bogus") != 0) return 9;
+    char* err = NULL;
+    if (sieda_set_channel_spice_model(p, r, "", "", "", &err) != 1 || err) return 10;
+    if (sieda_set_channel_spice_model(p, 9999, "", "", "", &err) != 0 || !err) return 11;
+    sieda_string_free(err);
+    char* json = sieda_project_save_json(p);
+    if (!json || !strstr(json, "helper")) return 12;
+    sieda_string_free(json);
+    sieda_project_free(p);
+    return 0;
+}
+
+/* Clipboard with buses, outline alignment, fixed frames and the PDF with a font, through the C API. 0 or the step. */
+int sieda_c_api_schematic_polish_test(void) {
+    SiedaProject* p = sieda_project_new("Polish");
+    if (!p) return 1;
+    int32_t a = sieda_add_component(p, 0, "1k", 0, 0, 0, NULL);
+    int32_t b = sieda_add_component(p, 10, "TL071", 200, 100, 0, NULL);
+    int32_t bus = sieda_add_bus(p, "D[0..3]", "[[0,200],[300,200]]");
+    if (a < 0 || b < 0 || bus <= 0) return 2;
+    char ids[64];
+    snprintf(ids, sizeof ids, "{\"components\":[%d],\"buses\":[%d]}", (int)a, (int)bus);
+    char* clip = sieda_copy_components(p, ids);
+    if (!clip || !strstr(clip, "\"buses\"")) return 3;
+    sieda_string_free(clip);
+    snprintf(ids, sizeof ids, "[%d,%d]", (int)a, (int)b);
+    if (sieda_align_outlines(p, ids, "left") < 1 || sieda_align_outlines(p, ids, "bogus") != -1) return 4;
+    if (sieda_set_sheet_frame(p, 1, 1, 0, 0) != 0) return 5; /* no template yet */
+    if (sieda_set_sheet_size(p, 1, "A4") != 1 || sieda_set_sheet_frame(p, 1, 1, -100, -100) != 1) return 6;
+    char* pdf = sieda_export_schematic_pdf_with_font(p, "/no/such/font.ttf");
+    if (!pdf || strncmp(pdf, "%PDF", 4) != 0) return 7;
+    sieda_string_free(pdf);
+    if (sieda_export_schematic_pdf_with_font(NULL, NULL) != NULL) return 8;
+    sieda_project_free(p);
+    return 0;
+}
+
+/* PCB pin / gate swap through the C API. Returns 0 or the failing step. */
+int sieda_c_api_pcb_swap_test(void) {
+    SiedaProject* p = sieda_project_new("Swap");
+    if (!p) return 1;
+    char* none = sieda_pcb_swap_options(p, 12345);
+    if (!none || strcmp(none, "[]") != 0) return 2;
+    sieda_string_free(none);
+    if (sieda_apply_pcb_swap(p, "{\"kind\":\"pin\",\"component\":1,\"pinA\":0,\"pinB\":1}") != 0) return 3;
+    if (sieda_apply_pcb_swap(p, "not json") != 0 || sieda_apply_pcb_swap(NULL, "{}") != 0) return 4;
+    if (sieda_optimize_pcb_swaps(p, -1, 5) != 0 || sieda_optimize_pcb_swaps(NULL, -1, 5) != -1) return 5;
+    if (sieda_pcb_swap_options(NULL, 1) != NULL) return 6;
     sieda_project_free(p);
     return 0;
 }

@@ -12,6 +12,8 @@
 #include "sieda/Avr.hpp"
 #include "sieda/Firmware.hpp"
 
+#include <fstream>
+#include <iterator>
 #include <algorithm>
 #include <atomic>
 #include <cctype>
@@ -3156,7 +3158,15 @@ int32_t sieda_align_components(SiedaProject* project, const char* ids_json, cons
 char* sieda_copy_components(const SiedaProject* project, const char* ids_json) {
     if (!project) return nullptr;
     try {
-        return dup(project->project.schematic.copyComponents(idsFromJson(ids_json)).dump());
+        // [ids…] or {"components": [ids…], "buses": [bus ids…]}.
+        if (ids_json && Json::parse(ids_json).isObject()) {
+            const Json j = Json::parse(ids_json);
+            std::vector<int> ids, buses;
+            for (const auto& v : j.get("components").items()) ids.push_back(v.asInt(-1));
+            for (const auto& v : j.get("buses").items()) buses.push_back(v.asInt(-1));
+            return dup(project->project.copyComponents(ids, buses).dump());
+        }
+        return dup(project->project.copyComponents(idsFromJson(ids_json)).dump());
     } catch (...) {
         return nullptr;
     }
@@ -3176,7 +3186,7 @@ char* sieda_paste_components(SiedaProject* project, const char* clip_json, const
             if (!std::isfinite(o.offset.x) || !std::isfinite(o.offset.y) || !std::isfinite(o.step.x) || !std::isfinite(o.step.y))
                 return nullptr;
         }
-        const auto ids = project->project.schematic.pasteComponents(clip, o);
+        const auto ids = project->project.pasteComponents(clip, o);
         if (!ids.empty()) project->project.schematicChanged();
         Json arr = Json::array();
         for (int id : ids) arr.push(id);
@@ -3291,6 +3301,200 @@ extern "C" {
 int32_t sieda_set_harness_entry(SiedaProject* project, int32_t label, int32_t harness) {
     if (!project) return 0;
     return guarded([&] { return project->project.schematic.setHarnessOf(label, harness) ? 1 : 0; });
+}
+
+}  // extern "C"
+
+// ---- schematic capture: forward annotation ("Update PCB" ECO)
+
+extern "C" {
+
+char* sieda_pcb_eco_preview(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        Json arr = Json::array();
+        for (const auto& e : project->project.pcbEcoPreview()) {
+            Json j = Json::object();
+            j["section"] = e.section;
+            j["action"] = e.action;
+            j["object"] = e.object;
+            j["detail"] = e.detail;
+            j["key"] = e.key;
+            j["applicable"] = e.applicable;
+            j["note"] = e.note;
+            arr.push(j);
+        }
+        return dup(arr.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_apply_pcb_eco(SiedaProject* project, const char* keys_json) {
+    if (!project) return nullptr;
+    try {
+        std::vector<std::string> keys;
+        if (keys_json && *keys_json) {
+            const Json parsed = Json::parse(keys_json);
+            for (const auto& k : parsed.items()) keys.push_back(k.asString(""));
+            if (keys.empty()) keys.push_back("~none");  // an empty selection executes nothing
+        }
+        std::vector<std::string> report;
+        const int done = project->project.applyPcbEco(keys, &report);
+        Json out = Json::object();
+        out["executed"] = done;
+        Json lines = Json::array();
+        for (const auto& l : report) lines.push(l);
+        out["report"] = lines;
+        return dup(out.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_set_sheet_symbol_size(SiedaProject* project, int32_t sheet, double width, double height) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setSheetSymbolSize(sheet, width, height) ? 1 : 0; });
+}
+
+int32_t sieda_set_channel_spice_model(SiedaProject* project, int32_t component_id, const char* text, const char* model,
+                                      const char* pins, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    auto fail = [&](const std::string& message) {
+        if (error_out) *error_out = dup(message);
+        return 0;
+    };
+    if (!project) return fail("No project.");
+    try {
+        Schematic& s = project->project.schematic;
+        if (!s.find(component_id)) return fail("Unknown component.");
+        SpiceModelRef ref;
+        if (!str(text).empty()) {
+            Json result;
+            std::string error;
+            if (!checkSpiceModel(s, component_id, str(text), str(model), str(pins), result, error)) return fail(error);
+            ref.text = result.get("text").asString("");
+            ref.model = str(model);
+            ref.pins = str(pins);
+        }
+        return s.setChannelSpiceModel(component_id, ref) ? 1 : fail("Not a part.");
+    } catch (const std::exception& e) {
+        return fail(e.what());
+    } catch (...) {
+        return fail("Internal error.");
+    }
+}
+
+int32_t sieda_set_channel_firmware(SiedaProject* project, int32_t component_id, const char* hex, const char* name,
+                                   double clock_hz) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setChannelFirmware(component_id, str(hex), str(name), clock_hz) ? 1 : 0; });
+}
+
+int32_t sieda_clear_channel_override(SiedaProject* project, int32_t component_id, const char* what) {
+    if (!project) return 0;
+    return guarded([&] {
+        return project->project.schematic.clearChannelOverride(component_id, channelOverrideBit(str(what))) ? 1 : 0;
+    });
+}
+
+int32_t sieda_set_channel_fitted(SiedaProject* project, int32_t component_id, int32_t fitted) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setChannelFitted(component_id, fitted != 0) ? 1 : 0; });
+}
+
+int32_t sieda_add_helper_sheet(SiedaProject* project, const char* name, int32_t parent) {
+    if (!project) return -1;
+    try {
+        return project->project.schematic.addHelperSheet(str(name), parent);
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_set_helper_sheet(SiedaProject* project, int32_t sheet, int32_t helper) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setHelperSheet(sheet, helper != 0) ? 1 : 0; });
+}
+
+int32_t sieda_align_outlines(SiedaProject* project, const char* ids_json, const char* mode) {
+    if (!project) return -1;
+    try {
+        AlignMode m;
+        if (!alignModeFromName(str(mode), &m)) return -1;
+        const int moved = project->project.schematic.alignComponents(idsFromJson(ids_json), m, true);
+        if (moved > 0) project->project.schematicChanged();
+        return moved;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_set_sheet_frame(SiedaProject* project, int32_t sheet, int32_t fixed, double x, double y) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setSheetFrame(sheet, fixed != 0, {x, y}) ? 1 : 0; });
+}
+
+char* sieda_export_schematic_pdf_with_font(const SiedaProject* project, const char* font_path) {
+    if (!project) return nullptr;
+    try {
+        SchematicPdfOptions options;
+        if (font_path && *font_path) {
+            std::ifstream in(font_path, std::ios::binary);
+            if (in) {
+                std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+                if (bytes.size() <= (64u << 20)) options.fontData = std::move(bytes);
+            }
+        }
+        return dup(exportSchematicPdf(project->project, options));
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_pcb_swap_options(const SiedaProject* project, int32_t component_id) {
+    if (!project) return nullptr;
+    try {
+        Json arr = Json::array();
+        for (const auto& o : project->project.pcbSwapOptions(component_id)) {
+            Json j = Json::object();
+            j["kind"] = o.kind;
+            j["component"] = o.component;
+            j["other"] = o.other;
+            j["pinA"] = o.pinA;
+            j["pinB"] = o.pinB;
+            j["label"] = o.label;
+            j["gain"] = std::round(o.gain * 1000) / 1000;
+            arr.push(j);
+        }
+        return dup(arr.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_apply_pcb_swap(SiedaProject* project, const char* option_json) {
+    if (!project || !option_json) return 0;
+    return guarded([&] {
+        const Json j = Json::parse(option_json);
+        PcbSwapOption o;
+        o.kind = j.get("kind").asString("");
+        o.component = j.get("component").asInt(-1);
+        o.other = j.get("other").asInt(-1);
+        o.pinA = j.get("pinA").asInt(-1);
+        o.pinB = j.get("pinB").asInt(-1);
+        o.label = j.get("label").asString("");
+        return project->project.applyPcbSwap(o) ? 1 : 0;
+    });
+}
+
+int32_t sieda_optimize_pcb_swaps(SiedaProject* project, int32_t component_id, int32_t max_swaps) {
+    if (!project) return -1;
+    try {
+        return project->project.optimizePcbSwaps(component_id, max_swaps);
+    } catch (...) {
+        return -1;
+    }
 }
 
 }  // extern "C"
