@@ -26,6 +26,10 @@
 #include "sieda/Ibis.hpp"
 #include "sieda/PowerIntegrity.hpp"
 #include "sieda/SignalIntegrity.hpp"
+#include "sieda/Channel.hpp"
+#include "sieda/Eye.hpp"
+#include "sieda/LossyLine.hpp"
+#include "sieda/Touchstone.hpp"
 #include "sieda/Firmware.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/InteractiveRouter.hpp"
@@ -8885,4 +8889,134 @@ TEST(schematic_capture_hostile_inputs) {
         }
     }
     CHECK(loaded > 0);
+}
+
+// ======================================================================= lossy lines, channels, eye (SI package)
+
+namespace {
+/// Transfer of a 2-port network from a Thévenin source (rs) to a port-2 load admittance `yl(f)`.
+TransferFn twoPortTransfer(const ChannelNetwork& net, double rs, std::function<cplx(double)> yl) {
+    return [&net, rs, yl](const std::vector<double>& f) {
+        const auto s = net.sParameters(f, 50);
+        std::vector<cplx> h(f.size());
+        for (size_t k = 0; k < f.size(); ++k)
+            h[k] = terminatedVoltages(s[k], 50, {PortTermination::source(1.0, rs, 50), PortTermination::load(yl(f[k]), 50)})[1];
+        return h;
+    };
+}
+}  // namespace
+
+TEST(si_lossy_line_physics) {
+    // Djordjevic–Sarkar: exactly εr and tan δ at the 1 GHz reference, εr falling with frequency, tan δ nearly flat.
+    const DielectricModel ds = DielectricModel::djordjevicSarkar(4.4, 0.02);
+    CHECK_NEAR(ds.er(1e9), 4.4, 1e-9);
+    CHECK_NEAR(ds.tanD(1e9), 0.02, 1e-9);
+    CHECK(ds.er(1e6) > ds.er(1e9) && ds.er(1e9) > ds.er(1e10));
+    CHECK_NEAR(ds.tanD(1e8), 0.02, 0.003);
+    CHECK_NEAR(ds.tanD(1e10), 0.02, 0.003);
+    CHECK(ds.epsInf > 1 && ds.epsInf < 4.4);
+    CHECK_NEAR(DielectricModel::djordjevicSarkar(3.5, 0).er(2e10), 3.5, 1e-12);
+
+    // Skin depth of copper at 1 GHz ≈ 2.09 µm; Rs ≈ 8.2 mΩ/□.
+    CHECK_NEAR(skinDepth(1e9), 2.087e-6, 0.01e-6);
+    CHECK_NEAR(surfaceResistance(1e9), 8.24e-3, 0.05e-3);
+    // Hammerstad–Jensen: an air microstrip of w = h is 126.5 Ω.
+    CHECK_NEAR(hammerstadJensenZ0Air(1.0), 126.5, 0.5);
+    // Wheeler's rule on a wide microstrip tends to the parallel-plate 2/w (Pozar eq. 3.199).
+    const double wide = microstripConductorFactor(100, 0.001, 0.1) * 100e-3 / 2;  // w/h = 1000
+    CHECK_NEAR(wide, 1.0, 0.02);
+    // Pozar Example 3.5: 50 Ω copper stripline, b = 3.2 mm, εr 2.2, W = 2.66 mm, t = 0.01 mm, 10 GHz → α_c = 0.122 Np/m.
+    const double alphaC = striplineConductorFactor(2.66, 0.01, 3.2, 50, 2.2) * surfaceResistance(10e9) / (2 * 50);
+    CHECK_NEAR(alphaC, 0.122, 0.004);
+    // … and with tan δ 0.001 the dielectric loss α_d = π f √εr tan δ / c = 0.155 Np/m (homogeneous TEM).
+    LossOptions dielOnly;
+    dielOnly.noConductorLoss = true;
+    const LineModel pz = lineModelFrom(true, 50, 2.2, 2.2, 0.001, 2.66, 0.01, 3.2, copperFoils()[0], dielOnly);
+    const double f10 = 10e9;
+    const double exact = kPi * f10 * std::sqrt(pz.dielectric.er(f10)) * pz.dielectric.tanD(f10) / kSpeedOfLight;
+    CHECK_NEAR(pz.gamma(f10).real(), exact, 0.002 * exact);
+    CHECK_NEAR(pz.gamma(f10).real(), 0.155, 0.006);
+    // Bogatin's rule of thumb: α_d ≈ 2.3 · f[GHz] · tan δ · √εr dB/inch.
+    const LineModel fr4 = lineModelFrom(true, 50, 4.4, 4.4, 0.02, 0.15, 0.035, 0.5, copperFoils()[0], dielOnly);
+    CHECK_NEAR(fr4.attenuationDb(1e9) * 0.0254, 2.3 * 0.02 * std::sqrt(4.4), 0.03);
+
+    // Conductor: R → R_dc at low frequency, ∝ √f once the skin depth is small, = Rs·(R_ac/Rs) at high frequency.
+    LossOptions condOnly;
+    condOnly.noDielectricLoss = true;
+    condOnly.roughness = RoughnessModel::None;
+    const LineModel c = lineModelFrom(true, 50, 4.4, 4.4, 0.02, 0.15, 0.035, 0.5, copperFoils()[0], condOnly);
+    CHECK_NEAR(c.rdc, kCopperResistivity / (0.15e-3 * 0.035e-3), 1e-6);
+    CHECK_NEAR(c.seriesZ(1e3).real(), c.rdc, 0.01 * c.rdc);
+    CHECK_NEAR(c.seriesZ(4e9).real() / c.seriesZ(1e9).real(), 2.0, 0.06);
+    CHECK_NEAR(c.seriesZ(10e9).real(), surfaceResistance(10e9) * c.acFactor, 0.03 * c.seriesZ(10e9).real());
+    CHECK(c.internalZ(1e9).imag() > 0);  // internal inductance of the skin effect
+
+    // Roughness: Hammerstad → 2, Huray → 1 + SR at high frequency, → 1 at low frequency.
+    CHECK_NEAR(hammerstadRoughness(1e5, 1.5e-6), 1.0, 0.01);
+    CHECK_NEAR(hammerstadRoughness(1e11, 1.5e-6), 2.0, 0.05);
+    CHECK_NEAR(hurayRoughness(1e5, 1e-6, 2.2), 1.0, 0.01);
+    CHECK_NEAR(hurayRoughness(1e13, 1e-6, 2.2), 3.2, 0.1);
+    CHECK_NEAR(hurayRoughnessCausal(1e5, 1e-6, 2.2).real(), 1.0, 0.01);
+    CHECK_NEAR(hurayRoughnessCausal(1e13, 1e-6, 2.2).real(), 3.2, 0.1);
+    LossOptions rough;
+    rough.noDielectricLoss = true;
+    const CopperFoil stdFoil = copperFoils().back();
+    const LineModel r = lineModelFrom(true, 50, 4.4, 4.4, 0.02, 0.15, 0.035, 0.5, stdFoil, rough);
+    CHECK(r.seriesZ(10e9).real() > 1.5 * c.seriesZ(10e9).real());
+    CHECK_NEAR(r.seriesZ(1e5).real(), c.seriesZ(1e5).real(), 0.01 * c.rdc);
+
+    // On the stack-up: the lossless model is the reflection analysis' line (Z0 and delay).
+    BoardSettings s;
+    s.layerCount = 4;
+    LossOptions ll;
+    ll.lossless = true;
+    for (int layer : {0, 1}) {
+        const LineModel m = lineModel(s, layer, 0.2, ll);
+        CHECK_NEAR(std::abs(m.zc(1e9)), trackImpedance(s, layer, 0.2), 0.001 * trackImpedance(s, layer, 0.2));
+        CHECK_NEAR(m.gamma(1e9).imag() / (2 * kPi * 1e9), propagationDelayPerMm(s, layer, 0.2) * 1e3, 1e-14);
+        const LineModel lm = lineModel(s, layer, 0.2);
+        CHECK(lm.attenuationDb(10e9) > 3 * lm.attenuationDb(1e9));
+        CHECK(lm.attenuationDb(1e9) > 0);
+    }
+    const Json loss = lineLossJson(s, LossOptions{});
+    CHECK(loss.get("layers").size() == 4 && loss.get("freq").size() == 41);
+    CHECK(loss.get("foil").asString() == "std");  // FR-4: standard ED foil
+
+    // Time domain through the frequency-domain engine: the lossless lattice (25 Ω source, 50 Ω / 1 ns line, open end)
+    // gives 4/3, 8/9 and 28/27 V at 1, 3 and 5 TD, as Bergeron's method does.
+    ChannelNetwork net;
+    net.addNode();
+    net.addNode();
+    net.lines.push_back({0, 1, LineModel::ideal(50, 1e-9 / 0.15), 0.15});
+    net.ports = {0, 1};
+    const double dt = 2e-12;
+    const auto step = stepResponse(twoPortTransfer(net, 25, [](double f) { return cplx(0, 2 * kPi * f * 1e-16); }), 20e-12, dt, 30e-9);
+    auto at = [&](double t) { return step[static_cast<size_t>(std::lround(t / dt))]; };
+    CHECK(step.size() > 10000);
+    if (step.size() <= 10000) return;
+    CHECK_NEAR(at(0.8e-9), 0.0, 0.01);
+    CHECK_NEAR(at(1.6e-9), 4.0 / 3, 0.01);
+    CHECK_NEAR(at(3.6e-9), 8.0 / 9, 0.01);
+    CHECK_NEAR(at(5.6e-9), 28.0 / 27, 0.01);
+    CHECK_NEAR(at(25e-9), 1.0, 0.01);
+    // A lossy FR-4 stripline of 200 mm: causal (nothing before the time of flight), slower edge, DC divider level.
+    ChannelNetwork lossy;
+    lossy.addNode();
+    lossy.addNode();
+    const LineModel fl = lineModel(s, 1, 0.15);
+    lossy.lines.push_back({0, 1, fl, 0.2});
+    lossy.ports = {0, 1};
+    const double tof = 0.2 * fl.gamma(1e9).imag() / (2 * kPi * 1e9);
+    const auto ls = stepResponse(twoPortTransfer(lossy, 50, [](double) { return cplx(1.0 / 50, 0); }), 30e-12, dt, 20e-9);
+    double pre = 0;
+    for (size_t k = 0; k < ls.size() && k * dt < 0.9 * tof; ++k) pre = std::max(pre, std::fabs(ls[k]));
+    CHECK(pre < 2e-3);
+    CHECK(!ls.empty() && std::fabs(ls.back() - 50 / (100 + fl.rdc * 0.2)) < 0.01);
+    auto crossing = [&](const std::vector<double>& v, double level) {
+        for (size_t k = 0; k < v.size(); ++k)
+            if (v[k] >= level) return k * dt;
+        return 1.0;
+    };
+    const double rise = crossing(ls, 0.9 * 0.5) - crossing(ls, 0.1 * 0.5);
+    CHECK(rise > 30e-12);  // loss and dispersion slow the edge
 }

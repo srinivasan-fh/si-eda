@@ -960,7 +960,7 @@ bool isFastOrModelled(const Project& p, const NetClassification& cls, int net) {
 }
 
 SiNetResult analyzeNetImpl(const Project& project, const std::vector<Pad>& pads, const NetClassification& cls, int net,
-                           double extraSeriesR, bool simulate) {
+                           double extraSeriesR, bool simulate, SiNetCircuit* out = nullptr) {
     SiNetResult r;
     r.net = net;
     const Schematic& sch = project.schematic;
@@ -1137,6 +1137,15 @@ SiNetResult analyzeNetImpl(const Project& project, const std::vector<Pad>& pads,
             tl.capacitance[static_cast<size_t>(node)] += 2e-12;  // discrete semiconductor pin
         }
     }
+    if (out) {
+        out->graph = g;
+        out->reach = reach;
+        out->driverNode = dnode;
+        out->driverPad = dc.pad;
+        out->padC = tl.capacitance;
+        out->padG = tl.conductance;
+        out->padJ = tl.railCurrent;
+    }
     // Lines.
     for (const auto& e : g.edges) {
         if (!reach[static_cast<size_t>(e.a)]) continue;
@@ -1183,6 +1192,17 @@ SiNetResult analyzeNetImpl(const Project& project, const std::vector<Pad>& pads,
         rx.pathDelay = paths.delay[static_cast<size_t>(li.node)];
         rx.pathLength = paths.length[static_cast<size_t>(li.node)];
         if (!std::isfinite(rx.pathDelay)) rx.pathDelay = 0;
+        if (out) {
+            SiNetCircuit::Receiver cr;
+            cr.node = li.node;
+            cr.pad = li.pad;
+            cr.componentId = li.component;
+            cr.ref = rx.ref;
+            cr.pin = rx.pin;
+            cr.model = m;
+            cr.result = r.receivers.size();
+            out->receivers.push_back(cr);
+        }
         circuit.receiverNodes.push_back(rnode);
         circuit.receiverIndex.push_back(r.receivers.size());
         r.receivers.push_back(rx);
@@ -1349,6 +1369,13 @@ SiNetResult analyzeNet(const Project& project, int net, double extraSeriesR) {
     const auto pads = project.pcb.pads(project.schematic);
     const NetClassification cls = classifyNets(project);
     return analyzeNetImpl(project, pads, cls, net, extraSeriesR, true);
+}
+
+SiNetResult analyzeNetCircuit(const Project& project, int net, SiNetCircuit& out) {
+    out = SiNetCircuit();
+    const auto pads = project.pcb.pads(project.schematic);
+    const NetClassification cls = classifyNets(project);
+    return analyzeNetImpl(project, pads, cls, net, -1, false, &out);
 }
 
 Json siNetJson(const SiNetResult& r, size_t maxPoints) {

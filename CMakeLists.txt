@@ -43,6 +43,10 @@ add_library(sieda_core STATIC
     Core/src/Ibis.cpp
     Core/src/SignalIntegrity.cpp
     Core/src/PowerIntegrity.cpp
+    Core/src/LossyLine.cpp
+    Core/src/Channel.cpp
+    Core/src/Eye.cpp
+    Core/src/Touchstone.cpp
     Core/src/Embedded.cpp
     Core/src/Robotics.cpp
     Core/src/Automotive.cpp

@@ -217,6 +217,29 @@ struct SiNetResult {
 
 /// Analyses one net (signal nets with two or more pads). `extraSeriesR` ≥ 0 adds a what-if series resistor at the driver.
 SiNetResult analyzeNet(const Project& project, int net, double extraSeriesR = -1);
+/// The circuit behind analyzeNet, for the frequency-domain channel solver (Channel.hpp): the copper graph actually
+/// analysed (the straight-line estimate when unrouted, via stubs removed when backdrilled), the driver pad's node, the
+/// passive loads per graph node (pad capacitance, terminations to their rails, connectors, discretes — no driver or
+/// receiver device models) and every logic receiver with its model.
+struct SiNetCircuit {
+    NetCopperGraph graph;
+    std::vector<bool> reach;  // per graph node: connected to the driver pad
+    int driverNode = -1;
+    size_t driverPad = static_cast<size_t>(-1);
+    std::vector<double> padC, padG, padJ;  // per graph node: F, S to the rail, sum G*V_rail (A)
+    struct Receiver {
+        int node = -1;
+        size_t pad = 0;
+        int componentId = -1;
+        std::string ref, pin;
+        DriverModel model;
+        size_t result = 0;  // index into SiNetResult::receivers
+    };
+    std::vector<Receiver> receivers;
+};
+/// analyzeNet without the time-domain run, filling `out` with its circuit.
+SiNetResult analyzeNetCircuit(const Project& project, int net, SiNetCircuit& out);
+
 /// Net result with waveforms decimated to at most `maxPoints` samples.
 Json siNetJson(const SiNetResult& r, size_t maxPoints = 400);
 
