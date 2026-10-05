@@ -523,6 +523,22 @@ int32_t sieda_add_part_unit(SiedaProject* project, int32_t component_id, int32_t
 /* Places the first unit not placed yet; -1 when all are placed. */
 int32_t sieda_place_next_unit(SiedaProject* project, int32_t component_id, double x, double y);
 
+/* ---- schematic capture: find / replace, net navigator, title block ------------------------- */
+/* Finds text across every sheet. request: {"text","matchCase"?,"wholeWord"?,"fields"?:["ref","value","label","net",
+ * "pin"]} (default: all but pins). Returns {"hits":[{"component","net","pin","sheet","field","text"}]} in sheet
+ * order (a net hit names the first place the net appears). */
+char* sieda_schematic_find(const SiedaProject* project, const char* request_json);
+/* Replaces text in part values and net label names. request: {"text","replacement","matchCase"?,"wholeWord"?,
+ * "fields"?:["value","label"]}. Repeated-sheet blocks and multi-unit parts are edited once. Returns the fields
+ * changed (0 on bad input). */
+int32_t sieda_schematic_replace(SiedaProject* project, const char* request_json);
+/* Net navigator: {"net","name","places":[{"component","pin","sheet","x","y","kind":"pin"|"label"|"global"|"port"|
+ * "entry"|"bus"|"ground","ref","name"}]}, in sheet order. */
+char* sieda_net_places(const SiedaProject* project, int32_t net);
+/* Title block fields (any of "title","company","revision","date","drawnBy"; up to 256 characters each). The
+ * snapshot carries "titleBlock" (title defaults to the project name). 1 on success. */
+int32_t sieda_set_title_block(SiedaProject* project, const char* json);
+
 #ifdef __cplusplus
 }
 #endif

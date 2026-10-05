@@ -14,6 +14,12 @@
 
 namespace sieda {
 
+/// Title block printed on every schematic sheet (the sheet name and "n of N" are added per sheet).
+struct TitleBlock {
+    std::string title, company, revision, date, drawnBy;
+    bool empty() const { return title.empty() && company.empty() && revision.empty() && date.empty() && drawnBy.empty(); }
+};
+
 class Project {
 public:
     std::string name = "Untitled";
@@ -54,6 +60,8 @@ public:
     /// Assembly variants and the one the BOM, CPL and assembly exports follow ("" = the base design).
     std::vector<DesignVariant> variants;
     std::string activeVariant;
+    /// Schematic title block (empty = the title is the project name).
+    TitleBlock titleBlock;
 
     const DesignVariant* findVariant(const std::string& name) const;
     /// Adds a variant (name trimmed, unique, non-empty), optionally a copy of `copyFrom`'s settings.

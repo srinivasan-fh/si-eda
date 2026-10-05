@@ -423,6 +423,15 @@ Json Project::toJson() const {
         root["variants"] = vs;
     }
     if (!activeVariant.empty()) root["activeVariant"] = activeVariant;
+    if (!titleBlock.empty()) {
+        Json tb = Json::object();
+        tb["title"] = titleBlock.title;
+        tb["company"] = titleBlock.company;
+        tb["revision"] = titleBlock.revision;
+        tb["date"] = titleBlock.date;
+        tb["drawnBy"] = titleBlock.drawnBy;
+        root["titleBlock"] = tb;
+    }
 
     Json tracks = Json::array();
     for (const auto& t : pcb.tracks) {
@@ -665,6 +674,14 @@ Project Project::fromJson(const Json& root) {
         p.variants.push_back(v);
     }
     p.activeVariant = root.get("activeVariant").asString("");
+    {
+        const Json& tb = root.get("titleBlock");
+        auto field = [&](const char* key) {
+            std::string v = tb.get(key).asString("");
+            return v.size() > 256 ? v.substr(0, 256) : v;
+        };
+        p.titleBlock = {field("title"), field("company"), field("revision"), field("date"), field("drawnBy")};
+    }
     if (!p.findVariant(p.activeVariant)) p.activeVariant.clear();
     for (const auto& j : root.get("tracks").items()) {
         Track t;
@@ -850,6 +867,13 @@ Json Project::snapshot() const {
         root["sheets"] = sheets;
         root["activeSheet"] = schematic.activeSheet();
         root["buses"] = busesJson(schematic, true);
+        Json tb = Json::object();
+        tb["title"] = titleBlock.title.empty() ? name : titleBlock.title;
+        tb["company"] = titleBlock.company;
+        tb["revision"] = titleBlock.revision;
+        tb["date"] = titleBlock.date;
+        tb["drawnBy"] = titleBlock.drawnBy;
+        root["titleBlock"] = tb;
         Json vs = Json::array();
         for (const auto& v : variants) vs.push(variantToJson(v, schematic));
         root["variants"] = vs;

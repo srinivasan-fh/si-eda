@@ -8736,3 +8736,104 @@ TEST(variants_drive_simulation_values_and_unfitted_parts) {
     sieda_string_free(plain);
     sieda_project_free(api);
 }
+
+#include "sieda/SchematicSearch.hpp"
+
+// ======================================================================= find / replace, net navigator, title block
+
+TEST(schematic_find_replace_net_navigator_and_title_block) {
+    Project p = twoSheetProject();
+    Schematic& s = p.schematic;
+    const int r = s.addComponent(ComponentKind::Resistor, "4k7", {300, 300});
+    SearchOptions all;
+    // Designators, values and labels across sheets, in sheet order.
+    auto hits = findInSchematic(s, "4k7", all);
+    CHECK(hits.size() == 1 && hits[0].component == r && hits[0].field == "value");
+    hits = findInSchematic(s, "r", all);
+    CHECK(!hits.empty());
+    for (size_t i = 1; i < hits.size(); ++i)
+        if (hits[i].component >= 0 && hits[i - 1].component >= 0)
+            CHECK(s.sheetIndex(hits[i - 1].sheet) <= s.sheetIndex(hits[i].sheet) || hits[i].field == "net");
+    SearchOptions exact;
+    exact.matchCase = true;
+    exact.wholeWord = true;
+    CHECK(findInSchematic(s, "4K7", exact).empty());
+    CHECK(findInSchematic(s, "", all).empty());
+    // Every label of a net, on every sheet, and the net itself.
+    int labelHits = 0, netHits = 0;
+    for (const auto& h : findInSchematic(s, "VIN", all)) {
+        labelHits += h.field == "label";
+        netHits += h.field == "net";
+    }
+    CHECK(labelHits >= 2 && netHits == 1);
+    // Replace in values and label names; designators are left to annotation.
+    SearchOptions values;
+    values.refs = values.nets = values.pins = false;
+    CHECK(replaceInSchematic(s, "4k7", "10k", values) == 1);
+    CHECK(s.find(r)->value == "10k");
+    const int before = static_cast<int>(s.nets().size());
+    CHECK(replaceInSchematic(s, "VIN", "VSUP", values) >= 2);
+    CHECK(findInSchematic(s, "VIN", all).empty());
+    CHECK(static_cast<int>(s.nets().size()) == before);  // the renamed labels still join
+    CHECK(replaceInSchematic(s, "VSUP", "", values) == 0);  // a label never loses its name
+
+    // Net navigator: every place, sheet by sheet.
+    const Component* label = nullptr;
+    for (const auto& c : s.components())
+        if (c.kind == ComponentKind::NetLabel && c.value == "VSUP") label = &c;
+    CHECK(label != nullptr);
+    if (!label) return;
+    const int net = s.netOf({label->id, 0});
+    const auto places = netPlaces(s, net);
+    std::set<int> sheets;
+    int pins = 0, globals = 0;
+    for (const auto& pl : places) {
+        sheets.insert(pl.sheet);
+        pins += pl.kind == "pin";
+        globals += pl.kind == "global";
+    }
+    CHECK(sheets.size() == 2 && pins >= 2 && globals >= 2);
+    CHECK(netPlaces(s, -1).empty() && netPlaces(s, 99999).empty());
+
+    // Repeated blocks and multi-unit parts: one edit each.
+    Project q;
+    DividerBlock b = dividerBlock(q.schematic);
+    q.schematic.repeatSheet(b.sheet, 3);
+    CHECK(findInSchematic(q.schematic, "10k", all).size() == 6);  // found where drawn: 2 per channel
+    CHECK(replaceInSchematic(q.schematic, "10k", "22k", values) == 2);
+    CHECK(q.schematic.find(q.schematic.copyOn(b.r1, q.schematic.sheetInstances(b.sheet)[2]))->value == "22k");
+
+    // Title block: saved when set, defaults to the project name in the snapshot.
+    CHECK(p.snapshot().get("titleBlock").get("title").asString() == p.name);
+    p.titleBlock.company = "Acme";
+    p.titleBlock.revision = "B";
+    const std::string saved = p.toJson().dump();
+    Project back = Project::fromJson(Json::parse(saved));
+    CHECK(back.titleBlock.company == "Acme" && back.titleBlock.revision == "B");
+    CHECK(Project::fromJson(Json::parse(ledProject().toJson().dump())).titleBlock.empty());
+    CHECK(ledProject().toJson().dump().find("titleBlock") == std::string::npos);
+
+    // C API.
+    SiedaProject* api = sieda_project_load_json(saved.c_str(), nullptr);
+    CHECK(api != nullptr);
+    if (!api) return;
+    char* found = sieda_schematic_find(api, "{\"text\":\"VSUP\",\"fields\":[\"label\"]}");
+    CHECK(found && std::string(found).find("\"field\":\"label\"") != std::string::npos);
+    sieda_string_free(found);
+    char* bad = sieda_schematic_find(api, "{");
+    CHECK(bad && std::string(bad).find("\"error\"") != std::string::npos);
+    sieda_string_free(bad);
+    CHECK(sieda_schematic_replace(api, "{\"text\":\"VSUP\",\"replacement\":\"VCC_IN\"}") >= 2);
+    CHECK(sieda_schematic_replace(api, "not json") == 0);
+    char* nav = sieda_net_places(api, net);
+    CHECK(nav && std::string(nav).find("\"name\":\"VCC_IN\"") != std::string::npos &&
+          std::string(nav).find("\"kind\":\"global\"") != std::string::npos);
+    sieda_string_free(nav);
+    CHECK(sieda_set_title_block(api, "{\"title\":\"Board\",\"drawnBy\":\"SN\"}") == 1);
+    CHECK(sieda_set_title_block(api, "[1]") == 0 && sieda_set_title_block(api, "x") == 0);
+    char* snap = sieda_project_snapshot(api);
+    CHECK(snap && std::string(snap).find("\"drawnBy\":\"SN\"") != std::string::npos &&
+          std::string(snap).find("\"company\":\"Acme\"") != std::string::npos);
+    sieda_string_free(snap);
+    sieda_project_free(api);
+}

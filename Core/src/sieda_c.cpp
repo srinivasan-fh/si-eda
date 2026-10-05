@@ -35,6 +35,7 @@
 #include "sieda/Project.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Robotics.hpp"
+#include "sieda/SchematicSearch.hpp"
 #include "sieda/SignalIntegrity.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/StandardParts.hpp"
@@ -2160,6 +2161,117 @@ int32_t sieda_place_next_unit(SiedaProject* project, int32_t component_id, doubl
         return id;
     } catch (...) {
         return -1;
+    }
+}
+
+}  // extern "C"
+
+// ---- find / replace, net navigator, title block
+
+namespace {
+SearchOptions searchOptions(const Json& j) {
+    SearchOptions o;
+    o.matchCase = j.get("matchCase").asBool(false);
+    o.wholeWord = j.get("wholeWord").asBool(false);
+    if (j.has("fields")) {
+        o.refs = o.values = o.labels = o.nets = o.pins = false;
+        for (const auto& f : j.get("fields").items()) {
+            const std::string name = f.asString("");
+            if (name == "ref") o.refs = true;
+            else if (name == "value") o.values = true;
+            else if (name == "label") o.labels = true;
+            else if (name == "net") o.nets = true;
+            else if (name == "pin") o.pins = true;
+        }
+    }
+    return o;
+}
+}  // namespace
+
+extern "C" {
+
+char* sieda_schematic_find(const SiedaProject* project, const char* request_json) {
+    if (!project || !request_json) return nullptr;
+    try {
+        const Json req = Json::parse(request_json);
+        Json hits = Json::array();
+        for (const auto& h : findInSchematic(project->project.schematic, req.get("text").asString(""), searchOptions(req))) {
+            Json j = Json::object();
+            j["component"] = h.component;
+            j["net"] = h.net;
+            j["pin"] = h.pin;
+            j["sheet"] = h.sheet;
+            j["field"] = h.field;
+            j["text"] = h.text;
+            hits.push(j);
+        }
+        Json out = Json::object();
+        out["hits"] = hits;
+        return dup(out.dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+int32_t sieda_schematic_replace(SiedaProject* project, const char* request_json) {
+    if (!project || !request_json) return 0;
+    try {
+        const Json req = Json::parse(request_json);
+        SearchOptions o = searchOptions(req);
+        if (!req.has("fields")) o.refs = o.nets = o.pins = false;  // values and labels by default
+        const int n = replaceInSchematic(project->project.schematic, req.get("text").asString(""),
+                                         req.get("replacement").asString(""), o);
+        if (n > 0) project->project.schematicChanged();
+        return n;
+    } catch (...) {
+        return 0;
+    }
+}
+
+char* sieda_net_places(const SiedaProject* project, int32_t net) {
+    if (!project) return nullptr;
+    try {
+        const Schematic& sch = project->project.schematic;
+        Json out = Json::object();
+        out["net"] = net;
+        out["name"] = net >= 0 && net < static_cast<int>(sch.nets().size()) ? sch.nets()[static_cast<size_t>(net)].name : std::string();
+        Json places = Json::array();
+        for (const auto& p : netPlaces(sch, net)) {
+            Json j = Json::object();
+            j["component"] = p.component;
+            j["pin"] = p.pin;
+            j["sheet"] = p.sheet;
+            j["x"] = p.position.x;
+            j["y"] = p.position.y;
+            j["kind"] = p.kind;
+            j["ref"] = p.ref;
+            j["name"] = p.name;
+            places.push(j);
+        }
+        out["places"] = places;
+        return dup(out.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_set_title_block(SiedaProject* project, const char* json) {
+    if (!project || !json) return 0;
+    try {
+        const Json j = Json::parse(json);
+        if (!j.isObject()) return 0;
+        TitleBlock& tb = project->project.titleBlock;
+        auto set = [&](const char* key, std::string& field) {
+            if (j.has(key)) field = j.get(key).asString("").substr(0, 256);
+        };
+        set("title", tb.title);
+        set("company", tb.company);
+        set("revision", tb.revision);
+        set("date", tb.date);
+        set("drawnBy", tb.drawnBy);
+        return 1;
+    } catch (...) {
+        return 0;
     }
 }
 
