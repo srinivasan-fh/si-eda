@@ -42,7 +42,12 @@ std::string spiceSource(const std::string& value) {
                           spec->period);
             break;
     }
-    return buf;
+    std::string out = buf;
+    if (spec->hasAc) {  // small-signal stimulus for .AC
+        std::snprintf(buf, sizeof buf, " AC %g %g", spec->acMagnitude, spec->acPhaseDeg);
+        out += buf;
+    }
+    return out;
 }
 
 std::string mm(double v) {

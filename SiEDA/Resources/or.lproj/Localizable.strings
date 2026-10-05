@@ -9,6 +9,7 @@
 "3D Viewer" = "3D ଭ୍ୟୁଅର୍";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "AC ସ୍ୱିପ୍";
 "AI Assistance" = "AI ସହାୟତା";
 "AI Models" = "AI ମଡେଲ୍";
 "AI Off" = "AI ବନ୍ଦ";
@@ -36,6 +37,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "ଆନାଲଗ୍ ଟାଇମ୍ ଷ୍ଟେପ୍: ସୂକ୍ଷ୍ମ ଦ୍ରୁତ ସିଗନାଲ୍ ସ୍ପଷ୍ଟ କରେ, ମୋଟା ଶୀଘ୍ର ଚାଲେ";
 "Analysis" = "ବିଶ୍ଳେଷଣ";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "ବିଶ୍ଳେଷଣ ପ୍ରିସେଟ୍ — ମାଇକ୍ରୋକଣ୍ଟ୍ରୋଲର୍ ଫର୍ମୱେୟାରକୁ ଲମ୍ବା ରନ୍ ଦରକାର (ଯଥା 100 µs ରେ 1 s)";
+"Analysis type" = "ବିଶ୍ଳେଷଣ ପ୍ରକାର";
 "Annotate" = "ଆନୋଟେଟ୍ କରନ୍ତୁ";
 "Appearance" = "ଦୃଶ୍ୟରୂପ";
 "Appliance Type" = "ଉପକରଣ ପ୍ରକାର";
@@ -60,6 +62,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "ଆସେମ୍ବ୍ଲି ପାଇଁ BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "ଦ୍ରୁତ ନେଟ୍‌ରେ ଭାୟା ଷ୍ଟବ୍ ବ୍ୟାକଡ୍ରିଲ୍ କରନ୍ତୁ";
+"Bandwidth" = "ବ୍ୟାଣ୍ଡୱିଡ୍ଥ";
 "Base Design" = "ମୂଳ ଡିଜାଇନ୍";
 "Base URL" = "ବେସ୍ URL";
 "Bill of Materials" = "ବିଲ୍ ଅଫ୍ ମେଟେରିଆଲ୍ସ";
@@ -104,7 +107,9 @@
 "Currents" = "କରେଣ୍ଟ";
 "DC" = "DC";
 "DC Operating Point" = "DC ଅପରେଟିଂ ପଏଣ୍ଟ";
+"DC Sweep" = "DC ସ୍ୱିପ୍";
 "DC operating point (⇧⌘D)" = "DC ଅପରେଟିଂ ପଏଣ୍ଟ (⇧⌘D)";
+"DC voltage" = "DC ଭୋଲ୍ଟେଜ୍";
 "DEVICES" = "ଡିଭାଇସ୍";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -161,6 +166,7 @@
 "Fix Duplicates Only" = "କେବଳ ଡୁପ୍ଲିକେଟ୍ ଠିକ୍ କରନ୍ତୁ";
 "Flip" = "ଓଲଟାନ୍ତୁ";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "ପାର୍ଟ ଲାଗୁଥିବା ଫୁଟପ୍ରିଣ୍ଟ: ଚିପ୍ ସାଇଜ୍, ଥ୍ରୁ-ହୋଲ୍, ଟାଣ୍ଟାଲମ୍ ବା ଇଲେକ୍ଟ୍ରୋଲାଇଟିକ୍ କେସ୍";
+"Gain" = "ଗେନ୍";
 "Gap Before" = "ପୂର୍ବରୁ ଫାଙ୍କ";
 "Generate Design" = "ଡିଜାଇନ୍ ସୃଷ୍ଟି କରନ୍ତୁ";
 "Give each selected pin its own slot" = "ପ୍ରତ୍ୟେକ ବଛାଯାଇଥିବା ପିନ୍‌କୁ ନିଜର ସ୍ଲଟ୍ ଦିଅନ୍ତୁ";
@@ -182,6 +188,7 @@
 "Industry Profile" = "ଶିଳ୍ପ ପ୍ରୋଫାଇଲ୍";
 "Infer Types" = "ପ୍ରକାର ଅନୁମାନ କରନ୍ତୁ";
 "Info" = "ସୂଚନା";
+"Input" = "ଇନପୁଟ୍";
 "Insert an empty slot before the pin to separate a group" = "ଏକ ଗ୍ରୁପ୍ ଅଲଗା କରିବାକୁ ପିନ୍ ପୂର୍ବରୁ ଏକ ଖାଲି ସ୍ଲଟ୍ ଭର୍ତ୍ତି କରନ୍ତୁ";
 "Inspector" = "ଇନ୍ସପେକ୍ଟର୍";
 "Interface language" = "ଇଣ୍ଟରଫେସ୍ ଭାଷା";
@@ -207,7 +214,10 @@
 "Local (this sheet)" = "ଲୋକାଲ୍ (ଏହି ସିଟ୍)";
 "Locked (Auto Place keeps it)" = "ଲକ୍ ହୋଇଛି (ଅଟୋ ପ୍ଲେସ୍ ଏହାକୁ ରଖେ)";
 "Long firmware run — 5 s, 500 µs" = "ଲମ୍ବା ଫର୍ମୱେୟାର ରନ୍ — 5 s, 500 µs";
+"Magnitude" = "ମ୍ୟାଗ୍ନିଚ୍ୟୁଡ୍";
 "Mask" = "ମାସ୍କ";
+"Mean" = "ହାରାହାରି";
+"Measure" = "ମାପ";
 "Medical Device Class" = "ମେଡିକାଲ୍ ଡିଭାଇସ୍ ଶ୍ରେଣୀ";
 "Memory Design" = "ମେମୋରୀ ଡିଜାଇନ୍";
 "Mirror" = "ମିରର୍ କରନ୍ତୁ";
@@ -215,6 +225,7 @@
 "Mode" = "ମୋଡ୍";
 "Model" = "ମଡେଲ୍";
 "Model back-ends" = "ମଡେଲ୍ ବ୍ୟାକ୍-ଏଣ୍ଡ";
+"Monte Carlo" = "ମଣ୍ଟେ କାର୍ଲୋ";
 "Mounting" = "ମାଉଣ୍ଟିଂ";
 "Move Selection Here" = "ଚୟନକୁ ଏଠାକୁ ଘୁଞ୍ଚାନ୍ତୁ";
 "Move the footprint origin to the centre of the pads" = "ଫୁଟପ୍ରିଣ୍ଟ ଅରିଜିନ୍ ପ୍ୟାଡ୍‌ଗୁଡ଼ିକର କେନ୍ଦ୍ରକୁ ଘୁଞ୍ଚାନ୍ତୁ";
@@ -236,6 +247,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "କୌଣସି ପୋର୍ ନାହିଁ। ଗ୍ରାଉଣ୍ଡ ପୋର୍ ରିଟର୍ନ ପାଥ୍ ଛୋଟ କରେ, ଅଧିକ କରେଣ୍ଟ ବହନ କରେ ଏବଂ ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "କୌଣସି ସୁଇଚ୍ ନାହିଁ। ସ୍କିମାଟିକରେ ଏକ ସୁଇଚ୍ ଯୋଡନ୍ତୁ (ପୁସ୍-ବଟନ୍ ପାଇଁ ମୂଲ୍ୟ \"push\")।";
 "No." = "ନଂ.";
+"Nominal" = "ନାମମାତ୍ର ମୂଲ୍ୟ";
 "None" = "କିଛି ନାହିଁ";
 "None (mechanical)" = "କିଛି ନାହିଁ (ମେକାନିକାଲ୍)";
 "Not a memory design" = "ମେମୋରୀ ଡିଜାଇନ୍ ନୁହେଁ";
@@ -270,6 +282,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "ଅଲଗା ଗାଲଭାନିକ୍ ଡୋମେନର (ଆଇସୋଲେଟର୍ ଓ ଆଇସୋଲେଟେଡ୍ କନଭର୍ଟର ପାର ହୋଇ) ପାର୍ଟ, ଟ୍ରାକ୍ ଓ ପୋର୍ ";
 "Paste API key" = "API କି ପେଷ୍ଟ କରନ୍ତୁ";
 "Pattern" = "ପ୍ୟାଟର୍ନ";
+"Peak" = "ଶିଖର";
+"Phase" = "ଫେଜ୍";
+"Phase margin" = "ଫେଜ୍ ମାର୍ଜିନ୍";
 "Pin" = "ପିନ୍";
 "Pins: " = "ପିନ୍: ";
 "Place Now" = "ବର୍ତ୍ତମାନ ରଖନ୍ତୁ";
@@ -305,14 +320,18 @@
 "Robot Platform" = "ରୋବଟ୍ ପ୍ଲାଟଫର୍ମ";
 "Rotate" = "ଘୂରାନ୍ତୁ";
 "Run" = "ଚଲାନ୍ତୁ";
+"Run AC Sweep" = "AC ସ୍ୱିପ୍ ଚଲାନ୍ତୁ";
+"Run DC Sweep" = "DC ସ୍ୱିପ୍ ଚଲାନ୍ତୁ";
 "Run Design Rule Check" = "ଡିଜାଇନ୍ ରୁଲ୍ ଚେକ୍ ଚଲାନ୍ତୁ";
 "Run ERC and DRC" = "ERC ଓ DRC ଚଲାନ୍ତୁ";
 "Run Electrical Rule Check" = "ଇଲେକ୍ଟ୍ରିକାଲ୍ ରୁଲ୍ ଚେକ୍ ଚଲାନ୍ତୁ";
 "Run Live" = "ଲାଇଭ୍ ଚଲାନ୍ତୁ";
+"Run Monte Carlo" = "ମଣ୍ଟେ କାର୍ଲୋ ଚଲାନ୍ତୁ";
 "Run Transient" = "ଟ୍ରାଞ୍ଜିଏଣ୍ଟ ଚଲାନ୍ତୁ";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "ଏହାକୁ ଏକ୍ଜିକ୍ୟୁଟ୍ କରିବାକୁ ଏକ ଟ୍ରାଞ୍ଜିଏଣ୍ଟ ବିଶ୍ଳେଷଣ ଚଲାନ୍ତୁ: ପିନ୍ ସର୍କିଟ୍ ଡ୍ରାଇଭ୍ କରେ, ଇନପୁଟ୍ ଓ ADC ଏହାକୁ ପଢେ, ଏବଂ ସିରିଆଲ୍ ଆଉଟପୁଟ୍ ସିମୁଲେସନରେ ଦେଖାଯାଏ।";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "ବୋର୍ଡକୁ ରିଅଲ୍ ଟାଇମରେ ଚଲାନ୍ତୁ (⌘R): LED ଜଳେ, ସୁଇଚ୍ କ୍ଲିକ୍ କରନ୍ତୁ, ଫର୍ମୱେୟାର ଚାଲେ, ଲାଇଭ୍ ପ୍ରୋବ୍";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "ବୋର୍ଡକୁ ରିଅଲ୍ ଟାଇମରେ ଚଲାନ୍ତୁ: ଫର୍ମୱେୟାର, LED, ସୁଇଚ୍, ସ୍କୋପ୍ ଓ ସିରିଆଲ୍ ମନିଟର୍";
+"Runs" = "ରନ୍";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "SPICE ନେଟଲିଷ୍ଟ";
 "STL (ASCII)" = "STL (ASCII)";
@@ -358,6 +377,7 @@
 "Simulation" = "ସିମୁଲେସନ୍";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "ରିଅଲ୍ ଟାଇମ୍ ତୁଳନାରେ ସିମୁଲେସନ୍ ଗତି (ସ୍ଲୋ ମୋସନ୍ ଦ୍ରୁତ ସିଗନାଲ୍ ଦେଖାଏ)";
 "Solve the DC operating point once — shows voltage probes" = "DC ଅପରେଟିଂ ପଏଣ୍ଟ ଥରେ ସମାଧାନ କରନ୍ତୁ — ଭୋଲ୍ଟେଜ୍ ପ୍ରୋବ୍ ଦେଖାଏ";
+"Source" = "ଉତ୍ସ";
 "Speed" = "ଗତି";
 "Spin" = "ସ୍ପିନ୍";
 "Stack" = "ଷ୍ଟାକ୍";
@@ -386,6 +406,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ଅଫଲାଇନ୍ ଡିଜାଇନର୍ SiEDA ର ବିଲ୍ଟ-ଇନ୍ ରେଫରେନ୍ସ ସର୍କିଟ୍ ବ୍ୟବହାର କରେ। କୌଣସି ନେଟୱର୍କ ବା API କି ଦରକାର ନାହିଁ — ଡେମୋ ଓ ଏୟାର-ଗ୍ୟାପ୍ଡ ଲ୍ୟାବ୍ ପାଇଁ ଆଦର୍ଶ।";
 "The plain box: pins in number order down the left, then up the right" = "ସାଧାରଣ ବକ୍ସ: ପିନ୍ ନମ୍ବର କ୍ରମରେ ବାମ ପଟେ ତଳକୁ, ତାପରେ ଡାହାଣ ପଟେ ଉପରକୁ";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "ସ୍ପ୍ଲାସ୍ ପାଞ୍ଚ ସେକେଣ୍ଡ ପାଇଁ କମ୍ପୋନେଣ୍ଟ ଲାଇବ୍ରେରୀ ଓ ରେଫରେନ୍ସ ଡିଜାଇନ୍ ପୂର୍ବରୁ ଲୋଡ୍ କରେ, ତାପରେ ମୁଖ୍ୟ ୱିଣ୍ଡୋ ଖୋଲେ। ଲୋଡିଂ ସମାପ୍ତ ହେବା ପରେ ଛାଡିବାକୁ ଏହାକୁ କ୍ଲିକ୍ କରନ୍ତୁ ବା Esc ଦବାନ୍ତୁ।";
+"Transient" = "ଟ୍ରାଞ୍ଜିଏଣ୍ଟ";
 "Transient analysis" = "ଟ୍ରାଞ୍ଜିଏଣ୍ଟ ବିଶ୍ଳେଷଣ";
 "Transient: stop" = "ଟ୍ରାଞ୍ଜିଏଣ୍ଟ: ଷ୍ଟପ୍";
 "Tune Lengths" = "ଲମ୍ବ ଟ୍ୟୁନ୍ କରନ୍ତୁ";
@@ -395,6 +416,7 @@
 "Undo (⌘Z)" = "ପୂର୍ବାବସ୍ଥାକୁ ଫେରାନ୍ତୁ (⌘Z)";
 "Undo the last footprint edit" = "ଶେଷ ଫୁଟପ୍ରିଣ୍ଟ ସମ୍ପାଦନ ପୂର୍ବାବସ୍ଥାକୁ ଫେରାନ୍ତୁ";
 "Undo the last symbol edit" = "ଶେଷ ସିମ୍ବଲ୍ ସମ୍ପାଦନ ପୂର୍ବାବସ୍ଥାକୁ ଫେରାନ୍ତୁ";
+"Unity gain" = "ୟୁନିଟି ଗେନ୍";
 "Unstack" = "ଅନଷ୍ଟାକ୍ କରନ୍ତୁ";
 "Upload .hex…" = ".hex ଅପଲୋଡ୍ କରନ୍ତୁ…";
 "Validate" = "ବୈଧତା ଯାଞ୍ଚ କରନ୍ତୁ";
@@ -413,6 +435,7 @@
 "Window" = "ୱିଣ୍ଡୋ";
 "Workspace" = "ୱର୍କସ୍ପେସ୍";
 "Workspaces" = "ୱର୍କସ୍ପେସ୍";
+"Worst case" = "ସବୁଠାରୁ ଖରାପ ସ୍ଥିତି";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "ଏକ ପ୍ରମ୍ପ୍ଟ ଲେଖନ୍ତୁ ବା ଏକ PRD ପେଷ୍ଟ କରନ୍ତୁ। ଏଜେଣ୍ଟ ଟିମ୍ ଏହାକୁ ଭେରିଫାଇଡ୍ ସ୍କିମାଟିକ୍, ରୁଟ୍ ହୋଇଥିବା PCB ଓ 3D ମଡେଲରେ ପରିଣତ କରେ।";
 "X-Ray Stack" = "X-ରେ ଷ୍ଟାକ୍";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "ଆପଣ ⌘Z ସହ ଏହାକୁ ପୂର୍ବାବସ୍ଥାକୁ ଫେରାଇପାରିବେ। ସ୍କିମାଟିକରେ ରଖାଯାଇଥିବା ପାର୍ଟ ଡିଲିଟ୍ କରାଯାଇପାରିବ ନାହିଁ।";
@@ -427,13 +450,18 @@
 "Zoom to Selection" = "ଚୟନକୁ ଜୁମ୍ କରନ୍ତୁ";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "ଫିଟ୍ କରିବାକୁ ଜୁମ୍ / ହୋମ୍ (Home, 0 ବା ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "ଚୟନକୁ ଜୁମ୍ (⇧Z ବା ⌥⌘0)";
+"auto" = "ସ୍ୱୟଂ";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "ଯଥା “ବ୍ୟାଟେରୀ ଚାଳିତ 9 V ନାଇଟ୍ ଲାଇଟ୍ ଯାହା ଏକ ଧଳା LED ଜାଳେ…”";
+"from" = "ଆରମ୍ଭ";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "ପଏଣ୍ଟ/ଡିକେଡ୍";
 "public client id" = "ପବ୍ଲିକ୍ କ୍ଲାଏଣ୍ଟ ID";
 "standard" = "ଷ୍ଟାଣ୍ଡାର୍ଡ";
 "step" = "ଷ୍ଟେପ୍";
 "stop" = "ଷ୍ଟପ୍";
+"to" = "ଶେଷ";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "ପ୍ୟାନ୍ କରିବାକୁ ⌥-ଡ୍ରାଗ୍ ବା ଦୁଇ ଆଙ୍ଗୁଠିରେ ଡ୍ରାଗ୍ କରନ୍ତୁ";

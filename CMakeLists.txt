@@ -22,6 +22,7 @@ add_library(sieda_core STATIC
     Core/src/Sheets.cpp
     Core/src/Variants.cpp
     Core/src/Simulator.cpp
+    Core/src/Analysis.cpp
     Core/src/Pcb.cpp
     Core/src/Zones.cpp
   Core/src/Avr.cpp

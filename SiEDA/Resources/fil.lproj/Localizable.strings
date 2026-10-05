@@ -9,6 +9,7 @@
 "3D Viewer" = "3D Viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "AC Sweep";
 "AI Assistance" = "Tulong ng AI";
 "AI Models" = "Mga AI Model";
 "AI Off" = "Naka-off ang AI";
@@ -36,6 +37,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "Analog time step: mas pino para sa mas mabibilis na signal, mas magaspang para mas mabilis tumakbo";
 "Analysis" = "Pagsusuri";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "Mga preset ng pagsusuri — mas mahabang run ang kailangan ng firmware ng microcontroller (hal. 1 s sa 100 µs)";
+"Analysis type" = "Uri ng pagsusuri";
 "Annotate" = "I-annotate";
 "Appearance" = "Hitsura";
 "Appliance Type" = "Uri ng Appliance";
@@ -60,6 +62,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM para sa Assembly (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "I-backdrill ang via stub sa mabibilis na net";
+"Bandwidth" = "Bandwidth";
 "Base Design" = "Base na Disenyo";
 "Base URL" = "Base URL";
 "Bill of Materials" = "Bill of Materials";
@@ -104,7 +107,9 @@
 "Currents" = "Mga Current";
 "DC" = "DC";
 "DC Operating Point" = "DC Operating Point";
+"DC Sweep" = "DC Sweep";
 "DC operating point (⇧⌘D)" = "DC operating point (⇧⌘D)";
+"DC voltage" = "DC voltage";
 "DEVICES" = "MGA DEVICE";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -161,6 +166,7 @@
 "Fix Duplicates Only" = "Ayusin ang mga Duplicate Lamang";
 "Flip" = "I-flip";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Footprint kung saan ikinakabit ang part: chip size, through-hole, tantalum o electrolytic case";
+"Gain" = "Gain";
 "Gap Before" = "Puwang Bago";
 "Generate Design" = "Bumuo ng Disenyo";
 "Give each selected pin its own slot" = "Bigyan ng sariling slot ang bawat napiling pin";
@@ -182,6 +188,7 @@
 "Industry Profile" = "Industry Profile";
 "Infer Types" = "Hulaan ang mga Type";
 "Info" = "Impormasyon";
+"Input" = "Input";
 "Insert an empty slot before the pin to separate a group" = "Magsingit ng bakanteng slot bago ang pin para paghiwalayin ang grupo";
 "Inspector" = "Inspector";
 "Interface language" = "Wika ng interface";
@@ -207,7 +214,10 @@
 "Local (this sheet)" = "Lokal (sheet na ito)";
 "Locked (Auto Place keeps it)" = "Naka-lock (pinapanatili ng Auto Place)";
 "Long firmware run — 5 s, 500 µs" = "Mahabang firmware run — 5 s, 500 µs";
+"Magnitude" = "Magnitude";
 "Mask" = "Mask";
+"Mean" = "Karaniwang halaga";
+"Measure" = "Sukatin";
 "Medical Device Class" = "Klase ng Medical Device";
 "Memory Design" = "Memory Design";
 "Mirror" = "I-mirror";
@@ -215,6 +225,7 @@
 "Mode" = "Mode";
 "Model" = "Model";
 "Model back-ends" = "Mga model back-end";
+"Monte Carlo" = "Monte Carlo";
 "Mounting" = "Pagkakabit";
 "Move Selection Here" = "Ilipat Dito ang Napili";
 "Move the footprint origin to the centre of the pads" = "Ilipat ang origin ng footprint sa gitna ng mga pad";
@@ -236,6 +247,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "Walang pour. Pinaiikli ng ground pour ang return path, nagdadala ng mataas na current at iniiwan ang ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "Walang switch. Magdagdag ng Switch sa schematic (value \"push\" para sa push-button).";
 "No." = "Blg.";
+"Nominal" = "Nominal";
 "None" = "Wala";
 "None (mechanical)" = "Wala (mechanical)";
 "Not a memory design" = "Hindi memory design";
@@ -270,6 +282,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "Mga part, track at pour ng magkakahiwalay na galvanic domain (sa kabila ng isolator at isolated converter) ";
 "Paste API key" = "I-paste ang API key";
 "Pattern" = "Pattern";
+"Peak" = "Rurok";
+"Phase" = "Phase";
+"Phase margin" = "Phase margin";
 "Pin" = "Pin";
 "Pins: " = "Mga pin: ";
 "Place Now" = "Ilagay Ngayon";
@@ -305,14 +320,18 @@
 "Robot Platform" = "Robot Platform";
 "Rotate" = "I-rotate";
 "Run" = "Patakbuhin";
+"Run AC Sweep" = "Patakbuhin ang AC Sweep";
+"Run DC Sweep" = "Patakbuhin ang DC Sweep";
 "Run Design Rule Check" = "Patakbuhin ang Design Rule Check";
 "Run ERC and DRC" = "Patakbuhin ang ERC at DRC";
 "Run Electrical Rule Check" = "Patakbuhin ang Electrical Rule Check";
 "Run Live" = "Patakbuhin nang Live";
+"Run Monte Carlo" = "Patakbuhin ang Monte Carlo";
 "Run Transient" = "Patakbuhin ang Transient";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "Magpatakbo ng Transient analysis para ma-execute ito: dina-drive ng mga pin ang circuit, binabasa ito ng mga input at ng ADC, at lumalabas ang serial output sa Simulation.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "Patakbuhin ang board nang real time (⌘R): umiilaw ang mga LED, i-click ang mga switch, tumatakbo ang firmware, live probe";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "Patakbuhin ang board nang real time: firmware, LED, switch, scope at serial monitor";
+"Runs" = "Mga run";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "SPICE Netlist";
 "STL (ASCII)" = "STL (ASCII)";
@@ -358,6 +377,7 @@
 "Simulation" = "Simulation";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "Bilis ng simulation kumpara sa real time (ipinapakita ng slow motion ang mabibilis na signal)";
 "Solve the DC operating point once — shows voltage probes" = "Lutasin nang isang beses ang DC operating point — ipinapakita ang voltage probe";
+"Source" = "Source";
 "Speed" = "Bilis";
 "Spin" = "Paikutin";
 "Stack" = "I-stack";
@@ -386,6 +406,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Ginagamit ng offline designer ang mga built-in na reference circuit ng SiEDA. Hindi kailangan ng network o API key — mainam para sa demo at air-gapped na lab.";
 "The plain box: pins in number order down the left, then up the right" = "Ang simpleng kahon: mga pin ayon sa numero pababa sa kaliwa, pagkatapos ay pataas sa kanan";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "Nilo-load ng splash ang component library at mga reference design nang limang segundo, saka binubuksan ang main window. I-click ito o pindutin ang Esc para laktawan kapag tapos na ang pag-load.";
+"Transient" = "Transient";
 "Transient analysis" = "Transient analysis";
 "Transient: stop" = "Transient: stop";
 "Tune Lengths" = "I-tune ang Haba";
@@ -395,6 +416,7 @@
 "Undo (⌘Z)" = "I-undo (⌘Z)";
 "Undo the last footprint edit" = "I-undo ang huling edit sa footprint";
 "Undo the last symbol edit" = "I-undo ang huling edit sa symbol";
+"Unity gain" = "Unity gain";
 "Unstack" = "I-unstack";
 "Upload .hex…" = "I-upload ang .hex…";
 "Validate" = "I-validate";
@@ -413,6 +435,7 @@
 "Window" = "Window";
 "Workspace" = "Workspace";
 "Workspaces" = "Mga Workspace";
+"Worst case" = "Pinakamasamang kaso";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "Sumulat ng prompt o mag-paste ng PRD. Gagawin ito ng agent team na verified na schematic, routed na PCB at 3D model.";
 "X-Ray Stack" = "X-Ray Stack";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "Maaari mo itong i-undo gamit ang ⌘Z. Hindi mabubura ang mga part na nakalagay sa schematic.";
@@ -427,13 +450,18 @@
 "Zoom to Selection" = "Mag-zoom sa Pinili";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "Zoom to fit / Home (Home, 0 o ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "Mag-zoom sa pinili (⇧Z o ⌥⌘0)";
+"auto" = "auto";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "hal. “Isang 9 V na night light na pinapagana ng baterya na nagbubukas ng puting LED…”";
+"from" = "mula";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "mga punto/decade";
 "public client id" = "public client id";
 "standard" = "standard";
 "step" = "step";
 "stop" = "stop";
+"to" = "hanggang";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-drag o two-finger drag para mag-pan";

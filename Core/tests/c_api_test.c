@@ -19,6 +19,26 @@ int sieda_c_api_smoke_test(void) {
     if (!dc || !strstr(dc, "\"converged\":true")) return 7;
     sieda_string_free(dc);
 
+    /* Advanced analyses: JSON options in, {"ok",…} out; bad options are reported, never thrown. */
+    {
+        char* ac = sieda_simulate_ac(p, "{\"source\":\"V1\",\"start\":10,\"stop\":\"1k\",\"pointsPerDecade\":10}");
+        if (!ac || !strstr(ac, "\"ok\":true") || !strstr(ac, "\"magnitudeDb\":[")) return 40;
+        sieda_string_free(ac);
+        char* sweep = sieda_simulate_dc_sweep(p, "{\"source\":\"V1\",\"start\":0,\"stop\":9,\"step\":1}");
+        if (!sweep || !strstr(sweep, "\"ok\":true") || !strstr(sweep, "\"values\":[0,1,2,3,4,5,6,7,8,9]")) return 41;
+        sieda_string_free(sweep);
+        char* param = sieda_simulate_param_sweep(p, "{\"component\":\"R1\",\"values\":[\"1k\",\"2k\"],\"analysis\":\"dc\"}");
+        if (!param || !strstr(param, "\"ok\":true") || !strstr(param, "\"value\":\"2k\"")) return 42;
+        sieda_string_free(param);
+        char* mc = sieda_simulate_monte_carlo(p, "{\"net\":\"no such net\"}");
+        if (!mc || !strstr(mc, "\"ok\":false")) return 43;
+        sieda_string_free(mc);
+        char* bad = sieda_simulate_fft(p, "{not json");
+        if (!bad || !strstr(bad, "\"ok\":false") || !strstr(bad, "Invalid analysis options")) return 44;
+        sieda_string_free(bad);
+        if (sieda_simulate_ac(NULL, NULL) != NULL) return 45;
+    }
+
     char* routed = sieda_pcb_autoroute(p);
     if (!routed || !strstr(routed, "\"failed\":0")) return 8;
     sieda_string_free(routed);

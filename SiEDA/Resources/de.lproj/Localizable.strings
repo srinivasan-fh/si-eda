@@ -9,6 +9,7 @@
 "3D Viewer" = "3D-Ansicht";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"AC Sweep" = "AC-Sweep";
 "AI Assistance" = "KI-Unterstützung";
 "AI Models" = "KI-Modelle";
 "AI Off" = "KI aus";
@@ -36,6 +37,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "Analoger Zeitschritt: feiner löst schnellere Signale auf, gröber rechnet schneller";
 "Analysis" = "Analyse";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "Analysevorgaben — Mikrocontroller-Firmware braucht einen längeren Lauf (z. B. 1 s bei 100 µs)";
+"Analysis type" = "Analyseart";
 "Annotate" = "Annotieren";
 "Appearance" = "Erscheinungsbild";
 "Appliance Type" = "Gerätetyp";
@@ -60,6 +62,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM für Bestückung (JLCPCB / PCBWay) …";
 "Backdrill via stubs on fast nets" = "Via-Stubs auf schnellen Netzen rückbohren";
+"Bandwidth" = "Bandbreite";
 "Base Design" = "Basisdesign";
 "Base URL" = "Basis-URL";
 "Bill of Materials" = "Stückliste";
@@ -104,7 +107,9 @@
 "Currents" = "Ströme";
 "DC" = "DC";
 "DC Operating Point" = "DC-Arbeitspunkt";
+"DC Sweep" = "DC-Sweep";
 "DC operating point (⇧⌘D)" = "DC-Arbeitspunkt (⇧⌘D)";
+"DC voltage" = "Gleichspannung";
 "DEVICES" = "BAUTEILE";
 "DNP" = "DNP";
 "DRC" = "DRC";
@@ -161,6 +166,7 @@
 "Fix Duplicates Only" = "Nur Duplikate korrigieren";
 "Flip" = "Spiegeln";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Footprint, in dem das Bauteil bestückt wird: Chipgröße, THT, Tantal- oder Elko-Gehäuse";
+"Gain" = "Verstärkung";
 "Gap Before" = "Abstand davor";
 "Generate Design" = "Design generieren";
 "Give each selected pin its own slot" = "Jedem ausgewählten Pin eine eigene Position geben";
@@ -182,6 +188,7 @@
 "Industry Profile" = "Branchenprofil";
 "Infer Types" = "Typen ableiten";
 "Info" = "Info";
+"Input" = "Eingang";
 "Insert an empty slot before the pin to separate a group" = "Leere Position vor dem Pin einfügen, um eine Gruppe abzutrennen";
 "Inspector" = "Inspektor";
 "Interface language" = "Sprache der Benutzeroberfläche";
@@ -207,7 +214,10 @@
 "Local (this sheet)" = "Lokal (dieses Blatt)";
 "Locked (Auto Place keeps it)" = "Gesperrt (automatisches Platzieren behält es bei)";
 "Long firmware run — 5 s, 500 µs" = "Langer Firmware-Lauf — 5 s, 500 µs";
+"Magnitude" = "Betrag";
 "Mask" = "Maske";
+"Mean" = "Mittelwert";
+"Measure" = "Messgröße";
 "Medical Device Class" = "Medizinprodukteklasse";
 "Memory Design" = "Speicherdesign";
 "Mirror" = "Spiegeln";
@@ -215,6 +225,7 @@
 "Mode" = "Modus";
 "Model" = "Modell";
 "Model back-ends" = "Modell-Backends";
+"Monte Carlo" = "Monte Carlo";
 "Mounting" = "Montage";
 "Move Selection Here" = "Auswahl hierher verschieben";
 "Move the footprint origin to the centre of the pads" = "Footprint-Ursprung in die Mitte der Pads verschieben";
@@ -236,6 +247,7 @@
 "No pours. Ground pours shorten return paths, carry high currents and leave the " = "Keine Kupferflächen. Masseflächen verkürzen Rückstrompfade, führen hohe Ströme und lassen die ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "Keine Schalter. Switch zum Schaltplan hinzufügen (Wert \"push\" für einen Taster).";
 "No." = "Nr.";
+"Nominal" = "Nennwert";
 "None" = "Keine";
 "None (mechanical)" = "Keine (mechanisch)";
 "Not a memory design" = "Kein Speicherdesign";
@@ -270,6 +282,9 @@
 "Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) " = "Bauteile, Leiterbahnen und Kupferflächen getrennter galvanischer Domänen (über Isolatoren und isolierte Wandler hinweg) ";
 "Paste API key" = "API-Schlüssel einfügen";
 "Pattern" = "Muster";
+"Peak" = "Spitze";
+"Phase" = "Phase";
+"Phase margin" = "Phasenreserve";
 "Pin" = "Pin";
 "Pins: " = "Pins: ";
 "Place Now" = "Jetzt platzieren";
@@ -305,14 +320,18 @@
 "Robot Platform" = "Roboterplattform";
 "Rotate" = "Drehen";
 "Run" = "Ausführen";
+"Run AC Sweep" = "AC-Sweep ausführen";
+"Run DC Sweep" = "DC-Sweep ausführen";
 "Run Design Rule Check" = "Designregelprüfung ausführen";
 "Run ERC and DRC" = "ERC und DRC ausführen";
 "Run Electrical Rule Check" = "Elektrische Regelprüfung ausführen";
 "Run Live" = "Live ausführen";
+"Run Monte Carlo" = "Monte Carlo ausführen";
 "Run Transient" = "Transientenanalyse ausführen";
 "Run a Transient analysis to execute it: pins drive the circuit, inputs and the ADC read it, and the serial output appears in Simulation." = "Transientenanalyse starten, um sie auszuführen: Pins steuern die Schaltung, Eingänge und der ADC lesen sie, und die serielle Ausgabe erscheint unter Simulation.";
 "Run the board in real time (⌘R): LEDs light, click switches, firmware runs, live probes" = "Platine in Echtzeit betreiben (⌘R): LEDs leuchten, Schalter anklicken, Firmware läuft, Live-Tastköpfe";
 "Run the board in real time: firmware, LEDs, switches, scope and serial monitor" = "Platine in Echtzeit betreiben: Firmware, LEDs, Schalter, Oszilloskop und serieller Monitor";
+"Runs" = "Durchläufe";
 "SIEDA" = "SIEDA";
 "SPICE Netlist" = "SPICE-Netzliste";
 "STL (ASCII)" = "STL (ASCII)";
@@ -358,6 +377,7 @@
 "Simulation" = "Simulation";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "Simulationsgeschwindigkeit relativ zur Echtzeit (Zeitlupe zeigt schnelle Signale)";
 "Solve the DC operating point once — shows voltage probes" = "DC-Arbeitspunkt einmal berechnen — zeigt Spannungstastköpfe";
+"Source" = "Quelle";
 "Speed" = "Geschwindigkeit";
 "Spin" = "Drehen";
 "Stack" = "Stapeln";
@@ -386,6 +406,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Der Offline-Designer nutzt die integrierten Referenzschaltungen von SiEDA. Kein Netzwerk oder API-Schlüssel nötig — ideal für Demos und abgeschottete Labore.";
 "The plain box: pins in number order down the left, then up the right" = "Der einfache Kasten: Pins in Nummernfolge links abwärts, dann rechts aufwärts";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "Der Startbildschirm lädt fünf Sekunden lang die Bauteilbibliothek und Referenzdesigns und öffnet dann das Hauptfenster. Klicken oder Esc drücken, um nach dem Laden zu überspringen.";
+"Transient" = "Transient";
 "Transient analysis" = "Transientenanalyse";
 "Transient: stop" = "Transient: Stopp";
 "Tune Lengths" = "Längen abgleichen";
@@ -395,6 +416,7 @@
 "Undo (⌘Z)" = "Widerrufen (⌘Z)";
 "Undo the last footprint edit" = "Letzte Footprint-Änderung widerrufen";
 "Undo the last symbol edit" = "Letzte Symboländerung widerrufen";
+"Unity gain" = "Transitfrequenz";
 "Unstack" = "Entstapeln";
 "Upload .hex…" = ".hex hochladen …";
 "Validate" = "Validieren";
@@ -413,6 +435,7 @@
 "Window" = "Fenster";
 "Workspace" = "Arbeitsbereich";
 "Workspaces" = "Arbeitsbereiche";
+"Worst case" = "Ungünstigster Fall";
 "Write a prompt or paste a PRD. The agent team turns it into a verified schematic, a routed PCB and a 3D model." = "Prompt schreiben oder PRD einfügen. Das Agententeam macht daraus einen verifizierten Schaltplan, eine geroutete Platine und ein 3D-Modell.";
 "X-Ray Stack" = "Röntgen-Lagenaufbau";
 "You can undo this with ⌘Z. Parts that are placed in the schematic cannot be deleted." = "Dies kann mit ⌘Z widerrufen werden. Im Schaltplan platzierte Bauteile können nicht gelöscht werden.";
@@ -427,13 +450,18 @@
 "Zoom to Selection" = "Auf Auswahl zoomen";
 "Zoom to fit / Home (Home, 0 or ⌘0)" = "Einpassen / Home (Home, 0 oder ⌘0)";
 "Zoom to selection (⇧Z or ⌥⌘0)" = "Auf Auswahl zoomen (⇧Z oder ⌥⌘0)";
+"auto" = "auto";
 "e.g. “A battery-powered 9 V night light that turns on a white LED…”" = "z. B. „Ein batteriebetriebenes 9-V-Nachtlicht, das eine weiße LED einschaltet …“";
+"from" = "von";
 "https://login.example.com/oauth2/default" = "https://login.example.com/oauth2/default";
 "mm" = "mm";
 "my-gcp-project" = "my-gcp-project";
+"points/decade" = "Punkte/Dekade";
 "public client id" = "öffentliche Client-ID";
 "standard" = "Standard";
 "step" = "Schritt";
 "stop" = "Stopp";
+"to" = "bis";
 "us-central1" = "us-central1";
+"−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "Mit ⌥ ziehen oder mit zwei Fingern ziehen zum Schwenken";
