@@ -17,6 +17,13 @@
   package; the snapshot reports units as kind Custom with `unitOf`), find / replace and the net navigator in
   `Core/src/SchematicSearch.cpp`, variant simulation via `Project::simulationSchematic`; app in
   `SiEDA/Views/Schematic/`; guide in `docs/SCHEMATIC.md`.
+- Simulation: MNA core in `Core/src/Simulator.cpp` (elements in `SimulatorInternal.hpp`), SPICE model import in
+  `Core/src/SpiceModels.cpp` (parser / flattening, fuzz-hardened) + `SpiceDevices.cpp` (device equations) +
+  `SpiceBuild.cpp` (models and op-amp macromodel in the simulator), noise in `Noise.cpp`, adaptive / trapezoidal
+  transient and convergence aids in `Convergence.cpp`, `.meas`-like measurements in `Waveforms.cpp`; app in
+  `SiEDA/Views/Simulation/` and `SiEDA/App/DesignStore+Simulation.swift`; guide in `docs/SIMULATION.md`. Parts without
+  an imported model must keep their exact results: new behaviour is opt-in (a model, macromodel parameters, transient
+  options, `setConvergenceAids`).
 - Launch splash: `SiEDA/App/SplashScreen.swift` (`SplashModel` preload steps, `SplashController` holds main windows from
   `applicationWillFinishLaunching`).
 - Interface languages: `SiEDA/App/AppLanguage.swift`, translations in `SiEDA/Resources/<code>.lproj/Localizable.strings`

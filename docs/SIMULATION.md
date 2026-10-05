@@ -314,7 +314,8 @@ cursors for fine edges).
 
 ## C API
 
-All five functions take a JSON options object (a `NULL` or empty string means defaults) and return JSON
+The analysis functions (`sieda_simulate_ac`, `_dc_sweep`, `_param_sweep`, `_monte_carlo`, `_fft`, `_noise`,
+`_transient_ex`) take a JSON options object (a `NULL` or empty string means defaults) and return JSON
 `{"ok": bool, "error": "…", …}`; free the result with `sieda_string_free`. Numbers may be given as engineering
 strings (`"10k"`, `"1MEG"`, `"50m"`). Nets are named as in the schematic (or given by index), parts by reference.
 The exact fields are documented at each declaration in `Core/include/sieda/sieda_c.h`. Invalid options give
@@ -344,3 +345,43 @@ The core tests (`Core/tests/core_tests.cpp`) check the numerics against closed-f
   (4.95 V / 5.05 V exactly), Monte Carlo σ against the analytic value, seed reproducibility; RC corner worst case
   fc / (1.01·1.1) … fc / (0.99·0.9).
 - THD of a synthetic 10 % third harmonic, of a square wave (√(1/9 + 1/25 + 1/49 + 1/81)) and of a clean sine.
+- Imported models: SPICE numbers and expressions (operators, functions, POLY term order); library parsing with
+  continuations, comments, AKO, `.param` / `.func`, extraction of only what a model needs; every controlled-source
+  form (E G F H linear, POLY, VALUE, TABLE, B with V(), I() and functions, switches, nested subckts with parameters)
+  against exact DC values; Shockley diode with RS (10 mA·10 Ω exactly), Zener breakdown, Gummel–Poon I_C = β·I_B and
+  the Early effect, PNP on a catalog part mapped by pin name, MOSFET level 1 saturation / triode and level 3 THETA to
+  10⁻⁸ A; the µA741 Boyle macromodel: DC gain, closed-loop bandwidth at GBW/100, slew rate ≈ 0.5 V/µs.
+- Capacitances: reverse-biased junction corner 1/(2πR·Cj(V)) to 0.2 %, diffusion corner 1/(2π·TT) to 0.1 %, BJT
+  f_T = 1/(2π·TF) to 1 %, MOSFET overlap pole to 0.1 %; a junction with M = 0 matches a capacitor sample for sample in
+  transient; reverse-recovery charge ≈ TT·I_F.
+- Op-amp macromodel: unity gain and phase margin of a two-pole response to 10⁻³ / 0.1°, AOL in dB, slew rate to 3 %,
+  output limits and ROUT.
+- Noise: thermal, shot and flicker densities and integrated noise against closed forms (see *Noise analysis*).
+- Waveform measurements: sine RMS / average / frequency / duty, RC rise and settling, second-order overshoot, PWM duty.
+- Convergence: LC tank amplitude (trapezoidal vs backward Euler), boost converter adaptive vs fixed step, astable
+  multivibrator frequency, a 30-diode stack at 100 V; transient option validation.
+- Hostile input: 600 mutated and random model texts, pathological nesting, 100 000-element expansion limit, 8 MB
+  limit; every flattened fuzz model is simulated and returns finite voltages or a clean failure.
+
+**No regressions.** A regression harness (300 random circuits of every built-in element, every behavioural catalog
+part, the firmware examples, three bench boards, tolerance / parameter-sweep / FFT JSON) dumps every DC, AC, transient
+and DC-sweep result as hex floats. Against the code before this work it is bit-identical with gcc and with
+clang + FMA (954 / 959 analyses). Parts without an attached model, op-amps without macromodel parameters and the
+library's own analyses take exactly the established code paths; the new convergence aids only run where every
+established strategy failed, and only in the app's entry points.
+
+## Limits
+
+- Imported models: no temperature dependence (27 °C), no BSIM / VBIC / HICUM / EKV, no LAPLACE / FREQ sources, no
+  `ddt` / `idt`, no transmission lines or digital / XSPICE primitives (all reported as errors with their line); MOSFET
+  level 3 is level 1 with THETA (ETA, VMAX, KAPPA ignored); the intrinsic gate charge is the saturation value; BJT
+  XTF / RBM / substrate capacitance ignored; switches have no hysteresis; waveforms of V / I sources inside a model
+  are held at their DC value; `.include` is not followed (paste the file).
+- The built-in diode, NPN and N-MOSFET have no capacitances and no noise flicker term; the built-in op-amp without
+  macromodel parameters has one pole; regulators, IC loads and the INA333 are frequency independent and noiseless.
+- Noise: no correlated sources, no resistor excess noise; macromodel resistors contribute thermal noise as in SPICE.
+- The trapezoidal rule's phase error grows with the step (≈ (ωh)²/12); adaptive steps are bounded by the entered
+  step; firmware co-simulation keeps fixed steps. Junction limiting covers diodes and BJTs, not MOSFET / JFET channels.
+- Waveform measurements see the transient as returned (at most 2000 points per signal).
+- Everything is dense-matrix MNA (O(n³) per solve): fine for board-level circuits of a few hundred nodes, slow for
+  thousands.
