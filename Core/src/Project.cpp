@@ -384,6 +384,13 @@ Json Project::toJson() const {
             j["firmwareName"] = c.firmwareName;
             if (c.clockHz > 0) j["clockHz"] = c.clockHz;
         }
+        if (!c.spice.empty()) {
+            Json sm = Json::object();
+            sm["text"] = c.spice.text;
+            sm["model"] = c.spice.model;
+            if (!c.spice.pins.empty()) sm["pins"] = c.spice.pins;
+            j["spice"] = sm;
+        }
         if (!c.noConnect.empty()) {
             Json nc = Json::array();
             for (int pin : c.noConnect) nc.push(pin);
@@ -603,6 +610,12 @@ Project Project::fromJson(const Json& root) {
         c.firmware = j.get("firmware").asString("");
         c.firmwareName = j.get("firmwareName").asString("");
         c.clockHz = j.get("clockHz").asNumber(0);
+        if (const Json& sm = j.get("spice"); sm.isObject()) {
+            c.spice.text = sm.get("text").asString("");
+            c.spice.model = sm.get("model").asString("");
+            c.spice.pins = sm.get("pins").asString("");
+            if (c.spice.model.empty()) c.spice = SpiceModelRef{};
+        }
         c.sourcing = sourcingFrom(j.get("sourcing"));
         {
             // Only a variant this kind offers (an unknown one from a newer file falls back to the default).
@@ -777,6 +790,13 @@ Json Project::snapshot() const {
                 }
                 j["packageOptions"] = options;
             }
+        }
+        if (!c.spice.empty()) {
+            Json sm = Json::object();  // the text itself: sieda_component_spice_model
+            sm["model"] = c.spice.model;
+            sm["pins"] = c.spice.pins;
+            sm["bytes"] = static_cast<int>(c.spice.text.size());
+            j["spice"] = sm;
         }
         if (c.kind == ComponentKind::Custom || c.kind == ComponentKind::PartUnit) j["customPart"] = c.customPart;
         if (c.kind == ComponentKind::Custom) {

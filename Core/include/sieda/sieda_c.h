@@ -539,6 +539,25 @@ char* sieda_net_places(const SiedaProject* project, int32_t net);
  * snapshot carries "titleBlock" (title defaults to the project name). 1 on success. */
 int32_t sieda_set_title_block(SiedaProject* project, const char* json);
 
+/* ---- SPICE model import (docs/SIMULATION.md) -------------------------------------------------------------------- */
+/* Parses vendor model text (.lib / .mod / .cir: .model, .subckt, .param, .func). Returns {"ok","entries":[{"name",
+ * "kind":"model"|"subckt","type":"D"|"NPN"|…|"SUBCKT","ports":[…],"line"}],"diagnostics":[{"level":"info"|
+ * "warning"|"error","line","message"}]}; "ok" is false when the text has errors. */
+char* sieda_spice_parse(const char* text);
+/* Checks model `model` of `text` on a component without changing the project: {"ok","error","kind","type","ports",
+ * "pins" (the pin map used: `pins`, or the default when it is empty),"defaultPins","diagnostics"}. */
+char* sieda_spice_check(const SiedaProject* project, int32_t component_id, const char* text, const char* model,
+                        const char* pins);
+/* Attaches model `model` of `text` to a component: the definition and everything it uses are stored in the project
+ * with the pin map (one entry per port: pin name / number, "0", "net:NAME", "dc:15", "nc"; ";" between instances;
+ * empty = default). An empty `text` removes the model. 1 on success, else 0 with *error_out (free it). */
+int32_t sieda_set_spice_model(SiedaProject* project, int32_t component_id, const char* text, const char* model,
+                              const char* pins, char** error_out);
+/* The component's model: {"text","model","pins"} (empty strings when none). */
+char* sieda_component_spice_model(const SiedaProject* project, int32_t component_id);
+/* Ready-made models of common parts: [{"name","description","text"}]. */
+char* sieda_spice_builtin_models(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -10,8 +10,11 @@
 #include <sstream>
 
 #include "sieda/Units.hpp"
+#include "SimulatorInternal.hpp"
 
 namespace sieda {
+
+using namespace simdetail;
 
 // ------------------------------------------------------------------ source specs
 
@@ -120,70 +123,6 @@ double SourceSpec::valueAt(double t) const {
 
 // ------------------------------------------------------------------ elements
 
-namespace {
-constexpr double kVt = 0.025852;  // thermal voltage @ 300 K
-constexpr double kGmin = 1e-12;
-constexpr double kOpAmpGain = 1e6;
-
-/// exp(x) continued linearly above `kMax` so Newton steps cannot overflow. The knee must sit above any realistic
-/// operating point: for a junction with saturation current `is` that is ln(1 A / is), which matters for wide-gap
-/// LEDs (blue/white, is ≈ 1e-26) whose forward drop needs exponents near 60.
-double limexp(double x, double kMax = 40.0) {
-    return x < kMax ? std::exp(x) : std::exp(kMax) * (1.0 + x - kMax);
-}
-
-double junctionLimit(double is) { return std::max(40.0, std::log(1.0 / std::max(is, 1e-300))); }
-
-enum class ElemType { Resistor, Capacitor, Inductor, VSource, ISource, Diode, NPN, NMOS, OpAmp, Regulator, Load, McuPin, InAmp };
-
-// Microcontroller pins: 25 Ω push-pull outputs, 35 kΩ pull-ups (ATmega328P datasheet typical values).
-constexpr double kMcuOutputConductance = 1.0 / 25.0;
-constexpr double kMcuPullupConductance = 1.0 / 35000.0;
-
-// Smooth max(0, z) with a 20 mV knee (keeps Newton derivatives continuous).
-double softplus(double z) {
-    constexpr double s = 0.02;
-    return z / s > 30 ? z : s * std::log1p(std::exp(z / s));
-}
-}  // namespace
-
-struct Simulator::Element {
-    ElemType type;
-    int componentId = -1;
-    std::array<int, 3> n{{-1, -1, -1}};  // unknown indices, -1 = ground
-    double value = 0;                    // R, C, L
-    SourceSpec source;
-    int branch = -1;  // unknown index for branch current
-    // Device model parameters
-    double is = 1e-14, emission = 1.0, betaF = 100, betaR = 1, vth = 1.5, kp = 0.02, lambda = 0.01, vsat = 15;
-    double gbw = 1e6;  // op-amp gain–bandwidth product (Hz): the dominant pole of the AC model
-    // Behavioural regulator (in, out, ref): CV with dropout / CC at ilimit / off when it would have to sink.
-    double dropout = 0.3, iq = 0, ilimit = 1.0, rout = 0.01;
-    // Isolated DC-DC (aux[0] = primary return): the output loop closes through `ref`, the input draws
-    // V_out·I_out / efficiency between `in` and the primary return.
-    bool isolated = false;
-    double efficiency = 0.8;
-    mutable int mode = 0;  // 0 CV, 1 CC, 2 off
-    int sub = 0;           // element index within a custom part (0 = regulator, 1… = supply loads)
-    bool isSwitch = false;
-    // Microcontroller pin (McuPin): n = {pin, GND, VCC}; conductances from the firmware's drive over the last step.
-    int mcu = -1, mcuPin = -1;
-    double gHigh = 0, gLow = 0, gPull = 0;
-    // Instrumentation amplifier (InAmp): n = {+IN, −IN, OUT}, aux = {REF, V+, V−}, value = gain.
-    std::array<int, 3> aux{{-1, -1, -1}};
-    // Transient state
-    double prevV = 0, prevI = 0;
-
-    /// Regulated output for input headroom vi (V_in − V_ref): min(vout, vi − dropout), never negative.
-    double setpoint(double vi) const { return softplus(value - softplus(value - (vi - dropout))); }
-
-    /// Instrumentation-amplifier output REF + G·(V+IN − V−IN), limited (smoothly) to 50 mV inside the supply rails.
-    static double inAmpOut(double gain, double vp, double vm, double vref, double vpos, double vneg) {
-        double mid = 0.5 * (vpos + vneg);
-        double half = std::max(0.5 * (vpos - vneg) - 0.05, 1e-3);
-        return mid + half * std::tanh((vref + gain * (vp - vm) - mid) / half);
-    }
-};
 
 struct Simulator::McuState {
     int componentId = -1;
@@ -201,44 +140,7 @@ struct Simulator::McuState {
 namespace {
 using Elem = Simulator::Element;
 
-double nodeV(const std::vector<double>& x, int i) { return i < 0 ? 0.0 : x[static_cast<size_t>(i)]; }
 
-// Terminal currents flowing *into* a non-linear device from each terminal.
-std::array<double, 3> deviceCurrents(const Elem& e, const std::array<double, 3>& v) {
-    switch (e.type) {
-        case ElemType::Diode: {
-            double i = e.is * (limexp((v[0] - v[1]) / (e.emission * kVt), junctionLimit(e.is)) - 1.0);
-            return {i, -i, 0};
-        }
-        case ElemType::NPN: {  // terminals: B, C, E  (Ebers–Moll transport model)
-            double vbe = v[0] - v[2], vbc = v[0] - v[1];
-            double iF = e.is * (limexp(vbe / kVt, junctionLimit(e.is)) - 1.0);
-            double iR = e.is * (limexp(vbc / kVt, junctionLimit(e.is)) - 1.0);
-            double ic = (iF - iR) - iR / e.betaR;
-            double ib = iF / e.betaF + iR / e.betaR;
-            return {ib, ic, -(ib + ic)};
-        }
-        case ElemType::Load: {  // supply → return, saturating at the operating current above ~0.3 V
-            double i = e.value * std::tanh((v[0] - v[1]) / 0.3);
-            return {i, -i, 0};
-        }
-        case ElemType::NMOS: {  // terminals: G, D, S  (square law with channel-length modulation)
-            double vd = v[1], vs = v[2];
-            double sign = 1.0;
-            if (vd < vs) {
-                std::swap(vd, vs);
-                sign = -1.0;
-            }
-            double vgs = v[0] - vs, vds = vd - vs, vov = vgs - e.vth, id = 0.0;
-            if (vov > 0) {
-                if (vds < vov) id = e.kp * (vov * vds - 0.5 * vds * vds) * (1 + e.lambda * vds);
-                else id = 0.5 * e.kp * vov * vov * (1 + e.lambda * vds);
-            }
-            return {0.0, sign * id, -sign * id};
-        }
-        default: return {0, 0, 0};
-    }
-}
 
 /// Gain–bandwidth product of an op-amp from its value: "GBW=10MEG" explicitly, else the typical datasheet figure of a
 /// known part number (prefix match), else 1 MHz.
@@ -308,6 +210,8 @@ Simulator::~Simulator() = default;
 
 bool Simulator::build(std::string& error) {
     elements_.clear();
+    internalNodes_.clear();
+    rails_.clear();
     mcus_.clear();
     const auto& nets = sch_.nets();
     int gnd = sch_.groundNet();
@@ -348,6 +252,10 @@ bool Simulator::build(std::string& error) {
         if (sch_.omitsFromSimulation(c)) continue;  // not fitted in the assembly being simulated
         Element e{};
         e.componentId = c.id;
+        if (!c.spice.empty() && spiceModelApplies(c)) {  // an imported SPICE model replaces the built-in one
+            if (!addSpiceModel(c, error)) return false;
+            continue;
+        }
         auto twoTerminal = [&](ElemType t) {
             e.type = t;
             e.n = {node(c.id, 0), node(c.id, 1), -1};
@@ -537,6 +445,11 @@ bool Simulator::build(std::string& error) {
         }
         elements_.push_back(e);
     }
+    strictNewton_ = false;
+    for (const auto& el : elements_) strictNewton_ = strictNewton_ || el.internal;
+    isNode_.assign(static_cast<size_t>(unknowns_), 0);
+    for (int i = 0; i < nodeCount_; ++i) isNode_[static_cast<size_t>(i)] = 1;
+    for (int i : internalNodes_) isNode_[static_cast<size_t>(i)] = 1;
     if (unknowns_ == 0) {
         error = "Nothing to simulate: the circuit has no non-ground nodes.";
         return false;
@@ -562,6 +475,7 @@ void Simulator::stamp(double t, double h, const std::vector<double>& x, double g
     };
 
     for (int i = 0; i < nodeCount_; ++i) addA(i, i, kGmin + gminExtra);
+    for (int i : internalNodes_) addA(i, i, kGmin + gminExtra);
 
     for (const auto& e : elements_) {
         int a = e.n[0], bb = e.n[1];
@@ -572,7 +486,12 @@ void Simulator::stamp(double t, double h, const std::vector<double>& x, double g
                 if (e.gLow > 0) conductance(a, bb, e.gLow);
                 break;
             case ElemType::Capacitor:
-                if (h > 0) {
+                if (h > 0 && trap_) {  // trapezoidal: i = 2C/h·(v − v_prev) − i_prev
+                    double geq = 2.0 * e.value / h;
+                    conductance(a, bb, geq);
+                    addB(a, geq * e.prevV + e.prevIc);
+                    addB(bb, -(geq * e.prevV + e.prevIc));
+                } else if (h > 0) {
                     double geq = e.value / h;
                     conductance(a, bb, geq);
                     addB(a, geq * e.prevV);
@@ -585,7 +504,11 @@ void Simulator::stamp(double t, double h, const std::vector<double>& x, double g
                 addA(bb, k, -1);
                 addA(k, a, 1);
                 addA(k, bb, -1);
-                if (h > 0) {
+                if (h > 0 && trap_) {  // trapezoidal: v + v_prev = 2L/h·(i − i_prev)
+                    double req = 2.0 * e.value / h;
+                    addA(k, k, -req);
+                    addB(k, -req * e.prevI - e.prevV);
+                } else if (h > 0) {
                     double req = e.value / h;
                     addA(k, k, -req);
                     addB(k, -req * e.prevI);
@@ -692,6 +615,12 @@ void Simulator::stamp(double t, double h, const std::vector<double>& x, double g
                 }
                 break;
             }
+            case ElemType::Device:
+            case ElemType::Ctrl:
+            case ElemType::Coupling:
+                stampModelElement(e, t, h, x);
+                break;
+            case ElemType::ModelPorts: break;
             case ElemType::Diode:
             case ElemType::NPN:
             case ElemType::NMOS:
@@ -739,8 +668,10 @@ bool Simulator::solve(double t, double h, std::vector<double>& x, int& iteration
             if (!std::isfinite(xn)) return false;
             double delta = xn - x[static_cast<size_t>(i)];
             // Damp node-voltage steps to help exponential devices converge.
-            if (i < nodeCount_ && std::fabs(delta) > 2.0) delta = delta > 0 ? 2.0 : -2.0;
-            double tol = 1e-6 + 1e-6 * std::fabs(xn);
+            if ((i < nodeCount_ || isNode_[static_cast<size_t>(i)]) && std::fabs(delta) > 2.0) delta = delta > 0 ? 2.0 : -2.0;
+            // With imported models the tolerance is relative to where the (damped) step lands, so a far-off undamped
+            // target cannot pass for convergence; circuits of built-in models keep their established criterion.
+            double tol = 1e-6 + 1e-6 * std::fabs(strictNewton_ ? x[static_cast<size_t>(i)] + delta : xn);
             maxDelta = std::max(maxDelta, std::fabs(delta) / tol);
             x[static_cast<size_t>(i)] += delta;
         }
@@ -754,12 +685,21 @@ std::vector<DeviceReading> Simulator::readings(const std::vector<double>& x, dou
     std::vector<DeviceReading> out;
     for (const auto& e : elements_) {
         if (e.type == ElemType::McuPin) continue;  // part of the microcontroller (its supply load is the reading)
+        if (e.internal) continue;                   // inside an imported model: ModelPorts is the part's reading
+        if (e.type == ElemType::ModelPorts) {
+            out.push_back(modelReading(e, x, h));
+            continue;
+        }
         DeviceReading r;
         r.componentId = e.componentId;
         double va = nodeV(x, e.n[0]), vb = nodeV(x, e.n[1]);
         r.voltage = va - vb;
         switch (e.type) {
-            case ElemType::McuPin: break;
+            case ElemType::McuPin:
+            case ElemType::Device:
+            case ElemType::Ctrl:
+            case ElemType::Coupling:
+            case ElemType::ModelPorts: break;
             case ElemType::Resistor: r.current = r.voltage / e.value; r.power = r.voltage * r.current; break;
             case ElemType::Capacitor:
                 r.current = h > 0 ? e.value / h * (r.voltage - e.prevV) : 0.0;
@@ -841,6 +781,8 @@ bool Simulator::operatingPoint(std::vector<double>& x, int& iterations) {
     return ok;
 }
 
+bool Simulator::check(std::string& error) { return build(error); }
+
 DcResult Simulator::dcOperatingPoint() {
     DcResult res;
     if (!build(res.error)) return res;
@@ -860,6 +802,11 @@ DcResult Simulator::dcOperatingPoint() {
 
 void Simulator::updateState() {
     for (auto& e : elements_) {
+        if (e.type == ElemType::Capacitor) {  // capacitor current over the step just taken (trapezoidal history)
+            const double v = nodeV(x_, e.n[0]) - nodeV(x_, e.n[1]);
+            e.prevIc = !(stepH_ > 0) ? 0.0 : trap_ ? 2.0 * e.value / stepH_ * (v - e.prevV) - e.prevIc : e.value / stepH_ * (v - e.prevV);
+        }
+        if (e.type == ElemType::Device) updateCharges(e);
         e.prevV = nodeV(x_, e.n[0]) - nodeV(x_, e.n[1]);
         if (e.type == ElemType::Inductor) e.prevI = x_[static_cast<size_t>(e.branch)];
     }
@@ -882,6 +829,7 @@ bool Simulator::begin(std::string& error) {
         }
     }
     lastReadings_ = readings(x_, 0);
+    stepH_ = 0;
     updateState();
     started_ = true;
     return true;
@@ -923,6 +871,7 @@ bool Simulator::advance(double h, std::string& error) {
     int iters = 0;
     if (solve(t, h, x_, iters, 0.0, 1.0)) {
         lastReadings_ = readings(x_, h);  // pre-update state: capacitor currents use the previous voltage
+        stepH_ = h;
         updateState();
     } else {
         // Retry with sub-steps.
@@ -935,6 +884,7 @@ bool Simulator::advance(double h, std::string& error) {
                 return false;
             }
             if (k == sub) lastReadings_ = readings(x_, hs);
+            stepH_ = hs;
             updateState();
         }
     }
@@ -1038,37 +988,6 @@ using Cplx = std::complex<double>;
 
 constexpr double kHalfPowerDb = 3.0102999566398120;  // 10·log10(2): the "−3 dB" point
 
-// Dense complex LU solve with partial pivoting (same scheme as luSolve). Returns false if singular.
-bool luSolveComplex(std::vector<Cplx>& A, std::vector<Cplx>& b, int n) {
-    for (int k = 0; k < n; ++k) {
-        int piv = k;
-        double best = std::abs(A[static_cast<size_t>(k * n + k)]);
-        for (int r = k + 1; r < n; ++r) {
-            double v = std::abs(A[static_cast<size_t>(r * n + k)]);
-            if (v > best) { best = v; piv = r; }
-        }
-        if (best < 1e-300) return false;
-        if (piv != k) {
-            for (int c = 0; c < n; ++c) std::swap(A[static_cast<size_t>(k * n + c)], A[static_cast<size_t>(piv * n + c)]);
-            std::swap(b[static_cast<size_t>(k)], b[static_cast<size_t>(piv)]);
-        }
-        Cplx d = A[static_cast<size_t>(k * n + k)];
-        for (int r = k + 1; r < n; ++r) {
-            Cplx a = A[static_cast<size_t>(r * n + k)];
-            if (a.real() == 0.0 && a.imag() == 0.0) continue;  // sparse rows: nothing to eliminate
-            Cplx f = a / d;
-            A[static_cast<size_t>(r * n + k)] = 0.0;
-            for (int c = k + 1; c < n; ++c) A[static_cast<size_t>(r * n + c)] -= f * A[static_cast<size_t>(k * n + c)];
-            b[static_cast<size_t>(r)] -= f * b[static_cast<size_t>(k)];
-        }
-    }
-    for (int r = n - 1; r >= 0; --r) {
-        Cplx s = b[static_cast<size_t>(r)];
-        for (int c = r + 1; c < n; ++c) s -= A[static_cast<size_t>(r * n + c)] * b[static_cast<size_t>(c)];
-        b[static_cast<size_t>(r)] = s / A[static_cast<size_t>(r * n + r)];
-    }
-    return true;
-}
 
 double wrapDeg(double d) {
     d = std::fmod(d, 360.0);
@@ -1307,6 +1226,8 @@ AcResult Simulator::ac(const AcOptions& o) {
                     break;
                 }
                 case ElemType::Inductor: add(e.branch, e.branch, Cplx(0.0, -w * e.value)); break;
+                case ElemType::Device:
+                case ElemType::Coupling: addModelAdmittance(e, w, x, M); break;
                 case ElemType::OpAmp: {
                     // Single pole that keeps the gain–bandwidth product: (1 + jf·A'/GBW)·Vo − A'·(V+ − V−) = 0, with
                     // A' the open-loop gain at the operating point (falling towards 0 as the output saturates).

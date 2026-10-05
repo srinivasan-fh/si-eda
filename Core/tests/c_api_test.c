@@ -448,3 +448,63 @@ int sieda_c_api_units_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* SPICE model import: parse, check, attach (stored in the project), read back, remove. */
+int sieda_c_api_spice_test(void) {
+    static const char* lib = "* vendor diode\n.model DTEST D(IS=1n N=1.8 RS=0.5\n+ CJO=4p TT=10n)\n.subckt NOPE a b\nR1 a b 1k\n";
+    SiedaProject* p = sieda_project_new("SPICE models");
+    if (!p) return 1;
+    int32_t v = sieda_add_component(p, 5 /* VoltageSource */, "5", 0, 0, 0, NULL);
+    int32_t r = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 0, 0, NULL);
+    int32_t d = sieda_add_component(p, 3 /* Diode */, "1N4148", 200, 0, 0, NULL);
+    int32_t g = sieda_add_component(p, 7 /* Ground */, NULL, 0, 80, 0, NULL);
+    if (v < 0 || r < 0 || d < 0 || g < 0) return 2;
+    if (sieda_connect(p, v, 0, r, 0) < 0 || sieda_connect(p, r, 1, d, 0) < 0 || sieda_connect(p, d, 1, g, 0) < 0 ||
+        sieda_connect(p, v, 1, g, 0) < 0)
+        return 3;
+    char* parsed = sieda_spice_parse(lib);
+    if (!parsed || !strstr(parsed, "\"name\":\"DTEST\"") || !strstr(parsed, "\"ok\":false") || !strstr(parsed, "no .ends"))
+        return 4;
+    sieda_string_free(parsed);
+    char* check = sieda_spice_check(p, d, lib, "DTEST", "");
+    if (!check || !strstr(check, "\"ok\":true") || !strstr(check, "\"defaultPins\":\"A K\"")) return 5;
+    sieda_string_free(check);
+    char* error = NULL;
+    if (sieda_set_spice_model(p, d, lib, "DTEST", "A Q", &error) != 0 || !error || !strstr(error, "no pin 'Q'")) return 6;
+    sieda_string_free(error);
+    error = NULL;
+    if (sieda_set_spice_model(p, d, lib, "MISSING", "", &error) != 0 || !error) return 7;
+    sieda_string_free(error);
+    error = NULL;
+    if (sieda_set_spice_model(p, d, lib, "DTEST", "", &error) != 1 || error) return 8;
+    char* model = sieda_component_spice_model(p, d);
+    /* Only the definition is stored, not the broken subckt next to it. */
+    if (!model || !strstr(model, "\"model\":\"DTEST\"") || !strstr(model, "CJO=4p") || strstr(model, "NOPE")) return 9;
+    sieda_string_free(model);
+    char* dc = sieda_simulate_dc(p);
+    if (!dc || !strstr(dc, "\"converged\":true")) return 10;
+    sieda_string_free(dc);
+    char* saved = sieda_project_save_json(p);
+    if (!saved || !strstr(saved, "\"spice\"") || !strstr(saved, "CJO=4p")) return 11;
+    SiedaProject* q = sieda_project_load_json(saved, NULL);
+    sieda_string_free(saved);
+    if (!q) return 12;
+    model = sieda_component_spice_model(q, d);
+    if (!model || !strstr(model, "\"model\":\"DTEST\"")) return 13;
+    sieda_string_free(model);
+    sieda_project_free(q);
+    if (sieda_set_spice_model(p, d, "", "", "", NULL) != 1) return 14;
+    model = sieda_component_spice_model(p, d);
+    if (!model || !strstr(model, "\"model\":\"\"")) return 15;
+    sieda_string_free(model);
+    char* builtins = sieda_spice_builtin_models();
+    if (!builtins || !strstr(builtins, "\"name\":\"UA741\"")) return 16;
+    sieda_string_free(builtins);
+    if (sieda_set_spice_model(NULL, d, lib, "DTEST", "", NULL) != 0) return 17;
+    if (sieda_spice_check(NULL, d, lib, "DTEST", "") != NULL) return 18;
+    char* garbage = sieda_spice_parse(NULL);
+    if (!garbage) return 19;
+    sieda_string_free(garbage);
+    sieda_project_free(p);
+    return 0;
+}

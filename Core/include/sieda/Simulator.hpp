@@ -126,6 +126,9 @@ public:
     Simulator(const Simulator&) = delete;
     Simulator& operator=(const Simulator&) = delete;
     DcResult dcOperatingPoint();
+    /// Builds the circuit without solving it: false with the reason when it cannot be simulated (an invalid value,
+    /// an imported SPICE model that does not flatten or whose pin map does not fit the part).
+    bool check(std::string& error);
     /// Transient analysis. Microcontrollers with firmware run alongside: each step executes the step's clock cycles,
     /// then drives every pin from the time it spent high, low or pulled up (25 Ω outputs, 35 kΩ pull-ups) and reads
     /// inputs and the ADC from the solved node voltages.
@@ -165,8 +168,26 @@ private:
     /// Newton from `x`, then Gmin stepping, then source stepping (the DC operating point strategy).
     bool operatingPoint(std::vector<double>& x, int& iterations);
 
+    // Imported SPICE models (SpiceBuild.cpp).
+    bool spiceModelApplies(const Component& c) const;
+    bool addSpiceModel(const Component& c, std::string& error);
+    int newInternalNode();
+    void stampModelElement(const Element& e, double t, double h, const std::vector<double>& x);
+    void addModelAdmittance(const Element& e, double w, const std::vector<double>& x,
+                            std::vector<std::complex<double>>& M) const;
+    void updateCharges(Element& e) const;
+    DeviceReading modelReading(const Element& e, const std::vector<double>& x, double h) const;
+    void terminalCurrents(const Element& e, const std::vector<double>& x, double h,
+                          std::vector<std::pair<int, double>>& out) const;
+
     const Schematic& sch_;
-    std::vector<int> netToNode_;  // net index → unknown index (-1 for ground)
+    std::vector<int> netToNode_;
+    std::vector<int> internalNodes_;   // unknowns that are node voltages inside imported models
+    std::vector<char> isNode_;         // per unknown: a node voltage (Newton steps are damped)
+    std::map<double, int> rails_;      // "dc:V" supplies of pin maps: voltage → internal node
+    bool trap_ = false;                // trapezoidal integration (transient options)
+    bool strictNewton_ = false;        // the circuit has imported models: stricter Newton convergence test
+    double stepH_ = 0;                 // the step the state is being advanced over  // net index → unknown index (-1 for ground)
     int nodeCount_ = 0;
     int unknowns_ = 0;
     std::vector<Element> elements_;

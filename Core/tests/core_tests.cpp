@@ -46,6 +46,7 @@
 #include "sieda/Robotics.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/Simulator.hpp"
+#include "sieda/SpiceModels.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Validation.hpp"
 #include "sieda/Verification.hpp"
@@ -8885,4 +8886,475 @@ TEST(schematic_capture_hostile_inputs) {
         }
     }
     CHECK(loaded > 0);
+}
+
+// ======================================================================= SPICE model import
+
+extern "C" int sieda_c_api_spice_test(void);
+
+namespace {
+/// IC8 part driven at pin 1 by `vin` (DC), pin 2 loaded with 1 MΩ; the model `name` of `text` on the IC with `pins`.
+/// Returns V(pin 2), NaN when the circuit does not simulate.
+double spiceTwoPort(const std::string& text, const std::string& name, double vin, const std::string& pins = "1 2",
+                    std::string* error = nullptr) {
+    Schematic s;
+    int v = s.addComponent(ComponentKind::VoltageSource, formatEngineeringValue(vin, "", 9), {0, 0});
+    int u = s.addComponent(ComponentKind::IC8, "IC", {100, 0});
+    int r = s.addComponent(ComponentKind::Resistor, "1MEG", {200, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, v, "+", u, "1");
+    wire(s, v, "-", g, "GND");
+    wire(s, u, "2", r, "1");
+    wire(s, r, "2", g, "GND");
+    s.setSpiceModel(u, SpiceModelRef{text, name, pins});
+    DcResult dc = Simulator(s).dcOperatingPoint();
+    if (error) *error = dc.error;
+    if (!dc.converged) return NAN;
+    return netV(s, dc, u, "2");
+}
+double spicedevVt() { return 1.380649e-23 * 300.15 / 1.602176634e-19; }
+bool hasDiag(const std::vector<SpiceDiagnostic>& d, SpiceDiagnostic::Level level, const std::string& text) {
+    for (const auto& x : d)
+        if (x.level == level && x.message.find(text) != std::string::npos) return true;
+    return false;
+}
+}  // namespace
+
+TEST(spice_numbers_and_expressions) {
+    double v = 0;
+    CHECK(parseSpiceNumber("1.5k", v) && std::fabs(v - 1500) < 1e-9);
+    CHECK(parseSpiceNumber("10MEG", v) && std::fabs(v - 1e7) < 1e-3);
+    CHECK(parseSpiceNumber("10m", v) && std::fabs(v - 0.01) < 1e-15);
+    CHECK(parseSpiceNumber("100pF", v) && std::fabs(v - 1e-10) < 1e-22);
+    CHECK(parseSpiceNumber("2.2u", v) && std::fabs(v - 2.2e-6) < 1e-18);
+    CHECK(parseSpiceNumber("-1e-3", v) && std::fabs(v + 1e-3) < 1e-15);
+    CHECK(parseSpiceNumber("1E3", v) && std::fabs(v - 1000) < 1e-9);
+    CHECK(parseSpiceNumber("5mil", v) && std::fabs(v - 127e-6) < 1e-15);
+    CHECK(parseSpiceNumber(".5", v) && std::fabs(v - 0.5) < 1e-15);
+    CHECK(parseSpiceNumber("1kohm", v) && std::fabs(v - 1000) < 1e-9);
+    for (const char* bad : {"", "abc", "0x10", "1..2", "-", "1k5", "inf", "nan", "1e999", "+.", "1%"}) CHECK(!parseSpiceNumber(bad, v));
+
+    auto eval = [](const std::string& text) {
+        std::string err;
+        SpiceExprPtr e = parseSpiceExpression(text, err);
+        return e ? evalSpiceExpression(*e, nullptr, 0) : NAN;
+    };
+    CHECK_NEAR(eval("2*3+4"), 10, 1e-12);
+    CHECK_NEAR(eval("(1+2)**2"), 9, 1e-12);
+    CHECK_NEAR(eval("2^3^2"), 512, 1e-9);  // right associative
+    CHECK_NEAR(eval("-2^2"), -4, 1e-12);
+    CHECK_NEAR(eval("max(1, 5, 3) - min(4, 2)"), 3, 1e-12);
+    CHECK_NEAR(eval("if(1 > 0, 5, 6) + (0 ? 1 : 2)"), 7, 1e-12);
+    CHECK_NEAR(eval("table(1.5, 1, 10, 2, 20)"), 15, 1e-12);
+    CHECK_NEAR(eval("limit(5, 0, 1) + u(-1) + uramp(2) + abs(-3)"), 6, 1e-12);
+    CHECK_NEAR(eval("2k * 1m"), 2, 1e-12);
+    CHECK_NEAR(eval("1 < 2 && 3 >= 3 || 0"), 1, 1e-12);
+    CHECK_NEAR(eval("pwrs(-4, 0.5)"), -2, 1e-12);
+    CHECK_NEAR(eval("sqrt(-1) + ln(0) * 0"), 0, 1e-12);  // guarded: no NaN
+    for (const char* bad : {"2*(3", "foo(", "1 +", "V(", "V(a,b,c)", "I(a,b)", ")", "1 ? 2", "@"}) {
+        std::string err;
+        CHECK(!parseSpiceExpression(bad, err) && !err.empty());
+    }
+    // Nesting is bounded (no stack overflow on hostile input).
+    std::string deep(5000, '(');
+    std::string err;
+    CHECK(!parseSpiceExpression(deep + "1" + std::string(5000, ')'), err) && err.find("deeply") != std::string::npos);
+    // POLY coefficient order: 1, x1, x2, x1², x1·x2, x2², x1³, …
+    auto terms = spicePolyTerms(2, 7);
+    CHECK(terms.size() == 7);
+    CHECK(terms[0].empty() && terms[1] == std::vector<int>{0} && terms[2] == std::vector<int>{1});
+    CHECK(terms[3] == (std::vector<int>{0, 0}) && terms[4] == (std::vector<int>{0, 1}) && terms[5] == (std::vector<int>{1, 1}));
+    CHECK(terms[6] == (std::vector<int>{0, 0, 0}));
+}
+
+TEST(spice_library_parsing) {
+    const std::string text = R"(* A vendor library
+.model DA D(IS=1e-14 N=1.05
++ RS=0.5 CJO=2p ; inline comment
++ XTI=3 FOO=7)
+.MODEL DB AKO:DA D(N=2)
+.param GAIN=10 HALF={GAIN/2}
+.func twice(x) {2*x}
+.subckt AMP in out params: G=2
+E1 out 0 in 0 {G*twice(1)}
+R1 out 0 1k $ hspice comment
+.ends AMP
+.include other.lib
+.tran 1u 1m
+.subckt OPEN a b
+R1 a b 1
+)";
+    SpiceLibrary lib = parseSpiceLibrary(text);
+    auto entries = spiceLibraryEntries(lib);
+    std::set<std::string> names;
+    for (const auto& e : entries) names.insert(e.name);
+    CHECK(names.count("DA") && names.count("DB") && names.count("AMP") && names.count("OPEN"));
+    CHECK(hasDiag(lib.diagnostics, SpiceDiagnostic::Level::Error, "OPEN has no .ends"));
+    CHECK(hasDiag(lib.diagnostics, SpiceDiagnostic::Level::Warning, "other.lib"));
+    CHECK(hasDiag(lib.diagnostics, SpiceDiagnostic::Level::Info, ".TRAN"));
+    SpiceFlatCircuit db = flattenSpiceModel(lib, "db");  // case-insensitive
+    CHECK(db.ok && db.prims.size() == 1 && db.type == "D");
+    if (db.ok) {
+        CHECK_NEAR(db.prims[0].model.at("N"), 2, 1e-12);
+        CHECK_NEAR(db.prims[0].model.at("IS"), 1e-14, 1e-26);  // from the AKO base
+        CHECK_NEAR(db.prims[0].model.at("CJO"), 2e-12, 1e-24);
+    }
+    SpiceFlatCircuit da = flattenSpiceModel(lib, "DA");
+    CHECK(hasDiag(da.diagnostics, SpiceDiagnostic::Level::Warning, "FOO not modelled"));
+    CHECK(hasDiag(da.diagnostics, SpiceDiagnostic::Level::Info, "XTI"));
+    SpiceFlatCircuit amp = flattenSpiceModel(lib, "AMP");
+    CHECK(amp.ok && amp.ports == (std::vector<std::string>{"IN", "OUT"}));
+    if (amp.ok) {
+        CHECK(amp.prims[0].type == 'E' && amp.prims[0].coeffs.size() == 2);
+        CHECK_NEAR(amp.prims[0].coeffs[1], 4, 1e-12);
+    }
+    CHECK(!flattenSpiceModel(lib, "OPEN").ok);
+    CHECK(!flattenSpiceModel(lib, "NOTHING").ok);
+    // Extraction keeps what AMP needs (params, func) and leaves the rest out.
+    std::string amptext = extractSpiceModel(lib, "AMP");
+    CHECK(amptext.find(".subckt AMP") != std::string::npos && amptext.find(".func") != std::string::npos);
+    CHECK(amptext.find("OPEN") == std::string::npos && amptext.find("DA") == std::string::npos);
+    CHECK(flattenSpiceModel(parseSpiceLibrary(amptext), "AMP").ok);
+    std::string dbtext = extractSpiceModel(lib, "DB");
+    CHECK(dbtext.find(".model DA") != std::string::npos);  // the AKO base comes along
+    CHECK(flattenSpiceModel(parseSpiceLibrary(dbtext), "DB").ok);
+    // Unsupported constructs are errors with line numbers, not silent omissions.
+    SpiceLibrary bad = parseSpiceLibrary(".subckt T a b\nT1 a 0 b 0 Z0=50 TD=1n\nE1 b 0 LAPLACE {V(a)} = {1/(1+s)}\n.ends\n");
+    SpiceFlatCircuit badFlat = flattenSpiceModel(bad, "T");
+    CHECK(!badFlat.ok);
+    CHECK(hasDiag(badFlat.diagnostics, SpiceDiagnostic::Level::Error, "transmission line"));
+    CHECK(hasDiag(badFlat.diagnostics, SpiceDiagnostic::Level::Error, "LAPLACE"));
+    bool lineKnown = false;
+    for (const auto& d : badFlat.diagnostics) lineKnown |= d.line == 2;
+    CHECK(lineKnown);
+    // BSIM MOSFETs and recursive subckts are refused.
+    CHECK(!flattenSpiceModel(parseSpiceLibrary(".model M1 NMOS(LEVEL=54)\n"), "M1").ok);
+    SpiceFlatCircuit rec = flattenSpiceModel(parseSpiceLibrary(".subckt R a b\nX1 a b R\n.ends\n"), "R");
+    CHECK(!rec.ok && hasDiag(rec.diagnostics, SpiceDiagnostic::Level::Error, "recursive"));
+}
+
+TEST(spice_controlled_sources_dc) {
+    const double load = 1e6;
+    auto par = [&](double r) { return r * load / (r + load); };
+    auto sub = [](const std::string& body) { return ".subckt T in out\n" + body + "\n.ends\n"; };
+    CHECK_NEAR(spiceTwoPort(sub("E1 out 0 in 0 3"), "T", 2), 6, 1e-6);
+    CHECK_NEAR(spiceTwoPort(sub("G1 out 0 in 0 1m\nR1 out 0 1k"), "T", 2), -2 * par(1e3) * 1e-3, 1e-6);
+    CHECK_NEAR(spiceTwoPort(sub("V1 in a 0\nR1 a 0 1k\nF1 0 out V1 2\nR2 out 0 1k"), "T", 2), 4e-3 * par(1e3), 1e-6);
+    CHECK_NEAR(spiceTwoPort(sub("V1 in a 0\nR1 a 0 1k\nH1 out 0 V1 500"), "T", 2), 1.0, 1e-6);
+    CHECK_NEAR(spiceTwoPort(sub("E1 out 0 POLY(2) in 0 in 0 1 2 3"), "T", 2), 11, 1e-6);
+    CHECK_NEAR(spiceTwoPort(sub("E1 out 0 POLY(2) (in,0) (in,0) 0 0 0 1"), "T", 2), 4, 1e-6);  // x1²
+    CHECK_NEAR(spiceTwoPort(sub("E1 out 0 POLY(1) in 0 2.5"), "T", 2), 5, 1e-6);  // one coefficient = gain
+    CHECK_NEAR(spiceTwoPort(sub("B1 out 0 V=V(in)*V(in) + limit(V(in), 0, 1)"), "T", 2), 5, 1e-6);
+    CHECK_NEAR(spiceTwoPort(sub("E1 out 0 TABLE {V(in)} = (0,0) (1,10) (3,20)"), "T", 2), 15, 1e-6);
+    CHECK_NEAR(spiceTwoPort(sub("G1 0 out VALUE = {V(in)*1m}\nR1 out 0 1k"), "T", 2), 2e-3 * par(1e3), 1e-6);
+    CHECK_NEAR(spiceTwoPort(sub("I1 0 out 1m\nR1 out 0 1k"), "T", 2), 1e-3 * par(1e3), 1e-6);  // n+ → source → n−
+    CHECK_NEAR(spiceTwoPort(sub("B1 0 out I=V(in)*1m\nR1 out 0 1k"), "T", 2), 2e-3 * par(1e3), 1e-6);
+    // A voltage-controlled switch, on and off.
+    const std::string sw = sub(".model SWM SW(VT=1 VH=0 RON=1 ROFF=1MEG)\nS1 out x in 0 SWM\nV2 x 0 5\nR1 out 0 1k");
+    CHECK_NEAR(spiceTwoPort(sw, "T", 2), 5 * par(1e3) / (par(1e3) + 1), 1e-3);
+    CHECK(spiceTwoPort(sw, "T", 0) < 0.01);
+    // Nested subcircuits with parameters (default, instance override, expression of a global .param).
+    const std::string nested = ".param K0=1.5\n.subckt GAIN in out PARAMS: K={2*K0}\nE1 out 0 in 0 {K}\n.ends\n"
+                               ".subckt TOP in out\nX1 in mid GAIN K=2\nX2 mid out GAIN\n.ends\n";
+    CHECK_NEAR(spiceTwoPort(nested, "TOP", 1), 6, 1e-6);
+    // .func, I() of a source in a behavioural expression, TIME is 0 at DC.
+    CHECK_NEAR(spiceTwoPort(".func sq(x) {x*x}\n" + sub("V1 in a 0\nR1 a 0 1k\nB1 out 0 V={sq(V(in))} + I(V1)*1k + time"), "T", 3),
+               12, 1e-6);
+    // The pin map: ports swapped, a rail, a net by name, unknown pins.
+    CHECK_NEAR(spiceTwoPort(sub("E1 out 0 in 0 1"), "T", 2, "1 2"), 2, 1e-6);
+    CHECK_NEAR(spiceTwoPort(sub("E1 out 0 in 0 1"), "T", 2, "dc:7 2"), 7, 1e-6);
+    std::string error;
+    CHECK(std::isnan(spiceTwoPort(sub("E1 out 0 in 0 1"), "T", 2, "1 9", &error)) && error.find("no pin '9'") != std::string::npos);
+    CHECK(std::isnan(spiceTwoPort(sub("E1 out 0 in 0 1"), "T", 2, "1", &error)) && error.find("2 ports") != std::string::npos);
+    CHECK(std::isnan(spiceTwoPort(sub("E1 out 0 in 0 1"), "T", 2, "net:NOPE 2", &error)) && error.find("NOPE") != std::string::npos);
+    CHECK(std::isnan(spiceTwoPort(sub("E1 out 0 in 0 1"), "MISSING", 2, "1 2", &error)) && error.find("MISSING") != std::string::npos);
+    // A part without a model is simulated as before.
+    Schematic s;
+    int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int d = s.addComponent(ComponentKind::Diode, "1N4148", {100, 0});
+    int r = s.addComponent(ComponentKind::Resistor, "1k", {50, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, v, "+", r, "1");
+    wire(s, r, "2", d, "A");
+    wire(s, d, "K", g, "GND");
+    wire(s, v, "-", g, "GND");
+    const double builtin = netV(s, Simulator(s).dcOperatingPoint(), d, "A");
+    s.setSpiceModel(d, SpiceModelRef{".model DX D(IS=2.52n N=1.752)", "DX", ""});
+    DcResult withModel = Simulator(s).dcOperatingPoint();
+    CHECK(withModel.converged);
+    // Same Shockley parameters; only the thermal voltage differs (300 K built-in, 27 °C SPICE).
+    CHECK_NEAR(netV(s, withModel, d, "A"), builtin, 2e-3);
+    CHECK_NEAR(reading(withModel, d)->current, (5 - netV(s, withModel, d, "A")) / 1e3, 1e-9);
+    s.setSpiceModel(d, SpiceModelRef{});
+    CHECK(netV(s, Simulator(s).dcOperatingPoint(), d, "A") == builtin);
+}
+
+TEST(spice_semiconductor_models_dc) {
+    // Diode series resistance: 10 mA through RS = 10 Ω adds exactly 0.1 V.
+    auto diodeV = [](const std::string& model) {
+        Schematic s;
+        int i = s.addComponent(ComponentKind::CurrentSource, "10m", {0, 0});
+        int d = s.addComponent(ComponentKind::Diode, "", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, i, "+", d, "A");
+        wire(s, d, "K", g, "GND");
+        wire(s, i, "-", g, "GND");
+        s.setSpiceModel(d, SpiceModelRef{model, "DX", ""});
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        return dc.converged ? netV(s, dc, d, "A") : NAN;
+    };
+    const double v0 = diodeV(".model DX D(IS=1e-14 N=1)");
+    CHECK_NEAR(v0, spicedevVt() * std::log(1e-2 / 1e-14 + 1), 1e-6);
+    CHECK_NEAR(diodeV(".model DX D(IS=1e-14 N=1 RS=10)") - v0, 0.1, 1e-6);
+    // Zener: reverse biased from 10 V through 1 kΩ it holds ≈ BV.
+    {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "10", {0, 0});
+        int r = s.addComponent(ComponentKind::Resistor, "1k", {50, 0});
+        int d = s.addComponent(ComponentKind::Diode, "", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", r, "1");
+        wire(s, r, "2", d, "K");
+        wire(s, d, "A", g, "GND");
+        wire(s, v, "-", g, "GND");
+        s.setSpiceModel(d, SpiceModelRef{".model DZ D(IS=1f BV=5.1 IBV=5m NBV=1)", "DZ", ""});
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged);
+        const double vz = netV(s, dc, d, "K");
+        CHECK_NEAR(vz, 5.1 + spicedevVt() * std::log((10 - vz) / 1e3 / 5e-3), 1e-3);
+    }
+    // NPN: forced base current, Ic = BF·Ib (no Early effect, no high injection).
+    {
+        Schematic s;
+        int vcc = s.addComponent(ComponentKind::VoltageSource, "10", {0, 0});
+        int ib = s.addComponent(ComponentKind::CurrentSource, "10u", {100, 0});
+        int rc = s.addComponent(ComponentKind::Resistor, "1k", {200, -80});
+        int q = s.addComponent(ComponentKind::NPN, "", {200, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, ib, "+", q, "B");
+        wire(s, ib, "-", g, "GND");
+        wire(s, vcc, "+", rc, "1");
+        wire(s, rc, "2", q, "C");
+        wire(s, q, "E", g, "GND");
+        wire(s, vcc, "-", g, "GND");
+        s.setSpiceModel(q, SpiceModelRef{".model QN NPN(IS=1e-15 BF=100 BR=1)", "QN", ""});
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged);
+        // Ic = BF·Ib minus the tiny reverse term; the reading is the collector current and V_CE.
+        CHECK_NEAR(reading(dc, q)->current, 1e-3, 1e-7);
+        CHECK_NEAR(reading(dc, q)->voltage, 9.0, 1e-4);
+        // Early effect: VAF = 50 V raises Ic by (1 + V_CB / VAF).
+        s.setSpiceModel(q, SpiceModelRef{".model QN NPN(IS=1e-15 BF=100 VAF=50)", "QN", ""});
+        DcResult early = Simulator(s).dcOperatingPoint();
+        CHECK(early.converged && reading(early, q)->current > 1.05e-3);
+        // Series resistances and the 2N3904 library model converge too.
+        s.setSpiceModel(q, SpiceModelRef{builtinSpiceModels()[4].text, "2N3904", ""});
+        DcResult lib = Simulator(s).dcOperatingPoint();
+        CHECK(lib.converged && reading(lib, q)->current > 1e-3 && reading(lib, q)->current < 4.2e-3);
+    }
+    // PNP on a catalog part (pins 1 B, 2 E, 3 C): mapped by pin name.
+    {
+        auto id = CustomPartRegistry::instance().registerPart(findStandardPart("MMBT3906")->spec)->id;
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+        int q = s.addCustomComponent(id, "", {100, 0});
+        int rb = s.addComponent(ComponentKind::Resistor, "100k", {150, 0});
+        int rc = s.addComponent(ComponentKind::Resistor, "1k", {200, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", q, "E");
+        wire(s, q, "B", rb, "1");
+        wire(s, rb, "2", g, "GND");
+        wire(s, q, "C", rc, "1");
+        wire(s, rc, "2", g, "GND");
+        wire(s, v, "-", g, "GND");
+        SpiceFlatCircuit flat = flattenSpiceModel(parseSpiceLibrary(builtinSpiceModels()[5].text), "2N3906");
+        std::vector<std::pair<std::string, std::string>> pins = {{"1", "B"}, {"2", "E"}, {"3", "C"}};
+        CHECK(defaultSpicePinMap(flat, pins, false) == "3 1 2");
+        s.setSpiceModel(q, SpiceModelRef{builtinSpiceModels()[5].text, "2N3906", ""});
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged);
+        const double vc = netV(s, dc, q, "C");
+        CHECK(vc > 3.0 && vc < 5.0);  // saturated: β·I_B ≈ 7 mA would need more than 5 V across 1 kΩ
+        CHECK(netV(s, dc, q, "B") > 4.0 && netV(s, dc, q, "B") < 4.5);
+        CHECK_NEAR(reading(dc, q)->current, -vc / 1e3, 1e-6);  // current into C is negative for a PNP
+    }
+    // MOSFET level 1 in saturation: Id = KP/2·(W/L)·(Vgs − Vto)²·(1 + λ·Vds); level 3 divides by 1 + θ·(Vgs − Vto).
+    auto mosId = [](const std::string& model, double vgs, double vds) {
+        Schematic s;
+        int vg = s.addComponent(ComponentKind::VoltageSource, formatEngineeringValue(vgs, "", 9), {0, 0});
+        int vd = s.addComponent(ComponentKind::VoltageSource, formatEngineeringValue(vds, "", 9), {0, 100});
+        int m = s.addComponent(ComponentKind::NMOS, "", {100, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, vg, "+", m, "G");
+        wire(s, vd, "+", m, "D");
+        wire(s, m, "S", g, "GND");
+        wire(s, vg, "-", g, "GND");
+        wire(s, vd, "-", g, "GND");
+        s.setSpiceModel(m, SpiceModelRef{model, "MN", ""});
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        return dc.converged ? reading(dc, m)->current : NAN;
+    };
+    CHECK_NEAR(mosId(".model MN NMOS(VTO=1 KP=2m)", 3, 5), 1e-3 * 4, 1e-8);
+    CHECK_NEAR(mosId(".model MN NMOS(VTO=1 KP=2m LAMBDA=0.02)", 3, 5), 4e-3 * 1.1, 1e-8);
+    CHECK_NEAR(mosId(".model MN NMOS(VTO=1 KP=2m)", 3, 0.5), 2e-3 * (2 - 0.25) * 0.5, 1e-8);  // triode
+    CHECK_NEAR(mosId(".model MN NMOS(LEVEL=3 VTO=1 KP=2m THETA=0.5)", 3, 5), 4e-3 / 2, 1e-8);
+    CHECK_NEAR(mosId(".model MN NMOS(VTO=1 KP=2m)", 0.5, 5), 0, 1e-9);
+    // P-MOSFET subcircuit (body diode) on a catalog part with pins G S D: conducts with the gate low.
+    {
+        auto id = CustomPartRegistry::instance().registerPart(findStandardPart("BSS84")->spec)->id;
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+        int m = s.addCustomComponent(id, "", {100, 0});
+        int rd = s.addComponent(ComponentKind::Resistor, "1k", {200, 0});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", m, "S");
+        wire(s, m, "G", g, "GND");
+        wire(s, m, "D", rd, "1");
+        wire(s, rd, "2", g, "GND");
+        wire(s, v, "-", g, "GND");
+        s.setSpiceModel(m, SpiceModelRef{builtinSpiceModels()[8].text, "BSS84", ""});
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged && netV(s, dc, m, "D") > 4.0);
+    }
+}
+
+TEST(spice_opamp_macromodel) {
+    // The µA741 Boyle macromodel (E/F/G/H with POLY, BJT input pair, clamp diodes) on the op-amp symbol: rails ±15 V.
+    const std::string ua741 = builtinSpiceModels()[9].text;
+    auto amp = [&](const std::string& vin, const char* rfv, const char* rgv) {
+        Schematic s;
+        int v = s.addComponent(ComponentKind::VoltageSource, vin, {0, 0});
+        int u = s.addComponent(ComponentKind::OpAmp, "UA741", {100, 0});
+        int rf = s.addComponent(ComponentKind::Resistor, rfv, {150, -60});
+        int rg = s.addComponent(ComponentKind::Resistor, rgv, {50, -60});
+        int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+        wire(s, v, "+", u, "IN+");
+        wire(s, v, "-", g, "GND");
+        wire(s, u, "OUT", rf, "2");
+        wire(s, rf, "1", u, "IN-");
+        wire(s, rg, "2", u, "IN-");
+        wire(s, rg, "1", g, "GND");
+        s.setSpiceModel(u, SpiceModelRef{ua741, "UA741", ""});
+        return std::make_pair(s, u);
+    };
+    {
+        auto [s, u] = amp("1", "10k", "10k");
+        DcResult dc = Simulator(s).dcOperatingPoint();
+        CHECK(dc.converged);
+        CHECK_NEAR(netV(s, dc, u, "OUT"), 2.0, 2e-3);
+        CHECK(reading(dc, u) && std::fabs(reading(dc, u)->voltage - 2.0) < 2e-3);
+    }
+    {
+        // Gain 100: the closed-loop pole sits at GBW / 100 (≈ 10 kHz for 1 MHz).
+        auto [s, u] = amp("0 AC 1", "99k", "1k");
+        AcOptions o;
+        o.fStart = 10;
+        o.fStop = 10e6;
+        AcResult r = Simulator(s).ac(o);
+        CHECK(r.ok);
+        if (r.ok) {
+            const AcMetrics& m = r.metrics[s.netOf({u, 2})];
+            CHECK_NEAR(m.lowFreqDb, 40.0, 0.05);
+            CHECK(m.f3dbHz > 6e3 && m.f3dbHz < 14e3);
+        }
+    }
+    {
+        // Follower slewing a 5 V step: ≈ 0.5 V/µs.
+        auto [s, u] = amp("PULSE(0 5 100u)", "1", "1G");
+        TransientResult tr = Simulator(s).transient(30e-6, 20e-9);
+        CHECK(tr.ok);
+        if (tr.ok) {
+            const auto& out = tr.netVoltages[static_cast<size_t>(s.netOf({u, 2}))];
+            double t1 = NAN, t9 = NAN;
+            for (size_t i = 0; i < out.size(); ++i) {
+                if (std::isnan(t1) && out[i] > 1.0) t1 = tr.time[i];
+                if (std::isnan(t9) && out[i] > 4.0) t9 = tr.time[i];
+            }
+            const double slew = 3.0 / (t9 - t1);
+            CHECK(slew > 0.3e6 && slew < 0.8e6);
+            CHECK_NEAR(out.back(), 5.0, 0.01);
+        }
+    }
+}
+
+TEST(spice_models_hostile_input) {
+    // Random bytes, mutated real models and pathological structures: never a crash or a hang, always diagnostics.
+    std::vector<std::string> seeds;
+    for (const auto& m : builtinSpiceModels()) seeds.push_back(m.text);
+    seeds.push_back(".subckt T in out\nB1 out 0 V=V(in)*2 + if(V(in)>1, 1, 0)\nE2 x 0 TABLE {V(in)} = (0,0) (1,1)\n.ends\n");
+    uint64_t state = 12345;
+    auto rnd = [&]() {
+        state = state * 6364136223846793005ULL + 1442695040888963407ULL;
+        return static_cast<uint32_t>(state >> 33);
+    };
+    int flattened = 0, simulated = 0;
+    for (int round = 0; round < 600; ++round) {
+        std::string t = seeds[rnd() % seeds.size()];
+        const int edits = 1 + static_cast<int>(rnd() % 6);
+        for (int k = 0; k < edits && !t.empty(); ++k) {
+            size_t at = rnd() % t.size();
+            switch (rnd() % 6) {
+                case 0: t.erase(at, 1 + rnd() % 8); break;
+                case 1: t.insert(at, 1, "(){}=,;+*'\"\n\t.$-0"[rnd() % 18]); break;
+                case 2: t[at] = static_cast<char>(rnd() % 256); break;
+                case 3: t.insert(at, t.substr(rnd() % t.size(), rnd() % 40)); break;
+                case 4: t.insert(at, "\n+ "); break;
+                default: t.insert(at, "{" + std::string(rnd() % 50, '(')); break;
+            }
+        }
+        if (round % 50 == 0) {  // pure noise
+            t.clear();
+            for (int k = 0; k < 400; ++k) t += static_cast<char>(rnd() % 256);
+        }
+        SpiceLibrary lib = parseSpiceLibrary(t);
+        for (const auto& e : spiceLibraryEntries(lib)) {
+            SpiceFlatCircuit f = flattenSpiceModel(lib, e.name);
+            if (!f.ok) {
+                CHECK(!f.diagnostics.empty());
+                continue;
+            }
+            ++flattened;
+            // Simulate it on an op-amp / IC8 with a default or positional map: must return, converged or not.
+            Schematic s;
+            int v = s.addComponent(ComponentKind::VoltageSource, "1", {0, 0});
+            int u = s.addComponent(ComponentKind::IC8, "IC", {100, 0});
+            int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+            wire(s, v, "+", u, "1");
+            wire(s, v, "-", g, "GND");
+            std::string pins;
+            for (size_t p = 0; p < f.ports.size(); ++p) pins += std::to_string(p % 8 + 1) + " ";
+            s.setSpiceModel(u, SpiceModelRef{extractSpiceModel(lib, e.name), e.name, pins});
+            DcResult dc = Simulator(s).dcOperatingPoint();
+            simulated += dc.converged;
+            if (dc.converged)
+                for (double x : dc.netVoltages) CHECK(std::isfinite(x));
+        }
+    }
+    CHECK(flattened > 50);
+    CHECK(simulated > 20);
+    // Structural extremes.
+    CHECK(!parseSpiceLibrary(std::string(9u << 20, '*')).diagnostics.empty());  // over 8 MB: refused
+    std::string longLine = ".model D1 D(IS=1n";
+    for (int i = 0; i < 20000; ++i) longLine += "\n+ N=1";
+    CHECK(flattenSpiceModel(parseSpiceLibrary(longLine + ")\n"), "D1").ok);
+    std::string chain;
+    for (int i = 0; i < 60; ++i)
+        chain += ".subckt S" + std::to_string(i) + " a b\nX1 a b S" + std::to_string(i + 1) + "\n.ends\n";
+    chain += ".subckt S60 a b\nR1 a b 1k\n.ends\n";
+    SpiceFlatCircuit deep = flattenSpiceModel(parseSpiceLibrary(chain), "S0");
+    CHECK(!deep.ok && hasDiag(deep.diagnostics, SpiceDiagnostic::Level::Error, "nested more than 40"));
+    std::string wide = ".subckt W a b\n";
+    for (int i = 0; i < 12; ++i) wide += "X" + std::to_string(i) + " a b W" + std::to_string(i) + "\n";
+    wide += ".ends\n";
+    for (int i = 0; i < 12; ++i) {  // 10^6 resistors if fully expanded: refused at 100 000
+        wide += ".subckt W" + std::to_string(i) + " a b\n";
+        for (int k = 0; k < 10; ++k) wide += "X" + std::to_string(k) + " a b W" + std::to_string(i + 1) + "\n";
+        wide += ".ends\n";
+    }
+    wide += ".subckt W12 a b\nR1 a b 1\n.ends\n";
+    SpiceFlatCircuit huge = flattenSpiceModel(parseSpiceLibrary(wide), "W");
+    CHECK(!huge.ok && hasDiag(huge.diagnostics, SpiceDiagnostic::Level::Error, "100 000"));
+    const int rc = sieda_c_api_spice_test();
+    if (rc) std::printf("    SPICE C API test failed at step %d\n", rc);
+    CHECK(rc == 0);
 }

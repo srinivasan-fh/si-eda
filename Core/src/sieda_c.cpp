@@ -37,6 +37,7 @@
 #include "sieda/Robotics.hpp"
 #include "sieda/SchematicSearch.hpp"
 #include "sieda/SignalIntegrity.hpp"
+#include "sieda/SpiceModels.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
@@ -2273,6 +2274,181 @@ int32_t sieda_set_title_block(SiedaProject* project, const char* json) {
     } catch (...) {
         return 0;
     }
+}
+
+}  // extern "C"
+
+namespace {
+Json spiceDiagnosticsJson(const std::vector<SpiceDiagnostic>& diags) {
+    Json a = Json::array();
+    for (const auto& d : diags) {
+        Json j = Json::object();
+        j["level"] = spiceLevelName(d.level);
+        j["line"] = d.line;
+        j["message"] = d.message;
+        a.push(j);
+    }
+    return a;
+}
+Json stringsJson(const std::vector<std::string>& v) {
+    Json a = Json::array();
+    for (const auto& s : v) a.push(s);
+    return a;
+}
+/// The part's pins as (number, name) for the default pin map.
+std::vector<std::pair<std::string, std::string>> partPins(const Component& c) {
+    std::vector<std::pair<std::string, std::string>> pins;
+    const CustomPart* part = c.kind == ComponentKind::Custom ? CustomPartRegistry::instance().find(c.customPart) : nullptr;
+    if (part)
+        for (const auto& p : part->spec.pins) pins.push_back({p.number, p.name});
+    else
+        for (const auto& p : c.def().pins) pins.push_back({std::string(), p.name});
+    return pins;
+}
+/// Checks a model on a copy of the schematic. Fills `result` (see sieda_spice_check); false on any error.
+bool checkSpiceModel(const Schematic& schematic, int componentId, const std::string& text, const std::string& model,
+                     const std::string& pins, Json& result, std::string& error) {
+    result = Json::object();
+    const Component* c = schematic.find(componentId);
+    if (!c) {
+        error = "Unknown component.";
+        return false;
+    }
+    if (text.size() > (8u << 20)) {
+        error = "The model text is larger than 8 MB.";
+        return false;
+    }
+    SpiceLibrary lib = parseSpiceLibrary(text);
+    SpiceFlatCircuit flat = flattenSpiceModel(lib, model);
+    std::vector<SpiceDiagnostic> diags = lib.diagnostics;
+    diags.insert(diags.end(), flat.diagnostics.begin(), flat.diagnostics.end());
+    result["kind"] = flat.kind;
+    result["type"] = flat.type;
+    result["ports"] = stringsJson(flat.ports);
+    const std::string def = flat.ok ? defaultSpicePinMap(flat, partPins(*c), c->kind == ComponentKind::OpAmp) : std::string();
+    result["defaultPins"] = def;
+    result["pins"] = pins.empty() ? def : pins;
+    result["diagnostics"] = spiceDiagnosticsJson(diags);
+    if (!flat.ok) {
+        for (const auto& d : flat.diagnostics)
+            if (d.level == SpiceDiagnostic::Level::Error) {
+                error = d.message;
+                break;
+            }
+        if (error.empty()) error = "The model could not be read.";
+        return false;
+    }
+    Schematic copy = schematic;
+    SpiceModelRef ref;
+    ref.text = extractSpiceModel(lib, model);
+    ref.model = model;
+    ref.pins = pins;
+    copy.setSpiceModel(componentId, ref);
+    Simulator sim(copy);
+    std::string buildError;
+    // Only this part's problems count: an unrelated one (no ground yet, another part's value) does not block it.
+    if (!sim.check(buildError) && buildError.rfind(c->ref + ": ", 0) == 0) {
+        error = buildError;
+        return false;
+    }
+    result["text"] = ref.text;
+    return true;
+}
+}  // namespace
+
+extern "C" {
+
+char* sieda_spice_parse(const char* text) {
+    try {
+        SpiceLibrary lib = parseSpiceLibrary(str(text));
+        Json root = Json::object();
+        bool ok = true;
+        for (const auto& d : lib.diagnostics) ok = ok && d.level != SpiceDiagnostic::Level::Error;
+        root["ok"] = ok;
+        Json entries = Json::array();
+        for (const auto& e : spiceLibraryEntries(lib)) {
+            Json j = Json::object();
+            j["name"] = e.name;
+            j["kind"] = e.kind;
+            j["type"] = e.type;
+            j["ports"] = stringsJson(e.ports);
+            j["line"] = e.line;
+            entries.push(j);
+        }
+        root["entries"] = entries;
+        root["diagnostics"] = spiceDiagnosticsJson(lib.diagnostics);
+        return dup(root.dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_spice_check(const SiedaProject* project, int32_t component_id, const char* text, const char* model,
+                        const char* pins) {
+    if (!project) return nullptr;
+    try {
+        Json result;
+        std::string error;
+        bool ok = checkSpiceModel(project->project.schematic, component_id, str(text), str(model), str(pins), result,
+                                  error);
+        result["ok"] = ok;
+        result["error"] = error;
+        if (result.has("text")) result["text"] = "";  // the stored text: sieda_component_spice_model after attaching
+        return dup(result.dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+int32_t sieda_set_spice_model(SiedaProject* project, int32_t component_id, const char* text, const char* model,
+                              const char* pins, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    auto fail = [&](const std::string& message) {
+        if (error_out) *error_out = dup(message);
+        return 0;
+    };
+    if (!project) return fail("No project.");
+    try {
+        Schematic& s = project->project.schematic;
+        if (!s.find(component_id)) return fail("Unknown component.");
+        if (str(text).empty()) {
+            s.setSpiceModel(component_id, SpiceModelRef{});
+            return 1;
+        }
+        Json result;
+        std::string error;
+        if (!checkSpiceModel(s, component_id, str(text), str(model), str(pins), result, error)) return fail(error);
+        SpiceModelRef ref;
+        ref.text = result.get("text").asString("");
+        ref.model = str(model);
+        ref.pins = str(pins);
+        s.setSpiceModel(component_id, ref);
+        return 1;
+    } catch (const std::exception& e) {
+        return fail(e.what());
+    }
+}
+
+char* sieda_component_spice_model(const SiedaProject* project, int32_t component_id) {
+    if (!project) return nullptr;
+    const Component* c = project->project.schematic.find(component_id);
+    Json j = Json::object();
+    j["text"] = c ? c->spice.text : std::string();
+    j["model"] = c ? c->spice.model : std::string();
+    j["pins"] = c ? c->spice.pins : std::string();
+    return dup(j.dump());
+}
+
+char* sieda_spice_builtin_models(void) {
+    Json a = Json::array();
+    for (const auto& m : builtinSpiceModels()) {
+        Json j = Json::object();
+        j["name"] = m.name;
+        j["description"] = m.description;
+        j["text"] = m.text;
+        a.push(j);
+    }
+    return dup(a.dump());
 }
 
 }  // extern "C"
