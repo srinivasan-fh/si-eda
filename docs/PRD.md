@@ -54,7 +54,7 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 (Shipped since v1: up to 24 layers, copper pours and planes with thermal reliefs, differential pairs, length tuning,
 HDI vias and BGA fan-out.)
 
-1. KiCad `.kicad_mod` / Altium footprint import into the Footprint Editor (user component libraries shipped).
+1. ~~KiCad footprint import~~ shipped: Library Import reads KiCad `.kicad_mod` / `.kicad_sym` and Eagle `.lbr` libraries into project parts ([LIBRARY_IMPORT.md](LIBRARY_IMPORT.md)). Altium binary libraries (`.SchLib`, `.PcbLib`, `.IntLib`) are not supported; convert them in KiCad 8+ first. Still open: choosing the footprint for a symbol in the import sheet, and 3D model import.
 2. AC small-signal analysis and Bode plots.
 3. Push-and-shove interactive routing.
 4. Team collaboration through a shared project repository.
