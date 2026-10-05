@@ -141,7 +141,7 @@ struct PowerPlanningSection: View {
     @ViewBuilder private var planSection: some View {
         if let p = plan, p.needed {
             Text("Decoupling plan").font(.headline).foregroundStyle(Theme.textPrimary)
-            Text(verbatim: String(format: "|Z| / target %.2f → %.2f · mounting ", p.worstBefore, p.worstAfter)
+            Text(verbatim: String(format: "|Z| / Zt %.2f → %.2f · L ", p.worstBefore, p.worstAfter)
                  + EngineeringFormat.string(p.mounting, unit: "H", digits: 2))
                 .font(.callout.monospacedDigit()).foregroundStyle(p.compliant ? Theme.success : Theme.warning)
             ForEach(p.additions) { a in
@@ -170,13 +170,13 @@ struct PowerPlanningSection: View {
                 .labelsHidden()
                 .frame(width: 240)
             }
-            Text(verbatim: "Worst " + EngineeringFormat.string(m.worst, unit: "V", digits: 3) + " / "
-                 + EngineeringFormat.string(m.limit, unit: "V", digits: 3) + " · max "
+            Text(verbatim: "ΔV " + EngineeringFormat.string(m.worst, unit: "V", digits: 3) + " / "
+                 + EngineeringFormat.string(m.limit, unit: "V", digits: 3) + " · J ≤ "
                  + String(format: "%.1f A/mm²", m.maxDensity))
                 .font(.callout.monospacedDigit()).foregroundStyle(m.worst > m.limit ? Theme.warning : Theme.textSecondary)
             IRDropMapView(map: m, density: showDensity).frame(height: 280)
             ForEach(Array(m.hotspots.prefix(3).enumerated()), id: \.offset) { _, h in
-                Text(verbatim: String(format: "%.1f A/mm² at (%.1f, %.1f) mm", h.density, h.x, h.y))
+                Text(verbatim: String(format: "%.1f A/mm² @ (%.1f, %.1f) mm", h.density, h.x, h.y))
                     .font(.caption.monospacedDigit()).foregroundStyle(h.density > 30 ? Theme.warning : Theme.textMuted)
             }
         }

@@ -277,18 +277,24 @@ struct ChannelPanel: View {
     @ViewBuilder private func importedSection(_ t: SITouchstoneReport) -> some View {
         Divider()
         Text("Imported channel").font(.headline).foregroundStyle(Theme.textPrimary)
-        Text(verbatim: "\(imported?.name ?? "") · \(t.ports)-port · \(t.points) points · "
-             + EngineeringFormat.string(t.fMin, unit: "Hz", digits: 3) + " – " + EngineeringFormat.string(t.fMax, unit: "Hz", digits: 3)
-             + " · " + String(format: "%.0f Ω", t.z0))
-            .font(.callout).foregroundStyle(Theme.textSecondary)
+        Text(verbatim: importedSummary(t)).font(.callout).foregroundStyle(Theme.textSecondary)
         if let error = t.error { Text(verbatim: error).foregroundStyle(Theme.warning) }
         SParameterChart(freq: t.freq, curves: t.curves, nyquist: options.bitRate / 2)
         if let e = t.eye, e.error.isEmpty {
-            Text(verbatim: "Eye height " + EngineeringFormat.string(e.eyeHeight, unit: "V", digits: 3) + " · width "
-                 + EngineeringFormat.string(e.eyeWidth, unit: "s", digits: 3))
-                .font(.callout.monospacedDigit()).foregroundStyle(e.open ? Theme.probe : Theme.warning)
+            HStack(spacing: 18) {
+                metric("Eye height", EngineeringFormat.string(e.eyeHeight, unit: "V", digits: 3), warn: !e.open)
+                metric("Eye width", EngineeringFormat.string(e.eyeWidth, unit: "s", digits: 3), warn: !e.open)
+                metric("Total jitter", EngineeringFormat.string(e.totalJitter, unit: "s", digits: 3))
+            }
             EyeDiagramView(eye: e, maskHeight: options.maskHeight, maskWidthUi: options.maskWidthUi).frame(height: 220)
         }
+    }
+
+    /// "cable.s4p · 4-port · 801 points · 10 MHz – 40 GHz · 50 Ω"
+    private func importedSummary(_ t: SITouchstoneReport) -> String {
+        let name = imported?.name ?? ""
+        let band = EngineeringFormat.string(t.fMin, unit: "Hz", digits: 3) + " – " + EngineeringFormat.string(t.fMax, unit: "Hz", digits: 3)
+        return "\(name) · \(t.ports)-port · \(t.points) points · \(band) · " + String(format: "%.0f Ω", t.z0)
     }
 
     private var lineLossSection: some View {
