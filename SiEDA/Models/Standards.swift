@@ -92,6 +92,76 @@ enum ESeries: Int, CaseIterable, Identifiable {
     }
 }
 
+/// Parametric part search, typed into the library and device-picker search fields:
+/// `cat:sensors pkg:soic pins:8 mfr:ti 3.3 V`. Filters: `cat:` category, `pkg:` package (type or name, "sot-23"
+/// matches SOT23), `pins:` pin count (`8`, `6-10`, `>40`, `<8`), `mfr:` manufacturer. Every other word must appear
+/// in the part's name, description, category, manufacturer or package. All terms must match.
+struct PartQuery: Equatable {
+    var words: [String] = []
+    var categories: [String] = []
+    var packages: [String] = []
+    var manufacturers: [String] = []
+    var pinRange: ClosedRange<Int>?
+
+    init(_ text: String) {
+        for raw in text.lowercased().split(whereSeparator: \.isWhitespace).map(String.init) {
+            guard let colon = raw.firstIndex(of: ":"), colon != raw.startIndex else {
+                words.append(raw)
+                continue
+            }
+            let key = String(raw[..<colon]), value = String(raw[raw.index(after: colon)...])
+            guard !value.isEmpty else { continue }
+            switch key {
+            case "cat", "category": categories.append(value)
+            case "pkg", "package": packages.append(Self.compact(value))
+            case "mfr", "maker", "manufacturer": manufacturers.append(value)
+            case "pins", "pin":
+                if let range = Self.range(value) { pinRange = range } else { words.append(raw) }
+            default: words.append(raw)
+            }
+        }
+    }
+
+    var isEmpty: Bool { words.isEmpty && categories.isEmpty && packages.isEmpty && manufacturers.isEmpty && pinRange == nil }
+
+    /// Lower case without separators, so "SOT-23-5", "sot23 5" and "SOT23" compare alike.
+    static func compact(_ s: String) -> String { s.lowercased().filter { $0.isLetter || $0.isNumber } }
+
+    /// "8" → 8…8, "6-10" → 6…10, ">40" → 41…, "<8" → …7, ">=40" / "<=8" inclusive.
+    static func range(_ value: String) -> ClosedRange<Int>? {
+        if value.hasPrefix(">=") { return Int(value.dropFirst(2)).map { $0...Int.max } }
+        if value.hasPrefix("<=") { return Int(value.dropFirst(2)).map { 0...max($0, 0) } }
+        if value.hasPrefix(">") { return Int(value.dropFirst()).map { ($0 + 1)...Int.max } }
+        if value.hasPrefix("<") { return Int(value.dropFirst()).flatMap { $0 >= 1 ? 0...($0 - 1) : nil } }
+        let bounds = value.split(separator: "-", maxSplits: 1).map { Int($0) }
+        if bounds.count == 2, let lo = bounds[0], let hi = bounds[1], lo <= hi { return lo...hi }
+        if bounds.count == 1, let n = bounds[0] { return n...n }
+        return nil
+    }
+
+    func matches(name: String, description: String, category: String, manufacturer: String, package: String,
+                 pinCount: Int) -> Bool {
+        let category = category.lowercased(), manufacturer = manufacturer.lowercased(), packageKey = Self.compact(package)
+        if !categories.allSatisfy({ category.contains($0) }) { return false }
+        if !manufacturers.allSatisfy({ manufacturer.contains($0) }) { return false }
+        if !packages.allSatisfy({ packageKey.contains($0) }) { return false }
+        if let pinRange, !pinRange.contains(pinCount) { return false }
+        let haystack = [name, description, category, manufacturer, package].joined(separator: " ").lowercased()
+        return words.allSatisfy { haystack.contains($0) }
+    }
+
+    func matches(_ part: StandardPart) -> Bool {
+        matches(name: part.spec.name, description: part.spec.description, category: part.category,
+                manufacturer: part.spec.manufacturer, package: "\(part.spec.package.type)-\(part.spec.package.pinCount)",
+                pinCount: part.spec.pins.count)
+    }
+
+    func matches(_ part: CustomPartInfo) -> Bool {
+        matches(name: part.name, description: part.description, category: "", manufacturer: part.manufacturer,
+                package: part.footprint, pinCount: part.pins.count)
+    }
+}
+
 /// A part from the core's built-in standard library (NE555, LM7805, LM358, ATmega328P, …).
 struct StandardPart: Decodable, Equatable, Identifiable {
     var category: String

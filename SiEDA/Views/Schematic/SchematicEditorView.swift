@@ -212,19 +212,18 @@ struct DevicePicker: View {
         return ComponentKind.builtIn.filter { q.isEmpty || $0.displayName.lowercased().contains(q) || $0.planName.contains(q) }
     }
 
+    /// Parametric search (`PartQuery`): words, or filters such as `cat:sensors pkg:soic pins:8 mfr:ti`.
     private var filteredCustom: [CustomPartInfo] {
-        let q = search.lowercased()
-        return customParts.filter { q.isEmpty || $0.name.lowercased().contains(q) || $0.description.lowercased().contains(q) }
+        let query = PartQuery(search)
+        return customParts.filter { query.isEmpty || query.matches($0) }
     }
 
     /// Standard parts not yet in the project library (those already added show under Custom Parts).
     private var filteredStandard: [StandardPart] {
-        let q = search.lowercased()
+        let query = PartQuery(search)
         let inLibrary = Set(customParts.map(\.name))
         return StandardLibrary.parts.filter { part in
-            !inLibrary.contains(part.spec.name)
-                && (q.isEmpty || part.spec.name.lowercased().contains(q) || part.spec.description.lowercased().contains(q)
-                    || part.category.lowercased().contains(q))
+            !inLibrary.contains(part.spec.name) && (query.isEmpty || query.matches(part))
         }
     }
 
@@ -262,6 +261,7 @@ struct DevicePicker: View {
             .padding(.top, 10)
             TextField("Search devices", text: $search)
                 .textFieldStyle(.blue)
+                .help("Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti")
                 .padding(8)
             // A plain lazy scroll view, not a `List` (an AppKit table): with the full parts catalog the table was
             // updated re-entrantly while a design loaded, which AppKit warns will become an assert.

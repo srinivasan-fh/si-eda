@@ -135,14 +135,13 @@ struct ComponentLibraryView: View {
         return Set(kit.flatMap(\.parts))
     }
 
-    /// Standard parts matching a search (name, category, manufacturer or description) and, if set, a robot kit.
+    /// Standard parts matching a search and, if set, a robot kit. The search is a `PartQuery`: words in the name,
+    /// category, manufacturer, description or package, and filters such as `cat:sensors pkg:soic pins:8 mfr:ti`.
     static func filterStandard(_ parts: [StandardPart], search: String, kit: Set<String>?) -> [StandardPart] {
-        let query = search.trimmingCharacters(in: .whitespaces).lowercased()
+        let query = PartQuery(search)
         return parts.filter { part in
             if let kit, !kit.contains(part.spec.name) { return false }
-            guard !query.isEmpty else { return true }
-            return [part.spec.name, part.category, part.spec.manufacturer, part.spec.description]
-                .contains { $0.lowercased().contains(query) }
+            return query.isEmpty || query.matches(part)
         }
     }
 
@@ -166,6 +165,7 @@ struct ComponentLibraryView: View {
                 TextField("Search parts", text: $standardSearch)
                     .textFieldStyle(.roundedBorder)
                     .accessibilityLabel("Search the standard library")
+                    .help("Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti")
                 Picker("", selection: $kitFilter) {
                     Text("All").tag("")
                     ForEach(robotKits) { Text($0.name).tag($0.id) }

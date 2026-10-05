@@ -418,3 +418,4 @@
 "Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "I-import ang mga library ng KiCad (.kicad_mod, .kicad_sym) o Eagle (.lbr)";
 "Import Library" = "I-import ang Library";
 "Add Selected Parts" = "Idagdag ang mga Napiling Piyesa";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "Mga salita, o mga filter: cat:sensors pkg:soic pins:8 mfr:ti";

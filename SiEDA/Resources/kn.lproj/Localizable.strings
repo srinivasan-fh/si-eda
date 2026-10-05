@@ -418,3 +418,4 @@
 "Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad (.kicad_mod, .kicad_sym) ಅಥವಾ Eagle (.lbr) ಲೈಬ್ರರಿಗಳನ್ನು ಆಮದು ಮಾಡಿ";
 "Import Library" = "ಲೈಬ್ರರಿ ಆಮದು";
 "Add Selected Parts" = "ಆಯ್ಕೆ ಮಾಡಿದ ಭಾಗಗಳನ್ನು ಸೇರಿಸಿ";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "ಪದಗಳು, ಅಥವಾ ಫಿಲ್ಟರ್‌ಗಳು: cat:sensors pkg:soic pins:8 mfr:ti";
