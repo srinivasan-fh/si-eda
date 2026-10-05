@@ -1,4 +1,5 @@
 #include "sieda/Mesh.hpp"
+#include "sieda/Model3D.hpp"
 
 #include "sieda/Embedded.hpp"
 
@@ -414,6 +415,10 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
             if (!c.hasFootprint() || !c.pcb.placed || embeddedElement(c, s)) continue;  // embedded: inside the board
             const FootprintDef* fp = Library::instance().footprint(c.footprintName());
             if (!fp) continue;
+            // An imported 3D model (VRML / STL / OBJ) replaces the generated body, leads and pins.
+            if (c.kind == ComponentKind::Custom)
+                if (const CustomPart* part = CustomPartRegistry::instance().find(c.customPart))
+                    if (appendModel3D(m, part->spec.model3d, c.pcb, cu, -t - cu)) continue;
             const BodyDef& b = fp->body;
             double w = b.width, d = b.depth;
             if (((c.pcb.rotation / 90) % 2 + 2) % 2 == 1) std::swap(w, d);

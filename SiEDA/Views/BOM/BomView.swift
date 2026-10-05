@@ -7,6 +7,7 @@ struct BomView: View {
     @EnvironmentObject private var store: DesignStore
     @State private var report = BomReport.empty
     @State private var filter = Filter.all
+    @State private var showLivePricing = false
 
     enum Filter: String, CaseIterable, Identifiable {
         case all = "All", missing = "Needs Attention", dnp = "DNP"
@@ -39,6 +40,9 @@ struct BomView: View {
                 .disabled(!report.lines.contains { $0.mpn.isEmpty && !$0.suggestedMpn.isEmpty })
                 .help("Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 "
                       + "resistors, semiconductor part numbers). Undo reverts it.")
+                Button { showLivePricing = true } label: { Label("Live Pricing…", systemImage: "shippingbox") }
+                    .disabled(report.lines.isEmpty)
+                    .help("Stock, prices, lifecycle (EOL / NRND) and cost per build quantity from Octopart, DigiKey and Mouser")
                 Spacer()
                 Stepper(value: Binding(get: { report.buildQuantity }, set: { store.setBuildQuantity($0) }), in: 1...100_000) {
                     Text("Boards: \(report.buildQuantity)").monospacedDigit()
@@ -79,6 +83,7 @@ struct BomView: View {
         }
         .background(Theme.navy)
         .task(id: store.revision) { report = store.bomReport }
+        .sheet(isPresented: $showLivePricing) { BomLivePricingView(report: report).environmentObject(store) }
     }
 
     private var summary: some View {

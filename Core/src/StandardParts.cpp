@@ -621,6 +621,10 @@ std::vector<StandardPart> build() {
 #include "StandardMcus.inc"
     // Production catalog for robotics, automotive and industrial boards (generated: tools/fetch_catalog_parts.py).
 #include "StandardCatalog.inc"
+    // Catalog growth from whole KiCad libraries: regulators, interface, logic, data converters, memory, MCUs,
+    // drivers, sensors, pin headers (generated: tools/fetch_catalog_parts.py --extra; frozen list in
+    // tools/catalog_extra_parts.tsv).
+#include "StandardCatalogExtra.inc"
     // Microcontroller clock crystals in the packages fabs stock (HC-49 through-hole, 3225 SMD, 3215 / cylinder 32 kHz).
     parts.push_back(part("Timing", "Crystal_16MHz", "Generic", "16 MHz crystal, HC-49/S, ±30 ppm, 20 pF load (2 × 22 pF caps)",
                          "HC49", 2, "Y", {{"1", T::Passive}, {"2", T::Passive}}));

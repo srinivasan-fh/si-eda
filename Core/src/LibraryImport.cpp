@@ -1,6 +1,10 @@
 #include "sieda/LibraryImport.hpp"
+#include "sieda/AltiumLibrary.hpp"
+#include "sieda/Model3D.hpp"
 
 #include <algorithm>
+#include <tuple>
+#include <memory>
 #include <cctype>
 #include <cmath>
 #include <cstdint>
@@ -553,6 +557,8 @@ void finishLands(ImportedFootprint& fp, const std::vector<RawPad>& pads, const B
         centreBox.add(body);
     }
     const double cx = tidy((centreBox.x0 + centreBox.x1) / 2), cy = tidy((centreBox.y0 + centreBox.y1) / 2);
+    fp.centreX = cx;
+    fp.centreY = cy;
     if (std::fabs(cx) > 0.01 || std::fabs(cy) > 0.01)
         fp.warnings.push_back("Origin moved to the centre of the footprint (by " + fmt(tidy(-cx)) + ", " + fmt(tidy(-cy)) + " mm).");
     fp.package = PackageSpec{};
@@ -855,6 +861,32 @@ ImportedFootprint parseKicadFootprint(const std::string& text, const std::string
                 ++grown;
             }
             (bottomOnly ? bottomPads : pads).push_back(p);
+        } else if (h == "model" && fp.modelPath.empty()) {
+            // (model "path" (hide yes) (offset (xyz …)) (scale (xyz …)) (rotate (xyz …))); KiCad 5 writes the offset
+            // as (at (xyz …)) in inches. KiCad turns models by the negative of the written angles.
+            const SNode* hide = k.child("hide");
+            if (k.hasAtom("hide") || (hide && hide->atom(1) != "no")) continue;
+            fp.modelPath = clean(k.atom(1), 400);
+            auto xyz = [&](const char* name, std::array<double, 3> def, double factor) {
+                const SNode* n = k.child(name);
+                const SNode* v = n ? n->child("xyz") : nullptr;
+                if (!v) return def;
+                std::array<double, 3> out{};
+                for (size_t i = 0; i < 3; ++i) {
+                    out[i] = num(v, i + 1, def[i]) * factor;
+                    if (!std::isfinite(out[i])) out[i] = def[i];
+                }
+                return out;
+            };
+            Model3DRef& a = fp.modelAlign;
+            a.offset = k.child("offset") ? xyz("offset", {0, 0, 0}, 1.0) : xyz("at", {0, 0, 0}, 25.4);
+            a.scale = xyz("scale", {1, 1, 1}, 1.0);
+            const auto r = xyz("rotate", {0, 0, 0}, 1.0);
+            a.rotate = {-r[0], -r[1], -r[2]};
+            for (auto& s : a.scale)
+                if (!(s > 1e-6 && s <= 1000)) s = 1;
+            for (auto& o : a.offset) o = std::clamp(o, -200.0, 200.0);
+            for (auto& d : a.rotate) d = std::clamp(d, -3600.0, 3600.0);
         } else if (h == "fp_line" || h == "fp_rect" || h == "fp_circle" || h == "fp_arc" || h == "fp_poly") {
             const SNode* layer = k.child("layer");
             const std::string l = layer ? layer->atom(1) : std::string();
@@ -1327,6 +1359,160 @@ void parseEagleLibrary(const std::string& text, const std::string& source, Libra
     }
 }
 
+// ------------------------------------------------------------------ Altium (.SchLib, .PcbLib)
+
+namespace {
+
+PinType altiumPinType(int electrical) {
+    switch (electrical) {
+        case 0: return PinType::Input;
+        case 1: return PinType::Bidirectional;
+        case 2: return PinType::Output;
+        case 3: return PinType::OpenCollector;
+        case 5: return PinType::Bidirectional;   // hi-Z (tri-state)
+        case 6: return PinType::OpenCollector;   // open emitter
+        case 7: return PinType::PowerIn;
+        default: return PinType::Passive;
+    }
+}
+
+ImportedSymbol altiumSymbol(const AltiumSymbol& a, const std::string& source) {
+    ImportedSymbol sym;
+    sym.name = clean(a.name, 80);
+    sym.value = sym.name;
+    sym.refPrefix = refPrefixOf(a.designatorPrefix);
+    sym.description = clean(a.description, 300);
+    sym.footprint = clean(a.footprint, 120);
+    sym.source = source;
+    sym.units = a.partCount;
+    auto param = [&](std::initializer_list<const char*> names) {
+        for (const char* n : names)
+            for (const auto& kv : a.parameters)
+                if (upper(kv.first) == upper(n)) return clean(kv.second, 300);
+        return std::string();
+    };
+    sym.manufacturer = param({"Manufacturer", "Manufacturer 1", "MFR"});
+    sym.datasheet = param({"Datasheet", "DatasheetURL", "HelpURL", "ComponentLink1URL"});
+    std::set<std::string> seen;
+    std::vector<PlacedPin> placed;
+    for (const auto& p : a.pins) {
+        CustomPin pin;
+        pin.number = clean(p.designator, 16);
+        if (pin.number.empty() || !seen.insert(upper(pin.number)).second) continue;
+        pin.name = clean(p.name, 40);
+        if (pin.name.empty()) pin.name = pin.number;
+        pin.type = altiumPinType(p.electrical);
+        sym.pins.push_back(pin);
+        PlacedPin pp;
+        pp.number = pin.number;
+        pp.name = pin.name;
+        pp.side = p.side;
+        pp.x = p.x;
+        pp.y = p.y;
+        pp.unit = p.part;
+        pp.hidden = p.hidden;
+        pp.ground = groundName(pin.name);
+        pp.power = pin.type == PinType::PowerIn;
+        placed.push_back(pp);
+    }
+    promoteRepeatedSupplies(sym.pins);
+    sym.symbol = layoutFromPositions(placed);
+    for (const auto& w : a.warnings) sym.warnings.push_back(clean(w, 200));
+    return sym;
+}
+
+ImportedFootprint altiumFootprint(const AltiumFootprint& a, const std::string& source) {
+    ImportedFootprint fp;
+    fp.name = clean(a.name, 80);
+    if (fp.name.empty()) throw ImportError("a footprint has no name");
+    fp.description = clean(a.description, 300);
+    fp.source = source;
+    std::vector<RawPad> pads;
+    int holes = 0, bottom = 0, oblique = 0, grown = 0;
+    for (const auto& p : a.pads) {
+        if (p.drill > 0 && !p.plated) {
+            ++holes;
+            continue;
+        }
+        RawPad r;
+        r.number = clean(p.name, 16);
+        r.x = tidy(p.x);
+        r.y = tidy(p.y);
+        r.w = p.w;
+        r.h = p.h;
+        bool angled = false;
+        rotateSize(p.rotation, r.w, r.h, angled);
+        oblique += angled;
+        r.drill = p.drill > 0 ? tidy(p.drill) : 0;
+        if (r.drill > 0 && r.drill > std::min(r.w, r.h) - 0.2) {
+            r.w = std::max(r.w, r.drill + 0.2);
+            r.h = std::max(r.h, r.drill + 0.2);
+            ++grown;
+        }
+        r.w = tidy(r.w);
+        r.h = tidy(r.h);
+        r.round = p.shape == 1;
+        if (p.layer == 32 && r.drill == 0) ++bottom;
+        pads.push_back(r);
+    }
+    Box body;
+    if (a.hasOutline) {
+        body.add(a.outlineX0, a.outlineY0);
+        body.add(a.outlineX1, a.outlineY1);
+    }
+    finishLands(fp, pads, Box{}, body);
+    if (holes)
+        fp.warnings.push_back(std::to_string(holes) +
+                              " non-plated hole(s) not imported (mounting / locating holes: add them on the board).");
+    if (oblique) fp.warnings.push_back(std::to_string(oblique) + " pad(s) at an angle imported as their bounding box.");
+    if (bottom) fp.warnings.push_back(std::to_string(bottom) + " bottom-side pad(s) imported on the top side.");
+    if (grown) fp.warnings.push_back(std::to_string(grown) + " pad(s) enlarged to leave a 0.1 mm ring around the drill.");
+    for (const auto& w : a.warnings) fp.warnings.push_back(clean(w, 200));
+    return fp;
+}
+
+/// An Altium binary library: symbols (.SchLib) or footprints (.PcbLib).
+void importAltium(const ImportFile& f, const std::string& name, LibraryImport& out, LibraryImport::FileResult& res) {
+    if (!CompoundFile::looksLikeCompoundFile(f.content))
+        throw ImportError("this Altium library is not a binary (OLE compound) file: ASCII Altium libraries are not "
+                          "supported; save it as a binary .SchLib / .PcbLib in Altium");
+    std::unique_ptr<CompoundFile> cfb;
+    try {
+        cfb = std::make_unique<CompoundFile>(f.content);
+    } catch (const CfbError& e) {
+        throw ImportError(std::string("Altium library: the compound file is damaged (") + e.what() + ")");
+    }
+    const std::string kind = altiumLibraryKind(*cfb, f.name);
+    if (kind == "intlib")
+        throw ImportError("Altium integrated libraries (.IntLib) are not read: extract the .SchLib and .PcbLib inside it "
+                          "(Altium: Extract Sources; or KiCad 8) and import those");
+    try {
+        if (kind == "schlib") {
+            for (const auto& a : readAltiumSchLib(*cfb)) {
+                if (out.symbols.size() >= kMaxParts) throw ImportError("too many symbols in one import");
+                out.symbols.push_back(altiumSymbol(a, name));
+                ++res.symbols;
+            }
+        } else if (kind == "pcblib") {
+            for (const auto& a : readAltiumPcbLib(*cfb)) {
+                if (out.footprints.size() >= kMaxParts) throw ImportError("too many footprints in one import");
+                try {
+                    out.footprints.push_back(altiumFootprint(a, name));
+                    ++res.footprints;
+                } catch (const ImportError& e) {
+                    res.error += (res.error.empty() ? "" : "; ") + clean(a.name, 80) + ": " + e.what();
+                }
+            }
+        } else {
+            throw ImportError("Altium compound file of an unknown kind: import .SchLib or .PcbLib files");
+        }
+    } catch (const CfbError& e) {
+        throw ImportError(std::string("Altium library: ") + e.what());
+    }
+}
+
+}  // namespace
+
 // ------------------------------------------------------------------ pairing and validation
 
 namespace {
@@ -1542,6 +1728,7 @@ std::string detectFormat(const ImportFile& f) {
     if (ext == "lbr") return "eagle_lbr";
     if (f.content.compare(0, 4, "\xD0\xCF\x11\xE0") == 0 || ext == "schlib" || ext == "pcblib" || ext == "intlib")
         return "altium";
+    if (isModel3DFile(f.name)) return "model3d";
     if (ext == "lib" || f.content.find("EESchema-LIBRARY") != std::string::npos) return "kicad5_lib";
     size_t i = 0;
     while (i < f.content.size() && i < 4096 && std::isspace(static_cast<unsigned char>(f.content[i]))) ++i;
@@ -1590,8 +1777,55 @@ std::string baseName(const std::string& footprintRef) {
 
 }  // namespace
 
+namespace {
+/// File name without directories and extension, lower case ("${KICAD8_3DMODEL_DIR}/Package_SO.3dshapes/SOIC-8.wrl"
+/// → "soic-8").
+std::string modelStem(const std::string& path) {
+    const size_t slash = path.find_last_of("/\\");
+    std::string name = slash == std::string::npos ? path : path.substr(slash + 1);
+    const size_t dot = name.rfind('.');
+    if (dot != std::string::npos) name.resize(dot);
+    return lower(name);
+}
+
+struct ImportedModel {
+    std::string id, name, format;
+};
+
+/// Attaches the imported 3D model each footprint names (by file name; a .step reference takes the .wrl / .stl /
+/// .obj of the same name) to the parts that use the footprint.
+void attachModels(LibraryImport& out, const std::map<std::string, ImportedModel>& models) {
+    for (auto& part : out.parts) {
+        if (part.footprintName.empty()) continue;
+        const ImportedFootprint* fp = nullptr;
+        for (const auto& f : out.footprints)
+            if (f.name == part.footprintName && part.source.find(f.source) != std::string::npos) fp = &f;
+        if (!fp || fp->modelPath.empty()) continue;
+        auto it = models.find(modelStem(fp->modelPath));
+        if (it == models.end()) {
+            const size_t slash = fp->modelPath.find_last_of("/\\");
+            const std::string file = slash == std::string::npos ? fp->modelPath : fp->modelPath.substr(slash + 1);
+            part.warnings.push_back("3D model " + clean(file, 120) + " is not in the import: add the library's .3dshapes "
+                                    "folder (its .wrl files) to attach it");
+            continue;
+        }
+        Model3DRef ref = fp->modelAlign;
+        ref.id = it->second.id;
+        ref.name = it->second.name;
+        ref.unit = defaultModelUnit(it->second.format);
+        // The model moves with the pads when the land pattern is centred (model y points up the footprint).
+        ref.offset[0] = std::clamp(tidy(ref.offset[0] - fp->centreX), -200.0, 200.0);
+        ref.offset[1] = std::clamp(tidy(ref.offset[1] + fp->centreY), -200.0, 200.0);
+        part.spec.model3d = ref;
+        part.warnings.push_back("3D model " + ref.name + " attached");
+    }
+}
+
+}  // namespace
+
 LibraryImport importLibraryFiles(const std::vector<ImportFile>& files, const std::map<std::string, std::string>& pairs) {
     LibraryImport out;
+    std::map<std::string, ImportedModel> models;  // file stem → registered mesh
     for (const auto& f : files) {
         LibraryImport::FileResult fr;
         fr.name = clean(f.name, 200);
@@ -1610,8 +1844,13 @@ LibraryImport importLibraryFiles(const std::vector<ImportFile>& files, const std
             } else if (fr.format == "eagle_lbr") {
                 parseEagleLibrary(f.content, fr.name, out);
             } else if (fr.format == "altium") {
-                throw ImportError("Altium binary libraries (.SchLib, .PcbLib, .IntLib) are not supported. Import them "
-                                  "into KiCad (8 or later) and import the .kicad_sym / .kicad_mod files here.");
+                importAltium(f, fr.name, out, res);
+            } else if (fr.format == "model3d") {
+                if (models.size() >= 2000) throw ImportError("too many 3D models in one import");
+                Model3DMesh mesh = parseModel3D(f.content, fr.name);
+                const std::string format = mesh.format;
+                const std::string id = Model3DRegistry::instance().add(std::move(mesh));
+                models[modelStem(fr.name)] = {id, fr.name, format};
             } else if (fr.format == "kicad5_lib") {
                 throw ImportError("KiCad 5 .lib symbol libraries are not supported: open the library in KiCad 6 or "
                                   "later and save it as .kicad_sym");
@@ -1717,12 +1956,47 @@ LibraryImport importLibraryFiles(const std::vector<ImportFile>& files, const std
             out.parts.size() < kMaxParts)
             out.parts.push_back(makeImportedPart(nullptr, &out.footprints[i]));  // an Eagle package no device uses
     }
+    attachModels(out, models);
+    return out;
+}
+
+std::vector<std::string> footprintCandidates(const LibraryImport& result, const ImportedSymbol& sym) {
+    struct Scored {
+        int exactCount, named, filtered;
+        size_t padGap;
+        std::string name;
+    };
+    std::vector<Scored> found;
+    std::set<std::string> eagleFiles;
+    for (const auto& f : result.files)
+        if (f.format == "eagle_lbr") eagleFiles.insert(f.name);
+    for (const auto& fp : result.footprints) {
+        if (eagleFiles.count(fp.source) || !coversPins(fp, sym)) continue;
+        std::set<std::string> pads;
+        for (const auto& n : fp.padNumbers) pads.insert(upper(n));
+        bool filtered = false;
+        for (const auto& f : sym.footprintFilters) filtered = filtered || globMatch(f, fp.name);
+        const size_t pins = sym.pins.size();
+        found.push_back({pads.size() == pins ? 0 : 1, upper(baseName(sym.footprint)) == upper(fp.name) ? 0 : 1,
+                         filtered ? 0 : 1, pads.size() > pins ? pads.size() - pins : pins - pads.size(), fp.name});
+    }
+    std::sort(found.begin(), found.end(), [](const Scored& a, const Scored& b) {
+        return std::tie(a.named, a.exactCount, a.filtered, a.padGap, a.name) <
+               std::tie(b.named, b.exactCount, b.filtered, b.padGap, b.name);
+    });
+    std::vector<std::string> out;
+    for (const auto& s : found) {
+        if (out.size() >= 30) break;
+        if (std::find(out.begin(), out.end(), s.name) == out.end()) out.push_back(s.name);
+    }
     return out;
 }
 
 Json libraryImportToJson(const LibraryImport& result) {
     Json j = Json::object();
     Json parts = Json::array();
+    std::map<std::string, const ImportedSymbol*> symbolsByName;  // KiCad / Altium symbols: their footprint can be chosen
+    for (const auto& s : result.symbols) symbolsByName.emplace(s.name, &s);
     for (const auto& p : result.parts) {
         Json pj = Json::object();
         pj["name"] = p.spec.name;
@@ -1735,9 +2009,31 @@ Json libraryImportToJson(const LibraryImport& result) {
         for (const auto& s : p.warnings) w.push(s);
         pj["warnings"] = w;
         pj["spec"] = customPartSpecToJson(p.spec);
+        auto sym = p.symbolName.empty() ? symbolsByName.end() : symbolsByName.find(p.symbolName);
+        if (sym != symbolsByName.end()) {
+            pj["pairable"] = true;
+            Json c = Json::array();
+            for (const auto& name : footprintCandidates(result, *sym->second)) c.push(name);
+            pj["candidates"] = c;
+        }
         parts.push(pj);
     }
     j["parts"] = parts;
+    Json list = Json::array();
+    {
+        std::set<std::string> eagleFiles;
+        for (const auto& f : result.files)
+            if (f.format == "eagle_lbr") eagleFiles.insert(f.name);
+        for (const auto& fp : result.footprints) {
+            if (eagleFiles.count(fp.source) || list.size() >= 2000) continue;
+            Json fj = Json::object();
+            fj["name"] = fp.name;
+            fj["source"] = fp.source;
+            fj["pads"] = static_cast<int>(fp.package.lands.size());
+            list.push(fj);
+        }
+    }
+    j["footprintList"] = list;
     Json files = Json::array();
     for (const auto& f : result.files) {
         Json fj = Json::object();
@@ -1759,7 +2055,15 @@ Json importLibraryRequest(const Json& request) {
     std::map<std::string, std::string> pairs;
     for (const auto& f : request.get("files").items()) {
         if (!f.isObject()) continue;
-        files.push_back({f.get("name").asString(""), f.get("content").asString("")});
+        std::string content = f.get("content").asString("");
+        if (f.get("contentBase64").isString()) {  // binary files (STL, Altium libraries)
+            try {
+                content = decodeBase64(f.get("contentBase64").asString());
+            } catch (const std::exception&) {
+                content.clear();
+            }
+        }
+        files.push_back({f.get("name").asString(""), std::move(content)});
     }
     const Json& pj = request.get("pairs");
     if (pj.isObject())

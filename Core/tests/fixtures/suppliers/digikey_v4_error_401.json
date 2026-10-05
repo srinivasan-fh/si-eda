@@ -1,0 +1,8 @@
+{
+  "type": "https://developer.digikey.com/errors",
+  "title": "Unauthorized",
+  "status": 401,
+  "detail": "The Bearer token is invalid or has expired.",
+  "instance": "/products/v4/search/keyword",
+  "correlationId": "4f5c8b2e-0000-0000-0000-000000000000"
+}

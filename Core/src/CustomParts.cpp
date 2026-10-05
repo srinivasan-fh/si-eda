@@ -161,6 +161,21 @@ Json customPartSpecToJson(const CustomPartSpec& s) {
         }
         j["model"] = m;
     }
+    if (!s.model3d.empty()) {  // only when present, so ids of parts without a 3D model stay stable
+        Json m3 = Json::object();
+        m3["id"] = s.model3d.id;
+        m3["name"] = s.model3d.name;
+        m3["unit"] = s.model3d.unit;
+        auto vec = [](const std::array<double, 3>& v) {
+            Json a = Json::array();
+            for (double x : v) a.push(x);
+            return a;
+        };
+        m3["scale"] = vec(s.model3d.scale);
+        m3["rotate"] = vec(s.model3d.rotate);
+        m3["offset"] = vec(s.model3d.offset);
+        j["model3d"] = m3;
+    }
     return j;
 }
 
@@ -350,6 +365,32 @@ CustomPartSpec customPartSpecFromJson(const Json& j) {
                 throw JsonError("Supply load of " + s.name + " references a pin that does not exist.");
             s.model.loads.push_back(l);
         }
+    }
+    const Json& m3 = j.get("model3d");
+    if (m3.isObject() && !trim(m3.get("id").asString("")).empty()) {
+        Model3DRef& r = s.model3d;
+        r.id = trim(m3.get("id").asString(""));
+        if (r.id.size() > 64) throw JsonError("3D model id is too long.");
+        r.name = trim(m3.get("name").asString(""));
+        if (r.name.size() > 255) r.name.resize(255);
+        r.unit = m3.get("unit").asNumber(1);
+        if (!std::isfinite(r.unit) || r.unit <= 0 || r.unit > 1000) throw JsonError("3D model unit must be 0…1000 mm.");
+        auto vec = [&](const char* key, std::array<double, 3> def, double lo, double hi, const char* what) {
+            const Json& a = m3.get(key);
+            if (a.isNull()) return def;
+            if (!a.isArray() || a.size() != 3) throw JsonError(std::string("3D model ") + what + " needs three numbers.");
+            std::array<double, 3> v{};
+            for (size_t i = 0; i < 3; ++i) {
+                v[i] = a[i].asNumber(def[i]);
+                if (!std::isfinite(v[i]) || v[i] < lo || v[i] > hi) throw JsonError(std::string("3D model ") + what + " is out of range.");
+            }
+            return v;
+        };
+        r.scale = vec("scale", {1, 1, 1}, 1e-6, 1000, "scale");
+        for (double v : r.scale)
+            if (v <= 0) throw JsonError("3D model scale must be positive.");
+        r.rotate = vec("rotate", {0, 0, 0}, -3600, 3600, "rotation");
+        r.offset = vec("offset", {0, 0, 0}, -200, 200, "offset");
     }
     return s;
 }

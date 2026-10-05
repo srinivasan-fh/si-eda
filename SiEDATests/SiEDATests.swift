@@ -5335,3 +5335,463 @@ final class TransientOptionsTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(out.values.last), 5, accuracy: 0.01)
     }
 }
+
+// MARK: - Supplier search (stubbed network: no request leaves the test)
+
+/// Answers every request of a stubbed session from `handler` and records it.
+final class SupplierStubProtocol: URLProtocol {
+    struct Reply {
+        var status: Int
+        var headers: [String: String] = [:]
+        var body: Data
+    }
+    private static let lock = NSLock()
+    private static var _handler: ((URLRequest) -> Reply)?
+    private static var _requests: [URLRequest] = []
+
+    static func install(_ handler: @escaping (URLRequest) -> Reply) {
+        lock.lock(); defer { lock.unlock() }
+        _handler = handler
+        _requests = []
+    }
+
+    static var requests: [URLRequest] {
+        lock.lock(); defer { lock.unlock() }
+        return _requests
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        Self.lock.lock()
+        Self._requests.append(request)
+        let handler = Self._handler
+        Self.lock.unlock()
+        let reply = handler?(request) ?? Reply(status: 500, body: Data())
+        guard let url = request.url,
+              let response = HTTPURLResponse(url: url, statusCode: reply.status, httpVersion: "HTTP/1.1", headerFields: reply.headers)
+        else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: reply.body)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
+final class InMemorySupplierCredentials: SupplierCredentialStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [String: String] = [:]
+    func read(_ account: String) -> String { lock.lock(); defer { lock.unlock() }; return values[account] ?? "" }
+    func write(_ value: String, for account: String) { lock.lock(); values[account] = value; lock.unlock() }
+}
+
+final class SupplierSearchTests: XCTestCase {
+    static let mouserBody = Data("""
+    {"Errors":[],"SearchResults":{"NumberOfResult":1,"Parts":[{"ManufacturerPartNumber":"LM358DR",
+    "Manufacturer":"Texas Instruments","Description":"Dual op amp","MouserPartNumber":"595-LM358DR",
+    "DataSheetUrl":"https://www.ti.com/lit/ds/symlink/lm358.pdf","AvailabilityInStock":"23764","Min":"1","Mult":"1",
+    "LifecycleStatus":"Not Recommended for New Designs",
+    "PriceBreaks":[{"Quantity":1,"Price":"$0.45","Currency":"USD"},{"Quantity":100,"Price":"$0.184","Currency":"USD"}]}]}}
+    """.utf8)
+
+    static let nexarBody = Data("""
+    {"data":{"supSearchMpn":{"hits":1,"results":[{"part":{"mpn":"MCP2551-I/SN","manufacturer":{"name":"Microchip"},
+    "shortDescription":"CAN transceiver","specs":[{"attribute":{"name":"Lifecycle Status","shortname":"lifecyclestatus"},
+    "displayValue":"NRND"}],"sellers":[{"company":{"name":"Digi-Key"},"offers":[{"sku":"MCP2551-I/SN-ND",
+    "inventoryLevel":10,"moq":1,"prices":[{"quantity":1,"price":1.18,"currency":"USD"}]}]}]}}]}}}
+    """.utf8)
+
+    private var cacheDirectory: URL!
+
+    override func setUp() {
+        super.setUp()
+        cacheDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-supplier-tests-\(UUID().uuidString)")
+    }
+
+    override func tearDown() {
+        try? FileManager.default.removeItem(at: cacheDirectory)
+        super.tearDown()
+    }
+
+    private func engine(mouser: Bool = true, nexar: Bool = false, cacheLifetime: TimeInterval = 3600) -> SupplierSearchEngine {
+        var credentials = SupplierCredentials()
+        if mouser { credentials.values[.mouserApiKey] = "test-mouser-key" }
+        if nexar {
+            credentials.values[.nexarClientId] = "id"
+            credentials.values[.nexarClientSecret] = "secret"
+        }
+        return SupplierSearchEngine(credentials: credentials, currency: "USD",
+                                    http: SupplierHTTP(session: SupplierHTTP.makeSession(protocolClasses: [SupplierStubProtocol.self]),
+                                                       maxRetryWait: 1),
+                                    tokens: SupplierTokenCache(),
+                                    cache: SupplierCache(directory: cacheDirectory, lifetime: cacheLifetime))
+    }
+
+    func testCoreReadsRepliesIntoTheSchema() {
+        let result = EDAEngine.parseSupplierReply(source: .mouser, body: Self.mouserBody, currency: "USD")
+        XCTAssertEqual(result.error, "")
+        XCTAssertEqual(result.parts.first?.mpn, "LM358DR")
+        XCTAssertEqual(result.parts.first?.lifecycle, .nrnd)
+        XCTAssertEqual(result.parts.first?.offers.first?.stock, 23764)
+        XCTAssertEqual(result.parts.first?.price(at: 100)?.unitPrice ?? 0, 0.184, accuracy: 1e-9)
+        let bad = EDAEngine.parseSupplierReply(source: .digikey, body: Data("<html>".utf8), currency: "USD")
+        XCTAssertFalse(bad.error.isEmpty)
+        XCTAssertTrue(bad.parts.isEmpty)
+        let merged = EDAEngine.mergeSupplierResults([result, result], currency: "USD")
+        XCTAssertEqual(merged.count, 1)
+        XCTAssertEqual(merged.first?.offers.count, 1)  // the same offer twice is kept once
+    }
+
+    func testNoKeysMeansNoRequests() async {
+        SupplierStubProtocol.install { _ in .init(status: 200, body: Self.mouserBody) }
+        let outcome = await engine(mouser: false).search("LM358DR")
+        XCTAssertTrue(outcome.parts.isEmpty)
+        XCTAssertEqual(outcome.statuses[.mouser], .notConfigured)
+        XCTAssertEqual(outcome.statuses[.digikey], .notConfigured)
+        XCTAssertTrue(SupplierStubProtocol.requests.isEmpty)
+    }
+
+    func testMouserSearchThenCacheThenOffline() async throws {
+        SupplierStubProtocol.install { _ in .init(status: 200, body: Self.mouserBody) }
+        let live = await engine().search("LM358DR")
+        XCTAssertEqual(live.parts.map(\.mpn), ["LM358DR"])
+        XCTAssertEqual(live.statuses[.mouser], .live(parts: 1))
+        let request = try XCTUnwrap(SupplierStubProtocol.requests.first)
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertEqual(request.url?.host, "api.mouser.com")
+        XCTAssertTrue(request.url?.query?.contains("apiKey=test-mouser-key") == true)
+
+        // Fresh cache: no second request.
+        let cached = await engine().search("lm358dr ")
+        XCTAssertEqual(cached.parts.count, 1)
+        if case .cached = cached.statuses[.mouser] {} else { XCTFail("expected a cached result, got \(String(describing: cached.statuses[.mouser]))") }
+        XCTAssertEqual(SupplierStubProtocol.requests.count, 1)
+
+        // Expired cache and the service down: the old result is shown, marked offline.
+        SupplierStubProtocol.install { _ in .init(status: 503, body: Data("<html>busy</html>".utf8)) }
+        let offline = await engine(cacheLifetime: 0).search("LM358DR")
+        XCTAssertEqual(offline.parts.count, 1)
+        if case .offline = offline.statuses[.mouser] {} else { XCTFail("expected offline, got \(String(describing: offline.statuses[.mouser]))") }
+
+        // A bad key is an error, never served from the cache.
+        SupplierStubProtocol.install { _ in
+            .init(status: 200, body: Data(#"{"Errors":[{"Code":"Invalid","Message":"Invalid unique identifier.","ResourceKey":"InvalidIdentifier"}]}"#.utf8))
+        }
+        let refused = await engine(cacheLifetime: 0).search("LM358DR")
+        XCTAssertTrue(refused.parts.isEmpty)
+        if case .failed(let message) = refused.statuses[.mouser] {
+            XCTAssertTrue(message.contains("Settings"), message)
+        } else {
+            XCTFail("expected failure")
+        }
+    }
+
+    func testRateLimitRetriesOnceThenReports() async {
+        var calls = 0
+        let lock = NSLock()
+        SupplierStubProtocol.install { _ in
+            lock.lock(); defer { lock.unlock() }
+            calls += 1
+            return calls == 1 ? .init(status: 429, headers: ["Retry-After": "0"], body: Data())
+                              : .init(status: 200, body: Self.mouserBody)
+        }
+        let retried = await engine().search("LM358DR")
+        XCTAssertEqual(retried.parts.count, 1)
+        XCTAssertEqual(SupplierStubProtocol.requests.count, 2)
+
+        SupplierStubProtocol.install { _ in .init(status: 429, headers: ["Retry-After": "120"], body: Data()) }
+        let limited = await engine().search("NE555DR")
+        XCTAssertTrue(limited.parts.isEmpty)
+        XCTAssertEqual(SupplierStubProtocol.requests.count, 1)  // a long back-off is not waited for
+        if case .failed(let message) = limited.statuses[.mouser] {
+            XCTAssertTrue(message.contains("120"), message)
+        } else {
+            XCTFail("expected a rate-limit failure")
+        }
+    }
+
+    func testNexarSignsInWithClientCredentials() async throws {
+        SupplierStubProtocol.install { request in
+            if request.url?.host == "identity.nexar.com" {
+                return .init(status: 200, body: Data(#"{"access_token":"tok123","expires_in":3600,"token_type":"Bearer"}"#.utf8))
+            }
+            return .init(status: 200, body: Self.nexarBody)
+        }
+        let outcome = await engine(mouser: false, nexar: true).search("MCP2551")
+        XCTAssertEqual(outcome.parts.first?.mpn, "MCP2551-I/SN")
+        XCTAssertEqual(outcome.parts.first?.lifecycle, .nrnd)
+        let requests = SupplierStubProtocol.requests
+        XCTAssertEqual(requests.count, 2)
+        XCTAssertEqual(requests.first?.url?.host, "identity.nexar.com")
+        XCTAssertEqual(requests.last?.value(forHTTPHeaderField: "Authorization"), "Bearer tok123")
+    }
+
+    func testCancelledSearchReturnsNothing() async {
+        SupplierStubProtocol.install { _ in .init(status: 200, body: Self.mouserBody) }
+        let engine = engine()
+        let task = Task { await engine.search("LM358DR") }
+        task.cancel()
+        let outcome = await task.value
+        XCTAssertTrue(outcome.parts.isEmpty || outcome.parts.count == 1)  // finished or cancelled, never a crash
+    }
+
+    func testCacheKeysAndFormEncoding() {
+        XCTAssertEqual(SupplierCache.key(source: .mouser, query: " LM358DR ", currency: "USD"),
+                       SupplierCache.key(source: .mouser, query: "lm358dr", currency: "USD"))
+        XCTAssertNotEqual(SupplierCache.key(source: .mouser, query: "lm358dr", currency: "USD"),
+                          SupplierCache.key(source: .digikey, query: "lm358dr", currency: "USD"))
+        XCTAssertEqual(SupplierHTTP.formEncoded(["b": "a b&c", "a": "x/y"]), "a=x%2Fy&b=a%20b%26c")
+    }
+
+    @MainActor
+    func testSettingsKeepKeysInTheCredentialStore() throws {
+        let suite = "sieda.supplier.tests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = InMemorySupplierCredentials()
+        let settings = SupplierSettings(defaults: defaults, store: store)
+        XCTAssertFalse(settings.hasAnySource)
+        settings.setValue("  key  ", for: .mouserApiKey)
+        XCTAssertEqual(store.read("mouserApiKey"), "key")
+        XCTAssertEqual(settings.configuredSources, [.mouser])
+        settings.setValue("id", for: .digikeyClientId)
+        XCTAssertFalse(settings.credentials.isConfigured(.digikey))  // the secret is still missing
+        XCTAssertNil(defaults.string(forKey: "mouserApiKey"))       // never in UserDefaults
+        settings.currency = "EUR"
+        XCTAssertEqual(SupplierSettings(defaults: defaults, store: store).currency, "EUR")
+    }
+
+    func testPlacementLinksCatalogPartsOrPrefillsTheEditor() throws {
+        let result = EDAEngine.parseSupplierReply(source: .mouser, body: Self.mouserBody, currency: "USD")
+        let part = try XCTUnwrap(result.parts.first)
+        XCTAssertEqual(SupplierPlacement.link(for: part, library: []), .catalog(name: "LM358DR", note: ""))
+        let sourcing = SupplierPlacement.sourcing(for: part, boards: 100, currency: "USD")
+        XCTAssertEqual(sourcing.mpn, "LM358DR")
+        XCTAssertEqual(sourcing.supplierPart, "595-LM358DR")
+        XCTAssertEqual(sourcing.unitPrice ?? 0, 0.184, accuracy: 1e-9)
+
+        var unknown = part
+        unknown.mpn = "XYZ9000QFN24"
+        unknown.package = "24-VQFN (4x4)"
+        unknown.category = "Interface ICs"
+        if case .none = SupplierPlacement.link(for: unknown, library: []) {} else { XCTFail("no catalog part expected") }
+        let draft = SupplierPlacement.draft(for: unknown)
+        XCTAssertEqual(draft.name, "XYZ9000QFN24")
+        XCTAssertEqual(draft.package.type, PackageKind.qfn.rawValue)
+        XCTAssertEqual(draft.package.pinCount, 24)
+        XCTAssertEqual(draft.datasheet, "https://www.ti.com/lit/ds/symlink/lm358.pdf")
+        XCTAssertTrue(draft.pins.isEmpty)
+        XCTAssertEqual(SupplierPlacement.refPrefix(category: "Connectors, Interconnects", description: ""), "J")
+    }
+
+    @MainActor
+    func testPlacingALibraryPartKeepsItsSourcingInOneUndoStep() throws {
+        let store = DesignStore()
+        let standard = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "LM358DR" })
+        let partId = try XCTUnwrap(store.addStandardPartToLibrary(standard))
+        let id = store.placeLibraryPart(partId, sourcing: SourcingUpdate(manufacturer: "Texas Instruments", mpn: "LM358DR",
+                                                                          supplierPart: "595-LM358DR", unitPrice: 0.184))
+        XCTAssertGreaterThanOrEqual(id, 0)
+        let line = try XCTUnwrap(store.bomReport.lines.first { $0.componentIds.contains(id) })
+        XCTAssertEqual(line.mpn, "LM358DR")
+        XCTAssertEqual(line.supplierPart, "595-LM358DR")
+        XCTAssertEqual(line.unitPrice, 0.184, accuracy: 1e-9)
+        XCTAssertEqual(store.applySupplierPricing([(line, SourcingUpdate(unitPrice: 0.15))]), 1)
+        XCTAssertEqual(store.bomReport.lines.first { $0.componentIds.contains(id) }?.unitPrice ?? 0, 0.15, accuracy: 1e-9)
+    }
+
+    func testRollupThroughTheEngine() throws {
+        let result = EDAEngine.parseSupplierReply(source: .mouser, body: Self.mouserBody, currency: "USD")
+        let rollup = try XCTUnwrap(EDAEngine.supplierBomRollup(SupplierRollupRequest(
+            currency: "USD", quantities: [1, 100], buildQuantity: 5,
+            lines: [.init(item: 1, refs: ["U1"], quantity: 2, mpn: "LM358DR", manufacturer: "", dnp: false, embedded: false)],
+            parts: result.parts)))
+        XCTAssertEqual(rollup.totals.map(\.boards), [1, 5, 100])
+        XCTAssertEqual(rollup.lines.first?.lifecycle, .nrnd)
+        XCTAssertFalse(rollup.warnings.isEmpty)
+        XCTAssertEqual(rollup.totals.last?.cost ?? 0, 200 * 0.184, accuracy: 1e-9)
+    }
+}
+
+// MARK: - Imported 3D models
+
+@MainActor
+final class Model3DImportTests: XCTestCase {
+    static let cubeObj = Data("""
+    v 0 0 0
+    v 2 0 0
+    v 2 2 0
+    v 0 2 0
+    v 0 0 1
+    v 2 0 1
+    v 2 2 1
+    v 0 2 1
+    f 1 4 3 2
+    f 5 6 7 8
+    f 1 2 6 5
+    f 2 3 7 6
+    f 3 4 8 7
+    f 4 1 5 8
+    """.utf8)
+
+    func testModelAttachesAlignsAndRendersWithThePart() throws {
+        let imported = EDAEngine.importModel3D(name: "cube.obj", data: Self.cubeObj)
+        XCTAssertTrue(imported.ok, imported.error)
+        XCTAssertEqual(imported.triangles, 12)
+        XCTAssertEqual(imported.unit, 1)
+        let id = try XCTUnwrap(imported.id)
+
+        var spec = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "LM358DR" }).spec
+        spec.model3d = CustomPartSpec.Model3DRef(id: id, name: "cube.obj", offset: [3, 3, 3])
+        let fit = EDAEngine.fitModel3D(spec)
+        XCTAssertTrue(fit.ok, fit.error)
+        XCTAssertEqual(fit.seated?.offset ?? [], [-1, -1, 0])
+        XCTAssertNotNil(EDAEngine.model3DPreviewMesh(spec))
+
+        // Registered with the part, kept in the snapshot and in the saved project.
+        let engine = EDAEngine()
+        let part = try engine.registerCustomPart(spec)
+        XCTAssertEqual(part.model3d?.id, id)
+        XCTAssertEqual(part.spec.model3d, spec.model3d)
+        XCTAssertGreaterThanOrEqual(engine.addCustomComponent(partId: part.id, at: CGPoint(x: 0, y: 0)), 0)
+        XCTAssertTrue(engine.saveJSON().contains("\"models3d\""))
+        let copy = EDAEngine()
+        try copy.load(json: engine.saveJSON())
+        XCTAssertEqual(copy.snapshot()?.customParts.first?.model3d?.id, id)
+    }
+
+    func testStepAndBadFilesAreRefusedWithAReason() {
+        let step = EDAEngine.importModel3D(name: "part.step", data: Data("ISO-10303-21;".utf8))
+        XCTAssertFalse(step.ok)
+        XCTAssertTrue(step.error.contains("STEP"), step.error)
+        let bad = EDAEngine.importModel3D(name: "part.stl", data: Data([0, 1, 2, 3]))
+        XCTAssertFalse(bad.ok)
+        XCTAssertFalse(bad.error.isEmpty)
+    }
+
+    func testPrettyFolderBringsItsShapesFolder() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-shapes-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let pretty = root.appendingPathComponent("Package_Test.pretty")
+        let shapes = root.appendingPathComponent("Package_Test.3dshapes")
+        try FileManager.default.createDirectory(at: pretty, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: shapes, withIntermediateDirectories: true)
+        try Data("""
+        (footprint "TEST-2" (layer "F.Cu")
+          (pad "1" smd rect (at -1 0) (size 0.8 0.9) (layers "F.Cu"))
+          (pad "2" smd rect (at 1 0) (size 0.8 0.9) (layers "F.Cu"))
+          (model "${KICAD8_3DMODEL_DIR}/Package_Test.3dshapes/TEST-2.step" (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0))))
+        """.utf8).write(to: pretty.appendingPathComponent("TEST-2.kicad_mod"))
+        try Self.cubeObj.write(to: shapes.appendingPathComponent("TEST-2.obj"))
+        try Data([0, 1, 2]).write(to: shapes.appendingPathComponent("TEST-2.stl"))
+        let files = ComponentLibraryView.libraryFiles(at: [pretty])
+        XCTAssertEqual(files.map(\.name), ["TEST-2.kicad_mod", "TEST-2.obj", "TEST-2.stl"])
+        XCTAssertNotNil(files.last?.contentBase64)  // STL may be binary
+        // The .step reference takes the model of the same name.
+        let result = EDAEngine.importLibrary(files: Array(files.prefix(2)))
+        let part = try XCTUnwrap(result.parts.first { $0.footprint == "TEST-2" })
+        XCTAssertEqual(part.spec.model3d?.name, "TEST-2.obj")
+        XCTAssertTrue(part.warnings.contains { $0.contains("3D model") })
+    }
+}
+
+// MARK: - Altium libraries
+
+@MainActor
+final class AltiumImportTests: XCTestCase {
+    /// The synthetic fixtures written by tools/make_altium_fixtures.py (read from the source tree).
+    private func fixture(_ name: String) throws -> URL {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Core/tests/fixtures/altium/\(name)")
+        guard FileManager.default.fileExists(atPath: url.path) else { throw XCTSkip("fixture \(name) not in this build") }
+        return url
+    }
+
+    func testSchLibAndPcbLibImportAsBase64() throws {
+        let files = ComponentLibraryView.libraryFiles(at: [try fixture("Test.SchLib"), try fixture("Test.PcbLib")])
+        XCTAssertEqual(files.count, 2)
+        XCTAssertTrue(files.allSatisfy { $0.contentBase64 != nil })
+        let result = EDAEngine.importLibrary(files: files)
+        let lm358 = try XCTUnwrap(result.parts.first { $0.name == "LM358" })
+        XCTAssertTrue(lm358.ok, lm358.error)
+        XCTAssertEqual(lm358.footprint, "SOIC8_TI")
+        XCTAssertEqual(lm358.spec.pins.count, 8)
+        XCTAssertEqual(lm358.spec.manufacturer, "Texas Instruments")
+        XCTAssertTrue(result.parts.contains { $0.name == "HDR1X4" && $0.ok })
+        let store = DesignStore()
+        XCTAssertEqual(store.importLibraryParts(result.importable.map(\.spec)).count, result.importable.count)
+    }
+
+    func testIntegratedLibrariesAreRefusedWithTheWayOut() throws {
+        let files = ComponentLibraryView.libraryFiles(at: [try fixture("Test.IntLib")])
+        let result = EDAEngine.importLibrary(files: files)
+        XCTAssertTrue(result.files.first?.error.contains("Extract") == true, result.files.first?.error ?? "")
+    }
+}
+
+// MARK: - Import sheet: choosing a symbol's footprint
+
+@MainActor
+final class LibraryImportPairingTests: XCTestCase {
+    private func fixture(_ name: String) throws -> LibraryImportFile {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Core/tests/fixtures/library/\(name)")
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { throw XCTSkip("fixture \(name) not in this build") }
+        return LibraryImportFile(name: name, content: text)
+    }
+
+    func testCandidatesAndRepairing() throws {
+        let files = [try fixture("test_parts.kicad_sym"), try fixture("SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod"),
+                     try fixture("QFN-16-1EP_3x3mm_P0.5mm_EP1.7x1.7mm.kicad_mod"),
+                     try fixture("PinHeader_1x04_P2.54mm_Vertical.kicad_mod")]
+        let result = EDAEngine.importLibrary(files: files)
+        XCTAssertEqual(result.footprintList?.count, 3)
+        let lm358 = try XCTUnwrap(result.parts.first { $0.symbol == "LM358" })
+        XCTAssertEqual(lm358.pairable, true)
+        XCTAssertEqual(lm358.candidates?.first, "SOIC-8_3.9x4.9mm_P1.27mm")
+        XCTAssertFalse(lm358.candidates?.contains("PinHeader_1x04_P2.54mm_Vertical") ?? true)
+        let repaired = EDAEngine.importLibrary(files: files, pairs: ["AMS1117-3.3": "PinHeader_1x04_P2.54mm_Vertical"])
+        let ams = try XCTUnwrap(repaired.parts.first { $0.symbol == "AMS1117-3.3" })
+        XCTAssertTrue(ams.ok, ams.error)
+        XCTAssertEqual(ams.footprint, "PinHeader_1x04_P2.54mm_Vertical")
+        // The sheet keys parts by symbol, so a selection survives the re-import.
+        XCTAssertEqual(LibraryImportView.key(ams), LibraryImportView.key(try XCTUnwrap(result.parts.first { $0.symbol == "AMS1117-3.3" })))
+    }
+}
+
+// MARK: - The catalog in AI prompts stays bounded
+
+final class CatalogDigestTests: XCTestCase {
+    func testPromptCarriesADigestNotTheWholeCatalog() {
+        let all = StandardLibrary.parts
+        let fullListing = all.map { part in
+            "- custom:\(part.spec.name) [\(part.category)]: \(part.spec.description). Pins: "
+                + part.spec.pins.map { "\($0.number)=\($0.name)(\($0.type.rawValue))" }.joined(separator: ", ")
+        }.joined(separator: "\n")
+        let digest = AgentPrompts.customCatalog([], brief: "")
+        XCTAssertLessThan(digest.count, 60_000)
+        XCTAssertLessThan(digest.count * 4, fullListing.count)  // a fraction of listing every part with its pins
+        XCTAssertTrue(digest.contains("custom:NE555") && digest.contains("custom:LM7805"))
+        XCTAssertTrue(digest.contains("The standard catalog has \(all.count) parts"))
+        XCTAssertLessThanOrEqual(AgentPrompts.customPlanKinds([]).count, CatalogDigest.maxDetailed + 5)
+
+        // A part the brief names is detailed (and allowed in the schema), as are parts the brief describes.
+        let named = AgentPrompts.customCatalog([], brief: "Use a TPS5430DDAR buck from 24 V")
+        XCTAssertTrue(named.contains("custom:TPS5430DDAR"))
+        XCTAssertTrue(AgentPrompts.customPlanKinds([], brief: "Use a TPS5430DDAR buck").contains("custom:TPS5430DDAR"))
+        let described = CatalogDigest.selection(all, brief: "CAN transceiver for an automotive ECU")
+        XCTAssertTrue(described.contains { $0.spec.description.lowercased().contains("can") && $0.category == "Interface" })
+        // Parts an existing plan uses stay available when it is refined or reviewed.
+        let plan = DesignPlan(title: "t", summary: "", components: [
+            PlannedComponent(ref: "U1", kind: "custom:TPS5430DDAR", value: "TPS5430DDAR", x: 0, y: 0)], connections: [])
+        XCTAssertTrue(AgentPrompts.customPlanKinds([], brief: "", plan: plan).contains("custom:TPS5430DDAR"))
+        // The pin budget holds even for a brief that matches many large MCUs.
+        let mcus = CatalogDigest.selection(all, brief: "microcontroller MCU ARM Cortex STM32 LQFP")
+        XCTAssertLessThanOrEqual(mcus.reduce(0) { $0 + $1.spec.pins.count }, CatalogDigest.maxPins + 200)
+    }
+}

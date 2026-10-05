@@ -47,6 +47,8 @@
 #include "sieda/SpiceModels.hpp"
 #include "sieda/Waveforms.hpp"
 #include "sieda/Stackup.hpp"
+#include "sieda/Suppliers.hpp"
+#include "sieda/Model3D.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
 #include "sieda/Validation.hpp"
@@ -706,6 +708,42 @@ char* sieda_standard_parts_json(void) {
         return dup(arr.dump());
     } catch (...) {
         return dup("[]");
+    }
+}
+
+char* sieda_supplier_parse(const char* source, const char* body, const char* currency) {
+    try {
+        return dup(supplierParseRequest(str(source), str(body), str(currency)).dump());
+    } catch (...) {
+        return dup("{\"schema\":\"sieda.supplier/1\",\"parts\":[],\"error\":\"out of memory\",\"errorKind\":\"parse\"}");
+    }
+}
+
+char* sieda_supplier_merge(const char* request_json) {
+    try {
+        return dup(supplierMergeRequest(Json::parse(str(request_json))).dump());
+    } catch (const std::exception& e) {
+        Json j = Json::object();
+        j["parts"] = Json::array();
+        j["errors"] = Json::array();
+        j["error"] = std::string("Invalid merge request: ") + e.what();
+        return dup(j.dump());
+    }
+}
+
+char* sieda_supplier_bom_rollup(const char* request_json) {
+    try {
+        return dup(supplierBomRollup(Json::parse(str(request_json))).dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_supplier_catalog_match(const char* mpn) {
+    try {
+        return dup(catalogMatchForMpn(str(mpn)).dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
     }
 }
 
@@ -1623,6 +1661,52 @@ SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_compone
         MeshOptions opt;
         opt.components = include_components != 0;
         m->mesh = buildAssemblyMesh(project->project.schematic, project->project.pcb, opt);
+        return m;
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_model3d_import(const char* request_json) {
+    try {
+        return dup(model3dImportRequest(Json::parse(str(request_json))).dump());
+    } catch (const std::exception& e) {
+        Json j = Json::object();
+        j["ok"] = false;
+        j["error"] = std::string("Invalid 3D model request: ") + e.what();
+        return dup(j.dump());
+    }
+}
+
+char* sieda_model3d_fit(const char* spec_json) {
+    try {
+        return dup(model3dFitRequest(Json::parse(str(spec_json))).dump());
+    } catch (const std::exception& e) {
+        Json j = Json::object();
+        j["ok"] = false;
+        j["error"] = e.what();
+        return dup(j.dump());
+    }
+}
+
+SiedaMesh* sieda_model3d_preview(const char* spec_json) {
+    try {
+        Project p;
+        const std::string id = p.addCustomPart(customPartSpecFromJson(Json::parse(str(spec_json))));
+        const int cid = p.schematic.addCustomComponent(id, "", {0, 0}, 0, "");
+        Component* c = p.schematic.find(cid);
+        if (!c) return nullptr;
+        const FootprintDef* fp = Library::instance().footprint(c->footprintName());
+        const double w = std::clamp((fp ? fp->courtyardW : 10.0) + 4.0, 6.0, 140.0);
+        const double h = std::clamp((fp ? fp->courtyardH : 10.0) + 4.0, 6.0, 140.0);
+        p.pcb.settings.width = w;
+        p.pcb.settings.height = h;
+        c->pcb.placed = true;
+        c->pcb.position = {w / 2, h / 2};
+        auto* m = new SiedaMesh();
+        MeshOptions opt;
+        opt.silkscreen = false;
+        m->mesh = buildAssemblyMesh(p.schematic, p.pcb, opt);
         return m;
     } catch (...) {
         return nullptr;

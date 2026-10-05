@@ -237,6 +237,45 @@ struct CustomPartSpec: Codable, Equatable {
         }
     }
 
+    /// An imported 3D model (VRML / STL / OBJ) and how it sits on the footprint (encoded like the core's "model3d").
+    /// File coordinates × unit × scale, rotated about x, y, z (degrees), moved by offset (mm) into the footprint's
+    /// frame: x right, y towards the top of the PCB view, z up from the board.
+    struct Model3DRef: Codable, Equatable {
+        var id: String
+        var name: String
+        /// Millimetres per file unit (KiCad VRML: 2.54).
+        var unit: Double = 1
+        var scale: [Double] = [1, 1, 1]
+        var rotate: [Double] = [0, 0, 0]
+        var offset: [Double] = [0, 0, 0]
+
+        init(id: String, name: String, unit: Double = 1, scale: [Double] = [1, 1, 1], rotate: [Double] = [0, 0, 0],
+             offset: [Double] = [0, 0, 0]) {
+            self.id = id
+            self.name = name
+            self.unit = unit
+            self.scale = scale
+            self.rotate = rotate
+            self.offset = offset
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decode(String.self, forKey: .id)
+            name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+            unit = try c.decodeIfPresent(Double.self, forKey: .unit) ?? 1
+            func triple(_ key: CodingKeys, _ fallback: [Double]) -> [Double] {
+                let v = (try? c.decodeIfPresent([Double].self, forKey: key)) ?? nil
+                return v.flatMap { $0.count == 3 ? $0 : nil } ?? fallback
+            }
+            scale = triple(.scale, [1, 1, 1])
+            rotate = triple(.rotate, [0, 0, 0])
+            offset = triple(.offset, [0, 0, 0])
+        }
+
+        private enum CodingKeys: String, CodingKey { case id, name, unit, scale, rotate, offset }
+    }
+
     /// Where each pin sits on the schematic symbol (encoded like the core's "symbolLayout").
     struct SymbolLayout: Codable, Equatable {
         struct Pin: Codable, Equatable {
@@ -297,6 +336,8 @@ struct CustomPartSpec: Codable, Equatable {
     var symbolLayout: SymbolLayout?
     /// Simulation model (kept when a standard or library part is re-registered; nil = no model).
     var model: BehaviorModel?
+    /// Imported 3D model (nil = the generated body).
+    var model3d: Model3DRef?
     /// Multi-unit part: the gates drawn as their own symbols (pins in no unit form a power unit "P"); nil = one symbol.
     var units: [Unit]?
 
@@ -386,6 +427,8 @@ struct CustomPartInfo: Decodable, Equatable, Identifiable {
     /// Multi-unit parts: the spec's units and the generated symbol of every unit (the power unit last).
     var units: [CustomPartSpec.Unit]?
     var unitSymbols: [UnitSymbol]?
+    /// Imported 3D model (nil = the generated body).
+    var model3d: CustomPartSpec.Model3DRef?
 
     struct UnitSymbol: Decodable, Equatable {
         var name: String
@@ -396,7 +439,7 @@ struct CustomPartInfo: Decodable, Equatable, Identifiable {
     var spec: CustomPartSpec {
         CustomPartSpec(name: name, manufacturer: manufacturer, description: description, refPrefix: refPrefix,
                        defaultValue: defaultValue, datasheet: datasheet, package: package, pins: pins, symbolLayout: symbolLayout,
-                       model: model, units: units)
+                       model: model, model3d: model3d, units: units)
     }
 
     /// The part as one unit draws it: its symbol replaced by the unit's (unit is 1-based).
@@ -498,6 +541,14 @@ enum DatasheetSchema {
 struct LibraryImportFile: Encodable, Equatable {
     var name: String
     var content: String
+    /// Binary files (STL models, Altium libraries) travel as base64 instead of `content`.
+    var contentBase64: String?
+
+    init(name: String, content: String, contentBase64: String? = nil) {
+        self.name = name
+        self.content = content
+        self.contentBase64 = contentBase64
+    }
 }
 
 /// What a library import found (core `sieda_library_import`): the parts, each ready to add (`ok`) or with the reason
@@ -512,6 +563,17 @@ struct LibraryImportResult: Decodable, Equatable {
         var error: String
         var warnings: [String]
         var spec: CustomPartSpec
+        /// A symbol whose footprint can be chosen (KiCad, Altium): the imported footprints with a pad for every pin,
+        /// best match first.
+        var pairable: Bool?
+        var candidates: [String]?
+    }
+
+    /// An imported footprint the import sheet can pair a symbol with.
+    struct Footprint: Decodable, Equatable {
+        var name: String
+        var source: String
+        var pads: Int
     }
 
     struct File: Decodable, Equatable {
@@ -524,6 +586,8 @@ struct LibraryImportResult: Decodable, Equatable {
 
     var parts: [Part] = []
     var files: [File] = []
+    /// Footprints a symbol can be paired with (KiCad and Altium footprints).
+    var footprintList: [Footprint]?
 
     var importable: [Part] { parts.filter(\.ok) }
 }
