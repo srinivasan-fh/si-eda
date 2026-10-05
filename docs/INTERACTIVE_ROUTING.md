@@ -2,20 +2,27 @@
 
 The **Route** tool in the PCB editor draws tracks by hand. The track follows the cursor from a pad, via or track.
 It either walks around everything in its way or shoves other nets' tracks and vias aside, so you can route through
-a dense area without first moving the copper that is already there. The same engine routes a differential pair as
-one unit, drags an existing track segment, and lengthens a net with meanders.
+a dense area without first moving the copper that is already there. The same engine routes a differential pair or
+a bus as one unit, drags existing tracks and vias, lengthens a net with meanders, places blind / buried / micro vias,
+rounds corners and fans out parts.
 
 - [Using the Route tool](#using-the-route-tool)
 - [Modes](#modes)
 - [What stays fixed](#what-stays-fixed)
 - [Rules the router keeps](#rules-the-router-keeps)
+- [Rounded corners](#rounded-corners)
+- [Vias and HDI](#vias-and-hdi)
 - [Differential pairs](#differential-pairs)
+- [Bus routing](#bus-routing)
+- [Fanout](#fanout)
 - [Dragging a segment](#dragging-a-segment)
+- [Dragging a via](#dragging-a-via)
 - [Length tuning](#length-tuning)
 - [Core API](#core-api)
 - [C API](#c-api)
 - [How shoving works](#how-shoving-works)
 - [Limits](#limits)
+- [Responsiveness](#responsiveness)
 - [Code map](#code-map)
 - [Tests](#tests)
 
@@ -313,6 +320,14 @@ never fails because of an old DRC problem elsewhere, and it never creates a new 
 - Highlight mode lets you commit copper that violates the rules (the DRC reports it); the other modes never do.
 - The walkaround search covers the area around the head: about 4 mm, or ¾ of the head length, beyond the start and
   the cursor. A detour further away needs a corner placed on the way.
+- Length tuning a pair member meanders that member alone (skew tuning); there are no coupled pair meanders, and
+  tuning is applied as a whole (no meander drawn by dragging along the track). Targets come from a typed length or
+  the pair / bus group; net classes carry widths only, not length targets.
+- A bus starts from one row of one part and ends in the bundle; each track is finished on its own, and vias are
+  placed track by track. Members all use the widest member's width.
+- Fanout covers SMD pads only (through-hole pads already reach every layer) and walks around (it never shoves).
+- The Select-tool drag picks the via, then the track on the active layer, under the pointer; a press on a pad moves
+  the footprint as before.
 - Auto Route rips up all routing, locked tracks included.
 - A blocked head on a dense board still takes up to about 0.1 s to compute (the router searches for the furthest
   position that fits). It no longer stalls the window (see [Responsiveness](#responsiveness)), but the head lags the
@@ -389,5 +404,7 @@ Core (`Core/tests/core_tests.cpp`):
 | `c_api_router` | The C API end to end (`Core/tests/c_api_test.c`). |
 
 App (`SiEDATests`): `testInteractiveRouterRoutesAndCommits` routes and commits through `EDAEngine`;
-`InteractiveRoutingStoreTests` drags a track and a via through `DesignStore` (one undo step each) and previews, applies
-and undoes a length tuning.
+`InteractiveRoutingStoreTests` drags a track and a via through `DesignStore` (one undo step each); previews, applies
+and undoes a length tuning; checks head updates run off the main thread with the newest position winning and a click
+acting on its own position; places microvias on an HDI board; writes rounded corners; fans out a part and starts a
+bus; and lists Highlight-mode collisions.
