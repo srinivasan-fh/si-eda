@@ -5180,3 +5180,13 @@ TEST(library_footprints_keep_pads_apart) {
         CHECK(worst >= 0.099);
     }
 }
+
+TEST(collinear_segments_are_not_a_crossing) {
+    // Two dogbone stubs on one 45° diagonal, 0.57 mm apart: with fused multiply-add the orientation products come out
+    // as tiny values of either sign, which used to read as a crossing (a false DRC short on Apple silicon).
+    const Vec2 a{16.75, 16.45}, b{17.15, 16.05}, c{15.95, 17.25}, d{16.35, 16.85};
+    CHECK(!segmentsIntersect(a, b, c, d));
+    CHECK(std::fabs(segmentSegmentDistance(a, b, c, d) - (d - a).length()) < 1e-9);
+    CHECK(segmentSegmentDistance(a, b, {16.95, 16.25}, {17.35, 15.85}) < 1e-9);  // overlapping collinear: touching
+    CHECK(segmentsIntersect({0, 0}, {1, 1}, {0, 1}, {1, 0}));                     // a real crossing still is one
+}

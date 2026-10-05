@@ -1603,6 +1603,9 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
                     if (a2 != b2) pitch = std::min(pitch, (ps[a2].position - ps[b2].position).length());
             }
             centre = centre * (1.0 / static_cast<double>(list.size()));
+            // Snap to 1 µm: the ball spacing comes out a rounding error off the nominal pitch, differently on every
+            // compiler (fused multiply-add), and the routing grid below is derived from it.
+            pitch = std::round(pitch * 1000.0) / 1000.0;
             if (!(pitch > 0.3 && pitch < 2.0)) continue;
             const double clr = settings.clearance;
             const double diag = pitch / std::sqrt(2.0);  // ball centre to the gap between four balls
