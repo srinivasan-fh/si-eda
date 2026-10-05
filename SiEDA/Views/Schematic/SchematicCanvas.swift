@@ -46,6 +46,53 @@ struct SchematicCanvas: View {
 
     var body: some View {
         GeometryReader { geo in
+            canvasLayer(geo)
+            // A half-drawn wire, an armed zoom box or a placement rotation never outlives its tool.
+            .onChange(of: tool) { _, _ in
+                if case .pin(let end)? = pendingWire { store.cancelWire(at: end) }
+                pendingWire = nil
+                zoomArmed = false
+                placementRotation = 0
+                busPoints = []
+                focused = true
+            }
+            .alert("Bus Name", isPresented: Binding(get: { namingBus != nil }, set: { if !$0 { namingBus = nil } })) {
+                TextField("D[0..7]", text: $busName)
+                Button("OK") {
+                    if let points = namingBus { store.addBus(named: busName, points: points) }
+                    namingBus = nil
+                }
+                Button("Cancel", role: .cancel) { namingBus = nil }
+            } message: {
+                Text("Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD.")
+            }
+            .onAppear {
+                canvasSize = geo.size
+                focused = true
+                if !didInitialFit {
+                    didInitialFit = true
+                    fitToContent(size: geo.size)
+                }
+            }
+            .onChange(of: geo.size) { _, newSize in canvasSize = newSize }
+            .onChange(of: store.viewRequest) { _, request in
+                if let request { perform(request.command, size: geo.size) }
+            }
+            .onChange(of: store.fitToken) { _, _ in fitToContent(size: geo.size) }
+            .onChange(of: pendingWire) { _, end in wireStart = end.flatMap { describe($0) } }
+            .onChange(of: store.revision) { _, _ in
+                // Undo or delete can remove the part or wire a wire was started from.
+                if let end = pendingWire, endPoint(end) == nil { pendingWire = nil }
+            }
+            // A design appearing at once (example, AI plan, paste) is fitted; placing the first part by hand is not.
+            .onChange(of: store.snapshot.components.count) { old, new in
+                if old == 0 && new > 1 { fitToContent(size: geo.size) }
+            }
+        }
+    }
+
+    /// The canvas with its input handling; split from `body` so the type checker handles each chain in time.
+    private func canvasLayer(_ geo: GeometryProxy) -> some View {
             Canvas(rendersAsynchronously: false) { ctx, size in
                 draw(&ctx, size: size)
             }
@@ -138,48 +185,6 @@ struct SchematicCanvas: View {
                 }
                 return .handled
             }
-            // A half-drawn wire, an armed zoom box or a placement rotation never outlives its tool.
-            .onChange(of: tool) { _, _ in
-                if case .pin(let end)? = pendingWire { store.cancelWire(at: end) }
-                pendingWire = nil
-                zoomArmed = false
-                placementRotation = 0
-                busPoints = []
-                focused = true
-            }
-            .alert("Bus Name", isPresented: Binding(get: { namingBus != nil }, set: { if !$0 { namingBus = nil } })) {
-                TextField("D[0..7]", text: $busName)
-                Button("OK") {
-                    if let points = namingBus { store.addBus(named: busName, points: points) }
-                    namingBus = nil
-                }
-                Button("Cancel", role: .cancel) { namingBus = nil }
-            } message: {
-                Text("Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD.")
-            }
-            .onAppear {
-                canvasSize = geo.size
-                focused = true
-                if !didInitialFit {
-                    didInitialFit = true
-                    fitToContent(size: geo.size)
-                }
-            }
-            .onChange(of: geo.size) { _, newSize in canvasSize = newSize }
-            .onChange(of: store.viewRequest) { _, request in
-                if let request { perform(request.command, size: geo.size) }
-            }
-            .onChange(of: store.fitToken) { _, _ in fitToContent(size: geo.size) }
-            .onChange(of: pendingWire) { _, end in wireStart = end.flatMap { describe($0) } }
-            .onChange(of: store.revision) { _, _ in
-                // Undo or delete can remove the part or wire a wire was started from.
-                if let end = pendingWire, endPoint(end) == nil { pendingWire = nil }
-            }
-            // A design appearing at once (example, AI plan, paste) is fitted; placing the first part by hand is not.
-            .onChange(of: store.snapshot.components.count) { old, new in
-                if old == 0 && new > 1 { fitToContent(size: geo.size) }
-            }
-        }
     }
 
     // MARK: - Navigation
