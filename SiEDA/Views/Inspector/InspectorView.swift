@@ -235,6 +235,26 @@ private struct ComponentProperties: View {
                         Text("Port (to parent sheet)").tag("port")
                     }
                 }
+                if kind == .netLabel && component.harnessOf == nil
+                    && (!store.snapshot.harnessTypes.isEmpty || component.harnessType != nil) {
+                    Picker("Harness", selection: Binding(get: { component.harnessType ?? "" },
+                                                         set: { store.setLabelHarness(component.id, type: $0) })) {
+                        Text("None (single signal)").tag("")
+                        ForEach(store.snapshot.harnessTypes) { Text(verbatim: $0.name).tag($0.name) }
+                    }
+                    .help("A harness label carries every member of its type across sheets (port, sheet entry or global)")
+                    if component.isHarnessLabel {
+                        if let type = store.snapshot.harnessTypes.first(where: { $0.name == component.harnessType }) {
+                            PropertyRow(label: "Members", value: type.entries.map { component.value + "." + $0 }.joined(separator: ", "))
+                        }
+                        Button("Add Missing Entries") { store.placeHarnessEntries(component.id) }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                    }
+                }
+                if let owner = component.harnessOf, let harness = store.snapshot.component(owner) {
+                    PropertyRow(label: "Harness member", value: harness.value + "." + component.value)
+                }
             }
 
             if !kind.isVirtual && !store.snapshot.activeVariant.isEmpty {

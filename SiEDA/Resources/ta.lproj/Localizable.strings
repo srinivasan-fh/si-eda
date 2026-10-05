@@ -15,6 +15,9 @@
 "3D Viewer" = "3D வியூவர்";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A harness label carries every member of its type across sheets (port, sheet entry or global)" = "ஹார்னஸ் லேபிள் அதன் வகையின் ஒவ்வொரு உறுப்பினரையும் தாள்களுக்கு இடையே கொண்டு செல்லும் (போர்ட், தாள் நுழைவு அல்லது குளோபல்)";
+"A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "ஒவ்வொரு உறுப்பினருக்கும் ஒரு நுழைவு கொண்ட ஹார்னஸ் லேபிள்; ஒவ்வொரு நுழைவையும் அதன் சிக்னலுடன் இணை. கட்டை வேறு தாளுக்குக் கொண்டு செல்ல போர்ட் அல்லது தாள் நுழைவுக்கு அதே பெயரும் வகையும் கொடு.";
+"A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "ஹார்னஸ் வகை என்பது பெயரிடப்பட்ட சிக்னல் கட்டு (USB: DP, DN, VBUS, GND). அந்த வகையின் ஹார்னஸ் லேபிள் ஒவ்வொரு உறுப்பினரையும் — \"USB1.DP\", \"USB1.DN\" … — போர்ட் மற்றும் அதன் தாள் நுழைவு வழியாக, அல்லது குளோபல் லேபிளாகக் கொண்டு செல்லும்; அதன் நுழைவுகள் தாளில் உறுப்பினர்களை இணைக்கும்.";
 "A new gate; the selected pins go on it" = "புதிய கேட்; தேர்ந்தெடுத்த பின்கள் அதில் செல்லும்";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC ஸ்வீப்";
@@ -32,6 +35,7 @@
 "Add Ground Pours" = "கிரவுண்ட் போர்களைச் சேர்";
 "Add Kit to Library" = "கிட்டை லைப்ரரியில் சேர்";
 "Add Mesh" = "மெஷ் சேர்";
+"Add Missing Entries" = "இல்லாத நுழைவுகளைச் சேர்";
 "Add Pad" = "பேட் சேர்";
 "Add Pattern" = "பேட்டர்ன் சேர்";
 "Add Pin" = "பின் சேர்";
@@ -194,6 +198,7 @@
 "DC voltage" = "DC வோல்டேஜ்";
 "DEVICES" = "டிவைஸ்கள்";
 "DNP" = "DNP";
+"DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "தரவுத்தாள்";
@@ -207,6 +212,7 @@
 "Delete Bus" = "பஸ்ஸை நீக்கு";
 "Delete Part" = "பார்ட்டை நீக்கு";
 "Delete Sheet" = "ஷீட்டை நீக்கு";
+"Delete Type" = "வகையை நீக்கு";
 "Delete Variant" = "வேரியண்ட்டை நீக்கு";
 "Delete Wire" = "வயரை நீக்கு";
 "Describe your product" = "உங்கள் தயாரிப்பை விவரிக்கவும்";
@@ -305,11 +311,16 @@
 "Go to Sheet Entry" = "தாள் நுழைவுக்குச் செல்";
 "Google Cloud project ID" = "Google Cloud ப்ராஜெக்ட் ID";
 "Grid" = "கிரிட்";
+"HARNESS TYPES" = "ஹார்னஸ் வகைகள்";
 "HDI vias: blind, buried and laser microvias (IPC-2226)" = "HDI வயாக்கள்: பிளைண்ட், பரீட் மற்றும் லேசர் மைக்ரோவயாக்கள் (IPC-2226)";
 "HOLOGRAPHIC LAYER ANALYSIS" = "ஹோலோகிராஃபிக் லேயர் பகுப்பாய்வு";
 "HUD" = "HUD";
 "Harmonic" = "இசைவு";
 "Harmonics" = "இசைவுகள்";
+"Harness" = "ஹார்னஸ்";
+"Harness Types…" = "ஹார்னஸ் வகைகள்…";
+"Harness name" = "ஹார்னஸ் பெயர்";
+"Harnesses" = "ஹார்னஸ்கள்";
 "Hide navigator (N)" = "நேவிகேட்டரை மறை (N)";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "அதிக முயற்சியில் Claude சர்க்யூட் டோபாலஜி மற்றும் மதிப்புகள் பற்றி நீண்ட நேரம் சிந்திக்கும். “high” பரிந்துரைக்கப்படுகிறது.";
 "Highlight" = "முன்னிலைப்படுத்து";
@@ -396,6 +407,7 @@
 "Meander height limit in mm (empty: 2 mm)" = "வளைவு உயர வரம்பு mm இல் (காலி: 2 mm)";
 "Measure" = "அளவீடு";
 "Medical Device Class" = "மருத்துவ சாதன வகுப்பு";
+"Members" = "உறுப்பினர்கள்";
 "Memory Design" = "மெமரி டிசைன்";
 "Microvia" = "நுண்வயா";
 "Min" = "குறைந்தது";
@@ -450,6 +462,7 @@
 "Nominal" = "பெயரளவு மதிப்பு";
 "None" = "எதுவுமில்லை";
 "None (mechanical)" = "எதுவுமில்லை (மெக்கானிக்கல்)";
+"None (single signal)" = "எதுவுமில்லை (ஒற்றை சிக்னல்)";
 "Not a memory design" = "மெமரி டிசைன் அல்ல";
 "Not a robot" = "ரோபோ அல்ல";
 "Not aerospace" = "விண்வெளி அல்ல";
@@ -520,6 +533,8 @@
 "Pin map" = "பின் வரைபடம்";
 "Pin names" = "பின் பெயர்கள்";
 "Pins: " = "பின்கள்: ";
+"Place %@ Connector…" = "%@ இணைப்பியை வை…";
+"Place Harness Connector" = "ஹார்னஸ் இணைப்பியை வை";
 "Place Next Unit" = "அடுத்த அலகை வை";
 "Place Now" = "இப்போது வை";
 "Place Part" = "பாகத்தை வை";
@@ -625,6 +640,7 @@
 "Save & Place" = "சேமித்து வை";
 "Save As…" = "இவ்வாறு சேமி…";
 "Save Key" = "கீயைச் சேமி";
+"Save Type" = "வகையைச் சேமி";
 "Scale" = "அளவுகோல்";
 "Scan" = "ஸ்கேன் செய்";
 "Schematic" = "ஸ்கீமாட்டிக்";
@@ -680,6 +696,7 @@
 "Sign-off in verification" = "சரிபார்ப்பில் சைன்-ஆஃப்";
 "Signal" = "சமிக்ஞை";
 "Signal & Power Integrity" = "சிக்னல் & பவர் இன்டெக்ரிட்டி";
+"Signal harnesses: named bundles of signals carried across sheets as one" = "சிக்னல் ஹார்னஸ்கள்: தாள்களுக்கு இடையே ஒன்றாகக் கொண்டு செல்லப்படும் பெயரிடப்பட்ட சிக்னல் கட்டுகள்";
 "Signals" = "சிக்னல்கள்";
 "Signed in with" = "இதன் மூலம் உள்நுழைந்துள்ளீர்கள்";
 "Simulate" = "சிமுலேட் செய்";
@@ -755,6 +772,7 @@
 "Type a designator, value, label or net name." = "குறியீடு, மதிப்பு, லேபிள் அல்லது நெட் பெயரைத் தட்டச்சு செய்யவும்.";
 "UNIT %@" = "யூனிட் %@";
 "UNITS" = "யூனிட்கள்";
+"USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "கனமான பார்ட்களுக்கு அண்டர்ஃபில் / கார்னர்-பாண்ட் (அதிர்ச்சி)";
 "Undershoot" = "அண்டர்ஷூட்";
 "Undo" = "செயல்தவிர்";

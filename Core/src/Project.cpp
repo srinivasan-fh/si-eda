@@ -161,6 +161,21 @@ void componentSheetJson(Json& j, const Component& c) {
     }
     if (c.packageOnly) j["packageOnly"] = true;
     if (c.channelOverrides != 0) j["channelOverride"] = c.channelOverrides;
+    if (!c.harnessType.empty()) j["harnessType"] = c.harnessType;
+    if (c.harnessOf != 0) j["harnessOf"] = c.harnessOf;
+}
+
+Json harnessTypesJson(const Schematic& sch) {
+    Json arr = Json::array();
+    for (const auto& t : sch.harnessTypes()) {
+        Json j = Json::object();
+        j["name"] = t.name;
+        Json entries = Json::array();
+        for (const auto& e : t.entries) entries.push(e);
+        j["entries"] = entries;
+        arr.push(j);
+    }
+    return arr;
 }
 
 Json busesJson(const Schematic& sch, bool withMembers) {
@@ -429,6 +444,7 @@ Json Project::toJson() const {
     root["sheets"] = sheetsJson(schematic);
     root["activeSheet"] = schematic.activeSheet();
     if (!schematic.buses().empty()) root["buses"] = busesJson(schematic, false);
+    if (!schematic.harnessTypes().empty()) root["harnessTypes"] = harnessTypesJson(schematic);
     if (!variants.empty()) {
         Json vs = Json::array();
         for (const auto& v : variants) vs.push(variantToJson(v, schematic));
@@ -648,6 +664,11 @@ Project Project::fromJson(const Json& root) {
         c.bus = c.kind == ComponentKind::NetLabel ? std::max(0, j.get("bus").asInt(0)) : 0;
         c.packageOnly = c.kind == ComponentKind::Custom && j.get("packageOnly").asBool(false);
         c.channelOverrides = std::clamp(j.get("channelOverride").asInt(0), 0, kOverrideValue | kOverridePackage);
+        if (c.kind == ComponentKind::NetLabel) {
+            c.harnessType = j.get("harnessType").asString("");
+            if (c.harnessType.size() > 32) c.harnessType.clear();
+            c.harnessOf = std::max(0, j.get("harnessOf").asInt(0));
+        }
         if (c.logicalRef.size() > 64) c.logicalRef.clear();
         if (c.id == 0 || p.schematic.find(c.id)) continue;  // id 0 or a duplicate (hand-edited file): the first stands
         p.schematic.restoreComponent(c);
@@ -682,6 +703,17 @@ Project Project::fromJson(const Json& root) {
         b.instanceOf = j.get("instanceOf").asInt(0);
         for (const auto& pt : j.get("points").items()) b.points.push_back({pt.get("x").asNumber(), pt.get("y").asNumber()});
         p.schematic.restoreBus(b);
+    }
+    {
+        std::vector<HarnessType> types;
+        for (const auto& j : root.get("harnessTypes").items()) {
+            HarnessType t;
+            t.name = j.get("name").asString("");
+            for (const auto& e : j.get("entries").items()) t.entries.push_back(e.asString(""));
+            types.push_back(t);
+        }
+        p.schematic.restoreHarnessTypes(types);
+        p.schematic.repairHarnessLinks();
     }
     p.schematic.syncInstances();  // repeated sheets: checks the instances against their definitions (no-op otherwise)
     for (const auto& j : root.get("variants").items()) {
@@ -769,6 +801,8 @@ Json Project::snapshot() const {
         }
         if (c.instanceOf != 0) j["instanceOf"] = c.instanceOf;
         if (c.bus != 0) j["bus"] = c.bus;
+        if (!c.harnessType.empty()) j["harnessType"] = c.harnessType;
+        if (c.harnessOf != 0) j["harnessOf"] = c.harnessOf;
         if (assembled->channelOverrides != 0) {
             // Per-channel parameters of a repeated sheet's part: what this channel sets and the block's value.
             j["channelOverride"] = assembled->channelOverrides;
@@ -905,6 +939,7 @@ Json Project::snapshot() const {
         root["sheets"] = sheets;
         root["activeSheet"] = schematic.activeSheet();
         root["buses"] = busesJson(schematic, true);
+        root["harnessTypes"] = harnessTypesJson(schematic);
         Json tb = Json::object();
         tb["title"] = titleBlock.title.empty() ? name : titleBlock.title;
         tb["company"] = titleBlock.company;

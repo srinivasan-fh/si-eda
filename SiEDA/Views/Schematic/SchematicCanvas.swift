@@ -640,6 +640,18 @@ struct SchematicCanvas: View {
             stub.addLine(to: at.applying(screen))
             ctx.stroke(stub, with: .color(Theme.lightBlue), lineWidth: 2)
         }
+        // Harness connectors: each entry is joined to its harness label by a thin harness-coloured stub.
+        for c in snap.components where c.harnessOf != nil {
+            guard let owner = c.harnessOf, let harness = snap.component(owner) else { continue }
+            var a = harness.position, b = c.position
+            if movingIds.contains(owner) { a.x += delta.width; a.y += delta.height }
+            if movingIds.contains(c.id) { b.x += delta.width; b.y += delta.height }
+            var stub = Path()
+            stub.move(to: a.applying(screen))
+            stub.addLine(to: CGPoint(x: a.x, y: b.y).applying(screen))
+            stub.addLine(to: b.applying(screen))
+            ctx.stroke(stub, with: .color(Theme.harness.opacity(0.7)), lineWidth: 1.5)
+        }
         // The bus being drawn.
         if tool == .bus, !busPoints.isEmpty {
             var path = Path()
@@ -771,13 +783,16 @@ struct SchematicCanvas: View {
                 let width = SchematicSymbols.netLabelTextWidth(c.value)
                 let center = CGPoint(x: (width + 7) / 2, y: 0).applying(t)
                 // Global labels sky blue, sheet-local ones muted, hierarchical ports and sheet entries amber.
+                // Harness labels (a bundle) and their entries are drawn in the harness colour, the bundle marked ≡.
                 let colour: Color
                 switch c.labelScope {
+                case _ where c.harnessType != nil: colour = Theme.harness
                 case "local": colour = Theme.textMuted
                 case "port", "entry": colour = Theme.warning
                 default: colour = Theme.skyBlue
                 }
-                ctx.draw(Text(c.value).font(.system(size: fontSize, weight: .semibold, design: .monospaced))
+                ctx.draw(Text(verbatim: c.isHarnessLabel ? c.value + " ≡" : c.value)
+                            .font(.system(size: fontSize, weight: c.isHarnessLabel ? .heavy : .semibold, design: .monospaced))
                             .foregroundColor(colour), at: center)
             default:
                 // Labels sit above/below wide symbols and to the right of tall ones, always upright.

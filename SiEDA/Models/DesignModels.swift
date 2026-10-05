@@ -53,6 +53,8 @@ struct DesignSnapshot: Decodable, Equatable {
     var buses: [BusInfo] = []
     /// Title block printed on every schematic sheet.
     var titleBlock = TitleBlockInfo()
+    /// Signal harness types (named bundles of signals).
+    var harnessTypes: [HarnessTypeInfo] = []
 
     static let empty = DesignSnapshot(name: "Untitled", requirements: "", components: [], wires: [], nets: [],
                                       board: BoardInfo(), pads: [], tracks: [], vias: [], ratsnest: [], courtyards: [])
@@ -109,6 +111,7 @@ struct DesignSnapshot: Decodable, Equatable {
         activeVariant = try c.decodeIfPresent(String.self, forKey: .activeVariant) ?? ""
         buses = try c.decodeIfPresent([BusInfo].self, forKey: .buses) ?? []
         titleBlock = try c.decodeIfPresent(TitleBlockInfo.self, forKey: .titleBlock) ?? TitleBlockInfo()
+        harnessTypes = try c.decodeIfPresent([HarnessTypeInfo].self, forKey: .harnessTypes) ?? []
         componentIndex = Self.index(of: components)
     }
 
@@ -122,6 +125,7 @@ struct DesignSnapshot: Decodable, Equatable {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
         case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
         case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant, buses, titleBlock
+        case harnessTypes
     }
 
     func component(_ id: Int) -> SnapComponent? {
@@ -245,6 +249,11 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     var blockValue: String?
     /// Bus entries: the bus the label leaves (BusInfo.id).
     var bus: Int?
+    /// Signal harnesses: a harness label's type (a bundle named by its value), and for a harness entry the harness
+    /// label it belongs to (its member net is "<harness>.<entry>").
+    var harnessType: String?
+    var harnessOf: Int?
+    var isHarnessLabel: Bool { componentKind == .netLabel && harnessType != nil && harnessOf == nil }
     /// Multi-unit parts: a placed unit (its 1-based index, name "A"… and package), or the package itself
     /// (`unitPackage`: not drawn on the schematic; `units` lists the placed units).
     var unit: Int?
@@ -415,6 +424,13 @@ struct SheetInfo: Decodable, Equatable, Identifiable, Hashable {
     var isInstance: Bool { (instanceOf ?? 0) != 0 }
     /// The definition sheet of a repeated block (the sheet itself otherwise).
     var definitionId: Int { isInstance ? (instanceOf ?? id) : id }
+}
+
+/// A signal harness type: a named bundle of signals (USB = DP, DN, VBUS, GND).
+struct HarnessTypeInfo: Decodable, Equatable, Identifiable, Hashable {
+    var name: String
+    var entries: [String]
+    var id: String { name }
 }
 
 /// Schematic title block fields (the title defaults to the project name).

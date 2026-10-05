@@ -15,6 +15,9 @@
 "3D Viewer" = "3D व्ह्यूअर";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A harness label carries every member of its type across sheets (port, sheet entry or global)" = "हार्नेस लेबल त्याच्या प्रकारातील प्रत्येक सदस्य शीटमधून नेतो (पोर्ट, शीट एंट्री किंवा ग्लोबल)";
+"A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "प्रत्येक सदस्यासाठी एक एंट्री असलेले हार्नेस लेबल; प्रत्येक एंट्री तिच्या सिग्नलला जोडा. गठ्ठा दुसऱ्या शीटवर नेण्यासाठी पोर्ट किंवा शीट एंट्रीला तेच नाव आणि प्रकार द्या.";
+"A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "हार्नेस प्रकार म्हणजे सिग्नलचा नाव असलेला गठ्ठा (USB: DP, DN, VBUS, GND). या प्रकाराचे हार्नेस लेबल प्रत्येक सदस्य — \"USB1.DP\", \"USB1.DN\" … — पोर्ट आणि त्याच्या शीट एंट्रीमधून, किंवा ग्लोबल लेबल म्हणून नेते; त्याच्या एंट्री शीटवर सदस्य जोडतात.";
 "A new gate; the selected pins go on it" = "नवीन गेट; निवडलेल्या पिन त्यावर जातात";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC स्वीप";
@@ -32,6 +35,7 @@
 "Add Ground Pours" = "ग्राउंड पोर जोडा";
 "Add Kit to Library" = "किट लायब्ररीत जोडा";
 "Add Mesh" = "मेश जोडा";
+"Add Missing Entries" = "नसलेल्या एंट्री जोडा";
 "Add Pad" = "पॅड जोडा";
 "Add Pattern" = "पॅटर्न जोडा";
 "Add Pin" = "पिन जोडा";
@@ -194,6 +198,7 @@
 "DC voltage" = "DC व्होल्टेज";
 "DEVICES" = "डिव्हाइस";
 "DNP" = "DNP";
+"DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "डेटाशीट";
@@ -207,6 +212,7 @@
 "Delete Bus" = "बस हटवा";
 "Delete Part" = "पार्ट हटवा";
 "Delete Sheet" = "शीट हटवा";
+"Delete Type" = "प्रकार हटवा";
 "Delete Variant" = "व्हेरिएंट हटवा";
 "Delete Wire" = "वायर हटवा";
 "Describe your product" = "तुमच्या उत्पादनाचे वर्णन करा";
@@ -305,11 +311,16 @@
 "Go to Sheet Entry" = "शीट नोंदीवर जा";
 "Google Cloud project ID" = "Google Cloud प्रोजेक्ट ID";
 "Grid" = "ग्रिड";
+"HARNESS TYPES" = "हार्नेस प्रकार";
 "HDI vias: blind, buried and laser microvias (IPC-2226)" = "HDI व्हाया: ब्लाइंड, बरीड आणि लेझर मायक्रोव्हाया (IPC-2226)";
 "HOLOGRAPHIC LAYER ANALYSIS" = "होलोग्राफिक लेयर विश्लेषण";
 "HUD" = "HUD";
 "Harmonic" = "हार्मोनिक";
 "Harmonics" = "हार्मोनिक्स";
+"Harness" = "हार्नेस";
+"Harness Types…" = "हार्नेस प्रकार…";
+"Harness name" = "हार्नेस नाव";
+"Harnesses" = "हार्नेस";
 "Hide navigator (N)" = "नेव्हिगेटर लपवा (N)";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "जास्त प्रयत्नाने Claude सर्किट टोपोलॉजी आणि मूल्यांवर अधिक वेळ विचार करतो. “high” शिफारसीय आहे.";
 "Highlight" = "हायलाइट";
@@ -396,6 +407,7 @@
 "Meander height limit in mm (empty: 2 mm)" = "मिअँडर उंचीची मर्यादा mm मध्ये (रिकामे: 2 mm)";
 "Measure" = "मोजमाप";
 "Medical Device Class" = "मेडिकल डिव्हाइस वर्ग";
+"Members" = "सदस्य";
 "Memory Design" = "मेमरी डिझाइन";
 "Microvia" = "मायक्रोवाया";
 "Min" = "किमान";
@@ -450,6 +462,7 @@
 "Nominal" = "नाममात्र मूल्य";
 "None" = "काहीही नाही";
 "None (mechanical)" = "काहीही नाही (मेकॅनिकल)";
+"None (single signal)" = "काहीही नाही (एक सिग्नल)";
 "Not a memory design" = "मेमरी डिझाइन नाही";
 "Not a robot" = "रोबोट नाही";
 "Not aerospace" = "एरोस्पेस नाही";
@@ -520,6 +533,8 @@
 "Pin map" = "पिन मॅप";
 "Pin names" = "पिन नावे";
 "Pins: " = "पिन: ";
+"Place %@ Connector…" = "%@ कनेक्टर ठेवा…";
+"Place Harness Connector" = "हार्नेस कनेक्टर ठेवा";
 "Place Next Unit" = "पुढील युनिट ठेवा";
 "Place Now" = "आता ठेवा";
 "Place Part" = "पार्ट ठेवा";
@@ -625,6 +640,7 @@
 "Save & Place" = "सेव्ह करा आणि ठेवा";
 "Save As…" = "या नावाने सेव्ह करा…";
 "Save Key" = "की सेव्ह करा";
+"Save Type" = "प्रकार जतन करा";
 "Scale" = "स्केल";
 "Scan" = "स्कॅन करा";
 "Schematic" = "स्कीमॅटिक";
@@ -680,6 +696,7 @@
 "Sign-off in verification" = "व्हेरिफिकेशनमध्ये साइन-ऑफ";
 "Signal" = "सिग्नल";
 "Signal & Power Integrity" = "सिग्नल व पॉवर इंटिग्रिटी";
+"Signal harnesses: named bundles of signals carried across sheets as one" = "सिग्नल हार्नेस: शीटमधून एकत्र नेले जाणारे नाव असलेले सिग्नल गठ्ठे";
 "Signals" = "सिग्नल";
 "Signed in with" = "याद्वारे साइन इन:";
 "Simulate" = "सिम्युलेट करा";
@@ -755,6 +772,7 @@
 "Type a designator, value, label or net name." = "संदर्भ चिन्ह, मूल्य, लेबल किंवा नेट नाव लिहा.";
 "UNIT %@" = "युनिट %@";
 "UNITS" = "युनिट";
+"USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "जड पार्टचे अंडरफिल / कॉर्नर-बॉन्ड (धक्का)";
 "Undershoot" = "अंडरशूट";
 "Undo" = "पूर्ववत करा";

@@ -953,3 +953,32 @@ int sieda_c_api_unit_editor_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Signal harnesses and bus entries through the C API. Returns 0 or the failing step. */
+int sieda_c_api_harness_test(void) {
+    SiedaProject* p = sieda_project_new("Harness");
+    if (!p) return 1;
+    if (!sieda_set_harness_type(p, "I2C", "[\"SCL\",\"SDA\"]") || sieda_set_harness_type(p, "bad name", "[\"A\"]")) return 2;
+    char* types = sieda_harness_types_json(p);
+    if (!types || !strstr(types, "\"SDA\"")) return 3;
+    sieda_string_free(types);
+    int32_t h = sieda_add_harness_connector(p, "I2C", "BUS1", 100, 0);
+    if (h < 0 || sieda_add_harness_connector(p, "NOPE", "X", 0, 0) != -1) return 4;
+    if (sieda_place_harness_entries(p, h) != 0) return 5;
+    {
+        char* snap = sieda_project_snapshot(p);
+        if (!snap || !strstr(snap, "\"harnessOf\":") || !strstr(snap, "\"harnessType\":\"I2C\"")) return 6;
+        sieda_string_free(snap);
+    }
+    if (!sieda_set_label_harness(p, h, "") || !sieda_set_label_harness(p, h, "I2C")) return 7;
+    if (sieda_place_harness_entries(p, h) != 2) return 8;
+    if (!sieda_set_harness_type(p, "I2C", NULL) || sieda_set_harness_type(p, "I2C", "[]")) return 9;
+    /* Bus entries by label. */
+    int32_t bus = sieda_add_bus(p, "D[0..1]", "[{\"x\":0,\"y\":0},{\"x\":0,\"y\":100}]");
+    int32_t label = sieda_add_component(p, 15, "D0", 20, 20, 0, NULL);
+    if (bus <= 0 || !sieda_set_label_bus(p, label, bus) || sieda_set_label_bus(p, label, 999) ||
+        sieda_set_label_bus(NULL, label, bus))
+        return 10;
+    sieda_project_free(p);
+    return 0;
+}

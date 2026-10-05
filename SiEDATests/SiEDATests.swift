@@ -6132,3 +6132,36 @@ final class StructuredPlanTests: XCTestCase {
         }
     }
 }
+
+/// Signal harnesses through the store: a type, a connector on each of two sheets made global, the bundle joining
+/// the members, undo.
+@MainActor
+final class HarnessTests: XCTestCase {
+    func testHarnessConnectorsJoinMembersAcrossSheets() throws {
+        let store = DesignStore()
+        XCTAssertTrue(store.setHarnessType("SPI", entries: "SCK, MOSI, MISO"))
+        XCTAssertEqual(store.snapshot.harnessTypes.first?.entries, ["SCK", "MOSI", "MISO"])
+        XCTAssertFalse(store.setHarnessType("SPI", entries: "A.B"))
+        var parts: [Int] = []
+        var harnesses: [Int] = []
+        for sheetName in ["A", "B"] {
+            let sheet = try XCTUnwrap(store.addSheet(named: sheetName, parent: 0))
+            store.selectSheet(sheet)
+            let j = store.addComponent(.connector, at: .zero)
+            store.placeHarnessConnector(type: "SPI", name: "BUS0")
+            let harness = try XCTUnwrap(store.snapshot.components.first { $0.isHarnessLabel && $0.sheetId == sheet })
+            let sck = try XCTUnwrap(store.snapshot.components.first { $0.harnessOf == harness.id && $0.value == "SCK" })
+            XCTAssertTrue(store.connect(PinAddress(component: j, pin: 0), PinAddress(component: sck.id, pin: 0)))
+            store.setLabelScope(harness.id, scope: "global")
+            parts.append(j)
+            harnesses.append(harness.id)
+        }
+        let a = try XCTUnwrap(store.snapshot.component(parts[0])), b = try XCTUnwrap(store.snapshot.component(parts[1]))
+        XCTAssertEqual(a.pins[0].net, b.pins[0].net)
+        XCTAssertEqual(store.snapshot.net(a.pins[0].net)?.name, "BUS0.SCK")
+        store.setLabelHarness(harnesses[0], type: "")
+        XCTAssertNil(store.snapshot.component(harnesses[0])?.harnessType)
+        store.undo()
+        XCTAssertEqual(store.snapshot.component(harnesses[0])?.harnessType, "SPI")
+    }
+}

@@ -156,6 +156,36 @@ Bus notation names a group of nets: `D[0..7]` is D0 … D7, `A[15..12]` counts d
 `sieda_add_bus_labels` (core: `Schematic::addBusLabels`) puts one label per member on a list of pins of a part — in
 order, each just outside its pin, facing away from the part, wired to it — with the scope you choose.
 
+## Signal harnesses (structured buses)
+
+A harness is a named bundle of signals — USB (DP, DN, VBUS, GND), SPI, a debug header — carried between sheets as
+one, like Altium's signal harnesses. Code: `Core/src/Harnesses.cpp`.
+
+- **Harness types**: sheet bar ▸ **Harnesses ▸ Harness Types…** — a name (letters, digits, `_`, `-`) and its
+  members (comma-separated, unique, no dots). Types are part of the project.
+- **Harness connector**: **Harnesses ▸ Place USB Connector…** places a *harness label* named e.g. `USB1` (drawn in
+  the harness colour with `≡`) and one *harness entry* per member, joined to it by thin stubs. Wire each entry to its
+  signal: entry `DP` of harness `USB1` joins the member net **`USB1.DP`** on its sheet. A local label named
+  `USB1.DP` joins it too.
+- **Across the hierarchy**: set the harness label's scope to **Port** on the child sheet; **Place Sheet Symbol**
+  gives the parent a harness sheet entry `USB1` of the same type, and every member crosses through that one entry
+  — the parent's own `USB1` connector meets them. A **Global** harness label carries its members to every global
+  harness label (and global label `USB1.DP`) of the name.
+- In the inspector a net label's **Harness** picker makes it a harness label of a type (or a single signal again);
+  **Add Missing Entries** completes a connector after the type grew.
+- The harness label itself is a bundle, not a net: it is not in the netlist, and ERC does not report it as dangling.
+  Members are ordinary nets everywhere (netlist, simulation, BOM, board). Harness connectors on a repeated sheet are
+  copied into every channel (each channel has its own members, as with local labels). A member named like a ground
+  (`GND`) joins the ground net, as every ground label does.
+
+| Code | Severity | Meaning |
+|---|---|---|
+| `ERC_HARNESS_UNKNOWN_TYPE` | error | A harness label's type is not defined |
+| `ERC_HARNESS_ENTRY_NOT_MEMBER` | error | A harness entry's name is not a member of its harness's type |
+| `ERC_HARNESS_TYPE_MISMATCH` | error | A sheet entry and the port behind it carry different harness types (or one is a single signal) |
+| `ERC_HARNESS_MEMBER_UNCONNECTED` | warning | A member reaches no part pin |
+| `ERC_HARNESS_TYPE_UNUSED` | info | A type is defined but not used |
+
 ## Multi-unit parts
 
 A part with several identical gates — a quad op-amp, a hex inverter — can be drawn one gate per symbol.
@@ -271,7 +301,8 @@ New project fields (all optional when reading):
 Further optional fields (written only when used, so other designs' files are unchanged): sheets `instanceOf`,
 `channel`, `refs` (a nested block's channels have a channel sheet as `parent`); components `instanceOf`,
 `logicalRef`, `channelOverride` (1 value, 2 package: the copy keeps its own), `bus`, `unitOf` / `unit` (kind 20, a placed unit) and
-`packageOnly`; wires `instanceOf`; top-level `buses` and `titleBlock`. A file is repaired on load: copies whose
+`packageOnly`, `harnessType` / `harnessOf` (net labels); wires `instanceOf`; top-level `buses`, `harnessTypes`
+(`[{"name","entries"}]`) and `titleBlock`. A file is repaired on load: copies whose
 block part is gone, units without a valid package, packages without units, entries of missing buses and buses on
 missing sheets are dropped; an instance of a missing or nested definition becomes an ordinary sheet. Older versions of
 SiEDA open a file with repeated sheets as ordinary sheets (every channel's parts are real parts); a file with placed
@@ -302,6 +333,15 @@ int32_t sieda_set_title_block(SiedaProject*, const char* json);
 int32_t sieda_set_channel_value(SiedaProject*, int32_t component, const char* value);   /* "" = block value */
 int32_t sieda_set_channel_package(SiedaProject*, int32_t component, const char* package);
 int32_t sieda_clear_channel_overrides(SiedaProject*, int32_t component);
+char*   sieda_check_units(const char* spec_json);
+int32_t sieda_swap_units(SiedaProject*, int32_t unit_a, int32_t unit_b);
+int32_t sieda_swap_pins(SiedaProject*, int32_t component, int32_t pin_a, int32_t pin_b);
+int32_t sieda_set_label_bus(SiedaProject*, int32_t label, int32_t bus);
+char*   sieda_harness_types_json(const SiedaProject*);
+int32_t sieda_set_harness_type(SiedaProject*, const char* name, const char* entries_json); /* [] removes */
+int32_t sieda_set_label_harness(SiedaProject*, int32_t label, const char* type);
+int32_t sieda_add_harness_connector(SiedaProject*, const char* type, const char* name, double x, double y);
+int32_t sieda_place_harness_entries(SiedaProject*, int32_t label);
 ```
 
 Sheets, hierarchy, bus labels, annotation and variants:

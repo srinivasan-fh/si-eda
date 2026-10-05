@@ -15,6 +15,9 @@
 "3D Viewer" = "3D వ్యూయర్";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A harness label carries every member of its type across sheets (port, sheet entry or global)" = "హార్నెస్ లేబుల్ తన రకంలోని ప్రతి సభ్యుడిని షీట్‌ల మధ్య తీసుకెళ్తుంది (పోర్ట్, షీట్ ఎంట్రీ లేదా గ్లోబల్)";
+"A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "ప్రతి సభ్యుడికి ఒక ఎంట్రీ ఉన్న హార్నెస్ లేబుల్; ప్రతి ఎంట్రీని దాని సిగ్నల్‌కు కలపండి. కట్టను మరో షీట్‌కు తీసుకెళ్లడానికి పోర్ట్ లేదా షీట్ ఎంట్రీకి అదే పేరు, రకం ఇవ్వండి.";
+"A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "హార్నెస్ రకం అనేది పేరున్న సిగ్నల్‌ల కట్ట (USB: DP, DN, VBUS, GND). ఆ రకం హార్నెస్ లేబుల్ ప్రతి సభ్యుడిని — \"USB1.DP\", \"USB1.DN\" … — పోర్ట్, దాని షీట్ ఎంట్రీ ద్వారా లేదా గ్లోబల్ లేబుల్‌గా తీసుకెళ్తుంది; దాని ఎంట్రీలు షీట్‌పై సభ్యులను కలుపుతాయి.";
 "A new gate; the selected pins go on it" = "కొత్త గేట్; ఎంచుకున్న పిన్‌లు దానిపైకి వెళ్తాయి";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC స్వీప్";
@@ -32,6 +35,7 @@
 "Add Ground Pours" = "గ్రౌండ్ పోర్‌లను జోడించు";
 "Add Kit to Library" = "కిట్‌ను లైబ్రరీకి జోడించు";
 "Add Mesh" = "మెష్ జోడించు";
+"Add Missing Entries" = "లేని ఎంట్రీలను జోడించు";
 "Add Pad" = "ప్యాడ్ జోడించు";
 "Add Pattern" = "ప్యాటర్న్ జోడించు";
 "Add Pin" = "పిన్ జోడించు";
@@ -194,6 +198,7 @@
 "DC voltage" = "DC వోల్టేజ్";
 "DEVICES" = "డివైస్‌లు";
 "DNP" = "DNP";
+"DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "డేటాషీట్";
@@ -207,6 +212,7 @@
 "Delete Bus" = "బస్‌ను తొలగించు";
 "Delete Part" = "పార్ట్ తొలగించు";
 "Delete Sheet" = "షీట్‌ను తొలగించండి";
+"Delete Type" = "రకాన్ని తొలగించు";
 "Delete Variant" = "వేరియంట్‌ను తొలగించండి";
 "Delete Wire" = "వైర్ తొలగించు";
 "Describe your product" = "మీ ఉత్పత్తిని వివరించండి";
@@ -305,11 +311,16 @@
 "Go to Sheet Entry" = "షీట్ ఎంట్రీకి వెళ్లు";
 "Google Cloud project ID" = "Google Cloud ప్రాజెక్ట్ ID";
 "Grid" = "గ్రిడ్";
+"HARNESS TYPES" = "హార్నెస్ రకాలు";
 "HDI vias: blind, buried and laser microvias (IPC-2226)" = "HDI వయాలు: బ్లైండ్, బరీడ్ మరియు లేజర్ మైక్రోవయాలు (IPC-2226)";
 "HOLOGRAPHIC LAYER ANALYSIS" = "హోలోగ్రాఫిక్ లేయర్ విశ్లేషణ";
 "HUD" = "HUD";
 "Harmonic" = "హార్మోనిక్";
 "Harmonics" = "హార్మోనిక్స్";
+"Harness" = "హార్నెస్";
+"Harness Types…" = "హార్నెస్ రకాలు…";
+"Harness name" = "హార్నెస్ పేరు";
+"Harnesses" = "హార్నెస్‌లు";
 "Hide navigator (N)" = "నావిగేటర్ దాచు (N)";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "ఎక్కువ ప్రయత్నంతో Claude సర్క్యూట్ టోపాలజీ మరియు విలువల గురించి ఎక్కువసేపు ఆలోచించగలదు. “high” సిఫార్సు చేయబడింది.";
 "Highlight" = "హైలైట్";
@@ -396,6 +407,7 @@
 "Meander height limit in mm (empty: 2 mm)" = "మియాండర్ ఎత్తు పరిమితి mm లో (ఖాళీ: 2 mm)";
 "Measure" = "కొలత";
 "Medical Device Class" = "వైద్య పరికర క్లాస్";
+"Members" = "సభ్యులు";
 "Memory Design" = "మెమరీ డిజైన్";
 "Microvia" = "మైక్రోవయా";
 "Min" = "కనిష్ఠం";
@@ -450,6 +462,7 @@
 "Nominal" = "నామమాత్ర విలువ";
 "None" = "ఏదీ లేదు";
 "None (mechanical)" = "ఏదీ లేదు (మెకానికల్)";
+"None (single signal)" = "ఏదీ లేదు (ఒకే సిగ్నల్)";
 "Not a memory design" = "మెమరీ డిజైన్ కాదు";
 "Not a robot" = "రోబోట్ కాదు";
 "Not aerospace" = "ఏరోస్పేస్ కాదు";
@@ -520,6 +533,8 @@
 "Pin map" = "పిన్ మ్యాప్";
 "Pin names" = "పిన్ పేర్లు";
 "Pins: " = "పిన్‌లు: ";
+"Place %@ Connector…" = "%@ కనెక్టర్ ఉంచు…";
+"Place Harness Connector" = "హార్నెస్ కనెక్టర్ ఉంచు";
 "Place Next Unit" = "తదుపరి యూనిట్ ఉంచు";
 "Place Now" = "ఇప్పుడే ఉంచు";
 "Place Part" = "భాగాన్ని ఉంచండి";
@@ -625,6 +640,7 @@
 "Save & Place" = "సేవ్ చేసి ఉంచు";
 "Save As…" = "ఇలా సేవ్ చేయి…";
 "Save Key" = "కీని సేవ్ చేయి";
+"Save Type" = "రకాన్ని సేవ్ చేయి";
 "Scale" = "స్కేల్";
 "Scan" = "స్కాన్ చేయి";
 "Schematic" = "స్కీమాటిక్";
@@ -680,6 +696,7 @@
 "Sign-off in verification" = "వెరిఫికేషన్‌లో సైన్-ఆఫ్";
 "Signal" = "సిగ్నల్";
 "Signal & Power Integrity" = "సిగ్నల్ & పవర్ ఇంటెగ్రిటీ";
+"Signal harnesses: named bundles of signals carried across sheets as one" = "సిగ్నల్ హార్నెస్‌లు: షీట్‌ల మధ్య ఒకటిగా తీసుకెళ్లే పేరున్న సిగ్నల్ కట్టలు";
 "Signals" = "సిగ్నల్స్";
 "Signed in with" = "దీనితో సైన్ ఇన్ అయ్యారు";
 "Simulate" = "సిమ్యులేట్ చేయి";
@@ -755,6 +772,7 @@
 "Type a designator, value, label or net name." = "నిర్దేశకం, విలువ, లేబుల్ లేదా నెట్ పేరు టైప్ చేయండి.";
 "UNIT %@" = "యూనిట్ %@";
 "UNITS" = "యూనిట్‌లు";
+"USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "బరువైన పార్ట్‌లకు అండర్‌ఫిల్ / కార్నర్-బాండ్ (షాక్)";
 "Undershoot" = "అండర్‌షూట్";
 "Undo" = "చర్యను రద్దు చేయి";

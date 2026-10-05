@@ -2958,3 +2958,64 @@ int32_t sieda_set_label_bus(SiedaProject* project, int32_t label, int32_t bus) {
 }
 
 }  // extern "C"
+
+// ---- schematic capture: signal harnesses
+
+extern "C" {
+
+char* sieda_harness_types_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        Json arr = Json::array();
+        for (const auto& t : project->project.schematic.harnessTypes()) {
+            Json j = Json::object();
+            j["name"] = t.name;
+            Json entries = Json::array();
+            for (const auto& e : t.entries) entries.push(e);
+            j["entries"] = entries;
+            arr.push(j);
+        }
+        return dup(arr.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_set_harness_type(SiedaProject* project, const char* name, const char* entries_json) {
+    if (!project || !name) return 0;
+    return guarded([&] {
+        Schematic& s = project->project.schematic;
+        std::vector<std::string> entries;
+        if (entries_json && *entries_json) {
+            const Json parsed = Json::parse(entries_json);
+            for (const auto& e : parsed.items()) entries.push_back(e.asString(""));
+        }
+        if (entries.empty()) return s.removeHarnessType(name) ? 1 : 0;
+        return s.setHarnessType(name, entries) ? 1 : 0;
+    });
+}
+
+int32_t sieda_set_label_harness(SiedaProject* project, int32_t label, const char* type) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setLabelHarness(label, str(type)) ? 1 : 0; });
+}
+
+int32_t sieda_add_harness_connector(SiedaProject* project, const char* type, const char* name, double x, double y) {
+    if (!project || !type || !name) return -1;
+    try {
+        return project->project.schematic.addHarnessConnector(type, name, {x, y});
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_place_harness_entries(SiedaProject* project, int32_t label) {
+    if (!project) return -1;
+    try {
+        return project->project.schematic.placeHarnessEntries(label);
+    } catch (...) {
+        return -1;
+    }
+}
+
+}  // extern "C"

@@ -877,8 +877,23 @@ bool Schematic::syncInstancesOnce() {
                 c.targetSheet = m.targetSheet != 0 ? mapEntryTarget(m.targetSheet, def, sheet) : 0;
                 c.unit = m.unit;
                 c.packageOnly = m.packageOnly;
+                c.harnessType = m.harnessType;
             }
         }
+        // Harness entries of the copies belong to the copies of their harness label.
+        for (int sheet : instances)
+            for (int mid : masterIds) {
+                const int masterHarness = comp(mid)->harnessOf;
+                const auto copyIt = copyOf.find({mid, sheet});
+                Component* copy = copyIt == copyOf.end() ? nullptr : comp(copyIt->second);
+                if (!copy) continue;
+                const auto h = copyOf.find({masterHarness, sheet});
+                const int harnessOf = masterHarness != 0 && h != copyOf.end() ? h->second : 0;
+                if (copy->harnessOf != harnessOf) {
+                    copy->harnessOf = harnessOf;
+                    changed = true;
+                }
+            }
         // Units of multi-unit parts belong to the copies of their packages.
         for (int sheet : instances)
             for (int mid : masterIds) {

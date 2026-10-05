@@ -369,6 +369,33 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_clear_channel_overrides($0, Int32(id)) } == 1
     }
 
+    // MARK: - Signal harnesses
+
+    /// Defines or replaces a harness type; an empty entry list removes it.
+    @discardableResult
+    func setHarnessType(_ name: String, entries: [String]) -> Bool {
+        let json = (try? JSONSerialization.data(withJSONObject: entries)).map { String(decoding: $0, as: UTF8.self) } ?? "[]"
+        return withHandle { sieda_set_harness_type($0, name, json) } == 1
+    }
+
+    /// Makes a net label a harness label of `type` ("" = an ordinary label again).
+    @discardableResult
+    func setLabelHarness(_ label: Int, type: String) -> Bool {
+        withHandle { sieda_set_label_harness($0, Int32(label), type) } == 1
+    }
+
+    /// Harness connector on the active sheet (a harness label with one entry per member); its id, nil on failure.
+    func addHarnessConnector(type: String, name: String, at point: CGPoint) -> Int? {
+        let id = withHandle { sieda_add_harness_connector($0, type, name, Double(point.x), Double(point.y)) }
+        return id >= 0 ? Int(id) : nil
+    }
+
+    /// Adds the missing member entries of a harness label; the number added, nil when it is not a harness.
+    func placeHarnessEntries(_ label: Int) -> Int? {
+        let n = withHandle { sieda_place_harness_entries($0, Int32(label)) }
+        return n >= 0 ? Int(n) : nil
+    }
+
     // MARK: - Graphical buses
 
     /// Draws a bus ("D[0..7]") through `points` on the active sheet; its id, nil when the name is not a bus.

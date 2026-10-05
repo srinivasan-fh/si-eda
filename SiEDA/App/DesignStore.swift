@@ -955,6 +955,52 @@ final class DesignStore: ObservableObject {
         }
     }
 
+    // MARK: - Signal harnesses
+
+    /// Defines or replaces a harness type from a name and its members ("DP, DN, VBUS").
+    @discardableResult
+    func setHarnessType(_ name: String, entries text: String) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let entries = text.split(whereSeparator: { $0 == "," || $0 == "\n" || $0 == ";" })
+            .map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        guard !trimmed.isEmpty, !entries.isEmpty else { return false }
+        return performChecked("Harness type \(trimmed)", invalidatesAnalysis: false,
+                              failureMessage: "A harness type needs a name (letters, digits, _ or -) and unique member names without dots") {
+            $0.setHarnessType(trimmed, entries: entries)
+        }
+    }
+
+    func removeHarnessType(_ name: String) {
+        performChecked("Removed harness type \(name)", invalidatesAnalysis: false) { $0.setHarnessType(name, entries: []) }
+    }
+
+    /// Makes the label a harness label of `type` ("" = an ordinary label).
+    func setLabelHarness(_ id: Int, type: String) {
+        guard let c = snapshot.component(id), (c.harnessType ?? "") != type else { return }
+        performChecked(type.isEmpty ? "\(c.value) is a single signal" : "\(c.value) carries harness \(type)",
+                       failureMessage: "A harness label needs a name of letters, digits, _ or -") {
+            $0.setLabelHarness(id, type: type)
+        }
+    }
+
+    /// Places a harness connector of `type` named `name` on the shown sheet, to the right of its parts.
+    func placeHarnessConnector(type: String, name: String) {
+        let parts = sheetSnapshot.components
+        var x = SchematicCanvas.componentBounds(parts).reduce(CGRect.null) { $0.union($1.rect) }.maxX
+        if x.isInfinite || x.isNaN { x = 0 }
+        let origin = SchematicAutoLayout.snap(CGPoint(x: x + 120, y: 0))
+        var placed: Int?
+        let done = performChecked("Placed harness \(name)", failureMessage: "Harness names are letters, digits, _ or -") {
+            placed = $0.addHarnessConnector(type: type, name: name.trimmingCharacters(in: .whitespaces), at: origin)
+            return placed != nil
+        }
+        if done, let placed { selection = [placed] }
+    }
+
+    func placeHarnessEntries(_ id: Int) {
+        performChecked("Added harness entries", failureMessage: "Every member has its entry") { ($0.placeHarnessEntries(id) ?? 0) > 0 }
+    }
+
     // MARK: - Find / replace and cross-probing
 
     func find(_ text: String, matchCase: Bool, wholeWord: Bool, pins: Bool) -> [SchematicSearchHit] {

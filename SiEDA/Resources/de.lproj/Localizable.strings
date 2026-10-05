@@ -15,6 +15,9 @@
 "3D Viewer" = "3D-Ansicht";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Ein Kabelbaum-Label führt jedes Mitglied seines Typs über die Blätter (Port, Blatteingang oder global)";
+"A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Ein Kabelbaum-Label mit einem Eintrag je Mitglied; jeden Eintrag mit seinem Signal verdrahten. Einem Port oder Blatteingang denselben Namen und Typ geben, um das Bündel auf ein anderes Blatt zu führen.";
+"A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "Ein Kabelbaum-Typ ist ein benanntes Signalbündel (USB: DP, DN, VBUS, GND). Ein Kabelbaum-Label des Typs führt jedes Mitglied – \"USB1.DP\", \"USB1.DN\" … – über einen Port und seinen Blatteingang oder als globales Label; seine Einträge verbinden die Mitglieder auf dem Blatt.";
 "A new gate; the selected pins go on it" = "Ein neues Gatter; die ausgewählten Pins kommen darauf";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC-Sweep";
@@ -32,6 +35,7 @@
 "Add Ground Pours" = "Masseflächen hinzufügen";
 "Add Kit to Library" = "Kit zur Bibliothek hinzufügen";
 "Add Mesh" = "Mesh hinzufügen";
+"Add Missing Entries" = "Fehlende Einträge hinzufügen";
 "Add Pad" = "Pad hinzufügen";
 "Add Pattern" = "Muster hinzufügen";
 "Add Pin" = "Pin hinzufügen";
@@ -194,6 +198,7 @@
 "DC voltage" = "Gleichspannung";
 "DEVICES" = "BAUTEILE";
 "DNP" = "DNP";
+"DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "Datenblatt";
@@ -207,6 +212,7 @@
 "Delete Bus" = "Bus löschen";
 "Delete Part" = "Bauteil löschen";
 "Delete Sheet" = "Blatt löschen";
+"Delete Type" = "Typ löschen";
 "Delete Variant" = "Variante löschen";
 "Delete Wire" = "Leitung löschen";
 "Describe your product" = "Produkt beschreiben";
@@ -305,11 +311,16 @@
 "Go to Sheet Entry" = "Zum Blatteingang";
 "Google Cloud project ID" = "Google Cloud-Projekt-ID";
 "Grid" = "Raster";
+"HARNESS TYPES" = "KABELBAUM-TYPEN";
 "HDI vias: blind, buried and laser microvias (IPC-2226)" = "HDI-Vias: Blind, Buried und Laser-Microvias (IPC-2226)";
 "HOLOGRAPHIC LAYER ANALYSIS" = "HOLOGRAFISCHE LAGENANALYSE";
 "HUD" = "HUD";
 "Harmonic" = "Harmonische";
 "Harmonics" = "Harmonische";
+"Harness" = "Kabelbaum";
+"Harness Types…" = "Kabelbaum-Typen…";
+"Harness name" = "Kabelbaum-Name";
+"Harnesses" = "Kabelbäume";
 "Hide navigator (N)" = "Navigator ausblenden (N)";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "Höherer Aufwand lässt Claude länger über Schaltungstopologie und Werte nachdenken. „high“ wird empfohlen.";
 "Highlight" = "Hervorheben";
@@ -396,6 +407,7 @@
 "Meander height limit in mm (empty: 2 mm)" = "Höchste Mäanderhöhe in mm (leer: 2 mm)";
 "Measure" = "Messgröße";
 "Medical Device Class" = "Medizinprodukteklasse";
+"Members" = "Mitglieder";
 "Memory Design" = "Speicherdesign";
 "Microvia" = "Microvia";
 "Min" = "Min";
@@ -450,6 +462,7 @@
 "Nominal" = "Nennwert";
 "None" = "Keine";
 "None (mechanical)" = "Keine (mechanisch)";
+"None (single signal)" = "Keiner (einzelnes Signal)";
 "Not a memory design" = "Kein Speicherdesign";
 "Not a robot" = "Kein Roboter";
 "Not aerospace" = "Keine Raumfahrt";
@@ -520,6 +533,8 @@
 "Pin map" = "Pinzuordnung";
 "Pin names" = "Pinnamen";
 "Pins: " = "Pins: ";
+"Place %@ Connector…" = "%@-Stecker platzieren…";
+"Place Harness Connector" = "Kabelbaum-Stecker platzieren";
 "Place Next Unit" = "Nächste Einheit platzieren";
 "Place Now" = "Jetzt platzieren";
 "Place Part" = "Bauteil platzieren";
@@ -625,6 +640,7 @@
 "Save & Place" = "Sichern & platzieren";
 "Save As…" = "Sichern unter …";
 "Save Key" = "Schlüssel sichern";
+"Save Type" = "Typ speichern";
 "Scale" = "Skalierung";
 "Scan" = "Scannen";
 "Schematic" = "Schaltplan";
@@ -680,6 +696,7 @@
 "Sign-off in verification" = "Freigabe in der Verifikation";
 "Signal" = "Signal";
 "Signal & Power Integrity" = "Signal- & Power-Integrität";
+"Signal harnesses: named bundles of signals carried across sheets as one" = "Signal-Kabelbäume: benannte Signalbündel, die als eins über Blätter geführt werden";
 "Signals" = "Signale";
 "Signed in with" = "Angemeldet mit";
 "Simulate" = "Simulieren";
@@ -755,6 +772,7 @@
 "Type a designator, value, label or net name." = "Bezeichner, Wert, Label oder Netznamen eingeben.";
 "UNIT %@" = "EINHEIT %@";
 "UNITS" = "EINHEITEN";
+"USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / Eckverklebung schwerer Bauteile (Schock)";
 "Undershoot" = "Unterschwingen";
 "Undo" = "Widerrufen";

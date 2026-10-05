@@ -352,6 +352,13 @@ int Schematic::placeSheetEntries(int child, Vec2 origin) {
         if (Component* c = find(id)) {
             c->scope = LabelScope::SheetEntry;
             c->targetSheet = child;
+            // A harness port gets a harness entry of its type: the whole bundle crosses here.
+            for (const auto& p : components_)
+                if (p.kind == ComponentKind::NetLabel && p.scope == LabelScope::Port && p.sheet == child && p.value == port &&
+                    isHarnessLabel(p)) {
+                    c->harnessType = p.harnessType;
+                    break;
+                }
         }
         at.y += 20;
         ++added;
@@ -593,6 +600,7 @@ void Schematic::hierarchyERC(std::vector<RuleViolation>& out) const {
                 firstGlobal.emplace(c.value, &c);
                 break;
             case LabelScope::Local:
+                if (c.harnessOf != 0 || isHarnessLabel(c)) break;  // harness members cross sheets through their harness
                 localSheets[c.value].insert(c.sheet);
                 firstLocal.emplace(c.value, &c);
                 break;

@@ -720,6 +720,22 @@ int32_t sieda_swap_pins(SiedaProject* project, int32_t component, int32_t pin_a,
 /* Makes a net label an entry of a bus on the same sheet (bus 0: an ordinary label again). 1 on success. */
 int32_t sieda_set_label_bus(SiedaProject* project, int32_t label, int32_t bus);
 
+/* ---- schematic capture: signal harnesses (docs/SCHEMATIC.md) -------------------------------------------------- */
+/* A harness type is a named bundle of signals: [{"name":"USB","entries":["DP","DN","VBUS"]}]. A harness label (net
+ * label with "harnessType") stands for a bundle named by its value ("USB1"); its entries (labels with "harnessOf" =
+ * the harness label) join the member nets "USB1.DP" … on their sheet. A harness port and its harness sheet entry, or
+ * global harness labels, carry every member across sheets. The snapshot lists "harnessTypes" and, per component,
+ * "harnessType" / "harnessOf". */
+char* sieda_harness_types_json(const SiedaProject* project);
+/* Defines or replaces a type (entries_json ["DP","DN",…]); empty or NULL entries remove it. 1 on success. */
+int32_t sieda_set_harness_type(SiedaProject* project, const char* name, const char* entries_json);
+/* Makes a net label a harness label of `type` ("" = an ordinary label again). 1 on success. */
+int32_t sieda_set_label_harness(SiedaProject* project, int32_t label, const char* type);
+/* Harness connector on the active sheet: a harness label `name` of `type` with one entry per member. Its id or -1. */
+int32_t sieda_add_harness_connector(SiedaProject* project, const char* type, const char* name, double x, double y);
+/* Adds the missing member entries of a harness label. The number added, or -1. */
+int32_t sieda_place_harness_entries(SiedaProject* project, int32_t label);
+
 #ifdef __cplusplus
 }
 #endif

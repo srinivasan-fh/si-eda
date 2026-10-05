@@ -15,6 +15,9 @@
 "3D Viewer" = "3D 뷰어";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A harness label carries every member of its type across sheets (port, sheet entry or global)" = "하네스 레이블은 해당 유형의 모든 멤버를 시트 간에 전달합니다(포트, 시트 엔트리 또는 전역)";
+"A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "멤버마다 엔트리가 하나씩 있는 하네스 레이블입니다. 각 엔트리를 해당 신호에 연결하세요. 포트나 시트 엔트리에 같은 이름과 유형을 지정하면 묶음이 다른 시트로 전달됩니다.";
+"A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "하네스 유형은 이름이 있는 신호 묶음입니다(USB: DP, DN, VBUS, GND). 이 유형의 하네스 레이블은 포트와 시트 엔트리 또는 전역 레이블을 통해 모든 멤버(\"USB1.DP\", \"USB1.DN\" …)를 전달하며, 엔트리는 시트에서 멤버를 연결합니다.";
 "A new gate; the selected pins go on it" = "새 게이트, 선택한 핀이 여기에 배치됩니다";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC 스윕";
@@ -32,6 +35,7 @@
 "Add Ground Pours" = "그라운드 푸어 추가";
 "Add Kit to Library" = "키트를 라이브러리에 추가";
 "Add Mesh" = "메시 추가";
+"Add Missing Entries" = "누락된 엔트리 추가";
 "Add Pad" = "패드 추가";
 "Add Pattern" = "패턴 추가";
 "Add Pin" = "핀 추가";
@@ -194,6 +198,7 @@
 "DC voltage" = "DC 전압";
 "DEVICES" = "디바이스";
 "DNP" = "DNP";
+"DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "데이터시트";
@@ -207,6 +212,7 @@
 "Delete Bus" = "버스 삭제";
 "Delete Part" = "부품 삭제";
 "Delete Sheet" = "시트 삭제";
+"Delete Type" = "유형 삭제";
 "Delete Variant" = "변형 삭제";
 "Delete Wire" = "와이어 삭제";
 "Describe your product" = "제품 설명 입력";
@@ -305,11 +311,16 @@
 "Go to Sheet Entry" = "시트 엔트리로 이동";
 "Google Cloud project ID" = "Google Cloud 프로젝트 ID";
 "Grid" = "그리드";
+"HARNESS TYPES" = "하네스 유형";
 "HDI vias: blind, buried and laser microvias (IPC-2226)" = "HDI 비아: 블라인드, 베리드 및 레이저 마이크로비아 (IPC-2226)";
 "HOLOGRAPHIC LAYER ANALYSIS" = "홀로그래픽 레이어 분석";
 "HUD" = "HUD";
 "Harmonic" = "고조파";
 "Harmonics" = "고조파 수";
+"Harness" = "하네스";
+"Harness Types…" = "하네스 유형…";
+"Harness name" = "하네스 이름";
+"Harnesses" = "하네스";
 "Hide navigator (N)" = "네비게이터 숨기기 (N)";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "추론 강도가 높을수록 Claude가 회로 토폴로지와 값을 더 오래 검토합니다. “high”를 권장합니다.";
 "Highlight" = "강조";
@@ -396,6 +407,7 @@
 "Meander height limit in mm (empty: 2 mm)" = "미앤더 높이 한계(mm, 비우면 2 mm)";
 "Measure" = "측정 항목";
 "Medical Device Class" = "의료기기 등급";
+"Members" = "멤버";
 "Memory Design" = "메모리 설계";
 "Microvia" = "마이크로비아";
 "Min" = "최소";
@@ -450,6 +462,7 @@
 "Nominal" = "공칭값";
 "None" = "없음";
 "None (mechanical)" = "없음 (기구)";
+"None (single signal)" = "없음(단일 신호)";
 "Not a memory design" = "메모리 설계 아님";
 "Not a robot" = "로봇 아님";
 "Not aerospace" = "항공우주 아님";
@@ -520,6 +533,8 @@
 "Pin map" = "핀 매핑";
 "Pin names" = "핀 이름";
 "Pins: " = "핀: ";
+"Place %@ Connector…" = "%@ 커넥터 배치…";
+"Place Harness Connector" = "하네스 커넥터 배치";
 "Place Next Unit" = "다음 유닛 배치";
 "Place Now" = "지금 배치";
 "Place Part" = "부품 배치";
@@ -625,6 +640,7 @@
 "Save & Place" = "저장 후 배치";
 "Save As…" = "다른 이름으로 저장…";
 "Save Key" = "키 저장";
+"Save Type" = "유형 저장";
 "Scale" = "배율";
 "Scan" = "스캔";
 "Schematic" = "회로도";
@@ -680,6 +696,7 @@
 "Sign-off in verification" = "검증에서 사인오프";
 "Signal" = "신호";
 "Signal & Power Integrity" = "신호 및 전원 무결성";
+"Signal harnesses: named bundles of signals carried across sheets as one" = "신호 하네스: 하나로 시트 간에 전달되는 이름 있는 신호 묶음";
 "Signals" = "신호";
 "Signed in with" = "로그인 방식";
 "Simulate" = "시뮬레이션";
@@ -755,6 +772,7 @@
 "Type a designator, value, label or net name." = "참조 기호, 값, 레이블 또는 넷 이름을 입력하세요.";
 "UNIT %@" = "단위 %@";
 "UNITS" = "단위";
+"USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "무거운 부품 언더필 / 코너 본딩 (충격)";
 "Undershoot" = "언더슈트";
 "Undo" = "실행 취소";

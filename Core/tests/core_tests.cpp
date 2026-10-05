@@ -13256,3 +13256,222 @@ TEST(unit_spec_swap_fields_fuzzed) {
     }
     CHECK(parsed > 50);
 }
+
+// ======================================================================= signal harnesses, bus entries
+
+namespace {
+bool hasViolation(const std::vector<RuleViolation>& v, const std::string& code) {
+    return std::any_of(v.begin(), v.end(), [&](const RuleViolation& r) { return r.code == code; });
+}
+
+/// Main holds a connector J1 (USB pins) wired to a USB harness connector; the harness goes through a sheet entry into
+/// child sheet "Phy", where a harness port of the same name and a harness connector feed a second connector J2.
+struct HarnessDesign {
+    int phy = 0, j1 = 0, j2 = 0, mainHarness = 0, phyPort = 0, entry = 0;
+};
+HarnessDesign harnessDesign(Schematic& s) {
+    HarnessDesign d;
+    CHECK(s.setHarnessType("USB", {"DP", "DN", "VBUS"}));
+    d.phy = s.addSheet("Phy", 1);
+    s.setActiveSheet(1);
+    d.j1 = s.addComponent(ComponentKind::Connector, "USB", {0, 0});
+    d.mainHarness = s.addHarnessConnector("USB", "USB1", {200, 0});
+    CHECK(d.mainHarness > 0);
+    // Wire J1's pins to the connector's entries DP and DN.
+    auto entry = [&](int harness, const std::string& name) {
+        for (const auto& c : s.components())
+            if (c.harnessOf == harness && c.value == name) return c.id;
+        return -1;
+    };
+    CHECK(s.connect({d.j1, 0}, {entry(d.mainHarness, "DP"), 0}) >= 0);
+    CHECK(s.connect({d.j1, 1}, {entry(d.mainHarness, "DN"), 0}) >= 0);
+    // The child: a harness port USB1 and a connector J2 on DP / DN.
+    s.setActiveSheet(d.phy);
+    d.j2 = s.addComponent(ComponentKind::Connector, "PHY", {0, 0});
+    const int phyHarness = s.addHarnessConnector("USB", "USB1", {200, 0});
+    CHECK(s.connect({d.j2, 0}, {entry(phyHarness, "DP"), 0}) >= 0);
+    CHECK(s.connect({d.j2, 1}, {entry(phyHarness, "DN"), 0}) >= 0);
+    CHECK(s.setLabelScope(phyHarness, LabelScope::Port));
+    d.phyPort = phyHarness;
+    // The sheet symbol on Main carries the harness: the entry gets the port's type.
+    CHECK(s.placeSheetEntries(d.phy, {400, 0}) == 1);
+    for (const auto& c : s.components())
+        if (c.scope == LabelScope::SheetEntry && c.targetSheet == d.phy) d.entry = c.id;
+    CHECK(d.entry > 0 && s.find(d.entry)->harnessType == "USB");
+    // On Main, the sheet entry and the harness connector have the same name: they join through the local members.
+    return d;
+}
+}  // namespace
+
+TEST(harness_types_connectors_and_nets_through_the_hierarchy) {
+    Project p;
+    Schematic& s = p.schematic;
+    // Type validation.
+    CHECK(!s.setHarnessType("", {"A"}) && !s.setHarnessType("X", {}) && !s.setHarnessType("X", {"A", "A"}));
+    CHECK(!s.setHarnessType("X", {"A.B"}) && !s.setHarnessType("bad name", {"A"}));
+    HarnessDesign d = harnessDesign(s);
+    CHECK(s.findHarnessType("USB") && s.findHarnessType("USB")->entries.size() == 3);
+    // J1.1 and J2.1 are one net, named by the member.
+    const int dp = s.netOf({d.j1, 0});
+    CHECK(dp >= 0 && dp == s.netOf({d.j2, 0}));
+    CHECK(s.nets()[static_cast<size_t>(dp)].name == "USB1.DP");
+    CHECK(s.netOf({d.j1, 1}) == s.netOf({d.j2, 1}) && s.netOf({d.j1, 1}) != dp);
+    // The harness labels themselves are no nets.
+    CHECK(s.netOf({d.mainHarness, 0}) < 0 && s.netOf({d.entry, 0}) < 0);
+    for (const auto& n : s.nets()) CHECK(n.name != "USB1");
+    // ERC: VBUS reaches no part (warning); nothing else about harnesses or dangling bundles.
+    auto erc = s.runERC();
+    CHECK(hasViolation(erc, "ERC_HARNESS_MEMBER_UNCONNECTED"));
+    CHECK(!hasViolation(erc, "ERC_HARNESS_TYPE_MISMATCH") && !hasViolation(erc, "ERC_HARNESS_UNKNOWN_TYPE"));
+    CHECK(!hasViolation(erc, "ERC_LOCAL_LABEL_SPLIT") && !hasViolation(erc, "ERC_SHEET_ENTRY_NO_PORT"));
+    for (const auto& v : erc) CHECK(!(v.code == "ERC_DANGLING_LABEL" && v.components == std::vector<int>{d.mainHarness}));
+    // A port of another harness type behind the entry is a type mismatch; an entry not in the type is reported.
+    CHECK(s.setHarnessType("USB3", {"DP", "DN", "VBUS", "SSTX"}));
+    CHECK(s.setLabelHarness(d.phyPort, "USB3"));
+    CHECK(hasViolation(s.runERC(), "ERC_HARNESS_TYPE_MISMATCH"));
+    CHECK(s.setLabelHarness(d.phyPort, "USB"));
+    CHECK(!hasViolation(s.runERC(), "ERC_HARNESS_TYPE_MISMATCH"));
+    CHECK(s.placeHarnessEntries(d.phyPort) == 0);  // every member has its entry
+    CHECK(s.setHarnessType("USB", {"DP", "DN"}));
+    CHECK(hasViolation(s.runERC(), "ERC_HARNESS_ENTRY_NOT_MEMBER"));  // VBUS
+    CHECK(s.setHarnessType("USB", {"DP", "DN", "VBUS"}));
+    CHECK(!s.setLabelHarness(d.j1, "USB") && !s.setLabelHarness(d.mainHarness, "NOPE"));
+    // Unknown type (removed): reported; members fall apart across the hierarchy.
+    CHECK(s.removeHarnessType("USB") && !s.removeHarnessType("USB"));
+    CHECK(hasViolation(s.runERC(), "ERC_HARNESS_UNKNOWN_TYPE"));
+    CHECK(s.setHarnessType("USB", {"DP", "DN", "VBUS"}));
+    CHECK(s.netOf({d.j1, 0}) == s.netOf({d.j2, 0}));
+    // Persistence: types and links survive; loading is a fixed point.
+    const std::string saved = p.toJson().dump();
+    CHECK(saved.find("\"harnessTypes\"") != std::string::npos && saved.find("\"harnessOf\"") != std::string::npos);
+    Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.schematic.netOf({d.j1, 0}) == q.schematic.netOf({d.j2, 0}));
+    CHECK(q.toJson().dump() == saved);
+    // A design without harnesses writes none of the fields.
+    Project plain;
+    plain.schematic.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    CHECK(plain.toJson().dump().find("harness") == std::string::npos);
+    // Making a harness plain again leaves its entries as ordinary labels: the bundle no longer crosses.
+    CHECK(s.setLabelHarness(d.phyPort, ""));
+    CHECK(s.netOf({d.j1, 0}) != s.netOf({d.j2, 0}));
+    for (const auto& c : s.components()) CHECK(c.harnessOf != d.phyPort);
+}
+
+TEST(harness_global_labels_and_repeated_sheets) {
+    Schematic s;
+    CHECK(s.setHarnessType("SPI", {"SCK", "MOSI", "MISO", "CS"}));
+    // Two sheets joined by a global harness label: each sheet's local members meet.
+    const int a = s.addSheet("A", 0), b = s.addSheet("B", 0);
+    int conn[2] = {0, 0}, part[2] = {0, 0};
+    const int sheets[2] = {a, b};
+    for (int k = 0; k < 2; ++k) {
+        s.setActiveSheet(sheets[k]);
+        part[k] = s.addComponent(ComponentKind::Connector, "X", {0, 0});
+        conn[k] = s.addHarnessConnector("SPI", "BUS0", {100, 0});
+        int sck = -1;
+        for (const auto& c : s.components())
+            if (c.harnessOf == conn[k] && c.value == "SCK") sck = c.id;
+        CHECK(s.connect({part[k], 0}, {sck, 0}) >= 0);
+    }
+    CHECK(s.netOf({part[0], 0}) != s.netOf({part[1], 0}));  // local connectors only: separate
+    CHECK(s.setLabelScope(conn[0], LabelScope::Global) && s.setLabelScope(conn[1], LabelScope::Global));
+    CHECK(s.netOf({part[0], 0}) == s.netOf({part[1], 0}));
+    // A global label of a member's name joins it too.
+    s.setActiveSheet(a);
+    const int probe = s.addComponent(ComponentKind::NetLabel, "BUS0.SCK", {0, 300});
+    const int r = s.addComponent(ComponentKind::Resistor, "1k", {100, 300});
+    CHECK(s.connect({probe, 0}, {r, 0}) >= 0);
+    CHECK(s.netOf({r, 0}) == s.netOf({part[1], 0}));
+    // Repeated sheet with a harness connector: every channel gets its own connector and entries.
+    const int blk = s.addSheet("Blk", 1);
+    s.setActiveSheet(blk);
+    const int x = s.addComponent(ComponentKind::Connector, "X", {0, 0});
+    const int h = s.addHarnessConnector("SPI", "LOC", {100, 0});
+    int sck = -1;
+    for (const auto& c : s.components())
+        if (c.harnessOf == h && c.value == "SCK") sck = c.id;
+    CHECK(s.connect({x, 0}, {sck, 0}) >= 0);
+    CHECK(s.repeatSheet(blk, 3) == 3);
+    std::set<int> nets;
+    for (int sh : s.sheetInstances(blk)) {
+        const int copyH = s.copyOn(h, sh);
+        CHECK(copyH > 0);
+        int entries = 0;
+        for (const auto& c : s.components()) entries += c.harnessOf == copyH;
+        CHECK(entries == 4);
+        nets.insert(s.netOf({s.copyOn(x, sh), 0}));
+    }
+    CHECK(nets.size() == 3);
+}
+
+TEST(harness_and_bus_fields_fuzzed_files) {
+    Schematic base;
+    harnessDesign(base);
+    Project p;
+    p.schematic = base;
+    const std::string saved = p.toJson().dump();
+    uint32_t seed = 4242u;
+    auto rng = [&seed] {
+        seed = seed * 1664525u + 1013904223u;
+        return seed >> 8;
+    };
+    int loaded = 0;
+    for (int round = 0; round < 300; ++round) {
+        Json j = Json::parse(saved);
+        Json comps = Json::array();
+        for (Json c : j.get("components").items()) {
+            const int r = static_cast<int>(rng() % 8);
+            if (r == 0) c["harnessOf"] = static_cast<int>(rng() % 30) - 3;
+            if (r == 1) c["harnessType"] = std::string(rng() % 2 ? "USB" : "NOPE");
+            if (r == 2) c["scope"] = std::string(rng() % 2 ? "entry" : "global");
+            if (r == 3) c["targetSheet"] = static_cast<int>(rng() % 5);
+            comps.push(c);
+        }
+        j["components"] = comps;
+        if (rng() % 4 == 0) {
+            Json types = Json::array();
+            Json t = Json::object();
+            t["name"] = std::string(rng() % 2 ? "USB" : "bad name");
+            Json e = Json::array();
+            for (int k = 0, n = static_cast<int>(rng() % 4); k < n; ++k) e.push(std::string(1, static_cast<char>('A' + rng() % 3)));
+            t["entries"] = e;
+            types.push(t);
+            j["harnessTypes"] = types;
+        }
+        try {
+            Project q = Project::fromJson(j);
+            ++loaded;
+            for (const auto& c : q.schematic.components()) {
+                if (c.harnessOf == 0) continue;
+                const Component* h = q.schematic.find(c.harnessOf);
+                CHECK(h && Schematic::isHarnessLabel(*h) && h->sheet == c.sheet);
+            }
+            (void)q.schematic.runERC();
+            const std::string once = q.toJson().dump();
+            CHECK(Project::fromJson(Json::parse(once)).toJson().dump() == once);
+        } catch (const JsonError&) {
+        }
+    }
+    CHECK(loaded > 200);
+}
+
+TEST(bus_entries_attach_by_label) {
+    Schematic s;
+    const int bus = s.addBus("D[0..1]", {{0, 0}, {0, 100}});
+    const int l = s.addComponent(ComponentKind::NetLabel, "D0", {20, 20});
+    CHECK(bus > 0 && s.setLabelBus(l, bus) && s.find(l)->bus == bus);
+    const int r = s.addComponent(ComponentKind::Resistor, "1k", {100, 0});
+    CHECK(!s.setLabelBus(r, bus) && !s.setLabelBus(l, 999));
+    const int other = s.addSheet("Other", 0);
+    s.setActiveSheet(other);
+    const int far = s.addComponent(ComponentKind::NetLabel, "D1", {0, 0});
+    CHECK(!s.setLabelBus(far, bus));  // a bus on another sheet
+    CHECK(s.setLabelBus(l, 0) && s.find(l)->bus == 0);
+}
+
+extern "C" int sieda_c_api_harness_test(void);
+TEST(c_api_harness) {
+    const int rc = sieda_c_api_harness_test();
+    if (rc != 0) std::printf("    C API harness test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}

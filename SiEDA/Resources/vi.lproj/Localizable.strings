@@ -15,6 +15,9 @@
 "3D Viewer" = "Trình xem 3D";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Nhãn bó dây mang mọi thành viên của kiểu qua các trang (cổng, lối vào trang hoặc toàn cục)";
+"A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Nhãn bó dây với một lối vào cho mỗi thành viên; nối mỗi lối vào với tín hiệu của nó. Đặt cùng tên và kiểu cho cổng hoặc lối vào trang để đưa cả bó sang trang khác.";
+"A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "Kiểu bó dây là một bó tín hiệu có tên (USB: DP, DN, VBUS, GND). Nhãn bó dây của kiểu này mang mọi thành viên — \"USB1.DP\", \"USB1.DN\" … — qua cổng và lối vào trang của nó, hoặc dưới dạng nhãn toàn cục; các lối vào nối các thành viên trên trang.";
 "A new gate; the selected pins go on it" = "Cổng mới; các chân đã chọn được đặt vào đó";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "Quét AC";
@@ -32,6 +35,7 @@
 "Add Ground Pours" = "Thêm vùng đổ đồng GND";
 "Add Kit to Library" = "Thêm bộ kit vào thư viện";
 "Add Mesh" = "Thêm lưới";
+"Add Missing Entries" = "Thêm lối vào còn thiếu";
 "Add Pad" = "Thêm pad";
 "Add Pattern" = "Thêm mẫu";
 "Add Pin" = "Thêm chân";
@@ -194,6 +198,7 @@
 "DC voltage" = "Điện áp DC";
 "DEVICES" = "THIẾT BỊ";
 "DNP" = "DNP";
+"DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "Datasheet";
@@ -207,6 +212,7 @@
 "Delete Bus" = "Xóa bus";
 "Delete Part" = "Xóa linh kiện";
 "Delete Sheet" = "Xóa trang";
+"Delete Type" = "Xóa kiểu";
 "Delete Variant" = "Xóa biến thể";
 "Delete Wire" = "Xóa dây";
 "Describe your product" = "Mô tả sản phẩm của bạn";
@@ -305,11 +311,16 @@
 "Go to Sheet Entry" = "Đến điểm vào trang";
 "Google Cloud project ID" = "ID dự án Google Cloud";
 "Grid" = "Lưới";
+"HARNESS TYPES" = "KIỂU BÓ DÂY";
 "HDI vias: blind, buried and laser microvias (IPC-2226)" = "Via HDI: via mù, via chôn và microvia laser (IPC-2226)";
 "HOLOGRAPHIC LAYER ANALYSIS" = "PHÂN TÍCH LỚP DẠNG ẢNH TOÀN KÝ";
 "HUD" = "HUD";
 "Harmonic" = "Sóng hài";
 "Harmonics" = "Số sóng hài";
+"Harness" = "Bó dây";
+"Harness Types…" = "Kiểu bó dây…";
+"Harness name" = "Tên bó dây";
+"Harnesses" = "Bó dây";
 "Hide navigator (N)" = "Ẩn bộ điều hướng (N)";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "Mức suy luận cao hơn cho phép Claude suy luận lâu hơn về cấu trúc mạch và giá trị linh kiện. Khuyến nghị “high”.";
 "Highlight" = "Đánh dấu";
@@ -396,6 +407,7 @@
 "Meander height limit in mm (empty: 2 mm)" = "Giới hạn chiều cao uốn khúc, mm (để trống: 2 mm)";
 "Measure" = "Đại lượng đo";
 "Medical Device Class" = "Phân loại thiết bị y tế";
+"Members" = "Thành viên";
 "Memory Design" = "Thiết kế bộ nhớ";
 "Microvia" = "Vi via";
 "Min" = "Nhỏ nhất";
@@ -450,6 +462,7 @@
 "Nominal" = "Danh định";
 "None" = "Không";
 "None (mechanical)" = "Không (cơ khí)";
+"None (single signal)" = "Không (một tín hiệu)";
 "Not a memory design" = "Không phải thiết kế bộ nhớ";
 "Not a robot" = "Không phải robot";
 "Not aerospace" = "Không phải hàng không vũ trụ";
@@ -520,6 +533,8 @@
 "Pin map" = "Ánh xạ chân";
 "Pin names" = "Tên chân";
 "Pins: " = "Chân: ";
+"Place %@ Connector…" = "Đặt đầu nối %@…";
+"Place Harness Connector" = "Đặt đầu nối bó dây";
 "Place Next Unit" = "Đặt khối tiếp theo";
 "Place Now" = "Đặt ngay";
 "Place Part" = "Đặt linh kiện";
@@ -625,6 +640,7 @@
 "Save & Place" = "Lưu & đặt";
 "Save As…" = "Lưu thành…";
 "Save Key" = "Lưu khóa";
+"Save Type" = "Lưu kiểu";
 "Scale" = "Tỷ lệ";
 "Scan" = "Quét";
 "Schematic" = "Sơ đồ nguyên lý";
@@ -680,6 +696,7 @@
 "Sign-off in verification" = "Phê duyệt trong kiểm định";
 "Signal" = "Tín hiệu";
 "Signal & Power Integrity" = "Toàn vẹn tín hiệu & nguồn";
+"Signal harnesses: named bundles of signals carried across sheets as one" = "Bó dây tín hiệu: các bó tín hiệu có tên được mang qua các trang như một";
 "Signals" = "Tín hiệu";
 "Signed in with" = "Đã đăng nhập bằng";
 "Simulate" = "Mô phỏng";
@@ -755,6 +772,7 @@
 "Type a designator, value, label or net name." = "Nhập ký hiệu, giá trị, nhãn hoặc tên net.";
 "UNIT %@" = "ĐƠN VỊ %@";
 "UNITS" = "ĐƠN VỊ";
+"USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / dán góc linh kiện nặng (chấn động)";
 "Undershoot" = "Vọt dưới";
 "Undo" = "Hoàn tác";

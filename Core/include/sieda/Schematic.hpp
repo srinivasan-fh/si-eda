@@ -130,6 +130,13 @@ struct Component {
     /// On a copy in a repeated sheet's channel: the parameters this channel sets itself instead of taking the block's
     /// (bits of ChannelOverride). 0 everywhere else.
     int channelOverrides = 0;
+    /// Signal harnesses (net labels only). A harness label (`harnessType` set) stands for a bundle named by its value
+    /// ("USB1"): through its scope — port, sheet entry or global — it carries every member net "USB1.DP", "USB1.DN" …
+    /// of its type across sheets; its own pin joins nothing. A harness entry (`harnessOf` = a harness label on the
+    /// same sheet) is a label named by one entry of the type ("DP") that joins the member net "USB1.DP" on its sheet:
+    /// the entries of a harness connector.
+    std::string harnessType;
+    int harnessOf = 0;
 
     bool isNoConnect(int pin) const;
 
@@ -137,6 +144,12 @@ struct Component {
     bool hasFootprint() const { return !def().footprint.empty(); }
     /// The footprint the part is placed with: its package variant, else the kind's default.
     const std::string& footprintName() const;
+};
+
+/// A signal harness type (Altium's harness definition): a named bundle of signals, e.g. USB = {DP, DN, VBUS, GND}.
+struct HarnessType {
+    std::string name;
+    std::vector<std::string> entries;
 };
 
 /// Per-channel parameters of a repeated sheet's part (Component::channelOverrides).
@@ -398,6 +411,32 @@ public:
     /// Pin swap: two pins of a placed unit in one of its pin-swap groups exchange their wires. False when not allowed.
     bool swapPins(int componentId, int pinA, int pinB);
 
+    // ---- signal harnesses (structured buses) ----
+    const std::vector<HarnessType>& harnessTypes() const { return harnessTypes_; }
+    const HarnessType* findHarnessType(const std::string& name) const;
+    /// Defines or replaces a harness type: a name (letters, digits, '_' or '-', 1…32) and 1…256 unique entry names
+    /// (no '.' or spaces). False when invalid.
+    bool setHarnessType(const std::string& name, const std::vector<std::string>& entries);
+    /// Removes a type; its harness labels stay (ERC reports them until the type is defined again).
+    bool removeHarnessType(const std::string& name);
+    /// Makes a net label a harness label of `type` ("" = an ordinary label again; its entries become plain labels).
+    bool setLabelHarness(int labelId, const std::string& type);
+    /// Harness connector on the active sheet: a local harness label named `name` with one entry per member of
+    /// `type`, stacked below `position`. Returns the harness label's id, or -1 (unknown type, invalid name).
+    int addHarnessConnector(const std::string& type, const std::string& name, Vec2 position);
+    /// Adds an entry for every member of a harness label's type that has none. Returns the entries added, or -1.
+    int placeHarnessEntries(int harnessLabel);
+    /// The net a label joins by name: "USB1.DP" for a harness entry, the label's value otherwise.
+    std::string labelNetName(const Component& c) const;
+    /// True for a harness label (a bundle, not a net).
+    static bool isHarnessLabel(const Component& c) {
+        return c.kind == ComponentKind::NetLabel && !c.harnessType.empty() && c.harnessOf == 0;
+    }
+    /// Detaches harness entries whose harness is gone or on another sheet (true when it changed anything).
+    bool repairHarnessLinks();
+    /// Replaces the harness types (persistence; invalid entries dropped).
+    void restoreHarnessTypes(const std::vector<HarnessType>& types);
+
     // ---- graphical buses ----
     const std::vector<Bus>& buses() const { return buses_; }
     const Bus* findBus(int id) const;
@@ -430,6 +469,7 @@ private:
     bool hasInstances() const;
     /// After an edit: keeps repeated sheets' instances in line (nothing to do in a design without them).
     void edited() {
+        repairHarnessLinks();
         if (hasInstances()) syncInstances();
         else syncUnits();
     }
@@ -467,6 +507,10 @@ private:
     void rebuildNets() const;
     /// Multi-sheet checks: ports, sheet entries, labels split across sheets, wires between sheets, bus labels.
     void hierarchyERC(std::vector<RuleViolation>& out) const;
+    /// Harness checks: unknown types, entries that are not members, mismatched types through the hierarchy, members
+    /// that reach nothing.
+    void harnessERC(std::vector<RuleViolation>& out) const;
+    std::vector<HarnessType> harnessTypes_;
 
     std::vector<Component> components_;
     std::vector<Wire> wires_;

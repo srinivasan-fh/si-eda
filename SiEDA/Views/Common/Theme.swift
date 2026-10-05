@@ -35,6 +35,8 @@ enum Theme {
     static let probe = Color(red: 0.36, green: 0.92, blue: 1.00)
     /// Live simulation: closed switches, running indicators.
     static let liveOn = Color(red: 0.36, green: 0.90, blue: 0.52)
+    /// Signal harnesses (bundles of signals) on the schematic.
+    static let harness = Color(red: 0.78, green: 0.58, blue: 1.00)
 
     // PCB canvas (blue copper palette)
     static let pcbBackground = Color(red: 0.02, green: 0.04, blue: 0.09)

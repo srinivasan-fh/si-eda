@@ -23,6 +23,7 @@ add_library(sieda_core STATIC
     Core/src/Sheets.cpp
     Core/src/Instances.cpp
     Core/src/Buses.cpp
+    Core/src/Harnesses.cpp
     Core/src/PartUnits.cpp
     Core/src/SchematicSearch.cpp
     Core/src/Variants.cpp

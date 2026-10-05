@@ -230,6 +230,9 @@ struct SheetBar: View {
     @State private var channelCount = "2"
     @State private var renamingChannel: SheetInfo?
     @State private var channelName = ""
+    @State private var editingHarnesses = false
+    @State private var harnessConnectorType: HarnessTypeInfo?
+    @State private var harnessName = ""
 
     var body: some View {
         OptionsBar {
@@ -298,6 +301,20 @@ struct SheetBar: View {
             }
             .fixedSize()
             Menu {
+                Button("Harness Types…") { editingHarnesses = true }
+                Divider()
+                ForEach(store.snapshot.harnessTypes) { type in
+                    Button("Place \(type.name) Connector…") {
+                        harnessName = type.name + "1"
+                        harnessConnectorType = type
+                    }
+                }
+            } label: {
+                Label("Harnesses", systemImage: "cable.connector.horizontal")
+            }
+            .fixedSize()
+            .help("Signal harnesses: named bundles of signals carried across sheets as one")
+            Menu {
                 Button("Base Design") { store.selectVariant("") }
                 ForEach(store.snapshot.variants) { variant in
                     Button(variant.name) { store.selectVariant(variant.name) }
@@ -347,6 +364,18 @@ struct SheetBar: View {
                 renamingChannel = nil
             }
             Button("Cancel", role: .cancel) { renamingChannel = nil }
+        }
+        .sheet(isPresented: $editingHarnesses) { HarnessTypesView().environmentObject(store) }
+        .alert("Place Harness Connector", isPresented: Binding(get: { harnessConnectorType != nil },
+                                                               set: { if !$0 { harnessConnectorType = nil } })) {
+            TextField("Harness name", text: $harnessName)
+            Button("OK") {
+                if let type = harnessConnectorType { store.placeHarnessConnector(type: type.name, name: harnessName) }
+                harnessConnectorType = nil
+            }
+            Button("Cancel", role: .cancel) { harnessConnectorType = nil }
+        } message: {
+            Text("A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet.")
         }
         .alert("New Variant", isPresented: $addingVariant) {
             TextField("Variant name", text: $variantName)

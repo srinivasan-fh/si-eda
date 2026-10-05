@@ -27,10 +27,12 @@
 		2287BB95287E1B91404A7E26 = {isa = PBXBuildFile; fileRef = 360A0133126B63E523F4E1AB; };
 		22CA6AD33443CA7EA6C41004 = {isa = PBXBuildFile; fileRef = AA5E1F9188A170B06640B91C; };
 		22D4E40197A0198F20F90478 = {isa = PBXBuildFile; fileRef = 085E0C7C16BF5A4DBFF9AED5; };
+		23EB2EBF3D92E3D32FAE1CAE = {isa = PBXBuildFile; fileRef = 176A6301F1F9BADDD2CC2926; };
 		26120DE74DC5598E76CE795F = {isa = PBXBuildFile; fileRef = 84966DF7BFC55F50B9962345; };
 		27BBC00F97F9634F9CAA7447 = {isa = PBXBuildFile; fileRef = 17C16B79C87A9A1A589707E5; };
 		27F0083DD20AA58EE2FA4A6F = {isa = PBXBuildFile; fileRef = 2B5B8F926E5F3FE0015F96DA; };
 		2A1AF8DA93B70AF533A425E3 = {isa = PBXBuildFile; fileRef = 2471F18A6F30A3393114FB82; };
+		2A26F5F10710C3605BCC92E7 = {isa = PBXBuildFile; fileRef = 0ED15CEF8193940CDDA7EDC4; };
 		2EC7607088EE552EE82C08CD = {isa = PBXBuildFile; fileRef = E24E95E9C50ED191B629FFCB; };
 		2F37DBCC1B97825D126178A5 = {isa = PBXBuildFile; fileRef = E0E3155DFC35436C47F59BCE; };
 		38C7757A6EC0C2A1C2BDA96E = {isa = PBXBuildFile; fileRef = 88C2002B0D092ECD340FA1F5; };
@@ -171,9 +173,11 @@
 		0CF3E02226CCD062D60E465B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPrompts.swift; sourceTree = "<group>"; };
 		0CFD6B6919610A29BB650C7E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FootprintDraft.swift; sourceTree = "<group>"; };
 		0EB50E3CA7A6F3A651C9B485 = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PRD.md; sourceTree = "<group>"; };
+		0ED15CEF8193940CDDA7EDC4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarnessTypesView.swift; sourceTree = "<group>"; };
 		0F0833A5CA77AB73527A9023 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Embedded.cpp; sourceTree = "<group>"; };
 		11BCF526A6457AE325680679 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisPanels.swift; sourceTree = "<group>"; };
 		12BA3643F29BE4C857019229 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Stackup.cpp; sourceTree = "<group>"; };
+		176A6301F1F9BADDD2CC2926 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Harnesses.cpp; sourceTree = "<group>"; };
 		17C16B79C87A9A1A589707E5 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchematicFindView.swift; sourceTree = "<group>"; };
 		185A7FEDCC550688A03D3A45 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogDigest.swift; sourceTree = "<group>"; };
 		1861FDAEA170902904EAABB5 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SiEDATests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -588,6 +592,7 @@
 				E75D7DE7D08DFA800FFAA790,
 				94640EC62FB04611BA180EDD,
 				65884BAB0CDFF0EDFDC017EC,
+				176A6301F1F9BADDD2CC2926,
 				0836AEFC1E7F4EE048F49EC0,
 				5C5A4E6673BC22FAFE753C09,
 				262682BD136933576066443E,
@@ -730,6 +735,7 @@
 		DFECAEB8DA9B48DF9F835721 = {
 			isa = PBXGroup;
 			children = (
+				0ED15CEF8193940CDDA7EDC4,
 				301DAF4F2FC8D0083DFB1A0F,
 				921B2819EF3E6FB02EB71875,
 				17C16B79C87A9A1A589707E5,
@@ -976,6 +982,7 @@
 				D0DE83284A0ADF3CE958D7F0,
 				9D1071AAC3C84E5B9F9D6B39,
 				22409A8BB039D0E0CC2751CF,
+				2A26F5F10710C3605BCC92E7,
 				6821CCCDECA1EE3F41A956C7,
 				60AE10143DCFA6F2E918863A,
 				27BBC00F97F9634F9CAA7447,
@@ -1012,6 +1019,7 @@
 				B49EF7DDF4B0D9905AA40643,
 				5CD6C55A8FE73A7847272E36,
 				445472D19D387B5FF2371B08,
+				23EB2EBF3D92E3D32FAE1CAE,
 				B32F78DBF8B8E8DB951A5027,
 				6EB9D3E942D2E5293BA5CD69,
 				DC5962006FC36ACECF2C7F34,

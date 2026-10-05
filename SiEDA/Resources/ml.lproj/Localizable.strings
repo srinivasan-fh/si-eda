@@ -15,6 +15,9 @@
 "3D Viewer" = "3D വ്യൂവർ";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A harness label carries every member of its type across sheets (port, sheet entry or global)" = "ഹാർനെസ് ലേബൽ അതിന്റെ തരത്തിലെ ഓരോ അംഗത്തെയും ഷീറ്റുകൾക്കിടയിൽ കൊണ്ടുപോകുന്നു (പോർട്ട്, ഷീറ്റ് എൻട്രി അല്ലെങ്കിൽ ഗ്ലോബൽ)";
+"A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "ഓരോ അംഗത്തിനും ഒരു എൻട്രിയുള്ള ഹാർനെസ് ലേബൽ; ഓരോ എൻട്രിയും അതിന്റെ സിഗ്നലിലേക്ക് ബന്ധിപ്പിക്കുക. കെട്ട് മറ്റൊരു ഷീറ്റിലേക്ക് കൊണ്ടുപോകാൻ പോർട്ടിനോ ഷീറ്റ് എൻട്രിക്കോ അതേ പേരും തരവും നൽകുക.";
+"A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "ഹാർനെസ് തരം എന്നത് പേരുള്ള സിഗ്നലുകളുടെ കെട്ടാണ് (USB: DP, DN, VBUS, GND). ആ തരത്തിലെ ഹാർനെസ് ലേബൽ ഓരോ അംഗത്തെയും — \"USB1.DP\", \"USB1.DN\" … — പോർട്ടും അതിന്റെ ഷീറ്റ് എൻട്രിയും വഴി, അല്ലെങ്കിൽ ഗ്ലോബൽ ലേബലായി കൊണ്ടുപോകുന്നു; അതിന്റെ എൻട്രികൾ ഷീറ്റിൽ അംഗങ്ങളെ ബന്ധിപ്പിക്കുന്നു.";
 "A new gate; the selected pins go on it" = "പുതിയ ഗേറ്റ്; തിരഞ്ഞെടുത്ത പിന്നുകൾ അതിലേക്ക് പോകുന്നു";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC സ്വീപ്പ്";
@@ -32,6 +35,7 @@
 "Add Ground Pours" = "ഗ്രൗണ്ട് പോറുകൾ ചേർക്കുക";
 "Add Kit to Library" = "കിറ്റ് ലൈബ്രറിയിലേക്ക് ചേർക്കുക";
 "Add Mesh" = "മെഷ് ചേർക്കുക";
+"Add Missing Entries" = "ഇല്ലാത്ത എൻട്രികൾ ചേർക്കുക";
 "Add Pad" = "പാഡ് ചേർക്കുക";
 "Add Pattern" = "പാറ്റേൺ ചേർക്കുക";
 "Add Pin" = "പിൻ ചേർക്കുക";
@@ -194,6 +198,7 @@
 "DC voltage" = "DC വോൾട്ടേജ്";
 "DEVICES" = "ഡിവൈസുകൾ";
 "DNP" = "DNP";
+"DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "ഡാറ്റാഷീറ്റ്";
@@ -207,6 +212,7 @@
 "Delete Bus" = "ബസ് ഇല്ലാതാക്കുക";
 "Delete Part" = "പാർട്ട് ഇല്ലാതാക്കുക";
 "Delete Sheet" = "ഷീറ്റ് ഇല്ലാതാക്കുക";
+"Delete Type" = "തരം ഇല്ലാതാക്കുക";
 "Delete Variant" = "വേരിയന്റ് ഇല്ലാതാക്കുക";
 "Delete Wire" = "വയർ ഇല്ലാതാക്കുക";
 "Describe your product" = "നിങ്ങളുടെ ഉൽപ്പന്നം വിവരിക്കുക";
@@ -305,11 +311,16 @@
 "Go to Sheet Entry" = "ഷീറ്റ് എൻട്രിയിലേക്ക് പോകുക";
 "Google Cloud project ID" = "Google Cloud പ്രോജക്റ്റ് ID";
 "Grid" = "ഗ്രിഡ്";
+"HARNESS TYPES" = "ഹാർനെസ് തരങ്ങൾ";
 "HDI vias: blind, buried and laser microvias (IPC-2226)" = "HDI വിയകൾ: ബ്ലൈൻഡ്, ബറീഡ്, ലേസർ മൈക്രോവിയകൾ (IPC-2226)";
 "HOLOGRAPHIC LAYER ANALYSIS" = "ഹോളോഗ്രാഫിക് ലെയർ വിശകലനം";
 "HUD" = "HUD";
 "Harmonic" = "ഹാർമോണിക്";
 "Harmonics" = "ഹാർമോണിക്സ്";
+"Harness" = "ഹാർനെസ്";
+"Harness Types…" = "ഹാർനെസ് തരങ്ങൾ…";
+"Harness name" = "ഹാർനെസ് പേര്";
+"Harnesses" = "ഹാർനെസുകൾ";
 "Hide navigator (N)" = "നാവിഗേറ്റർ മറയ്ക്കുക (N)";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "ഉയർന്ന പരിശ്രമം Claude-ന് സർക്യൂട്ട് ടോപ്പോളജിയെയും മൂല്യങ്ങളെയും കുറിച്ച് കൂടുതൽ നേരം ചിന്തിക്കാൻ അവസരം നൽകുന്നു. “high” ശുപാർശ ചെയ്യുന്നു.";
 "Highlight" = "ഹൈലൈറ്റ്";
@@ -396,6 +407,7 @@
 "Meander height limit in mm (empty: 2 mm)" = "മിയാൻഡർ ഉയര പരിധി mm-ൽ (ശൂന്യം: 2 mm)";
 "Measure" = "അളവ്";
 "Medical Device Class" = "മെഡിക്കൽ ഡിവൈസ് ക്ലാസ്";
+"Members" = "അംഗങ്ങൾ";
 "Memory Design" = "മെമ്മറി ഡിസൈൻ";
 "Microvia" = "മൈക്രോവിയ";
 "Min" = "കുറഞ്ഞത്";
@@ -450,6 +462,7 @@
 "Nominal" = "നാമമാത്ര മൂല്യം";
 "None" = "ഒന്നുമില്ല";
 "None (mechanical)" = "ഒന്നുമില്ല (മെക്കാനിക്കൽ)";
+"None (single signal)" = "ഒന്നുമില്ല (ഒറ്റ സിഗ്നൽ)";
 "Not a memory design" = "മെമ്മറി ഡിസൈൻ അല്ല";
 "Not a robot" = "റോബോട്ട് അല്ല";
 "Not aerospace" = "എയ്റോസ്പേസ് അല്ല";
@@ -520,6 +533,8 @@
 "Pin map" = "പിൻ മാപ്പ്";
 "Pin names" = "പിൻ പേരുകൾ";
 "Pins: " = "പിനുകൾ: ";
+"Place %@ Connector…" = "%@ കണക്ടർ സ്ഥാപിക്കുക…";
+"Place Harness Connector" = "ഹാർനെസ് കണക്ടർ സ്ഥാപിക്കുക";
 "Place Next Unit" = "അടുത്ത യൂണിറ്റ് സ്ഥാപിക്കുക";
 "Place Now" = "ഇപ്പോൾ സ്ഥാപിക്കുക";
 "Place Part" = "ഭാഗം സ്ഥാപിക്കുക";
@@ -625,6 +640,7 @@
 "Save & Place" = "സേവ് ചെയ്ത് സ്ഥാപിക്കുക";
 "Save As…" = "ഇങ്ങനെ സേവ് ചെയ്യുക…";
 "Save Key" = "കീ സേവ് ചെയ്യുക";
+"Save Type" = "തരം സംരക്ഷിക്കുക";
 "Scale" = "സ്കെയിൽ";
 "Scan" = "സ്കാൻ ചെയ്യുക";
 "Schematic" = "സ്കീമാറ്റിക്";
@@ -680,6 +696,7 @@
 "Sign-off in verification" = "വെരിഫിക്കേഷനിൽ സൈൻ-ഓഫ്";
 "Signal" = "സിഗ്നൽ";
 "Signal & Power Integrity" = "സിഗ്നൽ & പവർ ഇന്റഗ്രിറ്റി";
+"Signal harnesses: named bundles of signals carried across sheets as one" = "സിഗ്നൽ ഹാർനെസുകൾ: ഷീറ്റുകൾക്കിടയിൽ ഒന്നായി കൊണ്ടുപോകുന്ന പേരുള്ള സിഗ്നൽ കെട്ടുകൾ";
 "Signals" = "സിഗ്നലുകൾ";
 "Signed in with" = "ഇതുപയോഗിച്ച് സൈൻ ഇൻ ചെയ്തു";
 "Simulate" = "സിമുലേറ്റ് ചെയ്യുക";
@@ -755,6 +772,7 @@
 "Type a designator, value, label or net name." = "ഡിസൈനേറ്റർ, മൂല്യം, ലേബൽ അല്ലെങ്കിൽ നെറ്റ് പേര് ടൈപ്പ് ചെയ്യുക.";
 "UNIT %@" = "യൂണിറ്റ് %@";
 "UNITS" = "യൂണിറ്റുകൾ";
+"USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "ഭാരമേറിയ പാർട്ടുകൾക്ക് അണ്ടർഫിൽ / കോർണർ-ബോണ്ട് (ഷോക്ക്)";
 "Undershoot" = "അണ്ടർഷൂട്ട്";
 "Undo" = "പഴയപടിയാക്കുക";

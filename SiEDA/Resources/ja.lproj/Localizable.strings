@@ -15,6 +15,9 @@
 "3D Viewer" = "3D ビューア";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A harness label carries every member of its type across sheets (port, sheet entry or global)" = "ハーネスラベルは型のすべてのメンバーをシート間で運びます（ポート、シートエントリ、またはグローバル）";
+"A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "メンバーごとにエントリを1つ持つハーネスラベルです。各エントリを信号に配線します。ポートやシートエントリに同じ名前と型を付けると、束を別のシートへ運べます。";
+"A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "ハーネス型は名前付きの信号の束です（USB: DP, DN, VBUS, GND）。この型のハーネスラベルは、ポートとそのシートエントリ、またはグローバルラベルとして、すべてのメンバー（\"USB1.DP\"、\"USB1.DN\" …）を運び、エントリはシート上でメンバーをつなぎます。";
 "A new gate; the selected pins go on it" = "新しいゲート。選択したピンをそこに置きます";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC スイープ";
@@ -32,6 +35,7 @@
 "Add Ground Pours" = "グラウンドベタを追加";
 "Add Kit to Library" = "キットをライブラリに追加";
 "Add Mesh" = "メッシュを追加";
+"Add Missing Entries" = "不足しているエントリを追加";
 "Add Pad" = "パッドを追加";
 "Add Pattern" = "パターンを追加";
 "Add Pin" = "ピンを追加";
@@ -194,6 +198,7 @@
 "DC voltage" = "DC 電圧";
 "DEVICES" = "デバイス";
 "DNP" = "DNP";
+"DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "データシート";
@@ -207,6 +212,7 @@
 "Delete Bus" = "バスを削除";
 "Delete Part" = "部品を削除";
 "Delete Sheet" = "シートを削除";
+"Delete Type" = "型を削除";
 "Delete Variant" = "バリアントを削除";
 "Delete Wire" = "ワイヤを削除";
 "Describe your product" = "製品について説明";
@@ -305,11 +311,16 @@
 "Go to Sheet Entry" = "シートエントリへ移動";
 "Google Cloud project ID" = "Google Cloud プロジェクト ID";
 "Grid" = "グリッド";
+"HARNESS TYPES" = "ハーネス型";
 "HDI vias: blind, buried and laser microvias (IPC-2226)" = "HDI ビア：ブラインド、ベリード、レーザーマイクロビア (IPC-2226)";
 "HOLOGRAPHIC LAYER ANALYSIS" = "ホログラフィック・レイヤー解析";
 "HUD" = "HUD";
 "Harmonic" = "高調波";
 "Harmonics" = "高調波数";
+"Harness" = "ハーネス";
+"Harness Types…" = "ハーネス型…";
+"Harness name" = "ハーネス名";
+"Harnesses" = "ハーネス";
 "Hide navigator (N)" = "ナビゲータを隠す (N)";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "推論レベルを上げると、Claude が回路トポロジーと値についてより長く推論します。“high” を推奨します。";
 "Highlight" = "ハイライト";
@@ -396,6 +407,7 @@
 "Meander height limit in mm (empty: 2 mm)" = "ミアンダ高さの上限（mm、空欄：2 mm）";
 "Measure" = "測定対象";
 "Medical Device Class" = "医療機器クラス";
+"Members" = "メンバー";
 "Memory Design" = "メモリ設計";
 "Microvia" = "マイクロビア";
 "Min" = "最小";
@@ -450,6 +462,7 @@
 "Nominal" = "公称値";
 "None" = "なし";
 "None (mechanical)" = "なし (機械)";
+"None (single signal)" = "なし（単一信号）";
 "Not a memory design" = "メモリ設計ではない";
 "Not a robot" = "ロボットではない";
 "Not aerospace" = "航空宇宙ではない";
@@ -520,6 +533,8 @@
 "Pin map" = "ピン割り当て";
 "Pin names" = "ピン名";
 "Pins: " = "ピン: ";
+"Place %@ Connector…" = "%@ コネクタを配置…";
+"Place Harness Connector" = "ハーネスコネクタを配置";
 "Place Next Unit" = "次のユニットを配置";
 "Place Now" = "今すぐ配置";
 "Place Part" = "部品を配置";
@@ -625,6 +640,7 @@
 "Save & Place" = "保存して配置";
 "Save As…" = "別名で保存…";
 "Save Key" = "キーを保存";
+"Save Type" = "型を保存";
 "Scale" = "スケール";
 "Scan" = "スキャン";
 "Schematic" = "回路図";
@@ -680,6 +696,7 @@
 "Sign-off in verification" = "検証でサインオフ";
 "Signal" = "信号";
 "Signal & Power Integrity" = "シグナル & パワーインテグリティ";
+"Signal harnesses: named bundles of signals carried across sheets as one" = "信号ハーネス：シート間でひとまとめに運ばれる名前付きの信号の束";
 "Signals" = "信号";
 "Signed in with" = "サインイン方法";
 "Simulate" = "シミュレーション";
@@ -755,6 +772,7 @@
 "Type a designator, value, label or net name." = "リファレンス、値、ラベル、ネット名を入力してください。";
 "UNIT %@" = "ユニット %@";
 "UNITS" = "ユニット";
+"USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "重量部品のアンダーフィル / コーナーボンド (衝撃)";
 "Undershoot" = "アンダーシュート";
 "Undo" = "取り消す";

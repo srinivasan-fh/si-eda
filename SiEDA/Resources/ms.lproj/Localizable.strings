@@ -15,6 +15,9 @@
 "3D Viewer" = "Pemapar 3D";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Label abah-abah membawa setiap ahli jenisnya merentas helaian (port, entri helaian atau global)";
+"A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Label abah-abah dengan satu entri bagi setiap ahli; sambungkan setiap entri ke isyaratnya. Beri port atau entri helaian nama dan jenis yang sama untuk membawa berkas ke helaian lain.";
+"A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "Jenis abah-abah ialah berkas isyarat bernama (USB: DP, DN, VBUS, GND). Label abah-abah jenis itu membawa setiap ahli — \"USB1.DP\", \"USB1.DN\" … — melalui port dan entri helaiannya, atau sebagai label global; entrinya menyambung ahli pada helaian.";
 "A new gate; the selected pins go on it" = "Get baharu; pin yang dipilih diletakkan padanya";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "Sapuan AC";
@@ -32,6 +35,7 @@
 "Add Ground Pours" = "Tambah Tuangan Bumi";
 "Add Kit to Library" = "Tambah Kit ke Pustaka";
 "Add Mesh" = "Tambah Jaringan";
+"Add Missing Entries" = "Tambah Entri yang Tiada";
 "Add Pad" = "Tambah Pad";
 "Add Pattern" = "Tambah Corak";
 "Add Pin" = "Tambah Pin";
@@ -194,6 +198,7 @@
 "DC voltage" = "Voltan DC";
 "DEVICES" = "PERANTI";
 "DNP" = "DNP";
+"DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "Lembaran data";
@@ -207,6 +212,7 @@
 "Delete Bus" = "Padam Bas";
 "Delete Part" = "Padam Komponen";
 "Delete Sheet" = "Padam Helaian";
+"Delete Type" = "Padam Jenis";
 "Delete Variant" = "Padam Varian";
 "Delete Wire" = "Padam Wayar";
 "Describe your product" = "Huraikan produk anda";
@@ -305,11 +311,16 @@
 "Go to Sheet Entry" = "Pergi ke Entri Helaian";
 "Google Cloud project ID" = "ID projek Google Cloud";
 "Grid" = "Grid";
+"HARNESS TYPES" = "JENIS ABAH-ABAH";
 "HDI vias: blind, buried and laser microvias (IPC-2226)" = "Via HDI: via buta, terbenam dan mikrovia laser (IPC-2226)";
 "HOLOGRAPHIC LAYER ANALYSIS" = "ANALISIS LAPISAN HOLOGRAFIK";
 "HUD" = "HUD";
 "Harmonic" = "Harmonik";
 "Harmonics" = "Harmonik";
+"Harness" = "Abah-abah";
+"Harness Types…" = "Jenis Abah-abah…";
+"Harness name" = "Nama abah-abah";
+"Harnesses" = "Abah-abah";
 "Hide navigator (N)" = "Sembunyikan navigator (N)";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "Usaha lebih tinggi membolehkan Claude menaakul lebih lama tentang topologi dan nilai litar. “high” disyorkan.";
 "Highlight" = "Serlah";
@@ -396,6 +407,7 @@
 "Meander height limit in mm (empty: 2 mm)" = "Had tinggi liku dalam mm (kosong: 2 mm)";
 "Measure" = "Ukuran";
 "Medical Device Class" = "Kelas Peranti Perubatan";
+"Members" = "Ahli";
 "Memory Design" = "Reka Bentuk Memori";
 "Microvia" = "Mikrovia";
 "Min" = "Min";
@@ -450,6 +462,7 @@
 "Nominal" = "Nominal";
 "None" = "Tiada";
 "None (mechanical)" = "Tiada (mekanikal)";
+"None (single signal)" = "Tiada (isyarat tunggal)";
 "Not a memory design" = "Bukan reka bentuk memori";
 "Not a robot" = "Bukan robot";
 "Not aerospace" = "Bukan aeroangkasa";
@@ -520,6 +533,8 @@
 "Pin map" = "Peta pin";
 "Pin names" = "Nama pin";
 "Pins: " = "Pin: ";
+"Place %@ Connector…" = "Letak Penyambung %@…";
+"Place Harness Connector" = "Letak Penyambung Abah-abah";
 "Place Next Unit" = "Letak Unit Seterusnya";
 "Place Now" = "Letak Sekarang";
 "Place Part" = "Letak Komponen";
@@ -625,6 +640,7 @@
 "Save & Place" = "Simpan & Letak";
 "Save As…" = "Simpan Sebagai…";
 "Save Key" = "Simpan Kunci";
+"Save Type" = "Simpan Jenis";
 "Scale" = "Skala";
 "Scan" = "Imbas";
 "Schematic" = "Skematik";
@@ -680,6 +696,7 @@
 "Sign-off in verification" = "Pengesahan dalam verifikasi";
 "Signal" = "Isyarat";
 "Signal & Power Integrity" = "Integriti Isyarat & Kuasa";
+"Signal harnesses: named bundles of signals carried across sheets as one" = "Abah-abah isyarat: berkas isyarat bernama yang dibawa merentas helaian sebagai satu";
 "Signals" = "Isyarat";
 "Signed in with" = "Log masuk dengan";
 "Simulate" = "Simulasikan";
@@ -755,6 +772,7 @@
 "Type a designator, value, label or net name." = "Taip penanda, nilai, label atau nama net.";
 "UNIT %@" = "UNIT %@";
 "UNITS" = "UNIT";
+"USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Isi bawah / ikatan sudut komponen berat (kejutan)";
 "Undershoot" = "Lajakan bawah";
 "Undo" = "Buat Asal";

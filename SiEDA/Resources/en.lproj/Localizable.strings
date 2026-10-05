@@ -15,6 +15,9 @@
 "3D Viewer" = "3D Viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A harness label carries every member of its type across sheets (port, sheet entry or global)" = "A harness label carries every member of its type across sheets (port, sheet entry or global)";
+"A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet.";
+"A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet.";
 "A new gate; the selected pins go on it" = "A new gate; the selected pins go on it";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC Sweep";
@@ -32,6 +35,7 @@
 "Add Ground Pours" = "Add Ground Pours";
 "Add Kit to Library" = "Add Kit to Library";
 "Add Mesh" = "Add Mesh";
+"Add Missing Entries" = "Add Missing Entries";
 "Add Pad" = "Add Pad";
 "Add Pattern" = "Add Pattern";
 "Add Pin" = "Add Pin";
@@ -194,6 +198,7 @@
 "DC voltage" = "DC voltage";
 "DEVICES" = "DEVICES";
 "DNP" = "DNP";
+"DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "Datasheet";
@@ -207,6 +212,7 @@
 "Delete Bus" = "Delete Bus";
 "Delete Part" = "Delete Part";
 "Delete Sheet" = "Delete Sheet";
+"Delete Type" = "Delete Type";
 "Delete Variant" = "Delete Variant";
 "Delete Wire" = "Delete Wire";
 "Describe your product" = "Describe your product";
@@ -305,11 +311,16 @@
 "Go to Sheet Entry" = "Go to Sheet Entry";
 "Google Cloud project ID" = "Google Cloud project ID";
 "Grid" = "Grid";
+"HARNESS TYPES" = "HARNESS TYPES";
 "HDI vias: blind, buried and laser microvias (IPC-2226)" = "HDI vias: blind, buried and laser microvias (IPC-2226)";
 "HOLOGRAPHIC LAYER ANALYSIS" = "HOLOGRAPHIC LAYER ANALYSIS";
 "HUD" = "HUD";
 "Harmonic" = "Harmonic";
 "Harmonics" = "Harmonics";
+"Harness" = "Harness";
+"Harness Types…" = "Harness Types…";
+"Harness name" = "Harness name";
+"Harnesses" = "Harnesses";
 "Hide navigator (N)" = "Hide navigator (N)";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended.";
 "Highlight" = "Highlight";
@@ -396,6 +407,7 @@
 "Meander height limit in mm (empty: 2 mm)" = "Meander height limit in mm (empty: 2 mm)";
 "Measure" = "Measure";
 "Medical Device Class" = "Medical Device Class";
+"Members" = "Members";
 "Memory Design" = "Memory Design";
 "Microvia" = "Microvia";
 "Min" = "Min";
@@ -450,6 +462,7 @@
 "Nominal" = "Nominal";
 "None" = "None";
 "None (mechanical)" = "None (mechanical)";
+"None (single signal)" = "None (single signal)";
 "Not a memory design" = "Not a memory design";
 "Not a robot" = "Not a robot";
 "Not aerospace" = "Not aerospace";
@@ -520,6 +533,8 @@
 "Pin map" = "Pin map";
 "Pin names" = "Pin names";
 "Pins: " = "Pins: ";
+"Place %@ Connector…" = "Place %@ Connector…";
+"Place Harness Connector" = "Place Harness Connector";
 "Place Next Unit" = "Place Next Unit";
 "Place Now" = "Place Now";
 "Place Part" = "Place Part";
@@ -625,6 +640,7 @@
 "Save & Place" = "Save & Place";
 "Save As…" = "Save As…";
 "Save Key" = "Save Key";
+"Save Type" = "Save Type";
 "Scale" = "Scale";
 "Scan" = "Scan";
 "Schematic" = "Schematic";
@@ -680,6 +696,7 @@
 "Sign-off in verification" = "Sign-off in verification";
 "Signal" = "Signal";
 "Signal & Power Integrity" = "Signal & Power Integrity";
+"Signal harnesses: named bundles of signals carried across sheets as one" = "Signal harnesses: named bundles of signals carried across sheets as one";
 "Signals" = "Signals";
 "Signed in with" = "Signed in with";
 "Simulate" = "Simulate";
@@ -755,6 +772,7 @@
 "Type a designator, value, label or net name." = "Type a designator, value, label or net name.";
 "UNIT %@" = "UNIT %@";
 "UNITS" = "UNITS";
+"USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / corner-bond heavy parts (shock)";
 "Undershoot" = "Undershoot";
 "Undo" = "Undo";

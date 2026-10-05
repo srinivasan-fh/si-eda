@@ -15,6 +15,9 @@
 "3D Viewer" = "3D 檢視器";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A harness label carries every member of its type across sheets (port, sheet entry or global)" = "線束標籤會將其類型的每個成員帶過各圖頁（連接埠、圖頁入口或全域）";
+"A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "每個成員一個入口的線束標籤；將每個入口連到其訊號。給連接埠或圖頁入口相同的名稱與類型，即可把整束訊號帶到另一圖頁。";
+"A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "線束類型是具名的訊號束（USB：DP、DN、VBUS、GND）。該類型的線束標籤透過連接埠與其圖頁入口或作為全域標籤，帶著每個成員——\"USB1.DP\"、\"USB1.DN\"……；其入口在圖頁上連接各成員。";
 "A new gate; the selected pins go on it" = "新增閘；選取的接腳放到其上";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC 掃描";
@@ -32,6 +35,7 @@
 "Add Ground Pours" = "加入接地鋪銅";
 "Add Kit to Library" = "將套件加入元件庫";
 "Add Mesh" = "加入網格";
+"Add Missing Entries" = "新增缺少的入口";
 "Add Pad" = "加入焊墊";
 "Add Pattern" = "加入陣列";
 "Add Pin" = "加入接腳";
@@ -194,6 +198,7 @@
 "DC voltage" = "直流電壓";
 "DEVICES" = "裝置";
 "DNP" = "DNP";
+"DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "資料手冊";
@@ -207,6 +212,7 @@
 "Delete Bus" = "刪除匯流排";
 "Delete Part" = "刪除元件";
 "Delete Sheet" = "刪除圖紙";
+"Delete Type" = "刪除類型";
 "Delete Variant" = "刪除變體";
 "Delete Wire" = "刪除導線";
 "Describe your product" = "描述您的產品";
@@ -305,11 +311,16 @@
 "Go to Sheet Entry" = "前往圖頁入口";
 "Google Cloud project ID" = "Google Cloud 專案 ID";
 "Grid" = "格點";
+"HARNESS TYPES" = "線束類型";
 "HDI vias: blind, buried and laser microvias (IPC-2226)" = "HDI 導通孔：盲孔、埋孔與雷射微孔 (IPC-2226)";
 "HOLOGRAPHIC LAYER ANALYSIS" = "全像層分析";
 "HUD" = "HUD";
 "Harmonic" = "諧波";
 "Harmonics" = "諧波數";
+"Harness" = "線束";
+"Harness Types…" = "線束類型…";
+"Harness name" = "線束名稱";
+"Harnesses" = "線束";
 "Hide navigator (N)" = "隱藏導覽器 (N)";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "更高的推理強度讓 Claude 對電路拓撲與數值進行更長時間的推理。建議使用“high”。";
 "Highlight" = "標示";
@@ -396,6 +407,7 @@
 "Meander height limit in mm (empty: 2 mm)" = "蛇形線高度上限（mm，留空：2 mm）";
 "Measure" = "量測項目";
 "Medical Device Class" = "醫療器材類別";
+"Members" = "成員";
 "Memory Design" = "記憶體設計";
 "Microvia" = "微孔";
 "Min" = "最小";
@@ -450,6 +462,7 @@
 "Nominal" = "標稱值";
 "None" = "無";
 "None (mechanical)" = "無 (機構)";
+"None (single signal)" = "無（單一訊號）";
 "Not a memory design" = "非記憶體設計";
 "Not a robot" = "非機器人";
 "Not aerospace" = "非航太";
@@ -520,6 +533,8 @@
 "Pin map" = "接腳對應";
 "Pin names" = "接腳名稱";
 "Pins: " = "接腳: ";
+"Place %@ Connector…" = "放置 %@ 連接器…";
+"Place Harness Connector" = "放置線束連接器";
 "Place Next Unit" = "放置下一個單元";
 "Place Now" = "立即擺放";
 "Place Part" = "放置零件";
@@ -625,6 +640,7 @@
 "Save & Place" = "儲存並擺放";
 "Save As…" = "另存新檔…";
 "Save Key" = "儲存金鑰";
+"Save Type" = "儲存類型";
 "Scale" = "縮放";
 "Scan" = "掃描";
 "Schematic" = "電路圖";
@@ -680,6 +696,7 @@
 "Sign-off in verification" = "在驗證中簽核";
 "Signal" = "訊號";
 "Signal & Power Integrity" = "訊號與電源完整性";
+"Signal harnesses: named bundles of signals carried across sheets as one" = "訊號線束：作為一體跨圖頁傳遞的具名訊號束";
 "Signals" = "訊號";
 "Signed in with" = "登入方式";
 "Simulate" = "模擬";
@@ -755,6 +772,7 @@
 "Type a designator, value, label or net name." = "輸入參考編號、數值、標籤或網路名稱。";
 "UNIT %@" = "單元 %@";
 "UNITS" = "單元";
+"USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "重型元件底部填充 / 邊角黏著 (衝擊)";
 "Undershoot" = "下衝";
 "Undo" = "還原";

@@ -15,6 +15,9 @@
 "3D Viewer" = "3D-viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Een harnaslabel draagt elk lid van zijn type over de bladen (poort, bladingang of globaal)";
+"A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Een harnaslabel met één ingang per lid; verbind elke ingang met zijn signaal. Geef een poort of bladingang dezelfde naam en hetzelfde type om de bundel naar een ander blad te brengen.";
+"A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "Een harnastype is een benoemde bundel signalen (USB: DP, DN, VBUS, GND). Een harnaslabel van het type draagt elk lid — \"USB1.DP\", \"USB1.DN\" … — via een poort en zijn bladingang, of als globaal label; zijn ingangen verbinden de leden op het blad.";
 "A new gate; the selected pins go on it" = "Een nieuwe poort; de geselecteerde pinnen komen erop";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC-sweep";
@@ -32,6 +35,7 @@
 "Add Ground Pours" = "Massavlakken toevoegen";
 "Add Kit to Library" = "Kit aan bibliotheek toevoegen";
 "Add Mesh" = "Mesh toevoegen";
+"Add Missing Entries" = "Ontbrekende ingangen toevoegen";
 "Add Pad" = "Pad toevoegen";
 "Add Pattern" = "Patroon toevoegen";
 "Add Pin" = "Pin toevoegen";
@@ -194,6 +198,7 @@
 "DC voltage" = "DC-spanning";
 "DEVICES" = "APPARATEN";
 "DNP" = "DNP";
+"DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "Datasheet";
@@ -207,6 +212,7 @@
 "Delete Bus" = "Bus verwijderen";
 "Delete Part" = "Onderdeel verwijderen";
 "Delete Sheet" = "Blad verwijderen";
+"Delete Type" = "Type verwijderen";
 "Delete Variant" = "Variant verwijderen";
 "Delete Wire" = "Draad verwijderen";
 "Describe your product" = "Beschrijf je product";
@@ -305,11 +311,16 @@
 "Go to Sheet Entry" = "Naar bladingang";
 "Google Cloud project ID" = "Google Cloud-project-ID";
 "Grid" = "Raster";
+"HARNESS TYPES" = "HARNASTYPEN";
 "HDI vias: blind, buried and laser microvias (IPC-2226)" = "HDI-vias: blind, buried en lasermicrovias (IPC-2226)";
 "HOLOGRAPHIC LAYER ANALYSIS" = "HOLOGRAFISCHE LAAGANALYSE";
 "HUD" = "HUD";
 "Harmonic" = "Harmonische";
 "Harmonics" = "Harmonischen";
+"Harness" = "Harnas";
+"Harness Types…" = "Harnastypen…";
+"Harness name" = "Harnasnaam";
+"Harnesses" = "Harnassen";
 "Hide navigator (N)" = "Navigator verbergen (N)";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "Meer inspanning laat Claude langer nadenken over circuittopologie en waarden. “high” wordt aanbevolen.";
 "Highlight" = "Markeren";
@@ -396,6 +407,7 @@
 "Meander height limit in mm (empty: 2 mm)" = "Maximale meanderhoogte in mm (leeg: 2 mm)";
 "Measure" = "Meetgrootheid";
 "Medical Device Class" = "Klasse medisch hulpmiddel";
+"Members" = "Leden";
 "Memory Design" = "Geheugenontwerp";
 "Microvia" = "Microvia";
 "Min" = "Min";
@@ -450,6 +462,7 @@
 "Nominal" = "Nominaal";
 "None" = "Geen";
 "None (mechanical)" = "Geen (mechanisch)";
+"None (single signal)" = "Geen (één signaal)";
 "Not a memory design" = "Geen geheugenontwerp";
 "Not a robot" = "Geen robot";
 "Not aerospace" = "Geen ruimtevaart";
@@ -520,6 +533,8 @@
 "Pin map" = "Pintoewijzing";
 "Pin names" = "Pinnamen";
 "Pins: " = "Pinnen: ";
+"Place %@ Connector…" = "%@-connector plaatsen…";
+"Place Harness Connector" = "Harnasconnector plaatsen";
 "Place Next Unit" = "Volgende eenheid plaatsen";
 "Place Now" = "Nu plaatsen";
 "Place Part" = "Onderdeel plaatsen";
@@ -625,6 +640,7 @@
 "Save & Place" = "Bewaar en plaats";
 "Save As…" = "Bewaar als…";
 "Save Key" = "Sleutel bewaren";
+"Save Type" = "Type opslaan";
 "Scale" = "Schaal";
 "Scan" = "Scan";
 "Schematic" = "Schema";
@@ -680,6 +696,7 @@
 "Sign-off in verification" = "Aftekenen in verificatie";
 "Signal" = "Signaal";
 "Signal & Power Integrity" = "Signaal- & voedingsintegriteit";
+"Signal harnesses: named bundles of signals carried across sheets as one" = "Signaalharnassen: benoemde bundels signalen die als één over bladen gaan";
 "Signals" = "Signalen";
 "Signed in with" = "Ingelogd met";
 "Simulate" = "Simuleer";
@@ -755,6 +772,7 @@
 "Type a designator, value, label or net name." = "Typ een referentie, waarde, label of netnaam.";
 "UNIT %@" = "EENHEID %@";
 "UNITS" = "EENHEDEN";
+"USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / hoekverlijming van zware onderdelen (schok)";
 "Undershoot" = "Undershoot";
 "Undo" = "Herstel";

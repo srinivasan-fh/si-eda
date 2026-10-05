@@ -15,6 +15,9 @@
 "3D Viewer" = "3D Viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Dinadala ng harness label ang bawat miyembro ng uri nito sa mga sheet (port, sheet entry o global)";
+"A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Harness label na may isang entry bawat miyembro; ikabit ang bawat entry sa signal nito. Bigyan ang port o sheet entry ng parehong pangalan at uri para dalhin ang bundle sa ibang sheet.";
+"A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "Ang harness type ay isang pinangalanang bundle ng mga signal (USB: DP, DN, VBUS, GND). Dinadala ng harness label ng uri ang bawat miyembro — \"USB1.DP\", \"USB1.DN\" … — sa pamamagitan ng port at sheet entry nito, o bilang global label; ikinokonekta ng mga entry nito ang mga miyembro sa sheet.";
 "A new gate; the selected pins go on it" = "Bagong gate; ilalagay dito ang mga napiling pin";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC Sweep";
@@ -32,6 +35,7 @@
 "Add Ground Pours" = "Magdagdag ng Ground Pour";
 "Add Kit to Library" = "Idagdag ang Kit sa Library";
 "Add Mesh" = "Magdagdag ng Mesh";
+"Add Missing Entries" = "Idagdag ang Kulang na Entry";
 "Add Pad" = "Magdagdag ng Pad";
 "Add Pattern" = "Magdagdag ng Pattern";
 "Add Pin" = "Magdagdag ng Pin";
@@ -194,6 +198,7 @@
 "DC voltage" = "DC voltage";
 "DEVICES" = "MGA DEVICE";
 "DNP" = "DNP";
+"DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "Datasheet";
@@ -207,6 +212,7 @@
 "Delete Bus" = "Burahin ang bus";
 "Delete Part" = "Burahin ang Part";
 "Delete Sheet" = "Burahin ang Sheet";
+"Delete Type" = "Burahin ang Uri";
 "Delete Variant" = "Burahin ang Variant";
 "Delete Wire" = "Burahin ang Wire";
 "Describe your product" = "Ilarawan ang iyong produkto";
@@ -305,11 +311,16 @@
 "Go to Sheet Entry" = "Pumunta sa Sheet Entry";
 "Google Cloud project ID" = "Google Cloud project ID";
 "Grid" = "Grid";
+"HARNESS TYPES" = "MGA URI NG HARNESS";
 "HDI vias: blind, buried and laser microvias (IPC-2226)" = "HDI via: blind, buried at laser microvia (IPC-2226)";
 "HOLOGRAPHIC LAYER ANALYSIS" = "HOLOGRAPHIC NA PAGSUSURI NG LAYER";
 "HUD" = "HUD";
 "Harmonic" = "Harmonic";
 "Harmonics" = "Mga harmonic";
+"Harness" = "Harness";
+"Harness Types…" = "Mga Uri ng Harness…";
+"Harness name" = "Pangalan ng harness";
+"Harnesses" = "Mga Harness";
 "Hide navigator (N)" = "Itago ang navigator (N)";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "Sa mas mataas na effort, mas matagal mag-isip si Claude tungkol sa circuit topology at mga value. Inirerekomenda ang “high”.";
 "Highlight" = "I-highlight";
@@ -396,6 +407,7 @@
 "Meander height limit in mm (empty: 2 mm)" = "Hangganan ng taas ng meander sa mm (walang laman: 2 mm)";
 "Measure" = "Sukatin";
 "Medical Device Class" = "Klase ng Medical Device";
+"Members" = "Mga Miyembro";
 "Memory Design" = "Memory Design";
 "Microvia" = "Microvia";
 "Min" = "Min";
@@ -450,6 +462,7 @@
 "Nominal" = "Nominal";
 "None" = "Wala";
 "None (mechanical)" = "Wala (mechanical)";
+"None (single signal)" = "Wala (iisang signal)";
 "Not a memory design" = "Hindi memory design";
 "Not a robot" = "Hindi robot";
 "Not aerospace" = "Hindi aerospace";
@@ -520,6 +533,8 @@
 "Pin map" = "Pin map";
 "Pin names" = "Mga pangalan ng pin";
 "Pins: " = "Mga pin: ";
+"Place %@ Connector…" = "Ilagay ang %@ Connector…";
+"Place Harness Connector" = "Ilagay ang Harness Connector";
 "Place Next Unit" = "Ilagay ang susunod na unit";
 "Place Now" = "Ilagay Ngayon";
 "Place Part" = "Ilagay ang Piyesa";
@@ -625,6 +640,7 @@
 "Save & Place" = "I-save at Ilagay";
 "Save As…" = "I-save Bilang…";
 "Save Key" = "I-save ang Key";
+"Save Type" = "I-save ang Uri";
 "Scale" = "Scale";
 "Scan" = "I-scan";
 "Schematic" = "Schematic";
@@ -680,6 +696,7 @@
 "Sign-off in verification" = "Sign-off sa verification";
 "Signal" = "Signal";
 "Signal & Power Integrity" = "Signal at Power Integrity";
+"Signal harnesses: named bundles of signals carried across sheets as one" = "Mga signal harness: mga pinangalanang bundle ng signal na dinadala sa mga sheet bilang isa";
 "Signals" = "Mga Signal";
 "Signed in with" = "Naka-sign in gamit ang";
 "Simulate" = "I-simulate";
@@ -755,6 +772,7 @@
 "Type a designator, value, label or net name." = "Mag-type ng designator, value, label o pangalan ng net.";
 "UNIT %@" = "UNIT %@";
 "UNITS" = "MGA UNIT";
+"USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / corner-bond sa mabibigat na part (shock)";
 "Undershoot" = "Undershoot";
 "Undo" = "I-undo";
