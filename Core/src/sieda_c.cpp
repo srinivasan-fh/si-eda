@@ -13,6 +13,7 @@
 #include "sieda/Firmware.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <map>
 #include <memory>
@@ -46,6 +47,8 @@
 struct SiedaProject {
     sieda::Project project;
     std::unique_ptr<sieda::InteractiveRouter> router;  // interactive route session (created on first use)
+    /// sieda_router_abort bumps it (lock-free, from any thread) to cancel the router's head computation in flight.
+    std::atomic<unsigned> routerAbort{0};
 };
 
 struct SiedaMesh {
@@ -1863,7 +1866,10 @@ char* sieda_export_variant(const SiedaProject* project, const char* format, cons
 
 namespace {
 InteractiveRouter& routerOf(SiedaProject* project) {
-    if (!project->router) project->router = std::make_unique<InteractiveRouter>(project->project.pcb, project->project.schematic);
+    if (!project->router) {
+        project->router = std::make_unique<InteractiveRouter>(project->project.pcb, project->project.schematic);
+        project->router->setAbortSource(&project->routerAbort);
+    }
     return *project->router;
 }
 
@@ -1962,6 +1968,10 @@ char* sieda_router_commit(SiedaProject* project) {
 
 void sieda_router_cancel(SiedaProject* project) {
     if (project && project->router) project->router->cancel();
+}
+
+void sieda_router_abort(SiedaProject* project) {
+    if (project) project->routerAbort.fetch_add(1, std::memory_order_relaxed);
 }
 
 int32_t sieda_router_active(const SiedaProject* project) {

@@ -40,6 +40,18 @@ constexpr double kJoin = 1e-4;      // track ends closer than this are one node
 constexpr double kMinEtchGap = 0.1; // DRC: gap inside one footprint where a track is still in its own pad
 constexpr double kInvSqrt2 = 0.70710678118654752440;
 
+/// Cancellation of a head computation: set for the duration of one computeHead() on its thread, polled by the long
+/// loops (shove queue, grid search, binary searches).
+thread_local const std::function<bool()>* t_abort = nullptr;
+bool abortRequested() { return t_abort && (*t_abort)(); }
+struct AbortScope {
+    const std::function<bool()>* saved;
+    explicit AbortScope(const std::function<bool()>* f) : saved(t_abort) { t_abort = f; }
+    ~AbortScope() { t_abort = saved; }
+    AbortScope(const AbortScope&) = delete;
+    AbortScope& operator=(const AbortScope&) = delete;
+};
+
 // ------------------------------------------------------------------------------------------------ geometry helpers
 
 double cross(Vec2 a, Vec2 b) { return a.x * b.y - a.y * b.x; }
@@ -998,6 +1010,10 @@ public:
             const Item p = queue_.front();
             queue_.pop_front();
             if (!alive(p)) continue;
+            if (abortRequested()) {
+                why = "Cancelled";
+                return false;
+            }
             for (;;) {
                 std::vector<Hit> hits = hitsOf(p);
                 if (hits.empty()) break;
@@ -1665,6 +1681,7 @@ GridPath gridRoute(const World& w, const std::vector<int>& nets, int layer, doub
     double bestH = h(si, sj);
     size_t expanded = 0;
     while (!open.empty() && expanded < 600000) {
+        if ((expanded & 1023) == 1023 && abortRequested()) break;
         const auto [f, hh, cur] = open.top();
         open.pop();
         (void)f;
@@ -2253,6 +2270,7 @@ struct InteractiveRouter::Impl {
             return;
         }
         for (const auto& c : candidates) {
+            if (abortRequested()) return;
             World w = committed;
             if (placeHead(w, build(c, true), shove, why)) {
                 current = w;
@@ -2282,7 +2300,7 @@ struct InteractiveRouter::Impl {
         if (!candidates.empty()) {
             const auto& p = candidates.front();
             double lo = 0, hi = pathLength(p);
-            for (int it = 0; it < 12 && hi - lo > 1e-3; ++it) {
+            for (int it = 0; it < 12 && hi - lo > 1e-3 && !abortRequested(); ++it) {
                 const double mid = (lo + hi) / 2;
                 const auto q = pathPrefix(p, mid);
                 World w = committed;
@@ -2552,7 +2570,7 @@ struct InteractiveRouter::Impl {
                 any = true;
             }
         }
-        for (int it = 0; it < 14 && std::fabs(hi - lo) > 1e-3; ++it) {
+        for (int it = 0; it < 14 && std::fabs(hi - lo) > 1e-3 && !abortRequested(); ++it) {
             const double mid = (lo + hi) / 2;
             World wm = committed;
             if (tryDelta(mid, wm)) {
@@ -2718,7 +2736,7 @@ struct InteractiveRouter::Impl {
             }
         }
         const double span = (to - from).length();
-        for (int it = 0; it < 14 && (hi - lo) * span > 1e-3; ++it) {
+        for (int it = 0; it < 14 && (hi - lo) * span > 1e-3 && !abortRequested(); ++it) {
             const double mid = (lo + hi) / 2;
             World wm = committed;
             if (placeVia(wm, from + (to - from) * mid, why)) {
@@ -2747,13 +2765,45 @@ struct InteractiveRouter::Impl {
 
     // ------------------------------------------------------------------------------------------- session steps
 
+    std::atomic<unsigned> ownAbort{0};
+    const std::atomic<unsigned>* extAbort = nullptr;
+
     void computeHead(Vec2 cursor) {
+        // Cancellable: a request made while this runs (requestAbort / the external counter) stops it, and the
+        // state from before it comes back, so the preview never shows a half-computed head.
+        const unsigned own0 = ownAbort.load(std::memory_order_relaxed);
+        const unsigned ext0 = extAbort ? extAbort->load(std::memory_order_relaxed) : 0;
+        const std::function<bool()> check = [&] {
+            return ownAbort.load(std::memory_order_relaxed) != own0 ||
+                   (extAbort && extAbort->load(std::memory_order_relaxed) != ext0);
+        };
+        AbortScope scope(&check);
+        World savedCurrent = current;
+        const std::vector<Member> savedMembers = members;
+        const std::vector<Vec2> savedCentre = centreHead;
+        const ViaDrag savedVia = vdrag;
+        const bool savedReached = reached, savedBlocked = blocked, savedHas = hasCursor;
+        const std::string savedStatus = status;
+        const Vec2 savedCursor = lastCursor;
         lastCursor = cursor;
         hasCursor = true;
         if (kind == Kind::Route) routeHead(cursor);
         if (kind == Kind::Pair) pairHead(cursor);
         if (kind == Kind::Drag) dragHead(cursor);
         if (kind == Kind::DragVia) viaDragHead(cursor);
+        if (check()) {
+            current = std::move(savedCurrent);
+            members = savedMembers;
+            centreHead = savedCentre;
+            vdrag = savedVia;
+            reached = savedReached;
+            blocked = savedBlocked;
+            hasCursor = savedHas;
+            status = savedStatus;
+            lastCursor = savedCursor;
+            prev.aborted = true;
+            return;
+        }
         buildPreview();
     }
 
@@ -3207,6 +3257,8 @@ bool InteractiveRouter::beginViaDrag(int viaId, Vec2 grab) {
     impl_->err.clear();
     return impl_->beginViaDrag(viaId, grab);
 }
+void InteractiveRouter::requestAbort() { impl_->ownAbort.fetch_add(1, std::memory_order_relaxed); }
+void InteractiveRouter::setAbortSource(const std::atomic<unsigned>* counter) { impl_->extAbort = counter; }
 const RoutePreview& InteractiveRouter::moveTo(Vec2 cursor) {
     if (impl_->kind != Impl::Kind::None) impl_->computeHead(cursor);
     return impl_->prev;
@@ -3464,6 +3516,7 @@ Json routePreviewJson(const RoutePreview& p) {
     j["endY"] = p.end.y;
     j["length"] = p.length;
     j["netLength"] = p.netLength;
+    if (p.aborted) j["aborted"] = true;
     j["targetLength"] = p.targetLength;
     auto tracks = [](const std::vector<Track>& ts) {
         Json a = Json::array();

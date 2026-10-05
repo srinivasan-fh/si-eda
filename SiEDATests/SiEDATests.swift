@@ -4984,6 +4984,30 @@ final class InteractiveRoutingStoreTests: XCTestCase {
         XCTAssertNil(store.tuneSession)
     }
 
+    func testHeadUpdatesRunOffTheMainThreadLatestWins() async throws {
+        let store = try routedStore()
+        store.beginRoute(at: CGPoint(x: 39.05, y: 20), layer: 0, pair: false)
+        XCTAssertNotNil(store.routePreview)
+        // A burst of moves: they do not block, and the head ends at the last one.
+        for x in stride(from: 39.0, through: 30.0, by: -1.0) { store.moveRoute(to: CGPoint(x: x, y: 28)) }
+        var waited = 0
+        while abs((store.routePreview?.endX ?? 0) - 30) > 1e-6 && waited < 500 {
+            try await Task.sleep(nanoseconds: 10_000_000)
+            waited += 1
+        }
+        XCTAssertEqual(store.routePreview?.endX ?? 0, 30, accuracy: 1e-6)
+        XCTAssertEqual(store.routePreview?.endY ?? 0, 28, accuracy: 1e-6)
+        // A click places what is under the cursor now, even with an update queued.
+        store.moveRoute(to: CGPoint(x: 34, y: 25))
+        store.moveRouteNow(to: CGPoint(x: 33, y: 26))
+        store.placeRouteCorner()
+        try await Task.sleep(nanoseconds: 100_000_000)  // the stale background result must not come back
+        XCTAssertEqual(store.routePreview?.endX ?? 0, 33, accuracy: 1e-6)
+        store.cancelRoute()
+        XCTAssertNil(store.routePreview)
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+    }
+
     func testRouterPlacesMicroviasOnHDIBoards() throws {
         let engine = EDAEngine(name: "HDI router")
         let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)

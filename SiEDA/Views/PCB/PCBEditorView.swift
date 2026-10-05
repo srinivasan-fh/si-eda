@@ -777,7 +777,7 @@ struct PCBCanvas: View {
             store.beginRoute(at: world, layer: activeLayer.copperIndex ?? 0, pair: routePair)
             return
         }
-        store.moveRoute(to: world)
+        store.moveRouteNow(to: world)
         if (NSApp.currentEvent?.clickCount ?? 1) >= 2 || store.routePreview?.reachedTarget == true {
             store.finishRoute()
         } else if store.routePreview?.head.isEmpty == false {

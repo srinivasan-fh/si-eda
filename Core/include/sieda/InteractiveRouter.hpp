@@ -8,6 +8,7 @@
 // the route began, so a preview can be thrown away (cancel) and every result is deterministic for the same inputs.
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -109,6 +110,8 @@ struct RoutePreview {
     double targetLength = 0;
     /// Highlight mode: what the route's copper violates (empty in the other modes, which never violate anything).
     std::vector<RouteCollision> collisions;
+    /// The last moveTo() was cancelled (requestAbort): this is the preview from before it, unchanged.
+    bool aborted = false;
 };
 
 class InteractiveRouter {
@@ -139,6 +142,13 @@ public:
 
     /// Moves the head to the cursor and returns the preview.
     const RoutePreview& moveTo(Vec2 cursor);
+    /// Cancels the head computation running now (moveTo, or the head update of addVia / setOptions) on another
+    /// thread: it returns soon with the state from before it (`preview().aborted`). Thread-safe; a request made while
+    /// nothing runs has no effect on later calls.
+    void requestAbort();
+    /// An extra cancel counter (owned by the caller, e.g. the C API's project): incrementing it cancels like
+    /// requestAbort(). It must outlive the router.
+    void setAbortSource(const std::atomic<unsigned>* counter);
     /// Places the head as it is (a click): the next head starts from its end. False when the head is empty.
     bool fixHead();
     /// Places the head, then a via (options().viaType) at its end and continues on `toLayer`. -1 = the default

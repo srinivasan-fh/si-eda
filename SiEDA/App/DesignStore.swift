@@ -1422,12 +1422,58 @@ final class DesignStore: ObservableObject {
     /// Starts a route (or a differential pair) on the pad, via or track at `point` on copper layer `layer`.
     func beginRoute(at point: CGPoint, layer: Int, pair: Bool) {
         guard !isBusy else { return }
+        settleRouteMoves()
         showRoute(engine.routerBegin(at: point, layer: layer, pair: pair, options: routerOptions))
     }
 
-    /// Moves the head of the route to the cursor (shoving or walking around as set).
+    // Head updates run off the main thread, latest wins: while one is computed, newer cursor positions replace each
+    // other in `routePendingPoint` and only the newest runs next. Results of an older session or of a superseded
+    // update (`routeGeneration`) are dropped. Discrete steps (corner, via, finish, cancel, options) first cancel the
+    // update in flight (`sieda_router_abort`, lock-free) so they never wait for a slow head.
+    private var routeMoveRunning = false
+    private var routePendingPoint: CGPoint?
+    private var routeGeneration = 0
+
+    /// Moves the head of the route to the cursor (shoving or walking around as set), off the main thread.
     func moveRoute(to point: CGPoint) {
         guard routePreview != nil, !isBusy else { return }
+        if routeMoveRunning {
+            routePendingPoint = point
+            return
+        }
+        routeMoveRunning = true
+        let generation = routeGeneration
+        let engine = self.engine
+        Task { @MainActor [weak self] in
+            let preview = await Task.detached(priority: .userInitiated) { engine.routerMove(to: point) }.value
+            self?.routeMoveFinished(preview, generation: generation)
+        }
+    }
+
+    private func routeMoveFinished(_ preview: RoutePreview?, generation: Int) {
+        routeMoveRunning = false
+        if generation == routeGeneration, routePreview != nil, let preview, preview.aborted != true {
+            routePreview = preview.active ? preview : nil
+            statusMessage = preview.status
+        }
+        if let next = routePendingPoint {
+            routePendingPoint = nil
+            moveRoute(to: next)
+        }
+    }
+
+    /// Before a synchronous router step: drops queued head moves, cancels the one in flight and makes its result
+    /// stale. The step then waits at most for that update to stop, not for it to finish.
+    private func settleRouteMoves() {
+        routePendingPoint = nil
+        routeGeneration &+= 1
+        if routeMoveRunning { engine.routerAbort() }
+    }
+
+    /// Moves the head to `point` now (a click places what is under the cursor, not an older position).
+    func moveRouteNow(to point: CGPoint) {
+        guard routePreview != nil, !isBusy else { return }
+        settleRouteMoves()
         guard let preview = engine.routerMove(to: point) else { return }
         routePreview = preview.active ? preview : nil
         statusMessage = preview.status
@@ -1436,18 +1482,21 @@ final class DesignStore: ObservableObject {
     /// Places the head as it is (a click); the route continues from its end.
     func placeRouteCorner() {
         guard routePreview != nil, !isBusy else { return }
+        settleRouteMoves()
         showRoute(engine.routerFix())
     }
 
     /// Places a via at the end of the head and continues on the other side of the board (V).
     func addRouteVia(reverse: Bool = false) {
         guard routePreview != nil, !isBusy else { return }
+        settleRouteMoves()
         showRoute(engine.routerAddVia(reverse: reverse))
     }
 
     /// Writes the route and every shoved track and via into the board as one undo step (Enter / double-click, or
     /// the end of a drag). With `point` the head first moves there, so the board gets exactly what is dropped.
     func finishRoute(at point: CGPoint? = nil) {
+        settleRouteMoves()
         if let point, routePreview != nil, !isBusy, let preview = engine.routerMove(to: point) {
             routePreview = preview.active ? preview : nil
         }
@@ -1466,6 +1515,7 @@ final class DesignStore: ObservableObject {
     /// Drops the route in progress; the board is unchanged (Esc).
     func cancelRoute() {
         guard routePreview != nil else { return }
+        settleRouteMoves()
         engine.routerCancel()
         routePreview = nil
         statusMessage = "Route cancelled"
@@ -1473,6 +1523,7 @@ final class DesignStore: ObservableObject {
 
     private func applyRouterOptions() {
         guard routePreview != nil, !isBusy else { return }
+        settleRouteMoves()
         showRoute(engine.routerSetOptions(routerOptions))
     }
 
@@ -1481,6 +1532,7 @@ final class DesignStore: ObservableObject {
     @discardableResult
     func beginTrackDrag(_ trackId: Int, at point: CGPoint) -> Bool {
         guard !isBusy else { return false }
+        settleRouteMoves()
         showRoute(engine.routerBeginDrag(track: trackId, at: point, options: routerOptions))
         return routePreview != nil
     }
@@ -1489,6 +1541,7 @@ final class DesignStore: ObservableObject {
     @discardableResult
     func beginViaDrag(_ viaId: Int, at point: CGPoint) -> Bool {
         guard !isBusy else { return false }
+        settleRouteMoves()
         showRoute(engine.routerBeginViaDrag(via: viaId, at: point, options: routerOptions))
         return routePreview != nil
     }

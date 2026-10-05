@@ -865,6 +865,8 @@ struct RoutePreview: Decodable, Equatable {
     var targetLength: Double?
     /// Highlight mode: what the route violates (nil / empty otherwise).
     var collisions: [RouteCollision]?
+    /// The update was cancelled (`routerAbort`): the preview from before it, to be ignored.
+    var aborted: Bool?
 }
 
 /// Interactive router mode (`sieda_router_*` options "mode").

@@ -338,6 +338,11 @@ char* sieda_router_set_options(SiedaProject* project, const char* options_json);
 char* sieda_router_commit(SiedaProject* project);
 void sieda_router_cancel(SiedaProject* project);
 int32_t sieda_router_active(const SiedaProject* project);
+/* Cancels the head computation (sieda_router_move, or the head update of add_via / set_options) running on another
+ * thread for this project: it returns soon with the preview from before it, marked "aborted":true. Thread-safe and
+ * lock-free: the one router call that may run concurrently with another call on the same project. A request made
+ * while nothing runs has no effect on later calls. */
+void sieda_router_abort(SiedaProject* project);
 /* Length tuning: accordion meanders on track `track_id` (then the net's other tracks) until its net is target_mm
  * long; target_mm <= 0 matches the longest member of the net's pair / bus group. max_amplitude_mm <= 0 = 2 mm.
  * {"ok","message","net","before","after","target","changes":{…as commit…}}. */

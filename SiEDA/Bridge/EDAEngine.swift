@@ -891,6 +891,11 @@ final class EDAEngine: @unchecked Sendable {
 
     func routerCancel() { withHandle { sieda_router_cancel($0) } }
 
+    /// Cancels the head update running on another thread (`routerMove` off the main thread): it returns soon with
+    /// the preview from before it, marked `aborted`. Lock-free, so it does not wait for that update; call it from the
+    /// main thread (the only thread that replaces the project handle).
+    func routerAbort() { sieda_router_abort(handle) }
+
     var routerActive: Bool { withHandle { sieda_router_active($0) } == 1 }
 
     func stackup() -> StackupReport {

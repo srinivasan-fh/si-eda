@@ -232,6 +232,7 @@ All functions are in `sieda_c.h`. Each project has one route session.
 | `sieda_router_set_options(project, options_json)` | Change mode / posture during a route |
 | `sieda_router_commit(project)` | Write the route; returns the changes |
 | `sieda_router_cancel(project)`, `sieda_router_active(project)` | Session control |
+| `sieda_router_abort(project)` | Cancel the head update running on another thread (lock-free, thread-safe) |
 | `sieda_router_begin_via_drag(project, options_json, via_id, x, y)` | Drag a via |
 | `sieda_router_tune(project, track_id, options_json)` | Length tuning with preview: `{"target","maxAmplitude","spacing","x","y","apply"}` |
 | `sieda_router_tune_length(project, track_id, target_mm, max_amplitude_mm)` | Length tuning (applies at once) |
@@ -283,8 +284,36 @@ never fails because of an old DRC problem elsewhere, and it never creates a new 
 - The walkaround search covers the area around the head: about 4 mm, or ¾ of the head length, beyond the start and
   the cursor. A detour further away needs a corner placed on the way.
 - Auto Route rips up all routing, locked tracks included.
-- Head updates take a few milliseconds on typical boards. A blocked head on a dense board can take up to about
-  0.2 s, because the router searches for the furthest position that fits.
+- A blocked head on a dense board still takes up to about 0.1 s to compute (the router searches for the furthest
+  position that fits). It no longer stalls the window (see [Responsiveness](#responsiveness)), but the head lags the
+  cursor by that much there.
+
+## Responsiveness
+
+The head is computed off the main thread. While one update runs, newer mouse positions replace each other and only
+the newest runs next (latest wins), so the head never falls behind a queue of stale positions and the canvas keeps
+drawing and scrolling. A click, **V**, **Enter**, **Esc** or an option change first cancels the update in flight
+(`InteractiveRouter::requestAbort`, C: `sieda_router_abort`, lock-free) and then acts on the cursor position of the
+click itself, so a step never waits for a slow head and never uses a stale one. A cancelled update restores the
+state from before it and reports `aborted` in its preview; the app drops such results, and results of a session that
+has since ended.
+
+Measured with `sieda_router_bench` (Release, gcc, one core of a shared 4-core Linux container): a generated board of
+422 parts, 512 nets and 8 layers (159 × 120 mm, 3335 tracks, 1185 vias, autorouted). Routes start on random pads (and
+drags on random tracks), the head moves to random points within 12 mm (1.5 mm for drags):
+
+| Update | Median | p90 | p99 | Worst |
+|---|---|---|---|---|
+| Route head, Shove | 6.4 ms | 27 ms | 79 ms | 106 ms |
+| Route head, Walk around | 5.7 ms | 22 ms | 29 ms | 31 ms |
+| Segment drag, Shove | 0.08 ms | 26 ms | 113 ms | 113 ms |
+| Segment drag, Walk around | 0.05 ms | 0.09 ms | 0.19 ms | 0.19 ms |
+| Starting a route (board snapshot) | 3.7 ms | 4.1 ms | 8.5 ms | 8.5 ms |
+| Slow update (into another net's pad, far away) | 19 ms | 50 ms | 60 ms | 60 ms |
+| The same, cancelled after 1 ms (time to return, incl. the 1 ms) | 5.2 ms | 6.1 ms | 9.7 ms | 9.7 ms |
+
+`./build/sieda_router_bench [--clusters 16 --layers 8 --seed 1 --moves 300]` reproduces it (the board takes about a
+minute to autoroute first).
 
 ## Code map
 
@@ -294,8 +323,9 @@ never fails because of an old DRC problem elsewhere, and it never creates a new 
 | Locked tracks (`Track::locked`, saved as `"locked": true`) | `Core/include/sieda/Pcb.hpp`, `Core/src/Project.cpp` |
 | C API | `Core/include/sieda/sieda_c.h`, `Core/src/sieda_c.cpp` (`sieda_router_*`) |
 | Swift bridge | `SiEDA/Bridge/EDAEngine.swift` (`routerBegin`, `routerMove`, `routerFix`, `routerAddVia`, `routerCommit`, …) |
-| App state | `SiEDA/App/DesignStore.swift` (`routePreview`, `beginRoute`, `moveRoute`, `finishRoute`, …) |
-| Route tool, preview drawing | `SiEDA/Views/PCB/PCBEditorView.swift` |
+| App state | `SiEDA/App/DesignStore.swift` (`routePreview`, `beginRoute`, `moveRoute` (off the main thread, latest wins), `moveRouteNow`, `finishRoute`, `beginTrackDrag`, `beginViaDrag`, `tuneSession`, `beginTune`, `applyTune`, …) |
+| Route and Tune tools, Select-tool drags, preview drawing | `SiEDA/Views/PCB/PCBEditorView.swift` |
+| Benchmark | `Core/tests/bench/router_bench.cpp` (`sieda_router_bench`) |
 
 ## Tests
 
@@ -320,6 +350,7 @@ Core (`Core/tests/core_tests.cpp`):
 | `router_shoves_lines_around_hole_keepouts` | A shoved line walks round a mounting-hole keep-out instead of stopping the head. |
 | `router_places_blind_buried_and_micro_vias` | Microvia, buried microvia, blind and through vias on a 4-layer HDI board with the asked spans and sizes; a microvia refuses a non-neighbouring layer; Auto and the no-HDI cases. |
 | `router_rounds_corners` | 45° corners become chord arcs (every join ≥ 165°), written exactly as previewed and DRC clean; a via inside a corner keeps that corner sharp. |
+| `router_head_update_can_be_cancelled` | A cancelled update leaves the router exactly as before; the next one matches a router that was never cancelled; a request while idle changes nothing. |
 | `router_highlights_collisions` | Highlight mode lists the three lanes a straight head crosses, moves nothing, and commits as asked. |
 | `router_keeps_an_autorouted_board_drc_clean` | 30 pseudo-random routes and drags with shove on an autorouted board, with DRC after every commit. |
 | `c_api_router` | The C API end to end (`Core/tests/c_api_test.c`). |

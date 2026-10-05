@@ -1,5 +1,6 @@
 // SiEDA core unit tests — dependency-free; run via `ctest` or directly.
 #include <map>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <complex>
@@ -12,6 +13,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <thread>
 
 #include <algorithm>
 
@@ -9350,4 +9352,57 @@ TEST(router_rounds_corners) {
         }
     }
     CHECK(routerOptionsFromJson(Json::parse("{\"cornerRadius\":-1}")).cornerRadius < 0);
+}
+
+TEST(router_head_update_can_be_cancelled) {
+    // A cancelled head update leaves the router exactly as before it; the next update is unaffected and gives the
+    // same result as on a router that was never cancelled. A request made while nothing runs changes nothing.
+    LaneBoard a = laneBoard(), b = laneBoard();
+    InteractiveRouter ra(a.p.pcb, a.p.schematic), rb(b.p.pcb, b.p.schematic);
+    std::atomic<unsigned> counter{0};
+    ra.setAbortSource(&counter);
+    CHECK(ra.beginRoute(a.from, 0) && rb.beginRoute(b.from, 0));
+    ra.moveTo({20, 23.3});
+    rb.moveTo({20, 23.3});
+    const std::string before = routePreviewJson(ra.preview()).dump();
+    ra.requestAbort();  // nothing runs: no effect on what follows
+    counter.fetch_add(1);
+    CHECK(!ra.moveTo({20, 23.3}).aborted);
+    CHECK(routePreviewJson(ra.preview()).dump() == before);
+    // Cancel while a slow update runs (aimed into another net's pad: shove, walk-around search and a binary search
+    // for the furthest fit take milliseconds): a helper thread keeps bumping the counter.
+    std::atomic<bool> stop{false};
+    std::thread bumper([&] {
+        while (!stop.load()) counter.fetch_add(1);
+    });
+    const unsigned started = counter.load();
+    while (counter.load() - started < 1000) std::this_thread::yield();  // the helper is running
+    int cancelledMoves = 0;
+    bool unchanged = true;
+    for (int attempt = 0; attempt < 20 && cancelledMoves == 0; ++attempt) {
+        RoutePreview cancelled = ra.moveTo(padAt(a.p, a.p.schematic.components()[1].id, 0));
+        if (!cancelled.aborted) {
+            ra.moveTo({20, 23.3});  // completed instead: back to the state before, try again
+            continue;
+        }
+        ++cancelledMoves;
+        cancelled.aborted = false;
+        unchanged = unchanged && routePreviewJson(cancelled).dump() == before;
+    }
+    stop = true;
+    bumper.join();
+    CHECK(cancelledMoves > 0);
+    CHECK(unchanged);
+    // The next update runs normally and matches the router that was never cancelled.
+    const std::string next = routePreviewJson(ra.moveTo({45, 23.3})).dump();
+    CHECK(!ra.preview().aborted);
+    CHECK(next == routePreviewJson(rb.moveTo({45, 23.3})).dump());
+    CHECK(ra.commit().ok && rb.commit().ok);
+    CHECK(routingProblems(a.p) == 0);
+    // C API: abort is a no-op without a router, and safe to call at any time.
+    SiedaProject* p = sieda_project_new("abort");
+    sieda_router_abort(p);
+    sieda_router_abort(nullptr);
+    CHECK(sieda_router_active(p) == 0);
+    sieda_project_free(p);
 }
