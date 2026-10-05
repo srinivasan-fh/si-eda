@@ -32,6 +32,7 @@ add_library(sieda_core STATIC
     Core/src/SpiceDevices.cpp
     Core/src/SpiceBuild.cpp
     Core/src/Noise.cpp
+    Core/src/Convergence.cpp
     Core/src/Waveforms.cpp
     Core/src/Pcb.cpp
     Core/src/Zones.cpp

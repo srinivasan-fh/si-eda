@@ -630,3 +630,10 @@
 "%lld values" = "%lld waarden";
 "Between cursors A and B" = "Tussen cursor A en B";
 "Whole run (place A and B for a window)" = "Hele run (plaats A en B voor een venster)";
+
+/* Simulation: transient integration options */
+"Adaptive time step" = "Adaptieve tijdstap";
+"Backward Euler" = "Achterwaartse Euler";
+"Integration" = "Integratie";
+"Trapezoidal" = "Trapezium";
+"Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "Integratie: adaptieve stappen uit de lokale afbreekfout (de stap is de grootste), trapeziumregel voor oscillatoren";

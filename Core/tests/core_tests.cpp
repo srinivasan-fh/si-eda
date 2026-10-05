@@ -9847,3 +9847,186 @@ TEST(waveform_measurements) {
     CHECK(empty && std::string(empty).find("\"ok\":false") != std::string::npos);
     sieda_string_free(empty);
 }
+
+TEST(transient_trapezoidal_and_adaptive_lc_oscillator) {
+    // A series LC loop charged to 1 V at t = 0 rings at 1/(2π√LC). Backward Euler damps it numerically; the trapezoidal
+    // rule keeps its amplitude; the adaptive run keeps it within tolerance with its own steps.
+    Schematic s;
+    int v = s.addComponent(ComponentKind::VoltageSource, "PULSE(1 0 1 0.99)", {0, 0});  // 1 V at t = 0, then 0
+    int r = s.addComponent(ComponentKind::Resistor, "1m", {50, 0});
+    int l = s.addComponent(ComponentKind::Inductor, "1m", {100, 0});
+    int c = s.addComponent(ComponentKind::Capacitor, "1u", {150, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, v, "+", r, "1");
+    wire(s, r, "2", l, "1");
+    wire(s, l, "2", c, "1");
+    wire(s, c, "2", g, "GND");
+    wire(s, v, "-", g, "GND");
+    const double f0 = 1 / (2 * kPi * std::sqrt(1e-3 * 1e-6)), period = 1 / f0;
+    const int net = s.netOf({c, 0});
+    auto amplitudeLate = [&](const TransientResult& tr) {
+        double a = 0;
+        for (size_t i = 0; i < tr.time.size(); ++i)
+            if (tr.time[i] > 18 * period) a = std::max(a, std::fabs(tr.netVoltages[static_cast<size_t>(net)][i]));
+        return a;
+    };
+    TransientOptions o;
+    o.tStop = 20 * period;
+    o.tStep = period / 200;
+    TransientResult be = Simulator(s).transient(o);  // = the established fixed-step analysis
+    CHECK(be.ok);
+    o.trapezoidal = true;
+    TransientResult trap = Simulator(s).transient(o);
+    CHECK(trap.ok);
+    o.adaptive = true;
+    o.maxStep = period / 20;
+    TransientResult ad = Simulator(s).transient(o);
+    CHECK(ad.ok);
+    if (be.ok && trap.ok && ad.ok) {
+        CHECK(amplitudeLate(be) < 0.6);   // ≈ exp(−π·20·2π/200·…): heavily damped
+        CHECK(amplitudeLate(trap) > 0.98);
+        CHECK(amplitudeLate(ad) > 0.95);
+        WaveformMeasurements m = measureWaveform(trap.time, trap.netVoltages[static_cast<size_t>(net)], 2 * period, 19 * period);
+        CHECK(m.ok && std::fabs(m.frequency / f0 - 1) < 2e-3);
+        WaveformMeasurements ma = measureWaveform(ad.time, ad.netVoltages[static_cast<size_t>(net)], 2 * period, 19 * period);
+        CHECK(ma.ok && std::fabs(ma.frequency / f0 - 1) < 1e-2);  // trapezoidal phase error at ~20 steps per period
+        CHECK(ad.time.size() < trap.time.size());  // coarser steps where the waveform allows them
+        for (size_t i = 1; i < ad.time.size(); ++i) CHECK(ad.time[i] > ad.time[i - 1]);
+    }
+    // The default options reproduce the fixed-step analysis exactly.
+    TransientResult classic = Simulator(s).transient(o.tStop, period / 200);
+    CHECK(classic.time == be.time && classic.netVoltages == be.netVoltages);
+}
+
+TEST(transient_stiff_boost_converter) {
+    // A 5 V → ~9.5 V boost converter: 100 kHz MOSFET switch, Schottky diode, 100 µH, 100 µF, 47 Ω — switching edges
+    // between long smooth intervals. The adaptive run lands on every gate edge and agrees with a fine fixed step.
+    Schematic s;
+    int vin = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int vg = s.addComponent(ComponentKind::VoltageSource, "PULSE(0 10 10u 0.5)", {0, 100});
+    int l = s.addComponent(ComponentKind::Inductor, "100u", {50, 0});
+    int m = s.addComponent(ComponentKind::NMOS, "IRLZ44N", {100, 50});
+    int d = s.addComponent(ComponentKind::Diode, "1N5819", {150, 0});
+    int c = s.addComponent(ComponentKind::Capacitor, "100u", {200, 50});
+    int rl = s.addComponent(ComponentKind::Resistor, "47", {250, 50});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 150});
+    wire(s, vin, "+", l, "1");
+    wire(s, l, "2", m, "D");
+    wire(s, m, "S", g, "GND");
+    wire(s, vg, "+", m, "G");
+    wire(s, vg, "-", g, "GND");
+    wire(s, l, "2", d, "A");
+    wire(s, d, "K", c, "1");
+    wire(s, c, "2", g, "GND");
+    wire(s, d, "K", rl, "1");
+    wire(s, rl, "2", g, "GND");
+    wire(s, vin, "-", g, "GND");
+    const int out = s.netOf({c, 0});
+    TransientOptions o;
+    o.tStop = 3e-3;
+    o.tStep = 50e-9;
+    TransientResult fixed = Simulator(s).transient(o);
+    CHECK(fixed.ok);
+    o.adaptive = true;
+    o.trapezoidal = true;
+    o.maxStep = 1e-6;
+    TransientResult ad = Simulator(s).transient(o);
+    CHECK(ad.ok);
+    if (fixed.ok && ad.ok) {
+        const double vf = fixed.netVoltages[static_cast<size_t>(out)].back(), va = ad.netVoltages[static_cast<size_t>(out)].back();
+        CHECK(vf > 7.5 && vf < 10.0);
+        CHECK(std::fabs(va - vf) / vf < 0.02);
+        CHECK(ad.time.size() * 3 < fixed.time.size());  // far fewer steps
+        // Every gate edge is a time point.
+        std::set<long> points;
+        for (double t : ad.time) points.insert(std::lround(t * 1e10));
+        for (int k = 1; k < 300; ++k) {
+            CHECK(points.count(std::lround(k * 10e-6 * 1e10)) == 1);
+            CHECK(points.count(std::lround((k * 10e-6 + 5e-6) * 1e10)) == 1);
+        }
+    }
+}
+
+TEST(transient_astable_multivibrator_oscillates) {
+    // Two cross-coupled NPNs: f ≈ 1 / (ln 2·(R1·C1 + R2·C2)). The supply steps on at t = 0 and slightly unequal
+    // capacitors start it. The transistors carry the 2N3904 model: its junction capacitances regularise the
+    // regenerative switching (the capacitance-free built-in model has an impasse there).
+    Schematic s;
+    int vcc = s.addComponent(ComponentKind::VoltageSource, "PULSE(0 9 1 0.99)", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 200});
+    int q1 = s.addComponent(ComponentKind::NPN, "BC847", {100, 100});
+    int q2 = s.addComponent(ComponentKind::NPN, "BC847", {300, 100});
+    int rc1 = s.addComponent(ComponentKind::Resistor, "1k", {100, 0});
+    int rc2 = s.addComponent(ComponentKind::Resistor, "1k", {300, 0});
+    int rb1 = s.addComponent(ComponentKind::Resistor, "47k", {150, 0});
+    int rb2 = s.addComponent(ComponentKind::Resistor, "47k", {250, 0});
+    int c1 = s.addComponent(ComponentKind::Capacitor, "10n", {150, 50});
+    int c2 = s.addComponent(ComponentKind::Capacitor, "11n", {250, 50});
+    wire(s, vcc, "-", g, "GND");
+    for (int r : {rc1, rc2, rb1, rb2}) wire(s, vcc, "+", r, "1");
+    wire(s, rc1, "2", q1, "C");
+    wire(s, rc2, "2", q2, "C");
+    wire(s, q1, "E", g, "GND");
+    wire(s, q2, "E", g, "GND");
+    wire(s, rb1, "2", q1, "B");
+    wire(s, rb2, "2", q2, "B");
+    wire(s, q1, "C", c1, "1");   // C1: collector of Q1 → base of Q2
+    wire(s, c1, "2", q2, "B");
+    wire(s, q2, "C", c2, "1");   // C2: collector of Q2 → base of Q1
+    wire(s, c2, "2", q1, "B");
+    for (int q : {q1, q2}) s.setSpiceModel(q, SpiceModelRef{builtinSpiceModels()[4].text, "2N3904", ""});
+    const double expected = 1 / (std::log(2.0) * 47e3 * (10e-9 + 11e-9));
+    for (bool adaptive : {false, true}) {
+        TransientOptions o;
+        o.tStop = 10e-3;
+        o.tStep = 1e-6;
+        o.adaptive = adaptive;
+        o.maxStep = 5e-6;
+        TransientResult tr = Simulator(s).transient(o);
+        CHECK(tr.ok);
+        if (!tr.ok) continue;
+        WaveformMeasurements m = measureWaveform(tr.time, tr.netVoltages[static_cast<size_t>(s.netOf({q1, 1}))], 3e-3, 10e-3);
+        CHECK(m.ok && m.peakToPeak > 7);
+        CHECK(m.ok && std::fabs(m.frequency / expected - 1) < 0.15);
+    }
+}
+
+extern "C" int sieda_c_api_transient_ex_test(void);
+
+TEST(dc_convergence_fallbacks) {
+    // A stack of 30 series diodes from 100 V through 10 Ω: plain Newton from zero needs the damped steps and the
+    // homotopies; it must converge to ~0.8 V per diode and keep KCL.
+    Schematic s;
+    int v = s.addComponent(ComponentKind::VoltageSource, "100", {0, 0});
+    int r = s.addComponent(ComponentKind::Resistor, "10", {50, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, v, "+", r, "1");
+    wire(s, v, "-", g, "GND");
+    int prev = r, prevPin = 1;
+    std::vector<int> diodes;
+    for (int i = 0; i < 30; ++i) {
+        int d = s.addComponent(ComponentKind::Diode, "1N4007", {100.0 + i * 20, 0});
+        s.connect({prev, prevPin}, {d, 0});
+        prev = d;
+        prevPin = 1;
+        diodes.push_back(d);
+    }
+    s.connect({prev, 1}, {g, 0});
+    DcResult dc = Simulator(s).dcOperatingPoint();
+    CHECK(dc.converged);
+    if (dc.converged) {
+        const double i = reading(dc, r)->current;
+        for (int d : diodes) CHECK_NEAR(reading(dc, d)->current, i, 1e-6 * i);
+        const double perDiode = (100 - 10 * i) / 30;
+        CHECK(perDiode > 0.8 && perDiode < 1.6);
+    }
+    CHECK(sieda_c_api_transient_ex_test() == 0);
+    // Options are validated.
+    TransientOptions bad;
+    bad.adaptive = true;
+    bad.reltol = 0;
+    CHECK(!Simulator(s).transient(bad).ok);
+    bad.reltol = 1e-3;
+    bad.tStop = -1;
+    CHECK(!Simulator(s).transient(bad).ok);
+}

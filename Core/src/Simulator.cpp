@@ -632,6 +632,8 @@ void Simulator::stamp(double t, double h, const std::vector<double>& x, double g
                 int tc = terminalCount(e.type);
                 std::array<double, 3> v0{};
                 for (int i = 0; i < tc; ++i) v0[static_cast<size_t>(i)] = nodeV(x, e.n[static_cast<size_t>(i)]);
+                if (limitJunctions_ && !noLimit_ && (e.type == ElemType::Diode || e.type == ElemType::NPN))
+                    limitBuiltinJunctions(e, v0);
                 std::array<double, 3> i0 = deviceCurrents(e, v0);
                 double J[3][3] = {};
                 const double dv = 1e-6;
@@ -663,6 +665,8 @@ void Simulator::stamp(double t, double h, const std::vector<double>& x, double g
 bool Simulator::solve(double t, double h, std::vector<double>& x, int& iterations, double gminExtra,
                       double sourceScale) {
     const int maxIter = 300;
+    if (limitJunctions_ || strictNewton_)
+        for (auto& e : elements_) e.vjValid = false;  // junction limiting starts from this solve's initial guess
     for (int it = 0; it < maxIter; ++it) {
         stamp(t, h, x, gminExtra, sourceScale);
         if (!luSolve(A_, b_, unknowns_)) return false;
@@ -706,7 +710,8 @@ std::vector<DeviceReading> Simulator::readings(const std::vector<double>& x, dou
             case ElemType::ModelPorts: break;
             case ElemType::Resistor: r.current = r.voltage / e.value; r.power = r.voltage * r.current; break;
             case ElemType::Capacitor:
-                r.current = h > 0 ? e.value / h * (r.voltage - e.prevV) : 0.0;
+                if (trap_ && h > 0) r.current = 2.0 * e.value / h * (r.voltage - e.prevV) - e.prevIc;
+                else r.current = h > 0 ? e.value / h * (r.voltage - e.prevV) : 0.0;
                 r.power = r.voltage * r.current;
                 break;
             case ElemType::Inductor:
@@ -781,6 +786,15 @@ bool Simulator::operatingPoint(std::vector<double>& x, int& iterations) {
             for (int s = 1; s <= 20 && ok; ++s) ok = solve(0, 0, x, iters, 0.0, s / 20.0);
         }
         iterations += iters;
+        if (!ok && (aids_ || strictNewton_)) {  // failed every strategy above: junction limiting, adaptive source stepping
+            const bool was = limitJunctions_;
+            limitJunctions_ = true;
+            std::fill(x.begin(), x.end(), 0.0);
+            ok = solve(0, 0, x, iters, 0.0, 1.0);
+            iterations += iters;
+            if (!ok) ok = adaptiveSourceStepping(x, iterations);
+            limitJunctions_ = was;
+        }
     }
     return ok;
 }
@@ -882,8 +896,16 @@ bool Simulator::advance(double h, std::string& error) {
         x_ = guess;
         const int sub = 10;
         double hs = h / sub;
+        const std::vector<Element> saved = elements_;  // integration state before the sub-steps
         for (int k = 1; k <= sub; ++k) {
             if (!solve(t - h + k * hs, hs, x_, iters, 0.0, 1.0)) {
+                // Last resort: the same step in finer sub-steps with pn-junction limiting.
+                elements_ = saved;
+                x_ = guess;
+                if ((aids_ || strictNewton_) && retryWithLimiting(t - h, h, error)) {
+                    t_ = t;
+                    return true;
+                }
                 error = "Transient analysis failed to converge at t = " + formatEngineeringValue(t, "s");
                 return false;
             }
@@ -1243,7 +1265,9 @@ AcResult Simulator::ac(const AcOptions& o) {
     for (const auto& d : drives) res.stimulus.push_back(elements_[d.elem].componentId);
 
     // Small-signal conductance matrix: the Newton Jacobian at the operating point (capacitors open, inductors short).
+    noLimit_ = true;  // the Jacobian at the operating point itself
     stamp(0, 0, x, 0.0, 1.0);
+    noLimit_ = false;
     const std::vector<double> G = A_;
     const int n = unknowns_;
     std::vector<Cplx> M, rhs;

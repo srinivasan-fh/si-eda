@@ -40,6 +40,30 @@ loads and the INA333 instrumentation amplifier. Part numbers in the value select
 `BC847`, `2N7002`, `SI2302`, … see `Core/src/DeviceModels.cpp`). The transient uses backward-Euler companion models
 for capacitors and inductors with a fixed step; microcontrollers with firmware run in lockstep with it.
 
+**Integration options** (the ⚙ menu next to the transient presets; C API `sieda_simulate_transient_ex`):
+
+| Option | What it does |
+|---|---|
+| Backward Euler (default) | first order, L-stable: damps fast modes (and, numerically, oscillators: an LC tank at 200 steps per period loses half its amplitude in 20 cycles) |
+| Trapezoidal | second order, no numerical damping: oscillators keep their amplitude (an LC tank within 2 % after 20 cycles, frequency within 0.2 %). The step after a source edge is backward Euler, which stops the trapezoidal rule ringing on it |
+| Adaptive time step | the step follows the local truncation error of the node voltages and inductor currents (divided differences: h²·x″/2 for backward Euler, h³·x‴/12 trapezoidal, against 10⁻³·\|x\| + 1 µV / 1 nA with SPICE's TRTOL of 7): a rejected step is retried shorter, an accepted one sets the next (×¼ … ×2). Every PULSE edge is a time point (the landing step sees the sources just before the edge, the next step after it). The entered step is the largest step. Circuits with simulated microcontrollers keep the fixed step |
+
+A 100 kHz boost converter (MOSFET switch, Schottky, 100 µH, 100 µF) runs in about a quarter of the fixed-step points
+with the same output voltage (within 0.01 % of a 50 ns fixed step); an astable multivibrator with 2N3904 models
+oscillates at the expected frequency with both methods (tests `transient_stiff_boost_converter`,
+`transient_astable_multivibrator_oscillates`).
+
+**Convergence aids.** The DC operating point tries Newton (node steps damped to 2 V), then Gmin stepping
+(10⁻² → 10⁻¹³ S), then source stepping in 20 steps. In the app (and always with imported models) two more strategies
+follow when those fail: Newton with SPICE pn-junction voltage limiting (`pnjlim`), then source stepping whose step
+adapts to Newton's success (doubling up to ¼, quartering down to 10⁻⁷, a bounded amount of work). A transient step that
+fails, and fails again in ten sub-steps, is retried with junction limiting in sub-steps that halve on failure and grow on
+success. These aids only ever turn a failure into a result; the library's design checks (validation, verification) keep
+the established strategies, so their results are unchanged. The adaptive transient uses junction limiting throughout.
+Regenerative circuits built from the capacitance-free built-in transistors can still fail at the switching instant
+(the equations have an impasse there): attach a SPICE model with junction capacitances (the 2N3904 from the library)
+and they run.
+
 ## AC small-signal analysis
 
 **Method.** The circuit is solved at its DC operating point first. The Newton Jacobian at that point is the

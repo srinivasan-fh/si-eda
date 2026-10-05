@@ -631,6 +631,7 @@ void Simulator::stampModelElement(const Element& e, double t, double h, const st
             const int tc = d.terminals;
             std::array<double, 4> v0{}, i0{};
             for (int k = 0; k < tc; ++k) v0[static_cast<size_t>(k)] = nodeV(x, e.dn[static_cast<size_t>(k)]);
+            if (h >= 0 && !noLimit_) d.limit(v0.data(), e.vjOld, e.vjValid);  // linearise at the limited junction voltages
             d.currents(v0.data(), i0.data());
             double J[4][4] = {};
             const double dv = 1e-6;

@@ -707,7 +707,16 @@ final class EDAEngine: @unchecked Sendable {
         return Self.decode(MonteCarloResult.self, from: json) ?? MonteCarloResult(error: "Simulator returned no result.")
     }
 
-    // MARK: - Noise, parameter sweep, FFT (docs/SIMULATION.md)
+    // MARK: - Transient options, noise, parameter sweep, FFT (docs/SIMULATION.md)
+
+    /// Transient with the trapezoidal rule and / or adaptive (LTE-controlled) time steps; both off is the
+    /// established fixed-step backward-Euler analysis.
+    func simulateTransient(stop: Double, step: Double, adaptive: Bool, trapezoidal: Bool) -> TransientResult {
+        guard adaptive || trapezoidal else { return simulateTransient(stop: stop, step: step) }
+        let options: [String: Any] = ["stop": stop, "step": step, "adaptive": adaptive, "method": trapezoidal ? "trap" : "be"]
+        let json = withHandle { Self.take(sieda_simulate_transient_ex($0, Self.optionsJSON(options))) }
+        return Self.decode(TransientResult.self, from: json) ?? TransientResult(error: "Simulator returned no result.")
+    }
 
     /// Output noise of `output` over a log sweep; `source` is the input for input-referred noise ("" = automatic).
     func simulateNoise(output: String, start: String, stop: String, pointsPerDecade: Int, source: String) -> NoiseAnalysisResult {

@@ -53,6 +53,20 @@ inline constexpr double kMcuOutputConductance = 1.0 / 25.0;
 inline constexpr double kMcuPullupConductance = 1.0 / 35000.0;
 
 // Smooth max(0, z) with a 20 mV knee (keeps Newton derivatives continuous).
+/// SPICE pn-junction voltage limiting: a Newton step that would raise a forward junction by more than 2·V_T is
+/// taken logarithmically, so the exponential cannot run away between iterations.
+inline double pnjlim(double vnew, double vold, double vt, double vcrit) {
+    if (vnew > vcrit && std::fabs(vnew - vold) > 2 * vt) {
+        if (vold > 0) {
+            const double arg = 1 + (vnew - vold) / vt;
+            return arg > 0 ? vold + vt * std::log(arg) : vcrit;
+        }
+        return vt * std::log(std::max(vnew / vt, 1e-300));
+    }
+    return vnew;
+}
+inline double junctionVcrit(double vt, double is) { return vt * std::log(vt / (1.4142135623730951 * std::max(is, 1e-300))); }
+
 inline double softplus(double z) {
     constexpr double s = 0.02;
     return z / s > 30 ? z : s * std::log1p(std::exp(z / s));
@@ -92,6 +106,8 @@ struct Simulator::Element {
     std::array<int, 4> dn{{-1, -1, -1, -1}};      // Device terminals (unknown indices, -1 ground)
     std::array<double, 4> qPrev{{0, 0, 0, 0}}, iqPrev{{0, 0, 0, 0}};  // Device charges and their currents, last step
     double prevIc = 0;                            // capacitor current at the last step (trapezoidal rule)
+    mutable std::array<double, 2> vjOld{{0, 0}};  // junction voltages of the last Newton iterate (pnjlim)
+    mutable bool vjValid = false;
     // Ctrl: f(controls) between n[0] (+) and n[1] (−): a voltage with `branch`, or a current from n[0] through the
     // source to n[1]. `refs` are the unknowns it reads (node voltages, branch currents); `pairs` index them per
     // control value (u = refs[a] − refs[b], −1 = 0).

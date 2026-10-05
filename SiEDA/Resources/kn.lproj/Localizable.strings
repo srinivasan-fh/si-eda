@@ -630,3 +630,10 @@
 "%lld values" = "%lld ಮೌಲ್ಯಗಳು";
 "Between cursors A and B" = "ಕರ್ಸರ್ A ಮತ್ತು B ನಡುವೆ";
 "Whole run (place A and B for a window)" = "ಸಂಪೂರ್ಣ ರನ್ (ವಿಂಡೋಗಾಗಿ A ಮತ್ತು B ಇರಿಸಿ)";
+
+/* Simulation: transient integration options */
+"Adaptive time step" = "ಹೊಂದಾಣಿಕೆಯ ಸಮಯ ಹಂತ";
+"Backward Euler" = "ಬ್ಯಾಕ್‌ವರ್ಡ್ ಆಯ್ಲರ್";
+"Integration" = "ಸಮಾಕಲನ";
+"Trapezoidal" = "ಟ್ರೆಪೆಜಾಯಿಡಲ್";
+"Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "ಸಮಾಕಲನ: ಸ್ಥಳೀಯ ಟ್ರಂಕೇಶನ್ ದೋಷದಿಂದ ಹೊಂದಾಣಿಕೆಯ ಹಂತಗಳು (ನೀಡಿದ ಹಂತ ಗರಿಷ್ಠ), ಆಸಿಲೇಟರ್‌ಗಳಿಗೆ ಟ್ರೆಪೆಜಾಯಿಡಲ್ ನಿಯಮ";

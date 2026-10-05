@@ -630,3 +630,10 @@
 "%lld values" = "%lld மதிப்புகள்";
 "Between cursors A and B" = "குறிகாட்டி A, B இடையே";
 "Whole run (place A and B for a window)" = "முழு ஓட்டம் (சாளரத்துக்கு A, B வைக்கவும்)";
+
+/* Simulation: transient integration options */
+"Adaptive time step" = "தகவமை நேரப் படி";
+"Backward Euler" = "பின்னோக்கு ஆய்லர்";
+"Integration" = "தொகையீடு";
+"Trapezoidal" = "சரிவகம்";
+"Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "தொகையீடு: உள்ளூர் துண்டிப்புப் பிழையிலிருந்து தகவமை படிகள் (கொடுத்த படி அதிகபட்சம்), அலையியற்றிகளுக்குச் சரிவக விதி";

@@ -630,3 +630,10 @@
 "%lld values" = "%lld value";
 "Between cursors A and B" = "Sa pagitan ng cursor A at B";
 "Whole run (place A and B for a window)" = "Buong run (ilagay ang A at B para sa isang window)";
+
+/* Simulation: transient integration options */
+"Adaptive time step" = "Adaptive na time step";
+"Backward Euler" = "Backward Euler";
+"Integration" = "Integration";
+"Trapezoidal" = "Trapezoidal";
+"Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "Integration: adaptive na hakbang mula sa local truncation error (ang step ang pinakamalaki), trapezoidal rule para sa mga oscillator";

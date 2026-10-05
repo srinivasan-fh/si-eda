@@ -7,6 +7,16 @@
 namespace sieda::spicedev {
 
 namespace {
+double pnjlim(double vnew, double vold, double vt, double vcrit) {
+    if (vnew > vcrit && std::fabs(vnew - vold) > 2 * vt) {
+        if (vold > 0) {
+            const double arg = 1 + (vnew - vold) / vt;
+            return arg > 0 ? vold + vt * std::log(arg) : vcrit;
+        }
+        return vt * std::log(std::max(vnew / vt, 1e-300));
+    }
+    return vnew;
+}
 constexpr double kInf = std::numeric_limits<double>::infinity();
 constexpr double kEpsOx = 3.453e-11;  // F/m, SiO2
 
@@ -74,6 +84,15 @@ public:
         q[0] = qd;
         q[1] = -qd;
     }
+    void limit(double* v, std::array<double, 2>& old, bool& valid) const override {
+        const double nvt = n_ * kVtNominal;
+        double vd = v[0] - v[1];
+        if (valid) vd = pnjlim(vd, old[0], nvt, vcrit(nvt));
+        old[0] = vd;
+        valid = true;
+        v[0] = v[1] + vd;
+    }
+    double vcrit(double nvt) const { return nvt * std::log(nvt / (1.4142135623730951 * std::max(is_, 1e-300))); }
     void noise(const double* v, std::vector<NoiseTerm>& out) const override {
         double id = std::fabs(total(v[0] - v[1]));
         out.push_back({0, 1, 2 * kCharge * id, kf_ * std::pow(id, af_), "shot"});
@@ -157,6 +176,18 @@ public:
         q[1] = sign_ * (qbe + qbc);
         q[2] = -sign_ * qbe;
     }
+    void limit(double* v, std::array<double, 2>& old, bool& valid) const override {  // C, B, E
+        double vbe = sign_ * (v[1] - v[2]), vbc = sign_ * (v[1] - v[0]);
+        if (valid) {
+            vbe = pnjlim(vbe, old[0], nf_ * kVtNominal, crit(nf_ * kVtNominal));
+            vbc = pnjlim(vbc, old[1], nr_ * kVtNominal, crit(nr_ * kVtNominal));
+        }
+        old = {vbe, vbc};
+        valid = true;
+        v[2] = v[1] - sign_ * vbe;
+        v[0] = v[1] - sign_ * vbc;
+    }
+    double crit(double vt) const { return vt * std::log(vt / (1.4142135623730951 * std::max(is_, 1e-300))); }
     void noise(const double* v, std::vector<NoiseTerm>& out) const override {
         const double vbe = sign_ * (v[1] - v[2]), vbc = sign_ * (v[1] - v[0]);
         Op o = op(vbe, vbc);

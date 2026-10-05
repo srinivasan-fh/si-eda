@@ -574,6 +574,12 @@ char* sieda_simulate_noise(const SiedaProject* project, const char* options_json
  * "dutyCycle","cycles"}; a quantity the window does not define is null. */
 char* sieda_measure_waveform(const char* request_json);
 
+/* ---- transient with options (docs/SIMULATION.md) ------------------------------------------------------------------ */
+/* Like sieda_simulate_transient, with options {"stop","step" (s or engineering text),"method":"be"|"trap",
+ * "adaptive": bool (step from the local truncation error, landing on every PULSE edge),"reltol" (1e-3),"vntol"
+ * (1e-6 V),"maxStep" (adaptive; default the step)}. Convergence aids are on. Same result JSON. */
+char* sieda_simulate_transient_ex(const SiedaProject* project, const char* options_json);
+
 #ifdef __cplusplus
 }
 #endif

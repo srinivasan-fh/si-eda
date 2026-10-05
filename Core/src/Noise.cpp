@@ -65,7 +65,9 @@ NoiseResult Simulator::noise(const NoiseOptions& o) {
         res.error = "The output and the reference are the same node: choose another output.";
         return res;
     }
+    noLimit_ = true;
     stamp(0, 0, x, 0.0, 1.0);
+    noLimit_ = false;
     const std::vector<double> G = A_;
     const int n = unknowns_;
 

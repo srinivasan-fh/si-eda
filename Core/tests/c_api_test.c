@@ -543,3 +543,31 @@ int sieda_c_api_noise_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Transient with options: methods, adaptive steps, validation. */
+int sieda_c_api_transient_ex_test(void) {
+    SiedaProject* p = sieda_project_new("transient options");
+    if (!p) return 1;
+    int32_t v = sieda_add_component(p, 5 /* VoltageSource */, "PULSE(0 5 1m)", 0, 0, 0, NULL);
+    int32_t r = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 0, 0, NULL);
+    int32_t c = sieda_add_component(p, 1 /* Capacitor */, "100n", 200, 0, 0, NULL);
+    int32_t g = sieda_add_component(p, 7 /* Ground */, NULL, 0, 80, 0, NULL);
+    if (sieda_connect(p, v, 0, r, 0) < 0 || sieda_connect(p, r, 1, c, 0) < 0 || sieda_connect(p, c, 1, g, 0) < 0 ||
+        sieda_connect(p, v, 1, g, 0) < 0)
+        return 2;
+    char* a = sieda_simulate_transient_ex(p, "{\"stop\":\"2m\",\"step\":\"10u\",\"method\":\"trap\",\"adaptive\":true}");
+    if (!a || !strstr(a, "\"ok\":true") || !strstr(a, "\"time\":[")) return 3;
+    sieda_string_free(a);
+    char* b = sieda_simulate_transient_ex(p, "{\"stop\":\"2m\",\"step\":\"10u\",\"method\":\"gear\"}");
+    if (!b || !strstr(b, "\"ok\":false") || !strstr(b, "gear")) return 4;
+    sieda_string_free(b);
+    char* d = sieda_simulate_transient_ex(p, "{bad");
+    if (!d || !strstr(d, "\"ok\":false")) return 5;
+    sieda_string_free(d);
+    char* e = sieda_simulate_transient_ex(p, NULL);
+    if (!e || !strstr(e, "\"ok\":true")) return 6;
+    sieda_string_free(e);
+    if (sieda_simulate_transient_ex(NULL, "{}") != NULL) return 7;
+    sieda_project_free(p);
+    return 0;
+}

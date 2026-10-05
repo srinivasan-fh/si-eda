@@ -122,6 +122,17 @@ struct DcSweepResult {
     std::map<int, std::vector<double>> currents;   // component id → current per point
 };
 
+/// Transient settings beyond stop and step (docs/SIMULATION.md). The defaults are the established fixed-step
+/// backward-Euler analysis.
+struct TransientOptions {
+    double tStop = 1e-3, tStep = 1e-6;  // s; with `adaptive`, tStep is the largest step unless maxStep is set
+    bool trapezoidal = false;  // trapezoidal rule (second order, no numerical damping) instead of backward Euler
+    bool adaptive = false;     // step size from the local truncation error, landing on every PULSE edge
+    double reltol = 1e-3;      // relative LTE tolerance (adaptive)
+    double vntol = 1e-6;       // absolute LTE tolerance, V (adaptive)
+    double maxStep = 0;        // largest adaptive step; 0 = tStep
+};
+
 class Simulator {
 public:
     explicit Simulator(const Schematic& schematic);
@@ -136,6 +147,9 @@ public:
     /// then drives every pin from the time it spent high, low or pulled up (25 Ω outputs, 35 kΩ pull-ups) and reads
     /// inputs and the ADC from the solved node voltages.
     TransientResult transient(double tStop, double tStep);
+    /// Transient with an integration method and, optionally, adaptive time steps (Convergence.cpp). Circuits with
+    /// microcontrollers keep fixed steps (the firmware runs in lockstep).
+    TransientResult transient(const TransientOptions& options);
     /// AC small-signal analysis: every device linearised at the DC operating point (diode, BJT and MOSFET small-signal
     /// conductances; op-amps as a single-pole gain–bandwidth model), solved with complex MNA at each frequency.
     AcResult ac(const AcOptions& options);
@@ -146,6 +160,12 @@ public:
     /// Multiplies the values of resistors, capacitors and inductors by a factor per component id (tolerance analysis).
     /// Takes effect at the next analysis.
     void setValueScale(std::map<int, double> scale) { valueScale_ = std::move(scale); }
+    /// Extra convergence aids when the standard strategies fail (docs/SIMULATION.md): a DC operating point that
+    /// Newton, Gmin stepping and source stepping could not find is retried with pn-junction limiting and adaptive
+    /// source stepping; a transient step that failed its sub-steps is retried with junction limiting and adaptive
+    /// sub-steps. They only ever turn a failure into a result. Off by default (the design checks keep the
+    /// established behaviour), on in the app's analyses, always on with imported SPICE models.
+    void setConvergenceAids(bool on) { aids_ = on; }
 
     // ---- incremental (live) simulation --------------------------------------------------------------------------------
     /// Starts at the t = 0 operating point. False with `error` when the circuit cannot be simulated.
@@ -173,6 +193,11 @@ private:
     /// Newton from `x`, then Gmin stepping, then source stepping (the DC operating point strategy).
     bool operatingPoint(std::vector<double>& x, int& iterations);
 
+    /// Last-resort DC strategy (Convergence.cpp): sources ramped from zero with a step that adapts to Newton's success.
+    bool adaptiveSourceStepping(std::vector<double>& x, int& iterations);
+    /// PULSE edges in (0, tStop]: the adaptive transient lands a step on each.
+    std::vector<double> sourceBreakpoints(double tStop) const;
+
     // Imported SPICE models (SpiceBuild.cpp).
     bool spiceModelApplies(const Component& c) const;
     bool addSpiceModel(const Component& c, std::string& error);
@@ -199,6 +224,13 @@ private:
     std::map<double, int> rails_;      // "dc:V" supplies of pin maps: voltage → internal node
     bool trap_ = false;                // trapezoidal integration (transient options)
     bool strictNewton_ = false;        // the circuit has imported models: stricter Newton convergence test
+    bool limitJunctions_ = false;      // pnjlim on the built-in diodes and NPNs (new transient modes, retries)
+    bool aids_ = false;                // setConvergenceAids
+    bool noLimit_ = false;             // the AC / noise linearisation: devices at their exact operating point
+    /// Junction limiting for a built-in diode or NPN's terminal voltages (Convergence.cpp).
+    void limitBuiltinJunctions(const Element& e, std::array<double, 3>& v) const;
+    /// A transient step from t0 over h that failed: 20, then 200 sub-steps with junction limiting (Convergence.cpp).
+    bool retryWithLimiting(double t0, double h, std::string& error);
     double stepH_ = 0;                 // the step the state is being advanced over  // net index → unknown index (-1 for ground)
     int nodeCount_ = 0;
     int unknowns_ = 0;

@@ -630,3 +630,10 @@
 "%lld values" = "%lld টা মান";
 "Between cursors A and B" = "কাৰ্ছৰ A আৰু B ৰ মাজত";
 "Whole run (place A and B for a window)" = "সম্পূৰ্ণ চলন (উইণ্ড'ৰ বাবে A আৰু B ৰাখক)";
+
+/* Simulation: transient integration options */
+"Adaptive time step" = "অভিযোজিত সময় পদক্ষেপ";
+"Backward Euler" = "বেকৱাৰ্ড অয়লাৰ";
+"Integration" = "সমাকলন";
+"Trapezoidal" = "ট্ৰেপিজয়ডেল";
+"Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "সমাকলন: স্থানীয় ট্ৰাংকেচন ত্ৰুটিৰ পৰা অভিযোজিত পদক্ষেপ (দিয়া পদক্ষেপটো সৰ্বাধিক), অছিলেটৰৰ বাবে ট্ৰেপিজয়ডেল নিয়ম";

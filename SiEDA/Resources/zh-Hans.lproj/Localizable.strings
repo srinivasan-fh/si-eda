@@ -630,3 +630,10 @@
 "%lld values" = "%lld 个数值";
 "Between cursors A and B" = "光标 A 与 B 之间";
 "Whole run (place A and B for a window)" = "整段结果（放置 A 与 B 以限定时间窗）";
+
+/* Simulation: transient integration options */
+"Adaptive time step" = "自适应时间步长";
+"Backward Euler" = "后向欧拉法";
+"Integration" = "积分方法";
+"Trapezoidal" = "梯形法";
+"Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "积分：按局部截断误差自适应步长（所设步长为上限），振荡器用梯形法";

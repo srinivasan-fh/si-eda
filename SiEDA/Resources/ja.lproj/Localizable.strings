@@ -630,3 +630,10 @@
 "%lld values" = "%lld 個の値";
 "Between cursors A and B" = "カーソル A と B の間";
 "Whole run (place A and B for a window)" = "全区間（区間を指定するには A と B を置きます）";
+
+/* Simulation: transient integration options */
+"Adaptive time step" = "適応時間ステップ";
+"Backward Euler" = "後退オイラー法";
+"Integration" = "積分法";
+"Trapezoidal" = "台形法";
+"Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "積分：局所打ち切り誤差による適応ステップ（指定ステップが上限）、発振回路には台形法";

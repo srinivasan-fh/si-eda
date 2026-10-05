@@ -630,3 +630,10 @@
 "%lld values" = "%lld Werte";
 "Between cursors A and B" = "Zwischen Cursor A und B";
 "Whole run (place A and B for a window)" = "Gesamter Lauf (A und B setzen für ein Fenster)";
+
+/* Simulation: transient integration options */
+"Adaptive time step" = "Adaptive Schrittweite";
+"Backward Euler" = "Implizites Euler-Verfahren";
+"Integration" = "Integration";
+"Trapezoidal" = "Trapezregel";
+"Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "Integration: adaptive Schritte aus dem lokalen Abbruchfehler (der Schritt ist der größte), Trapezregel für Oszillatoren";

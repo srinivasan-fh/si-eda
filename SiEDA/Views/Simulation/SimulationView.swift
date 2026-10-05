@@ -38,6 +38,8 @@ struct SimulationView: View {
     @State private var cursorA: Double?
     @State private var cursorB: Double?
     @State private var placingB = false
+    @AppStorage("SimulationAdaptiveStep") private var adaptiveStep = false
+    @AppStorage("SimulationTrapezoidal") private var trapezoidal = false
 
     var body: some View {
         if mode == .integrity {
@@ -88,6 +90,19 @@ struct SimulationView: View {
                     .fixedSize()
                     .help("Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)")
                     .accessibilityLabel("Transient presets")
+                    Menu {
+                        Toggle("Adaptive time step", isOn: $adaptiveStep)
+                        Picker("Integration", selection: $trapezoidal) {
+                            Text("Backward Euler").tag(false)
+                            Text("Trapezoidal").tag(true)
+                        }
+                    } label: {
+                        Image(systemName: adaptiveStep || trapezoidal ? "gearshape.fill" : "gearshape")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators")
+                    .accessibilityLabel("Transient integration options")
                     Button {
                         runTransient()
                     } label: { Label("Run Transient", systemImage: "waveform") }
@@ -202,7 +217,7 @@ struct SimulationView: View {
             store.alert = AlertItem(title: "Invalid analysis settings", message: "Use values like 5m (stop) and 5u (step).")
             return
         }
-        Task { await store.simulateTransient(stop: stop, step: step) }
+        Task { await store.simulateTransient(stop: stop, step: step, adaptive: adaptiveStep, trapezoidal: trapezoidal) }
     }
 
     // Values go to the core as typed ("1MEG", "50m"); it parses and validates them.

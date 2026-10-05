@@ -765,6 +765,7 @@ char* sieda_simulate_dc(const SiedaProject* project) {
     try {
         const Schematic circuit = project->project.simulationSchematic();  // the active variant as assembled
         Simulator sim(circuit);
+        sim.setConvergenceAids(true);  // the app: rescue a circuit the standard strategies cannot solve
         Json result = project->project.dcToJson(sim.dcOperatingPoint());
         addAssemblyNote(project->project, result);
         return dup(result.dump());
@@ -778,6 +779,7 @@ char* sieda_simulate_transient(const SiedaProject* project, double t_stop, doubl
     try {
         const Schematic circuit = project->project.simulationSchematic();
         Simulator sim(circuit);
+        sim.setConvergenceAids(true);
         Json result = project->project.transientToJson(sim.transient(t_stop, t_step));
         addAssemblyNote(project->project, result);
         return dup(result.dump());
@@ -2466,6 +2468,47 @@ char* sieda_measure_waveform(const char* request_json) {
         Json j = Json::object();
         j["ok"] = false;
         j["error"] = std::string("Invalid measurement request: ") + e.what();
+        return dup(j.dump());
+    }
+}
+
+char* sieda_simulate_transient_ex(const SiedaProject* project, const char* options_json) {
+    if (!project) return nullptr;
+    try {
+        std::string text = str(options_json);
+        Json o = text.find_first_not_of(" \t\r\n") == std::string::npos ? Json::object() : Json::parse(text);
+        auto number = [&](const char* key, double def) {
+            const Json& j = o.get(key);
+            if (j.isNumber()) return j.asNumber();
+            if (j.isString())
+                if (auto v = parseEngineeringValue(j.asString())) return *v;
+            return def;
+        };
+        TransientOptions options;
+        options.tStop = number("stop", 5e-3);
+        options.tStep = number("step", 5e-6);
+        const std::string method = o.get("method").asString("be");
+        if (method != "be" && method != "trap") {
+            Json j = Json::object();
+            j["ok"] = false;
+            j["error"] = "Unknown integration method '" + method + "' (be or trap).";
+            return dup(j.dump());
+        }
+        options.trapezoidal = method == "trap";
+        options.adaptive = o.get("adaptive").asBool(false);
+        options.reltol = number("reltol", options.reltol);
+        options.vntol = number("vntol", options.vntol);
+        options.maxStep = number("maxStep", 0);
+        const Schematic circuit = project->project.simulationSchematic();
+        Simulator sim(circuit);
+        sim.setConvergenceAids(true);
+        Json result = project->project.transientToJson(sim.transient(options));
+        addAssemblyNote(project->project, result);
+        return dup(result.dump());
+    } catch (const std::exception& e) {
+        Json j = Json::object();
+        j["ok"] = false;
+        j["error"] = std::string("Invalid transient options: ") + e.what();
         return dup(j.dump());
     }
 }

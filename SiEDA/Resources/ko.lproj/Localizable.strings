@@ -630,3 +630,10 @@
 "%lld values" = "값 %lld개";
 "Between cursors A and B" = "커서 A와 B 사이";
 "Whole run (place A and B for a window)" = "전체 실행(구간을 지정하려면 A와 B를 놓으세요)";
+
+/* Simulation: transient integration options */
+"Adaptive time step" = "적응형 시간 스텝";
+"Backward Euler" = "후진 오일러";
+"Integration" = "적분 방식";
+"Trapezoidal" = "사다리꼴";
+"Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "적분: 국부 절단 오차에 따른 적응형 스텝(설정한 스텝이 최대), 발진기에는 사다리꼴 법";

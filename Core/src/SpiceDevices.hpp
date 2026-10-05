@@ -38,6 +38,14 @@ public:
     virtual bool hasCharge() const = 0;
     /// Charge stored at each terminal (sums to zero).
     virtual void charges(const double* v, double* q) const = 0;
+    /// pn-junction limiting between Newton iterates: moves the terminal voltages `v` so the junction voltages step at
+    /// most logarithmically from `old` (updated); `valid` false on the first iterate. Devices without junctions
+    /// leave `v` as it is.
+    virtual void limit(double* v, std::array<double, 2>& old, bool& valid) const {
+        (void)v;
+        (void)old;
+        valid = true;
+    }
     /// Noise sources at the operating point `v`.
     virtual void noise(const double* v, std::vector<NoiseTerm>& out) const = 0;
 };

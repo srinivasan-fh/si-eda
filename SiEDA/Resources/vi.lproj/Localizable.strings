@@ -630,3 +630,10 @@
 "%lld values" = "%lld giá trị";
 "Between cursors A and B" = "Giữa con trỏ A và B";
 "Whole run (place A and B for a window)" = "Toàn bộ lần chạy (đặt A và B để chọn khoảng)";
+
+/* Simulation: transient integration options */
+"Adaptive time step" = "Bước thời gian thích ứng";
+"Backward Euler" = "Euler lùi";
+"Integration" = "Tích phân";
+"Trapezoidal" = "Hình thang";
+"Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "Tích phân: bước thích ứng theo sai số cắt cụt cục bộ (bước đặt là lớn nhất), quy tắc hình thang cho mạch dao động";

@@ -630,3 +630,10 @@
 "%lld values" = "%lld విలువలు";
 "Between cursors A and B" = "కర్సర్ A మరియు B మధ్య";
 "Whole run (place A and B for a window)" = "మొత్తం రన్ (విండో కోసం A మరియు B ఉంచండి)";
+
+/* Simulation: transient integration options */
+"Adaptive time step" = "అనుకూల టైమ్ స్టెప్";
+"Backward Euler" = "బ్యాక్‌వర్డ్ ఆయిలర్";
+"Integration" = "సమాకలనం";
+"Trapezoidal" = "ట్రాపెజాయిడల్";
+"Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "సమాకలనం: స్థానిక ట్రంకేషన్ దోషం నుండి అనుకూల స్టెప్‌లు (ఇచ్చిన స్టెప్ గరిష్ఠం), ఆసిలేటర్‌లకు ట్రాపెజాయిడల్ నియమం";

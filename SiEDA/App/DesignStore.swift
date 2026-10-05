@@ -1140,10 +1140,12 @@ final class DesignStore: ObservableObject {
             : "DC analysis failed: \(result.error)"
     }
 
-    func simulateTransient(stop: Double, step: Double) async {
+    func simulateTransient(stop: Double, step: Double, adaptive: Bool = false, trapezoidal: Bool = false) async {
         guard !isBusy else { return }  // one analysis at a time: overlapping runs would reset isBusy early
         let engine = self.engine
-        let result = await runBusy("Running transient analysis…") { engine.simulateTransient(stop: stop, step: step) }
+        let result = await runBusy("Running transient analysis…") {
+            engine.simulateTransient(stop: stop, step: step, adaptive: adaptive, trapezoidal: trapezoidal)
+        }
         transientResult = result
         statusMessage = result.ok ? "Transient analysis: \(result.time.count) points" : "Transient failed: \(result.error)"
     }

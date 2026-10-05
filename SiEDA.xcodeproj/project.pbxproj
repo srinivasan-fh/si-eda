@@ -33,6 +33,7 @@
 		38C7757A6EC0C2A1C2BDA96E = {isa = PBXBuildFile; fileRef = 88C2002B0D092ECD340FA1F5; };
 		3D5D45FB5BEA3347870ADE14 = {isa = PBXBuildFile; fileRef = 3B8AAF03382758779EE08604; };
 		3ED20566BE159D1479B983DC = {isa = PBXBuildFile; fileRef = 12BA3643F29BE4C857019229; };
+		42ADAA8558FC86569362C286 = {isa = PBXBuildFile; fileRef = D2F5295A4BC6459A2A847173; };
 		443E14D73B4434B4FDD2677B = {isa = PBXBuildFile; fileRef = 2A6E9FA74463A506F384BA53; };
 		482CD12CF3DD25314FE03C7D = {isa = PBXBuildFile; fileRef = 19A32AB05C4FC519DD459887; };
 		48FB3527518FE55EE06380A1 = {isa = PBXBuildFile; fileRef = FD0349E3F008C96C569E5F1F; };
@@ -278,6 +279,7 @@
 		CB13CE4917657E806979BBC3 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		D161F2099F1CE428C436A84C = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SpiceModels.hpp; sourceTree = "<group>"; };
 		D167B535F3242C6A3552428F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
+		D2F5295A4BC6459A2A847173 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Convergence.cpp; sourceTree = "<group>"; };
 		D3E15B9053DA257C9A5751E7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentLibraryView.swift; sourceTree = "<group>"; };
 		D45B920BF98609231071795D = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Verification.hpp; sourceTree = "<group>"; };
 		D8A1F587F4C663F44F8E70B7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SignalIntegrity.hpp; sourceTree = "<group>"; };
@@ -502,6 +504,7 @@
 				2B5B8F926E5F3FE0015F96DA,
 				71284BA817C0C1DCC0CA3D6B,
 				F5FB86B05BC4AEB24FCA3877,
+				D2F5295A4BC6459A2A847173,
 				3B93D968614EC9B31DA4DE95,
 				40CB462BA68D53F06E05FE4B,
 				0F0833A5CA77AB73527A9023,
@@ -883,6 +886,7 @@
 				27F0083DD20AA58EE2FA4A6F,
 				1B6D303504BD876122874794,
 				DC930E5139085C3D9454F757,
+				42ADAA8558FC86569362C286,
 				65FD190DDE9074461717C0FA,
 				11DA8A2E7A51801F14B785D4,
 				D955D5E0AF7F2908EFEC462B,

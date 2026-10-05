@@ -630,3 +630,10 @@
 "%lld values" = "%lld nilai";
 "Between cursors A and B" = "Antara kursor A dan B";
 "Whole run (place A and B for a window)" = "Seluruh larian (letak A dan B untuk tetingkap)";
+
+/* Simulation: transient integration options */
+"Adaptive time step" = "Langkah masa adaptif";
+"Backward Euler" = "Euler ke belakang";
+"Integration" = "Kamiran";
+"Trapezoidal" = "Trapezoid";
+"Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "Kamiran: langkah adaptif daripada ralat pangkasan setempat (langkah ialah maksimum), petua trapezoid untuk pengayun";
