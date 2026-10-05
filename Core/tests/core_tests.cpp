@@ -10030,3 +10030,33 @@ TEST(dc_convergence_fallbacks) {
     bad.tStop = -1;
     CHECK(!Simulator(s).transient(bad).ok);
 }
+
+TEST(spice_netlist_export_with_models) {
+    Schematic s;
+    int v = s.addComponent(ComponentKind::VoltageSource, "1", {0, 0});
+    int u = s.addComponent(ComponentKind::OpAmp, "UA741", {100, 0});
+    int rf = s.addComponent(ComponentKind::Resistor, "10k", {150, -60});
+    int rg = s.addComponent(ComponentKind::Resistor, "10k", {50, -60});
+    int d = s.addComponent(ComponentKind::Diode, "", {200, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    wire(s, v, "+", u, "IN+");
+    wire(s, v, "-", g, "GND");
+    wire(s, u, "OUT", rf, "2");
+    wire(s, rf, "1", u, "IN-");
+    wire(s, rg, "2", u, "IN-");
+    wire(s, rg, "1", g, "GND");
+    wire(s, u, "OUT", d, "A");
+    wire(s, d, "K", g, "GND");
+    s.setSpiceModel(u, SpiceModelRef{builtinSpiceModels()[9].text, "UA741", ""});
+    s.setSpiceModel(d, SpiceModelRef{".model DX D(IS=1n)\n", "DX", ""});
+    const std::string net = exportSpiceNetlist(s, "models");
+    CHECK(net.find("XU1 ") != std::string::npos && net.find(" UA741\n") != std::string::npos);
+    CHECK(net.find("VU1_rail1 U1_rail1 0 DC 15") != std::string::npos);
+    CHECK(net.find("VU1_rail2 U1_rail2 0 DC -15") != std::string::npos);
+    CHECK(net.find(".subckt UA741") != std::string::npos && net.find(".model DX D(IS=1n)") != std::string::npos);
+    CHECK(net.find("\nD1 ") != std::string::npos && net.find(" DX\n") != std::string::npos);
+    CHECK(net.find("OPAMP_IDEAL") == std::string::npos && net.find("DSIEDA") == std::string::npos);
+    // The netlist's definitions are importable again.
+    SpiceLibrary lib = parseSpiceLibrary(net);
+    CHECK(flattenSpiceModel(lib, "UA741").ok && flattenSpiceModel(lib, "DX").ok);
+}

@@ -1234,7 +1234,7 @@ AcResult Simulator::ac(const AcOptions& o) {
         Cplx phasor;
     };
     std::vector<Drive> drives;
-    auto isSource = [](const Element& e) { return e.type == ElemType::VSource || e.type == ElemType::ISource; };
+    auto isSource = [](const Element& e) { return !e.internal && (e.type == ElemType::VSource || e.type == ElemType::ISource); };
     auto phasorOf = [](const SourceSpec& s) {
         return s.hasAc ? std::polar(s.acMagnitude, s.acPhaseDeg * kPi / 180.0) : Cplx(1.0, 0.0);
     };
@@ -1341,7 +1341,7 @@ DcSweepResult Simulator::dcSweep(int componentId, double start, double stop, dou
     if (!build(res.error)) return res;
     std::vector<size_t> swept;
     for (size_t i = 0; i < elements_.size(); ++i)
-        if (elements_[i].componentId == componentId &&
+        if (elements_[i].componentId == componentId && !elements_[i].internal &&
             (elements_[i].type == ElemType::VSource || elements_[i].type == ElemType::ISource))
             swept.push_back(i);
     const Component* comp = sch_.find(componentId);

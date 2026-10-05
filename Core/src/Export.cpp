@@ -10,7 +10,10 @@
 #include <tuple>
 #include <vector>
 
+#include "sieda/Avr.hpp"
 #include "sieda/Bom.hpp"
+#include "sieda/CustomParts.hpp"
+#include "sieda/SpiceModels.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/Units.hpp"
 
@@ -70,15 +73,110 @@ std::string csvEscape(const std::string& s) {
 }
 }  // namespace
 
+namespace {
+/// An attached SPICE model in the netlist: its instance line(s), with the definitions collected once per text.
+bool exportAttachedModel(const Schematic& sch, const Component& c, std::ostringstream& o,
+                         std::vector<std::string>& definitions) {
+    switch (c.kind) {
+        case ComponentKind::Diode:
+        case ComponentKind::LED:
+        case ComponentKind::NPN:
+        case ComponentKind::NMOS:
+        case ComponentKind::OpAmp:
+        case ComponentKind::IC8: break;
+        case ComponentKind::Custom: {
+            const CustomPart* part = CustomPartRegistry::instance().find(c.customPart);
+            if (!part || mcuModelForPart(part->spec.name)) return false;
+            break;
+        }
+        default: return false;
+    }
+    auto flat = cachedSpiceFlatten(c.spice.text, c.spice.model);
+    if (!flat->ok) {
+        o << "* " << c.ref << ": SPICE model " << c.spice.model << " cannot be used\n";
+        return true;
+    }
+    std::vector<std::pair<std::string, std::string>> pins;
+    const CustomPart* part = c.kind == ComponentKind::Custom ? CustomPartRegistry::instance().find(c.customPart) : nullptr;
+    if (part)
+        for (const auto& p : part->spec.pins) pins.push_back({p.number, p.name});
+    else
+        for (const auto& p : c.def().pins) pins.push_back({std::string(), p.name});
+    const std::string map = c.spice.pins.empty() ? defaultSpicePinMap(*flat, pins, c.kind == ComponentKind::OpAmp) : c.spice.pins;
+    std::vector<std::vector<std::string>> instances(1);
+    std::string tok;
+    for (char ch : map + ";") {
+        if (ch == ';' || ch == ' ' || ch == ',' || ch == '\t') {
+            if (!tok.empty()) instances.back().push_back(tok);
+            tok.clear();
+            if (ch == ';' && !instances.back().empty()) instances.emplace_back();
+        } else {
+            tok += ch;
+        }
+    }
+    if (instances.back().empty()) instances.pop_back();
+    auto upper = [](std::string s) {
+        for (char& ch : s) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        return s;
+    };
+    int rail = 0, open = 0;
+    for (size_t k = 0; k < instances.size(); ++k) {
+        if (instances[k].size() != flat->ports.size()) {
+            o << "* " << c.ref << ": the pin map does not fit model " << c.spice.model << "\n";
+            return true;
+        }
+        std::vector<std::string> nodes;
+        for (const auto& t : instances[k]) {
+            const std::string u = upper(t);
+            if (u == "0") {
+                nodes.push_back("0");
+            } else if (u == "NC") {
+                nodes.push_back(c.ref + "_nc" + std::to_string(++open));
+            } else if (u.rfind("DC:", 0) == 0) {
+                const std::string node = c.ref + "_rail" + std::to_string(++rail);
+                o << "V" << node << " " << node << " 0 DC " << t.substr(3) << "\n";
+                nodes.push_back(node);
+            } else if (u.rfind("NET:", 0) == 0) {
+                std::string node = t.substr(4);
+                for (const auto& net : sch.nets())
+                    if (upper(net.name) == upper(node) && !net.pins.empty()) node = spiceNode(sch, net.pins.front());
+                nodes.push_back(node);
+            } else {
+                int pin = -1;
+                for (size_t i = 0; i < pins.size() && pin < 0; ++i)
+                    if (!pins[i].first.empty() && upper(pins[i].first) == u) pin = static_cast<int>(i);
+                for (size_t i = 0; i < pins.size() && pin < 0; ++i)
+                    if (upper(pins[i].second) == u) pin = static_cast<int>(i);
+                nodes.push_back(pin >= 0 ? spiceNode(sch, {c.id, pin}) : c.ref + "_" + t);
+            }
+        }
+        std::string name = c.ref + (instances.size() > 1 ? "_" + std::to_string(k + 1) : std::string());
+        if (flat->kind == "model") {
+            const char letter = flat->type == "D" ? 'D' : (flat->type == "NPN" || flat->type == "PNP") ? 'Q'
+                                : (flat->type == "NMOS" || flat->type == "PMOS") ? 'M' : 'J';
+            o << (std::toupper(static_cast<unsigned char>(name[0])) == letter ? std::string() : std::string(1, letter)) << name;
+        } else {
+            o << "X" << name;
+        }
+        for (const auto& nd : nodes) o << " " << nd;
+        o << " " << c.spice.model << "\n";
+    }
+    if (std::find(definitions.begin(), definitions.end(), c.spice.text) == definitions.end()) definitions.push_back(c.spice.text);
+    return true;
+}
+}  // namespace
+
 std::string exportSpiceNetlist(const Schematic& sch, const std::string& title) {
     std::ostringstream o;
     o << "* " << (title.empty() ? "SiEDA design" : title) << "\n* Generated by SiEDA\n";
     std::set<std::string> models;
+    std::vector<std::string> definitions;  // imported model texts, once each
     for (const auto& c : sch.components()) {
         if (sch.omitsFromSimulation(c)) {
             o << "* " << c.ref << " not fitted (DNP)\n";
             continue;
         }
+        if (!c.spice.empty() && exportAttachedModel(sch, c, o, definitions)) continue;
         auto n = [&](int pin) { return spiceNode(sch, {c.id, pin}); };
         switch (c.kind) {
             case ComponentKind::Resistor: o << c.ref << " " << n(0) << " " << n(1) << " " << primaryValue(c.value) << "\n"; break;
@@ -129,6 +227,7 @@ std::string exportSpiceNetlist(const Schematic& sch, const std::string& title) {
         }
     }
     for (const auto& m : models) o << m << "\n";
+    for (const auto& d : definitions) o << "* Imported model\n" << d << (d.empty() || d.back() == '\n' ? "" : "\n");
     o << ".op\n.end\n";
     return o.str();
 }

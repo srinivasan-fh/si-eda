@@ -11,6 +11,7 @@
 namespace sieda {
 
 namespace {
+constexpr const char* kPortTag = kSpicePortTag;
 constexpr size_t kMaxText = 8u << 20;   // 8 MB of model text
 constexpr size_t kMaxLines = 200000;
 constexpr int kMaxDepth = 40;           // subcircuit nesting
@@ -1046,7 +1047,7 @@ public:
                                    ") is not a device a part can use: choose a diode, transistor or subcircuit.");
                 return false;
             }
-            for (size_t i = 0; i < roles.size(); ++i) p.nodes.push_back("#" + std::to_string(i));
+            for (size_t i = 0; i < roles.size(); ++i) p.nodes.push_back(std::string(kPortTag) + std::to_string(i));
             out_.ports = roles;
             if (!loadModel(p, *m, global_, m->line)) return false;
             if (p.type == 'M') {  // W / L given on the model card (some vendors do) size the device
@@ -1067,7 +1068,7 @@ public:
         out_.name = s.displayName;
         out_.ports = s.ports;
         std::vector<std::string> nodes;
-        for (size_t i = 0; i < s.ports.size(); ++i) nodes.push_back("#" + std::to_string(i));
+        for (size_t i = 0; i < s.ports.size(); ++i) nodes.push_back(std::string(kPortTag) + std::to_string(i));
         instantiate(si, global_, "", nodes, {}, s.line);
         return finish();
     }

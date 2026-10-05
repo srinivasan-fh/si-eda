@@ -107,10 +107,14 @@ SpiceLibrary parseSpiceLibrary(const std::string& text);
 
 // ------------------------------------------------------------------ flattening
 
+/// Prefix of the flattened names of a model's ports (followed by the port index): a control character, which no
+/// parsed node name can contain.
+constexpr const char* kSpicePortTag = "\x01";
+
 struct SpicePrimitive {
     char type = 'R';                 // R C L K V I E F G H B D Q M J
     std::string name;                // hierarchical: "Q3", "X1.Q3"
-    std::vector<std::string> nodes;  // flattened node names: "0" ground, "#0", "#1"… the model's ports
+    std::vector<std::string> nodes;  // flattened node names: "0" ground, kSpicePortTag + index for the model's ports
     double value = 0;                // R, C, L; V / I DC value; K coupling factor; E/F/G/H linear gain
     // Controlled sources: controlling voltages as node pairs (E, G) or controlling V sources (F, H, POLY F/H; for K
     // the two inductors). `coeffs` is the polynomial (SPICE POLY order: constant, linear, then products).

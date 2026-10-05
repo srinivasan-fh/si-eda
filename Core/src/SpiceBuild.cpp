@@ -282,7 +282,7 @@ bool Simulator::addSpiceModel(const Component& c, std::string& error) {
     const size_t first = elements_.size();
     for (const auto& ports : portNodes) {
         std::map<std::string, int> nodes;
-        for (size_t i = 0; i < ports.size(); ++i) nodes["#" + std::to_string(i)] = ports[i];
+        for (size_t i = 0; i < ports.size(); ++i) nodes[std::string(kSpicePortTag) + std::to_string(i)] = ports[i];
         auto nodeOf = [&](const std::string& name) {
             if (name == "0") return -1;
             auto it = nodes.find(name);
