@@ -41,6 +41,7 @@
 #include "sieda/Eye.hpp"
 #include "sieda/LossyLine.hpp"
 #include "sieda/Touchstone.hpp"
+#include "sieda/PdnPlanning.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
@@ -1528,10 +1529,12 @@ int32_t sieda_pi_set_rail(SiedaProject* project, const char* net_name, double ri
     auto& rails = project->project.si.rails;
     auto it = std::find_if(rails.begin(), rails.end(), [&](const PdnRailSettings& r) { return r.net == net_name; });
     if (ripple_percent == 0 && transient_amps == 0 && dc_amps == 0) {
-        if (it != rails.end()) rails.erase(it);
+        if (it != rails.end() && (it->vrmR > 0 || it->vrmBandwidth > 0)) it->ripplePercent = it->transientCurrent = it->dcCurrent = 0;
+        else if (it != rails.end()) rails.erase(it);
         return 1;
     }
     PdnRailSettings r;
+    if (it != rails.end()) r = *it;  // keeps the regulator override
     r.net = net_name;
     r.ripplePercent = std::min(ripple_percent, 50.0);
     r.transientCurrent = std::min(transient_amps, 1000.0);
@@ -2418,6 +2421,57 @@ char* sieda_touchstone_channel_json(const char* text, int32_t ports_hint, const 
     } catch (const std::exception& e) {
         if (error_out) *error_out = dup(e.what());
         return nullptr;
+    }
+}
+
+}  // extern "C"
+
+// ---- power-integrity planning: regulator, plane cavity, decoupling plan, IR-drop map --------------------------------------
+
+extern "C" {
+
+int32_t sieda_pi_set_vrm(SiedaProject* project, const char* net_name, double r_out, double loop_bandwidth) {
+    if (!project || !net_name || !*net_name || !(r_out >= 0) || !(loop_bandwidth >= 0) || r_out > 10 || loop_bandwidth > 100e6)
+        return 0;
+    auto& rails = project->project.si.rails;
+    auto it = std::find_if(rails.begin(), rails.end(), [&](const PdnRailSettings& r) { return r.net == net_name; });
+    if (it == rails.end()) {
+        if (r_out == 0 && loop_bandwidth == 0) return 1;
+        PdnRailSettings r;
+        r.net = net_name;
+        rails.push_back(r);
+        it = rails.end() - 1;
+    }
+    it->vrmR = r_out;
+    it->vrmBandwidth = loop_bandwidth;
+    if (it->ripplePercent == 0 && it->transientCurrent == 0 && it->dcCurrent == 0 && r_out == 0 && loop_bandwidth == 0) rails.erase(it);
+    return 1;
+}
+
+char* sieda_pi_cavity_json(const SiedaProject* project, const char* net_name) {
+    if (!project) return nullptr;
+    try {
+        return dup(pdnCavityJson(project->project, str(net_name)).dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_pi_decap_plan_json(const SiedaProject* project, const char* net_name) {
+    if (!project) return nullptr;
+    try {
+        return dup(pdnDecapPlanJson(project->project, str(net_name)).dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_pi_ir_map_json(const SiedaProject* project, const char* net_name) {
+    if (!project) return nullptr;
+    try {
+        return dup(pdnIrMapJson(project->project, str(net_name)).dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
     }
 }
 

@@ -487,3 +487,38 @@ int sieda_c_api_channel_test(const char* project_json) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Power-integrity planning through the C ABI. */
+int sieda_c_api_pi_test(const char* project_json) {
+    char* err = NULL;
+    char* json = NULL;
+    SiedaProject* p = sieda_project_load_json(project_json, &err);
+    if (!p) return 1;
+    if (!sieda_pi_set_vrm(p, "+3V3", 0.003, 150e3) || sieda_pi_set_vrm(p, "+3V3", -1, 0)) return 2;
+    if (!sieda_pi_set_rail(p, "+3V3", 5, 0.2, 0)) return 3;
+    json = sieda_si_settings_json(p);
+    if (!json || !strstr(json, "\"vrmBandwidth\"")) return 4;
+    sieda_string_free(json);
+    json = sieda_pi_cavity_json(p, "+3V3");
+    if (!json || !strstr(json, "\"zCavity\"")) return 5;
+    sieda_string_free(json);
+    json = sieda_pi_decap_plan_json(p, "+3V3");
+    if (!json || !strstr(json, "\"additions\"")) return 6;
+    sieda_string_free(json);
+    json = sieda_pi_ir_map_json(p, "+3V3");
+    if (!json || !strstr(json, "\"cells\"")) return 7;
+    sieda_string_free(json);
+    json = sieda_pi_ir_map_json(p, "NOPE");
+    if (!json || !strstr(json, "\"error\"")) return 8;
+    sieda_string_free(json);
+    if (!sieda_pi_set_rail(p, "+3V3", 0, 0, 0)) return 9;
+    json = sieda_si_settings_json(p);
+    if (!json || !strstr(json, "\"vrmR\"")) return 10;
+    sieda_string_free(json);
+    if (!sieda_pi_set_vrm(p, "+3V3", 0, 0)) return 11;
+    json = sieda_si_settings_json(p);
+    if (!json || strstr(json, "+3V3")) return 12;
+    sieda_string_free(json);
+    sieda_project_free(p);
+    return 0;
+}

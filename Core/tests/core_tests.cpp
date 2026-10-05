@@ -30,6 +30,7 @@
 #include "sieda/Eye.hpp"
 #include "sieda/LossyLine.hpp"
 #include "sieda/Touchstone.hpp"
+#include "sieda/PdnPlanning.hpp"
 #include "sieda/Firmware.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/InteractiveRouter.hpp"
@@ -9529,4 +9530,99 @@ TEST(si_broadside_crosstalk) {
     bool flagged = false;
     for (size_t k = 0; k < j.get("pairs").size(); ++k) flagged |= j.get("pairs")[k].get("broadside").asBool();
     CHECK(flagged);
+}
+
+extern "C" int sieda_c_api_pi_test(const char* project_json);
+
+TEST(pi_cavity_decap_plan_and_ir_map) {
+    // Cavity: 100 × 60 mm plane pair, 0.2 mm FR-4. Low frequency: the plate capacitance; first resonance f10 = c/(2a√εr).
+    const double a = 100, bw = 60, d = 0.2, er = 4.4;
+    CHECK_NEAR(cavityModeFrequency(a, bw, er, 1, 0), kSpeedOfLight / (2 * 0.1 * std::sqrt(er)), 1);
+    const double cPlane = planeCapacitance(a * bw, d, er);
+    const std::vector<CavityPort> corner{{1, 1, 0.5}};
+    const double f1 = 1e6;
+    CHECK_NEAR(std::abs(cavityImpedance(a, bw, d, er, 0.02, corner, f1)(0, 0)), 1 / (2 * kPi * f1 * cPlane), 0.02 / (2 * kPi * f1 * cPlane));
+    const double f10 = cavityModeFrequency(a, bw, er, 1, 0);
+    double peakF = 0, peakZ = 0;
+    for (double f = 0.85 * f10; f <= 1.15 * f10; f += 1e6) {
+        const double z = std::abs(cavityImpedance(a, bw, d, er, 0.02, corner, f)(0, 0));
+        if (z > peakZ) {
+            peakZ = z;
+            peakF = f;
+        }
+    }
+    CHECK_NEAR(peakF, f10, 0.02 * f10);
+    // Reciprocity of the port matrix; in the plate's centre the (1,0) mode is not excited (cos(π/2) = 0).
+    const std::vector<CavityPort> two{{10, 10, 0.5}, {70, 40, 0.5}};
+    const CMat z2 = cavityImpedance(a, bw, d, er, 0.02, two, 300e6);
+    CHECK(std::abs(z2(0, 1) - z2(1, 0)) < 1e-12);
+    const std::vector<CavityPort> centre{{50, 30, 0.5}};
+    CHECK(std::abs(cavityImpedance(a, bw, d, er, 0.02, centre, f10)(0, 0)) < 0.2 * peakZ);
+
+    // A rail with planes and decoupling: the cavity curve, the lumped one and the regulator override.
+    SiBoard b = siBoard();
+    b.p.pcb.zones.push_back({"GND", 1, true, 0});
+    b.p.pcb.zones.push_back({"+3V3", 2, true, 0});
+    auto& s = b.p.schematic;
+    auto addCap = [&](const char* value, const char* package, Vec2 at) {
+        int c = s.addComponent(ComponentKind::Capacitor, value, {600, 0});
+        s.setPackage(c, package);
+        int vl = s.addComponent(ComponentKind::NetLabel, "+3V3", {580, 0});
+        int gl = s.addComponent(ComponentKind::Ground, "", {620, 0});
+        wire(s, c, "1", vl, "N");
+        wire(s, c, "2", gl, "GND");
+        b.p.schematicChanged();
+        siPlace(b.p, c, at);
+    };
+    addCap("100n", "C_0402", {14, 24});
+    addCap("100n", "C_0402", {104, 24});
+    auto rail = [](const Project& p) {
+        for (const auto& x : analyzePdn(p))
+            if (x.name == "+3V3") return x;
+        return PdnRailResult{};
+    };
+    const PdnRailResult r = rail(b.p);
+    CHECK(r.planeC > 0 && r.planeX1 > r.planeX0 && r.decaps.size() == 2);
+    const PdnCavityResult cav = pdnCavity(b.p, r);
+    CHECK(cav.available && cav.freq.size() == 121 && cav.zCavity.size() == 121 && cav.ports == 4);
+    CHECK(!cav.modes.empty() && cav.modes[0].m == 1 && cav.modes[0].n == 0);
+    if (!cav.zCavity.empty()) CHECK_NEAR(cav.zCavity[0] / cav.zLumped[0], 1.0, 0.25);  // both VRM / bulk dominated at 1 MHz
+    const Json cj = pdnCavityJson(b.p, "+3V3");
+    CHECK(cj.get("available").asBool() && cj.get("zCavity").size() == 121);
+    CHECK(pdnCavityJson(b.p, "NOPE").has("error"));
+    b.p.si.rails.push_back({"+3V3", 0, 0, 0, 0.002, 200e3});
+    const PdnRailResult ov = rail(b.p);
+    CHECK_NEAR(ov.vrmR, 0.002, 1e-15);
+    CHECK_NEAR(ov.vrmL, 0.002 / (2 * kPi * 200e3), 1e-18);
+    CHECK_NEAR(ov.vrmBandwidth, 200e3, 1e-6);
+
+    // Decoupling plan for an undecoupled rail: greedy additions until |Z| meets the target.
+    SiBoard nd = siBoard();
+    const PdnRailResult bare = rail(nd.p);
+    const PdnDecapPlan plan = pdnDecapPlan(bare);
+    CHECK(plan.needed && plan.compliant && !plan.additions.empty());
+    CHECK(plan.worstAfter <= 1.0 && plan.worstBefore > 1.0);
+    CHECK(plan.zAfter.size() == plan.freq.size());
+    int added = 0;
+    for (const auto& x : plan.additions) added += x.count;
+    CHECK(added >= 1 && added <= 40);
+
+    // IR-drop map on tracks: the 0.5 A common run carries 0.5 A / (0.5 mm × 35 µm) = 28.6 A/mm².
+    const Vec2 j = siPad(nd.p, nd.j1, "1"), v1 = siPad(nd.p, nd.u1, "VDD"), v2 = siPad(nd.p, nd.u2, "VDD");
+    siTrack(nd.p, nd.vcc, j, {j.x, 2}, 0, 0.5);
+    siTrack(nd.p, nd.vcc, {j.x, 2}, {v1.x, 2}, 0, 0.5);
+    siTrack(nd.p, nd.vcc, {v1.x, 2}, v1, 0, 0.5);
+    siTrack(nd.p, nd.vcc, {v1.x, 2}, {v2.x, 2}, 0, 0.5);
+    siTrack(nd.p, nd.vcc, {v2.x, 2}, v2, 0, 0.5);
+    const PdnRailResult ir = rail(nd.p);
+    CHECK(ir.irAnalyzed && !ir.irSegments.empty());
+    CHECK_NEAR(ir.irMaxDensity, 0.5 / (0.5 * 0.035), 0.5);
+    const Json map = pdnIrMapJson(nd.p, "+3V3");
+    CHECK(map.get("segments").size() >= 5 && map.get("hotspots").size() >= 1 && map.get("loads").size() == 2);
+    CHECK(map.get("board").get("outline").size() >= 4);
+    // Through a pour: cells with drops and densities.
+    const PdnRailResult pour = rail(b.p);
+    CHECK(pour.irAnalyzed && !pour.irCells.empty());
+    b.p.si.rails.clear();
+    CHECK(sieda_c_api_pi_test(b.p.toJson().dump().c_str()) == 0);
 }

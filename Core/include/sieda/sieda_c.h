@@ -412,6 +412,20 @@ char* sieda_touchstone_parse(const char* text, int32_t ports_hint, const char* p
  * sieda_si_channel_json: "swing","riseTime","sourceOhms","termOhms","portOrder","eye"). */
 char* sieda_touchstone_channel_json(const char* text, int32_t ports_hint, const char* options_json, char** error_out);
 
+/* ---- power-integrity planning -------------------------------------------------------------------------------------- */
+/* Regulator model of a rail: output resistance (Ω) and loop bandwidth (Hz); 0 = by regulator type. */
+int32_t sieda_pi_set_vrm(SiedaProject* project, const char* net_name, double r_out, double loop_bandwidth);
+/* Plane-pair cavity model of a rail: {"available","note","a","b","d","er","modes":[{m,n,f}],"freq":[…],"zCavity":[…],
+ * "zLumped":[…],"target","worstRatio","worstF","observe":{x,y},"recommendations":[…]}. Caller frees. */
+char* sieda_pi_cavity_json(const SiedaProject* project, const char* net_name);
+/* Decoupling plan meeting the target impedance: {"needed","compliant","worstBefore","worstAfter","mounting",
+ * "additions":[{value,footprint,c,count}],"freq":[…],"zBefore":[…],"zAfter":[…],"target"}. Caller frees. */
+char* sieda_pi_decap_plan_json(const SiedaProject* project, const char* net_name);
+/* IR-drop map of a rail: {"analyzed","voltage","limit","worst","maxDensity","board":{width,height,outline},"cells":[{x,y,
+ * size,layer,drop,density}],"segments":[{ax,ay,bx,by,layer,width,current,density,drop}],"loads":[…],"source":{x,y},
+ * "hotspots":[…]}. Caller frees. */
+char* sieda_pi_ir_map_json(const SiedaProject* project, const char* net_name);
+
 /* ---- exports ------------------------------------------------------------------------------- */
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
  *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj". Returns NULL for unknown formats. */
