@@ -67,6 +67,7 @@
 "Align Right" = "दाएँ संरेखित करें";
 "Align Top" = "ऊपर संरेखित करें";
 "Align Vertical Centres" = "ऊर्ध्वाधर केंद्र संरेखित करें";
+"Align by Symbol Outline" = "सिंबल की रूपरेखा से संरेखित करें";
 "All" = "सभी";
 "Amplitude" = "आयाम";
 "An entry (a local net label on the bus) for every member that has none yet" = "हर उस सदस्य के लिए प्रविष्टि (बस पर स्थानीय नेट लेबल) जिसकी अभी नहीं है";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "रिसीवर पर कैस्केड करें";
 "Cavity model" = "कैविटी मॉडल";
 "Centre" = "केंद्र";
+"Centre Frame on Drawing" = "फ़्रेम को ड्रॉइंग पर केंद्रित करें";
 "Centre the model on the footprint and put its lowest point on the board surface" = "मॉडल को फ़ुटप्रिंट के बीच में रखें और उसका सबसे निचला बिंदु बोर्ड की सतह पर रखें";
 "Changes from a WAS / IS file" = "WAS / IS फ़ाइल से परिवर्तन";
 "Changes from the schematic to the board since the last update." = "पिछले अपडेट के बाद से स्कीमैटिक से बोर्ड में परिवर्तन।";

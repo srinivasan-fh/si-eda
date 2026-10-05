@@ -1,6 +1,7 @@
 // SiEDA Core — schematic data model: components, wires, nets and electrical rule check.
 #pragma once
 
+#include <array>
 #include <map>
 #include <string>
 #include <utility>
@@ -83,6 +84,11 @@ struct Sheet {
     /// Drawn size of this sheet's sheet symbol on its parent (schematic units); 0 = fitted around its entries. The
     /// symbol is never smaller than its entries need.
     double symbolWidth = 0, symbolHeight = 0;
+    /// Fixed drawing frame (Altium's sheet border): the template's top-left corner in schematic units. Set when a
+    /// template is chosen; the frame then stays put while parts move, and the PDF prints the sheet at full scale
+    /// with that frame on the page. Without it (older files) the frame is centred on the drawing.
+    bool frameFixed = false;
+    Vec2 frameOrigin{0, 0};
     /// Helper sheet of a block (an ordinary, single-channel child sheet): when its parent is repeated, every channel
     /// gets its own copy of it, as a nested block of one channel (see Schematic::addHelperSheet).
     bool helper = false;
@@ -370,6 +376,9 @@ public:
     bool setSheetSize(int id, const std::string& size);
     /// Drawn size of a sheet's sheet symbol (0 = fitted to its entries; at most 4000 units). False for an unknown sheet.
     bool setSheetSymbolSize(int id, double width, double height);
+    /// Fixes the sheet's frame with its top-left corner at `origin` (snapped to the grid), or lets it follow the
+    /// drawing again (`fixed` false). False for an unknown sheet or a sheet without a template.
+    bool setSheetFrame(int id, bool fixed, Vec2 origin);
     /// Re-parents a sheet (0 = top level); refuses cycles.
     bool setSheetParent(int id, int parent);
     /// Moves a sheet to position `index` in the sheet order.
@@ -498,12 +507,20 @@ public:
     bool swapPins(int componentId, int pinA, int pinB);
 
     // ---- editing productivity ----
-    /// Aligns or distributes components (channel copies move their block's part). Returns the number moved.
-    int alignComponents(const std::vector<int>& ids, AlignMode mode);
-    /// Clipboard of components and the wires between them (format "sieda.schematic-clip/1").
-    Json copyComponents(const std::vector<int>& ids) const;
-    /// Pastes a clipboard on the active sheet (see PasteOptions). Returns the new components' ids.
-    std::vector<int> pasteComponents(const Json& clip, const PasteOptions& options);
+    /// Aligns or distributes components (channel copies move their block's part). Returns the number moved. With
+    /// `byOutline` the symbols' outlines line up (left edges, …) and distributing leaves equal gaps between
+    /// outlines; positions stay on the 10-unit grid.
+    int alignComponents(const std::vector<int>& ids, AlignMode mode, bool byOutline = false);
+    /// A component's symbol outline on its sheet (min x, min y, max x, max y): the body with its pin leads, a net
+    /// label's flag with its text, a library part's drawings — turned with the component.
+    std::array<double, 4> symbolOutline(const Component& c) const;
+    /// Clipboard of components and the wires between them (format "sieda.schematic-clip/1"), with the buses their
+    /// bus entries belong to (and the buses in `busIds`), their net directives and BOM sourcing.
+    Json copyComponents(const std::vector<int>& ids, const std::vector<int>& busIds = {}) const;
+    /// Pastes a clipboard on the active sheet (see PasteOptions). Returns the new components' ids; `perCopy` gets,
+    /// for each copy of an array, the new id of every clipboard component (-1 where none was made).
+    std::vector<int> pasteComponents(const Json& clip, const PasteOptions& options,
+                                     std::vector<std::vector<int>>* perCopy = nullptr);
     /// Makes a net label an entry of a harness label on its sheet (0 = an ordinary label again).
     bool setHarnessOf(int labelId, int harnessLabel);
     /// Back-annotated pin swap: the wires (and no-connect flags) of two pins of a part change places, whatever its
@@ -616,6 +633,7 @@ private:
     /// Unique name for a new instance sheet ("Amp [B]", nested: "Sub [B/A]").
     std::string instanceSheetName(int sheet) const;
     bool setChannelField(int id, const std::string& text, int bit);
+    int alignOutlines(const std::vector<int>& ids, const std::vector<Vec2>& at, AlignMode mode);
     /// The component a per-channel parameter of `id` lives on (a unit's package in the same channel).
     int channelHolder(int id) const;
     /// Sets field `bit` of `id` from `wanted` as a per-channel parameter (see setChannelField).

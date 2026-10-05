@@ -67,6 +67,7 @@
 "Align Right" = "Rechts uitlijnen";
 "Align Top" = "Boven uitlijnen";
 "Align Vertical Centres" = "Verticale middens uitlijnen";
+"Align by Symbol Outline" = "Uitlijnen op symboolomtrek";
 "All" = "Alle";
 "Amplitude" = "Amplitude";
 "An entry (a local net label on the bus) for every member that has none yet" = "Een aftakking (lokaal netlabel op de bus) voor elk lid dat er nog geen heeft";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "Cascaderen bij ontvanger";
 "Cavity model" = "Resonatormodel";
 "Centre" = "Centreer";
+"Centre Frame on Drawing" = "Kader centreren op tekening";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Centreer het model op de footprint en zet het laagste punt op het printoppervlak";
 "Changes from a WAS / IS file" = "Wijzigingen uit een WAS / IS-bestand";
 "Changes from the schematic to the board since the last update." = "Wijzigingen van het schema naar het bord sinds de laatste update.";

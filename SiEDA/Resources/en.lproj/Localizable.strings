@@ -67,6 +67,7 @@
 "Align Right" = "Align Right";
 "Align Top" = "Align Top";
 "Align Vertical Centres" = "Align Vertical Centres";
+"Align by Symbol Outline" = "Align by Symbol Outline";
 "All" = "All";
 "Amplitude" = "Amplitude";
 "An entry (a local net label on the bus) for every member that has none yet" = "An entry (a local net label on the bus) for every member that has none yet";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "Cascade at receiver";
 "Cavity model" = "Cavity model";
 "Centre" = "Centre";
+"Centre Frame on Drawing" = "Centre Frame on Drawing";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Centre the model on the footprint and put its lowest point on the board surface";
 "Changes from a WAS / IS file" = "Changes from a WAS / IS file";
 "Changes from the schematic to the board since the last update." = "Changes from the schematic to the board since the last update.";

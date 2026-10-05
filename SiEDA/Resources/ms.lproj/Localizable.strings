@@ -67,6 +67,7 @@
 "Align Right" = "Jajar Kanan";
 "Align Top" = "Jajar Atas";
 "Align Vertical Centres" = "Jajar Pusat Menegak";
+"Align by Symbol Outline" = "Jajar mengikut Garis Luar Simbol";
 "All" = "Semua";
 "Amplitude" = "Amplitud";
 "An entry (a local net label on the bus) for every member that has none yet" = "Satu entri (label net setempat pada bas) bagi setiap ahli yang belum ada";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "Lata pada penerima";
 "Cavity model" = "Model rongga";
 "Centre" = "Tengah";
+"Centre Frame on Drawing" = "Tengahkan Bingkai pada Lukisan";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Tengahkan model pada tapak dan letakkan titik terendahnya pada permukaan papan";
 "Changes from a WAS / IS file" = "Perubahan daripada fail WAS / IS";
 "Changes from the schematic to the board since the last update." = "Perubahan daripada skema ke papan sejak kemas kini terakhir.";

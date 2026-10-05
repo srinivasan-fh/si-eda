@@ -14387,3 +14387,377 @@ TEST(helper_sheets_and_channel_overrides_fuzzed) {
         }
     }
 }
+
+// ======================================================================= clipboard extras, outline alignment, fixed frames
+
+TEST(clipboard_carries_buses_directives_sourcing_and_variants) {
+    Project p;
+    Schematic& s = p.schematic;
+    const int bus = s.addBus("D[0..1]", {{0, 0}, {200, 0}});
+    CHECK(bus > 0);
+    const int u = s.addComponent(ComponentKind::Resistor, "1k", {100, 100});
+    const int d0 = s.addComponent(ComponentKind::NetLabel, "D0", {40, 20});
+    CHECK(s.setLabelBus(d0, bus));
+    CHECK(s.setNetClassDef({"HS", 0.3, 0.2}));
+    NetDirective dir;
+    dir.component = u;
+    dir.pin = 1;
+    dir.netClass = "HS";
+    CHECK(s.addDirective(dir) > 0);
+    s.find(u)->sourcing.mpn = "RC0603-1K";
+    CHECK(p.addVariant("Lite") && p.setVariantPart("Lite", u, 0, nullptr));
+    const Json clip = p.copyComponents({u, d0});
+    CHECK(clip.get("buses").items().size() == 1 && clip.get("directives").items().size() == 1);
+    CHECK(clip.get("variants").items().size() == 1);
+    PasteOptions o;
+    o.offset = {0, 300};
+    o.count = 2;
+    o.step = {0, 300};
+    const auto ids = p.pasteComponents(Json::parse(clip.dump()), o);
+    CHECK(ids.size() == 4);
+    CHECK(s.buses().size() == 3 && s.directives().size() == 3);
+    int labelsOnBus = 0, lite = 0, sourced = 0;
+    for (int id : ids) {
+        const Component* c = s.find(id);
+        if (!c) continue;
+        labelsOnBus += c->kind == ComponentKind::NetLabel && c->bus != 0 && c->bus != bus;
+        sourced += c->sourcing.mpn == "RC0603-1K";
+        for (const auto& v : p.variants)
+            if (v.name == "Lite" && v.parts.count(id) && v.parts.at(id).fitted == 0) ++lite;
+    }
+    CHECK(labelsOnBus == 2 && sourced == 2 && lite == 2);
+    // An explicitly copied bus comes along without its entries; a clipboard without the new fields pastes as before.
+    const Json busOnly = p.copyComponents({u}, {bus});
+    CHECK(busOnly.get("buses").items().size() == 1);
+    Json old = Json::object();
+    for (const auto& [k, v] : clip.fields())
+        if (k != "buses" && k != "busLinks" && k != "directives" && k != "variants") old[k] = v;
+    CHECK(p.pasteComponents(old, PasteOptions{}).size() == 2);
+}
+
+TEST(align_by_outline_and_fixed_sheet_frames) {
+    Project p;
+    Schematic& s = p.schematic;
+    const int r = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});            // outline x −30 … 30
+    const int amp = s.addComponent(ComponentKind::OpAmp, "TL071", {200, 100});      // −40 … 40
+    const int lbl = s.addComponent(ComponentKind::NetLabel, "LONG_NET_NAME", {100, 200});
+    auto box = [&](int id) { return s.symbolOutline(*s.find(id)); };
+    CHECK(box(r)[0] == -30 && box(r)[2] == 30);
+    CHECK(s.alignComponents({r, amp, lbl}, AlignMode::Left, true) >= 1);
+    CHECK(std::fabs(box(r)[0] - box(amp)[0]) < 10 && std::fabs(box(lbl)[0] - box(r)[0]) < 10);
+    CHECK(s.alignComponents({r, amp}, AlignMode::Right, true) >= 1 && std::fabs(box(r)[2] - box(amp)[2]) < 10);
+    // Distribute: equal gaps between outlines (within the grid).
+    s.find(r)->position = {0, 0};
+    s.find(amp)->position = {150, 0};
+    s.find(lbl)->position = {600, 0};
+    CHECK(s.alignComponents({r, amp, lbl}, AlignMode::DistributeX, true) == 1);
+    const double gap1 = box(amp)[0] - box(r)[2], gap2 = box(lbl)[0] - box(amp)[2];
+    CHECK(std::fabs(gap1 - gap2) <= 10);
+    // A rotated part's outline turns with it.
+    CHECK(s.rotateComponent(r, 90) && box(r)[1] < -20 && box(r)[3] > 20);
+    // Fixed frame: set with the template, saved, unaffected by moving parts; the PDF prints at full scale.
+    CHECK(s.setSheetSize(1, "A4") && s.findSheet(1)->frameFixed);
+    const Vec2 origin = s.findSheet(1)->frameOrigin;
+    s.find(amp)->position = {300, 0};
+    CHECK(s.findSheet(1)->frameOrigin == origin);
+    const std::string saved = p.toJson().dump();
+    CHECK(saved.find("\"frame\"") != std::string::npos && Project::fromJson(Json::parse(saved)).toJson().dump() == saved);
+    CHECK(s.setSheetFrame(1, true, {-500, -400}) && s.findSheet(1)->frameOrigin == Vec2(-500, -400));
+    CHECK(s.setSheetFrame(1, false, {}) && !s.findSheet(1)->frameFixed && !s.setSheetFrame(999, true, {}));
+    CHECK(s.setSheetSize(1, "A4") && exportSchematicPdf(p).rfind("%PDF", 0) == 0);
+    CHECK(s.setSheetSize(1, "") && !s.findSheet(1)->frameFixed && !s.setSheetFrame(1, true, {}));
+    // A file without "frame" (older) keeps the centred frame.
+    CHECK(s.setSheetSize(1, "A3"));
+    std::string old = p.toJson().dump();
+    const size_t at = old.find("\"frame\":[");
+    CHECK(at != std::string::npos);
+    if (at != std::string::npos) old.erase(at, old.find(']', at) - at + 2);  // the field and its comma
+    CHECK(!Project::fromJson(Json::parse(old)).schematic.findSheet(1)->frameFixed);
+}
+
+#include "sieda/PdfFont.hpp"
+
+// ======================================================================= PDF: real symbols, Unicode text, embedded font
+
+namespace {
+/// A minimal TrueType font: glyph 1 a square (U+65E5 日), glyph 2 a composite of glyph 1 (U+0416 Ж); cmap format 4
+/// or 12.
+std::string tinyTrueType(bool format12) {
+    auto u16 = [](std::string& s, int v) {
+        s += static_cast<char>((v >> 8) & 0xFF);
+        s += static_cast<char>(v & 0xFF);
+    };
+    auto u32 = [&](std::string& s, uint32_t v) {
+        u16(s, static_cast<int>(v >> 16));
+        u16(s, static_cast<int>(v & 0xFFFF));
+    };
+    std::string square;  // one contour, four on-curve points
+    u16(square, 1);
+    for (int v : {0, 0, 500, 500}) u16(square, v);
+    u16(square, 3);
+    u16(square, 0);
+    for (int k = 0; k < 4; ++k) square += '\x01';
+    for (int v : {0, 500, 0, -500}) u16(square, v);
+    for (int v : {0, 0, 500, 0}) u16(square, v);
+    while (square.size() % 4) square += '\0';
+    std::string comp;
+    u16(comp, 0xFFFF);
+    for (int v : {100, 0, 600, 500}) u16(comp, v);
+    u16(comp, 0x0003);
+    u16(comp, 1);
+    u16(comp, 100);
+    u16(comp, 0);
+    std::string glyf = square + comp, loca;
+    for (int v : {0, 0, static_cast<int>(square.size() / 2), static_cast<int>(glyf.size() / 2)}) u16(loca, v);
+    std::string head;
+    u32(head, 0x00010000);
+    u32(head, 0x00010000);
+    u32(head, 0);
+    u32(head, 0x5F0F3CF5);
+    u16(head, 0);
+    u16(head, 1000);
+    for (int k = 0; k < 16; ++k) head += '\0';
+    for (int v : {0, 0, 600, 500}) u16(head, v);
+    for (int v : {0, 8, 2, 0, 0}) u16(head, v);
+    std::string hhea;
+    u32(hhea, 0x00010000);
+    u16(hhea, 800);
+    u16(hhea, 0x10000 - 200);
+    while (hhea.size() < 34) hhea += '\0';
+    u16(hhea, 3);
+    std::string maxp;
+    u32(maxp, 0x00005000);
+    u16(maxp, 3);
+    std::string hmtx;
+    for (int w : {500, 600, 700}) {
+        u16(hmtx, w);
+        u16(hmtx, 0);
+    }
+    std::string sub;
+    if (format12) {
+        u16(sub, 12);
+        u16(sub, 0);
+        u32(sub, 16 + 24);
+        u32(sub, 0);
+        u32(sub, 2);
+        for (uint32_t g : {0x0416u, 0x0416u, 2u, 0x65E5u, 0x65E5u, 1u}) u32(sub, g);
+    } else {
+        u16(sub, 4);
+        u16(sub, 14 + 8 * 3 + 2);
+        u16(sub, 0);
+        u16(sub, 6);
+        u16(sub, 4);
+        u16(sub, 1);
+        u16(sub, 2);
+        for (int v : {0x0416, 0x65E5, 0xFFFF}) u16(sub, v);
+        u16(sub, 0);
+        for (int v : {0x0416, 0x65E5, 0xFFFF}) u16(sub, v);
+        for (int v : {(2 - 0x0416) & 0xFFFF, (1 - 0x65E5) & 0xFFFF, 1}) u16(sub, v);
+        for (int k = 0; k < 3; ++k) u16(sub, 0);
+    }
+    std::string cmap;
+    u16(cmap, 0);
+    u16(cmap, 1);
+    u16(cmap, 3);
+    u16(cmap, format12 ? 10 : 1);
+    u32(cmap, 12);
+    cmap += sub;
+    const std::vector<std::pair<std::string, std::string>> tables = {
+        {"cmap", cmap}, {"glyf", glyf}, {"head", head}, {"hhea", hhea}, {"hmtx", hmtx}, {"loca", loca}, {"maxp", maxp}};
+    std::string file;
+    u32(file, 0x00010000);
+    u16(file, static_cast<int>(tables.size()));
+    u16(file, 64);
+    u16(file, 2);
+    u16(file, static_cast<int>(tables.size() * 16 - 64));
+    size_t offset = 12 + 16 * tables.size();
+    std::string body;
+    for (const auto& [tag, bytes] : tables) {
+        file += tag;
+        u32(file, 0);
+        u32(file, static_cast<uint32_t>(offset + body.size()));
+        u32(file, static_cast<uint32_t>(bytes.size()));
+        body += bytes;
+        while (body.size() % 4) body += '\0';
+    }
+    return file + body;
+}
+
+/// Every cross-reference offset of a PDF points at its object.
+bool pdfXrefConsistent(const std::string& pdf) {
+    const size_t xref = pdf.rfind("\nxref\n");
+    if (xref == std::string::npos) return false;
+    size_t at = pdf.find('\n', pdf.find('\n', xref + 1) + 1) + 1;  // after "0 N"
+    at = pdf.find('\n', at) + 1;                                      // after the free entry
+    for (int obj = 1; at + 20 <= pdf.size() && pdf.compare(at, 7, "trailer") != 0; ++obj, at += 20) {
+        const size_t off = static_cast<size_t>(std::stoul(pdf.substr(at, 10)));
+        if (pdf.compare(off, std::to_string(obj).size() + 6, std::to_string(obj) + " 0 obj") != 0) return false;
+    }
+    return true;
+}
+}  // namespace
+
+TEST(pdf_font_reading_and_subsets) {
+    for (bool f12 : {false, true}) {
+        TrueTypeFont font;
+        CHECK(font.load(tinyTrueType(f12)) && font.valid() && font.numGlyphs() == 3 && font.unitsPerEm() == 1000);
+        CHECK(font.glyph(0x65E5) == 1 && font.glyph(0x0416) == 2 && font.glyph('A') == 0 && font.glyph(0x1F600) == 0);
+        CHECK(std::fabs(font.advance(1) - 0.6) < 1e-9 && font.ascent() == 800 && font.descent() == -200);
+        // A subset keeps the glyph numbering; a composite brings its part along.
+        const std::string withComposite = font.subset({2}), both = font.subset({1, 2}), none = font.subset({});
+        CHECK(withComposite.size() == both.size() && none.size() < both.size());
+        TrueTypeFont again;
+        CHECK(again.load(withComposite) && again.numGlyphs() == 3 && again.glyph(0x0416) == 2);
+    }
+    TrueTypeFont bad;
+    CHECK(!bad.load("") && !bad.load(std::string(64, 'x')) && !bad.load("OTTO" + std::string(60, '\0')) && !bad.valid());
+    CHECK(bad.subset({1}).empty() && bad.glyph('A') == 0);
+}
+
+TEST(pdf_real_symbols_and_unicode_text) {
+    Project p;
+    Schematic& s = p.schematic;
+    p.titleBlock.title = "Filter 日本 Ж";
+    p.titleBlock.company = "Ωmega µ € café";
+    const int r = s.addComponent(ComponentKind::Resistor, "4k7", {0, 0});
+    s.addComponent(ComponentKind::OpAmp, "TL071", {200, 0}, 90);
+    s.addComponent(ComponentKind::Ground, "", {0, 100}, 180);
+    CHECK(s.renameSheet(1, "Ступень"));
+    CHECK(r > 0);
+    // Without a font: Latin-1 and € in Helvetica, Ω and µ from Symbol, the rest '?'.
+    const std::string plain = exportSchematicPdf(p);
+    CHECK(plain.find("/F3 ") != std::string::npos && plain.find("/BaseFont /Symbol") != std::string::npos);
+    CHECK(plain.find("(Filter ?? ?)") != std::string::npos);
+    CHECK(plain.find("caf\\351") != std::string::npos && plain.find("\\200") != std::string::npos);  // é, € in WinAnsi
+    CHECK(plain.find("/Title <FEFF0421") != std::string::npos);  // the bookmark in UTF-16
+    CHECK(plain.find("/F4") == std::string::npos && pdfXrefConsistent(plain));
+    // The zigzag of the resistor (a polyline) and the op-amp triangle are drawn, not boxes.
+    CHECK(plain.find(" S\n") != std::string::npos && plain.find(" b\n0 g\n") != std::string::npos);
+    for (unsigned char ch : plain) CHECK(ch < 0x80);  // still plain ASCII
+    // With a font: 日 and Ж from the embedded subset (glyphs 1 and 2), mapped back to Unicode.
+    SchematicPdfOptions options;
+    options.fontData = tinyTrueType(false);
+    const std::string embedded = exportSchematicPdf(p, options);
+    CHECK(embedded.find("/F4 ") != std::string::npos && embedded.find("/FontFile2") != std::string::npos);
+    CHECK(embedded.find("(Filter ) Tj /F4") != std::string::npos && embedded.find("<0001> Tj /F2") != std::string::npos);
+    CHECK(embedded.find("<0001> <65E5>") != std::string::npos && embedded.find("<0002> <0416>") != std::string::npos);
+    CHECK(pdfXrefConsistent(embedded));
+    for (unsigned char ch : embedded) CHECK(ch < 0x80);
+    // A broken font is ignored.
+    options.fontData = "not a font";
+    CHECK(exportSchematicPdf(p, options).find("/F4") == std::string::npos);
+}
+
+TEST(pdf_font_fuzzed) {
+    const std::string base = tinyTrueType(false);
+    uint32_t seed = 31337u;
+    auto rng = [&seed] {
+        seed = seed * 1664525u + 1013904223u;
+        return seed >> 8;
+    };
+    Project p;
+    p.titleBlock.title = "日 Ж Ω";
+    p.schematic.addComponent(ComponentKind::Capacitor, "1µ", {0, 0});
+    int loaded = 0;
+    for (int round = 0; round < 1500; ++round) {
+        std::string bytes = round % 2 ? tinyTrueType(true) : base;
+        for (int k = 0, n = 1 + static_cast<int>(rng() % 8); k < n; ++k)
+            bytes[rng() % bytes.size()] = static_cast<char>(rng() & 0xFF);
+        if (rng() % 10 == 0) bytes.resize(rng() % bytes.size());
+        TrueTypeFont font;
+        if (font.load(bytes)) {
+            ++loaded;
+            for (uint32_t cp : {0x41u, 0x0416u, 0x65E5u, 0xFFFFu, 0x10000u}) {
+                const int g = font.glyph(cp);
+                CHECK(g >= 0 && g < font.numGlyphs());
+                CHECK(std::isfinite(font.advance(g)));
+            }
+            (void)font.subset({1, 2, 5000});
+        }
+        if (round % 50 == 0) {
+            SchematicPdfOptions options;
+            options.fontData = bytes;
+            CHECK(exportSchematicPdf(p, options).rfind("%PDF", 0) == 0);
+        }
+    }
+    CHECK(loaded > 100);
+}
+
+extern "C" int sieda_c_api_schematic_polish_test(void);
+TEST(c_api_schematic_polish) {
+    const int rc = sieda_c_api_schematic_polish_test();
+    if (rc != 0) std::printf("    C API schematic polish test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}
+
+TEST(clipboard_extras_and_frames_fuzzed) {
+    uint32_t seed = 2024u;
+    auto rng = [&seed] {
+        seed = seed * 1664525u + 1013904223u;
+        return seed >> 8;
+    };
+    auto num = [&] { return Json(static_cast<double>(static_cast<int>(rng() % 4000) - 2000)); };
+    for (int round = 0; round < 300; ++round) {
+        Project p;
+        Schematic& s = p.schematic;
+        p.addVariant("Lite");
+        const int r = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+        const int l = s.addComponent(ComponentKind::NetLabel, "D0", {40, 40});
+        Json clip = p.copyComponents({r, l});
+        Json buses = Json::array();
+        for (int k = 0, n = static_cast<int>(rng() % 3); k < n; ++k) {
+            Json b = Json::object();
+            b["name"] = rng() % 3 ? Json(std::string("B[0..") + std::to_string(rng() % 9) + "]") : Json(5);
+            Json pts = Json::array();
+            for (int q = 0, m = static_cast<int>(rng() % 4); q < m; ++q) {
+                Json pj = Json::array();
+                pj.push(num());
+                if (rng() % 7) pj.push(num());
+                pts.push(pj);
+            }
+            b["points"] = pts;
+            buses.push(b);
+        }
+        clip["buses"] = buses;
+        Json links = Json::array();
+        for (int k = 0, n = static_cast<int>(rng() % 3); k < n; ++k) {
+            Json lj = Json::array();
+            lj.push(static_cast<int>(rng() % 5) - 1);
+            lj.push(static_cast<int>(rng() % 5) - 1);
+            links.push(lj);
+        }
+        clip["busLinks"] = links;
+        Json dirs = Json::array();
+        for (int k = 0, n = static_cast<int>(rng() % 3); k < n; ++k) {
+            Json d = Json::object();
+            d["component"] = static_cast<int>(rng() % 4) - 1;
+            d["pin"] = static_cast<int>(rng() % 5) - 1;
+            if (rng() % 2) d["trackWidth"] = num();
+            if (rng() % 2) d["netClass"] = std::string(rng() % 2 ? "HS" : "bad class!");
+            dirs.push(d);
+        }
+        clip["directives"] = dirs;
+        Json vars = Json::array();
+        Json vj = Json::object();
+        vj["name"] = std::string(rng() % 2 ? "Lite" : "Nope");
+        Json parts = Json::array();
+        Json pj = Json::object();
+        pj["component"] = static_cast<int>(rng() % 4) - 1;
+        if (rng() % 2) pj["fitted"] = rng() % 2 == 0;
+        if (rng() % 2) pj["value"] = std::string("2k2");
+        parts.push(pj);
+        vj["parts"] = parts;
+        vars.push(vj);
+        clip["variants"] = vars;
+        PasteOptions o;
+        o.count = 1 + static_cast<int>(rng() % 3);
+        o.step = {0, 100};
+        (void)p.pasteComponents(Json::parse(clip.dump()), o);
+        p.schematicChanged();  // as the C API does after a paste (net rules reach the board)
+        if (rng() % 2) CHECK(s.setSheetSize(1, rng() % 2 ? "A4" : "ANSI B"));
+        (void)s.setSheetFrame(1, rng() % 2 == 0, {num().asNumber(0), num().asNumber(0)});
+        const std::string saved = p.toJson().dump();
+        CHECK(Project::fromJson(Json::parse(saved)).toJson().dump() == saved);
+        CHECK(exportSchematicPdf(p).rfind("%PDF", 0) == 0);
+    }
+}

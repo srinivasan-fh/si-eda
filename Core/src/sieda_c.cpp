@@ -12,6 +12,8 @@
 #include "sieda/Avr.hpp"
 #include "sieda/Firmware.hpp"
 
+#include <fstream>
+#include <iterator>
 #include <algorithm>
 #include <atomic>
 #include <cctype>
@@ -3161,7 +3163,15 @@ int32_t sieda_align_components(SiedaProject* project, const char* ids_json, cons
 char* sieda_copy_components(const SiedaProject* project, const char* ids_json) {
     if (!project) return nullptr;
     try {
-        return dup(project->project.schematic.copyComponents(idsFromJson(ids_json)).dump());
+        // [ids…] or {"components": [ids…], "buses": [bus ids…]}.
+        if (ids_json && Json::parse(ids_json).isObject()) {
+            const Json j = Json::parse(ids_json);
+            std::vector<int> ids, buses;
+            for (const auto& v : j.get("components").items()) ids.push_back(v.asInt(-1));
+            for (const auto& v : j.get("buses").items()) buses.push_back(v.asInt(-1));
+            return dup(project->project.copyComponents(ids, buses).dump());
+        }
+        return dup(project->project.copyComponents(idsFromJson(ids_json)).dump());
     } catch (...) {
         return nullptr;
     }
@@ -3181,7 +3191,7 @@ char* sieda_paste_components(SiedaProject* project, const char* clip_json, const
             if (!std::isfinite(o.offset.x) || !std::isfinite(o.offset.y) || !std::isfinite(o.step.x) || !std::isfinite(o.step.y))
                 return nullptr;
         }
-        const auto ids = project->project.schematic.pasteComponents(clip, o);
+        const auto ids = project->project.pasteComponents(clip, o);
         if (!ids.empty()) project->project.schematicChanged();
         Json arr = Json::array();
         for (int id : ids) arr.push(id);
@@ -3410,6 +3420,41 @@ int32_t sieda_add_helper_sheet(SiedaProject* project, const char* name, int32_t 
 int32_t sieda_set_helper_sheet(SiedaProject* project, int32_t sheet, int32_t helper) {
     if (!project) return 0;
     return guarded([&] { return project->project.schematic.setHelperSheet(sheet, helper != 0) ? 1 : 0; });
+}
+
+int32_t sieda_align_outlines(SiedaProject* project, const char* ids_json, const char* mode) {
+    if (!project) return -1;
+    try {
+        AlignMode m;
+        if (!alignModeFromName(str(mode), &m)) return -1;
+        const int moved = project->project.schematic.alignComponents(idsFromJson(ids_json), m, true);
+        if (moved > 0) project->project.schematicChanged();
+        return moved;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_set_sheet_frame(SiedaProject* project, int32_t sheet, int32_t fixed, double x, double y) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setSheetFrame(sheet, fixed != 0, {x, y}) ? 1 : 0; });
+}
+
+char* sieda_export_schematic_pdf_with_font(const SiedaProject* project, const char* font_path) {
+    if (!project) return nullptr;
+    try {
+        SchematicPdfOptions options;
+        if (font_path && *font_path) {
+            std::ifstream in(font_path, std::ios::binary);
+            if (in) {
+                std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+                if (bytes.size() <= (64u << 20)) options.fontData = std::move(bytes);
+            }
+        }
+        return dup(exportSchematicPdf(project->project, options));
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 }  // extern "C"

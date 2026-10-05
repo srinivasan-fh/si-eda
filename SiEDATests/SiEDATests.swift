@@ -6357,3 +6357,34 @@ final class HelperSheetAndChannelParameterTests: XCTestCase {
         XCTAssertTrue(store.engine.setChannelFirmware(copy.id, hex: "", name: "", clockHz: 0))
     }
 }
+
+
+/// Clipboard with a selected bus, alignment by symbol outline, a fixed sheet frame and the PDF with Unicode text.
+@MainActor
+final class SchematicPolishTests: XCTestCase {
+    func testClipboardAlignFrameAndPDF() throws {
+        let store = DesignStore()
+        let r = store.addComponent(.resistor, at: .zero)
+        let amp = store.addComponent(.opAmp, at: CGPoint(x: 200, y: 100))
+        let bus = try XCTUnwrap(store.addBus(named: "D[0..3]", points: [CGPoint(x: 0, y: 200), CGPoint(x: 300, y: 200)]))
+        store.selection = [r]
+        store.selectedBus = bus
+        let clip = try XCTUnwrap(store.selectionClip())
+        XCTAssertTrue(clip.contains("\"buses\""))
+        store.selectedBus = nil
+        store.selection = [r, amp]
+        store.align("left", byOutline: true)
+        XCTAssertEqual(componentX(store, r) - 30, componentX(store, amp) - 40)  // left edges of the outlines
+        store.setSheetSize(1, size: "A4")
+        XCTAssertNotNil(store.snapshot.sheet(1)?.frameX)
+        store.centerSheetFrame(1)
+        XCTAssertNotNil(store.snapshot.sheet(1)?.frameY)
+        _ = store.engine.setTitleBlock(TitleBlockInfo(title: "Ωmega 日本"))
+        let pdf = try XCTUnwrap(store.engine.schematicPDF(fontPath: nil))
+        XCTAssertEqual(String(decoding: pdf.prefix(5), as: UTF8.self), "%PDF-")
+    }
+
+    private func componentX(_ store: DesignStore, _ id: Int) -> Double {
+        Double(store.snapshot.component(id)?.x ?? 0)
+    }
+}

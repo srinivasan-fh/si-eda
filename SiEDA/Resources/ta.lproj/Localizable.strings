@@ -67,6 +67,7 @@
 "Align Right" = "வலப்பக்கம் சீரமை";
 "Align Top" = "மேலே சீரமை";
 "Align Vertical Centres" = "செங்குத்து மையங்களைச் சீரமை";
+"Align by Symbol Outline" = "குறியீட்டு வெளிக்கோட்டின்படி சீரமை";
 "All" = "அனைத்தும்";
 "Amplitude" = "வீச்சு";
 "An entry (a local net label on the bus) for every member that has none yet" = "இன்னும் இல்லாத ஒவ்வொரு உறுப்பினருக்கும் ஒரு கிளை (பஸ்ஸில் உள்ளூர் நெட் லேபிள்)";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "பெறுநரில் தொடராக இணை";
 "Cavity model" = "குழி மாதிரி";
 "Centre" = "மையப்படுத்து";
+"Centre Frame on Drawing" = "சட்டகத்தை வரைபடத்தின் நடுவில் வை";
 "Centre the model on the footprint and put its lowest point on the board surface" = "மாதிரியை ஃபுட்பிரிண்டின் மையத்தில் வைத்து அதன் மிகக் குறைந்த புள்ளியைப் பலகையின் மேற்பரப்பில் வை";
 "Changes from a WAS / IS file" = "WAS / IS கோப்பிலிருந்து மாற்றங்கள்";
 "Changes from the schematic to the board since the last update." = "கடைசி புதுப்பிப்பிலிருந்து திட்டவரைபடத்திலிருந்து பலகைக்கான மாற்றங்கள்.";

@@ -67,6 +67,7 @@
 "Align Right" = "വലത്തേക്ക് വിന്യസിക്കുക";
 "Align Top" = "മുകളിൽ വിന്യസിക്കുക";
 "Align Vertical Centres" = "ലംബ മധ്യങ്ങൾ വിന്യസിക്കുക";
+"Align by Symbol Outline" = "ചിഹ്നത്തിന്റെ രൂപരേഖ അനുസരിച്ച് വിന്യസിക്കുക";
 "All" = "എല്ലാം";
 "Amplitude" = "ആംപ്ലിറ്റ്യൂഡ്";
 "An entry (a local net label on the bus) for every member that has none yet" = "ഇതുവരെ ഇല്ലാത്ത ഓരോ അംഗത്തിനും ഒരു എൻട്രി (ബസിലെ ലോക്കൽ നെറ്റ് ലേബൽ)";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "റിസീവറിൽ കാസ്കേഡ് ചെയ്യുക";
 "Cavity model" = "കാവിറ്റി മോഡൽ";
 "Centre" = "മധ്യത്തിലാക്കുക";
+"Centre Frame on Drawing" = "ഫ്രെയിം ഡ്രോയിംഗിന്റെ മധ്യത്തിലാക്കുക";
 "Centre the model on the footprint and put its lowest point on the board surface" = "മോഡൽ ഫുട്പ്രിന്റിന്റെ മധ്യത്തിലാക്കി അതിന്റെ ഏറ്റവും താഴ്ന്ന ബിന്ദു ബോർഡ് പ്രതലത്തിൽ വയ്ക്കുക";
 "Changes from a WAS / IS file" = "WAS / IS ഫയലിൽ നിന്നുള്ള മാറ്റങ്ങൾ";
 "Changes from the schematic to the board since the last update." = "അവസാന അപ്ഡേറ്റിന് ശേഷം സ്കീമാറ്റിക്കിൽ നിന്ന് ബോർഡിലേക്കുള്ള മാറ്റങ്ങൾ.";

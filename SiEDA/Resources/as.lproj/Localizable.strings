@@ -67,6 +67,7 @@
 "Align Right" = "সোঁফালে সমান কৰক";
 "Align Top" = "ওপৰত সমান কৰক";
 "Align Vertical Centres" = "উলম্ব কেন্দ্ৰ সমান কৰক";
+"Align by Symbol Outline" = "চিহ্নৰ ৰূপৰেখা অনুসৰি সজাওক";
 "All" = "সকলো";
 "Amplitude" = "বিস্তাৰ";
 "An entry (a local net label on the bus) for every member that has none yet" = "যাৰ এতিয়াও নাই এনে প্ৰতিটো সদস্যৰ বাবে এটা প্ৰৱেশ (বাছত স্থানীয় নেট লেবেল)";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "গ্ৰাহকত কেছকেড কৰক";
 "Cavity model" = "কেভিটি আৰ্হি";
 "Centre" = "মাজত ৰাখক";
+"Centre Frame on Drawing" = "ফ্ৰেমটো অংকনৰ মাজত ৰাখক";
 "Centre the model on the footprint and put its lowest point on the board surface" = "মডেলটো ফুটপ্ৰিণ্টৰ মাজত ৰাখি ইয়াৰ আটাইতকৈ তলৰ বিন্দু বোৰ্ডৰ পৃষ্ঠত ৰাখক";
 "Changes from a WAS / IS file" = "WAS / IS ফাইলৰ পৰা সলনি";
 "Changes from the schematic to the board since the last update." = "শেষ আপডেটৰ পিছৰ পৰা স্কিমেটিকৰ পৰা বৰ্ডলৈ সলনিসমূহ।";

@@ -860,10 +860,15 @@ struct SchematicCanvas: View {
         // Drawing template of the sheet (A4 … ANSI E): its frame, centred on the drawing (10 units = 2.54 mm).
         if let shown = snap.sheet(snap.activeSheet), let size = shown.size, !size.isEmpty,
            let template = Self.templates.first(where: { $0.name == size }) {
-            let content = Self.componentBounds(snap).reduce(CGRect.null) { $0.union($1.rect) }
-            let center = content.isNull ? CGPoint.zero : CGPoint(x: content.midX, y: content.midY)
             let w = template.width / 0.254, h = template.height / 0.254
-            let frame = CGRect(x: center.x - w / 2, y: center.y - h / 2, width: w, height: h)
+            let frame: CGRect
+            if let fx = shown.frameX, let fy = shown.frameY {
+                frame = CGRect(x: fx, y: fy, width: w, height: h)  // fixed: stays put while parts move
+            } else {
+                let content = Self.componentBounds(snap).reduce(CGRect.null) { $0.union($1.rect) }
+                let center = content.isNull ? CGPoint.zero : CGPoint(x: content.midX, y: content.midY)
+                frame = CGRect(x: center.x - w / 2, y: center.y - h / 2, width: w, height: h)
+            }
             ctx.stroke(Path(frame.applying(screen)), with: .color(Theme.symbol.opacity(0.55)),
                        style: StrokeStyle(lineWidth: 1, dash: [8, 5]))
             if showLabels {

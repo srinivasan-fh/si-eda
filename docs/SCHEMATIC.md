@@ -317,10 +317,13 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
 
 - **Rubber-banding**: wires follow parts while they are dragged (wires join pins, so they always did).
 - **Arrange** menu (options bar): **Align** left / right / top / bottom / centres and **Distribute** horizontally /
-  vertically (three or more parts, equal steps between the outermost) — by the parts' positions on the grid. One
-  undo step; a channel copy moves its block's part.
+  vertically (three or more parts) — by the symbols' outlines with **Align by Symbol Outline** on (the default:
+  left edges line up, distributing leaves equal gaps between outlines; positions stay on the grid), or by the parts'
+  reference points with it off. One undo step; a channel copy moves its block's part. C API `sieda_align_outlines`.
 - **Copy / Cut / Paste** (⌘C / ⌘X / ⌘V on the canvas, or the Arrange menu): parts and the wires between them,
-  label scopes, packages, no-connect marks, harness connectors with their entries. Pasted parts get the **next free
+  label scopes, packages, no-connect marks, harness connectors with their entries, the **buses** the copied bus
+  entries belong to (and a selected bus), **net directives** on the copied pins, BOM **sourcing** and each part's
+  **variant settings** (applied to the variants of the same name where it is pasted). Pasted parts get the **next free
   designators**. **Paste Array…** places *n* copies, each one step further, counting net label numbers up by the
   increment (`D0` → `D1`, `D2` …; zero padding kept: `A07` → `A08`). A pasted sheet entry becomes a local label; a
   pasted gate becomes a part of its own showing the same gate.
@@ -343,14 +346,23 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
   the sheet's `symbolSize`; C API `sieda_set_sheet_symbol_size`). A harness connector is drawn as a body around its
   entries, notched on the side its harness label leaves from, on the canvas and in the PDF.
 - **Sheet templates**: right-click a sheet tab ▸ **Sheet Size** — A4 … A0, ANSI A … E, or *Auto* (the smallest A
-  size that holds the drawing at full scale). The canvas draws the template's frame around the drawing (10 units =
-  2.54 mm).
+  size that holds the drawing at full scale). Choosing a template **fixes the frame** where it is drawn (centred on
+  the drawing; 10 units = 2.54 mm): it stays put while parts move, like a real sheet border, and the PDF prints the
+  sheet at full scale with the drawing where it sits in the frame. **Centre Frame on Drawing** moves it again. Saved as
+  the sheet's `frame` (`[x, y]`, top-left); files without it keep the frame centred on the drawing. C API
+  `sieda_set_sheet_frame`.
 - **PDF** (options bar): every sheet in sheet order, one page per sheet on its template, with a frame and zone markers
   (1, 2, 3 … / A, B, C …), the title block (title, company, revision, date, drawn by, sheet name, size, "Sheet n of
-  N") and the drawing scaled down when it is larger than the sheet. The PDF's bookmarks follow the sheet hierarchy.
-  Symbols are simplified vector drawings (two-pin parts as boxes, capacitor plates and diode triangles; library parts
-  with their own body box and Symbol Editor drawings; other parts as a body box with pin stubs and names; ground
-  symbols, label flags, sheet symbols and harness connector bodies) — the canvas draws more detail. Text is plain ASCII (other characters print as `?`).
+  N") and the drawing (at full scale in a fixed frame; scaled down when it is larger than the sheet or sticks out of
+  its frame). The PDF's bookmarks follow the sheet hierarchy (Unicode titles). Symbols are the canvas's: resistor
+  zigzags, capacitor plates, inductor loops, diode / LED, sources, battery, transistors, op-amp, switch, connector,
+  IC, fuse and ground turned with the part; library parts with their own body box and Symbol Editor drawings, units
+  with their unit box; label flags, sheet symbols and harness connector bodies. **Text**: Latin (WinAnsi) in
+  Helvetica, Greek letters and math signs (Ω, µ, ≤, ∞ …) from the Symbol font, and every other script from a
+  subset of a system TrueType font embedded in the file (macOS: *Arial Unicode*; glyphs one per character — scripts
+  that need shaping, such as Devanagari conjuncts or Arabic joining, print unshaped). Without such a font those
+  characters print as `?`. The file stays plain ASCII (the font as hex). C API
+  `sieda_export_schematic_pdf_with_font`.
 - **Update PCB** (options bar ▸ Back Annotate menu ▸ Update PCB; Altium's *Design ▸ Update PCB* engineering change order): lists every change from the
   schematic to the board since the last update, grouped as **Components** (new parts to place, removed parts,
   changed designator / footprint / value), **Nets** (new, removed, changed pin lists), **Copper Pours** (pours on
@@ -397,7 +409,7 @@ Further optional fields (written only when used, so other designs' files are unc
 (`[{"name","entries"}]`), `netClassDefs` (`[{"name","trackWidth"?,"clearance"?}]`), `directives`
 (`[{"id","component","pin","netClass"?,"diffPair"?,"trackWidth"?,"clearance"?}]`) and `titleBlock`; board
 `netClearances` and `schematicRuleNets` (the nets whose rules came from the schematic); sheets `size`; top-level
-`ercSeverities` (`{"ERC_…": "error" | "warning" | "info" | "off"}`); sheets `symbolSize` (`[width, height]`). `pcbSync` (`{"parts":[{"id","ref","footprint","value"}],"nets":{name:[pins]}}`,
+`ercSeverities` (`{"ERC_…": "error" | "warning" | "info" | "off"}`); sheets `symbolSize` (`[width, height]`), `helper`, `frame` (`[x, y]`). `pcbSync` (`{"parts":[{"id","ref","footprint","value"}],"nets":{name:[pins]}}`,
 the Update PCB baseline; written only while the board is behind the schematic, and a file without it is in step). A file is repaired on load: copies whose
 block part is gone, units without a valid package, packages without units, entries of missing buses and buses on
 missing sheets are dropped; an instance of a missing or nested definition becomes an ordinary sheet. Older versions of
@@ -454,6 +466,9 @@ int32_t sieda_apply_eco(SiedaProject*, const char* eco_json);
 int32_t sieda_set_sheet_size(SiedaProject*, int32_t sheet, const char* size);
 char*   sieda_sheet_templates_json(void);
 char*   sieda_export_schematic_pdf(const SiedaProject*);
+char*   sieda_export_schematic_pdf_with_font(const SiedaProject*, const char* font_path);
+int32_t sieda_align_outlines(SiedaProject*, const char* ids_json, const char* mode);
+int32_t sieda_set_sheet_frame(SiedaProject*, int32_t sheet, int32_t fixed, double x, double y);
 int32_t sieda_set_erc_severity(SiedaProject*, const char* code, const char* level); /* "error"…"off", "default" */
 char*   sieda_pcb_eco_preview(const SiedaProject*);               /* [{section,action,object,detail,key,applicable,note}] */
 char*   sieda_apply_pcb_eco(SiedaProject*, const char* keys_json); /* NULL = all; {"executed","report"} */

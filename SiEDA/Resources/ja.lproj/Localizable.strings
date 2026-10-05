@@ -67,6 +67,7 @@
 "Align Right" = "右揃え";
 "Align Top" = "上揃え";
 "Align Vertical Centres" = "垂直中央揃え";
+"Align by Symbol Outline" = "シンボルの外形で整列";
 "All" = "すべて";
 "Amplitude" = "振幅";
 "An entry (a local net label on the bus) for every member that has none yet" = "まだエントリのないメンバーごとにエントリ（バス上のローカルネットラベル）を作成";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "受信端にカスケード接続";
 "Cavity model" = "共振器モデル";
 "Centre" = "中央に配置";
+"Centre Frame on Drawing" = "図枠を図面の中央に配置";
 "Centre the model on the footprint and put its lowest point on the board surface" = "モデルをフットプリントの中央に置き、最下点を基板表面に合わせる";
 "Changes from a WAS / IS file" = "WAS / IS ファイルからの変更";
 "Changes from the schematic to the board since the last update." = "前回の更新以降の回路図から基板への変更。";

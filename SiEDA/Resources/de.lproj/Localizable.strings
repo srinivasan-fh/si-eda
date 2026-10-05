@@ -67,6 +67,7 @@
 "Align Right" = "Rechts ausrichten";
 "Align Top" = "Oben ausrichten";
 "Align Vertical Centres" = "Vertikale Mitten ausrichten";
+"Align by Symbol Outline" = "An Symbolumriss ausrichten";
 "All" = "Alle";
 "Amplitude" = "Amplitude";
 "An entry (a local net label on the bus) for every member that has none yet" = "Ein Eintrag (lokales Netzlabel am Bus) für jedes Mitglied, das noch keinen hat";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "Am Empfänger kaskadieren";
 "Cavity model" = "Resonatormodell";
 "Centre" = "Zentrieren";
+"Centre Frame on Drawing" = "Rahmen auf Zeichnung zentrieren";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Modell auf dem Footprint zentrieren und den tiefsten Punkt auf die Leiterplattenoberfläche setzen";
 "Changes from a WAS / IS file" = "Änderungen aus einer WAS-/IS-Datei";
 "Changes from the schematic to the board since the last update." = "Änderungen vom Schaltplan zur Platine seit der letzten Aktualisierung.";

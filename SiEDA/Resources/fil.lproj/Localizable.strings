@@ -67,6 +67,7 @@
 "Align Right" = "I-align sa Kanan";
 "Align Top" = "I-align sa Itaas";
 "Align Vertical Centres" = "I-align ang Patayong Gitna";
+"Align by Symbol Outline" = "I-align ayon sa Balangkas ng Simbolo";
 "All" = "Lahat";
 "Amplitude" = "Amplitude";
 "An entry (a local net label on the bus) for every member that has none yet" = "Isang entry (lokal na net label sa bus) para sa bawat miyembrong wala pa";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "I-cascade sa receiver";
 "Cavity model" = "Modelo ng cavity";
 "Centre" = "Igitna";
+"Centre Frame on Drawing" = "Igitna ang Frame sa Guhit";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Igitna ang model sa footprint at ilagay ang pinakamababang punto nito sa ibabaw ng board";
 "Changes from a WAS / IS file" = "Mga pagbabago mula sa WAS / IS na file";
 "Changes from the schematic to the board since the last update." = "Mga pagbabago mula sa schematic papunta sa board mula noong huling update.";

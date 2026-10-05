@@ -67,6 +67,7 @@
 "Align Right" = "오른쪽 맞춤";
 "Align Top" = "위쪽 맞춤";
 "Align Vertical Centres" = "세로 중심 맞춤";
+"Align by Symbol Outline" = "심볼 윤곽으로 정렬";
 "All" = "전체";
 "Amplitude" = "진폭";
 "An entry (a local net label on the bus) for every member that has none yet" = "아직 엔트리가 없는 모든 멤버에 엔트리(버스 위의 로컬 넷 레이블) 생성";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "수신단에 연결";
 "Cavity model" = "공진기 모델";
 "Centre" = "중앙";
+"Centre Frame on Drawing" = "도면에 프레임 가운데 맞춤";
 "Centre the model on the footprint and put its lowest point on the board surface" = "모델을 풋프린트 중앙에 두고 가장 낮은 점을 기판 표면에 맞춤";
 "Changes from a WAS / IS file" = "WAS / IS 파일의 변경";
 "Changes from the schematic to the board since the last update." = "마지막 업데이트 이후 회로도에서 보드로의 변경 사항입니다.";

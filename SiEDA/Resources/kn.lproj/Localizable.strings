@@ -67,6 +67,7 @@
 "Align Right" = "ಬಲಕ್ಕೆ ಹೊಂದಿಸಿ";
 "Align Top" = "ಮೇಲೆ ಹೊಂದಿಸಿ";
 "Align Vertical Centres" = "ಲಂಬ ಕೇಂದ್ರಗಳನ್ನು ಹೊಂದಿಸಿ";
+"Align by Symbol Outline" = "ಚಿಹ್ನೆಯ ಅಂಚಿನ ಪ್ರಕಾರ ಜೋಡಿಸಿ";
 "All" = "ಎಲ್ಲಾ";
 "Amplitude" = "ವೈಶಾಲ್ಯ";
 "An entry (a local net label on the bus) for every member that has none yet" = "ಇನ್ನೂ ಇಲ್ಲದ ಪ್ರತಿಯೊಂದು ಸದಸ್ಯನಿಗೆ ಒಂದು ಎಂಟ್ರಿ (ಬಸ್ ಮೇಲಿನ ಸ್ಥಳೀಯ ನೆಟ್ ಲೇಬಲ್)";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "ರಿಸೀವರ್‌ನಲ್ಲಿ ಕ್ಯಾಸ್ಕೇಡ್ ಮಾಡಿ";
 "Cavity model" = "ಕುಹರ ಮಾದರಿ";
 "Centre" = "ಮಧ್ಯಕ್ಕೆ ತನ್ನಿ";
+"Centre Frame on Drawing" = "ಫ್ರೇಮ್ ಅನ್ನು ರೇಖಾಚಿತ್ರದ ಮಧ್ಯದಲ್ಲಿ ಇರಿಸಿ";
 "Centre the model on the footprint and put its lowest point on the board surface" = "ಮಾದರಿಯನ್ನು ಫುಟ್‌ಪ್ರಿಂಟ್ ಮಧ್ಯದಲ್ಲಿ ಇರಿಸಿ ಅದರ ಕಡಿಮೆ ಬಿಂದುವನ್ನು ಬೋರ್ಡ್ ಮೇಲ್ಮೈಯಲ್ಲಿ ಇರಿಸಿ";
 "Changes from a WAS / IS file" = "WAS / IS ಫೈಲ್‌ನಿಂದ ಬದಲಾವಣೆಗಳು";
 "Changes from the schematic to the board since the last update." = "ಕೊನೆಯ ನವೀಕರಣದ ನಂತರ ಸ್ಕೀಮ್ಯಾಟಿಕ್‌ನಿಂದ ಬೋರ್ಡ್‌ಗೆ ಬದಲಾವಣೆಗಳು.";

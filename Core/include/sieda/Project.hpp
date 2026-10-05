@@ -137,6 +137,13 @@ public:
     // ---- forward annotation (schematic → board, "Update PCB") ----
     /// The board's baseline: what the last update put on it (a project read from a file without one is in sync).
     PcbSyncBaseline pcbSync;
+
+    /// Clipboard of components (Schematic::copyComponents) with their BOM sourcing and their settings in every
+    /// assembly variant.
+    Json copyComponents(const std::vector<int>& ids, const std::vector<int>& busIds = {}) const;
+    /// Pastes a clipboard (Schematic::pasteComponents): sourcing comes along, and variant settings go to the
+    /// variants of the same name in this project. Returns the new components' ids.
+    std::vector<int> pasteComponents(const Json& clip, const PasteOptions& options);
     /// The schematic as the board would take it now.
     PcbSyncBaseline currentSync() const;
     /// The changes an update would make, by section; nothing is changed.

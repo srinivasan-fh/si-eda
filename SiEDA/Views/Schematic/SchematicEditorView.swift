@@ -43,6 +43,8 @@ struct SchematicEditorView: View {
     @State private var arrayIncrement = "1"
     @State private var eco: (title: String, changes: [EcoChangeInfo])?
     @State private var updatingPCB = false
+    /// Arrange by the symbols' outlines (edges line up) rather than their reference points.
+    @AppStorage("schematic.alignByOutline") private var alignByOutline = true
 
     var body: some View {
         HStack(spacing: 0) {
@@ -122,14 +124,15 @@ struct SchematicEditorView: View {
                         Button("Paste") { store.paste() }.disabled(!store.canPaste)
                         Button("Paste Array…") { pastingArray = true }.disabled(!store.canPaste)
                         Divider()
-                        Button("Align Left") { store.align("left") }
-                        Button("Align Right") { store.align("right") }
-                        Button("Align Top") { store.align("top") }
-                        Button("Align Bottom") { store.align("bottom") }
-                        Button("Align Horizontal Centres") { store.align("centerY") }
-                        Button("Align Vertical Centres") { store.align("centerX") }
-                        Button("Distribute Horizontally") { store.align("distributeX") }
-                        Button("Distribute Vertically") { store.align("distributeY") }
+                        Button("Align Left") { store.align("left", byOutline: alignByOutline) }
+                        Button("Align Right") { store.align("right", byOutline: alignByOutline) }
+                        Button("Align Top") { store.align("top", byOutline: alignByOutline) }
+                        Button("Align Bottom") { store.align("bottom", byOutline: alignByOutline) }
+                        Button("Align Horizontal Centres") { store.align("centerY", byOutline: alignByOutline) }
+                        Button("Align Vertical Centres") { store.align("centerX", byOutline: alignByOutline) }
+                        Button("Distribute Horizontally") { store.align("distributeX", byOutline: alignByOutline) }
+                        Button("Distribute Vertically") { store.align("distributeY", byOutline: alignByOutline) }
+                        Toggle("Align by Symbol Outline", isOn: $alignByOutline)
                     } label: {
                         Label("Arrange", systemImage: "square.on.square.dashed")
                     }
@@ -361,6 +364,9 @@ struct SheetBar: View {
                         }
                     }
                     Menu("Sheet Size") {
+                        if !(sheet.size ?? "").isEmpty {
+                            Button("Centre Frame on Drawing") { store.centerSheetFrame(sheet.id) }
+                        }
                         Button("Auto (fits the drawing)") { store.setSheetSize(sheet.id, size: "") }
                         ForEach(EDAEngine.sheetTemplates()) { template in
                             Button(template.name + ((sheet.size ?? "") == template.name ? " ✓" : "")) {

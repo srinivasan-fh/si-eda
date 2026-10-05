@@ -754,7 +754,9 @@ char* sieda_net_rules_json(const SiedaProject* project);
 /* Aligns / distributes components (ids_json [id,…]); mode "left","right","top","bottom","centerX","centerY",
  * "distributeX","distributeY". The number moved, or -1. */
 int32_t sieda_align_components(SiedaProject* project, const char* ids_json, const char* mode);
-/* Clipboard JSON of components and the wires between them ("sieda.schematic-clip/1"). Caller frees. */
+/* Clipboard JSON of components and the wires between them ("sieda.schematic-clip/1"), with their buses, net
+ * directives, BOM sourcing and variant settings. ids_json: [ids…] or {"components":[ids…],"buses":[bus ids…]}.
+ * Caller frees. */
 char* sieda_copy_components(const SiedaProject* project, const char* ids_json);
 /* Pastes a clipboard on the active sheet: options {"dx","dy","count","stepX","stepY","labelIncrement"} (a paste array:
  * `count` copies, each `step` further; label numbers counted up). Parts get the next free designators. Returns the new
@@ -807,6 +809,14 @@ int32_t sieda_set_channel_fitted(SiedaProject* project, int32_t component_id, in
  * channel stands for its block); returns its id or -1. Marks / unmarks an existing child sheet; 1 on success. */
 int32_t sieda_add_helper_sheet(SiedaProject* project, const char* name, int32_t parent);
 int32_t sieda_set_helper_sheet(SiedaProject* project, int32_t sheet, int32_t helper);
+/* Like sieda_align_components, by the symbols' outlines (edges line up; distributing leaves equal gaps). */
+int32_t sieda_align_outlines(SiedaProject* project, const char* ids_json, const char* mode);
+/* Fixes a sheet's template frame with its top-left corner at (x, y) schematic units, or lets it follow the drawing
+ * (fixed 0). Choosing a template fixes it centred on the drawing. 1 on success (the sheet needs a template). */
+int32_t sieda_set_sheet_frame(SiedaProject* project, int32_t sheet, int32_t fixed, double x, double y);
+/* Like sieda_export_schematic_pdf, embedding a subset of the TrueType font at font_path (.ttf / .ttc with glyf
+ * outlines) for text outside Latin / Greek; an unreadable or unsupported font is ignored. Still plain ASCII. */
+char* sieda_export_schematic_pdf_with_font(const SiedaProject* project, const char* font_path);
 
 #ifdef __cplusplus
 }

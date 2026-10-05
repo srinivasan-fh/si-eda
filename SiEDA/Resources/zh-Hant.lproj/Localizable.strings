@@ -67,6 +67,7 @@
 "Align Right" = "靠右對齊";
 "Align Top" = "頂部對齊";
 "Align Vertical Centres" = "垂直中心對齊";
+"Align by Symbol Outline" = "依符號外框對齊";
 "All" = "全部";
 "Amplitude" = "振幅";
 "An entry (a local net label on the bus) for every member that has none yet" = "為每個尚未有分支的成員建立分支（匯流排上的區域網路標籤）";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "串接在接收端";
 "Cavity model" = "共振腔模型";
 "Centre" = "置中";
+"Centre Frame on Drawing" = "將圖框置中於繪圖";
 "Centre the model on the footprint and put its lowest point on the board surface" = "將模型置中於封裝，並使其最低點貼齊板面";
 "Changes from a WAS / IS file" = "來自 WAS / IS 檔案的變更";
 "Changes from the schematic to the board since the last update." = "自上次更新以來從線路圖到電路板的變更。";

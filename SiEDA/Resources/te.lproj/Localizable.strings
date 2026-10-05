@@ -67,6 +67,7 @@
 "Align Right" = "కుడికి సమలేఖనం";
 "Align Top" = "పైకి సమలేఖనం";
 "Align Vertical Centres" = "నిలువు కేంద్రాలను సమలేఖనం";
+"Align by Symbol Outline" = "గుర్తు అంచు ప్రకారం సమలేఖనం";
 "All" = "అన్నీ";
 "Amplitude" = "వ్యాప్తి";
 "An entry (a local net label on the bus) for every member that has none yet" = "ఇంకా లేని ప్రతి సభ్యునికి ఒక ఎంట్రీ (బస్‌పై స్థానిక నెట్ లేబుల్)";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "రిసీవర్ వద్ద క్యాస్కేడ్ చేయి";
 "Cavity model" = "కేవిటీ మోడల్";
 "Centre" = "మధ్యలో ఉంచు";
+"Centre Frame on Drawing" = "ఫ్రేమ్‌ను డ్రాయింగ్‌పై మధ్యలో ఉంచు";
 "Centre the model on the footprint and put its lowest point on the board surface" = "మోడల్‌ను ఫుట్‌ప్రింట్ మధ్యలో ఉంచి దాని అత్యల్ప బిందువును బోర్డ్ ఉపరితలంపై ఉంచండి";
 "Changes from a WAS / IS file" = "WAS / IS ఫైల్ నుండి మార్పులు";
 "Changes from the schematic to the board since the last update." = "చివరి నవీకరణ నుండి స్కీమాటిక్ నుండి బోర్డుకు మార్పులు.";

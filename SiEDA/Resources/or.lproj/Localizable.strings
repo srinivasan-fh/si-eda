@@ -67,6 +67,7 @@
 "Align Right" = "ଡାହାଣକୁ ସଜାନ୍ତୁ";
 "Align Top" = "ଉପରେ ସଜାନ୍ତୁ";
 "Align Vertical Centres" = "ଭୂଲମ୍ବ କେନ୍ଦ୍ର ସଜାନ୍ତୁ";
+"Align by Symbol Outline" = "ସଙ୍କେତ ରୂପରେଖା ଅନୁସାରେ ସଜାନ୍ତୁ";
 "All" = "ସମସ୍ତ";
 "Amplitude" = "ପ୍ରସାର";
 "An entry (a local net label on the bus) for every member that has none yet" = "ଯାହାର ଏପର୍ଯ୍ୟନ୍ତ ନାହିଁ ସେହି ପ୍ରତ୍ୟେକ ସଦସ୍ୟ ପାଇଁ ଏକ ଏଣ୍ଟ୍ରି (ବସ୍‌ରେ ସ୍ଥାନୀୟ ନେଟ୍ ଲେବେଲ୍)";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "ରିସିଭରରେ କ୍ୟାସକେଡ କରନ୍ତୁ";
 "Cavity model" = "କ୍ୟାଭିଟି ମଡେଲ";
 "Centre" = "କେନ୍ଦ୍ରରେ ରଖନ୍ତୁ";
+"Centre Frame on Drawing" = "ଫ୍ରେମକୁ ଅଙ୍କନର ମଧ୍ୟରେ ରଖନ୍ତୁ";
 "Centre the model on the footprint and put its lowest point on the board surface" = "ମଡେଲ୍‌କୁ ଫୁଟପ୍ରିଣ୍ଟ ମଝିରେ ରଖି ଏହାର ସର୍ବନିମ୍ନ ବିନ୍ଦୁକୁ ବୋର୍ଡ ପୃଷ୍ଠରେ ରଖନ୍ତୁ";
 "Changes from a WAS / IS file" = "WAS / IS ଫାଇଲରୁ ପରିବର୍ତ୍ତନ";
 "Changes from the schematic to the board since the last update." = "ଶେଷ ଅଦ୍ୟତନ ପରଠାରୁ ସ୍କିମାଟିକରୁ ବୋର୍ଡକୁ ପରିବର୍ତ୍ତନ।";

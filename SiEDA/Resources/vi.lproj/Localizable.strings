@@ -67,6 +67,7 @@
 "Align Right" = "Căn phải";
 "Align Top" = "Căn trên";
 "Align Vertical Centres" = "Căn giữa theo chiều dọc";
+"Align by Symbol Outline" = "Căn theo đường viền ký hiệu";
 "All" = "Tất cả";
 "Amplitude" = "Biên độ";
 "An entry (a local net label on the bus) for every member that has none yet" = "Một nhánh (nhãn net cục bộ trên bus) cho mỗi thành viên chưa có";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "Nối tầng tại bộ thu";
 "Cavity model" = "Mô hình hốc";
 "Centre" = "Căn giữa";
+"Centre Frame on Drawing" = "Căn giữa khung theo bản vẽ";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Căn giữa mô hình trên footprint và đặt điểm thấp nhất lên bề mặt bo";
 "Changes from a WAS / IS file" = "Thay đổi từ tệp WAS / IS";
 "Changes from the schematic to the board since the last update." = "Các thay đổi từ sơ đồ nguyên lý sang bo mạch kể từ lần cập nhật trước.";

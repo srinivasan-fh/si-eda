@@ -435,6 +435,9 @@ struct SheetInfo: Decodable, Equatable, Identifiable, Hashable {
     var symbolHeight: Double?
     /// Helper sheet of a block: every channel of its parent gets a copy of it.
     var helper: Bool?
+    /// Fixed template frame: its top-left corner (schematic units); nil = centred on the drawing.
+    var frameX: Double?
+    var frameY: Double?
 
     var isRepeated: Bool { (instances ?? 0) > 1 }
     var isInstance: Bool { (instanceOf ?? 0) != 0 }

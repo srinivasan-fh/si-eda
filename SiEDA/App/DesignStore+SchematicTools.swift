@@ -12,12 +12,20 @@ extension DesignStore {
     // MARK: - Align and distribute
 
     /// "left", "right", "top", "bottom", "centerX", "centerY", "distributeX", "distributeY".
-    func align(_ mode: String) {
+    func align(_ mode: String, byOutline: Bool = false) {
         let ids = Array(selection)
         guard ids.count >= 2 else { return }
         performChecked("Align \(mode)", failureMessage: mode.hasPrefix("distribute")
                        ? "Select at least three parts to distribute" : "The selection is already aligned") {
-            $0.alignComponents(ids, mode: mode) > 0
+            (byOutline ? $0.alignOutlines(ids, mode: mode) : $0.alignComponents(ids, mode: mode)) > 0
+        }
+    }
+
+    /// Centres a sheet's fixed template frame on its drawing again.
+    func centerSheetFrame(_ id: Int) {
+        guard let sheet = snapshot.sheet(id), let size = sheet.size, !size.isEmpty else { return }
+        performChecked("\(sheet.name): frame centred on the drawing", invalidatesAnalysis: false) {
+            $0.setSheetFrame(id, fixed: false) && $0.setSheetSize(id, size: size)
         }
     }
 
@@ -28,7 +36,8 @@ extension DesignStore {
     /// The clipboard text of the selection (nil when nothing is selected).
     func selectionClip() -> String? {
         let ids = Array(selection)
-        return ids.isEmpty ? nil : engine.copyComponents(ids)
+        let buses = selectedBus.map { [$0] } ?? []
+        return ids.isEmpty && buses.isEmpty ? nil : engine.copyComponents(ids, buses: buses)
     }
 
     /// Copies the selected parts and the wires between them.

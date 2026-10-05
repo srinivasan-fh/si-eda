@@ -406,4 +406,80 @@ int Project::applyPcbEco(const std::vector<std::string>& keys, std::vector<std::
     return done;
 }
 
+// ---------------------------------------------------------------------------- clipboard with sourcing and variants
+
+Json Project::copyComponents(const std::vector<int>& ids, const std::vector<int>& busIds) const {
+    Json clip = schematic.copyComponents(ids, busIds);
+    Json comps = Json::array();
+    std::map<int, int> index;  // source id → clipboard index
+    for (const auto& j : clip.get("components").items()) {
+        Json c = j;
+        const int source = j.get("source").asInt(-1);
+        index[source] = static_cast<int>(comps.items().size());
+        if (const Component* src = schematic.find(source); src && !src->sourcing.empty()) {
+            Json s = Json::object();
+            if (!src->sourcing.manufacturer.empty()) s["manufacturer"] = src->sourcing.manufacturer;
+            if (!src->sourcing.mpn.empty()) s["mpn"] = src->sourcing.mpn;
+            if (!src->sourcing.supplierPart.empty()) s["supplierPart"] = src->sourcing.supplierPart;
+            if (src->sourcing.unitPrice > 0) s["unitPrice"] = src->sourcing.unitPrice;
+            if (src->sourcing.dnp) s["dnp"] = true;
+            c["sourcing"] = s;
+        }
+        comps.push(c);
+    }
+    clip["components"] = comps;
+    Json vars = Json::array();
+    for (const auto& v : variants) {
+        Json parts = Json::array();
+        for (const auto& [id, part] : v.parts) {
+            const auto it = index.find(id);
+            if (it == index.end() || part.empty()) continue;
+            Json pj = Json::object();
+            pj["component"] = it->second;
+            if (part.fitted >= 0) pj["fitted"] = part.fitted == 1;
+            if (!part.value.empty()) pj["value"] = part.value;
+            parts.push(pj);
+        }
+        if (parts.items().empty()) continue;
+        Json vj = Json::object();
+        vj["name"] = v.name;
+        vj["parts"] = parts;
+        vars.push(vj);
+    }
+    if (!vars.items().empty()) clip["variants"] = vars;
+    return clip;
+}
+
+std::vector<int> Project::pasteComponents(const Json& clip, const PasteOptions& options) {
+    std::vector<std::vector<int>> perCopy;
+    const std::vector<int> created = schematic.pasteComponents(clip, options, &perCopy);
+    const auto& comps = clip.get("components").items();
+    for (const auto& ids : perCopy) {
+        for (size_t i = 0; i < ids.size() && i < comps.size(); ++i) {
+            Component* c = ids[i] > 0 ? schematic.find(ids[i]) : nullptr;
+            const Json& s = comps[i].get("sourcing");
+            if (!c || !s.isObject()) continue;
+            c->sourcing.manufacturer = s.get("manufacturer").asString("");
+            c->sourcing.mpn = s.get("mpn").asString("");
+            c->sourcing.supplierPart = s.get("supplierPart").asString("");
+            const double price = s.get("unitPrice").asNumber(0);
+            c->sourcing.unitPrice = std::isfinite(price) ? std::max(0.0, price) : 0;
+            c->sourcing.dnp = s.get("dnp").asBool(false);
+        }
+        for (const auto& vj : clip.get("variants").items()) {
+            const std::string name = vj.get("name").asString("");
+            if (std::none_of(variants.begin(), variants.end(), [&](const DesignVariant& v) { return v.name == name; })) continue;
+            for (const auto& pj : vj.get("parts").items()) {
+                const int k = pj.get("component").asInt(-1);
+                if (k < 0 || k >= static_cast<int>(ids.size()) || ids[static_cast<size_t>(k)] <= 0) continue;
+                const Json& f = pj.get("fitted");
+                const int fitted = f.type() == Json::Type::Bool ? (f.asBool(true) ? 1 : 0) : -1;
+                const std::string value = pj.get("value").asString("");
+                setVariantPart(name, ids[static_cast<size_t>(k)], fitted, value.empty() ? nullptr : &value);
+            }
+        }
+    }
+    return created;
+}
+
 }  // namespace sieda

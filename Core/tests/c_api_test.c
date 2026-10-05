@@ -1150,3 +1150,28 @@ int sieda_c_api_helper_sheets_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Clipboard with buses, outline alignment, fixed frames and the PDF with a font, through the C API. 0 or the step. */
+int sieda_c_api_schematic_polish_test(void) {
+    SiedaProject* p = sieda_project_new("Polish");
+    if (!p) return 1;
+    int32_t a = sieda_add_component(p, 0, "1k", 0, 0, 0, NULL);
+    int32_t b = sieda_add_component(p, 10, "TL071", 200, 100, 0, NULL);
+    int32_t bus = sieda_add_bus(p, "D[0..3]", "[[0,200],[300,200]]");
+    if (a < 0 || b < 0 || bus <= 0) return 2;
+    char ids[64];
+    snprintf(ids, sizeof ids, "{\"components\":[%d],\"buses\":[%d]}", (int)a, (int)bus);
+    char* clip = sieda_copy_components(p, ids);
+    if (!clip || !strstr(clip, "\"buses\"")) return 3;
+    sieda_string_free(clip);
+    snprintf(ids, sizeof ids, "[%d,%d]", (int)a, (int)b);
+    if (sieda_align_outlines(p, ids, "left") < 1 || sieda_align_outlines(p, ids, "bogus") != -1) return 4;
+    if (sieda_set_sheet_frame(p, 1, 1, 0, 0) != 0) return 5; /* no template yet */
+    if (sieda_set_sheet_size(p, 1, "A4") != 1 || sieda_set_sheet_frame(p, 1, 1, -100, -100) != 1) return 6;
+    char* pdf = sieda_export_schematic_pdf_with_font(p, "/no/such/font.ttf");
+    if (!pdf || strncmp(pdf, "%PDF", 4) != 0) return 7;
+    sieda_string_free(pdf);
+    if (sieda_export_schematic_pdf_with_font(NULL, NULL) != NULL) return 8;
+    sieda_project_free(p);
+    return 0;
+}

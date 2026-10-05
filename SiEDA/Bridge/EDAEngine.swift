@@ -1590,10 +1590,27 @@ extension EDAEngine {
         return max(0, Int(withHandle { sieda_align_components($0, ids, mode) }))
     }
 
-    /// Clipboard text of components and the wires between them.
-    func copyComponents(_ ids: [Int]) -> String? {
+    /// Aligns by the symbols' outlines (edges line up; distributing leaves equal gaps between outlines).
+    func alignOutlines(_ ids: [Int], mode: String) -> Int {
         let ids = Self.idList(ids)
-        return Self.take(withHandle { sieda_copy_components($0, ids) })
+        return max(0, Int(withHandle { sieda_align_outlines($0, ids, mode) }))
+    }
+
+    /// Fixes a sheet's template frame at a top-left corner, or lets it follow the drawing.
+    @discardableResult
+    func setSheetFrame(_ id: Int, fixed: Bool, origin: CGPoint = .zero) -> Bool {
+        withHandle { sieda_set_sheet_frame($0, Int32(id), fixed ? 1 : 0, Double(origin.x), Double(origin.y)) } == 1
+    }
+
+    /// Clipboard text of components and the wires between them.
+    func copyComponents(_ ids: [Int], buses: [Int] = []) -> String? {
+        let request: String
+        if buses.isEmpty {
+            request = Self.idList(ids)
+        } else {
+            request = "{\"components\":\(Self.idList(ids)),\"buses\":\(Self.idList(buses))}"
+        }
+        return Self.take(withHandle { sieda_copy_components($0, request) })
     }
 
     /// Pastes a clipboard (a paste array when `count` > 1); the new components' ids.
@@ -1636,9 +1653,16 @@ extension EDAEngine {
     }
 
     /// PDF of every sheet with hierarchy bookmarks, frames and title blocks.
-    func schematicPDF() -> Data? {
-        Self.take(withHandle { sieda_export_schematic_pdf($0) }).map { Data($0.utf8) }
+    func schematicPDF(fontPath: String? = EDAEngine.unicodeFontPath) -> Data? {
+        Self.take(withHandle { sieda_export_schematic_pdf_with_font($0, fontPath) }).map { Data($0.utf8) }
     }
+
+    /// A system TrueType font with wide Unicode coverage, embedded (as a subset) in schematic PDFs for text beyond
+    /// Latin and Greek; nil when none is installed.
+    static let unicodeFontPath: String? = [
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "/Library/Fonts/Arial Unicode.ttf",
+    ].first { FileManager.default.fileExists(atPath: $0) }
 }
 
 extension EDAEngine {

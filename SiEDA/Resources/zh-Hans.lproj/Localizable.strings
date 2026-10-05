@@ -67,6 +67,7 @@
 "Align Right" = "右对齐";
 "Align Top" = "顶部对齐";
 "Align Vertical Centres" = "垂直居中对齐";
+"Align by Symbol Outline" = "按符号轮廓对齐";
 "All" = "全部";
 "Amplitude" = "振幅";
 "An entry (a local net label on the bus) for every member that has none yet" = "为每个尚无分支的成员建立分支（总线上的局部网络标签）";
@@ -157,6 +158,7 @@
 "Cascade at receiver" = "级联在接收端";
 "Cavity model" = "谐振腔模型";
 "Centre" = "居中";
+"Centre Frame on Drawing" = "将图框居中于绘图";
 "Centre the model on the footprint and put its lowest point on the board surface" = "将模型居中于封装，并使其最低点贴合板面";
 "Changes from a WAS / IS file" = "来自 WAS / IS 文件的更改";
 "Changes from the schematic to the board since the last update." = "自上次更新以来从原理图到电路板的更改。";

@@ -153,6 +153,12 @@ Json sheetsJson(const Schematic& sch) {
         if (s.refs != InstanceRefs::SheetNumber) j["refs"] = instanceRefsName(s.refs);
         if (!s.size.empty()) j["size"] = s.size;
         if (s.helper) j["helper"] = true;
+        if (s.frameFixed) {
+            Json f = Json::array();
+            f.push(s.frameOrigin.x);
+            f.push(s.frameOrigin.y);
+            j["frame"] = f;
+        }
         if (s.symbolWidth > 0 || s.symbolHeight > 0) {
             Json box = Json::array();
             box.push(s.symbolWidth);
@@ -815,6 +821,12 @@ Project Project::fromJson(const Json& root) {
             s.size = j.get("size").asString("");
             if (!findSheetTemplate(s.size)) s.size.clear();  // unknown template: sized to the drawing
             s.helper = j.get("helper").asBool(false);
+            {
+                const Json& f = j.get("frame");
+                const double fx = f[size_t{0}].asNumber(NAN), fy = f[size_t{1}].asNumber(NAN);
+                s.frameFixed = !s.size.empty() && std::isfinite(fx) && std::isfinite(fy) && std::fabs(fx) <= 1e6 && std::fabs(fy) <= 1e6;
+                if (s.frameFixed) s.frameOrigin = {fx, fy};
+            }
             const Json& box = j.get("symbolSize");
             for (int k = 0; k < 2; ++k) {
                 const double v = box[static_cast<size_t>(k)].asNumber(0);
@@ -1103,6 +1115,10 @@ Json Project::snapshot() const {
             j["symbolWidth"] = s.symbolWidth;
             j["symbolHeight"] = s.symbolHeight;
             j["helper"] = s.helper;
+            if (s.frameFixed) {
+                j["frameX"] = s.frameOrigin.x;
+                j["frameY"] = s.frameOrigin.y;
+            }
             Json ports = Json::array();
             for (const auto& port : schematic.sheetPorts(s.id)) ports.push(port);
             j["ports"] = ports;
