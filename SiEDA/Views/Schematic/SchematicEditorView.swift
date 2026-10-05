@@ -99,7 +99,7 @@ struct SchematicEditorView: View {
             }
 
             VStack(spacing: 0) {
-                OptionsBar(scrollsWhenNarrow: false) {
+                OptionsBar {  // scrolls sideways on narrow windows: the Arrange, Back Annotate, Messages and PDF controls need the room
                     Image(systemName: "wrench.and.screwdriver").foregroundStyle(Theme.blue)
                     Text(tool.title).foregroundStyle(Theme.textPrimary).fontWeight(.semibold)
                     Divider().frame(height: 18)
