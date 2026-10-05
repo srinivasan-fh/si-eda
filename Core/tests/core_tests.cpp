@@ -2560,12 +2560,16 @@ TEST(microcontroller_library_by_vendor) {
     std::map<std::string, int> perGroup;
     for (const auto& p : standardParts())
         if (p.category.rfind("Microcontrollers · ", 0) == 0) ++perGroup[p.category];
-    CHECK(perGroup["Microcontrollers · Arm"] == 11);  // + the catalog's LPC1769 (CNC / 3D-printer boards)
-    // + the catalog's STM32F405 / H743 / F765 and the robotics spares STM32F446 / G474 / H723.
-    CHECK(perGroup["Microcontrollers · STMicroelectronics"] == 16);
+    // + the catalog's LPC1769 (CNC / 3D-printer boards) and the general-purpose RP2350B.
+    CHECK(perGroup["Microcontrollers · Arm"] == 12);
+    // + the catalog's STM32F405 / H743 / F765, the robotics spares STM32F446 / G474 / H723 and 11 general-purpose
+    // STM32s (F0, F1, F3, F4, G0, L0, L4, WB, C0).
+    CHECK(perGroup["Microcontrollers · STMicroelectronics"] == 27);
     CHECK(perGroup["Microcontrollers · Texas Instruments"] == 10);
-    // + ATmega328P, ATtiny85, the rad-tolerant ATmegaS128 and the catalog's ATMEGA328P-AU / -PU and SAM D51.
-    CHECK(perGroup["Microcontrollers · Microchip"] == 16);
+    // + ATmega328P, ATtiny85, the rad-tolerant ATmegaS128, the catalog's ATMEGA328P-AU / -PU and SAM D51, and 8
+    // general-purpose AVR / SAM D parts.
+    CHECK(perGroup["Microcontrollers · Microchip"] == 24);
+    CHECK(perGroup["Microcontrollers · Espressif"] == 3);  // ESP32-C3, ESP32-S3, ESP32-PICO-D4
     for (const auto& p : standardParts()) {
         if (p.category.rfind("Microcontrollers · ", 0) != 0) continue;
         bool ok = true;
@@ -5182,6 +5186,71 @@ TEST(library_footprints_keep_pads_apart) {
         if (worst < 0.099) std::printf("    %s: pads %.3f mm apart\n", sp.spec.name.c_str(), worst);
         CHECK(worst >= 0.099);
     }
+}
+
+TEST(general_purpose_catalog) {
+    // The general-purpose catalog (tools/fetch_catalog_parts.py from the KiCad library): MCUs, op-amps, regulators,
+    // interfaces, logic, drivers, memories, sensors, transistors and protection parts, each on its orderable package
+    // and registering with every pad on a pin.
+    const char* names[] = {
+        "STM32F030C8T6", "STM32F103RBT6", "STM32F303CCT6", "STM32F411RET6", "STM32F429ZIT6", "STM32G031K8T6",
+        "STM32L072CZT6", "STM32L476RGT6", "STM32WB55CGU6", "STM32C011F6P6", "STM32G071KBT6N", "ESP32-C3", "ESP32-S3",
+        "ESP32-PICO-D4", "ATTINY202-SSN", "ATTINY404-SSN", "ATTINY3216-SN", "ATMEGA328PB-AU", "ATMEGA1284P-AU",
+        "ATSAMD21J18A-AU", "ATSAMD11C14A-SSUT", "ATTINY84A-SSU", "RP2350B", "LM324DR", "LM324N", "TL072CDR",
+        "TL074CDR", "NE5532DR", "MCP6004T-I/SL", "OP07CDR", "TLV9062IDR", "LM339DR", "LM311DR", "AD620ARZ",
+        "INA128UA", "MCP6002T-I/SN", "LMV321IDBVR", "LMV358IDR", "OPA2340UA", "OPA2134UA", "LM386MX-1",
+        "PCM5102APWR", "PAM8403DR", "LM7905", "LM1117S-3.3", "MCP1700T-3302E/TT", "LP5907MFX-3.3", "MIC5219-3.3YM5",
+        "AP7361C-33E-13", "TLV75533PDBVR", "TPS5430DDAR", "MC34063ADR", "TPS563200DDCR", "MT3608", "LM2675M-5.0",
+        "AP63203WU-7", "LM2596S-3.3", "TL431AIDBZR", "LM4040AIM3-2.5", "REF3033AIDBZR", "LM1117MPX-3.3",
+        "AMS1117-5.0", "L78L05ACD13TR", "TPS54302DDCR", "TPS54360DDAR", "MCP73831T-2ACI/OT", "TPS3839G33DBZR",
+        "MCP130T-315I/TT", "BQ21040DBVR", "USBLC6-4SC6", "FT232RL", "FT231XS", "CH340C", "MAX232DR", "MCP2562-E/SN",
+        "SN65HVD231DR", "TCA9555PWR", "ENC28J60-I/SO", "THVD1400DR", "MCP23017-E/SO", "MCP23S17-E/SO",
+        "MCP23008-E/SO", "CH9102F", "CP2104-F03-GMR", "STUSB4500QTR", "MCP2021A-500E/SN", "W5100S-Q", "LAN8742A-CZ",
+        "DP83848IVV", "ISO7720DR", "ADUM1200ARZ", "74HC14D", "74HC04D", "74HC165D", "74HC245DW", "74HC4051D",
+        "74HC138D", "CD4051BM96", "74HC164D", "74HC02D", "74AHCT125D", "TLC5940PWP", "TC4427AEOA", "ULN2803ADWR",
+        "MAX7219CWG+", "MAX7219CNG+", "DRV8870DDAR", "A4950ELJTR-T", "W25Q32JVSSIQ", "AT24C02C-SSHM-T",
+        "25LC256-I/SN", "MCP9808-E/MS", "TMP36GSZ", "LIS3DHTR", "BME680", "MCP3008-I/SL", "ADS1015IDGSR", "HX711",
+        "MCP4921-E/SN", "LM75BD", "DS18B20Z+", "ADXL343BCCZ", "LSM6DS3TR-C", "LSM6DSLTR", "MPU-6000", "LPS22HHTR",
+        "LPS25HBTR", "SHTC3", "DRV5033FAQDBZR", "ACS712ELCTR-05B-T", "ADS1013IDGSR", "AO3401A", "2N7002", "BSS84",
+        "IRLML6402TRPBF", "IRLB8721PBF", "IRF9540NPBF", "MMBT3904", "MMBT3906", "BC817-40", "BC807-40", "TIP120",
+        "IRLML6244TRPBF", "IRLML0030TRPBF", "DMG3402L-7", "DMG2301L-7", "SI2319CDS-T1-GE3", "DS3231MZ+", "DS1307Z+",
+        "PCF8563T", "LMC555CMX", "TPD2E2U06DCKR",
+    };
+    CHECK(sizeof names / sizeof names[0] == 152);
+    std::set<std::string> unique;
+    for (const auto& sp : standardParts()) CHECK(unique.insert(sp.spec.name).second);  // no name twice
+    CHECK(standardParts().size() >= 420);
+    for (const char* name : names) {
+        const StandardPart* sp = findStandardPart(name);
+        CHECK(sp != nullptr);
+        if (!sp) {
+            std::printf("    missing %s\n", name);
+            continue;
+        }
+        bool ok = true;
+        try {
+            auto part = CustomPartRegistry::instance().registerPart(sp->spec);
+            ok = part->footprint.pads.size() >= sp->spec.pins.size() && !sp->spec.manufacturer.empty() &&
+                 !sp->spec.description.empty();
+            for (const auto& pad : part->footprint.pads) ok = ok && pad.pinIndex >= 0;
+        } catch (const std::exception& e) {
+            std::printf("    %s: %s\n", name, e.what());
+            ok = false;
+        }
+        CHECK(ok);
+    }
+    // Datasheet pin names and packages.
+    auto pin = [](const char* part, size_t i) { return findStandardPart(part)->spec.pins[i].name; };
+    CHECK(pin("LM324DR", 3) == "V+" && pin("LM324DR", 10) == "V-");
+    CHECK(pin("2N7002", 0) == "G" && pin("2N7002", 1) == "S" && pin("2N7002", 2) == "D");
+    CHECK(pin("FT232RL", 0) == "TXD" && findStandardPart("FT232RL")->spec.package.pinCount == 28);
+    CHECK(pin("TL431AIDBZR", 1) == "REF");
+    CHECK(pin("AMS1117-5.0", 1) == "VO" && findStandardPart("AMS1117-5.0")->spec.package.type == "SOT223");
+    CHECK(findStandardPart("ESP32-C3")->spec.pins.size() == 33 && findStandardPart("ESP32-C3")->spec.pins.back().number == "EP");
+    CHECK(findStandardPart("STM32F429ZIT6")->spec.package.pinCount == 144);
+    CHECK(findStandardPart("LIS3DHTR")->spec.package.type == "LGA");                 // exact KiCad land pattern
+    auto hsop = CustomPartRegistry::instance().registerPart(findStandardPart("TPS5430DDAR")->spec);
+    CHECK(hsop->footprint.pads.size() == 9 && hsop->def.pins[hsop->footprint.pads.back().pinIndex].name == "GNDPAD");
 }
 
 TEST(collinear_segments_are_not_a_crossing) {

@@ -1538,14 +1538,15 @@ final class MicrocontrollerLibraryTests: XCTestCase {
     func testTenMicrocontrollersPerVendorWithRealPackages() throws {
         let groups = Dictionary(grouping: StandardLibrary.parts.filter { $0.category.hasPrefix("Microcontrollers · ") },
                                 by: \.category)
-        // + the robotics spares' LPC1769 (CNC / 3D-printer controllers).
-        XCTAssertEqual(groups["Microcontrollers · Arm"]?.count, 11)
-        // + the production catalog's STM32F405RGT6, STM32H743IIT6 and STM32F765VIT6 and the robotics spares'
-        // STM32F446RET6, STM32G474RET6 and STM32H723VGT6.
-        XCTAssertEqual(groups["Microcontrollers · STMicroelectronics"]?.count, 16)
+        // + the robotics spares' LPC1769 (CNC / 3D-printer controllers) and the general-purpose catalog's RP2350B.
+        XCTAssertEqual(groups["Microcontrollers · Arm"]?.count, 12)
+        // + the production catalog's STM32F405RGT6, STM32H743IIT6 and STM32F765VIT6, the robotics spares'
+        // STM32F446RET6, STM32G474RET6 and STM32H723VGT6, and 11 general-purpose STM32s.
+        XCTAssertEqual(groups["Microcontrollers · STMicroelectronics"]?.count, 27)
         XCTAssertEqual(groups["Microcontrollers · Texas Instruments"]?.count, 10)
-        // + the catalog's ATMEGA328P-AU / -PU and ATSAMD51J20A-AU.
-        XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 16)
+        // + the catalog's ATMEGA328P-AU / -PU and ATSAMD51J20A-AU, and 8 general-purpose AVR / SAM D parts.
+        XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 24)
+        XCTAssertEqual(groups["Microcontrollers · Espressif"]?.count, 3)
         let rp2040 = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "RP2040" })
         XCTAssertEqual(rp2040.spec.package.type, "QFN")
         XCTAssertEqual(rp2040.spec.package.pitch, 0.4)
