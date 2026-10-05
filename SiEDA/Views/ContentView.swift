@@ -86,7 +86,7 @@ struct ContentView: View {
         ToolbarItem(placement: .principal) {
             Picker("Workspace", selection: $store.workspace) {
                 ForEach(Workspace.visible(aiEnabled: settings.aiEnabled)) { w in
-                    Label(w.title, systemImage: w.systemImage).tag(w)
+                    Label(LocalizedStringKey(w.title), systemImage: w.systemImage).tag(w)
                 }
             }
             .pickerStyle(.segmented)
@@ -158,7 +158,7 @@ struct SidebarView: View {
                     row(highlighted: store.workspace == w) {
                         store.workspace = w
                     } label: {
-                        Label(w.title, systemImage: w.systemImage)
+                        Label(LocalizedStringKey(w.title), systemImage: w.systemImage)
                             .foregroundStyle(store.workspace == w ? Theme.skyBlue : Theme.textSecondary)
                     }
                 }
@@ -202,7 +202,7 @@ struct SidebarView: View {
         .background(Theme.deepBlue.opacity(0.6))
     }
 
-    private func header(_ title: String) -> some View {
+    private func header(_ title: LocalizedStringKey) -> some View {
         Text(title)
             .font(.caption.weight(.semibold))
             .foregroundStyle(Theme.textMuted)

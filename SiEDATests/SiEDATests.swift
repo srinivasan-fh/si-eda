@@ -4444,3 +4444,81 @@ final class MemoryDesignTests: XCTestCase {
         XCTAssertEqual(segments.segments.first { $0.id == "data" }?.items.last?.ok, false, "ZQ resistor missing")
     }
 }
+
+@MainActor
+final class LocalizationTests: XCTestCase {
+    private func table(_ code: String) throws -> [String: String] {
+        let url = try XCTUnwrap(Bundle.main.url(forResource: "Localizable", withExtension: "strings",
+                                                subdirectory: nil, localization: code), "no \(code).lproj")
+        return try XCTUnwrap(NSDictionary(contentsOf: url) as? [String: String], "\(code) does not parse")
+    }
+
+    func testEveryLanguageShipsACompleteTable() throws {
+        XCTAssertEqual(AppLanguage.all.count, 20)
+        XCTAssertEqual(Set(AppLanguage.all.map(\.code)).count, AppLanguage.all.count)
+        let english = try table("en")
+        XCTAssertGreaterThan(english.count, 400)
+        for (key, value) in english { XCTAssertEqual(key, value) }
+        for lang in AppLanguage.all where lang.code != "en" {
+            let t = try table(lang.code)
+            XCTAssertEqual(Set(t.keys), Set(english.keys), lang.code)
+            XCTAssertTrue(t.values.allSatisfy { !$0.trimmingCharacters(in: .whitespaces).isEmpty }, lang.code)
+            // Most strings really are translated (the rest are acronyms, units and product names).
+            let translated = t.filter { $0.key != $0.value }.count
+            XCTAssertGreaterThan(Double(translated) / Double(t.count), 0.7, lang.code)
+        }
+    }
+
+    func testRegionsCoverTheTargetCountriesAndStates() {
+        let regions = AppLanguage.all.map(\.regions).joined(separator: ", ")
+        for place in ["Taiwan", "South Korea", "China", "United States", "Japan", "Malaysia", "Netherlands", "Germany",
+                      "Singapore", "Vietnam", "Philippines", "India", "Andhra Pradesh", "Assam", "Gujarat",
+                      "Karnataka", "Kerala", "Maharashtra", "Odisha", "Punjab", "Rajasthan", "Tamil Nadu",
+                      "Telangana", "Uttar Pradesh"] {
+            XCTAssertTrue(regions.contains(place), place)
+        }
+        XCTAssertEqual(AppLanguage.all.filter { $0.group == .india }.count, 10)
+    }
+
+    func testLookupInTheChosenLanguage() {
+        XCTAssertEqual(LanguageSettings.localized("Schematic", code: "ja"), "回路図")
+        XCTAssertEqual(LanguageSettings.localized("Schematic", code: "de"), "Schaltplan")
+        XCTAssertNotEqual(LanguageSettings.localized("Auto Route", code: "ta"), "Auto Route")
+        XCTAssertEqual(LanguageSettings.localized("Schematic", code: ""), "Schematic")
+        XCTAssertEqual(LanguageSettings.localized("Not a UI string", code: "ko"), "Not a UI string")
+    }
+
+    func testChoosingALanguageIsSavedForTheNextLaunch() throws {
+        let suite = "sieda.tests.language"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let settings = LanguageSettings(defaults: defaults)
+        XCTAssertEqual(settings.code, "")
+        XCTAssertFalse(settings.needsRelaunch)
+        settings.code = "te"
+        XCTAssertEqual(defaults.string(forKey: LanguageSettings.defaultsKey), "te")
+        XCTAssertEqual(defaults.stringArray(forKey: "AppleLanguages"), ["te", "en"])
+        XCTAssertTrue(settings.needsRelaunch)
+        XCTAssertEqual(settings.locale.identifier, "te")
+        XCTAssertEqual(settings.selected?.englishName, "Telugu")
+
+        XCTAssertEqual(LanguageSettings(defaults: defaults).code, "te", "the choice survives a relaunch")
+        settings.code = ""
+        XCTAssertNil(defaults.object(forKey: "AppleLanguages"))
+        XCTAssertFalse(settings.needsRelaunch)
+
+        defaults.set("xx", forKey: LanguageSettings.defaultsKey)
+        XCTAssertEqual(LanguageSettings(defaults: defaults).code, "", "an unknown language falls back to the system")
+    }
+
+    func testLanguageSettingsRender() {
+        let view = LanguageSettingsView().environmentObject(LanguageSettings(defaults: UserDefaults(suiteName: "sieda.tests.render")!))
+            .environment(\.locale, Locale(identifier: "hi"))
+        let host = NSHostingView(rootView: view)
+        host.frame = NSRect(x: 0, y: 0, width: 680, height: 600)
+        host.layoutSubtreeIfNeeded()
+        XCTAssertGreaterThan(host.fittingSize.height, 0)
+    }
+}

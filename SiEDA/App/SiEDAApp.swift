@@ -67,6 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             recovery.flush()
         }
         crashReporter?.endSession()
+        if LanguageSettings.relaunchRequested { LanguageSettings.launchAgainAfterExit() }
     }
 
     /// After an abnormal end of the previous session: offers the work that was autosaved and the crash report, then
@@ -208,6 +209,7 @@ struct SiEDAApp: App {
     @StateObject private var store = DesignStore()
     @StateObject private var settings = AISettings()
     @StateObject private var agents = AgentOrchestrator()
+    @StateObject private var language = LanguageSettings()
     @AppStorage("appearance") private var appearance = AppearancePreference.dark.rawValue
 
     var body: some Scene {
@@ -216,6 +218,8 @@ struct SiEDAApp: App {
                 .environmentObject(store)
                 .environmentObject(settings)
                 .environmentObject(agents)
+                .environmentObject(language)
+                .environment(\.locale, language.locale)
                 .preferredColorScheme((AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
                 .tint(Theme.blue)
                 .documentWindowFrame()
@@ -231,6 +235,8 @@ struct SiEDAApp: App {
             SettingsView()
                 .environmentObject(settings)
                 .environmentObject(store)
+                .environmentObject(language)
+                .environment(\.locale, language.locale)
                 .preferredColorScheme((AppearancePreference(rawValue: appearance) ?? .dark).colorScheme)
                 .tint(Theme.blue)
         }
