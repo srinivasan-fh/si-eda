@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "sieda/Geometry.hpp"
@@ -51,13 +52,31 @@ const char* labelScopeName(LabelScope s);  // "global", "local", "port", "entry"
 /// Parses a scope name; false for an unknown name.
 bool labelScopeFromName(const std::string& name, LabelScope* out);
 
+/// Designators of a repeated sheet's channels, made from each part's designator inside the block ("R1").
+enum class InstanceRefs {
+    SheetNumber = 0,  // the n-th sheet numbers from n·100 + 1: R1 → R201 on sheet 2, R301 on sheet 3 (·1000 for big blocks)
+    Suffix = 1,       // the channel label is appended: R1 → R1_A, R1_B, …
+};
+const char* instanceRefsName(InstanceRefs r);  // "sheet", "suffix"
+bool instanceRefsFromName(const std::string& name, InstanceRefs* out);
+
 /// A schematic sheet (page). Components belong to exactly one sheet; wires never cross sheets — nets reach other
 /// sheets through global labels, ground symbols and hierarchical ports / sheet entries.
 struct Sheet {
+    Sheet() = default;
+    Sheet(int id_, std::string name_, int parent_) : id(id_), name(std::move(name_)), parent(parent_) {}
     int id = 1;
     std::string name;
     /// The sheet whose sheet symbol stands for this one (hierarchical design); 0 = a top-level sheet.
     int parent = 0;
+    /// Repeated (multi-instance) sheet: the definition sheet this instance mirrors; 0 = an ordinary sheet or a
+    /// definition. The components and wires of an instance are kept as copies of its definition's (see
+    /// Schematic::repeatSheet), each with its own id, designator, nets, footprint placement and variant settings.
+    int instanceOf = 0;
+    /// Channel label of a repeated sheet ("A", "B", …): on the definition and on each of its instances.
+    std::string channel;
+    /// Definition of a repeated sheet: how its channels' designators are made from the block's own designators.
+    InstanceRefs refs = InstanceRefs::SheetNumber;
 };
 
 struct Component {
@@ -83,6 +102,19 @@ struct Component {
     /// Net labels only: how far the label reaches; for a sheet entry, the child sheet it connects into.
     LabelScope scope = LabelScope::Global;
     int targetSheet = 0;
+    /// On an instance of a repeated sheet: the component of the definition sheet this one copies (0 = none).
+    int instanceOf = 0;
+    /// On the definition of a repeated sheet: the part's designator inside the block ("R1"); `ref` is its designator
+    /// in the definition's own channel (R201, R1_A). Empty everywhere else.
+    std::string logicalRef;
+    /// Net labels: the bus this label is an entry of (Bus::id; 0 = an ordinary label).
+    int bus = 0;
+    /// Multi-unit parts. A unit placed on its own (kind PartUnit): `unitOf` is its package and `unit` the 1-based unit
+    /// index into CustomPart::units. The package is a Custom component with every pin and the footprint, marked
+    /// `packageOnly`: it is not drawn on the schematic (its units are) but is the part the netlist, BOM and PCB see.
+    int unitOf = 0;
+    int unit = 0;
+    bool packageOnly = false;
 
     bool isNoConnect(int pin) const;
 
@@ -92,9 +124,23 @@ struct Component {
     const std::string& footprintName() const;
 };
 
+/// A graphical bus on a sheet: a named polyline ("D[0..7]", see expandBus). Its members leave it through bus entries —
+/// net labels attached to it (Component::bus) — and join nets by name like any label; the bus itself carries no
+/// connection.
+struct Bus {
+    int id = -1;
+    int sheet = 1;
+    std::string name;
+    std::vector<Vec2> points;  // schematic units, at least two
+    /// On an instance of a repeated sheet: the bus of the definition sheet this one copies (0 = none).
+    int instanceOf = 0;
+};
+
 struct Wire {
     int id = -1;
     PinRef a, b;
+    /// On an instance of a repeated sheet: the wire of the definition sheet this one copies (0 = none).
+    int instanceOf = 0;
 };
 
 struct Net {
@@ -129,6 +175,9 @@ struct AnnotateOptions {
     /// Sheet-based numbers: parts on the n-th sheet are numbered from n·100 + 1 (R101, R102 … R201 …), or from
     /// n·1000 + 1 when a sheet holds 100 or more parts of one prefix.
     bool sheetNumbering = false;
+    /// Multi-unit parts: re-assign interchangeable units (the gates of a quad op-amp) to packages in placement order —
+    /// A, B, C, D of the first package, then the next — before numbering, so no package is left half used.
+    bool packUnits = false;
 };
 
 struct RefChange {
@@ -199,6 +248,13 @@ public:
 
     std::vector<RuleViolation> runERC() const;
 
+    /// Simulating an assembly (a design variant): parts not fitted (Sourcing::dnp) are left out of the simulated
+    /// circuit — their nets stay, only their elements go. Off by default (the design as drawn).
+    void setOmitUnfitted(bool on) { omitUnfitted_ = on; }
+    bool omitsFromSimulation(const Component& c) const {
+        return omitUnfitted_ && c.sourcing.dnp && !isNetSymbolKind(c.kind);
+    }
+
     // ---- sheets (multi-sheet / hierarchical design). There is always at least one sheet. ----
     const std::vector<Sheet>& sheets() const { return sheets_; }
     const Sheet* findSheet(int id) const;
@@ -240,6 +296,32 @@ public:
     int addBusLabels(int componentId, const std::vector<int>& pins, const std::string& bus,
                      LabelScope scope = LabelScope::Global);
 
+    // ---- repeated (multi-instance) sheets: one definition sheet used several times (channels). Each instance is a
+    // sheet of its own holding copies of the definition's components and wires, with their own ids, designators,
+    // nets (local labels and ports are per sheet), footprints and variant settings; the stored design stays flat.
+    // Edits to a copy go to the definition and every instance follows. ----
+    /// Uses `sheet` `count` times in all (itself first): adds or removes instance sheets ("<name> [B]" …, under the
+    /// same parent, after it in the sheet order). Only a sheet without child sheets or sheet entries can be repeated,
+    /// and not an instance; 1 ends the repetition. Returns the number of instances, or -1.
+    int repeatSheet(int sheet, int count);
+    /// The definition sheet of an instance; any other sheet is its own.
+    int definitionSheet(int sheet) const;
+    /// The definition followed by its instances in sheet order (just `sheet` when it is not repeated).
+    std::vector<int> sheetInstances(int sheet) const;
+    /// True for the definition of a repeated sheet and for its instances.
+    bool isRepeated(int sheet) const;
+    /// How the channels' designators are made (definition or any instance of it).
+    bool setInstanceRefs(int sheet, InstanceRefs refs);
+    /// Channel label (non-empty, unique within the block, letters, digits, '_' or '-').
+    bool setSheetChannel(int sheet, const std::string& channel);
+    /// Brings every instance in line with its definition (components, wires, designators) and repairs stale links.
+    /// Every edit through this class does it; call it after changing components through mutableComponents().
+    void syncInstances();
+    /// For an id on an instance sheet, the definition component it copies; otherwise `id`.
+    int masterOf(int id) const;
+    /// The copy of definition component `masterId` on `sheet` (`masterId` itself on the definition), or -1.
+    int copyOn(int masterId, int sheet) const;
+
     std::string nextRef(ComponentKind kind) const;
     std::string nextRef(const std::string& prefix) const;
 
@@ -249,15 +331,90 @@ public:
     /// Replaces the sheet list (invalid or duplicate entries are dropped; an empty list leaves one default sheet)
     /// and the active sheet. Components on unknown sheets move to the first sheet.
     void restoreSheets(const std::vector<Sheet>& sheets, int active);
+    /// Adds a bus read from a file (call after the components; entries of unknown buses become plain labels).
+    void restoreBus(const Bus& bus);
+
+    // ---- multi-unit parts (one symbol per gate, one footprint) ----
+    /// Places unit A of a multi-unit custom part: a hidden package (every pin, the footprint) and the unit's symbol.
+    /// Returns the unit's id, or -1 for an unknown part or one without units.
+    int addCustomUnits(const std::string& partId, const std::string& value, Vec2 position, int rotation = 0,
+                       const std::string& ref = "");
+    /// Places unit `unit` (1-based) of the package of `componentId` (the package or any of its units) on the active
+    /// sheet. Returns its id, or -1 (unknown part, unit out of range, or already placed).
+    int addPartUnit(int componentId, int unit, Vec2 position, int rotation = 0);
+    /// Places the first unit of the package that is not placed yet. -1 when every unit is placed.
+    int placeNextUnit(int componentId, Vec2 position);
+    /// The package of a unit (or the package itself); -1 for anything else.
+    int unitPackage(int componentId) const;
+    /// The units placed of a package, in order of their unit index.
+    std::vector<int> placedUnits(int packageId) const;
+    /// "A", "B", "P"… for a placed unit; "" otherwise.
+    std::string unitName(const Component& c) const;
+    /// Designator with the unit ("U1A") for a unit, the designator otherwise.
+    std::string displayRef(const Component& c) const;
+
+    // ---- graphical buses ----
+    const std::vector<Bus>& buses() const { return buses_; }
+    const Bus* findBus(int id) const;
+    /// Draws a bus on the active sheet (on a repeated sheet's instance: on its definition). `name` must be bus
+    /// notation; 2 … 256 points. Returns its id or -1.
+    int addBus(const std::string& name, const std::vector<Vec2>& points);
+    /// Removes a bus with its entries (and their wires).
+    bool removeBus(int id);
+    /// Renames a bus (entries whose names are no longer members are reported by ERC).
+    bool renameBus(int id, const std::string& name);
+    /// Moves a bus and its entries by `delta`.
+    bool moveBus(int id, Vec2 delta);
+    bool setBusPoints(int id, const std::vector<Vec2>& points);
+    /// Members of a bus in order (expandBus of its name).
+    std::vector<std::string> busMembers(int id) const;
+    /// Point of the bus nearest to `p`.
+    Vec2 nearestBusPoint(int id, Vec2 p) const;
+    /// Rips entries out of a bus for `members` (all members when empty) that have none yet, spaced along it.
+    /// Returns the entries added, or -1 for an unknown bus or a name that is not a member.
+    int ripBusEntries(int id, const std::vector<std::string>& members, LabelScope scope = LabelScope::Local);
+    /// Connects bus members to a part's pins: each member that names a pin of the part (D0 → pin "D0" or "PB0/D0")
+    /// gets an entry on the bus, near the pin, wired to it; with no names in common, the members go to the part's
+    /// unconnected pins in order. Returns the connections made, or -1 for an unknown bus or part.
+    int connectBusToPart(int id, int componentId, LabelScope scope = LabelScope::Local);
 
 private:
     void invalidate() { netsDirty_ = true; }
+    bool hasInstances() const;
+    /// After an edit: keeps repeated sheets' instances in line (nothing to do in a design without them).
+    void edited() {
+        if (hasInstances()) syncInstances();
+        else syncUnits();
+    }
+    /// Units follow their package (designator, value, part) and the package its first unit (sheet, position);
+    /// units without a valid package and packages without units go.
+    bool syncUnits();  // true when it changed anything
+    /// Annotation helper: see AnnotateOptions::packUnits.
+    void packUnits();
+    /// ERC of multi-unit parts: units not placed whose pins are left open.
+    void unitERC(std::vector<RuleViolation>& out) const;
+    int masterWireOf(int wireId) const;
+    int copyWireOn(int masterWire, int sheet) const;
+    /// Designator of a block part (by its logical designator) on one of the block's sheets.
+    std::string channelRef(const std::string& logical, int sheet, int step) const;
+    /// Instance-aware parts of annotate(): numbers the blocks' logical designators.
+    void annotateBlocks(const AnnotateOptions& options);
+    /// Drops buses on missing sheets and detaches entries from buses that are gone or on another sheet.
+    bool repairBusLinks();  // true when it changed anything
+    /// One pass of syncInstances(); true when it changed anything (a repair can enable another).
+    bool syncInstancesOnce();
+    int masterBusOf(int id) const;
+    /// Bus checks: entries that are not members, members that reach one pin only, buses without entries.
+    void busERC(std::vector<RuleViolation>& out) const;
     void rebuildNets() const;
     /// Multi-sheet checks: ports, sheet entries, labels split across sheets, wires between sheets, bus labels.
     void hierarchyERC(std::vector<RuleViolation>& out) const;
 
     std::vector<Component> components_;
     std::vector<Wire> wires_;
+    std::vector<Bus> buses_;
+    int nextBusId_ = 1;
+    bool omitUnfitted_ = false;
     std::vector<Sheet> sheets_{Sheet{1, "Main", 0}};
     int activeSheet_ = 1;
     int nextSheetId_ = 2;

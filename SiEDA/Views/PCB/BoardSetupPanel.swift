@@ -210,7 +210,7 @@ struct BoardSetupPanel: View {
     /// Active tamper meshes (PCI PTS): serpentine traces on two inner layers over a secure element.
     @ViewBuilder
     private func tamperMeshRows(_ board: BoardInfo) -> some View {
-        let parts = store.snapshot.components.filter { $0.componentKind == .custom }.map(\.ref).sorted()
+        let parts = store.snapshot.components.filter { $0.componentKind == .custom && $0.unitOf == nil }.map(\.ref).sorted()
         ForEach(store.snapshot.tamperMeshes) { mesh in
             HStack {
                 Text("Tamper mesh over \(mesh.component): \(mesh.netA) (\(board.layerName(mesh.layerA))) · "

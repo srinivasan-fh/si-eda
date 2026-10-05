@@ -18,6 +18,7 @@
 #include <cctype>
 #include <iterator>
 #include <map>
+#include <set>
 
 namespace sieda {
 
@@ -134,6 +135,10 @@ Json sheetsJson(const Schematic& sch) {
         j["id"] = s.id;
         j["name"] = s.name;
         j["parent"] = s.parent;
+        // Repeated sheets (written only when used, so other designs' files are unchanged).
+        if (s.instanceOf != 0) j["instanceOf"] = s.instanceOf;
+        if (!s.channel.empty()) j["channel"] = s.channel;
+        if (s.refs != InstanceRefs::SheetNumber) j["refs"] = instanceRefsName(s.refs);
         arr.push(j);
     }
     return arr;
@@ -146,6 +151,35 @@ void componentSheetJson(Json& j, const Component& c) {
         j["scope"] = labelScopeName(c.scope);
         if (c.scope == LabelScope::SheetEntry) j["targetSheet"] = c.targetSheet;
     }
+    if (c.instanceOf != 0) j["instanceOf"] = c.instanceOf;
+    if (!c.logicalRef.empty()) j["logicalRef"] = c.logicalRef;
+    if (c.bus != 0) j["bus"] = c.bus;
+    if (c.kind == ComponentKind::PartUnit) {
+        j["unitOf"] = c.unitOf;
+        j["unit"] = c.unit;
+    }
+    if (c.packageOnly) j["packageOnly"] = true;
+}
+
+Json busesJson(const Schematic& sch, bool withMembers) {
+    Json arr = Json::array();
+    for (const auto& b : sch.buses()) {
+        Json j = Json::object();
+        j["id"] = b.id;
+        j["sheet"] = b.sheet;
+        j["name"] = b.name;
+        Json pts = Json::array();
+        for (const auto& p : b.points) pts.push(vec(p));
+        j["points"] = pts;
+        if (b.instanceOf != 0) j["instanceOf"] = b.instanceOf;
+        if (withMembers) {
+            Json members = Json::array();
+            for (const auto& m : expandBus(b.name)) members.push(m);
+            j["members"] = members;
+        }
+        arr.push(j);
+    }
+    return arr;
 }
 
 std::string trimmedName(const std::string& s) {
@@ -232,6 +266,7 @@ bool Project::setVariantDescription(const std::string& n, const std::string& des
 }
 
 bool Project::setVariantPart(const std::string& n, int componentId, int fitted, const std::string* value) {
+    if (const int pkg = schematic.unitPackage(componentId); pkg > 0) componentId = pkg;  // a unit is fitted with its package
     const Component* c = schematic.find(componentId);
     if (!c || isNetSymbolKind(c->kind) || fitted < -1 || fitted > 1) return false;
     for (auto& v : variants) {
@@ -257,6 +292,24 @@ bool Project::setActiveVariant(const std::string& n) {
 Schematic Project::variantSchematic(const std::string& n) const {
     const DesignVariant* v = n.empty() ? nullptr : findVariant(n);
     return v ? applyVariant(schematic, *v) : schematic;
+}
+
+Schematic Project::simulationSchematic() const {
+    Schematic s = variantSchematic(activeVariant);
+    for (const auto& c : s.components())
+        if (c.sourcing.dnp && !isNetSymbolKind(c.kind)) {
+            s.setOmitUnfitted(true);
+            break;
+        }
+    return s;
+}
+
+std::vector<std::string> Project::unfittedRefs() const {
+    std::vector<std::string> out;
+    const Schematic s = variantSchematic(activeVariant);
+    for (const auto& c : s.components())
+        if (c.sourcing.dnp && !isNetSymbolKind(c.kind)) out.push_back(c.ref);
+    return out;
 }
 
 std::vector<RefChange> Project::annotate(const AnnotateOptions& options) {
@@ -325,7 +378,7 @@ Json Project::toJson() const {
         j["x"] = c.position.x;
         j["y"] = c.position.y;
         j["rotation"] = c.rotation;
-        if (c.kind == ComponentKind::Custom) j["customPart"] = c.customPart;
+        if (c.kind == ComponentKind::Custom || c.kind == ComponentKind::PartUnit) j["customPart"] = c.customPart;
         if (!c.firmware.empty()) {
             j["firmware"] = c.firmware;
             j["firmwareName"] = c.firmwareName;
@@ -358,17 +411,28 @@ Json Project::toJson() const {
         j["id"] = w.id;
         j["a"] = pinRef(w.a);
         j["b"] = pinRef(w.b);
+        if (w.instanceOf != 0) j["instanceOf"] = w.instanceOf;
         wires.push(j);
     }
     root["wires"] = wires;
     root["sheets"] = sheetsJson(schematic);
     root["activeSheet"] = schematic.activeSheet();
+    if (!schematic.buses().empty()) root["buses"] = busesJson(schematic, false);
     if (!variants.empty()) {
         Json vs = Json::array();
         for (const auto& v : variants) vs.push(variantToJson(v, schematic));
         root["variants"] = vs;
     }
     if (!activeVariant.empty()) root["activeVariant"] = activeVariant;
+    if (!titleBlock.empty()) {
+        Json tb = Json::object();
+        tb["title"] = titleBlock.title;
+        tb["company"] = titleBlock.company;
+        tb["revision"] = titleBlock.revision;
+        tb["date"] = titleBlock.date;
+        tb["drawnBy"] = titleBlock.drawnBy;
+        root["titleBlock"] = tb;
+    }
 
     Json tracks = Json::array();
     for (const auto& t : pcb.tracks) {
@@ -521,6 +585,12 @@ Project Project::fromJson(const Json& root) {
         c.id = j.get("id").asInt(-1);
         if (c.id < 0) throw JsonError("Component without id");
         c.kind = static_cast<ComponentKind>(kind);
+        if (c.kind == ComponentKind::PartUnit) {
+            c.unitOf = j.get("unitOf").asInt(0);
+            c.unit = j.get("unit").asInt(0);
+            c.customPart = idMap.count(j.get("customPart").asString("")) ? idMap[j.get("customPart").asString("")]
+                                                                        : j.get("customPart").asString("");
+        }
         c.ref = j.get("ref").asString("");
         c.value = j.get("value").asString(c.def().defaultValue);
         c.position = {j.get("x").asNumber(), j.get("y").asNumber()};
@@ -555,23 +625,46 @@ Project Project::fromJson(const Json& root) {
         if (c.kind == ComponentKind::NetLabel && !labelScopeFromName(j.get("scope").asString("global"), &c.scope))
             c.scope = LabelScope::Local;  // a scope from a newer version: keep the label to its sheet
         c.targetSheet = c.scope == LabelScope::SheetEntry ? j.get("targetSheet").asInt(0) : 0;
+        c.instanceOf = std::max(0, j.get("instanceOf").asInt(0));
+        c.logicalRef = j.get("logicalRef").asString("");
+        c.bus = c.kind == ComponentKind::NetLabel ? std::max(0, j.get("bus").asInt(0)) : 0;
+        c.packageOnly = c.kind == ComponentKind::Custom && j.get("packageOnly").asBool(false);
+        if (c.logicalRef.size() > 64) c.logicalRef.clear();
+        if (c.id == 0 || p.schematic.find(c.id)) continue;  // id 0 or a duplicate (hand-edited file): the first stands
         p.schematic.restoreComponent(c);
     }
     {
         // Files from before multi-sheet designs have no sheet list: everything is on one sheet.
         std::vector<Sheet> sheets;
-        for (const auto& j : root.get("sheets").items())
-            sheets.push_back(Sheet{j.get("id").asInt(0), j.get("name").asString(""), j.get("parent").asInt(0)});
+        for (const auto& j : root.get("sheets").items()) {
+            Sheet s{j.get("id").asInt(0), j.get("name").asString(""), j.get("parent").asInt(0)};
+            s.instanceOf = std::max(0, j.get("instanceOf").asInt(0));
+            s.channel = j.get("channel").asString("");
+            if (!instanceRefsFromName(j.get("refs").asString("sheet"), &s.refs)) s.refs = InstanceRefs::SheetNumber;
+            sheets.push_back(s);
+        }
         p.schematic.restoreSheets(sheets, root.get("activeSheet").asInt(0));
     }
+    std::set<int> wireIds;  // a duplicate wire id (hand-edited file): the first one stands
     for (const auto& j : root.get("wires").items()) {
         Wire w;
         w.id = j.get("id").asInt(-1);
         w.a = pinRefFrom(j.get("a"));
         w.b = pinRefFrom(j.get("b"));
-        if (w.id < 0 || !p.schematic.find(w.a.component) || !p.schematic.find(w.b.component)) continue;
+        if (w.id < 0 || !p.schematic.find(w.a.component) || !p.schematic.find(w.b.component) || !wireIds.insert(w.id).second) continue;
+        w.instanceOf = std::max(0, j.get("instanceOf").asInt(0));
         p.schematic.restoreWire(w);
     }
+    for (const auto& j : root.get("buses").items()) {
+        Bus b;
+        b.id = j.get("id").asInt(-1);
+        b.sheet = j.get("sheet").asInt(1);
+        b.name = j.get("name").asString("");
+        b.instanceOf = j.get("instanceOf").asInt(0);
+        for (const auto& pt : j.get("points").items()) b.points.push_back({pt.get("x").asNumber(), pt.get("y").asNumber()});
+        p.schematic.restoreBus(b);
+    }
+    p.schematic.syncInstances();  // repeated sheets: checks the instances against their definitions (no-op otherwise)
     for (const auto& j : root.get("variants").items()) {
         if (j.get("name").asString("").empty()) continue;
         DesignVariant v = variantFromJson(j);
@@ -584,6 +677,14 @@ Project Project::fromJson(const Json& root) {
         p.variants.push_back(v);
     }
     p.activeVariant = root.get("activeVariant").asString("");
+    {
+        const Json& tb = root.get("titleBlock");
+        auto field = [&](const char* key) {
+            std::string v = tb.get(key).asString("");
+            return v.size() > 256 ? v.substr(0, 256) : v;
+        };
+        p.titleBlock = {field("title"), field("company"), field("revision"), field("date"), field("drawnBy")};
+    }
     if (!p.findVariant(p.activeVariant)) p.activeVariant.clear();
     for (const auto& j : root.get("tracks").items()) {
         Track t;
@@ -619,7 +720,22 @@ Json Project::snapshot() const {
     for (const auto& c : schematic.components()) {
         Json j = Json::object();
         j["id"] = c.id;
-        j["kind"] = static_cast<int>(c.kind);
+        // A placed unit of a multi-unit part is drawn like a library part (kind Custom) with its unit's symbol.
+        j["kind"] = static_cast<int>(c.kind == ComponentKind::PartUnit ? ComponentKind::Custom : c.kind);
+        if (c.kind == ComponentKind::PartUnit) {
+            j["unit"] = c.unit;
+            j["unitName"] = schematic.unitName(c);
+            j["unitOf"] = c.unitOf;
+        }
+        if (c.packageOnly) {
+            j["unitPackage"] = true;  // not drawn on the schematic: its units are
+            Json units = Json::array();
+            for (int id : schematic.placedUnits(c.id)) units.push(id);
+            j["units"] = units;
+        }
+        const Component* assembled = &c;  // a unit is fitted (and designated) with its package
+        if (c.kind == ComponentKind::PartUnit)
+            if (const Component* pkg = schematic.find(c.unitOf)) assembled = pkg;
         j["ref"] = c.ref;
         j["value"] = c.value;
         j["x"] = c.position.x;
@@ -632,11 +748,16 @@ Json Project::snapshot() const {
             j["scope"] = labelScopeName(c.scope);
             if (c.scope == LabelScope::SheetEntry) j["targetSheet"] = c.targetSheet;
         }
-        if (!isNetSymbolKind(c.kind)) {
+        if (c.instanceOf != 0) j["instanceOf"] = c.instanceOf;
+        if (c.bus != 0) j["bus"] = c.bus;
+        if (!assembled->logicalRef.empty()) j["logicalRef"] = assembled->logicalRef;
+        else if (assembled->instanceOf != 0)
+            if (const Component* m = schematic.find(assembled->instanceOf); m && !m->logicalRef.empty()) j["logicalRef"] = m->logicalRef;
+        if (!isNetSymbolKind(assembled->kind)) {
             // Fitting in the active variant (or the base design): not fitted parts and value overrides.
-            bool fitted = !c.sourcing.dnp;
+            bool fitted = !assembled->sourcing.dnp;
             if (const DesignVariant* v = findVariant(activeVariant)) {
-                auto it = v->parts.find(c.id);
+                auto it = v->parts.find(assembled->id);
                 if (it != v->parts.end()) {
                     if (it->second.fitted >= 0) fitted = it->second.fitted == 1;
                     if (!it->second.value.empty()) j["variantValue"] = it->second.value;
@@ -657,7 +778,7 @@ Json Project::snapshot() const {
                 j["packageOptions"] = options;
             }
         }
-        if (c.kind == ComponentKind::Custom) j["customPart"] = c.customPart;
+        if (c.kind == ComponentKind::Custom || c.kind == ComponentKind::PartUnit) j["customPart"] = c.customPart;
         if (c.kind == ComponentKind::Custom) {
             if (const CustomPart* part = CustomPartRegistry::instance().find(c.customPart)) {
                 if (auto model = mcuModelForPart(part->spec.name)) {
@@ -738,10 +859,24 @@ Json Project::snapshot() const {
             Json ports = Json::array();
             for (const auto& port : schematic.sheetPorts(s.id)) ports.push(port);
             j["ports"] = ports;
+            if (schematic.isRepeated(s.id)) {
+                j["instanceOf"] = s.instanceOf;
+                j["channel"] = s.channel;
+                j["refs"] = instanceRefsName(schematic.findSheet(schematic.definitionSheet(s.id))->refs);
+                j["instances"] = static_cast<int>(schematic.sheetInstances(s.id).size());
+            }
             sheets.push(j);
         }
         root["sheets"] = sheets;
         root["activeSheet"] = schematic.activeSheet();
+        root["buses"] = busesJson(schematic, true);
+        Json tb = Json::object();
+        tb["title"] = titleBlock.title.empty() ? name : titleBlock.title;
+        tb["company"] = titleBlock.company;
+        tb["revision"] = titleBlock.revision;
+        tb["date"] = titleBlock.date;
+        tb["drawnBy"] = titleBlock.drawnBy;
+        root["titleBlock"] = tb;
         Json vs = Json::array();
         for (const auto& v : variants) vs.push(variantToJson(v, schematic));
         root["variants"] = vs;
@@ -1006,6 +1141,7 @@ Json Project::transientToJson(const TransientResult& r, size_t maxPoints) const 
 Json Project::libraryJson() {
     Json arr = Json::array();
     for (const auto& d : Library::instance().components()) {
+        if (d.kind == ComponentKind::PartUnit) continue;  // placed through multi-unit custom parts, not on its own
         Json j = Json::object();
         j["kind"] = static_cast<int>(d.kind);
         j["name"] = d.name;

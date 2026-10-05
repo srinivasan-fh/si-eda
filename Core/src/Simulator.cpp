@@ -331,7 +331,7 @@ bool Simulator::build(std::string& error) {
         double g = 0;
         if (netA < 0 || netB < 0 || netA == netB) return g;
         for (const auto& r : sch_.components()) {
-            if (r.kind != ComponentKind::Resistor) continue;
+            if (r.kind != ComponentKind::Resistor || sch_.omitsFromSimulation(r)) continue;
             int a = sch_.netOf({r.id, 0}), b = sch_.netOf({r.id, 1});
             if (!((a == netA && b == netB) || (a == netB && b == netA))) continue;
             if (auto v = parseEngineeringValue(primaryValue(r.value)); v && *v > 0) g += 1.0 / *v;
@@ -345,6 +345,7 @@ bool Simulator::build(std::string& error) {
     };
 
     for (const auto& c : sch_.components()) {
+        if (sch_.omitsFromSimulation(c)) continue;  // not fitted in the assembly being simulated
         Element e{};
         e.componentId = c.id;
         auto twoTerminal = [&](ElemType t) {

@@ -787,7 +787,8 @@ enum DesignPlanCompiler {
         let byId = Dictionary(uniqueKeysWithValues: snapshot.components.map { ($0.id, $0) })
         let junctions = Set(snapshot.components.filter { $0.componentKind == .junction }.map(\.id))
         let multiSheet = snapshot.sheets.count > 1
-        let components = snapshot.components.filter { !junctions.contains($0.id) }.map { c -> PlannedComponent in
+        // A multi-unit part is planned whole (its package); connections to its units name the package's pins.
+        let components = snapshot.components.filter { !junctions.contains($0.id) && $0.unitOf == nil }.map { c -> PlannedComponent in
             let kind = snapshot.customPart(for: c).map(\.planKind) ?? c.componentKind.planName
             let scoped = c.componentKind == .netLabel && c.labelScope != "global"
             return PlannedComponent(ref: c.ref, kind: kind, value: c.value, x: c.x, y: c.y, rotation: c.rotation,

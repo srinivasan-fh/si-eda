@@ -297,6 +297,13 @@ struct CustomPartSpec: Codable, Equatable {
     var symbolLayout: SymbolLayout?
     /// Simulation model (kept when a standard or library part is re-registered; nil = no model).
     var model: BehaviorModel?
+    /// Multi-unit part: the gates drawn as their own symbols (pins in no unit form a power unit "P"); nil = one symbol.
+    var units: [Unit]?
+
+    struct Unit: Codable, Equatable {
+        var name: String
+        var pins: [String]  // pin numbers
+    }
 
     func jsonString() -> String {
         let encoder = JSONEncoder()
@@ -376,12 +383,31 @@ struct CustomPartInfo: Decodable, Equatable, Identifiable {
     var model: BehaviorModel?
 
     var symbolLayout: CustomPartSpec.SymbolLayout?
+    /// Multi-unit parts: the spec's units and the generated symbol of every unit (the power unit last).
+    var units: [CustomPartSpec.Unit]?
+    var unitSymbols: [UnitSymbol]?
+
+    struct UnitSymbol: Decodable, Equatable {
+        var name: String
+        var power: Bool
+        var symbol: Symbol
+    }
 
     var spec: CustomPartSpec {
         CustomPartSpec(name: name, manufacturer: manufacturer, description: description, refPrefix: refPrefix,
                        defaultValue: defaultValue, datasheet: datasheet, package: package, pins: pins, symbolLayout: symbolLayout,
-                       model: model)
+                       model: model, units: units)
     }
+
+    /// The part as one unit draws it: its symbol replaced by the unit's (unit is 1-based).
+    func forUnit(_ unit: Int) -> CustomPartInfo {
+        guard let symbols = unitSymbols, unit >= 1, unit <= symbols.count else { return self }
+        var copy = self
+        copy.symbol = symbols[unit - 1].symbol
+        return copy
+    }
+
+    var isMultiUnit: Bool { !(unitSymbols ?? []).isEmpty }
 
     /// Kind identifier used in AI design plans.
     var planKind: String { "custom:\(name)" }

@@ -107,6 +107,13 @@ struct SymbolSpec {
     bool empty() const { return pins.empty(); }
 };
 
+/// One unit (gate) of a multi-unit part, drawn as its own symbol: a quad op-amp has units A–D and a power unit. A pin
+/// listed in several units is shared (one pin, drawn on each); pins in no unit form an extra power unit "P".
+struct UnitSpec {
+    std::string name;               // "A", "B", "P"
+    std::vector<std::string> pins;  // pin numbers
+};
+
 struct CustomPartSpec {
     std::string name;
     std::string manufacturer;
@@ -118,9 +125,20 @@ struct CustomPartSpec {
     std::vector<CustomPin> pins;
     BehaviorModel model;
     SymbolSpec symbol;
+    /// Multi-unit part (empty = one symbol for the whole part). The part can still be placed whole.
+    std::vector<UnitSpec> units;
 
     /// Index of the pin with this number (preferred) or name; -1 if none.
     int pinIndex(const std::string& numberOrName) const;
+};
+
+/// The symbol of one unit of a multi-unit part.
+struct PartUnitDef {
+    std::string name;
+    ComponentDef def;            // the unit's pins (kind PartUnit, no footprint)
+    std::vector<int> pins;       // unit pin index → the part's pin index
+    double halfWidth = 40, halfHeight = 40;
+    bool power = false;          // only supply pins (the power unit)
 };
 
 struct CustomPart {
@@ -129,6 +147,8 @@ struct CustomPart {
     ComponentDef def;
     FootprintDef footprint;
     double symbolHalfWidth = 40, symbolHalfHeight = 40;  // schematic body half extents (grid units)
+    /// Units of a multi-unit part, in order (the spec's units, then "P" for pins in no unit); empty otherwise.
+    std::vector<PartUnitDef> units;
 };
 
 /// True for package types drawn from an explicit land pattern ("LGA", "CUSTOM").

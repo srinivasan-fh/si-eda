@@ -1,10 +1,14 @@
 # Schematic sheets, hierarchy, variants, buses and annotation
 
 This guide covers the large-design features of schematic capture: multi-sheet and hierarchical schematics, label
-scopes, sheet symbols, the cross-sheet electrical rule checks, bus labels, designator annotation and assembly
-variants. Core code: `Core/src/Sheets.cpp` (sheets, hierarchy, buses, annotation, cross-sheet ERC),
-`Core/src/Schematic.cpp` (connectivity and net naming), `Core/src/Variants.cpp` and `Project.cpp` (variants and
-persistence). App: the sheet bar and the inspector in `SiEDA/Views/Schematic/SchematicEditorView.swift` and
+scopes, sheet symbols, repeated (multi-instance) sheets, the cross-sheet electrical rule checks, graphical buses,
+multi-unit parts, designator annotation, assembly variants (BOM, assembly and simulation), find / replace, the net
+navigator and the title block. Core code: `Core/src/Sheets.cpp` (sheets, hierarchy, bus labels, annotation,
+cross-sheet ERC), `Core/src/Instances.cpp` (repeated sheets), `Core/src/Buses.cpp` (graphical buses),
+`Core/src/PartUnits.cpp` (multi-unit parts), `Core/src/SchematicSearch.cpp` (find / replace, net navigator),
+`Core/src/Schematic.cpp` (connectivity and net naming), `Core/src/Variants.cpp` and `Project.cpp` (variants,
+simulation of a variant, title block, persistence). App: the sheet bar and the inspector in
+`SiEDA/Views/Schematic/SchematicEditorView.swift`, `SchematicCanvas.swift`, `SchematicFindView.swift` and
 `SiEDA/Views/Inspector/InspectorView.swift`.
 
 ## The model in one paragraph
@@ -62,8 +66,32 @@ front of it — `Sensor/EN` — so every net name in the netlist, the PCB and th
 The canvas draws the sheet symbol as a box around the entries of each child sheet with the child's name above it;
 drag the entries (select them together) to move or reshape the symbol.
 
-Each child sheet is used once (single-instance hierarchy): there is no repeated instantiation of one sheet with
-per-instance designators.
+## Repeated sheets (multi-instance hierarchy)
+
+A block drawn once can be used several times — four identical amplifier channels, eight relay drivers. Right-click
+the block's tab → **Repeat Sheet…** and enter the number of channels (1 to 64; the sheet itself is the first).
+
+- Each extra channel is a sheet of its own, named `<block> [B]`, `[C]` …, under the same parent. The tab of the block
+  shows `×N`. Every channel without a sheet symbol gets one on the parent sheet, side by side; wire each channel's
+  entries to its own signals.
+- A channel holds copies of the block's parts and wires. Each copy is a real part with its **own designator, nets,
+  footprint placement and variant settings**; local labels and ports are per sheet, so each channel has its own
+  nets (named `Amp [B]/OUT` where a name repeats). Netlist, ERC, simulation, BOM, CPL and the board see every
+  channel — the stored design is still flat.
+- **Edit any channel**: moving, rotating, re-valuing, wiring, adding or deleting on a channel changes the block, and
+  every channel follows at once. A banner over the canvas says which channel is shown. Footprint placement, BOM
+  sourcing and variant fitting stay per channel.
+- **Designators.** Each block part has a block designator (`R1`, shown as *Block designator* in the inspector) and
+  one designator per channel. Right-click → **Channel Designators**: *By Sheet Number* (default; the n-th sheet
+  numbers from n·100 + 1: R1 → R201, R301, R401 — n·1000 for blocks with 100 or more of a prefix) or *With Channel
+  Suffix* (R1_A, R1_B …). **Rename Channel…** changes a channel label (letters, digits, `_`, `-`). **Annotate**
+  numbers each block inside itself and numbers the rest of the design around the channels' designators.
+- Repeating again with a smaller count removes the last channels (their parts, wires and sheet-symbol entries);
+  **1** ends the repetition and gives the parts their block designators back. Deleting the block's sheet deletes
+  its channels.
+- Only a sheet **without child sheets** can be repeated (no nested repetition), and no child sheet can be added
+  under a repeated block. Parts moved onto a channel join the block; parts of a channel cannot be moved out of it
+  (move them on the block's own sheet).
 
 ## Electrical rule checks across sheets
 
@@ -80,19 +108,64 @@ ERC findings carry the sheet they are on (`"sheet"` in the JSON); selecting one 
 | `ERC_LOCAL_LABEL_SPLIT` | warning | A local label name is used on several sheets; those nets are separate |
 | `ERC_BUS_LABEL` | warning | A single label is named like a bus (`D[0..7]`); it joins one net, not eight |
 | `ERC_GLOBAL_LABEL_ONE_SHEET` | info | In a multi-sheet design, a signal's global label is used on one sheet only (supply and ground nets are exempt) |
+| `ERC_GLOBAL_LABEL_IN_REPEAT` | warning | A signal's global label inside a repeated sheet joins every channel into one net (supply nets are exempt) |
 | `ERC_OUTPUT_CONFLICT` | warning | Existing rule; the message now names the sheets when the drivers are on different sheets |
 
 The multi-sheet rules never fire on a single-sheet design except `ERC_BUS_LABEL`.
 
-## Bus labels
+## Buses
 
 Bus notation names a group of nets: `D[0..7]` is D0 … D7, `A[15..12]` counts down, a suffix is kept
 (`D[0..1]_N` → D0_N, D1_N) and comma lists combine (`D[0..3],WR,RD`). Up to 1024 members.
 
+### Graphical buses
+
+- **Draw**: the **Bus** tool (**B**) in the tool strip. Click the corners; click the last point again (or press
+  Return) and name the bus in bus notation. Esc cancels. A bus is drawn as a thick line with its name.
+- **Select** a bus by clicking it; drag it to move it with its entries; ⌫ deletes it with its entries.
+- **Bus entries** are net labels attached to the bus, drawn with a short diagonal stub from the bus. They join nets
+  by name like any label — **local to the sheet** by default — so a bus member connects to every entry and label of
+  the same name. The bus line itself carries no connection.
+- In the inspector of a selected bus: rename it, **Rip Out Entries** (an entry for every member that has none,
+  spaced along the bus; wire each entry to its pin), or **Connect to Part** — every member that names a pin of the
+  chosen part (D0 → pin `D0`, or one function of `PB0/D0`) gets an entry near that pin, wired to it; when no names
+  match, the members go to the part's unconnected pins in order. Pins already wired are left alone.
+- Buses on a repeated sheet are copied into every channel with their entries.
+
+| Code | Severity | Meaning |
+|---|---|---|
+| `ERC_BUS_ENTRY_NOT_MEMBER` | error | An entry's name is not a member of its bus |
+| `ERC_BUS_MEMBER_UNCONNECTED` | warning | A member leaves the bus to one pin only — nothing else on the bus connects to it |
+| `ERC_BUS_NO_ENTRIES` | warning | A bus has no entries |
+
+### Bus labels without a bus line
+
 `sieda_add_bus_labels` (core: `Schematic::addBusLabels`) puts one label per member on a list of pins of a part — in
-order, each just outside its pin, facing away from the part, wired to it — with the scope you choose. Buses are a
-labelling aid: SiEDA has no graphical bus wires or bus entries, so a bus connects through its member labels. Bus labels
-are available through the C API (and so to scripts and agents); the app does not have a bus-label tool yet.
+order, each just outside its pin, facing away from the part, wired to it — with the scope you choose.
+
+## Multi-unit parts
+
+A part with several identical gates — a quad op-amp, a hex inverter — can be drawn one gate per symbol.
+
+- A custom part spec lists its **units**: `"units":[{"name":"A","pins":["1","2","3"]},{"name":"B","pins":["7","6","5"]},…]`.
+  Pins in no unit form an extra **power unit** `P` (the shared supply pins). A pin listed in several units is shared:
+  one pin, drawn on each. Each unit gets its own symbol (from the part's symbol layout where it places every pin of
+  the unit, else arranged by pin type). The standard library's **LM324** is a quad op-amp with units A–D and P.
+- Placing a multi-unit part from the device picker places **unit A**. Select a unit and use **Place Next Unit** or
+  **Place Unit** in the inspector for the others; units may sit anywhere, on any sheet. A unit shows its designator
+  with the unit letter (`U1A`), and its value, designator and variant fitting are the part's.
+- One footprint: the units belong to a hidden package that carries every pin and the footprint. The netlist, BOM, CPL,
+  simulation and PCB see that one part (`U1`, 14 pads); a unit's pins are its package's pins. Deleting the last unit
+  deletes the part. Selecting the part on the board highlights its units.
+- **Annotate ▸ Pack Units into Packages** re-assigns interchangeable gates (same pins in the same places) to packages
+  in placement order — A, B, C, D of the first package, then the next — and gives the power units to the packages in
+  turn, before numbering. Gates on repeated sheets keep their packages (one per channel).
+- ERC: a unit's open pins are reported with the unit designator (`U1A.IN1+`); a unit that is not placed is reported
+  when its pins are open (`ERC_UNIT_NOT_PLACED`, warning), and the power pins of an unplaced power unit as
+  `ERC_POWER_PIN_UNCONNECTED` (error).
+- Placed through the C API with `sieda_add_custom_component` (and by AI design plans), such a part is still one whole
+  symbol, exactly as before; `sieda_add_custom_units`, `sieda_add_part_unit` and `sieda_place_next_unit` place it by
+  units. A plan made from a design carries the part whole: refining with the agents redraws it as one symbol.
 
 ## Annotation
 
@@ -103,6 +176,7 @@ are available through the C API (and so to scripts and agents); the app does not
 | Number by Rows | sheet by sheet (sheet-bar order), top to bottom, then left to right: R1, R2, … |
 | Number by Columns | sheet by sheet, left to right, then top to bottom |
 | Number by Sheet (R101, R201…) | parts on the n-th sheet are numbered from n·100 + 1 (n·1000 + 1 when a sheet holds 100 or more parts of one prefix) |
+| Pack Units into Packages | first re-assigns the gates of multi-unit parts to packages in placement order (see above), then numbers by rows |
 | Fix Duplicates Only | keeps every unique designator; the second and later uses of a designator and unnumbered ones (`R?`) get the next free number |
 
 Positions within one grid step count as the same row or column. Tamper meshes follow their part when its designator
@@ -116,15 +190,35 @@ another value. The base design is what the schematic says (with each part's own 
 - The **variant menu** in the sheet bar picks the active variant (**Base Design** or a named one), creates a variant
   (**New Variant…**, a copy of the active one) and deletes the active one.
 - With a variant active, the inspector shows its **Fitted** switch and **Value** for the selected part. Parts not
-  fitted show `DNP` beside their designator on the canvas; a variant value is shown in amber instead of the design
-  value.
+  fitted are **crossed out** on the canvas with `DNP` beside their designator (also parts marked DNP in the BOM
+  workspace); a variant value is shown in amber instead of the design value.
 - The active variant drives the BOM workspace, the BOM / assembly BOM / CPL / pick-and-place / assembly drawing
   exports and the assembly files of the fabrication package (whose order notes name the variant). Gerbers, drills,
   the IPC-D-356 netlist and the board are the same for every variant.
-- Variants never change connectivity, simulation or ERC: a not-fitted part keeps its footprint and copper, and the
-  simulator uses the design values.
+- **Simulation follows the active variant**: DC, transient, AC, sweeps, Monte Carlo, FFT, the live board and the
+  SPICE netlist export run the circuit as assembled — variant values applied, parts not fitted (in the variant, or
+  marked DNP) left out of the circuit while their nets stay. The results name the variant and the parts left out
+  (shown next to the DC result in the simulation transport). With the base design and nothing marked DNP the
+  simulated circuit is exactly the design.
+- Variants never change connectivity or ERC: a not-fitted part keeps its footprint and copper. Verification, circuit
+  validation and the industry checks analyse the design as drawn.
 - Variants are keyed by component id, so re-annotating designators does not disturb them. Settings for deleted parts
   are dropped when the project is saved.
+
+## Find & replace, net navigator, cross-probing, title block
+
+- **Find & Replace** (⌘F, or the magnifier in the schematic options bar) searches designators, values, net labels
+  and net names — and pin names when asked — on every sheet, in sheet order. Click a result to show it on its sheet,
+  selected and zoomed. **Replace All** replaces the text in part values and net label names everywhere as one undo
+  step (designators are re-numbered with Annotate). *Whole field* matches a complete value only. A repeated block's
+  part and a multi-unit part are edited once.
+- **Net navigator**: the inspector of a wire or a net label lists every place its net appears — pins, global and
+  local labels, ports, sheet entries, bus entries, ground — sheet by sheet; click one to go there.
+- **Cross-probing through the hierarchy**: a sheet entry's inspector has **Go to Port** (opens the child sheet on
+  the port), a port's has **Go to Sheet Entry**. Picking a part on the PCB, in the BOM or in a check opens its sheet.
+- **Title block**: with nothing selected, the inspector's *Title Block* group sets title, company, revision, date and
+  drawn-by. Each sheet shows it at the bottom right of its drawing with the sheet name and "Sheet n of N". It is saved
+  with the project (only when set) and the title defaults to the project name.
 
 ## Files and compatibility
 
@@ -149,7 +243,39 @@ New project fields (all optional when reading):
 - AI design plans carry `"sheets"` and each component's `"sheet"`, `"scope"` and `"targetSheet"`, so asking the
   agents to change a multi-sheet design keeps its sheets and label scopes.
 
+Further optional fields (written only when used, so other designs' files are unchanged): sheets `instanceOf`,
+`channel`, `refs`; components `instanceOf`, `logicalRef`, `bus`, `unitOf` / `unit` (kind 20, a placed unit) and
+`packageOnly`; wires `instanceOf`; top-level `buses` and `titleBlock`. A file is repaired on load: copies whose
+block part is gone, units without a valid package, packages without units, entries of missing buses and buses on
+missing sheets are dropped; an instance of a missing or nested definition becomes an ordinary sheet. Older versions of
+SiEDA open a file with repeated sheets as ordinary sheets (every channel's parts are real parts); a file with placed
+units needs this version.
+
 ## C API
+
+Repeated sheets, buses, multi-unit parts, find / replace and the title block:
+
+```c
+int32_t sieda_repeat_sheet(SiedaProject*, int32_t sheet, int32_t count);       /* channels, or -1 */
+int32_t sieda_set_instance_refs(SiedaProject*, int32_t sheet, const char* scheme); /* "sheet" | "suffix" */
+int32_t sieda_set_sheet_channel(SiedaProject*, int32_t sheet, const char* channel);
+int32_t sieda_add_bus(SiedaProject*, const char* name, const char* points_json);
+int32_t sieda_remove_bus(SiedaProject*, int32_t bus);
+int32_t sieda_rename_bus(SiedaProject*, int32_t bus, const char* name);
+int32_t sieda_move_bus(SiedaProject*, int32_t bus, double dx, double dy);
+int32_t sieda_rip_bus_entries(SiedaProject*, int32_t bus, const char* members_json, const char* scope);
+int32_t sieda_connect_bus_to_part(SiedaProject*, int32_t bus, int32_t component, const char* scope);
+int32_t sieda_add_custom_units(SiedaProject*, const char* part_id, const char* value, double x, double y,
+                               int32_t rotation, const char* ref);
+int32_t sieda_add_part_unit(SiedaProject*, int32_t component, int32_t unit, double x, double y, int32_t rotation);
+int32_t sieda_place_next_unit(SiedaProject*, int32_t component, double x, double y);
+char*   sieda_schematic_find(const SiedaProject*, const char* request_json);
+int32_t sieda_schematic_replace(SiedaProject*, const char* request_json);
+char*   sieda_net_places(const SiedaProject*, int32_t net);
+int32_t sieda_set_title_block(SiedaProject*, const char* json);
+```
+
+Sheets, hierarchy, bus labels, annotation and variants:
 
 ```c
 char*   sieda_sheets_json(const SiedaProject*);                 /* {"active", "sheets":[{id,name,parent,depth,components,ports}]} */
@@ -182,8 +308,16 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
 
 ## Limits
 
-- Single-instance hierarchy only (a child sheet stands for one block, not several copies).
-- No graphical bus wires or bus entries; buses connect through member labels, placed through the C API.
-- Variant values affect the assembly outputs only, not simulation or design checks.
+- Repeated sheets cannot nest (a repeated block has no child sheets). An AI design plan made from a repeated
+  design carries every channel as ordinary parts: refining the design with the agents flattens the repetition.
+- A bus line has no electrical meaning of its own: members connect through their entries' names. Buses are not
+  shown in the PCB editor (their members are ordinary nets there).
+- Variants affect the assembly outputs and simulation, not ERC, verification or the board.
 - The sheet symbol is drawn from its entries; it has no separate size or graphics of its own.
 - Wires never cross sheets; parts moved to another sheet lose their wires to parts left behind.
+- Every channel of a repeated sheet has the same values; a channel that differs is made with a design variant
+  (per-channel DNP or value). A unit of a multi-unit part inside a repeated sheet stays on that sheet with its package.
+- Multi-unit parts: units are defined in the part spec (JSON or the C API); the Symbol Editor edits the whole part's
+  symbol, not the units' (unit symbols are generated from it). Unit packing re-assigns only interchangeable gates.
+  Placing such a part from an AI design plan draws it as one symbol.
+- Find & Replace edits values and net label names only; designators are changed by annotation.
