@@ -677,3 +677,22 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Supply スコープ付きの Nexar アプリケーション（クライアント認証情報）。Octopart のデータ：1 回の検索で多数の販売代理店のオファー。";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 を含む DigiKey API アプリケーション（Production）、クライアント認証情報フロー。";
 "Mouser Search API key (API Hub → Search API)." = "Mouser 検索 API キー（API Hub → Search API）。";
+
+/* Imported 3D models */
+"3D Model" = "3D モデル";
+"3D Model…" = "3D モデル…";
+"Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl)・STL・OBJ モデルを添付してフットプリントに合わせる";
+"Centre the model on the footprint and put its lowest point on the board surface" = "モデルをフットプリントの中央に置き、最下点を基板表面に合わせる";
+"Choose File…" = "ファイルを選択…";
+"Choose a VRML (.wrl), STL or OBJ file. KiCad libraries ship a .wrl next to every .step model." = "VRML (.wrl)・STL・OBJ ファイルを選択してください。KiCad ライブラリはすべての .step モデルの隣に .wrl を同梱しています。";
+"File unit" = "ファイルの単位";
+"No 3D model: the part shows its generated body." = "3D モデルなし：部品は生成された本体で表示されます。";
+"Remove Model" = "モデルを削除";
+"Reset" = "リセット";
+"Seat on Board" = "基板に載せる";
+"Use the generated body again" = "生成された本体に戻す";
+"VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML（KiCad ライブラリ同梱の .wrl）、STL または OBJ。STEP ファイルは読めません：隣の .wrl を使用してください。";
+"x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x は右、y は PCB ビューの上方向、z は基板から上方向。回転は x、y、z の順です。";
+"Offset (mm)" = "オフセット (mm)";
+"Rotation (°)" = "回転 (°)";
+"Scale" = "スケール";

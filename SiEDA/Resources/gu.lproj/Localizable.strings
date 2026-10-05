@@ -677,3 +677,22 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Supply સ્કોપ સાથેની Nexar એપ્લિકેશન (ક્લાયન્ટ ક્રેડેન્શિયલ્સ). Octopart ડેટા: એક જ શોધમાં અનેક વિતરકોની ઑફર.";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 સાથેની DigiKey API એપ્લિકેશન (Production); ક્લાયન્ટ ક્રેડેન્શિયલ્સ ફ્લો.";
 "Mouser Search API key (API Hub → Search API)." = "Mouser સર્ચ API કી (API Hub → Search API).";
+
+/* Imported 3D models */
+"3D Model" = "3D મોડેલ";
+"3D Model…" = "3D મોડેલ…";
+"Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl), STL અથવા OBJ મોડેલ જોડો અને તેને ફૂટપ્રિન્ટ પર ગોઠવો";
+"Centre the model on the footprint and put its lowest point on the board surface" = "મોડેલને ફૂટપ્રિન્ટ પર કેન્દ્રમાં મૂકો અને તેનો સૌથી નીચો બિંદુ બોર્ડની સપાટી પર મૂકો";
+"Choose File…" = "ફાઇલ પસંદ કરો…";
+"Choose a VRML (.wrl), STL or OBJ file. KiCad libraries ship a .wrl next to every .step model." = "VRML (.wrl), STL અથવા OBJ ફાઇલ પસંદ કરો. KiCad લાઇબ્રેરીઓ દરેક .step મોડેલની સાથે .wrl આપે છે.";
+"File unit" = "ફાઇલ એકમ";
+"No 3D model: the part shows its generated body." = "કોઈ 3D મોડેલ નથી: પાર્ટ તેની બનાવેલી બોડી બતાવે છે.";
+"Remove Model" = "મોડેલ દૂર કરો";
+"Reset" = "રીસેટ કરો";
+"Seat on Board" = "બોર્ડ પર બેસાડો";
+"Use the generated body again" = "ફરીથી બનાવેલી બોડી વાપરો";
+"VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (KiCad લાઇબ્રેરીઓ આપે છે તે .wrl), STL અથવા OBJ. STEP ફાઇલો વાંચી શકાતી નથી: તેની બાજુની .wrl વાપરો.";
+"x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x જમણે, y PCB દૃશ્યની ઉપર તરફ, z બોર્ડથી ઉપર. પરિભ્રમણ પહેલા x, પછી y, પછી z આસપાસ.";
+"Offset (mm)" = "ઑફસેટ (mm)";
+"Rotation (°)" = "પરિભ્રમણ (°)";
+"Scale" = "સ્કેલ";

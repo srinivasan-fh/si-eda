@@ -677,3 +677,22 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Supply 범위가 있는 Nexar 애플리케이션(클라이언트 자격 증명). Octopart 데이터: 한 번의 검색으로 여러 유통업체 견적.";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4가 포함된 DigiKey API 애플리케이션(Production), 클라이언트 자격 증명 방식.";
 "Mouser Search API key (API Hub → Search API)." = "Mouser 검색 API 키(API Hub → Search API).";
+
+/* Imported 3D models */
+"3D Model" = "3D 모델";
+"3D Model…" = "3D 모델…";
+"Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML(.wrl), STL 또는 OBJ 모델을 첨부하고 풋프린트에 맞춤";
+"Centre the model on the footprint and put its lowest point on the board surface" = "모델을 풋프린트 중앙에 두고 가장 낮은 점을 기판 표면에 맞춤";
+"Choose File…" = "파일 선택…";
+"Choose a VRML (.wrl), STL or OBJ file. KiCad libraries ship a .wrl next to every .step model." = "VRML(.wrl), STL 또는 OBJ 파일을 선택하세요. KiCad 라이브러리는 모든 .step 모델 옆에 .wrl을 제공합니다.";
+"File unit" = "파일 단위";
+"No 3D model: the part shows its generated body." = "3D 모델 없음: 부품에 생성된 몸체가 표시됩니다.";
+"Remove Model" = "모델 제거";
+"Reset" = "재설정";
+"Seat on Board" = "기판에 안착";
+"Use the generated body again" = "생성된 몸체를 다시 사용";
+"VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML(KiCad 라이브러리에 포함된 .wrl), STL 또는 OBJ. STEP 파일은 읽을 수 없으니 옆의 .wrl을 사용하세요.";
+"x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x는 오른쪽, y는 PCB 보기의 위쪽, z는 기판에서 위쪽입니다. 회전은 x, y, z 순서입니다.";
+"Offset (mm)" = "오프셋(mm)";
+"Rotation (°)" = "회전(°)";
+"Scale" = "배율";

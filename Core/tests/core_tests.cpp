@@ -10028,3 +10028,410 @@ TEST(supplier_parsers_survive_hostile_replies) {
 }
 
 TEST(supplier_c_api) { CHECK(sieda_c_api_supplier_test() == 0); }
+
+// ------------------------------------------------------------------ imported 3D models (VRML, STL, OBJ)
+
+#include <cstring>
+
+#include "sieda/Model3D.hpp"
+
+#define M3_THROWS(expr)                   \
+    do {                                  \
+        bool threw_ = false;              \
+        try {                             \
+            (void)(expr);                 \
+        } catch (const std::exception&) { \
+            threw_ = true;                \
+        }                                 \
+        CHECK(threw_);                    \
+    } while (0)
+#define M3_NOTHROW(expr)                  \
+    do {                                  \
+        bool threw_ = false;              \
+        try {                             \
+            (void)(expr);                 \
+        } catch (const std::exception&) { \
+            threw_ = true;                \
+        }                                 \
+        CHECK(!threw_);                   \
+    } while (0)
+
+extern "C" int sieda_c_api_model3d_test(void);
+
+namespace {
+std::string readModelFixture(const std::string& name) {
+    std::ifstream f(std::string(SIEDA_FIXTURE_DIR) + "/models/" + name, std::ios::binary);
+    std::stringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+
+const char* const kSoicModel = "SOIC-8_3.9x4.9mm_P1.27mm.wrl";
+
+/// A unit cube [0, 1]³ as an ASCII STL.
+std::string cubeStlAscii() {
+    const float v[8][3] = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}, {0, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1}};
+    const int f[12][3] = {{0, 2, 1}, {0, 3, 2}, {4, 5, 6}, {4, 6, 7}, {0, 1, 5}, {0, 5, 4},
+                          {1, 2, 6}, {1, 6, 5}, {2, 3, 7}, {2, 7, 6}, {3, 0, 4}, {3, 4, 7}};
+    std::string s = "solid cube\n";
+    for (const auto& t : f) {
+        s += "  facet normal 0 0 0\n    outer loop\n";
+        for (int k : t) {
+            char buf[96];
+            std::snprintf(buf, sizeof buf, "      vertex %g %g %g\n", v[k][0], v[k][1], v[k][2]);
+            s += buf;
+        }
+        s += "    endloop\n  endfacet\n";
+    }
+    return s + "endsolid cube\n";
+}
+
+/// The same cube as a binary STL (the header starts with "solid", as some exporters write it).
+std::string cubeStlBinary() {
+    const Model3DMesh ascii = parseStl(cubeStlAscii());
+    std::string s(80, ' ');
+    s.replace(0, 5, "solid");
+    const uint32_t n = static_cast<uint32_t>(ascii.triangleCount());
+    for (int k = 0; k < 4; ++k) s += static_cast<char>((n >> (8 * k)) & 0xFF);
+    for (size_t t = 0; t < n; ++t) {
+        s += std::string(12, '\0');
+        for (int k = 0; k < 3; ++k) {
+            const uint32_t vi = ascii.indices[3 * t + static_cast<size_t>(k)];
+            for (int c = 0; c < 3; ++c) {
+                float x = ascii.positions[3 * vi + static_cast<size_t>(c)];
+                uint32_t bits;
+                std::memcpy(&bits, &x, 4);
+                for (int b = 0; b < 4; ++b) s += static_cast<char>((bits >> (8 * b)) & 0xFF);
+            }
+        }
+        s += std::string(2, '\0');
+    }
+    return s;
+}
+
+std::string base64(const std::string& bytes) {
+    static const char* t = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string out;
+    size_t i = 0;
+    for (; i + 2 < bytes.size(); i += 3) {
+        const uint32_t v = (static_cast<unsigned char>(bytes[i]) << 16) | (static_cast<unsigned char>(bytes[i + 1]) << 8) |
+                           static_cast<unsigned char>(bytes[i + 2]);
+        for (int k = 3; k >= 0; --k) out += t[(v >> (6 * k)) & 63];
+    }
+    if (i < bytes.size()) {
+        uint32_t v = static_cast<unsigned char>(bytes[i]) << 16;
+        if (i + 1 < bytes.size()) v |= static_cast<unsigned char>(bytes[i + 1]) << 8;
+        out += t[(v >> 18) & 63];
+        out += t[(v >> 12) & 63];
+        out += i + 1 < bytes.size() ? t[(v >> 6) & 63] : '=';
+        out += '=';
+    }
+    return out;
+}
+
+/// Highest point (mesh Y) of the vertices tagged with surfaces other than the board's own.
+double partTop(const Mesh& m) {
+    double top = -1e9;
+    for (size_t i = 0; i < m.vertexCount(); ++i) {
+        const Surface s = static_cast<Surface>(m.surfaces[i]);
+        if (s == Surface::Plastic || s == Surface::Tin || s == Surface::Gold || s == Surface::Glass)
+            top = std::max(top, static_cast<double>(m.positions[3 * i + 1]));
+    }
+    return top;
+}
+}  // namespace
+
+TEST(model3d_readers_vrml_stl_obj) {
+    // KiCad-style VRML 2.0: DEF / USE of materials and shapes, transforms, comments and commas.
+    const Model3DMesh soic = parseVrml(readModelFixture(kSoicModel), kSoicModel);
+    CHECK(soic.format == "vrml" && soic.triangleCount() == 12 * 10);  // body + DEF'd pin + 8 instances
+    CHECK(soic.groups.size() == 2 && soic.groups[0].count == 36);
+    CHECK(soic.groups[0].r < 0.2f && soic.groups[1].r > 0.8f);
+    const auto b = soic.bounds();
+    CHECK_NEAR(b[0], -1.1811, 1e-3);
+    CHECK_NEAR(b[3], 1.1811, 1e-3);
+    CHECK_NEAR(b[5], 0.689, 1e-4);
+    CHECK(soic.warnings.empty());
+
+    M3_THROWS(parseVrml("#VRML V1.0 ascii\nSeparator { }"));
+    M3_THROWS(parseVrml("#VRML V2.0 utf8\nShape { geometry IndexedFaceSet { coordIndex [ 0 1 2 -1 ]"));
+    try {
+        parseVrml("#VRML V2.0 utf8\nShape {\n appearance Appearance {\n material Material { diffuseColor 1 1 } }\n"
+                  " geometry IndexedFaceSet { coord Coordinate { point [ 0 0 0 } } }");
+        CHECK(false);
+    } catch (const Model3DError& e) {
+        CHECK(std::string(e.what()).find("line 5") != std::string::npos);
+    }
+    std::string deep = "#VRML V2.0 utf8\n";
+    for (int i = 0; i < 400; ++i) deep += "Group { children [ ";
+    M3_THROWS(parseVrml(deep));
+    // Boxes, PROTOs, ROUTEs, unknown USEs and Inline references are handled or reported.
+    const Model3DMesh boxes = parseVrml(
+        "#VRML V2.0 utf8\nPROTO Foo [ field SFFloat x 1 ] { Group { } }\n"
+        "Transform { translation 1 0 0 children [ Shape { geometry Box { size 2 2 2 } } ] }\n"
+        "Shape { geometry Sphere { radius 1 } }\nShape { geometry USE NOWHERE }\nInline { url \"other.wrl\" }\n"
+        "DEF T TimeSensor { }\nROUTE T.fraction_changed TO X.set_fraction\n");
+    CHECK(boxes.triangleCount() == 12 && boxes.warnings.size() == 4);
+    CHECK_NEAR(boxes.bounds()[3], 2.0, 1e-6);
+    // Quads and polygons are fanned; bad indices skip the face.
+    const Model3DMesh faces = parseVrml(
+        "#VRML V2.0 utf8\nShape { geometry IndexedFaceSet { coord Coordinate { point [0 0 0, 1 0 0, 1 1 0, 0 1 0, 0.5 1.5 0] }"
+        " coordIndex [0 1 2 4 3 -1, 0 1 9 -1, 0 1 2] } }");
+    CHECK(faces.triangleCount() == 4 && faces.warnings.size() == 1);
+
+    // STL: ASCII and binary read to the same welded cube.
+    const Model3DMesh a = parseStl(cubeStlAscii(), "cube.stl");
+    CHECK(a.triangleCount() == 12 && a.vertexCount() == 8 && a.format == "stl");
+    const Model3DMesh bin = parseStl(cubeStlBinary(), "cube.stl");
+    CHECK(bin.triangleCount() == 12 && bin.vertexCount() == 8);
+    CHECK(bin.positions == a.positions);
+    M3_THROWS(parseStl("garbage that is not an stl file"));
+    M3_THROWS(parseStl("solid x\nfacet normal 0 0 1\nouter loop\nvertex 0 0\n"));
+    {
+        std::string huge(84, '\0');
+        const uint32_t n = 200001;
+        for (int k = 0; k < 4; ++k) huge[80 + static_cast<size_t>(k)] = static_cast<char>((n >> (8 * k)) & 0xFF);
+        huge.resize(84 + 50ull * n, '\0');
+        M3_THROWS(parseStl(huge));  // over the triangle budget
+    }
+
+    // OBJ: quads, slashed and negative indices, materials by name.
+    const Model3DMesh obj = parseObj(
+        "# cube\nv 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nv 0 0 1\nv 1 0 1\nv 1 1 1\nv 0 1 1\n"
+        "usemtl Body_Black\nf 1 4 3 2\nf 5 6 7 8\nf 1/1/1 2/2/2 6/6/6 5/5/5\nusemtl Pin_Gold\nf -7 -6 -2 -3\nf 3 4 8 7\nf 4 1 5 8\n"
+        "f 1 2 99\n");
+    CHECK(obj.triangleCount() == 12 && obj.groups.size() == 2);
+    CHECK(obj.groups.size() == 2 && obj.groups[0].r < 0.2f && obj.groups[1].r > 0.8f && obj.groups[1].b < 0.4f);
+    CHECK(obj.warnings.size() == 2);  // bad face, guessed materials
+    M3_THROWS(parseObj("v 1 2\nf 1 2 3\n"));
+
+    // STEP is refused with the reason; unknown types too.
+    try {
+        parseModel3D("ISO-10303-21;", "part.step");
+        CHECK(false);
+    } catch (const Model3DError& e) {
+        CHECK(std::string(e.what()).find(".wrl") != std::string::npos);
+    }
+    M3_THROWS(parseModel3D("x", "part.3ds"));
+    CHECK(isModel3DFile("A.WRL") && isModel3DFile("b.stp") && !isModel3DFile("c.kicad_mod"));
+    CHECK(defaultModelUnit("vrml") == 2.54 && defaultModelUnit("stl") == 1.0);
+    CHECK(decodeBase64(base64("hello 3D")) == "hello 3D");
+    M3_THROWS(decodeBase64("not*base64"));
+}
+
+TEST(model3d_alignment_assembly_and_project_file) {
+    Model3DMesh soic = parseVrml(readModelFixture(kSoicModel), kSoicModel);
+    const std::string id = Model3DRegistry::instance().add(soic);
+    CHECK(id.size() == 17 && id[0] == 'm' && Model3DRegistry::instance().add(soic) == id);  // content-addressed
+    Model3DRef ref;
+    ref.id = id;
+    ref.name = kSoicModel;
+    ref.unit = 2.54;
+    std::array<double, 6> b{};
+    CHECK(model3dAlignedBounds(ref, b));
+    CHECK_NEAR(b[3], 3.0, 1e-3);   // pin tips at 3.0 mm
+    CHECK_NEAR(b[4], 2.45, 1e-3);  // body length 4.9 mm
+    CHECK_NEAR(b[5], 1.75, 1e-3);  // 1.75 mm tall
+    ref.rotate = {0, 0, 90};
+    CHECK(model3dAlignedBounds(ref, b));
+    CHECK_NEAR(b[3], 2.45, 1e-3);  // a quarter turn swaps x and y
+    CHECK_NEAR(b[4], 3.0, 1e-3);
+    ref.rotate = {0, 0, 0};
+    ref.offset = {1, -2, 0.5};
+    const Model3DRef seated = model3dSeated(ref);
+    CHECK(model3dAlignedBounds(seated, b));
+    CHECK_NEAR(b[0] + b[3], 0, 1e-3);
+    CHECK_NEAR(b[1] + b[4], 0, 1e-3);
+    CHECK_NEAR(b[2], 0, 1e-3);
+    Model3DRef unknown;
+    unknown.id = "m0000000000000000";
+    CHECK(!model3dAlignedBounds(unknown, b));
+
+    // A part with the model: its JSON keeps the alignment, invalid alignments are refused.
+    const StandardPart* lm358 = findStandardPart("LM358DR");
+    CHECK(lm358 != nullptr);
+    if (!lm358) return;
+    CustomPartSpec spec = lm358->spec;
+    spec.model3d = model3dSeated(ref);
+    const CustomPartSpec back = customPartSpecFromJson(Json::parse(customPartSpecToJson(spec).dump()));
+    CHECK(back.model3d.id == id && back.model3d.unit == 2.54 && back.model3d.name == kSoicModel);
+    CHECK(customPartSpecToJson(lm358->spec).get("model3d").isNull());  // parts without a model keep their ids
+    {
+        Json bad = customPartSpecToJson(spec);
+        bad["model3d"]["scale"] = Json::parse("[1, 0, 1]");
+        M3_THROWS(customPartSpecFromJson(bad));
+        bad = customPartSpecToJson(spec);
+        bad["model3d"]["offset"] = Json::parse("[1, 2]");
+        M3_THROWS(customPartSpecFromJson(bad));
+        bad["model3d"]["offset"] = Json::parse("[1e9, 0, 0]");
+        M3_THROWS(customPartSpecFromJson(bad));
+    }
+
+    // In the assembly: the model replaces the generated body, on top and mirrored under the board.
+    auto build = [&](const CustomPartSpec& s, bool bottom) {
+        Project p;
+        const std::string pid = p.addCustomPart(s);
+        const int cid = p.schematic.addCustomComponent(pid, "", {0, 0}, 0, "U1");
+        Component* c = p.schematic.find(cid);
+        c->pcb.placed = true;
+        c->pcb.position = {20, 15};
+        c->pcb.bottom = bottom;
+        c->pcb.rotation = 90;
+        return p;
+    };
+    Project withModel = build(spec, false);
+    Project generated = build(lm358->spec, false);
+    const Mesh mm = buildAssemblyMesh(withModel.schematic, withModel.pcb);
+    const Mesh gm = buildAssemblyMesh(generated.schematic, generated.pcb);
+    CHECK(mm.vertexCount() != gm.vertexCount());
+    CHECK_NEAR(partTop(mm), 0.035 + 1.75, 1e-3);
+    // Rotated a quarter turn: the 4.9 mm body length now runs along board x.
+    double xMin = 1e9, xMax = -1e9;
+    for (size_t i = 0; i < mm.vertexCount(); ++i)
+        if (static_cast<Surface>(mm.surfaces[i]) == Surface::Plastic) {
+            xMin = std::min(xMin, static_cast<double>(mm.positions[3 * i]));
+            xMax = std::max(xMax, static_cast<double>(mm.positions[3 * i]));
+        }
+    CHECK_NEAR(xMax - xMin, 4.9, 1e-3);
+    CHECK_NEAR((xMax + xMin) / 2, 20, 1e-3);
+    const Project under = build(spec, true);
+    const Mesh um = buildAssemblyMesh(under.schematic, under.pcb);
+    double lowest = 1e9;
+    for (size_t i = 0; i < um.vertexCount(); ++i)
+        if (static_cast<Surface>(um.surfaces[i]) == Surface::Plastic)
+            lowest = std::min(lowest, static_cast<double>(um.positions[3 * i + 1]));
+    CHECK_NEAR(lowest, -1.6 - 0.035 - 1.75, 1e-3);
+    CHECK(exportStl(mm, "t").find("facet normal") != std::string::npos);
+
+    // Saved with the project and read back; a damaged entry falls back to the generated body.
+    const Json saved = withModel.toJson();
+    CHECK(saved.get("models3d").size() == 1 && saved.get("models3d")[0].get("id").asString() == id);
+    CHECK(generated.toJson().get("models3d").isNull());
+    const Project reloaded = Project::fromJson(Json::parse(saved.dump()));
+    CHECK(buildAssemblyMesh(reloaded.schematic, reloaded.pcb).vertexCount() == mm.vertexCount());
+    Json entry = saved.get("models3d")[0];
+    entry["id"] = "m00000000000000ab";  // an id from another build: kept as an alias
+    CHECK(model3dFromJson(entry) == "m00000000000000ab" && Model3DRegistry::instance().get("m00000000000000ab"));
+    Json broken = entry;
+    broken["indices"] = Json::parse("[0, 1, 99999999]");
+    M3_THROWS(model3dFromJson(broken));
+    Json damaged = saved;
+    Json models = Json::array();
+    models.push(broken);
+    damaged["models3d"] = models;
+    M3_NOTHROW(Project::fromJson(damaged));
+    CustomPartSpec missing = spec;
+    missing.model3d.id = "m0123456789abcdef";  // never registered: the generated body
+    Project fallback = build(missing, false);
+    CHECK(buildAssemblyMesh(fallback.schematic, fallback.pcb).vertexCount() == gm.vertexCount());
+
+    // The C API entry points.
+    CHECK(sieda_c_api_model3d_test() == 0);
+}
+
+TEST(library_import_attaches_kicad_3d_models) {
+    const std::string soicFp = readFixture(kSoic), header = readFixture(kHeader);
+    const ImportedFootprint fp = parseKicadFootprint(soicFp, kSoic);
+    CHECK(fp.modelPath.find("SOIC-8_3.9x4.9mm_P1.27mm.wrl") != std::string::npos);
+    const ImportedFootprint hd = parseKicadFootprint(header, kHeader);
+    CHECK(hd.modelPath.find("PinHeader_1x04") != std::string::npos);
+    CHECK(hd.centreY > 3 && hd.centreY < 4.5);  // pin 1 at the origin: centred on the courtyard
+
+    // Footprint + its .wrl: the part gets the model, in KiCad's 0.1 inch units.
+    LibraryImport r = importLibraryFiles({{kSoic, soicFp}, {kSoicModel, readModelFixture(kSoicModel)}});
+    const ImportedPart* soic = nullptr;
+    for (const auto& p : r.parts)
+        if (p.footprintName == "SOIC-8_3.9x4.9mm_P1.27mm") soic = &p;
+    CHECK(soic != nullptr);
+    if (soic) {
+        CHECK(!soic->spec.model3d.empty() && soic->spec.model3d.unit == 2.54);
+        CHECK(std::any_of(soic->warnings.begin(), soic->warnings.end(),
+                          [](const std::string& w) { return w.find("3D model") != std::string::npos; }));
+        CHECK(CustomPartRegistry::instance().registerPart(soic->spec) != nullptr);
+    }
+    CHECK(r.files.size() == 2 && r.files[1].format == "model3d" && r.files[1].error.empty());
+
+    // A footprint whose model was not imported says how to attach it; the pin header's model moves with its pads.
+    r = importLibraryFiles({{kHeader, header}});
+    CHECK(r.parts.size() == 1 && r.parts[0].spec.model3d.empty());
+    CHECK(std::any_of(r.parts[0].warnings.begin(), r.parts[0].warnings.end(),
+                      [](const std::string& w) { return w.find(".3dshapes") != std::string::npos; }));
+    r = importLibraryFiles({{kHeader, header}, {"PinHeader_1x04_P2.54mm_Vertical.stl", cubeStlAscii()}});
+    CHECK(r.parts.size() == 1 && !r.parts[0].spec.model3d.empty());
+    if (r.parts.size() == 1) {
+        CHECK(r.parts[0].spec.model3d.unit == 1.0);
+        CHECK_NEAR(r.parts[0].spec.model3d.offset[1], hd.centreY, 1e-6);  // the model moves with the pads
+    }
+
+    // Binary files travel as base64 through the C API's request; STEP files are reported.
+    Json req = Json::object();
+    Json files = Json::array();
+    Json f1 = Json::object();
+    f1["name"] = kSoic;
+    f1["content"] = soicFp;
+    files.push(f1);
+    Json f2 = Json::object();
+    f2["name"] = "SOIC-8_3.9x4.9mm_P1.27mm.stl";
+    f2["contentBase64"] = base64(cubeStlBinary());
+    files.push(f2);
+    Json f3 = Json::object();
+    f3["name"] = "SOIC-8_3.9x4.9mm_P1.27mm.step";
+    f3["content"] = "ISO-10303-21;";
+    files.push(f3);
+    req["files"] = files;
+    const Json out = importLibraryRequest(req);
+    bool attached = false;
+    for (const auto& p : out.get("parts").items())
+        attached = attached || p.get("spec").get("model3d").get("unit").asNumber(0) == 1.0;
+    CHECK(attached);
+    CHECK(out.get("files")[2].get("error").asString().find("STEP") != std::string::npos);
+}
+
+TEST(model3d_readers_survive_fuzzing) {
+    const std::vector<std::pair<std::string, std::string>> inputs = {
+        {kSoicModel, readModelFixture(kSoicModel)},
+        {"cube.stl", cubeStlAscii()},
+        {"cube.stl", cubeStlBinary()},
+        {"cube.obj", "v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nusemtl metal\nf 1 2 3 4\nf -1 -2 -3\n"}};
+    uint32_t seed = 0x3D3D3D3Du;
+    auto rnd = [&]() {
+        seed ^= seed << 13;
+        seed ^= seed >> 17;
+        seed ^= seed << 5;
+        return seed;
+    };
+    int ok = 0, refused = 0;
+    for (const auto& [name, original] : inputs) {
+        for (int k = 0; k < 300; ++k) {
+            std::string s = original;
+            const size_t a = rnd() % (s.size() + 1), len = rnd() % 48;
+            switch (k % 6) {
+                case 0: s.resize(a); break;
+                case 1:
+                    for (int f = 0; f < 6 && !s.empty(); ++f) s[rnd() % s.size()] = static_cast<char>(rnd());
+                    break;
+                case 2: s.erase(a, len); break;
+                case 3: s.insert(a, s.substr(a, len)); break;
+                case 4: s.insert(a, std::string(len, "{[ -1e30"[rnd() % 8])); break;
+                default: s.insert(a, " 1e308 -1e308 nan 4294967295 "); break;
+            }
+            try {
+                const Model3DMesh m = parseModel3D(s, name);
+                ++ok;
+                CHECK(!m.indices.empty() && m.triangleCount() <= Model3DLimits::maxTriangles);
+                for (uint32_t i : m.indices) CHECK(i < m.vertexCount());
+                for (float v : m.positions) CHECK(std::isfinite(v));
+                uint64_t covered = 0;
+                for (const auto& g : m.groups) covered += g.count;
+                CHECK(covered == m.indices.size());
+                CHECK(!Model3DRegistry::instance().add(m).empty());
+            } catch (const Model3DError&) {
+                ++refused;
+            } catch (const std::exception& e) {
+                std::printf("    %s mutation %d: unexpected %s\n", name.c_str(), k, e.what());
+                CHECK(false);
+            }
+        }
+    }
+    CHECK(ok > 300 && refused > 50);
+}

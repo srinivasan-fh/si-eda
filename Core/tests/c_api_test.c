@@ -561,3 +561,41 @@ int sieda_c_api_supplier_test(void) {
     sieda_string_free(bad);
     return 0;
 }
+
+/* 3D models through the C API: import (text and base64), fit, preview mesh and bad requests. */
+int sieda_c_api_model3d_test(void) {
+    const char* cube =
+        "{\"name\":\"cube.obj\",\"content\":\"v 0 0 0\\nv 2 0 0\\nv 2 2 0\\nv 0 2 0\\nv 0 0 1\\nv 2 0 1\\nv 2 2 1\\nv 0 2 1\\n"
+        "f 1 4 3 2\\nf 5 6 7 8\\nf 1 2 6 5\\nf 2 3 7 6\\nf 3 4 8 7\\nf 4 1 5 8\\n\"}";
+    char* imported = sieda_model3d_import(cube);
+    if (!imported || !strstr(imported, "\"ok\":true") || !strstr(imported, "\"triangles\":12")) return 1;
+    const char* at = strstr(imported, "\"id\":\"");
+    if (!at) return 2;
+    char id[32] = {0};
+    memcpy(id, at + 6, 17);
+    sieda_string_free(imported);
+    char spec[1024];
+    snprintf(spec, sizeof spec,
+             "{\"name\":\"CUBEPART\",\"package\":{\"type\":\"SOIC\",\"pinCount\":8},\"pins\":[{\"number\":\"1\",\"name\":\"A\"}],"
+             "\"model3d\":{\"id\":\"%s\",\"name\":\"cube.obj\",\"unit\":1,\"offset\":[5,5,5]}}", id);
+    char* fit = sieda_model3d_fit(spec);
+    if (!fit || !strstr(fit, "\"ok\":true") || !strstr(fit, "\"offset\":[-1,-1,0]")) return 3;
+    sieda_string_free(fit);
+    SiedaMesh* preview = sieda_model3d_preview(spec);
+    if (!preview || sieda_mesh_vertex_count(preview) <= 0) return 4;
+    sieda_mesh_free(preview);
+    char* bad = sieda_model3d_import("{\"name\":\"x.step\",\"content\":\"ISO-10303-21;\"}");
+    if (!bad || !strstr(bad, "\"ok\":false") || !strstr(bad, "STEP")) return 5;
+    sieda_string_free(bad);
+    bad = sieda_model3d_import("{\"name\":\"x.stl\",\"contentBase64\":\"!!!\"}");
+    if (!bad || !strstr(bad, "\"ok\":false")) return 6;
+    sieda_string_free(bad);
+    bad = sieda_model3d_import(NULL);
+    if (!bad || !strstr(bad, "\"ok\":false")) return 7;
+    sieda_string_free(bad);
+    bad = sieda_model3d_fit("{\"name\":\"X\",\"pins\":[{\"number\":\"1\"}]}");
+    if (!bad || !strstr(bad, "\"ok\":false")) return 8;
+    sieda_string_free(bad);
+    if (sieda_model3d_preview("not json") != NULL) return 9;
+    return 0;
+}

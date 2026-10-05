@@ -1,4 +1,5 @@
 #include "sieda/LibraryImport.hpp"
+#include "sieda/Model3D.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -553,6 +554,8 @@ void finishLands(ImportedFootprint& fp, const std::vector<RawPad>& pads, const B
         centreBox.add(body);
     }
     const double cx = tidy((centreBox.x0 + centreBox.x1) / 2), cy = tidy((centreBox.y0 + centreBox.y1) / 2);
+    fp.centreX = cx;
+    fp.centreY = cy;
     if (std::fabs(cx) > 0.01 || std::fabs(cy) > 0.01)
         fp.warnings.push_back("Origin moved to the centre of the footprint (by " + fmt(tidy(-cx)) + ", " + fmt(tidy(-cy)) + " mm).");
     fp.package = PackageSpec{};
@@ -855,6 +858,32 @@ ImportedFootprint parseKicadFootprint(const std::string& text, const std::string
                 ++grown;
             }
             (bottomOnly ? bottomPads : pads).push_back(p);
+        } else if (h == "model" && fp.modelPath.empty()) {
+            // (model "path" (hide yes) (offset (xyz …)) (scale (xyz …)) (rotate (xyz …))); KiCad 5 writes the offset
+            // as (at (xyz …)) in inches. KiCad turns models by the negative of the written angles.
+            const SNode* hide = k.child("hide");
+            if (k.hasAtom("hide") || (hide && hide->atom(1) != "no")) continue;
+            fp.modelPath = clean(k.atom(1), 400);
+            auto xyz = [&](const char* name, std::array<double, 3> def, double factor) {
+                const SNode* n = k.child(name);
+                const SNode* v = n ? n->child("xyz") : nullptr;
+                if (!v) return def;
+                std::array<double, 3> out{};
+                for (size_t i = 0; i < 3; ++i) {
+                    out[i] = num(v, i + 1, def[i]) * factor;
+                    if (!std::isfinite(out[i])) out[i] = def[i];
+                }
+                return out;
+            };
+            Model3DRef& a = fp.modelAlign;
+            a.offset = k.child("offset") ? xyz("offset", {0, 0, 0}, 1.0) : xyz("at", {0, 0, 0}, 25.4);
+            a.scale = xyz("scale", {1, 1, 1}, 1.0);
+            const auto r = xyz("rotate", {0, 0, 0}, 1.0);
+            a.rotate = {-r[0], -r[1], -r[2]};
+            for (auto& s : a.scale)
+                if (!(s > 1e-6 && s <= 1000)) s = 1;
+            for (auto& o : a.offset) o = std::clamp(o, -200.0, 200.0);
+            for (auto& d : a.rotate) d = std::clamp(d, -3600.0, 3600.0);
         } else if (h == "fp_line" || h == "fp_rect" || h == "fp_circle" || h == "fp_arc" || h == "fp_poly") {
             const SNode* layer = k.child("layer");
             const std::string l = layer ? layer->atom(1) : std::string();
@@ -1542,6 +1571,7 @@ std::string detectFormat(const ImportFile& f) {
     if (ext == "lbr") return "eagle_lbr";
     if (f.content.compare(0, 4, "\xD0\xCF\x11\xE0") == 0 || ext == "schlib" || ext == "pcblib" || ext == "intlib")
         return "altium";
+    if (isModel3DFile(f.name)) return "model3d";
     if (ext == "lib" || f.content.find("EESchema-LIBRARY") != std::string::npos) return "kicad5_lib";
     size_t i = 0;
     while (i < f.content.size() && i < 4096 && std::isspace(static_cast<unsigned char>(f.content[i]))) ++i;
@@ -1590,8 +1620,55 @@ std::string baseName(const std::string& footprintRef) {
 
 }  // namespace
 
+namespace {
+/// File name without directories and extension, lower case ("${KICAD8_3DMODEL_DIR}/Package_SO.3dshapes/SOIC-8.wrl"
+/// → "soic-8").
+std::string modelStem(const std::string& path) {
+    const size_t slash = path.find_last_of("/\\");
+    std::string name = slash == std::string::npos ? path : path.substr(slash + 1);
+    const size_t dot = name.rfind('.');
+    if (dot != std::string::npos) name.resize(dot);
+    return lower(name);
+}
+
+struct ImportedModel {
+    std::string id, name, format;
+};
+
+/// Attaches the imported 3D model each footprint names (by file name; a .step reference takes the .wrl / .stl /
+/// .obj of the same name) to the parts that use the footprint.
+void attachModels(LibraryImport& out, const std::map<std::string, ImportedModel>& models) {
+    for (auto& part : out.parts) {
+        if (part.footprintName.empty()) continue;
+        const ImportedFootprint* fp = nullptr;
+        for (const auto& f : out.footprints)
+            if (f.name == part.footprintName && part.source.find(f.source) != std::string::npos) fp = &f;
+        if (!fp || fp->modelPath.empty()) continue;
+        auto it = models.find(modelStem(fp->modelPath));
+        if (it == models.end()) {
+            const size_t slash = fp->modelPath.find_last_of("/\\");
+            const std::string file = slash == std::string::npos ? fp->modelPath : fp->modelPath.substr(slash + 1);
+            part.warnings.push_back("3D model " + clean(file, 120) + " is not in the import: add the library's .3dshapes "
+                                    "folder (its .wrl files) to attach it");
+            continue;
+        }
+        Model3DRef ref = fp->modelAlign;
+        ref.id = it->second.id;
+        ref.name = it->second.name;
+        ref.unit = defaultModelUnit(it->second.format);
+        // The model moves with the pads when the land pattern is centred (model y points up the footprint).
+        ref.offset[0] = std::clamp(tidy(ref.offset[0] - fp->centreX), -200.0, 200.0);
+        ref.offset[1] = std::clamp(tidy(ref.offset[1] + fp->centreY), -200.0, 200.0);
+        part.spec.model3d = ref;
+        part.warnings.push_back("3D model " + ref.name + " attached");
+    }
+}
+
+}  // namespace
+
 LibraryImport importLibraryFiles(const std::vector<ImportFile>& files, const std::map<std::string, std::string>& pairs) {
     LibraryImport out;
+    std::map<std::string, ImportedModel> models;  // file stem → registered mesh
     for (const auto& f : files) {
         LibraryImport::FileResult fr;
         fr.name = clean(f.name, 200);
@@ -1612,6 +1689,12 @@ LibraryImport importLibraryFiles(const std::vector<ImportFile>& files, const std
             } else if (fr.format == "altium") {
                 throw ImportError("Altium binary libraries (.SchLib, .PcbLib, .IntLib) are not supported. Import them "
                                   "into KiCad (8 or later) and import the .kicad_sym / .kicad_mod files here.");
+            } else if (fr.format == "model3d") {
+                if (models.size() >= 2000) throw ImportError("too many 3D models in one import");
+                Model3DMesh mesh = parseModel3D(f.content, fr.name);
+                const std::string format = mesh.format;
+                const std::string id = Model3DRegistry::instance().add(std::move(mesh));
+                models[modelStem(fr.name)] = {id, fr.name, format};
             } else if (fr.format == "kicad5_lib") {
                 throw ImportError("KiCad 5 .lib symbol libraries are not supported: open the library in KiCad 6 or "
                                   "later and save it as .kicad_sym");
@@ -1717,6 +1800,7 @@ LibraryImport importLibraryFiles(const std::vector<ImportFile>& files, const std
             out.parts.size() < kMaxParts)
             out.parts.push_back(makeImportedPart(nullptr, &out.footprints[i]));  // an Eagle package no device uses
     }
+    attachModels(out, models);
     return out;
 }
 
@@ -1759,7 +1843,15 @@ Json importLibraryRequest(const Json& request) {
     std::map<std::string, std::string> pairs;
     for (const auto& f : request.get("files").items()) {
         if (!f.isObject()) continue;
-        files.push_back({f.get("name").asString(""), f.get("content").asString("")});
+        std::string content = f.get("content").asString("");
+        if (f.get("contentBase64").isString()) {  // binary files (STL, Altium libraries)
+            try {
+                content = decodeBase64(f.get("contentBase64").asString());
+            } catch (const std::exception&) {
+                content.clear();
+            }
+        }
+        files.push_back({f.get("name").asString(""), std::move(content)});
     }
     const Json& pj = request.get("pairs");
     if (pj.isObject())

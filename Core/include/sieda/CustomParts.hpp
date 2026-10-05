@@ -5,6 +5,7 @@
 // registers the result so components of kind `ComponentKind::Custom` behave like built-in parts.
 #pragma once
 
+#include <array>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -114,6 +115,19 @@ struct UnitSpec {
     std::vector<std::string> pins;  // pin numbers
 };
 
+/// A part's imported 3D model (Model3D.hpp): the registered mesh and how it sits on the footprint. File
+/// coordinates are scaled by unit × scale, rotated about x, y, z (degrees) and moved by offset (mm) into the
+/// footprint's model frame (x right, y towards the top of the PCB view, z up from the board).
+struct Model3DRef {
+    std::string id;    // Model3DRegistry id; empty = the generated body
+    std::string name;  // file name, shown in the UI
+    double unit = 1;   // millimetres per file unit (KiCad VRML: 2.54)
+    std::array<double, 3> scale{{1, 1, 1}};
+    std::array<double, 3> rotate{{0, 0, 0}};
+    std::array<double, 3> offset{{0, 0, 0}};
+    bool empty() const { return id.empty(); }
+};
+
 struct CustomPartSpec {
     std::string name;
     std::string manufacturer;
@@ -125,6 +139,7 @@ struct CustomPartSpec {
     std::vector<CustomPin> pins;
     BehaviorModel model;
     SymbolSpec symbol;
+    Model3DRef model3d;  // imported 3D model (empty = generated body)
     /// Multi-unit part (empty = one symbol for the whole part). The part can still be placed whole.
     std::vector<UnitSpec> units;
 

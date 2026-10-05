@@ -677,3 +677,22 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Supply സ്കോപ്പുള്ള Nexar ആപ്ലിക്കേഷൻ (ക്ലയന്റ് ക്രെഡൻഷ്യലുകൾ). Octopart ഡാറ്റ: ഒറ്റ തിരയലിൽ പല വിതരണക്കാരുടെ ഓഫറുകൾ.";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 ഉള്ള DigiKey API ആപ്ലിക്കേഷൻ (Production); ക്ലയന്റ് ക്രെഡൻഷ്യൽസ് ഫ്ലോ.";
 "Mouser Search API key (API Hub → Search API)." = "Mouser സെർച്ച് API കീ (API Hub → Search API).";
+
+/* Imported 3D models */
+"3D Model" = "3D മോഡൽ";
+"3D Model…" = "3D മോഡൽ…";
+"Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl), STL അല്ലെങ്കിൽ OBJ മോഡൽ ചേർത്ത് ഫുട്പ്രിന്റിൽ വിന്യസിക്കുക";
+"Centre the model on the footprint and put its lowest point on the board surface" = "മോഡൽ ഫുട്പ്രിന്റിന്റെ മധ്യത്തിലാക്കി അതിന്റെ ഏറ്റവും താഴ്ന്ന ബിന്ദു ബോർഡ് പ്രതലത്തിൽ വയ്ക്കുക";
+"Choose File…" = "ഫയൽ തിരഞ്ഞെടുക്കുക…";
+"Choose a VRML (.wrl), STL or OBJ file. KiCad libraries ship a .wrl next to every .step model." = "VRML (.wrl), STL അല്ലെങ്കിൽ OBJ ഫയൽ തിരഞ്ഞെടുക്കുക. KiCad ലൈബ്രറികൾ ഓരോ .step മോഡലിനൊപ്പവും .wrl നൽകുന്നു.";
+"File unit" = "ഫയൽ യൂണിറ്റ്";
+"No 3D model: the part shows its generated body." = "3D മോഡൽ ഇല്ല: ഭാഗം അതിന്റെ സൃഷ്ടിച്ച ബോഡി കാണിക്കുന്നു.";
+"Remove Model" = "മോഡൽ നീക്കം ചെയ്യുക";
+"Reset" = "പുനഃസജ്ജമാക്കുക";
+"Seat on Board" = "ബോർഡിൽ ഇരുത്തുക";
+"Use the generated body again" = "വീണ്ടും സൃഷ്ടിച്ച ബോഡി ഉപയോഗിക്കുക";
+"VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (KiCad ലൈബ്രറികൾ നൽകുന്ന .wrl), STL അല്ലെങ്കിൽ OBJ. STEP ഫയലുകൾ വായിക്കാനാവില്ല: അടുത്തുള്ള .wrl ഉപയോഗിക്കുക.";
+"x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x വലത്തോട്ട്, y PCB കാഴ്ചയുടെ മുകളിലേക്ക്, z ബോർഡിൽ നിന്ന് മുകളിലേക്ക്. ഭ്രമണം x, പിന്നെ y, പിന്നെ z.";
+"Offset (mm)" = "ഓഫ്‌സെറ്റ് (mm)";
+"Rotation (°)" = "ഭ്രമണം (°)";
+"Scale" = "സ്കെയിൽ";

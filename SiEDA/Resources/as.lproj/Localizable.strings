@@ -677,3 +677,22 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Supply স্কোপসহ Nexar এপ্লিকেচন (ক্লায়েণ্ট ক্ৰেডেনচিয়েল)। Octopart ডেটা: এটা সন্ধানতে বহু বিতৰকৰ অফাৰ।";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 সহ DigiKey API এপ্লিকেচন (Production); ক্লায়েণ্ট ক্ৰেডেনচিয়েল প্ৰবাহ।";
 "Mouser Search API key (API Hub → Search API)." = "Mouser সন্ধান API চাবি (API Hub → Search API)।";
+
+/* Imported 3D models */
+"3D Model" = "3D মডেল";
+"3D Model…" = "3D মডেল…";
+"Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl), STL বা OBJ মডেল সংলগ্ন কৰি ফুটপ্ৰিণ্টত মিলাওক";
+"Centre the model on the footprint and put its lowest point on the board surface" = "মডেলটো ফুটপ্ৰিণ্টৰ মাজত ৰাখি ইয়াৰ আটাইতকৈ তলৰ বিন্দু বোৰ্ডৰ পৃষ্ঠত ৰাখক";
+"Choose File…" = "ফাইল বাছক…";
+"Choose a VRML (.wrl), STL or OBJ file. KiCad libraries ship a .wrl next to every .step model." = "VRML (.wrl), STL বা OBJ ফাইল বাছক। KiCad লাইব্ৰেৰীয়ে প্ৰতিটো .step মডেলৰ কাষত এটা .wrl দিয়ে।";
+"File unit" = "ফাইলৰ একক";
+"No 3D model: the part shows its generated body." = "3D মডেল নাই: অংশটোৱে ইয়াৰ সৃষ্টি কৰা বডি দেখুৱায়।";
+"Remove Model" = "মডেল আঁতৰাওক";
+"Reset" = "পুনৰ ছেট কৰক";
+"Seat on Board" = "বোৰ্ডত বহুৱাওক";
+"Use the generated body again" = "পুনৰ সৃষ্টি কৰা বডি ব্যৱহাৰ কৰক";
+"VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (KiCad লাইব্ৰেৰীয়ে দিয়া .wrl), STL বা OBJ। STEP ফাইল পঢ়িব নোৱাৰি: কাষৰ .wrl ব্যৱহাৰ কৰক।";
+"x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x সোঁফালে, y PCB দৃশ্যৰ ওপৰৰ ফালে, z বোৰ্ডৰ পৰা ওপৰলৈ। ঘূৰণ প্ৰথমে x, তাৰ পিছত y, তাৰ পিছত z।";
+"Offset (mm)" = "অফছেট (mm)";
+"Rotation (°)" = "ঘূৰণ (°)";
+"Scale" = "স্কেল";

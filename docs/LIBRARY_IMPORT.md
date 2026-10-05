@@ -10,6 +10,7 @@ both editors and save them with the project.
 - [How symbols pair with footprints](#how-symbols-pair-with-footprints)
 - [What is imported, and how](#what-is-imported-and-how)
 - [Checks and messages](#checks-and-messages)
+- [3D models](#3d-models)
 - [Not supported](#not-supported)
 - [Parametric search](#parametric-search)
 - [C API and data format](#c-api-and-data-format)
@@ -23,9 +24,11 @@ both editors and save them with the project.
 | `.kicad_mod` (KiCad 6–9, and KiCad 5 `(module …)` files) | One footprint: pads, drills, layers, rotation, courtyard, fab and silkscreen outlines | A land pattern (package type `CUSTOM`) |
 | `.kicad_sym` (KiCad 6–9) | One or many symbols: pins with number, name, electrical type, position and orientation; multi-unit symbols; derived symbols (`extends`) | A part's pins and its symbol layout |
 | `.lbr` (Eagle 6–9, Fusion Electronics libraries exported as `.lbr`) | Packages, symbols, device sets with their devices, technologies and pin–pad connects | Complete parts, one per device and technology |
+| `.wrl` (VRML 2.0 / 97), `.stl` (ASCII or binary), `.obj` | A 3D model | The 3D body of the footprint that names it (see [3D models](#3d-models)) |
 
 You can pick several files at once, or folders. A folder is searched for these file types, so a KiCad `.pretty`
-folder or `.kicad_symdir` folder imports as a whole (up to 2000 files, 32 MB each).
+folder or `.kicad_symdir` folder imports as a whole (up to 2000 files, 32 MB each). Choosing a `X.pretty` folder also
+brings the models of the `X.3dshapes` folder next to it.
 
 ## Using it
 
@@ -150,6 +153,43 @@ still import. Malformed or hostile files cannot crash the app:
 - every number is range-checked;
 - text is cleaned to valid UTF-8.
 
+## 3D models
+
+A part can carry an imported 3D model instead of SiEDA's generated body: VRML 2.0 / 97 (`.wrl`, what KiCad's
+libraries ship next to every STEP model), STL (ASCII or binary) or Wavefront OBJ. The model is drawn in the 3D view,
+included in the STL / OBJ exports and the fabrication package's `3d/` STL, and saved with the project.
+
+**With a KiCad import.** A KiCad footprint names its model, for example
+`${KICAD8_3DMODEL_DIR}/Package_SO.3dshapes/SOIC-8_3.9x4.9mm_P1.27mm.wrl`, with an offset, scale and rotation. When a
+model file of that name (`.wrl`, `.stl` or `.obj`; a `.step` reference takes the file of the same name) is in the
+import, the part gets it, with the footprint's offset, scale and rotation, moved with the pads when the land pattern
+is centred, and a note "3D model … attached". When it is not, a note says to add the library's `.3dshapes` folder.
+KiCad VRML files are in 0.1 inch units; STL and OBJ are taken as millimetres.
+
+**By hand.** Select a part in the Component Library and click **3D Model…**:
+
+1. **Choose File…** reads a `.wrl`, `.stl` or `.obj` file and seats it on the footprint.
+2. Align it: **File unit** (mm, 0.1 inch, inch, mil, m), **Offset** (mm), **Rotation** (degrees about x, then y, then
+   z) and **Scale**. Axes: x right, y towards the top of the PCB view, z up from the board. The preview shows the
+   part on a piece of board with its pads; **Seat on Board** centres the model on the footprint and puts its lowest
+   point on the board surface.
+3. **Apply**, then save the part. **Remove Model** goes back to the generated body.
+
+**What is read.** VRML: `Transform` (translation, rotation, scale, centre, scale orientation), `Group`, `Switch`,
+`LOD`, `Shape` with `IndexedFaceSet` (polygons are fanned into triangles, `ccw FALSE` and mirroring transforms are
+handled) and `Box`, `Material` diffuse colour and transparency, `DEF` / `USE`. Spheres, cones, cylinders, `Inline`,
+`PROTO`s and textures are skipped with a note. STL: identical vertices are shared. OBJ: polygons, `v/vt/vn` and
+negative indices; colours are guessed from `usemtl` names (`.mtl` files are not read). Each colour becomes a
+material in the 3D view: bright greys render as tinned metal, gold as gold, transparent parts as glass, the rest as
+moulded plastic.
+
+**Limits.** 32 MB per file, 200 000 triangles and 600 000 vertices per model, coordinates within ±10⁶ units, VRML
+nesting to 64 levels. A file beyond them is refused with the reason and the line where reading stopped.
+
+**STEP is not read.** STEP (`.step` / `.stp`) files describe exact surfaces (B-rep, NURBS) that need a CAD geometry
+kernel to tessellate, which SiEDA does not include. They are recognised and refused with that reason; use the `.wrl`
+KiCad ships beside each `.step`, or export VRML / STL / OBJ from the CAD tool.
+
 ## Not supported
 
 - **Altium** `.SchLib`, `.PcbLib` and `.IntLib` are binary (OLE compound) files and are **not supported**. They are
@@ -157,7 +197,7 @@ still import. Malformed or hostile files cannot crash the app:
   `.kicad_sym` / `.kicad_mod` and import those.
 - **KiCad 5 `.lib` symbol libraries** (`EESchema-LIBRARY`) are refused; open them in KiCad 6 or later and save them
   as `.kicad_sym`. KiCad 5 footprints (`.kicad_mod` with `(module …)`) are supported.
-- **3D models** in footprints are not imported. Imported parts get SiEDA's generated 3D body.
+- **STEP 3D models** (see [3D models](#3d-models)); VRML, STL and OBJ models are imported.
 - **Other graphics.** Silkscreen and fab graphics are used only for the body outline; text and other drawings are not
   imported.
 - **Paste and mask.** Paste and solder-mask expansions are SiEDA's own; per-pad overrides are ignored.
@@ -208,6 +248,15 @@ The result:
 }
 ```
 
+Files may carry `"contentBase64"` instead of `"content"` (binary STL, Altium libraries). A part with a 3D model has
+`spec.model3d = {"id","name","unit","scale":[x,y,z],"rotate":[x,y,z],"offset":[x,y,z]}`.
+
+```c
+char* sieda_model3d_import(const char* request_json);  /* {"name","content"|"contentBase64"} → {"ok","id",…} */
+char* sieda_model3d_fit(const char* spec_json);        /* aligned bounds and the seated alignment */
+SiedaMesh* sieda_model3d_preview(const char* spec_json); /* the part alone on a piece of board */
+```
+
 `spec` is a normal custom-part spec (see [FOOTPRINT_EDITOR.md](FOOTPRINT_EDITOR.md#data-format) and
 [SYMBOL_EDITOR.md](SYMBOL_EDITOR.md#data-format)). Register an `ok` part with `sieda_custom_part_register`. The call
 never fails on file content: unreadable files are reported in `files[].error`, and an invalid request returns an
@@ -227,6 +276,9 @@ empty `parts` list with the reason.
 | Store | `SiEDA/App/DesignStore.swift` | `importLibraryParts(_:)` (one undo step) |
 | View | `SiEDA/Views/Library/ComponentLibraryView.swift` | **Import Library…**, file and folder selection (`libraryFiles(at:)`) |
 | View | `SiEDA/Views/Library/LibraryImportView.swift` | the review sheet |
+| Core | `Core/include/sieda/Model3D.hpp`, `Core/src/Model3D.cpp` | VRML / STL / OBJ readers, mesh registry, alignment, project `models3d`, `appendModel3D` (used by `buildAssemblyMesh`) |
+| Bridge | `SiEDA/Bridge/EDAEngine+Model3D.swift` | `importModel3D`, `fitModel3D`, `model3DPreviewMesh` |
+| View | `SiEDA/Views/Library/Model3DEditorView.swift` | **3D Model…** sheet with the alignment preview |
 
 ## Tests
 
@@ -254,6 +306,11 @@ empty `parts` list with the reason.
     - 800 deterministic mutations of the fixtures (truncation, byte flips, deleted, duplicated and inserted
       ranges): the import never throws, and every part it offers registers.
   - `library_import_c_api` (`Core/tests/c_api_test.c`): the C entry point, bad files and bad requests.
+  - `model3d_readers_vrml_stl_obj`, `model3d_alignment_assembly_and_project_file`,
+    `library_import_attaches_kicad_3d_models`, `model3d_readers_survive_fuzzing` (1200 mutations): the readers and
+    their limits, alignment, the model in the assembly on both sides, project save / load, KiCad model attachment,
+    base64 transport, STEP refusal. The VRML fixture `Core/tests/fixtures/models/SOIC-8_3.9x4.9mm_P1.27mm.wrl` is
+    synthetic, written in the layout of KiCad's models; STL / OBJ cubes are generated by the tests.
 - **App** (`SiEDATests/SiEDATests.swift`):
   - `LibraryImportTests`: import through the engine, adding to the library, and finding files in folders.
   - `PartQueryTests`: filter parsing and the search in the standard library.

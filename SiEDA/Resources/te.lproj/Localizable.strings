@@ -677,3 +677,22 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Supply స్కోప్‌తో Nexar అప్లికేషన్ (క్లయింట్ క్రెడెన్షియల్స్). Octopart డేటా: ఒకే శోధనలో అనేక డిస్ట్రిబ్యూటర్ల ఆఫర్లు.";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 తో DigiKey API అప్లికేషన్ (Production); క్లయింట్ క్రెడెన్షియల్స్ ఫ్లో.";
 "Mouser Search API key (API Hub → Search API)." = "Mouser సెర్చ్ API కీ (API Hub → Search API).";
+
+/* Imported 3D models */
+"3D Model" = "3D మోడల్";
+"3D Model…" = "3D మోడల్…";
+"Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl), STL లేదా OBJ మోడల్ జోడించి ఫుట్‌ప్రింట్‌పై అమర్చండి";
+"Centre the model on the footprint and put its lowest point on the board surface" = "మోడల్‌ను ఫుట్‌ప్రింట్ మధ్యలో ఉంచి దాని అత్యల్ప బిందువును బోర్డ్ ఉపరితలంపై ఉంచండి";
+"Choose File…" = "ఫైల్ ఎంచుకోండి…";
+"Choose a VRML (.wrl), STL or OBJ file. KiCad libraries ship a .wrl next to every .step model." = "VRML (.wrl), STL లేదా OBJ ఫైల్ ఎంచుకోండి. KiCad లైబ్రరీలు ప్రతి .step మోడల్ పక్కన .wrl ఇస్తాయి.";
+"File unit" = "ఫైల్ యూనిట్";
+"No 3D model: the part shows its generated body." = "3D మోడల్ లేదు: భాగం దాని సృష్టించిన బాడీని చూపుతుంది.";
+"Remove Model" = "మోడల్ తీసివేయి";
+"Reset" = "రీసెట్ చేయి";
+"Seat on Board" = "బోర్డుపై కూర్చోబెట్టు";
+"Use the generated body again" = "మళ్లీ సృష్టించిన బాడీని వాడండి";
+"VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (KiCad లైబ్రరీలు ఇచ్చే .wrl), STL లేదా OBJ. STEP ఫైళ్లు చదవలేము: వాటి పక్కన ఉన్న .wrl వాడండి.";
+"x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x కుడివైపు, y PCB వీక్షణ పైభాగం వైపు, z బోర్డు నుండి పైకి. భ్రమణం x, తర్వాత y, తర్వాత z చుట్టూ.";
+"Offset (mm)" = "ఆఫ్‌సెట్ (mm)";
+"Rotation (°)" = "భ్రమణం (°)";
+"Scale" = "స్కేల్";

@@ -677,3 +677,22 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "具 Supply 範圍的 Nexar 應用程式（用戶端憑證）。Octopart 資料：一次搜尋即可取得多家經銷商的報價。";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "具 Product Information v4 的 DigiKey API 應用程式（Production）；用戶端憑證流程。";
 "Mouser Search API key (API Hub → Search API)." = "Mouser 搜尋 API 金鑰（API Hub → Search API）。";
+
+/* Imported 3D models */
+"3D Model" = "3D 模型";
+"3D Model…" = "3D 模型…";
+"Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "附加 VRML (.wrl)、STL 或 OBJ 模型並對齊封裝";
+"Centre the model on the footprint and put its lowest point on the board surface" = "將模型置中於封裝，並使其最低點貼齊板面";
+"Choose File…" = "選擇檔案…";
+"Choose a VRML (.wrl), STL or OBJ file. KiCad libraries ship a .wrl next to every .step model." = "請選擇 VRML (.wrl)、STL 或 OBJ 檔案。KiCad 元件庫在每個 .step 模型旁都附有 .wrl。";
+"File unit" = "檔案單位";
+"No 3D model: the part shows its generated body." = "沒有 3D 模型：零件顯示自動產生的本體。";
+"Remove Model" = "移除模型";
+"Reset" = "重設";
+"Seat on Board" = "貼齊電路板";
+"Use the generated body again" = "改回使用自動產生的本體";
+"VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML（.wrl，KiCad 元件庫所附）、STL 或 OBJ。無法讀取 STEP 檔：請改用旁邊的 .wrl。";
+"x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x 向右，y 朝向 PCB 視圖上方，z 由板面向上。旋轉依序繞 x、y、z 軸。";
+"Offset (mm)" = "位移 (mm)";
+"Rotation (°)" = "旋轉 (°)";
+"Scale" = "縮放";

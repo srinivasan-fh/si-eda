@@ -677,3 +677,22 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Nexar-applicatie met de Supply-scope (clientgegevens). Octopart-gegevens: aanbiedingen van veel distributeurs in één zoekopdracht.";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "DigiKey-API-applicatie (Production) met Product Information v4; client-credentials-flow.";
 "Mouser Search API key (API Hub → Search API)." = "Mouser Search-API-sleutel (API Hub → Search API).";
+
+/* Imported 3D models */
+"3D Model" = "3D-model";
+"3D Model…" = "3D-model…";
+"Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "Koppel een VRML- (.wrl), STL- of OBJ-model en lijn het uit op de footprint";
+"Centre the model on the footprint and put its lowest point on the board surface" = "Centreer het model op de footprint en zet het laagste punt op het printoppervlak";
+"Choose File…" = "Bestand kiezen…";
+"Choose a VRML (.wrl), STL or OBJ file. KiCad libraries ship a .wrl next to every .step model." = "Kies een VRML- (.wrl), STL- of OBJ-bestand. KiCad-bibliotheken leveren naast elk .step-model een .wrl.";
+"File unit" = "Bestandseenheid";
+"No 3D model: the part shows its generated body." = "Geen 3D-model: het onderdeel toont zijn gegenereerde behuizing.";
+"Remove Model" = "Model verwijderen";
+"Reset" = "Herstellen";
+"Seat on Board" = "Op de print zetten";
+"Use the generated body again" = "Weer de gegenereerde behuizing gebruiken";
+"VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, zoals KiCad-bibliotheken leveren), STL of OBJ. STEP-bestanden kunnen niet worden gelezen: gebruik de .wrl ernaast.";
+"x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x naar rechts, y naar de bovenkant van de PCB-weergave, z omhoog vanaf de print. Rotaties om x, dan y, dan z.";
+"Offset (mm)" = "Verschuiving (mm)";
+"Rotation (°)" = "Rotatie (°)";
+"Scale" = "Schaal";

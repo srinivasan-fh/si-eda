@@ -29,6 +29,7 @@ struct ComponentLibraryView: View {
     @State private var footprintError: String?
     @State private var libraryImport: LibraryImportResult?
     @State private var showSupplierSearch = false
+    @State private var model3dSource: CustomPartSpec?
     /// Sourcing of a distributor part being drawn in the pin table: applied when it is saved and placed.
     @State private var pendingSourcing: SourcingUpdate?
     /// The distributor's datasheet of that part, offered for pin extraction.
@@ -114,6 +115,11 @@ struct ComponentLibraryView: View {
         .sheet(isPresented: Binding(get: { footprintSource != nil }, set: { if !$0 { footprintSource = nil } })) {
             if let source = footprintSource {
                 FootprintEditorView(spec: source) { edited in draft = edited }
+            }
+        }
+        .sheet(isPresented: Binding(get: { model3dSource != nil }, set: { if !$0 { model3dSource = nil } })) {
+            if let source = model3dSource {
+                Model3DEditorView(spec: source) { edited in draft.model3d = edited.model3d }
             }
         }
         .sheet(isPresented: $showSupplierSearch) {
@@ -355,6 +361,12 @@ struct ComponentLibraryView: View {
                         Button { openFootprintEditor() } label: { Label("Edit Footprint…", systemImage: "square.grid.3x3.topleft.filled") }
                             .disabled(draft.pins.isEmpty)
                             .help("Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad")
+                        Button { model3dSource = draft } label: { Label("3D Model…", systemImage: "cube") }
+                            .disabled(draft.pins.isEmpty)
+                            .help("Attach a VRML (.wrl), STL or OBJ model and align it on the footprint")
+                        if let model = draft.model3d {
+                            Text(verbatim: model.name).font(.caption).foregroundStyle(Theme.textSecondary).lineLimit(1)
+                        }
                         if draft.symbolLayout != nil {
                             Text("Arranged symbol").font(.caption).foregroundStyle(Theme.textSecondary)
                         }
@@ -733,6 +745,8 @@ struct ComponentLibraryView: View {
 
     /// File types the library importer reads (KiCad footprints and symbol libraries, Eagle libraries).
     static let libraryExtensions: Set<String> = ["kicad_mod", "kicad_sym", "lbr"]
+    /// 3D models imported with the footprints that name them (KiCad .3dshapes folders).
+    static let modelExtensions: Set<String> = ["wrl", "vrml", "stl", "obj"]
 
     /// Library import: KiCad / Eagle files, or folders of them (a KiCad .pretty or .kicad_symdir). The core reads,
     /// pairs and checks the parts; the review sheet adds the chosen ones to the project library.
@@ -741,7 +755,8 @@ struct ComponentLibraryView: View {
         panel.allowsMultipleSelection = true
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
-        panel.allowedContentTypes = Self.libraryExtensions.compactMap { UTType(filenameExtension: $0) } + [UTType.folder]
+        panel.allowedContentTypes = (Self.libraryExtensions.union(Self.modelExtensions)).compactMap { UTType(filenameExtension: $0) }
+            + [UTType.folder]
         panel.message = "Choose KiCad footprints (.kicad_mod), symbol libraries (.kicad_sym), Eagle libraries (.lbr) or folders of them."
         guard panel.runModal() == .OK else { return }
         let files = Self.libraryFiles(at: panel.urls)
@@ -758,21 +773,41 @@ struct ComponentLibraryView: View {
     }
 
     /// The library files among `urls`, including those inside chosen folders; at most 2000 files of up to 32 MB.
+    /// 3D models (.wrl, .stl, .obj) in the chosen folders come along, and a KiCad `X.pretty` folder also brings the
+    /// models of its sibling `X.3dshapes` folder, so footprints get the models they name.
     static func libraryFiles(at urls: [URL]) -> [LibraryImportFile] {
         var found: [URL] = []
+        var models: [URL] = []
+        let wanted = libraryExtensions.union(modelExtensions)
+        func scan(_ folder: URL) -> [URL] {
+            let items = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: nil)?.allObjects as? [URL] ?? []
+            return items.filter { wanted.contains($0.pathExtension.lowercased()) }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+        }
         for url in urls {
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
             if isDirectory.boolValue {
-                let items = FileManager.default.enumerator(at: url, includingPropertiesForKeys: nil)?.allObjects as? [URL] ?? []
-                found += items.filter { libraryExtensions.contains($0.pathExtension.lowercased()) }
-                    .sorted { $0.lastPathComponent < $1.lastPathComponent }
+                found += scan(url)
+                if url.pathExtension.lowercased() == "pretty" {
+                    let shapes = url.deletingPathExtension().appendingPathExtension("3dshapes")
+                    var shapesIsDirectory: ObjCBool = false
+                    if FileManager.default.fileExists(atPath: shapes.path, isDirectory: &shapesIsDirectory), shapesIsDirectory.boolValue,
+                       !urls.contains(shapes) {
+                        models += scan(shapes).filter { modelExtensions.contains($0.pathExtension.lowercased()) }
+                    }
+                }
             } else {
                 found.append(url)
             }
         }
-        return found.prefix(2000).compactMap { url in
+        // Library files first (the limit keeps them), then the models they may name.
+        let ordered = found.filter { !modelExtensions.contains($0.pathExtension.lowercased()) }
+            + found.filter { modelExtensions.contains($0.pathExtension.lowercased()) } + models
+        return ordered.prefix(2000).compactMap { url in
             guard let data = try? Data(contentsOf: url), data.count <= 32 << 20 else { return nil }
+            if url.pathExtension.lowercased() == "stl" {  // may be binary
+                return LibraryImportFile(name: url.lastPathComponent, content: "", contentBase64: data.base64EncodedString())
+            }
             return LibraryImportFile(name: url.lastPathComponent, content: String(decoding: data, as: UTF8.self))
         }
     }

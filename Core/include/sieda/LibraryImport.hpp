@@ -25,7 +25,7 @@ struct ImportError : std::runtime_error {
 
 struct ImportFile {
     std::string name;     // file name, used to detect the format by extension and in messages
-    std::string content;  // the file's text
+    std::string content;  // the file's text (or bytes: binary STL, Altium libraries)
 };
 
 /// A footprint as a land pattern. Lands are in file order, y down, centred on the courtyard (or the pads and body
@@ -37,6 +37,13 @@ struct ImportedFootprint {
     PackageSpec package;  // type "CUSTOM", lands, body size
     std::vector<std::string> padNumbers;
     std::vector<std::string> warnings;
+    /// The 3D model the footprint names (KiCad `(model …)`, the first one not hidden), as written, and its offset
+    /// (mm), scale and rotation already in SiEDA's sense (Model3DRef; id and unit are filled when the model file is
+    /// imported too).
+    std::string modelPath;
+    Model3DRef modelAlign;
+    /// How far the pads were moved to centre the land pattern (mm, PCB axes, y down): the model moves with them.
+    double centreX = 0, centreY = 0;
 };
 
 /// A schematic symbol: its pins (one per pin number, all units merged) and their layout.

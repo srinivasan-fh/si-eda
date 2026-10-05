@@ -677,3 +677,22 @@
 "Nexar application with the Supply scope (client credentials). Octopart data: offers from many distributors in one search." = "Supply வரம்புடன் கூடிய Nexar பயன்பாடு (கிளையன்ட் சான்றுகள்). Octopart தரவு: ஒரே தேடலில் பல விநியோகஸ்தர்களின் சலுகைகள்.";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 உடன் DigiKey API பயன்பாடு (Production); கிளையன்ட் சான்று ஓட்டம்.";
 "Mouser Search API key (API Hub → Search API)." = "Mouser தேடல் API விசை (API Hub → Search API).";
+
+/* Imported 3D models */
+"3D Model" = "3D மாதிரி";
+"3D Model…" = "3D மாதிரி…";
+"Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl), STL அல்லது OBJ மாதிரியை இணைத்து ஃபுட்பிரிண்டில் சீரமை";
+"Centre the model on the footprint and put its lowest point on the board surface" = "மாதிரியை ஃபுட்பிரிண்டின் மையத்தில் வைத்து அதன் மிகக் குறைந்த புள்ளியைப் பலகையின் மேற்பரப்பில் வை";
+"Choose File…" = "கோப்பைத் தேர்ந்தெடு…";
+"Choose a VRML (.wrl), STL or OBJ file. KiCad libraries ship a .wrl next to every .step model." = "VRML (.wrl), STL அல்லது OBJ கோப்பைத் தேர்ந்தெடுக்கவும். KiCad லைப்ரரிகள் ஒவ்வொரு .step மாதிரிக்கும் அருகில் .wrl தருகின்றன.";
+"File unit" = "கோப்பு அலகு";
+"No 3D model: the part shows its generated body." = "3D மாதிரி இல்லை: பாகம் அதன் உருவாக்கப்பட்ட உடலைக் காட்டுகிறது.";
+"Remove Model" = "மாதிரியை அகற்று";
+"Reset" = "மீட்டமை";
+"Seat on Board" = "பலகையில் அமர்த்து";
+"Use the generated body again" = "மீண்டும் உருவாக்கப்பட்ட உடலைப் பயன்படுத்து";
+"VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (KiCad லைப்ரரிகள் தரும் .wrl), STL அல்லது OBJ. STEP கோப்புகளைப் படிக்க முடியாது: அருகிலுள்ள .wrl ஐப் பயன்படுத்து.";
+"x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x வலது, y PCB காட்சியின் மேல் நோக்கி, z பலகையிலிருந்து மேல். சுழற்சி x, பின் y, பின் z ஐச் சுற்றி.";
+"Offset (mm)" = "இடப்பெயர்ச்சி (mm)";
+"Rotation (°)" = "சுழற்சி (°)";
+"Scale" = "அளவுகோல்";

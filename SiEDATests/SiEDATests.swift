@@ -5255,3 +5255,84 @@ final class SupplierSearchTests: XCTestCase {
         XCTAssertEqual(rollup.totals.last?.cost ?? 0, 200 * 0.184, accuracy: 1e-9)
     }
 }
+
+// MARK: - Imported 3D models
+
+final class Model3DImportTests: XCTestCase {
+    static let cubeObj = Data("""
+    v 0 0 0
+    v 2 0 0
+    v 2 2 0
+    v 0 2 0
+    v 0 0 1
+    v 2 0 1
+    v 2 2 1
+    v 0 2 1
+    f 1 4 3 2
+    f 5 6 7 8
+    f 1 2 6 5
+    f 2 3 7 6
+    f 3 4 8 7
+    f 4 1 5 8
+    """.utf8)
+
+    func testModelAttachesAlignsAndRendersWithThePart() throws {
+        let imported = EDAEngine.importModel3D(name: "cube.obj", data: Self.cubeObj)
+        XCTAssertTrue(imported.ok, imported.error)
+        XCTAssertEqual(imported.triangles, 12)
+        XCTAssertEqual(imported.unit, 1)
+        let id = try XCTUnwrap(imported.id)
+
+        var spec = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "LM358DR" }).spec
+        spec.model3d = CustomPartSpec.Model3DRef(id: id, name: "cube.obj", offset: [3, 3, 3])
+        let fit = EDAEngine.fitModel3D(spec)
+        XCTAssertTrue(fit.ok, fit.error)
+        XCTAssertEqual(fit.seated?.offset ?? [], [-1, -1, 0])
+        XCTAssertNotNil(EDAEngine.model3DPreviewMesh(spec))
+
+        // Registered with the part, kept in the snapshot and in the saved project.
+        let engine = EDAEngine()
+        let part = try engine.registerCustomPart(spec)
+        XCTAssertEqual(part.model3d?.id, id)
+        XCTAssertEqual(part.spec.model3d, spec.model3d)
+        XCTAssertGreaterThanOrEqual(engine.addCustomComponent(partId: part.id, at: CGPoint(x: 0, y: 0)), 0)
+        XCTAssertTrue(engine.saveJSON().contains("\"models3d\""))
+        let copy = EDAEngine()
+        try copy.load(json: engine.saveJSON())
+        XCTAssertEqual(copy.snapshot()?.customParts.first?.model3d?.id, id)
+    }
+
+    func testStepAndBadFilesAreRefusedWithAReason() {
+        let step = EDAEngine.importModel3D(name: "part.step", data: Data("ISO-10303-21;".utf8))
+        XCTAssertFalse(step.ok)
+        XCTAssertTrue(step.error.contains("STEP"), step.error)
+        let bad = EDAEngine.importModel3D(name: "part.stl", data: Data([0, 1, 2, 3]))
+        XCTAssertFalse(bad.ok)
+        XCTAssertFalse(bad.error.isEmpty)
+    }
+
+    func testPrettyFolderBringsItsShapesFolder() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("sieda-shapes-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let pretty = root.appendingPathComponent("Package_Test.pretty")
+        let shapes = root.appendingPathComponent("Package_Test.3dshapes")
+        try FileManager.default.createDirectory(at: pretty, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: shapes, withIntermediateDirectories: true)
+        try Data("""
+        (footprint "TEST-2" (layer "F.Cu")
+          (pad "1" smd rect (at -1 0) (size 0.8 0.9) (layers "F.Cu"))
+          (pad "2" smd rect (at 1 0) (size 0.8 0.9) (layers "F.Cu"))
+          (model "${KICAD8_3DMODEL_DIR}/Package_Test.3dshapes/TEST-2.step" (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0))))
+        """.utf8).write(to: pretty.appendingPathComponent("TEST-2.kicad_mod"))
+        try Self.cubeObj.write(to: shapes.appendingPathComponent("TEST-2.obj"))
+        try Data([0, 1, 2]).write(to: shapes.appendingPathComponent("TEST-2.stl"))
+        let files = ComponentLibraryView.libraryFiles(at: [pretty])
+        XCTAssertEqual(files.map(\.name), ["TEST-2.kicad_mod", "TEST-2.obj", "TEST-2.stl"])
+        XCTAssertNotNil(files.last?.contentBase64)  // STL may be binary
+        // The .step reference takes the model of the same name.
+        let result = EDAEngine.importLibrary(files: Array(files.prefix(2)))
+        let part = try XCTUnwrap(result.parts.first { $0.footprint == "TEST-2" })
+        XCTAssertEqual(part.spec.model3d?.name, "TEST-2.obj")
+        XCTAssertTrue(part.warnings.contains { $0.contains("3D model") })
+    }
+}
