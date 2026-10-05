@@ -52,7 +52,8 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 
 ## Roadmap
 (Shipped since v1: up to 24 layers, copper pours and planes with thermal reliefs, differential pairs, length tuning,
-HDI vias and BGA fan-out.)
+HDI vias and BGA fan-out, and board-level signal / power integrity: IBIS import, reflections, crosstalk, return path,
+PDN impedance and IR drop.)
 
 1. KiCad `.kicad_mod` / Altium footprint import into the Footprint Editor (user component libraries shipped).
 2. AC small-signal analysis and Bode plots.
