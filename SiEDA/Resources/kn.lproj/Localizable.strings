@@ -537,3 +537,4 @@
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "ಬಹು-ಯೂನಿಟ್ ಭಾಗಗಳ ಗೇಟ್‌ಗಳು (ಕ್ವಾಡ್ ಆಪ್-ಆಂಪ್‌ನ A, B, C, D) ಸಂಖ್ಯೆ ನೀಡುವ ಮೊದಲು ಇರಿಸಿದ ಕ್ರಮದಲ್ಲಿ ಪ್ಯಾಕೇಜ್‌ಗಳನ್ನು ತುಂಬುತ್ತವೆ";
 "Place Next Unit" = "ಮುಂದಿನ ಯೂನಿಟ್ ಇರಿಸಿ";
 "Place Unit" = "ಯೂನಿಟ್ ಇರಿಸಿ";
+"Simulated as assembled: variant values applied, parts not fitted left out (%@)" = "ಜೋಡಿಸಿದಂತೆ ಸಿಮ್ಯುಲೇಶನ್: ವೇರಿಯಂಟ್ ಮೌಲ್ಯಗಳು ಅನ್ವಯ, ಅಳವಡಿಸದ ಭಾಗಗಳನ್ನು ಬಿಡಲಾಗಿದೆ (%@)";

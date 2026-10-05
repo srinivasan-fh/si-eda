@@ -87,6 +87,17 @@ int32_t guarded(F f) {
     }
 }
 
+/// Simulation results say which assembly was simulated: the active variant and the parts left out (not fitted).
+void addAssemblyNote(const Project& p, Json& result) {
+    if (!p.activeVariant.empty()) result["variant"] = p.activeVariant;
+    const auto omitted = p.unfittedRefs();
+    if (!omitted.empty()) {
+        Json list = Json::array();
+        for (const auto& ref : omitted) list.push(ref);
+        result["omitted"] = list;
+    }
+}
+
 /// Assembly outputs (they follow a design variant). False for any other format.
 bool assemblyExport(const Project& p, const Schematic& sch, const std::string& f, std::string* out) {
     if (f == "bom") *out = exportBomCsv(sch);
@@ -332,7 +343,7 @@ SiedaLiveSim* sieda_live_start(const SiedaProject* project, char** error_out) {
     if (error_out) *error_out = nullptr;
     if (!project) return nullptr;
     try {
-        auto* live = new SiedaLiveSim(project->project.schematic);
+        auto* live = new SiedaLiveSim(project->project.simulationSchematic());
         std::string error;
         if (!live->sim.begin(error)) {
             if (error_out) *error_out = dup(error);
@@ -748,8 +759,11 @@ char* sieda_run_verification(const SiedaProject* project) {
 char* sieda_simulate_dc(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
-        Simulator sim(project->project.schematic);
-        return dup(project->project.dcToJson(sim.dcOperatingPoint()).dump());
+        const Schematic circuit = project->project.simulationSchematic();  // the active variant as assembled
+        Simulator sim(circuit);
+        Json result = project->project.dcToJson(sim.dcOperatingPoint());
+        addAssemblyNote(project->project, result);
+        return dup(result.dump());
     } catch (const std::exception& e) {
         return errorJson(e);
     }
@@ -758,8 +772,11 @@ char* sieda_simulate_dc(const SiedaProject* project) {
 char* sieda_simulate_transient(const SiedaProject* project, double t_stop, double t_step) {
     if (!project) return nullptr;
     try {
-        Simulator sim(project->project.schematic);
-        return dup(project->project.transientToJson(sim.transient(t_stop, t_step)).dump());
+        const Schematic circuit = project->project.simulationSchematic();
+        Simulator sim(circuit);
+        Json result = project->project.transientToJson(sim.transient(t_stop, t_step));
+        addAssemblyNote(project->project, result);
+        return dup(result.dump());
     } catch (const std::exception& e) {
         return errorJson(e);
     }
@@ -775,7 +792,9 @@ char* runAnalysis(const SiedaProject* project, const char* options_json,
     try {
         std::string text = str(options_json);
         Json options = text.find_first_not_of(" \t\r\n") == std::string::npos ? Json::object() : Json::parse(text);
-        return dup(analysis(project->project.schematic, options).dump());
+        Json result = analysis(project->project.simulationSchematic(), options);
+        if (result.isObject()) addAssemblyNote(project->project, result);
+        return dup(result.dump());
     } catch (const std::exception& e) {
         Json j = Json::object();
         j["ok"] = false;
@@ -810,7 +829,7 @@ char* sieda_simulate_fft(const SiedaProject* project, const char* options_json) 
 char* sieda_spice_netlist(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
-        return dup(exportSpiceNetlist(project->project.schematic, project->project.name));
+        return dup(exportSpiceNetlist(project->project.simulationSchematic(), project->project.name));
     } catch (const std::exception& e) {
         return errorJson(e);
     }

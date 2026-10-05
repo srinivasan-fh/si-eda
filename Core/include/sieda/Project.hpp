@@ -69,6 +69,11 @@ public:
     bool setActiveVariant(const std::string& name);
     /// The schematic as `name` is assembled (the base design for "" or an unknown name).
     Schematic variantSchematic(const std::string& name) const;
+    /// The circuit the simulator runs: the active variant as assembled — its value overrides applied and parts not
+    /// fitted (in the variant or marked DNP) left out. Connectivity and net indices are the design's.
+    Schematic simulationSchematic() const;
+    /// Designators of the parts simulationSchematic() leaves out.
+    std::vector<std::string> unfittedRefs() const;
     /// Re-numbers designators (see Schematic::annotate) and keeps tamper meshes on their parts.
     std::vector<RefChange> annotate(const AnnotateOptions& options);
 

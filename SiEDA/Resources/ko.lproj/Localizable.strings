@@ -537,3 +537,4 @@
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "다중 유닛 부품의 게이트(쿼드 op-amp의 A, B, C, D)를 배치 순서대로 패키지에 채운 뒤 번호를 매깁니다";
 "Place Next Unit" = "다음 유닛 배치";
 "Place Unit" = "유닛 배치";
+"Simulated as assembled: variant values applied, parts not fitted left out (%@)" = "조립된 상태로 시뮬레이션: 변형 값 적용, 실장하지 않는 부품 제외 (%@)";

@@ -537,3 +537,4 @@
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "பல-அலகு பாகங்களின் கேட்கள் (குவாட் ஆப்-ஆம்பின் A, B, C, D) எண்ணிடுவதற்கு முன் வைத்த வரிசையில் தொகுப்புகளை நிரப்பும்";
 "Place Next Unit" = "அடுத்த அலகை வை";
 "Place Unit" = "அலகை வை";
+"Simulated as assembled: variant values applied, parts not fitted left out (%@)" = "பொருத்தியபடி உருவகப்படுத்தல்: மாறுபாட்டு மதிப்புகள் பயன்படுத்தப்பட்டன, பொருத்தப்படாத பாகங்கள் விடப்பட்டன (%@)";

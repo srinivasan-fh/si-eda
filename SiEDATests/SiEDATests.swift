@@ -4831,3 +4831,29 @@ final class MultiUnitPartTests: XCTestCase {
         XCTAssertFalse(store.snapshot.components.contains { $0.unitName == "P" })
     }
 }
+
+final class VariantSimulationTests: XCTestCase {
+    func testActiveVariantDrivesTheSimulation() throws {
+        let engine = EDAEngine(name: "Variant sim")
+        let v = engine.addComponent(.voltageSource, value: "5", at: .zero)
+        let r = engine.addComponent(.resistor, value: "330", at: CGPoint(x: 100, y: -40))
+        let d = engine.addComponent(.led, value: "Red", at: CGPoint(x: 200, y: -40))
+        let g = engine.addComponent(.ground, at: CGPoint(x: 0, y: 80))
+        XCTAssertNotNil(engine.connect(PinAddress(component: v, pin: 0), PinAddress(component: r, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r, pin: 1), PinAddress(component: d, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: d, pin: 1), PinAddress(component: g, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: v, pin: 1), PinAddress(component: g, pin: 0)))
+        let base = engine.simulateDC()
+        XCTAssertTrue(base.converged)
+        XCTAssertTrue(base.variant.isEmpty && base.omitted.isEmpty)
+        XCTAssertTrue(engine.addVariant("NoLed"))
+        XCTAssertTrue(engine.setVariantPart("NoLed", component: d, fitted: false))
+        XCTAssertTrue(engine.setActiveVariant("NoLed"))
+        let lite = engine.simulateDC()
+        XCTAssertTrue(lite.converged)
+        XCTAssertEqual(lite.variant, "NoLed")
+        XCTAssertEqual(lite.omitted, ["D1"])
+        XCTAssertLessThan(abs(lite.reading(component: r)?.current ?? 1), 1e-6)
+        XCTAssertEqual(engine.snapshot()?.component(d)?.isFitted, false)
+    }
+}

@@ -537,3 +537,4 @@
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Poorten van onderdelen met meerdere eenheden (A, B, C, D van een viervoudige opamp) vullen behuizingen in plaatsingsvolgorde vóór de nummering";
 "Place Next Unit" = "Volgende eenheid plaatsen";
 "Place Unit" = "Eenheid plaatsen";
+"Simulated as assembled: variant values applied, parts not fitted left out (%@)" = "Gesimuleerd zoals geassembleerd: variantwaarden toegepast, niet-geplaatste onderdelen weggelaten (%@)";

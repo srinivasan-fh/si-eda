@@ -716,6 +716,17 @@ struct SchematicCanvas: View {
                 ctx.fill(shapes.solid.applying(t), with: .color(strokeColor))
             }
 
+            // A part the active variant (or the BOM) leaves off is crossed out: not on the assembly, not simulated.
+            if !c.isFitted, !c.componentKind.isVirtual {
+                let box = SchematicSymbols.bounds(c.componentKind, value: c.value, custom: custom).insetBy(dx: 4, dy: 4).applying(t)
+                var cross = Path()
+                cross.move(to: CGPoint(x: box.minX, y: box.minY))
+                cross.addLine(to: CGPoint(x: box.maxX, y: box.maxY))
+                cross.move(to: CGPoint(x: box.minX, y: box.maxY))
+                cross.addLine(to: CGPoint(x: box.maxX, y: box.minY))
+                ctx.stroke(cross, with: .color(Theme.error.opacity(0.85)), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+            }
+
             // Pins
             for (i, p) in c.pins.enumerated() where showPins {
                 var pp = p.point

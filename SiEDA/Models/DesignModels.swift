@@ -929,6 +929,9 @@ struct DCResult: Decodable, Equatable {
     var iterations: Int
     var nets: [DCNetVoltage]
     var devices: [DCDeviceReading]
+    /// The assembly simulated: the active variant ("" = base design) and the parts left out as not fitted.
+    var variant = ""
+    var omitted: [String] = []
 
     init(converged: Bool = false, error: String = "", iterations: Int = 0, nets: [DCNetVoltage] = [],
          devices: [DCDeviceReading] = []) {
@@ -946,9 +949,11 @@ struct DCResult: Decodable, Equatable {
         iterations = try c.decodeIfPresent(Int.self, forKey: .iterations) ?? 0
         nets = try c.decodeIfPresent([DCNetVoltage].self, forKey: .nets) ?? []
         devices = try c.decodeIfPresent([DCDeviceReading].self, forKey: .devices) ?? []
+        variant = try c.decodeIfPresent(String.self, forKey: .variant) ?? ""
+        omitted = try c.decodeIfPresent([String].self, forKey: .omitted) ?? []
     }
 
-    private enum CodingKeys: String, CodingKey { case converged, error, iterations, nets, devices }
+    private enum CodingKeys: String, CodingKey { case converged, error, iterations, nets, devices, variant, omitted }
 
     func voltage(net: Int) -> Double? { nets.first { $0.index == net }?.voltage }
     func reading(component: Int) -> DCDeviceReading? { devices.first { $0.component == component } }

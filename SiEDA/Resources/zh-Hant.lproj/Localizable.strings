@@ -537,3 +537,4 @@
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "多單元元件的閘 (四運放的 A、B、C、D) 依放置順序填入封裝後再編號";
 "Place Next Unit" = "放置下一個單元";
 "Place Unit" = "放置單元";
+"Simulated as assembled: variant values applied, parts not fitted left out (%@)" = "依組裝狀態模擬：套用變體數值，未裝配的元件已排除 (%@)";

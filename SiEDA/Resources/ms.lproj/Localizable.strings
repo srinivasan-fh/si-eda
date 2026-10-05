@@ -537,3 +537,4 @@
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Get komponen berbilang unit (A, B, C, D op-amp empat) mengisi pakej mengikut susunan peletakan sebelum penomboran";
 "Place Next Unit" = "Letak Unit Seterusnya";
 "Place Unit" = "Letak Unit";
+"Simulated as assembled: variant values applied, parts not fitted left out (%@)" = "Disimulasi seperti dipasang: nilai varian digunakan, komponen yang tidak dipasang dikecualikan (%@)";

@@ -537,3 +537,4 @@
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "ਬਹੁ-ਯੂਨਿਟ ਹਿੱਸਿਆਂ ਦੇ ਗੇਟ (ਕਵਾਡ ਓਪ-ਐਂਪ ਦੇ A, B, C, D) ਨੰਬਰ ਦੇਣ ਤੋਂ ਪਹਿਲਾਂ ਰੱਖਣ ਦੇ ਕ੍ਰਮ ਵਿੱਚ ਪੈਕੇਜ ਭਰਦੇ ਹਨ";
 "Place Next Unit" = "ਅਗਲੀ ਯੂਨਿਟ ਰੱਖੋ";
 "Place Unit" = "ਯੂਨਿਟ ਰੱਖੋ";
+"Simulated as assembled: variant values applied, parts not fitted left out (%@)" = "ਅਸੈਂਬਲ ਕੀਤੇ ਅਨੁਸਾਰ ਸਿਮੂਲੇਸ਼ਨ: ਵੇਰੀਐਂਟ ਮੁੱਲ ਲਾਗੂ, ਨਾ ਲਗਾਏ ਹਿੱਸੇ ਹਟਾਏ (%@)";

@@ -993,7 +993,8 @@ final class DesignStore: ObservableObject {
     /// "" shows and exports the base design.
     func selectVariant(_ name: String) {
         guard name != snapshot.activeVariant else { return }
-        performChecked(name.isEmpty ? "Variant: base design" : "Variant: \(name)", invalidatesAnalysis: false) {
+        // Simulation follows the active variant: its results are cleared.
+        performChecked(name.isEmpty ? "Variant: base design" : "Variant: \(name)") {
             $0.setActiveVariant(name)
         }
     }
@@ -1002,7 +1003,7 @@ final class DesignStore: ObservableObject {
     func setFittedInVariant(_ id: Int, _ fitted: Bool) {
         let variant = snapshot.activeVariant
         guard !variant.isEmpty, let c = snapshot.component(id), c.isFitted != fitted else { return }
-        performChecked(fitted ? "\(c.ref) fitted in \(variant)" : "\(c.ref) not fitted in \(variant)", invalidatesAnalysis: false) {
+        performChecked(fitted ? "\(c.ref) fitted in \(variant)" : "\(c.ref) not fitted in \(variant)") {
             $0.setVariantPart(variant, component: id, fitted: fitted)
         }
     }
@@ -1013,7 +1014,7 @@ final class DesignStore: ObservableObject {
         let text = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !variant.isEmpty, let c = snapshot.component(id), (c.variantValue ?? "") != text else { return }
         let state = snapshot.variants.first { $0.name == variant }?.part(id)?.fitted
-        performChecked("\(c.ref) = \(text.isEmpty ? c.value : text) in \(variant)", invalidatesAnalysis: false) {
+        performChecked("\(c.ref) = \(text.isEmpty ? c.value : text) in \(variant)") {
             $0.setVariantPart(variant, component: id, fitted: state, value: text)
         }
     }

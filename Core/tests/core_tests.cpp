@@ -8665,3 +8665,74 @@ TEST(multi_unit_standard_part_lm324) {
     CHECK(json && std::string(json).find("\"units\":[{\"name\":\"A\"") != std::string::npos);
     sieda_string_free(const_cast<char*>(json));
 }
+
+// ======================================================================= variants drive simulation
+
+TEST(variants_drive_simulation_values_and_unfitted_parts) {
+    Project p = ledProject();
+    const int r = p.schematic.findByRef("R1")->id;
+    const int d = p.schematic.findByRef("D1")->id;
+    // No variant, nothing DNP: the simulated circuit is the design, bit for bit.
+    {
+        const Schematic circuit = p.simulationSchematic();
+        CHECK(!circuit.omitsFromSimulation(*circuit.find(d)));
+        DcResult a = Simulator(p.schematic).dcOperatingPoint(), b = Simulator(circuit).dcOperatingPoint();
+        CHECK(a.converged && b.converged && a.netVoltages == b.netVoltages);
+        CHECK(p.unfittedRefs().empty());
+    }
+    const double base = reading(Simulator(p.schematic).dcOperatingPoint(), r)->current;
+    CHECK(base > 0.008 && base < 0.012);
+    // A variant with R1 = 1k: a third of the current.
+    const std::string k1 = "1k";
+    CHECK(p.addVariant("Dim") && p.setVariantPart("Dim", r, -1, &k1) && p.setActiveVariant("Dim"));
+    {
+        const Schematic circuit = p.simulationSchematic();
+        DcResult dc = Simulator(circuit).dcOperatingPoint();
+        CHECK(dc.converged);
+        CHECK_NEAR(reading(dc, r)->current, base * 330.0 / 1000.0, base * 0.15);
+        CHECK(circuit.nets().size() == p.schematic.nets().size());
+    }
+    // A variant without the LED: no current flows, the resistor's far end rises to the supply.
+    CHECK(p.addVariant("NoLed") && p.setVariantPart("NoLed", d, 0, nullptr) && p.setActiveVariant("NoLed"));
+    {
+        const Schematic circuit = p.simulationSchematic();
+        CHECK(circuit.omitsFromSimulation(*circuit.find(d)));
+        DcResult dc = Simulator(circuit).dcOperatingPoint();
+        CHECK(dc.converged);
+        CHECK(std::fabs(reading(dc, r)->current) < 1e-6);
+        CHECK_NEAR(netV(circuit, dc, r, "2"), 5.0, 0.01);
+        CHECK(reading(dc, d) == nullptr);
+        CHECK((p.unfittedRefs() == std::vector<std::string>{"D1"}));
+        CHECK(exportSpiceNetlist(circuit, "x").find("* D1 not fitted (DNP)") != std::string::npos);
+        // Transient too.
+        TransientResult tr = Simulator(circuit).transient(1e-3, 1e-4);
+        CHECK(tr.ok);
+    }
+    // The design itself is untouched, and a base-design DNP flag is honoured as well.
+    CHECK(!p.schematic.find(d)->sourcing.dnp);
+    CHECK(p.setActiveVariant(""));
+    p.schematic.find(d)->sourcing.dnp = true;
+    CHECK(p.simulationSchematic().omitsFromSimulation(*p.simulationSchematic().find(d)));
+    p.schematic.find(d)->sourcing.dnp = false;
+
+    // Through the C API: results name the variant and the parts left out.
+    SiedaProject* api = sieda_project_load_json(p.toJson().dump().c_str(), nullptr);
+    CHECK(api != nullptr);
+    if (!api) return;
+    CHECK(sieda_set_active_variant(api, "NoLed") == 1);
+    char* dc = sieda_simulate_dc(api);
+    CHECK(dc && std::string(dc).find("\"variant\":\"NoLed\"") != std::string::npos &&
+          std::string(dc).find("\"omitted\":[\"D1\"]") != std::string::npos);
+    sieda_string_free(dc);
+    char* ac = sieda_simulate_ac(api, "{}");
+    CHECK(ac && std::string(ac).find("\"omitted\":[\"D1\"]") != std::string::npos);
+    sieda_string_free(ac);
+    char* spice = sieda_spice_netlist(api);
+    CHECK(spice && std::string(spice).find("not fitted") != std::string::npos);
+    sieda_string_free(spice);
+    CHECK(sieda_set_active_variant(api, "") == 1);
+    char* plain = sieda_simulate_dc(api);
+    CHECK(plain && std::string(plain).find("\"omitted\"") == std::string::npos);
+    sieda_string_free(plain);
+    sieda_project_free(api);
+}

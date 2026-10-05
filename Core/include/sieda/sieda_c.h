@@ -442,7 +442,9 @@ char* sieda_annotate(SiedaProject* project, const char* options_json);
 /* ---- design variants ----------------------------------------------------------------------- */
 /* Named assembly variants: per component fitted / not fitted (DNP) and value overrides. The active variant ("" =
  * base design) drives sieda_bom_json, the "bom", "bom_assembly", "cpl", "pnp", "assembly_*" exports and the
- * assembly files of the fabrication package. Variants never change connectivity, simulation or the board.
+ * assembly files of the fabrication package, and simulation: sieda_simulate_*, the live board and
+ * sieda_spice_netlist run the variant as assembled (values applied, unfitted / DNP parts left out; their results add
+ * "variant" and "omitted":[refs]). Variants never change connectivity or the board.
  * {"active":"…","variants":[{"name","description","parts":[{"component","ref","fitted"?,"value"?}]}]} */
 char* sieda_variants_json(const SiedaProject* project);
 /* Adds a variant, optionally copying copy_from (NULL/"" = empty). 1 on success, 0 for an empty or taken name. */

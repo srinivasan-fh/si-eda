@@ -579,6 +579,13 @@ struct SimulationTransport: View {
                     Text(dc.converged ? "DC ✓" : "DC ✗")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(dc.converged ? Theme.skyBlue : Theme.error)
+                    if !dc.variant.isEmpty || !dc.omitted.isEmpty {
+                        // The simulated assembly: the active variant, with its unfitted parts left out.
+                        (dc.variant.isEmpty ? Text("Base Design") : Text(verbatim: dc.variant))
+                            .font(.caption)
+                            .foregroundStyle(Theme.warning)
+                            .help("Simulated as assembled: variant values applied, parts not fitted left out (\(dc.omitted.joined(separator: ", ")))")
+                    }
                 }
             }
         }

@@ -248,6 +248,13 @@ public:
 
     std::vector<RuleViolation> runERC() const;
 
+    /// Simulating an assembly (a design variant): parts not fitted (Sourcing::dnp) are left out of the simulated
+    /// circuit — their nets stay, only their elements go. Off by default (the design as drawn).
+    void setOmitUnfitted(bool on) { omitUnfitted_ = on; }
+    bool omitsFromSimulation(const Component& c) const {
+        return omitUnfitted_ && c.sourcing.dnp && !isNetSymbolKind(c.kind);
+    }
+
     // ---- sheets (multi-sheet / hierarchical design). There is always at least one sheet. ----
     const std::vector<Sheet>& sheets() const { return sheets_; }
     const Sheet* findSheet(int id) const;
@@ -405,6 +412,7 @@ private:
     std::vector<Wire> wires_;
     std::vector<Bus> buses_;
     int nextBusId_ = 1;
+    bool omitUnfitted_ = false;
     std::vector<Sheet> sheets_{Sheet{1, "Main", 0}};
     int activeSheet_ = 1;
     int nextSheetId_ = 2;

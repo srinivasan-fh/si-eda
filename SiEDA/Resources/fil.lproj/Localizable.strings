@@ -537,3 +537,4 @@
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Ang mga gate ng multi-unit na piyesa (A, B, C, D ng quad op-amp) ay pinupuno sa mga package ayon sa pagkakalagay bago lagyan ng numero";
 "Place Next Unit" = "Ilagay ang susunod na unit";
 "Place Unit" = "Ilagay ang unit";
+"Simulated as assembled: variant values applied, parts not fitted left out (%@)" = "Ginaya ayon sa pagkaka-assemble: inilapat ang mga value ng variant, hindi isinama ang mga piyesang hindi ikinabit (%@)";

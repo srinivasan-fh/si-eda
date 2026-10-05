@@ -293,6 +293,24 @@ Schematic Project::variantSchematic(const std::string& n) const {
     return v ? applyVariant(schematic, *v) : schematic;
 }
 
+Schematic Project::simulationSchematic() const {
+    Schematic s = variantSchematic(activeVariant);
+    for (const auto& c : s.components())
+        if (c.sourcing.dnp && !isNetSymbolKind(c.kind)) {
+            s.setOmitUnfitted(true);
+            break;
+        }
+    return s;
+}
+
+std::vector<std::string> Project::unfittedRefs() const {
+    std::vector<std::string> out;
+    const Schematic s = variantSchematic(activeVariant);
+    for (const auto& c : s.components())
+        if (c.sourcing.dnp && !isNetSymbolKind(c.kind)) out.push_back(c.ref);
+    return out;
+}
+
 std::vector<RefChange> Project::annotate(const AnnotateOptions& options) {
     auto changes = schematic.annotate(options);
     std::map<std::string, std::string> renamed;

@@ -186,13 +186,18 @@ another value. The base design is what the schematic says (with each part's own 
 - The **variant menu** in the sheet bar picks the active variant (**Base Design** or a named one), creates a variant
   (**New Variant…**, a copy of the active one) and deletes the active one.
 - With a variant active, the inspector shows its **Fitted** switch and **Value** for the selected part. Parts not
-  fitted show `DNP` beside their designator on the canvas; a variant value is shown in amber instead of the design
-  value.
+  fitted are **crossed out** on the canvas with `DNP` beside their designator (also parts marked DNP in the BOM
+  workspace); a variant value is shown in amber instead of the design value.
 - The active variant drives the BOM workspace, the BOM / assembly BOM / CPL / pick-and-place / assembly drawing
   exports and the assembly files of the fabrication package (whose order notes name the variant). Gerbers, drills,
   the IPC-D-356 netlist and the board are the same for every variant.
-- Variants never change connectivity, simulation or ERC: a not-fitted part keeps its footprint and copper, and the
-  simulator uses the design values.
+- **Simulation follows the active variant**: DC, transient, AC, sweeps, Monte Carlo, FFT, the live board and the
+  SPICE netlist export run the circuit as assembled — variant values applied, parts not fitted (in the variant, or
+  marked DNP) left out of the circuit while their nets stay. The results name the variant and the parts left out
+  (shown next to the DC result in the simulation transport). With the base design and nothing marked DNP the
+  simulated circuit is exactly the design.
+- Variants never change connectivity or ERC: a not-fitted part keeps its footprint and copper. Verification, circuit
+  validation and the industry checks analyse the design as drawn.
 - Variants are keyed by component id, so re-annotating designators does not disturb them. Settings for deleted parts
   are dropped when the project is saved.
 
@@ -256,6 +261,6 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
   design carries every channel as ordinary parts: refining the design with the agents flattens the repetition.
 - A bus line has no electrical meaning of its own: members connect through their entries' names. Buses are not
   shown in the PCB editor (their members are ordinary nets there).
-- Variant values affect the assembly outputs only, not simulation or design checks.
+- Variants affect the assembly outputs and simulation, not ERC, verification or the board.
 - The sheet symbol is drawn from its entries; it has no separate size or graphics of its own.
 - Wires never cross sheets; parts moved to another sheet lose their wires to parts left behind.
