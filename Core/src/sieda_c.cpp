@@ -35,6 +35,7 @@
 #include "sieda/Project.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Robotics.hpp"
+#include "sieda/SchematicSearch.hpp"
 #include "sieda/SignalIntegrity.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/StandardParts.hpp"
@@ -84,6 +85,17 @@ int32_t guarded(F f) {
         return f();
     } catch (...) {
         return 0;
+    }
+}
+
+/// Simulation results say which assembly was simulated: the active variant and the parts left out (not fitted).
+void addAssemblyNote(const Project& p, Json& result) {
+    if (!p.activeVariant.empty()) result["variant"] = p.activeVariant;
+    const auto omitted = p.unfittedRefs();
+    if (!omitted.empty()) {
+        Json list = Json::array();
+        for (const auto& ref : omitted) list.push(ref);
+        result["omitted"] = list;
     }
 }
 
@@ -332,7 +344,7 @@ SiedaLiveSim* sieda_live_start(const SiedaProject* project, char** error_out) {
     if (error_out) *error_out = nullptr;
     if (!project) return nullptr;
     try {
-        auto* live = new SiedaLiveSim(project->project.schematic);
+        auto* live = new SiedaLiveSim(project->project.simulationSchematic());
         std::string error;
         if (!live->sim.begin(error)) {
             if (error_out) *error_out = dup(error);
@@ -748,8 +760,11 @@ char* sieda_run_verification(const SiedaProject* project) {
 char* sieda_simulate_dc(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
-        Simulator sim(project->project.schematic);
-        return dup(project->project.dcToJson(sim.dcOperatingPoint()).dump());
+        const Schematic circuit = project->project.simulationSchematic();  // the active variant as assembled
+        Simulator sim(circuit);
+        Json result = project->project.dcToJson(sim.dcOperatingPoint());
+        addAssemblyNote(project->project, result);
+        return dup(result.dump());
     } catch (const std::exception& e) {
         return errorJson(e);
     }
@@ -758,8 +773,11 @@ char* sieda_simulate_dc(const SiedaProject* project) {
 char* sieda_simulate_transient(const SiedaProject* project, double t_stop, double t_step) {
     if (!project) return nullptr;
     try {
-        Simulator sim(project->project.schematic);
-        return dup(project->project.transientToJson(sim.transient(t_stop, t_step)).dump());
+        const Schematic circuit = project->project.simulationSchematic();
+        Simulator sim(circuit);
+        Json result = project->project.transientToJson(sim.transient(t_stop, t_step));
+        addAssemblyNote(project->project, result);
+        return dup(result.dump());
     } catch (const std::exception& e) {
         return errorJson(e);
     }
@@ -775,7 +793,9 @@ char* runAnalysis(const SiedaProject* project, const char* options_json,
     try {
         std::string text = str(options_json);
         Json options = text.find_first_not_of(" \t\r\n") == std::string::npos ? Json::object() : Json::parse(text);
-        return dup(analysis(project->project.schematic, options).dump());
+        Json result = analysis(project->project.simulationSchematic(), options);
+        if (result.isObject()) addAssemblyNote(project->project, result);
+        return dup(result.dump());
     } catch (const std::exception& e) {
         Json j = Json::object();
         j["ok"] = false;
@@ -810,7 +830,7 @@ char* sieda_simulate_fft(const SiedaProject* project, const char* options_json) 
 char* sieda_spice_netlist(const SiedaProject* project) {
     if (!project) return nullptr;
     try {
-        return dup(exportSpiceNetlist(project->project.schematic, project->project.name));
+        return dup(exportSpiceNetlist(project->project.simulationSchematic(), project->project.name));
     } catch (const std::exception& e) {
         return errorJson(e);
     }
@@ -1635,6 +1655,12 @@ char* sieda_sheets_json(const SiedaProject* project) {
             Json ports = Json::array();
             for (const auto& port : sch.sheetPorts(s.id)) ports.push(port);
             j["ports"] = ports;
+            if (sch.isRepeated(s.id)) {
+                j["instanceOf"] = s.instanceOf;
+                j["channel"] = s.channel;
+                j["refs"] = instanceRefsName(sch.findSheet(sch.definitionSheet(s.id))->refs);
+                j["instances"] = static_cast<int>(sch.sheetInstances(s.id).size());
+            }
             arr.push(j);
         }
         out["sheets"] = arr;
@@ -1748,6 +1774,7 @@ char* sieda_annotate(SiedaProject* project, const char* options_json) {
             o.byColumns = j.get("order").asString("rows") == "columns";
             o.keepExisting = j.get("keepExisting").asBool(false);
             o.sheetNumbering = j.get("sheetNumbering").asBool(false);
+            o.packUnits = j.get("packUnits").asBool(false);
         }
         Json changed = Json::array();
         for (const auto& ch : project->project.annotate(o)) {
@@ -2007,6 +2034,267 @@ int32_t sieda_pcb_remove_via(SiedaProject* project, int32_t via_id) {
     const auto n = vias.size();
     vias.erase(std::remove_if(vias.begin(), vias.end(), [&](const Via& v) { return v.id == via_id; }), vias.end());
     return vias.size() < n ? 1 : 0;
+}
+
+}  // extern "C"
+
+// ---- schematic capture: repeated sheets, graphical buses, multi-unit parts, search and navigation
+
+extern "C" {
+
+int32_t sieda_repeat_sheet(SiedaProject* project, int32_t sheet, int32_t count) {
+    if (!project) return -1;
+    try {
+        const int n = project->project.schematic.repeatSheet(sheet, count);
+        if (n > 0) project->project.schematicChanged();
+        return n;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_set_instance_refs(SiedaProject* project, int32_t sheet, const char* scheme) {
+    if (!project || !scheme) return 0;
+    return guarded([&] {
+        InstanceRefs refs;
+        if (!instanceRefsFromName(scheme, &refs)) return 0;
+        return project->project.schematic.setInstanceRefs(sheet, refs) ? 1 : 0;
+    });
+}
+
+int32_t sieda_set_sheet_channel(SiedaProject* project, int32_t sheet, const char* channel) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setSheetChannel(sheet, str(channel)) ? 1 : 0; });
+}
+
+}  // extern "C"
+
+// ---- graphical buses
+
+namespace {
+bool busScope(const char* scope, LabelScope* out) {
+    if (!scope || !*scope) {
+        *out = LabelScope::Local;
+        return true;
+    }
+    return labelScopeFromName(scope, out) && *out != LabelScope::SheetEntry;
+}
+}  // namespace
+
+extern "C" {
+
+int32_t sieda_add_bus(SiedaProject* project, const char* name, const char* points_json) {
+    if (!project || !points_json) return -1;
+    try {
+        std::vector<Vec2> points;
+        const Json list = Json::parse(points_json);
+        for (const auto& p : list.items()) points.push_back({p.get("x").asNumber(), p.get("y").asNumber()});
+        return project->project.schematic.addBus(str(name), points);
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_remove_bus(SiedaProject* project, int32_t bus) {
+    if (!project) return 0;
+    return guarded([&] {
+        const bool ok = project->project.schematic.removeBus(bus);
+        if (ok) project->project.schematicChanged();
+        return ok ? 1 : 0;
+    });
+}
+
+int32_t sieda_rename_bus(SiedaProject* project, int32_t bus, const char* name) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.renameBus(bus, str(name)) ? 1 : 0; });
+}
+
+int32_t sieda_move_bus(SiedaProject* project, int32_t bus, double dx, double dy) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.moveBus(bus, {dx, dy}) ? 1 : 0; });
+}
+
+int32_t sieda_rip_bus_entries(SiedaProject* project, int32_t bus, const char* members_json, const char* scope) {
+    if (!project) return -1;
+    try {
+        LabelScope s;
+        if (!busScope(scope, &s)) return -1;
+        std::vector<std::string> members;
+        if (members_json && *members_json)
+        {
+            const Json list = Json::parse(members_json);
+            for (const auto& m : list.items()) members.push_back(m.asString(""));
+        }
+        const int n = project->project.schematic.ripBusEntries(bus, members, s);
+        if (n > 0) project->project.schematicChanged();
+        return n;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_connect_bus_to_part(SiedaProject* project, int32_t bus, int32_t component_id, const char* scope) {
+    if (!project) return -1;
+    try {
+        LabelScope s;
+        if (!busScope(scope, &s)) return -1;
+        const int n = project->project.schematic.connectBusToPart(bus, component_id, s);
+        if (n > 0) project->project.schematicChanged();
+        return n;
+    } catch (...) {
+        return -1;
+    }
+}
+
+}  // extern "C"
+
+// ---- multi-unit parts
+
+extern "C" {
+
+int32_t sieda_add_custom_units(SiedaProject* project, const char* part_id, const char* value, double x, double y,
+                               int32_t rotation, const char* ref) {
+    if (!project || !part_id) return -1;
+    try {
+        const int id = project->project.schematic.addCustomUnits(part_id, str(value), {x, y}, rotation, str(ref));
+        if (id >= 0) project->project.schematicChanged();
+        return id;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_add_part_unit(SiedaProject* project, int32_t component_id, int32_t unit, double x, double y, int32_t rotation) {
+    if (!project) return -1;
+    try {
+        const int id = project->project.schematic.addPartUnit(component_id, unit, {x, y}, rotation);
+        if (id >= 0) project->project.schematicChanged();
+        return id;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_place_next_unit(SiedaProject* project, int32_t component_id, double x, double y) {
+    if (!project) return -1;
+    try {
+        const int id = project->project.schematic.placeNextUnit(component_id, {x, y});
+        if (id >= 0) project->project.schematicChanged();
+        return id;
+    } catch (...) {
+        return -1;
+    }
+}
+
+}  // extern "C"
+
+// ---- find / replace, net navigator, title block
+
+namespace {
+SearchOptions searchOptions(const Json& j) {
+    SearchOptions o;
+    o.matchCase = j.get("matchCase").asBool(false);
+    o.wholeWord = j.get("wholeWord").asBool(false);
+    if (j.has("fields")) {
+        o.refs = o.values = o.labels = o.nets = o.pins = false;
+        for (const auto& f : j.get("fields").items()) {
+            const std::string name = f.asString("");
+            if (name == "ref") o.refs = true;
+            else if (name == "value") o.values = true;
+            else if (name == "label") o.labels = true;
+            else if (name == "net") o.nets = true;
+            else if (name == "pin") o.pins = true;
+        }
+    }
+    return o;
+}
+}  // namespace
+
+extern "C" {
+
+char* sieda_schematic_find(const SiedaProject* project, const char* request_json) {
+    if (!project || !request_json) return nullptr;
+    try {
+        const Json req = Json::parse(request_json);
+        Json hits = Json::array();
+        for (const auto& h : findInSchematic(project->project.schematic, req.get("text").asString(""), searchOptions(req))) {
+            Json j = Json::object();
+            j["component"] = h.component;
+            j["net"] = h.net;
+            j["pin"] = h.pin;
+            j["sheet"] = h.sheet;
+            j["field"] = h.field;
+            j["text"] = h.text;
+            hits.push(j);
+        }
+        Json out = Json::object();
+        out["hits"] = hits;
+        return dup(out.dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+int32_t sieda_schematic_replace(SiedaProject* project, const char* request_json) {
+    if (!project || !request_json) return 0;
+    try {
+        const Json req = Json::parse(request_json);
+        SearchOptions o = searchOptions(req);
+        if (!req.has("fields")) o.refs = o.nets = o.pins = false;  // values and labels by default
+        const int n = replaceInSchematic(project->project.schematic, req.get("text").asString(""),
+                                         req.get("replacement").asString(""), o);
+        if (n > 0) project->project.schematicChanged();
+        return n;
+    } catch (...) {
+        return 0;
+    }
+}
+
+char* sieda_net_places(const SiedaProject* project, int32_t net) {
+    if (!project) return nullptr;
+    try {
+        const Schematic& sch = project->project.schematic;
+        Json out = Json::object();
+        out["net"] = net;
+        out["name"] = net >= 0 && net < static_cast<int>(sch.nets().size()) ? sch.nets()[static_cast<size_t>(net)].name : std::string();
+        Json places = Json::array();
+        for (const auto& p : netPlaces(sch, net)) {
+            Json j = Json::object();
+            j["component"] = p.component;
+            j["pin"] = p.pin;
+            j["sheet"] = p.sheet;
+            j["x"] = p.position.x;
+            j["y"] = p.position.y;
+            j["kind"] = p.kind;
+            j["ref"] = p.ref;
+            j["name"] = p.name;
+            places.push(j);
+        }
+        out["places"] = places;
+        return dup(out.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_set_title_block(SiedaProject* project, const char* json) {
+    if (!project || !json) return 0;
+    try {
+        const Json j = Json::parse(json);
+        if (!j.isObject()) return 0;
+        TitleBlock& tb = project->project.titleBlock;
+        auto set = [&](const char* key, std::string& field) {
+            if (j.has(key)) field = j.get(key).asString("").substr(0, 256);
+        };
+        set("title", tb.title);
+        set("company", tb.company);
+        set("revision", tb.revision);
+        set("date", tb.date);
+        set("drawnBy", tb.drawnBy);
+        return 1;
+    } catch (...) {
+        return 0;
+    }
 }
 
 }  // extern "C"

@@ -4737,3 +4737,166 @@ final class SignalIntegrityBridgeTests: XCTestCase {
         XCTAssertFalse(store.siSettings().signOff)
     }
 }
+
+/// Schematic capture: repeated sheets, buses, multi-unit parts, variants in simulation, search and navigation.
+@MainActor
+final class SchematicCaptureTests: XCTestCase {
+    func testRepeatedSheetChannelsThroughTheStore() throws {
+        let store = DesignStore()
+        let block = try XCTUnwrap(store.addSheet(named: "Amp", parent: 1))
+        let port = store.addComponent(.netLabel, at: .zero)
+        XCTAssertTrue(store.engine.setValue(port, "IN"))
+        XCTAssertTrue(store.engine.setLabelScope(port, scope: "port"))
+        let r = store.addComponent(.resistor, at: CGPoint(x: 80, y: 0))
+        XCTAssertTrue(store.connect(PinAddress(component: port, pin: 0), PinAddress(component: r, pin: 0)))
+        store.repeatSheet(block, count: 3)
+        let channels = store.snapshot.sheets.filter { $0.definitionId == block }
+        XCTAssertEqual(channels.count, 3)
+        XCTAssertEqual(store.snapshot.sheet(block)?.instances, 3)
+        XCTAssertEqual(store.snapshot.component(r)?.logicalRef, "R1")
+        XCTAssertEqual(store.snapshot.component(r)?.ref, "R201")
+        // Every channel got its sheet symbol on the parent sheet.
+        for channel in channels {
+            XCTAssertTrue(store.snapshot.components.contains { $0.labelScope == "entry" && $0.targetSheet == channel.id })
+        }
+        // The block designator is edited from a channel; every channel follows.
+        let copy = try XCTUnwrap(store.snapshot.components.first { $0.instanceOf == r })
+        store.setRef(copy.id, "R7")
+        XCTAssertEqual(store.snapshot.component(r)?.ref, "R207")
+        store.setInstanceRefs(block, scheme: "suffix")
+        XCTAssertEqual(store.snapshot.component(r)?.ref, "R7_A")
+        store.setSheetChannel(block, to: "L")
+        XCTAssertEqual(store.snapshot.component(r)?.ref, "R7_L")
+        store.undo()
+        XCTAssertEqual(store.snapshot.component(r)?.ref, "R7_A")
+        store.repeatSheet(block, count: 1)
+        XCTAssertEqual(store.snapshot.sheets.filter { $0.definitionId == block }.count, 1)
+    }
+}
+
+@MainActor
+final class SchematicBusTests: XCTestCase {
+    func testBusDrawRipConnectAndDelete() throws {
+        let store = DesignStore()
+        let j1 = store.addComponent(.connector, at: .zero)
+        let j2 = store.addComponent(.connector, at: CGPoint(x: 300, y: 0))
+        XCTAssertNil(store.addBus(named: "nope", points: [CGPoint(x: 150, y: -50), CGPoint(x: 150, y: 50)]))
+        let bus = try XCTUnwrap(store.addBus(named: "D[0..1]", points: [CGPoint(x: 150, y: -50), CGPoint(x: 150, y: 50)]))
+        XCTAssertEqual(store.selectedBus, bus)
+        XCTAssertEqual(store.sheetSnapshot.bus(bus)?.members, ["D0", "D1"])
+        store.connectBus(bus, toPart: j1)
+        store.connectBus(bus, toPart: j2)
+        let c1 = try XCTUnwrap(store.snapshot.component(j1)), c2 = try XCTUnwrap(store.snapshot.component(j2))
+        XCTAssertEqual(c1.pins[0].net, c2.pins[0].net)
+        XCTAssertNotEqual(c1.pins[0].net, c1.pins[1].net)
+        XCTAssertEqual(store.snapshot.components.filter { $0.bus == bus }.count, 4)
+        store.moveBus(bus, by: CGSize(width: 20, height: 0))
+        XCTAssertEqual(store.snapshot.bus(bus)?.points.first?.x, 170)
+        store.renameBus(bus, to: "D[0..2]")
+        store.ripBusEntries(bus)
+        XCTAssertEqual(store.snapshot.components.filter { $0.bus == bus }.count, 5)
+        store.deleteSelection()
+        XCTAssertNil(store.snapshot.bus(bus))
+        XCTAssertTrue(store.snapshot.components.allSatisfy { $0.bus == nil })
+        store.undo()
+        XCTAssertNotNil(store.snapshot.bus(bus))
+    }
+}
+
+@MainActor
+final class MultiUnitPartTests: XCTestCase {
+    func testQuadOpAmpPlacedGateByGate() throws {
+        let store = DesignStore()
+        let lm324 = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "LM324" })
+        XCTAssertEqual(lm324.spec.units?.count, 4)
+        let partId = try XCTUnwrap(store.addStandardPartToLibrary(lm324))
+        XCTAssertTrue(try XCTUnwrap(store.snapshot.customPart(partId)).isMultiUnit)
+        let a = store.addCustomComponent(partId: partId, at: .zero)
+        let unitA = try XCTUnwrap(store.snapshot.component(a))
+        XCTAssertEqual(unitA.unitName, "A")
+        XCTAssertEqual(unitA.displayRef, "U1A")
+        XCTAssertEqual(store.snapshot.customPart(for: unitA)?.symbol.pins.count, 3)
+        let package = try XCTUnwrap(unitA.unitOf)
+        XCTAssertTrue(try XCTUnwrap(store.snapshot.component(package)).isUnitPackage)
+        // The package is not drawn; its units are.
+        XCTAssertNil(store.sheetSnapshot.component(package))
+        store.placeNextUnit(of: a)
+        store.placeUnit(5, of: a)
+        let units = store.snapshot.components.filter { $0.unitOf == package }.compactMap(\.unitName)
+        XCTAssertEqual(Set(units), ["A", "B", "P"])
+        // A plan carries the part whole.
+        let plan = DesignPlanCompiler.plan(from: store.snapshot)
+        XCTAssertEqual(plan.components.filter { $0.ref == "U1" }.count, 1)
+        store.deleteSelection()
+        XCTAssertFalse(store.snapshot.components.contains { $0.unitName == "P" })
+    }
+}
+
+final class VariantSimulationTests: XCTestCase {
+    func testActiveVariantDrivesTheSimulation() throws {
+        let engine = EDAEngine(name: "Variant sim")
+        let v = engine.addComponent(.voltageSource, value: "5", at: .zero)
+        let r = engine.addComponent(.resistor, value: "330", at: CGPoint(x: 100, y: -40))
+        let d = engine.addComponent(.led, value: "Red", at: CGPoint(x: 200, y: -40))
+        let g = engine.addComponent(.ground, at: CGPoint(x: 0, y: 80))
+        XCTAssertNotNil(engine.connect(PinAddress(component: v, pin: 0), PinAddress(component: r, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r, pin: 1), PinAddress(component: d, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: d, pin: 1), PinAddress(component: g, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: v, pin: 1), PinAddress(component: g, pin: 0)))
+        let base = engine.simulateDC()
+        XCTAssertTrue(base.converged)
+        XCTAssertTrue(base.variant.isEmpty && base.omitted.isEmpty)
+        XCTAssertTrue(engine.addVariant("NoLed"))
+        XCTAssertTrue(engine.setVariantPart("NoLed", component: d, fitted: false))
+        XCTAssertTrue(engine.setActiveVariant("NoLed"))
+        let lite = engine.simulateDC()
+        XCTAssertTrue(lite.converged)
+        XCTAssertEqual(lite.variant, "NoLed")
+        XCTAssertEqual(lite.omitted, ["D1"])
+        XCTAssertLessThan(abs(lite.reading(component: r)?.current ?? 1), 1e-6)
+        XCTAssertEqual(engine.snapshot()?.component(d)?.isFitted, false)
+    }
+}
+
+@MainActor
+final class SchematicFindAndNavigateTests: XCTestCase {
+    func testFindReplaceNetNavigatorCrossProbeAndTitleBlock() throws {
+        let store = DesignStore()
+        let v = store.addComponent(.voltageSource, at: .zero)
+        let label = store.addComponent(.netLabel, at: CGPoint(x: 60, y: -40))
+        store.setValue(label, "VIN")
+        XCTAssertTrue(store.connect(PinAddress(component: v, pin: 0), PinAddress(component: label, pin: 0)))
+        let load = try XCTUnwrap(store.addSheet(named: "Load"))
+        let r = store.addComponent(.resistor, at: CGPoint(x: 100, y: 0))
+        let label2 = store.addComponent(.netLabel, at: CGPoint(x: 0, y: 0))
+        store.setValue(label2, "VIN")
+        XCTAssertTrue(store.connect(PinAddress(component: label2, pin: 0), PinAddress(component: r, pin: 0)))
+        let hits = store.find("VIN", matchCase: false, wholeWord: true, pins: false)
+        XCTAssertEqual(hits.filter { $0.field == "label" }.count, 2)
+        XCTAssertEqual(hits.filter { $0.field == "net" }.count, 1)
+        // The net navigator lists both sheets; cross-probing shows the other sheet.
+        let net = try XCTUnwrap(store.snapshot.component(r)?.pins[0].net)
+        let places = try XCTUnwrap(store.netPlaces(net)).places
+        XCTAssertEqual(Set(places.map(\.sheet)).count, 2)
+        store.crossProbe(component: v, sheet: 1)
+        XCTAssertEqual(store.snapshot.activeSheet, 1)
+        XCTAssertEqual(store.selection, [v])
+        store.crossProbe(component: r, sheet: load)
+        XCTAssertEqual(store.snapshot.activeSheet, load)
+        // Replace renames both labels in one undo step; the net still joins.
+        XCTAssertEqual(store.replaceAll("VIN", with: "VSUP", matchCase: true, wholeWord: true), 2)
+        XCTAssertTrue(store.find("VIN", matchCase: false, wholeWord: false, pins: false).isEmpty)
+        XCTAssertEqual(store.snapshot.component(r)?.pins[0].net, store.snapshot.component(v)?.pins[0].net)
+        store.undo()
+        XCTAssertEqual(store.find("VIN", matchCase: false, wholeWord: true, pins: false).filter { $0.field == "label" }.count, 2)
+        // Title block.
+        var block = store.snapshot.titleBlock
+        block.company = "Acme"
+        block.revision = "C"
+        store.setTitleBlock(block)
+        XCTAssertEqual(store.snapshot.titleBlock.company, "Acme")
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        XCTAssertEqual(reopened.snapshot()?.titleBlock.revision, "C")
+    }
+}

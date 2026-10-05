@@ -340,6 +340,111 @@ int sieda_c_api_router_test(void) {
     return 0;
 }
 
+/* Schematic capture: repeated sheets (channels). Returns 0 or the failing step. */
+int sieda_c_api_capture_test(void) {
+    SiedaProject* p = sieda_project_new("Capture");
+    if (!p) return 1;
+    int32_t block = sieda_add_sheet(p, "Amp", 1);
+    if (block < 0 || !sieda_set_active_sheet(p, block)) return 2;
+    int32_t in = sieda_add_component(p, 15, "IN", 0, 0, 0, NULL);
+    int32_t r = sieda_add_component(p, 0, "10k", 80, 0, 0, NULL);
+    if (!sieda_set_label_scope(p, in, "port", 0) || sieda_connect(p, in, 0, r, 0) < 0) return 3;
+    if (sieda_repeat_sheet(p, block, 4) != 4 || sieda_repeat_sheet(p, block, 0) != -1) return 4;
+    if (sieda_find_component(p, "R201") != r || sieda_find_component(p, "R501") < 0) return 5;
+    {
+        char* sheets = sieda_sheets_json(p);
+        if (!sheets || !strstr(sheets, "\"name\":\"Amp [D]\"") || !strstr(sheets, "\"instances\":4") ||
+            !strstr(sheets, "\"channel\":\"C\"")) return 6;
+        sieda_string_free(sheets);
+    }
+    if (!sieda_set_instance_refs(p, block, "suffix") || sieda_set_instance_refs(p, block, "bogus")) return 7;
+    if (sieda_find_component(p, "R1_D") < 0 || sieda_find_component(p, "R1_A") != r) return 8;
+    if (!sieda_set_sheet_channel(p, block, "L") || sieda_set_sheet_channel(p, block, "") ||
+        sieda_find_component(p, "R1_L") != r) return 9;
+    {
+        char* snap = sieda_project_snapshot(p);
+        if (!snap || !strstr(snap, "\"logicalRef\":\"R1\"") || !strstr(snap, "\"instanceOf\":")) return 10;
+        sieda_string_free(snap);
+        char* saved = sieda_project_save_json(p);
+        char* err = NULL;
+        SiedaProject* q = sieda_project_load_json(saved, &err);
+        sieda_string_free(saved);
+        if (!q || err || sieda_find_component(q, "R1_D") < 0) return 11;
+        sieda_project_free(q);
+    }
+    if (sieda_repeat_sheet(p, block, 1) != 1 || sieda_find_component(p, "R1") != r) return 12;
+    sieda_project_free(p);
+    return 0;
+}
+
+/* Graphical buses through the C API. Returns 0 or the failing step. */
+int sieda_c_api_bus_test(void) {
+    SiedaProject* p = sieda_project_new("Buses");
+    if (!p) return 1;
+    int32_t j1 = sieda_add_component(p, 12, NULL, 0, 0, 0, NULL);
+    int32_t j2 = sieda_add_component(p, 12, NULL, 300, 0, 0, NULL);
+    if (sieda_add_bus(p, "nope", "[{\"x\":0,\"y\":0},{\"x\":0,\"y\":50}]") != -1) return 2;
+    if (sieda_add_bus(p, "D[0..1]", "not json") != -1 || sieda_add_bus(p, "D[0..1]", NULL) != -1) return 3;
+    int32_t bus = sieda_add_bus(p, "D[0..1]", "[{\"x\":150,\"y\":-50},{\"x\":150,\"y\":50}]");
+    if (bus <= 0) return 4;
+    if (sieda_connect_bus_to_part(p, bus, j1, NULL) != 2 || sieda_connect_bus_to_part(p, bus, j2, "local") != 2) return 5;
+    if (sieda_connect_bus_to_part(p, bus, j1, "entry") != -1 || sieda_connect_bus_to_part(p, 999, j1, NULL) != -1) return 6;
+    {
+        char* snap = sieda_project_snapshot(p);
+        if (!snap || !strstr(snap, "\"buses\":[{") || !strstr(snap, "\"members\":[\"D0\",\"D1\"]") ||
+            !strstr(snap, "\"bus\":")) return 7;
+        sieda_string_free(snap);
+    }
+    int32_t bus2 = sieda_add_bus(p, "A[0..3]", "[{\"x\":0,\"y\":200},{\"x\":200,\"y\":200}]");
+    if (sieda_rip_bus_entries(p, bus2, "[\"A0\"]", NULL) != 1 || sieda_rip_bus_entries(p, bus2, NULL, "global") != 3) return 8;
+    if (sieda_rip_bus_entries(p, bus2, "[\"Z\"]", NULL) != -1 || sieda_rip_bus_entries(p, bus2, "{", NULL) != -1) return 9;
+    if (!sieda_move_bus(p, bus2, 10, 0) || !sieda_rename_bus(p, bus2, "A[0..4]") || sieda_rename_bus(p, bus2, "x")) return 10;
+    {
+        char* erc = sieda_run_erc(p);
+        if (!erc || !strstr(erc, "ERC_DANGLING_LABEL")) return 11; /* the ripped entries are not wired yet */
+        sieda_string_free(erc);
+    }
+    if (!sieda_remove_bus(p, bus2) || sieda_remove_bus(p, bus2)) return 12;
+    sieda_project_free(p);
+    return 0;
+}
+
+/* Multi-unit parts through the C API. Returns 0 or the failing step. */
+int sieda_c_api_units_test(void) {
+    SiedaProject* p = sieda_project_new("Units");
+    if (!p) return 1;
+    char* err = NULL;
+    char* info = sieda_custom_part_register(p,
+        "{\"name\":\"DUAL-CAPI\",\"refPrefix\":\"U\",\"package\":{\"type\":\"SOIC\"},\"pins\":["
+        "{\"number\":\"1\",\"name\":\"OUTA\",\"type\":\"output\"},{\"number\":\"2\",\"name\":\"INA-\",\"type\":\"input\"},"
+        "{\"number\":\"3\",\"name\":\"INA+\",\"type\":\"input\"},{\"number\":\"4\",\"name\":\"V-\",\"type\":\"power_in\"},"
+        "{\"number\":\"5\",\"name\":\"INB+\",\"type\":\"input\"},{\"number\":\"6\",\"name\":\"INB-\",\"type\":\"input\"},"
+        "{\"number\":\"7\",\"name\":\"OUTB\",\"type\":\"output\"},{\"number\":\"8\",\"name\":\"V+\",\"type\":\"power_in\"}],"
+        "\"units\":[{\"name\":\"A\",\"pins\":[\"1\",\"2\",\"3\"]},{\"name\":\"B\",\"pins\":[\"7\",\"6\",\"5\"]}]}",
+        &err);
+    if (!info || err) return 2;
+    const char* at = strstr(info, "\"id\":\"");
+    if (!at || !strstr(info, "\"unitSymbols\":[")) return 3;
+    char id[128];
+    at += 6;
+    size_t n = 0;
+    while (at[n] && at[n] != '"' && n < sizeof id - 1) { id[n] = at[n]; ++n; }
+    id[n] = 0;
+    sieda_string_free(info);
+    int32_t a = sieda_add_custom_units(p, id, NULL, 0, 0, 0, NULL);
+    if (a < 0 || sieda_add_custom_units(p, "NO-SUCH-PART", NULL, 0, 0, 0, NULL) != -1) return 4;
+    int32_t b = sieda_place_next_unit(p, a, 0, 200);
+    int32_t pw = sieda_add_part_unit(p, a, 3, 200, 0, 0);
+    if (b < 0 || pw < 0 || sieda_place_next_unit(p, a, 0, 0) != -1 || sieda_add_part_unit(p, a, 1, 0, 0, 0) != -1) return 5;
+    {
+        char* snap = sieda_project_snapshot(p);
+        if (!snap || !strstr(snap, "\"unitName\":\"P\"") || !strstr(snap, "\"unitPackage\":true")) return 6;
+        sieda_string_free(snap);
+        char* changed = sieda_annotate(p, "{\"packUnits\":true}");
+        if (!changed) return 7;
+        sieda_string_free(changed);
+    }
+    if (sieda_find_component(p, "U1") < 0) return 8;
 /* First integer after `key` in `json` (-1 when absent). */
 static int32_t c_api_first_int_after(const char* json, const char* key) {
     const char* at = json ? strstr(json, key) : NULL;

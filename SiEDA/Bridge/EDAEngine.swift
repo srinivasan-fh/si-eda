@@ -272,10 +272,98 @@ final class EDAEngine: @unchecked Sendable {
 
     /// Re-numbers designators; returns the number changed.
     @discardableResult
-    func annotate(byColumns: Bool, keepExisting: Bool, sheetNumbering: Bool) -> Int {
-        let options = "{\"order\":\"\(byColumns ? "columns" : "rows")\",\"keepExisting\":\(keepExisting),\"sheetNumbering\":\(sheetNumbering)}"
+    func annotate(byColumns: Bool, keepExisting: Bool, sheetNumbering: Bool, packUnits: Bool = false) -> Int {
+        let options = "{\"order\":\"\(byColumns ? "columns" : "rows")\",\"keepExisting\":\(keepExisting),\"sheetNumbering\":\(sheetNumbering),\"packUnits\":\(packUnits)}"
         struct Reply: Decodable { struct Change: Decodable { let component: Int }; let changed: [Change] }
         return Self.decode(Reply.self, from: withHandle { Self.take(sieda_annotate($0, options)) })?.changed.count ?? 0
+    }
+
+    // MARK: - Repeated sheets
+
+    /// Uses a sheet `count` times (channels, the sheet itself first); the number of channels, nil when it cannot be.
+    @discardableResult
+    func repeatSheet(_ id: Int, count: Int) -> Int? {
+        let n = withHandle { sieda_repeat_sheet($0, Int32(id), Int32(count)) }
+        return n > 0 ? Int(n) : nil
+    }
+
+    /// Channel designators of a repeated sheet: "sheet" (R201, R301…) or "suffix" (R1_A, R1_B…).
+    @discardableResult
+    func setInstanceRefs(_ id: Int, scheme: String) -> Bool {
+        withHandle { sieda_set_instance_refs($0, Int32(id), scheme) } == 1
+    }
+
+    @discardableResult
+    func setSheetChannel(_ id: Int, channel: String) -> Bool {
+        withHandle { sieda_set_sheet_channel($0, Int32(id), channel) } == 1
+    }
+
+    // MARK: - Graphical buses
+
+    /// Draws a bus ("D[0..7]") through `points` on the active sheet; its id, nil when the name is not a bus.
+    func addBus(_ name: String, points: [CGPoint]) -> Int? {
+        let json = "[" + points.map { "{\"x\":\(Double($0.x)),\"y\":\(Double($0.y))}" }.joined(separator: ",") + "]"
+        let id = withHandle { sieda_add_bus($0, name, json) }
+        return id > 0 ? Int(id) : nil
+    }
+
+    @discardableResult
+    func removeBus(_ id: Int) -> Bool { withHandle { sieda_remove_bus($0, Int32(id)) } == 1 }
+
+    @discardableResult
+    func renameBus(_ id: Int, to name: String) -> Bool { withHandle { sieda_rename_bus($0, Int32(id), name) } == 1 }
+
+    @discardableResult
+    func moveBus(_ id: Int, by delta: CGSize) -> Bool {
+        withHandle { sieda_move_bus($0, Int32(id), Double(delta.width), Double(delta.height)) } == 1
+    }
+
+    /// Rips entries out of a bus for `members` (every member without one when empty); the number added.
+    @discardableResult
+    func ripBusEntries(_ id: Int, members: [String] = [], scope: String = "local") -> Int {
+        let json = (try? JSONEncoder().encode(members)).map { String(decoding: $0, as: UTF8.self) } ?? "[]"
+        return max(0, Int(withHandle { sieda_rip_bus_entries($0, Int32(id), json, scope) }))
+    }
+
+    /// Wires bus members to the pins of a part they name (else to its open pins); the connections made.
+    @discardableResult
+    func connectBus(_ id: Int, toPart component: Int, scope: String = "local") -> Int {
+        max(0, Int(withHandle { sieda_connect_bus_to_part($0, Int32(id), Int32(component), scope) }))
+    }
+
+    // MARK: - Find / replace, net navigator, title block
+
+    /// Finds text in designators, values, labels and nets (and pin names with `pins`) across every sheet.
+    func find(_ text: String, matchCase: Bool = false, wholeWord: Bool = false, pins: Bool = false) -> [SchematicSearchHit] {
+        var fields = ["ref", "value", "label", "net"]
+        if pins { fields.append("pin") }
+        let request: [String: Any] = ["text": text, "matchCase": matchCase, "wholeWord": wholeWord, "fields": fields]
+        guard let data = try? JSONSerialization.data(withJSONObject: request) else { return [] }
+        let json = String(decoding: data, as: UTF8.self)
+        struct Reply: Decodable { var hits: [SchematicSearchHit] }
+        return Self.decode(Reply.self, from: withHandle { Self.take(sieda_schematic_find($0, json)) })?.hits ?? []
+    }
+
+    /// Replaces text in part values and net label names; the number of fields changed.
+    @discardableResult
+    func replace(_ text: String, with replacement: String, matchCase: Bool = false, wholeWord: Bool = false) -> Int {
+        let request: [String: Any] = ["text": text, "replacement": replacement, "matchCase": matchCase, "wholeWord": wholeWord,
+                                      "fields": ["value", "label"]]
+        guard let data = try? JSONSerialization.data(withJSONObject: request) else { return 0 }
+        let json = String(decoding: data, as: UTF8.self)
+        return Int(withHandle { sieda_schematic_replace($0, json) })
+    }
+
+    /// Every place a net appears (net navigator).
+    func netPlaces(_ net: Int) -> NetPlacesReport? {
+        Self.decode(NetPlacesReport.self, from: withHandle { Self.take(sieda_net_places($0, Int32(net))) })
+    }
+
+    @discardableResult
+    func setTitleBlock(_ block: TitleBlockInfo) -> Bool {
+        guard let data = try? JSONEncoder().encode(block) else { return false }
+        let json = String(decoding: data, as: UTF8.self)
+        return withHandle { sieda_set_title_block($0, json) } == 1
     }
 
     // MARK: - Design variants
@@ -394,6 +482,23 @@ final class EDAEngine: @unchecked Sendable {
         return Int(withHandle {
             sieda_add_custom_component($0, partId, v, Double(point.x), Double(point.y), Int32(rotation), r)
         })
+    }
+
+    /// Places unit A of a multi-unit part (with its hidden package); the unit's id, or -1.
+    func addCustomUnits(partId: String, at point: CGPoint, rotation: Int = 0) -> Int {
+        Int(withHandle { sieda_add_custom_units($0, partId, "", Double(point.x), Double(point.y), Int32(rotation), "") })
+    }
+
+    /// Places the next unit not placed yet of a unit's package; nil when every unit is placed.
+    func placeNextUnit(of component: Int, at point: CGPoint) -> Int? {
+        let id = withHandle { sieda_place_next_unit($0, Int32(component), Double(point.x), Double(point.y)) }
+        return id >= 0 ? Int(id) : nil
+    }
+
+    /// Places unit `unit` (1-based) of a unit's package; nil when it is placed already or out of range.
+    func addPartUnit(of component: Int, unit: Int, at point: CGPoint) -> Int? {
+        let id = withHandle { sieda_add_part_unit($0, Int32(component), Int32(unit), Double(point.x), Double(point.y), 0) }
+        return id >= 0 ? Int(id) : nil
     }
 
     // MARK: - Standards

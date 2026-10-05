@@ -44,6 +44,10 @@ struct DesignSnapshot: Decodable, Equatable {
     /// Assembly variants and the active one ("" = the base design).
     var variants: [VariantInfo] = []
     var activeVariant = ""
+    /// Graphical buses on every sheet (filtered to one sheet by `onSheet`).
+    var buses: [BusInfo] = []
+    /// Title block printed on every schematic sheet.
+    var titleBlock = TitleBlockInfo()
 
     static let empty = DesignSnapshot(name: "Untitled", requirements: "", components: [], wires: [], nets: [],
                                       board: BoardInfo(), pads: [], tracks: [], vias: [], ratsnest: [], courtyards: [])
@@ -97,23 +101,27 @@ struct DesignSnapshot: Decodable, Equatable {
         activeSheet = try c.decodeIfPresent(Int.self, forKey: .activeSheet) ?? 1
         variants = try c.decodeIfPresent([VariantInfo].self, forKey: .variants) ?? []
         activeVariant = try c.decodeIfPresent(String.self, forKey: .activeVariant) ?? ""
+        buses = try c.decodeIfPresent([BusInfo].self, forKey: .buses) ?? []
+        titleBlock = try c.decodeIfPresent(TitleBlockInfo.self, forKey: .titleBlock) ?? TitleBlockInfo()
     }
 
     private enum CodingKeys: String, CodingKey {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
         case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
-        case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant
+        case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant, buses, titleBlock
     }
 
     func component(_ id: Int) -> SnapComponent? { components.first { $0.id == id } }
     func sheet(_ id: Int) -> SheetInfo? { sheets.first { $0.id == id } }
+    func bus(_ id: Int) -> BusInfo? { buses.first { $0.id == id } }
 
     /// The part of the design drawn on one sheet: its components and the wires between them (wires never cross
     /// sheets). A single-sheet design is returned unchanged.
     func onSheet(_ sheet: Int) -> DesignSnapshot {
-        guard sheets.count > 1 else { return self }
+        guard sheets.count > 1 || components.contains(where: { $0.isUnitPackage }) else { return self }
         var copy = self
-        copy.components = components.filter { $0.sheetId == sheet }
+        copy.buses = buses.filter { $0.sheet == sheet }
+        copy.components = components.filter { $0.sheetId == sheet && !$0.isUnitPackage }
         let ids = Set(copy.components.map(\.id))
         copy.wires = wires.filter { ids.contains($0.a.component) && ids.contains($0.b.component) }
         return copy
@@ -123,7 +131,9 @@ struct DesignSnapshot: Decodable, Equatable {
         return customParts.first { $0.id == id }
     }
     func customPart(for component: SnapComponent) -> CustomPartInfo? {
-        component.componentKind == .custom ? customPart(component.customPart) : nil
+        guard component.componentKind == .custom, let part = customPart(component.customPart) else { return nil }
+        if let unit = component.unit { return part.forUnit(unit) }  // a placed unit draws its own symbol
+        return part
     }
     func component(ref: String) -> SnapComponent? { components.first { $0.ref == ref } }
     func net(_ index: Int) -> SnapNet? { index >= 0 && index < nets.count ? nets[index] : nil }
@@ -207,6 +217,22 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     var fitted: Bool?
     /// Value fitted in the active variant, when it differs from the design value.
     var variantValue: String?
+    /// Part of a repeated sheet: the block part an instance copies, and the designator inside the block ("R1").
+    var instanceOf: Int?
+    var logicalRef: String?
+    /// Bus entries: the bus the label leaves (BusInfo.id).
+    var bus: Int?
+    /// Multi-unit parts: a placed unit (its 1-based index, name "A"… and package), or the package itself
+    /// (`unitPackage`: not drawn on the schematic; `units` lists the placed units).
+    var unit: Int?
+    var unitName: String?
+    var unitOf: Int?
+    var unitPackage: Bool?
+    var units: [Int]?
+
+    var isUnitPackage: Bool { unitPackage ?? false }
+    /// "U1A" for a unit, the designator otherwise.
+    var displayRef: String { ref + (unitName ?? "") }
 
     var sheetId: Int { sheet ?? 1 }
     var labelScope: String { scope ?? "global" }
@@ -352,6 +378,79 @@ struct SheetInfo: Decodable, Equatable, Identifiable, Hashable {
     var depth: Int
     /// Hierarchical port names on the sheet (the entries its sheet symbol offers).
     var ports: [String]
+    /// Repeated sheet (nil for an ordinary one): the definition an instance copies (0 on the definition), the channel
+    /// label, how channel designators are made ("sheet" or "suffix") and the number of channels.
+    var instanceOf: Int?
+    var channel: String?
+    var refs: String?
+    var instances: Int?
+
+    var isRepeated: Bool { (instances ?? 0) > 1 }
+    var isInstance: Bool { (instanceOf ?? 0) != 0 }
+    /// The definition sheet of a repeated block (the sheet itself otherwise).
+    var definitionId: Int { isInstance ? (instanceOf ?? id) : id }
+}
+
+/// Schematic title block fields (the title defaults to the project name).
+struct TitleBlockInfo: Codable, Equatable {
+    var title = ""
+    var company = ""
+    var revision = ""
+    var date = ""
+    var drawnBy = ""
+}
+
+/// A find result (`sieda_schematic_find`): a designator, value, label, pin or net that matches.
+struct SchematicSearchHit: Decodable, Equatable, Identifiable {
+    var component: Int
+    var net: Int
+    var pin: Int
+    var sheet: Int
+    var field: String  // "ref", "value", "label", "net", "pin"
+    var text: String
+    var id: String { "\(field)|\(component)|\(net)|\(pin)|\(text)" }
+}
+
+/// Net navigator (`sieda_net_places`): every place a net appears, sheet by sheet.
+struct NetPlacesReport: Decodable, Equatable {
+    struct Place: Decodable, Equatable, Identifiable {
+        var component: Int
+        var pin: Int
+        var sheet: Int
+        var x: Double
+        var y: Double
+        var kind: String  // "pin", "label", "global", "port", "entry", "bus", "ground"
+        var ref: String
+        var name: String
+        var id: String { "\(component).\(pin)" }
+    }
+    var net: Int
+    var name: String
+    var places: [Place]
+}
+
+/// A graphical bus: a named polyline ("D[0..7]") whose members leave it through bus entries (net labels with `bus`).
+struct BusInfo: Decodable, Equatable, Identifiable {
+    var id: Int
+    var sheet: Int
+    var name: String
+    var points: [BoardPoint]
+    var members: [String] = []
+    var instanceOf: Int?
+
+    var path: [CGPoint] { points.map(\.point) }
+
+    /// The point of the bus nearest to `p` and its distance.
+    func nearest(to p: CGPoint) -> (point: CGPoint, distance: CGFloat) {
+        var best = (point: path.first ?? p, distance: CGFloat.greatestFiniteMagnitude)
+        let pts = path
+        for i in pts.indices.dropLast() {
+            let q = WireGeometry.nearestPoint(onSegment: pts[i], pts[i + 1], to: p)
+            let d = hypot(q.x - p.x, q.y - p.y)
+            if d < best.distance { best = (q, d) }
+        }
+        return best
+    }
 }
 
 /// A named assembly variant: parts fitted / not fitted and value overrides.
@@ -871,6 +970,9 @@ struct DCResult: Decodable, Equatable {
     var iterations: Int
     var nets: [DCNetVoltage]
     var devices: [DCDeviceReading]
+    /// The assembly simulated: the active variant ("" = base design) and the parts left out as not fitted.
+    var variant = ""
+    var omitted: [String] = []
 
     init(converged: Bool = false, error: String = "", iterations: Int = 0, nets: [DCNetVoltage] = [],
          devices: [DCDeviceReading] = []) {
@@ -888,9 +990,11 @@ struct DCResult: Decodable, Equatable {
         iterations = try c.decodeIfPresent(Int.self, forKey: .iterations) ?? 0
         nets = try c.decodeIfPresent([DCNetVoltage].self, forKey: .nets) ?? []
         devices = try c.decodeIfPresent([DCDeviceReading].self, forKey: .devices) ?? []
+        variant = try c.decodeIfPresent(String.self, forKey: .variant) ?? ""
+        omitted = try c.decodeIfPresent([String].self, forKey: .omitted) ?? []
     }
 
-    private enum CodingKeys: String, CodingKey { case converged, error, iterations, nets, devices }
+    private enum CodingKeys: String, CodingKey { case converged, error, iterations, nets, devices, variant, omitted }
 
     func voltage(net: Int) -> Double? { nets.first { $0.index == net }?.voltage }
     func reading(component: Int) -> DCDeviceReading? { devices.first { $0.component == component } }

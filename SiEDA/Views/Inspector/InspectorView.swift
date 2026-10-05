@@ -16,6 +16,9 @@ struct InspectorView: View {
                         .id("\(c.id)|\(c.ref)|\(c.value)|\(store.snapshot.activeVariant)|\(c.variantValue ?? "")")
                 } else if selected.count > 1 {
                     MultiSelectionProperties(count: selected.count)
+                } else if let busId = store.selectedBus, let bus = store.sheetSnapshot.bus(busId) {
+                    BusProperties(bus: bus)
+                        .id("\(bus.id)|\(bus.name)")
                 } else if let wireId = store.selectedWire, let wire = store.snapshot.wires.first(where: { $0.id == wireId }) {
                     WireProperties(wire: wire)
                 } else {
@@ -70,7 +73,7 @@ private struct ComponentProperties: View {
 
     init(component: SnapComponent) {
         self.component = component
-        _ref = State(initialValue: component.ref)
+        _ref = State(initialValue: component.logicalRef ?? component.ref)
         _value = State(initialValue: component.value)
         _variantValue = State(initialValue: component.variantValue ?? "")
     }
@@ -92,11 +95,15 @@ private struct ComponentProperties: View {
 
             PropertyGroup(title: "General") {
                 if !kind.isVirtual {
-                    LabeledContent("Designator") {
+                    LabeledContent(component.logicalRef == nil ? "Designator" : "Block designator") {
                         TextField("Designator", text: $ref)
                             .textFieldStyle(.blue)
                             .focused($focus, equals: .ref)
                             .onSubmit { commitRef() }
+                    }
+                    if component.logicalRef != nil {
+                        // A part of a repeated sheet: its designator in this channel follows the block designator.
+                        PropertyRow(label: "Channel designator", value: component.ref)
                     }
                 }
                 LabeledContent(kind == .netLabel ? "Net name" : "Value") {
@@ -188,6 +195,19 @@ private struct ComponentProperties: View {
                         }
                     }
                 }
+                if kind == .netLabel && (component.labelScope == "entry" || component.labelScope == "port") {
+                    // Cross-probe through the hierarchy: an entry to its child sheet's port, a port to its entry.
+                    Button {
+                        store.crossProbeHierarchy(from: component.id)
+                    } label: {
+                        Label(component.labelScope == "entry" ? "Go to Port" : "Go to Sheet Entry", systemImage: "arrow.up.right.square")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                if kind == .netLabel, let net = component.pins.first?.net, net >= 0 {
+                    NetNavigatorView(net: net)
+                }
                 if kind == .netLabel && component.labelScope != "entry" {
                     Picker("Scope", selection: Binding(get: { component.labelScope },
                                                        set: { store.setLabelScope(component.id, scope: $0) })) {
@@ -210,7 +230,33 @@ private struct ComponentProperties: View {
                 }
             }
 
-            if !kind.isVirtual {
+            if let unitName = component.unitName, let package = component.unitOf {
+                // A gate of a multi-unit part: its package carries the footprint; the other units are placed here.
+                PropertyGroup(title: "Unit \(unitName) of \(component.ref)") {
+                    let placed = store.snapshot.components.filter { $0.unitOf == package }.compactMap(\.unitName)
+                    PropertyRow(label: "Units placed", value: placed.joined(separator: " "))
+                    if let part = store.snapshot.customPart(component.customPart), let symbols = part.unitSymbols {
+                        let missing = symbols.indices.filter { !placed.contains(symbols[$0].name) }
+                        if !missing.isEmpty {
+                            Button { store.placeNextUnit(of: component.id) } label: {
+                                Label("Place Next Unit", systemImage: "plus.square.on.square")
+                            }
+                            Menu {
+                                ForEach(missing, id: \.self) { index in
+                                    Button(symbols[index].name) { store.placeUnit(index + 1, of: component.id) }
+                                }
+                            } label: {
+                                Label("Place Unit", systemImage: "square.grid.2x2")
+                            }
+                            .fixedSize()
+                        }
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+
+            if !kind.isVirtual && component.unitOf == nil {
                 PropertyGroup(title: "PCB Footprint") {
                     PropertyRow(label: "Footprint", value: component.footprint)
                     if component.pcb.placed {
@@ -307,7 +353,8 @@ private struct ComponentProperties: View {
 
     private func commitRef() {
         let trimmed = ref.trimmingCharacters(in: .whitespaces)
-        if trimmed.isEmpty || trimmed == component.ref { ref = component.ref; return }
+        let current = component.logicalRef ?? component.ref
+        if trimmed.isEmpty || trimmed == current { ref = current; return }
         store.setRef(component.id, trimmed)
     }
 
@@ -394,6 +441,55 @@ private struct MultiSelectionProperties: View {
     }
 }
 
+/// A graphical bus: its name (bus notation), members, entries, and the tools that connect it.
+private struct BusProperties: View {
+    @EnvironmentObject private var store: DesignStore
+    var bus: BusInfo
+    @State private var name: String
+
+    init(bus: BusInfo) {
+        self.bus = bus
+        _name = State(initialValue: bus.name)
+    }
+
+    var body: some View {
+        let entries = store.sheetSnapshot.components.filter { $0.bus == bus.id }
+        let ripped = Set(entries.map(\.value))
+        let parts = store.sheetSnapshot.components.filter { !$0.componentKind.isVirtual && $0.componentKind != .junction }
+        PropertyGroup(title: "Bus") {
+            LabeledContent("Name") {
+                TextField("D[0..7]", text: $name)
+                    .textFieldStyle(.blue)
+                    .onSubmit { store.renameBus(bus.id, to: name) }
+            }
+            PropertyRow(label: "Members", value: "\(bus.members.count)")
+            PropertyRow(label: "Entries", value: "\(entries.count)")
+            let open = bus.members.filter { !ripped.contains($0) }
+            if !open.isEmpty {
+                Text(verbatim: open.prefix(12).joined(separator: " ") + (open.count > 12 ? " …" : ""))
+                    .font(.caption.monospaced())
+                    .foregroundStyle(Theme.warning)
+            }
+            Button { store.ripBusEntries(bus.id) } label: { Label("Rip Out Entries", systemImage: "arrow.turn.down.right") }
+                .disabled(open.isEmpty)
+                .help("An entry (a local net label on the bus) for every member that has none yet")
+            Menu {
+                ForEach(parts) { part in
+                    Button(part.ref) { store.connectBus(bus.id, toPart: part.id) }
+                }
+            } label: {
+                Label("Connect to Part", systemImage: "point.3.connected.trianglepath.dotted")
+            }
+            .fixedSize()
+            .disabled(parts.isEmpty)
+            .help("Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order")
+            Button(role: .destructive) { store.deleteSelection() } label: { Label("Delete Bus", systemImage: "trash") }
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+    }
+}
+
 private struct WireProperties: View {
     @EnvironmentObject private var store: DesignStore
     var wire: SnapWire
@@ -404,6 +500,7 @@ private struct WireProperties: View {
             if let v = store.dcResult?.voltage(net: wire.net) {
                 PropertyRow(label: "DC voltage", value: EngineeringFormat.string(v, unit: "V", digits: 4))
             }
+            NetNavigatorView(net: wire.net)
             Button(role: .destructive) { store.deleteSelection() } label: { Label("Delete Wire", systemImage: "trash") }
                 .buttonStyle(.bordered)
         }
@@ -449,6 +546,9 @@ private struct ProjectProperties: View {
                 PropertyRow(label: "Components", value: "\(store.snapshot.components.filter { !$0.componentKind.isVirtual }.count)")
                 PropertyRow(label: "Nets", value: "\(store.snapshot.nets.filter { $0.pinCount > 1 }.count)")
                 PropertyRow(label: "Wires", value: "\(store.snapshot.wires.count)")
+            }
+            PropertyGroup(title: "Title Block") {
+                TitleBlockEditor()
             }
             IndustryProperties()
             RobotSystemProperties()
