@@ -16,6 +16,7 @@
 "AI-native electronic design automation" = "AI 原生電子設計自動化";
 "API key" = "API 金鑰";
 "About" = "關於";
+"Add Child Sheet" = "新增子圖紙";
 "Add Ground Pours" = "加入接地鋪銅";
 "Add Kit to Library" = "將套件加入元件庫";
 "Add Mesh" = "加入網格";
@@ -25,6 +26,7 @@
 "Add Pour" = "加入鋪銅";
 "Add Thermal Vias" = "加入散熱導通孔";
 "Add a pad like the last one (numbered next)" = "加入與上一個相同的焊墊 (編號順延)";
+"Add a sheet (right-click a tab for more)" = "新增圖紙（在分頁上按右鍵以查看更多）";
 "Add every part of this kit to the project library so it shows in the device picker" = "將此套件的所有元件加入專案元件庫，使其顯示在裝置選擇器中";
 "Add serpentine (accordion) tuning to the short members of each group" = "為每組中較短的成員加入蛇形 (手風琴) 等長調整";
 "Aerospace Mission" = "航太任務";
@@ -34,6 +36,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "類比時間步長：越細可解析越快的訊號，越粗執行越快";
 "Analysis" = "分析";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "分析預設 — 微控制器韌體需要更長的執行時間 (例如 1 s，100 µs 步長)";
+"Annotate" = "自動標註";
 "Appearance" = "外觀";
 "Appliance Type" = "家電類型";
 "Apply" = "套用";
@@ -44,6 +47,7 @@
 "Arranged symbol" = "已排列的符號";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "提出修改 — “把 LED 改成綠色，並以 3.3 V 供電”";
 "Assembly" = "組裝";
+"Assembly variant for the BOM, CPL and assembly drawings" = "用於 BOM、CPL 與組裝圖的組裝變體";
 "Audience (optional)" = "受眾 (選填)";
 "Auto Arrange" = "自動排列";
 "Auto Route" = "自動佈線";
@@ -56,6 +60,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "組裝用 BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "對高速網路的導通孔殘段進行背鑽";
+"Base Design" = "基礎設計";
 "Base URL" = "基礎 URL";
 "Bill of Materials" = "材料清單";
 "Bill of Materials (CSV)…" = "材料清單 (CSV)…";
@@ -107,6 +112,8 @@
 "Default provider" = "預設供應商";
 "Delete" = "刪除";
 "Delete Part" = "刪除元件";
+"Delete Sheet" = "刪除圖紙";
+"Delete Variant" = "刪除變體";
 "Delete Wire" = "刪除導線";
 "Describe your product" = "描述您的產品";
 "Description" = "描述";
@@ -150,11 +157,14 @@
 "Finish the login in your browser…" = "請在瀏覽器中完成登入…";
 "Firmware — 1 s, 100 µs" = "韌體 — 1 s，100 µs";
 "Fit Board to Components" = "使電路板貼合元件";
+"Fitted" = "安裝";
+"Fix Duplicates Only" = "僅修正重複項目";
 "Flip" = "翻轉";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "元件安裝所用的封裝：晶片尺寸、通孔、鉭質或電解電容外殼";
 "Gap Before" = "前置空位";
 "Generate Design" = "產生設計";
 "Give each selected pin its own slot" = "為每個所選接腳分配獨立槽位";
+"Global" = "全域";
 "Global semiconductor countries" = "全球半導體國家";
 "Google Cloud project ID" = "Google Cloud 專案 ID";
 "Grid" = "格點";
@@ -194,6 +204,7 @@
 "Loading memory & system design kits" = "正在載入記憶體與系統設計套件";
 "Loading reference designs" = "正在載入參考設計";
 "Loading the component library" = "正在載入元件庫";
+"Local (this sheet)" = "區域（此圖紙）";
 "Locked (Auto Place keeps it)" = "已鎖定 (自動擺放會保留)";
 "Long firmware run — 5 s, 500 µs" = "長時間韌體執行 — 5 s，500 µs";
 "Mask" = "防焊";
@@ -205,6 +216,7 @@
 "Model" = "模型";
 "Model back-ends" = "模型後端";
 "Mounting" = "安裝方式";
+"Move Selection Here" = "將所選項目移到此處";
 "Move the footprint origin to the centre of the pads" = "將封裝原點移至焊墊中心";
 "Move the pad in the numbering; pads between shift by one" = "在編號中移動焊墊；之間的焊墊依序順移一位";
 "NAVIGATOR" = "導覽器";
@@ -214,6 +226,8 @@
 "Nets" = "網路";
 "Nets (%lld)" = "網路 (%lld)";
 "New Project" = "新增專案";
+"New Variant" = "新增變體";
+"New Variant…" = "新增變體…";
 "New blank part" = "新增空白元件";
 "New from Example" = "從範例新增";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "此設計中沒有差動對 (…_P/_N, …+/-) 或匯流排 (DQ0…, DATA[0..7], ADDR…)。";
@@ -233,6 +247,9 @@
 "Not naval" = "非艦船";
 "Not placed yet" = "尚未擺放";
 "Not retail" = "非零售";
+"Number by Columns" = "依欄編號";
+"Number by Rows" = "依列編號";
+"Number by Sheet (R101, R201…)" = "依圖紙編號（R101、R201…）";
 "OBJ with vertex colours" = "含頂點色彩的 OBJ";
 "OK" = "好";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "關閉：SiEDA 作為傳統手動 EDA 工具運作。電路圖繪製、模擬、PCB 佈線、3D、規格書解析與匯出全部在本機執行，不會傳送任何資料至 AI 服務。";
@@ -256,9 +273,11 @@
 "Pin" = "接腳";
 "Pins: " = "接腳: ";
 "Place Now" = "立即擺放";
+"Place Sheet Symbol" = "放置圖紙符號";
 "Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)" = "將未擺放的封裝放入電路板外框內，然後佈通所有連接並檢查 DRC (⇧⌘R)";
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "擺放、佈線、鋪銅、DRC、Gerber Edge.Cuts 與 3D 電路板皆依循外框。 ";
 "Plane" = "平面";
+"Port (to parent sheet)" = "埠（連至上層圖紙）";
 "Preview appears once the part has a name and pins." = "元件有名稱與接腳後即顯示預覽。";
 "Project Library" = "專案元件庫";
 "Project name" = "專案名稱";
@@ -272,6 +291,8 @@
 "Remove the empty slots on every side" = "刪除每一側的空槽位";
 "Remove the firmware" = "移除韌體";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "去除最後連接層以下未使用的導通孔孔壁 (≥ 4 層)；加入背鑽檔案";
+"Rename Sheet" = "重新命名圖紙";
+"Rename Sheet…" = "重新命名圖紙…";
 "Renumber" = "重新編號";
 "Reserve the layer for this net: other nets only pass through it with vias" = "為此網路保留該層：其他網路只能經由導通孔穿過";
 "Reset View" = "重設視圖";
@@ -304,6 +325,7 @@
 "Schematic" = "電路圖";
 "Schematic capture · SPICE-class simulation · PCB autorouting · DRC · 3D · Gerber/Excellon export" = "電路圖繪製 · SPICE 級模擬 · PCB 自動佈線 · DRC · 3D · Gerber/Excellon 匯出";
 "Schematic · Simulation · PCB · 3D · Fabrication" = "電路圖 · 模擬 · PCB · 3D · 製造";
+"Scope" = "範圍";
 "Scope, serial monitor and switches" = "示波器、序列埠監視器與開關";
 "Scopes" = "示波器";
 "Scroll or pinch to zoom" = "捲動或雙指開合以縮放";
@@ -317,6 +339,8 @@
 "Serial output — 200 ms, 10 µs" = "序列輸出 — 200 ms，10 µs";
 "Set" = "設定";
 "Shape" = "形狀";
+"Sheet" = "圖紙";
+"Sheet name" = "圖紙名稱";
 "Show" = "顯示";
 "Show Crash Reports" = "顯示當機報告";
 "Show Navigator" = "顯示導覽器";
@@ -376,6 +400,7 @@
 "Validate" = "驗證";
 "Validate Circuit" = "驗證電路";
 "Value" = "數值";
+"Variant name" = "變體名稱";
 "Verify Design" = "驗證設計";
 "Vertex AI region" = "Vertex AI 區域";
 "Via-in-pad plated over (VIPPO, IPC-4761 Type VII)" = "盤中孔電鍍覆蓋 (VIPPO, IPC-4761 Type VII)";

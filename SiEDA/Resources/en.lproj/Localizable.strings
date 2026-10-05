@@ -16,6 +16,7 @@
 "AI-native electronic design automation" = "AI-native electronic design automation";
 "API key" = "API key";
 "About" = "About";
+"Add Child Sheet" = "Add Child Sheet";
 "Add Ground Pours" = "Add Ground Pours";
 "Add Kit to Library" = "Add Kit to Library";
 "Add Mesh" = "Add Mesh";
@@ -25,6 +26,7 @@
 "Add Pour" = "Add Pour";
 "Add Thermal Vias" = "Add Thermal Vias";
 "Add a pad like the last one (numbered next)" = "Add a pad like the last one (numbered next)";
+"Add a sheet (right-click a tab for more)" = "Add a sheet (right-click a tab for more)";
 "Add every part of this kit to the project library so it shows in the device picker" = "Add every part of this kit to the project library so it shows in the device picker";
 "Add serpentine (accordion) tuning to the short members of each group" = "Add serpentine (accordion) tuning to the short members of each group";
 "Aerospace Mission" = "Aerospace Mission";
@@ -34,6 +36,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "Analog time step: finer resolves faster signals, coarser runs faster";
 "Analysis" = "Analysis";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)";
+"Annotate" = "Annotate";
 "Appearance" = "Appearance";
 "Appliance Type" = "Appliance Type";
 "Apply" = "Apply";
@@ -44,6 +47,7 @@
 "Arranged symbol" = "Arranged symbol";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "Ask for a change — “make the LED green and run it from 3.3 V”";
 "Assembly" = "Assembly";
+"Assembly variant for the BOM, CPL and assembly drawings" = "Assembly variant for the BOM, CPL and assembly drawings";
 "Audience (optional)" = "Audience (optional)";
 "Auto Arrange" = "Auto Arrange";
 "Auto Route" = "Auto Route";
@@ -56,6 +60,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM for Assembly (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "Backdrill via stubs on fast nets";
+"Base Design" = "Base Design";
 "Base URL" = "Base URL";
 "Bill of Materials" = "Bill of Materials";
 "Bill of Materials (CSV)…" = "Bill of Materials (CSV)…";
@@ -107,6 +112,8 @@
 "Default provider" = "Default provider";
 "Delete" = "Delete";
 "Delete Part" = "Delete Part";
+"Delete Sheet" = "Delete Sheet";
+"Delete Variant" = "Delete Variant";
 "Delete Wire" = "Delete Wire";
 "Describe your product" = "Describe your product";
 "Description" = "Description";
@@ -150,11 +157,14 @@
 "Finish the login in your browser…" = "Finish the login in your browser…";
 "Firmware — 1 s, 100 µs" = "Firmware — 1 s, 100 µs";
 "Fit Board to Components" = "Fit Board to Components";
+"Fitted" = "Fitted";
+"Fix Duplicates Only" = "Fix Duplicates Only";
 "Flip" = "Flip";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case";
 "Gap Before" = "Gap Before";
 "Generate Design" = "Generate Design";
 "Give each selected pin its own slot" = "Give each selected pin its own slot";
+"Global" = "Global";
 "Global semiconductor countries" = "Global semiconductor countries";
 "Google Cloud project ID" = "Google Cloud project ID";
 "Grid" = "Grid";
@@ -194,6 +204,7 @@
 "Loading memory & system design kits" = "Loading memory & system design kits";
 "Loading reference designs" = "Loading reference designs";
 "Loading the component library" = "Loading the component library";
+"Local (this sheet)" = "Local (this sheet)";
 "Locked (Auto Place keeps it)" = "Locked (Auto Place keeps it)";
 "Long firmware run — 5 s, 500 µs" = "Long firmware run — 5 s, 500 µs";
 "Mask" = "Mask";
@@ -205,6 +216,7 @@
 "Model" = "Model";
 "Model back-ends" = "Model back-ends";
 "Mounting" = "Mounting";
+"Move Selection Here" = "Move Selection Here";
 "Move the footprint origin to the centre of the pads" = "Move the footprint origin to the centre of the pads";
 "Move the pad in the numbering; pads between shift by one" = "Move the pad in the numbering; pads between shift by one";
 "NAVIGATOR" = "NAVIGATOR";
@@ -214,6 +226,8 @@
 "Nets" = "Nets";
 "Nets (%lld)" = "Nets (%lld)";
 "New Project" = "New Project";
+"New Variant" = "New Variant";
+"New Variant…" = "New Variant…";
 "New blank part" = "New blank part";
 "New from Example" = "New from Example";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design.";
@@ -233,6 +247,9 @@
 "Not naval" = "Not naval";
 "Not placed yet" = "Not placed yet";
 "Not retail" = "Not retail";
+"Number by Columns" = "Number by Columns";
+"Number by Rows" = "Number by Rows";
+"Number by Sheet (R101, R201…)" = "Number by Sheet (R101, R201…)";
 "OBJ with vertex colours" = "OBJ with vertex colours";
 "OK" = "OK";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service.";
@@ -256,9 +273,11 @@
 "Pin" = "Pin";
 "Pins: " = "Pins: ";
 "Place Now" = "Place Now";
+"Place Sheet Symbol" = "Place Sheet Symbol";
 "Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)" = "Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)";
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. ";
 "Plane" = "Plane";
+"Port (to parent sheet)" = "Port (to parent sheet)";
 "Preview appears once the part has a name and pins." = "Preview appears once the part has a name and pins.";
 "Project Library" = "Project Library";
 "Project name" = "Project name";
@@ -272,6 +291,8 @@
 "Remove the empty slots on every side" = "Remove the empty slots on every side";
 "Remove the firmware" = "Remove the firmware";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file";
+"Rename Sheet" = "Rename Sheet";
+"Rename Sheet…" = "Rename Sheet…";
 "Renumber" = "Renumber";
 "Reserve the layer for this net: other nets only pass through it with vias" = "Reserve the layer for this net: other nets only pass through it with vias";
 "Reset View" = "Reset View";
@@ -304,6 +325,7 @@
 "Schematic" = "Schematic";
 "Schematic capture · SPICE-class simulation · PCB autorouting · DRC · 3D · Gerber/Excellon export" = "Schematic capture · SPICE-class simulation · PCB autorouting · DRC · 3D · Gerber/Excellon export";
 "Schematic · Simulation · PCB · 3D · Fabrication" = "Schematic · Simulation · PCB · 3D · Fabrication";
+"Scope" = "Scope";
 "Scope, serial monitor and switches" = "Scope, serial monitor and switches";
 "Scopes" = "Scopes";
 "Scroll or pinch to zoom" = "Scroll or pinch to zoom";
@@ -317,6 +339,8 @@
 "Serial output — 200 ms, 10 µs" = "Serial output — 200 ms, 10 µs";
 "Set" = "Set";
 "Shape" = "Shape";
+"Sheet" = "Sheet";
+"Sheet name" = "Sheet name";
 "Show" = "Show";
 "Show Crash Reports" = "Show Crash Reports";
 "Show Navigator" = "Show Navigator";
@@ -376,6 +400,7 @@
 "Validate" = "Validate";
 "Validate Circuit" = "Validate Circuit";
 "Value" = "Value";
+"Variant name" = "Variant name";
 "Verify Design" = "Verify Design";
 "Vertex AI region" = "Vertex AI region";
 "Via-in-pad plated over (VIPPO, IPC-4761 Type VII)" = "Via-in-pad plated over (VIPPO, IPC-4761 Type VII)";

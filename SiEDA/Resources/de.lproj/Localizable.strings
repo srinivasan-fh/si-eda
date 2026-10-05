@@ -16,6 +16,7 @@
 "AI-native electronic design automation" = "KI-native elektronische Designautomatisierung";
 "API key" = "API-Schlüssel";
 "About" = "Über";
+"Add Child Sheet" = "Untergeordnetes Blatt hinzufügen";
 "Add Ground Pours" = "Masseflächen hinzufügen";
 "Add Kit to Library" = "Kit zur Bibliothek hinzufügen";
 "Add Mesh" = "Mesh hinzufügen";
@@ -25,6 +26,7 @@
 "Add Pour" = "Kupferfläche hinzufügen";
 "Add Thermal Vias" = "Thermische Vias hinzufügen";
 "Add a pad like the last one (numbered next)" = "Pad wie das letzte hinzufügen (nächste Nummer)";
+"Add a sheet (right-click a tab for more)" = "Blatt hinzufügen (Rechtsklick auf einen Reiter für mehr)";
 "Add every part of this kit to the project library so it shows in the device picker" = "Alle Bauteile dieses Kits zur Projektbibliothek hinzufügen, damit sie in der Bauteilauswahl erscheinen";
 "Add serpentine (accordion) tuning to the short members of each group" = "Mäander (Akkordeon) zum Längenabgleich der kurzen Mitglieder jeder Gruppe hinzufügen";
 "Aerospace Mission" = "Raumfahrtmission";
@@ -34,6 +36,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "Analoger Zeitschritt: feiner löst schnellere Signale auf, gröber rechnet schneller";
 "Analysis" = "Analyse";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "Analysevorgaben — Mikrocontroller-Firmware braucht einen längeren Lauf (z. B. 1 s bei 100 µs)";
+"Annotate" = "Annotieren";
 "Appearance" = "Erscheinungsbild";
 "Appliance Type" = "Gerätetyp";
 "Apply" = "Anwenden";
@@ -44,6 +47,7 @@
 "Arranged symbol" = "Angeordnetes Symbol";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "Änderung anfordern — „mach die LED grün und betreibe sie mit 3,3 V“";
 "Assembly" = "Bestückung";
+"Assembly variant for the BOM, CPL and assembly drawings" = "Bestückungsvariante für Stückliste, CPL und Bestückungszeichnungen";
 "Audience (optional)" = "Zielgruppe (optional)";
 "Auto Arrange" = "Automatisch anordnen";
 "Auto Route" = "Autorouting";
@@ -56,6 +60,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM für Bestückung (JLCPCB / PCBWay) …";
 "Backdrill via stubs on fast nets" = "Via-Stubs auf schnellen Netzen rückbohren";
+"Base Design" = "Basisdesign";
 "Base URL" = "Basis-URL";
 "Bill of Materials" = "Stückliste";
 "Bill of Materials (CSV)…" = "Stückliste (CSV) …";
@@ -107,6 +112,8 @@
 "Default provider" = "Standardanbieter";
 "Delete" = "Löschen";
 "Delete Part" = "Bauteil löschen";
+"Delete Sheet" = "Blatt löschen";
+"Delete Variant" = "Variante löschen";
 "Delete Wire" = "Leitung löschen";
 "Describe your product" = "Produkt beschreiben";
 "Description" = "Beschreibung";
@@ -150,11 +157,14 @@
 "Finish the login in your browser…" = "Anmeldung im Browser abschließen …";
 "Firmware — 1 s, 100 µs" = "Firmware — 1 s, 100 µs";
 "Fit Board to Components" = "Platine an Bauteile anpassen";
+"Fitted" = "Bestückt";
+"Fix Duplicates Only" = "Nur Duplikate korrigieren";
 "Flip" = "Spiegeln";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Footprint, in dem das Bauteil bestückt wird: Chipgröße, THT, Tantal- oder Elko-Gehäuse";
 "Gap Before" = "Abstand davor";
 "Generate Design" = "Design generieren";
 "Give each selected pin its own slot" = "Jedem ausgewählten Pin eine eigene Position geben";
+"Global" = "Global";
 "Global semiconductor countries" = "Halbleiterländer weltweit";
 "Google Cloud project ID" = "Google Cloud-Projekt-ID";
 "Grid" = "Raster";
@@ -194,6 +204,7 @@
 "Loading memory & system design kits" = "Speicher- und System-Design-Kits werden geladen";
 "Loading reference designs" = "Referenzdesigns werden geladen";
 "Loading the component library" = "Bauteilbibliothek wird geladen";
+"Local (this sheet)" = "Lokal (dieses Blatt)";
 "Locked (Auto Place keeps it)" = "Gesperrt (automatisches Platzieren behält es bei)";
 "Long firmware run — 5 s, 500 µs" = "Langer Firmware-Lauf — 5 s, 500 µs";
 "Mask" = "Maske";
@@ -205,6 +216,7 @@
 "Model" = "Modell";
 "Model back-ends" = "Modell-Backends";
 "Mounting" = "Montage";
+"Move Selection Here" = "Auswahl hierher verschieben";
 "Move the footprint origin to the centre of the pads" = "Footprint-Ursprung in die Mitte der Pads verschieben";
 "Move the pad in the numbering; pads between shift by one" = "Pad in der Nummerierung verschieben; dazwischenliegende Pads rücken um eins";
 "NAVIGATOR" = "NAVIGATOR";
@@ -214,6 +226,8 @@
 "Nets" = "Netze";
 "Nets (%lld)" = "Netze (%lld)";
 "New Project" = "Neues Projekt";
+"New Variant" = "Neue Variante";
+"New Variant…" = "Neue Variante…";
 "New blank part" = "Neues leeres Bauteil";
 "New from Example" = "Neu aus Beispiel";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Keine differenziellen Paare (…_P/_N, …+/-) oder Busse (DQ0…, DATA[0..7], ADDR…) in diesem Design.";
@@ -233,6 +247,9 @@
 "Not naval" = "Nicht maritim";
 "Not placed yet" = "Noch nicht platziert";
 "Not retail" = "Kein Einzelhandel";
+"Number by Columns" = "Nach Spalten nummerieren";
+"Number by Rows" = "Nach Zeilen nummerieren";
+"Number by Sheet (R101, R201…)" = "Nach Blatt nummerieren (R101, R201…)";
 "OBJ with vertex colours" = "OBJ mit Vertexfarben";
 "OK" = "OK";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "Aus: SiEDA arbeitet als klassisches manuelles EDA-Werkzeug. Schaltplaneingabe, Simulation, PCB-Routing, 3D, Datenblatt-Analyse und Exporte laufen lokal, und nichts wird an einen KI-Dienst gesendet.";
@@ -256,9 +273,11 @@
 "Pin" = "Pin";
 "Pins: " = "Pins: ";
 "Place Now" = "Jetzt platzieren";
+"Place Sheet Symbol" = "Blattsymbol platzieren";
 "Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)" = "Unplatzierte Footprints innerhalb des Platinenumrisses platzieren, dann alle Verbindungen routen und DRC prüfen (⇧⌘R)";
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "Platzierung, Routing, Kupferflächen, DRC, Gerber Edge.Cuts und die 3D-Platine folgen dem Umriss. ";
 "Plane" = "Ebene";
+"Port (to parent sheet)" = "Port (zum übergeordneten Blatt)";
 "Preview appears once the part has a name and pins." = "Die Vorschau erscheint, sobald das Bauteil einen Namen und Pins hat.";
 "Project Library" = "Projektbibliothek";
 "Project name" = "Projektname";
@@ -272,6 +291,8 @@
 "Remove the empty slots on every side" = "Leere Positionen auf allen Seiten entfernen";
 "Remove the firmware" = "Firmware entfernen";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "Entfernt die ungenutzte Via-Hülse unterhalb der letzten verbundenen Lage (≥ 4 Lagen); fügt eine Backdrill-Datei hinzu";
+"Rename Sheet" = "Blatt umbenennen";
+"Rename Sheet…" = "Blatt umbenennen…";
 "Renumber" = "Neu nummerieren";
 "Reserve the layer for this net: other nets only pass through it with vias" = "Lage für dieses Netz reservieren: andere Netze durchqueren sie nur mit Vias";
 "Reset View" = "Ansicht zurücksetzen";
@@ -304,6 +325,7 @@
 "Schematic" = "Schaltplan";
 "Schematic capture · SPICE-class simulation · PCB autorouting · DRC · 3D · Gerber/Excellon export" = "Schaltplaneingabe · Simulation auf SPICE-Niveau · PCB-Autorouting · DRC · 3D · Gerber/Excellon-Export";
 "Schematic · Simulation · PCB · 3D · Fabrication" = "Schaltplan · Simulation · PCB · 3D · Fertigung";
+"Scope" = "Geltungsbereich";
 "Scope, serial monitor and switches" = "Oszilloskop, serieller Monitor und Schalter";
 "Scopes" = "Oszilloskope";
 "Scroll or pinch to zoom" = "Scrollen oder Pinch zum Zoomen";
@@ -317,6 +339,8 @@
 "Serial output — 200 ms, 10 µs" = "Serielle Ausgabe — 200 ms, 10 µs";
 "Set" = "Festlegen";
 "Shape" = "Form";
+"Sheet" = "Blatt";
+"Sheet name" = "Blattname";
 "Show" = "Einblenden";
 "Show Crash Reports" = "Absturzberichte anzeigen";
 "Show Navigator" = "Navigator einblenden";
@@ -376,6 +400,7 @@
 "Validate" = "Validieren";
 "Validate Circuit" = "Schaltung validieren";
 "Value" = "Wert";
+"Variant name" = "Variantenname";
 "Verify Design" = "Design verifizieren";
 "Vertex AI region" = "Vertex AI-Region";
 "Via-in-pad plated over (VIPPO, IPC-4761 Type VII)" = "Via-in-Pad übermetallisiert (VIPPO, IPC-4761 Typ VII)";

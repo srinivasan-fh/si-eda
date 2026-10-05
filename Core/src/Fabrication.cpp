@@ -386,7 +386,8 @@ std::string fabricationNotes(const Project& project, const std::vector<FabFile>&
     o << "  Parts                " << f.partsTop << " top, " << f.partsBottom << " bottom (" << f.tht
       << " through-hole)\n";
     {
-        BomSummary bom = summarizeBom(buildBom(project.schematic));
+        BomSummary bom = summarizeBom(buildBom(project.variantSchematic(project.activeVariant)));
+        if (!project.activeVariant.empty()) o << "  Variant              " << project.activeVariant << "\n";
         o << "  BOM lines            " << bom.lines << (bom.dnp ? " (" + std::to_string(bom.dnp) + " parts not fitted: DNP)" : "")
           << (bom.missingMpn ? ", " + std::to_string(bom.missingMpn) + " still without a manufacturer part number" : "")
           << "\n";
@@ -446,13 +447,18 @@ std::vector<FabFile> fabricationPackage(const Project& project, const std::strin
     std::vector<std::pair<std::string, std::string>> zipped;
     for (const auto& file : files) zipped.push_back({file.path.substr(8), file.content});  // strip "gerbers/"
 
+    // Assembly files follow the active design variant (fitted parts and values); the board is the same for all.
+    const Schematic variantSch = project.activeVariant.empty() ? Schematic() : project.variantSchematic(project.activeVariant);
+    const Schematic& asmSch = project.activeVariant.empty() ? sch : variantSch;
+    const std::string variantNote = project.activeVariant.empty() ? "" : " (variant " + project.activeVariant + ")";
     const std::string a = "assembly/" + base;
-    add(a + "-bom.csv", exportBomCsv(sch), "Bill of materials");
-    add(a + "-bom_assembly.csv", exportAssemblyBomCsv(sch), "BOM for assembly houses (JLCPCB / PCBWay columns)");
-    add(a + "-cpl.csv", exportCplCsv(sch, pcb), "Component placement list (CPL) for assembly");
-    add(a + "-pick_and_place.csv", exportPickAndPlaceCsv(sch), "Pick and place (all columns)");
-    add(a + "-assembly_top.svg", exportAssemblySvg(sch, pcb, false, project.name), "Assembly drawing, top");
-    if (f.partsBottom) add(a + "-assembly_bottom.svg", exportAssemblySvg(sch, pcb, true, project.name), "Assembly drawing, bottom");
+    add(a + "-bom.csv", exportBomCsv(asmSch), "Bill of materials" + variantNote);
+    add(a + "-bom_assembly.csv", exportAssemblyBomCsv(asmSch), "BOM for assembly houses (JLCPCB / PCBWay columns)" + variantNote);
+    add(a + "-cpl.csv", exportCplCsv(asmSch, pcb), "Component placement list (CPL) for assembly" + variantNote);
+    add(a + "-pick_and_place.csv", exportPickAndPlaceCsv(asmSch), "Pick and place (all columns)" + variantNote);
+    add(a + "-assembly_top.svg", exportAssemblySvg(asmSch, pcb, false, project.name), "Assembly drawing, top" + variantNote);
+    if (f.partsBottom)
+        add(a + "-assembly_bottom.svg", exportAssemblySvg(asmSch, pcb, true, project.name), "Assembly drawing, bottom" + variantNote);
     add(base + "-netlist.cir", exportSpiceNetlist(sch, project.name), "SPICE netlist");
     add("3d/" + base + ".stl", exportStl(buildAssemblyMesh(sch, pcb), base), "3D assembly (STL)");
     add(base + "-gerbers.zip", makeZip(zipped), "Gerbers + drills + job file + IPC netlist: upload this to the fab");

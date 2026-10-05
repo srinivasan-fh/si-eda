@@ -15,6 +15,8 @@
 #include "sieda/Stackup.hpp"
 
 #include <algorithm>
+#include <cctype>
+#include <iterator>
 #include <map>
 
 namespace sieda {
@@ -125,6 +127,34 @@ Json tamperMeshesJson(const std::vector<TamperMesh>& meshes) {
     return arr;
 }
 
+Json sheetsJson(const Schematic& sch) {
+    Json arr = Json::array();
+    for (const auto& s : sch.sheets()) {
+        Json j = Json::object();
+        j["id"] = s.id;
+        j["name"] = s.name;
+        j["parent"] = s.parent;
+        arr.push(j);
+    }
+    return arr;
+}
+
+/// Sheet and label scope of a component (written only where they differ from a single-sheet design's).
+void componentSheetJson(Json& j, const Component& c) {
+    if (c.sheet != 1) j["sheet"] = c.sheet;
+    if (c.kind == ComponentKind::NetLabel && c.scope != LabelScope::Global) {
+        j["scope"] = labelScopeName(c.scope);
+        if (c.scope == LabelScope::SheetEntry) j["targetSheet"] = c.targetSheet;
+    }
+}
+
+std::string trimmedName(const std::string& s) {
+    size_t a = 0, b = s.size();
+    while (a < b && std::isspace(static_cast<unsigned char>(s[a]))) ++a;
+    while (b > a && std::isspace(static_cast<unsigned char>(s[b - 1]))) --b;
+    return s.substr(a, b - a);
+}
+
 Json zonesJson(const std::vector<CopperZone>& zones) {
     Json arr = Json::array();
     for (const auto& z : zones) {
@@ -154,6 +184,91 @@ PartRatings Project::partRatings() const {
 }
 
 void Project::schematicChanged() { pcb.pruneStaleRouting(schematic); }
+
+const DesignVariant* Project::findVariant(const std::string& n) const {
+    for (const auto& v : variants)
+        if (v.name == n) return &v;
+    return nullptr;
+}
+
+bool Project::addVariant(const std::string& rawName, const std::string& copyFrom) {
+    const std::string n = trimmedName(rawName);
+    if (n.empty() || findVariant(n)) return false;
+    DesignVariant v;
+    if (!copyFrom.empty()) {
+        const DesignVariant* source = findVariant(copyFrom);
+        if (!source) return false;
+        v = *source;
+    }
+    v.name = n;
+    variants.push_back(v);
+    return true;
+}
+
+bool Project::renameVariant(const std::string& oldName, const std::string& rawName) {
+    const std::string n = trimmedName(rawName);
+    if (n.empty() || !findVariant(oldName) || (n != oldName && findVariant(n))) return false;
+    for (auto& v : variants)
+        if (v.name == oldName) v.name = n;
+    if (activeVariant == oldName) activeVariant = n;
+    return true;
+}
+
+bool Project::removeVariant(const std::string& n) {
+    auto it = std::find_if(variants.begin(), variants.end(), [&](const DesignVariant& v) { return v.name == n; });
+    if (it == variants.end()) return false;
+    variants.erase(it);
+    if (activeVariant == n) activeVariant.clear();
+    return true;
+}
+
+bool Project::setVariantDescription(const std::string& n, const std::string& description) {
+    for (auto& v : variants)
+        if (v.name == n) {
+            v.description = description;
+            return true;
+        }
+    return false;
+}
+
+bool Project::setVariantPart(const std::string& n, int componentId, int fitted, const std::string* value) {
+    const Component* c = schematic.find(componentId);
+    if (!c || isNetSymbolKind(c->kind) || fitted < -1 || fitted > 1) return false;
+    for (auto& v : variants) {
+        if (v.name != n) continue;
+        VariantPart& part = v.parts[componentId];
+        part.fitted = fitted;
+        if (value) {
+            const std::string text = trimmedName(*value);
+            part.value = text == c->value ? std::string() : text;
+        }
+        if (part.empty()) v.parts.erase(componentId);
+        return true;
+    }
+    return false;
+}
+
+bool Project::setActiveVariant(const std::string& n) {
+    if (!n.empty() && !findVariant(n)) return false;
+    activeVariant = n;
+    return true;
+}
+
+Schematic Project::variantSchematic(const std::string& n) const {
+    const DesignVariant* v = n.empty() ? nullptr : findVariant(n);
+    return v ? applyVariant(schematic, *v) : schematic;
+}
+
+std::vector<RefChange> Project::annotate(const AnnotateOptions& options) {
+    auto changes = schematic.annotate(options);
+    std::map<std::string, std::string> renamed;
+    for (const auto& ch : changes) renamed[ch.from] = ch.to;
+    for (auto& tm : pcb.tamperMeshes) {
+        auto it = renamed.find(tm.componentRef);
+        if (it != renamed.end()) tm.componentRef = it->second;
+    }
+    return changes;
+}
 
 std::string Project::addCustomPart(const CustomPartSpec& spec) {
     auto part = CustomPartRegistry::instance().registerPart(spec);
@@ -222,6 +337,7 @@ Json Project::toJson() const {
         }
         if (!c.sourcing.empty()) j["sourcing"] = sourcingJson(c.sourcing);
         if (!c.package.empty()) j["package"] = c.package;
+        componentSheetJson(j, c);
         Json p = Json::object();
         p["x"] = c.pcb.position.x;
         p["y"] = c.pcb.position.y;
@@ -244,6 +360,14 @@ Json Project::toJson() const {
         wires.push(j);
     }
     root["wires"] = wires;
+    root["sheets"] = sheetsJson(schematic);
+    root["activeSheet"] = schematic.activeSheet();
+    if (!variants.empty()) {
+        Json vs = Json::array();
+        for (const auto& v : variants) vs.push(variantToJson(v, schematic));
+        root["variants"] = vs;
+    }
+    if (!activeVariant.empty()) root["activeVariant"] = activeVariant;
 
     Json tracks = Json::array();
     for (const auto& t : pcb.tracks) {
@@ -424,7 +548,18 @@ Project Project::fromJson(const Json& root) {
         c.pcb.placed = pc.get("placed").asBool(false);
         c.pcb.locked = c.pcb.placed && pc.get("locked").asBool(false);
         c.pcb.embeddedLayer = canEmbed(c) ? std::max(0, pc.get("embeddedLayer").asInt(0)) : 0;
+        c.sheet = j.get("sheet").asInt(1);
+        if (c.kind == ComponentKind::NetLabel && !labelScopeFromName(j.get("scope").asString("global"), &c.scope))
+            c.scope = LabelScope::Local;  // a scope from a newer version: keep the label to its sheet
+        c.targetSheet = c.scope == LabelScope::SheetEntry ? j.get("targetSheet").asInt(0) : 0;
         p.schematic.restoreComponent(c);
+    }
+    {
+        // Files from before multi-sheet designs have no sheet list: everything is on one sheet.
+        std::vector<Sheet> sheets;
+        for (const auto& j : root.get("sheets").items())
+            sheets.push_back(Sheet{j.get("id").asInt(0), j.get("name").asString(""), j.get("parent").asInt(0)});
+        p.schematic.restoreSheets(sheets, root.get("activeSheet").asInt(0));
     }
     for (const auto& j : root.get("wires").items()) {
         Wire w;
@@ -434,6 +569,19 @@ Project Project::fromJson(const Json& root) {
         if (w.id < 0 || !p.schematic.find(w.a.component) || !p.schematic.find(w.b.component)) continue;
         p.schematic.restoreWire(w);
     }
+    for (const auto& j : root.get("variants").items()) {
+        if (j.get("name").asString("").empty()) continue;
+        DesignVariant v = variantFromJson(j);
+        v.name = trimmedName(v.name);
+        if (v.name.empty() || p.findVariant(v.name)) continue;
+        for (auto it = v.parts.begin(); it != v.parts.end();) {
+            const Component* c = p.schematic.find(it->first);
+            it = !c || isNetSymbolKind(c->kind) ? v.parts.erase(it) : std::next(it);
+        }
+        p.variants.push_back(v);
+    }
+    p.activeVariant = root.get("activeVariant").asString("");
+    if (!p.findVariant(p.activeVariant)) p.activeVariant.clear();
     for (const auto& j : root.get("tracks").items()) {
         Track t;
         t.layer = std::clamp(j.get("layer").asInt(0), 0, s.bottomLayer());
@@ -475,6 +623,23 @@ Json Project::snapshot() const {
         j["rotation"] = c.rotation;
         j["footprint"] = c.footprintName();
         if (!c.package.empty()) j["package"] = c.package;
+        j["sheet"] = c.sheet;
+        if (c.kind == ComponentKind::NetLabel) {
+            j["scope"] = labelScopeName(c.scope);
+            if (c.scope == LabelScope::SheetEntry) j["targetSheet"] = c.targetSheet;
+        }
+        if (!isNetSymbolKind(c.kind)) {
+            // Fitting in the active variant (or the base design): not fitted parts and value overrides.
+            bool fitted = !c.sourcing.dnp;
+            if (const DesignVariant* v = findVariant(activeVariant)) {
+                auto it = v->parts.find(c.id);
+                if (it != v->parts.end()) {
+                    if (it->second.fitted >= 0) fitted = it->second.fitted == 1;
+                    if (!it->second.value.empty()) j["variantValue"] = it->second.value;
+                }
+            }
+            if (!fitted) j["fitted"] = false;
+        }
         {
             const auto variants = Library::packageVariants(c.kind);
             if (!variants.empty()) {
@@ -558,6 +723,26 @@ Json Project::snapshot() const {
         netArr.push(j);
     }
     root["nets"] = netArr;
+    {
+        Json sheets = Json::array();
+        for (const auto& s : schematic.sheets()) {
+            Json j = Json::object();
+            j["id"] = s.id;
+            j["name"] = s.name;
+            j["parent"] = s.parent;
+            j["depth"] = schematic.sheetDepth(s.id);
+            Json ports = Json::array();
+            for (const auto& port : schematic.sheetPorts(s.id)) ports.push(port);
+            j["ports"] = ports;
+            sheets.push(j);
+        }
+        root["sheets"] = sheets;
+        root["activeSheet"] = schematic.activeSheet();
+        Json vs = Json::array();
+        for (const auto& v : variants) vs.push(variantToJson(v, schematic));
+        root["variants"] = vs;
+        root["activeVariant"] = activeVariant;
+    }
     root["industry"] = industry;
     root["robotPlatform"] = robotPlatform;
     root["ecuType"] = ecuType;
@@ -708,6 +893,7 @@ Json Project::violationsToJson(const std::vector<RuleViolation>& list) {
         j["hasLocation"] = v.hasLocation;
         j["x"] = v.location.x;
         j["y"] = v.location.y;
+        if (v.sheet > 0) j["sheet"] = v.sheet;
         arr.push(j);
     }
     return arr;

@@ -209,6 +209,102 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_set_pin_no_connect($0, Int32(pin.component), Int32(pin.pin), noConnect ? 1 : 0) } == 1
     }
 
+    // MARK: - Sheets, buses, annotation
+
+    /// Adds a sheet under `parent` (0 = top level); nil when the name is empty or taken.
+    func addSheet(_ name: String, parent: Int = 0) -> Int? {
+        let id = withHandle { sieda_add_sheet($0, name, Int32(parent)) }
+        return id >= 0 ? Int(id) : nil
+    }
+
+    @discardableResult
+    func renameSheet(_ id: Int, to name: String) -> Bool { withHandle { sieda_rename_sheet($0, Int32(id), name) } == 1 }
+
+    @discardableResult
+    func setSheetParent(_ id: Int, parent: Int) -> Bool {
+        withHandle { sieda_set_sheet_parent($0, Int32(id), Int32(parent)) } == 1
+    }
+
+    @discardableResult
+    func removeSheet(_ id: Int, deleteContents: Bool) -> Bool {
+        withHandle { sieda_remove_sheet($0, Int32(id), deleteContents ? 1 : 0) } == 1
+    }
+
+    /// The sheet new components are placed on.
+    @discardableResult
+    func setActiveSheet(_ id: Int) -> Bool { withHandle { sieda_set_active_sheet($0, Int32(id)) } == 1 }
+
+    /// Moves components to another sheet; returns how many moved (junctions that follow them included).
+    @discardableResult
+    func moveToSheet(_ ids: [Int], sheet: Int) -> Int {
+        let list = ids.map { Int32($0) }
+        return Int(withHandle { handle in
+            list.withUnsafeBufferPointer { sieda_move_to_sheet(handle, $0.baseAddress, Int32($0.count), Int32(sheet)) }
+        })
+    }
+
+    /// Net label scope: "global", "local", "port" or "entry" (into `targetSheet`).
+    @discardableResult
+    func setLabelScope(_ id: Int, scope: String, targetSheet: Int = 0) -> Bool {
+        withHandle { sieda_set_label_scope($0, Int32(id), scope, Int32(targetSheet)) } == 1
+    }
+
+    /// Adds the missing sheet entries of `child`'s sheet symbol on its parent sheet; returns the entries added.
+    @discardableResult
+    func placeSheetEntries(child: Int, at point: CGPoint) -> Int {
+        Int(withHandle { sieda_place_sheet_entries($0, Int32(child), Double(point.x), Double(point.y)) })
+    }
+
+    /// Bus members of "D[0..7]"-style notation (empty when the text is not a bus).
+    static func expandBus(_ text: String) -> [String] {
+        decode([String].self, from: take(sieda_expand_bus(text))) ?? []
+    }
+
+    /// One net label per bus member on `pins` of a component; returns the labels added (nil on a mismatch).
+    @discardableResult
+    func addBusLabels(component: Int, pins: [Int], bus: String, scope: String = "global") -> Int? {
+        let list = pins.map { Int32($0) }
+        let added = withHandle { handle in
+            list.withUnsafeBufferPointer { sieda_add_bus_labels(handle, Int32(component), $0.baseAddress, Int32($0.count), bus, scope) }
+        }
+        return added >= 0 ? Int(added) : nil
+    }
+
+    /// Re-numbers designators; returns the number changed.
+    @discardableResult
+    func annotate(byColumns: Bool, keepExisting: Bool, sheetNumbering: Bool) -> Int {
+        let options = "{\"order\":\"\(byColumns ? "columns" : "rows")\",\"keepExisting\":\(keepExisting),\"sheetNumbering\":\(sheetNumbering)}"
+        struct Reply: Decodable { struct Change: Decodable { let component: Int }; let changed: [Change] }
+        return Self.decode(Reply.self, from: withHandle { Self.take(sieda_annotate($0, options)) })?.changed.count ?? 0
+    }
+
+    // MARK: - Design variants
+
+    @discardableResult
+    func addVariant(_ name: String, copying source: String? = nil) -> Bool {
+        withHandle { sieda_add_variant($0, name, source ?? "") } == 1
+    }
+
+    @discardableResult
+    func renameVariant(_ name: String, to newName: String) -> Bool { withHandle { sieda_rename_variant($0, name, newName) } == 1 }
+
+    @discardableResult
+    func removeVariant(_ name: String) -> Bool { withHandle { sieda_remove_variant($0, name) } == 1 }
+
+    /// fitted: nil follows the base design. `value`: nil keeps the override, "" clears it.
+    @discardableResult
+    func setVariantPart(_ name: String, component: Int, fitted: Bool?, value: String? = nil) -> Bool {
+        let state: Int32 = fitted.map { $0 ? 1 : 0 } ?? -1
+        return withHandle { (handle) -> Int32 in
+            if let value { return sieda_set_variant_part(handle, name, Int32(component), state, value) }
+            return sieda_set_variant_part(handle, name, Int32(component), state, nil)
+        } == 1
+    }
+
+    /// "" selects the base design; the BOM, CPL and assembly exports follow the active variant.
+    @discardableResult
+    func setActiveVariant(_ name: String) -> Bool { withHandle { sieda_set_active_variant($0, name) } == 1 }
+
     // MARK: - Custom parts
 
     /// Registers a part in the project library; returns the generated part (symbol + footprint).

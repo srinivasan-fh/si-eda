@@ -4524,3 +4524,54 @@ final class LocalizationTests: XCTestCase {
         XCTAssertGreaterThan(host.fittingSize.height, 0)
     }
 }
+
+final class SheetAndVariantTests: XCTestCase {
+    func testSheetsVariantsAndPlansThroughTheBridge() throws {
+        let engine = EDAEngine(name: "Sheets")
+        let load = try XCTUnwrap(engine.addSheet("Load"))
+        XCTAssertNil(engine.addSheet("Load"))
+        let v = engine.addComponent(.voltageSource, value: "5", at: .zero)
+        let label = engine.addComponent(.netLabel, value: "VIN", at: CGPoint(x: 60, y: -40))
+        let g = engine.addComponent(.ground, at: CGPoint(x: 0, y: 80))
+        XCTAssertNotNil(engine.connect(PinAddress(component: v, pin: 0), PinAddress(component: label, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: v, pin: 1), PinAddress(component: g, pin: 0)))
+        XCTAssertTrue(engine.setActiveSheet(load))
+        let r = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        let label2 = engine.addComponent(.netLabel, value: "VIN", at: CGPoint(x: 40, y: 0))
+        let g2 = engine.addComponent(.ground, at: CGPoint(x: 160, y: 80))
+        XCTAssertNotNil(engine.connect(PinAddress(component: label2, pin: 0), PinAddress(component: r, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r, pin: 1), PinAddress(component: g2, pin: 0)))
+        // Wires stay on one sheet; the global label joins the sheets.
+        XCTAssertNil(engine.connect(PinAddress(component: v, pin: 0), PinAddress(component: r, pin: 0)))
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        XCTAssertEqual(snapshot.sheets.map(\.name), ["Main", "Load"])
+        XCTAssertEqual(snapshot.activeSheet, load)
+        XCTAssertEqual(snapshot.onSheet(load).components.count, 3)
+        XCTAssertEqual(snapshot.onSheet(1).wires.count, 2)
+        XCTAssertEqual(snapshot.component(r)?.pins[0].net, snapshot.component(v)?.pins[0].net)
+        XCTAssertTrue(engine.simulateDC().converged)
+
+        // A plan carries the sheets and rebuilds the same connectivity.
+        let plan = DesignPlanCompiler.plan(from: snapshot)
+        XCTAssertEqual(plan.sheets.map(\.name), ["Main", "Load"])
+        let rebuilt = EDAEngine()
+        DesignPlanCompiler.apply(plan, to: rebuilt, previous: nil)
+        let again = try XCTUnwrap(rebuilt.snapshot())
+        XCTAssertEqual(again.sheets.map(\.name), ["Main", "Load"])
+        XCTAssertEqual(again.component(ref: "R1")?.sheetId, again.sheets[1].id)
+        XCTAssertEqual(again.component(ref: "R1")?.pins[0].net, again.component(ref: "V1")?.pins[0].net)
+
+        // Variants: R1 is not fitted in "Lite"; the BOM follows the active variant.
+        XCTAssertTrue(engine.addVariant("Lite"))
+        XCTAssertTrue(engine.setVariantPart("Lite", component: r, fitted: false))
+        XCTAssertTrue(engine.setActiveVariant("Lite"))
+        let withVariant = try XCTUnwrap(engine.snapshot())
+        XCTAssertEqual(withVariant.activeVariant, "Lite")
+        XCTAssertEqual(withVariant.variants.map(\.name), ["Lite"])
+        XCTAssertEqual(withVariant.component(r)?.isFitted, false)
+        XCTAssertEqual(engine.bom().summary.dnp, 1)
+        XCTAssertTrue(engine.setActiveVariant(""))
+        XCTAssertEqual(engine.bom().summary.dnp, 0)
+        XCTAssertEqual(EDAEngine.expandBus("D[0..2]"), ["D0", "D1", "D2"])
+    }
+}

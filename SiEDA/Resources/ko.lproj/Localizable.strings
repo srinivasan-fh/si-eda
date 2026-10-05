@@ -16,6 +16,7 @@
 "AI-native electronic design automation" = "AI 네이티브 전자 설계 자동화";
 "API key" = "API 키";
 "About" = "정보";
+"Add Child Sheet" = "하위 시트 추가";
 "Add Ground Pours" = "그라운드 푸어 추가";
 "Add Kit to Library" = "키트를 라이브러리에 추가";
 "Add Mesh" = "메시 추가";
@@ -25,6 +26,7 @@
 "Add Pour" = "푸어 추가";
 "Add Thermal Vias" = "서멀 비아 추가";
 "Add a pad like the last one (numbered next)" = "마지막 패드와 같은 패드 추가 (다음 번호)";
+"Add a sheet (right-click a tab for more)" = "시트 추가(탭을 오른쪽 클릭하면 더 보기)";
 "Add every part of this kit to the project library so it shows in the device picker" = "이 키트의 모든 부품을 프로젝트 라이브러리에 추가하여 디바이스 선택기에 표시";
 "Add serpentine (accordion) tuning to the short members of each group" = "각 그룹의 짧은 멤버에 서펜타인(아코디언) 튜닝 추가";
 "Aerospace Mission" = "항공우주 임무";
@@ -34,6 +36,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "아날로그 시간 스텝: 작을수록 빠른 신호를 분해, 클수록 빠르게 실행";
 "Analysis" = "해석";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "해석 프리셋 — 마이크로컨트롤러 펌웨어는 더 긴 실행이 필요 (예: 100 µs로 1 s)";
+"Annotate" = "부품 번호 지정";
 "Appearance" = "모양";
 "Appliance Type" = "가전 유형";
 "Apply" = "적용";
@@ -44,6 +47,7 @@
 "Arranged symbol" = "배치된 심볼";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "변경 요청 — “LED를 녹색으로 바꾸고 3.3 V로 구동해 줘”";
 "Assembly" = "조립";
+"Assembly variant for the BOM, CPL and assembly drawings" = "BOM, CPL 및 조립 도면용 조립 변형";
 "Audience (optional)" = "대상 (선택 사항)";
 "Auto Arrange" = "자동 배치";
 "Auto Route" = "자동 배선";
@@ -56,6 +60,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "조립용 BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "고속 네트의 비아 스텁 백드릴";
+"Base Design" = "기본 설계";
 "Base URL" = "기본 URL";
 "Bill of Materials" = "부품 명세서";
 "Bill of Materials (CSV)…" = "부품 명세서 (CSV)…";
@@ -107,6 +112,8 @@
 "Default provider" = "기본 제공자";
 "Delete" = "삭제";
 "Delete Part" = "부품 삭제";
+"Delete Sheet" = "시트 삭제";
+"Delete Variant" = "변형 삭제";
 "Delete Wire" = "와이어 삭제";
 "Describe your product" = "제품 설명 입력";
 "Description" = "설명";
@@ -150,11 +157,14 @@
 "Finish the login in your browser…" = "브라우저에서 로그인을 완료하세요…";
 "Firmware — 1 s, 100 µs" = "펌웨어 — 1 s, 100 µs";
 "Fit Board to Components" = "보드를 부품에 맞추기";
+"Fitted" = "실장";
+"Fix Duplicates Only" = "중복만 수정";
 "Flip" = "뒤집기";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "부품이 실장되는 풋프린트: 칩 크기, 스루홀, 탄탈 또는 전해 케이스";
 "Gap Before" = "앞 간격";
 "Generate Design" = "설계 생성";
 "Give each selected pin its own slot" = "선택한 각 핀에 개별 슬롯 지정";
+"Global" = "전역";
 "Global semiconductor countries" = "세계 반도체 국가";
 "Google Cloud project ID" = "Google Cloud 프로젝트 ID";
 "Grid" = "그리드";
@@ -194,6 +204,7 @@
 "Loading memory & system design kits" = "메모리 및 시스템 설계 키트 불러오는 중";
 "Loading reference designs" = "레퍼런스 설계 불러오는 중";
 "Loading the component library" = "부품 라이브러리 불러오는 중";
+"Local (this sheet)" = "로컬(이 시트)";
 "Locked (Auto Place keeps it)" = "잠금 (자동 배치 시 유지)";
 "Long firmware run — 5 s, 500 µs" = "긴 펌웨어 실행 — 5 s, 500 µs";
 "Mask" = "마스크";
@@ -205,6 +216,7 @@
 "Model" = "모델";
 "Model back-ends" = "모델 백엔드";
 "Mounting" = "실장";
+"Move Selection Here" = "선택 항목을 여기로 이동";
 "Move the footprint origin to the centre of the pads" = "풋프린트 원점을 패드 중앙으로 이동";
 "Move the pad in the numbering; pads between shift by one" = "번호 순서에서 패드 이동. 사이의 패드는 하나씩 밀림";
 "NAVIGATOR" = "네비게이터";
@@ -214,6 +226,8 @@
 "Nets" = "네트";
 "Nets (%lld)" = "네트 (%lld)";
 "New Project" = "새 프로젝트";
+"New Variant" = "새 변형";
+"New Variant…" = "새 변형…";
 "New blank part" = "새 빈 부품";
 "New from Example" = "예제로 새로 만들기";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "이 설계에는 차동 쌍(…_P/_N, …+/-)이나 버스(DQ0…, DATA[0..7], ADDR…)가 없습니다.";
@@ -233,6 +247,9 @@
 "Not naval" = "함정 아님";
 "Not placed yet" = "아직 배치되지 않음";
 "Not retail" = "리테일 아님";
+"Number by Columns" = "열 기준 번호 지정";
+"Number by Rows" = "행 기준 번호 지정";
+"Number by Sheet (R101, R201…)" = "시트별 번호 지정(R101, R201…)";
 "OBJ with vertex colours" = "정점 색상이 포함된 OBJ";
 "OK" = "확인";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "끔: SiEDA가 기존의 수동 EDA 도구로 작동합니다. 회로도 작성, 시뮬레이션, PCB 배선, 3D, 데이터시트 분석 및 내보내기가 모두 로컬에서 실행되며 어떠한 AI 서비스로도 데이터가 전송되지 않습니다.";
@@ -256,9 +273,11 @@
 "Pin" = "핀";
 "Pins: " = "핀: ";
 "Place Now" = "지금 배치";
+"Place Sheet Symbol" = "시트 심볼 배치";
 "Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)" = "배치되지 않은 풋프린트를 보드 외곽선 안에 배치한 후 모든 연결을 배선하고 DRC 검사 (⇧⌘R)";
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "배치, 배선, 푸어, DRC, Gerber Edge.Cuts 및 3D 보드가 외곽선을 따릅니다. ";
 "Plane" = "플레인";
+"Port (to parent sheet)" = "포트(상위 시트로)";
 "Preview appears once the part has a name and pins." = "부품에 이름과 핀이 있으면 미리보기가 표시됩니다.";
 "Project Library" = "프로젝트 라이브러리";
 "Project name" = "프로젝트 이름";
@@ -272,6 +291,8 @@
 "Remove the empty slots on every side" = "모든 면의 빈 슬롯 제거";
 "Remove the firmware" = "펌웨어 제거";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "마지막으로 연결된 레이어 아래의 사용하지 않는 비아 배럴을 제거 (4층 이상). 백드릴 파일 추가";
+"Rename Sheet" = "시트 이름 변경";
+"Rename Sheet…" = "시트 이름 변경…";
 "Renumber" = "번호 재지정";
 "Reserve the layer for this net: other nets only pass through it with vias" = "이 네트 전용 레이어로 예약: 다른 네트는 비아로만 통과";
 "Reset View" = "보기 재설정";
@@ -304,6 +325,7 @@
 "Schematic" = "회로도";
 "Schematic capture · SPICE-class simulation · PCB autorouting · DRC · 3D · Gerber/Excellon export" = "회로도 작성 · SPICE급 시뮬레이션 · PCB 자동 배선 · DRC · 3D · Gerber/Excellon 내보내기";
 "Schematic · Simulation · PCB · 3D · Fabrication" = "회로도 · 시뮬레이션 · PCB · 3D · 제조";
+"Scope" = "범위";
 "Scope, serial monitor and switches" = "스코프, 시리얼 모니터 및 스위치";
 "Scopes" = "스코프";
 "Scroll or pinch to zoom" = "스크롤하거나 핀치하여 확대/축소";
@@ -317,6 +339,8 @@
 "Serial output — 200 ms, 10 µs" = "시리얼 출력 — 200 ms, 10 µs";
 "Set" = "설정";
 "Shape" = "모양";
+"Sheet" = "시트";
+"Sheet name" = "시트 이름";
 "Show" = "표시";
 "Show Crash Reports" = "충돌 보고서 보기";
 "Show Navigator" = "네비게이터 보기";
@@ -376,6 +400,7 @@
 "Validate" = "검증";
 "Validate Circuit" = "회로 검증";
 "Value" = "값";
+"Variant name" = "변형 이름";
 "Verify Design" = "설계 검증";
 "Vertex AI region" = "Vertex AI 리전";
 "Via-in-pad plated over (VIPPO, IPC-4761 Type VII)" = "비아 인 패드 도금 마감 (VIPPO, IPC-4761 Type VII)";

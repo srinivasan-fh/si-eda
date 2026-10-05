@@ -5190,3 +5190,538 @@ TEST(collinear_segments_are_not_a_crossing) {
     CHECK(segmentSegmentDistance(a, b, {16.95, 16.25}, {17.35, 15.85}) < 1e-9);  // overlapping collinear: touching
     CHECK(segmentsIntersect({0, 0}, {1, 1}, {0, 1}, {1, 0}));                     // a real crossing still is one
 }
+
+// ======================================================================= multi-sheet schematics, variants, buses
+
+extern "C" int sieda_c_api_sheets_test(void);
+
+namespace {
+const Net* netNamed(const Schematic& s, const std::string& name) {
+    for (const auto& n : s.nets())
+        if (n.name == name) return &n;
+    return nullptr;
+}
+
+/// Two sheets: "Power" holds a 5 V source driving global label VIN; "Load" holds R1 (1 kΩ) from VIN to ground.
+Project twoSheetProject() {
+    Project p;
+    p.name = "Two sheets";
+    auto& s = p.schematic;
+    s.renameSheet(1, "Power");
+    int load = s.addSheet("Load");
+    int v = s.addComponent(ComponentKind::VoltageSource, "5", {0, 0});
+    int g1 = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    int l1 = s.addComponent(ComponentKind::NetLabel, "VIN", {60, -40});
+    wire(s, v, "+", l1, "N");
+    wire(s, v, "-", g1, "GND");
+    s.setActiveSheet(load);
+    int r = s.addComponent(ComponentKind::Resistor, "1k", {80, 0});
+    int l2 = s.addComponent(ComponentKind::NetLabel, "VIN", {0, 0});
+    int g2 = s.addComponent(ComponentKind::Ground, "", {160, 80});
+    wire(s, l2, "N", r, "1");
+    wire(s, r, "2", g2, "GND");
+    p.schematicChanged();
+    return p;
+}
+}  // namespace
+
+TEST(sheets_add_rename_parent_remove) {
+    Schematic s;
+    CHECK(s.sheets().size() == 1);
+    CHECK(s.sheets()[0].name == "Main");
+    int a = s.addSheet("  Analog  ");
+    CHECK(a > 1);
+    CHECK(s.findSheet(a)->name == "Analog");  // trimmed
+    CHECK(s.addSheet("Analog") == -1);         // names are unique
+    CHECK(s.addSheet("") == -1);
+    CHECK(s.addSheet("Orphan", 999) == -1);    // unknown parent
+    int child = s.addSheet("Filter", a);
+    CHECK(child > a);
+    CHECK(s.sheetDepth(child) == 1);
+    CHECK(!s.setSheetParent(a, child));  // cycle
+    CHECK(!s.renameSheet(child, "Main"));
+    CHECK(s.renameSheet(child, "Anti-alias"));
+    CHECK(s.reorderSheet(child, 0));
+    CHECK(s.sheets()[0].id == child);
+
+    // Placement follows the active sheet; wires never cross sheets.
+    CHECK(s.setActiveSheet(a));
+    CHECK(!s.setActiveSheet(12345));
+    int r1 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    CHECK(s.find(r1)->sheet == a);
+    s.setActiveSheet(1);
+    int r2 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    CHECK(s.connect({r1, 0}, {r2, 0}) == -1);
+
+    // A sheet with parts is removed only with its contents; its children move up.
+    CHECK(!s.removeSheet(a, false));
+    CHECK(s.removeSheet(a, true));
+    CHECK(s.find(r1) == nullptr);
+    CHECK(s.findSheet(child)->parent == 0);
+    CHECK(s.removeSheet(child, false));  // empty
+    CHECK(!s.removeSheet(1, true));      // the last sheet stays
+    CHECK(s.activeSheet() == 1);
+    s.clear();
+    CHECK(s.sheets().size() == 1 && s.activeSheet() == 1);
+}
+
+TEST(sheets_global_labels_flatten_for_netlist_simulation_and_pcb) {
+    Project p = twoSheetProject();
+    const auto& s = p.schematic;
+    const Component* r = s.findByRef("R1");
+    CHECK(r && r->sheet != 1);
+    // One VIN net spanning both sheets, one ground.
+    const Net* vin = netNamed(s, "VIN");
+    CHECK(vin != nullptr);
+    if (vin) CHECK(vin->pins.size() == 4);  // source +, both labels, resistor pin 1
+    CHECK(s.netOf({r->id, 0}) == s.netOf({s.findByRef("V1")->id, 0}));
+    CHECK(s.netOf({r->id, 1}) == s.groundNet());
+    Simulator sim(s);
+    DcResult dc = sim.dcOperatingPoint();
+    CHECK(dc.converged);
+    CHECK_NEAR(netV(s, dc, r->id, "1"), 5.0, 1e-6);
+    std::string spice = exportSpiceNetlist(s, "two sheets");
+    CHECK(spice.find("R1") != std::string::npos);
+    CHECK(spice.find("VIN") != std::string::npos);
+    auto erc = s.runERC();
+    CHECK(!hasCode(erc, "ERC_CROSS_SHEET_WIRE"));
+    CHECK(!hasCode(erc, "ERC_DANGLING_LABEL"));
+    // The board sees the flattened design: placed and routed with no unrouted connection.
+    p.pcb.autoPlace(p.schematic, true);
+    RouteStats st = p.pcb.autoRoute(p.schematic);
+    CHECK(st.failed == 0);
+    CHECK(st.connections > 0);
+}
+
+TEST(sheets_local_labels_stay_on_their_sheet) {
+    Schematic s;
+    int b = s.addSheet("Sensor");
+    int r1 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    int la = s.addComponent(ComponentKind::NetLabel, "EN", {-60, 0});
+    CHECK(s.setLabelScope(la, LabelScope::Local));
+    wire(s, la, "N", r1, "1");
+    s.setActiveSheet(b);
+    int r2 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    int lb = s.addComponent(ComponentKind::NetLabel, "EN", {-60, 0});
+    CHECK(s.setLabelScope(lb, LabelScope::Local));
+    wire(s, lb, "N", r2, "1");
+    int lb2 = s.addComponent(ComponentKind::NetLabel, "EN", {-60, 60});
+    CHECK(s.setLabelScope(lb2, LabelScope::Local));
+    int r3 = s.addComponent(ComponentKind::Resistor, "1k", {0, 60});
+    wire(s, lb2, "N", r3, "1");
+    // Same name on two sheets: two nets, qualified by sheet name; labels on one sheet join.
+    CHECK(s.netOf({r1, 0}) != s.netOf({r2, 0}));
+    CHECK(s.netOf({r2, 0}) == s.netOf({r3, 0}));
+    CHECK(netNamed(s, "Main/EN") != nullptr);
+    CHECK(netNamed(s, "Sensor/EN") != nullptr);
+    CHECK(hasCode(s.runERC(), "ERC_LOCAL_LABEL_SPLIT"));
+    // A local name used once keeps its plain name.
+    s.setValue(la, "RESET");
+    CHECK(netNamed(s, "RESET") != nullptr);
+    CHECK(netNamed(s, "EN") != nullptr);
+    CHECK(!hasCode(s.runERC(), "ERC_LOCAL_LABEL_SPLIT"));
+    // A global label of the same name is a different net and keeps its name; the local one is qualified.
+    int g = s.addComponent(ComponentKind::NetLabel, "EN", {-60, 120});
+    int r4 = s.addComponent(ComponentKind::Resistor, "1k", {0, 120});
+    wire(s, g, "N", r4, "1");
+    CHECK(s.netOf({r4, 0}) != s.netOf({r2, 0}));
+    CHECK(s.nets()[static_cast<size_t>(s.netOf({r4, 0}))].name == "EN");
+    CHECK(s.nets()[static_cast<size_t>(s.netOf({r2, 0}))].name == "Sensor/EN");
+    // Scope rules: only labels; an entry needs a real other sheet.
+    CHECK(!s.setLabelScope(r1, LabelScope::Local));
+    CHECK(!s.setLabelScope(lb, LabelScope::SheetEntry, b));
+    CHECK(!s.setLabelScope(lb, LabelScope::SheetEntry, 77));
+}
+
+TEST(sheets_hierarchical_ports_and_sheet_entries) {
+    Schematic s;
+    int child = s.addSheet("Divider", 1);
+    // Child: port IN → R1 → port OUT; R2 from OUT to ground.
+    s.setActiveSheet(child);
+    int r1 = s.addComponent(ComponentKind::Resistor, "10k", {80, 0});
+    int r2 = s.addComponent(ComponentKind::Resistor, "10k", {160, 60}, 90);
+    int pin = s.addComponent(ComponentKind::NetLabel, "IN", {0, 0});
+    int pout = s.addComponent(ComponentKind::NetLabel, "OUT", {240, 0});
+    int gc = s.addComponent(ComponentKind::Ground, "", {160, 140});
+    CHECK(s.setLabelScope(pin, LabelScope::Port));
+    CHECK(s.setLabelScope(pout, LabelScope::Port));
+    wire(s, pin, "N", r1, "1");
+    wire(s, r1, "2", pout, "N");
+    wire(s, pout, "N", r2, "1");
+    wire(s, r2, "2", gc, "GND");
+    CHECK((s.sheetPorts(child) == std::vector<std::string>{"IN", "OUT"}));
+    auto erc = s.runERC();
+    CHECK(hasCode(erc, "ERC_PORT_UNUSED"));  // no sheet symbol yet
+
+    // Parent: the sheet symbol's entries, a 10 V source on IN and a load on OUT.
+    CHECK(s.placeSheetEntries(child, {100, 0}) == 2);
+    CHECK(s.placeSheetEntries(child, {100, 0}) == 0);  // already there
+    CHECK(s.placeSheetEntries(1, {0, 0}) == -1);       // top-level sheet has no symbol
+    int entryIn = -1, entryOut = -1;
+    for (const auto& c : s.components())
+        if (c.kind == ComponentKind::NetLabel && c.scope == LabelScope::SheetEntry) {
+            CHECK(c.sheet == 1);
+            CHECK(c.targetSheet == child);
+            (c.value == "IN" ? entryIn : entryOut) = c.id;
+        }
+    CHECK(entryIn > 0 && entryOut > 0);
+    CHECK(s.activeSheet() == child);  // placing entries does not switch sheets
+    s.setActiveSheet(1);
+    int v = s.addComponent(ComponentKind::VoltageSource, "10", {0, 0});
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 80});
+    int rl = s.addComponent(ComponentKind::Resistor, "1meg", {200, 20});
+    wire(s, v, "+", entryIn, "N");
+    wire(s, v, "-", g, "GND");
+    wire(s, entryOut, "N", rl, "1");
+    wire(s, rl, "2", g, "GND");
+    CHECK(s.netOf({v, 0}) == s.netOf({r1, 0}));
+    CHECK(s.netOf({rl, 0}) == s.netOf({r2, 0}));
+    CHECK(netNamed(s, "IN") != nullptr);
+    erc = s.runERC();
+    CHECK(!hasCode(erc, "ERC_PORT_UNUSED"));
+    CHECK(!hasCode(erc, "ERC_SHEET_ENTRY_NO_PORT"));
+    Simulator sim(s);
+    DcResult dc = sim.dcOperatingPoint();
+    CHECK(dc.converged);
+    CHECK_NEAR(netV(s, dc, rl, "1"), 4.975, 0.01);  // 10 V halved, loaded by 1 MΩ
+    // ERC locations carry their sheet.
+    for (const auto& violation : erc)
+        if (!violation.components.empty()) CHECK(violation.sheet == s.find(violation.components.front())->sheet);
+
+    // An entry without its port is an error; a port on a top-level sheet is flagged.
+    s.setValue(pout, "VOUT");
+    erc = s.runERC();
+    CHECK(hasCode(erc, "ERC_SHEET_ENTRY_NO_PORT"));
+    CHECK(hasCode(erc, "ERC_PORT_UNUSED"));
+    CHECK(s.netOf({rl, 0}) != s.netOf({r2, 0}));
+    CHECK(s.setSheetParent(child, 0));
+    CHECK(hasCode(s.runERC(), "ERC_PORT_NO_PARENT"));
+    // Removing the child sheet removes the entries that pointed into it.
+    CHECK(s.removeSheet(child, true));
+    CHECK(s.find(entryIn) == nullptr && s.find(entryOut) == nullptr);
+    CHECK(s.find(v) != nullptr);
+}
+
+TEST(sheets_move_components_between_sheets) {
+    Schematic s;
+    int other = s.addSheet("Other");
+    int r1 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    int r2 = s.addComponent(ComponentKind::Resistor, "1k", {100, 0});
+    int r3 = s.addComponent(ComponentKind::Resistor, "1k", {200, 0});
+    int w = s.connect({r1, 1}, {r2, 0});
+    CHECK(w >= 0);
+    int j = s.splitWire(w, {50, 0});  // a bend joining only r1 and r2
+    CHECK(j > 0);
+    CHECK(s.find(j)->sheet == 1);
+    wire(s, r2, "2", r3, "1");
+    CHECK(s.moveToSheet({r1, r2}, other) == 3);  // r1, r2 and their junction
+    CHECK(s.find(j)->sheet == other);
+    CHECK(s.netOf({r1, 1}) == s.netOf({r2, 0}));  // still joined on the new sheet
+    CHECK(s.netOf({r2, 1}) != s.netOf({r3, 0}));  // the wire to r3 would have crossed sheets
+    for (const auto& wr : s.wires()) CHECK(s.find(wr.a.component)->sheet == s.find(wr.b.component)->sheet);
+    CHECK(s.moveToSheet({r1}, 999) == 0);
+}
+
+TEST(sheets_persist_round_trip_and_old_files_load_as_one_sheet) {
+    Project p = twoSheetProject();
+    int child = p.schematic.addSheet("Child", 1);
+    p.schematic.setActiveSheet(child);
+    int port = p.schematic.addComponent(ComponentKind::NetLabel, "SDA", {0, 0});
+    p.schematic.setLabelScope(port, LabelScope::Port);
+    p.schematic.placeSheetEntries(child, {300, 0});
+    int local = p.schematic.addComponent(ComponentKind::NetLabel, "X", {0, 40});
+    p.schematic.setLabelScope(local, LabelScope::Local);
+    Json saved = p.toJson();
+    Project q = Project::fromJson(Json::parse(saved.dump()));
+    CHECK(q.schematic.sheets().size() == 3);
+    CHECK(q.schematic.activeSheet() == child);
+    for (size_t i = 0; i < p.schematic.sheets().size(); ++i) {
+        CHECK(q.schematic.sheets()[i].id == p.schematic.sheets()[i].id);
+        CHECK(q.schematic.sheets()[i].name == p.schematic.sheets()[i].name);
+        CHECK(q.schematic.sheets()[i].parent == p.schematic.sheets()[i].parent);
+    }
+    for (const auto& c : p.schematic.components()) {
+        const Component* r = q.schematic.find(c.id);
+        CHECK(r != nullptr);
+        if (!r) continue;
+        CHECK(r->sheet == c.sheet);
+        CHECK(r->scope == c.scope);
+        CHECK(r->targetSheet == c.targetSheet);
+    }
+    CHECK(q.schematic.nets().size() == p.schematic.nets().size());
+    for (size_t i = 0; i < p.schematic.nets().size(); ++i) CHECK(q.schematic.nets()[i].name == p.schematic.nets()[i].name);
+    CHECK(q.toJson().dump() == saved.dump());
+    // A new sheet after reload gets a fresh id.
+    CHECK(q.schematic.addSheet("Later") > child);
+
+    // A file written before sheets existed: no "sheets", no "sheet" on components.
+    const char* old = R"({"format":"sieda-project","version":1,"name":"Old","board":{},
+        "components":[{"id":1,"kind":5,"ref":"V1","value":"5","x":0,"y":0,"rotation":0,"pcb":{}},
+                      {"id":2,"kind":0,"ref":"R1","value":"1k","x":80,"y":0,"rotation":0,"pcb":{}},
+                      {"id":3,"kind":15,"ref":"#NL1","value":"VIN","x":40,"y":0,"rotation":0,"pcb":{}},
+                      {"id":4,"kind":7,"ref":"#GND1","value":"","x":0,"y":80,"rotation":0,"pcb":{}}],
+        "wires":[{"id":1,"a":{"component":1,"pin":0},"b":{"component":3,"pin":0}},
+                 {"id":2,"a":{"component":3,"pin":0},"b":{"component":2,"pin":0}},
+                 {"id":3,"a":{"component":2,"pin":1},"b":{"component":4,"pin":0}},
+                 {"id":4,"a":{"component":1,"pin":1},"b":{"component":4,"pin":0}}]})";
+    Project o = Project::fromJson(Json::parse(old));
+    CHECK(o.schematic.sheets().size() == 1);
+    CHECK(o.schematic.activeSheet() == o.schematic.sheets()[0].id);
+    for (const auto& c : o.schematic.components()) {
+        CHECK(c.sheet == o.schematic.sheets()[0].id);
+        CHECK(c.scope == LabelScope::Global);
+    }
+    CHECK(o.schematic.wires().size() == 4);
+    CHECK(netNamed(o.schematic, "VIN") != nullptr);
+    CHECK(o.variants.empty() && o.activeVariant.empty());
+    // A single-sheet design saves no per-component sheet field: its components look as before.
+    std::string again = o.toJson().dump();
+    CHECK(again.find("\"sheet\":") == std::string::npos);
+    CHECK(again.find("\"scope\"") == std::string::npos);
+
+    // Hand-edited files: components on unknown sheets go to the first sheet, entries into nothing become local.
+    Json bad = Json::parse(old);
+    bad["sheets"] = Json::parse(R"([{"id":5,"name":"A","parent":6},{"id":6,"name":"B","parent":5},{"id":0,"name":"Z"}])");
+    Project b = Project::fromJson(bad);
+    CHECK(b.schematic.sheets().size() == 2);
+    CHECK(b.schematic.sheetDepth(5) + b.schematic.sheetDepth(6) <= 1);  // the cycle is broken
+    for (const auto& c : b.schematic.components()) CHECK(c.sheet == 5);
+}
+
+TEST(sheets_cross_sheet_erc) {
+    Project p = twoSheetProject();
+    auto& s = p.schematic;
+    // A signal global label only on one sheet is reported (info); supply-like names are not.
+    int r = s.addComponent(ComponentKind::Resistor, "1k", {300, 0});
+    int a = s.addComponent(ComponentKind::NetLabel, "SENSE", {240, 0});
+    int b = s.addComponent(ComponentKind::NetLabel, "SENSE", {380, 0});
+    int r2 = s.addComponent(ComponentKind::Resistor, "1k", {440, 0});
+    wire(s, a, "N", r, "1");
+    wire(s, b, "N", r2, "1");
+    auto erc = s.runERC();
+    CHECK(hasCode(erc, "ERC_GLOBAL_LABEL_ONE_SHEET"));
+    for (const auto& v : erc)
+        if (v.code == "ERC_GLOBAL_LABEL_ONE_SHEET") CHECK(v.message.find("SENSE") != std::string::npos);
+    // A label in bus notation joins one net only: warned.
+    s.setValue(a, "D[0..7]");
+    CHECK(hasCode(s.runERC(), "ERC_BUS_LABEL"));
+    // Single-sheet designs never see the multi-sheet rules.
+    Project led = ledProject();
+    for (const auto& v : led.schematic.runERC()) {
+        CHECK(v.code != "ERC_GLOBAL_LABEL_ONE_SHEET");
+        CHECK(v.sheet == 1 || v.components.empty());
+    }
+}
+
+TEST(sheets_output_conflict_names_both_sheets) {
+    Project p;
+    std::string id = p.addCustomPart(customPartSpecFromJson(Json::parse(
+        R"({"name":"BUF","package":{"type":"SOT23","pinCount":3},"pins":[{"number":"1","name":"VDD","type":"power_in"},
+            {"number":"2","name":"GND","type":"power_in"},{"number":"3","name":"Y","type":"output"}]})")));
+    auto& s = p.schematic;
+    int second = s.addSheet("Second");
+    int u1 = s.addCustomComponent(id, "", {0, 0});
+    int l1 = s.addComponent(ComponentKind::NetLabel, "BUS", {80, 0});
+    s.connect({u1, 2}, {l1, 0});
+    s.setActiveSheet(second);
+    int u2 = s.addCustomComponent(id, "", {0, 0});
+    int l2 = s.addComponent(ComponentKind::NetLabel, "BUS", {80, 0});
+    s.connect({u2, 2}, {l2, 0});
+    bool found = false;
+    for (const auto& v : s.runERC())
+        if (v.code == "ERC_OUTPUT_CONFLICT") {
+            found = true;
+            CHECK(v.message.find("across sheets Main, Second") != std::string::npos);
+        }
+    CHECK(found);
+}
+
+TEST(bus_notation_expands_and_bus_labels_wire_pins) {
+    CHECK((expandBus("D[0..3]") == std::vector<std::string>{"D0", "D1", "D2", "D3"}));
+    CHECK((expandBus("A[3..1]") == std::vector<std::string>{"A3", "A2", "A1"}));
+    CHECK((expandBus("D[0..1]_N, WR") == std::vector<std::string>{"D0_N", "D1_N", "WR"}));
+    CHECK((expandBus("SDA,SCL") == std::vector<std::string>{"SDA", "SCL"}));
+    CHECK(expandBus("VCC").empty());
+    CHECK(expandBus("D[0..]").empty());
+    CHECK(expandBus("[0..3]").empty());
+    CHECK(expandBus("D[0..3").empty());
+    CHECK(expandBus("D[0..5000]").empty());
+    CHECK(expandBus("A,,B").empty());
+
+    Schematic s;
+    int j1 = s.addComponent(ComponentKind::Connector, "", {0, 0});
+    const int pins = static_cast<int>(s.find(j1)->def().pins.size());
+    CHECK(pins >= 2);
+    std::vector<int> list;
+    for (int i = 0; i < pins; ++i) list.push_back(i);
+    std::string bus = "D[0.." + std::to_string(pins - 1) + "]";
+    CHECK(s.addBusLabels(j1, list, "D[0..99]") == -1);  // count mismatch
+    CHECK(s.addBusLabels(j1, {0, 99}, "D[0..1]") == -1);
+    CHECK(s.addBusLabels(j1, list, bus, LabelScope::Local) == pins);
+    for (int i = 0; i < pins; ++i) {
+        const int net = s.netOf({j1, i});
+        CHECK(net >= 0);
+        if (net >= 0) CHECK(s.nets()[static_cast<size_t>(net)].name == "D" + std::to_string(i));
+        CHECK(s.isPinConnected({j1, i}));
+    }
+    int labels = 0;
+    for (const auto& c : s.components())
+        if (c.kind == ComponentKind::NetLabel) {
+            ++labels;
+            CHECK(c.scope == LabelScope::Local);
+            CHECK(c.sheet == s.find(j1)->sheet);
+        }
+    CHECK(labels == pins);
+}
+
+TEST(annotation_renumbers_by_sheet_and_position) {
+    Schematic s;
+    int two = s.addSheet("Two");
+    int ra = s.addComponent(ComponentKind::Resistor, "1k", {200, 0}, 0, "R7");
+    int rb = s.addComponent(ComponentKind::Resistor, "1k", {0, 0}, 0, "R7");    // duplicate
+    int rc = s.addComponent(ComponentKind::Resistor, "1k", {0, 100}, 0, "R?");  // unnumbered
+    int c1 = s.addComponent(ComponentKind::Capacitor, "1u", {100, 0}, 0, "C9");
+    int g = s.addComponent(ComponentKind::Ground, "", {0, 200});
+    s.setActiveSheet(two);
+    int rd = s.addComponent(ComponentKind::Resistor, "1k", {0, 0}, 0, "R1");
+    const std::string groundRef = s.find(g)->ref;
+
+    AnnotateOptions keep;
+    keep.keepExisting = true;
+    auto changes = s.annotate(keep);
+    // Rows: R7 at x=0 is met first and kept; the second R7 and R? get free numbers.
+    CHECK(s.find(rb)->ref == "R7");
+    CHECK(s.find(ra)->ref != "R7");
+    CHECK(s.find(rc)->ref.back() != '?');
+    CHECK(s.find(c1)->ref == "C9");
+    CHECK(s.find(rd)->ref == "R1");
+    CHECK(changes.size() == 2);
+    CHECK(!hasCode(s.runERC(), "ERC_DUPLICATE_REF"));
+
+    auto all = s.annotate(AnnotateOptions{});
+    CHECK(s.find(rb)->ref == "R1");  // sheet 1, row y=0, x=0
+    CHECK(s.find(ra)->ref == "R2");  // row y=0, x=200
+    CHECK(s.find(rc)->ref == "R3");  // row y=100
+    CHECK(s.find(rd)->ref == "R4");  // second sheet
+    CHECK(s.find(c1)->ref == "C1");
+    CHECK(s.find(g)->ref == groundRef);  // net symbols keep theirs
+    CHECK(!all.empty());
+
+    AnnotateOptions columns;
+    columns.byColumns = true;
+    s.annotate(columns);
+    CHECK(s.find(rb)->ref == "R1");  // column x=0: y=0 then y=100
+    CHECK(s.find(rc)->ref == "R2");
+    CHECK(s.find(ra)->ref == "R3");
+
+    AnnotateOptions perSheet;
+    perSheet.sheetNumbering = true;
+    s.annotate(perSheet);
+    CHECK(s.find(rb)->ref == "R101");
+    CHECK(s.find(rd)->ref == "R201");
+    CHECK(s.find(c1)->ref == "C101");
+
+    // The project wrapper keeps tamper meshes on their part.
+    Project p;
+    int u = p.schematic.addComponent(ComponentKind::Resistor, "1k", {0, 0}, 0, "R5");
+    p.pcb.tamperMeshes.push_back(TamperMesh{"R5", "MESH_A", "MESH_B", 1, 2, 2.0});
+    p.annotate(AnnotateOptions{});
+    CHECK(p.schematic.find(u)->ref == "R1");
+    CHECK(p.pcb.tamperMeshes[0].componentRef == "R1");
+}
+
+TEST(design_variants_bom_cpl_and_persistence) {
+    Project p = ledProject();
+    auto& s = p.schematic;
+    const int r = s.findByRef("R1")->id;
+    const int d = s.findByRef("D1")->id;
+    const int g = s.findByRef("#GND1") ? s.findByRef("#GND1")->id : -1;
+    p.pcb.autoPlace(s, true);
+
+    CHECK(p.addVariant("Lite"));
+    CHECK(!p.addVariant("Lite"));
+    CHECK(!p.addVariant("  "));
+    CHECK(p.setVariantPart("Lite", d, 0, nullptr));            // LED not fitted
+    const std::string v470 = "470";
+    CHECK(p.setVariantPart("Lite", r, -1, &v470));             // resistor value override
+    CHECK(!p.setVariantPart("Nope", r, 0, nullptr));
+    if (g > 0) CHECK(!p.setVariantPart("Lite", g, 0, nullptr));  // net symbols are not assembled
+    CHECK(p.addVariant("Pro", "Lite"));
+    CHECK(p.setVariantPart("Pro", d, 1, nullptr));
+    CHECK(p.renameVariant("Pro", "Full"));
+    CHECK(!p.renameVariant("Full", "Lite"));
+
+    // The base design is untouched.
+    const std::string baseBom = exportBomCsv(s);
+    CHECK(baseBom.find(",DNP\n", baseBom.find('\n') + 1) == std::string::npos);  // past the header
+    Schematic lite = p.variantSchematic("Lite");
+    CHECK(lite.find(d)->sourcing.dnp);
+    CHECK(lite.find(r)->value == "470");
+    CHECK(s.find(r)->value == "330");
+    CHECK(lite.nets().size() == s.nets().size());  // connectivity unchanged
+    {
+        const std::string liteBom = exportBomCsv(lite);
+        CHECK(liteBom.find(",DNP\n", liteBom.find('\n') + 1) != std::string::npos);
+    }
+    CHECK(exportCplCsv(lite, p.pcb).find("D1,") == std::string::npos);
+    CHECK(exportCplCsv(s, p.pcb).find("D1,") != std::string::npos);
+    CHECK(exportAssemblyBomCsv(lite).find("470") != std::string::npos);
+    Schematic full = p.variantSchematic("Full");
+    CHECK(!full.find(d)->sourcing.dnp);
+    CHECK(full.find(r)->value == "470");  // copied from Lite
+
+    // The active variant drives the fabrication package's assembly files.
+    CHECK(!p.setActiveVariant("Missing"));
+    CHECK(p.setActiveVariant("Lite"));
+    bool sawCpl = false;
+    for (const auto& f : fabricationPackage(p, "led")) {
+        if (f.path == "assembly/led-cpl.csv") {
+            sawCpl = true;
+            CHECK(f.content.find("D1,") == std::string::npos);
+            CHECK(f.description.find("Lite") != std::string::npos);
+        }
+        if (f.path == "fab_notes.txt") CHECK(f.content.find("Variant              Lite") != std::string::npos);
+    }
+    CHECK(sawCpl);
+
+    // Round trip: variants, their parts and the active one.
+    Project q = Project::fromJson(Json::parse(p.toJson().dump()));
+    CHECK(q.variants.size() == 2);
+    CHECK(q.activeVariant == "Lite");
+    const DesignVariant* ql = q.findVariant("Lite");
+    CHECK(ql && ql->parts.size() == 2);
+    if (ql) {
+        CHECK(ql->parts.at(d).fitted == 0);
+        CHECK(ql->parts.at(r).value == "470");
+    }
+    CHECK(q.toJson().dump() == p.toJson().dump());
+    // Snapshot marks parts not fitted in the active variant and their overridden values.
+    Json snap = q.snapshot();
+    bool sawLed = false;
+    for (const auto& c : snap.get("components").items()) {
+        if (c.get("id").asInt(-1) == d) {
+            sawLed = true;
+            CHECK(!c.get("fitted").asBool(true));
+        }
+        if (c.get("id").asInt(-1) == r) CHECK(c.get("variantValue").asString("") == "470");
+    }
+    CHECK(sawLed);
+    CHECK(snap.get("activeVariant").asString("") == "Lite");
+
+    // Clearing an override and removing a variant; removing the active one selects the base design.
+    const std::string same = "330";
+    CHECK(p.setVariantPart("Lite", r, -1, &same));  // equal to the base value: no override left
+    CHECK(p.findVariant("Lite")->parts.count(r) == 0);
+    CHECK(p.removeVariant("Lite"));
+    CHECK(p.activeVariant.empty());
+    // Parts deleted from the design drop out of variants on save.
+    s.removeComponent(d);
+    Json saved = p.toJson();
+    CHECK(saved.dump().find("\"component\":" + std::to_string(d)) == std::string::npos);
+}
+
+TEST(sheets_and_variants_c_api) {
+    int rc = sieda_c_api_sheets_test();
+    if (rc != 0) std::printf("    sheets c api step %d failed\n", rc);
+    CHECK(rc == 0);
+}

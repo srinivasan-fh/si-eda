@@ -16,6 +16,7 @@
 "AI-native electronic design automation" = "AI-native elektronische ontwerpautomatisering";
 "API key" = "API-sleutel";
 "About" = "Over";
+"Add Child Sheet" = "Subblad toevoegen";
 "Add Ground Pours" = "Massavlakken toevoegen";
 "Add Kit to Library" = "Kit aan bibliotheek toevoegen";
 "Add Mesh" = "Mesh toevoegen";
@@ -25,6 +26,7 @@
 "Add Pour" = "Vulvlak toevoegen";
 "Add Thermal Vias" = "Thermische vias toevoegen";
 "Add a pad like the last one (numbered next)" = "Voeg een pad toe zoals de vorige (volgend nummer)";
+"Add a sheet (right-click a tab for more)" = "Blad toevoegen (rechtsklik op een tabblad voor meer)";
 "Add every part of this kit to the project library so it shows in the device picker" = "Voeg elk onderdeel van deze kit toe aan de projectbibliotheek zodat het in de componentkiezer verschijnt";
 "Add serpentine (accordion) tuning to the short members of each group" = "Voeg serpentine-tuning (accordeon) toe aan de korte leden van elke groep";
 "Aerospace Mission" = "Ruimtevaartmissie";
@@ -34,6 +36,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "Analoge tijdstap: fijner lost snellere signalen op, grover rekent sneller";
 "Analysis" = "Analyse";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "Analysevoorinstellingen — microcontrollerfirmware heeft een langere run nodig (bijv. 1 s bij 100 µs)";
+"Annotate" = "Annoteren";
 "Appearance" = "Weergave";
 "Appliance Type" = "Type apparaat";
 "Apply" = "Pas toe";
@@ -44,6 +47,7 @@
 "Arranged symbol" = "Ingedeeld symbool";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "Vraag om een wijziging — “maak de LED groen en voed hem met 3,3 V”";
 "Assembly" = "Assemblage";
+"Assembly variant for the BOM, CPL and assembly drawings" = "Assemblagevariant voor de stuklijst, CPL en assemblagetekeningen";
 "Audience (optional)" = "Doelgroep (optioneel)";
 "Auto Arrange" = "Automatisch indelen";
 "Auto Route" = "Automatisch routeren";
@@ -56,6 +60,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM voor assemblage (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "Via-stubs op snelle netten terugboren";
+"Base Design" = "Basisontwerp";
 "Base URL" = "Basis-URL";
 "Bill of Materials" = "Stuklijst";
 "Bill of Materials (CSV)…" = "Stuklijst (CSV)…";
@@ -107,6 +112,8 @@
 "Default provider" = "Standaardprovider";
 "Delete" = "Verwijder";
 "Delete Part" = "Onderdeel verwijderen";
+"Delete Sheet" = "Blad verwijderen";
+"Delete Variant" = "Variant verwijderen";
 "Delete Wire" = "Draad verwijderen";
 "Describe your product" = "Beschrijf je product";
 "Description" = "Beschrijving";
@@ -150,11 +157,14 @@
 "Finish the login in your browser…" = "Voltooi het inloggen in je browser…";
 "Firmware — 1 s, 100 µs" = "Firmware — 1 s, 100 µs";
 "Fit Board to Components" = "Board passend maken op componenten";
+"Fitted" = "Geplaatst";
+"Fix Duplicates Only" = "Alleen duplicaten herstellen";
 "Flip" = "Draai om";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Footprint waarin het onderdeel gemonteerd wordt: chipformaat, through-hole, tantaal- of elco-behuizing";
 "Gap Before" = "Ruimte ervoor";
 "Generate Design" = "Ontwerp genereren";
 "Give each selected pin its own slot" = "Geef elke geselecteerde pin een eigen positie";
+"Global" = "Globaal";
 "Global semiconductor countries" = "Wereldwijde halfgeleiderlanden";
 "Google Cloud project ID" = "Google Cloud-project-ID";
 "Grid" = "Raster";
@@ -194,6 +204,7 @@
 "Loading memory & system design kits" = "Geheugen- en systeemontwerpkits laden";
 "Loading reference designs" = "Referentieontwerpen laden";
 "Loading the component library" = "Componentenbibliotheek laden";
+"Local (this sheet)" = "Lokaal (dit blad)";
 "Locked (Auto Place keeps it)" = "Vergrendeld (Automatisch plaatsen behoudt het)";
 "Long firmware run — 5 s, 500 µs" = "Lange firmwarerun — 5 s, 500 µs";
 "Mask" = "Masker";
@@ -205,6 +216,7 @@
 "Model" = "Model";
 "Model back-ends" = "Model-back-ends";
 "Mounting" = "Montage";
+"Move Selection Here" = "Selectie hierheen verplaatsen";
 "Move the footprint origin to the centre of the pads" = "Verplaats de oorsprong van de footprint naar het midden van de pads";
 "Move the pad in the numbering; pads between shift by one" = "Verplaats de pad in de nummering; tussenliggende pads schuiven één op";
 "NAVIGATOR" = "NAVIGATOR";
@@ -214,6 +226,8 @@
 "Nets" = "Netten";
 "Nets (%lld)" = "Netten (%lld)";
 "New Project" = "Nieuw project";
+"New Variant" = "Nieuwe variant";
+"New Variant…" = "Nieuwe variant…";
 "New blank part" = "Nieuw leeg onderdeel";
 "New from Example" = "Nieuw vanuit voorbeeld";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Geen differentiële paren (…_P/_N, …+/-) of bussen (DQ0…, DATA[0..7], ADDR…) in dit ontwerp.";
@@ -233,6 +247,9 @@
 "Not naval" = "Niet maritiem";
 "Not placed yet" = "Nog niet geplaatst";
 "Not retail" = "Geen retail";
+"Number by Columns" = "Nummeren per kolom";
+"Number by Rows" = "Nummeren per rij";
+"Number by Sheet (R101, R201…)" = "Nummeren per blad (R101, R201…)";
 "OBJ with vertex colours" = "OBJ met vertexkleuren";
 "OK" = "OK";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "Uit: SiEDA werkt als klassiek handmatig EDA-programma. Schema-invoer, simulatie, PCB-routering, 3D, datasheet-parsing en exports draaien allemaal lokaal en er wordt niets naar een AI-dienst verzonden.";
@@ -256,9 +273,11 @@
 "Pin" = "Pin";
 "Pins: " = "Pinnen: ";
 "Place Now" = "Nu plaatsen";
+"Place Sheet Symbol" = "Bladsymbool plaatsen";
 "Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)" = "Plaats ongeplaatste footprints binnen de boardomtrek, routeer daarna alle verbindingen en voer DRC uit (⇧⌘R)";
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "Plaatsing, routering, vulvlakken, DRC, Gerber Edge.Cuts en het 3D-board volgen de omtrek. ";
 "Plane" = "Vlak";
+"Port (to parent sheet)" = "Poort (naar bovenliggend blad)";
 "Preview appears once the part has a name and pins." = "Voorbeeld verschijnt zodra het onderdeel een naam en pinnen heeft.";
 "Project Library" = "Projectbibliotheek";
 "Project name" = "Projectnaam";
@@ -272,6 +291,8 @@
 "Remove the empty slots on every side" = "Verwijder de lege posities aan elke zijde";
 "Remove the firmware" = "Verwijder de firmware";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "Verwijdert de ongebruikte viahuls onder de laatst verbonden laag (≥ 4 lagen); voegt een backdrill-bestand toe";
+"Rename Sheet" = "Blad hernoemen";
+"Rename Sheet…" = "Blad hernoemen…";
 "Renumber" = "Hernummer";
 "Reserve the layer for this net: other nets only pass through it with vias" = "Reserveer de laag voor dit net: andere netten gaan er alleen met vias doorheen";
 "Reset View" = "Herstel weergave";
@@ -304,6 +325,7 @@
 "Schematic" = "Schema";
 "Schematic capture · SPICE-class simulation · PCB autorouting · DRC · 3D · Gerber/Excellon export" = "Schema-invoer · simulatie van SPICE-niveau · PCB-autorouting · DRC · 3D · Gerber/Excellon-export";
 "Schematic · Simulation · PCB · 3D · Fabrication" = "Schema · Simulatie · PCB · 3D · Productie";
+"Scope" = "Bereik";
 "Scope, serial monitor and switches" = "Scope, seriële monitor en schakelaars";
 "Scopes" = "Scopes";
 "Scroll or pinch to zoom" = "Scroll of knijp om te zoomen";
@@ -317,6 +339,8 @@
 "Serial output — 200 ms, 10 µs" = "Seriële uitvoer — 200 ms, 10 µs";
 "Set" = "Stel in";
 "Shape" = "Vorm";
+"Sheet" = "Blad";
+"Sheet name" = "Bladnaam";
 "Show" = "Toon";
 "Show Crash Reports" = "Crashrapporten tonen";
 "Show Navigator" = "Navigator tonen";
@@ -376,6 +400,7 @@
 "Validate" = "Valideer";
 "Validate Circuit" = "Schakeling valideren";
 "Value" = "Waarde";
+"Variant name" = "Variantnaam";
 "Verify Design" = "Ontwerp verifiëren";
 "Vertex AI region" = "Vertex AI-regio";
 "Via-in-pad plated over (VIPPO, IPC-4761 Type VII)" = "Via-in-pad overgemetalliseerd (VIPPO, IPC-4761 Type VII)";

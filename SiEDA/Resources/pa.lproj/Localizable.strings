@@ -16,6 +16,7 @@
 "AI-native electronic design automation" = "AI-ਨੇਟਿਵ ਇਲੈਕਟ੍ਰਾਨਿਕ ਡਿਜ਼ਾਈਨ ਆਟੋਮੇਸ਼ਨ";
 "API key" = "API ਕੁੰਜੀ";
 "About" = "ਬਾਰੇ";
+"Add Child Sheet" = "ਚਾਈਲਡ ਸ਼ੀਟ ਜੋੜੋ";
 "Add Ground Pours" = "ਗਰਾਊਂਡ ਪੋਰ ਸ਼ਾਮਲ ਕਰੋ";
 "Add Kit to Library" = "ਕਿੱਟ ਨੂੰ ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ";
 "Add Mesh" = "ਮੈਸ਼ ਸ਼ਾਮਲ ਕਰੋ";
@@ -25,6 +26,7 @@
 "Add Pour" = "ਪੋਰ ਸ਼ਾਮਲ ਕਰੋ";
 "Add Thermal Vias" = "ਥਰਮਲ ਵਾਇਆ ਸ਼ਾਮਲ ਕਰੋ";
 "Add a pad like the last one (numbered next)" = "ਪਿਛਲੇ ਵਰਗਾ ਪੈਡ ਸ਼ਾਮਲ ਕਰੋ (ਅਗਲੇ ਨੰਬਰ ਨਾਲ)";
+"Add a sheet (right-click a tab for more)" = "ਸ਼ੀਟ ਜੋੜੋ (ਹੋਰ ਲਈ ਟੈਬ 'ਤੇ ਰਾਈਟ-ਕਲਿੱਕ ਕਰੋ)";
 "Add every part of this kit to the project library so it shows in the device picker" = "ਇਸ ਕਿੱਟ ਦੇ ਸਾਰੇ ਪਾਰਟ ਪ੍ਰੋਜੈਕਟ ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ ਤਾਂ ਜੋ ਉਹ ਡਿਵਾਈਸ ਪਿਕਰ ਵਿੱਚ ਦਿਖਾਈ ਦੇਣ";
 "Add serpentine (accordion) tuning to the short members of each group" = "ਹਰ ਗਰੁੱਪ ਦੇ ਛੋਟੇ ਮੈਂਬਰਾਂ ਵਿੱਚ ਸਰਪੈਂਟਾਈਨ (ਅਕਾਰਡੀਅਨ) ਟਿਊਨਿੰਗ ਸ਼ਾਮਲ ਕਰੋ";
 "Aerospace Mission" = "ਏਅਰੋਸਪੇਸ ਮਿਸ਼ਨ";
@@ -34,6 +36,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "ਐਨਾਲੌਗ ਟਾਈਮ ਸਟੈਪ: ਬਰੀਕ ਤੇਜ਼ ਸਿਗਨਲਾਂ ਨੂੰ ਸਪਸ਼ਟ ਕਰਦਾ ਹੈ, ਮੋਟਾ ਤੇਜ਼ੀ ਨਾਲ ਚੱਲਦਾ ਹੈ";
 "Analysis" = "ਵਿਸ਼ਲੇਸ਼ਣ";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "ਵਿਸ਼ਲੇਸ਼ਣ ਪ੍ਰੀਸੈੱਟ — ਮਾਈਕ੍ਰੋਕੰਟਰੋਲਰ ਫਰਮਵੇਅਰ ਨੂੰ ਲੰਮੀ ਰਨ ਚਾਹੀਦੀ ਹੈ (ਜਿਵੇਂ 100 µs 'ਤੇ 1 s)";
+"Annotate" = "ਐਨੋਟੇਟ ਕਰੋ";
 "Appearance" = "ਦਿੱਖ";
 "Appliance Type" = "ਉਪਕਰਣ ਦੀ ਕਿਸਮ";
 "Apply" = "ਲਾਗੂ ਕਰੋ";
@@ -44,6 +47,7 @@
 "Arranged symbol" = "ਵਿਵਸਥਿਤ ਸਿੰਬਲ";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "ਕੋਈ ਬਦਲਾਅ ਮੰਗੋ — “LED ਨੂੰ ਹਰਾ ਕਰੋ ਅਤੇ 3.3 V ਤੋਂ ਚਲਾਓ”";
 "Assembly" = "ਅਸੈਂਬਲੀ";
+"Assembly variant for the BOM, CPL and assembly drawings" = "BOM, CPL ਅਤੇ ਅਸੈਂਬਲੀ ਡਰਾਇੰਗਾਂ ਲਈ ਅਸੈਂਬਲੀ ਵੇਰੀਐਂਟ";
 "Audience (optional)" = "ਦਰਸ਼ਕ (ਵਿਕਲਪਿਕ)";
 "Auto Arrange" = "ਆਟੋ ਅਰੇਂਜ";
 "Auto Route" = "ਆਟੋ ਰੂਟ";
@@ -56,6 +60,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "ਅਸੈਂਬਲੀ ਲਈ BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "ਤੇਜ਼ ਨੈੱਟਾਂ 'ਤੇ ਵਾਇਆ ਸਟੱਬ ਬੈਕਡ੍ਰਿੱਲ ਕਰੋ";
+"Base Design" = "ਮੂਲ ਡਿਜ਼ਾਈਨ";
 "Base URL" = "ਬੇਸ URL";
 "Bill of Materials" = "ਬਿੱਲ ਆਫ਼ ਮਟੀਰੀਅਲਜ਼";
 "Bill of Materials (CSV)…" = "ਬਿੱਲ ਆਫ਼ ਮਟੀਰੀਅਲਜ਼ (CSV)…";
@@ -107,6 +112,8 @@
 "Default provider" = "ਡਿਫਾਲਟ ਪ੍ਰਦਾਤਾ";
 "Delete" = "ਮਿਟਾਓ";
 "Delete Part" = "ਪਾਰਟ ਮਿਟਾਓ";
+"Delete Sheet" = "ਸ਼ੀਟ ਮਿਟਾਓ";
+"Delete Variant" = "ਵੇਰੀਐਂਟ ਮਿਟਾਓ";
 "Delete Wire" = "ਵਾਇਰ ਮਿਟਾਓ";
 "Describe your product" = "ਆਪਣੇ ਉਤਪਾਦ ਦਾ ਵਰਣਨ ਕਰੋ";
 "Description" = "ਵਰਣਨ";
@@ -150,11 +157,14 @@
 "Finish the login in your browser…" = "ਆਪਣੇ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਲੌਗਇਨ ਮੁਕੰਮਲ ਕਰੋ…";
 "Firmware — 1 s, 100 µs" = "ਫਰਮਵੇਅਰ — 1 s, 100 µs";
 "Fit Board to Components" = "ਬੋਰਡ ਨੂੰ ਕੰਪੋਨੈਂਟਾਂ ਮੁਤਾਬਕ ਫਿੱਟ ਕਰੋ";
+"Fitted" = "ਲਗਾਇਆ";
+"Fix Duplicates Only" = "ਸਿਰਫ਼ ਡੁਪਲੀਕੇਟ ਠੀਕ ਕਰੋ";
 "Flip" = "ਪਲਟੋ";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "ਫੁੱਟਪ੍ਰਿੰਟ ਜਿਸ ਵਿੱਚ ਪਾਰਟ ਲੱਗਦਾ ਹੈ: ਚਿੱਪ ਆਕਾਰ, ਥਰੂ-ਹੋਲ, ਟੈਂਟਲਮ ਜਾਂ ਇਲੈਕਟ੍ਰੋਲਾਈਟਿਕ ਕੇਸ";
 "Gap Before" = "ਪਹਿਲਾਂ ਖਾਲੀ ਥਾਂ";
 "Generate Design" = "ਡਿਜ਼ਾਈਨ ਤਿਆਰ ਕਰੋ";
 "Give each selected pin its own slot" = "ਹਰ ਚੁਣੇ ਪਿੰਨ ਨੂੰ ਆਪਣਾ ਸਲਾਟ ਦਿਓ";
+"Global" = "ਗਲੋਬਲ";
 "Global semiconductor countries" = "ਗਲੋਬਲ ਸੈਮੀਕੰਡਕਟਰ ਦੇਸ਼";
 "Google Cloud project ID" = "Google Cloud ਪ੍ਰੋਜੈਕਟ ID";
 "Grid" = "ਗ੍ਰਿੱਡ";
@@ -194,6 +204,7 @@
 "Loading memory & system design kits" = "ਮੈਮੋਰੀ ਅਤੇ ਸਿਸਟਮ ਡਿਜ਼ਾਈਨ ਕਿੱਟਾਂ ਲੋਡ ਹੋ ਰਹੀਆਂ ਹਨ";
 "Loading reference designs" = "ਰੈਫਰੈਂਸ ਡਿਜ਼ਾਈਨ ਲੋਡ ਹੋ ਰਹੇ ਹਨ";
 "Loading the component library" = "ਕੰਪੋਨੈਂਟ ਲਾਇਬ੍ਰੇਰੀ ਲੋਡ ਹੋ ਰਹੀ ਹੈ";
+"Local (this sheet)" = "ਲੋਕਲ (ਇਹ ਸ਼ੀਟ)";
 "Locked (Auto Place keeps it)" = "ਲੌਕ ਕੀਤਾ (ਆਟੋ ਪਲੇਸ ਇਸਨੂੰ ਬਰਕਰਾਰ ਰੱਖਦਾ ਹੈ)";
 "Long firmware run — 5 s, 500 µs" = "ਲੰਮੀ ਫਰਮਵੇਅਰ ਰਨ — 5 s, 500 µs";
 "Mask" = "ਮਾਸਕ";
@@ -205,6 +216,7 @@
 "Model" = "ਮਾਡਲ";
 "Model back-ends" = "ਮਾਡਲ ਬੈਕ-ਐਂਡ";
 "Mounting" = "ਮਾਊਂਟਿੰਗ";
+"Move Selection Here" = "ਚੋਣ ਨੂੰ ਇੱਥੇ ਲਿਜਾਓ";
 "Move the footprint origin to the centre of the pads" = "ਫੁੱਟਪ੍ਰਿੰਟ ਦੇ ਮੂਲ ਬਿੰਦੂ ਨੂੰ ਪੈਡਾਂ ਦੇ ਕੇਂਦਰ ਵਿੱਚ ਲਿਜਾਓ";
 "Move the pad in the numbering; pads between shift by one" = "ਨੰਬਰਿੰਗ ਵਿੱਚ ਪੈਡ ਨੂੰ ਹਿਲਾਓ; ਵਿਚਕਾਰਲੇ ਪੈਡ ਇੱਕ-ਇੱਕ ਖਿਸਕ ਜਾਂਦੇ ਹਨ";
 "NAVIGATOR" = "ਨੈਵੀਗੇਟਰ";
@@ -214,6 +226,8 @@
 "Nets" = "ਨੈੱਟ";
 "Nets (%lld)" = "ਨੈੱਟ (%lld)";
 "New Project" = "ਨਵਾਂ ਪ੍ਰੋਜੈਕਟ";
+"New Variant" = "ਨਵਾਂ ਵੇਰੀਐਂਟ";
+"New Variant…" = "ਨਵਾਂ ਵੇਰੀਐਂਟ…";
 "New blank part" = "ਨਵਾਂ ਖਾਲੀ ਪਾਰਟ";
 "New from Example" = "ਉਦਾਹਰਨ ਤੋਂ ਨਵਾਂ";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "ਇਸ ਡਿਜ਼ਾਈਨ ਵਿੱਚ ਕੋਈ ਡਿਫਰੈਂਸ਼ੀਅਲ ਪੇਅਰ (…_P/_N, …+/-) ਜਾਂ ਬੱਸ (DQ0…, DATA[0..7], ADDR…) ਨਹੀਂ ਹਨ।";
@@ -233,6 +247,9 @@
 "Not naval" = "ਨੇਵਲ ਨਹੀਂ";
 "Not placed yet" = "ਅਜੇ ਰੱਖਿਆ ਨਹੀਂ ਗਿਆ";
 "Not retail" = "ਰਿਟੇਲ ਨਹੀਂ";
+"Number by Columns" = "ਕਾਲਮ ਅਨੁਸਾਰ ਨੰਬਰ ਦਿਓ";
+"Number by Rows" = "ਕਤਾਰ ਅਨੁਸਾਰ ਨੰਬਰ ਦਿਓ";
+"Number by Sheet (R101, R201…)" = "ਸ਼ੀਟ ਅਨੁਸਾਰ ਨੰਬਰ ਦਿਓ (R101, R201…)";
 "OBJ with vertex colours" = "ਵਰਟੈਕਸ ਰੰਗਾਂ ਨਾਲ OBJ";
 "OK" = "ਠੀਕ ਹੈ";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "ਬੰਦ: SiEDA ਇੱਕ ਕਲਾਸਿਕ ਮੈਨੂਅਲ EDA ਟੂਲ ਵਜੋਂ ਕੰਮ ਕਰਦਾ ਹੈ। ਸਕੀਮੈਟਿਕ ਕੈਪਚਰ, ਸਿਮੂਲੇਸ਼ਨ, PCB ਰੂਟਿੰਗ, 3D, ਡਾਟਾਸ਼ੀਟ ਪਾਰਸਿੰਗ ਅਤੇ ਐਕਸਪੋਰਟ ਸਭ ਸਥਾਨਕ ਤੌਰ 'ਤੇ ਚੱਲਦੇ ਹਨ, ਅਤੇ ਕਿਸੇ ਵੀ AI ਸੇਵਾ ਨੂੰ ਕੁਝ ਨਹੀਂ ਭੇਜਿਆ ਜਾਂਦਾ।";
@@ -256,9 +273,11 @@
 "Pin" = "ਪਿੰਨ";
 "Pins: " = "ਪਿੰਨ: ";
 "Place Now" = "ਹੁਣੇ ਰੱਖੋ";
+"Place Sheet Symbol" = "ਸ਼ੀਟ ਸਿੰਬਲ ਰੱਖੋ";
 "Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)" = "ਨਾ ਰੱਖੇ ਗਏ ਫੁੱਟਪ੍ਰਿੰਟ ਬੋਰਡ ਆਊਟਲਾਈਨ ਦੇ ਅੰਦਰ ਰੱਖੋ, ਫਿਰ ਸਾਰੇ ਕਨੈਕਸ਼ਨ ਰੂਟ ਕਰੋ ਅਤੇ DRC ਜਾਂਚੋ (⇧⌘R)";
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "ਪਲੇਸਮੈਂਟ, ਰੂਟਿੰਗ, ਪੋਰ, DRC, Gerber Edge.Cuts ਅਤੇ 3D ਬੋਰਡ ਆਊਟਲਾਈਨ ਦੀ ਪਾਲਣਾ ਕਰਦੇ ਹਨ। ";
 "Plane" = "ਪਲੇਨ";
+"Port (to parent sheet)" = "ਪੋਰਟ (ਪੇਰੈਂਟ ਸ਼ੀਟ ਤੱਕ)";
 "Preview appears once the part has a name and pins." = "ਪਾਰਟ ਦਾ ਨਾਮ ਅਤੇ ਪਿੰਨ ਹੋਣ 'ਤੇ ਪ੍ਰੀਵਿਊ ਦਿਖਾਈ ਦਿੰਦਾ ਹੈ।";
 "Project Library" = "ਪ੍ਰੋਜੈਕਟ ਲਾਇਬ੍ਰੇਰੀ";
 "Project name" = "ਪ੍ਰੋਜੈਕਟ ਦਾ ਨਾਮ";
@@ -272,6 +291,8 @@
 "Remove the empty slots on every side" = "ਹਰ ਪਾਸੇ ਦੇ ਖਾਲੀ ਸਲਾਟ ਹਟਾਓ";
 "Remove the firmware" = "ਫਰਮਵੇਅਰ ਹਟਾਓ";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "ਆਖਰੀ ਜੁੜੀ ਲੇਅਰ ਤੋਂ ਹੇਠਾਂ ਅਣਵਰਤਿਆ ਵਾਇਆ ਬੈਰਲ ਹਟਾਉਂਦਾ ਹੈ (≥ 4 ਲੇਅਰਾਂ); ਇੱਕ ਬੈਕ-ਡ੍ਰਿੱਲ ਫਾਈਲ ਜੋੜਦਾ ਹੈ";
+"Rename Sheet" = "ਸ਼ੀਟ ਦਾ ਨਾਮ ਬਦਲੋ";
+"Rename Sheet…" = "ਸ਼ੀਟ ਦਾ ਨਾਮ ਬਦਲੋ…";
 "Renumber" = "ਮੁੜ ਨੰਬਰ ਦਿਓ";
 "Reserve the layer for this net: other nets only pass through it with vias" = "ਇਸ ਨੈੱਟ ਲਈ ਲੇਅਰ ਰਾਖਵੀਂ ਰੱਖੋ: ਹੋਰ ਨੈੱਟ ਇਸ ਵਿੱਚੋਂ ਸਿਰਫ਼ ਵਾਇਆ ਰਾਹੀਂ ਲੰਘਦੇ ਹਨ";
 "Reset View" = "ਵਿਊ ਰੀਸੈੱਟ ਕਰੋ";
@@ -304,6 +325,7 @@
 "Schematic" = "ਸਕੀਮੈਟਿਕ";
 "Schematic capture · SPICE-class simulation · PCB autorouting · DRC · 3D · Gerber/Excellon export" = "ਸਕੀਮੈਟਿਕ ਕੈਪਚਰ · SPICE-ਸ਼੍ਰੇਣੀ ਸਿਮੂਲੇਸ਼ਨ · PCB ਆਟੋਰੂਟਿੰਗ · DRC · 3D · Gerber/Excellon ਐਕਸਪੋਰਟ";
 "Schematic · Simulation · PCB · 3D · Fabrication" = "ਸਕੀਮੈਟਿਕ · ਸਿਮੂਲੇਸ਼ਨ · PCB · 3D · ਫੈਬਰੀਕੇਸ਼ਨ";
+"Scope" = "ਦਾਇਰਾ";
 "Scope, serial monitor and switches" = "ਸਕੋਪ, ਸੀਰੀਅਲ ਮਾਨੀਟਰ ਅਤੇ ਸਵਿੱਚ";
 "Scopes" = "ਸਕੋਪ";
 "Scroll or pinch to zoom" = "ਜ਼ੂਮ ਕਰਨ ਲਈ ਸਕ੍ਰੋਲ ਜਾਂ ਪਿੰਚ ਕਰੋ";
@@ -317,6 +339,8 @@
 "Serial output — 200 ms, 10 µs" = "ਸੀਰੀਅਲ ਆਉਟਪੁਟ — 200 ms, 10 µs";
 "Set" = "ਸੈੱਟ ਕਰੋ";
 "Shape" = "ਸ਼ਕਲ";
+"Sheet" = "ਸ਼ੀਟ";
+"Sheet name" = "ਸ਼ੀਟ ਦਾ ਨਾਮ";
 "Show" = "ਦਿਖਾਓ";
 "Show Crash Reports" = "ਕ੍ਰੈਸ਼ ਰਿਪੋਰਟਾਂ ਦਿਖਾਓ";
 "Show Navigator" = "ਨੈਵੀਗੇਟਰ ਦਿਖਾਓ";
@@ -376,6 +400,7 @@
 "Validate" = "ਪ੍ਰਮਾਣਿਤ ਕਰੋ";
 "Validate Circuit" = "ਸਰਕਟ ਪ੍ਰਮਾਣਿਤ ਕਰੋ";
 "Value" = "ਮੁੱਲ";
+"Variant name" = "ਵੇਰੀਐਂਟ ਦਾ ਨਾਮ";
 "Verify Design" = "ਡਿਜ਼ਾਈਨ ਵੈਰੀਫਾਈ ਕਰੋ";
 "Vertex AI region" = "Vertex AI ਖੇਤਰ";
 "Via-in-pad plated over (VIPPO, IPC-4761 Type VII)" = "ਪਲੇਟ ਕਰਕੇ ਢੱਕਿਆ ਵਾਇਆ-ਇਨ-ਪੈਡ (VIPPO, IPC-4761 Type VII)";

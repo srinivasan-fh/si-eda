@@ -13,7 +13,7 @@ struct InspectorView: View {
                     JunctionProperties(junction: c)
                 } else if selected.count == 1, let c = selected.first {
                     ComponentProperties(component: c)
-                        .id("\(c.id)|\(c.ref)|\(c.value)")
+                        .id("\(c.id)|\(c.ref)|\(c.value)|\(store.snapshot.activeVariant)|\(c.variantValue ?? "")")
                 } else if selected.count > 1 {
                     MultiSelectionProperties(count: selected.count)
                 } else if let wireId = store.selectedWire, let wire = store.snapshot.wires.first(where: { $0.id == wireId }) {
@@ -63,6 +63,7 @@ private struct ComponentProperties: View {
     let component: SnapComponent
     @State private var ref: String
     @State private var value: String
+    @State private var variantValue: String
     @FocusState private var focus: Field?
 
     private enum Field { case ref, value }
@@ -71,6 +72,7 @@ private struct ComponentProperties: View {
         self.component = component
         _ref = State(initialValue: component.ref)
         _value = State(initialValue: component.value)
+        _variantValue = State(initialValue: component.variantValue ?? "")
     }
 
     var body: some View {
@@ -175,6 +177,37 @@ private struct ComponentProperties: View {
             PropertyGroup(title: "Schematic") {
                 PropertyRow(label: "Position", value: String(format: "%.0f, %.0f", component.x, component.y))
                 PropertyRow(label: "Rotation", value: "\(component.rotation)°")
+                if store.snapshot.sheets.count > 1 {
+                    if component.labelScope == "entry" {
+                        PropertyRow(label: "Sheet entry", value: store.snapshot.sheet(component.targetSheet ?? 0)?.name ?? "—")
+                    } else {
+                        // Moves the selection (wires to parts left behind are removed).
+                        Picker("Sheet", selection: Binding(get: { component.sheetId },
+                                                           set: { store.moveSelection(toSheet: $0) })) {
+                            ForEach(store.snapshot.sheets) { Text(verbatim: $0.name).tag($0.id) }
+                        }
+                    }
+                }
+                if kind == .netLabel && component.labelScope != "entry" {
+                    Picker("Scope", selection: Binding(get: { component.labelScope },
+                                                       set: { store.setLabelScope(component.id, scope: $0) })) {
+                        Text("Global").tag("global")
+                        Text("Local (this sheet)").tag("local")
+                        Text("Port (to parent sheet)").tag("port")
+                    }
+                }
+            }
+
+            if !kind.isVirtual && !store.snapshot.activeVariant.isEmpty {
+                PropertyGroup(title: "Variant \(store.snapshot.activeVariant)") {
+                    Toggle("Fitted", isOn: Binding(get: { component.isFitted },
+                                                   set: { store.setFittedInVariant(component.id, $0) }))
+                    LabeledContent("Value") {
+                        TextField(component.value, text: $variantValue)
+                            .textFieldStyle(.blue)
+                            .onSubmit { store.setVariantValue(component.id, variantValue) }
+                    }
+                }
             }
 
             if !kind.isVirtual {

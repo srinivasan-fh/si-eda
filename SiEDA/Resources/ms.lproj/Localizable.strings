@@ -16,6 +16,7 @@
 "AI-native electronic design automation" = "Automasi reka bentuk elektronik berasaskan AI";
 "API key" = "Kunci API";
 "About" = "Perihal";
+"Add Child Sheet" = "Tambah Helaian Anak";
 "Add Ground Pours" = "Tambah Tuangan Bumi";
 "Add Kit to Library" = "Tambah Kit ke Pustaka";
 "Add Mesh" = "Tambah Jaringan";
@@ -25,6 +26,7 @@
 "Add Pour" = "Tambah Tuangan";
 "Add Thermal Vias" = "Tambah Via Terma";
 "Add a pad like the last one (numbered next)" = "Tambah pad seperti yang terakhir (bernombor seterusnya)";
+"Add a sheet (right-click a tab for more)" = "Tambah helaian (klik kanan tab untuk lagi)";
 "Add every part of this kit to the project library so it shows in the device picker" = "Tambah setiap komponen kit ini ke pustaka projek supaya ia dipaparkan dalam pemilih peranti";
 "Add serpentine (accordion) tuning to the short members of each group" = "Tambah penalaan serpentin (akordion) pada ahli pendek setiap kumpulan";
 "Aerospace Mission" = "Misi Aeroangkasa";
@@ -34,6 +36,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "Langkah masa analog: lebih halus menyelesaikan isyarat lebih pantas, lebih kasar berjalan lebih cepat";
 "Analysis" = "Analisis";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "Praset analisis — perisian tegar mikropengawal memerlukan larian lebih lama (cth. 1 s pada 100 µs)";
+"Annotate" = "Anotasi";
 "Appearance" = "Penampilan";
 "Appliance Type" = "Jenis Perkakas";
 "Apply" = "Guna";
@@ -44,6 +47,7 @@
 "Arranged symbol" = "Simbol tersusun";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "Minta perubahan — “jadikan LED hijau dan kuasakan dengan 3.3 V”";
 "Assembly" = "Pemasangan";
+"Assembly variant for the BOM, CPL and assembly drawings" = "Varian pemasangan untuk BOM, CPL dan lukisan pemasangan";
 "Audience (optional)" = "Sasaran pembaca (pilihan)";
 "Auto Arrange" = "Susun Automatik";
 "Auto Route" = "Laluan Automatik";
@@ -56,6 +60,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "BOM untuk Pemasangan (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "Gerudi balik stub via pada net laju";
+"Base Design" = "Reka Bentuk Asas";
 "Base URL" = "URL Asas";
 "Bill of Materials" = "Senarai Bahan";
 "Bill of Materials (CSV)…" = "Senarai Bahan (CSV)…";
@@ -107,6 +112,8 @@
 "Default provider" = "Penyedia lalai";
 "Delete" = "Padam";
 "Delete Part" = "Padam Komponen";
+"Delete Sheet" = "Padam Helaian";
+"Delete Variant" = "Padam Varian";
 "Delete Wire" = "Padam Wayar";
 "Describe your product" = "Huraikan produk anda";
 "Description" = "Keterangan";
@@ -150,11 +157,14 @@
 "Finish the login in your browser…" = "Selesaikan log masuk dalam pelayar anda…";
 "Firmware — 1 s, 100 µs" = "Perisian tegar — 1 s, 100 µs";
 "Fit Board to Components" = "Muatkan Papan pada Komponen";
+"Fitted" = "Dipasang";
+"Fix Duplicates Only" = "Betulkan Pendua Sahaja";
 "Flip" = "Balikkan";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "Tapak kaki komponen dipasang: saiz cip, lubang telus, kes tantalum atau elektrolitik";
 "Gap Before" = "Jurang Sebelum";
 "Generate Design" = "Jana Reka Bentuk";
 "Give each selected pin its own slot" = "Beri setiap pin terpilih slot tersendiri";
+"Global" = "Global";
 "Global semiconductor countries" = "Negara semikonduktor global";
 "Google Cloud project ID" = "ID projek Google Cloud";
 "Grid" = "Grid";
@@ -194,6 +204,7 @@
 "Loading memory & system design kits" = "Memuatkan kit reka bentuk memori & sistem";
 "Loading reference designs" = "Memuatkan reka bentuk rujukan";
 "Loading the component library" = "Memuatkan pustaka komponen";
+"Local (this sheet)" = "Setempat (helaian ini)";
 "Locked (Auto Place keeps it)" = "Dikunci (Letak Automatik mengekalkannya)";
 "Long firmware run — 5 s, 500 µs" = "Larian perisian tegar panjang — 5 s, 500 µs";
 "Mask" = "Topeng";
@@ -205,6 +216,7 @@
 "Model" = "Model";
 "Model back-ends" = "Bahagian belakang model";
 "Mounting" = "Pelekapan";
+"Move Selection Here" = "Alih Pilihan ke Sini";
 "Move the footprint origin to the centre of the pads" = "Alihkan asalan tapak kaki ke tengah pad";
 "Move the pad in the numbering; pads between shift by one" = "Alihkan pad dalam penomboran; pad di antaranya beranjak satu";
 "NAVIGATOR" = "NAVIGATOR";
@@ -214,6 +226,8 @@
 "Nets" = "Net";
 "Nets (%lld)" = "Net (%lld)";
 "New Project" = "Projek Baharu";
+"New Variant" = "Varian Baharu";
+"New Variant…" = "Varian Baharu…";
 "New blank part" = "Komponen kosong baharu";
 "New from Example" = "Baharu daripada Contoh";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Tiada pasangan pembeza (…_P/_N, …+/-) atau bas (DQ0…, DATA[0..7], ADDR…) dalam reka bentuk ini.";
@@ -233,6 +247,9 @@
 "Not naval" = "Bukan tentera laut";
 "Not placed yet" = "Belum diletakkan";
 "Not retail" = "Bukan runcit";
+"Number by Columns" = "Nombor mengikut Lajur";
+"Number by Rows" = "Nombor mengikut Baris";
+"Number by Sheet (R101, R201…)" = "Nombor mengikut Helaian (R101, R201…)";
 "OBJ with vertex colours" = "OBJ dengan warna bucu";
 "OK" = "OK";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "Mati: SiEDA berfungsi sebagai alat EDA manual klasik. Tangkapan skematik, simulasi, penghalaan PCB, 3D, penghuraian lembaran data dan eksport semuanya berjalan secara setempat, dan tiada apa-apa dihantar ke mana-mana perkhidmatan AI.";
@@ -256,9 +273,11 @@
 "Pin" = "Pin";
 "Pins: " = "Pin: ";
 "Place Now" = "Letak Sekarang";
+"Place Sheet Symbol" = "Letak Simbol Helaian";
 "Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)" = "Letakkan tapak kaki yang belum diletakkan di dalam garis luar papan, kemudian laluan semua sambungan dan semak DRC (⇧⌘R)";
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "Penempatan, penghalaan, tuangan, DRC, Gerber Edge.Cuts dan papan 3D mengikut garis luar. ";
 "Plane" = "Satah";
+"Port (to parent sheet)" = "Port (ke helaian induk)";
 "Preview appears once the part has a name and pins." = "Pratonton dipaparkan setelah komponen mempunyai nama dan pin.";
 "Project Library" = "Pustaka Projek";
 "Project name" = "Nama projek";
@@ -272,6 +291,8 @@
 "Remove the empty slots on every side" = "Buang slot kosong pada setiap sisi";
 "Remove the firmware" = "Buang perisian tegar";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "Membuang laras via yang tidak digunakan di bawah lapisan bersambung terakhir (≥ 4 lapisan); menambah fail gerudi balik";
+"Rename Sheet" = "Namakan Semula Helaian";
+"Rename Sheet…" = "Namakan Semula Helaian…";
 "Renumber" = "Nombor Semula";
 "Reserve the layer for this net: other nets only pass through it with vias" = "Tempah lapisan untuk net ini: net lain hanya melaluinya dengan via";
 "Reset View" = "Tetapkan Semula Paparan";
@@ -304,6 +325,7 @@
 "Schematic" = "Skematik";
 "Schematic capture · SPICE-class simulation · PCB autorouting · DRC · 3D · Gerber/Excellon export" = "Tangkapan skematik · Simulasi kelas SPICE · Penghalaan automatik PCB · DRC · 3D · Eksport Gerber/Excellon";
 "Schematic · Simulation · PCB · 3D · Fabrication" = "Skematik · Simulasi · PCB · 3D · Fabrikasi";
+"Scope" = "Skop";
 "Scope, serial monitor and switches" = "Skop, pemantau bersiri dan suis";
 "Scopes" = "Skop";
 "Scroll or pinch to zoom" = "Tatal atau cubit untuk mengezum";
@@ -317,6 +339,8 @@
 "Serial output — 200 ms, 10 µs" = "Output bersiri — 200 ms, 10 µs";
 "Set" = "Tetapkan";
 "Shape" = "Bentuk";
+"Sheet" = "Helaian";
+"Sheet name" = "Nama helaian";
 "Show" = "Tunjukkan";
 "Show Crash Reports" = "Tunjukkan Laporan Ranap";
 "Show Navigator" = "Tunjukkan Navigator";
@@ -376,6 +400,7 @@
 "Validate" = "Sahkan";
 "Validate Circuit" = "Sahkan Litar";
 "Value" = "Nilai";
+"Variant name" = "Nama varian";
 "Verify Design" = "Sahkan Reka Bentuk";
 "Vertex AI region" = "Rantau Vertex AI";
 "Via-in-pad plated over (VIPPO, IPC-4761 Type VII)" = "Via-dalam-pad bersalut atas (VIPPO, IPC-4761 Type VII)";

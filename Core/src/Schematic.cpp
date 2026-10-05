@@ -4,6 +4,9 @@
 #include <cctype>
 
 #include <algorithm>
+#include <climits>
+#include <cmath>
+#include <functional>
 #include <numeric>
 #include <set>
 
@@ -69,6 +72,7 @@ int Schematic::addComponent(ComponentKind kind, const std::string& value, Vec2 p
     c.ref = ref.empty() ? nextRef(kind) : ref;
     c.position = position;
     c.rotation = ((rotation % 360) + 360) % 360;
+    c.sheet = activeSheet_;
     components_.push_back(c);
     invalidate();
     return c.id;
@@ -86,6 +90,7 @@ int Schematic::addCustomComponent(const std::string& partId, const std::string& 
     c.ref = ref.empty() ? nextRef(part->def.refPrefix) : ref;
     c.position = position;
     c.rotation = ((rotation % 360) + 360) % 360;
+    c.sheet = activeSheet_;
     components_.push_back(c);
     invalidate();
     return c.id;
@@ -176,6 +181,7 @@ int Schematic::splitWire(int wireId, Vec2 position) {
                                                       c->position.x == position.x && c->position.y == position.y)
             return c->id;
     int j = addComponent(ComponentKind::Junction, "", position);
+    if (const Component* end = find(old.a.component)) find(j)->sheet = end->sheet;  // on the wire's sheet
     wires_.erase(std::find_if(wires_.begin(), wires_.end(), [&](const Wire& w) { return w.id == wireId; }));
     connect(old.a, {j, 0});
     connect({j, 0}, old.b);
@@ -222,6 +228,20 @@ bool Schematic::setValue(int id, const std::string& value) {
     return true;
 }
 
+bool Schematic::setLabelScope(int id, LabelScope scope, int targetSheet) {
+    Component* c = find(id);
+    if (!c || c->kind != ComponentKind::NetLabel) return false;
+    if (scope == LabelScope::SheetEntry) {
+        if (!findSheet(targetSheet) || targetSheet == c->sheet) return false;
+    } else {
+        targetSheet = 0;
+    }
+    c->scope = scope;
+    c->targetSheet = targetSheet;
+    invalidate();
+    return true;
+}
+
 bool Schematic::setPackage(int id, const std::string& package) {
     Component* c = find(id);
     if (!c) return false;
@@ -251,6 +271,7 @@ int Schematic::connect(PinRef a, PinRef b) {
     const Component* ca = find(a.component);
     const Component* cb = find(b.component);
     if (!ca || !cb || a == b) return -1;
+    if (ca->sheet != cb->sheet) return -1;  // wires stay on one sheet; labels and ports join sheets
     if (a.pin < 0 || a.pin >= static_cast<int>(ca->def().pins.size())) return -1;
     if (b.pin < 0 || b.pin >= static_cast<int>(cb->def().pins.size())) return -1;
     for (const auto& w : wires_)
@@ -281,6 +302,9 @@ bool Schematic::removeWire(int id) {
 void Schematic::clear() {
     components_.clear();
     wires_.clear();
+    sheets_ = {Sheet{1, "Main", 0}};
+    activeSheet_ = 1;
+    nextSheetId_ = 2;
     nextComponentId_ = 1;
     nextWireId_ = 1;
     invalidate();
@@ -416,17 +440,25 @@ void Schematic::rebuildNets() const {
         if (ia != index.end() && ib != index.end()) uf.unite(ia->second, ib->second);
     }
     int groundRoot = -1;
-    std::map<std::string, int> labelRoot;
+    std::map<std::string, int> labelRoot;                       // global labels
+    std::map<std::pair<int, std::string>, int> sheetLabelRoot;  // (sheet, name): local labels, ports, sheet entries
     for (const auto& c : components_) {
         bool ground = c.kind == ComponentKind::Ground || (c.kind == ComponentKind::NetLabel && isGroundName(c.value));
         if (ground) {
             int i = index[{c.id, 0}];
             if (groundRoot < 0) groundRoot = i;
             else uf.unite(groundRoot, i);
-        } else if (c.kind == ComponentKind::NetLabel) {
+        } else if (c.kind == ComponentKind::NetLabel && c.scope == LabelScope::Global) {
             int i = index[{c.id, 0}];
             auto it = labelRoot.find(c.value);
             if (it == labelRoot.end()) labelRoot[c.value] = i;
+            else uf.unite(it->second, i);
+        } else if (c.kind == ComponentKind::NetLabel) {
+            // A sheet entry joins the ports (and local labels) of its name on the sheet it stands for.
+            int i = index[{c.id, 0}];
+            auto key = std::make_pair(c.scope == LabelScope::SheetEntry ? c.targetSheet : c.sheet, c.value);
+            auto it = sheetLabelRoot.find(key);
+            if (it == sheetLabelRoot.end()) sheetLabelRoot[key] = i;
             else uf.unite(it->second, i);
         }
     }
@@ -459,19 +491,53 @@ void Schematic::rebuildNets() const {
     }
 
     int autoCounter = 1;
+    std::vector<std::pair<size_t, int>> sheetNamed;  // nets named by a sheet-scoped label → that label's sheet
     for (auto& n : nets_) {
-        std::string label;
+        std::string label;           // global labels name the net first (the smallest name)
+        std::string local;           // then sheet-scoped labels, from the sheet nearest the top of the hierarchy
+        int localDepth = INT_MAX, localSheet = 0;
         for (const auto& p : n.pins) {
             const Component* c = find(p.component);
             if (c->kind == ComponentKind::Ground || (c->kind == ComponentKind::NetLabel && isGroundName(c->value))) {
                 n.isGround = true;
-            } else if (c->kind == ComponentKind::NetLabel && (label.empty() || c->value < label)) {
-                label = c->value;
+            } else if (c->kind == ComponentKind::NetLabel && c->scope == LabelScope::Global) {
+                if (label.empty() || c->value < label) label = c->value;
+            } else if (c->kind == ComponentKind::NetLabel) {
+                int depth = sheetDepth(c->sheet);
+                if (depth < localDepth || (depth == localDepth && c->value < local)) {
+                    local = c->value;
+                    localDepth = depth;
+                    localSheet = c->sheet;
+                }
             }
         }
-        if (n.isGround) n.name = "GND";
-        else if (!label.empty()) n.name = label;
-        else n.name = "N$" + std::to_string(autoCounter++);
+        if (n.isGround) {
+            n.name = "GND";
+        } else if (!label.empty()) {
+            n.name = label;
+        } else if (!local.empty()) {
+            n.name = local;
+            sheetNamed.push_back({static_cast<size_t>(n.index), localSheet});
+        } else {
+            n.name = "N$" + std::to_string(autoCounter++);
+        }
+    }
+    if (!sheetNamed.empty()) {
+        // A sheet-local name used by another net too gets its sheet's name in front ("Power/EN"), kept unique.
+        std::map<std::string, int> uses;
+        for (const auto& n : nets_) ++uses[n.name];
+        std::set<std::string> taken;
+        for (const auto& n : nets_) taken.insert(n.name);
+        for (const auto& [net, sheet] : sheetNamed) {
+            Net& n = nets_[net];
+            if (uses[n.name] < 2) continue;
+            const Sheet* s = findSheet(sheet);
+            std::string base = (s ? s->name : "Sheet" + std::to_string(sheet)) + "/" + n.name;
+            std::string name = base;
+            for (int k = 2; taken.count(name); ++k) name = base + "_" + std::to_string(k);
+            taken.insert(name);
+            n.name = name;
+        }
     }
     netsDirty_ = false;
 }
@@ -592,6 +658,8 @@ std::vector<RuleViolation> Schematic::runERC() const {
         v.severity = s;
         v.code = code;
         v.message = msg;
+        if (!comps.empty())
+            if (const Component* first = find(comps.front())) v.sheet = first->sheet;
         v.components = std::move(comps);
         v.location = loc;
         v.hasLocation = true;
@@ -770,10 +838,24 @@ std::vector<RuleViolation> Schematic::runERC() const {
         if (drivers.size() > 1) {
             std::string list;
             for (size_t i = 0; i < drivers.size(); ++i) list += (i ? ", " : "") + drivers[i];
-            add(Severity::Warning, "ERC_OUTPUT_CONFLICT", "Net " + net.name + " is driven by several outputs: " + list + ".",
-                ids, find(ids[0])->position);
+            // Drivers on different sheets are easy to miss: name the sheets.
+            std::vector<std::string> sheetNames;
+            for (int id : ids) {
+                const Sheet* s = findSheet(find(id)->sheet);
+                if (s && std::find(sheetNames.begin(), sheetNames.end(), s->name) == sheetNames.end())
+                    sheetNames.push_back(s->name);
+            }
+            std::string across;
+            if (sheetNames.size() > 1) {
+                across = " (across sheets ";
+                for (size_t i = 0; i < sheetNames.size(); ++i) across += (i ? ", " : "") + sheetNames[i];
+                across += ")";
+            }
+            add(Severity::Warning, "ERC_OUTPUT_CONFLICT", "Net " + net.name + " is driven by several outputs: " + list +
+                    across + ".", ids, find(ids[0])->position);
         }
     }
+    hierarchyERC(out);
     return out;
 }
 

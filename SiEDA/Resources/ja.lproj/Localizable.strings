@@ -16,6 +16,7 @@
 "AI-native electronic design automation" = "AI ネイティブの電子設計自動化";
 "API key" = "API キー";
 "About" = "情報";
+"Add Child Sheet" = "子シートを追加";
 "Add Ground Pours" = "グラウンドベタを追加";
 "Add Kit to Library" = "キットをライブラリに追加";
 "Add Mesh" = "メッシュを追加";
@@ -25,6 +26,7 @@
 "Add Pour" = "ベタを追加";
 "Add Thermal Vias" = "サーマルビアを追加";
 "Add a pad like the last one (numbered next)" = "直前と同じパッドを追加 (次の番号)";
+"Add a sheet (right-click a tab for more)" = "シートを追加（タブを右クリックでその他の操作）";
 "Add every part of this kit to the project library so it shows in the device picker" = "このキットのすべての部品をプロジェクトライブラリに追加し、デバイスピッカーに表示します";
 "Add serpentine (accordion) tuning to the short members of each group" = "各グループの短いメンバーにサーペンタイン (アコーディオン) 長さ調整を追加";
 "Aerospace Mission" = "航空宇宙ミッション";
@@ -34,6 +36,7 @@
 "Analog time step: finer resolves faster signals, coarser runs faster" = "アナログタイムステップ：細かいほど高速な信号を解析でき、粗いほど高速に実行";
 "Analysis" = "解析";
 "Analysis presets — microcontroller firmware needs a longer run (e.g. 1 s at 100 µs)" = "解析プリセット — マイコンのファームウェアには長い実行が必要 (例: 1 s、100 µs)";
+"Annotate" = "アノテーション";
 "Appearance" = "外観";
 "Appliance Type" = "家電の種類";
 "Apply" = "適用";
@@ -44,6 +47,7 @@
 "Arranged symbol" = "配置済みシンボル";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "変更を依頼 — “LED を緑にして 3.3 V で動かして”";
 "Assembly" = "実装";
+"Assembly variant for the BOM, CPL and assembly drawings" = "BOM、CPL、実装図用の実装バリアント";
 "Audience (optional)" = "対象者 (任意)";
 "Auto Arrange" = "自動配置";
 "Auto Route" = "自動配線";
@@ -56,6 +60,7 @@
 "BOM" = "BOM";
 "BOM for Assembly (JLCPCB / PCBWay)…" = "実装用 BOM (JLCPCB / PCBWay)…";
 "Backdrill via stubs on fast nets" = "高速ネットのビアスタブをバックドリル";
+"Base Design" = "ベース設計";
 "Base URL" = "ベース URL";
 "Bill of Materials" = "部品表";
 "Bill of Materials (CSV)…" = "部品表 (CSV)…";
@@ -107,6 +112,8 @@
 "Default provider" = "デフォルトのプロバイダ";
 "Delete" = "削除";
 "Delete Part" = "部品を削除";
+"Delete Sheet" = "シートを削除";
+"Delete Variant" = "バリアントを削除";
 "Delete Wire" = "ワイヤを削除";
 "Describe your product" = "製品について説明";
 "Description" = "説明";
@@ -150,11 +157,14 @@
 "Finish the login in your browser…" = "ブラウザでログインを完了してください…";
 "Firmware — 1 s, 100 µs" = "ファームウェア — 1 s、100 µs";
 "Fit Board to Components" = "基板を部品に合わせる";
+"Fitted" = "実装";
+"Fix Duplicates Only" = "重複のみ修正";
 "Flip" = "反転";
 "Footprint the part is fitted in: chip size, through-hole, tantalum or electrolytic case" = "部品のフットプリント：チップサイズ、スルーホール、タンタルまたは電解コンデンサのケース";
 "Gap Before" = "前に隙間";
 "Generate Design" = "設計を生成";
 "Give each selected pin its own slot" = "選択した各ピンに個別のスロットを割り当てる";
+"Global" = "グローバル";
 "Global semiconductor countries" = "世界の半導体国";
 "Google Cloud project ID" = "Google Cloud プロジェクト ID";
 "Grid" = "グリッド";
@@ -194,6 +204,7 @@
 "Loading memory & system design kits" = "メモリ & システム設計キットを読み込み中";
 "Loading reference designs" = "リファレンスデザインを読み込み中";
 "Loading the component library" = "部品ライブラリを読み込み中";
+"Local (this sheet)" = "ローカル（このシート）";
 "Locked (Auto Place keeps it)" = "ロック (自動配置で維持)";
 "Long firmware run — 5 s, 500 µs" = "長時間ファームウェア実行 — 5 s、500 µs";
 "Mask" = "マスク";
@@ -205,6 +216,7 @@
 "Model" = "モデル";
 "Model back-ends" = "モデルバックエンド";
 "Mounting" = "実装方式";
+"Move Selection Here" = "選択項目をここへ移動";
 "Move the footprint origin to the centre of the pads" = "フットプリントの原点をパッドの中心に移動";
 "Move the pad in the numbering; pads between shift by one" = "番号順でパッドを移動。間のパッドは 1 つずつずれます";
 "NAVIGATOR" = "ナビゲータ";
@@ -214,6 +226,8 @@
 "Nets" = "ネット";
 "Nets (%lld)" = "ネット (%lld)";
 "New Project" = "新規プロジェクト";
+"New Variant" = "新規バリアント";
+"New Variant…" = "新規バリアント…";
 "New blank part" = "新規の空の部品";
 "New from Example" = "サンプルから新規作成";
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "この設計には差動ペア (…_P/_N, …+/-) やバス (DQ0…, DATA[0..7], ADDR…) がありません。";
@@ -233,6 +247,9 @@
 "Not naval" = "艦艇ではない";
 "Not placed yet" = "未配置";
 "Not retail" = "小売ではない";
+"Number by Columns" = "列順に番号付け";
+"Number by Rows" = "行順に番号付け";
+"Number by Sheet (R101, R201…)" = "シート別に番号付け（R101、R201…）";
 "OBJ with vertex colours" = "頂点カラー付き OBJ";
 "OK" = "OK";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "オフ：SiEDA は従来の手動 EDA ツールとして動作します。回路図入力、シミュレーション、PCB 配線、3D、データシート解析、書き出しはすべてローカルで実行され、AI サービスには何も送信されません。";
@@ -256,9 +273,11 @@
 "Pin" = "ピン";
 "Pins: " = "ピン: ";
 "Place Now" = "今すぐ配置";
+"Place Sheet Symbol" = "シートシンボルを配置";
 "Place any unplaced footprints inside the board outline, then route all connections and check DRC (⇧⌘R)" = "未配置のフットプリントを基板外形内に配置し、すべての接続を配線して DRC をチェック (⇧⌘R)";
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "配置、配線、ベタ、DRC、Gerber Edge.Cuts、3D 基板は外形に従います。 ";
 "Plane" = "プレーン";
+"Port (to parent sheet)" = "ポート（親シートへ）";
 "Preview appears once the part has a name and pins." = "部品に名前とピンが設定されるとプレビューが表示されます。";
 "Project Library" = "プロジェクトライブラリ";
 "Project name" = "プロジェクト名";
@@ -272,6 +291,8 @@
 "Remove the empty slots on every side" = "すべての辺の空きスロットを削除";
 "Remove the firmware" = "ファームウェアを削除";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "最後に接続された層より下の未使用ビアバレルを除去 (≥ 4 層)。バックドリルファイルを追加";
+"Rename Sheet" = "シート名を変更";
+"Rename Sheet…" = "シート名を変更…";
 "Renumber" = "番号を振り直す";
 "Reserve the layer for this net: other nets only pass through it with vias" = "このネット専用にレイヤーを確保：他のネットはビアで通過のみ";
 "Reset View" = "表示をリセット";
@@ -304,6 +325,7 @@
 "Schematic" = "回路図";
 "Schematic capture · SPICE-class simulation · PCB autorouting · DRC · 3D · Gerber/Excellon export" = "回路図入力 · SPICE クラスのシミュレーション · PCB 自動配線 · DRC · 3D · Gerber/Excellon 書き出し";
 "Schematic · Simulation · PCB · 3D · Fabrication" = "回路図 · シミュレーション · PCB · 3D · 製造";
+"Scope" = "スコープ";
 "Scope, serial monitor and switches" = "スコープ、シリアルモニタ、スイッチ";
 "Scopes" = "スコープ";
 "Scroll or pinch to zoom" = "スクロールまたはピンチでズーム";
@@ -317,6 +339,8 @@
 "Serial output — 200 ms, 10 µs" = "シリアル出力 — 200 ms、10 µs";
 "Set" = "設定";
 "Shape" = "形状";
+"Sheet" = "シート";
+"Sheet name" = "シート名";
 "Show" = "表示";
 "Show Crash Reports" = "クラッシュレポートを表示";
 "Show Navigator" = "ナビゲータを表示";
@@ -376,6 +400,7 @@
 "Validate" = "検証";
 "Validate Circuit" = "回路を検証";
 "Value" = "値";
+"Variant name" = "バリアント名";
 "Verify Design" = "設計を検証";
 "Vertex AI region" = "Vertex AI リージョン";
 "Via-in-pad plated over (VIPPO, IPC-4761 Type VII)" = "ビアインパッドめっき蓋 (VIPPO, IPC-4761 Type VII)";
