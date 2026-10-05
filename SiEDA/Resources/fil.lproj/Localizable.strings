@@ -15,6 +15,7 @@
 "3D Viewer" = "3D Viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A class still used by a directive cannot be deleted" = "Hindi mabubura ang klaseng ginagamit pa ng isang direktiba";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Dinadala ng harness label ang bawat miyembro ng uri nito sa mga sheet (port, sheet entry o global)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Harness label na may isang entry bawat miyembro; ikabit ang bawat entry sa signal nito. Bigyan ang port o sheet entry ng parehong pangalan at uri para dalhin ang bundle sa ibang sheet.";
 "A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "Ang harness type ay isang pinangalanang bundle ng mga signal (USB: DP, DN, VBUS, GND). Dinadala ng harness label ng uri ang bawat miyembro — \"USB1.DP\", \"USB1.DN\" … — sa pamamagitan ng port at sheet entry nito, o bilang global label; ikinokonekta ng mga entry nito ang mga miyembro sa sheet.";
@@ -111,6 +112,7 @@
 "Block designator" = "Designator ng block";
 "Block value: %@" = "Halaga ng block: %@";
 "Board Setup" = "Setup ng Board";
+"Board default" = "Default ng board";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Board outline (quad-X frame, rounded, bilog), mounting hole, copper pour/plane at net class";
 "Board thickness" = "Kapal ng board";
 "Boards per order, for the order cost" = "Bilang ng board bawat order, para sa halaga ng order";
@@ -132,6 +134,7 @@
 "CTLE" = "CTLE";
 "Cancel" = "Kanselahin";
 "Cancel AI Generation" = "Kanselahin ang AI Generation";
+"Carried to the PCB rules: routing and DRC use them." = "Dinadala sa mga panuntunan ng PCB: ginagamit ito ng routing at DRC.";
 "Cascade at receiver" = "I-cascade sa receiver";
 "Cavity model" = "Modelo ng cavity";
 "Centre" = "Igitna";
@@ -153,12 +156,14 @@
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "Cinematic heads-up display: projector, particle, part call-out, data pillar at read-out";
 "Circuit" = "Circuit";
 "Circuit — 5 ms, 5 µs" = "Circuit — 5 ms, 5 µs";
+"Class / board" = "Klase / board";
 "Clear" = "I-clear";
 "Clear Cached Results" = "I-clear ang mga Naka-cache na Resulta";
 "Clear Cursors" = "Alisin ang mga Cursor";
 "Clear Menu" = "I-clear ang Menu";
 "Clear conversation" = "I-clear ang usapan";
 "Clear simulation results" = "I-clear ang resulta ng simulation";
+"Clearance (mm)" = "Clearance (mm)";
 "Cleared" = "Na-clear";
 "Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes" = "I-click ang pad para piliin (⇧ para magdagdag) · i-drag para ilipat sa grid · i-double-click para magdagdag ng pad · ⌫ para burahin";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "I-click ang isang pad: ito at ang mga susunod na pad sa hanay nito ay sabay na iru-route bilang bungkos sa pitch ng track; tapusin, saka ituloy ang bawat track";
@@ -210,6 +215,7 @@
 "Delay" = "Delay";
 "Delete" = "Burahin";
 "Delete Bus" = "Burahin ang bus";
+"Delete Class" = "Burahin ang Klase";
 "Delete Part" = "Burahin ang Part";
 "Delete Sheet" = "Burahin ang Sheet";
 "Delete Type" = "Burahin ang Uri";
@@ -229,6 +235,7 @@
 "Designators" = "Mga designator";
 "Detect Gates" = "Tuklasin ang mga Gate";
 "Differential pair" = "Differential pair";
+"Differential pair member" = "Miyembro ng differential pair";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "DigiKey API application (Production) na may Product Information v4; client credentials flow.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Huwag i-populate: nasa board pero hindi ikinakabit; hindi kasama sa assembly BOM at CPL";
 "Done" = "Tapos";
@@ -322,6 +329,7 @@
 "Harness name" = "Pangalan ng harness";
 "Harnesses" = "Mga Harness";
 "Hide navigator (N)" = "Itago ang navigator (N)";
+"HighSpeed" = "HighSpeed";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "Sa mas mataas na effort, mas matagal mag-isip si Claude tungkol sa circuit topology at mga value. Inirerekomenda ang “high”.";
 "Highlight" = "I-highlight";
 "Hold" = "Hold";
@@ -423,10 +431,15 @@
 "Move the footprint origin to the centre of the pads" = "Ilipat ang origin ng footprint sa gitna ng mga pad";
 "Move the pad in the numbering; pads between shift by one" = "Ilipat ang pad sa pagnunumero; uusog nang isa ang mga pad sa pagitan";
 "NAVIGATOR" = "NAVIGATOR";
+"NET CLASSES" = "MGA NET CLASS";
+"NET DIRECTIVE" = "DIREKTIBA NG NET";
 "Name" = "Pangalan";
 "Naval Platform" = "Naval Platform";
 "Net" = "Net";
+"Net Classes" = "Mga Net Class";
 "Net Navigator" = "Navigator ng net";
+"Net class" = "Net class";
+"Net classes for the directives on nets: the schematic is the source of the board's net rules" = "Mga net class para sa mga direktiba sa net: ang eskematiko ang pinagmumulan ng mga panuntunan ng net ng board";
 "Net model" = "Modelo ng net";
 "Nets" = "Mga Net";
 "Nets (%lld)" = "Mga Net (%lld)";
@@ -515,6 +528,7 @@
 "Package" = "Package";
 "Package (optional, e.g. SOIC-8)" = "Package (opsyonal, hal. SOIC-8)";
 "Package pins (0 = from pin list)" = "Mga pin ng package (0 = mula sa pin list)";
+"Pairs this net with the net of the opposite suffix (X_P / X_N): routed, tuned and checked as a pair" = "Ipinapares ang net na ito sa net na may kabaligtarang suffix (X_P / X_N): niruruta, tinu-tune at sinusuri bilang pares";
 "Panels" = "Mga Panel";
 "Parameter Sweep" = "Parameter Sweep";
 "Part" = "Bahagi";
@@ -639,6 +653,7 @@
 "Save" = "I-save";
 "Save & Place" = "I-save at Ilagay";
 "Save As…" = "I-save Bilang…";
+"Save Class" = "I-save ang Klase";
 "Save Key" = "I-save ang Key";
 "Save Type" = "I-save ang Uri";
 "Scale" = "Scale";
@@ -754,6 +769,7 @@
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "Sinusunod ng interface ang wikang ito. Nananatiling Ingles ang mga engineering term, part number, unit, net name at mensahe ng design check para tumugma sa mga datasheet at fabrication file.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Ginagamit ng offline designer ang mga built-in na reference circuit ng SiEDA. Hindi kailangan ng network o API key — mainam para sa demo at air-gapped na lab.";
 "The plain box: pins in number order down the left, then up the right" = "Ang simpleng kahon: mga pin ayon sa numero pababa sa kaliwa, pagkatapos ay pataas sa kanan";
+"The schematic is the source of the board's net rules. Put a net class on a net from the inspector of a net label or wire; the board's routing and DRC take its width and clearance." = "Ang eskematiko ang pinagmumulan ng mga panuntunan ng net ng board. Lagyan ng net class ang isang net mula sa inspector ng net label o wire; kinukuha ng routing at DRC ng board ang lapad at clearance nito.";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "Nilo-load ng splash ang component library at mga reference design nang limang segundo, saka binubuksan ang main window. I-click ito o pindutin ang Esc para laktawan kapag tapos na ang pag-load.";
 "The two gates exchange places in their packages; the symbols and wires stay" = "Nagpapalit ng puwesto sa package ang dalawang gate; nananatili ang mga simbolo at wire";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Ang biktima ay nasa katabing layer, sa itaas o ilalim ng aggressor";
@@ -761,6 +777,7 @@
 "Through" = "Tagos";
 "Title" = "Pamagat";
 "Total jitter" = "Kabuuang jitter";
+"Track width (mm)" = "Lapad ng track (mm)";
 "Transient" = "Transient";
 "Transient analysis" = "Transient analysis";
 "Transient: stop" = "Transient: stop";

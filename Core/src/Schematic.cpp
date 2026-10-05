@@ -1016,6 +1016,7 @@ std::vector<RuleViolation> Schematic::runERC() const {
             return !c.harnessType.empty();
         }))
         harnessERC(out);
+    if (!directives_.empty()) directiveERC(out);
     return out;
 }
 

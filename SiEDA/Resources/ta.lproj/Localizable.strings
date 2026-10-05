@@ -15,6 +15,7 @@
 "3D Viewer" = "3D வியூவர்";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A class still used by a directive cannot be deleted" = "ஒரு கட்டளை இன்னும் பயன்படுத்தும் வகுப்பை நீக்க முடியாது";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "ஹார்னஸ் லேபிள் அதன் வகையின் ஒவ்வொரு உறுப்பினரையும் தாள்களுக்கு இடையே கொண்டு செல்லும் (போர்ட், தாள் நுழைவு அல்லது குளோபல்)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "ஒவ்வொரு உறுப்பினருக்கும் ஒரு நுழைவு கொண்ட ஹார்னஸ் லேபிள்; ஒவ்வொரு நுழைவையும் அதன் சிக்னலுடன் இணை. கட்டை வேறு தாளுக்குக் கொண்டு செல்ல போர்ட் அல்லது தாள் நுழைவுக்கு அதே பெயரும் வகையும் கொடு.";
 "A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "ஹார்னஸ் வகை என்பது பெயரிடப்பட்ட சிக்னல் கட்டு (USB: DP, DN, VBUS, GND). அந்த வகையின் ஹார்னஸ் லேபிள் ஒவ்வொரு உறுப்பினரையும் — \"USB1.DP\", \"USB1.DN\" … — போர்ட் மற்றும் அதன் தாள் நுழைவு வழியாக, அல்லது குளோபல் லேபிளாகக் கொண்டு செல்லும்; அதன் நுழைவுகள் தாளில் உறுப்பினர்களை இணைக்கும்.";
@@ -111,6 +112,7 @@
 "Block designator" = "தொகுதி குறியீடு";
 "Block value: %@" = "தொகுதி மதிப்பு: %@";
 "Board Setup" = "போர்டு அமைப்பு";
+"Board default" = "பலகை இயல்புநிலை";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "போர்டு அவுட்லைன் (குவாட்-X ஃப்ரேம், வட்டமூலை, வட்டம்), மவுண்டிங் துளைகள், காப்பர் போர்கள்/பிளேன்கள் மற்றும் நெட் கிளாஸ்கள்";
 "Board thickness" = "போர்டு தடிமன்";
 "Boards per order, for the order cost" = "ஆர்டர் செலவுக்காக ஒரு ஆர்டருக்கான போர்டுகள்";
@@ -132,6 +134,7 @@
 "CTLE" = "CTLE";
 "Cancel" = "ரத்துசெய்";
 "Cancel AI Generation" = "AI உருவாக்கத்தை ரத்துசெய்";
+"Carried to the PCB rules: routing and DRC use them." = "PCB விதிகளுக்குக் கொண்டு செல்லப்படும்: ரூட்டிங்கும் DRC-யும் அவற்றைப் பயன்படுத்தும்.";
 "Cascade at receiver" = "பெறுநரில் தொடராக இணை";
 "Cavity model" = "குழி மாதிரி";
 "Centre" = "மையப்படுத்து";
@@ -153,12 +156,14 @@
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "சினிமாட்டிக் ஹெட்ஸ்-அப் டிஸ்ப்ளே: ப்ரொஜெக்டர், துகள்கள், பார்ட் கால்-அவுட்கள், டேட்டா தூண்கள் மற்றும் ரீட்-அவுட்கள்";
 "Circuit" = "சர்க்யூட்";
 "Circuit — 5 ms, 5 µs" = "சர்க்யூட் — 5 ms, 5 µs";
+"Class / board" = "வகுப்பு / பலகை";
 "Clear" = "அழி";
 "Clear Cached Results" = "தற்காலிகச் சேமிப்பு முடிவுகளை அழி";
 "Clear Cursors" = "குறிகாட்டிகளை அழி";
 "Clear Menu" = "மெனுவை அழி";
 "Clear conversation" = "உரையாடலை அழி";
 "Clear simulation results" = "சிமுலேஷன் முடிவுகளை அழி";
+"Clearance (mm)" = "இடைவெளி (mm)";
 "Cleared" = "அழிக்கப்பட்டது";
 "Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes" = "தேர்ந்தெடுக்க பேடைக் கிளிக் செய்யவும் (சேர்க்க ⇧) · கிரிட்டில் நகர்த்த இழுக்கவும் · பேட் சேர்க்க இருமுறை கிளிக் செய்யவும் · ⌫ நீக்கும்";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "ஒரு பேடைச் சொடுக்கவும்: அதுவும் அதன் வரிசையின் அடுத்த பேடுகளும் தட இடைவெளியில் ஒரு கட்டாக ஒன்றாக வழியமைக்கப்படும்; முடித்த பின் ஒவ்வொரு தடத்தையும் தொடரவும்";
@@ -210,6 +215,7 @@
 "Delay" = "தாமதம்";
 "Delete" = "நீக்கு";
 "Delete Bus" = "பஸ்ஸை நீக்கு";
+"Delete Class" = "வகுப்பை நீக்கு";
 "Delete Part" = "பார்ட்டை நீக்கு";
 "Delete Sheet" = "ஷீட்டை நீக்கு";
 "Delete Type" = "வகையை நீக்கு";
@@ -229,6 +235,7 @@
 "Designators" = "குறியீடுகள்";
 "Detect Gates" = "கேட்களைக் கண்டறி";
 "Differential pair" = "டிஃபரன்ஷியல் ஜோடி";
+"Differential pair member" = "டிஃபரன்ஷியல் ஜோடி உறுப்பினர்";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 உடன் DigiKey API பயன்பாடு (Production); கிளையன்ட் சான்று ஓட்டம்.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "பொருத்த வேண்டாம்: போர்டில் உள்ளது ஆனால் பொருத்தப்படாது; அசெம்பிளி BOM மற்றும் CPL இலிருந்து விலக்கப்படும்";
 "Done" = "முடிந்தது";
@@ -322,6 +329,7 @@
 "Harness name" = "ஹார்னஸ் பெயர்";
 "Harnesses" = "ஹார்னஸ்கள்";
 "Hide navigator (N)" = "நேவிகேட்டரை மறை (N)";
+"HighSpeed" = "HighSpeed";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "அதிக முயற்சியில் Claude சர்க்யூட் டோபாலஜி மற்றும் மதிப்புகள் பற்றி நீண்ட நேரம் சிந்திக்கும். “high” பரிந்துரைக்கப்படுகிறது.";
 "Highlight" = "முன்னிலைப்படுத்து";
 "Hold" = "ஹோல்ட்";
@@ -423,10 +431,15 @@
 "Move the footprint origin to the centre of the pads" = "ஃபுட்பிரிண்ட் ஆரிஜினை பேட்களின் மையத்துக்கு நகர்த்து";
 "Move the pad in the numbering; pads between shift by one" = "எண்வரிசையில் பேடை நகர்த்து; இடையில் உள்ள பேட்கள் ஒரு இடம் நகரும்";
 "NAVIGATOR" = "நேவிகேட்டர்";
+"NET CLASSES" = "நெட் வகுப்புகள்";
+"NET DIRECTIVE" = "நெட் கட்டளை";
 "Name" = "பெயர்";
 "Naval Platform" = "கடற்படை தளம்";
 "Net" = "நெட்";
+"Net Classes" = "நெட் வகுப்புகள்";
 "Net Navigator" = "நெட் வழிகாட்டி";
+"Net class" = "நெட் வகுப்பு";
+"Net classes for the directives on nets: the schematic is the source of the board's net rules" = "நெட்களில் உள்ள கட்டளைகளுக்கான நெட் வகுப்புகள்: பலகையின் நெட் விதிகளுக்கு திட்டவரைவே மூலம்";
 "Net model" = "நெட் மாதிரி";
 "Nets" = "நெட்கள்";
 "Nets (%lld)" = "நெட்கள் (%lld)";
@@ -515,6 +528,7 @@
 "Package" = "பேக்கேஜ்";
 "Package (optional, e.g. SOIC-8)" = "பேக்கேஜ் (விருப்பத்தேர்வு, எ.கா. SOIC-8)";
 "Package pins (0 = from pin list)" = "பேக்கேஜ் பின்கள் (0 = பின் பட்டியலிலிருந்து)";
+"Pairs this net with the net of the opposite suffix (X_P / X_N): routed, tuned and checked as a pair" = "இந்த நெட்டை எதிர் பின்னொட்டு நெட்டுடன் (X_P / X_N) இணைக்கும்: ஜோடியாக ரூட், டியூன் மற்றும் சரிபார்க்கப்படும்";
 "Panels" = "பேனல்கள்";
 "Parameter Sweep" = "அளவுரு ஸ்வீப்";
 "Part" = "பாகம்";
@@ -639,6 +653,7 @@
 "Save" = "சேமி";
 "Save & Place" = "சேமித்து வை";
 "Save As…" = "இவ்வாறு சேமி…";
+"Save Class" = "வகுப்பைச் சேமி";
 "Save Key" = "கீயைச் சேமி";
 "Save Type" = "வகையைச் சேமி";
 "Scale" = "அளவுகோல்";
@@ -754,6 +769,7 @@
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "இடைமுகம் இந்த மொழியைப் பின்பற்றும். இன்ஜினியரிங் சொற்கள், பார்ட் எண்கள், அலகுகள், நெட் பெயர்கள் மற்றும் டிசைன் சரிபார்ப்புச் செய்திகள் டேட்டாஷீட்கள் மற்றும் ஃபேப்ரிகேஷன் கோப்புகளுடன் பொருந்த ஆங்கிலத்திலேயே இருக்கும்.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ஆஃப்லைன் டிசைனர் SiEDA இன் உள்ளமைந்த ரெஃபரன்ஸ் சர்க்யூட்களைப் பயன்படுத்துகிறது. நெட்வொர்க் அல்லது API கீ தேவையில்லை — டெமோக்கள் மற்றும் ஏர்-கேப்டு ஆய்வகங்களுக்கு ஏற்றது.";
 "The plain box: pins in number order down the left, then up the right" = "எளிய பெட்டி: பின்கள் எண் வரிசையில் இடதுபுறம் கீழாக, பின்னர் வலதுபுறம் மேலாக";
+"The schematic is the source of the board's net rules. Put a net class on a net from the inspector of a net label or wire; the board's routing and DRC take its width and clearance." = "பலகையின் நெட் விதிகளுக்கு திட்டவரைவே மூலம். நெட் லேபிள் அல்லது கம்பியின் ஆய்வாளரிலிருந்து நெட்டுக்கு நெட் வகுப்பைக் கொடு; பலகையின் ரூட்டிங்கும் DRC-யும் அதன் அகலத்தையும் இடைவெளியையும் எடுக்கும்.";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "ஸ்பிளாஷ் காம்போனன்ட் லைப்ரரி மற்றும் ரெஃபரன்ஸ் டிசைன்களை ஐந்து வினாடிகள் முன்கூட்டியே ஏற்றி, பின்னர் முதன்மைச் சாளரத்தைத் திறக்கும். ஏற்றுதல் முடிந்ததும் தவிர்க்க அதைக் கிளிக் செய்யவும் அல்லது Esc அழுத்தவும்.";
 "The two gates exchange places in their packages; the symbols and wires stay" = "இரு கேட்களும் தங்கள் தொகுப்பில் இடம் மாறும்; குறியீடுகளும் கம்பிகளும் அப்படியே இருக்கும்";
 "The victim runs on the adjacent layer, over or under the aggressor" = "பாதிக்கப்பட்ட நெட் அடுத்த அடுக்கில், தாக்கும் நெட்டின் மேல் அல்லது கீழ் செல்கிறது";
@@ -761,6 +777,7 @@
 "Through" = "ஊடுருவும்";
 "Title" = "தலைப்பு";
 "Total jitter" = "மொத்த நடுக்கம்";
+"Track width (mm)" = "தட அகலம் (mm)";
 "Transient" = "டிரான்சியன்ட்";
 "Transient analysis" = "டிரான்சியன்ட் பகுப்பாய்வு";
 "Transient: stop" = "டிரான்சியன்ட்: நிறுத்தம்";

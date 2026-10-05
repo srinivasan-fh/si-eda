@@ -6165,3 +6165,36 @@ final class HarnessTests: XCTestCase {
         XCTAssertEqual(store.snapshot.component(harnesses[0])?.harnessType, "SPI")
     }
 }
+
+/// Schematic directives through the store: a net class, a differential pair directive on a label, the board rules
+/// following, undo.
+@MainActor
+final class DirectiveTests: XCTestCase {
+    func testDirectivesDriveTheBoardRules() throws {
+        let store = DesignStore()
+        let j = store.addComponent(.connector, at: .zero)
+        let p = store.addComponent(.netLabel, at: CGPoint(x: 100, y: 0))
+        let n = store.addComponent(.netLabel, at: CGPoint(x: 100, y: 40))
+        XCTAssertTrue(store.engine.setValue(p, "D_P"))
+        XCTAssertTrue(store.engine.setValue(n, "D_N"))
+        XCTAssertTrue(store.connect(PinAddress(component: j, pin: 0), PinAddress(component: p, pin: 0)))
+        XCTAssertTrue(store.connect(PinAddress(component: j, pin: 1), PinAddress(component: n, pin: 0)))
+        XCTAssertTrue(store.setNetClass("HS", trackWidth: 0.25, clearance: 0.3))
+        XCTAssertFalse(store.setNetClass("bad name", trackWidth: 0.25, clearance: 0))
+        XCTAssertEqual(store.snapshot.netClassDefs.first?.trackWidth, 0.25)
+        let anchor = PinAddress(component: p, pin: 0)
+        store.setDirective(on: anchor, netClass: "HS", diffPair: true, trackWidth: 0, clearance: 0)
+        let directive = try XCTUnwrap(store.directive(on: anchor))
+        XCTAssertEqual(directive.netName, "D_P")
+        XCTAssertTrue(directive.isDiffPair)
+        XCTAssertEqual(store.snapshot.board.netWidths["D_P"], 0.25)
+        // A parameter set on the net wins over its class; clearing everything removes the directive.
+        store.setDirective(on: anchor, netClass: "HS", diffPair: true, trackWidth: 0.4, clearance: 0)
+        XCTAssertEqual(store.snapshot.board.netWidths["D_P"], 0.4)
+        store.setDirective(on: anchor, netClass: "", diffPair: false, trackWidth: 0, clearance: 0)
+        XCTAssertNil(store.directive(on: anchor))
+        XCTAssertNil(store.snapshot.board.netWidths["D_P"])
+        store.undo()
+        XCTAssertNotNil(store.directive(on: anchor))
+    }
+}

@@ -231,6 +231,7 @@ struct SheetBar: View {
     @State private var renamingChannel: SheetInfo?
     @State private var channelName = ""
     @State private var editingHarnesses = false
+    @State private var editingNetClasses = false
     @State private var harnessConnectorType: HarnessTypeInfo?
     @State private var harnessName = ""
 
@@ -300,6 +301,8 @@ struct SheetBar: View {
                 Label("Annotate", systemImage: "number")
             }
             .fixedSize()
+            Button { editingNetClasses = true } label: { Label("Net Classes", systemImage: "ruler") }
+                .help("Net classes for the directives on nets: the schematic is the source of the board's net rules")
             Menu {
                 Button("Harness Types…") { editingHarnesses = true }
                 Divider()
@@ -366,6 +369,7 @@ struct SheetBar: View {
             Button("Cancel", role: .cancel) { renamingChannel = nil }
         }
         .sheet(isPresented: $editingHarnesses) { HarnessTypesView().environmentObject(store) }
+        .sheet(isPresented: $editingNetClasses) { NetClassesView().environmentObject(store) }
         .alert("Place Harness Connector", isPresented: Binding(get: { harnessConnectorType != nil },
                                                                set: { if !$0 { harnessConnectorType = nil } })) {
             TextField("Harness name", text: $harnessName)

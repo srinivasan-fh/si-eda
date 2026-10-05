@@ -736,6 +736,20 @@ int32_t sieda_add_harness_connector(SiedaProject* project, const char* type, con
 /* Adds the missing member entries of a harness label. The number added, or -1. */
 int32_t sieda_place_harness_entries(SiedaProject* project, int32_t label);
 
+/* ---- schematic capture: directives (docs/SCHEMATIC.md) --------------------------------------------------------- */
+/* The schematic is the source of the board's net rules. A net class {"name","trackWidth"?,"clearance"?} (mm; 0 = the
+ * board default); a directive {"component","pin","netClass"?,"diffPair"?,"trackWidth"?,"clearance"?} on the net of a
+ * pin (a parameter set overrides its class; diffPair pairs the net with its X_P / X_N partner). Every change carries
+ * the rules into the board settings (net widths and clearances) used by routing and DRC. The snapshot lists
+ * "netClassDefs" and "directives" (with "net" / "netName"). 1 on success; add returns the id or -1. */
+int32_t sieda_set_net_class(SiedaProject* project, const char* json);
+int32_t sieda_remove_net_class(SiedaProject* project, const char* name);
+int32_t sieda_add_directive(SiedaProject* project, const char* json);
+int32_t sieda_update_directive(SiedaProject* project, int32_t id, const char* json);
+int32_t sieda_remove_directive(SiedaProject* project, int32_t id);
+/* [{net,netName,netClass,trackWidth,clearance,diffPair,partner}] for every net a directive reaches. Caller frees. */
+char* sieda_net_rules_json(const SiedaProject* project);
+
 #ifdef __cplusplus
 }
 #endif

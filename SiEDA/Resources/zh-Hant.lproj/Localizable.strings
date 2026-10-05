@@ -15,6 +15,7 @@
 "3D Viewer" = "3D 檢視器";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A class still used by a directive cannot be deleted" = "仍被指令使用的類別無法刪除";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "線束標籤會將其類型的每個成員帶過各圖頁（連接埠、圖頁入口或全域）";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "每個成員一個入口的線束標籤；將每個入口連到其訊號。給連接埠或圖頁入口相同的名稱與類型，即可把整束訊號帶到另一圖頁。";
 "A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "線束類型是具名的訊號束（USB：DP、DN、VBUS、GND）。該類型的線束標籤透過連接埠與其圖頁入口或作為全域標籤，帶著每個成員——\"USB1.DP\"、\"USB1.DN\"……；其入口在圖頁上連接各成員。";
@@ -111,6 +112,7 @@
 "Block designator" = "區塊參考編號";
 "Block value: %@" = "區塊值：%@";
 "Board Setup" = "電路板設定";
+"Board default" = "電路板預設";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "電路板外框 (四軸 X 形框架、圓角、圓形)、安裝孔、鋪銅/平面與網路類別";
 "Board thickness" = "板厚";
 "Boards per order, for the order cost" = "每次訂購的板數，用於計算訂單成本";
@@ -132,6 +134,7 @@
 "CTLE" = "CTLE";
 "Cancel" = "取消";
 "Cancel AI Generation" = "取消 AI 生成";
+"Carried to the PCB rules: routing and DRC use them." = "已帶入 PCB 規則：佈線與 DRC 會使用。";
 "Cascade at receiver" = "串接在接收端";
 "Cavity model" = "共振腔模型";
 "Centre" = "置中";
@@ -153,12 +156,14 @@
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "電影風格抬頭顯示：投影機、粒子、元件標註、資料柱與讀數";
 "Circuit" = "電路";
 "Circuit — 5 ms, 5 µs" = "電路 — 5 ms，5 µs";
+"Class / board" = "類別／電路板";
 "Clear" = "清除";
 "Clear Cached Results" = "清除快取結果";
 "Clear Cursors" = "清除游標";
 "Clear Menu" = "清除選單";
 "Clear conversation" = "清除對話";
 "Clear simulation results" = "清除模擬結果";
+"Clearance (mm)" = "間距（mm）";
 "Cleared" = "已清除";
 "Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes" = "按一下焊墊以選取 (⇧ 加選) · 拖曳在格點上移動 · 按兩下加入焊墊 · ⌫ 刪除";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "點選一個焊盤：它與同一排的後續焊盤以走線間距成束一起佈線；完成後再逐條延續各走線";
@@ -210,6 +215,7 @@
 "Delay" = "延遲";
 "Delete" = "刪除";
 "Delete Bus" = "刪除匯流排";
+"Delete Class" = "刪除類別";
 "Delete Part" = "刪除元件";
 "Delete Sheet" = "刪除圖紙";
 "Delete Type" = "刪除類型";
@@ -229,6 +235,7 @@
 "Designators" = "位號";
 "Detect Gates" = "偵測閘";
 "Differential pair" = "差分對";
+"Differential pair member" = "差動對成員";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "具 Product Information v4 的 DigiKey API 應用程式（Production）；用戶端憑證流程。";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "不上件：在電路板上但不安裝；不列入組裝 BOM 與 CPL";
 "Done" = "完成";
@@ -322,6 +329,7 @@
 "Harness name" = "線束名稱";
 "Harnesses" = "線束";
 "Hide navigator (N)" = "隱藏導覽器 (N)";
+"HighSpeed" = "HighSpeed";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "更高的推理強度讓 Claude 對電路拓撲與數值進行更長時間的推理。建議使用“high”。";
 "Highlight" = "標示";
 "Hold" = "保持";
@@ -423,10 +431,15 @@
 "Move the footprint origin to the centre of the pads" = "將封裝原點移至焊墊中心";
 "Move the pad in the numbering; pads between shift by one" = "在編號中移動焊墊；之間的焊墊依序順移一位";
 "NAVIGATOR" = "導覽器";
+"NET CLASSES" = "網路類別";
+"NET DIRECTIVE" = "網路指令";
 "Name" = "名稱";
 "Naval Platform" = "艦船平台";
 "Net" = "網路";
+"Net Classes" = "網路類別";
 "Net Navigator" = "網路導覽";
+"Net class" = "網路類別";
+"Net classes for the directives on nets: the schematic is the source of the board's net rules" = "網路指令的網路類別：電路圖是電路板網路規則的來源";
 "Net model" = "網路模型";
 "Nets" = "網路";
 "Nets (%lld)" = "網路 (%lld)";
@@ -515,6 +528,7 @@
 "Package" = "封裝";
 "Package (optional, e.g. SOIC-8)" = "封裝 (選填，例如 SOIC-8)";
 "Package pins (0 = from pin list)" = "封裝接腳數 (0 = 依接腳清單)";
+"Pairs this net with the net of the opposite suffix (X_P / X_N): routed, tuned and checked as a pair" = "將此網路與相反後綴的網路配對（X_P / X_N）：作為一對佈線、調諧與檢查";
 "Panels" = "面板";
 "Parameter Sweep" = "參數掃描";
 "Part" = "零件";
@@ -639,6 +653,7 @@
 "Save" = "儲存";
 "Save & Place" = "儲存並擺放";
 "Save As…" = "另存新檔…";
+"Save Class" = "儲存類別";
 "Save Key" = "儲存金鑰";
 "Save Type" = "儲存類型";
 "Scale" = "縮放";
@@ -754,6 +769,7 @@
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "介面將使用此語言。工程術語、料號、單位、網路名稱與設計檢查訊息保持英文，以便與規格書和製造檔案一致。";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "離線設計器使用 SiEDA 內建的參考電路。無需網路或 API 金鑰 — 非常適合展示與實體隔離的實驗室。";
 "The plain box: pins in number order down the left, then up the right" = "一般方框：接腳依編號順序沿左側向下，再沿右側向上";
+"The schematic is the source of the board's net rules. Put a net class on a net from the inspector of a net label or wire; the board's routing and DRC take its width and clearance." = "電路圖是電路板網路規則的來源。從網路標籤或導線的檢視器為網路指定網路類別；電路板的佈線與 DRC 會採用其線寬與間距。";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "啟動畫面會預先載入元件庫與參考設計五秒鐘，然後打開主視窗。載入完成後，按一下它或按 Esc 即可略過。";
 "The two gates exchange places in their packages; the symbols and wires stay" = "兩個閘在封裝中互換位置；符號與導線不變";
 "The victim runs on the adjacent layer, over or under the aggressor" = "受害網路在相鄰層上，位於干擾網路的上方或下方";
@@ -761,6 +777,7 @@
 "Through" = "通孔";
 "Title" = "標題";
 "Total jitter" = "總抖動";
+"Track width (mm)" = "線寬（mm）";
 "Transient" = "暫態";
 "Transient analysis" = "暫態分析";
 "Transient: stop" = "暫態：停止時間";

@@ -15,6 +15,7 @@
 "3D Viewer" = "3D ভিউৱাৰ";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A class still used by a directive cannot be deleted" = "নিৰ্দেশে এতিয়াও ব্যৱহাৰ কৰা শ্ৰেণী মচিব নোৱাৰি";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "হাৰ্নেছ লেবেলে ইয়াৰ প্ৰকাৰৰ প্ৰতিটো সদস্য শ্বীটৰ মাজেৰে লৈ যায় (প'ৰ্ট, শ্বীট এণ্ট্ৰি বা গ্ল'বেল)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "প্ৰতি সদস্যৰ বাবে এটা এণ্ট্ৰি থকা হাৰ্নেছ লেবেল; প্ৰতিটো এণ্ট্ৰি ইয়াৰ সংকেতৰ সৈতে সংযোগ কৰক। বাণ্ডল আন শ্বীটলৈ নিবলৈ প'ৰ্ট বা শ্বীট এণ্ট্ৰিক একে নাম আৰু প্ৰকাৰ দিয়ক।";
 "A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "হাৰ্নেছ প্ৰকাৰ হৈছে সংকেতৰ এটা নামযুক্ত বাণ্ডল (USB: DP, DN, VBUS, GND)। এই প্ৰকাৰৰ হাৰ্নেছ লেবেলে প্ৰতিটো সদস্য — \"USB1.DP\", \"USB1.DN\" … — প'ৰ্ট আৰু ইয়াৰ শ্বীট এণ্ট্ৰিৰে, বা গ্ল'বেল লেবেল হিচাপে লৈ যায়; ইয়াৰ এণ্ট্ৰিয়ে শ্বীটত সদস্যবোৰ সংযোগ কৰে।";
@@ -111,6 +112,7 @@
 "Block designator" = "ব্লক নিৰ্দেশক";
 "Block value: %@" = "ব্লকৰ মান: %@";
 "Board Setup" = "বোৰ্ড ছেটআপ";
+"Board default" = "ব'ৰ্ডৰ ডিফল্ট";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "বোৰ্ড আউটলাইন (কোৱাড-X ফ্ৰেম, গোলাকাৰ, বৃত্ত), মাউণ্টিং হ'ল, কপাৰ প'ৰ/প্লেন আৰু নেট ক্লাছ";
 "Board thickness" = "বোৰ্ডৰ ডাঠ";
 "Boards per order, for the order cost" = "অৰ্ডাৰ খৰচৰ বাবে প্ৰতি অৰ্ডাৰত বোৰ্ড";
@@ -132,6 +134,7 @@
 "CTLE" = "CTLE";
 "Cancel" = "বাতিল কৰক";
 "Cancel AI Generation" = "AI জেনেৰেশ্বন বাতিল কৰক";
+"Carried to the PCB rules: routing and DRC use them." = "PCB নিয়মলৈ নিয়া হয়: ৰাউটিং আৰু DRC-এ ব্যৱহাৰ কৰে।";
 "Cascade at receiver" = "গ্ৰাহকত কেছকেড কৰক";
 "Cavity model" = "কেভিটি আৰ্হি";
 "Centre" = "মাজত ৰাখক";
@@ -153,12 +156,14 @@
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "চিনেমেটিক হেডছ-আপ ডিছপ্লে: প্ৰজেক্টৰ, কণিকা, পাৰ্ট কল-আউট, ডাটা পিলাৰ আৰু ৰিড-আউট";
 "Circuit" = "চাৰ্কিট";
 "Circuit — 5 ms, 5 µs" = "চাৰ্কিট — 5 ms, 5 µs";
+"Class / board" = "শ্ৰেণী / ব'ৰ্ড";
 "Clear" = "মচক";
 "Clear Cached Results" = "কেশ কৰা ফলাফল মচক";
 "Clear Cursors" = "কাৰ্ছৰ আঁতৰাওক";
 "Clear Menu" = "মেনু মচক";
 "Clear conversation" = "কথোপকথন মচক";
 "Clear simulation results" = "ছিমুলেশ্বনৰ ফলাফল মচক";
+"Clearance (mm)" = "ক্লিয়াৰেন্স (mm)";
 "Cleared" = "মচা হ'ল";
 "Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes" = "বাছিবলৈ এটা পেডত ক্লিক কৰক (যোগ কৰিবলৈ ⇧) · গ্ৰিডত লৰাবলৈ ড্ৰেগ কৰক · পেড যোগ কৰিবলৈ ডাবল-ক্লিক কৰক · ⌫ য়ে মচে";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "এটা পেডত ক্লিক কৰক: সেইটো আৰু তাৰ শাৰীৰ পৰৱৰ্তী পেডবোৰ ট্ৰেক পিচত এটা বান্দোন হিচাপে একেলগে ৰুট হয়; শেষ কৰক, তাৰ পাছত প্ৰতিটো ট্ৰেক আগবঢ়াওক";
@@ -210,6 +215,7 @@
 "Delay" = "বিলম্ব";
 "Delete" = "মচি পেলাওক";
 "Delete Bus" = "বাছ মচক";
+"Delete Class" = "শ্ৰেণী মচক";
 "Delete Part" = "পাৰ্ট মচি পেলাওক";
 "Delete Sheet" = "শ্বীট মচি পেলাওক";
 "Delete Type" = "প্ৰকাৰ মচক";
@@ -229,6 +235,7 @@
 "Designators" = "ডিজিগনেটৰ";
 "Detect Gates" = "গেট চিনাক্ত কৰক";
 "Differential pair" = "ডিফাৰেন্সিয়েল যোৰ";
+"Differential pair member" = "ডিফাৰেন্সিয়েল পেয়াৰৰ সদস্য";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 সহ DigiKey API এপ্লিকেচন (Production); ক্লায়েণ্ট ক্ৰেডেনচিয়েল প্ৰবাহ।";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "পপুলেট নকৰিব: বোৰ্ডত আছে কিন্তু লগোৱা নহয়; এছেম্বলী BOM আৰু CPL ৰ পৰা বাদ";
 "Done" = "সম্পূৰ্ণ";
@@ -322,6 +329,7 @@
 "Harness name" = "হাৰ্নেছৰ নাম";
 "Harnesses" = "হাৰ্নেছ";
 "Hide navigator (N)" = "নেভিগেটৰ লুকুৱাওক (N)";
+"HighSpeed" = "HighSpeed";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "অধিক প্ৰচেষ্টাই Claude ক চাৰ্কিট টপ'লজি আৰু মানৰ বিষয়ে অধিক সময় চিন্তা কৰিবলৈ দিয়ে। “high” পৰামৰ্শ দিয়া হয়।";
 "Highlight" = "উজ্জ্বল কৰক";
 "Hold" = "হ'ল্ড";
@@ -423,10 +431,15 @@
 "Move the footprint origin to the centre of the pads" = "ফুটপ্ৰিণ্টৰ অৰিজিন পেডবোৰৰ মাজলৈ নিয়ক";
 "Move the pad in the numbering; pads between shift by one" = "নম্বৰিঙত পেড স্থানান্তৰ কৰক; মাজৰ পেডবোৰ এটাকৈ আঁতৰি যায়";
 "NAVIGATOR" = "নেভিগেটৰ";
+"NET CLASSES" = "নেট শ্ৰেণী";
+"NET DIRECTIVE" = "নেট নিৰ্দেশ";
 "Name" = "নাম";
 "Naval Platform" = "নৌসেনা প্লেটফৰ্ম";
 "Net" = "নেট";
+"Net Classes" = "নেট শ্ৰেণী";
 "Net Navigator" = "নেট নেভিগেটৰ";
+"Net class" = "নেট শ্ৰেণী";
+"Net classes for the directives on nets: the schematic is the source of the board's net rules" = "নেটত থকা নিৰ্দেশৰ বাবে নেট শ্ৰেণী: স্কিমেটিকেই ব'ৰ্ডৰ নেট নিয়মৰ উৎস";
 "Net model" = "নেট আৰ্হি";
 "Nets" = "নেট";
 "Nets (%lld)" = "নেট (%lld)";
@@ -515,6 +528,7 @@
 "Package" = "পেকেজ";
 "Package (optional, e.g. SOIC-8)" = "পেকেজ (ঐচ্ছিক, যেনে SOIC-8)";
 "Package pins (0 = from pin list)" = "পেকেজৰ পিন (0 = পিন তালিকাৰ পৰা)";
+"Pairs this net with the net of the opposite suffix (X_P / X_N): routed, tuned and checked as a pair" = "এই নেটক বিপৰীত প্ৰত্যয়ৰ নেটৰ (X_P / X_N) সৈতে যোৰা কৰে: যোৰ হিচাপে ৰাউট, টিউন আৰু পৰীক্ষা কৰা হয়";
 "Panels" = "পেনেল";
 "Parameter Sweep" = "পেৰামিটাৰ ছুইপ";
 "Part" = "অংশ";
@@ -639,6 +653,7 @@
 "Save" = "ছেভ কৰক";
 "Save & Place" = "ছেভ কৰি ৰাখক";
 "Save As…" = "এনেদৰে ছেভ কৰক…";
+"Save Class" = "শ্ৰেণী সাঁচি ৰাখক";
 "Save Key" = "কী ছেভ কৰক";
 "Save Type" = "প্ৰকাৰ সাঁচি ৰাখক";
 "Scale" = "স্কেল";
@@ -754,6 +769,7 @@
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "ইণ্টাৰফেচে এই ভাষা অনুসৰণ কৰে। ইঞ্জিনিয়াৰিং শব্দ, পাৰ্ট নম্বৰ, একক, নেটৰ নাম আৰু ডিজাইন পৰীক্ষাৰ বাৰ্তা ইংৰাজীতে থাকে যাতে সেইবোৰ ডাটাশ্বীট আৰু ফেব্ৰিকেশ্বন ফাইলৰ সৈতে মিলে।";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "অফলাইন ডিজাইনাৰে SiEDA ৰ বিল্ট-ইন ৰেফাৰেন্স চাৰ্কিট ব্যৱহাৰ কৰে। কোনো নেটৱৰ্ক বা API কী নালাগে — ডেম' আৰু এয়াৰ-গেপড লেবৰ বাবে আদৰ্শ।";
 "The plain box: pins in number order down the left, then up the right" = "সাধাৰণ বাকচ: পিনবোৰ নম্বৰ ক্ৰমত বাওঁফালে তললৈ, তাৰ পিছত সোঁফালে ওপৰলৈ";
+"The schematic is the source of the board's net rules. Put a net class on a net from the inspector of a net label or wire; the board's routing and DRC take its width and clearance." = "স্কিমেটিকেই ব'ৰ্ডৰ নেট নিয়মৰ উৎস। নেট লেবেল বা তাঁৰৰ ইন্সপেক্টৰৰ পৰা নেটত নেট শ্ৰেণী দিয়ক; ব'ৰ্ডৰ ৰাউটিং আৰু DRC-এ ইয়াৰ প্ৰস্থ আৰু ক্লিয়াৰেন্স লয়।";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "স্প্লেশ্বে পাঁচ ছেকেণ্ডৰ বাবে কম্পোনেণ্ট লাইব্ৰেৰী আৰু ৰেফাৰেন্স ডিজাইন আগতীয়াকৈ ল'ড কৰে, তাৰ পিছত মূল ৱিণ্ড' খোলে। ল'ডিং সমাপ্ত হ'লে এৰি যাবলৈ ইয়াত ক্লিক কৰক বা Esc টিপক।";
 "The two gates exchange places in their packages; the symbols and wires stay" = "দুয়োটা গেটে পেকেজত স্থান সলনি কৰে; চিহ্ন আৰু তাঁৰ একে থাকে";
 "The victim runs on the adjacent layer, over or under the aggressor" = "ভুক্তভোগী নেটটো কাষৰ স্তৰত, আক্ৰমণকাৰীৰ ওপৰত বা তলত চলে";
@@ -761,6 +777,7 @@
 "Through" = "আৰপাৰ";
 "Title" = "শিৰোনাম";
 "Total jitter" = "মুঠ জিটাৰ";
+"Track width (mm)" = "ট্ৰেকৰ প্ৰস্থ (mm)";
 "Transient" = "ট্ৰেঞ্জিয়েণ্ট";
 "Transient analysis" = "ট্ৰেঞ্জিয়েণ্ট বিশ্লেষণ";
 "Transient: stop" = "ট্ৰেঞ্জিয়েণ্ট: ষ্টপ";

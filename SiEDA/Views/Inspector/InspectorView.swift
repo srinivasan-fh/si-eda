@@ -140,6 +140,14 @@ private struct ComponentProperties: View {
                 .controlSize(.small)
             }
 
+            if kind == .netLabel && !component.isHarnessLabel {
+                // Net directive (net class, differential pair, parameter set) on the label's net.
+                let anchor = PinAddress(component: component.instanceOf ?? component.id, pin: 0)
+                let existing = store.directive(on: anchor)
+                NetDirectiveEditor(anchor: anchor, directive: existing)
+                    .id("directive|\(anchor.component)|\(existing?.id ?? 0)|\(existing?.summary ?? "")")
+            }
+
             let series = ESeries.preferred(for: kind)
             if let options = component.packageOptions, options.count > 1 {
                 PropertyGroup(title: "Package") {
@@ -621,15 +629,31 @@ private struct WireProperties: View {
     var wire: SnapWire
 
     var body: some View {
-        PropertyGroup(title: "Wire") {
-            PropertyRow(label: "Net", value: store.snapshot.net(wire.net)?.name ?? "—")
-            if let v = store.dcResult?.voltage(net: wire.net) {
-                PropertyRow(label: "DC voltage", value: EngineeringFormat.string(v, unit: "V", digits: 4))
+        VStack(alignment: .leading, spacing: 12) {
+            PropertyGroup(title: "Wire") {
+                PropertyRow(label: "Net", value: store.snapshot.net(wire.net)?.name ?? "—")
+                if let v = store.dcResult?.voltage(net: wire.net) {
+                    PropertyRow(label: "DC voltage", value: EngineeringFormat.string(v, unit: "V", digits: 4))
+                }
+                NetNavigatorView(net: wire.net)
+                Button(role: .destructive) { store.deleteSelection() } label: { Label("Delete Wire", systemImage: "trash") }
+                    .buttonStyle(.bordered)
             }
-            NetNavigatorView(net: wire.net)
-            Button(role: .destructive) { store.deleteSelection() } label: { Label("Delete Wire", systemImage: "trash") }
-                .buttonStyle(.bordered)
+            if let anchor = directiveAnchor {
+                let existing = store.directive(on: anchor)
+                NetDirectiveEditor(anchor: anchor, directive: existing)
+                    .id("directive|\(anchor.component)|\(anchor.pin)|\(existing?.id ?? 0)|\(existing?.summary ?? "")")
+            }
         }
+    }
+
+    /// The pin a directive on this wire's net sits on: an end that is a real pin (a block part's for a channel copy).
+    private var directiveAnchor: PinAddress? {
+        for end in [wire.a, wire.b] {
+            guard let c = store.snapshot.component(end.component), c.componentKind != .junction else { continue }
+            return PinAddress(component: c.instanceOf ?? c.id, pin: end.pin)
+        }
+        return nil
     }
 }
 

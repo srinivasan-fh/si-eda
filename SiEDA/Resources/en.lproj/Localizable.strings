@@ -15,6 +15,7 @@
 "3D Viewer" = "3D Viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A class still used by a directive cannot be deleted" = "A class still used by a directive cannot be deleted";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "A harness label carries every member of its type across sheets (port, sheet entry or global)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet.";
 "A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet.";
@@ -111,6 +112,7 @@
 "Block designator" = "Block designator";
 "Block value: %@" = "Block value: %@";
 "Board Setup" = "Board Setup";
+"Board default" = "Board default";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes";
 "Board thickness" = "Board thickness";
 "Boards per order, for the order cost" = "Boards per order, for the order cost";
@@ -132,6 +134,7 @@
 "CTLE" = "CTLE";
 "Cancel" = "Cancel";
 "Cancel AI Generation" = "Cancel AI Generation";
+"Carried to the PCB rules: routing and DRC use them." = "Carried to the PCB rules: routing and DRC use them.";
 "Cascade at receiver" = "Cascade at receiver";
 "Cavity model" = "Cavity model";
 "Centre" = "Centre";
@@ -153,12 +156,14 @@
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs";
 "Circuit" = "Circuit";
 "Circuit — 5 ms, 5 µs" = "Circuit — 5 ms, 5 µs";
+"Class / board" = "Class / board";
 "Clear" = "Clear";
 "Clear Cached Results" = "Clear Cached Results";
 "Clear Cursors" = "Clear Cursors";
 "Clear Menu" = "Clear Menu";
 "Clear conversation" = "Clear conversation";
 "Clear simulation results" = "Clear simulation results";
+"Clearance (mm)" = "Clearance (mm)";
 "Cleared" = "Cleared";
 "Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes" = "Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track";
@@ -210,6 +215,7 @@
 "Delay" = "Delay";
 "Delete" = "Delete";
 "Delete Bus" = "Delete Bus";
+"Delete Class" = "Delete Class";
 "Delete Part" = "Delete Part";
 "Delete Sheet" = "Delete Sheet";
 "Delete Type" = "Delete Type";
@@ -229,6 +235,7 @@
 "Designators" = "Designators";
 "Detect Gates" = "Detect Gates";
 "Differential pair" = "Differential pair";
+"Differential pair member" = "Differential pair member";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "DigiKey API application (Production) with Product Information v4; client credentials flow.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL";
 "Done" = "Done";
@@ -322,6 +329,7 @@
 "Harness name" = "Harness name";
 "Harnesses" = "Harnesses";
 "Hide navigator (N)" = "Hide navigator (N)";
+"HighSpeed" = "HighSpeed";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended.";
 "Highlight" = "Highlight";
 "Hold" = "Hold";
@@ -423,10 +431,15 @@
 "Move the footprint origin to the centre of the pads" = "Move the footprint origin to the centre of the pads";
 "Move the pad in the numbering; pads between shift by one" = "Move the pad in the numbering; pads between shift by one";
 "NAVIGATOR" = "NAVIGATOR";
+"NET CLASSES" = "NET CLASSES";
+"NET DIRECTIVE" = "NET DIRECTIVE";
 "Name" = "Name";
 "Naval Platform" = "Naval Platform";
 "Net" = "Net";
+"Net Classes" = "Net Classes";
 "Net Navigator" = "Net Navigator";
+"Net class" = "Net class";
+"Net classes for the directives on nets: the schematic is the source of the board's net rules" = "Net classes for the directives on nets: the schematic is the source of the board's net rules";
 "Net model" = "Net model";
 "Nets" = "Nets";
 "Nets (%lld)" = "Nets (%lld)";
@@ -515,6 +528,7 @@
 "Package" = "Package";
 "Package (optional, e.g. SOIC-8)" = "Package (optional, e.g. SOIC-8)";
 "Package pins (0 = from pin list)" = "Package pins (0 = from pin list)";
+"Pairs this net with the net of the opposite suffix (X_P / X_N): routed, tuned and checked as a pair" = "Pairs this net with the net of the opposite suffix (X_P / X_N): routed, tuned and checked as a pair";
 "Panels" = "Panels";
 "Parameter Sweep" = "Parameter Sweep";
 "Part" = "Part";
@@ -639,6 +653,7 @@
 "Save" = "Save";
 "Save & Place" = "Save & Place";
 "Save As…" = "Save As…";
+"Save Class" = "Save Class";
 "Save Key" = "Save Key";
 "Save Type" = "Save Type";
 "Scale" = "Scale";
@@ -754,6 +769,7 @@
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs.";
 "The plain box: pins in number order down the left, then up the right" = "The plain box: pins in number order down the left, then up the right";
+"The schematic is the source of the board's net rules. Put a net class on a net from the inspector of a net label or wire; the board's routing and DRC take its width and clearance." = "The schematic is the source of the board's net rules. Put a net class on a net from the inspector of a net label or wire; the board's routing and DRC take its width and clearance.";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done.";
 "The two gates exchange places in their packages; the symbols and wires stay" = "The two gates exchange places in their packages; the symbols and wires stay";
 "The victim runs on the adjacent layer, over or under the aggressor" = "The victim runs on the adjacent layer, over or under the aggressor";
@@ -761,6 +777,7 @@
 "Through" = "Through";
 "Title" = "Title";
 "Total jitter" = "Total jitter";
+"Track width (mm)" = "Track width (mm)";
 "Transient" = "Transient";
 "Transient analysis" = "Transient analysis";
 "Transient: stop" = "Transient: stop";

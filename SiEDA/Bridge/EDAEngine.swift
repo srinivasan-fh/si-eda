@@ -369,6 +369,47 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_clear_channel_overrides($0, Int32(id)) } == 1
     }
 
+    // MARK: - Schematic directives
+
+    private static func json(_ object: [String: Any]) -> String {
+        (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+    }
+
+    /// Defines or replaces a net class (0 = the board default).
+    @discardableResult
+    func setNetClass(_ name: String, trackWidth: Double, clearance: Double) -> Bool {
+        let body = Self.json(["name": name, "trackWidth": trackWidth, "clearance": clearance])
+        return withHandle { sieda_set_net_class($0, body) } == 1
+    }
+
+    @discardableResult
+    func removeNetClass(_ name: String) -> Bool { withHandle { sieda_remove_net_class($0, name) } == 1 }
+
+    private static func directiveJSON(component: Int, pin: Int, netClass: String, diffPair: Bool, trackWidth: Double,
+                                      clearance: Double) -> String {
+        json(["component": component, "pin": pin, "netClass": netClass, "diffPair": diffPair, "trackWidth": trackWidth,
+              "clearance": clearance])
+    }
+
+    /// Adds a directive on the net of a pin; its id, nil when refused.
+    func addDirective(component: Int, pin: Int, netClass: String, diffPair: Bool, trackWidth: Double, clearance: Double) -> Int? {
+        let body = Self.directiveJSON(component: component, pin: pin, netClass: netClass, diffPair: diffPair,
+                                      trackWidth: trackWidth, clearance: clearance)
+        let id = withHandle { sieda_add_directive($0, body) }
+        return id > 0 ? Int(id) : nil
+    }
+
+    @discardableResult
+    func updateDirective(_ id: Int, component: Int, pin: Int, netClass: String, diffPair: Bool, trackWidth: Double,
+                         clearance: Double) -> Bool {
+        let body = Self.directiveJSON(component: component, pin: pin, netClass: netClass, diffPair: diffPair,
+                                      trackWidth: trackWidth, clearance: clearance)
+        return withHandle { sieda_update_directive($0, Int32(id), body) } == 1
+    }
+
+    @discardableResult
+    func removeDirective(_ id: Int) -> Bool { withHandle { sieda_remove_directive($0, Int32(id)) } == 1 }
+
     // MARK: - Signal harnesses
 
     /// Defines or replaces a harness type; an empty entry list removes it.

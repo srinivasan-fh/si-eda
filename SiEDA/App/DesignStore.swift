@@ -955,6 +955,46 @@ final class DesignStore: ObservableObject {
         }
     }
 
+    // MARK: - Schematic directives (the source of the board's net rules)
+
+    @discardableResult
+    func setNetClass(_ name: String, trackWidth: Double, clearance: Double) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return performChecked("Net class \(trimmed)",
+                              failureMessage: "A net class needs a name (letters, digits, _ or -) and sizes of 0.05–10 mm (0 = board default)") {
+            $0.setNetClass(trimmed, trackWidth: trackWidth, clearance: clearance)
+        }
+    }
+
+    func removeNetClass(_ name: String) {
+        performChecked("Removed net class \(name)") { $0.removeNetClass(name) }
+    }
+
+    /// The directive anchored on a pin (nil when there is none).
+    func directive(on anchor: PinAddress) -> DirectiveInfo? {
+        snapshot.directives.first { $0.component == anchor.component && $0.pin == anchor.pin }
+    }
+
+    /// Sets the directive on a pin's net: adds, updates or (when it says nothing) removes it.
+    func setDirective(on anchor: PinAddress, netClass: String, diffPair: Bool, trackWidth: Double, clearance: Double) {
+        let empty = netClass.isEmpty && !diffPair && trackWidth <= 0 && clearance <= 0
+        if let existing = directive(on: anchor) {
+            if empty {
+                performChecked("Removed directive") { $0.removeDirective(existing.id) }
+            } else {
+                performChecked("Directive", failureMessage: "Widths and clearances are 0.05–10 mm (0 = none)") {
+                    $0.updateDirective(existing.id, component: anchor.component, pin: anchor.pin, netClass: netClass,
+                                       diffPair: diffPair, trackWidth: trackWidth, clearance: clearance)
+                }
+            }
+        } else if !empty {
+            performChecked("Directive", failureMessage: "Widths and clearances are 0.05–10 mm (0 = none)") {
+                $0.addDirective(component: anchor.component, pin: anchor.pin, netClass: netClass, diffPair: diffPair,
+                                trackWidth: trackWidth, clearance: clearance) != nil
+            }
+        }
+    }
+
     // MARK: - Signal harnesses
 
     /// Defines or replaces a harness type from a name and its members ("DP, DN, VBUS").

@@ -15,6 +15,7 @@
 "3D Viewer" = "3D ವೀಕ್ಷಕ";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A class still used by a directive cannot be deleted" = "ನಿರ್ದೇಶನ ಇನ್ನೂ ಬಳಸುತ್ತಿರುವ ವರ್ಗವನ್ನು ಅಳಿಸಲಾಗದು";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "ಹಾರ್ನೆಸ್ ಲೇಬಲ್ ತನ್ನ ಪ್ರಕಾರದ ಪ್ರತಿ ಸದಸ್ಯನನ್ನು ಶೀಟ್‌ಗಳ ನಡುವೆ ಒಯ್ಯುತ್ತದೆ (ಪೋರ್ಟ್, ಶೀಟ್ ಎಂಟ್ರಿ ಅಥವಾ ಗ್ಲೋಬಲ್)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "ಪ್ರತಿ ಸದಸ್ಯನಿಗೆ ಒಂದು ಎಂಟ್ರಿ ಇರುವ ಹಾರ್ನೆಸ್ ಲೇಬಲ್; ಪ್ರತಿ ಎಂಟ್ರಿಯನ್ನು ಅದರ ಸಿಗ್ನಲ್‌ಗೆ ಜೋಡಿಸಿ. ಕಟ್ಟನ್ನು ಬೇರೆ ಶೀಟ್‌ಗೆ ಒಯ್ಯಲು ಪೋರ್ಟ್ ಅಥವಾ ಶೀಟ್ ಎಂಟ್ರಿಗೆ ಅದೇ ಹೆಸರು ಮತ್ತು ಪ್ರಕಾರ ನೀಡಿ.";
 "A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "ಹಾರ್ನೆಸ್ ಪ್ರಕಾರವು ಹೆಸರಿರುವ ಸಿಗ್ನಲ್‌ಗಳ ಕಟ್ಟು (USB: DP, DN, VBUS, GND). ಆ ಪ್ರಕಾರದ ಹಾರ್ನೆಸ್ ಲೇಬಲ್ ಪ್ರತಿ ಸದಸ್ಯನನ್ನು — \"USB1.DP\", \"USB1.DN\" … — ಪೋರ್ಟ್ ಮತ್ತು ಅದರ ಶೀಟ್ ಎಂಟ್ರಿಯ ಮೂಲಕ ಅಥವಾ ಗ್ಲೋಬಲ್ ಲೇಬಲ್ ಆಗಿ ಒಯ್ಯುತ್ತದೆ; ಅದರ ಎಂಟ್ರಿಗಳು ಶೀಟ್‌ನಲ್ಲಿ ಸದಸ್ಯರನ್ನು ಜೋಡಿಸುತ್ತವೆ.";
@@ -111,6 +112,7 @@
 "Block designator" = "ಬ್ಲಾಕ್ ಗುರುತು";
 "Block value: %@" = "ಬ್ಲಾಕ್ ಮೌಲ್ಯ: %@";
 "Board Setup" = "ಬೋರ್ಡ್ ಸೆಟಪ್";
+"Board default" = "ಬೋರ್ಡ್ ಡೀಫಾಲ್ಟ್";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "ಬೋರ್ಡ್ ಔಟ್‌ಲೈನ್ (ಕ್ವಾಡ್-X ಫ್ರೇಮ್, ದುಂಡಾದ, ವೃತ್ತ), ಮೌಂಟಿಂಗ್ ರಂಧ್ರಗಳು, ಕಾಪರ್ ಪೋರ್‌ಗಳು/ಪ್ಲೇನ್‌ಗಳು ಮತ್ತು ನೆಟ್ ಕ್ಲಾಸ್‌ಗಳು";
 "Board thickness" = "ಬೋರ್ಡ್ ದಪ್ಪ";
 "Boards per order, for the order cost" = "ಆರ್ಡರ್ ವೆಚ್ಚಕ್ಕಾಗಿ ಪ್ರತಿ ಆರ್ಡರ್‌ಗೆ ಬೋರ್ಡ್‌ಗಳು";
@@ -132,6 +134,7 @@
 "CTLE" = "CTLE";
 "Cancel" = "ರದ್ದುಮಾಡಿ";
 "Cancel AI Generation" = "AI ಉತ್ಪಾದನೆಯನ್ನು ರದ್ದುಮಾಡಿ";
+"Carried to the PCB rules: routing and DRC use them." = "PCB ನಿಯಮಗಳಿಗೆ ಒಯ್ಯಲಾಗುತ್ತದೆ: ರೂಟಿಂಗ್ ಮತ್ತು DRC ಅವನ್ನು ಬಳಸುತ್ತವೆ.";
 "Cascade at receiver" = "ರಿಸೀವರ್‌ನಲ್ಲಿ ಕ್ಯಾಸ್ಕೇಡ್ ಮಾಡಿ";
 "Cavity model" = "ಕುಹರ ಮಾದರಿ";
 "Centre" = "ಮಧ್ಯಕ್ಕೆ ತನ್ನಿ";
@@ -153,12 +156,14 @@
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "ಸಿನಿಮ್ಯಾಟಿಕ್ ಹೆಡ್ಸ್-ಅಪ್ ಡಿಸ್‌ಪ್ಲೇ: ಪ್ರೊಜೆಕ್ಟರ್, ಕಣಗಳು, ಪಾರ್ಟ್ ಕಾಲ್-ಔಟ್‌ಗಳು, ಡೇಟಾ ಸ್ತಂಭಗಳು ಮತ್ತು ರೀಡ್-ಔಟ್‌ಗಳು";
 "Circuit" = "ಸರ್ಕ್ಯೂಟ್";
 "Circuit — 5 ms, 5 µs" = "ಸರ್ಕ್ಯೂಟ್ — 5 ms, 5 µs";
+"Class / board" = "ವರ್ಗ / ಬೋರ್ಡ್";
 "Clear" = "ತೆರವುಗೊಳಿಸಿ";
 "Clear Cached Results" = "ಕ್ಯಾಶ್ ಮಾಡಿದ ಫಲಿತಾಂಶಗಳನ್ನು ತೆರವುಗೊಳಿಸಿ";
 "Clear Cursors" = "ಕರ್ಸರ್‌ಗಳನ್ನು ತೆರವುಗೊಳಿಸಿ";
 "Clear Menu" = "ಮೆನು ತೆರವುಗೊಳಿಸಿ";
 "Clear conversation" = "ಸಂಭಾಷಣೆ ತೆರವುಗೊಳಿಸಿ";
 "Clear simulation results" = "ಸಿಮ್ಯುಲೇಶನ್ ಫಲಿತಾಂಶಗಳನ್ನು ತೆರವುಗೊಳಿಸಿ";
+"Clearance (mm)" = "ಕ್ಲಿಯರೆನ್ಸ್ (mm)";
 "Cleared" = "ತೆರವುಗೊಳಿಸಲಾಗಿದೆ";
 "Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes" = "ಆಯ್ಕೆಮಾಡಲು ಪ್ಯಾಡ್ ಕ್ಲಿಕ್ ಮಾಡಿ (ಸೇರಿಸಲು ⇧) · ಗ್ರಿಡ್‌ನಲ್ಲಿ ಸರಿಸಲು ಡ್ರ್ಯಾಗ್ ಮಾಡಿ · ಪ್ಯಾಡ್ ಸೇರಿಸಲು ಡಬಲ್-ಕ್ಲಿಕ್ ಮಾಡಿ · ⌫ ಅಳಿಸುತ್ತದೆ";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "ಪ್ಯಾಡ್ ಕ್ಲಿಕ್ ಮಾಡಿ: ಅದು ಮತ್ತು ಅದರ ಸಾಲಿನ ಮುಂದಿನ ಪ್ಯಾಡ್‌ಗಳು ಟ್ರ್ಯಾಕ್ ಪಿಚ್‌ನಲ್ಲಿ ಕಟ್ಟಾಗಿ ಒಟ್ಟಿಗೆ ರೂಟ್ ಆಗುತ್ತವೆ; ಮುಗಿಸಿ, ನಂತರ ಪ್ರತಿ ಟ್ರ್ಯಾಕ್ ಮುಂದುವರಿಸಿ";
@@ -210,6 +215,7 @@
 "Delay" = "ವಿಳಂಬ";
 "Delete" = "ಅಳಿಸಿ";
 "Delete Bus" = "ಬಸ್ ಅಳಿಸಿ";
+"Delete Class" = "ವರ್ಗ ಅಳಿಸಿ";
 "Delete Part" = "ಪಾರ್ಟ್ ಅಳಿಸಿ";
 "Delete Sheet" = "ಶೀಟ್ ಅಳಿಸಿ";
 "Delete Type" = "ಪ್ರಕಾರ ಅಳಿಸಿ";
@@ -229,6 +235,7 @@
 "Designators" = "ಡಿಸಿಗ್ನೇಟರ್‌ಗಳು";
 "Detect Gates" = "ಗೇಟ್‌ಗಳನ್ನು ಪತ್ತೆಮಾಡಿ";
 "Differential pair" = "ಡಿಫರೆನ್ಷಿಯಲ್ ಜೋಡಿ";
+"Differential pair member" = "ಡಿಫರೆನ್ಶಿಯಲ್ ಪೇರ್ ಸದಸ್ಯ";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 ಹೊಂದಿರುವ DigiKey API ಅಪ್ಲಿಕೇಶನ್ (Production); ಕ್ಲೈಂಟ್ ಕ್ರೆಡೆನ್ಶಿಯಲ್ಸ್ ಫ್ಲೋ.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "ಜೋಡಿಸಬೇಡಿ: ಬೋರ್ಡ್‌ನಲ್ಲಿದೆ ಆದರೆ ಅಳವಡಿಸಲಾಗುವುದಿಲ್ಲ; ಅಸೆಂಬ್ಲಿ BOM ಮತ್ತು CPL ನಿಂದ ಹೊರಗಿಡಲಾಗುತ್ತದೆ";
 "Done" = "ಮುಗಿದಿದೆ";
@@ -322,6 +329,7 @@
 "Harness name" = "ಹಾರ್ನೆಸ್ ಹೆಸರು";
 "Harnesses" = "ಹಾರ್ನೆಸ್‌ಗಳು";
 "Hide navigator (N)" = "ನ್ಯಾವಿಗೇಟರ್ ಮರೆಮಾಡಿ (N)";
+"HighSpeed" = "HighSpeed";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "ಹೆಚ್ಚಿನ ಪ್ರಯತ್ನದಿಂದ Claude ಸರ್ಕ್ಯೂಟ್ ಟೋಪಾಲಜಿ ಮತ್ತು ಮೌಲ್ಯಗಳ ಬಗ್ಗೆ ಹೆಚ್ಚು ಸಮಯ ಯೋಚಿಸಬಹುದು. “high” ಶಿಫಾರಸು ಮಾಡಲಾಗಿದೆ.";
 "Highlight" = "ಹೈಲೈಟ್";
 "Hold" = "ಹೋಲ್ಡ್";
@@ -423,10 +431,15 @@
 "Move the footprint origin to the centre of the pads" = "ಫುಟ್‌ಪ್ರಿಂಟ್ ಮೂಲಬಿಂದುವನ್ನು ಪ್ಯಾಡ್‌ಗಳ ಮಧ್ಯಕ್ಕೆ ಸರಿಸಿ";
 "Move the pad in the numbering; pads between shift by one" = "ಸಂಖ್ಯಾಕ್ರಮದಲ್ಲಿ ಪ್ಯಾಡ್ ಸರಿಸಿ; ನಡುವಿನ ಪ್ಯಾಡ್‌ಗಳು ಒಂದು ಸ್ಥಾನ ಸರಿಯುತ್ತವೆ";
 "NAVIGATOR" = "ನ್ಯಾವಿಗೇಟರ್";
+"NET CLASSES" = "ನೆಟ್ ವರ್ಗಗಳು";
+"NET DIRECTIVE" = "ನೆಟ್ ನಿರ್ದೇಶನ";
 "Name" = "ಹೆಸರು";
 "Naval Platform" = "ನೌಕಾ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್";
 "Net" = "ನೆಟ್";
+"Net Classes" = "ನೆಟ್ ವರ್ಗಗಳು";
 "Net Navigator" = "ನೆಟ್ ನ್ಯಾವಿಗೇಟರ್";
+"Net class" = "ನೆಟ್ ವರ್ಗ";
+"Net classes for the directives on nets: the schematic is the source of the board's net rules" = "ನೆಟ್‌ಗಳ ಮೇಲಿನ ನಿರ್ದೇಶನಗಳಿಗೆ ನೆಟ್ ವರ್ಗಗಳು: ಸ್ಕೀಮ್ಯಾಟಿಕ್ ಬೋರ್ಡ್‌ನ ನೆಟ್ ನಿಯಮಗಳ ಮೂಲ";
 "Net model" = "ನೆಟ್ ಮಾದರಿ";
 "Nets" = "ನೆಟ್‌ಗಳು";
 "Nets (%lld)" = "ನೆಟ್‌ಗಳು (%lld)";
@@ -515,6 +528,7 @@
 "Package" = "ಪ್ಯಾಕೇಜ್";
 "Package (optional, e.g. SOIC-8)" = "ಪ್ಯಾಕೇಜ್ (ಐಚ್ಛಿಕ, ಉದಾ. SOIC-8)";
 "Package pins (0 = from pin list)" = "ಪ್ಯಾಕೇಜ್ ಪಿನ್‌ಗಳು (0 = ಪಿನ್ ಪಟ್ಟಿಯಿಂದ)";
+"Pairs this net with the net of the opposite suffix (X_P / X_N): routed, tuned and checked as a pair" = "ಈ ನೆಟ್ ಅನ್ನು ವಿರುದ್ಧ ಪ್ರತ್ಯಯದ ನೆಟ್‌ನೊಂದಿಗೆ (X_P / X_N) ಜೋಡಿಸುತ್ತದೆ: ಜೋಡಿಯಾಗಿ ರೂಟ್, ಟ್ಯೂನ್ ಮತ್ತು ಪರಿಶೀಲಿಸಲಾಗುತ್ತದೆ";
 "Panels" = "ಪ್ಯಾನೆಲ್‌ಗಳು";
 "Parameter Sweep" = "ಪ್ಯಾರಾಮೀಟರ್ ಸ್ವೀಪ್";
 "Part" = "ಭಾಗ";
@@ -639,6 +653,7 @@
 "Save" = "ಉಳಿಸಿ";
 "Save & Place" = "ಉಳಿಸಿ ಮತ್ತು ಇರಿಸಿ";
 "Save As…" = "ಹೀಗೆ ಉಳಿಸಿ…";
+"Save Class" = "ವರ್ಗ ಉಳಿಸಿ";
 "Save Key" = "ಕೀ ಉಳಿಸಿ";
 "Save Type" = "ಪ್ರಕಾರ ಉಳಿಸಿ";
 "Scale" = "ಪ್ರಮಾಣ";
@@ -754,6 +769,7 @@
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "ಇಂಟರ್‌ಫೇಸ್ ಈ ಭಾಷೆಯನ್ನು ಅನುಸರಿಸುತ್ತದೆ. ಎಂಜಿನಿಯರಿಂಗ್ ಪದಗಳು, ಪಾರ್ಟ್ ಸಂಖ್ಯೆಗಳು, ಯೂನಿಟ್‌ಗಳು, ನೆಟ್ ಹೆಸರುಗಳು ಮತ್ತು ಡಿಸೈನ್ ಪರಿಶೀಲನಾ ಸಂದೇಶಗಳು ಡೇಟಾಶೀಟ್‌ಗಳು ಮತ್ತು ಫ್ಯಾಬ್ರಿಕೇಶನ್ ಫೈಲ್‌ಗಳಿಗೆ ಹೊಂದಿಕೆಯಾಗುವಂತೆ ಇಂಗ್ಲಿಷ್‌ನಲ್ಲೇ ಇರುತ್ತವೆ.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ಆಫ್‌ಲೈನ್ ಡಿಸೈನರ್ SiEDA ಯ ಅಂತರ್ನಿರ್ಮಿತ ರೆಫರೆನ್ಸ್ ಸರ್ಕ್ಯೂಟ್‌ಗಳನ್ನು ಬಳಸುತ್ತದೆ. ನೆಟ್‌ವರ್ಕ್ ಅಥವಾ API ಕೀ ಅಗತ್ಯವಿಲ್ಲ — ಡೆಮೊಗಳು ಮತ್ತು ಏರ್-ಗ್ಯಾಪ್ಡ್ ಲ್ಯಾಬ್‌ಗಳಿಗೆ ಸೂಕ್ತ.";
 "The plain box: pins in number order down the left, then up the right" = "ಸರಳ ಬಾಕ್ಸ್: ಪಿನ್‌ಗಳು ಸಂಖ್ಯಾ ಕ್ರಮದಲ್ಲಿ ಎಡಭಾಗದಲ್ಲಿ ಕೆಳಕ್ಕೆ, ನಂತರ ಬಲಭಾಗದಲ್ಲಿ ಮೇಲಕ್ಕೆ";
+"The schematic is the source of the board's net rules. Put a net class on a net from the inspector of a net label or wire; the board's routing and DRC take its width and clearance." = "ಸ್ಕೀಮ್ಯಾಟಿಕ್ ಬೋರ್ಡ್‌ನ ನೆಟ್ ನಿಯಮಗಳ ಮೂಲ. ನೆಟ್ ಲೇಬಲ್ ಅಥವಾ ತಂತಿಯ ಇನ್‌ಸ್ಪೆಕ್ಟರ್‌ನಿಂದ ನೆಟ್‌ಗೆ ನೆಟ್ ವರ್ಗ ನೀಡಿ; ಬೋರ್ಡ್‌ನ ರೂಟಿಂಗ್ ಮತ್ತು DRC ಅದರ ಅಗಲ ಮತ್ತು ಕ್ಲಿಯರೆನ್ಸ್ ತೆಗೆದುಕೊಳ್ಳುತ್ತವೆ.";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "ಸ್ಪ್ಲ್ಯಾಶ್ ಕಾಂಪೊನೆಂಟ್ ಲೈಬ್ರರಿ ಮತ್ತು ರೆಫರೆನ್ಸ್ ಡಿಸೈನ್‌ಗಳನ್ನು ಐದು ಸೆಕೆಂಡುಗಳ ಕಾಲ ಮುಂಚಿತವಾಗಿ ಲೋಡ್ ಮಾಡಿ, ನಂತರ ಮುಖ್ಯ ವಿಂಡೋ ತೆರೆಯುತ್ತದೆ. ಲೋಡಿಂಗ್ ಮುಗಿದ ನಂತರ ಬಿಟ್ಟುಬಿಡಲು ಅದನ್ನು ಕ್ಲಿಕ್ ಮಾಡಿ ಅಥವಾ Esc ಒತ್ತಿ.";
 "The two gates exchange places in their packages; the symbols and wires stay" = "ಎರಡು ಗೇಟ್‌ಗಳು ತಮ್ಮ ಪ್ಯಾಕೇಜ್‌ಗಳಲ್ಲಿ ಸ್ಥಾನ ಬದಲಿಸುತ್ತವೆ; ಚಿಹ್ನೆಗಳು ಮತ್ತು ತಂತಿಗಳು ಉಳಿಯುತ್ತವೆ";
 "The victim runs on the adjacent layer, over or under the aggressor" = "ಬಲಿಪಶು ನೆಟ್ ಪಕ್ಕದ ಪದರದಲ್ಲಿ, ಆಕ್ರಮಣಕಾರಿ ನೆಟ್‌ನ ಮೇಲೆ ಅಥವಾ ಕೆಳಗೆ ಸಾಗುತ್ತದೆ";
@@ -761,6 +777,7 @@
 "Through" = "ಥ್ರೂ";
 "Title" = "ಶೀರ್ಷಿಕೆ";
 "Total jitter" = "ಒಟ್ಟು ಜಿಟ್ಟರ್";
+"Track width (mm)" = "ಟ್ರ್ಯಾಕ್ ಅಗಲ (mm)";
 "Transient" = "ಟ್ರಾನ್ಸಿಯೆಂಟ್";
 "Transient analysis" = "ಟ್ರಾನ್ಸಿಯೆಂಟ್ ವಿಶ್ಲೇಷಣೆ";
 "Transient: stop" = "ಟ್ರಾನ್ಸಿಯೆಂಟ್: ನಿಲುಗಡೆ";

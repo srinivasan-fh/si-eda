@@ -96,6 +96,10 @@ public:
 
     /// Call after any schematic edit that can change connectivity; keeps PCB copper consistent.
     void schematicChanged();
+    /// The schematic is the source of the board's net rules: the widths and clearances its directives give nets
+    /// replace those of the previous application in the board settings (nets the schematic never set keep theirs).
+    /// Returns true when the board rules changed. Called by schematicChanged().
+    bool applySchematicRules();
 
     Json toJson() const;
     static Project fromJson(const Json& j);  // throws JsonError on malformed input

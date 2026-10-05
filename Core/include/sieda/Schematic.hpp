@@ -152,6 +152,37 @@ struct HarnessType {
     std::vector<std::string> entries;
 };
 
+/// A net class defined on the schematic (Altium's net class directive): the design rules the board takes for its
+/// nets. 0 = the board's default.
+struct NetClassDef {
+    std::string name;
+    double trackWidth = 0;  // mm
+    double clearance = 0;   // mm, to other nets' copper
+};
+
+/// A schematic directive on a net (Altium's parameter set / differential pair / net class directives), attached to a
+/// component pin: the net that pin is on — in every channel of a repeated sheet — gets it.
+struct NetDirective {
+    int id = -1;
+    int component = -1;
+    int pin = 0;
+    std::string netClass;   // "" = none
+    bool diffPair = false;  // a differential pair member: paired with the net of the opposite suffix (X_P / X_N …)
+    double trackWidth = 0;  // parameter set: overrides the class (mm; 0 = none)
+    double clearance = 0;
+};
+
+/// The rules a net gets from the schematic's directives.
+struct NetRule {
+    int net = -1;
+    std::string netName;
+    std::string netClass;
+    double trackWidth = 0;
+    double clearance = 0;
+    bool diffPair = false;
+    int partner = -1;  // the other net of its differential pair (-1 = none)
+};
+
 /// Per-channel parameters of a repeated sheet's part (Component::channelOverrides).
 enum ChannelOverride : int {
     kOverrideValue = 1,    // the channel's own value (R1 = 10k in channel A, 12k in channel B)
@@ -437,6 +468,27 @@ public:
     /// Replaces the harness types (persistence; invalid entries dropped).
     void restoreHarnessTypes(const std::vector<HarnessType>& types);
 
+    // ---- schematic directives: net classes, differential pairs, parameter sets (the source of the PCB rules) ----
+    const std::vector<NetClassDef>& netClassDefs() const { return netClassDefs_; }
+    const NetClassDef* findNetClassDef(const std::string& name) const;
+    /// Defines or replaces a net class (name: letters, digits, '_' or '-', 1…32; width / clearance 0 or 0.05…10 mm).
+    bool setNetClassDef(const NetClassDef& def);
+    bool removeNetClassDef(const std::string& name);
+    const std::vector<NetDirective>& directives() const { return directives_; }
+    const NetDirective* findDirective(int id) const;
+    /// Adds a directive on the net of (component, pin); a copy in a repeated sheet's channel anchors it on its block.
+    /// Returns its id, or -1 (unknown pin, invalid values).
+    int addDirective(const NetDirective& d);
+    bool updateDirective(int id, const NetDirective& d);
+    bool removeDirective(int id);
+    /// Persistence: adds a directive read from a file (invalid ones dropped).
+    void restoreDirective(const NetDirective& d);
+    /// The rules every net with a directive gets: class values, overridden by the directive's own; differential pair
+    /// members with their partner nets. Sorted by net.
+    std::vector<NetRule> netRules() const;
+    /// Differential pairs marked by directives: (positive, negative) nets.
+    std::vector<std::pair<int, int>> directiveDiffPairs() const;
+
     // ---- graphical buses ----
     const std::vector<Bus>& buses() const { return buses_; }
     const Bus* findBus(int id) const;
@@ -470,6 +522,7 @@ private:
     /// After an edit: keeps repeated sheets' instances in line (nothing to do in a design without them).
     void edited() {
         repairHarnessLinks();
+        if (!directives_.empty()) repairDirectives();
         if (hasInstances()) syncInstances();
         else syncUnits();
     }
@@ -511,6 +564,13 @@ private:
     /// that reach nothing.
     void harnessERC(std::vector<RuleViolation>& out) const;
     std::vector<HarnessType> harnessTypes_;
+    /// Directive checks: unknown classes, directives on no net, conflicting classes, unpaired differential pairs.
+    void directiveERC(std::vector<RuleViolation>& out) const;
+    /// Drops directives whose anchor is gone (true when it changed anything).
+    bool repairDirectives();
+    std::vector<NetClassDef> netClassDefs_;
+    std::vector<NetDirective> directives_;
+    int nextDirectiveId_ = 1;
 
     std::vector<Component> components_;
     std::vector<Wire> wires_;

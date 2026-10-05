@@ -15,6 +15,7 @@
 "3D Viewer" = "3D-Ansicht";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A class still used by a directive cannot be deleted" = "Eine Klasse, die eine Direktive noch verwendet, kann nicht gelöscht werden";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Ein Kabelbaum-Label führt jedes Mitglied seines Typs über die Blätter (Port, Blatteingang oder global)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Ein Kabelbaum-Label mit einem Eintrag je Mitglied; jeden Eintrag mit seinem Signal verdrahten. Einem Port oder Blatteingang denselben Namen und Typ geben, um das Bündel auf ein anderes Blatt zu führen.";
 "A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "Ein Kabelbaum-Typ ist ein benanntes Signalbündel (USB: DP, DN, VBUS, GND). Ein Kabelbaum-Label des Typs führt jedes Mitglied – \"USB1.DP\", \"USB1.DN\" … – über einen Port und seinen Blatteingang oder als globales Label; seine Einträge verbinden die Mitglieder auf dem Blatt.";
@@ -111,6 +112,7 @@
 "Block designator" = "Block-Bezeichner";
 "Block value: %@" = "Blockwert: %@";
 "Board Setup" = "Platineneinrichtung";
+"Board default" = "Platinen-Standard";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Platinenumriss (Quad-X-Rahmen, abgerundet, Kreis), Montagebohrungen, Kupferflächen/-ebenen und Netzklassen";
 "Board thickness" = "Platinendicke";
 "Boards per order, for the order cost" = "Platinen pro Bestellung, für die Bestellkosten";
@@ -132,6 +134,7 @@
 "CTLE" = "CTLE";
 "Cancel" = "Abbrechen";
 "Cancel AI Generation" = "KI-Generierung abbrechen";
+"Carried to the PCB rules: routing and DRC use them." = "In die PCB-Regeln übernommen: Routing und DRC verwenden sie.";
 "Cascade at receiver" = "Am Empfänger kaskadieren";
 "Cavity model" = "Resonatormodell";
 "Centre" = "Zentrieren";
@@ -153,12 +156,14 @@
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "Kinoreifes Head-up-Display: Projektor, Partikel, Bauteil-Callouts, Datensäulen und Anzeigen";
 "Circuit" = "Schaltung";
 "Circuit — 5 ms, 5 µs" = "Schaltung — 5 ms, 5 µs";
+"Class / board" = "Klasse / Platine";
 "Clear" = "Löschen";
 "Clear Cached Results" = "Zwischengespeicherte Ergebnisse löschen";
 "Clear Cursors" = "Cursor entfernen";
 "Clear Menu" = "Menü löschen";
 "Clear conversation" = "Unterhaltung löschen";
 "Clear simulation results" = "Simulationsergebnisse löschen";
+"Clearance (mm)" = "Abstand (mm)";
 "Cleared" = "Gelöscht";
 "Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes" = "Pad anklicken zum Auswählen (⇧ zum Hinzufügen) · ziehen zum Verschieben im Raster · Doppelklick fügt ein Pad hinzu · ⌫ löscht";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "Pad anklicken: es und die folgenden Pads seiner Reihe werden zusammen als Bündel im Leiterbahnraster geroutet; abschließen, dann jede Leiterbahn einzeln weiterführen";
@@ -210,6 +215,7 @@
 "Delay" = "Verzögerung";
 "Delete" = "Löschen";
 "Delete Bus" = "Bus löschen";
+"Delete Class" = "Klasse löschen";
 "Delete Part" = "Bauteil löschen";
 "Delete Sheet" = "Blatt löschen";
 "Delete Type" = "Typ löschen";
@@ -229,6 +235,7 @@
 "Designators" = "Bauteilbezeichner";
 "Detect Gates" = "Gatter erkennen";
 "Differential pair" = "Differenzielles Paar";
+"Differential pair member" = "Mitglied eines Differenzpaars";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "DigiKey-API-Anwendung (Production) mit Product Information v4; Client-Credentials-Ablauf.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Nicht bestücken: auf der Platine, aber nicht bestückt; nicht in Bestückungs-BOM und CPL enthalten";
 "Done" = "Fertig";
@@ -322,6 +329,7 @@
 "Harness name" = "Kabelbaum-Name";
 "Harnesses" = "Kabelbäume";
 "Hide navigator (N)" = "Navigator ausblenden (N)";
+"HighSpeed" = "HighSpeed";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "Höherer Aufwand lässt Claude länger über Schaltungstopologie und Werte nachdenken. „high“ wird empfohlen.";
 "Highlight" = "Hervorheben";
 "Hold" = "Halten";
@@ -423,10 +431,15 @@
 "Move the footprint origin to the centre of the pads" = "Footprint-Ursprung in die Mitte der Pads verschieben";
 "Move the pad in the numbering; pads between shift by one" = "Pad in der Nummerierung verschieben; dazwischenliegende Pads rücken um eins";
 "NAVIGATOR" = "NAVIGATOR";
+"NET CLASSES" = "NETZKLASSEN";
+"NET DIRECTIVE" = "NETZ-DIREKTIVE";
 "Name" = "Name";
 "Naval Platform" = "Marineplattform";
 "Net" = "Netz";
+"Net Classes" = "Netzklassen";
 "Net Navigator" = "Netz-Navigator";
+"Net class" = "Netzklasse";
+"Net classes for the directives on nets: the schematic is the source of the board's net rules" = "Netzklassen für die Direktiven an Netzen: der Schaltplan ist die Quelle der Netzregeln der Platine";
 "Net model" = "Netzmodell";
 "Nets" = "Netze";
 "Nets (%lld)" = "Netze (%lld)";
@@ -515,6 +528,7 @@
 "Package" = "Gehäuse";
 "Package (optional, e.g. SOIC-8)" = "Gehäuse (optional, z. B. SOIC-8)";
 "Package pins (0 = from pin list)" = "Gehäusepins (0 = aus Pinliste)";
+"Pairs this net with the net of the opposite suffix (X_P / X_N): routed, tuned and checked as a pair" = "Paart dieses Netz mit dem Netz des Gegensuffixes (X_P / X_N): als Paar geroutet, abgeglichen und geprüft";
 "Panels" = "Bereiche";
 "Parameter Sweep" = "Parametersweep";
 "Part" = "Bauteil";
@@ -639,6 +653,7 @@
 "Save" = "Sichern";
 "Save & Place" = "Sichern & platzieren";
 "Save As…" = "Sichern unter …";
+"Save Class" = "Klasse speichern";
 "Save Key" = "Schlüssel sichern";
 "Save Type" = "Typ speichern";
 "Scale" = "Skalierung";
@@ -754,6 +769,7 @@
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "Die Oberfläche folgt dieser Sprache. Fachbegriffe, Teilenummern, Einheiten, Netznamen und Meldungen der Designprüfung bleiben auf Englisch, damit sie zu Datenblättern und Fertigungsdateien passen.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Der Offline-Designer nutzt die integrierten Referenzschaltungen von SiEDA. Kein Netzwerk oder API-Schlüssel nötig — ideal für Demos und abgeschottete Labore.";
 "The plain box: pins in number order down the left, then up the right" = "Der einfache Kasten: Pins in Nummernfolge links abwärts, dann rechts aufwärts";
+"The schematic is the source of the board's net rules. Put a net class on a net from the inspector of a net label or wire; the board's routing and DRC take its width and clearance." = "Der Schaltplan ist die Quelle der Netzregeln der Platine. Einem Netz im Inspektor eines Netzlabels oder einer Leitung eine Netzklasse geben; Routing und DRC der Platine übernehmen Breite und Abstand.";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "Der Startbildschirm lädt fünf Sekunden lang die Bauteilbibliothek und Referenzdesigns und öffnet dann das Hauptfenster. Klicken oder Esc drücken, um nach dem Laden zu überspringen.";
 "The two gates exchange places in their packages; the symbols and wires stay" = "Die beiden Gatter tauschen ihre Plätze im Gehäuse; Symbole und Leitungen bleiben";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Das Opfer verläuft auf der Nachbarlage, über oder unter dem Störer";
@@ -761,6 +777,7 @@
 "Through" = "Durchgehend";
 "Title" = "Titel";
 "Total jitter" = "Gesamtjitter";
+"Track width (mm)" = "Leiterbahnbreite (mm)";
 "Transient" = "Transient";
 "Transient analysis" = "Transientenanalyse";
 "Transient: stop" = "Transient: Stopp";

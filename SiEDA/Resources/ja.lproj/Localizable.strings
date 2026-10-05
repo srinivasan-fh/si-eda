@@ -15,6 +15,7 @@
 "3D Viewer" = "3D ビューア";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A class still used by a directive cannot be deleted" = "指示で使われているクラスは削除できません";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "ハーネスラベルは型のすべてのメンバーをシート間で運びます（ポート、シートエントリ、またはグローバル）";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "メンバーごとにエントリを1つ持つハーネスラベルです。各エントリを信号に配線します。ポートやシートエントリに同じ名前と型を付けると、束を別のシートへ運べます。";
 "A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "ハーネス型は名前付きの信号の束です（USB: DP, DN, VBUS, GND）。この型のハーネスラベルは、ポートとそのシートエントリ、またはグローバルラベルとして、すべてのメンバー（\"USB1.DP\"、\"USB1.DN\" …）を運び、エントリはシート上でメンバーをつなぎます。";
@@ -111,6 +112,7 @@
 "Block designator" = "ブロック内リファレンス";
 "Block value: %@" = "ブロック値: %@";
 "Board Setup" = "基板設定";
+"Board default" = "基板の既定値";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "基板外形 (クアッド X フレーム、角丸、円)、取付穴、銅ベタ/プレーン、ネットクラス";
 "Board thickness" = "基板厚";
 "Boards per order, for the order cost" = "注文コスト算出用の 1 回あたりの基板枚数";
@@ -132,6 +134,7 @@
 "CTLE" = "CTLE";
 "Cancel" = "キャンセル";
 "Cancel AI Generation" = "AI 生成をキャンセル";
+"Carried to the PCB rules: routing and DRC use them." = "PCB ルールに反映され、配線と DRC で使われます。";
 "Cascade at receiver" = "受信端にカスケード接続";
 "Cavity model" = "共振器モデル";
 "Centre" = "中央に配置";
@@ -153,12 +156,14 @@
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "シネマティック HUD：プロジェクター、パーティクル、部品コールアウト、データピラー、読み取り値";
 "Circuit" = "回路";
 "Circuit — 5 ms, 5 µs" = "回路 — 5 ms、5 µs";
+"Class / board" = "クラス／基板";
 "Clear" = "クリア";
 "Clear Cached Results" = "キャッシュした結果を消去";
 "Clear Cursors" = "カーソルを消去";
 "Clear Menu" = "メニューを消去";
 "Clear conversation" = "会話を消去";
 "Clear simulation results" = "シミュレーション結果を消去";
+"Clearance (mm)" = "クリアランス（mm）";
 "Cleared" = "消去しました";
 "Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes" = "パッドをクリックで選択 (⇧ で追加) · ドラッグでグリッド上を移動 · ダブルクリックでパッドを追加 · ⌫ で削除";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "パッドをクリック：そのパッドと同じ列の続くパッドがトラックピッチで束になって一緒に配線されます。終えたら各トラックを個別に続けます";
@@ -210,6 +215,7 @@
 "Delay" = "遅延";
 "Delete" = "削除";
 "Delete Bus" = "バスを削除";
+"Delete Class" = "クラスを削除";
 "Delete Part" = "部品を削除";
 "Delete Sheet" = "シートを削除";
 "Delete Type" = "型を削除";
@@ -229,6 +235,7 @@
 "Designators" = "リファレンス";
 "Detect Gates" = "ゲートを検出";
 "Differential pair" = "差動ペア";
+"Differential pair member" = "差動ペアのメンバー";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 を含む DigiKey API アプリケーション（Production）、クライアント認証情報フロー。";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "未実装：基板上にはあるが実装しない。実装用 BOM と CPL から除外";
 "Done" = "完了";
@@ -322,6 +329,7 @@
 "Harness name" = "ハーネス名";
 "Harnesses" = "ハーネス";
 "Hide navigator (N)" = "ナビゲータを隠す (N)";
+"HighSpeed" = "HighSpeed";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "推論レベルを上げると、Claude が回路トポロジーと値についてより長く推論します。“high” を推奨します。";
 "Highlight" = "ハイライト";
 "Hold" = "ホールド";
@@ -423,10 +431,15 @@
 "Move the footprint origin to the centre of the pads" = "フットプリントの原点をパッドの中心に移動";
 "Move the pad in the numbering; pads between shift by one" = "番号順でパッドを移動。間のパッドは 1 つずつずれます";
 "NAVIGATOR" = "ナビゲータ";
+"NET CLASSES" = "ネットクラス";
+"NET DIRECTIVE" = "ネット指示";
 "Name" = "名前";
 "Naval Platform" = "艦艇プラットフォーム";
 "Net" = "ネット";
+"Net Classes" = "ネットクラス";
 "Net Navigator" = "ネットナビゲーター";
+"Net class" = "ネットクラス";
+"Net classes for the directives on nets: the schematic is the source of the board's net rules" = "ネット指示のネットクラス：回路図が基板のネットルールの元です";
 "Net model" = "ネットのモデル";
 "Nets" = "ネット";
 "Nets (%lld)" = "ネット (%lld)";
@@ -515,6 +528,7 @@
 "Package" = "パッケージ";
 "Package (optional, e.g. SOIC-8)" = "パッケージ (任意、例: SOIC-8)";
 "Package pins (0 = from pin list)" = "パッケージのピン数 (0 = ピンリストから)";
+"Pairs this net with the net of the opposite suffix (X_P / X_N): routed, tuned and checked as a pair" = "このネットを逆の接尾辞のネット（X_P / X_N）とペアにし、ペアとして配線・調整・チェックします";
 "Panels" = "パネル";
 "Parameter Sweep" = "パラメータスイープ";
 "Part" = "部品";
@@ -639,6 +653,7 @@
 "Save" = "保存";
 "Save & Place" = "保存して配置";
 "Save As…" = "別名で保存…";
+"Save Class" = "クラスを保存";
 "Save Key" = "キーを保存";
 "Save Type" = "型を保存";
 "Scale" = "スケール";
@@ -754,6 +769,7 @@
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "インターフェイスはこの言語で表示されます。技術用語、品番、単位、ネット名、設計チェックのメッセージは、データシートや製造ファイルと一致するよう英語のままです。";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "オフラインデザイナーは SiEDA 内蔵のリファレンス回路を使用します。ネットワークや API キーは不要 — デモやエアギャップ環境のラボに最適です。";
 "The plain box: pins in number order down the left, then up the right" = "シンプルなボックス：ピンを番号順に左側を下へ、続いて右側を上へ";
+"The schematic is the source of the board's net rules. Put a net class on a net from the inspector of a net label or wire; the board's routing and DRC take its width and clearance." = "回路図が基板のネットルールの元です。ネットラベルや配線のインスペクタでネットにネットクラスを付けると、基板の配線と DRC がその幅とクリアランスを使います。";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "スプラッシュ画面は部品ライブラリとリファレンスデザインを 5 秒間プリロードしてからメインウインドウを開きます。読み込み完了後はクリックまたは Esc でスキップできます。";
 "The two gates exchange places in their packages; the symbols and wires stay" = "2つのゲートがパッケージ内で入れ替わります。シンボルと配線はそのままです";
 "The victim runs on the adjacent layer, over or under the aggressor" = "被害ネットが隣接層で加害ネットの上または下を通っています";
@@ -761,6 +777,7 @@
 "Through" = "貫通";
 "Title" = "タイトル";
 "Total jitter" = "総ジッタ";
+"Track width (mm)" = "トラック幅（mm）";
 "Transient" = "過渡";
 "Transient analysis" = "過渡解析";
 "Transient: stop" = "過渡：停止時間";

@@ -55,6 +55,9 @@ struct DesignSnapshot: Decodable, Equatable {
     var titleBlock = TitleBlockInfo()
     /// Signal harness types (named bundles of signals).
     var harnessTypes: [HarnessTypeInfo] = []
+    /// Schematic directives: net classes and the directives on nets (the source of the board's net rules).
+    var netClassDefs: [NetClassDefInfo] = []
+    var directives: [DirectiveInfo] = []
 
     static let empty = DesignSnapshot(name: "Untitled", requirements: "", components: [], wires: [], nets: [],
                                       board: BoardInfo(), pads: [], tracks: [], vias: [], ratsnest: [], courtyards: [])
@@ -112,6 +115,8 @@ struct DesignSnapshot: Decodable, Equatable {
         buses = try c.decodeIfPresent([BusInfo].self, forKey: .buses) ?? []
         titleBlock = try c.decodeIfPresent(TitleBlockInfo.self, forKey: .titleBlock) ?? TitleBlockInfo()
         harnessTypes = try c.decodeIfPresent([HarnessTypeInfo].self, forKey: .harnessTypes) ?? []
+        netClassDefs = try c.decodeIfPresent([NetClassDefInfo].self, forKey: .netClassDefs) ?? []
+        directives = try c.decodeIfPresent([DirectiveInfo].self, forKey: .directives) ?? []
         componentIndex = Self.index(of: components)
     }
 
@@ -125,7 +130,7 @@ struct DesignSnapshot: Decodable, Equatable {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
         case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
         case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant, buses, titleBlock
-        case harnessTypes
+        case harnessTypes, netClassDefs, directives
     }
 
     func component(_ id: Int) -> SnapComponent? {
@@ -431,6 +436,39 @@ struct HarnessTypeInfo: Decodable, Equatable, Identifiable, Hashable {
     var name: String
     var entries: [String]
     var id: String { name }
+}
+
+/// A net class defined on the schematic: track width and clearance (mm; nil = the board default).
+struct NetClassDefInfo: Decodable, Equatable, Identifiable, Hashable {
+    var name: String
+    var trackWidth: Double?
+    var clearance: Double?
+    var id: String { name }
+}
+
+/// A directive on a net, anchored on a component pin: a net class, a differential-pair marker and / or a parameter
+/// set (its own width and clearance).
+struct DirectiveInfo: Decodable, Equatable, Identifiable {
+    var id: Int
+    var component: Int
+    var pin: Int
+    var netClass: String?
+    var diffPair: Bool?
+    var trackWidth: Double?
+    var clearance: Double?
+    var net: Int?
+    var netName: String?
+
+    var isDiffPair: Bool { diffPair ?? false }
+    /// "HS ◆ diff 0.2 mm" — what the canvas shows beside the anchor.
+    var summary: String {
+        var parts: [String] = []
+        if let c = netClass, !c.isEmpty { parts.append(c) }
+        if isDiffPair { parts.append("⇄") }
+        if let w = trackWidth, w > 0 { parts.append(String(format: "w%.2f", w)) }
+        if let c = clearance, c > 0 { parts.append(String(format: "c%.2f", c)) }
+        return parts.joined(separator: " ")
+    }
 }
 
 /// Schematic title block fields (the title defaults to the project name).

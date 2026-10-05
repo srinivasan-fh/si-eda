@@ -982,3 +982,34 @@ int sieda_c_api_harness_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Schematic directives and net classes through the C API. Returns 0 or the failing step. */
+int sieda_c_api_directive_test(void) {
+    SiedaProject* p = sieda_project_new("Directives");
+    if (!p) return 1;
+    int32_t j = sieda_add_component(p, 12, "USB", 0, 0, 0, NULL);
+    int32_t lp = sieda_add_component(p, 15, "D_P", 100, 0, 0, NULL);
+    int32_t ln = sieda_add_component(p, 15, "D_N", 100, 40, 0, NULL);
+    if (j < 0 || lp < 0 || ln < 0) return 2;
+    if (sieda_connect(p, j, 0, lp, 0) < 0 || sieda_connect(p, j, 1, ln, 0) < 0) return 3;
+    if (!sieda_set_net_class(p, "{\"name\":\"HS\",\"trackWidth\":0.2,\"clearance\":0.3}") ||
+        sieda_set_net_class(p, "{\"name\":\"bad name\"}"))
+        return 4;
+    char json[160];
+    snprintf(json, sizeof json, "{\"component\":%d,\"pin\":0,\"netClass\":\"HS\",\"diffPair\":true}", (int)lp);
+    int32_t id = sieda_add_directive(p, json);
+    if (id <= 0 || sieda_add_directive(p, "{\"component\":-5}") != -1) return 5;
+    char* rules = sieda_net_rules_json(p);
+    if (!rules || !strstr(rules, "\"netName\":\"D_P\"") || !strstr(rules, "\"netName\":\"D_N\"") || !strstr(rules, "\"diffPair\":true"))
+        return 6;
+    sieda_string_free(rules);
+    char* snap = sieda_project_snapshot(p);
+    if (!snap || !strstr(snap, "\"netClassDefs\"") || !strstr(snap, "\"netClearances\"")) return 7;
+    sieda_string_free(snap);
+    snprintf(json, sizeof json, "{\"component\":%d,\"pin\":0,\"trackWidth\":0.5}", (int)lp);
+    if (!sieda_update_directive(p, id, json) || sieda_update_directive(p, 999, json)) return 8;
+    if (!sieda_remove_directive(p, id) || sieda_remove_directive(p, id)) return 9;
+    if (!sieda_remove_net_class(p, "HS") || sieda_remove_net_class(p, "HS")) return 10;
+    sieda_project_free(p);
+    return 0;
+}

@@ -652,6 +652,18 @@ struct SchematicCanvas: View {
             stub.addLine(to: b.applying(screen))
             ctx.stroke(stub, with: .color(Theme.harness.opacity(0.7)), lineWidth: 1.5)
         }
+        // Net directives: a small flag beside the pin they sit on (net class, ⇄ for a differential pair, sizes).
+        if showLabels {
+            for d in snap.directives {
+                // The block part's pin on its own sheet, or its copy's on a channel sheet shown now.
+                guard let c = snap.components.first(where: { $0.id == d.component || $0.instanceOf == d.component }),
+                      d.pin < c.pins.count else { continue }
+                let pin = c.pins[d.pin].point
+                let at = CGPoint(x: pin.x + 6, y: pin.y - 10).applying(screen)
+                ctx.draw(Text(verbatim: "◆ " + d.summary).font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .foregroundColor(Theme.liveOn), at: at, anchor: .bottomLeading)
+            }
+        }
         // The bus being drawn.
         if tool == .bus, !busPoints.isEmpty {
             var path = Path()

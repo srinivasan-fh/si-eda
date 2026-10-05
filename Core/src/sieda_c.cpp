@@ -3019,3 +3019,95 @@ int32_t sieda_place_harness_entries(SiedaProject* project, int32_t label) {
 }
 
 }  // extern "C"
+
+// ---- schematic capture: directives (net classes, differential pairs, parameter sets)
+
+namespace {
+NetDirective directiveFromJson(const Json& j) {
+    NetDirective d;
+    d.component = j.get("component").asInt(-1);
+    d.pin = j.get("pin").asInt(0);
+    d.netClass = j.get("netClass").asString("");
+    d.diffPair = j.get("diffPair").asBool(false);
+    d.trackWidth = j.get("trackWidth").asNumber(0);
+    d.clearance = j.get("clearance").asNumber(0);
+    return d;
+}
+}  // namespace
+
+extern "C" {
+
+int32_t sieda_set_net_class(SiedaProject* project, const char* json) {
+    if (!project || !json) return 0;
+    return guarded([&] {
+        const Json j = Json::parse(json);
+        NetClassDef d;
+        d.name = j.get("name").asString("");
+        d.trackWidth = j.get("trackWidth").asNumber(0);
+        d.clearance = j.get("clearance").asNumber(0);
+        if (!project->project.schematic.setNetClassDef(d)) return 0;
+        project->project.schematicChanged();
+        return 1;
+    });
+}
+
+int32_t sieda_remove_net_class(SiedaProject* project, const char* name) {
+    if (!project) return 0;
+    return guarded([&] {
+        if (!project->project.schematic.removeNetClassDef(str(name))) return 0;
+        project->project.schematicChanged();
+        return 1;
+    });
+}
+
+int32_t sieda_add_directive(SiedaProject* project, const char* json) {
+    if (!project || !json) return -1;
+    try {
+        const int id = project->project.schematic.addDirective(directiveFromJson(Json::parse(json)));
+        if (id > 0) project->project.schematicChanged();
+        return id;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_update_directive(SiedaProject* project, int32_t id, const char* json) {
+    if (!project || !json) return 0;
+    return guarded([&] {
+        if (!project->project.schematic.updateDirective(id, directiveFromJson(Json::parse(json)))) return 0;
+        project->project.schematicChanged();
+        return 1;
+    });
+}
+
+int32_t sieda_remove_directive(SiedaProject* project, int32_t id) {
+    if (!project) return 0;
+    return guarded([&] {
+        if (!project->project.schematic.removeDirective(id)) return 0;
+        project->project.schematicChanged();
+        return 1;
+    });
+}
+
+char* sieda_net_rules_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        Json arr = Json::array();
+        for (const auto& r : project->project.schematic.netRules()) {
+            Json j = Json::object();
+            j["net"] = r.net;
+            j["netName"] = r.netName;
+            j["netClass"] = r.netClass;
+            j["trackWidth"] = r.trackWidth;
+            j["clearance"] = r.clearance;
+            j["diffPair"] = r.diffPair;
+            j["partner"] = r.partner;
+            arr.push(j);
+        }
+        return dup(arr.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+}  // extern "C"

@@ -15,6 +15,7 @@
 "3D Viewer" = "3D વ્યૂઅર";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A class still used by a directive cannot be deleted" = "નિર્દેશ હજી વાપરે છે તે વર્ગ કાઢી શકાતો નથી";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "હાર્નેસ લેબલ તેના પ્રકારના દરેક સભ્યને શીટો પાર લઈ જાય છે (પોર્ટ, શીટ એન્ટ્રી અથવા ગ્લોબલ)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "દરેક સભ્ય માટે એક એન્ટ્રી ધરાવતું હાર્નેસ લેબલ; દરેક એન્ટ્રીને તેના સિગ્નલ સાથે જોડો. બંડલને બીજી શીટ સુધી લઈ જવા પોર્ટ અથવા શીટ એન્ટ્રીને સમાન નામ અને પ્રકાર આપો.";
 "A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "હાર્નેસ પ્રકાર એ સિગ્નલોનું નામવાળું બંડલ છે (USB: DP, DN, VBUS, GND). આ પ્રકારનું હાર્નેસ લેબલ દરેક સભ્ય — \"USB1.DP\", \"USB1.DN\" … — ને પોર્ટ અને તેની શીટ એન્ટ્રી દ્વારા, અથવા ગ્લોબલ લેબલ તરીકે લઈ જાય છે; તેની એન્ટ્રીઓ શીટ પર સભ્યોને જોડે છે.";
@@ -111,6 +112,7 @@
 "Block designator" = "બ્લોક નિર્દેશક";
 "Block value: %@" = "બ્લોક મૂલ્ય: %@";
 "Board Setup" = "બોર્ડ સેટઅપ";
+"Board default" = "બોર્ડ ડિફૉલ્ટ";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "બોર્ડ આઉટલાઇન (quad-X ફ્રેમ, ગોળાકાર, વર્તુળ), માઉન્ટિંગ હોલ, કૉપર પોર/પ્લેન અને નેટ ક્લાસ";
 "Board thickness" = "બોર્ડ જાડાઈ";
 "Boards per order, for the order cost" = "પ્રતિ ઑર્ડર બોર્ડ, ઑર્ડર ખર્ચ માટે";
@@ -132,6 +134,7 @@
 "CTLE" = "CTLE";
 "Cancel" = "રદ કરો";
 "Cancel AI Generation" = "AI જનરેશન રદ કરો";
+"Carried to the PCB rules: routing and DRC use them." = "PCB નિયમોમાં લઈ જવાય છે: રૂટિંગ અને DRC તેનો ઉપયોગ કરે છે.";
 "Cascade at receiver" = "રીસીવર પર કેસ્કેડ કરો";
 "Cavity model" = "કેવિટી મોડેલ";
 "Centre" = "કેન્દ્ર";
@@ -153,12 +156,14 @@
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "સિનેમેટિક હેડ્સ-અપ ડિસ્પ્લે: પ્રોજેક્ટર, કણો, પાર્ટ કૉલ-આઉટ, ડેટા સ્તંભો અને રીડ-આઉટ";
 "Circuit" = "સર્કિટ";
 "Circuit — 5 ms, 5 µs" = "સર્કિટ — 5 ms, 5 µs";
+"Class / board" = "વર્ગ / બોર્ડ";
 "Clear" = "સાફ કરો";
 "Clear Cached Results" = "કેશ કરેલા પરિણામો સાફ કરો";
 "Clear Cursors" = "કર્સર સાફ કરો";
 "Clear Menu" = "મેનૂ સાફ કરો";
 "Clear conversation" = "વાતચીત સાફ કરો";
 "Clear simulation results" = "સિમ્યુલેશન પરિણામો સાફ કરો";
+"Clearance (mm)" = "ક્લિયરન્સ (mm)";
 "Cleared" = "સાફ થયું";
 "Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes" = "પસંદ કરવા પૅડ પર ક્લિક કરો (ઉમેરવા ⇧) · ગ્રિડ પર ખસેડવા ડ્રૅગ કરો · પૅડ ઉમેરવા ડબલ-ક્લિક કરો · ⌫ કાઢી નાખે છે";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "પેડ પર ક્લિક કરો: તે અને તેની હારના આગળના પેડ ટ્રેક પિચ પર બંડલ તરીકે સાથે રૂટ થાય છે; પૂરું કરો, પછી દરેક ટ્રેક આગળ લઈ જાઓ";
@@ -210,6 +215,7 @@
 "Delay" = "વિલંબ";
 "Delete" = "કાઢી નાખો";
 "Delete Bus" = "બસ કાઢી નાખો";
+"Delete Class" = "વર્ગ કાઢી નાખો";
 "Delete Part" = "પાર્ટ કાઢી નાખો";
 "Delete Sheet" = "શીટ કાઢી નાખો";
 "Delete Type" = "પ્રકાર કાઢી નાખો";
@@ -229,6 +235,7 @@
 "Designators" = "ડિઝિગ્નેટર";
 "Detect Gates" = "ગેટ શોધો";
 "Differential pair" = "ડિફરન્શિયલ જોડી";
+"Differential pair member" = "ડિફરેન્શિયલ પેર સભ્ય";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 સાથેની DigiKey API એપ્લિકેશન (Production); ક્લાયન્ટ ક્રેડેન્શિયલ્સ ફ્લો.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "પૉપ્યુલેટ ન કરો: બોર્ડ પર છે પણ લગાવેલ નથી; એસેમ્બલી BOM અને CPL માંથી બાકાત";
 "Done" = "થઈ ગયું";
@@ -322,6 +329,7 @@
 "Harness name" = "હાર્નેસ નામ";
 "Harnesses" = "હાર્નેસ";
 "Hide navigator (N)" = "નેવિગેટર છુપાવો (N)";
+"HighSpeed" = "HighSpeed";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "વધુ પ્રયાસથી Claude સર્કિટ ટોપોલૉજી અને મૂલ્યો પર લાંબો વિચાર કરે છે. “high” ભલામણ કરેલ છે.";
 "Highlight" = "હાઇલાઇટ";
 "Hold" = "હોલ્ડ";
@@ -423,10 +431,15 @@
 "Move the footprint origin to the centre of the pads" = "ફૂટપ્રિન્ટ ઑરિજિનને પૅડના કેન્દ્રમાં ખસેડો";
 "Move the pad in the numbering; pads between shift by one" = "ક્રમાંકનમાં પૅડ ખસેડો; વચ્ચેના પૅડ એકથી ખસે છે";
 "NAVIGATOR" = "નેવિગેટર";
+"NET CLASSES" = "નેટ વર્ગો";
+"NET DIRECTIVE" = "નેટ નિર્દેશ";
 "Name" = "નામ";
 "Naval Platform" = "નૌકાદળ પ્લૅટફૉર્મ";
 "Net" = "નેટ";
+"Net Classes" = "નેટ વર્ગો";
 "Net Navigator" = "નેટ નેવિગેટર";
+"Net class" = "નેટ વર્ગ";
+"Net classes for the directives on nets: the schematic is the source of the board's net rules" = "નેટ પરના નિર્દેશો માટે નેટ વર્ગો: સ્કીમેટિક બોર્ડના નેટ નિયમોનો સ્રોત છે";
 "Net model" = "નેટ મોડેલ";
 "Nets" = "નેટ";
 "Nets (%lld)" = "નેટ (%lld)";
@@ -515,6 +528,7 @@
 "Package" = "પૅકેજ";
 "Package (optional, e.g. SOIC-8)" = "પૅકેજ (વૈકલ્પિક, દા.ત. SOIC-8)";
 "Package pins (0 = from pin list)" = "પૅકેજ પિન (0 = પિન સૂચિમાંથી)";
+"Pairs this net with the net of the opposite suffix (X_P / X_N): routed, tuned and checked as a pair" = "આ નેટને વિરુદ્ધ પ્રત્યય ધરાવતા નેટ (X_P / X_N) સાથે જોડે છે: જોડી તરીકે રૂટ, ટ્યુન અને તપાસાય છે";
 "Panels" = "પૅનલ";
 "Parameter Sweep" = "પેરામીટર સ્વીપ";
 "Part" = "ભાગ";
@@ -639,6 +653,7 @@
 "Save" = "સાચવો";
 "Save & Place" = "સાચવો અને મૂકો";
 "Save As…" = "આ રીતે સાચવો…";
+"Save Class" = "વર્ગ સાચવો";
 "Save Key" = "કી સાચવો";
 "Save Type" = "પ્રકાર સાચવો";
 "Scale" = "સ્કેલ";
@@ -754,6 +769,7 @@
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "ઇન્ટરફેસ આ ભાષાને અનુસરે છે. એન્જિનિયરિંગ શબ્દો, પાર્ટ નંબર, એકમો, નેટ નામો અને ડિઝાઇન તપાસ સંદેશા અંગ્રેજીમાં જ રહે છે જેથી તે ડેટાશીટ અને ફૅબ્રિકેશન ફાઇલો સાથે મેળ ખાય.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ઑફલાઇન ડિઝાઇનર SiEDA ના બિલ્ટ-ઇન રેફરન્સ સર્કિટ વાપરે છે. નેટવર્ક કે API કીની જરૂર નથી — ડેમો અને એર-ગૅપ્ડ લૅબ માટે આદર્શ.";
 "The plain box: pins in number order down the left, then up the right" = "સાદું બૉક્સ: પિન ક્રમાંક ક્રમમાં ડાબી બાજુ નીચે, પછી જમણી બાજુ ઉપર";
+"The schematic is the source of the board's net rules. Put a net class on a net from the inspector of a net label or wire; the board's routing and DRC take its width and clearance." = "સ્કીમેટિક બોર્ડના નેટ નિયમોનો સ્રોત છે. નેટ લેબલ અથવા તારના ઇન્સ્પેક્ટરમાંથી નેટ પર નેટ વર્ગ મૂકો; બોર્ડનું રૂટિંગ અને DRC તેની પહોળાઈ અને ક્લિયરન્સ લે છે.";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "સ્પ્લૅશ પાંચ સેકન્ડ સુધી કમ્પોનન્ટ લાઇબ્રેરી અને રેફરન્સ ડિઝાઇન પ્રીલોડ કરે છે, પછી મુખ્ય વિન્ડો ખોલે છે. લોડિંગ પૂર્ણ થયા પછી છોડવા તેના પર ક્લિક કરો અથવા Esc દબાવો.";
 "The two gates exchange places in their packages; the symbols and wires stay" = "બંને ગેટ પેકેજમાં જગ્યા બદલે છે; પ્રતીકો અને તાર એ જ રહે છે";
 "The victim runs on the adjacent layer, over or under the aggressor" = "પીડિત નેટ બાજુના સ્તર પર, આક્રમક નેટની ઉપર કે નીચે ચાલે છે";
@@ -761,6 +777,7 @@
 "Through" = "થ્રૂ";
 "Title" = "શીર્ષક";
 "Total jitter" = "કુલ જિટર";
+"Track width (mm)" = "ટ્રેક પહોળાઈ (mm)";
 "Transient" = "ટ્રાન્ઝિયન્ટ";
 "Transient analysis" = "ટ્રાન્ઝિયન્ટ વિશ્લેષણ";
 "Transient: stop" = "ટ્રાન્ઝિયન્ટ: સ્ટૉપ";

@@ -15,6 +15,7 @@
 "3D Viewer" = "3D-viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A class still used by a directive cannot be deleted" = "Een klasse die nog door een richtlijn wordt gebruikt, kan niet worden verwijderd";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Een harnaslabel draagt elk lid van zijn type over de bladen (poort, bladingang of globaal)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Een harnaslabel met één ingang per lid; verbind elke ingang met zijn signaal. Geef een poort of bladingang dezelfde naam en hetzelfde type om de bundel naar een ander blad te brengen.";
 "A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "Een harnastype is een benoemde bundel signalen (USB: DP, DN, VBUS, GND). Een harnaslabel van het type draagt elk lid — \"USB1.DP\", \"USB1.DN\" … — via een poort en zijn bladingang, of als globaal label; zijn ingangen verbinden de leden op het blad.";
@@ -111,6 +112,7 @@
 "Block designator" = "Blokreferentie";
 "Block value: %@" = "Blokwaarde: %@";
 "Board Setup" = "Board-instellingen";
+"Board default" = "Standaard van de print";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Boardomtrek (quad-X-frame, afgerond, cirkel), montagegaten, kopervlakken/-planes en netklassen";
 "Board thickness" = "Boarddikte";
 "Boards per order, for the order cost" = "Boards per bestelling, voor de bestelkosten";
@@ -132,6 +134,7 @@
 "CTLE" = "CTLE";
 "Cancel" = "Annuleer";
 "Cancel AI Generation" = "AI-generatie annuleren";
+"Carried to the PCB rules: routing and DRC use them." = "Doorgegeven aan de PCB-regels: routering en DRC gebruiken ze.";
 "Cascade at receiver" = "Cascaderen bij ontvanger";
 "Cavity model" = "Resonatormodel";
 "Centre" = "Centreer";
@@ -153,12 +156,14 @@
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "Filmische heads-up display: projector, deeltjes, onderdeellabels, datazuilen en uitlezingen";
 "Circuit" = "Schakeling";
 "Circuit — 5 ms, 5 µs" = "Schakeling — 5 ms, 5 µs";
+"Class / board" = "Klasse / print";
 "Clear" = "Wis";
 "Clear Cached Results" = "Opgeslagen resultaten wissen";
 "Clear Cursors" = "Cursors wissen";
 "Clear Menu" = "Menu wissen";
 "Clear conversation" = "Gesprek wissen";
 "Clear simulation results" = "Simulatieresultaten wissen";
+"Clearance (mm)" = "Afstand (mm)";
 "Cleared" = "Gewist";
 "Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes" = "Klik op een pad om te selecteren (⇧ om toe te voegen) · sleep om op het raster te verplaatsen · dubbelklik om een pad toe te voegen · ⌫ verwijdert";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "Klik op een pad: dit pad en de volgende pads in zijn rij worden samen als bundel op spoorafstand gerouteerd; rond af en vervolg daarna elk spoor";
@@ -210,6 +215,7 @@
 "Delay" = "Vertraging";
 "Delete" = "Verwijder";
 "Delete Bus" = "Bus verwijderen";
+"Delete Class" = "Klasse verwijderen";
 "Delete Part" = "Onderdeel verwijderen";
 "Delete Sheet" = "Blad verwijderen";
 "Delete Type" = "Type verwijderen";
@@ -229,6 +235,7 @@
 "Designators" = "Referenties";
 "Detect Gates" = "Poorten herkennen";
 "Differential pair" = "Differentieel paar";
+"Differential pair member" = "Lid van een differentieel paar";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "DigiKey-API-applicatie (Production) met Product Information v4; client-credentials-flow.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Niet plaatsen: op het board maar niet gemonteerd; weggelaten uit de assemblage-BOM en CPL";
 "Done" = "Gereed";
@@ -322,6 +329,7 @@
 "Harness name" = "Harnasnaam";
 "Harnesses" = "Harnassen";
 "Hide navigator (N)" = "Navigator verbergen (N)";
+"HighSpeed" = "HighSpeed";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "Meer inspanning laat Claude langer nadenken over circuittopologie en waarden. “high” wordt aanbevolen.";
 "Highlight" = "Markeren";
 "Hold" = "Vasthouden";
@@ -423,10 +431,15 @@
 "Move the footprint origin to the centre of the pads" = "Verplaats de oorsprong van de footprint naar het midden van de pads";
 "Move the pad in the numbering; pads between shift by one" = "Verplaats de pad in de nummering; tussenliggende pads schuiven één op";
 "NAVIGATOR" = "NAVIGATOR";
+"NET CLASSES" = "NETKLASSEN";
+"NET DIRECTIVE" = "NETRICHTLIJN";
 "Name" = "Naam";
 "Naval Platform" = "Marineplatform";
 "Net" = "Net";
+"Net Classes" = "Netklassen";
 "Net Navigator" = "Netnavigator";
+"Net class" = "Netklasse";
+"Net classes for the directives on nets: the schematic is the source of the board's net rules" = "Netklassen voor de richtlijnen op netten: het schema is de bron van de netregels van de print";
 "Net model" = "Netmodel";
 "Nets" = "Netten";
 "Nets (%lld)" = "Netten (%lld)";
@@ -515,6 +528,7 @@
 "Package" = "Behuizing";
 "Package (optional, e.g. SOIC-8)" = "Behuizing (optioneel, bijv. SOIC-8)";
 "Package pins (0 = from pin list)" = "Behuizingspinnen (0 = uit pinlijst)";
+"Pairs this net with the net of the opposite suffix (X_P / X_N): routed, tuned and checked as a pair" = "Koppelt dit net aan het net met het tegengestelde achtervoegsel (X_P / X_N): als paar gerouteerd, afgestemd en gecontroleerd";
 "Panels" = "Panelen";
 "Parameter Sweep" = "Parametersweep";
 "Part" = "Onderdeel";
@@ -639,6 +653,7 @@
 "Save" = "Bewaar";
 "Save & Place" = "Bewaar en plaats";
 "Save As…" = "Bewaar als…";
+"Save Class" = "Klasse opslaan";
 "Save Key" = "Sleutel bewaren";
 "Save Type" = "Type opslaan";
 "Scale" = "Schaal";
@@ -754,6 +769,7 @@
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "De interface volgt deze taal. Technische termen, onderdeelnummers, eenheden, netnamen en ontwerpcontrolemeldingen blijven in het Engels zodat ze overeenkomen met datasheets en productiebestanden.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "De offline ontwerper gebruikt de ingebouwde referentieschakelingen van SiEDA. Geen netwerk of API-sleutel nodig — ideaal voor demo's en air-gapped labs.";
 "The plain box: pins in number order down the left, then up the right" = "De eenvoudige rechthoek: pinnen in nummervolgorde links omlaag, daarna rechts omhoog";
+"The schematic is the source of the board's net rules. Put a net class on a net from the inspector of a net label or wire; the board's routing and DRC take its width and clearance." = "Het schema is de bron van de netregels van de print. Geef een net een netklasse vanuit de inspector van een netlabel of draad; routering en DRC van de print nemen de breedte en afstand over.";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "Het startscherm laadt vijf seconden lang de componentenbibliotheek en referentieontwerpen en opent daarna het hoofdvenster. Klik erop of druk op Esc om over te slaan zodra het laden klaar is.";
 "The two gates exchange places in their packages; the symbols and wires stay" = "De twee poorten wisselen van plaats in hun behuizingen; symbolen en draden blijven";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Het slachtoffer loopt op de aangrenzende laag, boven of onder de agressor";
@@ -761,6 +777,7 @@
 "Through" = "Doorlopend";
 "Title" = "Titel";
 "Total jitter" = "Totale jitter";
+"Track width (mm)" = "Spoorbreedte (mm)";
 "Transient" = "Transiënt";
 "Transient analysis" = "Transiëntanalyse";
 "Transient: stop" = "Transient: stop";

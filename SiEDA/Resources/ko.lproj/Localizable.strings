@@ -15,6 +15,7 @@
 "3D Viewer" = "3D 뷰어";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A class still used by a directive cannot be deleted" = "지시문이 사용 중인 클래스는 삭제할 수 없습니다";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "하네스 레이블은 해당 유형의 모든 멤버를 시트 간에 전달합니다(포트, 시트 엔트리 또는 전역)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "멤버마다 엔트리가 하나씩 있는 하네스 레이블입니다. 각 엔트리를 해당 신호에 연결하세요. 포트나 시트 엔트리에 같은 이름과 유형을 지정하면 묶음이 다른 시트로 전달됩니다.";
 "A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "하네스 유형은 이름이 있는 신호 묶음입니다(USB: DP, DN, VBUS, GND). 이 유형의 하네스 레이블은 포트와 시트 엔트리 또는 전역 레이블을 통해 모든 멤버(\"USB1.DP\", \"USB1.DN\" …)를 전달하며, 엔트리는 시트에서 멤버를 연결합니다.";
@@ -111,6 +112,7 @@
 "Block designator" = "블록 참조 기호";
 "Block value: %@" = "블록 값: %@";
 "Board Setup" = "보드 설정";
+"Board default" = "보드 기본값";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "보드 외곽선(쿼드 X 프레임, 둥근 모서리, 원형), 마운팅 홀, 동박 푸어/플레인 및 네트 클래스";
 "Board thickness" = "보드 두께";
 "Boards per order, for the order cost" = "주문당 보드 수 (주문 비용 계산용)";
@@ -132,6 +134,7 @@
 "CTLE" = "CTLE";
 "Cancel" = "취소";
 "Cancel AI Generation" = "AI 생성 취소";
+"Carried to the PCB rules: routing and DRC use them." = "PCB 규칙으로 전달됩니다. 배선과 DRC가 사용합니다.";
 "Cascade at receiver" = "수신단에 연결";
 "Cavity model" = "공진기 모델";
 "Centre" = "중앙";
@@ -153,12 +156,14 @@
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "시네마틱 헤드업 디스플레이: 프로젝터, 파티클, 부품 콜아웃, 데이터 기둥 및 판독값";
 "Circuit" = "회로";
 "Circuit — 5 ms, 5 µs" = "회로 — 5 ms, 5 µs";
+"Class / board" = "클래스 / 보드";
 "Clear" = "지우기";
 "Clear Cached Results" = "캐시된 결과 지우기";
 "Clear Cursors" = "커서 지우기";
 "Clear Menu" = "메뉴 지우기";
 "Clear conversation" = "대화 지우기";
 "Clear simulation results" = "시뮬레이션 결과 지우기";
+"Clearance (mm)" = "간격(mm)";
 "Cleared" = "지움";
 "Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes" = "패드를 클릭하여 선택 (⇧로 추가) · 드래그하여 그리드 위에서 이동 · 더블 클릭하여 패드 추가 · ⌫ 삭제";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "패드를 클릭: 그 패드와 같은 줄의 다음 패드들이 트랙 피치로 한 묶음이 되어 함께 배선됩니다. 마친 뒤 각 트랙을 이어 가세요";
@@ -210,6 +215,7 @@
 "Delay" = "지연";
 "Delete" = "삭제";
 "Delete Bus" = "버스 삭제";
+"Delete Class" = "클래스 삭제";
 "Delete Part" = "부품 삭제";
 "Delete Sheet" = "시트 삭제";
 "Delete Type" = "유형 삭제";
@@ -229,6 +235,7 @@
 "Designators" = "부품 번호";
 "Detect Gates" = "게이트 감지";
 "Differential pair" = "차동 쌍";
+"Differential pair member" = "차동 쌍 멤버";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4가 포함된 DigiKey API 애플리케이션(Production), 클라이언트 자격 증명 방식.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "미실장: 보드에는 있지만 실장하지 않음. 조립용 BOM 및 CPL에서 제외";
 "Done" = "완료";
@@ -322,6 +329,7 @@
 "Harness name" = "하네스 이름";
 "Harnesses" = "하네스";
 "Hide navigator (N)" = "네비게이터 숨기기 (N)";
+"HighSpeed" = "HighSpeed";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "추론 강도가 높을수록 Claude가 회로 토폴로지와 값을 더 오래 검토합니다. “high”를 권장합니다.";
 "Highlight" = "강조";
 "Hold" = "홀드";
@@ -423,10 +431,15 @@
 "Move the footprint origin to the centre of the pads" = "풋프린트 원점을 패드 중앙으로 이동";
 "Move the pad in the numbering; pads between shift by one" = "번호 순서에서 패드 이동. 사이의 패드는 하나씩 밀림";
 "NAVIGATOR" = "네비게이터";
+"NET CLASSES" = "네트 클래스";
+"NET DIRECTIVE" = "네트 지시문";
 "Name" = "이름";
 "Naval Platform" = "함정 플랫폼";
 "Net" = "네트";
+"Net Classes" = "네트 클래스";
 "Net Navigator" = "네트 탐색기";
+"Net class" = "네트 클래스";
+"Net classes for the directives on nets: the schematic is the source of the board's net rules" = "네트 지시문의 네트 클래스: 회로도가 보드 네트 규칙의 원천입니다";
 "Net model" = "넷 모델";
 "Nets" = "네트";
 "Nets (%lld)" = "네트 (%lld)";
@@ -515,6 +528,7 @@
 "Package" = "패키지";
 "Package (optional, e.g. SOIC-8)" = "패키지 (선택 사항, 예: SOIC-8)";
 "Package pins (0 = from pin list)" = "패키지 핀 수 (0 = 핀 목록 기준)";
+"Pairs this net with the net of the opposite suffix (X_P / X_N): routed, tuned and checked as a pair" = "이 네트를 반대 접미사의 네트(X_P / X_N)와 쌍으로 묶어 쌍으로 배선, 튜닝, 검사합니다";
 "Panels" = "패널";
 "Parameter Sweep" = "파라미터 스윕";
 "Part" = "부품";
@@ -639,6 +653,7 @@
 "Save" = "저장";
 "Save & Place" = "저장 후 배치";
 "Save As…" = "다른 이름으로 저장…";
+"Save Class" = "클래스 저장";
 "Save Key" = "키 저장";
 "Save Type" = "유형 저장";
 "Scale" = "배율";
@@ -754,6 +769,7 @@
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "인터페이스가 이 언어로 표시됩니다. 엔지니어링 용어, 부품 번호, 단위, 네트 이름 및 설계 검사 메시지는 데이터시트 및 제조 파일과 일치하도록 영어로 유지됩니다.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "오프라인 설계 도구는 SiEDA에 내장된 레퍼런스 회로를 사용합니다. 네트워크나 API 키가 필요 없어 데모 및 폐쇄망 실험실에 적합합니다.";
 "The plain box: pins in number order down the left, then up the right" = "기본 상자: 핀 번호 순서대로 왼쪽을 따라 내려간 뒤 오른쪽을 따라 올라감";
+"The schematic is the source of the board's net rules. Put a net class on a net from the inspector of a net label or wire; the board's routing and DRC take its width and clearance." = "회로도가 보드 네트 규칙의 원천입니다. 네트 레이블이나 배선의 인스펙터에서 네트에 네트 클래스를 지정하면 보드의 배선과 DRC가 그 폭과 간격을 사용합니다.";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "스플래시 화면에서 5초 동안 부품 라이브러리와 레퍼런스 설계를 미리 불러온 후 메인 윈도우를 엽니다. 로딩이 끝나면 클릭하거나 Esc를 눌러 건너뛸 수 있습니다.";
 "The two gates exchange places in their packages; the symbols and wires stay" = "두 게이트가 패키지 내 위치를 맞바꾸며 기호와 배선은 그대로입니다";
 "The victim runs on the adjacent layer, over or under the aggressor" = "피해 넷이 인접 레이어에서 공격 넷의 위나 아래를 지나갑니다";
@@ -761,6 +777,7 @@
 "Through" = "관통";
 "Title" = "제목";
 "Total jitter" = "총 지터";
+"Track width (mm)" = "트랙 폭(mm)";
 "Transient" = "과도";
 "Transient analysis" = "과도 해석";
 "Transient: stop" = "과도: 정지";

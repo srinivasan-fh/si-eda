@@ -15,6 +15,7 @@
 "3D Viewer" = "Pemapar 3D";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A class still used by a directive cannot be deleted" = "Kelas yang masih digunakan oleh arahan tidak boleh dipadam";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Label abah-abah membawa setiap ahli jenisnya merentas helaian (port, entri helaian atau global)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Label abah-abah dengan satu entri bagi setiap ahli; sambungkan setiap entri ke isyaratnya. Beri port atau entri helaian nama dan jenis yang sama untuk membawa berkas ke helaian lain.";
 "A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "Jenis abah-abah ialah berkas isyarat bernama (USB: DP, DN, VBUS, GND). Label abah-abah jenis itu membawa setiap ahli — \"USB1.DP\", \"USB1.DN\" … — melalui port dan entri helaiannya, atau sebagai label global; entrinya menyambung ahli pada helaian.";
@@ -111,6 +112,7 @@
 "Block designator" = "Penanda blok";
 "Block value: %@" = "Nilai blok: %@";
 "Board Setup" = "Persediaan Papan";
+"Board default" = "Lalai papan";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Garis luar papan (bingkai quad-X, bulat, bulatan), lubang pelekap, tuangan/satah kuprum dan kelas net";
 "Board thickness" = "Ketebalan papan";
 "Boards per order, for the order cost" = "Bilangan papan setiap pesanan, untuk kos pesanan";
@@ -132,6 +134,7 @@
 "CTLE" = "CTLE";
 "Cancel" = "Batal";
 "Cancel AI Generation" = "Batalkan Penjanaan AI";
+"Carried to the PCB rules: routing and DRC use them." = "Dibawa ke peraturan PCB: penghalaan dan DRC menggunakannya.";
 "Cascade at receiver" = "Lata pada penerima";
 "Cavity model" = "Model rongga";
 "Centre" = "Tengah";
@@ -153,12 +156,14 @@
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "Paparan kepala sinematik: projektor, zarah, label komponen, tiang data dan bacaan";
 "Circuit" = "Litar";
 "Circuit — 5 ms, 5 µs" = "Litar — 5 ms, 5 µs";
+"Class / board" = "Kelas / papan";
 "Clear" = "Kosongkan";
 "Clear Cached Results" = "Kosongkan Hasil Cache";
 "Clear Cursors" = "Kosongkan Kursor";
 "Clear Menu" = "Kosongkan Menu";
 "Clear conversation" = "Kosongkan perbualan";
 "Clear simulation results" = "Kosongkan keputusan simulasi";
+"Clearance (mm)" = "Kelegaan (mm)";
 "Cleared" = "Dikosongkan";
 "Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes" = "Klik pad untuk memilih (⇧ untuk menambah) · seret untuk mengalih pada grid · dwiklik untuk menambah pad · ⌫ memadam";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "Klik pad: pad itu dan pad seterusnya dalam barisnya dilaluankan bersama sebagai berkas pada jarak trek; selesaikan, kemudian teruskan setiap trek";
@@ -210,6 +215,7 @@
 "Delay" = "Lengah";
 "Delete" = "Padam";
 "Delete Bus" = "Padam Bas";
+"Delete Class" = "Padam Kelas";
 "Delete Part" = "Padam Komponen";
 "Delete Sheet" = "Padam Helaian";
 "Delete Type" = "Padam Jenis";
@@ -229,6 +235,7 @@
 "Designators" = "Penunjuk";
 "Detect Gates" = "Kesan Get";
 "Differential pair" = "Pasangan pembeza";
+"Differential pair member" = "Ahli pasangan pembeza";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Aplikasi API DigiKey (Production) dengan Product Information v4; aliran kelayakan klien.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Jangan pasang: ada pada papan tetapi tidak dipasang; dikecualikan daripada BOM pemasangan dan CPL";
 "Done" = "Selesai";
@@ -322,6 +329,7 @@
 "Harness name" = "Nama abah-abah";
 "Harnesses" = "Abah-abah";
 "Hide navigator (N)" = "Sembunyikan navigator (N)";
+"HighSpeed" = "HighSpeed";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "Usaha lebih tinggi membolehkan Claude menaakul lebih lama tentang topologi dan nilai litar. “high” disyorkan.";
 "Highlight" = "Serlah";
 "Hold" = "Tahan";
@@ -423,10 +431,15 @@
 "Move the footprint origin to the centre of the pads" = "Alihkan asalan tapak kaki ke tengah pad";
 "Move the pad in the numbering; pads between shift by one" = "Alihkan pad dalam penomboran; pad di antaranya beranjak satu";
 "NAVIGATOR" = "NAVIGATOR";
+"NET CLASSES" = "KELAS NET";
+"NET DIRECTIVE" = "ARAHAN NET";
 "Name" = "Nama";
 "Naval Platform" = "Platform Tentera Laut";
 "Net" = "Net";
+"Net Classes" = "Kelas Net";
 "Net Navigator" = "Navigator Net";
+"Net class" = "Kelas net";
+"Net classes for the directives on nets: the schematic is the source of the board's net rules" = "Kelas net bagi arahan pada net: skema ialah sumber peraturan net papan";
 "Net model" = "Model net";
 "Nets" = "Net";
 "Nets (%lld)" = "Net (%lld)";
@@ -515,6 +528,7 @@
 "Package" = "Pakej";
 "Package (optional, e.g. SOIC-8)" = "Pakej (pilihan, cth. SOIC-8)";
 "Package pins (0 = from pin list)" = "Pin pakej (0 = daripada senarai pin)";
+"Pairs this net with the net of the opposite suffix (X_P / X_N): routed, tuned and checked as a pair" = "Memasangkan net ini dengan net akhiran bertentangan (X_P / X_N): dihala, ditala dan disemak sebagai pasangan";
 "Panels" = "Panel";
 "Parameter Sweep" = "Sapuan Parameter";
 "Part" = "Komponen";
@@ -639,6 +653,7 @@
 "Save" = "Simpan";
 "Save & Place" = "Simpan & Letak";
 "Save As…" = "Simpan Sebagai…";
+"Save Class" = "Simpan Kelas";
 "Save Key" = "Simpan Kunci";
 "Save Type" = "Simpan Jenis";
 "Scale" = "Skala";
@@ -754,6 +769,7 @@
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "Antara muka mengikut bahasa ini. Istilah kejuruteraan, nombor komponen, unit, nama net dan mesej semakan reka bentuk kekal dalam bahasa Inggeris supaya sepadan dengan lembaran data dan fail fabrikasi.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Pereka bentuk luar talian menggunakan litar rujukan terbina dalam SiEDA. Tiada rangkaian atau kunci API diperlukan — sesuai untuk demo dan makmal terasing.";
 "The plain box: pins in number order down the left, then up the right" = "Kotak asas: pin mengikut susunan nombor menurun di kiri, kemudian menaik di kanan";
+"The schematic is the source of the board's net rules. Put a net class on a net from the inspector of a net label or wire; the board's routing and DRC take its width and clearance." = "Skema ialah sumber peraturan net papan. Letakkan kelas net pada net dari pemeriksa label net atau wayar; penghalaan dan DRC papan mengambil lebar dan kelegaannya.";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "Skrin percikan pramuat pustaka komponen dan reka bentuk rujukan selama lima saat, kemudian membuka tetingkap utama. Klik atau tekan Esc untuk melangkau setelah pemuatan selesai.";
 "The two gates exchange places in their packages; the symbols and wires stay" = "Dua get bertukar tempat dalam pakej; simbol dan wayar kekal";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Mangsa berada pada lapisan bersebelahan, di atas atau di bawah penyerang";
@@ -761,6 +777,7 @@
 "Through" = "Tembus";
 "Title" = "Tajuk";
 "Total jitter" = "Jumlah ketaran";
+"Track width (mm)" = "Lebar trek (mm)";
 "Transient" = "Fana";
 "Transient analysis" = "Analisis fana";
 "Transient: stop" = "Fana: henti";

@@ -13475,3 +13475,220 @@ TEST(c_api_harness) {
     if (rc != 0) std::printf("    C API harness test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+// ======================================================================= schematic directives → PCB rules
+
+namespace {
+/// Two connectors joined by USB_P / USB_N (labels) and a power net VBUS.
+struct DirectiveDesign {
+    int j1 = 0, j2 = 0, p = 0, n = 0, vbus = 0;
+};
+DirectiveDesign directiveDesign(Schematic& s) {
+    DirectiveDesign d;
+    d.j1 = s.addComponent(ComponentKind::Connector, "USB", {0, 0});
+    d.j2 = s.addComponent(ComponentKind::Connector, "USB", {300, 0});
+    const char* names[] = {"USB_P", "USB_N"};
+    int labels[2][2];
+    for (int k = 0; k < 2; ++k)
+        for (int side = 0; side < 2; ++side) {
+            labels[k][side] = s.addComponent(ComponentKind::NetLabel, names[k], {100.0 + 100 * side, 40.0 * k});
+            CHECK(s.connect({side == 0 ? d.j1 : d.j2, k}, {labels[k][side], 0}) >= 0);
+        }
+    d.p = labels[0][0];
+    d.n = labels[1][0];
+    return d;
+}
+}  // namespace
+
+TEST(schematic_directives_net_classes_diff_pairs_and_board_rules) {
+    Project p;
+    Schematic& s = p.schematic;
+    DirectiveDesign d = directiveDesign(s);
+    // Net classes: validation.
+    CHECK(s.setNetClassDef({"HS", 0.2, 0.3}));
+    CHECK(!s.setNetClassDef({"bad name", 0.2, 0}) && !s.setNetClassDef({"X", 0.01, 0}) && !s.setNetClassDef({"X", 0, 99}));
+    CHECK(s.setNetClassDef({"HS", 0.25, 0.3}) && s.findNetClassDef("HS")->trackWidth == 0.25);
+    // A diff-pair directive in class HS on USB_P: both members are a pair and get the class.
+    NetDirective dir;
+    dir.component = d.p;
+    dir.pin = 0;
+    dir.netClass = "HS";
+    dir.diffPair = true;
+    const int id = s.addDirective(dir);
+    CHECK(id > 0 && s.findDirective(id));
+    const int netP = s.netOf({d.p, 0}), netN = s.netOf({d.n, 0});
+    const auto pairs = s.directiveDiffPairs();
+    CHECK(pairs.size() == 1 && pairs[0] == std::make_pair(netP, netN));
+    auto rules = s.netRules();
+    CHECK(rules.size() == 2);
+    for (const auto& r : rules) CHECK(r.diffPair && (r.partner == netP || r.partner == netN));
+    CHECK(rules[0].netClass == "HS" || rules[1].netClass == "HS");
+    // Carried to the board: width and clearance for the class's net.
+    p.schematicChanged();
+    CHECK(p.pcb.settings.netWidths.count("USB_P") && p.pcb.settings.netWidths.at("USB_P") == 0.25);
+    CHECK(p.pcb.settings.clearanceFor("USB_P") == 0.3 && p.pcb.settings.schematicRuleNets.count("USB_P"));
+    // A parameter set on the net wins over its class.
+    NetDirective set = dir;
+    set.netClass.clear();
+    set.diffPair = false;
+    set.trackWidth = 0.4;
+    const int id2 = s.addDirective(set);
+    CHECK(id2 > 0);
+    p.schematicChanged();
+    CHECK(p.pcb.settings.netWidths.at("USB_P") == 0.4);
+    // The pair is known to length matching and routing (differentialPairs), even under a name the defaults skip.
+    const auto dp = differentialPairs(s);
+    CHECK(std::find(dp.begin(), dp.end(), std::make_pair(netP, netN)) != dp.end());
+    // Removing the directives gives the board its own rules back; a width the designer set stays.
+    p.pcb.settings.netWidths["VBUS"] = 0.8;
+    CHECK(s.removeDirective(id2) && s.removeDirective(id) && !s.removeDirective(id));
+    p.schematicChanged();
+    CHECK(!p.pcb.settings.netWidths.count("USB_P") && p.pcb.settings.netClearances.empty());
+    CHECK(p.pcb.settings.netWidths.at("VBUS") == 0.8 && p.pcb.settings.schematicRuleNets.empty());
+    // ERC: unknown class, unpaired marker, directive on an open pin, conflicting classes.
+    NetDirective bad;
+    bad.component = s.addComponent(ComponentKind::Resistor, "1k", {500, 500});  // both pins open
+    bad.pin = 1;
+    bad.netClass = "NOPE";
+    bad.diffPair = true;
+    CHECK(s.addDirective(bad) > 0);
+    auto erc = s.runERC();
+    CHECK(hasViolation(erc, "ERC_DIRECTIVE_UNKNOWN_CLASS") && hasViolation(erc, "ERC_DIRECTIVE_NO_NET"));
+    s.setActiveSheet(1);
+    const int lone = s.addComponent(ComponentKind::NetLabel, "CLK", {0, 400});
+    const int r = s.addComponent(ComponentKind::Resistor, "1k", {100, 400});
+    CHECK(s.connect({lone, 0}, {r, 0}) >= 0);
+    NetDirective clk;
+    clk.component = lone;
+    clk.diffPair = true;
+    CHECK(s.addDirective(clk) > 0);
+    CHECK(s.setNetClassDef({"PWR", 0.6, 0}));
+    NetDirective c1 = clk, c2 = clk;
+    c1.diffPair = c2.diffPair = false;
+    c1.netClass = "HS";
+    c2.netClass = "PWR";
+    CHECK(s.addDirective(c1) > 0 && s.addDirective(c2) > 0);
+    erc = s.runERC();
+    CHECK(hasViolation(erc, "ERC_DIFF_PAIR_UNPAIRED") && hasViolation(erc, "ERC_DIRECTIVE_CONFLICT"));
+    // Invalid directives are refused; deleting the anchor drops its directives.
+    NetDirective wrong;
+    wrong.component = 9999;
+    CHECK(s.addDirective(wrong) == -1);
+    wrong.component = r;
+    wrong.pin = 7;
+    CHECK(s.addDirective(wrong) == -1);
+    wrong.pin = 0;
+    wrong.trackWidth = 50;
+    CHECK(s.addDirective(wrong) == -1);
+    const size_t before = s.directives().size();
+    CHECK(s.removeComponent(lone));
+    CHECK(s.directives().size() == before - 3);
+    // Persistence (written only when used) and a fixed point on load.
+    const std::string saved = p.toJson().dump();
+    CHECK(saved.find("\"directives\"") != std::string::npos && saved.find("\"netClassDefs\"") != std::string::npos);
+    Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.schematic.directives().size() == s.directives().size() && q.schematic.netClassDefs().size() == 2);
+    CHECK(q.toJson().dump() == saved);
+    Project plain;
+    plain.schematic.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    const std::string plainText = plain.toJson().dump();
+    CHECK(plainText.find("directives") == std::string::npos && plainText.find("netClearances") == std::string::npos);
+}
+
+TEST(net_class_clearance_reaches_drc) {
+    Project p;
+    Schematic& s = p.schematic;
+    // Two resistors side by side on the board, each on its own net through a connector.
+    const int j = s.addComponent(ComponentKind::Connector, "J", {0, 0});
+    const int r1 = s.addComponent(ComponentKind::Resistor, "1k", {100, 0});
+    const int r2 = s.addComponent(ComponentKind::Resistor, "1k", {100, 100});
+    CHECK(s.connect({j, 0}, {r1, 0}) >= 0 && s.connect({j, 1}, {r2, 0}) >= 0);
+    const int g = s.addComponent(ComponentKind::Ground, "", {200, 100});
+    CHECK(s.connect({r1, 1}, {g, 0}) >= 0 && s.connect({r2, 1}, {g, 0}) >= 0);
+    p.pcb.settings.width = 40;
+    p.pcb.settings.height = 30;
+    auto place = [&](int id, Vec2 at) {
+        s.find(id)->pcb.position = at;
+        s.find(id)->pcb.placed = true;
+    };
+    place(j, {6, 15});
+    place(r1, {20, 13});
+    place(r2, {20, 17});
+    const int beforeViolations = static_cast<int>(p.pcb.runDRC(s).size());
+    // A 3 mm clearance class on J's first net: DRC reports its copper near other nets.
+    CHECK(s.setNetClassDef({"ISO", 0, 3.0}));
+    NetDirective d;
+    d.component = r1;
+    d.pin = 0;
+    d.netClass = "ISO";
+    CHECK(s.addDirective(d) > 0);
+    p.schematicChanged();
+    const std::string net = s.nets()[static_cast<size_t>(s.netOf({r1, 0}))].name;
+    CHECK(p.pcb.settings.clearanceFor(net) == 3.0);
+    const auto after = p.pcb.runDRC(s);
+    CHECK(static_cast<int>(after.size()) > beforeViolations);
+    CHECK(hasViolation(after, "DRC_NET_CLASS_CLEARANCE") || hasViolation(after, "DRC_CLEARANCE_RULE"));
+}
+
+TEST(directive_fields_fuzzed_files) {
+    Project p;
+    DirectiveDesign d = directiveDesign(p.schematic);
+    CHECK(p.schematic.setNetClassDef({"HS", 0.2, 0.3}));
+    NetDirective dir;
+    dir.component = d.p;
+    dir.netClass = "HS";
+    dir.diffPair = true;
+    CHECK(p.schematic.addDirective(dir) > 0);
+    p.schematicChanged();
+    const std::string saved = p.toJson().dump();
+    uint32_t seed = 99u;
+    auto rng = [&seed] {
+        seed = seed * 1664525u + 1013904223u;
+        return seed >> 8;
+    };
+    int loaded = 0;
+    for (int round = 0; round < 300; ++round) {
+        Json j = Json::parse(saved);
+        Json dirs = Json::array();
+        for (int k = 0, n = static_cast<int>(rng() % 5); k < n; ++k) {
+            Json o = Json::object();
+            o["id"] = static_cast<int>(rng() % 6) - 1;
+            o["component"] = static_cast<int>(rng() % 14) - 2;
+            o["pin"] = static_cast<int>(rng() % 5) - 1;
+            if (rng() % 2) o["netClass"] = std::string(rng() % 2 ? "HS" : "bad name");
+            if (rng() % 2) o["diffPair"] = true;
+            if (rng() % 2) o["trackWidth"] = static_cast<double>(rng() % 200) / 10.0 - 1;
+            if (rng() % 2) o["clearance"] = static_cast<double>(rng() % 200) / 10.0 - 1;
+            dirs.push(o);
+        }
+        j["directives"] = dirs;
+        Json classes = Json::array();
+        Json c = Json::object();
+        c["name"] = std::string(rng() % 3 ? "HS" : "");
+        c["trackWidth"] = static_cast<double>(rng() % 300) / 10.0 - 5;
+        classes.push(c);
+        j["netClassDefs"] = classes;
+        try {
+            Project q = Project::fromJson(j);
+            ++loaded;
+            for (const auto& dd : q.schematic.directives()) {
+                const Component* anchor = q.schematic.find(dd.component);
+                CHECK(anchor && dd.pin >= 0 && dd.pin < static_cast<int>(anchor->def().pins.size()));
+                CHECK(dd.trackWidth == 0 || (dd.trackWidth >= 0.05 && dd.trackWidth <= 10));
+            }
+            (void)q.schematic.runERC();
+            (void)q.schematic.netRules();
+            const std::string once = q.toJson().dump();
+            CHECK(Project::fromJson(Json::parse(once)).toJson().dump() == once);
+        } catch (const JsonError&) {
+        }
+    }
+    CHECK(loaded > 200);
+}
+
+extern "C" int sieda_c_api_directive_test(void);
+TEST(c_api_directives) {
+    const int rc = sieda_c_api_directive_test();
+    if (rc != 0) std::printf("    C API directive test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}

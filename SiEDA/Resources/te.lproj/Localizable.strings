@@ -15,6 +15,7 @@
 "3D Viewer" = "3D వ్యూయర్";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A class still used by a directive cannot be deleted" = "ఆదేశం ఇంకా ఉపయోగిస్తున్న తరగతిని తొలగించలేరు";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "హార్నెస్ లేబుల్ తన రకంలోని ప్రతి సభ్యుడిని షీట్‌ల మధ్య తీసుకెళ్తుంది (పోర్ట్, షీట్ ఎంట్రీ లేదా గ్లోబల్)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "ప్రతి సభ్యుడికి ఒక ఎంట్రీ ఉన్న హార్నెస్ లేబుల్; ప్రతి ఎంట్రీని దాని సిగ్నల్‌కు కలపండి. కట్టను మరో షీట్‌కు తీసుకెళ్లడానికి పోర్ట్ లేదా షీట్ ఎంట్రీకి అదే పేరు, రకం ఇవ్వండి.";
 "A harness type is a named bundle of signals (USB: DP, DN, VBUS, GND). A harness label of the type carries every member — \"USB1.DP\", \"USB1.DN\" … — through a port and its sheet entry, or as a global label; its entries join the members on the sheet." = "హార్నెస్ రకం అనేది పేరున్న సిగ్నల్‌ల కట్ట (USB: DP, DN, VBUS, GND). ఆ రకం హార్నెస్ లేబుల్ ప్రతి సభ్యుడిని — \"USB1.DP\", \"USB1.DN\" … — పోర్ట్, దాని షీట్ ఎంట్రీ ద్వారా లేదా గ్లోబల్ లేబుల్‌గా తీసుకెళ్తుంది; దాని ఎంట్రీలు షీట్‌పై సభ్యులను కలుపుతాయి.";
@@ -111,6 +112,7 @@
 "Block designator" = "బ్లాక్ నిర్దేశకం";
 "Block value: %@" = "బ్లాక్ విలువ: %@";
 "Board Setup" = "బోర్డు సెటప్";
+"Board default" = "బోర్డ్ డిఫాల్ట్";
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "బోర్డు అవుట్‌లైన్ (క్వాడ్-X ఫ్రేమ్, గుండ్రని, వృత్తం), మౌంటింగ్ రంధ్రాలు, కాపర్ పోర్‌లు/ప్లేన్‌లు మరియు నెట్ క్లాస్‌లు";
 "Board thickness" = "బోర్డు మందం";
 "Boards per order, for the order cost" = "ఆర్డర్ ఖర్చు కోసం ఒక్కో ఆర్డర్‌కు బోర్డులు";
@@ -132,6 +134,7 @@
 "CTLE" = "CTLE";
 "Cancel" = "రద్దు చేయి";
 "Cancel AI Generation" = "AI జనరేషన్ రద్దు చేయి";
+"Carried to the PCB rules: routing and DRC use them." = "PCB నియమాలకు తీసుకెళ్తారు: రౌటింగ్, DRC వాటిని ఉపయోగిస్తాయి.";
 "Cascade at receiver" = "రిసీవర్ వద్ద క్యాస్కేడ్ చేయి";
 "Cavity model" = "కేవిటీ మోడల్";
 "Centre" = "మధ్యలో ఉంచు";
@@ -153,12 +156,14 @@
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "సినిమాటిక్ హెడ్స్-అప్ డిస్‌ప్లే: ప్రొజెక్టర్, పార్టికల్స్, పార్ట్ కాల్-అవుట్‌లు, డేటా పిల్లర్‌లు మరియు రీడ్-అవుట్‌లు";
 "Circuit" = "సర్క్యూట్";
 "Circuit — 5 ms, 5 µs" = "సర్క్యూట్ — 5 ms, 5 µs";
+"Class / board" = "తరగతి / బోర్డ్";
 "Clear" = "క్లియర్ చేయి";
 "Clear Cached Results" = "కాష్ చేసిన ఫలితాలను క్లియర్ చేయి";
 "Clear Cursors" = "కర్సర్‌లను తొలగించు";
 "Clear Menu" = "మెనూ క్లియర్ చేయి";
 "Clear conversation" = "సంభాషణను క్లియర్ చేయి";
 "Clear simulation results" = "సిమ్యులేషన్ ఫలితాలను క్లియర్ చేయి";
+"Clearance (mm)" = "క్లియరెన్స్ (mm)";
 "Cleared" = "క్లియర్ చేయబడింది";
 "Click a pad to select (⇧ to add) · drag to move on the grid · double-click to add a pad · ⌫ deletes" = "ఎంచుకోవడానికి ప్యాడ్‌ను క్లిక్ చేయండి (జోడించడానికి ⇧) · గ్రిడ్‌పై కదపడానికి డ్రాగ్ చేయండి · ప్యాడ్ జోడించడానికి డబుల్-క్లిక్ చేయండి · ⌫ తొలగిస్తుంది";
 "Click a pad: it and the next pads of its row route together as a bundle at track pitch; finish, then continue each track" = "ప్యాడ్‌ను క్లిక్ చేయండి: అదీ దాని వరుసలోని తదుపరి ప్యాడ్‌లూ ట్రాక్ పిచ్‌లో కట్టగా కలిసి రూట్ అవుతాయి; ముగించి, ఆపై ప్రతి ట్రాక్‌ను కొనసాగించండి";
@@ -210,6 +215,7 @@
 "Delay" = "ఆలస్యం";
 "Delete" = "తొలగించు";
 "Delete Bus" = "బస్‌ను తొలగించు";
+"Delete Class" = "తరగతిని తొలగించు";
 "Delete Part" = "పార్ట్ తొలగించు";
 "Delete Sheet" = "షీట్‌ను తొలగించండి";
 "Delete Type" = "రకాన్ని తొలగించు";
@@ -229,6 +235,7 @@
 "Designators" = "డిజిగ్నేటర్లు";
 "Detect Gates" = "గేట్‌లను గుర్తించు";
 "Differential pair" = "డిఫరెన్షియల్ జత";
+"Differential pair member" = "డిఫరెన్షియల్ పెయిర్ సభ్యుడు";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 తో DigiKey API అప్లికేషన్ (Production); క్లయింట్ క్రెడెన్షియల్స్ ఫ్లో.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "పాపులేట్ చేయవద్దు: బోర్డుపై ఉంటుంది కానీ అమర్చబడదు; అసెంబ్లీ BOM మరియు CPL నుండి మినహాయించబడుతుంది";
 "Done" = "పూర్తయింది";
@@ -322,6 +329,7 @@
 "Harness name" = "హార్నెస్ పేరు";
 "Harnesses" = "హార్నెస్‌లు";
 "Hide navigator (N)" = "నావిగేటర్ దాచు (N)";
+"HighSpeed" = "HighSpeed";
 "Higher effort lets Claude reason longer about circuit topology and values. “high” is recommended." = "ఎక్కువ ప్రయత్నంతో Claude సర్క్యూట్ టోపాలజీ మరియు విలువల గురించి ఎక్కువసేపు ఆలోచించగలదు. “high” సిఫార్సు చేయబడింది.";
 "Highlight" = "హైలైట్";
 "Hold" = "హోల్డ్";
@@ -423,10 +431,15 @@
 "Move the footprint origin to the centre of the pads" = "ఫుట్‌ప్రింట్ ఆరిజిన్‌ను ప్యాడ్‌ల మధ్యకు తరలించు";
 "Move the pad in the numbering; pads between shift by one" = "నంబరింగ్‌లో ప్యాడ్‌ను తరలించు; మధ్యలోని ప్యాడ్‌లు ఒక్క స్థానం జరుగుతాయి";
 "NAVIGATOR" = "నావిగేటర్";
+"NET CLASSES" = "నెట్ తరగతులు";
+"NET DIRECTIVE" = "నెట్ ఆదేశం";
 "Name" = "పేరు";
 "Naval Platform" = "నౌకాదళ ప్లాట్‌ఫారమ్";
 "Net" = "నెట్";
+"Net Classes" = "నెట్ తరగతులు";
 "Net Navigator" = "నెట్ నావిగేటర్";
+"Net class" = "నెట్ తరగతి";
+"Net classes for the directives on nets: the schematic is the source of the board's net rules" = "నెట్‌లపై ఆదేశాలకు నెట్ తరగతులు: స్కీమాటిక్ బోర్డ్ నెట్ నియమాలకు మూలం";
 "Net model" = "నెట్ మోడల్";
 "Nets" = "నెట్‌లు";
 "Nets (%lld)" = "నెట్‌లు (%lld)";
@@ -515,6 +528,7 @@
 "Package" = "ప్యాకేజీ";
 "Package (optional, e.g. SOIC-8)" = "ప్యాకేజీ (ఐచ్ఛికం, ఉదా. SOIC-8)";
 "Package pins (0 = from pin list)" = "ప్యాకేజీ పిన్‌లు (0 = పిన్ జాబితా నుండి)";
+"Pairs this net with the net of the opposite suffix (X_P / X_N): routed, tuned and checked as a pair" = "ఈ నెట్‌ను వ్యతిరేక ప్రత్యయం ఉన్న నెట్‌తో (X_P / X_N) జత చేస్తుంది: జతగా రౌట్, ట్యూన్, తనిఖీ చేస్తారు";
 "Panels" = "ప్యానెల్‌లు";
 "Parameter Sweep" = "పారామీటర్ స్వీప్";
 "Part" = "భాగం";
@@ -639,6 +653,7 @@
 "Save" = "సేవ్ చేయి";
 "Save & Place" = "సేవ్ చేసి ఉంచు";
 "Save As…" = "ఇలా సేవ్ చేయి…";
+"Save Class" = "తరగతిని సేవ్ చేయి";
 "Save Key" = "కీని సేవ్ చేయి";
 "Save Type" = "రకాన్ని సేవ్ చేయి";
 "Scale" = "స్కేల్";
@@ -754,6 +769,7 @@
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "ఇంటర్‌ఫేస్ ఈ భాషను అనుసరిస్తుంది. ఇంజనీరింగ్ పదాలు, పార్ట్ నంబర్‌లు, యూనిట్‌లు, నెట్ పేర్లు మరియు డిజైన్ తనిఖీ సందేశాలు డేటాషీట్‌లు మరియు ఫ్యాబ్రికేషన్ ఫైల్‌లతో సరిపోలడానికి ఇంగ్లీష్‌లోనే ఉంటాయి.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ఆఫ్‌లైన్ డిజైనర్ SiEDA అంతర్నిర్మిత రిఫరెన్స్ సర్క్యూట్‌లను ఉపయోగిస్తుంది. నెట్‌వర్క్ లేదా API కీ అవసరం లేదు — డెమోలు మరియు ఎయిర్-గ్యాప్డ్ ల్యాబ్‌లకు అనువైనది.";
 "The plain box: pins in number order down the left, then up the right" = "సాధారణ బాక్స్: పిన్‌లు సంఖ్య క్రమంలో ఎడమ వైపు కిందకు, ఆపై కుడి వైపు పైకి";
+"The schematic is the source of the board's net rules. Put a net class on a net from the inspector of a net label or wire; the board's routing and DRC take its width and clearance." = "స్కీమాటిక్ బోర్డ్ నెట్ నియమాలకు మూలం. నెట్ లేబుల్ లేదా వైర్ ఇన్‌స్పెక్టర్ నుండి నెట్‌కు నెట్ తరగతి ఇవ్వండి; బోర్డ్ రౌటింగ్, DRC దాని వెడల్పు, క్లియరెన్స్ తీసుకుంటాయి.";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "స్ప్లాష్ కాంపోనెంట్ లైబ్రరీ మరియు రిఫరెన్స్ డిజైన్‌లను ఐదు సెకన్ల పాటు ముందుగా లోడ్ చేసి, ఆపై ప్రధాన విండోను తెరుస్తుంది. లోడింగ్ పూర్తయిన తర్వాత దాటవేయడానికి దాన్ని క్లిక్ చేయండి లేదా Esc నొక్కండి.";
 "The two gates exchange places in their packages; the symbols and wires stay" = "రెండు గేట్‌లు తమ ప్యాకేజీలలో స్థానాలు మార్చుకుంటాయి; చిహ్నాలు, వైర్‌లు అలాగే ఉంటాయి";
 "The victim runs on the adjacent layer, over or under the aggressor" = "బాధిత నెట్ పక్క పొరపై, దాడి చేసే నెట్ పైన లేదా కింద నడుస్తుంది";
@@ -761,6 +777,7 @@
 "Through" = "త్రూ";
 "Title" = "శీర్షిక";
 "Total jitter" = "మొత్తం జిట్టర్";
+"Track width (mm)" = "ట్రాక్ వెడల్పు (mm)";
 "Transient" = "ట్రాన్సియెంట్";
 "Transient analysis" = "ట్రాన్సియెంట్ విశ్లేషణ";
 "Transient: stop" = "ట్రాన్సియెంట్: ఆపు";

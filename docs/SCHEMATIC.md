@@ -186,6 +186,33 @@ one, like Altium's signal harnesses. Code: `Core/src/Harnesses.cpp`.
 | `ERC_HARNESS_MEMBER_UNCONNECTED` | warning | A member reaches no part pin |
 | `ERC_HARNESS_TYPE_UNUSED` | info | A type is defined but not used |
 
+## Schematic directives: net classes, differential pairs, parameter sets
+
+The schematic is the source of the board's net rules (as in Altium). Code: `Core/src/Directives.cpp`,
+`Project::applySchematicRules`.
+
+- **Net classes**: sheet bar ▸ **Net Classes** — a name and a track width and / or clearance (mm; empty = the
+  board's default).
+- **Directive on a net**: select a net label or a wire; the inspector's **Net directive** sets the net's **class**,
+  marks it a **differential pair member** (paired with the net of the opposite suffix: `X_P`/`X_N`, `X+`/`X-`,
+  `X_DP`/`X_DN`, `X.DP`/`X.DN`, `CANH`/`CANL`, `X_H`/`X_L`, `XP`/`XN`), and gives it its own **track width** and
+  **clearance** (a parameter set: it wins over the class). The directive sits on the label's (or the wire end's)
+  pin and is drawn as a small `◆` flag with its class, `⇄` for a pair and its sizes. On a repeated sheet it applies
+  in every channel.
+- **Carried to the PCB** at every change: the widths become the board's net widths, the clearances its per-net
+  clearances — the autorouter keeps other nets' copper that far away and DRC reports copper closer than a net's
+  class clearance (`DRC_NET_CLASS_CLEARANCE`, warning). Pairs marked by directives join the name-based differential
+  pairs used by the autorouter (impedance width), the interactive differential router, length tuning and the
+  signal-integrity checks. Removing a directive gives the board its own rules back; widths the designer set on the
+  board for other nets stay.
+
+| Code | Severity | Meaning |
+|---|---|---|
+| `ERC_DIRECTIVE_UNKNOWN_CLASS` | error | A directive names a net class that is not defined |
+| `ERC_DIRECTIVE_NO_NET` | warning | A directive sits on an unconnected pin |
+| `ERC_DIFF_PAIR_UNPAIRED` | warning | A net marked as a pair member has no partner net of the opposite suffix |
+| `ERC_DIRECTIVE_CONFLICT` | warning | A net gets several net classes (the widest width and clearance apply) |
+
 ## Multi-unit parts
 
 A part with several identical gates — a quad op-amp, a hex inverter — can be drawn one gate per symbol.
@@ -302,7 +329,9 @@ Further optional fields (written only when used, so other designs' files are unc
 `channel`, `refs` (a nested block's channels have a channel sheet as `parent`); components `instanceOf`,
 `logicalRef`, `channelOverride` (1 value, 2 package: the copy keeps its own), `bus`, `unitOf` / `unit` (kind 20, a placed unit) and
 `packageOnly`, `harnessType` / `harnessOf` (net labels); wires `instanceOf`; top-level `buses`, `harnessTypes`
-(`[{"name","entries"}]`) and `titleBlock`. A file is repaired on load: copies whose
+(`[{"name","entries"}]`), `netClassDefs` (`[{"name","trackWidth"?,"clearance"?}]`), `directives`
+(`[{"id","component","pin","netClass"?,"diffPair"?,"trackWidth"?,"clearance"?}]`) and `titleBlock`; board
+`netClearances` and `schematicRuleNets` (the nets whose rules came from the schematic). A file is repaired on load: copies whose
 block part is gone, units without a valid package, packages without units, entries of missing buses and buses on
 missing sheets are dropped; an instance of a missing or nested definition becomes an ordinary sheet. Older versions of
 SiEDA open a file with repeated sheets as ordinary sheets (every channel's parts are real parts); a file with placed
@@ -342,6 +371,12 @@ int32_t sieda_set_harness_type(SiedaProject*, const char* name, const char* entr
 int32_t sieda_set_label_harness(SiedaProject*, int32_t label, const char* type);
 int32_t sieda_add_harness_connector(SiedaProject*, const char* type, const char* name, double x, double y);
 int32_t sieda_place_harness_entries(SiedaProject*, int32_t label);
+int32_t sieda_set_net_class(SiedaProject*, const char* json);      /* {"name","trackWidth","clearance"} */
+int32_t sieda_remove_net_class(SiedaProject*, const char* name);
+int32_t sieda_add_directive(SiedaProject*, const char* json);      /* {"component","pin","netClass","diffPair",…} */
+int32_t sieda_update_directive(SiedaProject*, int32_t id, const char* json);
+int32_t sieda_remove_directive(SiedaProject*, int32_t id);
+char*   sieda_net_rules_json(const SiedaProject*);
 ```
 
 Sheets, hierarchy, bus labels, annotation and variants:
