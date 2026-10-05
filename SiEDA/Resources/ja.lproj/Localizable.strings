@@ -15,6 +15,7 @@
 "3D Viewer" = "3D ビューア";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A new gate; the selected pins go on it" = "新しいゲート。選択したピンをそこに置きます";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC スイープ";
 "AC uses the AC Sweep range, Transient the Transient stop and step" = "AC は AC スイープの範囲、過渡は過渡解析の停止時間とステップを使います";
@@ -37,6 +38,7 @@
 "Add Pour" = "ベタを追加";
 "Add Selected Parts" = "選択した部品を追加";
 "Add Thermal Vias" = "サーマルビアを追加";
+"Add Unit" = "ユニットを追加";
 "Add a pad like the last one (numbered next)" = "直前と同じパッドを追加 (次の番号)";
 "Add a sheet (right-click a tab for more)" = "シートを追加（タブを右クリックでその他の操作）";
 "Add an Octopart (Nexar), DigiKey or Mouser key in Settings → Suppliers to see stock, prices and lifecycle for every BOM line." = "設定 → サプライヤで Octopart (Nexar)、DigiKey または Mouser のキーを追加すると、すべての BOM 行の在庫・価格・ライフサイクルを表示できます。";
@@ -69,6 +71,7 @@
 "Apply Symbol" = "シンボルを適用";
 "Apply Tuning" = "チューニングを適用";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "回路図シンボルを配置：任意の辺へのピン配置、グループ、電源ピンの積み重ね、自動配置";
+"Arrange the symbol, or define the gates of a multi-unit part" = "シンボルを配置するか、マルチユニット部品のゲートを定義します";
 "Arranged symbol" = "配置済みシンボル";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "変更を依頼 — “LED を緑にして 3.3 V で動かして”";
 "Asking the distributors…" = "販売代理店に問い合わせ中…";
@@ -218,6 +221,7 @@
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "デザインルールのプリセット：配線、クリアランス、ビアのサイズと DRC が適用する製造上の最小値";
 "Designator" = "デジグネータ";
 "Designators" = "リファレンス";
+"Detect Gates" = "ゲートを検出";
 "Differential pair" = "差動ペア";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 を含む DigiKey API アプリケーション（Production）、クライアント認証情報フロー。";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "未実装：基板上にはあるが実装しない。実装用 BOM と CPL から除外";
@@ -238,6 +242,7 @@
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "各メッシュネットはセキュアエレメントの駆動ピンと検出ピンを接続します。自動配線がサーペンタインを配置する層: ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "各ビアは接続する層だけに加工され、1 誘電体層のスパンは薄いビルドアップ層上のレーザーマイクロビアになります";
 "Earlier on its side (up, or left on the top / bottom)" = "辺上で前へ (上、または上辺/下辺では左)";
+"Edit" = "編集";
 "Edit Footprint…" = "フットプリントを編集…";
 "Edit SPICE Model…" = "SPICE モデルを編集…";
 "Edit Symbol…" = "シンボルを編集…";
@@ -247,6 +252,8 @@
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "プロセッサ、BGA、大型コンデンサの下にエポキシを充填し、MIL-STD-901E の衝撃で剥がれないようにします";
 "Errors" = "エラー";
 "Every pin is placed once; no pins collide" = "すべてのピンが 1 回ずつ配置され、ピンの衝突なし";
+"Every unit is valid" = "すべてのユニットが有効です";
+"Exchange the wires of two interchangeable pins of this gate" = "このゲートの交換可能な2本のピンの配線を入れ替えます";
 "Export" = "書き出す";
 "Export 3D" = "3D を書き出す";
 "Export Fabrication Package…" = "製造パッケージを書き出す…";
@@ -288,6 +295,7 @@
 "Gap Before" = "前に隙間";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "ミアンダの脚の間隔（エッジ間、mm、空欄：中心間でトラック幅の3倍）";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "マルチユニット部品のゲート (クワッドオペアンプの A、B、C、D) を配置順にパッケージへ詰めてから番号付け";
+"Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "同じスワップグループのゲート（または同一ゲート）は「ゲートを交換」とパッキングで入れ替えられます";
 "Generate Design" = "設計を生成";
 "Get an API key" = "API キーを取得";
 "Give each selected pin its own slot" = "選択した各ピンに個別のスロットを割り当てる";
@@ -310,6 +318,7 @@
 "IR drop" = "IR ドロップ";
 "IR-drop map" = "IR ドロップマップ";
 "Ideal 50 Ω" = "理想 50 Ω";
+"Identical gates" = "同一ゲート";
 "Impedance" = "インピーダンス";
 "Import Datasheet…" = "データシートを読み込む…";
 "Import IBIS…" = "IBIS をインポート…";
@@ -373,6 +382,7 @@
 "Lossy" = "損失あり";
 "Lumped model" = "集中定数モデル";
 "Magnitude" = "振幅";
+"Make Swap Group" = "スワップグループにする";
 "Manufacturer part #" = "メーカー品番";
 "Manufacturer part number or keywords" = "メーカー品番またはキーワード";
 "Mask" = "マスク";
@@ -408,6 +418,7 @@
 "Net model" = "ネットのモデル";
 "Nets" = "ネット";
 "Nets (%lld)" = "ネット (%lld)";
+"Never swap" = "交換しない";
 "New Project" = "新規プロジェクト";
 "New Variant" = "新規バリアント";
 "New Variant…" = "新規バリアント…";
@@ -420,8 +431,10 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "この設計には差動ペア (…_P/_N, …+/-) やバス (DQ0…, DATA[0..7], ADDR…) がありません。";
 "No distributor API keys yet" = "販売代理店の API キーがまだありません";
 "No distributor offers." = "販売代理店のオファーはありません。";
+"No gates found in the pin names." = "ピン名からゲートが見つかりません。";
 "No imported model" = "インポートしたモデルなし";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "入力源がありません：入力換算ノイズを見るには、入力に AC 振幅を与えるか入力として指定してください。";
+"No interchangeable pins. Select pins of this gate (⌘-click) and make them a swap group — the inputs of a NAND gate." = "交換可能なピンはありません。このゲートのピンを選択（⌘クリック）してスワップグループにします（NAND ゲートの入力など）。";
 "No matches." = "一致するものはありません。";
 "No models or subcircuits found." = "モデルもサブサーキットも見つかりません。";
 "No overlaps, gaps ≥ 0.1 mm, every pin has a pad" = "重なりなし、隙間 ≥ 0.1 mm、すべてのピンにパッドあり";
@@ -431,6 +444,7 @@
 "No signal nets to analyse" = "解析する信号ネットがありません";
 "No supply rails to analyse" = "解析する電源レールがありません";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "スイッチがありません。回路図にスイッチを追加してください (値を \"push\" にすると押しボタン)。";
+"No units: the part is drawn as one symbol" = "ユニットなし：部品を1つのシンボルで描きます";
 "No." = "番号";
 "Noise" = "ノイズ";
 "Nominal" = "公称値";
@@ -455,7 +469,13 @@
 "OK" = "OK";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "オフ：SiEDA は従来の手動 EDA ツールとして動作します。回路図入力、シミュレーション、PCB 配線、3D、データシート解析、書き出しはすべてローカルで実行され、AI サービスには何も送信されません。";
 "Offset (mm)" = "オフセット (mm)";
+"On no gate: the pin goes to the power unit P with the supplies" = "どのゲートにも属さない：ピンは電源とともに電源ユニット P に入ります";
+"On the power unit P" = "電源ユニット P 上";
+"One Symbol" = "1つのシンボル";
 "One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "モデルのポートごとに順に 1 項目：ピン名または番号、0（グランド）、net:NAME、dc:15（理想電源）、nc のいずれか。インスタンスは ; で区切ります。";
+"One pin drawn on every gate (a shared enable or supply)" = "1本のピンを各ゲートに描きます（共有イネーブルや電源）";
+"One symbol for the whole part. Add units to draw each gate on its own (a quad op-amp's A–D); pins on no unit form the power unit P." = "部品全体で1つのシンボルです。ユニットを追加すると各ゲートを個別に描きます（クワッドオペアンプの A–D）。どのユニットにもないピンは電源ユニット P になります。";
+"Only on %@" = "%@ のみ";
 "Op-amp current noise" = "オペアンプ電流ノイズ";
 "Op-amp voltage noise" = "オペアンプ電圧ノイズ";
 "Open File…" = "ファイルを開く…";
@@ -474,6 +494,8 @@
 "PAD ARRAY" = "パッドアレイ";
 "PARAMETERS" = "パラメータ";
 "PCB Layout" = "PCB レイアウト";
+"PIN SWAP" = "ピン交換";
+"PINS" = "ピン";
 "PRBS" = "PRBS";
 "PROPERTIES" = "プロパティ";
 "Pack Units into Packages" = "ユニットをパッケージにまとめる";
@@ -512,6 +534,8 @@
 "Port (to parent sheet)" = "ポート（親シートへ）";
 "Ports: %@" = "ポート：%@";
 "Power" = "電源";
+"Power Unit" = "電源ユニット";
+"Power unit: pins on no gate" = "電源ユニット：どのゲートにもないピン";
 "Preparing the autoroute…" = "自動配線を準備中…";
 "Preview appears once the part has a name and pins." = "部品に名前とピンが設定されるとプレビューが表示されます。";
 "Product Page" = "製品ページ";
@@ -537,6 +561,7 @@
 "Remove the SPICE model" = "SPICE モデルを削除";
 "Remove the empty slots on every side" = "すべての辺の空きスロットを削除";
 "Remove the firmware" = "ファームウェアを削除";
+"Remove the selected unit (its pins go to the power unit)" = "選択したユニットを削除します（ピンは電源ユニットへ）";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "最後に接続された層より下の未使用ビアバレルを除去 (≥ 4 層)。バックドリルファイルを追加";
 "Rename Channel" = "チャネル名を変更";
 "Rename Channel…" = "チャネル名を変更…";
@@ -630,6 +655,8 @@
 "Settling" = "セトリング";
 "Settling (2 %)" = "整定時間（2 %）";
 "Shape" = "形状";
+"Shared by All" = "すべてで共有";
+"Shared by several gates" = "複数のゲートで共有";
 "Sheet" = "シート";
 "Sheet %lld of %lld" = "シート %lld / %lld";
 "Sheet name" = "シート名";
@@ -669,6 +696,7 @@
 "Spacing" = "間隔";
 "Speed" = "速度";
 "Spin" = "スピン";
+"Split the pins into gates from their names (1A, 1B, 1Y… or OUT1, IN1-, IN1+…)" = "名前からピンをゲートに分けます（1A, 1B, 1Y… または OUT1, IN1-, IN1+…）";
 "Stack" = "積み重ね";
 "Stack repeated power pins" = "重複する電源ピンを積み重ね";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "スタックアップは PCB レイアウトの “レイヤー” 設定に従います：1 層では裏面は FR-4 のまま。 ";
@@ -691,8 +719,13 @@
 "Supplies on top, grounds at the bottom, inputs left, outputs right, MCU ports grouped" = "電源は上、グラウンドは下、入力は左、出力は右、MCU ポートはグループ化";
 "Surface" = "表面処理";
 "Surface finish of the exposed copper: pads, via lands and plated holes" = "露出した銅の表面処理：パッド、ビアランド、めっきスルーホール";
+"Swap" = "交換";
+"Swap Gates" = "ゲートを交換";
+"Swap Pins" = "ピンを交換";
+"Swap group %lld" = "スワップグループ %lld";
 "Swap the left and right sides" = "左右の辺を入れ替える";
 "Switch workspace (⌘1 – ⌘7)" = "ワークスペースを切り替え (⌘1 – ⌘7)";
+"Symbol" = "シンボル";
 "System default" = "システムのデフォルト";
 "TEMPLATES" = "テンプレート";
 "THD" = "THD";
@@ -705,6 +738,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "オフラインデザイナーは SiEDA 内蔵のリファレンス回路を使用します。ネットワークや API キーは不要 — デモやエアギャップ環境のラボに最適です。";
 "The plain box: pins in number order down the left, then up the right" = "シンプルなボックス：ピンを番号順に左側を下へ、続いて右側を上へ";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "スプラッシュ画面は部品ライブラリとリファレンスデザインを 5 秒間プリロードしてからメインウインドウを開きます。読み込み完了後はクリックまたは Esc でスキップできます。";
+"The two gates exchange places in their packages; the symbols and wires stay" = "2つのゲートがパッケージ内で入れ替わります。シンボルと配線はそのままです";
 "The victim runs on the adjacent layer, over or under the aggressor" = "被害ネットが隣接層で加害ネットの上または下を通っています";
 "Thermal" = "熱雑音";
 "Through" = "貫通";
@@ -719,13 +753,17 @@
 "Tune to the longest member of the net's differential pair or bus" = "ネットの差動ペアまたはバスの最長メンバーに合わせる";
 "Type" = "種類";
 "Type a designator, value, label or net name." = "リファレンス、値、ラベル、ネット名を入力してください。";
+"UNIT %@" = "ユニット %@";
+"UNITS" = "ユニット";
 "Underfill / corner-bond heavy parts (shock)" = "重量部品のアンダーフィル / コーナーボンド (衝撃)";
 "Undershoot" = "アンダーシュート";
 "Undo" = "取り消す";
 "Undo (⌘Z)" = "取り消す (⌘Z)";
 "Undo the last footprint edit" = "直前のフットプリント編集を取り消す";
 "Undo the last symbol edit" = "直前のシンボル編集を取り消す";
+"Undo the last unit edit" = "最後のユニット編集を取り消す";
 "Unit price" = "単価";
+"Units" = "ユニット";
 "Unity gain" = "ユニティゲイン";
 "Unstack" = "積み重ねを解除";
 "Upload .hex…" = ".hex をアップロード…";

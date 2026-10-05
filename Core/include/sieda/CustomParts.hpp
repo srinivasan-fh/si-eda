@@ -111,8 +111,15 @@ struct SymbolSpec {
 /// One unit (gate) of a multi-unit part, drawn as its own symbol: a quad op-amp has units A–D and a power unit. A pin
 /// listed in several units is shared (one pin, drawn on each); pins in no unit form an extra power unit "P".
 struct UnitSpec {
-    std::string name;               // "A", "B", "P"
+    UnitSpec() = default;
+    UnitSpec(std::string name_, std::vector<std::string> pins_) : name(std::move(name_)), pins(std::move(pins_)) {}
+    std::string name;              // "A", "B", "P"
     std::vector<std::string> pins;  // pin numbers
+    /// Gate swapping: 0 = automatic (units with identical symbols are interchangeable), > 0 = interchangeable with the
+    /// units of the same group only, -1 = never swapped.
+    int swapGroup = 0;
+    /// Pin swapping inside the unit: groups of interchangeable pins (the inputs of a NAND gate), by pin number.
+    std::vector<std::vector<std::string>> pinSwap;
 };
 
 /// A part's imported 3D model (Model3D.hpp): the registered mesh and how it sits on the footprint. File
@@ -154,7 +161,10 @@ struct PartUnitDef {
     std::vector<int> pins;       // unit pin index → the part's pin index
     double halfWidth = 40, halfHeight = 40;
     bool power = false;          // only supply pins (the power unit)
+    int swapGroup = 0;           // UnitSpec::swapGroup (0 for the generated power unit)
+    std::vector<std::vector<int>> pinSwap;  // interchangeable pins, as unit pin indices
 };
+
 
 struct CustomPart {
     std::string id;  // "<NAME>-<hash>"; stable for identical specs
@@ -201,6 +211,12 @@ struct SymbolIssue {
     std::vector<std::string> pins;
 };
 std::vector<SymbolIssue> checkSymbol(const CustomPartSpec& spec);
+/// Unit (gate) editor checks of a multi-unit spec: unknown or repeated pins, empty or duplicate units (errors);
+/// signal pins shared by several units, swap groups whose gates differ, pin-swap groups across pin types
+/// (warnings); the power unit the part will get (info). Codes "UNIT_*"; `pins` are pin numbers.
+std::vector<SymbolIssue> checkUnits(const CustomPartSpec& spec);
+/// True when two units of a part may be swapped (gate swap): see UnitSpec::swapGroup.
+bool unitsInterchangeable(const PartUnitDef& a, const PartUnitDef& b);
 
 Json customPartSpecToJson(const CustomPartSpec& spec);
 CustomPartSpec customPartSpecFromJson(const Json& j);  // throws JsonError on invalid input

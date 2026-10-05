@@ -15,6 +15,7 @@
 "3D Viewer" = "3D ವೀಕ್ಷಕ";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A new gate; the selected pins go on it" = "ಹೊಸ ಗೇಟ್; ಆಯ್ಕೆ ಮಾಡಿದ ಪಿನ್‌ಗಳು ಅದರ ಮೇಲೆ ಹೋಗುತ್ತವೆ";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC ಸ್ವೀಪ್";
 "AC uses the AC Sweep range, Transient the Transient stop and step" = "AC, AC ಸ್ವೀಪ್ ವ್ಯಾಪ್ತಿಯನ್ನು; ಟ್ರಾನ್ಸಿಯೆಂಟ್, ಟ್ರಾನ್ಸಿಯೆಂಟ್ ಸ್ಟಾಪ್ ಮತ್ತು ಸ್ಟೆಪ್ ಅನ್ನು ಬಳಸುತ್ತದೆ";
@@ -37,6 +38,7 @@
 "Add Pour" = "ಪೋರ್ ಸೇರಿಸಿ";
 "Add Selected Parts" = "ಆಯ್ಕೆ ಮಾಡಿದ ಭಾಗಗಳನ್ನು ಸೇರಿಸಿ";
 "Add Thermal Vias" = "ಥರ್ಮಲ್ ವಯಾಗಳನ್ನು ಸೇರಿಸಿ";
+"Add Unit" = "ಯೂನಿಟ್ ಸೇರಿಸಿ";
 "Add a pad like the last one (numbered next)" = "ಕೊನೆಯದರಂತಹ ಪ್ಯಾಡ್ ಸೇರಿಸಿ (ಮುಂದಿನ ಸಂಖ್ಯೆಯೊಂದಿಗೆ)";
 "Add a sheet (right-click a tab for more)" = "ಶೀಟ್ ಸೇರಿಸಿ (ಹೆಚ್ಚಿನದಕ್ಕೆ ಟ್ಯಾಬ್ ಮೇಲೆ ರೈಟ್-ಕ್ಲಿಕ್ ಮಾಡಿ)";
 "Add an Octopart (Nexar), DigiKey or Mouser key in Settings → Suppliers to see stock, prices and lifecycle for every BOM line." = "ಪ್ರತಿ BOM ಸಾಲಿನ ಸ್ಟಾಕ್, ಬೆಲೆ ಮತ್ತು ಲೈಫ್‌ಸೈಕಲ್ ನೋಡಲು ಸೆಟ್ಟಿಂಗ್‌ಗಳು → ಸರಬರಾಜುದಾರರು ನಲ್ಲಿ Octopart (Nexar), DigiKey ಅಥವಾ Mouser ಕೀ ಸೇರಿಸಿ.";
@@ -69,6 +71,7 @@
 "Apply Symbol" = "ಸಿಂಬಲ್ ಅನ್ವಯಿಸಿ";
 "Apply Tuning" = "ಟ್ಯೂನಿಂಗ್ ಅನ್ವಯಿಸಿ";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "ಸ್ಕೀಮ್ಯಾಟಿಕ್ ಸಿಂಬಲ್ ಜೋಡಿಸಿ: ಯಾವುದೇ ಬದಿಯಲ್ಲಿ ಪಿನ್‌ಗಳು, ಗುಂಪುಗಳು, ಸ್ಟ್ಯಾಕ್ ಮಾಡಿದ ಪವರ್ ಪಿನ್‌ಗಳು, ಸ್ವಯಂ ಜೋಡಣೆ";
+"Arrange the symbol, or define the gates of a multi-unit part" = "ಚಿಹ್ನೆಯನ್ನು ಜೋಡಿಸಿ ಅಥವಾ ಬಹು-ಯೂನಿಟ್ ಭಾಗದ ಗೇಟ್‌ಗಳನ್ನು ವ್ಯಾಖ್ಯಾನಿಸಿ";
 "Arranged symbol" = "ಜೋಡಿಸಿದ ಸಿಂಬಲ್";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "ಬದಲಾವಣೆ ಕೇಳಿ — “LED ಅನ್ನು ಹಸಿರಾಗಿಸಿ 3.3 V ನಿಂದ ಚಲಾಯಿಸು”";
 "Asking the distributors…" = "ವಿತರಕರನ್ನು ಕೇಳಲಾಗುತ್ತಿದೆ…";
@@ -218,6 +221,7 @@
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "ಡಿಸೈನ್-ರೂಲ್ ಪ್ರೀಸೆಟ್: ಟ್ರ್ಯಾಕ್, ಕ್ಲಿಯರೆನ್ಸ್ ಮತ್ತು ವಯಾ ಗಾತ್ರಗಳು ಹಾಗೂ DRC ಜಾರಿಗೊಳಿಸುವ ಫ್ಯಾಬ್ರಿಕೇಶನ್ ಕನಿಷ್ಠಗಳು";
 "Designator" = "ಡೆಸಿಗ್ನೇಟರ್";
 "Designators" = "ಡಿಸಿಗ್ನೇಟರ್‌ಗಳು";
+"Detect Gates" = "ಗೇಟ್‌ಗಳನ್ನು ಪತ್ತೆಮಾಡಿ";
 "Differential pair" = "ಡಿಫರೆನ್ಷಿಯಲ್ ಜೋಡಿ";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 ಹೊಂದಿರುವ DigiKey API ಅಪ್ಲಿಕೇಶನ್ (Production); ಕ್ಲೈಂಟ್ ಕ್ರೆಡೆನ್ಶಿಯಲ್ಸ್ ಫ್ಲೋ.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "ಜೋಡಿಸಬೇಡಿ: ಬೋರ್ಡ್‌ನಲ್ಲಿದೆ ಆದರೆ ಅಳವಡಿಸಲಾಗುವುದಿಲ್ಲ; ಅಸೆಂಬ್ಲಿ BOM ಮತ್ತು CPL ನಿಂದ ಹೊರಗಿಡಲಾಗುತ್ತದೆ";
@@ -238,6 +242,7 @@
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "ಪ್ರತಿ ಮೆಶ್ ನೆಟ್ ಸೆಕ್ಯೂರ್ ಎಲಿಮೆಂಟ್‌ನ ಡ್ರೈವ್ ಮತ್ತು ಸೆನ್ಸ್ ಪಿನ್‌ಗಳನ್ನು ಸೇರಿಸುತ್ತದೆ; ಆಟೋ ರೂಟ್ ಸರ್ಪೆಂಟೈನ್‌ಗಳನ್ನು ಹಾಕುವ ಲೇಯರ್: ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "ಪ್ರತಿ ವಯಾವನ್ನು ಅದು ಸಂಪರ್ಕಿಸುವ ಲೇಯರ್‌ಗಳವರೆಗೆ ಮಾತ್ರ ಕತ್ತರಿಸಲಾಗುತ್ತದೆ; ಒಂದು-ಡೈಎಲೆಕ್ಟ್ರಿಕ್ ವ್ಯಾಪ್ತಿಗಳು ತೆಳುವಾದ ಬಿಲ್ಡ್-ಅಪ್ ಲೇಯರ್‌ಗಳ ಮೇಲೆ ಲೇಸರ್ ಮೈಕ್ರೋವಯಾಗಳಾಗುತ್ತವೆ";
 "Earlier on its side (up, or left on the top / bottom)" = "ಅದರ ಬದಿಯಲ್ಲಿ ಮೊದಲು (ಮೇಲೆ, ಅಥವಾ ಮೇಲ್ / ಕೆಳ ಬದಿಗಳಲ್ಲಿ ಎಡಕ್ಕೆ)";
+"Edit" = "ಸಂಪಾದಿಸಿ";
 "Edit Footprint…" = "ಫುಟ್‌ಪ್ರಿಂಟ್ ಸಂಪಾದಿಸಿ…";
 "Edit SPICE Model…" = "SPICE ಮಾದರಿ ಸಂಪಾದಿಸಿ…";
 "Edit Symbol…" = "ಸಿಂಬಲ್ ಸಂಪಾದಿಸಿ…";
@@ -247,6 +252,8 @@
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "MIL-STD-901E ಆಘಾತವು ಅವುಗಳನ್ನು ಕಿತ್ತುಹಾಕದಂತೆ ಪ್ರೊಸೆಸರ್‌ಗಳು, BGA ಗಳು ಮತ್ತು ದೊಡ್ಡ ಕೆಪಾಸಿಟರ್‌ಗಳ ಕೆಳಗೆ ಎಪಾಕ್ಸಿ";
 "Errors" = "ದೋಷಗಳು";
 "Every pin is placed once; no pins collide" = "ಪ್ರತಿ ಪಿನ್ ಒಮ್ಮೆ ಮಾತ್ರ ಇರಿಸಲಾಗಿದೆ; ಪಿನ್‌ಗಳು ಡಿಕ್ಕಿಯಾಗುವುದಿಲ್ಲ";
+"Every unit is valid" = "ಪ್ರತಿ ಯೂನಿಟ್ ಮಾನ್ಯವಾಗಿದೆ";
+"Exchange the wires of two interchangeable pins of this gate" = "ಈ ಗೇಟ್‌ನ ಎರಡು ಅದಲುಬದಲು ಮಾಡಬಹುದಾದ ಪಿನ್‌ಗಳ ತಂತಿಗಳನ್ನು ಬದಲಿಸಿ";
 "Export" = "ರಫ್ತು ಮಾಡಿ";
 "Export 3D" = "3D ರಫ್ತು ಮಾಡಿ";
 "Export Fabrication Package…" = "ಫ್ಯಾಬ್ರಿಕೇಶನ್ ಪ್ಯಾಕೇಜ್ ರಫ್ತು ಮಾಡಿ…";
@@ -288,6 +295,7 @@
 "Gap Before" = "ಮುಂಚಿನ ಅಂತರ";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "ಮಿಯಾಂಡರ್ ಕಾಲುಗಳ ನಡುವಿನ ಅಂಚಿನಿಂದ ಅಂಚಿನ ಅಂತರ mm ನಲ್ಲಿ (ಖಾಲಿ: ಕೇಂದ್ರಗಳ ನಡುವೆ ಮೂರು ಟ್ರ್ಯಾಕ್ ಅಗಲ)";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "ಬಹು-ಯೂನಿಟ್ ಭಾಗಗಳ ಗೇಟ್‌ಗಳು (ಕ್ವಾಡ್ ಆಪ್-ಆಂಪ್‌ನ A, B, C, D) ಸಂಖ್ಯೆ ನೀಡುವ ಮೊದಲು ಇರಿಸಿದ ಕ್ರಮದಲ್ಲಿ ಪ್ಯಾಕೇಜ್‌ಗಳನ್ನು ತುಂಬುತ್ತವೆ";
+"Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "ಒಂದೇ ಸ್ವಾಪ್ ಗುಂಪಿನ ಗೇಟ್‌ಗಳನ್ನು (ಅಥವಾ ಒಂದೇ ರೀತಿಯ ಗೇಟ್‌ಗಳನ್ನು) ಗೇಟ್ ಸ್ವಾಪ್ ಮತ್ತು ಪ್ಯಾಕಿಂಗ್‌ನಿಂದ ಬದಲಿಸಬಹುದು";
 "Generate Design" = "ಡಿಸೈನ್ ರಚಿಸಿ";
 "Get an API key" = "API ಕೀ ಪಡೆಯಿರಿ";
 "Give each selected pin its own slot" = "ಆಯ್ಕೆಮಾಡಿದ ಪ್ರತಿ ಪಿನ್‌ಗೆ ತನ್ನದೇ ಸ್ಲಾಟ್ ನೀಡಿ";
@@ -310,6 +318,7 @@
 "IR drop" = "IR ಡ್ರಾಪ್";
 "IR-drop map" = "IR ಡ್ರಾಪ್ ನಕ್ಷೆ";
 "Ideal 50 Ω" = "ಆದರ್ಶ 50 Ω";
+"Identical gates" = "ಒಂದೇ ರೀತಿಯ ಗೇಟ್‌ಗಳು";
 "Impedance" = "ಇಂಪೆಡೆನ್ಸ್";
 "Import Datasheet…" = "ಡೇಟಾಶೀಟ್ ಆಮದು ಮಾಡಿ…";
 "Import IBIS…" = "IBIS ಆಮದು ಮಾಡಿ…";
@@ -373,6 +382,7 @@
 "Lossy" = "ನಷ್ಟಸಹಿತ";
 "Lumped model" = "ಲಂಪ್ಡ್ ಮಾದರಿ";
 "Magnitude" = "ಮ್ಯಾಗ್ನಿಟ್ಯೂಡ್";
+"Make Swap Group" = "ಸ್ವಾಪ್ ಗುಂಪು ಮಾಡಿ";
 "Manufacturer part #" = "ತಯಾರಕರ ಭಾಗ ಸಂಖ್ಯೆ";
 "Manufacturer part number or keywords" = "ತಯಾರಕರ ಭಾಗ ಸಂಖ್ಯೆ ಅಥವಾ ಕೀವರ್ಡ್‌ಗಳು";
 "Mask" = "ಮಾಸ್ಕ್";
@@ -408,6 +418,7 @@
 "Net model" = "ನೆಟ್ ಮಾದರಿ";
 "Nets" = "ನೆಟ್‌ಗಳು";
 "Nets (%lld)" = "ನೆಟ್‌ಗಳು (%lld)";
+"Never swap" = "ಎಂದಿಗೂ ಬದಲಿಸಬೇಡಿ";
 "New Project" = "ಹೊಸ ಪ್ರಾಜೆಕ್ಟ್";
 "New Variant" = "ಹೊಸ ವೇರಿಯಂಟ್";
 "New Variant…" = "ಹೊಸ ವೇರಿಯಂಟ್…";
@@ -420,8 +431,10 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "ಈ ಡಿಸೈನ್‌ನಲ್ಲಿ ಡಿಫರೆನ್ಶಿಯಲ್ ಜೋಡಿಗಳು (…_P/_N, …+/-) ಅಥವಾ ಬಸ್‌ಗಳು (DQ0…, DATA[0..7], ADDR…) ಇಲ್ಲ.";
 "No distributor API keys yet" = "ಇನ್ನೂ ವಿತರಕ API ಕೀಗಳಿಲ್ಲ";
 "No distributor offers." = "ವಿತರಕ ಆಫರ್‌ಗಳಿಲ್ಲ.";
+"No gates found in the pin names." = "ಪಿನ್ ಹೆಸರುಗಳಲ್ಲಿ ಯಾವುದೇ ಗೇಟ್ ಕಂಡುಬಂದಿಲ್ಲ.";
 "No imported model" = "ಆಮದು ಮಾಡಿದ ಮಾದರಿ ಇಲ್ಲ";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "ಇನ್‌ಪುಟ್ ಮೂಲವಿಲ್ಲ: ಇನ್‌ಪುಟ್‌ಗೆ ಉಲ್ಲೇಖಿತ ಶಬ್ದ ನೋಡಲು ಇನ್‌ಪುಟ್‌ಗೆ AC ಪ್ರಮಾಣ ನೀಡಿ ಅಥವಾ ಅದನ್ನು ಹೆಸರಿಸಿ.";
+"No interchangeable pins. Select pins of this gate (⌘-click) and make them a swap group — the inputs of a NAND gate." = "ಅದಲುಬದಲು ಮಾಡಬಹುದಾದ ಪಿನ್‌ಗಳಿಲ್ಲ. ಈ ಗೇಟ್‌ನ ಪಿನ್‌ಗಳನ್ನು ಆಯ್ಕೆಮಾಡಿ (⌘-ಕ್ಲಿಕ್) ಸ್ವಾಪ್ ಗುಂಪು ಮಾಡಿ — NAND ಗೇಟ್‌ನ ಇನ್‌ಪುಟ್‌ಗಳು.";
 "No matches." = "ಹೊಂದಾಣಿಕೆಗಳಿಲ್ಲ.";
 "No models or subcircuits found." = "ಯಾವುದೇ ಮಾದರಿ ಅಥವಾ ಉಪಸರ್ಕ್ಯೂಟ್ ಕಂಡುಬಂದಿಲ್ಲ.";
 "No overlaps, gaps ≥ 0.1 mm, every pin has a pad" = "ಓವರ್‌ಲ್ಯಾಪ್‌ಗಳಿಲ್ಲ, ಅಂತರಗಳು ≥ 0.1 mm, ಪ್ರತಿ ಪಿನ್‌ಗೆ ಪ್ಯಾಡ್ ಇದೆ";
@@ -431,6 +444,7 @@
 "No signal nets to analyse" = "ವಿಶ್ಲೇಷಿಸಲು ಸಿಗ್ನಲ್ ನೆಟ್‌ಗಳಿಲ್ಲ";
 "No supply rails to analyse" = "ವಿಶ್ಲೇಷಿಸಲು ಸಪ್ಲೈ ರೈಲ್‌ಗಳಿಲ್ಲ";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "ಸ್ವಿಚ್‌ಗಳಿಲ್ಲ. ಸ್ಕೀಮ್ಯಾಟಿಕ್‌ಗೆ Switch ಸೇರಿಸಿ (ಪುಶ್-ಬಟನ್‌ಗೆ ಮೌಲ್ಯ \"push\").";
+"No units: the part is drawn as one symbol" = "ಯೂನಿಟ್‌ಗಳಿಲ್ಲ: ಭಾಗವನ್ನು ಒಂದೇ ಚಿಹ್ನೆಯಾಗಿ ಚಿತ್ರಿಸಲಾಗುತ್ತದೆ";
 "No." = "ಸಂ.";
 "Noise" = "ಶಬ್ದ";
 "Nominal" = "ನಾಮಮಾತ್ರ ಮೌಲ್ಯ";
@@ -455,7 +469,13 @@
 "OK" = "ಸರಿ";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "ಆಫ್: SiEDA ಸಾಂಪ್ರದಾಯಿಕ ಮ್ಯಾನುವಲ್ EDA ಸಾಧನವಾಗಿ ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತದೆ. ಸ್ಕೀಮ್ಯಾಟಿಕ್ ಕ್ಯಾಪ್ಚರ್, ಸಿಮ್ಯುಲೇಶನ್, PCB ರೂಟಿಂಗ್, 3D, ಡೇಟಾಶೀಟ್ ಪಾರ್ಸಿಂಗ್ ಮತ್ತು ರಫ್ತುಗಳು ಎಲ್ಲವೂ ಸ್ಥಳೀಯವಾಗಿ ರನ್ ಆಗುತ್ತವೆ, ಯಾವುದೇ AI ಸೇವೆಗೆ ಏನನ್ನೂ ಕಳುಹಿಸಲಾಗುವುದಿಲ್ಲ.";
 "Offset (mm)" = "ಆಫ್‌ಸೆಟ್ (mm)";
+"On no gate: the pin goes to the power unit P with the supplies" = "ಯಾವುದೇ ಗೇಟ್‌ನಲ್ಲಿಲ್ಲ: ಪಿನ್ ಪೂರೈಕೆಗಳೊಂದಿಗೆ ಪವರ್ ಯೂನಿಟ್ P ಗೆ ಹೋಗುತ್ತದೆ";
+"On the power unit P" = "ಪವರ್ ಯೂನಿಟ್ P ನಲ್ಲಿ";
+"One Symbol" = "ಒಂದು ಚಿಹ್ನೆ";
 "One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "ಪ್ರತಿ ಮಾದರಿ ಪೋರ್ಟ್‌ಗೆ ಕ್ರಮವಾಗಿ ಒಂದು ನಮೂದು: ಪಿನ್ ಹೆಸರು ಅಥವಾ ಸಂಖ್ಯೆ, 0 (ಗ್ರೌಂಡ್), net:NAME, dc:15 (ಆದರ್ಶ ಪೂರೈಕೆ) ಅಥವಾ nc; ಇನ್‌ಸ್ಟೆನ್ಸ್‌ಗಳನ್ನು ; ನಿಂದ ಬೇರ್ಪಡಿಸಿ.";
+"One pin drawn on every gate (a shared enable or supply)" = "ಪ್ರತಿ ಗೇಟ್‌ನಲ್ಲಿ ಚಿತ್ರಿಸಿದ ಒಂದು ಪಿನ್ (ಹಂಚಿಕೊಂಡ ಎನೇಬಲ್ ಅಥವಾ ಪೂರೈಕೆ)";
+"One symbol for the whole part. Add units to draw each gate on its own (a quad op-amp's A–D); pins on no unit form the power unit P." = "ಇಡೀ ಭಾಗಕ್ಕೆ ಒಂದು ಚಿಹ್ನೆ. ಪ್ರತಿ ಗೇಟ್ ಅನ್ನು ಪ್ರತ್ಯೇಕವಾಗಿ ಚಿತ್ರಿಸಲು ಯೂನಿಟ್‌ಗಳನ್ನು ಸೇರಿಸಿ (ಕ್ವಾಡ್ ಆಪ್-ಆಂಪ್‌ನ A–D); ಯಾವುದೇ ಯೂನಿಟ್‌ನಲ್ಲಿಲ್ಲದ ಪಿನ್‌ಗಳು ಪವರ್ ಯೂನಿಟ್ P ಆಗುತ್ತವೆ.";
+"Only on %@" = "%@ ನಲ್ಲಿ ಮಾತ್ರ";
 "Op-amp current noise" = "ಆಪ್-ಆಂಪ್ ಕರೆಂಟ್ ಶಬ್ದ";
 "Op-amp voltage noise" = "ಆಪ್-ಆಂಪ್ ವೋಲ್ಟೇಜ್ ಶಬ್ದ";
 "Open File…" = "ಫೈಲ್ ತೆರೆಯಿರಿ…";
@@ -474,6 +494,8 @@
 "PAD ARRAY" = "ಪ್ಯಾಡ್ ಅರೇ";
 "PARAMETERS" = "ಪ್ಯಾರಾಮೀಟರ್‌ಗಳು";
 "PCB Layout" = "PCB ಲೇಔಟ್";
+"PIN SWAP" = "ಪಿನ್ ಸ್ವಾಪ್";
+"PINS" = "ಪಿನ್‌ಗಳು";
 "PRBS" = "PRBS";
 "PROPERTIES" = "ಗುಣಲಕ್ಷಣಗಳು";
 "Pack Units into Packages" = "ಯೂನಿಟ್‌ಗಳನ್ನು ಪ್ಯಾಕೇಜ್‌ಗಳಲ್ಲಿ ಜೋಡಿಸಿ";
@@ -512,6 +534,8 @@
 "Port (to parent sheet)" = "ಪೋರ್ಟ್ (ಪೋಷಕ ಶೀಟ್‌ಗೆ)";
 "Ports: %@" = "ಪೋರ್ಟ್‌ಗಳು: %@";
 "Power" = "ಪವರ್";
+"Power Unit" = "ಪವರ್ ಯೂನಿಟ್";
+"Power unit: pins on no gate" = "ಪವರ್ ಯೂನಿಟ್: ಯಾವುದೇ ಗೇಟ್‌ನಲ್ಲಿಲ್ಲದ ಪಿನ್‌ಗಳು";
 "Preparing the autoroute…" = "ಆಟೋರೂಟ್ ಸಿದ್ಧವಾಗುತ್ತಿದೆ…";
 "Preview appears once the part has a name and pins." = "ಪಾರ್ಟ್‌ಗೆ ಹೆಸರು ಮತ್ತು ಪಿನ್‌ಗಳು ಬಂದ ನಂತರ ಪೂರ್ವವೀಕ್ಷಣೆ ಕಾಣಿಸುತ್ತದೆ.";
 "Product Page" = "ಉತ್ಪನ್ನ ಪುಟ";
@@ -537,6 +561,7 @@
 "Remove the SPICE model" = "SPICE ಮಾದರಿಯನ್ನು ತೆಗೆದುಹಾಕಿ";
 "Remove the empty slots on every side" = "ಪ್ರತಿ ಬದಿಯ ಖಾಲಿ ಸ್ಲಾಟ್‌ಗಳನ್ನು ತೆಗೆದುಹಾಕಿ";
 "Remove the firmware" = "ಫರ್ಮ್‌ವೇರ್ ತೆಗೆದುಹಾಕಿ";
+"Remove the selected unit (its pins go to the power unit)" = "ಆಯ್ಕೆಮಾಡಿದ ಯೂನಿಟ್ ತೆಗೆದುಹಾಕಿ (ಅದರ ಪಿನ್‌ಗಳು ಪವರ್ ಯೂನಿಟ್‌ಗೆ ಹೋಗುತ್ತವೆ)";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "ಕೊನೆಯ ಸಂಪರ್ಕಿತ ಲೇಯರ್‌ನ ಕೆಳಗಿನ ಬಳಸದ ವಯಾ ಬ್ಯಾರೆಲ್ ಅನ್ನು ತೆಗೆದುಹಾಕುತ್ತದೆ (≥ 4 ಲೇಯರ್‌ಗಳು); ಬ್ಯಾಕ್-ಡ್ರಿಲ್ ಫೈಲ್ ಸೇರಿಸುತ್ತದೆ";
 "Rename Channel" = "ಚಾನಲ್ ಹೆಸರು ಬದಲಿಸಿ";
 "Rename Channel…" = "ಚಾನಲ್ ಹೆಸರು ಬದಲಿಸಿ…";
@@ -630,6 +655,8 @@
 "Settling" = "ಸೆಟ್ಲಿಂಗ್";
 "Settling (2 %)" = "ಸ್ಥಿರಗೊಳ್ಳುವಿಕೆ (2 %)";
 "Shape" = "ಆಕಾರ";
+"Shared by All" = "ಎಲ್ಲದರಿಂದ ಹಂಚಿಕೊಳ್ಳಲಾಗಿದೆ";
+"Shared by several gates" = "ಹಲವು ಗೇಟ್‌ಗಳು ಹಂಚಿಕೊಂಡಿವೆ";
 "Sheet" = "ಶೀಟ್";
 "Sheet %lld of %lld" = "ಶೀಟ್ %lld / %lld";
 "Sheet name" = "ಶೀಟ್ ಹೆಸರು";
@@ -669,6 +696,7 @@
 "Spacing" = "ಅಂತರ";
 "Speed" = "ವೇಗ";
 "Spin" = "ಸ್ಪಿನ್";
+"Split the pins into gates from their names (1A, 1B, 1Y… or OUT1, IN1-, IN1+…)" = "ಹೆಸರುಗಳಿಂದ ಪಿನ್‌ಗಳನ್ನು ಗೇಟ್‌ಗಳಾಗಿ ವಿಭಜಿಸಿ (1A, 1B, 1Y… ಅಥವಾ OUT1, IN1-, IN1+…)";
 "Stack" = "ಸ್ಟ್ಯಾಕ್ ಮಾಡಿ";
 "Stack repeated power pins" = "ಪುನರಾವರ್ತಿತ ಪವರ್ ಪಿನ್‌ಗಳನ್ನು ಸ್ಟ್ಯಾಕ್ ಮಾಡಿ";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "PCB ಲೇಔಟ್‌ನ ಲೇಯರ್‌ಗಳ ಸೆಟ್ಟಿಂಗ್‌ನಿಂದ ಸ್ಟ್ಯಾಕ್-ಅಪ್: 1 ಲೇಯರ್ ಕೆಳಭಾಗವನ್ನು ಖಾಲಿ FR-4 ಆಗಿ ಬಿಡುತ್ತದೆ; ";
@@ -691,8 +719,13 @@
 "Supplies on top, grounds at the bottom, inputs left, outputs right, MCU ports grouped" = "ಸಪ್ಲೈಗಳು ಮೇಲೆ, ಗ್ರೌಂಡ್‌ಗಳು ಕೆಳಗೆ, ಇನ್‌ಪುಟ್‌ಗಳು ಎಡಕ್ಕೆ, ಔಟ್‌ಪುಟ್‌ಗಳು ಬಲಕ್ಕೆ, MCU ಪೋರ್ಟ್‌ಗಳು ಗುಂಪಾಗಿ";
 "Surface" = "ಸರ್ಫೇಸ್";
 "Surface finish of the exposed copper: pads, via lands and plated holes" = "ತೆರೆದ ಕಾಪರ್‌ನ ಸರ್ಫೇಸ್ ಫಿನಿಶ್: ಪ್ಯಾಡ್‌ಗಳು, ವಯಾ ಲ್ಯಾಂಡ್‌ಗಳು ಮತ್ತು ಪ್ಲೇಟೆಡ್ ರಂಧ್ರಗಳು";
+"Swap" = "ಬದಲಿಸಿ";
+"Swap Gates" = "ಗೇಟ್‌ಗಳನ್ನು ಬದಲಿಸಿ";
+"Swap Pins" = "ಪಿನ್‌ಗಳನ್ನು ಬದಲಿಸಿ";
+"Swap group %lld" = "ಸ್ವಾಪ್ ಗುಂಪು %lld";
 "Swap the left and right sides" = "ಎಡ ಮತ್ತು ಬಲ ಬದಿಗಳನ್ನು ಅದಲುಬದಲು ಮಾಡಿ";
 "Switch workspace (⌘1 – ⌘7)" = "ವರ್ಕ್‌ಸ್ಪೇಸ್ ಬದಲಿಸಿ (⌘1 – ⌘7)";
+"Symbol" = "ಚಿಹ್ನೆ";
 "System default" = "ಸಿಸ್ಟಮ್ ಡೀಫಾಲ್ಟ್";
 "TEMPLATES" = "ಟೆಂಪ್ಲೇಟ್‌ಗಳು";
 "THD" = "THD";
@@ -705,6 +738,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ಆಫ್‌ಲೈನ್ ಡಿಸೈನರ್ SiEDA ಯ ಅಂತರ್ನಿರ್ಮಿತ ರೆಫರೆನ್ಸ್ ಸರ್ಕ್ಯೂಟ್‌ಗಳನ್ನು ಬಳಸುತ್ತದೆ. ನೆಟ್‌ವರ್ಕ್ ಅಥವಾ API ಕೀ ಅಗತ್ಯವಿಲ್ಲ — ಡೆಮೊಗಳು ಮತ್ತು ಏರ್-ಗ್ಯಾಪ್ಡ್ ಲ್ಯಾಬ್‌ಗಳಿಗೆ ಸೂಕ್ತ.";
 "The plain box: pins in number order down the left, then up the right" = "ಸರಳ ಬಾಕ್ಸ್: ಪಿನ್‌ಗಳು ಸಂಖ್ಯಾ ಕ್ರಮದಲ್ಲಿ ಎಡಭಾಗದಲ್ಲಿ ಕೆಳಕ್ಕೆ, ನಂತರ ಬಲಭಾಗದಲ್ಲಿ ಮೇಲಕ್ಕೆ";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "ಸ್ಪ್ಲ್ಯಾಶ್ ಕಾಂಪೊನೆಂಟ್ ಲೈಬ್ರರಿ ಮತ್ತು ರೆಫರೆನ್ಸ್ ಡಿಸೈನ್‌ಗಳನ್ನು ಐದು ಸೆಕೆಂಡುಗಳ ಕಾಲ ಮುಂಚಿತವಾಗಿ ಲೋಡ್ ಮಾಡಿ, ನಂತರ ಮುಖ್ಯ ವಿಂಡೋ ತೆರೆಯುತ್ತದೆ. ಲೋಡಿಂಗ್ ಮುಗಿದ ನಂತರ ಬಿಟ್ಟುಬಿಡಲು ಅದನ್ನು ಕ್ಲಿಕ್ ಮಾಡಿ ಅಥವಾ Esc ಒತ್ತಿ.";
+"The two gates exchange places in their packages; the symbols and wires stay" = "ಎರಡು ಗೇಟ್‌ಗಳು ತಮ್ಮ ಪ್ಯಾಕೇಜ್‌ಗಳಲ್ಲಿ ಸ್ಥಾನ ಬದಲಿಸುತ್ತವೆ; ಚಿಹ್ನೆಗಳು ಮತ್ತು ತಂತಿಗಳು ಉಳಿಯುತ್ತವೆ";
 "The victim runs on the adjacent layer, over or under the aggressor" = "ಬಲಿಪಶು ನೆಟ್ ಪಕ್ಕದ ಪದರದಲ್ಲಿ, ಆಕ್ರಮಣಕಾರಿ ನೆಟ್‌ನ ಮೇಲೆ ಅಥವಾ ಕೆಳಗೆ ಸಾಗುತ್ತದೆ";
 "Thermal" = "ಉಷ್ಣ";
 "Through" = "ಥ್ರೂ";
@@ -719,13 +753,17 @@
 "Tune to the longest member of the net's differential pair or bus" = "ನೆಟ್‌ನ ಡಿಫರೆನ್ಷಿಯಲ್ ಜೋಡಿ ಅಥವಾ ಬಸ್‌ನ ಅತಿ ಉದ್ದದ ಸದಸ್ಯನಿಗೆ ಟ್ಯೂನ್ ಮಾಡಿ";
 "Type" = "ಪ್ರಕಾರ";
 "Type a designator, value, label or net name." = "ಗುರುತು, ಮೌಲ್ಯ, ಲೇಬಲ್ ಅಥವಾ ನೆಟ್ ಹೆಸರು ಟೈಪ್ ಮಾಡಿ.";
+"UNIT %@" = "ಯೂನಿಟ್ %@";
+"UNITS" = "ಯೂನಿಟ್‌ಗಳು";
 "Underfill / corner-bond heavy parts (shock)" = "ಭಾರೀ ಪಾರ್ಟ್‌ಗಳಿಗೆ ಅಂಡರ್‌ಫಿಲ್ / ಕಾರ್ನರ್-ಬಾಂಡ್ (ಆಘಾತ)";
 "Undershoot" = "ಅಂಡರ್‌ಶೂಟ್";
 "Undo" = "ರದ್ದುಗೊಳಿಸಿ";
 "Undo (⌘Z)" = "ರದ್ದುಗೊಳಿಸಿ (⌘Z)";
 "Undo the last footprint edit" = "ಕೊನೆಯ ಫುಟ್‌ಪ್ರಿಂಟ್ ಸಂಪಾದನೆಯನ್ನು ರದ್ದುಗೊಳಿಸಿ";
 "Undo the last symbol edit" = "ಕೊನೆಯ ಸಿಂಬಲ್ ಸಂಪಾದನೆಯನ್ನು ರದ್ದುಗೊಳಿಸಿ";
+"Undo the last unit edit" = "ಕೊನೆಯ ಯೂನಿಟ್ ಸಂಪಾದನೆ ರದ್ದುಮಾಡಿ";
 "Unit price" = "ಘಟಕ ಬೆಲೆ";
+"Units" = "ಯೂನಿಟ್‌ಗಳು";
 "Unity gain" = "ಯೂನಿಟಿ ಗೇನ್";
 "Unstack" = "ಅನ್‌ಸ್ಟ್ಯಾಕ್ ಮಾಡಿ";
 "Upload .hex…" = ".hex ಅಪ್‌ಲೋಡ್ ಮಾಡಿ…";

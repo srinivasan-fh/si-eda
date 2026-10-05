@@ -5918,3 +5918,96 @@ final class LargeDesignScaleTests: XCTestCase {
         XCTAssertEqual(results[0].failed, 0)
     }
 }
+
+/// Unit (gate) editor: the document (assign / share / power / swap groups), gate detection from pin names, the
+/// encoding the core reads, the core's unit checks, and gate / pin swap through the store.
+@MainActor
+final class UnitEditorTests: XCTestCase {
+    /// A quad 2-input NAND (74HC00 pinout).
+    private func nand() -> CustomPartSpec {
+        var s = CustomPartSpec()
+        s.name = "UNIT-EDITOR-NAND"
+        s.package = CustomPartSpec.Package(type: "SOIC", pinCount: 14)
+        let names = ["1A", "1B", "1Y", "2A", "2B", "2Y", "GND", "3Y", "3A", "3B", "4Y", "4A", "4B", "VCC"]
+        s.pins = names.enumerated().map { index, name in
+            let type: PinElectricalType = name == "GND" || name == "VCC" ? .powerIn : name.hasSuffix("Y") ? .output : .input
+            return CustomPartSpec.Pin(number: "\(index + 1)", name: name, type: type)
+        }
+        return s
+    }
+
+    func testDetectGatesFromPinNames() throws {
+        let gates = try XCTUnwrap(UnitDraft.detectGates(nand().pins))
+        XCTAssertEqual(gates.map(\.name), ["A", "B", "C", "D"])
+        XCTAssertEqual(gates[0].pins, ["1", "2", "3"])
+        XCTAssertEqual(Set(gates[2].pins), ["8", "9", "10"])
+        // Supplies stay on the power unit.
+        XCTAssertEqual(UnitDraft(units: gates).powerPins(nand().pins), ["7", "14"])
+        var opamp = CustomPartSpec()
+        opamp.pins = ["OUT1", "IN1-", "IN1+", "V+", "IN2+", "IN2-", "OUT2", "V-"].enumerated().map {
+            CustomPartSpec.Pin(number: "\($0.offset + 1)", name: $0.element, type: $0.element.hasPrefix("V") ? .powerIn : .input)
+        }
+        XCTAssertEqual(UnitDraft.detectGates(opamp.pins)?.count, 2)
+        XCTAssertNil(UnitDraft.detectGates([CustomPartSpec.Pin(number: "1", name: "VCC", type: .powerIn)]))
+    }
+
+    func testAssignSharePowerAndSwapGroups() {
+        var d = UnitDraft(units: [])
+        d.addUnit(pins: ["1", "2", "3"])
+        d.addUnit(pins: ["4", "5", "6"])
+        XCTAssertEqual(d.units.map(\.name), ["A", "B"])
+        d.share(["14"])
+        XCTAssertEqual(d.units(of: "14"), [0, 1])
+        d.makePower(["14"])
+        XCTAssertTrue(d.units(of: "14").isEmpty)
+        d.assign(["4"], to: 0)
+        XCTAssertEqual(d.units(of: "4"), [0])
+        d.makePinSwapGroup(["1", "2"], unit: 0)
+        XCTAssertEqual(d.units[0].pinSwap, [["1", "2"]])
+        d.toggle("2", unit: 0)  // off the unit: out of its swap group too
+        XCTAssertNil(d.units[0].pinSwap)
+        d.setSwap(-1, unit: 1)
+        d.setSwap(0, unit: 0)
+        XCTAssertEqual(d.units[1].swap, -1)
+        XCTAssertNil(d.units[0].swap)
+        XCTAssertFalse(d.rename(1, to: "A"))
+        XCTAssertTrue(d.rename(1, to: "G2"))
+        var spec = nand()
+        UnitDraft(units: []).apply(to: &spec)
+        XCTAssertNil(spec.units)
+    }
+
+    func testEncodingMatchesTheCoreAndChecksRun() throws {
+        var spec = nand()
+        var d = UnitDraft(units: try XCTUnwrap(UnitDraft.detectGates(spec.pins)))
+        d.makePinSwapGroup(["1", "2"], unit: 0)
+        d.apply(to: &spec)
+        let json = spec.jsonString()
+        XCTAssertTrue(json.contains("\"pinSwap\":[[\"1\",\"2\"]]"))
+        XCTAssertFalse(json.contains("\"swap\""))
+        XCTAssertFalse(EDAEngine.checkUnits(spec).contains(where: \.isError))
+        let part = try EDAEngine.previewCustomPart(spec).get()
+        XCTAssertEqual(part.unitSymbols?.count, 5)
+        XCTAssertEqual(part.unitSymbols?.first?.pinSwap, [["1", "2"]])
+        // A pin on no part pin is an error.
+        spec.units?[1].pins.append("99")
+        XCTAssertTrue(EDAEngine.checkUnits(spec).contains { $0.code == "UNIT_UNKNOWN_PIN" })
+    }
+
+    func testGateAndPinSwapThroughTheStore() throws {
+        var spec = nand()
+        var d = UnitDraft(units: try XCTUnwrap(UnitDraft.detectGates(spec.pins)))
+        d.makePinSwapGroup(["1", "2"], unit: 0)
+        d.apply(to: &spec)
+        let store = DesignStore()
+        let partId = try store.engine.registerCustomPart(spec).id
+        let a = store.engine.addCustomUnits(partId: partId, at: .zero)
+        XCTAssertGreaterThan(a, 0)
+        let b = try XCTUnwrap(store.engine.placeNextUnit(of: a, at: CGPoint(x: 200, y: 0)))
+        store.refresh()
+        store.swapGates(a, b)
+        XCTAssertEqual(store.snapshot.component(a)?.unit, 2)
+        store.swapPins(of: a, 0, 1)
+        XCTAssertTrue(store.canUndo)
+    }
+}

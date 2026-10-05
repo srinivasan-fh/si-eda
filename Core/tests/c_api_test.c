@@ -906,3 +906,50 @@ int sieda_c_api_schematic_pro_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Unit (gate) editor checks, gate swap and pin swap through the C API. Returns 0 or the failing step. */
+int sieda_c_api_unit_editor_test(void) {
+    const char* spec =
+        "{\"name\":\"C-API-NAND\",\"package\":{\"type\":\"SOIC\",\"pinCount\":14},\"pins\":["
+        "{\"number\":\"1\",\"name\":\"1A\",\"type\":\"input\"},{\"number\":\"2\",\"name\":\"1B\",\"type\":\"input\"},"
+        "{\"number\":\"3\",\"name\":\"1Y\",\"type\":\"output\"},{\"number\":\"4\",\"name\":\"2A\",\"type\":\"input\"},"
+        "{\"number\":\"5\",\"name\":\"2B\",\"type\":\"input\"},{\"number\":\"6\",\"name\":\"2Y\",\"type\":\"output\"},"
+        "{\"number\":\"7\",\"name\":\"GND\",\"type\":\"power_in\"},{\"number\":\"8\",\"name\":\"3Y\",\"type\":\"output\"},"
+        "{\"number\":\"9\",\"name\":\"3A\",\"type\":\"input\"},{\"number\":\"10\",\"name\":\"3B\",\"type\":\"input\"},"
+        "{\"number\":\"11\",\"name\":\"4Y\",\"type\":\"output\"},{\"number\":\"12\",\"name\":\"4A\",\"type\":\"input\"},"
+        "{\"number\":\"13\",\"name\":\"4B\",\"type\":\"input\"},{\"number\":\"14\",\"name\":\"VCC\",\"type\":\"power_in\"}],"
+        "\"units\":[{\"name\":\"A\",\"pins\":[\"1\",\"2\",\"3\"],\"pinSwap\":[[\"1\",\"2\"]]},"
+        "{\"name\":\"B\",\"pins\":[\"4\",\"5\",\"6\"],\"pinSwap\":[[\"4\",\"5\"]]},"
+        "{\"name\":\"C\",\"pins\":[\"9\",\"10\",\"8\"],\"swap\":-1},{\"name\":\"D\",\"pins\":[\"12\",\"13\",\"11\"]}]}";
+    char* issues = sieda_check_units(spec);
+    if (!issues || !strstr(issues, "UNIT_POWER") || strstr(issues, "\"error\"")) return 1;
+    sieda_string_free(issues);
+    issues = sieda_check_units("{\"name\":\"X\",\"pins\":[{\"number\":\"1\",\"name\":\"A\"}],\"units\":[{\"name\":\"A\",\"pins\":[]}]}");
+    if (!issues || !strstr(issues, "UNIT_INVALID")) return 2;
+    sieda_string_free(issues);
+    SiedaProject* p = sieda_project_new("Units");
+    if (!p) return 3;
+    char* err = NULL;
+    char* part = sieda_custom_part_register(p, spec, &err);
+    if (!part || err) return 4;
+    const char* idStart = strstr(part, "\"id\":\"");
+    if (!idStart) return 5;
+    char id[128] = {0};
+    {
+        const char* s = idStart + 6;
+        size_t n = 0;
+        while (s[n] && s[n] != '"' && n + 1 < sizeof id) {
+            id[n] = s[n];
+            ++n;
+        }
+    }
+    sieda_string_free(part);
+    int32_t a = sieda_add_custom_units(p, id, NULL, 0, 0, 0, NULL);
+    int32_t b = sieda_place_next_unit(p, a, 200, 0);
+    int32_t c = sieda_place_next_unit(p, a, 400, 0);
+    if (a < 0 || b < 0 || c < 0) return 6;
+    if (!sieda_swap_pins(p, a, 0, 1) || sieda_swap_pins(p, a, 0, 2)) return 7;
+    if (!sieda_swap_units(p, a, b) || sieda_swap_units(p, a, c) || sieda_swap_units(NULL, a, b)) return 8;
+    sieda_project_free(p);
+    return 0;
+}

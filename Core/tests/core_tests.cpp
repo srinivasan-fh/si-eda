@@ -13079,3 +13079,180 @@ TEST(c_api_schematic_pro) {
     if (rc != 0) std::printf("    C API schematic pro test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+// ======================================================================= unit (gate) editor, gate and pin swap
+
+namespace {
+/// A quad 2-input NAND (74HC00 pinout): units A–D with interchangeable inputs, supplies on 7 and 14.
+CustomPartSpec quadNandSpec() {
+    CustomPartSpec spec;
+    spec.name = "HC00-TEST";
+    spec.package.type = "SOIC";
+    const char* names[] = {"1A", "1B", "1Y", "2A", "2B", "2Y", "GND", "3Y", "3A", "3B", "4Y", "4A", "4B", "VCC"};
+    for (int i = 0; i < 14; ++i) {
+        CustomPin p;
+        p.number = std::to_string(i + 1);
+        p.name = names[i];
+        const std::string n = names[i];
+        p.type = n == "GND" || n == "VCC" ? PinType::PowerIn : n.back() == 'Y' ? PinType::Output : PinType::Input;
+        spec.pins.push_back(p);
+    }
+    spec.units = {{"A", {"1", "2", "3"}}, {"B", {"4", "5", "6"}}, {"C", {"9", "10", "8"}}, {"D", {"12", "13", "11"}}};
+    spec.units[0].pinSwap = {{"1", "2"}};
+    spec.units[1].pinSwap = {{"4", "5"}};
+    spec.units[2].pinSwap = {{"9", "10"}};
+    spec.units[3].pinSwap = {{"12", "13"}};
+    return spec;
+}
+
+bool hasIssue(const std::vector<SymbolIssue>& issues, const std::string& code) {
+    return std::any_of(issues.begin(), issues.end(), [&](const SymbolIssue& i) { return i.code == code; });
+}
+}  // namespace
+
+TEST(unit_editor_checks_and_swap_settings_round_trip) {
+    CustomPartSpec spec = quadNandSpec();
+    auto issues = checkUnits(spec);
+    CHECK(hasIssue(issues, "UNIT_POWER"));  // GND and VCC form the power unit
+    for (const auto& i : issues) CHECK(i.severity != "error");
+    // Swap settings survive JSON and keep a part without them on the same id.
+    CustomPartSpec back = customPartSpecFromJson(customPartSpecToJson(spec));
+    CHECK(back.units[0].pinSwap.size() == 1 && back.units[0].pinSwap[0].size() == 2 && back.units[0].swapGroup == 0);
+    {
+        CustomPartSpec plain = quadOpAmpSpec();
+        const std::string text = customPartSpecToJson(plain).dump();
+        CHECK(text.find("pinSwap") == std::string::npos && text.find("\"swap\"") == std::string::npos);
+    }
+    spec.units[1].swapGroup = 3;
+    spec.units[2].swapGroup = -1;
+    back = customPartSpecFromJson(customPartSpecToJson(spec));
+    CHECK(back.units[1].swapGroup == 3 && back.units[2].swapGroup == -1);
+    // Errors and warnings.
+    CustomPartSpec bad = quadNandSpec();
+    bad.units[0].pins.push_back("1");          // twice
+    bad.units[1].pins.push_back("99");         // unknown
+    bad.units[2].pinSwap = {{"9", "4"}};       // pin 4 is not on unit C
+    bad.units[3].pins.push_back("14");         // VCC shared? no: on D only → not shared
+    bad.units.push_back(UnitSpec("A", {"5"}));  // duplicate name, and pin 5 shared with B (signal)
+    issues = checkUnits(bad);
+    CHECK(hasIssue(issues, "UNIT_PIN_TWICE") && hasIssue(issues, "UNIT_UNKNOWN_PIN") && hasIssue(issues, "UNIT_SWAP_PIN"));
+    CHECK(hasIssue(issues, "UNIT_DUPLICATE") && hasIssue(issues, "UNIT_SHARED_SIGNAL"));
+    CustomPartSpec mismatch = quadNandSpec();
+    mismatch.units[0].swapGroup = mismatch.units[1].swapGroup = 2;
+    mismatch.units[1].pins = {"4", "6"};
+    CHECK(hasIssue(checkUnits(mismatch), "UNIT_SWAP_MISMATCH"));
+    CHECK(hasIssue(checkUnits(mismatch), "UNIT_UNASSIGNED_SIGNAL"));  // pin 5 is on no unit
+    CustomPartSpec shared = quadNandSpec();
+    shared.units[0].pins.push_back("14");
+    shared.units[1].pins.push_back("14");
+    CHECK(hasIssue(checkUnits(shared), "UNIT_SHARED"));
+    CHECK(checkUnits(CustomPartSpec{}).empty());
+    // The registered part carries the swap settings (pin indices within the unit) and reports them.
+    const auto part = CustomPartRegistry::instance().registerPart(quadNandSpec());
+    CHECK(part->units.size() == 5 && part->units[0].pinSwap.size() == 1);
+    CHECK((part->units[0].pinSwap[0] == std::vector<int>{0, 1}));
+    CHECK(customPartToJson(*part).get("unitSymbols")[0].get("pinSwap").size() == 1);
+    CHECK(unitsInterchangeable(part->units[0], part->units[3]) && !unitsInterchangeable(part->units[0], part->units[4]));
+}
+
+TEST(gate_swap_and_pin_swap_keep_nets_consistent) {
+    const auto part = CustomPartRegistry::instance().registerPart(quadNandSpec());
+    Schematic s;
+    const int a = s.addCustomUnits(part->id, "", {0, 0});
+    const int b = s.placeNextUnit(a, {200, 0});
+    CHECK(a > 0 && b > 0);
+    const int pkg = s.unitPackage(a);
+    // Unit A's inputs: labels X and Y; output Z.
+    const int x = s.addComponent(ComponentKind::NetLabel, "X", {-100, 0});
+    const int y = s.addComponent(ComponentKind::NetLabel, "Y", {-100, 40});
+    CHECK(s.connect({x, 0}, {a, 0}) >= 0 && s.connect({y, 0}, {a, 1}) >= 0);
+    auto netName = [&](int comp, int p) {
+        const int n = s.netOf({comp, p});
+        return n < 0 ? std::string() : s.nets()[static_cast<size_t>(n)].name;
+    };
+    CHECK(netName(pkg, 0) == "X" && netName(pkg, 1) == "Y");  // pins 1A, 1B
+    // Pin swap: 1A and 1B change wires; the package's pin 1 now carries Y.
+    CHECK(s.swapPins(a, 0, 1));
+    CHECK(netName(pkg, 0) == "Y" && netName(pkg, 1) == "X");
+    CHECK(!s.swapPins(a, 0, 2));  // the output is not in the group
+    // Gate swap: the symbol of unit A becomes gate B (pins 4, 5, 6) of the same package.
+    CHECK(s.swapUnits(a, b));
+    CHECK(s.find(a)->unit == 2 && s.find(b)->unit == 1);
+    CHECK(netName(pkg, 3) == "Y" && netName(pkg, 4) == "X");  // 2A, 2B
+    CHECK(netName(pkg, 0).rfind("N$", 0) == 0 || netName(pkg, 0).empty() || s.netOf({pkg, 0}) != s.netOf({pkg, 3}));
+    // The power unit is not a gate; a non-unit part neither.
+    const int p = s.placeNextUnit(a, {400, 0});
+    while (s.placeNextUnit(a, {400, 100}) > 0) {
+    }
+    int power = -1;
+    for (int u : s.placedUnits(pkg))
+        if (s.find(u)->unit == 5) power = u;
+    CHECK(p > 0 && power > 0 && !s.swapUnits(a, power) && !s.swapUnits(a, x));
+    // Gates with swap group -1 are never swapped and not packed.
+    CustomPartSpec fixed = quadNandSpec();
+    fixed.name = "HC00-FIXED";
+    for (auto& u : fixed.units) u.swapGroup = -1;
+    const auto fixedPart = CustomPartRegistry::instance().registerPart(fixed);
+    const int f1 = s.addCustomUnits(fixedPart->id, "", {0, 400});
+    const int f2 = s.placeNextUnit(f1, {200, 400});
+    CHECK(!s.swapUnits(f1, f2));
+}
+
+extern "C" int sieda_c_api_unit_editor_test(void);
+TEST(c_api_unit_editor) {
+    const int rc = sieda_c_api_unit_editor_test();
+    if (rc != 0) std::printf("    C API unit editor test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}
+
+TEST(unit_spec_swap_fields_fuzzed) {
+    uint32_t seed = 77u;
+    auto rng = [&seed] {
+        seed = seed * 1664525u + 1013904223u;
+        return seed >> 8;
+    };
+    const std::string base = customPartSpecToJson(quadNandSpec()).dump();
+    int parsed = 0;
+    for (int round = 0; round < 400; ++round) {
+        Json j = Json::parse(base);
+        Json units = Json::array();
+        const int n = static_cast<int>(rng() % 6);
+        for (int u = 0; u < n; ++u) {
+            Json uj = Json::object();
+            uj["name"] = std::string(1, static_cast<char>('A' + rng() % 5));
+            Json pins = Json::array();
+            for (int k = 0, m = static_cast<int>(rng() % 5); k < m; ++k) pins.push(std::to_string(rng() % 17));
+            uj["pins"] = pins;
+            if (rng() % 2) uj["swap"] = static_cast<int>(rng() % 2000) - 1000;
+            if (rng() % 2) {
+                Json groups = Json::array();
+                for (int g = 0, gm = static_cast<int>(rng() % 3); g < gm; ++g) {
+                    Json gj = Json::array();
+                    for (int k = 0, m = static_cast<int>(rng() % 4); k < m; ++k)
+                        gj.push(rng() % 3 ? Json(std::to_string(rng() % 17)) : Json(static_cast<int>(rng() % 17)));
+                    groups.push(gj);
+                }
+                uj["pinSwap"] = rng() % 7 ? groups : Json("bogus");
+            }
+            units.push(uj);
+        }
+        j["units"] = units;
+        try {
+            CustomPartSpec spec = customPartSpecFromJson(j);
+            ++parsed;
+            (void)checkUnits(spec);
+            for (const auto& u : spec.units) CHECK(u.swapGroup >= -1 && u.swapGroup <= 999);
+            const std::string once = customPartSpecToJson(spec).dump();
+            CHECK(customPartSpecToJson(customPartSpecFromJson(Json::parse(once))).dump() == once);
+            try {
+                const auto part = CustomPartRegistry::instance().registerPart(spec);
+                for (const auto& u : part->units)
+                    for (const auto& g : u.pinSwap)
+                        for (int k : g) CHECK(k >= 0 && k < static_cast<int>(u.def.pins.size()));
+            } catch (const JsonError&) {
+            }
+        } catch (const JsonError&) {
+        }
+    }
+    CHECK(parsed > 50);
+}

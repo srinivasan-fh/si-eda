@@ -344,6 +344,10 @@ struct CustomPartSpec: Codable, Equatable {
     struct Unit: Codable, Equatable {
         var name: String
         var pins: [String]  // pin numbers
+        /// Gate swapping: nil / 0 automatic (identical gates are interchangeable), n > 0 a swap group, -1 never.
+        var swap: Int?
+        /// Interchangeable pins of the unit (the inputs of a NAND gate), by pin number; nil = none.
+        var pinSwap: [[String]]?
     }
 
     func jsonString() -> String {
@@ -434,6 +438,9 @@ struct CustomPartInfo: Decodable, Equatable, Identifiable {
         var name: String
         var power: Bool
         var symbol: Symbol
+        var swap: Int?
+        /// Interchangeable pins of the unit, by pin number.
+        var pinSwap: [[String]]?
     }
 
     var spec: CustomPartSpec {

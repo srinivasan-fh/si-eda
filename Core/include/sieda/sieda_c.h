@@ -704,6 +704,19 @@ int32_t sieda_set_channel_value(SiedaProject* project, int32_t component, const 
 int32_t sieda_set_channel_package(SiedaProject* project, int32_t component, const char* package);
 int32_t sieda_clear_channel_overrides(SiedaProject* project, int32_t component);
 
+/* ---- schematic capture: units (gates) --------------------------------------------------------------------------- */
+/* A multi-unit spec's units may carry "swap" (0 automatic: identical gates are interchangeable; n > 0 a swap group;
+ * -1 never) and "pinSwap" ([["1","2"]]: interchangeable pins of the unit). Unit editor checks of a spec:
+ * [{severity,code,message,pins}] with codes UNIT_INVALID, UNIT_DUPLICATE, UNIT_EMPTY, UNIT_UNKNOWN_PIN,
+ * UNIT_PIN_TWICE, UNIT_SWAP_PIN (errors), UNIT_SHARED_SIGNAL, UNIT_UNASSIGNED_SIGNAL, UNIT_SWAP_MISMATCH,
+ * UNIT_SWAP_TYPES (warnings), UNIT_SHARED, UNIT_POWER (info). Caller frees. */
+char* sieda_check_units(const char* spec_json);
+/* Gate swap: two placed units of interchangeable gates of the same part and value on one sheet exchange their gates
+ * (package and unit); symbols and wires stay. Pin swap: two pins of a unit in one pin-swap group exchange their
+ * wires. 1 on success, 0 when not allowed. */
+int32_t sieda_swap_units(SiedaProject* project, int32_t unit_a, int32_t unit_b);
+int32_t sieda_swap_pins(SiedaProject* project, int32_t component, int32_t pin_a, int32_t pin_b);
+
 #ifdef __cplusplus
 }
 #endif

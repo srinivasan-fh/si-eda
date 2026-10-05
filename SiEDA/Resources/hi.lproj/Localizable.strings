@@ -15,6 +15,7 @@
 "3D Viewer" = "3D व्यूअर";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A new gate; the selected pins go on it" = "नया गेट; चुने गए पिन इस पर जाते हैं";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC स्वीप";
 "AC uses the AC Sweep range, Transient the Transient stop and step" = "AC, AC स्वीप की रेंज और ट्रांज़िएंट, ट्रांज़िएंट का स्टॉप और स्टेप इस्तेमाल करता है";
@@ -37,6 +38,7 @@
 "Add Pour" = "पोर जोड़ें";
 "Add Selected Parts" = "चुने गए पार्ट जोड़ें";
 "Add Thermal Vias" = "थर्मल वाया जोड़ें";
+"Add Unit" = "यूनिट जोड़ें";
 "Add a pad like the last one (numbered next)" = "पिछले जैसा पैड जोड़ें (अगला नंबर)";
 "Add a sheet (right-click a tab for more)" = "शीट जोड़ें (और विकल्पों के लिए टैब पर राइट-क्लिक करें)";
 "Add an Octopart (Nexar), DigiKey or Mouser key in Settings → Suppliers to see stock, prices and lifecycle for every BOM line." = "हर BOM पंक्ति का स्टॉक, कीमत और लाइफ़साइकल देखने के लिए सेटिंग्स → सप्लायर्स में Octopart (Nexar), DigiKey या Mouser कुंजी जोड़ें।";
@@ -69,6 +71,7 @@
 "Apply Symbol" = "सिंबल लागू करें";
 "Apply Tuning" = "ट्यूनिंग लागू करें";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "स्कीमैटिक सिंबल व्यवस्थित करें: किसी भी ओर पिन, समूह, स्टैक्ड पावर पिन, ऑटो अरेंज";
+"Arrange the symbol, or define the gates of a multi-unit part" = "प्रतीक व्यवस्थित करें या बहु-यूनिट पुर्ज़े के गेट परिभाषित करें";
 "Arranged symbol" = "व्यवस्थित सिंबल";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "बदलाव माँगें — “LED को हरा करें और इसे 3.3 V से चलाएँ”";
 "Asking the distributors…" = "डिस्ट्रीब्यूटर्स से पूछ रहे हैं…";
@@ -218,6 +221,7 @@
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "डिज़ाइन-नियम प्रीसेट: ट्रैक, क्लीयरेंस और वाया साइज़ तथा DRC द्वारा लागू फ़ैब्रिकेशन न्यूनतम";
 "Designator" = "डेज़िग्नेटर";
 "Designators" = "डिज़िग्नेटर";
+"Detect Gates" = "गेट पहचानें";
 "Differential pair" = "डिफ़रेंशियल पेयर";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 वाला DigiKey API एप्लिकेशन (Production); क्लाइंट क्रेडेंशियल फ़्लो।";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "पॉप्युलेट न करें: बोर्ड पर है पर लगाया नहीं जाता; असेंबली BOM और CPL से बाहर";
@@ -238,6 +242,7 @@
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "हर मेश नेट सिक्योर एलिमेंट के ड्राइव और सेंस पिन जोड़ता है; ऑटो रूट सर्पेंटाइन बिछाता है ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "हर वाया उन्हीं लेयरों तक कटता है जिन्हें वह जोड़ता है; एक-डाइइलेक्ट्रिक स्पैन पतली बिल्ड-अप लेयरों पर लेज़र माइक्रोवाया बनते हैं";
 "Earlier on its side (up, or left on the top / bottom)" = "अपनी ओर पहले (ऊपर, या ऊपर / नीचे की ओर बाएँ)";
+"Edit" = "संपादित करें";
 "Edit Footprint…" = "फ़ुटप्रिंट संपादित करें…";
 "Edit SPICE Model…" = "SPICE मॉडल संपादित करें…";
 "Edit Symbol…" = "सिंबल संपादित करें…";
@@ -247,6 +252,8 @@
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "प्रोसेसर, BGA और बड़े कैपेसिटर के नीचे एपॉक्सी ताकि MIL-STD-901E झटका उन्हें उखाड़ न सके";
 "Errors" = "त्रुटियाँ";
 "Every pin is placed once; no pins collide" = "हर पिन एक बार रखा गया है; कोई पिन टकराते नहीं";
+"Every unit is valid" = "हर यूनिट मान्य है";
+"Exchange the wires of two interchangeable pins of this gate" = "इस गेट के दो अदला-बदली योग्य पिनों के तार बदलें";
 "Export" = "एक्सपोर्ट";
 "Export 3D" = "3D एक्सपोर्ट करें";
 "Export Fabrication Package…" = "फ़ैब्रिकेशन पैकेज एक्सपोर्ट करें…";
@@ -288,6 +295,7 @@
 "Gap Before" = "पहले गैप";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "मियांडर भुजाओं के बीच किनारे से किनारे का अंतर mm में (खाली: केंद्रों के बीच तीन ट्रैक चौड़ाई)";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "बहु-यूनिट पुर्ज़ों के गेट (क्वाड ऑप-एम्प के A, B, C, D) क्रमांकन से पहले रखने के क्रम में पैकेज भरते हैं";
+"Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "एक स्वैप समूह के गेट (या समान गेट) गेट स्वैप और पैकिंग से बदले जा सकते हैं";
 "Generate Design" = "डिज़ाइन बनाएँ";
 "Get an API key" = "API कुंजी पाएँ";
 "Give each selected pin its own slot" = "हर चुने गए पिन को अपना स्लॉट दें";
@@ -310,6 +318,7 @@
 "IR drop" = "IR ड्रॉप";
 "IR-drop map" = "IR ड्रॉप मानचित्र";
 "Ideal 50 Ω" = "आदर्श 50 Ω";
+"Identical gates" = "समान गेट";
 "Impedance" = "इम्पीडेंस";
 "Import Datasheet…" = "डेटाशीट इम्पोर्ट करें…";
 "Import IBIS…" = "IBIS इम्पोर्ट करें…";
@@ -373,6 +382,7 @@
 "Lossy" = "हानियुक्त";
 "Lumped model" = "लम्प्ड मॉडल";
 "Magnitude" = "मैग्निट्यूड";
+"Make Swap Group" = "स्वैप समूह बनाएँ";
 "Manufacturer part #" = "निर्माता पार्ट नंबर";
 "Manufacturer part number or keywords" = "निर्माता पार्ट नंबर या कीवर्ड";
 "Mask" = "मास्क";
@@ -408,6 +418,7 @@
 "Net model" = "नेट मॉडल";
 "Nets" = "नेट";
 "Nets (%lld)" = "नेट (%lld)";
+"Never swap" = "कभी न बदलें";
 "New Project" = "नया प्रोजेक्ट";
 "New Variant" = "नया वैरिएंट";
 "New Variant…" = "नया वैरिएंट…";
@@ -420,8 +431,10 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "इस डिज़ाइन में कोई डिफ़रेंशियल पेयर (…_P/_N, …+/-) या बस (DQ0…, DATA[0..7], ADDR…) नहीं हैं।";
 "No distributor API keys yet" = "अभी कोई डिस्ट्रीब्यूटर API कुंजी नहीं";
 "No distributor offers." = "कोई डिस्ट्रीब्यूटर ऑफ़र नहीं।";
+"No gates found in the pin names." = "पिन नामों में कोई गेट नहीं मिला।";
 "No imported model" = "कोई आयातित मॉडल नहीं";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "कोई इनपुट स्रोत नहीं: इनपुट-संदर्भित नॉइज़ देखने के लिए इनपुट को AC परिमाण दें या उसका नाम दें।";
+"No interchangeable pins. Select pins of this gate (⌘-click) and make them a swap group — the inputs of a NAND gate." = "कोई अदला-बदली योग्य पिन नहीं। इस गेट के पिन चुनें (⌘-क्लिक) और उन्हें स्वैप समूह बनाएँ — NAND गेट के इनपुट।";
 "No matches." = "कोई मिलान नहीं।";
 "No models or subcircuits found." = "कोई मॉडल या सबसर्किट नहीं मिला।";
 "No overlaps, gaps ≥ 0.1 mm, every pin has a pad" = "कोई ओवरलैप नहीं, गैप ≥ 0.1 mm, हर पिन का एक पैड है";
@@ -431,6 +444,7 @@
 "No signal nets to analyse" = "विश्लेषण के लिए कोई सिग्नल नेट नहीं";
 "No supply rails to analyse" = "विश्लेषण के लिए कोई सप्लाई रेल नहीं";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "कोई स्विच नहीं। स्कीमैटिक में एक Switch जोड़ें (पुश-बटन के लिए मान \"push\")।";
+"No units: the part is drawn as one symbol" = "कोई यूनिट नहीं: पुर्ज़ा एक प्रतीक के रूप में बनता है";
 "No." = "क्र.";
 "Noise" = "नॉइज़";
 "Nominal" = "नाममात्र मान";
@@ -455,7 +469,13 @@
 "OK" = "ठीक है";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "बंद: SiEDA एक पारंपरिक मैनुअल EDA टूल की तरह काम करता है। स्कीमैटिक कैप्चर, सिमुलेशन, PCB रूटिंग, 3D, डेटाशीट पार्सिंग और एक्सपोर्ट सब स्थानीय रूप से चलते हैं, और किसी AI सेवा को कुछ नहीं भेजा जाता।";
 "Offset (mm)" = "ऑफ़सेट (mm)";
+"On no gate: the pin goes to the power unit P with the supplies" = "किसी गेट पर नहीं: पिन सप्लाई के साथ पावर यूनिट P में जाता है";
+"On the power unit P" = "पावर यूनिट P पर";
+"One Symbol" = "एक प्रतीक";
 "One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "हर मॉडल पोर्ट के लिए क्रम से एक प्रविष्टि: पिन का नाम या नंबर, 0 (ग्राउंड), net:NAME, dc:15 (आदर्श सप्लाई) या nc; इंस्टेंस को ; से अलग करें।";
+"One pin drawn on every gate (a shared enable or supply)" = "हर गेट पर बना एक पिन (साझा एनेबल या सप्लाई)";
+"One symbol for the whole part. Add units to draw each gate on its own (a quad op-amp's A–D); pins on no unit form the power unit P." = "पूरे पुर्ज़े के लिए एक प्रतीक। हर गेट अलग बनाने के लिए यूनिट जोड़ें (क्वाड ऑप-एम्प के A–D); किसी यूनिट पर न होने वाले पिन पावर यूनिट P बनाते हैं।";
+"Only on %@" = "केवल %@ पर";
 "Op-amp current noise" = "ऑप-एम्प करंट नॉइज़";
 "Op-amp voltage noise" = "ऑप-एम्प वोल्टेज नॉइज़";
 "Open File…" = "फ़ाइल खोलें…";
@@ -474,6 +494,8 @@
 "PAD ARRAY" = "पैड ऐरे";
 "PARAMETERS" = "पैरामीटर";
 "PCB Layout" = "PCB लेआउट";
+"PIN SWAP" = "पिन स्वैप";
+"PINS" = "पिन";
 "PRBS" = "PRBS";
 "PROPERTIES" = "गुण";
 "Pack Units into Packages" = "यूनिट को पैकेज में समेटें";
@@ -512,6 +534,8 @@
 "Port (to parent sheet)" = "पोर्ट (पैरेंट शीट तक)";
 "Ports: %@" = "पोर्ट: %@";
 "Power" = "पावर";
+"Power Unit" = "पावर यूनिट";
+"Power unit: pins on no gate" = "पावर यूनिट: किसी गेट पर न होने वाले पिन";
 "Preparing the autoroute…" = "ऑटोरूट की तैयारी हो रही है…";
 "Preview appears once the part has a name and pins." = "पार्ट का नाम और पिन होने पर प्रीव्यू दिखेगा।";
 "Product Page" = "उत्पाद पेज";
@@ -537,6 +561,7 @@
 "Remove the SPICE model" = "SPICE मॉडल हटाएँ";
 "Remove the empty slots on every side" = "हर ओर के खाली स्लॉट हटाएँ";
 "Remove the firmware" = "फ़र्मवेयर हटाएँ";
+"Remove the selected unit (its pins go to the power unit)" = "चुनी गई यूनिट हटाएँ (इसके पिन पावर यूनिट में जाते हैं)";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "अंतिम जुड़ी लेयर के नीचे अप्रयुक्त वाया बैरल हटाता है (≥ 4 लेयर); बैक-ड्रिल फ़ाइल जोड़ता है";
 "Rename Channel" = "चैनल का नाम बदलें";
 "Rename Channel…" = "चैनल का नाम बदलें…";
@@ -630,6 +655,8 @@
 "Settling" = "सेटलिंग";
 "Settling (2 %)" = "सेटलिंग (2 %)";
 "Shape" = "शेप";
+"Shared by All" = "सभी द्वारा साझा";
+"Shared by several gates" = "कई गेटों द्वारा साझा";
 "Sheet" = "शीट";
 "Sheet %lld of %lld" = "शीट %lld / %lld";
 "Sheet name" = "शीट का नाम";
@@ -669,6 +696,7 @@
 "Spacing" = "अंतराल";
 "Speed" = "गति";
 "Spin" = "घुमाएँ";
+"Split the pins into gates from their names (1A, 1B, 1Y… or OUT1, IN1-, IN1+…)" = "नामों से पिनों को गेटों में बाँटें (1A, 1B, 1Y… या OUT1, IN1-, IN1+…)";
 "Stack" = "स्टैक करें";
 "Stack repeated power pins" = "दोहराए पावर पिन स्टैक करें";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "PCB लेआउट की लेयर सेटिंग से स्टैक-अप: 1 लेयर नीचे की सतह को खुला FR-4 छोड़ती है; ";
@@ -691,8 +719,13 @@
 "Supplies on top, grounds at the bottom, inputs left, outputs right, MCU ports grouped" = "सप्लाई ऊपर, ग्राउंड नीचे, इनपुट बाएँ, आउटपुट दाएँ, MCU पोर्ट समूहबद्ध";
 "Surface" = "सरफ़ेस";
 "Surface finish of the exposed copper: pads, via lands and plated holes" = "खुले कॉपर की सरफ़ेस फ़िनिश: पैड, वाया लैंड और प्लेटेड होल";
+"Swap" = "बदलें";
+"Swap Gates" = "गेट बदलें";
+"Swap Pins" = "पिन बदलें";
+"Swap group %lld" = "स्वैप समूह %lld";
 "Swap the left and right sides" = "बाएँ और दाएँ ओर अदला-बदली करें";
 "Switch workspace (⌘1 – ⌘7)" = "वर्कस्पेस बदलें (⌘1 – ⌘7)";
+"Symbol" = "प्रतीक";
 "System default" = "सिस्टम डिफ़ॉल्ट";
 "TEMPLATES" = "टेम्पलेट";
 "THD" = "THD";
@@ -705,6 +738,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ऑफ़लाइन डिज़ाइनर SiEDA के अंतर्निहित रेफ़रेंस सर्किट उपयोग करता है। कोई नेटवर्क या API कुंजी आवश्यक नहीं — डेमो और एयर-गैप्ड लैब के लिए आदर्श।";
 "The plain box: pins in number order down the left, then up the right" = "सादा बॉक्स: पिन क्रमांक क्रम में बाईं ओर नीचे, फिर दाईं ओर ऊपर";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "स्प्लैश पाँच सेकंड तक कंपोनेंट लाइब्रेरी और रेफ़रेंस डिज़ाइन प्रीलोड करता है, फिर मुख्य विंडो खोलता है। लोडिंग पूरी होने पर छोड़ने के लिए इस पर क्लिक करें या Esc दबाएँ।";
+"The two gates exchange places in their packages; the symbols and wires stay" = "दोनों गेट अपने पैकेज में जगह बदलते हैं; प्रतीक और तार वहीं रहते हैं";
 "The victim runs on the adjacent layer, over or under the aggressor" = "पीड़ित नेट बगल की परत पर, आक्रामक नेट के ऊपर या नीचे चलता है";
 "Thermal" = "ऊष्मीय";
 "Through" = "थ्रू";
@@ -719,13 +753,17 @@
 "Tune to the longest member of the net's differential pair or bus" = "नेट की डिफरेंशियल जोड़ी या बस के सबसे लंबे सदस्य के अनुसार ट्यून करें";
 "Type" = "प्रकार";
 "Type a designator, value, label or net name." = "संदर्भ चिह्न, मान, लेबल या नेट नाम लिखें।";
+"UNIT %@" = "यूनिट %@";
+"UNITS" = "यूनिट";
 "Underfill / corner-bond heavy parts (shock)" = "भारी पार्ट का अंडरफ़िल / कॉर्नर-बॉन्ड (झटका)";
 "Undershoot" = "अंडरशूट";
 "Undo" = "पूर्ववत करें";
 "Undo (⌘Z)" = "पूर्ववत करें (⌘Z)";
 "Undo the last footprint edit" = "पिछला फ़ुटप्रिंट संपादन पूर्ववत करें";
 "Undo the last symbol edit" = "पिछला सिंबल संपादन पूर्ववत करें";
+"Undo the last unit edit" = "अंतिम यूनिट संपादन पूर्ववत करें";
 "Unit price" = "यूनिट कीमत";
+"Units" = "यूनिट";
 "Unity gain" = "यूनिटी गेन";
 "Unstack" = "अनस्टैक करें";
 "Upload .hex…" = ".hex अपलोड करें…";

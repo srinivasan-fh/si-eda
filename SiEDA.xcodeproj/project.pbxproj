@@ -55,8 +55,10 @@
 		5CD6C55A8FE73A7847272E36 = {isa = PBXBuildFile; fileRef = 94640EC62FB04611BA180EDD; };
 		5DC08A9929AC1D5F72AD3527 = {isa = PBXBuildFile; fileRef = A45E448C357B4A89C66CFE33; };
 		60AE10143DCFA6F2E918863A = {isa = PBXBuildFile; fileRef = 921B2819EF3E6FB02EB71875; };
+		614BF00B3F1BE2ADA8F7F963 = {isa = PBXBuildFile; fileRef = 25D8A72BCBE227BB87A6F906; };
 		61C5665FE4659BE3BACF1121 = {isa = PBXBuildFile; fileRef = 2CB815EC0203E93D606FDC12; };
 		65FD190DDE9074461717C0FA = {isa = PBXBuildFile; fileRef = 3B93D968614EC9B31DA4DE95; };
+		66B9C12A2293C49A01B3255F = {isa = PBXBuildFile; fileRef = 30B26624E7CABEDBB7F29F14; };
 		6821CCCDECA1EE3F41A956C7 = {isa = PBXBuildFile; fileRef = 301DAF4F2FC8D0083DFB1A0F; };
 		684F66C2A33BDA008A882F64 = {isa = PBXBuildFile; fileRef = EF2C9163E8C953AC343E0E55; };
 		68D48DAD17D325679CCABD65 = {isa = PBXBuildFile; fileRef = 5B677B1CF7DF150184E961B2; };
@@ -184,6 +186,7 @@
 		2203C35E66E22D99B6209035 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = LibraryImport.hpp; sourceTree = "<group>"; };
 		23615D21B117E2A85C546F98 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Validation.cpp; sourceTree = "<group>"; };
 		2471F18A6F30A3393114FB82 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoloEffects.swift; sourceTree = "<group>"; };
+		25D8A72BCBE227BB87A6F906 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitEditorView.swift; sourceTree = "<group>"; };
 		262682BD136933576066443E = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Instances.cpp; sourceTree = "<group>"; };
 		26947D07ECF33FE13550E88A = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Units.cpp; sourceTree = "<group>"; };
 		26FD023DF8F0B468EE302413 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Waveforms.cpp; sourceTree = "<group>"; };
@@ -204,6 +207,7 @@
 		301DAF4F2FC8D0083DFB1A0F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchematicCanvas.swift; sourceTree = "<group>"; };
 		304932A73AB6592A83B727BF = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SchematicSearch.cpp; sourceTree = "<group>"; };
 		3099FC6F5ED10583A65872C4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SpiceModels.cpp; sourceTree = "<group>"; };
+		30B26624E7CABEDBB7F29F14 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitDraft.swift; sourceTree = "<group>"; };
 		3198CAD44B0BB2DC43B819E5 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = nl; path = nl.lproj/Localizable.strings; sourceTree = "<group>"; };
 		34727A3F0B5278EFB74683D0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignModels.swift; sourceTree = "<group>"; };
 		360A0133126B63E523F4E1AB = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Memory.cpp; sourceTree = "<group>"; };
@@ -440,6 +444,7 @@
 				E601822186D76BB1C045BDAB,
 				925CBB387F15965A68C80542,
 				055CDC196B757E80767362D1,
+				25D8A72BCBE227BB87A6F906,
 			);
 			path = Library;
 			sourceTree = "<group>";
@@ -652,6 +657,7 @@
 				2F2DDB2D4C29AF55336B77F1,
 				87FD7D0F8D0FCBA339485071,
 				F377BB60FA42CD1DF62BE62A,
+				30B26624E7CABEDBB7F29F14,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -948,6 +954,7 @@
 				7A88168E9753B3B8F4B5069A,
 				120253EBD1D58E6CD359F37D,
 				F9F6BCA147362E4E67D341DC,
+				66B9C12A2293C49A01B3255F,
 				E8EDC3039CCA5D48919DDD0E,
 				6CB6120B9733BD03914AA41C,
 				B92F9216A638FFF03E8C3CB7,
@@ -964,6 +971,7 @@
 				AAB619501746C228207AAE9E,
 				074AD328E3F9B94F0D6D5EE4,
 				55A70E104464C2281B0F9AA3,
+				614BF00B3F1BE2ADA8F7F963,
 				BB309E505EC5272A3C86459C,
 				D0DE83284A0ADF3CE958D7F0,
 				9D1071AAC3C84E5B9F9D6B39,

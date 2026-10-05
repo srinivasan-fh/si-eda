@@ -15,6 +15,7 @@
 "3D Viewer" = "3D-Ansicht";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A new gate; the selected pins go on it" = "Ein neues Gatter; die ausgewählten Pins kommen darauf";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC-Sweep";
 "AC uses the AC Sweep range, Transient the Transient stop and step" = "AC nutzt den Bereich des AC-Sweeps, Transient Stoppzeit und Schritt der Transientenanalyse";
@@ -37,6 +38,7 @@
 "Add Pour" = "Kupferfläche hinzufügen";
 "Add Selected Parts" = "Ausgewählte Bauteile hinzufügen";
 "Add Thermal Vias" = "Thermische Vias hinzufügen";
+"Add Unit" = "Einheit hinzufügen";
 "Add a pad like the last one (numbered next)" = "Pad wie das letzte hinzufügen (nächste Nummer)";
 "Add a sheet (right-click a tab for more)" = "Blatt hinzufügen (Rechtsklick auf einen Reiter für mehr)";
 "Add an Octopart (Nexar), DigiKey or Mouser key in Settings → Suppliers to see stock, prices and lifecycle for every BOM line." = "Fügen Sie unter Einstellungen → Lieferanten einen Schlüssel für Octopart (Nexar), DigiKey oder Mouser hinzu, um Bestand, Preise und Lebenszyklus jeder Stücklistenzeile zu sehen.";
@@ -69,6 +71,7 @@
 "Apply Symbol" = "Symbol anwenden";
 "Apply Tuning" = "Abstimmung anwenden";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Schaltplansymbol anordnen: Pins auf jeder Seite, Gruppen, gestapelte Versorgungspins, automatisch anordnen";
+"Arrange the symbol, or define the gates of a multi-unit part" = "Symbol anordnen oder die Gatter eines mehrteiligen Bauteils festlegen";
 "Arranged symbol" = "Angeordnetes Symbol";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "Änderung anfordern — „mach die LED grün und betreibe sie mit 3,3 V“";
 "Asking the distributors…" = "Distributoren werden abgefragt…";
@@ -218,6 +221,7 @@
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "Designregel-Vorgabe: Leiterbahn-, Abstands- und Via-Größen plus die Fertigungsminima, die DRC durchsetzt";
 "Designator" = "Bauteilbezeichner";
 "Designators" = "Bauteilbezeichner";
+"Detect Gates" = "Gatter erkennen";
 "Differential pair" = "Differenzielles Paar";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "DigiKey-API-Anwendung (Production) mit Product Information v4; Client-Credentials-Ablauf.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Nicht bestücken: auf der Platine, aber nicht bestückt; nicht in Bestückungs-BOM und CPL enthalten";
@@ -238,6 +242,7 @@
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "Jedes Mesh-Netz verbindet die Drive- und Sense-Pins des Secure Elements; Autorouting legt die Mäander auf ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "Jedes Via wird auf die verbundenen Lagen begrenzt; Spannen über ein Dielektrikum werden zu Laser-Microvias über dünnen Build-up-Lagen";
 "Earlier on its side (up, or left on the top / bottom)" = "Früher auf seiner Seite (nach oben bzw. links oben / unten)";
+"Edit" = "Bearbeiten";
 "Edit Footprint…" = "Footprint bearbeiten …";
 "Edit SPICE Model…" = "SPICE-Modell bearbeiten…";
 "Edit Symbol…" = "Symbol bearbeiten …";
@@ -247,6 +252,8 @@
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxid unter Prozessoren, BGAs und großen Kondensatoren, damit ein MIL-STD-901E-Schock sie nicht abreißt";
 "Errors" = "Fehler";
 "Every pin is placed once; no pins collide" = "Jeder Pin ist genau einmal platziert; keine Pins überlappen";
+"Every unit is valid" = "Jede Einheit ist gültig";
+"Exchange the wires of two interchangeable pins of this gate" = "Die Leitungen zweier austauschbarer Pins dieses Gatters tauschen";
 "Export" = "Exportieren";
 "Export 3D" = "3D exportieren";
 "Export Fabrication Package…" = "Fertigungspaket exportieren …";
@@ -288,6 +295,7 @@
 "Gap Before" = "Abstand davor";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Abstand der Mäanderschenkel, Kante zu Kante, in mm (leer: drei Leiterbahnbreiten Mittenabstand)";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Gatter von Mehrfach-Bauteilen (A, B, C, D eines Vierfach-OPV) füllen die Gehäuse in Platzierungsreihenfolge vor der Nummerierung";
+"Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "Gatter einer Tauschgruppe (oder gleiche Gatter) lassen sich mit „Gatter tauschen“ und beim Packen austauschen";
 "Generate Design" = "Design generieren";
 "Get an API key" = "API-Schlüssel anfordern";
 "Give each selected pin its own slot" = "Jedem ausgewählten Pin eine eigene Position geben";
@@ -310,6 +318,7 @@
 "IR drop" = "IR-Abfall";
 "IR-drop map" = "IR-Abfall-Karte";
 "Ideal 50 Ω" = "Ideal 50 Ω";
+"Identical gates" = "Gleiche Gatter";
 "Impedance" = "Impedanz";
 "Import Datasheet…" = "Datenblatt importieren …";
 "Import IBIS…" = "IBIS importieren…";
@@ -373,6 +382,7 @@
 "Lossy" = "Verlustbehaftet";
 "Lumped model" = "Konzentriertes Modell";
 "Magnitude" = "Betrag";
+"Make Swap Group" = "Tauschgruppe bilden";
 "Manufacturer part #" = "Hersteller-Teilenr.";
 "Manufacturer part number or keywords" = "Hersteller-Teilenummer oder Suchbegriffe";
 "Mask" = "Maske";
@@ -408,6 +418,7 @@
 "Net model" = "Netzmodell";
 "Nets" = "Netze";
 "Nets (%lld)" = "Netze (%lld)";
+"Never swap" = "Nie tauschen";
 "New Project" = "Neues Projekt";
 "New Variant" = "Neue Variante";
 "New Variant…" = "Neue Variante…";
@@ -420,8 +431,10 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Keine differenziellen Paare (…_P/_N, …+/-) oder Busse (DQ0…, DATA[0..7], ADDR…) in diesem Design.";
 "No distributor API keys yet" = "Noch keine Distributor-API-Schlüssel";
 "No distributor offers." = "Keine Distributorangebote.";
+"No gates found in the pin names." = "In den Pinnamen wurden keine Gatter gefunden.";
 "No imported model" = "Kein importiertes Modell";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "Keine Eingangsquelle: Geben Sie dem Eingang eine AC-Amplitude oder nennen Sie ihn, um das eingangsbezogene Rauschen zu sehen.";
+"No interchangeable pins. Select pins of this gate (⌘-click) and make them a swap group — the inputs of a NAND gate." = "Keine austauschbaren Pins. Pins dieses Gatters auswählen (⌘-Klick) und zur Tauschgruppe machen – die Eingänge eines NAND-Gatters.";
 "No matches." = "Keine Treffer.";
 "No models or subcircuits found." = "Keine Modelle oder Subcircuits gefunden.";
 "No overlaps, gaps ≥ 0.1 mm, every pin has a pad" = "Keine Überlappungen, Abstände ≥ 0,1 mm, jeder Pin hat ein Pad";
@@ -431,6 +444,7 @@
 "No signal nets to analyse" = "Keine Signalnetze zu analysieren";
 "No supply rails to analyse" = "Keine Versorgungsschienen zu analysieren";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "Keine Schalter. Switch zum Schaltplan hinzufügen (Wert \"push\" für einen Taster).";
+"No units: the part is drawn as one symbol" = "Keine Einheiten: das Bauteil wird als ein Symbol gezeichnet";
 "No." = "Nr.";
 "Noise" = "Rauschen";
 "Nominal" = "Nennwert";
@@ -455,7 +469,13 @@
 "OK" = "OK";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "Aus: SiEDA arbeitet als klassisches manuelles EDA-Werkzeug. Schaltplaneingabe, Simulation, PCB-Routing, 3D, Datenblatt-Analyse und Exporte laufen lokal, und nichts wird an einen KI-Dienst gesendet.";
 "Offset (mm)" = "Versatz (mm)";
+"On no gate: the pin goes to the power unit P with the supplies" = "Auf keinem Gatter: der Pin kommt mit den Versorgungen zur Versorgungseinheit P";
+"On the power unit P" = "Auf der Versorgungseinheit P";
+"One Symbol" = "Ein Symbol";
 "One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "Ein Eintrag pro Modellport, der Reihe nach: Pinname oder -nummer, 0 (Masse), net:NAME, dc:15 (ideale Versorgung) oder nc; Instanzen mit ; trennen.";
+"One pin drawn on every gate (a shared enable or supply)" = "Ein Pin, auf jedem Gatter gezeichnet (gemeinsames Enable oder Versorgung)";
+"One symbol for the whole part. Add units to draw each gate on its own (a quad op-amp's A–D); pins on no unit form the power unit P." = "Ein Symbol für das ganze Bauteil. Einheiten hinzufügen, um jedes Gatter einzeln zu zeichnen (A–D eines Vierfach-OPV); Pins ohne Einheit bilden die Versorgungseinheit P.";
+"Only on %@" = "Nur auf %@";
 "Op-amp current noise" = "OPV-Stromrauschen";
 "Op-amp voltage noise" = "OPV-Spannungsrauschen";
 "Open File…" = "Datei öffnen…";
@@ -474,6 +494,8 @@
 "PAD ARRAY" = "PAD-ARRAY";
 "PARAMETERS" = "PARAMETER";
 "PCB Layout" = "PCB-Layout";
+"PIN SWAP" = "PINTAUSCH";
+"PINS" = "PINS";
 "PRBS" = "PRBS";
 "PROPERTIES" = "EIGENSCHAFTEN";
 "Pack Units into Packages" = "Einheiten in Gehäuse packen";
@@ -512,6 +534,8 @@
 "Port (to parent sheet)" = "Port (zum übergeordneten Blatt)";
 "Ports: %@" = "Ports: %@";
 "Power" = "Versorgung";
+"Power Unit" = "Versorgungseinheit";
+"Power unit: pins on no gate" = "Versorgungseinheit: Pins ohne Gatter";
 "Preparing the autoroute…" = "Autorouting wird vorbereitet…";
 "Preview appears once the part has a name and pins." = "Die Vorschau erscheint, sobald das Bauteil einen Namen und Pins hat.";
 "Product Page" = "Produktseite";
@@ -537,6 +561,7 @@
 "Remove the SPICE model" = "SPICE-Modell entfernen";
 "Remove the empty slots on every side" = "Leere Positionen auf allen Seiten entfernen";
 "Remove the firmware" = "Firmware entfernen";
+"Remove the selected unit (its pins go to the power unit)" = "Ausgewählte Einheit entfernen (ihre Pins kommen zur Versorgungseinheit)";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "Entfernt die ungenutzte Via-Hülse unterhalb der letzten verbundenen Lage (≥ 4 Lagen); fügt eine Backdrill-Datei hinzu";
 "Rename Channel" = "Kanal umbenennen";
 "Rename Channel…" = "Kanal umbenennen…";
@@ -630,6 +655,8 @@
 "Settling" = "Einschwingzeit";
 "Settling (2 %)" = "Einschwingzeit (2 %)";
 "Shape" = "Form";
+"Shared by All" = "Von allen geteilt";
+"Shared by several gates" = "Von mehreren Gattern geteilt";
 "Sheet" = "Blatt";
 "Sheet %lld of %lld" = "Blatt %lld von %lld";
 "Sheet name" = "Blattname";
@@ -669,6 +696,7 @@
 "Spacing" = "Abstand";
 "Speed" = "Geschwindigkeit";
 "Spin" = "Drehen";
+"Split the pins into gates from their names (1A, 1B, 1Y… or OUT1, IN1-, IN1+…)" = "Pins anhand ihrer Namen in Gatter aufteilen (1A, 1B, 1Y… oder OUT1, IN1-, IN1+…)";
 "Stack" = "Stapeln";
 "Stack repeated power pins" = "Wiederholte Versorgungspins stapeln";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "Lagenaufbau aus der Einstellung „Lagen“ im PCB-Layout: 1 Lage lässt die Unterseite als blankes FR-4; ";
@@ -691,8 +719,13 @@
 "Supplies on top, grounds at the bottom, inputs left, outputs right, MCU ports grouped" = "Versorgungen oben, Masse unten, Eingänge links, Ausgänge rechts, MCU-Ports gruppiert";
 "Surface" = "Oberfläche";
 "Surface finish of the exposed copper: pads, via lands and plated holes" = "Oberflächenbeschichtung des freiliegenden Kupfers: Pads, Via-Lands und durchkontaktierte Bohrungen";
+"Swap" = "Tauschen";
+"Swap Gates" = "Gatter tauschen";
+"Swap Pins" = "Pins tauschen";
+"Swap group %lld" = "Tauschgruppe %lld";
 "Swap the left and right sides" = "Linke und rechte Seite tauschen";
 "Switch workspace (⌘1 – ⌘7)" = "Arbeitsbereich wechseln (⌘1 – ⌘7)";
+"Symbol" = "Symbol";
 "System default" = "Systemstandard";
 "TEMPLATES" = "VORLAGEN";
 "THD" = "THD";
@@ -705,6 +738,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Der Offline-Designer nutzt die integrierten Referenzschaltungen von SiEDA. Kein Netzwerk oder API-Schlüssel nötig — ideal für Demos und abgeschottete Labore.";
 "The plain box: pins in number order down the left, then up the right" = "Der einfache Kasten: Pins in Nummernfolge links abwärts, dann rechts aufwärts";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "Der Startbildschirm lädt fünf Sekunden lang die Bauteilbibliothek und Referenzdesigns und öffnet dann das Hauptfenster. Klicken oder Esc drücken, um nach dem Laden zu überspringen.";
+"The two gates exchange places in their packages; the symbols and wires stay" = "Die beiden Gatter tauschen ihre Plätze im Gehäuse; Symbole und Leitungen bleiben";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Das Opfer verläuft auf der Nachbarlage, über oder unter dem Störer";
 "Thermal" = "Thermisch";
 "Through" = "Durchgehend";
@@ -719,13 +753,17 @@
 "Tune to the longest member of the net's differential pair or bus" = "Auf das längste Mitglied des Differenzpaars oder Busses des Netzes abstimmen";
 "Type" = "Typ";
 "Type a designator, value, label or net name." = "Bezeichner, Wert, Label oder Netznamen eingeben.";
+"UNIT %@" = "EINHEIT %@";
+"UNITS" = "EINHEITEN";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / Eckverklebung schwerer Bauteile (Schock)";
 "Undershoot" = "Unterschwingen";
 "Undo" = "Widerrufen";
 "Undo (⌘Z)" = "Widerrufen (⌘Z)";
 "Undo the last footprint edit" = "Letzte Footprint-Änderung widerrufen";
 "Undo the last symbol edit" = "Letzte Symboländerung widerrufen";
+"Undo the last unit edit" = "Letzte Einheiten-Bearbeitung widerrufen";
 "Unit price" = "Stückpreis";
+"Units" = "Einheiten";
 "Unity gain" = "Transitfrequenz";
 "Unstack" = "Entstapeln";
 "Upload .hex…" = ".hex hochladen …";

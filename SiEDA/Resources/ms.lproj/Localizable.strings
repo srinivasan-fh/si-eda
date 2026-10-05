@@ -15,6 +15,7 @@
 "3D Viewer" = "Pemapar 3D";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A new gate; the selected pins go on it" = "Get baharu; pin yang dipilih diletakkan padanya";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "Sapuan AC";
 "AC uses the AC Sweep range, Transient the Transient stop and step" = "AC menggunakan julat Sapuan AC, Fana menggunakan masa henti dan langkah Fana";
@@ -37,6 +38,7 @@
 "Add Pour" = "Tambah Tuangan";
 "Add Selected Parts" = "Tambah Komponen Dipilih";
 "Add Thermal Vias" = "Tambah Via Terma";
+"Add Unit" = "Tambah Unit";
 "Add a pad like the last one (numbered next)" = "Tambah pad seperti yang terakhir (bernombor seterusnya)";
 "Add a sheet (right-click a tab for more)" = "Tambah helaian (klik kanan tab untuk lagi)";
 "Add an Octopart (Nexar), DigiKey or Mouser key in Settings → Suppliers to see stock, prices and lifecycle for every BOM line." = "Tambah kunci Octopart (Nexar), DigiKey atau Mouser dalam Tetapan → Pembekal untuk melihat stok, harga dan kitaran hayat bagi setiap baris BOM.";
@@ -69,6 +71,7 @@
 "Apply Symbol" = "Guna Simbol";
 "Apply Tuning" = "Guna Penalaan";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Susun simbol skematik: pin di mana-mana sisi, kumpulan, pin kuasa bertindan, susun automatik";
+"Arrange the symbol, or define the gates of a multi-unit part" = "Susun simbol, atau takrifkan get bagi komponen berbilang unit";
 "Arranged symbol" = "Simbol tersusun";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "Minta perubahan — “jadikan LED hijau dan kuasakan dengan 3.3 V”";
 "Asking the distributors…" = "Bertanya kepada pengedar…";
@@ -218,6 +221,7 @@
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "Praset peraturan reka bentuk: saiz trek, kelegaan dan via serta had minimum fabrikasi yang dikuatkuasakan DRC";
 "Designator" = "Penanda";
 "Designators" = "Penunjuk";
+"Detect Gates" = "Kesan Get";
 "Differential pair" = "Pasangan pembeza";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Aplikasi API DigiKey (Production) dengan Product Information v4; aliran kelayakan klien.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Jangan pasang: ada pada papan tetapi tidak dipasang; dikecualikan daripada BOM pemasangan dan CPL";
@@ -238,6 +242,7 @@
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "Setiap net jaringan menyambungkan pin pemacu dan pin penderia elemen selamat; Laluan Automatik meletakkan serpentin pada ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "Setiap via dipotong ke lapisan yang disambungkannya; rentang satu dielektrik menjadi mikrovia laser di atas lapisan bina-naik nipis";
 "Earlier on its side (up, or left on the top / bottom)" = "Lebih awal pada sisinya (atas, atau kiri di atas / bawah)";
+"Edit" = "Sunting";
 "Edit Footprint…" = "Edit Tapak Kaki…";
 "Edit SPICE Model…" = "Edit Model SPICE…";
 "Edit Symbol…" = "Edit Simbol…";
@@ -247,6 +252,8 @@
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoksi di bawah pemproses, BGA dan kapasitor besar supaya kejutan MIL-STD-901E tidak dapat menanggalkannya";
 "Errors" = "Ralat";
 "Every pin is placed once; no pins collide" = "Setiap pin diletakkan sekali; tiada pin bertembung";
+"Every unit is valid" = "Setiap unit sah";
+"Exchange the wires of two interchangeable pins of this gate" = "Tukar wayar dua pin boleh tukar ganti get ini";
 "Export" = "Eksport";
 "Export 3D" = "Eksport 3D";
 "Export Fabrication Package…" = "Eksport Pakej Fabrikasi…";
@@ -288,6 +295,7 @@
 "Gap Before" = "Jurang Sebelum";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Jarak antara kaki liku, tepi ke tepi, dalam mm (kosong: tiga lebar trek antara pusat)";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Get komponen berbilang unit (A, B, C, D op-amp empat) mengisi pakej mengikut susunan peletakan sebelum penomboran";
+"Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "Get dalam satu kumpulan tukar (atau get yang sama) boleh ditukar melalui Tukar Get dan pembungkusan";
 "Generate Design" = "Jana Reka Bentuk";
 "Get an API key" = "Dapatkan kunci API";
 "Give each selected pin its own slot" = "Beri setiap pin terpilih slot tersendiri";
@@ -310,6 +318,7 @@
 "IR drop" = "Susutan IR";
 "IR-drop map" = "Peta susutan IR";
 "Ideal 50 Ω" = "Ideal 50 Ω";
+"Identical gates" = "Get yang sama";
 "Impedance" = "Impedans";
 "Import Datasheet…" = "Import Lembaran Data…";
 "Import IBIS…" = "Import IBIS…";
@@ -373,6 +382,7 @@
 "Lossy" = "Berlesap";
 "Lumped model" = "Model tergumpal";
 "Magnitude" = "Magnitud";
+"Make Swap Group" = "Buat Kumpulan Tukar";
 "Manufacturer part #" = "No. komponen pengilang";
 "Manufacturer part number or keywords" = "Nombor komponen pengilang atau kata kunci";
 "Mask" = "Topeng";
@@ -408,6 +418,7 @@
 "Net model" = "Model net";
 "Nets" = "Net";
 "Nets (%lld)" = "Net (%lld)";
+"Never swap" = "Jangan sekali-kali tukar";
 "New Project" = "Projek Baharu";
 "New Variant" = "Varian Baharu";
 "New Variant…" = "Varian Baharu…";
@@ -420,8 +431,10 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Tiada pasangan pembeza (…_P/_N, …+/-) atau bas (DQ0…, DATA[0..7], ADDR…) dalam reka bentuk ini.";
 "No distributor API keys yet" = "Belum ada kunci API pengedar";
 "No distributor offers." = "Tiada tawaran pengedar.";
+"No gates found in the pin names." = "Tiada get ditemui dalam nama pin.";
 "No imported model" = "Tiada model diimport";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "Tiada sumber input: beri input magnitud AC atau namakannya untuk melihat hingar yang dirujuk ke input.";
+"No interchangeable pins. Select pins of this gate (⌘-click) and make them a swap group — the inputs of a NAND gate." = "Tiada pin boleh tukar ganti. Pilih pin get ini (⌘-klik) dan jadikan kumpulan tukar — input get NAND.";
 "No matches." = "Tiada padanan.";
 "No models or subcircuits found." = "Tiada model atau sublitar ditemui.";
 "No overlaps, gaps ≥ 0.1 mm, every pin has a pad" = "Tiada pertindihan, jurang ≥ 0.1 mm, setiap pin mempunyai pad";
@@ -431,6 +444,7 @@
 "No signal nets to analyse" = "Tiada net isyarat untuk dianalisis";
 "No supply rails to analyse" = "Tiada rel bekalan untuk dianalisis";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "Tiada suis. Tambah Switch pada skematik (nilai \"push\" untuk butang tekan).";
+"No units: the part is drawn as one symbol" = "Tiada unit: komponen dilukis sebagai satu simbol";
 "No." = "No.";
 "Noise" = "Hingar";
 "Nominal" = "Nominal";
@@ -455,7 +469,13 @@
 "OK" = "OK";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "Mati: SiEDA berfungsi sebagai alat EDA manual klasik. Tangkapan skematik, simulasi, penghalaan PCB, 3D, penghuraian lembaran data dan eksport semuanya berjalan secara setempat, dan tiada apa-apa dihantar ke mana-mana perkhidmatan AI.";
 "Offset (mm)" = "Ofset (mm)";
+"On no gate: the pin goes to the power unit P with the supplies" = "Tiada pada get: pin pergi ke unit kuasa P bersama bekalan";
+"On the power unit P" = "Pada unit kuasa P";
+"One Symbol" = "Satu Simbol";
 "One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "Satu entri bagi setiap port model, mengikut urutan: nama atau nombor pin, 0 (bumi), net:NAME, dc:15 (bekalan unggul) atau nc; pisahkan tika dengan ;.";
+"One pin drawn on every gate (a shared enable or supply)" = "Satu pin dilukis pada setiap get (dayakan atau bekalan dikongsi)";
+"One symbol for the whole part. Add units to draw each gate on its own (a quad op-amp's A–D); pins on no unit form the power unit P." = "Satu simbol untuk seluruh komponen. Tambah unit untuk melukis setiap get secara berasingan (A–D bagi op-amp empat); pin tanpa unit membentuk unit kuasa P.";
+"Only on %@" = "Hanya pada %@";
 "Op-amp current noise" = "Hingar arus op-amp";
 "Op-amp voltage noise" = "Hingar voltan op-amp";
 "Open File…" = "Buka Fail…";
@@ -474,6 +494,8 @@
 "PAD ARRAY" = "TATASUSUNAN PAD";
 "PARAMETERS" = "PARAMETER";
 "PCB Layout" = "Susun Atur PCB";
+"PIN SWAP" = "TUKAR PIN";
+"PINS" = "PIN";
 "PRBS" = "PRBS";
 "PROPERTIES" = "SIFAT";
 "Pack Units into Packages" = "Kumpul Unit ke dalam Pakej";
@@ -512,6 +534,8 @@
 "Port (to parent sheet)" = "Port (ke helaian induk)";
 "Ports: %@" = "Port: %@";
 "Power" = "Kuasa";
+"Power Unit" = "Unit Kuasa";
+"Power unit: pins on no gate" = "Unit kuasa: pin tanpa get";
 "Preparing the autoroute…" = "Menyediakan penghalaan automatik…";
 "Preview appears once the part has a name and pins." = "Pratonton dipaparkan setelah komponen mempunyai nama dan pin.";
 "Product Page" = "Halaman Produk";
@@ -537,6 +561,7 @@
 "Remove the SPICE model" = "Buang model SPICE";
 "Remove the empty slots on every side" = "Buang slot kosong pada setiap sisi";
 "Remove the firmware" = "Buang perisian tegar";
+"Remove the selected unit (its pins go to the power unit)" = "Buang unit yang dipilih (pinnya pergi ke unit kuasa)";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "Membuang laras via yang tidak digunakan di bawah lapisan bersambung terakhir (≥ 4 lapisan); menambah fail gerudi balik";
 "Rename Channel" = "Namakan Semula Saluran";
 "Rename Channel…" = "Namakan Semula Saluran…";
@@ -630,6 +655,8 @@
 "Settling" = "Masa penetapan";
 "Settling (2 %)" = "Penetapan (2 %)";
 "Shape" = "Bentuk";
+"Shared by All" = "Dikongsi oleh Semua";
+"Shared by several gates" = "Dikongsi oleh beberapa get";
 "Sheet" = "Helaian";
 "Sheet %lld of %lld" = "Helaian %lld daripada %lld";
 "Sheet name" = "Nama helaian";
@@ -669,6 +696,7 @@
 "Spacing" = "Jarak";
 "Speed" = "Kelajuan";
 "Spin" = "Pusing";
+"Split the pins into gates from their names (1A, 1B, 1Y… or OUT1, IN1-, IN1+…)" = "Bahagikan pin kepada get mengikut nama (1A, 1B, 1Y… atau OUT1, IN1-, IN1+…)";
 "Stack" = "Tindan";
 "Stack repeated power pins" = "Tindan pin kuasa berulang";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "Tindanan lapisan daripada tetapan Lapisan dalam Susun Atur PCB: 1 lapisan membiarkan bahagian bawah FR-4 terdedah; ";
@@ -691,8 +719,13 @@
 "Supplies on top, grounds at the bottom, inputs left, outputs right, MCU ports grouped" = "Bekalan di atas, bumi di bawah, input di kiri, output di kanan, port MCU dikumpulkan";
 "Surface" = "Permukaan";
 "Surface finish of the exposed copper: pads, via lands and plated holes" = "Kemasan permukaan kuprum terdedah: pad, tanah via dan lubang bersalut";
+"Swap" = "Tukar";
+"Swap Gates" = "Tukar Get";
+"Swap Pins" = "Tukar Pin";
+"Swap group %lld" = "Kumpulan tukar %lld";
 "Swap the left and right sides" = "Tukar sisi kiri dan kanan";
 "Switch workspace (⌘1 – ⌘7)" = "Tukar ruang kerja (⌘1 – ⌘7)";
+"Symbol" = "Simbol";
 "System default" = "Lalai sistem";
 "TEMPLATES" = "TEMPLAT";
 "THD" = "THD";
@@ -705,6 +738,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Pereka bentuk luar talian menggunakan litar rujukan terbina dalam SiEDA. Tiada rangkaian atau kunci API diperlukan — sesuai untuk demo dan makmal terasing.";
 "The plain box: pins in number order down the left, then up the right" = "Kotak asas: pin mengikut susunan nombor menurun di kiri, kemudian menaik di kanan";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "Skrin percikan pramuat pustaka komponen dan reka bentuk rujukan selama lima saat, kemudian membuka tetingkap utama. Klik atau tekan Esc untuk melangkau setelah pemuatan selesai.";
+"The two gates exchange places in their packages; the symbols and wires stay" = "Dua get bertukar tempat dalam pakej; simbol dan wayar kekal";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Mangsa berada pada lapisan bersebelahan, di atas atau di bawah penyerang";
 "Thermal" = "Terma";
 "Through" = "Tembus";
@@ -719,13 +753,17 @@
 "Tune to the longest member of the net's differential pair or bus" = "Tala kepada ahli terpanjang pasangan pembeza atau bas net";
 "Type" = "Jenis";
 "Type a designator, value, label or net name." = "Taip penanda, nilai, label atau nama net.";
+"UNIT %@" = "UNIT %@";
+"UNITS" = "UNIT";
 "Underfill / corner-bond heavy parts (shock)" = "Isi bawah / ikatan sudut komponen berat (kejutan)";
 "Undershoot" = "Lajakan bawah";
 "Undo" = "Buat Asal";
 "Undo (⌘Z)" = "Buat Asal (⌘Z)";
 "Undo the last footprint edit" = "Buat asal suntingan tapak kaki terakhir";
 "Undo the last symbol edit" = "Buat asal suntingan simbol terakhir";
+"Undo the last unit edit" = "Buat asal suntingan unit terakhir";
 "Unit price" = "Harga seunit";
+"Units" = "Unit";
 "Unity gain" = "Gandaan uniti";
 "Unstack" = "Nyahtindan";
 "Upload .hex…" = "Muat Naik .hex…";

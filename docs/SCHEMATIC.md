@@ -160,7 +160,8 @@ order, each just outside its pin, facing away from the part, wired to it — wit
 
 A part with several identical gates — a quad op-amp, a hex inverter — can be drawn one gate per symbol.
 
-- A custom part spec lists its **units**: `"units":[{"name":"A","pins":["1","2","3"]},{"name":"B","pins":["7","6","5"]},…]`.
+- Units are defined in the Symbol Editor's **Units** mode (docs/SYMBOL_EDITOR.md): gates, pin assignment, shared
+  and power pins, gate swap groups and pin-swap groups. In the spec they are written as **units**: `"units":[{"name":"A","pins":["1","2","3"]},{"name":"B","pins":["7","6","5"]},…]`.
   Pins in no unit form an extra **power unit** `P` (the shared supply pins). A pin listed in several units is shared:
   one pin, drawn on each. Each unit gets its own symbol (from the part's symbol layout where it places every pin of
   the unit, else arranged by pin type). The standard library's **LM324** is a quad op-amp with units A–D and P.
@@ -170,7 +171,11 @@ A part with several identical gates — a quad op-amp, a hex inverter — can be
 - One footprint: the units belong to a hidden package that carries every pin and the footprint. The netlist, BOM, CPL,
   simulation and PCB see that one part (`U1`, 14 pads); a unit's pins are its package's pins. Deleting the last unit
   deletes the part. Selecting the part on the board highlights its units.
-- **Annotate ▸ Pack Units into Packages** re-assigns interchangeable gates (same pins in the same places) to packages
+- **Gate swap / pin swap**: select two units of one part → **Swap Gates** in the inspector (interchangeable gates:
+  identical symbols, or one swap group); a unit's **Swap Pins** menu exchanges the wires of two pins of a pin-swap
+  group. C API `sieda_swap_units`, `sieda_swap_pins`; unit checks `sieda_check_units`.
+- **Annotate ▸ Pack Units into Packages** re-assigns interchangeable gates (same pins in the same places, or one swap
+  group) to packages
   in placement order — A, B, C, D of the first package, then the next — and gives the power units to the packages in
   turn, before numbering. Gates on repeated sheets keep their packages (one per channel).
 - ERC: a unit's open pins are reported with the unit designator (`U1A.IN1+`); a unit that is not placed is reported
@@ -335,7 +340,7 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
 - Wires never cross sheets; parts moved to another sheet lose their wires to parts left behind.
 - A channel's own value is a per-channel parameter; per-channel fitting (DNP) is still made with a design variant.
   A unit of a multi-unit part inside a repeated sheet stays on that sheet with its package.
-- Multi-unit parts: units are defined in the part spec (JSON or the C API); the Symbol Editor edits the whole part's
-  symbol, not the units' (unit symbols are generated from it). Unit packing re-assigns only interchangeable gates.
+- Multi-unit parts: unit symbols are generated from the part's symbol layout (or arranged by pin type); a unit has no
+  hand-drawn layout of its own. Gate swap works between units on one sheet. Unit packing re-assigns only interchangeable gates.
   Placing such a part from an AI design plan draws it as one symbol.
 - Find & Replace edits values and net label names only; designators are changed by annotation.

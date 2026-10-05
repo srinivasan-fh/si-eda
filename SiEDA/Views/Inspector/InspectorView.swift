@@ -269,6 +269,27 @@ private struct ComponentProperties: View {
                             }
                             .fixedSize()
                         }
+                        // Pin swap: interchangeable pins of this gate (the unit's pin-swap groups).
+                        if let unit = component.unit, unit >= 1, unit <= symbols.count, let groups = symbols[unit - 1].pinSwap,
+                           !groups.isEmpty {
+                            let pins = symbols[unit - 1].symbol.pins
+                            Menu {
+                                ForEach(Array(groups.enumerated()), id: \.offset) { _, group in
+                                    ForEach(Self.pairs(group), id: \.self) { pair in
+                                        if let a = pins.firstIndex(where: { $0.number == pair[0] }),
+                                           let b = pins.firstIndex(where: { $0.number == pair[1] }) {
+                                            Button(String(pins[a].name + " ↔ " + pins[b].name)) {
+                                                store.swapPins(of: component.id, a, b)
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                Label("Swap Pins", systemImage: "arrow.left.arrow.right")
+                            }
+                            .fixedSize()
+                            .help("Exchange the wires of two interchangeable pins of this gate")
+                        }
                     }
                 }
                 .buttonStyle(.bordered)
@@ -379,6 +400,15 @@ private struct ComponentProperties: View {
         let current = component.logicalRef ?? component.ref
         if trimmed.isEmpty || trimmed == current { ref = current; return }
         store.setRef(component.id, trimmed)
+    }
+
+    /// Every pair of a pin-swap group, in order.
+    static func pairs(_ group: [String]) -> [[String]] {
+        var out: [[String]] = []
+        for i in group.indices {
+            for j in group.indices where j > i { out.append([group[i], group[j]]) }
+        }
+        return out
     }
 
     private func commitValue() {
@@ -505,6 +535,14 @@ private struct MultiSelectionProperties: View {
                 Button(role: .destructive) { store.deleteSelection() } label: { Label("Delete", systemImage: "trash") }
             }
             .buttonStyle(.bordered)
+            let units = store.selectedComponents.filter { $0.unit != nil && $0.unitOf != nil }
+            if units.count == 2 && units[0].customPart == units[1].customPart {
+                Button { store.swapGates(units[0].id, units[1].id) } label: {
+                    Label("Swap Gates", systemImage: "arrow.triangle.swap")
+                }
+                .buttonStyle(.bordered)
+                .help("The two gates exchange places in their packages; the symbols and wires stay")
+            }
         }
     }
 }

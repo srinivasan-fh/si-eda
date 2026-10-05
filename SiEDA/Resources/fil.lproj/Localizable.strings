@@ -15,6 +15,7 @@
 "3D Viewer" = "3D Viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A new gate; the selected pins go on it" = "Bagong gate; ilalagay dito ang mga napiling pin";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC Sweep";
 "AC uses the AC Sweep range, Transient the Transient stop and step" = "Ginagamit ng AC ang saklaw ng AC Sweep, ng Transient ang stop at step ng Transient";
@@ -37,6 +38,7 @@
 "Add Pour" = "Magdagdag ng Pour";
 "Add Selected Parts" = "Idagdag ang mga Napiling Piyesa";
 "Add Thermal Vias" = "Magdagdag ng Thermal Via";
+"Add Unit" = "Magdagdag ng Unit";
 "Add a pad like the last one (numbered next)" = "Magdagdag ng pad na katulad ng huli (susunod na numero)";
 "Add a sheet (right-click a tab for more)" = "Magdagdag ng sheet (i-right-click ang tab para sa iba pa)";
 "Add an Octopart (Nexar), DigiKey or Mouser key in Settings → Suppliers to see stock, prices and lifecycle for every BOM line." = "Magdagdag ng Octopart (Nexar), DigiKey o Mouser key sa Settings → Suppliers para makita ang stock, presyo at lifecycle ng bawat linya ng BOM.";
@@ -69,6 +71,7 @@
 "Apply Symbol" = "Ilapat ang Symbol";
 "Apply Tuning" = "Ilapat ang Pag-tune";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Ayusin ang schematic symbol: pin sa anumang gilid, mga grupo, naka-stack na power pin, auto arrange";
+"Arrange the symbol, or define the gates of a multi-unit part" = "Ayusin ang simbolo, o tukuyin ang mga gate ng bahaging maraming unit";
 "Arranged symbol" = "Inayos na symbol";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "Humiling ng pagbabago — “gawing berde ang LED at paganahin sa 3.3 V”";
 "Asking the distributors…" = "Nagtatanong sa mga distributor…";
@@ -218,6 +221,7 @@
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "Preset ng design rule: laki ng track, clearance at via kasama ang fabrication minimum na ipinapatupad ng DRC";
 "Designator" = "Designator";
 "Designators" = "Mga designator";
+"Detect Gates" = "Tuklasin ang mga Gate";
 "Differential pair" = "Differential pair";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "DigiKey API application (Production) na may Product Information v4; client credentials flow.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Huwag i-populate: nasa board pero hindi ikinakabit; hindi kasama sa assembly BOM at CPL";
@@ -238,6 +242,7 @@
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "Ikinokonekta ng bawat mesh net ang drive at sense pin ng secure element; inilalatag ng Auto Route ang mga serpentine sa ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "Pinuputol ang bawat via sa mga layer na ikinokonekta nito; nagiging laser microvia ang mga span na isang dielectric sa ibabaw ng manipis na build-up layer";
 "Earlier on its side (up, or left on the top / bottom)" = "Mas maaga sa gilid nito (pataas, o pakaliwa sa itaas / ibaba)";
+"Edit" = "I-edit";
 "Edit Footprint…" = "I-edit ang Footprint…";
 "Edit SPICE Model…" = "I-edit ang SPICE Model…";
 "Edit Symbol…" = "I-edit ang Symbol…";
@@ -247,6 +252,8 @@
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxy sa ilalim ng processor, BGA at malalaking capacitor para hindi matanggal ng MIL-STD-901E shock";
 "Errors" = "Mga Error";
 "Every pin is placed once; no pins collide" = "Isang beses inilagay ang bawat pin; walang nagbabanggaang pin";
+"Every unit is valid" = "Valid ang bawat unit";
+"Exchange the wires of two interchangeable pins of this gate" = "Pagpalitin ang mga wire ng dalawang mapagpapalit na pin ng gate na ito";
 "Export" = "I-export";
 "Export 3D" = "I-export ang 3D";
 "Export Fabrication Package…" = "I-export ang Fabrication Package…";
@@ -288,6 +295,7 @@
 "Gap Before" = "Puwang Bago";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Pagitan ng mga binti ng meander, gilid sa gilid, sa mm (walang laman: tatlong lapad ng track sa pagitan ng mga gitna)";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Ang mga gate ng multi-unit na piyesa (A, B, C, D ng quad op-amp) ay pinupuno sa mga package ayon sa pagkakalagay bago lagyan ng numero";
+"Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "Mapagpapalit ang mga gate ng iisang swap group (o magkaparehong gate) sa Swap Gates at pag-pack";
 "Generate Design" = "Bumuo ng Disenyo";
 "Get an API key" = "Kumuha ng API key";
 "Give each selected pin its own slot" = "Bigyan ng sariling slot ang bawat napiling pin";
@@ -310,6 +318,7 @@
 "IR drop" = "IR drop";
 "IR-drop map" = "Mapa ng IR drop";
 "Ideal 50 Ω" = "Ideal na 50 Ω";
+"Identical gates" = "Magkaparehong gate";
 "Impedance" = "Impedance";
 "Import Datasheet…" = "I-import ang Datasheet…";
 "Import IBIS…" = "I-import ang IBIS…";
@@ -373,6 +382,7 @@
 "Lossy" = "May pagkawala";
 "Lumped model" = "Lumped na modelo";
 "Magnitude" = "Magnitude";
+"Make Swap Group" = "Gumawa ng Swap Group";
 "Manufacturer part #" = "Part # ng manufacturer";
 "Manufacturer part number or keywords" = "Part number ng manufacturer o mga keyword";
 "Mask" = "Mask";
@@ -408,6 +418,7 @@
 "Net model" = "Modelo ng net";
 "Nets" = "Mga Net";
 "Nets (%lld)" = "Mga Net (%lld)";
+"Never swap" = "Huwag kailanman ipagpalit";
 "New Project" = "Bagong Proyekto";
 "New Variant" = "Bagong Variant";
 "New Variant…" = "Bagong Variant…";
@@ -420,8 +431,10 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Walang differential pair (…_P/_N, …+/-) o bus (DQ0…, DATA[0..7], ADDR…) sa disenyong ito.";
 "No distributor API keys yet" = "Wala pang API key ng distributor";
 "No distributor offers." = "Walang alok mula sa distributor.";
+"No gates found in the pin names." = "Walang nakitang gate sa mga pangalan ng pin.";
 "No imported model" = "Walang in-import na model";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "Walang input source: bigyan ang input ng AC magnitude o pangalanan ito para makita ang ingay na tinukoy sa input.";
+"No interchangeable pins. Select pins of this gate (⌘-click) and make them a swap group — the inputs of a NAND gate." = "Walang mapagpapalit na pin. Piliin ang mga pin ng gate na ito (⌘-click) at gawin silang swap group — ang mga input ng NAND gate.";
 "No matches." = "Walang tugma.";
 "No models or subcircuits found." = "Walang nahanap na model o subcircuit.";
 "No overlaps, gaps ≥ 0.1 mm, every pin has a pad" = "Walang overlap, puwang ≥ 0.1 mm, may pad ang bawat pin";
@@ -431,6 +444,7 @@
 "No signal nets to analyse" = "Walang signal net na susuriin";
 "No supply rails to analyse" = "Walang supply rail na susuriin";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "Walang switch. Magdagdag ng Switch sa schematic (value \"push\" para sa push-button).";
+"No units: the part is drawn as one symbol" = "Walang unit: iginuguhit ang bahagi bilang isang simbolo";
 "No." = "Blg.";
 "Noise" = "Ingay";
 "Nominal" = "Nominal";
@@ -455,7 +469,13 @@
 "OK" = "OK";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "Off: Gumagana ang SiEDA bilang klasikong manual na EDA tool. Lokal na tumatakbo ang schematic capture, simulation, PCB routing, 3D, datasheet parsing at export, at walang ipinapadala sa anumang AI service.";
 "Offset (mm)" = "Offset (mm)";
+"On no gate: the pin goes to the power unit P with the supplies" = "Wala sa anumang gate: mapupunta ang pin sa power unit P kasama ng mga supply";
+"On the power unit P" = "Nasa power unit P";
+"One Symbol" = "Isang Simbolo";
 "One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "Isang entry bawat port ng model, ayon sa pagkakasunod: pangalan o numero ng pin, 0 (ground), net:NAME, dc:15 (ideal na supply) o nc; paghiwalayin ang mga instance gamit ang ;.";
+"One pin drawn on every gate (a shared enable or supply)" = "Isang pin na iginuguhit sa bawat gate (pinagsasaluhang enable o supply)";
+"One symbol for the whole part. Add units to draw each gate on its own (a quad op-amp's A–D); pins on no unit form the power unit P." = "Isang simbolo para sa buong bahagi. Magdagdag ng mga unit para iguhit nang hiwalay ang bawat gate (A–D ng quad op-amp); ang mga pin na walang unit ay bumubuo ng power unit P.";
+"Only on %@" = "Sa %@ lamang";
 "Op-amp current noise" = "Ingay ng kuryente ng op-amp";
 "Op-amp voltage noise" = "Ingay ng boltahe ng op-amp";
 "Open File…" = "Buksan ang File…";
@@ -474,6 +494,8 @@
 "PAD ARRAY" = "PAD ARRAY";
 "PARAMETERS" = "MGA PARAMETER";
 "PCB Layout" = "PCB Layout";
+"PIN SWAP" = "PAGPAPALIT NG PIN";
+"PINS" = "MGA PIN";
 "PRBS" = "PRBS";
 "PROPERTIES" = "MGA PROPERTY";
 "Pack Units into Packages" = "Ipunin ang mga unit sa mga package";
@@ -512,6 +534,8 @@
 "Port (to parent sheet)" = "Port (papunta sa parent sheet)";
 "Ports: %@" = "Mga port: %@";
 "Power" = "Power";
+"Power Unit" = "Power Unit";
+"Power unit: pins on no gate" = "Power unit: mga pin na wala sa anumang gate";
 "Preparing the autoroute…" = "Inihahanda ang autoroute…";
 "Preview appears once the part has a name and pins." = "Lalabas ang preview kapag may pangalan at pin na ang part.";
 "Product Page" = "Pahina ng Produkto";
@@ -537,6 +561,7 @@
 "Remove the SPICE model" = "Alisin ang SPICE model";
 "Remove the empty slots on every side" = "Alisin ang mga bakanteng slot sa bawat gilid";
 "Remove the firmware" = "Alisin ang firmware";
+"Remove the selected unit (its pins go to the power unit)" = "Alisin ang napiling unit (mapupunta ang mga pin nito sa power unit)";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "Inaalis ang hindi ginagamit na via barrel sa ilalim ng huling nakakonektang layer (≥ 4 layer); nagdaragdag ng back-drill file";
 "Rename Channel" = "Palitan ang pangalan ng channel";
 "Rename Channel…" = "Palitan ang pangalan ng channel…";
@@ -630,6 +655,8 @@
 "Settling" = "Settling";
 "Settling (2 %)" = "Settling (2 %)";
 "Shape" = "Hugis";
+"Shared by All" = "Pinagsasaluhan ng Lahat";
+"Shared by several gates" = "Pinagsasaluhan ng ilang gate";
 "Sheet" = "Sheet";
 "Sheet %lld of %lld" = "Sheet %lld ng %lld";
 "Sheet name" = "Pangalan ng sheet";
@@ -669,6 +696,7 @@
 "Spacing" = "Pagitan";
 "Speed" = "Bilis";
 "Spin" = "Paikutin";
+"Split the pins into gates from their names (1A, 1B, 1Y… or OUT1, IN1-, IN1+…)" = "Hatiin ang mga pin sa mga gate ayon sa pangalan (1A, 1B, 1Y… o OUT1, IN1-, IN1+…)";
 "Stack" = "I-stack";
 "Stack repeated power pins" = "I-stack ang paulit-ulit na power pin";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "Stack-up mula sa Layers setting sa PCB Layout: iniiwan ng 1 layer na hubad na FR-4 ang ilalim; ";
@@ -691,8 +719,13 @@
 "Supplies on top, grounds at the bottom, inputs left, outputs right, MCU ports grouped" = "Supply sa itaas, ground sa ibaba, input sa kaliwa, output sa kanan, nakagrupo ang mga MCU port";
 "Surface" = "Surface";
 "Surface finish of the exposed copper: pads, via lands and plated holes" = "Surface finish ng nakalantad na copper: pad, via land at plated hole";
+"Swap" = "Ipagpalit";
+"Swap Gates" = "Ipagpalit ang mga Gate";
+"Swap Pins" = "Ipagpalit ang mga Pin";
+"Swap group %lld" = "Swap group %lld";
 "Swap the left and right sides" = "Pagpalitin ang kaliwa at kanang gilid";
 "Switch workspace (⌘1 – ⌘7)" = "Lumipat ng workspace (⌘1 – ⌘7)";
+"Symbol" = "Simbolo";
 "System default" = "Default ng system";
 "TEMPLATES" = "MGA TEMPLATE";
 "THD" = "THD";
@@ -705,6 +738,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Ginagamit ng offline designer ang mga built-in na reference circuit ng SiEDA. Hindi kailangan ng network o API key — mainam para sa demo at air-gapped na lab.";
 "The plain box: pins in number order down the left, then up the right" = "Ang simpleng kahon: mga pin ayon sa numero pababa sa kaliwa, pagkatapos ay pataas sa kanan";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "Nilo-load ng splash ang component library at mga reference design nang limang segundo, saka binubuksan ang main window. I-click ito o pindutin ang Esc para laktawan kapag tapos na ang pag-load.";
+"The two gates exchange places in their packages; the symbols and wires stay" = "Nagpapalit ng puwesto sa package ang dalawang gate; nananatili ang mga simbolo at wire";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Ang biktima ay nasa katabing layer, sa itaas o ilalim ng aggressor";
 "Thermal" = "Thermal";
 "Through" = "Tagos";
@@ -719,13 +753,17 @@
 "Tune to the longest member of the net's differential pair or bus" = "I-tune sa pinakamahabang miyembro ng differential pair o bus ng net";
 "Type" = "Uri";
 "Type a designator, value, label or net name." = "Mag-type ng designator, value, label o pangalan ng net.";
+"UNIT %@" = "UNIT %@";
+"UNITS" = "MGA UNIT";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / corner-bond sa mabibigat na part (shock)";
 "Undershoot" = "Undershoot";
 "Undo" = "I-undo";
 "Undo (⌘Z)" = "I-undo (⌘Z)";
 "Undo the last footprint edit" = "I-undo ang huling edit sa footprint";
 "Undo the last symbol edit" = "I-undo ang huling edit sa symbol";
+"Undo the last unit edit" = "I-undo ang huling pag-edit ng unit";
 "Unit price" = "Unit price";
+"Units" = "Mga Unit";
 "Unity gain" = "Unity gain";
 "Unstack" = "I-unstack";
 "Upload .hex…" = "I-upload ang .hex…";

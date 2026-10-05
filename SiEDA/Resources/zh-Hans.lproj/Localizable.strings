@@ -15,6 +15,7 @@
 "3D Viewer" = "3D 查看器";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A new gate; the selected pins go on it" = "新建门；所选引脚放到其上";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC 扫描";
 "AC uses the AC Sweep range, Transient the Transient stop and step" = "AC 使用 AC 扫描的范围，瞬态使用瞬态的停止时间和步长";
@@ -37,6 +38,7 @@
 "Add Pour" = "添加铺铜";
 "Add Selected Parts" = "添加所选元件";
 "Add Thermal Vias" = "添加散热过孔";
+"Add Unit" = "添加单元";
 "Add a pad like the last one (numbered next)" = "添加与上一个相同的焊盘 (编号顺延)";
 "Add a sheet (right-click a tab for more)" = "添加图纸（右键单击标签页查看更多）";
 "Add an Octopart (Nexar), DigiKey or Mouser key in Settings → Suppliers to see stock, prices and lifecycle for every BOM line." = "在“设置 → 供应商”中添加 Octopart (Nexar)、DigiKey 或 Mouser 密钥，即可查看每一 BOM 行的库存、价格和生命周期。";
@@ -69,6 +71,7 @@
 "Apply Symbol" = "应用符号";
 "Apply Tuning" = "应用调整";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "排列原理图符号：引脚可置于任意一侧、分组、堆叠电源引脚、自动排列";
+"Arrange the symbol, or define the gates of a multi-unit part" = "排列符号，或定义多单元器件的门";
 "Arranged symbol" = "已排列的符号";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "提出修改 — “把 LED 改成绿色，并用 3.3 V 供电”";
 "Asking the distributors…" = "正在查询分销商…";
@@ -218,6 +221,7 @@
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "设计规则预设：走线、间距和过孔尺寸，以及 DRC 强制执行的制造最小值";
 "Designator" = "位号";
 "Designators" = "位号";
+"Detect Gates" = "检测门";
 "Differential pair" = "差分对";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "带 Product Information v4 的 DigiKey API 应用（Production）；客户端凭据流程。";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "不贴装：在电路板上但不装配；不计入装配 BOM 和 CPL";
@@ -238,6 +242,7 @@
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "每条防篡改网格网络连接安全元件的驱动与检测引脚；自动布线将蛇形线布设于 ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "每个过孔只切到其连接的层；单介质层跨距在薄积层上变为激光微孔";
 "Earlier on its side (up, or left on the top / bottom)" = "在其所在边上靠前 (向上，或在顶边/底边上向左)";
+"Edit" = "编辑";
 "Edit Footprint…" = "编辑封装…";
 "Edit SPICE Model…" = "编辑 SPICE 模型…";
 "Edit Symbol…" = "编辑符号…";
@@ -247,6 +252,8 @@
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "在处理器、BGA 和大电容下方填充环氧树脂，以防 MIL-STD-901E 冲击将其撕脱";
 "Errors" = "错误";
 "Every pin is placed once; no pins collide" = "每个引脚只放置一次；引脚无冲突";
+"Every unit is valid" = "每个单元均有效";
+"Exchange the wires of two interchangeable pins of this gate" = "交换此门两个可互换引脚的导线";
 "Export" = "导出";
 "Export 3D" = "导出 3D";
 "Export Fabrication Package…" = "导出制造文件包…";
@@ -288,6 +295,7 @@
 "Gap Before" = "前置空位";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "蛇形线各段之间的边到边间隙（mm，留空：中心距为三倍线宽）";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "多单元元件的门 (四运放的 A、B、C、D) 按放置顺序填入封装后再编号";
+"Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "同一交换组的门（或相同的门）可通过“交换门”和封装合并互换";
 "Generate Design" = "生成设计";
 "Get an API key" = "获取 API 密钥";
 "Give each selected pin its own slot" = "为每个所选引脚分配独立槽位";
@@ -310,6 +318,7 @@
 "IR drop" = "IR 压降";
 "IR-drop map" = "IR 压降图";
 "Ideal 50 Ω" = "理想 50 Ω";
+"Identical gates" = "相同的门";
 "Impedance" = "阻抗";
 "Import Datasheet…" = "导入数据手册…";
 "Import IBIS…" = "导入 IBIS…";
@@ -373,6 +382,7 @@
 "Lossy" = "有损";
 "Lumped model" = "集总模型";
 "Magnitude" = "幅度";
+"Make Swap Group" = "创建交换组";
 "Manufacturer part #" = "制造商料号";
 "Manufacturer part number or keywords" = "制造商料号或关键字";
 "Mask" = "阻焊";
@@ -408,6 +418,7 @@
 "Net model" = "网络模型";
 "Nets" = "网络";
 "Nets (%lld)" = "网络 (%lld)";
+"Never swap" = "从不交换";
 "New Project" = "新建项目";
 "New Variant" = "新建变体";
 "New Variant…" = "新建变体…";
@@ -420,8 +431,10 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "此设计中没有差分对 (…_P/_N, …+/-) 或总线 (DQ0…, DATA[0..7], ADDR…)。";
 "No distributor API keys yet" = "尚无分销商 API 密钥";
 "No distributor offers." = "没有分销商报价。";
+"No gates found in the pin names." = "引脚名称中未找到门。";
 "No imported model" = "没有导入的模型";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "没有输入源：为输入设置 AC 幅度或指定它，即可看到折算到输入的噪声。";
+"No interchangeable pins. Select pins of this gate (⌘-click) and make them a swap group — the inputs of a NAND gate." = "没有可互换的引脚。选择此门的引脚（⌘-点按）并设为交换组，例如 NAND 门的输入。";
 "No matches." = "没有匹配项。";
 "No models or subcircuits found." = "未找到模型或子电路。";
 "No overlaps, gaps ≥ 0.1 mm, every pin has a pad" = "无重叠，间隙 ≥ 0.1 mm，每个引脚都有焊盘";
@@ -431,6 +444,7 @@
 "No signal nets to analyse" = "没有可分析的信号网络";
 "No supply rails to analyse" = "没有可分析的电源轨";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "没有开关。请在原理图中添加开关 (值设为 \"push\" 即为按钮)。";
+"No units: the part is drawn as one symbol" = "无单元：器件以单个符号绘制";
 "No." = "编号";
 "Noise" = "噪声";
 "Nominal" = "标称值";
@@ -455,7 +469,13 @@
 "OK" = "好";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "关闭：SiEDA 作为传统手动 EDA 工具运行。原理图绘制、仿真、PCB 布线、3D、数据手册解析和导出全部在本地运行，不会向任何 AI 服务发送任何数据。";
 "Offset (mm)" = "偏移 (mm)";
+"On no gate: the pin goes to the power unit P with the supplies" = "不在任何门上：引脚与电源一起放入电源单元 P";
+"On the power unit P" = "在电源单元 P 上";
+"One Symbol" = "单个符号";
 "One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "每个模型端口一项，按顺序填写：引脚名称或编号、0（接地）、net:NAME、dc:15（理想电源）或 nc；多个实例以 ; 分隔。";
+"One pin drawn on every gate (a shared enable or supply)" = "一个引脚绘于每个门上（共用的使能或电源）";
+"One symbol for the whole part. Add units to draw each gate on its own (a quad op-amp's A–D); pins on no unit form the power unit P." = "整个器件使用一个符号。添加单元可分别绘制每个门（四运放的 A–D）；不在任何单元的引脚组成电源单元 P。";
+"Only on %@" = "仅在 %@";
 "Op-amp current noise" = "运放电流噪声";
 "Op-amp voltage noise" = "运放电压噪声";
 "Open File…" = "打开文件…";
@@ -474,6 +494,8 @@
 "PAD ARRAY" = "焊盘阵列";
 "PARAMETERS" = "参数";
 "PCB Layout" = "PCB 布局";
+"PIN SWAP" = "引脚交换";
+"PINS" = "引脚";
 "PRBS" = "PRBS";
 "PROPERTIES" = "属性";
 "Pack Units into Packages" = "将单元打包到封装";
@@ -512,6 +534,8 @@
 "Port (to parent sheet)" = "端口（连至父图纸）";
 "Ports: %@" = "端口：%@";
 "Power" = "电源";
+"Power Unit" = "电源单元";
+"Power unit: pins on no gate" = "电源单元：不在任何门上的引脚";
 "Preparing the autoroute…" = "正在准备自动布线…";
 "Preview appears once the part has a name and pins." = "元件有名称和引脚后即显示预览。";
 "Product Page" = "产品页面";
@@ -537,6 +561,7 @@
 "Remove the SPICE model" = "移除 SPICE 模型";
 "Remove the empty slots on every side" = "删除每一侧的空槽位";
 "Remove the firmware" = "移除固件";
+"Remove the selected unit (its pins go to the power unit)" = "移除所选单元（其引脚移至电源单元）";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "去除最后连接层以下未使用的过孔孔管 (≥ 4 层)；添加背钻文件";
 "Rename Channel" = "重命名通道";
 "Rename Channel…" = "重命名通道…";
@@ -630,6 +655,8 @@
 "Settling" = "稳定时间";
 "Settling (2 %)" = "稳定时间（2 %）";
 "Shape" = "形状";
+"Shared by All" = "全部共用";
+"Shared by several gates" = "由多个门共用";
 "Sheet" = "图纸";
 "Sheet %lld of %lld" = "第 %lld 页，共 %lld 页";
 "Sheet name" = "图纸名称";
@@ -669,6 +696,7 @@
 "Spacing" = "间距";
 "Speed" = "速度";
 "Spin" = "自转";
+"Split the pins into gates from their names (1A, 1B, 1Y… or OUT1, IN1-, IN1+…)" = "按名称将引脚分成门（1A、1B、1Y… 或 OUT1、IN1-、IN1+…）";
 "Stack" = "堆叠";
 "Stack repeated power pins" = "堆叠重复的电源引脚";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "层叠取自 PCB 布局中的“层”设置：1 层时底面为裸露 FR-4； ";
@@ -691,8 +719,13 @@
 "Supplies on top, grounds at the bottom, inputs left, outputs right, MCU ports grouped" = "电源在上，地在下，输入在左，输出在右，MCU 端口分组";
 "Surface" = "表面处理";
 "Surface finish of the exposed copper: pads, via lands and plated holes" = "裸露铜面的表面处理：焊盘、过孔焊环和金属化孔";
+"Swap" = "交换";
+"Swap Gates" = "交换门";
+"Swap Pins" = "交换引脚";
+"Swap group %lld" = "交换组 %lld";
 "Swap the left and right sides" = "交换左右两侧";
 "Switch workspace (⌘1 – ⌘7)" = "切换工作区 (⌘1 – ⌘7)";
+"Symbol" = "符号";
 "System default" = "系统默认";
 "TEMPLATES" = "模板";
 "THD" = "THD";
@@ -705,6 +738,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "离线设计器使用 SiEDA 内置的参考电路。无需网络或 API 密钥 — 非常适合演示和物理隔离的实验室。";
 "The plain box: pins in number order down the left, then up the right" = "普通方框：引脚按编号顺序沿左侧向下，再沿右侧向上";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "启动画面会预载元件库和参考设计五秒钟，然后打开主窗口。载入完成后，点击它或按 Esc 即可跳过。";
+"The two gates exchange places in their packages; the symbols and wires stay" = "两个门在封装中互换位置；符号与导线不变";
 "The victim runs on the adjacent layer, over or under the aggressor" = "受害网络在相邻层上，位于干扰网络的上方或下方";
 "Thermal" = "热噪声";
 "Through" = "通孔";
@@ -719,13 +753,17 @@
 "Tune to the longest member of the net's differential pair or bus" = "调整到该网络所属差分对或总线中最长的成员";
 "Type" = "类型";
 "Type a designator, value, label or net name." = "输入位号、数值、标签或网络名称。";
+"UNIT %@" = "单元 %@";
+"UNITS" = "单元";
 "Underfill / corner-bond heavy parts (shock)" = "重型元件底部填充 / 边角粘接 (冲击)";
 "Undershoot" = "下冲";
 "Undo" = "撤销";
 "Undo (⌘Z)" = "撤销 (⌘Z)";
 "Undo the last footprint edit" = "撤销上一次封装编辑";
 "Undo the last symbol edit" = "撤销上一次符号编辑";
+"Undo the last unit edit" = "撤销上一次单元编辑";
 "Unit price" = "单价";
+"Units" = "单元";
 "Unity gain" = "单位增益";
 "Unstack" = "取消堆叠";
 "Upload .hex…" = "上传 .hex…";

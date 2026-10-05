@@ -15,6 +15,7 @@
 "3D Viewer" = "3D వ్యూయర్";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A new gate; the selected pins go on it" = "కొత్త గేట్; ఎంచుకున్న పిన్‌లు దానిపైకి వెళ్తాయి";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC స్వీప్";
 "AC uses the AC Sweep range, Transient the Transient stop and step" = "AC, AC స్వీప్ పరిధిని; ట్రాన్సియెంట్, ట్రాన్సియెంట్ స్టాప్ మరియు స్టెప్‌ను వాడుతుంది";
@@ -37,6 +38,7 @@
 "Add Pour" = "పోర్ జోడించు";
 "Add Selected Parts" = "ఎంచుకున్న భాగాలను జోడించు";
 "Add Thermal Vias" = "థర్మల్ వయాలు జోడించు";
+"Add Unit" = "యూనిట్ జోడించు";
 "Add a pad like the last one (numbered next)" = "చివరి దానిలాంటి ప్యాడ్‌ను జోడించు (తదుపరి సంఖ్యతో)";
 "Add a sheet (right-click a tab for more)" = "షీట్ జోడించండి (మరిన్నింటికి ట్యాబ్‌పై రైట్-క్లిక్ చేయండి)";
 "Add an Octopart (Nexar), DigiKey or Mouser key in Settings → Suppliers to see stock, prices and lifecycle for every BOM line." = "ప్రతి BOM లైన్ స్టాక్, ధరలు, లైఫ్‌సైకిల్ చూడటానికి సెట్టింగ్‌లు → సరఫరాదారులు లో Octopart (Nexar), DigiKey లేదా Mouser కీ జోడించండి.";
@@ -69,6 +71,7 @@
 "Apply Symbol" = "సింబల్ వర్తింపజేయి";
 "Apply Tuning" = "ట్యూనింగ్ వర్తింపజేయి";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "స్కీమాటిక్ సింబల్‌ను అమర్చు: ఏ వైపైనా పిన్‌లు, గ్రూప్‌లు, స్టాక్ చేసిన పవర్ పిన్‌లు, ఆటో అమరిక";
+"Arrange the symbol, or define the gates of a multi-unit part" = "చిహ్నాన్ని అమర్చండి లేదా బహుళ-యూనిట్ భాగం యొక్క గేట్‌లను నిర్వచించండి";
 "Arranged symbol" = "అమర్చిన సింబల్";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "మార్పు అడగండి — “LED ని ఆకుపచ్చగా చేసి 3.3 V తో నడిపించు”";
 "Asking the distributors…" = "డిస్ట్రిబ్యూటర్‌లను అడుగుతోంది…";
@@ -218,6 +221,7 @@
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "డిజైన్-రూల్ ప్రీసెట్: ట్రాక్, క్లియరెన్స్ మరియు వయా పరిమాణాలు, DRC అమలు చేసే ఫ్యాబ్రికేషన్ కనిష్ఠాలు";
 "Designator" = "డిజిగ్నేటర్";
 "Designators" = "డిజిగ్నేటర్లు";
+"Detect Gates" = "గేట్‌లను గుర్తించు";
 "Differential pair" = "డిఫరెన్షియల్ జత";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "Product Information v4 తో DigiKey API అప్లికేషన్ (Production); క్లయింట్ క్రెడెన్షియల్స్ ఫ్లో.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "పాపులేట్ చేయవద్దు: బోర్డుపై ఉంటుంది కానీ అమర్చబడదు; అసెంబ్లీ BOM మరియు CPL నుండి మినహాయించబడుతుంది";
@@ -238,6 +242,7 @@
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "ప్రతి మెష్ నెట్ సెక్యూర్ ఎలిమెంట్ యొక్క డ్రైవ్ మరియు సెన్స్ పిన్‌లను కలుపుతుంది; ఆటో రూట్ సర్పెంటైన్‌లను ఈ లేయర్‌పై వేస్తుంది: ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "ప్రతి వయా అది కలిపే లేయర్ల వరకే కట్ చేయబడుతుంది; ఒక-డైఎలెక్ట్రిక్ స్పాన్‌లు పలుచని బిల్డ్-అప్ లేయర్లపై లేజర్ మైక్రోవయాలుగా మారతాయి";
 "Earlier on its side (up, or left on the top / bottom)" = "దాని వైపున ముందు (పైకి, లేదా పై / కింద వైపులపై ఎడమకు)";
+"Edit" = "సవరించు";
 "Edit Footprint…" = "ఫుట్‌ప్రింట్ సవరించు…";
 "Edit SPICE Model…" = "SPICE మోడల్ సవరించు…";
 "Edit Symbol…" = "సింబల్ సవరించు…";
@@ -247,6 +252,8 @@
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "MIL-STD-901E షాక్ వాటిని ఊడదీయకుండా ఉండేలా ప్రాసెసర్‌లు, BGA లు మరియు పెద్ద కెపాసిటర్‌ల కింద ఎపాక్సీ";
 "Errors" = "లోపాలు";
 "Every pin is placed once; no pins collide" = "ప్రతి పిన్ ఒక్కసారే ఉంచబడింది; పిన్‌లు ఢీకొనవు";
+"Every unit is valid" = "ప్రతి యూనిట్ చెల్లుబాటు అవుతుంది";
+"Exchange the wires of two interchangeable pins of this gate" = "ఈ గేట్ యొక్క రెండు మార్చుకోదగిన పిన్‌ల వైర్‌లను మార్చు";
 "Export" = "ఎగుమతి చేయి";
 "Export 3D" = "3D ఎగుమతి చేయి";
 "Export Fabrication Package…" = "ఫ్యాబ్రికేషన్ ప్యాకేజీని ఎగుమతి చేయి…";
@@ -288,6 +295,7 @@
 "Gap Before" = "ముందు ఖాళీ";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "మియాండర్ కాళ్ల మధ్య అంచు నుండి అంచు అంతరం mm లో (ఖాళీ: కేంద్రాల మధ్య మూడు ట్రాక్ వెడల్పులు)";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "బహుళ-యూనిట్ భాగాల గేట్లు (క్వాడ్ ఆప్-ఆంప్ A, B, C, D) సంఖ్యలు ఇచ్చే ముందు ఉంచిన క్రమంలో ప్యాకేజీలను నింపుతాయి";
+"Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "ఒకే స్వాప్ సమూహపు గేట్‌లు (లేదా ఒకేలాంటి గేట్‌లు) గేట్ స్వాప్ మరియు ప్యాకింగ్ ద్వారా మార్చుకోవచ్చు";
 "Generate Design" = "డిజైన్ రూపొందించు";
 "Get an API key" = "API కీ పొందండి";
 "Give each selected pin its own slot" = "ఎంచుకున్న ప్రతి పిన్‌కు దాని స్వంత స్లాట్ ఇవ్వు";
@@ -310,6 +318,7 @@
 "IR drop" = "IR డ్రాప్";
 "IR-drop map" = "IR డ్రాప్ మ్యాప్";
 "Ideal 50 Ω" = "ఆదర్శ 50 Ω";
+"Identical gates" = "ఒకేలాంటి గేట్‌లు";
 "Impedance" = "ఇంపెడెన్స్";
 "Import Datasheet…" = "డేటాషీట్ దిగుమతి చేయి…";
 "Import IBIS…" = "IBIS దిగుమతి చేయండి…";
@@ -373,6 +382,7 @@
 "Lossy" = "నష్టంతో";
 "Lumped model" = "లంప్డ్ మోడల్";
 "Magnitude" = "మాగ్నిట్యూడ్";
+"Make Swap Group" = "స్వాప్ సమూహం చేయి";
 "Manufacturer part #" = "తయారీదారు పార్ట్ నంబర్";
 "Manufacturer part number or keywords" = "తయారీదారు పార్ట్ నంబర్ లేదా కీవర్డ్‌లు";
 "Mask" = "మాస్క్";
@@ -408,6 +418,7 @@
 "Net model" = "నెట్ మోడల్";
 "Nets" = "నెట్‌లు";
 "Nets (%lld)" = "నెట్‌లు (%lld)";
+"Never swap" = "ఎప్పుడూ మార్చవద్దు";
 "New Project" = "కొత్త ప్రాజెక్ట్";
 "New Variant" = "కొత్త వేరియంట్";
 "New Variant…" = "కొత్త వేరియంట్…";
@@ -420,8 +431,10 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "ఈ డిజైన్‌లో డిఫరెన్షియల్ జతలు (…_P/_N, …+/-) లేదా బస్‌లు (DQ0…, DATA[0..7], ADDR…) లేవు.";
 "No distributor API keys yet" = "ఇంకా డిస్ట్రిబ్యూటర్ API కీలు లేవు";
 "No distributor offers." = "డిస్ట్రిబ్యూటర్ ఆఫర్లు లేవు.";
+"No gates found in the pin names." = "పిన్ పేర్లలో గేట్‌లు కనబడలేదు.";
 "No imported model" = "దిగుమతి చేసిన మోడల్ లేదు";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "ఇన్‌పుట్ మూలం లేదు: ఇన్‌పుట్‌కు సూచించిన నాయిస్ చూడటానికి ఇన్‌పుట్‌కు AC పరిమాణం ఇవ్వండి లేదా దాని పేరు ఇవ్వండి.";
+"No interchangeable pins. Select pins of this gate (⌘-click) and make them a swap group — the inputs of a NAND gate." = "మార్చుకోదగిన పిన్‌లు లేవు. ఈ గేట్ పిన్‌లను ఎంచుకుని (⌘-క్లిక్) స్వాప్ సమూహం చేయండి — NAND గేట్ ఇన్‌పుట్‌లు.";
 "No matches." = "సరిపోలికలు లేవు.";
 "No models or subcircuits found." = "మోడల్‌లు లేదా సబ్‌సర్క్యూట్‌లు కనబడలేదు.";
 "No overlaps, gaps ≥ 0.1 mm, every pin has a pad" = "ఓవర్‌ల్యాప్‌లు లేవు, ఖాళీలు ≥ 0.1 mm, ప్రతి పిన్‌కు ప్యాడ్ ఉంది";
@@ -431,6 +444,7 @@
 "No signal nets to analyse" = "విశ్లేషించడానికి సిగ్నల్ నెట్‌లు లేవు";
 "No supply rails to analyse" = "విశ్లేషించడానికి సప్లై రెయిల్‌లు లేవు";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "స్విచ్‌లు లేవు. స్కీమాటిక్‌కు Switch జోడించండి (పుష్-బటన్ కోసం విలువ \"push\").";
+"No units: the part is drawn as one symbol" = "యూనిట్‌లు లేవు: భాగం ఒకే చిహ్నంగా గీయబడుతుంది";
 "No." = "సం.";
 "Noise" = "నాయిస్";
 "Nominal" = "నామమాత్ర విలువ";
@@ -455,7 +469,13 @@
 "OK" = "సరే";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "ఆఫ్: SiEDA సాంప్రదాయ మాన్యువల్ EDA టూల్‌గా పని చేస్తుంది. స్కీమాటిక్ క్యాప్చర్, సిమ్యులేషన్, PCB రూటింగ్, 3D, డేటాషీట్ పార్సింగ్ మరియు ఎగుమతులు అన్నీ స్థానికంగా రన్ అవుతాయి, ఏ AI సేవకూ ఏమీ పంపబడదు.";
 "Offset (mm)" = "ఆఫ్‌సెట్ (mm)";
+"On no gate: the pin goes to the power unit P with the supplies" = "ఏ గేట్‌పైనా లేదు: పిన్ సప్లైలతో కలిసి పవర్ యూనిట్ Pకి వెళ్తుంది";
+"On the power unit P" = "పవర్ యూనిట్ Pపై";
+"One Symbol" = "ఒకే చిహ్నం";
 "One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "ప్రతి మోడల్ పోర్ట్‌కు క్రమంలో ఒక నమోదు: పిన్ పేరు లేదా సంఖ్య, 0 (గ్రౌండ్), net:NAME, dc:15 (ఆదర్శ సరఫరా) లేదా nc; ఇన్‌స్టాన్స్‌లను ; తో వేరు చేయండి.";
+"One pin drawn on every gate (a shared enable or supply)" = "ప్రతి గేట్‌పై గీసిన ఒక పిన్ (పంచుకున్న ఎనేబుల్ లేదా సప్లై)";
+"One symbol for the whole part. Add units to draw each gate on its own (a quad op-amp's A–D); pins on no unit form the power unit P." = "మొత్తం భాగానికి ఒకే చిహ్నం. ప్రతి గేట్‌ను విడిగా గీయడానికి యూనిట్‌లు జోడించండి (క్వాడ్ ఆప్-ఆంప్ యొక్క A–D); ఏ యూనిట్‌పై లేని పిన్‌లు పవర్ యూనిట్ P అవుతాయి.";
+"Only on %@" = "%@పై మాత్రమే";
 "Op-amp current noise" = "ఆప్-ఆంప్ కరెంట్ నాయిస్";
 "Op-amp voltage noise" = "ఆప్-ఆంప్ వోల్టేజ్ నాయిస్";
 "Open File…" = "ఫైల్ తెరువు…";
@@ -474,6 +494,8 @@
 "PAD ARRAY" = "ప్యాడ్ అర్రే";
 "PARAMETERS" = "పారామితులు";
 "PCB Layout" = "PCB లేఅవుట్";
+"PIN SWAP" = "పిన్ స్వాప్";
+"PINS" = "పిన్‌లు";
 "PRBS" = "PRBS";
 "PROPERTIES" = "లక్షణాలు";
 "Pack Units into Packages" = "యూనిట్లను ప్యాకేజీలలో సర్దు";
@@ -512,6 +534,8 @@
 "Port (to parent sheet)" = "పోర్ట్ (పేరెంట్ షీట్‌కు)";
 "Ports: %@" = "పోర్ట్‌లు: %@";
 "Power" = "పవర్";
+"Power Unit" = "పవర్ యూనిట్";
+"Power unit: pins on no gate" = "పవర్ యూనిట్: ఏ గేట్‌పైనా లేని పిన్‌లు";
 "Preparing the autoroute…" = "ఆటోరూట్ సిద్ధమవుతోంది…";
 "Preview appears once the part has a name and pins." = "పార్ట్‌కు పేరు మరియు పిన్‌లు ఉన్న తర్వాత ప్రివ్యూ కనిపిస్తుంది.";
 "Product Page" = "ఉత్పత్తి పేజీ";
@@ -537,6 +561,7 @@
 "Remove the SPICE model" = "SPICE మోడల్‌ను తీసివేయి";
 "Remove the empty slots on every side" = "ప్రతి వైపు ఖాళీ స్లాట్‌లను తీసివేయి";
 "Remove the firmware" = "ఫర్మ్‌వేర్‌ను తీసివేయి";
+"Remove the selected unit (its pins go to the power unit)" = "ఎంచుకున్న యూనిట్‌ను తీసివేయి (దాని పిన్‌లు పవర్ యూనిట్‌కి వెళ్తాయి)";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "చివరి కనెక్ట్ అయిన లేయర్ కింద ఉపయోగించని వయా బ్యారెల్‌ను తీసివేస్తుంది (≥ 4 లేయర్లు); బ్యాక్-డ్రిల్ ఫైల్‌ను జోడిస్తుంది";
 "Rename Channel" = "ఛానెల్ పేరు మార్చు";
 "Rename Channel…" = "ఛానెల్ పేరు మార్చు…";
@@ -630,6 +655,8 @@
 "Settling" = "సెటిలింగ్";
 "Settling (2 %)" = "సెట్లింగ్ (2 %)";
 "Shape" = "ఆకారం";
+"Shared by All" = "అన్నింటిచే పంచుకోబడింది";
+"Shared by several gates" = "పలు గేట్‌లు పంచుకుంటాయి";
 "Sheet" = "షీట్";
 "Sheet %lld of %lld" = "షీట్ %lld / %lld";
 "Sheet name" = "షీట్ పేరు";
@@ -669,6 +696,7 @@
 "Spacing" = "అంతరం";
 "Speed" = "వేగం";
 "Spin" = "స్పిన్";
+"Split the pins into gates from their names (1A, 1B, 1Y… or OUT1, IN1-, IN1+…)" = "పేర్ల ఆధారంగా పిన్‌లను గేట్‌లుగా విభజించు (1A, 1B, 1Y… లేదా OUT1, IN1-, IN1+…)";
 "Stack" = "స్టాక్ చేయి";
 "Stack repeated power pins" = "పునరావృత పవర్ పిన్‌లను స్టాక్ చేయి";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "PCB లేఅవుట్‌లోని లేయర్ల సెట్టింగ్ నుండి స్టాక్-అప్: 1 లేయర్ కింది భాగాన్ని ఖాళీ FR-4 గా వదిలేస్తుంది; ";
@@ -691,8 +719,13 @@
 "Supplies on top, grounds at the bottom, inputs left, outputs right, MCU ports grouped" = "సప్లైలు పైన, గ్రౌండ్‌లు కింద, ఇన్‌పుట్‌లు ఎడమ, అవుట్‌పుట్‌లు కుడి, MCU పోర్ట్‌లు గ్రూప్‌గా";
 "Surface" = "సర్ఫేస్";
 "Surface finish of the exposed copper: pads, via lands and plated holes" = "బహిర్గత కాపర్ యొక్క సర్ఫేస్ ఫినిష్: ప్యాడ్‌లు, వయా ల్యాండ్‌లు మరియు ప్లేటెడ్ రంధ్రాలు";
+"Swap" = "మార్చు";
+"Swap Gates" = "గేట్‌లను మార్చు";
+"Swap Pins" = "పిన్‌లను మార్చు";
+"Swap group %lld" = "స్వాప్ సమూహం %lld";
 "Swap the left and right sides" = "ఎడమ మరియు కుడి వైపులను మార్చు";
 "Switch workspace (⌘1 – ⌘7)" = "వర్క్‌స్పేస్ మార్చు (⌘1 – ⌘7)";
+"Symbol" = "చిహ్నం";
 "System default" = "సిస్టమ్ డిఫాల్ట్";
 "TEMPLATES" = "టెంప్లేట్‌లు";
 "THD" = "THD";
@@ -705,6 +738,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ఆఫ్‌లైన్ డిజైనర్ SiEDA అంతర్నిర్మిత రిఫరెన్స్ సర్క్యూట్‌లను ఉపయోగిస్తుంది. నెట్‌వర్క్ లేదా API కీ అవసరం లేదు — డెమోలు మరియు ఎయిర్-గ్యాప్డ్ ల్యాబ్‌లకు అనువైనది.";
 "The plain box: pins in number order down the left, then up the right" = "సాధారణ బాక్స్: పిన్‌లు సంఖ్య క్రమంలో ఎడమ వైపు కిందకు, ఆపై కుడి వైపు పైకి";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "స్ప్లాష్ కాంపోనెంట్ లైబ్రరీ మరియు రిఫరెన్స్ డిజైన్‌లను ఐదు సెకన్ల పాటు ముందుగా లోడ్ చేసి, ఆపై ప్రధాన విండోను తెరుస్తుంది. లోడింగ్ పూర్తయిన తర్వాత దాటవేయడానికి దాన్ని క్లిక్ చేయండి లేదా Esc నొక్కండి.";
+"The two gates exchange places in their packages; the symbols and wires stay" = "రెండు గేట్‌లు తమ ప్యాకేజీలలో స్థానాలు మార్చుకుంటాయి; చిహ్నాలు, వైర్‌లు అలాగే ఉంటాయి";
 "The victim runs on the adjacent layer, over or under the aggressor" = "బాధిత నెట్ పక్క పొరపై, దాడి చేసే నెట్ పైన లేదా కింద నడుస్తుంది";
 "Thermal" = "ఉష్ణ";
 "Through" = "త్రూ";
@@ -719,13 +753,17 @@
 "Tune to the longest member of the net's differential pair or bus" = "నెట్ యొక్క డిఫరెన్షియల్ జత లేదా బస్‌లోని పొడవైన సభ్యునికి ట్యూన్ చేయి";
 "Type" = "రకం";
 "Type a designator, value, label or net name." = "నిర్దేశకం, విలువ, లేబుల్ లేదా నెట్ పేరు టైప్ చేయండి.";
+"UNIT %@" = "యూనిట్ %@";
+"UNITS" = "యూనిట్‌లు";
 "Underfill / corner-bond heavy parts (shock)" = "బరువైన పార్ట్‌లకు అండర్‌ఫిల్ / కార్నర్-బాండ్ (షాక్)";
 "Undershoot" = "అండర్‌షూట్";
 "Undo" = "చర్యను రద్దు చేయి";
 "Undo (⌘Z)" = "చర్యను రద్దు చేయి (⌘Z)";
 "Undo the last footprint edit" = "చివరి ఫుట్‌ప్రింట్ సవరణను రద్దు చేయి";
 "Undo the last symbol edit" = "చివరి సింబల్ సవరణను రద్దు చేయి";
+"Undo the last unit edit" = "చివరి యూనిట్ సవరణను రద్దు చేయి";
 "Unit price" = "యూనిట్ ధర";
+"Units" = "యూనిట్‌లు";
 "Unity gain" = "యూనిటీ గెయిన్";
 "Unstack" = "అన్‌స్టాక్ చేయి";
 "Upload .hex…" = ".hex అప్‌లోడ్ చేయి…";

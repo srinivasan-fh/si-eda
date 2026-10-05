@@ -15,6 +15,7 @@
 "3D Viewer" = "3D-viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A new gate; the selected pins go on it" = "Een nieuwe poort; de geselecteerde pinnen komen erop";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC-sweep";
 "AC uses the AC Sweep range, Transient the Transient stop and step" = "AC gebruikt het bereik van de AC-sweep, Transiënt de stoptijd en stap van Transiënt";
@@ -37,6 +38,7 @@
 "Add Pour" = "Vulvlak toevoegen";
 "Add Selected Parts" = "Geselecteerde onderdelen toevoegen";
 "Add Thermal Vias" = "Thermische vias toevoegen";
+"Add Unit" = "Eenheid toevoegen";
 "Add a pad like the last one (numbered next)" = "Voeg een pad toe zoals de vorige (volgend nummer)";
 "Add a sheet (right-click a tab for more)" = "Blad toevoegen (rechtsklik op een tabblad voor meer)";
 "Add an Octopart (Nexar), DigiKey or Mouser key in Settings → Suppliers to see stock, prices and lifecycle for every BOM line." = "Voeg een Octopart- (Nexar), DigiKey- of Mouser-sleutel toe in Instellingen → Leveranciers om voorraad, prijzen en levenscyclus van elke BOM-regel te zien.";
@@ -69,6 +71,7 @@
 "Apply Symbol" = "Symbool toepassen";
 "Apply Tuning" = "Afstemming toepassen";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Schemasymbool indelen: pinnen aan elke zijde, groepen, gestapelde voedingspinnen, automatisch indelen";
+"Arrange the symbol, or define the gates of a multi-unit part" = "Het symbool schikken of de poorten van een onderdeel met meerdere eenheden vastleggen";
 "Arranged symbol" = "Ingedeeld symbool";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "Vraag om een wijziging — “maak de LED groen en voed hem met 3,3 V”";
 "Asking the distributors…" = "Distributeurs raadplegen…";
@@ -218,6 +221,7 @@
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "Ontwerpregelpreset: spoor-, isolatie- en viamaten plus de productieminima die DRC afdwingt";
 "Designator" = "Referentieaanduiding";
 "Designators" = "Referenties";
+"Detect Gates" = "Poorten herkennen";
 "Differential pair" = "Differentieel paar";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "DigiKey-API-applicatie (Production) met Product Information v4; client-credentials-flow.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Niet plaatsen: op het board maar niet gemonteerd; weggelaten uit de assemblage-BOM en CPL";
@@ -238,6 +242,7 @@
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "Elk mesh-net verbindt de drive- en sense-pinnen van het secure element; Automatisch routeren legt de serpentines op ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "Elke via wordt beperkt tot de lagen die hij verbindt; overspanningen van één diëlektricum worden lasermicrovias over dunne opbouwlagen";
 "Earlier on its side (up, or left on the top / bottom)" = "Eerder aan de zijde (omhoog, of links aan boven-/onderzijde)";
+"Edit" = "Bewerken";
 "Edit Footprint…" = "Footprint bewerken…";
 "Edit SPICE Model…" = "SPICE-model bewerken…";
 "Edit Symbol…" = "Symbool bewerken…";
@@ -247,6 +252,8 @@
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxy onder processors, BGA's en grote condensatoren zodat een MIL-STD-901E-schok ze niet losscheurt";
 "Errors" = "Fouten";
 "Every pin is placed once; no pins collide" = "Elke pin is één keer geplaatst; geen pinnen overlappen";
+"Every unit is valid" = "Elke eenheid is geldig";
+"Exchange the wires of two interchangeable pins of this gate" = "De draden van twee uitwisselbare pinnen van deze poort verwisselen";
 "Export" = "Exporteer";
 "Export 3D" = "3D exporteren";
 "Export Fabrication Package…" = "Productiepakket exporteren…";
@@ -288,6 +295,7 @@
 "Gap Before" = "Ruimte ervoor";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Afstand tussen meanderbenen, rand tot rand, in mm (leeg: drie spoorbreedtes hart op hart)";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Poorten van onderdelen met meerdere eenheden (A, B, C, D van een viervoudige opamp) vullen behuizingen in plaatsingsvolgorde vóór de nummering";
+"Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "Poorten van één wisselgroep (of identieke poorten) kunnen worden verwisseld met Poorten wisselen en inpakken";
 "Generate Design" = "Ontwerp genereren";
 "Get an API key" = "API-sleutel aanvragen";
 "Give each selected pin its own slot" = "Geef elke geselecteerde pin een eigen positie";
@@ -310,6 +318,7 @@
 "IR drop" = "IR-spanningsval";
 "IR-drop map" = "IR-dalingskaart";
 "Ideal 50 Ω" = "Ideaal 50 Ω";
+"Identical gates" = "Identieke poorten";
 "Impedance" = "Impedantie";
 "Import Datasheet…" = "Datasheet importeren…";
 "Import IBIS…" = "IBIS importeren…";
@@ -373,6 +382,7 @@
 "Lossy" = "Met verlies";
 "Lumped model" = "Samengevoegd model";
 "Magnitude" = "Amplitude";
+"Make Swap Group" = "Wisselgroep maken";
 "Manufacturer part #" = "Fabrikantnummer";
 "Manufacturer part number or keywords" = "Fabrikantnummer of trefwoorden";
 "Mask" = "Masker";
@@ -408,6 +418,7 @@
 "Net model" = "Netmodel";
 "Nets" = "Netten";
 "Nets (%lld)" = "Netten (%lld)";
+"Never swap" = "Nooit wisselen";
 "New Project" = "Nieuw project";
 "New Variant" = "Nieuwe variant";
 "New Variant…" = "Nieuwe variant…";
@@ -420,8 +431,10 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Geen differentiële paren (…_P/_N, …+/-) of bussen (DQ0…, DATA[0..7], ADDR…) in dit ontwerp.";
 "No distributor API keys yet" = "Nog geen API-sleutels van distributeurs";
 "No distributor offers." = "Geen aanbiedingen van distributeurs.";
+"No gates found in the pin names." = "Geen poorten gevonden in de pinnamen.";
 "No imported model" = "Geen geïmporteerd model";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "Geen ingangsbron: geef de ingang een AC-amplitude of noem hem om de naar de ingang herleide ruis te zien.";
+"No interchangeable pins. Select pins of this gate (⌘-click) and make them a swap group — the inputs of a NAND gate." = "Geen uitwisselbare pinnen. Selecteer pinnen van deze poort (⌘-klik) en maak er een wisselgroep van — de ingangen van een NAND-poort.";
 "No matches." = "Geen resultaten.";
 "No models or subcircuits found." = "Geen modellen of subcircuits gevonden.";
 "No overlaps, gaps ≥ 0.1 mm, every pin has a pad" = "Geen overlappingen, afstanden ≥ 0,1 mm, elke pin heeft een pad";
@@ -431,6 +444,7 @@
 "No signal nets to analyse" = "Geen signaalnetten om te analyseren";
 "No supply rails to analyse" = "Geen voedingsrails om te analyseren";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "Geen schakelaars. Voeg een Switch toe aan het schema (waarde \"push\" voor een drukknop).";
+"No units: the part is drawn as one symbol" = "Geen eenheden: het onderdeel wordt als één symbool getekend";
 "No." = "Nr.";
 "Noise" = "Ruis";
 "Nominal" = "Nominaal";
@@ -455,7 +469,13 @@
 "OK" = "OK";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "Uit: SiEDA werkt als klassiek handmatig EDA-programma. Schema-invoer, simulatie, PCB-routering, 3D, datasheet-parsing en exports draaien allemaal lokaal en er wordt niets naar een AI-dienst verzonden.";
 "Offset (mm)" = "Verschuiving (mm)";
+"On no gate: the pin goes to the power unit P with the supplies" = "Op geen poort: de pin gaat met de voedingen naar de voedingseenheid P";
+"On the power unit P" = "Op de voedingseenheid P";
+"One Symbol" = "Eén symbool";
 "One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "Eén invoer per modelpoort, op volgorde: een pinnaam of -nummer, 0 (massa), net:NAME, dc:15 (ideale voeding) of nc; scheid instanties met ;.";
+"One pin drawn on every gate (a shared enable or supply)" = "Eén pin op elke poort getekend (een gedeelde enable of voeding)";
+"One symbol for the whole part. Add units to draw each gate on its own (a quad op-amp's A–D); pins on no unit form the power unit P." = "Eén symbool voor het hele onderdeel. Voeg eenheden toe om elke poort apart te tekenen (A–D van een viervoudige opamp); pinnen op geen eenheid vormen de voedingseenheid P.";
+"Only on %@" = "Alleen op %@";
 "Op-amp current noise" = "Stroomruis opamp";
 "Op-amp voltage noise" = "Spanningsruis opamp";
 "Open File…" = "Bestand openen…";
@@ -474,6 +494,8 @@
 "PAD ARRAY" = "PAD-ARRAY";
 "PARAMETERS" = "PARAMETERS";
 "PCB Layout" = "PCB-layout";
+"PIN SWAP" = "PINWISSEL";
+"PINS" = "PINNEN";
 "PRBS" = "PRBS";
 "PROPERTIES" = "EIGENSCHAPPEN";
 "Pack Units into Packages" = "Eenheden in behuizingen bundelen";
@@ -512,6 +534,8 @@
 "Port (to parent sheet)" = "Poort (naar bovenliggend blad)";
 "Ports: %@" = "Poorten: %@";
 "Power" = "Voeding";
+"Power Unit" = "Voedingseenheid";
+"Power unit: pins on no gate" = "Voedingseenheid: pinnen op geen poort";
 "Preparing the autoroute…" = "Autorouting voorbereiden…";
 "Preview appears once the part has a name and pins." = "Voorbeeld verschijnt zodra het onderdeel een naam en pinnen heeft.";
 "Product Page" = "Productpagina";
@@ -537,6 +561,7 @@
 "Remove the SPICE model" = "SPICE-model verwijderen";
 "Remove the empty slots on every side" = "Verwijder de lege posities aan elke zijde";
 "Remove the firmware" = "Verwijder de firmware";
+"Remove the selected unit (its pins go to the power unit)" = "De geselecteerde eenheid verwijderen (haar pinnen gaan naar de voedingseenheid)";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "Verwijdert de ongebruikte viahuls onder de laatst verbonden laag (≥ 4 lagen); voegt een backdrill-bestand toe";
 "Rename Channel" = "Kanaal hernoemen";
 "Rename Channel…" = "Kanaal hernoemen…";
@@ -630,6 +655,8 @@
 "Settling" = "Insteltijd";
 "Settling (2 %)" = "Insteltijd (2 %)";
 "Shape" = "Vorm";
+"Shared by All" = "Gedeeld door alle";
+"Shared by several gates" = "Gedeeld door meerdere poorten";
 "Sheet" = "Blad";
 "Sheet %lld of %lld" = "Blad %lld van %lld";
 "Sheet name" = "Bladnaam";
@@ -669,6 +696,7 @@
 "Spacing" = "Afstand";
 "Speed" = "Snelheid";
 "Spin" = "Draaien";
+"Split the pins into gates from their names (1A, 1B, 1Y… or OUT1, IN1-, IN1+…)" = "De pinnen op naam in poorten verdelen (1A, 1B, 1Y… of OUT1, IN1-, IN1+…)";
 "Stack" = "Stapel";
 "Stack repeated power pins" = "Herhaalde voedingspinnen stapelen";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "Opbouw uit de instelling Lagen in PCB-layout: 1 laag laat de onderkant als kaal FR-4; ";
@@ -691,8 +719,13 @@
 "Supplies on top, grounds at the bottom, inputs left, outputs right, MCU ports grouped" = "Voedingen boven, massa's onder, ingangen links, uitgangen rechts, MCU-poorten gegroepeerd";
 "Surface" = "Oppervlak";
 "Surface finish of the exposed copper: pads, via lands and plated holes" = "Oppervlakteafwerking van het blootliggende koper: pads, via-lands en gemetalliseerde gaten";
+"Swap" = "Wisselen";
+"Swap Gates" = "Poorten wisselen";
+"Swap Pins" = "Pinnen wisselen";
+"Swap group %lld" = "Wisselgroep %lld";
 "Swap the left and right sides" = "Wissel de linker- en rechterzijde om";
 "Switch workspace (⌘1 – ⌘7)" = "Wissel van werkruimte (⌘1 – ⌘7)";
+"Symbol" = "Symbool";
 "System default" = "Systeemstandaard";
 "TEMPLATES" = "SJABLONEN";
 "THD" = "THD";
@@ -705,6 +738,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "De offline ontwerper gebruikt de ingebouwde referentieschakelingen van SiEDA. Geen netwerk of API-sleutel nodig — ideaal voor demo's en air-gapped labs.";
 "The plain box: pins in number order down the left, then up the right" = "De eenvoudige rechthoek: pinnen in nummervolgorde links omlaag, daarna rechts omhoog";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "Het startscherm laadt vijf seconden lang de componentenbibliotheek en referentieontwerpen en opent daarna het hoofdvenster. Klik erop of druk op Esc om over te slaan zodra het laden klaar is.";
+"The two gates exchange places in their packages; the symbols and wires stay" = "De twee poorten wisselen van plaats in hun behuizingen; symbolen en draden blijven";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Het slachtoffer loopt op de aangrenzende laag, boven of onder de agressor";
 "Thermal" = "Thermisch";
 "Through" = "Doorlopend";
@@ -719,13 +753,17 @@
 "Tune to the longest member of the net's differential pair or bus" = "Afstemmen op het langste lid van het differentiële paar of de bus van het net";
 "Type" = "Type";
 "Type a designator, value, label or net name." = "Typ een referentie, waarde, label of netnaam.";
+"UNIT %@" = "EENHEID %@";
+"UNITS" = "EENHEDEN";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / hoekverlijming van zware onderdelen (schok)";
 "Undershoot" = "Undershoot";
 "Undo" = "Herstel";
 "Undo (⌘Z)" = "Herstel (⌘Z)";
 "Undo the last footprint edit" = "Herstel de laatste footprintbewerking";
 "Undo the last symbol edit" = "Herstel de laatste symboolbewerking";
+"Undo the last unit edit" = "De laatste eenheidbewerking ongedaan maken";
 "Unit price" = "Stukprijs";
+"Units" = "Eenheden";
 "Unity gain" = "Eenheidsversterking";
 "Unstack" = "Ontstapel";
 "Upload .hex…" = ".hex uploaden…";

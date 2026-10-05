@@ -341,6 +341,18 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_set_sheet_channel($0, Int32(id), channel) } == 1
     }
 
+    /// Gate swap between two placed units of interchangeable gates.
+    @discardableResult
+    func swapUnits(_ a: Int, _ b: Int) -> Bool {
+        withHandle { sieda_swap_units($0, Int32(a), Int32(b)) } == 1
+    }
+
+    /// Pin swap inside a unit (pins of one pin-swap group exchange their wires).
+    @discardableResult
+    func swapPins(_ component: Int, _ a: Int, _ b: Int) -> Bool {
+        withHandle { sieda_swap_pins($0, Int32(component), Int32(a), Int32(b)) } == 1
+    }
+
     /// Value of one channel of a repeated sheet's part ("" = the block's value again).
     @discardableResult
     func setChannelValue(_ id: Int, _ value: String) -> Bool {
@@ -504,6 +516,11 @@ final class EDAEngine: @unchecked Sendable {
     /// signal pins (warnings), stacked pins (info).
     static func checkSymbol(_ spec: CustomPartSpec) -> [SymbolIssue] {
         decode([SymbolIssue].self, from: take(sieda_check_symbol(spec.jsonString()))) ?? []
+    }
+
+    /// Unit (gate) editor checks of a multi-unit spec (codes UNIT_*; same shape as the symbol checks).
+    static func checkUnits(_ spec: CustomPartSpec) -> [SymbolIssue] {
+        decode([SymbolIssue].self, from: take(sieda_check_units(spec.jsonString()))) ?? []
     }
 
     /// Footprint editor checks: overlapping pads, copper gaps below `minGap` mm, annular rings, pads without pins and

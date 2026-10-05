@@ -15,6 +15,7 @@
 "3D Viewer" = "3D Viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A new gate; the selected pins go on it" = "A new gate; the selected pins go on it";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC Sweep";
 "AC uses the AC Sweep range, Transient the Transient stop and step" = "AC uses the AC Sweep range, Transient the Transient stop and step";
@@ -37,6 +38,7 @@
 "Add Pour" = "Add Pour";
 "Add Selected Parts" = "Add Selected Parts";
 "Add Thermal Vias" = "Add Thermal Vias";
+"Add Unit" = "Add Unit";
 "Add a pad like the last one (numbered next)" = "Add a pad like the last one (numbered next)";
 "Add a sheet (right-click a tab for more)" = "Add a sheet (right-click a tab for more)";
 "Add an Octopart (Nexar), DigiKey or Mouser key in Settings → Suppliers to see stock, prices and lifecycle for every BOM line." = "Add an Octopart (Nexar), DigiKey or Mouser key in Settings → Suppliers to see stock, prices and lifecycle for every BOM line.";
@@ -69,6 +71,7 @@
 "Apply Symbol" = "Apply Symbol";
 "Apply Tuning" = "Apply Tuning";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange";
+"Arrange the symbol, or define the gates of a multi-unit part" = "Arrange the symbol, or define the gates of a multi-unit part";
 "Arranged symbol" = "Arranged symbol";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "Ask for a change — “make the LED green and run it from 3.3 V”";
 "Asking the distributors…" = "Asking the distributors…";
@@ -218,6 +221,7 @@
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces";
 "Designator" = "Designator";
 "Designators" = "Designators";
+"Detect Gates" = "Detect Gates";
 "Differential pair" = "Differential pair";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "DigiKey API application (Production) with Product Information v4; client credentials flow.";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL";
@@ -238,6 +242,7 @@
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers";
 "Earlier on its side (up, or left on the top / bottom)" = "Earlier on its side (up, or left on the top / bottom)";
+"Edit" = "Edit";
 "Edit Footprint…" = "Edit Footprint…";
 "Edit SPICE Model…" = "Edit SPICE Model…";
 "Edit Symbol…" = "Edit Symbol…";
@@ -247,6 +252,8 @@
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off";
 "Errors" = "Errors";
 "Every pin is placed once; no pins collide" = "Every pin is placed once; no pins collide";
+"Every unit is valid" = "Every unit is valid";
+"Exchange the wires of two interchangeable pins of this gate" = "Exchange the wires of two interchangeable pins of this gate";
 "Export" = "Export";
 "Export 3D" = "Export 3D";
 "Export Fabrication Package…" = "Export Fabrication Package…";
@@ -288,6 +295,7 @@
 "Gap Before" = "Gap Before";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering";
+"Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing";
 "Generate Design" = "Generate Design";
 "Get an API key" = "Get an API key";
 "Give each selected pin its own slot" = "Give each selected pin its own slot";
@@ -310,6 +318,7 @@
 "IR drop" = "IR drop";
 "IR-drop map" = "IR-drop map";
 "Ideal 50 Ω" = "Ideal 50 Ω";
+"Identical gates" = "Identical gates";
 "Impedance" = "Impedance";
 "Import Datasheet…" = "Import Datasheet…";
 "Import IBIS…" = "Import IBIS…";
@@ -373,6 +382,7 @@
 "Lossy" = "Lossy";
 "Lumped model" = "Lumped model";
 "Magnitude" = "Magnitude";
+"Make Swap Group" = "Make Swap Group";
 "Manufacturer part #" = "Manufacturer part #";
 "Manufacturer part number or keywords" = "Manufacturer part number or keywords";
 "Mask" = "Mask";
@@ -408,6 +418,7 @@
 "Net model" = "Net model";
 "Nets" = "Nets";
 "Nets (%lld)" = "Nets (%lld)";
+"Never swap" = "Never swap";
 "New Project" = "New Project";
 "New Variant" = "New Variant";
 "New Variant…" = "New Variant…";
@@ -420,8 +431,10 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design.";
 "No distributor API keys yet" = "No distributor API keys yet";
 "No distributor offers." = "No distributor offers.";
+"No gates found in the pin names." = "No gates found in the pin names.";
 "No imported model" = "No imported model";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "No input source: give the input an AC magnitude or name it to see the input-referred noise.";
+"No interchangeable pins. Select pins of this gate (⌘-click) and make them a swap group — the inputs of a NAND gate." = "No interchangeable pins. Select pins of this gate (⌘-click) and make them a swap group — the inputs of a NAND gate.";
 "No matches." = "No matches.";
 "No models or subcircuits found." = "No models or subcircuits found.";
 "No overlaps, gaps ≥ 0.1 mm, every pin has a pad" = "No overlaps, gaps ≥ 0.1 mm, every pin has a pad";
@@ -431,6 +444,7 @@
 "No signal nets to analyse" = "No signal nets to analyse";
 "No supply rails to analyse" = "No supply rails to analyse";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "No switches. Add a Switch to the schematic (value \"push\" for a push-button).";
+"No units: the part is drawn as one symbol" = "No units: the part is drawn as one symbol";
 "No." = "No.";
 "Noise" = "Noise";
 "Nominal" = "Nominal";
@@ -455,7 +469,13 @@
 "OK" = "OK";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service.";
 "Offset (mm)" = "Offset (mm)";
+"On no gate: the pin goes to the power unit P with the supplies" = "On no gate: the pin goes to the power unit P with the supplies";
+"On the power unit P" = "On the power unit P";
+"One Symbol" = "One Symbol";
 "One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;.";
+"One pin drawn on every gate (a shared enable or supply)" = "One pin drawn on every gate (a shared enable or supply)";
+"One symbol for the whole part. Add units to draw each gate on its own (a quad op-amp's A–D); pins on no unit form the power unit P." = "One symbol for the whole part. Add units to draw each gate on its own (a quad op-amp's A–D); pins on no unit form the power unit P.";
+"Only on %@" = "Only on %@";
 "Op-amp current noise" = "Op-amp current noise";
 "Op-amp voltage noise" = "Op-amp voltage noise";
 "Open File…" = "Open File…";
@@ -474,6 +494,8 @@
 "PAD ARRAY" = "PAD ARRAY";
 "PARAMETERS" = "PARAMETERS";
 "PCB Layout" = "PCB Layout";
+"PIN SWAP" = "PIN SWAP";
+"PINS" = "PINS";
 "PRBS" = "PRBS";
 "PROPERTIES" = "PROPERTIES";
 "Pack Units into Packages" = "Pack Units into Packages";
@@ -512,6 +534,8 @@
 "Port (to parent sheet)" = "Port (to parent sheet)";
 "Ports: %@" = "Ports: %@";
 "Power" = "Power";
+"Power Unit" = "Power Unit";
+"Power unit: pins on no gate" = "Power unit: pins on no gate";
 "Preparing the autoroute…" = "Preparing the autoroute…";
 "Preview appears once the part has a name and pins." = "Preview appears once the part has a name and pins.";
 "Product Page" = "Product Page";
@@ -537,6 +561,7 @@
 "Remove the SPICE model" = "Remove the SPICE model";
 "Remove the empty slots on every side" = "Remove the empty slots on every side";
 "Remove the firmware" = "Remove the firmware";
+"Remove the selected unit (its pins go to the power unit)" = "Remove the selected unit (its pins go to the power unit)";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file";
 "Rename Channel" = "Rename Channel";
 "Rename Channel…" = "Rename Channel…";
@@ -630,6 +655,8 @@
 "Settling" = "Settling";
 "Settling (2 %)" = "Settling (2 %)";
 "Shape" = "Shape";
+"Shared by All" = "Shared by All";
+"Shared by several gates" = "Shared by several gates";
 "Sheet" = "Sheet";
 "Sheet %lld of %lld" = "Sheet %lld of %lld";
 "Sheet name" = "Sheet name";
@@ -669,6 +696,7 @@
 "Spacing" = "Spacing";
 "Speed" = "Speed";
 "Spin" = "Spin";
+"Split the pins into gates from their names (1A, 1B, 1Y… or OUT1, IN1-, IN1+…)" = "Split the pins into gates from their names (1A, 1B, 1Y… or OUT1, IN1-, IN1+…)";
 "Stack" = "Stack";
 "Stack repeated power pins" = "Stack repeated power pins";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; ";
@@ -691,8 +719,13 @@
 "Supplies on top, grounds at the bottom, inputs left, outputs right, MCU ports grouped" = "Supplies on top, grounds at the bottom, inputs left, outputs right, MCU ports grouped";
 "Surface" = "Surface";
 "Surface finish of the exposed copper: pads, via lands and plated holes" = "Surface finish of the exposed copper: pads, via lands and plated holes";
+"Swap" = "Swap";
+"Swap Gates" = "Swap Gates";
+"Swap Pins" = "Swap Pins";
+"Swap group %lld" = "Swap group %lld";
 "Swap the left and right sides" = "Swap the left and right sides";
 "Switch workspace (⌘1 – ⌘7)" = "Switch workspace (⌘1 – ⌘7)";
+"Symbol" = "Symbol";
 "System default" = "System default";
 "TEMPLATES" = "TEMPLATES";
 "THD" = "THD";
@@ -705,6 +738,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs.";
 "The plain box: pins in number order down the left, then up the right" = "The plain box: pins in number order down the left, then up the right";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done.";
+"The two gates exchange places in their packages; the symbols and wires stay" = "The two gates exchange places in their packages; the symbols and wires stay";
 "The victim runs on the adjacent layer, over or under the aggressor" = "The victim runs on the adjacent layer, over or under the aggressor";
 "Thermal" = "Thermal";
 "Through" = "Through";
@@ -719,13 +753,17 @@
 "Tune to the longest member of the net's differential pair or bus" = "Tune to the longest member of the net's differential pair or bus";
 "Type" = "Type";
 "Type a designator, value, label or net name." = "Type a designator, value, label or net name.";
+"UNIT %@" = "UNIT %@";
+"UNITS" = "UNITS";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / corner-bond heavy parts (shock)";
 "Undershoot" = "Undershoot";
 "Undo" = "Undo";
 "Undo (⌘Z)" = "Undo (⌘Z)";
 "Undo the last footprint edit" = "Undo the last footprint edit";
 "Undo the last symbol edit" = "Undo the last symbol edit";
+"Undo the last unit edit" = "Undo the last unit edit";
 "Unit price" = "Unit price";
+"Units" = "Units";
 "Unity gain" = "Unity gain";
 "Unstack" = "Unstack";
 "Upload .hex…" = "Upload .hex…";

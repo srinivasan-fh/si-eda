@@ -2909,3 +2909,41 @@ int32_t sieda_clear_channel_overrides(SiedaProject* project, int32_t component) 
 }
 
 }  // extern "C"
+
+// ---- schematic capture: units (gates) — editor checks, gate swap and pin swap
+
+extern "C" {
+
+char* sieda_check_units(const char* spec_json) {
+    Json arr = Json::array();
+    auto add = [&](const std::string& severity, const std::string& code, const std::string& message,
+                   const std::vector<std::string>& pins) {
+        Json j = Json::object();
+        j["severity"] = severity;
+        j["code"] = code;
+        j["message"] = message;
+        Json pj = Json::array();
+        for (const auto& p : pins) pj.push(p);
+        j["pins"] = pj;
+        arr.push(j);
+    };
+    try {
+        for (const auto& i : checkUnits(customPartSpecFromJson(Json::parse(str(spec_json)))))
+            add(i.severity, i.code, i.message, i.pins);
+    } catch (const std::exception& e) {
+        add("error", "UNIT_INVALID", e.what(), {});
+    }
+    return dup(arr.dump());
+}
+
+int32_t sieda_swap_units(SiedaProject* project, int32_t unit_a, int32_t unit_b) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.swapUnits(unit_a, unit_b) ? 1 : 0; });
+}
+
+int32_t sieda_swap_pins(SiedaProject* project, int32_t component, int32_t pin_a, int32_t pin_b) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.swapPins(component, pin_a, pin_b) ? 1 : 0; });
+}
+
+}  // extern "C"

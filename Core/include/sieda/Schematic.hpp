@@ -392,6 +392,11 @@ public:
     std::string unitName(const Component& c) const;
     /// Designator with the unit ("U1A") for a unit, the designator otherwise.
     std::string displayRef(const Component& c) const;
+    /// Gate swap: two placed units of interchangeable gates (UnitSpec::swapGroup) of the same part and value, on one
+    /// sheet, exchange their gates (package and unit); the symbols and wires stay. False when not allowed.
+    bool swapUnits(int unitA, int unitB);
+    /// Pin swap: two pins of a placed unit in one of its pin-swap groups exchange their wires. False when not allowed.
+    bool swapPins(int componentId, int pinA, int pinB);
 
     // ---- graphical buses ----
     const std::vector<Bus>& buses() const { return buses_; }

@@ -15,6 +15,7 @@
 "3D Viewer" = "3D 檢視器";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A new gate; the selected pins go on it" = "新增閘；選取的接腳放到其上";
 "AC RMS" = "AC RMS";
 "AC Sweep" = "AC 掃描";
 "AC uses the AC Sweep range, Transient the Transient stop and step" = "AC 使用 AC 掃描的範圍，暫態使用暫態的停止時間與步長";
@@ -37,6 +38,7 @@
 "Add Pour" = "加入鋪銅";
 "Add Selected Parts" = "加入所選元件";
 "Add Thermal Vias" = "加入散熱導通孔";
+"Add Unit" = "新增單元";
 "Add a pad like the last one (numbered next)" = "加入與上一個相同的焊墊 (編號順延)";
 "Add a sheet (right-click a tab for more)" = "新增圖紙（在分頁上按右鍵以查看更多）";
 "Add an Octopart (Nexar), DigiKey or Mouser key in Settings → Suppliers to see stock, prices and lifecycle for every BOM line." = "在「設定 → 供應商」中加入 Octopart (Nexar)、DigiKey 或 Mouser 金鑰，即可查看每一 BOM 行的庫存、價格與生命週期。";
@@ -69,6 +71,7 @@
 "Apply Symbol" = "套用符號";
 "Apply Tuning" = "套用調整";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "排列電路圖符號：接腳可置於任一側、分組、堆疊電源接腳、自動排列";
+"Arrange the symbol, or define the gates of a multi-unit part" = "排列符號，或定義多單元零件的閘";
 "Arranged symbol" = "已排列的符號";
 "Ask for a change — “make the LED green and run it from 3.3 V”" = "提出修改 — “把 LED 改成綠色，並以 3.3 V 供電”";
 "Asking the distributors…" = "正在查詢經銷商…";
@@ -218,6 +221,7 @@
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "設計規則預設：走線、間距與導通孔尺寸，以及 DRC 強制執行的製造最小值";
 "Designator" = "元件編號";
 "Designators" = "位號";
+"Detect Gates" = "偵測閘";
 "Differential pair" = "差分對";
 "DigiKey API application (Production) with Product Information v4; client credentials flow." = "具 Product Information v4 的 DigiKey API 應用程式（Production）；用戶端憑證流程。";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "不上件：在電路板上但不安裝；不列入組裝 BOM 與 CPL";
@@ -238,6 +242,7 @@
 "Each mesh net joins the drive and sense pins of the secure element; Auto Route lays the serpentines on " = "每條防竄改網格網路連接安全元件的驅動與感測接腳；自動佈線將蛇形線佈設於 ";
 "Each via is cut to the layers it connects; one-dielectric spans become laser microvias over thin build-up layers" = "每個導通孔只鑽至其連接的層；單介電層跨距在薄增層上改為雷射微孔";
 "Earlier on its side (up, or left on the top / bottom)" = "在其所在邊上靠前 (向上，或在頂邊/底邊上向左)";
+"Edit" = "編輯";
 "Edit Footprint…" = "編輯封裝…";
 "Edit SPICE Model…" = "編輯 SPICE 模型…";
 "Edit Symbol…" = "編輯符號…";
@@ -247,6 +252,8 @@
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "在處理器、BGA 與大電容下方填充環氧樹脂，以防 MIL-STD-901E 衝擊將其撕脫";
 "Errors" = "錯誤";
 "Every pin is placed once; no pins collide" = "每個接腳只放置一次；接腳無衝突";
+"Every unit is valid" = "每個單元皆有效";
+"Exchange the wires of two interchangeable pins of this gate" = "交換此閘兩個可互換接腳的導線";
 "Export" = "匯出";
 "Export 3D" = "匯出 3D";
 "Export Fabrication Package…" = "匯出製造檔案包…";
@@ -288,6 +295,7 @@
 "Gap Before" = "前置空位";
 "Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)" = "蛇形線各段之間的邊到邊間隙（mm，留空：中心距為三倍線寬）";
 "Gates of multi-unit parts (A, B, C, D of a quad op-amp) fill packages in placement order before numbering" = "多單元元件的閘 (四運放的 A、B、C、D) 依放置順序填入封裝後再編號";
+"Gates of one swap group (or identical gates) can be exchanged by Swap Gates and packing" = "同一交換群組的閘（或相同的閘）可由「交換閘」與封裝整併互換";
 "Generate Design" = "產生設計";
 "Get an API key" = "取得 API 金鑰";
 "Give each selected pin its own slot" = "為每個所選接腳分配獨立槽位";
@@ -310,6 +318,7 @@
 "IR drop" = "IR 壓降";
 "IR-drop map" = "IR 壓降圖";
 "Ideal 50 Ω" = "理想 50 Ω";
+"Identical gates" = "相同的閘";
 "Impedance" = "阻抗";
 "Import Datasheet…" = "匯入規格書…";
 "Import IBIS…" = "匯入 IBIS…";
@@ -373,6 +382,7 @@
 "Lossy" = "有損";
 "Lumped model" = "集總模型";
 "Magnitude" = "幅度";
+"Make Swap Group" = "建立交換群組";
 "Manufacturer part #" = "製造商料號";
 "Manufacturer part number or keywords" = "製造商料號或關鍵字";
 "Mask" = "防焊";
@@ -408,6 +418,7 @@
 "Net model" = "網路模型";
 "Nets" = "網路";
 "Nets (%lld)" = "網路 (%lld)";
+"Never swap" = "永不交換";
 "New Project" = "新增專案";
 "New Variant" = "新增變體";
 "New Variant…" = "新增變體…";
@@ -420,8 +431,10 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "此設計中沒有差動對 (…_P/_N, …+/-) 或匯流排 (DQ0…, DATA[0..7], ADDR…)。";
 "No distributor API keys yet" = "尚無經銷商 API 金鑰";
 "No distributor offers." = "沒有經銷商報價。";
+"No gates found in the pin names." = "接腳名稱中找不到閘。";
 "No imported model" = "沒有匯入的模型";
 "No input source: give the input an AC magnitude or name it to see the input-referred noise." = "沒有輸入源：為輸入設定 AC 幅度或指定它，即可看到折算至輸入的雜訊。";
+"No interchangeable pins. Select pins of this gate (⌘-click) and make them a swap group — the inputs of a NAND gate." = "沒有可互換的接腳。選取此閘的接腳（⌘-按一下）並設為交換群組，例如 NAND 閘的輸入。";
 "No matches." = "沒有相符項目。";
 "No models or subcircuits found." = "找不到模型或子電路。";
 "No overlaps, gaps ≥ 0.1 mm, every pin has a pad" = "無重疊，間隙 ≥ 0.1 mm，每個接腳皆有焊墊";
@@ -431,6 +444,7 @@
 "No signal nets to analyse" = "沒有可分析的訊號網路";
 "No supply rails to analyse" = "沒有可分析的電源軌";
 "No switches. Add a Switch to the schematic (value \"push\" for a push-button)." = "沒有開關。請在電路圖中加入開關 (值設為 \"push\" 即為按鈕)。";
+"No units: the part is drawn as one symbol" = "無單元：零件以單一符號繪製";
 "No." = "編號";
 "Noise" = "雜訊";
 "Nominal" = "標稱值";
@@ -455,7 +469,13 @@
 "OK" = "好";
 "Off: SiEDA works as a classic manual EDA tool. Schematic capture, simulation, PCB routing, 3D, datasheet parsing and exports all run locally, and nothing is sent to any AI service." = "關閉：SiEDA 作為傳統手動 EDA 工具運作。電路圖繪製、模擬、PCB 佈線、3D、規格書解析與匯出全部在本機執行，不會傳送任何資料至 AI 服務。";
 "Offset (mm)" = "位移 (mm)";
+"On no gate: the pin goes to the power unit P with the supplies" = "不在任何閘上：接腳與電源一同放入電源單元 P";
+"On the power unit P" = "在電源單元 P 上";
+"One Symbol" = "單一符號";
 "One entry per model port, in order: a pin name or number, 0 (ground), net:NAME, dc:15 (ideal supply) or nc; separate instances with ;." = "每個模型埠一項，依序填寫：接腳名稱或編號、0（接地）、net:NAME、dc:15（理想電源）或 nc；多個實例以 ; 分隔。";
+"One pin drawn on every gate (a shared enable or supply)" = "一個接腳繪於每個閘上（共用的致能或電源）";
+"One symbol for the whole part. Add units to draw each gate on its own (a quad op-amp's A–D); pins on no unit form the power unit P." = "整個零件使用一個符號。新增單元可分別繪製每個閘（四運算放大器的 A–D）；不在任何單元的接腳組成電源單元 P。";
+"Only on %@" = "僅在 %@";
 "Op-amp current noise" = "運放電流雜訊";
 "Op-amp voltage noise" = "運放電壓雜訊";
 "Open File…" = "開啟檔案…";
@@ -474,6 +494,8 @@
 "PAD ARRAY" = "焊墊陣列";
 "PARAMETERS" = "參數";
 "PCB Layout" = "PCB 佈局";
+"PIN SWAP" = "接腳交換";
+"PINS" = "接腳";
 "PRBS" = "PRBS";
 "PROPERTIES" = "屬性";
 "Pack Units into Packages" = "將單元打包到封裝";
@@ -512,6 +534,8 @@
 "Port (to parent sheet)" = "埠（連至上層圖紙）";
 "Ports: %@" = "埠：%@";
 "Power" = "電源";
+"Power Unit" = "電源單元";
+"Power unit: pins on no gate" = "電源單元：不在任何閘上的接腳";
 "Preparing the autoroute…" = "正在準備自動佈線…";
 "Preview appears once the part has a name and pins." = "元件有名稱與接腳後即顯示預覽。";
 "Product Page" = "產品頁面";
@@ -537,6 +561,7 @@
 "Remove the SPICE model" = "移除 SPICE 模型";
 "Remove the empty slots on every side" = "刪除每一側的空槽位";
 "Remove the firmware" = "移除韌體";
+"Remove the selected unit (its pins go to the power unit)" = "移除選取的單元（其接腳移至電源單元）";
 "Removes the unused via barrel below the last connected layer (≥ 4 layers); adds a back-drill file" = "去除最後連接層以下未使用的導通孔孔壁 (≥ 4 層)；加入背鑽檔案";
 "Rename Channel" = "重新命名通道";
 "Rename Channel…" = "重新命名通道…";
@@ -630,6 +655,8 @@
 "Settling" = "穩定時間";
 "Settling (2 %)" = "安定時間（2 %）";
 "Shape" = "形狀";
+"Shared by All" = "全部共用";
+"Shared by several gates" = "由多個閘共用";
 "Sheet" = "圖紙";
 "Sheet %lld of %lld" = "第 %lld 頁，共 %lld 頁";
 "Sheet name" = "圖紙名稱";
@@ -669,6 +696,7 @@
 "Spacing" = "間距";
 "Speed" = "速度";
 "Spin" = "自轉";
+"Split the pins into gates from their names (1A, 1B, 1Y… or OUT1, IN1-, IN1+…)" = "依名稱將接腳分成閘（1A、1B、1Y… 或 OUT1、IN1-、IN1+…）";
 "Stack" = "堆疊";
 "Stack repeated power pins" = "堆疊重複的電源接腳";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "層疊取自 PCB 佈局中的“層”設定：1 層時底面為裸露 FR-4； ";
@@ -691,8 +719,13 @@
 "Supplies on top, grounds at the bottom, inputs left, outputs right, MCU ports grouped" = "電源在上，接地在下，輸入在左，輸出在右，MCU 埠分組";
 "Surface" = "表面處理";
 "Surface finish of the exposed copper: pads, via lands and plated holes" = "裸露銅面的表面處理：焊墊、導通孔焊環與電鍍孔";
+"Swap" = "交換";
+"Swap Gates" = "交換閘";
+"Swap Pins" = "交換接腳";
+"Swap group %lld" = "交換群組 %lld";
 "Swap the left and right sides" = "交換左右兩側";
 "Switch workspace (⌘1 – ⌘7)" = "切換工作區 (⌘1 – ⌘7)";
+"Symbol" = "符號";
 "System default" = "系統預設";
 "TEMPLATES" = "範本";
 "THD" = "THD";
@@ -705,6 +738,7 @@
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "離線設計器使用 SiEDA 內建的參考電路。無需網路或 API 金鑰 — 非常適合展示與實體隔離的實驗室。";
 "The plain box: pins in number order down the left, then up the right" = "一般方框：接腳依編號順序沿左側向下，再沿右側向上";
 "The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done." = "啟動畫面會預先載入元件庫與參考設計五秒鐘，然後打開主視窗。載入完成後，按一下它或按 Esc 即可略過。";
+"The two gates exchange places in their packages; the symbols and wires stay" = "兩個閘在封裝中互換位置；符號與導線不變";
 "The victim runs on the adjacent layer, over or under the aggressor" = "受害網路在相鄰層上，位於干擾網路的上方或下方";
 "Thermal" = "熱雜訊";
 "Through" = "通孔";
@@ -719,13 +753,17 @@
 "Tune to the longest member of the net's differential pair or bus" = "調整到該網路所屬差分對或匯流排中最長的成員";
 "Type" = "類型";
 "Type a designator, value, label or net name." = "輸入參考編號、數值、標籤或網路名稱。";
+"UNIT %@" = "單元 %@";
+"UNITS" = "單元";
 "Underfill / corner-bond heavy parts (shock)" = "重型元件底部填充 / 邊角黏著 (衝擊)";
 "Undershoot" = "下衝";
 "Undo" = "還原";
 "Undo (⌘Z)" = "還原 (⌘Z)";
 "Undo the last footprint edit" = "還原上一次封裝編輯";
 "Undo the last symbol edit" = "還原上一次符號編輯";
+"Undo the last unit edit" = "復原上一次單元編輯";
 "Unit price" = "單價";
+"Units" = "單元";
 "Unity gain" = "單位增益";
 "Unstack" = "取消堆疊";
 "Upload .hex…" = "上傳 .hex…";

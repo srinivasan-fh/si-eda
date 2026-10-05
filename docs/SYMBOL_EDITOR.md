@@ -70,6 +70,29 @@ in a check finding are red and selected pins are white.
 The footer shows how many spots the pins use, and the number of errors. **Apply Symbol** stays disabled while there
 are errors.
 
+## Units (gates) of a multi-unit part
+
+The **Symbol / Units** switch in the toolbar opens the unit editor (Altium's *Part A / Part B*, KiCad's units). It
+writes the part's `units` — no JSON editing.
+
+- **Units list** (left): **Add Unit** (the selected pins go on it), remove, rename (1–8 characters, unique), and the
+  unit's **Swap** setting: *Identical gates* (default: gates with the same symbol are interchangeable), *Swap group
+  1–4* (interchangeable with the gates of that group only) or *Never swap*. **Detect Gates** splits the pins into
+  gates from their names (`1A, 1B, 1Y, 2A …` or `OUT1, IN1-, IN1+, OUT2 …`); supplies stay on the power unit.
+  **One Symbol** removes the units.
+- **Pin matrix** (centre): one row per pin, one checkbox column per unit. A pin on no unit goes to the power unit
+  **P** (⚡), one on several units is **shared** (🔗: one pin, drawn on each gate). With pins selected (⌘/⇧-click):
+  **Only on A**, **Shared by All**, **Power Unit**.
+- **Right panel**: the selected unit's generated symbol, its **pin-swap groups** (select two or more of its pins →
+  **Make Swap Group**, e.g. the inputs of a NAND gate) and the unit checks.
+- Checks (core `checkUnits`): unknown pins, a pin twice in one unit, empty or duplicate units, a pin-swap group
+  naming a pin that is not on the unit (errors — **Apply** is disabled); signal pins shared by several units,
+  signal pins left to the power unit, swap groups whose gates differ, pin-swap groups across pin types (warnings);
+  shared supplies and the power unit's pins (info).
+- On the schematic: selecting two units of one part shows **Swap Gates** (they exchange gates — package and unit —
+  while symbols and wires stay); a unit with pin-swap groups shows **Swap Pins** (the two pins exchange wires).
+  **Pack Units into Packages** packs only interchangeable gates.
+
 ## Auto Arrange
 
 Auto Arrange (core `autoArrangeSymbol`) sorts the pins by name and electrical type:

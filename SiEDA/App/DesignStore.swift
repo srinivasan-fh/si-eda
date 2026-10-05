@@ -733,6 +733,23 @@ final class DesignStore: ObservableObject {
         if let unit { selection = [unit] }
     }
 
+    /// Gate swap: two selected units of interchangeable gates exchange their gates (symbols and wires stay).
+    func swapGates(_ a: Int, _ b: Int) {
+        guard let ua = snapshot.component(a), let ub = snapshot.component(b) else { return }
+        performChecked("Swapped gates \(ua.displayRef) ↔ \(ub.displayRef)",
+                       failureMessage: "\(ua.displayRef) and \(ub.displayRef) are not interchangeable gates of the same part") {
+            $0.swapUnits(a, b)
+        }
+    }
+
+    /// Pin swap: two pins of a unit's pin-swap group exchange their wires.
+    func swapPins(of id: Int, _ a: Int, _ b: Int) {
+        guard let c = snapshot.component(id) else { return }
+        performChecked("Swapped pins of \(c.displayRef)", failureMessage: "These pins of \(c.displayRef) are not swappable") {
+            $0.swapPins(id, a, b)
+        }
+    }
+
     /// Places one particular unit (1-based) of a multi-unit part.
     func placeUnit(_ unit: Int, of id: Int) {
         guard let c = snapshot.component(id), let package = c.unitOf ?? (c.isUnitPackage ? c.id : nil) else { return }
