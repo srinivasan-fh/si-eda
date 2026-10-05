@@ -572,3 +572,8 @@
 "Tune to the longest member of the net's differential pair or bus" = "ନେଟର ଡିଫରେନସିଆଲ ଯୋଡ଼ି ବା ବସର ସବୁଠାରୁ ଲମ୍ବା ସଦସ୍ୟ ଅନୁସାରେ ଟ୍ୟୁନ କରନ୍ତୁ";
 "Highlight" = "ହାଇଲାଇଟ୍";
 "Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red" = "ଠେଲନ୍ତୁ ଅନ୍ୟ ନେଟର ଟ୍ରାକ ଓ ଭିଆକୁ ଘୁଞ୍ଚାଏ; ଘେରି ଯାଆନ୍ତୁ ସେଗୁଡ଼ିକ ଚାରିପଟେ ରୁଟ୍ କରେ; ହାଇଲାଇଟ୍ ଆପଣ ଦେଖାଉଥିବା ସ୍ଥାନକୁ ଯାଏ ଓ ପ୍ରତ୍ୟେକ ଧକ୍କାକୁ ଲାଲରେ ଚିହ୍ନିତ କରେ";
+"Via type" = "ଭିଆ ପ୍ରକାର";
+"Through" = "ଥ୍ରୁ";
+"Blind / buried" = "ବ୍ଲାଇଣ୍ଡ / ବେରିଡ୍";
+"Microvia" = "ମାଇକ୍ରୋଭିଆ";
+"Via placed with V: through to the other side, or (HDI boards) blind / buried or a microvia to the next layer; Shift-V goes to the next layer the other way" = "V ଦ୍ୱାରା ରଖାଯାଉଥିବା ଭିଆ: ଅନ୍ୟ ପାର୍ଶ୍ୱକୁ ଥ୍ରୁ, କିମ୍ବା (HDI ବୋର୍ଡ) ପରବର୍ତ୍ତୀ ସ୍ତରକୁ ବ୍ଲାଇଣ୍ଡ / ବେରିଡ୍ ବା ମାଇକ୍ରୋଭିଆ; Shift-V ବିପରୀତ ଦିଗର ପରବର୍ତ୍ତୀ ସ୍ତରକୁ ଯାଏ";

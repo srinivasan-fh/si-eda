@@ -309,12 +309,14 @@ void sieda_pcb_clear_tamper_meshes(SiedaProject* project);
 /* ---- interactive routing ---------------------------------------------------------------------------------------
  * One route session per project. The router works on a copy of the board taken when the route begins and edits the
  * layout only on commit; any other board edit in between makes the commit fail (call cancel first).
- * options_json (NULL = keep the current options): {"mode":"shove"|"walkaround", "posture":"45"|"90"|"free",
- *   "swapPosture":bool, "width":mm (0 = net class), "pairGap":mm (0 = stack-up), "snap":bool}.
+ * options_json (NULL = keep the current options): {"mode":"shove"|"walkaround"|"highlight",
+ *   "posture":"45"|"90"|"free", "swapPosture":bool, "width":mm (0 = net class), "pairGap":mm (0 = stack-up),
+ *   "snap":bool, "viaType":"through"|"blind"|"micro"|"auto" (blind / micro need HDI on ≥ 4 layers)}.
  * Begin / move / fix / via / options return the preview, caller frees:
  *   {"active","kind":"route"|"pair"|"drag"|"via","status","blocked","reachedTarget","nets":[…],"layer","width","gap",
  *    "endX","endY","length","netLength","targetLength","placed":[track],"head":[track],"vias":[via],
- *    "shovedTracks":[track],"shovedVias":[via],"hiddenTracks":[id],"hiddenVias":[id]}
+ *    "shovedTracks":[track],"shovedVias":[via],"hiddenTracks":[id],"hiddenVias":[id],
+ *    "collisions":[{kind,id,x,y,ax,ay,bx,by,w,h,width}] (highlight mode)}
  *   (track = {id,net,layer,width,ax,ay,bx,by}; via = {id,net,x,y,drill,diameter,fromLayer,toLayer,kind})
  * plus "error":"…" when that call failed (the preview is still the current state). */
 char* sieda_router_begin(SiedaProject* project, const char* options_json, double x, double y, int32_t layer);
@@ -325,7 +327,9 @@ char* sieda_router_begin_drag(SiedaProject* project, const char* options_json, i
 char* sieda_router_move(SiedaProject* project, double x, double y);
 /* Places the head (a click): the route continues from its end. */
 char* sieda_router_fix(SiedaProject* project);
-/* Places the head and a through via at its end; continues on to_layer (-1 = the other outer layer). */
+/* Places the head and a via (options "viaType") at its end; continues on to_layer (-1 = the other outer layer for a
+ * through via, the neighbouring layer towards the far side for blind / micro vias; -2 = the neighbouring layer the
+ * other way). */
 char* sieda_router_add_via(SiedaProject* project, int32_t to_layer);
 char* sieda_router_set_options(SiedaProject* project, const char* options_json);
 /* Writes the route and every shoved item into the layout: {"ok","error","removedTracks":[track],"removedVias":[via],

@@ -1395,7 +1395,14 @@ final class DesignStore: ObservableObject {
         didSet { if routerDiagonal != oldValue { applyRouterOptions() } }
     }
 
-    private var routerOptions: String { EDAEngine.routerOptions(mode: routerMode, diagonal: routerDiagonal) }
+    /// The via V places (blind / buried and micro vias need HDI in Board Setup).
+    @Published var routerViaType: RouterViaChoice = .through {
+        didSet { if routerViaType != oldValue { applyRouterOptions() } }
+    }
+
+    private var routerOptions: String {
+        EDAEngine.routerOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType)
+    }
 
     /// Shows a router reply: a refused step keeps the route and reports why.
     private func showRoute(_ preview: RoutePreview?) {
@@ -1428,9 +1435,9 @@ final class DesignStore: ObservableObject {
     }
 
     /// Places a via at the end of the head and continues on the other side of the board (V).
-    func addRouteVia() {
+    func addRouteVia(reverse: Bool = false) {
         guard routePreview != nil, !isBusy else { return }
-        showRoute(engine.routerAddVia())
+        showRoute(engine.routerAddVia(reverse: reverse))
     }
 
     /// Writes the route and every shoved track and via into the board as one undo step (Enter / double-click, or

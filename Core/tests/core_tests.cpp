@@ -9208,3 +9208,85 @@ TEST(router_highlights_collisions) {
     CHECK(rs.beginRoute(c.from, 0));
     CHECK(rs.moveTo({c.from.x, 4}).collisions.empty());
 }
+
+TEST(router_places_blind_buried_and_micro_vias) {
+    // 4-layer HDI board: top → microvia to Inner 1 → microvia to Inner 2 (buried) → blind via to the bottom → through
+    // via back to the top pad. Every span is what was asked for, and the board stays DRC clean.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {44, 20});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    p.pcb.settings.layerCount = 4;
+    p.pcb.settings.hdi = true;
+    const int net = s.netOf({r1, 1});
+    InteractiveRouter r(p.pcb, s);
+    RouterOptions o;
+    o.viaType = RouterViaType::Micro;
+    r.setOptions(o);
+    CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+    r.moveTo({14, 20});
+    CHECK(!r.addVia(2));  // a microvia joins neighbouring layers only
+    CHECK(r.error().find("neighbouring") != std::string::npos);
+    CHECK(r.addVia());  // the next layer down
+    CHECK(r.preview().layer == 1);
+    r.moveTo({20, 20});
+    CHECK(r.addVia());
+    CHECK(r.preview().layer == 2);
+    o.viaType = RouterViaType::Blind;
+    r.setOptions(o);
+    r.moveTo({26, 20});
+    CHECK(r.addVia(3));
+    CHECK(r.preview().layer == 3);
+    o.viaType = RouterViaType::Through;
+    r.setOptions(o);
+    r.moveTo({32, 20});
+    CHECK(r.addVia(0));
+    const RoutePreview& pv = r.moveTo(padAt(p, r2, 0));
+    CHECK(pv.reachedTarget);
+    CHECK(pv.vias.size() == 4);
+    CHECK(routePreviewJson(pv).dump().find("\"kind\":\"microvia\"") != std::string::npos);
+    CHECK(r.commit().ok);
+    std::vector<std::string> kinds;
+    for (const auto& v : p.pcb.vias) kinds.push_back(viaKind(v, 4));
+    CHECK(kinds.size() == 4);
+    if (kinds.size() == 4) {
+        CHECK(kinds[0] == "microvia" && p.pcb.vias[0].fromLayer == 0 && p.pcb.vias[0].toLayer == 1);
+        CHECK(kinds[1] == "microvia" && p.pcb.vias[1].fromLayer == 1 && p.pcb.vias[1].toLayer == 2);
+        CHECK(kinds[2] == "blind" && p.pcb.vias[2].fromLayer == 2 && p.pcb.vias[2].toLayer == -1);
+        CHECK(kinds[3] == "through");
+        CHECK_NEAR(p.pcb.vias[0].drill, p.pcb.settings.microviaDrill, 1e-12);
+    }
+    CHECK(netRouted(p, net));
+    CHECK(routingProblems(p) == 0);
+    CHECK(acuteWarnings(p) == 0);
+    // Auto picks a microvia for the next layer on an HDI board, a through via without HDI; blind / micro need HDI.
+    {
+        Project q = p;
+        q.pcb.clearRouting();
+        InteractiveRouter ra(q.pcb, q.schematic);
+        RouterOptions oa;
+        oa.viaType = RouterViaType::Auto;
+        ra.setOptions(oa);
+        CHECK(ra.beginRoute(padAt(q, r1, 1), 0));
+        ra.moveTo({14, 20});
+        CHECK(ra.addVia());
+        CHECK(ra.preview().layer == 1 && ra.preview().vias.size() == 1);
+        if (ra.preview().vias.size() == 1) CHECK(std::string(viaKind(ra.preview().vias[0], 4)) == "microvia");
+        ra.cancel();
+        q.pcb.settings.hdi = false;
+        CHECK(ra.beginRoute(padAt(q, r1, 1), 0));
+        ra.moveTo({14, 20});
+        CHECK(ra.addVia());
+        CHECK(ra.preview().layer == 3);  // no HDI: a through via to the other side
+        ra.cancel();
+        oa.viaType = RouterViaType::Blind;
+        ra.setOptions(oa);
+        CHECK(ra.beginRoute(padAt(q, r1, 1), 0));
+        ra.moveTo({14, 20});
+        CHECK(!ra.addVia());
+        CHECK(ra.error().find("HDI") != std::string::npos);
+    }
+    CHECK(routerOptionsFromJson(Json::parse("{\"viaType\":\"micro\"}")).viaType == RouterViaType::Micro);
+    CHECK(routerOptionsFromJson(Json::parse("{\"viaType\":\"auto\"}")).viaType == RouterViaType::Auto);
+}

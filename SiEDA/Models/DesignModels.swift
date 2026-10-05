@@ -873,6 +873,13 @@ enum RouterModeChoice: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+/// The via V places while routing (`sieda_router_*` options "viaType"): through, blind / buried (the span it
+/// joins), laser microvia (neighbouring layers) or automatic (microvia / blind / through by span on HDI boards).
+enum RouterViaChoice: String, CaseIterable, Identifiable {
+    case through, blind, micro, auto
+    var id: String { rawValue }
+}
+
 /// Copper or a board rule the route violates in Highlight mode: `kind` "track" (a-b, width), "via" (a, width =
 /// diameter), "pad" (a = centre, w × h), "hole" (a, width = keep-out), or "edge" / "plane" / "mesh" (x, y only).
 struct RouteCollision: Decodable, Equatable {

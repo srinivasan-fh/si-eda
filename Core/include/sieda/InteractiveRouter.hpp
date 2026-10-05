@@ -40,8 +40,17 @@ enum class RoutePosture {
     Free,          // one straight segment at any angle
 };
 
+/// The via addVia() places (HDI, IPC-2226). Blind / buried and micro vias need HDI on (Board Setup) and ≥ 4 layers.
+enum class RouterViaType {
+    Through,  // top to bottom (always available)
+    Blind,    // exactly the layers it joins: blind (from an outer layer) or buried (inner layers only)
+    Micro,    // laser microvia across one dielectric (neighbouring layers, microvia drill / pad)
+    Auto,     // HDI boards: microvia for neighbouring layers, otherwise the span it joins; through otherwise
+};
+
 struct RouterOptions {
     RouterMode mode = RouterMode::Shove;
+    RouterViaType viaType = RouterViaType::Through;
     RoutePosture posture = RoutePosture::Diagonal45;
     /// Which bend comes first in the two-segment head (the "/" key in other tools flips it).
     bool swapPosture = false;
@@ -128,7 +137,9 @@ public:
     const RoutePreview& moveTo(Vec2 cursor);
     /// Places the head as it is (a click): the next head starts from its end. False when the head is empty.
     bool fixHead();
-    /// Places the head, then a through via at its end and continues on `toLayer` (-1 = the other outer layer).
+    /// Places the head, then a via (options().viaType) at its end and continues on `toLayer`. -1 = the default
+    /// layer: the other outer layer for through vias, the next layer towards the other side for blind / micro vias;
+    /// -2 = the next layer the other way (blind / micro vias).
     bool addVia(int toLayer = -1);
     /// Places the head and writes the route (and every shoved item) into the layout. The router is idle afterwards.
     RouteChanges commit();

@@ -819,8 +819,8 @@ final class EDAEngine: @unchecked Sendable {
     }
 
     /// Options for `sieda_router_*` with any router mode (Highlight lets the head go anywhere and lists collisions).
-    static func routerOptions(mode: RouterModeChoice, diagonal: Bool) -> String {
-        "{\"mode\":\"\(mode.rawValue)\",\"posture\":\"\(diagonal ? "45" : "90")\"}"
+    static func routerOptions(mode: RouterModeChoice, diagonal: Bool, via: RouterViaChoice = .through) -> String {
+        "{\"mode\":\"\(mode.rawValue)\",\"posture\":\"\(diagonal ? "45" : "90")\",\"viaType\":\"\(via.rawValue)\"}"
     }
 
     /// Starts a route (or a differential pair) on the pad, via or track at `point`; the preview carries `error` when
@@ -869,9 +869,11 @@ final class EDAEngine: @unchecked Sendable {
         Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_fix($0)) })
     }
 
-    /// Places a via at the head's end and continues on `layer` (nil = the other outer layer).
-    func routerAddVia(toLayer layer: Int? = nil) -> RoutePreview? {
-        Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_add_via($0, Int32(layer ?? -1))) })
+    /// Places a via at the head's end and continues on `layer` (nil = the default layer for the via type: the other
+    /// outer layer for through vias, the next layer for blind / micro vias; `reverse` = the next layer the other way).
+    func routerAddVia(toLayer layer: Int? = nil, reverse: Bool = false) -> RoutePreview? {
+        let target = layer ?? (reverse ? -2 : -1)
+        return Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_add_via($0, Int32(target))) })
     }
 
     func routerSetOptions(_ options: String) -> RoutePreview? {

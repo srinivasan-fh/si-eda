@@ -2705,12 +2705,61 @@ struct InteractiveRouter::Impl {
         return true;
     }
 
+    /// Via of `net` at `pos` from the route's layer to `to` for the via type: its span and drill / pad size.
+    bool makeVia(int net, Vec2 pos, int to, Via& v) {
+        const BoardSettings& s = base->s;
+        const int n = std::max(1, s.layerCount);
+        const int lo = std::min(layer, to), hi = std::max(layer, to);
+        v = Via{};
+        v.net = net;
+        v.position = pos;
+        v.drill = s.viaDrill;
+        v.diameter = s.viaDiameter;
+        RouterViaType type = opt.viaType;
+        const bool hdi = s.hdi && n >= 4;
+        if (type == RouterViaType::Auto) {
+            if (!hdi || (lo == 0 && hi == n - 1)) type = RouterViaType::Through;
+            else type = hi - lo == 1 ? RouterViaType::Micro : RouterViaType::Blind;
+        }
+        if (type == RouterViaType::Through) return true;  // 0 … bottom
+        if (!hdi) return fail("Blind, buried and micro vias need HDI on a board of 4 or more layers (Board Setup)");
+        if (type == RouterViaType::Micro) {
+            if (hi - lo != 1) return fail("A microvia joins neighbouring layers only — pick the next layer");
+            const double ring = std::min(s.minAnnularRing, 0.075);
+            v.drill = s.microviaDrill;
+            v.diameter = std::min(s.viaDiameter, std::max(s.microviaDiameter, v.drill + 2 * ring));
+        }
+        v.fromLayer = lo;
+        v.toLayer = hi >= n - 1 ? -1 : hi;
+        return true;
+    }
+
+    /// The layer V goes to: -1 = the other outer layer (through vias) or the next layer towards the other side
+    /// (blind / micro / auto on an HDI board); -2 = the next layer the other way.
+    int viaTarget(int toLayer) const {
+        const BoardSettings& s = base->s;
+        if (toLayer >= 0) return toLayer;
+        const int bottom = s.bottomLayer();
+        const bool stepwise = opt.viaType == RouterViaType::Blind || opt.viaType == RouterViaType::Micro ||
+                              (opt.viaType == RouterViaType::Auto && s.hdi && s.layerCount >= 4);
+        if (!stepwise) return layer == 0 ? bottom : 0;
+        // Towards the far side: down from the top half, up from the bottom half; -2 reverses.
+        int dir = layer < (bottom + 1) / 2 ? 1 : -1;
+        if (toLayer == -2) dir = -dir;
+        const int t = layer + dir;
+        return t < 0 || t > bottom ? layer - dir : t;
+    }
+
     bool addVia(int toLayer) {
         if (kind != Kind::Route && kind != Kind::Pair) return fail("Start a route first");
         const BoardSettings& s = base->s;
         if (s.layerCount < 2) return fail("A single-sided board has no vias");
-        const int to = toLayer >= 0 ? toLayer : (layer == 0 ? s.bottomLayer() : 0);
+        const int to = viaTarget(toLayer);
         if (to == layer) return fail("The route is already on that layer");
+        {
+            Via probe;
+            if (!makeVia(-1, {}, to, probe)) return false;
+        }
         std::vector<int> nets;
         for (const auto& m : members) nets.push_back(m.net);
         if (!layerUsable(to, nets)) return false;
@@ -2738,10 +2787,7 @@ struct InteractiveRouter::Impl {
                 return true;
             }
             Via v;
-            v.net = m.net;
-            v.position = m.end;
-            v.drill = s.viaDrill;
-            v.diameter = s.viaDiameter;
+            makeVia(m.net, m.end, to, v);
             vias.push_back(v);
         } else {
             Vec2 dir = lastDir;
@@ -2751,14 +2797,13 @@ struct InteractiveRouter::Impl {
             }
             dir = unit(dir);
             const Vec2 n = leftNormal(dir);
-            const double off = std::max(spacing / 2, (s.viaDiameter + base->clearance(members[0].net, members[1].net)) / 2 + kMargin);
+            Via proto;
+            makeVia(members[0].net, {}, to, proto);
+            const double off = std::max(spacing / 2, (proto.diameter + base->clearance(members[0].net, members[1].net)) / 2 + kMargin);
             int sd = side != 0 ? side : (cross(dir, members[0].end - centre) >= 0 ? 1 : -1);
             for (size_t k = 0; k < 2; ++k) {
                 Via v;
-                v.net = members[k].net;
-                v.position = centre + n * ((k == 0 ? sd : -sd) * off);
-                v.drill = s.viaDrill;
-                v.diameter = s.viaDiameter;
+                makeVia(members[k].net, centre + n * ((k == 0 ? sd : -sd) * off), to, v);
                 vias.push_back(v);
                 if (!samePoint(members[k].end, v.position, 1e-9)) {
                     auto lead = postureLinks(members[k].end, v.position, RoutePosture::Diagonal45, false).front();
@@ -3283,6 +3328,11 @@ RouterOptions routerOptionsFromJson(const Json& j, RouterOptions o) {
     if (j.has("width")) o.width = std::max(0.0, j.get("width").asNumber(o.width));
     if (j.has("pairGap")) o.pairGap = std::max(0.0, j.get("pairGap").asNumber(o.pairGap));
     if (j.has("snap")) o.snapToPads = j.get("snap").asBool(o.snapToPads);
+    const std::string vt = j.get("viaType").asString(std::string());
+    if (vt == "through") o.viaType = RouterViaType::Through;
+    if (vt == "blind") o.viaType = RouterViaType::Blind;
+    if (vt == "micro") o.viaType = RouterViaType::Micro;
+    if (vt == "auto") o.viaType = RouterViaType::Auto;
     if (j.has("shoveLimit")) o.shoveLimit = std::clamp(j.get("shoveLimit").asInt(o.shoveLimit), 1, 10000);
     return o;
 }

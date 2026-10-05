@@ -27,7 +27,7 @@ one unit, drags an existing track segment, and lengthens a net with meanders.
 | Start a route | Click a pad, via or track that has a net. The route starts on the active copper layer. A click on an SMD pad of the other side switches to that side. |
 | Preview | Move the mouse. The head (the last one or two segments) follows the cursor. Copper that would be shoved is shown in its new place. |
 | Place corners | Click. The head is fixed and the next head starts from its end. |
-| Change layer | **V** places a through via at the end of the head and continues on the other outer layer. The new layer becomes the active layer. |
+| Change layer | **V** places a via (the **Via type** in the options bar) at the end of the head and continues on the next layer: the other outer layer for a through via, the neighbouring layer for blind / buried and micro vias. **⇧V** goes to the neighbouring layer the other way. The new layer becomes the active layer. |
 | Finish | Click a pad, via or track of the same net (the head snaps to it), press **Enter**, or double-click. |
 | Cancel | **Esc**. The board is not changed. A second **Esc** leaves the Route tool. |
 | Undo | **⌘Z** undoes a finished route and every track it shoved, as one step. |
@@ -39,6 +39,7 @@ The options bar shows the router settings while the Route tool is active:
 - **45° / 90°**: corner style. With 45° the head is a straight and a diagonal segment. With 90° it is a horizontal
   and a vertical segment.
 - **Differential pair**: the next route starts as a pair (see [Differential pairs](#differential-pairs)).
+- **Via type**: Through, Blind / buried, Microvia or Auto (see [Vias and HDI](#vias-and-hdi)).
 
 The banner at the top of the canvas shows what the router is doing, the route length so far, and why the head stopped
 if it is blocked. A blocked head is outlined in amber.
@@ -102,6 +103,24 @@ that would break a connection is refused.
 Committing a route therefore adds no DRC error and no clearance warning. The tests run the DRC after every commit to
 check this. The DRC can still report an unrouted connection if you finish a route in free space. A track that ends
 in free space is reported as a dangling track.
+
+## Vias and HDI
+
+The via **V** places follows **Via type**:
+
+| Via type | Span | Size |
+|---|---|---|
+| Through | top to bottom (always available) | board via drill / diameter |
+| Blind / buried | exactly the two layers it joins: blind when one is an outer layer, buried when both are inner | board via drill / diameter |
+| Microvia | neighbouring layers only (one dielectric, IPC-2226) | microvia drill / pad from Board Setup |
+| Auto | HDI boards: a microvia to a neighbouring layer, otherwise the span it joins (top to bottom = through). Without HDI: through | as above |
+
+Blind, buried and micro vias need **HDI** on (**Board Setup → Stack-up & Impedance**) and 4 or more layers; otherwise
+V reports why and places nothing. With a blind / micro / auto type on an HDI board, V steps to the neighbouring layer
+towards the far side (down from the top half, up from the bottom half) and ⇧V steps the other way; a typed layer
+(`sieda_router_add_via(project, layer)`) can be any layer the via type allows. A pair places two vias of the same
+type side by side. The router's clearance, hole-spacing and shove checks only see a via on the layers it spans, as
+the DRC, the drill files (one Excellon file per span) and the Gerbers do. Dragging a via keeps its span.
 
 ## Differential pairs
 
@@ -194,7 +213,7 @@ All functions are in `sieda_c.h`. Each project has one route session.
 | `sieda_router_begin_drag(project, options_json, track_id, x, y)` | Drag a segment |
 | `sieda_router_move(project, x, y)` | Move the head |
 | `sieda_router_fix(project)` | Place corners |
-| `sieda_router_add_via(project, to_layer)` | Via and layer change (`-1` = the other outer layer) |
+| `sieda_router_add_via(project, to_layer)` | Via and layer change (`-1` = the default next layer for the via type, `-2` = the neighbouring layer the other way) |
 | `sieda_router_set_options(project, options_json)` | Change mode / posture during a route |
 | `sieda_router_commit(project)` | Write the route; returns the changes |
 | `sieda_router_cancel(project)`, `sieda_router_active(project)` | Session control |
@@ -203,8 +222,8 @@ All functions are in `sieda_c.h`. Each project has one route session.
 | `sieda_router_tune_length(project, track_id, target_mm, max_amplitude_mm)` | Length tuning (applies at once) |
 | `sieda_pcb_lock_track`, `sieda_pcb_remove_track`, `sieda_pcb_remove_via` | Track editing |
 
-Options JSON: `{"mode":"shove"|"walkaround", "posture":"45"|"90"|"free", "swapPosture":bool, "width":mm,
-"pairGap":mm, "snap":bool}`. Fields that are left out keep their value.
+Options JSON: `{"mode":"shove"|"walkaround"|"highlight", "posture":"45"|"90"|"free", "swapPosture":bool, "width":mm,
+"pairGap":mm, "snap":bool, "viaType":"through"|"blind"|"micro"|"auto"}`. Fields that are left out keep their value.
 
 Preview JSON: `active`, `kind` (`route` / `pair` / `drag` / `via`), `status`, `blocked`, `reachedTarget`, `nets`,
 `layer`, `width`, `gap`, `endX`, `endY`, `length`, `netLength`, `targetLength`, `placed`, `head`, `vias`,
@@ -240,7 +259,6 @@ never fails because of an old DRC problem elsewhere, and it never creates a new 
 
 ## Limits
 
-- Vias placed by the router are through vias. Blind and buried vias come from the HDI pass after Auto Route.
 - Arcs are not supported. Corners are 45° or 90°, or free-angle with posture `free` (core and C API only).
 - The shove engine moves tracks and vias, not footprints.
 - Shoving a meandered (length-tuned) track can flatten part of the meander. Run length tuning again afterwards.
@@ -283,6 +301,7 @@ Core (`Core/tests/core_tests.cpp`):
 | `c_api_router_drag_and_tune` | Via drag and `sieda_router_tune` through the C API. |
 | `router_shoved_copper_adds_no_drc_warning` | 160 routes, segment drags and via drags with shove on four autorouted boards (2 and 4 layers): no commit adds a DRC error, a clearance warning or an acute-angle warning (before the optimiser, 15 of 160 commits added acute corners). |
 | `router_shoves_lines_around_hole_keepouts` | A shoved line walks round a mounting-hole keep-out instead of stopping the head. |
+| `router_places_blind_buried_and_micro_vias` | Microvia, buried microvia, blind and through vias on a 4-layer HDI board with the asked spans and sizes; a microvia refuses a non-neighbouring layer; Auto and the no-HDI cases. |
 | `router_highlights_collisions` | Highlight mode lists the three lanes a straight head crosses, moves nothing, and commits as asked. |
 | `router_keeps_an_autorouted_board_drc_clean` | 30 pseudo-random routes and drags with shove on an autorouted board, with DRC after every commit. |
 | `c_api_router` | The C API end to end (`Core/tests/c_api_test.c`). |

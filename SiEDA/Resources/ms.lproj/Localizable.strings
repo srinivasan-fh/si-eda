@@ -572,3 +572,8 @@
 "Tune to the longest member of the net's differential pair or bus" = "Tala kepada ahli terpanjang pasangan pembeza atau bas net";
 "Highlight" = "Serlah";
 "Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red" = "Tolak menolak trek dan via net lain ke tepi; Kelilingi mengelak di sekelilingnya; Serlah pergi ke tempat yang anda tunjuk dan menanda setiap perlanggaran dengan merah";
+"Via type" = "Jenis via";
+"Through" = "Tembus";
+"Blind / buried" = "Buta / tertanam";
+"Microvia" = "Mikrovia";
+"Via placed with V: through to the other side, or (HDI boards) blind / buried or a microvia to the next layer; Shift-V goes to the next layer the other way" = "Via yang diletak dengan V: tembus ke sisi lain, atau (papan HDI) buta / tertanam atau mikrovia ke lapisan seterusnya; Shift-V ke lapisan seterusnya arah bertentangan";

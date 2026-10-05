@@ -4984,6 +4984,28 @@ final class InteractiveRoutingStoreTests: XCTestCase {
         XCTAssertNil(store.tuneSession)
     }
 
+    func testRouterPlacesMicroviasOnHDIBoards() throws {
+        let engine = EDAEngine(name: "HDI router")
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        engine.moveFootprint(r1, to: CGPoint(x: 10, y: 20))
+        engine.moveFootprint(r2, to: CGPoint(x: 40, y: 20))
+        engine.setLayerCount(4)
+        XCTAssertTrue(engine.setHDI(enabled: true, microviaDrill: 0.1, microviaDiameter: 0.25, viaInPad: false))
+        let options = EDAEngine.routerOptions(mode: .shove, diagonal: true, via: .micro)
+        XCTAssertNil(engine.routerBegin(at: CGPoint(x: 10.95, y: 20), layer: 0, pair: false, options: options)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 16, y: 20))
+        let down = try XCTUnwrap(engine.routerAddVia())
+        XCTAssertNil(down.error)
+        XCTAssertEqual(down.layer, 1)
+        XCTAssertEqual(down.vias.first?.kind, "microvia")
+        XCTAssertEqual(down.vias.first?.toLayer, 1)
+        let back = try XCTUnwrap(engine.routerAddVia(reverse: true))  // the next layer the other way: top again
+        XCTAssertEqual(back.layer, 0)
+        engine.routerCancel()
+    }
+
     func testHighlightModeListsCollisions() throws {
         let store = try routedStore()
         store.routerMode = .highlight

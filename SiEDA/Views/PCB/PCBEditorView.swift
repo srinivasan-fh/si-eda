@@ -178,6 +178,15 @@ struct PCBEditorView: View {
                         Toggle("Differential pair", isOn: $routePair)
                             .toggleStyle(.checkbox)
                             .help("Route both nets of a differential pair (X_P / X_N) together at the pair gap")
+                        Picker("Via type", selection: $store.routerViaType) {
+                            Text("Through").tag(RouterViaChoice.through)
+                            Text("Blind / buried").tag(RouterViaChoice.blind)
+                            Text("Microvia").tag(RouterViaChoice.micro)
+                            Text("Auto").tag(RouterViaChoice.auto)
+                        }
+                        .pickerStyle(.menu)
+                        .fixedSize()
+                        .help("Via placed with V: through to the other side, or (HDI boards) blind / buried or a microvia to the next layer; Shift-V goes to the next layer the other way")
                     }
                     Divider().frame(height: 18)
                     Image(systemName: "square.3.layers.3d.down.right").foregroundStyle(Theme.blue)
@@ -610,7 +619,7 @@ struct PCBCanvas: View {
                 }
                 .onChange(of: focused) { _, isFocused in if !isFocused { spaceHeld = false } }
                 // Single-letter keys; ⌘/⌥/⌃ combinations belong to menus and text editing.
-                .onKeyPress(keys: ["r", "f", "v", "h", "x", "t"], phases: .down) { press in
+                .onKeyPress(keys: ["r", "f", "v", "V", "h", "x", "t"], phases: .down) { press in
                     guard press.modifiers.subtracting(.shift).isEmpty else { return .ignored }
                     switch press.key {
                     case KeyEquivalent("t"):
@@ -619,10 +628,11 @@ struct PCBCanvas: View {
                         tuneTool = true
                     case KeyEquivalent("r"): store.rotateFootprints()
                     case KeyEquivalent("f"): store.flipFootprints()
-                    case KeyEquivalent("v"):
-                        // While routing, V places a via and continues on the other side (as in other PCB tools).
+                    case KeyEquivalent("v"), KeyEquivalent("V"):
+                        // While routing, V places a via and continues on the other side (as in other PCB tools);
+                        // Shift-V goes to the next layer the other way (blind / micro vias).
                         if store.routePreview != nil {
-                            store.addRouteVia()
+                            store.addRouteVia(reverse: press.modifiers.contains(.shift))
                         } else {
                             panMode = false
                             routeTool = false
