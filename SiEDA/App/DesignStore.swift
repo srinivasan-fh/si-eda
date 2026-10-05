@@ -693,7 +693,8 @@ final class DesignStore: ObservableObject {
 
     /// Shows another sheet in the schematic (and places new parts there). Not an edit: no undo step.
     func selectSheet(_ id: Int, fit: Bool = true) {
-        guard id != snapshot.activeSheet, snapshot.sheet(id) != nil, engine.setActiveSheet(id) else { return }
+        // Long work (autorouting, simulation) holds the engine: switching now would block the UI until it finishes.
+        guard !isBusy, id != snapshot.activeSheet, snapshot.sheet(id) != nil, engine.setActiveSheet(id) else { return }
         selectedWire = nil
         refresh()
         selection = selection.filter { snapshot.component($0)?.sheetId == id }
