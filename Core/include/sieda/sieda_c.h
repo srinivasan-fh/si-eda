@@ -794,6 +794,19 @@ char* sieda_pcb_eco_preview(const SiedaProject* project);
 char* sieda_apply_pcb_eco(SiedaProject* project, const char* keys_json);
 /* Drawn size of a sheet's sheet symbol in schematic units (0 = fitted to its entries; clamped to 4000). 1 on success. */
 int32_t sieda_set_sheet_symbol_size(SiedaProject* project, int32_t sheet, double width, double height);
+/* Per-channel parameters of a part on a repeated sheet (see sieda_set_channel_value): this channel's own SPICE model
+ * (checked like sieda_set_spice_model; empty text = no model in this channel) and firmware; one parameter back to
+ * the block's ("value" | "package" | "spice" | "firmware"); fitted or DNP in this channel only. 1 on success. */
+int32_t sieda_set_channel_spice_model(SiedaProject* project, int32_t component_id, const char* text, const char* model,
+                                      const char* pins, char** error_out);
+int32_t sieda_set_channel_firmware(SiedaProject* project, int32_t component_id, const char* hex, const char* name,
+                                   double clock_hz);
+int32_t sieda_clear_channel_override(SiedaProject* project, int32_t component_id, const char* what);
+int32_t sieda_set_channel_fitted(SiedaProject* project, int32_t component_id, int32_t fitted);
+/* Helper sheets: an ordinary child sheet of a block that every channel gets a copy of. Adds one below `parent` (a
+ * channel stands for its block); returns its id or -1. Marks / unmarks an existing child sheet; 1 on success. */
+int32_t sieda_add_helper_sheet(SiedaProject* project, const char* name, int32_t parent);
+int32_t sieda_set_helper_sheet(SiedaProject* project, int32_t sheet, int32_t helper);
 
 #ifdef __cplusplus
 }

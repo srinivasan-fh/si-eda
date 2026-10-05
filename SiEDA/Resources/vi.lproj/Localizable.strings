@@ -18,6 +18,7 @@
 "3D Viewer" = "Trình xem 3D";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "Trang con mà mỗi kênh của khối này đều có một bản sao";
 "A class still used by a directive cannot be deleted" = "Không thể xóa lớp vẫn đang được chỉ thị sử dụng";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Nhãn bó dây mang mọi thành viên của kiểu qua các trang (cổng, lối vào trang hoặc toàn cục)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Nhãn bó dây với một lối vào cho mỗi thành viên; nối mỗi lối vào với tín hiệu của nó. Đặt cùng tên và kiểu cho cổng hoặc lối vào trang để đưa cả bó sang trang khác.";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "Bước thời gian thích ứng";
 "Add Child Sheet" = "Thêm trang con";
 "Add Ground Pours" = "Thêm vùng đổ đồng GND";
+"Add Helper Sheet" = "Thêm trang phụ trợ";
 "Add Kit to Library" = "Thêm bộ kit vào thư viện";
 "Add Mesh" = "Thêm lưới";
 "Add Missing Entries" = "Thêm lối vào còn thiếu";
@@ -97,6 +99,7 @@
 "Attach" = "Gắn";
 "Attach SPICE Model…" = "Gắn mô hình SPICE…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "Gắn mô hình VRML (.wrl), STL hoặc OBJ và căn theo footprint";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "Gắn mô hình cho kênh này của trang lặp; các kênh khác giữ mô hình của chúng";
 "Audience (optional)" = "Đối tượng (tùy chọn)";
 "Auto" = "Tự động";
 "Auto (fits the drawing)" = "Tự động (vừa bản vẽ)";
@@ -337,6 +340,7 @@
 "Fit Board to Components" = "Khớp bo mạch với linh kiện";
 "Fits every pin" = "Khớp mọi chân";
 "Fitted" = "Lắp";
+"Fitted in this channel" = "Lắp trong kênh này";
 "Fitted to Entries" = "Vừa với các entry";
 "Fix Duplicates Only" = "Chỉ sửa trùng lặp";
 "Flicker (1/f)" = "Nhấp nháy (1/f)";
@@ -422,6 +426,7 @@
 "Layer" = "Lớp";
 "Layer separation (exploded view)" = "Khoảng cách lớp (dạng tách rời)";
 "Layers" = "Lớp";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "Không lắp linh kiện (DNP) chỉ trong kênh này; các kênh khác giữ nguyên";
 "Length" = "Chiều dài";
 "Library" = "Thư viện";
 "Lifecycle" = "Vòng đời";
@@ -669,6 +674,7 @@
 "Renumber" = "Đánh số lại";
 "Repeat Sheet" = "Lặp lại trang";
 "Repeat Sheet…" = "Lặp lại trang…";
+"Repeat With Its Block" = "Lặp cùng khối của nó";
 "Replace All" = "Thay tất cả";
 "Replace with" = "Thay bằng";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "Thay văn bản trong giá trị linh kiện và tên nhãn net trên mọi trang (ký hiệu: dùng Đánh số)";
@@ -860,6 +866,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "Hai cổng đổi chỗ trong vỏ linh kiện; ký hiệu và dây giữ nguyên";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Net bị nhiễu nằm ở lớp kề, phía trên hoặc dưới net gây nhiễu";
 "Thermal" = "Nhiệt";
+"This channel has its own SPICE model" = "Kênh này có mô hình SPICE riêng";
+"This channel has its own firmware" = "Kênh này có firmware riêng";
+"This channel only" = "Chỉ kênh này";
 "Through" = "Xuyên";
 "Title" = "Tiêu đề";
 "Total jitter" = "Tổng jitter";
@@ -891,6 +900,7 @@
 "Update PCB" = "Cập nhật PCB";
 "Upload .hex…" = "Tải lên .hex…";
 "Use Block Value" = "Dùng giá trị khối";
+"Use Block's" = "Dùng của khối";
 "Use the generated body again" = "Dùng lại thân được tạo";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Dùng trang này làm nhiều kênh giống nhau (1 đến 64). Mỗi kênh có ký hiệu, net và ký hiệu trang riêng; sửa một kênh là sửa tất cả.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, như thư viện KiCad cung cấp), STL hoặc OBJ. Không đọc được tệp STEP: hãy dùng .wrl bên cạnh.";

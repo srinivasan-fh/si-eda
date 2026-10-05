@@ -112,6 +112,62 @@ extension DesignStore {
         }
     }
 
+    // MARK: - Helper sheets and per-channel parameters
+
+    /// Adds a helper sheet below a block (every channel gets a copy) and shows it.
+    @discardableResult
+    func addHelperSheet(parent: Int) -> Int? {
+        var id: Int?
+        let title = nextSheetName
+        performChecked("Added helper sheet \(title)", invalidatesAnalysis: false, failureMessage: "The helper sheet could not be added") {
+            id = $0.addHelperSheet(title, parent: parent)
+            if let id { $0.setActiveSheet(id) }
+            return id != nil
+        }
+        return id
+    }
+
+    func setHelperSheet(_ id: Int, _ helper: Bool) {
+        guard let sheet = snapshot.sheet(id), (sheet.helper ?? false) != helper else { return }
+        performChecked(helper ? "\(sheet.name) repeats with its block" : "\(sheet.name) is an ordinary child sheet",
+                       invalidatesAnalysis: false, failureMessage: "The sheet's block is repeated: its channels hold copies of it") {
+            $0.setHelperSheet(id, helper)
+        }
+    }
+
+    /// Fitted or DNP in this channel only; one undo step.
+    func setChannelFitted(_ id: Int, _ fitted: Bool) {
+        guard let c = snapshot.component(id) else { return }
+        performChecked(fitted ? "\(c.displayRef) fitted in this channel" : "\(c.displayRef) not fitted in this channel") {
+            $0.setChannelFitted(id, fitted)
+        }
+    }
+
+    /// One per-channel parameter back to the block's ("value", "package", "spice", "firmware").
+    func clearChannelOverride(_ id: Int, _ what: String) {
+        guard let c = snapshot.component(id) else { return }
+        performChecked("\(c.displayRef) takes the block's \(what)") { $0.clearChannelOverride(id, what) }
+    }
+
+    /// This channel's own SPICE model; undoable, refused with the core's reason.
+    @discardableResult
+    func setChannelSpiceModel(_ id: Int, text: String, model: String, pins: String) -> Bool {
+        guard let c = snapshot.component(id) else { return false }
+        var failure: Error?
+        let ok = performChecked("\(c.displayRef): SPICE model \(model) in this channel",
+                                failureMessage: "\(c.displayRef): SPICE model not attached") { engine in
+            do {
+                try engine.setChannelSpiceModel(id, text: text, model: model, pins: pins)
+                return true
+            } catch {
+                failure = error
+                return false
+            }
+        }
+        if let failure { present(failure, title: "Could not attach the SPICE model") }
+        return ok
+    }
+
     /// Sets the drawn size of a sheet's sheet symbol (0 × 0 = fitted to its entries); one undo step.
     func setSheetSymbolSize(_ id: Int, width: Double, height: Double) {
         guard let sheet = snapshot.sheet(id), sheet.symbolWidth != width || sheet.symbolHeight != height else { return }

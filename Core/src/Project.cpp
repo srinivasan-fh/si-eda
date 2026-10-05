@@ -152,6 +152,7 @@ Json sheetsJson(const Schematic& sch) {
         if (!s.channel.empty()) j["channel"] = s.channel;
         if (s.refs != InstanceRefs::SheetNumber) j["refs"] = instanceRefsName(s.refs);
         if (!s.size.empty()) j["size"] = s.size;
+        if (s.helper) j["helper"] = true;
         if (s.symbolWidth > 0 || s.symbolHeight > 0) {
             Json box = Json::array();
             box.push(s.symbolWidth);
@@ -793,7 +794,7 @@ Project Project::fromJson(const Json& root) {
         c.logicalRef = j.get("logicalRef").asString("");
         c.bus = c.kind == ComponentKind::NetLabel ? std::max(0, j.get("bus").asInt(0)) : 0;
         c.packageOnly = c.kind == ComponentKind::Custom && j.get("packageOnly").asBool(false);
-        c.channelOverrides = std::clamp(j.get("channelOverride").asInt(0), 0, kOverrideValue | kOverridePackage);
+        c.channelOverrides = std::clamp(j.get("channelOverride").asInt(0), 0, static_cast<int>(kOverrideAll));
         if (c.kind == ComponentKind::NetLabel) {
             c.harnessType = j.get("harnessType").asString("");
             if (c.harnessType.size() > 32) c.harnessType.clear();
@@ -813,6 +814,7 @@ Project Project::fromJson(const Json& root) {
             if (!instanceRefsFromName(j.get("refs").asString("sheet"), &s.refs)) s.refs = InstanceRefs::SheetNumber;
             s.size = j.get("size").asString("");
             if (!findSheetTemplate(s.size)) s.size.clear();  // unknown template: sized to the drawing
+            s.helper = j.get("helper").asBool(false);
             const Json& box = j.get("symbolSize");
             for (int k = 0; k < 2; ++k) {
                 const double v = box[static_cast<size_t>(k)].asNumber(0);
@@ -1100,6 +1102,7 @@ Json Project::snapshot() const {
             j["template"] = sheetTemplateFor(*this, s.id).name;
             j["symbolWidth"] = s.symbolWidth;
             j["symbolHeight"] = s.symbolHeight;
+            j["helper"] = s.helper;
             Json ports = Json::array();
             for (const auto& port : schematic.sheetPorts(s.id)) ports.push(port);
             j["ports"] = ports;

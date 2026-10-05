@@ -18,6 +18,7 @@
 "3D Viewer" = "3D Viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "Isang child sheet na makakakuha ng kopya ang bawat channel ng block na ito";
 "A class still used by a directive cannot be deleted" = "Hindi mabubura ang klaseng ginagamit pa ng isang direktiba";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Dinadala ng harness label ang bawat miyembro ng uri nito sa mga sheet (port, sheet entry o global)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Harness label na may isang entry bawat miyembro; ikabit ang bawat entry sa signal nito. Bigyan ang port o sheet entry ng parehong pangalan at uri para dalhin ang bundle sa ibang sheet.";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "Adaptive na time step";
 "Add Child Sheet" = "Magdagdag ng Child Sheet";
 "Add Ground Pours" = "Magdagdag ng Ground Pour";
+"Add Helper Sheet" = "Magdagdag ng Helper Sheet";
 "Add Kit to Library" = "Idagdag ang Kit sa Library";
 "Add Mesh" = "Magdagdag ng Mesh";
 "Add Missing Entries" = "Idagdag ang Kulang na Entry";
@@ -97,6 +99,7 @@
 "Attach" = "Ikabit";
 "Attach SPICE Model…" = "Ikabit ang SPICE Model…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "Mag-attach ng VRML (.wrl), STL o OBJ model at ihanay ito sa footprint";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "Ikabit ang model sa channel na ito ng inulit na sheet; pinapanatili ng ibang channel ang sa kanila";
 "Audience (optional)" = "Audience (opsyonal)";
 "Auto" = "Awto";
 "Auto (fits the drawing)" = "Auto (kasya sa guhit)";
@@ -337,6 +340,7 @@
 "Fit Board to Components" = "Iakma ang Board sa mga Component";
 "Fits every pin" = "Tugma sa bawat pin";
 "Fitted" = "Nakakabit";
+"Fitted in this channel" = "Nakakabit sa channel na ito";
 "Fitted to Entries" = "Akma sa mga entry";
 "Fix Duplicates Only" = "Ayusin ang mga Duplicate Lamang";
 "Flicker (1/f)" = "Flicker (1/f)";
@@ -422,6 +426,7 @@
 "Layer" = "Layer";
 "Layer separation (exploded view)" = "Pagitan ng mga layer (exploded view)";
 "Layers" = "Mga Layer";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "Huwag ikabit ang piyesa (DNP) sa channel na ito lamang; pinapanatili ng ibang channel ang sa kanila";
 "Length" = "Haba";
 "Library" = "Library";
 "Lifecycle" = "Lifecycle";
@@ -669,6 +674,7 @@
 "Renumber" = "I-renumber";
 "Repeat Sheet" = "Ulitin ang Sheet";
 "Repeat Sheet…" = "Ulitin ang Sheet…";
+"Repeat With Its Block" = "Ulitin Kasama ang Block Nito";
 "Replace All" = "Palitan Lahat";
 "Replace with" = "Palitan ng";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "Pinapalitan ang teksto sa mga value ng piyesa at pangalan ng net label sa bawat sheet (designator: gamitin ang Annotate)";
@@ -860,6 +866,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "Nagpapalit ng puwesto sa package ang dalawang gate; nananatili ang mga simbolo at wire";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Ang biktima ay nasa katabing layer, sa itaas o ilalim ng aggressor";
 "Thermal" = "Thermal";
+"This channel has its own SPICE model" = "May sariling SPICE model ang channel na ito";
+"This channel has its own firmware" = "May sariling firmware ang channel na ito";
+"This channel only" = "Ang channel na ito lamang";
 "Through" = "Tagos";
 "Title" = "Pamagat";
 "Total jitter" = "Kabuuang jitter";
@@ -891,6 +900,7 @@
 "Update PCB" = "I-update ang PCB";
 "Upload .hex…" = "I-upload ang .hex…";
 "Use Block Value" = "Gamitin ang Halaga ng Block";
+"Use Block's" = "Gamitin ang sa Block";
 "Use the generated body again" = "Gamitin muli ang ginawang katawan";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Gamitin ang sheet na ito bilang ilang magkakaparehong channel (1 hanggang 64). Bawat channel ay may sariling designator, net at sheet symbol; ang pag-edit sa alinmang channel ay nag-e-edit sa lahat.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, gaya ng mga KiCad library), STL o OBJ. Hindi mabasa ang STEP file: gamitin ang .wrl sa tabi nito.";

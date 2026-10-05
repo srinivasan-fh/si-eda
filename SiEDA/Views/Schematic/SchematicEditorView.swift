@@ -331,7 +331,16 @@ struct SheetBar: View {
                         sheetName = sheet.name
                         renaming = sheet
                     }
-                    Button("Add Child Sheet") { store.addSheet(parent: sheet.id) }
+                    if sheet.isRepeated || sheet.isInstance {
+                        Button("Add Helper Sheet") { store.addHelperSheet(parent: sheet.id) }
+                            .help("A child sheet every channel of this block gets a copy of")
+                    } else {
+                        Button("Add Child Sheet") { store.addSheet(parent: sheet.id) }
+                    }
+                    if sheet.parent != 0 && !sheet.isRepeated {
+                        Toggle("Repeat With Its Block", isOn: Binding(get: { sheet.helper ?? false },
+                                                                      set: { store.setHelperSheet(sheet.id, $0) }))
+                    }
                     if sheet.parent != 0 {
                         Button("Place Sheet Symbol") { store.placeSheetSymbol(for: sheet.id) }
                     }

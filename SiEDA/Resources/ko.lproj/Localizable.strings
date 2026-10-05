@@ -18,6 +18,7 @@
 "3D Viewer" = "3D 뷰어";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "이 블록의 모든 채널이 사본을 갖는 하위 시트";
 "A class still used by a directive cannot be deleted" = "지시문이 사용 중인 클래스는 삭제할 수 없습니다";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "하네스 레이블은 해당 유형의 모든 멤버를 시트 간에 전달합니다(포트, 시트 엔트리 또는 전역)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "멤버마다 엔트리가 하나씩 있는 하네스 레이블입니다. 각 엔트리를 해당 신호에 연결하세요. 포트나 시트 엔트리에 같은 이름과 유형을 지정하면 묶음이 다른 시트로 전달됩니다.";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "적응형 시간 스텝";
 "Add Child Sheet" = "하위 시트 추가";
 "Add Ground Pours" = "그라운드 푸어 추가";
+"Add Helper Sheet" = "도우미 시트 추가";
 "Add Kit to Library" = "키트를 라이브러리에 추가";
 "Add Mesh" = "메시 추가";
 "Add Missing Entries" = "누락된 엔트리 추가";
@@ -97,6 +99,7 @@
 "Attach" = "연결";
 "Attach SPICE Model…" = "SPICE 모델 연결…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML(.wrl), STL 또는 OBJ 모델을 첨부하고 풋프린트에 맞춤";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "반복 시트의 이 채널에 모델을 연결합니다. 다른 채널은 자신의 모델을 유지합니다";
 "Audience (optional)" = "대상 (선택 사항)";
 "Auto" = "자동";
 "Auto (fits the drawing)" = "자동(도면에 맞춤)";
@@ -337,6 +340,7 @@
 "Fit Board to Components" = "보드를 부품에 맞추기";
 "Fits every pin" = "모든 핀에 맞음";
 "Fitted" = "실장";
+"Fitted in this channel" = "이 채널에 실장";
 "Fitted to Entries" = "엔트리에 맞춤";
 "Fix Duplicates Only" = "중복만 수정";
 "Flicker (1/f)" = "플리커 (1/f)";
@@ -422,6 +426,7 @@
 "Layer" = "레이어";
 "Layer separation (exploded view)" = "레이어 간격 (분해도)";
 "Layers" = "레이어";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "이 채널에서만 부품을 실장하지 않음(DNP). 다른 채널은 그대로 유지";
 "Length" = "길이";
 "Library" = "라이브러리";
 "Lifecycle" = "수명 주기";
@@ -669,6 +674,7 @@
 "Renumber" = "번호 재지정";
 "Repeat Sheet" = "시트 반복";
 "Repeat Sheet…" = "시트 반복…";
+"Repeat With Its Block" = "블록과 함께 반복";
 "Replace All" = "모두 바꾸기";
 "Replace with" = "바꿀 내용";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "모든 시트의 부품 값과 넷 레이블 이름에서 텍스트를 바꿉니다(참조 기호는 주석 사용)";
@@ -860,6 +866,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "두 게이트가 패키지 내 위치를 맞바꾸며 기호와 배선은 그대로입니다";
 "The victim runs on the adjacent layer, over or under the aggressor" = "피해 넷이 인접 레이어에서 공격 넷의 위나 아래를 지나갑니다";
 "Thermal" = "열 잡음";
+"This channel has its own SPICE model" = "이 채널에는 자체 SPICE 모델이 있습니다";
+"This channel has its own firmware" = "이 채널에는 자체 펌웨어가 있습니다";
+"This channel only" = "이 채널만";
 "Through" = "관통";
 "Title" = "제목";
 "Total jitter" = "총 지터";
@@ -891,6 +900,7 @@
 "Update PCB" = "PCB 업데이트";
 "Upload .hex…" = ".hex 업로드…";
 "Use Block Value" = "블록 값 사용";
+"Use Block's" = "블록 값 사용";
 "Use the generated body again" = "생성된 몸체를 다시 사용";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "이 시트를 여러 개의 동일한 채널(1~64)로 사용합니다. 각 채널은 고유한 참조 기호, 네트, 시트 심볼을 가지며, 한 채널을 편집하면 모든 채널이 편집됩니다.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML(KiCad 라이브러리에 포함된 .wrl), STL 또는 OBJ. STEP 파일은 읽을 수 없으니 옆의 .wrl을 사용하세요.";

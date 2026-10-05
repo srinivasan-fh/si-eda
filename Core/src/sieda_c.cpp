@@ -3352,4 +3352,64 @@ int32_t sieda_set_sheet_symbol_size(SiedaProject* project, int32_t sheet, double
     return guarded([&] { return project->project.schematic.setSheetSymbolSize(sheet, width, height) ? 1 : 0; });
 }
 
+int32_t sieda_set_channel_spice_model(SiedaProject* project, int32_t component_id, const char* text, const char* model,
+                                      const char* pins, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    auto fail = [&](const std::string& message) {
+        if (error_out) *error_out = dup(message);
+        return 0;
+    };
+    if (!project) return fail("No project.");
+    try {
+        Schematic& s = project->project.schematic;
+        if (!s.find(component_id)) return fail("Unknown component.");
+        SpiceModelRef ref;
+        if (!str(text).empty()) {
+            Json result;
+            std::string error;
+            if (!checkSpiceModel(s, component_id, str(text), str(model), str(pins), result, error)) return fail(error);
+            ref.text = result.get("text").asString("");
+            ref.model = str(model);
+            ref.pins = str(pins);
+        }
+        return s.setChannelSpiceModel(component_id, ref) ? 1 : fail("Not a part.");
+    } catch (const std::exception& e) {
+        return fail(e.what());
+    } catch (...) {
+        return fail("Internal error.");
+    }
+}
+
+int32_t sieda_set_channel_firmware(SiedaProject* project, int32_t component_id, const char* hex, const char* name,
+                                   double clock_hz) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setChannelFirmware(component_id, str(hex), str(name), clock_hz) ? 1 : 0; });
+}
+
+int32_t sieda_clear_channel_override(SiedaProject* project, int32_t component_id, const char* what) {
+    if (!project) return 0;
+    return guarded([&] {
+        return project->project.schematic.clearChannelOverride(component_id, channelOverrideBit(str(what))) ? 1 : 0;
+    });
+}
+
+int32_t sieda_set_channel_fitted(SiedaProject* project, int32_t component_id, int32_t fitted) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setChannelFitted(component_id, fitted != 0) ? 1 : 0; });
+}
+
+int32_t sieda_add_helper_sheet(SiedaProject* project, const char* name, int32_t parent) {
+    if (!project) return -1;
+    try {
+        return project->project.schematic.addHelperSheet(str(name), parent);
+    } catch (...) {
+        return -1;
+    }
+}
+
+int32_t sieda_set_helper_sheet(SiedaProject* project, int32_t sheet, int32_t helper) {
+    if (!project) return 0;
+    return guarded([&] { return project->project.schematic.setHelperSheet(sheet, helper != 0) ? 1 : 0; });
+}
+
 }  // extern "C"

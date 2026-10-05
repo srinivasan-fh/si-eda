@@ -18,6 +18,7 @@
 "3D Viewer" = "3D व्यूअर";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "एक चाइल्ड शीट जिसकी प्रति इस ब्लॉक के हर चैनल को मिलती है";
 "A class still used by a directive cannot be deleted" = "निर्देश द्वारा अभी उपयोग की जा रही क्लास हटाई नहीं जा सकती";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "हार्नेस लेबल अपने प्रकार के हर सदस्य को शीटों के पार ले जाता है (पोर्ट, शीट एंट्री या ग्लोबल)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "प्रति सदस्य एक एंट्री वाला हार्नेस लेबल; हर एंट्री को उसके सिग्नल से जोड़ें। बंडल को दूसरी शीट तक ले जाने के लिए पोर्ट या शीट एंट्री को वही नाम और प्रकार दें।";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "अनुकूली टाइम स्टेप";
 "Add Child Sheet" = "चाइल्ड शीट जोड़ें";
 "Add Ground Pours" = "ग्राउंड पोर जोड़ें";
+"Add Helper Sheet" = "हेल्पर शीट जोड़ें";
 "Add Kit to Library" = "किट को लाइब्रेरी में जोड़ें";
 "Add Mesh" = "मेश जोड़ें";
 "Add Missing Entries" = "छूटी एंट्रियाँ जोड़ें";
@@ -97,6 +99,7 @@
 "Attach" = "जोड़ें";
 "Attach SPICE Model…" = "SPICE मॉडल जोड़ें…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl), STL या OBJ मॉडल जोड़ें और उसे फ़ुटप्रिंट पर संरेखित करें";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "मॉडल को दोहराई गई शीट के इस चैनल से जोड़ें; बाकी चैनल अपना रखते हैं";
 "Audience (optional)" = "दर्शक (वैकल्पिक)";
 "Auto" = "स्वतः";
 "Auto (fits the drawing)" = "स्वचालित (ड्रॉइंग के अनुसार)";
@@ -337,6 +340,7 @@
 "Fit Board to Components" = "बोर्ड को कंपोनेंट के अनुसार फ़िट करें";
 "Fits every pin" = "हर पिन पर फ़िट";
 "Fitted" = "लगाया गया";
+"Fitted in this channel" = "इस चैनल में लगाया गया";
 "Fitted to Entries" = "एंट्री के अनुसार";
 "Fix Duplicates Only" = "केवल डुप्लिकेट ठीक करें";
 "Flicker (1/f)" = "फ़्लिकर (1/f)";
@@ -422,6 +426,7 @@
 "Layer" = "लेयर";
 "Layer separation (exploded view)" = "लेयर पृथक्करण (एक्सप्लोडेड व्यू)";
 "Layers" = "लेयर";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "केवल इस चैनल में पुर्ज़ा न लगाएँ (DNP); बाकी चैनल अपना रखते हैं";
 "Length" = "लंबाई";
 "Library" = "लाइब्रेरी";
 "Lifecycle" = "लाइफ़साइकल";
@@ -669,6 +674,7 @@
 "Renumber" = "पुनः क्रमांकित करें";
 "Repeat Sheet" = "शीट दोहराएँ";
 "Repeat Sheet…" = "शीट दोहराएँ…";
+"Repeat With Its Block" = "अपने ब्लॉक के साथ दोहराएँ";
 "Replace All" = "सभी बदलें";
 "Replace with" = "इससे बदलें";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "हर शीट पर पुर्ज़ों के मान और नेट लेबल नामों में पाठ बदलता है (संदर्भ चिह्न: एनोटेट का उपयोग करें)";
@@ -860,6 +866,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "दोनों गेट अपने पैकेज में जगह बदलते हैं; प्रतीक और तार वहीं रहते हैं";
 "The victim runs on the adjacent layer, over or under the aggressor" = "पीड़ित नेट बगल की परत पर, आक्रामक नेट के ऊपर या नीचे चलता है";
 "Thermal" = "ऊष्मीय";
+"This channel has its own SPICE model" = "इस चैनल का अपना SPICE मॉडल है";
+"This channel has its own firmware" = "इस चैनल का अपना फ़र्मवेयर है";
+"This channel only" = "केवल यह चैनल";
 "Through" = "थ्रू";
 "Title" = "शीर्षक";
 "Total jitter" = "कुल जिटर";
@@ -891,6 +900,7 @@
 "Update PCB" = "PCB अपडेट करें";
 "Upload .hex…" = ".hex अपलोड करें…";
 "Use Block Value" = "ब्लॉक मान उपयोग करें";
+"Use Block's" = "ब्लॉक वाला उपयोग करें";
 "Use the generated body again" = "फिर से बनाई गई बॉडी का उपयोग करें";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "इस शीट को कई समान चैनलों (1 से 64) के रूप में उपयोग करें। हर चैनल को अपने संदर्भ चिह्न, नेट और शीट प्रतीक मिलते हैं; किसी भी चैनल को संपादित करने से सभी संपादित होते हैं।";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, जैसा KiCad लाइब्रेरी देती है), STL या OBJ। STEP फ़ाइलें नहीं पढ़ी जा सकतीं: उनके साथ वाली .wrl उपयोग करें।";

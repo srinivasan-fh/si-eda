@@ -369,6 +369,42 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_clear_channel_overrides($0, Int32(id)) } == 1
     }
 
+    /// One per-channel parameter ("value", "package", "spice", "firmware") back to the block's.
+    @discardableResult
+    func clearChannelOverride(_ id: Int, _ what: String) -> Bool {
+        withHandle { sieda_clear_channel_override($0, Int32(id), what) } == 1
+    }
+
+    /// Fitted or DNP in this channel only.
+    @discardableResult
+    func setChannelFitted(_ id: Int, _ fitted: Bool) -> Bool {
+        withHandle { sieda_set_channel_fitted($0, Int32(id), fitted ? 1 : 0) } == 1
+    }
+
+    /// This channel's own SPICE model (checked like setSpiceModel; an empty `text` = no model in this channel).
+    func setChannelSpiceModel(_ id: Int, text: String, model: String, pins: String) throws {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let ok = withHandle { sieda_set_channel_spice_model($0, Int32(id), text, model, pins, &errorPointer) } == 1
+        if !ok { throw EDAEngineError.operationFailed(Self.take(errorPointer) ?? "The model could not be attached.") }
+    }
+
+    /// This channel's own firmware (an empty `hex` = none in this channel).
+    @discardableResult
+    func setChannelFirmware(_ id: Int, hex: String, name: String, clockHz: Double) -> Bool {
+        withHandle { sieda_set_channel_firmware($0, Int32(id), hex, name, clockHz) } == 1
+    }
+
+    /// A helper sheet below `parent` (a channel stands for its block): every channel gets a copy. Nil when refused.
+    func addHelperSheet(_ name: String, parent: Int) -> Int? {
+        let id = withHandle { sieda_add_helper_sheet($0, name, Int32(parent)) }
+        return id > 0 ? Int(id) : nil
+    }
+
+    @discardableResult
+    func setHelperSheet(_ id: Int, _ helper: Bool) -> Bool {
+        withHandle { sieda_set_helper_sheet($0, Int32(id), helper ? 1 : 0) } == 1
+    }
+
     // MARK: - Schematic directives
 
     private static func json(_ object: [String: Any]) -> String {

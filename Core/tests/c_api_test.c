@@ -1123,3 +1123,30 @@ int sieda_c_api_sheet_symbol_size_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Helper sheets and per-channel parameters through the C API. Returns 0 or the failing step. */
+int sieda_c_api_helper_sheets_test(void) {
+    SiedaProject* p = sieda_project_new("Helpers");
+    if (!p) return 1;
+    int32_t block = sieda_add_sheet(p, "Block", 1);
+    if (block <= 0) return 2;
+    sieda_set_active_sheet(p, block);
+    int32_t r = sieda_add_component(p, 0, "1k", 0, 0, 0, NULL);
+    if (r < 0) return 3;
+    int32_t helper = sieda_add_helper_sheet(p, "Helper", block);
+    if (helper <= 0 || sieda_add_helper_sheet(NULL, "X", block) != -1 || sieda_add_helper_sheet(p, "", block) != -1) return 4;
+    if (sieda_repeat_sheet(p, block, 2) != 2) return 5;
+    if (sieda_set_helper_sheet(p, helper, 0) != 0 || sieda_set_helper_sheet(p, 999, 1) != 0) return 6;
+    if (sieda_set_channel_fitted(p, r, 0) != 1 || sieda_set_channel_fitted(p, 9999, 0) != 0) return 7;
+    if (sieda_set_channel_firmware(p, r, "", "", 0) != 1) return 8;
+    if (sieda_clear_channel_override(p, r, "spice") != 1 || sieda_clear_channel_override(p, r, "bogus") != 0) return 9;
+    char* err = NULL;
+    if (sieda_set_channel_spice_model(p, r, "", "", "", &err) != 1 || err) return 10;
+    if (sieda_set_channel_spice_model(p, 9999, "", "", "", &err) != 0 || !err) return 11;
+    sieda_string_free(err);
+    char* json = sieda_project_save_json(p);
+    if (!json || !strstr(json, "helper")) return 12;
+    sieda_string_free(json);
+    sieda_project_free(p);
+    return 0;
+}

@@ -14226,3 +14226,164 @@ TEST(c_api_sheet_symbol_size) {
     if (rc != 0) std::printf("    C API sheet symbol size test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+// ======================================================================= helper sheets, more per-channel parameters
+
+TEST(helper_sheets_inside_repeated_blocks) {
+    Project p;
+    Schematic& s = p.schematic;
+    DividerBlock b = dividerBlock(s);
+    // A plain child sheet still keeps its parent from being repeated; a helper sheet does not.
+    const int plain = s.addSheet("Plain", b.sheet);
+    CHECK(plain > 0 && s.repeatSheet(b.sheet, 2) == -1);
+    CHECK(s.setHelperSheet(plain, true) && s.findSheet(plain)->helper);
+    CHECK(s.setHelperSheet(plain, false) && s.removeSheet(plain, true));
+    const int bias = s.addHelperSheet("Bias", b.sheet);
+    CHECK(bias > 0 && s.findSheet(bias)->helper && s.addHelperSheet("Bias", b.sheet) == -1 && s.addHelperSheet("X", 0) == -1);
+    s.setActiveSheet(bias);
+    const int vb = s.addComponent(ComponentKind::NetLabel, "VB", {0, 0});
+    const int rb = s.addComponent(ComponentKind::Resistor, "47k", {80, 0});
+    CHECK(s.setLabelScope(vb, LabelScope::Port));
+    wire(s, vb, "N", rb, "1");
+    s.setActiveSheet(b.sheet);
+    CHECK(s.placeSheetEntries(bias, {0, 200}) == 1);
+    CHECK(s.repeatSheet(b.sheet, 3) == 3);
+    const auto channels = s.sheetInstances(b.sheet);
+    const auto biases = s.sheetInstances(bias);
+    CHECK(channels.size() == 3 && biases.size() == 3);
+    if (channels.size() != 3 || biases.size() != 3) return;
+    // One Bias per channel, below it; its part has a designator and a net of its own in every channel.
+    std::set<int> parents, nets;
+    std::set<std::string> refs;
+    for (int sh : biases) {
+        parents.insert(s.findSheet(sh)->parent);
+        const int copy = s.copyOn(rb, sh);
+        CHECK(copy > 0);
+        if (copy <= 0) continue;
+        refs.insert(s.find(copy)->ref);
+        nets.insert(s.netOf({copy, 0}));
+    }
+    CHECK(parents == std::set<int>(channels.begin(), channels.end()));
+    CHECK(refs.size() == 3 && nets.size() == 3 && !nets.count(-1));
+    CHECK(s.channelCount(bias) == 1 && instancesConsistent(s));
+    // The sheet entry on channel B leads into channel B's Bias.
+    int entries = 0;
+    for (const auto& c : s.components())
+        if (c.sheet == channels[1] && c.scope == LabelScope::SheetEntry) {
+            ++entries;
+            CHECK(s.findSheet(c.targetSheet) && s.findSheet(c.targetSheet)->parent == channels[1]);
+        }
+    CHECK(entries == 1);
+    // A helper added later (from a channel) reaches every channel; it cannot be made ordinary while repeated.
+    const int ref = s.addHelperSheet("Reference", channels[2]);
+    CHECK(ref > 0 && s.findSheet(ref)->parent == b.sheet && s.sheetInstances(ref).size() == 3);
+    CHECK(!s.setHelperSheet(bias, false));
+    // Files keep helpers; a reload is identical.
+    const std::string saved = p.toJson().dump();
+    CHECK(saved.find("\"helper\":true") != std::string::npos);
+    const Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.toJson().dump() == saved && q.schematic.sheetInstances(bias).size() == 3);
+    // Back to one channel: the copies go, the helper stays.
+    CHECK(s.repeatSheet(b.sheet, 1) == 1 && s.findSheet(bias) && !s.isRepeated(bias) && s.findSheet(bias)->helper);
+    CHECK(instancesConsistent(s));
+}
+
+TEST(per_channel_spice_firmware_and_fitting) {
+    Project p;
+    Schematic& s = p.schematic;
+    DividerBlock b = dividerBlock(s);
+    CHECK(s.repeatSheet(b.sheet, 3) == 3);
+    const auto channels = s.sheetInstances(b.sheet);
+    if (channels.size() != 3) return;
+    const int cb = s.copyOn(b.r1, channels[1]), cc = s.copyOn(b.r1, channels[2]);
+    CHECK(cb > 0 && cc > 0);
+    CHECK(channelOverrideBit("spice") == kOverrideSpice && channelOverrideBit("x") == 0);
+    SpiceModelRef m;
+    m.text = ".model RX R(R=1)";
+    m.model = "RX";
+    // Channel B's own model: it survives syncing; the block and channel C keep none.
+    CHECK(s.setChannelSpiceModel(cb, m));
+    CHECK(s.setValue(b.r1, "22k"));  // an edit of the block syncs the channels
+    CHECK(s.find(cb)->spice.model == "RX" && s.find(cc)->spice.empty() && s.find(b.r1)->spice.empty());
+    CHECK((s.find(cb)->channelOverrides & kOverrideSpice) && s.find(cb)->value == "22k");
+    // The block's own model: channel B keeps its own, C takes the block's.
+    SpiceModelRef blockModel = m;
+    blockModel.model = "RB";
+    CHECK(s.setChannelSpiceModel(b.r1, blockModel));
+    CHECK(s.find(cc)->spice.model == "RB" || (s.find(cc)->channelOverrides & kOverrideSpice));
+    CHECK(s.find(cb)->spice.model == "RX");
+    CHECK(s.clearChannelOverride(cb, kOverrideSpice) && s.find(cb)->spice.model == s.find(b.r1)->spice.model);
+    CHECK(!s.clearChannelOverride(cb, 64));
+    // Firmware per channel.
+    CHECK(s.setChannelFirmware(cc, ":00000001FF", "blink", 8e6));
+    CHECK(s.setValue(b.r1, "10k") && s.find(cc)->firmwareName == "blink" && s.find(cb)->firmware.empty());
+    // DNP in one channel only, kept through edits and files.
+    CHECK(s.setChannelFitted(cb, false) && s.setValue(b.r1, "12k"));
+    CHECK(s.find(cb)->sourcing.dnp && !s.find(cc)->sourcing.dnp && !s.find(b.r1)->sourcing.dnp);
+    CHECK(!s.setChannelFitted(b.in, false));  // a label is never fitted
+    const std::string saved = p.toJson().dump();
+    const Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.toJson().dump() == saved);
+    CHECK(q.schematic.find(cc)->firmwareName == "blink" && q.schematic.find(cb)->sourcing.dnp);
+    CHECK((q.schematic.find(cc)->channelOverrides & kOverrideFirmware) != 0);
+    // Outside a repeated sheet these are the part's own settings.
+    s.setActiveSheet(1);
+    const int lone = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    CHECK(s.setChannelSpiceModel(lone, m) && s.find(lone)->spice.model == "RX" && s.find(lone)->channelOverrides == 0);
+}
+
+extern "C" int sieda_c_api_helper_sheets_test(void);
+TEST(c_api_helper_sheets_and_channel_parameters) {
+    const int rc = sieda_c_api_helper_sheets_test();
+    if (rc != 0) std::printf("    C API helper sheets test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}
+
+TEST(helper_sheets_and_channel_overrides_fuzzed) {
+    Project p;
+    Schematic& s = p.schematic;
+    DividerBlock b = dividerBlock(s);
+    const int bias = s.addHelperSheet("Bias", b.sheet);
+    s.setActiveSheet(bias);
+    s.addComponent(ComponentKind::Resistor, "47k", {80, 0});
+    CHECK(s.repeatSheet(b.sheet, 3) == 3);
+    const Json base = p.toJson();
+    uint32_t seed = 99u;
+    auto rng = [&seed] {
+        seed = seed * 1664525u + 1013904223u;
+        return seed >> 8;
+    };
+    for (int round = 0; round < 200; ++round) {
+        Json j = Json::object();
+        for (const auto& [k, v] : base.fields()) {
+            if (k == "sheets") {
+                Json sheets = Json::array();
+                for (const auto& sj : v.items()) {
+                    Json copy = sj;
+                    if (rng() % 3 == 0) copy["helper"] = rng() % 4 ? Json(rng() % 2 == 0) : Json("yes");
+                    if (rng() % 7 == 0) copy["parent"] = static_cast<int>(rng() % 6);
+                    sheets.push(copy);
+                }
+                j[k] = sheets;
+            } else if (k == "components") {
+                Json comps = Json::array();
+                for (const auto& cj : v.items()) {
+                    Json copy = cj;
+                    if (rng() % 3 == 0) copy["channelOverride"] = static_cast<int>(rng() % 40) - 5;
+                    comps.push(copy);
+                }
+                j[k] = comps;
+            } else {
+                j[k] = v;
+            }
+        }
+        try {
+            Project q = Project::fromJson(j);
+            const std::string once = q.toJson().dump();
+            CHECK(Project::fromJson(Json::parse(once)).toJson().dump() == once);
+            CHECK(instancesConsistent(q.schematic));
+            for (const auto& c : q.schematic.components()) CHECK(c.channelOverrides >= 0 && c.channelOverrides <= kOverrideAll);
+        } catch (const JsonError&) {
+        }
+    }
+}

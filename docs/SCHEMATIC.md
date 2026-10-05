@@ -97,8 +97,14 @@ the block's tab → **Repeat Sheet…** and enter the number of channels (1 to 6
   its own Stage channels. Designators follow the channel path: *With Channel Suffix* gives `R1_B_A` (outer channel
   first); *By Sheet Number* numbers each channel's sheet. Changing the Stage count changes it in every Amp channel;
   renaming a Stage channel renames it in every Amp channel. Up to 1024 sheets in a design.
-- An ordinary sheet (not repeated) cannot sit inside a repeated block, and no child sheet can be added under one —
-  repeat the inner sheet first, or end the outer repetition to restructure. A nested block's channels cannot be
+- **Helper sheets** (ordinary child sheets inside a block): right-click a repeated block's tab (or any channel's) ▸
+  **Add Helper Sheet** adds a child sheet that every channel gets its own copy of (`Bias [B]`, with its own
+  designators and nets, and the channel's sheet entries leading into its own copy) — a nested block of one channel.
+  Before repeating, a child sheet is marked with right-click ▸ **Repeat With Its Block**; a plain child sheet (not
+  marked) still keeps its parent from being repeated, and **Add Child Sheet** is not offered on a repeated block.
+  The mark is saved as the sheet's `"helper": true`; it cannot be removed while the block is repeated. C API
+  `sieda_add_helper_sheet`, `sieda_set_helper_sheet`.
+- A nested block's channels cannot be
   deleted or moved on their own (change the repeat count). Parts moved onto a channel join the block; parts of a
   channel cannot be moved out of it (move them on the block's own sheet).
 - **Per-channel parameters**: select a part on any channel; the inspector's **Channel value** sets the value of that
@@ -107,6 +113,13 @@ the block's tab → **Repeat Sheet…** and enter the number of channels (1 to 6
   block's own sheet (channel A) keeps the other channels' current values. The core also keeps a per-channel package
   (`sieda_set_channel_package`). The netlist, ERC, BOM, simulation and board all see each channel's own value —
   the copies are real parts.
+- **More per-channel parameters**: **Fitted in this channel** (inspector) leaves the part off (DNP) in that channel
+  only — BOM sourcing (manufacturer, MPN, supplier part, price, DNP) was always per channel. The SPICE model sheet's
+  **This channel only** attaches an imported model to one channel; per-channel firmware is in the C API
+  (`sieda_set_channel_firmware`). The inspector shows which parameters a channel has of its own, each with
+  **Use Block's**. Saved in the copy's `channelOverride` bits (1 value, 2 package, 4 SPICE model, 8 firmware);
+  an older SiEDA reads bits 4 and 8 as unknown and drops them (the channel then takes the block's model). C API
+  `sieda_set_channel_spice_model`, `sieda_clear_channel_override`, `sieda_set_channel_fitted`.
 
 ## Electrical rule checks across sheets
 
@@ -379,7 +392,7 @@ New project fields (all optional when reading):
 
 Further optional fields (written only when used, so other designs' files are unchanged): sheets `instanceOf`,
 `channel`, `refs` (a nested block's channels have a channel sheet as `parent`); components `instanceOf`,
-`logicalRef`, `channelOverride` (1 value, 2 package: the copy keeps its own), `bus`, `unitOf` / `unit` (kind 20, a placed unit) and
+`logicalRef`, `channelOverride` (1 value, 2 package, 4 SPICE model, 8 firmware: the copy keeps its own), `bus`, `unitOf` / `unit` (kind 20, a placed unit) and
 `packageOnly`, `harnessType` / `harnessOf` (net labels); wires `instanceOf`; top-level `buses`, `harnessTypes`
 (`[{"name","entries"}]`), `netClassDefs` (`[{"name","trackWidth"?,"clearance"?}]`), `directives`
 (`[{"id","component","pin","netClass"?,"diffPair"?,"trackWidth"?,"clearance"?}]`) and `titleBlock`; board
@@ -445,6 +458,13 @@ int32_t sieda_set_erc_severity(SiedaProject*, const char* code, const char* leve
 char*   sieda_pcb_eco_preview(const SiedaProject*);               /* [{section,action,object,detail,key,applicable,note}] */
 char*   sieda_apply_pcb_eco(SiedaProject*, const char* keys_json); /* NULL = all; {"executed","report"} */
 int32_t sieda_set_sheet_symbol_size(SiedaProject*, int32_t sheet, double width, double height); /* 0, 0 = fitted */
+int32_t sieda_set_channel_spice_model(SiedaProject*, int32_t component, const char* text, const char* model,
+                                      const char* pins, char** error_out);
+int32_t sieda_set_channel_firmware(SiedaProject*, int32_t component, const char* hex, const char* name, double clock_hz);
+int32_t sieda_clear_channel_override(SiedaProject*, int32_t component, const char* what); /* value|package|spice|firmware */
+int32_t sieda_set_channel_fitted(SiedaProject*, int32_t component, int32_t fitted);
+int32_t sieda_add_helper_sheet(SiedaProject*, const char* name, int32_t parent);
+int32_t sieda_set_helper_sheet(SiedaProject*, int32_t sheet, int32_t helper);
 ```
 
 Sheets, hierarchy, bus labels, annotation and variants:
@@ -480,9 +500,10 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
 
 ## Limits
 
-- Nested repetition needs every sheet inside a repeated block to be repeated itself (an ordinary helper sheet inside
-  a channel is not supported); a design holds at most 1024 sheets. Per-channel parameters cover value and package;
-  other properties (SPICE model, firmware, symbol) are the block's.
+- A plain child sheet inside a block must be marked as a helper (or repeated) before the block is repeated; a
+  design holds at most 1024 sheets. Per-channel parameters cover value, package, SPICE model, firmware and BOM
+  sourcing / DNP; the symbol, pins, wiring and footprint geometry are the block's. Per-channel firmware has no
+  inspector control yet (C API only).
 - A bus line has no electrical meaning of its own: members connect through their entries' names. Buses are not
   shown in the PCB editor (their members are ordinary nets there).
 - Variants affect the assembly outputs and simulation, not ERC, verification or the board.

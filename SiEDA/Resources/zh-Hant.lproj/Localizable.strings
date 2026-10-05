@@ -18,6 +18,7 @@
 "3D Viewer" = "3D 檢視器";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "此區塊的每個通道都會取得一份副本的子圖紙";
 "A class still used by a directive cannot be deleted" = "仍被指令使用的類別無法刪除";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "線束標籤會將其類型的每個成員帶過各圖頁（連接埠、圖頁入口或全域）";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "每個成員一個入口的線束標籤；將每個入口連到其訊號。給連接埠或圖頁入口相同的名稱與類型，即可把整束訊號帶到另一圖頁。";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "自適應時間步長";
 "Add Child Sheet" = "新增子圖紙";
 "Add Ground Pours" = "加入接地鋪銅";
+"Add Helper Sheet" = "新增輔助圖紙";
 "Add Kit to Library" = "將套件加入元件庫";
 "Add Mesh" = "加入網格";
 "Add Missing Entries" = "新增缺少的入口";
@@ -97,6 +99,7 @@
 "Attach" = "附加";
 "Attach SPICE Model…" = "附加 SPICE 模型…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "附加 VRML (.wrl)、STL 或 OBJ 模型並對齊封裝";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "將模型附加到重複圖紙的此通道；其他通道保留各自的模型";
 "Audience (optional)" = "受眾 (選填)";
 "Auto" = "自動";
 "Auto (fits the drawing)" = "自動（配合圖面）";
@@ -337,6 +340,7 @@
 "Fit Board to Components" = "使電路板貼合元件";
 "Fits every pin" = "符合每個接腳";
 "Fitted" = "安裝";
+"Fitted in this channel" = "在此通道中安裝";
 "Fitted to Entries" = "配合入口";
 "Fix Duplicates Only" = "僅修正重複項目";
 "Flicker (1/f)" = "閃爍雜訊 (1/f)";
@@ -422,6 +426,7 @@
 "Layer" = "層";
 "Layer separation (exploded view)" = "層間距 (爆炸視圖)";
 "Layers" = "層";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "僅在此通道中不安裝此零件 (DNP)；其他通道保持不變";
 "Length" = "長度";
 "Library" = "元件庫";
 "Lifecycle" = "生命週期";
@@ -669,6 +674,7 @@
 "Renumber" = "重新編號";
 "Repeat Sheet" = "重複圖頁";
 "Repeat Sheet…" = "重複圖頁…";
+"Repeat With Its Block" = "隨其區塊重複";
 "Replace All" = "全部取代";
 "Replace with" = "取代為";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "在所有圖頁取代元件值與網路標籤名稱中的文字（參考編號請用自動編號）";
@@ -860,6 +866,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "兩個閘在封裝中互換位置；符號與導線不變";
 "The victim runs on the adjacent layer, over or under the aggressor" = "受害網路在相鄰層上，位於干擾網路的上方或下方";
 "Thermal" = "熱雜訊";
+"This channel has its own SPICE model" = "此通道有自己的 SPICE 模型";
+"This channel has its own firmware" = "此通道有自己的韌體";
+"This channel only" = "僅此通道";
 "Through" = "通孔";
 "Title" = "標題";
 "Total jitter" = "總抖動";
@@ -891,6 +900,7 @@
 "Update PCB" = "更新 PCB";
 "Upload .hex…" = "上傳 .hex…";
 "Use Block Value" = "使用區塊值";
+"Use Block's" = "使用區塊的";
 "Use the generated body again" = "改回使用自動產生的本體";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "將此圖頁用作多個相同的通道 (1 至 64)。每個通道有自己的參考編號、網路和圖頁符號；編輯任一通道即編輯全部。";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML（.wrl，KiCad 元件庫所附）、STL 或 OBJ。無法讀取 STEP 檔：請改用旁邊的 .wrl。";

@@ -18,6 +18,7 @@
 "3D Viewer" = "3D ভিউৱাৰ";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "এই ব্লকৰ প্ৰতিটো চেনেলে প্ৰতিলিপি পোৱা এখন চাইল্ড শ্বীট";
 "A class still used by a directive cannot be deleted" = "নিৰ্দেশে এতিয়াও ব্যৱহাৰ কৰা শ্ৰেণী মচিব নোৱাৰি";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "হাৰ্নেছ লেবেলে ইয়াৰ প্ৰকাৰৰ প্ৰতিটো সদস্য শ্বীটৰ মাজেৰে লৈ যায় (প'ৰ্ট, শ্বীট এণ্ট্ৰি বা গ্ল'বেল)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "প্ৰতি সদস্যৰ বাবে এটা এণ্ট্ৰি থকা হাৰ্নেছ লেবেল; প্ৰতিটো এণ্ট্ৰি ইয়াৰ সংকেতৰ সৈতে সংযোগ কৰক। বাণ্ডল আন শ্বীটলৈ নিবলৈ প'ৰ্ট বা শ্বীট এণ্ট্ৰিক একে নাম আৰু প্ৰকাৰ দিয়ক।";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "অভিযোজিত সময় পদক্ষেপ";
 "Add Child Sheet" = "চাইল্ড শ্বীট যোগ কৰক";
 "Add Ground Pours" = "গ্ৰাউণ্ড প'ৰ যোগ কৰক";
+"Add Helper Sheet" = "সহায়ক শ্বীট যোগ কৰক";
 "Add Kit to Library" = "কিট লাইব্ৰেৰীত যোগ কৰক";
 "Add Mesh" = "মেশ্ব যোগ কৰক";
 "Add Missing Entries" = "নথকা এণ্ট্ৰি যোগ কৰক";
@@ -97,6 +99,7 @@
 "Attach" = "সংলগ্ন কৰক";
 "Attach SPICE Model…" = "SPICE মডেল সংলগ্ন কৰক…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl), STL বা OBJ মডেল সংলগ্ন কৰি ফুটপ্ৰিণ্টত মিলাওক";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "মডেলটো পুনৰাবৃত্ত শ্বীটৰ এই চেনেলত সংলগ্ন কৰক; আন চেনেলে নিজৰটো ৰাখে";
 "Audience (optional)" = "দৰ্শক (ঐচ্ছিক)";
 "Auto" = "স্বয়ংক্ৰিয়";
 "Auto (fits the drawing)" = "স্বয়ংক্ৰিয় (অংকনৰ লগত মিলে)";
@@ -337,6 +340,7 @@
 "Fit Board to Components" = "বোৰ্ড কম্পোনেণ্ট অনুসৰি ফিট কৰক";
 "Fits every pin" = "প্ৰতিটো পিনৰ সৈতে মিলে";
 "Fitted" = "লগোৱা";
+"Fitted in this channel" = "এই চেনেলত লগোৱা";
 "Fitted to Entries" = "এণ্ট্ৰীৰ লগত মিলোৱা";
 "Fix Duplicates Only" = "কেৱল ডুপ্লিকেট শুধৰাওক";
 "Flicker (1/f)" = "ফ্লিকাৰ (1/f)";
@@ -422,6 +426,7 @@
 "Layer" = "লেয়াৰ";
 "Layer separation (exploded view)" = "লেয়াৰৰ ব্যৱধান (এক্সপ্ল'ডেড ভিউ)";
 "Layers" = "লেয়াৰ";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "কেৱল এই চেনেলত অংশটো নলগাব (DNP); আন চেনেলে নিজৰটো ৰাখে";
 "Length" = "দৈৰ্ঘ্য";
 "Library" = "লাইব্ৰেৰী";
 "Lifecycle" = "লাইফচাইকেল";
@@ -669,6 +674,7 @@
 "Renumber" = "পুনৰ নম্বৰ দিয়ক";
 "Repeat Sheet" = "পাত পুনৰাবৃত্তি কৰক";
 "Repeat Sheet…" = "পাত পুনৰাবৃত্তি কৰক…";
+"Repeat With Its Block" = "নিজৰ ব্লকৰ সৈতে পুনৰাবৃত্তি";
 "Replace All" = "সকলো সলনি কৰক";
 "Replace with" = "ইয়াৰে সলনি কৰক";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "সকলো পাতত অংশৰ মান আৰু নেট লেবেলৰ নামত পাঠ সলনি কৰে (নিৰ্দেশক: এনোটেট ব্যৱহাৰ কৰক)";
@@ -860,6 +866,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "দুয়োটা গেটে পেকেজত স্থান সলনি কৰে; চিহ্ন আৰু তাঁৰ একে থাকে";
 "The victim runs on the adjacent layer, over or under the aggressor" = "ভুক্তভোগী নেটটো কাষৰ স্তৰত, আক্ৰমণকাৰীৰ ওপৰত বা তলত চলে";
 "Thermal" = "তাপীয়";
+"This channel has its own SPICE model" = "এই চেনেলৰ নিজা SPICE মডেল আছে";
+"This channel has its own firmware" = "এই চেনেলৰ নিজা ফাৰ্মৱেৰ আছে";
+"This channel only" = "কেৱল এই চেনেল";
 "Through" = "আৰপাৰ";
 "Title" = "শিৰোনাম";
 "Total jitter" = "মুঠ জিটাৰ";
@@ -891,6 +900,7 @@
 "Update PCB" = "PCB আপডেট কৰক";
 "Upload .hex…" = ".hex আপল'ড কৰক…";
 "Use Block Value" = "ব্লকৰ মান ব্যৱহাৰ কৰক";
+"Use Block's" = "ব্লকৰটো ব্যৱহাৰ কৰক";
 "Use the generated body again" = "পুনৰ সৃষ্টি কৰা বডি ব্যৱহাৰ কৰক";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "এই পাতখন কেইবাটাও একে চেনেল (১ৰ পৰা ৬৪) হিচাপে ব্যৱহাৰ কৰক। প্ৰতিটো চেনেলে নিজা নিৰ্দেশক, নেট আৰু পাত চিহ্ন পায়; যিকোনো চেনেল সম্পাদনা কৰিলে সকলো সম্পাদিত হয়।";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (KiCad লাইব্ৰেৰীয়ে দিয়া .wrl), STL বা OBJ। STEP ফাইল পঢ়িব নোৱাৰি: কাষৰ .wrl ব্যৱহাৰ কৰক।";

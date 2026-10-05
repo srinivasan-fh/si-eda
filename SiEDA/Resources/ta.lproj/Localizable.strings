@@ -18,6 +18,7 @@
 "3D Viewer" = "3D வியூவர்";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "இந்தத் தொகுதியின் ஒவ்வொரு சேனலும் நகலைப் பெறும் துணைத் தாள்";
 "A class still used by a directive cannot be deleted" = "ஒரு கட்டளை இன்னும் பயன்படுத்தும் வகுப்பை நீக்க முடியாது";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "ஹார்னஸ் லேபிள் அதன் வகையின் ஒவ்வொரு உறுப்பினரையும் தாள்களுக்கு இடையே கொண்டு செல்லும் (போர்ட், தாள் நுழைவு அல்லது குளோபல்)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "ஒவ்வொரு உறுப்பினருக்கும் ஒரு நுழைவு கொண்ட ஹார்னஸ் லேபிள்; ஒவ்வொரு நுழைவையும் அதன் சிக்னலுடன் இணை. கட்டை வேறு தாளுக்குக் கொண்டு செல்ல போர்ட் அல்லது தாள் நுழைவுக்கு அதே பெயரும் வகையும் கொடு.";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "தகவமை நேரப் படி";
 "Add Child Sheet" = "சைல்டு ஷீட்டைச் சேர்";
 "Add Ground Pours" = "கிரவுண்ட் போர்களைச் சேர்";
+"Add Helper Sheet" = "உதவித் தாளைச் சேர்";
 "Add Kit to Library" = "கிட்டை லைப்ரரியில் சேர்";
 "Add Mesh" = "மெஷ் சேர்";
 "Add Missing Entries" = "இல்லாத நுழைவுகளைச் சேர்";
@@ -97,6 +99,7 @@
 "Attach" = "இணை";
 "Attach SPICE Model…" = "SPICE மாதிரியை இணை…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl), STL அல்லது OBJ மாதிரியை இணைத்து ஃபுட்பிரிண்டில் சீரமை";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "மாதிரியை மீண்டும் வரும் தாளின் இந்தச் சேனலுடன் இணை; மற்ற சேனல்கள் தங்களுடையதை வைத்திருக்கும்";
 "Audience (optional)" = "பார்வையாளர்கள் (விருப்பத்தேர்வு)";
 "Auto" = "தானியங்கு";
 "Auto (fits the drawing)" = "தானியங்கு (வரைபடத்துக்குப் பொருந்தும்)";
@@ -337,6 +340,7 @@
 "Fit Board to Components" = "போர்டை காம்போனன்ட்களுக்குப் பொருத்து";
 "Fits every pin" = "ஒவ்வொரு பின்னுக்கும் பொருந்தும்";
 "Fitted" = "பொருத்தப்பட்டது";
+"Fitted in this channel" = "இந்தச் சேனலில் பொருத்தப்பட்டது";
 "Fitted to Entries" = "நுழைவுகளுக்கு ஏற்ப";
 "Fix Duplicates Only" = "நகல்களை மட்டும் சரிசெய்";
 "Flicker (1/f)" = "மினுக்கு (1/f)";
@@ -422,6 +426,7 @@
 "Layer" = "லேயர்";
 "Layer separation (exploded view)" = "லேயர் பிரிப்பு (எக்ஸ்ப்ளோடட் வியூ)";
 "Layers" = "லேயர்கள்";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "இந்தச் சேனலில் மட்டும் பாகத்தைப் பொருத்த வேண்டாம் (DNP); மற்ற சேனல்கள் தங்களுடையதை வைத்திருக்கும்";
 "Length" = "நீளம்";
 "Library" = "லைப்ரரி";
 "Lifecycle" = "வாழ்க்கைச் சுழற்சி";
@@ -669,6 +674,7 @@
 "Renumber" = "மறு எண்ணிடு";
 "Repeat Sheet" = "தாளை மீண்டும் பயன்படுத்து";
 "Repeat Sheet…" = "தாளை மீண்டும் பயன்படுத்து…";
+"Repeat With Its Block" = "அதன் தொகுதியுடன் மீண்டும் செய்";
 "Replace All" = "அனைத்தையும் மாற்று";
 "Replace with" = "இதைக் கொண்டு மாற்று";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "எல்லாத் தாள்களிலும் பாக மதிப்புகள், நெட் லேபிள் பெயர்களில் உரையை மாற்றும் (குறியீடுகளுக்கு: குறிப்பெண் இடலைப் பயன்படுத்தவும்)";
@@ -860,6 +866,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "இரு கேட்களும் தங்கள் தொகுப்பில் இடம் மாறும்; குறியீடுகளும் கம்பிகளும் அப்படியே இருக்கும்";
 "The victim runs on the adjacent layer, over or under the aggressor" = "பாதிக்கப்பட்ட நெட் அடுத்த அடுக்கில், தாக்கும் நெட்டின் மேல் அல்லது கீழ் செல்கிறது";
 "Thermal" = "வெப்ப";
+"This channel has its own SPICE model" = "இந்தச் சேனலுக்குச் சொந்த SPICE மாதிரி உள்ளது";
+"This channel has its own firmware" = "இந்தச் சேனலுக்குச் சொந்த நிலைபொருள் உள்ளது";
+"This channel only" = "இந்தச் சேனல் மட்டும்";
 "Through" = "ஊடுருவும்";
 "Title" = "தலைப்பு";
 "Total jitter" = "மொத்த நடுக்கம்";
@@ -891,6 +900,7 @@
 "Update PCB" = "PCB-ஐப் புதுப்பி";
 "Upload .hex…" = ".hex பதிவேற்று…";
 "Use Block Value" = "தொகுதி மதிப்பைப் பயன்படுத்து";
+"Use Block's" = "தொகுதியுடையதைப் பயன்படுத்து";
 "Use the generated body again" = "மீண்டும் உருவாக்கப்பட்ட உடலைப் பயன்படுத்து";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "இந்தத் தாளை ஒரே மாதிரியான பல சேனல்களாக (1 முதல் 64) பயன்படுத்தவும். ஒவ்வொரு சேனலுக்கும் தனி குறியீடுகள், நெட்கள், தாள் குறியீடு கிடைக்கும்; எந்தச் சேனலைத் திருத்தினாலும் அனைத்தும் திருத்தப்படும்.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (KiCad லைப்ரரிகள் தரும் .wrl), STL அல்லது OBJ. STEP கோப்புகளைப் படிக்க முடியாது: அருகிலுள்ள .wrl ஐப் பயன்படுத்து.";

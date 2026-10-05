@@ -18,6 +18,7 @@
 "3D Viewer" = "3D వ్యూయర్";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "ఈ బ్లాక్‌లోని ప్రతి ఛానెల్‌కు ఒక ప్రతి లభించే చైల్డ్ షీట్";
 "A class still used by a directive cannot be deleted" = "ఆదేశం ఇంకా ఉపయోగిస్తున్న తరగతిని తొలగించలేరు";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "హార్నెస్ లేబుల్ తన రకంలోని ప్రతి సభ్యుడిని షీట్‌ల మధ్య తీసుకెళ్తుంది (పోర్ట్, షీట్ ఎంట్రీ లేదా గ్లోబల్)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "ప్రతి సభ్యుడికి ఒక ఎంట్రీ ఉన్న హార్నెస్ లేబుల్; ప్రతి ఎంట్రీని దాని సిగ్నల్‌కు కలపండి. కట్టను మరో షీట్‌కు తీసుకెళ్లడానికి పోర్ట్ లేదా షీట్ ఎంట్రీకి అదే పేరు, రకం ఇవ్వండి.";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "అనుకూల టైమ్ స్టెప్";
 "Add Child Sheet" = "చైల్డ్ షీట్ జోడించండి";
 "Add Ground Pours" = "గ్రౌండ్ పోర్‌లను జోడించు";
+"Add Helper Sheet" = "సహాయక షీట్ జోడించు";
 "Add Kit to Library" = "కిట్‌ను లైబ్రరీకి జోడించు";
 "Add Mesh" = "మెష్ జోడించు";
 "Add Missing Entries" = "లేని ఎంట్రీలను జోడించు";
@@ -97,6 +99,7 @@
 "Attach" = "జోడించు";
 "Attach SPICE Model…" = "SPICE మోడల్ జోడించు…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl), STL లేదా OBJ మోడల్ జోడించి ఫుట్‌ప్రింట్‌పై అమర్చండి";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "మోడల్‌ను పునరావృత షీట్‌లోని ఈ ఛానెల్‌కు జోడించు; ఇతర ఛానెల్‌లు తమది ఉంచుకుంటాయి";
 "Audience (optional)" = "ప్రేక్షకులు (ఐచ్ఛికం)";
 "Auto" = "స్వయంచాలకం";
 "Auto (fits the drawing)" = "ఆటో (డ్రాయింగ్‌కు సరిపడేలా)";
@@ -337,6 +340,7 @@
 "Fit Board to Components" = "బోర్డును కాంపోనెంట్లకు సరిపోయేలా చేయి";
 "Fits every pin" = "ప్రతి పిన్‌కు సరిపోతుంది";
 "Fitted" = "అమర్చబడింది";
+"Fitted in this channel" = "ఈ ఛానెల్‌లో అమర్చబడింది";
 "Fitted to Entries" = "ఎంట్రీలకు సరిపడా";
 "Fix Duplicates Only" = "నకిలీలను మాత్రమే సరిచేయండి";
 "Flicker (1/f)" = "ఫ్లికర్ (1/f)";
@@ -422,6 +426,7 @@
 "Layer" = "లేయర్";
 "Layer separation (exploded view)" = "లేయర్ విభజన (ఎక్స్‌ప్లోడెడ్ వ్యూ)";
 "Layers" = "లేయర్లు";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "ఈ ఛానెల్‌లో మాత్రమే భాగాన్ని అమర్చవద్దు (DNP); ఇతర ఛానెల్‌లు తమది ఉంచుకుంటాయి";
 "Length" = "పొడవు";
 "Library" = "లైబ్రరీ";
 "Lifecycle" = "లైఫ్‌సైకిల్";
@@ -669,6 +674,7 @@
 "Renumber" = "మళ్లీ నంబర్ చేయి";
 "Repeat Sheet" = "షీట్‌ను పునరావృతం చేయి";
 "Repeat Sheet…" = "షీట్‌ను పునరావృతం చేయి…";
+"Repeat With Its Block" = "దాని బ్లాక్‌తో పునరావృతం";
 "Replace All" = "అన్నీ మార్చు";
 "Replace with" = "దీనితో మార్చు";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "ప్రతి షీట్‌లో భాగాల విలువలు, నెట్ లేబుల్ పేర్లలో పాఠ్యాన్ని మారుస్తుంది (నిర్దేశకాలకు: అనొటేట్ ఉపయోగించండి)";
@@ -860,6 +866,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "రెండు గేట్‌లు తమ ప్యాకేజీలలో స్థానాలు మార్చుకుంటాయి; చిహ్నాలు, వైర్‌లు అలాగే ఉంటాయి";
 "The victim runs on the adjacent layer, over or under the aggressor" = "బాధిత నెట్ పక్క పొరపై, దాడి చేసే నెట్ పైన లేదా కింద నడుస్తుంది";
 "Thermal" = "ఉష్ణ";
+"This channel has its own SPICE model" = "ఈ ఛానెల్‌కు సొంత SPICE మోడల్ ఉంది";
+"This channel has its own firmware" = "ఈ ఛానెల్‌కు సొంత ఫర్మ్‌వేర్ ఉంది";
+"This channel only" = "ఈ ఛానెల్ మాత్రమే";
 "Through" = "త్రూ";
 "Title" = "శీర్షిక";
 "Total jitter" = "మొత్తం జిట్టర్";
@@ -891,6 +900,7 @@
 "Update PCB" = "PCB నవీకరించు";
 "Upload .hex…" = ".hex అప్‌లోడ్ చేయి…";
 "Use Block Value" = "బ్లాక్ విలువను ఉపయోగించు";
+"Use Block's" = "బ్లాక్‌దే ఉపయోగించు";
 "Use the generated body again" = "మళ్లీ సృష్టించిన బాడీని వాడండి";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "ఈ షీట్‌ను అనేక సమాన ఛానెళ్లుగా (1 నుండి 64) ఉపయోగించండి. ప్రతి ఛానెల్‌కు సొంత నిర్దేశకాలు, నెట్‌లు, షీట్ చిహ్నం ఉంటాయి; ఏ ఛానెల్‌ను సవరించినా అన్నీ సవరించబడతాయి.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (KiCad లైబ్రరీలు ఇచ్చే .wrl), STL లేదా OBJ. STEP ఫైళ్లు చదవలేము: వాటి పక్కన ఉన్న .wrl వాడండి.";

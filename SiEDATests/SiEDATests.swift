@@ -6336,3 +6336,24 @@ final class SymbolGraphicsTests: XCTestCase {
         XCTAssertEqual(store.snapshot.sheet(child)?.symbolWidth, 0)
     }
 }
+
+
+/// Helper sheets inside a repeated block and per-channel parameters beyond the value, through the store.
+@MainActor
+final class HelperSheetAndChannelParameterTests: XCTestCase {
+    func testHelperSheetRepeatsWithItsBlock() throws {
+        let store = DesignStore()
+        let block = try XCTUnwrap(store.addSheet(named: "Block", parent: 1))
+        _ = store.addComponent(.resistor, at: .zero)
+        let helper = try XCTUnwrap(store.addHelperSheet(parent: block))
+        XCTAssertEqual(store.snapshot.sheet(helper)?.helper, true)
+        store.repeatSheet(block, count: 3)
+        XCTAssertEqual(store.snapshot.sheets.filter { $0.definitionId == helper }.count, 3)
+        let r = try XCTUnwrap(store.snapshot.components.first { $0.componentKind == .resistor && $0.sheet == block })
+        let copy = try XCTUnwrap(store.snapshot.components.first { $0.instanceOf == r.id })
+        store.setChannelFitted(copy.id, false)
+        XCTAssertEqual(store.snapshot.component(copy.id)?.isFitted, false)
+        XCTAssertEqual(store.snapshot.component(r.id)?.isFitted, true)
+        XCTAssertTrue(store.engine.setChannelFirmware(copy.id, hex: "", name: "", clockHz: 0))
+    }
+}

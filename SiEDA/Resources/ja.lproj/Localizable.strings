@@ -18,6 +18,7 @@
 "3D Viewer" = "3D ビューア";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "このブロックの各チャネルがコピーを持つ子シート";
 "A class still used by a directive cannot be deleted" = "指示で使われているクラスは削除できません";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "ハーネスラベルは型のすべてのメンバーをシート間で運びます（ポート、シートエントリ、またはグローバル）";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "メンバーごとにエントリを1つ持つハーネスラベルです。各エントリを信号に配線します。ポートやシートエントリに同じ名前と型を付けると、束を別のシートへ運べます。";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "適応時間ステップ";
 "Add Child Sheet" = "子シートを追加";
 "Add Ground Pours" = "グラウンドベタを追加";
+"Add Helper Sheet" = "ヘルパーシートを追加";
 "Add Kit to Library" = "キットをライブラリに追加";
 "Add Mesh" = "メッシュを追加";
 "Add Missing Entries" = "不足しているエントリを追加";
@@ -97,6 +99,7 @@
 "Attach" = "割り当て";
 "Attach SPICE Model…" = "SPICE モデルを割り当て…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl)・STL・OBJ モデルを添付してフットプリントに合わせる";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "繰り返しシートのこのチャネルにモデルを割り当てます。他のチャネルはそれぞれのモデルを保持します";
 "Audience (optional)" = "対象者 (任意)";
 "Auto" = "自動";
 "Auto (fits the drawing)" = "自動（図面に合わせる）";
@@ -337,6 +340,7 @@
 "Fit Board to Components" = "基板を部品に合わせる";
 "Fits every pin" = "すべてのピンに合う";
 "Fitted" = "実装";
+"Fitted in this channel" = "このチャネルで実装";
 "Fitted to Entries" = "エントリに合わせる";
 "Fix Duplicates Only" = "重複のみ修正";
 "Flicker (1/f)" = "フリッカ (1/f)";
@@ -422,6 +426,7 @@
 "Layer" = "レイヤー";
 "Layer separation (exploded view)" = "レイヤー間隔 (分解ビュー)";
 "Layers" = "レイヤー";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "このチャネルでのみ部品を実装しない (DNP)。他のチャネルはそのまま";
 "Length" = "長さ";
 "Library" = "ライブラリ";
 "Lifecycle" = "ライフサイクル";
@@ -669,6 +674,7 @@
 "Renumber" = "番号を振り直す";
 "Repeat Sheet" = "シートを繰り返す";
 "Repeat Sheet…" = "シートを繰り返す…";
+"Repeat With Its Block" = "ブロックと一緒に繰り返す";
 "Replace All" = "すべて置換";
 "Replace with" = "置換後の文字列";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "すべてのシートの部品値とネットラベル名の文字列を置換します (リファレンスは自動採番を使用)";
@@ -860,6 +866,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "2つのゲートがパッケージ内で入れ替わります。シンボルと配線はそのままです";
 "The victim runs on the adjacent layer, over or under the aggressor" = "被害ネットが隣接層で加害ネットの上または下を通っています";
 "Thermal" = "熱雑音";
+"This channel has its own SPICE model" = "このチャネルは独自の SPICE モデルを持ちます";
+"This channel has its own firmware" = "このチャネルは独自のファームウェアを持ちます";
+"This channel only" = "このチャネルのみ";
 "Through" = "貫通";
 "Title" = "タイトル";
 "Total jitter" = "総ジッタ";
@@ -891,6 +900,7 @@
 "Update PCB" = "PCB を更新";
 "Upload .hex…" = ".hex をアップロード…";
 "Use Block Value" = "ブロック値を使う";
+"Use Block's" = "ブロックのものを使用";
 "Use the generated body again" = "生成された本体に戻す";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "このシートを複数の同一チャネル (1～64) として使います。各チャネルは独自のリファレンス番号、ネット、シートシンボルを持ち、どのチャネルを編集してもすべてに反映されます。";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML（KiCad ライブラリ同梱の .wrl）、STL または OBJ。STEP ファイルは読めません：隣の .wrl を使用してください。";

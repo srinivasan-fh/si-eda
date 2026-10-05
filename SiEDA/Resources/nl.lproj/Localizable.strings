@@ -18,6 +18,7 @@
 "3D Viewer" = "3D-viewer";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "Een subblad waarvan elk kanaal van dit blok een kopie krijgt";
 "A class still used by a directive cannot be deleted" = "Een klasse die nog door een richtlijn wordt gebruikt, kan niet worden verwijderd";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Een harnaslabel draagt elk lid van zijn type over de bladen (poort, bladingang of globaal)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Een harnaslabel met één ingang per lid; verbind elke ingang met zijn signaal. Geef een poort of bladingang dezelfde naam en hetzelfde type om de bundel naar een ander blad te brengen.";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "Adaptieve tijdstap";
 "Add Child Sheet" = "Subblad toevoegen";
 "Add Ground Pours" = "Massavlakken toevoegen";
+"Add Helper Sheet" = "Hulpblad toevoegen";
 "Add Kit to Library" = "Kit aan bibliotheek toevoegen";
 "Add Mesh" = "Mesh toevoegen";
 "Add Missing Entries" = "Ontbrekende ingangen toevoegen";
@@ -97,6 +99,7 @@
 "Attach" = "Koppelen";
 "Attach SPICE Model…" = "SPICE-model koppelen…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "Koppel een VRML- (.wrl), STL- of OBJ-model en lijn het uit op de footprint";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "Koppel het model aan dit kanaal van het herhaalde blad; de andere kanalen houden het hunne";
 "Audience (optional)" = "Doelgroep (optioneel)";
 "Auto" = "Auto";
 "Auto (fits the drawing)" = "Automatisch (past bij de tekening)";
@@ -337,6 +340,7 @@
 "Fit Board to Components" = "Board passend maken op componenten";
 "Fits every pin" = "Past bij elke pin";
 "Fitted" = "Geplaatst";
+"Fitted in this channel" = "Geplaatst in dit kanaal";
 "Fitted to Entries" = "Passend bij ingangen";
 "Fix Duplicates Only" = "Alleen duplicaten herstellen";
 "Flicker (1/f)" = "Flikker (1/f)";
@@ -422,6 +426,7 @@
 "Layer" = "Laag";
 "Layer separation (exploded view)" = "Laagscheiding (exploded view)";
 "Layers" = "Lagen";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "Laat het onderdeel alleen in dit kanaal weg (DNP); de andere kanalen houden het hunne";
 "Length" = "Lengte";
 "Library" = "Bibliotheek";
 "Lifecycle" = "Levenscyclus";
@@ -669,6 +674,7 @@
 "Renumber" = "Hernummer";
 "Repeat Sheet" = "Blad herhalen";
 "Repeat Sheet…" = "Blad herhalen…";
+"Repeat With Its Block" = "Herhalen met zijn blok";
 "Replace All" = "Alles vervangen";
 "Replace with" = "Vervangen door";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "Vervangt de tekst in onderdeelwaarden en netlabelnamen op alle bladen (referenties: gebruik Annoteren)";
@@ -860,6 +866,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "De twee poorten wisselen van plaats in hun behuizingen; symbolen en draden blijven";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Het slachtoffer loopt op de aangrenzende laag, boven of onder de agressor";
 "Thermal" = "Thermisch";
+"This channel has its own SPICE model" = "Dit kanaal heeft een eigen SPICE-model";
+"This channel has its own firmware" = "Dit kanaal heeft eigen firmware";
+"This channel only" = "Alleen dit kanaal";
 "Through" = "Doorlopend";
 "Title" = "Titel";
 "Total jitter" = "Totale jitter";
@@ -891,6 +900,7 @@
 "Update PCB" = "PCB bijwerken";
 "Upload .hex…" = ".hex uploaden…";
 "Use Block Value" = "Blokwaarde gebruiken";
+"Use Block's" = "Die van het blok gebruiken";
 "Use the generated body again" = "Weer de gegenereerde behuizing gebruiken";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Gebruik dit blad als meerdere identieke kanalen (1 tot 64). Elk kanaal krijgt eigen referenties, netten en een bladsymbool; een kanaal bewerken bewerkt ze allemaal.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, zoals KiCad-bibliotheken leveren), STL of OBJ. STEP-bestanden kunnen niet worden gelezen: gebruik de .wrl ernaast.";

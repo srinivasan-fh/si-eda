@@ -18,6 +18,7 @@
 "3D Viewer" = "3D-Ansicht";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "Ein Unterplan, von dem jeder Kanal dieses Blocks eine Kopie erhält";
 "A class still used by a directive cannot be deleted" = "Eine Klasse, die eine Direktive noch verwendet, kann nicht gelöscht werden";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Ein Kabelbaum-Label führt jedes Mitglied seines Typs über die Blätter (Port, Blatteingang oder global)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Ein Kabelbaum-Label mit einem Eintrag je Mitglied; jeden Eintrag mit seinem Signal verdrahten. Einem Port oder Blatteingang denselben Namen und Typ geben, um das Bündel auf ein anderes Blatt zu führen.";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "Adaptive Schrittweite";
 "Add Child Sheet" = "Untergeordnetes Blatt hinzufügen";
 "Add Ground Pours" = "Masseflächen hinzufügen";
+"Add Helper Sheet" = "Hilfsplan hinzufügen";
 "Add Kit to Library" = "Kit zur Bibliothek hinzufügen";
 "Add Mesh" = "Mesh hinzufügen";
 "Add Missing Entries" = "Fehlende Einträge hinzufügen";
@@ -97,6 +99,7 @@
 "Attach" = "Zuweisen";
 "Attach SPICE Model…" = "SPICE-Modell zuweisen…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "Ein VRML- (.wrl), STL- oder OBJ-Modell anhängen und am Footprint ausrichten";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "Modell nur diesem Kanal des wiederholten Plans zuweisen; die anderen Kanäle behalten ihres";
 "Audience (optional)" = "Zielgruppe (optional)";
 "Auto" = "Auto";
 "Auto (fits the drawing)" = "Automatisch (passt zur Zeichnung)";
@@ -337,6 +340,7 @@
 "Fit Board to Components" = "Platine an Bauteile anpassen";
 "Fits every pin" = "Passt zu jedem Pin";
 "Fitted" = "Bestückt";
+"Fitted in this channel" = "In diesem Kanal bestückt";
 "Fitted to Entries" = "An Einträge angepasst";
 "Fix Duplicates Only" = "Nur Duplikate korrigieren";
 "Flicker (1/f)" = "Funkel (1/f)";
@@ -422,6 +426,7 @@
 "Layer" = "Lage";
 "Layer separation (exploded view)" = "Lagenabstand (Explosionsansicht)";
 "Layers" = "Lagen";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "Bauteil nur in diesem Kanal nicht bestücken (DNP); die anderen Kanäle behalten ihres";
 "Length" = "Länge";
 "Library" = "Bibliothek";
 "Lifecycle" = "Lebenszyklus";
@@ -669,6 +674,7 @@
 "Renumber" = "Neu nummerieren";
 "Repeat Sheet" = "Blatt wiederholen";
 "Repeat Sheet…" = "Blatt wiederholen…";
+"Repeat With Its Block" = "Mit seinem Block wiederholen";
 "Replace All" = "Alle ersetzen";
 "Replace with" = "Ersetzen durch";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "Ersetzt den Text in Bauteilwerten und Netzlabel-Namen auf allen Blättern (Bezeichner: Annotieren verwenden)";
@@ -860,6 +866,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "Die beiden Gatter tauschen ihre Plätze im Gehäuse; Symbole und Leitungen bleiben";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Das Opfer verläuft auf der Nachbarlage, über oder unter dem Störer";
 "Thermal" = "Thermisch";
+"This channel has its own SPICE model" = "Dieser Kanal hat ein eigenes SPICE-Modell";
+"This channel has its own firmware" = "Dieser Kanal hat eine eigene Firmware";
+"This channel only" = "Nur dieser Kanal";
 "Through" = "Durchgehend";
 "Title" = "Titel";
 "Total jitter" = "Gesamtjitter";
@@ -891,6 +900,7 @@
 "Update PCB" = "PCB aktualisieren";
 "Upload .hex…" = ".hex hochladen …";
 "Use Block Value" = "Blockwert verwenden";
+"Use Block's" = "Den des Blocks verwenden";
 "Use the generated body again" = "Wieder den erzeugten Körper verwenden";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Dieses Blatt als mehrere identische Kanäle verwenden (1 bis 64). Jeder Kanal erhält eigene Bezeichner, Netze und ein Blattsymbol; die Bearbeitung eines Kanals ändert alle.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, wie KiCad-Bibliotheken sie liefern), STL oder OBJ. STEP-Dateien können nicht gelesen werden: die .wrl daneben verwenden.";

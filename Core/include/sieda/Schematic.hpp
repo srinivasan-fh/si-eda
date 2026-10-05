@@ -83,6 +83,9 @@ struct Sheet {
     /// Drawn size of this sheet's sheet symbol on its parent (schematic units); 0 = fitted around its entries. The
     /// symbol is never smaller than its entries need.
     double symbolWidth = 0, symbolHeight = 0;
+    /// Helper sheet of a block (an ordinary, single-channel child sheet): when its parent is repeated, every channel
+    /// gets its own copy of it, as a nested block of one channel (see Schematic::addHelperSheet).
+    bool helper = false;
 };
 
 /// Imported SPICE model attached to a part (docs/SIMULATION.md, sieda/SpiceModels.hpp): the simulator uses it instead
@@ -208,7 +211,12 @@ struct NetRule {
 enum ChannelOverride : int {
     kOverrideValue = 1,    // the channel's own value (R1 = 10k in channel A, 12k in channel B)
     kOverridePackage = 2,  // the channel's own package variant
+    kOverrideSpice = 4,    // the channel's own imported SPICE model
+    kOverrideFirmware = 8, // the channel's own firmware and clock
+    kOverrideAll = 15,
 };
+/// "value", "package", "spice", "firmware" → the override bit; 0 for anything else.
+int channelOverrideBit(const std::string& name);
 
 /// A graphical bus on a sheet: a named polyline ("D[0..7]", see expandBus). Its members leave it through bus entries —
 /// net labels attached to it (Component::bus) — and join nets by name like any label; the bus itself carries no
@@ -422,6 +430,22 @@ public:
     bool setChannelPackage(int id, const std::string& package);
     /// The channel takes the block's value and package again.
     bool clearChannelOverrides(int id);
+    /// This channel's own SPICE model / firmware (see setChannelValue): set on a channel copy it is that channel's
+    /// only; set on the block's own part the other channels keep what they have. Outside a repeated sheet these
+    /// are setSpiceModel / setFirmware.
+    bool setChannelSpiceModel(int id, const SpiceModelRef& model);
+    bool setChannelFirmware(int id, const std::string& hex, const std::string& name, double clockHz);
+    /// One per-channel parameter back to the block's (`bit`: a ChannelOverride).
+    bool clearChannelOverride(int id, int bit);
+    /// Fitted (true) or do-not-populate in this channel only: the part's (or its package's) own DNP flag, which
+    /// channel copies never take from the block.
+    bool setChannelFitted(int id, bool fitted);
+    /// Adds a helper sheet below `parent` (a channel stands for its block's definition): an ordinary sheet that every
+    /// channel of the block gets a copy of. Also allowed below a sheet that is not repeated (yet). Returns its id or -1.
+    int addHelperSheet(const std::string& name, int parent);
+    /// Marks an existing child sheet as a helper sheet (so its parent can be repeated) or back to an ordinary one
+    /// (refused while its parent is repeated).
+    bool setHelperSheet(int id, bool helper);
     /// The value every channel of a repeated part takes unless it sets its own (the part's value elsewhere).
     std::string blockValue(int id) const;
     /// Channel path of a sheet in a (nested) repeated hierarchy, outermost first: {"B", "A"} for channel A of a
@@ -592,6 +616,10 @@ private:
     /// Unique name for a new instance sheet ("Amp [B]", nested: "Sub [B/A]").
     std::string instanceSheetName(int sheet) const;
     bool setChannelField(int id, const std::string& text, int bit);
+    /// The component a per-channel parameter of `id` lives on (a unit's package in the same channel).
+    int channelHolder(int id) const;
+    /// Sets field `bit` of `id` from `wanted` as a per-channel parameter (see setChannelField).
+    bool setChannelParam(int id, int bit, const Component& wanted);
     /// Instance-aware parts of annotate(): numbers the blocks' logical designators.
     void annotateBlocks(const AnnotateOptions& options);
     /// Drops buses on missing sheets and detaches entries from buses that are gone or on another sheet.

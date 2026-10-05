@@ -18,6 +18,7 @@
 "3D Viewer" = "Pemapar 3D";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "Helaian anak yang disalin ke setiap saluran blok ini";
 "A class still used by a directive cannot be deleted" = "Kelas yang masih digunakan oleh arahan tidak boleh dipadam";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Label abah-abah membawa setiap ahli jenisnya merentas helaian (port, entri helaian atau global)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Label abah-abah dengan satu entri bagi setiap ahli; sambungkan setiap entri ke isyaratnya. Beri port atau entri helaian nama dan jenis yang sama untuk membawa berkas ke helaian lain.";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "Langkah masa adaptif";
 "Add Child Sheet" = "Tambah Helaian Anak";
 "Add Ground Pours" = "Tambah Tuangan Bumi";
+"Add Helper Sheet" = "Tambah Helaian Pembantu";
 "Add Kit to Library" = "Tambah Kit ke Pustaka";
 "Add Mesh" = "Tambah Jaringan";
 "Add Missing Entries" = "Tambah Entri yang Tiada";
@@ -97,6 +99,7 @@
 "Attach" = "Lampirkan";
 "Attach SPICE Model…" = "Lampirkan Model SPICE…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "Lampirkan model VRML (.wrl), STL atau OBJ dan jajarkan pada tapak";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "Lampirkan model pada saluran helaian berulang ini; saluran lain mengekalkan model masing-masing";
 "Audience (optional)" = "Sasaran pembaca (pilihan)";
 "Auto" = "Auto";
 "Auto (fits the drawing)" = "Auto (muat lukisan)";
@@ -337,6 +340,7 @@
 "Fit Board to Components" = "Muatkan Papan pada Komponen";
 "Fits every pin" = "Sesuai setiap pin";
 "Fitted" = "Dipasang";
+"Fitted in this channel" = "Dipasang dalam saluran ini";
 "Fitted to Entries" = "Dimuatkan pada entri";
 "Fix Duplicates Only" = "Betulkan Pendua Sahaja";
 "Flicker (1/f)" = "Kelipan (1/f)";
@@ -422,6 +426,7 @@
 "Layer" = "Lapisan";
 "Layer separation (exploded view)" = "Jarak lapisan (paparan terburai)";
 "Layers" = "Lapisan";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "Tinggalkan komponen (DNP) dalam saluran ini sahaja; saluran lain kekal";
 "Length" = "Panjang";
 "Library" = "Pustaka";
 "Lifecycle" = "Kitaran hayat";
@@ -669,6 +674,7 @@
 "Renumber" = "Nombor Semula";
 "Repeat Sheet" = "Ulang Helaian";
 "Repeat Sheet…" = "Ulang Helaian…";
+"Repeat With Its Block" = "Ulang Bersama Bloknya";
 "Replace All" = "Ganti Semua";
 "Replace with" = "Ganti dengan";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "Menggantikan teks dalam nilai komponen dan nama label net pada setiap helaian (penanda: gunakan Anotasi)";
@@ -860,6 +866,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "Dua get bertukar tempat dalam pakej; simbol dan wayar kekal";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Mangsa berada pada lapisan bersebelahan, di atas atau di bawah penyerang";
 "Thermal" = "Terma";
+"This channel has its own SPICE model" = "Saluran ini mempunyai model SPICE sendiri";
+"This channel has its own firmware" = "Saluran ini mempunyai perisian tegar sendiri";
+"This channel only" = "Saluran ini sahaja";
 "Through" = "Tembus";
 "Title" = "Tajuk";
 "Total jitter" = "Jumlah ketaran";
@@ -891,6 +900,7 @@
 "Update PCB" = "Kemas Kini PCB";
 "Upload .hex…" = "Muat Naik .hex…";
 "Use Block Value" = "Guna Nilai Blok";
+"Use Block's" = "Guna Milik Blok";
 "Use the generated body again" = "Gunakan semula badan yang dijana";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Gunakan helaian ini sebagai beberapa saluran yang sama (1 hingga 64). Setiap saluran mendapat penanda, net dan simbol helaiannya sendiri; menyunting mana-mana saluran menyunting semuanya.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, seperti dalam pustaka KiCad), STL atau OBJ. Fail STEP tidak boleh dibaca: gunakan .wrl di sebelahnya.";

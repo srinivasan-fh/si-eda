@@ -131,6 +131,7 @@ private struct ComponentProperties: View {
                                 .controlSize(.small)
                         }
                     }
+                    ChannelParameterRows(component: component)
                 }
                 HStack {
                     Button { store.rotateSelection() } label: { Label("Rotate", systemImage: "rotate.right") }
@@ -1006,6 +1007,36 @@ private struct IndustryProperties: View {
                 .font(.caption)
                 .foregroundStyle(Theme.skyBlue)
             }
+        }
+    }
+}
+
+/// Per-channel parameters of a part on a repeated sheet beyond its value: fitted in this channel, and this channel's
+/// own SPICE model or firmware (set from the SPICE model sheet's "This channel only") with a way back to the block's.
+private struct ChannelParameterRows: View {
+    @EnvironmentObject private var store: DesignStore
+    var component: SnapComponent
+
+    var body: some View {
+        let bits = component.channelOverride ?? 0
+        Toggle("Fitted in this channel", isOn: Binding(get: { component.isFitted }, set: { store.setChannelFitted(component.id, $0) }))
+            .toggleStyle(.checkbox)
+            .font(.caption)
+            .help("Leave the part off (DNP) in this channel only; the other channels keep theirs")
+        if bits & 4 != 0 {
+            override("This channel has its own SPICE model", what: "spice")
+        }
+        if bits & 8 != 0 {
+            override("This channel has its own firmware", what: "firmware")
+        }
+    }
+
+    private func override(_ title: LocalizedStringKey, what: String) -> some View {
+        HStack {
+            Text(title).font(.caption).foregroundStyle(Theme.textMuted)
+            Spacer()
+            Button("Use Block's") { store.clearChannelOverride(component.id, what) }
+                .controlSize(.small)
         }
     }
 }
