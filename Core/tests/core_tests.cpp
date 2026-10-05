@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <set>
 #include <sstream>
@@ -25,6 +26,7 @@
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/LengthMatch.hpp"
+#include "sieda/LibraryImport.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Aerospace.hpp"
 #include "sieda/Isolation.hpp"
@@ -44,6 +46,7 @@
 #include "sieda/sieda_c.h"
 
 extern "C" int sieda_c_api_smoke_test(void);
+extern "C" int sieda_c_api_library_import_test(void);
 
 using namespace sieda;
 
@@ -5189,4 +5192,388 @@ TEST(collinear_segments_are_not_a_crossing) {
     CHECK(std::fabs(segmentSegmentDistance(a, b, c, d) - (d - a).length()) < 1e-9);
     CHECK(segmentSegmentDistance(a, b, {16.95, 16.25}, {17.35, 15.85}) < 1e-9);  // overlapping collinear: touching
     CHECK(segmentsIntersect({0, 0}, {1, 1}, {0, 1}, {1, 0}));                     // a real crossing still is one
+}
+
+// ------------------------------------------------------------------ library import (KiCad / Eagle)
+
+namespace {
+std::string readFixture(const std::string& name) {
+    std::ifstream f(std::string(SIEDA_FIXTURE_DIR) + "/library/" + name, std::ios::binary);
+    std::stringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+
+const ImportedPart* importedPart(const LibraryImport& r, const std::string& name) {
+    for (const auto& p : r.parts)
+        if (p.spec.name == name) return &p;
+    return nullptr;
+}
+
+bool anyContains(const std::vector<std::string>& lines, const std::string& text) {
+    for (const auto& l : lines)
+        if (l.find(text) != std::string::npos) return true;
+    return false;
+}
+
+SymbolPin layoutPin(const CustomPartSpec& spec, const std::string& number) {
+    for (const auto& p : spec.symbol.pins)
+        if (p.number == number) return p;
+    return SymbolPin{number, '?', -1};
+}
+
+const char* const kSoic = "SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod";
+const char* const kQfn = "QFN-16-1EP_3x3mm_P0.5mm_EP1.7x1.7mm.kicad_mod";
+const char* const kHeader = "PinHeader_1x04_P2.54mm_Vertical.kicad_mod";
+const char* const kSymbols = "test_parts.kicad_sym";
+const char* const kEagle = "test_parts.lbr";
+}  // namespace
+
+TEST(library_import_kicad_footprints) {
+    // KiCad 8 SOIC-8: roundrect pads become rectangles, the fab outline is the body, the courtyard the centre.
+    const ImportedFootprint soic = parseKicadFootprint(readFixture(kSoic), kSoic);
+    CHECK(soic.name == "SOIC-8_3.9x4.9mm_P1.27mm");
+    CHECK(soic.description.find("MS-012AA") != std::string::npos);
+    CHECK(soic.package.type == "CUSTOM" && soic.package.lands.size() == 8 && soic.padNumbers.size() == 8);
+    CHECK(std::fabs(soic.package.lands[0].x + 2.475) < 1e-9 && std::fabs(soic.package.lands[0].y + 1.905) < 1e-9);
+    CHECK(std::fabs(soic.package.lands[0].w - 1.95) < 1e-9 && std::fabs(soic.package.lands[0].h - 0.6) < 1e-9);
+    CHECK(std::fabs(soic.package.lands[4].x - 2.475) < 1e-9 && std::fabs(soic.package.lands[4].y - 1.905) < 1e-9);
+    CHECK(std::fabs(soic.package.bodySize - 3.9) < 1e-9 && std::fabs(soic.package.bodyDepth - 4.9) < 1e-9);
+    CHECK(soic.warnings.empty());
+
+    // QFN-16: pads rotated by 90° / 270° swap their sides; the exposed pad and its thermal vias are pin 17; paste-only
+    // apertures without copper are skipped.
+    const ImportedFootprint qfn = parseKicadFootprint(readFixture(kQfn), kQfn);
+    CHECK(qfn.package.lands.size() == 21);
+    CHECK(std::fabs(qfn.package.lands[4].w - 0.25) < 1e-9 && std::fabs(qfn.package.lands[4].h - 0.85) < 1e-9);
+    CHECK(std::fabs(qfn.package.lands[8].w - 0.85) < 1e-9);
+    CHECK(qfn.padNumbers[16] == "17" && qfn.padNumbers[20] == "17");
+    CHECK(qfn.package.lands[17].drill > 0.19 && qfn.package.lands[17].round);
+    CHECK(anyContains(qfn.warnings, "paste-only"));
+    CHECK(std::fabs(qfn.package.bodySize - 3) < 1e-9);
+
+    // KiCad 5 (module …) syntax, unquoted pad numbers, pin 1 at the origin: recentred on the courtyard; the
+    // non-plated hole is reported, not imported.
+    const ImportedFootprint header = parseKicadFootprint(readFixture(kHeader), kHeader);
+    CHECK(header.package.lands.size() == 4);
+    CHECK(std::fabs(header.package.lands[0].y + 3.8) < 1e-9 && std::fabs(header.package.lands[3].y - 3.82) < 1e-9);
+    CHECK(!header.package.lands[0].round && header.package.lands[1].round);
+    CHECK(std::fabs(header.package.lands[0].drill - 1.0) < 1e-9);
+    CHECK(std::fabs(header.package.bodySize - 2.54) < 1e-9 && std::fabs(header.package.bodyDepth - 10.16) < 1e-9);
+    CHECK(anyContains(header.warnings, "Origin moved") && anyContains(header.warnings, "non-plated"));
+
+    // A footprint on its own is a part: one passive pin per pad number, connectors get the J prefix.
+    const ImportedPart part = makeImportedPart(nullptr, &header);
+    CHECK(part.ok && part.spec.pins.size() == 4 && part.spec.refPrefix == "J");
+    CHECK(part.spec.pins[0].type == PinType::Passive && part.spec.pins[3].number == "4");
+    auto reg = CustomPartRegistry::instance().registerPart(part.spec);
+    CHECK(reg->footprint.pads.size() == 4 && reg->footprint.pads[0].throughHole && reg->footprint.pads[2].pinIndex == 2);
+    const ImportedPart qfnPart = makeImportedPart(nullptr, &qfn);
+    CHECK(qfnPart.ok && qfnPart.spec.pins.size() == 17 && qfnPart.spec.refPrefix == "U");
+    CHECK(checkLandPattern(qfnPart.spec).empty());
+
+    // Errors name the problem and the line.
+    auto fails = [](const std::string& text, const std::string& expect) {
+        try {
+            parseKicadFootprint(text);
+        } catch (const ImportError& e) {
+            if (std::string(e.what()).find(expect) != std::string::npos) return true;
+            std::printf("    unexpected message: %s\n", e.what());
+            return false;
+        }
+        return false;
+    };
+    CHECK(fails("", "expected '('"));
+    CHECK(fails("(footprint \"X\"\n  (pad \"1\" smd rect (at 0 0) (size 1 1) (layers \"F.Cu\"))\n", "line 3: missing ')'"));
+    CHECK(fails("(kicad_symbol_lib)", "not a KiCad footprint"));
+    CHECK(fails("(footprint \"X\" (pad \"1\" smd rect (at 0 0) (size 1 1) (layers \"F.Cu\"))"
+                " (pad \"2\" smd rect (at 130 0) (size 1 1) (layers \"F.Cu\")))",
+                "60 mm"));
+    CHECK(fails("(footprint \"X\" (pad \"1\" smd rect (at 0 0) (size 40 1) (layers \"F.Cu\")))", "larger than 30 mm"));
+    CHECK(fails("(footprint \"X\" (pad \"1\" smd rect (at 0 0) (layers \"F.Cu\")))", "no position or size"));
+    CHECK(fails("(footprint \"X\" (fp_line (start 0 0) (end 1 1) (layer \"F.SilkS\")))", "no copper pads"));
+    CHECK(fails("(footprint \"X\" (pad \"1\" smd rect (at 0 0) (size 1 1) (layers \"F.Cu\")) \"open", "unterminated string"));
+    std::string many = "(footprint \"BIG\"";
+    for (int i = 0; i < 600; ++i)
+        many += " (pad \"" + std::to_string(i + 1) + "\" smd rect (at " + std::to_string((i % 30) * 1.5 - 22) + " " +
+                std::to_string((i / 30) * 1.5 - 15) + ") (size 1 1) (layers \"F.Cu\"))";
+    CHECK(fails(many + ")", "up to 512"));
+    // Slots, oblique pads, drills as large as the pad, custom shapes and bottom pads import with a note.
+    const ImportedFootprint odd = parseKicadFootprint(
+        "(footprint \"ODD\" (pad \"1\" thru_hole oval (at -3 0) (size 1.2 2.4) (drill oval 0.8 1.6) (layers \"*.Cu\"))"
+        " (pad \"2\" smd rect (at 0 0 45) (size 1 1) (layers \"F.Cu\"))"
+        " (pad \"3\" thru_hole circle (at 3 0) (size 1 1) (drill 1) (layers \"*.Cu\"))"
+        " (pad \"4\" smd custom (at 0 4) (size 0.5 0.5) (layers \"F.Cu\") (primitives (gr_poly (pts (xy -1 -0.5) (xy 1 -0.5)"
+        " (xy 1 0.5) (xy -1 0.5)))))"
+        " (pad \"5\" smd rect (at 0 -4) (size 1 1) (layers \"B.Cu\")))");
+    CHECK(odd.package.lands.size() == 5);
+    CHECK(std::fabs(odd.package.lands[0].drill - 0.8) < 1e-9);
+    CHECK(std::fabs(odd.package.lands[1].w - std::sqrt(2.0)) < 1e-3);
+    CHECK(odd.package.lands[2].w > 1.15 && odd.package.lands[2].drill < odd.package.lands[2].w);
+    CHECK(std::fabs(odd.package.lands[3].w - 2) < 1e-9 && std::fabs(odd.package.lands[3].h - 1) < 1e-9);
+    for (const char* note : {"slotted", "at an angle", "enlarged", "custom-shaped", "bottom-side"})
+        CHECK(anyContains(odd.warnings, note));
+}
+
+TEST(library_import_kicad_symbols_and_pairing) {
+    const auto symbols = parseKicadSymbols(readFixture(kSymbols), kSymbols);
+    CHECK(symbols.size() == 5);
+    const ImportedSymbol& lm358 = symbols[0];
+    CHECK(lm358.name == "LM358" && lm358.units == 3 && lm358.pins.size() == 8 && lm358.refPrefix == "U");
+    CHECK(lm358.footprint == "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" && lm358.datasheet.find("lm2904") != std::string::npos);
+    // Derived symbol: the parent's pins and footprint, its own value and description.
+    CHECK(symbols[1].name == "LM2904" && symbols[1].pins.size() == 8 && symbols[1].footprint == lm358.footprint);
+    CHECK(symbols[1].description.find("automotive") != std::string::npos);
+
+    std::vector<ImportFile> files;
+    for (const char* f : {kSymbols, kSoic, kQfn, kHeader}) files.push_back({f, readFixture(f)});
+    const LibraryImport r = importLibraryFiles(files);
+    CHECK(r.files.size() == 4 && r.symbols.size() == 5 && r.footprints.size() == 3);
+    for (const auto& f : r.files) CHECK(f.error.empty());
+    CHECK(r.parts.size() == 6);  // 5 symbols + the header no symbol uses
+
+    // LM358 → its SOIC-8 by the footprint name. Units side by side: A (+ − out), a gap, B; supplies top and bottom.
+    const ImportedPart* op = importedPart(r, "LM358");
+    CHECK(op && op->ok && op->footprintName == "SOIC-8_3.9x4.9mm_P1.27mm");
+    if (op) {
+        CHECK(op->spec.pins.size() == 8 && op->spec.pins[0].number == "1" && op->spec.pins[7].number == "8");
+        CHECK(op->spec.pins[1].name == "-" && op->spec.pins[1].type == PinType::Input);
+        CHECK(layoutPin(op->spec, "3").side == 'L' && layoutPin(op->spec, "3").slot == 0);
+        CHECK(layoutPin(op->spec, "2").slot == 2 && layoutPin(op->spec, "5").slot == 4);
+        CHECK(layoutPin(op->spec, "1").side == 'R' && layoutPin(op->spec, "7").side == 'R');
+        CHECK(layoutPin(op->spec, "8").side == 'T' && layoutPin(op->spec, "4").side == 'B');
+        CHECK(checkSymbol(op->spec).empty() && checkLandPattern(op->spec).empty());
+        CHECK(anyContains(op->warnings, "3 units"));
+        auto part = CustomPartRegistry::instance().registerPart(op->spec);
+        CHECK(part->footprint.pads.size() == 8 && part->def.pins.size() == 8);
+        for (size_t i = 0; i < 8; ++i) CHECK(part->footprint.pads[i].pinIndex == static_cast<int>(i));
+    }
+    CHECK(importedPart(r, "LM2904") && importedPart(r, "LM2904")->ok);
+
+    // MCU → QFN-16: exposed pad and thermal vias on pin 17, layout kept (ports, reset, debug), stacked VDD.
+    const ImportedPart* mcu = importedPart(r, "TESTMCU-QFN16");
+    CHECK(mcu && mcu->ok && mcu->spec.manufacturer == "Example Semi");
+    if (mcu) {
+        CHECK(mcu->spec.pins.size() == 17 && mcu->spec.pins[4].name == "nRESET");
+        CHECK(mcu->spec.pins[15].type == PinType::PowerIn);  // the second VDD, "passive" in the file
+        CHECK(layoutPin(mcu->spec, "15").side == 'T' && layoutPin(mcu->spec, "16").slot == layoutPin(mcu->spec, "15").slot);
+        CHECK(layoutPin(mcu->spec, "17").side == 'B');                                // hidden ground pin
+        CHECK(layoutPin(mcu->spec, "5").slot == layoutPin(mcu->spec, "4").slot + 2);  // the gap in the file is kept
+        auto part = CustomPartRegistry::instance().registerPart(mcu->spec);
+        CHECK(part->footprint.pads.size() == 21);
+        for (size_t i = 16; i < part->footprint.pads.size(); ++i) CHECK(part->footprint.pads[i].pinIndex == 16);
+        CHECK(!anyContains(mcu->warnings, "auto-arranged"));
+    }
+    // No footprint file: a package SiEDA generates from the name; an unknown one is an error that says what to add.
+    const ImportedPart* ldo = importedPart(r, "AMS1117-3.3");
+    CHECK(ldo && ldo->ok && ldo->spec.package.type == "SOT223" && anyContains(ldo->warnings, "generated from its package name"));
+    const ImportedPart* odd = importedPart(r, "ODD-SENSOR");
+    CHECK(odd && !odd->ok && odd->error.find("Odd_Sensor_Module") != std::string::npos);
+    const ImportedPart* header = importedPart(r, "PinHeader_1x04_P2.54mm_Vertical");
+    CHECK(header && header->ok && header->symbolName.empty());
+
+    // Explicit pairs: unused pads become mechanical; a pin without a pad is refused with the check's message.
+    const LibraryImport paired = importLibraryFiles(files, {{"ODD-SENSOR", "SOIC-8_3.9x4.9mm_P1.27mm"},
+                                                           {"TESTMCU-QFN16", "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"},
+                                                           {"AMS1117-3.3", "Nope"}});
+    const ImportedPart* sensor = importedPart(paired, "ODD-SENSOR");
+    CHECK(sensor && sensor->ok && anyContains(sensor->warnings, "mechanical"));
+    if (sensor) CHECK(sensor->spec.package.lands[3].pin == "-" && sensor->spec.package.lands[0].pin.empty());
+    const ImportedPart* wrong = importedPart(paired, "TESTMCU-QFN16");
+    CHECK(wrong && !wrong->ok && wrong->error.find("has no pad") != std::string::npos);
+    const ImportedPart* missing = importedPart(paired, "AMS1117-3.3");
+    CHECK(missing && !missing->ok && missing->error.find("Nope") != std::string::npos);
+
+    // A single symbol + footprint download pairs even when the symbol names another footprint.
+    const LibraryImport single = importLibraryFiles(
+        {{"odd.kicad_sym", "(kicad_symbol_lib (symbol \"X1\" (property \"Reference\" \"Q?\") (property \"Footprint\" \"Vendor:X1\")"
+                           " (symbol \"X1_1_1\" (pin input line (at -5.08 0 0) (length 2.54) (name \"A\") (number \"1\"))"
+                           " (pin output line (at 5.08 0 180) (length 2.54) (name \"B\") (number \"2\")))))"},
+         {kSoic, readFixture(kSoic)}});
+    CHECK(single.parts.size() == 1 && single.parts[0].ok && single.parts[0].footprintName == "SOIC-8_3.9x4.9mm_P1.27mm");
+    CHECK(!single.parts.empty() && single.parts[0].spec.refPrefix == "Q");
+
+    // Footprint filters (ki_fp_filters) pick the matching footprint among several; a base symbol from another file
+    // (one file per symbol in a .kicad_symdir) gives a derived symbol its pins.
+    const LibraryImport filtered = importLibraryFiles(
+        {{"base.kicad_sym", "(kicad_symbol_lib (symbol \"OPA\" (property \"ki_fp_filters\" \"DIP*W7.62mm* SOIC*3.9x4.9mm*P1.27mm*\")"
+                            " (symbol \"OPA_1_1\" (pin input line (at -5.08 0 0) (length 2.54) (name \"IN\") (number \"3\"))"
+                            " (pin output line (at 5.08 0 180) (length 2.54) (name \"OUT\") (number \"6\")))))"},
+         {"derived.kicad_sym", "(kicad_symbol_lib (symbol \"OPA2\" (extends \"OPA\") (property \"Value\" \"OPA2\")))"},
+         {"orphan.kicad_sym", "(kicad_symbol_lib (symbol \"OPA3\" (extends \"NOWHERE\")))"},
+         {kQfn, readFixture(kQfn)},
+         {kSoic, readFixture(kSoic)}});
+    const ImportedPart* opa = importedPart(filtered, "OPA");
+    CHECK(opa && opa->ok && opa->footprintName == "SOIC-8_3.9x4.9mm_P1.27mm");
+    const ImportedPart* opa2 = importedPart(filtered, "OPA2");
+    CHECK(opa2 && opa2->ok && opa2->spec.pins.size() == 2 && opa2->footprintName == "SOIC-8_3.9x4.9mm_P1.27mm");
+    const ImportedPart* opa3 = importedPart(filtered, "OPA3");
+    CHECK(opa3 && !opa3->ok && opa3->error.find("NOWHERE.kicad_sym") != std::string::npos);
+
+    // Pads of two pins that share copper (USB-C: A1 and B12, both GND) join one pin; pins of different names on
+    // overlapping pads stay an error.
+    const std::string usbFootprint =
+        "(footprint \"USB_TEST\" (pad \"A1\" smd rect (at -1 0) (size 0.6 1.4) (layers \"F.Cu\"))"
+        " (pad \"B12\" smd rect (at -1 0) (size 0.6 1.4) (layers \"F.Cu\"))"
+        " (pad \"A6\" smd rect (at 0 0) (size 0.3 1.4) (layers \"F.Cu\"))"
+        " (pad \"SH\" thru_hole oval (at 3 0) (size 1 2) (drill 0.6) (layers \"*.Cu\")))";
+    auto usbSymbol = [](const char* b12Name) {
+        return std::string("(kicad_symbol_lib (symbol \"USB\" (property \"Reference\" \"J\") (property \"Footprint\" \"X:USB_TEST\")"
+                           " (symbol \"USB_1_1\" (pin power_in line (at 0 -7.62 90) (length 2.54) (name \"GND\") (number \"A1\"))"
+                           " (pin power_in line (at 0 -7.62 90) (length 2.54) (name \"") +
+               b12Name +
+               "\") (number \"B12\"))"
+               " (pin bidirectional line (at 7.62 0 180) (length 2.54) (name \"D+\") (number \"A6\"))"
+               " (pin passive line (at -7.62 0 0) (length 2.54) (name \"SHIELD\") (number \"SH\")))))";
+    };
+    const LibraryImport usb = importLibraryFiles({{"usb.kicad_sym", usbSymbol("GND")}, {"usb.kicad_mod", usbFootprint}});
+    const ImportedPart* usbPart = importedPart(usb, "USB");
+    CHECK(usbPart && usbPart->ok && usbPart->spec.pins.size() == 3 && anyContains(usbPart->warnings, "B12 into A1"));
+    if (usbPart) CHECK(usbPart->spec.package.lands[1].pin == "A1" && layoutPin(usbPart->spec, "B12").slot < 0);
+    const LibraryImport clashUsb = importLibraryFiles({{"usb.kicad_sym", usbSymbol("VBUS")}, {"usb.kicad_mod", usbFootprint}});
+    CHECK(importedPart(clashUsb, "USB") && !importedPart(clashUsb, "USB")->ok &&
+          importedPart(clashUsb, "USB")->error.find("overlap") != std::string::npos);
+    const LibraryImport usbAlone = importLibraryFiles({{"usb.kicad_mod", usbFootprint}});
+    CHECK(usbAlone.parts.size() == 1 && usbAlone.parts[0].ok && usbAlone.parts[0].spec.pins.size() == 3);
+    CHECK(!usbAlone.parts.empty() && usbAlone.parts[0].spec.refPrefix == "J");
+
+    // A layout with two different pins on one spot is auto-arranged with a note; a library without symbols is an error.
+    const auto clash = parseKicadSymbols(
+        "(kicad_symbol_lib (symbol \"C\" (symbol \"C_1_1\" (pin input line (at -5.08 0 0) (length 2.54) (name \"A\") (number \"1\"))"
+        " (pin input line (at -5.08 0 0) (length 2.54) (name \"B\") (number \"2\")))) )");
+    CHECK(clash.size() == 1 && clash[0].pins.size() == 2);
+    const ImportedFootprint soic = parseKicadFootprint(readFixture(kSoic));
+    const ImportedPart clashPart = makeImportedPart(&clash[0], &soic);
+    CHECK(clashPart.ok && checkSymbol(clashPart.spec).empty());
+    bool threw = false;
+    try {
+        parseKicadSymbols("(kicad_symbol_lib (version 1))");
+    } catch (const ImportError& e) {
+        threw = std::string(e.what()).find("no symbols") != std::string::npos;
+    }
+    CHECK(threw);
+
+    // JSON round trip of the result, as the app reads it.
+    const Json j = libraryImportToJson(r);
+    CHECK(j.get("parts").size() == 6 && j.get("symbols").asInt() == 5 && j.get("footprints").asInt() == 3);
+    const CustomPartSpec back = customPartSpecFromJson(j.get("parts")[0].get("spec"));
+    CHECK(back.name == r.parts[0].spec.name && back.package.lands.size() == r.parts[0].spec.package.lands.size());
+}
+
+TEST(library_import_eagle_libraries) {
+    LibraryImport r = importLibraryFiles({{kEagle, readFixture(kEagle)}});
+    CHECK(r.files.size() == 1 && r.files[0].format == "eagle_lbr" && r.files[0].error.empty());
+    CHECK(r.footprints.size() == 2 && r.parts.size() == 4);  // the GND supply symbol has no package: no part
+
+    const ImportedPart* op = importedPart(r, "LM358D");
+    CHECK(op && op->ok && op->spec.refPrefix == "IC" && op->footprintName == "SO08");
+    if (op) {
+        CHECK(op->spec.description == "Dual op amp Low power, single supply.");
+        CHECK(op->spec.pins.size() == 8 && op->spec.pins[0].number == "1" && op->spec.pins[0].name == "OUT");
+        CHECK(op->spec.pins[7].name == "V+" && op->spec.pins[7].type == PinType::PowerIn);
+        // Eagle's y points up: pad 1 (y = −2.6) is at the bottom, y = +2.6 in SiEDA.
+        CHECK(std::fabs(op->spec.package.lands[0].y - 2.6) < 1e-9 && std::fabs(op->spec.package.lands[4].y + 2.6) < 1e-9);
+        CHECK(std::fabs(op->spec.package.bodySize - 4.8) < 1e-9 && std::fabs(op->spec.package.bodyDepth - 3.8) < 1e-9);
+        CHECK(layoutPin(op->spec, "3").side == 'L' && layoutPin(op->spec, "1").side == 'R');
+        CHECK(layoutPin(op->spec, "8").side == 'T' && layoutPin(op->spec, "4").side == 'B');
+        CHECK(layoutPin(op->spec, "5").slot > layoutPin(op->spec, "2").slot);  // gate B below gate A
+        CHECK(checkSymbol(op->spec).empty());
+    }
+    // '*' takes the technology: one part per technology. Long round pads rotated by 90°, the hole reported.
+    const ImportedPart* bc = importedPart(r, "BC547B");
+    CHECK(bc && bc->ok && importedPart(r, "BC548C") && bc->spec.refPrefix == "Q");
+    if (bc) {
+        const auto& l = bc->spec.package.lands[0];
+        CHECK(std::fabs(l.w - 1.0) < 1e-9 && std::fabs(l.h - 2.0) < 1e-9 && std::fabs(l.drill - 0.6) < 1e-9 && l.round);
+        CHECK(anyContains(bc->warnings, "non-plated"));
+        CHECK(bc->spec.pins[1].name == "B" && layoutPin(bc->spec, "2").side == 'L');
+    }
+    // A pin on several pads: one pin per pad, stacked on the symbol and joined on the board.
+    const ImportedPart* fet = importedPart(r, "SI4410DY");
+    CHECK(fet && fet->ok && fet->spec.pins.size() == 8 && anyContains(fet->warnings, "stacked"));
+    if (fet) {
+        CHECK(fet->spec.pins[0].name == "S" && fet->spec.pins[2].name == "S" && fet->spec.pins[7].name == "D");
+        CHECK(layoutPin(fet->spec, "1").slot == layoutPin(fet->spec, "3").slot && layoutPin(fet->spec, "1").side == 'B');
+        auto part = CustomPartRegistry::instance().registerPart(fet->spec);
+        CHECK(part->footprint.pads.size() == 8);
+    }
+
+    // Malformed XML and unsupported content are reported with a line number; the import goes on.
+    auto error = [](const std::string& text) {
+        LibraryImport out = importLibraryFiles({{"x.lbr", text}});
+        return out.files.empty() ? std::string() : out.files[0].error;
+    };
+    CHECK(error("<eagle><drawing><library></drawing></eagle>").find("</drawing> closes <library>") != std::string::npos);
+    CHECK(error("<eagle>\n<drawing>").find("line 2") != std::string::npos);
+    CHECK(error("<schematic/>").find("not an Eagle library") != std::string::npos);
+    CHECK(error("<eagle><drawing/></eagle>").find("no <library>") != std::string::npos);
+    CHECK(error("<eagle a=b></eagle>").find("not quoted") != std::string::npos);
+    LibraryImport broken = importLibraryFiles(
+        {{"y.lbr", "<eagle><drawing><library><packages/><symbols/><devicesets><deviceset name=\"X\"><gates/><devices>"
+                   "<device name=\"\" package=\"GONE\"><connects/></device></devices></deviceset></devicesets></library>"
+                   "</drawing></eagle>"}});
+    CHECK(broken.parts.size() == 1 && !broken.parts[0].ok && broken.parts[0].error.find("GONE") != std::string::npos);
+}
+
+TEST(library_import_rejects_unsupported_formats_and_survives_fuzzing) {
+    auto fileError = [](const std::string& name, const std::string& content) {
+        LibraryImport out = importLibraryFiles({{name, content}});
+        return out.files.size() == 1 ? out.files[0].error : std::string("?");
+    };
+    CHECK(fileError("Parts.SchLib", std::string("\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1", 8)).find("Altium") != std::string::npos);
+    CHECK(fileError("Parts.PcbLib", "x").find("not supported") != std::string::npos);
+    CHECK(fileError("old.lib", "EESchema-LIBRARY Version 2.4\n").find("KiCad 5") != std::string::npos);
+    CHECK(fileError("notes.txt", "hello").find("unknown file type") != std::string::npos);
+    CHECK(fileError("deep.kicad_mod", std::string(100000, '(')).find("nesting too deep") != std::string::npos);
+    CHECK(fileError("lt.lbr", "<eagle>" + std::string(5000, '<')).find("line 1") != std::string::npos);
+    std::string nested = "<eagle>";
+    for (int i = 0; i < 1000; ++i) nested += "<a>";
+    CHECK(fileError("nested.lbr", nested).find("nesting too deep") != std::string::npos);
+    CHECK(importLibraryFiles({}).parts.empty());
+    // Content sniffing without an extension.
+    LibraryImport sniffed = importLibraryFiles({{"download", readFixture(kSoic)}});
+    CHECK(sniffed.files[0].format == "kicad_mod" && sniffed.parts.size() == 1 && sniffed.parts[0].ok);
+
+    // Deterministic fuzzing: truncations, byte flips, deleted, duplicated and inserted ranges of every fixture never
+    // crash or throw, and every part reported as importable registers.
+    uint32_t seed = 12345;
+    auto rnd = [&seed](size_t n) {
+        seed = seed * 1664525u + 1013904223u;
+        return n ? static_cast<size_t>((seed >> 8) % n) : size_t(0);
+    };
+    const char* noise[] = {"(", ")", "\"", "<", ">", "/>", "</a>", "&#x110000;", "&", "1e999", "-", "nan", "\xFF\xFE",
+                           " (pad \"9\" smd rect (at 70 0) (size 1 1) (layers \"F.Cu\"))"};
+    int runs = 0, okParts = 0;
+    bool allOk = true;
+    for (const char* name : {kSoic, kQfn, kHeader, kSymbols, kEagle}) {
+        const std::string original = readFixture(name);
+        for (int k = 0; k < 160; ++k) {
+            std::string text = original;
+            const int op = k % 5;
+            const size_t at = rnd(text.size());
+            if (op == 0) text.resize(at);
+            else if (op == 1) text[at] = static_cast<char>(rnd(256));
+            else if (op == 2) text.erase(at, rnd(200));
+            else if (op == 3) text.insert(at, text.substr(rnd(text.size()), rnd(300)));
+            else text.insert(at, noise[rnd(sizeof noise / sizeof noise[0])]);
+            try {
+                LibraryImport out = importLibraryFiles({{name, text}, {kSoic, readFixture(kSoic)}});
+                for (const auto& p : out.parts) {
+                    if (!p.ok) continue;
+                    ++okParts;
+                    CustomPartRegistry::instance().registerPart(customPartSpecFromJson(customPartSpecToJson(p.spec)));
+                }
+                (void)libraryImportToJson(out).dump();
+            } catch (const std::exception& e) {
+                std::printf("    %s mutation %d: %s\n", name, k, e.what());
+                allOk = false;
+            }
+            ++runs;
+        }
+    }
+    CHECK(allOk && runs == 800 && okParts > 400);
+}
+
+TEST(library_import_c_api) {
+    CHECK(sieda_c_api_library_import_test() == 0);
 }

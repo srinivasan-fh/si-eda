@@ -412,3 +412,9 @@
 "stop" = "henti";
 "us-central1" = "us-central1";
 "⌥-drag or two-finger drag to pan" = "⌥-seret atau seret dua jari untuk menatal";
+
+/* Library import */
+"Import Library…" = "Import Pustaka…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "Import pustaka KiCad (.kicad_mod, .kicad_sym) atau Eagle (.lbr)";
+"Import Library" = "Import Pustaka";
+"Add Selected Parts" = "Tambah Komponen Dipilih";

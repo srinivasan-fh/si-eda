@@ -412,3 +412,9 @@
 "stop" = "停止";
 "us-central1" = "us-central1";
 "⌥-drag or two-finger drag to pan" = "按住 ⌥ 拖曳或雙指拖曳以平移";
+
+/* Library import */
+"Import Library…" = "匯入元件庫…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "匯入 KiCad（.kicad_mod、.kicad_sym）或 Eagle（.lbr）元件庫";
+"Import Library" = "匯入元件庫";
+"Add Selected Parts" = "加入所選元件";

@@ -269,6 +269,19 @@ final class EDAEngine: @unchecked Sendable {
         decode([LandIssue].self, from: take(sieda_check_land_pattern(spec.jsonString(), minGap))) ?? []
     }
 
+    /// Library import: reads KiCad footprints (.kicad_mod), KiCad symbol libraries (.kicad_sym) and Eagle libraries
+    /// (.lbr), pairs symbols with footprints (`pairs`: symbol name → footprint name, optional) and validates every
+    /// part. Files that cannot be read are reported in `files[].error`.
+    static func importLibrary(files: [LibraryImportFile], pairs: [String: String] = [:]) -> LibraryImportResult {
+        struct Request: Encodable {
+            var files: [LibraryImportFile]
+            var pairs: [String: String]
+        }
+        guard let data = try? JSONEncoder().encode(Request(files: files, pairs: pairs)) else { return LibraryImportResult() }
+        let json = String(decoding: data, as: UTF8.self)
+        return decode(LibraryImportResult.self, from: take(sieda_library_import(json))) ?? LibraryImportResult()
+    }
+
     @discardableResult
     func removeCustomPart(_ id: String) -> Bool { withHandle { sieda_custom_part_remove($0, id) } == 1 }
 

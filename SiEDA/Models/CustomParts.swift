@@ -467,3 +467,37 @@ enum DatasheetSchema {
         }
     }
 }
+
+/// One library file handed to the core's importer (`EDAEngine.importLibrary`).
+struct LibraryImportFile: Encodable, Equatable {
+    var name: String
+    var content: String
+}
+
+/// What a library import found (core `sieda_library_import`): the parts, each ready to add (`ok`) or with the reason
+/// it is not, and the files with any read error.
+struct LibraryImportResult: Decodable, Equatable {
+    struct Part: Decodable, Equatable {
+        var name: String
+        var symbol: String
+        var footprint: String
+        var source: String
+        var ok: Bool
+        var error: String
+        var warnings: [String]
+        var spec: CustomPartSpec
+    }
+
+    struct File: Decodable, Equatable {
+        var name: String
+        var format: String
+        var symbols: Int
+        var footprints: Int
+        var error: String
+    }
+
+    var parts: [Part] = []
+    var files: [File] = []
+
+    var importable: [Part] { parts.filter(\.ok) }
+}

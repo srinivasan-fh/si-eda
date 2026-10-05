@@ -412,3 +412,9 @@
 "stop" = "stop";
 "us-central1" = "us-central1";
 "⌥-drag or two-finger drag to pan" = "⌥-drag or two-finger drag to pan";
+
+/* Library import */
+"Import Library…" = "Import Library…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries";
+"Import Library" = "Import Library";
+"Add Selected Parts" = "Add Selected Parts";

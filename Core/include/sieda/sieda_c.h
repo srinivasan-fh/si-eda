@@ -134,6 +134,16 @@ char* sieda_packages_json(void);
 /* Built-in standard parts: [{"category": "...", "spec": {<spec_json as above>}}, ...] */
 char* sieda_standard_parts_json(void);
 
+/* ---- library import (KiCad .kicad_mod / .kicad_sym, Eagle .lbr) ------------------------------ */
+/* request_json: {"files":[{"name":"LM358.kicad_sym","content":"<file text>"}, ...],
+ *                "pairs":{"<symbol name>":"<footprint name>"}}   (pairs optional)
+ * Reads the files, pairs symbols with footprints and validates every part with the symbol and land-pattern checks.
+ * Returns {"parts":[{"name","symbol","footprint","source","ok":bool,"error","warnings":[...],"spec":{<spec_json>}}],
+ *          "files":[{"name","format","symbols","footprints","error"}],"symbols":n,"footprints":n}.
+ * Parts with ok == true register as they are (sieda_custom_part_register with their spec). Malformed files are
+ * reported in files[].error; the call never fails on file content. Caller frees. */
+char* sieda_library_import(const char* request_json);
+
 /* ---- standard values --------------------------------------------------------------------- */
 /* Nearest IEC 60063 value; series = 12, 24 or 96. */
 double sieda_nearest_standard_value(double value, int32_t series);

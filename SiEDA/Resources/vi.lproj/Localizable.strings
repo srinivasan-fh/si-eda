@@ -412,3 +412,9 @@
 "stop" = "dừng";
 "us-central1" = "us-central1";
 "⌥-drag or two-finger drag to pan" = "⌥-kéo hoặc kéo hai ngón để di chuyển";
+
+/* Library import */
+"Import Library…" = "Nhập thư viện…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "Nhập thư viện KiCad (.kicad_mod, .kicad_sym) hoặc Eagle (.lbr)";
+"Import Library" = "Nhập thư viện";
+"Add Selected Parts" = "Thêm linh kiện đã chọn";

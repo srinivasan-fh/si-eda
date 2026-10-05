@@ -92,3 +92,22 @@ int sieda_c_api_smoke_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Library import: a KiCad footprint becomes an importable part; bad requests and files are reported, never NULL. */
+int sieda_c_api_library_import_test(void) {
+    char* result = sieda_library_import(
+        "{\"files\":[{\"name\":\"R.kicad_mod\",\"content\":\"(footprint \\\"R_0603\\\" "
+        "(pad \\\"1\\\" smd rect (at -0.8 0) (size 0.8 0.95) (layers \\\"F.Cu\\\")) "
+        "(pad \\\"2\\\" smd rect (at 0.8 0) (size 0.8 0.95) (layers \\\"F.Cu\\\")))\"},"
+        "{\"name\":\"bad.lbr\",\"content\":\"<eagle>\"}]}");
+    if (!result || !strstr(result, "\"ok\":true") || !strstr(result, "\"name\":\"R_0603\"")) return 1;
+    if (!strstr(result, "\"format\":\"eagle_lbr\"") || !strstr(result, "never closed")) return 2;
+    sieda_string_free(result);
+    result = sieda_library_import("not json");
+    if (!result || !strstr(result, "Invalid import request")) return 3;
+    sieda_string_free(result);
+    result = sieda_library_import(NULL);
+    if (!result || !strstr(result, "\"parts\":[]")) return 4;
+    sieda_string_free(result);
+    return 0;
+}

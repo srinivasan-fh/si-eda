@@ -412,3 +412,9 @@
 "stop" = "സ്റ്റോപ്പ്";
 "us-central1" = "us-central1";
 "⌥-drag or two-finger drag to pan" = "പാൻ ചെയ്യാൻ ⌥-ഡ്രാഗ് അല്ലെങ്കിൽ രണ്ട് വിരൽ ഉപയോഗിച്ച് ഡ്രാഗ് ചെയ്യുക";
+
+/* Library import */
+"Import Library…" = "ലൈബ്രറി ഇമ്പോർട്ട് ചെയ്യുക…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad (.kicad_mod, .kicad_sym) അല്ലെങ്കിൽ Eagle (.lbr) ലൈബ്രറികൾ ഇമ്പോർട്ട് ചെയ്യുക";
+"Import Library" = "ലൈബ്രറി ഇമ്പോർട്ട്";
+"Add Selected Parts" = "തിരഞ്ഞെടുത്ത പാർട്ടുകൾ ചേർക്കുക";

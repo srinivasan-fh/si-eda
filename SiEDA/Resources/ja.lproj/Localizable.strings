@@ -412,3 +412,9 @@
 "stop" = "停止";
 "us-central1" = "us-central1";
 "⌥-drag or two-finger drag to pan" = "⌥ を押しながらドラッグまたは 2 本指ドラッグでパン";
+
+/* Library import */
+"Import Library…" = "ライブラリを読み込む…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad（.kicad_mod、.kicad_sym）または Eagle（.lbr）ライブラリを読み込む";
+"Import Library" = "ライブラリを読み込む";
+"Add Selected Parts" = "選択した部品を追加";

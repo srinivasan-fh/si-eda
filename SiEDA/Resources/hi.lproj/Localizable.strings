@@ -412,3 +412,9 @@
 "stop" = "रोकें";
 "us-central1" = "us-central1";
 "⌥-drag or two-finger drag to pan" = "पैन करने के लिए ⌥-ड्रैग या दो-उंगली ड्रैग करें";
+
+/* Library import */
+"Import Library…" = "लाइब्रेरी इम्पोर्ट करें…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad (.kicad_mod, .kicad_sym) या Eagle (.lbr) लाइब्रेरी इम्पोर्ट करें";
+"Import Library" = "लाइब्रेरी इम्पोर्ट करें";
+"Add Selected Parts" = "चुने गए पार्ट जोड़ें";
