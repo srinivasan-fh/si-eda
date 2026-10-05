@@ -4773,3 +4773,32 @@ final class SchematicCaptureTests: XCTestCase {
         XCTAssertEqual(store.snapshot.sheets.filter { $0.definitionId == block }.count, 1)
     }
 }
+
+@MainActor
+final class SchematicBusTests: XCTestCase {
+    func testBusDrawRipConnectAndDelete() throws {
+        let store = DesignStore()
+        let j1 = store.addComponent(.connector, at: .zero)
+        let j2 = store.addComponent(.connector, at: CGPoint(x: 300, y: 0))
+        XCTAssertNil(store.addBus(named: "nope", points: [CGPoint(x: 150, y: -50), CGPoint(x: 150, y: 50)]))
+        let bus = try XCTUnwrap(store.addBus(named: "D[0..1]", points: [CGPoint(x: 150, y: -50), CGPoint(x: 150, y: 50)]))
+        XCTAssertEqual(store.selectedBus, bus)
+        XCTAssertEqual(store.sheetSnapshot.bus(bus)?.members, ["D0", "D1"])
+        store.connectBus(bus, toPart: j1)
+        store.connectBus(bus, toPart: j2)
+        let c1 = try XCTUnwrap(store.snapshot.component(j1)), c2 = try XCTUnwrap(store.snapshot.component(j2))
+        XCTAssertEqual(c1.pins[0].net, c2.pins[0].net)
+        XCTAssertNotEqual(c1.pins[0].net, c1.pins[1].net)
+        XCTAssertEqual(store.snapshot.components.filter { $0.bus == bus }.count, 4)
+        store.moveBus(bus, by: CGSize(width: 20, height: 0))
+        XCTAssertEqual(store.snapshot.bus(bus)?.points.first?.x, 170)
+        store.renameBus(bus, to: "D[0..2]")
+        store.ripBusEntries(bus)
+        XCTAssertEqual(store.snapshot.components.filter { $0.bus == bus }.count, 5)
+        store.deleteSelection()
+        XCTAssertNil(store.snapshot.bus(bus))
+        XCTAssertTrue(store.snapshot.components.allSatisfy { $0.bus == nil })
+        store.undo()
+        XCTAssertNotNil(store.snapshot.bus(bus))
+    }
+}

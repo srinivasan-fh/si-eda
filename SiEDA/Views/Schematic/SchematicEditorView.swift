@@ -4,6 +4,7 @@ import SwiftUI
 enum SchematicTool: Equatable {
     case select
     case wire
+    case bus
     case noConnect
     case pan
     case place(ComponentKind)
@@ -13,6 +14,7 @@ enum SchematicTool: Equatable {
         switch self {
         case .select: return "Select / Move"
         case .wire: return "Wire"
+        case .bus: return "Bus"
         case .noConnect: return "No Connect"
         case .pan: return "Hand (Pan)"
         case .place(let kind): return "Place \(kind.displayName)"
@@ -41,6 +43,8 @@ struct SchematicEditorView: View {
                 ToolStripButton(systemImage: "cursorarrow", help: "Select / move (V)", isActive: tool == .select) { tool = .select }
                 ToolStripButton(systemImage: "hand.raised", help: "Pan (H)", isActive: tool == .pan) { tool = .pan }
                 ToolStripButton(systemImage: "line.diagonal", help: "Wire (W) — click two pins", isActive: tool == .wire) { tool = .wire }
+                ToolStripButton(systemImage: "line.3.horizontal", help: "Bus (B) — click the corners, click the last point again (or Return) to name it",
+                                isActive: tool == .bus) { tool = .bus }
                 ToolStripButton(systemImage: "xmark", help: "No connect (Q) — click a pin to mark it intentionally open",
                                 isActive: tool == .noConnect) { tool = .noConnect }
                 ToolStripDivider()
@@ -193,6 +197,7 @@ struct SchematicEditorView: View {
         case .noConnect: return "Click a pin to mark it intentionally unconnected (click again to clear) · ERC stops reporting it"
         case .pan: return "Drag, scroll or arrow keys pan · pinch, ⌘-scroll or +/− zoom · Z zoom to area · Home fits"
         case .place, .placeCustom: return "Click to place (repeats) · Space or R rotates before placing · Esc returns to Select"
+        case .bus: return "Click the bus corners · click the last point again or press Return to name it (D[0..7]) · Esc cancels"
         }
     }
 

@@ -525,3 +525,11 @@
 "Block designator" = "தொகுதி குறியீடு";
 "Channel designator" = "சேனல் குறியீடு";
 "Channel %@ of %@ — edits apply to every channel" = "சேனல் %@ (%@) — திருத்தங்கள் ஒவ்வொரு சேனலுக்கும் பொருந்தும்";
+"D[0..7]" = "D[0..7]";
+"Bus Name" = "பஸ் பெயர்";
+"Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD." = "பஸ் குறியீடு: D[0..7], A[15..0] அல்லது D[0..3],WR,RD போன்ற பட்டியல்.";
+"Rip Out Entries" = "பஸ் கிளைகளை வெளியே எடு";
+"An entry (a local net label on the bus) for every member that has none yet" = "இன்னும் இல்லாத ஒவ்வொரு உறுப்பினருக்கும் ஒரு கிளை (பஸ்ஸில் உள்ளூர் நெட் லேபிள்)";
+"Connect to Part" = "பாகத்துடன் இணை";
+"Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "உறுப்பினர்களை அதே பெயருள்ள பின்களுடன் (D0 → D0), இல்லையெனில் வரிசையாகக் காலியான பின்களுடன் இணை";
+"Delete Bus" = "பஸ்ஸை நீக்கு";

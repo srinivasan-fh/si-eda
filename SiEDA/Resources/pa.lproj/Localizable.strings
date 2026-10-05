@@ -525,3 +525,11 @@
 "Block designator" = "ਬਲਾਕ ਨਿਰਧਾਰਕ";
 "Channel designator" = "ਚੈਨਲ ਨਿਰਧਾਰਕ";
 "Channel %@ of %@ — edits apply to every channel" = "ਚੈਨਲ %@ (%@) — ਸੰਪਾਦਨ ਹਰ ਚੈਨਲ 'ਤੇ ਲਾਗੂ ਹੁੰਦੇ ਹਨ";
+"D[0..7]" = "D[0..7]";
+"Bus Name" = "ਬੱਸ ਦਾ ਨਾਮ";
+"Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD." = "ਬੱਸ ਸੰਕੇਤ: D[0..7], A[15..0] ਜਾਂ D[0..3],WR,RD ਵਰਗੀ ਸੂਚੀ।";
+"Rip Out Entries" = "ਬੱਸ ਐਂਟਰੀਆਂ ਕੱਢੋ";
+"An entry (a local net label on the bus) for every member that has none yet" = "ਹਰ ਉਸ ਮੈਂਬਰ ਲਈ ਐਂਟਰੀ (ਬੱਸ 'ਤੇ ਸਥਾਨਕ ਨੈੱਟ ਲੇਬਲ) ਜਿਸ ਦੀ ਅਜੇ ਨਹੀਂ";
+"Connect to Part" = "ਹਿੱਸੇ ਨਾਲ ਜੋੜੋ";
+"Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "ਮੈਂਬਰਾਂ ਨੂੰ ਇੱਕੋ ਨਾਮ ਵਾਲੇ ਪਿੰਨਾਂ (D0 → D0) ਨਾਲ, ਨਹੀਂ ਤਾਂ ਕ੍ਰਮ ਵਿੱਚ ਖਾਲੀ ਪਿੰਨਾਂ ਨਾਲ ਜੋੜੋ";
+"Delete Bus" = "ਬੱਸ ਮਿਟਾਓ";

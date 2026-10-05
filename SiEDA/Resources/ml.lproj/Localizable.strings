@@ -525,3 +525,11 @@
 "Block designator" = "ബ്ലോക്ക് ഡിസൈനേറ്റർ";
 "Channel designator" = "ചാനൽ ഡിസൈനേറ്റർ";
 "Channel %@ of %@ — edits apply to every channel" = "ചാനൽ %@ (%@) — മാറ്റങ്ങൾ എല്ലാ ചാനലിനും ബാധകം";
+"D[0..7]" = "D[0..7]";
+"Bus Name" = "ബസിന്റെ പേര്";
+"Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD." = "ബസ് നൊട്ടേഷൻ: D[0..7], A[15..0] അല്ലെങ്കിൽ D[0..3],WR,RD പോലുള്ള പട്ടിക.";
+"Rip Out Entries" = "ബസ് എൻട്രികൾ പുറത്തെടുക്കുക";
+"An entry (a local net label on the bus) for every member that has none yet" = "ഇതുവരെ ഇല്ലാത്ത ഓരോ അംഗത്തിനും ഒരു എൻട്രി (ബസിലെ ലോക്കൽ നെറ്റ് ലേബൽ)";
+"Connect to Part" = "ഘടകവുമായി ബന്ധിപ്പിക്കുക";
+"Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "അംഗങ്ങളെ ഒരേ പേരുള്ള പിന്നുകളിലേക്ക് (D0 → D0), ഇല്ലെങ്കിൽ ഒഴിഞ്ഞ പിന്നുകളിലേക്ക് ക്രമമായി ബന്ധിപ്പിക്കുക";
+"Delete Bus" = "ബസ് ഇല്ലാതാക്കുക";

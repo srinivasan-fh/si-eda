@@ -525,3 +525,11 @@
 "Block designator" = "ಬ್ಲಾಕ್ ಗುರುತು";
 "Channel designator" = "ಚಾನಲ್ ಗುರುತು";
 "Channel %@ of %@ — edits apply to every channel" = "ಚಾನಲ್ %@ (%@) — ಸಂಪಾದನೆಗಳು ಪ್ರತಿ ಚಾನಲ್‌ಗೆ ಅನ್ವಯಿಸುತ್ತವೆ";
+"D[0..7]" = "D[0..7]";
+"Bus Name" = "ಬಸ್ ಹೆಸರು";
+"Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD." = "ಬಸ್ ಸಂಕೇತ: D[0..7], A[15..0] ಅಥವಾ D[0..3],WR,RD ರೀತಿಯ ಪಟ್ಟಿ.";
+"Rip Out Entries" = "ಬಸ್ ಎಂಟ್ರಿಗಳನ್ನು ಹೊರತೆಗೆಯಿರಿ";
+"An entry (a local net label on the bus) for every member that has none yet" = "ಇನ್ನೂ ಇಲ್ಲದ ಪ್ರತಿಯೊಂದು ಸದಸ್ಯನಿಗೆ ಒಂದು ಎಂಟ್ರಿ (ಬಸ್ ಮೇಲಿನ ಸ್ಥಳೀಯ ನೆಟ್ ಲೇಬಲ್)";
+"Connect to Part" = "ಭಾಗಕ್ಕೆ ಸಂಪರ್ಕಿಸಿ";
+"Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "ಸದಸ್ಯರನ್ನು ಅದೇ ಹೆಸರಿನ ಪಿನ್‌ಗಳಿಗೆ (D0 → D0), ಇಲ್ಲದಿದ್ದರೆ ಖಾಲಿ ಪಿನ್‌ಗಳಿಗೆ ಕ್ರಮವಾಗಿ ಸಂಪರ್ಕಿಸಿ";
+"Delete Bus" = "ಬಸ್ ಅಳಿಸಿ";

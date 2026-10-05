@@ -89,6 +89,7 @@
 		D7DF1C1C815D245B80D2653D = {isa = PBXBuildFile; fileRef = 26947D07ECF33FE13550E88A; };
 		D955D5E0AF7F2908EFEC462B = {isa = PBXBuildFile; fileRef = 0F0833A5CA77AB73527A9023; };
 		DC5962006FC36ACECF2C7F34 = {isa = PBXBuildFile; fileRef = 262682BD136933576066443E; };
+		DC930E5139085C3D9454F757 = {isa = PBXBuildFile; fileRef = F5FB86B05BC4AEB24FCA3877; };
 		DD7856CFDA9E2611C4F83584 = {isa = PBXBuildFile; fileRef = AC5F3ED740A4FD6618195715; };
 		DDC557E6FCB5E07CCE21F675 = {isa = PBXBuildFile; fileRef = D167B535F3242C6A3552428F; };
 		E2863EF1680477E5EC6172CD = {isa = PBXBuildFile; fileRef = 6F713D3D022B8E6CABF26E5C; };
@@ -268,6 +269,7 @@
 		ED31CDCBDEE7E1F670F7977E = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Reliability.cpp; sourceTree = "<group>"; };
 		F377BB60FA42CD1DF62BE62A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolDraft.swift; sourceTree = "<group>"; };
 		F459489B353E161C42FB7B2D = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Simulator.cpp; sourceTree = "<group>"; };
+		F5FB86B05BC4AEB24FCA3877 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Buses.cpp; sourceTree = "<group>"; };
 		F627D60E30DEE4F730D03040 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/Localizable.strings; sourceTree = "<group>"; };
 		F96A726E3DB4332397197D42 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = hi; path = hi.lproj/Localizable.strings; sourceTree = "<group>"; };
 		FD0349E3F008C96C569E5F1F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchematicSymbols.swift; sourceTree = "<group>"; };
@@ -463,6 +465,7 @@
 				085E0C7C16BF5A4DBFF9AED5,
 				2B5B8F926E5F3FE0015F96DA,
 				71284BA817C0C1DCC0CA3D6B,
+				F5FB86B05BC4AEB24FCA3877,
 				3B93D968614EC9B31DA4DE95,
 				40CB462BA68D53F06E05FE4B,
 				0F0833A5CA77AB73527A9023,
@@ -822,6 +825,7 @@
 				22D4E40197A0198F20F90478,
 				27F0083DD20AA58EE2FA4A6F,
 				1B6D303504BD876122874794,
+				DC930E5139085C3D9454F757,
 				65FD190DDE9074461717C0FA,
 				11DA8A2E7A51801F14B785D4,
 				D955D5E0AF7F2908EFEC462B,

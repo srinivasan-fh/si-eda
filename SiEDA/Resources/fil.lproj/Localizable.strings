@@ -525,3 +525,11 @@
 "Block designator" = "Designator ng block";
 "Channel designator" = "Designator ng channel";
 "Channel %@ of %@ — edits apply to every channel" = "Channel %@ ng %@ — ang mga pag-edit ay para sa bawat channel";
+"D[0..7]" = "D[0..7]";
+"Bus Name" = "Pangalan ng bus";
+"Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD." = "Notasyon ng bus: D[0..7], A[15..0] o listahan gaya ng D[0..3],WR,RD.";
+"Rip Out Entries" = "Ilabas ang mga entry";
+"An entry (a local net label on the bus) for every member that has none yet" = "Isang entry (lokal na net label sa bus) para sa bawat miyembrong wala pa";
+"Connect to Part" = "Ikonekta sa piyesa";
+"Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "Ikabit ang mga miyembro sa mga pin na may parehong pangalan (D0 → D0), kung wala ay sa mga bukas na pin nang sunod-sunod";
+"Delete Bus" = "Burahin ang bus";

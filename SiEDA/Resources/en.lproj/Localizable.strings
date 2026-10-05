@@ -525,3 +525,11 @@
 "Block designator" = "Block designator";
 "Channel designator" = "Channel designator";
 "Channel %@ of %@ — edits apply to every channel" = "Channel %@ of %@ — edits apply to every channel";
+"D[0..7]" = "D[0..7]";
+"Bus Name" = "Bus Name";
+"Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD." = "Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD.";
+"Rip Out Entries" = "Rip Out Entries";
+"An entry (a local net label on the bus) for every member that has none yet" = "An entry (a local net label on the bus) for every member that has none yet";
+"Connect to Part" = "Connect to Part";
+"Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order";
+"Delete Bus" = "Delete Bus";

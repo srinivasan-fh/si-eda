@@ -298,6 +298,39 @@ final class EDAEngine: @unchecked Sendable {
         withHandle { sieda_set_sheet_channel($0, Int32(id), channel) } == 1
     }
 
+    // MARK: - Graphical buses
+
+    /// Draws a bus ("D[0..7]") through `points` on the active sheet; its id, nil when the name is not a bus.
+    func addBus(_ name: String, points: [CGPoint]) -> Int? {
+        let json = "[" + points.map { "{\"x\":\(Double($0.x)),\"y\":\(Double($0.y))}" }.joined(separator: ",") + "]"
+        let id = withHandle { sieda_add_bus($0, name, json) }
+        return id > 0 ? Int(id) : nil
+    }
+
+    @discardableResult
+    func removeBus(_ id: Int) -> Bool { withHandle { sieda_remove_bus($0, Int32(id)) } == 1 }
+
+    @discardableResult
+    func renameBus(_ id: Int, to name: String) -> Bool { withHandle { sieda_rename_bus($0, Int32(id), name) } == 1 }
+
+    @discardableResult
+    func moveBus(_ id: Int, by delta: CGSize) -> Bool {
+        withHandle { sieda_move_bus($0, Int32(id), Double(delta.width), Double(delta.height)) } == 1
+    }
+
+    /// Rips entries out of a bus for `members` (every member without one when empty); the number added.
+    @discardableResult
+    func ripBusEntries(_ id: Int, members: [String] = [], scope: String = "local") -> Int {
+        let json = (try? JSONEncoder().encode(members)).map { String(decoding: $0, as: UTF8.self) } ?? "[]"
+        return max(0, Int(withHandle { sieda_rip_bus_entries($0, Int32(id), json, scope) }))
+    }
+
+    /// Wires bus members to the pins of a part they name (else to its open pins); the connections made.
+    @discardableResult
+    func connectBus(_ id: Int, toPart component: Int, scope: String = "local") -> Int {
+        max(0, Int(withHandle { sieda_connect_bus_to_part($0, Int32(id), Int32(component), scope) }))
+    }
+
     // MARK: - Design variants
 
     @discardableResult

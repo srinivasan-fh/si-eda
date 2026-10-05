@@ -44,6 +44,8 @@ struct DesignSnapshot: Decodable, Equatable {
     /// Assembly variants and the active one ("" = the base design).
     var variants: [VariantInfo] = []
     var activeVariant = ""
+    /// Graphical buses on every sheet (filtered to one sheet by `onSheet`).
+    var buses: [BusInfo] = []
 
     static let empty = DesignSnapshot(name: "Untitled", requirements: "", components: [], wires: [], nets: [],
                                       board: BoardInfo(), pads: [], tracks: [], vias: [], ratsnest: [], courtyards: [])
@@ -97,22 +99,25 @@ struct DesignSnapshot: Decodable, Equatable {
         activeSheet = try c.decodeIfPresent(Int.self, forKey: .activeSheet) ?? 1
         variants = try c.decodeIfPresent([VariantInfo].self, forKey: .variants) ?? []
         activeVariant = try c.decodeIfPresent(String.self, forKey: .activeVariant) ?? ""
+        buses = try c.decodeIfPresent([BusInfo].self, forKey: .buses) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
         case name, requirements, components, wires, nets, board, pads, tracks, vias, ratsnest, courtyards, bodies, customParts
         case industry, robotPlatform, ecuType, aerospaceMission, navalPlatform, medicalClass, retailDevice, zones, zoneFills
-        case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant
+        case tamperMeshes, applianceType, memoryDesign, sheets, activeSheet, variants, activeVariant, buses
     }
 
     func component(_ id: Int) -> SnapComponent? { components.first { $0.id == id } }
     func sheet(_ id: Int) -> SheetInfo? { sheets.first { $0.id == id } }
+    func bus(_ id: Int) -> BusInfo? { buses.first { $0.id == id } }
 
     /// The part of the design drawn on one sheet: its components and the wires between them (wires never cross
     /// sheets). A single-sheet design is returned unchanged.
     func onSheet(_ sheet: Int) -> DesignSnapshot {
         guard sheets.count > 1 else { return self }
         var copy = self
+        copy.buses = buses.filter { $0.sheet == sheet }
         copy.components = components.filter { $0.sheetId == sheet }
         let ids = Set(copy.components.map(\.id))
         copy.wires = wires.filter { ids.contains($0.a.component) && ids.contains($0.b.component) }
@@ -210,6 +215,8 @@ struct SnapComponent: Decodable, Equatable, Identifiable {
     /// Part of a repeated sheet: the block part an instance copies, and the designator inside the block ("R1").
     var instanceOf: Int?
     var logicalRef: String?
+    /// Bus entries: the bus the label leaves (BusInfo.id).
+    var bus: Int?
 
     var sheetId: Int { sheet ?? 1 }
     var labelScope: String { scope ?? "global" }
@@ -366,6 +373,30 @@ struct SheetInfo: Decodable, Equatable, Identifiable, Hashable {
     var isInstance: Bool { (instanceOf ?? 0) != 0 }
     /// The definition sheet of a repeated block (the sheet itself otherwise).
     var definitionId: Int { isInstance ? (instanceOf ?? id) : id }
+}
+
+/// A graphical bus: a named polyline ("D[0..7]") whose members leave it through bus entries (net labels with `bus`).
+struct BusInfo: Decodable, Equatable, Identifiable {
+    var id: Int
+    var sheet: Int
+    var name: String
+    var points: [BoardPoint]
+    var members: [String] = []
+    var instanceOf: Int?
+
+    var path: [CGPoint] { points.map(\.point) }
+
+    /// The point of the bus nearest to `p` and its distance.
+    func nearest(to p: CGPoint) -> (point: CGPoint, distance: CGFloat) {
+        var best = (point: path.first ?? p, distance: CGFloat.greatestFiniteMagnitude)
+        let pts = path
+        for i in pts.indices.dropLast() {
+            let q = WireGeometry.nearestPoint(onSegment: pts[i], pts[i + 1], to: p)
+            let d = hypot(q.x - p.x, q.y - p.y)
+            if d < best.distance { best = (q, d) }
+        }
+        return best
+    }
 }
 
 /// A named assembly variant: parts fitted / not fitted and value overrides.

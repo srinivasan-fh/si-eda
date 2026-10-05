@@ -525,3 +525,11 @@
 "Block designator" = "區塊參考編號";
 "Channel designator" = "通道參考編號";
 "Channel %@ of %@ — edits apply to every channel" = "通道 %@（%@）— 編輯會套用到每個通道";
+"D[0..7]" = "D[0..7]";
+"Bus Name" = "匯流排名稱";
+"Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD." = "匯流排表示法：D[0..7]、A[15..0] 或如 D[0..3],WR,RD 的列表。";
+"Rip Out Entries" = "拉出匯流排分支";
+"An entry (a local net label on the bus) for every member that has none yet" = "為每個尚未有分支的成員建立分支（匯流排上的區域網路標籤）";
+"Connect to Part" = "連接到元件";
+"Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "將成員連到元件同名的接腳 (D0 → D0)，否則依序連到未連接的接腳";
+"Delete Bus" = "刪除匯流排";

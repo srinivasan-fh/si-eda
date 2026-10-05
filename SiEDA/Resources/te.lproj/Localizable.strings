@@ -525,3 +525,11 @@
 "Block designator" = "బ్లాక్ నిర్దేశకం";
 "Channel designator" = "ఛానెల్ నిర్దేశకం";
 "Channel %@ of %@ — edits apply to every channel" = "ఛానెల్ %@ (%@) — సవరణలు ప్రతి ఛానెల్‌కు వర్తిస్తాయి";
+"D[0..7]" = "D[0..7]";
+"Bus Name" = "బస్ పేరు";
+"Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD." = "బస్ సంకేతం: D[0..7], A[15..0] లేదా D[0..3],WR,RD వంటి జాబితా.";
+"Rip Out Entries" = "బస్ ఎంట్రీలను బయటకు తీయి";
+"An entry (a local net label on the bus) for every member that has none yet" = "ఇంకా లేని ప్రతి సభ్యునికి ఒక ఎంట్రీ (బస్‌పై స్థానిక నెట్ లేబుల్)";
+"Connect to Part" = "భాగానికి కలుపు";
+"Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "సభ్యులను అదే పేరు గల పిన్‌లకు (D0 → D0), లేకుంటే ఖాళీ పిన్‌లకు వరుసగా కలుపు";
+"Delete Bus" = "బస్‌ను తొలగించు";

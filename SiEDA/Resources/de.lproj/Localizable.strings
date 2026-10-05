@@ -525,3 +525,11 @@
 "Block designator" = "Block-Bezeichner";
 "Channel designator" = "Kanal-Bezeichner";
 "Channel %@ of %@ — edits apply to every channel" = "Kanal %@ von %@ — Änderungen gelten für jeden Kanal";
+"D[0..7]" = "D[0..7]";
+"Bus Name" = "Busname";
+"Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD." = "Busnotation: D[0..7], A[15..0] oder eine Liste wie D[0..3],WR,RD.";
+"Rip Out Entries" = "Buseinträge herausführen";
+"An entry (a local net label on the bus) for every member that has none yet" = "Ein Eintrag (lokales Netzlabel am Bus) für jedes Mitglied, das noch keinen hat";
+"Connect to Part" = "Mit Bauteil verbinden";
+"Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "Mitglieder mit gleichnamigen Pins verbinden (D0 → D0), sonst der Reihe nach mit freien Pins";
+"Delete Bus" = "Bus löschen";

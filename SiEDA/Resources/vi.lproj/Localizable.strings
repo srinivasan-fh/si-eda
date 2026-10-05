@@ -525,3 +525,11 @@
 "Block designator" = "Ký hiệu trong khối";
 "Channel designator" = "Ký hiệu theo kênh";
 "Channel %@ of %@ — edits apply to every channel" = "Kênh %@ của %@ — chỉnh sửa áp dụng cho mọi kênh";
+"D[0..7]" = "D[0..7]";
+"Bus Name" = "Tên bus";
+"Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD." = "Ký hiệu bus: D[0..7], A[15..0] hoặc danh sách như D[0..3],WR,RD.";
+"Rip Out Entries" = "Rút các nhánh bus";
+"An entry (a local net label on the bus) for every member that has none yet" = "Một nhánh (nhãn net cục bộ trên bus) cho mỗi thành viên chưa có";
+"Connect to Part" = "Nối tới linh kiện";
+"Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "Nối thành viên tới chân cùng tên (D0 → D0), nếu không thì tới các chân trống theo thứ tự";
+"Delete Bus" = "Xóa bus";

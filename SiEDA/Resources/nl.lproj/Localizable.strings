@@ -525,3 +525,11 @@
 "Block designator" = "Blokreferentie";
 "Channel designator" = "Kanaalreferentie";
 "Channel %@ of %@ — edits apply to every channel" = "Kanaal %@ van %@ — bewerkingen gelden voor elk kanaal";
+"D[0..7]" = "D[0..7]";
+"Bus Name" = "Busnaam";
+"Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD." = "Busnotatie: D[0..7], A[15..0] of een lijst zoals D[0..3],WR,RD.";
+"Rip Out Entries" = "Aftakkingen uittrekken";
+"An entry (a local net label on the bus) for every member that has none yet" = "Een aftakking (lokaal netlabel op de bus) voor elk lid dat er nog geen heeft";
+"Connect to Part" = "Verbinden met onderdeel";
+"Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "Verbind leden met pinnen van dezelfde naam (D0 → D0), anders op volgorde met vrije pinnen";
+"Delete Bus" = "Bus verwijderen";

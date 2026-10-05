@@ -109,15 +109,35 @@ ERC findings carry the sheet they are on (`"sheet"` in the JSON); selecting one 
 
 The multi-sheet rules never fire on a single-sheet design except `ERC_BUS_LABEL`.
 
-## Bus labels
+## Buses
 
 Bus notation names a group of nets: `D[0..7]` is D0 … D7, `A[15..12]` counts down, a suffix is kept
 (`D[0..1]_N` → D0_N, D1_N) and comma lists combine (`D[0..3],WR,RD`). Up to 1024 members.
 
+### Graphical buses
+
+- **Draw**: the **Bus** tool (**B**) in the tool strip. Click the corners; click the last point again (or press
+  Return) and name the bus in bus notation. Esc cancels. A bus is drawn as a thick line with its name.
+- **Select** a bus by clicking it; drag it to move it with its entries; ⌫ deletes it with its entries.
+- **Bus entries** are net labels attached to the bus, drawn with a short diagonal stub from the bus. They join nets
+  by name like any label — **local to the sheet** by default — so a bus member connects to every entry and label of
+  the same name. The bus line itself carries no connection.
+- In the inspector of a selected bus: rename it, **Rip Out Entries** (an entry for every member that has none,
+  spaced along the bus; wire each entry to its pin), or **Connect to Part** — every member that names a pin of the
+  chosen part (D0 → pin `D0`, or one function of `PB0/D0`) gets an entry near that pin, wired to it; when no names
+  match, the members go to the part's unconnected pins in order. Pins already wired are left alone.
+- Buses on a repeated sheet are copied into every channel with their entries.
+
+| Code | Severity | Meaning |
+|---|---|---|
+| `ERC_BUS_ENTRY_NOT_MEMBER` | error | An entry's name is not a member of its bus |
+| `ERC_BUS_MEMBER_UNCONNECTED` | warning | A member leaves the bus to one pin only — nothing else on the bus connects to it |
+| `ERC_BUS_NO_ENTRIES` | warning | A bus has no entries |
+
+### Bus labels without a bus line
+
 `sieda_add_bus_labels` (core: `Schematic::addBusLabels`) puts one label per member on a list of pins of a part — in
-order, each just outside its pin, facing away from the part, wired to it — with the scope you choose. Buses are a
-labelling aid: SiEDA has no graphical bus wires or bus entries, so a bus connects through its member labels. Bus labels
-are available through the C API (and so to scripts and agents); the app does not have a bus-label tool yet.
+order, each just outside its pin, facing away from the part, wired to it — with the scope you choose.
 
 ## Annotation
 
@@ -209,7 +229,8 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
 
 - Repeated sheets cannot nest (a repeated block has no child sheets). An AI design plan made from a repeated
   design carries every channel as ordinary parts: refining the design with the agents flattens the repetition.
-- No graphical bus wires or bus entries; buses connect through member labels, placed through the C API.
+- A bus line has no electrical meaning of its own: members connect through their entries' names. Buses are not
+  shown in the PCB editor (their members are ordinary nets there).
 - Variant values affect the assembly outputs only, not simulation or design checks.
 - The sheet symbol is drawn from its entries; it has no separate size or graphics of its own.
 - Wires never cross sheets; parts moved to another sheet lose their wires to parts left behind.

@@ -525,3 +525,11 @@
 "Block designator" = "ブロック内リファレンス";
 "Channel designator" = "チャネルのリファレンス";
 "Channel %@ of %@ — edits apply to every channel" = "チャネル %@（%@）— 編集はすべてのチャネルに反映されます";
+"D[0..7]" = "D[0..7]";
+"Bus Name" = "バス名";
+"Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD." = "バス表記: D[0..7]、A[15..0]、または D[0..3],WR,RD のようなリスト。";
+"Rip Out Entries" = "バスエントリを引き出す";
+"An entry (a local net label on the bus) for every member that has none yet" = "まだエントリのないメンバーごとにエントリ（バス上のローカルネットラベル）を作成";
+"Connect to Part" = "部品に接続";
+"Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "メンバーを部品の同名ピン (D0 → D0) に、なければ空きピンに順に配線";
+"Delete Bus" = "バスを削除";

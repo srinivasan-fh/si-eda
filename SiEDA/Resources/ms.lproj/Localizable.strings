@@ -525,3 +525,11 @@
 "Block designator" = "Penanda blok";
 "Channel designator" = "Penanda saluran";
 "Channel %@ of %@ — edits apply to every channel" = "Saluran %@ bagi %@ — suntingan berlaku pada setiap saluran";
+"D[0..7]" = "D[0..7]";
+"Bus Name" = "Nama Bas";
+"Bus notation: D[0..7], A[15..0] or a list such as D[0..3],WR,RD." = "Tatatanda bas: D[0..7], A[15..0] atau senarai seperti D[0..3],WR,RD.";
+"Rip Out Entries" = "Keluarkan Entri";
+"An entry (a local net label on the bus) for every member that has none yet" = "Satu entri (label net setempat pada bas) bagi setiap ahli yang belum ada";
+"Connect to Part" = "Sambung ke Komponen";
+"Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order" = "Sambung ahli ke pin komponen yang sama nama (D0 → D0), jika tiada ke pin terbuka mengikut urutan";
+"Delete Bus" = "Padam Bas";

@@ -71,6 +71,8 @@ final class DesignStore: ObservableObject {
         didSet { if selection != oldValue { followSelectionToSheet() } }
     }
     @Published var selectedWire: Int?
+    /// The graphical bus selected on the schematic (its inspector rips entries and connects parts).
+    @Published var selectedBus: Int?
     @Published var ercResults: [RuleViolation] = []
     @Published var drcResults: [RuleViolation] = []
     @Published var validationResults: [RuleViolation] = []
@@ -261,6 +263,7 @@ final class DesignStore: ObservableObject {
         sheetSnapshot = snapshot.onSheet(snapshot.activeSheet)
         selection = selection.filter { id in snapshot.components.contains { $0.id == id } }
         if let wire = selectedWire, !snapshot.wires.contains(where: { $0.id == wire }) { selectedWire = nil }
+        if let bus = selectedBus, sheetSnapshot.bus(bus) == nil { selectedBus = nil }
         // Undo, open or any edit that replaced the design ends a route in progress.
         if routePreview != nil, !engine.routerActive { routePreview = nil }
         revision &+= 1
@@ -380,6 +383,11 @@ final class DesignStore: ObservableObject {
     }
 
     func deleteSelection() {
+        if let bus = selectedBus {
+            perform("Deleted bus") { $0.removeBus(bus) }
+            selectedBus = nil
+            return
+        }
         if let wire = selectedWire {
             perform("Deleted wire") { $0.removeWire(wire) }
             selectedWire = nil
@@ -631,6 +639,7 @@ final class DesignStore: ObservableObject {
 
     func select(component id: Int?, extend: Bool = false) {
         selectedWire = nil
+        selectedBus = nil
         guard let id else {
             if !extend { selection = [] }
             return
@@ -867,6 +876,57 @@ final class DesignStore: ObservableObject {
                        failureMessage: "Channel labels are letters, digits, _ or -, unique in the block") {
             $0.setSheetChannel(id, channel: label)
         }
+    }
+
+    // MARK: - Graphical buses
+
+    /// Draws a bus through `points` (snapped to the grid) and selects it.
+    @discardableResult
+    func addBus(named name: String, points: [CGPoint]) -> Int? {
+        let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        var id: Int?
+        performChecked("Drew bus \(title)", failureMessage: "\(title) is not bus notation — use e.g. D[0..7] or A[15..0],WR") {
+            id = $0.addBus(title, points: points.map(SchematicAutoLayout.snap))
+            return id != nil
+        }
+        if let id {
+            selection = []
+            selectedWire = nil
+            selectedBus = id
+        }
+        return id
+    }
+
+    func renameBus(_ id: Int, to name: String) {
+        let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let bus = sheetSnapshot.bus(id), bus.name != title, !title.isEmpty else { return }
+        performChecked("Renamed bus to \(title)", failureMessage: "\(title) is not bus notation") { $0.renameBus(id, to: title) }
+    }
+
+    func moveBus(_ id: Int, by delta: CGSize) {
+        guard delta != .zero else { return }
+        perform("Moved bus", invalidatesAnalysis: false) { $0.moveBus(id, by: delta) }
+    }
+
+    /// Rips an entry out of the bus for every member that has none yet.
+    func ripBusEntries(_ id: Int) {
+        var added = 0
+        let done = performChecked("Ripped out bus entries", failureMessage: "Every member already has an entry") {
+            added = $0.ripBusEntries(id)
+            return added > 0
+        }
+        if done { statusMessage = "Ripped out \(added) bus entries" }
+    }
+
+    /// Wires the bus members to a part's pins of the same names (else its open pins), through entries on the bus.
+    func connectBus(_ id: Int, toPart component: Int) {
+        guard let part = snapshot.component(component) else { return }
+        var made = 0
+        let done = performChecked("Connected bus to \(part.ref)", failureMessage: "\(part.ref) has no open pins for this bus") {
+            made = $0.connectBus(id, toPart: component)
+            return made > 0
+        }
+        if done { statusMessage = "Connected \(made) bus members to \(part.ref)" }
     }
 
     /// Re-numbers reference designators by sheet and position.

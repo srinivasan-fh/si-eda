@@ -16,6 +16,9 @@ struct InspectorView: View {
                         .id("\(c.id)|\(c.ref)|\(c.value)|\(store.snapshot.activeVariant)|\(c.variantValue ?? "")")
                 } else if selected.count > 1 {
                     MultiSelectionProperties(count: selected.count)
+                } else if let busId = store.selectedBus, let bus = store.sheetSnapshot.bus(busId) {
+                    BusProperties(bus: bus)
+                        .id("\(bus.id)|\(bus.name)")
                 } else if let wireId = store.selectedWire, let wire = store.snapshot.wires.first(where: { $0.id == wireId }) {
                     WireProperties(wire: wire)
                 } else {
@@ -396,6 +399,55 @@ private struct MultiSelectionProperties: View {
             }
             .buttonStyle(.bordered)
         }
+    }
+}
+
+/// A graphical bus: its name (bus notation), members, entries, and the tools that connect it.
+private struct BusProperties: View {
+    @EnvironmentObject private var store: DesignStore
+    var bus: BusInfo
+    @State private var name: String
+
+    init(bus: BusInfo) {
+        self.bus = bus
+        _name = State(initialValue: bus.name)
+    }
+
+    var body: some View {
+        let entries = store.sheetSnapshot.components.filter { $0.bus == bus.id }
+        let ripped = Set(entries.map(\.value))
+        let parts = store.sheetSnapshot.components.filter { !$0.componentKind.isVirtual && $0.componentKind != .junction }
+        PropertyGroup(title: "Bus") {
+            LabeledContent("Name") {
+                TextField("D[0..7]", text: $name)
+                    .textFieldStyle(.blue)
+                    .onSubmit { store.renameBus(bus.id, to: name) }
+            }
+            PropertyRow(label: "Members", value: "\(bus.members.count)")
+            PropertyRow(label: "Entries", value: "\(entries.count)")
+            let open = bus.members.filter { !ripped.contains($0) }
+            if !open.isEmpty {
+                Text(verbatim: open.prefix(12).joined(separator: " ") + (open.count > 12 ? " …" : ""))
+                    .font(.caption.monospaced())
+                    .foregroundStyle(Theme.warning)
+            }
+            Button { store.ripBusEntries(bus.id) } label: { Label("Rip Out Entries", systemImage: "arrow.turn.down.right") }
+                .disabled(open.isEmpty)
+                .help("An entry (a local net label on the bus) for every member that has none yet")
+            Menu {
+                ForEach(parts) { part in
+                    Button(part.ref) { store.connectBus(bus.id, toPart: part.id) }
+                }
+            } label: {
+                Label("Connect to Part", systemImage: "point.3.connected.trianglepath.dotted")
+            }
+            .fixedSize()
+            .disabled(parts.isEmpty)
+            .help("Wire members to the part's pins of the same names (D0 → D0), else to its open pins in order")
+            Button(role: .destructive) { store.deleteSelection() } label: { Label("Delete Bus", systemImage: "trash") }
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
     }
 }
 
