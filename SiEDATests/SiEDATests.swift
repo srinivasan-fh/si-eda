@@ -5258,6 +5258,7 @@ final class SupplierSearchTests: XCTestCase {
 
 // MARK: - Imported 3D models
 
+@MainActor
 final class Model3DImportTests: XCTestCase {
     static let cubeObj = Data("""
     v 0 0 0
@@ -5373,6 +5374,7 @@ final class AltiumImportTests: XCTestCase {
 
 // MARK: - Import sheet: choosing a symbol's footprint
 
+@MainActor
 final class LibraryImportPairingTests: XCTestCase {
     private func fixture(_ name: String) throws -> LibraryImportFile {
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
