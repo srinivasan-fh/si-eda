@@ -860,6 +860,71 @@ struct RoutePreview: Decodable, Equatable {
     var hiddenVias: [Int]
     /// Why the last router call was refused (the preview is still the current state).
     var error: String?
+    /// The routed net's whole length with this route, and the length its matched-length group asks for (0 = none).
+    var netLength: Double?
+    var targetLength: Double?
+    /// Highlight mode: what the route violates (nil / empty otherwise).
+    var collisions: [RouteCollision]?
+    /// The update was cancelled (`routerAbort`): the preview from before it, to be ignored.
+    var aborted: Bool?
+}
+
+/// Interactive router mode (`sieda_router_*` options "mode").
+enum RouterModeChoice: String, CaseIterable, Identifiable {
+    case shove, walkaround, highlight
+    var id: String { rawValue }
+}
+
+/// The via V places while routing (`sieda_router_*` options "viaType"): through, blind / buried (the span it
+/// joins), laser microvia (neighbouring layers) or automatic (microvia / blind / through by span on HDI boards).
+enum RouterViaChoice: String, CaseIterable, Identifiable {
+    case through, blind, micro, auto
+    var id: String { rawValue }
+}
+
+/// Copper or a board rule the route violates in Highlight mode: `kind` "track" (a-b, width), "via" (a, width =
+/// diameter), "pad" (a = centre, w × h), "hole" (a, width = keep-out), or "edge" / "plane" / "mesh" (x, y only).
+struct RouteCollision: Decodable, Equatable {
+    var kind: String
+    var id: Int
+    var x: Double
+    var y: Double
+    var ax: Double
+    var ay: Double
+    var bx: Double
+    var by: Double
+    var w: Double
+    var h: Double
+    var width: Double
+}
+
+/// Fanout of a part (`sieda_pcb_fanout`): pads given an escape and a via, pads skipped, pads without room.
+struct FanoutResult: Decodable, Equatable {
+    var ok: Bool
+    var message: String
+    var fanned: Int
+    var skipped: Int
+    var failed: [Int]
+}
+
+/// Interactive length tuning (`sieda_router_tune`): the meanders it would add (or added) and the lengths.
+struct TunePreview: Decodable, Equatable {
+    var ok: Bool
+    var message: String
+    var net: Int
+    /// Matched-length group of the net ("" when none) and its kind ("pair" / "bus").
+    var group: String
+    var groupKind: String
+    var tolerance: Double
+    var before: Double
+    var after: Double
+    var target: Double
+    var applied: Bool
+    var addedTracks: [SnapTrack]
+    var removedTracks: [Int]
+
+    /// Within tolerance of the target.
+    var onTarget: Bool { abs(after - target) <= max(tolerance, 0.01) + 1e-6 }
 }
 
 /// Result of committing a route (`sieda_router_commit`).

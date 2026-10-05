@@ -62,6 +62,14 @@ double ellipticK(double k);
 CouplingEstimate crosstalkCoupling(const BoardSettings& s, int layer, double w1, double w2, double gap, double coupledMm,
                                    double riseTime);
 
+/// Broadside coupling of tracks on adjacent layers `layerA` / `layerB` whose centre lines are `offset` apart laterally:
+/// the same thin-wire image theory as the microstrip case (C. R. Paul) with the conductors at heights h1 and h2 over
+/// the nearest plane outside the pair, Lm/L = ln((x² + (h1+h2)²)/(x² + (h1−h2)²)) / (2·√(ln(2h1/r)·ln(2h2/r))). Both
+/// layers buried: homogeneous (Cm/C = Lm/L, no FEXT); otherwise the air-filled share lowers Cm/C as on a microstrip.
+/// The second plane on the other side is ignored, so the estimate errs high (conservative). NEXT / FEXT as above.
+CouplingEstimate broadsideCoupling(const BoardSettings& s, int layerA, int layerB, double w1, double w2, double offset,
+                                   double coupledMm, double riseTime);
+
 // ---- time-domain transmission-line network ----------------------------------------------------------------------------
 
 /// A network of lossless lines and lumped elements to ground, driven by a Thévenin source with linear edges. Solved
@@ -119,6 +127,8 @@ struct PdnRailSettings {
     double ripplePercent = 0;     // allowed AC ripple, % of the rail
     double transientCurrent = 0;  // A, the load step the PDN must hold within the ripple
     double dcCurrent = 0;         // A, total DC load for IR drop
+    double vrmR = 0;              // Ω, regulator output resistance (0 = by regulator type)
+    double vrmBandwidth = 0;      // Hz, regulator loop bandwidth (0 = by regulator type)
 };
 
 /// Signal / power-integrity setup stored with the project.
@@ -131,6 +141,16 @@ struct SiSettings {
     bool signOff = false;          // add a "Signal & Power Integrity" stage to design verification
     double overshootLimit = 0.15;  // fraction of the swing
     double crosstalkLimit = 0.05;  // fraction of the victim's swing
+    std::string copperFoil;        // copper foil profile for loss ("" = by laminate, see LossyLine.hpp)
+    /// Serial channels checked in sign-off: an eye at `bitRate` against a mask (SI_EYE_MASK).
+    struct ChannelSpec {
+        std::string net;
+        double bitRate = 0;       // b/s
+        double maskHeight = 0;    // V
+        double maskWidthUi = 0;   // UI
+    };
+    std::vector<ChannelSpec> channels;
+    const ChannelSpec* channel(const std::string& net) const;
     /// Imported model, else a logic family; nullptr when unknown.
     const DriverModel* findModel(const std::string& id) const;
     const PdnRailSettings* rail(const std::string& net) const;
@@ -217,6 +237,29 @@ struct SiNetResult {
 
 /// Analyses one net (signal nets with two or more pads). `extraSeriesR` ≥ 0 adds a what-if series resistor at the driver.
 SiNetResult analyzeNet(const Project& project, int net, double extraSeriesR = -1);
+/// The circuit behind analyzeNet, for the frequency-domain channel solver (Channel.hpp): the copper graph actually
+/// analysed (the straight-line estimate when unrouted, via stubs removed when backdrilled), the driver pad's node, the
+/// passive loads per graph node (pad capacitance, terminations to their rails, connectors, discretes — no driver or
+/// receiver device models) and every logic receiver with its model.
+struct SiNetCircuit {
+    NetCopperGraph graph;
+    std::vector<bool> reach;  // per graph node: connected to the driver pad
+    int driverNode = -1;
+    size_t driverPad = static_cast<size_t>(-1);
+    std::vector<double> padC, padG, padJ;  // per graph node: F, S to the rail, sum G*V_rail (A)
+    struct Receiver {
+        int node = -1;
+        size_t pad = 0;
+        int componentId = -1;
+        std::string ref, pin;
+        DriverModel model;
+        size_t result = 0;  // index into SiNetResult::receivers
+    };
+    std::vector<Receiver> receivers;
+};
+/// analyzeNet without the time-domain run, filling `out` with its circuit.
+SiNetResult analyzeNetCircuit(const Project& project, int net, SiNetCircuit& out);
+
 /// Net result with waveforms decimated to at most `maxPoints` samples.
 Json siNetJson(const SiNetResult& r, size_t maxPoints = 400);
 
@@ -236,8 +279,10 @@ struct CrosstalkPair {
     double limit = 0;          // allowed noise (V)
     Vec2 at;
     bool ok = true;
+    bool broadside = false;  // the victim runs on the adjacent layer ("Top / In1")
 };
-/// Parallel neighbours of fast / driven nets on the same layer (differential-pair partners excluded).
+/// Parallel neighbours of fast / driven nets on the same layer (edge coupled) or the adjacent layer (broadside),
+/// differential-pair partners excluded.
 std::vector<CrosstalkPair> crosstalkPairs(const Project& project);
 
 struct ReturnPathIssue {
@@ -255,5 +300,14 @@ Json crosstalkJson(const Project& project);
 /// Every SI and PI finding as warnings / notes: overshoot, ringback, critical length, crosstalk, return path,
 /// PDN target impedance and anti-resonance, decoupling and IR drop. Codes SI_* and PI_*.
 std::vector<RuleViolation> signalPowerIntegrityChecks(const Project& project);
+
+/// Eye of a serial channel spec (PRBS7 at its bit rate, IBIS driver when assigned, else an ideal 50 Ω source and
+/// termination) against its mask: the SI_EYE_MASK finding.
+struct ChannelCheck {
+    bool ok = true;
+    double eyeHeight = 0, eyeWidth = 0, maskMargin = 0;
+    std::string message;
+};
+ChannelCheck checkChannel(const Project& project, const SiSettings::ChannelSpec& spec);
 
 }  // namespace sieda

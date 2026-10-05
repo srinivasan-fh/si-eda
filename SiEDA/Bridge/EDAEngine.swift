@@ -815,7 +815,15 @@ final class EDAEngine: @unchecked Sendable {
 
     /// Options for `sieda_router_*`: push-and-shove or walkaround, 45° or 90° corners.
     static func routerOptions(shove: Bool, diagonal: Bool) -> String {
-        "{\"mode\":\"\(shove ? "shove" : "walkaround")\",\"posture\":\"\(diagonal ? "45" : "90")\"}"
+        routerOptions(mode: shove ? .shove : .walkaround, diagonal: diagonal)
+    }
+
+    /// Options for `sieda_router_*` with any router mode (Highlight lets the head go anywhere and lists collisions).
+    /// `rounded`: corners become arcs (short chords) of the automatic radius where they fit (single tracks).
+    static func routerOptions(mode: RouterModeChoice, diagonal: Bool, via: RouterViaChoice = .through,
+                              rounded: Bool = false) -> String {
+        "{\"mode\":\"\(mode.rawValue)\",\"posture\":\"\(diagonal ? "45" : "90")\",\"viaType\":\"\(via.rawValue)\","
+            + "\"cornerRadius\":\(rounded ? -1 : 0)}"
     }
 
     /// Starts a route (or a differential pair) on the pad, via or track at `point`; the preview carries `error` when
@@ -828,6 +836,46 @@ final class EDAEngine: @unchecked Sendable {
         return Self.decode(RoutePreview.self, from: json)
     }
 
+    /// Drags track segment `trackId` grabbed at `point` (it moves parallel to itself; other nets are shoved).
+    func routerBeginDrag(track trackId: Int, at point: CGPoint, options: String) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle {
+            Self.take(sieda_router_begin_drag($0, options, Int32(trackId), Double(point.x), Double(point.y)))
+        })
+    }
+
+    /// Drags via `viaId` grabbed at `point`; the tracks ending on it follow.
+    func routerBeginViaDrag(via viaId: Int, at point: CGPoint, options: String) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle {
+            Self.take(sieda_router_begin_via_drag($0, options, Int32(viaId), Double(point.x), Double(point.y)))
+        })
+    }
+
+    /// Length tuning of the net of `trackId`: a preview (`apply` false) or the change itself. `target` 0 = the
+    /// longest member of the net's pair / bus group; `amplitude` / `spacing` 0 = defaults.
+    func routerTune(track trackId: Int, target: Double, amplitude: Double, spacing: Double, near point: CGPoint?,
+                    apply: Bool) -> TunePreview? {
+        var fields = [String(format: "\"target\":%.6f", max(0, target)),
+                      String(format: "\"maxAmplitude\":%.6f", max(0, amplitude)),
+                      String(format: "\"spacing\":%.6f", max(0, spacing)),
+                      "\"apply\":\(apply ? "true" : "false")"]
+        if let point { fields.append(String(format: "\"x\":%.6f,\"y\":%.6f", Double(point.x), Double(point.y))) }
+        let options = "{" + fields.joined(separator: ",") + "}"
+        return Self.decode(TunePreview.self, from: withHandle { Self.take(sieda_router_tune($0, Int32(trackId), options)) })
+    }
+
+    /// Starts a bus on the pad at `point`: it and the next pads of its part's row (up to `count` nets) route together.
+    func routerBeginBus(at point: CGPoint, layer: Int, count: Int, options: String) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle {
+            Self.take(sieda_router_begin_bus($0, options, Double(point.x), Double(point.y), Int32(layer), Int32(count)))
+        })
+    }
+
+    /// Fanout of a part: an escape track and a via on every SMD pad whose net has other pins and no copper yet.
+    func fanout(component: Int, via: RouterViaChoice = .through) -> FanoutResult? {
+        let options = "{\"viaType\":\"\(via.rawValue)\"}"
+        return Self.decode(FanoutResult.self, from: withHandle { Self.take(sieda_pcb_fanout($0, Int32(component), options)) })
+    }
+
     func routerMove(to point: CGPoint) -> RoutePreview? {
         Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_move($0, Double(point.x), Double(point.y))) })
     }
@@ -837,9 +885,11 @@ final class EDAEngine: @unchecked Sendable {
         Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_fix($0)) })
     }
 
-    /// Places a via at the head's end and continues on `layer` (nil = the other outer layer).
-    func routerAddVia(toLayer layer: Int? = nil) -> RoutePreview? {
-        Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_add_via($0, Int32(layer ?? -1))) })
+    /// Places a via at the head's end and continues on `layer` (nil = the default layer for the via type: the other
+    /// outer layer for through vias, the next layer for blind / micro vias; `reverse` = the next layer the other way).
+    func routerAddVia(toLayer layer: Int? = nil, reverse: Bool = false) -> RoutePreview? {
+        let target = layer ?? (reverse ? -2 : -1)
+        return Self.decode(RoutePreview.self, from: withHandle { Self.take(sieda_router_add_via($0, Int32(target))) })
     }
 
     func routerSetOptions(_ options: String) -> RoutePreview? {
@@ -853,6 +903,11 @@ final class EDAEngine: @unchecked Sendable {
     }
 
     func routerCancel() { withHandle { sieda_router_cancel($0) } }
+
+    /// Cancels the head update running on another thread (`routerMove` off the main thread): it returns soon with
+    /// the preview from before it, marked `aborted`. Lock-free, so it does not wait for that update; call it from the
+    /// main thread (the only thread that replaces the project handle).
+    func routerAbort() { sieda_router_abort(handle) }
 
     var routerActive: Bool { withHandle { sieda_router_active($0) } == 1 }
 
@@ -909,6 +964,71 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func setPDNRail(_ net: String, ripplePercent: Double, transientAmps: Double, dcAmps: Double) -> Bool {
         withHandle { sieda_pi_set_rail($0, net, ripplePercent, transientAmps, dcAmps) } == 1
+    }
+
+    // MARK: - Channel analysis and PI planning
+
+    /// Loss per stack-up layer at its single-ended width (`roughness`: "huray", "hammerstad" or "none").
+    func siLineLoss(roughness: String) -> SILineLossReport {
+        let options = Self.optionsJSON(["roughness": roughness])
+        return Self.decode(SILineLossReport.self, from: withHandle { Self.take(sieda_si_line_loss_json($0, options)) }) ?? .empty
+    }
+
+    /// Copper foil for loss ("" = by laminate). False for an unknown id.
+    @discardableResult
+    func setCopperFoil(_ foil: String) -> Bool { withHandle { sieda_si_set_copper_foil($0, foil) } == 1 }
+
+    /// S-parameters, step response and eye of a routed net or pair; `touchstone` text is cascaded at the receiver.
+    func siChannel(net: String, partner: String, settings: SIChannelSettings, touchstone: String? = nil,
+                   touchstonePorts: Int = 0) -> Result<SIChannelReport, EDAEngineError> {
+        let json = Self.optionsJSON(settings.options(net: net, partner: partner, touchstone: touchstone,
+                                                     touchstonePorts: touchstonePorts))
+        return Self.decodeChecked(SIChannelReport.self, from: withHandle { Self.take(sieda_si_channel_json($0, json)) })
+    }
+
+    /// The channel as Touchstone text (.s2p / .s4p).
+    func siChannelTouchstone(net: String, partner: String, settings: SIChannelSettings) throws -> String {
+        let json = Self.optionsJSON(settings.options(net: net, partner: partner, touchstone: nil, touchstonePorts: 0))
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let text = withHandle { Self.take(sieda_si_channel_touchstone($0, json, &errorPointer)) }
+        guard let text else { throw EDAEngineError.operationFailed(Self.take(errorPointer) ?? "No channel to export.") }
+        return text
+    }
+
+    /// An imported Touchstone file run as a channel with an ideal driver (bit rate, swing, port order of `settings`).
+    static func touchstoneChannel(_ text: String, ports: Int, settings: SIChannelSettings) throws -> SITouchstoneReport {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let options = optionsJSON(settings.options(net: "", partner: "", touchstone: nil, touchstonePorts: 0))
+        let json = take(sieda_touchstone_channel_json(text, Int32(clamping: ports), options, &errorPointer))
+        guard let json else { throw EDAEngineError.operationFailed(take(errorPointer) ?? "Not a Touchstone file.") }
+        guard let report = decode(SITouchstoneReport.self, from: json) else {
+            throw EDAEngineError.operationFailed("unreadable reply from the core")
+        }
+        return report
+    }
+
+    /// A serial channel checked by sign-off (bit rate 0 removes it).
+    @discardableResult
+    func setSIChannel(_ net: String, bitRate: Double, maskHeight: Double, maskWidthUi: Double) -> Bool {
+        withHandle { sieda_si_set_channel($0, net, bitRate, maskHeight, maskWidthUi) } == 1
+    }
+
+    /// Regulator output resistance (Ω) and loop bandwidth (Hz) of a rail; 0 derives them.
+    @discardableResult
+    func setPDNRegulator(_ net: String, outputOhms: Double, loopBandwidth: Double) -> Bool {
+        withHandle { sieda_pi_set_vrm($0, net, outputOhms, loopBandwidth) } == 1
+    }
+
+    func pdnCavity(_ net: String) -> PDNCavityReport? {
+        Self.decode(PDNCavityReport.self, from: withHandle { Self.take(sieda_pi_cavity_json($0, net)) })
+    }
+
+    func pdnDecapPlan(_ net: String) -> PDNDecapPlanReport? {
+        Self.decode(PDNDecapPlanReport.self, from: withHandle { Self.take(sieda_pi_decap_plan_json($0, net)) })
+    }
+
+    func pdnIRMap(_ net: String) -> PDNIRMapReport? {
+        Self.decode(PDNIRMapReport.self, from: withHandle { Self.take(sieda_pi_ir_map_json($0, net)) })
     }
 
     @discardableResult

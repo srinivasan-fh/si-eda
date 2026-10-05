@@ -309,12 +309,16 @@ void sieda_pcb_clear_tamper_meshes(SiedaProject* project);
 /* ---- interactive routing ---------------------------------------------------------------------------------------
  * One route session per project. The router works on a copy of the board taken when the route begins and edits the
  * layout only on commit; any other board edit in between makes the commit fail (call cancel first).
- * options_json (NULL = keep the current options): {"mode":"shove"|"walkaround", "posture":"45"|"90"|"free",
- *   "swapPosture":bool, "width":mm (0 = net class), "pairGap":mm (0 = stack-up), "snap":bool}.
+ * options_json (NULL = keep the current options): {"mode":"shove"|"walkaround"|"highlight",
+ *   "posture":"45"|"90"|"free", "swapPosture":bool, "width":mm (0 = net class), "pairGap":mm (0 = stack-up),
+ *   "snap":bool, "viaType":"through"|"blind"|"micro"|"auto" (blind / micro need HDI on ≥ 4 layers),
+ *   "cornerRadius":mm (rounded corners of single tracks as ≤ 15° chords; 0 = sharp, < 0 = 4 × width)}.
  * Begin / move / fix / via / options return the preview, caller frees:
- *   {"active","kind":"route"|"pair"|"drag","status","blocked","reachedTarget","nets":[…],"layer","width","gap",
- *    "endX","endY","length","placed":[track],"head":[track],"vias":[via],"shovedTracks":[track],"shovedVias":[via],
- *    "hiddenTracks":[id],"hiddenVias":[id]}  (track = {id,net,layer,width,ax,ay,bx,by}; via = {id,net,x,y,drill,diameter})
+ *   {"active","kind":"route"|"pair"|"drag"|"via","status","blocked","reachedTarget","nets":[…],"layer","width","gap",
+ *    "endX","endY","length","netLength","targetLength","placed":[track],"head":[track],"vias":[via],
+ *    "shovedTracks":[track],"shovedVias":[via],"hiddenTracks":[id],"hiddenVias":[id],
+ *    "collisions":[{kind,id,x,y,ax,ay,bx,by,w,h,width}] (highlight mode)}
+ *   (track = {id,net,layer,width,ax,ay,bx,by}; via = {id,net,x,y,drill,diameter,fromLayer,toLayer,kind})
  * plus "error":"…" when that call failed (the preview is still the current state). */
 char* sieda_router_begin(SiedaProject* project, const char* options_json, double x, double y, int32_t layer);
 /* Differential pair from a pad of either member (nets X_P / X_N, X+ / X-, …). */
@@ -324,7 +328,9 @@ char* sieda_router_begin_drag(SiedaProject* project, const char* options_json, i
 char* sieda_router_move(SiedaProject* project, double x, double y);
 /* Places the head (a click): the route continues from its end. */
 char* sieda_router_fix(SiedaProject* project);
-/* Places the head and a through via at its end; continues on to_layer (-1 = the other outer layer). */
+/* Places the head and a via (options "viaType") at its end; continues on to_layer (-1 = the other outer layer for a
+ * through via, the neighbouring layer towards the far side for blind / micro vias; -2 = the neighbouring layer the
+ * other way). */
 char* sieda_router_add_via(SiedaProject* project, int32_t to_layer);
 char* sieda_router_set_options(SiedaProject* project, const char* options_json);
 /* Writes the route and every shoved item into the layout: {"ok","error","removedTracks":[track],"removedVias":[via],
@@ -332,10 +338,34 @@ char* sieda_router_set_options(SiedaProject* project, const char* options_json);
 char* sieda_router_commit(SiedaProject* project);
 void sieda_router_cancel(SiedaProject* project);
 int32_t sieda_router_active(const SiedaProject* project);
+/* Cancels the head computation (sieda_router_move, or the head update of add_via / set_options) running on another
+ * thread for this project: it returns soon with the preview from before it, marked "aborted":true. Thread-safe and
+ * lock-free: the one router call that may run concurrently with another call on the same project. A request made
+ * while nothing runs has no effect on later calls. */
+void sieda_router_abort(SiedaProject* project);
 /* Length tuning: accordion meanders on track `track_id` (then the net's other tracks) until its net is target_mm
  * long; target_mm <= 0 matches the longest member of the net's pair / bus group. max_amplitude_mm <= 0 = 2 mm.
  * {"ok","message","net","before","after","target","changes":{…as commit…}}. */
 char* sieda_router_tune_length(SiedaProject* project, int32_t track_id, double target_mm, double max_amplitude_mm);
+/* Drags via `via_id` grabbed at (x, y): it follows the cursor, the tracks ending on it follow, other nets are shoved.
+ * Returns the preview (kind "via"); continue with sieda_router_move / commit / cancel. */
+char* sieda_router_begin_via_drag(SiedaProject* project, const char* options_json, int32_t via_id, double x, double y);
+/* Interactive length tuning of the net of track `track_id`. options_json: {"target":mm (0 = the longest member of
+ * the net's pair / bus group), "maxAmplitude":mm (0 = 2), "spacing":mm (meander legs, edge to edge; 0 = default),
+ * "x","y" (meanders near this point first), "apply":bool (false = preview only, the board is unchanged)}.
+ * {"ok","message","net","group","groupKind","tolerance","before","after","target","applied",
+ *  "addedTracks":[track],"removedTracks":[id],"changes":{…as commit…}}. Caller frees. */
+char* sieda_router_tune(SiedaProject* project, int32_t track_id, const char* options_json);
+/* Bus: starts on the pad at (x, y) and takes the next pads of the same part along its row, up to `count` nets (2–16),
+ * routed together at track pitch; continue with sieda_router_move / fix / commit (vias track by track afterwards).
+ * Returns the preview (kind "bus"). */
+char* sieda_router_begin_bus(SiedaProject* project, const char* options_json, double x, double y, int32_t layer,
+                             int32_t count);
+/* Fanout of component `component_id`: an escape track and a via on every SMD pad whose net has other pins (and no
+ * copper yet). options_json (NULL = defaults): {"shove":bool,"onlyUnrouted":bool,"distance":mm,
+ * "viaType":"through"|"blind"|"micro"|"auto"}. {"ok","message","fanned","skipped","failed":[pad number]}.
+ * Ends a route session in progress. Caller frees. */
+char* sieda_pcb_fanout(SiedaProject* project, int32_t component_id, const char* options_json);
 /* Locked tracks are never shoved or dragged. Returns 1 on success. */
 int32_t sieda_pcb_lock_track(SiedaProject* project, int32_t track_id, int32_t locked);
 /* Deletes one track / via by id. Returns 1 on success. */
@@ -382,6 +412,49 @@ char* sieda_si_crosstalk_json(const SiedaProject* project);
 char* sieda_pi_json(const SiedaProject* project);
 /* Every signal / power-integrity finding (SI_* and PI_* codes) as a violations array. Caller frees. */
 char* sieda_si_checks_json(const SiedaProject* project);
+
+/* ---- channel analysis: lossy lines, S-parameters, Touchstone, eye (see docs/SIGNAL_POWER_INTEGRITY.md) -------------- */
+/* Loss of every stack-up layer: {"foil","roughness","material","er","tanD","freq":[…],"layers":[{layer,name,line,width,
+ * z0,epsEff,dbPerInch:[…],conductorDbPerInch:[…],dielectricDbPerInch:[…],rlgc1GHz:{r,l,g,c,rdc}}]}. options_json
+ * {"foil","roughness":"huray"|"hammerstad"|"none","width" (mm, 0 = the single-ended impedance width),"fMax"}. */
+char* sieda_si_line_loss_json(const SiedaProject* project, const char* options_json);
+/* Copper foil of the board for loss: "smooth", "hvlp", "vlp", "rtf", "std"; "" = by laminate. 0 for an unknown id. */
+int32_t sieda_si_set_copper_foil(SiedaProject* project, const char* foil);
+/* A serial channel checked by sign-off (SI_EYE_MASK): bit rate (b/s), mask height (V) and width (UI). bit_rate 0
+ * removes it. */
+int32_t sieda_si_set_channel(SiedaProject* project, const char* net_name, double bit_rate, double mask_height,
+                             double mask_width_ui);
+/* Channel of a routed net (a differential pair as a 4-port with coupled sections). options_json: {"net","partner"
+ * ("" = by name, "none" = single-ended),"receiver","fMax","points","refOhms","foil","roughness","lossless",
+ * "driver":"model"|"ideal","swing","riseTime","sourceOhms","termOhms","eye":{bitRate,prbs,samplesPerUi,riseTime,ctle,
+ * ctleAuto,ctleDcGainDb,ctlePeakHz,ffe,ffeAuto,ffeTaps,ffePre,ffePost,rjRms,ber,maskWidthUi,maskHeight},
+ * "touchstone":"<text to cascade at the receiver>","touchstonePorts","portOrder":"13"|"12"}. Returns {net,partner,
+ * differential,ports,driver,receiver,length,skew,coupled:[…],freq:[…],curves:[{name,db}],nyquist,step:{time,lossy,
+ * lossless},eye:{…},notes} or {"error"}. Caller frees. */
+char* sieda_si_channel_json(const SiedaProject* project, const char* options_json);
+/* The channel as Touchstone 1.1 text (.s2p / .s4p). NULL with *error_out (caller frees) when it cannot be built. */
+char* sieda_si_channel_touchstone(const SiedaProject* project, const char* options_json, char** error_out);
+/* Parses a Touchstone file (ports_hint from the .sNp extension, 0 = infer; port_order "13" or "12" for 4-ports):
+ * {"ports","z0","points","fMin","fMax","format","parameter","version","freq":[…],"curves":[…],"comments":[…]}. NULL with
+ * *error_out for malformed files. */
+char* sieda_touchstone_parse(const char* text, int32_t ports_hint, const char* port_order, char** error_out);
+/* An imported 2-port / 4-port channel driven by an ideal source: preview plus {"step","eye"} (options as for
+ * sieda_si_channel_json: "swing","riseTime","sourceOhms","termOhms","portOrder","eye"). */
+char* sieda_touchstone_channel_json(const char* text, int32_t ports_hint, const char* options_json, char** error_out);
+
+/* ---- power-integrity planning -------------------------------------------------------------------------------------- */
+/* Regulator model of a rail: output resistance (Ω) and loop bandwidth (Hz); 0 = by regulator type. */
+int32_t sieda_pi_set_vrm(SiedaProject* project, const char* net_name, double r_out, double loop_bandwidth);
+/* Plane-pair cavity model of a rail: {"available","note","a","b","d","er","modes":[{m,n,f}],"freq":[…],"zCavity":[…],
+ * "zLumped":[…],"target","worstRatio","worstF","observe":{x,y},"recommendations":[…]}. Caller frees. */
+char* sieda_pi_cavity_json(const SiedaProject* project, const char* net_name);
+/* Decoupling plan meeting the target impedance: {"needed","compliant","worstBefore","worstAfter","mounting",
+ * "additions":[{value,footprint,c,count}],"freq":[…],"zBefore":[…],"zAfter":[…],"target"}. Caller frees. */
+char* sieda_pi_decap_plan_json(const SiedaProject* project, const char* net_name);
+/* IR-drop map of a rail: {"analyzed","voltage","limit","worst","maxDensity","board":{width,height,outline},"cells":[{x,y,
+ * size,layer,drop,density}],"segments":[{ax,ay,bx,by,layer,width,current,density,drop}],"loads":[…],"source":{x,y},
+ * "hotspots":[…]}. Caller frees. */
+char* sieda_pi_ir_map_json(const SiedaProject* project, const char* net_name);
 
 /* ---- exports ------------------------------------------------------------------------------- */
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",

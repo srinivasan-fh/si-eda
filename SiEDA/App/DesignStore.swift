@@ -268,6 +268,7 @@ final class DesignStore: ObservableObject {
         if let bus = selectedBus, sheetSnapshot.bus(bus) == nil { selectedBus = nil }
         // Undo, open or any edit that replaced the design ends a route in progress.
         if routePreview != nil, !engine.routerActive { routePreview = nil }
+        if let tune = tuneSession, !snapshot.tracks.contains(where: { $0.id == tune.track }) { tuneSession = nil }
         revision &+= 1
     }
 
@@ -1342,6 +1343,87 @@ final class DesignStore: ObservableObject {
         else { statusMessage = "Imported \(count) IBIS model(s) from \(url.lastPathComponent)" }
     }
 
+    // MARK: Channel analysis and PI planning
+
+    func siLineLoss(roughness: String) -> SILineLossReport { engine.siLineLoss(roughness: roughness) }
+
+    /// S-parameters, step response and eye of a net or differential pair, off the main thread.
+    func analyzeChannel(net: String, partner: String, settings: SIChannelSettings, touchstone: String?,
+                        touchstonePorts: Int) async -> Result<SIChannelReport, EDAEngineError> {
+        let engine = self.engine
+        return await runBusy("Analysing channel \(net)…") {
+            engine.siChannel(net: net, partner: partner, settings: settings, touchstone: touchstone, touchstonePorts: touchstonePorts)
+        }
+    }
+
+    /// Copper foil profile for loss ("" = by laminate). Undoable.
+    func setCopperFoil(_ foil: String) {
+        guard (engine.siSettings().copperFoil ?? "") != foil else { return }
+        performChecked(foil.isEmpty ? "Copper foil by laminate" : "Copper foil \(foil)", invalidatesAnalysis: false) {
+            $0.setCopperFoil(foil)
+        }
+    }
+
+    /// Checks the eye of `net` at `bitRate` in sign-off (0 removes the check). Undoable.
+    func setSIChannel(_ net: String, bitRate: Double, maskHeight: Double, maskWidthUi: Double) {
+        performChecked(bitRate > 0 ? "\(net): channel check" : "\(net): no channel check", invalidatesAnalysis: false) {
+            $0.setSIChannel(net, bitRate: bitRate, maskHeight: maskHeight, maskWidthUi: maskWidthUi)
+        }
+    }
+
+    /// Regulator output resistance (Ω) and loop bandwidth (Hz) of a rail; 0 derives them. Undoable.
+    func setPDNRegulator(_ net: String, outputOhms: Double, loopBandwidth: Double) {
+        performChecked("\(net): regulator model", invalidatesAnalysis: false) {
+            $0.setPDNRegulator(net, outputOhms: outputOhms, loopBandwidth: loopBandwidth)
+        }
+    }
+
+    func pdnCavity(_ net: String) -> PDNCavityReport? { engine.pdnCavity(net) }
+    func pdnDecapPlan(_ net: String) -> PDNDecapPlanReport? { engine.pdnDecapPlan(net) }
+    func pdnIRMap(_ net: String) -> PDNIRMapReport? { engine.pdnIRMap(net) }
+
+    /// Saves the channel's S-parameters as Touchstone (.s2p single-ended, .s4p differential).
+    func exportChannelTouchstone(net: String, partner: String, differential: Bool, settings: SIChannelSettings) {
+        let text: String
+        do {
+            text = try engine.siChannelTouchstone(net: net, partner: partner, settings: settings)
+        } catch {
+            present(error, title: "Touchstone export failed")
+            return
+        }
+        let ext = differential ? "s4p" : "s2p"
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: ext) ?? .plainText]
+        panel.nameFieldStringValue = "\(net.replacingOccurrences(of: "/", with: "-")).\(ext)"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try text.write(to: url, atomically: true, encoding: .utf8)
+            statusMessage = "Exported \(url.lastPathComponent)"
+        } catch {
+            present(error, title: "Touchstone export failed")
+        }
+    }
+
+    /// Asks for a Touchstone (.sNp) file: its name, text and the port count from the extension (0 if none).
+    func chooseTouchstoneFile() -> (name: String, text: String, ports: Int)? {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = ["s1p", "s2p", "s4p", "snp"].compactMap { UTType(filenameExtension: $0) } + [.plainText, .data]
+        panel.allowsMultipleSelection = false
+        panel.message = "Choose a Touchstone S-parameter file (.s2p single-ended or .s4p differential)."
+        panel.prompt = "Import"
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        guard let text = (try? String(contentsOf: url, encoding: .utf8)) ?? (try? String(contentsOf: url, encoding: .isoLatin1)) else {
+            present(EDAEngineError.operationFailed("The file could not be read."), title: "Could not import \(url.lastPathComponent)")
+            return nil
+        }
+        let ext = url.pathExtension.lowercased()
+        var ports = 0
+        if ext.count >= 3, ext.hasPrefix("s"), ext.hasSuffix("p"), let n = Int(ext.dropFirst().dropLast()) { ports = n }
+        return (url.lastPathComponent, text, ports)
+    }
+
     /// Length / phase matching on Auto Route and its tolerances (mm). Undoable.
     func setLengthMatching(enabled: Bool? = nil, pairSkew: Double? = nil, bus: Double? = nil) {
         let b = snapshot.board
@@ -1386,14 +1468,31 @@ final class DesignStore: ObservableObject {
     /// The route in progress with the Route tool (nil when idle). The board itself changes only when it finishes.
     @Published private(set) var routePreview: RoutePreview?
     /// Route tool settings: push-and-shove (otherwise walkaround) and 45° corners (otherwise 90°).
-    @Published var routerShove = true {
-        didSet { if routerShove != oldValue { applyRouterOptions() } }
+    /// Shove (push other nets aside), Walk around (route round them) or Highlight (go anywhere, list collisions).
+    @Published var routerMode: RouterModeChoice = .shove {
+        didSet { if routerMode != oldValue { applyRouterOptions() } }
     }
     @Published var routerDiagonal = true {
         didSet { if routerDiagonal != oldValue { applyRouterOptions() } }
     }
 
-    private var routerOptions: String { EDAEngine.routerOptions(shove: routerShove, diagonal: routerDiagonal) }
+    /// The via V places (blind / buried and micro vias need HDI in Board Setup).
+    @Published var routerViaType: RouterViaChoice = .through {
+        didSet { if routerViaType != oldValue { applyRouterOptions() } }
+    }
+
+    /// Bus routing: the next route takes the clicked pad and the next pads of its row (`routerBusWidth` nets).
+    @Published var routerBus = false
+    @Published var routerBusWidth = 4
+
+    /// Rounded corners: arcs (as short chords) instead of sharp 45° / 90° corners on single-track routes.
+    @Published var routerRounded = false {
+        didSet { if routerRounded != oldValue { applyRouterOptions() } }
+    }
+
+    private var routerOptions: String {
+        EDAEngine.routerOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType, rounded: routerRounded)
+    }
 
     /// Shows a router reply: a refused step keeps the route and reports why.
     private func showRoute(_ preview: RoutePreview?) {
@@ -1408,12 +1507,92 @@ final class DesignStore: ObservableObject {
     /// Starts a route (or a differential pair) on the pad, via or track at `point` on copper layer `layer`.
     func beginRoute(at point: CGPoint, layer: Int, pair: Bool) {
         guard !isBusy else { return }
+        settleRouteMoves()
         showRoute(engine.routerBegin(at: point, layer: layer, pair: pair, options: routerOptions))
     }
 
-    /// Moves the head of the route to the cursor (shoving or walking around as set).
+    /// Starts a bus on the pad at `point`: it and the next pads of the same part's row route as one bundle.
+    func beginBus(at point: CGPoint, layer: Int) {
+        guard !isBusy else { return }
+        settleRouteMoves()
+        showRoute(engine.routerBeginBus(at: point, layer: layer, count: routerBusWidth, options: routerOptions))
+    }
+
+    /// Fans out the selected parts: an escape track and a via (the Route tool's via type) on each SMD pad that has
+    /// somewhere to go and no copper yet. One undo step.
+    func fanoutSelection() {
+        let parts = snapshot.components.filter { selection.contains($0.id) && $0.pcb.placed }.map(\.id).sorted()
+        guard !parts.isEmpty else {
+            statusMessage = "Fanout: select a part on the board first"
+            return
+        }
+        if routePreview != nil { cancelRoute() }
+        var fanned = 0, failed = 0
+        var message = ""
+        let done = performChecked("Fanout", invalidatesAnalysis: false, failureMessage: "Fanout: nothing to fan out") {
+            for id in parts {
+                guard let result = $0.fanout(component: id, via: routerViaType) else { continue }
+                fanned += result.fanned
+                failed += result.failed.count
+                message = result.message
+            }
+            return fanned > 0
+        }
+        if done {
+            statusMessage = parts.count == 1 ? message
+                : "\(fanned) pad\(fanned == 1 ? "" : "s") fanned out" + (failed > 0 ? ", \(failed) without room" : "")
+            if !drcResults.isEmpty { runDRC() }
+        }
+    }
+
+    // Head updates run off the main thread, latest wins: while one is computed, newer cursor positions replace each
+    // other in `routePendingPoint` and only the newest runs next. Results of an older session or of a superseded
+    // update (`routeGeneration`) are dropped. Discrete steps (corner, via, finish, cancel, options) first cancel the
+    // update in flight (`sieda_router_abort`, lock-free) so they never wait for a slow head.
+    private var routeMoveRunning = false
+    private var routePendingPoint: CGPoint?
+    private var routeGeneration = 0
+
+    /// Moves the head of the route to the cursor (shoving or walking around as set), off the main thread.
     func moveRoute(to point: CGPoint) {
         guard routePreview != nil, !isBusy else { return }
+        if routeMoveRunning {
+            routePendingPoint = point
+            return
+        }
+        routeMoveRunning = true
+        let generation = routeGeneration
+        let engine = self.engine
+        Task { @MainActor [weak self] in
+            let preview = await Task.detached(priority: .userInitiated) { engine.routerMove(to: point) }.value
+            self?.routeMoveFinished(preview, generation: generation)
+        }
+    }
+
+    private func routeMoveFinished(_ preview: RoutePreview?, generation: Int) {
+        routeMoveRunning = false
+        if generation == routeGeneration, routePreview != nil, let preview, preview.aborted != true {
+            routePreview = preview.active ? preview : nil
+            statusMessage = preview.status
+        }
+        if let next = routePendingPoint {
+            routePendingPoint = nil
+            moveRoute(to: next)
+        }
+    }
+
+    /// Before a synchronous router step: drops queued head moves, cancels the one in flight and makes its result
+    /// stale. The step then waits at most for that update to stop, not for it to finish.
+    private func settleRouteMoves() {
+        routePendingPoint = nil
+        routeGeneration &+= 1
+        if routeMoveRunning { engine.routerAbort() }
+    }
+
+    /// Moves the head to `point` now (a click places what is under the cursor, not an older position).
+    func moveRouteNow(to point: CGPoint) {
+        guard routePreview != nil, !isBusy else { return }
+        settleRouteMoves()
         guard let preview = engine.routerMove(to: point) else { return }
         routePreview = preview.active ? preview : nil
         statusMessage = preview.status
@@ -1422,20 +1601,28 @@ final class DesignStore: ObservableObject {
     /// Places the head as it is (a click); the route continues from its end.
     func placeRouteCorner() {
         guard routePreview != nil, !isBusy else { return }
+        settleRouteMoves()
         showRoute(engine.routerFix())
     }
 
     /// Places a via at the end of the head and continues on the other side of the board (V).
-    func addRouteVia() {
+    func addRouteVia(reverse: Bool = false) {
         guard routePreview != nil, !isBusy else { return }
-        showRoute(engine.routerAddVia())
+        settleRouteMoves()
+        showRoute(engine.routerAddVia(reverse: reverse))
     }
 
-    /// Writes the route and every shoved track and via into the board as one undo step (Enter / double-click).
-    func finishRoute() {
-        guard routePreview != nil else { return }
+    /// Writes the route and every shoved track and via into the board as one undo step (Enter / double-click, or
+    /// the end of a drag). With `point` the head first moves there, so the board gets exactly what is dropped.
+    func finishRoute(at point: CGPoint? = nil) {
+        settleRouteMoves()
+        if let point, routePreview != nil, !isBusy, let preview = engine.routerMove(to: point) {
+            routePreview = preview.active ? preview : nil
+        }
+        guard let kind = routePreview?.kind else { return }
         var result = RouteCommitResult(ok: false, error: nil, addedTracks: [], addedVias: [])
-        let done = performChecked("Routed track", invalidatesAnalysis: false, failureMessage: "Nothing was routed") {
+        let action = kind == "drag" ? "Dragged track" : kind == "via" ? "Moved via" : "Routed track"
+        let done = performChecked(action, invalidatesAnalysis: false, failureMessage: "Nothing was routed") {
             result = $0.routerCommit()
             return result.ok && !(result.addedTracks.isEmpty && result.addedVias.isEmpty)
         }
@@ -1447,6 +1634,7 @@ final class DesignStore: ObservableObject {
     /// Drops the route in progress; the board is unchanged (Esc).
     func cancelRoute() {
         guard routePreview != nil else { return }
+        settleRouteMoves()
         engine.routerCancel()
         routePreview = nil
         statusMessage = "Route cancelled"
@@ -1454,7 +1642,98 @@ final class DesignStore: ObservableObject {
 
     private func applyRouterOptions() {
         guard routePreview != nil, !isBusy else { return }
+        settleRouteMoves()
         showRoute(engine.routerSetOptions(routerOptions))
+    }
+
+    /// Starts dragging track segment `trackId` (Select tool): it follows the cursor parallel to itself and shoves
+    /// other nets' copper (or stops at it with Walk around). Finish with `finishRoute`, drop with `cancelRoute`.
+    @discardableResult
+    func beginTrackDrag(_ trackId: Int, at point: CGPoint) -> Bool {
+        guard !isBusy else { return false }
+        settleRouteMoves()
+        showRoute(engine.routerBeginDrag(track: trackId, at: point, options: routerOptions))
+        return routePreview != nil
+    }
+
+    /// Starts dragging via `viaId` (Select tool); the tracks ending on it follow.
+    @discardableResult
+    func beginViaDrag(_ viaId: Int, at point: CGPoint) -> Bool {
+        guard !isBusy else { return false }
+        settleRouteMoves()
+        showRoute(engine.routerBeginViaDrag(via: viaId, at: point, options: routerOptions))
+        return routePreview != nil
+    }
+
+    // MARK: Interactive length tuning
+
+    /// The Tune Length tool's session: the track picked, where it was clicked, and the meanders it would add.
+    struct TuneSession: Equatable {
+        var track: Int
+        var point: CGPoint
+        /// Target length (mm); 0 = the longest member of the net's pair / bus group.
+        var target: Double
+        var preview: TunePreview?
+    }
+
+    @Published private(set) var tuneSession: TuneSession?
+    /// Meander height limit and leg spacing (edge to edge) in mm; 0 = the core's defaults.
+    @Published var tuneAmplitude = 0.0 {
+        didSet { if tuneAmplitude != oldValue { updateTunePreview() } }
+    }
+    @Published var tuneSpacing = 0.0 {
+        didSet { if tuneSpacing != oldValue { updateTunePreview() } }
+    }
+
+    /// Picks the track to tune; the preview shows the meanders before anything changes.
+    func beginTune(track trackId: Int, at point: CGPoint) {
+        guard !isBusy else { return }
+        if routePreview != nil { cancelRoute() }
+        tuneSession = TuneSession(track: trackId, point: point, target: 0, preview: nil)
+        updateTunePreview()
+        // A net outside any pair / bus group has nothing to match: start from its length plus 1 mm.
+        if let preview = tuneSession?.preview, !preview.ok, preview.group.isEmpty {
+            tuneSession?.target = ((preview.before + 1) * 10).rounded(.up) / 10
+            updateTunePreview()
+        }
+    }
+
+    /// Sets the target length (mm, 0 = match the group) and refreshes the preview.
+    func setTuneTarget(_ target: Double) {
+        guard tuneSession != nil, target.isFinite else { return }
+        tuneSession?.target = max(0, target)
+        updateTunePreview()
+    }
+
+    private func updateTunePreview() {
+        guard let session = tuneSession, !isBusy else { return }
+        let preview = engine.routerTune(track: session.track, target: session.target, amplitude: tuneAmplitude,
+                                        spacing: tuneSpacing, near: session.point, apply: false)
+        tuneSession?.preview = preview
+        statusMessage = preview?.message ?? "Tune: no reply from the core"
+    }
+
+    /// Writes the previewed meanders into the board as one undo step (Enter).
+    func applyTune() {
+        guard let session = tuneSession else { return }
+        var result: TunePreview?
+        let done = performChecked("Tuned length", invalidatesAnalysis: false, failureMessage: "Length not changed") {
+            result = $0.routerTune(track: session.track, target: session.target, amplitude: tuneAmplitude,
+                                   spacing: tuneSpacing, near: session.point, apply: true)
+            return result?.applied == true
+        }
+        tuneSession = nil
+        if let result {
+            statusMessage = done ? String(format: "%@ — %.2f mm (target %.2f mm)", result.message, result.after, result.target)
+                                 : result.message
+        }
+        if done, !drcResults.isEmpty { runDRC() }
+    }
+
+    func cancelTune() {
+        guard tuneSession != nil else { return }
+        tuneSession = nil
+        statusMessage = "Tuning cancelled"
     }
 
     /// Solder mask colour of the board (3D assembly view and fabrication order). Undoable.
