@@ -5529,6 +5529,7 @@ TEST(router_drags_a_segment_and_shoves) {
     CHECK(id >= 0);
     InteractiveRouter r(b.p.pcb, b.p.schematic);
     CHECK(r.beginDrag(id, {35, 23}));
+    CHECK(r.preview().active && r.preview().kind == "drag" && r.preview().hiddenTracks.size() >= 1);
     const RoutePreview& pv = r.moveTo({35, 22.7});
     CHECK(!pv.blocked);
     CHECK(!pv.shovedTracks.empty());

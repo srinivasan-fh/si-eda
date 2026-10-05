@@ -2105,7 +2105,7 @@ struct InteractiveRouter::Impl {
         current = committed;
         kind = Kind::Drag;
         status = "Dragging a track of " + base->netName(t.net);
-        dragHead(grab);
+        computeHead(grab);
         return true;
     }
 
@@ -2461,6 +2461,8 @@ InteractiveRouter::~InteractiveRouter() = default;
 void InteractiveRouter::setOptions(const RouterOptions& options) {
     impl_->opt = options;
     impl_->opt.shoveLimit = std::clamp(options.shoveLimit, 1, 10000);
+    // A route in progress re-aims its head at the last cursor position with the new options.
+    if (impl_->kind != Impl::Kind::None && impl_->hasCursor) impl_->computeHead(impl_->lastCursor);
 }
 const RouterOptions& InteractiveRouter::options() const { return impl_->opt; }
 

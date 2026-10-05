@@ -1457,9 +1457,7 @@ char* sieda_router_add_via(SiedaProject* project, int32_t to_layer) {
 char* sieda_router_set_options(SiedaProject* project, const char* options_json) {
     if (!project) return nullptr;
     try {
-        applyRouterOptions(project, options_json);
-        InteractiveRouter& r = routerOf(project);
-        if (r.active()) r.moveTo({r.preview().end.x, r.preview().end.y});
+        applyRouterOptions(project, options_json);  // re-aims an active head at the last cursor position
         return routerPreview(project, true);
     } catch (const std::exception& e) {
         return errorJson(e);
