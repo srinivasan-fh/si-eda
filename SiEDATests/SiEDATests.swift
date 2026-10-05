@@ -6276,3 +6276,20 @@ final class StructuredPlanHarnessTests: XCTestCase {
         XCTAssertEqual(after.board.netWidths["BUS0.SCK"], 0.2)
     }
 }
+
+/// Update PCB (schematic → board ECO): the preview lists the new parts and nets; executing every change leaves the
+/// board in step with the schematic, as one undo step.
+@MainActor
+final class UpdatePcbTests: XCTestCase {
+    func testUpdatePcbExecutesTheChanges() {
+        let store = DesignStore()
+        let r1 = store.addComponent(.resistor, at: .zero)
+        _ = store.addComponent(.resistor, at: CGPoint(x: 100, y: 0))
+        let changes = store.engine.pcbEcoPreview()
+        XCTAssertTrue(changes.contains { $0.key == "component:\(r1)" })
+        let report = store.updatePCB(keys: changes.filter(\.applicable).map(\.key))
+        XCTAssertFalse(report.isEmpty)
+        XCTAssertTrue(store.engine.pcbEcoPreview().isEmpty)
+        XCTAssertTrue(store.updatePCB(keys: []).isEmpty)
+    }
+}

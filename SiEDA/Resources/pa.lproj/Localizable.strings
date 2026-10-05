@@ -2,7 +2,7 @@
 
 "%lld errors · %lld warnings" = "%lld ਗਲਤੀਆਂ · %lld ਚੇਤਾਵਨੀਆਂ";
 "%lld matches" = "%lld ਮੇਲ";
-"%lld of %lld changes selected" = "%lld ਚੁਣੀਆਂ, ਕੁੱਲ %lld ਤਬਦੀਲੀਆਂ";
+"%lld of %lld changes selected" = "%lld ਚੁਣੀਆਂ (ਕੁੱਲ %lld ਤਬਦੀਲੀਆਂ)";
 "%lld pins" = "%lld ਪਿੰਨ";
 "%lld values" = "%lld ਮੁੱਲ";
 "0 derives the value from the regulator type" = "0 ਹੋਵੇ ਤਾਂ ਮੁੱਲ ਰੈਗੂਲੇਟਰ ਦੀ ਕਿਸਮ ਤੋਂ ਲਿਆ ਜਾਂਦਾ ਹੈ";
@@ -154,6 +154,7 @@
 "Centre" = "ਕੇਂਦਰ ਵਿੱਚ ਕਰੋ";
 "Centre the model on the footprint and put its lowest point on the board surface" = "ਮਾਡਲ ਨੂੰ ਫੁੱਟਪ੍ਰਿੰਟ ਦੇ ਵਿਚਕਾਰ ਰੱਖੋ ਅਤੇ ਇਸਦਾ ਸਭ ਤੋਂ ਹੇਠਲਾ ਬਿੰਦੂ ਬੋਰਡ ਦੀ ਸਤ੍ਹਾ 'ਤੇ ਰੱਖੋ";
 "Changes from a WAS / IS file" = "WAS / IS ਫਾਈਲ ਤੋਂ ਤਬਦੀਲੀਆਂ";
+"Changes from the schematic to the board since the last update." = "ਪਿਛਲੇ ਅੱਪਡੇਟ ਤੋਂ ਬਾਅਦ ਸਕੀਮੈਟਿਕ ਤੋਂ ਬੋਰਡ ਤੱਕ ਤਬਦੀਲੀਆਂ।";
 "Channel" = "ਚੈਨਲ";
 "Channel %@ of %@ — edits apply to every channel" = "ਚੈਨਲ %@ (%@) — ਸੰਪਾਦਨ ਹਰ ਚੈਨਲ 'ਤੇ ਲਾਗੂ ਹੁੰਦੇ ਹਨ";
 "Channel Designators" = "ਚੈਨਲ ਨਿਰਧਾਰਕ";
@@ -203,6 +204,7 @@
 "Construction" = "ਬਣਤਰ";
 "Copies" = "ਕਾਪੀਆਂ";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "ਕਲਿੱਪਬੋਰਡ ਦੀਆਂ ਕਾਪੀਆਂ, ਹਰ ਇੱਕ ਇੱਕ ਕਦਮ ਅੱਗੇ (ਸਕੀਮੈਟਿਕ ਇਕਾਈਆਂ, 10 = ਇੱਕ ਗਰਿੱਡ)। ਹਿੱਸਿਆਂ ਨੂੰ ਅਗਲੇ ਖਾਲੀ ਡਿਜ਼ਾਈਨੇਟਰ ਮਿਲਦੇ ਹਨ; ਨੈੱਟ ਲੇਬਲ ਨੰਬਰ ਵਾਧੇ ਮੁਤਾਬਕ ਵਧਦੇ ਹਨ (D0 → D1 …)।";
+"Copper Pours" = "ਕਾਪਰ ਪੋਰ";
 "Copper colours" = "ਕਾਪਰ ਰੰਗ";
 "Copper foil" = "ਤਾਂਬੇ ਦੀ ਪੱਤੀ";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "ਕਾਪਰ ਲੇਅਰਾਂ: 1 = ਸਿੰਗਲ-ਸਾਈਡਡ (ਕੋਈ ਵਾਇਆ ਨਹੀਂ), ਜ਼ਿਆਦਾਤਰ ਉਤਪਾਦਾਂ ਲਈ 2–6, ਮਦਰਬੋਰਡਾਂ, ਸਰਵਰਾਂ, ਮੇਨਫ੍ਰੇਮਾਂ ਅਤੇ GPU ਬੇਸਬੋਰਡਾਂ ਲਈ 8–24";
@@ -287,6 +289,7 @@
 "Edit Symbol…" = "ਸਿੰਬਲ ਸੋਧੋ…";
 "Effort" = "ਯਤਨ";
 "Enable AI assistance" = "AI ਸਹਾਇਤਾ ਚਾਲੂ ਕਰੋ";
+"Engineering change order: review and execute the schematic's changes on the board" = "ਇੰਜੀਨੀਅਰਿੰਗ ਚੇਂਜ ਆਰਡਰ: ਸਕੀਮੈਟਿਕ ਦੀਆਂ ਤਬਦੀਲੀਆਂ ਦੀ ਸਮੀਖਿਆ ਕਰੋ ਅਤੇ ਬੋਰਡ 'ਤੇ ਲਾਗੂ ਕਰੋ";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "ਇਹ ਬਟਨ ਚਾਲੂ ਕਰਨ ਲਈ ਉੱਪਰ ਆਪਣੇ ਆਈਡੈਂਟਿਟੀ ਪ੍ਰਦਾਤਾ ਦਾ ਇਸ਼ੂਅਰ URL ਅਤੇ SiEDA ਦਾ ਕਲਾਇੰਟ ID ਦਰਜ ਕਰੋ (ਆਪਣੇ IT ਪ੍ਰਸ਼ਾਸਕ ਨੂੰ ਪੁੱਛੋ)।";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "ਪ੍ਰੋਸੈਸਰਾਂ, BGA ਅਤੇ ਵੱਡੇ ਕੈਪੇਸੀਟਰਾਂ ਹੇਠਾਂ ਐਪੌਕਸੀ ਤਾਂ ਜੋ MIL-STD-901E ਝਟਕਾ ਉਹਨਾਂ ਨੂੰ ਉਖਾੜ ਨਾ ਸਕੇ";
 "Errors" = "ਗਲਤੀਆਂ";
@@ -294,6 +297,8 @@
 "Every pin is placed once; no pins collide" = "ਹਰ ਪਿੰਨ ਇੱਕ ਵਾਰ ਰੱਖਿਆ ਗਿਆ ਹੈ; ਕੋਈ ਪਿੰਨ ਨਹੀਂ ਟਕਰਾਉਂਦਾ";
 "Every unit is valid" = "ਹਰ ਯੂਨਿਟ ਵੈਧ ਹੈ";
 "Exchange the wires of two interchangeable pins of this gate" = "ਇਸ ਗੇਟ ਦੇ ਦੋ ਅਦਲਾ-ਬਦਲੀਯੋਗ ਪਿੰਨਾਂ ਦੀਆਂ ਤਾਰਾਂ ਬਦਲੋ";
+"Execute Changes" = "ਤਬਦੀਲੀਆਂ ਲਾਗੂ ਕਰੋ";
+"Executed" = "ਲਾਗੂ ਕੀਤੀਆਂ";
 "Export" = "ਐਕਸਪੋਰਟ ਕਰੋ";
 "Export 3D" = "3D ਐਕਸਪੋਰਟ ਕਰੋ";
 "Export Fabrication Package…" = "ਫੈਬਰੀਕੇਸ਼ਨ ਪੈਕੇਜ ਐਕਸਪੋਰਟ ਕਰੋ…";
@@ -472,6 +477,7 @@
 "Net" = "ਨੈੱਟ";
 "Net Classes" = "ਨੈੱਟ ਕਲਾਸਾਂ";
 "Net Navigator" = "ਨੈੱਟ ਨੈਵੀਗੇਟਰ";
+"Net Rules" = "ਨੈੱਟ ਨਿਯਮ";
 "Net class" = "ਨੈੱਟ ਕਲਾਸ";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "ਨੈੱਟਾਂ ਉੱਤੇ ਨਿਰਦੇਸ਼ਾਂ ਲਈ ਨੈੱਟ ਕਲਾਸਾਂ: ਸਕੀਮੈਟਿਕ ਬੋਰਡ ਦੇ ਨੈੱਟ ਨਿਯਮਾਂ ਦਾ ਸਰੋਤ ਹੈ";
 "Net model" = "ਨੈੱਟ ਮਾਡਲ";
@@ -621,6 +627,7 @@
 "Re-annotate from the board (rows)" = "ਬੋਰਡ ਤੋਂ ਮੁੜ ਐਨੋਟੇਟ (ਕਤਾਰਾਂ)";
 "Re-verify" = "ਮੁੜ-ਵੈਰੀਫਾਈ ਕਰੋ";
 "Read Pins from Datasheet" = "ਡੇਟਾਸ਼ੀਟ ਤੋਂ ਪਿੰਨ ਪੜ੍ਹੋ";
+"Read the changes again from the schematic" = "ਸਕੀਮੈਟਿਕ ਤੋਂ ਤਬਦੀਲੀਆਂ ਦੁਬਾਰਾ ਪੜ੍ਹੋ";
 "Ready" = "ਤਿਆਰ";
 "Receive equaliser, peaking chosen for the widest eye" = "ਰਿਸੀਵ ਇਕੁਅਲਾਈਜ਼ਰ, ਸਭ ਤੋਂ ਚੌੜੀ ਆਈ ਲਈ ਪੀਕਿੰਗ ਚੁਣੀ";
 "Receiver" = "ਰਿਸੀਵਰ";
@@ -820,6 +827,7 @@
 "Target" = "ਟੀਚਾ";
 "Test Connection" = "ਕਨੈਕਸ਼ਨ ਟੈਸਟ ਕਰੋ";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "ਆਟੋਰਾਊਟਰ RF ਲਾਈਨਾਂ ਅਤੇ ਡਿਫਰੈਂਸ਼ੀਅਲ ਪੇਅਰਾਂ (…_P/_N) ਦਾ ਆਕਾਰ ਇਹਨਾਂ ਇੰਪੀਡੈਂਸਾਂ ਮੁਤਾਬਕ ਤੈਅ ਕਰਦਾ ਹੈ (IPC-2141)।";
+"The board is up to date with the schematic." = "ਬੋਰਡ ਸਕੀਮੈਟਿਕ ਨਾਲ ਅੱਪ ਟੂ ਡੇਟ ਹੈ।";
 "The imported model replaces the built-in one in every analysis." = "ਆਯਾਤ ਕੀਤਾ ਮਾਡਲ ਹਰ ਵਿਸ਼ਲੇਸ਼ਣ ਵਿੱਚ ਬਿਲਟ-ਇਨ ਮਾਡਲ ਦੀ ਥਾਂ ਲੈਂਦਾ ਹੈ।";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "ਇੰਟਰਫੇਸ ਇਸ ਭਾਸ਼ਾ ਦੀ ਪਾਲਣਾ ਕਰਦਾ ਹੈ। ਇੰਜੀਨੀਅਰਿੰਗ ਸ਼ਬਦ, ਪਾਰਟ ਨੰਬਰ, ਇਕਾਈਆਂ, ਨੈੱਟ ਨਾਮ ਅਤੇ ਡਿਜ਼ਾਈਨ ਜਾਂਚ ਸੁਨੇਹੇ ਅੰਗਰੇਜ਼ੀ ਵਿੱਚ ਰਹਿੰਦੇ ਹਨ ਤਾਂ ਜੋ ਉਹ ਡਾਟਾਸ਼ੀਟਾਂ ਅਤੇ ਫੈਬਰੀਕੇਸ਼ਨ ਫਾਈਲਾਂ ਨਾਲ ਮੇਲ ਖਾਣ।";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ਆਫਲਾਈਨ ਡਿਜ਼ਾਈਨਰ SiEDA ਦੇ ਬਿਲਟ-ਇਨ ਰੈਫਰੈਂਸ ਸਰਕਟ ਵਰਤਦਾ ਹੈ। ਕੋਈ ਨੈੱਟਵਰਕ ਜਾਂ API ਕੁੰਜੀ ਲੋੜੀਂਦੀ ਨਹੀਂ — ਡੈਮੋ ਅਤੇ ਏਅਰ-ਗੈਪਡ ਲੈਬਾਂ ਲਈ ਆਦਰਸ਼।";
@@ -844,6 +852,7 @@
 "Type a designator, value, label or net name." = "ਨਿਰਧਾਰਕ, ਮੁੱਲ, ਲੇਬਲ ਜਾਂ ਨੈੱਟ ਨਾਮ ਲਿਖੋ।";
 "UNIT %@" = "ਯੂਨਿਟ %@";
 "UNITS" = "ਯੂਨਿਟ";
+"UPDATE PCB" = "PCB ਅੱਪਡੇਟ ਕਰੋ";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "ਭਾਰੀ ਪਾਰਟਾਂ ਲਈ ਅੰਡਰਫਿਲ / ਕਾਰਨਰ-ਬਾਂਡ (ਝਟਕਾ)";
 "Undershoot" = "ਅੰਡਰਸ਼ੂਟ";
@@ -856,6 +865,7 @@
 "Units" = "ਯੂਨਿਟ";
 "Unity gain" = "ਯੂਨਿਟੀ ਗੇਨ";
 "Unstack" = "ਅਨਸਟੈਕ ਕਰੋ";
+"Update PCB" = "PCB ਅੱਪਡੇਟ ਕਰੋ";
 "Upload .hex…" = ".hex ਅੱਪਲੋਡ ਕਰੋ…";
 "Use Block Value" = "ਬਲਾਕ ਮੁੱਲ ਵਰਤੋ";
 "Use the generated body again" = "ਮੁੜ ਬਣਾਈ ਬਾਡੀ ਵਰਤੋ";

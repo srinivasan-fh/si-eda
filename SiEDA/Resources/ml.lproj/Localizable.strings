@@ -2,7 +2,7 @@
 
 "%lld errors · %lld warnings" = "%lld പിശകുകൾ · %lld മുന്നറിയിപ്പുകൾ";
 "%lld matches" = "%lld പൊരുത്തങ്ങൾ";
-"%lld of %lld changes selected" = "%lld തിരഞ്ഞെടുത്തു, ആകെ %lld മാറ്റങ്ങൾ";
+"%lld of %lld changes selected" = "%lld തിരഞ്ഞെടുത്തു (ആകെ %lld മാറ്റങ്ങൾ)";
 "%lld pins" = "%lld പിന്നുകൾ";
 "%lld values" = "%lld മൂല്യങ്ങൾ";
 "0 derives the value from the regulator type" = "0 ആണെങ്കിൽ മൂല്യം റെഗുലേറ്റർ തരത്തിൽ നിന്ന് എടുക്കും";
@@ -154,6 +154,7 @@
 "Centre" = "മധ്യത്തിലാക്കുക";
 "Centre the model on the footprint and put its lowest point on the board surface" = "മോഡൽ ഫുട്പ്രിന്റിന്റെ മധ്യത്തിലാക്കി അതിന്റെ ഏറ്റവും താഴ്ന്ന ബിന്ദു ബോർഡ് പ്രതലത്തിൽ വയ്ക്കുക";
 "Changes from a WAS / IS file" = "WAS / IS ഫയലിൽ നിന്നുള്ള മാറ്റങ്ങൾ";
+"Changes from the schematic to the board since the last update." = "അവസാന അപ്ഡേറ്റിന് ശേഷം സ്കീമാറ്റിക്കിൽ നിന്ന് ബോർഡിലേക്കുള്ള മാറ്റങ്ങൾ.";
 "Channel" = "ചാനൽ";
 "Channel %@ of %@ — edits apply to every channel" = "ചാനൽ %@ (%@) — മാറ്റങ്ങൾ എല്ലാ ചാനലിനും ബാധകം";
 "Channel Designators" = "ചാനൽ ഡിസൈനേറ്ററുകൾ";
@@ -203,6 +204,7 @@
 "Construction" = "നിർമ്മാണം";
 "Copies" = "പകർപ്പുകൾ";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "ക്ലിപ്പ്ബോർഡിന്റെ പകർപ്പുകൾ, ഓരോന്നും ഒരു ചുവട് കൂടി (സ്കീമാറ്റിക് യൂണിറ്റുകൾ, 10 = ഒരു ഗ്രിഡ്). ഭാഗങ്ങൾക്ക് അടുത്ത ഒഴിഞ്ഞ ഡെസിഗ്നേറ്റർ ലഭിക്കുന്നു; നെറ്റ് ലേബൽ നമ്പറുകൾ വർധനയനുസരിച്ച് കൂടുന്നു (D0 → D1 …).";
+"Copper Pours" = "കോപ്പർ പോറുകൾ";
 "Copper colours" = "കോപ്പർ നിറങ്ങൾ";
 "Copper foil" = "ചെമ്പ് ഫോയിൽ";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "കോപ്പർ ലെയറുകൾ: 1 = സിംഗിൾ-സൈഡഡ് (വിയകൾ ഇല്ല), മിക്ക ഉൽപ്പന്നങ്ങൾക്കും 2–6, മദർബോർഡുകൾ, സെർവറുകൾ, മെയിൻഫ്രെയിമുകൾ, GPU ബേസ്ബോർഡുകൾ എന്നിവയ്ക്ക് 8–24";
@@ -287,6 +289,7 @@
 "Edit Symbol…" = "സിംബൽ എഡിറ്റ് ചെയ്യുക…";
 "Effort" = "പരിശ്രമം";
 "Enable AI assistance" = "AI സഹായം പ്രവർത്തനക്ഷമമാക്കുക";
+"Engineering change order: review and execute the schematic's changes on the board" = "എഞ്ചിനീയറിംഗ് ചേഞ്ച് ഓർഡർ: സ്കീമാറ്റിക്കിലെ മാറ്റങ്ങൾ പരിശോധിച്ച് ബോർഡിൽ നടപ്പിലാക്കുക";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "ഈ ബട്ടൺ പ്രവർത്തനക്ഷമമാക്കാൻ നിങ്ങളുടെ ഐഡന്റിറ്റി പ്രൊവൈഡറിന്റെ ഇഷ്യൂവർ URL-ഉം SiEDA-യുടെ ക്ലയന്റ് ID-യും മുകളിൽ നൽകുക (നിങ്ങളുടെ IT അഡ്മിനിസ്ട്രേറ്ററോട് ചോദിക്കുക).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "MIL-STD-901E ഷോക്കിൽ ഇളകിപ്പോകാതിരിക്കാൻ പ്രോസസ്സറുകൾ, BGA-കൾ, വലിയ കപ്പാസിറ്ററുകൾ എന്നിവയുടെ അടിയിൽ എപ്പോക്സി";
 "Errors" = "പിശകുകൾ";
@@ -294,6 +297,8 @@
 "Every pin is placed once; no pins collide" = "ഓരോ പിനും ഒരിക്കൽ മാത്രം സ്ഥാപിച്ചിരിക്കുന്നു; പിനുകൾ കൂട്ടിമുട്ടുന്നില്ല";
 "Every unit is valid" = "എല്ലാ യൂണിറ്റും സാധുവാണ്";
 "Exchange the wires of two interchangeable pins of this gate" = "ഈ ഗേറ്റിന്റെ പരസ്പരം മാറ്റാവുന്ന രണ്ട് പിന്നുകളുടെ വയറുകൾ മാറ്റുക";
+"Execute Changes" = "മാറ്റങ്ങൾ നടപ്പിലാക്കുക";
+"Executed" = "നടപ്പിലാക്കിയവ";
 "Export" = "എക്സ്പോർട്ട് ചെയ്യുക";
 "Export 3D" = "3D എക്സ്പോർട്ട് ചെയ്യുക";
 "Export Fabrication Package…" = "ഫാബ്രിക്കേഷൻ പാക്കേജ് എക്സ്പോർട്ട് ചെയ്യുക…";
@@ -472,6 +477,7 @@
 "Net" = "നെറ്റ്";
 "Net Classes" = "നെറ്റ് ക്ലാസുകൾ";
 "Net Navigator" = "നെറ്റ് നാവിഗേറ്റർ";
+"Net Rules" = "നെറ്റ് നിയമങ്ങൾ";
 "Net class" = "നെറ്റ് ക്ലാസ്";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "നെറ്റുകളിലെ നിർദേശങ്ങൾക്കുള്ള നെറ്റ് ക്ലാസുകൾ: ബോർഡിന്റെ നെറ്റ് നിയമങ്ങളുടെ ഉറവിടം സ്കീമാറ്റിക്കാണ്";
 "Net model" = "നെറ്റ് മോഡൽ";
@@ -621,6 +627,7 @@
 "Re-annotate from the board (rows)" = "ബോർഡിൽ നിന്ന് വീണ്ടും അനോട്ടേറ്റ് (വരികൾ)";
 "Re-verify" = "വീണ്ടും വെരിഫൈ ചെയ്യുക";
 "Read Pins from Datasheet" = "ഡാറ്റാഷീറ്റിൽ നിന്ന് പിന്നുകൾ വായിക്കുക";
+"Read the changes again from the schematic" = "സ്കീമാറ്റിക്കിൽ നിന്ന് മാറ്റങ്ങൾ വീണ്ടും വായിക്കുക";
 "Ready" = "തയ്യാർ";
 "Receive equaliser, peaking chosen for the widest eye" = "റിസീവ് ഈക്വലൈസർ, ഏറ്റവും വീതിയുള്ള ഐക്കായി പീക്കിംഗ് തിരഞ്ഞെടുത്തു";
 "Receiver" = "റിസീവർ";
@@ -820,6 +827,7 @@
 "Target" = "ലക്ഷ്യം";
 "Test Connection" = "കണക്ഷൻ പരിശോധിക്കുക";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "ഓട്ടോറൂട്ടർ RF ലൈനുകളുടെയും ഡിഫറൻഷ്യൽ പെയറുകളുടെയും (…_P/_N) വലുപ്പം ഈ ഇംപിഡൻസുകൾക്ക് അനുസരിച്ച് നിശ്ചയിക്കുന്നു (IPC-2141).";
+"The board is up to date with the schematic." = "ബോർഡ് സ്കീമാറ്റിക്കുമായി കാലികമാണ്.";
 "The imported model replaces the built-in one in every analysis." = "ഇറക്കുമതി ചെയ്ത മോഡൽ എല്ലാ വിശകലനത്തിലും അന്തർനിർമ്മിത മോഡലിന് പകരമാകുന്നു.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "ഇന്റർഫേസ് ഈ ഭാഷ പിന്തുടരുന്നു. ഡാറ്റാഷീറ്റുകളുമായും ഫാബ്രിക്കേഷൻ ഫയലുകളുമായും പൊരുത്തപ്പെടാൻ എഞ്ചിനീയറിംഗ് പദങ്ങൾ, പാർട്ട് നമ്പറുകൾ, യൂണിറ്റുകൾ, നെറ്റ് പേരുകൾ, ഡിസൈൻ ചെക്ക് സന്ദേശങ്ങൾ എന്നിവ ഇംഗ്ലീഷിൽ തന്നെ തുടരും.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ഓഫ്‌ലൈൻ ഡിസൈനർ SiEDA-യുടെ ബിൽറ്റ്-ഇൻ റഫറൻസ് സർക്യൂട്ടുകൾ ഉപയോഗിക്കുന്നു. നെറ്റ്‌വർക്കോ API കീയോ ആവശ്യമില്ല — ഡെമോകൾക്കും എയർ-ഗ്യാപ്പ്ഡ് ലാബുകൾക്കും അനുയോജ്യം.";
@@ -844,6 +852,7 @@
 "Type a designator, value, label or net name." = "ഡിസൈനേറ്റർ, മൂല്യം, ലേബൽ അല്ലെങ്കിൽ നെറ്റ് പേര് ടൈപ്പ് ചെയ്യുക.";
 "UNIT %@" = "യൂണിറ്റ് %@";
 "UNITS" = "യൂണിറ്റുകൾ";
+"UPDATE PCB" = "PCB അപ്ഡേറ്റ് ചെയ്യുക";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "ഭാരമേറിയ പാർട്ടുകൾക്ക് അണ്ടർഫിൽ / കോർണർ-ബോണ്ട് (ഷോക്ക്)";
 "Undershoot" = "അണ്ടർഷൂട്ട്";
@@ -856,6 +865,7 @@
 "Units" = "യൂണിറ്റുകൾ";
 "Unity gain" = "യൂണിറ്റി ഗെയിൻ";
 "Unstack" = "അൺസ്റ്റാക്ക് ചെയ്യുക";
+"Update PCB" = "PCB അപ്ഡേറ്റ് ചെയ്യുക";
 "Upload .hex…" = ".hex അപ്‌ലോഡ് ചെയ്യുക…";
 "Use Block Value" = "ബ്ലോക്ക് മൂല്യം ഉപയോഗിക്കുക";
 "Use the generated body again" = "വീണ്ടും സൃഷ്ടിച്ച ബോഡി ഉപയോഗിക്കുക";

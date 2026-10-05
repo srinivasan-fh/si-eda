@@ -2,7 +2,7 @@
 
 "%lld errors · %lld warnings" = "%lld பிழைகள் · %lld எச்சரிக்கைகள்";
 "%lld matches" = "%lld பொருத்தங்கள்";
-"%lld of %lld changes selected" = "%lld தேர்ந்தெடுக்கப்பட்டன, மொத்தம் %lld மாற்றங்கள்";
+"%lld of %lld changes selected" = "%lld தேர்ந்தெடுக்கப்பட்டன (மொத்தம் %lld மாற்றங்கள்)";
 "%lld pins" = "%lld பின்கள்";
 "%lld values" = "%lld மதிப்புகள்";
 "0 derives the value from the regulator type" = "0 என்றால் மதிப்பு சீராக்கியின் வகையிலிருந்து எடுக்கப்படும்";
@@ -154,6 +154,7 @@
 "Centre" = "மையப்படுத்து";
 "Centre the model on the footprint and put its lowest point on the board surface" = "மாதிரியை ஃபுட்பிரிண்டின் மையத்தில் வைத்து அதன் மிகக் குறைந்த புள்ளியைப் பலகையின் மேற்பரப்பில் வை";
 "Changes from a WAS / IS file" = "WAS / IS கோப்பிலிருந்து மாற்றங்கள்";
+"Changes from the schematic to the board since the last update." = "கடைசி புதுப்பிப்பிலிருந்து திட்டவரைபடத்திலிருந்து பலகைக்கான மாற்றங்கள்.";
 "Channel" = "சேனல்";
 "Channel %@ of %@ — edits apply to every channel" = "சேனல் %@ (%@) — திருத்தங்கள் ஒவ்வொரு சேனலுக்கும் பொருந்தும்";
 "Channel Designators" = "சேனல் குறியீடுகள்";
@@ -203,6 +204,7 @@
 "Construction" = "கட்டமைப்பு";
 "Copies" = "நகல்கள்";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "கிளிப்போர்டின் நகல்கள், ஒவ்வொன்றும் ஒரு படி தள்ளி (திட்டவரைவு அலகுகள், 10 = ஒரு கட்டம்). பகுதிகளுக்கு அடுத்த காலியான குறியீடு கிடைக்கும்; நெட் லேபிள் எண்கள் அதிகரிப்பின்படி உயரும் (D0 → D1 …).";
+"Copper Pours" = "செம்பு ஊற்றுகள்";
 "Copper colours" = "காப்பர் நிறங்கள்";
 "Copper foil" = "செப்புத் தகடு";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "காப்பர் லேயர்கள்: 1 = ஒற்றைப் பக்கம் (வயாக்கள் இல்லை), பெரும்பாலான தயாரிப்புகளுக்கு 2–6, மதர்போர்டுகள், சர்வர்கள், மெயின்ஃப்ரேம்கள் மற்றும் GPU பேஸ்போர்டுகளுக்கு 8–24";
@@ -287,6 +289,7 @@
 "Edit Symbol…" = "சிம்பலைத் திருத்து…";
 "Effort" = "முயற்சி";
 "Enable AI assistance" = "AI உதவியை இயக்கு";
+"Engineering change order: review and execute the schematic's changes on the board" = "பொறியியல் மாற்ற ஆணை: திட்டவரைபடத்தின் மாற்றங்களை மதிப்பாய்வு செய்து பலகையில் செயல்படுத்து";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "இந்தப் பொத்தானை இயக்க, உங்கள் அடையாள வழங்குநரின் இஷ்யூயர் URL மற்றும் SiEDA இன் கிளையன்ட் ID ஐ மேலே உள்ளிடவும் (உங்கள் IT நிர்வாகியிடம் கேளுங்கள்).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "MIL-STD-901E அதிர்ச்சி அவற்றைப் பிய்த்துவிடாதபடி ப்ராசசர்கள், BGA கள் மற்றும் பெரிய கெப்பாசிட்டர்களின் கீழ் எபாக்ஸி";
 "Errors" = "பிழைகள்";
@@ -294,6 +297,8 @@
 "Every pin is placed once; no pins collide" = "ஒவ்வொரு பின்னும் ஒருமுறை வைக்கப்பட்டுள்ளது; பின்கள் மோதவில்லை";
 "Every unit is valid" = "ஒவ்வொரு யூனிட்டும் சரியானது";
 "Exchange the wires of two interchangeable pins of this gate" = "இந்த கேட்டின் மாற்றக்கூடிய இரண்டு பின்களின் கம்பிகளை மாற்று";
+"Execute Changes" = "மாற்றங்களைச் செயல்படுத்து";
+"Executed" = "செயல்படுத்தப்பட்டவை";
 "Export" = "ஏற்றுமதி செய்";
 "Export 3D" = "3D ஏற்றுமதி செய்";
 "Export Fabrication Package…" = "ஃபேப்ரிகேஷன் தொகுப்பை ஏற்றுமதி செய்…";
@@ -472,6 +477,7 @@
 "Net" = "நெட்";
 "Net Classes" = "நெட் வகுப்புகள்";
 "Net Navigator" = "நெட் வழிகாட்டி";
+"Net Rules" = "நெட் விதிகள்";
 "Net class" = "நெட் வகுப்பு";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "நெட்களில் உள்ள கட்டளைகளுக்கான நெட் வகுப்புகள்: பலகையின் நெட் விதிகளுக்கு திட்டவரைவே மூலம்";
 "Net model" = "நெட் மாதிரி";
@@ -621,6 +627,7 @@
 "Re-annotate from the board (rows)" = "பலகையிலிருந்து மீண்டும் குறிப்பிடு (வரிசைகள்)";
 "Re-verify" = "மீண்டும் சரிபார்";
 "Read Pins from Datasheet" = "தரவுத்தாளிலிருந்து பின்களைப் படி";
+"Read the changes again from the schematic" = "திட்டவரைபடத்திலிருந்து மாற்றங்களை மீண்டும் படி";
 "Ready" = "தயார்";
 "Receive equaliser, peaking chosen for the widest eye" = "பெறும் சமநிலைப்படுத்தி, அகலமான கண்ணுக்கான உச்சம் தேர்வு";
 "Receiver" = "ரிசீவர்";
@@ -820,6 +827,7 @@
 "Target" = "இலக்கு";
 "Test Connection" = "இணைப்பைச் சோதி";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "ஆட்டோரூட்டர் RF லைன்கள் மற்றும் டிஃபரன்ஷியல் ஜோடிகளின் (…_P/_N) அளவை இந்த இம்பீடன்ஸ்களுக்கு ஏற்ப நிர்ணயிக்கும் (IPC-2141).";
+"The board is up to date with the schematic." = "பலகை திட்டவரைபடத்துடன் புதுப்பித்த நிலையில் உள்ளது.";
 "The imported model replaces the built-in one in every analysis." = "இறக்குமதி செய்த மாதிரி ஒவ்வொரு பகுப்பாய்விலும் உள்ளமைந்த மாதிரிக்குப் பதிலாகப் பயன்படும்.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "இடைமுகம் இந்த மொழியைப் பின்பற்றும். இன்ஜினியரிங் சொற்கள், பார்ட் எண்கள், அலகுகள், நெட் பெயர்கள் மற்றும் டிசைன் சரிபார்ப்புச் செய்திகள் டேட்டாஷீட்கள் மற்றும் ஃபேப்ரிகேஷன் கோப்புகளுடன் பொருந்த ஆங்கிலத்திலேயே இருக்கும்.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ஆஃப்லைன் டிசைனர் SiEDA இன் உள்ளமைந்த ரெஃபரன்ஸ் சர்க்யூட்களைப் பயன்படுத்துகிறது. நெட்வொர்க் அல்லது API கீ தேவையில்லை — டெமோக்கள் மற்றும் ஏர்-கேப்டு ஆய்வகங்களுக்கு ஏற்றது.";
@@ -844,6 +852,7 @@
 "Type a designator, value, label or net name." = "குறியீடு, மதிப்பு, லேபிள் அல்லது நெட் பெயரைத் தட்டச்சு செய்யவும்.";
 "UNIT %@" = "யூனிட் %@";
 "UNITS" = "யூனிட்கள்";
+"UPDATE PCB" = "PCB-ஐப் புதுப்பி";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "கனமான பார்ட்களுக்கு அண்டர்ஃபில் / கார்னர்-பாண்ட் (அதிர்ச்சி)";
 "Undershoot" = "அண்டர்ஷூட்";
@@ -856,6 +865,7 @@
 "Units" = "யூனிட்கள்";
 "Unity gain" = "யூனிட்டி கெயின்";
 "Unstack" = "அடுக்கைப் பிரி";
+"Update PCB" = "PCB-ஐப் புதுப்பி";
 "Upload .hex…" = ".hex பதிவேற்று…";
 "Use Block Value" = "தொகுதி மதிப்பைப் பயன்படுத்து";
 "Use the generated body again" = "மீண்டும் உருவாக்கப்பட்ட உடலைப் பயன்படுத்து";

@@ -1615,3 +1615,20 @@ extension EDAEngine {
         withHandle { sieda_set_harness_entry($0, Int32(label), Int32(harness)) } == 1
     }
 }
+
+extension EDAEngine {
+    /// Update PCB: the changes an update from the schematic would make to the board (nothing applied).
+    func pcbEcoPreview() -> [PcbEcoChangeInfo] {
+        Self.decode([PcbEcoChangeInfo].self, from: Self.take(withHandle { sieda_pcb_eco_preview($0) })) ?? []
+    }
+
+    /// Executes the changes with these keys; what was done, one line per change.
+    func applyPcbEco(keys: [String]) -> [String] {
+        struct Reply: Decodable {
+            let executed: Int
+            let report: [String]
+        }
+        let json = (try? JSONEncoder().encode(keys)).map { String(decoding: $0, as: UTF8.self) } ?? "[]"
+        return Self.decode(Reply.self, from: Self.take(withHandle { sieda_apply_pcb_eco($0, json) }))?.report ?? []
+    }
+}

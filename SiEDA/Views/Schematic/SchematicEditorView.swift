@@ -42,6 +42,7 @@ struct SchematicEditorView: View {
     @State private var arrayStep = "0, 60"
     @State private var arrayIncrement = "1"
     @State private var eco: (title: String, changes: [EcoChangeInfo])?
+    @State private var updatingPCB = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -149,6 +150,8 @@ struct SchematicEditorView: View {
                     }
                     .fixedSize()
                     .help("Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review")
+                    Button { updatingPCB = true } label: { Label("Update PCB", systemImage: "arrow.right.square") }
+                        .help("Engineering change order: review and execute the schematic's changes on the board")
                     Button { showMessages.toggle() } label: { Label("Messages", systemImage: "list.bullet.rectangle") }
                         .help("Every ERC message of every sheet; click one to go there")
                     Button { store.exportSchematicPDF() } label: { Label("PDF", systemImage: "doc.richtext") }
@@ -230,6 +233,7 @@ struct SchematicEditorView: View {
             }
         }
         .background(Theme.navy)
+        .sheet(isPresented: $updatingPCB) { UpdatePcbView().environmentObject(store) }
         .sheet(isPresented: Binding(get: { eco != nil }, set: { if !$0 { eco = nil } })) {
             if let eco { EcoReviewView(title: eco.title, changes: eco.changes).environmentObject(store) }
         }

@@ -784,6 +784,15 @@ int32_t sieda_set_erc_severity(SiedaProject* project, const char* code, const ch
 /* Makes a net label an entry of a harness label on its sheet (harness 0: an ordinary label again). 1 on success. */
 int32_t sieda_set_harness_entry(SiedaProject* project, int32_t label, int32_t harness);
 
+/* ---- forward annotation: "Update PCB" ECO (docs/SCHEMATIC.md) ---------------------------------------------------- */
+/* The changes an update from the schematic would make to the board since the last one: [{section: "component" |
+ * "net" | "zone" | "rule", action: "add" | "remove" | "change", object, detail, key, applicable, note}]. Caller frees. */
+char* sieda_pcb_eco_preview(const SiedaProject* project);
+/* Executes the changes whose keys are listed (keys_json ["component:7",…]; NULL = all; [] = none): places added
+ * footprints, removes pours on nets that are gone, carries the net rules, records the new baseline. Returns
+ * {"executed": n, "report": [line…]}. Caller frees. */
+char* sieda_apply_pcb_eco(SiedaProject* project, const char* keys_json);
+
 #ifdef __cplusplus
 }
 #endif

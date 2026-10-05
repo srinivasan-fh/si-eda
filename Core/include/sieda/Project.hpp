@@ -1,6 +1,8 @@
 // SiEDA Core — a complete design: schematic + PCB layout, with persistence and UI snapshots.
 #pragma once
 
+#include <array>
+#include <map>
 #include <string>
 
 #include "sieda/CustomParts.hpp"
@@ -30,6 +32,25 @@ struct EcoChange {
     int other = -1;            // gate swap: the second unit
     bool applicable = true;
     std::string note;          // why it cannot be applied
+};
+
+/// A change the schematic makes to the board (Altium's Update PCB ECO): parts added, removed or changed since the
+/// last update, nets whose pins changed, copper zones on nets that are gone, and net rules from the schematic.
+struct PcbEcoChange {
+    std::string section;  // "component", "net", "zone", "rule"
+    std::string action;   // "add", "remove", "change"
+    std::string object;   // "R5", "VCC", "HS"
+    std::string detail;   // what the update does
+    std::string key;      // stable identity, for executing a chosen subset
+    bool applicable = true;
+    std::string note;     // why it cannot be executed
+};
+
+/// What the board was last updated from: each part (designator, footprint, value) and each net's pins.
+struct PcbSyncBaseline {
+    std::map<int, std::array<std::string, 3>> parts;  // component id → ref, footprint, value
+    std::map<std::string, std::string> nets;          // net name → "R1.1 R2.2 …"
+    bool operator==(const PcbSyncBaseline& o) const { return parts == o.parts && nets == o.nets; }
 };
 
 class Project {
@@ -112,6 +133,18 @@ public:
     /// replace those of the previous application in the board settings (nets the schematic never set keep theirs).
     /// Returns true when the board rules changed. Called by schematicChanged().
     bool applySchematicRules();
+
+    // ---- forward annotation (schematic → board, "Update PCB") ----
+    /// The board's baseline: what the last update put on it (a project read from a file without one is in sync).
+    PcbSyncBaseline pcbSync;
+    /// The schematic as the board would take it now.
+    PcbSyncBaseline currentSync() const;
+    /// The changes an update would make, by section; nothing is changed.
+    std::vector<PcbEcoChange> pcbEcoPreview() const;
+    /// Executes the changes with these keys (all when `keys` is empty): places added footprints, removes copper zones
+    /// on nets that are gone, carries the schematic's net rules to the board and records the new baseline for what
+    /// was executed. `report` gets one line per executed change. Returns the number executed.
+    int applyPcbEco(const std::vector<std::string>& keys, std::vector<std::string>* report = nullptr);
 
     // ---- back-annotation (board → schematic ECO) ----
     /// Designators re-numbered from the board: per prefix, the placed parts in board order (rows top to bottom then

@@ -154,6 +154,7 @@
 "Centre" = "Zentrieren";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Modell auf dem Footprint zentrieren und den tiefsten Punkt auf die Leiterplattenoberfläche setzen";
 "Changes from a WAS / IS file" = "Änderungen aus einer WAS-/IS-Datei";
+"Changes from the schematic to the board since the last update." = "Änderungen vom Schaltplan zur Platine seit der letzten Aktualisierung.";
 "Channel" = "Kanal";
 "Channel %@ of %@ — edits apply to every channel" = "Kanal %@ von %@ — Änderungen gelten für jeden Kanal";
 "Channel Designators" = "Kanal-Bezeichner";
@@ -203,6 +204,7 @@
 "Construction" = "Aufbau";
 "Copies" = "Kopien";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "Kopien der Zwischenablage, jede einen Schritt weiter (Schaltplaneinheiten, 10 = ein Raster). Bauteile erhalten die nächsten freien Bezeichner; Nummern von Netzlabels zählen um die Schrittweite hoch (D0 → D1 …).";
+"Copper Pours" = "Kupferflächen";
 "Copper colours" = "Kupferfarben";
 "Copper foil" = "Kupferfolie";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Kupferlagen: 1 = einseitig (keine Vias), 2–6 für die meisten Produkte, 8–24 für Mainboards, Server, Mainframes und GPU-Baseboards";
@@ -287,6 +289,7 @@
 "Edit Symbol…" = "Symbol bearbeiten …";
 "Effort" = "Aufwand";
 "Enable AI assistance" = "KI-Unterstützung aktivieren";
+"Engineering change order: review and execute the schematic's changes on the board" = "Änderungsauftrag: Änderungen des Schaltplans prüfen und auf der Platine ausführen";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Issuer-URL des Identitätsanbieters und Client-ID von SiEDA oben eingeben, um diese Taste zu aktivieren (IT-Administration fragen).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxid unter Prozessoren, BGAs und großen Kondensatoren, damit ein MIL-STD-901E-Schock sie nicht abreißt";
 "Errors" = "Fehler";
@@ -294,6 +297,8 @@
 "Every pin is placed once; no pins collide" = "Jeder Pin ist genau einmal platziert; keine Pins überlappen";
 "Every unit is valid" = "Jede Einheit ist gültig";
 "Exchange the wires of two interchangeable pins of this gate" = "Die Leitungen zweier austauschbarer Pins dieses Gatters tauschen";
+"Execute Changes" = "Änderungen ausführen";
+"Executed" = "Ausgeführt";
 "Export" = "Exportieren";
 "Export 3D" = "3D exportieren";
 "Export Fabrication Package…" = "Fertigungspaket exportieren …";
@@ -472,6 +477,7 @@
 "Net" = "Netz";
 "Net Classes" = "Netzklassen";
 "Net Navigator" = "Netz-Navigator";
+"Net Rules" = "Netzregeln";
 "Net class" = "Netzklasse";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "Netzklassen für die Direktiven an Netzen: der Schaltplan ist die Quelle der Netzregeln der Platine";
 "Net model" = "Netzmodell";
@@ -621,6 +627,7 @@
 "Re-annotate from the board (rows)" = "Von der Platine neu annotieren (Zeilen)";
 "Re-verify" = "Erneut verifizieren";
 "Read Pins from Datasheet" = "Pins aus dem Datenblatt lesen";
+"Read the changes again from the schematic" = "Änderungen erneut aus dem Schaltplan lesen";
 "Ready" = "Bereit";
 "Receive equaliser, peaking chosen for the widest eye" = "Empfangsentzerrer, Anhebung für das breiteste Auge gewählt";
 "Receiver" = "Empfänger";
@@ -820,6 +827,7 @@
 "Target" = "Ziel";
 "Test Connection" = "Verbindung testen";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "Der Autorouter dimensioniert HF-Leitungen und differenzielle Paare (…_P/_N) auf diese Impedanzen (IPC-2141).";
+"The board is up to date with the schematic." = "Die Platine ist auf dem Stand des Schaltplans.";
 "The imported model replaces the built-in one in every analysis." = "Das importierte Modell ersetzt das eingebaute in jeder Analyse.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "Die Oberfläche folgt dieser Sprache. Fachbegriffe, Teilenummern, Einheiten, Netznamen und Meldungen der Designprüfung bleiben auf Englisch, damit sie zu Datenblättern und Fertigungsdateien passen.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Der Offline-Designer nutzt die integrierten Referenzschaltungen von SiEDA. Kein Netzwerk oder API-Schlüssel nötig — ideal für Demos und abgeschottete Labore.";
@@ -844,6 +852,7 @@
 "Type a designator, value, label or net name." = "Bezeichner, Wert, Label oder Netznamen eingeben.";
 "UNIT %@" = "EINHEIT %@";
 "UNITS" = "EINHEITEN";
+"UPDATE PCB" = "PCB AKTUALISIEREN";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / Eckverklebung schwerer Bauteile (Schock)";
 "Undershoot" = "Unterschwingen";
@@ -856,6 +865,7 @@
 "Units" = "Einheiten";
 "Unity gain" = "Transitfrequenz";
 "Unstack" = "Entstapeln";
+"Update PCB" = "PCB aktualisieren";
 "Upload .hex…" = ".hex hochladen …";
 "Use Block Value" = "Blockwert verwenden";
 "Use the generated body again" = "Wieder den erzeugten Körper verwenden";

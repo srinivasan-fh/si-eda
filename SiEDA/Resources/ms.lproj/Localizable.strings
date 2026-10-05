@@ -154,6 +154,7 @@
 "Centre" = "Tengah";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Tengahkan model pada tapak dan letakkan titik terendahnya pada permukaan papan";
 "Changes from a WAS / IS file" = "Perubahan daripada fail WAS / IS";
+"Changes from the schematic to the board since the last update." = "Perubahan daripada skema ke papan sejak kemas kini terakhir.";
 "Channel" = "Saluran";
 "Channel %@ of %@ — edits apply to every channel" = "Saluran %@ bagi %@ — suntingan berlaku pada setiap saluran";
 "Channel Designators" = "Penanda Saluran";
@@ -203,6 +204,7 @@
 "Construction" = "Pembinaan";
 "Copies" = "Salinan";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "Salinan papan klip, setiap satu selangkah lebih jauh (unit skema, 10 = satu grid). Komponen mendapat penunjuk bebas seterusnya; nombor label net bertambah mengikut kenaikan (D0 → D1 …).";
+"Copper Pours" = "Tuangan Kuprum";
 "Copper colours" = "Warna kuprum";
 "Copper foil" = "Kerajang kuprum";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Lapisan kuprum: 1 = satu sisi (tiada via), 2–6 untuk kebanyakan produk, 8–24 untuk papan induk, pelayan, kerangka utama dan papan asas GPU";
@@ -287,6 +289,7 @@
 "Edit Symbol…" = "Edit Simbol…";
 "Effort" = "Usaha";
 "Enable AI assistance" = "Dayakan bantuan AI";
+"Engineering change order: review and execute the schematic's changes on the board" = "Arahan perubahan kejuruteraan: semak dan laksanakan perubahan skema pada papan";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Masukkan URL pengeluar penyedia identiti anda dan ID klien SiEDA di atas untuk mendayakan butang ini (tanya pentadbir IT anda).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoksi di bawah pemproses, BGA dan kapasitor besar supaya kejutan MIL-STD-901E tidak dapat menanggalkannya";
 "Errors" = "Ralat";
@@ -294,6 +297,8 @@
 "Every pin is placed once; no pins collide" = "Setiap pin diletakkan sekali; tiada pin bertembung";
 "Every unit is valid" = "Setiap unit sah";
 "Exchange the wires of two interchangeable pins of this gate" = "Tukar wayar dua pin boleh tukar ganti get ini";
+"Execute Changes" = "Laksanakan Perubahan";
+"Executed" = "Dilaksanakan";
 "Export" = "Eksport";
 "Export 3D" = "Eksport 3D";
 "Export Fabrication Package…" = "Eksport Pakej Fabrikasi…";
@@ -472,6 +477,7 @@
 "Net" = "Net";
 "Net Classes" = "Kelas Net";
 "Net Navigator" = "Navigator Net";
+"Net Rules" = "Peraturan Net";
 "Net class" = "Kelas net";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "Kelas net bagi arahan pada net: skema ialah sumber peraturan net papan";
 "Net model" = "Model net";
@@ -621,6 +627,7 @@
 "Re-annotate from the board (rows)" = "Anotasi semula dari papan (baris)";
 "Re-verify" = "Sahkan Semula";
 "Read Pins from Datasheet" = "Baca Pin daripada Lembaran Data";
+"Read the changes again from the schematic" = "Baca semula perubahan daripada skema";
 "Ready" = "Sedia";
 "Receive equaliser, peaking chosen for the widest eye" = "Penyama penerima, puncak dipilih untuk mata paling lebar";
 "Receiver" = "Penerima";
@@ -820,6 +827,7 @@
 "Target" = "Sasaran";
 "Test Connection" = "Uji Sambungan";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "Penghala automatik menentukan saiz talian RF dan pasangan pembeza (…_P/_N) mengikut impedans ini (IPC-2141).";
+"The board is up to date with the schematic." = "Papan adalah terkini dengan skema.";
 "The imported model replaces the built-in one in every analysis." = "Model yang diimport menggantikan model terbina dalam dalam setiap analisis.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "Antara muka mengikut bahasa ini. Istilah kejuruteraan, nombor komponen, unit, nama net dan mesej semakan reka bentuk kekal dalam bahasa Inggeris supaya sepadan dengan lembaran data dan fail fabrikasi.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Pereka bentuk luar talian menggunakan litar rujukan terbina dalam SiEDA. Tiada rangkaian atau kunci API diperlukan — sesuai untuk demo dan makmal terasing.";
@@ -844,6 +852,7 @@
 "Type a designator, value, label or net name." = "Taip penanda, nilai, label atau nama net.";
 "UNIT %@" = "UNIT %@";
 "UNITS" = "UNIT";
+"UPDATE PCB" = "KEMAS KINI PCB";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Isi bawah / ikatan sudut komponen berat (kejutan)";
 "Undershoot" = "Lajakan bawah";
@@ -856,6 +865,7 @@
 "Units" = "Unit";
 "Unity gain" = "Gandaan uniti";
 "Unstack" = "Nyahtindan";
+"Update PCB" = "Kemas Kini PCB";
 "Upload .hex…" = "Muat Naik .hex…";
 "Use Block Value" = "Guna Nilai Blok";
 "Use the generated body again" = "Gunakan semula badan yang dijana";

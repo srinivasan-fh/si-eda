@@ -154,6 +154,7 @@
 "Centre" = "Centreer";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Centreer het model op de footprint en zet het laagste punt op het printoppervlak";
 "Changes from a WAS / IS file" = "Wijzigingen uit een WAS / IS-bestand";
+"Changes from the schematic to the board since the last update." = "Wijzigingen van het schema naar het bord sinds de laatste update.";
 "Channel" = "Kanaal";
 "Channel %@ of %@ — edits apply to every channel" = "Kanaal %@ van %@ — bewerkingen gelden voor elk kanaal";
 "Channel Designators" = "Kanaalreferenties";
@@ -203,6 +204,7 @@
 "Construction" = "Constructie";
 "Copies" = "Kopieën";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "Kopieën van het klembord, elk een stap verder (schema-eenheden, 10 = één raster). Onderdelen krijgen de volgende vrije referentie; nummers van netlabels tellen op met de stap (D0 → D1 …).";
+"Copper Pours" = "Koperen vlakken";
 "Copper colours" = "Koperkleuren";
 "Copper foil" = "Koperfolie";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Koperlagen: 1 = enkelzijdig (geen vias), 2–6 voor de meeste producten, 8–24 voor moederborden, servers, mainframes en GPU-baseboards";
@@ -287,6 +289,7 @@
 "Edit Symbol…" = "Symbool bewerken…";
 "Effort" = "Inspanning";
 "Enable AI assistance" = "AI-assistentie inschakelen";
+"Engineering change order: review and execute the schematic's changes on the board" = "Engineering change order: bekijk de wijzigingen van het schema en voer ze uit op het bord";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Voer hierboven de issuer-URL van je identiteitsprovider en de client-ID van SiEDA in om deze knop in te schakelen (vraag je IT-beheerder).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxy onder processors, BGA's en grote condensatoren zodat een MIL-STD-901E-schok ze niet losscheurt";
 "Errors" = "Fouten";
@@ -294,6 +297,8 @@
 "Every pin is placed once; no pins collide" = "Elke pin is één keer geplaatst; geen pinnen overlappen";
 "Every unit is valid" = "Elke eenheid is geldig";
 "Exchange the wires of two interchangeable pins of this gate" = "De draden van twee uitwisselbare pinnen van deze poort verwisselen";
+"Execute Changes" = "Wijzigingen uitvoeren";
+"Executed" = "Uitgevoerd";
 "Export" = "Exporteer";
 "Export 3D" = "3D exporteren";
 "Export Fabrication Package…" = "Productiepakket exporteren…";
@@ -472,6 +477,7 @@
 "Net" = "Net";
 "Net Classes" = "Netklassen";
 "Net Navigator" = "Netnavigator";
+"Net Rules" = "Netregels";
 "Net class" = "Netklasse";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "Netklassen voor de richtlijnen op netten: het schema is de bron van de netregels van de print";
 "Net model" = "Netmodel";
@@ -621,6 +627,7 @@
 "Re-annotate from the board (rows)" = "Opnieuw annoteren vanaf de print (rijen)";
 "Re-verify" = "Opnieuw verifiëren";
 "Read Pins from Datasheet" = "Pinnen uit datasheet lezen";
+"Read the changes again from the schematic" = "Lees de wijzigingen opnieuw uit het schema";
 "Ready" = "Gereed";
 "Receive equaliser, peaking chosen for the widest eye" = "Ontvangstequalizer, piek gekozen voor het breedste oog";
 "Receiver" = "Ontvanger";
@@ -820,6 +827,7 @@
 "Target" = "Doel";
 "Test Connection" = "Test verbinding";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "De autorouter dimensioneert RF-lijnen en differentiële paren (…_P/_N) op deze impedanties (IPC-2141).";
+"The board is up to date with the schematic." = "Het bord is bijgewerkt met het schema.";
 "The imported model replaces the built-in one in every analysis." = "Het geïmporteerde model vervangt het ingebouwde in elke analyse.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "De interface volgt deze taal. Technische termen, onderdeelnummers, eenheden, netnamen en ontwerpcontrolemeldingen blijven in het Engels zodat ze overeenkomen met datasheets en productiebestanden.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "De offline ontwerper gebruikt de ingebouwde referentieschakelingen van SiEDA. Geen netwerk of API-sleutel nodig — ideaal voor demo's en air-gapped labs.";
@@ -844,6 +852,7 @@
 "Type a designator, value, label or net name." = "Typ een referentie, waarde, label of netnaam.";
 "UNIT %@" = "EENHEID %@";
 "UNITS" = "EENHEDEN";
+"UPDATE PCB" = "PCB BIJWERKEN";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / hoekverlijming van zware onderdelen (schok)";
 "Undershoot" = "Undershoot";
@@ -856,6 +865,7 @@
 "Units" = "Eenheden";
 "Unity gain" = "Eenheidsversterking";
 "Unstack" = "Ontstapel";
+"Update PCB" = "PCB bijwerken";
 "Upload .hex…" = ".hex uploaden…";
 "Use Block Value" = "Blokwaarde gebruiken";
 "Use the generated body again" = "Weer de gegenereerde behuizing gebruiken";

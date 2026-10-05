@@ -2,7 +2,7 @@
 
 "%lld errors · %lld warnings" = "%lld 個錯誤 · %lld 個警告";
 "%lld matches" = "%lld 個相符項目";
-"%lld of %lld changes selected" = "已選取 %lld / %lld 項變更";
+"%lld of %lld changes selected" = "已選取 %lld 項（共 %lld 項變更）";
 "%lld pins" = "%lld 個接腳";
 "%lld values" = "%lld 個數值";
 "0 derives the value from the regulator type" = "0 表示依穩壓器類型取值";
@@ -154,6 +154,7 @@
 "Centre" = "置中";
 "Centre the model on the footprint and put its lowest point on the board surface" = "將模型置中於封裝，並使其最低點貼齊板面";
 "Changes from a WAS / IS file" = "來自 WAS / IS 檔案的變更";
+"Changes from the schematic to the board since the last update." = "自上次更新以來從線路圖到電路板的變更。";
 "Channel" = "通道";
 "Channel %@ of %@ — edits apply to every channel" = "通道 %@（%@）— 編輯會套用到每個通道";
 "Channel Designators" = "通道參考編號";
@@ -203,6 +204,7 @@
 "Construction" = "結構";
 "Copies" = "份數";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "剪貼簿的多份複本，每份再移一個步距（電路圖單位，10 = 一格）。零件取得下一個可用位號；網路標籤編號依增量遞增（D0 → D1 …）。";
+"Copper Pours" = "覆銅";
 "Copper colours" = "銅層顏色";
 "Copper foil" = "銅箔";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "銅層數：1 = 單面 (無導通孔)，2–6 適用於大多數產品，8–24 適用於主機板、伺服器、大型主機與 GPU 基板";
@@ -287,6 +289,7 @@
 "Edit Symbol…" = "編輯符號…";
 "Effort" = "推理強度";
 "Enable AI assistance" = "啟用 AI 輔助";
+"Engineering change order: review and execute the schematic's changes on the board" = "工程變更單：檢閱並在電路板上執行線路圖的變更";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "在上方輸入身分識別提供者的簽發者 URL 與 SiEDA 的用戶端 ID 以啟用此按鈕 (請洽詢您的 IT 管理員)。";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "在處理器、BGA 與大電容下方填充環氧樹脂，以防 MIL-STD-901E 衝擊將其撕脫";
 "Errors" = "錯誤";
@@ -294,6 +297,8 @@
 "Every pin is placed once; no pins collide" = "每個接腳只放置一次；接腳無衝突";
 "Every unit is valid" = "每個單元皆有效";
 "Exchange the wires of two interchangeable pins of this gate" = "交換此閘兩個可互換接腳的導線";
+"Execute Changes" = "執行變更";
+"Executed" = "已執行";
 "Export" = "匯出";
 "Export 3D" = "匯出 3D";
 "Export Fabrication Package…" = "匯出製造檔案包…";
@@ -472,6 +477,7 @@
 "Net" = "網路";
 "Net Classes" = "網路類別";
 "Net Navigator" = "網路導覽";
+"Net Rules" = "網路規則";
 "Net class" = "網路類別";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "網路指令的網路類別：電路圖是電路板網路規則的來源";
 "Net model" = "網路模型";
@@ -621,6 +627,7 @@
 "Re-annotate from the board (rows)" = "依電路板重新標註（橫列）";
 "Re-verify" = "重新驗證";
 "Read Pins from Datasheet" = "從資料手冊讀取接腳";
+"Read the changes again from the schematic" = "從線路圖重新讀取變更";
 "Ready" = "就緒";
 "Receive equaliser, peaking chosen for the widest eye" = "接收等化器，選擇使眼圖最寬的峰化";
 "Receiver" = "接收器";
@@ -820,6 +827,7 @@
 "Target" = "目標";
 "Test Connection" = "測試連線";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "自動佈線器會將 RF 線路與差動對 (…_P/_N) 調整至這些阻抗 (IPC-2141)。";
+"The board is up to date with the schematic." = "電路板已與線路圖同步。";
 "The imported model replaces the built-in one in every analysis." = "匯入的模型會在每項分析中取代內建模型。";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "介面將使用此語言。工程術語、料號、單位、網路名稱與設計檢查訊息保持英文，以便與規格書和製造檔案一致。";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "離線設計器使用 SiEDA 內建的參考電路。無需網路或 API 金鑰 — 非常適合展示與實體隔離的實驗室。";
@@ -844,6 +852,7 @@
 "Type a designator, value, label or net name." = "輸入參考編號、數值、標籤或網路名稱。";
 "UNIT %@" = "單元 %@";
 "UNITS" = "單元";
+"UPDATE PCB" = "更新 PCB";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "重型元件底部填充 / 邊角黏著 (衝擊)";
 "Undershoot" = "下衝";
@@ -856,6 +865,7 @@
 "Units" = "單元";
 "Unity gain" = "單位增益";
 "Unstack" = "取消堆疊";
+"Update PCB" = "更新 PCB";
 "Upload .hex…" = "上傳 .hex…";
 "Use Block Value" = "使用區塊值";
 "Use the generated body again" = "改回使用自動產生的本體";

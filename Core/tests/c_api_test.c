@@ -1085,3 +1085,26 @@ int sieda_c_api_harness_entry_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Forward annotation (Update PCB ECO) through the C API. Returns 0 or the failing step. */
+int sieda_c_api_update_pcb_test(void) {
+    SiedaProject* p = sieda_project_new("Update PCB");
+    if (!p) return 1;
+    int32_t r = sieda_add_component(p, 0, "1k", 0, 0, 0, NULL);
+    if (r < 0) return 2;
+    char* eco = sieda_pcb_eco_preview(p);
+    if (!eco || !strstr(eco, "\"section\":\"component\"") || !strstr(eco, "\"action\":\"add\"")) return 3;
+    sieda_string_free(eco);
+    char* none = sieda_apply_pcb_eco(p, "[]");
+    if (!none || !strstr(none, "\"executed\":0")) return 4;
+    sieda_string_free(none);
+    char* all = sieda_apply_pcb_eco(p, NULL);
+    if (!all || strstr(all, "\"executed\":0") || !strstr(all, "\"report\"")) return 5;
+    sieda_string_free(all);
+    eco = sieda_pcb_eco_preview(p);
+    if (!eco || strcmp(eco, "[]") != 0) return 6;
+    sieda_string_free(eco);
+    if (sieda_pcb_eco_preview(NULL) != NULL) return 7;
+    sieda_project_free(p);
+    return 0;
+}

@@ -2,7 +2,7 @@
 
 "%lld errors · %lld warnings" = "エラー %lld 件 · 警告 %lld 件";
 "%lld matches" = "%lld 件一致";
-"%lld of %lld changes selected" = "%lld / %lld 件の変更を選択";
+"%lld of %lld changes selected" = "%lld 件を選択（全 %lld 件の変更）";
 "%lld pins" = "%lld ピン";
 "%lld values" = "%lld 個の値";
 "0 derives the value from the regulator type" = "0 でレギュレータの種類から値を決定";
@@ -154,6 +154,7 @@
 "Centre" = "中央に配置";
 "Centre the model on the footprint and put its lowest point on the board surface" = "モデルをフットプリントの中央に置き、最下点を基板表面に合わせる";
 "Changes from a WAS / IS file" = "WAS / IS ファイルからの変更";
+"Changes from the schematic to the board since the last update." = "前回の更新以降の回路図から基板への変更。";
 "Channel" = "チャネル";
 "Channel %@ of %@ — edits apply to every channel" = "チャネル %@（%@）— 編集はすべてのチャネルに反映されます";
 "Channel Designators" = "チャネルのリファレンス番号";
@@ -203,6 +204,7 @@
 "Construction" = "構造";
 "Copies" = "コピー数";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "クリップボードのコピーを1ステップずつずらして貼り付けます（回路図単位、10 = 1グリッド）。部品は次の空きリファレンスを、ネットラベルの番号は増分ずつ増えます（D0 → D1 …）。";
+"Copper Pours" = "銅ベタ";
 "Copper colours" = "銅箔の色";
 "Copper foil" = "銅箔";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "銅層数：1 = 片面 (ビアなし)、2–6 はほとんどの製品向け、8–24 はマザーボード、サーバー、メインフレーム、GPU ベースボード向け";
@@ -287,6 +289,7 @@
 "Edit Symbol…" = "シンボルを編集…";
 "Effort" = "推論レベル";
 "Enable AI assistance" = "AI アシストを有効にする";
+"Engineering change order: review and execute the schematic's changes on the board" = "設計変更指示：回路図の変更を確認して基板で実行";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "上に ID プロバイダの発行者 URL と SiEDA のクライアント ID を入力すると、このボタンが有効になります (IT 管理者にお問い合わせください)。";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "プロセッサ、BGA、大型コンデンサの下にエポキシを充填し、MIL-STD-901E の衝撃で剥がれないようにします";
 "Errors" = "エラー";
@@ -294,6 +297,8 @@
 "Every pin is placed once; no pins collide" = "すべてのピンが 1 回ずつ配置され、ピンの衝突なし";
 "Every unit is valid" = "すべてのユニットが有効です";
 "Exchange the wires of two interchangeable pins of this gate" = "このゲートの交換可能な2本のピンの配線を入れ替えます";
+"Execute Changes" = "変更を実行";
+"Executed" = "実行済み";
 "Export" = "書き出す";
 "Export 3D" = "3D を書き出す";
 "Export Fabrication Package…" = "製造パッケージを書き出す…";
@@ -472,6 +477,7 @@
 "Net" = "ネット";
 "Net Classes" = "ネットクラス";
 "Net Navigator" = "ネットナビゲーター";
+"Net Rules" = "ネットルール";
 "Net class" = "ネットクラス";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "ネット指示のネットクラス：回路図が基板のネットルールの元です";
 "Net model" = "ネットのモデル";
@@ -621,6 +627,7 @@
 "Re-annotate from the board (rows)" = "基板から再アノテーション（行）";
 "Re-verify" = "再検証";
 "Read Pins from Datasheet" = "データシートからピンを読み取る";
+"Read the changes again from the schematic" = "回路図から変更を再読み込み";
 "Ready" = "準備完了";
 "Receive equaliser, peaking chosen for the widest eye" = "受信イコライザ、最も広いアイになるピーキングを選択";
 "Receiver" = "レシーバ";
@@ -820,6 +827,7 @@
 "Target" = "目標";
 "Test Connection" = "接続をテスト";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "オートルーターは RF ラインと差動ペア (…_P/_N) の幅をこれらのインピーダンスに合わせます (IPC-2141)。";
+"The board is up to date with the schematic." = "基板は回路図と同期しています。";
 "The imported model replaces the built-in one in every analysis." = "インポートしたモデルは、すべての解析で組み込みモデルの代わりに使われます。";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "インターフェイスはこの言語で表示されます。技術用語、品番、単位、ネット名、設計チェックのメッセージは、データシートや製造ファイルと一致するよう英語のままです。";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "オフラインデザイナーは SiEDA 内蔵のリファレンス回路を使用します。ネットワークや API キーは不要 — デモやエアギャップ環境のラボに最適です。";
@@ -844,6 +852,7 @@
 "Type a designator, value, label or net name." = "リファレンス、値、ラベル、ネット名を入力してください。";
 "UNIT %@" = "ユニット %@";
 "UNITS" = "ユニット";
+"UPDATE PCB" = "PCB を更新";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "重量部品のアンダーフィル / コーナーボンド (衝撃)";
 "Undershoot" = "アンダーシュート";
@@ -856,6 +865,7 @@
 "Units" = "ユニット";
 "Unity gain" = "ユニティゲイン";
 "Unstack" = "積み重ねを解除";
+"Update PCB" = "PCB を更新";
 "Upload .hex…" = ".hex をアップロード…";
 "Use Block Value" = "ブロック値を使う";
 "Use the generated body again" = "生成された本体に戻す";

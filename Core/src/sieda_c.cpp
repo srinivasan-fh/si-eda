@@ -3299,3 +3299,52 @@ int32_t sieda_set_harness_entry(SiedaProject* project, int32_t label, int32_t ha
 }
 
 }  // extern "C"
+
+// ---- schematic capture: forward annotation ("Update PCB" ECO)
+
+extern "C" {
+
+char* sieda_pcb_eco_preview(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        Json arr = Json::array();
+        for (const auto& e : project->project.pcbEcoPreview()) {
+            Json j = Json::object();
+            j["section"] = e.section;
+            j["action"] = e.action;
+            j["object"] = e.object;
+            j["detail"] = e.detail;
+            j["key"] = e.key;
+            j["applicable"] = e.applicable;
+            j["note"] = e.note;
+            arr.push(j);
+        }
+        return dup(arr.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_apply_pcb_eco(SiedaProject* project, const char* keys_json) {
+    if (!project) return nullptr;
+    try {
+        std::vector<std::string> keys;
+        if (keys_json && *keys_json) {
+            const Json parsed = Json::parse(keys_json);
+            for (const auto& k : parsed.items()) keys.push_back(k.asString(""));
+            if (keys.empty()) keys.push_back("~none");  // an empty selection executes nothing
+        }
+        std::vector<std::string> report;
+        const int done = project->project.applyPcbEco(keys, &report);
+        Json out = Json::object();
+        out["executed"] = done;
+        Json lines = Json::array();
+        for (const auto& l : report) lines.push(l);
+        out["report"] = lines;
+        return dup(out.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+}  // extern "C"

@@ -559,6 +559,23 @@ Json Project::toJson() const {
         tb["drawnBy"] = titleBlock.drawnBy;
         root["titleBlock"] = tb;
     }
+    if (!(pcbSync == currentSync())) {  // the board's baseline, only while an Update PCB is pending
+        Json sync = Json::object();
+        Json parts = Json::array();
+        for (const auto& [id, part] : pcbSync.parts) {
+            Json j = Json::object();
+            j["id"] = id;
+            j["ref"] = part[0];
+            j["footprint"] = part[1];
+            j["value"] = part[2];
+            parts.push(j);
+        }
+        sync["parts"] = parts;
+        Json nets = Json::object();
+        for (const auto& [name, pins] : pcbSync.nets) nets[name] = pins;
+        sync["nets"] = nets;
+        root["pcbSync"] = sync;
+    }
 
     Json tracks = Json::array();
     for (const auto& t : pcb.tracks) {
@@ -893,6 +910,18 @@ Project Project::fromJson(const Json& root) {
         p.pcb.addVia(v);
     }
     p.schematicChanged();  // assigns nets to copper from pad contact
+    // The board's baseline for Update PCB: a file without one is in sync with its schematic.
+    if (const Json& sync = root.get("pcbSync"); sync.isObject()) {
+        for (const auto& j : sync.get("parts").items())
+            p.pcbSync.parts[j.get("id").asInt(-1)] = {j.get("ref").asString(""), j.get("footprint").asString(""),
+                                                      j.get("value").asString("")};
+        p.pcbSync.parts.erase(-1);
+        const Json& nets = sync.get("nets");
+        if (nets.isObject())
+            for (const auto& [name, pins] : nets.fields()) p.pcbSync.nets[name] = pins.asString("");
+    } else {
+        p.pcbSync = p.currentSync();
+    }
     return p;
 }
 

@@ -154,6 +154,7 @@
 "Centre" = "Igitna";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Igitna ang model sa footprint at ilagay ang pinakamababang punto nito sa ibabaw ng board";
 "Changes from a WAS / IS file" = "Mga pagbabago mula sa WAS / IS na file";
+"Changes from the schematic to the board since the last update." = "Mga pagbabago mula sa schematic papunta sa board mula noong huling update.";
 "Channel" = "Channel";
 "Channel %@ of %@ — edits apply to every channel" = "Channel %@ ng %@ — ang mga pag-edit ay para sa bawat channel";
 "Channel Designators" = "Mga designator ng channel";
@@ -203,6 +204,7 @@
 "Construction" = "Konstruksiyon";
 "Copies" = "Mga kopya";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "Mga kopya ng clipboard, bawat isa ay isang hakbang pa (mga yunit ng eskematiko, 10 = isang grid). Makukuha ng mga bahagi ang susunod na bakanteng designator; tataas ang numero ng net label ayon sa increment (D0 → D1 …).";
+"Copper Pours" = "Mga Copper Pour";
 "Copper colours" = "Mga kulay ng copper";
 "Copper foil" = "Copper foil";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Mga copper layer: 1 = single-sided (walang via), 2–6 para sa karamihan ng produkto, 8–24 para sa motherboard, server, mainframe at GPU baseboard";
@@ -287,6 +289,7 @@
 "Edit Symbol…" = "I-edit ang Symbol…";
 "Effort" = "Effort";
 "Enable AI assistance" = "I-enable ang tulong ng AI";
+"Engineering change order: review and execute the schematic's changes on the board" = "Engineering change order: suriin at isagawa ang mga pagbabago ng schematic sa board";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Ilagay sa itaas ang issuer URL ng iyong identity provider at ang client ID ng SiEDA para ma-enable ang button na ito (tanungin ang iyong IT administrator).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxy sa ilalim ng processor, BGA at malalaking capacitor para hindi matanggal ng MIL-STD-901E shock";
 "Errors" = "Mga Error";
@@ -294,6 +297,8 @@
 "Every pin is placed once; no pins collide" = "Isang beses inilagay ang bawat pin; walang nagbabanggaang pin";
 "Every unit is valid" = "Valid ang bawat unit";
 "Exchange the wires of two interchangeable pins of this gate" = "Pagpalitin ang mga wire ng dalawang mapagpapalit na pin ng gate na ito";
+"Execute Changes" = "Isagawa ang mga Pagbabago";
+"Executed" = "Naisagawa";
 "Export" = "I-export";
 "Export 3D" = "I-export ang 3D";
 "Export Fabrication Package…" = "I-export ang Fabrication Package…";
@@ -472,6 +477,7 @@
 "Net" = "Net";
 "Net Classes" = "Mga Net Class";
 "Net Navigator" = "Navigator ng net";
+"Net Rules" = "Mga Panuntunan ng Net";
 "Net class" = "Net class";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "Mga net class para sa mga direktiba sa net: ang eskematiko ang pinagmumulan ng mga panuntunan ng net ng board";
 "Net model" = "Modelo ng net";
@@ -621,6 +627,7 @@
 "Re-annotate from the board (rows)" = "Muling i-annotate mula sa board (hilera)";
 "Re-verify" = "I-verify Muli";
 "Read Pins from Datasheet" = "Basahin ang mga Pin mula sa Datasheet";
+"Read the changes again from the schematic" = "Basahin muli ang mga pagbabago mula sa schematic";
 "Ready" = "Handa";
 "Receive equaliser, peaking chosen for the widest eye" = "Receive equaliser, pinili ang peaking para sa pinakamalapad na mata";
 "Receiver" = "Receiver";
@@ -820,6 +827,7 @@
 "Target" = "Target";
 "Test Connection" = "Subukan ang Koneksyon";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "Sinusukat ng autorouter ang RF line at differential pair (…_P/_N) sa mga impedance na ito (IPC-2141).";
+"The board is up to date with the schematic." = "Napapanahon ang board sa schematic.";
 "The imported model replaces the built-in one in every analysis." = "Pinapalitan ng in-import na model ang built-in sa bawat pagsusuri.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "Sinusunod ng interface ang wikang ito. Nananatiling Ingles ang mga engineering term, part number, unit, net name at mensahe ng design check para tumugma sa mga datasheet at fabrication file.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Ginagamit ng offline designer ang mga built-in na reference circuit ng SiEDA. Hindi kailangan ng network o API key — mainam para sa demo at air-gapped na lab.";
@@ -844,6 +852,7 @@
 "Type a designator, value, label or net name." = "Mag-type ng designator, value, label o pangalan ng net.";
 "UNIT %@" = "UNIT %@";
 "UNITS" = "MGA UNIT";
+"UPDATE PCB" = "I-UPDATE ANG PCB";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / corner-bond sa mabibigat na part (shock)";
 "Undershoot" = "Undershoot";
@@ -856,6 +865,7 @@
 "Units" = "Mga Unit";
 "Unity gain" = "Unity gain";
 "Unstack" = "I-unstack";
+"Update PCB" = "I-update ang PCB";
 "Upload .hex…" = "I-upload ang .hex…";
 "Use Block Value" = "Gamitin ang Halaga ng Block";
 "Use the generated body again" = "Gamitin muli ang ginawang katawan";

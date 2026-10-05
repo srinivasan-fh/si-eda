@@ -2,7 +2,7 @@
 
 "%lld errors · %lld warnings" = "오류 %lld개 · 경고 %lld개";
 "%lld matches" = "%lld개 일치";
-"%lld of %lld changes selected" = "변경 %lld/%lld개 선택됨";
+"%lld of %lld changes selected" = "%lld개 선택됨 (전체 변경 %lld개)";
 "%lld pins" = "핀 %lld개";
 "%lld values" = "값 %lld개";
 "0 derives the value from the regulator type" = "0이면 레귤레이터 종류로 값을 정합니다";
@@ -154,6 +154,7 @@
 "Centre" = "중앙";
 "Centre the model on the footprint and put its lowest point on the board surface" = "모델을 풋프린트 중앙에 두고 가장 낮은 점을 기판 표면에 맞춤";
 "Changes from a WAS / IS file" = "WAS / IS 파일의 변경";
+"Changes from the schematic to the board since the last update." = "마지막 업데이트 이후 회로도에서 보드로의 변경 사항입니다.";
 "Channel" = "채널";
 "Channel %@ of %@ — edits apply to every channel" = "채널 %@ (%@) — 편집은 모든 채널에 적용됩니다";
 "Channel Designators" = "채널 참조 기호";
@@ -203,6 +204,7 @@
 "Construction" = "구조";
 "Copies" = "사본 수";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "클립보드의 사본을 한 단계씩 더 떨어뜨려 붙입니다(회로도 단위, 10 = 한 격자). 부품은 다음 빈 지정자를 받고, 네트 레이블 번호는 증분만큼 올라갑니다(D0 → D1 …).";
+"Copper Pours" = "구리 푸어";
 "Copper colours" = "동박 색상";
 "Copper foil" = "동박";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "동박 레이어: 1 = 단면 (비아 없음), 대부분의 제품은 2–6, 마더보드·서버·메인프레임·GPU 베이스보드는 8–24";
@@ -287,6 +289,7 @@
 "Edit Symbol…" = "심볼 편집…";
 "Effort" = "추론 강도";
 "Enable AI assistance" = "AI 지원 사용";
+"Engineering change order: review and execute the schematic's changes on the board" = "엔지니어링 변경 지시: 회로도의 변경 사항을 검토하고 보드에서 실행";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "위에 ID 공급자의 발급자 URL과 SiEDA 클라이언트 ID를 입력하면 이 버튼이 활성화됩니다 (IT 관리자에게 문의하세요).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "프로세서, BGA 및 대형 커패시터 아래에 에폭시를 도포하여 MIL-STD-901E 충격에도 떨어지지 않도록 함";
 "Errors" = "오류";
@@ -294,6 +297,8 @@
 "Every pin is placed once; no pins collide" = "모든 핀이 한 번씩 배치되고 겹치는 핀이 없음";
 "Every unit is valid" = "모든 단위가 유효합니다";
 "Exchange the wires of two interchangeable pins of this gate" = "이 게이트의 교환 가능한 두 핀의 배선을 맞바꿉니다";
+"Execute Changes" = "변경 실행";
+"Executed" = "실행됨";
 "Export" = "내보내기";
 "Export 3D" = "3D 내보내기";
 "Export Fabrication Package…" = "제조 패키지 내보내기…";
@@ -472,6 +477,7 @@
 "Net" = "네트";
 "Net Classes" = "네트 클래스";
 "Net Navigator" = "네트 탐색기";
+"Net Rules" = "네트 규칙";
 "Net class" = "네트 클래스";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "네트 지시문의 네트 클래스: 회로도가 보드 네트 규칙의 원천입니다";
 "Net model" = "넷 모델";
@@ -621,6 +627,7 @@
 "Re-annotate from the board (rows)" = "보드에서 다시 주석(행)";
 "Re-verify" = "다시 검증";
 "Read Pins from Datasheet" = "데이터시트에서 핀 읽기";
+"Read the changes again from the schematic" = "회로도에서 변경 사항을 다시 읽기";
 "Ready" = "준비됨";
 "Receive equaliser, peaking chosen for the widest eye" = "수신 이퀄라이저, 가장 넓은 아이가 되도록 피킹 선택";
 "Receiver" = "리시버";
@@ -820,6 +827,7 @@
 "Target" = "목표";
 "Test Connection" = "연결 테스트";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "자동 배선기가 RF 라인과 차동 쌍(…_P/_N)을 이 임피던스에 맞게 크기를 정합니다 (IPC-2141).";
+"The board is up to date with the schematic." = "보드가 회로도와 최신 상태입니다.";
 "The imported model replaces the built-in one in every analysis." = "가져온 모델이 모든 해석에서 기본 제공 모델을 대신합니다.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "인터페이스가 이 언어로 표시됩니다. 엔지니어링 용어, 부품 번호, 단위, 네트 이름 및 설계 검사 메시지는 데이터시트 및 제조 파일과 일치하도록 영어로 유지됩니다.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "오프라인 설계 도구는 SiEDA에 내장된 레퍼런스 회로를 사용합니다. 네트워크나 API 키가 필요 없어 데모 및 폐쇄망 실험실에 적합합니다.";
@@ -844,6 +852,7 @@
 "Type a designator, value, label or net name." = "참조 기호, 값, 레이블 또는 넷 이름을 입력하세요.";
 "UNIT %@" = "단위 %@";
 "UNITS" = "단위";
+"UPDATE PCB" = "PCB 업데이트";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "무거운 부품 언더필 / 코너 본딩 (충격)";
 "Undershoot" = "언더슈트";
@@ -856,6 +865,7 @@
 "Units" = "단위";
 "Unity gain" = "단위 이득";
 "Unstack" = "스택 해제";
+"Update PCB" = "PCB 업데이트";
 "Upload .hex…" = ".hex 업로드…";
 "Use Block Value" = "블록 값 사용";
 "Use the generated body again" = "생성된 몸체를 다시 사용";

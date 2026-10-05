@@ -154,6 +154,7 @@
 "Centre" = "Căn giữa";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Căn giữa mô hình trên footprint và đặt điểm thấp nhất lên bề mặt bo";
 "Changes from a WAS / IS file" = "Thay đổi từ tệp WAS / IS";
+"Changes from the schematic to the board since the last update." = "Các thay đổi từ sơ đồ nguyên lý sang bo mạch kể từ lần cập nhật trước.";
 "Channel" = "Kênh";
 "Channel %@ of %@ — edits apply to every channel" = "Kênh %@ của %@ — chỉnh sửa áp dụng cho mọi kênh";
 "Channel Designators" = "Ký hiệu theo kênh";
@@ -203,6 +204,7 @@
 "Construction" = "Cấu trúc";
 "Copies" = "Số bản sao";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "Các bản sao của bộ nhớ tạm, mỗi bản cách thêm một bước (đơn vị sơ đồ, 10 = một lưới). Linh kiện nhận ký hiệu trống kế tiếp; số của nhãn net tăng theo bước (D0 → D1 …).";
+"Copper Pours" = "Đổ đồng";
 "Copper colours" = "Màu đồng";
 "Copper foil" = "Lá đồng";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Lớp đồng: 1 = một mặt (không via), 2–6 cho hầu hết sản phẩm, 8–24 cho bo mạch chủ, máy chủ, máy tính lớn và bo nền GPU";
@@ -287,6 +289,7 @@
 "Edit Symbol…" = "Sửa ký hiệu…";
 "Effort" = "Mức suy luận";
 "Enable AI assistance" = "Bật hỗ trợ AI";
+"Engineering change order: review and execute the schematic's changes on the board" = "Lệnh thay đổi kỹ thuật: xem xét và thực hiện các thay đổi của sơ đồ nguyên lý trên bo mạch";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Nhập URL issuer của nhà cung cấp danh tính và client ID của SiEDA ở trên để bật nút này (hỏi quản trị viên IT của bạn).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Phủ epoxy dưới vi xử lý, BGA và tụ điện lớn để chấn động MIL-STD-901E không làm bong chúng";
 "Errors" = "Lỗi";
@@ -294,6 +297,8 @@
 "Every pin is placed once; no pins collide" = "Mỗi chân được đặt một lần; không có chân nào chồng nhau";
 "Every unit is valid" = "Mọi đơn vị đều hợp lệ";
 "Exchange the wires of two interchangeable pins of this gate" = "Hoán đổi dây của hai chân hoán đổi được của cổng này";
+"Execute Changes" = "Thực hiện thay đổi";
+"Executed" = "Đã thực hiện";
 "Export" = "Xuất";
 "Export 3D" = "Xuất 3D";
 "Export Fabrication Package…" = "Xuất gói sản xuất…";
@@ -472,6 +477,7 @@
 "Net" = "Net";
 "Net Classes" = "Lớp net";
 "Net Navigator" = "Trình duyệt net";
+"Net Rules" = "Quy tắc net";
 "Net class" = "Lớp net";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "Lớp net cho các chỉ thị trên net: sơ đồ nguyên lý là nguồn của quy tắc net trên bo";
 "Net model" = "Mô hình của net";
@@ -621,6 +627,7 @@
 "Re-annotate from the board (rows)" = "Chú thích lại từ bo (hàng)";
 "Re-verify" = "Xác minh lại";
 "Read Pins from Datasheet" = "Đọc chân từ datasheet";
+"Read the changes again from the schematic" = "Đọc lại các thay đổi từ sơ đồ nguyên lý";
 "Ready" = "Sẵn sàng";
 "Receive equaliser, peaking chosen for the widest eye" = "Bộ cân bằng thu, chọn độ nâng cho mắt rộng nhất";
 "Receiver" = "Bộ thu";
@@ -820,6 +827,7 @@
 "Target" = "Mục tiêu";
 "Test Connection" = "Kiểm tra kết nối";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "Bộ đi dây tự động định cỡ đường RF và cặp vi sai (…_P/_N) theo các trở kháng này (IPC-2141).";
+"The board is up to date with the schematic." = "Bo mạch đã cập nhật theo sơ đồ nguyên lý.";
 "The imported model replaces the built-in one in every analysis." = "Mô hình đã nhập thay cho mô hình tích hợp trong mọi phân tích.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "Giao diện hiển thị theo ngôn ngữ này. Thuật ngữ kỹ thuật, mã linh kiện, đơn vị, tên net và thông báo kiểm tra thiết kế vẫn giữ tiếng Anh để khớp với datasheet và tệp sản xuất.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Trình thiết kế ngoại tuyến dùng các mạch tham chiếu tích hợp của SiEDA. Không cần mạng hay khóa API — lý tưởng cho demo và phòng thí nghiệm cách ly mạng.";
@@ -844,6 +852,7 @@
 "Type a designator, value, label or net name." = "Nhập ký hiệu, giá trị, nhãn hoặc tên net.";
 "UNIT %@" = "ĐƠN VỊ %@";
 "UNITS" = "ĐƠN VỊ";
+"UPDATE PCB" = "CẬP NHẬT PCB";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / dán góc linh kiện nặng (chấn động)";
 "Undershoot" = "Vọt dưới";
@@ -856,6 +865,7 @@
 "Units" = "Đơn vị";
 "Unity gain" = "Độ lợi đơn vị";
 "Unstack" = "Bỏ xếp chồng";
+"Update PCB" = "Cập nhật PCB";
 "Upload .hex…" = "Tải lên .hex…";
 "Use Block Value" = "Dùng giá trị khối";
 "Use the generated body again" = "Dùng lại thân được tạo";

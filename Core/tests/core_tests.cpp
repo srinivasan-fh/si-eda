@@ -14004,3 +14004,76 @@ TEST(clear_drops_directives_but_keeps_definitions) {
     const int b = s.addComponent(ComponentKind::NetLabel, "Y", {0, 0});
     CHECK(b == a && s.netRules().empty());  // the new part with the old id carries no stale directive
 }
+
+// ======================================================================= forward annotation (Update PCB ECO)
+
+TEST(update_pcb_eco_preview_execute_and_baseline) {
+    Project p;
+    Schematic& s = p.schematic;
+    const int r1 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    const int r2 = s.addComponent(ComponentKind::Resistor, "2k", {100, 0});
+    CHECK(s.connect({r1, 1}, {r2, 0}) >= 0);
+    p.schematicChanged();
+    // A new project: everything is to be added.
+    auto eco = p.pcbEcoPreview();
+    int adds = 0;
+    for (const auto& e : eco) adds += e.action == "add";
+    CHECK(adds == static_cast<int>(eco.size()) && adds >= 3);  // two parts and their nets
+    // Execute only R1: it is placed, R2 stays off the board.
+    std::vector<std::string> report;
+    CHECK(p.applyPcbEco({"component:" + std::to_string(r1)}, &report) == 1 && report.size() == 1);
+    CHECK(s.find(r1)->pcb.placed && !s.find(r2)->pcb.placed);
+    CHECK(p.applyPcbEco({}) >= 2);  // the rest
+    CHECK(s.find(r2)->pcb.placed && p.pcbEcoPreview().empty());
+    // In sync: the file carries no baseline; after a change it does, and a reload keeps the pending update.
+    CHECK(p.toJson().dump().find("pcbSync") == std::string::npos);
+    CHECK(s.setValue(r2, "4k7"));
+    s.setActiveSheet(1);
+    const int r3 = s.addComponent(ComponentKind::Resistor, "10k", {200, 0});
+    CHECK(s.connect({r2, 1}, {r3, 0}) >= 0);
+    CHECK(s.removeComponent(r1));
+    p.schematicChanged();
+    eco = p.pcbEcoPreview();
+    std::set<std::string> seen;
+    for (const auto& e : eco) seen.insert(e.section + ":" + e.action);
+    CHECK(seen.count("component:add") && seen.count("component:change") && seen.count("component:remove"));
+    CHECK(seen.count("net:change") || seen.count("net:add"));
+    const std::string saved = p.toJson().dump();
+    CHECK(saved.find("\"pcbSync\"") != std::string::npos);
+    Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.pcbEcoPreview().size() == eco.size() && q.toJson().dump() == saved);
+    // Zones on nets that are gone, and rules from directives.
+    p.pcb.zones.push_back(CopperZone{});
+    p.pcb.zones.back().net = "NO_SUCH_NET";
+    CHECK(s.setNetClassDef({"HS", 0.3, 0.25}));
+    NetDirective d;
+    d.component = r3;
+    d.netClass = "HS";
+    CHECK(s.addDirective(d) > 0);
+    p.pcb.settings.netWidths.clear();  // the board lost its rules (edited by hand)
+    p.pcb.settings.netClearances.clear();
+    p.pcb.settings.schematicRuleNets.clear();
+    eco = p.pcbEcoPreview();
+    bool zone = false, rule = false;
+    for (const auto& e : eco) {
+        zone |= e.section == "zone";
+        rule |= e.section == "rule" && e.action == "add";
+    }
+    CHECK(zone && rule);
+    CHECK(p.applyPcbEco({}) == static_cast<int>(eco.size()));
+    CHECK(p.pcb.zones.empty() && !p.pcb.settings.netWidths.empty() && p.pcbEcoPreview().empty());
+    CHECK(p.toJson().dump().find("pcbSync") == std::string::npos);
+    // An old file (no baseline) is in sync on loading.
+    Json old = Json::parse(saved);
+    Json stripped = Json::object();
+    for (const auto& [k, v] : old.fields())
+        if (k != "pcbSync") stripped[k] = v;
+    CHECK(Project::fromJson(stripped).pcbEcoPreview().empty());
+}
+
+extern "C" int sieda_c_api_update_pcb_test(void);
+TEST(c_api_update_pcb) {
+    const int rc = sieda_c_api_update_pcb_test();
+    if (rc != 0) std::printf("    C API Update PCB test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}

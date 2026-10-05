@@ -140,4 +140,18 @@ extension DesignStore {
         performChecked("\(code): \(level)", invalidatesAnalysis: false) { $0.setErcSeverity(code, level: level) }
         runERC()
     }
+
+    // MARK: - Update PCB (schematic → board ECO)
+
+    /// Executes the chosen Update PCB changes as one undo step; what was done.
+    func updatePCB(keys: [String]) -> [String] {
+        guard !keys.isEmpty else { return [] }
+        var report: [String] = []
+        performChecked("Update PCB (\(keys.count) change(s))", failureMessage: "None of the changes could be executed") {
+            report = $0.applyPcbEco(keys: keys)
+            return !report.isEmpty
+        }
+        if !report.isEmpty { statusMessage = "Updated the board: \(report.count) change(s)" }
+        return report
+    }
 }

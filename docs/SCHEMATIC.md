@@ -334,6 +334,14 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
   Symbols are simplified vector drawings (two-pin parts as boxes, capacitor plates and diode triangles; other parts
   as a body box with pin stubs and names; ground symbols, label flags and sheet symbols) — the canvas draws more
   detail. Text is plain ASCII (other characters print as `?`).
+- **Update PCB** (options bar; Altium's *Design ▸ Update PCB* engineering change order): lists every change from the
+  schematic to the board since the last update, grouped as **Components** (new parts to place, removed parts,
+  changed designator / footprint / value), **Nets** (new, removed, changed pin lists), **Copper Pours** (pours on
+  nets that no longer exist, to remove) and **Net Rules** (widths / clearances from directives that the board lacks
+  or holds differently). Each change has a check box; **Validate** reads the changes again; **Execute Changes**
+  carries out the chosen ones as one undo step (new parts are placed next to the board; removed parts and pours
+  leave it; rules are written from the schematic) and lists what was done. Unchosen changes stay pending. The
+  baseline (what the board was last updated from) is saved as `pcbSync` only while an update is pending.
 
 ## Files and compatibility
 
@@ -372,7 +380,8 @@ Further optional fields (written only when used, so other designs' files are unc
 (`[{"name","entries"}]`), `netClassDefs` (`[{"name","trackWidth"?,"clearance"?}]`), `directives`
 (`[{"id","component","pin","netClass"?,"diffPair"?,"trackWidth"?,"clearance"?}]`) and `titleBlock`; board
 `netClearances` and `schematicRuleNets` (the nets whose rules came from the schematic); sheets `size`; top-level
-`ercSeverities` (`{"ERC_…": "error" | "warning" | "info" | "off"}`). A file is repaired on load: copies whose
+`ercSeverities` (`{"ERC_…": "error" | "warning" | "info" | "off"}`). `pcbSync` (`{"parts":[{"id","ref","footprint","value"}],"nets":{name:[pins]}}`,
+the Update PCB baseline; written only while the board is behind the schematic, and a file without it is in step). A file is repaired on load: copies whose
 block part is gone, units without a valid package, packages without units, entries of missing buses and buses on
 missing sheets are dropped; an instance of a missing or nested definition becomes an ordinary sheet. Older versions of
 SiEDA open a file with repeated sheets as ordinary sheets (every channel's parts are real parts); a file with placed
@@ -429,6 +438,8 @@ int32_t sieda_set_sheet_size(SiedaProject*, int32_t sheet, const char* size);
 char*   sieda_sheet_templates_json(void);
 char*   sieda_export_schematic_pdf(const SiedaProject*);
 int32_t sieda_set_erc_severity(SiedaProject*, const char* code, const char* level); /* "error"…"off", "default" */
+char*   sieda_pcb_eco_preview(const SiedaProject*);               /* [{section,action,object,detail,key,applicable,note}] */
+char*   sieda_apply_pcb_eco(SiedaProject*, const char* keys_json); /* NULL = all; {"executed","report"} */
 ```
 
 Sheets, hierarchy, bus labels, annotation and variants:

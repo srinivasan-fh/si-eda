@@ -154,6 +154,7 @@
 "Centre" = "Centre";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Centre the model on the footprint and put its lowest point on the board surface";
 "Changes from a WAS / IS file" = "Changes from a WAS / IS file";
+"Changes from the schematic to the board since the last update." = "Changes from the schematic to the board since the last update.";
 "Channel" = "Channel";
 "Channel %@ of %@ — edits apply to every channel" = "Channel %@ of %@ — edits apply to every channel";
 "Channel Designators" = "Channel Designators";
@@ -203,6 +204,7 @@
 "Construction" = "Construction";
 "Copies" = "Copies";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …).";
+"Copper Pours" = "Copper Pours";
 "Copper colours" = "Copper colours";
 "Copper foil" = "Copper foil";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards";
@@ -287,6 +289,7 @@
 "Edit Symbol…" = "Edit Symbol…";
 "Effort" = "Effort";
 "Enable AI assistance" = "Enable AI assistance";
+"Engineering change order: review and execute the schematic's changes on the board" = "Engineering change order: review and execute the schematic's changes on the board";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off";
 "Errors" = "Errors";
@@ -294,6 +297,8 @@
 "Every pin is placed once; no pins collide" = "Every pin is placed once; no pins collide";
 "Every unit is valid" = "Every unit is valid";
 "Exchange the wires of two interchangeable pins of this gate" = "Exchange the wires of two interchangeable pins of this gate";
+"Execute Changes" = "Execute Changes";
+"Executed" = "Executed";
 "Export" = "Export";
 "Export 3D" = "Export 3D";
 "Export Fabrication Package…" = "Export Fabrication Package…";
@@ -472,6 +477,7 @@
 "Net" = "Net";
 "Net Classes" = "Net Classes";
 "Net Navigator" = "Net Navigator";
+"Net Rules" = "Net Rules";
 "Net class" = "Net class";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "Net classes for the directives on nets: the schematic is the source of the board's net rules";
 "Net model" = "Net model";
@@ -621,6 +627,7 @@
 "Re-annotate from the board (rows)" = "Re-annotate from the board (rows)";
 "Re-verify" = "Re-verify";
 "Read Pins from Datasheet" = "Read Pins from Datasheet";
+"Read the changes again from the schematic" = "Read the changes again from the schematic";
 "Ready" = "Ready";
 "Receive equaliser, peaking chosen for the widest eye" = "Receive equaliser, peaking chosen for the widest eye";
 "Receiver" = "Receiver";
@@ -820,6 +827,7 @@
 "Target" = "Target";
 "Test Connection" = "Test Connection";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141).";
+"The board is up to date with the schematic." = "The board is up to date with the schematic.";
 "The imported model replaces the built-in one in every analysis." = "The imported model replaces the built-in one in every analysis.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs.";
@@ -844,6 +852,7 @@
 "Type a designator, value, label or net name." = "Type a designator, value, label or net name.";
 "UNIT %@" = "UNIT %@";
 "UNITS" = "UNITS";
+"UPDATE PCB" = "UPDATE PCB";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / corner-bond heavy parts (shock)";
 "Undershoot" = "Undershoot";
@@ -856,6 +865,7 @@
 "Units" = "Units";
 "Unity gain" = "Unity gain";
 "Unstack" = "Unstack";
+"Update PCB" = "Update PCB";
 "Upload .hex…" = "Upload .hex…";
 "Use Block Value" = "Use Block Value";
 "Use the generated body again" = "Use the generated body again";
