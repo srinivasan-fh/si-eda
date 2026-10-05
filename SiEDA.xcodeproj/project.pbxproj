@@ -70,6 +70,7 @@
 		6821CCCDECA1EE3F41A956C7 = {isa = PBXBuildFile; fileRef = 301DAF4F2FC8D0083DFB1A0F; };
 		684F66C2A33BDA008A882F64 = {isa = PBXBuildFile; fileRef = EF2C9163E8C953AC343E0E55; };
 		68D48DAD17D325679CCABD65 = {isa = PBXBuildFile; fileRef = 5B677B1CF7DF150184E961B2; };
+		6954EABD5867A8E3B653BF6E = {isa = PBXBuildFile; fileRef = A2EDE2F8A06002C18CF33658; };
 		6CB6120B9733BD03914AA41C = {isa = PBXBuildFile; fileRef = E4CDEB1CF6FF3CD417D9F896; };
 		6D9A3DC7BD2B0F85B8A269AF = {isa = PBXBuildFile; fileRef = 34727A3F0B5278EFB74683D0; };
 		6EB9D3E942D2E5293BA5CD69 = {isa = PBXBuildFile; fileRef = 5C5A4E6673BC22FAFE753C09; };
@@ -313,6 +314,7 @@
 		9B648A12291572B1CDBF83AD = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Embedded.hpp; sourceTree = "<group>"; };
 		9B780D9F59521D3BDF902353 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatasheetImporter.swift; sourceTree = "<group>"; };
 		9ED8EACAFA77375D35C88B94 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Bom.hpp; sourceTree = "<group>"; };
+		A2EDE2F8A06002C18CF33658 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PcbSwap.cpp; sourceTree = "<group>"; };
 		A35BF18EFBC4ACF877624981 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Naval.hpp; sourceTree = "<group>"; };
 		A3D89B8BF0303F825673F91D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiEDATests.swift; sourceTree = "<group>"; };
 		A45E448C357B4A89C66CFE33 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectorView.swift; sourceTree = "<group>"; };
@@ -639,6 +641,7 @@
 				A5389408EEF183EEC611E330,
 				C9FAD09E0643B4861F96EA94,
 				2B421B324134866281AAE285,
+				A2EDE2F8A06002C18CF33658,
 				58148E5E798C943B11E59526,
 				E627B2DA6583F6BA5334A9E9,
 				41BE8E6FE79D683A25DC1EF5,
@@ -1079,6 +1082,7 @@
 				8EB510497D82C58195A186E6,
 				A3C4A2F16130B3AC775D6A39,
 				1D0CCCE3C0074105DFCF6C37,
+				6954EABD5867A8E3B653BF6E,
 				7C5E898D56CA19DA538042D9,
 				B56E1F462C9C4A19BA08E7F7,
 				803DA0F8680AFD0A3B8A435C,

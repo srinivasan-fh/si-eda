@@ -459,6 +459,8 @@
 "MESSAGES" = "संदेश";
 "Magnitude" = "मैग्निट्यूड";
 "Make Swap Group" = "स्वैप समूह बनाएँ";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "वे अदला-बदली करें जो इस पुर्ज़े के कनेक्शन सबसे अधिक छोटे करें; स्कीमैटिक साथ बदलता है";
+"Make this swap on the board and in the schematic" = "यह अदला-बदली बोर्ड और स्कीमैटिक में करें";
 "Manufacturer part #" = "निर्माता पार्ट नंबर";
 "Manufacturer part number or keywords" = "निर्माता पार्ट नंबर या कीवर्ड";
 "Mask" = "मास्क";
@@ -575,6 +577,7 @@
 "Open the design verification report" = "डिज़ाइन सत्यापन रिपोर्ट खोलें";
 "Open the offer on the distributor's site" = "ऑफ़र को डिस्ट्रीब्यूटर की साइट पर खोलें";
 "Open…" = "खोलें…";
+"Optimize Swaps" = "अदला-बदली अनुकूलित करें";
 "Other footprints" = "अन्य फ़ुटप्रिंट";
 "Output" = "आउटपुट";
 "Output noise" = "आउटपुट नॉइज़";
@@ -586,6 +589,7 @@
 "PCB Layout" = "PCB लेआउट";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "बुकमार्क, फ़्रेम और शीर्षक ब्लॉक सहित हर शीट का PDF";
+"PIN / GATE SWAP" = "पिन / गेट अदला-बदली";
 "PIN SWAP" = "पिन स्वैप";
 "PINS" = "पिन";
 "PRBS" = "PRBS";

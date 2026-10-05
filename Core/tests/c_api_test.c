@@ -1175,3 +1175,18 @@ int sieda_c_api_schematic_polish_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* PCB pin / gate swap through the C API. Returns 0 or the failing step. */
+int sieda_c_api_pcb_swap_test(void) {
+    SiedaProject* p = sieda_project_new("Swap");
+    if (!p) return 1;
+    char* none = sieda_pcb_swap_options(p, 12345);
+    if (!none || strcmp(none, "[]") != 0) return 2;
+    sieda_string_free(none);
+    if (sieda_apply_pcb_swap(p, "{\"kind\":\"pin\",\"component\":1,\"pinA\":0,\"pinB\":1}") != 0) return 3;
+    if (sieda_apply_pcb_swap(p, "not json") != 0 || sieda_apply_pcb_swap(NULL, "{}") != 0) return 4;
+    if (sieda_optimize_pcb_swaps(p, -1, 5) != 0 || sieda_optimize_pcb_swaps(NULL, -1, 5) != -1) return 5;
+    if (sieda_pcb_swap_options(NULL, 1) != NULL) return 6;
+    sieda_project_free(p);
+    return 0;
+}

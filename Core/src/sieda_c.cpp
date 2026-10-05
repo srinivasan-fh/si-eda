@@ -3457,4 +3457,49 @@ char* sieda_export_schematic_pdf_with_font(const SiedaProject* project, const ch
     }
 }
 
+char* sieda_pcb_swap_options(const SiedaProject* project, int32_t component_id) {
+    if (!project) return nullptr;
+    try {
+        Json arr = Json::array();
+        for (const auto& o : project->project.pcbSwapOptions(component_id)) {
+            Json j = Json::object();
+            j["kind"] = o.kind;
+            j["component"] = o.component;
+            j["other"] = o.other;
+            j["pinA"] = o.pinA;
+            j["pinB"] = o.pinB;
+            j["label"] = o.label;
+            j["gain"] = std::round(o.gain * 1000) / 1000;
+            arr.push(j);
+        }
+        return dup(arr.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+int32_t sieda_apply_pcb_swap(SiedaProject* project, const char* option_json) {
+    if (!project || !option_json) return 0;
+    return guarded([&] {
+        const Json j = Json::parse(option_json);
+        PcbSwapOption o;
+        o.kind = j.get("kind").asString("");
+        o.component = j.get("component").asInt(-1);
+        o.other = j.get("other").asInt(-1);
+        o.pinA = j.get("pinA").asInt(-1);
+        o.pinB = j.get("pinB").asInt(-1);
+        o.label = j.get("label").asString("");
+        return project->project.applyPcbSwap(o) ? 1 : 0;
+    });
+}
+
+int32_t sieda_optimize_pcb_swaps(SiedaProject* project, int32_t component_id, int32_t max_swaps) {
+    if (!project) return -1;
+    try {
+        return project->project.optimizePcbSwaps(component_id, max_swaps);
+    } catch (...) {
+        return -1;
+    }
+}
+
 }  // extern "C"

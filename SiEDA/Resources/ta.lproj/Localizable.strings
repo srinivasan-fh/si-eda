@@ -459,6 +459,8 @@
 "MESSAGES" = "செய்திகள்";
 "Magnitude" = "மேக்னிட்யூட்";
 "Make Swap Group" = "மாற்றுக் குழு உருவாக்கு";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "இந்தப் பாகத்தின் இணைப்புகளை மிக அதிகமாகக் குறைக்கும் மாற்றங்களைச் செய்; திட்டவரைபடம் பின்தொடரும்";
+"Make this swap on the board and in the schematic" = "இந்த மாற்றத்தைப் பலகையிலும் திட்டவரைபடத்திலும் செய்";
 "Manufacturer part #" = "உற்பத்தியாளர் பாக எண்";
 "Manufacturer part number or keywords" = "உற்பத்தியாளர் பாக எண் அல்லது முக்கியச் சொற்கள்";
 "Mask" = "மாஸ்க்";
@@ -575,6 +577,7 @@
 "Open the design verification report" = "டிசைன் சரிபார்ப்பு அறிக்கையைத் திற";
 "Open the offer on the distributor's site" = "சலுகையை விநியோகஸ்தரின் தளத்தில் திற";
 "Open…" = "திற…";
+"Optimize Swaps" = "மாற்றங்களை உகப்பாக்கு";
 "Other footprints" = "பிற ஃபுட்பிரிண்ட்கள்";
 "Output" = "வெளியீடு";
 "Output noise" = "வெளியீட்டு இரைச்சல்";
@@ -586,6 +589,7 @@
 "PCB Layout" = "PCB லேஅவுட்";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "புத்தகக்குறிகள், சட்டங்கள் மற்றும் தலைப்புத் தொகுதிகளுடன் ஒவ்வொரு தாளின் PDF";
+"PIN / GATE SWAP" = "பின் / கேட் மாற்றம்";
 "PIN SWAP" = "பின் மாற்றம்";
 "PINS" = "பின்கள்";
 "PRBS" = "PRBS";

@@ -459,6 +459,8 @@
 "MESSAGES" = "메시지";
 "Magnitude" = "크기";
 "Make Swap Group" = "교환 그룹 만들기";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "이 부품의 연결을 가장 많이 줄이는 교환을 수행합니다. 회로도도 따라갑니다";
+"Make this swap on the board and in the schematic" = "보드와 회로도에서 이 교환 수행";
 "Manufacturer part #" = "제조사 부품 번호";
 "Manufacturer part number or keywords" = "제조사 부품 번호 또는 키워드";
 "Mask" = "마스크";
@@ -575,6 +577,7 @@
 "Open the design verification report" = "설계 검증 보고서 열기";
 "Open the offer on the distributor's site" = "유통업체 사이트에서 견적 열기";
 "Open…" = "열기…";
+"Optimize Swaps" = "교환 최적화";
 "Other footprints" = "기타 풋프린트";
 "Output" = "출력";
 "Output noise" = "출력 노이즈";
@@ -586,6 +589,7 @@
 "PCB Layout" = "PCB 레이아웃";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "책갈피, 도면 틀, 표제란이 있는 모든 시트의 PDF";
+"PIN / GATE SWAP" = "핀 / 게이트 교환";
 "PIN SWAP" = "핀 교환";
 "PINS" = "핀";
 "PRBS" = "PRBS";

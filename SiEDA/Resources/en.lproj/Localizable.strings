@@ -459,6 +459,8 @@
 "MESSAGES" = "MESSAGES";
 "Magnitude" = "Magnitude";
 "Make Swap Group" = "Make Swap Group";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "Make the swaps that shorten this part's connections most; the schematic follows";
+"Make this swap on the board and in the schematic" = "Make this swap on the board and in the schematic";
 "Manufacturer part #" = "Manufacturer part #";
 "Manufacturer part number or keywords" = "Manufacturer part number or keywords";
 "Mask" = "Mask";
@@ -575,6 +577,7 @@
 "Open the design verification report" = "Open the design verification report";
 "Open the offer on the distributor's site" = "Open the offer on the distributor's site";
 "Open…" = "Open…";
+"Optimize Swaps" = "Optimize Swaps";
 "Other footprints" = "Other footprints";
 "Output" = "Output";
 "Output noise" = "Output noise";
@@ -586,6 +589,7 @@
 "PCB Layout" = "PCB Layout";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "PDF of every sheet with bookmarks, frames and title blocks";
+"PIN / GATE SWAP" = "PIN / GATE SWAP";
 "PIN SWAP" = "PIN SWAP";
 "PINS" = "PINS";
 "PRBS" = "PRBS";

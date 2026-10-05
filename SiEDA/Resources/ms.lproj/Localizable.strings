@@ -459,6 +459,8 @@
 "MESSAGES" = "MESEJ";
 "Magnitude" = "Magnitud";
 "Make Swap Group" = "Buat Kumpulan Tukar";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "Buat pertukaran yang paling memendekkan sambungan komponen ini; skema mengikut";
+"Make this swap on the board and in the schematic" = "Buat pertukaran ini pada papan dan dalam skema";
 "Manufacturer part #" = "No. komponen pengilang";
 "Manufacturer part number or keywords" = "Nombor komponen pengilang atau kata kunci";
 "Mask" = "Topeng";
@@ -575,6 +577,7 @@
 "Open the design verification report" = "Buka laporan pengesahan reka bentuk";
 "Open the offer on the distributor's site" = "Buka tawaran di laman pengedar";
 "Open…" = "Buka…";
+"Optimize Swaps" = "Optimumkan Pertukaran";
 "Other footprints" = "Tapak lain";
 "Output" = "Output";
 "Output noise" = "Hingar output";
@@ -586,6 +589,7 @@
 "PCB Layout" = "Susun Atur PCB";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "PDF setiap helaian dengan penanda halaman, bingkai dan blok tajuk";
+"PIN / GATE SWAP" = "PERTUKARAN PIN / GET";
 "PIN SWAP" = "TUKAR PIN";
 "PINS" = "PIN";
 "PRBS" = "PRBS";

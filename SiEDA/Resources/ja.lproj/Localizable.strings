@@ -459,6 +459,8 @@
 "MESSAGES" = "メッセージ";
 "Magnitude" = "振幅";
 "Make Swap Group" = "スワップグループにする";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "この部品の接続を最も短くする入れ替えを行います。回路図も追従します";
+"Make this swap on the board and in the schematic" = "基板と回路図でこの入れ替えを行う";
 "Manufacturer part #" = "メーカー品番";
 "Manufacturer part number or keywords" = "メーカー品番またはキーワード";
 "Mask" = "マスク";
@@ -575,6 +577,7 @@
 "Open the design verification report" = "設計検証レポートを開く";
 "Open the offer on the distributor's site" = "販売代理店のサイトでオファーを開く";
 "Open…" = "開く…";
+"Optimize Swaps" = "入れ替えを最適化";
 "Other footprints" = "その他のフットプリント";
 "Output" = "出力";
 "Output noise" = "出力ノイズ";
@@ -586,6 +589,7 @@
 "PCB Layout" = "PCB レイアウト";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "しおり・図枠・表題欄付きの全シートの PDF";
+"PIN / GATE SWAP" = "ピン / ゲート入れ替え";
 "PIN SWAP" = "ピン交換";
 "PINS" = "ピン";
 "PRBS" = "PRBS";

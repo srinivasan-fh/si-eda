@@ -459,6 +459,8 @@
 "MESSAGES" = "MELDUNGEN";
 "Magnitude" = "Betrag";
 "Make Swap Group" = "Tauschgruppe bilden";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "Die Tauschvorgänge ausführen, die die Verbindungen dieses Bauteils am meisten verkürzen; der Schaltplan folgt";
+"Make this swap on the board and in the schematic" = "Diesen Tausch auf der Platine und im Schaltplan ausführen";
 "Manufacturer part #" = "Hersteller-Teilenr.";
 "Manufacturer part number or keywords" = "Hersteller-Teilenummer oder Suchbegriffe";
 "Mask" = "Maske";
@@ -575,6 +577,7 @@
 "Open the design verification report" = "Design-Verifikationsbericht öffnen";
 "Open the offer on the distributor's site" = "Angebot auf der Website des Distributors öffnen";
 "Open…" = "Öffnen …";
+"Optimize Swaps" = "Tauschvorgänge optimieren";
 "Other footprints" = "Andere Footprints";
 "Output" = "Ausgang";
 "Output noise" = "Ausgangsrauschen";
@@ -586,6 +589,7 @@
 "PCB Layout" = "PCB-Layout";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "PDF aller Blätter mit Lesezeichen, Rahmen und Schriftfeldern";
+"PIN / GATE SWAP" = "PIN- / GATTERTAUSCH";
 "PIN SWAP" = "PINTAUSCH";
 "PINS" = "PINS";
 "PRBS" = "PRBS";

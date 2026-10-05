@@ -459,6 +459,8 @@
 "MESSAGES" = "BERICHTEN";
 "Magnitude" = "Amplitude";
 "Make Swap Group" = "Wisselgroep maken";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "Voer de wissels uit die de verbindingen van dit onderdeel het meest verkorten; het schema volgt";
+"Make this swap on the board and in the schematic" = "Deze wissel uitvoeren op het bord en in het schema";
 "Manufacturer part #" = "Fabrikantnummer";
 "Manufacturer part number or keywords" = "Fabrikantnummer of trefwoorden";
 "Mask" = "Masker";
@@ -575,6 +577,7 @@
 "Open the design verification report" = "Open het ontwerpverificatierapport";
 "Open the offer on the distributor's site" = "Open het aanbod op de site van de distributeur";
 "Open…" = "Open…";
+"Optimize Swaps" = "Wissels optimaliseren";
 "Other footprints" = "Andere footprints";
 "Output" = "Uitgang";
 "Output noise" = "Uitgangsruis";
@@ -586,6 +589,7 @@
 "PCB Layout" = "PCB-layout";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "PDF van elk blad met bladwijzers, kaders en titelblokken";
+"PIN / GATE SWAP" = "PIN- / POORTWISSEL";
 "PIN SWAP" = "PINWISSEL";
 "PINS" = "PINNEN";
 "PRBS" = "PRBS";

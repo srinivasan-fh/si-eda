@@ -459,6 +459,8 @@
 "MESSAGES" = "സന്ദേശങ്ങൾ";
 "Magnitude" = "മാഗ്നിറ്റ്യൂഡ്";
 "Make Swap Group" = "സ്വാപ്പ് ഗ്രൂപ്പ് ഉണ്ടാക്കുക";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "ഈ ഭാഗത്തിന്റെ കണക്ഷനുകൾ ഏറ്റവും കുറയ്ക്കുന്ന കൈമാറ്റങ്ങൾ നടത്തുക; സ്കീമാറ്റിക് പിന്തുടരും";
+"Make this swap on the board and in the schematic" = "ഈ കൈമാറ്റം ബോർഡിലും സ്കീമാറ്റിക്കിലും നടത്തുക";
 "Manufacturer part #" = "നിർമ്മാതാവിന്റെ പാർട്ട് നമ്പർ";
 "Manufacturer part number or keywords" = "നിർമ്മാതാവിന്റെ പാർട്ട് നമ്പർ അല്ലെങ്കിൽ കീവേഡുകൾ";
 "Mask" = "മാസ്ക്";
@@ -575,6 +577,7 @@
 "Open the design verification report" = "ഡിസൈൻ വെരിഫിക്കേഷൻ റിപ്പോർട്ട് തുറക്കുക";
 "Open the offer on the distributor's site" = "ഓഫർ വിതരണക്കാരന്റെ സൈറ്റിൽ തുറക്കുക";
 "Open…" = "തുറക്കുക…";
+"Optimize Swaps" = "കൈമാറ്റങ്ങൾ ഒപ്റ്റിമൈസ് ചെയ്യുക";
 "Other footprints" = "മറ്റ് ഫുട്പ്രിന്റുകൾ";
 "Output" = "ഔട്ട്പുട്ട്";
 "Output noise" = "ഔട്ട്പുട്ട് നോയ്സ്";
@@ -586,6 +589,7 @@
 "PCB Layout" = "PCB ലേഔട്ട്";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "ബുക്ക്മാർക്ക്, ഫ്രെയിം, ടൈറ്റിൽ ബ്ലോക്ക് എന്നിവയോടെ എല്ലാ ഷീറ്റിന്റെയും PDF";
+"PIN / GATE SWAP" = "പിൻ / ഗേറ്റ് കൈമാറ്റം";
 "PIN SWAP" = "പിൻ സ്വാപ്പ്";
 "PINS" = "പിന്നുകൾ";
 "PRBS" = "PRBS";

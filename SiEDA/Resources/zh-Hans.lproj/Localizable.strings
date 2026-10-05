@@ -459,6 +459,8 @@
 "MESSAGES" = "消息";
 "Magnitude" = "幅度";
 "Make Swap Group" = "创建交换组";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "执行最能缩短此元件连线的交换；原理图随之更新";
+"Make this swap on the board and in the schematic" = "在电路板和原理图中执行此交换";
 "Manufacturer part #" = "制造商料号";
 "Manufacturer part number or keywords" = "制造商料号或关键字";
 "Mask" = "阻焊";
@@ -575,6 +577,7 @@
 "Open the design verification report" = "打开设计验证报告";
 "Open the offer on the distributor's site" = "在分销商网站打开此报价";
 "Open…" = "打开…";
+"Optimize Swaps" = "优化交换";
 "Other footprints" = "其他封装";
 "Output" = "输出";
 "Output noise" = "输出噪声";
@@ -586,6 +589,7 @@
 "PCB Layout" = "PCB 布局";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "每张图页的 PDF，含书签、图框与标题栏";
+"PIN / GATE SWAP" = "引脚 / 门交换";
 "PIN SWAP" = "引脚交换";
 "PINS" = "引脚";
 "PRBS" = "PRBS";

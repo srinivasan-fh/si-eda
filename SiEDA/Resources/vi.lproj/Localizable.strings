@@ -459,6 +459,8 @@
 "MESSAGES" = "THÔNG BÁO";
 "Magnitude" = "Biên độ";
 "Make Swap Group" = "Tạo nhóm hoán đổi";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "Thực hiện các hoán đổi rút ngắn kết nối của linh kiện này nhiều nhất; sơ đồ nguyên lý cập nhật theo";
+"Make this swap on the board and in the schematic" = "Thực hiện hoán đổi này trên bo mạch và trong sơ đồ";
 "Manufacturer part #" = "Mã linh kiện NSX";
 "Manufacturer part number or keywords" = "Mã linh kiện NSX hoặc từ khóa";
 "Mask" = "Mặt nạ";
@@ -575,6 +577,7 @@
 "Open the design verification report" = "Mở báo cáo xác minh thiết kế";
 "Open the offer on the distributor's site" = "Mở báo giá trên trang của nhà phân phối";
 "Open…" = "Mở…";
+"Optimize Swaps" = "Tối ưu hoán đổi";
 "Other footprints" = "Footprint khác";
 "Output" = "Đầu ra";
 "Output noise" = "Nhiễu đầu ra";
@@ -586,6 +589,7 @@
 "PCB Layout" = "Bố trí PCB";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "PDF của mọi trang với dấu trang, khung và khung tên";
+"PIN / GATE SWAP" = "HOÁN ĐỔI CHÂN / CỔNG";
 "PIN SWAP" = "HOÁN ĐỔI CHÂN";
 "PINS" = "CHÂN";
 "PRBS" = "PRBS";

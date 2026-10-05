@@ -6388,3 +6388,19 @@ final class SchematicPolishTests: XCTestCase {
         Double(store.snapshot.component(id)?.x ?? 0)
     }
 }
+
+
+/// PCB pin / gate swap: a part without gates has no swaps; the automatic swap leaves a board without any alone.
+@MainActor
+final class PcbSwapTests: XCTestCase {
+    func testSwapOptionsAndOptimizeOnAPlainBoard() {
+        let store = DesignStore()
+        let r = store.addComponent(.resistor, at: .zero)
+        XCTAssertTrue(store.engine.pcbSwapOptions(r).isEmpty)
+        XCTAssertEqual(store.engine.optimizePcbSwaps(nil), 0)
+        let option = PcbSwapOptionInfo(kind: "pin", component: r, other: -1, pinA: 0, pinB: 1, label: "R1", gain: 1)
+        XCTAssertFalse(store.engine.applyPcbSwap(option))  // a resistor has no swap groups
+        store.optimizeSwaps(component: r)
+        XCTAssertEqual(store.snapshot.component(r)?.ref, "R1")
+    }
+}

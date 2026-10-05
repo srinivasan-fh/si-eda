@@ -14761,3 +14761,63 @@ TEST(clipboard_extras_and_frames_fuzzed) {
         CHECK(exportSchematicPdf(p).rfind("%PDF", 0) == 0);
     }
 }
+
+// ======================================================================= PCB pin / gate swap (back-annotated)
+
+TEST(pcb_pin_and_gate_swap_back_annotates) {
+    const auto part = CustomPartRegistry::instance().registerPart(quadNandSpec());
+    Project p;
+    Schematic& s = p.schematic;
+    const int a = s.addCustomUnits(part->id, "74HC00", {0, 0});
+    const int b = s.placeNextUnit(a, {0, 200});
+    const int pkg = s.unitPackage(a);
+    CHECK(a > 0 && b > 0 && pkg > 0);
+    // R1 drives input 1A (unit pin 0), R2 input 1B (unit pin 1); on the board each sits by the other input's pad.
+    const int r1 = s.addComponent(ComponentKind::Resistor, "1k", {-200, 0});
+    const int r2 = s.addComponent(ComponentKind::Resistor, "1k", {-200, 100});
+    CHECK(s.connect({r1, 1}, {a, 0}) >= 0 && s.connect({r2, 1}, {a, 1}) >= 0);
+    p.schematicChanged();
+    s.find(pkg)->pcb = PcbPlacement{{20, 20}, 0, false, true};
+    Vec2 pad1, pad2;
+    for (const auto& pad : p.pcb.pads(s))
+        if (pad.componentId == pkg) {
+            if (pad.pinIndex == 0) pad1 = pad.position;
+            if (pad.pinIndex == 1) pad2 = pad.position;
+        }
+    const double dir = pad2.y > pad1.y ? 1 : -1;  // beyond pad 2, and beyond pad 1 on the other side
+    s.find(r1)->pcb = PcbPlacement{{pad2.x - 3, pad2.y + 10 * dir}, 90, false, true};
+    s.find(r2)->pcb = PcbPlacement{{pad1.x - 3, pad1.y - 10 * dir}, 90, false, true};
+    p.pcbSync = p.currentSync();
+    const auto options = p.pcbSwapOptions(pkg);
+    CHECK(!options.empty());
+    if (options.empty()) return;
+    const PcbSwapOption& best = options.front();
+    CHECK(best.kind == "pin" && best.component == a && best.gain > 1 && best.label.find("pins 1") != std::string::npos);
+    // Gate swaps with the package's other gates are offered too (A ↔ B), and by unit id the options are the same.
+    CHECK(std::any_of(options.begin(), options.end(), [&](const PcbSwapOption& o) { return o.kind == "gate" && o.other == b; }));
+    CHECK(p.pcbSwapOptions(a).size() == options.size() && p.pcbSwapOptions(r1).empty());
+    const int netBefore = s.netOf({r1, 1});
+    std::vector<std::string> report;
+    CHECK(p.applyPcbSwap(best, &report) && report.size() == 1);
+    // Back-annotated: R1 now reaches pin 2 (unit pin 1) in the schematic; the board is still in step with it.
+    CHECK(s.netOf({a, 1}) == s.netOf({r1, 1}) && s.netOf({a, 0}) == s.netOf({r2, 1}));
+    CHECK(netBefore >= 0 && p.pcbEcoPreview().empty());
+    // Swapping back is now the worse choice; the optimiser finds nothing more to do.
+    CHECK(p.pcbSwapOptions(pkg).front().gain <= 0.01 || p.pcbSwapOptions(pkg).front().kind != "pin");
+    CHECK(p.optimizePcbSwaps(pkg, 10) == 0);
+    // A refused swap (pins of different groups) changes nothing.
+    PcbSwapOption bad = best;
+    bad.pinB = 2;
+    CHECK(!p.applyPcbSwap(bad));
+    // The optimiser undoes a bad arrangement by itself.
+    CHECK(p.applyPcbSwap(best));
+    CHECK(p.optimizePcbSwaps(-1, 10) >= 1);
+    CHECK(s.netOf({a, 1}) == s.netOf({r1, 1}));
+}
+
+extern "C" int sieda_c_api_pcb_swap_test(void);
+TEST(c_api_pcb_swap) {
+    const int rc = sieda_c_api_pcb_swap_test();
+    if (rc != 0) std::printf("    C API PCB swap test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}

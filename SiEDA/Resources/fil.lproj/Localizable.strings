@@ -459,6 +459,8 @@
 "MESSAGES" = "MGA MENSAHE";
 "Magnitude" = "Magnitude";
 "Make Swap Group" = "Gumawa ng Swap Group";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "Gawin ang mga swap na pinakamaikling nagpapaikli sa mga koneksyon ng piyesang ito; sumusunod ang schematic";
+"Make this swap on the board and in the schematic" = "Gawin ang swap na ito sa board at sa schematic";
 "Manufacturer part #" = "Part # ng manufacturer";
 "Manufacturer part number or keywords" = "Part number ng manufacturer o mga keyword";
 "Mask" = "Mask";
@@ -575,6 +577,7 @@
 "Open the design verification report" = "Buksan ang design verification report";
 "Open the offer on the distributor's site" = "Buksan ang alok sa site ng distributor";
 "Open…" = "Buksan…";
+"Optimize Swaps" = "I-optimize ang mga Swap";
 "Other footprints" = "Iba pang footprint";
 "Output" = "Output";
 "Output noise" = "Ingay ng output";
@@ -586,6 +589,7 @@
 "PCB Layout" = "PCB Layout";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "PDF ng bawat sheet na may bookmark, frame at title block";
+"PIN / GATE SWAP" = "PAGPALIT NG PIN / GATE";
 "PIN SWAP" = "PAGPAPALIT NG PIN";
 "PINS" = "MGA PIN";
 "PRBS" = "PRBS";

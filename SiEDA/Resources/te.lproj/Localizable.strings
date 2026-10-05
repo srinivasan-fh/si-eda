@@ -459,6 +459,8 @@
 "MESSAGES" = "సందేశాలు";
 "Magnitude" = "మాగ్నిట్యూడ్";
 "Make Swap Group" = "స్వాప్ సమూహం చేయి";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "ఈ భాగం కనెక్షన్‌లను ఎక్కువగా తగ్గించే మార్పిడులు చేయి; స్కీమాటిక్ అనుసరిస్తుంది";
+"Make this swap on the board and in the schematic" = "ఈ మార్పిడిని బోర్డు మరియు స్కీమాటిక్‌లో చేయి";
 "Manufacturer part #" = "తయారీదారు పార్ట్ నంబర్";
 "Manufacturer part number or keywords" = "తయారీదారు పార్ట్ నంబర్ లేదా కీవర్డ్‌లు";
 "Mask" = "మాస్క్";
@@ -575,6 +577,7 @@
 "Open the design verification report" = "డిజైన్ వెరిఫికేషన్ నివేదికను తెరువు";
 "Open the offer on the distributor's site" = "ఆఫర్‌ను డిస్ట్రిబ్యూటర్ సైట్‌లో తెరవండి";
 "Open…" = "తెరువు…";
+"Optimize Swaps" = "మార్పిడులను అనుకూలీకరించు";
 "Other footprints" = "ఇతర ఫుట్‌ప్రింట్‌లు";
 "Output" = "అవుట్‌పుట్";
 "Output noise" = "అవుట్‌పుట్ నాయిస్";
@@ -586,6 +589,7 @@
 "PCB Layout" = "PCB లేఅవుట్";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "బుక్‌మార్క్‌లు, ఫ్రేమ్‌లు, టైటిల్ బ్లాక్‌లతో ప్రతి షీట్ PDF";
+"PIN / GATE SWAP" = "పిన్ / గేట్ మార్పిడి";
 "PIN SWAP" = "పిన్ స్వాప్";
 "PINS" = "పిన్‌లు";
 "PRBS" = "PRBS";

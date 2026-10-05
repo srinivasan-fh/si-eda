@@ -1697,3 +1697,35 @@ extension EDAEngine {
         return Self.decode(Reply.self, from: Self.take(withHandle { sieda_apply_pcb_eco($0, json) }))?.report ?? []
     }
 }
+
+/// A pin or gate swap a placed multi-unit part allows on the board (core `PcbSwapOption`).
+struct PcbSwapOptionInfo: Codable, Equatable, Identifiable {
+    var kind: String  // "pin", "gate"
+    var component: Int
+    var other: Int
+    var pinA: Int
+    var pinB: Int
+    var label: String
+    /// Ratsnest saved (mm; negative = longer).
+    var gain: Double
+    var id: String { "\(kind):\(component):\(other):\(pinA):\(pinB)" }
+}
+
+extension EDAEngine {
+    /// The pin / gate swaps of a component's package on the board, best first.
+    func pcbSwapOptions(_ component: Int) -> [PcbSwapOptionInfo] {
+        Self.decode([PcbSwapOptionInfo].self, from: Self.take(withHandle { sieda_pcb_swap_options($0, Int32(component)) })) ?? []
+    }
+
+    /// Makes one swap, back-annotated to the schematic.
+    func applyPcbSwap(_ option: PcbSwapOptionInfo) -> Bool {
+        guard let data = try? JSONEncoder().encode(option) else { return false }
+        let json = String(decoding: data, as: UTF8.self)
+        return withHandle { sieda_apply_pcb_swap($0, json) } == 1
+    }
+
+    /// Automatic pin / gate swap for one package (or every one with nil); the number of swaps made.
+    func optimizePcbSwaps(_ component: Int?, maxSwaps: Int = 100) -> Int {
+        max(0, Int(withHandle { sieda_optimize_pcb_swaps($0, Int32(component ?? -1), Int32(maxSwaps)) }))
+    }
+}

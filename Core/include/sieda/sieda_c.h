@@ -817,6 +817,14 @@ int32_t sieda_set_sheet_frame(SiedaProject* project, int32_t sheet, int32_t fixe
 /* Like sieda_export_schematic_pdf, embedding a subset of the TrueType font at font_path (.ttf / .ttc with glyf
  * outlines) for text outside Latin / Greek; an unreadable or unsupported font is ignored. Still plain ASCII. */
 char* sieda_export_schematic_pdf_with_font(const SiedaProject* project, const char* font_path);
+/* PCB pin / gate swap (back-annotated to the schematic). The swaps the package of a component allows, best first:
+ * [{"kind":"pin"|"gate","component","other","pinA","pinB","label","gain"}] (gain: ratsnest mm saved). Caller frees. */
+char* sieda_pcb_swap_options(const SiedaProject* project, int32_t component_id);
+/* Makes one swap (an option as listed). 1 on success, 0 when refused. */
+int32_t sieda_apply_pcb_swap(SiedaProject* project, const char* option_json);
+/* Automatic swap: the best swap again and again (at most max_swaps) for one package (component_id) or all (-1).
+ * The number made, or -1. */
+int32_t sieda_optimize_pcb_swaps(SiedaProject* project, int32_t component_id, int32_t max_swaps);
 
 #ifdef __cplusplus
 }

@@ -227,4 +227,21 @@ extension DesignStore {
         if !report.isEmpty { statusMessage = "Updated the board: \(report.count) change(s)" }
         return report
     }
+
+    // MARK: - PCB pin / gate swap (back-annotated)
+
+    /// Makes a pin or gate swap on the board; the schematic follows (one undo step).
+    func swapOnBoard(_ option: PcbSwapOptionInfo) {
+        performChecked("Swap \(option.label)", failureMessage: "The swap is not allowed") { $0.applyPcbSwap(option) }
+    }
+
+    /// Automatic pin / gate swap: the swaps that shorten the ratsnest most, for one package or the whole board.
+    func optimizeSwaps(component: Int?) {
+        var made = 0
+        performChecked("Automatic pin / gate swap", failureMessage: "No swap shortens the connections") {
+            made = $0.optimizePcbSwaps(component)
+            return made > 0
+        }
+        if made > 0 { statusMessage = "Made \(made) swap(s), back-annotated to the schematic" }
+    }
 }

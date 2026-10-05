@@ -336,6 +336,15 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
   places). The **ECO review** lists every change with a check box; changes that cannot be applied say why (unknown
   part, target designator taken, pins on different units). **Apply Changes** is one undo step; renames go through
   temporary designators so swaps (R1 ↔ R2) work, and the chosen set must keep designators unique.
+- **Pin / gate swap on the board** (Altium's PCB pin / gate swapping): select a multi-unit part's footprint (or one of
+  its gates) in the PCB editor; the inspector's **Pin / Gate Swap** lists the swaps its package allows — two pins of
+  one swap group of a gate, or two interchangeable gates (of this package or another of the same part and value) —
+  each with the ratsnest it saves (nearest-pad estimate). **Swap** makes one; **Optimize Swaps** makes the best ones
+  for the part, one after another, while they shorten the connections. Every swap is back-annotated: the schematic's
+  wires (pin swap) or gates (gate swap) change, the board's nets follow, routing that no longer fits is removed, and
+  Update PCB has nothing to bring over. One undo step. Units of a repeated sheet's channels are swapped on the
+  block's own sheet. C API `sieda_pcb_swap_options`, `sieda_apply_pcb_swap`, `sieda_optimize_pcb_swaps` (all
+  packages with -1).
 - **Messages**: the options bar's **Messages** panel lists every ERC finding of every sheet with its sheet name;
   **Compile** re-runs ERC; click a message to show it on its sheet, selected and zoomed.
 - **Error reporting** (Altium's project options ▸ Error Reporting): right-click a message ▸ *Report as Error /
@@ -469,6 +478,9 @@ char*   sieda_export_schematic_pdf(const SiedaProject*);
 char*   sieda_export_schematic_pdf_with_font(const SiedaProject*, const char* font_path);
 int32_t sieda_align_outlines(SiedaProject*, const char* ids_json, const char* mode);
 int32_t sieda_set_sheet_frame(SiedaProject*, int32_t sheet, int32_t fixed, double x, double y);
+char*   sieda_pcb_swap_options(const SiedaProject*, int32_t component);
+int32_t sieda_apply_pcb_swap(SiedaProject*, const char* option_json);
+int32_t sieda_optimize_pcb_swaps(SiedaProject*, int32_t component, int32_t max_swaps);
 int32_t sieda_set_erc_severity(SiedaProject*, const char* code, const char* level); /* "error"…"off", "default" */
 char*   sieda_pcb_eco_preview(const SiedaProject*);               /* [{section,action,object,detail,key,applicable,note}] */
 char*   sieda_apply_pcb_eco(SiedaProject*, const char* keys_json); /* NULL = all; {"executed","report"} */
@@ -529,7 +541,9 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
   A unit of a multi-unit part inside a repeated sheet stays on that sheet with its package.
 - Multi-unit parts: unit symbols are generated from the part's symbol layout (or arranged by pin type); a unit has no
   hand-drawn layout of its own. Gate swap works between units on one sheet. Unit packing re-assigns only interchangeable gates.
-  A new multi-unit part an agent adds without `units` is drawn as one symbol.
+  A new multi-unit part an agent adds without `units` is drawn as one symbol. Board-side swaps judge by the nearest pad
+  of each net (not routed length), swap gates only between units on one sheet, and are offered for a selected part
+  (the whole-board optimisation is in the C API).
 - Find & Replace edits values and net label names only; designators are changed by annotation.
 - Harnesses are name based: a harness connector is a harness label plus entry labels (no drawn connector body or
   harness wire); harness types are flat (no nested harnesses inside harnesses). Harness labels are not shown on the

@@ -47,6 +47,16 @@ struct PcbEcoChange {
 };
 
 /// What the board was last updated from: each part (designator, footprint, value) and each net's pins.
+/// A pin or gate swap a placed multi-unit part allows on the board (Project::pcbSwapOptions).
+struct PcbSwapOption {
+    std::string kind;       // "pin" (two pins of one swap group of a gate) or "gate" (two interchangeable gates)
+    int component = -1;     // the placed unit (gate)
+    int other = -1;         // gate swap: the other unit
+    int pinA = -1, pinB = -1;  // pin swap: unit pin indices
+    std::string label;      // "U1A: pins 2 ↔ 3", "U1A ↔ U2B"
+    double gain = 0;        // ratsnest saved (mm, nearest-pad estimate; negative = longer)
+};
+
 struct PcbSyncBaseline {
     std::map<int, std::array<std::string, 3>> parts;  // component id → ref, footprint, value
     std::map<std::string, std::string> nets;          // net name → "R1.1 R2.2 …"
@@ -144,6 +154,16 @@ public:
     /// Pastes a clipboard (Schematic::pasteComponents): sourcing comes along, and variant settings go to the
     /// variants of the same name in this project. Returns the new components' ids.
     std::vector<int> pasteComponents(const Json& clip, const PasteOptions& options);
+
+    /// Pin / gate swaps for the package of `componentId` (the footprint or any of its units), best first. Units on
+    /// a repeated sheet's channel copies are left out (their block's are listed).
+    std::vector<PcbSwapOption> pcbSwapOptions(int componentId) const;
+    /// Carries a swap out in the schematic (back-annotation): the nets of the pads change places, routing that no
+    /// longer fits is removed, and the Update PCB baseline follows when the board was in step. False when refused.
+    bool applyPcbSwap(const PcbSwapOption& option, std::vector<std::string>* report = nullptr);
+    /// Automatic pin / gate swap: makes the swap that saves most ratsnest, again and again (at most `maxSwaps`), for
+    /// one package (`componentId`) or every placed package (-1). Returns the number made.
+    int optimizePcbSwaps(int componentId, int maxSwaps = 100, std::vector<std::string>* report = nullptr);
     /// The schematic as the board would take it now.
     PcbSyncBaseline currentSync() const;
     /// The changes an update would make, by section; nothing is changed.
