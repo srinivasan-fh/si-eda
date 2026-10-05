@@ -35,6 +35,7 @@
 		49D121232DDFBC0445D83F9B = {isa = PBXBuildFile; fileRef = 9B780D9F59521D3BDF902353; };
 		4B8107A57118B84C609B7113 = {isa = PBXBuildFile; fileRef = 54E109672561428616FE3D2D; };
 		4F54772D2F67B6B122050EB5 = {isa = PBXBuildFile; fileRef = 754F9843AC5AAB513A6742B2; };
+		4FC0095A92FE567B91899350 = {isa = PBXBuildFile; fileRef = B2A9F5BB531C867B7C400084; };
 		53EA1E9ED727F5F22BF6D1BF = {isa = PBXBuildFile; fileRef = EBECAAA7807D81B9EA1B4E2D; };
 		55A70E104464C2281B0F9AA3 = {isa = PBXBuildFile; fileRef = 055CDC196B757E80767362D1; };
 		5735397F522136DBEB890548 = {isa = PBXBuildFile; fileRef = 4FC7244E5CC6E8E1CA1526AE; };
@@ -213,6 +214,7 @@
 		AC5F3ED740A4FD6618195715 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Zones.cpp; sourceTree = "<group>"; };
 		AD55190557EC704E38B2BEAA = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryImportView.swift; sourceTree = "<group>"; };
 		B23FD27DAD6BD2539569BEE1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Isolation.cpp; sourceTree = "<group>"; };
+		B2A9F5BB531C867B7C400084 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = InteractiveRouter.cpp; sourceTree = "<group>"; };
 		B2FEEB38AB0B19ADD19A0E30 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		B7A272C317609DD8A2D79E17 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentKind.swift; sourceTree = "<group>"; };
 		B7F4A2A7A651672AE1EAE396 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sieda_c.h; sourceTree = "<group>"; };
@@ -254,6 +256,7 @@
 		F627D60E30DEE4F730D03040 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/Localizable.strings; sourceTree = "<group>"; };
 		F96A726E3DB4332397197D42 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = hi; path = hi.lproj/Localizable.strings; sourceTree = "<group>"; };
 		FD0349E3F008C96C569E5F1F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchematicSymbols.swift; sourceTree = "<group>"; };
+		FD8DCF74175937CB18ABA8E3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = InteractiveRouter.hpp; sourceTree = "<group>"; };
 		FE09ED4EE869A94663A52629 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ta; path = ta.lproj/Localizable.strings; sourceTree = "<group>"; };
 		FE29B608DCED9C308306A9AC = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = ko.lproj/Localizable.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -372,6 +375,7 @@
 				57514CA6233BC5E032D148B4,
 				598E73B82C21E2428C143C93,
 				C07144B375647346E0E3EC7B,
+				FD8DCF74175937CB18ABA8E3,
 				1CACA716AE8E02FF5628D6DE,
 				0930B17E77DDC99D62455EBA,
 				294CA3D13E83A6848CF71840,
@@ -448,6 +452,7 @@
 				E75D7DE7D08DFA800FFAA790,
 				94640EC62FB04611BA180EDD,
 				5C5A4E6673BC22FAFE753C09,
+				B2A9F5BB531C867B7C400084,
 				B23FD27DAD6BD2539569BEE1,
 				3B8AAF03382758779EE08604,
 				4948511C3F66BCF11536263B,
@@ -798,6 +803,7 @@
 				B49EF7DDF4B0D9905AA40643,
 				5CD6C55A8FE73A7847272E36,
 				6EB9D3E942D2E5293BA5CD69,
+				4FC0095A92FE567B91899350,
 				C352E7ADF695CB6669D52EFE,
 				3D5D45FB5BEA3347870ADE14,
 				8A31929501458CDAC3444CA1,

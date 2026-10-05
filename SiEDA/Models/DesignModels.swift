@@ -737,6 +737,40 @@ struct SnapVia: Decodable, Equatable, Identifiable {
     }
 }
 
+/// Interactive routing state from the core (`sieda_router_*`): the route's copper, and the other nets' copper at its
+/// shoved position (`hiddenTracks` / `hiddenVias` are the board items those replace while the route is previewed).
+struct RoutePreview: Decodable, Equatable {
+    var active: Bool
+    var kind: String
+    var status: String
+    var blocked: Bool
+    var reachedTarget: Bool
+    var nets: [Int]
+    var layer: Int
+    var width: Double
+    var gap: Double
+    var endX: Double
+    var endY: Double
+    var length: Double
+    var placed: [SnapTrack]
+    var head: [SnapTrack]
+    var vias: [SnapVia]
+    var shovedTracks: [SnapTrack]
+    var shovedVias: [SnapVia]
+    var hiddenTracks: [Int]
+    var hiddenVias: [Int]
+    /// Why the last router call was refused (the preview is still the current state).
+    var error: String?
+}
+
+/// Result of committing a route (`sieda_router_commit`).
+struct RouteCommitResult: Decodable, Equatable {
+    var ok: Bool
+    var error: String?
+    var addedTracks: [Int]
+    var addedVias: [Int]
+}
+
 struct SnapLine: Decodable, Equatable {
     var ax: Double
     var ay: Double

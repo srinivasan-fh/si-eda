@@ -89,6 +89,34 @@ final class EngineBridgeTests: XCTestCase {
         XCTAssertFalse(engine.simulateMonteCarlo(net: "no such net", measure: "dc", runs: 5, seed: 1).ok)
     }
 
+    func testInteractiveRouterRoutesAndCommits() throws {
+        let engine = EDAEngine(name: "Router")
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        engine.moveFootprint(r1, to: CGPoint(x: 10, y: 20))
+        engine.moveFootprint(r2, to: CGPoint(x: 30, y: 20))
+        let options = EDAEngine.routerOptions(shove: true, diagonal: true)
+
+        let nothing = try XCTUnwrap(engine.routerBegin(at: CGPoint(x: 2, y: 2), layer: 0, pair: false, options: options))
+        XCTAssertNotNil(nothing.error)
+        XCTAssertFalse(engine.routerActive)
+
+        let start = try XCTUnwrap(engine.routerBegin(at: CGPoint(x: 10.95, y: 20), layer: 0, pair: false, options: options))
+        XCTAssertNil(start.error)
+        XCTAssertTrue(start.active && engine.routerActive)
+        let head = try XCTUnwrap(engine.routerMove(to: CGPoint(x: 29.05, y: 20)))
+        XCTAssertTrue(head.reachedTarget)
+        XCTAssertFalse(head.head.isEmpty)
+        let result = engine.routerCommit()
+        XCTAssertTrue(result.ok)
+        XCTAssertFalse(result.addedTracks.isEmpty)
+        XCTAssertFalse(engine.routerActive)
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        XCTAssertTrue(snapshot.ratsnest.isEmpty)
+        XCTAssertFalse(engine.runDRC().contains { $0.severity == .error })
+    }
+
     func testSaveLoadRoundTrip() throws {
         let engine = EDAEngine()
         engine.addComponent(.capacitor, value: "10u", at: CGPoint(x: 10, y: 20), ref: "C7")

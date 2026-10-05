@@ -25,6 +25,7 @@
 "Add Pattern" = "パターンを追加";
 "Add Pin" = "ピンを追加";
 "Add Pour" = "ベタを追加";
+"Add Selected Parts" = "選択した部品を追加";
 "Add Thermal Vias" = "サーマルビアを追加";
 "Add a pad like the last one (numbered next)" = "直前と同じパッドを追加 (次の番号)";
 "Add a sheet (right-click a tab for more)" = "シートを追加（タブを右クリックでその他の操作）";
@@ -104,6 +105,7 @@
 "Construction" = "構造";
 "Copper colours" = "銅箔の色";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "銅層数：1 = 片面 (ビアなし)、2–6 はほとんどの製品向け、8–24 はマザーボード、サーバー、メインフレーム、GPU ベースボード向け";
+"Corners" = "コーナー";
 "Currents" = "電流";
 "DC" = "DC";
 "DC Operating Point" = "DC 動作点";
@@ -130,6 +132,7 @@
 "Design guidance" = "設計ガイダンス";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "デザインルールのプリセット：配線、クリアランス、ビアのサイズと DRC が適用する製造上の最小値";
 "Designator" = "デジグネータ";
+"Differential pair" = "差動ペア";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "未実装：基板上にはあるが実装しない。実装用 BOM と CPL から除外";
 "Down ↓" = "下へ ↓";
 "Drag to orbit" = "ドラッグで回転";
@@ -182,6 +185,9 @@
 "Hold" = "ホールド";
 "Holographic data panels around the stack: copper per layer, net fan-out, parts, routing and a board map" = "スタック周囲のホログラフィックデータパネル：レイヤーごとの銅、ネットのファンアウト、部品、配線、基板マップ";
 "Import Datasheet…" = "データシートを読み込む…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad（.kicad_mod、.kicad_sym）または Eagle（.lbr）ライブラリを読み込む";
+"Import Library" = "ライブラリを読み込む";
+"Import Library…" = "ライブラリを読み込む…";
 "Import PRD…" = "PRD を読み込む…";
 "Indian semiconductor states" = "インドの半導体州";
 "Industry" = "業界";
@@ -319,6 +325,8 @@
 "Right →" = "右へ →";
 "Robot Platform" = "ロボットプラットフォーム";
 "Rotate" = "回転";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "差動ペアの 2 本のネット (X_P / X_N) をペア間隔で同時に配線";
+"Router mode" = "配線モード";
 "Run" = "実行";
 "Run AC Sweep" = "AC スイープを実行";
 "Run DC Sweep" = "DC スイープを実行";
@@ -360,6 +368,8 @@
 "Shape" = "形状";
 "Sheet" = "シート";
 "Sheet name" = "シート名";
+"Shove" = "押しのけ";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "押しのけは他のネットの配線とビアを押し退け、迂回はそれらを避けて配線します";
 "Show" = "表示";
 "Show Crash Reports" = "クラッシュレポートを表示";
 "Show Navigator" = "ナビゲータを表示";
@@ -429,10 +439,12 @@
 "Vias" = "ビア";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD パッド内のビアは基板メーカーが充填・蓋めっきするため、狭ピッチ BGA / QFN のファンアウトに使用できます";
 "Voltages" = "電圧";
+"Walk around" = "迂回";
 "Warnings" = "警告";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "ネットを DC 電流に応じた IPC-2221 幅に広げる (+25 %)";
 "Width" = "幅";
 "Window" = "ウインドウ";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "キーワード、またはフィルター: cat:sensors pkg:soic pins:8 mfr:ti";
 "Workspace" = "ワークスペース";
 "Workspaces" = "ワークスペース";
 "Worst case" = "ワーストケース";
@@ -465,10 +477,3 @@
 "us-central1" = "us-central1";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥ を押しながらドラッグまたは 2 本指ドラッグでパン";
-
-/* Library import */
-"Import Library…" = "ライブラリを読み込む…";
-"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad（.kicad_mod、.kicad_sym）または Eagle（.lbr）ライブラリを読み込む";
-"Import Library" = "ライブラリを読み込む";
-"Add Selected Parts" = "選択した部品を追加";
-"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "キーワード、またはフィルター: cat:sensors pkg:soic pins:8 mfr:ti";

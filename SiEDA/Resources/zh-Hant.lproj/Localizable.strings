@@ -25,6 +25,7 @@
 "Add Pattern" = "加入陣列";
 "Add Pin" = "加入接腳";
 "Add Pour" = "加入鋪銅";
+"Add Selected Parts" = "加入所選元件";
 "Add Thermal Vias" = "加入散熱導通孔";
 "Add a pad like the last one (numbered next)" = "加入與上一個相同的焊墊 (編號順延)";
 "Add a sheet (right-click a tab for more)" = "新增圖紙（在分頁上按右鍵以查看更多）";
@@ -104,6 +105,7 @@
 "Construction" = "結構";
 "Copper colours" = "銅層顏色";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "銅層數：1 = 單面 (無導通孔)，2–6 適用於大多數產品，8–24 適用於主機板、伺服器、大型主機與 GPU 基板";
+"Corners" = "轉角";
 "Currents" = "電流";
 "DC" = "DC";
 "DC Operating Point" = "DC 工作點";
@@ -130,6 +132,7 @@
 "Design guidance" = "設計指引";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "設計規則預設：走線、間距與導通孔尺寸，以及 DRC 強制執行的製造最小值";
 "Designator" = "元件編號";
+"Differential pair" = "差分對";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "不上件：在電路板上但不安裝；不列入組裝 BOM 與 CPL";
 "Down ↓" = "向下 ↓";
 "Drag to orbit" = "拖曳以環繞旋轉";
@@ -182,6 +185,9 @@
 "Hold" = "保持";
 "Holographic data panels around the stack: copper per layer, net fan-out, parts, routing and a board map" = "層疊周圍的全像資料面板：每層銅箔、網路扇出、元件、佈線與電路板地圖";
 "Import Datasheet…" = "匯入規格書…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "匯入 KiCad（.kicad_mod、.kicad_sym）或 Eagle（.lbr）元件庫";
+"Import Library" = "匯入元件庫";
+"Import Library…" = "匯入元件庫…";
 "Import PRD…" = "匯入 PRD…";
 "Indian semiconductor states" = "印度半導體邦";
 "Industry" = "產業";
@@ -319,6 +325,8 @@
 "Right →" = "向右 →";
 "Robot Platform" = "機器人平台";
 "Rotate" = "旋轉";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "以差分對間距同時佈線差分對的兩條網路 (X_P / X_N)";
+"Router mode" = "佈線模式";
 "Run" = "執行";
 "Run AC Sweep" = "執行 AC 掃描";
 "Run DC Sweep" = "執行 DC 掃描";
@@ -360,6 +368,8 @@
 "Shape" = "形狀";
 "Sheet" = "圖紙";
 "Sheet name" = "圖紙名稱";
+"Shove" = "推擠";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "推擠會將其他網路的走線與導通孔推開；繞行則繞過它們";
 "Show" = "顯示";
 "Show Crash Reports" = "顯示當機報告";
 "Show Navigator" = "顯示導覽器";
@@ -429,10 +439,12 @@
 "Vias" = "導通孔";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD 焊墊中的導通孔由板廠填充並加蓋，因此細間距 BGA / QFN 扇出可使用";
 "Voltages" = "電壓";
+"Walk around" = "繞行";
 "Warnings" = "警告";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "將網路加寬至其 DC 電流對應的 IPC-2221 線寬 (+25 %)";
 "Width" = "寬度";
 "Window" = "視窗";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "關鍵字，或篩選條件：cat:sensors pkg:soic pins:8 mfr:ti";
 "Workspace" = "工作區";
 "Workspaces" = "工作區";
 "Worst case" = "最壞情況";
@@ -465,10 +477,3 @@
 "us-central1" = "us-central1";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "按住 ⌥ 拖曳或雙指拖曳以平移";
-
-/* Library import */
-"Import Library…" = "匯入元件庫…";
-"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "匯入 KiCad（.kicad_mod、.kicad_sym）或 Eagle（.lbr）元件庫";
-"Import Library" = "匯入元件庫";
-"Add Selected Parts" = "加入所選元件";
-"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "關鍵字，或篩選條件：cat:sensors pkg:soic pins:8 mfr:ti";

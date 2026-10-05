@@ -376,6 +376,7 @@ Json Project::toJson() const {
         j["width"] = t.width;
         j["a"] = vec(t.a);
         j["b"] = vec(t.b);
+        if (t.locked) j["locked"] = true;
         tracks.push(j);
     }
     root["tracks"] = tracks;
@@ -588,6 +589,7 @@ Project Project::fromJson(const Json& root) {
         t.width = j.get("width").asNumber(s.trackWidth);
         t.a = {j.get("a").get("x").asNumber(), j.get("a").get("y").asNumber()};
         t.b = {j.get("b").get("x").asNumber(), j.get("b").get("y").asNumber()};
+        t.locked = j.get("locked").asBool(false);
         p.pcb.addTrack(t);
     }
     for (const auto& j : root.get("vias").items()) {
@@ -785,6 +787,7 @@ Json Project::snapshot() const {
         j["ay"] = t.a.y;
         j["bx"] = t.b.x;
         j["by"] = t.b.y;
+        if (t.locked) j["locked"] = true;
         tracks.push(j);
     }
     root["tracks"] = tracks;

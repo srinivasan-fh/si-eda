@@ -182,6 +182,8 @@ struct Track {
     int layer = kTopLayer;
     double width = 0.25;
     Vec2 a, b;
+    /// Locked tracks stay where they are: the interactive router never shoves or drags them.
+    bool locked = false;
 };
 
 struct Via {

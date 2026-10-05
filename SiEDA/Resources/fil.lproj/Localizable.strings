@@ -25,6 +25,7 @@
 "Add Pattern" = "Magdagdag ng Pattern";
 "Add Pin" = "Magdagdag ng Pin";
 "Add Pour" = "Magdagdag ng Pour";
+"Add Selected Parts" = "Idagdag ang mga Napiling Piyesa";
 "Add Thermal Vias" = "Magdagdag ng Thermal Via";
 "Add a pad like the last one (numbered next)" = "Magdagdag ng pad na katulad ng huli (susunod na numero)";
 "Add a sheet (right-click a tab for more)" = "Magdagdag ng sheet (i-right-click ang tab para sa iba pa)";
@@ -104,6 +105,7 @@
 "Construction" = "Konstruksiyon";
 "Copper colours" = "Mga kulay ng copper";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Mga copper layer: 1 = single-sided (walang via), 2–6 para sa karamihan ng produkto, 8–24 para sa motherboard, server, mainframe at GPU baseboard";
+"Corners" = "Mga kanto";
 "Currents" = "Mga Current";
 "DC" = "DC";
 "DC Operating Point" = "DC Operating Point";
@@ -130,6 +132,7 @@
 "Design guidance" = "Gabay sa disenyo";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "Preset ng design rule: laki ng track, clearance at via kasama ang fabrication minimum na ipinapatupad ng DRC";
 "Designator" = "Designator";
+"Differential pair" = "Differential pair";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Huwag i-populate: nasa board pero hindi ikinakabit; hindi kasama sa assembly BOM at CPL";
 "Down ↓" = "Pababa ↓";
 "Drag to orbit" = "I-drag para umikot";
@@ -182,6 +185,9 @@
 "Hold" = "Hold";
 "Holographic data panels around the stack: copper per layer, net fan-out, parts, routing and a board map" = "Mga holographic data panel sa paligid ng stack: copper bawat layer, net fan-out, part, routing at board map";
 "Import Datasheet…" = "I-import ang Datasheet…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "I-import ang mga library ng KiCad (.kicad_mod, .kicad_sym) o Eagle (.lbr)";
+"Import Library" = "I-import ang Library";
+"Import Library…" = "I-import ang Library…";
 "Import PRD…" = "I-import ang PRD…";
 "Indian semiconductor states" = "Mga estado ng semiconductor sa India";
 "Industry" = "Industriya";
@@ -319,6 +325,8 @@
 "Right →" = "Pakanan →";
 "Robot Platform" = "Robot Platform";
 "Rotate" = "I-rotate";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "I-route nang magkasama ang dalawang net ng differential pair (X_P / X_N) sa pair gap";
+"Router mode" = "Mode ng router";
 "Run" = "Patakbuhin";
 "Run AC Sweep" = "Patakbuhin ang AC Sweep";
 "Run DC Sweep" = "Patakbuhin ang DC Sweep";
@@ -360,6 +368,8 @@
 "Shape" = "Hugis";
 "Sheet" = "Sheet";
 "Sheet name" = "Pangalan ng sheet";
+"Shove" = "Itulak";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "Itinutulak ng Itulak sa gilid ang mga track at via ng ibang net; iniikutan sila ng Umikot";
 "Show" = "Ipakita";
 "Show Crash Reports" = "Ipakita ang mga Crash Report";
 "Show Navigator" = "Ipakita ang Navigator";
@@ -429,10 +439,12 @@
 "Vias" = "Mga Via";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "Pinupunan at tinatakpan ng fab ang mga via sa SMD pad, kaya magagamit ito ng fine-pitch BGA / QFN fan-out";
 "Voltages" = "Mga Voltage";
+"Walk around" = "Umikot";
 "Warnings" = "Mga Babala";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "Palaparin ang mga net sa IPC-2221 width para sa kanilang DC current (+25 %)";
 "Width" = "Lapad";
 "Window" = "Window";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "Mga salita, o mga filter: cat:sensors pkg:soic pins:8 mfr:ti";
 "Workspace" = "Workspace";
 "Workspaces" = "Mga Workspace";
 "Worst case" = "Pinakamasamang kaso";
@@ -465,10 +477,3 @@
 "us-central1" = "us-central1";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-drag o two-finger drag para mag-pan";
-
-/* Library import */
-"Import Library…" = "I-import ang Library…";
-"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "I-import ang mga library ng KiCad (.kicad_mod, .kicad_sym) o Eagle (.lbr)";
-"Import Library" = "I-import ang Library";
-"Add Selected Parts" = "Idagdag ang mga Napiling Piyesa";
-"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "Mga salita, o mga filter: cat:sensors pkg:soic pins:8 mfr:ti";

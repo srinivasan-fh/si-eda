@@ -24,6 +24,7 @@
 #include "sieda/Fabrication.hpp"
 #include "sieda/Firmware.hpp"
 #include "sieda/Industry.hpp"
+#include "sieda/InteractiveRouter.hpp"
 #include "sieda/Json.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
@@ -49,6 +50,7 @@
 
 extern "C" int sieda_c_api_smoke_test(void);
 extern "C" int sieda_c_api_library_import_test(void);
+extern "C" int sieda_c_api_router_test(void);
 
 using namespace sieda;
 
@@ -6690,4 +6692,457 @@ TEST(library_import_rejects_unsupported_formats_and_survives_fuzzing) {
 
 TEST(library_import_c_api) {
     CHECK(sieda_c_api_library_import_test() == 0);
+}
+
+// ======================================================================= interactive router
+
+namespace {
+int placeR(Project& p, Vec2 at, int rotation = 0) {
+    const int id = p.schematic.addComponent(ComponentKind::Resistor, "1k", {at.x * 10, at.y * 10});
+    Component* c = p.schematic.find(id);
+    c->pcb.position = at;
+    c->pcb.rotation = rotation;
+    c->pcb.placed = true;
+    return id;
+}
+
+Vec2 padAt(const Project& p, int comp, int pin) {
+    for (const auto& pd : p.pcb.pads(p.schematic))
+        if (pd.componentId == comp && pd.pinIndex == pin) return pd.position;
+    return {-1, -1};
+}
+
+void addPath(PcbLayout& pcb, int net, int layer, double w, const std::vector<Vec2>& pts, bool locked = false) {
+    for (size_t k = 0; k + 1 < pts.size(); ++k) {
+        Track t;
+        t.net = net;
+        t.layer = layer;
+        t.width = w;
+        t.a = pts[k];
+        t.b = pts[k + 1];
+        t.locked = locked;
+        pcb.addTrack(t);
+    }
+}
+
+/// DRC errors (unrouted connections aside) and clearance warnings: what interactive routing must never cause.
+int routingProblems(const Project& p) {
+    int n = 0;
+    for (const auto& v : p.pcb.runDRC(p.schematic)) {
+        if ((v.severity == Severity::Error && v.code != "DRC_UNROUTED") || v.code == "DRC_CLEARANCE_RULE") {
+            ++n;
+            std::printf("    DRC %s: %s\n", v.code.c_str(), v.message.c_str());
+        }
+    }
+    return n;
+}
+
+/// No ratsnest line ends on a pad of `net`.
+bool netRouted(const Project& p, int net) {
+    const auto pads = p.pcb.pads(p.schematic);
+    for (const auto& l : p.pcb.ratsnest(p.schematic))
+        for (const auto& pd : pads)
+            if (pd.net == net && ((pd.position - l.first).length() < 1e-9 || (pd.position - l.second).length() < 1e-9))
+                return false;
+    return true;
+}
+
+double crossOf(Vec2 a, Vec2 b) { return a.x * b.y - a.y * b.x; }
+
+/// Three lanes (nets of resistor pairs) at 0.5 mm pitch along y = 22, 22.5 and 23, fanned out to pads at both
+/// ends, and a fourth net with pads below them.
+struct LaneBoard {
+    Project p;
+    int lane[3] = {-1, -1, -1};
+    int net = -1;
+    Vec2 from, to;
+};
+
+LaneBoard laneBoard() {
+    LaneBoard b;
+    auto& s = b.p.schematic;
+    b.p.pcb.settings.width = 70;
+    b.p.pcb.settings.height = 40;
+    int left[3], right[3];
+    for (int i = 0; i < 3; ++i) {
+        left[i] = placeR(b.p, {5, 6.0 + 3 * i});
+        right[i] = placeR(b.p, {65, 6.0 + 3 * i});
+        wire(s, left[i], "2", right[i], "1");
+    }
+    const int c1 = placeR(b.p, {14, 32}), c2 = placeR(b.p, {56, 32});
+    wire(s, c1, "2", c2, "1");
+    b.p.schematicChanged();
+    for (int i = 0; i < 3; ++i) {
+        b.lane[i] = s.netOf({left[i], 1});
+        const double y = 6.0 + 3 * i, Y = 22 + 0.5 * i, d = Y - y;
+        addPath(b.p.pcb, b.lane[i], 0, 0.25,
+                {padAt(b.p, left[i], 1), {8, y}, {8 + d, Y}, {62 - d, Y}, {62, y}, padAt(b.p, right[i], 0)});
+    }
+    b.net = s.netOf({c1, 1});
+    b.from = padAt(b.p, c1, 1);
+    b.to = padAt(b.p, c2, 0);
+    return b;
+}
+
+/// Routes the lane board's fourth net along the lanes, close enough to shove all three.
+RouteChanges routeAlongLanes(LaneBoard& b, std::string* previewDump = nullptr) {
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    CHECK(r.beginRoute(b.from, 0));
+    r.moveTo({20, 23.3});
+    CHECK(r.fixHead());
+    const RoutePreview& pv = r.moveTo({45, 23.3});
+    CHECK(!pv.blocked);
+    CHECK(!pv.shovedTracks.empty());
+    if (previewDump) *previewDump = routePreviewJson(pv).dump();
+    CHECK(r.fixHead());
+    const RoutePreview& end = r.moveTo(b.to);
+    CHECK(end.reachedTarget);
+    return r.commit();
+}
+}  // namespace
+
+TEST(router_shoves_a_chain_of_three_tracks) {
+    LaneBoard b = laneBoard();
+    CHECK(routingProblems(b.p) == 0);
+    const RouteChanges ch = routeAlongLanes(b);
+    CHECK(ch.ok);
+    CHECK(!ch.addedTracks.empty());
+    // Every lane was pushed (some of its tracks replaced), and stays connected pad to pad.
+    for (int lane : b.lane) {
+        int removed = 0;
+        for (const auto& t : ch.removedTracks) removed += t.net == lane ? 1 : 0;
+        CHECK(removed > 0);
+        CHECK(netRouted(b.p, lane));
+    }
+    CHECK(netRouted(b.p, b.net));
+    CHECK(routingProblems(b.p) == 0);
+    // Every pair of nets keeps the clearance.
+    for (const auto& t : b.p.pcb.tracks)
+        for (const auto& u : b.p.pcb.tracks)
+            if (t.net != u.net && t.layer == u.layer)
+                CHECK(segmentSegmentDistance(t.a, t.b, u.a, u.b) - (t.width + u.width) / 2 >= 0.2 - 1e-6);
+}
+
+TEST(router_is_deterministic) {
+    std::string d1, d2;
+    LaneBoard a = laneBoard(), b = laneBoard();
+    routeAlongLanes(a, &d1);
+    routeAlongLanes(b, &d2);
+    CHECK(!d1.empty() && d1 == d2);
+    bool same = a.p.pcb.tracks.size() == b.p.pcb.tracks.size();
+    for (size_t i = 0; same && i < a.p.pcb.tracks.size(); ++i)
+        same = a.p.pcb.tracks[i].a == b.p.pcb.tracks[i].a && a.p.pcb.tracks[i].b == b.p.pcb.tracks[i].b &&
+               a.p.pcb.tracks[i].net == b.p.pcb.tracks[i].net;
+    CHECK(same);
+}
+
+TEST(router_walkaround_finds_a_path) {
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {42, 20});
+    const int r3 = placeR(p, {25, 8}, 90), r4 = placeR(p, {25, 32}, 90);
+    wire(s, r1, "2", r2, "1");
+    wire(s, r3, "2", r4, "1");
+    p.schematicChanged();
+    const int netA = s.netOf({r1, 1}), netB = s.netOf({r3, 1});
+    addPath(p.pcb, netB, 0, 0.25, {padAt(p, r3, 1), padAt(p, r4, 0)});  // a wall across the direct path
+    const Track wall = p.pcb.tracks.front();
+    InteractiveRouter r(p.pcb, s);
+    RouterOptions o;
+    o.mode = RouterMode::Walkaround;
+    r.setOptions(o);
+    CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+    const RoutePreview& pv = r.moveTo(padAt(p, r2, 0));
+    CHECK(pv.reachedTarget);
+    CHECK(!pv.blocked);
+    CHECK(pv.shovedTracks.empty() && pv.hiddenTracks.empty());
+    CHECK(pv.length > (padAt(p, r2, 0) - padAt(p, r1, 1)).length() + 5);  // it went round the wall
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok && ch.removedTracks.empty());
+    CHECK(netRouted(p, netA));
+    CHECK(routingProblems(p) == 0);
+    bool wallKept = false;
+    for (const auto& t : p.pcb.tracks) wallKept = wallKept || (t.id == wall.id && t.a == wall.a && t.b == wall.b);
+    CHECK(wallKept);
+    // 45° posture: every segment is horizontal, vertical or diagonal.
+    for (const auto& t : p.pcb.tracks) {
+        const double dx = std::fabs(t.b.x - t.a.x), dy = std::fabs(t.b.y - t.a.y);
+        CHECK(dx < 1e-9 || dy < 1e-9 || std::fabs(dx - dy) < 1e-6);
+    }
+}
+
+TEST(router_refuses_to_shove_pads_and_locked_tracks) {
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20}), r2 = placeR(p, {30, 20}), r3 = placeR(p, {20, 20});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    // Pads are fixed: aiming into another net's pad stops the head short of it, clear of the pad.
+    {
+        InteractiveRouter r(p.pcb, s);
+        CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+        const RoutePreview& pv = r.moveTo(padAt(p, r3, 0));
+        CHECK(pv.blocked);
+        CHECK(!pv.head.empty());
+        CHECK(pv.status.find("pad") != std::string::npos);
+        CHECK(pv.end.x < padAt(p, r3, 0).x - 0.5 - 0.2 - 0.125 + 1e-3);
+        CHECK(r.commit().ok);
+        CHECK(routingProblems(p) == 0);
+    }
+    // A locked track is never shoved: the head walks around it. Unlocked, the same track is pushed aside.
+    for (bool locked : {true, false}) {
+        Project q;
+        auto& qs = q.schematic;
+        const int a = placeR(q, {10, 20}), b = placeR(q, {40, 30}), c = placeR(q, {40, 5}), d = placeR(q, {40, 36});
+        wire(qs, a, "2", b, "1");
+        wire(qs, c, "2", d, "1");
+        q.schematicChanged();
+        addPath(q.pcb, qs.netOf({c, 1}), 0, 0.25, {{20, 15}, {20, 25}}, locked);
+        InteractiveRouter r(q.pcb, qs);
+        CHECK(r.beginRoute(padAt(q, a, 1), 0));
+        const RoutePreview& pv = r.moveTo({25, 20});
+        CHECK(!pv.blocked);
+        CHECK(pv.hiddenTracks.empty() == locked);
+        CHECK(r.commit().ok);
+        CHECK(routingProblems(q) == 0);
+        bool kept = false;
+        for (const auto& t : q.pcb.tracks) kept = kept || (t.a == Vec2{20, 15} && t.b == Vec2{20, 25});
+        CHECK(kept == locked);
+    }
+}
+
+TEST(router_changes_layer_with_vias) {
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20}), r2 = placeR(p, {30, 20}), r3 = placeR(p, {45, 5}), r4 = placeR(p, {45, 35});
+    wire(s, r1, "2", r2, "1");
+    wire(s, r3, "2", r4, "1");
+    p.schematicChanged();
+    const int netA = s.netOf({r1, 1});
+    addPath(p.pcb, s.netOf({r3, 1}), 0, 0.25, {{20, 1}, {20, 39}}, true);  // a locked wall across the top layer
+    InteractiveRouter r(p.pcb, s);
+    CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+    r.moveTo({17, 20});
+    CHECK(r.addVia());
+    CHECK(r.preview().layer == 1 && r.preview().vias.size() == 1);
+    r.moveTo({23, 20});
+    CHECK(r.addVia(0));
+    CHECK(r.preview().layer == 0 && r.preview().vias.size() == 2);
+    const RoutePreview& pv = r.moveTo(padAt(p, r2, 0));
+    CHECK(pv.reachedTarget);
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok && ch.addedVias.size() == 2);
+    int vias = 0, bottom = 0;
+    for (const auto& v : p.pcb.vias) vias += v.net == netA ? 1 : 0;
+    for (const auto& t : p.pcb.tracks) bottom += t.net == netA && t.layer == 1 ? 1 : 0;
+    CHECK(vias == 2 && bottom >= 1);
+    CHECK(netRouted(p, netA));
+    CHECK(routingProblems(p) == 0);
+    // A single-sided board has no vias.
+    Project single;
+    const int a = placeR(single, {10, 20}), b = placeR(single, {30, 20});
+    wire(single.schematic, a, "2", b, "1");
+    single.pcb.settings.layerCount = 1;
+    single.schematicChanged();
+    InteractiveRouter rs(single.pcb, single.schematic);
+    CHECK(rs.beginRoute(padAt(single, a, 1), 0));
+    rs.moveTo({15, 20});
+    CHECK(!rs.addVia());
+    CHECK(!rs.error().empty());
+}
+
+TEST(router_routes_differential_pairs_at_the_pair_gap) {
+    Project p;
+    auto& s = p.schematic;
+    const int p1 = placeR(p, {10, 14}), p2 = placeR(p, {40, 14}), n1 = placeR(p, {10, 16}), n2 = placeR(p, {40, 16});
+    const int lp = s.addComponent(ComponentKind::NetLabel, "USB_P", {0, 0});
+    const int ln = s.addComponent(ComponentKind::NetLabel, "USB_N", {0, 50});
+    wire(s, p1, "2", p2, "1");
+    wire(s, n1, "2", n2, "1");
+    wire(s, lp, "N", p1, "2");
+    wire(s, ln, "N", n1, "2");
+    p.schematicChanged();
+    const int netP = s.netOf({p1, 1}), netN = s.netOf({n1, 1});
+    InteractiveRouter r(p.pcb, s);
+    RouterOptions o;
+    o.pairGap = 0.2;
+    r.setOptions(o);
+    CHECK(!r.beginPair({25, 25}, 0));  // not on a pad
+    CHECK(r.beginPair(padAt(p, p1, 1), 0));
+    CHECK(r.preview().kind == "pair" && r.preview().nets.size() == 2);
+    r.moveTo({25, 15});
+    CHECK(r.fixHead());
+    const RoutePreview& pv = r.moveTo(padAt(p, p2, 0));
+    CHECK(pv.reachedTarget);
+    CHECK_NEAR(pv.gap, 0.2, 1e-9);
+    CHECK(r.commit().ok);
+    CHECK(netRouted(p, netP) && netRouted(p, netN));
+    CHECK(routingProblems(p) == 0);
+    // The coupled run keeps exactly the pair gap; nowhere closer.
+    double minGap = 1e9, coupled = 0;
+    for (const auto& a : p.pcb.tracks)
+        for (const auto& b : p.pcb.tracks) {
+            if (a.net != netP || b.net != netN) continue;
+            const double g = segmentSegmentDistance(a.a, a.b, b.a, b.b) - (a.width + b.width) / 2;
+            minGap = std::min(minGap, g);
+            if (std::fabs(g - 0.2) < 1e-6 && std::fabs(crossOf(a.b - a.a, b.b - b.a)) < 1e-9)
+                coupled += std::min((a.b - a.a).length(), (b.b - b.a).length());
+        }
+    CHECK(minGap >= 0.2 - 1e-6);
+    CHECK(coupled > 20);
+    // Without an explicit gap the pair uses the stack-up's coupled gap, never below the clearance.
+    InteractiveRouter r2(p.pcb, s);
+    CHECK(r2.beginPair(padAt(p, n1, 1), 0));
+    CHECK(r2.preview().gap >= p.pcb.settings.clearance - 1e-9);
+    r2.cancel();
+    CHECK(!r2.active());
+    // V on a pair places two vias side by side, far enough apart for their clearance, and both change layer.
+    Project q;
+    auto& qs = q.schematic;
+    const int a1 = placeR(q, {10, 14}), a2 = placeR(q, {40, 14}), b1 = placeR(q, {10, 16}), b2 = placeR(q, {40, 16});
+    wire(qs, a1, "2", a2, "1");
+    wire(qs, b1, "2", b2, "1");
+    wire(qs, qs.addComponent(ComponentKind::NetLabel, "CLK+", {0, 0}), "N", a1, "2");
+    wire(qs, qs.addComponent(ComponentKind::NetLabel, "CLK-", {0, 50}), "N", b1, "2");
+    q.schematicChanged();
+    InteractiveRouter r3(q.pcb, qs);
+    r3.setOptions(o);
+    CHECK(r3.beginPair(padAt(q, a1, 1), 0));
+    r3.moveTo({20, 15});
+    CHECK(r3.addVia());
+    const RoutePreview& pv3 = r3.moveTo({30, 15});
+    CHECK(pv3.layer == 1 && pv3.vias.size() == 2);
+    if (pv3.vias.size() == 2) {
+        const double d = (pv3.vias[0].position - pv3.vias[1].position).length();
+        CHECK(d >= q.pcb.settings.viaDiameter + q.pcb.settings.clearance - 1e-6);
+    }
+    CHECK(!pv3.head.empty());
+    for (const auto& t : pv3.head) CHECK(t.layer == 1);
+    CHECK(r3.commit().ok);
+    CHECK(routingProblems(q) == 0);
+}
+
+TEST(router_drags_a_segment_and_shoves) {
+    LaneBoard b = laneBoard();
+    int id = -1;
+    for (const auto& t : b.p.pcb.tracks)
+        if (t.net == b.lane[2] && std::fabs(t.a.y - 23) < 1e-9 && std::fabs(t.b.y - 23) < 1e-9) id = t.id;
+    CHECK(id >= 0);
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    CHECK(r.beginDrag(id, {35, 23}));
+    CHECK(r.preview().active && r.preview().kind == "drag" && r.preview().hiddenTracks.size() >= 1);
+    const RoutePreview& pv = r.moveTo({35, 22.7});
+    CHECK(!pv.blocked);
+    CHECK(!pv.shovedTracks.empty());
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok);
+    for (int lane : b.lane) CHECK(netRouted(b.p, lane));
+    CHECK(routingProblems(b.p) == 0);
+    bool moved = false;
+    for (const auto& t : b.p.pcb.tracks)
+        moved = moved || (t.net == b.lane[2] && std::fabs(t.a.y - 22.7) < 1e-9 && std::fabs(t.b.y - 22.7) < 1e-9);
+    CHECK(moved);
+    // Cancel leaves the board untouched; a locked track cannot be dragged.
+    LaneBoard c = laneBoard();
+    const auto tracksBefore = c.p.pcb.tracks.size();
+    InteractiveRouter rc(c.p.pcb, c.p.schematic);
+    CHECK(rc.beginDrag(c.p.pcb.tracks[2].id, {30, 22}));
+    rc.moveTo({30, 25});
+    rc.cancel();
+    CHECK(c.p.pcb.tracks.size() == tracksBefore);
+    c.p.pcb.tracks[2].locked = true;
+    CHECK(!rc.beginDrag(c.p.pcb.tracks[2].id, {30, 22}));
+}
+
+TEST(router_commit_refuses_a_stale_board) {
+    LaneBoard b = laneBoard();
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    CHECK(r.beginRoute(b.from, 0));
+    r.moveTo({20, 26});
+    b.p.pcb.tracks.pop_back();  // the board changes behind the router's back
+    const auto n = b.p.pcb.tracks.size();
+    const RouteChanges ch = r.commit();
+    CHECK(!ch.ok && !ch.error.empty());
+    CHECK(b.p.pcb.tracks.size() == n);
+}
+
+TEST(router_tunes_length_with_meanders) {
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {42, 20});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 1});
+    InteractiveRouter r(p.pcb, s);
+    CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+    r.moveTo(padAt(p, r2, 0));
+    CHECK(r.commit().ok);
+    const double before = routedNetLength(p.pcb, net);
+    const LengthTuneResult t = tuneTrackLength(p.pcb, s, p.pcb.tracks.front().id, before + 3);
+    CHECK(t.ok);
+    CHECK_NEAR(t.after, before + 3, 0.05);
+    CHECK_NEAR(routedNetLength(p.pcb, net), before + 3, 0.05);
+    CHECK(netRouted(p, net));
+    CHECK(routingProblems(p) == 0);
+    // Without a target, a net outside any matched group has nothing to match.
+    CHECK(!tuneTrackLength(p.pcb, s, p.pcb.tracks.front().id, 0).ok);
+}
+
+TEST(c_api_router) {
+    const int rc = sieda_c_api_router_test();
+    if (rc != 0) std::printf("    c api router step %d failed\n", rc);
+    CHECK(rc == 0);
+}
+
+TEST(router_keeps_an_autorouted_board_drc_clean) {
+    // Routes and drags with shove at pseudo-random spots of an autorouted board; every commit must leave DRC as
+    // clean as it was (no new error, no clearance warning).
+    unsigned seed = 2024;
+    auto rnd = [&seed] {
+        seed = seed * 1103515245u + 12345u;
+        return ((seed >> 8) & 0xFFFFFF) / double(0xFFFFFF);
+    };
+    Project p;
+    auto& s = p.schematic;
+    std::vector<int> ids;
+    for (int i = 0; i < 24; ++i) ids.push_back(s.addComponent(ComponentKind::Resistor, "1k", {(i % 6) * 100.0, (i / 6) * 100.0}));
+    for (size_t k = 0; k < ids.size(); ++k) {
+        const size_t other = static_cast<size_t>(rnd() * ids.size()) % ids.size();
+        if (other != k) s.connect({ids[k], 1}, {ids[other], 0});
+    }
+    p.pcb.settings.width = 42;
+    p.pcb.settings.height = 30;
+    p.schematicChanged();
+    p.pcb.autoPlace(s, true);
+    p.pcb.autoRoute(s);
+    CHECK(routingProblems(p) == 0);
+    int commits = 0, shoved = 0;
+    for (int it = 0; it < 30; ++it) {
+        InteractiveRouter r(p.pcb, s);
+        const bool drag = rnd() < 0.35 && !p.pcb.tracks.empty();
+        bool ok;
+        if (drag) {
+            const Track& t = p.pcb.tracks[static_cast<size_t>(rnd() * p.pcb.tracks.size()) % p.pcb.tracks.size()];
+            ok = r.beginDrag(t.id, (t.a + t.b) * 0.5);
+        } else {
+            const auto pads = p.pcb.pads(s);
+            const Pad& pd = pads[static_cast<size_t>(rnd() * pads.size()) % pads.size()];
+            ok = r.beginRoute(pd.position, 0);
+        }
+        if (!ok) continue;
+        const Vec2 at = r.preview().end;
+        for (int m = 0; m < 3; ++m) {
+            const Vec2 c = drag ? at + Vec2{(rnd() - 0.5) * 2, (rnd() - 0.5) * 2}
+                                : Vec2{rnd() * p.pcb.settings.width, rnd() * p.pcb.settings.height};
+            shoved += r.moveTo(c).shovedTracks.empty() ? 0 : 1;
+            if (!drag && rnd() < 0.5) r.fixHead();
+        }
+        if (!r.commit().ok) continue;
+        ++commits;
+        const int problems = routingProblems(p);
+        CHECK(problems == 0);
+        if (problems) break;
+    }
+    CHECK(commits >= 20);
+    CHECK(shoved > 0);
 }

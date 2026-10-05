@@ -25,6 +25,7 @@
 "Add Pattern" = "পেটাৰ্ণ যোগ কৰক";
 "Add Pin" = "পিন যোগ কৰক";
 "Add Pour" = "প'ৰ যোগ কৰক";
+"Add Selected Parts" = "বাছনি কৰা পাৰ্টসমূহ যোগ কৰক";
 "Add Thermal Vias" = "থাৰ্মেল ভায়া যোগ কৰক";
 "Add a pad like the last one (numbered next)" = "শেষটোৰ দৰে এটা পেড যোগ কৰক (পৰৱৰ্তী নম্বৰৰ সৈতে)";
 "Add a sheet (right-click a tab for more)" = "শ্বীট যোগ কৰক (অধিকৰ বাবে টেবত ৰাইট-ক্লিক কৰক)";
@@ -104,6 +105,7 @@
 "Construction" = "নিৰ্মাণ";
 "Copper colours" = "কপাৰৰ ৰং";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "কপাৰ লেয়াৰ: 1 = ছিংগল-চাইডেড (ভায়া নাই), বেছিভাগ সামগ্ৰীৰ বাবে 2–6, মাদাৰবোৰ্ড, চাৰ্ভাৰ, মেইনফ্ৰেম আৰু GPU বেছবোৰ্ডৰ বাবে 8–24";
+"Corners" = "চুক";
 "Currents" = "কাৰেণ্ট";
 "DC" = "DC";
 "DC Operating Point" = "DC অপাৰেটিং পইণ্ট";
@@ -130,6 +132,7 @@
 "Design guidance" = "ডিজাইন নিৰ্দেশনা";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "ডিজাইন-নিয়ম প্ৰিছেট: ট্ৰেক, ক্লিয়াৰেন্স আৰু ভায়াৰ আকাৰৰ লগতে DRC য়ে বলবৎ কৰা ফেব্ৰিকেশ্বনৰ ন্যূনতম মান";
 "Designator" = "ডেজিগনেটৰ";
+"Differential pair" = "ডিফাৰেন্সিয়েল যোৰ";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "পপুলেট নকৰিব: বোৰ্ডত আছে কিন্তু লগোৱা নহয়; এছেম্বলী BOM আৰু CPL ৰ পৰা বাদ";
 "Down ↓" = "তললৈ ↓";
 "Drag to orbit" = "অৰবিট কৰিবলৈ ড্ৰেগ কৰক";
@@ -182,6 +185,9 @@
 "Hold" = "হ'ল্ড";
 "Holographic data panels around the stack: copper per layer, net fan-out, parts, routing and a board map" = "ষ্টেকৰ চাৰিওফালে হলোগ্ৰাফিক ডাটা পেনেল: প্ৰতি লেয়াৰৰ কপাৰ, নেট ফেন-আউট, পাৰ্ট, ৰাউটিং আৰু এখন বোৰ্ড মেপ";
 "Import Datasheet…" = "ডাটাশ্বীট ইম্পৰ্ট কৰক…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad (.kicad_mod, .kicad_sym) বা Eagle (.lbr) লাইব্ৰেৰী ইম্পৰ্ট কৰক";
+"Import Library" = "লাইব্ৰেৰী ইম্পৰ্ট";
+"Import Library…" = "লাইব্ৰেৰী ইম্পৰ্ট কৰক…";
 "Import PRD…" = "PRD ইম্পৰ্ট কৰক…";
 "Indian semiconductor states" = "ভাৰতৰ ছেমিকণ্ডাক্টৰ ৰাজ্যসমূহ";
 "Industry" = "উদ্যোগ";
@@ -319,6 +325,8 @@
 "Right →" = "সোঁফালে →";
 "Robot Platform" = "ৰ'বট প্লেটফৰ্ম";
 "Rotate" = "ঘূৰাওক";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "ডিফাৰেন্সিয়েল যোৰৰ দুয়োটা নেট (X_P / X_N) যোৰৰ ব্যৱধানত একেলগে ৰুট কৰক";
+"Router mode" = "ৰাউটাৰ মোড";
 "Run" = "চলাওক";
 "Run AC Sweep" = "AC ছুইপ চলাওক";
 "Run DC Sweep" = "DC ছুইপ চলাওক";
@@ -360,6 +368,8 @@
 "Shape" = "আকৃতি";
 "Sheet" = "শ্বীট";
 "Sheet name" = "শ্বীটৰ নাম";
+"Shove" = "ঠেলা";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "ঠেলাই অন্য নেটৰ ট্ৰেক আৰু ভায়া কাষলৈ ঠেলি দিয়ে; ঘূৰি যোৱাই সেইবোৰৰ চাৰিওফালে ৰুট কৰে";
 "Show" = "দেখুৱাওক";
 "Show Crash Reports" = "ক্ৰেশ্ব ৰিপৰ্ট দেখুৱাওক";
 "Show Navigator" = "নেভিগেটৰ দেখুৱাওক";
@@ -429,10 +439,12 @@
 "Vias" = "ভায়া";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD পেডত থকা ভায়া ফেবে পূৰ কৰি কেপ কৰে, সেয়ে ফাইন-পিচ BGA / QFN ফেন-আউটে সেইবোৰ ব্যৱহাৰ কৰিব পাৰে";
 "Voltages" = "ভ'ল্টেজ";
+"Walk around" = "ঘূৰি যোৱা";
 "Warnings" = "সতৰ্কবাণী";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "নেটবোৰক সিহঁতৰ DC কাৰেণ্টৰ বাবে IPC-2221 প্ৰস্থলৈ বহল কৰক (+25 %)";
 "Width" = "প্ৰস্থ";
 "Window" = "ৱিণ্ড'";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "শব্দ, বা ফিল্টাৰ: cat:sensors pkg:soic pins:8 mfr:ti";
 "Workspace" = "ৱৰ্কস্পেচ";
 "Workspaces" = "ৱৰ্কস্পেচ";
 "Worst case" = "আটাইতকৈ বেয়া অৱস্থা";
@@ -465,10 +477,3 @@
 "us-central1" = "us-central1";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "পেন কৰিবলৈ ⌥-ড্ৰেগ বা দুই আঙুলিৰে ড্ৰেগ কৰক";
-
-/* Library import */
-"Import Library…" = "লাইব্ৰেৰী ইম্পৰ্ট কৰক…";
-"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad (.kicad_mod, .kicad_sym) বা Eagle (.lbr) লাইব্ৰেৰী ইম্পৰ্ট কৰক";
-"Import Library" = "লাইব্ৰেৰী ইম্পৰ্ট";
-"Add Selected Parts" = "বাছনি কৰা পাৰ্টসমূহ যোগ কৰক";
-"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "শব্দ, বা ফিল্টাৰ: cat:sensors pkg:soic pins:8 mfr:ti";

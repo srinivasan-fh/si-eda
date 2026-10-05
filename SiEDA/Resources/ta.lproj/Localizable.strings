@@ -25,6 +25,7 @@
 "Add Pattern" = "பேட்டர்ன் சேர்";
 "Add Pin" = "பின் சேர்";
 "Add Pour" = "போர் சேர்";
+"Add Selected Parts" = "தேர்ந்தெடுத்த பாகங்களைச் சேர்";
 "Add Thermal Vias" = "தெர்மல் வயாக்களைச் சேர்";
 "Add a pad like the last one (numbered next)" = "கடைசியைப் போன்ற பேடைச் சேர் (அடுத்த எண்ணுடன்)";
 "Add a sheet (right-click a tab for more)" = "ஷீட்டைச் சேர் (மேலும் விருப்பங்களுக்கு டேபில் ரைட்-கிளிக் செய்யவும்)";
@@ -104,6 +105,7 @@
 "Construction" = "கட்டமைப்பு";
 "Copper colours" = "காப்பர் நிறங்கள்";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "காப்பர் லேயர்கள்: 1 = ஒற்றைப் பக்கம் (வயாக்கள் இல்லை), பெரும்பாலான தயாரிப்புகளுக்கு 2–6, மதர்போர்டுகள், சர்வர்கள், மெயின்ஃப்ரேம்கள் மற்றும் GPU பேஸ்போர்டுகளுக்கு 8–24";
+"Corners" = "மூலைகள்";
 "Currents" = "கரண்ட்கள்";
 "DC" = "DC";
 "DC Operating Point" = "DC ஆப்பரேட்டிங் பாயின்ட்";
@@ -130,6 +132,7 @@
 "Design guidance" = "டிசைன் வழிகாட்டல்";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "டிசைன்-ரூல் முன்னமைவு: டிராக், கிளியரன்ஸ் மற்றும் வயா அளவுகள், DRC செயல்படுத்தும் ஃபேப்ரிகேஷன் குறைந்தபட்சங்கள்";
 "Designator" = "டெசிக்னேட்டர்";
+"Differential pair" = "டிஃபரன்ஷியல் ஜோடி";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "பொருத்த வேண்டாம்: போர்டில் உள்ளது ஆனால் பொருத்தப்படாது; அசெம்பிளி BOM மற்றும் CPL இலிருந்து விலக்கப்படும்";
 "Down ↓" = "கீழே ↓";
 "Drag to orbit" = "சுற்ற இழுக்கவும்";
@@ -182,6 +185,9 @@
 "Hold" = "ஹோல்ட்";
 "Holographic data panels around the stack: copper per layer, net fan-out, parts, routing and a board map" = "ஸ்டாக்கைச் சுற்றி ஹோலோகிராஃபிக் டேட்டா பேனல்கள்: ஒவ்வொரு லேயரின் காப்பர், நெட் ஃபேன்-அவுட், பார்ட்கள், ரூட்டிங் மற்றும் போர்டு வரைபடம்";
 "Import Datasheet…" = "டேட்டாஷீட்டை இறக்குமதி செய்…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad (.kicad_mod, .kicad_sym) அல்லது Eagle (.lbr) லைப்ரரிகளை இறக்குமதி செய்";
+"Import Library" = "லைப்ரரி இறக்குமதி";
+"Import Library…" = "லைப்ரரியை இறக்குமதி செய்…";
 "Import PRD…" = "PRD ஐ இறக்குமதி செய்…";
 "Indian semiconductor states" = "இந்திய செமிகண்டக்டர் மாநிலங்கள்";
 "Industry" = "தொழில்துறை";
@@ -319,6 +325,8 @@
 "Right →" = "வலது →";
 "Robot Platform" = "ரோபோ தளம்";
 "Rotate" = "சுழற்று";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "டிஃபரன்ஷியல் ஜோடியின் இரு நெட்களையும் (X_P / X_N) ஜோடி இடைவெளியில் சேர்த்து ரூட் செய்க";
+"Router mode" = "ரூட்டர் பயன்முறை";
 "Run" = "இயக்கு";
 "Run AC Sweep" = "AC ஸ்வீப் இயக்கு";
 "Run DC Sweep" = "DC ஸ்வீப் இயக்கு";
@@ -360,6 +368,8 @@
 "Shape" = "வடிவம்";
 "Sheet" = "ஷீட்";
 "Sheet name" = "ஷீட் பெயர்";
+"Shove" = "தள்ளு";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "தள்ளு மற்ற நெட்களின் டிராக்குகளையும் வயாக்களையும் ஓரமாகத் தள்ளும்; சுற்றிச் செல் அவற்றைச் சுற்றி ரூட் செய்யும்";
 "Show" = "காட்டு";
 "Show Crash Reports" = "கிராஷ் அறிக்கைகளைக் காட்டு";
 "Show Navigator" = "நேவிகேட்டரைக் காட்டு";
@@ -429,10 +439,12 @@
 "Vias" = "வயாக்கள்";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD பேட்களில் உள்ள வயாக்கள் ஃபேபால் நிரப்பப்பட்டு மூடப்படும், எனவே ஃபைன்-பிட்ச் BGA / QFN ஃபேன்-அவுட் அவற்றைப் பயன்படுத்தலாம்";
 "Voltages" = "வோல்டேஜ்கள்";
+"Walk around" = "சுற்றிச் செல்";
 "Warnings" = "எச்சரிக்கைகள்";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "நெட்களை அவற்றின் DC கரண்ட்டுக்கான IPC-2221 அகலத்துக்கு விரிவாக்கு (+25 %)";
 "Width" = "அகலம்";
 "Window" = "சாளரம்";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "சொற்கள், அல்லது வடிகட்டிகள்: cat:sensors pkg:soic pins:8 mfr:ti";
 "Workspace" = "வொர்க்ஸ்பேஸ்";
 "Workspaces" = "வொர்க்ஸ்பேஸ்கள்";
 "Worst case" = "மிக மோசமான நிலை";
@@ -465,10 +477,3 @@
 "us-central1" = "us-central1";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "நகர்த்த ⌥-இழுக்கவும் அல்லது இரு விரல்களால் இழுக்கவும்";
-
-/* Library import */
-"Import Library…" = "லைப்ரரியை இறக்குமதி செய்…";
-"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad (.kicad_mod, .kicad_sym) அல்லது Eagle (.lbr) லைப்ரரிகளை இறக்குமதி செய்";
-"Import Library" = "லைப்ரரி இறக்குமதி";
-"Add Selected Parts" = "தேர்ந்தெடுத்த பாகங்களைச் சேர்";
-"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "சொற்கள், அல்லது வடிகட்டிகள்: cat:sensors pkg:soic pins:8 mfr:ti";

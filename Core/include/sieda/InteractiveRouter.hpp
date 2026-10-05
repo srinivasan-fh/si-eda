@@ -1,0 +1,146 @@
+// SiEDA Core — interactive routing: a track (or a differential pair) follows the cursor from a pad, via or track, in
+// walkaround mode (the head finds a way around obstacles) or push-and-shove mode (other nets' tracks and vias are
+// shoved aside, recursively, keeping their clearance, net-class widths and the board edge; pads, locked tracks and
+// tamper meshes stay fixed). 45° / 90° / free-angle postures, layer change with a via, snap to pads, corner placing,
+// commit / cancel, segment drag with shove and length tuning (accordion meanders) on a selected track.
+//
+// The router never edits the layout until commit(): every step is computed on an overlay of the board taken when
+// the route began, so a preview can be thrown away (cancel) and every result is deterministic for the same inputs.
+#pragma once
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "sieda/Json.hpp"
+#include "sieda/Pcb.hpp"
+#include "sieda/Schematic.hpp"
+
+namespace sieda {
+
+enum class RouterMode {
+    Walkaround,  // the head goes around everything that is in its way
+    Shove,       // the head pushes other nets' tracks and vias aside; falls back to walkaround when that fails
+};
+
+enum class RoutePosture {
+    Diagonal45,    // straight and 45° segments (two-segment head)
+    Orthogonal90,  // horizontal / vertical only
+    Free,          // one straight segment at any angle
+};
+
+struct RouterOptions {
+    RouterMode mode = RouterMode::Shove;
+    RoutePosture posture = RoutePosture::Diagonal45;
+    /// Which bend comes first in the two-segment head (the "/" key in other tools flips it).
+    bool swapPosture = false;
+    /// Track width (mm); 0 = the net's class width (BoardSettings::widthFor).
+    double width = 0;
+    /// Differential pair edge-to-edge gap (mm); 0 = the stack-up's coupled gap for the differential impedance target
+    /// (never below the board clearance).
+    double pairGap = 0;
+    /// The head snaps to pads, vias and tracks of its own net under the cursor and reports reaching them.
+    bool snapToPads = true;
+    /// Most line / via shoves one step may make before it gives up (keeps a step fast on dense boards).
+    int shoveLimit = 120;
+};
+
+/// What commit() changed, so a caller can undo it exactly: removed items (with their old geometry and ids) and the
+/// ids of the items that were added.
+struct RouteChanges {
+    bool ok = false;
+    std::string error;
+    std::vector<Track> removedTracks;
+    std::vector<Via> removedVias;
+    std::vector<int> addedTracks;
+    std::vector<int> addedVias;
+    bool empty() const { return removedTracks.empty() && removedVias.empty() && addedTracks.empty() && addedVias.empty(); }
+};
+
+/// The state shown while routing: the route's copper (placed corners and the head that follows the cursor), and the
+/// other nets' items at their shoved positions (`hiddenTracks` / `hiddenVias` are the layout items they replace).
+struct RoutePreview {
+    bool active = false;
+    std::string kind;          // "route", "pair" or "drag"
+    std::string status;        // what the router is doing / why the head stopped
+    bool blocked = false;      // the head stops short of the cursor
+    bool reachedTarget = false;  // the head ends on a pad / via / track of its own net (the route can finish)
+    std::vector<int> nets;     // routed net(s): one, or the positive and negative member of a pair
+    int layer = 0;
+    double width = 0;
+    double gap = 0;            // differential pairs: edge-to-edge gap
+    Vec2 end;                  // where the head ends (the pair's centre line for a pair)
+    std::vector<Track> placed;  // fixed part of the route (corners already placed)
+    std::vector<Track> head;    // the segments following the cursor
+    std::vector<Via> vias;      // vias placed by this route
+    std::vector<Track> shovedTracks;
+    std::vector<Via> shovedVias;
+    std::vector<int> hiddenTracks;
+    std::vector<int> hiddenVias;
+    double length = 0;          // route length so far (placed + head, first member of a pair)
+};
+
+class InteractiveRouter {
+public:
+    /// The router reads `sch` and edits `pcb` only on commit(). Both must outlive it.
+    InteractiveRouter(PcbLayout& pcb, const Schematic& sch);
+    ~InteractiveRouter();
+    InteractiveRouter(const InteractiveRouter&) = delete;
+    InteractiveRouter& operator=(const InteractiveRouter&) = delete;
+
+    void setOptions(const RouterOptions& options);  // applies from the next moveTo()
+    const RouterOptions& options() const;
+
+    /// Starts a route on the pad, via or track under `at` (the net comes from it). An SMD pad on another copper
+    /// layer switches to that layer. False (see error()) when there is nothing with a net under the point, the layer
+    /// does not exist or is another net's plane.
+    bool beginRoute(Vec2 at, int layer);
+    /// Starts a differential pair on a pad of either member (nets named X_P / X_N, X+ / X-, …): both members are
+    /// routed together at the pair gap from the nearest pads of the two nets.
+    bool beginPair(Vec2 at, int layer);
+    /// Drags a track segment: it moves parallel to itself with the cursor, its neighbours follow with 45° joints,
+    /// and (shove mode) other nets' copper is pushed aside.
+    bool beginDrag(int trackId, Vec2 grab);
+
+    /// Moves the head to the cursor and returns the preview.
+    const RoutePreview& moveTo(Vec2 cursor);
+    /// Places the head as it is (a click): the next head starts from its end. False when the head is empty.
+    bool fixHead();
+    /// Places the head, then a through via at its end and continues on `toLayer` (-1 = the other outer layer).
+    bool addVia(int toLayer = -1);
+    /// Places the head and writes the route (and every shoved item) into the layout. The router is idle afterwards.
+    RouteChanges commit();
+    void cancel();
+
+    bool active() const;
+    const RoutePreview& preview() const;
+    /// Why the last call failed.
+    const std::string& error() const;
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
+};
+
+struct LengthTuneResult {
+    bool ok = false;
+    std::string message;
+    int net = -1;
+    double before = 0, after = 0, target = 0;
+    RouteChanges changes;
+};
+
+/// Interactive length tuning: lengthens the net of track `trackId` to `target` mm with accordion meanders, on that
+/// track first and then on the net's other straight tracks, keeping clearance to everything. `target` <= 0 tunes to
+/// the longest member of the net's matched-length group (differential pair or bus, see lengthGroups()).
+/// `maxAmplitude` limits the meander height (mm, 0 = 2 mm).
+LengthTuneResult tuneTrackLength(PcbLayout& pcb, const Schematic& sch, int trackId, double target,
+                                 double maxAmplitude = 0);
+
+/// Options from {"mode":"shove|walkaround","posture":"45|90|free","swapPosture","width","pairGap","snap"} — missing
+/// fields keep their value in `base`.
+RouterOptions routerOptionsFromJson(const Json& j, RouterOptions base = {});
+Json routePreviewJson(const RoutePreview& p);
+Json routeChangesJson(const RouteChanges& c);
+
+}  // namespace sieda

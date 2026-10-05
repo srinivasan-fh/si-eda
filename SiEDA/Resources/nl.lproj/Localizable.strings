@@ -25,6 +25,7 @@
 "Add Pattern" = "Patroon toevoegen";
 "Add Pin" = "Pin toevoegen";
 "Add Pour" = "Vulvlak toevoegen";
+"Add Selected Parts" = "Geselecteerde onderdelen toevoegen";
 "Add Thermal Vias" = "Thermische vias toevoegen";
 "Add a pad like the last one (numbered next)" = "Voeg een pad toe zoals de vorige (volgend nummer)";
 "Add a sheet (right-click a tab for more)" = "Blad toevoegen (rechtsklik op een tabblad voor meer)";
@@ -104,6 +105,7 @@
 "Construction" = "Constructie";
 "Copper colours" = "Koperkleuren";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Koperlagen: 1 = enkelzijdig (geen vias), 2–6 voor de meeste producten, 8–24 voor moederborden, servers, mainframes en GPU-baseboards";
+"Corners" = "Hoeken";
 "Currents" = "Stromen";
 "DC" = "DC";
 "DC Operating Point" = "DC-werkpunt";
@@ -130,6 +132,7 @@
 "Design guidance" = "Ontwerprichtlijnen";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "Ontwerpregelpreset: spoor-, isolatie- en viamaten plus de productieminima die DRC afdwingt";
 "Designator" = "Referentieaanduiding";
+"Differential pair" = "Differentieel paar";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "Niet plaatsen: op het board maar niet gemonteerd; weggelaten uit de assemblage-BOM en CPL";
 "Down ↓" = "Omlaag ↓";
 "Drag to orbit" = "Sleep om te draaien";
@@ -182,6 +185,9 @@
 "Hold" = "Vasthouden";
 "Holographic data panels around the stack: copper per layer, net fan-out, parts, routing and a board map" = "Holografische datapanelen rond de opbouw: koper per laag, net-fan-out, onderdelen, routering en een boardkaart";
 "Import Datasheet…" = "Datasheet importeren…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad- (.kicad_mod, .kicad_sym) of Eagle-bibliotheken (.lbr) importeren";
+"Import Library" = "Bibliotheek importeren";
+"Import Library…" = "Bibliotheek importeren…";
 "Import PRD…" = "PRD importeren…";
 "Indian semiconductor states" = "Indiase halfgeleiderstaten";
 "Industry" = "Branche";
@@ -319,6 +325,8 @@
 "Right →" = "Rechts →";
 "Robot Platform" = "Robotplatform";
 "Rotate" = "Roteer";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "Route beide netten van een differentieel paar (X_P / X_N) samen op de paarafstand";
+"Router mode" = "Routermodus";
 "Run" = "Voer uit";
 "Run AC Sweep" = "AC-sweep uitvoeren";
 "Run DC Sweep" = "DC-sweep uitvoeren";
@@ -360,6 +368,8 @@
 "Shape" = "Vorm";
 "Sheet" = "Blad";
 "Sheet name" = "Bladnaam";
+"Shove" = "Duwen";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "Duwen schuift sporen en via's van andere netten opzij; Omheen leidt eromheen";
 "Show" = "Toon";
 "Show Crash Reports" = "Crashrapporten tonen";
 "Show Navigator" = "Navigator tonen";
@@ -429,10 +439,12 @@
 "Vias" = "Vias";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "Vias in SMD-pads worden door de fabrikant gevuld en afgedekt, zodat fine-pitch BGA- / QFN-fan-out ze kan gebruiken";
 "Voltages" = "Spanningen";
+"Walk around" = "Omheen";
 "Warnings" = "Waarschuwingen";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "Verbreed netten naar de IPC-2221-breedte voor hun DC-stroom (+25 %)";
 "Width" = "Breedte";
 "Window" = "Venster";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "Woorden, of filters: cat:sensors pkg:soic pins:8 mfr:ti";
 "Workspace" = "Werkruimte";
 "Workspaces" = "Werkruimten";
 "Worst case" = "Slechtste geval";
@@ -465,10 +477,3 @@
 "us-central1" = "us-central1";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-slepen of met twee vingers slepen om te pannen";
-
-/* Library import */
-"Import Library…" = "Bibliotheek importeren…";
-"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad- (.kicad_mod, .kicad_sym) of Eagle-bibliotheken (.lbr) importeren";
-"Import Library" = "Bibliotheek importeren";
-"Add Selected Parts" = "Geselecteerde onderdelen toevoegen";
-"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "Woorden, of filters: cat:sensors pkg:soic pins:8 mfr:ti";

@@ -25,6 +25,7 @@
 "Add Pattern" = "ప్యాటర్న్ జోడించు";
 "Add Pin" = "పిన్ జోడించు";
 "Add Pour" = "పోర్ జోడించు";
+"Add Selected Parts" = "ఎంచుకున్న భాగాలను జోడించు";
 "Add Thermal Vias" = "థర్మల్ వయాలు జోడించు";
 "Add a pad like the last one (numbered next)" = "చివరి దానిలాంటి ప్యాడ్‌ను జోడించు (తదుపరి సంఖ్యతో)";
 "Add a sheet (right-click a tab for more)" = "షీట్ జోడించండి (మరిన్నింటికి ట్యాబ్‌పై రైట్-క్లిక్ చేయండి)";
@@ -104,6 +105,7 @@
 "Construction" = "నిర్మాణం";
 "Copper colours" = "కాపర్ రంగులు";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "కాపర్ లేయర్లు: 1 = సింగిల్-సైడెడ్ (వయాలు లేవు), చాలా ఉత్పత్తులకు 2–6, మదర్‌బోర్డులు, సర్వర్లు, మెయిన్‌ఫ్రేమ్‌లు మరియు GPU బేస్‌బోర్డులకు 8–24";
+"Corners" = "మూలలు";
 "Currents" = "కరెంట్లు";
 "DC" = "DC";
 "DC Operating Point" = "DC ఆపరేటింగ్ పాయింట్";
@@ -130,6 +132,7 @@
 "Design guidance" = "డిజైన్ మార్గదర్శకం";
 "Design-rule preset: track, clearance and via sizes plus the fabrication minimums DRC enforces" = "డిజైన్-రూల్ ప్రీసెట్: ట్రాక్, క్లియరెన్స్ మరియు వయా పరిమాణాలు, DRC అమలు చేసే ఫ్యాబ్రికేషన్ కనిష్ఠాలు";
 "Designator" = "డిజిగ్నేటర్";
+"Differential pair" = "డిఫరెన్షియల్ జత";
 "Do not populate: on the board but not fitted; left out of the assembly BOM and CPL" = "పాపులేట్ చేయవద్దు: బోర్డుపై ఉంటుంది కానీ అమర్చబడదు; అసెంబ్లీ BOM మరియు CPL నుండి మినహాయించబడుతుంది";
 "Down ↓" = "కిందకు ↓";
 "Drag to orbit" = "ఆర్బిట్ చేయడానికి డ్రాగ్ చేయండి";
@@ -182,6 +185,9 @@
 "Hold" = "హోల్డ్";
 "Holographic data panels around the stack: copper per layer, net fan-out, parts, routing and a board map" = "స్టాక్ చుట్టూ హోలోగ్రాఫిక్ డేటా ప్యానెల్‌లు: ఒక్కో లేయర్ కాపర్, నెట్ ఫ్యాన్-అవుట్, పార్ట్‌లు, రూటింగ్ మరియు బోర్డు మ్యాప్";
 "Import Datasheet…" = "డేటాషీట్ దిగుమతి చేయి…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad (.kicad_mod, .kicad_sym) లేదా Eagle (.lbr) లైబ్రరీలను దిగుమతి చేయి";
+"Import Library" = "లైబ్రరీ దిగుమతి";
+"Import Library…" = "లైబ్రరీ దిగుమతి చేయి…";
 "Import PRD…" = "PRD దిగుమతి చేయి…";
 "Indian semiconductor states" = "భారతీయ సెమీకండక్టర్ రాష్ట్రాలు";
 "Industry" = "పరిశ్రమ";
@@ -319,6 +325,8 @@
 "Right →" = "కుడి →";
 "Robot Platform" = "రోబోట్ ప్లాట్‌ఫారమ్";
 "Rotate" = "తిప్పు";
+"Route both nets of a differential pair (X_P / X_N) together at the pair gap" = "డిఫరెన్షియల్ జతలోని రెండు నెట్‌లను (X_P / X_N) జత గ్యాప్‌తో కలిసి రూట్ చేయండి";
+"Router mode" = "రౌటర్ మోడ్";
 "Run" = "రన్ చేయి";
 "Run AC Sweep" = "AC స్వీప్ రన్ చేయి";
 "Run DC Sweep" = "DC స్వీప్ రన్ చేయి";
@@ -360,6 +368,8 @@
 "Shape" = "ఆకారం";
 "Sheet" = "షీట్";
 "Sheet name" = "షీట్ పేరు";
+"Shove" = "నెట్టు";
+"Shove pushes other nets' tracks and vias aside; Walk around routes around them" = "నెట్టు ఇతర నెట్‌ల ట్రాక్‌లు, వయాలను పక్కకు నెడుతుంది; చుట్టూ వెళ్ళు వాటి చుట్టూ రూట్ చేస్తుంది";
 "Show" = "చూపు";
 "Show Crash Reports" = "క్రాష్ నివేదికలను చూపు";
 "Show Navigator" = "నావిగేటర్ చూపు";
@@ -429,10 +439,12 @@
 "Vias" = "వయాలు";
 "Vias in SMD pads are filled and capped by the fab, so fine-pitch BGA / QFN fan-out may use them" = "SMD ప్యాడ్‌లలోని వయాలు ఫ్యాబ్ ద్వారా నింపబడి క్యాప్ చేయబడతాయి, కాబట్టి ఫైన్-పిచ్ BGA / QFN ఫ్యాన్-అవుట్ వాటిని ఉపయోగించవచ్చు";
 "Voltages" = "వోల్టేజ్‌లు";
+"Walk around" = "చుట్టూ వెళ్ళు";
 "Warnings" = "హెచ్చరికలు";
 "Widen nets to the IPC-2221 width for their DC current (+25 %)" = "నెట్‌లను వాటి DC కరెంట్‌కు తగిన IPC-2221 వెడల్పుకు విస్తరించు (+25 %)";
 "Width" = "వెడల్పు";
 "Window" = "విండో";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "పదాలు, లేదా ఫిల్టర్లు: cat:sensors pkg:soic pins:8 mfr:ti";
 "Workspace" = "వర్క్‌స్పేస్";
 "Workspaces" = "వర్క్‌స్పేస్‌లు";
 "Worst case" = "అత్యంత ప్రతికూల స్థితి";
@@ -465,10 +477,3 @@
 "us-central1" = "us-central1";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "పాన్ చేయడానికి ⌥-డ్రాగ్ లేదా రెండు వేళ్లతో డ్రాగ్ చేయండి";
-
-/* Library import */
-"Import Library…" = "లైబ్రరీ దిగుమతి చేయి…";
-"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad (.kicad_mod, .kicad_sym) లేదా Eagle (.lbr) లైబ్రరీలను దిగుమతి చేయి";
-"Import Library" = "లైబ్రరీ దిగుమతి";
-"Add Selected Parts" = "ఎంచుకున్న భాగాలను జోడించు";
-"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "పదాలు, లేదా ఫిల్టర్లు: cat:sensors pkg:soic pins:8 mfr:ti";
