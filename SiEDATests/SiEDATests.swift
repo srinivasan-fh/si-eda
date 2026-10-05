@@ -5323,14 +5323,14 @@ final class TransientOptionsTests: XCTestCase {
         _ = engine.connect(PinAddress(component: c, pin: 1), PinAddress(component: g, pin: 0))
         _ = engine.connect(PinAddress(component: v, pin: 1), PinAddress(component: g, pin: 0))
 
-        let fixed = engine.simulateTransient(stop: 2e-3, step: 1e-6)
-        let same = engine.simulateTransient(stop: 2e-3, step: 1e-6, adaptive: false, trapezoidal: false)
+        let fixed = engine.simulateTransient(stop: 0.9e-3, step: 1e-6)
+        let same = engine.simulateTransient(stop: 0.9e-3, step: 1e-6, adaptive: false, trapezoidal: false)
         XCTAssertEqual(fixed, same)  // both off is the established analysis
-        let adaptive = engine.simulateTransient(stop: 2e-3, step: 10e-6, adaptive: true, trapezoidal: true)
+        let adaptive = engine.simulateTransient(stop: 0.9e-3, step: 10e-6, adaptive: true, trapezoidal: true)
         XCTAssertTrue(adaptive.ok, adaptive.error)
         XCTAssertGreaterThan(adaptive.time.count, 10)
-        XCTAssertEqual(try XCTUnwrap(adaptive.time.last), 2e-3, accuracy: 1e-12)
-        // τ = 100 µs: settled to 5 V well before the end.
+        XCTAssertEqual(try XCTUnwrap(adaptive.time.last), 0.9e-3, accuracy: 1e-12)
+        // PULSE(0 5 2m) is high for the first half period; stop before the 1 ms edge. τ = 100 µs: settled to 5 V.
         let out = try XCTUnwrap(adaptive.nets.first { ($0.values.last ?? 0) > 4.9 })
         XCTAssertEqual(try XCTUnwrap(out.values.last), 5, accuracy: 0.01)
     }
