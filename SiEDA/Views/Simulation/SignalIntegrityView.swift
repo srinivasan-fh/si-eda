@@ -38,7 +38,7 @@ struct SignalIntegrityView: View {
     @State private var stepText = ""
 
     enum Panel: String, CaseIterable, Identifiable {
-        case signals, crosstalk, power
+        case signals, crosstalk, power, channel
         var id: String { rawValue }
     }
 
@@ -53,10 +53,11 @@ struct SignalIntegrityView: View {
                     Text("Signals").tag(Panel.signals)
                     Text("Crosstalk").tag(Panel.crosstalk)
                     Text("Power").tag(Panel.power)
+                    Text("Channel").tag(Panel.channel)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 270)
+                .frame(width: 360)
                 Spacer()
                 Button {
                     store.importIBIS()
@@ -73,6 +74,7 @@ struct SignalIntegrityView: View {
             case .signals: signalsPanel
             case .crosstalk: crosstalkPanel
             case .power: powerPanel
+            case .channel: ChannelPanel(nets: nets, settings: settings)
             }
         }
         .background(Theme.navy)
@@ -309,6 +311,10 @@ struct SignalIntegrityView: View {
                             .foregroundStyle(p.ok ? Theme.textMuted : Theme.warning)
                         Text(verbatim: "\(p.aggressor) → \(p.victim)").font(.callout.monospaced())
                             .foregroundStyle(Theme.textPrimary)
+                        if p.broadside == true {
+                            Text("Broadside").font(.caption).foregroundStyle(Theme.warning)
+                                .help("The victim runs on the adjacent layer, over or under the aggressor")
+                        }
                         Spacer()
                         Text(verbatim: pairSummary(p))
                             .font(.caption.monospacedDigit())
@@ -430,6 +436,7 @@ struct SignalIntegrityView: View {
         if !rail.irDrop.note.isEmpty {
             Text(verbatim: rail.irDrop.note).font(.caption).foregroundStyle(Theme.textMuted)
         }
+        PowerPlanningSection(rail: rail)
     }
 
     /// "C1 100n C_0402 · ESR 30 mΩ · ESL 1 nH · SRF 16 MHz" (ESL includes the mounting inductance).

@@ -46,6 +46,7 @@ struct PdnDecap {
     double c = 0, esr = 0, esl = 0, mounting = 0;  // F, Ω, H, H
     double srf = 0;       // with mounting inductance (Hz)
     double distance = 0;  // to the nearest load pin (mm)
+    Vec2 position;        // rail pad (mm)
 };
 
 struct PdnLoad {
@@ -54,6 +55,23 @@ struct PdnLoad {
     double current = 0;  // A (DC)
     double drop = 0;     // V below the source pad
     bool connected = true;
+    Vec2 position;       // pad (mm)
+};
+
+/// One cell of the IR-drop map: a coarse cell of a rail pour, or a track section.
+struct PdnIrCell {
+    double x = 0, y = 0, size = 0;  // centre and edge (mm)
+    int layer = 0;
+    double drop = 0;     // V below the source
+    double density = 0;  // A/mm², |∇V| / ρ
+};
+struct PdnIrSegment {
+    Vec2 a, b;
+    int layer = 0;
+    double width = 0;
+    double current = 0;  // A
+    double density = 0;  // A/mm² over the track cross-section
+    double drop = 0;     // V, mean of the ends
 };
 
 struct PdnRailResult {
@@ -69,10 +87,15 @@ struct PdnRailResult {
     // Elements
     std::string vrmRef, vrmKind;  // "LDO", "switching regulator", "supply", "connector"
     double vrmR = 0, vrmL = 0;
+    double vrmBandwidth = 0;  // Hz: control-loop bandwidth, ωL = R there
+    Vec2 vrmPosition;
+    bool hasVrmPosition = false;
     std::vector<PdnDecap> decaps;
     double planeArea = 0, planeGap = 0, planeC = 0, planeL = 0;  // mm², mm, F, H
     std::string planeLayers;
     double cavityResonance = 0;  // first plane-cavity mode (Hz), 0 without a plane
+    int planeLayer = -1, groundLayer = -1;
+    double planeX0 = 0, planeY0 = 0, planeX1 = 0, planeY1 = 0;  // bounding box of the rail pour (mm)
     // Impedance profile
     std::vector<double> freq, z;  // Hz, |Z| Ω
     struct Peak {
@@ -89,6 +112,10 @@ struct PdnRailResult {
     double irLimitPercent = 2.5;
     std::vector<PdnLoad> loads;
     std::vector<std::string> recommendations;
+    // IR-drop map (filled when irAnalyzed): pour cells and track sections with their drop and current density.
+    std::vector<PdnIrCell> irCells;
+    std::vector<PdnIrSegment> irSegments;
+    double irMaxDensity = 0;  // A/mm²
 };
 
 /// Every supply rail with loads or decoupling (power and negative nets with two or more pads), using the project's

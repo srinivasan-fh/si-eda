@@ -24,6 +24,16 @@ struct PDNRailSetting: Decodable, Equatable {
     var ripplePercent: Double
     var transientCurrent: Double
     var dcCurrent: Double
+    var vrmR: Double?
+    var vrmBandwidth: Double?
+}
+
+/// A serial channel checked by sign-off (SI_EYE_MASK).
+struct SIChannelSpec: Decodable, Equatable {
+    var net: String
+    var bitRate: Double
+    var maskHeight: Double
+    var maskWidthUi: Double
 }
 
 /// SI / PI setup of the project (`sieda_si_settings_json`).
@@ -37,6 +47,9 @@ struct SISettings: Decodable, Equatable {
     var pinModels: [String: String] = [:]
     var netModels: [String: String] = [:]
     var rails: [PDNRailSetting] = []
+    /// Copper foil for loss ("" or nil = by laminate) and serial channels checked in sign-off.
+    var copperFoil: String?
+    var channels: [SIChannelSpec]?
 
     static let empty = SISettings()
 
@@ -170,6 +183,7 @@ struct SICrosstalkPair: Decodable, Equatable, Identifiable {
     var ok: Bool
     var x: Double
     var y: Double
+    var broadside: Bool?  // victim on the adjacent layer
 
     var id: String { "\(aggressor)>\(victim)" }
 }
@@ -264,6 +278,7 @@ struct PDNRail: Decodable, Equatable, Identifiable {
     var vrmKind: String
     var vrmR: Double
     var vrmL: Double
+    var vrmBandwidth: Double?
     var decaps: [PDNDecap]
     var plane: PDNPlane
     var curve: PDNCurve

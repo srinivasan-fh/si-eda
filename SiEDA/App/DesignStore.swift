@@ -1343,6 +1343,87 @@ final class DesignStore: ObservableObject {
         else { statusMessage = "Imported \(count) IBIS model(s) from \(url.lastPathComponent)" }
     }
 
+    // MARK: Channel analysis and PI planning
+
+    func siLineLoss(roughness: String) -> SILineLossReport { engine.siLineLoss(roughness: roughness) }
+
+    /// S-parameters, step response and eye of a net or differential pair, off the main thread.
+    func analyzeChannel(net: String, partner: String, settings: SIChannelSettings, touchstone: String?,
+                        touchstonePorts: Int) async -> Result<SIChannelReport, EDAEngineError> {
+        let engine = self.engine
+        return await runBusy("Analysing channel \(net)…") {
+            engine.siChannel(net: net, partner: partner, settings: settings, touchstone: touchstone, touchstonePorts: touchstonePorts)
+        }
+    }
+
+    /// Copper foil profile for loss ("" = by laminate). Undoable.
+    func setCopperFoil(_ foil: String) {
+        guard (engine.siSettings().copperFoil ?? "") != foil else { return }
+        performChecked(foil.isEmpty ? "Copper foil by laminate" : "Copper foil \(foil)", invalidatesAnalysis: false) {
+            $0.setCopperFoil(foil)
+        }
+    }
+
+    /// Checks the eye of `net` at `bitRate` in sign-off (0 removes the check). Undoable.
+    func setSIChannel(_ net: String, bitRate: Double, maskHeight: Double, maskWidthUi: Double) {
+        performChecked(bitRate > 0 ? "\(net): channel check" : "\(net): no channel check", invalidatesAnalysis: false) {
+            $0.setSIChannel(net, bitRate: bitRate, maskHeight: maskHeight, maskWidthUi: maskWidthUi)
+        }
+    }
+
+    /// Regulator output resistance (Ω) and loop bandwidth (Hz) of a rail; 0 derives them. Undoable.
+    func setPDNRegulator(_ net: String, outputOhms: Double, loopBandwidth: Double) {
+        performChecked("\(net): regulator model", invalidatesAnalysis: false) {
+            $0.setPDNRegulator(net, outputOhms: outputOhms, loopBandwidth: loopBandwidth)
+        }
+    }
+
+    func pdnCavity(_ net: String) -> PDNCavityReport? { engine.pdnCavity(net) }
+    func pdnDecapPlan(_ net: String) -> PDNDecapPlanReport? { engine.pdnDecapPlan(net) }
+    func pdnIRMap(_ net: String) -> PDNIRMapReport? { engine.pdnIRMap(net) }
+
+    /// Saves the channel's S-parameters as Touchstone (.s2p single-ended, .s4p differential).
+    func exportChannelTouchstone(net: String, partner: String, differential: Bool, settings: SIChannelSettings) {
+        let text: String
+        do {
+            text = try engine.siChannelTouchstone(net: net, partner: partner, settings: settings)
+        } catch {
+            present(error, title: "Touchstone export failed")
+            return
+        }
+        let ext = differential ? "s4p" : "s2p"
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: ext) ?? .plainText]
+        panel.nameFieldStringValue = "\(net.replacingOccurrences(of: "/", with: "-")).\(ext)"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try text.write(to: url, atomically: true, encoding: .utf8)
+            statusMessage = "Exported \(url.lastPathComponent)"
+        } catch {
+            present(error, title: "Touchstone export failed")
+        }
+    }
+
+    /// Asks for a Touchstone (.sNp) file: its name, text and the port count from the extension (0 if none).
+    func chooseTouchstoneFile() -> (name: String, text: String, ports: Int)? {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = ["s1p", "s2p", "s4p", "snp"].compactMap { UTType(filenameExtension: $0) } + [.plainText, .data]
+        panel.allowsMultipleSelection = false
+        panel.message = "Choose a Touchstone S-parameter file (.s2p single-ended or .s4p differential)."
+        panel.prompt = "Import"
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        guard let text = (try? String(contentsOf: url, encoding: .utf8)) ?? (try? String(contentsOf: url, encoding: .isoLatin1)) else {
+            present(EDAEngineError.operationFailed("The file could not be read."), title: "Could not import \(url.lastPathComponent)")
+            return nil
+        }
+        let ext = url.pathExtension.lowercased()
+        var ports = 0
+        if ext.count >= 3, ext.hasPrefix("s"), ext.hasSuffix("p"), let n = Int(ext.dropFirst().dropLast()) { ports = n }
+        return (url.lastPathComponent, text, ports)
+    }
+
     /// Length / phase matching on Auto Route and its tolerances (mm). Undoable.
     func setLengthMatching(enabled: Bool? = nil, pairSkew: Double? = nil, bus: Double? = nil) {
         let b = snapshot.board

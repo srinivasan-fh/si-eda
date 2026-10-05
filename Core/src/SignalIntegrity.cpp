@@ -12,7 +12,9 @@
 #include <set>
 #include <tuple>
 
+#include "sieda/Channel.hpp"
 #include "sieda/CustomParts.hpp"
+#include "sieda/Eye.hpp"
 #include "sieda/PowerIntegrity.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/LengthMatch.hpp"
@@ -124,6 +126,40 @@ CouplingEstimate crosstalkCoupling(const BoardSettings& s, int layer, double w1,
     }
     e.kb = (e.kl + e.kc) / 4;
     const double td = coupledMm * tpd, tr = std::max(1e-13, riseTime);
+    e.next = e.kb * std::min(1.0, 2 * td / tr);
+    e.fext = std::clamp(0.5 * (e.kc - e.kl) * td / tr, -0.5, 0.5);
+    return e;
+}
+
+CouplingEstimate broadsideCoupling(const BoardSettings& s, int layerA, int layerB, double w1, double w2, double offset,
+                                   double coupledMm, double riseTime) {
+    CouplingEstimate e;
+    const int lo = std::min(layerA, layerB), hi = std::max(layerA, layerB);
+    const int n = std::max(1, s.layerCount);
+    const double t = copperThickness(s);
+    const double w = std::max(0.01, 0.5 * (w1 + w2));
+    const double d = dielectricBelow(s, lo) + t;  // centre to centre, vertically
+    // Image plane: the nearest plane outside the pair (below the lower conductor, or above the upper one on top).
+    double h2;
+    if (hi + 1 < n) h2 = dielectricBelow(s, hi) + t / 2;
+    else h2 = lo > 0 ? dielectricBelow(s, lo - 1) + t / 2 : d;  // the pair's own spacing when no plane is found
+    const double h1 = h2 + d;
+    const double r = (w + t) / 4;
+    const double x = std::max(0.0, offset);
+    const double l1 = std::log(std::max(1.2, 2 * h1 / r)), l2 = std::log(std::max(1.2, 2 * h2 / r));
+    const double mutual = std::log((x * x + (h1 + h2) * (h1 + h2)) / std::max(1e-12, x * x + (h1 - h2) * (h1 - h2)));
+    e.kl = std::min(0.9, mutual / (2 * std::sqrt(l1 * l2)));
+    const bool buried = isStriplineLayer(s, layerA) && isStriplineLayer(s, layerB);
+    if (buried) {
+        e.kc = e.kl;
+    } else {
+        const double er = boardLaminate(s).er;
+        const int outer = isStriplineLayer(s, layerA) ? layerB : layerA;
+        e.kc = e.kl * std::clamp((er + 1) / 2 / effectivePermittivity(s, outer, w), 0.0, 1.0);
+    }
+    e.kb = (e.kl + e.kc) / 4;
+    const int layer = isStriplineLayer(s, layerA) ? layerA : layerB;
+    const double td = coupledMm * propagationDelayPerMm(s, layer, w), tr = std::max(1e-13, riseTime);
     e.next = e.kb * std::min(1.0, 2 * td / tr);
     e.fext = std::clamp(0.5 * (e.kc - e.kl) * td / tr, -0.5, 0.5);
     return e;
@@ -388,7 +424,14 @@ const PdnRailSettings* SiSettings::rail(const std::string& net) const {
 
 bool SiSettings::isDefault() const {
     return models.empty() && componentModels.empty() && pinModels.empty() && netModels.empty() && rails.empty() && !signOff &&
-           std::fabs(overshootLimit - 0.15) < 1e-12 && std::fabs(crosstalkLimit - 0.05) < 1e-12;
+           std::fabs(overshootLimit - 0.15) < 1e-12 && std::fabs(crosstalkLimit - 0.05) < 1e-12 && copperFoil.empty() &&
+           channels.empty();
+}
+
+const SiSettings::ChannelSpec* SiSettings::channel(const std::string& net) const {
+    for (const auto& c : channels)
+        if (c.net == net) return &c;
+    return nullptr;
 }
 
 Json SiSettings::toJson() const {
@@ -414,9 +457,24 @@ Json SiSettings::toJson() const {
         x["ripplePercent"] = r.ripplePercent;
         x["transientCurrent"] = r.transientCurrent;
         x["dcCurrent"] = r.dcCurrent;
+        if (r.vrmR > 0) x["vrmR"] = r.vrmR;
+        if (r.vrmBandwidth > 0) x["vrmBandwidth"] = r.vrmBandwidth;
         rs.push(x);
     }
     j["rails"] = rs;
+    if (!copperFoil.empty()) j["copperFoil"] = copperFoil;
+    if (!channels.empty()) {
+        Json cs = Json::array();
+        for (const auto& c : channels) {
+            Json x = Json::object();
+            x["net"] = c.net;
+            x["bitRate"] = c.bitRate;
+            x["maskHeight"] = c.maskHeight;
+            x["maskWidthUi"] = c.maskWidthUi;
+            cs.push(x);
+        }
+        j["channels"] = cs;
+    }
     return j;
 }
 
@@ -446,7 +504,19 @@ SiSettings SiSettings::fromJson(const Json& j) {
             x.ripplePercent = std::clamp(r.get("ripplePercent").asNumber(0), 0.0, 50.0);
             x.transientCurrent = std::clamp(r.get("transientCurrent").asNumber(0), 0.0, 1000.0);
             x.dcCurrent = std::clamp(r.get("dcCurrent").asNumber(0), 0.0, 1000.0);
+            x.vrmR = std::clamp(r.get("vrmR").asNumber(0), 0.0, 10.0);
+            x.vrmBandwidth = std::clamp(r.get("vrmBandwidth").asNumber(0), 0.0, 100e6);
             if (!x.net.empty()) s.rails.push_back(x);
+        }
+    s.copperFoil = j.get("copperFoil").asString("");
+    if (j.get("channels").isArray())
+        for (const auto& c : j.get("channels").items()) {
+            ChannelSpec x;
+            x.net = c.get("net").asString("");
+            x.bitRate = std::clamp(c.get("bitRate").asNumber(0), 0.0, 200e9);
+            x.maskHeight = std::clamp(c.get("maskHeight").asNumber(0), 0.0, 100.0);
+            x.maskWidthUi = std::clamp(c.get("maskWidthUi").asNumber(0), 0.0, 0.99);
+            if (!x.net.empty() && x.bitRate > 0) s.channels.push_back(x);
         }
     return s;
 }
@@ -960,7 +1030,7 @@ bool isFastOrModelled(const Project& p, const NetClassification& cls, int net) {
 }
 
 SiNetResult analyzeNetImpl(const Project& project, const std::vector<Pad>& pads, const NetClassification& cls, int net,
-                           double extraSeriesR, bool simulate) {
+                           double extraSeriesR, bool simulate, SiNetCircuit* out = nullptr) {
     SiNetResult r;
     r.net = net;
     const Schematic& sch = project.schematic;
@@ -1137,6 +1207,15 @@ SiNetResult analyzeNetImpl(const Project& project, const std::vector<Pad>& pads,
             tl.capacitance[static_cast<size_t>(node)] += 2e-12;  // discrete semiconductor pin
         }
     }
+    if (out) {
+        out->graph = g;
+        out->reach = reach;
+        out->driverNode = dnode;
+        out->driverPad = dc.pad;
+        out->padC = tl.capacitance;
+        out->padG = tl.conductance;
+        out->padJ = tl.railCurrent;
+    }
     // Lines.
     for (const auto& e : g.edges) {
         if (!reach[static_cast<size_t>(e.a)]) continue;
@@ -1183,6 +1262,17 @@ SiNetResult analyzeNetImpl(const Project& project, const std::vector<Pad>& pads,
         rx.pathDelay = paths.delay[static_cast<size_t>(li.node)];
         rx.pathLength = paths.length[static_cast<size_t>(li.node)];
         if (!std::isfinite(rx.pathDelay)) rx.pathDelay = 0;
+        if (out) {
+            SiNetCircuit::Receiver cr;
+            cr.node = li.node;
+            cr.pad = li.pad;
+            cr.componentId = li.component;
+            cr.ref = rx.ref;
+            cr.pin = rx.pin;
+            cr.model = m;
+            cr.result = r.receivers.size();
+            out->receivers.push_back(cr);
+        }
         circuit.receiverNodes.push_back(rnode);
         circuit.receiverIndex.push_back(r.receivers.size());
         r.receivers.push_back(rx);
@@ -1351,6 +1441,13 @@ SiNetResult analyzeNet(const Project& project, int net, double extraSeriesR) {
     return analyzeNetImpl(project, pads, cls, net, extraSeriesR, true);
 }
 
+SiNetResult analyzeNetCircuit(const Project& project, int net, SiNetCircuit& out) {
+    out = SiNetCircuit();
+    const auto pads = project.pcb.pads(project.schematic);
+    const NetClassification cls = classifyNets(project);
+    return analyzeNetImpl(project, pads, cls, net, -1, false, &out);
+}
+
 Json siNetJson(const SiNetResult& r, size_t maxPoints) {
     Json j = Json::object();
     j["net"] = r.net;
@@ -1488,7 +1585,7 @@ std::vector<CrosstalkPair> crosstalkPairs(const Project& project) {
     }
     struct Acc {
         double coupled = 0, nextSum = 0, fext = 0, spacing = 1e9, maxKb = 0;
-        int layer = 0;
+        int layer = 0, layerB = -1;  // layerB: the victim's layer of a broadside pair
         Vec2 at;
         double tdSum = 0;
     };
@@ -1503,7 +1600,10 @@ std::vector<CrosstalkPair> crosstalkPairs(const Project& project) {
         const double reach = 6 * std::max(0.1, impedanceReferenceHeight(s, a.layer)) + a.width;
         const Rect box = Rect(a.a.x, a.a.y, a.b.x, a.b.y).inflated(reach);
         for (const auto& b : pcb.tracks) {
-            if (b.layer != a.layer || b.net == a.net || !signal(b.net) || pairNets.count({a.net, b.net})) continue;
+            // Same layer (edge coupled), or the next layer (broadside: no plane can lie between adjacent layers that both
+            // carry tracks here).
+            const bool broadside = std::abs(b.layer - a.layer) == 1;
+            if ((b.layer != a.layer && !broadside) || b.net == a.net || !signal(b.net) || pairNets.count({a.net, b.net})) continue;
             if (!box.intersects(Rect(b.a.x, b.a.y, b.b.x, b.b.y).inflated(1e-6))) continue;
             const Vec2 db = b.b - b.a;
             const double lb = db.length();
@@ -1511,10 +1611,21 @@ std::vector<CrosstalkPair> crosstalkPairs(const Project& project) {
             const double t0 = (b.a - a.a).dot(u), t1 = (b.b - a.a).dot(u);
             const double overlap = std::min(la, std::max(t0, t1)) - std::max(0.0, std::min(t0, t1));
             if (overlap < 0.5) continue;
-            const double gap = std::max(0.0, pointSegmentDistance(b.a, a.a, a.b) - (a.width + b.width) / 2);
-            if (gap > reach) continue;
             const DriverModel& m = ait->second;
-            CouplingEstimate e = crosstalkCoupling(s, a.layer, a.width, b.width, gap, overlap, m.riseTime);
+            double gap;
+            CouplingEstimate e;
+            if (broadside) {
+                // Lateral offset of the centre lines; coupling within three layer spacings of overlap.
+                const double off = (pointSegmentDistance(b.a, a.a, a.b) + pointSegmentDistance(b.b, a.a, a.b)) / 2;
+                const double vert = dielectricBelow(s, std::min(a.layer, b.layer)) + copperThickness(s);
+                if (off > (a.width + b.width) / 2 + 3 * vert) continue;
+                gap = std::max(0.0, off - (a.width + b.width) / 2);
+                e = broadsideCoupling(s, a.layer, b.layer, a.width, b.width, off, overlap, m.riseTime);
+            } else {
+                gap = std::max(0.0, pointSegmentDistance(b.a, a.a, a.b) - (a.width + b.width) / 2);
+                if (gap > reach) continue;
+                e = crosstalkCoupling(s, a.layer, a.width, b.width, gap, overlap, m.riseTime);
+            }
             Acc& x = acc[{a.net, b.net}];
             x.coupled += overlap;
             x.fext += e.fext;
@@ -1523,6 +1634,7 @@ std::vector<CrosstalkPair> crosstalkPairs(const Project& project) {
             if (gap < x.spacing) {
                 x.spacing = gap;
                 x.layer = a.layer;
+                x.layerB = broadside ? b.layer : -1;
                 x.at = (a.a + a.b) * 0.5;
             }
             x.maxKb = std::max(x.maxKb, e.kb);
@@ -1534,6 +1646,8 @@ std::vector<CrosstalkPair> crosstalkPairs(const Project& project) {
         p.aggressor = key.first;
         p.victim = key.second;
         p.layer = copperLayerName(x.layer, s.layerCount);
+        p.broadside = x.layerB >= 0;
+        if (p.broadside) p.layer += " / " + copperLayerName(x.layerB, s.layerCount);
         p.coupledLength = x.coupled;
         p.spacing = x.spacing;
         const double kbAvg = x.coupled > 0 ? x.nextSum / x.coupled : 0;
@@ -1751,6 +1865,7 @@ Json crosstalkJson(const Project& project) {
         j["noise"] = p.noise;
         j["limit"] = p.limit;
         j["ok"] = p.ok;
+        j["broadside"] = p.broadside;
         j["x"] = p.at.x;
         j["y"] = p.at.y;
         pairs.push(j);
@@ -1891,7 +2006,54 @@ std::vector<RuleViolation> signalPowerIntegrityChecks(const Project& project) {
                     " at " + formatEngineeringValue(rail.dcCurrent, "A", 3) + ": widen the supply track, add vias or pour the "
                     "rail as a plane (limit " + fmt("%.1f %%", rail.irLimitPercent) + ").");
     }
+    // Serial channels given a bit rate: the eye at the receiver against its mask.
+    for (const auto& spec : project.si.channels) {
+        const ChannelCheck c = checkChannel(project, spec);
+        if (!c.ok) add(Severity::Warning, "SI_EYE_MASK", c.message);
+    }
     return out;
+}
+
+ChannelCheck checkChannel(const Project& project, const SiSettings::ChannelSpec& spec) {
+    ChannelCheck c;
+    ChannelOptions co;
+    co.net = spec.net;
+    const ChannelModel m = extractChannel(project, co);
+    if (!m.error.empty()) {
+        c.ok = false;
+        c.message = "Channel " + spec.net + " cannot be analysed: " + m.error;
+        return c;
+    }
+    // An imported IBIS driver drives the channel; a logic-family default (not a SerDes model) is replaced by an ideal
+    // 50 Ω source and termination with a 1 V swing.
+    ChannelDrive drive;
+    drive.idealDriver = m.driver.source != "ibis";
+    EyeOptions eo;
+    eo.bitRate = spec.bitRate;
+    eo.maskHeight = spec.maskHeight;
+    eo.maskWidthUi = spec.maskWidthUi;
+    eo.prbs = 7;
+    eo.riseTime = drive.idealDriver ? 0.25 / spec.bitRate : m.driver.riseTime;
+    const double swing = drive.idealDriver ? drive.swing : m.driver.vHigh;
+    const double vMid = channelDcLevel(m, swing / 2, swing / 2, drive);
+    const EyeResult e = simulateEye([&](const std::vector<double>& f) { return channelTransfer(m, f, co.refOhms, drive); },
+                                    swing / 2, vMid, std::max(m.delayP, m.delayN), eo);
+    c.eyeHeight = e.eyeHeight;
+    c.eyeWidth = e.eyeWidth;
+    c.maskMargin = e.maskMargin;
+    const bool masked = spec.maskHeight > 0 && spec.maskWidthUi > 0;
+    c.ok = e.error.empty() && e.open && (!masked || e.maskPass);
+    const std::string name = spec.net + (m.differential ? " / " + m.netN : "");
+    c.message = "Channel " + name + " at " + formatEngineeringValue(spec.bitRate, "b/s", 3) + " (" +
+                (drive.idealDriver ? std::string("ideal 50 Ω driver") : m.driver.name) + "): eye height " +
+                formatEngineeringValue(e.eyeHeight, "V", 3) + ", width " + formatEngineeringValue(e.eyeWidth, "s", 3);
+    if (masked)
+        c.message += ", mask " + formatEngineeringValue(spec.maskHeight, "V", 3) + " × " + fmt("%.2f UI", spec.maskWidthUi) +
+                     (e.maskPass ? " passes" : " violated by " + formatEngineeringValue(-e.maskMargin, "V", 3));
+    if (!e.open) c.message += " — the eye is closed: shorten the channel, use a lower-loss laminate or add equalisation";
+    else if (!c.ok) c.message += ": add equalisation (CTLE / FFE) or reduce loss and reflections";
+    c.message += ".";
+    return c;
 }
 
 }  // namespace sieda
