@@ -790,3 +790,7 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x కుడివైపు, y PCB వీక్షణ పైభాగం వైపు, z బోర్డు నుండి పైకి. భ్రమణం x, తర్వాత y, తర్వాత z చుట్టూ.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "పాన్ చేయడానికి ⌥-డ్రాగ్ లేదా రెండు వేళ్లతో డ్రాగ్ చేయండి";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "నిజమైన చాపాలు";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "నిజమైన చాపాలు (Gerber లో G02/G03); జతలు, బస్‌లు ఏకకేంద్ర చాపాలపై తిరుగుతాయి. ఆఫ్: చిన్న నేరు జ్యాలు";

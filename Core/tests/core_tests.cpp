@@ -12817,3 +12817,488 @@ TEST(autoroute_progress_and_cancel) {
     if (rc != 0) std::printf("    C API autoroute progress test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+// ======================================================================= true arc tracks (interactive routing 10/10)
+
+namespace {
+int drcCount(const Project& p, const std::string& code) {
+    int n = 0;
+    for (const auto& v : p.pcb.runDRC(p.schematic)) n += v.code == code ? 1 : 0;
+    return n;
+}
+/// The arc track a → mid → b about centre c (radius |a − c|), the short way round.
+Track arcTrackOf(int net, Vec2 c, double r, double fromDeg, double toDeg, double width = 0.25, int layer = 0) {
+    const double f = fromDeg * kPi / 180, t = toDeg * kPi / 180, m = (f + t) / 2;
+    Track tr;
+    tr.net = net;
+    tr.layer = layer;
+    tr.width = width;
+    tr.a = {c.x + r * std::cos(f), c.y + r * std::sin(f)};
+    tr.b = {c.x + r * std::cos(t), c.y + r * std::sin(t)};
+    tr.mid = {c.x + r * std::cos(m), c.y + r * std::sin(m)};
+    tr.arc = true;
+    return tr;
+}
+struct Lcg {
+    uint64_t s;
+    double next(double lo, double hi) {
+        s = s * 6364136223846793005ull + 1442695040888963407ull;
+        return lo + (hi - lo) * static_cast<double>(s >> 11) / 9007199254740992.0;
+    }
+};
+/// Every join between two tracks of `net`: the angle between their directions away from the joint (180 = tangent).
+double sharpestJoin(const Project& p, int net) {
+    double sharpest = 180;
+    for (const auto& a : p.pcb.tracks)
+        for (const auto& b : p.pcb.tracks) {
+            if (a.id >= b.id || a.net != net || b.net != net || a.layer != b.layer) continue;
+            for (int ea = 0; ea < 2; ++ea)
+                for (int eb = 0; eb < 2; ++eb) {
+                    const Vec2 pa = ea ? a.b : a.a, pb = eb ? b.b : b.a;
+                    if ((pa - pb).length() > 1e-6) continue;
+                    const Vec2 da = trackEndDirection(a, ea == 1), db = trackEndDirection(b, eb == 1);
+                    sharpest = std::min(sharpest, std::acos(std::clamp(da.dot(db), -1.0, 1.0)) * 180 / kPi);
+                }
+        }
+    return sharpest;
+}
+}  // namespace
+
+TEST(track_arcs_measure_exactly) {
+    // Closed-form arc distances against a dense polyline of the arc (chords within 1e-6 mm of it): point, segment,
+    // arc and rectangle distances agree to 3e-6 mm on random arcs; lengths, bounds, tangents and degenerate arcs.
+    Lcg rng{42};
+    int tested = 0;
+    for (int it = 0; it < 300; ++it) {
+        const Vec2 a{rng.next(-5, 5), rng.next(-5, 5)}, m{rng.next(-5, 5), rng.next(-5, 5)}, b{rng.next(-5, 5), rng.next(-5, 5)};
+        const ArcGeom g = arcThrough(a, m, b);
+        if (!g.valid || g.r > 40) continue;
+        ++tested;
+        CHECK(std::fabs((m - g.c).length() - g.r) < 1e-9 * std::max(1.0, g.r));
+        CHECK(g.containsDirection(m));
+        const auto poly = arcPolyline(g, 1e-6);
+        CHECK(poly.front() == a && poly.back() == b);
+        double len = 0;
+        for (size_t k = 0; k + 1 < poly.size(); ++k) len += (poly[k + 1] - poly[k]).length();
+        CHECK(std::fabs(len - g.length()) < 1e-5 * std::max(1.0, g.length()));
+        const Rect box = arcBounds(g);
+        for (Vec2 q : poly) CHECK(box.inflated(1e-9).contains(q));
+        auto polyDist = [&](const std::function<double(Vec2, Vec2)>& f) {
+            double d = 1e18;
+            for (size_t k = 0; k + 1 < poly.size(); ++k) d = std::min(d, f(poly[k], poly[k + 1]));
+            return d;
+        };
+        const Vec2 p{rng.next(-8, 8), rng.next(-8, 8)}, q{rng.next(-8, 8), rng.next(-8, 8)};
+        CHECK(std::fabs(pointArcDistance(p, g) - polyDist([&](Vec2 u, Vec2 v) { return pointSegmentDistance(p, u, v); })) < 3e-6);
+        CHECK(std::fabs(segmentArcDistance(p, q, g) - polyDist([&](Vec2 u, Vec2 v) { return segmentSegmentDistance(p, q, u, v); })) < 3e-6);
+        const Rect r(p.x, p.y, p.x + std::fabs(q.x) / 3, p.y + std::fabs(q.y) / 3);
+        CHECK(std::fabs(arcRectDistance(g, r) - polyDist([&](Vec2 u, Vec2 v) { return segmentRectDistance(u, v, r); })) < 3e-6);
+        const ArcGeom h = arcThrough(p, q, Vec2{rng.next(-5, 5), rng.next(-5, 5)});
+        if (h.valid && h.r < 40) {
+            const auto hp = arcPolyline(h, 1e-6);
+            double ref = 1e18;
+            for (size_t k = 0; k + 1 < hp.size(); ++k)
+                ref = std::min(ref, polyDist([&](Vec2 u, Vec2 v) { return segmentSegmentDistance(hp[k], hp[k + 1], u, v); }));
+            CHECK(std::fabs(arcArcDistance(g, h) - ref) < 3e-6);
+        }
+        // Tangents are perpendicular to the radius and point into the arc.
+        Track t;
+        t.a = a;
+        t.b = b;
+        t.mid = m;
+        t.arc = true;
+        for (bool atB : {false, true}) {
+            const Vec2 d = trackEndDirection(t, atB), end = atB ? b : a;
+            CHECK(std::fabs(d.dot(end - g.c)) < 1e-9 * std::max(1.0, g.r));
+            CHECK((trackPointAt(t, atB ? 0.999 : 0.001) - end).dot(d) > 0);
+        }
+        CHECK(std::fabs(trackLength(t) - g.length()) < 1e-12 * std::max(1.0, g.length()));
+        CHECK(std::fabs(trackParamAt(t, trackPointAt(t, 0.3)) - 0.3 * g.length()) < 1e-6);
+    }
+    CHECK(tested > 150);
+    // A degenerate arc (three points on a line) is the straight track.
+    Track s;
+    s.a = {0, 0};
+    s.b = {10, 0};
+    s.mid = {5, 0};
+    s.arc = true;
+    CHECK(!isArcTrack(s));
+    CHECK(trackLength(s) == 10.0);
+    CHECK(trackPointDistance(s, {5, 3}) == 3.0);
+    // Straight tracks use exactly the segment formulas (bit-identical results for boards without arcs).
+    Track u;
+    u.a = {1.1, 2.3};
+    u.b = {7.7, -3.1};
+    const Vec2 x{3.3, 4.4}, y{-2.2, 0.7};
+    CHECK(trackPointDistance(u, x) == pointSegmentDistance(x, u.a, u.b));
+    CHECK(trackSegmentDistance(u, x, y) == segmentSegmentDistance(u.a, u.b, x, y));
+    CHECK(trackLength(u) == (u.b - u.a).length());
+    const Rect ub = trackBox(u, 0.3), ref = Rect(u.a.x, u.a.y, u.b.x, u.b.y).inflated(0.3);
+    CHECK(ub.x0 == ref.x0 && ub.y0 == ref.y0 && ub.x1 == ref.x1 && ub.y1 == ref.y1);
+    // makeArcTrack: counter-clockwise and clockwise quarter circles.
+    const Track ccw = makeArcTrack({5, 0}, {0, 5}, {0, 0}, true, 1, 0, 0.2);
+    CHECK(std::fabs(trackLength(ccw) - 5 * kPi / 2) < 1e-12);
+    const Track cw = makeArcTrack({5, 0}, {0, 5}, {0, 0}, false, 1, 0, 0.2);
+    CHECK(std::fabs(trackLength(cw) - 15 * kPi / 2) < 1e-9);
+}
+
+TEST(drc_checks_arc_tracks_exactly) {
+    // The DRC measures an arc track as an arc: copper next to its bulge is too close although the chord is far, and
+    // copper between the chord and the arc is clear although the chord would overlap it. Board edge, connectivity
+    // (an arc from pad to pad routes its net), lengths and the copper pour follow the arc.
+    auto board = [](double otherRadius) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {30, 20}), r2 = placeR(p, {20, 30}, 90);
+        wire(s, r1, "1", r2, "1");
+        const int r3 = placeR(p, {40, 35}), r4 = placeR(p, {44, 35});
+        wire(s, r3, "2", r4, "1");
+        p.schematicChanged();
+        // Quarter circle about (20, 20), radius 10, from pad 1 of R1 to pad 1 of R2... (pads are not on the circle:
+        // short straight stubs join them).
+        const int net = s.netOf({r1, 0}), other = s.netOf({r3, 1});
+        Track arc = arcTrackOf(net, {20, 20}, 10, 0, 90);
+        const Vec2 pa = padAt(p, r1, 0), pb = padAt(p, r2, 0);
+        addPath(p.pcb, net, 0, 0.25, {pa, arc.a});
+        p.pcb.addTrack(arc);
+        addPath(p.pcb, net, 0, 0.25, {arc.b, pb});
+        // A short track of another net across the radius at 45°, at `otherRadius` from the centre.
+        const Vec2 u{std::cos(kPi / 4), std::sin(kPi / 4)}, n{-u.y, u.x};
+        const Vec2 c = Vec2{20, 20} + u * otherRadius;
+        addPath(p.pcb, other, 0, 0.25, {c - n * 0.5, c + n * 0.5});
+        return std::make_tuple(std::move(p), net);
+    };
+    {
+        // 0.1 mm edge to edge outside the bulge (radius 10 + 0.25 + 0.1): too close; the chord is 3 mm away.
+        auto [p, net] = board(10.35);
+        CHECK(drcCount(p, "DRC_CLEARANCE") + drcCount(p, "DRC_CLEARANCE_RULE") >= 1);
+        CHECK(netRouted(p, net));
+    }
+    {
+        // Between chord (7.07 from the centre) and arc: 2.8 mm from the arc, so clear; the chord would short it.
+        auto [p, net] = board(7.2);
+        CHECK(drcCount(p, "DRC_CLEARANCE") + drcCount(p, "DRC_CLEARANCE_RULE") + drcCount(p, "DRC_SHORT") == 0);
+        CHECK(netRouted(p, net));
+        int dangling = 0;  // only the other net's short test track dangles; the arc's ends are joined
+        for (const auto& v : p.pcb.runDRC(p.schematic))
+            if (v.code == "DRC_DANGLING_TRACK" && v.message.find(p.schematic.nets()[static_cast<size_t>(net)].name + " ") != std::string::npos)
+                ++dangling;
+        CHECK(dangling == 0);
+        CHECK(drcCount(p, "DRC_ACUTE_ANGLE") == 0);
+        // Its length is the arc length (plus the stubs).
+        double stubs = 0;
+        for (const auto& t : p.pcb.tracks)
+            if (t.net == net && !t.arc) stubs += (t.b - t.a).length();
+        CHECK(std::fabs(routedNetLength(p.pcb, net) - stubs - 5 * kPi) < 1e-9);
+    }
+    {
+        // An arc that bulges past the board edge while both ends are inside.
+        Project p;
+        p.pcb.settings.width = 30;
+        p.pcb.settings.height = 30;
+        p.pcb.addTrack(arcTrackOf(1, {15, 15}, 14.6, -30, 30));
+        CHECK(drcCount(p, "DRC_EDGE_CLEARANCE") == 1);
+        CHECK(p.pcb.settings.trackEdgeDistance(p.pcb.tracks[0]) < 0.5);
+        Project q;
+        q.pcb.settings.width = 30;
+        q.pcb.settings.height = 30;
+        q.pcb.addTrack(arcTrackOf(1, {15, 15}, 10, -30, 30));
+        CHECK(drcCount(q, "DRC_EDGE_CLEARANCE") == 0);
+    }
+}
+
+TEST(arc_tracks_export_save_and_draw) {
+    // Gerber: a G02 / G03 with I/J from the start to the centre (multi-quadrant G75); a board without arcs has no
+    // circular interpolation at all. The project file keeps arcs ("mid"); an old file without it loads straight. The
+    // snapshot gives the centre, radius and angles. The 3D board follows the arc.
+    Project p;
+    p.pcb.settings.width = 50;
+    p.pcb.settings.height = 40;
+    // Pads at the arcs' ends (a saved track must connect to a pad of its net to load again).
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {25.95, 20}), r2 = placeR(p, {20, 25.95}, 90), r3 = placeR(p, {30, 25.95}, 90);
+    wire(s, r1, "1", r2, "1");
+    wire(s, r1, "1", r3, "1");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 0});
+    const std::string plain = exportGerber(p.schematic, p.pcb, GerberLayer::TopCopper);
+    CHECK(plain.find("G75") == std::string::npos && plain.find("G02") == std::string::npos);
+    p.pcb.addTrack(arcTrackOf(net, {20, 20}, 5, 0, 90));    // counter-clockwise on the board
+    p.pcb.addTrack(arcTrackOf(net, {30, 20}, 5, 180, 90));  // clockwise
+    CHECK(padAt(p, r2, 0).x == 20 && std::fabs(padAt(p, r2, 0).y - 25) < 1e-9);
+    CHECK(netRouted(p, net));
+    const std::string g = exportGerber(p.schematic, p.pcb, GerberLayer::TopCopper);
+    // Y is flipped in the file (40 − y): the board's counter-clockwise arc is clockwise there.
+    CHECK(g.find("X25000000Y20000000D02*\nG75*\nG02*\nX20000000Y15000000I-5000000J0D01*\nG01*") != std::string::npos);
+    CHECK(g.find("X25000000Y20000000D02*\nG75*\nG03*\nX30000000Y15000000I5000000J0D01*\nG01*") != std::string::npos);
+    // Save / load.
+    const Json j = p.toJson();
+    Project back = Project::fromJson(j);
+    CHECK(back.pcb.tracks.size() == 2);
+    CHECK(back.pcb.tracks[0].arc && back.pcb.tracks[0].mid == p.pcb.tracks[0].mid);
+    CHECK(back.toJson().dump() == j.dump());
+    std::string old = j.dump();
+    for (size_t at; (at = old.find("\"mid\":")) != std::string::npos;) {
+        const size_t end = old.find('}', at);
+        old.erase(at, end - at + 2);  // "mid":{"x":…,"y":…},
+    }
+    Project straight = Project::fromJson(Json::parse(old));
+    CHECK(straight.pcb.tracks.size() == 2 && !straight.pcb.tracks[0].arc);
+    // Snapshot geometry for drawing.
+    const Json snap = p.snapshot();
+    const Json& t0 = snap.get("tracks")[0];
+    CHECK(t0.get("arc").asBool() && std::fabs(t0.get("radius").asNumber() - 5) < 1e-9);
+    CHECK(std::fabs(t0.get("cx").asNumber() - 20) < 1e-9 && std::fabs(t0.get("sweep").asNumber() - kPi / 2) < 1e-9);
+    CHECK(!snap.get("tracks")[0].has("ax") || snap.get("tracks")[0].has("mx"));
+}
+
+TEST(router_writes_true_arc_corners) {
+    // With arc corners the route's corners are true arcs, tangent to their neighbours (every join 180°), written as
+    // previewed, connected and DRC clean; the net is shorter than with sharp corners. A via of another net inside a
+    // corner keeps that corner sharp.
+    for (bool obstacle : {false, true}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {40, 32}), r3 = placeR(p, {45, 5}), r4 = placeR(p, {45, 10});
+        wire(s, r1, "2", r2, "1");
+        wire(s, r3, "2", r4, "1");
+        p.schematicChanged();
+        const int net = s.netOf({r1, 1});
+        if (obstacle) {
+            Via v;
+            v.net = s.netOf({r3, 1});
+            v.position = {19.732, 20.647};
+            p.pcb.addVia(v);
+        }
+        InteractiveRouter r(p.pcb, s);
+        RouterOptions o;
+        o.cornerRadius = 2;
+        o.arcCorners = true;
+        r.setOptions(o);
+        CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+        r.moveTo({20, 20});
+        CHECK(r.fixHead());
+        r.moveTo({28, 28});
+        CHECK(r.fixHead());
+        const RoutePreview& pv = r.moveTo(padAt(p, r2, 0));
+        CHECK(pv.reachedTarget);
+        double previewLength = 0;
+        int previewArcs = 0;
+        for (const auto* list : {&pv.placed, &pv.head})
+            for (const auto& t : *list) {
+                previewLength += trackLength(t);
+                previewArcs += t.arc ? 1 : 0;
+            }
+        CHECK(routePreviewJson(pv).dump().find("\"arc\":true") != std::string::npos);
+        CHECK(r.commit().ok);
+        CHECK(netRouted(p, net));
+        CHECK(routingProblems(p) == 0);
+        CHECK(acuteWarnings(p) == 0);
+        CHECK_NEAR(routedNetLength(p.pcb, net), previewLength, 1e-6);
+        int arcs = 0;
+        for (const auto& t : p.pcb.tracks) arcs += t.net == net && t.arc ? 1 : 0;
+        CHECK(arcs == previewArcs);
+        if (obstacle) {  // three corners: (20, 20), (28, 28) and the bend onto the pad's row
+            CHECK(arcs == 2);
+            CHECK(sharpestJoin(p, net) < 136);
+        } else {
+            CHECK(arcs == 3);
+            CHECK(sharpestJoin(p, net) > 179.999);  // tangent everywhere
+        }
+    }
+    CHECK(routerOptionsFromJson(Json::parse("{\"arcCorners\":true}")).arcCorners);
+}
+
+TEST(router_turns_pairs_and_buses_on_concentric_arcs) {
+    // A differential pair with arc corners: both members turn on arcs about one centre, the outer radius larger by
+    // exactly the pitch, so the gap stays exact through the turn (nowhere closer); DRC clean.
+    Project p;
+    auto& s = p.schematic;
+    const int p1 = placeR(p, {10, 14}), p2 = placeR(p, {40, 34}, 90), n1 = placeR(p, {10, 16}), n2 = placeR(p, {42, 34}, 90);
+    wire(s, p1, "2", p2, "1");
+    wire(s, n1, "2", n2, "1");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_P", {0, 0}), "N", p1, "2");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_N", {0, 50}), "N", n1, "2");
+    p.schematicChanged();
+    const int netP = s.netOf({p1, 1}), netN = s.netOf({n1, 1});
+    InteractiveRouter r(p.pcb, s);
+    RouterOptions o;
+    o.pairGap = 0.2;
+    o.cornerRadius = 1.5;
+    o.arcCorners = true;
+    r.setOptions(o);
+    CHECK(r.beginPair(padAt(p, p1, 1), 0));
+    r.moveTo({30, 15});
+    CHECK(r.fixHead());
+    r.moveTo({41, 26});  // 45° turn
+    CHECK(r.fixHead());
+    r.moveTo({41, 30});
+    CHECK(r.fixHead());
+    CHECK(r.commit().ok);
+    CHECK(routingProblems(p) == 0);
+    std::vector<ArcGeom> arcsP, arcsN;
+    for (const auto& t : p.pcb.tracks) {
+        if (!t.arc) continue;
+        (t.net == netP ? arcsP : arcsN).push_back(trackArc(t));
+    }
+    CHECK(arcsP.size() >= 2 && arcsP.size() == arcsN.size());
+    const double pitch = 0.2 + p.pcb.settings.widthFor(s.nets()[static_cast<size_t>(netP)].name);
+    int concentric = 0;
+    for (const auto& a : arcsP)
+        for (const auto& b : arcsN)
+            if ((a.c - b.c).length() < 1e-6 && std::fabs(std::fabs(a.r - b.r) - pitch) < 1e-6) ++concentric;
+    CHECK(concentric >= 2);  // both turns (the leads off the pads turn on their own)
+    double minGap = 1e9;
+    for (const auto& a : p.pcb.tracks)
+        for (const auto& b : p.pcb.tracks)
+            if (a.net == netP && b.net == netN) minGap = std::min(minGap, trackTrackDistance(a, b) - (a.width + b.width) / 2);
+    CHECK(minGap >= 0.2 - 1e-6);
+    CHECK(sharpestJoin(p, netP) > 134 && sharpestJoin(p, netN) > 134);
+
+    // A bus of four nets through a turn (two 45° bends): each bend is four concentric arcs; the members keep the
+    // clearance between them everywhere; DRC clean.
+    BusBoard b = busBoard();
+    auto& bs = b.p.schematic;
+    InteractiveRouter rb(b.p.pcb, bs);
+    RouterOptions ob;
+    ob.cornerRadius = 1;
+    ob.arcCorners = true;
+    rb.setOptions(ob);
+    CHECK(rb.beginBus(padAt(b.p, b.u1, pin(bs, b.u1, "P5")), 0, 4));
+    rb.moveTo({24, 20});
+    CHECK(rb.fixHead());
+    const RoutePreview& bv = rb.moveTo({30, 34});
+    CHECK(!bv.blocked);
+    int previewArcs = 0;
+    for (const auto* list : {&bv.placed, &bv.head})
+        for (const auto& t : *list) previewArcs += t.arc ? 1 : 0;
+    CHECK(rb.commit().ok);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    std::vector<ArcGeom> busArcs;
+    for (const auto& t : b.p.pcb.tracks)
+        if (t.arc) busArcs.push_back(trackArc(t));
+    CHECK(static_cast<int>(busArcs.size()) == previewArcs);
+    CHECK(busArcs.size() >= 8);
+    int groups = 0;  // arcs sharing their centre with three others
+    for (const auto& a : busArcs) {
+        int same = 0;
+        for (const auto& o : busArcs) same += (a.c - o.c).length() < 1e-6 ? 1 : 0;
+        groups += same == 4 ? 1 : 0;
+    }
+    CHECK(groups >= 8);
+    double closest = 1e9;
+    for (const auto& t : b.p.pcb.tracks)
+        for (const auto& u : b.p.pcb.tracks)
+            if (t.net != u.net) closest = std::min(closest, trackTrackDistance(t, u) - (t.width + u.width) / 2);
+    CHECK(closest >= b.p.pcb.settings.clearance - 1e-6);
+}
+
+TEST(convert_corners_to_arcs_command) {
+    // "Convert corners to arcs" on selected tracks: corners become tangent arcs where they keep clearance, the board
+    // stays DRC clean and connected, the net gets shorter; a preview changes nothing; a corner with another net's
+    // via inside it gets the halved radius; a corner between too short legs stays sharp; unselected tracks stay.
+    for (bool obstacle : {false, true}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 10}), r2 = placeR(p, {30, 30}), r3 = placeR(p, {45, 5}), r4 = placeR(p, {45, 10});
+        wire(s, r1, "2", r2, "1");
+        wire(s, r3, "2", r4, "1");
+        p.schematicChanged();
+        const int net = s.netOf({r1, 1});
+        const Vec2 from = padAt(p, r1, 1), to = padAt(p, r2, 0);
+        addPath(p.pcb, net, 0, 0.25, {from, {20, from.y}, {20, to.y}, to});
+        if (obstacle) {
+            Via v;
+            v.net = s.netOf({r3, 1});
+            v.position = {19.3, from.y + 0.7};  // inside the first corner: clear of the legs, not of an arc
+            p.pcb.addVia(v);
+        }
+        CHECK(routingProblems(p) == 0);
+        const double before = routedNetLength(p.pcb, net);
+        std::vector<int> ids;
+        for (const auto& t : p.pcb.tracks) ids.push_back(t.id);
+        ArcCornersOptions opt;
+        opt.apply = false;
+        const std::string snapBefore = p.toJson().dump();
+        const ArcCornersResult pre = convertCornersToArcs(p.pcb, s, ids, opt);
+        CHECK(pre.ok && !pre.applied);
+        CHECK(p.toJson().dump() == snapBefore);
+        opt.apply = true;
+        const ArcCornersResult res = convertCornersToArcs(p.pcb, s, ids, opt);
+        CHECK(res.ok && res.applied);
+        CHECK(res.converted == 2);
+        CHECK(res.kept == 0);
+        double firstRadius = 0;
+        for (const auto& t : p.pcb.tracks)
+            if (t.arc && trackArc(t).c.y < 20) firstRadius = trackArc(t).r;
+        CHECK_NEAR(firstRadius, obstacle ? 0.5 : 1.0, 1e-9);  // automatic radius 4 × 0.25 mm, halved by the via
+        CHECK(netRouted(p, net));
+        CHECK(routingProblems(p) == 0);
+        CHECK(acuteWarnings(p) == 0);
+        CHECK(routedNetLength(p.pcb, net) < before - 0.1);
+        CHECK(arcCornersJson(res).dump().find("\"converted\":") != std::string::npos);
+    }
+    {
+        // A 0.2 mm jog: no room for an arc of at least the track width; the unselected track stays straight.
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 10}), r2 = placeR(p, {30, 10.2});
+        wire(s, r1, "2", r2, "1");
+        p.schematicChanged();
+        const int net = s.netOf({r1, 1});
+        const Vec2 from = padAt(p, r1, 1), to = padAt(p, r2, 0);
+        addPath(p.pcb, net, 0, 0.25, {from, {20, from.y}, {20, to.y}, to});
+        std::vector<int> ids{p.pcb.tracks[0].id, p.pcb.tracks[1].id, p.pcb.tracks[2].id};
+        const ArcCornersResult res = convertCornersToArcs(p.pcb, s, ids);
+        CHECK(!res.ok && res.kept == 2 && res.converted == 0);
+        CHECK(convertCornersToArcs(p.pcb, s, {p.pcb.tracks[0].id}).message == "No corners between the selected tracks");
+    }
+    Project e;
+    CHECK(!convertCornersToArcs(e.pcb, e.schematic, {}).ok);
+}
+
+TEST(router_respects_arc_tracks) {
+    // Arcs on the board are obstacles measured as arcs: a route past an arc's bulge keeps clearance from the arc
+    // (walkaround and shove), and shoving never moves an arc (it stays bit for bit).
+    for (RouterMode mode : {RouterMode::Walkaround, RouterMode::Shove}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {5, 30}), r2 = placeR(p, {45, 30}), r3 = placeR(p, {10, 10}), r4 = placeR(p, {40, 10});
+        wire(s, r1, "2", r2, "1");
+        wire(s, r3, "2", r4, "1");
+        p.schematicChanged();
+        const int other = s.netOf({r3, 1});
+        // An arc of the other net bulging up towards y = 30 (centre (25, 10), radius 18.6: top at y = 28.6).
+        Track arc = arcTrackOf(other, {25, 10}, 18.6, 60, 120);
+        p.pcb.addTrack(arc);
+        const Track kept = p.pcb.tracks.back();
+        CHECK(routingProblems(p) == 0);
+        InteractiveRouter r(p.pcb, s);
+        RouterOptions o;
+        o.mode = mode;
+        r.setOptions(o);
+        const int net = s.netOf({r1, 1});
+        CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+        r.moveTo({25, 28.9});  // straight towards a point right over the bulge
+        CHECK(r.fixHead());
+        r.moveTo(padAt(p, r2, 0));
+        CHECK(r.commit().ok);
+        CHECK(routingProblems(p) == 0);
+        bool still = false;
+        for (const auto& t : p.pcb.tracks)
+            if (t.arc && t.a == kept.a && t.b == kept.b && t.mid == kept.mid) still = true;
+        CHECK(still);
+        double nearest = 1e9;
+        for (const auto& t : p.pcb.tracks)
+            if (t.net == net) nearest = std::min(nearest, trackTrackDistance(t, kept) - (t.width + kept.width) / 2);
+        CHECK(nearest >= p.pcb.settings.clearance - 1e-6);
+    }
+}
+
+extern "C" int sieda_c_api_arc_test(void);
+TEST(c_api_arc_corners) {
+    const int rc = sieda_c_api_arc_test();
+    if (rc != 0) std::printf("    C API arc test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}

@@ -873,3 +873,49 @@ int sieda_c_api_autoroute_progress_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* True arcs through the C API: a route with arc corners writes arc tracks (the snapshot carries their centre and
+ * angles); "convert corners to arcs" on a sharp route; bad input is reported, never thrown. */
+int sieda_c_api_arc_test(void) {
+    const char* ids = "[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]";
+    for (int pass = 0; pass < 2; ++pass) {
+        SiedaProject* p = sieda_project_new("C API arcs");
+        if (!p) return 1;
+        int32_t r1 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 0, 0, NULL);
+        int32_t r2 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 0, 0, NULL);
+        if (r1 < 0 || r2 < 0 || sieda_connect(p, r1, 1, r2, 0) < 0) return 2;
+        if (!sieda_pcb_move_footprint(p, r1, 10, 20) || !sieda_pcb_move_footprint(p, r2, 34, 28)) return 3;
+        const char* opts = pass == 0 ? "{\"cornerRadius\":1.5,\"arcCorners\":true}" : "{\"cornerRadius\":0}";
+        char* s = sieda_router_begin(p, opts, 10.95, 20, 0);
+        if (!s || strstr(s, "\"error\"")) return 4;
+        sieda_string_free(s);
+        s = sieda_router_move(p, 18, 20);
+        sieda_string_free(s);
+        s = sieda_router_fix(p);
+        if (!s || strstr(s, "\"error\"")) return 5;
+        sieda_string_free(s);
+        s = sieda_router_move(p, 33.05, 28);
+        if (!s || !strstr(s, "\"reachedTarget\":true")) return 6;
+        sieda_string_free(s);
+        s = sieda_router_commit(p);
+        if (!s || !strstr(s, "\"ok\":true")) return 7;
+        sieda_string_free(s);
+        if (pass == 1) {
+            char* pre = sieda_pcb_arc_corners(p, ids, "{\"radius\":1.5,\"apply\":false}");
+            if (!pre || !strstr(pre, "\"ok\":true") || !strstr(pre, "\"applied\":false")) return 8;
+            sieda_string_free(pre);
+            char* done = sieda_pcb_arc_corners(p, ids, NULL);
+            if (!done || !strstr(done, "\"ok\":true") || !strstr(done, "\"applied\":true")) return 9;
+            sieda_string_free(done);
+        }
+        char* snap = sieda_project_snapshot(p);
+        if (!snap || !strstr(snap, "\"arc\":true") || !strstr(snap, "\"radius\":") || !strstr(snap, "\"sweep\":")) return 10;
+        sieda_string_free(snap);
+        char* bad = sieda_pcb_arc_corners(p, "{not json", NULL);
+        if (!bad || !strstr(bad, "\"error\"")) return 11;
+        sieda_string_free(bad);
+        if (sieda_pcb_arc_corners(NULL, ids, NULL) != NULL) return 12;
+        sieda_project_free(p);
+    }
+    return 0;
+}

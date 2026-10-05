@@ -452,6 +452,7 @@ Json Project::toJson() const {
         j["a"] = vec(t.a);
         j["b"] = vec(t.b);
         if (t.locked) j["locked"] = true;
+        if (t.arc) j["mid"] = vec(t.mid);  // true arc a → mid → b (older files have none: straight)
         tracks.push(j);
     }
     root["tracks"] = tracks;
@@ -710,6 +711,10 @@ Project Project::fromJson(const Json& root) {
         t.a = {j.get("a").get("x").asNumber(), j.get("a").get("y").asNumber()};
         t.b = {j.get("b").get("x").asNumber(), j.get("b").get("y").asNumber()};
         t.locked = j.get("locked").asBool(false);
+        if (j.get("mid").isObject()) {
+            t.mid = {j.get("mid").get("x").asNumber(), j.get("mid").get("y").asNumber()};
+            t.arc = std::isfinite(t.mid.x) && std::isfinite(t.mid.y);
+        }
         p.pcb.addTrack(t);
     }
     for (const auto& j : root.get("vias").items()) {
@@ -949,6 +954,21 @@ Json Project::snapshot() const {
         j["bx"] = t.b.x;
         j["by"] = t.b.y;
         if (t.locked) j["locked"] = true;
+        if (t.arc) {
+            // True arc: the 3-point form plus centre, radius and angles (radians, sweep > 0 counter-clockwise) for
+            // drawing; a degenerate arc reports no centre and is drawn straight.
+            j["arc"] = true;
+            j["mx"] = t.mid.x;
+            j["my"] = t.mid.y;
+            const ArcGeom g = trackArc(t);
+            if (g.valid) {
+                j["cx"] = g.c.x;
+                j["cy"] = g.c.y;
+                j["radius"] = g.r;
+                j["startAngle"] = g.start;
+                j["sweep"] = g.sweep;
+            }
+        }
         tracks.push(j);
     }
     root["tracks"] = tracks;

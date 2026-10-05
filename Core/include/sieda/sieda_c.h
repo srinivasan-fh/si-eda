@@ -693,6 +693,15 @@ char* sieda_measure_waveform(const char* request_json);
  * (1e-6 V),"maxStep" (adaptive; default the step)}. Convergence aids are on. Same result JSON. */
 char* sieda_simulate_transient_ex(const SiedaProject* project, const char* options_json);
 
+/* ---- interactive routing additions (docs/INTERACTIVE_ROUTING.md) -------------------------------------------------- */
+/* Arc tracks: snapshot / preview tracks with "arc":true carry the 3-point form "mx","my" (a → mid → b) and, unless
+ * degenerate, "cx","cy","radius","startAngle","sweep" (radians, sweep > 0 counter-clockwise). Router options take
+ * "arcCorners": true (with "cornerRadius") for true-arc corners on routes, pairs and buses. */
+/* Convert corners to arcs: track_ids_json is [id, …] (selected straight tracks); options {"radius" (mm, 0 = auto),
+ * "apply" (default true)}. Returns {"ok","message","converted","kept","applied","addedTracks","removedTracks",
+ * "changes"}. */
+char* sieda_pcb_arc_corners(SiedaProject* project, const char* track_ids_json, const char* options_json);
+
 #ifdef __cplusplus
 }
 #endif

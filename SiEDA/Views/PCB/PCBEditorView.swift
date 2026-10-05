@@ -136,6 +136,10 @@ struct PCBEditorView: View {
                                 help: "Fan out the selected parts: an escape track and a via on each pad that still needs one") {
                     store.fanoutSelection()
                 }
+                ToolStripButton(systemImage: "point.topleft.down.curvedto.point.bottomright.up",
+                                help: "Convert corners to arcs: the selected tracks (click a track, ⇧-click adds), or every track") {
+                    store.convertCornersToArcs()
+                }
                 ToolStripButton(systemImage: "eraser", help: "Clear all tracks and vias") { store.clearRouting() }
                 ToolStripButton(systemImage: "checkmark.seal", help: "Design rule check") {
                     store.runDRC()
@@ -182,6 +186,11 @@ struct PCBEditorView: View {
                         Toggle("Rounded corners", isOn: $store.routerRounded)
                             .toggleStyle(.checkbox)
                             .help("Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only")
+                        if store.routerRounded {
+                            Toggle("True arcs", isOn: $store.routerArcs)
+                                .toggleStyle(.checkbox)
+                                .help("True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords")
+                        }
                         Toggle("Differential pair", isOn: $routePair)
                             .toggleStyle(.checkbox)
                             .help("Route both nets of a differential pair (X_P / X_N) together at the pair gap")
@@ -746,13 +755,6 @@ struct PCBCanvas: View {
         store.snapshot.pads.first { $0.rect.insetBy(dx: -0.1, dy: -0.1).contains(world) }
     }
 
-    private static func segmentDistance(_ p: CGPoint, _ ax: Double, _ ay: Double, _ bx: Double, _ by: Double) -> Double {
-        let dx = bx - ax, dy = by - ay
-        let len2 = dx * dx + dy * dy
-        let t = len2 > 0 ? min(1, max(0, ((Double(p.x) - ax) * dx + (Double(p.y) - ay) * dy) / len2)) : 0
-        return hypot(Double(p.x) - (ax + t * dx), Double(p.y) - (ay + t * dy))
-    }
-
     /// The via, or else the track (active layer first, then the other visible copper layers), under `world`.
     private func copperHit(at world: CGPoint, vias: Bool = true) -> (id: Int, isVia: Bool)? {
         let snap = store.snapshot
@@ -763,7 +765,7 @@ struct PCBCanvas: View {
             return (v.id, true)
         }
         let hits = snap.tracks.filter {
-            visible.contains(.copper($0.layer)) && Self.segmentDistance(world, $0.ax, $0.ay, $0.bx, $0.by) <= $0.width / 2 + slop
+            visible.contains(.copper($0.layer)) && $0.distance(to: world) <= $0.width / 2 + slop
         }
         let active = activeLayer.copperIndex ?? 0
         if let t = hits.last(where: { $0.layer == active }) ?? hits.last { return (t.id, false) }
@@ -875,7 +877,13 @@ struct PCBCanvas: View {
                 } else if !moved {
                     if !spaceHeld && !panMode {  // a Space-click or a Hand-tool click pans, it doesn't select
                         let world = viewport.toWorld(value.location)
-                        store.select(component: footprint(at: world), extend: NSEvent.modifierFlags.contains(.shift))
+                        let shift = NSEvent.modifierFlags.contains(.shift)
+                        if case .dragTrack(let id, _) = dragMode {
+                            store.selectTrack(id, extend: shift)  // a click on a track selects it for the track commands
+                        } else {
+                            store.selectTrack(nil, extend: shift)
+                            store.select(component: footprint(at: world), extend: shift)
+                        }
                     }
                 } else if case .move(let ids) = dragMode {
                     let moves = ids.compactMap { id -> (id: Int, point: CGPoint)? in
@@ -983,11 +991,21 @@ struct PCBCanvas: View {
             // Tracks are batched by colour and width: one stroke per batch instead of one per track (a large board
             // has tens of thousands of segments).
             var batches: [TrackBatch: Path] = [:]
-            for t in boardTracks where t.layer == layer && onScreen(t.ax, t.ay, t.bx, t.by, pad: t.width) {
+            for t in boardTracks where t.layer == layer {
+                if t.isArc {
+                    let e = t.extent
+                    guard onScreen(e.minX, e.minY, e.maxX, e.maxY, pad: t.width) else { continue }
+                } else if !onScreen(t.ax, t.ay, t.bx, t.by, pad: t.width) {
+                    continue
+                }
                 let key = TrackBatch(highlight: hoveredNet == t.net, role: colourByNet ? (roles[t.net] ?? .signal) : nil,
                                      microns: Int((t.width * 1000).rounded()))
-                batches[key, default: Path()].move(to: CGPoint(x: t.ax, y: t.ay))
-                batches[key, default: Path()].addLine(to: CGPoint(x: t.bx, y: t.by))
+                if t.isArc {
+                    t.addCentreLine(to: &batches[key, default: Path()])
+                } else {
+                    batches[key, default: Path()].move(to: CGPoint(x: t.ax, y: t.ay))
+                    batches[key, default: Path()].addLine(to: CGPoint(x: t.bx, y: t.by))
+                }
             }
             // Highlighted net last (on top), the rest in a fixed order.
             for (key, path) in batches.sorted(by: { ($0.key.highlight ? 1 : 0, $0.key.microns, $0.key.role?.rawValue ?? "")
@@ -1028,20 +1046,26 @@ struct PCBCanvas: View {
             }
         }
 
+        // Tracks selected for the track commands.
+        if !store.selectedTracks.isEmpty {
+            var selected = Path()
+            for t in boardTracks where store.selectedTracks.contains(t.id) { t.addCentreLine(to: &selected) }
+            ctx.stroke(selected.applying(screen), with: .color(Theme.selection.opacity(0.9)),
+                       style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+        }
+
         // The route in progress on top: placed segments in their copper colour, the head following the cursor
         // outlined, and its vias.
         if let route {
             for t in route.placed + route.head {
                 var path = Path()
-                path.move(to: CGPoint(x: t.ax, y: t.ay))
-                path.addLine(to: CGPoint(x: t.bx, y: t.by))
+                t.addCentreLine(to: &path)
                 ctx.stroke(path.applying(screen), with: .color(copper(t.net, t.layer)),
                            style: StrokeStyle(lineWidth: max(1, t.width * k), lineCap: .round, lineJoin: .round))
             }
             for t in route.head {
                 var path = Path()
-                path.move(to: CGPoint(x: t.ax, y: t.ay))
-                path.addLine(to: CGPoint(x: t.bx, y: t.by))
+                t.addCentreLine(to: &path)
                 ctx.stroke(path.applying(screen), with: .color(route.blocked ? Theme.warning : Theme.iceBlue),
                            style: StrokeStyle(lineWidth: 1, lineCap: .round, lineJoin: .round))
             }
@@ -1079,10 +1103,7 @@ struct PCBCanvas: View {
         }
         if let tune {
             var outline = Path()
-            for t in tune.addedTracks {
-                outline.move(to: CGPoint(x: t.ax, y: t.ay))
-                outline.addLine(to: CGPoint(x: t.bx, y: t.by))
-            }
+            for t in tune.addedTracks { t.addCentreLine(to: &outline) }
             ctx.stroke(outline.applying(screen), with: .color(tune.onTarget ? Theme.iceBlue : Theme.warning),
                        style: StrokeStyle(lineWidth: 1, lineCap: .round, lineJoin: .round))
         }
@@ -1128,7 +1149,7 @@ struct PCBCanvas: View {
         if k >= 4 {
             // One label per net and layer, on its longest visible segment that has room for the name.
             var best: [String: (SnapTrack, CGFloat)] = [:]
-            for t in snap.tracks where visible.contains(.copper(t.layer)) && onScreen(t.ax, t.ay, t.bx, t.by) {
+            for t in snap.tracks where !t.isArc && visible.contains(.copper(t.layer)) && onScreen(t.ax, t.ay, t.bx, t.by) {
                 let length = CGFloat(hypot(t.bx - t.ax, t.by - t.ay)) * k
                 let key = "\(t.net)/\(t.layer)"
                 if length > (best[key]?.1 ?? 0) { best[key] = (t, length) }

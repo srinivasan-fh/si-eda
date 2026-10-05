@@ -54,12 +54,7 @@
 #include "sieda/Validation.hpp"
 #include "sieda/Verification.hpp"
 
-struct SiedaProject {
-    sieda::Project project;
-    std::unique_ptr<sieda::InteractiveRouter> router;  // interactive route session (created on first use)
-    /// sieda_router_abort bumps it (lock-free, from any thread) to cancel the router's head computation in flight.
-    std::atomic<unsigned> routerAbort{0};
-};
+#include "SiedaProjectInternal.hpp"  // struct SiedaProject
 
 struct SiedaMesh {
     sieda::Mesh mesh;

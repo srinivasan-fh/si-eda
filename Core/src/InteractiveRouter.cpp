@@ -225,6 +225,263 @@ std::vector<Vec2> filletPath(const std::vector<Vec2>& pts, double radius, double
     return clean;
 }
 
+
+/// True-arc corner fillets (Track::arc) for one or more runs that belong together (a single track, the members of a
+/// differential pair or a bus, or parallel lines being converted). Each run is a polyline drawn with `protos[k]`'s
+/// net, layer and width. Corners that every run turns together (the same turn, the runs' corners side by side on one
+/// bisector) become concentric arcs: `radius` is the innermost run's radius and the others grow by their offset, so
+/// the spacing between the runs stays exact through the turn. Other corners get their own arc of `radius`. An arc
+/// may use up to half of each neighbouring segment (all of an end segment); where that is too short the radius
+/// shrinks, below `minRadius` the corner stays sharp. `clear(run, arc)` vets each arc (one retry at half the
+/// radius). `sharp` lists corners (run, vertex) that must stay sharp. `vertexOut[k][i]` is the index of the first
+/// output track of vertex i's replacement in run k.
+std::vector<std::vector<Track>> filletArcRunsCore(const std::vector<std::vector<Vec2>>& runs,
+                                                  const std::vector<Track>& protos, double radius, double minRadius,
+                                                  const std::function<bool(size_t, const Track&)>& clear,
+                                                  const std::set<std::pair<size_t, size_t>>& sharp,
+                                                  std::vector<std::vector<size_t>>* vertexOut) {
+    struct Corner {
+        bool arc = false;
+        Vec2 a, b, c;
+        bool ccw = false;
+    };
+    struct TurnInfo {
+        bool ok = false;
+        Vec2 u1, u2;
+        double turn = 0, avail = 0;
+    };
+    const size_t nr = runs.size();
+    std::vector<std::vector<Corner>> dec(nr);
+    std::vector<std::vector<TurnInfo>> turns(nr);
+    for (size_t k = 0; k < nr; ++k) {
+        const auto& pts = runs[k];
+        const size_t n = pts.size();
+        dec[k].assign(n, {});
+        turns[k].assign(n, {});
+        for (size_t i = 1; i + 1 < n; ++i) {
+            const Vec2 d1 = pts[i] - pts[i - 1], d2 = pts[i + 1] - pts[i];
+            const double l1 = d1.length(), l2 = d2.length();
+            if (l1 <= 1e-9 || l2 <= 1e-9) continue;
+            TurnInfo& t = turns[k][i];
+            t.u1 = d1 * (1 / l1);
+            t.u2 = d2 * (1 / l2);
+            t.turn = std::acos(std::clamp(t.u1.dot(t.u2), -1.0, 1.0));
+            t.avail = std::min(i == 1 ? l1 : l1 / 2, i + 2 == n ? l2 : l2 / 2);
+            t.ok = t.turn > 0.02 && t.turn < 2.0 && !sharp.count({k, i});  // up to ~115°: 45° and 90° corners
+        }
+    }
+    auto arcAt = [&](size_t k, size_t i, double r, Corner& out) {
+        const TurnInfo& t = turns[k][i];
+        const double tl = r * std::tan(t.turn / 2);
+        if (tl > t.avail + 1e-9 || r < minRadius) return false;
+        const double side = cross(t.u1, t.u2) > 0 ? 1 : -1;
+        out.a = runs[k][i] - t.u1 * tl;
+        out.b = runs[k][i] + t.u2 * tl;
+        out.c = out.a + Vec2{-t.u1.y, t.u1.x} * (side * r);
+        out.ccw = side > 0;
+        out.arc = true;
+        return true;
+    };
+    auto arcTrack = [&](size_t k, const Corner& c) {
+        const Track& p = protos[k];
+        return makeArcTrack(c.a, c.b, c.c, c.ccw, p.net, p.layer, p.width);
+    };
+    // Corners the runs turn together.
+    std::vector<std::vector<char>> grouped(nr);
+    for (size_t k = 0; k < nr; ++k) grouped[k].assign(runs[k].size(), 0);
+    if (nr > 1) {
+        double span = 1.0;
+        for (const Track& p : protos) span += 2 * p.width;
+        for (size_t k = 1; k < nr; ++k) span += (runs[k].front() - runs[0].front()).length();
+        std::vector<size_t> from(nr, 1);
+        for (size_t i = 1; i + 1 < runs[0].size(); ++i) {
+            const TurnInfo& t0 = turns[0][i];
+            if (!t0.ok) continue;
+            std::vector<size_t> at(nr, 0);
+            at[0] = i;
+            bool all = true;
+            for (size_t k = 1; k < nr && all; ++k) {
+                bool found = false;
+                for (size_t j = from[k]; j + 1 < runs[k].size() && !found; ++j) {
+                    const TurnInfo& t = turns[k][j];
+                    if (t.ok && t.u1.dot(t0.u1) > 1 - 1e-9 && t.u2.dot(t0.u2) > 1 - 1e-9 &&
+                        (runs[k][j] - runs[0][i]).length() <= span) {
+                        at[k] = j;
+                        found = true;
+                    }
+                }
+                all = found;
+            }
+            if (!all) continue;
+            // Concentric: every corner on one bisector line.
+            const Vec2 bis = unit(t0.u2 - t0.u1), perp{-bis.y, bis.x};
+            bool aligned = bis.length() > 0.5;
+            size_t inner = 0;
+            for (size_t k = 0; k < nr && aligned; ++k) {
+                aligned = std::fabs((runs[k][at[k]] - runs[0][i]).dot(perp)) <= 1e-6;
+                if (runs[k][at[k]].dot(bis) > runs[inner][at[inner]].dot(bis)) inner = k;
+            }
+            if (!aligned) continue;
+            const double cosh = std::cos(t0.turn / 2), tanh = std::tan(t0.turn / 2);
+            std::vector<double> delta(nr);
+            double r = radius;
+            for (size_t k = 0; k < nr; ++k) {
+                delta[k] = (runs[inner][at[inner]] - runs[k][at[k]]).dot(bis) * cosh;
+                r = std::min(r, turns[k][at[k]].avail / tanh - delta[k]);
+            }
+            for (size_t k = 0; k < nr; ++k) {
+                grouped[k][at[k]] = 1;
+                from[k] = at[k] + 1;
+            }
+            for (int attempt = 0; attempt < 2 && r >= minRadius; ++attempt, r /= 2) {
+                std::vector<Corner> cs(nr);
+                bool ok = true;
+                for (size_t k = 0; k < nr && ok; ++k) ok = arcAt(k, at[k], r + delta[k], cs[k]) && clear(k, arcTrack(k, cs[k]));
+                if (!ok) continue;
+                for (size_t k = 0; k < nr; ++k) dec[k][at[k]] = cs[k];
+                break;
+            }
+        }
+    }
+    // Every other corner on its own.
+    for (size_t k = 0; k < nr; ++k)
+        for (size_t i = 1; i + 1 < runs[k].size(); ++i) {
+            if (grouped[k][i] || !turns[k][i].ok) continue;
+            double r = std::min(radius, turns[k][i].avail / std::tan(turns[k][i].turn / 2));
+            for (int attempt = 0; attempt < 2 && r >= minRadius; ++attempt, r /= 2) {
+                Corner c;
+                if (!arcAt(k, i, r, c) || !clear(k, arcTrack(k, c))) continue;
+                dec[k][i] = c;
+                break;
+            }
+        }
+    // Emit: straight pieces between the arcs.
+    std::vector<std::vector<Track>> out(nr);
+    if (vertexOut) vertexOut->assign(nr, {});
+    for (size_t k = 0; k < nr; ++k) {
+        const auto& pts = runs[k];
+        if (vertexOut) (*vertexOut)[k].assign(pts.size(), 0);
+        if (pts.empty()) continue;
+        Vec2 cur = pts[0];
+        auto straight = [&](Vec2 to) {
+            if ((to - cur).length() <= 1e-9) return;
+            Track t = protos[k];
+            t.arc = false;
+            t.a = cur;
+            t.b = to;
+            out[k].push_back(t);
+        };
+        for (size_t i = 1; i + 1 < pts.size(); ++i) {
+            const Corner& c = dec[k][i];
+            straight(c.arc ? c.a : pts[i]);
+            if (vertexOut) (*vertexOut)[k][i] = out[k].size();
+            if (c.arc) {
+                out[k].push_back(arcTrack(k, c));
+                cur = c.b;
+            } else {
+                cur = pts[i];
+            }
+        }
+        straight(pts.back());
+        if (vertexOut) (*vertexOut)[k][pts.size() - 1] = out[k].size();
+    }
+    return out;
+}
+
+/// filletArcRunsCore on the runs with their straight-through points dropped (a corner placed in the middle of a
+/// straight line, or the short collinear piece a pair's outer member gets at a placed corner, must not limit the
+/// arc next to it). `sharp` and `vertexOut` use the original vertex indices.
+std::vector<std::vector<Track>> filletArcRuns(const std::vector<std::vector<Vec2>>& runs, const std::vector<Track>& protos,
+                                              double radius, double minRadius,
+                                              const std::function<bool(size_t, const Track&)>& clear,
+                                              const std::set<std::pair<size_t, size_t>>& sharp,
+                                              std::vector<std::vector<size_t>>* vertexOut) {
+    const size_t nr = runs.size();
+    std::vector<std::vector<Vec2>> simple(nr);
+    std::vector<std::vector<size_t>> map(nr);
+    for (size_t k = 0; k < nr; ++k) {
+        const auto& p = runs[k];
+        const size_t n = p.size();
+        map[k].assign(n, 0);
+        std::vector<size_t> pending;
+        for (size_t i = 0; i < n; ++i) {
+            bool drop = false;
+            if (i > 0 && !simple[k].empty()) {
+                const Vec2 d1 = p[i] - simple[k].back();
+                if (d1.length() <= 1e-9) {
+                    drop = i + 1 < n;  // a repeated point (the last one is kept: the run must end where it ends)
+                } else if (i + 1 < n) {
+                    const Vec2 d2 = p[i + 1] - p[i];
+                    drop = d2.length() <= 1e-9 || (std::fabs(cross(unit(d1), unit(d2))) <= 1e-9 && d1.dot(d2) > 0);
+                }
+            }
+            if (drop) {
+                pending.push_back(i);
+                continue;
+            }
+            simple[k].push_back(p[i]);
+            map[k][i] = simple[k].size() - 1;
+            for (size_t q : pending) map[k][q] = simple[k].size() - 1;
+            pending.clear();
+        }
+        for (size_t q : pending) map[k][q] = simple[k].empty() ? 0 : simple[k].size() - 1;
+    }
+    std::set<std::pair<size_t, size_t>> sharpSimple;
+    for (const auto& [k, i] : sharp)
+        if (k < nr && i < map[k].size()) sharpSimple.insert({k, map[k][i]});
+    std::vector<std::vector<size_t>> vo;
+    auto out = filletArcRunsCore(simple, protos, radius, minRadius, clear, sharpSimple, &vo);
+    if (vertexOut) {
+        vertexOut->assign(nr, {});
+        for (size_t k = 0; k < nr; ++k) {
+            (*vertexOut)[k].assign(runs[k].size(), 0);
+            for (size_t i = 0; i < runs[k].size(); ++i)
+                (*vertexOut)[k][i] = map[k][i] < vo[k].size() ? vo[k][map[k][i]] : out[k].size();
+        }
+    }
+    return out;
+}
+
+/// filletArcRuns, then every arc checked against the other runs' final copper (`clearance(netA, netB)`): a corner
+/// whose arc comes too close stays sharp and the runs are filleted again without it (all sharp after 7 rounds).
+std::vector<std::vector<Track>> filletArcRunsChecked(const std::vector<std::vector<Vec2>>& pts,
+                                                     const std::vector<Track>& protos, double radius, double minRadius,
+                                                     const std::function<bool(size_t, const Track&)>& clear,
+                                                     const std::function<double(int, int)>& clearance,
+                                                     std::vector<std::vector<size_t>>* vertexOut) {
+    std::vector<std::vector<Track>> res;
+    std::vector<std::vector<size_t>> vos;
+    std::set<std::pair<size_t, size_t>> sharp;
+    for (int attempt = 0; attempt < 8; ++attempt) {
+        res = filletArcRuns(pts, protos, radius, minRadius, clear, sharp, &vos);
+        const size_t before = sharp.size();
+        for (size_t gk = 0; gk < res.size(); ++gk)
+            for (size_t ti = 0; ti < res[gk].size(); ++ti) {
+                const Track& a = res[gk][ti];
+                if (!a.arc) continue;
+                bool bad = false;
+                for (size_t gk2 = 0; gk2 < res.size() && !bad; ++gk2) {
+                    if (gk2 == gk) continue;
+                    for (const Track& o : res[gk2])
+                        if (o.layer == a.layer && o.net != a.net &&
+                            trackTrackDistance(a, o) - (a.width + o.width) / 2 < clearance(a.net, o.net) - kTol) {
+                            bad = true;
+                            break;
+                        }
+                }
+                if (!bad) continue;
+                for (size_t v = 0; v < vos[gk].size(); ++v)
+                    if (vos[gk][v] == ti) sharp.insert({gk, v});
+            }
+        if (sharp.size() == before) break;
+        if (attempt == 6)
+            for (size_t gk = 0; gk < pts.size(); ++gk)
+                for (size_t v = 0; v < pts[gk].size(); ++v) sharp.insert({gk, v});
+    }
+    if (vertexOut) *vertexOut = vos;
+    return res;
+}
+
 // --------------------------------------------------------------------------------------------- octagonal hulls
 
 const Vec2 kDirs[8] = {{1, 0},  {kInvSqrt2, kInvSqrt2},   {0, 1},  {-kInvSqrt2, kInvSqrt2},
@@ -345,25 +602,37 @@ bool walkAround(const std::vector<Vec2>& pts, const Octagon& o, bool ccw, std::v
 
 /// A copper shape as the hulls see it: a point, a segment or a box, plus a radius.
 struct Shape {
-    enum Type { Point, Segment, Box } type = Point;
+    enum Type { Point, Segment, Box, Arc } type = Point;
     Vec2 a, b;
     Rect box;
     double radius = 0;
+    Track arc;  // Arc: the arc track; its hull points are chords, so `radius` includes their sagitta
+    static constexpr double kArcSag = 0.005;
     std::vector<Vec2> points() const {
         if (type == Point) return {a};
         if (type == Segment) return {a, b};
+        if (type == Arc) return trackPolyline(arc, kArcSag);
         return {{box.x0, box.y0}, {box.x1, box.y0}, {box.x1, box.y1}, {box.x0, box.y1}};
     }
     /// Edge distance from this shape to segment p-q.
     double distanceTo(Vec2 p, Vec2 q) const {
         if (type == Point) return pointSegmentDistance(a, p, q) - radius;
         if (type == Segment) return segmentSegmentDistance(a, b, p, q) - radius;
+        if (type == Arc) return trackSegmentDistance(arc, p, q) - (radius - kArcSag);
         return segmentRectDistance(p, q, box) - radius;
     }
 };
 
 Shape trackShape(const Track& t) {
     Shape s;
+    if (isArcTrack(t)) {
+        s.type = Shape::Arc;
+        s.arc = t;
+        s.a = t.a;
+        s.b = t.b;
+        s.radius = t.width / 2 + Shape::kArcSag;
+        return s;
+    }
     s.type = Shape::Segment;
     s.a = t.a;
     s.b = t.b;
@@ -453,7 +722,9 @@ struct Base {
                 meshNets.insert(g.netB);
             }
         trackFixed.resize(tracks.size());
-        for (size_t i = 0; i < tracks.size(); ++i) trackFixed[i] = tracks[i].locked || meshNets.count(tracks[i].net);
+        // Arcs stay where they are (the shove engine moves straight lines), like locked tracks.
+        for (size_t i = 0; i < tracks.size(); ++i)
+            trackFixed[i] = tracks[i].locked || meshNets.count(tracks[i].net) || tracks[i].arc;
         viaFixed.resize(vias.size());
         for (size_t i = 0; i < vias.size(); ++i) {
             bool inPad = false;
@@ -481,7 +752,7 @@ struct Base {
         for (Grid* g : {&padGrid, &trackGrid, &viaGrid}) g->cells.assign(static_cast<size_t>(cols * rows), {});
         for (size_t i = 0; i < pads.size(); ++i) insert(padGrid, pads[i].bounds(), i);
         for (size_t i = 0; i < tracks.size(); ++i)
-            insert(trackGrid, segmentBox(tracks[i].a, tracks[i].b, tracks[i].width / 2), i);
+            insert(trackGrid, trackBox(tracks[i], tracks[i].width / 2), i);
         for (size_t i = 0; i < vias.size(); ++i)
             insert(viaGrid, Rect::centered(vias[i].position, vias[i].diameter, vias[i].diameter), i);
         padGrid.stamp.assign(pads.size(), 0);
@@ -606,7 +877,7 @@ struct World {
             if (aliveT(i)) out.push_back(i);
         for (size_t k = 0; k < addT.size(); ++k) {
             const size_t i = baseT() + k;
-            if (aliveT(i) && segmentBox(addT[k].a, addT[k].b, addT[k].width / 2).intersects(r)) out.push_back(i);
+            if (aliveT(i) && trackBox(addT[k], addT[k].width / 2).intersects(r)) out.push_back(i);
         }
     }
     void viasIn(const Rect& r, std::vector<size_t>& out) const {
@@ -643,10 +914,11 @@ double clearanceTo(const Base& B, const std::vector<int>& nets, int other, bool 
     return nets.empty() ? B.s.clearance : c;
 }
 
-/// Everything copper of `nets` along a-b (half width hw) on `layer` is too close to. Stops at the first hit when
-/// `out` is null. Returns true if there is any.
-bool segmentHits(const World& w, const std::vector<int>& nets, int layer, Vec2 a, Vec2 b, double hw,
-                 std::vector<Hit>* out) {
+/// Everything copper of `nets` along centre line `seg` (straight or arc, half width hw) on `layer` is too close to.
+/// Stops at the first hit when `out` is null. Returns true if there is any.
+bool trackHits(const World& w, const std::vector<int>& nets, int layer, const Track& seg, double hw,
+               std::vector<Hit>* out) {
+    const Vec2 a = seg.a, b = seg.b;
     const Base& B = *w.b;
     const BoardSettings& s = B.s;
     bool any = false;
@@ -655,18 +927,20 @@ bool segmentHits(const World& w, const std::vector<int>& nets, int layer, Vec2 a
         if (out) out->push_back({k, i, fixed});
         return out == nullptr;  // stop
     };
-    const Rect box = segmentBox(a, b, hw + B.maxClearance + 0.05);
+    const Rect box = trackBox(seg, hw + B.maxClearance + 0.05);
     std::vector<size_t> found;
     w.padsIn(box, found);
     for (size_t i : found) {
         const Pad& p = B.pads[i];
         if (!p.onLayer(layer) || inNets(nets, p.net)) continue;
         const bool barrier = B.barrierComps.count(p.componentId) > 0;
-        const double d = padSegmentDistance(p, a, b) - hw;
+        const double d = (seg.arc ? (p.round ? std::max(0.0, trackPointDistance(seg, p.position) - std::min(p.size.x, p.size.y) / 2)
+                                             : trackRectDistance(seg, p.bounds()))
+                                  : padSegmentDistance(p, a, b)) - hw;
         double need = clearanceTo(B, nets, p.net, barrier);
         if (d >= need - kTol) continue;
         // Where the track is still inside its own pad of the same footprint, the gap is the package's pad gap.
-        const Vec2 c = closestOnSegment(p.position, a, b);
+        const Vec2 c = seg.arc ? trackClosestPoint(seg, p.position) : closestOnSegment(p.position, a, b);
         bool own = false;
         auto it = B.compPads.find(p.componentId);
         if (it != B.compPads.end())
@@ -686,19 +960,19 @@ bool segmentHits(const World& w, const std::vector<int>& nets, int layer, Vec2 a
     for (size_t i : found) {
         const Track& t = w.track(i);
         if (t.layer != layer || inNets(nets, t.net)) continue;
-        const double d = segmentSegmentDistance(a, b, t.a, t.b) - hw - t.width / 2;
+        const double d = trackTrackDistance(seg, t) - hw - t.width / 2;
         if (d < clearanceTo(B, nets, t.net) - kTol && hit(HitKind::Track, i, w.trackFixed(i))) return true;
     }
     w.viasIn(box, found);
     for (size_t i : found) {
         const Via& v = w.via(i);
         if (!v.spans(layer) || inNets(nets, v.net)) continue;
-        const double d = pointSegmentDistance(v.position, a, b) - hw - v.diameter / 2;
+        const double d = trackPointDistance(seg, v.position) - hw - v.diameter / 2;
         if (d < clearanceTo(B, nets, v.net) - kTol && hit(HitKind::Via, i, w.viaFixed(i))) return true;
     }
-    if (s.segmentEdgeDistance(a, b) - hw < s.edgeClearance - kTol && hit(HitKind::Edge, 0, true)) return true;
+    if (s.trackEdgeDistance(seg) - hw < s.edgeClearance - kTol && hit(HitKind::Edge, 0, true)) return true;
     for (size_t k = 0; k < s.holes.size(); ++k)
-        if (pointSegmentDistance(s.holes[k].position, a, b) - hw < s.holes[k].keepout / 2 - kTol &&
+        if (trackPointDistance(seg, s.holes[k].position) - hw < s.holes[k].keepout / 2 - kTol &&
             hit(HitKind::Hole, k, true))
             return true;
     if (layer >= 0 && layer < static_cast<int>(B.planeNet.size())) {
@@ -708,10 +982,19 @@ bool segmentHits(const World& w, const std::vector<int>& nets, int layer, Vec2 a
     for (size_t k = 0; k < B.meshes.size(); ++k) {
         const auto& m = B.meshes[k];
         if ((layer == m.layerA || layer == m.layerB) && !inNets(nets, m.netA) && !inNets(nets, m.netB) &&
-            segmentRectDistance(a, b, m.region) - hw <= 0 && hit(HitKind::Mesh, k, true))
+            trackRectDistance(seg, m.region) - hw <= 0 && hit(HitKind::Mesh, k, true))
             return true;
     }
     return any;
+}
+
+/// The same for the straight segment a-b.
+bool segmentHits(const World& w, const std::vector<int>& nets, int layer, Vec2 a, Vec2 b, double hw,
+                 std::vector<Hit>* out) {
+    Track seg;
+    seg.a = a;
+    seg.b = b;
+    return trackHits(w, nets, layer, seg, hw, out);
 }
 
 /// Everything via `v` (index `self` in the world, or SIZE_MAX) is too close to.
@@ -747,7 +1030,7 @@ bool viaHits(const World& w, const Via& v, size_t self, std::vector<Hit>* out) {
     for (size_t i : found) {
         const Track& t = w.track(i);
         if (!v.spans(t.layer) || inNets(nets, t.net)) continue;
-        const double d = pointSegmentDistance(v.position, t.a, t.b) - r - t.width / 2;
+        const double d = trackPointDistance(t, v.position) - r - t.width / 2;
         if (d < clearanceTo(B, nets, t.net) - kTol && hit(HitKind::Track, i, w.trackFixed(i))) return true;
     }
     w.viasIn(box, found);
@@ -823,7 +1106,7 @@ std::vector<Hit> contactsOf(const World& w, int net, int layer, const std::vecto
         for (size_t i : found) {
             const Track& t = w.track(i);
             if (t.net == net && t.layer == layer &&
-                segmentSegmentDistance(a, b, t.a, t.b) <= std::min(hw, t.width / 2))
+                trackSegmentDistance(t, a, b) <= std::min(hw, t.width / 2))
                 out.push_back({HitKind::Track, i, true});
         }
     }
@@ -925,7 +1208,10 @@ bool acuteAway(Vec2 da, Vec2 db) {
     return l > 0 && da.dot(db) > 0.01745 * l;
 }
 
-Vec2 awayFrom(const Track& t, Vec2 p) { return samePoint(t.a, p) ? t.b - t.a : t.a - t.b; }
+Vec2 awayFrom(const Track& t, Vec2 p) {
+    if (t.arc && isArcTrack(t)) return trackEndDirection(t, !samePoint(t.a, p));  // an arc leaves along its tangent
+    return samePoint(t.a, p) ? t.b - t.a : t.a - t.b;
+}
 Vec2 otherEnd(const Track& t, Vec2 p) { return samePoint(t.a, p) ? t.b : t.a; }
 
 /// Alive tracks of `net` on `layer` with an end at `p`.
@@ -1187,7 +1473,7 @@ private:
             viaHits(w_, w_.via(it.idx), it.idx, &hits);
         } else {
             const Track& t = w_.track(it.idx);
-            segmentHits(w_, {t.net}, t.layer, t.a, t.b, t.width / 2, &hits);
+            trackHits(w_, {t.net}, t.layer, t, t.width / 2, &hits);
         }
         return hits;
     }
@@ -1340,7 +1626,7 @@ private:
             for (size_t i : found) {
                 const Track& o = w_.track(i);
                 if (o.net == proto.net && o.layer == proto.layer && o.width >= proto.width - 1e-9 &&
-                    pointSegmentDistance(a, o.a, o.b) <= 1e-7 && pointSegmentDistance(b, o.a, o.b) <= 1e-7)
+                    trackPointDistance(o, a) <= 1e-7 && trackPointDistance(o, b) <= 1e-7)
                     covered = true;
             }
             if (covered) continue;
@@ -1484,7 +1770,7 @@ private:
             if (t.net != v.net || !v.spans(t.layer)) continue;
             const bool aIn = (t.a - v.position).length() <= r, bIn = (t.b - v.position).length() <= r;
             if (!aIn && !bIn) {
-                if (pointSegmentDistance(v.position, t.a, t.b) <= r) {
+                if (trackPointDistance(t, v.position) <= r) {
                     why = "A via of " + B_.netName(v.net) + " is pinned by a track through it";
                     return false;
                 }
@@ -1637,7 +1923,7 @@ GridPath gridRoute(const World& w, const std::vector<int>& nets, int layer, doub
         const Track& t = w.track(ti);
         if (t.layer != layer || inNets(nets, t.net)) continue;
         const double need = hw + t.width / 2 + clearanceTo(B, nets, t.net) + slack;
-        markRect(segmentBox(t.a, t.b, need), [&](Vec2 c) { return pointSegmentDistance(c, t.a, t.b) < need; });
+        markRect(trackBox(t, need), [&](Vec2 c) { return trackPointDistance(t, c) < need; });
     }
     w.viasIn(query, found);
     for (size_t vi : found) {
@@ -1774,6 +2060,19 @@ Json trackJson(const Track& t) {
     j["ay"] = t.a.y;
     j["bx"] = t.b.x;
     j["by"] = t.b.y;
+    if (t.arc) {  // true arc (see the snapshot's tracks)
+        j["arc"] = true;
+        j["mx"] = t.mid.x;
+        j["my"] = t.mid.y;
+        const ArcGeom g = trackArc(t);
+        if (g.valid) {
+            j["cx"] = g.c.x;
+            j["cy"] = g.c.y;
+            j["radius"] = g.r;
+            j["startAngle"] = g.start;
+            j["sweep"] = g.sweep;
+        }
+    }
     return j;
 }
 
@@ -1798,8 +2097,8 @@ Json viaJson(const Via& v, int layerCount = 0) {
 std::vector<Track> mergeCollinear(const std::vector<Track>& in) {
     std::vector<Track> out;
     for (const Track& t : in) {
-        if ((t.b - t.a).length() < 1e-9) continue;
-        if (!out.empty()) {
+        if (trackLength(t) < 1e-9) continue;
+        if (!out.empty() && !t.arc && !out.back().arc) {
             Track& p = out.back();
             if (p.layer == t.layer && std::fabs(p.width - t.width) < 1e-12 && p.net == t.net && samePoint(p.b, t.a, 1e-9) &&
                 std::fabs(cross(unit(p.b - p.a), unit(t.b - t.a))) < 1e-9 && (p.b - p.a).dot(t.b - t.a) > 0) {
@@ -1814,7 +2113,7 @@ std::vector<Track> mergeCollinear(const std::vector<Track>& in) {
 
 bool sameTrack(const Track& a, const Track& b) {
     return a.id == b.id && a.net == b.net && a.layer == b.layer && a.width == b.width && a.a == b.a && a.b == b.b &&
-           a.locked == b.locked;
+           a.locked == b.locked && a.arc == b.arc && (!a.arc || a.mid == b.mid);
 }
 bool sameVia(const Via& a, const Via& b) {
     return a.id == b.id && a.net == b.net && a.position == b.position && a.drill == b.drill &&
@@ -1984,8 +2283,8 @@ struct InteractiveRouter::Impl {
         }
         for (size_t i = 0; i < B.tracks.size(); ++i) {
             const Track& t = B.tracks[i];
-            if (t.net < 0 || t.layer != l || pointSegmentDistance(at, t.a, t.b) > t.width / 2) continue;
-            Vec2 p = closestOnSegment(at, t.a, t.b);
+            if (t.net < 0 || t.layer != l || trackPointDistance(t, at) > t.width / 2) continue;
+            Vec2 p = trackClosestPoint(t, at);
             if ((p - t.a).length() <= t.width) p = t.a;
             if ((p - t.b).length() <= t.width) p = t.b;
             out = {t.net, p, -1, -1};
@@ -2145,9 +2444,9 @@ struct InteractiveRouter::Impl {
             const Track& t = committed.track(i);
             if (t.net != m.net || t.layer != layer) continue;
             if (i >= committed.baseT() && committed.fixAddT[i - committed.baseT()]) continue;  // the route itself
-            if (pointSegmentDistance(cursor, t.a, t.b) <= t.width / 2) {
+            if (trackPointDistance(t, cursor) <= t.width / 2) {
                 hit = true;
-                Vec2 p = closestOnSegment(cursor, t.a, t.b);
+                Vec2 p = trackClosestPoint(t, cursor);
                 if ((p - t.a).length() <= t.width) p = t.a;
                 if ((p - t.b).length() <= t.width) p = t.b;
                 return p;
@@ -2170,12 +2469,25 @@ struct InteractiveRouter::Impl {
     struct HeadLine {
         int net;
         std::vector<Vec2> pts;
+        /// The line starts back on the member's last placed track, which ends at `trimFrom`: that track ends at the
+        /// line's start instead (a pair's inner member turning at a placed corner).
+        bool trim = false;
+        Vec2 trimFrom;
+        HeadLine(int n, std::vector<Vec2> p, bool tr = false, Vec2 from = {})
+            : net(n), pts(std::move(p)), trim(tr), trimFrom(from) {}
     };
 
     /// Adds the head lines to `w` as fixed copper (no checks).
     std::vector<size_t> addHeadLines(World& w, const std::vector<HeadLine>& lines) const {
         std::vector<size_t> added;
-        for (const auto& hl : lines)
+        for (const auto& hl : lines) {
+            if (hl.trim && !hl.pts.empty())
+                for (size_t k = 0; k < w.addT.size(); ++k) {
+                    Track& t = w.addT[k];
+                    if (w.goneT[w.baseT() + k] || !w.fixAddT[k] || t.net != hl.net || t.arc || !samePoint(t.b, hl.trimFrom, 1e-9))
+                        continue;
+                    if (pointSegmentDistance(hl.pts.front(), t.a, t.b) <= 1e-9) t.b = hl.pts.front();
+                }
             for (size_t k = 0; k + 1 < hl.pts.size(); ++k) {
                 if ((hl.pts[k + 1] - hl.pts[k]).length() < 1e-9) continue;
                 Track t;
@@ -2186,6 +2498,7 @@ struct InteractiveRouter::Impl {
                 t.b = hl.pts[k + 1];
                 added.push_back(w.addTrack(t, true));
             }
+        }
         return added;
     }
 
@@ -2212,6 +2525,21 @@ struct InteractiveRouter::Impl {
             std::vector<Vec2> pts{tracks[i].a};
             for (size_t k = i; k < j; ++k) pts.push_back(tracks[k].b);
             const Track& t0 = tracks[i];
+            if (opt.arcCorners && r > 0) {  // true arcs
+                std::vector<std::vector<size_t>> vos;
+                auto clearArc = [&](size_t, const Track& arc) {
+                    return !trackHits(w, {t0.net}, t0.layer, arc, t0.width / 2, nullptr);
+                };
+                const auto res = filletArcRuns({pts}, {t0}, r, std::max(t0.width, 0.05), clearArc, {}, &vos);
+                for (size_t k = 0; k < res[0].size(); ++k) {
+                    if (headOut && *headOut == std::numeric_limits<size_t>::max() && headFrom >= i && headFrom < j &&
+                        k >= vos[0][headFrom - i])
+                        *headOut = out.size();
+                    out.push_back(res[0][k]);
+                }
+                i = j;
+                continue;
+            }
             auto clear = [&](const std::vector<Vec2>& arc) { return pathClear(w, {t0.net}, t0.layer, arc, t0.width / 2); };
             std::vector<size_t> vo;
             const std::vector<Vec2> q = r > 0 ? filletPath(pts, r, std::max(t0.width, 0.05), clear, &vo) : pts;
@@ -2231,6 +2559,93 @@ struct InteractiveRouter::Impl {
             i = j;
         }
         if (headOut && *headOut == std::numeric_limits<size_t>::max()) *headOut = out.size();
+        return out;
+    }
+
+    /// Arc corners for a differential pair or a bus: each member's tracks (`per[k]`, in path order, the head from
+    /// `headFrom[k]`) are cut into runs (one layer and width); when every member has the same runs they are filleted
+    /// together, so the corners they turn together become concentric arcs. Every arc is then checked against the
+    /// other members' final copper; a corner that fails stays sharp (and the rounding is redone without it).
+    std::vector<std::vector<Track>> roundGroup(const std::vector<std::vector<Track>>& per,
+                                               const std::vector<size_t>& headFrom, const World& w,
+                                               std::vector<size_t>* headOut) const {
+        const size_t nm = per.size();
+        const size_t none = std::numeric_limits<size_t>::max();
+        std::vector<std::vector<Track>> out(nm);
+        if (headOut) headOut->assign(nm, none);
+        const double r = cornerRadius();
+        std::vector<std::vector<std::pair<size_t, size_t>>> runs(nm);  // [from, to) track ranges
+        for (size_t k = 0; k < nm; ++k)
+            for (size_t i = 0; i < per[k].size();) {
+                size_t j = i + 1;
+                while (j < per[k].size() && per[k][j].layer == per[k][i].layer && !per[k][j].arc &&
+                       std::fabs(per[k][j].width - per[k][i].width) < 1e-12 && samePoint(per[k][j].a, per[k][j - 1].b, 1e-9))
+                    ++j;
+                runs[k].push_back({i, j});
+                i = j;
+            }
+        bool joint = nm > 1;
+        for (size_t k = 1; k < nm && joint; ++k) {
+            joint = runs[k].size() == runs[0].size();
+            for (size_t ri = 0; ri < runs[0].size() && joint; ++ri)
+                joint = per[k][runs[k][ri].first].layer == per[0][runs[0][ri].first].layer;
+        }
+        std::vector<int> nets;
+        for (const auto& m : members) nets.push_back(m.net);
+        // Groups of (member, run index) filleted together.
+        std::vector<std::vector<std::pair<size_t, size_t>>> groups;
+        if (joint) {
+            for (size_t ri = 0; ri < runs[0].size(); ++ri) {
+                groups.push_back({});
+                for (size_t k = 0; k < nm; ++k) groups.back().push_back({k, ri});
+            }
+        } else {
+            for (size_t k = 0; k < nm; ++k)
+                for (size_t ri = 0; ri < runs[k].size(); ++ri) groups.push_back({{k, ri}});
+        }
+        for (const auto& g : groups) {
+            std::vector<std::vector<Vec2>> pts;
+            std::vector<Track> protos;
+            for (const auto& [k, ri] : g) {
+                const auto [from, to] = runs[k][ri];
+                std::vector<Vec2> p{per[k][from].a};
+                for (size_t t = from; t < to; ++t) p.push_back(per[k][t].b);
+                pts.push_back(p);
+                protos.push_back(per[k][from]);
+            }
+            const bool single = per[g[0].first][runs[g[0].first][g[0].second].first].arc;
+            std::vector<std::vector<Track>> res;
+            std::vector<std::vector<size_t>> vos;
+            if (r > 0 && !single) {
+                auto clearArc = [&](size_t gk, const Track& arc) {
+                    return !trackHits(w, nets, protos[gk].layer, arc, protos[gk].width / 2, nullptr);
+                };
+                res = filletArcRunsChecked(pts, protos, r, std::max(protos[0].width, 0.05), clearArc,
+                                           [&](int a, int b) { return base->clearance(a, b); }, &vos);
+            } else {  // an arc already: kept as it is
+                res.assign(pts.size(), {});
+                vos.assign(pts.size(), {});
+                for (size_t gk = 0; gk < pts.size(); ++gk) {
+                    const auto [from, to] = runs[g[gk].first][g[gk].second];
+                    res[gk].assign(per[g[gk].first].begin() + static_cast<long>(from),
+                                   per[g[gk].first].begin() + static_cast<long>(to));
+                    for (size_t v = 0; v < pts[gk].size(); ++v) vos[gk].push_back(v);
+                }
+            }
+            for (size_t gk = 0; gk < g.size(); ++gk) {
+                const auto [k, ri] = g[gk];
+                const auto [from, to] = runs[k][ri];
+                for (size_t t = 0; t < res[gk].size(); ++t) {
+                    if (headOut && (*headOut)[k] == none && headFrom[k] >= from && headFrom[k] < to &&
+                        t >= vos[gk][headFrom[k] - from])
+                        (*headOut)[k] = out[k].size();
+                    out[k].push_back(res[gk][t]);
+                }
+            }
+        }
+        if (headOut)
+            for (size_t k = 0; k < nm; ++k)
+                if ((*headOut)[k] == none) (*headOut)[k] = out[k].size();
         return out;
     }
 
@@ -2373,14 +2788,30 @@ struct InteractiveRouter::Impl {
             const double d = (k == 0 ? sd : -sd) * spacing / 2;
             std::vector<Vec2> off = offsetPath(c, d);
             std::vector<Vec2> pts{members[k].end};
-            auto lead = postureLinks(members[k].end, off.front(), RoutePosture::Diagonal45, false);
-            pts.insert(pts.end(), lead.front().begin() + 1, lead.front().end());
+            const Vec2 u = unit(lastDir), v = unit(c[1] - c[0]);
+            bool trim = false;
+            if (!members[k].placed.empty() && lastDir.length() > 0 && std::fabs(cross(u, v)) > 1e-9 && u.dot(v) > 0) {
+                // A turn at a placed corner: each member turns where its last line meets its new line (the miter),
+                // so the gap stays exact through the corner. The inner member's last track ends at its miter instead
+                // (trimmed in the overlay by addHeadLines, and in the placed route by trimTo).
+                const double s = cross(off.front() - members[k].end, v) / cross(u, v);
+                const Vec2 miter = members[k].end + u * s;
+                if (s < -1e-9 && -s < trackLength(members[k].placed.back()) - 1e-9) {
+                    pts = {miter};
+                    trim = true;
+                } else if (s > 1e-9) {
+                    pts.push_back(miter);
+                }
+            } else {
+                auto lead = postureLinks(members[k].end, off.front(), RoutePosture::Diagonal45, false);
+                pts.insert(pts.end(), lead.front().begin() + 1, lead.front().end());
+            }
             pts.insert(pts.end(), off.begin() + 1, off.end());
             if (targets) {
                 auto tail = postureLinks(off.back(), targets[k], RoutePosture::Diagonal45, false);
                 pts.insert(pts.end(), tail.front().begin() + 1, tail.front().end());
             }
-            out.push_back({members[k].net, simplifyPath(pts)});
+            out.push_back({members[k].net, simplifyPath(pts), trim, members[k].end});
         }
         return out;
     }
@@ -2650,6 +3081,7 @@ struct InteractiveRouter::Impl {
         };
         if (ti < 0) return bail("No track with that id");
         const Track t = base->tracks[static_cast<size_t>(ti)];
+        if (base->tracks[static_cast<size_t>(ti)].arc) return bail("Arcs are not dragged: drag a straight track next to it");
         if (base->trackFixed[static_cast<size_t>(ti)]) return bail("The track is locked");
         if (t.net < 0) return bail("The track has no net");
         if ((t.b - t.a).length() < 1e-6) return bail("The track has no length");
@@ -2815,11 +3247,11 @@ struct InteractiveRouter::Impl {
             if (t.net != v.net || !v.spans(t.layer)) continue;
             const bool aIn = (t.a - v.position).length() <= r, bIn = (t.b - v.position).length() <= r;
             if (!aIn && !bIn) {
-                if (pointSegmentDistance(v.position, t.a, t.b) <= r) return bail("A track runs through the via");
+                if (trackPointDistance(t, v.position) <= r) return bail("A track runs through the via");
                 continue;
             }
             if (aIn && bIn) return bail("A short track inside the via's land holds it");
-            if (base->trackFixed[i]) return bail("A locked track ends on the via");
+            if (base->trackFixed[i]) return bail(base->tracks[i].arc ? "An arc ends on the via" : "A locked track ends on the via");
             Line L = extractLine(committed, i);
             if ((L.pts.back() - v.position).length() <= r && (L.pts.front() - v.position).length() > r) {
                 std::reverse(L.pts.begin(), L.pts.end());
@@ -3025,6 +3457,16 @@ struct InteractiveRouter::Impl {
         return out;
     }
 
+    /// A head that starts back on the last placed track (the inner member of a pair turning at a placed corner): that
+    /// track ends where the head starts instead.
+    static void trimBacktrack(std::vector<Track>& placed, std::vector<Track>& head) {
+        if (placed.empty() || head.empty()) return;
+        Track& last = placed.back();
+        const Vec2 s = head.front().a;
+        if (last.arc || samePoint(s, last.b, 1e-9) || samePoint(s, last.a, 1e-9)) return;
+        if (pointSegmentDistance(s, last.a, last.b) <= 1e-9) last.b = s;
+    }
+
     bool fixHead() {
         if (kind != Kind::Route && kind != Kind::Pair && kind != Kind::Bus) return fail("Nothing to place");
         bool any = false;
@@ -3033,7 +3475,9 @@ struct InteractiveRouter::Impl {
         committed = current;
         for (auto& m : members) {
             if (m.head.size() < 2) continue;
-            for (const Track& t : toTracks(m.head, m.net, layer, width)) m.placed.push_back(t);
+            std::vector<Track> news = toTracks(m.head, m.net, layer, width);
+            if (kind == Kind::Pair) trimBacktrack(m.placed, news);
+            for (const Track& t : news) m.placed.push_back(t);
             m.end = m.head.back();
             m.head.clear();
         }
@@ -3264,6 +3708,15 @@ struct InteractiveRouter::Impl {
             committed = current;
             for (const Track& t : mergeCollinear(toTracks(members[0].head, members[0].net, layer, width)))
                 routeTracks.push_back(t);
+        } else if ((kind == Kind::Pair || kind == Kind::Bus) && opt.arcCorners && cornerRadius() > 0) {
+            std::vector<std::vector<Track>> per;
+            std::vector<size_t> from;
+            for (const auto& m : members) {
+                per.push_back(m.placed);
+                from.push_back(m.placed.size());
+            }
+            for (const auto& ts : roundGroup(per, from, committed, nullptr))
+                for (const Track& t : mergeCollinear(ts)) routeTracks.push_back(t);
         } else {
             for (const auto& m : members)
                 for (const Track& t : mergeCollinear(kind == Kind::Route && cornerRadius() > 0
@@ -3276,12 +3729,12 @@ struct InteractiveRouter::Impl {
         for (const Track& t : routeTracks) {
             bool covered = false;
             std::vector<size_t> found;
-            committed.tracksIn(segmentBox(t.a, t.b, 0.01), found);
+            committed.tracksIn(trackBox(t, 0.01), found);
             for (size_t i : found) {
                 const Track& o = committed.track(i);
                 if (i >= committed.baseT() && committed.fixAddT[i - committed.baseT()]) continue;  // the route itself
-                if (o.net == t.net && o.layer == t.layer && o.width >= t.width - 1e-9 &&
-                    pointSegmentDistance(t.a, o.a, o.b) <= 1e-7 && pointSegmentDistance(t.b, o.a, o.b) <= 1e-7)
+                if (o.net == t.net && o.layer == t.layer && o.width >= t.width - 1e-9 && !t.arc &&
+                    trackPointDistance(o, t.a) <= 1e-7 && trackPointDistance(o, t.b) <= 1e-7)
                     covered = true;
             }
             if (!covered) kept.push_back(t);
@@ -3379,8 +3832,10 @@ struct InteractiveRouter::Impl {
         p.width = width;
         p.gap = kind == Kind::Pair ? gap : 0;
         for (const auto& m : members) {
-            p.placed.insert(p.placed.end(), m.placed.begin(), m.placed.end());
-            for (const Track& t : toTracks(m.head, m.net, layer, width)) p.head.push_back(t);
+            std::vector<Track> placed = m.placed, head = toTracks(m.head, m.net, layer, width);
+            if (kind == Kind::Pair) trimBacktrack(placed, head);
+            p.placed.insert(p.placed.end(), placed.begin(), placed.end());
+            p.head.insert(p.head.end(), head.begin(), head.end());
         }
         if (kind == Kind::Route && cornerRadius() > 0 && !members.empty()) {
             // Show the corners as they will be written: the whole route rounded, split where the head begins.
@@ -3392,6 +3847,27 @@ struct InteractiveRouter::Impl {
             h = std::min(h, round.size());
             p.placed.assign(round.begin(), round.begin() + static_cast<long>(h));
             p.head.assign(round.begin() + static_cast<long>(h), round.end());
+        }
+        if ((kind == Kind::Pair || kind == Kind::Bus) && opt.arcCorners && cornerRadius() > 0 && !members.empty()) {
+            // Concentric arc corners, as they will be written.
+            std::vector<std::vector<Track>> per;
+            std::vector<size_t> from;
+            for (const auto& m : members) {
+                std::vector<Track> placed = m.placed, head = toTracks(m.head, m.net, layer, width);
+                if (kind == Kind::Pair) trimBacktrack(placed, head);
+                from.push_back(placed.size());
+                placed.insert(placed.end(), head.begin(), head.end());
+                per.push_back(placed);
+            }
+            std::vector<size_t> h;
+            const auto round = roundGroup(per, from, current, &h);
+            p.placed.clear();
+            p.head.clear();
+            for (size_t k = 0; k < round.size(); ++k) {
+                const size_t hk = std::min(h[k], round[k].size());
+                p.placed.insert(p.placed.end(), round[k].begin(), round[k].begin() + static_cast<long>(hk));
+                p.head.insert(p.head.end(), round[k].begin() + static_cast<long>(hk), round[k].end());
+            }
         }
         if (kind == Kind::Pair || kind == Kind::Bus)
             p.end = centreHead.size() >= 2 ? centreHead.back() : centre;
@@ -3417,9 +3893,9 @@ struct InteractiveRouter::Impl {
         for (size_t i = 0; i < current.baseV(); ++i)
             if (current.goneV[i]) p.hiddenVias.push_back(base->vias[i].id);
         if (kind == Kind::DragVia) {
-            for (const Track& t : vdrag.tracks) p.length += (t.b - t.a).length();
+            for (const Track& t : vdrag.tracks) p.length += trackLength(t);
         } else if (!members.empty()) {
-            for (const Track& t : members[0].placed) p.length += (t.b - t.a).length();
+            for (const Track& t : members[0].placed) p.length += trackLength(t);
             p.length += pathLength(members[0].head);
         }
         if (highlight()) {
@@ -3435,7 +3911,7 @@ struct InteractiveRouter::Impl {
             for (size_t i = 0; i < current.nT(); ++i) {
                 if (!current.aliveT(i) || (i >= current.baseT() && current.fixAddT[i - current.baseT()])) continue;
                 const Track& t = current.track(i);
-                if (t.net == net) other += (t.b - t.a).length();
+                if (t.net == net) other += trackLength(t);
             }
             p.netLength = other + p.length;
             p.targetLength = groupTarget;
@@ -3831,6 +4307,177 @@ Json fanoutJson(const FanoutResult& r) {
     return j;
 }
 
+
+// ============================================================================================ arc corners
+
+ArcCornersResult convertCornersToArcs(PcbLayout& pcb, const Schematic& sch, const std::vector<int>& trackIds,
+                                      const ArcCornersOptions& opt) {
+    ArcCornersResult r;
+    Base B(pcb, sch);
+    World w(&B);
+    std::map<int, size_t> byId;
+    for (size_t i = 0; i < B.tracks.size(); ++i) byId[B.tracks[i].id] = i;
+    std::set<size_t> sel;
+    for (int id : trackIds) {
+        auto it = byId.find(id);
+        if (it == byId.end()) continue;
+        const Track& t = B.tracks[it->second];
+        if (!t.arc && !t.locked && t.net >= 0 && trackLength(t) > 1e-9) sel.insert(it->second);
+    }
+    if (sel.empty()) {
+        r.message = "Select straight, unlocked tracks with corners between them";
+        return r;
+    }
+    // Chains of selected tracks joined end to end in open board (no pad, via or third track at the joint).
+    struct Chain {
+        std::vector<size_t> segs;
+        std::vector<Vec2> pts;
+    };
+    std::vector<Chain> chains;
+    std::set<size_t> used;
+    auto nextAt = [&](size_t cur, Vec2 p) -> long {
+        const Track& t = B.tracks[cur];
+        const auto at = endsAt(w, t.net, t.layer, p);
+        if (at.size() != 2) return -1;
+        const size_t o = at[0] == cur ? at[1] : at[0];
+        long via = -1;
+        if (!sel.count(o) || used.count(o) || std::fabs(B.tracks[o].width - t.width) > 1e-9 ||
+            nodeAnchored(w, t.net, t.layer, p, &via))
+            return -1;
+        return static_cast<long>(o);
+    };
+    for (size_t s : sel) {
+        if (used.count(s)) continue;
+        Chain c;
+        c.segs = {s};
+        c.pts = {B.tracks[s].a, B.tracks[s].b};
+        used.insert(s);
+        for (int fwd = 1; fwd >= 0; --fwd)
+            for (size_t cur = s;;) {
+                const Vec2 end = fwd ? c.pts.back() : c.pts.front();
+                const long nx = nextAt(cur, end);
+                if (nx < 0) break;
+                const Track& n = B.tracks[static_cast<size_t>(nx)];
+                const Vec2 other = samePoint(n.a, end) ? n.b : n.a;
+                if (fwd) {
+                    c.pts.push_back(other);
+                    c.segs.push_back(static_cast<size_t>(nx));
+                } else {
+                    c.pts.insert(c.pts.begin(), other);
+                    c.segs.insert(c.segs.begin(), static_cast<size_t>(nx));
+                }
+                used.insert(static_cast<size_t>(nx));
+                cur = static_cast<size_t>(nx);
+            }
+        if (c.pts.size() >= 3) chains.push_back(c);
+    }
+    // Differential pair partners are filleted together (concentric arcs).
+    std::map<int, int> partner;
+    for (const auto& g : lengthGroups(sch, pcb.settings))
+        if (g.kind == "pair" && g.nets.size() == 2) {
+            partner[g.nets[0]] = g.nets[1];
+            partner[g.nets[1]] = g.nets[0];
+        }
+    std::vector<std::vector<size_t>> groups;
+    std::set<size_t> grouped;
+    for (size_t i = 0; i < chains.size(); ++i) {
+        if (grouped.count(i)) continue;
+        std::vector<size_t> g{i};
+        grouped.insert(i);
+        const Track& ti = B.tracks[chains[i].segs[0]];
+        auto p = partner.find(ti.net);
+        if (p != partner.end()) {
+            size_t best = chains.size();
+            double bestD = 1e18;
+            for (size_t j = 0; j < chains.size(); ++j) {
+                if (grouped.count(j)) continue;
+                const Track& tj = B.tracks[chains[j].segs[0]];
+                if (tj.net != p->second || tj.layer != ti.layer) continue;
+                const double d = (chains[j].pts.front() - chains[i].pts.front()).length();
+                if (d < bestD) {
+                    bestD = d;
+                    best = j;
+                }
+            }
+            if (best < chains.size()) {
+                g.push_back(best);
+                grouped.insert(best);
+            }
+        }
+        groups.push_back(g);
+    }
+    std::vector<Track> added;
+    for (const auto& g : groups) {
+        std::vector<std::vector<Vec2>> pts;
+        std::vector<Track> protos;
+        std::vector<int> nets;
+        int corners = 0;
+        for (size_t ci : g) {
+            pts.push_back(chains[ci].pts);
+            Track p = B.tracks[chains[ci].segs[0]];
+            p.id = -1;
+            p.locked = false;
+            protos.push_back(p);
+            nets.push_back(p.net);
+            corners += static_cast<int>(chains[ci].pts.size()) - 2;
+            for (size_t s : chains[ci].segs) w.goneT[s] = 1;
+        }
+        const double radius = opt.radius > 0 ? opt.radius : std::max(0.5, 4 * protos[0].width);
+        auto clearArc = [&](size_t k, const Track& arc) {
+            return !trackHits(w, nets, protos[k].layer, arc, protos[k].width / 2, nullptr);
+        };
+        const auto res = filletArcRunsChecked(pts, protos, radius, std::max(protos[0].width, 0.05), clearArc,
+                                              [&](int a, int b) { return B.clearance(a, b); }, nullptr);
+        int arcs = 0;
+        for (const auto& run : res)
+            for (const Track& t : run) arcs += t.arc ? 1 : 0;
+        if (arcs == 0) {
+            for (size_t ci : g)
+                for (size_t s : chains[ci].segs) w.goneT[s] = 0;
+            r.kept += corners;
+            continue;
+        }
+        r.converted += arcs;
+        r.kept += corners - arcs;
+        for (size_t ci : g)
+            for (size_t s : chains[ci].segs) r.removedTracks.push_back(B.tracks[s].id);
+        for (const auto& run : res)
+            for (const Track& t : mergeCollinear(run)) {
+                w.addTrack(t, true);
+                added.push_back(t);
+            }
+    }
+    r.addedTracks = added;
+    r.ok = r.converted > 0;
+    char buf[160];
+    std::snprintf(buf, sizeof buf, "%d corner%s converted to arcs%s", r.converted, r.converted == 1 ? "" : "s",
+                  r.kept > 0 ? (", " + std::to_string(r.kept) + " kept sharp (no room for an arc)").c_str() : "");
+    r.message = r.ok ? buf : (r.kept > 0 ? "No corner has room for an arc that keeps clearance"
+                                         : "No corners between the selected tracks");
+    if (r.ok && opt.apply) {
+        r.changes = applyWorld(pcb, w, added, {});
+        r.applied = true;
+    }
+    return r;
+}
+
+Json arcCornersJson(const ArcCornersResult& r) {
+    Json j = Json::object();
+    j["ok"] = r.ok;
+    j["message"] = r.message;
+    j["converted"] = r.converted;
+    j["kept"] = r.kept;
+    j["applied"] = r.applied;
+    Json add = Json::array();
+    for (const Track& t : r.addedTracks) add.push(trackJson(t));
+    j["addedTracks"] = add;
+    Json rem = Json::array();
+    for (int id : r.removedTracks) rem.push(id);
+    j["removedTracks"] = rem;
+    j["changes"] = routeChangesJson(r.changes);
+    return j;
+}
+
 // ================================================================================================= JSON
 
 RouterOptions routerOptionsFromJson(const Json& j, RouterOptions o) {
@@ -3854,6 +4501,7 @@ RouterOptions routerOptionsFromJson(const Json& j, RouterOptions o) {
     if (vt == "micro") o.viaType = RouterViaType::Micro;
     if (vt == "auto") o.viaType = RouterViaType::Auto;
     if (j.has("cornerRadius")) o.cornerRadius = j.get("cornerRadius").asNumber(o.cornerRadius);
+    if (j.has("arcCorners")) o.arcCorners = j.get("arcCorners").asBool(o.arcCorners);
     if (j.has("shoveLimit")) o.shoveLimit = std::clamp(j.get("shoveLimit").asInt(o.shoveLimit), 1, 10000);
     return o;
 }

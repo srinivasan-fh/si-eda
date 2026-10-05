@@ -833,6 +833,16 @@ struct SnapTrack: Decodable, Equatable, Identifiable {
     var ay: Double
     var bx: Double
     var by: Double
+    /// True arc a → (mx, my) → b; the core adds its centre, radius and angles (radians, sweep > 0 turns from +x
+    /// towards +y). Absent on straight tracks (see TrackArcs.swift for drawing and hit testing).
+    var arc: Bool?
+    var mx: Double?
+    var my: Double?
+    var cx: Double?
+    var cy: Double?
+    var radius: Double?
+    var startAngle: Double?
+    var sweep: Double?
 }
 
 struct SnapVia: Decodable, Equatable, Identifiable {

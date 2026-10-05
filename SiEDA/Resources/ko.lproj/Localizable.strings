@@ -790,3 +790,7 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x는 오른쪽, y는 PCB 보기의 위쪽, z는 기판에서 위쪽입니다. 회전은 x, y, z 순서입니다.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-드래그 또는 두 손가락 드래그로 이동";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "실제 원호";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "실제 원호(Gerber의 G02/G03), 차동 쌍과 버스는 동심 원호로 꺾입니다. 끄면: 짧은 직선 현";

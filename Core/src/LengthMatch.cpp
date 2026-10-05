@@ -116,7 +116,7 @@ std::vector<LengthGroup> lengthGroups(const Schematic& sch, const BoardSettings&
 double routedNetLength(const PcbLayout& pcb, int net) {
     double len = 0;
     for (const auto& t : pcb.tracks)
-        if (t.net == net) len += (t.b - t.a).length();
+        if (t.net == net) len += trackLength(t);
     return len;
 }
 
@@ -156,7 +156,7 @@ int tuneLengths(PcbLayout& pcb, const Schematic& sch) {
         for (size_t i = 0; i < pcb.tracks.size(); ++i) {
             const Track& t = pcb.tracks[i];
             if (i == skip || t.layer != layer || t.net == net) continue;
-            if (segmentSegmentDistance(a, b, t.a, t.b) - (w + t.width) / 2 < clr - 1e-6) return false;
+            if (trackSegmentDistance(t, a, b) - (w + t.width) / 2 < clr - 1e-6) return false;
         }
         for (const auto& pd : pads) {
             if (!pd.onLayer(layer) || (pd.net == net && net >= 0)) continue;
@@ -188,7 +188,7 @@ int tuneLengths(PcbLayout& pcb, const Schematic& sch) {
     auto tuneOnce = [&](int net, double want) -> double {
         std::vector<size_t> cand;
         for (size_t i = 0; i < pcb.tracks.size(); ++i)
-            if (pcb.tracks[i].net == net && !serpentineIds.count(pcb.tracks[i].id)) cand.push_back(i);
+            if (pcb.tracks[i].net == net && !pcb.tracks[i].arc && !serpentineIds.count(pcb.tracks[i].id)) cand.push_back(i);
         std::sort(cand.begin(), cand.end(), [&](size_t x, size_t y) {
             return (pcb.tracks[x].b - pcb.tracks[x].a).length() > (pcb.tracks[y].b - pcb.tracks[y].a).length();
         });

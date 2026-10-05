@@ -5918,3 +5918,79 @@ final class LargeDesignScaleTests: XCTestCase {
         XCTAssertEqual(results[0].failed, 0)
     }
 }
+
+/// True arc tracks (docs/INTERACTIVE_ROUTING.md): arc corners through the bridge, the snapshot's arc geometry,
+/// drawing / hit testing helpers, and "Convert corners to arcs" from the store as one undo step.
+@MainActor
+final class ArcRoutingTests: XCTestCase {
+    private func twoResistors(_ engine: EDAEngine) {
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        engine.moveFootprint(r1, to: CGPoint(x: 8, y: 20))
+        engine.moveFootprint(r2, to: CGPoint(x: 40, y: 32))
+    }
+
+    func testArcCornersThroughTheBridge() throws {
+        let engine = EDAEngine(name: "Arcs")
+        twoResistors(engine)
+        let options = EDAEngine.routingOptions(mode: .shove, diagonal: true, rounded: true, arcs: true)
+        XCTAssertTrue(options.contains("\"arcCorners\":true"))
+        XCTAssertNil(engine.routerBegin(at: CGPoint(x: 8.95, y: 20), layer: 0, pair: false, options: options)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 20, y: 20))
+        _ = engine.routerFix()
+        let head = try XCTUnwrap(engine.routerMove(to: CGPoint(x: 39.05, y: 32)))
+        XCTAssertTrue(head.reachedTarget)
+        XCTAssertTrue((head.placed + head.head).contains { $0.isArc })
+        XCTAssertTrue(engine.routerCommit().ok)
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        let arcs = snapshot.tracks.filter(\.isArc)
+        XCTAssertEqual(arcs.count, 2)
+        for arc in arcs {
+            // The mid point lies on the arc; the drawn centre line starts and ends exactly at the track's ends.
+            let mid = CGPoint(x: try XCTUnwrap(arc.mx), y: try XCTUnwrap(arc.my))
+            XCTAssertLessThan(arc.distance(to: mid), 1e-6)
+            XCTAssertEqual(arc.centreLine.first, arc.start)
+            XCTAssertEqual(arc.centreLine.last, arc.end)
+            XCTAssertLessThan(arc.length, hypot(arc.bx - arc.ax, arc.by - arc.ay) * 1.2)
+            XCTAssertTrue(arc.extent.insetBy(dx: -1e-9, dy: -1e-9).contains(mid))
+        }
+        XCTAssertTrue(snapshot.ratsnest.isEmpty)
+        XCTAssertFalse(engine.runDRC().contains { $0.severity == .error })
+        // The chords option still writes short straight pieces.
+        XCTAssertTrue(EDAEngine.routingOptions(mode: .shove, diagonal: true, rounded: true, arcs: false)
+            .contains("\"arcCorners\":false"))
+    }
+
+    func testConvertCornersToArcsFromTheStore() throws {
+        let store = DesignStore()
+        let engine = store.engine
+        twoResistors(engine)
+        let options = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+        XCTAssertNil(engine.routerBegin(at: CGPoint(x: 8.95, y: 20), layer: 0, pair: false, options: options)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 20, y: 20))
+        _ = engine.routerFix()
+        _ = engine.routerMove(to: CGPoint(x: 39.05, y: 32))
+        XCTAssertTrue(engine.routerCommit().ok)
+        store.refresh()
+        XCTAssertFalse(store.snapshot.tracks.contains { $0.isArc })
+        // Select one track, then its whole net, and convert.
+        let first = try XCTUnwrap(store.snapshot.tracks.first)
+        store.selectTrack(first.id)
+        XCTAssertEqual(store.selectedTracks, [first.id])
+        store.selectTrackNets()
+        XCTAssertEqual(store.selectedTracks.count, store.snapshot.tracks.count)
+        store.convertCornersToArcs()
+        XCTAssertTrue(store.snapshot.tracks.contains { $0.isArc })
+        XCTAssertTrue(store.selectedTracks.isEmpty)
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        store.undo()
+        XCTAssertFalse(store.snapshot.tracks.contains { $0.isArc })
+        // Nothing to convert: no undo step, a message.
+        store.selectTrack(nil)
+        let before = store.snapshot.tracks.count
+        let arcsResult = try XCTUnwrap(engine.arcCorners(tracks: [], apply: false))
+        XCTAssertFalse(arcsResult.ok)
+        XCTAssertEqual(store.snapshot.tracks.count, before)
+    }
+}

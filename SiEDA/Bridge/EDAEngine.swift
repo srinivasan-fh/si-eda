@@ -79,14 +79,14 @@ final class EDAEngine: @unchecked Sendable {
 
     // MARK: - Helpers
 
-    private func withHandle<T>(_ body: (OpaquePointer) -> T) -> T {
+    func withHandle<T>(_ body: (OpaquePointer) -> T) -> T {  // internal: the EDAEngine+… extensions use it
         lock.lock()
         defer { lock.unlock() }
         return body(handle)
     }
 
     /// Takes ownership of a malloc'd C string returned by the core.
-    private static func take(_ pointer: UnsafeMutablePointer<CChar>?) -> String? {
+    static func take(_ pointer: UnsafeMutablePointer<CChar>?) -> String? {
         guard let pointer else { return nil }
         defer { sieda_string_free(pointer) }
         return String(cString: pointer)
@@ -103,7 +103,7 @@ final class EDAEngine: @unchecked Sendable {
         return .failure(.operationFailed("unreadable reply from the core"))
     }
 
-    private static func decode<T: Decodable>(_ type: T.Type, from json: String?) -> T? {
+    static func decode<T: Decodable>(_ type: T.Type, from json: String?) -> T? {
         guard let json, let data = json.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(type, from: data)
     }

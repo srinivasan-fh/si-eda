@@ -278,6 +278,7 @@ final class DesignStore: ObservableObject {
         // Undo, open or any edit that replaced the design ends a route in progress.
         if routePreview != nil, !engine.routerActive { routePreview = nil }
         if let tune = tuneSession, !snapshot.tracks.contains(where: { $0.id == tune.track }) { tuneSession = nil }
+        if !selectedTracks.isEmpty { selectedTracks.formIntersection(snapshot.tracks.map(\.id)) }
         revision &+= 1
     }
 
@@ -1532,8 +1533,17 @@ final class DesignStore: ObservableObject {
         didSet { if routerRounded != oldValue { applyRouterOptions() } }
     }
 
+    /// Rounded corners as true arcs (pairs and buses turn on concentric arcs) instead of short straight chords.
+    @Published var routerArcs = true {
+        didSet { if routerArcs != oldValue { applyRouterOptions() } }
+    }
+
+    /// Tracks selected with the Select tool (click a track, ⇧-click adds or removes) for the track commands.
+    @Published var selectedTracks: Set<Int> = []
+
     private var routerOptions: String {
-        EDAEngine.routerOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType, rounded: routerRounded)
+        EDAEngine.routingOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType, rounded: routerRounded,
+                                 arcs: routerArcs)
     }
 
     /// Shows a router reply: a refused step keeps the route and reports why.

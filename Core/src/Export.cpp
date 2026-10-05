@@ -346,6 +346,15 @@ static std::string exportGerberImpl(const Schematic& sch, const PcbLayout& pcb, 
             for (const auto& t : pcb.tracks) {
                 if (t.layer != cl) continue;
                 int ap = aperture(circle(t.width));
+                const ArcGeom g = trackArc(t);
+                if (g.valid) {
+                    // True arc: multi-quadrant circular interpolation (G75), I/J = centre minus start. The file's Y
+                    // axis is flipped, so a counter-clockwise arc on the board is clockwise (G02) in the file.
+                    const long long i = std::llround((g.c.x - t.a.x) * 1e6), j = std::llround((t.a.y - g.c.y) * 1e6);
+                    ops.push_back({ap, coord(t.a) + "D02*\nG75*\n" + std::string(g.sweep > 0 ? "G02" : "G03") + "*\n" +
+                                           coord(t.b) + "I" + std::to_string(i) + "J" + std::to_string(j) + "D01*\nG01*"});
+                    continue;
+                }
                 ops.push_back({ap, coord(t.a) + "D02*\n" + coord(t.b) + "D01*"});
             }
         }

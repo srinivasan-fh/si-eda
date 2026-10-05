@@ -790,3 +790,7 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x は右、y は PCB ビューの上方向、z は基板から上方向。回転は x、y、z の順です。";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥ を押しながらドラッグまたは 2 本指ドラッグでパン";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "真円弧";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "真円弧（Gerber では G02/G03）。差動ペアとバスは同心円弧で曲がります。オフ：短い直線の弦";

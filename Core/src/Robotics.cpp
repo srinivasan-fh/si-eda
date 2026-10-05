@@ -619,7 +619,7 @@ int addThermalVias(Project& project, int componentId, int maxVias) {
             if (d - dia / 2 < s.clearance) return false;
         }
         for (const auto& t : pcb.tracks)
-            if (t.net != bigPad.net && pointSegmentDistance(p, t.a, t.b) - t.width / 2 - dia / 2 < s.clearance) return false;
+            if (t.net != bigPad.net && trackPointDistance(t, p) - t.width / 2 - dia / 2 < s.clearance) return false;
         for (const auto& v : pcb.vias)
             if ((v.position - p).length() < (v.net == bigPad.net ? pitch : (v.diameter + dia) / 2 + s.clearance)) return false;
         return true;
@@ -660,7 +660,7 @@ int addThermalVias(Project& project, int componentId, int maxVias) {
                     ok = false;
             for (const auto& t : pcb.tracks)
                 if (ok && t.net != bigPad.net && t.layer == layer &&
-                    segmentSegmentDistance(p, target, t.a, t.b) - (w + t.width) / 2 < s.clearance)
+                    trackSegmentDistance(t, p, target) - (w + t.width) / 2 < s.clearance)
                     ok = false;
             if (!ok) continue;
             Track t;

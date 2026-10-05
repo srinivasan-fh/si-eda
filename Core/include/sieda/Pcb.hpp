@@ -13,6 +13,8 @@
 
 namespace sieda {
 
+struct Track;
+
 /// Copper layer index: 0 = top, `BoardSettings::bottomLayer()` = bottom, anything between = inner layer.
 constexpr int kTopLayer = 0;
 
@@ -99,6 +101,8 @@ struct BoardSettings {
     double edgeDistance(Vec2 p) const;
     /// Smallest distance from a segment to the outline (negative if any part lies outside).
     double segmentEdgeDistance(Vec2 a, Vec2 b) const;
+    /// The same for a track's centre line (segmentEdgeDistance for a straight track; exact for an arc).
+    double trackEdgeDistance(const Track& t) const;
     /// Distance from `p` to the nearest mounting-hole keep-out circle (negative inside one); large if no holes.
     double holeDistance(Vec2 p) const;
     /// True if `r` lies inside the outline at least `margin` from it and clear of every hole keep-out.
@@ -185,6 +189,10 @@ struct Track {
     Vec2 a, b;
     /// Locked tracks stay where they are: the interactive router never shoves or drags them.
     bool locked = false;
+    /// True arc (3-point form): the track runs from `a` through `mid` to `b` on one circle. Straight when false; an
+    /// arc whose three points are collinear is the straight a–b. Measure tracks with TrackGeometry.hpp, never a–b.
+    bool arc = false;
+    Vec2 mid;
 };
 
 struct Via {
@@ -379,3 +387,6 @@ private:
 };
 
 }  // namespace sieda
+
+// Track geometry (straight and arc tracks); needs Track above.
+#include "sieda/TrackGeometry.hpp"

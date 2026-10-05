@@ -11,6 +11,7 @@ rounds corners and fans out parts.
 - [What stays fixed](#what-stays-fixed)
 - [Rules the router keeps](#rules-the-router-keeps)
 - [Rounded corners](#rounded-corners)
+- [Arc tracks](#arc-tracks)
 - [Vias and HDI](#vias-and-hdi)
 - [Differential pairs](#differential-pairs)
 - [Bus routing](#bus-routing)
@@ -47,7 +48,8 @@ The options bar shows the router settings while the Route tool is active:
   and a vertical segment.
 - **Differential pair**: the next route starts as a pair (see [Differential pairs](#differential-pairs)).
 - **Via type**: Through, Blind / buried, Microvia or Auto (see [Vias and HDI](#vias-and-hdi)).
-- **Rounded corners**: corners become arcs (see [Rounded corners](#rounded-corners)).
+- **Rounded corners**: corners become arcs (see [Rounded corners](#rounded-corners)); **True arcs** (on by
+  default) writes them as true arc tracks, off writes short straight chords.
 - **Bus** and its width: the next route is a bus (see [Bus routing](#bus-routing)).
 
 The banner at the top of the canvas shows what the router is doing, the route length so far, and why the head stopped
@@ -115,17 +117,52 @@ in free space is reported as a dangling track.
 
 ## Rounded corners
 
-With **Rounded corners** set, every corner of a single-track route becomes an arc. The radius is 4 × the track width
-(at least 0.5 mm; `cornerRadius` in the options sets it in mm). An arc may use up to half of each neighbouring segment
-(all of an end segment); on short segments the radius shrinks. The arc is cut into straight chords of at most 15°
-(a 45° corner gets 3, a 90° corner 6), so each join turns by 15° or less. Every arc is checked for clearance against
-the board as shoved; where it does not fit, the radius is halved once, and otherwise that corner stays sharp. The
-preview shows the corners as they will be written.
+With **Rounded corners** set, every corner of a route becomes an arc. The radius is 4 × the track width (at least
+0.5 mm; `cornerRadius` in the options sets it in mm). An arc may use up to half of each neighbouring segment (all of
+an end segment); on short segments the radius shrinks. A corner placed in the middle of a straight line does not
+count as a segment end. Every arc is checked for clearance against the board as shoved; where it does not fit, the
+radius is halved once, and otherwise that corner stays sharp. The preview shows the corners as they will be written.
 
-SiEDA's data model has no arc track primitive, so the arcs are chords, not true arcs. This was chosen on purpose: a
-new arc segment type would have to be carried through the DRC, Gerber and drill export, the 3D view, length
-calculation and the autorouter in one go. Chords keep all of these exact (lengths are the chord lengths, which for
-15° chords differ from the true arc by under 0.3 %). Differential pairs keep 45° / 90° corners.
+With **True arcs** (the default in the app; `"arcCorners": true` in the options) each corner is one true arc track,
+tangent to both neighbours, so the route has no kink at all. This works for single tracks, **differential pairs and
+buses**: corners that the members turn together become **concentric** arcs. The radius is the innermost member's;
+each outer member's radius is larger by exactly its offset, so the pair gap (or bus pitch) stays exact through the
+turn. Every arc is also checked against the other members' final copper; a corner that does not fit stays sharp for
+all members, so a pair never turns unevenly. A pair also turns correctly at a placed corner (a click): each member
+turns at its own miter point, the inner one ends its last track early.
+
+With **True arcs** off (and in the core by default) the arcs are cut into straight chords of at most 15° (a 45°
+corner gets 3, a 90° corner 6), on single tracks only, as before.
+
+**Convert corners to arcs** (tool strip, the curved-arrow button) turns the corners between the selected tracks
+(click a track with the Select tool, ⇧-click adds; with nothing selected, every track of the board) into true arcs:
+each corner between two selected straight tracks of one net, layer and width, not inside a pad or via and with no
+third track there. Selected tracks of a differential pair that run side by side turn on concentric arcs. A corner
+whose arc would come too close to anything gets half the radius, otherwise it stays sharp; locked tracks and arcs
+are left alone. It is one undo step. Core: `convertCornersToArcs(pcb, sch, trackIds, ArcCornersOptions)`; C:
+`sieda_pcb_arc_corners`.
+
+## Arc tracks
+
+A track can be a true circular arc (`Track::arc`, 3-point form: from `a` through `mid` to `b`). Every part of SiEDA
+that reads copper treats it as an arc:
+
+| Where | How |
+|---|---|
+| DRC | Clearance arc–arc, arc–segment, arc–pad (round and rectangular), arc–via, arc–hole keep-out and arc–board edge, exact (closed form: end points, the radial foot point, circle crossings); acid traps use the tangent at the arc's end; dangling ends, isolation gap, tamper mesh. |
+| Connectivity and ratsnest | Arc–pad, arc–track, arc–via contact and pour islands along the arc. |
+| Gerber RS-274X | `G75` multi-quadrant circular interpolation, `G02` / `G03` with `I`/`J` from the start to the centre (the file's Y axis is flipped, so a counter-clockwise arc on the board is `G02`). Files of boards without arcs are byte-identical to before. Excellon drill files are unchanged. |
+| Lengths | Arc length in net lengths, length matching, the route banner and the SI channel copper graph. |
+| Copper pours | Clearance to the arc itself, not its chord. |
+| 3D view | The arc as short boxes (5 µm sagitta). |
+| Project files | `"mid": {"x","y"}` on an arc track; files without it load as before (straight). |
+| Snapshot / preview JSON | `"arc": true`, `"mx","my"` and, for drawing, `"cx","cy","radius","startAngle","sweep"` (radians, sweep > 0 turns from +x towards +y). |
+| Interactive router | Arcs are obstacles measured exactly (walkaround, shove, highlight, grid search); the shove engine moves straight lines and leaves arcs where they are, like locked tracks. |
+
+Arc geometry is in `Core/include/sieda/TrackGeometry.hpp`; for a straight track every function is exactly the
+segment formula used before arcs existed, so boards without arcs give bit-identical results. The functions are
+continuous (an FMA-contracted build differs by a few ulps, never by a jump); checks use tolerances. Autorouted copper
+is straight: the autorouter rips up all routing first.
 
 ## Vias and HDI
 
@@ -273,10 +310,12 @@ All functions are in `sieda_c.h`. Each project has one route session.
 | `sieda_pcb_fanout(project, component_id, options_json)` | Fanout: escape + via per pad (`{"shove","onlyUnrouted","distance","viaType"}`) |
 | `sieda_router_tune(project, track_id, options_json)` | Length tuning with preview: `{"target","maxAmplitude","spacing","x","y","apply"}` |
 | `sieda_router_tune_length(project, track_id, target_mm, max_amplitude_mm)` | Length tuning (applies at once) |
+| `sieda_pcb_arc_corners(project, track_ids_json, options_json)` | Convert corners to arcs: `[id, …]`, `{"radius","apply"}` |
 | `sieda_pcb_lock_track`, `sieda_pcb_remove_track`, `sieda_pcb_remove_via` | Track editing |
 
 Options JSON: `{"mode":"shove"|"walkaround"|"highlight", "posture":"45"|"90"|"free", "swapPosture":bool, "width":mm,
-"pairGap":mm, "snap":bool, "viaType":"through"|"blind"|"micro"|"auto", "cornerRadius":mm (0 sharp, < 0 auto)}`. Fields that are left out keep their value.
+"pairGap":mm, "snap":bool, "viaType":"through"|"blind"|"micro"|"auto", "cornerRadius":mm (0 sharp, < 0 auto),
+"arcCorners":bool}`. Fields that are left out keep their value.
 
 Preview JSON: `active`, `kind` (`route` / `pair` / `drag` / `via`), `status`, `blocked`, `reachedTarget`, `nets`,
 `layer`, `width`, `gap`, `endX`, `endY`, `length`, `netLength`, `targetLength`, `placed`, `head`, `vias`,
@@ -312,9 +351,10 @@ never fails because of an old DRC problem elsewhere, and it never creates a new 
 
 ## Limits
 
-- Rounded corners are chords of at most 15°, not true arcs (no arc primitive in the data model), and only on
-  single-track routes; pairs, drags and shoved copper keep 45° / 90° corners. Free-angle routing is posture `free`
-  (core and C API only).
+- Arcs are written by rounded corners, Convert corners to arcs and the commands below; the shove engine does not
+  bend or move an existing arc (it routes around it), a segment drag refuses an arc, and a via with an arc on it
+  stays put. Chord corners (True arcs off) are single-track only. Free-angle routing is posture `free` (core and C
+  API only).
 - The shove engine moves tracks and vias, not footprints.
 - Shoving a meandered (length-tuned) track can flatten part of the meander. Run length tuning again afterwards.
 - Highlight mode lets you commit copper that violates the rules (the DRC reports it); the other modes never do.
@@ -364,7 +404,10 @@ minute to autoroute first).
 
 | What | Where |
 |---|---|
-| Router, shove engine, walkaround search, length tuning | `Core/src/InteractiveRouter.cpp`, `Core/include/sieda/InteractiveRouter.hpp` |
+| Router, shove engine, walkaround search, length tuning, arc corners | `Core/src/InteractiveRouter.cpp`, `Core/include/sieda/InteractiveRouter.hpp` |
+| Arc track geometry (exact distances, lengths, bounds, tangents) | `Core/include/sieda/TrackGeometry.hpp`, `Core/src/TrackGeometry.cpp` |
+| C API additions (`sieda_pcb_arc_corners`, …) | `Core/src/sieda_c_routing.cpp` (project handle in `Core/src/SiedaProjectInternal.hpp`) |
+| App: arc drawing / hit testing, track selection and commands | `SiEDA/Models/TrackArcs.swift`, `SiEDA/Bridge/EDAEngine+Routing.swift`, `SiEDA/App/DesignStore+Routing.swift` |
 | Locked tracks (`Track::locked`, saved as `"locked": true`) | `Core/include/sieda/Pcb.hpp`, `Core/src/Project.cpp` |
 | C API | `Core/include/sieda/sieda_c.h`, `Core/src/sieda_c.cpp` (`sieda_router_*`) |
 | Swift bridge | `SiEDA/Bridge/EDAEngine.swift` (`routerBegin`, `routerMove`, `routerFix`, `routerAddVia`, `routerCommit`, …) |
@@ -395,6 +438,14 @@ Core (`Core/tests/core_tests.cpp`):
 | `router_shoves_lines_around_hole_keepouts` | A shoved line walks round a mounting-hole keep-out instead of stopping the head. |
 | `router_places_blind_buried_and_micro_vias` | Microvia, buried microvia, blind and through vias on a 4-layer HDI board with the asked spans and sizes; a microvia refuses a non-neighbouring layer; Auto and the no-HDI cases. |
 | `router_rounds_corners` | 45° corners become chord arcs (every join ≥ 165°), written exactly as previewed and DRC clean; a via inside a corner keeps that corner sharp. |
+| `track_arcs_measure_exactly` | Arc distances (point, segment, arc, rectangle), lengths, bounds and tangents against a dense polyline on 300 random arcs; degenerate arcs are straight; straight tracks use exactly the segment formulas. |
+| `drc_checks_arc_tracks_exactly` | Copper next to an arc's bulge is reported although the chord is far; copper between chord and arc is clear; an arc that bulges past the board edge; connectivity and lengths along the arc. |
+| `arc_tracks_export_save_and_draw` | Gerber `G75`/`G02`/`G03` with exact `I`/`J`, none without arcs; project files keep arcs and old files load straight; the snapshot's centre, radius and angles. |
+| `router_writes_true_arc_corners` | Arc corners tangent everywhere (every join 180°), written as previewed, DRC clean; a via in a corner keeps it sharp. |
+| `router_turns_pairs_and_buses_on_concentric_arcs` | A pair (with a turn at a placed corner) and a four-net bus turn on concentric arcs at their exact gap / pitch; DRC clean. |
+| `convert_corners_to_arcs_command` | Preview changes nothing; corners become arcs, the net gets shorter, DRC clean; a via halves the radius; a 0.2 mm jog stays sharp. |
+| `router_respects_arc_tracks` | A route past an arc's bulge keeps clearance to the arc in walkaround and shove, and never moves the arc. |
+| `c_api_arc_corners` | Arc corners and `sieda_pcb_arc_corners` through the C API. |
 | `router_head_update_can_be_cancelled` | A cancelled update leaves the router exactly as before; the next one matches a router that was never cancelled; a request while idle changes nothing. |
 | `router_routes_a_bus_together` | A bus of four SOIC pins ends at track pitch in pin order; each track is then finished to its pad; DRC clean. |
 | `router_bus_turns_corners_at_pitch` | A bus through a 90° turn keeps the clearance between members, and is packed at it. |

@@ -790,3 +790,7 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x उजवीकडे, y PCB दृश्याच्या वरच्या दिशेने, z बोर्डपासून वर. फिरवणे आधी x, मग y, मग z भोवती.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "पॅन करण्यासाठी ⌥-ड्रॅग किंवा दोन-बोटांनी ड्रॅग करा";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "खरे चाप";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "खरे चाप (Gerber मध्ये G02/G03); जोड्या आणि बस समकेंद्री चापांवर वळतात. बंद: लहान सरळ जीवा";

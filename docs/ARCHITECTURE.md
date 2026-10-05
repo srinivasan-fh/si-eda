@@ -75,8 +75,12 @@ This gives us:
     by ripping up only the nets in their way. Smaller boards keep the classic router bit for bit.
   - `RouteControl` reports progress from the routing thread and cancels (leaving the board unchanged); the app shows it
     in the status bar with Stop.
-- **DRC.** Exact geometric checks on the routed copper (segment–segment, segment–rectangle and point–circle
-  distances), edge clearance, courtyard overlap, and unrouted connections. Pairs are found through a uniform-grid
+- **Tracks** are straight segments or true circular arcs (`Track::arc`, 3-point form). Every consumer measures them
+  through `TrackGeometry.hpp` (exact arc distances, lengths, bounds, tangents); for a straight track each function is
+  the segment formula used before arcs, so boards without arcs give bit-identical results. Gerber writes arcs with
+  `G75`/`G02`/`G03`. The autorouter writes straight tracks only (it rips up all routing first).
+- **DRC.** Exact geometric checks on the routed copper (segment–segment, segment–rectangle, point–circle and the
+  arc cases), edge clearance, courtyard overlap, and unrouted connections. Pairs are found through a uniform-grid
   spatial index, in the order of a full scan, so large boards check in O(n log n) with identical reports. Unrouted connections are found
   from copper connectivity, not from router bookkeeping.
 - **Edits after routing.** After schematic edits, copper is re-associated with nets through its contact with

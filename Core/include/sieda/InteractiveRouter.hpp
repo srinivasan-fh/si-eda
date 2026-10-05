@@ -68,6 +68,10 @@ struct RouterOptions {
     /// straight chords of at most 15°, where it fits between its neighbours and keeps clearance; otherwise the
     /// corner stays sharp. 0 = sharp corners, < 0 = automatic (4 × track width, at least 0.5 mm).
     double cornerRadius = 0;
+    /// With a corner radius: corners become true arcs (Track::arc) instead of chords, also for differential pairs
+    /// and buses, whose members then turn on concentric arcs at their exact spacing (the radius is the innermost
+    /// member's).
+    bool arcCorners = false;
 };
 
 /// What commit() changed, so a caller can undo it exactly: removed items (with their old geometry and ids) and the
@@ -244,6 +248,34 @@ FanoutResult fanoutComponent(PcbLayout& pcb, const Schematic& sch, int component
 FanoutOptions fanoutOptionsFromJson(const Json& j);
 /// {"ok","message","fanned","skipped","failed":[pad number]}
 Json fanoutJson(const FanoutResult& r);
+
+struct ArcCornersOptions {
+    /// Arc radius (mm); <= 0 = automatic (4 × track width, at least 0.5 mm). For parallel tracks of a differential
+    /// pair it is the inner track's radius; the outer track turns on a concentric arc.
+    double radius = 0;
+    /// False: compute the result (addedTracks / removedTracks) without changing the board.
+    bool apply = true;
+};
+
+struct ArcCornersResult {
+    bool ok = false;  // at least one corner became an arc
+    std::string message;
+    int converted = 0;  // corners now arcs
+    int kept = 0;       // corners that stay sharp (no room for an arc that keeps clearance)
+    std::vector<Track> addedTracks;
+    std::vector<int> removedTracks;
+    RouteChanges changes;
+    bool applied = false;
+};
+
+/// "Convert corners to arcs": every corner between two of the selected straight tracks (same net, layer and width,
+/// not inside a pad or via, no third track there) becomes a true arc tangent to both, where it keeps clearance to
+/// everything (radius halved once, otherwise sharp). Parallel selected tracks of a differential pair turn on
+/// concentric arcs at their exact gap. Locked tracks and arcs are left alone.
+ArcCornersResult convertCornersToArcs(PcbLayout& pcb, const Schematic& sch, const std::vector<int>& trackIds,
+                                      const ArcCornersOptions& options = {});
+/// {"ok","message","converted","kept","applied","addedTracks":[track],"removedTracks":[id],"changes":{…}}
+Json arcCornersJson(const ArcCornersResult& r);
 
 /// Options from {"mode":"shove|walkaround","posture":"45|90|free","swapPosture","width","pairGap","snap"} — missing
 /// fields keep their value in `base`.
