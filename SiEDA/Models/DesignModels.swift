@@ -922,6 +922,18 @@ struct SnapTrack: Decodable, Equatable, Identifiable {
     var ay: Double
     var bx: Double
     var by: Double
+    /// True arc a → (mx, my) → b; the core adds its centre, radius and angles (radians, sweep > 0 turns from +x
+    /// towards +y). Absent on straight tracks (see TrackArcs.swift for drawing and hit testing).
+    var arc: Bool?
+    var mx: Double?
+    var my: Double?
+    var cx: Double?
+    var cy: Double?
+    var radius: Double?
+    var startAngle: Double?
+    var sweep: Double?
+    /// Part of a teardrop (from inside a pad / via onto the track it widens).
+    var teardrop: Bool?
 }
 
 struct SnapVia: Decodable, Equatable, Identifiable {
@@ -979,7 +991,7 @@ struct RoutePreview: Decodable, Equatable {
 
 /// Interactive router mode (`sieda_router_*` options "mode").
 enum RouterModeChoice: String, CaseIterable, Identifiable {
-    case shove, walkaround, highlight
+    case shove, walkaround, highlight, stop  // stop: the head stops at the first obstacle
     var id: String { rawValue }
 }
 
@@ -1030,6 +1042,12 @@ struct TunePreview: Decodable, Equatable {
     var applied: Bool
     var addedTracks: [SnapTrack]
     var removedTracks: [Int]
+    /// Where the target came from ("typed", "partner", "rule:<net>", "group:<name>"); nil for the plain accordion.
+    var targetSource: String?
+    /// Nets measured (the xSignal through series parts), a coupled pair tuning and the pair partner.
+    var xsignalNets: [Int]?
+    var coupled: Bool?
+    var partnerNet: Int?
 
     /// Within tolerance of the target.
     var onTarget: Bool { abs(after - target) <= max(tolerance, 0.01) + 1e-6 }

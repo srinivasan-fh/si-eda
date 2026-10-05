@@ -278,6 +278,7 @@ final class DesignStore: ObservableObject {
         // Undo, open or any edit that replaced the design ends a route in progress.
         if routePreview != nil, !engine.routerActive { routePreview = nil }
         if let tune = tuneSession, !snapshot.tracks.contains(where: { $0.id == tune.track }) { tuneSession = nil }
+        if !selectedTracks.isEmpty { selectedTracks.formIntersection(snapshot.tracks.map(\.id)) }
         revision &+= 1
     }
 
@@ -1646,8 +1647,41 @@ final class DesignStore: ObservableObject {
         didSet { if routerRounded != oldValue { applyRouterOptions() } }
     }
 
+    /// Rounded corners as true arcs (pairs and buses turn on concentric arcs) instead of short straight chords.
+    @Published var routerArcs = true {
+        didSet { if routerArcs != oldValue { applyRouterOptions() } }
+    }
+
+    /// Tracks selected with the Select tool (click a track, ⇧-click adds or removes) for the track commands.
+    @Published var selectedTracks: Set<Int> = []
+
+    /// Any-angle routing (free posture): the head is one straight track at any angle; drags follow at any angle.
+    @Published var routerAnyAngle = false {
+        didSet { if routerAnyAngle != oldValue { applyRouterOptions() } }
+    }
+
+    /// Multi-route: start points picked with ⇧-click in the Route tool; the next plain click routes them together.
+    @Published var multiStarts: [CGPoint] = []
+
+    /// Loop removal: finishing a route removes the old path it makes redundant (and vias left unconnected).
+    @Published var routerRemoveLoops = true {
+        didSet { if routerRemoveLoops != oldValue { applyRouterOptions() } }
+    }
+
+    /// Teardrops on every finished route where it meets pads and vias.
+    @Published var routerTeardrops = false {
+        didSet { if routerTeardrops != oldValue { applyRouterOptions() } }
+    }
+
+    /// Hug: a dragged track bends around pads and other copper it cannot push instead of stopping short.
+    @Published var routerHugDrag = true {
+        didSet { if routerHugDrag != oldValue { applyRouterOptions() } }
+    }
+
     private var routerOptions: String {
-        EDAEngine.routerOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType, rounded: routerRounded)
+        EDAEngine.routingOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType, rounded: routerRounded,
+                                 arcs: routerArcs, anyAngle: routerAnyAngle, removeLoops: routerRemoveLoops,
+                                 teardrops: routerTeardrops, hug: routerHugDrag)
     }
 
     /// Shows a router reply: a refused step keeps the route and reports why.
@@ -1777,7 +1811,8 @@ final class DesignStore: ObservableObject {
         }
         guard let kind = routePreview?.kind else { return }
         var result = RouteCommitResult(ok: false, error: nil, addedTracks: [], addedVias: [])
-        let action = kind == "drag" ? "Dragged track" : kind == "via" ? "Moved via" : "Routed track"
+        let action = kind == "drag" ? "Dragged track" : kind == "via" ? "Moved via"
+            : kind == "corner" || kind == "multidrag" ? "Dragged tracks" : "Routed track"
         let done = performChecked(action, invalidatesAnalysis: false, failureMessage: "Nothing was routed") {
             result = $0.routerCommit()
             return result.ok && !(result.addedTracks.isEmpty && result.addedVias.isEmpty)
@@ -1821,18 +1856,71 @@ final class DesignStore: ObservableObject {
         return routePreview != nil
     }
 
+    /// Starts dragging the corner of track `trackId` nearest to `point` (Select tool on a track's corner).
+    @discardableResult
+    func beginCornerDrag(_ trackId: Int, at point: CGPoint) -> Bool {
+        guard !isBusy else { return false }
+        settleRouteMoves()
+        showRoute(engine.routerBeginCornerDrag(track: trackId, at: point, options: routerOptions))
+        return routePreview != nil
+    }
+
+    /// Starts dragging the selected tracks together (Select tool on one of several selected tracks).
+    @discardableResult
+    func beginMultiDrag(_ trackIds: [Int], at point: CGPoint) -> Bool {
+        guard !isBusy, !trackIds.isEmpty else { return false }
+        settleRouteMoves()
+        showRoute(engine.routerBeginMultiDrag(tracks: trackIds, at: point, options: routerOptions))
+        return routePreview != nil
+    }
+
+    /// Multi-route: ⇧-click in the Route tool picks (or drops) a start point.
+    func toggleMultiStart(_ point: CGPoint) {
+        if let i = multiStarts.firstIndex(where: { hypot($0.x - point.x, $0.y - point.y) < 0.3 }) {
+            multiStarts.remove(at: i)
+        } else {
+            multiStarts.append(point)
+        }
+        statusMessage = multiStarts.isEmpty ? "Multi-route: no nets picked"
+            : "Multi-route: \(multiStarts.count) picked — click the last pad (without ⇧) to route them together"
+    }
+
+    /// Routes the picked start points and `point` together as one bundle.
+    func beginMultiRoute(adding point: CGPoint, layer: Int) {
+        guard !isBusy else { return }
+        settleRouteMoves()
+        let starts = multiStarts + [point]
+        multiStarts = []
+        showRoute(engine.routerBeginMulti(starts: starts, layer: layer, options: routerOptions))
+    }
+
     // MARK: Interactive length tuning
 
     /// The Tune Length tool's session: the track picked, where it was clicked, and the meanders it would add.
     struct TuneSession: Equatable {
         var track: Int
         var point: CGPoint
-        /// Target length (mm); 0 = the longest member of the net's pair / bus group.
+        /// Target length (mm); 0 = the length rule, match group, or the longest member of the net's pair / bus.
         var target: Double
         var preview: TunePreview?
+        /// Drag-along: the meanders go between `point` and this point of the track (nil: anywhere on the net).
+        var spanEnd: CGPoint?
     }
 
     @Published private(set) var tuneSession: TuneSession?
+    /// Meander pattern and corner shape, coupled pair tuning and phase (skew) bumps.
+    @Published var tuneStyle: MeanderStyleChoice = .accordion {
+        didSet { if tuneStyle != oldValue { updateTunePreview() } }
+    }
+    @Published var tuneCorner: MeanderCornerChoice = .square {
+        didSet { if tuneCorner != oldValue { updateTunePreview() } }
+    }
+    @Published var tuneCoupled = false {
+        didSet { if tuneCoupled != oldValue { updateTunePreview() } }
+    }
+    @Published var tunePhase = false {
+        didSet { if tunePhase != oldValue { updateTunePreview() } }
+    }
     /// Meander height limit and leg spacing (edge to edge) in mm; 0 = the core's defaults.
     @Published var tuneAmplitude = 0.0 {
         didSet { if tuneAmplitude != oldValue { updateTunePreview() } }
@@ -1845,7 +1933,7 @@ final class DesignStore: ObservableObject {
     func beginTune(track trackId: Int, at point: CGPoint) {
         guard !isBusy else { return }
         if routePreview != nil { cancelRoute() }
-        tuneSession = TuneSession(track: trackId, point: point, target: 0, preview: nil)
+        tuneSession = TuneSession(track: trackId, point: point, target: 0, preview: nil, spanEnd: nil)
         updateTunePreview()
         // A net outside any pair / bus group has nothing to match: start from its length plus 1 mm.
         if let preview = tuneSession?.preview, !preview.ok, preview.group.isEmpty {
@@ -1861,10 +1949,22 @@ final class DesignStore: ObservableObject {
         updateTunePreview()
     }
 
+    /// Drag-along tuning: the meanders' stretch follows the pointer along the track (Tune tool drag).
+    func dragTune(to point: CGPoint) {
+        guard tuneSession != nil, point.x.isFinite, point.y.isFinite else { return }
+        tuneSession?.spanEnd = point
+        updateTunePreview()
+    }
+
+    private func tuneRequest(_ session: TuneSession, apply: Bool) -> EDAEngine.TuneRequest {
+        EDAEngine.TuneRequest(target: session.target, amplitude: tuneAmplitude, spacing: tuneSpacing, near: session.point,
+                              spanEnd: session.spanEnd, style: tuneStyle, corner: tuneCorner, coupled: tuneCoupled,
+                              phase: tunePhase, apply: apply)
+    }
+
     private func updateTunePreview() {
         guard let session = tuneSession, !isBusy else { return }
-        let preview = engine.routerTune(track: session.track, target: session.target, amplitude: tuneAmplitude,
-                                        spacing: tuneSpacing, near: session.point, apply: false)
+        let preview = engine.routerTune(track: session.track, request: tuneRequest(session, apply: false))
         tuneSession?.preview = preview
         statusMessage = preview?.message ?? "Tune: no reply from the core"
     }
@@ -1874,8 +1974,7 @@ final class DesignStore: ObservableObject {
         guard let session = tuneSession else { return }
         var result: TunePreview?
         let done = performChecked("Tuned length", invalidatesAnalysis: false, failureMessage: "Length not changed") {
-            result = $0.routerTune(track: session.track, target: session.target, amplitude: tuneAmplitude,
-                                   spacing: tuneSpacing, near: session.point, apply: true)
+            result = $0.routerTune(track: session.track, request: tuneRequest(session, apply: true))
             return result?.applied == true
         }
         tuneSession = nil

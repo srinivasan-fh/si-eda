@@ -922,3 +922,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x కుడివైపు, y PCB వీక్షణ పైభాగం వైపు, z బోర్డు నుండి పైకి. భ్రమణం x, తర్వాత y, తర్వాత z చుట్టూ.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "పాన్ చేయడానికి ⌥-డ్రాగ్ లేదా రెండు వేళ్లతో డ్రాగ్ చేయండి";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "నిజమైన చాపాలు";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "నిజమైన చాపాలు (Gerber లో G02/G03); జతలు, బస్‌లు ఏకకేంద్ర చాపాలపై తిరుగుతాయి. ఆఫ్: చిన్న నేరు జ్యాలు";
+"Accordion" = "అకార్డియన్";
+"Trombone" = "ట్రాంబోన్";
+"Sawtooth" = "రంపపు పళ్లు";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "అకార్డియన్: దీర్ఘచతురస్ర మియాండర్లు; ట్రాంబోన్: ఒక వెడల్పాటి లూప్; రంపపు పళ్లు: త్రిభుజాకార పళ్లు";
+"Meander corners" = "మియాండర్ మూలలు";
+"Square" = "లంబకోణం";
+"Mitered" = "వాలుగా కోసిన";
+"Round" = "గుండ్రని";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "మియాండర్ల మూలలు: లంబకోణం, 45° వాలుగా కోసిన లేదా గుండ్రని (నిజమైన చాపాలు)";
+"Coupled" = "జతకూడిన";
+"Differential pair: meander both members together at their gap" = "డిఫరెన్షియల్ జత: రెండు సభ్యులను వాటి అంతరంతో కలిపి మియాండర్ చేయండి";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "జత సభ్యుని స్క్యూ ట్యూనింగ్: భాగస్వామికి దూరంగా ఉన్న వైపు చిన్న ఉబ్బులు, భాగస్వామి పొడవు వరకు";
+"Length Rules" = "పొడవు నియమాలు";
+"Length targets per net and match groups, measured pad to pad through series parts" = "ప్రతి నెట్‌కు పొడవు లక్ష్యాలు, మ్యాచ్ గ్రూపులు, సిరీస్ భాగాల ద్వారా ప్యాడ్ నుండి ప్యాడ్ వరకు కొలుస్తారు";
+"Remove the length rule" = "పొడవు నియమాన్ని తీసివేయండి";
+"Tolerance" = "సహనం";
+"Match Groups" = "మ్యాచ్ గ్రూపులు";
+"Remove the match group" = "మ్యాచ్ గ్రూప్‌ను తీసివేయండి";
+"Group name" = "గ్రూప్ పేరు";
+"Add Group" = "గ్రూప్ జోడించండి";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "సభ్యులు: రెండు లేదా అంతకంటే ఎక్కువ నెట్‌లను ఎంచుకోండి. సిరీస్ రెసిస్టర్లు లేదా కెపాసిటర్ల ద్వారా వెళ్లే నెట్‌ను వాటిని దాటి ప్యాడ్ నుండి ప్యాడ్ వరకు కొలుస్తారు.";
+"Any angle" = "ఏ కోణమైనా";
+"Route and drag at any angle: the head is one straight track to the pointer" = "ఏ కోణంలోనైనా రూట్ చేయండి, లాగండి: హెడ్ పాయింటర్ వరకు ఒక నేరు ట్రాక్";
+"Remove loops" = "లూప్‌లను తొలగించు";
+"Finishing a route removes the old path of the net it makes redundant" = "రూట్ పూర్తి చేస్తే, అది అనవసరం చేసిన నెట్ పాత మార్గం తొలగించబడుతుంది";
+"Auto teardrops" = "ఆటో టియర్‌డ్రాప్‌లు";
+"Teardrops where each finished route meets pads and vias" = "పూర్తయిన ప్రతి రూట్ ప్యాడ్‌లు, వయాలను కలిసే చోట టియర్‌డ్రాప్‌లు";
+"Stop at obstacle" = "అడ్డంకి వద్ద ఆగు";
+"Hug obstacles" = "అడ్డంకులను హత్తుకుని వెళ్ళు";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "లాగిన ట్రాక్ నెట్టలేని ప్యాడ్‌లు, ఇతర రాగి చుట్టూ వంగి వెళ్తుంది, ముందే ఆగదు";

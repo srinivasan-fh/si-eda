@@ -922,3 +922,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x 向右，y 朝向 PCB 视图上方，z 从板面向上。旋转依次绕 x、y、z 轴。";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "按住 ⌥ 拖动或双指拖动以平移";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "真圆弧";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "真圆弧（Gerber 中为 G02/G03）；差分对和总线以同心圆弧转弯。关闭：短直线弦段";
+"Accordion" = "手风琴";
+"Trombone" = "长号";
+"Sawtooth" = "锯齿";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "手风琴：矩形蛇形线；长号：一个宽回环；锯齿：三角形齿";
+"Meander corners" = "蛇形线转角";
+"Square" = "直角";
+"Mitered" = "斜切";
+"Round" = "圆角";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "蛇形线的转角：直角、45° 斜切或圆角（真圆弧）";
+"Coupled" = "耦合";
+"Differential pair: meander both members together at their gap" = "差分对：两条线按其间距一起做蛇形线";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "差分对成员的时滞调整：在远离另一条线的一侧加小凸起，调到另一条线的长度";
+"Length Rules" = "长度规则";
+"Length targets per net and match groups, measured pad to pad through series parts" = "每个网络的长度目标和匹配组，从焊盘量到焊盘并穿过串联元件";
+"Remove the length rule" = "移除长度规则";
+"Tolerance" = "公差";
+"Match Groups" = "匹配组";
+"Remove the match group" = "移除匹配组";
+"Group name" = "组名称";
+"Add Group" = "添加组";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "成员：选择两个或更多网络。穿过串联电阻或电容的网络会跨过它们从焊盘量到焊盘。";
+"Any angle" = "任意角度";
+"Route and drag at any angle: the head is one straight track to the pointer" = "以任意角度布线和拖动：前端是一条通往指针的直线";
+"Remove loops" = "移除回路";
+"Finishing a route removes the old path of the net it makes redundant" = "完成布线时移除该网络因此变得多余的旧路径";
+"Auto teardrops" = "自动泪滴";
+"Teardrops where each finished route meets pads and vias" = "在每条完成的布线与焊盘和过孔相接处加入泪滴";
+"Stop at obstacle" = "遇障碍停止";
+"Hug obstacles" = "贴合障碍物";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "拖动的走线会绕过无法推开的焊盘和其他铜皮，而不是提前停下";

@@ -922,3 +922,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x ಬಲಕ್ಕೆ, y PCB ನೋಟದ ಮೇಲ್ಭಾಗಕ್ಕೆ, z ಬೋರ್ಡ್‌ನಿಂದ ಮೇಲಕ್ಕೆ. ತಿರುಗುವಿಕೆ x, ನಂತರ y, ನಂತರ z ಸುತ್ತ.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "ಪ್ಯಾನ್ ಮಾಡಲು ⌥-ಡ್ರ್ಯಾಗ್ ಅಥವಾ ಎರಡು ಬೆರಳುಗಳಿಂದ ಡ್ರ್ಯಾಗ್ ಮಾಡಿ";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "ನಿಜವಾದ ಚಾಪಗಳು";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "ನಿಜವಾದ ಚಾಪಗಳು (Gerber ನಲ್ಲಿ G02/G03); ಜೋಡಿಗಳು ಮತ್ತು ಬಸ್‌ಗಳು ಏಕಕೇಂದ್ರ ಚಾಪಗಳಲ್ಲಿ ತಿರುಗುತ್ತವೆ. ಆಫ್: ಚಿಕ್ಕ ನೇರ ಜ್ಯಾಗಳು";
+"Accordion" = "ಅಕಾರ್ಡಿಯನ್";
+"Trombone" = "ಟ್ರಾಂಬೋನ್";
+"Sawtooth" = "ಗರಗಸದ ಹಲ್ಲು";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "ಅಕಾರ್ಡಿಯನ್: ಆಯತಾಕಾರದ ಮಿಯಾಂಡರ್‌ಗಳು; ಟ್ರಾಂಬೋನ್: ಒಂದು ಅಗಲವಾದ ಲೂಪ್; ಗರಗಸದ ಹಲ್ಲು: ತ್ರಿಕೋನ ಹಲ್ಲುಗಳು";
+"Meander corners" = "ಮಿಯಾಂಡರ್ ಮೂಲೆಗಳು";
+"Square" = "ಲಂಬಕೋನ";
+"Mitered" = "ಓರೆಯಾಗಿ ಕತ್ತರಿಸಿದ";
+"Round" = "ದುಂಡಾದ";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "ಮಿಯಾಂಡರ್‌ಗಳ ಮೂಲೆಗಳು: ಲಂಬಕೋನ, 45° ಓರೆಯಾಗಿ ಕತ್ತರಿಸಿದ ಅಥವಾ ದುಂಡಾದ (ನಿಜವಾದ ಚಾಪಗಳು)";
+"Coupled" = "ಜೋಡಿಸಿದ";
+"Differential pair: meander both members together at their gap" = "ಡಿಫರೆನ್ಷಿಯಲ್ ಜೋಡಿ: ಎರಡೂ ಸದಸ್ಯರನ್ನು ಅವರ ಅಂತರದಲ್ಲಿ ಒಟ್ಟಿಗೆ ಮಿಯಾಂಡರ್ ಮಾಡಿ";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "ಜೋಡಿ ಸದಸ್ಯನ ಸ್ಕ್ಯೂ ಟ್ಯೂನಿಂಗ್: ಸಂಗಾತಿಯಿಂದ ದೂರದ ಬದಿಯಲ್ಲಿ ಸಣ್ಣ ಉಬ್ಬುಗಳು, ಸಂಗಾತಿಯ ಉದ್ದದವರೆಗೆ";
+"Length Rules" = "ಉದ್ದದ ನಿಯಮಗಳು";
+"Length targets per net and match groups, measured pad to pad through series parts" = "ಪ್ರತಿ ನೆಟ್‌ನ ಉದ್ದದ ಗುರಿಗಳು ಮತ್ತು ಹೊಂದಾಣಿಕೆ ಗುಂಪುಗಳು, ಸರಣಿ ಭಾಗಗಳ ಮೂಲಕ ಪ್ಯಾಡ್‌ನಿಂದ ಪ್ಯಾಡ್‌ವರೆಗೆ ಅಳೆಯಲಾಗುತ್ತದೆ";
+"Remove the length rule" = "ಉದ್ದದ ನಿಯಮವನ್ನು ತೆಗೆದುಹಾಕಿ";
+"Tolerance" = "ಸಹಿಷ್ಣುತೆ";
+"Match Groups" = "ಹೊಂದಾಣಿಕೆ ಗುಂಪುಗಳು";
+"Remove the match group" = "ಹೊಂದಾಣಿಕೆ ಗುಂಪನ್ನು ತೆಗೆದುಹಾಕಿ";
+"Group name" = "ಗುಂಪಿನ ಹೆಸರು";
+"Add Group" = "ಗುಂಪನ್ನು ಸೇರಿಸಿ";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "ಸದಸ್ಯರು: ಎರಡು ಅಥವಾ ಹೆಚ್ಚು ನೆಟ್‌ಗಳನ್ನು ಆಯ್ಕೆಮಾಡಿ. ಸರಣಿ ರೆಸಿಸ್ಟರ್ ಅಥವಾ ಕೆಪಾಸಿಟರ್ ಮೂಲಕ ಹೋಗುವ ನೆಟ್ ಅನ್ನು ಅವುಗಳನ್ನು ದಾಟಿ ಪ್ಯಾಡ್‌ನಿಂದ ಪ್ಯಾಡ್‌ವರೆಗೆ ಅಳೆಯಲಾಗುತ್ತದೆ.";
+"Any angle" = "ಯಾವುದೇ ಕೋನ";
+"Route and drag at any angle: the head is one straight track to the pointer" = "ಯಾವುದೇ ಕೋನದಲ್ಲಿ ರೂಟ್ ಮಾಡಿ ಮತ್ತು ಎಳೆಯಿರಿ: ಹೆಡ್ ಪಾಯಿಂಟರ್‌ವರೆಗೆ ಒಂದು ನೇರ ಟ್ರ್ಯಾಕ್";
+"Remove loops" = "ಲೂಪ್‌ಗಳನ್ನು ತೆಗೆದುಹಾಕಿ";
+"Finishing a route removes the old path of the net it makes redundant" = "ರೂಟ್ ಮುಗಿಸಿದಾಗ ಅದು ಅನಗತ್ಯಗೊಳಿಸಿದ ನೆಟ್‌ನ ಹಳೆಯ ಮಾರ್ಗ ತೆಗೆದುಹಾಕಲಾಗುತ್ತದೆ";
+"Auto teardrops" = "ಸ್ವಯಂ ಟಿಯರ್‌ಡ್ರಾಪ್‌ಗಳು";
+"Teardrops where each finished route meets pads and vias" = "ಪ್ರತಿ ಮುಗಿದ ರೂಟ್ ಪ್ಯಾಡ್‌ಗಳು ಮತ್ತು ವಯಾಗಳನ್ನು ಸೇರುವಲ್ಲಿ ಟಿಯರ್‌ಡ್ರಾಪ್‌ಗಳು";
+"Stop at obstacle" = "ಅಡಚಣೆಯಲ್ಲಿ ನಿಲ್ಲಿಸಿ";
+"Hug obstacles" = "ಅಡಚಣೆಗಳನ್ನು ಅಪ್ಪಿಕೊಂಡು ಸಾಗು";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "ಎಳೆದ ಟ್ರ್ಯಾಕ್ ತಳ್ಳಲಾಗದ ಪ್ಯಾಡ್‌ಗಳು ಮತ್ತು ಇತರ ತಾಮ್ರದ ಸುತ್ತ ಬಾಗಿ ಹೋಗುತ್ತದೆ, ಮೊದಲೇ ನಿಲ್ಲುವುದಿಲ್ಲ";

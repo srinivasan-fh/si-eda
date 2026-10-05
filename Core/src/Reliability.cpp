@@ -540,7 +540,10 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
                     if ((p - b.a).length() < eps) pb = b.b;
                     else if ((p - b.b).length() < eps) pb = b.a;
                     else continue;
-                    Vec2 u = pa - p, v = pb - p;
+                    // An arc leaves its end along its tangent.
+                    const bool pbAtA = (p - b.a).length() < eps;
+                    Vec2 u = isArcTrack(a) ? trackEndDirection(a, (p - a.a).length() >= eps) : pa - p;
+                    Vec2 v = isArcTrack(b) ? trackEndDirection(b, !pbAtA) : pb - p;
                     double lu = u.length(), lv = v.length();
                     if (lu < eps || lv < eps) continue;
                     double cosine = (u.x * v.x + u.y * v.y) / (lu * lv);
@@ -729,12 +732,12 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
     {
         int count = 0;
         for (const auto& a : pcb.tracks) {
-            if (!cls.fast.count(a.net) || count >= 20) continue;
+            if (!cls.fast.count(a.net) || count >= 20 || a.arc) continue;
             Vec2 da = a.b - a.a;
             double la = da.length();
             if (la < 1.0) continue;
             for (const auto& b : pcb.tracks) {
-                if (b.layer != a.layer || b.net == a.net || sch.netRole(b.net) != NetRole::Signal) continue;
+                if (b.layer != a.layer || b.net == a.net || sch.netRole(b.net) != NetRole::Signal || b.arc) continue;
                 Vec2 db = b.b - b.a;
                 double lb = db.length();
                 if (lb < 1.0 || std::fabs((da.x * db.x + da.y * db.y) / (la * lb)) < 0.98) continue;
@@ -767,7 +770,7 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
     auto netLength = [&](int net) {
         double l = 0;
         for (const auto& t : pcb.tracks)
-            if (t.net == net) l += (t.b - t.a).length();
+            if (t.net == net) l += trackLength(t);
         return l;
     };
     bool longRf = false;
@@ -956,7 +959,7 @@ std::vector<RuleViolation> reliabilityChecks(const Project& project) {
                 if (t.net != net || count >= 10) continue;
                 for (const auto& o : pcb.tracks) {
                     if (o.layer != t.layer || o.net == net || o.net == guard || o.net == gnd) continue;
-                    double gap = segmentSegmentDistance(t.a, t.b, o.a, o.b) - (t.width + o.width) / 2;
+                    double gap = trackTrackDistance(t, o) - (t.width + o.width) / 2;
                     if (gap < need - eps) {
                         add(Severity::Warning, "REL_LEAKAGE",
                             "High-impedance net " + netName(net) + " passes " + fmt("%.2f mm", std::max(0.0, gap)) +

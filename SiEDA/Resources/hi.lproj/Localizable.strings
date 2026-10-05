@@ -922,3 +922,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x दाईं ओर, y PCB दृश्य के ऊपर की ओर, z बोर्ड से ऊपर। घुमाव पहले x, फिर y, फिर z के चारों ओर।";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "पैन करने के लिए ⌥-ड्रैग या दो-उंगली ड्रैग करें";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "वास्तविक चाप";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "वास्तविक चाप (Gerber में G02/G03); पेयर और बस संकेंद्री चापों पर मुड़ते हैं। बंद: छोटी सीधी जीवाएँ";
+"Accordion" = "अकॉर्डियन";
+"Trombone" = "ट्रॉम्बोन";
+"Sawtooth" = "आरी-दाँत";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "अकॉर्डियन: आयताकार मियांडर; ट्रॉम्बोन: एक चौड़ा लूप; आरी-दाँत: त्रिकोणीय दाँते";
+"Meander corners" = "मियांडर कोने";
+"Square" = "समकोण";
+"Mitered" = "तिरछा कटा";
+"Round" = "गोल";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "मियांडर के कोने: समकोण, 45° तिरछे कटे या गोल (वास्तविक चाप)";
+"Coupled" = "युग्मित";
+"Differential pair: meander both members together at their gap" = "डिफ़रेंशियल पेयर: दोनों सदस्यों को उनके अंतराल पर साथ में मियांडर करें";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "पेयर के सदस्य की स्क्यू ट्यूनिंग: साथी से दूर वाली ओर छोटे उभार, साथी की लंबाई तक";
+"Length Rules" = "लंबाई नियम";
+"Length targets per net and match groups, measured pad to pad through series parts" = "प्रति नेट लंबाई लक्ष्य और मैच समूह, सीरीज़ पुर्ज़ों से होकर पैड से पैड तक मापे गए";
+"Remove the length rule" = "लंबाई नियम हटाएँ";
+"Tolerance" = "सहनशीलता";
+"Match Groups" = "मैच समूह";
+"Remove the match group" = "मैच समूह हटाएँ";
+"Group name" = "समूह का नाम";
+"Add Group" = "समूह जोड़ें";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "सदस्य: दो या अधिक नेट चुनें। सीरीज़ रेज़िस्टर या कैपेसिटर से होकर जाने वाला नेट उनके पार पैड से पैड तक मापा जाता है।";
+"Any angle" = "कोई भी कोण";
+"Route and drag at any angle: the head is one straight track to the pointer" = "किसी भी कोण पर रूट और ड्रैग करें: हेड पॉइंटर तक एक सीधा ट्रैक है";
+"Remove loops" = "लूप हटाएँ";
+"Finishing a route removes the old path of the net it makes redundant" = "रूट पूरा करने पर नेट का वह पुराना पथ हट जाता है जिसे वह अनावश्यक बना देता है";
+"Auto teardrops" = "स्वचालित टियरड्रॉप";
+"Teardrops where each finished route meets pads and vias" = "जहाँ प्रत्येक पूरा रूट पैड और वाया से मिलता है वहाँ टियरड्रॉप";
+"Stop at obstacle" = "बाधा पर रुकें";
+"Hug obstacles" = "बाधाओं से सटकर चलें";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "खींचा गया ट्रैक उन पैड और अन्य ताँबे के चारों ओर मुड़ता है जिन्हें वह धकेल नहीं सकता, बीच में रुकने के बजाय";

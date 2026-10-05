@@ -983,6 +983,108 @@ int sieda_c_api_harness_test(void) {
     return 0;
 }
 
+/* True arcs through the C API: a route with arc corners writes arc tracks (the snapshot carries their centre and
+ * angles); "convert corners to arcs" on a sharp route; bad input is reported, never thrown. */
+int sieda_c_api_arc_test(void) {
+    const char* ids = "[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]";
+    for (int pass = 0; pass < 2; ++pass) {
+        SiedaProject* p = sieda_project_new("C API arcs");
+        if (!p) return 1;
+        int32_t r1 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 0, 0, NULL);
+        int32_t r2 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 0, 0, NULL);
+        if (r1 < 0 || r2 < 0 || sieda_connect(p, r1, 1, r2, 0) < 0) return 2;
+        if (!sieda_pcb_move_footprint(p, r1, 10, 20) || !sieda_pcb_move_footprint(p, r2, 34, 28)) return 3;
+        const char* opts = pass == 0 ? "{\"cornerRadius\":1.5,\"arcCorners\":true}" : "{\"cornerRadius\":0}";
+        char* s = sieda_router_begin(p, opts, 10.95, 20, 0);
+        if (!s || strstr(s, "\"error\"")) return 4;
+        sieda_string_free(s);
+        s = sieda_router_move(p, 18, 20);
+        sieda_string_free(s);
+        s = sieda_router_fix(p);
+        if (!s || strstr(s, "\"error\"")) return 5;
+        sieda_string_free(s);
+        s = sieda_router_move(p, 33.05, 28);
+        if (!s || !strstr(s, "\"reachedTarget\":true")) return 6;
+        sieda_string_free(s);
+        s = sieda_router_commit(p);
+        if (!s || !strstr(s, "\"ok\":true")) return 7;
+        sieda_string_free(s);
+        if (pass == 1) {
+            char* pre = sieda_pcb_arc_corners(p, ids, "{\"radius\":1.5,\"apply\":false}");
+            if (!pre || !strstr(pre, "\"ok\":true") || !strstr(pre, "\"applied\":false")) return 8;
+            sieda_string_free(pre);
+            char* done = sieda_pcb_arc_corners(p, ids, NULL);
+            if (!done || !strstr(done, "\"ok\":true") || !strstr(done, "\"applied\":true")) return 9;
+            sieda_string_free(done);
+        }
+        char* snap = sieda_project_snapshot(p);
+        if (!snap || !strstr(snap, "\"arc\":true") || !strstr(snap, "\"radius\":") || !strstr(snap, "\"sweep\":")) return 10;
+        sieda_string_free(snap);
+        char* bad = sieda_pcb_arc_corners(p, "{not json", NULL);
+        if (!bad || !strstr(bad, "\"error\"")) return 11;
+        sieda_string_free(bad);
+        if (sieda_pcb_arc_corners(NULL, ids, NULL) != NULL) return 12;
+        sieda_project_free(p);
+    }
+    return 0;
+}
+
+/* Length rules and the new tuning options through the C API: a rule on a labelled net, the targets JSON, a
+ * trombone with round corners tuned to the rule, match groups, bad input. */
+int sieda_c_api_length_test(void) {
+    SiedaProject* p = sieda_project_new("C API length");
+    if (!p) return 1;
+    int32_t r1 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 0, 0, NULL);
+    int32_t r2 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 0, 0, NULL);
+    int32_t label = sieda_add_component(p, 15 /* NetLabel */, "SIG", 50, -40, 0, NULL);
+    if (r1 < 0 || r2 < 0 || label < 0) return 2;
+    if (sieda_connect(p, r1, 1, r2, 0) < 0 || sieda_connect(p, label, 0, r1, 1) < 0) return 3;
+    if (!sieda_pcb_move_footprint(p, r1, 10, 20) || !sieda_pcb_move_footprint(p, r2, 40, 20)) return 4;
+    char* s = sieda_router_begin(p, NULL, 10.95, 20, 0);
+    if (!s || strstr(s, "\"error\"")) return 5;
+    sieda_string_free(s);
+    s = sieda_router_move(p, 39.05, 20);
+    sieda_string_free(s);
+    s = sieda_router_commit(p);
+    if (!s || !strstr(s, "\"ok\":true")) return 6;
+    sieda_string_free(s);
+    char* snap = sieda_project_snapshot(p);
+    const char* tracksAt = snap ? strstr(snap, "\"tracks\":[{") : NULL;
+    const char* idAt = tracksAt ? strstr(tracksAt, "\"id\":") : NULL;
+    if (!idAt) return 7;
+    int32_t track = 0;
+    for (const char* c = idAt + 5; *c >= '0' && *c <= '9'; ++c) track = track * 10 + (*c - '0');
+    sieda_string_free(snap);
+
+    if (sieda_pcb_set_length_rule(p, "SIG", 35, 0.1) != 1) return 8;
+    char* targets = sieda_length_targets_json(p);
+    if (!targets || !strstr(targets, "\"net\":\"SIG\"") || !strstr(targets, "\"ok\":false")) return 9;
+    sieda_string_free(targets);
+    char* tune = sieda_router_tune(p, track, "{\"style\":\"trombone\",\"corner\":\"round\",\"maxAmplitude\":4,\"apply\":true}");
+    if (!tune || !strstr(tune, "\"ok\":true") || !strstr(tune, "\"targetSource\":\"rule:SIG\"")) return 10;
+    sieda_string_free(tune);
+    targets = sieda_length_targets_json(p);
+    if (!targets || !strstr(targets, "\"ok\":true")) return 11;
+    sieda_string_free(targets);
+    char* drc = sieda_pcb_run_drc(p);
+    if (!drc || strstr(drc, "DRC_LENGTH")) return 12;
+    sieda_string_free(drc);
+
+    if (sieda_pcb_set_match_group(p, "{\"name\":\"G\",\"nets\":[\"SIG\",\"OTHER\"],\"tolerance\":0.2}") != 1) return 13;
+    targets = sieda_length_targets_json(p);
+    if (!targets || !strstr(targets, "\"name\":\"G\"")) return 14;
+    sieda_string_free(targets);
+    if (sieda_pcb_set_match_group(p, "{\"name\":\"G\",\"nets\":[]}") != 1) return 15;  /* removed */
+    if (sieda_pcb_set_match_group(p, "{not json") != 0 || sieda_pcb_set_match_group(p, "{\"nets\":[]}") != 0) return 16;
+    if (sieda_pcb_set_length_rule(p, "SIG", 0, 0) != 1) return 17;  /* removed */
+    targets = sieda_length_targets_json(p);
+    if (!targets || strcmp(targets, "{\"groups\":[],\"rules\":[]}") != 0) return 18;
+    sieda_string_free(targets);
+    if (sieda_pcb_set_length_rule(NULL, "SIG", 1, 1) != 0 || sieda_length_targets_json(NULL) != NULL) return 19;
+    sieda_project_free(p);
+    return 0;
+}
+
 /* Schematic directives and net classes through the C API. Returns 0 or the failing step. */
 int sieda_c_api_directive_test(void) {
     SiedaProject* p = sieda_project_new("Directives");
@@ -1010,6 +1112,67 @@ int sieda_c_api_directive_test(void) {
     if (!sieda_update_directive(p, id, json) || sieda_update_directive(p, 999, json)) return 8;
     if (!sieda_remove_directive(p, id) || sieda_remove_directive(p, id)) return 9;
     if (!sieda_remove_net_class(p, "HS") || sieda_remove_net_class(p, "HS")) return 10;
+    sieda_project_free(p);
+    return 0;
+}
+
+/* Corner drag, multi-track drag and multi-route through the C API. */
+int sieda_c_api_drag_multi_test(void) {
+    SiedaProject* p = sieda_project_new("C API drags");
+    if (!p) return 1;
+    int32_t r1 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 0, 0, NULL);
+    int32_t r2 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 0, 0, NULL);
+    int32_t r3 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 100, 0, NULL);
+    int32_t r4 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 100, 0, NULL);
+    if (r1 < 0 || r2 < 0 || r3 < 0 || r4 < 0) return 2;
+    if (sieda_connect(p, r1, 1, r2, 0) < 0 || sieda_connect(p, r3, 1, r4, 0) < 0) return 3;
+    if (!sieda_pcb_move_footprint(p, r1, 10, 10) || !sieda_pcb_move_footprint(p, r2, 30, 20) ||
+        !sieda_pcb_move_footprint(p, r3, 10, 14) || !sieda_pcb_move_footprint(p, r4, 30, 24))
+        return 4;
+    /* Route R1 → R2 with a corner, then drag the corner. */
+    char* s = sieda_router_begin(p, "{\"posture\":\"45\"}", 10.95, 10, 0);
+    if (!s || strstr(s, "\"error\"")) return 5;
+    sieda_string_free(s);
+    s = sieda_router_move(p, 29.05, 20);
+    if (!s || !strstr(s, "\"reachedTarget\":true")) return 6;
+    sieda_string_free(s);
+    s = sieda_router_commit(p);
+    if (!s || !strstr(s, "\"ok\":true")) return 7;
+    sieda_string_free(s);
+    char* snap = sieda_project_snapshot(p);
+    const char* tracksAt = snap ? strstr(snap, "\"tracks\":[{") : NULL;
+    const char* idAt = tracksAt ? strstr(tracksAt, "\"id\":") : NULL;
+    if (!idAt) return 8;
+    int32_t track = 0;
+    for (const char* c = idAt + 5; *c >= '0' && *c <= '9'; ++c) track = track * 10 + (*c - '0');
+    sieda_string_free(snap);
+    char* corner = sieda_router_begin_corner_drag(p, "{\"posture\":\"free\"}", track, 19, 10);
+    if (!corner) return 9;
+    if (!strstr(corner, "\"error\"")) { /* the track's far end is a corner: drag it a little and drop */
+        sieda_string_free(corner);
+        s = sieda_router_move(p, 19, 11);
+        if (!s || !strstr(s, "\"kind\":\"corner\"")) return 10;
+        sieda_string_free(s);
+        s = sieda_router_commit(p);
+        if (!s || !strstr(s, "\"ok\":true")) return 11;
+        sieda_string_free(s);
+    } else {
+        sieda_string_free(corner);
+        sieda_router_cancel(p);
+    }
+    /* A multi drag of nothing is refused; bad JSON is reported. */
+    char* multi = sieda_router_begin_multi_drag(p, NULL, "[]", 0, 0);
+    if (!multi || !strstr(multi, "\"error\"")) return 12;
+    sieda_string_free(multi);
+    char* bad = sieda_router_begin_multi_drag(p, NULL, "{nope", 0, 0);
+    if (!bad || !strstr(bad, "\"error\"")) return 13;
+    sieda_string_free(bad);
+    /* Multi-route the two nets from their start pads together. */
+    char* m = sieda_router_begin_multi(p, NULL, "[{\"x\":10.95,\"y\":10},{\"x\":10.95,\"y\":14}]", 0);
+    if (!m || strstr(m, "\"error\"") || !strstr(m, "\"kind\":\"multi\"")) return 14;
+    sieda_string_free(m);
+    sieda_router_cancel(p);
+    if (sieda_router_begin_multi(NULL, NULL, "[]", 0) != NULL) return 15;
     sieda_project_free(p);
     return 0;
 }
@@ -1082,6 +1245,117 @@ int sieda_c_api_harness_entry_test(void) {
     if (!snap || !strstr(snap, "\"harnessOf\":")) return 5;
     sieda_string_free(snap);
     if (!sieda_set_harness_entry(p, e, 0)) return 6;
+    sieda_project_free(p);
+    return 0;
+}
+
+int sieda_c_api_board_commands_test(void) {
+    SiedaProject* p = sieda_project_new("C API board commands");
+    if (!p) return 1;
+    int32_t r1 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 0, 0, NULL);
+    int32_t r2 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 0, 0, NULL);
+    if (r1 < 0 || r2 < 0) return 2;
+    if (sieda_connect(p, r1, 1, r2, 0) < 0) return 3;
+    if (!sieda_pcb_move_footprint(p, r1, 10, 10) || !sieda_pcb_move_footprint(p, r2, 30, 20)) return 4;
+    char* s = sieda_router_begin(p, "{\"posture\":\"45\",\"teardrops\":true,\"removeLoops\":true}", 10.95, 10, 0);
+    if (!s || strstr(s, "\"error\"")) return 5;
+    sieda_string_free(s);
+    s = sieda_router_move(p, 29.05, 20);
+    if (!s || !strstr(s, "\"reachedTarget\":true")) return 6;
+    sieda_string_free(s);
+    s = sieda_router_commit(p);
+    if (!s || !strstr(s, "\"ok\":true")) return 7;
+    sieda_string_free(s);
+    char* snap = sieda_project_snapshot(p);
+    if (!snap || !strstr(snap, "\"teardrop\":true")) return 8; /* auto teardrops on commit */
+    const char* tracksAt = strstr(snap, "\"tracks\":[{");
+    const char* idAt = tracksAt ? strstr(tracksAt, "\"id\":") : NULL;
+    if (!idAt) return 9;
+    int32_t track = 0;
+    for (const char* c = idAt + 5; *c >= '0' && *c <= '9'; ++c) track = track * 10 + (*c - '0');
+    sieda_string_free(snap);
+    char* rm = sieda_pcb_teardrops(p, "[]", "{\"remove\":true}");
+    if (!rm || !strstr(rm, "\"ok\":true")) return 10;
+    sieda_string_free(rm);
+    char* td = sieda_pcb_teardrops(p, "[]", "{\"apply\":false}");
+    if (!td || !strstr(td, "\"ok\":true") || !strstr(td, "\"applied\":false")) return 11;
+    sieda_string_free(td);
+    char ids[32];
+    snprintf(ids, sizeof ids, "[%d]", (int)track);
+    char* g = sieda_pcb_gloss(p, ids, NULL);
+    if (!g || strstr(g, "\"error\"") || !strstr(g, "\"message\"")) return 12;
+    sieda_string_free(g);
+    char* sh = sieda_pcb_shield_tracks(p, ids, "{\"pitch\":1.5}");
+    if (!sh || strstr(sh, "\"error\"") || !strstr(sh, "\"ok\"")) return 13; /* no ground net: ok false */
+    sieda_string_free(sh);
+    char* st = sieda_pcb_stitch_vias(p, "{\"x0\":0,\"y0\":0,\"x1\":20,\"y1\":20}");
+    if (!st || !strstr(st, "\"ok\":false")) return 14; /* no pours */
+    sieda_string_free(st);
+    char* bad = sieda_pcb_gloss(p, "{nope", NULL);
+    if (!bad || !strstr(bad, "\"error\"")) return 15;
+    sieda_string_free(bad);
+    if (sieda_pcb_teardrops(NULL, "[]", NULL) != NULL || sieda_pcb_stitch_vias(NULL, NULL) != NULL) return 16;
+    sieda_project_free(p);
+    return 0;
+}
+
+int sieda_c_api_match_lengths_test(void) {
+    SiedaProject* p = sieda_project_new("C API match lengths");
+    if (!p) return 1;
+    int32_t a1 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 0, 0, NULL);
+    int32_t a2 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 0, 0, NULL);
+    int32_t b1 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 100, 0, NULL);
+    int32_t b2 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 100, 0, NULL);
+    if (a1 < 0 || a2 < 0 || b1 < 0 || b2 < 0) return 2;
+    if (sieda_connect(p, a1, 1, a2, 0) < 0 || sieda_connect(p, b1, 1, b2, 0) < 0) return 3;
+    if (!sieda_pcb_move_footprint(p, a1, 10, 10) || !sieda_pcb_move_footprint(p, a2, 40, 10) ||
+        !sieda_pcb_move_footprint(p, b1, 10, 20) || !sieda_pcb_move_footprint(p, b2, 40, 26))
+        return 4;
+    /* Stop mode: a plain route reaches its pad. */
+    char* s = sieda_router_begin(p, "{\"mode\":\"stop\"}", 10.95, 10, 0);
+    if (!s || strstr(s, "\"error\"")) return 5;
+    sieda_string_free(s);
+    s = sieda_router_move(p, 39.05, 10);
+    if (!s || !strstr(s, "\"reachedTarget\":true")) return 6;
+    sieda_string_free(s);
+    s = sieda_router_commit(p);
+    if (!s || !strstr(s, "\"ok\":true")) return 7;
+    sieda_string_free(s);
+    s = sieda_router_begin(p, "{\"mode\":\"stop\"}", 10.95, 20, 0);
+    if (!s) return 8;
+    sieda_string_free(s);
+    s = sieda_router_move(p, 39.05, 26);
+    if (!s || !strstr(s, "\"reachedTarget\":true")) return 9;
+    sieda_string_free(s);
+    s = sieda_router_commit(p);
+    if (!s || !strstr(s, "\"ok\":true")) return 10;
+    sieda_string_free(s);
+    /* Every track: the two nets are matched (the straight one lengthened). */
+    char* snap = sieda_project_snapshot(p);
+    if (!snap) return 11;
+    char ids[256] = "[";
+    const char* at = strstr(snap, "\"tracks\":[");
+    int n = 0;
+    while (at && (at = strstr(at, "\"id\":")) != NULL && n < 20) {
+        int id = 0;
+        const char* c = at + 5;
+        for (; *c >= '0' && *c <= '9'; ++c) id = id * 10 + (*c - '0');
+        char part[16];
+        snprintf(part, sizeof part, "%s%d", n ? "," : "", id);
+        strncat(ids, part, sizeof ids - strlen(ids) - 2);
+        ++n;
+        at = c;
+        if (strstr(at, "\"vias\":[") && strstr(at, "\"vias\":[") < strstr(at, "\"id\":")) break;
+    }
+    strcat(ids, "]");
+    sieda_string_free(snap);
+    char* m = sieda_pcb_match_lengths(p, ids, "{\"tolerance\":0.2}");
+    if (!m || strstr(m, "\"error\"") || !strstr(m, "\"target\"")) return 12;
+    sieda_string_free(m);
+    char* bad = sieda_pcb_match_lengths(p, "{x", NULL);
+    if (!bad || !strstr(bad, "\"error\"")) return 13;
+    sieda_string_free(bad);
+    if (sieda_pcb_match_lengths(NULL, "[]", NULL) != NULL) return 14;
     sieda_project_free(p);
     return 0;
 }

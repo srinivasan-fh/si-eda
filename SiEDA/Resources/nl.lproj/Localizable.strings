@@ -922,3 +922,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x naar rechts, y naar de bovenkant van de PCB-weergave, z omhoog vanaf de print. Rotaties om x, dan y, dan z.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-slepen of met twee vingers slepen om te pannen";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "Echte bogen";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "Echte bogen (G02/G03 in Gerber); paren en bussen draaien op concentrische bogen. Uit: korte rechte koorden";
+"Accordion" = "Accordeon";
+"Trombone" = "Trombone";
+"Sawtooth" = "Zaagtand";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "Accordeon: rechthoekige meanders; Trombone: één brede lus; Zaagtand: driehoekige tanden";
+"Meander corners" = "Meanderhoeken";
+"Square" = "Haaks";
+"Mitered" = "Afgeschuind";
+"Round" = "Rond";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "Hoeken van de meanders: haaks, 45° afgeschuind of rond (echte bogen)";
+"Coupled" = "Gekoppeld";
+"Differential pair: meander both members together at their gap" = "Differentieel paar: beide leden samen meanderen op hun tussenruimte";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "Skew-afstemming van een paarlid: kleine bulten aan de kant weg van zijn partner, tot de lengte van de partner";
+"Length Rules" = "Lengteregels";
+"Length targets per net and match groups, measured pad to pad through series parts" = "Lengtedoelen per net en matchgroepen, gemeten van pad tot pad via seriecomponenten";
+"Remove the length rule" = "Lengteregel verwijderen";
+"Tolerance" = "Tolerantie";
+"Match Groups" = "Matchgroepen";
+"Remove the match group" = "Matchgroep verwijderen";
+"Group name" = "Groepsnaam";
+"Add Group" = "Groep toevoegen";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Leden: kies twee of meer netten. Een net via serieweerstanden of -condensatoren wordt van pad tot pad over ze heen gemeten.";
+"Any angle" = "Elke hoek";
+"Route and drag at any angle: the head is one straight track to the pointer" = "Routeren en slepen onder elke hoek: de kop is één recht spoor naar de aanwijzer";
+"Remove loops" = "Lussen verwijderen";
+"Finishing a route removes the old path of the net it makes redundant" = "Een route voltooien verwijdert het oude pad van het net dat erdoor overbodig wordt";
+"Auto teardrops" = "Automatische teardrops";
+"Teardrops where each finished route meets pads and vias" = "Teardrops waar elke voltooide route pads en via's raakt";
+"Stop at obstacle" = "Stoppen bij obstakel";
+"Hug obstacles" = "Obstakels volgen";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "Een gesleept spoor buigt om pads en ander koper dat het niet kan duwen, in plaats van ervoor te stoppen";

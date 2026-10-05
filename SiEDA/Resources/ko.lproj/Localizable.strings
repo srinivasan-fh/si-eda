@@ -922,3 +922,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x는 오른쪽, y는 PCB 보기의 위쪽, z는 기판에서 위쪽입니다. 회전은 x, y, z 순서입니다.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-드래그 또는 두 손가락 드래그로 이동";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "실제 원호";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "실제 원호(Gerber의 G02/G03), 차동 쌍과 버스는 동심 원호로 꺾입니다. 끄면: 짧은 직선 현";
+"Accordion" = "아코디언";
+"Trombone" = "트롬본";
+"Sawtooth" = "톱니";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "아코디언: 사각형 미앤더, 트롬본: 넓은 루프 하나, 톱니: 삼각형 톱니";
+"Meander corners" = "미앤더 모서리";
+"Square" = "직각";
+"Mitered" = "모따기";
+"Round" = "둥글게";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "미앤더의 모서리: 직각, 45° 모따기 또는 둥글게(실제 원호)";
+"Coupled" = "결합";
+"Differential pair: meander both members together at their gap" = "차동 쌍: 두 선을 간격을 유지하며 함께 미앤더";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "쌍 멤버의 스큐 조정: 상대 선 반대쪽에 작은 돌기를 넣어 상대 길이에 맞춤";
+"Length Rules" = "길이 규칙";
+"Length targets per net and match groups, measured pad to pad through series parts" = "네트별 길이 목표와 매치 그룹, 직렬 부품을 거쳐 패드에서 패드까지 측정";
+"Remove the length rule" = "길이 규칙 제거";
+"Tolerance" = "허용 오차";
+"Match Groups" = "매치 그룹";
+"Remove the match group" = "매치 그룹 제거";
+"Group name" = "그룹 이름";
+"Add Group" = "그룹 추가";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "멤버: 네트를 두 개 이상 고르세요. 직렬 저항이나 커패시터를 지나는 네트는 그것들을 건너 패드에서 패드까지 측정합니다.";
+"Any angle" = "임의 각도";
+"Route and drag at any angle: the head is one straight track to the pointer" = "임의 각도로 배선하고 끌기: 헤드는 포인터까지의 직선 트랙 하나입니다";
+"Remove loops" = "루프 제거";
+"Finishing a route removes the old path of the net it makes redundant" = "배선을 마치면 그로 인해 불필요해진 네트의 기존 경로를 제거합니다";
+"Auto teardrops" = "자동 티어드롭";
+"Teardrops where each finished route meets pads and vias" = "완료된 각 배선이 패드와 비아에 닿는 곳에 티어드롭";
+"Stop at obstacle" = "장애물에서 멈춤";
+"Hug obstacles" = "장애물 감싸기";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "끌고 있는 트랙이 밀 수 없는 패드와 다른 구리를 피해 휘어 돌아가며 중간에 멈추지 않습니다";

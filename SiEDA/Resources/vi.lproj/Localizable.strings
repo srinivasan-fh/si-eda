@@ -922,3 +922,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x sang phải, y hướng lên trên khung nhìn PCB, z hướng lên từ bo. Xoay quanh x, rồi y, rồi z.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-kéo hoặc kéo hai ngón để di chuyển";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "Cung tròn thật";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "Cung tròn thật (G02/G03 trong Gerber); cặp và bus rẽ theo các cung đồng tâm. Tắt: các dây cung thẳng ngắn";
+"Accordion" = "Đàn xếp";
+"Trombone" = "Kèn trombone";
+"Sawtooth" = "Răng cưa";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "Đàn xếp: đường uốn hình chữ nhật; Kèn trombone: một vòng rộng; Răng cưa: răng tam giác";
+"Meander corners" = "Góc đường uốn";
+"Square" = "Vuông";
+"Mitered" = "Vát góc";
+"Round" = "Bo tròn";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "Góc của đường uốn: vuông, vát 45° hoặc bo tròn (cung tròn thật)";
+"Coupled" = "Ghép cặp";
+"Differential pair: meander both members together at their gap" = "Cặp vi sai: uốn cả hai dây cùng nhau theo khoảng cách của cặp";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "Chỉnh lệch pha một dây của cặp: các bướu nhỏ ở phía xa dây kia, đến độ dài của dây kia";
+"Length Rules" = "Quy tắc độ dài";
+"Length targets per net and match groups, measured pad to pad through series parts" = "Mục tiêu độ dài theo net và nhóm khớp, đo từ pad đến pad qua linh kiện nối tiếp";
+"Remove the length rule" = "Xóa quy tắc độ dài";
+"Tolerance" = "Dung sai";
+"Match Groups" = "Nhóm khớp";
+"Remove the match group" = "Xóa nhóm khớp";
+"Group name" = "Tên nhóm";
+"Add Group" = "Thêm nhóm";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Thành viên: chọn hai net trở lên. Net đi qua điện trở hoặc tụ nối tiếp được đo từ pad đến pad xuyên qua chúng.";
+"Any angle" = "Góc bất kỳ";
+"Route and drag at any angle: the head is one straight track to the pointer" = "Đi dây và kéo ở góc bất kỳ: đầu là một đường thẳng tới con trỏ";
+"Remove loops" = "Xóa vòng lặp";
+"Finishing a route removes the old path of the net it makes redundant" = "Hoàn tất một tuyến sẽ xóa đường cũ của net mà tuyến đó làm cho thừa";
+"Auto teardrops" = "Giọt lệ tự động";
+"Teardrops where each finished route meets pads and vias" = "Giọt lệ tại nơi mỗi tuyến hoàn tất gặp pad và via";
+"Stop at obstacle" = "Dừng tại vật cản";
+"Hug obstacles" = "Ôm sát vật cản";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "Đường mạch đang kéo uốn quanh pad và đồng khác không đẩy được thay vì dừng sớm";

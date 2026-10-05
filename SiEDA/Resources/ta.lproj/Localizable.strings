@@ -922,3 +922,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x வலது, y PCB காட்சியின் மேல் நோக்கி, z பலகையிலிருந்து மேல். சுழற்சி x, பின் y, பின் z ஐச் சுற்றி.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "நகர்த்த ⌥-இழுக்கவும் அல்லது இரு விரல்களால் இழுக்கவும்";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "உண்மையான வளைவுகள்";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "உண்மையான வளைவுகள் (Gerber இல் G02/G03); ஜோடிகளும் பஸ்களும் பொதுமைய வளைவுகளில் திரும்பும். அணைத்தால்: குறுகிய நேர் நாண்கள்";
+"Accordion" = "அக்கார்டியன்";
+"Trombone" = "டிராம்போன்";
+"Sawtooth" = "ரம்பப் பல்";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "அக்கார்டியன்: செவ்வக வளைவுகள்; டிராம்போன்: ஒரு அகலமான சுழல்; ரம்பப் பல்: முக்கோணப் பற்கள்";
+"Meander corners" = "வளைவு மூலைகள்";
+"Square" = "செங்கோணம்";
+"Mitered" = "சாய்வாக வெட்டிய";
+"Round" = "வட்டம்";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "வளைவுகளின் மூலைகள்: செங்கோணம், 45° சாய்வாக வெட்டியது அல்லது வட்டம் (உண்மையான வளைவுகள்)";
+"Coupled" = "இணைந்த";
+"Differential pair: meander both members together at their gap" = "டிஃபரன்ஷியல் ஜோடி: இரு உறுப்பினர்களையும் அவற்றின் இடைவெளியில் ஒன்றாக வளைக்கவும்";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "ஜோடி உறுப்பினரின் ஸ்க்யூ சீரமைப்பு: துணையிலிருந்து விலகிய பக்கத்தில் சிறு புடைப்புகள், துணையின் நீளம் வரை";
+"Length Rules" = "நீள விதிகள்";
+"Length targets per net and match groups, measured pad to pad through series parts" = "ஒவ்வொரு நெட்டுக்கும் நீள இலக்குகள் மற்றும் பொருத்தக் குழுக்கள், தொடர் பாகங்கள் வழியாக பேடு முதல் பேடு வரை அளவிடப்படும்";
+"Remove the length rule" = "நீள விதியை நீக்கு";
+"Tolerance" = "சகிப்பு";
+"Match Groups" = "பொருத்தக் குழுக்கள்";
+"Remove the match group" = "பொருத்தக் குழுவை நீக்கு";
+"Group name" = "குழுவின் பெயர்";
+"Add Group" = "குழுவைச் சேர்";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "உறுப்பினர்கள்: இரண்டு அல்லது அதற்கு மேற்பட்ட நெட்களைத் தேர்ந்தெடுக்கவும். தொடர் மின்தடையங்கள் அல்லது மின்தேக்கிகள் வழியாகச் செல்லும் நெட் அவற்றைக் கடந்து பேடு முதல் பேடு வரை அளவிடப்படும்.";
+"Any angle" = "எந்தக் கோணமும்";
+"Route and drag at any angle: the head is one straight track to the pointer" = "எந்தக் கோணத்திலும் வழியமைத்து இழுக்கவும்: தலை சுட்டி வரை ஒரே நேர் தடம்";
+"Remove loops" = "சுழல்களை நீக்கு";
+"Finishing a route removes the old path of the net it makes redundant" = "ஒரு வழித்தடத்தை முடித்தால் அது தேவையற்றதாக்கும் நெட்டின் பழைய பாதை நீக்கப்படும்";
+"Auto teardrops" = "தானியங்கு கண்ணீர்த்துளிகள்";
+"Teardrops where each finished route meets pads and vias" = "முடிந்த ஒவ்வொரு வழித்தடமும் பேட்கள் மற்றும் வயாக்களைச் சந்திக்கும் இடத்தில் கண்ணீர்த்துளிகள்";
+"Stop at obstacle" = "தடையில் நிறுத்து";
+"Hug obstacles" = "தடைகளை ஒட்டிச் செல்";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "இழுக்கப்படும் தடம் தள்ள முடியாத பேட்கள் மற்றும் பிற செம்பைச் சுற்றி வளைந்து செல்கிறது, முன்பே நிற்காது";

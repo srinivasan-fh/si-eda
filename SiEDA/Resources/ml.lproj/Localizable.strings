@@ -922,3 +922,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x വലത്തോട്ട്, y PCB കാഴ്ചയുടെ മുകളിലേക്ക്, z ബോർഡിൽ നിന്ന് മുകളിലേക്ക്. ഭ്രമണം x, പിന്നെ y, പിന്നെ z.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "പാൻ ചെയ്യാൻ ⌥-ഡ്രാഗ് അല്ലെങ്കിൽ രണ്ട് വിരൽ ഉപയോഗിച്ച് ഡ്രാഗ് ചെയ്യുക";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "യഥാർത്ഥ ചാപങ്ങൾ";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "യഥാർത്ഥ ചാപങ്ങൾ (Gerber-ൽ G02/G03); ജോഡികളും ബസുകളും ഏകകേന്ദ്ര ചാപങ്ങളിൽ തിരിയുന്നു. ഓഫ്: ചെറിയ നേർ ഞാണുകൾ";
+"Accordion" = "അക്കോർഡിയൻ";
+"Trombone" = "ട്രോംബോൺ";
+"Sawtooth" = "അറക്കവാൾ പല്ല്";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "അക്കോർഡിയൻ: ചതുരാകൃതിയിലുള്ള മിയാൻഡറുകൾ; ട്രോംബോൺ: ഒരു വീതിയുള്ള ലൂപ്പ്; അറക്കവാൾ പല്ല്: ത്രികോണ പല്ലുകൾ";
+"Meander corners" = "മിയാൻഡർ കോണുകൾ";
+"Square" = "സമകോണം";
+"Mitered" = "ചരിച്ചു മുറിച്ച";
+"Round" = "വൃത്താകൃതി";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "മിയാൻഡറുകളുടെ കോണുകൾ: സമകോണം, 45° ചരിച്ചു മുറിച്ചത് അല്ലെങ്കിൽ വൃത്താകൃതി (യഥാർത്ഥ ചാപങ്ങൾ)";
+"Coupled" = "യുഗ്മിത";
+"Differential pair: meander both members together at their gap" = "ഡിഫറൻഷ്യൽ ജോഡി: രണ്ട് അംഗങ്ങളെയും അവയുടെ വിടവിൽ ഒരുമിച്ച് മിയാൻഡർ ചെയ്യുക";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "ജോഡി അംഗത്തിന്റെ സ്ക്യൂ ട്യൂണിംഗ്: പങ്കാളിയിൽ നിന്ന് അകലെയുള്ള വശത്ത് ചെറിയ മുഴകൾ, പങ്കാളിയുടെ നീളം വരെ";
+"Length Rules" = "നീള നിയമങ്ങൾ";
+"Length targets per net and match groups, measured pad to pad through series parts" = "ഓരോ നെറ്റിനും നീള ലക്ഷ്യങ്ങളും മാച്ച് ഗ്രൂപ്പുകളും, സീരീസ് ഭാഗങ്ങളിലൂടെ പാഡിൽ നിന്ന് പാഡിലേക്ക് അളക്കുന്നു";
+"Remove the length rule" = "നീള നിയമം നീക്കുക";
+"Tolerance" = "ടോളറൻസ്";
+"Match Groups" = "മാച്ച് ഗ്രൂപ്പുകൾ";
+"Remove the match group" = "മാച്ച് ഗ്രൂപ്പ് നീക്കുക";
+"Group name" = "ഗ്രൂപ്പിന്റെ പേര്";
+"Add Group" = "ഗ്രൂപ്പ് ചേർക്കുക";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "അംഗങ്ങൾ: രണ്ടോ അതിലധികമോ നെറ്റുകൾ തിരഞ്ഞെടുക്കുക. സീരീസ് റെസിസ്റ്ററുകളിലൂടെയോ കപ്പാസിറ്ററുകളിലൂടെയോ പോകുന്ന നെറ്റ് അവ കടന്ന് പാഡിൽ നിന്ന് പാഡിലേക്ക് അളക്കുന്നു.";
+"Any angle" = "ഏത് കോണും";
+"Route and drag at any angle: the head is one straight track to the pointer" = "ഏത് കോണിലും റൂട്ട് ചെയ്യുകയും വലിക്കുകയും ചെയ്യുക: ഹെഡ് പോയിന്ററിലേക്കുള്ള ഒരു നേർ ട്രാക്കാണ്";
+"Remove loops" = "ലൂപ്പുകൾ നീക്കുക";
+"Finishing a route removes the old path of the net it makes redundant" = "ഒരു റൂട്ട് പൂർത്തിയാക്കുമ്പോൾ അത് അനാവശ്യമാക്കുന്ന നെറ്റിന്റെ പഴയ പാത നീക്കം ചെയ്യുന്നു";
+"Auto teardrops" = "സ്വയം ടിയർഡ്രോപ്പുകൾ";
+"Teardrops where each finished route meets pads and vias" = "പൂർത്തിയായ ഓരോ റൂട്ടും പാഡുകളെയും വയകളെയും ചേരുന്നിടത്ത് ടിയർഡ്രോപ്പുകൾ";
+"Stop at obstacle" = "തടസ്സത്തിൽ നിർത്തുക";
+"Hug obstacles" = "തടസ്സങ്ങളോട് ചേർന്ന് പോകുക";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "വലിച്ച ട്രാക്ക് തള്ളാൻ കഴിയാത്ത പാഡുകളെയും മറ്റ് ചെമ്പിനെയും ചുറ്റി വളയുന്നു, ഇടയ്ക്ക് നിൽക്കുന്നില്ല";

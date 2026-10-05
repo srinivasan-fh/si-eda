@@ -922,3 +922,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x ਸੱਜੇ, y PCB ਦ੍ਰਿਸ਼ ਦੇ ਉੱਪਰ ਵੱਲ, z ਬੋਰਡ ਤੋਂ ਉੱਪਰ। ਘੁਮਾਅ ਪਹਿਲਾਂ x, ਫਿਰ y, ਫਿਰ z ਦੁਆਲੇ।";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "ਪੈਨ ਕਰਨ ਲਈ ⌥-ਡਰੈਗ ਜਾਂ ਦੋ ਉਂਗਲਾਂ ਨਾਲ ਡਰੈਗ ਕਰੋ";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "ਅਸਲ ਚਾਪ";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "ਅਸਲ ਚਾਪ (Gerber ਵਿੱਚ G02/G03); ਜੋੜੀਆਂ ਅਤੇ ਬੱਸਾਂ ਸਮਕੇਂਦਰੀ ਚਾਪਾਂ 'ਤੇ ਮੁੜਦੀਆਂ ਹਨ। ਬੰਦ: ਛੋਟੀਆਂ ਸਿੱਧੀਆਂ ਜੀਵਾਵਾਂ";
+"Accordion" = "ਅਕਾਰਡੀਅਨ";
+"Trombone" = "ਟਰੌਂਬੋਨ";
+"Sawtooth" = "ਆਰੀ-ਦੰਦ";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "ਅਕਾਰਡੀਅਨ: ਆਇਤਾਕਾਰ ਮੀਐਂਡਰ; ਟਰੌਂਬੋਨ: ਇੱਕ ਚੌੜਾ ਲੂਪ; ਆਰੀ-ਦੰਦ: ਤਿਕੋਣੇ ਦੰਦ";
+"Meander corners" = "ਮੀਐਂਡਰ ਕੋਨੇ";
+"Square" = "ਸਮਕੋਣ";
+"Mitered" = "ਤਿਰਛਾ ਕੱਟਿਆ";
+"Round" = "ਗੋਲ";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "ਮੀਐਂਡਰਾਂ ਦੇ ਕੋਨੇ: ਸਮਕੋਣ, 45° ਤਿਰਛੇ ਕੱਟੇ ਜਾਂ ਗੋਲ (ਅਸਲ ਚਾਪ)";
+"Coupled" = "ਜੋੜੀਦਾਰ";
+"Differential pair: meander both members together at their gap" = "ਡਿਫਰੈਂਸ਼ੀਅਲ ਜੋੜੀ: ਦੋਵੇਂ ਮੈਂਬਰਾਂ ਨੂੰ ਉਹਨਾਂ ਦੇ ਫ਼ਾਸਲੇ 'ਤੇ ਇਕੱਠੇ ਮੀਐਂਡਰ ਕਰੋ";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "ਜੋੜੀ ਦੇ ਮੈਂਬਰ ਦੀ ਸਕਿਊ ਟਿਊਨਿੰਗ: ਸਾਥੀ ਤੋਂ ਦੂਰ ਵਾਲੇ ਪਾਸੇ ਛੋਟੇ ਉਭਾਰ, ਸਾਥੀ ਦੀ ਲੰਬਾਈ ਤੱਕ";
+"Length Rules" = "ਲੰਬਾਈ ਨਿਯਮ";
+"Length targets per net and match groups, measured pad to pad through series parts" = "ਹਰ ਨੈੱਟ ਦੇ ਲੰਬਾਈ ਟੀਚੇ ਅਤੇ ਮੈਚ ਸਮੂਹ, ਲੜੀਵਾਰ ਪੁਰਜ਼ਿਆਂ ਰਾਹੀਂ ਪੈਡ ਤੋਂ ਪੈਡ ਤੱਕ ਮਾਪੇ";
+"Remove the length rule" = "ਲੰਬਾਈ ਨਿਯਮ ਹਟਾਓ";
+"Tolerance" = "ਸਹਿਣਸ਼ੀਲਤਾ";
+"Match Groups" = "ਮੈਚ ਸਮੂਹ";
+"Remove the match group" = "ਮੈਚ ਸਮੂਹ ਹਟਾਓ";
+"Group name" = "ਸਮੂਹ ਦਾ ਨਾਂ";
+"Add Group" = "ਸਮੂਹ ਜੋੜੋ";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "ਮੈਂਬਰ: ਦੋ ਜਾਂ ਵੱਧ ਨੈੱਟ ਚੁਣੋ। ਲੜੀਵਾਰ ਰੋਧਕਾਂ ਜਾਂ ਕੈਪੇਸਿਟਰਾਂ ਰਾਹੀਂ ਜਾਂਦਾ ਨੈੱਟ ਉਹਨਾਂ ਦੇ ਪਾਰ ਪੈਡ ਤੋਂ ਪੈਡ ਤੱਕ ਮਾਪਿਆ ਜਾਂਦਾ ਹੈ।";
+"Any angle" = "ਕੋਈ ਵੀ ਕੋਣ";
+"Route and drag at any angle: the head is one straight track to the pointer" = "ਕਿਸੇ ਵੀ ਕੋਣ 'ਤੇ ਰੂਟ ਅਤੇ ਡਰੈਗ ਕਰੋ: ਹੈੱਡ ਪੁਆਇੰਟਰ ਤੱਕ ਇੱਕ ਸਿੱਧਾ ਟਰੈਕ ਹੈ";
+"Remove loops" = "ਲੂਪ ਹਟਾਓ";
+"Finishing a route removes the old path of the net it makes redundant" = "ਰੂਟ ਪੂਰਾ ਕਰਨ ਨਾਲ ਨੈੱਟ ਦਾ ਉਹ ਪੁਰਾਣਾ ਰਸਤਾ ਹਟ ਜਾਂਦਾ ਹੈ ਜਿਸਨੂੰ ਇਹ ਬੇਲੋੜਾ ਬਣਾਉਂਦਾ ਹੈ";
+"Auto teardrops" = "ਆਟੋ ਟੀਅਰਡ੍ਰੌਪ";
+"Teardrops where each finished route meets pads and vias" = "ਜਿੱਥੇ ਹਰ ਪੂਰਾ ਰੂਟ ਪੈਡਾਂ ਅਤੇ ਵਾਇਆ ਨੂੰ ਮਿਲਦਾ ਹੈ ਉੱਥੇ ਟੀਅਰਡ੍ਰੌਪ";
+"Stop at obstacle" = "ਰੁਕਾਵਟ 'ਤੇ ਰੁਕੋ";
+"Hug obstacles" = "ਰੁਕਾਵਟਾਂ ਨਾਲ ਲੱਗ ਕੇ ਚੱਲੋ";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "ਖਿੱਚਿਆ ਟਰੈਕ ਨਾ ਧੱਕੇ ਜਾ ਸਕਣ ਵਾਲੇ ਪੈਡਾਂ ਅਤੇ ਹੋਰ ਤਾਂਬੇ ਦੁਆਲੇ ਮੁੜ ਜਾਂਦਾ ਹੈ, ਪਹਿਲਾਂ ਨਹੀਂ ਰੁਕਦਾ";

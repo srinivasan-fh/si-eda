@@ -353,7 +353,10 @@ struct XRayStackView: NSViewRepresentable {
             ("L\(item.offset + 1) \(snapshot.board.layerName(item.offset).prefix(6).uppercased())", item.element,
              String(format: "%.0f mm", item.element))
         }
-        let segments = snapshot.tracks.map { (CGPoint(x: $0.ax, y: $0.ay), CGPoint(x: $0.bx, y: $0.by)) }
+        let segments = snapshot.tracks.flatMap { t -> [(CGPoint, CGPoint)] in  // arcs as their short pieces
+            let line = t.centreLine
+            return zip(line, line.dropFirst()).map { ($0, $1) }
+        }
         let pads = snapshot.pads.map { CGPoint(x: $0.x, y: $0.y) }
         let unrouted = stats.unrouted
         return [
@@ -534,7 +537,7 @@ struct XRayPanelStats {
         let layerCount = max(1, snapshot.board.layerCount)
         var lengths = [Double](repeating: 0, count: layerCount)
         for t in snapshot.tracks where t.layer >= 0 && t.layer < layerCount {
-            lengths[t.layer] += hypot(t.bx - t.ax, t.by - t.ay)
+            lengths[t.layer] += t.length
         }
         layerLengths = lengths
         totalLength = lengths.reduce(0, +)

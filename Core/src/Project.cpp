@@ -110,6 +110,30 @@ Json boardJson(const BoardSettings& s) {
         for (const auto& n : s.schematicRuleNets) owned.push(n);
         b["schematicRuleNets"] = owned;
     }
+    if (!s.lengthRules.empty()) {
+        Json rules = Json::array();
+        for (const auto& r : s.lengthRules) {
+            Json j = Json::object();
+            j["net"] = r.net;
+            j["target"] = r.target;
+            j["tolerance"] = r.tolerance;
+            rules.push(j);
+        }
+        b["lengthRules"] = rules;
+    }
+    if (!s.matchGroups.empty()) {
+        Json groups = Json::array();
+        for (const auto& g : s.matchGroups) {
+            Json j = Json::object();
+            j["name"] = g.name;
+            j["tolerance"] = g.tolerance;
+            Json nets = Json::array();
+            for (const auto& n : g.nets) nets.push(n);
+            j["nets"] = nets;
+            groups.push(j);
+        }
+        b["matchGroups"] = groups;
+    }
     b["autoSizeNets"] = s.autoSizeNets;
     Json outline = Json::array();
     for (const auto& v : s.outline) outline.push(vec(v));
@@ -568,6 +592,8 @@ Json Project::toJson() const {
         j["a"] = vec(t.a);
         j["b"] = vec(t.b);
         if (t.locked) j["locked"] = true;
+        if (t.arc) j["mid"] = vec(t.mid);  // true arc a → mid → b (older files have none: straight)
+        if (t.teardrop) j["teardrop"] = true;
         tracks.push(j);
     }
     root["tracks"] = tracks;
@@ -667,6 +693,21 @@ Project Project::fromJson(const Json& root) {
         }
     for (const auto& n : b.get("schematicRuleNets").items())
         if (!n.asString("").empty()) s.schematicRuleNets.insert(n.asString(""));
+    for (const auto& j : b.get("lengthRules").items()) {
+        LengthRule r;
+        r.net = j.get("net").asString("");
+        r.target = j.get("target").asNumber(0);
+        r.tolerance = std::clamp(j.get("tolerance").asNumber(0.1), 0.0, 100.0);
+        if (!r.net.empty() && r.target > 0 && std::isfinite(r.target)) s.lengthRules.push_back(r);
+    }
+    for (const auto& j : b.get("matchGroups").items()) {
+        MatchGroup g;
+        g.name = j.get("name").asString("");
+        g.tolerance = std::clamp(j.get("tolerance").asNumber(0.1), 0.0, 100.0);
+        for (const auto& n : j.get("nets").items())
+            if (n.isString() && !n.asString().empty()) g.nets.push_back(n.asString());
+        if (!g.name.empty() && g.nets.size() >= 2) s.matchGroups.push_back(g);
+    }
     s.maxTempRise = std::max(1.0, b.get("maxTempRise").asNumber(s.maxTempRise));
     s.autoSizeNets = b.get("autoSizeNets").asBool(true);
     {
@@ -879,6 +920,11 @@ Project Project::fromJson(const Json& root) {
         t.a = {j.get("a").get("x").asNumber(), j.get("a").get("y").asNumber()};
         t.b = {j.get("b").get("x").asNumber(), j.get("b").get("y").asNumber()};
         t.locked = j.get("locked").asBool(false);
+        if (j.get("mid").isObject()) {
+            t.mid = {j.get("mid").get("x").asNumber(), j.get("mid").get("y").asNumber()};
+            t.arc = std::isfinite(t.mid.x) && std::isfinite(t.mid.y);
+        }
+        t.teardrop = j.get("teardrop").asBool(false);
         p.pcb.addTrack(t);
     }
     for (const auto& j : root.get("vias").items()) {
@@ -1139,6 +1185,22 @@ Json Project::snapshot() const {
         j["bx"] = t.b.x;
         j["by"] = t.b.y;
         if (t.locked) j["locked"] = true;
+        if (t.teardrop) j["teardrop"] = true;
+        if (t.arc) {
+            // True arc: the 3-point form plus centre, radius and angles (radians, sweep > 0 counter-clockwise) for
+            // drawing; a degenerate arc reports no centre and is drawn straight.
+            j["arc"] = true;
+            j["mx"] = t.mid.x;
+            j["my"] = t.mid.y;
+            const ArcGeom g = trackArc(t);
+            if (g.valid) {
+                j["cx"] = g.c.x;
+                j["cy"] = g.c.y;
+                j["radius"] = g.r;
+                j["startAngle"] = g.start;
+                j["sweep"] = g.sweep;
+            }
+        }
         tracks.push(j);
     }
     root["tracks"] = tracks;

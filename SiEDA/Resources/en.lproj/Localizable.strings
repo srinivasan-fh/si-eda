@@ -922,3 +922,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-drag or two-finger drag to pan";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "True arcs";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords";
+"Accordion" = "Accordion";
+"Trombone" = "Trombone";
+"Sawtooth" = "Sawtooth";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth";
+"Meander corners" = "Meander corners";
+"Square" = "Square";
+"Mitered" = "Mitered";
+"Round" = "Round";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "Corners of the meanders: square, 45° mitered or round (true arcs)";
+"Coupled" = "Coupled";
+"Differential pair: meander both members together at their gap" = "Differential pair: meander both members together at their gap";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length";
+"Length Rules" = "Length Rules";
+"Length targets per net and match groups, measured pad to pad through series parts" = "Length targets per net and match groups, measured pad to pad through series parts";
+"Remove the length rule" = "Remove the length rule";
+"Tolerance" = "Tolerance";
+"Match Groups" = "Match Groups";
+"Remove the match group" = "Remove the match group";
+"Group name" = "Group name";
+"Add Group" = "Add Group";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them.";
+"Any angle" = "Any angle";
+"Route and drag at any angle: the head is one straight track to the pointer" = "Route and drag at any angle: the head is one straight track to the pointer";
+"Remove loops" = "Remove loops";
+"Finishing a route removes the old path of the net it makes redundant" = "Finishing a route removes the old path of the net it makes redundant";
+"Auto teardrops" = "Auto teardrops";
+"Teardrops where each finished route meets pads and vias" = "Teardrops where each finished route meets pads and vias";
+"Stop at obstacle" = "Stop at obstacle";
+"Hug obstacles" = "Hug obstacles";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "A dragged track bends around pads and other copper it cannot push instead of stopping short";

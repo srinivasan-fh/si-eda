@@ -784,6 +784,53 @@ int32_t sieda_set_erc_severity(SiedaProject* project, const char* code, const ch
 /* Makes a net label an entry of a harness label on its sheet (harness 0: an ordinary label again). 1 on success. */
 int32_t sieda_set_harness_entry(SiedaProject* project, int32_t label, int32_t harness);
 
+/* ---- interactive routing additions (docs/INTERACTIVE_ROUTING.md) -------------------------------------------------- */
+/* Arc tracks: snapshot / preview tracks with "arc":true carry the 3-point form "mx","my" (a → mid → b) and, unless
+ * degenerate, "cx","cy","radius","startAngle","sweep" (radians, sweep > 0 counter-clockwise). Router options take
+ * "arcCorners": true (with "cornerRadius") for true-arc corners on routes, pairs and buses. */
+/* Convert corners to arcs: track_ids_json is [id, …] (selected straight tracks); options {"radius" (mm, 0 = auto),
+ * "apply" (default true)}. Returns {"ok","message","converted","kept","applied","addedTracks","removedTracks",
+ * "changes"}. */
+char* sieda_pcb_arc_corners(SiedaProject* project, const char* track_ids_json, const char* options_json);
+/* Length tuning (sieda_router_tune) also takes {"style":"accordion"|"trombone"|"sawtooth","corner":"square"|"mitered"|
+ * "round","fromX","fromY","toX","toY" (drag-along span),"coupled" (pair together),"phase" (skew bumps)}; the result
+ * then adds "targetSource","xsignalNets","coupled","partnerNet". */
+/* Length rule of a net (its xSignal length, pad to pad through series parts): target ± tolerance mm; target <= 0
+ * removes it. 1 on success. */
+int32_t sieda_pcb_set_length_rule(SiedaProject* project, const char* net_name, double target_mm, double tolerance_mm);
+/* Match group {"name","nets":[names],"tolerance"}: replaces the group of that name; fewer than two nets removes it. */
+int32_t sieda_pcb_set_match_group(SiedaProject* project, const char* group_json);
+/* {"rules":[{"net","target","tolerance","length","ok","routed"}],"groups":[{"name","tolerance","target","members":
+ * [{"net","xsignal":[names],"length","ok","routed"}]}]} */
+char* sieda_length_targets_json(const SiedaProject* project);
+/* Drags (preview JSON as sieda_router_begin_drag; move / commit / cancel as for every route session): the corner of
+ * track_id nearest to (x, y) (kind "corner"); several tracks together by the cursor's movement (kind "multidrag",
+ * track_ids_json [id, …]). The router's "posture":"free" drags at any angle. */
+char* sieda_router_begin_corner_drag(SiedaProject* project, const char* options_json, int32_t track_id, double x,
+                                     double y);
+char* sieda_router_begin_multi_drag(SiedaProject* project, const char* options_json, const char* track_ids_json, double x,
+                                    double y);
+/* Multi-route: the nets at points_json [{"x","y"}, …] (pads, vias or tracks; 2–16 nets) routed together as one bundle
+ * (kind "multi"); sieda_router_add_via places a via per member. */
+char* sieda_router_begin_multi(SiedaProject* project, const char* options_json, const char* points_json, int32_t layer);
+/* Board commands. Each returns {"ok","message","added","skipped","applied","addedTracks","addedVias","removedTracks",
+ * "removedVias","changes"} (ok false: nothing to do), or {"error"}. Router options also take "removeLoops" (loop
+ * removal on commit) and "teardrops" (teardrops on the committed tracks). Tracks with "teardrop":true are teardrops. */
+/* Teardrops on the given tracks' ends at pads / vias ([] = every track); options {"pads","vias" (default true),
+ * "length" (fraction of the pad / via size, 0.3–3, default 1),"apply","remove" (remove them instead)}. */
+char* sieda_pcb_teardrops(SiedaProject* project, const char* track_ids_json, const char* options_json);
+/* Via stitching where the net's pours overlap on two or more layers; options {"net" (default the ground net),
+ * "pitch" (mm, default 2),"x0","y0","x1","y1" (area),"apply"}. */
+char* sieda_pcb_stitch_vias(SiedaProject* project, const char* options_json);
+/* Via shielding along the given tracks on both sides; options {"net","pitch" (default 1),"offset","apply"}. */
+char* sieda_pcb_shield_tracks(SiedaProject* project, const char* track_ids_json, const char* options_json);
+/* Glossing: pull the lines through the given tracks tight; options {"retrace" (default true),"apply"}. */
+char* sieda_pcb_gloss(SiedaProject* project, const char* track_ids_json, const char* options_json);
+/* Length matching: the nets of the given tracks tuned to the longest of them; options as sieda_router_tune ("style",
+ * "corner","maxAmplitude","spacing") plus "tolerance" (mm, default 0.1). Returns {"ok","message","target","tuned",
+ * "matched","short","nets":[tune result]}. Router options also take "mode":"stop" (stop at the first obstacle). */
+char* sieda_pcb_match_lengths(SiedaProject* project, const char* track_ids_json, const char* options_json);
+
 #ifdef __cplusplus
 }
 #endif

@@ -205,7 +205,10 @@ Mesh buildCopperLayerMesh(const Schematic& sch, const PcbLayout& pcb, int layer)
         if (f.layer == layer)
             for (const auto& r : f.rects) m.addBox({r.x0, 0.0, r.y0}, {r.x1, cu * 0.9, r.y1}, pour);
     for (const auto& tr : pcb.tracks)
-        if (tr.layer == layer) m.addSegmentBox(tr.a, tr.b, tr.width, 0.0, cu, trace);
+        if (tr.layer == layer) {
+            const auto pts = trackPolyline(tr, 0.005);  // an arc as short chords
+            for (size_t k = 0; k + 1 < pts.size(); ++k) m.addSegmentBox(pts[k], pts[k + 1], tr.width, 0.0, cu, trace);
+        }
     for (const auto& p : pcb.pads(sch)) {
         if (!p.onLayer(layer)) continue;
         if (p.round) m.addCylinder({p.position.x, 0.0, p.position.y}, std::min(p.size.x, p.size.y) / 2, cu, pad, 16);
@@ -303,7 +306,8 @@ Mesh buildAssemblyMesh(const Schematic& sch, const PcbLayout& pcb, const MeshOpt
         }
         for (const auto& tr : pcb.tracks) {
             double y0 = copperLayerBase(tr.layer, s.layerCount, t, cu);
-            m.addSegmentBox(tr.a, tr.b, tr.width, y0, y0 + cu, trackColor);
+            const auto pts = trackPolyline(tr, 0.005);  // an arc as short chords
+            for (size_t k = 0; k + 1 < pts.size(); ++k) m.addSegmentBox(pts[k], pts[k + 1], tr.width, y0, y0 + cu, trackColor);
         }
         for (const auto& p : ps) {
             const bool joint = populated(p.componentId);

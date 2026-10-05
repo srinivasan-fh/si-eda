@@ -71,6 +71,7 @@ struct PCBEditorView: View {
     @State private var tuneSpacingText = ""
     @State private var showLayersPanel = true
     @State private var showBoardSetup = false
+    @State private var showLengthRules = false
 
     @State private var boardWidth = ""
     @State private var boardHeight = ""
@@ -136,6 +137,30 @@ struct PCBEditorView: View {
                                 help: "Fan out the selected parts: an escape track and a via on each pad that still needs one") {
                     store.fanoutSelection()
                 }
+                ToolStripButton(systemImage: "point.topleft.down.curvedto.point.bottomright.up",
+                                help: "Convert corners to arcs: the selected tracks (click a track, ⇧-click adds), or every track") {
+                    store.convertCornersToArcs()
+                }
+                ToolStripButton(systemImage: "drop",
+                                help: "Teardrops where the selected tracks (or every track) meet pads and vias; again removes them") {
+                    store.toggleTeardrops()
+                }
+                ToolStripButton(systemImage: "wand.and.stars",
+                                help: "Gloss: pull the selected routes (or every route) tight and retrace them shorter") {
+                    store.glossTracks()
+                }
+                ToolStripButton(systemImage: "circle.grid.3x3",
+                                help: "Via stitching: ground vias wherever ground pours or planes overlap on two layers") {
+                    store.stitchVias()
+                }
+                ToolStripButton(systemImage: "shield.lefthalf.filled",
+                                help: "Via shielding: ground vias on both sides of the selected tracks") {
+                    store.shieldSelectedTracks()
+                }
+                ToolStripButton(systemImage: "equal.square",
+                                help: "Match lengths: tune the nets of the selected tracks (a bus) to the longest of them") {
+                    store.matchSelectedLengths()
+                }
                 ToolStripButton(systemImage: "eraser", help: "Clear all tracks and vias") { store.clearRouting() }
                 ToolStripButton(systemImage: "checkmark.seal", help: "Design rule check") {
                     store.runDRC()
@@ -165,11 +190,15 @@ struct PCBEditorView: View {
                             Text("Shove").tag(RouterModeChoice.shove)
                             Text("Walk around").tag(RouterModeChoice.walkaround)
                             Text("Highlight").tag(RouterModeChoice.highlight)
+                            Text("Stop at obstacle").tag(RouterModeChoice.stop)
                         }
                         .pickerStyle(.segmented)
                         .labelsHidden()
                         .fixedSize()
                         .help("Shove pushes other nets' tracks and vias aside; Walk around routes around them; Highlight goes where you point and marks every collision in red")
+                        Toggle("Hug obstacles", isOn: $store.routerHugDrag)
+                            .toggleStyle(.checkbox)
+                            .help("A dragged track bends around pads and other copper it cannot push instead of stopping short")
                     }
                     if routeTool {
                         Picker("Corners", selection: $store.routerDiagonal) {
@@ -179,9 +208,23 @@ struct PCBEditorView: View {
                         .pickerStyle(.segmented)
                         .labelsHidden()
                         .fixedSize()
+                        Toggle("Any angle", isOn: $store.routerAnyAngle)
+                            .toggleStyle(.checkbox)
+                            .help("Route and drag at any angle: the head is one straight track to the pointer")
+                        Toggle("Remove loops", isOn: $store.routerRemoveLoops)
+                            .toggleStyle(.checkbox)
+                            .help("Finishing a route removes the old path of the net it makes redundant")
+                        Toggle("Auto teardrops", isOn: $store.routerTeardrops)
+                            .toggleStyle(.checkbox)
+                            .help("Teardrops where each finished route meets pads and vias")
                         Toggle("Rounded corners", isOn: $store.routerRounded)
                             .toggleStyle(.checkbox)
                             .help("Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only")
+                        if store.routerRounded {
+                            Toggle("True arcs", isOn: $store.routerArcs)
+                                .toggleStyle(.checkbox)
+                                .help("True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords")
+                        }
                         Toggle("Differential pair", isOn: $routePair)
                             .toggleStyle(.checkbox)
                             .help("Route both nets of a differential pair (X_P / X_N) together at the pair gap")
@@ -383,6 +426,33 @@ struct PCBEditorView: View {
                 .frame(width: 44)
                 .onSubmit { store.tuneSpacing = max(0, Double(tuneSpacingText) ?? 0) }
                 .help("Gap between meander legs, edge to edge, in mm (empty: three track widths between centres)")
+            Picker("Pattern", selection: $store.tuneStyle) {
+                Text("Accordion").tag(MeanderStyleChoice.accordion)
+                Text("Trombone").tag(MeanderStyleChoice.trombone)
+                Text("Sawtooth").tag(MeanderStyleChoice.sawtooth)
+            }
+            .pickerStyle(.menu)
+            .fixedSize()
+            .help("Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth")
+            Picker("Meander corners", selection: $store.tuneCorner) {
+                Text("Square").tag(MeanderCornerChoice.square)
+                Text("Mitered").tag(MeanderCornerChoice.mitered)
+                Text("Round").tag(MeanderCornerChoice.round)
+            }
+            .pickerStyle(.menu)
+            .fixedSize()
+            .help("Corners of the meanders: square, 45° mitered or round (true arcs)")
+            Toggle("Coupled", isOn: $store.tuneCoupled)
+                .toggleStyle(.checkbox)
+                .help("Differential pair: meander both members together at their gap")
+            Toggle("Phase", isOn: $store.tunePhase)
+                .toggleStyle(.checkbox)
+                .help("Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length")
+            Button("Length Rules") { showLengthRules.toggle() }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Length targets per net and match groups, measured pad to pad through series parts")
+                .popover(isPresented: $showLengthRules, arrowEdge: .bottom) { LengthRulesPanel().environmentObject(store) }
             Button("Apply Tuning") { store.applyTune() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
@@ -577,6 +647,8 @@ struct PCBCanvas: View {
         /// Select tool on a track or via: the shove-drag starts once the pointer has moved a few points.
         case dragTrack(Int, CGPoint)
         case dragVia(Int, CGPoint)
+        /// Tune tool drag along a track: the meanders' stretch follows the pointer.
+        case tuneDrag(Int, CGPoint)
     }
 
     /// A track or via drag session is running in the router.
@@ -681,6 +753,8 @@ struct PCBCanvas: View {
                 .onKeyPress(.escape) {
                     if store.routePreview != nil {
                         store.cancelRoute()
+                    } else if !store.multiStarts.isEmpty {
+                        store.multiStarts = []
                     } else if store.tuneSession != nil {
                         store.cancelTune()
                     } else if tuneTool {
@@ -746,13 +820,6 @@ struct PCBCanvas: View {
         store.snapshot.pads.first { $0.rect.insetBy(dx: -0.1, dy: -0.1).contains(world) }
     }
 
-    private static func segmentDistance(_ p: CGPoint, _ ax: Double, _ ay: Double, _ bx: Double, _ by: Double) -> Double {
-        let dx = bx - ax, dy = by - ay
-        let len2 = dx * dx + dy * dy
-        let t = len2 > 0 ? min(1, max(0, ((Double(p.x) - ax) * dx + (Double(p.y) - ay) * dy) / len2)) : 0
-        return hypot(Double(p.x) - (ax + t * dx), Double(p.y) - (ay + t * dy))
-    }
-
     /// The via, or else the track (active layer first, then the other visible copper layers), under `world`.
     private func copperHit(at world: CGPoint, vias: Bool = true) -> (id: Int, isVia: Bool)? {
         let snap = store.snapshot
@@ -763,7 +830,7 @@ struct PCBCanvas: View {
             return (v.id, true)
         }
         let hits = snap.tracks.filter {
-            visible.contains(.copper($0.layer)) && Self.segmentDistance(world, $0.ax, $0.ay, $0.bx, $0.by) <= $0.width / 2 + slop
+            visible.contains(.copper($0.layer)) && $0.distance(to: world) <= $0.width / 2 + slop
         }
         let active = activeLayer.copperIndex ?? 0
         if let t = hits.last(where: { $0.layer == active }) ?? hits.last { return (t.id, false) }
@@ -775,7 +842,20 @@ struct PCBCanvas: View {
     private func copperDrag(_ id: Int, isVia: Bool, grab: CGPoint, value: DragGesture.Value) {
         if !copperDragActive {
             guard hypot(value.translation.width, value.translation.height) > 3 else { return }
-            let started = isVia ? store.beginViaDrag(id, at: grab) : store.beginTrackDrag(id, at: grab)
+            let started: Bool
+            if isVia {
+                started = store.beginViaDrag(id, at: grab)
+            } else if store.selectedTracks.count > 1, store.selectedTracks.contains(id) {
+                // Several selected tracks move together.
+                started = store.beginMultiDrag(Array(store.selectedTracks).sorted(), at: grab)
+            } else if let t = store.snapshot.tracks.first(where: { $0.id == id }), !t.isArc,
+                      min(hypot(Double(grab.x) - t.ax, Double(grab.y) - t.ay), hypot(Double(grab.x) - t.bx, Double(grab.y) - t.by))
+                          <= max(2 * t.width, 0.4),
+                      store.beginCornerDrag(id, at: grab) {
+                started = true  // pressed on a corner: the vertex follows the pointer
+            } else {
+                started = store.beginTrackDrag(id, at: grab)
+            }
             guard started else {
                 dragMode = .pan(CGSize(width: viewport.offset.width - value.translation.width,
                                        height: viewport.offset.height - value.translation.height))
@@ -799,6 +879,15 @@ struct PCBCanvas: View {
     /// reaches the net's pad (or a double-click) finishes the route.
     private func routeClick(at world: CGPoint) {
         guard store.routePreview != nil else {
+            // Multi-route: ⇧-click picks start points; the next plain click adds its own and routes them together.
+            if NSEvent.modifierFlags.contains(.shift) {
+                store.toggleMultiStart(world)
+                return
+            }
+            if !store.multiStarts.isEmpty {
+                store.beginMultiRoute(adding: world, layer: activeLayer.copperIndex ?? 0)
+                return
+            }
             if store.routerBus {
                 store.beginBus(at: world, layer: activeLayer.copperIndex ?? 0)
             } else {
@@ -824,6 +913,8 @@ struct PCBCanvas: View {
                     } else if spaceHeld {
                         spaceUsedForPan = true
                         dragMode = .pan(viewport.offset)
+                    } else if tuneTool, !panMode, let hit = copperHit(at: world, vias: false) {
+                        dragMode = .tuneDrag(hit.id, world)
                     } else if !panMode, !routeTool, !tuneTool, pad(at: world) == nil, let hit = copperHit(at: world) {
                         dragMode = hit.isVia ? .dragVia(hit.id, world) : .dragTrack(hit.id, world)
                     } else if !panMode, !routeTool, !tuneTool, let id = footprint(at: world) {
@@ -849,6 +940,10 @@ struct PCBCanvas: View {
                     copperDrag(id, isVia: false, grab: grab, value: value)
                 case .dragVia(let id, let grab):
                     copperDrag(id, isVia: true, grab: grab, value: value)
+                case .tuneDrag(let id, let start):
+                    guard hypot(value.translation.width, value.translation.height) > 3 else { break }
+                    if store.tuneSession?.track != id || store.tuneSession?.point != start { store.beginTune(track: id, at: start) }
+                    store.dragTune(to: viewport.toWorld(value.location))
                 case nil: break
                 }
             }
@@ -872,10 +967,18 @@ struct PCBCanvas: View {
                     routeClick(at: viewport.toWorld(value.location))
                 } else if !moved && tuneTool && !spaceHeld {
                     tuneClick(at: viewport.toWorld(value.location))
+                } else if case .tuneDrag = dragMode {
+                    // Drag-along tuning: the preview stays; Enter or Apply Tuning writes it.
                 } else if !moved {
                     if !spaceHeld && !panMode {  // a Space-click or a Hand-tool click pans, it doesn't select
                         let world = viewport.toWorld(value.location)
-                        store.select(component: footprint(at: world), extend: NSEvent.modifierFlags.contains(.shift))
+                        let shift = NSEvent.modifierFlags.contains(.shift)
+                        if case .dragTrack(let id, _) = dragMode {
+                            store.selectTrack(id, extend: shift)  // a click on a track selects it for the track commands
+                        } else {
+                            store.selectTrack(nil, extend: shift)
+                            store.select(component: footprint(at: world), extend: shift)
+                        }
                     }
                 } else if case .move(let ids) = dragMode {
                     let moves = ids.compactMap { id -> (id: Int, point: CGPoint)? in
@@ -983,11 +1086,21 @@ struct PCBCanvas: View {
             // Tracks are batched by colour and width: one stroke per batch instead of one per track (a large board
             // has tens of thousands of segments).
             var batches: [TrackBatch: Path] = [:]
-            for t in boardTracks where t.layer == layer && onScreen(t.ax, t.ay, t.bx, t.by, pad: t.width) {
+            for t in boardTracks where t.layer == layer {
+                if t.isArc {
+                    let e = t.extent
+                    guard onScreen(e.minX, e.minY, e.maxX, e.maxY, pad: t.width) else { continue }
+                } else if !onScreen(t.ax, t.ay, t.bx, t.by, pad: t.width) {
+                    continue
+                }
                 let key = TrackBatch(highlight: hoveredNet == t.net, role: colourByNet ? (roles[t.net] ?? .signal) : nil,
                                      microns: Int((t.width * 1000).rounded()))
-                batches[key, default: Path()].move(to: CGPoint(x: t.ax, y: t.ay))
-                batches[key, default: Path()].addLine(to: CGPoint(x: t.bx, y: t.by))
+                if t.isArc {
+                    t.addCentreLine(to: &batches[key, default: Path()])
+                } else {
+                    batches[key, default: Path()].move(to: CGPoint(x: t.ax, y: t.ay))
+                    batches[key, default: Path()].addLine(to: CGPoint(x: t.bx, y: t.by))
+                }
             }
             // Highlighted net last (on top), the rest in a fixed order.
             for (key, path) in batches.sorted(by: { ($0.key.highlight ? 1 : 0, $0.key.microns, $0.key.role?.rawValue ?? "")
@@ -1028,20 +1141,33 @@ struct PCBCanvas: View {
             }
         }
 
+        // Multi-route start points picked so far.
+        for p in store.multiStarts {
+            let s = p.applying(screen)
+            ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 7, y: s.y - 7, width: 14, height: 14)), with: .color(Theme.iceBlue),
+                       lineWidth: 2)
+        }
+
+        // Tracks selected for the track commands.
+        if !store.selectedTracks.isEmpty {
+            var selected = Path()
+            for t in boardTracks where store.selectedTracks.contains(t.id) { t.addCentreLine(to: &selected) }
+            ctx.stroke(selected.applying(screen), with: .color(Theme.selection.opacity(0.9)),
+                       style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+        }
+
         // The route in progress on top: placed segments in their copper colour, the head following the cursor
         // outlined, and its vias.
         if let route {
             for t in route.placed + route.head {
                 var path = Path()
-                path.move(to: CGPoint(x: t.ax, y: t.ay))
-                path.addLine(to: CGPoint(x: t.bx, y: t.by))
+                t.addCentreLine(to: &path)
                 ctx.stroke(path.applying(screen), with: .color(copper(t.net, t.layer)),
                            style: StrokeStyle(lineWidth: max(1, t.width * k), lineCap: .round, lineJoin: .round))
             }
             for t in route.head {
                 var path = Path()
-                path.move(to: CGPoint(x: t.ax, y: t.ay))
-                path.addLine(to: CGPoint(x: t.bx, y: t.by))
+                t.addCentreLine(to: &path)
                 ctx.stroke(path.applying(screen), with: .color(route.blocked ? Theme.warning : Theme.iceBlue),
                            style: StrokeStyle(lineWidth: 1, lineCap: .round, lineJoin: .round))
             }
@@ -1079,10 +1205,7 @@ struct PCBCanvas: View {
         }
         if let tune {
             var outline = Path()
-            for t in tune.addedTracks {
-                outline.move(to: CGPoint(x: t.ax, y: t.ay))
-                outline.addLine(to: CGPoint(x: t.bx, y: t.by))
-            }
+            for t in tune.addedTracks { t.addCentreLine(to: &outline) }
             ctx.stroke(outline.applying(screen), with: .color(tune.onTarget ? Theme.iceBlue : Theme.warning),
                        style: StrokeStyle(lineWidth: 1, lineCap: .round, lineJoin: .round))
         }
@@ -1128,7 +1251,7 @@ struct PCBCanvas: View {
         if k >= 4 {
             // One label per net and layer, on its longest visible segment that has room for the name.
             var best: [String: (SnapTrack, CGFloat)] = [:]
-            for t in snap.tracks where visible.contains(.copper(t.layer)) && onScreen(t.ax, t.ay, t.bx, t.by) {
+            for t in snap.tracks where !t.isArc && visible.contains(.copper(t.layer)) && onScreen(t.ax, t.ay, t.bx, t.by) {
                 let length = CGFloat(hypot(t.bx - t.ax, t.by - t.ay)) * k
                 let key = "\(t.net)/\(t.layer)"
                 if length > (best[key]?.1 ?? 0) { best[key] = (t, length) }
@@ -1182,6 +1305,11 @@ struct PCBCanvas: View {
             let hint = route.kind == "drag" || route.kind == "via" ? "release to drop · Esc cancels"
                 : "click places a corner · V via · Enter finishes · Esc cancels"
             CanvasOverlays.banner("\(route.status) · \(length) · \(hint)", in: &ctx, size: size)
+            if let net = route.netLength, let target = route.targetLength, target > 0 {
+                // Live length gauge of the routed net against its target.
+                LengthGauge.draw(in: &ctx, rect: CGRect(x: size.width / 2 - 90, y: 40, width: 180, height: 8), length: net,
+                                 target: target, tolerance: 0.1)
+            }
         } else if tuneTool {
             if let preview = store.tuneSession?.preview {
                 let name = snap.net(preview.net)?.name ?? "net"
@@ -1192,8 +1320,12 @@ struct PCBCanvas: View {
                              name, group, preview.before, preview.after, preview.target, skew, max(preview.tolerance, 0.01))
                     : "\(name) · \(preview.message)"
                 CanvasOverlays.banner(text, in: &ctx, size: size)
+                if preview.target > 0 {
+                    LengthGauge.draw(in: &ctx, rect: CGRect(x: size.width / 2 - 90, y: 40, width: 180, height: 8),
+                                     length: preview.after, target: preview.target, tolerance: max(preview.tolerance, 0.01))
+                }
             } else {
-                CanvasOverlays.banner("Tune length — click a track; meanders go near the click", in: &ctx, size: size)
+                CanvasOverlays.banner("Tune length — click a track (meanders go near the click), or drag along it", in: &ctx, size: size)
             }
         } else if routeTool {
             CanvasOverlays.banner("Route — click a pad, via or track to start · \(store.routerBus ? "bus of \(store.routerBusWidth)" : routePair ? "differential pair" : "single track")",

@@ -922,3 +922,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x nach rechts, y zur Oberkante der PCB-Ansicht, z von der Platine nach oben. Drehungen um x, dann y, dann z.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "Mit ⌥ ziehen oder mit zwei Fingern ziehen zum Schwenken";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "Echte Bögen";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "Echte Bögen (G02/G03 im Gerber); Paare und Busse biegen auf konzentrischen Bögen ab. Aus: kurze gerade Sehnen";
+"Accordion" = "Akkordeon";
+"Trombone" = "Posaune";
+"Sawtooth" = "Sägezahn";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "Akkordeon: rechteckige Mäander; Posaune: eine breite Schleife; Sägezahn: dreieckige Zähne";
+"Meander corners" = "Mäanderecken";
+"Square" = "Rechtwinklig";
+"Mitered" = "Abgeschrägt";
+"Round" = "Rund";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "Ecken der Mäander: rechtwinklig, 45° abgeschrägt oder rund (echte Bögen)";
+"Coupled" = "Gekoppelt";
+"Differential pair: meander both members together at their gap" = "Differenzielles Paar: beide Leitungen gemeinsam im Paarabstand mäandern";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "Skew-Abgleich eines Paarmitglieds: kleine Ausbuchtungen auf der vom Partner abgewandten Seite, bis zur Länge des Partners";
+"Length Rules" = "Längenregeln";
+"Length targets per net and match groups, measured pad to pad through series parts" = "Längenziele je Netz und Abgleichgruppen, von Pad zu Pad über Serienbauteile gemessen";
+"Remove the length rule" = "Längenregel entfernen";
+"Tolerance" = "Toleranz";
+"Match Groups" = "Abgleichgruppen";
+"Remove the match group" = "Abgleichgruppe entfernen";
+"Group name" = "Gruppenname";
+"Add Group" = "Gruppe hinzufügen";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Mitglieder: zwei oder mehr Netze wählen. Ein Netz über Serienwiderstände oder -kondensatoren wird von Pad zu Pad über sie hinweg gemessen.";
+"Any angle" = "Beliebiger Winkel";
+"Route and drag at any angle: the head is one straight track to the pointer" = "In beliebigem Winkel routen und ziehen: der Kopf ist eine gerade Leiterbahn bis zum Zeiger";
+"Remove loops" = "Schleifen entfernen";
+"Finishing a route removes the old path of the net it makes redundant" = "Das Abschließen einer Route entfernt den alten Pfad des Netzes, den sie überflüssig macht";
+"Auto teardrops" = "Automatische Teardrops";
+"Teardrops where each finished route meets pads and vias" = "Teardrops, wo jede fertige Route auf Pads und Vias trifft";
+"Stop at obstacle" = "An Hindernis anhalten";
+"Hug obstacles" = "Hindernisse umschmiegen";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "Eine gezogene Leiterbahn biegt um Pads und anderes Kupfer, das sie nicht verschieben kann, statt davor anzuhalten";

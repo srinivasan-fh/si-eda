@@ -922,3 +922,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x उजवीकडे, y PCB दृश्याच्या वरच्या दिशेने, z बोर्डपासून वर. फिरवणे आधी x, मग y, मग z भोवती.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "पॅन करण्यासाठी ⌥-ड्रॅग किंवा दोन-बोटांनी ड्रॅग करा";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "खरे चाप";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "खरे चाप (Gerber मध्ये G02/G03); जोड्या आणि बस समकेंद्री चापांवर वळतात. बंद: लहान सरळ जीवा";
+"Accordion" = "अकॉर्डियन";
+"Trombone" = "ट्रॉम्बोन";
+"Sawtooth" = "करवतीचे दात";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "अकॉर्डियन: आयताकृती मिअँडर; ट्रॉम्बोन: एक रुंद लूप; करवतीचे दात: त्रिकोणी दात";
+"Meander corners" = "मिअँडरचे कोपरे";
+"Square" = "काटकोन";
+"Mitered" = "तिरपा कापलेला";
+"Round" = "गोलाकार";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "मिअँडरचे कोपरे: काटकोन, 45° तिरपे कापलेले किंवा गोलाकार (खरे चाप)";
+"Coupled" = "जोडलेले";
+"Differential pair: meander both members together at their gap" = "डिफरेन्शियल जोडी: दोन्ही सदस्यांना त्यांच्या अंतरावर एकत्र मिअँडर करा";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "जोडीतील सदस्याचे स्क्यू ट्यूनिंग: जोडीदारापासून दूरच्या बाजूला लहान उंचवटे, जोडीदाराच्या लांबीपर्यंत";
+"Length Rules" = "लांबीचे नियम";
+"Length targets per net and match groups, measured pad to pad through series parts" = "प्रत्येक नेटचे लांबी लक्ष्य आणि मॅच गट, मालिका भागांमधून पॅडपासून पॅडपर्यंत मोजलेले";
+"Remove the length rule" = "लांबीचा नियम काढा";
+"Tolerance" = "सहनशीलता";
+"Match Groups" = "मॅच गट";
+"Remove the match group" = "मॅच गट काढा";
+"Group name" = "गटाचे नाव";
+"Add Group" = "गट जोडा";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "सदस्य: दोन किंवा अधिक नेट निवडा. मालिका रेझिस्टर किंवा कॅपॅसिटरमधून जाणारे नेट त्यांच्या पलीकडे पॅडपासून पॅडपर्यंत मोजले जाते.";
+"Any angle" = "कोणताही कोन";
+"Route and drag at any angle: the head is one straight track to the pointer" = "कोणत्याही कोनात रूट आणि ड्रॅग करा: हेड पॉइंटरपर्यंत एक सरळ ट्रॅक आहे";
+"Remove loops" = "लूप काढा";
+"Finishing a route removes the old path of the net it makes redundant" = "रूट पूर्ण केल्यावर ते अनावश्यक करणारा नेटचा जुना मार्ग काढला जातो";
+"Auto teardrops" = "स्वयंचलित टियरड्रॉप";
+"Teardrops where each finished route meets pads and vias" = "प्रत्येक पूर्ण रूट पॅड आणि व्हियाला मिळतो तेथे टियरड्रॉप";
+"Stop at obstacle" = "अडथळ्यावर थांबा";
+"Hug obstacles" = "अडथळ्यांना बिलगून जा";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "ओढलेला ट्रॅक ढकलू न शकणाऱ्या पॅड आणि इतर तांब्याभोवती वळतो, आधीच थांबत नाही";

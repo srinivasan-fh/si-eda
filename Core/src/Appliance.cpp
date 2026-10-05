@@ -230,7 +230,7 @@ std::vector<RuleViolation> checks(const Project& project, bool strict) {
             for (const auto& p : pads)
                 if (p.net >= 0 && a.highVoltage.count(p.net)) nearest = std::min(nearest, rectRectDistance(p.bounds(), body));
             for (const auto& t : pcb.tracks)
-                if (a.highVoltage.count(t.net)) nearest = std::min(nearest, segmentRectDistance(t.a, t.b, body) - t.width / 2);
+                if (a.highVoltage.count(t.net)) nearest = std::min(nearest, trackRectDistance(t, body) - t.width / 2);
             if (nearest < 6.0)
                 add(Severity::Warning, "REL_ANTENNA_MAINS",
                     m->ref + " is " + fmt("%.1f mm", std::max(0.0, nearest)) + " from mains copper: keep the radio and its "

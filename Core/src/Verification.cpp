@@ -215,7 +215,7 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
                 st.summary = "All connections routed";
             }
             double length = 0;
-            for (const auto& t : pcb.tracks) length += (t.b - t.a).length();
+            for (const auto& t : pcb.tracks) length += trackLength(t);
             char buf[96];
             std::snprintf(buf, sizeof buf, "%zu track segments, %zu vias, %.1f mm of track", pcb.tracks.size(),
                           pcb.vias.size(), length);
