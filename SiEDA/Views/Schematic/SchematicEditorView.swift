@@ -145,13 +145,15 @@ struct SchematicEditorView: View {
                         Button("From WAS / IS File…") {
                             if let changes = store.ecoFromWasIsFile() { eco = (String(localized: "Changes from a WAS / IS file"), changes) }
                         }
+                        Divider()
+                        // Forward annotation (schematic → board) lives here too, so the options bar keeps its width.
+                        Button("Update PCB") { updatingPCB = true }
+                            .help("Engineering change order: review and execute the schematic's changes on the board")
                     } label: {
                         Label("Back Annotate", systemImage: "arrow.uturn.left.square")
                     }
                     .fixedSize()
                     .help("Board changes (designators, pin swaps, gate swaps) proposed to the schematic for review")
-                    Button { updatingPCB = true } label: { Label("Update PCB", systemImage: "arrow.right.square") }
-                        .help("Engineering change order: review and execute the schematic's changes on the board")
                     Button { showMessages.toggle() } label: { Label("Messages", systemImage: "list.bullet.rectangle") }
                         .help("Every ERC message of every sheet; click one to go there")
                     Button { store.exportSchematicPDF() } label: { Label("PDF", systemImage: "doc.richtext") }

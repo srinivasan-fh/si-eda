@@ -338,7 +338,7 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
   Symbols are simplified vector drawings (two-pin parts as boxes, capacitor plates and diode triangles; library parts
   with their own body box and Symbol Editor drawings; other parts as a body box with pin stubs and names; ground
   symbols, label flags, sheet symbols and harness connector bodies) — the canvas draws more detail. Text is plain ASCII (other characters print as `?`).
-- **Update PCB** (options bar; Altium's *Design ▸ Update PCB* engineering change order): lists every change from the
+- **Update PCB** (options bar ▸ Back Annotate menu ▸ Update PCB; Altium's *Design ▸ Update PCB* engineering change order): lists every change from the
   schematic to the board since the last update, grouped as **Components** (new parts to place, removed parts,
   changed designator / footprint / value), **Nets** (new, removed, changed pin lists), **Copper Pours** (pours on
   nets that no longer exist, to remove) and **Net Rules** (widths / clearances from directives that the board lacks
