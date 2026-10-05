@@ -82,6 +82,10 @@ This gives us:
   shape and, optionally, the pin it belongs to (a tab, `EP`, a BGA ball, or `-` for a mechanical pad). The
   catalog's irregular parts use `LGA`, generated pad for pad from the KiCad footprints; the Footprint Editor
   writes `CUSTOM`.
+- **Library import** (`LibraryImport.cpp`) reads KiCad `.kicad_mod` / `.kicad_sym` (s-expressions) and Eagle `.lbr`
+  (XML) with its own bounded readers, maps footprints to `CUSTOM` land patterns and symbols to pins and a symbol
+  layout, pairs them, and validates each part with `checkSymbol`, `checkLandPattern` and registration. See
+  [LIBRARY_IMPORT.md](LIBRARY_IMPORT.md).
 - **Footprint editing.**
   - `landPatternFromFootprint` converts any generated footprint into an editable land pattern, with the same
     pads on the same pins.

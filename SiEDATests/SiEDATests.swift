@@ -1572,14 +1572,15 @@ final class MicrocontrollerLibraryTests: XCTestCase {
     func testTenMicrocontrollersPerVendorWithRealPackages() throws {
         let groups = Dictionary(grouping: StandardLibrary.parts.filter { $0.category.hasPrefix("Microcontrollers · ") },
                                 by: \.category)
-        // + the robotics spares' LPC1769 (CNC / 3D-printer controllers).
-        XCTAssertEqual(groups["Microcontrollers · Arm"]?.count, 11)
-        // + the production catalog's STM32F405RGT6, STM32H743IIT6 and STM32F765VIT6 and the robotics spares'
-        // STM32F446RET6, STM32G474RET6 and STM32H723VGT6.
-        XCTAssertEqual(groups["Microcontrollers · STMicroelectronics"]?.count, 16)
+        // + the robotics spares' LPC1769 (CNC / 3D-printer controllers) and the general-purpose catalog's RP2350B.
+        XCTAssertEqual(groups["Microcontrollers · Arm"]?.count, 12)
+        // + the production catalog's STM32F405RGT6, STM32H743IIT6 and STM32F765VIT6, the robotics spares'
+        // STM32F446RET6, STM32G474RET6 and STM32H723VGT6, and 11 general-purpose STM32s.
+        XCTAssertEqual(groups["Microcontrollers · STMicroelectronics"]?.count, 27)
         XCTAssertEqual(groups["Microcontrollers · Texas Instruments"]?.count, 10)
-        // + the catalog's ATMEGA328P-AU / -PU and ATSAMD51J20A-AU.
-        XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 16)
+        // + the catalog's ATMEGA328P-AU / -PU and ATSAMD51J20A-AU, and 8 general-purpose AVR / SAM D parts.
+        XCTAssertEqual(groups["Microcontrollers · Microchip"]?.count, 24)
+        XCTAssertEqual(groups["Microcontrollers · Espressif"]?.count, 3)
         let rp2040 = try XCTUnwrap(StandardLibrary.parts.first { $0.spec.name == "RP2040" })
         XCTAssertEqual(rp2040.spec.package.type, "QFN")
         XCTAssertEqual(rp2040.spec.package.pitch, 0.4)
@@ -4607,5 +4608,70 @@ final class SheetAndVariantTests: XCTestCase {
         XCTAssertTrue(engine.setActiveVariant(""))
         XCTAssertEqual(engine.bom().summary.dnp, 0)
         XCTAssertEqual(EDAEngine.expandBus("D[0..2]"), ["D0", "D1", "D2"])
+    }
+}
+
+@MainActor
+final class PartQueryTests: XCTestCase {
+    func testParametricFiltersParseAndMatch() {
+        let query = PartQuery("cat:sensors pkg:soic-8 pins:8 temperature")
+        XCTAssertEqual(query.categories, ["sensors"])
+        XCTAssertEqual(query.packages, ["soic8"])
+        XCTAssertEqual(query.pinRange, 8...8)
+        XCTAssertEqual(query.words, ["temperature"])
+        XCTAssertTrue(query.matches(name: "LM75BD", description: "Digital temperature sensor", category: "Sensors",
+                                    manufacturer: "NXP", package: "SOIC-8", pinCount: 8))
+        XCTAssertFalse(query.matches(name: "LM75BD", description: "Digital temperature sensor", category: "Sensors",
+                                     manufacturer: "NXP", package: "TSSOP-8", pinCount: 8))
+        XCTAssertEqual(PartQuery.range("6-10"), 6...10)
+        XCTAssertEqual(PartQuery.range(">40"), 41...Int.max)
+        XCTAssertEqual(PartQuery.range("<8"), 0...7)
+        XCTAssertNil(PartQuery.range("x"))
+        XCTAssertTrue(PartQuery("  ").isEmpty)
+        // Plain words still find what a phrase search found.
+        XCTAssertEqual(PartQuery("Barometric").words, ["barometric"])
+    }
+
+    func testStandardLibrarySearchByCategoryPackageAndPins() {
+        let all = StandardLibrary.parts
+        let fets = ComponentLibraryView.filterStandard(all, search: "cat:transistors pkg:sot23 mosfet", kit: nil)
+        XCTAssertTrue(fets.contains { $0.spec.name == "2N7002" })
+        XCTAssertTrue(fets.allSatisfy { $0.spec.package.type == "SOT23" })
+        XCTAssertTrue(ComponentLibraryView.filterStandard(all, search: "mfr:espressif pins:>40", kit: nil)
+            .contains { $0.spec.name == "ESP32-S3" })
+        XCTAssertFalse(ComponentLibraryView.filterStandard(all, search: "mfr:espressif pins:<40", kit: nil)
+            .contains { $0.spec.name == "ESP32-S3" })
+    }
+}
+
+@MainActor
+final class LibraryImportTests: XCTestCase {
+    func testImportsAKiCadFootprintAndAddsItToTheLibrary() throws {
+        let footprint = "(footprint \"R_0603\" (pad \"1\" smd rect (at -0.8 0) (size 0.8 0.95) (layers \"F.Cu\"))"
+            + " (pad \"2\" smd rect (at 0.8 0) (size 0.8 0.95) (layers \"F.Cu\")))"
+        let result = EDAEngine.importLibrary(files: [LibraryImportFile(name: "R_0603.kicad_mod", content: footprint),
+                                                     LibraryImportFile(name: "bad.lbr", content: "<eagle>")])
+        XCTAssertEqual(result.parts.count, 1)
+        XCTAssertEqual(result.files.count, 2)
+        let part = try XCTUnwrap(result.importable.first)
+        XCTAssertEqual(part.spec.package.type, "CUSTOM")
+        XCTAssertEqual(part.spec.package.lands?.count, 2)
+        XCTAssertEqual(part.spec.pins.count, 2)
+        XCTAssertFalse(try XCTUnwrap(result.files.last).error.isEmpty)
+
+        let store = DesignStore()
+        let ids = store.importLibraryParts(result.importable.map(\.spec))
+        XCTAssertEqual(ids.count, 1)
+        XCTAssertTrue(store.snapshot.customParts.contains { $0.name == "R_0603" })
+    }
+
+    func testLibraryFilesAreFoundInsideFolders() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("SiEDA-\(UUID().uuidString).pretty")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        try "(footprint \"A\")".write(to: folder.appendingPathComponent("A.kicad_mod"), atomically: true, encoding: .utf8)
+        try "notes".write(to: folder.appendingPathComponent("README.txt"), atomically: true, encoding: .utf8)
+        let files = ComponentLibraryView.libraryFiles(at: [folder])
+        XCTAssertEqual(files.map(\.name), ["A.kicad_mod"])
     }
 }

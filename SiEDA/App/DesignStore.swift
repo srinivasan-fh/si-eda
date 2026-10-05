@@ -685,6 +685,28 @@ final class DesignStore: ObservableObject {
         return saveCustomPart(part.spec)?.id
     }
 
+    /// Adds parts read by the library importer (KiCad / Eagle) to the project library as one undo step. Returns the
+    /// ids of the parts added; parts the core refuses are reported together.
+    @discardableResult
+    func importLibraryParts(_ specs: [CustomPartSpec]) -> [String] {
+        var added: [String] = []
+        var failures: [String] = []
+        performChecked("Imported \(specs.count) library parts", failureMessage: "No library parts were imported") { engine in
+            for spec in specs {
+                do {
+                    added.append(try engine.registerCustomPart(spec).id)
+                } catch {
+                    failures.append("\(spec.name): \(error.localizedDescription)")
+                }
+            }
+            return !added.isEmpty
+        }
+        if !failures.isEmpty {
+            present(EDAEngineError.operationFailed(failures.joined(separator: "\n")), title: "Some parts were not imported")
+        }
+        return added
+    }
+
     /// Places a built-in standard part (registering it in the project library first).
     @discardableResult
     func placeStandardPart(_ part: StandardPart, at point: CGPoint) -> Int {

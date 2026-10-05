@@ -465,3 +465,10 @@
 "us-central1" = "us-central1";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-드래그 또는 두 손가락 드래그로 이동";
+
+/* Library import */
+"Import Library…" = "라이브러리 가져오기…";
+"Import KiCad (.kicad_mod, .kicad_sym) or Eagle (.lbr) libraries" = "KiCad(.kicad_mod, .kicad_sym) 또는 Eagle(.lbr) 라이브러리 가져오기";
+"Import Library" = "라이브러리 가져오기";
+"Add Selected Parts" = "선택한 부품 추가";
+"Words, or filters: cat:sensors pkg:soic pins:8 mfr:ti" = "검색어 또는 필터: cat:sensors pkg:soic pins:8 mfr:ti";

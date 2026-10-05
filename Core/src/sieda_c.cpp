@@ -26,6 +26,7 @@
 #include "sieda/Fabrication.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/LengthMatch.hpp"
+#include "sieda/LibraryImport.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/Reliability.hpp"
@@ -676,6 +677,27 @@ char* sieda_standard_parts_json(void) {
         return dup(arr.dump());
     } catch (...) {
         return dup("[]");
+    }
+}
+
+char* sieda_library_import(const char* request_json) {
+    try {
+        return dup(importLibraryRequest(Json::parse(str(request_json))).dump());
+    } catch (const std::exception& e) {
+        Json j = Json::object();
+        j["parts"] = Json::array();
+        Json files = Json::array();
+        Json f = Json::object();
+        f["name"] = "";
+        f["format"] = "unknown";
+        f["symbols"] = 0;
+        f["footprints"] = 0;
+        f["error"] = std::string("Invalid import request: ") + e.what();
+        files.push(f);
+        j["files"] = files;
+        j["symbols"] = 0;
+        j["footprints"] = 0;
+        return dup(j.dump());
     }
 }
 

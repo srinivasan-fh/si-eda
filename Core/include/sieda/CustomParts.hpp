@@ -172,6 +172,9 @@ CustomPartSpec customPartSpecFromJson(const Json& j);  // throws JsonError on in
 /// Full description including the generated symbol and footprint geometry (for previews and the UI).
 Json customPartToJson(const CustomPart& part);
 std::vector<std::string> supportedPackages();
+/// Package type for a package name ("SOIC-8", "QFN-24", "TO-220", "PinHeader 1x04"…) and the pin count it names
+/// (0 if none); "" when the name is not a package SiEDA can generate.
+std::string packageTypeFromName(const std::string& name, int& pinCount);
 
 class CustomPartRegistry {
 public:

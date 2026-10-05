@@ -219,6 +219,8 @@ bool isNumber(const std::string& s) {
 }
 }  // namespace
 
+std::string packageTypeFromName(const std::string& name, int& pinCount) { return normalizePackage(name, pinCount); }
+
 CustomPartSpec customPartSpecFromJson(const Json& j) {
     if (!j.isObject()) throw JsonError("Component definition must be a JSON object");
     CustomPartSpec s;
