@@ -1025,7 +1025,7 @@ final class DesignStore: ObservableObject {
 
     /// Places a harness connector of `type` named `name` on the shown sheet, to the right of its parts.
     func placeHarnessConnector(type: String, name: String) {
-        let parts = sheetSnapshot.components
+        let parts = sheetSnapshot
         var x = SchematicCanvas.componentBounds(parts).reduce(CGRect.null) { $0.union($1.rect) }.maxX
         if x.isInfinite || x.isNaN { x = 0 }
         let origin = SchematicAutoLayout.snap(CGPoint(x: x + 120, y: 0))
