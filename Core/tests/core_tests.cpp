@@ -18,6 +18,7 @@
 #include <algorithm>
 
 #include "sieda/Analysis.hpp"
+#include "sieda/Autoroute.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/CustomParts.hpp"
 #include "sieda/DeviceModels.hpp"
@@ -16153,4 +16154,55 @@ TEST(autoroute_keeps_net_class_clearance) {
     std::printf("    class clearance %.3f mm, closest other copper %.3f mm\n", cls, gap);
     CHECK(gap >= cls - 1e-6);
     CHECK(routeDrcErrors(p).empty());
+}
+
+TEST(autoroute_length_aware_rules_and_match_groups) {
+    // A four-net bus whose ends are staggered (different lengths) in a match group, and a net with a length rule well
+    // above its direct length: the length-aware router brings every one of them to its target.
+    Project p;
+    auto& s = p.schematic;
+    p.pcb.settings.width = 70;
+    p.pcb.settings.height = 45;
+    std::vector<int> busNets;
+    for (int k = 0; k < 4; ++k) {
+        const int a = placeR(p, {8, 8.0 + 6 * k}), b = placeR(p, {40.0 + 4 * k, 8.0 + 6 * k});
+        wire(s, a, "2", b, "1");
+    }
+    const int ra = placeR(p, {10, 38}), rb = placeR(p, {40, 38});
+    wire(s, ra, "2", rb, "1");
+    p.schematicChanged();
+    for (int k = 0; k < 4; ++k) {
+        int a = -1;
+        for (const auto& c : s.components())
+            if (c.kind == ComponentKind::Resistor && std::fabs(c.pcb.position.y - (8.0 + 6 * k)) < 1e-9 && c.pcb.position.x < 20) a = c.id;
+        busNets.push_back(s.netOf({a, 1}));
+    }
+    const int ruled = s.netOf({ra, 1});
+    MatchGroup g;
+    g.name = "BUS";
+    g.tolerance = 0.25;
+    for (int n : busNets) g.nets.push_back(s.nets()[static_cast<size_t>(n)].name);
+    p.pcb.settings.matchGroups.push_back(g);
+    const double direct = (padAt(p, rb, 0) - padAt(p, ra, 1)).length();
+    p.pcb.settings.lengthRules.push_back({s.nets()[static_cast<size_t>(ruled)].name, direct + 12.0, 0.3});
+    p.pcb.settings.autorouter.lengthAware = true;
+    RouteStats st = p.pcb.autoRoute(p.schematic);
+    CHECK(st.failed == 0);
+    CHECK(st.report.lengths.size() == 5);
+    int ok = 0, tuned = 0;
+    for (const auto& l : st.report.lengths) {
+        std::printf("    %-8s %-14s target %7.2f ± %.2f  routed %7.2f  achieved %7.2f %s\n", l.net.c_str(), l.source.c_str(),
+                    l.target, l.tolerance, l.routed, l.achieved, l.ok ? "ok" : "OUT");
+        ok += l.ok ? 1 : 0;
+        tuned += l.tuned ? 1 : 0;
+    }
+    CHECK(ok == 5);
+    CHECK(tuned >= 4);  // three short bus members and the ruled net
+    CHECK(routeDrcErrors(p).empty());
+    // The DRC's length check agrees.
+    for (const auto& v : lengthRuleViolations(p.pcb, p.schematic)) std::printf("    %s\n", v.message.c_str());
+    CHECK(lengthRuleViolations(p.pcb, p.schematic).empty());
+    // Options round-trip as JSON.
+    CHECK(autorouteOptionsFromJson(autorouteOptionsToJson(p.pcb.settings.autorouter)) == p.pcb.settings.autorouter);
+    CHECK(routeReportJson(st.report).get("lengths").size() == 5);
 }

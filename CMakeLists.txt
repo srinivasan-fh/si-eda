@@ -55,6 +55,7 @@ add_library(sieda_core STATIC
     Core/src/LengthMatch.cpp
     Core/src/LengthRules.cpp
     Core/src/Autoroute.cpp
+    Core/src/RouteQuality.cpp
     Core/src/InteractiveRouter.cpp
     Core/src/TrackGeometry.cpp
     Core/src/Ibis.cpp

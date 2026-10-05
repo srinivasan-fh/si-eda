@@ -42,6 +42,11 @@ struct AutorouteOptions {
     /// Edge-to-edge gap of coupled pairs (mm); 0 = the stack-up's gap for the differential impedance target (never
     /// below the pair's clearance).
     double pairGap = 0;
+    /// Length-aware routing: nets with a length rule or in a match group (BoardSettings::lengthRules / matchGroups,
+    /// measured pad to pad through series parts as xSignals) route first, on their most direct paths, and after
+    /// routing are lengthened to their target with the interactive tuner's meanders (mitred accordions); the routing
+    /// report lists achieved against target for each.
+    bool lengthAware = false;
     bool operator==(const AutorouteOptions& o) const;
     bool operator!=(const AutorouteOptions& o) const { return !(*this == o); }
     bool isDefault() const { return *this == AutorouteOptions{}; }
@@ -363,9 +368,20 @@ struct PairRouteReport {
     double skew = 0;                 // |length P − length N| of the routed copper after tuning (mm)
     int viaPairs = 0;                // coupled via transitions
 };
+/// A net with a length target after autorouting (RouteReport::lengths).
+struct LengthRouteReport {
+    std::string net;
+    std::string source;      // "rule:<net>" or "group:<name>" (LengthTarget::source)
+    double target = 0, tolerance = 0;
+    double routed = -1;      // xSignal length as routed, before tuning (-1: not routed pad to pad)
+    double achieved = -1;    // after the length-aware tuning
+    bool ok = false;         // achieved within target ± tolerance
+    bool tuned = false;      // meanders were added
+};
 /// What an autoroute did beyond the counts in RouteStats (the routing report sheet in the app).
 struct RouteReport {
     std::vector<PairRouteReport> pairs;
+    std::vector<LengthRouteReport> lengths;
 };
 struct RouteStats {
     RouteReport report;

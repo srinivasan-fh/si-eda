@@ -9,9 +9,16 @@
 
 #include "sieda/Simulator.hpp"
 #include "GlobalRouter.hpp"
+#include "RouteQuality.hpp"
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#if defined(__unix__) || defined(__APPLE__)
+#include <sys/resource.h>
+#endif
 #include <cmath>
 #include <functional>
 #include <limits>
@@ -2218,6 +2225,61 @@ double voltageRoutingClearance(const Schematic& sch, bool highAltitude, bool coa
 
 namespace {
 struct RouteCancelled {};  // thrown by routeAll's progress report when the RouteControl cancels
+
+/// Phase timings of an autoroute (wall clock) and the process's peak memory, printed to stderr at the end when the
+/// environment variable SIEDA_ROUTE_PROFILE is set (docs/ROUTING.md, Performance work). Costs nothing otherwise.
+class RouteProfile {
+public:
+    using Clock = std::chrono::steady_clock;
+    RouteProfile() : on_(std::getenv("SIEDA_ROUTE_PROFILE") != nullptr), start_(Clock::now()) {}
+    ~RouteProfile() {
+        if (!on_) return;
+        std::fprintf(stderr, "route profile (%.2f s, peak %.0f MB):\n", seconds(start_), peakMb());
+        for (const auto& [name, secs] : phases_) std::fprintf(stderr, "  %-22s %8.2f s\n", name.c_str(), secs);
+    }
+    /// Adds the time from now until the returned guard ends to phase `name`.
+    struct Scope {
+        RouteProfile* p;
+        std::string name;
+        std::chrono::steady_clock::time_point t;
+        ~Scope() {
+            if (p) p->add(name, p->seconds(t));
+        }
+    };
+    Scope scope(const char* name) { return Scope{on_ ? this : nullptr, name, Clock::now()}; }
+    Clock::time_point now() const { return on_ ? Clock::now() : Clock::time_point{}; }
+    /// Adds the time since `t` (from now()) to phase `name`.
+    void since(const char* name, Clock::time_point t) {
+        if (on_) add(name, seconds(t));
+    }
+    void add(const std::string& name, double secs) {
+        for (auto& ph : phases_)
+            if (ph.first == name) {
+                ph.second += secs;
+                return;
+            }
+        phases_.push_back({name, secs});
+    }
+
+private:
+    double seconds(Clock::time_point t) const { return std::chrono::duration<double>(Clock::now() - t).count(); }
+    static double peakMb() {
+#if defined(__unix__) || defined(__APPLE__)
+        rusage u{};
+        getrusage(RUSAGE_SELF, &u);
+#if defined(__APPLE__)
+        return static_cast<double>(u.ru_maxrss) / (1024.0 * 1024.0);
+#else
+        return static_cast<double>(u.ru_maxrss) / 1024.0;
+#endif
+#else
+        return 0;
+#endif
+    }
+    bool on_;
+    Clock::time_point start_;
+    std::vector<std::pair<std::string, double>> phases_;
+};
 }  // namespace
 
 RouteStats PcbLayout::autoRoute(const Schematic& sch) { return autoRoute(sch, RouteControl{}); }
@@ -2356,6 +2418,7 @@ std::vector<TamperMeshGeometry> PcbLayout::tamperMeshGeometry(const Schematic& s
 }
 
 RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control) {
+    RouteProfile profile;
     // Progress and cancellation (RouteControl): reported from this thread only, between nets / batches.
     RouteProgress progressNow;
     auto report = [&] {
@@ -2452,6 +2515,16 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     };
     std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return fineNet(a) && !fineNet(b); });
     std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return extra(a) > 0 && extra(b) <= 0; });
+    // Length-aware routing: nets with a length rule or in a match group route first, on their most direct paths
+    // (meanders lengthen them afterwards; nothing can shorten a detour).
+    if (settings.autorouter.lengthAware && (!settings.lengthRules.empty() || !settings.matchGroups.empty())) {
+        std::set<std::string> targeted;
+        for (const auto& r : settings.lengthRules) targeted.insert(r.net);
+        for (const auto& g : settings.matchGroups) targeted.insert(g.nets.begin(), g.nets.end());
+        std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+            return targeted.count(nets[static_cast<size_t>(a)].name) && !targeted.count(nets[static_cast<size_t>(b)].name);
+        });
+    }
     RouteStats best;
     best.failed = std::numeric_limits<int>::max();
     std::vector<Track> bestTracks;
@@ -2774,6 +2847,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             recovery || (corridorMode && pass > 0 && kRipUpChains[ripChain].congestion) ? congestion.get() : nullptr;
         std::vector<FailedConnection> failedConnections;
         size_t fixedTracks = 0, fixedVias = 0;  // copper laid before any net routes (BGA fan-outs, tamper meshes)
+        auto tGrid = profile.now();
         RoutingGrid grid(settings);
         // One search workspace for every pass (the grid's size is the same in each).
         // Corridor mode: one corridor workspace per routing thread; the first also serves the serial searches (fan-outs,
@@ -2787,6 +2861,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         AStarWorkspace& ws = corridorMode ? *threadWs.front() : *astarWs;
         const size_t gridCells = static_cast<size_t>(grid.cols() * grid.rows());
         prepareGrid(grid);
+        profile.since("grid set-up", tGrid);
+        auto tFixed = profile.now();
         std::vector<Track> outT;
         std::vector<Via> outV;
         RouteStats stats;
@@ -3089,6 +3165,8 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         }
         fixedTracks = outT.size();
         fixedVias = outV.size();
+        profile.since("fixed copper, pairs", tFixed);
+        auto tSignal = profile.now();
         // Corridor rip-up passes: the nets the previous pass kept are laid again as they were — before the pour
         // fan-outs and forced pour connections, which then route around them as they would around any signal.
         std::map<int, NetCopper> curCopper;
@@ -3444,9 +3522,13 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             advance(1);
         }
 
+        profile.since("signal nets", tSignal);
+        auto tPour = profile.now();
         // Pour against the signal copper, then join each zone net's pads to its poured islands.
         if (!zoneOrder.empty()) {
             auto fills = fillZones(sch, ps, outT, outV);
+            profile.since("pour fill", tPour);
+            tPour = profile.now();
             for (int net : zoneOrder) {
                 const auto& list = netPads[net];
                 DSU d = copperClusters(ps, outT, outV, &fills);
@@ -3542,6 +3624,13 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                 }
             }
         }
+        profile.since("pour connections", tPour);
+        auto tRip = profile.now();
+        struct RipTimer {
+            RouteProfile& p;
+            RouteProfile::Clock::time_point t;
+            ~RipTimer() { p.since("rip-up analysis", t); }
+        } ripTimer{profile, tRip};
         stats.failed = stats.connections - stats.routed;
         const bool improved = stats.failed < best.failed;
         if (improved) {
@@ -3850,14 +3939,28 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     report();  // the last point a route can be cancelled: from here on the board's copper is replaced
     tracks.clear();
     vias.clear();
+    auto tFinish = profile.now();
     neckDownWith(bestTracks, ps, neckWidths, padsByNet, settings.clearance);
     for (auto& t : bestTracks) addTrack(t);
     for (auto& v : bestVias) addVia(v);
     cleanupRouting(sch);
+    profile.since("clean-up", tFinish);
+    tFinish = profile.now();
     // HDI: blind / buried / microvias cut to the layers each via connects.
     if (settings.hdi) applyHdiVias(sch);
     // Length / phase matching: serpentines on the short members of differential pairs and buses.
     if (settings.lengthTuning) best.lengthTuned = tuneLengths(*this, sch);
+    profile.since("HDI, length matching", tFinish);
+    tFinish = profile.now();
+    // Length-aware routing: rules and match groups to their targets with the tuner's meanders.
+    if (ropt.lengthAware) {
+        std::map<int, int> coupledPartner;
+        for (size_t k = 0; k < pairPlans.size() && k < pairLayouts.size(); ++k)
+            if (pairLayouts[k].ok) coupledPartner[pairPlans[k].netP] = pairPlans[k].netN;
+        best.report.lengths = routequality::tuneLengthTargets(*this, sch, coupledPartner);
+        for (const auto& l : best.report.lengths)
+            if (l.tuned) ++best.lengthTuned;
+    }
     if (best.failed == std::numeric_limits<int>::max()) best.failed = 0;
     // Report: every differential pair, coupled or not, with its skew after tuning.
     for (size_t k = 0; k < pairPlans.size() && k < pairLayouts.size(); ++k) {
@@ -3879,6 +3982,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         rep.skew = std::fabs(lp - ln);
     }
     best.report.pairs = std::move(pairReports);
+    profile.since("length-aware, report", tFinish);
     return best;
 }
 
