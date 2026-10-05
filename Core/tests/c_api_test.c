@@ -89,6 +89,31 @@ int sieda_c_api_smoke_test(void) {
         if (!sieda_parse_value("4k7", &parsed) || parsed < 4699.0 || parsed > 4701.0) return 23;
         if (sieda_parse_value("abc", &parsed)) return 24;
     }
+    {
+        /* Signal & power integrity: model assignment, sign-off, the analyses and an IBIS import error. */
+        char* ibisErr = NULL;
+        char* json = NULL;
+        if (sieda_si_import_ibis(p, "not an ibis file", "typ", "", &ibisErr) != 0 || !ibisErr) return 60;
+        sieda_string_free(ibisErr);
+        if (!sieda_si_assign_model(p, "component", "R1", "lvcmos33") || sieda_si_assign_model(p, "net", "X", "nope")) return 61;
+        if (!sieda_si_set_options(p, 1, 0.15, 0.05) || !sieda_pi_set_rail(p, "VCC", 5, 0.1, 0.2)) return 62;
+        json = sieda_si_net_list_json(p);
+        if (!json || json[0] != '[') return 63;
+        sieda_string_free(json);
+        json = sieda_pi_json(p);
+        if (!json || !strstr(json, "\"rails\"")) return 64;
+        sieda_string_free(json);
+        json = sieda_si_crosstalk_json(p);
+        if (!json || !strstr(json, "\"pairs\"")) return 65;
+        sieda_string_free(json);
+        json = sieda_run_verification(p);
+        if (!json || !strstr(json, "Signal & Power Integrity")) return 66;
+        sieda_string_free(json);
+        json = sieda_si_settings_json(p);
+        if (!json || !strstr(json, "\"families\"")) return 67;
+        sieda_string_free(json);
+        sieda_si_set_options(p, 0, 0.15, 0.05);
+    }
     sieda_project_free(p);
     return 0;
 }

@@ -39,6 +39,9 @@ double copperThickness(const BoardSettings& s);
 double layerDielectric(const BoardSettings& s);
 /// True when the copper layer is buried between two planes (stripline) rather than on the surface (microstrip).
 bool isStriplineLayer(const BoardSettings& s, int layer);
+/// Dielectric height the impedance of `layer` is computed with: the height to the nearest plane for a microstrip, the
+/// plane-to-plane spacing b for a stripline (mm).
+double impedanceReferenceHeight(const BoardSettings& s, int layer);
 /// Characteristic impedance of a track of width w on `layer`.
 double trackImpedance(const BoardSettings& s, int layer, double w);
 /// Dielectric between copper layer `layer` and `layer + 1` (mm): HDI boards have thin laser-drillable build-up

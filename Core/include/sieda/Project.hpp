@@ -7,6 +7,7 @@
 #include "sieda/Json.hpp"
 #include "sieda/Pcb.hpp"
 #include "sieda/Schematic.hpp"
+#include "sieda/SignalIntegrity.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/Validation.hpp"
 
@@ -45,6 +46,8 @@ public:
     std::string memoryDesign;
     Schematic schematic;
     PcbLayout pcb;
+    /// Signal / power integrity: imported IBIS models, model assignments, PDN rail inputs and SI sign-off.
+    SiSettings si;
     /// Ids of custom parts (CustomPartRegistry) available in this project's component library.
     std::vector<std::string> customLibrary;
 

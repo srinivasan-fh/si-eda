@@ -9,6 +9,7 @@
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
 #include "sieda/Reliability.hpp"
+#include "sieda/SignalIntegrity.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/Simulator.hpp"
 #include "sieda/Units.hpp"
@@ -257,6 +258,25 @@ VerificationReport verifyDesign(const Project& project, const VerificationOption
         rel.details.push_back("Solder: " + req.solder + ", IPC Class " + std::to_string(req.ipcClass));
         rel.details.push_back(std::string("Conformal coating: ") + (pcb.settings.coated() ? pcb.settings.coating : "none"));
         report.stages.push_back(std::move(rel));
+    }
+
+    // 6c. Signal & power integrity sign-off (opt-in per project): reflections, crosstalk, return path, PDN, IR drop.
+    if (project.si.signOff) {
+        VerificationStage st{"si", "Signal & Power Integrity", StageStatus::Pass, "", {}, {}};
+        if (placed == 0) {
+            st.status = StageStatus::Skipped;
+            st.summary = "No board layout";
+        } else {
+            st.findings = signalPowerIntegrityChecks(project);
+            st.status = statusOf(st.findings);
+            st.summary = countSummary(st.findings, "Within overshoot, crosstalk, return-path and PDN limits");
+            char buf[160];
+            std::snprintf(buf, sizeof buf, "Limits: overshoot / undershoot %.0f %% of the swing, crosstalk %.0f %%; %zu IBIS model%s",
+                          100 * project.si.overshootLimit, 100 * project.si.crosstalkLimit, project.si.models.size(),
+                          project.si.models.size() == 1 ? "" : "s");
+            st.details.push_back(buf);
+        }
+        report.stages.push_back(std::move(st));
     }
 
     // 7. Manufacturing outputs: generate every file in memory and check it is complete.
