@@ -815,3 +815,5 @@
 "Group name" = "समूह का नाम";
 "Add Group" = "समूह जोड़ें";
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "सदस्य: दो या अधिक नेट चुनें। सीरीज़ रेज़िस्टर या कैपेसिटर से होकर जाने वाला नेट उनके पार पैड से पैड तक मापा जाता है।";
+"Any angle" = "कोई भी कोण";
+"Route and drag at any angle: the head is one straight track to the pointer" = "किसी भी कोण पर रूट और ड्रैग करें: हेड पॉइंटर तक एक सीधा ट्रैक है";

@@ -45,7 +45,8 @@ The options bar shows the router settings while the Route tool is active:
 - **Shove / Walk around / Highlight**: the routing mode (see below). It also applies to dragging tracks and vias
   with the Select tool.
 - **45° / 90°**: corner style. With 45° the head is a straight and a diagonal segment. With 90° it is a horizontal
-  and a vertical segment.
+  and a vertical segment. **Any angle** makes the head one straight track at any angle to the pointer (free
+  posture); drags then follow at any angle too.
 - **Differential pair**: the next route starts as a pair (see [Differential pairs](#differential-pairs)).
 - **Via type**: Through, Blind / buried, Microvia or Auto (see [Vias and HDI](#vias-and-hdi)).
 - **Rounded corners**: corners become arcs (see [Rounded corners](#rounded-corners)); **True arcs** (on by
@@ -235,6 +236,38 @@ the footprint, and a click without dragging still selects.
 
 Core: `InteractiveRouter::beginDrag` (C: `sieda_router_begin_drag`).
 
+## Dragging a corner
+
+Press on a track with the **Select** tool close to its end (within two track widths) where it meets the next track
+of its line, and drag: the corner follows the pointer and both tracks follow it. With **Any angle** they stay two
+straight tracks at any angle; otherwise each rejoins its old path with 45° / 90° links, cutting a corner where that is
+shorter and makes no acute corner. Shove and walk around work as for a segment drag. A corner on a pad or via, or
+where a third track or a locked track meets, is not dragged (the press drags the segment instead).
+
+Core: `InteractiveRouter::beginCornerDrag(trackId, grab)` (C: `sieda_router_begin_corner_drag`); preview kind
+`corner`.
+
+## Dragging several tracks
+
+Select tracks (click, ⇧-click adds) and press on one of them to drag them all together by the pointer's movement,
+whatever their nets and layers. At each end of the selection the next track of the line rejoins its old path from
+the moved end; an end on a pad or via gets a link to it. One undo step; shove and walk around as set.
+
+Core: `InteractiveRouter::beginMultiDrag(trackIds, grab)` (C: `sieda_router_begin_multi_drag`); preview kind
+`multidrag`.
+
+## Multi-route
+
+With the Route tool, **⇧-click** pads, vias or tracks of different nets to pick them (each shows a ring; ⇧-click
+again drops one, **Esc** clears), then click the last one without ⇧: all the picked nets route together as one
+bundle at track pitch, like a bus but from anywhere (they need not be a row of one part). The bundle leaves towards
+the pointer along the nearest of the eight directions, each member joining its lane with a 45° lead. **V** places a
+via for every member at once: the members fan out to via pitch (via diameter + clearance, and the hole-to-hole
+spacing), and the bundle continues on the next layer. A bus started from a pad row (**Bus**) takes vias the same way
+after its first corner.
+
+Core: `InteractiveRouter::beginMultiRoute(starts, layer)` (C: `sieda_router_begin_multi`); preview kind `multi`.
+
 ## Dragging a via
 
 Press on a via with the **Select** tool and drag. The via follows the cursor and every track that ends on it follows
@@ -347,6 +380,9 @@ All functions are in `sieda_c.h`. Each project has one route session.
 | `sieda_router_tune(project, track_id, options_json)` | Length tuning with preview: `{"target","maxAmplitude","spacing","x","y","apply","style","corner","fromX","fromY","toX","toY","coupled","phase"}` |
 | `sieda_router_tune_length(project, track_id, target_mm, max_amplitude_mm)` | Length tuning (applies at once) |
 | `sieda_pcb_arc_corners(project, track_ids_json, options_json)` | Convert corners to arcs: `[id, …]`, `{"radius","apply"}` |
+| `sieda_router_begin_corner_drag(project, options_json, track_id, x, y)` | Drag a corner |
+| `sieda_router_begin_multi_drag(project, options_json, track_ids_json, x, y)` | Drag several tracks together |
+| `sieda_router_begin_multi(project, options_json, points_json, layer)` | Multi-route `[{"x","y"}, …]` |
 | `sieda_pcb_set_length_rule(project, net, target_mm, tolerance_mm)` | Length rule of a net (target 0 removes it) |
 | `sieda_pcb_set_match_group(project, group_json)` | Match group `{"name","nets":[…],"tolerance"}` (fewer than two nets removes it) |
 | `sieda_length_targets_json(project)` | Rules and groups with their members' xSignal lengths |
@@ -402,11 +438,12 @@ never fails because of an old DRC problem elsewhere, and it never creates a new 
 - Meanders go on straight tracks (not on arcs). Coupled tuning needs the two members side by side on one straight
   stretch; drag-along works on the track pressed (not across a corner). xSignals follow two-pin series parts only
   (not through ICs or multi-pin resistor networks) and measure track length (vias add nothing).
-- A bus starts from one row of one part and ends in the bundle; each track is finished on its own, and vias are
-  placed track by track. Members all use the widest member's width.
+- A bus (or multi-route) ends in the bundle; each track is finished to its pad on its own. Members all use the
+  widest member's width. Bundle vias need a placed corner first (they are laid across the bundle's direction).
 - Fanout covers SMD pads only (through-hole pads already reach every layer) and walks around (it never shoves).
-- The Select-tool drag picks the via, then the track on the active layer, under the pointer; a press on a pad moves
-  the footprint as before.
+- The Select-tool drag picks the via, then the track on the active layer, under the pointer (near a track's end: its
+  corner; on one of several selected tracks: all of them); a press on a pad moves the footprint as before. Arcs are
+  not dragged.
 - Auto Route rips up all routing, locked tracks included.
 - A blocked head on a dense board still takes up to about 0.1 s to compute (the router searches for the furthest
   position that fits). It no longer stalls the window (see [Responsiveness](#responsiveness)), but the head lags the
@@ -490,6 +527,11 @@ Core (`Core/tests/core_tests.cpp`):
 | `length_tuning_couples_pairs_and_tunes_phase` | Coupled pair tuning: both members gain the same length, the gap stays exact (square and round); phase tuning matches the partner with bumps away from it. |
 | `length_rules_match_groups_and_xsignals` | xSignal through a series resistor measured pad to pad; match group and length rule targets, `DRC_LENGTH`, saved and loaded. |
 | `c_api_length_tuning_and_rules` | Rules, groups, targets JSON and the new tuning options through the C API. |
+| `router_drags_a_corner` | A corner follows the pointer at any angle (two straight tracks) and with 45° links; a corner on a pad is refused; DRC clean, connected. |
+| `router_drags_several_tracks_together` | Two nets' tracks move together, links to the pads, both nets connected, DRC clean. |
+| `router_routes_at_any_angle` | Free posture: one straight track at an arbitrary angle onto the pad. |
+| `router_multi_routes_nets_with_vias` | Three scattered nets route as one bundle; V places three vias at via pitch and the bundle continues on the bottom layer; DRC clean. |
+| `c_api_corner_multi_drag_and_multi_route` | Corner drag, multi drag and multi-route through the C API. |
 | `router_head_update_can_be_cancelled` | A cancelled update leaves the router exactly as before; the next one matches a router that was never cancelled; a request while idle changes nothing. |
 | `router_routes_a_bus_together` | A bus of four SOIC pins ends at track pitch in pin order; each track is then finished to its pad; DRC clean. |
 | `router_bus_turns_corners_at_pitch` | A bus through a 90° turn keeps the clearance between members, and is packed at it. |

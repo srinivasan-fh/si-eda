@@ -1541,9 +1541,17 @@ final class DesignStore: ObservableObject {
     /// Tracks selected with the Select tool (click a track, ⇧-click adds or removes) for the track commands.
     @Published var selectedTracks: Set<Int> = []
 
+    /// Any-angle routing (free posture): the head is one straight track at any angle; drags follow at any angle.
+    @Published var routerAnyAngle = false {
+        didSet { if routerAnyAngle != oldValue { applyRouterOptions() } }
+    }
+
+    /// Multi-route: start points picked with ⇧-click in the Route tool; the next plain click routes them together.
+    @Published var multiStarts: [CGPoint] = []
+
     private var routerOptions: String {
         EDAEngine.routingOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType, rounded: routerRounded,
-                                 arcs: routerArcs)
+                                 arcs: routerArcs, anyAngle: routerAnyAngle)
     }
 
     /// Shows a router reply: a refused step keeps the route and reports why.
@@ -1673,7 +1681,8 @@ final class DesignStore: ObservableObject {
         }
         guard let kind = routePreview?.kind else { return }
         var result = RouteCommitResult(ok: false, error: nil, addedTracks: [], addedVias: [])
-        let action = kind == "drag" ? "Dragged track" : kind == "via" ? "Moved via" : "Routed track"
+        let action = kind == "drag" ? "Dragged track" : kind == "via" ? "Moved via"
+            : kind == "corner" || kind == "multidrag" ? "Dragged tracks" : "Routed track"
         let done = performChecked(action, invalidatesAnalysis: false, failureMessage: "Nothing was routed") {
             result = $0.routerCommit()
             return result.ok && !(result.addedTracks.isEmpty && result.addedVias.isEmpty)
@@ -1715,6 +1724,44 @@ final class DesignStore: ObservableObject {
         settleRouteMoves()
         showRoute(engine.routerBeginViaDrag(via: viaId, at: point, options: routerOptions))
         return routePreview != nil
+    }
+
+    /// Starts dragging the corner of track `trackId` nearest to `point` (Select tool on a track's corner).
+    @discardableResult
+    func beginCornerDrag(_ trackId: Int, at point: CGPoint) -> Bool {
+        guard !isBusy else { return false }
+        settleRouteMoves()
+        showRoute(engine.routerBeginCornerDrag(track: trackId, at: point, options: routerOptions))
+        return routePreview != nil
+    }
+
+    /// Starts dragging the selected tracks together (Select tool on one of several selected tracks).
+    @discardableResult
+    func beginMultiDrag(_ trackIds: [Int], at point: CGPoint) -> Bool {
+        guard !isBusy, !trackIds.isEmpty else { return false }
+        settleRouteMoves()
+        showRoute(engine.routerBeginMultiDrag(tracks: trackIds, at: point, options: routerOptions))
+        return routePreview != nil
+    }
+
+    /// Multi-route: ⇧-click in the Route tool picks (or drops) a start point.
+    func toggleMultiStart(_ point: CGPoint) {
+        if let i = multiStarts.firstIndex(where: { hypot($0.x - point.x, $0.y - point.y) < 0.3 }) {
+            multiStarts.remove(at: i)
+        } else {
+            multiStarts.append(point)
+        }
+        statusMessage = multiStarts.isEmpty ? "Multi-route: no nets picked"
+            : "Multi-route: \(multiStarts.count) picked — click the last pad (without ⇧) to route them together"
+    }
+
+    /// Routes the picked start points and `point` together as one bundle.
+    func beginMultiRoute(adding point: CGPoint, layer: Int) {
+        guard !isBusy else { return }
+        settleRouteMoves()
+        let starts = multiStarts + [point]
+        multiStarts = []
+        showRoute(engine.routerBeginMulti(starts: starts, layer: layer, options: routerOptions))
     }
 
     // MARK: Interactive length tuning

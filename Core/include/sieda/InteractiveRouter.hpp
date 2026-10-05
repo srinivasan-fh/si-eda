@@ -91,7 +91,8 @@ struct RouteChanges {
 /// other nets' items at their shoved positions (`hiddenTracks` / `hiddenVias` are the layout items they replace).
 struct RoutePreview {
     bool active = false;
-    std::string kind;          // "route", "pair", "bus", "drag" (a track segment) or "via" (a dragged via)
+    std::string kind;          // "route", "pair", "bus", "multi" (multi-route), "drag" (a track segment), "via" (a
+                               // dragged via), "corner" (a dragged corner) or "multidrag" (several tracks)
     std::string status;        // what the router is doing / why the head stopped
     bool blocked = false;      // the head stops short of the cursor
     bool reachedTarget = false;  // the head ends on a pad / via / track of its own net (the route can finish)
@@ -148,6 +149,17 @@ public:
     /// nets' copper is pushed aside. Vias inside a pad of their net, mesh vias and vias held by a locked track or a
     /// track running through them stay put.
     bool beginViaDrag(int viaId, Vec2 grab);
+    /// Drags the corner (the joint of two tracks of one line, not on a pad or via) at the end of `trackId` nearest
+    /// to `grab`: the vertex follows the cursor and the two lines meeting there follow it (straight in the free
+    /// posture, 45° links otherwise), shoving or walking around as set.
+    bool beginCornerDrag(int trackId, Vec2 grab);
+    /// Drags several tracks together by the cursor's movement (any nets and layers). Tracks joined to them rejoin
+    /// their old paths from the moved ends; ends on pads and vias get a link to the pad or via.
+    bool beginMultiDrag(const std::vector<int>& trackIds, Vec2 grab);
+    /// Multi-route: the nets of the pads, vias or tracks at `starts` (2–16, one per net) are routed together as one
+    /// bundle at track pitch, from wherever they start (a bus from anywhere). V places a via per member, spread to
+    /// via pitch, and the bundle continues on the next layer.
+    bool beginMultiRoute(const std::vector<Vec2>& starts, int layer);
 
     /// Moves the head to the cursor and returns the preview.
     const RoutePreview& moveTo(Vec2 cursor);

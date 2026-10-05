@@ -815,3 +815,5 @@
 "Group name" = "Gruppenname";
 "Add Group" = "Gruppe hinzufügen";
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Mitglieder: zwei oder mehr Netze wählen. Ein Netz über Serienwiderstände oder -kondensatoren wird von Pad zu Pad über sie hinweg gemessen.";
+"Any angle" = "Beliebiger Winkel";
+"Route and drag at any angle: the head is one straight track to the pointer" = "In beliebigem Winkel routen und ziehen: der Kopf ist eine gerade Leiterbahn bis zum Zeiger";

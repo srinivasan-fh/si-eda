@@ -712,6 +712,16 @@ int32_t sieda_pcb_set_match_group(SiedaProject* project, const char* group_json)
 /* {"rules":[{"net","target","tolerance","length","ok","routed"}],"groups":[{"name","tolerance","target","members":
  * [{"net","xsignal":[names],"length","ok","routed"}]}]} */
 char* sieda_length_targets_json(const SiedaProject* project);
+/* Drags (preview JSON as sieda_router_begin_drag; move / commit / cancel as for every route session): the corner of
+ * track_id nearest to (x, y) (kind "corner"); several tracks together by the cursor's movement (kind "multidrag",
+ * track_ids_json [id, …]). The router's "posture":"free" drags at any angle. */
+char* sieda_router_begin_corner_drag(SiedaProject* project, const char* options_json, int32_t track_id, double x,
+                                     double y);
+char* sieda_router_begin_multi_drag(SiedaProject* project, const char* options_json, const char* track_ids_json, double x,
+                                    double y);
+/* Multi-route: the nets at points_json [{"x","y"}, …] (pads, vias or tracks; 2–16 nets) routed together as one bundle
+ * (kind "multi"); sieda_router_add_via places a via per member. */
+char* sieda_router_begin_multi(SiedaProject* project, const char* options_json, const char* points_json, int32_t layer);
 
 #ifdef __cplusplus
 }

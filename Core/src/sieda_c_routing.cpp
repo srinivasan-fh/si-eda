@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -29,6 +30,24 @@ char* errorString(const std::exception& e) {
     return dupString(j.dump());
 }
 Json parseOr(const char* text, Json fallback) { return text && *text ? Json::parse(text) : fallback; }
+InteractiveRouter& routerFor(SiedaProject* project) {
+    if (!project->router) {
+        project->router = std::make_unique<InteractiveRouter>(project->project.pcb, project->project.schematic);
+        project->router->setAbortSource(&project->routerAbort);
+    }
+    return *project->router;
+}
+void setRouterOptions(SiedaProject* project, const char* options_json) {
+    if (!options_json || !*options_json) return;
+    InteractiveRouter& r = routerFor(project);
+    r.setOptions(routerOptionsFromJson(Json::parse(options_json), r.options()));
+}
+char* previewOf(SiedaProject* project, bool ok) {
+    InteractiveRouter& r = routerFor(project);
+    Json j = routePreviewJson(r.preview());
+    if (!ok) j["error"] = r.error().empty() ? std::string("Not possible here") : r.error();
+    return dupString(j.dump());
+}
 std::vector<int> idList(const Json& j) {
     std::vector<int> ids;
     if (j.isArray())
@@ -50,6 +69,45 @@ char* sieda_pcb_arc_corners(SiedaProject* project, const char* track_ids_json, c
         opt.apply = o.get("apply").asBool(true);
         if (opt.apply && project->router) project->router->cancel();
         return dupString(arcCornersJson(convertCornersToArcs(project->project.pcb, project->project.schematic, ids, opt)).dump());
+    } catch (const std::exception& e) {
+        return errorString(e);
+    }
+}
+
+char* sieda_router_begin_corner_drag(SiedaProject* project, const char* options_json, int32_t track_id, double x,
+                                     double y) {
+    if (!project) return nullptr;
+    try {
+        setRouterOptions(project, options_json);
+        return previewOf(project, routerFor(project).beginCornerDrag(track_id, {x, y}));
+    } catch (const std::exception& e) {
+        return errorString(e);
+    }
+}
+
+char* sieda_router_begin_multi_drag(SiedaProject* project, const char* options_json, const char* track_ids_json, double x,
+                                    double y) {
+    if (!project) return nullptr;
+    try {
+        setRouterOptions(project, options_json);
+        const std::vector<int> ids = idList(parseOr(track_ids_json, Json::array()));
+        return previewOf(project, routerFor(project).beginMultiDrag(ids, {x, y}));
+    } catch (const std::exception& e) {
+        return errorString(e);
+    }
+}
+
+char* sieda_router_begin_multi(SiedaProject* project, const char* options_json, const char* points_json, int32_t layer) {
+    if (!project) return nullptr;
+    try {
+        setRouterOptions(project, options_json);
+        std::vector<Vec2> starts;
+        const Json pts = parseOr(points_json, Json::array());
+        if (pts.isArray())
+            for (const auto& p : pts.items())
+                if (p.get("x").isNumber() && p.get("y").isNumber())
+                    starts.push_back({p.get("x").asNumber(), p.get("y").asNumber()});
+        return previewOf(project, routerFor(project).beginMultiRoute(starts, layer));
     } catch (const std::exception& e) {
         return errorString(e);
     }

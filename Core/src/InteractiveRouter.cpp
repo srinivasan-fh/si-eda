@@ -2161,7 +2161,7 @@ struct InteractiveRouter::Impl {
     RouterOptions opt;
     std::unique_ptr<Base> base;
     World committed, current;
-    enum class Kind { None, Route, Pair, Bus, Drag, DragVia } kind = Kind::None;
+    enum class Kind { None, Route, Pair, Bus, Drag, DragVia, DragMulti } kind = Kind::None;
 
     struct Member {
         int net = -1;
@@ -2206,6 +2206,25 @@ struct InteractiveRouter::Impl {
         std::vector<Track> tracks;  // the lines as they follow the via (per-line layer and width)
         bool valid = false;         // false: the via fits nowhere along the way (commit changes nothing)
     } vdrag;
+    /// Corner drag and multi-track drag: the dragged tracks move by the cursor's offset; at each end of the
+    /// selection that is not shared by two dragged tracks, the lines beyond rejoin their old paths, or (on a pad or
+    /// via) a link joins the end to it.
+    struct MultiDrag {
+        struct End {
+            Vec2 p;
+            int net = -1, layer = 0;
+            double width = 0;
+            bool anchored = false;    // on a pad / via / fixed track: a link from p to the moved end
+            std::vector<Line> lines;  // lines starting at p that rejoin from the moved end
+        };
+        std::vector<size_t> sel;      // dragged tracks (board indices)
+        std::vector<End> ends;
+        Vec2 grab, offset;
+        bool corner = false;
+        std::vector<Track> tracks;    // the result at `offset`
+        bool valid = false;
+    } mdrag;
+    bool multiRoute = false;          // the bus was started with beginMultiRoute
     double groupTarget = 0;     // longest other member of the net's matched-length group (0 = none)
 
     RoutePreview prev;
@@ -2226,6 +2245,8 @@ struct InteractiveRouter::Impl {
         status.clear();
         hasCursor = false;
         vdrag = ViaDrag{};
+        mdrag = MultiDrag{};
+        multiRoute = false;
         groupTarget = 0;
         busOffset.clear();
         prev = RoutePreview{};
@@ -2973,7 +2994,41 @@ struct InteractiveRouter::Impl {
         // straight out and fans in at 45° to its place in the bundle without crossing its neighbours.
         Vec2 from = centre;
         Vec2 dir = lastDir;
-        if (busOffset.empty()) {
+        if (!busOffset.empty() && lastDir.length() <= 0) {
+            // Just after the bundle's vias: each member leaves its via and joins its lane at 45°, the lanes start
+            // beyond the vias on the cursor's side (along the nearest of the eight directions).
+            const Vec2 want = unit(cursor - centre);
+            Vec2 out = kDirs[0];
+            for (const Vec2& d8 : kDirs)
+                if (d8.dot(want) > out.dot(want)) out = d8;
+            const Vec2 nrm = leftNormal(out);
+            double ahead = 0, viaR = 0;
+            for (const Via& v : placedVias) viaR = std::max(viaR, v.diameter / 2);
+            for (size_t k = 0; k < members.size(); ++k) {
+                const Vec2 q = members[k].end - centre;
+                ahead = std::max(ahead, q.dot(out) + std::fabs(busOffset[k] - q.dot(nrm)));
+            }
+            from = centre + out * (ahead + viaR + base->s.clearance + width);
+            dir = out;
+            busFanOut = {};
+        } else if (busOffset.empty() && multiRoute) {
+            // Multi-route from anywhere: the bundle leaves towards the cursor along the nearest of the eight
+            // directions, starting beyond every start point far enough for each member's 45° lead into its lane.
+            const Vec2 want = unit(cursor - centre);
+            Vec2 out = kDirs[0];
+            for (const Vec2& d8 : kDirs)
+                if (d8.dot(want) > out.dot(want)) out = d8;
+            const std::vector<double> off = busOffsets(out);
+            const Vec2 nrm = leftNormal(out);
+            double ahead = 0;
+            for (size_t k = 0; k < members.size(); ++k) {
+                const Vec2 q = members[k].end - centre;
+                ahead = std::max(ahead, q.dot(out) + std::fabs(off[k] - q.dot(nrm)));
+            }
+            from = centre + out * (ahead + busPadHalf + base->s.clearance + width);
+            dir = out;
+            busFanOut = {};
+        } else if (busOffset.empty()) {
             const Vec2 out = (cursor - centre).dot(busAcross) >= 0 ? busAcross : busAcross * -1.0;
             const std::vector<double> off = busOffsets(out);
             double fan = 0;
@@ -3223,6 +3278,342 @@ struct InteractiveRouter::Impl {
         m.head = any ? dragPath(lo) : std::vector<Vec2>{};
     }
 
+    // ------------------------------------------------------------------------------ corner and multi-track drag
+
+    bool beginCornerDrag(int trackId, Vec2 grab) {
+        reset();
+        base = std::make_unique<Base>(pcb, sch);
+        auto bail = [&](const std::string& why) {
+            base.reset();
+            return fail(why);
+        };
+        long ti = -1;
+        for (size_t i = 0; i < base->tracks.size(); ++i)
+            if (base->tracks[i].id == trackId) ti = static_cast<long>(i);
+        if (ti < 0) return bail("No track with that id");
+        const Track t = base->tracks[static_cast<size_t>(ti)];
+        if (t.arc) return bail("Arcs are not dragged: drag a straight track next to it");
+        if (base->trackFixed[static_cast<size_t>(ti)]) return bail("The track is locked");
+        if (t.net < 0) return bail("The track has no net");
+        const Vec2 v = (grab - t.a).length() <= (grab - t.b).length() ? t.a : t.b;
+        startSession({t.net});
+        layer = t.layer;
+        width = t.width;
+        long via = -1;
+        if (nodeAnchored(committed, t.net, t.layer, v, &via)) return bail("That corner is on a pad or via: drag the track or the via");
+        const auto at = tracksEndingAt(committed, t.net, t.layer, v, static_cast<size_t>(ti));
+        if (at.size() != 1) return bail("Drag a corner where exactly two tracks meet");
+        const Track& o = committed.track(at[0]);
+        if (o.arc || base->trackFixed[at[0]] || std::fabs(o.width - t.width) > 1e-9)
+            return bail("The other track at the corner is locked, an arc or of another width");
+        // The line through the corner, split there: two lines starting at the corner.
+        World plain(base.get());  // without the session's fixed nets, so the line runs on through the corner
+        Line L = extractLine(plain, static_cast<size_t>(ti));
+        size_t iv = L.pts.size();
+        for (size_t k = 0; k < L.pts.size(); ++k)
+            if (samePoint(L.pts[k], v, 1e-9)) iv = k;
+        if (iv == L.pts.size() || iv == 0 || iv + 1 == L.pts.size()) return bail("Drag a corner where exactly two tracks meet");
+        Line back = L, fwd = L;
+        back.pts.assign(L.pts.begin(), L.pts.begin() + static_cast<long>(iv) + 1);
+        std::reverse(back.pts.begin(), back.pts.end());
+        back.segs.assign(L.segs.begin(), L.segs.begin() + static_cast<long>(iv));
+        std::reverse(back.segs.begin(), back.segs.end());
+        back.viaAt[0] = -1;
+        back.viaAt[1] = L.viaAt[0];
+        fwd.pts.assign(L.pts.begin() + static_cast<long>(iv), L.pts.end());
+        fwd.segs.assign(L.segs.begin() + static_cast<long>(iv), L.segs.end());
+        fwd.viaAt[0] = -1;
+        for (size_t s : L.segs) committed.goneT[s] = 1;
+        MultiDrag::End e;
+        e.p = v;
+        e.net = t.net;
+        e.layer = t.layer;
+        e.width = t.width;
+        e.lines = {back, fwd};
+        mdrag.ends = {e};
+        mdrag.grab = grab;
+        mdrag.corner = true;
+        Member m;
+        m.net = t.net;
+        m.end = v;
+        members = {m};
+        current = committed;
+        kind = Kind::DragMulti;
+        status = "Dragging a corner of " + base->netName(t.net);
+        computeHead(grab);
+        return true;
+    }
+
+    bool beginMultiDrag(const std::vector<int>& trackIds, Vec2 grab) {
+        reset();
+        base = std::make_unique<Base>(pcb, sch);
+        auto bail = [&](const std::string& why) {
+            base.reset();
+            return fail(why);
+        };
+        std::map<int, size_t> byId;
+        for (size_t i = 0; i < base->tracks.size(); ++i) byId[base->tracks[i].id] = i;
+        std::vector<size_t> sel;
+        std::vector<int> nets;
+        for (int id : trackIds) {
+            auto it = byId.find(id);
+            if (it == byId.end() || std::find(sel.begin(), sel.end(), it->second) != sel.end()) continue;
+            const Track& t = base->tracks[it->second];
+            if (t.arc) return bail("Arcs are not dragged: leave them out of the selection");
+            if (base->trackFixed[it->second]) return bail("A selected track is locked");
+            if (t.net < 0) return bail("A selected track has no net");
+            sel.push_back(it->second);
+            if (std::find(nets.begin(), nets.end(), t.net) == nets.end()) nets.push_back(t.net);
+        }
+        if (sel.empty()) return bail("Select the tracks to drag");
+        startSession(nets);
+        World plain(base.get());  // lines are traced without the session's fixed nets
+        for (size_t s : sel) {
+            committed.goneT[s] = 1;
+            plain.goneT[s] = 1;
+        }
+        // Ends of the selection: shared by two dragged tracks (they just move), or a boundary end.
+        auto sharedEnd = [&](size_t self, Vec2 p) {
+            const Track& t = base->tracks[self];
+            for (size_t o : sel)
+                if (o != self && base->tracks[o].net == t.net && base->tracks[o].layer == t.layer &&
+                    (samePoint(base->tracks[o].a, p) || samePoint(base->tracks[o].b, p)))
+                    return true;
+            return false;
+        };
+        std::vector<std::vector<size_t>> taken;
+        for (size_t s : sel) {
+            const Track& t = base->tracks[s];
+            for (Vec2 p : {t.a, t.b}) {
+                if (sharedEnd(s, p)) continue;
+                bool dup = false;
+                for (const auto& e : mdrag.ends) dup = dup || (e.net == t.net && e.layer == t.layer && samePoint(e.p, p));
+                if (dup) continue;
+                MultiDrag::End e;
+                e.p = p;
+                e.net = t.net;
+                e.layer = t.layer;
+                e.width = t.width;
+                long via = -1;
+                e.anchored = nodeAnchored(committed, t.net, t.layer, p, &via);
+                if (!e.anchored)
+                    for (size_t o : tracksEndingAt(committed, t.net, t.layer, p, SIZE_MAX)) {
+                        if (committed.trackFixed(o) || committed.track(o).arc) {
+                            e.anchored = true;  // a locked track or an arc holds the end: link to it
+                            continue;
+                        }
+                        Line L = extractLine(plain, o);
+                        if (!samePoint(L.pts.front(), p)) {
+                            std::reverse(L.pts.begin(), L.pts.end());
+                            std::reverse(L.segs.begin(), L.segs.end());
+                            std::swap(L.viaAt[0], L.viaAt[1]);
+                        }
+                        if (!samePoint(L.pts.front(), p)) continue;
+                        bool seen = false;
+                        for (const auto& segs : taken) seen = seen || segs == L.segs;
+                        if (seen) continue;
+                        taken.push_back(L.segs);
+                        for (size_t q : L.segs) committed.goneT[q] = 1;
+                        e.lines.push_back(L);
+                    }
+                mdrag.ends.push_back(e);
+            }
+        }
+        mdrag.sel = sel;
+        mdrag.grab = grab;
+        layer = base->tracks[sel.front()].layer;
+        width = base->tracks[sel.front()].width;
+        Member m;
+        m.net = base->tracks[sel.front()].net;
+        m.end = grab;
+        members = {m};
+        current = committed;
+        kind = Kind::DragMulti;
+        status = "Dragging " + std::to_string(sel.size()) + (sel.size() == 1 ? " track" : " tracks");
+        computeHead(grab);
+        return true;
+    }
+
+    /// The dragged copper at offset `d`: the selection moved, each boundary end joined back (links to anchors,
+    /// lines rejoining their old paths with the posture, skipping a corner where that is shorter and not acute).
+    std::vector<Track> multiTracks(Vec2 d) const {
+        std::vector<Track> out;
+        const RoutePosture posture = opt.posture;
+        for (size_t s : mdrag.sel) {
+            Track t = base->tracks[s];
+            t.id = -1;
+            t.a = t.a + d;
+            t.b = t.b + d;
+            out.push_back(t);
+        }
+        for (const auto& e : mdrag.ends) {
+            const Vec2 q = e.p + d;
+            if (e.anchored && (q - e.p).length() > 1e-9) {
+                auto links = postureLinks(e.p, q, posture, false);
+                for (const Track& t : toTracks(links.front(), e.net, e.layer, e.width)) out.push_back(t);
+            }
+            for (const Line& L : e.lines) {
+                const std::vector<Vec2>& p = L.pts;
+                std::vector<Vec2> best;
+                double bestLen = std::numeric_limits<double>::max();
+                for (size_t k = 1; k < p.size() && k <= 2; ++k)
+                    for (const auto& link : postureLinks(q, p[k], posture, false)) {
+                        std::vector<Vec2> path = link;
+                        path.insert(path.end(), p.begin() + static_cast<long>(k) + 1, p.end());
+                        path = simplifyPath(path);
+                        bool acute = false;
+                        for (size_t j = 1; j + 1 < path.size(); ++j)
+                            acute = acute || acuteJoin(path[j] - path[j - 1], path[j + 1] - path[j]);
+                        const double len = pathLength(path) + (acute ? 1e6 : 0.0);
+                        if (len < bestLen - 1e-9) {
+                            bestLen = len;
+                            best = path;
+                        }
+                    }
+                if (best.size() < 2) best = {q, p.back()};
+                for (const Track& t : toTracks(best, L.net, L.layer, L.width)) out.push_back(t);
+            }
+        }
+        return out;
+    }
+
+    bool placeMulti(World& w, Vec2 d, std::string& why) const {
+        std::vector<size_t> added;
+        for (const Track& t : multiTracks(d)) added.push_back(w.addTrack(t, true));
+        if (highlight()) return true;
+        if (opt.mode == RouterMode::Shove) {
+            Shover sh(w, opt);
+            return sh.run(added, {}, why);
+        }
+        for (size_t i : added) {
+            const Track& t = w.track(i);
+            std::vector<Hit> hits;
+            if (trackHits(w, {t.net}, t.layer, t, t.width / 2, &hits)) {
+                why = "Blocked by " + describeHit(w, hits.front());
+                return false;
+            }
+        }
+        if (!newAcuteJoins(w).empty()) {
+            why = "The tracks would make an acute corner here";
+            return false;
+        }
+        return true;
+    }
+
+    void multiDragHead(Vec2 cursor) {
+        const Vec2 d = cursor - mdrag.grab;
+        status = mdrag.corner ? "Dragging a corner" : "Dragging " + std::to_string(mdrag.sel.size()) + " tracks";
+        blocked = false;
+        std::string why;
+        World w = committed;
+        if (placeMulti(w, d, why)) {
+            current = w;
+            mdrag.offset = d;
+            mdrag.tracks = multiTracks(d);
+            mdrag.valid = true;
+            return;
+        }
+        blocked = true;
+        status = why;
+        double lo = 0, hi = 1;
+        World best = committed;
+        bool any = false;
+        {
+            World w0 = committed;
+            if (placeMulti(w0, {}, why)) {
+                best = w0;
+                any = true;
+            }
+        }
+        for (int it = 0; it < 14 && (hi - lo) * d.length() > 1e-3 && !abortRequested(); ++it) {
+            const double mid = (lo + hi) / 2;
+            World wm = committed;
+            if (placeMulti(wm, d * mid, why)) {
+                lo = mid;
+                best = wm;
+                any = true;
+            } else {
+                hi = mid;
+            }
+        }
+        mdrag.valid = any;
+        current = any ? best : committed;
+        mdrag.offset = d * lo;
+        mdrag.tracks = any ? multiTracks(mdrag.offset) : std::vector<Track>{};
+    }
+
+    // --------------------------------------------------------------------------------------------- multi-route
+
+    bool beginMultiRoute(const std::vector<Vec2>& starts, int l) {
+        reset();
+        base = std::make_unique<Base>(pcb, sch);
+        auto bail = [&](const std::string& why) {
+            base.reset();
+            return fail(why);
+        };
+        if (starts.size() < 2) return bail("Pick two or more pads, vias or tracks to route together");
+        if (starts.size() > 16) return bail("At most 16 nets route together");
+        if (l < 0 || l >= std::max(1, base->s.layerCount)) return bail("That copper layer is not in the stack-up");
+        std::vector<StartHit> hits;
+        std::vector<int> nets;
+        int forced = -1;
+        for (Vec2 at : starts) {
+            StartHit st;
+            if (!findStart(at, l, st)) return bail("Nothing with a net at one of the picked points");
+            if (std::find(nets.begin(), nets.end(), st.net) != nets.end()) return bail("Pick each net once");
+            if (st.layer >= 0) {
+                if (forced >= 0 && forced != st.layer) return bail("The picked pads are on different sides of the board");
+                forced = st.layer;
+            }
+            hits.push_back(st);
+            nets.push_back(st.net);
+        }
+        if (forced >= 0) l = forced;
+        if (!layerUsable(l, nets)) {
+            base.reset();
+            return false;
+        }
+        layer = l;
+        width = 0;
+        double clr = 0;
+        for (int n : nets) width = std::max(width, netWidth(n));
+        for (int a : nets)
+            for (int b : nets)
+                if (a != b) clr = std::max(clr, base->clearance(a, b));
+        spacing = width + clr;
+        members.clear();
+        centre = {};
+        for (const auto& st : hits) {
+            Member m;
+            m.net = st.net;
+            m.end = st.point;
+            m.startPad = st.pad;
+            members.push_back(m);
+            centre = centre + m.end * (1.0 / static_cast<double>(hits.size()));
+        }
+        // The bundle leaves across the starts' main direction (a principal axis of the points).
+        double sxx = 0, syy = 0, sxy = 0;
+        for (const auto& m : members) {
+            const Vec2 q = m.end - centre;
+            sxx += q.x * q.x;
+            syy += q.y * q.y;
+            sxy += q.x * q.y;
+        }
+        const double ang = 0.5 * std::atan2(2 * sxy, sxx - syy);
+        const Vec2 axis{std::cos(ang), std::sin(ang)};
+        busAcross = Vec2{-axis.y, axis.x};
+        busPadHalf = 0;
+        for (const auto& st : hits)
+            if (st.pad >= 0)
+                busPadHalf = std::max(busPadHalf, std::fabs(base->pads[static_cast<size_t>(st.pad)].size.dot(busAcross)) / 2);
+        kind = Kind::Bus;
+        multiRoute = true;
+        startSession(nets);
+        status = "Routing " + std::to_string(members.size()) + " nets together";
+        buildPreview();
+        return true;
+    }
+
     // ----------------------------------------------------------------------------------------------- via drag
 
     bool beginViaDrag(int viaId, Vec2 grab) {
@@ -3420,6 +3811,7 @@ struct InteractiveRouter::Impl {
         const std::vector<Member> savedMembers = members;
         const std::vector<Vec2> savedCentre = centreHead;
         const ViaDrag savedVia = vdrag;
+        const MultiDrag savedMulti = mdrag;
         const bool savedReached = reached, savedBlocked = blocked, savedHas = hasCursor;
         const std::string savedStatus = status;
         const Vec2 savedCursor = lastCursor;
@@ -3430,11 +3822,13 @@ struct InteractiveRouter::Impl {
         if (kind == Kind::Bus) busHead(cursor);
         if (kind == Kind::Drag) dragHead(cursor);
         if (kind == Kind::DragVia) viaDragHead(cursor);
+        if (kind == Kind::DragMulti) multiDragHead(cursor);
         if (check()) {
             current = std::move(savedCurrent);
             members = savedMembers;
             centreHead = savedCentre;
             vdrag = savedVia;
+            mdrag = savedMulti;
             reached = savedReached;
             blocked = savedBlocked;
             hasCursor = savedHas;
@@ -3553,8 +3947,7 @@ struct InteractiveRouter::Impl {
     }
 
     bool addVia(int toLayer) {
-        if (kind == Kind::Bus) return fail("A bus changes layer track by track: finish it, then continue each track with a via");
-        if (kind != Kind::Route && kind != Kind::Pair) return fail("Start a route first");
+        if (kind != Kind::Route && kind != Kind::Pair && kind != Kind::Bus) return fail("Start a route first");
         const BoardSettings& s = base->s;
         if (s.layerCount < 2) return fail("A single-sided board has no vias");
         const int to = viaTarget(toLayer);
@@ -3592,6 +3985,30 @@ struct InteractiveRouter::Impl {
             Via v;
             makeVia(m.net, m.end, to, v);
             vias.push_back(v);
+        } else if (kind == Kind::Bus) {
+            // A via per member, in a row across the bundle at via pitch (the members fan out to it at 45°); the
+            // bundle continues on the next layer from the vias.
+            if (busOffset.empty() || lastDir.length() <= 0) return fail("Place a corner first: the bus needs a direction for its vias");
+            const Vec2 dir = unit(lastDir), n = leftNormal(dir);
+            Via proto;
+            makeVia(members[0].net, {}, to, proto);
+            double clr = 0;
+            for (const auto& a : members)
+                for (const auto& b : members)
+                    if (a.net != b.net) clr = std::max(clr, base->clearance(a.net, b.net));
+            const double viaPitch = std::max(proto.diameter + clr, proto.drill + s.minHoleToHole) + kMargin;
+            const double spread = std::max(1.0, viaPitch / std::max(spacing, 1e-6));
+            double shift = 0;
+            for (double o : busOffset) shift = std::max(shift, std::fabs(o) * (spread - 1));
+            const Vec2 row = centre + dir * (shift + proto.diameter / 2 + width);
+            for (size_t k = 0; k < members.size(); ++k) {
+                Via v;
+                makeVia(members[k].net, row + n * (busOffset[k] * spread), to, v);
+                vias.push_back(v);
+                auto lead = postureLinks(members[k].end, v.position, RoutePosture::Diagonal45, true).front();
+                leads[k] = toTracks(lead, members[k].net, layer, width);
+                for (const Track& t : leads[k]) newTracks.push_back(w.addTrack(t, true));
+            }
         } else {
             Vec2 dir = lastDir;
             if (dir.length() <= 0) {
@@ -3654,6 +4071,10 @@ struct InteractiveRouter::Impl {
             if (side == 0) side = cross(lastDir.length() > 0 ? lastDir : Vec2{1, 0}, members[0].end - centre) >= 0 ? 1 : -1;
             centre = (members[0].end + members[1].end) * 0.5;
         }
+        if (kind == Kind::Bus) {
+            centre = {};
+            for (const auto& m : members) centre = centre + m.end * (1.0 / static_cast<double>(members.size()));
+        }
         layer = to;
         lastDir = {};
         computeIfCursor();
@@ -3708,6 +4129,14 @@ struct InteractiveRouter::Impl {
             routeVias = {vdrag.via};
             routeVias[0].position = vdrag.at;
             routeTracks = mergeCollinear(vdrag.tracks);
+        } else if (kind == Kind::DragMulti) {
+            if (!mdrag.valid) {
+                reset();
+                ch.ok = true;  // nothing changed
+                return ch;
+            }
+            committed = current;
+            routeTracks = mergeCollinear(mdrag.tracks);
         } else if (kind == Kind::Drag) {
             committed = current;
             for (const Track& t : mergeCollinear(toTracks(members[0].head, members[0].net, layer, width)))
@@ -3822,11 +4251,12 @@ struct InteractiveRouter::Impl {
             prev = p;
             return;
         }
-        p.kind = kind == Kind::Route  ? "route"
-                 : kind == Kind::Pair ? "pair"
-                 : kind == Kind::Bus  ? "bus"
-                 : kind == Kind::Drag ? "drag"
-                                      : "via";
+        p.kind = kind == Kind::Route       ? "route"
+                 : kind == Kind::Pair      ? "pair"
+                 : kind == Kind::Bus       ? (multiRoute ? "multi" : "bus")
+                 : kind == Kind::Drag      ? "drag"
+                 : kind == Kind::DragMulti ? (mdrag.corner ? "corner" : "multidrag")
+                                           : "via";
         p.status = status;
         p.blocked = blocked;
         p.reachedTarget = reached;
@@ -3877,9 +4307,12 @@ struct InteractiveRouter::Impl {
             p.end = centreHead.size() >= 2 ? centreHead.back() : centre;
         else if (kind == Kind::DragVia)
             p.end = vdrag.at;
+        else if (kind == Kind::DragMulti)
+            p.end = (mdrag.corner && !mdrag.ends.empty() ? mdrag.ends[0].p : mdrag.grab) + mdrag.offset;
         else
             p.end = !members.empty() ? (members[0].head.size() >= 2 ? members[0].head.back() : members[0].end) : Vec2{};
         p.vias = placedVias;
+        if (kind == Kind::DragMulti) p.head = mdrag.tracks;
         if (kind == Kind::DragVia) {
             p.head = vdrag.tracks;
             if (vdrag.valid) {
@@ -3898,6 +4331,8 @@ struct InteractiveRouter::Impl {
             if (current.goneV[i]) p.hiddenVias.push_back(base->vias[i].id);
         if (kind == Kind::DragVia) {
             for (const Track& t : vdrag.tracks) p.length += trackLength(t);
+        } else if (kind == Kind::DragMulti) {
+            for (const Track& t : mdrag.tracks) p.length += trackLength(t);
         } else if (!members.empty()) {
             for (const Track& t : members[0].placed) p.length += trackLength(t);
             p.length += pathLength(members[0].head);
@@ -3951,6 +4386,14 @@ bool InteractiveRouter::beginDrag(int trackId, Vec2 grab) {
     impl_->err.clear();
     return impl_->beginDrag(trackId, grab);
 }
+bool InteractiveRouter::beginCornerDrag(int trackId, Vec2 grab) { return impl_->beginCornerDrag(trackId, grab); }
+bool InteractiveRouter::beginMultiDrag(const std::vector<int>& trackIds, Vec2 grab) {
+    return impl_->beginMultiDrag(trackIds, grab);
+}
+bool InteractiveRouter::beginMultiRoute(const std::vector<Vec2>& starts, int layer) {
+    return impl_->beginMultiRoute(starts, layer);
+}
+
 bool InteractiveRouter::beginViaDrag(int viaId, Vec2 grab) {
     impl_->err.clear();
     return impl_->beginViaDrag(viaId, grab);

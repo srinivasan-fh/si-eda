@@ -815,3 +815,5 @@
 "Group name" = "Tên nhóm";
 "Add Group" = "Thêm nhóm";
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Thành viên: chọn hai net trở lên. Net đi qua điện trở hoặc tụ nối tiếp được đo từ pad đến pad xuyên qua chúng.";
+"Any angle" = "Góc bất kỳ";
+"Route and drag at any angle: the head is one straight track to the pointer" = "Đi dây và kéo ở góc bất kỳ: đầu là một đường thẳng tới con trỏ";

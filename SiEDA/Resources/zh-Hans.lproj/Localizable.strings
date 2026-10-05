@@ -815,3 +815,5 @@
 "Group name" = "组名称";
 "Add Group" = "添加组";
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "成员：选择两个或更多网络。穿过串联电阻或电容的网络会跨过它们从焊盘量到焊盘。";
+"Any angle" = "任意角度";
+"Route and drag at any angle: the head is one straight track to the pointer" = "以任意角度布线和拖动：前端是一条通往指针的直线";

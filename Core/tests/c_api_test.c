@@ -975,3 +975,64 @@ int sieda_c_api_length_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Corner drag, multi-track drag and multi-route through the C API. */
+int sieda_c_api_drag_multi_test(void) {
+    SiedaProject* p = sieda_project_new("C API drags");
+    if (!p) return 1;
+    int32_t r1 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 0, 0, NULL);
+    int32_t r2 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 0, 0, NULL);
+    int32_t r3 = sieda_add_component(p, 0 /* Resistor */, "1k", 0, 100, 0, NULL);
+    int32_t r4 = sieda_add_component(p, 0 /* Resistor */, "1k", 100, 100, 0, NULL);
+    if (r1 < 0 || r2 < 0 || r3 < 0 || r4 < 0) return 2;
+    if (sieda_connect(p, r1, 1, r2, 0) < 0 || sieda_connect(p, r3, 1, r4, 0) < 0) return 3;
+    if (!sieda_pcb_move_footprint(p, r1, 10, 10) || !sieda_pcb_move_footprint(p, r2, 30, 20) ||
+        !sieda_pcb_move_footprint(p, r3, 10, 14) || !sieda_pcb_move_footprint(p, r4, 30, 24))
+        return 4;
+    /* Route R1 → R2 with a corner, then drag the corner. */
+    char* s = sieda_router_begin(p, "{\"posture\":\"45\"}", 10.95, 10, 0);
+    if (!s || strstr(s, "\"error\"")) return 5;
+    sieda_string_free(s);
+    s = sieda_router_move(p, 29.05, 20);
+    if (!s || !strstr(s, "\"reachedTarget\":true")) return 6;
+    sieda_string_free(s);
+    s = sieda_router_commit(p);
+    if (!s || !strstr(s, "\"ok\":true")) return 7;
+    sieda_string_free(s);
+    char* snap = sieda_project_snapshot(p);
+    const char* tracksAt = snap ? strstr(snap, "\"tracks\":[{") : NULL;
+    const char* idAt = tracksAt ? strstr(tracksAt, "\"id\":") : NULL;
+    if (!idAt) return 8;
+    int32_t track = 0;
+    for (const char* c = idAt + 5; *c >= '0' && *c <= '9'; ++c) track = track * 10 + (*c - '0');
+    sieda_string_free(snap);
+    char* corner = sieda_router_begin_corner_drag(p, "{\"posture\":\"free\"}", track, 19, 10);
+    if (!corner) return 9;
+    if (!strstr(corner, "\"error\"")) { /* the track's far end is a corner: drag it a little and drop */
+        sieda_string_free(corner);
+        s = sieda_router_move(p, 19, 11);
+        if (!s || !strstr(s, "\"kind\":\"corner\"")) return 10;
+        sieda_string_free(s);
+        s = sieda_router_commit(p);
+        if (!s || !strstr(s, "\"ok\":true")) return 11;
+        sieda_string_free(s);
+    } else {
+        sieda_string_free(corner);
+        sieda_router_cancel(p);
+    }
+    /* A multi drag of nothing is refused; bad JSON is reported. */
+    char* multi = sieda_router_begin_multi_drag(p, NULL, "[]", 0, 0);
+    if (!multi || !strstr(multi, "\"error\"")) return 12;
+    sieda_string_free(multi);
+    char* bad = sieda_router_begin_multi_drag(p, NULL, "{nope", 0, 0);
+    if (!bad || !strstr(bad, "\"error\"")) return 13;
+    sieda_string_free(bad);
+    /* Multi-route the two nets from their start pads together. */
+    char* m = sieda_router_begin_multi(p, NULL, "[{\"x\":10.95,\"y\":10},{\"x\":10.95,\"y\":14}]", 0);
+    if (!m || strstr(m, "\"error\"") || !strstr(m, "\"kind\":\"multi\"")) return 14;
+    sieda_string_free(m);
+    sieda_router_cancel(p);
+    if (sieda_router_begin_multi(NULL, NULL, "[]", 0) != NULL) return 15;
+    sieda_project_free(p);
+    return 0;
+}

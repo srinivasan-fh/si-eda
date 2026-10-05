@@ -815,3 +815,5 @@
 "Group name" = "Group name";
 "Add Group" = "Add Group";
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them.";
+"Any angle" = "Any angle";
+"Route and drag at any angle: the head is one straight track to the pointer" = "Route and drag at any angle: the head is one straight track to the pointer";

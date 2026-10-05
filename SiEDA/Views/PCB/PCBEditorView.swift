@@ -184,6 +184,9 @@ struct PCBEditorView: View {
                         .pickerStyle(.segmented)
                         .labelsHidden()
                         .fixedSize()
+                        Toggle("Any angle", isOn: $store.routerAnyAngle)
+                            .toggleStyle(.checkbox)
+                            .help("Route and drag at any angle: the head is one straight track to the pointer")
                         Toggle("Rounded corners", isOn: $store.routerRounded)
                             .toggleStyle(.checkbox)
                             .help("Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only")
@@ -720,6 +723,8 @@ struct PCBCanvas: View {
                 .onKeyPress(.escape) {
                     if store.routePreview != nil {
                         store.cancelRoute()
+                    } else if !store.multiStarts.isEmpty {
+                        store.multiStarts = []
                     } else if store.tuneSession != nil {
                         store.cancelTune()
                     } else if tuneTool {
@@ -807,7 +812,20 @@ struct PCBCanvas: View {
     private func copperDrag(_ id: Int, isVia: Bool, grab: CGPoint, value: DragGesture.Value) {
         if !copperDragActive {
             guard hypot(value.translation.width, value.translation.height) > 3 else { return }
-            let started = isVia ? store.beginViaDrag(id, at: grab) : store.beginTrackDrag(id, at: grab)
+            let started: Bool
+            if isVia {
+                started = store.beginViaDrag(id, at: grab)
+            } else if store.selectedTracks.count > 1, store.selectedTracks.contains(id) {
+                // Several selected tracks move together.
+                started = store.beginMultiDrag(Array(store.selectedTracks).sorted(), at: grab)
+            } else if let t = store.snapshot.tracks.first(where: { $0.id == id }), !t.isArc,
+                      min(hypot(Double(grab.x) - t.ax, Double(grab.y) - t.ay), hypot(Double(grab.x) - t.bx, Double(grab.y) - t.by))
+                          <= max(2 * t.width, 0.4),
+                      store.beginCornerDrag(id, at: grab) {
+                started = true  // pressed on a corner: the vertex follows the pointer
+            } else {
+                started = store.beginTrackDrag(id, at: grab)
+            }
             guard started else {
                 dragMode = .pan(CGSize(width: viewport.offset.width - value.translation.width,
                                        height: viewport.offset.height - value.translation.height))
@@ -831,6 +849,15 @@ struct PCBCanvas: View {
     /// reaches the net's pad (or a double-click) finishes the route.
     private func routeClick(at world: CGPoint) {
         guard store.routePreview != nil else {
+            // Multi-route: ⇧-click picks start points; the next plain click adds its own and routes them together.
+            if NSEvent.modifierFlags.contains(.shift) {
+                store.toggleMultiStart(world)
+                return
+            }
+            if !store.multiStarts.isEmpty {
+                store.beginMultiRoute(adding: world, layer: activeLayer.copperIndex ?? 0)
+                return
+            }
             if store.routerBus {
                 store.beginBus(at: world, layer: activeLayer.copperIndex ?? 0)
             } else {
@@ -1082,6 +1109,13 @@ struct PCBCanvas: View {
                 let hole = CGRect(x: v.x - v.drill / 2, y: v.y - v.drill / 2, width: v.drill, height: v.drill)
                 ctx.fill(Path(ellipseIn: hole).applying(screen), with: .color(Theme.pcbBackground))
             }
+        }
+
+        // Multi-route start points picked so far.
+        for p in store.multiStarts {
+            let s = p.applying(screen)
+            ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 7, y: s.y - 7, width: 14, height: 14)), with: .color(Theme.iceBlue),
+                       lineWidth: 2)
         }
 
         // Tracks selected for the track commands.

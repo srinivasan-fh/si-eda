@@ -6065,3 +6065,73 @@ final class LengthTuningParityTests: XCTestCase {
         XCTAssertTrue(store.engine.lengthTargets().groups.isEmpty)
     }
 }
+
+/// Corner drag, multi-track drag, any-angle routing and multi-route from the store (docs/INTERACTIVE_ROUTING.md).
+@MainActor
+final class DragAndMultiRouteTests: XCTestCase {
+    private func store(withRoute route: Bool) -> DesignStore {
+        let store = DesignStore()
+        let engine = store.engine
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        let r3 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 0, y: 100))
+        let r4 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 100))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r3, pin: 1), PinAddress(component: r4, pin: 0)))
+        engine.moveFootprint(r1, to: CGPoint(x: 10, y: 10))
+        engine.moveFootprint(r2, to: CGPoint(x: 30, y: 20))
+        engine.moveFootprint(r3, to: CGPoint(x: 10, y: 30))
+        engine.moveFootprint(r4, to: CGPoint(x: 40, y: 34))
+        if route {
+            let options = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+            XCTAssertNil(engine.routerBegin(at: CGPoint(x: 10.95, y: 10), layer: 0, pair: false, options: options)?.error)
+            _ = engine.routerMove(to: CGPoint(x: 29.05, y: 20))
+            XCTAssertTrue(engine.routerCommit().ok)
+        }
+        store.refresh()
+        return store
+    }
+
+    func testCornerAndMultiTrackDrag() throws {
+        let store = store(withRoute: true)
+        // The route has a corner where two tracks meet away from the pads: drag it.
+        let tracks = store.snapshot.tracks
+        let corner = try XCTUnwrap(tracks.flatMap { [$0.start, $0.end] }.first { p in
+            tracks.filter { $0.start == p || $0.end == p }.count == 2 && hypot(p.x - 10.95, p.y - 10) > 0.5
+                && hypot(p.x - 29.05, p.y - 20) > 0.5
+        })
+        let track = try XCTUnwrap(tracks.first { $0.start == corner || $0.end == corner })
+        XCTAssertTrue(store.beginCornerDrag(track.id, at: corner))
+        XCTAssertEqual(store.routePreview?.kind, "corner")
+        store.finishRoute(at: CGPoint(x: corner.x - 1, y: corner.y + 1))
+        XCTAssertNil(store.routePreview)
+        XCTAssertTrue(store.snapshot.ratsnest.count <= 1)  // the second net is not routed
+        XCTAssertNotEqual(store.snapshot.tracks, tracks)
+        store.undo()
+        XCTAssertEqual(store.snapshot.tracks, tracks)
+        // Two selected tracks drag together.
+        let ids = Array(tracks.prefix(2).map(\.id))
+        XCTAssertTrue(store.beginMultiDrag(ids, at: tracks[0].start))
+        XCTAssertEqual(store.routePreview?.kind, "multidrag")
+        store.cancelRoute()
+        XCTAssertEqual(store.snapshot.tracks, tracks)
+    }
+
+    func testAnyAngleAndMultiRoute() throws {
+        let store = store(withRoute: false)
+        store.routerAnyAngle = true
+        store.beginRoute(at: CGPoint(x: 10.95, y: 10), layer: 0, pair: false)
+        store.moveRouteNow(to: CGPoint(x: 29.05, y: 20))
+        XCTAssertEqual(store.routePreview?.head.count, 1)
+        store.cancelRoute()
+        store.routerAnyAngle = false
+        // ⇧-click picks the first start, the plain click adds the second and routes both together.
+        store.toggleMultiStart(CGPoint(x: 10.95, y: 10))
+        XCTAssertEqual(store.multiStarts.count, 1)
+        store.beginMultiRoute(adding: CGPoint(x: 10.95, y: 30), layer: 0)
+        XCTAssertEqual(store.routePreview?.kind, "multi")
+        XCTAssertTrue(store.multiStarts.isEmpty)
+        store.cancelRoute()
+        XCTAssertNil(store.routePreview)
+    }
+}

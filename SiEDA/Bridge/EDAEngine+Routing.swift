@@ -62,9 +62,34 @@ extension EDAEngine {
     /// Router options JSON (`sieda_router_*`). `rounded`: corners get the automatic radius; `arcs`: as true arcs
     /// (pairs and buses on concentric arcs) instead of short chords.
     static func routingOptions(mode: RouterModeChoice, diagonal: Bool, via: RouterViaChoice = .through,
-                               rounded: Bool = false, arcs: Bool = true) -> String {
-        "{\"mode\":\"\(mode.rawValue)\",\"posture\":\"\(diagonal ? "45" : "90")\",\"viaType\":\"\(via.rawValue)\","
+                               rounded: Bool = false, arcs: Bool = true, anyAngle: Bool = false) -> String {
+        let posture = anyAngle ? "free" : (diagonal ? "45" : "90")
+        return "{\"mode\":\"\(mode.rawValue)\",\"posture\":\"\(posture)\",\"viaType\":\"\(via.rawValue)\","
             + "\"cornerRadius\":\(rounded ? -1 : 0),\"arcCorners\":\(rounded && arcs)}"
+    }
+
+    /// Drags the corner of `trackId` nearest to `point`.
+    func routerBeginCornerDrag(track trackId: Int, at point: CGPoint, options: String) -> RoutePreview? {
+        Self.decode(RoutePreview.self, from: withHandle {
+            Self.take(sieda_router_begin_corner_drag($0, options, Int32(trackId), Double(point.x), Double(point.y)))
+        })
+    }
+
+    /// Drags several tracks together by the cursor's movement.
+    func routerBeginMultiDrag(tracks: [Int], at point: CGPoint, options: String) -> RoutePreview? {
+        let ids = Self.idList(tracks)
+        return Self.decode(RoutePreview.self, from: withHandle {
+            Self.take(sieda_router_begin_multi_drag($0, options, ids, Double(point.x), Double(point.y)))
+        })
+    }
+
+    /// Routes the nets at `starts` together as one bundle (multi-route).
+    func routerBeginMulti(starts: [CGPoint], layer: Int, options: String) -> RoutePreview? {
+        let points = "[" + starts.map { String(format: "{\"x\":%.6f,\"y\":%.6f}", Double($0.x), Double($0.y)) }
+            .joined(separator: ",") + "]"
+        return Self.decode(RoutePreview.self, from: withHandle {
+            Self.take(sieda_router_begin_multi($0, options, points, Int32(layer)))
+        })
     }
 
     static func idList(_ ids: [Int]) -> String { "[" + ids.map(String.init).joined(separator: ",") + "]" }

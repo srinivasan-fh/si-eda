@@ -13526,3 +13526,139 @@ TEST(c_api_length_tuning_and_rules) {
     if (rc != 0) std::printf("    C API length test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+// ======================================================================= corner / multi drags, any angle, multi-route
+
+namespace {
+bool samePointT(Vec2 a, Vec2 b) { return (a - b).length() < 1e-6; }
+}  // namespace
+
+TEST(router_drags_a_corner) {
+    // A corner (the joint of two tracks) follows the cursor: at any angle in the free posture (two straight tracks),
+    // with 45° links otherwise; the route stays connected and DRC clean. A corner on a pad is refused; a drag into
+    // another net's pad stops short of it.
+    for (RoutePosture posture : {RoutePosture::Free, RoutePosture::Diagonal45}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 10}), r2 = placeR(p, {30, 30});
+        wire(s, r1, "2", r2, "1");
+        p.schematicChanged();
+        const int net = s.netOf({r1, 1});
+        const Vec2 from = padAt(p, r1, 1), to = padAt(p, r2, 0);
+        addPath(p.pcb, net, 0, 0.25, {from, {20, from.y}, {20, to.y}, to});
+        const int first = p.pcb.tracks[0].id;
+        InteractiveRouter r(p.pcb, s);
+        RouterOptions o;
+        o.posture = posture;
+        r.setOptions(o);
+        CHECK(!r.beginCornerDrag(first, from));  // that end is on the pad
+        CHECK(r.beginCornerDrag(first, {19.8, from.y}));
+        const RoutePreview& pv = r.moveTo({17.8, from.y + 3});  // the corner moves to (18, 13)
+        CHECK(pv.kind == "corner" && !pv.blocked);
+        bool hasCorner = false;
+        for (const auto& t : pv.head) hasCorner = hasCorner || samePointT(t.a, {18, from.y + 3}) || samePointT(t.b, {18, from.y + 3});
+        CHECK(hasCorner);
+        if (posture == RoutePosture::Free) CHECK(pv.head.size() == 2);
+        CHECK(r.commit().ok);
+        CHECK(netRouted(p, net));
+        CHECK(routingProblems(p) == 0);
+        CHECK(acuteWarnings(p) == 0);
+    }
+}
+
+TEST(router_drags_several_tracks_together) {
+    // Two nets' parallel horizontal tracks are dragged down together: both move by the same offset, their ends on
+    // the pads get links, every net stays connected and the board DRC clean; the moved copper is one undo step.
+    Project p;
+    auto& s = p.schematic;
+    const int a1 = placeR(p, {8, 10}), a2 = placeR(p, {40, 10}), b1 = placeR(p, {8, 13}), b2 = placeR(p, {40, 13});
+    wire(s, a1, "2", a2, "1");
+    wire(s, b1, "2", b2, "1");
+    p.schematicChanged();
+    const int na = s.netOf({a1, 1}), nb = s.netOf({b1, 1});
+    addPath(p.pcb, na, 0, 0.25, {padAt(p, a1, 1), {12, 10}, {36, 10}, padAt(p, a2, 0)});
+    addPath(p.pcb, nb, 0, 0.25, {padAt(p, b1, 1), {12, 13}, {36, 13}, padAt(p, b2, 0)});
+    std::vector<int> ids;
+    for (const auto& t : p.pcb.tracks)
+        if ((t.a - t.b).length() > 10) ids.push_back(t.id);  // the two long middle tracks
+    CHECK(ids.size() == 2);
+    InteractiveRouter r(p.pcb, s);
+    CHECK(r.beginMultiDrag(ids, {24, 10}));
+    const RoutePreview& pv = r.moveTo({24, 11.5});
+    CHECK(pv.kind == "multidrag" && !pv.blocked);
+    CHECK(r.commit().ok);
+    bool movedA = false, movedB = false;
+    for (const auto& t : p.pcb.tracks) {
+        movedA = movedA || (t.net == na && std::fabs(t.a.y - 11.5) < 1e-9 && std::fabs(t.b.y - 11.5) < 1e-9);
+        movedB = movedB || (t.net == nb && std::fabs(t.a.y - 14.5) < 1e-9 && std::fabs(t.b.y - 14.5) < 1e-9);
+    }
+    CHECK(movedA && movedB);
+    CHECK(netRouted(p, na) && netRouted(p, nb));
+    CHECK(routingProblems(p) == 0);
+    CHECK(acuteWarnings(p) == 0);
+    InteractiveRouter r2(p.pcb, s);
+    CHECK(!r2.beginMultiDrag({}, {0, 0}));
+}
+
+TEST(router_routes_at_any_angle) {
+    // Free posture: the head is one straight track at any angle to the target pad, DRC clean.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20}), r2 = placeR(p, {31, 27});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 1});
+    InteractiveRouter r(p.pcb, s);
+    RouterOptions o;
+    o.posture = RoutePosture::Free;
+    r.setOptions(o);
+    CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+    const RoutePreview& pv = r.moveTo(padAt(p, r2, 0));
+    CHECK(pv.reachedTarget && pv.head.size() == 1);
+    const Vec2 d = pv.head[0].b - pv.head[0].a;
+    CHECK(std::fabs(d.x) > 1 && std::fabs(d.y) > 1 && std::fabs(std::fabs(d.x) - std::fabs(d.y)) > 1);  // not 0 / 45 / 90°
+    CHECK(r.commit().ok);
+    CHECK(netRouted(p, net));
+    CHECK(routingProblems(p) == 0);
+}
+
+TEST(router_multi_routes_nets_with_vias) {
+    // Three nets from scattered pads (not one row) route as one bundle; V places a via per member, spread to via
+    // pitch, and the bundle continues on the bottom layer; DRC clean (no clearance or hole-spacing error).
+    Project p;
+    auto& s = p.schematic;
+    const int a = placeR(p, {8, 10}), b = placeR(p, {10, 15}), c = placeR(p, {7, 20});
+    const int ta = placeR(p, {45, 10}), tb = placeR(p, {45, 15}), tc = placeR(p, {45, 20});
+    wire(s, a, "2", ta, "1");
+    wire(s, b, "2", tb, "1");
+    wire(s, c, "2", tc, "1");
+    p.schematicChanged();
+    InteractiveRouter r(p.pcb, s);
+    CHECK(!r.beginMultiRoute({padAt(p, a, 1)}, 0));
+    CHECK(r.beginMultiRoute({padAt(p, a, 1), padAt(p, b, 1), padAt(p, c, 1)}, 0));
+    CHECK(r.preview().kind == "multi" && r.preview().nets.size() == 3);
+    r.moveTo({22, 15});
+    CHECK(r.fixHead());
+    CHECK(r.addVia());
+    const RoutePreview& pv = r.preview();
+    CHECK(pv.vias.size() == 3 && pv.layer == 1);
+    for (size_t i = 0; i < pv.vias.size(); ++i)
+        for (size_t j = i + 1; j < pv.vias.size(); ++j)
+            CHECK((pv.vias[i].position - pv.vias[j].position).length() >= pv.vias[i].diameter + p.pcb.settings.clearance - 1e-6);
+    r.moveTo({32, 15});
+    CHECK(r.fixHead());
+    CHECK(r.commit().ok);
+    CHECK(p.pcb.vias.size() == 3);
+    CHECK(routingProblems(p) == 0);
+    CHECK(acuteWarnings(p) == 0);
+    int bottom = 0;
+    for (const auto& t : p.pcb.tracks) bottom += t.layer == 1 ? 1 : 0;
+    CHECK(bottom >= 3);
+}
+
+extern "C" int sieda_c_api_drag_multi_test(void);
+TEST(c_api_corner_multi_drag_and_multi_route) {
+    const int rc = sieda_c_api_drag_multi_test();
+    if (rc != 0) std::printf("    C API drag / multi test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}

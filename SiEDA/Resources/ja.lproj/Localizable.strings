@@ -815,3 +815,5 @@
 "Group name" = "グループ名";
 "Add Group" = "グループを追加";
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "メンバー：2つ以上のネットを選びます。直列の抵抗やコンデンサを通るネットは、それらをまたいでパッドからパッドまで測定します。";
+"Any angle" = "任意角度";
+"Route and drag at any angle: the head is one straight track to the pointer" = "任意角度で配線・ドラッグ：先端はポインタまでの1本の直線トラックです";

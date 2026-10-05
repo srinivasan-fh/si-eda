@@ -815,3 +815,5 @@
 "Group name" = "ಗುಂಪಿನ ಹೆಸರು";
 "Add Group" = "ಗುಂಪನ್ನು ಸೇರಿಸಿ";
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "ಸದಸ್ಯರು: ಎರಡು ಅಥವಾ ಹೆಚ್ಚು ನೆಟ್‌ಗಳನ್ನು ಆಯ್ಕೆಮಾಡಿ. ಸರಣಿ ರೆಸಿಸ್ಟರ್ ಅಥವಾ ಕೆಪಾಸಿಟರ್ ಮೂಲಕ ಹೋಗುವ ನೆಟ್ ಅನ್ನು ಅವುಗಳನ್ನು ದಾಟಿ ಪ್ಯಾಡ್‌ನಿಂದ ಪ್ಯಾಡ್‌ವರೆಗೆ ಅಳೆಯಲಾಗುತ್ತದೆ.";
+"Any angle" = "ಯಾವುದೇ ಕೋನ";
+"Route and drag at any angle: the head is one straight track to the pointer" = "ಯಾವುದೇ ಕೋನದಲ್ಲಿ ರೂಟ್ ಮಾಡಿ ಮತ್ತು ಎಳೆಯಿರಿ: ಹೆಡ್ ಪಾಯಿಂಟರ್‌ವರೆಗೆ ಒಂದು ನೇರ ಟ್ರ್ಯಾಕ್";

@@ -815,3 +815,5 @@
 "Group name" = "గ్రూప్ పేరు";
 "Add Group" = "గ్రూప్ జోడించండి";
 "Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "సభ్యులు: రెండు లేదా అంతకంటే ఎక్కువ నెట్‌లను ఎంచుకోండి. సిరీస్ రెసిస్టర్లు లేదా కెపాసిటర్ల ద్వారా వెళ్లే నెట్‌ను వాటిని దాటి ప్యాడ్ నుండి ప్యాడ్ వరకు కొలుస్తారు.";
+"Any angle" = "ఏ కోణమైనా";
+"Route and drag at any angle: the head is one straight track to the pointer" = "ఏ కోణంలోనైనా రూట్ చేయండి, లాగండి: హెడ్ పాయింటర్ వరకు ఒక నేరు ట్రాక్";
