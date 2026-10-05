@@ -38,6 +38,7 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 | F14 | Symbol Editor: pins on any side and slot, gaps, stacked power pins (joined nets), Auto Arrange by name and type, live checks; library parts with 16+ pins arranged | ✅ |
 | F15 | Large designs: multi-sheet hierarchical schematics (global / local / port labels, sheet symbols), repeated multi-instance sheets with per-channel designators, nets and footprints, cross-sheet ERC, graphical buses with bus entries and bus ERC, multi-unit symbols on one footprint, annotation with unit packing, assembly variants (DNP and value overrides) for BOM / CPL / assembly exports and simulation (docs/SCHEMATIC.md) | ✅ |
 | F17 | Schematic productivity: find / replace across sheets, net navigator, hierarchy cross-probing, title block | ✅ |
+| F18 | Part library: KiCad, Eagle and Altium (.SchLib / .PcbLib) import with a footprint choice per symbol; VRML / STL / OBJ 3D models per part (3D view, STL / OBJ export); live distributor search (Octopart / Nexar, DigiKey, Mouser) with stock, price breaks and lifecycle, Place Part with sourcing; BOM live pricing and cost per build quantity (docs/LIBRARY_IMPORT.md, docs/SUPPLIERS.md) | ✅ |
 | F16 | Interactive routing: Route tool with walkaround and push-and-shove (recursive, DRC rules kept; pads and locked tracks fixed), 45° / 90° corners, vias with layer change, snap to pads, commit / cancel / undo; differential pairs at the pair gap, segment drag with shove, length tuning with meanders | ✅ |
 
 ## Non-functional requirements
@@ -50,8 +51,10 @@ this with AI agents whose work is grounded by a deterministic, verifiable EDA en
 - **Portability.** The core is dependency-free C++17 and is tested on Linux and macOS in CI.
 
 ## Out of scope for v1
-- Importing KiCad or Altium library files and custom symbol graphics (the Footprint and Symbol Editors shipped; see
-  F13, F14). Multi-unit symbols shipped (see docs/SCHEMATIC.md).
+- Custom symbol graphics (the Footprint and Symbol Editors shipped; see F13, F14; library import shipped, F18).
+  Multi-unit symbols shipped (see docs/SCHEMATIC.md).
+- STEP 3D models (no CAD kernel; VRML / STL / OBJ are read), Altium integrated (.IntLib), ASCII and database
+  libraries, distributor parametric filtering and contract pricing.
 - Noise analysis (AC small-signal analysis shipped; see F7).
 
 ## Roadmap
@@ -62,7 +65,7 @@ then channel analysis: frequency-dependent lossy lines, S-parameters and Touchst
 eye diagrams with CTLE / FFE, broadside crosstalk, plane-cavity PDN, decoupling plans and the IR-drop heat map —
 see [SIGNAL_POWER_INTEGRITY.md](SIGNAL_POWER_INTEGRITY.md).)
 
-1. ~~KiCad footprint import~~ shipped: Library Import reads KiCad `.kicad_mod` / `.kicad_sym` and Eagle `.lbr` libraries into project parts ([LIBRARY_IMPORT.md](LIBRARY_IMPORT.md)). Altium binary libraries (`.SchLib`, `.PcbLib`, `.IntLib`) are not supported; convert them in KiCad 8+ first. Still open: choosing the footprint for a symbol in the import sheet, and 3D model import.
+1. ~~KiCad footprint import~~ shipped: Library Import reads KiCad `.kicad_mod` / `.kicad_sym`, Eagle `.lbr` and Altium `.SchLib` / `.PcbLib` libraries into project parts, with a footprint choice per symbol in the import sheet and VRML / STL / OBJ 3D models ([LIBRARY_IMPORT.md](LIBRARY_IMPORT.md)); live supplier search and BOM pricing ([SUPPLIERS.md](SUPPLIERS.md)). Still open: `.IntLib`, STEP models, distributor parametric search.
 2. AC small-signal analysis and Bode plots — shipped (F7, docs/SIMULATION.md).
 3. ~~Push-and-shove interactive routing.~~ **Shipped** (F16): walkaround and push-and-shove, differential pairs,
    segment drag and length tuning. See [INTERACTIVE_ROUTING.md](INTERACTIVE_ROUTING.md).

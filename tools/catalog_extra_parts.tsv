@@ -1,0 +1,1253 @@
+# Frozen by tools/fetch_catalog_parts.py --discover (category, library, symbol, name, manufacturer, description, reference prefix, footprint override). Edit by re-running --discover.
+Connectors	Connector_Generic	Conn_01x02	PinHeader_1x02_P2.54mm	Generic	Pin header 1 × 2, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x02	PinSocket_1x02_P2.54mm	Generic	Pin socket (female header) 1 × 2, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x02_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x03	PinHeader_1x03_P2.54mm	Generic	Pin header 1 × 3, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x03	PinSocket_1x03_P2.54mm	Generic	Pin socket (female header) 1 × 3, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x03_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x04	PinHeader_1x04_P2.54mm	Generic	Pin header 1 × 4, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x04	PinSocket_1x04_P2.54mm	Generic	Pin socket (female header) 1 × 4, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x05	PinHeader_1x05_P2.54mm	Generic	Pin header 1 × 5, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x05	PinSocket_1x05_P2.54mm	Generic	Pin socket (female header) 1 × 5, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x05_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x06	PinHeader_1x06_P2.54mm	Generic	Pin header 1 × 6, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x06	PinSocket_1x06_P2.54mm	Generic	Pin socket (female header) 1 × 6, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x06_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x07	PinHeader_1x07_P2.54mm	Generic	Pin header 1 × 7, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x07_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x07	PinSocket_1x07_P2.54mm	Generic	Pin socket (female header) 1 × 7, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x07_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x08	PinHeader_1x08_P2.54mm	Generic	Pin header 1 × 8, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x08	PinSocket_1x08_P2.54mm	Generic	Pin socket (female header) 1 × 8, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x08_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x09	PinHeader_1x09_P2.54mm	Generic	Pin header 1 × 9, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x09_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x09	PinSocket_1x09_P2.54mm	Generic	Pin socket (female header) 1 × 9, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x09_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x10	PinHeader_1x10_P2.54mm	Generic	Pin header 1 × 10, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x10	PinSocket_1x10_P2.54mm	Generic	Pin socket (female header) 1 × 10, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x10_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x11	PinHeader_1x11_P2.54mm	Generic	Pin header 1 × 11, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x11_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x11	PinSocket_1x11_P2.54mm	Generic	Pin socket (female header) 1 × 11, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x11_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x12	PinHeader_1x12_P2.54mm	Generic	Pin header 1 × 12, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x12_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x12	PinSocket_1x12_P2.54mm	Generic	Pin socket (female header) 1 × 12, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x12_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x13	PinHeader_1x13_P2.54mm	Generic	Pin header 1 × 13, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x13_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x13	PinSocket_1x13_P2.54mm	Generic	Pin socket (female header) 1 × 13, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x13_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x14	PinHeader_1x14_P2.54mm	Generic	Pin header 1 × 14, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x14_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x14	PinSocket_1x14_P2.54mm	Generic	Pin socket (female header) 1 × 14, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x14_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x15	PinHeader_1x15_P2.54mm	Generic	Pin header 1 × 15, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x15_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x15	PinSocket_1x15_P2.54mm	Generic	Pin socket (female header) 1 × 15, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x15_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x16	PinHeader_1x16_P2.54mm	Generic	Pin header 1 × 16, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x16_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x16	PinSocket_1x16_P2.54mm	Generic	Pin socket (female header) 1 × 16, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x16_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x17	PinHeader_1x17_P2.54mm	Generic	Pin header 1 × 17, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x17_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x17	PinSocket_1x17_P2.54mm	Generic	Pin socket (female header) 1 × 17, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x17_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x18	PinHeader_1x18_P2.54mm	Generic	Pin header 1 × 18, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x18_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x18	PinSocket_1x18_P2.54mm	Generic	Pin socket (female header) 1 × 18, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x18_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x19	PinHeader_1x19_P2.54mm	Generic	Pin header 1 × 19, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x19_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x19	PinSocket_1x19_P2.54mm	Generic	Pin socket (female header) 1 × 19, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x19_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x20	PinHeader_1x20_P2.54mm	Generic	Pin header 1 × 20, 2.54 mm pitch, vertical, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_1x20_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_01x20	PinSocket_1x20_P2.54mm	Generic	Pin socket (female header) 1 × 20, 2.54 mm pitch, vertical, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_1x20_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x02_Odd_Even	PinHeader_2x02_P2.54mm	Generic	Pin header 2 × 2 (4 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x02_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x02_Odd_Even	PinSocket_2x02_P2.54mm	Generic	Pin socket 2 × 2 (4 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x02_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x03_Odd_Even	PinHeader_2x03_P2.54mm	Generic	Pin header 2 × 3 (6 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x03_Odd_Even	PinSocket_2x03_P2.54mm	Generic	Pin socket 2 × 3 (6 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x03_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x04_Odd_Even	PinHeader_2x04_P2.54mm	Generic	Pin header 2 × 4 (8 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x04_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x04_Odd_Even	PinSocket_2x04_P2.54mm	Generic	Pin socket 2 × 4 (8 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x04_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x05_Odd_Even	PinHeader_2x05_P2.54mm	Generic	Pin header 2 × 5 (10 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x05_Odd_Even	PinSocket_2x05_P2.54mm	Generic	Pin socket 2 × 5 (10 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x05_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x06_Odd_Even	PinHeader_2x06_P2.54mm	Generic	Pin header 2 × 6 (12 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x06_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x06_Odd_Even	PinSocket_2x06_P2.54mm	Generic	Pin socket 2 × 6 (12 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x06_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x07_Odd_Even	PinHeader_2x07_P2.54mm	Generic	Pin header 2 × 7 (14 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x07_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x07_Odd_Even	PinSocket_2x07_P2.54mm	Generic	Pin socket 2 × 7 (14 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x07_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x08_Odd_Even	PinHeader_2x08_P2.54mm	Generic	Pin header 2 × 8 (16 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x08_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x08_Odd_Even	PinSocket_2x08_P2.54mm	Generic	Pin socket 2 × 8 (16 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x08_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x09_Odd_Even	PinHeader_2x09_P2.54mm	Generic	Pin header 2 × 9 (18 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x09_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x09_Odd_Even	PinSocket_2x09_P2.54mm	Generic	Pin socket 2 × 9 (18 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x09_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x10_Odd_Even	PinHeader_2x10_P2.54mm	Generic	Pin header 2 × 10 (20 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x10_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x10_Odd_Even	PinSocket_2x10_P2.54mm	Generic	Pin socket 2 × 10 (20 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x10_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x11_Odd_Even	PinHeader_2x11_P2.54mm	Generic	Pin header 2 × 11 (22 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x11_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x11_Odd_Even	PinSocket_2x11_P2.54mm	Generic	Pin socket 2 × 11 (22 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x11_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x12_Odd_Even	PinHeader_2x12_P2.54mm	Generic	Pin header 2 × 12 (24 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x12_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x12_Odd_Even	PinSocket_2x12_P2.54mm	Generic	Pin socket 2 × 12 (24 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x12_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x13_Odd_Even	PinHeader_2x13_P2.54mm	Generic	Pin header 2 × 13 (26 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x13_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x13_Odd_Even	PinSocket_2x13_P2.54mm	Generic	Pin socket 2 × 13 (26 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x13_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x14_Odd_Even	PinHeader_2x14_P2.54mm	Generic	Pin header 2 × 14 (28 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x14_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x14_Odd_Even	PinSocket_2x14_P2.54mm	Generic	Pin socket 2 × 14 (28 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x14_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x15_Odd_Even	PinHeader_2x15_P2.54mm	Generic	Pin header 2 × 15 (30 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x15_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x15_Odd_Even	PinSocket_2x15_P2.54mm	Generic	Pin socket 2 × 15 (30 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x15_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x16_Odd_Even	PinHeader_2x16_P2.54mm	Generic	Pin header 2 × 16 (32 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x16_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x16_Odd_Even	PinSocket_2x16_P2.54mm	Generic	Pin socket 2 × 16 (32 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x16_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x17_Odd_Even	PinHeader_2x17_P2.54mm	Generic	Pin header 2 × 17 (34 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x17_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x17_Odd_Even	PinSocket_2x17_P2.54mm	Generic	Pin socket 2 × 17 (34 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x17_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x18_Odd_Even	PinHeader_2x18_P2.54mm	Generic	Pin header 2 × 18 (36 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x18_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x18_Odd_Even	PinSocket_2x18_P2.54mm	Generic	Pin socket 2 × 18 (36 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x18_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x19_Odd_Even	PinHeader_2x19_P2.54mm	Generic	Pin header 2 × 19 (38 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x19_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x19_Odd_Even	PinSocket_2x19_P2.54mm	Generic	Pin socket 2 × 19 (38 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x19_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x20_Odd_Even	PinHeader_2x20_P2.54mm	Generic	Pin header 2 × 20 (40 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinHeader_2.54mm:PinHeader_2x20_P2.54mm_Vertical
+Connectors	Connector_Generic	Conn_02x20_Odd_Even	PinSocket_2x20_P2.54mm	Generic	Pin socket 2 × 20 (40 pins), 2.54 mm pitch, odd / even numbering, through-hole	J	Connector_PinSocket_2.54mm:PinSocket_2x20_P2.54mm_Vertical
+Regulators	Regulator_Linear	ADP3336ARMZ	ADP3336ARMZ	Analog Devices	High Accuracy Ultralow IQ, 500mA anyCAP Adjustable Low Dropout Regulator, MSOP-8	U	
+Regulators	Regulator_Linear	ADP7142AUJZ	ADP7142AUJZ	Analog Devices	200mA, Low Noise, CMOS Low Dropout Regulator, Positive, Adjustable, TSOT-23-5	U	
+Regulators	Regulator_Linear	ADP7142AUJZ-1.8	ADP7142AUJZ-1.8	Analog Devices	200mA, Low Noise, CMOS Low Dropout Regulator, Positive, 1.8V Fixed Output, TSOT-23-5	U	
+Regulators	Regulator_Linear	ADP7142AUJZ-2.5	ADP7142AUJZ-2.5	Analog Devices	200mA, Low Noise, CMOS Low Dropout Regulator, Positive, 2.5V Fixed Output, TSOT-23-5	U	
+Regulators	Regulator_Linear	ADP7142AUJZ-3.3	ADP7142AUJZ-3.3	Analog Devices	200mA, Low Noise, CMOS Low Dropout Regulator, Positive, 3.3V Fixed Output, TSOT-23-5	U	
+Regulators	Regulator_Linear	ADP7142AUJZ-5.0	ADP7142AUJZ-5.0	Analog Devices	200mA, Low Noise, CMOS Low Dropout Regulator, Positive, 5.0V Fixed Output, TSOT-23-5	U	
+Regulators	Regulator_Linear	ADP7182AUJZ	ADP7182AUJZ	Analog Devices	200mA, Low Noise, CMOS Low Dropout Regulator, Negative, Adjustable, TSOT-23-5	U	
+Regulators	Regulator_Linear	ADP7182AUJZ-1.8	ADP7182AUJZ-1.8	Analog Devices	200mA, Low Noise, CMOS Low Dropout Regulator, Negative, -1.8V Fixed Output, TSOT-23-5	U	
+Regulators	Regulator_Linear	ADP7182AUJZ-2.5	ADP7182AUJZ-2.5	Analog Devices	200mA, Low Noise, CMOS Low Dropout Regulator, Negative, -2.5V Fixed Output, TSOT-23-5	U	
+Regulators	Regulator_Linear	ADP7182AUJZ-3.3	ADP7182AUJZ-3.3	Analog Devices	200mA, Low Noise, CMOS Low Dropout Regulator, Negative, -3.3V Fixed Output, TSOT-23-5	U	
+Regulators	Regulator_Linear	ADP7182AUJZ-5.0	ADP7182AUJZ-5.0	Analog Devices	200mA, Low Noise, CMOS Low Dropout Regulator, Negative, -5.0V Fixed Output, TSOT-23-5	U	
+Regulators	Regulator_Linear	AP1117-15	AP1117-15	Diodes Inc.	1A Low Dropout regulator, positive, 1.5V fixed output, SOT-223	U	
+Regulators	Regulator_Linear	AP1117-18	AP1117-18	Diodes Inc.	1A Low Dropout regulator, positive, 1.8V fixed output, SOT-223	U	
+Regulators	Regulator_Linear	AP1117-25	AP1117-25	Diodes Inc.	1A Low Dropout regulator, positive, 2.5V fixed output, SOT-223	U	
+Regulators	Regulator_Linear	AP1117-33	AP1117-33	Diodes Inc.	1A Low Dropout regulator, positive, 3.3V fixed output, SOT-223	U	
+Regulators	Regulator_Linear	AP1117-50	AP1117-50	Diodes Inc.	1A Low Dropout regulator, positive, 5.0V fixed output, SOT-223	U	
+Regulators	Regulator_Linear	AP1117-ADJ	AP1117-ADJ	Diodes Inc.	1A Low Dropout regulator, positive, adjustable output, SOT-223	U	
+Regulators	Regulator_Linear	AP131-15	AP131-15	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 1.5V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP131-18	AP131-18	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 1.8V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP131-20	AP131-20	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.0V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP131-25	AP131-25	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP131-28	AP131-28	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.8V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP131-29	AP131-29	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.9V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP131-30	AP131-30	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 3.0V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP131-33	AP131-33	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 3.3V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP131-35	AP131-35	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 3.5V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2112K-1.2	AP2112K-1.2	Diodes Inc.	600mA low dropout linear regulator, with enable pin, 2.5V-6V input voltage range, 1.2V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2112K-1.8	AP2112K-1.8	Diodes Inc.	600mA low dropout linear regulator, with enable pin, 2.5V-6V input voltage range, 1.8V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2112K-2.5	AP2112K-2.5	Diodes Inc.	600mA low dropout linear regulator, with enable pin, 3V-6V input voltage range, 2.5V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2112K-2.6	AP2112K-2.6	Diodes Inc.	600mA low dropout linear regulator, with enable pin, 3.1V-6V input voltage range, 2.6V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2127K-1.0	AP2127K-1.0	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 1.0V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2127K-1.2	AP2127K-1.2	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 1.2V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2127K-1.5	AP2127K-1.5	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 1.5V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2127K-1.8	AP2127K-1.8	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 1.8V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2127K-2.5	AP2127K-2.5	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 2.5V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2127K-2.8	AP2127K-2.8	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 2.8V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2127K-3.0	AP2127K-3.0	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 3.0V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2127K-3.3	AP2127K-3.3	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 3.3V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2127K-4.2	AP2127K-4.2	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 4.2V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2127K-4.75	AP2127K-4.75	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 4.75V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2127K-ADJ	AP2127K-ADJ	Diodes Inc.	300mA low dropout adjustable linear regulator, shutdown pin, 2.5V-6V input voltage, SOT-23-5 package	U	
+Regulators	Regulator_Linear	AP2127N-1.0	AP2127N-1.0	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 1.0V fixed positive output, SOT-23 package	U	
+Regulators	Regulator_Linear	AP2127N-1.2	AP2127N-1.2	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 1.2V fixed positive output, SOT-23 package	U	
+Regulators	Regulator_Linear	AP2127N-1.5	AP2127N-1.5	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 1.5V fixed positive output, SOT-23 package	U	
+Regulators	Regulator_Linear	AP2127N-1.8	AP2127N-1.8	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 1.8V fixed positive output, SOT-23 package	U	
+Regulators	Regulator_Linear	AP2127N-2.5	AP2127N-2.5	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 2.5V fixed positive output, SOT-23 package	U	
+Regulators	Regulator_Linear	AP2127N-2.8	AP2127N-2.8	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 2.8V fixed positive output, SOT-23 package	U	
+Regulators	Regulator_Linear	AP2127N-3.0	AP2127N-3.0	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 3.0V fixed positive output, SOT-23 package	U	
+Regulators	Regulator_Linear	AP2127N-3.3	AP2127N-3.3	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 3.3V fixed positive output, SOT-23 package	U	
+Regulators	Regulator_Linear	AP2127N3-1.2	AP2127N3-1.2	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 1.2V fixed positive output, SOT-23-3 package	U	
+Regulators	Regulator_Linear	AP2127N3-1.5	AP2127N3-1.5	Diodes Inc.	300mA low dropout linear regulator, shutdown pin, 2.5V-6V input voltage, 1.5V fixed positive output, SOT-23-3 package	U	
+Regulators	Regulator_Linear	AP2204K-1.5	AP2204K-1.5	Diodes Inc.	150mA low dropout linear regulator, wide input voltage range, 1.5V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2204K-1.8	AP2204K-1.8	Diodes Inc.	150mA low dropout linear regulator, wide input voltage range, 1.8V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2204K-2.5	AP2204K-2.5	Diodes Inc.	150mA low dropout linear regulator, wide input voltage range, 2.5V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2204K-2.8	AP2204K-2.8	Diodes Inc.	150mA low dropout linear regulator, wide input voltage range, 2.8V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2204K-3.0	AP2204K-3.0	Diodes Inc.	150mA low dropout linear regulator, wide input voltage range, 3.0V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2204K-3.3	AP2204K-3.3	Diodes Inc.	150mA low dropout linear regulator, wide input voltage range, 3.3V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2204K-5.0	AP2204K-5.0	Diodes Inc.	150mA low dropout linear regulator, wide input voltage range, 5.0V fixed positive output, SOT-23-5	U	
+Regulators	Regulator_Linear	AP2204K-ADJ	AP2204K-ADJ	Diodes Inc.	150mA low dropout adjustable linear regulator, wide input voltage range, SOT-23-5 package	U	
+Regulators	Regulator_Linear	AP22615AWU	AP22615AWU	Diodes Inc.	Current limited power switch, single channel, 3.0V to 5.5V, 3A, SOT-23-6	U	
+Regulators	Regulator_Linear	AP22615BWU	AP22615BWU	Diodes Inc.	Current limited power switch, single channel, 3.0V to 5.5V, 3A, SOT-23-6	U	
+Regulators	Regulator_Linear	AP7361C-10E	AP7361C-10E	Diodes Inc.	1A Low Dropout regulator, positive, 1.0V fixed output, SOT-223	U	
+Regulators	Regulator_Linear	AP7361C-12E	AP7361C-12E	Diodes Inc.	1A Low Dropout regulator, positive, 1.2V fixed output, SOT-223	U	
+Regulators	Regulator_Linear	AP7361C-15E	AP7361C-15E	Diodes Inc.	1A Low Dropout regulator, positive, 1.5V fixed output, SOT-223	U	
+Regulators	Regulator_Linear	AP7361C-18E	AP7361C-18E	Diodes Inc.	1A Low Dropout regulator, positive, 1.8V fixed output, SOT-223	U	
+Regulators	Regulator_Linear	AP7361C-25E	AP7361C-25E	Diodes Inc.	1A Low Dropout regulator, positive, 2.5V fixed output, SOT-223	U	
+Regulators	Regulator_Linear	AP7361C-28E	AP7361C-28E	Diodes Inc.	1A Low Dropout regulator, positive, 2.8V fixed output, SOT-223	U	
+Regulators	Regulator_Linear	AP7361C-33E	AP7361C-33E	Diodes Inc.	1A Low Dropout regulator, positive, 3.3V fixed output, SOT-223	U	
+Regulators	Regulator_Linear	AP7370-12FDC	AP7370-12FDC	Diodes Inc.	200mA Low-Dropout Linear Regulator, 1.2V fixed output, DFN-6	U	
+Regulators	Regulator_Linear	AP7370-15FDC	AP7370-15FDC	Diodes Inc.	200mA Low-Dropout Linear Regulator, 1.5V fixed output, DFN-6	U	
+Regulators	Regulator_Linear	AP7370-18FDC	AP7370-18FDC	Diodes Inc.	200mA Low-Dropout Linear Regulator, 1.8V fixed output, DFN-6	U	
+Regulators	Regulator_Linear	AP7370-28FDC	AP7370-28FDC	Diodes Inc.	350mA Low-Dropout Linear Regulator, 2.8V fixed output, DFN-6	U	
+Regulators	Regulator_Linear	AP7370-30FDC	AP7370-30FDC	Diodes Inc.	350mA Low-Dropout Linear Regulator, 3.0V fixed output, DFN-6	U	
+Regulators	Regulator_Linear	AP7370-33FDC	AP7370-33FDC	Diodes Inc.	350mA Low-Dropout Linear Regulator, 3.3V fixed output, DFN-6	U	
+Regulators	Regulator_Linear	AP7370-36FDC	AP7370-36FDC	Diodes Inc.	350mA Low-Dropout Linear Regulator, 3.6V fixed output, DFN-6	U	
+Regulators	Regulator_Linear	AP7370-50FDC	AP7370-50FDC	Diodes Inc.	350mA Low-Dropout Linear Regulator, 5.0V fixed output, DFN-6	U	
+Regulators	Regulator_Linear	AP7381-28SA-7	AP7381-28SA-7	Diodes Inc.	150mA Low Dropout Voltage Regulator, Fixed Output 2.8V, Wide Input Voltage Range 40V, SOT-23	U	
+Regulators	Regulator_Linear	AP7381-33SA-7	AP7381-33SA-7	Diodes Inc.	150mA Low Dropout Voltage Regulator, Fixed Output 3.3V, Wide Input Voltage Range 40V, SOT-23	U	
+Regulators	Regulator_Linear	AP7381-50SA-7	AP7381-50SA-7	Diodes Inc.	150mA Low Dropout Voltage Regulator, Fixed Output 5.0V, Wide Input Voltage Range 40V, SOT-23	U	
+Regulators	Regulator_Linear	AP7381-70SA-7	AP7381-70SA-7	Diodes Inc.	150mA Low Dropout Voltage Regulator, Fixed Output 7.0V, Wide Input Voltage Range 40V, SOT-23	U	
+Regulators	Regulator_Linear	AP7384-28SA	AP7384-28SA	Diodes Inc.	50mA Low Dropout Voltage Regulator, Fixed Output 2.8V, Wide Input Voltage Range 40V, SOT-23	U	
+Regulators	Regulator_Linear	AP7384-33SA	AP7384-33SA	Diodes Inc.	50mA Low Dropout Voltage Regulator, Fixed Output 3.3V, Wide Input Voltage Range 40V, SOT-23	U	
+Regulators	Regulator_Linear	AP7384-50SA	AP7384-50SA	Diodes Inc.	50mA Low Dropout Voltage Regulator, Fixed Output 5V, Wide Input Voltage Range 40V, SOT-23	U	
+Regulators	Regulator_Linear	AP7384-70SA	AP7384-70SA	Diodes Inc.	50mA Low Dropout Voltage Regulator, Fixed Output 7V, Wide Input Voltage Range 40V, SOT-23	U	
+Regulators	Regulator_Linear	AZ1117CH2-1.2	AZ1117CH2-1.2	Diodes Inc.	1A Fixed 1.2V LDO Linear Regulator, 15V Max Input, SOT-223	U	
+Regulators	Regulator_Linear	AZ1117CH2-1.5	AZ1117CH2-1.5	Diodes Inc.	1A Fixed 1.5V LDO Linear Regulator, 15V Max Input, SOT-223	U	
+Regulators	Regulator_Linear	AZ1117CH2-1.8	AZ1117CH2-1.8	Diodes Inc.	1A Fixed 1.8V LDO Linear Regulator, 15V Max Input, SOT-223	U	
+Regulators	Regulator_Linear	AZ1117CH2-2.5	AZ1117CH2-2.5	Diodes Inc.	1A Fixed 2.5V LDO Linear Regulator, 15V Max Input, SOT-223	U	
+Regulators	Regulator_Linear	AZ1117CH2-3.3	AZ1117CH2-3.3	Diodes Inc.	1A Fixed 3.3V LDO Linear Regulator, 15V Max Input, SOT-223	U	
+Regulators	Regulator_Linear	AZ1117CH2-5.0	AZ1117CH2-5.0	Diodes Inc.	1A Fixed 5.0V LDO Linear Regulator, 15V Max Input, SOT-223	U	
+Regulators	Regulator_Linear	AZ1117CH2-ADJ	AZ1117CH2-ADJ	Diodes Inc.	1A Adjustable LDO Linear Regulator, 15V Max Input, SOT-223	U	
+Regulators	Regulator_Linear	AZ1117H-ADJ	AZ1117H-ADJ	Diodes Inc.	1A 20V Adjustable LDO Linear Regulator, SOT-223	U	
+Regulators	Regulator_Linear	AZ1117T-ADJ	AZ1117T-ADJ	Diodes Inc.	1A 20V Adjustable LDO Linear Regulator, TO-220	U	
+Regulators	Regulator_Linear	BD00FC0WEFJ	BD00FC0WEFJ	ROHM	1A, variable LDO regulator with OVP & TSP, with enable, HTSOP-J8	U	
+Regulators	Regulator_Linear	BD15GA3WEFJ	BD15GA3WEFJ	ROHM	300mA, 1.5V LDO regulator with OVP & TSP, HTSOP-8	U	
+Regulators	Regulator_Linear	BD15GA5WEFJ	BD15GA5WEFJ	ROHM	500mA, 1.5V LDO regulator with OVP & TSP, HTSOP-8	U	
+Regulators	Regulator_Linear	BD18GA3WEFJ	BD18GA3WEFJ	ROHM	300mA, 1.8V LDO regulator with OVP & TSP, HTSOP-8	U	
+Regulators	Regulator_Linear	BD18GA5WEFJ	BD18GA5WEFJ	ROHM	500mA, 1.8V LDO regulator with OVP & TSP, HTSOP-8	U	
+Regulators	Regulator_Linear	BD25GA3WEFJ	BD25GA3WEFJ	ROHM	300mA, 2.5V LDO regulator with OVP & TSP, HTSOP-8	U	
+Regulators	Regulator_Linear	BD25GA5WEFJ	BD25GA5WEFJ	ROHM	500mA, 2.5V LDO regulator with OVP & TSP, HTSOP-8	U	
+Regulators	Regulator_Linear	BD30FC0WEFJ	BD30FC0WEFJ	ROHM	1A, 3.0V LDO regulator with OVP & TSP, with enable, HTSOP-J8	U	
+Regulators	Regulator_Linear	BD30GA3WEFJ	BD30GA3WEFJ	ROHM	300mA, 3V LDO regulator with OVP & TSP, HTSOP-8	U	
+Regulators	Regulator_Linear	BD30GA5WEFJ	BD30GA5WEFJ	ROHM	500mA, 3V LDO regulator with OVP & TSP, HTSOP-8	U	
+Regulators	Regulator_Linear	BD33FC0WEFJ	BD33FC0WEFJ	ROHM	1A, 3.3V LDO regulator with OVP & TSP, with enable, HTSOP-J8	U	
+Regulators	Regulator_Switching	A4403GEU	A4403GEU	Allegro	Valley current mode buck converter, 46V, 3A, up to 2MHz, QFN-16	U	
+Regulators	Regulator_Switching	ADP1108AN	ADP1108AN	Analog Devices	Micropower DC-DC converter, step-up or step-down operation, 2V-30Vin, adjustable output voltage, DIP-8	U	
+Regulators	Regulator_Switching	ADP1108AN-12	ADP1108AN-12	Analog Devices	Micropower DC-DC converter, step-up or step-down operation, 2V-30Vin, 12V fixed output voltage, DIP-8	U	
+Regulators	Regulator_Switching	ADP1108AN-3.3	ADP1108AN-3.3	Analog Devices	Micropower DC-DC converter, step-up or step-down operation, 2V-30Vin, 3.3V fixed output voltage, DIP-8	U	
+Regulators	Regulator_Switching	ADP1108AN-5	ADP1108AN-5	Analog Devices	Micropower DC-DC converter, step-up or step-down operation, 2V-30Vin, 5V fixed output voltage, DIP-8	U	
+Regulators	Regulator_Switching	ADP1108AR	ADP1108AR	Analog Devices	Micropower DC-DC converter, step-up or step-down operation, 2V-30Vin, adjustable output voltage, DIP-8	U	
+Regulators	Regulator_Switching	ADP1108AR-12	ADP1108AR-12	Analog Devices	Micropower DC-DC converter, step-up or step-down operation, 2V-30Vin, 12V fixed output voltage, DIP-8	U	
+Regulators	Regulator_Switching	ADP1108AR-3.3	ADP1108AR-3.3	Analog Devices	Micropower DC-DC converter, step-up or step-down operation, 2V-30Vin, 3.3V fixed output voltage, DIP-8	U	
+Regulators	Regulator_Switching	ADP1108AR-5	ADP1108AR-5	Analog Devices	Micropower DC-DC converter, step-up or step-down operation, 2V-30Vin, 5V fixed output voltage, DIP-8	U	
+Regulators	Regulator_Switching	ADP2108AUJ-1.0	ADP2108AUJ-1.0	Analog Devices	3MHz switching bucK regulator, 600mA 1.0V output voltage,	U	
+Regulators	Regulator_Switching	ADP2108AUJ-1.1	ADP2108AUJ-1.1	Analog Devices	3MHz switching bucK regulator, 600mA 1.1V output voltage,	U	
+Regulators	Regulator_Switching	ADP2108AUJ-1.2	ADP2108AUJ-1.2	Analog Devices	3MHz switching bucK regulator, 600mA 1.2V output voltage,	U	
+Regulators	Regulator_Switching	ADP2108AUJ-1.3	ADP2108AUJ-1.3	Analog Devices	3MHz switching bucK regulator, 600mA 1.3V output voltage,	U	
+Regulators	Regulator_Switching	ADP2108AUJ-1.5	ADP2108AUJ-1.5	Analog Devices	3MHz switching bucK regulator, 600mA 1.5V output voltage,	U	
+Regulators	Regulator_Switching	ADP2108AUJ-1.8	ADP2108AUJ-1.8	Analog Devices	3MHz switching bucK regulator, 600mA 1.8V output voltage,	U	
+Regulators	Regulator_Switching	ADP2108AUJ-1.82	ADP2108AUJ-1.82	Analog Devices	3MHz switching bucK regulator, 600mA 1.82V output voltage,	U	
+Regulators	Regulator_Switching	ADP2108AUJ-2.3	ADP2108AUJ-2.3	Analog Devices	3MHz switching bucK regulator, 600mA 2.3V output voltage,	U	
+Regulators	Regulator_Switching	ADP2108AUJ-2.5	ADP2108AUJ-2.5	Analog Devices	3MHz switching bucK regulator, 600mA 2.5V output voltage,	U	
+Regulators	Regulator_Switching	ADP2108AUJ-3.0	ADP2108AUJ-3.0	Analog Devices	3MHz switching bucK regulator, 600mA 3.0V output voltage,	U	
+Regulators	Regulator_Switching	ADP2108AUJ-3.3	ADP2108AUJ-3.3	Analog Devices	3MHz switching bucK regulator, 600mA 3.3V output voltage,	U	
+Regulators	Regulator_Switching	ADP5054	ADP5054	Analog Devices	250kHz to 2MHz, 6A/6A/2A/2A Quad Buck Regulator, -40 to +125C, QFN-48	U	
+Regulators	Regulator_Switching	ADP5070AREZ	ADP5070AREZ	Analog Devices	1A/0.6A DC-to-DC Switching Regulator with Independent Positive and Negative Outputs	U	
+Regulators	Regulator_Switching	ADP5071AREZ	ADP5071AREZ	Analog Devices	2A/1.2A DC-to-DC Switching Regulator with Independent Positive and Negative Outputs	U	
+Regulators	Regulator_Switching	AP3012	AP3012	Diodes Inc.	500mA, Adjustable Step-Up Voltage Regulator, 1.5MHz Frequency, SOT-23-5	U	
+Regulators	Regulator_Switching	AP3211K	AP3211K	Diodes Inc.	1.5A, Adjustable Step-Down Voltage Regulator, 1.4MHz Frequency, Vin=4.5..18V, Vout=0.81..15V, SOT-23-6	U	
+Regulators	Regulator_Switching	AP3402	AP3402	Diodes Inc.	1.0MHz 2A Step-Down DC-DC Buck Converter, TSOT-23-6	U	
+Regulators	Regulator_Switching	AP3441SHE	AP3441SHE	Diodes Inc.	3A step-Down DC-DC 1Mhz buck converter, Input 2.7 to 5.5V, Output: 0.6 to V_{IN} , DFN-8	U	
+Regulators	Regulator_Switching	AP62150WU	AP62150WU	Diodes Inc.	1.5A, 1.3MHz Buck DC/DC Converter, 4.2V-18V input voltage, 0.8V-7V adjustable output voltage, TSOT-23-6	U	
+Regulators	Regulator_Switching	AP62250WU	AP62250WU	Diodes Inc.	2.5A, 1.3MHz Buck DC/DC Converter, 4.2V-18V input voltage, 0.8V-7V adjustable output voltage, TSOT-23-6	U	
+Regulators	Regulator_Switching	AP62300TWU	AP62300TWU	Diodes Inc.	3A, 750kHz Buck DC/DC Converter, PFM for light load efficiency, 4.2V-18V input voltage, 0.8V-7V adjustable output voltage, TSOT-23-6	U	
+Regulators	Regulator_Switching	AP62300WU	AP62300WU	Diodes Inc.	3A, 750kHz Buck DC/DC Converter, PFM for light load efficiency, 4.2V-18V input voltage, 0.8V-7V adjustable output voltage, TSOT-23-6	U	
+Regulators	Regulator_Switching	AP62301WU	AP62301WU	Diodes Inc.	3A, 750kHz Buck DC/DC Converter, 4.2V-18V input voltage, 0.8V-7V adjustable output voltage, TSOT-23-6	U	
+Regulators	Regulator_Switching	AP63200WU	AP63200WU	Diodes Inc.	2A, 500kHz Buck DC/DC Converter, adjustable output voltage, TSOT-23-6	U	
+Regulators	Regulator_Switching	AP63201WU	AP63201WU	Diodes Inc.	2A, 500kHz Buck DC/DC Converter, adjustable output voltage, TSOT-23-6	U	
+Regulators	Regulator_Switching	AP63203WU	AP63203WU	Diodes Inc.	2A, 1.1MHz Buck DC/DC Converter, fixed 3.3V output voltage, TSOT-23-6	U	
+Regulators	Regulator_Switching	AP63205WU	AP63205WU	Diodes Inc.	2A, 1.1MHz Buck DC/DC Converter, fixed 5.0V output voltage, TSOT-23-6	U	
+Regulators	Regulator_Switching	AP65111AWU	AP65111AWU	Diodes Inc.	1.5A, 500kHz Buck DC/DC Converter, adjustable output voltage, TSOT-23-6	U	
+Regulators	Regulator_Switching	BD8314NUV	BD8314NUV	ROHM	3.0V to 12V, Integrated 2.5A MOSFET 1ch Boost Converter, VSON-10	U	
+Regulators	Regulator_Switching	BD9001F	BD9001F	ROHM	48V 2A, Flexible Step-Down Switching Regulator, SO-8	U	
+Regulators	Regulator_Switching	BD9778F	BD9778F	ROHM	35V 2A, Flexible Step-Down Switching Regulator, SO-8	U	
+Regulators	Regulator_Switching	FSBH0170	FSBH0170	onsemi	Green Mode Fairchild Power Switch, 700V Vds, 1.0A Id, 15W/13W 230V/85-265V, VIN Pin, DIP-8	U	
+Regulators	Regulator_Switching	FSBH0170A	FSBH0170A	onsemi	Green Mode Fairchild Power Switch, 700V Vds, 1.0A Id, 15W/13W 230V/85-265V, DIP-8	U	
+Regulators	Regulator_Switching	FSBH0170W	FSBH0170W	onsemi	Green Mode Fairchild Power Switch, 700V Vds, 1.0A Id, 15W/13W 230V/85-265V, VIN Pin, DIP-8	U	
+Regulators	Regulator_Switching	FSBH0270	FSBH0270	onsemi	Green Mode Fairchild Power Switch, 700V Vds, 2.0A Id, 20W/16W 230V/85-265V, VIN Pin, DIP-8	U	
+Regulators	Regulator_Switching	FSBH0270A	FSBH0270A	onsemi	Green Mode Fairchild Power Switch, 700V Vds, 2.0A Id, 20W/16W 230V/85-265V, DIP-8	U	
+Regulators	Regulator_Switching	FSBH0270W	FSBH0270W	onsemi	Green Mode Fairchild Power Switch, 700V Vds, 2.0A Id, 20W/16W 230V/85-265V, VIN Pin, DIP-8	U	
+Regulators	Regulator_Switching	FSBH0370	FSBH0370	onsemi	Green Mode Fairchild Power Switch, 700V Vds, 3.0A Id, 25W/19W 230V/85-265V, VIN Pin, DIP-8	U	
+Regulators	Regulator_Switching	FSBH0F70A	FSBH0F70A	onsemi	Green Mode Fairchild Power Switch, 700V Vds, 0.5A Id, 10W/8W 230V/85-265V, DIP-8	U	
+Regulators	Regulator_Switching	FSBH0F70WA	FSBH0F70WA	onsemi	Green Mode Fairchild Power Switch, 700V Vds, 0.5A Id, 10W/8W 230V/85-265V, DIP-8	U	
+Regulators	Regulator_Switching	FSDH321	FSDH321	onsemi	17W SMPS Controller, 100kHz, AC-DC, PDIP-8	U	
+Regulators	Regulator_Switching	FSDL321	FSDL321	onsemi	17W SMPS Controller, 50kHz, AC-DC, PDIP-8	U	
+Regulators	Regulator_Switching	HT7463A	HT7463A	Holtek	600mA High-Efficiency Step-Down DC-DC Converter, 4.5-52V input voltage, adjustable output voltage, SOT-23-6	U	
+Regulators	Regulator_Switching	HT7463B	HT7463B	Holtek	52V/600mA, 550kHz Asynchronous Step Down Converter	U	
+Regulators	Regulator_Switching	ISL8117FRZ	ISL8117FRZ	Renesas	Synchronous step-down PWM controller, 4.5v to 60v input, 0.6v to 54v Output Voltage, QFN-16	U	
+Regulators	Regulator_Switching	ISL8117FVEZ	ISL8117FVEZ	Renesas	Synchronous step-down PWM controller, 4.5v to 60v input, 0.6v to 54v Output Voltage, HTSSOP-16	U	
+Regulators	Regulator_Switching	KA5H02659RN	KA5H02659RN	onsemi	100kHz SMPS Controller, AC-DC, PDIP-8	U	
+Regulators	Regulator_Switching	KA5M02659RN	KA5M02659RN	onsemi	67kHz SMPS Controller, AC-DC, PDIP-8	U	
+Regulators	Regulator_Switching	L5973D	L5973D	STMicroelectronics	2.5A step down switching regulator, HSOP-8	U	
+Regulators	Regulator_Switching	L7980A	L7980A	STMicroelectronics	2A step down switching regulator, HSOP-8	U	
+Regulators	Regulator_Switching	L7983PU33R	L7983PU33R	STMicroelectronics	3.5-60V input, 3.3V fixed output, 300 mA synchronous step-down switching regulator with 10 μA quiescent current, DFN-10	U	
+Regulators	Regulator_Switching	L7983PU50R	L7983PU50R	STMicroelectronics	3.5-60V input, 5V fixed output, 300 mA synchronous step-down switching regulator with 10 μA quiescent current, DFN-10	U	
+Regulators	Regulator_Switching	L7983PUR	L7983PUR	STMicroelectronics	3.5-60V input, 0.85-60V adjustable output, 300 mA synchronous step-down switching regulator with 10 μA quiescent current, DFN-10	U	
+Regulators	Regulator_Switching	LM25085MM	LM25085MM	Texas Instruments	42V Constant On-Time PFET Buck Switching Controller, MSOP-8	U	
+Regulators	Regulator_Switching	LM25085MY	LM25085MY	Texas Instruments	42V Constant On-Time PFET Buck Switching Controller, MSOP-8-EP	U	
+Regulators	Regulator_Switching	LM2574HVM-12	LM2574HVM-12	Texas Instruments	12V, 0.5A Step-Down Voltage Regulator, High Voltage Input, SO-8	U	
+Regulators	Regulator_Switching	LM2574HVM-15	LM2574HVM-15	Texas Instruments	15V, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, High Voltage Input, SO-8	U	
+Regulators	Regulator_Switching	LM2574HVM-3.3	LM2574HVM-3.3	Texas Instruments	3.3V, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, High Voltage Input, SO-8	U	
+Regulators	Regulator_Switching	LM2574HVM-5	LM2574HVM-5	Texas Instruments	5V, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, High Voltage Input, SO-8	U	
+Regulators	Regulator_Switching	LM2574HVM-ADJ	LM2574HVM-ADJ	Texas Instruments	Adjustable Output Voltage, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, High Voltage Input, SO-8	U	
+Regulators	Regulator_Switching	LM2574HVN-12	LM2574HVN-12	Texas Instruments	12V, 0.5A Step-Down Voltage Regulator, High Voltage Input, DIP-8	U	
+Regulators	Regulator_Switching	LM2574HVN-15	LM2574HVN-15	Texas Instruments	15V, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, High Voltage Input, DIP-8	U	
+Regulators	Regulator_Switching	LM2574HVN-3.3	LM2574HVN-3.3	Texas Instruments	3.3V, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, High Voltage Input, DIP-8	U	
+Regulators	Regulator_Switching	LM2574HVN-5	LM2574HVN-5	Texas Instruments	5V, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, High Voltage Input, DIP-8	U	
+Regulators	Regulator_Switching	LM2574HVN-ADJ	LM2574HVN-ADJ	Texas Instruments	Adjustable Output Voltage, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, High Voltage Input, DIP-8	U	
+Regulators	Regulator_Switching	LM2574M-12	LM2574M-12	Texas Instruments	12V, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, SO-8	U	
+Regulators	Regulator_Switching	LM2574M-15	LM2574M-15	Texas Instruments	15V, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, SO-8	U	
+Regulators	Regulator_Switching	LM2574M-3.3	LM2574M-3.3	Texas Instruments	3.3V, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, SO-8	U	
+Regulators	Regulator_Switching	LM2574M-5	LM2574M-5	Texas Instruments	5V, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, SO-8	U	
+Regulators	Regulator_Switching	LM2574M-ADJ	LM2574M-ADJ	Texas Instruments	Adjustable Output Voltage, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, SO-8	U	
+Regulators	Regulator_Switching	LM2574N-12	LM2574N-12	Texas Instruments	12V, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, DIP-8	U	
+Regulators	Regulator_Switching	LM2574N-15	LM2574N-15	Texas Instruments	15V, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, DIP-8	U	
+Regulators	Regulator_Switching	LM2574N-3.3	LM2574N-3.3	Texas Instruments	3.3V, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, DIP-8	U	
+Regulators	Regulator_Switching	LM2574N-5	LM2574N-5	Texas Instruments	5V, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, DIP-8	U	
+Regulators	Regulator_Switching	LM2574N-ADJ	LM2574N-ADJ	Texas Instruments	Adjustable Output Voltage, 0.5A SIMPLE SWITCHER® Step-Down Voltage Regulator, DIP-8	U	
+Regulators	Regulator_Switching	LM2575-12BU	LM2575-12BU	Microchip	Fixed 12V 52kHz Simple 1A Buck Regulator, TO-263	U	
+Regulators	Regulator_Switching	LM2575-3.3BU	LM2575-3.3BU	Microchip	Fixed 3.3V 52kHz Simple 1A Buck Regulator, TO-263	U	
+Regulators	Regulator_Switching	LM2575-5.0BU	LM2575-5.0BU	Microchip	Fixed 5.0V 52kHz Simple 1A Buck Regulator, TO-263	U	
+Regulators	Regulator_Switching	LM2575BU-ADJ	LM2575BU-ADJ	Microchip	Adjustable 52kHz Simple 1A Buck Regulator, TO-263	U	
+Regulators	Regulator_Switching	LM2576HVS-12	LM2576HVS-12	Texas Instruments	12V, 3A SIMPLE SWITCHER® Step-Down Voltage Regulator, High Voltage Input, TO-263	U	
+Regulators	Regulator_Switching	LM2576HVS-15	LM2576HVS-15	Texas Instruments	15V, 3A SIMPLE SWITCHER® Step-Down Voltage Regulator, High Voltage Input, TO-263	U	
+Regulators	Regulator_Switching	LM2576HVS-3.3	LM2576HVS-3.3	Texas Instruments	3.3V, 3A, SIMPLE SWITCHER® Step-Down Voltage Regulator, High Voltage Input, TO-263	U	
+Regulators	Regulator_Switching	LM2576HVS-5	LM2576HVS-5	Texas Instruments	5V 3A, SIMPLE SWITCHER® Step-Down Voltage Regulator, High Voltage Input, TO-263	U	
+Regulators	Regulator_Switching	LM2576HVS-ADJ	LM2576HVS-ADJ	Texas Instruments	Adjustable Output Voltage, 3A SIMPLE SWITCHER® Step-Down Voltage Regulator, High Voltage Input, TO-263	U	
+Regulators	Regulator_Switching	LM2576S-12	LM2576S-12	Texas Instruments	12V, 3A SIMPLE SWITCHER® Step-Down Voltage Regulator, TO-263	U	
+Regulators	Regulator_Switching	LM2576S-15	LM2576S-15	Texas Instruments	15V, 3A SIMPLE SWITCHER® Step-Down Voltage Regulator, TO-263	U	
+Regulators	Regulator_Switching	LM2576S-3.3	LM2576S-3.3	Texas Instruments	3.3V, 3A SIMPLE SWITCHER® Step-Down Voltage Regulator, TO-263	U	
+Regulators	Regulator_Switching	LM2576S-5	LM2576S-5	Texas Instruments	5V, 3A SIMPLE SWITCHER® Step-Down Voltage Regulator, TO-263	U	
+Regulators	Regulator_Switching	LM2576S-ADJ	LM2576S-ADJ	Texas Instruments	Adjustable Output Voltage, 3A SIMPLE SWITCHER® Step-Down Voltage Regulator, TO-263	U	
+Regulators	Regulator_Controller	ICE3PCS01	ICE3PCS01	Infineon	Standalone PFC Controller in CCM, SOIC-14	U	
+Regulators	Regulator_Controller	ICE3PCS02	ICE3PCS02	Infineon	Standalone PFC Controller in CCM, SOIC-8	U	
+Regulators	Regulator_Controller	ICE3PCS03	ICE3PCS03	Infineon	Standalone PFC Controller in CCM, SOIC-8	U	
+Regulators	Regulator_Controller	IR1153S	IR1153S	Infineon	Fixed 22.2kHz Frequency, uPFC One Cycle Control IC With Brown-Out Protection, Continuous Conduction Mode, SOIC-8	U	
+Regulators	Regulator_Controller	IR1155S	IR1155S	Infineon	Programmable Frequency, One Cycle Control PFC IC, Continuous Conduction Mode, SOIC-8	U	
+Regulators	Regulator_Controller	IR1161L	IR1161L	Infineon	SmartRectifier Control IC, 500kHz, 200V, 1.0/2.5A, SOT-23-5	U	
+Regulators	Regulator_Controller	IR11662S	IR11662S	Infineon	Advanced SmartRectifier Control IC, 500kHz, 200V, 1.0/4.0A, SOIC-8	U	
+Regulators	Regulator_Controller	IR11672AS	IR11672AS	Infineon	Advanced SmartRectifier Control IC, 500kHz, 200V, 2.0/7.0A, SOIC-8	U	
+Regulators	Regulator_Controller	IR1167S	IR1167S	Infineon	SmartRectifier Control IC, 500kHz, 200V, 2.0/7.0A, SOIC-8	U	
+Regulators	Regulator_Controller	IR11682S	IR11682S	Infineon	Dual SmartRectifier Driver IC, 400kHz, 200V, 1.0/4.0A, SOIC-8	U	
+Regulators	Regulator_Controller	IR11688S	IR11688S	Infineon	Dual Synchronous Rectification Control IC, 400kHz, 200V, 1.0/4.0A, SOIC-8	U	
+Regulators	Regulator_Controller	IR1168S	IR1168S	Infineon	Dual Smart Rectifier Driver IC, 500kHz, 200V, 1.0/4.0A, SOIC-8	U	
+Regulators	Regulator_Controller	IR1169S	IR1169S	Infineon	Advanced SmartRectifier Control IC, 500kHz, 200V, 1.0/4.0A, SOIC-8	U	
+Regulators	Regulator_Controller	IRS2505L	IRS2505L	Infineon	Boost PFC and SMPS Control IC, Critical Conduction Mode, SOT-23-5	U	
+Regulators	Regulator_Controller	ISL6551	ISL6551	Renesas	ZVS Full Bridge PWM Controller, SOIC-28	U	
+Regulators	Regulator_Controller	L4984D	L4984D	STMicroelectronics	CCM PFC Controller, SSOP-10	U	
+Regulators	Regulator_Controller	L6563	L6563	STMicroelectronics	Advanced Transition-Mode PFC Controller, SOIC-14	U	
+Regulators	Regulator_Controller	L6563A	L6563A	STMicroelectronics	Advanced Transition-Mode PFC Controller, SOIC-14	U	
+Regulators	Regulator_Controller	L6563H	L6563H	STMicroelectronics	High Voltage Start-Up Transition-Mode PFC, SOIC-16	U	
+Regulators	Regulator_Controller	L6563S	L6563S	STMicroelectronics	Enhanced Transition-Mode PFC Controller, SOIC-14	U	
+Regulators	Regulator_Controller	L6564	L6564	STMicroelectronics	10-Pin Transition-Mode PFC Controller, SSOP-10	U	
+Regulators	Regulator_Controller	L6564H	L6564H	STMicroelectronics	High Voltage Start-Up Transition-Mode PFC, SOIC-14	U	
+Regulators	Regulator_Controller	L6564T	L6564T	STMicroelectronics	10-Pin Transition-Mode PFC Controller for Outdoor Applications, SSOP-10	U	
+Regulators	Regulator_Controller	L6727	L6727	STMicroelectronics	Single Phase PWM Controller, SOIC-8	U	
+Regulators	Regulator_Controller	LM25119	LM25119	Texas Instruments	Wide Input Range, Dual Synchronous Buck Controller, WQFN-32	U	
+Power	Reference_Voltage	ADR420ARMZ	ADR420ARMZ	Analog Devices	2.048V Voltage Reference, Ultraprecision, Low Noise, MSOP-8	U	
+Power	Reference_Voltage	ADR421ARMZ	ADR421ARMZ	Analog Devices	2.50V Voltage Reference, Ultraprecision, Low Noise, MSOP-8	U	
+Power	Reference_Voltage	ADR423ARMZ	ADR423ARMZ	Analog Devices	3.00V Voltage Reference, Ultraprecision, Low Noise, MSOP-8	U	
+Power	Reference_Voltage	ADR425ARMZ	ADR425ARMZ	Analog Devices	5.00V Voltage Reference, Ultraprecision, Low Noise, MSOP-8	U	
+Power	Reference_Voltage	ADR440ARMZ	ADR440ARMZ	Analog Devices	2.048V Voltage Reference, Ultraprecision, Low Noise, MSOP-8	U	
+Power	Reference_Voltage	ADR441ARMZ	ADR441ARMZ	Analog Devices	2.5V Voltage Reference, Ultraprecision, Low Noise, MSOP-8	U	
+Power	Reference_Voltage	ADR443ARMZ	ADR443ARMZ	Analog Devices	3V Voltage Reference, Ultraprecision, Low Noise, MSOP-8	U	
+Power	Reference_Voltage	ADR444ARMZ	ADR444ARMZ	Analog Devices	4.096V Voltage Reference, Ultraprecision, Low Noise, MSOP-8	U	
+Power	Reference_Voltage	ADR445ARMZ	ADR445ARMZ	Analog Devices	5V Voltage Reference, Ultraprecision, Low Noise, MSOP-8	U	
+Power	Reference_Voltage	ADR4520	ADR4520	Analog Devices	2.048V, Ultralow Noise, High Accuracy Voltage Reference, SOIC-8	U	
+Power	Reference_Voltage	ADR4525	ADR4525	Analog Devices	2.5V, Ultralow Noise, High Accuracy Voltage Reference, SOIC-8	U	
+Power	Reference_Voltage	ADR4530	ADR4530	Analog Devices	3.0V, Ultralow Noise, High Accuracy Voltage Reference, SOIC-8	U	
+Power	Reference_Voltage	ADR4533	ADR4533	Analog Devices	3.3V, Ultralow Noise, High Accuracy Voltage Reference, SOIC-8	U	
+Power	Reference_Voltage	ADR4540	ADR4540	Analog Devices	4.096V, Ultralow Noise, High Accuracy Voltage Reference, SOIC-8	U	
+Power	Reference_Voltage	ADR4550	ADR4550	Analog Devices	5.0V, Ultralow Noise, High Accuracy Voltage Reference, SOIC-8	U	
+Power	Reference_Voltage	ISL21070CIH320Z-TK	ISL21070CIH320Z-TK	Renesas	2.0V 25μA Micropower Voltage Reference, SOT-23	U	
+Power	Reference_Voltage	ISL21070CIH325Z-TK	ISL21070CIH325Z-TK	Renesas	2.5V 25μA Micropower Voltage Reference, SOT-23	U	
+Power	Reference_Voltage	ISL21070DIH306Z-TK	ISL21070DIH306Z-TK	Renesas	0.6V 25μA Micropower Voltage Reference, SOT-23	U	
+Power	Reference_Voltage	LM285D-1.2	LM285D-1.2	onsemi	1.235V Micropower Voltage Reference Diodes, SO-8	U	
+Power	Reference_Voltage	LM285D-2.5	LM285D-2.5	onsemi	2.500V Micropower Voltage Reference Diodes, SO-8	U	
+Power	Reference_Voltage	LM285M-ADJ	LM285M-ADJ	Texas Instruments	Adjustable Micropower Voltage Reference Diodes, SO-8	U	
+Power	Reference_Voltage	LM285S-1.2	LM285S-1.2	Analog Devices	1.235V Micropower Voltage Reference Diodes, SO-8	U	
+Power	Reference_Voltage	LM285S-2.5	LM285S-2.5	Analog Devices	2.500V Micropower Voltage Reference Diodes, SO-8	U	
+Power	Reference_Voltage	LM385D-1.2	LM385D-1.2	onsemi	1.235V Micropower Voltage Reference Diodes, SO-8	U	
+Power	Reference_Voltage	LM385D-2.5	LM385D-2.5	onsemi	2.500V Micropower Voltage Reference Diodes, SO-8	U	
+Power	Reference_Voltage	LM385M-ADJ	LM385M-ADJ	Texas Instruments	Adjustable Micropower Voltage Reference Diodes, SO-8	U	
+Power	Reference_Voltage	LM385S-1.2	LM385S-1.2	Analog Devices	1.235V Micropower Voltage Reference Diodes, SO-8	U	
+Power	Reference_Voltage	LM385S-2.5	LM385S-2.5	Analog Devices	2.500V Micropower Voltage Reference Diodes, SO-8	U	
+Power	Reference_Voltage	LM4030-2.5	LM4030-2.5	Texas Instruments	2.500V Ultra-High Precision Shunt Voltage Reference, SOT-23-5	U	
+Power	Reference_Voltage	LM4030-4.096	LM4030-4.096	Texas Instruments	4.096V Ultra-High Precision Shunt Voltage Reference, SOT-23-5	U	
+Power	Power_Supervisor	LM3880	LM3880	Texas Instruments	Simple Power Sequencer, SOT-23-6	U	
+Power	Power_Supervisor	LM809	LM809	Texas Instruments	Microprocessor Reset (active-low) Circuit, SOT-23	U	
+Power	Power_Supervisor	LM810	LM810	Texas Instruments	Microprocessor Reset (active-high) Circuit, SOT-23	U	
+Power	Power_Supervisor	MAX6355	MAX6355	Analog Devices (Maxim)	Dual Voltage μP Supervisory Circuits, SOT-23-6	U	
+Power	Power_Supervisor	MAX690ACSA	MAX690ACSA	Analog Devices	Microprocessor Supervisory Circuit, Battery-Backup Power Switching, Power-Fail Comparator, VCC / VBATT 1.0...5.5V, Reset Threshold 4.65V, Reset Pulse Width 200…	U	
+Power	Power_Supervisor	MAX692ACSA	MAX692ACSA	Analog Devices	Microprocessor Supervisory Circuit, Battery-Backup Power Switching, Power-Fail Comparator, VCC / VBATT 1.0...5.5V, Reset Threshold 4.40V, Reset Pulse Width 200…	U	
+Power	Power_Supervisor	MAX802LCSA	MAX802LCSA	Analog Devices	Microprocessor Supervisory Circuit, Battery-Backup Power Switching, Power-Fail Comparator accuracy ±2%, VCC / VBATT 1.0...5.5V, Reset Threshold 4.65V, Reset Pu…	U	
+Power	Power_Supervisor	MAX805LCSA	MAX805LCSA	Analog Devices	Microprocessor Supervisory Circuit, Battery-Backup Power Switching, Power-Fail Comparator, VCC / VBATT 1.1...5.5V, Reset Threshold 4.65V, Reset Pulse Width 200…	U	
+Power	Power_Supervisor	MC34064D	MC34064D	onsemi	Undervoltage Sensing Circuit, SOIC-8	U	
+Power	Power_Supervisor	MC34064DM	MC34064DM	onsemi	Undervoltage Sensing Circuit, MSOP-8	U	
+Power	Power_Supervisor	TLV810EA29DBZ	TLV810EA29DBZ	Texas Instruments	push-pull, active-high, 200mS reset delay, 2.93V threshold voltage, SOT-23	U	
+Power	Power_Supervisor	TPS3430WDRC	TPS3430WDRC	Texas Instruments	Window watchdog timer with programmable reset delay	U	
+Power	Power_Supervisor	TPS3702	TPS3702	Texas Instruments	High-Accuracy, Overvoltage and Undervoltage Monitor, SOT-23-6	U	
+Power	Power_Supervisor	TPS3808DBV	TPS3808DBV	Texas Instruments	Low-Quiescent-Current, Programmable-Delay Supervisory Circuit, SOT-23-6	U	
+Power	Power_Supervisor	TPS3839DBZ	TPS3839DBZ	Texas Instruments	150-nA, Ultralow Power, Supply Voltage Monitor, SOT-23	U	
+Power	Power_Protection	CM1213A-01SO	CM1213A-01SO	onsemi	Single Channel ESD Protection Array	U	
+Power	Power_Protection	ESDA14V2SC5	ESDA14V2SC5	STMicroelectronics	Quad TVS Diode Array, 14.2V Standoff, 4 Channels, 400W, ±30kV, SOT-23-5	U	
+Power	Power_Protection	ESDA5V3L	ESDA5V3L	STMicroelectronics	TVS Diode Array, 5.5V Standoff, 2 Channels, SOT23	U	
+Power	Power_Protection	ESDA5V3SC5	ESDA5V3SC5	STMicroelectronics	Quad TVS Diode Array, 5.3V Standoff, 4 Channels, 400W, ±30kV, SOT-23-5	U	
+Power	Power_Protection	ESDA6V1-5SC6	ESDA6V1-5SC6	STMicroelectronics	Quintuple bidirectional transil, Suppressor for ESD protection, 6V1 Breakdown, SOT-23-6	U	
+Power	Power_Protection	ESDA6V1BC6	ESDA6V1BC6	STMicroelectronics	Quad bidirectional transil, Suppressor for ESD protection, 5V Standoff, 4 Channels, SOT-23-6	U	
+Power	Power_Protection	ESDA6V1SC5	ESDA6V1SC5	STMicroelectronics	Quad TVS Diode Array, 6.1V Standoff, 4 Channels, 400W, ±30kV, SOT-23-5	U	
+Power	Power_Protection	ESDS304	ESDS304	Texas Instruments	4-channel 1Gbps TVS Diode Array, 2.3pF, 4.5V breakdown, 30kV contact & air gap, SOT-23-5	U	
+Power	Power_Protection	NCP361MU	NCP361MU	onsemi	USB Positive Overvoltage Protection Controller with Internal PMOS FET and Overcurrent Protection, DFN-6	U	
+Power	Power_Protection	NUF4401MN	NUF4401MN	onsemi	4 channel EMI filters with integrated ESD protection, DFN-8	U	
+Power	Power_Protection	NUP2105L	NUP2105L	onsemi	Dual Line CAN Bus Protector, 24Vrwm	U	
+Power	Power_Protection	SN65220	SN65220	Texas Instruments	USB port transient suppressors	U	
+Power	Power_Protection	SP0502BAHT	SP0502BAHT	Littelfuse	TVS Diode Array, 5.5V Standoff, 2 Channels, SOT-23 package	U	
+Power	Power_Protection	SP0504BAHT	SP0504BAHT	Littelfuse	TVS Diode Array, 5.5V Standoff, 4 Channels, SOT-23-5 package	U	
+Power	Power_Protection	SP0505BAHT	SP0505BAHT	Littelfuse	TVS Diode Array, 5.5V Standoff, 5 Channels, SOT-23-6 package	U	
+Power	Power_Protection	SRV05-4	SRV05-4	onsemi	ESD Protection Diodes with Low Clamping Voltage, SOT-23-6	U	
+Power	Power_Protection	SZNUP2105L	SZNUP2105L	onsemi	Dual Line CAN Bus Protector, 24Vrwm, Automotive Grade	U	
+Power	Power_Protection	TPD2S017	TPD2S017	Texas Instruments	2-Channel Ultra-Low Clamp Voltage ESD Solution With Series-Resistor Isolation, SOT-23	U	
+Power	Power_Protection	TPD3S014	TPD3S014	Texas Instruments	Current Limit Switch and D+/D– ESD Protection for USB Host Port, 0.5A, SOT-23-6	U	
+Power	Power_Protection	TPD3S044	TPD3S044	Texas Instruments	Current Limit Switch and D+/D– ESD Protection for USB Host Port, 1.5A, SOT-23-6	U	
+Power	Power_Protection	TPD6S300A	TPD6S300A	Texas Instruments	USB Type-C Port Protector: Short-to-VBUS Overvoltage and IEC ESD Protection, WQFN-20	U	
+Power	Power_Protection	USB6B1	USB6B1	STMicroelectronics	5V Data line protection	U	
+Power	Power_Management	AP2161W	AP2161W	Diodes Inc.	Current limited power switch, single channel, SOT-23-5	U	
+Power	Power_Management	AP2171W	AP2171W	Diodes Inc.	Current limited power switch, single channel, SOT-23-5	U	
+Power	Power_Management	AP22804AW5	AP22804AW5	Diodes Inc.	Current limited 2.5A power switch, single channel, SOT-23-5	U	
+Power	Power_Management	AP22804BW5	AP22804BW5	Diodes Inc.	Current limited 2.5A power switch, single channel, SOT-23-5	U	
+Power	Power_Management	AP22814AW5	AP22814AW5	Diodes Inc.	Current limited 3A power switch, single channel, SOT-23-5	U	
+Power	Power_Management	AP22814BW5	AP22814BW5	Diodes Inc.	Current limited 3A power switch, single channel, SOT-23-5	U	
+Power	Power_Management	AP22816AKEWT	AP22816AKEWT	Diodes Inc.	Current limited 1A power switch, single channel, SOT-23-5	U	
+Power	Power_Management	AP22816BKEWT	AP22816BKEWT	Diodes Inc.	Current limited 1A power switch, single channel, SOT-23-5	U	
+Power	Power_Management	AP22817AKEWT	AP22817AKEWT	Diodes Inc.	Current limited 1.5A power switch, single channel, SOT-23-5	U	
+Power	Power_Management	AP22817BKEWT	AP22817BKEWT	Diodes Inc.	Current limited 1.5A power switch, single channel, SOT-23-5	U	
+Power	Power_Management	AP22818AKEWT	AP22818AKEWT	Diodes Inc.	Current limited 2.0A power switch, single channel, SOT-23-5	U	
+Power	Power_Management	AP22818BKEWT	AP22818BKEWT	Diodes Inc.	Current limited 2A power switch, single channel, SOT-23-5	U	
+Power	Power_Management	AUIPS1042G	AUIPS1042G	Infineon	Dual Channel Intelligent Power Low Side Switch, 39V, 4.5A, SOIC-8	U	
+Power	Power_Management	AUIPS1051L	AUIPS1051L	Infineon	Intelligent Power Low Side Switch, 39V, 2.8A, SOT-223	U	
+Power	Power_Management	AUIPS1052G	AUIPS1052G	Infineon	Dual Channel Intelligent Power Low Side Switch, 39V, 2.8A, SOIC-8	U	
+Power	Power_Management	AUIPS2041L	AUIPS2041L	Infineon	Intelligent Power Low Side Switch, 68V, 5A, SOT-223	U	
+Power	Power_Management	AUIPS2051L	AUIPS2051L	Infineon	Intelligent Power Low Side Switch, 70V, 1.8A, SOT-223	U	
+Power	Power_Management	AUIPS2052G	AUIPS2052G	Infineon	Dual Channel Intelligent Power Low Side Switch, 70V, 1.8A, SOIC-8	U	
+Power	Power_Management	AUIPS6041G	AUIPS6041G	Infineon	Intelligent Power High Side Switch, 39V, 7A, SOIC-8	U	
+Power	Power_Management	AUIPS7091G	AUIPS7091G	Infineon	Intelligent Power High Side Switch, 70V, 5A, SOIC-8	U	
+Power	Power_Management	AUIPS7142G	AUIPS7142G	Infineon	Dual Channels Current Sense High Side Switch, 65V, 20A, SOIC-16W	U	
+Power	Power_Management	AUIPS71451G	AUIPS71451G	Infineon	Current Sense High Side Switch, 65V, 4A, SOIC-8	U	
+Power	Power_Management	AUIR33402S	AUIR33402S	Infineon	Protected High Side Switch, 18V, 33A, D2PAK-7L	U	
+Power	Power_Management	BQ24230RGT	BQ24230RGT	Texas Instruments	USB-Friendly Lithium-Ion Battery Charger And Power-Path Management IC, VQFN-16	U	
+Power	Power_Management	BTS50010-1TAD	BTS50010-1TAD	Infineon	Smart High-Side Power Switch, PROFET, Single, 1mOhm, 40A, 18V, TO-263-7	U	
+Power	Power_Management	BTS50055-1TMA	BTS50055-1TMA	Infineon	Smart High-Side Power Switch, PROFET, Single, 6mOhm, 70A, 34V, TO220-7	U	
+Power	Power_Management	BTS50055-1TMC	BTS50055-1TMC	Infineon	Smart High-Side Power Switch, PROFET, Single, 6mOhm, 17A, 34V, TO220-7	U	
+Power	Power_Management	BTS50080-1TMA	BTS50080-1TMA	Infineon	Smart High-Side Power Switch, PROFET, Single, 16mOhm, 9.5A, 38V, TO220-7	U	
+Power	Power_Management	BTS50080-1TMC	BTS50080-1TMC	Infineon	Smart High-Side Power Switch, PROFET, Single, 16mOhm, 9.5A, 38V, TO220-7	U	
+Power	Power_Management	BTS50085-1TMA	BTS50085-1TMA	Infineon	Smart High-Side Power Switch, PROFET, Single, 9mOhm, 11.1A, 58V, TO220-7	U	
+Power	Battery_Management	ADP5063	ADP5063	Analog Devices	Linear LiFePO4 Battery Charger with Power Path and USB Compatibility, LFCSP	U	
+Power	Battery_Management	AP9101CK	AP9101CK	Diodes Inc.	Li+ Battery Protection IC for Single Cell Pack, SOT-23-5	U	
+Power	Battery_Management	AP9101CK6	AP9101CK6	Diodes Inc.	Li+ Battery Protection IC for Single Cell Pack, SOT-23-6	U	
+Power	Battery_Management	AS8506C	AS8506C	ams OSRAM	Stackable cell monitor, cell balancer, 3-7 Cells, SPI Interface	U	
+Power	Battery_Management	BQ21040DBV	BQ21040DBV	Texas Instruments	Single cell, 0.8A Li-Ion/Li-Po linear charge management controller, up to 30V input, 4.2V charge voltage, Open-Drain Status Output, Temperature sense input, SO…	U	
+Power	Battery_Management	BQ24004	BQ24004	Texas Instruments	2-Cell Li-Ion Charge Management IC, HTSSOP-20	U	
+Power	Battery_Management	BQ24005	BQ24005	Texas Instruments	2-Cell Li-Ion Charge Management IC, HTSSOP-20	U	
+Power	Battery_Management	BQ24006	BQ24006	Texas Instruments	2-Cell Li-Ion Charge Management IC, HTSSOP-20	U	
+Power	Battery_Management	BQ24012	BQ24012	Texas Instruments	Single-Chip Li-Ion Charge Management IC, DFN-10	U	
+Power	Battery_Management	BQ24072RGT	BQ24072RGT	Texas Instruments	USB-Friendly Li-Ion Battery Charger and Power-Path Management, VQFN-16	U	
+Power	Battery_Management	BQ24073RGT	BQ24073RGT	Texas Instruments	USB-Friendly Li-Ion Battery Charger and Power-Path Management, VQFN-16	U	
+Power	Battery_Management	BQ24074RGT	BQ24074RGT	Texas Instruments	USB-Friendly Li-Ion Battery Charger and Power-Path Management, VQFN-16	U	
+Power	Battery_Management	BQ24075RGT	BQ24075RGT	Texas Instruments	USB-Friendly Li-Ion Battery Charger and Power-Path Management, VQFN-16	U	
+Power	Battery_Management	BQ24079RGT	BQ24079RGT	Texas Instruments	USB-Friendly Li-Ion Battery Charger and Power-Path Management, VQFN-16	U	
+Power	Battery_Management	BQ24090DGQ	BQ24090DGQ	Texas Instruments	1A, Single-Input, SingleCell Li-Ion and Li-Pol BatteryCharger, HVSSOP-10	U	
+Power	Battery_Management	BQ24166RGE	BQ24166RGE	Texas Instruments	High efficiency switched mode Li-Ion and Li-Polymer battery charger, integrated MOSFETs, power path selector and standard temperature sensing, Texas R-RGE0024H	U	
+Power	Battery_Management	BQ24167RGE	BQ24167RGE	Texas Instruments	High efficiency switched mode Li-Ion and Li-Polymer battery charger, integrated MOSFETs, power path selector and JEITA compatible temperature sensing, Texas R-…	U	
+Power	Battery_Management	BQ24610	BQ24610	Texas Instruments	10A, 28V max voltage, Li-Ion Charger w/600kHz NMOS-NMOS Synchronous Buck Converter, VQFN-24	U	
+Power	Battery_Management	BQ24617	BQ24617	Texas Instruments	10A, 24V max voltage, Li-Ion Charger w/600kHz NMOS-NMOS Synchronous Buck Converter, VQFN-24	U	
+Power	Battery_Management	BQ24650	BQ24650	Texas Instruments	10A, 28V max voltage, Battery Charger w/600kHz NMOS-NMOS Synchronous Buck Converter for Solar, VQFN-16	U	
+Power	Battery_Management	BQ25504	BQ25504	Texas Instruments	Energy Harvesting Boost Converter with Battery Management, VQFN-16	U	
+Power	Battery_Management	BQ25570	BQ25570	Texas Instruments	Nano Power Boost Charger and Buck Converter for Energy Harvester Powered Applications, QFN-20	U	
+Power	Battery_Management	BQ25601	BQ25601	Texas Instruments	I2C Controlled 3A Single-Cell Battery Charger for High Input Voltage and Narrow Voltage DC Power Path Management, WQFN-32	U	
+Power	Battery_Management	BQ25886RGE	BQ25886RGE	Texas Instruments	Standalone 2-Cell (Li-Ion / Li-Polymer), 2A Boost-Mode Battery Charger With PowerPath, USB BC1.2 Detection, USB On-The-Go Boost (OTG), 4.3..6.2V VBUS, 8.2/8.4/…	U	
+Power	Battery_Management	BQ25887RGE	BQ25887RGE	Texas Instruments	I2C Controlled 2-Cell (Li-Ion / Li-Polymer), 2A boost-mode battery charger with cell balancing for USB input, 3.9..6.2V VBUS, 3.4..4.6V charge voltage regulati…	U	
+Power	Battery_Management	BQ25895RTW	BQ25895RTW	Texas Instruments	I2C Controlled Single Cell (Li-Ion / Li-Polymer) 5A Fast Charger with MaxCharge, USB BC1.2 Detection, 3.9..14V VBUS, 3.840..4.608V charge voltage range, 1.5 MH…	U	
+Power	Battery_Management	BQ29330DBT	BQ29330DBT	Texas Instruments	2/3/4 Cell Lithium-Ion or Lithium-Polymer Battery Protection AFE, TSSOP-30	U	
+Power	Battery_Management	BQ51050BRHL	BQ51050BRHL	Texas Instruments	Qi v1.2, Wireless Power Receiver and Battery Charger, Vout 4.2V, VQFN-20	U	
+Power	Battery_Management	BQ51050BYFP	BQ51050BYFP	Texas Instruments	Qi v1.2, Wireless Power Receiver and Battery Charger, Vout 4.2V, DSBGA-28	U	
+Power	Battery_Management	BQ51051BRHL	BQ51051BRHL	Texas Instruments	Qi v1.2, Wireless Power Receiver and Battery Charger, Vout 4.35V, VQFN-20	U	
+Power	Battery_Management	BQ51051BYFP	BQ51051BYFP	Texas Instruments	Qi v1.2, Wireless Power Receiver and Battery Charger, Vout 4.35V, DSBGA-28	U	
+Power	Battery_Management	BQ51052BYFP	BQ51052BYFP	Texas Instruments	Qi v1.2, Wireless Power Receiver and Battery Charger, Vout 4.40V, DSBGA-28	U	
+Power	Battery_Management	BQ76200PW	BQ76200PW	Texas Instruments	High Voltage Battery Pack Front-End Charge/Discharge High-Side NFET Driver, TSSOP-16	U	
+Power	Battery_Management	BQ76920PW	BQ76920PW	Texas Instruments	Lithium battery monitor, 3-5 cells, integrated balancing, I2C interface, TSSOP-20	U	
+Op-Amps	Amplifier_Operational	AD8001AN	AD8001AN	Analog Devices	Current Feedback Amplifier, 800 MHz, 50mW, DIP-8	U	
+Op-Amps	Amplifier_Operational	AD8001AR	AD8001AR	Analog Devices	Current Feedback Amplifier, 800 MHz, 50mW, SOIC-8	U	
+Op-Amps	Amplifier_Operational	AD8015	AD8015	Analog Devices	Wideband/Differential Output Transimpedance Amplifier, SOIC-8	U	
+Op-Amps	Amplifier_Operational	AD8021AR	AD8021AR	Analog Devices	Operational Amplifier, 4.5-24V single/dual supply, low noise, high speed, SOIC-8	U	
+Op-Amps	Amplifier_Operational	AD8021ARM	AD8021ARM	Analog Devices	Operational Amplifier, 4.5-24V single/dual supply, low noise, high speed, MSOP-8	U	
+Op-Amps	Amplifier_Operational	AD8603	AD8603	Analog Devices	Precision Micropower, Low Noise CMOS, Rail-to-Rail Input/Output Operational Amplifier, TSOT-23-5	U	
+Op-Amps	Amplifier_Operational	AD8606ARM	AD8606ARM	Analog Devices	Dual Precision Low Noise, Low Input Bias Current, Wide Bandwidth Operational Amplifiers, MSOP-8	U	
+Op-Amps	Amplifier_Operational	AD8606ARZ	AD8606ARZ	Analog Devices	Dual Precision Low Noise, Low Input Bias Current, Wide Bandwidth Operational Amplifiers, SOIC-8	U	
+Op-Amps	Amplifier_Operational	AD8620	AD8620	Analog Devices	Dual Precision, Very Low Noise, Low Input Bias Current, Wide Bandwidth JFET Operational Amplifiers, SOIC-8	U	
+Op-Amps	Amplifier_Operational	ADA4522-1	ADA4522-1	Analog Devices	55 V supply, 5uV max Vos, 3MHz GBW, EMI Enhanced, Zero Drift, 5.8 nV/√Hz, RRO single operational amplifier	U	
+Op-Amps	Amplifier_Operational	ADA4530-1	ADA4530-1	Analog Devices	Femtoampere Input Bias Current Electrometer Amplifier, SOIC-8	U	
+Op-Amps	Amplifier_Operational	ADA4692-2ARZ	ADA4692-2ARZ	Analog Devices	Dual RRO Op Amp, 2.7V to 5V single supply / ±1.35V to ±2.5V dual supply, 3.6 MHz bandwidth, 1.1V/µs slew rate, 500µV offset, SOIC-8	U	
+Op-Amps	Amplifier_Operational	ADA4692-4ARUZ	ADA4692-4ARUZ	Analog Devices	Quad RRO Op Amp, 2.7V to 5V single supply / ±1.35V to ±2.5V dual supply, 3.6 MHz bandwidth, 1.1V/µs slew rate, 500µV offset, TSSOP-14	U	
+Op-Amps	Amplifier_Operational	ADA4807-2ARM	ADA4807-2ARM	Analog Devices	Dual Rail-to-Rail Input/Output Amplifiers, MSOP-8	U	
+Op-Amps	Amplifier_Operational	ADA4807-4ARUZ	ADA4807-4ARUZ	Analog Devices	Quad Rail-to-Rail Input/Output Amplifiers, TSSOP-14	U	
+Op-Amps	Amplifier_Operational	ADA4841-1YRJ	ADA4841-1YRJ	Analog Devices	Low Power, Low Noise and Distorsion, Rail-to-Rail Output Amplifier, SOT-23-6	U	
+Op-Amps	Amplifier_Operational	ADL5303ACP	ADL5303ACP	Analog Devices	160 dB range, 100pA to 10mA, Logarithmic Converter, integrated 2.0V reference, 3.0 .. 5.5V supply, WQFN-16 (Analog Devices LFCSP-16 / CP-16-22)	U	
+Op-Amps	Amplifier_Operational	HMC799LP3E	HMC799LP3E	Analog Devices	DC - 700 MHz, 10 kOhm Transimpedance amplifier, QFN-16	U	
+Op-Amps	Amplifier_Operational	ISL28291FUZ	ISL28291FUZ	Renesas	Dual Single Supply Ultra-Low Noise, Low Distortion Rail-to-Rail Output, Op Amp, MSOP-10	U	
+Op-Amps	Amplifier_Operational	L272	L272	STMicroelectronics	Dual Power Operation Amplifier, DIP-16	U	
+Op-Amps	Amplifier_Operational	L272D	L272D	STMicroelectronics	Dual Power Operation Amplifier, SOIC-16	U	
+Op-Amps	Amplifier_Operational	L272M	L272M	STMicroelectronics	Dual Power Operation Amplifier, DIP-8	U	
+Op-Amps	Amplifier_Operational	LM318J	LM318J	Texas Instruments	Operational Amplifier, DIP-14	U	
+Op-Amps	Amplifier_Operational	LM321	LM321	Texas Instruments	Low Power Single Operational Amplifier, SOT-23-5	U	
+Op-Amps	Amplifier_Operational	LM324Q	LM324Q	STMicroelectronics	Low-Power, Quad-Operational Amplifiers, QFN-16	U	
+Op-Amps	Amplifier_Operational	LM358_DFN	LM358_DFN	STMicroelectronics	Low-Power, Dual Operational Amplifiers, DFN-8	U	
+Op-Amps	Amplifier_Operational	LM6171D	LM6171D	Texas Instruments	High Speed Low Power Low Distortion Voltage Feedback Amplifier, SOIC-8	U	
+Op-Amps	Amplifier_Operational	LM8261	LM8261	Texas Instruments	Single Opamp, Rail-to-Rail Input/Output, Unlimited Capacitive Load Drive, +53mA/-75mA Output Current, 2.5-30V, 350uV offset, 12MHz GBW, SOT-23-5	U	
+Op-Amps	Amplifier_Operational	LMH6551MA	LMH6551MA	Texas Instruments	Differential, High-Speed, Op Amp, SOIC-8	U	
+Op-Amps	Amplifier_Operational	LMH6551MM	LMH6551MM	Texas Instruments	Differential, High-Speed, Op Amp, VSSOP-8	U	
+Op-Amps	Amplifier_Operational	LMH6609MA	LMH6609MA	Texas Instruments	900MHz Voltage Feedback Op Amp, SOIC-8	U	
+Op-Amps	Amplifier_Operational	LMH6609MF	LMH6609MF	Texas Instruments	900MHz Voltage Feedback Op Amp, SOT-23-5	U	
+Op-Amps	Amplifier_Operational	LMH6611	LMH6611	Texas Instruments	Single Supply, 345 MHz, Rail-to-Rail Output, Amplifier, TSOT-23-6	U	
+Op-Amps	Amplifier_Operational	LMH6702MA	LMH6702MA	Texas Instruments	1.7 GHz Ultra-Low Distortion Wideband Op Amp, SOIC-8	U	
+Op-Amps	Amplifier_Operational	LMH6702MF	LMH6702MF	Texas Instruments	1.7 GHz Ultra-Low Distortion Wideband Op Amp, SOT-23-5	U	
+Op-Amps	Amplifier_Operational	LMH6733	LMH6733	Texas Instruments	1.0 GHz GBW Triple Operational Amplifier, 3..12V single supply or ±1.5V...6V dual supply , SSOP-16	U	
+Op-Amps	Amplifier_Operational	LPV811DBV	LPV811DBV	Texas Instruments	Single operational amplifier, 8kHz GBW, 425 nA/channel quiescent, 100 fA input bias, 300 uV offset max, 1 uV/C, SOT-23-5	U	
+Op-Amps	Amplifier_Operational	LPV812DGK	LPV812DGK	Texas Instruments	Dual operational amplifier, 8kHz GBW, 425 nA/channel quiescent, 100 fA input bias, 300 uV offset max, 1 uV/C, VSSOP-8	U	
+Op-Amps	Amplifier_Operational	LTC1151CN8	LTC1151CN8	Analog Devices	Dual ±15V, Zero-Drift, Operational Amplifier, DIP-8	U	
+Op-Amps	Amplifier_Operational	LTC1151CSW	LTC1151CSW	Analog Devices	Dual ±15V, Zero-Drift, Operational Amplifier, SOIC-16W	U	
+Op-Amps	Amplifier_Operational	MAX4238ASA	MAX4238ASA	Analog Devices (Maxim)	Ultra-Low Offset/Drift, Low-Noise, Precision Amplifiers, SOIC-8	U	
+Op-Amps	Amplifier_Operational	MAX4238AUT	MAX4238AUT	Analog Devices (Maxim)	Ultra-Low Offset/Drift, Low-Noise, Precision Amplifiers, SOT-23-6	U	
+Op-Amps	Amplifier_Operational	MAX4239ASA	MAX4239ASA	Analog Devices (Maxim)	Ultra-Low Offset/Drift, Low-Noise, Precision Amplifiers, SOIC-8	U	
+Op-Amps	Amplifier_Operational	MAX4239AUT	MAX4239AUT	Analog Devices (Maxim)	Ultra-Low Offset/Drift, Low-Noise, Precision Amplifiers, SOT-23-6	U	
+Op-Amps	Amplifier_Operational	MAX4395ESD	MAX4395ESD	Analog Devices (Maxim)	Ultra-Small, Low-Cost, 85MHz Quad Op Amp with Rail-to-Rail Outputs	U	
+Op-Amps	Amplifier_Operational	MAX4395EUD	MAX4395EUD	Analog Devices (Maxim)	Ultra-Small, Low-Cost, 85MHz Quad Op Amp with Rail-to-Rail Outputs	U	
+Op-Amps	Amplifier_Operational	MCP6001-OT	MCP6001-OT	Microchip	1MHz, Low-Power Op Amp, SOT-23-5	U	
+Op-Amps	Amplifier_Operational	MCP6001R	MCP6001R	Microchip	1MHz, Low-Power Op Amp, SOT-23-5	U	
+Op-Amps	Amplifier_Operational	MCP601R	MCP601R	Microchip	Single 2.7V to 6.0V Single Supply CMOS Op Amps, SOT-23-5	U	
+Op-Amps	Amplifier_Operational	MCP6L91RT-EOT	MCP6L91RT-EOT	Microchip	10 MHz, 850 µA Op Amps, SOT-23-5	U	
+Op-Amps	Amplifier_Operational	MCP6L91T-EOT	MCP6L91T-EOT	Microchip	10 MHz, 850 µA Op Amps, SOT-23-5	U	
+Op-Amps	Amplifier_Operational	NCS20072D	NCS20072D	onsemi	Dual, 2.8V/µs, Rail-to-Rail Output, SOIC-8	U	
+Op-Amps	Amplifier_Operational	NCS20072DM	NCS20072DM	onsemi	Dual, 2.8V/µs, Rail-to-Rail Output, MSOP-8	U	
+Op-Amps	Amplifier_Operational	NCS20072DTB	NCS20072DTB	onsemi	Dual, 2.8V/µs, Rail-to-Rail Output, TSSOP-8	U	
+Op-Amps	Amplifier_Operational	NCS20074D	NCS20074D	onsemi	Quad, 2.8V/µs, Rail-to-Rail Output, SOIC-14	U	
+Op-Amps	Amplifier_Instrumentation	AD8230	AD8230	Analog Devices	16V Rail-to-Rail, Zero-Drift, Precision Instrumentation Amplifier, SOIC-8	U	
+Op-Amps	Amplifier_Instrumentation	INA326	INA326	Texas Instruments	Precision, Rail-to-Rail I/O Instrumentation Amplifier, MSOP-8 package	U	
+Op-Amps	Amplifier_Instrumentation	INA327	INA327	Texas Instruments	Precision, Rail-to-Rail I/O Instrumentation Amplifier, MSOP-10 package	U	
+Op-Amps	Amplifier_Instrumentation	INA849D	INA849D	Texas Instruments	Ultra-Low-Noise (1 nV/√Hz), 28 MHz Bandwidth, Instrumentation Amplifier, Supply Range 8V to 36V, SOIC-8	U	
+Op-Amps	Amplifier_Instrumentation	INA849DGK	INA849DGK	Texas Instruments	Ultra-Low-Noise (1 nV/√Hz), 28 MHz Bandwidth, Instrumentation Amplifier, Supply Range 8V to 36V, VSSOP-8	U	
+Op-Amps	Amplifier_Difference	AD8207	AD8207	Analog Devices	65V (35V) Zero-Drift, High Voltage, Bidirectional, Difference Amplifier, 20V/V gain, bandwidth 150kHz, Vcc=5V (3.3V), SOIC-8	U	
+Op-Amps	Amplifier_Difference	AD8264	AD8264	Analog Devices	Quad, 235 MHz, 6-30 dB gain, ±2.5 V to ±5 V supply, DC-Coupled VGA and Differential Output Amplifier, QFN-40	U	
+Op-Amps	Amplifier_Difference	INA105KP	INA105KP	Texas Instruments	Low Power, Wide Supply Range, Low Cost Unity-Gain Difference Amplifier, DIP-8	U	
+Op-Amps	Amplifier_Difference	INA105KU	INA105KU	Texas Instruments	Low Power, Wide Supply Range, Low Cost Unity-Gain Difference Amplifier, SOIC-8	U	
+Op-Amps	Amplifier_Difference	THS4521ID	THS4521ID	Texas Instruments	Very Low Power, Negative Rail Input, Rail to Rail Output, Fully Differential Amplifier, SOIC-8	U	
+Op-Amps	Amplifier_Difference	THS4521IDGK	THS4521IDGK	Texas Instruments	Very Low Power, Negative Rail Input, Rail to Rail Output, Fully Differential Amplifier, VSSOP-8	U	
+Sensors	Amplifier_Current	AD8205	AD8205	Analog Devices	65V Single-Supply, System Difference Amplifier, 50V/V gain, bandwidth 50kHz, Vcc=5V, SOIC-8	U	
+Sensors	Amplifier_Current	AD8206	AD8206	Analog Devices	65V High Common-Mode Voltage, Bidirectional, Current Shunt Amplifier, 20V/V gain, bandwidth 100kHz, Vcc=5V, SOIC-8	U	
+Sensors	Amplifier_Current	AD8210	AD8210	Analog Devices	65V High Voltage, Bidirectional Current Shunt Monitor, 20V/V gain, bandwidth 450kHz, Vcc=5V, SOIC-8	U	
+Sensors	Amplifier_Current	AD8211	AD8211	Analog Devices	65V High Voltage, Current Shunt Monitor, 20V/V gain, bandwidth 500kHz, Vcc=5V, SOT-23-5	U	
+Sensors	Amplifier_Current	AD8212	AD8212	Analog Devices	65V High Voltage Current, Shunt Monitor, adjustable gain, bandwidth 1000kHz, Vcc=7V~65V, current output, unidirectional, MSOP-8	U	
+Sensors	Amplifier_Current	AD8213	AD8213	Analog Devices	65V Dual, High Voltage, Current Shunt Monitor, 20V/V gain, bandwidth 500kHz, Vcc=5V, MSOP-10	U	
+Sensors	Amplifier_Current	AD8215	AD8215	Analog Devices	65V High Voltage, Current Shunt Monitor, 20V/V gain, bandwidth 450kHz, Vcc=5V, unidirectional, SOIC-8	U	
+Sensors	Amplifier_Current	AD8216	AD8216	Analog Devices	65V High Bandwidth, Bidirectional Difference Amplifier, 3V/V gain, bandwidth 3MHz, Vcc=5V, SOIC-8	U	
+Sensors	Amplifier_Current	AD8217	AD8217	Analog Devices	80V High Resolution, Zero-Drift, Current Shunt Monitor, 20V/V gain, bandwidth 500kHz, internal LDO, unidirectional, MSOP-8	U	
+Sensors	Amplifier_Current	AD8219	AD8219	Analog Devices	80V Zero Drift, Unidirectional, Current Shunt Monitor, 60V/V gain, bandwidth 500kHz, Vcc=4V~80V, MSOP-8	U	
+Sensors	Amplifier_Current	INA138	INA138	Texas Instruments	High-Side Measurement Current Shunt Monitor, 36V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA139	INA139	Texas Instruments	High-Side Measurement Current Shunt Monitor, 40V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA168	INA168	Texas Instruments	High-Side Measurement Current Shunt Monitor, 60V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA169	INA169	Texas Instruments	High-Side Measurement Current Shunt Monitor, 60V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA180A1	INA180A1	Texas Instruments	Current Sense Amplifier, 1 Circuit, Rail-to-Rail, 26V, Gain 20 V/V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA180A2	INA180A2	Texas Instruments	Current Sense Amplifier, 1 Circuit, Rail-to-Rail, 26V, Gain 50 V/V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA180A3	INA180A3	Texas Instruments	Current Sense Amplifier, 1 Circuit, Rail-to-Rail, 26V, Gain 100 V/V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA180A4	INA180A4	Texas Instruments	Current Sense Amplifier, 1 Circuit, Rail-to-Rail, 26V, Gain 200 V/V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA180B1	INA180B1	Texas Instruments	Current Sense Amplifier, 1 Circuit, Rail-to-Rail, 26V, Gain 20 V/V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA180B2	INA180B2	Texas Instruments	Current Sense Amplifier, 1 Circuit, Rail-to-Rail, 26V, Gain 50 V/V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA180B3	INA180B3	Texas Instruments	Current Sense Amplifier, 1 Circuit, Rail-to-Rail, 26V, Gain 100 V/V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA180B4	INA180B4	Texas Instruments	Current Sense Amplifier, 1 Circuit, Rail-to-Rail, 26V, Gain 200 V/V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA181	INA181	Texas Instruments	Bidirectional, Low- and High-Side Voltage Output, Current-Sense Amplifier, SOT-23-6	U	
+Sensors	Amplifier_Current	INA193	INA193	Texas Instruments	Current Shunt Monitor −16V to +80V Common-Mode Range, 20V/V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA194	INA194	Texas Instruments	Current Shunt Monitor −16V to +80V Common-Mode Range, 50V/V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA195	INA195	Texas Instruments	Current Shunt Monitor −16V to +80V Common-Mode Range, 100V/V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA196	INA196	Texas Instruments	Current Shunt Monitor −16V to +80V Common-Mode Range, 20V/V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA197	INA197	Texas Instruments	Current Shunt Monitor −16V to +80V Common-Mode Range, 50V/V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA198	INA198	Texas Instruments	Current Shunt Monitor −16V to +80V Common-Mode Range, 100V/V, SOT-23-5	U	
+Sensors	Amplifier_Current	INA200D	INA200D	Texas Instruments	Current Shunt Monitor, integrated comparator and reference, -16V to +80V Common-Mode Range, 20V/V, SOIC-8	U	
+Audio	Amplifier_Audio	IRS2092	IRS2092	Infineon	Protected Digital Audio Amplifier, PWM Modulator, ±100V, 1.0/1.2A, PDIP-16	U	
+Audio	Amplifier_Audio	IRS2092S	IRS2092S	Infineon	Protected Digital Audio Amplifier, PWM Modulator, ±100V, 1.0/1.2A, SOIC-16	U	
+Audio	Amplifier_Audio	IRS20957S	IRS20957S	Infineon	Protected Digital Audio Driver, ±100V, 1.0/1.2A, SOIC-16	U	
+Audio	Amplifier_Audio	IRS20965S	IRS20965S	Infineon	Class D Audio Driver, ±100V, 2.0/2.0A, SOIC-16	U	
+Audio	Amplifier_Audio	IS31AP4991-GRLS2	IS31AP4991-GRLS2	ISSI	1.2W, 2.7-5.5V, Audio Power Amplifier, Active-Low Standby, JEITA SOIC-8 (SOP-8)	U	
+Audio	Amplifier_Audio	IS31AP4991-SLS2	IS31AP4991-SLS2	ISSI	1.2W, 2.7-5.5V, Audio Power Amplifier, Active-Low Standby, MSOP-8	U	
+Audio	Amplifier_Audio	LM1876	LM1876	Texas Instruments	Overture Audio Power Amplifier Series Dual 20W Audio Power Amplifier with Mute and Standby Modes, TO-220-15	U	
+Audio	Amplifier_Audio	LM380N	LM380N	Texas Instruments	2.5W Audio Power Amplifier, PDIP-14	U	
+Audio	Amplifier_Audio	LM380N-8	LM380N-8	Texas Instruments	2.5W Audio Power Amplifier, PDIP-8	U	
+Audio	Amplifier_Audio	LM384	LM384	Texas Instruments	5W Audio Power Amplifier, PDIP-14	U	
+Audio	Amplifier_Audio	LM4752TS	LM4752TS	Texas Instruments	Stereo 11W Audio Power Amplifier, TO-263-7	U	
+Audio	Amplifier_Audio	LM4766	LM4766	Texas Instruments	Overture Audio Power Amplifier Series Dual 40W Audio Power Amplifier with Mute, TO-220-15	U	
+Audio	Amplifier_Audio	LM4810	LM4810	Texas Instruments	Boomer Dual 105mW Headphone Amplifier with Active-High Shutdown Mode, VSSOP-8	U	
+Audio	Amplifier_Audio	LM4811	LM4811	Texas Instruments	Boomer Dual 105mW Headphone Amplifier with Digital Volume Control and Shutdown Mode, VSSOP-10	U	
+Audio	Amplifier_Audio	LM4990ITL	LM4990ITL	Texas Instruments	Boomer 2 Watt Audio Power Amplifier with Selectable Shutdown Logic Level, DSBGA-9	U	
+Audio	Amplifier_Audio	LM4990MH	LM4990MH	Texas Instruments	Boomer 2 Watt Audio Power Amplifier with Selectable Shutdown Logic Level, MSOP-10	U	
+Audio	Amplifier_Audio	LM4990MM	LM4990MM	Texas Instruments	Boomer 2 Watt Audio Power Amplifier with Selectable Shutdown Logic Level, VSSOP-8	U	
+Audio	Amplifier_Audio	LME49600	LME49600	Texas Instruments	High-Performance, High-Fidelity, High-Current Headphone Buffer, 250mA, TO-263	U	
+Audio	Amplifier_Audio	MA12040	MA12040	Infineon	Filterless and High-Efficiency +4V to +18V Audio Amplifier with Analog Input, QFN-64	U	
+Audio	Amplifier_Audio	MA12040P	MA12040P	Infineon	Filterless and High-Efficiency +4V to +18V Audio Amplifier with I2S Digital Input, QFN-64	U	
+Op-Amps	Comparator	LM397	LM397	Texas Instruments	Single General-Purpose Voltage Comparator with Open-Collector Output, SOT-23-5	U	
+Op-Amps	Comparator	LMH7324	LMH7324	Texas Instruments	Quad 700 ps High Speed Comparator with RSPECL Outputs, WQFN-32	U	
+Op-Amps	Comparator	LMV7219M5	LMV7219M5	Texas Instruments	Single Low-Power High-Speed Push-Pull Output Comparator, SOT-23-5	U	
+Op-Amps	Comparator	LMV7272	LMV7272	Texas Instruments	Dual, 1.8V Low Power, Rail-to-Rail Input, Push-Pull Output Comparator, DSBGA-8	U	
+Op-Amps	Comparator	LP2901D	LP2901D	Texas Instruments	Quad Differential Comparators, SOIC-14	U	
+Op-Amps	Comparator	MAX9031AU	MAX9031AU	Analog Devices (Maxim)	Single, Rail to Rail, 2.5V - 5.5V Supply, 571mW, SOT-23-5	U	
+Op-Amps	Comparator	MCP6561-OT	MCP6561-OT	Microchip	Single 1.8V Low-Power Push-Pull Output Comparator, SOT-23-5	U	
+Op-Amps	Comparator	MCP6561R	MCP6561R	Microchip	Single 1.8V Low-Power Push-Pull Output Comparator, SOT-23-5	U	
+Op-Amps	Comparator	MCP6561U	MCP6561U	Microchip	Single 1.8V Low-Power Push-Pull Output Comparator, SOT-23-5	U	
+Op-Amps	Comparator	MCP6566R	MCP6566R	Microchip	Single 1.8V Low-Power Open-Drain Output Comparator, SOT-23-5	U	
+Op-Amps	Comparator	MCP6566U	MCP6566U	Microchip	Single 1.8V Low-Power Open-Drain Output Comparator, SOT-23-5	U	
+Op-Amps	Comparator	MCP65R41	MCP65R41	Microchip	3 μA Comparator with Integrated Reference Voltage, SOT-23-6	U	
+Op-Amps	Comparator	MCP65R46	MCP65R46	Microchip	3 μA Comparator with Integrated Reference Voltage, SOT-23-6	U	
+Op-Amps	Comparator	TL331	TL331	Texas Instruments	Single Differential Comparator with Open-Collector Output, SOT-23-5	U	
+Op-Amps	Comparator	TLV3501AID	TLV3501AID	Texas Instruments	High-Speed Comparator, 4.5-ns, Rail-to-Rail, Push-Pull CMOS Output, SOIC-8	U	
+Op-Amps	Comparator	TLV3501AIDBV	TLV3501AIDBV	Texas Instruments	High-Speed Comparator, 4.5-ns, Rail-to-Rail, Push-Pull CMOS Output, SOT-23-6	U	
+Op-Amps	Comparator	TLV7031DBV	TLV7031DBV	Texas Instruments	Single, 1.6V-6.5V, 315nA Quiescent, Push-Pull Output, Comparator, SOT-23-5/SC-70	U	
+Op-Amps	Comparator	TLV7041DBV	TLV7041DBV	Texas Instruments	Single, 1.6V-6.5V, 315nA Quiescent, Open-Drain Output, Comparator, North-west pinout, SOT-23-5	U	
+Interface	Interface_CAN_LIN	ADM3053	ADM3053	Analog Devices	Isolated CAN Transceiver, integrated isolated DC-DC converter, 1Mbps	U	
+Interface	Interface_CAN_LIN	ISO1044BD	ISO1044BD	Texas Instruments	Isolated CAN FD Transceiver, SOIC-8	U	
+Interface	Interface_CAN_LIN	ISO1050DUB	ISO1050DUB	Texas Instruments	Isolated CAN Transceiver, SOP-8	U	
+Interface	Interface_CAN_LIN	ISOW1044	ISOW1044	Texas Instruments	Isolated CAN FD Transceiver, Integrated DC-DC Converter, 5Mbps, Reinforced Isolation, SOIC-20W	U	
+Interface	Interface_CAN_LIN	LTC2875-DD	LTC2875-DD	Analog Devices	High-Speed CAN Transceiver, 4Mbps, 3.3V or 5V supply, DFN-8	U	
+Interface	Interface_CAN_LIN	LTC2875-S8	LTC2875-S8	Analog Devices	High-Speed CAN Transceiver, 4Mbps, 3.3V or 5V supply, SOIC-8	U	
+Interface	Interface_CAN_LIN	MCP2050-330-EMQ	MCP2050-330-EMQ	Microchip	LIN Transceiver with Voltage Regulator, 3.3V, QFN-20	U	
+Interface	Interface_CAN_LIN	MCP2050-330-EP	MCP2050-330-EP	Microchip	LIN Transceiver with Voltage Regulator, 3.3V, PDIP	U	
+Interface	Interface_CAN_LIN	MCP2050-330-ESL	MCP2050-330-ESL	Microchip	LIN Transceiver with Voltage Regulator, 3.3V, SOIC-14	U	
+Interface	Interface_CAN_LIN	MCP2050-500-EMQ	MCP2050-500-EMQ	Microchip	LIN Transceiver with Voltage Regulator, 5V, QFN-20	U	
+Interface	Interface_CAN_LIN	MCP2050-500-EP	MCP2050-500-EP	Microchip	LIN Transceiver with Voltage Regulator, 5V, PDIP	U	
+Interface	Interface_CAN_LIN	MCP2050-500-ESL	MCP2050-500-ESL	Microchip	LIN Transceiver with Voltage Regulator, 5V, SOIC-14	U	
+Interface	Interface_CAN_LIN	MCP2551-I-P	MCP2551-I-P	Microchip	High-Speed CAN Transceiver, 1Mbps, 5V supply, DIP-8	U	
+Interface	Interface_CAN_LIN	MCP2551-I-SN	MCP2551-I-SN	Microchip	High-Speed CAN Transceiver, 1Mbps, 5V supply, SOIC-8	U	
+Interface	Interface_CAN_LIN	MCP2561-E-MF	MCP2561-E-MF	Microchip	High-Speed CAN Transceiver, 1Mbps, 5V supply, SPLIT pin, -40C to +125C, DFN-8	U	
+Interface	Interface_CAN_LIN	MCP2561-E-P	MCP2561-E-P	Microchip	High-Speed CAN Transceiver, 1Mbps, 5V supply, SPLIT pin, -40C to +125C, DIP-8	U	
+Interface	Interface_CAN_LIN	MCP2561-E-SN	MCP2561-E-SN	Microchip	High-Speed CAN Transceiver, 1Mbps, 5V supply, SPLIT pin, -40C to +125C, SOIC-8	U	
+Interface	Interface_CAN_LIN	MCP2561-H-MF	MCP2561-H-MF	Microchip	High-Speed CAN Transceiver, 1Mbps, 5V supply, SPLIT pin, -40C to +150C, DFN-8	U	
+Interface	Interface_CAN_LIN	MCP2561-H-P	MCP2561-H-P	Microchip	High-Speed CAN Transceiver, 1Mbps, 5V supply, SPLIT pin, -40C to +150C, DIP-8	U	
+Interface	Interface_CAN_LIN	MCP2561-H-SN	MCP2561-H-SN	Microchip	High-Speed CAN Transceiver, 1Mbps, 5V supply, SPLIT pin, -40C to +150C, SOIC-8	U	
+Interface	Interface_CAN_LIN	MCP2562-E-MF	MCP2562-E-MF	Microchip	High-Speed CAN Transceiver, 1Mbps, 5V supply, Vio pin, -40C to +125C, DFN-8	U	
+Interface	Interface_CAN_LIN	MCP2562-E-P	MCP2562-E-P	Microchip	High-Speed CAN Transceiver, 1Mbps, 5V supply, Vio pin, -40C to +125C, DIP-8	U	
+Interface	Interface_CAN_LIN	MCP2562-E-SN	MCP2562-E-SN	Microchip	High-Speed CAN Transceiver, 1Mbps, 5V supply, Vio pin, -40C to +125C, SOIC-8	U	
+Interface	Interface_CAN_LIN	MCP2562-H-MF	MCP2562-H-MF	Microchip	High-Speed CAN Transceiver, 1Mbps, 5V supply, Vio pin, -40C to +150C, DFN-8	U	
+Interface	Interface_CAN_LIN	MCP2562-H-P	MCP2562-H-P	Microchip	High-Speed CAN Transceiver, 1Mbps, 5V supply, Vio pin, -40C to +150C, DIP-8	U	
+Interface	Interface_CAN_LIN	MCP2562-H-SN	MCP2562-H-SN	Microchip	High-Speed CAN Transceiver, 1Mbps, 5V supply, Vio pin, -40C to +150C, SOIC-8	U	
+Interface	Interface_CAN_LIN	PCA82C251	PCA82C251	NXP	CAN Transceiver for 24V Systems, SO-8	U	
+Interface	Interface_CAN_LIN	SN65HVD1050D	SN65HVD1050D	Texas Instruments	CAN Bus Transceiver, EMC optimised, 5.0V, 1Mbps, SOIC-8	U	
+Interface	Interface_CAN_LIN	SN65HVD230	SN65HVD230	Texas Instruments	CAN Bus Transceivers, 3.3V, 1Mbps, Low-Power capabilities, SOIC-8	U	
+Interface	Interface_CAN_LIN	SN65HVD231	SN65HVD231	Texas Instruments	CAN Bus Transceivers, 3.3V, 1Mbps,Ultra Low-Power capabilities, SOIC-8	U	
+Interface	Interface_CAN_LIN	SN65HVD232	SN65HVD232	Texas Instruments	CAN Bus Transceivers, 3.3V, 1Mbps, SOIC-8	U	
+Interface	Interface_CAN_LIN	SN65HVD233	SN65HVD233	Texas Instruments	CAN Bus Transceiver, 3.3V, 1Mbps, Loopback feature, SOIC-8	U	
+Interface	Interface_CAN_LIN	SN65HVD234	SN65HVD234	Texas Instruments	CAN Bus Transceiver, 3.3V, 1Mbps, Enable feature, SOIC-8	U	
+Interface	Interface_CAN_LIN	SN65HVD235	SN65HVD235	Texas Instruments	CAN Bus Transceiver, 3.3V, 1Mbps, Autobaud feature, SOIC-8	U	
+Interface	Interface_CAN_LIN	SN65HVD255D	SN65HVD255D	Texas Instruments	CAN Bus Transceiver with Fast Loop Times for Highly Loaded Networks, SOIC-8	U	
+Interface	Interface_UART	16550	16550	Texas Instruments	PC16550D, Universal Asynchronous Receiver/Transmitter with FIFOs, PDIP-40	U	
+Interface	Interface_UART	ADM101E	ADM101E	Analog Devices	Single RS232 driver/receiver, 5V supply, 460kb/s	U	
+Interface	Interface_UART	ADM1491EBR	ADM1491EBR	Analog Devices	RS-485, RS-422 full duplex 16Mbps transceiver, SOIC-14	U	
+Interface	Interface_UART	ADM205	ADM205	Analog Devices	0.1 μF, 5V powered CMOS RS-232 120kb/s transceiver with 5 drivers and 5 receivers (tx/rx: 5/5), shutdown / enable pins, DIP-24 (600 mil)	U	
+Interface	Interface_UART	ADM2484E	ADM2484E	Analog Devices	Isolated RS485/RS422 Transceiver, Half-/Full-Duplex, 500kbps,SOIC-16W	U	
+Interface	Interface_UART	ADM2582E	ADM2582E	Analog Devices	Isolated RS485/RS422 Transceiver,Integrated Isolated DC-DC Converter, 16Mbps,SO-20	U	
+Interface	Interface_UART	ADM2587E	ADM2587E	Analog Devices	Isolated RS485/RS422 Transceiver,Integrated Isolated DC-DC Converter, 500kbps,SO-20	U	
+Interface	Interface_UART	ADM2682E	ADM2682E	Analog Devices	Isolated RS485/RS422 Transceiver, Integrated Isolated DC-DC Converter, 16Mbps, SOIC-16W	U	
+Interface	Interface_UART	ADM2687E	ADM2687E	Analog Devices	Isolated RS485/RS422 Transceiver, Integrated Isolated DC-DC Converter, 500kbps, SOIC-16W	U	
+Interface	Interface_UART	AZ75232G	AZ75232G	Diodes Inc.	RS232 interface IC, 3 drivers, 5 receivers, 3.3V/5V Vcc supply, bipolar Vdd/Vss supply, 120kb/s, TSSOP-20	U	
+Interface	Interface_UART	AZ75232GS	AZ75232GS	Diodes Inc.	RS232 interface IC, 3 drivers, 5 receivers, 3.3V/5V Vcc supply, bipolar Vdd/Vss supply, 120kb/s, SSOP-20	U	
+Interface	Interface_UART	AZ75232M	AZ75232M	Diodes Inc.	RS232 interface IC, 3 drivers, 5 receivers, 3.3V/5V Vcc supply, bipolar Vdd/Vss supply, 120kb/s, SOIC-20	U	
+Interface	Interface_UART	GD65232DB	GD65232DB	Texas Instruments	Multiple RS-232 Driver and Receiver, SSOP-20	U	
+Interface	Interface_UART	GD65232DW	GD65232DW	Texas Instruments	Multiple RS-232 Driver and Receiver, SOIC-20	U	
+Interface	Interface_UART	GD65232PW	GD65232PW	Texas Instruments	Multiple RS-232 Driver and Receiver, TSSOP-20	U	
+Interface	Interface_UART	GD75232DB	GD75232DB	Texas Instruments	Multiple RS-232 Driver and Receiver, SSOP-20	U	
+Interface	Interface_UART	GD75232DW	GD75232DW	Texas Instruments	Multiple RS-232 Driver and Receiver, SOIC-20	U	
+Interface	Interface_UART	GD75232N	GD75232N	Texas Instruments	Multiple RS-232 Driver and Receiver, DIP-20	U	
+Interface	Interface_UART	GD75232PW	GD75232PW	Texas Instruments	Multiple RS-232 Driver and Receiver, TSSOP-20	U	
+Interface	Interface_UART	ISL3172E	ISL3172E	Renesas	250kbps, 3.3V RS-485 transceiver, ±15-kV IEC ESD protection, -7V..+12V common mode voltage, slew-rate limit, SO-8	U	
+Interface	Interface_UART	ISL3175E	ISL3175E	Renesas	500kbps, 3.3V RS-485 transceiver, ±15-kV IEC ESD protection, -7V..+12V common mode voltage, slew-rate limit, SO-8	U	
+Interface	Interface_UART	ISL3178E	ISL3178E	Renesas	20Mbps, 3.3V RS-485 transceiver, ±15-kV IEC ESD protection, -7V..+12V common mode voltage, SO-8	U	
+Interface	Interface_UART	ISO1500	ISO1500	Texas Instruments	Half duplex RS-485/RS-422 transceiver, 3-kVRMS Isolated, SSOP-16	U	
+Interface	Interface_UART	ISO3082DW	ISO3082DW	Texas Instruments	200 kbps, Isolated 5-V Half-Duplex RS-485 transceiver, SOIC-16	U	
+Interface	Interface_UART	ISO3088DW	ISO3088DW	Texas Instruments	20 Mbps, Isolated 5-V Half-Duplex RS-485 transceiver, SOIC-16	U	
+Interface	Interface_UART	LTC2861	LTC2861	Analog Devices	20Mbps RS485 transceiver with tntegrated switchable termination	U	
+Interface	Interface_UART	MAX13432EESD	MAX13432EESD	Analog Devices (Maxim)	RS485 transceiver, full duplex, dual supply, receiver/driver enable, 500kbps, SOIC-14 package	U	
+Interface	Interface_UART	MAX13432EETD	MAX13432EETD	Analog Devices (Maxim)	RS485 transceiver, full duplex, dual supply, receiver/driver enable, 500kbps, DFN-14 package	U	
+Interface	Interface_UART	MAX13433EESD	MAX13433EESD	Analog Devices (Maxim)	RS485 transceiver, full duplex, dual supply, receiver/driver enable, 16Mbps, SOIC-14 package	U	
+Interface	Interface_UART	MAX13433EETD	MAX13433EETD	Analog Devices (Maxim)	RS485 transceiver, full duplex, dual supply, receiver/driver enable, 16Mbps, DFN-14 package	U	
+Interface	Interface_UART	MAX14830	MAX14830	Analog Devices (Maxim)	Quad UART with I2C/SPI interface, 128 Word FIFOs, IrDA SIR built-in support, TQFN-48	U	
+Interface	Interface_UART	MAX1487E	MAX1487E	Analog Devices (Maxim)	Half duplex RS-485/RS-422, 2.5 Mbps, ±15kV electro-static discharge (ESD) protection, no slew-rate, no low-power shutdown, with receiver/driver enable, 128 rec…	U	
+Interface	Interface_UART	MAX3072E	MAX3072E	Analog Devices (Maxim)	+3.3V, ±15kV ESD-Protected, Fail-Safe, Hot-Swap, RS-485/RS-422 Transceivers, SOIC-8	U	
+Interface	Interface_UART	MAX3075E	MAX3075E	Analog Devices (Maxim)	+3.3V, ±15kV ESD-Protected, Fail-Safe, Hot-Swap, RS-485/RS-422 Transceivers, SOIC-8	U	
+Interface	Interface_UART	MAX3078E	MAX3078E	Analog Devices (Maxim)	+3.3V, ±15kV ESD-Protected, Fail-Safe, Hot-Swap, RS-485/RS-422 Transceivers, SOIC-8	U	
+Interface	Interface_UART	MAX3226	MAX3226	Analog Devices (Maxim)	Single RS232 driver/receiver, 3.0V to 5V supply, 250kb/s, AutoShutdown Plus, SSOP-16 package	U	
+Interface	Interface_UART	MAX3227	MAX3227	Analog Devices (Maxim)	Single RS232 driver/receiver, 3.0V to 5V supply, 1Mb/s, AutoShutdown Plus, SSOP-16 package	U	
+Interface	Interface_UART	MAX3284E	MAX3284E	Analog Devices (Maxim)	±15kV ESD-Protected 52Mbps, 3V to 5.5V RS-485/RS-422 True Fail-Safe Receivers, SOT23	U	
+Interface	Interface_UART	MAX3483	MAX3483	Analog Devices (Maxim)	True RS-485/RS-422, 0.25Mbps, Slew-Rate Limited, with low-power shutdown, with receiver/driver enable, 32 receiver drive capacitity, DIP-8 and SOIC-8	U	
+Interface	Interface_UART	MAX3485	MAX3485	Analog Devices (Maxim)	True RS-485/RS-422, 10Mbps, Slew-Rate Limited, with low-power shutdown, with receiver/driver enable, 32 receiver drive capacitity, DIP-8 and SOIC-8	U	
+Interface	Interface_USB	ADUM3160	ADUM3160	Analog Devices	Full/Low Speed, iCoupler USB Digital Isolator, 2.5kV protection	U	
+Interface	Interface_USB	ADUM4160	ADUM4160	Analog Devices	Full/Low Speed, iCoupler USB Digital Isolator, 5kV protection, SOIC-16	U	
+Interface	Interface_USB	AP33771	AP33771	Diodes Inc.	USB Type-C PD Sink Controller, QFN-24	U	
+Interface	Interface_USB	CH221K	CH221K	WCH	USB-PD & Type-C & Fast Charge Power Sink Controller, SOT-23-6	U	
+Interface	Interface_USB	CH224K	CH224K	WCH	100W USB Type-C PD3.0/2.0, BC1.2 Sink Controller, SSOP-10	U	
+Interface	Interface_USB	CH236D	CH236D	WCH	USB fast charging interface PD2.0/3.0, PPS, BC1.2 , QFN-20	U	
+Interface	Interface_USB	CH246D	CH246D	WCH	USB QII wireless charging interface PD2.0, BC1.2, QII 5W, 7.5W, 10W, 15W, QFN-20	U	
+Interface	Interface_USB	CH330N	CH330N	WCH	USB serial converter, UART, SOIC-8	U	
+Interface	Interface_USB	CH334F	CH334F	WCH	USB HUB controller, QFN-24	U	
+Interface	Interface_USB	CH341A	CH341A	WCH	USB to UART / printer port / parallel port / 2-wire / 4-wire, SOIC-28 (SOP-28)	U	
+Interface	Interface_USB	CH343G	CH343G	WCH	High-Speed USB serial converter, up to 6Mbps, 3.3V or 5V supply, UART, SOIC-16	U	
+Interface	Interface_USB	CH343P	CH343P	WCH	High-Speed USB serial converter, up to 6Mbps, 3.3V or 5V supply, UART, QFN-16	U	
+Interface	Interface_USB	CH344Q	CH344Q	WCH	USB to Quad Serial Ports Chip, LQFP-48	U	
+Interface	Interface_USB	CP2104	CP2104	Silicon Labs	Single-Chip USB-to-UART Bridge, USB 2.0 Full-Speed, 2Mbps UART, QFN-24	U	
+Interface	Interface_USB	CP2105-F01-GM	CP2105-F01-GM	Silicon Labs	Single-Chip USB to dual UART bridge, QFN-24	U	
+Interface	Interface_USB	CP2112	CP2112	Silicon Labs	HID USB to SMBUS master bridge	U	
+Interface	Interface_USB	CY7C65211-24LTXI	CY7C65211-24LTXI	Infineon (Cypress)	USB-Serial single channel bridge with capsense and BCD, +1.71V to +5.5V VDD, UART/I2C/SPI/RS232/RS422, QFN-24	U	
+Interface	Interface_USB	CY7C65211A-24LTXI	CY7C65211A-24LTXI	Infineon (Cypress)	USB-Serial single channel bridge with capsense and BCD, +1.71V to +5.5V VDD, UART/I2C/SPI/RS232/RS422/RS485, QFN-24	U	
+Interface	Interface_USB	CY7C65213-28PVXI	CY7C65213-28PVXI	Infineon (Cypress)	USB-UART LP Bridge Controller, full speed 12Mbps, +1.71V to 5.5V VDD, UART/RS232/RS422, SSOP-28	U	
+Interface	Interface_USB	CY7C65213-32LTXI	CY7C65213-32LTXI	Infineon (Cypress)	USB-UART LP Bridge Controller, full speed 12Mbps, +1.71V to 5.5V VDD, UART/RS232/RS422, QFN-32	U	
+Interface	Interface_USB	CY7C65213A-28PVXI	CY7C65213A-28PVXI	Infineon (Cypress)	USB-UART LP Bridge Controller, full speed 12Mbps, +1.71V to 5.5V VDD, UART/RS232/RS422/RS485, SSOP-28	U	
+Interface	Interface_USB	CY7C65213A-32LTXI	CY7C65213A-32LTXI	Infineon (Cypress)	USB-UART LP Bridge Controller, full speed 12Mbps, +1.71V to 5.5V VDD, UART/RS232/RS422/RS485, QFN-32	U	
+Interface	Interface_USB	CY7C65215-32LTXI	CY7C65215-32LTXI	Infineon (Cypress)	USB-Serial Dual Channel Bridge with CapSense Full-Speed 12 Mbps, +1.71V to +5.5V VDD, UART/I2C/SPI/RS232/RS422/JTAG, QFN-32	U	
+Interface	Interface_USB	CY7C65215A-32LTXI	CY7C65215A-32LTXI	Infineon (Cypress)	USB-Serial Dual Channel Bridge with CapSense, +1.71V to +5.5V VDD, UART/I2C/SPI/RS232/RS422/RS485/JTAG, QFN-32	U	
+Interface	Interface_USB	CYPD3171-24LQXQ	CYPD3171-24LQXQ	Infineon	USB Type-C port controller, Cortex®-M0 processor, UFP CC bootloader, QFN-24	U	
+Interface	Interface_USB	CYPD3174-16SXQ	CYPD3174-16SXQ	Infineon	USB Type-C port controller, Cortex®-M0 processor, DFP CC with opto coupler feedback bootloader, SOIC-16	U	
+Interface	Interface_USB	CYPD3174-24LQXQ	CYPD3174-24LQXQ	Infineon	USB Type-C port controller, Cortex®-M0 processor, DFP CC with opto coupler feedback bootloader, QFN-24	U	
+Interface	Interface_USB	CYPD3175-24LQXQ	CYPD3175-24LQXQ	Infineon	USB Type-C port controller, Cortex®-M0 processor, DFP CC with direct feedback bootloader, QFN-24	U	
+Interface	Interface_USB	CYPD3177-24LQ	CYPD3177-24LQ	Infineon	Stand-alone USB PD controller (with sink Auto-run mode), QFN-24	U	
+Interface	Interface_USB	FSUSB30MUX	FSUSB30MUX	onsemi	Low-Power, Two-Port, High-Speed, USB2.0 (480Mbps) Switch, MSOP-10	U	
+Interface	Interface_USB	FSUSB42MUX	FSUSB42MUX	onsemi	Low-Power, Two-Port, High-Speed, USB2.0 (480Mbps) or UART Switch, MSOP-10	U	
+Interface	Interface_USB	FT200XD	FT200XD	FTDI	Full Speed USB to I2C Bridge, DFN-10	U	
+Interface	Interface_USB	FT201XQ	FT201XQ	FTDI	Full Speed USB to I2C Bridge, QFN-10	U	
+Interface	Interface_USB	FT201XS	FT201XS	FTDI	Full Speed USB to I2C Bridge, SSOP-16	U	
+Interface	Interface_USB	FT220XQ	FT220XQ	FTDI	Full Speed USB to 4-Bit SPI / FT1248 Bridge, QFN-16	U	
+Interface	Interface_USB	FT220XS	FT220XS	FTDI	Full Speed USB to 4-Bit SPI / FT1248 Bridge, SSOP-16	U	
+Interface	Interface_USB	FT221XQ	FT221XQ	FTDI	Full Speed USB to 8-Bit SPI / FT1248 Bridge, QFN-20	U	
+Interface	Interface_USB	FT221XS	FT221XS	FTDI	Full Speed USB to 8-Bit SPI / FT1248 Bridge, SSOP-20	U	
+Interface	Interface_USB	FT2232D	FT2232D	FTDI	Full Speed Double Channel USB UART/FIFO, LQFP-48	U	
+Interface	Interface_USB	FT2232HL	FT2232HL	FTDI	Hi Speed Double Channel USB UART/FIFO, LQFP-64	U	
+Interface	Interface_Ethernet	DP83825I	DP83825I	Texas Instruments	RMII Single 10/100Mbps Ethernet Physical Layer Transceiver, up to 150m reach, Energy-Efficient-Ethernet, Cable Diagnostics, QFN-24	U	
+Interface	Interface_Ethernet	DP83848C	DP83848C	Texas Instruments	MII/RMII Single 10/100Mbps Ethernet Physical Layer Transceiver, LQFP-48	U	
+Interface	Interface_Ethernet	DP83848I	DP83848I	Texas Instruments	MII/RMII Single 10/100Mbps Ethernet Physical Layer Transceiver, LQFP-48	U	
+Interface	Interface_Ethernet	ENC424J600-ML	ENC424J600-ML	Microchip	Stand-Alone 10/100 Ethernet Controller with SPI or Parallel Interface, QFN-44	U	
+Interface	Interface_Ethernet	ENC424J600-PT	ENC424J600-PT	Microchip	Stand-Alone 10/100 Ethernet Controller with SPI or Parallel Interface, TQFP-44	U	
+Interface	Interface_Ethernet	KSZ8081MLX	KSZ8081MLX	Microchip	10BASE-T/100BASE-TX PHY with RMII Support, 25 MHz input clock, LQFP-48	U	
+Interface	Interface_Ethernet	KSZ8081RNA	KSZ8081RNA	Microchip	10BASE-T/100BASE-TX PHY with RMII Support, 25 MHz input clock/50 MHz output, QFN-24	U	
+Interface	Interface_Ethernet	KSZ8081RND	KSZ8081RND	Microchip	10BASE-T/100BASE-TX PHY with RMII Support, 50 MHz input clock, QFN-24	U	
+Interface	Interface_Ethernet	KSZ9031RNXCA	KSZ9031RNXCA	Microchip	10/100/1000Mbps Ethernet Transceiver with RGMII Interface, QFN-48	U	
+Interface	Interface_Ethernet	KSZ9563RNX	KSZ9563RNX	Microchip	3-Port Gigabit Ethernet Switch with RGMII/MII/RMII Interface and IEEE 1588v2, QFN-64	U	
+Interface	Interface_Ethernet	KSZ9893RNX	KSZ9893RNX	Microchip	3-Port Gigabit Ethernet Switch with RGMII/MII/RMII Interface, QFN-64	U	
+Interface	Interface_Ethernet	LAN7500-ABJZ	LAN7500-ABJZ	Microchip	Hi-Speed USB 2.0 to 10/100/1000 Ethernet Controller, QFN-56	U	
+Interface	Interface_Ethernet	LAN8710A	LAN8710A	Microchip	LAN8710 Ethernet PHY with MII/RMII interface, QFN-32	U	
+Interface	Interface_Ethernet	LAN8720A	LAN8720A	Microchip	LAN8720 Ethernet PHY with RMII interface, QFN-24	U	
+Interface	Interface_Ethernet	LAN8742A	LAN8742A	Microchip	LAN8720 Ethernet PHY with RMII interface, QFN-24	U	
+Interface	Interface_Expansion	AS1115-BQFT	AS1115-BQFT	ams OSRAM	64 LEDs, I2C Interfaced LED Driver with Keyscan, TQFN-24	U	
+Interface	Interface_Expansion	DS2484R	DS2484R	Analog Devices	I2C to 1-Wire bridge, single-channel (master device), adjustable timing and sleep mode, SOT-23-6	U	
+Interface	Interface_Expansion	PCA9506BS	PCA9506BS	NXP	IO expander 40 GPIO, I2C 400kHz, Interrupt, Reset, OE, 2.3 - 5.5V, HVQFN-56	U	
+Interface	Interface_Expansion	PCA9536D	PCA9536D	NXP	4-bit I2C-bus and SMBus IO port, SOIC-8	U	
+Interface	Interface_Expansion	PCA9536DP	PCA9536DP	NXP	4-bit I2C-bus and SMBus IO port, TSSOP-8	U	
+Interface	Interface_Expansion	PCA9537	PCA9537	NXP	4-bit I2C-bus and SMBus IO port with interrupt and reset, TSSOP-10	U	
+Interface	Interface_Expansion	PCA9538BS	PCA9538BS	NXP	8-bit I/O expander, I2C / SMBus interface, interrupt and reset pins, VQFN-16	U	
+Interface	Interface_Expansion	PCA9538D	PCA9538D	NXP	8-bit I/O expander, I2C / SMBus interface, interrupt and reset pins, SOIC-16	U	
+Interface	Interface_Expansion	PCA9538PW	PCA9538PW	NXP	8-bit I/O expander, I2C / SMBus interface, interrupt and reset pins, TSSOP-16	U	
+Interface	Interface_Expansion	PCA9544AD	PCA9544AD	NXP	4-channel I2C-bus multiplexer with interrupt logic, SOIC-20	U	
+Interface	Interface_Expansion	PCA9544APW	PCA9544APW	NXP	4-channel I2C-bus multiplexer with interrupt logic, TSSOP-20	U	
+Interface	Interface_Expansion	PCA9547BS	PCA9547BS	NXP	Low voltage 8-channel I2C switch with reset, HVQFN-24	U	
+Interface	Interface_Expansion	PCA9547D	PCA9547D	NXP	Low voltage 8-channel I2C switch with reset, SO-24	U	
+Interface	Interface_Expansion	PCA9547PW	PCA9547PW	NXP	Low voltage 8-channel I2C switch with reset, TSSOP-24	U	
+Interface	Interface_Expansion	PCA9548ADB	PCA9548ADB	Texas Instruments	Low voltage 8-channel I2C switch with reset, SSOP-24	U	
+Interface	Interface_Expansion	PCA9548ADW	PCA9548ADW	Texas Instruments	Low voltage 8-channel I2C switch with reset, SOIC-24	U	
+Interface	Interface_Expansion	PCA9548APW	PCA9548APW	Texas Instruments	Low voltage 8-channel I2C switch with reset, TSSOP-24	U	
+Interface	Interface_Expansion	PCA9548ARGE	PCA9548ARGE	Texas Instruments	Low voltage 8-channel I2C switch with reset, VQFN-24	U	
+Interface	Interface_Expansion	PCA9555D	PCA9555D	NXP	IO expander 16 GPIO, I2C 400kHz, Interrupt, 2.3 - 5.5V, SOIC-24	U	
+Interface	Interface_Expansion	PCA9555DB	PCA9555DB	NXP	IO expander 16 GPIO, I2C 400kHz, Interrupt, 2.3 - 5.5V, SSOP-24	U	
+Interface	Interface_Expansion	PCA9555PW	PCA9555PW	NXP	IO expander 16 GPIO, I2C 400kHz, Interrupt, 2.3 - 5.5V, TSSOP-24	U	
+Interface	Interface_Expansion	PCA9557BS	PCA9557BS	NXP	8-bit I2C-bus and SMBus I/O port with reset, HVQFN-16	U	
+Interface	Interface_Expansion	PCA9557D	PCA9557D	NXP	8-bit I2C-bus and SMBus I/O port with reset, SO-16	U	
+Interface	Interface_Expansion	PCA9557PW	PCA9557PW	NXP	8-bit I2C-bus and SMBus I/O port with reset, TSSOP-16	U	
+Interface	Interface_Expansion	PCA9847PW	PCA9847PW	NXP	Ultra low voltage 8-channel I2C switch with reset, TSSOP-24	U	
+Interface	Interface_LineDriver	DS89C21	DS89C21	Texas Instruments	Differential CMOS Line Driver and Receiver Pair, SOIC-8	U	
+Interface	Interface_LineDriver	MC3487DX	MC3487DX	Texas Instruments	Four independent differential line drivers, SOIC-16	U	
+Interface	Interface_LineDriver	MC3487N	MC3487N	Texas Instruments	Four independent differential line drivers, DIP-16	U	
+Interface	Interface_LineDriver	UA9638CD	UA9638CD	Texas Instruments	Dual high-speed differential line driver, SOIC-8	U	
+Interface	Interface_LineDriver	UA9638CDE4	UA9638CDE4	Texas Instruments	Dual high-speed differential line driver, SOIC-8	U	
+Interface	Interface_LineDriver	UA9638CDG4	UA9638CDG4	Texas Instruments	Dual high-speed differential line driver, SOIC-8	U	
+Interface	Interface_LineDriver	UA9638CDR	UA9638CDR	Texas Instruments	Dual high-speed differential line driver, SOIC-8	U	
+Interface	Interface_LineDriver	UA9638CDRG4	UA9638CDRG4	Texas Instruments	Dual high-speed differential line driver, SOIC-8	U	
+Interface	Interface_LineDriver	UA9638CP	UA9638CP	Texas Instruments	Dual high-speed differential line driver, DIP-8	U	
+Interface	Interface_LineDriver	UA9638CPE4	UA9638CPE4	Texas Instruments	Dual high-speed differential line driver, DIP-8	U	
+Interface	Interface_CurrentLoop	XTR115U	XTR115U	Texas Instruments	4-20mA Current Loop Transmitter, VREF 2.5V, SO-8	U	
+Interface	Interface_CurrentLoop	XTR116U	XTR116U	Texas Instruments	4-20mA Current Loop Transmitter, VREF 4.096V, SO-8	U	
+Logic	Logic_LevelTranslator	74LVC2T45DC	74LVC2T45DC	Nexperia	Dual supply translating transceiver, 3-state, 2-bit, VSSOP-8	U	
+Logic	Logic_LevelTranslator	74LVCH2T45DC	74LVCH2T45DC	Nexperia	Dual supply translating transceiver with bus-hold for unused/floating inputs, 3-state, 2-bit, VSSOP-8	U	
+Logic	Logic_LevelTranslator	CD40109BPW	CD40109BPW	Texas Instruments	CMOS Quad Low to High Voltage Level Shifter, Input 3 to 18V, up to 18V output , TSSOP-16	U	
+Logic	Logic_LevelTranslator	LSF0108PW	LSF0108PW	Nexperia	8-bit Bidirectional Voltage Level Translator, Auto Direction Sensing, 0 to +5V, 100MHz , TSSOP-20	U	
+Logic	Logic_LevelTranslator	NCN4555MN	NCN4555MN	onsemi	SIM Card Power Supply and Level Shifter, QFN-16	U	
+Logic	Logic_LevelTranslator	NLSV2T244D	NLSV2T244D	onsemi	Dual-Bit Dual-Supply Non-Inverting Level Translator, Output Enable, SOIC-8	U	
+Logic	Logic_LevelTranslator	NLSV2T244DM	NLSV2T244DM	onsemi	Dual-Bit Dual-Supply Non-Inverting Level Translator, Output Enable, MSOP-8	U	
+Logic	Logic_LevelTranslator	SN74AVC4T245PW	SN74AVC4T245PW	Texas Instruments	4-Bit Dual-Supply Bus Transceiver With Configurable Voltage Translation and 3-State Outputs, TSSOP-16	U	
+Logic	Logic_LevelTranslator	SN74AVC8T245PW	SN74AVC8T245PW	Texas Instruments	8-Bit Dual-Supply Bus Transceiver With Configurable Voltage Translation and 3-State Outputs, TSSOP-24	U	
+Logic	Logic_LevelTranslator	SN74LV1T125DBV	SN74LV1T125DBV	Texas Instruments	Single Power Supply, Single Buffer Gate with 3-State Output, CMOS Logic Level Shifter Level Shifter, SOT-23-5	U	
+Logic	Logic_LevelTranslator	SN74LV1T34DBV	SN74LV1T34DBV	Texas Instruments	Single Power Supply, Single Buffer GATE, CMOS Logic, Level Shifter, SOT-23-5	U	
+Logic	Logic_LevelTranslator	SN74LVC1T45DBV	SN74LVC1T45DBV	Texas Instruments	Single-Bit Dual-Supply Bus Transceiver With Configurable Voltage Translation and 3-State Outputs, SOT-23-6	U	
+Logic	Logic_LevelTranslator	SN74LVC245APW	SN74LVC245APW	Texas Instruments	8-Bit Single-Supply Bus Transceiver With 5V tolerant input voltage and 3-State Outputs 24mA, TSSOP-20	U	
+Logic	Logic_LevelTranslator	SN74LVC2T45DCUR	SN74LVC2T45DCUR	Texas Instruments	Dual-Bit Dual-Supply Bus Transceiver With Configurable Voltage Translation and 3-State Outputs, VSSOP-8	U	
+Logic	Logic_LevelTranslator	SN74LVC2T45YZP	SN74LVC2T45YZP	Texas Instruments	Dual-Bit Dual-Supply Bus Transceiver With Configurable Voltage Translation and 3-State Outputs, DSBGA-8	U	
+Logic	Logic_LevelTranslator	TCA9517ADGK	TCA9517ADGK	Texas Instruments	Level-Translating I2C Bus Buffer/Repeater, VSSOP-8	U	
+Logic	Logic_LevelTranslator	TCA9517D	TCA9517D	Texas Instruments	Level-Translating I2C Bus Buffer/Repeater With Enable Function, SOIC-8	U	
+Logic	Logic_LevelTranslator	TXB0101DBV	TXB0101DBV	Texas Instruments	1-Bit Bidirectional Voltage-Level Translator With Auto Direction Sensing and ±15-kV ESD Protection, SOT-23-6	U	
+Logic	Logic_LevelTranslator	TXB0101YZP	TXB0101YZP	Texas Instruments	1-Bit Bidirectional Voltage-Level Translator With Auto Direction Sensing and ±15-kV ESD Protection, DSBGA-6	U	
+Logic	Logic_LevelTranslator	TXB0102DCU	TXB0102DCU	Texas Instruments	2-Bit Bidirectional Voltage-Level Translator With Auto Direction Sensing and ±15-kV ESD Protection, VSSOP-8	U	
+Interface	Isolator	4N25	4N25	Vishay	DC Optocoupler Base Connected, Vce 30V, CTR 20%, Viso 2500V, DIP6	U	
+Interface	Isolator	4N26	4N26	Vishay	DC Optocoupler Base Connected, Vce 30V, CTR 20%, Viso 1500V, DIP6	U	
+Interface	Isolator	4N27	4N27	Vishay	DC Optocoupler Base Connected, Vce 30V, CTR 10%, Viso 2500V, DIP6	U	
+Interface	Isolator	4N28	4N28	Vishay	DC Optocoupler Base Connected, Vce 30V, CTR 10%, Viso 2500V, DIP6	U	
+Interface	Isolator	4N35	4N35	Vishay	Optocoupler, Phototransistor Output, with Base Connection, Vce 70V, CTR 100%, Viso 5000V, DIP6	U	
+Interface	Isolator	4N36	4N36	Vishay	Optocoupler, Phototransistor Output, with Base Connection, Vce 70V, CTR 100%, Viso 5000V, DIP6	U	
+Interface	Isolator	4N37	4N37	Vishay	Optocoupler, Phototransistor Output, with Base Connection, Vce 70V, CTR 100%, Viso 5000V, DIP6	U	
+Interface	Isolator	ADN4650	ADN4650	Analog Devices	Dual-Channel LVDS Isolators, 5 kV RMS/3.75 kV RMS, 600 Mbps, SSOP-20	U	
+Interface	Isolator	ADN4651	ADN4651	Analog Devices	Dual-Channel LVDS Isolators, 5 kV RMS/3.75 kV RMS, 600 Mbps, SSOP-20	U	
+Interface	Isolator	ADN4652	ADN4652	Analog Devices	Dual-Channel LVDS Isolators, 5 kV RMS/3.75 kV RMS, 600 Mbps, SSOP-20	U	
+Interface	Isolator	ADuM1200AR	ADuM1200AR	Analog Devices	Dual-channel digital isolator, Bidirectional communication, 3V/5V level translation, SOIC-8	U	
+Interface	Isolator	ADuM1200BR	ADuM1200BR	Analog Devices	Dual-Channel Digital Isolator, 10Mbps 50ns, bidirectional communication, 3V/5V level translation, SOIC-8	U	
+Interface	Isolator	ADuM1200CR	ADuM1200CR	Analog Devices	Dual-Channel Digital Isolator, 25Mbps 45ns, bidirectional communication, 3V/5V level translation, SOIC-8	U	
+Interface	Isolator	ADuM1200WS	ADuM1200WS	Analog Devices	Dual-Channel Digital Isolator, 1Mbps 150ns, Highest Tem. Grade, bidirectional communication, 3V/5V level translation, SOIC-8	U	
+Interface	Isolator	ADuM1200WT	ADuM1200WT	Analog Devices	Dual-Channel Digital Isolator, 10Mbps 50ns, Highest Tem. Grade, bidirectional communication, 3V/5V level translation, SOIC-8	U	
+Interface	Isolator	ADuM1200WU	ADuM1200WU	Analog Devices	Dual-Channel Digital Isolator, 25Mbps 45ns, Highest Tem. Grade, bidirectional communication, 3V/5V level translation, SOIC-8	U	
+Interface	Isolator	ADuM1201AR	ADuM1201AR	Analog Devices	Dual-channel digital isolator, bidirectional communication, 3V/5V level translation, SOIC-8	U	
+Interface	Isolator	ADuM1201BR	ADuM1201BR	Analog Devices	Dual-Channel Digital Isolator, 10Mbps 50ns, bidirectional communication, 3V/5V level translation, SOIC-8	U	
+Interface	Isolator	ADuM1201CR	ADuM1201CR	Analog Devices	Dual-Channel Digital Isolator, 25Mbps 45ns, bidirectional communication, 3V/5V level translation, SOIC-8	U	
+Interface	Isolator	ADuM1201WS	ADuM1201WS	Analog Devices	Dual-Channel Digital Isolator, 1Mbps 150ns, Highest Temp. Grade, bidirectional communication, 3V/5V level translation, SOIC-8	U	
+Interface	Isolator	ADuM1201WT	ADuM1201WT	Analog Devices	Dual-Channel Digital Isolator, 10Mbps 50ns, Hihgest Temp. Grade, bidirectional communication, 3V/5V level translation, SOIC-8	U	
+Interface	Isolator	ADuM1201WU	ADuM1201WU	Analog Devices	Dual-Channel Digital Isolator, 25Mbps 45ns, Highest Temp. Grade, bidirectional communication, 3V/5V level translation, SOIC-8	U	
+Interface	Isolator	ADuM120N	ADuM120N	Analog Devices	Dual-channel digital isolator,1.8 to 5V, 150Mbs, 3kV	U	
+Interface	Isolator	ADuM121N	ADuM121N	Analog Devices	Dual-channel digital isolator,1.8 to 5V, 150Mbs, 3kV	U	
+Interface	Isolator	ADuM1250	ADuM1250	Analog Devices	Dual-channel I2C digital isolator, Bidirectional communication, 3V/5V level translation, SOIC-8	U	
+Interface	Isolator	ADuM1255ASA+	ADuM1255ASA+	Analog Devices	Dual-channel I2C digital isolator, Bidirectional communication, 4mm creepage, 3V/5V level translation, SOIC-8	U	
+Interface	Isolator	ADuM1255AWA+	ADuM1255AWA+	Analog Devices	Dual-channel I2C digital isolator, Bidirectional communication, 8mm creepage, 3V/5V level translation, SOIC-8 (300mil)	U	
+Interface	Isolator	ADuM1281	ADuM1281	Analog Devices	Dual-channel digital isolator, bidirectional communication, 3V/5V level translation, SOIC-8	U	
+Interface	Isolator	ADuM1410	ADuM1410	Analog Devices	Quad Channel Digital Isolator,10Mbps,SO-16	U	
+Interface	Isolator	ADuM1411	ADuM1411	Analog Devices	Quad Channel Digital Isolator,10Mbps,SO-16	U	
+Logic	74xx	74AHCV17APW	74AHCV17APW	Nexperia	6-gate schmitt trigger buffer, TSSOP-14	U	
+Logic	74xx	74ALVC164245	74ALVC164245	Nexperia	16-Bit 2.5V to 3.3V or 3.3V to 5V Level-Shifting Transceiver With 3-State Outputs, TSSOP-48	U	
+Logic	74xx	74CB3Q16210DGG	74CB3Q16210DGG	Texas Instruments	20-bit FET bus switch with 10-bit output enables, TSSOP-48	U	
+Logic	74xx	74CB3Q16210DGV	74CB3Q16210DGV	Texas Instruments	20-bit FET bus switch with 10-bit output enables, TVSOP-48	U	
+Logic	74xx	74CB3Q16210DL	74CB3Q16210DL	Texas Instruments	20-bit FET bus switch with 10-bit output enables, SSOP-48	U	
+Logic	74xx	74CB3T16210DGG	74CB3T16210DGG	Texas Instruments	20-bit FET bus switch with 10-bit output enables, TSSOP-48	U	
+Logic	74xx	74CB3T16210DGV	74CB3T16210DGV	Texas Instruments	20-bit FET bus switch with 10-bit output enables, TVSOP-48	U	
+Logic	74xx	74CBT16210CDGG	74CBT16210CDGG	Texas Instruments	20-bit FET bus switch with 10-bit output enables, TSSOP-48	U	
+Logic	74xx	74CBT16210CDGV	74CBT16210CDGV	Texas Instruments	20-bit FET bus switch with 10-bit output enables, TVSOP-48	U	
+Logic	74xx	74CBT16210CDL	74CBT16210CDL	Texas Instruments	20-bit FET bus switch with 10-bit output enables, SSOP-48	U	
+Logic	74xx	74CBTD16210DGG	74CBTD16210DGG	Texas Instruments	20-bit FET bus switch with 10-bit output enables, TSSOP-48	U	
+Logic	74xx	74CBTD16210DGV	74CBTD16210DGV	Texas Instruments	20-bit FET bus switch with 10-bit output enables, TVSOP-48	U	
+Logic	74xx	74CBTD16210DL	74CBTD16210DL	Texas Instruments	20-bit FET bus switch with 10-bit output enables, SSOP-48	U	
+Logic	74xx	74HC4024	74HC4024	Nexperia	7-stage binary ripple counter, SOIC-14	U	
+Logic	74xx	74HC7014	74HC7014	Nexperia	Hex non-inverting buffer with precision Schmitt Trigger inputs, SOIC-14	U	
+Logic	74xx	74VHC9164FT	74VHC9164FT	Toshiba	8-bit Universal Shift Register, 2V to 5.5V, TSSOP-16	U	
+Logic	74xx	CD74HC4067M	CD74HC4067M	Texas Instruments	High-Speed CMOS Logic 16-Channel Analog Multiplexer/Demultiplexer, SOIC-24	U	
+Logic	74xx	CD74HC4067SM	CD74HC4067SM	Texas Instruments	High-Speed CMOS Logic 16-Channel Analog Multiplexer/Demultiplexer, SSOP-24	U	
+Logic	74xx	MC74LCX16245DT	MC74LCX16245DT	onsemi	Low Voltage 16-Bit Bidirectional Transceiver with 5V Tolerant Inputs and Outputs, TSSOP-48	U	
+Logic	74xx	SN74ALVC164245DGG	SN74ALVC164245DGG	Texas Instruments	16-Bit 2.5V to 3.3V or 3.3V to 5V Level-Shifting Transceiver With 3-State Outputs, TSSOP-48	U	
+Logic	74xx	SN74ALVC164245DL	SN74ALVC164245DL	Texas Instruments	16-Bit 2.5V to 3.3V or 3.3V to 5V Level-Shifting Transceiver With 3-State Outputs, SSOP-48	U	
+Logic	74xx	SN74AVC16827DGGR	SN74AVC16827DGGR	Texas Instruments	20-Bit Buffer/Driver With 3-State Outputs	U	
+Logic	74xx	SN74CB3Q3384ADBQ	SN74CB3Q3384ADBQ	Texas Instruments	FET Bus Switch, 10bit, 500MHz, 3.3V, SSOP-24	U	
+Logic	74xx	SN74CB3Q3384APW	SN74CB3Q3384APW	Texas Instruments	FET Bus Switch, 10bit, 500MHz, 3.3V, TSSOP-24	U	
+Logic	4xxx	CD4033B	CD4033B	Texas Instruments	20V, CMOS Decade Counter/Divider, 7 Segment Decoder, Ripple Blanking, Lamp Test, 100mW/Output, DIP-16	U	
+Timing	Timer	CD4541BE	CD4541BE	Texas Instruments	20V, Programmable Timer, PDIP-14	U	
+Timing	Timer	CD4541BM	CD4541BM	Texas Instruments	20V, Programmable Timer, SOIC-14	U	
+Timing	Timer	CD4541BPW	CD4541BPW	Texas Instruments	20V, Programmable Timer, TSSOP-14	U	
+Timing	Timer	DS1023S	DS1023S	Analog Devices	8-bit Programamble Delay Line / Timing Element, 5V supply, SOIC-16W package.	U	
+Timing	Timer	LTC6902	LTC6902	Analog Devices	Multiphase oscillator, spread spectrum frequency modulation, MSOP-10	U	
+Timing	Timer	LTC6909	LTC6909	Analog Devices	Multiphase oscillator, spread spectrum frequency modulation, MSOP-16	U	
+Timing	Timer	MC14541BD	MC14541BD	onsemi	18V, Programmable Timer, SOIC-14	U	
+Timing	Timer	MC14541BDT	MC14541BDT	onsemi	18V, Programmable Timer, TSSOP-14	U	
+Timing	Timer	MC1455B	MC1455B	onsemi	Timer, 555 compatible, SOIC-8	U	
+Timing	Timer	MC1455P	MC1455P	onsemi	Timer, 555 compatible, PDIP-8	U	
+Timing	Timer	NA555D	NA555D	Texas Instruments	Precision Timers, 555 compatible, SOIC-8	U	
+Timing	Timer	NA555P	NA555P	Texas Instruments	Precision Timers, 555 compatible, PDIP-8	U	
+Timing	Timer	NE555D	NE555D	Texas Instruments	Precision Timers, 555 compatible, SOIC-8	U	
+Timing	Timer	NE555P	NE555P	Texas Instruments	Precision Timers, 555 compatible, PDIP-8	U	
+Timing	Timer	NLV14541BD	NLV14541BD	onsemi	18V, Programmable Timer, AEC Q100, SOIC-14	U	
+Timing	Timer_RTC	BQ32000	BQ32000	Texas Instruments	Serial, I2C Real-time clock, Trickle charger, 3V to 3.6V VCC, -40°C to +85°C, SOIC-8	U	
+Timing	Timer_RTC	BQ32002	BQ32002	Texas Instruments	Serial, I2C Real-time clock, 3V to 3.6V VCC, -40°C to +85°C, SOIC-8	U	
+Timing	Timer_RTC	DS1302+	DS1302+	Analog Devices (Maxim)	Trickle-Charge Timekeeping Chip, 2.0V to 5.5V VCC, 0°C to +70°C, DIP-8	U	
+Timing	Timer_RTC	DS1302N+	DS1302N+	Analog Devices (Maxim)	Trickle-Charge Timekeeping Chip, 2.0V to 5.5V VCC, -40°C to +85°C, DIP-8	U	
+Timing	Timer_RTC	DS1302S+	DS1302S+	Analog Devices (Maxim)	Trickle-Charge Timekeeping Chip, 2.0V to 5.5V VCC, 0°C to +70°C, SOIC-8 (208 mil)	U	
+Timing	Timer_RTC	DS1302SN+	DS1302SN+	Analog Devices (Maxim)	Trickle-Charge Timekeeping Chip, 2.0V to 5.5V VCC, -40°C to +85°C, SOIC-8 (208 mil)	U	
+Timing	Timer_RTC	DS1302Z+	DS1302Z+	Analog Devices (Maxim)	Trickle-Charge Timekeeping Chip, 2.0V to 5.5V VCC, 0°C to +70°C, SOIC-8 (150 mil)	U	
+Timing	Timer_RTC	DS1302ZN+	DS1302ZN+	Analog Devices (Maxim)	Trickle-Charge Timekeeping Chip, 2.0V to 5.5V VCC, -40°C to +85°C, SOIC-8 (150 mil)	U	
+Timing	Timer_RTC	DS1307+	DS1307+	Analog Devices (Maxim)	64 x 8, Serial, I2C Real-time clock, 4.5V to 5.5V VCC, 0°C to +70°C, DIP-8	U	
+Timing	Timer_RTC	DS1307N+	DS1307N+	Analog Devices (Maxim)	64 x 8, Serial, I2C Real-time clock, 4.5V to 5.5V VCC, -40°C to +85°C, DIP-8	U	
+Timing	Timer_RTC	DS1307ZN+	DS1307ZN+	Analog Devices (Maxim)	64 x 8, Serial, I2C Real-time clock, 4.5V to 5.5V VCC, -40°C to +85°C, SOIC-8	U	
+Timing	Timer_RTC	DS3231M	DS3231M	Analog Devices (Maxim)	Extremely Accurate I2C-Integrated RTC/TCXO/Crystal SOIC-16	U	
+Timing	Timer_RTC	DS3231MZ	DS3231MZ	Analog Devices (Maxim)	±5ppm, I2C Real-Time Clock SOIC-8	U	
+Timing	Timer_RTC	DS3232M	DS3232M	Analog Devices (Maxim)	±5ppm, I2C Real-Time Clock with SRAM SOIC-8	U	
+Timing	Timer_RTC	M41T62Q	M41T62Q	STMicroelectronics	Low-power I2C RTC with alarm interrupt QFN	U	
+Timing	Timer_RTC	PCF85063ATL	PCF85063ATL	NXP	I2C Real-Time Clock Calendar w/ Alarm, DFN-10	U	
+Timing	Timer_RTC	PCF8523T	PCF8523T	NXP	Realtime Clock/Calendar I2C Interface, SOIC-8	U	
+Timing	Timer_RTC	PCF8523TK	PCF8523TK	NXP	Realtime Clock/Calendar I2C Interface, HVSON-8	U	
+Timing	Timer_RTC	PCF8523TS	PCF8523TS	NXP	Realtime Clock/Calendar I2C Interface, TSSOP-14	U	
+Timing	Timer_RTC	PCF85263AT	PCF85263AT	NXP	Tiny Real-Time Clock/calendar with alarm function, battery switch-over, time stamp input, I2C bus, SO-8	U	
+Memory	Memory_EEPROM	24AA02-OT	24AA02-OT	Microchip	I2C Serial EEPROM, 2Kb, SOT-23	U	
+Memory	Memory_EEPROM	24AA025E-OT	24AA025E-OT	Microchip	I2C Serial EEPROM with EUI-48 or EUI-64, 2Kb, SOT-23-6	U	
+Memory	Memory_EEPROM	24AA025E-SN	24AA025E-SN	Microchip	I2C Serial EEPROM with EUI-48 or EUI-64, 2Kb, SOIC-8	U	
+Memory	Memory_EEPROM	24AA02E-OT	24AA02E-OT	Microchip	I2C Serial EEPROM with EUI-48 or EUI-64, 2Kb, SOT-23-5	U	
+Memory	Memory_EEPROM	24AA02E-SN	24AA02E-SN	Microchip	I2C Serial EEPROM with EUI-48 or EUI-64, 2Kb, SOIC-8	U	
+Memory	Memory_EEPROM	AT24CS01-SSHM	AT24CS01-SSHM	Microchip	I2C Serial EEPROM, 1Kb (128x8) with Unique Serial Number, SO8	U	
+Memory	Memory_EEPROM	AT24CS01-STUM	AT24CS01-STUM	Microchip	I2C Serial EEPROM, 1Kb (128x8) with Unique Serial Number, SOT-23-5	U	
+Memory	Memory_EEPROM	AT24CS01-XHM	AT24CS01-XHM	Microchip	I2C Serial EEPROM, 1Kb (128x8) with Unique Serial Number, TSSOP8	U	
+Memory	Memory_EEPROM	AT24CS02-SSHM	AT24CS02-SSHM	Microchip	I2C Serial EEPROM, 2Kb (256x8) with Unique Serial Number, SO8	U	
+Memory	Memory_EEPROM	AT24CS02-STUM	AT24CS02-STUM	Microchip	I2C Serial EEPROM, 2Kb (256x8) with Unique Serial Number, SOT-23-5	U	
+Memory	Memory_EEPROM	AT24CS02-XHM	AT24CS02-XHM	Microchip	I2C Serial EEPROM, 2Kb (256x8) with Unique Serial Number, TSSOP8	U	
+Memory	Memory_EEPROM	AT24CS04-SSHM	AT24CS04-SSHM	Microchip	I2C Serial EEPROM, 4Kb (512x8) with Unique Serial Number, SO8	U	
+Memory	Memory_EEPROM	AT24CS04-STUM	AT24CS04-STUM	Microchip	I2C Serial EEPROM, 4Kb (512x8) with Unique Serial Number, SOT-23-5	U	
+Memory	Memory_EEPROM	AT24CS04-XHM	AT24CS04-XHM	Microchip	I2C Serial EEPROM, 4Kb (512x8) with Unique Serial Number, TSSOP8	U	
+Memory	Memory_EEPROM	AT24CS08-SSHM	AT24CS08-SSHM	Microchip	I2C Serial EEPROM, 8Kb (1024x8) with Unique Serial Number, SO8	U	
+Memory	Memory_EEPROM	AT24CS08-STUM	AT24CS08-STUM	Microchip	I2C Serial EEPROM, 8Kb (1024x8) with Unique Serial Number, SOT-23-5	U	
+Memory	Memory_EEPROM	AT24CS08-XHM	AT24CS08-XHM	Microchip	I2C Serial EEPROM, 8Kb (1024x8) with Unique Serial Number, TSSOP8	U	
+Memory	Memory_EEPROM	AT24CS16-SSHM	AT24CS16-SSHM	Microchip	I2C Serial EEPROM, 16Kb (2048x8) with Unique Serial Number, SO8	U	
+Memory	Memory_EEPROM	AT24CS16-STUM	AT24CS16-STUM	Microchip	I2C Serial EEPROM, 16Kb (2048x8) with Unique Serial Number, SOT-23-5	U	
+Memory	Memory_EEPROM	AT24CS16-XHM	AT24CS16-XHM	Microchip	I2C Serial EEPROM, 16Kb (2048x8) with Unique Serial Number, TSSOP8	U	
+Memory	Memory_EEPROM	AT24CS32-SSHM	AT24CS32-SSHM	Microchip	I2C Serial EEPROM, 32Kb (4096x8) with Unique Serial Number, SO8	U	
+Memory	Memory_EEPROM	AT24CS32-STUM	AT24CS32-STUM	Microchip	I2C Serial EEPROM, 32Kb (4096x8) with Unique Serial Number, SOT-23-5	U	
+Memory	Memory_EEPROM	AT24CS32-XHM	AT24CS32-XHM	Microchip	I2C Serial EEPROM, 32Kb (4096x8) with Unique Serial Number, TSSOP8	U	
+Memory	Memory_EEPROM	AT24CS64-SSHM	AT24CS64-SSHM	Microchip	I2C Serial EEPROM, 64Kb (8192x8) with Unique Serial Number, SO8	U	
+Memory	Memory_EEPROM	AT24CS64-XHM	AT24CS64-XHM	Microchip	I2C Serial EEPROM, 64Kb (8192x8) with Unique Serial Number, TSSOP8	U	
+Memory	Memory_EEPROM	CAT24M01L	CAT24M01L	onsemi	1 Mb I2C CMOS Serial EEPROM, DIP-8	U	
+Memory	Memory_EEPROM	CAT24M01W	CAT24M01W	onsemi	1 Mb I2C CMOS Serial EEPROM, SOIC-8 (150 mil)	U	
+Memory	Memory_EEPROM	CAT24M01X	CAT24M01X	onsemi	1 Mb I2C CMOS Serial EEPROM, SOIC-8 (208 mil)	U	
+Memory	Memory_EEPROM	CAT24M01Y	CAT24M01Y	onsemi	1 Mb I2C CMOS Serial EEPROM, TSSOP-8	U	
+Memory	Memory_EEPROM	DS2431Q	DS2431Q	Analog Devices	1024-bit, 1-Wire® EEPROM chip, TDFN	U	
+Memory	Memory_Flash	AT25SF041B-SSHD-X	AT25SF041B-SSHD-X	Renesas	4-Mbit, 2.5V Minimum SPI Serial Flash Memory with Dual-I/O and Quad-I/O Support, SOIC-8	U	
+Memory	Memory_Flash	AT45DB161-RC	AT45DB161-RC	Microchip	16Mb Serial DataFlash, 2.7V Vcc, SOIC-28	U	
+Memory	Memory_Flash	AT45DB161B-RC	AT45DB161B-RC	Microchip	16Mb Serial DataFlash, 2.7V Vcc, SOIC-28	U	
+Memory	Memory_Flash	AT45DB161B-RC-2.5	AT45DB161B-RC-2.5	Microchip	16Mb Serial DataFlash, 2.5V Vcc, SOIC-28	U	
+Memory	Memory_Flash	MX25L3233FM	MX25L3233FM	Macronix	32-Mbit, 3V (2.65V-3.6V) SPI Serial Flash Memory, SOIC-16	U	
+Memory	Memory_Flash	MX25L3233FM1	MX25L3233FM1	Macronix	32-Mbit, 3V (2.65V-3.6V) SPI Serial Flash Memory, JEITA SOIC-8 (SOP-8)	U	
+Memory	Memory_Flash	MX25L3233FM2	MX25L3233FM2	Macronix	32-Mbit, 3V (2.65V-3.6V) SPI Serial Flash Memory, SOIC-8 (SOP-8, 208 mil)	U	
+Memory	Memory_Flash	W25Q128JVS	W25Q128JVS	Winbond	128Mbit / 16MiB Serial Flash Memory, Standard/Dual/Quad SPI, 2.7-3.6V, SOIC-8	U	
+Memory	Memory_Flash	W25Q16JVSS	W25Q16JVSS	Winbond	16Mbit / 2MiB Serial Flash Memory, Standard/Dual/Quad SPI, 2.7-3.6V, SOIC-8 (208 mil)	U	
+Memory	Memory_Flash	W25Q32JVSS	W25Q32JVSS	Winbond	32Mbit / 4MiB Serial Flash Memory, Standard/Dual/Quad SPI, 2.7-3.6V, SOIC-8 (208 mil)	U	
+Memory	Memory_Flash	W25X20CLSN	W25X20CLSN	Winbond	2Mbit / 256KiB Serial Flash memory, Standard/Dual I/O SPI, 2.3-3.6V, SOIC-8	U	
+Memory	Memory_Flash	W25X40CLSN	W25X40CLSN	Winbond	4Mbit / 512KiB Serial Flash memory, Standard/Dual I/O SPI, 2.3-3.6V, SOIC-8 (150 mil)	U	
+Memory	Memory_Flash	W25X40CLSS	W25X40CLSS	Winbond	4Mbit / 512KiB Serial Flash memory, Standard/Dual I/O SPI, 2.3-3.6V, SOIC-8 (208 mil)	U	
+Memory	Memory_Flash	W25X40CLSV	W25X40CLSV	Winbond	4Mbit / 512KiB Serial Flash memory, Standard/Dual I/O SPI, 2.3-3.6V, JEITA SOIC-8 (SOP-8)	U	
+Memory	Memory_RAM	23AA02M-IP	23AA02M-IP	Microchip	Microchip 2 Mbit SRAM Memory, up to 143MHz, 1.7-3.6V supply, DIP-8	U	
+Memory	Memory_RAM	23AA02M-ISN	23AA02M-ISN	Microchip	Microchip 2 Mbit SRAM Memory, up to 143MHz, 1.7-3.6V supply, SOIC-8	U	
+Memory	Memory_RAM	23AA02M-IST	23AA02M-IST	Microchip	Microchip 2 Mbit SRAM Memory, up to 143MHz, 1.7-3.6V supply, TSSOP-8	U	
+Memory	Memory_RAM	ESP-PSRAM32	ESP-PSRAM32	Espressif	32 Mbit serial pseudo SRAM device organized as 4Mx8 bits, 1.8 VCC, SOIC8 (SOP8)	U	
+Memory	Memory_RAM	IDT7006PF	IDT7006PF	Renesas	16K x 8 Dual-Port SRAM, TQFP-64	U	
+Memory	Memory_RAM	IDT7203	IDT7203	Renesas	2048x9 CMOS Asynchronous FIFO, DIP-28	U	
+Memory	Memory_RAM	IDT7204	IDT7204	Renesas	4096x9 CMOS Asynchronous FIFO, DIP-28	U	
+Memory	Memory_RAM	IDT7205	IDT7205	Renesas	8192x9 CMOS Asynchronous FIFO, DIP-28	U	
+Memory	Memory_RAM	IDT7206	IDT7206	Renesas	16384x9 CMOS Asynchronous FIFO, DIP-28	U	
+Memory	Memory_RAM	IDT7207	IDT7207	Renesas	32768x9 CMOS Asynchronous FIFO, DIP-28	U	
+Memory	Memory_RAM	IDT7208	IDT7208	Renesas	65536x9 CMOS Asynchronous FIFO, DIP-28	U	
+Memory	Memory_RAM	IS43LQ32256A-062BLI	IS43LQ32256A-062BLI	ISSI	256Mx32 bit Low Power Double Data Rate 4 (LPDDR4) SDRAM, 1600 MHz, Industrial, BGA-200	U	
+Memory	Memory_RAM	IS43LQ32256AL-062BLI	IS43LQ32256AL-062BLI	ISSI	256Mx32 bit Low Power Double Data Rate 4X (LPDDR4X) SDRAM, 1600 MHz, Industrial, BGA-200	U	
+Memory	Memory_RAM	IS61C5128AL-10TLI	IS61C5128AL-10TLI	ISSI	512K x 8 HIGH-SPEED CMOS STATIC RAM, 10ns, TSOP II-44	U	
+Memory	Memory_RAM	IS61C5128AS-25TLI	IS61C5128AS-25TLI	ISSI	512K x 8 HIGH-SPEED CMOS STATIC RAM, 25ns, TSOP II-32	U	
+Memory	Memory_RAM	IS64C5128AL-12CTLA3	IS64C5128AL-12CTLA3	ISSI	512K x 8 HIGH-SPEED CMOS STATIC RAM, 12ns, TSOP II-44	U	
+Memory	Memory_RAM	MT48LC16M16A2P	MT48LC16M16A2P	Micron	256M – (16M x 16 bit) Synchronous DRAM (SDRAM), TSOP-II-54	U	
+Memory	Memory_RAM	MT48LC16M16A2TG	MT48LC16M16A2TG	Micron	256M – (16M x 16 bit) Synchronous DRAM (SDRAM), TSOP-II-54	U	
+Memory	Memory_RAM	MT48LC32M8A2P	MT48LC32M8A2P	Micron	256M – (32M x 8 bit) Synchronous DRAM (SDRAM), TSOP-II-54	U	
+Memory	Memory_RAM	MT48LC32M8A2TG	MT48LC32M8A2TG	Micron	256M – (32M x 8 bit) Synchronous DRAM (SDRAM), TSOP-II-54	U	
+Data Converters	Analog_ADC	AD6644	AD6644	Analog Devices	A/D Converter, 14-Bit, 40 MSPS/65 MSPS, TQFP-52	U	
+Data Converters	Analog_ADC	AD6645	AD6645	Analog Devices	A/D Converter, 14-Bit, 80 MSPS/105 MSPS, TQFP-52	U	
+Data Converters	Analog_ADC	AD7171	AD7171	Analog Devices	Single channel Analog to Digital Converter, 16-bit, differential input, 125Hz, SPI interface	U	
+Data Converters	Analog_ADC	AD7321	AD7321	Analog Devices	2-Channel, software selectable input range ±10 V, ±5V, ±2.5V, 0 V to +10 V, true bipolar input, 12-Bit plus sign, 500 kSPS SAR ADC, TSSOP-14	U	
+Data Converters	Analog_ADC	AD7322	AD7322	Analog Devices	2-Channel, software selectable input range ±10 V, ±5V, ±2.5V, 0 V to +10 V, true bipolar input, 12-Bit plus sign, 1 MSPS SAR ADC, TSSOP-14	U	
+Data Converters	Analog_ADC	AD7323	AD7323	Analog Devices	4-Channel, software selectable input range ±10 V, ±5V, ±2.5V, 0 V to +10 V, true bipolar input, 12-Bit plus sign, 500 kSPS SAR ADC, TSSOP-16	U	
+Data Converters	Analog_ADC	AD7324	AD7324	Analog Devices	4-Channel, software selectable input range ±10 V, ±5V, ±2.5V, 0 V to +10 V, true bipolar input, 12-Bit plus sign, 1 MSPS SAR ADC, TSSOP-16	U	
+Data Converters	Analog_ADC	AD7327	AD7327	Analog Devices	8-Channel, software selectable input range ±10 V, ±5V, ±2.5V, 0 V to +10 V, true bipolar input, 12-Bit plus sign, 500 kSPS SAR ADC, TSSOP-20	U	
+Data Converters	Analog_ADC	AD7328	AD7328	Analog Devices	8-Channel, software selectable input range ±10 V, ±5V, ±2.5V, 0 V to +10 V, true bipolar input, 12-Bit plus sign, 1 MSPS SAR ADC, TSSOP-20	U	
+Data Converters	Analog_ADC	AD7329	AD7329	Analog Devices	8-Channel, software selectable input range ±10 V, ±5V, ±2.5V, 0 V to +10 V, true bipolar input, 12-Bit plus sign, 1 MSPS SAR ADC, TSSOP-24	U	
+Data Converters	Analog_ADC	AD7606	AD7606	Analog Devices	8-Channel DAS with 16-Bit, Bipolar Input, Simultaneous Sampling ADC, LQFP-64	U	
+Data Converters	Analog_ADC	AD7606-4	AD7606-4	Analog Devices	4-Channel DAS with 16-Bit, Bipolar Input, Simultaneous Sampling ADC, LQFP-64	U	
+Data Converters	Analog_ADC	AD7606-6	AD7606-6	Analog Devices	6-Channel DAS with 16-Bit, Bipolar Input, Simultaneous Sampling ADC, LQFP-64	U	
+Data Converters	Analog_ADC	AD7616	AD7616	Analog Devices	16-Channel DAS with 16-Bit, Bipolar Input, Dual Simultaneous Sampling ADC, 2x1MSPS ADC, Serial and parallel IO, LQFP-80	U	
+Data Converters	Analog_ADC	AD7722	AD7722	Analog Devices	16-Bit, 195 kSPS CMOS, Sigma-Delta ADC, PQFP-44 (JEDEC MO-112 variation AA-2)	U	
+Data Converters	Analog_ADC	AD7745	AD7745	Analog Devices	24-bit capacitance-to-digital converter with temperature sensor, TSSOP-16	U	
+Data Converters	Analog_ADC	AD7746	AD7746	Analog Devices	24-bit capacitance-to-digital converter with temperature sensor, TSSOP-16	U	
+Data Converters	Analog_ADC	AD7779	AD7779	Analog Devices	8-Channel, 24-bit, Simultaneous Sampling ADC, WQFN-64 (LFCSP-64)	U	
+Data Converters	Analog_ADC	AD7794	AD7794	Analog Devices	24-Bit, 6-Channel Sigma-Delta ADC, TSSOP-28	U	
+Data Converters	Analog_ADC	AD7795	AD7795	Analog Devices	16-Bit, 6-Channel Sigma-Delta ADC, TSSOP-28	U	
+Data Converters	Analog_ADC	AD9280ARS	AD9280ARS	Analog Devices	Video ADC (32 Mhz), SSOP-28	U	
+Data Converters	Analog_ADC	ADC081C021CIMM	ADC081C021CIMM	Texas Instruments	I2C-Compatible, 8-Bit Analog-to-Digital Converter with Alert Function, MSOP-8	U	
+Data Converters	Analog_ADC	ADC082S021	ADC082S021	Texas Instruments	2 channel, 50 - 200 ksps, 8-bit ADC, 2.7 - 5.25V supply, TSSOP-8 (MSOP-8, Texas VSSOP-8)	U	
+Data Converters	Analog_ADC	ADC082S051	ADC082S051	Texas Instruments	2 channel, 200 - 500 ksps, 8-bit ADC, 2.7 - 5.25V supply, TSSOP-8 (MSOP-8, Texas VSSOP-8)	U	
+Data Converters	Analog_ADC	ADC082S101	ADC082S101	Texas Instruments	2 channel, 500 - 1000 ksps, 8-bit ADC, 2.7 - 5.25V supply, TSSOP-8 (MSOP-8, Texas VSSOP-8)	U	
+Data Converters	Analog_ADC	ADC101C021CIMK	ADC101C021CIMK	Texas Instruments	10-bit I2C ADC, SOT-23	U	
+Data Converters	Analog_ADC	ADC101C021CIMM	ADC101C021CIMM	Texas Instruments	I2C-Compatible, 10-Bit Analog-to-Digital Converter with Alert Function, MSOP-8	U	
+Data Converters	Analog_ADC	ADC102S021	ADC102S021	Texas Instruments	2 channel, 50 - 200 ksps, 10-bit ADC, 2.7 - 5.25V supply, TSSOP-8 (MSOP-8, Texas VSSOP-8)	U	
+Data Converters	Analog_ADC	ADC102S051	ADC102S051	Texas Instruments	2 channel, 200 - 500 ksps, 10-bit ADC, 2.7 - 5.25V supply, TSSOP-8 (MSOP-8, Texas VSSOP-8)	U	
+Data Converters	Analog_ADC	ADC102S101	ADC102S101	Texas Instruments	2 channel, 500 - 1000 ksps, 10-bit ADC, 2.7 - 5.25V supply, TSSOP-8 (MSOP-8, Texas VSSOP-8)	U	
+Data Converters	Analog_ADC	ADC121C021CIMM	ADC121C021CIMM	Texas Instruments	I2C-Compatible, 12-Bit Analog-to-Digital Converter with Alert Function, MSOP-8	U	
+Data Converters	Analog_ADC	ADC122S021	ADC122S021	Texas Instruments	2 channel, 50 - 200 ksps, 12-bit ADC, 2.7 - 5.25V supply, TSSOP-8 (MSOP-8, Texas VSSOP-8)	U	
+Data Converters	Analog_ADC	ADC122S051	ADC122S051	Texas Instruments	2 channel, 200 - 500 ksps, 12-bit ADC, 2.7 - 5.25V supply, TSSOP-8 (MSOP-8, Texas VSSOP-8)	U	
+Data Converters	Analog_ADC	ADC122S101	ADC122S101	Texas Instruments	2 channel, 500 - 1000 ksps, 12-bit ADC, 2.7 - 5.25V supply, TSSOP-8 (MSOP-8, Texas VSSOP-8)	U	
+Data Converters	Analog_ADC	ADC1283	ADC1283	STMicroelectronics	Low power 8-channel single ended 12-bit SAR ADC, 50 ksps to 200 ksps, SPI, TSSOP-16	U	
+Data Converters	Analog_ADC	ADC128D818	ADC128D818	Texas Instruments	12-Bit, 8-Channel, ADC System Monitor With Temperature Sensor, I2C Interface, TSSOP-16	U	
+Data Converters	Analog_ADC	ADS1013IDGS	ADS1013IDGS	Texas Instruments	Ultra-Small, Low-Power, I2C-Compatible, 3.3-kSPS, 12-Bit ADCs With Internal Reference and Oscillator, VSSOP-10	U	
+Data Converters	Analog_ADC	ADS1014IDGS	ADS1014IDGS	Texas Instruments	Ultra-Small, Low-Power, I2C-Compatible, 3.3-kSPS, 12-Bit ADCs With Internal Reference, Oscillator, and Programmable Comparator, VSSOP-10	U	
+Data Converters	Analog_ADC	ADS1015IDGS	ADS1015IDGS	Texas Instruments	Ultra-Small, Low-Power, I2C-Compatible, 3.3-kSPS, 12-Bit ADCs With Internal Reference, Oscillator, and Programmable Comparator, VSSOP-10	U	
+Data Converters	Analog_ADC	ADS1110	ADS1110	Texas Instruments	16 Bit Analog to Digital converter with on board reference	U	
+Data Converters	Analog_ADC	ADS1113IDGS	ADS1113IDGS	Texas Instruments	Ultra-Small, Low-Power, I2C-Compatible, 860-SPS, 16-Bit ADCs With Internal Reference and Oscillator, VSSOP-10	U	
+Data Converters	Analog_ADC	ADS1114IDGS	ADS1114IDGS	Texas Instruments	Ultra-Small, Low-Power, I2C-Compatible, 860-SPS, 16-Bit ADCs With Internal Reference, Oscillator, and Programmable Comparator, VSSOP-10	U	
+Data Converters	Analog_ADC	ADS1120-PW	ADS1120-PW	Texas Instruments	Low-power, quad-input, 16-bit analog to digital converter, integrated temperature sensor, SPI interface, TSSOP-16 package	U	
+Data Converters	Analog_ADC	ADS1243	ADS1243	Texas Instruments	24-bit ADC, 8 Channels, SPI compatible, PGA 1 to 128, TSSOP-20	U	
+Data Converters	Analog_ADC	ADS1251	ADS1251	Texas Instruments	Single channel 24-bit Analog to Digital Converter, 5V supply, differential input, 20kHz, 2-wire serial interface, SOIC-8	U	
+Data Converters	Analog_ADC	ADS1299	ADS1299	Texas Instruments	Low-Noise, 8-channel, 24-bit ADC for EEG and Biopotential Measurements, TQFP-64	U	
+Data Converters	Analog_ADC	ADS7029	ADS7029	Texas Instruments	Small-Size, Low-Power, 8-Bit, 2-MSPS, SAR ADC	U	
+Data Converters	Analog_ADC	ADS7039	ADS7039	Texas Instruments	Small-Size, Low-Power, 10-Bit, 2-MSPS, SAR ADC	U	
+Data Converters	Analog_ADC	ADS7049	ADS7049	Texas Instruments	Small-Size, Low-Power, 12-Bit, 2-MSPS, SAR ADC	U	
+Data Converters	Analog_ADC	ADS7828	ADS7828	Texas Instruments	12-Bits, 8-Channels, ADC, I2C, TSSOP-16	U	
+Data Converters	Analog_DAC	AD5687BRUZ	AD5687BRUZ	Analog Devices	Dual, 12-Bit nanoDAC+ with SPI Interface, TSSOP-16	U	
+Data Converters	Analog_DAC	AD5687RBRUZ	AD5687RBRUZ	Analog Devices	Dual, 12-Bit nanoDAC+ with 2 ppm/°C Reference, SPI Interface, TSSOP-16	U	
+Data Converters	Analog_DAC	AD5689BRUZ	AD5689BRUZ	Analog Devices	Dual, 16-Bit nanoDAC+ with SPI Interface, TSSOP-16	U	
+Data Converters	Analog_DAC	AD5697RBRUZ	AD5697RBRUZ	Analog Devices	Dual, 12-Bit nanoDAC+ with 2 ppm/°C Reference, I2C Interface, TSSOP-16	U	
+Data Converters	Analog_DAC	AD9744	AD9744	Analog Devices	210MSPS 14bit DAC, TSSOP-28	U	
+Data Converters	Analog_DAC	ADS7830	ADS7830	Texas Instruments	Single-supply, 8bit, 8 ch, SAR, 70kHz SR, 2.7 - 5 VDD, I2C, TSSOP-16	U	
+Data Converters	Analog_DAC	DAC0808_DIP	DAC0808_DIP	Texas Instruments	8-bit multiplying DAC	U	
+Data Converters	Analog_DAC	DAC0808_SOIC	DAC0808_SOIC	Texas Instruments	8-bit multiplying DAC	U	
+Data Converters	Analog_DAC	DAC081C081CIMK	DAC081C081CIMK	Texas Instruments	8-bit Micropower DAC with I2C-Compatible Interface, SOT-23-6	U	
+Data Converters	Analog_DAC	DAC101C081CIMK	DAC101C081CIMK	Texas Instruments	10-bit Micropower DAC with I2C-Compatible Interface, SOT-23-6	U	
+Data Converters	Analog_DAC	DAC121C081CIMK	DAC121C081CIMK	Texas Instruments	12-bit Micropower DAC with I2C-Compatible Interface, SOT-23-6	U	
+Data Converters	Analog_DAC	DAC1220E	DAC1220E	Texas Instruments	20-Bit , Low-Power Digital-to-Analog Converter, SSOP-16	U	
+Data Converters	Analog_DAC	DAC60504	DAC60504	Texas Instruments	12-bit quad-channel voltage output DAC, 2.5V 2ppm/°C internal reference, WQFN-16	U	
+Data Converters	Analog_DAC	DAC70504	DAC70504	Texas Instruments	14-bit quad-channel voltage output DAC, 2.5V 2ppm/°C internal reference, WQFN-16	U	
+Data Converters	Analog_DAC	DAC7565	DAC7565	Texas Instruments	12-bit quad-channel voltage output DAC with 2.5V internal reference	U	
+Data Converters	Analog_DAC	DAC80504	DAC80504	Texas Instruments	16-bit quad-channel voltage output DAC, 2.5V 2ppm/°C internal reference, WQFN-16	U	
+Data Converters	Analog_DAC	DAC8165	DAC8165	Texas Instruments	14-bit quad-channel voltage output DAC with 2.5V internal reference	U	
+Data Converters	Analog_DAC	DAC8501E	DAC8501E	Texas Instruments	16-bit DAC, Voltage Output, Rail-to-Rail Output, SPI interface, MSOP-8 3x3mm package	U	
+Data Converters	Analog_DAC	DAC8531E	DAC8531E	Texas Instruments	16-bit DAC, Voltage Output, Rail-to-Rail Output, SPI interface, MSOP-8 3x3mm package	U	
+Data Converters	Analog_DAC	DAC8531IDRB	DAC8531IDRB	Texas Instruments	16-bit DAC, Voltage Output, Rail-to-Rail Output, SPI interface, VSON-8 3x3mm package	U	
+Data Converters	Analog_DAC	DAC8565	DAC8565	Texas Instruments	16-bit quad-channel voltage output DAC with 2.5V internal reference	U	
+Data Converters	Analog_DAC	DAC8571IDGK	DAC8571IDGK	Texas Instruments	DAC, 16-Bit, Low Power, Voltage Output, Rail-to-Rail Output, I2C Interface, MSOP-8 3x3mm package	U	
+Data Converters	Analog_DAC	MAX5138	MAX5138	Analog Devices (Maxim)	Low-Power, Single, 16-Bit, Buffered Voltage-Output DAC	U	
+Data Converters	Analog_DAC	MAX5139	MAX5139	Analog Devices (Maxim)	Low-Power, Single, 12-Bit, Buffered Voltage-Output DAC	U	
+Data Converters	Analog_DAC	MAX5215	MAX5215	Analog Devices (Maxim)	Digital to analog, 14 Bit, 1 ch, 2.7 - 5.5 VDD, I2C, uMAX-8	U	
+Data Converters	Analog_DAC	MAX5217	MAX5217	Analog Devices (Maxim)	Digital to analog, 16 Bit, 1 ch, 2.7 - 5.5 VDD, I2C, uMAX-8	U	
+Data Converters	Analog_DAC	MAX5741	MAX5741	Analog Devices (Maxim)	Digital to analog, 10 Bit, 4 ch, 2.7 - 5.5 VDD, SPI, uMAX-10	U	
+Data Converters	Analog_DAC	MCP4728	MCP4728	Microchip	12-bit digital to analog converter, quad output, 2.048V internal reference, integrated EEPROM, I2C interface	U	
+Analog	Analog_Switch	ADG1408YRUZ	ADG1408YRUZ	Analog Devices	8-channel iCMOS analog multiplexer, 4.7 Ohm Ron, 60 MHz, TSSOP-16	U	
+Analog	Analog_Switch	ADG1414BRU	ADG1414BRU	Analog Devices	±15V, +12V, ±5V, 9.5 Ohm on resistance, iCMOS Serially-Controlled Octal SPST Switches, TSSOP-24	U	
+Analog	Analog_Switch	ADG417BN	ADG417BN	Analog Devices	Single SPST Monolithic LC²MOS Analog Switch, normally OFF, 25Ohm Ron, DIP-8	U	
+Analog	Analog_Switch	ADG417BR	ADG417BR	Analog Devices	Single SPST Monolithic LC²MOS Analog Switch, normally OFF, 25Ohm Ron, SOIC-8	U	
+Analog	Analog_Switch	ADG419BN	ADG419BN	Analog Devices	Single SPDT Monolithic LC²MOS Analog Switch, 25Ohm Ron, DIP-8	U	
+Analog	Analog_Switch	ADG419BR	ADG419BR	Analog Devices	Single SPDT Monolithic LC²MOS Analog Switch, 25Ohm Ron, SOIC-8	U	
+Analog	Analog_Switch	ADG419BRM	ADG419BRM	Analog Devices	Single SPDT Monolithic LC²MOS Analog Switch, 25Ohm Ron, MSOP-8	U	
+Analog	Analog_Switch	ADG633YRU	ADG633YRU	Analog Devices	Triple SPDT CMOS Analog Switch, 52Ohm Ron, TSSOP-16	U	
+Analog	Analog_Switch	ADG707BRU	ADG707BRU	Analog Devices	Differential 8-to-1 Multiplexer, 2.5 Ohm Ron, 36Mhz, TSSOP-28	U	
+Analog	Analog_Switch	ADG715	ADG715	Analog Devices	CMOS, Low Voltage, Serially Controlled, Octal SPST Switch, I2C interface, TSSOP-24	U	
+Analog	Analog_Switch	ADG728	ADG728	Analog Devices	Single 8-to-1 CMOS Low Voltage 2-Wire Serially Controlled, Matrix Switches	U	
+Analog	Analog_Switch	ADG729	ADG729	Analog Devices	Dual 4-to-1 CMOS Low Voltage 2-Wire Serially Controlled, Matrix Switches	U	
+Analog	Analog_Switch	ADG733BRU	ADG733BRU	Analog Devices	Triple SPDT CMOS Analog Switch, 2.5Ohm Ron, TSSOP-16	U	
+Analog	Analog_Switch	ADG734	ADG734	Analog Devices	Quad SPDT CMOS Analog Switch, 2.5Ohm Ron, TSSOP-20	U	
+Analog	Analog_Switch	CD4066BE	CD4066BE	Texas Instruments	Quad 20V analog SPST 1:1 switch, DIP-14	U	
+Analog	Analog_Switch	CD4066BM	CD4066BM	Texas Instruments	Quad 20V analog SPST 1:1 switch, SO-14 (3.9x8.65mm)	U	
+Analog	Analog_Switch	CD4066BNS	CD4066BNS	Texas Instruments	Quad 20V analog SPST 1:1 switch, SO-14 (5.3x10.2mm)	U	
+Analog	Analog_Switch	CD4066BPW	CD4066BPW	Texas Instruments	Quad 20V analog SPST 1:1 switch, TSSOP-14	U	
+Analog	Analog_Switch	DG417LDJ	DG417LDJ	Analog Devices (Maxim)	Single SPST 3V Logic Compatible CMOS Analog Switch, normally ON, 35Ohm Ron, with Vlogic, DIP-8	U	
+Analog	Analog_Switch	DG417LDY	DG417LDY	Analog Devices (Maxim)	Single SPST 3V Logic Compatible CMOS Analog Switch, normally ON, 20Ohm Ron, with Vlogic, SOIC-8	U	
+Analog	Analog_Switch	DG417LEUA	DG417LEUA	Analog Devices (Maxim)	Single SPST 3V Logic Compatible CMOS Analog Switch, normally ON, 20Ohm Ron, with Vlogic, MSOP-8	U	
+Analog	Analog_Switch	DG418LDJ	DG418LDJ	Analog Devices (Maxim)	Single SPST 3V Logic Compatible CMOS Analog Switch, normally OFF, 35Ohm Ron, with Vlogic, DIP-8	U	
+Analog	Analog_Switch	DG418LDY	DG418LDY	Analog Devices (Maxim)	Single SPST 3V Logic Compatible CMOS Analog Switch, normally OFF, 35Ohm Ron, with Vlogic, SOIC-8	U	
+Analog	Analog_Switch	DG418LEUA	DG418LEUA	Analog Devices (Maxim)	Single SPST 3V Logic Compatible CMOS Analog Switch, normally OFF, 35Ohm Ron, with Vlogic, MSOP-8	U	
+Analog	Analog_Switch	DG419LDJ	DG419LDJ	Analog Devices (Maxim)	Single SPDT 3V Logic Compatible CMOS Analog Switch, 35Ohm Ron, with Vlogic, DIP-8	U	
+Analog	Analog_Switch	DG419LDY	DG419LDY	Analog Devices (Maxim)	Single SPDT 3V Logic Compatible CMOS Analog Switch, 35Ohm Ron, with Vlogic, SOIC-8	U	
+Analog	Analog_Switch	DG419LEUA	DG419LEUA	Analog Devices (Maxim)	Single SPDT 3V Logic Compatible CMOS Analog Switch, 35Ohm Ron, with Vlogic, MSOP-8	U	
+Analog	Analog_Switch	HEF4051BT	HEF4051BT	Nexperia	8-channel analog multiplexer / demultiplexer, 3.0..15.0V supply voltage, SOIC-16	U	
+Analog	Analog_Switch	HEF4051BTT	HEF4051BTT	Nexperia	8-channel analog multiplexer / demultiplexer, 3.0..15.0V supply voltage, TSSOP-16	U	
+Analog	Analog_Switch	HEF4052BT	HEF4052BT	Nexperia	Dual 4-channel analog multiplexer / demultiplexer, 3.0..15.0V supply voltage, SOIC-16	U	
+Motor Control	Driver_Motor	A4952_LY	A4952_LY	Allegro	Full-Bridge, DMOS PWM, Motor Driver, 40V, 2A, MSOP-10	U	
+Motor Control	Driver_Motor	A4954	A4954	Allegro	Fullbridge PWM Motor Driver, UVLO, OCP, Current Limit, Short Circuit Protection, TSSOP-16	U	
+Motor Control	Driver_Motor	AMT49413	AMT49413	Allegro	3-Phase BLDC Controller and MOSFET Driver, QFN-48	U	
+Motor Control	Driver_Motor	DRV8308	DRV8308	Texas Instruments	Brushless DC motor controller, closed loop, hall sensor inputs, current limiting, SPI interface	U	
+Motor Control	Driver_Motor	DRV8311H	DRV8311H	Texas Instruments	Three-Phase PWM Motor Driver, 3-20V supply, 5A peak current, hardware interface, WQFN-24	U	
+Motor Control	Driver_Motor	DRV8311P	DRV8311P	Texas Instruments	Three-Phase PWM Motor Driver, 3-20V supply, 5A peak current, SPI / tSPI interface, WQFN-24	U	
+Motor Control	Driver_Motor	DRV8311S	DRV8311S	Texas Instruments	Three-Phase PWM Motor Driver, 3-20V supply, 5A peak current, SPI interface, WQFN-24	U	
+Motor Control	Driver_Motor	DRV8412	DRV8412	Texas Instruments	Dual Full-Bridge PWM Motor Driver 50V 2x6A Peak, HTSSOP-44 EP ThermalVias	U	
+Motor Control	Driver_Motor	DRV8434PWP	DRV8434PWP	Texas Instruments	48V, 2.5A, bipolar stepper motor driver, 1/256 microstepping, integrated current sensing, STEP/DIR interface, HTSSOP-28 (Texas PWP0028M)	U	
+Motor Control	Driver_Motor	DRV8662	DRV8662	Texas Instruments	Piezo Haptic Driver with Integrated Boost Converter	U	
+Motor Control	Driver_Motor	DRV8800PWP	DRV8800PWP	Texas Instruments	H-Bridge Motor Driver, TSSOP-16	U	
+Motor Control	Driver_Motor	DRV8800RTY	DRV8800RTY	Texas Instruments	H-Bridge Motor Driver, WQFN-16	U	
+Motor Control	Driver_Motor	DRV8801PWP	DRV8801PWP	Texas Instruments	H-Bridge Motor Driver, TSSOP-16	U	
+Motor Control	Driver_Motor	DRV8801RTY	DRV8801RTY	Texas Instruments	H-Bridge Motor Driver, WQFN-16	U	
+Motor Control	Driver_Motor	DRV8833PW	DRV8833PW	Texas Instruments	Dual H-Bridge Motor Driver, TSSOP-16	U	
+Motor Control	Driver_Motor	DRV8833PWP	DRV8833PWP	Texas Instruments	Dual H-Bridge Motor Driver, HTSSOP-16	U	
+Motor Control	Driver_Motor	DRV8833RTY	DRV8833RTY	Texas Instruments	Dual H-Bridge Motor Driver, WQFN-16	U	
+Motor Control	Driver_Motor	DRV8847PWP	DRV8847PWP	Texas Instruments	Dual H-Bridge Motor Driver, 1A, HTSSOP-16	U	
+Motor Control	Driver_Motor	DRV8847PWR	DRV8847PWR	Texas Instruments	Dual H-Bridge Motor Driver, 1A, TSSOP-16	U	
+Motor Control	Driver_Motor	DRV8847RTE	DRV8847RTE	Texas Instruments	Dual H-Bridge Motor Driver, 1A, WQFN-16	U	
+Motor Control	Driver_Motor	DRV8847SPWR	DRV8847SPWR	Texas Instruments	Dual H-Bridge Motor Driver, 1A, I2C Interface, TSSOP-16	U	
+Motor Control	Driver_Motor	DRV8848	DRV8848	Texas Instruments	Dual H-Bridge motor driver, PWM controlled, single/dual brushed DC stepper, +2 to +18 VDD, TSSOP-16	U	
+Motor Control	Driver_Motor	DRV8870DDA	DRV8870DDA	Texas Instruments	Brushed DC Motor Driver, PWM Control, 45V, 3.6A, Dynamic current limiting, HTSOP-8	U	
+Motor Control	Driver_Motor	DRV8871DDA	DRV8871DDA	Texas Instruments	Brushed DC Motor Driver, PWM Control, 45V, 3.6A, Current limiting, HTSOP-8	U	
+Motor Control	Driver_Motor	DRV8872DDA	DRV8872DDA	Texas Instruments	Brushed DC Motor Driver, PWM Control, 45V, 3.6A, Current limiting, Fault Reporting, HTSOP-8	U	
+Motor Control	Driver_Motor	L293	L293	Texas Instruments	Quadruple Half-H Drivers	U	
+Motor Control	Driver_Motor	L293E	L293E	STMicroelectronics	Push-pull four-channel driver, DIP-20	U	
+Motor Control	Driver_FET	1EDN7550B	1EDN7550B	Infineon	Single-Channel EiceDRIVER With True Differential Inputs, 4V UVLO, +4/-8A, SOT-23-6	U	
+Motor Control	Driver_FET	1EDN8550B	1EDN8550B	Infineon	Single-Channel EiceDRIVER With True Differential Inputs, 8V UVLO, +4/-8A, SOT-23-6	U	
+Motor Control	Driver_FET	2ED21824S06J	2ED21824S06J	Infineon	650V Half Bridge Gate Driver with Integrated Bootstrap Diode, 2.5A drive current, SOIC-14	U	
+Motor Control	Driver_FET	2EDL23N06PJXUMA1	2EDL23N06PJXUMA1	Infineon	600V Half Bridge Gate Driver with OCP and Integrated Bootstrap Diode, +1.8A/-2.5A drive current, SOIC-14	U	
+Motor Control	Driver_FET	FAN3111C	FAN3111C	onsemi	High Speed Low Side MOSFET Gate Driver with CMOS inverting and non-inverting inputs, 4.5-18 V, 1.0 A, SOT-23-5	U	
+Motor Control	Driver_FET	FAN3111E	FAN3111E	onsemi	High Speed Low Side MOSFET Gate Driver with logic voltage reference input, 4.5-18 V, 1.0 A, SOT-23-5	U	
+Motor Control	Driver_FET	FAN3268	FAN3268	onsemi	Low-Voltage 18V PMOS-NMOS Bridge Driver, SOIC-8	U	
+Motor Control	Driver_FET	FAN3278	FAN3278	onsemi	8-27V PMOS-NMOS Bridge Driver, SOIC-8	U	
+Motor Control	Driver_FET	FAN7371	FAN7371	onsemi	High-Current High-Side Gate Driver, 600V Vs, 4A Io, SOIC-8	U	
+Motor Control	Driver_FET	FAN7388	FAN7388	onsemi	3 Half-Bridge Gate-Drive IC, 600V operation, Output Current 350/650mA, SOIC-20	U	
+Motor Control	Driver_FET	FAN7842	FAN7842	onsemi	High and Low Side Gate Driver, 200V operation, Output Current 350/650mA, SOIC-8	U	
+Motor Control	Driver_FET	FAN7888	FAN7888	onsemi	3 Half-Bridge Gate-Drive IC, 200V operation, Output Current 350/650mA, SOIC-20	U	
+Motor Control	Driver_FET	FL5150MX	FL5150MX	onsemi	IGBT and MOSFET, AC Phase Cut, Dimmer Controller, SSOP-10	U	
+Motor Control	Driver_FET	FL5160MX	FL5160MX	onsemi	IGBT and MOSFET, AC Phase Cut, Dimmer Controller, SSOP-10	U	
+Motor Control	Driver_FET	HIP2100_DFN	HIP2100_DFN	Renesas	High Frequency Half Bridge Driver, Output Current 2.0A, 100V, DFN-8	U	
+Motor Control	Driver_FET	HIP2100_QFN	HIP2100_QFN	Renesas	High Frequency Half Bridge Driver, Output Current 2.0A, 100V, QFN-16	U	
+Motor Control	Driver_FET	HIP2100_SOIC	HIP2100_SOIC	Renesas	High Frequency Half Bridge Driver, Output Current 2.0A, 100V, SOIC-8	U	
+Motor Control	Driver_FET	HIP2101_DFN	HIP2101_DFN	Renesas	High Frequency Half Bridge Driver, TTL/CMOS inputs, Output Current 2.0A, 100V, DFN-8	U	
+Motor Control	Driver_FET	HIP2101_QFN	HIP2101_QFN	Renesas	High Frequency Half Bridge Driver, TTL/CMOS inputs, Output Current 2.0A, 100V, QFN-16	U	
+Motor Control	Driver_FET	HIP2101_SOIC	HIP2101_SOIC	Renesas	High Frequency Half Bridge Driver, TTL/CMOS inputs, Output Current 2.0A, 100V, SOIC-8	U	
+Motor Control	Driver_FET	IR2010	IR2010	Infineon	High and Low Side Driver, 200V, 3.0/3.0A, PDIP-14	U	
+Motor Control	Driver_FET	IR2010S	IR2010S	Infineon	High and Low Side Driver, 200V, 3.0/3.0A, SOIC-16W	U	
+Motor Control	Driver_FET	IR2085S	IR2085S	Infineon	High Speed, 100V, Self Oscillating 50% Duty Cycle, Half-Bridge Driver, 1.0/1.0A, SOIC-8	U	
+Motor Control	Driver_FET	IR2110	IR2110	Infineon	High and Low Side Driver, 500V, 2.0/2.0A, PDIP-14	U	
+Motor Control	Driver_FET	IR2112	IR2112	Infineon	High and Low Side Driver, 600V, 250/500mA, PDIP-14	U	
+Motor Control	Driver_FET	IR2112S	IR2112S	Infineon	High and Low Side Driver, 500V, 250/500mA, SOIC-16W	U	
+Motor Control	Driver_FET	IR2113	IR2113	Infineon	High and Low Side Driver, 600V, 2.0/2.0A, PDIP-14	U	
+Motor Control	Driver_FET	IR2113S	IR2113S	Infineon	High and Low Side Driver, 500V, 2.0/2.0A, SOIC-16W	U	
+Drivers	Driver_LED	AL5819W6	AL5819W6	Diodes Inc.	36V linear LED driver, adjustable current, maximum current 100mA, SOT-23-6	U	
+Drivers	Driver_LED	AL8860MP	AL8860MP	Diodes Inc.	40V 1.5A Constant Current Buck LED Driver IC, MSOP-8	U	
+Drivers	Driver_LED	AL8860WT	AL8860WT	Diodes Inc.	40V 1.5A Constant Current Buck LED Driver IC, TSOT-23-5	U	
+Drivers	Driver_LED	AP3019AKTR	AP3019AKTR	Diodes Inc.	1.2MHz White LED Boost Drivers with Built-in Schottky, 2.5..16Vin, <30Vout, SOT-23-6	U	
+Drivers	Driver_LED	AP3019AKTTR	AP3019AKTTR	Diodes Inc.	1.2MHz White LED Boost Drivers with Built-in Schottky, 2.5..16Vin, <30Vout, ThinSOT-23-6	U	
+Drivers	Driver_LED	CH455K	CH455K	WCH	Digital tube driver and keyboard scan (common cathode only), with interrupt/current setting, DIP-18	U	
+Drivers	Driver_LED	CL220N5-G	CL220N5-G	Microchip	Temperature Compensated Constant Current LED IC, TO-220	U	
+Drivers	Driver_LED	HT1632C-52LQFP	HT1632C-52LQFP	Holtek	LED Matrix Driver, 32×8 or 24×16, LQFP-52	U	
+Drivers	Driver_LED	HV9925SG-G	HV9925SG-G	Microchip	Programmable Current LED Lamp Driver, SO8 w/Heat Slug	U	
+Drivers	Driver_LED	HV9930LG-G	HV9930LG-G	Microchip	Boost-Buck LED Lamp Driver, SO8	U	
+Drivers	Driver_LED	HV9931LG-G	HV9931LG-G	Microchip	PFC Boost-Buck LED Lamp Driver, SO8	U	
+Drivers	Driver_LED	HV9961LG-G	HV9961LG-G	Microchip	Buck LED Lamp Driver Average-Mode Constant Current, 8V-450V, SO8	U	
+Drivers	Driver_LED	HV9961NG-G	HV9961NG-G	Microchip	Buck LED Lamp Driver Average-Mode Constant Current, 8V-450V, SO16	U	
+Drivers	Driver_LED	HV9967BK7-G	HV9967BK7-G	Microchip	Buck LED Lamp Driver Average-Mode Constant Current, DFN8 (3x3mm)	U	
+Drivers	Driver_LED	HV9967BMG-G	HV9967BMG-G	Microchip	Buck LED Lamp Driver Average-Mode Constant Current, MSOP8	U	
+Drivers	Driver_LED	IS31FL3216	IS31FL3216	ISSI	16 channel LED controller with audio modulation mode, QFN-28	U	
+Drivers	Driver_LED	IS31FL3216A	IS31FL3216A	ISSI	16 channel LED controller with audio modulation mode, QFN-28	U	
+Drivers	Driver_LED	IS31FL3218-QF	IS31FL3218-QF	ISSI	18 LED matrix driver with 8-bit PWM, QFN-24	U	
+Drivers	Driver_LED	IS31FL3731-QF	IS31FL3731-QF	ISSI	9x16 LED matrix driver with 8-bit PWM and breathing, QFN-28	U	
+Drivers	Driver_LED	IS31FL3731-SA	IS31FL3731-SA	ISSI	9x16 LED matrix driver with 8-bit PWM and breathing, SSOP-28	U	
+Drivers	Driver_LED	IS31FL3733-QF	IS31FL3733-QF	ISSI	12x16 LED matrix driver with 8-bit PWM and breathing, QFN-48	U	
+Drivers	Driver_LED	IS31FL3733-TQ	IS31FL3733-TQ	ISSI	12x16 LED matrix driver with 8-bit PWM and breathing, TQFP-48	U	
+Drivers	Driver_LED	IS31FL3736	IS31FL3736	ISSI	12x8 LED matrix driver with 8-bit PWM and breathing, QFN-40	U	
+Drivers	Driver_LED	IS31FL3737	IS31FL3737	ISSI	12x12 LED matrix driver with 8-bit PWM and breathing, QFN-40	U	
+Drivers	Driver_LED	LED1642GWQTR	LED1642GWQTR	STMicroelectronics	16-channel LED driver with error detection, current gain control and 12/16 bit PWM brightness control, QFN-24	U	
+Drivers	Driver_LED	LED1642GWTTR	LED1642GWTTR	STMicroelectronics	16-channel LED driver with error detection, current gain control and 12/16 bit PWM brightness control, TSSOP-24	U	
+Drivers	Driver_LED	LED1642GWXTTR	LED1642GWXTTR	STMicroelectronics	16-channel LED driver with error detection, current gain control and 12/16 bit PWM brightness control, HTSSOP-24	U	
+Drivers	Driver_LED	LED5000	LED5000	STMicroelectronics	3A monolithic step-down current source with dimming, HSOP-8	U	
+Drivers	Driver_LED	LM3914N	LM3914N	Texas Instruments	10 LED Dot/Bar Display Driver, DIP-18	U	
+Drivers	Driver_LED	LP8868XQDMT	LP8868XQDMT	Texas Instruments	LED Driver Boost , Input 4.5-65V, with PWM Dimming, Automotive, VSON-14	U	
+Sensors	Sensor_Temperature	AD8494	AD8494	Analog Devices	Precision Thermocouple Amplifiers with Cold Junction Compensation, J-Type Thermocouple, 0 to 50C, MSOP-8	U	
+Sensors	Sensor_Temperature	AD8495	AD8495	Analog Devices	Precision Thermocouple Amplifiers with Cold Junction Compensation, K-Type Thermocouple, 0 to 50C, MSOP-8	U	
+Sensors	Sensor_Temperature	AD8496	AD8496	Analog Devices	Precision Thermocouple Amplifiers with Cold Junction Compensation, J-Type Thermocouple, 25 to 100C, MSOP-8	U	
+Sensors	Sensor_Temperature	AD8497	AD8497	Analog Devices	Precision Thermocouple Amplifiers with Cold Junction Compensation, K-Type Thermocouple, 25 to 100C, MSOP-8	U	
+Sensors	Sensor_Temperature	DS1621	DS1621	Analog Devices (Maxim)	1-Wire Digital Thermometer and Thermostat, DIP-8	U	
+Sensors	Sensor_Temperature	DS1621S	DS1621S	Analog Devices (Maxim)	1-Wire Digital Thermometer and Thermostat, SOIC-8 (150 mil)	U	
+Sensors	Sensor_Temperature	DS1621V	DS1621V	Analog Devices (Maxim)	1-Wire Digital Thermometer and Thermostat, SOIC-8 (208 mil)	U	
+Sensors	Sensor_Temperature	DS1804	DS1804	Analog Devices	Nonvolatile Trimmer Potentiometer, DIP-8	U	
+Sensors	Sensor_Temperature	DS1822Z	DS1822Z	Analog Devices (Maxim)	Econo 1-Wire Digital Thermometer SOIC-8	U	
+Sensors	Sensor_Temperature	DS1825	DS1825	Analog Devices (Maxim)	Programmable Resolution 1-Wire Digital Thermometer With 4-Bit ID MSOP-8	U	
+Sensors	Sensor_Temperature	DS18B20U	DS18B20U	Analog Devices (Maxim)	Programmable Resolution 1-Wire Digital Thermometer MSOP-8	U	
+Sensors	Sensor_Temperature	DS18B20Z	DS18B20Z	Analog Devices (Maxim)	Programmable Resolution 1-Wire Digital Thermometer SOIC-8	U	
+Sensors	Sensor_Temperature	DS18S20Z	DS18S20Z	Analog Devices (Maxim)	High-Precision 1-Wire Digital Thermometer SOIC-8	U	
+Sensors	Sensor_Temperature	DS28EA00	DS28EA00	Analog Devices (Maxim)	1-Wire Digital Thermometer with Sequence Detect and PIO	U	
+Sensors	Sensor_Temperature	KTY82	KTY82	NXP	KTY82 series silicon temperature sensors, SOT-23	U	
+Sensors	Sensor_Temperature	LM35-D	LM35-D	Texas Instruments	Precision centigrade temperature sensor, SOIC-8	U	
+Sensors	Sensor_Temperature	LM35-NEB	LM35-NEB	Texas Instruments	Precision centigrade temperature sensor, TO-220	U	
+Sensors	Sensor_Temperature	LM73	LM73	Texas Instruments	11 to 14 Bit digital temperature sensor with 2 wire interface, SOT23-6	U	
+Sensors	Sensor_Temperature	LM73-1	LM73-1	Texas Instruments	11 to 14 Bit digital temperature sensor with 2 wire interface, SOT23-6	U	
+Sensors	Sensor_Temperature	LM74CIM	LM74CIM	Texas Instruments	12-Bit plus sign digital temperature sensor with SPI/Microwire, SOIC-8	U	
+Sensors	Sensor_Temperature	LM74CITP	LM74CITP	Texas Instruments	12-Bit plus sign digital temperature sensor with SPI/Microwire, DSBGA-5	U	
+Sensors	Sensor_Temperature	LM92CIM	LM92CIM	Texas Instruments	Digital Temperature Sensor and Thermal Window Comparator With Two-Wire (I2C) Interface, SOIC-8	U	
+Sensors	Sensor_Temperature	LTC2983	LTC2983	Analog Devices	Multi-Sensor Temperature Measurement System, High Accuracy, LQFP-48 (7x7mm)	U	
+Sensors	Sensor_Temperature	MAX31826	MAX31826	Analog Devices (Maxim)	1-Wire Digital Temperature Sensor with 1Kb Lockable EEPROM MSOP-8	U	
+Sensors	Sensor_Temperature	MAX31855EASA	MAX31855EASA	Analog Devices (Maxim)	Cold Junction E-type Thermocouple Interface, SPI, SOIC-8	U	
+Sensors	Sensor_Temperature	MAX31855JASA	MAX31855JASA	Analog Devices (Maxim)	Cold Junction J-type Thermocouple Interface, SPI, SOIC-8	U	
+Sensors	Sensor_Temperature	MAX31855KASA	MAX31855KASA	Analog Devices (Maxim)	Cold Junction K-type Thermocouple Interface, SPI, SOIC-8	U	
+Sensors	Sensor_Temperature	MAX31855NASA	MAX31855NASA	Analog Devices (Maxim)	Cold Junction N-type Thermocouple Interface, SPI, SOIC-8	U	
+Sensors	Sensor_Temperature	MAX31855RASA	MAX31855RASA	Analog Devices (Maxim)	Cold Junction R-type Thermocouple Interface, SPI, SOIC-8	U	
+Sensors	Sensor_Magnetic	AS5045B	AS5045B	ams OSRAM	Magnetic Position Sensor, 12-bit, PWM Output, ABI Output, SPI Interface, SSOP-16	U	
+Sensors	Sensor_Magnetic	AS5047D	AS5047D	ams OSRAM	On-Axis Magnetic Position Sensor, 14-bit, PWM Output, ABI Output, UVW Output, SPI Interface, TSSOP-14	U	
+Sensors	Sensor_Magnetic	AS5048A	AS5048A	ams OSRAM	Magnetic position sensor, 14-bit, PWM output, SPI Interface, TSSOP-14	U	
+Sensors	Sensor_Magnetic	AS5048B	AS5048B	ams OSRAM	Magnetic position sensor, 14-bit, PWM output, I2C Interface, TSSOP-14	U	
+Sensors	Sensor_Magnetic	AS5050A	AS5050A	ams OSRAM	Magnetic position sensor, 10-bit, SPI interface, QFN-16	U	
+Sensors	Sensor_Magnetic	AS5055A	AS5055A	ams OSRAM	Magnetic position sensor, 12-bit, SPI interface, QFN-16	U	
+Sensors	Sensor_Magnetic	AS5510-DSO	AS5510-DSO	ams OSRAM	Linear Hall Sensor, 10-bit resolution, I2C, SOIC-8	U	
+Sensors	Sensor_Magnetic	MA730	MA730	Monolithic Power Systems	Magnetic rotary angle sensor, 14-bit, SPI interface, ABZ, PWM, QFN-16	U	
+Sensors	Sensor_Magnetic	TLE5012B	TLE5012B	Infineon	15bit magnetic angle sensor based on GMR principle with diagnostic functions, SOIC-8	U	
+Sensors	Sensor_Magnetic	TLV493D	TLV493D	Infineon	Low power 3D magnetic sensor, I2C interface, SOT-23-6	U	
+Sensors	Sensor_Magnetic	TMAG5170-Q1	TMAG5170-Q1	Texas Instruments	Magnetic 3-axis linear sensor, 12-bit, Automotive, SPI Interface, VSSOP-8	U	
+Sensors	Sensor_Current	IR21771S	IR21771S	Infineon	Phase Current Sensor IC for AC Motor Control, PWM output, 600V, SOIC-16W	U	
+Sensors	Sensor_Current	IR2177S	IR2177S	Infineon	Phase Current Sensor IC for AC Motor Control, PWM and ADC output, 600V, SOIC-16W	U	
+Sensors	Sensor_Current	IR22771S	IR22771S	Infineon	Phase Current Sensor IC for AC Motor Control, PWM output, 1200V, SOIC-16W	U	
+Sensors	Sensor_Current	IR2277S	IR2277S	Infineon	Phase Current Sensor IC for AC Motor Control, PWM and ADC output, 1200V, SOIC-16W	U	
+Sensors	Sensor_Current	IR25750L	IR25750L	Infineon	Current Sensing IC, 600V, SOT-23-5	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny10-MA	ATtiny10-MA	Microchip	12MHz, 1kB Flash, 32B SRAM, No EEPROM, ADC, DFN-8	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny10-TS	ATtiny10-TS	Microchip	12MHz, 1kB Flash, 32B SRAM, No EEPROM, ADC, SOT-23-6	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny102-SS	ATtiny102-SS	Microchip	12MHz, 1kB Flash, 32B SRAM, No EEPROM, SOIC-8	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny104-SS	ATtiny104-SS	Microchip	12MHz, 1kB Flash, 32B SRAM, No EEPROM, SOIC-14	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny13-20M	ATtiny13-20M	Microchip	20MHz, 1kB Flash, 64B SRAM, 64B EEPROM, debugWIRE, QFN-20	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny13-20MM	ATtiny13-20MM	Microchip	20MHz, 1kB Flash, 64B SRAM, 64B EEPROM, debugWIRE, DFN-10	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny13-20P	ATtiny13-20P	Microchip	20MHz, 1kB Flash, 64B SRAM, 64B EEPROM, debugWIRE, DIP-8	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny13-20S	ATtiny13-20S	Microchip	20MHz, 1kB Flash, 64B SRAM, 64B EEPROM, debugWIRE, SOIC-8 (208 mil)	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny13-20SS	ATtiny13-20SS	Microchip	20MHz, 1kB Flash, 64B SRAM, 64B EEPROM, debugWIRE, SOIC-8 (150 mil)	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny13A-M	ATtiny13A-M	Microchip	20MHz, 1kB Flash, 64B SRAM, 64B EEPROM, debugWIRE, QFN-20	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny13A-MM	ATtiny13A-MM	Microchip	20MHz, 1kB Flash, 64B SRAM, 64B EEPROM, debugWIRE, DFN-10	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny13A-P	ATtiny13A-P	Microchip	20MHz, 1kB Flash, 64B SRAM, 64B EEPROM, debugWIRE, DIP-8	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny13A-S	ATtiny13A-S	Microchip	20MHz, 1kB Flash, 64B SRAM, 64B EEPROM, debugWIRE, SOIC-8 (208 mil)	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny13A-SS	ATtiny13A-SS	Microchip	20MHz, 1kB Flash, 64B SRAM, 64B EEPROM, debugWIRE, SOIC-8 (150 mil)	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny13V-10M	ATtiny13V-10M	Microchip	10MHz, 1kB Flash, 64B SRAM, 64B EEPROM, debugWIRE, QFN-20	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny13V-10MM	ATtiny13V-10MM	Microchip	10MHz, 1kB Flash, 64B SRAM, 64B EEPROM, debugWIRE, DFN-10	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny13V-10P	ATtiny13V-10P	Microchip	10MHz, 1kB Flash, 64B SRAM, 64B EEPROM, debugWIRE, DIP-8	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny13V-10S	ATtiny13V-10S	Microchip	10MHz, 1kB Flash, 64B SRAM, 64B EEPROM, debugWIRE, SOIC-8 (208 mil)	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny13V-10SS	ATtiny13V-10SS	Microchip	10MHz, 1kB Flash, 64B SRAM, 64B EEPROM, debugWIRE, SOIC-8 (150 mil)	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1604-SS	ATtiny1604-SS	Microchip	20MHz, 16kB Flash, 1kB SRAM, 256B EEPROM, SOIC-14	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1606-M	ATtiny1606-M	Microchip	20MHz, 16kB Flash, 1kB SRAM, 256B EEPROM, VQFN-20	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1606-S	ATtiny1606-S	Microchip	20MHz, 16kB Flash, 1kB SRAM, 256B EEPROM, SOIC-20	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1607-M	ATtiny1607-M	Microchip	20MHz, 16kB Flash, 1kB SRAM, 256B EEPROM, VQFN-24	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1614-SS	ATtiny1614-SS	Microchip	20MHz, 16kB Flash, 2kB SRAM, 256B EEPROM, SOIC-14	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1616-M	ATtiny1616-M	Microchip	20MHz, 16kB Flash, 2kB SRAM, 256B EEPROM, VQFN-20	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1616-S	ATtiny1616-S	Microchip	20MHz, 16kB Flash, 2kB SRAM, 256B EEPROM, SOIC-20	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1617-M	ATtiny1617-M	Microchip	20MHz, 16kB Flash, 2kB SRAM, 256B EEPROM, VQFN-24	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1624-SS	ATtiny1624-SS	Microchip	20MHz, 16kB Flash, 2kB SRAM, 256B EEPROM, SOIC-14	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1624-X	ATtiny1624-X	Microchip	20MHz, 16kB Flash, 2kB SRAM, 256B EEPROM, TSSOP-14	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1626-M	ATtiny1626-M	Microchip	20MHz, 16kB Flash, 2kB SRAM, 256B EEPROM, VQFN-20	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1626-S	ATtiny1626-S	Microchip	20MHz, 16kB Flash, 2kB SRAM, 256B EEPROM, SOIC-20	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1626-X	ATtiny1626-X	Microchip	20MHz, 16kB Flash, 2kB SRAM, 256B EEPROM, SSOP-20	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1627-M	ATtiny1627-M	Microchip	20MHz, 16kB Flash, 2kB SRAM, 256B EEPROM, VQFN-24	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1634-M	ATtiny1634-M	Microchip	12MHz, 16kB Flash, 1kB SRAM, 256B EEPROM, ADC, ACI, debugWIRE, QFN-20	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny1634-S	ATtiny1634-S	Microchip	12MHz, 16kB Flash, 1kB SRAM, 256B EEPROM, ADC, ACI, debugWIRE, SOIC-20	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny167-M	ATtiny167-M	Microchip	16MHz, 16kB Flash, 512B SRAM, 512B EEPROM, debugWIRE, QFN-32	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny167-S	ATtiny167-S	Microchip	16MHz, 16kB Flash, 512B SRAM, 512B EEPROM, debugWIRE, SOIC-20	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny167-X	ATtiny167-X	Microchip	16MHz, 16kB Flash, 512B SRAM, 512B EEPROM, debugWIRE, TSSOP-20	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny20-CC	ATtiny20-CC	Microchip	12MHz, 2kB Flash, 128B SRAM, No EEPROM, UFBGA-15	U	
+MCU · Microchip AVR	MCU_Microchip_ATtiny	ATtiny20-MM	ATtiny20-MM	Microchip	12MHz, 2kB Flash, 128B SRAM, No EEPROM, QFN-20	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega128-16A	ATmega128-16A	Microchip	16MHz, 128kB Flash, 4kB SRAM, 4kB EEPROM, JTAG, TQFP-64	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega128-16M	ATmega128-16M	Microchip	16MHz, 128kB Flash, 4kB SRAM, 4kB EEPROM, JTAG, QFN-64	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega1280-16A	ATmega1280-16A	Microchip	16MHz, 128kB Flash, 8kB SRAM, 4kB EEPROM, JTAG, TQFP-100	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega1280-16C	ATmega1280-16C	Microchip	16MHz, 128kB Flash, 8kB SRAM, 4kB EEPROM, JTAG, TFBGA-100	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega1280V-8A	ATmega1280V-8A	Microchip	8MHz, 128kB Flash, 8kB SRAM, 4kB EEPROM, JTAG, TQFP-100	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega1280V-8C	ATmega1280V-8C	Microchip	8MHz, 128kB Flash, 8kB SRAM, 4kB EEPROM, JTAG, TFBGA-100	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega1281-16A	ATmega1281-16A	Microchip	16MHz, 128kB Flash, 8kB SRAM, 4kB EEPROM, JTAG, TQFP-64	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega1281-16M	ATmega1281-16M	Microchip	16MHz, 128kB Flash, 8kB SRAM, 4kB EEPROM, JTAG, QFN-64	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega1281V-8A	ATmega1281V-8A	Microchip	8MHz, 128kB Flash, 8kB SRAM, 4kB EEPROM, JTAG, TQFP-64	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega1281V-8M	ATmega1281V-8M	Microchip	8MHz, 128kB Flash, 8kB SRAM, 4kB EEPROM, JTAG, QFN-64	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega1284-A	ATmega1284-A	Microchip	20MHz, 128kB Flash, 16kB SRAM, 4kB EEPROM, JTAG, TQFP-44	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega1284-M	ATmega1284-M	Microchip	20MHz, 128kB Flash, 16kB SRAM, 4kB EEPROM, JTAG, QFN-44	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega1284-P	ATmega1284-P	Microchip	20MHz, 128kB Flash, 16kB SRAM, 4kB EEPROM, JTAG, DIP-40	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega1284P-A	ATmega1284P-A	Microchip	20MHz, 128kB Flash, 16kB SRAM, 4kB EEPROM, JTAG, TQFP-44	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega1284P-M	ATmega1284P-M	Microchip	20MHz, 128kB Flash, 16kB SRAM, 4kB EEPROM, JTAG, QFN-44	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega1284P-P	ATmega1284P-P	Microchip	20MHz, 128kB Flash, 16kB SRAM, 4kB EEPROM, JTAG, DIP-40	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega128A-A	ATmega128A-A	Microchip	16MHz, 128kB Flash, 4kB SRAM, 4kB EEPROM, TQFP-64	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega128A-M	ATmega128A-M	Microchip	16MHz, 128kB Flash, 4kB SRAM, 4kB EEPROM, QFN-64	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega128L-8A	ATmega128L-8A	Microchip	8MHz, 128kB Flash, 4kB SRAM, 4kB EEPROM, JTAG, TQFP-64	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega128L-8M	ATmega128L-8M	Microchip	8MHz, 128kB Flash, 4kB SRAM, 4kB EEPROM, JTAG, QFN-64	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega16-16A	ATmega16-16A	Microchip	16MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, TQFP-44	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega16-16M	ATmega16-16M	Microchip	16MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, QFN-44	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega16-16P	ATmega16-16P	Microchip	16MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, DIP-40	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega162-16A	ATmega162-16A	Microchip	16MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, TQFP-44	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega162-16M	ATmega162-16M	Microchip	16MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, QFN-44	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega162-16P	ATmega162-16P	Microchip	16MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, DIP-40	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega162V-8A	ATmega162V-8A	Microchip	8MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, TQFP-44	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega162V-8M	ATmega162V-8M	Microchip	8MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, QFN-44	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega162V-8P	ATmega162V-8P	Microchip	8MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, DIP-40	U	
+MCU · Microchip AVR	MCU_Microchip_ATmega	ATmega164A-A	ATmega164A-A	Microchip	20MHz, 16kB Flash, 1kB SRAM, 512B EEPROM, JTAG, TQFP-44	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16F1829-IML	PIC16F1829-IML	Microchip	Flash-Based, 8-Bit CMOS Microcontrollers, QFN	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16F1829LIN-ESS	PIC16F1829LIN-ESS	Microchip	Flash-Based, 8-Bit CMOS Microcontrollers with integrated voltage regulator and LIN transceiver	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16F18325-ISL	PIC16F18325-ISL	Microchip	PIC16F18325, 8192W FLASH, 1024B SRAM, SOIC14	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16F18344-GZ	PIC16F18344-GZ	Microchip	4096W FLASH, 512B RAM, 256B EEPROM, UQFN-20	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16F18344-P	PIC16F18344-P	Microchip	4096W FLASH, 512B RAM, 256B EEPROM, PDIP-20	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16F18344-SO	PIC16F18344-SO	Microchip	4096W FLASH, 512B RAM, 256B EEPROM, SOIC-20	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16F18344-SS	PIC16F18344-SS	Microchip	4096W FLASH, 512B RAM, 256B EEPROM, SSOP-20	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16F18346-GZ	PIC16F18346-GZ	Microchip	16384W FLASH, 2048B RAM, 256B EEPROM, UQFN-20	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16F18346-P	PIC16F18346-P	Microchip	16384W FLASH, 2048B RAM, 256B EEPROM, PDIP-20	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16F18346-SO	PIC16F18346-SO	Microchip	16384W FLASH, 2048B RAM, 256B EEPROM, SOIC-20	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16F18346-SS_0	PIC16F18346-SS_0	Microchip	16384W FLASH, 2048B RAM, 256B EEPROM, SSOP-20	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16F874A-IPT	PIC16F874A-IPT	Microchip	PIC16F874A, 4096W Flash, 192B SRAM, 128B EEPROM, TQFP44	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16F877A-IPT	PIC16F877A-IPT	Microchip	PIC16F874A, 4W Flash, 192B SRAM, 128B EEPROM, TQFP44	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16LF18325-ISL	PIC16LF18325-ISL	Microchip	PIC16LF18325, 8192W FLASH, 1024B SRAM, SOIC14	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16LF1904-IP	PIC16LF1904-IP	Microchip	4096W FLASH, 256B SRAM, PDIP-40	U	
+MCU · Microchip PIC	MCU_Microchip_PIC16	PIC16LF1907-IP	PIC16LF1907-IP	Microchip	8192W FLASH, 512B SRAM, PDIP-40	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F1220-SO	PIC18F1220-SO	Microchip	18-Pin Flash Microcontroller 4K Flash 256byte RAM	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F1320-SO	PIC18F1320-SO	Microchip	18-Pin Flash Microcontroller 8K Flash 256byte RAM	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F13K50-EP	PIC18F13K50-EP	Microchip	8K Flash, 512 SRAM, 256 EEPROM, USB, nanoWatt XLP, DIP20	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F13K50-ESO	PIC18F13K50-ESO	Microchip	8K Flash, 512 SRAM, 256 EEPROM, USB, nanoWatt XLP, SOIC20	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F13K50-ESS	PIC18F13K50-ESS	Microchip	8K Flash, 512 SRAM, 256 EEPROM, USB, nanoWatt XLP, SSOP20	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F14K50-EP	PIC18F14K50-EP	Microchip	16K Flash, 768 SRAM, 256 EEPROM, USB, nanoWatt XLP, DIP20	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F14K50-ESO	PIC18F14K50-ESO	Microchip	16K Flash, 768 SRAM, 256 EEPROM, USB, nanoWatt XLP, SOIC20	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F14K50-ESS	PIC18F14K50-ESS	Microchip	16K Flash, 768 SRAM, 256 EEPROM, USB, nanoWatt XLP, SSOP20	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F2331-IML	PIC18F2331-IML	Microchip	8K Flash, 768B SRAM, 256B EEPROM, nanoWatt XLP, ADC, PWM, QFN28	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F2331-ISO	PIC18F2331-ISO	Microchip	8K Flash, 768B SRAM, 256B EEPROM, nanoWatt XLP, ADC, PWM, SOIC28	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F2331-ISP	PIC18F2331-ISP	Microchip	8K Flash, 768B SRAM, 256B EEPROM, nanoWatt XLP, ADC, PWM, SPDIP28	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F23K20_ISS	PIC18F23K20_ISS	Microchip	8K Flash, 512Byte RAM, 256Byte EEPROM, PIC18 Microcontroller ADC PWM SPI I2C USART in SSOP28 package	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F2431-IML	PIC18F2431-IML	Microchip	16K Flash, 768B SRAM, 256B EEPROM, nanoWatt XLP, ADC, PWM, QFN28	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F2431-ISO	PIC18F2431-ISO	Microchip	16K Flash, 768B SRAM, 256B EEPROM, nanoWatt XLP, ADC, PWM, SOIC28	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F2431-ISP	PIC18F2431-ISP	Microchip	16K Flash, 768B SRAM, 256B EEPROM, nanoWatt XLP, ADC, PWM, SPDIP28	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F2450-IML	PIC18F2450-IML	Microchip	16K Flash, 8K SRAM, USB, nanoWatt XLP, QFN28	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F2450-ISP	PIC18F2450-ISP	Microchip	16K Flash, 8K SRAM, USB, nanoWatt XLP, SPDIP28	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F2455-ISO	PIC18F2455-ISO	Microchip	24K Flash, 2K SRAM, 256 EEPROM, USB, nanoWatt XLP, SOIC28	U	
+MCU · Microchip PIC	MCU_Microchip_PIC18	PIC18F2455-ISP	PIC18F2455-ISP	Microchip	24K Flash, 2K SRAM, 256 EEPROM, USB, nanoWatt XLP, SPDIP28	U	

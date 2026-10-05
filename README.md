@@ -234,6 +234,18 @@ Seven robot platforms each carry a production parts kit: Mars / ground rover, FP
 - 0.65 mm SC-70 parts;
 - the three-slug MultiPowerSO-30.
 
+**Catalog growth (1675 parts in all).** 1252 more parts come from whole KiCad symbol libraries: linear and switching
+regulators and controllers, references, supervisors, protection, power and battery management, op-amps,
+comparators, current-sense and audio amplifiers, CAN / LIN, UART / RS-485, USB, Ethernet, I/O expanders, line drivers,
+level translators, isolators, 74xx logic, timers and RTCs, EEPROM / flash / RAM, ADCs and DACs, analog switches,
+motor / FET / LED drivers, temperature and magnetic sensors, ATtiny / ATmega / PIC microcontrollers, and 2.54 mm pin
+headers and sockets (1 × 2…20, 2 × 2…20). A part is kept only when its KiCad symbol names one footprint SiEDA draws
+exactly, its datasheet names the manufacturer, and the core registers it with every pin on a pad
+(`tools/fetch_catalog_parts.py --discover` freezes the list in `tools/catalog_extra_parts.tsv`; `--extra` writes
+`Core/src/StandardCatalogExtra.inc`). AI prompts do not carry the whole catalog: they get the parts the brief names or
+matches (with pins, at most 40 parts / 1800 pins), a few staples, the parts the plan already uses and an index of the
+categories (`SiEDA/AI/CatalogDigest.swift`).
+
 `tools/fetch_catalog_parts.py` regenerates the catalog (it needs network access to gitlab.com).
 
 ## Footprint Editor

@@ -267,6 +267,8 @@ All terms must match. Examples:
 - `mfr:espressif pins:>40` lists the ESP32-S3 and ESP32-PICO-D4;
 - `cat:regulators pkg:sot223` lists the SOT-223 regulators (AMS1117, LD1117, LM1117, AP7361C).
 
+The standard library has 1675 parts (see the README's *Production parts catalog*); the search covers all of them.
+
 ## C API and data format
 
 ```c

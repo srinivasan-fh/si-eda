@@ -5399,3 +5399,35 @@ final class LibraryImportPairingTests: XCTestCase {
         XCTAssertEqual(LibraryImportView.key(ams), LibraryImportView.key(try XCTUnwrap(result.parts.first { $0.symbol == "AMS1117-3.3" })))
     }
 }
+
+// MARK: - The catalog in AI prompts stays bounded
+
+final class CatalogDigestTests: XCTestCase {
+    func testPromptCarriesADigestNotTheWholeCatalog() {
+        let all = StandardLibrary.parts
+        let fullListing = all.map { part in
+            "- custom:\(part.spec.name) [\(part.category)]: \(part.spec.description). Pins: "
+                + part.spec.pins.map { "\($0.number)=\($0.name)(\($0.type.rawValue))" }.joined(separator: ", ")
+        }.joined(separator: "\n")
+        let digest = AgentPrompts.customCatalog([], brief: "")
+        XCTAssertLessThan(digest.count, 60_000)
+        XCTAssertLessThan(digest.count * 4, fullListing.count)  // a fraction of listing every part with its pins
+        XCTAssertTrue(digest.contains("custom:NE555") && digest.contains("custom:LM7805"))
+        XCTAssertTrue(digest.contains("The standard catalog has \(all.count) parts"))
+        XCTAssertLessThanOrEqual(AgentPrompts.customPlanKinds([]).count, CatalogDigest.maxDetailed + 5)
+
+        // A part the brief names is detailed (and allowed in the schema), as are parts the brief describes.
+        let named = AgentPrompts.customCatalog([], brief: "Use a TPS5430DDAR buck from 24 V")
+        XCTAssertTrue(named.contains("custom:TPS5430DDAR"))
+        XCTAssertTrue(AgentPrompts.customPlanKinds([], brief: "Use a TPS5430DDAR buck").contains("custom:TPS5430DDAR"))
+        let described = CatalogDigest.selection(all, brief: "CAN transceiver for an automotive ECU")
+        XCTAssertTrue(described.contains { $0.spec.description.lowercased().contains("can") && $0.category == "Interface" })
+        // Parts an existing plan uses stay available when it is refined or reviewed.
+        let plan = DesignPlan(title: "t", summary: "", components: [
+            PlannedComponent(ref: "U1", kind: "custom:TPS5430DDAR", value: "TPS5430DDAR", x: 0, y: 0)], connections: [])
+        XCTAssertTrue(AgentPrompts.customPlanKinds([], brief: "", plan: plan).contains("custom:TPS5430DDAR"))
+        // The pin budget holds even for a brief that matches many large MCUs.
+        let mcus = CatalogDigest.selection(all, brief: "microcontroller MCU ARM Cortex STM32 LQFP")
+        XCTAssertLessThanOrEqual(mcus.reduce(0) { $0 + $1.spec.pins.count }, CatalogDigest.maxPins + 200)
+    }
+}

@@ -10668,3 +10668,37 @@ TEST(library_import_footprint_candidates_for_the_sheet) {
     for (const auto& p : eagle.get("parts").items()) CHECK(p.get("pairable").isNull());
     CHECK(eagle.get("footprintList").size() == 0);
 }
+
+// ------------------------------------------------------------------ catalog growth (StandardCatalogExtra.inc)
+
+TEST(standard_catalog_has_over_a_thousand_registrable_parts) {
+    const auto& parts = standardParts();
+    CHECK(parts.size() >= 1000);
+    std::set<std::string> names;
+    std::map<std::string, int> categories;
+    int failures = 0;
+    for (const auto& sp : parts) {
+        CHECK(names.insert(sp.spec.name).second);
+        ++categories[sp.category];
+        bool ok = !sp.spec.manufacturer.empty() && !sp.spec.description.empty() && !sp.spec.pins.empty();
+        try {
+            auto part = CustomPartRegistry::instance().registerPart(sp.spec);
+            std::set<int> padded;
+            for (const auto& pad : part->footprint.pads)
+                if (pad.pinIndex >= 0) padded.insert(pad.pinIndex);
+            ok = ok && padded.size() == sp.spec.pins.size();  // every pin on a pad
+            for (const auto& issue : checkSymbol(sp.spec)) ok = ok && issue.severity != "error";  // arranged symbols
+        } catch (const std::exception& e) {
+            std::printf("    %s: %s\n", sp.spec.name.c_str(), e.what());
+            ok = false;
+        }
+        if (!ok && ++failures < 10) std::printf("    not usable: %s\n", sp.spec.name.c_str());
+    }
+    CHECK(failures == 0);
+    // Connectors, regulators, MCUs and interface ICs are all represented.
+    for (const char* c : {"Connectors", "Regulators", "Interface", "Logic", "Memory", "Data Converters", "Op-Amps"})
+        CHECK(categories[c] >= 10);
+    const StandardPart* hdr = findStandardPart("PinHeader_2x05_P2.54mm");
+    CHECK(hdr && hdr->spec.package.type == "HEADER2" && hdr->spec.pins.size() == 10 && hdr->spec.refPrefix == "J");
+    std::printf("    %zu standard parts in %zu categories\n", parts.size(), categories.size());
+}
