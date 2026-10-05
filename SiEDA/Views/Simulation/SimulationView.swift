@@ -21,10 +21,21 @@ struct SimulationView: View {
     @State private var mcNet = ""
     @State private var mcBandwidth = false
     @State private var mcRuns = "200"
+    @State private var mode: AnalysisMode = .circuit
 
     var body: some View {
+        if mode == .integrity {
+            SignalIntegrityView(mode: $mode)
+        } else {
+            circuitAnalysis
+        }
+    }
+
+    private var circuitAnalysis: some View {
         VStack(spacing: 0) {
             OptionsBar {
+                AnalysisModePicker(mode: $mode)
+                Divider().frame(height: 18)
                 Image(systemName: "waveform.path.ecg").foregroundStyle(Theme.blue)
                 Text("Analysis").fontWeight(.semibold).foregroundStyle(Theme.textPrimary)
                 LiveRunButton(live: store.live)

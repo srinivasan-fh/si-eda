@@ -22,6 +22,9 @@
 #include "sieda/Embedded.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
+#include "sieda/Ibis.hpp"
+#include "sieda/PowerIntegrity.hpp"
+#include "sieda/SignalIntegrity.hpp"
 #include "sieda/Firmware.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/InteractiveRouter.hpp"
@@ -2435,8 +2438,11 @@ TEST(c_api_smoke) {
     CHECK(rc == 0);
 }
 
-int main() {
+int main(int argc, char** argv) {
+    // Optional arguments: run only the named tests.
+    const std::set<std::string> only(argv + 1, argv + argc);
     for (const auto& t : registry()) {
+        if (!only.empty() && !only.count(t.name)) continue;
         int before = g_failures;
         std::printf("[ RUN  ] %s\n", t.name);
         t.fn();
@@ -7145,4 +7151,627 @@ TEST(router_keeps_an_autorouted_board_drc_clean) {
     }
     CHECK(commits >= 20);
     CHECK(shoved > 0);
+}
+
+// ======================================================================= signal and power integrity
+
+namespace {
+/// A logic part: 1 OUT (output), 2 IN (input), 3 VDD, 4 GND, 5–8 not connected; drawing `loadAmps` from VDD.
+CustomPartSpec siLogicPart(const char* name, double loadAmps) {
+    CustomPartSpec spec;
+    spec.name = name;
+    spec.package.type = "SOIC";
+    spec.package.pinCount = 8;
+    auto add = [&](const char* number, const char* pinName, PinType type) {
+        CustomPin p;
+        p.number = number;
+        p.name = pinName;
+        p.type = type;
+        spec.pins.push_back(p);
+    };
+    add("1", "OUT", PinType::Output);
+    add("2", "IN", PinType::Input);
+    add("3", "VDD", PinType::PowerIn);
+    add("4", "GND", PinType::PowerIn);
+    add("5", "NC5", PinType::NoConnect);
+    add("6", "NC6", PinType::NoConnect);
+    add("7", "NC7", PinType::NoConnect);
+    add("8", "NC8", PinType::NoConnect);
+    if (loadAmps > 0) spec.model.loads.push_back({"VDD", "GND", loadAmps});
+    return spec;
+}
+
+void siPlace(Project& p, int id, Vec2 at) {
+    Component* c = p.schematic.find(id);
+    c->pcb.placed = true;
+    c->pcb.position = at;
+}
+
+Vec2 siPad(const Project& p, int comp, const char* pinName) {
+    const int pin = p.schematic.pinIndex(comp, pinName);
+    for (const auto& pad : p.pcb.pads(p.schematic))
+        if (pad.componentId == comp && pad.pinIndex == pin) return pad.position;
+    CHECK(false);
+    return {};
+}
+
+void siTrack(Project& p, int net, Vec2 a, Vec2 b, int layer = 0, double width = 0.25) {
+    Track t;
+    t.net = net;
+    t.layer = layer;
+    t.width = width;
+    t.a = a;
+    t.b = b;
+    p.pcb.addTrack(t);
+}
+
+/// U1 (driver) → CLK → U2 (receiver), 120 × 40 mm, 4 layers, supplied from J1 (+3V3 / GND). U1 and U2 draw 0.25 A.
+struct SiBoard {
+    Project p;
+    int u1 = -1, u2 = -1, j1 = -1, clk = -1, vcc = -1;
+};
+SiBoard siBoard() {
+    SiBoard b;
+    Project& p = b.p;
+    auto& s = p.schematic;
+    const std::string part = p.addCustomPart(siLogicPart("SI-LOGIC", 0.25));
+    b.u1 = s.addCustomComponent(part, "", {0, 0});
+    b.u2 = s.addCustomComponent(part, "", {400, 0});
+    b.j1 = s.addComponent(ComponentKind::Connector, "PWR", {-200, 0});
+    int vcc = s.addComponent(ComponentKind::NetLabel, "+3V3", {-100, -100});
+    int gnd = s.addComponent(ComponentKind::Ground, "", {-100, 100});
+    wire(s, b.u1, "OUT", b.u2, "IN");
+    for (int u : {b.u1, b.u2}) {
+        wire(s, u, "VDD", vcc, "N");
+        wire(s, u, "GND", gnd, "GND");
+    }
+    wire(s, b.j1, "1", vcc, "N");
+    wire(s, b.j1, "2", gnd, "GND");
+    p.schematicChanged();
+    p.pcb.settings.width = 120;
+    p.pcb.settings.height = 40;
+    p.pcb.settings.layerCount = 4;
+    siPlace(p, b.u1, {10, 20});
+    siPlace(p, b.u2, {100, 20});
+    siPlace(p, b.j1, {5, 5});
+    b.clk = s.netOf({b.u1, pin(s, b.u1, "OUT")});
+    b.vcc = s.netOf({b.u1, pin(s, b.u1, "VDD")});
+    return b;
+}
+
+/// Routes CLK on the top layer: down from U1 OUT to y = 30, along it, and up into U2 IN.
+void siRouteClock(SiBoard& b) {
+    const Vec2 a = siPad(b.p, b.u1, "OUT"), c = siPad(b.p, b.u2, "IN");
+    siTrack(b.p, b.clk, a, {a.x, 30});
+    siTrack(b.p, b.clk, {a.x, 30}, {c.x, 30});
+    siTrack(b.p, b.clk, {c.x, 30}, c);
+}
+
+const char* kSampleIbis = R"(|  Sample IBIS 4.2 file for SiEDA tests
+[IBIS Ver]      4.2
+[File Name]     sample.ibs
+[Comment Char]  |_char
+[Component]     SAMPLE-MCU
+[Manufacturer]  Example Semiconductor
+[Package]
+| variable  typ     min     max
+R_pkg       0.25    0.2     0.3
+L_pkg       3.0nH   2.5nH   3.5nH
+C_pkg       0.5pF   0.4pF   0.6pF
+[Pin]  signal_name  model_name  R_pin  L_pin  C_pin
+1      PA0          GPIO_FAST   0.2    2.0nH  0.4pF
+2      PA1          IN_ONLY     NA     NA     NA
+3      VDD          POWER
+4      VSS          GND
+[Model Selector] GPIO
+GPIO_FAST   High drive
+GPIO_SLOW   Low drive
+[Model]  GPIO_FAST
+Model_type   I/O
+Polarity     Non-Inverting
+Vinl = 0.99V
+Vinh = 2.31V
+C_comp   4.0pF   3.0pF   5.0pF
+[Voltage Range]   3.3V   3.0V   3.6V
+[Pulldown]
+| V        I(typ)     I(min)     I(max)
+-3.3      -0.10      -0.08      -0.12
+ 0.0       0.0        0.0        0.0
+ 0.33      13.2mA     11mA       16.5mA
+ 0.66      26.4mA     22mA       33mA
+ 0.99      39.6mA     33mA       49.5mA
+ 3.3       60mA       50mA       75mA
+[Pullup]
+-3.3       0.10       0.08       0.12
+ 0.0       0.0        0.0        0.0
+ 0.33     -11mA      -9.4mA     -13.2mA
+ 0.66     -22mA      -18.9mA    -26.4mA
+ 0.99     -33mA      -28.3mA    -39.6mA
+ 3.3      -50mA      -42mA      -60mA
+[GND Clamp]
+-1.0      -50mA      NA         NA
+ 0.0       0          NA         NA
+[Ramp]
+| variable     typ          min          max
+dV/dt_r        1.2/0.6n     1.0/0.9n     1.4/0.4n
+dV/dt_f        1.2/0.75n    1.0/1.0n     1.4/0.5n
+R_load = 50
+[Model]  IN_ONLY
+Model_type   Input
+Vinl = 0.8
+Vinh = 2.0
+C_comp   2.5pF   NA   NA
+[Model]  GPIO_SLOW
+Model_type   Output
+C_comp   3pF
+[Voltage Range]   3.3   3.0   3.6
+[Rising Waveform]
+R_fixture = 50
+V_fixture = 0
+0.0ns    0.0     0.0    0.0
+1.0ns    0.4     0.3    0.5
+2.0ns    1.6     1.2    1.8
+3.0ns    2.0     1.6    2.2
+[End]
+)";
+}  // namespace
+
+TEST(si_ibis_import) {
+    IbisFile f = parseIbis(kSampleIbis);
+    CHECK(f.version == "4.2" && f.fileName == "sample.ibs");
+    CHECK(f.components.size() == 1 && f.components[0].name == "SAMPLE-MCU");
+    CHECK(f.components[0].manufacturer == "Example Semiconductor");
+    CHECK_NEAR(f.components[0].lPkg.typ, 3e-9, 1e-15);
+    CHECK(f.components[0].pins.size() == 4);
+    CHECK(f.components[0].pins[0].model == "GPIO_FAST");
+    CHECK_NEAR(f.components[0].pins[0].lPin, 2e-9, 1e-15);
+    CHECK(!std::isfinite(f.components[0].pins[1].rPin));  // "NA"
+    CHECK(f.models.size() == 3);
+    const IbisModel* m = f.findModel("gpio_fast");
+    CHECK(m && m->type == "I/O" && m->canDrive());
+    if (!m) return;
+    CHECK(f.findModel("GPIO") == m);  // a [Model Selector] resolves to its first model
+    CHECK(f.findModel("IN_ONLY") && !f.findModel("IN_ONLY")->canDrive());
+    CHECK_NEAR(m->cComp.max, 5e-12, 1e-18);
+    CHECK(m->pulldown.size() == 6 && m->pullup.size() == 6 && m->gndClamp.size() == 2);
+    CHECK_NEAR(m->rampRiseDt.typ, 0.6e-9, 1e-18);
+    CHECK_NEAR(m->rLoad, 50, 1e-12);
+    CHECK(f.warnings.empty());
+
+    // Typ corner: the pulldown is a 25 Ω line near 0 V and the pullup 30 Ω → 27.5 Ω; the 20–80 % ramp of 0.6 ns is a
+    // 0.8 ns 10–90 % edge; thresholds, C_comp and the pin's package parasitics come along.
+    const IbisPin* pin1 = &f.components[0].pins[0];
+    DriverModel d = driverFromIbis(*m, "typ", &f.components[0], pin1);
+    CHECK(d.source == "ibis" && d.id == "ibis:GPIO_FAST" && d.type == "io");
+    CHECK_NEAR(d.rOut, 27.5, 0.01);
+    CHECK_NEAR(d.riseTime, 0.8e-9, 1e-15);
+    CHECK_NEAR(d.fallTime, 1.0e-9, 1e-15);
+    CHECK_NEAR(d.cComp, 4e-12, 1e-18);
+    CHECK_NEAR(d.vih, 2.31, 1e-12);
+    CHECK_NEAR(d.vil, 0.99, 1e-12);
+    CHECK_NEAR(d.vHigh, 3.3, 1e-12);
+    CHECK_NEAR(d.lPkg, 2e-9, 1e-15);  // R_pin / L_pin / C_pin override [Package]
+    CHECK_NEAR(d.rPkg, 0.2, 1e-12);
+    // Max (strong / fast) corner: stiffer and faster; [Package] typ values when the pin has none.
+    DriverModel fast = driverFromIbis(*m, "max", &f.components[0]);
+    CHECK(fast.rOut < d.rOut && fast.riseTime < d.riseTime);
+    CHECK_NEAR(fast.lPkg, 3e-9, 1e-15);
+    // A model with a rising waveform but no [Ramp]: 20 % (0.4 V) at 1.0 ns, 80 % (1.6 V) at 2.0 ns.
+    DriverModel slow = driverFromIbis(*f.findModel("GPIO_SLOW"));
+    CHECK_NEAR(slow.riseTime, 1.0e-9 * 4 / 3, 1e-14);
+    // Errors and JSON.
+    bool threw = false;
+    try {
+        parseIbis("[IBIS Ver] 5.0\n[Component] X\n");
+    } catch (const IbisError&) {
+        threw = true;
+    }
+    CHECK(threw);
+    Json j = ibisFileJson(f);
+    CHECK(j.get("models").size() == 3 && j.get("components")[0].get("pins").size() == 4);
+    CHECK(driverModelFromJson(driverModelToJson(d)).rOut == d.rOut);
+    CHECK(findLogicFamily("lvcmos33") && findLogicFamily("sstl15")->rTerm > 0 && !findLogicFamily("nope"));
+}
+
+TEST(si_physics_reference_values) {
+    BoardSettings s;
+    s.layerCount = 4;
+    // FR-4 stripline propagates at √4.4 / c ≈ 7.0 ps/mm (≈ 178 ps/inch, the textbook figure).
+    CHECK_NEAR(propagationDelayPerMm(s, 1, 0.15) * 25.4e12, 178, 1.5);
+    // Microstrip εeff lies between (εr + 1)/2 and εr; Hammerstad–Jensen at w/h = 2 is 3.34 for εr 4.4.
+    const double h = impedanceReferenceHeight(s, 0);
+    CHECK_NEAR(effectivePermittivity(s, 0, 2 * h), 2.7 + 1.7 / std::sqrt(7.0), 1e-9);
+    CHECK(effectivePermittivity(s, 0, 0.05) > 2.7 && effectivePermittivity(s, 0, 50) < 4.4);
+    // Johnson & Graham §7.3 worked example: 0.063 in barrel, 0.028 in pad, 0.050 in anti-pad → 0.50 pF; about 1 nH for
+    // a 0.063 in via of 0.028 in diameter.
+    CHECK_NEAR(viaCapacitance(0.063 * 25.4, 0.028 * 25.4, 0.050 * 25.4, 4.4), 0.50e-12, 0.01e-12);
+    CHECK_NEAR(viaInductance(0.063 * 25.4, 0.028 * 25.4), 1.02e-9, 0.02e-9);
+    // Critical length: 1 ns edge on FR-4 stripline → about 24 mm ("1 inch per ns").
+    CHECK_NEAR(criticalLength(1e-9, propagationDelayPerMm(s, 1, 0.15)), 23.8, 0.3);
+    // Elliptic integral: K(0) = π/2, K(1/√2) = 1.854075.
+    CHECK_NEAR(ellipticK(0), kPi / 2, 1e-12);
+    CHECK_NEAR(ellipticK(std::sqrt(0.5)), 1.8540746773, 1e-9);
+    // Cohn's stripline in air at w/b = 1 against Pozar's closed form 30π·b/(W + 0.441b) = 65.4 Ω; far apart the even
+    // and odd modes meet the single line; close together they split.
+    auto zs = coupledStriplineImpedance(1.0, 1e3, 1.0, 1.0);
+    CHECK_NEAR(zs.first, zs.second, 1e-9);
+    CHECK_NEAR(zs.first, 30 * kPi / 1.441, 0.02 * 65.4);
+    auto zc = coupledStriplineImpedance(0.15, 0.15, 0.4, 4.4);
+    CHECK(zc.first > zc.second && zc.second > 0);
+}
+
+TEST(si_crosstalk_coupling) {
+    BoardSettings s;
+    s.layerCount = 4;
+    // Near-end crosstalk falls with spacing, saturates once 2·TD ≥ RT; the stripline has no far-end term.
+    auto m1 = crosstalkCoupling(s, 0, 0.3, 0.3, 0.3, 50, 0.5e-9);
+    auto m2 = crosstalkCoupling(s, 0, 0.3, 0.3, 0.9, 50, 0.5e-9);
+    CHECK(m1.next > m2.next && m2.next > 0);
+    CHECK(m1.next > 0.01 && m1.next < 0.15);  // a few percent for spacing = width over FR-4
+    CHECK(m1.fext < 0 && m1.kc < m1.kl);       // microstrip: inductive coupling dominates → negative FEXT
+    CHECK_NEAR(crosstalkCoupling(s, 0, 0.3, 0.3, 0.3, 500, 0.5e-9).next, m1.kb, 1e-12);  // saturated
+    CHECK(crosstalkCoupling(s, 0, 0.3, 0.3, 0.3, 2, 0.5e-9).next < m1.kb);
+    auto st = crosstalkCoupling(s, 1, 0.15, 0.15, 0.15, 50, 0.5e-9);
+    CHECK_NEAR(st.fext, 0, 1e-12);
+    CHECK_NEAR(st.kl, st.kc, 1e-12);
+    CHECK(st.kb > 0.005 && st.kb < 0.2);
+}
+
+TEST(si_transmission_line_lattice) {
+    // 25 Ω source, 50 Ω / 1 ns line, open end, a 1 V step with a 20 ps edge. Lattice diagram: the far end sees
+    // 2 × 2/3 = 1.333 V at TD, then 1.333 − 0.444 = 0.889 V at 3 TD (source reflection −1/3), 1.037 V at 5 TD.
+    TlNetwork n(2);
+    n.addLine(0, 1, 50, 1e-9);
+    n.driverNode = 0;
+    n.rSource = 25;
+    n.vHigh = 1;
+    n.riseTime = n.fallTime = 20e-12;
+    n.capacitance[1] = 1e-16;
+    const double dt = 1e-12;
+    TlRun run = simulateTl(n, {0, 1}, dt, 0.1e-9, 20e-9, 40e-9);
+    auto at = [&](size_t probe, double t) { return run.probes[probe][static_cast<size_t>(std::lround(t / dt))]; };
+    CHECK_NEAR(at(0, 0.6e-9), 2.0 / 3, 0.005);  // launched step
+    CHECK_NEAR(at(1, 0.9e-9), 0.0, 0.005);      // nothing has arrived yet
+    CHECK_NEAR(at(1, 1.6e-9), 4.0 / 3, 0.005);
+    CHECK_NEAR(at(1, 3.6e-9), 8.0 / 9, 0.005);
+    CHECK_NEAR(at(1, 5.6e-9), 28.0 / 27, 0.005);
+    CHECK_NEAR(at(1, 19e-9), 1.0, 0.01);  // settles to the source level
+    EdgeMetrics e = measureEdges(run, 1, 0.7, 0.3);
+    CHECK_NEAR(e.overshoot, 1.0 / 3, 0.01);
+    CHECK_NEAR(e.flightTime, 1e-9, 0.02e-9);
+    CHECK(e.reachesHigh && e.reachesLow && e.ringbackHigh > 0);
+    // Matched source (series termination): the far end steps cleanly to 1 V with no overshoot.
+    n.rSource = 50;
+    EdgeMetrics m = measureEdges(simulateTl(n, {0, 1}, dt, 0.1e-9, 20e-9, 40e-9), 1, 0.7, 0.3);
+    CHECK(m.overshoot < 0.01 && m.undershoot < 0.01);
+    // Parallel termination at the end to a 0.5 V rail: DC start at the divider, final level 0.5 + (1 − 0.5)·50/100.
+    TlNetwork t = n;
+    t.conductance[1] = 1 / 50.0;
+    t.railCurrent[1] = 0.5 / 50.0;
+    TlRun tr = simulateTl(t, {1}, dt, 0.1e-9, 20e-9, 40e-9);
+    CHECK_NEAR(tr.probes[0][10], 0.25, 1e-6);
+    CHECK_NEAR(tr.probes[0][static_cast<size_t>(15e-9 / dt)], 0.75, 0.005);
+    // RC: 1 kΩ into 1 nF (no line) reaches 63 % at τ = 1 µs.
+    TlNetwork rc(1);
+    rc.rSource = 1000;
+    rc.vHigh = 1;
+    rc.riseTime = rc.fallTime = 1e-12;
+    rc.capacitance[0] = 1e-9;
+    TlRun r2 = simulateTl(rc, {0}, 1e-9, 0, 10e-6, 20e-6);
+    CHECK_NEAR(r2.probes[0][1000], 1 - std::exp(-1.0), 0.003);
+}
+
+TEST(si_net_reflections_and_termination) {
+    SiBoard b = siBoard();
+    siRouteClock(b);
+    SiNetResult r = analyzeNet(b.p, b.clk);
+    CHECK(r.error.empty());
+    CHECK(r.routed && !r.estimated);
+    CHECK(r.driverComponent == b.u1 && !r.driverAssumed);
+    CHECK(r.driver.id == "lvcmos33");  // default family from the 3.3 V supply
+    CHECK(r.length > 90 && r.length < 120);
+    CHECK(r.critical && r.criticalLength < r.length);
+    CHECK_NEAR(r.z0Trunk, trackImpedance(b.p.pcb.settings, 0, 0.25), 1e-9);
+    CHECK(r.receivers.size() == 1 && r.receivers[0].connected);
+    if (r.receivers.empty()) return;
+    // An unterminated 30 Ω driver into a ~59 Ω, 100 mm line rings well past 15 %.
+    const EdgeMetrics e = r.receivers[0].metrics;
+    CHECK(!r.ok && e.overshoot / (e.vHigh - e.vLow) > 0.15);
+    CHECK_NEAR(e.vHigh, 3.3, 0.05);
+    CHECK(e.flightTime > 0.5e-9 && e.flightTime < 1.0e-9);
+    // Series termination advice: Z0 − R_out, E24; the what-if run with it overshoots far less.
+    CHECK_NEAR(r.recommendedSeriesR, nearestStandardValue(r.z0Trunk - 30, ESeries::E24), 1e-9);
+    CHECK(r.terminatedMetrics.overshoot < 0.5 * e.overshoot);
+    Json j = siNetJson(r, 300);
+    CHECK(j.get("waveform").get("time").size() <= 300);
+    CHECK(j.get("waveform").get("receiver").size() == j.get("waveform").get("time").size());
+    CHECK(j.get("terminatedWaveform").get("time").size() > 10);
+    CHECK(j.get("receivers")[0].get("metrics").get("overshootPercent").asNumber() > 15);
+    // The what-if parameter adds a series resistor.
+    SiNetResult w = analyzeNet(b.p, b.clk, r.recommendedSeriesR);
+    CHECK(!w.receivers.empty() && w.receivers[0].metrics.overshoot < 0.5 * e.overshoot);
+
+    // A 22 Ω series resistor in the schematic is found and used: the driver sits behind it.
+    SiBoard t = siBoard();
+    auto& s = t.p.schematic;
+    s.removeWire(s.wires().front().id);
+    int r1 = s.addComponent(ComponentKind::Resistor, "22", {200, 0});
+    wire(s, t.u1, "OUT", r1, "1");
+    wire(s, r1, "2", t.u2, "IN");
+    t.p.schematicChanged();
+    siPlace(t.p, r1, {16, 30});
+    const int line = s.netOf({r1, 1});
+    const Vec2 a = siPad(t.p, r1, "2"), c = siPad(t.p, t.u2, "IN");
+    siTrack(t.p, line, a, {c.x, a.y});
+    siTrack(t.p, line, {c.x, a.y}, c);
+    SiNetResult sr = analyzeNet(t.p, line);
+    CHECK(sr.error.empty());
+    CHECK(sr.seriesRef == s.find(r1)->ref && sr.seriesR == 22 && sr.driverComponent == t.u1);
+    CHECK(sr.receivers.size() == 1 && !sr.receivers.empty() && sr.receivers[0].metrics.overshoot < e.overshoot);
+
+    // Unrouted: estimated on straight-line lengths.
+    SiBoard u = siBoard();
+    SiNetResult ur = analyzeNet(u.p, u.clk);
+    CHECK(ur.error.empty() && ur.estimated && !ur.routed && ur.length > 80);
+
+    // Power nets are not signal nets.
+    CHECK(!analyzeNet(b.p, b.vcc).error.empty());
+    // The net list for the panel puts the critical clock first.
+    const Json nets = siNetsJson(b.p);
+    CHECK(nets.size() >= 1 && nets[0].get("net").asInt() == b.clk);
+    CHECK(nets.size() >= 1 && nets[0].get("critical").asBool());
+}
+
+TEST(si_ibis_model_drives_the_net) {
+    SiBoard b = siBoard();
+    siRouteClock(b);
+    IbisFile f = parseIbis(kSampleIbis);
+    DriverModel slow = driverFromIbis(*f.findModel("GPIO_FAST"), "min", &f.components[0]);
+    b.p.si.models.push_back(slow);
+    b.p.si.componentModels[b.p.schematic.find(b.u1)->ref] = slow.id;
+    SiNetResult r = analyzeNet(b.p, b.clk);
+    CHECK(r.driver.source == "ibis" && r.driver.id == "ibis:GPIO_FAST");
+    CHECK_NEAR(r.driver.riseTime, 0.9e-9 * 4 / 3, 1e-14);
+    // The IBIS model on U2's input pin sets the receiver.
+    b.p.si.pinModels[b.p.schematic.find(b.u2)->ref + ".2"] = slow.id;
+    SiNetResult r2 = analyzeNet(b.p, b.clk);
+    CHECK(!r2.receivers.empty() && r2.receivers[0].model == slow.name);
+    // Settings persist with the project.
+    b.p.si.signOff = true;
+    b.p.si.rails.push_back({"+3V3", 3, 0.4, 0.6});
+    Project q = Project::fromJson(b.p.toJson());
+    CHECK(q.si.signOff && q.si.models.size() == 1 && q.si.models[0].id == slow.id);
+    CHECK(!q.si.models.empty() && std::fabs(q.si.models[0].riseTime - slow.riseTime) < 1e-18);
+    CHECK(q.si.componentModels.size() == 1 && q.si.pinModels.size() == 1);
+    CHECK(q.si.rail("+3V3") && q.si.rail("+3V3")->transientCurrent == 0.4);
+    // A default project writes no SI settings.
+    CHECK(!Project().toJson().has("signalIntegrity"));
+}
+
+TEST(si_crosstalk_and_return_path) {
+    SiBoard b = siBoard();
+    siRouteClock(b);
+    auto& s = b.p.schematic;
+    // A victim net running 0.2 mm (edge to edge) beside the clock for 60 mm.
+    int v1 = s.addComponent(ComponentKind::Resistor, "1k", {200, 200});
+    int v2 = s.addComponent(ComponentKind::Resistor, "1k", {300, 200});
+    int lab = s.addComponent(ComponentKind::NetLabel, "SENSE", {250, 200});
+    wire(s, v1, "1", lab, "N");
+    wire(s, v2, "1", lab, "N");
+    b.p.schematicChanged();
+    const int victim = s.netOf({v1, 0});
+    siTrack(b.p, victim, {25, 30.45}, {85, 30.45});
+    auto pairs = crosstalkPairs(b.p);
+    const CrosstalkPair* hit = nullptr;
+    for (const auto& p : pairs)
+        if (p.aggressor == b.clk && p.victim == victim) hit = &p;
+    CHECK(hit != nullptr);
+    if (hit) {
+        CHECK_NEAR(hit->coupledLength, 60, 0.01);
+        CHECK_NEAR(hit->spacing, 0.2, 1e-6);
+        CHECK(hit->next > 0.01 && hit->fext < 0 && hit->noise > 0);
+    }
+    b.p.si.crosstalkLimit = 0.005;
+    bool flagged = false;
+    for (const auto& v : signalPowerIntegrityChecks(b.p)) flagged |= v.code == "SI_CROSSTALK";
+    CHECK(flagged);
+
+    // Return path: a GND plane on Inner 1 cut by a 2 mm wide +3V3 track running under the clock. The clock is not a
+    // "fast" net by name, so it is checked once a model is assigned to it.
+    SiBoard g = siBoard();
+    siRouteClock(g);
+    g.p.pcb.zones.push_back({"GND", 1, true, 0});
+    siTrack(g.p, g.vcc, {50, 2}, {50, 38}, 1, 2.0);
+    Via stitch;  // keeps the plane right of the cut connected (J1's ground pin anchors the left part)
+    stitch.net = g.p.schematic.groundNet();
+    stitch.position = {110, 10};
+    g.p.pcb.addVia(stitch);
+    CHECK(returnPathIssues(g.p).empty());
+    g.p.si.netModels[g.p.schematic.nets()[static_cast<size_t>(g.clk)].name] = "lvcmos33";
+    bool gapFound = false;
+    for (const auto& i : returnPathIssues(g.p)) gapFound |= i.code == "SI_PLANE_GAP" && i.net == g.clk && std::fabs(i.at.x - 50) < 3;
+    CHECK(gapFound);
+
+    // Reference change: the clock dives through a via from Top (over GND on Inner 1) to Bottom (over +3V3 on Inner 2).
+    SiBoard v = siBoard();
+    v.p.pcb.zones.push_back({"GND", 1, true, 0});
+    v.p.pcb.zones.push_back({"+3V3", 2, true, 0});
+    v.p.si.netModels[v.p.schematic.nets()[static_cast<size_t>(v.clk)].name] = "lvcmos33";
+    const Vec2 a = siPad(v.p, v.u1, "OUT"), c = siPad(v.p, v.u2, "IN");
+    Via via;
+    via.net = v.clk;
+    via.position = {60, 30};
+    v.p.pcb.addVia(via);
+    Via up;
+    up.net = v.clk;
+    up.position = {c.x, 30};
+    v.p.pcb.addVia(up);
+    siTrack(v.p, v.clk, a, {a.x, 30});
+    siTrack(v.p, v.clk, {a.x, 30}, {60, 30});
+    siTrack(v.p, v.clk, {60, 30}, {c.x, 30}, 3);
+    siTrack(v.p, v.clk, {c.x, 30}, c);
+    auto changes = [&] {
+        int n = 0;
+        for (const auto& i : returnPathIssues(v.p)) n += i.code == "SI_REFERENCE_CHANGE" && (i.at - Vec2(60, 30)).length() < 1e-6;
+        return n;
+    };
+    CHECK(changes() == 1);
+    // A stitching capacitor between the planes next to the via fixes it.
+    auto& vs = v.p.schematic;
+    int cs = vs.addComponent(ComponentKind::Capacitor, "100n", {100, 300});
+    int vl = vs.addComponent(ComponentKind::NetLabel, "+3V3", {80, 300});
+    int gl = vs.addComponent(ComponentKind::Ground, "", {120, 300});
+    wire(vs, cs, "1", vl, "N");
+    wire(vs, cs, "2", gl, "GND");
+    v.p.schematicChanged();
+    siPlace(v.p, cs, {62, 33});
+    CHECK(changes() == 0);
+    // The net's analysis follows both layers through the vias.
+    SiNetResult vr = analyzeNet(v.p, v.clk);
+    CHECK(vr.error.empty() && !vr.estimated && vr.vias >= 2 && vr.sections.size() == 2);
+}
+
+TEST(pi_pdn_impedance_and_ir_drop) {
+    // Formula checks.
+    CHECK_NEAR(targetImpedance(3.3, 5, 1.0), 0.165, 1e-12);
+    CHECK_NEAR(std::abs(capacitorImpedance(selfResonance(100e-9, 1e-9), 100e-9, 0.02, 1e-9)), 0.02, 1e-9);
+    CHECK_NEAR(planeCapacitance(10000, 0.1, 4.4), 3.896e-9, 0.005e-9);
+    CHECK_NEAR(sheetResistance(0.035), 0.491e-3, 0.002e-3);  // 1 oz copper ≈ 0.49 mΩ/□
+    CHECK(capacitorParasitics("C_0402", 100e-9).esl < capacitorParasitics("C_0805", 100e-9).esl);
+    CHECK(capacitorParasitics("CP_Radial_THT", 100e-6).esr > capacitorParasitics("C_0603", 1e-6).esr);
+
+    // The SI board's +3V3 rail: J1 feeds U1 and U2 (0.25 A each) through 0.5 mm tracks.
+    SiBoard b = siBoard();
+    const Vec2 j = siPad(b.p, b.j1, "1"), v1 = siPad(b.p, b.u1, "VDD"), v2 = siPad(b.p, b.u2, "VDD");
+    siTrack(b.p, b.vcc, j, {j.x, 2}, 0, 0.5);
+    siTrack(b.p, b.vcc, {j.x, 2}, {v1.x, 2}, 0, 0.5);
+    siTrack(b.p, b.vcc, {v1.x, 2}, v1, 0, 0.5);
+    siTrack(b.p, b.vcc, {v1.x, 2}, {v2.x, 2}, 0, 0.5);
+    siTrack(b.p, b.vcc, {v2.x, 2}, v2, 0, 0.5);
+    auto rail = [](const Project& p) {
+        for (const auto& x : analyzePdn(p))
+            if (x.name == "+3V3") return x;
+        return PdnRailResult{};
+    };
+    const PdnRailResult r = rail(b.p);
+    CHECK(r.name == "+3V3");
+    CHECK_NEAR(r.voltage, 3.3, 1e-12);
+    CHECK(!r.voltageEstimated && !r.currentEstimated);
+    CHECK_NEAR(r.dcCurrent, 0.5, 1e-12);
+    CHECK_NEAR(r.transientCurrent, 0.25, 1e-12);
+    CHECK_NEAR(r.target, 3.3 * 0.05 / 0.25, 1e-12);
+    CHECK(r.vrmKind == "connector" && r.decaps.empty());
+    CHECK(r.freq.size() == 241 && r.z.size() == 241);
+    // IR drop: R = ρ·L / (w·t). The common run from J1 to U1's corner carries 0.5 A, each branch 0.25 A.
+    const double rpm = kCopperResistivity * 1e-3 / (0.5e-3 * 0.035e-3);  // Ω per mm
+    const double common = (j.y - 2) + (v1.x - j.x), branch1 = v1.y - 2, run2 = (v2.x - v1.x) + (v2.y - 2);
+    CHECK(r.irAnalyzed);
+    double d1 = 0, d2 = 0;
+    for (const auto& l : r.loads) (l.componentId == b.u1 ? d1 : d2) = l.drop;
+    CHECK_NEAR(d1, rpm * (0.5 * common + 0.25 * branch1), 2e-4);
+    CHECK_NEAR(d2, rpm * (0.5 * common + 0.25 * run2), 2e-4);
+    CHECK_NEAR(r.irWorst, d2, 1e-12);
+    // No decoupling → a PI finding.
+    bool noDecap = false;
+    for (const auto& v : signalPowerIntegrityChecks(b.p)) noDecap |= v.code == "PI_NO_DECOUPLING";
+    CHECK(noDecap);
+
+    // Decoupling: two 100 nF 0402s at the loads, then a 10 µF bulk capacitor lowers the worst impedance.
+    auto& s = b.p.schematic;
+    auto addCap = [&](const char* value, const char* package, Vec2 at) {
+        int c = s.addComponent(ComponentKind::Capacitor, value, {600, 0});
+        s.setPackage(c, package);
+        int vl = s.addComponent(ComponentKind::NetLabel, "+3V3", {580, 0});
+        int gl = s.addComponent(ComponentKind::Ground, "", {620, 0});
+        wire(s, c, "1", vl, "N");
+        wire(s, c, "2", gl, "GND");
+        b.p.schematicChanged();
+        siPlace(b.p, c, at);
+        return c;
+    };
+    addCap("100n", "C_0402", {v1.x + 3, v1.y});
+    addCap("100n", "C_0402", {v2.x + 3, v2.y});
+    PdnRailResult before = rail(b.p);
+    CHECK(before.decaps.size() == 2);
+    if (before.decaps.size() == 2) {
+        CHECK_NEAR(before.decaps[0].esl, 0.4e-9, 1e-15);
+        CHECK(before.decaps[0].mounting > 0.1e-9);
+        CHECK(before.decaps[0].srf > 5e6 && before.decaps[0].srf < 30e6);
+    }
+    CHECK(!before.peaks.empty());  // the connector's inductance resonates with the 200 nF
+    addCap("10u", "C_1206", {20, 10});
+    PdnRailResult after = rail(b.p);
+    CHECK(after.decaps.size() == 3 && !after.decaps.empty() && std::fabs(after.decaps[0].c - 10e-6) < 1e-12);
+    CHECK(after.worstZ < before.worstZ);
+    if (!before.compliant) CHECK(!before.recommendations.empty());
+    Json pj = pdnJson(analyzePdn(b.p));
+    CHECK(pj.get("rails").size() >= 1 && pj.get("rails")[0].get("curve").get("freq").size() == 241);
+
+    // A rail poured as a plane over a GND plane adds plane capacitance ε0·εr·A/d.
+    SiBoard pl = siBoard();
+    pl.p.pcb.zones.push_back({"GND", 1, true, 0});
+    pl.p.pcb.zones.push_back({"+3V3", 2, true, 0});
+    const PdnRailResult x = rail(pl.p);
+    const double gapMm = dielectricBelow(pl.p.pcb.settings, 1) ;
+    CHECK(x.planeC > 0 && x.planeArea > 0.5 * 120 * 40);
+    CHECK_NEAR(x.planeC, planeCapacitance(x.planeArea, gapMm, 4.4), 0.05 * x.planeC);
+    CHECK(x.cavityResonance > 0.5e9 && x.cavityResonance < 1e9);  // c / (2 · 120 mm · √4.4)
+    CHECK(x.irAnalyzed);  // through the pour
+}
+
+TEST(si_verification_sign_off) {
+    SiBoard b = siBoard();
+    siRouteClock(b);
+    VerificationOptions opt;
+    opt.includeManufacturing = false;
+    auto stage = [](const VerificationReport& r) -> const VerificationStage* {
+        for (const auto& st : r.stages)
+            if (st.id == "si") return &st;
+        return nullptr;
+    };
+    VerificationReport off = verifyDesign(b.p, opt);
+    CHECK(stage(off) == nullptr);  // opt-in: designs without SI sign-off are unchanged
+    b.p.si.signOff = true;
+    VerificationReport on = verifyDesign(b.p, opt);
+    const VerificationStage* st = stage(on);
+    CHECK(st != nullptr);
+    if (st) {
+        CHECK(st->status == StageStatus::Warning);
+        std::set<std::string> codes;
+        for (const auto& v : st->findings) codes.insert(v.code);
+        CHECK(codes.count("SI_OVERSHOOT") || codes.count("SI_RINGBACK"));
+        CHECK(codes.count("PI_NO_DECOUPLING"));
+        for (const auto& v : st->findings) CHECK(v.severity != Severity::Error);
+    }
+
+    // The C API.
+    SiedaProject* api = sieda_project_new("si");
+    CHECK(api != nullptr);
+    char* err = nullptr;
+    CHECK(sieda_si_import_ibis(api, kSampleIbis, "typ", "", &err) == 3 && err == nullptr);
+    CHECK(sieda_si_import_ibis(api, "garbage", "typ", "", &err) == 0 && err != nullptr);
+    sieda_string_free(err);
+    err = nullptr;
+    char* settings = sieda_si_settings_json(api);
+    Json sj = Json::parse(settings);
+    sieda_string_free(settings);
+    CHECK(sj.get("models").size() == 3 && sj.get("families").size() == logicFamilies().size());
+    CHECK(sieda_si_assign_model(api, "net", "CLK", "ibis:GPIO_FAST") == 1);
+    CHECK(sieda_si_assign_model(api, "net", "CLK", "no-such-model") == 0);
+    CHECK(sieda_si_assign_model(api, "bogus", "CLK", "lvcmos33") == 0);
+    CHECK(sieda_si_assign_model(api, "net", "CLK", "") == 1);  // clears
+    CHECK(sieda_si_set_options(api, 1, 0.2, 0.08) == 1);
+    CHECK(sieda_pi_set_rail(api, "+3V3", 3, 0.5, 1.0) == 1);
+    char* preview = sieda_ibis_parse(kSampleIbis, "max", &err);
+    CHECK(preview && Json::parse(preview).get("models").size() == 3);
+    sieda_string_free(preview);
+    for (char* json : {sieda_si_net_list_json(api), sieda_si_crosstalk_json(api), sieda_pi_json(api), sieda_si_checks_json(api)}) {
+        CHECK(json != nullptr);
+        if (json) CHECK(!Json::parse(json).isNull());
+        sieda_string_free(json);
+    }
+    char* missing = sieda_si_net_json(api, "NOPE", -1);
+    CHECK(missing && Json::parse(missing).get("error").asString("").size() > 0);
+    sieda_string_free(missing);
+    sieda_project_free(api);
 }

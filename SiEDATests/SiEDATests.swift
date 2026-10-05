@@ -4703,3 +4703,37 @@ final class LibraryImportTests: XCTestCase {
         XCTAssertEqual(files.map(\.name), ["A.kicad_mod"])
     }
 }
+
+/// Signal & power integrity: the bridge decodes every SI / PI report, and sign-off is undoable and saved.
+@MainActor
+final class SignalIntegrityBridgeTests: XCTestCase {
+    func testSignalAndPowerIntegrityReports() throws {
+        let store = DesignStore()
+        DesignPlanCompiler.apply(OfflineProvider.templates[5].plan, to: store.engine, previous: nil)
+        store.refresh()
+        store.autoPlace(all: true)
+        _ = store.engine.autoRoute()
+        store.refresh()
+        let settings = store.siSettings()
+        XCTAssertFalse(settings.families.isEmpty)
+        XCTAssertFalse(settings.signOff)
+        if let first = store.siNets().first {
+            let analysis = try XCTUnwrap(store.siNet(first.name))
+            XCTAssertEqual(analysis.name, first.name)
+            XCTAssertTrue(analysis.error.isEmpty)
+            if let driver = analysis.waveform.driver { XCTAssertEqual(driver.count, analysis.waveform.time.count) }
+        }
+        XCTAssertNil(store.siNet("NO SUCH NET"))
+        XCTAssertGreaterThan(store.siCrosstalk().limit, 0)
+        for rail in store.pdn().rails { XCTAssertEqual(rail.curve.freq.count, rail.curve.z.count) }
+        store.setSIOptions(signOff: true)
+        XCTAssertTrue(store.siSettings().signOff)
+        let reopened = EDAEngine()
+        try reopened.load(json: store.engine.saveJSON())
+        XCTAssertTrue(reopened.siSettings().signOff)
+        let verification = try XCTUnwrap(reopened.runVerification())
+        XCTAssertTrue(verification.stages.contains { $0.id == "si" })
+        store.undo()
+        XCTAssertFalse(store.siSettings().signOff)
+    }
+}

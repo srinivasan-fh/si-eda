@@ -342,6 +342,47 @@ int32_t sieda_pcb_lock_track(SiedaProject* project, int32_t track_id, int32_t lo
 int32_t sieda_pcb_remove_track(SiedaProject* project, int32_t track_id);
 int32_t sieda_pcb_remove_via(SiedaProject* project, int32_t via_id);
 
+/* ---- signal & power integrity --------------------------------------------------------------------------------------- */
+/* Parses an IBIS (.ibs, IBIS 4.x / 5.x) file for preview at corner "typ", "min" (weak / slow) or "max" (strong / fast):
+ * {"version","fileName","components":[{name,manufacturer,pins:[{pin,signal,model}]}],"models":[{id,name,source,type,
+ * modelType,vHigh,riseTime,fallTime,rOut,cComp,cIn,vih,vil,rPkg,lPkg,cPkg,note}],"warnings":[...]}. NULL with *error_out
+ * (caller frees) when the text is not IBIS. Caller frees. */
+char* sieda_ibis_parse(const char* text, const char* corner, char** error_out);
+/* Imports every [Model] of an IBIS file into the project (ids "ibis:<model name>", replacing models of the same id). With
+ * `ref` naming a component, its pins are mapped by number to the models of the file's first [Pin] list. Returns the
+ * number of models imported, or 0 with *error_out (caller frees). */
+int32_t sieda_si_import_ibis(SiedaProject* project, const char* text, const char* corner, const char* ref, char** error_out);
+/* Assigns a driver / receiver model (a logic family id such as "lvcmos33", or "ibis:<model>") to `kind` "net" (net
+ * name), "component" (reference) or "pin" ("U1.12", reference.pin number or name). An empty model_id clears the
+ * assignment. 0 for an unknown kind or model. */
+int32_t sieda_si_assign_model(SiedaProject* project, const char* kind, const char* target, const char* model_id);
+/* sign_off = 1 adds the "Signal & Power Integrity" stage to design verification; overshoot and crosstalk limits are
+ * fractions of the signal swing (e.g. 0.15, 0.05). */
+int32_t sieda_si_set_options(SiedaProject* project, int32_t sign_off, double overshoot_limit, double crosstalk_limit);
+/* Power-integrity inputs of a rail: allowed ripple (%), load step (A) and DC load (A); 0 derives the value. */
+int32_t sieda_pi_set_rail(SiedaProject* project, const char* net_name, double ripple_percent, double transient_amps,
+                          double dc_amps);
+/* {"signOff","overshootLimit","crosstalkLimit","models":[...],"families":[...],"componentModels":{},"pinModels":{},
+ * "netModels":{},"rails":[{net,ripplePercent,transientCurrent,dcCurrent}]}. Caller frees. */
+char* sieda_si_settings_json(const SiedaProject* project);
+/* Signal nets for the SI panel, critical and fast first: [{net,name,length,delay,critical,criticalLength,driver,model,
+ * modelId,fast,routed,receivers}]. Caller frees. */
+char* sieda_si_net_list_json(const SiedaProject* project);
+/* Transmission-line analysis of one net: driver, terminations, line sections (layer, width, length, Z0, delay),
+ * receivers with overshoot / undershoot / ringback / settling / flight time, termination advice and the waveforms
+ * {"waveform":{time,source,driver,receiver},"terminatedWaveform":...}. series_ohms >= 0 adds a what-if series resistor
+ * at the driver (< 0: as designed). {"error":...} for an unknown or non-signal net. Caller frees. */
+char* sieda_si_net_json(const SiedaProject* project, const char* net_name, double series_ohms);
+/* Crosstalk pairs and return-path issues: {"pairs":[{aggressor,victim,layer,coupledLength,spacing,next,fext,noise,limit,
+ * ok,x,y}],"returnPath":[{code,net,message,x,y}],"limit"}. Caller frees. */
+char* sieda_si_crosstalk_json(const SiedaProject* project);
+/* Power distribution of every rail: {"rails":[{net,name,voltage,ripplePercent,transientCurrent,dcCurrent,target,vrmKind,
+ * decaps:[...],plane:{...},curve:{freq:[],z:[]},peaks:[{f,z}],worstZ,worstF,compliant,irDrop:{analyzed,worst,loads:[...]},
+ * recommendations:[...]}]}. Caller frees. */
+char* sieda_pi_json(const SiedaProject* project);
+/* Every signal / power-integrity finding (SI_* and PI_* codes) as a violations array. Caller frees. */
+char* sieda_si_checks_json(const SiedaProject* project);
+
 /* ---- exports ------------------------------------------------------------------------------- */
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
  *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj". Returns NULL for unknown formats. */

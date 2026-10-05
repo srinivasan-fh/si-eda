@@ -91,6 +91,8 @@ double referenceHeight(const BoardSettings& s, int layer) {
 }
 }  // namespace
 
+double impedanceReferenceHeight(const BoardSettings& s, int layer) { return referenceHeight(s, layer); }
+
 bool isStriplineLayer(const BoardSettings& s, int layer) { return s.layerCount >= 4 && layer > 0 && layer < s.layerCount - 1; }
 
 double trackImpedance(const BoardSettings& s, int layer, double w) {

@@ -25,14 +25,17 @@
 #include "sieda/Embedded.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
+#include "sieda/Ibis.hpp"
 #include "sieda/Industry.hpp"
 #include "sieda/InteractiveRouter.hpp"
 #include "sieda/LengthMatch.hpp"
 #include "sieda/LibraryImport.hpp"
 #include "sieda/Mesh.hpp"
+#include "sieda/PowerIntegrity.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Robotics.hpp"
+#include "sieda/SignalIntegrity.hpp"
 #include "sieda/Stackup.hpp"
 #include "sieda/StandardParts.hpp"
 #include "sieda/Units.hpp"
@@ -1415,6 +1418,167 @@ char* sieda_write_fabrication_package(const SiedaProject* project, const char* d
     out["files"] = files;
     out["error"] = error;
     return dup(out.dump());
+}
+
+// ---- signal & power integrity ----------------------------------------------------------------------------------------
+
+namespace {
+int netByName(const Schematic& sch, const std::string& name) {
+    for (const auto& n : sch.nets())
+        if (n.name == name) return n.index;
+    return -1;
+}
+}  // namespace
+
+char* sieda_ibis_parse(const char* text, const char* corner, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    try {
+        return dup(ibisFileJson(parseIbis(str(text)), corner ? corner : "typ").dump());
+    } catch (const std::exception& e) {
+        if (error_out) *error_out = dup(e.what());
+        return nullptr;
+    }
+}
+
+int32_t sieda_si_import_ibis(SiedaProject* project, const char* text, const char* corner, const char* ref, char** error_out) {
+    if (error_out) *error_out = nullptr;
+    if (!project) return 0;
+    try {
+        const IbisFile f = parseIbis(str(text));
+        const std::string c = corner && *corner ? corner : "typ";
+        const IbisComponent* comp = f.components.empty() ? nullptr : &f.components.front();
+        SiSettings& si = project->project.si;
+        for (const auto& m : f.models) {
+            DriverModel d = driverFromIbis(m, c, comp);
+            auto it = std::find_if(si.models.begin(), si.models.end(), [&](const DriverModel& x) { return x.id == d.id; });
+            if (it != si.models.end()) *it = d;
+            else si.models.push_back(d);
+        }
+        const std::string r = str(ref);
+        if (!r.empty() && comp) {
+            const Component* part = project->project.schematic.findByRef(r);
+            if (!part) throw std::runtime_error("No component " + r);
+            for (const auto& pin : part->def().pins) {
+                const std::string key = pin.number.empty() ? pin.name : pin.number;
+                for (const auto& ip : comp->pins)
+                    if (ip.pin == key)
+                        if (const IbisModel* m = f.findModel(ip.model)) si.pinModels[r + "." + key] = "ibis:" + m->name;
+            }
+        }
+        return static_cast<int32_t>(f.models.size());
+    } catch (const std::exception& e) {
+        if (error_out) *error_out = dup(e.what());
+        return 0;
+    }
+}
+
+int32_t sieda_si_assign_model(SiedaProject* project, const char* kind, const char* target, const char* model_id) {
+    if (!project || !kind || !target || !*target) return 0;
+    SiSettings& si = project->project.si;
+    const std::string k = kind, t = target, id = str(model_id);
+    std::map<std::string, std::string>* map = k == "net" ? &si.netModels : k == "component" ? &si.componentModels
+                                              : k == "pin"                                ? &si.pinModels
+                                                                                          : nullptr;
+    if (!map) return 0;
+    if (id.empty()) {
+        map->erase(t);
+        return 1;
+    }
+    if (!si.findModel(id)) return 0;
+    (*map)[t] = id;
+    return 1;
+}
+
+int32_t sieda_si_set_options(SiedaProject* project, int32_t sign_off, double overshoot_limit, double crosstalk_limit) {
+    if (!project || !(overshoot_limit > 0) || !(crosstalk_limit > 0)) return 0;
+    SiSettings& si = project->project.si;
+    si.signOff = sign_off != 0;
+    si.overshootLimit = std::clamp(overshoot_limit, 0.01, 1.0);
+    si.crosstalkLimit = std::clamp(crosstalk_limit, 0.005, 0.5);
+    return 1;
+}
+
+int32_t sieda_pi_set_rail(SiedaProject* project, const char* net_name, double ripple_percent, double transient_amps,
+                          double dc_amps) {
+    if (!project || !net_name || !*net_name || ripple_percent < 0 || transient_amps < 0 || dc_amps < 0) return 0;
+    auto& rails = project->project.si.rails;
+    auto it = std::find_if(rails.begin(), rails.end(), [&](const PdnRailSettings& r) { return r.net == net_name; });
+    if (ripple_percent == 0 && transient_amps == 0 && dc_amps == 0) {
+        if (it != rails.end()) rails.erase(it);
+        return 1;
+    }
+    PdnRailSettings r;
+    r.net = net_name;
+    r.ripplePercent = std::min(ripple_percent, 50.0);
+    r.transientCurrent = std::min(transient_amps, 1000.0);
+    r.dcCurrent = std::min(dc_amps, 1000.0);
+    if (it != rails.end()) *it = r;
+    else rails.push_back(r);
+    return 1;
+}
+
+char* sieda_si_settings_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        Json j = project->project.si.toJson();
+        Json fam = Json::array();
+        for (const auto& f : logicFamilies()) fam.push(driverModelToJson(f));
+        j["families"] = fam;
+        return dup(j.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_si_net_list_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(siNetsJson(project->project).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_si_net_json(const SiedaProject* project, const char* net_name, double series_ohms) {
+    if (!project) return nullptr;
+    try {
+        const int net = netByName(project->project.schematic, str(net_name));
+        if (net < 0) {
+            Json j = Json::object();
+            j["error"] = "Unknown net " + str(net_name);
+            return dup(j.dump());
+        }
+        return dup(siNetJson(analyzeNet(project->project, net, series_ohms)).dump());
+    } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_si_crosstalk_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(crosstalkJson(project->project).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_pi_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(pdnJson(analyzePdn(project->project)).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_si_checks_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(Project::violationsToJson(signalPowerIntegrityChecks(project->project)).dump());
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_components) {
