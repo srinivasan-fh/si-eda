@@ -3,6 +3,7 @@
 "%lld errors · %lld warnings" = "%lld പിശകുകൾ · %lld മുന്നറിയിപ്പുകൾ";
 "%lld matches" = "%lld പൊരുത്തങ്ങൾ";
 "%lld of %lld changes selected" = "%lld തിരഞ്ഞെടുത്തു, ആകെ %lld മാറ്റങ്ങൾ";
+"%lld pins" = "%lld പിന്നുകൾ";
 "%lld values" = "%lld മൂല്യങ്ങൾ";
 "0 derives the value from the regulator type" = "0 ആണെങ്കിൽ മൂല്യം റെഗുലേറ്റർ തരത്തിൽ നിന്ന് എടുക്കും";
 "10 s" = "10 s";
@@ -584,6 +585,7 @@
 "Phase" = "ഫേസ്";
 "Phase margin" = "ഫേസ് മാർജിൻ";
 "Pin" = "പിൻ";
+"Pin %@ on unit %@" = "പിൻ %@, യൂണിറ്റ് %@";
 "Pin map" = "പിൻ മാപ്പ്";
 "Pin names" = "പിൻ പേരുകൾ";
 "Pin swap" = "പിൻ സ്വാപ്പ്";

@@ -3,6 +3,7 @@
 "%lld errors · %lld warnings" = "エラー %lld 件 · 警告 %lld 件";
 "%lld matches" = "%lld 件一致";
 "%lld of %lld changes selected" = "%lld / %lld 件の変更を選択";
+"%lld pins" = "%lld ピン";
 "%lld values" = "%lld 個の値";
 "0 derives the value from the regulator type" = "0 でレギュレータの種類から値を決定";
 "10 s" = "10 s";
@@ -584,6 +585,7 @@
 "Phase" = "位相";
 "Phase margin" = "位相余裕";
 "Pin" = "ピン";
+"Pin %@ on unit %@" = "ピン %@（ユニット %@）";
 "Pin map" = "ピン割り当て";
 "Pin names" = "ピン名";
 "Pin swap" = "ピン交換";

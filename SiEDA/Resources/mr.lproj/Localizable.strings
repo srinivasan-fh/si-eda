@@ -3,6 +3,7 @@
 "%lld errors · %lld warnings" = "%lld त्रुटी · %lld इशारे";
 "%lld matches" = "%lld जुळण्या";
 "%lld of %lld changes selected" = "%lld निवडले, एकूण %lld बदल";
+"%lld pins" = "%lld पिन";
 "%lld values" = "%lld मूल्ये";
 "0 derives the value from the regulator type" = "0 असल्यास मूल्य रेग्युलेटरच्या प्रकारावरून घेतले जाते";
 "10 s" = "10 s";
@@ -584,6 +585,7 @@
 "Phase" = "फेज";
 "Phase margin" = "फेज मार्जिन";
 "Pin" = "पिन";
+"Pin %@ on unit %@" = "पिन %@, युनिट %@";
 "Pin map" = "पिन मॅप";
 "Pin names" = "पिन नावे";
 "Pin swap" = "पिन स्वॅप";

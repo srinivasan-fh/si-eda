@@ -3,6 +3,7 @@
 "%lld errors · %lld warnings" = "오류 %lld개 · 경고 %lld개";
 "%lld matches" = "%lld개 일치";
 "%lld of %lld changes selected" = "변경 %lld/%lld개 선택됨";
+"%lld pins" = "핀 %lld개";
 "%lld values" = "값 %lld개";
 "0 derives the value from the regulator type" = "0이면 레귤레이터 종류로 값을 정합니다";
 "10 s" = "10 s";
@@ -584,6 +585,7 @@
 "Phase" = "위상";
 "Phase margin" = "위상 여유";
 "Pin" = "핀";
+"Pin %@ on unit %@" = "핀 %@, 단위 %@";
 "Pin map" = "핀 매핑";
 "Pin names" = "핀 이름";
 "Pin swap" = "핀 교환";

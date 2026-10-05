@@ -3,6 +3,7 @@
 "%lld errors · %lld warnings" = "%lld fouten · %lld waarschuwingen";
 "%lld matches" = "%lld resultaten";
 "%lld of %lld changes selected" = "%lld van %lld wijzigingen geselecteerd";
+"%lld pins" = "%lld pinnen";
 "%lld values" = "%lld waarden";
 "0 derives the value from the regulator type" = "0 leidt de waarde af van het regelaartype";
 "10 s" = "10 s";
@@ -584,6 +585,7 @@
 "Phase" = "Fase";
 "Phase margin" = "Fasemarge";
 "Pin" = "Pin";
+"Pin %@ on unit %@" = "Pin %@ op eenheid %@";
 "Pin map" = "Pintoewijzing";
 "Pin names" = "Pinnamen";
 "Pin swap" = "Pinwissel";

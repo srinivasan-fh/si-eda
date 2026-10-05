@@ -3,6 +3,7 @@
 "%lld errors · %lld warnings" = "%lld error · %lld babala";
 "%lld matches" = "%lld tugma";
 "%lld of %lld changes selected" = "%lld sa %lld pagbabago ang napili";
+"%lld pins" = "%lld pin";
 "%lld values" = "%lld value";
 "0 derives the value from the regulator type" = "Ang 0 ay kumukuha ng halaga mula sa uri ng regulator";
 "10 s" = "10 s";
@@ -584,6 +585,7 @@
 "Phase" = "Phase";
 "Phase margin" = "Phase margin";
 "Pin" = "Pin";
+"Pin %@ on unit %@" = "Pin %@ sa unit %@";
 "Pin map" = "Pin map";
 "Pin names" = "Mga pangalan ng pin";
 "Pin swap" = "Pagpapalit ng pin";

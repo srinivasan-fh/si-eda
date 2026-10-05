@@ -3,6 +3,7 @@
 "%lld errors · %lld warnings" = "%lld பிழைகள் · %lld எச்சரிக்கைகள்";
 "%lld matches" = "%lld பொருத்தங்கள்";
 "%lld of %lld changes selected" = "%lld தேர்ந்தெடுக்கப்பட்டன, மொத்தம் %lld மாற்றங்கள்";
+"%lld pins" = "%lld பின்கள்";
 "%lld values" = "%lld மதிப்புகள்";
 "0 derives the value from the regulator type" = "0 என்றால் மதிப்பு சீராக்கியின் வகையிலிருந்து எடுக்கப்படும்";
 "10 s" = "10 s";
@@ -584,6 +585,7 @@
 "Phase" = "ஃபேஸ்";
 "Phase margin" = "ஃபேஸ் மார்ஜின்";
 "Pin" = "பின்";
+"Pin %@ on unit %@" = "பின் %@, யூனிட் %@";
 "Pin map" = "பின் வரைபடம்";
 "Pin names" = "பின் பெயர்கள்";
 "Pin swap" = "பின் மாற்றம்";

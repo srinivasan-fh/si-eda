@@ -3,6 +3,7 @@
 "%lld errors · %lld warnings" = "%lld 个错误 · %lld 个警告";
 "%lld matches" = "%lld 个匹配项";
 "%lld of %lld changes selected" = "已选择 %lld / %lld 项更改";
+"%lld pins" = "%lld 个引脚";
 "%lld values" = "%lld 个数值";
 "0 derives the value from the regulator type" = "0 表示按稳压器类型取值";
 "10 s" = "10 s";
@@ -584,6 +585,7 @@
 "Phase" = "相位";
 "Phase margin" = "相位裕度";
 "Pin" = "引脚";
+"Pin %@ on unit %@" = "引脚 %@，单元 %@";
 "Pin map" = "引脚映射";
 "Pin names" = "引脚名称";
 "Pin swap" = "引脚交换";

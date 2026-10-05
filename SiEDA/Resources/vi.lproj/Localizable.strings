@@ -3,6 +3,7 @@
 "%lld errors · %lld warnings" = "%lld lỗi · %lld cảnh báo";
 "%lld matches" = "%lld kết quả";
 "%lld of %lld changes selected" = "Đã chọn %lld trên %lld thay đổi";
+"%lld pins" = "%lld chân";
 "%lld values" = "%lld giá trị";
 "0 derives the value from the regulator type" = "0 lấy giá trị theo loại bộ ổn áp";
 "10 s" = "10 s";
@@ -584,6 +585,7 @@
 "Phase" = "Pha";
 "Phase margin" = "Độ dự trữ pha";
 "Pin" = "Chân";
+"Pin %@ on unit %@" = "Chân %@ trên đơn vị %@";
 "Pin map" = "Ánh xạ chân";
 "Pin names" = "Tên chân";
 "Pin swap" = "Hoán đổi chân";

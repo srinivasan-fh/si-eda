@@ -3,6 +3,7 @@
 "%lld errors · %lld warnings" = "%lld లోపాలు · %lld హెచ్చరికలు";
 "%lld matches" = "%lld సరిపోలికలు";
 "%lld of %lld changes selected" = "%lld ఎంచుకోబడ్డాయి, మొత్తం %lld మార్పులు";
+"%lld pins" = "%lld పిన్‌లు";
 "%lld values" = "%lld విలువలు";
 "0 derives the value from the regulator type" = "0 అయితే విలువ రెగ్యులేటర్ రకం నుండి తీసుకోబడుతుంది";
 "10 s" = "10 s";
@@ -584,6 +585,7 @@
 "Phase" = "ఫేజ్";
 "Phase margin" = "ఫేజ్ మార్జిన్";
 "Pin" = "పిన్";
+"Pin %@ on unit %@" = "పిన్ %@, యూనిట్ %@";
 "Pin map" = "పిన్ మ్యాప్";
 "Pin names" = "పిన్ పేర్లు";
 "Pin swap" = "పిన్ స్వాప్";

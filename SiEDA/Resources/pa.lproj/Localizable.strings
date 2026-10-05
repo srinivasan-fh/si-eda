@@ -3,6 +3,7 @@
 "%lld errors · %lld warnings" = "%lld ਗਲਤੀਆਂ · %lld ਚੇਤਾਵਨੀਆਂ";
 "%lld matches" = "%lld ਮੇਲ";
 "%lld of %lld changes selected" = "%lld ਚੁਣੀਆਂ, ਕੁੱਲ %lld ਤਬਦੀਲੀਆਂ";
+"%lld pins" = "%lld ਪਿੰਨ";
 "%lld values" = "%lld ਮੁੱਲ";
 "0 derives the value from the regulator type" = "0 ਹੋਵੇ ਤਾਂ ਮੁੱਲ ਰੈਗੂਲੇਟਰ ਦੀ ਕਿਸਮ ਤੋਂ ਲਿਆ ਜਾਂਦਾ ਹੈ";
 "10 s" = "10 s";
@@ -584,6 +585,7 @@
 "Phase" = "ਫੇਜ਼";
 "Phase margin" = "ਫੇਜ਼ ਮਾਰਜਿਨ";
 "Pin" = "ਪਿੰਨ";
+"Pin %@ on unit %@" = "ਪਿੰਨ %@, ਯੂਨਿਟ %@";
 "Pin map" = "ਪਿੰਨ ਮੈਪ";
 "Pin names" = "ਪਿੰਨ ਨਾਮ";
 "Pin swap" = "ਪਿੰਨ ਸਵੈਪ";

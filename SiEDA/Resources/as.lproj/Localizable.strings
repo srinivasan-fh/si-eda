@@ -3,6 +3,7 @@
 "%lld errors · %lld warnings" = "%lld ত্ৰুটি · %lld সতৰ্কবাণী";
 "%lld matches" = "%lld টা মিল";
 "%lld of %lld changes selected" = "%lld টা বাছনি কৰা হৈছে, মুঠ %lld টা সলনি";
+"%lld pins" = "%lld টা পিন";
 "%lld values" = "%lld টা মান";
 "0 derives the value from the regulator type" = "0 হ'লে মান ৰেগুলেটৰৰ প্ৰকাৰৰ পৰা লোৱা হয়";
 "10 s" = "10 s";
@@ -584,6 +585,7 @@
 "Phase" = "ফেজ";
 "Phase margin" = "ফেজ মাৰ্জিন";
 "Pin" = "পিন";
+"Pin %@ on unit %@" = "পিন %@, ইউনিট %@";
 "Pin map" = "পিন মেপ";
 "Pin names" = "পিনৰ নাম";
 "Pin swap" = "পিন সলনি";

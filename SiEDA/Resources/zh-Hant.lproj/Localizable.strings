@@ -3,6 +3,7 @@
 "%lld errors · %lld warnings" = "%lld 個錯誤 · %lld 個警告";
 "%lld matches" = "%lld 個相符項目";
 "%lld of %lld changes selected" = "已選取 %lld / %lld 項變更";
+"%lld pins" = "%lld 個接腳";
 "%lld values" = "%lld 個數值";
 "0 derives the value from the regulator type" = "0 表示依穩壓器類型取值";
 "10 s" = "10 s";
@@ -584,6 +585,7 @@
 "Phase" = "相位";
 "Phase margin" = "相位裕度";
 "Pin" = "接腳";
+"Pin %@ on unit %@" = "接腳 %@，單元 %@";
 "Pin map" = "接腳對應";
 "Pin names" = "接腳名稱";
 "Pin swap" = "接腳交換";

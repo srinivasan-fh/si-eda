@@ -3,6 +3,7 @@
 "%lld errors · %lld warnings" = "%lld ralat · %lld amaran";
 "%lld matches" = "%lld padanan";
 "%lld of %lld changes selected" = "%lld daripada %lld perubahan dipilih";
+"%lld pins" = "%lld pin";
 "%lld values" = "%lld nilai";
 "0 derives the value from the regulator type" = "0 menentukan nilai daripada jenis pengatur";
 "10 s" = "10 s";
@@ -584,6 +585,7 @@
 "Phase" = "Fasa";
 "Phase margin" = "Jidar fasa";
 "Pin" = "Pin";
+"Pin %@ on unit %@" = "Pin %@ pada unit %@";
 "Pin map" = "Peta pin";
 "Pin names" = "Nama pin";
 "Pin swap" = "Tukar pin";
