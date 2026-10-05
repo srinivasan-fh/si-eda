@@ -108,9 +108,10 @@ warnings. All five segments are complete.
 
 ## Limits
 
-- **BGA routing.** The autorouter does not fan out BGA balls yet. DDR3L / DDR4 parts place correctly and every
-  check runs on them, but route their escape by hand (or with via-in-pad on an HDI stack-up) for now. The reference
-  design therefore uses SDR SDRAM, which routes completely.
+- **BGA routing.** Auto Route fans out every BGA ball (dogbone: a short stub to a via between four balls, or a
+  via in the pad with VIPPO) and routes BGA boards on a finer grid. An Artix-7 FPGA with a DDR3L x16 memory-down
+  (50 lines) routes completely on 8 layers with GND and supply planes; on 6 layers a few lines may stay for hand
+  routing. Give BGA boards planes for their supplies: dozens of power balls routed as tracks crowd the escape.
 - **Not in the library yet:** DDR VTT regulators (TPS51200 class), DDR5 SPD hubs (SPD5118), DDR5 PMICs and RCDs.
   Add them as custom parts from their datasheets.
 

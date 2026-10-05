@@ -1573,6 +1573,83 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
     order.erase(std::remove_if(order.begin(), order.end(), isMeshNet), order.end());
     zoneOrder.erase(std::remove_if(zoneOrder.begin(), zoneOrder.end(), isMeshNet), zoneOrder.end());
 
+    // BGA fan-out (dogbone): every ball with a net gets a short stub to a via in the gap between four balls,
+    // pointing away from the package centre, so the router continues on the inner layers instead of threading the
+    // top layer between balls. With via-in-pad (VIPPO) allowed, the via sits in the ball pad instead.
+    struct BgaFanout {
+        size_t pad;
+        Vec2 via;
+        double viaDiameter, viaDrill, trackWidth;
+        bool inPad;
+    };
+    std::vector<BgaFanout> bgaFanouts;
+    double bgaPitch = 0;
+    if (settings.layerCount >= 2) {
+        std::map<int, std::vector<size_t>> bgaPads;
+        for (size_t i = 0; i < ps.size(); ++i) {
+            const Component* c = sch.find(ps[i].componentId);
+            if (!c || ps[i].throughHole) continue;
+            const FootprintDef* fp = Library::instance().footprint(c->footprintName());
+            if (fp && fp->label.rfind("BGA", 0) == 0) bgaPads[c->id].push_back(i);
+        }
+        for (const auto& [id, list] : bgaPads) {
+            if (list.size() < 4) continue;
+            double pitch = std::numeric_limits<double>::max(), ball = 0;
+            Vec2 centre{0, 0};
+            for (size_t a2 : list) {
+                centre = centre + ps[a2].position;
+                ball = std::max(ball, std::max(ps[a2].size.x, ps[a2].size.y) / 2);
+                for (size_t b2 : list)
+                    if (a2 != b2) pitch = std::min(pitch, (ps[a2].position - ps[b2].position).length());
+            }
+            centre = centre * (1.0 / static_cast<double>(list.size()));
+            if (!(pitch > 0.3 && pitch < 2.0)) continue;
+            const double clr = settings.clearance;
+            const double diag = pitch / std::sqrt(2.0);  // ball centre to the gap between four balls
+            // Largest via (and stub) that keeps clearance to the four surrounding balls and to the next dogbone.
+            double vd = std::min({settings.viaDiameter, 2 * (diag - ball - clr), pitch - clr});
+            double ring = settings.minAnnularRing;
+            double drill = std::min(settings.viaDrill, vd - 2 * ring);
+            double tw = std::min(settings.trackWidth, 2 * (diag - ball - clr));
+            const bool dogbone = drill >= settings.minDrill - 1e-9 && tw >= settings.minTrackWidth - 1e-9;
+            if (!dogbone && !settings.viaInPad) continue;
+            bgaPitch = bgaPitch > 0 ? std::min(bgaPitch, pitch) : pitch;
+            for (size_t pi : list) {
+                const int net = ps[pi].net;
+                if (net < 0 || netPads[net].size() < 2) continue;
+                BgaFanout f;
+                f.pad = pi;
+                if (settings.viaInPad) {
+                    // Filled and capped via in the ball pad: no stub, nothing between the balls.
+                    f.inPad = true;
+                    f.via = ps[pi].position;
+                    f.viaDiameter = std::min(settings.viaDiameter, 2 * ball);
+                    f.viaDrill = std::min(settings.viaDrill, f.viaDiameter - 2 * ring);
+                    if (f.viaDrill < settings.minDrill - 1e-9) continue;
+                    f.trackWidth = 0;
+                } else {
+                    const Vec2 d = ps[pi].position - centre;
+                    const double sx = d.x < -1e-6 ? -1.0 : 1.0, sy = d.y < -1e-6 ? -1.0 : 1.0;
+                    f.inPad = false;
+                    f.via = ps[pi].position + Vec2{sx * pitch / 2, sy * pitch / 2};
+                    f.viaDiameter = vd;
+                    f.viaDrill = drill;
+                    f.trackWidth = tw;
+                }
+                bgaFanouts.push_back(f);
+            }
+        }
+    }
+    // The fan-out vias leave channels about one track wide between them: route BGA boards on a grid fine enough
+    // to find those channels (eight cells per ball pitch).
+    struct RestoreGrid {
+        BoardSettings& s;
+        double g;
+        ~RestoreGrid() { s.routingGrid = g; }
+    } restoreGrid{settings, settings.routingGrid};
+    if (bgaPitch > 0) settings.routingGrid = std::min(settings.routingGrid, std::max(0.05, bgaPitch / 8));
+    std::map<size_t, std::vector<std::pair<int, size_t>>> fanoutCells;  // ball pad → its via's cells
+
     // Pour/plane-net pads that could not reach their pour: fanned out first in the next pass.
     // Pour/plane-net pads that could not reach their pour: connected first in the next pass, by a track to where
     // the net's main pour was (signals then route around that connection).
@@ -1630,6 +1707,10 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
             for (int l = 0; l < grid.layers(); ++l)
                 if (pad.onLayer(l))
                     for (size_t c : grid.padCoreCells(pad)) cells.push_back({l, c});
+            // A fanned-out BGA ball is reached through its via, on any layer.
+            if (!fanoutCells.empty() && &pad >= ps.data() && &pad < ps.data() + ps.size())
+                if (auto it = fanoutCells.find(static_cast<size_t>(&pad - ps.data())); it != fanoutCells.end())
+                    cells.insert(cells.end(), it->second.begin(), it->second.end());
         };
 
         auto placeVia = [&](int net, Vec2 at) {
@@ -1769,6 +1850,51 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
             return true;
         };
 
+        // BGA fan-out: the dogbone stubs and vias (or vias in pad), laid before any net routes.
+        fanoutCells.clear();
+        for (const BgaFanout& f : bgaFanouts) {
+            const Pad& pad = ps[f.pad];
+            const int net = pad.net;
+            if (!f.inPad) {
+                Track t;
+                t.net = net;
+                t.layer = pad.smdLayer;
+                t.width = f.trackWidth;
+                t.a = pad.position;
+                t.b = f.via;
+                outT.push_back(t);
+                grid.markSegment(t.layer, t.a, t.b, t.width / 2 + clr + extra(net) + w / 2, net);
+                grid.markCopperSegment(t.layer, t.a, t.b, t.width / 2 + 1e-6, net);
+                grid.addCopper(t.a, t.b, t.width / 2, net, t.layer);
+                grid.fenceCopper(t.a, t.b, t.width / 2, net, t.layer);
+            }
+            Via v;
+            v.net = net;
+            v.position = f.via;
+            v.drill = f.viaDrill;
+            v.diameter = f.viaDiameter;
+            outV.push_back(v);
+            ++stats.vias;
+            const double r = f.viaDiameter / 2 + clr + extra(net) + w / 2;
+            for (int l = 0; l < grid.layers(); ++l) {
+                grid.markDisc(l, v.position, r, net);
+                grid.markCopperSegment(l, v.position, v.position, f.viaDiameter / 2, net);
+            }
+            grid.addCopper(v.position, v.position, f.viaDiameter / 2, net, -1, f.viaDrill);
+            grid.fenceCopper(v.position, v.position, f.viaDiameter / 2, net);
+            const int ci = static_cast<int>(std::lround(f.via.x / grid.pitch()));
+            const int cj = static_cast<int>(std::lround(f.via.y / grid.pitch()));
+            auto& cells = fanoutCells[f.pad];
+            for (int dj = -1; dj <= 1; ++dj)
+                for (int di = -1; di <= 1; ++di) {
+                    const int i = ci + di, j = cj + dj;
+                    if (!grid.inside(i, j) || (grid.pos(i, j) - f.via).length() > f.viaDiameter / 2) continue;
+                    for (int l = 0; l < grid.layers(); ++l) cells.push_back({l, grid.idx(i, j)});
+                }
+            if (cells.empty() && grid.inside(ci, cj))
+                for (int l = 0; l < grid.layers(); ++l) cells.push_back({l, grid.idx(ci, cj)});
+        }
+
         // Tamper meshes: the serpentines, a via at each end and a stub from each drive / sense pad to its end.
         for (const auto& m : meshGeo) {
             if (!m.error.empty()) continue;
@@ -1833,7 +1959,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch) {
                     for (const auto& z : zones)
                         if (!z.plane && z.layer == p.smdLayer && netIndex(z.net) == net) pourHere = true;
                     bool fine = neckWidths[pi] < w - 1e-9 || std::min(p.size.x, p.size.y) < 0.4;
-                    if (!pourHere || fine) fanout(net, pi);
+                    if ((!pourHere || fine) && !fanoutCells.count(pi)) fanout(net, pi);
                 }
         for (size_t pi : forcedConnect) {
             int net = ps[pi].net;
