@@ -637,3 +637,6 @@
 "Integration" = "Integration";
 "Trapezoidal" = "Trapezregel";
 "Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "Integration: adaptive Schritte aus dem lokalen Abbruchfehler (der Schritt ist der größte), Trapezregel für Oszillatoren";
+
+/* Simulation: imported SPICE models (2) */
+"No imported model" = "Kein importiertes Modell";

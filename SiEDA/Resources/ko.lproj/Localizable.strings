@@ -637,3 +637,6 @@
 "Integration" = "적분 방식";
 "Trapezoidal" = "사다리꼴";
 "Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "적분: 국부 절단 오차에 따른 적응형 스텝(설정한 스텝이 최대), 발진기에는 사다리꼴 법";
+
+/* Simulation: imported SPICE models (2) */
+"No imported model" = "가져온 모델 없음";

@@ -637,3 +637,6 @@
 "Integration" = "积分方法";
 "Trapezoidal" = "梯形法";
 "Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "积分：按局部截断误差自适应步长（所设步长为上限），振荡器用梯形法";
+
+/* Simulation: imported SPICE models (2) */
+"No imported model" = "没有导入的模型";

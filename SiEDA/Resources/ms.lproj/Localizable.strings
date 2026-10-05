@@ -637,3 +637,6 @@
 "Integration" = "Kamiran";
 "Trapezoidal" = "Trapezoid";
 "Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "Kamiran: langkah adaptif daripada ralat pangkasan setempat (langkah ialah maksimum), petua trapezoid untuk pengayun";
+
+/* Simulation: imported SPICE models (2) */
+"No imported model" = "Tiada model diimport";

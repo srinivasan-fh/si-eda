@@ -637,3 +637,6 @@
 "Integration" = "Integration";
 "Trapezoidal" = "Trapezoidal";
 "Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "Integration: adaptive na hakbang mula sa local truncation error (ang step ang pinakamalaki), trapezoidal rule para sa mga oscillator";
+
+/* Simulation: imported SPICE models (2) */
+"No imported model" = "Walang in-import na model";

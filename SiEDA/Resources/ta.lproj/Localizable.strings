@@ -637,3 +637,6 @@
 "Integration" = "தொகையீடு";
 "Trapezoidal" = "சரிவகம்";
 "Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "தொகையீடு: உள்ளூர் துண்டிப்புப் பிழையிலிருந்து தகவமை படிகள் (கொடுத்த படி அதிகபட்சம்), அலையியற்றிகளுக்குச் சரிவக விதி";
+
+/* Simulation: imported SPICE models (2) */
+"No imported model" = "இறக்குமதி செய்த மாதிரி இல்லை";

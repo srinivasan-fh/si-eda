@@ -637,3 +637,6 @@
 "Integration" = "Tích phân";
 "Trapezoidal" = "Hình thang";
 "Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "Tích phân: bước thích ứng theo sai số cắt cụt cục bộ (bước đặt là lớn nhất), quy tắc hình thang cho mạch dao động";
+
+/* Simulation: imported SPICE models (2) */
+"No imported model" = "Chưa có mô hình được nhập";

@@ -637,3 +637,6 @@
 "Integration" = "సమాకలనం";
 "Trapezoidal" = "ట్రాపెజాయిడల్";
 "Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "సమాకలనం: స్థానిక ట్రంకేషన్ దోషం నుండి అనుకూల స్టెప్‌లు (ఇచ్చిన స్టెప్ గరిష్ఠం), ఆసిలేటర్‌లకు ట్రాపెజాయిడల్ నియమం";
+
+/* Simulation: imported SPICE models (2) */
+"No imported model" = "దిగుమతి చేసిన మోడల్ లేదు";

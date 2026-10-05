@@ -462,7 +462,8 @@ private struct SpiceModelProperties: View {
                     .buttonStyle(.bordered)
                     .controlSize(.small)
             } else {
-                Text("Built-in model").font(.caption).foregroundStyle(Theme.textMuted)
+                (component.componentKind == .custom || component.componentKind == .ic8 ? Text("No imported model") : Text("Built-in model"))
+                    .font(.caption).foregroundStyle(Theme.textMuted)
                 Button { editing = true } label: { Label("Attach SPICE Model…", systemImage: "square.and.arrow.down") }
                     .buttonStyle(.bordered)
                     .controlSize(.small)

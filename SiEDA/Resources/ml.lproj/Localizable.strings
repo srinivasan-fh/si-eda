@@ -637,3 +637,6 @@
 "Integration" = "സമാകലനം";
 "Trapezoidal" = "ട്രപ്പസോയ്ഡൽ";
 "Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "സമാകലനം: ലോക്കൽ ട്രങ്കേഷൻ പിശകിൽ നിന്നുള്ള അഡാപ്റ്റീവ് സ്റ്റെപ്പുകൾ (നൽകിയ സ്റ്റെപ്പ് പരമാവധി), ഓസിലേറ്ററുകൾക്ക് ട്രപ്പസോയ്ഡൽ നിയമം";
+
+/* Simulation: imported SPICE models (2) */
+"No imported model" = "ഇറക്കുമതി ചെയ്ത മോഡൽ ഇല്ല";

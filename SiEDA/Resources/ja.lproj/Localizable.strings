@@ -637,3 +637,6 @@
 "Integration" = "積分法";
 "Trapezoidal" = "台形法";
 "Integration: adaptive steps from the local truncation error (the step is the largest), trapezoidal rule for oscillators" = "積分：局所打ち切り誤差による適応ステップ（指定ステップが上限）、発振回路には台形法";
+
+/* Simulation: imported SPICE models (2) */
+"No imported model" = "インポートしたモデルなし";
