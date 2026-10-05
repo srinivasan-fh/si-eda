@@ -114,25 +114,33 @@ large board.
 
 ## Measured numbers
 
-Release build, gcc 13, one core of the Linux CI container. "Before" is the code before this work.
+Release build, gcc, one core of a 4-core Linux container (other jobs were running, so times are approximate). "Before"
+is the code before this work, "after" the code now.
 
 | Board | Parts / nets / layers | Grid nodes | Place | Route | DRC | Completion | Peak memory |
 |---|---|---|---|---|---|---|---|
-| Medium (CI): 6 clusters, 2 BGAs | 166 / 196 / 6 | 4.6 M | 0.88 → 0.16 s | 14.6 → 2.9 s | 1.26 → 0.11 s | 385 / 385 (same) | 119 → 188 MB |
-| 2 clusters, BGA, 2 signal layers | 82 / 87 / 4 | 1.4 M | 0.09 → 0.05 s | 41.6 → 24.2 s | 0.53 → 0.03 s | 189 / 200 (same) | 50 → 101 MB |
-| 16 clusters, 4 BGAs | 403 / 496 / 8 | 14.8 M | 9.95 → 0.96 s | 284.7 → 41.0 s | 8.8 → 0.26 s | 922 / 922 (same) | 372 → 524 MB |
-| Large: 32 clusters, FPGA + 4 BGAs | 923 / 1172 / 8 | 33.0 M | 131.2 → 5.4 s | LARGE_ROUTE | LARGE_DRC | LARGE_COMPLETION | LARGE_MEM |
+| Medium (CI): 6 clusters, 2 BGAs | 166 / 196 / 6 | 4.6 M | 0.88 → 0.13 s | 14.6 → 3.2 s | 1.26 → 0.09 s | 385 / 385 (same copper) | 119 → 188 MB |
+| 2 clusters, BGA, 2 signal layers | 82 / 87 / 4 | 1.4 M | 0.09 → 0.03 s | 41.6 → 35.1 s | 0.53 → 0.03 s | 189 → 197 / 200 | 50 → 90 MB |
+| 16 clusters, 4 BGAs | 403 / 496 / 8 | 14.8 M | 9.95 → 0.93 s | 284.7 → 39.6 s | 8.8 → 0.29 s | 922 / 922 (same copper) | 372 → 524 MB |
+| Large: 32 clusters, FPGA + 4 BGAs | 923 / 1172 / 8 | 33.0 M | 131.2 → 6.0 s | 6209 → 1039 s | 58.5 → 0.35 s | 2140 / 2143 (same) | 953 MB → 1.8 GB |
 
 Recovery on boards the rip-up passes do not complete (unrouted connections, before → after):
 
 | Board | Before | After |
 |---|---|---|
-| 3 clusters, 2 layers, no BGA | 10 / 260 | RECOV1 |
-| 4 clusters, 2 layers, no BGA, seed 2 | 21 / 283 | RECOV2 |
-| 6 clusters, 2 layers, no BGA, seed 3 | 16 / 352 | RECOV3 |
-| 3 clusters, 4 layers, no BGA, seed 4 | 1 / 240 | RECOV4 |
-| 6 clusters, 4 layers, no BGA, seed 5 | 13 / 362 | RECOV5 |
-| 3 clusters, 4 layers, BGA, seed 8 | 2 / 249 | RECOV6 |
+| 3 clusters, 2 layers, no BGA | 10 / 260 | 1 / 260 |
+| 4 clusters, 2 layers, no BGA, seed 2 | 21 / 283 | 2 / 283 |
+| 6 clusters, 2 layers, no BGA, seed 3 | 16 / 352 | 1 / 352 |
+| 3 clusters, 4 layers, no BGA, seed 4 | 1 / 240 | 0 / 240 |
+| 6 clusters, 4 layers, no BGA, seed 5 | 13 / 362 | 0 / 362 |
+| 3 clusters, 4 layers, BGA, seed 8 | 2 / 249 | 1 / 249 |
+
+In total 63 → 5 unrouted connections; recovery adds up to 8 passes to such boards (route times 4–27 s here). On the
+large board the rip-up passes bring 29 unrouted connections down to 3 and recovery does not improve on that; its 11
+whole-board passes take about 17 minutes.
+
+The pairwise DRC on the same routed boards takes 1.12 s (medium) and 6.15 s (16 clusters) against 0.09 s and 0.29 s
+with the index, with identical reports.
 
 Memory is higher because the search workspace is kept for the whole route instead of being allocated per connection
 (12 bytes per routing node, plus 8 bytes per cell), which is what removed the per-connection clearing cost.
@@ -140,7 +148,7 @@ Memory is higher because the search workspace is kept for the whole route instea
 ## Limits
 
 - **Grid size.** The grid is uniform. A board with a 0.8 mm BGA routes on a 0.1 mm grid everywhere, so a 234 × 176 mm
-  8-layer board has 33 M routing nodes and needs about 1 GB while routing. Very large fine-pitch boards are better
+  8-layer board has 33 M routing nodes and needs about 1.1 GB while routing (1.8 GB during recovery, which builds a second, unobstructed grid). Very large fine-pitch boards are better
   split, or routed with the BGA areas fanned out first.
 - **Rip-up is whole-board.** Each rip-up or recovery pass re-routes every net; on the largest boards a pass takes
   minutes, so a board that does not complete in its first pass takes correspondingly longer.
