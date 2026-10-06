@@ -1,4 +1,5 @@
 #include "sieda/Project.hpp"
+#include "sieda/Autoroute.hpp"
 #include "sieda/Model3D.hpp"
 #include "sieda/SchematicPdf.hpp"
 
@@ -134,6 +135,8 @@ Json boardJson(const BoardSettings& s) {
         }
         b["matchGroups"] = groups;
     }
+    if (!s.autorouter.isDefault()) b["autorouter"] = autorouteOptionsToJson(s.autorouter);  // only when changed
+    if (!s.keepouts.empty()) b["keepouts"] = keepoutsToJson(s.keepouts);
     b["autoSizeNets"] = s.autoSizeNets;
     Json outline = Json::array();
     for (const auto& v : s.outline) outline.push(vec(v));
@@ -738,6 +741,8 @@ Project Project::fromJson(const Json& root) {
             if (n.isString() && !n.asString().empty()) g.nets.push_back(n.asString());
         if (!g.name.empty() && g.nets.size() >= 2) s.matchGroups.push_back(g);
     }
+    s.autorouter = autorouteOptionsFromJson(b.get("autorouter"));
+    s.keepouts = keepoutsFromJson(b.get("keepouts"));
     s.maxTempRise = std::max(1.0, b.get("maxTempRise").asNumber(s.maxTempRise));
     s.autoSizeNets = b.get("autoSizeNets").asBool(true);
     {

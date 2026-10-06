@@ -32,6 +32,76 @@ struct MatchGroup {
     double tolerance = 0.1;
 };
 
+/// Autorouter strategy options (Board Setup → Routing strategy; docs/ROUTING.md). Every option defaults to the
+/// router's classic behaviour, so a board whose options are all default routes exactly as before.
+struct AutorouteOptions {
+    /// Differential pairs (differentialPairs(): net names and schematic directives) route as coupled pairs: both
+    /// members together at the pair gap, symmetric fan-out from their pads, coupled vias side by side. A pair the
+    /// coupled router cannot lay out routes as two single nets, as before.
+    bool coupledPairs = false;
+    /// Edge-to-edge gap of coupled pairs (mm); 0 = the stack-up's gap for the differential impedance target (never
+    /// below the pair's clearance).
+    double pairGap = 0;
+    /// Length-aware routing: nets with a length rule or in a match group (BoardSettings::lengthRules / matchGroups,
+    /// measured pad to pad through series parts as xSignals) route first, on their most direct paths, and after
+    /// routing are lengthened to their target with the interactive tuner's meanders (mitred accordions); the routing
+    /// report lists achieved against target for each.
+    bool lengthAware = false;
+    /// Quality passes after routing. Via minimisation: each net with vias is routed again, alone, with layer
+    /// changes three times as expensive, and keeps the new copper when it has fewer vias and is at most 25 % longer.
+    bool minimizeVias = false;
+    /// Glossing: every routed line is pulled tight with the interactive router's gloss (45° shortcuts and a re-search,
+    /// kept when shorter). Coupled pairs and tuned meanders are left alone.
+    bool gloss = false;
+    /// True-arc corners on autorouted copper (convertCornersToArcs), radius `arcRadius` mm (0 = automatic).
+    bool arcCorners = false;
+    double arcRadius = 0;
+    /// Teardrops where tracks meet pads and vias (addTeardrops).
+    bool teardrops = false;
+    /// Strategy (autoroutePresets()): the preset these options came from ("default", "fast", "quality", "fanout",
+    /// "nets", "netclass", "area"; informational — the fields below decide).
+    std::string preset = "default";
+    /// Fast: at most 2 rip-up passes and no recovery (classic router), at most 6 rip-up rounds (corridor router).
+    bool fast = false;
+    /// Fan-out only: BGA dog-bones and the fan-out vias of pour / plane pads, nothing else.
+    bool fanoutOnly = false;
+    /// Scope: when any is given, only nets matching all of them are routed (net names; a schematic net class; every pad
+    /// inside the area, whose copper then stays inside it too) and every other net keeps its copper as it is.
+    std::vector<std::string> nets;
+    std::string netClass;
+    bool hasArea = false;
+    Rect area;
+    /// Locked tracks stay where they are; their nets are completed from them.
+    bool protectLocked = false;
+    /// Per schematic net class: the copper layers its nets may route on (others are used only to leave their pads).
+    std::map<std::string, std::vector<int>> classLayers;
+    bool scoped() const { return !nets.empty() || !netClass.empty() || hasArea; }
+    bool operator==(const AutorouteOptions& o) const;
+    bool operator!=(const AutorouteOptions& o) const { return !(*this == o); }
+    bool isDefault() const { return *this == AutorouteOptions{}; }
+};
+
+/// A routing keep-out (Board Setup → Keep-outs): no track and / or no via of any net inside `area` on `layer` (-1 = every
+/// copper layer). The autorouter routes around it and the DRC reports copper inside it (DRC_KEEPOUT).
+struct RouteKeepout {
+    std::string name;
+    Rect area;
+    int layer = -1;
+    bool tracks = true, vias = true;
+};
+
+struct AutoroutePreset {
+    std::string name;         // "default", "fast", "quality", "fanout", "nets", "netclass", "area"
+    std::string title;        // English, for menus
+    std::string description;
+    AutorouteOptions options;  // scope fields empty (the caller fills them)
+};
+/// The preset strategies: default (classic behaviour), fast, high quality (coupled pairs, length-aware, via
+/// minimisation, gloss), fan-out only, route selected nets, route a net class, route an area.
+const std::vector<AutoroutePreset>& autoroutePresets();
+/// The preset's options, or nullptr for an unknown name.
+const AutorouteOptions* autoroutePreset(const std::string& name);
+
 /// Copper layer index: 0 = top, `BoardSettings::bottomLayer()` = bottom, anything between = inner layer.
 constexpr int kTopLayer = 0;
 
@@ -102,6 +172,10 @@ struct BoardSettings {
     /// Length rules per net and match groups (Board Setup; the length tuning tool and the DRC use them).
     std::vector<LengthRule> lengthRules;
     std::vector<MatchGroup> matchGroups;
+    /// Autorouter strategy (saved with the board only when it differs from the defaults).
+    AutorouteOptions autorouter;
+    /// Routing keep-outs (saved only when there are any).
+    std::vector<RouteKeepout> keepouts;
     /// The autorouter first widens net classes to the IPC-2221 width for each net's simulated current.
     bool autoSizeNets = true;
     double widthFor(const std::string& netName) const {
@@ -335,7 +409,52 @@ struct RouteControl {
     std::function<bool(const RouteProgress&)> progress;
 };
 
+/// A differential pair after autorouting (RouteReport::pairs).
+struct PairRouteReport {
+    std::string positive, negative;  // net names
+    bool coupled = false;            // laid out by the coupled pair router (false: routed as two single nets)
+    std::string reason;              // why it was not coupled ("" when it was)
+    double width = 0, gap = 0;       // mm
+    double coupledLength = 0;        // centre-line length the members run side by side at the gap (mm)
+    double uncoupledLength = 0;      // fan-out stubs and via jogs, both members together (mm)
+    double skew = 0;                 // |length P − length N| of the routed copper after tuning (mm)
+    int viaPairs = 0;                // coupled via transitions
+};
+/// A net with a length target after autorouting (RouteReport::lengths).
+struct LengthRouteReport {
+    std::string net;
+    std::string source;      // "rule:<net>" or "group:<name>" (LengthTarget::source)
+    double target = 0, tolerance = 0;
+    double routed = -1;      // xSignal length as routed, before tuning (-1: not routed pad to pad)
+    double achieved = -1;    // after the length-aware tuning
+    bool ok = false;         // achieved within target ± tolerance
+    bool tuned = false;      // meanders were added
+};
+/// Quality metrics of the routed board (RouteReport::metrics).
+struct RouteMetrics {
+    int vias = 0;                     // every via on the board after routing
+    int microvias = 0, blindVias = 0;  // HDI spans (viaKind)
+    double trackLength = 0;           // mm, every track but teardrops
+    std::vector<double> layerLength;  // mm per copper layer
+    int segments = 0;                 // tracks
+    int arcs = 0;                     // true-arc tracks
+    int teardrops = 0;                // teardrop tracks
+    int unrouted = 0;                 // ratsnest lines left
+    // What the quality passes did.
+    int viasRemoved = 0;              // via minimisation
+    int netsRerouted = 0;             // nets whose copper via minimisation replaced
+    int glossed = 0;                  // lines glossing improved
+    int arcsAdded = 0;                // corners made arcs
+    int teardropsAdded = 0;
+};
+/// What an autoroute did beyond the counts in RouteStats (the routing report sheet in the app).
+struct RouteReport {
+    std::vector<PairRouteReport> pairs;
+    std::vector<LengthRouteReport> lengths;
+    RouteMetrics metrics;
+};
 struct RouteStats {
+    RouteReport report;
     int connections = 0;
     int routed = 0;
     int failed = 0;
@@ -377,6 +496,8 @@ public:
     /// The same, reporting progress and allowing cancellation (RouteControl). A cancelled route leaves the board
     /// exactly as it was (tracks, vias, net classes) and returns stats with `cancelled` set.
     RouteStats autoRoute(const Schematic& sch, const RouteControl& control);
+    /// The report of the last autoroute (pairs, lengths, metrics; empty before the first). Not saved with the board.
+    RouteReport lastRouteReport;
 
 private:
     RouteStats routeWithVoltageSpacing(const Schematic& sch, const RouteControl* control);
@@ -412,6 +533,11 @@ public:
 
 private:
     int nextId_ = 1;
+    /// Set by the corridor router around its clean-up: corners a T-join or a via's edge depends on are not reshaped.
+    bool cleanupKeepsJoins_ = false;
+    /// The corridor router's multi-resolution grid: off for a second, full-resolution route (fullResolutionOnly_), and
+    /// whether the last route used it (usedCoarse_).
+    bool fullResolutionOnly_ = false, usedCoarse_ = false;
     mutable std::vector<ZoneFill> fillCache_;
     mutable size_t fillKey_ = 0;
     mutable bool fillValid_ = false;

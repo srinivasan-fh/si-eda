@@ -1464,3 +1464,41 @@ int sieda_c_api_pcb_swap_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* Autorouter strategies through the C API: presets, options (saved with the project), keep-outs and the report. */
+int sieda_c_api_autoroute_strategy_test(void) {
+    SiedaProject* p = sieda_project_new("C API autoroute strategy");
+    if (!p) return 1;
+    int32_t r[2];
+    for (int k = 0; k < 2; ++k) {
+        r[k] = sieda_add_component(p, 0 /* Resistor */, "1k", 40.0 * k, 0, 0, NULL);
+        if (r[k] < 0) return 2;
+        if (!sieda_pcb_move_footprint(p, r[k], 10 + 30.0 * k, 15)) return 3;
+    }
+    if (sieda_connect(p, r[0], 1, r[1], 0) < 0) return 4;
+    sieda_pcb_set_board(p, 50, 30, 0, 0);
+    char* presets = sieda_autoroute_presets();
+    if (!presets || !strstr(presets, "\"quality\"") || !strstr(presets, "\"fanout\"")) return 5;
+    sieda_string_free(presets);
+    if (sieda_pcb_set_autoroute_options(p, "{\"preset\":\"quality\",\"minimizeVias\":true,\"gloss\":true}") != 1) return 6;
+    if (sieda_pcb_set_autoroute_options(p, "not json") != 0 || sieda_pcb_set_autoroute_options(NULL, "{}") != 0) return 7;
+    char* opts = sieda_pcb_autoroute_options(p);
+    if (!opts || !strstr(opts, "\"minimizeVias\":true") || !strstr(opts, "\"preset\":\"quality\"")) return 8;
+    sieda_string_free(opts);
+    if (sieda_pcb_set_keepouts(p, "[{\"name\":\"K\",\"x0\":22,\"y0\":2,\"x1\":28,\"y1\":28,\"layer\":0}]") != 1) return 9;
+    char* ks = sieda_pcb_keepouts(p);
+    if (!ks || !strstr(ks, "\"name\":\"K\"")) return 10;
+    sieda_string_free(ks);
+    char* routed = sieda_pcb_autoroute(p);
+    if (!routed || !strstr(routed, "\"failed\":0")) return 11;
+    sieda_string_free(routed);
+    char* report = sieda_pcb_route_report(p);
+    if (!report || !strstr(report, "\"metrics\"") || !strstr(report, "\"unrouted\":0")) return 12;
+    sieda_string_free(report);
+    char* saved = sieda_project_save_json(p);
+    if (!saved || !strstr(saved, "\"autorouter\"") || !strstr(saved, "\"keepouts\"")) return 13;
+    sieda_string_free(saved);
+    if (sieda_pcb_route_report(NULL) != NULL || sieda_pcb_set_keepouts(p, "[]") != 0) return 14;
+    sieda_project_free(p);
+    return 0;
+}
