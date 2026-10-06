@@ -355,6 +355,12 @@ struct SiEDACommands: Commands {
             }
             .disabled(!canvas)
             Toggle("Show Navigator", isOn: $store.showNavigator)
+            Menu("Schematic Canvas") {
+                SchematicAppearanceMenu(onCustomise: {
+                    store.workspace = .schematic
+                    store.showSchematicColours = true
+                })
+            }
             Divider()
         }
         CommandMenu("Design") {

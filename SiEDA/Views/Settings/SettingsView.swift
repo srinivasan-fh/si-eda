@@ -269,6 +269,7 @@ private struct AccountSettings: View {
 private struct AppearanceSettings: View {
     @AppStorage("appearance") private var appearance = AppearancePreference.dark.rawValue
     @AppStorage("showSplashScreen") private var showSplashScreen = true
+    @State private var customisingSchematic = false
 
     var body: some View {
         Form {
@@ -283,8 +284,22 @@ private struct AppearanceSettings: View {
             Text("The splash preloads the component library and reference designs for five seconds, then opens the main window. Click it or press Esc to skip once loading is done.")
                 .font(.caption)
                 .foregroundStyle(Theme.textMuted)
+            schematicSection
         }
         .formStyle(.grouped)
+        .sheet(isPresented: $customisingSchematic) { SchematicThemeEditor() }
+    }
+
+    /// Colour scheme and grid of the schematic canvas (also in the editor's options bar and the View menu).
+    private var schematicSection: some View {
+        Section {
+            SchematicAppearanceMenu(onCustomise: { customisingSchematic = true })
+            Text("The schematic PDF keeps its print colours.")
+                .font(.caption)
+                .foregroundStyle(Theme.textMuted)
+        } header: {
+            Text("Schematic Canvas")
+        }
     }
 }
 

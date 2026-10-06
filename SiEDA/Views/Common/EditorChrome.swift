@@ -243,8 +243,8 @@ enum CanvasOverlays {
     }
 
     /// Cursor coordinate read-out at the top right.
-    static func readout(_ text: String, in ctx: inout GraphicsContext, size: CGSize) {
-        ctx.draw(Text(text).font(.system(size: 11, design: .monospaced)).foregroundColor(Theme.skyBlue),
+    static func readout(_ text: String, in ctx: inout GraphicsContext, size: CGSize, colour: Color = Theme.skyBlue) {
+        ctx.draw(Text(text).font(.system(size: 11, design: .monospaced)).foregroundColor(colour),
                  at: CGPoint(x: size.width - 12, y: 10), anchor: .topTrailing)
     }
 }

@@ -382,6 +382,62 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
   leave it; rules are written from the schematic) and lists what was done. Unchosen changes stay pending. The
   baseline (what the board was last updated from) is saved as `pcbSync` only while an update is pending.
 
+## Canvas colour schemes and grid
+
+The schematic canvas can be drawn in any of fourteen ready-made colour schemes or in your own. Pick them from the
+palette button (🎨) at the right of the schematic options bar, from **View → Schematic Canvas**, or in **Settings →
+Appearance → Schematic Canvas**. The choice is an app-wide preference and the canvas follows it at once (wires,
+symbols, pins, labels, selection, ERC and DNP markers, the sheet frame and title block, live probes and switch pills).
+The Symbol Editor preview uses the same scheme. The schematic **PDF** keeps its print colours.
+
+Every scheme is named after its colours. Some follow the familiar look of another tool; the tools are named here only
+to describe the inspiration, never in the app.
+
+| Scheme | Background | Wires | Symbols | Inspired by |
+|---|---|---|---|---|
+| **Midnight Navy** (default) | navy | sky blue | light blue on dark blue | SiEDA's own palette, unchanged |
+| **Classic Cream** | cream | navy | dark red on pale yellow, blue net labels | Altium |
+| **Paper White** | white | dark blue | dark red, black pins and text | Cadence OrCAD |
+| **Blueprint Light** | white | blue | near-black outlines | Cadence Allegro System Capture |
+| **Night Forest** | black | green | yellow, cyan pins, white text | Siemens Xpedition |
+| **Amber Night** | black | yellow | light grey, green buses, white text | Siemens PADS Logic |
+| **Slate Cyan** | charcoal | cyan | light grey | Zuken CR-8000 |
+| **Meadow Cream** | cream (#F5F4EF) | green (#009600) | dark red (#840000) on pale yellow (#FFFFC2), blue buses | KiCad |
+| **Mint Paper** | white | green | dark grey, maroon text | Autodesk Eagle / Fusion |
+| **Ivory Garden** | ivory | forest green | dark blue, maroon text | Labcenter Proteus |
+| **Ink Blue** | white | navy | dark red | EasyEDA |
+| **Silver Mist** | light grey | dark blue | dark red | DipTrace |
+| **Print Mono** | white | black | black (selection stays blue) | monochrome print |
+| **High Contrast** | black | white | yellow, cyan buses and labels | accessibility |
+
+The colour menus group the schemes into **Light** and **Dark**. Every foreground of every scheme (wires, junctions,
+buses, labels, symbol outlines, pins, pin names and numbers, designators, values, unconnected-pin and no-connect
+markers, selection, harnesses, ERC errors, previews, directives) reaches a WCAG contrast of at least 3:1 against its
+background, and live-probe text at least 3:1 against its pill; a test checks every preset.
+
+**Grid:** **Dots** (the default, as before), **Lines** or **None**. The pitch still adapts to the zoom (10, 50, 100,
+500 … units, never denser than 8 points). In Lines mode a stronger major line is drawn every 4, 5, 8 or 10 minor lines
+(**Major Grid Line Every**, default 10).
+
+### Custom colours
+
+Choose **Customise…** in any of the colour menus. The sheet starts from a scheme (**Start from**; the first time, the
+scheme in use) and lists each role: Background, Grid, Wire, Junction, Bus, Net label, Power label, Symbol outline,
+Symbol fill, Pin, Text, Unconnected pin, Selection, Harness and Error marker. Each role takes one of 41 named colours
+(White, Ivory, Cream … Brown, Tan, each shown with a swatch) or **Other…**, which opens a colour well for an exact
+colour. The canvas switches to **Custom** and updates while you pick. A role drawn on the background whose contrast
+falls below 3:1 shows a warning (it is not blocked). **Reset** returns every role to the starting scheme.
+
+The custom theme is saved as JSON in the app preferences (`schematic.customTheme`): the seed scheme and, per role, the
+stable id of a named colour (`"green"`) or a hex value (`"#12AB34"`, `"#RRGGBBAA"` for a translucent fill). An unknown
+id or an unreadable value falls back to the seed scheme's colour. Preferences: `schematic.colorScheme` (the scheme's
+raw value, e.g. `kicad`, independent of its display name), `schematic.gridStyle` (`dots` / `lines` / `none`) and
+`schematic.gridMajorEvery`.
+
+Code: `SiEDA/Views/Schematic/SchematicPalette.swift` (palettes, schemes, grid styles, the `schematicStyle` environment
+value the canvas draws with), `SchematicCustomTheme.swift` (named colours, roles, custom theme) and
+`SchematicAppearanceViews.swift` (menus, swatches, the Customise sheet).
+
 ## Files and compatibility
 
 New project fields (all optional when reading):
