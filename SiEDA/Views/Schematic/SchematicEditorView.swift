@@ -605,7 +605,7 @@ struct DevicePicker: View {
                                     selectedCustom = nil
                                     onPick(kind)
                                 } label: {
-                                    Label(kind.displayName, systemImage: kind.systemImage)
+                                    Label { Text(kind.displayName) } icon: { ComponentSymbolImage(kind: kind).foregroundStyle(Theme.skyBlue) }
                                         .foregroundStyle(Theme.textPrimary)
                                 }
                             }
@@ -618,7 +618,7 @@ struct DevicePicker: View {
                             onPickCustom(part.id)
                         } label: {
                             HStack {
-                                Image(systemName: "cpu.fill").foregroundStyle(Theme.skyBlue)
+                                ComponentSymbolImage(kind: .ic8).foregroundStyle(Theme.skyBlue)
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(part.name).foregroundStyle(Theme.textPrimary)
                                     Text("\(part.footprint) · \(part.pins.count) pins").font(.caption2).foregroundStyle(Theme.textMuted)
@@ -640,7 +640,7 @@ struct DevicePicker: View {
                                 if let id = onPickStandard(part) { selectedCustom = id }
                             } label: {
                                 HStack {
-                                    Image(systemName: "cpu").foregroundStyle(Theme.lightBlue)
+                                    ComponentSymbolImage(kind: .ic8).foregroundStyle(Theme.lightBlue)
                                     VStack(alignment: .leading, spacing: 1) {
                                         Text(part.spec.name).foregroundStyle(Theme.textPrimary)
                                         Text("\(part.category) · \(part.packageSummary)").font(.caption2).foregroundStyle(Theme.textMuted)

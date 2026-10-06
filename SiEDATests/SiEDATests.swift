@@ -6956,3 +6956,29 @@ final class SchematicPaletteTests: XCTestCase {
         XCTAssertFalse(theme.lowContrastRoles().contains(.symbolFill))
     }
 }
+
+@MainActor
+final class ComponentSymbolIconTests: XCTestCase {
+    func testEveryKindHasATemplateSymbolIcon() {
+        for kind in ComponentKind.allCases {
+            let image = ComponentSymbolIcon.image(kind)
+            XCTAssertTrue(image.isTemplate, "\(kind)")
+            XCTAssertEqual(image.size, CGSize(width: 24, height: 16), "\(kind)")
+            XCTAssertNotNil(image.cgImage(forProposedRect: nil, context: nil, hints: nil), "\(kind)")
+        }
+    }
+
+    func testEveryKindDrawsSomething() {
+        for kind in ComponentKind.allCases {
+            let (shapes, bounds) = ComponentSymbolIcon.shapes(kind)
+            XCTAssertFalse(shapes.stroke.isEmpty && shapes.solid.isEmpty, "\(kind) has no symbol paths")
+            XCTAssertGreaterThan(ComponentSymbolIcon.fitScale(bounds, into: CGSize(width: 24, height: 16)), 0, "\(kind)")
+        }
+    }
+
+    func testIconsAreCachedPerSize() {
+        let a = ComponentSymbolIcon.image(.resistor)
+        XCTAssertTrue(a === ComponentSymbolIcon.image(.resistor))
+        XCTAssertFalse(a === ComponentSymbolIcon.image(.resistor, size: CGSize(width: 40, height: 32)))
+    }
+}

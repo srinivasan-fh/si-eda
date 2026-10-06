@@ -84,8 +84,7 @@ private struct ComponentProperties: View {
         let kind = component.componentKind
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                Image(systemName: kind.systemImage)
-                    .font(.title2)
+                ComponentSymbolImage(kind: kind, size: CGSize(width: 40, height: 32))
                     .foregroundStyle(Theme.skyBlue)
                     .frame(width: 40, height: 40)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Theme.blue.opacity(0.2)))
