@@ -105,6 +105,6 @@ struct RoutingReportSheet: View {
             Text(verbatim: l.net).frame(width: 120, alignment: .leading)
             Text(verbatim: String(format: "%.2f / %.2f ± %.2f mm", l.achieved, l.target, l.tolerance)).monospacedDigit()
         }
-        .help(l.ok ? "Within tolerance" : "Out of tolerance")
+        .help(l.ok ? Text("Within tolerance") : Text("Out of tolerance"))
     }
 }

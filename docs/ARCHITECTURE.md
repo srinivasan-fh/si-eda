@@ -72,13 +72,23 @@ This gives us:
     routes every connection over ~2 mm tiles with negotiated congestion, the same A* then searches only that
     corridor (search state paged per tile), nets with disjoint corridors run on several `std::thread`s against the
     same board state and commit in routing order (identical copper for any thread count), and failures are repaired
-    by ripping up only the nets in their way. Smaller boards keep the classic router bit for bit.
+    by ripping up only the nets in their way. Smaller boards keep the classic router bit for bit. On BGA boards the
+    corridor router's first pass searches a multi-resolution grid (a ~0.25 mm lattice away from pads and BGA fields);
+    if that leaves connections open, the board is routed again on the full grid and the better result is kept.
+  - The pass loop is a function (`runPass`): routing passes, rip-up / recovery passes and the via-minimisation stage
+    (batches of nets that lie apart, each re-routed alone with costly layer changes) all run through it.
+  - Strategy options (`AutorouteOptions`, `BoardSettings::autorouter`; every default is the old behaviour): coupled
+    differential pairs (`CoupledPairRouter.inc`: a centre-line A* whose state carries direction, polarity side and
+    run length, members offset at the pair spacing, coupled via pairs), length-aware routing, via minimisation, gloss /
+    arcs / teardrops (`RouteQuality.cpp`, through the interactive router's engines, each undone if it opens a
+    connection), keep-outs, scope (nets, net class, area; other copper fixed), locked copper, per-class layers.
+    `RouteStats::report` (pairs, lengths, metrics) is kept as `PcbLayout::lastRouteReport`.
   - `RouteControl` reports progress from the routing thread and cancels (leaving the board unchanged); the app shows it
     in the status bar with Stop.
 - **Tracks** are straight segments or true circular arcs (`Track::arc`, 3-point form). Every consumer measures them
   through `TrackGeometry.hpp` (exact arc distances, lengths, bounds, tangents); for a straight track each function is
   the segment formula used before arcs, so boards without arcs give bit-identical results. Gerber writes arcs with
-  `G75`/`G02`/`G03`. The autorouter writes straight tracks only (it rips up all routing first).
+  `G75`/`G02`/`G03`. The autorouter writes straight tracks unless its arc-corners option is on, and rips up the routing first unless a strategy scope or locked copper keeps it.
 - **DRC.** Exact geometric checks on the routed copper (segment–segment, segment–rectangle, point–circle and the
   arc cases), edge clearance, courtyard overlap, and unrouted connections. Pairs are found through a uniform-grid
   spatial index, in the order of a full scan, so large boards check in O(n log n) with identical reports. Unrouted connections are found

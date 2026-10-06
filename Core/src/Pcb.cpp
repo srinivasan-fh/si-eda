@@ -4167,7 +4167,12 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                             }
                             if (!ids.empty())
                                 for (uint32_t c : *run)
-                                    if (!box || box->contains(grid.cellPos(c))) emit(f.layer, static_cast<size_t>(c));
+                                    if ((!box || box->contains(grid.cellPos(c))) &&
+                                        // Corridor router: a poured cell a track of the net could not occupy (the
+                                        // raster reaches a little closer to other copper than the routing keep-outs)
+                                        // is no place for a connection to start or end.
+                                        (!corridorMode || grid.passable(f.layer, static_cast<size_t>(c), net)))
+                                        emit(f.layer, static_cast<size_t>(c));
                         }
                         off += static_cast<size_t>(f.islands);
                     }
