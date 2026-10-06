@@ -17,4 +17,14 @@ namespace sieda::routequality {
 /// → N net) is tuned with its partner as a pair. Returns one report per net with a target.
 std::vector<LengthRouteReport> tuneLengthTargets(PcbLayout& pcb, const Schematic& sch, const std::map<int, int>& coupledPartner);
 
+/// Glossing (interactive gloss with re-search) of every routed line except those of `skipNets` and locked tracks.
+/// Returns the lines it improved.
+int glossRouted(PcbLayout& pcb, const Schematic& sch, const std::set<int>& skipNets);
+/// True-arc corners on the routed copper (convertCornersToArcs; radius 0 = automatic). Returns the corners converted.
+int arcRouted(PcbLayout& pcb, const Schematic& sch, double radius);
+/// Teardrops on every pad and via joint (addTeardrops). Returns the teardrops added.
+int teardropsRouted(PcbLayout& pcb, const Schematic& sch);
+/// Fills the board measurements of `m` (vias by kind, length per layer, segments, arcs, teardrops, unrouted).
+void measure(const PcbLayout& pcb, const Schematic& sch, RouteMetrics& m);
+
 }  // namespace sieda::routequality

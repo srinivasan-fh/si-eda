@@ -16206,3 +16206,69 @@ TEST(autoroute_length_aware_rules_and_match_groups) {
     CHECK(autorouteOptionsFromJson(autorouteOptionsToJson(p.pcb.settings.autorouter)) == p.pcb.settings.autorouter);
     CHECK(routeReportJson(st.report).get("lengths").size() == 5);
 }
+
+TEST(autoroute_keepouts_and_quality_passes) {
+    // A keep-out across the direct path: the router goes around it, and the DRC flags copper drawn into it.
+    {
+        Project p;
+        auto& s = p.schematic;
+        p.pcb.settings.width = 60;
+        p.pcb.settings.height = 40;
+        const int a = placeR(p, {10, 20}), b = placeR(p, {50, 20});
+        wire(s, a, "2", b, "1");
+        p.schematicChanged();
+        RouteKeepout k;
+        k.name = "K1";
+        k.area = Rect(25, 5, 35, 35);
+        k.layer = 0;  // top only: the router may pass on the bottom
+        p.pcb.settings.keepouts.push_back(k);
+        RouteStats st = p.pcb.autoRoute(s);
+        CHECK(st.failed == 0);
+        for (const auto& t : p.pcb.tracks) CHECK(t.layer != 0 || trackRectDistance(t, k.area) >= t.width / 2 - 1e-9);
+        CHECK(routeDrcErrors(p).empty());
+        // Saved with the board.
+        Project q = Project::fromJson(p.toJson());
+        CHECK(q.pcb.settings.keepouts.size() == 1 && q.pcb.settings.keepouts[0].name == "K1" && q.pcb.settings.keepouts[0].layer == 0);
+        // Copper drawn into it is a DRC error.
+        Track t;
+        t.net = p.pcb.tracks.front().net;
+        t.layer = 0;
+        t.a = {27, 20};
+        t.b = {33, 20};
+        p.pcb.addTrack(t);
+        bool flagged = false;
+        for (const auto& v : p.pcb.runDRC(s)) flagged = flagged || (v.code == "DRC_KEEPOUT" && v.severity == Severity::Error);
+        CHECK(flagged);
+    }
+    // Quality passes on a denser board: via minimisation, gloss, arc corners and teardrops — complete and DRC-clean,
+    // and the metrics agree with the board.
+    Project plain = amplifierProject();
+    plain.pcb.settings.width = 40;
+    plain.pcb.settings.height = 30;
+    plain.pcb.autoPlace(plain.schematic, true);
+    Project q = plain;
+    RouteStats a = plain.pcb.autoRoute(plain.schematic);
+    q.pcb.settings.autorouter.minimizeVias = true;
+    q.pcb.settings.autorouter.gloss = true;
+    q.pcb.settings.autorouter.arcCorners = true;
+    q.pcb.settings.autorouter.teardrops = true;
+    RouteStats b = q.pcb.autoRoute(q.schematic);
+    std::printf("    plain: %d vias %.1f mm; quality: %d vias (-%d, %d nets re-routed) %.1f mm, %d glossed, %d arcs, %d teardrops\n",
+                a.report.metrics.vias, a.report.metrics.trackLength, b.report.metrics.vias, b.report.metrics.viasRemoved,
+                b.report.metrics.netsRerouted, b.report.metrics.trackLength, b.report.metrics.glossed, b.report.metrics.arcsAdded,
+                b.report.metrics.teardropsAdded);
+    CHECK(a.failed == 0 && b.failed == 0);
+    CHECK(b.report.metrics.unrouted == 0);
+    CHECK(b.report.metrics.vias <= a.report.metrics.vias);
+    CHECK(b.report.metrics.arcs > 0 && b.report.metrics.teardrops > 0);
+    CHECK(b.report.metrics.vias == static_cast<int>(q.pcb.vias.size()));
+    double sum = 0;
+    for (double l : b.report.metrics.layerLength) sum += l;
+    CHECK(std::fabs(sum - b.report.metrics.trackLength) < 1e-6 && b.report.metrics.layerLength.size() == 2);
+    const auto errors = routeDrcErrors(q);
+    for (const auto& e : errors) std::printf("    %s\n", e.c_str());
+    CHECK(errors.empty());
+    // The default route measures the board too, and its report is JSON.
+    CHECK(a.report.metrics.segments == static_cast<int>(plain.pcb.tracks.size()) && a.report.metrics.unrouted == 0);
+    CHECK(routeReportJson(b.report).get("metrics").get("vias").asInt(-1) == b.report.metrics.vias);
+}

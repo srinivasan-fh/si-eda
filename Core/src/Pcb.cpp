@@ -1371,6 +1371,24 @@ public:
     double classExtra(int net) const {
         return net >= 0 && static_cast<size_t>(net) < classExtra_.size() ? classExtra_[static_cast<size_t>(net)] : 0.0;
     }
+    /// Routing keep-out: track centre lines stay `trackReach` outside `area` on layer l (every layer when l < 0), vias
+    /// `viaReach` outside it.
+    void blockKeepout(const Rect& area, int layer, bool tracks, bool vias, double trackReach, double viaReach) {
+        if (tracks) {
+            const Rect r = area.inflated(trackReach);
+            forCellsIn(r, [&](int i, int j) {
+                if (!r.contains(pos(i, j))) return;
+                for (int l = 0; l < layers_; ++l)
+                    if (layer < 0 || l == layer) owner_[L(l)].set(idx(i, j), -2);
+            });
+        }
+        if (vias) {
+            const Rect r = area.inflated(viaReach);
+            forCellsIn(r, [&](int i, int j) {
+                if (r.contains(pos(i, j))) noVia_[idx(i, j)] = 1;
+            });
+        }
+    }
     /// Multi-resolution grid (corridor router, BGA boards): outside the `fine` cells (around pads and BGA fields)
     /// searches move on a lattice of `step` cells; fine cells keep the full grid. step 1 = off.
     void setCoarse(int step, std::vector<char> fine) {
@@ -1818,7 +1836,23 @@ public:
             viaStamp_.resize(nl, 0);
         }
     }
-    bool allowed(size_t c) const { return !corridor_ || slotOf(c) >= 0; }
+    bool allowed(size_t c) const {
+        if (boxed_) {
+            const int i = static_cast<int>(c % cells2D()), j = static_cast<int>(c / cells2D());
+            if (i < boxI0_ || i > boxI1_ || j < boxJ0_ || j > boxJ1_) return false;
+        }
+        return !corridor_ || slotOf(c) >= 0;
+    }
+    /// Confines the following searches to the cells of columns i0…i1, rows j0…j1 (via minimisation); clearBox() ends it.
+    void setBox(int cols, int i0, int j0, int i1, int j1) {
+        boxed_ = true;
+        boxCols_ = cols;
+        boxI0_ = i0;
+        boxJ0_ = j0;
+        boxI1_ = i1;
+        boxJ1_ = j1;
+    }
+    void clearBox() { boxed_ = false; }
     /// Target cells of the next search (cleared by beginTargets): per grid cell, a mask of its target layers.
     void beginTargets() { bump(targetGen_, target_); }
     void addTarget(size_t node) {
@@ -1945,6 +1979,9 @@ private:
     std::vector<uint32_t> viaStamp_;
     std::vector<std::pair<float, int>> open_;
     std::vector<Vec2> ownVias_;
+    size_t cells2D() const { return static_cast<size_t>(boxCols_); }
+    bool boxed_ = false;  // setBox: searches stay inside the box
+    int boxCols_ = 1, boxI0_ = 0, boxJ0_ = 0, boxI1_ = 0, boxJ1_ = 0;
     uint32_t gen_ = 0, targetGen_ = 0, neckGen_ = 0, viaGen_ = 0;
     bool hasNeck_ = false;
 };
@@ -2479,7 +2516,40 @@ RouteStats PcbLayout::routeWithVoltageSpacing(const Schematic& sch, const RouteC
     // Mains boards fence their high-voltage nets instead (spacingDomains), so fine-pitch parts keep their rules.
     if (spacingDomains(sch, settings).hvGap <= 0)
         settings.clearance = std::max(ruleClearance, voltageRoutingClearance(sch, settings.highAltitude, settings.coated()));
-    return routeAll(sch, control);
+    // The corridor router's multi-resolution grid is fast but coarser: when it leaves connections unrouted, the board is
+    // routed again on the full grid and the better of the two results is kept (fewer unrouted; the first on a tie).
+    const std::vector<Track> tracksBefore = tracks;
+    const std::vector<Via> viasBefore = vias;
+    fullResolutionOnly_ = false;
+    // Progress: the finishing phase is reported once, even when a second route follows.
+    RouteControl once;
+    bool finishingSent = false;
+    const RouteControl* outer = control;
+    if (outer)
+        once.progress = [outer, &finishingSent](const RouteProgress& r) {
+            if (r.phase == RouteProgress::Finishing) {
+                if (finishingSent) return true;
+                finishingSent = true;
+            }
+            return outer->progress(r);
+        };
+    control = control ? &once : nullptr;
+    RouteStats first = routeAll(sch, control);
+    if (first.failed == 0 || !usedCoarse_) return first;
+    const std::vector<Track> firstTracks = tracks;
+    const std::vector<Via> firstVias = vias;
+    tracks = tracksBefore;
+    vias = viasBefore;
+    struct FullOff {
+        bool& f;
+        ~FullOff() { f = false; }
+    } fullOff{fullResolutionOnly_};
+    fullResolutionOnly_ = true;
+    RouteStats second = routeAll(sch, control);
+    if (second.failed < first.failed) return second;
+    tracks = firstTracks;
+    vias = firstVias;
+    return first;
 }
 
 std::vector<TamperMeshGeometry> PcbLayout::tamperMeshGeometry(const Schematic& sch, const std::vector<Pad>& ps) const {
@@ -2824,6 +2894,12 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             grid.setClassExtra(std::move(ce));
         }
         for (const auto& p : ps) grid.markPad(p, clr + classExtra(p.net) + w / 2);
+        if (!settings.keepouts.empty()) {
+            double widest = w;
+            for (const auto& [name, width] : settings.netWidths) widest = std::max(widest, width);
+            for (const RouteKeepout& k : settings.keepouts)
+                grid.blockKeepout(k.area, k.layer, k.tracks, k.vias, widest / 2 + grid.pitch(), settings.viaDiameter / 2 + grid.pitch());
+        }
         if (spacing.gap > 0) {
             double widest = settings.trackWidth;
             for (const auto& [name, width] : settings.netWidths) widest = std::max(widest, width);
@@ -2919,7 +2995,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     // 0.25 mm (setCoarse), which cuts the nodes a long connection expands several times over.
     int coarseStep = 1;
     std::vector<char> fineCells;
-    if (corridorMode && settings.routingGrid < 0.2 - 1e-9) {
+    if (corridorMode && settings.routingGrid < 0.2 - 1e-9 && !fullResolutionOnly_) {
         coarseStep = std::max(1, static_cast<int>(std::floor(0.25 / settings.routingGrid + 1e-9)));
         const double g = settings.routingGrid;
         fineCells.assign(static_cast<size_t>(gridCols) * static_cast<size_t>(gridRows), 0);
@@ -2945,6 +3021,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             for (const Vec2& e : m.ends) markRect(Rect::centered(e, 2.0, 2.0));
         if (coarseStep <= 1) fineCells.clear();
     }
+    usedCoarse_ = coarseStep > 1;
     std::vector<std::unique_ptr<AStarWorkspace>> threadWs;  // one search workspace per routing thread
     // Each signal net's connections in routing order: (target pad, nearest connected pad), as list indices. The order
     // depends on pad positions only, so it is known before anything routes.
@@ -3062,7 +3139,20 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         }
     }
     bool pairsRouted = false;
-    for (int pass = 0;; ++pass) {
+    // Via minimisation (AutorouteOptions::minimizeVias), after the routing passes: batches of nets whose areas lie apart,
+    // each batch on a grid holding the best pass's copper without the batch nets' own routed copper.
+    size_t bestFixedTracks = 0, bestFixedVias = 0;  // the best pass's fixed copper (fan-outs, meshes, coupled pairs)
+    bool viaStage = false;
+    size_t viaBatch = 0;
+    struct ViaCandidate {
+        int net;
+        Rect box;  // where its new route must stay
+    };
+    std::vector<std::vector<ViaCandidate>> viaBatches;
+    int viasRemoved = 0, netsRerouted = 0;
+    constexpr double kViaMinCost = 36.0;  // three times a normal layer change
+    // One routing pass (the first, a rip-up or a recovery pass); false when the passes are over.
+    auto runPass = [&](int pass) -> bool {
         progressNow.phase = pass == 0 ? RouteProgress::Routing : RouteProgress::RipUp;
         progressNow.pass = pass;
         progressNow.done = 0;
@@ -3070,7 +3160,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         report();
         const size_t forcedBefore = forcedConnect.size();
         // Recovery and corridor rip-up passes make layer changes cheaper, which helps a net past a blockage.
-        const double passViaCost = recovery || (corridorMode && pass > 0) ? kRecoveryViaCost : kViaCost;
+        const double passViaCost = viaStage ? kViaMinCost : recovery || (corridorMode && pass > 0) ? kRecoveryViaCost : kViaCost;
         const Congestion* passCongestion =
             recovery || (corridorMode && pass > 0 && kRipUpChains[ripChain].congestion) ? congestion.get() : nullptr;
         std::vector<FailedConnection> failedConnections;
@@ -3090,8 +3180,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         AStarWorkspace& ws = corridorMode ? *threadWs.front() : *astarWs;
         const size_t gridCells = static_cast<size_t>(grid.cols() * grid.rows());
         prepareGrid(grid);
-        // The lattice speeds up the first pass; rip-up passes route the few nets they rip at full resolution.
-        if (coarseStep > 1 && pass == 0) grid.setCoarse(coarseStep, fineCells);
+        if (coarseStep > 1) grid.setCoarse(coarseStep, fineCells);
         profile.since("grid set-up", tGrid);
         auto tFixed = profile.now();
         std::vector<Track> outT;
@@ -3280,6 +3369,68 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             return true;
         };
 
+        if (viaStage) {
+            // The best pass's copper, without the batch nets' own routed copper; then each batch net alone, inside its box.
+            const std::vector<ViaCandidate>& batch = viaBatches[viaBatch];
+            std::set<int> inBatch;
+            for (const ViaCandidate& vc : batch) inBatch.insert(vc.net);
+            for (size_t t = 0; t < bestTracks.size(); ++t)
+                if (t < bestFixedTracks || !inBatch.count(bestTracks[t].net)) markFixedTrack(grid, bestTracks[t]);
+            for (size_t v = 0; v < bestVias.size(); ++v)
+                if (v < bestFixedVias || !inBatch.count(bestVias[v].net)) markFixedVia(grid, bestVias[v]);
+            if (corridorMode) grid.markFixedEnd();
+            std::map<int, std::pair<std::vector<Track>, std::vector<Via>>> replaced;
+            for (const ViaCandidate& vc : batch) {
+                const int net = vc.net;
+                const auto& list = netPads[net];
+                const double gp = grid.pitch();
+                ws.setBox(grid.cols(), std::max(0, static_cast<int>(std::floor(vc.box.x0 / gp))), std::max(0, static_cast<int>(std::floor(vc.box.y0 / gp))),
+                          std::min(grid.cols() - 1, static_cast<int>(std::ceil(vc.box.x1 / gp))), std::min(grid.rows() - 1, static_cast<int>(std::ceil(vc.box.y1 / gp))));
+                const size_t t0 = outT.size(), v0 = outV.size();
+                NearestPad nearest(ps, list);
+                nearest.connect(0);
+                std::vector<std::pair<int, size_t>> tree;
+                padCells(ps[list[0]], tree);
+                bool all = true;
+                for (size_t done = 1; done < list.size() && all; ++done) {
+                    const size_t target = nearest.next();
+                    nearest.connect(target);
+                    all = connect(net, list, tree, ps[list[target]]);
+                }
+                ws.clearBox();
+                if (!all) continue;
+                int oldVias = 0, newVias = static_cast<int>(outV.size() - v0);
+                double oldLen = 0, newLen = 0;
+                for (size_t t = bestFixedTracks; t < bestTracks.size(); ++t)
+                    if (bestTracks[t].net == net) oldLen += trackLength(bestTracks[t]);
+                for (size_t v = bestFixedVias; v < bestVias.size(); ++v) oldVias += bestVias[v].net == net ? 1 : 0;
+                for (size_t t = t0; t < outT.size(); ++t) newLen += trackLength(outT[t]);
+                if (newVias < oldVias && newLen <= oldLen * 1.25 + 1.0) {
+                    replaced[net] = {std::vector<Track>(outT.begin() + static_cast<std::ptrdiff_t>(t0), outT.end()),
+                                     std::vector<Via>(outV.begin() + static_cast<std::ptrdiff_t>(v0), outV.end())};
+                    viasRemoved += oldVias - newVias;
+                    ++netsRerouted;
+                    best.vias -= oldVias - newVias;
+                    best.trackLength += newLen - oldLen;
+                }
+            }
+            // The kept nets' copper: their new route in place of the old one (fixed copper first, as before).
+            if (!replaced.empty()) {
+                std::vector<Track> nt(bestTracks.begin(), bestTracks.begin() + static_cast<std::ptrdiff_t>(bestFixedTracks));
+                std::vector<Via> nv(bestVias.begin(), bestVias.begin() + static_cast<std::ptrdiff_t>(bestFixedVias));
+                for (size_t t = bestFixedTracks; t < bestTracks.size(); ++t)
+                    if (!replaced.count(bestTracks[t].net)) nt.push_back(bestTracks[t]);
+                for (size_t v = bestFixedVias; v < bestVias.size(); ++v)
+                    if (!replaced.count(bestVias[v].net)) nv.push_back(bestVias[v]);
+                for (const auto& [net, copper] : replaced) {
+                    nt.insert(nt.end(), copper.first.begin(), copper.first.end());
+                    nv.insert(nv.end(), copper.second.begin(), copper.second.end());
+                }
+                bestTracks = std::move(nt);
+                bestVias = std::move(nv);
+            }
+            return ++viaBatch < viaBatches.size();
+        }
         // BGA fan-out: the dogbone stubs and vias (or vias in pad), laid before any net routes.
         fanoutCells.clear();
         for (const BgaFanout& f : bgaFanouts) {
@@ -3948,9 +4099,11 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             best = stats;
             bestTracks = outT;
             bestVias = outV;
+            bestFixedTracks = fixedTracks;
+            bestFixedVias = fixedVias;
         }
         progressNow.unrouted = best.failed;
-        if (stats.failed == 0) break;
+        if (stats.failed == 0) return false;
         if (corridorMode) {
             // Targeted rip-up. Each unrouted connection searches again with other nets' routed copper passable at a
             // price; the failing nets and the nets that path crosses are ripped up, and the next pass routes them
@@ -3961,11 +4114,11 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             // strategies one after the other (kRipUpChains): each continues until kRipUpStall passes bring no
             // improvement, and the next starts again from the best pass. The best pass is kept; at most kRipUpRounds.
             ripStall = improved ? 0 : ripStall + 1;
-            if (improved && failedConnections.empty() && forcedConnect.size() == forcedBefore && zoneFailed.empty()) break;
-            if (++ripRound > kRipUpRounds) break;
+            if (improved && failedConnections.empty() && forcedConnect.size() == forcedBefore && zoneFailed.empty()) return false;
+            if (++ripRound > kRipUpRounds) return false;
             bool restart = false;
             if (ripStall >= kRipUpStall) {
-                if (++ripChain >= static_cast<int>(sizeof kRipUpChains / sizeof kRipUpChains[0])) break;
+                if (++ripChain >= static_cast<int>(sizeof kRipUpChains / sizeof kRipUpChains[0])) return false;
                 ripStall = 0;
                 restart = true;
             }
@@ -4190,7 +4343,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
             } else {
                 prevCopper = std::move(curCopper);
             }
-            continue;
+            return true;
         }
         // Rip-up and retry with the failing signal nets promoted to the front (zone nets always connect last).
         std::vector<int> next;
@@ -4201,15 +4354,15 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         if (!recovery) {
             const bool stuck = next == order && pass > 0 && forcedConnect.size() == forcedBefore;
             if (!stuck) order = next;
-            if (!stuck && pass + 1 < kRipUpPasses) continue;
+            if (!stuck && pass + 1 < kRipUpPasses) return true;
             recovery = true;  // the rip-up passes are done: recover what they left
         } else {
             // Negotiation keeps the original order: the history costs, not promotion, make room for what failed.
             order = stableOrder;
             recoveryStall = improved ? 0 : recoveryStall + 1;
-            if (++recoveryPass >= kRecoveryPasses || recoveryStall >= kRecoveryStall) break;
+            if (++recoveryPass >= kRecoveryPasses || recoveryStall >= kRecoveryStall) return false;
         }
-        if (failedConnections.empty()) break;  // nothing a corridor can help (zone nets only)
+        if (failedConnections.empty()) return false;  // nothing a corridor can help (zone nets only)
         // The unobstructed grid: only pads, fences and the fixed fan-out copper.
         RoutingGrid unobstructed(settings, nets.size());
         prepareGrid(unobstructed);
@@ -4245,6 +4398,57 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                         owner = owner == -2 || owner == f.net ? f.net : -1;
                     }
         }
+        return true;
+    };
+    int lastPass = 0;
+    for (int pass = 0;; ++pass) {
+        lastPass = pass;
+        if (!runPass(pass)) break;
+    }
+    // Via minimisation: candidate nets are routed signal nets with vias of their own; batches hold nets whose boxes
+    // (their pads and copper, widened by 2 mm) lie at least the clearance reach apart, so they cannot see each other.
+    const std::vector<Track> tracksBeforeViaMin = ropt.minimizeVias ? bestTracks : std::vector<Track>{};
+    const std::vector<Via> viasBeforeViaMin = ropt.minimizeVias ? bestVias : std::vector<Via>{};
+    if (ropt.minimizeVias && settings.layerCount > 1 && !bestTracks.empty()) {
+        const std::set<std::string> failedNames(best.failedNets.begin(), best.failedNets.end());
+        double widest = std::max(w, settings.viaDiameter);
+        for (const auto& [name, width] : settings.netWidths) widest = std::max(widest, width);
+        const double apart = 2 * (widest + clr + maxExtraAll) + settings.viaDiameter;
+        std::vector<ViaCandidate> cands;
+        for (int net : stableOrder) {
+            if (failedNames.count(nets[static_cast<size_t>(net)].name)) continue;
+            if (std::find(order.begin(), order.end(), net) == order.end()) continue;  // coupled pairs are fixed copper
+            int own = 0;
+            for (size_t v = bestFixedVias; v < bestVias.size(); ++v) own += bestVias[v].net == net ? 1 : 0;
+            if (own == 0) continue;
+            Rect box = ps[netPads[net][0]].bounds();
+            auto grow = [&](Rect r) { box = Rect(std::min(box.x0, r.x0), std::min(box.y0, r.y0), std::max(box.x1, r.x1), std::max(box.y1, r.y1)); };
+            for (size_t pi : netPads[net]) grow(ps[pi].bounds());
+            for (size_t t = bestFixedTracks; t < bestTracks.size(); ++t)
+                if (bestTracks[t].net == net) grow(Rect(bestTracks[t].a.x, bestTracks[t].a.y, bestTracks[t].a.x, bestTracks[t].a.y)), grow(Rect(bestTracks[t].b.x, bestTracks[t].b.y, bestTracks[t].b.x, bestTracks[t].b.y));
+            cands.push_back({net, box.inflated(2.0)});
+        }
+        // Greedy batches in routing order; at most kViaMinBatches grids are built.
+        constexpr size_t kViaMinBatches = 24;
+        std::vector<char> placed(cands.size(), 0);
+        for (size_t b = 0; b < kViaMinBatches; ++b) {
+            std::vector<ViaCandidate> batch;
+            for (size_t k = 0; k < cands.size(); ++k) {
+                if (placed[k]) continue;
+                bool clear = true;
+                for (const ViaCandidate& o : batch) clear = clear && !cands[k].box.inflated(apart).intersects(o.box);
+                if (!clear) continue;
+                placed[k] = 1;
+                batch.push_back(cands[k]);
+            }
+            if (batch.empty()) break;
+            viaBatches.push_back(std::move(batch));
+        }
+        if (!viaBatches.empty()) {
+            viaStage = true;
+            for (int pass = lastPass + 1;; ++pass)
+                if (!runPass(pass)) break;
+        }
     }
 
     progressNow.phase = RouteProgress::Finishing;
@@ -4252,11 +4456,43 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     tracks.clear();
     vias.clear();
     auto tFinish = profile.now();
+    if (netsRerouted > 0) {
+        // Pours fill around the final copper: if a re-routed net cut a pour so that a connection is lost, the via
+        // minimisation is undone.
+        auto unroutedWith = [&](const std::vector<Track>& ts, const std::vector<Via>& vs) {
+            PcbLayout tmp = *this;
+            tmp.tracks.clear();
+            tmp.vias.clear();
+            for (const Track& t : ts) tmp.addTrack(t);
+            for (const Via& v : vs) tmp.addVia(v);
+            return tmp.ratsnest(sch).size();
+        };
+        if (unroutedWith(bestTracks, bestVias) > unroutedWith(tracksBeforeViaMin, viasBeforeViaMin)) {
+            bestTracks = tracksBeforeViaMin;
+            bestVias = viasBeforeViaMin;
+            best.vias += viasRemoved;
+            viasRemoved = netsRerouted = 0;
+            best.trackLength = 0;
+            for (const Track& t : bestTracks) best.trackLength += trackLength(t);
+        }
+    }
     neckDownWith(bestTracks, ps, neckWidths, padsByNet, settings.clearance);
     for (auto& t : bestTracks) addTrack(t);
     for (auto& v : bestVias) addVia(v);
+    cleanupKeepsJoins_ = corridorMode;
     cleanupRouting(sch);
+    cleanupKeepsJoins_ = false;
     profile.since("clean-up", tFinish);
+    tFinish = profile.now();
+    // Coupled pairs are left out of glossing and via minimisation (both members would have to move together).
+    std::set<int> pairNets;
+    for (size_t k = 0; k < pairPlans.size() && k < pairLayouts.size(); ++k)
+        if (pairLayouts[k].ok) pairNets.insert({pairPlans[k].netP, pairPlans[k].netN});
+    RouteMetrics metrics;
+    metrics.viasRemoved = viasRemoved;
+    metrics.netsRerouted = netsRerouted;
+    if (ropt.gloss) metrics.glossed = routequality::glossRouted(*this, sch, pairNets);
+    profile.since("gloss", tFinish);
     tFinish = profile.now();
     // HDI: blind / buried / microvias cut to the layers each via connects.
     if (settings.hdi) applyHdiVias(sch);
@@ -4294,6 +4530,10 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
         rep.skew = std::fabs(lp - ln);
     }
     best.report.pairs = std::move(pairReports);
+    if (ropt.arcCorners) metrics.arcsAdded = routequality::arcRouted(*this, sch, ropt.arcRadius);
+    if (ropt.teardrops) metrics.teardropsAdded = routequality::teardropsRouted(*this, sch);
+    routequality::measure(*this, sch, metrics);
+    best.report.metrics = std::move(metrics);
     profile.since("length-aware, report", tFinish);
     return best;
 }
@@ -4371,8 +4611,9 @@ int PcbLayout::cleanupRouting(const Schematic& sch) {
             if ((vias[vi].position - p).length() <= 1e-6) return true;
         // A joint inside a via's pad but off its centre (a route that ended on the via's edge): reshaping it could pull
         // the copper off the via.
-        for (size_t vi : viaIx.query(Rect::centered(p, 2.0, 2.0)))
-            if (vias[vi].spans(layer) && (vias[vi].position - p).length() < vias[vi].diameter / 2 + 1e-6) return true;
+        if (cleanupKeepsJoins_)
+            for (size_t vi : viaIx.query(Rect::centered(p, 2.0, 2.0)))
+                if (vias[vi].spans(layer) && (vias[vi].position - p).length() < vias[vi].diameter / 2 + 1e-6) return true;
         return false;
     };
     // Clearance of a new piece of copper (segment a–b, width w, net) to everything of other nets on its layer.
@@ -4451,8 +4692,10 @@ int PcbLayout::cleanupRouting(const Schematic& sch) {
                 if (!fits) continue;
                 // A track of the net that ends on one of the two legs near the corner (a T-join) must still touch the
                 // chamfered corner; otherwise the chamfer would cut it off.
+                // (Routes of the corridor router only: the classic router's results stay exactly as they were.)
                 bool cutsJoin = false;
-                for (size_t k : trackIx->query(Rect::centered(p, 2 * (c + ti.width) + 1e-3, 2 * (c + ti.width) + 1e-3))) {
+                const Rect joinBox = Rect::centered(p, 2 * (c + ti.width) + 1e-3, 2 * (c + ti.width) + 1e-3);
+                for (size_t k : cleanupKeepsJoins_ ? trackIx->query(joinBox) : std::vector<size_t>{}) {
                     if (k == i || k == j || removed[k] || tracks[k].net != ti.net || tracks[k].layer != ti.layer) continue;
                     for (Vec2 e : {tracks[k].a, tracks[k].b}) {
                         const double reach = std::min(ti.width, tracks[k].width) / 2;
@@ -5125,6 +5368,23 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
     // Length rules and match groups (only when the board has any).
     if (!settings.lengthRules.empty() || !settings.matchGroups.empty())
         for (auto& v : lengthRuleViolations(*this, sch)) out.push_back(std::move(v));
+
+    // Routing keep-outs: no track (on the keep-out's layer) or via inside one.
+    for (const RouteKeepout& k : settings.keepouts) {
+        const std::string what = k.name.empty() ? std::string("a keep-out") : "keep-out " + k.name;
+        if (k.tracks)
+            for (const Track& t : tracks)
+                if ((k.layer < 0 || t.layer == k.layer) && trackRectDistance(t, k.area) < t.width / 2 - eps) {
+                    add(Severity::Error, "DRC_KEEPOUT", "A track of " + netName(t.net) + " runs inside " + what + ".", (t.a + t.b) * 0.5);
+                    break;
+                }
+        if (k.vias)
+            for (const Via& v : vias)
+                if ((k.layer < 0 || v.spans(k.layer)) && pointRectDistance(v.position, k.area) < v.diameter / 2 - eps) {
+                    add(Severity::Error, "DRC_KEEPOUT", "A via of " + netName(v.net) + " stands inside " + what + ".", v.position);
+                    break;
+                }
+    }
 
     // Connectivity.
     auto lines = ratsnest(sch);

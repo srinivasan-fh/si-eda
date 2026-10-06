@@ -95,4 +95,78 @@ std::vector<LengthRouteReport> tuneLengthTargets(PcbLayout& pcb, const Schematic
     return out;
 }
 
+namespace {
+/// Runs a board edit and undoes it when it leaves more connections unrouted than before (a safety net: the edits keep
+/// every rule, but a line pulled tight could still let go of a join it did not know about).
+template <typename Edit>
+int keepingConnections(PcbLayout& pcb, const Schematic& sch, Edit edit) {
+    const std::vector<Track> tracks = pcb.tracks;
+    const std::vector<Via> vias = pcb.vias;
+    const size_t before = pcb.ratsnest(sch).size();
+    const int done = edit();
+    if (done > 0 && pcb.ratsnest(sch).size() > before) {
+        pcb.tracks = tracks;
+        pcb.vias = vias;
+        return 0;
+    }
+    return done;
+}
+}  // namespace
+
+int glossRouted(PcbLayout& pcb, const Schematic& sch, const std::set<int>& skipNets) {
+    std::vector<int> ids;
+    for (const Track& t : pcb.tracks)
+        if (t.net >= 0 && !t.locked && !t.arc && !t.teardrop && !skipNets.count(t.net)) ids.push_back(t.id);
+    if (ids.empty()) return 0;
+    return keepingConnections(pcb, sch, [&] {
+        GlossOptions o;
+        o.retrace = true;
+        const BoardEditResult r = glossTracks(pcb, sch, ids, o);
+        return r.applied ? r.added : 0;
+    });
+}
+
+int arcRouted(PcbLayout& pcb, const Schematic& sch, double radius) {
+    std::vector<int> ids;
+    for (const Track& t : pcb.tracks)
+        if (t.net >= 0 && !t.locked && !t.arc && !t.teardrop) ids.push_back(t.id);
+    if (ids.empty()) return 0;
+    return keepingConnections(pcb, sch, [&] {
+        ArcCornersOptions o;
+        o.radius = radius;
+        const ArcCornersResult r = convertCornersToArcs(pcb, sch, ids, o);
+        return r.applied ? r.converted : 0;
+    });
+}
+
+int teardropsRouted(PcbLayout& pcb, const Schematic& sch) {
+    return keepingConnections(pcb, sch, [&] {
+        const BoardEditResult r = addTeardrops(pcb, sch, TeardropOptions{});
+        return r.applied ? r.added : 0;
+    });
+}
+
+void measure(const PcbLayout& pcb, const Schematic& sch, RouteMetrics& m) {
+    const int layers = std::max(1, pcb.settings.layerCount);
+    m.layerLength.assign(static_cast<size_t>(layers), 0.0);
+    m.vias = static_cast<int>(pcb.vias.size());
+    m.microvias = m.blindVias = 0;
+    for (const Via& v : pcb.vias) {
+        const std::string kind = viaKind(v, layers);
+        if (kind == "microvia") ++m.microvias;
+        else if (kind != "through") ++m.blindVias;
+    }
+    m.trackLength = 0;
+    m.segments = static_cast<int>(pcb.tracks.size());
+    m.arcs = m.teardrops = 0;
+    for (const Track& t : pcb.tracks) {
+        const double len = t.teardrop ? 0.0 : trackLength(t);  // teardrops are joints, not routed length
+        m.trackLength += len;
+        if (t.layer >= 0 && t.layer < layers) m.layerLength[static_cast<size_t>(t.layer)] += len;
+        m.arcs += t.arc ? 1 : 0;
+        m.teardrops += t.teardrop ? 1 : 0;
+    }
+    m.unrouted = static_cast<int>(pcb.ratsnest(sch).size());
+}
+
 }  // namespace sieda::routequality

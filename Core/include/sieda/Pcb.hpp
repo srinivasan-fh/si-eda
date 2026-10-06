@@ -47,9 +47,29 @@ struct AutorouteOptions {
     /// routing are lengthened to their target with the interactive tuner's meanders (mitred accordions); the routing
     /// report lists achieved against target for each.
     bool lengthAware = false;
+    /// Quality passes after routing. Via minimisation: each net with vias is routed again, alone, with layer
+    /// changes three times as expensive, and keeps the new copper when it has fewer vias and is at most 25 % longer.
+    bool minimizeVias = false;
+    /// Glossing: every routed line is pulled tight with the interactive router's gloss (45° shortcuts and a re-search,
+    /// kept when shorter). Coupled pairs and tuned meanders are left alone.
+    bool gloss = false;
+    /// True-arc corners on autorouted copper (convertCornersToArcs), radius `arcRadius` mm (0 = automatic).
+    bool arcCorners = false;
+    double arcRadius = 0;
+    /// Teardrops where tracks meet pads and vias (addTeardrops).
+    bool teardrops = false;
     bool operator==(const AutorouteOptions& o) const;
     bool operator!=(const AutorouteOptions& o) const { return !(*this == o); }
     bool isDefault() const { return *this == AutorouteOptions{}; }
+};
+
+/// A routing keep-out (Board Setup → Keep-outs): no track and / or no via of any net inside `area` on `layer` (-1 = every
+/// copper layer). The autorouter routes around it and the DRC reports copper inside it (DRC_KEEPOUT).
+struct RouteKeepout {
+    std::string name;
+    Rect area;
+    int layer = -1;
+    bool tracks = true, vias = true;
 };
 
 /// Copper layer index: 0 = top, `BoardSettings::bottomLayer()` = bottom, anything between = inner layer.
@@ -124,6 +144,8 @@ struct BoardSettings {
     std::vector<MatchGroup> matchGroups;
     /// Autorouter strategy (saved with the board only when it differs from the defaults).
     AutorouteOptions autorouter;
+    /// Routing keep-outs (saved only when there are any).
+    std::vector<RouteKeepout> keepouts;
     /// The autorouter first widens net classes to the IPC-2221 width for each net's simulated current.
     bool autoSizeNets = true;
     double widthFor(const std::string& netName) const {
@@ -378,10 +400,28 @@ struct LengthRouteReport {
     bool ok = false;         // achieved within target ± tolerance
     bool tuned = false;      // meanders were added
 };
+/// Quality metrics of the routed board (RouteReport::metrics).
+struct RouteMetrics {
+    int vias = 0;                     // every via on the board after routing
+    int microvias = 0, blindVias = 0;  // HDI spans (viaKind)
+    double trackLength = 0;           // mm, every track but teardrops
+    std::vector<double> layerLength;  // mm per copper layer
+    int segments = 0;                 // tracks
+    int arcs = 0;                     // true-arc tracks
+    int teardrops = 0;                // teardrop tracks
+    int unrouted = 0;                 // ratsnest lines left
+    // What the quality passes did.
+    int viasRemoved = 0;              // via minimisation
+    int netsRerouted = 0;             // nets whose copper via minimisation replaced
+    int glossed = 0;                  // lines glossing improved
+    int arcsAdded = 0;                // corners made arcs
+    int teardropsAdded = 0;
+};
 /// What an autoroute did beyond the counts in RouteStats (the routing report sheet in the app).
 struct RouteReport {
     std::vector<PairRouteReport> pairs;
     std::vector<LengthRouteReport> lengths;
+    RouteMetrics metrics;
 };
 struct RouteStats {
     RouteReport report;
@@ -461,6 +501,11 @@ public:
 
 private:
     int nextId_ = 1;
+    /// Set by the corridor router around its clean-up: corners a T-join or a via's edge depends on are not reshaped.
+    bool cleanupKeepsJoins_ = false;
+    /// The corridor router's multi-resolution grid: off for a second, full-resolution route (fullResolutionOnly_), and
+    /// whether the last route used it (usedCoarse_).
+    bool fullResolutionOnly_ = false, usedCoarse_ = false;
     mutable std::vector<ZoneFill> fillCache_;
     mutable size_t fillKey_ = 0;
     mutable bool fillValid_ = false;
