@@ -170,8 +170,8 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
         for (const auto& t : trs) {
             if (t.layer != L || t.net == net) continue;
             double rr = keep(t.net) + t.width / 2;
-            forCells(cols, rows, cell, segmentBox(t.a, t.b, rr), [&](size_t c, Vec2 at) {
-                if (pointSegmentDistance(at, t.a, t.b) < rr) block(c, at);
+            forCells(cols, rows, cell, trackBox(t, rr), [&](size_t c, Vec2 at) {
+                if (trackPointDistance(t, at) < rr) block(c, at);
             });
         }
         for (const auto& v : vs) {
@@ -219,8 +219,8 @@ std::vector<ZoneFill> PcbLayout::fillZones(const Schematic& sch, const std::vect
                 });
         for (const auto& t : trs)
             if (t.net == net && t.layer == L)
-                forCells(cols, rows, cell, segmentBox(t.a, t.b, t.width / 2 + touch), [&](size_t c, Vec2 at) {
-                    if (pointSegmentDistance(at, t.a, t.b) <= t.width / 2 + touch) mark(c, at);
+                forCells(cols, rows, cell, trackBox(t, t.width / 2 + touch), [&](size_t c, Vec2 at) {
+                    if (trackPointDistance(t, at) <= t.width / 2 + touch) mark(c, at);
                 });
         for (const auto& v : vs)
             if (v.net == net && v.spans(L))
@@ -326,6 +326,10 @@ const std::vector<ZoneFill>& PcbLayout::zoneFills(const Schematic& sch) const {
     }
     for (const auto& t : tracks) {
         for (double v : {t.a.x, t.a.y, t.b.x, t.b.y, t.width}) hashD(h, v);
+        if (t.arc) {
+            hashD(h, t.mid.x);
+            hashD(h, t.mid.y);
+        }
         hashI(h, t.net);
         hashI(h, t.layer);
     }

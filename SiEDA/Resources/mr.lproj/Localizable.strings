@@ -2,7 +2,7 @@
 
 "%lld errors · %lld warnings" = "%lld त्रुटी · %lld इशारे";
 "%lld matches" = "%lld जुळण्या";
-"%lld of %lld changes selected" = "%lld निवडले, एकूण %lld बदल";
+"%lld of %lld changes selected" = "%lld निवडले (एकूण %lld बदल)";
 "%lld pins" = "%lld पिन";
 "%lld values" = "%lld मूल्ये";
 "0 derives the value from the regulator type" = "0 असल्यास मूल्य रेग्युलेटरच्या प्रकारावरून घेतले जाते";
@@ -18,6 +18,7 @@
 "3D Viewer" = "3D व्ह्यूअर";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "या ब्लॉकच्या प्रत्येक चॅनेलला प्रत मिळणारी चाइल्ड शीट";
 "A class still used by a directive cannot be deleted" = "निर्देश अजून वापरत असलेला वर्ग हटवता येत नाही";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "हार्नेस लेबल त्याच्या प्रकारातील प्रत्येक सदस्य शीटमधून नेतो (पोर्ट, शीट एंट्री किंवा ग्लोबल)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "प्रत्येक सदस्यासाठी एक एंट्री असलेले हार्नेस लेबल; प्रत्येक एंट्री तिच्या सिग्नलला जोडा. गठ्ठा दुसऱ्या शीटवर नेण्यासाठी पोर्ट किंवा शीट एंट्रीला तेच नाव आणि प्रकार द्या.";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "अनुकूली टाइम स्टेप";
 "Add Child Sheet" = "चाइल्ड शीट जोडा";
 "Add Ground Pours" = "ग्राउंड पोर जोडा";
+"Add Helper Sheet" = "सहायक शीट जोडा";
 "Add Kit to Library" = "किट लायब्ररीत जोडा";
 "Add Mesh" = "मेश जोडा";
 "Add Missing Entries" = "नसलेल्या एंट्री जोडा";
@@ -65,6 +67,7 @@
 "Align Right" = "उजवीकडे संरेखित करा";
 "Align Top" = "वर संरेखित करा";
 "Align Vertical Centres" = "उभी केंद्रे संरेखित करा";
+"Align by Symbol Outline" = "चिन्हाच्या बाह्यरेषेनुसार संरेखित करा";
 "All" = "सर्व";
 "Amplitude" = "आयाम";
 "An entry (a local net label on the bus) for every member that has none yet" = "अद्याप नसलेल्या प्रत्येक सदस्यासाठी नोंद (बसवरील स्थानिक नेट लेबल)";
@@ -85,6 +88,7 @@
 "Apply Prices to BOM" = "किंमती BOM ला लागू करा";
 "Apply Symbol" = "सिम्बॉल लागू करा";
 "Apply Tuning" = "ट्यूनिंग लागू करा";
+"Arc" = "कंस";
 "Arrange" = "मांडणी";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "स्कीमॅटिक सिम्बॉल मांडा: कोणत्याही बाजूला पिन, गट, स्टॅक केलेल्या पॉवर पिन, ऑटो अरेंज";
 "Arrange the symbol, or define the gates of a multi-unit part" = "चिन्ह मांडा, किंवा बहु-युनिट भागाचे गेट ठरवा";
@@ -96,6 +100,7 @@
 "Attach" = "जोडा";
 "Attach SPICE Model…" = "SPICE मॉडेल जोडा…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl), STL किंवा OBJ मॉडेल जोडा आणि फूटप्रिंटवर संरेखित करा";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "मॉडेल पुनरावृत्त शीटच्या या चॅनेलला जोडा; इतर चॅनेल आपले ठेवतात";
 "Audience (optional)" = "प्रेक्षक (पर्यायी)";
 "Auto" = "स्वयं";
 "Auto (fits the drawing)" = "स्वयं (रेखाटनाला बसेल)";
@@ -130,6 +135,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "बोर्ड आउटलाइन (quad-X फ्रेम, गोलाकार, वर्तुळ), माउंटिंग होल, कॉपर पोर/प्लेन आणि नेट क्लास";
 "Board thickness" = "बोर्ड जाडी";
 "Boards per order, for the order cost" = "प्रति ऑर्डर बोर्ड, ऑर्डर खर्चासाठी";
+"Body box" = "बॉडी बॉक्स";
 "Broadside" = "ब्रॉडसाइड";
 "Built-in model" = "अंगभूत मॉडेल";
 "Bus" = "बस";
@@ -152,8 +158,10 @@
 "Cascade at receiver" = "रिसीव्हरवर कॅस्केड करा";
 "Cavity model" = "कॅव्हिटी मॉडेल";
 "Centre" = "मध्य";
+"Centre Frame on Drawing" = "फ्रेम रेखाचित्रावर मध्यभागी ठेवा";
 "Centre the model on the footprint and put its lowest point on the board surface" = "मॉडेल फूटप्रिंटच्या मध्यभागी ठेवा आणि त्याचा सर्वात खालचा बिंदू बोर्डच्या पृष्ठभागावर ठेवा";
 "Changes from a WAS / IS file" = "WAS / IS फाइलमधील बदल";
+"Changes from the schematic to the board since the last update." = "शेवटच्या अद्यतनानंतर स्कीमॅटिकमधून बोर्डवर झालेले बदल.";
 "Channel" = "चॅनेल";
 "Channel %@ of %@ — edits apply to every channel" = "चॅनेल %@ (%@) — संपादने प्रत्येक चॅनेलला लागू होतात";
 "Channel Designators" = "चॅनेल संदर्भ चिन्हे";
@@ -169,6 +177,7 @@
 "Choose a part" = "पार्ट निवडा";
 "Choose the footprint for this symbol: the import is read again with this pair" = "या सिम्बॉलसाठी फूटप्रिंट निवडा: या जोडीसह इम्पोर्ट पुन्हा वाचले जाते";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "सिनेमॅटिक हेड्स-अप डिस्प्ले: प्रोजेक्टर, कण, पार्ट कॉल-आउट, डेटा स्तंभ आणि रीड-आउट";
+"Circle" = "वर्तुळ";
 "Circuit" = "सर्किट";
 "Circuit — 5 ms, 5 µs" = "सर्किट — 5 ms, 5 µs";
 "Class / board" = "वर्ग / बोर्ड";
@@ -203,6 +212,7 @@
 "Construction" = "रचना";
 "Copies" = "प्रती";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "क्लिपबोर्डच्या प्रती, प्रत्येक एक पाऊल पुढे (स्कीमॅटिक एकके, 10 = एक ग्रिड). भागांना पुढील मोकळे डेझिग्नेटर मिळतात; नेट लेबल क्रमांक वाढीनुसार वाढतात (D0 → D1 …).";
+"Copper Pours" = "कॉपर पोर";
 "Copper colours" = "कॉपर रंग";
 "Copper foil" = "तांब्याचा पत्रा";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "कॉपर लेयर: 1 = सिंगल-साइडेड (व्हाया नाहीत), बहुतेक उत्पादनांसाठी 2–6, मदरबोर्ड, सर्व्हर, मेनफ्रेम आणि GPU बेसबोर्डसाठी 8–24";
@@ -226,6 +236,7 @@
 "DEVICES" = "डिव्हाइस";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "रेखाचित्र";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "डेटाशीट";
@@ -243,6 +254,7 @@
 "Delete Type" = "प्रकार हटवा";
 "Delete Variant" = "व्हेरिएंट हटवा";
 "Delete Wire" = "वायर हटवा";
+"Delete the selected drawing" = "निवडलेले रेखाचित्र हटवा";
 "Describe your product" = "तुमच्या उत्पादनाचे वर्णन करा";
 "Description" = "वर्णन";
 "Design" = "डिझाइन";
@@ -266,7 +278,9 @@
 "Done" = "झाले";
 "Down ↓" = "खाली ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "वितरकाची डेटाशीट PDF डाउनलोड करा आणि तिची पिन तालिका काढा";
+"Drag to draw · click to place a text · Esc returns to selecting" = "काढण्यासाठी ओढा · मजकूर ठेवण्यासाठी क्लिक करा · Esc निवडीकडे परत";
 "Drag to orbit" = "फिरवण्यासाठी ड्रॅग करा";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "तयार केलेला आयत काढा; रेखाचित्रेच बॉडी असल्यास बंद करा";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "लँड पॅटर्न पॅड-दर-पॅड काढा: प्रत्येक पॅडची स्थिती, आकार, शेप, ड्रिल आणि पिन";
 "Drawn by" = "रेखाटणारे";
 "Driver" = "ड्रायव्हर";
@@ -287,6 +301,8 @@
 "Edit Symbol…" = "सिम्बॉल संपादित करा…";
 "Effort" = "प्रयत्न";
 "Enable AI assistance" = "AI सहाय्य सक्षम करा";
+"End %lld°" = "शेवट %lld°";
+"Engineering change order: review and execute the schematic's changes on the board" = "अभियांत्रिकी बदल आदेश: स्कीमॅटिकमधील बदल तपासा आणि बोर्डवर अंमलात आणा";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "हे बटण सक्षम करण्यासाठी वर तुमच्या आयडेंटिटी प्रोव्हायडरचा issuer URL आणि SiEDA चा क्लायंट ID प्रविष्ट करा (तुमच्या IT प्रशासकाला विचारा).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "प्रोसेसर, BGA आणि मोठ्या कॅपॅसिटरखाली इपॉक्सी जेणेकरून MIL-STD-901E धक्का त्यांना उखडू शकणार नाही";
 "Errors" = "त्रुटी";
@@ -294,6 +310,8 @@
 "Every pin is placed once; no pins collide" = "प्रत्येक पिन एकदाच ठेवली आहे; कोणत्याही पिन एकमेकांवर येत नाहीत";
 "Every unit is valid" = "प्रत्येक युनिट वैध आहे";
 "Exchange the wires of two interchangeable pins of this gate" = "या गेटच्या दोन अदलाबदल करता येणाऱ्या पिनच्या तारा बदला";
+"Execute Changes" = "बदल अंमलात आणा";
+"Executed" = "अंमलात आणलेले";
 "Export" = "एक्सपोर्ट";
 "Export 3D" = "3D एक्सपोर्ट करा";
 "Export Fabrication Package…" = "फॅब्रिकेशन पॅकेज एक्सपोर्ट करा…";
@@ -310,6 +328,7 @@
 "File unit" = "फाइल एकक";
 "Fill Suggested Part Numbers" = "सुचवलेले पार्ट नंबर भरा";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "प्रत्येक ओळीत बिल्ड प्रमाणावरील सर्वोत्तम ऑफरचा पुरवठादार पार्ट नंबर आणि एकक किंमत भरा";
+"Filled" = "भरलेले";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "मूल्य आणि पॅकेजवरून ठरणारे मानक पार्ट नंबर भरतो (उदा. Yageo RC0805 ";
 "Find" = "शोधा";
 "Find & Replace" = "शोधा आणि बदला";
@@ -323,6 +342,8 @@
 "Fit Board to Components" = "बोर्ड कंपोनंटनुसार फिट करा";
 "Fits every pin" = "प्रत्येक पिनला बसते";
 "Fitted" = "बसवलेले";
+"Fitted in this channel" = "या चॅनेलमध्ये बसवलेले";
+"Fitted to Entries" = "एंट्रीनुसार";
 "Fix Duplicates Only" = "फक्त डुप्लिकेट दुरुस्त करा";
 "Flicker (1/f)" = "फ्लिकर (1/f)";
 "Flight time" = "फ्लाइट टाइम";
@@ -407,11 +428,14 @@
 "Layer" = "लेयर";
 "Layer separation (exploded view)" = "लेयर विभक्तता (एक्सप्लोडेड व्ह्यू)";
 "Layers" = "लेयर";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "फक्त या चॅनेलमध्ये भाग बसवू नका (DNP); इतर चॅनेल आपले ठेवतात";
 "Length" = "लांबी";
 "Library" = "लायब्ररी";
 "Lifecycle" = "लाइफसायकल";
+"Line" = "रेषा";
 "Line loss per layer" = "प्रत्येक थराचे लाइन नुकसान";
 "Line total" = "ओळ एकूण";
+"Line width %@" = "रेषेची रुंदी %@";
 "Live Pricing" = "थेट किंमती";
 "Live Pricing…" = "थेट किंमती…";
 "Live board" = "लाइव्ह बोर्ड";
@@ -435,6 +459,8 @@
 "MESSAGES" = "संदेश";
 "Magnitude" = "मॅग्निट्यूड";
 "Make Swap Group" = "स्वॅप गट बनवा";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "या भागाचे जोडण्या सर्वाधिक लहान करणारे अदलाबदल करा; स्कीमॅटिक अनुसरण करते";
+"Make this swap on the board and in the schematic" = "हा अदलाबदल बोर्ड आणि स्कीमॅटिकमध्ये करा";
 "Manufacturer part #" = "उत्पादक पार्ट नंबर";
 "Manufacturer part number or keywords" = "उत्पादक पार्ट नंबर किंवा कीवर्ड";
 "Mask" = "मास्क";
@@ -462,6 +488,8 @@
 "Mounting" = "माउंटिंग";
 "Mouser Search API key (API Hub → Search API)." = "Mouser सर्च API की (API Hub → Search API).";
 "Move Selection Here" = "निवड येथे हलवा";
+"Move drawing" = "रेखाचित्र हलवा";
+"Move the drawing half a grid step" = "रेखाचित्र अर्धा ग्रिड हलवा";
 "Move the footprint origin to the centre of the pads" = "फूटप्रिंट ओरिजिन पॅडच्या मध्यभागी हलवा";
 "Move the pad in the numbering; pads between shift by one" = "क्रमांकनात पॅड हलवा; मधले पॅड एकने सरकतात";
 "NAVIGATOR" = "नेव्हिगेटर";
@@ -472,6 +500,7 @@
 "Net" = "नेट";
 "Net Classes" = "नेट वर्ग";
 "Net Navigator" = "नेट नेव्हिगेटर";
+"Net Rules" = "नेट नियम";
 "Net class" = "नेट वर्ग";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "नेटवरील निर्देशांसाठी नेट वर्ग: स्कीमॅटिक हे बोर्डच्या नेट नियमांचे स्रोत आहे";
 "Net model" = "नेट मॉडेल";
@@ -491,6 +520,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "या डिझाइनमध्ये डिफरेन्शियल पेअर (…_P/_N, …+/-) किंवा बस (DQ0…, DATA[0..7], ADDR…) नाहीत.";
 "No distributor API keys yet" = "अजून वितरक API की नाहीत";
 "No distributor offers." = "वितरकांच्या ऑफर नाहीत.";
+"No drawings yet: pick a tool and drag on the symbol." = "अजून रेखाचित्रे नाहीत: साधन निवडा आणि चिन्हावर ओढा.";
 "No errors or warnings." = "कोणत्याही त्रुटी किंवा इशारे नाहीत.";
 "No gates found in the pin names." = "पिनच्या नावांत गेट सापडले नाहीत.";
 "No imported model" = "आयात केलेले मॉडेल नाही";
@@ -547,6 +577,7 @@
 "Open the design verification report" = "डिझाइन पडताळणी अहवाल उघडा";
 "Open the offer on the distributor's site" = "ऑफर वितरकाच्या साइटवर उघडा";
 "Open…" = "उघडा…";
+"Optimize Swaps" = "अदलाबदल इष्टतम करा";
 "Other footprints" = "इतर फूटप्रिंट";
 "Output" = "आउटपुट";
 "Output noise" = "आउटपुट नॉइज";
@@ -558,6 +589,7 @@
 "PCB Layout" = "PCB लेआउट";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "बुकमार्क, फ्रेम आणि शीर्षक ब्लॉकसह प्रत्येक शीटचे PDF";
+"PIN / GATE SWAP" = "पिन / गेट अदलाबदल";
 "PIN SWAP" = "पिन स्वॅप";
 "PINS" = "पिन";
 "PRBS" = "PRBS";
@@ -603,6 +635,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "प्लेसमेंट, रूटिंग, पोर, DRC, Gerber Edge.Cuts आणि 3D बोर्ड आउटलाइनचे अनुसरण करतात. ";
 "Plane" = "प्लेन";
 "Plane cavity" = "प्लेन कॅव्हिटी";
+"Polygon" = "बहुभुज";
 "Port (to parent sheet)" = "पोर्ट (पालक शीटकडे)";
 "Ports: %@" = "पोर्ट: %@";
 "Power" = "पॉवर";
@@ -617,10 +650,12 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "त्रिज्या %lld";
 "Re-annotate from the board (columns)" = "बोर्डवरून पुन्हा अ‍ॅनोटेट (स्तंभ)";
 "Re-annotate from the board (rows)" = "बोर्डवरून पुन्हा अ‍ॅनोटेट (ओळी)";
 "Re-verify" = "पुन्हा पडताळा";
 "Read Pins from Datasheet" = "डेटाशीटमधून पिन वाचा";
+"Read the changes again from the schematic" = "स्कीमॅटिकमधून बदल पुन्हा वाचा";
 "Ready" = "तयार";
 "Receive equaliser, peaking chosen for the widest eye" = "रिसीव्ह इक्वलायझर, सर्वात रुंद आयसाठी पीकिंग निवडले";
 "Receiver" = "रिसीव्हर";
@@ -645,6 +680,7 @@
 "Renumber" = "पुन्हा क्रमांक द्या";
 "Repeat Sheet" = "शीट पुनरावृत्त करा";
 "Repeat Sheet…" = "शीट पुनरावृत्त करा…";
+"Repeat With Its Block" = "त्याच्या ब्लॉकसह पुनरावृत्ती";
 "Replace All" = "सर्व बदला";
 "Replace with" = "याने बदला";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "प्रत्येक शीटवरील भाग मूल्ये आणि नेट लेबल नावांमधील मजकूर बदलते (संदर्भ चिन्हे: अ‍ॅनोटेट वापरा)";
@@ -724,11 +760,13 @@
 "Search parts" = "पार्ट शोधा";
 "Searching…" = "शोधत आहे…";
 "Seat on Board" = "बोर्डवर बसवा";
+"Select" = "निवडा";
 "Select a net to analyse" = "विश्लेषणासाठी नेट निवडा";
 "Select a net to analyse its channel" = "चॅनेलचे विश्लेषण करण्यासाठी नेट निवडा";
 "Select a pad to edit its position, size, shape, drill and pin." = "पॅडची स्थिती, आकार, शेप, ड्रिल आणि पिन संपादित करण्यासाठी तो निवडा.";
 "Select a part on the schematic or PCB to edit its properties." = "गुणधर्म संपादित करण्यासाठी स्कीमॅटिक किंवा PCB वर एक पार्ट निवडा.";
 "Select an importable part to preview it." = "पूर्वावलोकनासाठी इम्पोर्ट करता येणारा पार्ट निवडा.";
+"Select and move pins and drawings" = "पिन आणि रेखाचित्रे निवडा व हलवा";
 "Select pins to move them to a side, stack them or change their order." = "पिन एखाद्या बाजूला हलवण्यासाठी, स्टॅक करण्यासाठी किंवा त्यांचा क्रम बदलण्यासाठी त्या निवडा.";
 "Send" = "पाठवा";
 "Send to" = "येथे पाठवा";
@@ -742,6 +780,7 @@
 "Sheet" = "शीट";
 "Sheet %lld of %lld" = "शीट %lld / %lld";
 "Sheet Size" = "शीट आकार";
+"Sheet Symbol Size" = "शीट चिन्हाचा आकार";
 "Sheet name" = "शीटचे नाव";
 "Shot" = "शॉट";
 "Shove" = "ढकला";
@@ -774,6 +813,7 @@
 "Simulation" = "सिम्युलेशन";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "रिअल टाइमच्या तुलनेत सिम्युलेशन वेग (स्लो मोशन वेगवान सिग्नल दाखवते)";
 "Single-ended" = "सिंगल-एंडेड";
+"Size %lld" = "आकार %lld";
 "Skew" = "स्क्यू";
 "Smooth" = "गुळगुळीत";
 "Solve the DC operating point once — shows voltage probes" = "DC ऑपरेटिंग पॉइंट एकदा सोडवा — व्होल्टेज प्रोब दाखवतो";
@@ -787,6 +827,7 @@
 "Stack repeated power pins" = "पुनरावृत्त पॉवर पिन स्टॅक करा";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "PCB लेआउटमधील लेयर सेटिंगवरून स्टॅक-अप: 1 लेयर खालची बाजू उघडी FR-4 ठेवतो; ";
 "Standard ED" = "मानक ED";
+"Start %lld°" = "सुरुवात %lld°";
 "Starting the design engine" = "डिझाइन इंजिन सुरू होत आहे";
 "Step" = "स्टेप";
 "Step response" = "स्टेप प्रतिसाद";
@@ -819,7 +860,9 @@
 "Tamper mesh over" = "टॅम्पर मेश वर";
 "Target" = "लक्ष्य";
 "Test Connection" = "कनेक्शन तपासा";
+"Text" = "मजकूर";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "ऑटोराउटर RF लाइन आणि डिफरेन्शियल पेअर (…_P/_N) यांना या इम्पीडन्सनुसार आकार देतो (IPC-2141).";
+"The board is up to date with the schematic." = "बोर्ड स्कीमॅटिकनुसार अद्ययावत आहे.";
 "The imported model replaces the built-in one in every analysis." = "आयात केलेले मॉडेल प्रत्येक विश्लेषणात अंगभूत मॉडेलची जागा घेते.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "इंटरफेस या भाषेचे अनुसरण करतो. इंजिनिअरिंग संज्ञा, पार्ट नंबर, युनिट, नेट नावे आणि डिझाइन तपासणी संदेश इंग्रजीतच राहतात जेणेकरून ते डेटाशीट आणि फॅब्रिकेशन फाइलशी जुळतील.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ऑफलाइन डिझायनर SiEDA चे अंगभूत रेफरन्स सर्किट वापरतो. नेटवर्क किंवा API की आवश्यक नाही — डेमो आणि एअर-गॅप्ड लॅबसाठी आदर्श.";
@@ -829,6 +872,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "दोन्ही गेट पॅकेजमध्ये जागा बदलतात; चिन्हे आणि तारा तशाच राहतात";
 "The victim runs on the adjacent layer, over or under the aggressor" = "बळी नेट शेजारच्या थरावर, आक्रमक नेटच्या वर किंवा खाली चालतो";
 "Thermal" = "औष्णिक";
+"This channel has its own SPICE model" = "या चॅनेलचे स्वतःचे SPICE मॉडेल आहे";
+"This channel has its own firmware" = "या चॅनेलचे स्वतःचे फर्मवेअर आहे";
+"This channel only" = "फक्त हे चॅनेल";
 "Through" = "थ्रू";
 "Title" = "शीर्षक";
 "Total jitter" = "एकूण जिटर";
@@ -844,6 +890,7 @@
 "Type a designator, value, label or net name." = "संदर्भ चिन्ह, मूल्य, लेबल किंवा नेट नाव लिहा.";
 "UNIT %@" = "युनिट %@";
 "UNITS" = "युनिट";
+"UPDATE PCB" = "PCB अद्यतन करा";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "जड पार्टचे अंडरफिल / कॉर्नर-बॉन्ड (धक्का)";
 "Undershoot" = "अंडरशूट";
@@ -856,8 +903,10 @@
 "Units" = "युनिट";
 "Unity gain" = "युनिटी गेन";
 "Unstack" = "अनस्टॅक करा";
+"Update PCB" = "PCB अद्यतन करा";
 "Upload .hex…" = ".hex अपलोड करा…";
 "Use Block Value" = "ब्लॉक मूल्य वापरा";
+"Use Block's" = "ब्लॉकचे वापरा";
 "Use the generated body again" = "पुन्हा तयार केलेली बॉडी वापरा";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "ही शीट अनेक समान चॅनेल (1 ते 64) म्हणून वापरा. प्रत्येक चॅनेलला स्वतःची संदर्भ चिन्हे, नेट आणि शीट चिन्ह मिळते; कोणतेही चॅनेल संपादित केल्यास सर्व संपादित होतात.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (KiCad लायब्ररी देतात ती .wrl), STL किंवा OBJ. STEP फाइल वाचता येत नाहीत: शेजारची .wrl वापरा.";
@@ -922,3 +971,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x उजवीकडे, y PCB दृश्याच्या वरच्या दिशेने, z बोर्डपासून वर. फिरवणे आधी x, मग y, मग z भोवती.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "पॅन करण्यासाठी ⌥-ड्रॅग किंवा दोन-बोटांनी ड्रॅग करा";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "खरे चाप";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "खरे चाप (Gerber मध्ये G02/G03); जोड्या आणि बस समकेंद्री चापांवर वळतात. बंद: लहान सरळ जीवा";
+"Accordion" = "अकॉर्डियन";
+"Trombone" = "ट्रॉम्बोन";
+"Sawtooth" = "करवतीचे दात";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "अकॉर्डियन: आयताकृती मिअँडर; ट्रॉम्बोन: एक रुंद लूप; करवतीचे दात: त्रिकोणी दात";
+"Meander corners" = "मिअँडरचे कोपरे";
+"Square" = "काटकोन";
+"Mitered" = "तिरपा कापलेला";
+"Round" = "गोलाकार";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "मिअँडरचे कोपरे: काटकोन, 45° तिरपे कापलेले किंवा गोलाकार (खरे चाप)";
+"Coupled" = "जोडलेले";
+"Differential pair: meander both members together at their gap" = "डिफरेन्शियल जोडी: दोन्ही सदस्यांना त्यांच्या अंतरावर एकत्र मिअँडर करा";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "जोडीतील सदस्याचे स्क्यू ट्यूनिंग: जोडीदारापासून दूरच्या बाजूला लहान उंचवटे, जोडीदाराच्या लांबीपर्यंत";
+"Length Rules" = "लांबीचे नियम";
+"Length targets per net and match groups, measured pad to pad through series parts" = "प्रत्येक नेटचे लांबी लक्ष्य आणि मॅच गट, मालिका भागांमधून पॅडपासून पॅडपर्यंत मोजलेले";
+"Remove the length rule" = "लांबीचा नियम काढा";
+"Tolerance" = "सहनशीलता";
+"Match Groups" = "मॅच गट";
+"Remove the match group" = "मॅच गट काढा";
+"Group name" = "गटाचे नाव";
+"Add Group" = "गट जोडा";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "सदस्य: दोन किंवा अधिक नेट निवडा. मालिका रेझिस्टर किंवा कॅपॅसिटरमधून जाणारे नेट त्यांच्या पलीकडे पॅडपासून पॅडपर्यंत मोजले जाते.";
+"Any angle" = "कोणताही कोन";
+"Route and drag at any angle: the head is one straight track to the pointer" = "कोणत्याही कोनात रूट आणि ड्रॅग करा: हेड पॉइंटरपर्यंत एक सरळ ट्रॅक आहे";
+"Remove loops" = "लूप काढा";
+"Finishing a route removes the old path of the net it makes redundant" = "रूट पूर्ण केल्यावर ते अनावश्यक करणारा नेटचा जुना मार्ग काढला जातो";
+"Auto teardrops" = "स्वयंचलित टियरड्रॉप";
+"Teardrops where each finished route meets pads and vias" = "प्रत्येक पूर्ण रूट पॅड आणि व्हियाला मिळतो तेथे टियरड्रॉप";
+"Stop at obstacle" = "अडथळ्यावर थांबा";
+"Hug obstacles" = "अडथळ्यांना बिलगून जा";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "ओढलेला ट्रॅक ढकलू न शकणाऱ्या पॅड आणि इतर तांब्याभोवती वळतो, आधीच थांबत नाही";

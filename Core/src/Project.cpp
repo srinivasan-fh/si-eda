@@ -110,6 +110,30 @@ Json boardJson(const BoardSettings& s) {
         for (const auto& n : s.schematicRuleNets) owned.push(n);
         b["schematicRuleNets"] = owned;
     }
+    if (!s.lengthRules.empty()) {
+        Json rules = Json::array();
+        for (const auto& r : s.lengthRules) {
+            Json j = Json::object();
+            j["net"] = r.net;
+            j["target"] = r.target;
+            j["tolerance"] = r.tolerance;
+            rules.push(j);
+        }
+        b["lengthRules"] = rules;
+    }
+    if (!s.matchGroups.empty()) {
+        Json groups = Json::array();
+        for (const auto& g : s.matchGroups) {
+            Json j = Json::object();
+            j["name"] = g.name;
+            j["tolerance"] = g.tolerance;
+            Json nets = Json::array();
+            for (const auto& n : g.nets) nets.push(n);
+            j["nets"] = nets;
+            groups.push(j);
+        }
+        b["matchGroups"] = groups;
+    }
     b["autoSizeNets"] = s.autoSizeNets;
     Json outline = Json::array();
     for (const auto& v : s.outline) outline.push(vec(v));
@@ -152,6 +176,19 @@ Json sheetsJson(const Schematic& sch) {
         if (!s.channel.empty()) j["channel"] = s.channel;
         if (s.refs != InstanceRefs::SheetNumber) j["refs"] = instanceRefsName(s.refs);
         if (!s.size.empty()) j["size"] = s.size;
+        if (s.helper) j["helper"] = true;
+        if (s.frameFixed) {
+            Json f = Json::array();
+            f.push(s.frameOrigin.x);
+            f.push(s.frameOrigin.y);
+            j["frame"] = f;
+        }
+        if (s.symbolWidth > 0 || s.symbolHeight > 0) {
+            Json box = Json::array();
+            box.push(s.symbolWidth);
+            box.push(s.symbolHeight);
+            j["symbolSize"] = box;
+        }
         arr.push(j);
     }
     return arr;
@@ -559,6 +596,23 @@ Json Project::toJson() const {
         tb["drawnBy"] = titleBlock.drawnBy;
         root["titleBlock"] = tb;
     }
+    if (!(pcbSync == currentSync())) {  // the board's baseline, only while an Update PCB is pending
+        Json sync = Json::object();
+        Json parts = Json::array();
+        for (const auto& [id, part] : pcbSync.parts) {
+            Json j = Json::object();
+            j["id"] = id;
+            j["ref"] = part[0];
+            j["footprint"] = part[1];
+            j["value"] = part[2];
+            parts.push(j);
+        }
+        sync["parts"] = parts;
+        Json nets = Json::object();
+        for (const auto& [name, pins] : pcbSync.nets) nets[name] = pins;
+        sync["nets"] = nets;
+        root["pcbSync"] = sync;
+    }
 
     Json tracks = Json::array();
     for (const auto& t : pcb.tracks) {
@@ -568,6 +622,8 @@ Json Project::toJson() const {
         j["a"] = vec(t.a);
         j["b"] = vec(t.b);
         if (t.locked) j["locked"] = true;
+        if (t.arc) j["mid"] = vec(t.mid);  // true arc a → mid → b (older files have none: straight)
+        if (t.teardrop) j["teardrop"] = true;
         tracks.push(j);
     }
     root["tracks"] = tracks;
@@ -667,6 +723,21 @@ Project Project::fromJson(const Json& root) {
         }
     for (const auto& n : b.get("schematicRuleNets").items())
         if (!n.asString("").empty()) s.schematicRuleNets.insert(n.asString(""));
+    for (const auto& j : b.get("lengthRules").items()) {
+        LengthRule r;
+        r.net = j.get("net").asString("");
+        r.target = j.get("target").asNumber(0);
+        r.tolerance = std::clamp(j.get("tolerance").asNumber(0.1), 0.0, 100.0);
+        if (!r.net.empty() && r.target > 0 && std::isfinite(r.target)) s.lengthRules.push_back(r);
+    }
+    for (const auto& j : b.get("matchGroups").items()) {
+        MatchGroup g;
+        g.name = j.get("name").asString("");
+        g.tolerance = std::clamp(j.get("tolerance").asNumber(0.1), 0.0, 100.0);
+        for (const auto& n : j.get("nets").items())
+            if (n.isString() && !n.asString().empty()) g.nets.push_back(n.asString());
+        if (!g.name.empty() && g.nets.size() >= 2) s.matchGroups.push_back(g);
+    }
     s.maxTempRise = std::max(1.0, b.get("maxTempRise").asNumber(s.maxTempRise));
     s.autoSizeNets = b.get("autoSizeNets").asBool(true);
     {
@@ -770,7 +841,7 @@ Project Project::fromJson(const Json& root) {
         c.logicalRef = j.get("logicalRef").asString("");
         c.bus = c.kind == ComponentKind::NetLabel ? std::max(0, j.get("bus").asInt(0)) : 0;
         c.packageOnly = c.kind == ComponentKind::Custom && j.get("packageOnly").asBool(false);
-        c.channelOverrides = std::clamp(j.get("channelOverride").asInt(0), 0, kOverrideValue | kOverridePackage);
+        c.channelOverrides = std::clamp(j.get("channelOverride").asInt(0), 0, static_cast<int>(kOverrideAll));
         if (c.kind == ComponentKind::NetLabel) {
             c.harnessType = j.get("harnessType").asString("");
             if (c.harnessType.size() > 32) c.harnessType.clear();
@@ -790,6 +861,18 @@ Project Project::fromJson(const Json& root) {
             if (!instanceRefsFromName(j.get("refs").asString("sheet"), &s.refs)) s.refs = InstanceRefs::SheetNumber;
             s.size = j.get("size").asString("");
             if (!findSheetTemplate(s.size)) s.size.clear();  // unknown template: sized to the drawing
+            s.helper = j.get("helper").asBool(false);
+            {
+                const Json& f = j.get("frame");
+                const double fx = f[size_t{0}].asNumber(NAN), fy = f[size_t{1}].asNumber(NAN);
+                s.frameFixed = !s.size.empty() && std::isfinite(fx) && std::isfinite(fy) && std::fabs(fx) <= 1e6 && std::fabs(fy) <= 1e6;
+                if (s.frameFixed) s.frameOrigin = {fx, fy};
+            }
+            const Json& box = j.get("symbolSize");
+            for (int k = 0; k < 2; ++k) {
+                const double v = box[static_cast<size_t>(k)].asNumber(0);
+                (k == 0 ? s.symbolWidth : s.symbolHeight) = std::isfinite(v) ? std::clamp(v, 0.0, 4000.0) : 0.0;
+            }
             sheets.push_back(s);
         }
         p.schematic.restoreSheets(sheets, root.get("activeSheet").asInt(0));
@@ -879,6 +962,11 @@ Project Project::fromJson(const Json& root) {
         t.a = {j.get("a").get("x").asNumber(), j.get("a").get("y").asNumber()};
         t.b = {j.get("b").get("x").asNumber(), j.get("b").get("y").asNumber()};
         t.locked = j.get("locked").asBool(false);
+        if (j.get("mid").isObject()) {
+            t.mid = {j.get("mid").get("x").asNumber(), j.get("mid").get("y").asNumber()};
+            t.arc = std::isfinite(t.mid.x) && std::isfinite(t.mid.y);
+        }
+        t.teardrop = j.get("teardrop").asBool(false);
         p.pcb.addTrack(t);
     }
     for (const auto& j : root.get("vias").items()) {
@@ -893,6 +981,18 @@ Project Project::fromJson(const Json& root) {
         p.pcb.addVia(v);
     }
     p.schematicChanged();  // assigns nets to copper from pad contact
+    // The board's baseline for Update PCB: a file without one is in sync with its schematic.
+    if (const Json& sync = root.get("pcbSync"); sync.isObject()) {
+        for (const auto& j : sync.get("parts").items())
+            p.pcbSync.parts[j.get("id").asInt(-1)] = {j.get("ref").asString(""), j.get("footprint").asString(""),
+                                                      j.get("value").asString("")};
+        p.pcbSync.parts.erase(-1);
+        const Json& nets = sync.get("nets");
+        if (nets.isObject())
+            for (const auto& [name, pins] : nets.fields()) p.pcbSync.nets[name] = pins.asString("");
+    } else {
+        p.pcbSync = p.currentSync();
+    }
     return p;
 }
 
@@ -1058,6 +1158,13 @@ Json Project::snapshot() const {
             j["depth"] = schematic.sheetDepth(s.id);
             j["size"] = s.size;
             j["template"] = sheetTemplateFor(*this, s.id).name;
+            j["symbolWidth"] = s.symbolWidth;
+            j["symbolHeight"] = s.symbolHeight;
+            j["helper"] = s.helper;
+            if (s.frameFixed) {
+                j["frameX"] = s.frameOrigin.x;
+                j["frameY"] = s.frameOrigin.y;
+            }
             Json ports = Json::array();
             for (const auto& port : schematic.sheetPorts(s.id)) ports.push(port);
             j["ports"] = ports;
@@ -1139,6 +1246,22 @@ Json Project::snapshot() const {
         j["bx"] = t.b.x;
         j["by"] = t.b.y;
         if (t.locked) j["locked"] = true;
+        if (t.teardrop) j["teardrop"] = true;
+        if (t.arc) {
+            // True arc: the 3-point form plus centre, radius and angles (radians, sweep > 0 counter-clockwise) for
+            // drawing; a degenerate arc reports no centre and is drawn straight.
+            j["arc"] = true;
+            j["mx"] = t.mid.x;
+            j["my"] = t.mid.y;
+            const ArcGeom g = trackArc(t);
+            if (g.valid) {
+                j["cx"] = g.c.x;
+                j["cy"] = g.c.y;
+                j["radius"] = g.r;
+                j["startAngle"] = g.start;
+                j["sweep"] = g.sweep;
+            }
+        }
         tracks.push(j);
     }
     root["tracks"] = tracks;

@@ -18,6 +18,7 @@
 "3D Viewer" = "3D-Ansicht";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "Ein Unterplan, von dem jeder Kanal dieses Blocks eine Kopie erhält";
 "A class still used by a directive cannot be deleted" = "Eine Klasse, die eine Direktive noch verwendet, kann nicht gelöscht werden";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "Ein Kabelbaum-Label führt jedes Mitglied seines Typs über die Blätter (Port, Blatteingang oder global)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "Ein Kabelbaum-Label mit einem Eintrag je Mitglied; jeden Eintrag mit seinem Signal verdrahten. Einem Port oder Blatteingang denselben Namen und Typ geben, um das Bündel auf ein anderes Blatt zu führen.";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "Adaptive Schrittweite";
 "Add Child Sheet" = "Untergeordnetes Blatt hinzufügen";
 "Add Ground Pours" = "Masseflächen hinzufügen";
+"Add Helper Sheet" = "Hilfsplan hinzufügen";
 "Add Kit to Library" = "Kit zur Bibliothek hinzufügen";
 "Add Mesh" = "Mesh hinzufügen";
 "Add Missing Entries" = "Fehlende Einträge hinzufügen";
@@ -65,6 +67,7 @@
 "Align Right" = "Rechts ausrichten";
 "Align Top" = "Oben ausrichten";
 "Align Vertical Centres" = "Vertikale Mitten ausrichten";
+"Align by Symbol Outline" = "An Symbolumriss ausrichten";
 "All" = "Alle";
 "Amplitude" = "Amplitude";
 "An entry (a local net label on the bus) for every member that has none yet" = "Ein Eintrag (lokales Netzlabel am Bus) für jedes Mitglied, das noch keinen hat";
@@ -85,6 +88,7 @@
 "Apply Prices to BOM" = "Preise in die Stückliste übernehmen";
 "Apply Symbol" = "Symbol anwenden";
 "Apply Tuning" = "Abstimmung anwenden";
+"Arc" = "Bogen";
 "Arrange" = "Anordnen";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "Schaltplansymbol anordnen: Pins auf jeder Seite, Gruppen, gestapelte Versorgungspins, automatisch anordnen";
 "Arrange the symbol, or define the gates of a multi-unit part" = "Symbol anordnen oder die Gatter eines mehrteiligen Bauteils festlegen";
@@ -96,6 +100,7 @@
 "Attach" = "Zuweisen";
 "Attach SPICE Model…" = "SPICE-Modell zuweisen…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "Ein VRML- (.wrl), STL- oder OBJ-Modell anhängen und am Footprint ausrichten";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "Modell nur diesem Kanal des wiederholten Plans zuweisen; die anderen Kanäle behalten ihres";
 "Audience (optional)" = "Zielgruppe (optional)";
 "Auto" = "Auto";
 "Auto (fits the drawing)" = "Automatisch (passt zur Zeichnung)";
@@ -130,6 +135,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "Platinenumriss (Quad-X-Rahmen, abgerundet, Kreis), Montagebohrungen, Kupferflächen/-ebenen und Netzklassen";
 "Board thickness" = "Platinendicke";
 "Boards per order, for the order cost" = "Platinen pro Bestellung, für die Bestellkosten";
+"Body box" = "Gehäuserahmen";
 "Broadside" = "Breitseitig";
 "Built-in model" = "Eingebautes Modell";
 "Bus" = "Bus";
@@ -152,8 +158,10 @@
 "Cascade at receiver" = "Am Empfänger kaskadieren";
 "Cavity model" = "Resonatormodell";
 "Centre" = "Zentrieren";
+"Centre Frame on Drawing" = "Rahmen auf Zeichnung zentrieren";
 "Centre the model on the footprint and put its lowest point on the board surface" = "Modell auf dem Footprint zentrieren und den tiefsten Punkt auf die Leiterplattenoberfläche setzen";
 "Changes from a WAS / IS file" = "Änderungen aus einer WAS-/IS-Datei";
+"Changes from the schematic to the board since the last update." = "Änderungen vom Schaltplan zur Platine seit der letzten Aktualisierung.";
 "Channel" = "Kanal";
 "Channel %@ of %@ — edits apply to every channel" = "Kanal %@ von %@ — Änderungen gelten für jeden Kanal";
 "Channel Designators" = "Kanal-Bezeichner";
@@ -169,6 +177,7 @@
 "Choose a part" = "Bauteil auswählen";
 "Choose the footprint for this symbol: the import is read again with this pair" = "Footprint für dieses Symbol wählen: der Import wird mit diesem Paar neu gelesen";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "Kinoreifes Head-up-Display: Projektor, Partikel, Bauteil-Callouts, Datensäulen und Anzeigen";
+"Circle" = "Kreis";
 "Circuit" = "Schaltung";
 "Circuit — 5 ms, 5 µs" = "Schaltung — 5 ms, 5 µs";
 "Class / board" = "Klasse / Platine";
@@ -203,6 +212,7 @@
 "Construction" = "Aufbau";
 "Copies" = "Kopien";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "Kopien der Zwischenablage, jede einen Schritt weiter (Schaltplaneinheiten, 10 = ein Raster). Bauteile erhalten die nächsten freien Bezeichner; Nummern von Netzlabels zählen um die Schrittweite hoch (D0 → D1 …).";
+"Copper Pours" = "Kupferflächen";
 "Copper colours" = "Kupferfarben";
 "Copper foil" = "Kupferfolie";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "Kupferlagen: 1 = einseitig (keine Vias), 2–6 für die meisten Produkte, 8–24 für Mainboards, Server, Mainframes und GPU-Baseboards";
@@ -226,6 +236,7 @@
 "DEVICES" = "BAUTEILE";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "ZEICHNUNG";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "Datenblatt";
@@ -243,6 +254,7 @@
 "Delete Type" = "Typ löschen";
 "Delete Variant" = "Variante löschen";
 "Delete Wire" = "Leitung löschen";
+"Delete the selected drawing" = "Ausgewählte Zeichnung löschen";
 "Describe your product" = "Produkt beschreiben";
 "Description" = "Beschreibung";
 "Design" = "Design";
@@ -266,7 +278,9 @@
 "Done" = "Fertig";
 "Down ↓" = "Nach unten ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "Datenblatt-PDF des Distributors laden und die Pin-Tabelle auslesen";
+"Drag to draw · click to place a text · Esc returns to selecting" = "Ziehen zum Zeichnen · Klicken setzt einen Text · Esc kehrt zur Auswahl zurück";
 "Drag to orbit" = "Ziehen zum Drehen";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "Den erzeugten Rahmen zeichnen; ausschalten, wenn die Zeichnungen das Gehäuse bilden";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "Landepattern Pad für Pad zeichnen: Position, Größe, Form, Bohrung und Pin jedes Pads";
 "Drawn by" = "Gezeichnet von";
 "Driver" = "Treiber";
@@ -287,6 +301,8 @@
 "Edit Symbol…" = "Symbol bearbeiten …";
 "Effort" = "Aufwand";
 "Enable AI assistance" = "KI-Unterstützung aktivieren";
+"End %lld°" = "Ende %lld°";
+"Engineering change order: review and execute the schematic's changes on the board" = "Änderungsauftrag: Änderungen des Schaltplans prüfen und auf der Platine ausführen";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "Issuer-URL des Identitätsanbieters und Client-ID von SiEDA oben eingeben, um diese Taste zu aktivieren (IT-Administration fragen).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "Epoxid unter Prozessoren, BGAs und großen Kondensatoren, damit ein MIL-STD-901E-Schock sie nicht abreißt";
 "Errors" = "Fehler";
@@ -294,6 +310,8 @@
 "Every pin is placed once; no pins collide" = "Jeder Pin ist genau einmal platziert; keine Pins überlappen";
 "Every unit is valid" = "Jede Einheit ist gültig";
 "Exchange the wires of two interchangeable pins of this gate" = "Die Leitungen zweier austauschbarer Pins dieses Gatters tauschen";
+"Execute Changes" = "Änderungen ausführen";
+"Executed" = "Ausgeführt";
 "Export" = "Exportieren";
 "Export 3D" = "3D exportieren";
 "Export Fabrication Package…" = "Fertigungspaket exportieren …";
@@ -310,6 +328,7 @@
 "File unit" = "Dateieinheit";
 "Fill Suggested Part Numbers" = "Vorgeschlagene Teilenummern eintragen";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "In jede Zeile die Lieferanten-Artikelnummer und den Stückpreis des besten Angebots bei der Fertigungsmenge eintragen";
+"Filled" = "Gefüllt";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "Trägt Standard-Teilenummern ein, wo sie sich aus Wert und Gehäuse ergeben (z. B. Yageo RC0805 ";
 "Find" = "Suchen";
 "Find & Replace" = "Suchen & Ersetzen";
@@ -323,6 +342,8 @@
 "Fit Board to Components" = "Platine an Bauteile anpassen";
 "Fits every pin" = "Passt zu jedem Pin";
 "Fitted" = "Bestückt";
+"Fitted in this channel" = "In diesem Kanal bestückt";
+"Fitted to Entries" = "An Einträge angepasst";
 "Fix Duplicates Only" = "Nur Duplikate korrigieren";
 "Flicker (1/f)" = "Funkel (1/f)";
 "Flight time" = "Laufzeit";
@@ -407,11 +428,14 @@
 "Layer" = "Lage";
 "Layer separation (exploded view)" = "Lagenabstand (Explosionsansicht)";
 "Layers" = "Lagen";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "Bauteil nur in diesem Kanal nicht bestücken (DNP); die anderen Kanäle behalten ihres";
 "Length" = "Länge";
 "Library" = "Bibliothek";
 "Lifecycle" = "Lebenszyklus";
+"Line" = "Linie";
 "Line loss per layer" = "Leitungsverlust je Lage";
 "Line total" = "Zeilensumme";
+"Line width %@" = "Linienbreite %@";
 "Live Pricing" = "Live-Preise";
 "Live Pricing…" = "Live-Preise…";
 "Live board" = "Live-Platine";
@@ -435,6 +459,8 @@
 "MESSAGES" = "MELDUNGEN";
 "Magnitude" = "Betrag";
 "Make Swap Group" = "Tauschgruppe bilden";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "Die Tauschvorgänge ausführen, die die Verbindungen dieses Bauteils am meisten verkürzen; der Schaltplan folgt";
+"Make this swap on the board and in the schematic" = "Diesen Tausch auf der Platine und im Schaltplan ausführen";
 "Manufacturer part #" = "Hersteller-Teilenr.";
 "Manufacturer part number or keywords" = "Hersteller-Teilenummer oder Suchbegriffe";
 "Mask" = "Maske";
@@ -462,6 +488,8 @@
 "Mounting" = "Montage";
 "Mouser Search API key (API Hub → Search API)." = "Mouser-Such-API-Schlüssel (API Hub → Search API).";
 "Move Selection Here" = "Auswahl hierher verschieben";
+"Move drawing" = "Zeichnung verschieben";
+"Move the drawing half a grid step" = "Zeichnung um einen halben Rasterschritt verschieben";
 "Move the footprint origin to the centre of the pads" = "Footprint-Ursprung in die Mitte der Pads verschieben";
 "Move the pad in the numbering; pads between shift by one" = "Pad in der Nummerierung verschieben; dazwischenliegende Pads rücken um eins";
 "NAVIGATOR" = "NAVIGATOR";
@@ -472,6 +500,7 @@
 "Net" = "Netz";
 "Net Classes" = "Netzklassen";
 "Net Navigator" = "Netz-Navigator";
+"Net Rules" = "Netzregeln";
 "Net class" = "Netzklasse";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "Netzklassen für die Direktiven an Netzen: der Schaltplan ist die Quelle der Netzregeln der Platine";
 "Net model" = "Netzmodell";
@@ -491,6 +520,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "Keine differenziellen Paare (…_P/_N, …+/-) oder Busse (DQ0…, DATA[0..7], ADDR…) in diesem Design.";
 "No distributor API keys yet" = "Noch keine Distributor-API-Schlüssel";
 "No distributor offers." = "Keine Distributorangebote.";
+"No drawings yet: pick a tool and drag on the symbol." = "Noch keine Zeichnungen: Werkzeug wählen und auf dem Symbol ziehen.";
 "No errors or warnings." = "Keine Fehler oder Warnungen.";
 "No gates found in the pin names." = "In den Pinnamen wurden keine Gatter gefunden.";
 "No imported model" = "Kein importiertes Modell";
@@ -547,6 +577,7 @@
 "Open the design verification report" = "Design-Verifikationsbericht öffnen";
 "Open the offer on the distributor's site" = "Angebot auf der Website des Distributors öffnen";
 "Open…" = "Öffnen …";
+"Optimize Swaps" = "Tauschvorgänge optimieren";
 "Other footprints" = "Andere Footprints";
 "Output" = "Ausgang";
 "Output noise" = "Ausgangsrauschen";
@@ -558,6 +589,7 @@
 "PCB Layout" = "PCB-Layout";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "PDF aller Blätter mit Lesezeichen, Rahmen und Schriftfeldern";
+"PIN / GATE SWAP" = "PIN- / GATTERTAUSCH";
 "PIN SWAP" = "PINTAUSCH";
 "PINS" = "PINS";
 "PRBS" = "PRBS";
@@ -603,6 +635,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "Platzierung, Routing, Kupferflächen, DRC, Gerber Edge.Cuts und die 3D-Platine folgen dem Umriss. ";
 "Plane" = "Ebene";
 "Plane cavity" = "Ebenenresonator";
+"Polygon" = "Polygon";
 "Port (to parent sheet)" = "Port (zum übergeordneten Blatt)";
 "Ports: %@" = "Ports: %@";
 "Power" = "Versorgung";
@@ -617,10 +650,12 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "Radius %lld";
 "Re-annotate from the board (columns)" = "Von der Platine neu annotieren (Spalten)";
 "Re-annotate from the board (rows)" = "Von der Platine neu annotieren (Zeilen)";
 "Re-verify" = "Erneut verifizieren";
 "Read Pins from Datasheet" = "Pins aus dem Datenblatt lesen";
+"Read the changes again from the schematic" = "Änderungen erneut aus dem Schaltplan lesen";
 "Ready" = "Bereit";
 "Receive equaliser, peaking chosen for the widest eye" = "Empfangsentzerrer, Anhebung für das breiteste Auge gewählt";
 "Receiver" = "Empfänger";
@@ -645,6 +680,7 @@
 "Renumber" = "Neu nummerieren";
 "Repeat Sheet" = "Blatt wiederholen";
 "Repeat Sheet…" = "Blatt wiederholen…";
+"Repeat With Its Block" = "Mit seinem Block wiederholen";
 "Replace All" = "Alle ersetzen";
 "Replace with" = "Ersetzen durch";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "Ersetzt den Text in Bauteilwerten und Netzlabel-Namen auf allen Blättern (Bezeichner: Annotieren verwenden)";
@@ -724,11 +760,13 @@
 "Search parts" = "Teile suchen";
 "Searching…" = "Suche läuft…";
 "Seat on Board" = "Auf die Platine setzen";
+"Select" = "Auswählen";
 "Select a net to analyse" = "Netz zur Analyse auswählen";
 "Select a net to analyse its channel" = "Netz auswählen, um seinen Kanal zu analysieren";
 "Select a pad to edit its position, size, shape, drill and pin." = "Pad auswählen, um Position, Größe, Form, Bohrung und Pin zu bearbeiten.";
 "Select a part on the schematic or PCB to edit its properties." = "Bauteil im Schaltplan oder auf der Platine auswählen, um seine Eigenschaften zu bearbeiten.";
 "Select an importable part to preview it." = "Wählen Sie ein importierbares Bauteil für die Vorschau.";
+"Select and move pins and drawings" = "Pins und Zeichnungen auswählen und verschieben";
 "Select pins to move them to a side, stack them or change their order." = "Pins auswählen, um sie auf eine Seite zu verschieben, zu stapeln oder ihre Reihenfolge zu ändern.";
 "Send" = "Senden";
 "Send to" = "Senden an";
@@ -742,6 +780,7 @@
 "Sheet" = "Blatt";
 "Sheet %lld of %lld" = "Blatt %lld von %lld";
 "Sheet Size" = "Blattgröße";
+"Sheet Symbol Size" = "Größe des Plansymbols";
 "Sheet name" = "Blattname";
 "Shot" = "Schrot";
 "Shove" = "Schieben";
@@ -774,6 +813,7 @@
 "Simulation" = "Simulation";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "Simulationsgeschwindigkeit relativ zur Echtzeit (Zeitlupe zeigt schnelle Signale)";
 "Single-ended" = "Single-ended";
+"Size %lld" = "Größe %lld";
 "Skew" = "Laufzeitversatz";
 "Smooth" = "Glatt";
 "Solve the DC operating point once — shows voltage probes" = "DC-Arbeitspunkt einmal berechnen — zeigt Spannungstastköpfe";
@@ -787,6 +827,7 @@
 "Stack repeated power pins" = "Wiederholte Versorgungspins stapeln";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "Lagenaufbau aus der Einstellung „Lagen“ im PCB-Layout: 1 Lage lässt die Unterseite als blankes FR-4; ";
 "Standard ED" = "Standard-ED";
+"Start %lld°" = "Anfang %lld°";
 "Starting the design engine" = "Design-Engine wird gestartet";
 "Step" = "Schritt";
 "Step response" = "Sprungantwort";
@@ -819,7 +860,9 @@
 "Tamper mesh over" = "Tamper-Mesh über";
 "Target" = "Ziel";
 "Test Connection" = "Verbindung testen";
+"Text" = "Text";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "Der Autorouter dimensioniert HF-Leitungen und differenzielle Paare (…_P/_N) auf diese Impedanzen (IPC-2141).";
+"The board is up to date with the schematic." = "Die Platine ist auf dem Stand des Schaltplans.";
 "The imported model replaces the built-in one in every analysis." = "Das importierte Modell ersetzt das eingebaute in jeder Analyse.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "Die Oberfläche folgt dieser Sprache. Fachbegriffe, Teilenummern, Einheiten, Netznamen und Meldungen der Designprüfung bleiben auf Englisch, damit sie zu Datenblättern und Fertigungsdateien passen.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "Der Offline-Designer nutzt die integrierten Referenzschaltungen von SiEDA. Kein Netzwerk oder API-Schlüssel nötig — ideal für Demos und abgeschottete Labore.";
@@ -829,6 +872,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "Die beiden Gatter tauschen ihre Plätze im Gehäuse; Symbole und Leitungen bleiben";
 "The victim runs on the adjacent layer, over or under the aggressor" = "Das Opfer verläuft auf der Nachbarlage, über oder unter dem Störer";
 "Thermal" = "Thermisch";
+"This channel has its own SPICE model" = "Dieser Kanal hat ein eigenes SPICE-Modell";
+"This channel has its own firmware" = "Dieser Kanal hat eine eigene Firmware";
+"This channel only" = "Nur dieser Kanal";
 "Through" = "Durchgehend";
 "Title" = "Titel";
 "Total jitter" = "Gesamtjitter";
@@ -844,6 +890,7 @@
 "Type a designator, value, label or net name." = "Bezeichner, Wert, Label oder Netznamen eingeben.";
 "UNIT %@" = "EINHEIT %@";
 "UNITS" = "EINHEITEN";
+"UPDATE PCB" = "PCB AKTUALISIEREN";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "Underfill / Eckverklebung schwerer Bauteile (Schock)";
 "Undershoot" = "Unterschwingen";
@@ -856,8 +903,10 @@
 "Units" = "Einheiten";
 "Unity gain" = "Transitfrequenz";
 "Unstack" = "Entstapeln";
+"Update PCB" = "PCB aktualisieren";
 "Upload .hex…" = ".hex hochladen …";
 "Use Block Value" = "Blockwert verwenden";
+"Use Block's" = "Den des Blocks verwenden";
 "Use the generated body again" = "Wieder den erzeugten Körper verwenden";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "Dieses Blatt als mehrere identische Kanäle verwenden (1 bis 64). Jeder Kanal erhält eigene Bezeichner, Netze und ein Blattsymbol; die Bearbeitung eines Kanals ändert alle.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (.wrl, wie KiCad-Bibliotheken sie liefern), STL oder OBJ. STEP-Dateien können nicht gelesen werden: die .wrl daneben verwenden.";
@@ -922,3 +971,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x nach rechts, y zur Oberkante der PCB-Ansicht, z von der Platine nach oben. Drehungen um x, dann y, dann z.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "Mit ⌥ ziehen oder mit zwei Fingern ziehen zum Schwenken";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "Echte Bögen";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "Echte Bögen (G02/G03 im Gerber); Paare und Busse biegen auf konzentrischen Bögen ab. Aus: kurze gerade Sehnen";
+"Accordion" = "Akkordeon";
+"Trombone" = "Posaune";
+"Sawtooth" = "Sägezahn";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "Akkordeon: rechteckige Mäander; Posaune: eine breite Schleife; Sägezahn: dreieckige Zähne";
+"Meander corners" = "Mäanderecken";
+"Square" = "Rechtwinklig";
+"Mitered" = "Abgeschrägt";
+"Round" = "Rund";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "Ecken der Mäander: rechtwinklig, 45° abgeschrägt oder rund (echte Bögen)";
+"Coupled" = "Gekoppelt";
+"Differential pair: meander both members together at their gap" = "Differenzielles Paar: beide Leitungen gemeinsam im Paarabstand mäandern";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "Skew-Abgleich eines Paarmitglieds: kleine Ausbuchtungen auf der vom Partner abgewandten Seite, bis zur Länge des Partners";
+"Length Rules" = "Längenregeln";
+"Length targets per net and match groups, measured pad to pad through series parts" = "Längenziele je Netz und Abgleichgruppen, von Pad zu Pad über Serienbauteile gemessen";
+"Remove the length rule" = "Längenregel entfernen";
+"Tolerance" = "Toleranz";
+"Match Groups" = "Abgleichgruppen";
+"Remove the match group" = "Abgleichgruppe entfernen";
+"Group name" = "Gruppenname";
+"Add Group" = "Gruppe hinzufügen";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "Mitglieder: zwei oder mehr Netze wählen. Ein Netz über Serienwiderstände oder -kondensatoren wird von Pad zu Pad über sie hinweg gemessen.";
+"Any angle" = "Beliebiger Winkel";
+"Route and drag at any angle: the head is one straight track to the pointer" = "In beliebigem Winkel routen und ziehen: der Kopf ist eine gerade Leiterbahn bis zum Zeiger";
+"Remove loops" = "Schleifen entfernen";
+"Finishing a route removes the old path of the net it makes redundant" = "Das Abschließen einer Route entfernt den alten Pfad des Netzes, den sie überflüssig macht";
+"Auto teardrops" = "Automatische Teardrops";
+"Teardrops where each finished route meets pads and vias" = "Teardrops, wo jede fertige Route auf Pads und Vias trifft";
+"Stop at obstacle" = "An Hindernis anhalten";
+"Hug obstacles" = "Hindernisse umschmiegen";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "Eine gezogene Leiterbahn biegt um Pads und anderes Kupfer, das sie nicht verschieben kann, statt davor anzuhalten";

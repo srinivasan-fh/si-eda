@@ -754,7 +754,9 @@ char* sieda_net_rules_json(const SiedaProject* project);
 /* Aligns / distributes components (ids_json [id,…]); mode "left","right","top","bottom","centerX","centerY",
  * "distributeX","distributeY". The number moved, or -1. */
 int32_t sieda_align_components(SiedaProject* project, const char* ids_json, const char* mode);
-/* Clipboard JSON of components and the wires between them ("sieda.schematic-clip/1"). Caller frees. */
+/* Clipboard JSON of components and the wires between them ("sieda.schematic-clip/1"), with their buses, net
+ * directives, BOM sourcing and variant settings. ids_json: [ids…] or {"components":[ids…],"buses":[bus ids…]}.
+ * Caller frees. */
 char* sieda_copy_components(const SiedaProject* project, const char* ids_json);
 /* Pastes a clipboard on the active sheet: options {"dx","dy","count","stepX","stepY","labelIncrement"} (a paste array:
  * `count` copies, each `step` further; label numbers counted up). Parts get the next free designators. Returns the new
@@ -783,6 +785,93 @@ int32_t sieda_set_erc_severity(SiedaProject* project, const char* code, const ch
 
 /* Makes a net label an entry of a harness label on its sheet (harness 0: an ordinary label again). 1 on success. */
 int32_t sieda_set_harness_entry(SiedaProject* project, int32_t label, int32_t harness);
+
+/* ---- interactive routing additions (docs/INTERACTIVE_ROUTING.md) -------------------------------------------------- */
+/* Arc tracks: snapshot / preview tracks with "arc":true carry the 3-point form "mx","my" (a → mid → b) and, unless
+ * degenerate, "cx","cy","radius","startAngle","sweep" (radians, sweep > 0 counter-clockwise). Router options take
+ * "arcCorners": true (with "cornerRadius") for true-arc corners on routes, pairs and buses. */
+/* Convert corners to arcs: track_ids_json is [id, …] (selected straight tracks); options {"radius" (mm, 0 = auto),
+ * "apply" (default true)}. Returns {"ok","message","converted","kept","applied","addedTracks","removedTracks",
+ * "changes"}. */
+char* sieda_pcb_arc_corners(SiedaProject* project, const char* track_ids_json, const char* options_json);
+/* Length tuning (sieda_router_tune) also takes {"style":"accordion"|"trombone"|"sawtooth","corner":"square"|"mitered"|
+ * "round","fromX","fromY","toX","toY" (drag-along span),"coupled" (pair together),"phase" (skew bumps)}; the result
+ * then adds "targetSource","xsignalNets","coupled","partnerNet". */
+/* Length rule of a net (its xSignal length, pad to pad through series parts): target ± tolerance mm; target <= 0
+ * removes it. 1 on success. */
+int32_t sieda_pcb_set_length_rule(SiedaProject* project, const char* net_name, double target_mm, double tolerance_mm);
+/* Match group {"name","nets":[names],"tolerance"}: replaces the group of that name; fewer than two nets removes it. */
+int32_t sieda_pcb_set_match_group(SiedaProject* project, const char* group_json);
+/* {"rules":[{"net","target","tolerance","length","ok","routed"}],"groups":[{"name","tolerance","target","members":
+ * [{"net","xsignal":[names],"length","ok","routed"}]}]} */
+char* sieda_length_targets_json(const SiedaProject* project);
+/* Drags (preview JSON as sieda_router_begin_drag; move / commit / cancel as for every route session): the corner of
+ * track_id nearest to (x, y) (kind "corner"); several tracks together by the cursor's movement (kind "multidrag",
+ * track_ids_json [id, …]). The router's "posture":"free" drags at any angle. */
+char* sieda_router_begin_corner_drag(SiedaProject* project, const char* options_json, int32_t track_id, double x,
+                                     double y);
+char* sieda_router_begin_multi_drag(SiedaProject* project, const char* options_json, const char* track_ids_json, double x,
+                                    double y);
+/* Multi-route: the nets at points_json [{"x","y"}, …] (pads, vias or tracks; 2–16 nets) routed together as one bundle
+ * (kind "multi"); sieda_router_add_via places a via per member. */
+char* sieda_router_begin_multi(SiedaProject* project, const char* options_json, const char* points_json, int32_t layer);
+/* Board commands. Each returns {"ok","message","added","skipped","applied","addedTracks","addedVias","removedTracks",
+ * "removedVias","changes"} (ok false: nothing to do), or {"error"}. Router options also take "removeLoops" (loop
+ * removal on commit) and "teardrops" (teardrops on the committed tracks). Tracks with "teardrop":true are teardrops. */
+/* Teardrops on the given tracks' ends at pads / vias ([] = every track); options {"pads","vias" (default true),
+ * "length" (fraction of the pad / via size, 0.3–3, default 1),"apply","remove" (remove them instead)}. */
+char* sieda_pcb_teardrops(SiedaProject* project, const char* track_ids_json, const char* options_json);
+/* Via stitching where the net's pours overlap on two or more layers; options {"net" (default the ground net),
+ * "pitch" (mm, default 2),"x0","y0","x1","y1" (area),"apply"}. */
+char* sieda_pcb_stitch_vias(SiedaProject* project, const char* options_json);
+/* Via shielding along the given tracks on both sides; options {"net","pitch" (default 1),"offset","apply"}. */
+char* sieda_pcb_shield_tracks(SiedaProject* project, const char* track_ids_json, const char* options_json);
+/* Glossing: pull the lines through the given tracks tight; options {"retrace" (default true),"apply"}. */
+char* sieda_pcb_gloss(SiedaProject* project, const char* track_ids_json, const char* options_json);
+/* Length matching: the nets of the given tracks tuned to the longest of them; options as sieda_router_tune ("style",
+ * "corner","maxAmplitude","spacing") plus "tolerance" (mm, default 0.1). Returns {"ok","message","target","tuned",
+ * "matched","short","nets":[tune result]}. Router options also take "mode":"stop" (stop at the first obstacle). */
+char* sieda_pcb_match_lengths(SiedaProject* project, const char* track_ids_json, const char* options_json);
+
+/* ---- forward annotation: "Update PCB" ECO (docs/SCHEMATIC.md) ---------------------------------------------------- */
+/* The changes an update from the schematic would make to the board since the last one: [{section: "component" |
+ * "net" | "zone" | "rule", action: "add" | "remove" | "change", object, detail, key, applicable, note}]. Caller frees. */
+char* sieda_pcb_eco_preview(const SiedaProject* project);
+/* Executes the changes whose keys are listed (keys_json ["component:7",…]; NULL = all; [] = none): places added
+ * footprints, removes pours on nets that are gone, carries the net rules, records the new baseline. Returns
+ * {"executed": n, "report": [line…]}. Caller frees. */
+char* sieda_apply_pcb_eco(SiedaProject* project, const char* keys_json);
+/* Drawn size of a sheet's sheet symbol in schematic units (0 = fitted to its entries; clamped to 4000). 1 on success. */
+int32_t sieda_set_sheet_symbol_size(SiedaProject* project, int32_t sheet, double width, double height);
+/* Per-channel parameters of a part on a repeated sheet (see sieda_set_channel_value): this channel's own SPICE model
+ * (checked like sieda_set_spice_model; empty text = no model in this channel) and firmware; one parameter back to
+ * the block's ("value" | "package" | "spice" | "firmware"); fitted or DNP in this channel only. 1 on success. */
+int32_t sieda_set_channel_spice_model(SiedaProject* project, int32_t component_id, const char* text, const char* model,
+                                      const char* pins, char** error_out);
+int32_t sieda_set_channel_firmware(SiedaProject* project, int32_t component_id, const char* hex, const char* name,
+                                   double clock_hz);
+int32_t sieda_clear_channel_override(SiedaProject* project, int32_t component_id, const char* what);
+int32_t sieda_set_channel_fitted(SiedaProject* project, int32_t component_id, int32_t fitted);
+/* Helper sheets: an ordinary child sheet of a block that every channel gets a copy of. Adds one below `parent` (a
+ * channel stands for its block); returns its id or -1. Marks / unmarks an existing child sheet; 1 on success. */
+int32_t sieda_add_helper_sheet(SiedaProject* project, const char* name, int32_t parent);
+int32_t sieda_set_helper_sheet(SiedaProject* project, int32_t sheet, int32_t helper);
+/* Like sieda_align_components, by the symbols' outlines (edges line up; distributing leaves equal gaps). */
+int32_t sieda_align_outlines(SiedaProject* project, const char* ids_json, const char* mode);
+/* Fixes a sheet's template frame with its top-left corner at (x, y) schematic units, or lets it follow the drawing
+ * (fixed 0). Choosing a template fixes it centred on the drawing. 1 on success (the sheet needs a template). */
+int32_t sieda_set_sheet_frame(SiedaProject* project, int32_t sheet, int32_t fixed, double x, double y);
+/* Like sieda_export_schematic_pdf, embedding a subset of the TrueType font at font_path (.ttf / .ttc with glyf
+ * outlines) for text outside Latin / Greek; an unreadable or unsupported font is ignored. Still plain ASCII. */
+char* sieda_export_schematic_pdf_with_font(const SiedaProject* project, const char* font_path);
+/* PCB pin / gate swap (back-annotated to the schematic). The swaps the package of a component allows, best first:
+ * [{"kind":"pin"|"gate","component","other","pinA","pinB","label","gain"}] (gain: ratsnest mm saved). Caller frees. */
+char* sieda_pcb_swap_options(const SiedaProject* project, int32_t component_id);
+/* Makes one swap (an option as listed). 1 on success, 0 when refused. */
+int32_t sieda_apply_pcb_swap(SiedaProject* project, const char* option_json);
+/* Automatic swap: the best swap again and again (at most max_swaps) for one package (component_id) or all (-1).
+ * The number made, or -1. */
+int32_t sieda_optimize_pcb_swaps(SiedaProject* project, int32_t component_id, int32_t max_swaps);
 
 #ifdef __cplusplus
 }

@@ -2,7 +2,7 @@
 
 "%lld errors · %lld warnings" = "%lld 个错误 · %lld 个警告";
 "%lld matches" = "%lld 个匹配项";
-"%lld of %lld changes selected" = "已选择 %lld / %lld 项更改";
+"%lld of %lld changes selected" = "已选择 %lld 项（共 %lld 项更改）";
 "%lld pins" = "%lld 个引脚";
 "%lld values" = "%lld 个数值";
 "0 derives the value from the regulator type" = "0 表示按稳压器类型取值";
@@ -18,6 +18,7 @@
 "3D Viewer" = "3D 查看器";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "此模块的每个通道都会获得一份副本的子图纸";
 "A class still used by a directive cannot be deleted" = "仍被指令使用的类别无法删除";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "线束标签会将其类型的每个成员带过各图页（端口、图页入口或全局）";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "每个成员一个入口的线束标签；将每个入口连到其信号。给端口或图页入口相同的名称和类型，即可把整束信号带到另一图页。";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "自适应时间步长";
 "Add Child Sheet" = "添加子图纸";
 "Add Ground Pours" = "添加地铺铜";
+"Add Helper Sheet" = "添加辅助图纸";
 "Add Kit to Library" = "将套件添加到库";
 "Add Mesh" = "添加网格";
 "Add Missing Entries" = "添加缺少的入口";
@@ -65,6 +67,7 @@
 "Align Right" = "右对齐";
 "Align Top" = "顶部对齐";
 "Align Vertical Centres" = "垂直居中对齐";
+"Align by Symbol Outline" = "按符号轮廓对齐";
 "All" = "全部";
 "Amplitude" = "振幅";
 "An entry (a local net label on the bus) for every member that has none yet" = "为每个尚无分支的成员建立分支（总线上的局部网络标签）";
@@ -85,6 +88,7 @@
 "Apply Prices to BOM" = "将价格应用到 BOM";
 "Apply Symbol" = "应用符号";
 "Apply Tuning" = "应用调整";
+"Arc" = "圆弧";
 "Arrange" = "排列";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "排列原理图符号：引脚可置于任意一侧、分组、堆叠电源引脚、自动排列";
 "Arrange the symbol, or define the gates of a multi-unit part" = "排列符号，或定义多单元器件的门";
@@ -96,6 +100,7 @@
 "Attach" = "附加";
 "Attach SPICE Model…" = "附加 SPICE 模型…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "附加 VRML (.wrl)、STL 或 OBJ 模型并与封装对齐";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "将模型附加到重复图纸的此通道；其他通道保留各自的模型";
 "Audience (optional)" = "受众 (可选)";
 "Auto" = "自动";
 "Auto (fits the drawing)" = "自动（适合图面）";
@@ -130,6 +135,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "电路板外形 (四轴 X 形框架、圆角、圆形)、安装孔、铺铜/平面和网络类";
 "Board thickness" = "板厚";
 "Boards per order, for the order cost" = "每次订购的板数，用于计算订单成本";
+"Body box" = "本体方框";
 "Broadside" = "宽边耦合";
 "Built-in model" = "内置模型";
 "Bus" = "总线";
@@ -152,8 +158,10 @@
 "Cascade at receiver" = "级联在接收端";
 "Cavity model" = "谐振腔模型";
 "Centre" = "居中";
+"Centre Frame on Drawing" = "将图框居中于绘图";
 "Centre the model on the footprint and put its lowest point on the board surface" = "将模型居中于封装，并使其最低点贴合板面";
 "Changes from a WAS / IS file" = "来自 WAS / IS 文件的更改";
+"Changes from the schematic to the board since the last update." = "自上次更新以来从原理图到电路板的更改。";
 "Channel" = "通道";
 "Channel %@ of %@ — edits apply to every channel" = "通道 %@（%@）— 编辑会应用到每个通道";
 "Channel Designators" = "通道位号";
@@ -169,6 +177,7 @@
 "Choose a part" = "选择元件";
 "Choose the footprint for this symbol: the import is read again with this pair" = "为此符号选择封装：将以此配对重新读取导入内容";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "电影风格平视显示：投影仪、粒子、元件标注、数据柱和读数";
+"Circle" = "圆形";
 "Circuit" = "电路";
 "Circuit — 5 ms, 5 µs" = "电路 — 5 ms，5 µs";
 "Class / board" = "类别／电路板";
@@ -203,6 +212,7 @@
 "Construction" = "结构";
 "Copies" = "份数";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "剪贴板的多份副本，每份再移一个步距（原理图单位，10 = 一格）。器件取得下一个可用位号；网络标签编号按增量递增（D0 → D1 …）。";
+"Copper Pours" = "覆铜";
 "Copper colours" = "铜层颜色";
 "Copper foil" = "铜箔";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "铜层数：1 = 单面 (无过孔)，2–6 适用于大多数产品，8–24 适用于主板、服务器、大型机和 GPU 基板";
@@ -226,6 +236,7 @@
 "DEVICES" = "器件";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "绘图";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "数据手册";
@@ -243,6 +254,7 @@
 "Delete Type" = "删除类型";
 "Delete Variant" = "删除变体";
 "Delete Wire" = "删除导线";
+"Delete the selected drawing" = "删除所选图形";
 "Describe your product" = "描述你的产品";
 "Description" = "描述";
 "Design" = "设计";
@@ -266,7 +278,9 @@
 "Done" = "完成";
 "Down ↓" = "向下 ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "下载分销商的数据手册 PDF 并提取引脚表";
+"Drag to draw · click to place a text · Esc returns to selecting" = "拖动以绘制 · 点击以放置文本 · Esc 返回选择";
 "Drag to orbit" = "拖动以环绕旋转";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "绘制生成的矩形；当图形就是本体时请关闭";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "逐个绘制焊盘图形：每个焊盘的位置、尺寸、形状、钻孔和引脚";
 "Drawn by" = "绘制者";
 "Driver" = "驱动器";
@@ -287,6 +301,8 @@
 "Edit Symbol…" = "编辑符号…";
 "Effort" = "推理强度";
 "Enable AI assistance" = "启用 AI 辅助";
+"End %lld°" = "终点 %lld°";
+"Engineering change order: review and execute the schematic's changes on the board" = "工程变更单：审阅并在电路板上执行原理图的更改";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "在上方输入身份提供商的颁发者 URL 和 SiEDA 的客户端 ID 以启用此按钮 (请咨询你的 IT 管理员)。";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "在处理器、BGA 和大电容下方填充环氧树脂，以防 MIL-STD-901E 冲击将其撕脱";
 "Errors" = "错误";
@@ -294,6 +310,8 @@
 "Every pin is placed once; no pins collide" = "每个引脚只放置一次；引脚无冲突";
 "Every unit is valid" = "每个单元均有效";
 "Exchange the wires of two interchangeable pins of this gate" = "交换此门两个可互换引脚的导线";
+"Execute Changes" = "执行更改";
+"Executed" = "已执行";
 "Export" = "导出";
 "Export 3D" = "导出 3D";
 "Export Fabrication Package…" = "导出制造文件包…";
@@ -310,6 +328,7 @@
 "File unit" = "文件单位";
 "Fill Suggested Part Numbers" = "填写建议料号";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "在每一行填入生产数量下最佳报价的供应商料号和单价";
+"Filled" = "填充";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "根据值和封装填写标准料号 (例如 Yageo RC0805 ";
 "Find" = "查找";
 "Find & Replace" = "查找和替换";
@@ -323,6 +342,8 @@
 "Fit Board to Components" = "使电路板适配元件";
 "Fits every pin" = "匹配每个引脚";
 "Fitted" = "贴装";
+"Fitted in this channel" = "在此通道中安装";
+"Fitted to Entries" = "适配入口";
 "Fix Duplicates Only" = "仅修复重复项";
 "Flicker (1/f)" = "闪烁噪声 (1/f)";
 "Flight time" = "飞行时间";
@@ -407,11 +428,14 @@
 "Layer" = "层";
 "Layer separation (exploded view)" = "层间距 (爆炸视图)";
 "Layers" = "层";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "仅在此通道中不安装此元件 (DNP)；其他通道保持不变";
 "Length" = "长度";
 "Library" = "库";
 "Lifecycle" = "生命周期";
+"Line" = "线条";
 "Line loss per layer" = "各层传输线损耗";
 "Line total" = "小计";
+"Line width %@" = "线宽 %@";
 "Live Pricing" = "实时报价";
 "Live Pricing…" = "实时报价…";
 "Live board" = "实时电路板";
@@ -435,6 +459,8 @@
 "MESSAGES" = "消息";
 "Magnitude" = "幅度";
 "Make Swap Group" = "创建交换组";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "执行最能缩短此元件连线的交换；原理图随之更新";
+"Make this swap on the board and in the schematic" = "在电路板和原理图中执行此交换";
 "Manufacturer part #" = "制造商料号";
 "Manufacturer part number or keywords" = "制造商料号或关键字";
 "Mask" = "阻焊";
@@ -462,6 +488,8 @@
 "Mounting" = "安装方式";
 "Mouser Search API key (API Hub → Search API)." = "Mouser 搜索 API 密钥（API Hub → Search API）。";
 "Move Selection Here" = "将所选内容移到此处";
+"Move drawing" = "移动图形";
+"Move the drawing half a grid step" = "将图形移动半个网格";
 "Move the footprint origin to the centre of the pads" = "将封装原点移至焊盘中心";
 "Move the pad in the numbering; pads between shift by one" = "在编号中移动焊盘；中间的焊盘依次顺移一位";
 "NAVIGATOR" = "导航器";
@@ -472,6 +500,7 @@
 "Net" = "网络";
 "Net Classes" = "网络类别";
 "Net Navigator" = "网络导航";
+"Net Rules" = "网络规则";
 "Net class" = "网络类别";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "网络指令的网络类别：原理图是电路板网络规则的来源";
 "Net model" = "网络模型";
@@ -491,6 +520,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "此设计中没有差分对 (…_P/_N, …+/-) 或总线 (DQ0…, DATA[0..7], ADDR…)。";
 "No distributor API keys yet" = "尚无分销商 API 密钥";
 "No distributor offers." = "没有分销商报价。";
+"No drawings yet: pick a tool and drag on the symbol." = "尚无图形：选择工具并在符号上拖动。";
 "No errors or warnings." = "没有错误或警告。";
 "No gates found in the pin names." = "引脚名称中未找到门。";
 "No imported model" = "没有导入的模型";
@@ -547,6 +577,7 @@
 "Open the design verification report" = "打开设计验证报告";
 "Open the offer on the distributor's site" = "在分销商网站打开此报价";
 "Open…" = "打开…";
+"Optimize Swaps" = "优化交换";
 "Other footprints" = "其他封装";
 "Output" = "输出";
 "Output noise" = "输出噪声";
@@ -558,6 +589,7 @@
 "PCB Layout" = "PCB 布局";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "每张图页的 PDF，含书签、图框与标题栏";
+"PIN / GATE SWAP" = "引脚 / 门交换";
 "PIN SWAP" = "引脚交换";
 "PINS" = "引脚";
 "PRBS" = "PRBS";
@@ -603,6 +635,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "放置、布线、铺铜、DRC、Gerber Edge.Cuts 和 3D 电路板都跟随外形。 ";
 "Plane" = "平面";
 "Plane cavity" = "平面谐振腔";
+"Polygon" = "多边形";
 "Port (to parent sheet)" = "端口（连至父图纸）";
 "Ports: %@" = "端口：%@";
 "Power" = "电源";
@@ -617,10 +650,12 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "半径 %lld";
 "Re-annotate from the board (columns)" = "按电路板重新标注（列）";
 "Re-annotate from the board (rows)" = "按电路板重新标注（行）";
 "Re-verify" = "重新验证";
 "Read Pins from Datasheet" = "从数据手册读取引脚";
+"Read the changes again from the schematic" = "从原理图重新读取更改";
 "Ready" = "就绪";
 "Receive equaliser, peaking chosen for the widest eye" = "接收均衡器，选择使眼图最宽的峰化";
 "Receiver" = "接收器";
@@ -645,6 +680,7 @@
 "Renumber" = "重新编号";
 "Repeat Sheet" = "重复图页";
 "Repeat Sheet…" = "重复图页…";
+"Repeat With Its Block" = "随其模块重复";
 "Replace All" = "全部替换";
 "Replace with" = "替换为";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "在所有图页替换元件值与网络标签名称中的文字（位号请用自动编号）";
@@ -724,11 +760,13 @@
 "Search parts" = "搜索元件";
 "Searching…" = "正在搜索…";
 "Seat on Board" = "贴合电路板";
+"Select" = "选择";
 "Select a net to analyse" = "选择要分析的网络";
 "Select a net to analyse its channel" = "选择一个网络以分析其通道";
 "Select a pad to edit its position, size, shape, drill and pin." = "选择一个焊盘以编辑其位置、尺寸、形状、钻孔和引脚。";
 "Select a part on the schematic or PCB to edit its properties." = "在原理图或 PCB 上选择一个元件以编辑其属性。";
 "Select an importable part to preview it." = "选择可导入的器件以预览。";
+"Select and move pins and drawings" = "选择并移动引脚和图形";
 "Select pins to move them to a side, stack them or change their order." = "选择引脚以将其移到某一侧、堆叠或更改顺序。";
 "Send" = "发送";
 "Send to" = "发送到";
@@ -742,6 +780,7 @@
 "Sheet" = "图纸";
 "Sheet %lld of %lld" = "第 %lld 页，共 %lld 页";
 "Sheet Size" = "图页尺寸";
+"Sheet Symbol Size" = "图纸符号大小";
 "Sheet name" = "图纸名称";
 "Shot" = "散粒噪声";
 "Shove" = "推挤";
@@ -774,6 +813,7 @@
 "Simulation" = "仿真";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "相对于实时的仿真速度 (慢动作可显示快速信号)";
 "Single-ended" = "单端";
+"Size %lld" = "大小 %lld";
 "Skew" = "偏斜";
 "Smooth" = "光滑";
 "Solve the DC operating point once — shows voltage probes" = "求解一次 DC 工作点 — 显示电压探针";
@@ -787,6 +827,7 @@
 "Stack repeated power pins" = "堆叠重复的电源引脚";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "层叠取自 PCB 布局中的“层”设置：1 层时底面为裸露 FR-4； ";
 "Standard ED" = "标准 ED";
+"Start %lld°" = "起点 %lld°";
 "Starting the design engine" = "正在启动设计引擎";
 "Step" = "单步";
 "Step response" = "阶跃响应";
@@ -819,7 +860,9 @@
 "Tamper mesh over" = "防篡改网格覆盖于";
 "Target" = "目标";
 "Test Connection" = "测试连接";
+"Text" = "文本";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "自动布线器会将 RF 线路和差分对 (…_P/_N) 调整到这些阻抗 (IPC-2141)。";
+"The board is up to date with the schematic." = "电路板已与原理图同步。";
 "The imported model replaces the built-in one in every analysis." = "导入的模型会在每项分析中取代内置模型。";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "界面将使用此语言。工程术语、料号、单位、网络名称和设计检查消息保持英文，以便与数据手册和制造文件一致。";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "离线设计器使用 SiEDA 内置的参考电路。无需网络或 API 密钥 — 非常适合演示和物理隔离的实验室。";
@@ -829,6 +872,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "两个门在封装中互换位置；符号与导线不变";
 "The victim runs on the adjacent layer, over or under the aggressor" = "受害网络在相邻层上，位于干扰网络的上方或下方";
 "Thermal" = "热噪声";
+"This channel has its own SPICE model" = "此通道有自己的 SPICE 模型";
+"This channel has its own firmware" = "此通道有自己的固件";
+"This channel only" = "仅此通道";
 "Through" = "通孔";
 "Title" = "标题";
 "Total jitter" = "总抖动";
@@ -844,6 +890,7 @@
 "Type a designator, value, label or net name." = "输入位号、数值、标签或网络名称。";
 "UNIT %@" = "单元 %@";
 "UNITS" = "单元";
+"UPDATE PCB" = "更新 PCB";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "重型元件底部填充 / 边角粘接 (冲击)";
 "Undershoot" = "下冲";
@@ -856,8 +903,10 @@
 "Units" = "单元";
 "Unity gain" = "单位增益";
 "Unstack" = "取消堆叠";
+"Update PCB" = "更新 PCB";
 "Upload .hex…" = "上传 .hex…";
 "Use Block Value" = "使用块值";
+"Use Block's" = "使用模块的";
 "Use the generated body again" = "改回使用自动生成的本体";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "将此图页用作多个相同的通道 (1 至 64)。每个通道有自己的位号、网络和图页符号；编辑任一通道即编辑全部。";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML（.wrl，KiCad 库附带）、STL 或 OBJ。无法读取 STEP 文件：请改用旁边的 .wrl。";
@@ -922,3 +971,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x 向右，y 朝向 PCB 视图上方，z 从板面向上。旋转依次绕 x、y、z 轴。";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "按住 ⌥ 拖动或双指拖动以平移";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "真圆弧";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "真圆弧（Gerber 中为 G02/G03）；差分对和总线以同心圆弧转弯。关闭：短直线弦段";
+"Accordion" = "手风琴";
+"Trombone" = "长号";
+"Sawtooth" = "锯齿";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "手风琴：矩形蛇形线；长号：一个宽回环；锯齿：三角形齿";
+"Meander corners" = "蛇形线转角";
+"Square" = "直角";
+"Mitered" = "斜切";
+"Round" = "圆角";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "蛇形线的转角：直角、45° 斜切或圆角（真圆弧）";
+"Coupled" = "耦合";
+"Differential pair: meander both members together at their gap" = "差分对：两条线按其间距一起做蛇形线";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "差分对成员的时滞调整：在远离另一条线的一侧加小凸起，调到另一条线的长度";
+"Length Rules" = "长度规则";
+"Length targets per net and match groups, measured pad to pad through series parts" = "每个网络的长度目标和匹配组，从焊盘量到焊盘并穿过串联元件";
+"Remove the length rule" = "移除长度规则";
+"Tolerance" = "公差";
+"Match Groups" = "匹配组";
+"Remove the match group" = "移除匹配组";
+"Group name" = "组名称";
+"Add Group" = "添加组";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "成员：选择两个或更多网络。穿过串联电阻或电容的网络会跨过它们从焊盘量到焊盘。";
+"Any angle" = "任意角度";
+"Route and drag at any angle: the head is one straight track to the pointer" = "以任意角度布线和拖动：前端是一条通往指针的直线";
+"Remove loops" = "移除回路";
+"Finishing a route removes the old path of the net it makes redundant" = "完成布线时移除该网络因此变得多余的旧路径";
+"Auto teardrops" = "自动泪滴";
+"Teardrops where each finished route meets pads and vias" = "在每条完成的布线与焊盘和过孔相接处加入泪滴";
+"Stop at obstacle" = "遇障碍停止";
+"Hug obstacles" = "贴合障碍物";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "拖动的走线会绕过无法推开的焊盘和其他铜皮，而不是提前停下";

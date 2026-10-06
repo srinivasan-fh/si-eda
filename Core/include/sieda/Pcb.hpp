@@ -14,6 +14,24 @@
 
 namespace sieda {
 
+struct Track;
+
+/// A net class's length rule: the net's routed length, pad to pad through series parts (its xSignal, see
+/// LengthRules.hpp), should be `target` ± `tolerance` mm.
+struct LengthRule {
+    std::string net;
+    double target = 0;
+    double tolerance = 0.1;
+};
+
+/// A match group (as xSignal classes in other tools): the routed lengths of these nets' xSignals should match the
+/// longest of them within `tolerance` mm.
+struct MatchGroup {
+    std::string name;
+    std::vector<std::string> nets;
+    double tolerance = 0.1;
+};
+
 /// Copper layer index: 0 = top, `BoardSettings::bottomLayer()` = bottom, anything between = inner layer.
 constexpr int kTopLayer = 0;
 
@@ -81,6 +99,9 @@ struct BoardSettings {
     std::string solderMask = "green";
     /// Net classes: track width (mm) per net name, e.g. {"VBAT": 0.8} for motor and battery currents.
     std::map<std::string, double> netWidths;
+    /// Length rules per net and match groups (Board Setup; the length tuning tool and the DRC use them).
+    std::vector<LengthRule> lengthRules;
+    std::vector<MatchGroup> matchGroups;
     /// The autorouter first widens net classes to the IPC-2221 width for each net's simulated current.
     bool autoSizeNets = true;
     double widthFor(const std::string& netName) const {
@@ -108,6 +129,8 @@ struct BoardSettings {
     double edgeDistance(Vec2 p) const;
     /// Smallest distance from a segment to the outline (negative if any part lies outside).
     double segmentEdgeDistance(Vec2 a, Vec2 b) const;
+    /// The same for a track's centre line (segmentEdgeDistance for a straight track; exact for an arc).
+    double trackEdgeDistance(const Track& t) const;
     /// Distance from `p` to the nearest mounting-hole keep-out circle (negative inside one); large if no holes.
     double holeDistance(Vec2 p) const;
     /// True if `r` lies inside the outline at least `margin` from it and clear of every hole keep-out.
@@ -194,6 +217,13 @@ struct Track {
     Vec2 a, b;
     /// Locked tracks stay where they are: the interactive router never shoves or drags them.
     bool locked = false;
+    /// True arc (3-point form): the track runs from `a` through `mid` to `b` on one circle. Straight when false; an
+    /// arc whose three points are collinear is the straight a–b. Measure tracks with TrackGeometry.hpp, never a–b.
+    bool arc = false;
+    Vec2 mid;
+    /// Part of a teardrop (InteractiveRouter.hpp addTeardrops): runs from inside a pad / via (`a`) onto the track
+    /// it widens (`b`). Ordinary copper for DRC, Gerber and connectivity; the router leaves it in place.
+    bool teardrop = false;
 };
 
 struct Via {
@@ -388,3 +418,6 @@ private:
 };
 
 }  // namespace sieda
+
+// Track geometry (straight and arc tracks); needs Track above.
+#include "sieda/TrackGeometry.hpp"

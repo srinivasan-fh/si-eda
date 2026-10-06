@@ -552,7 +552,7 @@ NetCopperGraph buildNetCopperGraph(const PcbLayout& pcb, const std::vector<Pad>&
     constexpr double kTol = 1e-3;
     std::vector<const Track*> tracks;
     for (const auto& t : pcb.tracks)
-        if (t.net == net && (t.b - t.a).length() > 1e-9) tracks.push_back(&t);
+        if (t.net == net && trackLength(t) > 1e-9) tracks.push_back(&t);
     std::vector<const Via*> vias;
     for (const auto& v : pcb.vias)
         if (v.net == net) vias.push_back(&v);
@@ -569,6 +569,35 @@ NetCopperGraph buildNetCopperGraph(const PcbLayout& pcb, const std::vector<Pad>&
     };
     // Track sections, split where another track of the net ends on them (T-junctions).
     for (const Track* t : tracks) {
+        if (isArcTrack(*t)) {
+            // An arc: cut where other copper of the net ends on it, measured along the arc.
+            const double len = trackLength(*t);
+            std::vector<double> cuts{0.0, 1.0};
+            auto cutAt = [&](Vec2 p) {
+                if (trackPointDistance(*t, p) >= kTol) return;
+                const double u = trackParamAt(*t, p) / len;
+                if (u * len > kTol && (1 - u) * len > kTol) cuts.push_back(u);
+            };
+            for (const Track* o : tracks)
+                if (o != t && o->layer == t->layer) {
+                    cutAt(o->a);
+                    cutAt(o->b);
+                }
+            for (const Via* v : vias)
+                if (v->spans(t->layer)) cutAt(v->position);
+            std::sort(cuts.begin(), cuts.end());
+            for (size_t k = 1; k < cuts.size(); ++k) {
+                if ((cuts[k] - cuts[k - 1]) * len < 1e-6) continue;
+                NetCopperGraph::Edge e;
+                e.a = nodeAt(t->layer, trackPointAt(*t, cuts[k - 1]));
+                e.b = nodeAt(t->layer, trackPointAt(*t, cuts[k]));
+                e.layer = t->layer;
+                e.width = t->width;
+                e.length = (cuts[k] - cuts[k - 1]) * len;
+                g.edges.push_back(e);
+            }
+            continue;
+        }
         const Vec2 d = t->b - t->a;
         const double len = d.length();
         std::vector<double> cuts{0.0, 1.0};
@@ -1592,7 +1621,7 @@ std::vector<CrosstalkPair> crosstalkPairs(const Project& project) {
     std::map<std::pair<int, int>, Acc> acc;
     for (const auto& a : pcb.tracks) {
         auto ait = aggressors.find(a.net);
-        if (ait == aggressors.end()) continue;
+        if (ait == aggressors.end() || a.arc) continue;  // parallel runs are straight; arcs are short corners
         const Vec2 da = a.b - a.a;
         const double la = da.length();
         if (la < 0.5) continue;
@@ -1603,7 +1632,8 @@ std::vector<CrosstalkPair> crosstalkPairs(const Project& project) {
             // Same layer (edge coupled), or the next layer (broadside: no plane can lie between adjacent layers that both
             // carry tracks here).
             const bool broadside = std::abs(b.layer - a.layer) == 1;
-            if ((b.layer != a.layer && !broadside) || b.net == a.net || !signal(b.net) || pairNets.count({a.net, b.net})) continue;
+            if ((b.layer != a.layer && !broadside) || b.net == a.net || !signal(b.net) || pairNets.count({a.net, b.net}) || b.arc)
+                continue;
             if (!box.intersects(Rect(b.a.x, b.a.y, b.b.x, b.b.y).inflated(1e-6))) continue;
             const Vec2 db = b.b - b.a;
             const double lb = db.length();
@@ -1720,7 +1750,7 @@ std::vector<ReturnPathIssue> returnPathIssues(const Project& project) {
     for (const auto& t : pcb.tracks) {
         if (count >= 40) break;
         if (!checked.count(t.net) || sch.netRole(t.net) != NetRole::Signal) continue;
-        const double len = (t.b - t.a).length();
+        const double len = trackLength(t);
         if (len < 0.5) continue;
         for (int ref : refLayers(t.layer)) {
             const int samples = std::max(2, static_cast<int>(std::ceil(len / 0.25)));
@@ -1729,7 +1759,7 @@ std::vector<ReturnPathIssue> returnPathIssues(const Project& project) {
             bool inGap = false;
             Vec2 gapAt;
             for (int k = 0; k <= samples; ++k) {
-                const Vec2 p = t.a + (t.b - t.a) * (static_cast<double>(k) / samples);
+                const Vec2 p = trackPointAt(t, static_cast<double>(k) / samples);
                 bool nearHole = false;
                 for (const Vec2& h : holes)
                     if ((h - p).length() < holeR) {

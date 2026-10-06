@@ -15,8 +15,11 @@
   `Core/src/Instances.cpp` (`syncInstances` keeps channel copies in line; every Schematic edit calls it), graphical
   buses in `Core/src/Buses.cpp`, multi-unit parts in `Core/src/PartUnits.cpp` (kind PartUnit + hidden `packageOnly`
   package; the snapshot reports units as kind Custom with `unitOf`), find / replace and the net navigator in
-  `Core/src/SchematicSearch.cpp`, variant simulation via `Project::simulationSchematic`; app in
-  `SiEDA/Views/Schematic/`; guide in `docs/SCHEMATIC.md`. Nested repetition and per-channel values
+  `Core/src/SchematicSearch.cpp`, variant simulation via `Project::simulationSchematic`; Update PCB (forward ECO,
+  `pcbSync` baseline) in `Core/src/Eco.cpp`, PCB pin / gate swap in `Core/src/PcbSwap.cpp`, schematic PDF in
+  `Core/src/SchematicPdf.cpp` with TrueType subsetting in `Core/src/PdfFont.cpp`; app in `SiEDA/Views/Schematic/`;
+  guide in `docs/SCHEMATIC.md`. Symbol graphics: `SymbolSpec::graphics` (core) = `CustomPartSpec.SymbolGraphic`
+  (Swift); keep their JSON identical. Nested repetition and per-channel values
   (`channelOverrides`) are in `Instances.cpp` (`syncNestedSheets`); harnesses in `Harnesses.cpp`; net classes /
   directives in `Directives.cpp` (carried to the board by `Project::applySchematicRules`); align / copy / paste in
   `SchematicEdit.cpp`; back-annotation ECO in `Eco.cpp`; sheet templates and the PDF in `SchematicPdf.cpp`; unit
@@ -44,6 +47,13 @@
 - 3D models of parts: core in `Core/src/Model3D.cpp` (VRML 2.0 / STL / OBJ readers, `Model3DRegistry`, project
   `models3d`, `appendModel3D` in `buildAssemblyMesh`); a part refers to its mesh by `CustomPartSpec::model3d`; app
   `SiEDA/Views/Library/Model3DEditorView.swift`. STEP is deliberately not read (no CAD kernel).
+- Interactive routing: `Core/src/InteractiveRouter.cpp` (router, shove, arc corners, commands), arc tracks in
+  `Core/include/sieda/TrackGeometry.hpp` (`Track::arc`: measure tracks only through these functions, never `a`–`b`;
+  straight tracks must stay bit-identical), board commands (teardrops as `Track::teardrop` fans, via stitching /
+  shielding, gloss, loop removal on commit, hug drag, Stop mode, `matchTrackLengths` — opt-in router options, so default
+  routing is unchanged; head searches may run on several threads but must give the sequential result), C API additions in `Core/src/sieda_c_routing.cpp`; app in
+  `SiEDA/Views/PCB/`, `SiEDA/App/DesignStore+Routing.swift`, `SiEDA/Bridge/EDAEngine+Routing.swift`; guide in
+  `docs/INTERACTIVE_ROUTING.md`.
 - Library parts live in `Core/src/StandardParts.cpp`; KiCad-derived pinouts are generated into
   `Core/src/StandardCatalog.inc` by `tools/fetch_catalog_parts.py` — don't edit that file by hand. More parts from
   whole KiCad libraries: `--discover` freezes `tools/catalog_extra_parts.tsv`, `--extra` writes

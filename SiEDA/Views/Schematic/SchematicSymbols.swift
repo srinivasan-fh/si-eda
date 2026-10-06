@@ -37,7 +37,9 @@ enum SchematicSymbols {
         // Side pins reach 20 past the body; top / bottom pins do too.
         let w = custom.symbol.halfWidth + 20
         let h = max(custom.symbol.halfHeight, custom.symbol.pins.map { abs($0.y) }.max() ?? 0)
-        return CGRect(x: -w, y: -h, width: 2 * w, height: 2 * h)
+        let box = CGRect(x: -w, y: -h, width: 2 * w, height: 2 * h)
+        let drawn = (custom.symbolLayout?.graphics ?? []).reduce(CGRect.null) { $0.union($1.bounds) }
+        return drawn.isNull ? box : box.union(drawn)
     }
 
     /// Symbol of a library part: body, pin leads on all four sides (stacked pins share one lead), pin-1 marker.
@@ -45,8 +47,17 @@ enum SchematicSymbols {
         var s = Shapes()
         let hw = part.symbol.halfWidth, hh = part.symbol.halfHeight
         let body = CGRect(x: -hw, y: -hh, width: 2 * hw, height: 2 * hh)
-        s.fill.addRect(body)
-        s.stroke.addRect(body)
+        let drawsBody = part.symbolLayout?.body ?? true
+        if drawsBody {
+            s.fill.addRect(body)
+            s.stroke.addRect(body)
+        }
+        // Free-form drawings from the Symbol Editor (filled ones take the symbol fill colour).
+        for g in part.symbolLayout?.graphics ?? [] where g.shapeKind != .text {
+            let path = g.path
+            if g.isFilled, g.shapeKind != .line { s.fill.addPath(path) }
+            s.stroke.addPath(path)
+        }
         for pin in part.symbol.pins {
             s.stroke.move(to: pinEdge(pin, halfWidth: hw, halfHeight: hh))
             s.stroke.addLine(to: CGPoint(x: pin.x, y: pin.y))
@@ -57,8 +68,18 @@ enum SchematicSymbols {
                 s.stroke.addLine(to: CGPoint(x: pin.x + 3, y: pin.y - 3))
             }
         }
-        s.solid.addEllipse(in: CGRect(x: -hw + 4, y: -hh + 4, width: 5, height: 5))
+        if drawsBody { s.solid.addEllipse(in: CGRect(x: -hw + 4, y: -hh + 4, width: 5, height: 5)) }
         return s
+    }
+
+    /// Text drawings of a library part's symbol, upright at their anchor, scaled with the view.
+    static func drawGraphicTexts(_ ctx: GraphicsContext, part: CustomPartInfo, transform t: CGAffineTransform, color: Color) {
+        let scale = hypot(t.a, t.b)
+        for g in part.symbolLayout?.graphics ?? [] where g.shapeKind == .text {
+            guard let at = g.cgPoints.first, let text = g.text, !text.isEmpty else { continue }
+            let size = max(4, (g.size ?? 8) * scale)
+            ctx.draw(Text(verbatim: text).font(.system(size: size)).foregroundColor(color), at: at.applying(t), anchor: .leading)
+        }
     }
 
     /// Where a symbol pin's lead meets the body (symbol coordinates).
@@ -76,6 +97,7 @@ enum SchematicSymbols {
     /// and all their numbers.
     static func drawPinLabels(_ ctx: GraphicsContext, part: CustomPartInfo, transform t: CGAffineTransform, fontSize: CGFloat,
                               nameColor: (CustomPartInfo.SymbolPin) -> Color, numberColor: Color) {
+        drawGraphicTexts(ctx, part: part, transform: t, color: Theme.symbol)
         let hw = part.symbol.halfWidth, hh = part.symbol.halfHeight
         var order: [String] = []
         var groups: [String: (pin: CustomPartInfo.SymbolPin, numbers: [String])] = [:]
@@ -397,5 +419,33 @@ struct SymbolPreview: View {
                             .foregroundColor(Theme.iceBlue), at: title)
             }
         }
+    }
+}
+
+extension CustomPartSpec.SymbolGraphic {
+    /// The drawing as a path in symbol coordinates (text: nothing).
+    var path: Path {
+        var p = Path()
+        let pts = cgPoints
+        guard let first = pts.first else { return p }
+        switch shapeKind {
+        case .line:
+            p.addLines(pts)
+        case .polygon:
+            p.addLines(pts)
+            p.closeSubpath()
+        case .rect:
+            if pts.count >= 2 { p.addRect(CGRect(x: min(pts[0].x, pts[1].x), y: min(pts[0].y, pts[1].y),
+                                                 width: abs(pts[1].x - pts[0].x), height: abs(pts[1].y - pts[0].y))) }
+        case .circle:
+            let r = radius ?? 0
+            p.addEllipse(in: CGRect(x: first.x - r, y: first.y - r, width: 2 * r, height: 2 * r))
+        case .arc:
+            p.addArc(center: first, radius: radius ?? 0, startAngle: .degrees(startAngle ?? 0),
+                     endAngle: .degrees(endAngle ?? 360), clockwise: false)
+        case .text:
+            break
+        }
+        return p
     }
 }

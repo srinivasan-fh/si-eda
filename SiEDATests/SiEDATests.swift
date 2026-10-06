@@ -6276,3 +6276,459 @@ final class StructuredPlanHarnessTests: XCTestCase {
         XCTAssertEqual(after.board.netWidths["BUS0.SCK"], 0.2)
     }
 }
+
+/// True arc tracks (docs/INTERACTIVE_ROUTING.md): arc corners through the bridge, the snapshot's arc geometry,
+/// drawing / hit testing helpers, and "Convert corners to arcs" from the store as one undo step.
+@MainActor
+final class ArcRoutingTests: XCTestCase {
+    private func twoResistors(_ engine: EDAEngine) {
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        engine.moveFootprint(r1, to: CGPoint(x: 8, y: 20))
+        engine.moveFootprint(r2, to: CGPoint(x: 40, y: 32))
+    }
+
+    func testArcCornersThroughTheBridge() throws {
+        let engine = EDAEngine(name: "Arcs")
+        twoResistors(engine)
+        let options = EDAEngine.routingOptions(mode: .shove, diagonal: true, rounded: true, arcs: true)
+        XCTAssertTrue(options.contains("\"arcCorners\":true"))
+        XCTAssertNil(engine.routerBegin(at: CGPoint(x: 8.95, y: 20), layer: 0, pair: false, options: options)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 20, y: 20))
+        _ = engine.routerFix()
+        let head = try XCTUnwrap(engine.routerMove(to: CGPoint(x: 39.05, y: 32)))
+        XCTAssertTrue(head.reachedTarget)
+        XCTAssertTrue((head.placed + head.head).contains { $0.isArc })
+        XCTAssertTrue(engine.routerCommit().ok)
+        let snapshot = try XCTUnwrap(engine.snapshot())
+        let arcs = snapshot.tracks.filter(\.isArc)
+        // One corner: the point fixed at (20, 20) lies on the straight start, so the route is straight, then one 45°
+        // turn up to the pad — one arc.
+        XCTAssertEqual(arcs.count, 1)
+        for arc in arcs {
+            // The mid point lies on the arc; the drawn centre line starts and ends exactly at the track's ends.
+            let mid = CGPoint(x: try XCTUnwrap(arc.mx), y: try XCTUnwrap(arc.my))
+            XCTAssertLessThan(arc.distance(to: mid), 1e-6)
+            XCTAssertEqual(arc.centreLine.first, arc.start)
+            XCTAssertEqual(arc.centreLine.last, arc.end)
+            XCTAssertLessThan(arc.length, hypot(arc.bx - arc.ax, arc.by - arc.ay) * 1.2)
+            XCTAssertTrue(arc.extent.insetBy(dx: -1e-9, dy: -1e-9).contains(mid))
+        }
+        XCTAssertTrue(snapshot.ratsnest.isEmpty)
+        XCTAssertFalse(engine.runDRC().contains { $0.severity == .error })
+        // The chords option still writes short straight pieces.
+        XCTAssertTrue(EDAEngine.routingOptions(mode: .shove, diagonal: true, rounded: true, arcs: false)
+            .contains("\"arcCorners\":false"))
+    }
+
+    func testConvertCornersToArcsFromTheStore() throws {
+        let store = DesignStore()
+        let engine = store.engine
+        twoResistors(engine)
+        let options = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+        XCTAssertNil(engine.routerBegin(at: CGPoint(x: 8.95, y: 20), layer: 0, pair: false, options: options)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 20, y: 20))
+        _ = engine.routerFix()
+        _ = engine.routerMove(to: CGPoint(x: 39.05, y: 32))
+        XCTAssertTrue(engine.routerCommit().ok)
+        store.refresh()
+        XCTAssertFalse(store.snapshot.tracks.contains { $0.isArc })
+        // Select one track, then its whole net, and convert.
+        let first = try XCTUnwrap(store.snapshot.tracks.first)
+        store.selectTrack(first.id)
+        XCTAssertEqual(store.selectedTracks, [first.id])
+        store.selectTrackNets()
+        XCTAssertEqual(store.selectedTracks.count, store.snapshot.tracks.count)
+        store.convertCornersToArcs()
+        XCTAssertTrue(store.snapshot.tracks.contains { $0.isArc })
+        XCTAssertTrue(store.selectedTracks.isEmpty)
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        store.undo()
+        XCTAssertFalse(store.snapshot.tracks.contains { $0.isArc })
+        // Nothing to convert: no undo step, a message.
+        store.selectTrack(nil)
+        let before = store.snapshot.tracks.count
+        let arcsResult = try XCTUnwrap(engine.arcCorners(tracks: [], apply: false))
+        XCTAssertFalse(arcsResult.ok)
+        XCTAssertEqual(store.snapshot.tracks.count, before)
+    }
+}
+
+/// Length tuning parity (docs/INTERACTIVE_ROUTING.md, Length tuning): patterns and corner shapes, drag-along tuning,
+/// length rules and match groups from the store, each an undo step.
+@MainActor
+final class LengthTuningParityTests: XCTestCase {
+    private func routedStore() throws -> (DesignStore, SnapTrack) {
+        let store = DesignStore()
+        let engine = store.engine
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        engine.moveFootprint(r1, to: CGPoint(x: 10, y: 20))
+        engine.moveFootprint(r2, to: CGPoint(x: 40, y: 20))
+        let options = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+        XCTAssertNil(engine.routerBegin(at: CGPoint(x: 10.95, y: 20), layer: 0, pair: false, options: options)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 39.05, y: 20))
+        XCTAssertTrue(engine.routerCommit().ok)
+        store.refresh()
+        return (store, try XCTUnwrap(store.snapshot.tracks.first))
+    }
+
+    func testPatternsCornersAndDragAlong() throws {
+        let (store, track) = try routedStore()
+        store.tuneStyle = .sawtooth
+        store.tuneCorner = .round
+        store.beginTune(track: track.id, at: CGPoint(x: 15, y: 20))
+        store.setTuneTarget(track.length + 2)
+        let preview = try XCTUnwrap(store.tuneSession?.preview)
+        XCTAssertTrue(preview.ok)
+        XCTAssertEqual(preview.targetSource, "typed")
+        XCTAssertEqual(preview.after, track.length + 2, accuracy: 0.01)
+        // Drag along: the meanders stay between the press and the pointer.
+        store.dragTune(to: CGPoint(x: 30, y: 20))
+        let span = try XCTUnwrap(store.tuneSession?.preview)
+        XCTAssertTrue(span.ok)
+        for t in span.addedTracks where abs(t.ay - 20) > 1e-6 || abs(t.by - 20) > 1e-6 {
+            XCTAssertGreaterThanOrEqual(min(t.ax, t.bx), 15 - 1e-6)
+            XCTAssertLessThanOrEqual(max(t.ax, t.bx), 30 + 1e-6)
+        }
+        store.applyTune()
+        XCTAssertTrue(store.snapshot.tracks.contains { $0.isArc })
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        store.undo()
+        XCTAssertFalse(store.snapshot.tracks.contains { $0.isArc })
+        XCTAssertTrue(EDAEngine.TuneRequest(target: 1, amplitude: 0, spacing: 0, near: .zero, spanEnd: CGPoint(x: 5, y: 0),
+                                            style: .trombone, corner: .mitered, coupled: true, phase: false, apply: false)
+            .json.contains("\"toX\":5.000000"))
+    }
+
+    func testLengthRulesAndMatchGroupsFromTheStore() throws {
+        let (store, track) = try routedStore()
+        let net = try XCTUnwrap(store.snapshot.nets.first { $0.index == track.net }?.name)
+        store.setLengthRule(net: net, target: track.length + 3, tolerance: 0.1)
+        var targets = store.engine.lengthTargets()
+        XCTAssertEqual(targets.rules.map(\.net), [net])
+        XCTAssertFalse(targets.rules[0].ok)
+        // The tuning tool takes the rule's target.
+        store.beginTune(track: track.id, at: CGPoint(x: 20, y: 20))
+        XCTAssertEqual(store.tuneSession?.preview?.targetSource, "rule:\(net)")
+        store.applyTune()
+        targets = store.engine.lengthTargets()
+        XCTAssertTrue(targets.rules[0].ok)
+        store.undo()  // the tuning
+        store.undo()  // the rule
+        XCTAssertTrue(store.engine.lengthTargets().rules.isEmpty)
+        store.setMatchGroup(name: "G", nets: [net, "OTHER"], tolerance: 0.2)
+        XCTAssertEqual(store.engine.lengthTargets().groups.map(\.name), ["G"])
+        store.setMatchGroup(name: "G", nets: [], tolerance: 0)
+        XCTAssertTrue(store.engine.lengthTargets().groups.isEmpty)
+    }
+}
+
+/// Corner drag, multi-track drag, any-angle routing and multi-route from the store (docs/INTERACTIVE_ROUTING.md).
+@MainActor
+final class DragAndMultiRouteTests: XCTestCase {
+    private func store(withRoute route: Bool) -> DesignStore {
+        let store = DesignStore()
+        let engine = store.engine
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        let r3 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 0, y: 100))
+        let r4 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 100))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r3, pin: 1), PinAddress(component: r4, pin: 0)))
+        engine.moveFootprint(r1, to: CGPoint(x: 10, y: 10))
+        engine.moveFootprint(r2, to: CGPoint(x: 30, y: 20))
+        engine.moveFootprint(r3, to: CGPoint(x: 10, y: 30))
+        engine.moveFootprint(r4, to: CGPoint(x: 40, y: 34))
+        if route {
+            let options = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+            XCTAssertNil(engine.routerBegin(at: CGPoint(x: 10.95, y: 10), layer: 0, pair: false, options: options)?.error)
+            _ = engine.routerMove(to: CGPoint(x: 29.05, y: 20))
+            XCTAssertTrue(engine.routerCommit().ok)
+        }
+        store.refresh()
+        return store
+    }
+
+    func testCornerAndMultiTrackDrag() throws {
+        let store = store(withRoute: true)
+        // The route has a corner where two tracks meet away from the pads: drag it.
+        let tracks = store.snapshot.tracks
+        let ends: [CGPoint] = tracks.flatMap { [$0.start, $0.end] }
+        func isInnerCorner(_ p: CGPoint) -> Bool {
+            let joined = tracks.filter { $0.start == p || $0.end == p }.count
+            let awayFromA = hypot(p.x - 10.95, p.y - 10) > 0.5
+            let awayFromB = hypot(p.x - 29.05, p.y - 20) > 0.5
+            return joined == 2 && awayFromA && awayFromB
+        }
+        let corner = try XCTUnwrap(ends.first(where: isInnerCorner))
+        let track = try XCTUnwrap(tracks.first { $0.start == corner || $0.end == corner })
+        XCTAssertTrue(store.beginCornerDrag(track.id, at: corner))
+        XCTAssertEqual(store.routePreview?.kind, "corner")
+        store.finishRoute(at: CGPoint(x: corner.x - 1, y: corner.y + 1))
+        XCTAssertNil(store.routePreview)
+        XCTAssertTrue(store.snapshot.ratsnest.count <= 1)  // the second net is not routed
+        XCTAssertNotEqual(store.snapshot.tracks, tracks)
+        store.undo()
+        XCTAssertEqual(store.snapshot.tracks, tracks)
+        // Two selected tracks drag together.
+        let ids = Array(tracks.prefix(2).map(\.id))
+        XCTAssertTrue(store.beginMultiDrag(ids, at: tracks[0].start))
+        XCTAssertEqual(store.routePreview?.kind, "multidrag")
+        store.cancelRoute()
+        XCTAssertEqual(store.snapshot.tracks, tracks)
+    }
+
+    func testAnyAngleAndMultiRoute() throws {
+        let store = store(withRoute: false)
+        store.routerAnyAngle = true
+        store.beginRoute(at: CGPoint(x: 10.95, y: 10), layer: 0, pair: false)
+        store.moveRouteNow(to: CGPoint(x: 29.05, y: 20))
+        XCTAssertEqual(store.routePreview?.head.count, 1)
+        store.cancelRoute()
+        store.routerAnyAngle = false
+        // ⇧-click picks the first start, the plain click adds the second and routes both together.
+        store.toggleMultiStart(CGPoint(x: 10.95, y: 10))
+        XCTAssertEqual(store.multiStarts.count, 1)
+        store.beginMultiRoute(adding: CGPoint(x: 10.95, y: 30), layer: 0)
+        XCTAssertEqual(store.routePreview?.kind, "multi")
+        XCTAssertTrue(store.multiStarts.isEmpty)
+        store.cancelRoute()
+        XCTAssertNil(store.routePreview)
+    }
+}
+
+/// Teardrops, via stitching / shielding, glossing and loop removal from the store (docs/INTERACTIVE_ROUTING.md).
+@MainActor
+final class BoardCommandTests: XCTestCase {
+    private func routedStore() -> DesignStore {
+        let store = DesignStore()
+        let engine = store.engine
+        let r1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let r2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        XCTAssertNotNil(engine.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+        engine.moveFootprint(r1, to: CGPoint(x: 10, y: 10))
+        engine.moveFootprint(r2, to: CGPoint(x: 30, y: 20))
+        let options = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+        XCTAssertNil(engine.routerBegin(at: CGPoint(x: 10.95, y: 10), layer: 0, pair: false, options: options)?.error)
+        _ = engine.routerMove(to: CGPoint(x: 29.05, y: 20))
+        XCTAssertTrue(engine.routerCommit().ok)
+        store.refresh()
+        return store
+    }
+
+    func testTeardropsToggleAndUndo() {
+        let store = routedStore()
+        let tracks = store.snapshot.tracks
+        XCTAssertFalse(tracks.contains { $0.teardrop == true })
+        store.toggleTeardrops()
+        XCTAssertTrue(store.snapshot.tracks.contains { $0.teardrop == true })
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+        store.toggleTeardrops()  // again: removed
+        XCTAssertEqual(store.snapshot.tracks.map(\.id).sorted(), tracks.map(\.id).sorted())
+        store.undo()
+        XCTAssertTrue(store.snapshot.tracks.contains { $0.teardrop == true })
+        store.undo()
+        XCTAssertEqual(store.snapshot.tracks, tracks)
+    }
+
+    func testRouterOptionsCarryLoopsAndTeardrops() {
+        let json = EDAEngine.routingOptions(mode: .shove, diagonal: true, removeLoops: true, teardrops: true)
+        XCTAssertTrue(json.contains("\"removeLoops\":true"))
+        XCTAssertTrue(json.contains("\"teardrops\":true"))
+        let plain = EDAEngine.routingOptions(mode: .walkaround, diagonal: false)
+        XCTAssertTrue(plain.contains("\"removeLoops\":false"))
+        let store = DesignStore()
+        XCTAssertTrue(store.routerRemoveLoops)
+        XCTAssertFalse(store.routerTeardrops)
+    }
+
+    func testGlossStitchAndShieldReportWithoutChangingWhenNothingToDo() {
+        let store = routedStore()
+        let tracks = store.snapshot.tracks
+        store.glossTracks()  // a fresh route is already tight
+        XCTAssertEqual(store.snapshot.tracks, tracks)
+        store.stitchVias()  // no ground pours
+        XCTAssertTrue(store.snapshot.vias.isEmpty)
+        store.selectedTracks = []
+        store.shieldSelectedTracks()  // nothing selected
+        XCTAssertTrue(store.snapshot.vias.isEmpty)
+        XCTAssertFalse(store.statusMessage.isEmpty)
+        XCTAssertNotEqual(store.engine.gloss(tracks: [tracks[0].id])?.applied, true)
+    }
+}
+
+/// Stop-at-obstacle mode and length matching of a bus from the store (docs/INTERACTIVE_ROUTING.md).
+@MainActor
+final class StopModeAndMatchLengthTests: XCTestCase {
+    func testStopModeOption() {
+        let json = EDAEngine.routingOptions(mode: .stop, diagonal: true)
+        XCTAssertTrue(json.contains("\"mode\":\"stop\""))
+        XCTAssertTrue(RouterModeChoice.allCases.contains(.stop))
+        XCTAssertTrue(EDAEngine.routingOptions(mode: .shove, diagonal: true, hug: true).contains("\"hug\":true"))
+        XCTAssertTrue(DesignStore().routerHugDrag)
+    }
+
+    func testMatchLengthsOfTwoNets() throws {
+        let store = DesignStore()
+        let engine = store.engine
+        let a1 = engine.addComponent(.resistor, value: "1k", at: .zero)
+        let a2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 0))
+        let b1 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 0, y: 100))
+        let b2 = engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 100, y: 100))
+        XCTAssertNotNil(engine.connect(PinAddress(component: a1, pin: 1), PinAddress(component: a2, pin: 0)))
+        XCTAssertNotNil(engine.connect(PinAddress(component: b1, pin: 1), PinAddress(component: b2, pin: 0)))
+        engine.moveFootprint(a1, to: CGPoint(x: 10, y: 10))
+        engine.moveFootprint(a2, to: CGPoint(x: 40, y: 10))
+        engine.moveFootprint(b1, to: CGPoint(x: 10, y: 20))
+        engine.moveFootprint(b2, to: CGPoint(x: 40, y: 26))
+        let options = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+        for (from, to) in [(CGPoint(x: 10.95, y: 10), CGPoint(x: 39.05, y: 10)),
+                           (CGPoint(x: 10.95, y: 20), CGPoint(x: 39.05, y: 26))] {
+            XCTAssertNil(engine.routerBegin(at: from, layer: 0, pair: false, options: options)?.error)
+            _ = engine.routerMove(to: to)
+            XCTAssertTrue(engine.routerCommit().ok)
+        }
+        store.refresh()
+        let before = store.snapshot.tracks
+        store.matchSelectedLengths()  // nothing selected: refused
+        XCTAssertEqual(store.snapshot.tracks, before)
+        store.selectedTracks = Set(before.map(\.id))
+        store.matchSelectedLengths()
+        XCTAssertNotEqual(store.snapshot.tracks, before)
+        store.undo()
+        XCTAssertEqual(store.snapshot.tracks, before)
+        let direct = try XCTUnwrap(engine.matchLengths(tracks: before.map(\.id)))
+        XCTAssertGreaterThan(direct.target, 0)
+    }
+}
+
+/// Update PCB (schematic → board ECO): the preview lists the new parts and nets; executing every change leaves the
+/// board in step with the schematic, as one undo step.
+@MainActor
+final class UpdatePcbTests: XCTestCase {
+    func testUpdatePcbExecutesTheChanges() {
+        let store = DesignStore()
+        let r1 = store.addComponent(.resistor, at: .zero)
+        _ = store.addComponent(.resistor, at: CGPoint(x: 100, y: 0))
+        let changes = store.engine.pcbEcoPreview()
+        XCTAssertTrue(changes.contains { $0.key == "component:\(r1)" })
+        let report = store.updatePCB(keys: changes.filter(\.applicable).map(\.key))
+        XCTAssertFalse(report.isEmpty)
+        XCTAssertTrue(store.engine.pcbEcoPreview().isEmpty)
+        XCTAssertTrue(store.updatePCB(keys: []).isEmpty)
+    }
+}
+
+
+/// Symbol graphics: drawings made in the Symbol Editor encode like the core's, survive the preview round trip and
+/// enlarge the symbol's hit box; a sheet symbol takes a drawn size.
+@MainActor
+final class SymbolGraphicsTests: XCTestCase {
+    func testDrawingsRoundTripThroughTheCore() throws {
+        var spec = CustomPartSpec()
+        spec.name = "GFX"
+        spec.package.type = PackageKind.dip.rawValue
+        spec.pins = (1...4).map { CustomPartSpec.Pin(number: String($0), name: "P\($0)", type: .passive) }
+        var draft = SymbolDraft(spec: spec)
+        XCTAssertTrue(draft.graphics.isEmpty && draft.body)
+        let line = try XCTUnwrap(SymbolDraft.drawing(.line, from: CGPoint(x: -21, y: -9), to: CGPoint(x: 19, y: 11)))
+        XCTAssertEqual(line.cgPoints, [CGPoint(x: -20, y: -10), CGPoint(x: 20, y: 10)])  // snapped
+        XCTAssertNil(SymbolDraft.drawing(.rect, from: .zero, to: CGPoint(x: 1, y: 1)))
+        var arc = try XCTUnwrap(SymbolDraft.drawing(.arc, from: .zero, to: CGPoint(x: 30, y: 0)))
+        arc.fill = true
+        let text = try XCTUnwrap(SymbolDraft.drawing(.text, from: CGPoint(x: -30, y: 40), to: .zero))
+        draft.graphics = [line, arc, text]
+        draft.body = false
+        XCTAssertEqual(draft.drawing(at: CGPoint(x: 0, y: 0)), 1)
+        let edited = draft.applied(to: spec)
+        let info = try EDAEngine.previewCustomPart(edited).get()
+        XCTAssertEqual(info.symbolLayout?.graphics, draft.graphics)
+        XCTAssertEqual(info.symbolLayout?.body, false)
+        XCTAssertEqual(SymbolDraft(spec: edited).graphics.count, 3)
+        let box = SchematicSymbols.bounds(.custom, custom: info)
+        XCTAssertGreaterThanOrEqual(box.maxY, 44)  // the text below the body
+        let data = try JSONEncoder().encode(edited)
+        XCTAssertEqual(try JSONDecoder().decode(CustomPartSpec.self, from: data), edited)
+    }
+
+    func testSheetSymbolSize() throws {
+        let store = DesignStore()
+        let child = try XCTUnwrap(store.addSheet(named: "Child", parent: 1))
+        store.setSheetSymbolSize(child, width: 200, height: 120)
+        XCTAssertEqual(store.snapshot.sheet(child)?.symbolWidth, 200)
+        XCTAssertEqual(store.snapshot.sheet(child)?.symbolHeight, 120)
+        store.setSheetSymbolSize(child, width: 0, height: 0)
+        XCTAssertEqual(store.snapshot.sheet(child)?.symbolWidth, 0)
+    }
+}
+
+
+/// Helper sheets inside a repeated block and per-channel parameters beyond the value, through the store.
+@MainActor
+final class HelperSheetAndChannelParameterTests: XCTestCase {
+    func testHelperSheetRepeatsWithItsBlock() throws {
+        let store = DesignStore()
+        let block = try XCTUnwrap(store.addSheet(named: "Block", parent: 1))
+        _ = store.addComponent(.resistor, at: .zero)
+        let helper = try XCTUnwrap(store.addHelperSheet(parent: block))
+        XCTAssertEqual(store.snapshot.sheet(helper)?.helper, true)
+        store.repeatSheet(block, count: 3)
+        XCTAssertEqual(store.snapshot.sheets.filter { $0.definitionId == helper }.count, 3)
+        let r = try XCTUnwrap(store.snapshot.components.first { $0.componentKind == .resistor && $0.sheet == block })
+        let copy = try XCTUnwrap(store.snapshot.components.first { $0.instanceOf == r.id })
+        store.setChannelFitted(copy.id, false)
+        XCTAssertEqual(store.snapshot.component(copy.id)?.isFitted, false)
+        XCTAssertEqual(store.snapshot.component(r.id)?.isFitted, true)
+        XCTAssertTrue(store.engine.setChannelFirmware(copy.id, hex: "", name: "", clockHz: 0))
+    }
+}
+
+
+/// Clipboard with a selected bus, alignment by symbol outline, a fixed sheet frame and the PDF with Unicode text.
+@MainActor
+final class SchematicPolishTests: XCTestCase {
+    func testClipboardAlignFrameAndPDF() throws {
+        let store = DesignStore()
+        let r = store.addComponent(.resistor, at: .zero)
+        let amp = store.addComponent(.opAmp, at: CGPoint(x: 200, y: 100))
+        let bus = try XCTUnwrap(store.addBus(named: "D[0..3]", points: [CGPoint(x: 0, y: 200), CGPoint(x: 300, y: 200)]))
+        store.selection = [r]
+        store.selectedBus = bus
+        let clip = try XCTUnwrap(store.selectionClip())
+        XCTAssertTrue(clip.contains("\"buses\""))
+        store.selectedBus = nil
+        store.selection = [r, amp]
+        store.align("left", byOutline: true)
+        XCTAssertEqual(componentX(store, r) - 30, componentX(store, amp) - 40)  // left edges of the outlines
+        store.setSheetSize(1, size: "A4")
+        XCTAssertNotNil(store.snapshot.sheet(1)?.frameX)
+        store.centerSheetFrame(1)
+        XCTAssertNotNil(store.snapshot.sheet(1)?.frameY)
+        _ = store.engine.setTitleBlock(TitleBlockInfo(title: "Ωmega 日本"))
+        let pdf = try XCTUnwrap(store.engine.schematicPDF(fontPath: nil))
+        XCTAssertEqual(String(decoding: pdf.prefix(5), as: UTF8.self), "%PDF-")
+    }
+
+    private func componentX(_ store: DesignStore, _ id: Int) -> Double {
+        Double(store.snapshot.component(id)?.x ?? 0)
+    }
+}
+
+
+/// PCB pin / gate swap: a part without gates has no swaps; the automatic swap leaves a board without any alone.
+@MainActor
+final class PcbSwapTests: XCTestCase {
+    func testSwapOptionsAndOptimizeOnAPlainBoard() {
+        let store = DesignStore()
+        let r = store.addComponent(.resistor, at: .zero)
+        XCTAssertTrue(store.engine.pcbSwapOptions(r).isEmpty)
+        XCTAssertEqual(store.engine.optimizePcbSwaps(nil), 0)
+        let option = PcbSwapOptionInfo(kind: "pin", component: r, other: -1, pinA: 0, pinB: 1, label: "R1", gain: 1)
+        XCTAssertFalse(store.engine.applyPcbSwap(option))  // a resistor has no swap groups
+        store.optimizeSwaps(component: r)
+        XCTAssertEqual(store.snapshot.component(r)?.ref, "R1")
+    }
+}

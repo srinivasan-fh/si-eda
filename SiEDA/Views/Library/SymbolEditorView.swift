@@ -24,6 +24,9 @@ struct SymbolEditorView: View {
     @State private var mode = Mode.symbol
     @State private var units: UnitDraft
     @State private var unitErrors = 0
+    /// Drawing tool (nil = select and move pins / drawings) and the selected drawing.
+    @State private var drawTool: CustomPartSpec.SymbolGraphic.Kind?
+    @State private var selectedDrawing: Int?
 
     private enum Mode: Hashable { case symbol, units }
 
@@ -183,70 +186,13 @@ struct SymbolEditorView: View {
             ZStack {
                 Theme.schematicBackground
                 if let part = preview {
-                    Canvas { ctx, _ in
-                        let t = transform(for: size, part: part)
-                        let shapes = SchematicSymbols.customShapes(part)
-                        ctx.fill(shapes.fill.applying(t), with: .color(Theme.symbolFill))
-                        ctx.stroke(shapes.stroke.applying(t), with: .color(Theme.symbol), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
-                        ctx.fill(shapes.solid.applying(t), with: .color(Theme.symbol))
-                        SchematicSymbols.drawPinLabels(ctx, part: part, transform: t, fontSize: max(7, min(12, 6 * scale(for: size, part: part))),
-                                                       nameColor: { pin in
-                                                           selection.contains(pin.number) ? Theme.selection
-                                                               : flagged.contains(pin.number) ? Theme.error
-                                                               : pin.type == PinElectricalType.powerIn.rawValue ? Theme.probe : Theme.skyBlue
-                                                       },
-                                                       numberColor: Theme.textMuted)
-                        // Selected pins: a highlight on their pin ends.
-                        for pin in part.symbol.pins where selection.contains(pin.number) || flagged.contains(pin.number) {
-                            let e = CGPoint(x: pin.x, y: pin.y).applying(t)
-                            ctx.stroke(Path(ellipseIn: CGRect(x: e.x - 6, y: e.y - 6, width: 12, height: 12)),
-                                       with: .color(selection.contains(pin.number) ? Theme.selection : Theme.error), lineWidth: 2)
-                        }
-                        // While dragging: where the pins will land.
-                        if let location = dragLocation, let start = dragStart, hypot(location.x - start.x, location.y - start.y) > 4,
-                           !selection.isEmpty {
-                            let drop = target(at: location, size: size, part: part)
-                            let m = slotPoint(drop.side, drop.slot, part: part).applying(t)
-                            ctx.fill(Path(ellipseIn: CGRect(x: m.x - 7, y: m.y - 7, width: 14, height: 14)), with: .color(Theme.blue.opacity(0.6)))
-                            ctx.draw(Text("\(selection.count) → \(drop.side.title) \(drop.slot)").font(.caption2.weight(.semibold))
-                                        .foregroundColor(Theme.iceBlue), at: CGPoint(x: location.x + 10, y: location.y - 12), anchor: .leading)
-                        }
-                    }
+                    Canvas { ctx, _ in drawSymbol(ctx, size: size, part: part) }
                     .contentShape(Rectangle())
+                    .onExitCommand { drawTool = nil }
                     .gesture(
                         DragGesture(minimumDistance: 0)
-                            .onChanged { value in
-                                if dragStart == nil {
-                                    dragStart = value.startLocation
-                                    let extend = NSEvent.modifierFlags.contains(.shift) || NSEvent.modifierFlags.contains(.command)
-                                    if let hit = pin(at: value.startLocation, size: size, part: part) {
-                                        let stack = Set(draft.stack(of: hit))
-                                        if extend { selection = selection.isSuperset(of: stack) ? selection.subtracting(stack) : selection.union(stack) }
-                                        else if !selection.contains(hit) { selection = stack }
-                                    } else if !extend {
-                                        selection = []
-                                    }
-                                }
-                                if !selection.isEmpty, pin(at: value.startLocation, size: size, part: part) != nil {
-                                    dragLocation = value.location
-                                }
-                            }
-                            .onEnded { value in
-                                defer {
-                                    dragStart = nil
-                                    dragLocation = nil
-                                }
-                                guard dragLocation != nil, hypot(value.translation.width, value.translation.height) > 4 else { return }
-                                let drop = target(at: value.location, size: size, part: part)
-                                let numbers = draft.placements.map(\.number).filter { selection.contains($0) }
-                                if NSEvent.modifierFlags.contains(.option),
-                                   let onto = draft.slots(drop.side).indices.contains(drop.slot) ? draft.slots(drop.side)[drop.slot].first : nil {
-                                    // ⌥-drop onto a pin stacks the selection on it.
-                                    edit { $0.stack([onto] + numbers) }
-                                } else {
-                                    edit { $0.move(numbers, to: drop.side, slot: drop.slot) }
-                                }
-                            }
+                            .onChanged { dragChanged($0, size: size, part: part) }
+                            .onEnded { dragEnded($0, size: size, part: part) }
                     )
                     .accessibilityElement()
                     .accessibilityLabel("Symbol canvas")
@@ -257,9 +203,111 @@ struct SymbolEditorView: View {
                 }
             }
             .overlay(alignment: .bottomLeading) {
-                Text("Click a pin to select (⇧ to add) · drag it to any side or slot · ⌥-drop onto a pin to stack")
+                Text(drawTool == nil ? LocalizedStringKey("Click a pin to select (⇧ to add) · drag it to any side or slot · ⌥-drop onto a pin to stack")
+                                     : LocalizedStringKey("Drag to draw · click to place a text · Esc returns to selecting"))
                     .font(.caption2).foregroundStyle(Theme.textMuted).padding(8)
             }
+        }
+    }
+
+    /// The symbol preview with its selection, the selected drawing and the drop marker of a pin drag.
+    private func drawSymbol(_ ctx: GraphicsContext, size: CGSize, part: CustomPartInfo) {
+        let t = transform(for: size, part: part)
+        let shapes = SchematicSymbols.customShapes(part)
+        ctx.fill(shapes.fill.applying(t), with: .color(Theme.symbolFill))
+        ctx.stroke(shapes.stroke.applying(t), with: .color(Theme.symbol), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+        ctx.fill(shapes.solid.applying(t), with: .color(Theme.symbol))
+        SchematicSymbols.drawPinLabels(ctx, part: part, transform: t, fontSize: max(7, min(12, 6 * scale(for: size, part: part))),
+                                       nameColor: { pin in
+                                           selection.contains(pin.number) ? Theme.selection
+                                               : flagged.contains(pin.number) ? Theme.error
+                                               : pin.type == PinElectricalType.powerIn.rawValue ? Theme.probe : Theme.skyBlue
+                                       },
+                                       numberColor: Theme.textMuted)
+        // Selected pins: a highlight on their pin ends.
+        for pin in part.symbol.pins where selection.contains(pin.number) || flagged.contains(pin.number) {
+            let e = CGPoint(x: pin.x, y: pin.y).applying(t)
+            ctx.stroke(Path(ellipseIn: CGRect(x: e.x - 6, y: e.y - 6, width: 12, height: 12)),
+                       with: .color(selection.contains(pin.number) ? Theme.selection : Theme.error), lineWidth: 2)
+        }
+        // While dragging: where the pins will land.
+        if let location = dragLocation, let start = dragStart, hypot(location.x - start.x, location.y - start.y) > 4,
+           !selection.isEmpty {
+            let drop = target(at: location, size: size, part: part)
+            let m = slotPoint(drop.side, drop.slot, part: part).applying(t)
+            ctx.fill(Path(ellipseIn: CGRect(x: m.x - 7, y: m.y - 7, width: 14, height: 14)), with: .color(Theme.blue.opacity(0.6)))
+            ctx.draw(Text("\(selection.count) → \(drop.side.title) \(drop.slot)").font(.caption2.weight(.semibold))
+                        .foregroundColor(Theme.iceBlue), at: CGPoint(x: location.x + 10, y: location.y - 12), anchor: .leading)
+        }
+        // The selected drawing, and the one being drawn.
+        if let i = selectedDrawing, draft.graphics.indices.contains(i) {
+            let g = draft.graphics[i]
+            let path = g.shapeKind == .text ? Path(g.bounds) : g.path
+            ctx.stroke(path.applying(t), with: .color(Theme.selection), style: StrokeStyle(lineWidth: 2, dash: [4, 3]))
+        }
+        if let tool = drawTool, let start = dragStart, let location = dragLocation {
+            let inverse = t.inverted()
+            if let g = SymbolDraft.drawing(tool, from: start.applying(inverse), to: location.applying(inverse)) {
+                let path = g.shapeKind == .text ? Path(g.bounds) : g.path
+                ctx.stroke(path.applying(t), with: .color(Theme.skyBlue), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+            }
+        }
+    }
+
+    private func dragChanged(_ value: DragGesture.Value, size: CGSize, part: CustomPartInfo) {
+        if drawTool != nil {
+            if dragStart == nil { dragStart = value.startLocation }
+            dragLocation = value.location
+            return
+        }
+        if dragStart == nil {
+            dragStart = value.startLocation
+            let extend = NSEvent.modifierFlags.contains(.shift) || NSEvent.modifierFlags.contains(.command)
+            if let hit = pin(at: value.startLocation, size: size, part: part) {
+                selectedDrawing = nil
+                let stack = Set(draft.stack(of: hit))
+                if extend { selection = selection.isSuperset(of: stack) ? selection.subtracting(stack) : selection.union(stack) }
+                else if !selection.contains(hit) { selection = stack }
+            } else {
+                let p = value.startLocation.applying(transform(for: size, part: part).inverted())
+                selectedDrawing = draft.drawing(at: p)
+                if !extend { selection = [] }
+            }
+        }
+        if (!selection.isEmpty && pin(at: value.startLocation, size: size, part: part) != nil) || selectedDrawing != nil {
+            dragLocation = value.location
+        }
+    }
+
+    private func dragEnded(_ value: DragGesture.Value, size: CGSize, part: CustomPartInfo) {
+        defer {
+            dragStart = nil
+            dragLocation = nil
+        }
+        let inverse = transform(for: size, part: part).inverted()
+        if let tool = drawTool {
+            // A click places a text; other drawings need a drag.
+            let end = tool == .text ? value.startLocation : value.location
+            guard let g = SymbolDraft.drawing(tool, from: value.startLocation.applying(inverse), to: end.applying(inverse)) else { return }
+            edit { $0.graphics.append(g) }
+            selectedDrawing = draft.graphics.count - 1
+            return
+        }
+        guard dragLocation != nil, hypot(value.translation.width, value.translation.height) > 4 else { return }
+        if let i = selectedDrawing, selection.isEmpty, draft.graphics.indices.contains(i) {
+            let a = value.startLocation.applying(inverse), b = value.location.applying(inverse)
+            let d = SymbolDraft.snap(CGPoint(x: b.x - a.x, y: b.y - a.y))
+            edit { $0.graphics[i] = $0.graphics[i].moved(dx: d.x, dy: d.y) }
+            return
+        }
+        let drop = target(at: value.location, size: size, part: part)
+        let numbers = draft.placements.map(\.number).filter { selection.contains($0) }
+        if NSEvent.modifierFlags.contains(.option),
+           let onto = draft.slots(drop.side).indices.contains(drop.slot) ? draft.slots(drop.side)[drop.slot].first : nil {
+            // ⌥-drop onto a pin stacks the selection on it.
+            edit { $0.stack([onto] + numbers) }
+        } else {
+            edit { $0.move(numbers, to: drop.side, slot: drop.slot) }
         }
     }
 
@@ -279,6 +327,8 @@ struct SymbolEditorView: View {
                         .font(.caption)
                 }
             }
+            Divider()
+            SymbolDrawingPanel(draft: $draft, tool: $drawTool, selected: $selectedDrawing, edit: edit)
             Divider()
             issueList
             Divider()
@@ -439,7 +489,12 @@ struct SymbolEditorView: View {
         arrangeError = nil
         switch EDAEngine.autoArrangeSymbol(spec, stack: stackDuplicates) {
         case .success(let arranged):
-            edit { $0 = SymbolDraft(spec: arranged) }
+            edit { d in
+                var next = SymbolDraft(spec: arranged)
+                next.graphics = d.graphics
+                next.body = d.body
+                d = next
+            }
         case .failure(let error):
             arrangeError = error.localizedDescription
         }

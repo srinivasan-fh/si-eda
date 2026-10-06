@@ -14004,3 +14004,2031 @@ TEST(clear_drops_directives_but_keeps_definitions) {
     const int b = s.addComponent(ComponentKind::NetLabel, "Y", {0, 0});
     CHECK(b == a && s.netRules().empty());  // the new part with the old id carries no stale directive
 }
+
+// ======================================================================= true arc tracks (interactive routing 10/10)
+
+namespace {
+int drcCount(const Project& p, const std::string& code) {
+    int n = 0;
+    for (const auto& v : p.pcb.runDRC(p.schematic)) n += v.code == code ? 1 : 0;
+    return n;
+}
+/// The arc track a → mid → b about centre c (radius |a − c|), the short way round.
+Track arcTrackOf(int net, Vec2 c, double r, double fromDeg, double toDeg, double width = 0.25, int layer = 0) {
+    const double f = fromDeg * kPi / 180, t = toDeg * kPi / 180, m = (f + t) / 2;
+    Track tr;
+    tr.net = net;
+    tr.layer = layer;
+    tr.width = width;
+    tr.a = {c.x + r * std::cos(f), c.y + r * std::sin(f)};
+    tr.b = {c.x + r * std::cos(t), c.y + r * std::sin(t)};
+    tr.mid = {c.x + r * std::cos(m), c.y + r * std::sin(m)};
+    tr.arc = true;
+    return tr;
+}
+struct Lcg {
+    uint64_t s;
+    double next(double lo, double hi) {
+        s = s * 6364136223846793005ull + 1442695040888963407ull;
+        return lo + (hi - lo) * static_cast<double>(s >> 11) / 9007199254740992.0;
+    }
+};
+/// Every join between two tracks of `net`: the angle between their directions away from the joint (180 = tangent).
+double sharpestJoin(const Project& p, int net) {
+    double sharpest = 180;
+    for (const auto& a : p.pcb.tracks)
+        for (const auto& b : p.pcb.tracks) {
+            if (a.id >= b.id || a.net != net || b.net != net || a.layer != b.layer) continue;
+            for (int ea = 0; ea < 2; ++ea)
+                for (int eb = 0; eb < 2; ++eb) {
+                    const Vec2 pa = ea ? a.b : a.a, pb = eb ? b.b : b.a;
+                    if ((pa - pb).length() > 1e-6) continue;
+                    const Vec2 da = trackEndDirection(a, ea == 1), db = trackEndDirection(b, eb == 1);
+                    sharpest = std::min(sharpest, std::acos(std::clamp(da.dot(db), -1.0, 1.0)) * 180 / kPi);
+                }
+        }
+    return sharpest;
+}
+}  // namespace
+
+TEST(track_arcs_measure_exactly) {
+    // Closed-form arc distances against a dense polyline of the arc (chords within 1e-6 mm of it): point, segment,
+    // arc and rectangle distances agree to 3e-6 mm on random arcs; lengths, bounds, tangents and degenerate arcs.
+    Lcg rng{42};
+    int tested = 0;
+    for (int it = 0; it < 300; ++it) {
+        const Vec2 a{rng.next(-5, 5), rng.next(-5, 5)}, m{rng.next(-5, 5), rng.next(-5, 5)}, b{rng.next(-5, 5), rng.next(-5, 5)};
+        const ArcGeom g = arcThrough(a, m, b);
+        if (!g.valid || g.r > 40) continue;
+        ++tested;
+        CHECK(std::fabs((m - g.c).length() - g.r) < 1e-9 * std::max(1.0, g.r));
+        CHECK(g.containsDirection(m));
+        const auto poly = arcPolyline(g, 1e-6);
+        CHECK(poly.front() == a && poly.back() == b);
+        double len = 0;
+        for (size_t k = 0; k + 1 < poly.size(); ++k) len += (poly[k + 1] - poly[k]).length();
+        CHECK(std::fabs(len - g.length()) < 1e-5 * std::max(1.0, g.length()));
+        const Rect box = arcBounds(g);
+        for (Vec2 q : poly) CHECK(box.inflated(1e-9).contains(q));
+        auto polyDist = [&](const std::function<double(Vec2, Vec2)>& f) {
+            double d = 1e18;
+            for (size_t k = 0; k + 1 < poly.size(); ++k) d = std::min(d, f(poly[k], poly[k + 1]));
+            return d;
+        };
+        const Vec2 p{rng.next(-8, 8), rng.next(-8, 8)}, q{rng.next(-8, 8), rng.next(-8, 8)};
+        CHECK(std::fabs(pointArcDistance(p, g) - polyDist([&](Vec2 u, Vec2 v) { return pointSegmentDistance(p, u, v); })) < 3e-6);
+        CHECK(std::fabs(segmentArcDistance(p, q, g) - polyDist([&](Vec2 u, Vec2 v) { return segmentSegmentDistance(p, q, u, v); })) < 3e-6);
+        const Rect r(p.x, p.y, p.x + std::fabs(q.x) / 3, p.y + std::fabs(q.y) / 3);
+        CHECK(std::fabs(arcRectDistance(g, r) - polyDist([&](Vec2 u, Vec2 v) { return segmentRectDistance(u, v, r); })) < 3e-6);
+        const ArcGeom h = arcThrough(p, q, Vec2{rng.next(-5, 5), rng.next(-5, 5)});
+        if (h.valid && h.r < 40) {
+            const auto hp = arcPolyline(h, 1e-6);
+            double ref = 1e18;
+            for (size_t k = 0; k + 1 < hp.size(); ++k)
+                ref = std::min(ref, polyDist([&](Vec2 u, Vec2 v) { return segmentSegmentDistance(hp[k], hp[k + 1], u, v); }));
+            CHECK(std::fabs(arcArcDistance(g, h) - ref) < 3e-6);
+        }
+        // Tangents are perpendicular to the radius and point into the arc.
+        Track t;
+        t.a = a;
+        t.b = b;
+        t.mid = m;
+        t.arc = true;
+        for (bool atB : {false, true}) {
+            const Vec2 d = trackEndDirection(t, atB), end = atB ? b : a;
+            CHECK(std::fabs(d.dot(end - g.c)) < 1e-9 * std::max(1.0, g.r));
+            CHECK((trackPointAt(t, atB ? 0.999 : 0.001) - end).dot(d) > 0);
+        }
+        CHECK(std::fabs(trackLength(t) - g.length()) < 1e-12 * std::max(1.0, g.length()));
+        CHECK(std::fabs(trackParamAt(t, trackPointAt(t, 0.3)) - 0.3 * g.length()) < 1e-6);
+    }
+    CHECK(tested > 150);
+    // A degenerate arc (three points on a line) is the straight track.
+    Track s;
+    s.a = {0, 0};
+    s.b = {10, 0};
+    s.mid = {5, 0};
+    s.arc = true;
+    CHECK(!isArcTrack(s));
+    CHECK(trackLength(s) == 10.0);
+    CHECK(trackPointDistance(s, {5, 3}) == 3.0);
+    // Straight tracks use exactly the segment formulas (bit-identical results for boards without arcs).
+    Track u;
+    u.a = {1.1, 2.3};
+    u.b = {7.7, -3.1};
+    const Vec2 x{3.3, 4.4}, y{-2.2, 0.7};
+    CHECK(trackPointDistance(u, x) == pointSegmentDistance(x, u.a, u.b));
+    CHECK(trackSegmentDistance(u, x, y) == segmentSegmentDistance(u.a, u.b, x, y));
+    CHECK(trackLength(u) == (u.b - u.a).length());
+    const Rect ub = trackBox(u, 0.3), ref = Rect(u.a.x, u.a.y, u.b.x, u.b.y).inflated(0.3);
+    CHECK(ub.x0 == ref.x0 && ub.y0 == ref.y0 && ub.x1 == ref.x1 && ub.y1 == ref.y1);
+    // makeArcTrack: counter-clockwise and clockwise quarter circles.
+    const Track ccw = makeArcTrack({5, 0}, {0, 5}, {0, 0}, true, 1, 0, 0.2);
+    CHECK(std::fabs(trackLength(ccw) - 5 * kPi / 2) < 1e-12);
+    const Track cw = makeArcTrack({5, 0}, {0, 5}, {0, 0}, false, 1, 0, 0.2);
+    CHECK(std::fabs(trackLength(cw) - 15 * kPi / 2) < 1e-9);
+}
+
+TEST(drc_checks_arc_tracks_exactly) {
+    // The DRC measures an arc track as an arc: copper next to its bulge is too close although the chord is far, and
+    // copper between the chord and the arc is clear although the chord would overlap it. Board edge, connectivity
+    // (an arc from pad to pad routes its net), lengths and the copper pour follow the arc.
+    auto board = [](double otherRadius) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {30, 20}), r2 = placeR(p, {20, 30}, 90);
+        wire(s, r1, "1", r2, "1");
+        const int r3 = placeR(p, {40, 35}), r4 = placeR(p, {44, 35});
+        wire(s, r3, "2", r4, "1");
+        p.schematicChanged();
+        // Quarter circle about (20, 20), radius 10, from pad 1 of R1 to pad 1 of R2... (pads are not on the circle:
+        // short straight stubs join them).
+        const int net = s.netOf({r1, 0}), other = s.netOf({r3, 1});
+        Track arc = arcTrackOf(net, {20, 20}, 10, 0, 90);
+        const Vec2 pa = padAt(p, r1, 0), pb = padAt(p, r2, 0);
+        addPath(p.pcb, net, 0, 0.25, {pa, arc.a});
+        p.pcb.addTrack(arc);
+        addPath(p.pcb, net, 0, 0.25, {arc.b, pb});
+        // A short track of another net across the radius at 45°, at `otherRadius` from the centre.
+        const Vec2 u{std::cos(kPi / 4), std::sin(kPi / 4)}, n{-u.y, u.x};
+        const Vec2 c = Vec2{20, 20} + u * otherRadius;
+        addPath(p.pcb, other, 0, 0.25, {c - n * 0.5, c + n * 0.5});
+        return std::make_tuple(std::move(p), net);
+    };
+    {
+        // 0.1 mm edge to edge outside the bulge (radius 10 + 0.25 + 0.1): too close; the chord is 3 mm away.
+        auto [p, net] = board(10.35);
+        CHECK(drcCount(p, "DRC_CLEARANCE") + drcCount(p, "DRC_CLEARANCE_RULE") >= 1);
+        CHECK(netRouted(p, net));
+    }
+    {
+        // Between chord (7.07 from the centre) and arc: 2.8 mm from the arc, so clear; the chord would short it.
+        auto [p, net] = board(7.2);
+        CHECK(drcCount(p, "DRC_CLEARANCE") + drcCount(p, "DRC_CLEARANCE_RULE") + drcCount(p, "DRC_SHORT") == 0);
+        CHECK(netRouted(p, net));
+        int dangling = 0;  // only the other net's short test track dangles; the arc's ends are joined
+        for (const auto& v : p.pcb.runDRC(p.schematic))
+            if (v.code == "DRC_DANGLING_TRACK" && v.message.find(p.schematic.nets()[static_cast<size_t>(net)].name + " ") != std::string::npos)
+                ++dangling;
+        CHECK(dangling == 0);
+        CHECK(drcCount(p, "DRC_ACUTE_ANGLE") == 0);
+        // Its length is the arc length (plus the stubs).
+        double stubs = 0;
+        for (const auto& t : p.pcb.tracks)
+            if (t.net == net && !t.arc) stubs += (t.b - t.a).length();
+        CHECK(std::fabs(routedNetLength(p.pcb, net) - stubs - 5 * kPi) < 1e-9);
+    }
+    {
+        // An arc that bulges past the board edge while both ends are inside.
+        Project p;
+        p.pcb.settings.width = 30;
+        p.pcb.settings.height = 30;
+        p.pcb.addTrack(arcTrackOf(1, {15, 15}, 14.6, -30, 30));
+        CHECK(drcCount(p, "DRC_EDGE_CLEARANCE") == 1);
+        CHECK(p.pcb.settings.trackEdgeDistance(p.pcb.tracks[0]) < 0.5);
+        Project q;
+        q.pcb.settings.width = 30;
+        q.pcb.settings.height = 30;
+        q.pcb.addTrack(arcTrackOf(1, {15, 15}, 10, -30, 30));
+        CHECK(drcCount(q, "DRC_EDGE_CLEARANCE") == 0);
+    }
+}
+
+TEST(arc_tracks_export_save_and_draw) {
+    // Gerber: a G02 / G03 with I/J from the start to the centre (multi-quadrant G75); a board without arcs has no
+    // circular interpolation at all. The project file keeps arcs ("mid"); an old file without it loads straight. The
+    // snapshot gives the centre, radius and angles. The 3D board follows the arc.
+    Project p;
+    p.pcb.settings.width = 50;
+    p.pcb.settings.height = 40;
+    // Pads at the arcs' ends (a saved track must connect to a pad of its net to load again).
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {25.95, 20}), r2 = placeR(p, {20, 25.95}, 90), r3 = placeR(p, {30, 25.95}, 90);
+    wire(s, r1, "1", r2, "1");
+    wire(s, r1, "1", r3, "1");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 0});
+    const std::string plain = exportGerber(p.schematic, p.pcb, GerberLayer::TopCopper);
+    CHECK(plain.find("G75") == std::string::npos && plain.find("G02") == std::string::npos);
+    p.pcb.addTrack(arcTrackOf(net, {20, 20}, 5, 0, 90));    // counter-clockwise on the board
+    p.pcb.addTrack(arcTrackOf(net, {30, 20}, 5, 180, 90));  // clockwise
+    CHECK(padAt(p, r2, 0).x == 20 && std::fabs(padAt(p, r2, 0).y - 25) < 1e-9);
+    CHECK(netRouted(p, net));
+    const std::string g = exportGerber(p.schematic, p.pcb, GerberLayer::TopCopper);
+    // Y is flipped in the file (40 − y): the board's counter-clockwise arc is clockwise there.
+    CHECK(g.find("X25000000Y20000000D02*\nG75*\nG02*\nX20000000Y15000000I-5000000J0D01*\nG01*") != std::string::npos);
+    CHECK(g.find("X25000000Y20000000D02*\nG75*\nG03*\nX30000000Y15000000I5000000J0D01*\nG01*") != std::string::npos);
+    // Save / load.
+    const Json j = p.toJson();
+    Project back = Project::fromJson(j);
+    CHECK(back.pcb.tracks.size() == 2);
+    CHECK(back.pcb.tracks[0].arc && back.pcb.tracks[0].mid == p.pcb.tracks[0].mid);
+    CHECK(back.toJson().dump() == j.dump());
+    std::string old = j.dump();
+    for (size_t at; (at = old.find("\"mid\":")) != std::string::npos;) {
+        const size_t end = old.find('}', at);
+        old.erase(at, end - at + 2);  // "mid":{"x":…,"y":…},
+    }
+    Project straight = Project::fromJson(Json::parse(old));
+    CHECK(straight.pcb.tracks.size() == 2 && !straight.pcb.tracks[0].arc);
+    // Snapshot geometry for drawing.
+    const Json snap = p.snapshot();
+    const Json& t0 = snap.get("tracks")[0];
+    CHECK(t0.get("arc").asBool() && std::fabs(t0.get("radius").asNumber() - 5) < 1e-9);
+    CHECK(std::fabs(t0.get("cx").asNumber() - 20) < 1e-9 && std::fabs(t0.get("sweep").asNumber() - kPi / 2) < 1e-9);
+    CHECK(!snap.get("tracks")[0].has("ax") || snap.get("tracks")[0].has("mx"));
+}
+
+TEST(router_writes_true_arc_corners) {
+    // With arc corners the route's corners are true arcs, tangent to their neighbours (every join 180°), written as
+    // previewed, connected and DRC clean; the net is shorter than with sharp corners. A via of another net inside a
+    // corner keeps that corner sharp.
+    for (bool obstacle : {false, true}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {40, 32}), r3 = placeR(p, {45, 5}), r4 = placeR(p, {45, 10});
+        wire(s, r1, "2", r2, "1");
+        wire(s, r3, "2", r4, "1");
+        p.schematicChanged();
+        const int net = s.netOf({r1, 1});
+        if (obstacle) {
+            Via v;
+            v.net = s.netOf({r3, 1});
+            v.position = {19.732, 20.647};
+            p.pcb.addVia(v);
+        }
+        InteractiveRouter r(p.pcb, s);
+        RouterOptions o;
+        o.cornerRadius = 2;
+        o.arcCorners = true;
+        r.setOptions(o);
+        CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+        r.moveTo({20, 20});
+        CHECK(r.fixHead());
+        r.moveTo({28, 28});
+        CHECK(r.fixHead());
+        const RoutePreview& pv = r.moveTo(padAt(p, r2, 0));
+        CHECK(pv.reachedTarget);
+        double previewLength = 0;
+        int previewArcs = 0;
+        for (const auto* list : {&pv.placed, &pv.head})
+            for (const auto& t : *list) {
+                previewLength += trackLength(t);
+                previewArcs += t.arc ? 1 : 0;
+            }
+        CHECK(routePreviewJson(pv).dump().find("\"arc\":true") != std::string::npos);
+        CHECK(r.commit().ok);
+        CHECK(netRouted(p, net));
+        CHECK(routingProblems(p) == 0);
+        CHECK(acuteWarnings(p) == 0);
+        CHECK_NEAR(routedNetLength(p.pcb, net), previewLength, 1e-6);
+        int arcs = 0;
+        for (const auto& t : p.pcb.tracks) arcs += t.net == net && t.arc ? 1 : 0;
+        CHECK(arcs == previewArcs);
+        if (obstacle) {  // three corners: (20, 20), (28, 28) and the bend onto the pad's row
+            CHECK(arcs == 2);
+            CHECK(sharpestJoin(p, net) < 136);
+        } else {
+            CHECK(arcs == 3);
+            CHECK(sharpestJoin(p, net) > 179.999);  // tangent everywhere
+        }
+    }
+    CHECK(routerOptionsFromJson(Json::parse("{\"arcCorners\":true}")).arcCorners);
+}
+
+TEST(router_turns_pairs_and_buses_on_concentric_arcs) {
+    // A differential pair with arc corners: both members turn on arcs about one centre, the outer radius larger by
+    // exactly the pitch, so the gap stays exact through the turn (nowhere closer); DRC clean.
+    Project p;
+    auto& s = p.schematic;
+    const int p1 = placeR(p, {10, 14}), p2 = placeR(p, {40, 34}, 90), n1 = placeR(p, {10, 16}), n2 = placeR(p, {42, 34}, 90);
+    wire(s, p1, "2", p2, "1");
+    wire(s, n1, "2", n2, "1");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_P", {0, 0}), "N", p1, "2");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_N", {0, 50}), "N", n1, "2");
+    p.schematicChanged();
+    const int netP = s.netOf({p1, 1}), netN = s.netOf({n1, 1});
+    InteractiveRouter r(p.pcb, s);
+    RouterOptions o;
+    o.pairGap = 0.2;
+    o.cornerRadius = 1.5;
+    o.arcCorners = true;
+    r.setOptions(o);
+    CHECK(r.beginPair(padAt(p, p1, 1), 0));
+    r.moveTo({30, 15});
+    CHECK(r.fixHead());
+    r.moveTo({41, 26});  // 45° turn
+    CHECK(r.fixHead());
+    r.moveTo({41, 30});
+    CHECK(r.fixHead());
+    CHECK(r.commit().ok);
+    CHECK(routingProblems(p) == 0);
+    std::vector<ArcGeom> arcsP, arcsN;
+    for (const auto& t : p.pcb.tracks) {
+        if (!t.arc) continue;
+        (t.net == netP ? arcsP : arcsN).push_back(trackArc(t));
+    }
+    CHECK(arcsP.size() >= 2 && arcsP.size() == arcsN.size());
+    const double pitch = 0.2 + p.pcb.settings.widthFor(s.nets()[static_cast<size_t>(netP)].name);
+    int concentric = 0;
+    for (const auto& a : arcsP)
+        for (const auto& b : arcsN)
+            if ((a.c - b.c).length() < 1e-6 && std::fabs(std::fabs(a.r - b.r) - pitch) < 1e-6) ++concentric;
+    CHECK(concentric >= 2);  // both turns (the leads off the pads turn on their own)
+    double minGap = 1e9;
+    for (const auto& a : p.pcb.tracks)
+        for (const auto& b : p.pcb.tracks)
+            if (a.net == netP && b.net == netN) minGap = std::min(minGap, trackTrackDistance(a, b) - (a.width + b.width) / 2);
+    CHECK(minGap >= 0.2 - 1e-6);
+    CHECK(sharpestJoin(p, netP) > 134 && sharpestJoin(p, netN) > 134);
+
+    // A bus of four nets through a turn (two 45° bends): each bend is four concentric arcs; the members keep the
+    // clearance between them everywhere; DRC clean.
+    BusBoard b = busBoard();
+    auto& bs = b.p.schematic;
+    InteractiveRouter rb(b.p.pcb, bs);
+    RouterOptions ob;
+    ob.cornerRadius = 1;
+    ob.arcCorners = true;
+    rb.setOptions(ob);
+    CHECK(rb.beginBus(padAt(b.p, b.u1, pin(bs, b.u1, "P5")), 0, 4));
+    rb.moveTo({24, 20});
+    CHECK(rb.fixHead());
+    const RoutePreview& bv = rb.moveTo({30, 34});
+    CHECK(!bv.blocked);
+    int previewArcs = 0;
+    for (const auto* list : {&bv.placed, &bv.head})
+        for (const auto& t : *list) previewArcs += t.arc ? 1 : 0;
+    CHECK(rb.commit().ok);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    std::vector<ArcGeom> busArcs;
+    for (const auto& t : b.p.pcb.tracks)
+        if (t.arc) busArcs.push_back(trackArc(t));
+    CHECK(static_cast<int>(busArcs.size()) == previewArcs);
+    CHECK(busArcs.size() >= 8);
+    int groups = 0;  // arcs sharing their centre with three others
+    for (const auto& a : busArcs) {
+        int same = 0;
+        for (const auto& o : busArcs) same += (a.c - o.c).length() < 1e-6 ? 1 : 0;
+        groups += same == 4 ? 1 : 0;
+    }
+    CHECK(groups >= 8);
+    double closest = 1e9;
+    for (const auto& t : b.p.pcb.tracks)
+        for (const auto& u : b.p.pcb.tracks)
+            if (t.net != u.net) closest = std::min(closest, trackTrackDistance(t, u) - (t.width + u.width) / 2);
+    CHECK(closest >= b.p.pcb.settings.clearance - 1e-6);
+}
+
+TEST(convert_corners_to_arcs_command) {
+    // "Convert corners to arcs" on selected tracks: corners become tangent arcs where they keep clearance, the board
+    // stays DRC clean and connected, the net gets shorter; a preview changes nothing; a corner with another net's
+    // via inside it gets the halved radius; a corner between too short legs stays sharp; unselected tracks stay.
+    for (bool obstacle : {false, true}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 10}), r2 = placeR(p, {30, 30}), r3 = placeR(p, {45, 5}), r4 = placeR(p, {45, 10});
+        wire(s, r1, "2", r2, "1");
+        wire(s, r3, "2", r4, "1");
+        p.schematicChanged();
+        const int net = s.netOf({r1, 1});
+        const Vec2 from = padAt(p, r1, 1), to = padAt(p, r2, 0);
+        addPath(p.pcb, net, 0, 0.25, {from, {20, from.y}, {20, to.y}, to});
+        if (obstacle) {
+            Via v;
+            v.net = s.netOf({r3, 1});
+            v.position = {19.3, from.y + 0.7};  // inside the first corner: clear of the legs, not of an arc
+            p.pcb.addVia(v);
+        }
+        CHECK(routingProblems(p) == 0);
+        const double before = routedNetLength(p.pcb, net);
+        std::vector<int> ids;
+        for (const auto& t : p.pcb.tracks) ids.push_back(t.id);
+        ArcCornersOptions opt;
+        opt.apply = false;
+        const std::string snapBefore = p.toJson().dump();
+        const ArcCornersResult pre = convertCornersToArcs(p.pcb, s, ids, opt);
+        CHECK(pre.ok && !pre.applied);
+        CHECK(p.toJson().dump() == snapBefore);
+        opt.apply = true;
+        const ArcCornersResult res = convertCornersToArcs(p.pcb, s, ids, opt);
+        CHECK(res.ok && res.applied);
+        CHECK(res.converted == 2);
+        CHECK(res.kept == 0);
+        double firstRadius = 0;
+        for (const auto& t : p.pcb.tracks)
+            if (t.arc && trackArc(t).c.y < 20) firstRadius = trackArc(t).r;
+        CHECK_NEAR(firstRadius, obstacle ? 0.5 : 1.0, 1e-9);  // automatic radius 4 × 0.25 mm, halved by the via
+        CHECK(netRouted(p, net));
+        CHECK(routingProblems(p) == 0);
+        CHECK(acuteWarnings(p) == 0);
+        CHECK(routedNetLength(p.pcb, net) < before - 0.1);
+        CHECK(arcCornersJson(res).dump().find("\"converted\":") != std::string::npos);
+    }
+    {
+        // A 0.2 mm jog: no room for an arc of at least the track width; the unselected track stays straight.
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 10}), r2 = placeR(p, {30, 10.2});
+        wire(s, r1, "2", r2, "1");
+        p.schematicChanged();
+        const int net = s.netOf({r1, 1});
+        const Vec2 from = padAt(p, r1, 1), to = padAt(p, r2, 0);
+        addPath(p.pcb, net, 0, 0.25, {from, {20, from.y}, {20, to.y}, to});
+        std::vector<int> ids{p.pcb.tracks[0].id, p.pcb.tracks[1].id, p.pcb.tracks[2].id};
+        const ArcCornersResult res = convertCornersToArcs(p.pcb, s, ids);
+        CHECK(!res.ok && res.kept == 2 && res.converted == 0);
+        CHECK(convertCornersToArcs(p.pcb, s, {p.pcb.tracks[0].id}).message == "No corners between the selected tracks");
+    }
+    Project e;
+    CHECK(!convertCornersToArcs(e.pcb, e.schematic, {}).ok);
+}
+
+TEST(router_respects_arc_tracks) {
+    // Arcs on the board are obstacles measured as arcs: a route past an arc's bulge keeps clearance from the arc
+    // (walkaround and shove), and shoving never moves an arc (it stays bit for bit).
+    for (RouterMode mode : {RouterMode::Walkaround, RouterMode::Shove}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {5, 30}), r2 = placeR(p, {45, 30}), r3 = placeR(p, {10, 10}), r4 = placeR(p, {40, 10});
+        wire(s, r1, "2", r2, "1");
+        wire(s, r3, "2", r4, "1");
+        p.schematicChanged();
+        const int other = s.netOf({r3, 1});
+        // An arc of the other net bulging up towards y = 30 (centre (25, 10), radius 18.6: top at y = 28.6).
+        Track arc = arcTrackOf(other, {25, 10}, 18.6, 60, 120);
+        p.pcb.addTrack(arc);
+        const Track kept = p.pcb.tracks.back();
+        CHECK(routingProblems(p) == 0);
+        InteractiveRouter r(p.pcb, s);
+        RouterOptions o;
+        o.mode = mode;
+        r.setOptions(o);
+        const int net = s.netOf({r1, 1});
+        CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+        r.moveTo({25, 28.9});  // straight towards a point right over the bulge
+        CHECK(r.fixHead());
+        r.moveTo(padAt(p, r2, 0));
+        CHECK(r.commit().ok);
+        CHECK(routingProblems(p) == 0);
+        bool still = false;
+        for (const auto& t : p.pcb.tracks)
+            if (t.arc && t.a == kept.a && t.b == kept.b && t.mid == kept.mid) still = true;
+        CHECK(still);
+        double nearest = 1e9;
+        for (const auto& t : p.pcb.tracks)
+            if (t.net == net) nearest = std::min(nearest, trackTrackDistance(t, kept) - (t.width + kept.width) / 2);
+        CHECK(nearest >= p.pcb.settings.clearance - 1e-6);
+    }
+}
+
+extern "C" int sieda_c_api_arc_test(void);
+TEST(c_api_arc_corners) {
+    const int rc = sieda_c_api_arc_test();
+    if (rc != 0) std::printf("    C API arc test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}
+
+// ======================================================================= length tuning parity (interactive routing 10/10)
+
+namespace {
+/// Two resistors 30 mm apart joined by one straight track on the top layer.
+struct TuneBoard {
+    Project p;
+    int net = -1, track = -1;
+};
+TuneBoard tuneBoard() {
+    TuneBoard b;
+    auto& s = b.p.schematic;
+    const int r1 = placeR(b.p, {10, 20}), r2 = placeR(b.p, {40, 20});
+    wire(s, r1, "2", r2, "1");
+    b.p.schematicChanged();
+    b.net = s.netOf({r1, 1});
+    addPath(b.p.pcb, b.net, 0, 0.25, {padAt(b.p, r1, 1), padAt(b.p, r2, 0)});
+    b.track = b.p.pcb.tracks.back().id;
+    return b;
+}
+}  // namespace
+
+TEST(length_tuning_patterns_and_corners) {
+    // Accordion, trombone and sawtooth meanders with square, mitered and round (true arc) corners: each reaches the
+    // typed target within 0.01 mm (the height is solved exactly), writes exactly the preview, and leaves the board DRC
+    // clean with no acute corner; round corners are arcs.
+    for (MeanderStyle style : {MeanderStyle::Accordion, MeanderStyle::Trombone, MeanderStyle::Sawtooth})
+        for (MeanderCorner corner : {MeanderCorner::Square, MeanderCorner::Mitered, MeanderCorner::Round}) {
+            TuneBoard b = tuneBoard();
+            const double before = routedNetLength(b.p.pcb, b.net);
+            LengthTuneOptions o;
+            o.target = before + (style == MeanderStyle::Sawtooth ? 2.0 : 3.0);
+            o.style = style;
+            o.corner = corner;
+            o.apply = false;
+            const LengthTuneResult pre = tuneTrackLength(b.p.pcb, b.p.schematic, b.track, o);
+            CHECK(pre.ok && !pre.applied);
+            CHECK_NEAR(pre.after, o.target, 0.01);
+            const bool classic = style == MeanderStyle::Accordion && corner == MeanderCorner::Square;  // the old path
+            CHECK(pre.targetSource == (classic ? "" : "typed"));
+            o.apply = true;
+            const LengthTuneResult res = tuneTrackLength(b.p.pcb, b.p.schematic, b.track, o);
+            CHECK(res.ok && res.applied);
+            CHECK_NEAR(routedNetLength(b.p.pcb, b.net), o.target, 0.01);
+            CHECK_NEAR(res.after, pre.after, 1e-9);
+            CHECK(routingProblems(b.p) == 0);
+            CHECK(acuteWarnings(b.p) == 0);
+            CHECK(netRouted(b.p, b.net));
+            int arcs = 0;
+            for (const auto& t : b.p.pcb.tracks) arcs += t.arc ? 1 : 0;
+            CHECK((arcs > 0) == (corner == MeanderCorner::Round));
+        }
+    // Options from JSON.
+    const LengthTuneOptions j = lengthTuneOptionsFromJson(Json::parse(
+        "{\"style\":\"sawtooth\",\"corner\":\"round\",\"fromX\":1,\"fromY\":2,\"toX\":3,\"toY\":4,\"coupled\":true,\"phase\":true}"));
+    CHECK(j.style == MeanderStyle::Sawtooth && j.corner == MeanderCorner::Round && j.hasSpan && j.coupled && j.phase);
+    CHECK(j.spanTo.x == 3 && j.spanTo.y == 4);
+}
+
+TEST(length_tuning_drags_along_the_track) {
+    // Drag-along: the meanders go only between the two points of the drag; a short drag lengthens as far as that
+    // stretch allows; the plain accordion without new options is unchanged.
+    TuneBoard b = tuneBoard();
+    LengthTuneOptions o;
+    o.target = routedNetLength(b.p.pcb, b.net) + 4;
+    o.hasSpan = true;
+    o.spanFrom = {14, 20};
+    o.spanTo = {24, 20};
+    o.apply = false;
+    const LengthTuneResult r = tuneTrackLength(b.p.pcb, b.p.schematic, b.track, o);
+    CHECK(r.ok);
+    CHECK_NEAR(r.after, o.target, 0.01);
+    for (const auto& t : r.addedTracks) {
+        const bool bump = std::fabs(t.a.y - 20) > 1e-6 || std::fabs(t.b.y - 20) > 1e-6;
+        if (bump) CHECK(t.a.x >= 14 - 1e-6 && t.b.x <= 24 + 1e-6 && t.a.x <= 24 + 1e-6 && t.b.x >= 14 - 1e-6);
+    }
+    // A 2 mm drag cannot take 4 mm at the default 2 mm height... it takes what fits.
+    o.spanFrom = {20, 20};
+    o.spanTo = {21.6, 20};
+    o.maxAmplitude = 0.5;
+    const LengthTuneResult s = tuneTrackLength(b.p.pcb, b.p.schematic, b.track, o);
+    CHECK(s.ok && s.after < o.target - 1 && s.after > s.before);
+    CHECK(s.message == "Lengthened as far as the free space allows");
+}
+
+TEST(length_tuning_couples_pairs_and_tunes_phase) {
+    // A routed differential pair: coupled tuning meanders both members together (each gains the same length, the gap
+    // stays exact everywhere, DRC clean); phase tuning brings one member to its partner's length with small bumps on
+    // the side away from the partner.
+    Project p;
+    auto& s = p.schematic;
+    const int p1 = placeR(p, {10, 14}), p2 = placeR(p, {45, 14}), n1 = placeR(p, {10, 16}), n2 = placeR(p, {45, 16});
+    wire(s, p1, "2", p2, "1");
+    wire(s, n1, "2", n2, "1");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_P", {0, 0}), "N", p1, "2");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_N", {0, 50}), "N", n1, "2");
+    p.schematicChanged();
+    const int netP = s.netOf({p1, 1}), netN = s.netOf({n1, 1});
+    {
+        InteractiveRouter r(p.pcb, s);
+        RouterOptions ro;
+        ro.pairGap = 0.2;
+        r.setOptions(ro);
+        CHECK(r.beginPair(padAt(p, p1, 1), 0));
+        CHECK(r.moveTo(padAt(p, p2, 0)).reachedTarget);
+        CHECK(r.commit().ok);
+    }
+    CHECK(routingProblems(p) == 0);
+    int longP = -1;
+    double best = 0;
+    for (const auto& t : p.pcb.tracks)
+        if (t.net == netP && trackLength(t) > best) {
+            best = trackLength(t);
+            longP = t.id;
+        }
+    const double beforeP = routedNetLength(p.pcb, netP), beforeN = routedNetLength(p.pcb, netN);
+    LengthTuneOptions o;
+    o.coupled = true;
+    o.target = beforeP + 3;
+    for (MeanderCorner corner : {MeanderCorner::Square, MeanderCorner::Round}) {
+        Project q = p;
+        o.corner = corner;
+        const LengthTuneResult r = tuneTrackLength(q.pcb, q.schematic, longP, o);
+        CHECK(r.ok && r.applied && r.coupled && r.partnerNet == netN);
+        const double dP = routedNetLength(q.pcb, netP) - beforeP, dN = routedNetLength(q.pcb, netN) - beforeN;
+        CHECK_NEAR(dP, 3, 0.01);
+        CHECK_NEAR(dP, dN, 1e-6);
+        double minGap = 1e9;
+        for (const auto& a : q.pcb.tracks)
+            for (const auto& c : q.pcb.tracks)
+                if (a.net == netP && c.net == netN) minGap = std::min(minGap, trackTrackDistance(a, c) - (a.width + c.width) / 2);
+        CHECK(minGap >= 0.2 - 1e-6);
+        CHECK(routingProblems(q) == 0);
+        CHECK(acuteWarnings(q) == 0);
+    }
+    // Phase: P is made 0.6 mm longer alone, then N is phase-tuned to it.
+    LengthTuneOptions lp;
+    lp.target = beforeP + 0.6;
+    CHECK(tuneTrackLength(p.pcb, s, longP, lp).ok);
+    int longN = -1;
+    best = 0;
+    for (const auto& t : p.pcb.tracks)
+        if (t.net == netN && trackLength(t) > best) {
+            best = trackLength(t);
+            longN = t.id;
+        }
+    LengthTuneOptions ph;
+    ph.phase = true;
+    const LengthTuneResult r = tuneTrackLength(p.pcb, s, longN, ph);
+    CHECK(r.ok && r.applied && r.targetSource == "partner");
+    CHECK(std::fabs(routedNetLength(p.pcb, netN) - routedNetLength(p.pcb, netP)) <= 0.07);
+    for (const auto& t : r.addedTracks)  // N runs below P (larger y): its bumps go further down, never up
+        CHECK(std::min(t.a.y, t.b.y) >= 15.225 - 1e-6);
+    CHECK(routingProblems(p) == 0);
+}
+
+TEST(length_rules_match_groups_and_xsignals) {
+    // xSignal A → R5 → B is measured pad to pad through the series resistor. A match group with net C reports the
+    // shorter one in the DRC (DRC_LENGTH) and the tuning tool takes the group's target; a length rule on C does the
+    // same with its own target; rules and groups are saved; the router's banner target follows them.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20}), r5 = placeR(p, {25, 20}), r2 = placeR(p, {40, 20});
+    const int r3 = placeR(p, {10, 30}), r4 = placeR(p, {40.5, 30});
+    wire(s, r1, "2", r5, "1");
+    wire(s, r5, "2", r2, "1");
+    wire(s, r3, "2", r4, "1");
+    p.schematicChanged();
+    const int netA = s.netOf({r1, 1}), netB = s.netOf({r5, 1}), netC = s.netOf({r3, 1});
+    addPath(p.pcb, netA, 0, 0.25, {padAt(p, r1, 1), padAt(p, r5, 0)});
+    const int trackA = p.pcb.tracks.back().id;
+    addPath(p.pcb, netB, 0, 0.25, {padAt(p, r5, 1), padAt(p, r2, 0)});
+    addPath(p.pcb, netC, 0, 0.25, {padAt(p, r3, 1), padAt(p, r4, 0)});
+    const int trackC = p.pcb.tracks.back().id;
+    const auto pads = p.pcb.pads(s);
+    const XSignal x = xSignalOf(s, pads, netA);
+    CHECK(x.nets.size() == 2 && x.seriesParts.size() == 1 && x.endPads.size() == 2);
+    CHECK_NEAR(xSignalLength(p.pcb, pads, x), 13.1 + 13.1, 1e-6);
+    const double lenC = 30.5 - 1.9;
+    CHECK_NEAR(xSignalLength(p.pcb, pads, xSignalOf(s, pads, netC)), lenC, 1e-6);
+    CHECK(drcCount(p, "DRC_LENGTH") == 0);
+    MatchGroup g;
+    g.name = "DATA";
+    g.nets = {s.nets()[static_cast<size_t>(netA)].name, s.nets()[static_cast<size_t>(netC)].name};
+    g.tolerance = 0.1;
+    p.pcb.settings.matchGroups.push_back(g);
+    CHECK(drcCount(p, "DRC_LENGTH") == 1);
+    LengthTarget lt;
+    CHECK(lengthTargetFor(p.pcb, s, pads, netA, lt) && lt.source == "group:DATA");
+    CHECK_NEAR(lt.target, lenC, 1e-6);
+    const LengthTuneResult r = tuneTrackLength(p.pcb, s, trackA, LengthTuneOptions{});
+    CHECK(r.ok && r.applied && r.targetSource == "group:DATA");
+    CHECK(r.xsignalNets.size() == 2);
+    CHECK_NEAR(xSignalLength(p.pcb, p.pcb.pads(s), xSignalOf(s, p.pcb.pads(s), netA)), lenC, 0.05 + 1e-6);
+    CHECK(drcCount(p, "DRC_LENGTH") == 0);
+    CHECK(routingProblems(p) == 0);
+    // A length rule on C: 30 ± 0.1 mm.
+    LengthRule rule;
+    rule.net = s.nets()[static_cast<size_t>(netC)].name;
+    rule.target = 30;
+    rule.tolerance = 0.1;
+    p.pcb.settings.lengthRules.push_back(rule);
+    CHECK(drcCount(p, "DRC_LENGTH") >= 1);
+    const Json targets = lengthTargetsJson(p.pcb, s);
+    CHECK(targets.get("rules").size() == 1 && targets.get("groups").size() == 1);
+    CHECK(!targets.get("rules")[0].get("ok").asBool());
+    const LengthTuneResult rc = tuneTrackLength(p.pcb, s, trackC, LengthTuneOptions{});
+    CHECK(rc.ok && rc.targetSource == "rule:" + rule.net);
+    CHECK_NEAR(xSignalLength(p.pcb, p.pcb.pads(s), xSignalOf(s, p.pcb.pads(s), netC)), 30, 0.05 + 1e-6);
+    // Saved and loaded.
+    const Project back = Project::fromJson(p.toJson());
+    CHECK(back.pcb.settings.lengthRules.size() == 1 && back.pcb.settings.matchGroups.size() == 1);
+    CHECK(back.pcb.settings.matchGroups[0].nets.size() == 2 && back.pcb.settings.lengthRules[0].target == 30);
+    CHECK(p.toJson().get("board").has("lengthRules"));
+    Project plain;
+    CHECK(!plain.toJson().get("board").has("lengthRules") && !plain.toJson().get("board").has("matchGroups"));
+}
+
+extern "C" int sieda_c_api_length_test(void);
+TEST(c_api_length_tuning_and_rules) {
+    const int rc = sieda_c_api_length_test();
+    if (rc != 0) std::printf("    C API length test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}
+
+// ======================================================================= corner / multi drags, any angle, multi-route
+
+namespace {
+bool samePointT(Vec2 a, Vec2 b) { return (a - b).length() < 1e-6; }
+}  // namespace
+
+TEST(router_drags_a_corner) {
+    // A corner (the joint of two tracks) follows the cursor: at any angle in the free posture (two straight tracks),
+    // with 45° links otherwise; the route stays connected and DRC clean. A corner on a pad is refused; a drag into
+    // another net's pad stops short of it.
+    for (RoutePosture posture : {RoutePosture::Free, RoutePosture::Diagonal45}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 10}), r2 = placeR(p, {30, 30});
+        wire(s, r1, "2", r2, "1");
+        p.schematicChanged();
+        const int net = s.netOf({r1, 1});
+        const Vec2 from = padAt(p, r1, 1), to = padAt(p, r2, 0);
+        addPath(p.pcb, net, 0, 0.25, {from, {20, from.y}, {20, to.y}, to});
+        const int first = p.pcb.tracks[0].id;
+        InteractiveRouter r(p.pcb, s);
+        RouterOptions o;
+        o.posture = posture;
+        r.setOptions(o);
+        CHECK(!r.beginCornerDrag(first, from));  // that end is on the pad
+        CHECK(r.beginCornerDrag(first, {19.8, from.y}));
+        const RoutePreview& pv = r.moveTo({17.8, from.y + 3});  // the corner moves to (18, 13)
+        CHECK(pv.kind == "corner" && !pv.blocked);
+        bool hasCorner = false;
+        for (const auto& t : pv.head) hasCorner = hasCorner || samePointT(t.a, {18, from.y + 3}) || samePointT(t.b, {18, from.y + 3});
+        CHECK(hasCorner);
+        if (posture == RoutePosture::Free) CHECK(pv.head.size() == 2);
+        CHECK(r.commit().ok);
+        CHECK(netRouted(p, net));
+        CHECK(routingProblems(p) == 0);
+        CHECK(acuteWarnings(p) == 0);
+    }
+}
+
+TEST(router_drags_several_tracks_together) {
+    // Two nets' parallel horizontal tracks are dragged down together: both move by the same offset, their ends on
+    // the pads get links, every net stays connected and the board DRC clean; the moved copper is one undo step.
+    Project p;
+    auto& s = p.schematic;
+    const int a1 = placeR(p, {8, 10}), a2 = placeR(p, {40, 10}), b1 = placeR(p, {8, 13}), b2 = placeR(p, {40, 13});
+    wire(s, a1, "2", a2, "1");
+    wire(s, b1, "2", b2, "1");
+    p.schematicChanged();
+    const int na = s.netOf({a1, 1}), nb = s.netOf({b1, 1});
+    addPath(p.pcb, na, 0, 0.25, {padAt(p, a1, 1), {12, 10}, {36, 10}, padAt(p, a2, 0)});
+    addPath(p.pcb, nb, 0, 0.25, {padAt(p, b1, 1), {12, 13}, {36, 13}, padAt(p, b2, 0)});
+    std::vector<int> ids;
+    for (const auto& t : p.pcb.tracks)
+        if ((t.a - t.b).length() > 10) ids.push_back(t.id);  // the two long middle tracks
+    CHECK(ids.size() == 2);
+    InteractiveRouter r(p.pcb, s);
+    CHECK(r.beginMultiDrag(ids, {24, 10}));
+    const RoutePreview& pv = r.moveTo({24, 11.5});
+    CHECK(pv.kind == "multidrag" && !pv.blocked);
+    CHECK(r.commit().ok);
+    bool movedA = false, movedB = false;
+    for (const auto& t : p.pcb.tracks) {
+        movedA = movedA || (t.net == na && std::fabs(t.a.y - 11.5) < 1e-9 && std::fabs(t.b.y - 11.5) < 1e-9);
+        movedB = movedB || (t.net == nb && std::fabs(t.a.y - 14.5) < 1e-9 && std::fabs(t.b.y - 14.5) < 1e-9);
+    }
+    CHECK(movedA && movedB);
+    CHECK(netRouted(p, na) && netRouted(p, nb));
+    CHECK(routingProblems(p) == 0);
+    CHECK(acuteWarnings(p) == 0);
+    InteractiveRouter r2(p.pcb, s);
+    CHECK(!r2.beginMultiDrag({}, {0, 0}));
+}
+
+TEST(router_routes_at_any_angle) {
+    // Free posture: the head is one straight track at any angle to the target pad, DRC clean.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20}), r2 = placeR(p, {31, 27});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 1});
+    InteractiveRouter r(p.pcb, s);
+    RouterOptions o;
+    o.posture = RoutePosture::Free;
+    r.setOptions(o);
+    CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+    const RoutePreview& pv = r.moveTo(padAt(p, r2, 0));
+    CHECK(pv.reachedTarget && pv.head.size() == 1);
+    const Vec2 d = pv.head[0].b - pv.head[0].a;
+    CHECK(std::fabs(d.x) > 1 && std::fabs(d.y) > 1 && std::fabs(std::fabs(d.x) - std::fabs(d.y)) > 1);  // not 0 / 45 / 90°
+    CHECK(r.commit().ok);
+    CHECK(netRouted(p, net));
+    CHECK(routingProblems(p) == 0);
+}
+
+TEST(router_multi_routes_nets_with_vias) {
+    // Three nets from scattered pads (not one row) route as one bundle; V places a via per member, spread to via
+    // pitch, and the bundle continues on the bottom layer; DRC clean (no clearance or hole-spacing error).
+    Project p;
+    auto& s = p.schematic;
+    const int a = placeR(p, {8, 10}), b = placeR(p, {10, 15}), c = placeR(p, {7, 20});
+    const int ta = placeR(p, {45, 10}), tb = placeR(p, {45, 15}), tc = placeR(p, {45, 20});
+    wire(s, a, "2", ta, "1");
+    wire(s, b, "2", tb, "1");
+    wire(s, c, "2", tc, "1");
+    p.schematicChanged();
+    InteractiveRouter r(p.pcb, s);
+    CHECK(!r.beginMultiRoute({padAt(p, a, 1)}, 0));
+    CHECK(r.beginMultiRoute({padAt(p, a, 1), padAt(p, b, 1), padAt(p, c, 1)}, 0));
+    CHECK(r.preview().kind == "multi" && r.preview().nets.size() == 3);
+    r.moveTo({22, 15});
+    CHECK(r.fixHead());
+    CHECK(r.addVia());
+    const RoutePreview& pv = r.preview();
+    CHECK(pv.vias.size() == 3 && pv.layer == 1);
+    for (size_t i = 0; i < pv.vias.size(); ++i)
+        for (size_t j = i + 1; j < pv.vias.size(); ++j)
+            CHECK((pv.vias[i].position - pv.vias[j].position).length() >= pv.vias[i].diameter + p.pcb.settings.clearance - 1e-6);
+    r.moveTo({32, 15});
+    CHECK(r.fixHead());
+    CHECK(r.commit().ok);
+    CHECK(p.pcb.vias.size() == 3);
+    CHECK(routingProblems(p) == 0);
+    CHECK(acuteWarnings(p) == 0);
+    int bottom = 0;
+    for (const auto& t : p.pcb.tracks) bottom += t.layer == 1 ? 1 : 0;
+    CHECK(bottom >= 3);
+}
+
+extern "C" int sieda_c_api_drag_multi_test(void);
+TEST(c_api_corner_multi_drag_and_multi_route) {
+    const int rc = sieda_c_api_drag_multi_test();
+    if (rc != 0) std::printf("    C API drag / multi test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}
+
+// ======================================================================= teardrops, stitching, shielding, gloss, loops
+
+namespace {
+int teardropTracks(const Project& p) {
+    int n = 0;
+    for (const auto& t : p.pcb.tracks) n += t.teardrop ? 1 : 0;
+    return n;
+}
+
+Via testVia(const Project& p, int net, Vec2 at) {
+    Via v;
+    v.net = net;
+    v.position = at;
+    v.drill = p.pcb.settings.viaDrill;
+    v.diameter = p.pcb.settings.viaDiameter;
+    return v;
+}
+}  // namespace
+
+TEST(teardrops_on_pads_and_vias) {
+    // A route pad → via → via → pad gets six teardrops (both pads, every via end); DRC clean, connected; saved, drawn in
+    // the Gerber; removed again exactly. Auto teardrops on a router commit; teardrops whose track is gone are pruned.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20}), r2 = placeR(p, {34, 20});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 1});
+    const Vec2 from = padAt(p, r1, 1), to = padAt(p, r2, 0);
+    addPath(p.pcb, net, 0, 0.25, {from, {18, from.y}});
+    addPath(p.pcb, net, 1, 0.25, {{18, from.y}, {26, from.y}});
+    addPath(p.pcb, net, 0, 0.25, {{26, from.y}, to});
+    p.pcb.addVia(testVia(p, net, {18, from.y}));
+    p.pcb.addVia(testVia(p, net, {26, from.y}));
+    CHECK(netRouted(p, net));
+    const size_t plainCount = p.pcb.tracks.size();
+    const std::string plainGerber = exportGerber(s, p.pcb, GerberLayer::TopCopper);
+    TeardropOptions dry;
+    dry.apply = false;
+    const BoardEditResult preview = addTeardrops(p.pcb, s, dry);
+    std::printf("    teardrops: %s\n", preview.message.c_str());
+    CHECK(preview.ok && !preview.applied && preview.added == 6 && p.pcb.tracks.size() == plainCount);
+    const BoardEditResult r = addTeardrops(p.pcb, s);
+    CHECK(r.ok && r.applied && r.added == 6 && r.skipped == 0);
+    CHECK(teardropTracks(p) >= 12 && static_cast<size_t>(teardropTracks(p)) == r.addedTracks.size());
+    CHECK(routingProblems(p) == 0);
+    CHECK(acuteWarnings(p) == 0);
+    CHECK(drcCount(p, "DRC_DANGLING_TRACK") == 0);
+    CHECK(netRouted(p, net));
+    CHECK(addTeardrops(p.pcb, s).added == 0);  // already there
+    CHECK(pruneTeardrops(p.pcb, s) == 0);
+    CHECK(exportGerber(s, p.pcb, GerberLayer::TopCopper) != plainGerber);
+    const Project back = Project::fromJson(p.toJson());
+    CHECK(teardropTracks(back) == teardropTracks(p));
+    CHECK(boardEditJson(r, 2).get("addedTracks").size() == r.addedTracks.size());
+    const BoardEditResult gone = removeTeardrops(p.pcb);
+    CHECK(gone.ok && p.pcb.tracks.size() == plainCount && teardropTracks(p) == 0);
+    CHECK(exportGerber(s, p.pcb, GerberLayer::TopCopper) == plainGerber);
+
+    // Auto teardrops on commit.
+    Project q;
+    const int a = placeR(q, {10, 20}), b = placeR(q, {30, 20});
+    wire(q.schematic, a, "2", b, "1");
+    q.schematicChanged();
+    InteractiveRouter ir(q.pcb, q.schematic);
+    RouterOptions o;
+    o.autoTeardrops = true;
+    ir.setOptions(o);
+    CHECK(ir.beginRoute(padAt(q, a, 1), 0));
+    ir.moveTo(padAt(q, b, 0));
+    const RouteChanges ch = ir.commit();
+    CHECK(ch.ok && teardropTracks(q) >= 4);
+    CHECK(drcCount(q, "DRC_DANGLING_TRACK") == 0 && acuteWarnings(q) == 0);
+    CHECK(ch.addedTracks.size() == q.pcb.tracks.size());
+    CHECK(routingProblems(q) == 0);
+    // The track goes: its teardrops are pruned.
+    q.pcb.tracks.erase(std::remove_if(q.pcb.tracks.begin(), q.pcb.tracks.end(), [](const Track& t) { return !t.teardrop; }),
+                       q.pcb.tracks.end());
+    CHECK(pruneTeardrops(q.pcb, q.schematic) >= 4 && q.pcb.tracks.empty());
+}
+
+TEST(via_stitching_and_shielding) {
+    // A signal track gets rows of GND vias on both sides at the pitch, clear of it; GND pours on both layers get a
+    // stitching grid inside the area, DRC clean.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20}), r2 = placeR(p, {38, 20});
+    const int g = s.addComponent(ComponentKind::Ground, "", {0, 50});
+    wire(s, r1, "2", r2, "1");
+    wire(s, r1, "1", g, "GND");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 1});
+    addPath(p.pcb, net, 0, 0.25, {padAt(p, r1, 1), padAt(p, r2, 0)});
+    const int sig = p.pcb.tracks[0].id;
+    // Shielding first (no pours yet: the vias float, the message says so).
+    ViaPatternOptions so;
+    so.pitch = 2;
+    const BoardEditResult sh = shieldTracks(p.pcb, s, {sig}, so);
+    CHECK(sh.ok && sh.added >= 16);
+    CHECK(sh.message.find("reach no pour") != std::string::npos);
+    const Track t = p.pcb.tracks[0];
+    for (const auto& v : p.pcb.vias) {
+        CHECK(v.net == s.groundNet());
+        CHECK(trackPointDistance(t, v.position) >= t.width / 2 + v.diameter / 2 + p.pcb.settings.clearance - 1e-6);
+    }
+    CHECK(routingProblems(p) == 0);
+    CHECK(shieldTracks(p.pcb, s, {sig}, so).added == 0);  // no room left at the same places
+    // Stitching needs two layers of pour.
+    CHECK(!stitchVias(p.pcb, s).ok);
+    p.pcb.zones.push_back({"GND", 0, false, 0});
+    p.pcb.zones.push_back({"GND", 1, false, 0});
+    const size_t before = p.pcb.vias.size();
+    ViaPatternOptions st;
+    st.area = Rect(5, 5, 45, 35);
+    st.hasArea = true;
+    const BoardEditResult r = stitchVias(p.pcb, s, st);
+    CHECK(r.ok && r.added >= 40 && p.pcb.vias.size() == before + static_cast<size_t>(r.added));
+    for (const auto& v : r.addedVias) CHECK(st.area.contains(v.position));
+    CHECK(routingProblems(p) == 0);
+    CHECK(netRouted(p, net));
+    CHECK(boardEditJson(r, 2).get("addedVias").size() == static_cast<size_t>(r.added));
+}
+
+TEST(gloss_pulls_routes_tight) {
+    // A route with a needless detour is pulled tight (shorter, still connected, DRC clean); a tight route stays;
+    // locked tracks are left alone.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {36, 20});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 1});
+    const Vec2 from = padAt(p, r1, 1), to = padAt(p, r2, 0);
+    addPath(p.pcb, net, 0, 0.25, {from, {14, from.y}, {14, from.y + 8}, {28, from.y + 8}, {28, from.y}, to});
+    double lenBefore = 0;
+    for (const auto& t : p.pcb.tracks) lenBefore += trackLength(t);
+    const BoardEditResult r = glossTracks(p.pcb, s, {p.pcb.tracks[2].id});
+    CHECK(r.ok && r.added == 1);
+    double lenAfter = 0;
+    for (const auto& t : p.pcb.tracks) lenAfter += trackLength(t);
+    CHECK(lenAfter < lenBefore - 10);
+    CHECK(netRouted(p, net));
+    CHECK(routingProblems(p) == 0);
+    CHECK(acuteWarnings(p) == 0);
+    const BoardEditResult again = glossTracks(p.pcb, s, {p.pcb.tracks[0].id});
+    CHECK(!again.ok && again.added == 0);
+    Project q;
+    const int a = placeR(q, {8, 20}), b = placeR(q, {36, 20});
+    wire(q.schematic, a, "2", b, "1");
+    q.schematicChanged();
+    const int nq = q.schematic.netOf({a, 1});
+    const Vec2 qa = padAt(q, a, 1), qb = padAt(q, b, 0);
+    addPath(q.pcb, nq, 0, 0.25, {qa, {14, qa.y}, {14, qa.y + 8}, {28, qa.y + 8}, {28, qa.y}, qb}, true);
+    CHECK(!glossTracks(q.pcb, q.schematic, {q.pcb.tracks[2].id}).ok);
+}
+
+TEST(router_removes_loops_on_commit) {
+    // An old detour (with a via pair and a stub on it) is replaced by a new direct route: with loop removal the old
+    // tracks and the vias they leave unconnected go, in the same commit; without it everything stays.
+    for (bool remove : {true, false}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {36, 20});
+        wire(s, r1, "2", r2, "1");
+        p.schematicChanged();
+        const int net = s.netOf({r1, 1});
+        const Vec2 from = padAt(p, r1, 1), to = padAt(p, r2, 0);
+        // The detour leaves the pads at 45°, so the new straight route shares no copper with it.
+        addPath(p.pcb, net, 0, 0.25, {from, from + Vec2{3, 3}, {from.x + 3, from.y + 8}, {18, from.y + 8}});
+        addPath(p.pcb, net, 1, 0.25, {{18, from.y + 8}, {26, from.y + 8}});
+        addPath(p.pcb, net, 0, 0.25, {{26, from.y + 8}, {to.x - 3, from.y + 8}, to + Vec2{-3, 3}, to});
+        addPath(p.pcb, net, 0, 0.25, {{from.x + 3, from.y + 8}, {from.x + 3, from.y + 11}});  // a stub on the detour
+        p.pcb.addVia(testVia(p, net, {18, from.y + 8}));
+        p.pcb.addVia(testVia(p, net, {26, from.y + 8}));
+        const size_t oldTracks = p.pcb.tracks.size();
+        CHECK(netRouted(p, net));
+        InteractiveRouter ir(p.pcb, s);
+        RouterOptions o;
+        o.removeLoops = remove;
+        ir.setOptions(o);
+        CHECK(ir.beginRoute(from, 0));
+        ir.moveTo(to);
+        const RouteChanges ch = ir.commit();
+        CHECK(ch.ok);
+        CHECK(netRouted(p, net));
+        CHECK(routingProblems(p) == 0);
+        CHECK(drcCount(p, "DRC_DANGLING_TRACK") == 0 || !remove);
+        if (remove) {
+            CHECK(ch.removedTracks.size() == oldTracks);
+            CHECK(p.pcb.vias.empty() && ch.removedVias.size() == 2);
+            CHECK(p.pcb.tracks.size() == ch.addedTracks.size());
+        } else {
+            CHECK(p.pcb.tracks.size() > oldTracks && p.pcb.vias.size() == 2);
+        }
+    }
+}
+
+extern "C" int sieda_c_api_board_commands_test(void);
+TEST(c_api_board_commands) {
+    const int rc = sieda_c_api_board_commands_test();
+    if (rc != 0) std::printf("    C API board commands test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}
+
+// ======================================================================= stop mode, length-matched bus
+
+TEST(router_stop_mode_stops_at_the_first_obstacle) {
+    // Another net's track across the way: Shove pushes it aside; Stop leaves it and the head ends short of it.
+    for (RouterMode mode : {RouterMode::Shove, RouterMode::Stop}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {36, 20}), r3 = placeR(p, {22, 10}), r4 = placeR(p, {22, 30});
+        wire(s, r1, "2", r2, "1");
+        wire(s, r3, "2", r4, "1");
+        p.schematicChanged();
+        const int other = s.netOf({r3, 1});
+        addPath(p.pcb, other, 0, 0.25, {padAt(p, r3, 1), {padAt(p, r3, 1).x, 15}, {22, 25}, padAt(p, r4, 0)});
+        InteractiveRouter r(p.pcb, s);
+        RouterOptions o;
+        o.mode = mode;
+        r.setOptions(o);
+        CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+        const RoutePreview& pv = r.moveTo(padAt(p, r2, 0));
+        if (mode == RouterMode::Stop) {
+            CHECK(pv.blocked && pv.shovedTracks.empty() && !pv.reachedTarget);
+            const Vec2 tip = pv.head.empty() ? padAt(p, r1, 1) : pv.head.back().b;
+            CHECK(tip.x > 15 && tip.x < 22.3);  // up to the other track (it crosses y = 20 at x = 22.475)
+        } else {
+            CHECK(!pv.blocked && pv.reachedTarget);
+        }
+    }
+    RouterOptions j = routerOptionsFromJson(Json::parse("{\"mode\":\"stop\"}"));
+    CHECK(j.mode == RouterMode::Stop);
+}
+
+TEST(match_track_lengths_of_a_bus) {
+    // Three nets routed pad to pad, the middle one with a detour: matching the selection lengthens the other two to
+    // the longest within the tolerance, DRC clean; the temporary group is gone afterwards.
+    Project p;
+    auto& s = p.schematic;
+    std::vector<int> nets;
+    std::vector<int> picks;
+    for (int k = 0; k < 3; ++k) {
+        const double y = 10 + 8 * k;
+        const int a = placeR(p, {8, y}), b = placeR(p, {40, y});
+        wire(s, a, "2", b, "1");
+        p.schematicChanged();
+        const int net = s.netOf({a, 1});
+        nets.push_back(net);
+        const Vec2 from = padAt(p, a, 1), to = padAt(p, b, 0);
+        if (k == 1)
+            addPath(p.pcb, net, 0, 0.25, {from, {16, y}, {18, y + 2}, {26, y + 2}, {28, y}, to});
+        else
+            addPath(p.pcb, net, 0, 0.25, {from, to});
+        picks.push_back(p.pcb.tracks.back().id);
+    }
+    const double longest = routedNetLength(p.pcb, nets[1]);
+    CHECK(routedNetLength(p.pcb, nets[0]) < longest - 1);
+    CHECK(!matchTrackLengths(p.pcb, s, {picks[0]}).ok);  // one net: nothing to match
+    const MatchLengthsResult r = matchTrackLengths(p.pcb, s, picks);
+    CHECK(r.ok && r.tuned == 2 && r.matched == 1 && r.short_ == 0);
+    CHECK_NEAR(r.target, longest, 1e-6);
+    for (int n : nets) CHECK_NEAR(routedNetLength(p.pcb, n), longest, 0.1 + 1e-6);
+    CHECK(p.pcb.settings.matchGroups.empty());
+    CHECK(routingProblems(p) == 0);
+    CHECK(matchLengthsJson(r).get("nets").size() == 3);
+}
+
+extern "C" int sieda_c_api_match_lengths_test(void);
+TEST(c_api_match_lengths_and_stop_mode) {
+    const int rc = sieda_c_api_match_lengths_test();
+    if (rc != 0) std::printf("    C API match lengths test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}
+
+TEST(router_drag_hugs_a_pad) {
+    // A segment dragged onto another part's pad stops short of it; with hug on it bends around the pad on its
+    // clearance hull instead, stays connected and DRC clean.
+    for (bool hug : {false, true}) {
+        Project p;
+        auto& s = p.schematic;
+        const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {36, 20}), r3 = placeR(p, {22, 23.5}), r4 = placeR(p, {22, 35});
+        wire(s, r1, "2", r2, "1");
+        wire(s, r3, "2", r4, "1");
+        p.schematicChanged();
+        const int net = s.netOf({r1, 1});
+        const Vec2 from = padAt(p, r1, 1), to = padAt(p, r2, 0);
+        addPath(p.pcb, net, 0, 0.25, {from, {12, 20}, {32, 20}, to});
+        int mid = -1;
+        for (const auto& t : p.pcb.tracks)
+            if ((t.b - t.a).length() > 15) mid = t.id;
+        InteractiveRouter r(p.pcb, s);
+        RouterOptions o;
+        o.hugDrag = hug;
+        r.setOptions(o);
+        CHECK(r.beginDrag(mid, {22, 20}));
+        const RoutePreview& pv = r.moveTo({22, 23.5});
+        if (!hug) {
+            CHECK(pv.blocked);
+            continue;
+        }
+        CHECK(!pv.blocked);
+        CHECK(pv.status.find("hugging") != std::string::npos);
+        CHECK(pv.head.size() >= 4);  // bends round the pad
+        CHECK(r.commit().ok);
+        CHECK(netRouted(p, net));
+        CHECK(routingProblems(p) == 0);
+        CHECK(acuteWarnings(p) == 0);
+    }
+    CHECK(routerOptionsFromJson(Json::parse("{\"hug\":true}")).hugDrag);
+}
+
+// ======================================================================= forward annotation (Update PCB ECO)
+
+TEST(update_pcb_eco_preview_execute_and_baseline) {
+    Project p;
+    Schematic& s = p.schematic;
+    const int r1 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    const int r2 = s.addComponent(ComponentKind::Resistor, "2k", {100, 0});
+    CHECK(s.connect({r1, 1}, {r2, 0}) >= 0);
+    p.schematicChanged();
+    // A new project: everything is to be added.
+    auto eco = p.pcbEcoPreview();
+    int adds = 0;
+    for (const auto& e : eco) adds += e.action == "add";
+    CHECK(adds == static_cast<int>(eco.size()) && adds >= 3);  // two parts and their nets
+    // Execute only R1: it is placed, R2 stays off the board.
+    std::vector<std::string> report;
+    CHECK(p.applyPcbEco({"component:" + std::to_string(r1)}, &report) == 1 && report.size() == 1);
+    CHECK(s.find(r1)->pcb.placed && !s.find(r2)->pcb.placed);
+    CHECK(p.applyPcbEco({}) >= 2);  // the rest
+    CHECK(s.find(r2)->pcb.placed && p.pcbEcoPreview().empty());
+    // In sync: the file carries no baseline; after a change it does, and a reload keeps the pending update.
+    CHECK(p.toJson().dump().find("pcbSync") == std::string::npos);
+    CHECK(s.setValue(r2, "4k7"));
+    s.setActiveSheet(1);
+    const int r3 = s.addComponent(ComponentKind::Resistor, "10k", {200, 0});
+    CHECK(s.connect({r2, 1}, {r3, 0}) >= 0);
+    CHECK(s.removeComponent(r1));
+    p.schematicChanged();
+    eco = p.pcbEcoPreview();
+    std::set<std::string> seen;
+    for (const auto& e : eco) seen.insert(e.section + ":" + e.action);
+    CHECK(seen.count("component:add") && seen.count("component:change") && seen.count("component:remove"));
+    CHECK(seen.count("net:change") || seen.count("net:add"));
+    const std::string saved = p.toJson().dump();
+    CHECK(saved.find("\"pcbSync\"") != std::string::npos);
+    Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.pcbEcoPreview().size() == eco.size() && q.toJson().dump() == saved);
+    // Zones on nets that are gone, and rules from directives.
+    p.pcb.zones.push_back(CopperZone{});
+    p.pcb.zones.back().net = "NO_SUCH_NET";
+    CHECK(s.setNetClassDef({"HS", 0.3, 0.25}));
+    NetDirective d;
+    d.component = r3;
+    d.netClass = "HS";
+    CHECK(s.addDirective(d) > 0);
+    p.pcb.settings.netWidths.clear();  // the board lost its rules (edited by hand)
+    p.pcb.settings.netClearances.clear();
+    p.pcb.settings.schematicRuleNets.clear();
+    eco = p.pcbEcoPreview();
+    bool zone = false, rule = false;
+    for (const auto& e : eco) {
+        zone |= e.section == "zone";
+        rule |= e.section == "rule" && e.action == "add";
+    }
+    CHECK(zone && rule);
+    CHECK(p.applyPcbEco({}) == static_cast<int>(eco.size()));
+    CHECK(p.pcb.zones.empty() && !p.pcb.settings.netWidths.empty() && p.pcbEcoPreview().empty());
+    CHECK(p.toJson().dump().find("pcbSync") == std::string::npos);
+    // An old file (no baseline) is in sync on loading.
+    Json old = Json::parse(saved);
+    Json stripped = Json::object();
+    for (const auto& [k, v] : old.fields())
+        if (k != "pcbSync") stripped[k] = v;
+    CHECK(Project::fromJson(stripped).pcbEcoPreview().empty());
+}
+
+extern "C" int sieda_c_api_update_pcb_test(void);
+TEST(c_api_update_pcb) {
+    const int rc = sieda_c_api_update_pcb_test();
+    if (rc != 0) std::printf("    C API Update PCB test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}
+
+// ======================================================================= symbol graphics, drawn sheet symbols
+
+TEST(symbol_graphics_persist_and_draw) {
+    CustomPartSpec spec = ne555Spec("SOIC");
+    spec.name = "NE555_GFX";
+    const std::string plain = customPartSpecToJson(spec).dump();
+    CHECK(plain.find("graphics") == std::string::npos && plain.find("symbolLayout") == std::string::npos);
+    SymbolGraphic line, rect, arc, poly, text;
+    line.points = {{-20, -10}, {0, 10}, {20, -10}};
+    rect.kind = "rect";
+    rect.points = {{-30, -30}, {30, 30}};
+    rect.fill = true;
+    arc.kind = "arc";
+    arc.points = {{0, 0}};
+    arc.radius = 12;
+    arc.startAngle = 180;
+    arc.endAngle = 360;
+    poly.kind = "polygon";
+    poly.points = {{-5, -5}, {5, 0}, {-5, 5}};
+    poly.fill = true;
+    poly.lineWidth = 2;
+    text.kind = "text";
+    text.points = {{-25, 20}};
+    text.text = "TIMER";
+    text.size = 6;
+    spec.symbol.graphics = {line, rect, arc, poly, text};
+    spec.symbol.body = false;
+    const std::string drawn = customPartSpecToJson(spec).dump();
+    CHECK(drawn.find("\"graphics\"") != std::string::npos && drawn.find("\"body\":false") != std::string::npos);
+    const CustomPartSpec back = customPartSpecFromJson(Json::parse(drawn));
+    CHECK(back.symbol.graphics == spec.symbol.graphics && !back.symbol.body && back.symbol.pins.empty());
+    CHECK(customPartSpecToJson(back).dump() == drawn);
+    const auto b = symbolGraphicsBounds(back.symbol.graphics);
+    CHECK(b[0] == -30 && b[1] == -30 && b[2] == 30 && b[3] == 30);
+    // Invalid drawings are refused.
+    for (const char* bad : {R"({"kind":"blob","points":[[0,0]]})", R"({"kind":"rect","points":[[0,0]]})",
+                            R"({"kind":"line","points":[[0,0],[1e9,0]]})", R"({"kind":"text","points":[[0,0]]})",
+                            R"({"kind":"circle","points":[[0,0]],"radius":-1})", R"("line")"}) {
+        Json j = Json::parse(plain);
+        Json sym = Json::object();
+        Json gs = Json::array();
+        gs.push(Json::parse(bad));
+        sym["graphics"] = gs;
+        j["symbolLayout"] = sym;
+        bool threw = false;
+        try {
+            (void)customPartSpecFromJson(j);
+        } catch (const JsonError&) {
+            threw = true;
+        }
+        CHECK(threw);
+    }
+    // The registered part keeps its drawings; the PDF draws them (a filled outline, the text).
+    const auto part = CustomPartRegistry::instance().registerPart(back);
+    CHECK(part->spec.symbol.graphics.size() == 5 && customPartToJson(*part).dump().find("TIMER") != std::string::npos);
+    Project p;
+    CHECK(p.schematic.addCustomComponent(part->id, "NE555", {0, 0}, 90) > 0);
+    const std::string pdf = exportSchematicPdf(p);
+    CHECK(pdf.find("(TIMER)") != std::string::npos && pdf.find(" b\n0 g\n") != std::string::npos);
+}
+
+TEST(sheet_symbol_size_and_harness_connector_body) {
+    Project p;
+    Schematic& s = p.schematic;
+    const int child = s.addSheet("Child", 1);
+    CHECK(child > 0);
+    s.setActiveSheet(child);
+    const int port = s.addComponent(ComponentKind::NetLabel, "IN", {0, 0});
+    CHECK(s.setLabelScope(port, LabelScope::Port));
+    s.setActiveSheet(1);
+    CHECK(s.placeSheetEntries(child, {100, 0}) == 1);
+    const std::string fitted = p.toJson().dump();
+    CHECK(fitted.find("symbolSize") == std::string::npos);
+    CHECK(s.setSheetSymbolSize(child, 200, 120) && !s.setSheetSymbolSize(999, 1, 1));
+    CHECK(s.setSheetSymbolSize(child, 200, 1e9) && s.findSheet(child)->symbolHeight == 4000);
+    CHECK(s.setSheetSymbolSize(child, 200, 120) && !s.setSheetSymbolSize(child, NAN, 0));
+    const std::string saved = p.toJson().dump();
+    CHECK(saved.find("\"symbolSize\":[200,120]") != std::string::npos);
+    const Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.schematic.findSheet(child)->symbolWidth == 200 && q.toJson().dump() == saved);
+    CHECK(p.snapshot().dump().find("\"symbolWidth\":200") != std::string::npos);
+    // A bogus size in a file is dropped.
+    std::string bogus = saved;
+    bogus.replace(bogus.find("[200,120]"), 9, "[\"x\",-5]");
+    CHECK(Project::fromJson(Json::parse(bogus)).schematic.findSheet(child)->symbolWidth == 0);
+    // A harness connector is drawn as a body around its entries in the PDF.
+    CHECK(s.setHarnessType("SPI", {"SCK", "MOSI"}));
+    const size_t before = exportSchematicPdf(p).size();
+    CHECK(s.addHarnessConnector("SPI", "BUS0", {0, 200}) > 0);
+    CHECK(exportSchematicPdf(p).size() > before);
+}
+
+TEST(symbol_graphics_fuzzed) {
+    uint32_t seed = 4242u;
+    auto rng = [&seed] {
+        seed = seed * 1664525u + 1013904223u;
+        return seed >> 8;
+    };
+    const std::string base = customPartSpecToJson(ne555Spec("DIP")).dump();
+    const char* kinds[] = {"line", "rect", "circle", "arc", "polygon", "text", "blob", ""};
+    int parsed = 0;
+    for (int round = 0; round < 400; ++round) {
+        Json j = Json::parse(base);
+        Json sym = Json::object();
+        Json gs = Json::array();
+        for (int g = 0, n = static_cast<int>(rng() % 6); g < n; ++g) {
+            Json gj = Json::object();
+            gj["kind"] = std::string(kinds[rng() % 8]);
+            Json pts = Json::array();
+            for (int k = 0, m = static_cast<int>(rng() % 5); k < m; ++k) {
+                Json pj = Json::array();
+                pj.push(static_cast<double>(static_cast<int>(rng() % 9000) - 4500));
+                if (rng() % 9) pj.push(static_cast<double>(static_cast<int>(rng() % 200) - 100));
+                pts.push(rng() % 11 ? pj : Json("x"));
+            }
+            gj["points"] = pts;
+            if (rng() % 2) gj["radius"] = static_cast<double>(static_cast<int>(rng() % 100) - 10);
+            if (rng() % 2) gj["startAngle"] = static_cast<double>(rng() % 8000) - 4000;
+            if (rng() % 2) gj["text"] = rng() % 5 ? Json(std::string("Ω µ ") + std::to_string(rng() % 99)) : Json(3);
+            if (rng() % 2) gj["size"] = static_cast<double>(rng() % 300);
+            if (rng() % 2) gj["lineWidth"] = static_cast<double>(rng() % 30) - 5;
+            if (rng() % 2) gj["fill"] = rng() % 2 == 0;
+            gs.push(rng() % 13 ? gj : Json(7));
+        }
+        sym["graphics"] = rng() % 9 ? gs : Json("bogus");
+        if (rng() % 2) sym["body"] = rng() % 2 == 0;
+        j["symbolLayout"] = sym;
+        try {
+            const CustomPartSpec spec = customPartSpecFromJson(j);
+            ++parsed;
+            const std::string once = customPartSpecToJson(spec).dump();
+            CHECK(customPartSpecToJson(customPartSpecFromJson(Json::parse(once))).dump() == once);
+            const auto part = CustomPartRegistry::instance().registerPart(spec);
+            Project p;
+            if (p.schematic.addCustomComponent(part->id, "", {0, 0}, static_cast<int>(rng() % 4) * 90) > 0)
+                CHECK(exportSchematicPdf(p).rfind("%PDF", 0) == 0);
+        } catch (const JsonError&) {
+        }
+    }
+    CHECK(parsed > 50);
+}
+
+extern "C" int sieda_c_api_sheet_symbol_size_test(void);
+TEST(c_api_sheet_symbol_size) {
+    const int rc = sieda_c_api_sheet_symbol_size_test();
+    if (rc != 0) std::printf("    C API sheet symbol size test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}
+
+// ======================================================================= helper sheets, more per-channel parameters
+
+TEST(helper_sheets_inside_repeated_blocks) {
+    Project p;
+    Schematic& s = p.schematic;
+    DividerBlock b = dividerBlock(s);
+    // A plain child sheet still keeps its parent from being repeated; a helper sheet does not.
+    const int plain = s.addSheet("Plain", b.sheet);
+    CHECK(plain > 0 && s.repeatSheet(b.sheet, 2) == -1);
+    CHECK(s.setHelperSheet(plain, true) && s.findSheet(plain)->helper);
+    CHECK(s.setHelperSheet(plain, false) && s.removeSheet(plain, true));
+    const int bias = s.addHelperSheet("Bias", b.sheet);
+    CHECK(bias > 0 && s.findSheet(bias)->helper && s.addHelperSheet("Bias", b.sheet) == -1 && s.addHelperSheet("X", 0) == -1);
+    s.setActiveSheet(bias);
+    const int vb = s.addComponent(ComponentKind::NetLabel, "VB", {0, 0});
+    const int rb = s.addComponent(ComponentKind::Resistor, "47k", {80, 0});
+    CHECK(s.setLabelScope(vb, LabelScope::Port));
+    wire(s, vb, "N", rb, "1");
+    s.setActiveSheet(b.sheet);
+    CHECK(s.placeSheetEntries(bias, {0, 200}) == 1);
+    CHECK(s.repeatSheet(b.sheet, 3) == 3);
+    const auto channels = s.sheetInstances(b.sheet);
+    const auto biases = s.sheetInstances(bias);
+    CHECK(channels.size() == 3 && biases.size() == 3);
+    if (channels.size() != 3 || biases.size() != 3) return;
+    // One Bias per channel, below it; its part has a designator and a net of its own in every channel.
+    std::set<int> parents, nets;
+    std::set<std::string> refs;
+    for (int sh : biases) {
+        parents.insert(s.findSheet(sh)->parent);
+        const int copy = s.copyOn(rb, sh);
+        CHECK(copy > 0);
+        if (copy <= 0) continue;
+        refs.insert(s.find(copy)->ref);
+        nets.insert(s.netOf({copy, 0}));
+    }
+    CHECK(parents == std::set<int>(channels.begin(), channels.end()));
+    CHECK(refs.size() == 3 && nets.size() == 3 && !nets.count(-1));
+    CHECK(s.channelCount(bias) == 1 && instancesConsistent(s));
+    // The sheet entry on channel B leads into channel B's Bias.
+    int entries = 0;
+    for (const auto& c : s.components())
+        if (c.sheet == channels[1] && c.scope == LabelScope::SheetEntry) {
+            ++entries;
+            CHECK(s.findSheet(c.targetSheet) && s.findSheet(c.targetSheet)->parent == channels[1]);
+        }
+    CHECK(entries == 1);
+    // A helper added later (from a channel) reaches every channel; it cannot be made ordinary while repeated.
+    const int ref = s.addHelperSheet("Reference", channels[2]);
+    CHECK(ref > 0 && s.findSheet(ref)->parent == b.sheet && s.sheetInstances(ref).size() == 3);
+    CHECK(!s.setHelperSheet(bias, false));
+    // Files keep helpers; a reload is identical.
+    const std::string saved = p.toJson().dump();
+    CHECK(saved.find("\"helper\":true") != std::string::npos);
+    const Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.toJson().dump() == saved && q.schematic.sheetInstances(bias).size() == 3);
+    // Back to one channel: the copies go, the helper stays.
+    CHECK(s.repeatSheet(b.sheet, 1) == 1 && s.findSheet(bias) && !s.isRepeated(bias) && s.findSheet(bias)->helper);
+    CHECK(instancesConsistent(s));
+}
+
+TEST(per_channel_spice_firmware_and_fitting) {
+    Project p;
+    Schematic& s = p.schematic;
+    DividerBlock b = dividerBlock(s);
+    CHECK(s.repeatSheet(b.sheet, 3) == 3);
+    const auto channels = s.sheetInstances(b.sheet);
+    if (channels.size() != 3) return;
+    const int cb = s.copyOn(b.r1, channels[1]), cc = s.copyOn(b.r1, channels[2]);
+    CHECK(cb > 0 && cc > 0);
+    CHECK(channelOverrideBit("spice") == kOverrideSpice && channelOverrideBit("x") == 0);
+    SpiceModelRef m;
+    m.text = ".model RX R(R=1)";
+    m.model = "RX";
+    // Channel B's own model: it survives syncing; the block and channel C keep none.
+    CHECK(s.setChannelSpiceModel(cb, m));
+    CHECK(s.setValue(b.r1, "22k"));  // an edit of the block syncs the channels
+    CHECK(s.find(cb)->spice.model == "RX" && s.find(cc)->spice.empty() && s.find(b.r1)->spice.empty());
+    CHECK((s.find(cb)->channelOverrides & kOverrideSpice) && s.find(cb)->value == "22k");
+    // The block's own model: channel B keeps its own, C takes the block's.
+    SpiceModelRef blockModel = m;
+    blockModel.model = "RB";
+    CHECK(s.setChannelSpiceModel(b.r1, blockModel));
+    CHECK(s.find(cc)->spice.model == "RB" || (s.find(cc)->channelOverrides & kOverrideSpice));
+    CHECK(s.find(cb)->spice.model == "RX");
+    CHECK(s.clearChannelOverride(cb, kOverrideSpice) && s.find(cb)->spice.model == s.find(b.r1)->spice.model);
+    CHECK(!s.clearChannelOverride(cb, 64));
+    // Firmware per channel.
+    CHECK(s.setChannelFirmware(cc, ":00000001FF", "blink", 8e6));
+    CHECK(s.setValue(b.r1, "10k") && s.find(cc)->firmwareName == "blink" && s.find(cb)->firmware.empty());
+    // DNP in one channel only, kept through edits and files.
+    CHECK(s.setChannelFitted(cb, false) && s.setValue(b.r1, "12k"));
+    CHECK(s.find(cb)->sourcing.dnp && !s.find(cc)->sourcing.dnp && !s.find(b.r1)->sourcing.dnp);
+    CHECK(!s.setChannelFitted(b.in, false));  // a label is never fitted
+    const std::string saved = p.toJson().dump();
+    const Project q = Project::fromJson(Json::parse(saved));
+    CHECK(q.toJson().dump() == saved);
+    CHECK(q.schematic.find(cc)->firmwareName == "blink" && q.schematic.find(cb)->sourcing.dnp);
+    CHECK((q.schematic.find(cc)->channelOverrides & kOverrideFirmware) != 0);
+    // Outside a repeated sheet these are the part's own settings.
+    s.setActiveSheet(1);
+    const int lone = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+    CHECK(s.setChannelSpiceModel(lone, m) && s.find(lone)->spice.model == "RX" && s.find(lone)->channelOverrides == 0);
+}
+
+extern "C" int sieda_c_api_helper_sheets_test(void);
+TEST(c_api_helper_sheets_and_channel_parameters) {
+    const int rc = sieda_c_api_helper_sheets_test();
+    if (rc != 0) std::printf("    C API helper sheets test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}
+
+TEST(helper_sheets_and_channel_overrides_fuzzed) {
+    Project p;
+    Schematic& s = p.schematic;
+    DividerBlock b = dividerBlock(s);
+    const int bias = s.addHelperSheet("Bias", b.sheet);
+    s.setActiveSheet(bias);
+    s.addComponent(ComponentKind::Resistor, "47k", {80, 0});
+    CHECK(s.repeatSheet(b.sheet, 3) == 3);
+    const Json base = p.toJson();
+    uint32_t seed = 99u;
+    auto rng = [&seed] {
+        seed = seed * 1664525u + 1013904223u;
+        return seed >> 8;
+    };
+    for (int round = 0; round < 200; ++round) {
+        Json j = Json::object();
+        for (const auto& [k, v] : base.fields()) {
+            if (k == "sheets") {
+                Json sheets = Json::array();
+                for (const auto& sj : v.items()) {
+                    Json copy = sj;
+                    if (rng() % 3 == 0) copy["helper"] = rng() % 4 ? Json(rng() % 2 == 0) : Json("yes");
+                    if (rng() % 7 == 0) copy["parent"] = static_cast<int>(rng() % 6);
+                    sheets.push(copy);
+                }
+                j[k] = sheets;
+            } else if (k == "components") {
+                Json comps = Json::array();
+                for (const auto& cj : v.items()) {
+                    Json copy = cj;
+                    if (rng() % 3 == 0) copy["channelOverride"] = static_cast<int>(rng() % 40) - 5;
+                    comps.push(copy);
+                }
+                j[k] = comps;
+            } else {
+                j[k] = v;
+            }
+        }
+        try {
+            Project q = Project::fromJson(j);
+            const std::string once = q.toJson().dump();
+            CHECK(Project::fromJson(Json::parse(once)).toJson().dump() == once);
+            CHECK(instancesConsistent(q.schematic));
+            for (const auto& c : q.schematic.components()) CHECK(c.channelOverrides >= 0 && c.channelOverrides <= kOverrideAll);
+        } catch (const JsonError&) {
+        }
+    }
+}
+
+// ======================================================================= clipboard extras, outline alignment, fixed frames
+
+TEST(clipboard_carries_buses_directives_sourcing_and_variants) {
+    Project p;
+    Schematic& s = p.schematic;
+    const int bus = s.addBus("D[0..1]", {{0, 0}, {200, 0}});
+    CHECK(bus > 0);
+    const int u = s.addComponent(ComponentKind::Resistor, "1k", {100, 100});
+    const int d0 = s.addComponent(ComponentKind::NetLabel, "D0", {40, 20});
+    CHECK(s.setLabelBus(d0, bus));
+    CHECK(s.setNetClassDef({"HS", 0.3, 0.2}));
+    NetDirective dir;
+    dir.component = u;
+    dir.pin = 1;
+    dir.netClass = "HS";
+    CHECK(s.addDirective(dir) > 0);
+    s.find(u)->sourcing.mpn = "RC0603-1K";
+    CHECK(p.addVariant("Lite") && p.setVariantPart("Lite", u, 0, nullptr));
+    const Json clip = p.copyComponents({u, d0});
+    CHECK(clip.get("buses").items().size() == 1 && clip.get("directives").items().size() == 1);
+    CHECK(clip.get("variants").items().size() == 1);
+    PasteOptions o;
+    o.offset = {0, 300};
+    o.count = 2;
+    o.step = {0, 300};
+    const auto ids = p.pasteComponents(Json::parse(clip.dump()), o);
+    CHECK(ids.size() == 4);
+    CHECK(s.buses().size() == 3 && s.directives().size() == 3);
+    int labelsOnBus = 0, lite = 0, sourced = 0;
+    for (int id : ids) {
+        const Component* c = s.find(id);
+        if (!c) continue;
+        labelsOnBus += c->kind == ComponentKind::NetLabel && c->bus != 0 && c->bus != bus;
+        sourced += c->sourcing.mpn == "RC0603-1K";
+        for (const auto& v : p.variants)
+            if (v.name == "Lite" && v.parts.count(id) && v.parts.at(id).fitted == 0) ++lite;
+    }
+    CHECK(labelsOnBus == 2 && sourced == 2 && lite == 2);
+    // An explicitly copied bus comes along without its entries; a clipboard without the new fields pastes as before.
+    const Json busOnly = p.copyComponents({u}, {bus});
+    CHECK(busOnly.get("buses").items().size() == 1);
+    Json old = Json::object();
+    for (const auto& [k, v] : clip.fields())
+        if (k != "buses" && k != "busLinks" && k != "directives" && k != "variants") old[k] = v;
+    CHECK(p.pasteComponents(old, PasteOptions{}).size() == 2);
+}
+
+TEST(align_by_outline_and_fixed_sheet_frames) {
+    Project p;
+    Schematic& s = p.schematic;
+    const int r = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});            // outline x −30 … 30
+    const int amp = s.addComponent(ComponentKind::OpAmp, "TL071", {200, 100});      // −40 … 40
+    const int lbl = s.addComponent(ComponentKind::NetLabel, "LONG_NET_NAME", {100, 200});
+    auto box = [&](int id) { return s.symbolOutline(*s.find(id)); };
+    CHECK(box(r)[0] == -30 && box(r)[2] == 30);
+    CHECK(s.alignComponents({r, amp, lbl}, AlignMode::Left, true) >= 1);
+    CHECK(std::fabs(box(r)[0] - box(amp)[0]) < 10 && std::fabs(box(lbl)[0] - box(r)[0]) < 10);
+    CHECK(s.alignComponents({r, amp}, AlignMode::Right, true) >= 1 && std::fabs(box(r)[2] - box(amp)[2]) < 10);
+    // Distribute: equal gaps between outlines (within the grid).
+    s.find(r)->position = {0, 0};
+    s.find(amp)->position = {150, 0};
+    s.find(lbl)->position = {600, 0};
+    CHECK(s.alignComponents({r, amp, lbl}, AlignMode::DistributeX, true) == 1);
+    const double gap1 = box(amp)[0] - box(r)[2], gap2 = box(lbl)[0] - box(amp)[2];
+    CHECK(std::fabs(gap1 - gap2) <= 10);
+    // A rotated part's outline turns with it.
+    CHECK(s.rotateComponent(r, 90) && box(r)[1] < -20 && box(r)[3] > 20);
+    // Fixed frame: set with the template, saved, unaffected by moving parts; the PDF prints at full scale.
+    CHECK(s.setSheetSize(1, "A4") && s.findSheet(1)->frameFixed);
+    const Vec2 origin = s.findSheet(1)->frameOrigin;
+    s.find(amp)->position = {300, 0};
+    CHECK(s.findSheet(1)->frameOrigin == origin);
+    const std::string saved = p.toJson().dump();
+    CHECK(saved.find("\"frame\"") != std::string::npos && Project::fromJson(Json::parse(saved)).toJson().dump() == saved);
+    CHECK(s.setSheetFrame(1, true, {-500, -400}) && s.findSheet(1)->frameOrigin == Vec2(-500, -400));
+    CHECK(s.setSheetFrame(1, false, {}) && !s.findSheet(1)->frameFixed && !s.setSheetFrame(999, true, {}));
+    CHECK(s.setSheetSize(1, "A4") && exportSchematicPdf(p).rfind("%PDF", 0) == 0);
+    CHECK(s.setSheetSize(1, "") && !s.findSheet(1)->frameFixed && !s.setSheetFrame(1, true, {}));
+    // A file without "frame" (older) keeps the centred frame.
+    CHECK(s.setSheetSize(1, "A3"));
+    std::string old = p.toJson().dump();
+    const size_t at = old.find("\"frame\":[");
+    CHECK(at != std::string::npos);
+    if (at != std::string::npos) old.erase(at, old.find(']', at) - at + 2);  // the field and its comma
+    CHECK(!Project::fromJson(Json::parse(old)).schematic.findSheet(1)->frameFixed);
+}
+
+#include "sieda/PdfFont.hpp"
+
+// ======================================================================= PDF: real symbols, Unicode text, embedded font
+
+namespace {
+/// A minimal TrueType font: glyph 1 a square (U+65E5 日), glyph 2 a composite of glyph 1 (U+0416 Ж); cmap format 4
+/// or 12.
+std::string tinyTrueType(bool format12) {
+    auto u16 = [](std::string& s, int v) {
+        s += static_cast<char>((v >> 8) & 0xFF);
+        s += static_cast<char>(v & 0xFF);
+    };
+    auto u32 = [&](std::string& s, uint32_t v) {
+        u16(s, static_cast<int>(v >> 16));
+        u16(s, static_cast<int>(v & 0xFFFF));
+    };
+    std::string square;  // one contour, four on-curve points
+    u16(square, 1);
+    for (int v : {0, 0, 500, 500}) u16(square, v);
+    u16(square, 3);
+    u16(square, 0);
+    for (int k = 0; k < 4; ++k) square += '\x01';
+    for (int v : {0, 500, 0, -500}) u16(square, v);
+    for (int v : {0, 0, 500, 0}) u16(square, v);
+    while (square.size() % 4) square += '\0';
+    std::string comp;
+    u16(comp, 0xFFFF);
+    for (int v : {100, 0, 600, 500}) u16(comp, v);
+    u16(comp, 0x0003);
+    u16(comp, 1);
+    u16(comp, 100);
+    u16(comp, 0);
+    std::string glyf = square + comp, loca;
+    for (int v : {0, 0, static_cast<int>(square.size() / 2), static_cast<int>(glyf.size() / 2)}) u16(loca, v);
+    std::string head;
+    u32(head, 0x00010000);
+    u32(head, 0x00010000);
+    u32(head, 0);
+    u32(head, 0x5F0F3CF5);
+    u16(head, 0);
+    u16(head, 1000);
+    for (int k = 0; k < 16; ++k) head += '\0';
+    for (int v : {0, 0, 600, 500}) u16(head, v);
+    for (int v : {0, 8, 2, 0, 0}) u16(head, v);
+    std::string hhea;
+    u32(hhea, 0x00010000);
+    u16(hhea, 800);
+    u16(hhea, 0x10000 - 200);
+    while (hhea.size() < 34) hhea += '\0';
+    u16(hhea, 3);
+    std::string maxp;
+    u32(maxp, 0x00005000);
+    u16(maxp, 3);
+    std::string hmtx;
+    for (int w : {500, 600, 700}) {
+        u16(hmtx, w);
+        u16(hmtx, 0);
+    }
+    std::string sub;
+    if (format12) {
+        u16(sub, 12);
+        u16(sub, 0);
+        u32(sub, 16 + 24);
+        u32(sub, 0);
+        u32(sub, 2);
+        for (uint32_t g : {0x0416u, 0x0416u, 2u, 0x65E5u, 0x65E5u, 1u}) u32(sub, g);
+    } else {
+        u16(sub, 4);
+        u16(sub, 14 + 8 * 3 + 2);
+        u16(sub, 0);
+        u16(sub, 6);
+        u16(sub, 4);
+        u16(sub, 1);
+        u16(sub, 2);
+        for (int v : {0x0416, 0x65E5, 0xFFFF}) u16(sub, v);
+        u16(sub, 0);
+        for (int v : {0x0416, 0x65E5, 0xFFFF}) u16(sub, v);
+        for (int v : {(2 - 0x0416) & 0xFFFF, (1 - 0x65E5) & 0xFFFF, 1}) u16(sub, v);
+        for (int k = 0; k < 3; ++k) u16(sub, 0);
+    }
+    std::string cmap;
+    u16(cmap, 0);
+    u16(cmap, 1);
+    u16(cmap, 3);
+    u16(cmap, format12 ? 10 : 1);
+    u32(cmap, 12);
+    cmap += sub;
+    const std::vector<std::pair<std::string, std::string>> tables = {
+        {"cmap", cmap}, {"glyf", glyf}, {"head", head}, {"hhea", hhea}, {"hmtx", hmtx}, {"loca", loca}, {"maxp", maxp}};
+    std::string file;
+    u32(file, 0x00010000);
+    u16(file, static_cast<int>(tables.size()));
+    u16(file, 64);
+    u16(file, 2);
+    u16(file, static_cast<int>(tables.size() * 16 - 64));
+    size_t offset = 12 + 16 * tables.size();
+    std::string body;
+    for (const auto& [tag, bytes] : tables) {
+        file += tag;
+        u32(file, 0);
+        u32(file, static_cast<uint32_t>(offset + body.size()));
+        u32(file, static_cast<uint32_t>(bytes.size()));
+        body += bytes;
+        while (body.size() % 4) body += '\0';
+    }
+    return file + body;
+}
+
+/// Every cross-reference offset of a PDF points at its object.
+bool pdfXrefConsistent(const std::string& pdf) {
+    const size_t xref = pdf.rfind("\nxref\n");
+    if (xref == std::string::npos) return false;
+    size_t at = pdf.find('\n', pdf.find('\n', xref + 1) + 1) + 1;  // after "0 N"
+    at = pdf.find('\n', at) + 1;                                      // after the free entry
+    for (int obj = 1; at + 20 <= pdf.size() && pdf.compare(at, 7, "trailer") != 0; ++obj, at += 20) {
+        const size_t off = static_cast<size_t>(std::stoul(pdf.substr(at, 10)));
+        if (pdf.compare(off, std::to_string(obj).size() + 6, std::to_string(obj) + " 0 obj") != 0) return false;
+    }
+    return true;
+}
+}  // namespace
+
+TEST(pdf_font_reading_and_subsets) {
+    for (bool f12 : {false, true}) {
+        TrueTypeFont font;
+        CHECK(font.load(tinyTrueType(f12)) && font.valid() && font.numGlyphs() == 3 && font.unitsPerEm() == 1000);
+        CHECK(font.glyph(0x65E5) == 1 && font.glyph(0x0416) == 2 && font.glyph('A') == 0 && font.glyph(0x1F600) == 0);
+        CHECK(std::fabs(font.advance(1) - 0.6) < 1e-9 && font.ascent() == 800 && font.descent() == -200);
+        // A subset keeps the glyph numbering; a composite brings its part along.
+        const std::string withComposite = font.subset({2}), both = font.subset({1, 2}), none = font.subset({});
+        CHECK(withComposite.size() == both.size() && none.size() < both.size());
+        TrueTypeFont again;
+        CHECK(again.load(withComposite) && again.numGlyphs() == 3 && again.glyph(0x0416) == 2);
+    }
+    TrueTypeFont bad;
+    CHECK(!bad.load("") && !bad.load(std::string(64, 'x')) && !bad.load("OTTO" + std::string(60, '\0')) && !bad.valid());
+    CHECK(bad.subset({1}).empty() && bad.glyph('A') == 0);
+}
+
+TEST(pdf_real_symbols_and_unicode_text) {
+    Project p;
+    Schematic& s = p.schematic;
+    p.titleBlock.title = "Filter 日本 Ж";
+    p.titleBlock.company = "Ωmega µ € café";
+    const int r = s.addComponent(ComponentKind::Resistor, "4k7", {0, 0});
+    s.addComponent(ComponentKind::OpAmp, "TL071", {200, 0}, 90);
+    s.addComponent(ComponentKind::Ground, "", {0, 100}, 180);
+    CHECK(s.renameSheet(1, "Ступень"));
+    CHECK(r > 0);
+    // Without a font: Latin-1 and € in Helvetica, Ω and µ from Symbol, the rest '?'.
+    const std::string plain = exportSchematicPdf(p);
+    CHECK(plain.find("/F3 ") != std::string::npos && plain.find("/BaseFont /Symbol") != std::string::npos);
+    CHECK(plain.find("(Filter ?? ?)") != std::string::npos);
+    CHECK(plain.find("caf\\351") != std::string::npos && plain.find("\\200") != std::string::npos);  // é, € in WinAnsi
+    CHECK(plain.find("/Title <FEFF0421") != std::string::npos);  // the bookmark in UTF-16
+    CHECK(plain.find("/F4") == std::string::npos && pdfXrefConsistent(plain));
+    // The zigzag of the resistor (a polyline) and the op-amp triangle are drawn, not boxes.
+    CHECK(plain.find(" S\n") != std::string::npos && plain.find(" b\n0 g\n") != std::string::npos);
+    for (unsigned char ch : plain) CHECK(ch < 0x80);  // still plain ASCII
+    // With a font: 日 and Ж from the embedded subset (glyphs 1 and 2), mapped back to Unicode.
+    SchematicPdfOptions options;
+    options.fontData = tinyTrueType(false);
+    const std::string embedded = exportSchematicPdf(p, options);
+    CHECK(embedded.find("/F4 ") != std::string::npos && embedded.find("/FontFile2") != std::string::npos);
+    CHECK(embedded.find("(Filter ) Tj /F4") != std::string::npos && embedded.find("<0001> Tj /F2") != std::string::npos);
+    CHECK(embedded.find("<0001> <65E5>") != std::string::npos && embedded.find("<0002> <0416>") != std::string::npos);
+    CHECK(pdfXrefConsistent(embedded));
+    for (unsigned char ch : embedded) CHECK(ch < 0x80);
+    // A broken font is ignored.
+    options.fontData = "not a font";
+    CHECK(exportSchematicPdf(p, options).find("/F4") == std::string::npos);
+}
+
+TEST(pdf_font_fuzzed) {
+    const std::string base = tinyTrueType(false);
+    uint32_t seed = 31337u;
+    auto rng = [&seed] {
+        seed = seed * 1664525u + 1013904223u;
+        return seed >> 8;
+    };
+    Project p;
+    p.titleBlock.title = "日 Ж Ω";
+    p.schematic.addComponent(ComponentKind::Capacitor, "1µ", {0, 0});
+    int loaded = 0;
+    for (int round = 0; round < 1500; ++round) {
+        std::string bytes = round % 2 ? tinyTrueType(true) : base;
+        for (int k = 0, n = 1 + static_cast<int>(rng() % 8); k < n; ++k)
+            bytes[rng() % bytes.size()] = static_cast<char>(rng() & 0xFF);
+        if (rng() % 10 == 0) bytes.resize(rng() % bytes.size());
+        TrueTypeFont font;
+        if (font.load(bytes)) {
+            ++loaded;
+            for (uint32_t cp : {0x41u, 0x0416u, 0x65E5u, 0xFFFFu, 0x10000u}) {
+                const int g = font.glyph(cp);
+                CHECK(g >= 0 && g < font.numGlyphs());
+                CHECK(std::isfinite(font.advance(g)));
+            }
+            (void)font.subset({1, 2, 5000});
+        }
+        if (round % 50 == 0) {
+            SchematicPdfOptions options;
+            options.fontData = bytes;
+            CHECK(exportSchematicPdf(p, options).rfind("%PDF", 0) == 0);
+        }
+    }
+    CHECK(loaded > 100);
+}
+
+extern "C" int sieda_c_api_schematic_polish_test(void);
+TEST(c_api_schematic_polish) {
+    const int rc = sieda_c_api_schematic_polish_test();
+    if (rc != 0) std::printf("    C API schematic polish test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}
+
+TEST(clipboard_extras_and_frames_fuzzed) {
+    uint32_t seed = 2024u;
+    auto rng = [&seed] {
+        seed = seed * 1664525u + 1013904223u;
+        return seed >> 8;
+    };
+    auto num = [&] { return Json(static_cast<double>(static_cast<int>(rng() % 4000) - 2000)); };
+    for (int round = 0; round < 300; ++round) {
+        Project p;
+        Schematic& s = p.schematic;
+        p.addVariant("Lite");
+        const int r = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+        const int l = s.addComponent(ComponentKind::NetLabel, "D0", {40, 40});
+        Json clip = p.copyComponents({r, l});
+        Json buses = Json::array();
+        for (int k = 0, n = static_cast<int>(rng() % 3); k < n; ++k) {
+            Json b = Json::object();
+            b["name"] = rng() % 3 ? Json(std::string("B[0..") + std::to_string(rng() % 9) + "]") : Json(5);
+            Json pts = Json::array();
+            for (int q = 0, m = static_cast<int>(rng() % 4); q < m; ++q) {
+                Json pj = Json::array();
+                pj.push(num());
+                if (rng() % 7) pj.push(num());
+                pts.push(pj);
+            }
+            b["points"] = pts;
+            buses.push(b);
+        }
+        clip["buses"] = buses;
+        Json links = Json::array();
+        for (int k = 0, n = static_cast<int>(rng() % 3); k < n; ++k) {
+            Json lj = Json::array();
+            lj.push(static_cast<int>(rng() % 5) - 1);
+            lj.push(static_cast<int>(rng() % 5) - 1);
+            links.push(lj);
+        }
+        clip["busLinks"] = links;
+        Json dirs = Json::array();
+        for (int k = 0, n = static_cast<int>(rng() % 3); k < n; ++k) {
+            Json d = Json::object();
+            d["component"] = static_cast<int>(rng() % 4) - 1;
+            d["pin"] = static_cast<int>(rng() % 5) - 1;
+            if (rng() % 2) d["trackWidth"] = num();
+            if (rng() % 2) d["netClass"] = std::string(rng() % 2 ? "HS" : "bad class!");
+            dirs.push(d);
+        }
+        clip["directives"] = dirs;
+        Json vars = Json::array();
+        Json vj = Json::object();
+        vj["name"] = std::string(rng() % 2 ? "Lite" : "Nope");
+        Json parts = Json::array();
+        Json pj = Json::object();
+        pj["component"] = static_cast<int>(rng() % 4) - 1;
+        if (rng() % 2) pj["fitted"] = rng() % 2 == 0;
+        if (rng() % 2) pj["value"] = std::string("2k2");
+        parts.push(pj);
+        vj["parts"] = parts;
+        vars.push(vj);
+        clip["variants"] = vars;
+        PasteOptions o;
+        o.count = 1 + static_cast<int>(rng() % 3);
+        o.step = {0, 100};
+        (void)p.pasteComponents(Json::parse(clip.dump()), o);
+        p.schematicChanged();  // as the C API does after a paste (net rules reach the board)
+        if (rng() % 2) CHECK(s.setSheetSize(1, rng() % 2 ? "A4" : "ANSI B"));
+        (void)s.setSheetFrame(1, rng() % 2 == 0, {num().asNumber(0), num().asNumber(0)});
+        const std::string saved = p.toJson().dump();
+        CHECK(Project::fromJson(Json::parse(saved)).toJson().dump() == saved);
+        CHECK(exportSchematicPdf(p).rfind("%PDF", 0) == 0);
+    }
+}
+
+// ======================================================================= PCB pin / gate swap (back-annotated)
+
+TEST(pcb_pin_and_gate_swap_back_annotates) {
+    const auto part = CustomPartRegistry::instance().registerPart(quadNandSpec());
+    Project p;
+    Schematic& s = p.schematic;
+    const int a = s.addCustomUnits(part->id, "74HC00", {0, 0});
+    const int b = s.placeNextUnit(a, {0, 200});
+    const int pkg = s.unitPackage(a);
+    CHECK(a > 0 && b > 0 && pkg > 0);
+    // R1 drives input 1A (unit pin 0), R2 input 1B (unit pin 1); on the board each sits by the other input's pad.
+    const int r1 = s.addComponent(ComponentKind::Resistor, "1k", {-200, 0});
+    const int r2 = s.addComponent(ComponentKind::Resistor, "1k", {-200, 100});
+    CHECK(s.connect({r1, 1}, {a, 0}) >= 0 && s.connect({r2, 1}, {a, 1}) >= 0);
+    p.schematicChanged();
+    s.find(pkg)->pcb = PcbPlacement{{20, 20}, 0, false, true};
+    Vec2 pad1, pad2;
+    for (const auto& pad : p.pcb.pads(s))
+        if (pad.componentId == pkg) {
+            if (pad.pinIndex == 0) pad1 = pad.position;
+            if (pad.pinIndex == 1) pad2 = pad.position;
+        }
+    const double dir = pad2.y > pad1.y ? 1 : -1;  // beyond pad 2, and beyond pad 1 on the other side
+    s.find(r1)->pcb = PcbPlacement{{pad2.x - 3, pad2.y + 10 * dir}, 90, false, true};
+    s.find(r2)->pcb = PcbPlacement{{pad1.x - 3, pad1.y - 10 * dir}, 90, false, true};
+    p.pcbSync = p.currentSync();
+    const auto options = p.pcbSwapOptions(pkg);
+    CHECK(!options.empty());
+    if (options.empty()) return;
+    const PcbSwapOption& best = options.front();
+    CHECK(best.kind == "pin" && best.component == a && best.gain > 1 && best.label.find("pins 1") != std::string::npos);
+    // Gate swaps with the package's other gates are offered too (A ↔ B), and by unit id the options are the same.
+    CHECK(std::any_of(options.begin(), options.end(), [&](const PcbSwapOption& o) { return o.kind == "gate" && o.other == b; }));
+    CHECK(p.pcbSwapOptions(a).size() == options.size() && p.pcbSwapOptions(r1).empty());
+    const int netBefore = s.netOf({r1, 1});
+    std::vector<std::string> report;
+    CHECK(p.applyPcbSwap(best, &report) && report.size() == 1);
+    // Back-annotated: R1 now reaches pin 2 (unit pin 1) in the schematic; the board is still in step with it.
+    CHECK(s.netOf({a, 1}) == s.netOf({r1, 1}) && s.netOf({a, 0}) == s.netOf({r2, 1}));
+    CHECK(netBefore >= 0 && p.pcbEcoPreview().empty());
+    // Swapping back is now the worse choice; the optimiser finds nothing more to do.
+    CHECK(p.pcbSwapOptions(pkg).front().gain <= 0.01 || p.pcbSwapOptions(pkg).front().kind != "pin");
+    CHECK(p.optimizePcbSwaps(pkg, 10) == 0);
+    // A refused swap (pins of different groups) changes nothing.
+    PcbSwapOption bad = best;
+    bad.pinB = 2;
+    CHECK(!p.applyPcbSwap(bad));
+    // The optimiser undoes a bad arrangement by itself.
+    CHECK(p.applyPcbSwap(best));
+    CHECK(p.optimizePcbSwaps(-1, 10) >= 1);
+    CHECK(s.netOf({a, 1}) == s.netOf({r1, 1}));
+}
+
+extern "C" int sieda_c_api_pcb_swap_test(void);
+TEST(c_api_pcb_swap) {
+    const int rc = sieda_c_api_pcb_swap_test();
+    if (rc != 0) std::printf("    C API PCB swap test failed at step %d\n", rc);
+    CHECK(rc == 0);
+}
+
+// ======================================================================= interactive router: net-class clearance
+
+TEST(router_keeps_net_class_clearance) {
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {8, 20}), r2 = placeR(p, {42, 20});
+    const int r3 = placeR(p, {25, 8}, 90), r4 = placeR(p, {25, 32}, 90);
+    wire(s, r1, "2", r2, "1");
+    wire(s, r3, "2", r4, "1");
+    p.schematicChanged();
+    const int netA = s.netOf({r1, 1}), netB = s.netOf({r3, 1});
+    addPath(p.pcb, netB, 0, 0.25, {padAt(p, r3, 1), padAt(p, r4, 0)});  // a wall across the direct path
+    // The wall's net class asks for 1.2 mm (the board rule is smaller): the route keeps that much from it.
+    const double classGap = 1.2;
+    CHECK(p.pcb.settings.clearance < classGap);
+    p.pcb.settings.netClearances[s.nets()[static_cast<size_t>(netB)].name] = classGap;
+    const Track wall = p.pcb.tracks.front();
+    InteractiveRouter r(p.pcb, s);
+    RouterOptions o;
+    o.mode = RouterMode::Walkaround;
+    r.setOptions(o);
+    CHECK(r.beginRoute(padAt(p, r1, 1), 0));
+    CHECK(r.moveTo(padAt(p, r2, 0)).reachedTarget);
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok && netRouted(p, netA));
+    double gap = 1e9;
+    for (const auto& t : p.pcb.tracks)
+        if (t.net == netA)
+            gap = std::min(gap, segmentSegmentDistance(t.a, t.b, wall.a, wall.b) - t.width / 2 - wall.width / 2);
+    CHECK(gap >= classGap - 1e-6);
+}
+
+TEST(length_tuning_near_a_pad_keeps_off_it) {
+    // Pressed 4 mm from the start pad, the meanders slide away from the pad instead of failing in its clearance.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20}), r2 = placeR(p, {40, 20});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 1});
+    addPath(p.pcb, net, 0, 0.25, {padAt(p, r1, 1), padAt(p, r2, 0)});
+    const double before = routedNetLength(p.pcb, net);
+    LengthTuneOptions o;
+    o.target = before + 2;
+    o.style = MeanderStyle::Sawtooth;
+    o.corner = MeanderCorner::Round;
+    o.hasNear = true;
+    o.near = {15, 20};
+    const LengthTuneResult r = tuneTrackLength(p.pcb, s, p.pcb.tracks[0].id, o);
+    CHECK(r.ok && r.applied);
+    CHECK_NEAR(routedNetLength(p.pcb, net), before + 2, 0.02);
+    CHECK(routingProblems(p) == 0);
+}

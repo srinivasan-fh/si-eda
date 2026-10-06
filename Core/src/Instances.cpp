@@ -244,9 +244,9 @@ int Schematic::repeatSheet(int sheet, int count) {
     const Sheet* def = findSheet(sheet);
     if (!def || def->instanceOf != 0 || count < 1 || count > kMaxInstances) return -1;
     // Nested repetition: a block may hold child sheets only when each is a repeated block itself (repeat inside
-    // repeat); its sheet entries must lead into those child sheets.
+    // repeat) or a helper sheet (copied into every channel); its sheet entries must lead into those child sheets.
     for (const auto& s : sheets_)
-        if (s.parent == sheet && s.instanceOf == 0 && !isRepeated(s.id)) return -1;
+        if (s.parent == sheet && s.instanceOf == 0 && !isRepeated(s.id) && !s.helper) return -1;
     for (const auto& c : components_)
         if (c.sheet == sheet && c.kind == ComponentKind::NetLabel && c.scope == LabelScope::SheetEntry) {
             const Sheet* t = findSheet(c.targetSheet);
@@ -470,6 +470,151 @@ bool Schematic::clearChannelOverrides(int id) {
     c->channelOverrides = 0;
     invalidate();
     edited();
+    return true;
+}
+
+int channelOverrideBit(const std::string& name) {
+    if (name == "value") return kOverrideValue;
+    if (name == "package") return kOverridePackage;
+    if (name == "spice") return kOverrideSpice;
+    if (name == "firmware") return kOverrideFirmware;
+    return 0;
+}
+
+namespace {
+void copyChannelField(int bit, Component& to, const Component& from) {
+    switch (bit) {
+        case kOverrideValue: to.value = from.value; break;
+        case kOverridePackage: to.package = from.package; break;
+        case kOverrideSpice: to.spice = from.spice; break;
+        case kOverrideFirmware:
+            to.firmware = from.firmware;
+            to.firmwareName = from.firmwareName;
+            to.clockHz = from.clockHz;
+            break;
+        default: break;
+    }
+}
+
+bool sameChannelField(int bit, const Component& a, const Component& b) {
+    switch (bit) {
+        case kOverrideValue: return a.value == b.value;
+        case kOverridePackage: return a.package == b.package;
+        case kOverrideSpice: return a.spice.text == b.spice.text && a.spice.model == b.spice.model && a.spice.pins == b.spice.pins;
+        case kOverrideFirmware: return a.firmware == b.firmware && a.firmwareName == b.firmwareName && a.clockHz == b.clockHz;
+        default: return true;
+    }
+}
+}  // namespace
+
+int Schematic::channelHolder(int id) const {
+    if (const int pkg = unitPackage(masterOf(id)); pkg > 0) {
+        const Component* u = find(id);
+        if (!u || !find(pkg)) return -1;
+        const int onSheet = copyOn(pkg, u->sheet);
+        return onSheet > 0 ? onSheet : pkg;
+    }
+    return find(id) ? id : -1;
+}
+
+bool Schematic::setChannelParam(int id, int bit, const Component& wanted) {
+    id = channelHolder(id);
+    Component* c = find(id);
+    if (!c || isNetSymbolKind(c->kind)) return false;
+    if (!isRepeated(c->sheet) || c->instanceOf == 0) {
+        if (sameChannelField(bit, *c, wanted)) return true;
+        if (isRepeated(c->sheet))  // the block's own channel: the other channels keep what they have now
+            for (auto& o : components_) {
+                if (o.instanceOf != c->id) continue;
+                if (!(o.channelOverrides & bit)) {
+                    o.channelOverrides |= bit;
+                    copyChannelField(bit, o, *c);
+                } else if (sameChannelField(bit, o, wanted)) {
+                    o.channelOverrides &= ~bit;
+                }
+            }
+        copyChannelField(bit, *c, wanted);
+    } else {
+        const Component* m = find(c->instanceOf);
+        if (!m) return false;
+        copyChannelField(bit, *c, wanted);
+        if (sameChannelField(bit, *c, *m)) c->channelOverrides &= ~bit;
+        else c->channelOverrides |= bit;
+    }
+    invalidate();
+    edited();
+    return true;
+}
+
+bool Schematic::setChannelSpiceModel(int id, const SpiceModelRef& model) {
+    Component wanted;
+    wanted.spice = model.text.empty() ? SpiceModelRef{} : model;
+    return setChannelParam(id, kOverrideSpice, wanted);
+}
+
+bool Schematic::setChannelFirmware(int id, const std::string& hex, const std::string& name, double clockHz) {
+    Component wanted;
+    wanted.firmware = hex;
+    wanted.firmwareName = hex.empty() ? std::string() : name;
+    wanted.clockHz = std::isfinite(clockHz) && clockHz > 0 ? clockHz : 0;
+    return setChannelParam(id, kOverrideFirmware, wanted);
+}
+
+bool Schematic::clearChannelOverride(int id, int bit) {
+    if (bit != kOverrideValue && bit != kOverridePackage && bit != kOverrideSpice && bit != kOverrideFirmware) return false;
+    id = channelHolder(id);
+    Component* c = find(id);
+    if (!c) return false;
+    if (c->instanceOf != 0)
+        if (const Component* m = find(c->instanceOf)) copyChannelField(bit, *c, *m);
+    c->channelOverrides &= ~bit;
+    invalidate();
+    edited();
+    return true;
+}
+
+bool Schematic::setChannelFitted(int id, bool fitted) {
+    id = channelHolder(id);
+    Component* c = find(id);
+    if (!c || isNetSymbolKind(c->kind)) return false;
+    c->sourcing.dnp = !fitted;
+    invalidate();
+    return true;
+}
+
+int Schematic::addHelperSheet(const std::string& rawName, int parent) {
+    if (parent == 0 || !findSheet(parent)) return -1;
+    parent = definitionSheet(parent);
+    std::string name = rawName;
+    while (!name.empty() && std::isspace(static_cast<unsigned char>(name.front()))) name.erase(name.begin());
+    while (!name.empty() && std::isspace(static_cast<unsigned char>(name.back()))) name.pop_back();
+    if (name.empty() || sheets_.size() >= kMaxSheets) return -1;
+    for (const auto& s : sheets_)
+        if (s.name == name) return -1;
+    {
+        // Every occurrence of the parent gets a copy: the design must stay within kMaxSheets.
+        size_t occurrences = 1;
+        for (const auto& s : sheets_) occurrences += s.instanceOf == parent;
+        if (sheets_.size() + occurrences > kMaxSheets) return -1;
+    }
+    Sheet s;
+    s.id = nextSheetId_++;
+    s.name = name;
+    s.parent = parent;
+    s.helper = true;
+    sheets_.push_back(s);
+    syncInstances();
+    invalidate();
+    return s.id;
+}
+
+bool Schematic::setHelperSheet(int id, bool helper) {
+    Sheet* s = nullptr;
+    for (auto& o : sheets_)
+        if (o.id == id) s = &o;
+    if (!s || s->parent == 0 || s->instanceOf != 0) return false;
+    if (!helper && isRepeated(s->parent) && channelCount(id) <= 1) return false;  // its parent's channels hold copies
+    s->helper = helper;
     return true;
 }
 
@@ -868,11 +1013,13 @@ bool Schematic::syncInstancesOnce() {
                 c.position = m.position;
                 c.rotation = m.rotation;
                 c.noConnect = m.noConnect;
-                c.firmware = m.firmware;
-                c.firmwareName = m.firmwareName;
-                c.clockHz = m.clockHz;
-                c.spice = m.spice;
                 if (!(c.channelOverrides & kOverridePackage)) c.package = m.package;
+                if (!(c.channelOverrides & kOverrideSpice)) c.spice = m.spice;
+                if (!(c.channelOverrides & kOverrideFirmware)) {
+                    c.firmware = m.firmware;
+                    c.firmwareName = m.firmwareName;
+                    c.clockHz = m.clockHz;
+                }
                 c.scope = m.scope;
                 c.targetSheet = m.targetSheet != 0 ? mapEntryTarget(m.targetSheet, def, sheet) : 0;
                 c.unit = m.unit;

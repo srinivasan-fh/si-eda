@@ -30,4 +30,12 @@ const SheetTemplate& sheetTemplateFor(const Project& project, int sheet);
 /// drawn by, sheet name, "Sheet n of N"). The document outline (bookmarks) follows the sheet hierarchy.
 std::string exportSchematicPdf(const Project& project);
 
+/// PDF options. `fontData`: a TrueType font file (.ttf / .ttc, glyf outlines) embedded as a subset for text the
+/// standard fonts cannot show (CJK, Indic, Cyrillic …); without one such characters print as '?'. Latin text uses
+/// Helvetica (WinAnsi), Greek letters and common math signs the Symbol font.
+struct SchematicPdfOptions {
+    std::string fontData;
+};
+std::string exportSchematicPdf(const Project& project, const SchematicPdfOptions& options);
+
 }  // namespace sieda

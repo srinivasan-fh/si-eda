@@ -79,14 +79,14 @@ final class EDAEngine: @unchecked Sendable {
 
     // MARK: - Helpers
 
-    private func withHandle<T>(_ body: (OpaquePointer) -> T) -> T {
+    func withHandle<T>(_ body: (OpaquePointer) -> T) -> T {  // internal: the EDAEngine+… extensions use it
         lock.lock()
         defer { lock.unlock() }
         return body(handle)
     }
 
     /// Takes ownership of a malloc'd C string returned by the core.
-    private static func take(_ pointer: UnsafeMutablePointer<CChar>?) -> String? {
+    static func take(_ pointer: UnsafeMutablePointer<CChar>?) -> String? {
         guard let pointer else { return nil }
         defer { sieda_string_free(pointer) }
         return String(cString: pointer)
@@ -103,7 +103,7 @@ final class EDAEngine: @unchecked Sendable {
         return .failure(.operationFailed("unreadable reply from the core"))
     }
 
-    private static func decode<T: Decodable>(_ type: T.Type, from json: String?) -> T? {
+    static func decode<T: Decodable>(_ type: T.Type, from json: String?) -> T? {
         guard let json, let data = json.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(type, from: data)
     }
@@ -367,6 +367,42 @@ final class EDAEngine: @unchecked Sendable {
     @discardableResult
     func clearChannelOverrides(_ id: Int) -> Bool {
         withHandle { sieda_clear_channel_overrides($0, Int32(id)) } == 1
+    }
+
+    /// One per-channel parameter ("value", "package", "spice", "firmware") back to the block's.
+    @discardableResult
+    func clearChannelOverride(_ id: Int, _ what: String) -> Bool {
+        withHandle { sieda_clear_channel_override($0, Int32(id), what) } == 1
+    }
+
+    /// Fitted or DNP in this channel only.
+    @discardableResult
+    func setChannelFitted(_ id: Int, _ fitted: Bool) -> Bool {
+        withHandle { sieda_set_channel_fitted($0, Int32(id), fitted ? 1 : 0) } == 1
+    }
+
+    /// This channel's own SPICE model (checked like setSpiceModel; an empty `text` = no model in this channel).
+    func setChannelSpiceModel(_ id: Int, text: String, model: String, pins: String) throws {
+        var errorPointer: UnsafeMutablePointer<CChar>?
+        let ok = withHandle { sieda_set_channel_spice_model($0, Int32(id), text, model, pins, &errorPointer) } == 1
+        if !ok { throw EDAEngineError.operationFailed(Self.take(errorPointer) ?? "The model could not be attached.") }
+    }
+
+    /// This channel's own firmware (an empty `hex` = none in this channel).
+    @discardableResult
+    func setChannelFirmware(_ id: Int, hex: String, name: String, clockHz: Double) -> Bool {
+        withHandle { sieda_set_channel_firmware($0, Int32(id), hex, name, clockHz) } == 1
+    }
+
+    /// A helper sheet below `parent` (a channel stands for its block): every channel gets a copy. Nil when refused.
+    func addHelperSheet(_ name: String, parent: Int) -> Int? {
+        let id = withHandle { sieda_add_helper_sheet($0, name, Int32(parent)) }
+        return id > 0 ? Int(id) : nil
+    }
+
+    @discardableResult
+    func setHelperSheet(_ id: Int, _ helper: Bool) -> Bool {
+        withHandle { sieda_set_helper_sheet($0, Int32(id), helper ? 1 : 0) } == 1
     }
 
     // MARK: - Schematic directives
@@ -1544,7 +1580,6 @@ final class LiveSession: @unchecked Sendable {
 // MARK: - Schematic capture: editing productivity, back-annotation, templates and PDF
 
 extension EDAEngine {
-    private static func idList(_ ids: [Int]) -> String { "[" + ids.map(String.init).joined(separator: ",") + "]" }
 
     /// Aligns or distributes components: "left", "right", "top", "bottom", "centerX", "centerY", "distributeX",
     /// "distributeY". The number moved (0 when nothing moved).
@@ -1554,10 +1589,27 @@ extension EDAEngine {
         return max(0, Int(withHandle { sieda_align_components($0, ids, mode) }))
     }
 
-    /// Clipboard text of components and the wires between them.
-    func copyComponents(_ ids: [Int]) -> String? {
+    /// Aligns by the symbols' outlines (edges line up; distributing leaves equal gaps between outlines).
+    func alignOutlines(_ ids: [Int], mode: String) -> Int {
         let ids = Self.idList(ids)
-        return Self.take(withHandle { sieda_copy_components($0, ids) })
+        return max(0, Int(withHandle { sieda_align_outlines($0, ids, mode) }))
+    }
+
+    /// Fixes a sheet's template frame at a top-left corner, or lets it follow the drawing.
+    @discardableResult
+    func setSheetFrame(_ id: Int, fixed: Bool, origin: CGPoint = .zero) -> Bool {
+        withHandle { sieda_set_sheet_frame($0, Int32(id), fixed ? 1 : 0, Double(origin.x), Double(origin.y)) } == 1
+    }
+
+    /// Clipboard text of components and the wires between them.
+    func copyComponents(_ ids: [Int], buses: [Int] = []) -> String? {
+        let request: String
+        if buses.isEmpty {
+            request = Self.idList(ids)
+        } else {
+            request = "{\"components\":\(Self.idList(ids)),\"buses\":\(Self.idList(buses))}"
+        }
+        return Self.take(withHandle { sieda_copy_components($0, request) })
     }
 
     /// Pastes a clipboard (a paste array when `count` > 1); the new components' ids.
@@ -1589,15 +1641,27 @@ extension EDAEngine {
     @discardableResult
     func setSheetSize(_ id: Int, size: String) -> Bool { withHandle { sieda_set_sheet_size($0, Int32(id), size) } == 1 }
 
+    /// Drawn size of a sheet's sheet symbol (schematic units; 0 × 0 = fitted to its entries).
+    func setSheetSymbolSize(_ id: Int, width: Double, height: Double) -> Bool {
+        withHandle { sieda_set_sheet_symbol_size($0, Int32(id), width, height) } == 1
+    }
+
     /// Drawing templates (A4 … A0, ANSI A … E).
     static func sheetTemplates() -> [SheetTemplateInfo] {
         decode([SheetTemplateInfo].self, from: take(sieda_sheet_templates_json())) ?? []
     }
 
     /// PDF of every sheet with hierarchy bookmarks, frames and title blocks.
-    func schematicPDF() -> Data? {
-        Self.take(withHandle { sieda_export_schematic_pdf($0) }).map { Data($0.utf8) }
+    func schematicPDF(fontPath: String? = EDAEngine.unicodeFontPath) -> Data? {
+        Self.take(withHandle { sieda_export_schematic_pdf_with_font($0, fontPath) }).map { Data($0.utf8) }
     }
+
+    /// A system TrueType font with wide Unicode coverage, embedded (as a subset) in schematic PDFs for text beyond
+    /// Latin and Greek; nil when none is installed.
+    static let unicodeFontPath: String? = [
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "/Library/Fonts/Arial Unicode.ttf",
+    ].first { FileManager.default.fileExists(atPath: $0) }
 }
 
 extension EDAEngine {
@@ -1613,5 +1677,54 @@ extension EDAEngine {
     @discardableResult
     func setHarnessEntry(_ label: Int, harness: Int) -> Bool {
         withHandle { sieda_set_harness_entry($0, Int32(label), Int32(harness)) } == 1
+    }
+}
+
+extension EDAEngine {
+    /// Update PCB: the changes an update from the schematic would make to the board (nothing applied).
+    func pcbEcoPreview() -> [PcbEcoChangeInfo] {
+        Self.decode([PcbEcoChangeInfo].self, from: Self.take(withHandle { sieda_pcb_eco_preview($0) })) ?? []
+    }
+
+    /// Executes the changes with these keys; what was done, one line per change.
+    func applyPcbEco(keys: [String]) -> [String] {
+        struct Reply: Decodable {
+            let executed: Int
+            let report: [String]
+        }
+        let json = (try? JSONEncoder().encode(keys)).map { String(decoding: $0, as: UTF8.self) } ?? "[]"
+        return Self.decode(Reply.self, from: Self.take(withHandle { sieda_apply_pcb_eco($0, json) }))?.report ?? []
+    }
+}
+
+/// A pin or gate swap a placed multi-unit part allows on the board (core `PcbSwapOption`).
+struct PcbSwapOptionInfo: Codable, Equatable, Identifiable {
+    var kind: String  // "pin", "gate"
+    var component: Int
+    var other: Int
+    var pinA: Int
+    var pinB: Int
+    var label: String
+    /// Ratsnest saved (mm; negative = longer).
+    var gain: Double
+    var id: String { "\(kind):\(component):\(other):\(pinA):\(pinB)" }
+}
+
+extension EDAEngine {
+    /// The pin / gate swaps of a component's package on the board, best first.
+    func pcbSwapOptions(_ component: Int) -> [PcbSwapOptionInfo] {
+        Self.decode([PcbSwapOptionInfo].self, from: Self.take(withHandle { sieda_pcb_swap_options($0, Int32(component)) })) ?? []
+    }
+
+    /// Makes one swap, back-annotated to the schematic.
+    func applyPcbSwap(_ option: PcbSwapOptionInfo) -> Bool {
+        guard let data = try? JSONEncoder().encode(option) else { return false }
+        let json = String(decoding: data, as: UTF8.self)
+        return withHandle { sieda_apply_pcb_swap($0, json) } == 1
+    }
+
+    /// Automatic pin / gate swap for one package (or every one with nil); the number of swaps made.
+    func optimizePcbSwaps(_ component: Int?, maxSwaps: Int = 100) -> Int {
+        max(0, Int(withHandle { sieda_optimize_pcb_swaps($0, Int32(component ?? -1), Int32(maxSwaps)) }))
     }
 }

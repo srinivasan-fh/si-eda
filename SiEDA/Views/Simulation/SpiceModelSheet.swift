@@ -12,6 +12,8 @@ struct SpiceModelSheet: View {
     @State private var selection = ""
     @State private var pins = ""
     @State private var check = SpiceCheckResult()
+    /// A part of a repeated sheet: the model for this channel only (the other channels keep theirs).
+    @State private var channelOnly = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -67,11 +69,14 @@ struct SpiceModelSheet: View {
                 .font(.caption2)
                 .foregroundStyle(Theme.textMuted)
             HStack {
+                if component.logicalRef != nil {
+                    Toggle("This channel only", isOn: $channelOnly)
+                        .toggleStyle(.checkbox)
+                        .help("Attach the model to this channel of the repeated sheet; the other channels keep theirs")
+                }
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("Attach") {
-                    if store.setSpiceModel(component.id, text: text, model: selection, pins: trimmedPins) { dismiss() }
-                }
+                Button("Attach") { attach() }
                 .keyboardShortcut(.defaultAction)
                 .disabled(!check.ok)
             }
@@ -88,6 +93,7 @@ struct SpiceModelSheet: View {
             reparse()
         }
         .onChange(of: text) { _, _ in reparse() }
+        .onAppear { channelOnly = ((component.channelOverride ?? 0) & 4) != 0 }
         .onChange(of: selection) { _, _ in recheck() }
         .onChange(of: pins) { _, _ in recheck() }
     }
@@ -114,6 +120,13 @@ struct SpiceModelSheet: View {
             }
             .frame(maxHeight: 120)
         }
+    }
+
+    private func attach() {
+        let ok = channelOnly
+            ? store.setChannelSpiceModel(component.id, text: text, model: selection, pins: trimmedPins)
+            : store.setSpiceModel(component.id, text: text, model: selection, pins: trimmedPins)
+        if ok { dismiss() }
     }
 
     private func reparse() {

@@ -28,6 +28,8 @@ add_library(sieda_core STATIC
     Core/src/SchematicEdit.cpp
     Core/src/Eco.cpp
     Core/src/SchematicPdf.cpp
+    Core/src/PdfFont.cpp
+    Core/src/PcbSwap.cpp
     Core/src/PartUnits.cpp
     Core/src/SchematicSearch.cpp
     Core/src/Variants.cpp
@@ -51,7 +53,9 @@ add_library(sieda_core STATIC
     Core/src/Reliability.cpp
     Core/src/Stackup.cpp
     Core/src/LengthMatch.cpp
+    Core/src/LengthRules.cpp
     Core/src/InteractiveRouter.cpp
+    Core/src/TrackGeometry.cpp
     Core/src/Ibis.cpp
     Core/src/SignalIntegrity.cpp
     Core/src/PowerIntegrity.cpp
@@ -75,6 +79,7 @@ add_library(sieda_core STATIC
     Core/src/Model3D.cpp
     Core/src/AltiumLibrary.cpp
     Core/src/sieda_c.cpp
+    Core/src/sieda_c_routing.cpp
 )
 target_include_directories(sieda_core PUBLIC Core/include)
 find_package(Threads REQUIRED)

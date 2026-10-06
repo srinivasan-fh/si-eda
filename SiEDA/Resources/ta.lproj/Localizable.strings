@@ -2,7 +2,7 @@
 
 "%lld errors · %lld warnings" = "%lld பிழைகள் · %lld எச்சரிக்கைகள்";
 "%lld matches" = "%lld பொருத்தங்கள்";
-"%lld of %lld changes selected" = "%lld தேர்ந்தெடுக்கப்பட்டன, மொத்தம் %lld மாற்றங்கள்";
+"%lld of %lld changes selected" = "%lld தேர்ந்தெடுக்கப்பட்டன (மொத்தம் %lld மாற்றங்கள்)";
 "%lld pins" = "%lld பின்கள்";
 "%lld values" = "%lld மதிப்புகள்";
 "0 derives the value from the regulator type" = "0 என்றால் மதிப்பு சீராக்கியின் வகையிலிருந்து எடுக்கப்படும்";
@@ -18,6 +18,7 @@
 "3D Viewer" = "3D வியூவர்";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "இந்தத் தொகுதியின் ஒவ்வொரு சேனலும் நகலைப் பெறும் துணைத் தாள்";
 "A class still used by a directive cannot be deleted" = "ஒரு கட்டளை இன்னும் பயன்படுத்தும் வகுப்பை நீக்க முடியாது";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "ஹார்னஸ் லேபிள் அதன் வகையின் ஒவ்வொரு உறுப்பினரையும் தாள்களுக்கு இடையே கொண்டு செல்லும் (போர்ட், தாள் நுழைவு அல்லது குளோபல்)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "ஒவ்வொரு உறுப்பினருக்கும் ஒரு நுழைவு கொண்ட ஹார்னஸ் லேபிள்; ஒவ்வொரு நுழைவையும் அதன் சிக்னலுடன் இணை. கட்டை வேறு தாளுக்குக் கொண்டு செல்ல போர்ட் அல்லது தாள் நுழைவுக்கு அதே பெயரும் வகையும் கொடு.";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "தகவமை நேரப் படி";
 "Add Child Sheet" = "சைல்டு ஷீட்டைச் சேர்";
 "Add Ground Pours" = "கிரவுண்ட் போர்களைச் சேர்";
+"Add Helper Sheet" = "உதவித் தாளைச் சேர்";
 "Add Kit to Library" = "கிட்டை லைப்ரரியில் சேர்";
 "Add Mesh" = "மெஷ் சேர்";
 "Add Missing Entries" = "இல்லாத நுழைவுகளைச் சேர்";
@@ -65,6 +67,7 @@
 "Align Right" = "வலப்பக்கம் சீரமை";
 "Align Top" = "மேலே சீரமை";
 "Align Vertical Centres" = "செங்குத்து மையங்களைச் சீரமை";
+"Align by Symbol Outline" = "குறியீட்டு வெளிக்கோட்டின்படி சீரமை";
 "All" = "அனைத்தும்";
 "Amplitude" = "வீச்சு";
 "An entry (a local net label on the bus) for every member that has none yet" = "இன்னும் இல்லாத ஒவ்வொரு உறுப்பினருக்கும் ஒரு கிளை (பஸ்ஸில் உள்ளூர் நெட் லேபிள்)";
@@ -85,6 +88,7 @@
 "Apply Prices to BOM" = "விலைகளை BOM இல் பயன்படுத்து";
 "Apply Symbol" = "சிம்பலைப் பயன்படுத்து";
 "Apply Tuning" = "சரிசெய்தலைப் பயன்படுத்து";
+"Arc" = "வில்";
 "Arrange" = "ஒழுங்குபடுத்து";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "ஸ்கீமாட்டிக் சிம்பலை ஒழுங்கமை: எந்தப் பக்கத்திலும் பின்கள், குழுக்கள், அடுக்கிய பவர் பின்கள், தானியங்கு ஒழுங்கமைப்பு";
 "Arrange the symbol, or define the gates of a multi-unit part" = "குறியீட்டை ஒழுங்குபடுத்து, அல்லது பல-யூனிட் பகுதியின் கேட்களை வரையறு";
@@ -96,6 +100,7 @@
 "Attach" = "இணை";
 "Attach SPICE Model…" = "SPICE மாதிரியை இணை…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML (.wrl), STL அல்லது OBJ மாதிரியை இணைத்து ஃபுட்பிரிண்டில் சீரமை";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "மாதிரியை மீண்டும் வரும் தாளின் இந்தச் சேனலுடன் இணை; மற்ற சேனல்கள் தங்களுடையதை வைத்திருக்கும்";
 "Audience (optional)" = "பார்வையாளர்கள் (விருப்பத்தேர்வு)";
 "Auto" = "தானியங்கு";
 "Auto (fits the drawing)" = "தானியங்கு (வரைபடத்துக்குப் பொருந்தும்)";
@@ -130,6 +135,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "போர்டு அவுட்லைன் (குவாட்-X ஃப்ரேம், வட்டமூலை, வட்டம்), மவுண்டிங் துளைகள், காப்பர் போர்கள்/பிளேன்கள் மற்றும் நெட் கிளாஸ்கள்";
 "Board thickness" = "போர்டு தடிமன்";
 "Boards per order, for the order cost" = "ஆர்டர் செலவுக்காக ஒரு ஆர்டருக்கான போர்டுகள்";
+"Body box" = "உடல் பெட்டி";
 "Broadside" = "அகலப்பக்க இணைவு";
 "Built-in model" = "உள்ளமைந்த மாதிரி";
 "Bus" = "பஸ்";
@@ -152,8 +158,10 @@
 "Cascade at receiver" = "பெறுநரில் தொடராக இணை";
 "Cavity model" = "குழி மாதிரி";
 "Centre" = "மையப்படுத்து";
+"Centre Frame on Drawing" = "சட்டகத்தை வரைபடத்தின் நடுவில் வை";
 "Centre the model on the footprint and put its lowest point on the board surface" = "மாதிரியை ஃபுட்பிரிண்டின் மையத்தில் வைத்து அதன் மிகக் குறைந்த புள்ளியைப் பலகையின் மேற்பரப்பில் வை";
 "Changes from a WAS / IS file" = "WAS / IS கோப்பிலிருந்து மாற்றங்கள்";
+"Changes from the schematic to the board since the last update." = "கடைசி புதுப்பிப்பிலிருந்து திட்டவரைபடத்திலிருந்து பலகைக்கான மாற்றங்கள்.";
 "Channel" = "சேனல்";
 "Channel %@ of %@ — edits apply to every channel" = "சேனல் %@ (%@) — திருத்தங்கள் ஒவ்வொரு சேனலுக்கும் பொருந்தும்";
 "Channel Designators" = "சேனல் குறியீடுகள்";
@@ -169,6 +177,7 @@
 "Choose a part" = "ஒரு பார்ட்டைத் தேர்ந்தெடுக்கவும்";
 "Choose the footprint for this symbol: the import is read again with this pair" = "இந்தச் சின்னத்துக்கான ஃபுட்பிரிண்டைத் தேர்ந்தெடு: இந்த இணையுடன் இறக்குமதி மீண்டும் படிக்கப்படும்";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "சினிமாட்டிக் ஹெட்ஸ்-அப் டிஸ்ப்ளே: ப்ரொஜெக்டர், துகள்கள், பார்ட் கால்-அவுட்கள், டேட்டா தூண்கள் மற்றும் ரீட்-அவுட்கள்";
+"Circle" = "வட்டம்";
 "Circuit" = "சர்க்யூட்";
 "Circuit — 5 ms, 5 µs" = "சர்க்யூட் — 5 ms, 5 µs";
 "Class / board" = "வகுப்பு / பலகை";
@@ -203,6 +212,7 @@
 "Construction" = "கட்டமைப்பு";
 "Copies" = "நகல்கள்";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "கிளிப்போர்டின் நகல்கள், ஒவ்வொன்றும் ஒரு படி தள்ளி (திட்டவரைவு அலகுகள், 10 = ஒரு கட்டம்). பகுதிகளுக்கு அடுத்த காலியான குறியீடு கிடைக்கும்; நெட் லேபிள் எண்கள் அதிகரிப்பின்படி உயரும் (D0 → D1 …).";
+"Copper Pours" = "செம்பு ஊற்றுகள்";
 "Copper colours" = "காப்பர் நிறங்கள்";
 "Copper foil" = "செப்புத் தகடு";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "காப்பர் லேயர்கள்: 1 = ஒற்றைப் பக்கம் (வயாக்கள் இல்லை), பெரும்பாலான தயாரிப்புகளுக்கு 2–6, மதர்போர்டுகள், சர்வர்கள், மெயின்ஃப்ரேம்கள் மற்றும் GPU பேஸ்போர்டுகளுக்கு 8–24";
@@ -226,6 +236,7 @@
 "DEVICES" = "டிவைஸ்கள்";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "வரைபடம்";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "தரவுத்தாள்";
@@ -243,6 +254,7 @@
 "Delete Type" = "வகையை நீக்கு";
 "Delete Variant" = "வேரியண்ட்டை நீக்கு";
 "Delete Wire" = "வயரை நீக்கு";
+"Delete the selected drawing" = "தேர்ந்தெடுத்த வரைபடத்தை நீக்கு";
 "Describe your product" = "உங்கள் தயாரிப்பை விவரிக்கவும்";
 "Description" = "விளக்கம்";
 "Design" = "டிசைன்";
@@ -266,7 +278,9 @@
 "Done" = "முடிந்தது";
 "Down ↓" = "கீழே ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "விநியோகஸ்தரின் தரவுத்தாள் PDF ஐப் பதிவிறக்கி அதன் பின் அட்டவணையைப் பிரித்தெடு";
+"Drag to draw · click to place a text · Esc returns to selecting" = "வரைய இழுக்கவும் · உரையை வைக்க கிளிக் செய்யவும் · Esc தேர்வுக்குத் திரும்பும்";
 "Drag to orbit" = "சுற்ற இழுக்கவும்";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "உருவாக்கப்பட்ட செவ்வகத்தை வரை; வரைபடங்களே உடலாக இருந்தால் அணை";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "லேண்ட் பேட்டர்னை பேட் பேடாக வரையவும்: ஒவ்வொரு பேடின் நிலை, அளவு, வடிவம், டிரில் மற்றும் பின்";
 "Drawn by" = "வரைந்தவர்";
 "Driver" = "டிரைவர்";
@@ -287,6 +301,8 @@
 "Edit Symbol…" = "சிம்பலைத் திருத்து…";
 "Effort" = "முயற்சி";
 "Enable AI assistance" = "AI உதவியை இயக்கு";
+"End %lld°" = "முடிவு %lld°";
+"Engineering change order: review and execute the schematic's changes on the board" = "பொறியியல் மாற்ற ஆணை: திட்டவரைபடத்தின் மாற்றங்களை மதிப்பாய்வு செய்து பலகையில் செயல்படுத்து";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "இந்தப் பொத்தானை இயக்க, உங்கள் அடையாள வழங்குநரின் இஷ்யூயர் URL மற்றும் SiEDA இன் கிளையன்ட் ID ஐ மேலே உள்ளிடவும் (உங்கள் IT நிர்வாகியிடம் கேளுங்கள்).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "MIL-STD-901E அதிர்ச்சி அவற்றைப் பிய்த்துவிடாதபடி ப்ராசசர்கள், BGA கள் மற்றும் பெரிய கெப்பாசிட்டர்களின் கீழ் எபாக்ஸி";
 "Errors" = "பிழைகள்";
@@ -294,6 +310,8 @@
 "Every pin is placed once; no pins collide" = "ஒவ்வொரு பின்னும் ஒருமுறை வைக்கப்பட்டுள்ளது; பின்கள் மோதவில்லை";
 "Every unit is valid" = "ஒவ்வொரு யூனிட்டும் சரியானது";
 "Exchange the wires of two interchangeable pins of this gate" = "இந்த கேட்டின் மாற்றக்கூடிய இரண்டு பின்களின் கம்பிகளை மாற்று";
+"Execute Changes" = "மாற்றங்களைச் செயல்படுத்து";
+"Executed" = "செயல்படுத்தப்பட்டவை";
 "Export" = "ஏற்றுமதி செய்";
 "Export 3D" = "3D ஏற்றுமதி செய்";
 "Export Fabrication Package…" = "ஃபேப்ரிகேஷன் தொகுப்பை ஏற்றுமதி செய்…";
@@ -310,6 +328,7 @@
 "File unit" = "கோப்பு அலகு";
 "Fill Suggested Part Numbers" = "பரிந்துரைக்கப்பட்ட பார்ட் எண்களை நிரப்பு";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "ஒவ்வொரு வரியிலும் உற்பத்தி அளவில் சிறந்த சலுகையின் விநியோகஸ்தர் பாக எண்ணையும் அலகு விலையையும் நிரப்பு";
+"Filled" = "நிரப்பப்பட்டது";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "மதிப்பு மற்றும் பேக்கேஜிலிருந்து தெரியும் இடங்களில் நிலையான பார்ட் எண்களை நிரப்பும் (எ.கா. Yageo RC0805 ";
 "Find" = "தேடு";
 "Find & Replace" = "தேடி மாற்று";
@@ -323,6 +342,8 @@
 "Fit Board to Components" = "போர்டை காம்போனன்ட்களுக்குப் பொருத்து";
 "Fits every pin" = "ஒவ்வொரு பின்னுக்கும் பொருந்தும்";
 "Fitted" = "பொருத்தப்பட்டது";
+"Fitted in this channel" = "இந்தச் சேனலில் பொருத்தப்பட்டது";
+"Fitted to Entries" = "நுழைவுகளுக்கு ஏற்ப";
 "Fix Duplicates Only" = "நகல்களை மட்டும் சரிசெய்";
 "Flicker (1/f)" = "மினுக்கு (1/f)";
 "Flight time" = "ஃப்ளைட் டைம்";
@@ -407,11 +428,14 @@
 "Layer" = "லேயர்";
 "Layer separation (exploded view)" = "லேயர் பிரிப்பு (எக்ஸ்ப்ளோடட் வியூ)";
 "Layers" = "லேயர்கள்";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "இந்தச் சேனலில் மட்டும் பாகத்தைப் பொருத்த வேண்டாம் (DNP); மற்ற சேனல்கள் தங்களுடையதை வைத்திருக்கும்";
 "Length" = "நீளம்";
 "Library" = "லைப்ரரி";
 "Lifecycle" = "வாழ்க்கைச் சுழற்சி";
+"Line" = "கோடு";
 "Line loss per layer" = "ஒவ்வொரு அடுக்கின் வரி இழப்பு";
 "Line total" = "வரி மொத்தம்";
+"Line width %@" = "கோட்டின் அகலம் %@";
 "Live Pricing" = "நேரடி விலை";
 "Live Pricing…" = "நேரடி விலை…";
 "Live board" = "லைவ் போர்டு";
@@ -435,6 +459,8 @@
 "MESSAGES" = "செய்திகள்";
 "Magnitude" = "மேக்னிட்யூட்";
 "Make Swap Group" = "மாற்றுக் குழு உருவாக்கு";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "இந்தப் பாகத்தின் இணைப்புகளை மிக அதிகமாகக் குறைக்கும் மாற்றங்களைச் செய்; திட்டவரைபடம் பின்தொடரும்";
+"Make this swap on the board and in the schematic" = "இந்த மாற்றத்தைப் பலகையிலும் திட்டவரைபடத்திலும் செய்";
 "Manufacturer part #" = "உற்பத்தியாளர் பாக எண்";
 "Manufacturer part number or keywords" = "உற்பத்தியாளர் பாக எண் அல்லது முக்கியச் சொற்கள்";
 "Mask" = "மாஸ்க்";
@@ -462,6 +488,8 @@
 "Mounting" = "மவுண்டிங்";
 "Mouser Search API key (API Hub → Search API)." = "Mouser தேடல் API விசை (API Hub → Search API).";
 "Move Selection Here" = "தேர்வை இங்கே நகர்த்து";
+"Move drawing" = "வரைபடத்தை நகர்த்து";
+"Move the drawing half a grid step" = "வரைபடத்தை அரை கட்டம் நகர்த்து";
 "Move the footprint origin to the centre of the pads" = "ஃபுட்பிரிண்ட் ஆரிஜினை பேட்களின் மையத்துக்கு நகர்த்து";
 "Move the pad in the numbering; pads between shift by one" = "எண்வரிசையில் பேடை நகர்த்து; இடையில் உள்ள பேட்கள் ஒரு இடம் நகரும்";
 "NAVIGATOR" = "நேவிகேட்டர்";
@@ -472,6 +500,7 @@
 "Net" = "நெட்";
 "Net Classes" = "நெட் வகுப்புகள்";
 "Net Navigator" = "நெட் வழிகாட்டி";
+"Net Rules" = "நெட் விதிகள்";
 "Net class" = "நெட் வகுப்பு";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "நெட்களில் உள்ள கட்டளைகளுக்கான நெட் வகுப்புகள்: பலகையின் நெட் விதிகளுக்கு திட்டவரைவே மூலம்";
 "Net model" = "நெட் மாதிரி";
@@ -491,6 +520,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "இந்த டிசைனில் டிஃபரன்ஷியல் ஜோடிகள் (…_P/_N, …+/-) அல்லது பஸ்கள் (DQ0…, DATA[0..7], ADDR…) இல்லை.";
 "No distributor API keys yet" = "இன்னும் விநியோகஸ்தர் API விசைகள் இல்லை";
 "No distributor offers." = "விநியோகஸ்தர் சலுகைகள் இல்லை.";
+"No drawings yet: pick a tool and drag on the symbol." = "இன்னும் வரைபடங்கள் இல்லை: கருவியைத் தேர்ந்து குறியீட்டில் இழுக்கவும்.";
 "No errors or warnings." = "பிழைகளோ எச்சரிக்கைகளோ இல்லை.";
 "No gates found in the pin names." = "பின் பெயர்களில் கேட்கள் எதுவும் இல்லை.";
 "No imported model" = "இறக்குமதி செய்த மாதிரி இல்லை";
@@ -547,6 +577,7 @@
 "Open the design verification report" = "டிசைன் சரிபார்ப்பு அறிக்கையைத் திற";
 "Open the offer on the distributor's site" = "சலுகையை விநியோகஸ்தரின் தளத்தில் திற";
 "Open…" = "திற…";
+"Optimize Swaps" = "மாற்றங்களை உகப்பாக்கு";
 "Other footprints" = "பிற ஃபுட்பிரிண்ட்கள்";
 "Output" = "வெளியீடு";
 "Output noise" = "வெளியீட்டு இரைச்சல்";
@@ -558,6 +589,7 @@
 "PCB Layout" = "PCB லேஅவுட்";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "புத்தகக்குறிகள், சட்டங்கள் மற்றும் தலைப்புத் தொகுதிகளுடன் ஒவ்வொரு தாளின் PDF";
+"PIN / GATE SWAP" = "பின் / கேட் மாற்றம்";
 "PIN SWAP" = "பின் மாற்றம்";
 "PINS" = "பின்கள்";
 "PRBS" = "PRBS";
@@ -603,6 +635,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "பிளேஸ்மென்ட், ரூட்டிங், போர்கள், DRC, Gerber Edge.Cuts மற்றும் 3D போர்டு அவுட்லைனைப் பின்பற்றும். ";
 "Plane" = "பிளேன்";
 "Plane cavity" = "தளக் குழி";
+"Polygon" = "பலகோணம்";
 "Port (to parent sheet)" = "போர்ட் (பெற்றோர் ஷீட்டுக்கு)";
 "Ports: %@" = "போர்ட்டுகள்: %@";
 "Power" = "பவர்";
@@ -617,10 +650,12 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "ஆரம் %lld";
 "Re-annotate from the board (columns)" = "பலகையிலிருந்து மீண்டும் குறிப்பிடு (நெடுவரிசைகள்)";
 "Re-annotate from the board (rows)" = "பலகையிலிருந்து மீண்டும் குறிப்பிடு (வரிசைகள்)";
 "Re-verify" = "மீண்டும் சரிபார்";
 "Read Pins from Datasheet" = "தரவுத்தாளிலிருந்து பின்களைப் படி";
+"Read the changes again from the schematic" = "திட்டவரைபடத்திலிருந்து மாற்றங்களை மீண்டும் படி";
 "Ready" = "தயார்";
 "Receive equaliser, peaking chosen for the widest eye" = "பெறும் சமநிலைப்படுத்தி, அகலமான கண்ணுக்கான உச்சம் தேர்வு";
 "Receiver" = "ரிசீவர்";
@@ -645,6 +680,7 @@
 "Renumber" = "மறு எண்ணிடு";
 "Repeat Sheet" = "தாளை மீண்டும் பயன்படுத்து";
 "Repeat Sheet…" = "தாளை மீண்டும் பயன்படுத்து…";
+"Repeat With Its Block" = "அதன் தொகுதியுடன் மீண்டும் செய்";
 "Replace All" = "அனைத்தையும் மாற்று";
 "Replace with" = "இதைக் கொண்டு மாற்று";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "எல்லாத் தாள்களிலும் பாக மதிப்புகள், நெட் லேபிள் பெயர்களில் உரையை மாற்றும் (குறியீடுகளுக்கு: குறிப்பெண் இடலைப் பயன்படுத்தவும்)";
@@ -724,11 +760,13 @@
 "Search parts" = "பார்ட்களைத் தேடு";
 "Searching…" = "தேடுகிறது…";
 "Seat on Board" = "பலகையில் அமர்த்து";
+"Select" = "தேர்ந்தெடு";
 "Select a net to analyse" = "பகுப்பாய்வு செய்ய ஒரு நெட்டைத் தேர்ந்தெடுக்கவும்";
 "Select a net to analyse its channel" = "சேனலைப் பகுப்பாய்வு செய்ய ஒரு நெட்டைத் தேர்ந்தெடுக்கவும்";
 "Select a pad to edit its position, size, shape, drill and pin." = "ஒரு பேடின் நிலை, அளவு, வடிவம், டிரில் மற்றும் பின்னைத் திருத்த அதைத் தேர்ந்தெடுக்கவும்.";
 "Select a part on the schematic or PCB to edit its properties." = "பண்புகளைத் திருத்த ஸ்கீமாட்டிக் அல்லது PCB இல் ஒரு பார்ட்டைத் தேர்ந்தெடுக்கவும்.";
 "Select an importable part to preview it." = "முன்னோட்டத்துக்கு இறக்குமதி செய்யக்கூடிய பாகத்தைத் தேர்ந்தெடு.";
+"Select and move pins and drawings" = "பின்கள் மற்றும் வரைபடங்களைத் தேர்ந்து நகர்த்து";
 "Select pins to move them to a side, stack them or change their order." = "பின்களை ஒரு பக்கத்துக்கு நகர்த்த, அடுக்க அல்லது வரிசையை மாற்ற அவற்றைத் தேர்ந்தெடுக்கவும்.";
 "Send" = "அனுப்பு";
 "Send to" = "இதற்கு அனுப்பு";
@@ -742,6 +780,7 @@
 "Sheet" = "ஷீட்";
 "Sheet %lld of %lld" = "தாள் %lld / %lld";
 "Sheet Size" = "தாள் அளவு";
+"Sheet Symbol Size" = "தாள் குறியீட்டு அளவு";
 "Sheet name" = "ஷீட் பெயர்";
 "Shot" = "ஷாட்";
 "Shove" = "தள்ளு";
@@ -774,6 +813,7 @@
 "Simulation" = "சிமுலேஷன்";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "நிகழ்நேரத்துடன் ஒப்பிடும் சிமுலேஷன் வேகம் (ஸ்லோ மோஷன் வேகமான சிக்னல்களைக் காட்டும்)";
 "Single-ended" = "ஒற்றை முனை";
+"Size %lld" = "அளவு %lld";
 "Skew" = "நேர விலகல்";
 "Smooth" = "வழுவழுப்பு";
 "Solve the DC operating point once — shows voltage probes" = "DC ஆப்பரேட்டிங் பாயின்ட்டை ஒருமுறை தீர் — வோல்டேஜ் ப்ரோப்களைக் காட்டும்";
@@ -787,6 +827,7 @@
 "Stack repeated power pins" = "மீண்டும் வரும் பவர் பின்களை அடுக்கு";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "PCB லேஅவுட்டின் லேயர்கள் அமைப்பிலிருந்து ஸ்டாக்-அப்: 1 லேயர் அடிப்பக்கத்தை வெற்று FR-4 ஆக விடும்; ";
 "Standard ED" = "நிலையான ED";
+"Start %lld°" = "தொடக்கம் %lld°";
 "Starting the design engine" = "டிசைன் இன்ஜின் தொடங்குகிறது";
 "Step" = "ஸ்டெப்";
 "Step response" = "படி மறுமொழி";
@@ -819,7 +860,9 @@
 "Tamper mesh over" = "டேம்பர் மெஷ் இதன் மேல்";
 "Target" = "இலக்கு";
 "Test Connection" = "இணைப்பைச் சோதி";
+"Text" = "உரை";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "ஆட்டோரூட்டர் RF லைன்கள் மற்றும் டிஃபரன்ஷியல் ஜோடிகளின் (…_P/_N) அளவை இந்த இம்பீடன்ஸ்களுக்கு ஏற்ப நிர்ணயிக்கும் (IPC-2141).";
+"The board is up to date with the schematic." = "பலகை திட்டவரைபடத்துடன் புதுப்பித்த நிலையில் உள்ளது.";
 "The imported model replaces the built-in one in every analysis." = "இறக்குமதி செய்த மாதிரி ஒவ்வொரு பகுப்பாய்விலும் உள்ளமைந்த மாதிரிக்குப் பதிலாகப் பயன்படும்.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "இடைமுகம் இந்த மொழியைப் பின்பற்றும். இன்ஜினியரிங் சொற்கள், பார்ட் எண்கள், அலகுகள், நெட் பெயர்கள் மற்றும் டிசைன் சரிபார்ப்புச் செய்திகள் டேட்டாஷீட்கள் மற்றும் ஃபேப்ரிகேஷன் கோப்புகளுடன் பொருந்த ஆங்கிலத்திலேயே இருக்கும்.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "ஆஃப்லைன் டிசைனர் SiEDA இன் உள்ளமைந்த ரெஃபரன்ஸ் சர்க்யூட்களைப் பயன்படுத்துகிறது. நெட்வொர்க் அல்லது API கீ தேவையில்லை — டெமோக்கள் மற்றும் ஏர்-கேப்டு ஆய்வகங்களுக்கு ஏற்றது.";
@@ -829,6 +872,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "இரு கேட்களும் தங்கள் தொகுப்பில் இடம் மாறும்; குறியீடுகளும் கம்பிகளும் அப்படியே இருக்கும்";
 "The victim runs on the adjacent layer, over or under the aggressor" = "பாதிக்கப்பட்ட நெட் அடுத்த அடுக்கில், தாக்கும் நெட்டின் மேல் அல்லது கீழ் செல்கிறது";
 "Thermal" = "வெப்ப";
+"This channel has its own SPICE model" = "இந்தச் சேனலுக்குச் சொந்த SPICE மாதிரி உள்ளது";
+"This channel has its own firmware" = "இந்தச் சேனலுக்குச் சொந்த நிலைபொருள் உள்ளது";
+"This channel only" = "இந்தச் சேனல் மட்டும்";
 "Through" = "ஊடுருவும்";
 "Title" = "தலைப்பு";
 "Total jitter" = "மொத்த நடுக்கம்";
@@ -844,6 +890,7 @@
 "Type a designator, value, label or net name." = "குறியீடு, மதிப்பு, லேபிள் அல்லது நெட் பெயரைத் தட்டச்சு செய்யவும்.";
 "UNIT %@" = "யூனிட் %@";
 "UNITS" = "யூனிட்கள்";
+"UPDATE PCB" = "PCB-ஐப் புதுப்பி";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "கனமான பார்ட்களுக்கு அண்டர்ஃபில் / கார்னர்-பாண்ட் (அதிர்ச்சி)";
 "Undershoot" = "அண்டர்ஷூட்";
@@ -856,8 +903,10 @@
 "Units" = "யூனிட்கள்";
 "Unity gain" = "யூனிட்டி கெயின்";
 "Unstack" = "அடுக்கைப் பிரி";
+"Update PCB" = "PCB-ஐப் புதுப்பி";
 "Upload .hex…" = ".hex பதிவேற்று…";
 "Use Block Value" = "தொகுதி மதிப்பைப் பயன்படுத்து";
+"Use Block's" = "தொகுதியுடையதைப் பயன்படுத்து";
 "Use the generated body again" = "மீண்டும் உருவாக்கப்பட்ட உடலைப் பயன்படுத்து";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "இந்தத் தாளை ஒரே மாதிரியான பல சேனல்களாக (1 முதல் 64) பயன்படுத்தவும். ஒவ்வொரு சேனலுக்கும் தனி குறியீடுகள், நெட்கள், தாள் குறியீடு கிடைக்கும்; எந்தச் சேனலைத் திருத்தினாலும் அனைத்தும் திருத்தப்படும்.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML (KiCad லைப்ரரிகள் தரும் .wrl), STL அல்லது OBJ. STEP கோப்புகளைப் படிக்க முடியாது: அருகிலுள்ள .wrl ஐப் பயன்படுத்து.";
@@ -922,3 +971,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x வலது, y PCB காட்சியின் மேல் நோக்கி, z பலகையிலிருந்து மேல். சுழற்சி x, பின் y, பின் z ஐச் சுற்றி.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "நகர்த்த ⌥-இழுக்கவும் அல்லது இரு விரல்களால் இழுக்கவும்";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "உண்மையான வளைவுகள்";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "உண்மையான வளைவுகள் (Gerber இல் G02/G03); ஜோடிகளும் பஸ்களும் பொதுமைய வளைவுகளில் திரும்பும். அணைத்தால்: குறுகிய நேர் நாண்கள்";
+"Accordion" = "அக்கார்டியன்";
+"Trombone" = "டிராம்போன்";
+"Sawtooth" = "ரம்பப் பல்";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "அக்கார்டியன்: செவ்வக வளைவுகள்; டிராம்போன்: ஒரு அகலமான சுழல்; ரம்பப் பல்: முக்கோணப் பற்கள்";
+"Meander corners" = "வளைவு மூலைகள்";
+"Square" = "செங்கோணம்";
+"Mitered" = "சாய்வாக வெட்டிய";
+"Round" = "வட்டம்";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "வளைவுகளின் மூலைகள்: செங்கோணம், 45° சாய்வாக வெட்டியது அல்லது வட்டம் (உண்மையான வளைவுகள்)";
+"Coupled" = "இணைந்த";
+"Differential pair: meander both members together at their gap" = "டிஃபரன்ஷியல் ஜோடி: இரு உறுப்பினர்களையும் அவற்றின் இடைவெளியில் ஒன்றாக வளைக்கவும்";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "ஜோடி உறுப்பினரின் ஸ்க்யூ சீரமைப்பு: துணையிலிருந்து விலகிய பக்கத்தில் சிறு புடைப்புகள், துணையின் நீளம் வரை";
+"Length Rules" = "நீள விதிகள்";
+"Length targets per net and match groups, measured pad to pad through series parts" = "ஒவ்வொரு நெட்டுக்கும் நீள இலக்குகள் மற்றும் பொருத்தக் குழுக்கள், தொடர் பாகங்கள் வழியாக பேடு முதல் பேடு வரை அளவிடப்படும்";
+"Remove the length rule" = "நீள விதியை நீக்கு";
+"Tolerance" = "சகிப்பு";
+"Match Groups" = "பொருத்தக் குழுக்கள்";
+"Remove the match group" = "பொருத்தக் குழுவை நீக்கு";
+"Group name" = "குழுவின் பெயர்";
+"Add Group" = "குழுவைச் சேர்";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "உறுப்பினர்கள்: இரண்டு அல்லது அதற்கு மேற்பட்ட நெட்களைத் தேர்ந்தெடுக்கவும். தொடர் மின்தடையங்கள் அல்லது மின்தேக்கிகள் வழியாகச் செல்லும் நெட் அவற்றைக் கடந்து பேடு முதல் பேடு வரை அளவிடப்படும்.";
+"Any angle" = "எந்தக் கோணமும்";
+"Route and drag at any angle: the head is one straight track to the pointer" = "எந்தக் கோணத்திலும் வழியமைத்து இழுக்கவும்: தலை சுட்டி வரை ஒரே நேர் தடம்";
+"Remove loops" = "சுழல்களை நீக்கு";
+"Finishing a route removes the old path of the net it makes redundant" = "ஒரு வழித்தடத்தை முடித்தால் அது தேவையற்றதாக்கும் நெட்டின் பழைய பாதை நீக்கப்படும்";
+"Auto teardrops" = "தானியங்கு கண்ணீர்த்துளிகள்";
+"Teardrops where each finished route meets pads and vias" = "முடிந்த ஒவ்வொரு வழித்தடமும் பேட்கள் மற்றும் வயாக்களைச் சந்திக்கும் இடத்தில் கண்ணீர்த்துளிகள்";
+"Stop at obstacle" = "தடையில் நிறுத்து";
+"Hug obstacles" = "தடைகளை ஒட்டிச் செல்";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "இழுக்கப்படும் தடம் தள்ள முடியாத பேட்கள் மற்றும் பிற செம்பைச் சுற்றி வளைந்து செல்கிறது, முன்பே நிற்காது";

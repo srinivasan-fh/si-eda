@@ -2,7 +2,7 @@
 
 "%lld errors · %lld warnings" = "오류 %lld개 · 경고 %lld개";
 "%lld matches" = "%lld개 일치";
-"%lld of %lld changes selected" = "변경 %lld/%lld개 선택됨";
+"%lld of %lld changes selected" = "%lld개 선택됨 (전체 변경 %lld개)";
 "%lld pins" = "핀 %lld개";
 "%lld values" = "값 %lld개";
 "0 derives the value from the regulator type" = "0이면 레귤레이터 종류로 값을 정합니다";
@@ -18,6 +18,7 @@
 "3D Viewer" = "3D 뷰어";
 "4 mm (1 × MOPP)" = "4 mm (1 × MOPP)";
 "8 mm (2 × MOPP)" = "8 mm (2 × MOPP)";
+"A child sheet every channel of this block gets a copy of" = "이 블록의 모든 채널이 사본을 갖는 하위 시트";
 "A class still used by a directive cannot be deleted" = "지시문이 사용 중인 클래스는 삭제할 수 없습니다";
 "A harness label carries every member of its type across sheets (port, sheet entry or global)" = "하네스 레이블은 해당 유형의 모든 멤버를 시트 간에 전달합니다(포트, 시트 엔트리 또는 전역)";
 "A harness label with one entry per member; wire each entry to its signal. Give a port or sheet entry the same name and type to carry the bundle to another sheet." = "멤버마다 엔트리가 하나씩 있는 하네스 레이블입니다. 각 엔트리를 해당 신호에 연결하세요. 포트나 시트 엔트리에 같은 이름과 유형을 지정하면 묶음이 다른 시트로 전달됩니다.";
@@ -37,6 +38,7 @@
 "Adaptive time step" = "적응형 시간 스텝";
 "Add Child Sheet" = "하위 시트 추가";
 "Add Ground Pours" = "그라운드 푸어 추가";
+"Add Helper Sheet" = "도우미 시트 추가";
 "Add Kit to Library" = "키트를 라이브러리에 추가";
 "Add Mesh" = "메시 추가";
 "Add Missing Entries" = "누락된 엔트리 추가";
@@ -65,6 +67,7 @@
 "Align Right" = "오른쪽 맞춤";
 "Align Top" = "위쪽 맞춤";
 "Align Vertical Centres" = "세로 중심 맞춤";
+"Align by Symbol Outline" = "심볼 윤곽으로 정렬";
 "All" = "전체";
 "Amplitude" = "진폭";
 "An entry (a local net label on the bus) for every member that has none yet" = "아직 엔트리가 없는 모든 멤버에 엔트리(버스 위의 로컬 넷 레이블) 생성";
@@ -85,6 +88,7 @@
 "Apply Prices to BOM" = "BOM에 가격 적용";
 "Apply Symbol" = "심볼 적용";
 "Apply Tuning" = "튜닝 적용";
+"Arc" = "호";
 "Arrange" = "정렬";
 "Arrange the schematic symbol: pins on any side, groups, stacked power pins, auto arrange" = "회로도 심볼 배치: 모든 면에 핀, 그룹, 전원 핀 스택, 자동 배치";
 "Arrange the symbol, or define the gates of a multi-unit part" = "기호를 배치하거나 다중 단위 부품의 게이트를 정의합니다";
@@ -96,6 +100,7 @@
 "Attach" = "연결";
 "Attach SPICE Model…" = "SPICE 모델 연결…";
 "Attach a VRML (.wrl), STL or OBJ model and align it on the footprint" = "VRML(.wrl), STL 또는 OBJ 모델을 첨부하고 풋프린트에 맞춤";
+"Attach the model to this channel of the repeated sheet; the other channels keep theirs" = "반복 시트의 이 채널에 모델을 연결합니다. 다른 채널은 자신의 모델을 유지합니다";
 "Audience (optional)" = "대상 (선택 사항)";
 "Auto" = "자동";
 "Auto (fits the drawing)" = "자동(도면에 맞춤)";
@@ -130,6 +135,7 @@
 "Board outline (quad-X frame, rounded, circle), mounting holes, copper pours/planes and net classes" = "보드 외곽선(쿼드 X 프레임, 둥근 모서리, 원형), 마운팅 홀, 동박 푸어/플레인 및 네트 클래스";
 "Board thickness" = "보드 두께";
 "Boards per order, for the order cost" = "주문당 보드 수 (주문 비용 계산용)";
+"Body box" = "본체 상자";
 "Broadside" = "브로드사이드";
 "Built-in model" = "기본 제공 모델";
 "Bus" = "버스";
@@ -152,8 +158,10 @@
 "Cascade at receiver" = "수신단에 연결";
 "Cavity model" = "공진기 모델";
 "Centre" = "중앙";
+"Centre Frame on Drawing" = "도면에 프레임 가운데 맞춤";
 "Centre the model on the footprint and put its lowest point on the board surface" = "모델을 풋프린트 중앙에 두고 가장 낮은 점을 기판 표면에 맞춤";
 "Changes from a WAS / IS file" = "WAS / IS 파일의 변경";
+"Changes from the schematic to the board since the last update." = "마지막 업데이트 이후 회로도에서 보드로의 변경 사항입니다.";
 "Channel" = "채널";
 "Channel %@ of %@ — edits apply to every channel" = "채널 %@ (%@) — 편집은 모든 채널에 적용됩니다";
 "Channel Designators" = "채널 참조 기호";
@@ -169,6 +177,7 @@
 "Choose a part" = "부품 선택";
 "Choose the footprint for this symbol: the import is read again with this pair" = "이 심벌의 풋프린트를 선택: 이 조합으로 가져오기를 다시 읽습니다";
 "Cinematic heads-up display: projector, particles, part call-outs, data pillars and read-outs" = "시네마틱 헤드업 디스플레이: 프로젝터, 파티클, 부품 콜아웃, 데이터 기둥 및 판독값";
+"Circle" = "원";
 "Circuit" = "회로";
 "Circuit — 5 ms, 5 µs" = "회로 — 5 ms, 5 µs";
 "Class / board" = "클래스 / 보드";
@@ -203,6 +212,7 @@
 "Construction" = "구조";
 "Copies" = "사본 수";
 "Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …)." = "클립보드의 사본을 한 단계씩 더 떨어뜨려 붙입니다(회로도 단위, 10 = 한 격자). 부품은 다음 빈 지정자를 받고, 네트 레이블 번호는 증분만큼 올라갑니다(D0 → D1 …).";
+"Copper Pours" = "구리 푸어";
 "Copper colours" = "동박 색상";
 "Copper foil" = "동박";
 "Copper layers: 1 = single-sided (no vias), 2–6 for most products, 8–24 for motherboards, servers, mainframes and GPU baseboards" = "동박 레이어: 1 = 단면 (비아 없음), 대부분의 제품은 2–6, 마더보드·서버·메인프레임·GPU 베이스보드는 8–24";
@@ -226,6 +236,7 @@
 "DEVICES" = "디바이스";
 "DNP" = "DNP";
 "DP, DN, VBUS, GND" = "DP, DN, VBUS, GND";
+"DRAWING" = "그리기";
 "DRC" = "DRC";
 "D[0..7]" = "D[0..7]";
 "Datasheet" = "데이터시트";
@@ -243,6 +254,7 @@
 "Delete Type" = "유형 삭제";
 "Delete Variant" = "변형 삭제";
 "Delete Wire" = "와이어 삭제";
+"Delete the selected drawing" = "선택한 그림 삭제";
 "Describe your product" = "제품 설명 입력";
 "Description" = "설명";
 "Design" = "설계";
@@ -266,7 +278,9 @@
 "Done" = "완료";
 "Down ↓" = "아래로 ↓";
 "Download the distributor's datasheet PDF and extract its pin table" = "유통업체 데이터시트 PDF를 내려받아 핀 표를 추출";
+"Drag to draw · click to place a text · Esc returns to selecting" = "드래그하여 그리기 · 클릭하여 텍스트 배치 · Esc로 선택으로 돌아가기";
 "Drag to orbit" = "드래그하여 궤도 회전";
+"Draw the generated rectangle; turn it off when the drawings are the body" = "생성된 사각형을 그립니다. 그림이 본체일 때는 끄세요";
 "Draw the land pattern pad by pad: position, size, shape, drill and pin of every pad" = "랜드 패턴을 패드 단위로 그리기: 각 패드의 위치, 크기, 모양, 드릴 및 핀";
 "Drawn by" = "작성자";
 "Driver" = "드라이버";
@@ -287,6 +301,8 @@
 "Edit Symbol…" = "심볼 편집…";
 "Effort" = "추론 강도";
 "Enable AI assistance" = "AI 지원 사용";
+"End %lld°" = "끝 %lld°";
+"Engineering change order: review and execute the schematic's changes on the board" = "엔지니어링 변경 지시: 회로도의 변경 사항을 검토하고 보드에서 실행";
 "Enter your identity provider's issuer URL and SiEDA's client ID above to enable this button (ask your IT administrator)." = "위에 ID 공급자의 발급자 URL과 SiEDA 클라이언트 ID를 입력하면 이 버튼이 활성화됩니다 (IT 관리자에게 문의하세요).";
 "Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off" = "프로세서, BGA 및 대형 커패시터 아래에 에폭시를 도포하여 MIL-STD-901E 충격에도 떨어지지 않도록 함";
 "Errors" = "오류";
@@ -294,6 +310,8 @@
 "Every pin is placed once; no pins collide" = "모든 핀이 한 번씩 배치되고 겹치는 핀이 없음";
 "Every unit is valid" = "모든 단위가 유효합니다";
 "Exchange the wires of two interchangeable pins of this gate" = "이 게이트의 교환 가능한 두 핀의 배선을 맞바꿉니다";
+"Execute Changes" = "변경 실행";
+"Executed" = "실행됨";
 "Export" = "내보내기";
 "Export 3D" = "3D 내보내기";
 "Export Fabrication Package…" = "제조 패키지 내보내기…";
@@ -310,6 +328,7 @@
 "File unit" = "파일 단위";
 "Fill Suggested Part Numbers" = "추천 부품 번호 채우기";
 "Fill the supplier part number and unit price of the best offer at the build quantity into each line" = "각 줄에 생산 수량 기준 최적 견적의 공급업체 부품 번호와 단가를 입력";
+"Filled" = "채우기";
 "Fills standard part numbers where they follow from the value and package (e.g. Yageo RC0805 " = "값과 패키지로 결정되는 표준 부품 번호를 채웁니다 (예: Yageo RC0805 ";
 "Find" = "찾기";
 "Find & Replace" = "찾기 및 바꾸기";
@@ -323,6 +342,8 @@
 "Fit Board to Components" = "보드를 부품에 맞추기";
 "Fits every pin" = "모든 핀에 맞음";
 "Fitted" = "실장";
+"Fitted in this channel" = "이 채널에 실장";
+"Fitted to Entries" = "엔트리에 맞춤";
 "Fix Duplicates Only" = "중복만 수정";
 "Flicker (1/f)" = "플리커 (1/f)";
 "Flight time" = "비행 시간";
@@ -407,11 +428,14 @@
 "Layer" = "레이어";
 "Layer separation (exploded view)" = "레이어 간격 (분해도)";
 "Layers" = "레이어";
+"Leave the part off (DNP) in this channel only; the other channels keep theirs" = "이 채널에서만 부품을 실장하지 않음(DNP). 다른 채널은 그대로 유지";
 "Length" = "길이";
 "Library" = "라이브러리";
 "Lifecycle" = "수명 주기";
+"Line" = "선";
 "Line loss per layer" = "레이어별 선로 손실";
 "Line total" = "줄 합계";
+"Line width %@" = "선 굵기 %@";
 "Live Pricing" = "실시간 가격";
 "Live Pricing…" = "실시간 가격…";
 "Live board" = "라이브 보드";
@@ -435,6 +459,8 @@
 "MESSAGES" = "메시지";
 "Magnitude" = "크기";
 "Make Swap Group" = "교환 그룹 만들기";
+"Make the swaps that shorten this part's connections most; the schematic follows" = "이 부품의 연결을 가장 많이 줄이는 교환을 수행합니다. 회로도도 따라갑니다";
+"Make this swap on the board and in the schematic" = "보드와 회로도에서 이 교환 수행";
 "Manufacturer part #" = "제조사 부품 번호";
 "Manufacturer part number or keywords" = "제조사 부품 번호 또는 키워드";
 "Mask" = "마스크";
@@ -462,6 +488,8 @@
 "Mounting" = "실장";
 "Mouser Search API key (API Hub → Search API)." = "Mouser 검색 API 키(API Hub → Search API).";
 "Move Selection Here" = "선택 항목을 여기로 이동";
+"Move drawing" = "그림 이동";
+"Move the drawing half a grid step" = "그림을 격자 반 칸 이동";
 "Move the footprint origin to the centre of the pads" = "풋프린트 원점을 패드 중앙으로 이동";
 "Move the pad in the numbering; pads between shift by one" = "번호 순서에서 패드 이동. 사이의 패드는 하나씩 밀림";
 "NAVIGATOR" = "네비게이터";
@@ -472,6 +500,7 @@
 "Net" = "네트";
 "Net Classes" = "네트 클래스";
 "Net Navigator" = "네트 탐색기";
+"Net Rules" = "네트 규칙";
 "Net class" = "네트 클래스";
 "Net classes for the directives on nets: the schematic is the source of the board's net rules" = "네트 지시문의 네트 클래스: 회로도가 보드 네트 규칙의 원천입니다";
 "Net model" = "넷 모델";
@@ -491,6 +520,7 @@
 "No differential pairs (…_P/_N, …+/-) or buses (DQ0…, DATA[0..7], ADDR…) in this design." = "이 설계에는 차동 쌍(…_P/_N, …+/-)이나 버스(DQ0…, DATA[0..7], ADDR…)가 없습니다.";
 "No distributor API keys yet" = "아직 유통업체 API 키가 없습니다";
 "No distributor offers." = "유통업체 견적이 없습니다.";
+"No drawings yet: pick a tool and drag on the symbol." = "아직 그림이 없습니다. 도구를 골라 심볼 위에서 드래그하세요.";
 "No errors or warnings." = "오류나 경고가 없습니다.";
 "No gates found in the pin names." = "핀 이름에서 게이트를 찾지 못했습니다.";
 "No imported model" = "가져온 모델 없음";
@@ -547,6 +577,7 @@
 "Open the design verification report" = "설계 검증 보고서 열기";
 "Open the offer on the distributor's site" = "유통업체 사이트에서 견적 열기";
 "Open…" = "열기…";
+"Optimize Swaps" = "교환 최적화";
 "Other footprints" = "기타 풋프린트";
 "Output" = "출력";
 "Output noise" = "출력 노이즈";
@@ -558,6 +589,7 @@
 "PCB Layout" = "PCB 레이아웃";
 "PDF" = "PDF";
 "PDF of every sheet with bookmarks, frames and title blocks" = "책갈피, 도면 틀, 표제란이 있는 모든 시트의 PDF";
+"PIN / GATE SWAP" = "핀 / 게이트 교환";
 "PIN SWAP" = "핀 교환";
 "PINS" = "핀";
 "PRBS" = "PRBS";
@@ -603,6 +635,7 @@
 "Placement, routing, pours, DRC, Gerber Edge.Cuts and the 3D board follow the outline. " = "배치, 배선, 푸어, DRC, Gerber Edge.Cuts 및 3D 보드가 외곽선을 따릅니다. ";
 "Plane" = "플레인";
 "Plane cavity" = "플레인 공진기";
+"Polygon" = "다각형";
 "Port (to parent sheet)" = "포트(상위 시트로)";
 "Ports: %@" = "포트: %@";
 "Power" = "전원";
@@ -617,10 +650,12 @@
 "R1" = "R1";
 "RJ (ps)" = "RJ (ps)";
 "RMS" = "RMS";
+"Radius %lld" = "반지름 %lld";
 "Re-annotate from the board (columns)" = "보드에서 다시 주석(열)";
 "Re-annotate from the board (rows)" = "보드에서 다시 주석(행)";
 "Re-verify" = "다시 검증";
 "Read Pins from Datasheet" = "데이터시트에서 핀 읽기";
+"Read the changes again from the schematic" = "회로도에서 변경 사항을 다시 읽기";
 "Ready" = "준비됨";
 "Receive equaliser, peaking chosen for the widest eye" = "수신 이퀄라이저, 가장 넓은 아이가 되도록 피킹 선택";
 "Receiver" = "리시버";
@@ -645,6 +680,7 @@
 "Renumber" = "번호 재지정";
 "Repeat Sheet" = "시트 반복";
 "Repeat Sheet…" = "시트 반복…";
+"Repeat With Its Block" = "블록과 함께 반복";
 "Replace All" = "모두 바꾸기";
 "Replace with" = "바꿀 내용";
 "Replaces the text in part values and net label names on every sheet (designators: use Annotate)" = "모든 시트의 부품 값과 넷 레이블 이름에서 텍스트를 바꿉니다(참조 기호는 주석 사용)";
@@ -724,11 +760,13 @@
 "Search parts" = "부품 검색";
 "Searching…" = "검색 중…";
 "Seat on Board" = "기판에 안착";
+"Select" = "선택";
 "Select a net to analyse" = "분석할 넷을 선택하세요";
 "Select a net to analyse its channel" = "채널을 분석할 넷을 선택하세요";
 "Select a pad to edit its position, size, shape, drill and pin." = "패드를 선택하여 위치, 크기, 모양, 드릴 및 핀을 편집하세요.";
 "Select a part on the schematic or PCB to edit its properties." = "회로도 또는 PCB에서 부품을 선택하여 속성을 편집하세요.";
 "Select an importable part to preview it." = "미리 보려면 가져올 수 있는 부품을 선택하세요.";
+"Select and move pins and drawings" = "핀과 그림 선택 및 이동";
 "Select pins to move them to a side, stack them or change their order." = "핀을 선택하여 다른 면으로 이동하거나 스택하거나 순서를 변경하세요.";
 "Send" = "보내기";
 "Send to" = "보낼 대상";
@@ -742,6 +780,7 @@
 "Sheet" = "시트";
 "Sheet %lld of %lld" = "%lld / %lld 시트";
 "Sheet Size" = "시트 크기";
+"Sheet Symbol Size" = "시트 심볼 크기";
 "Sheet name" = "시트 이름";
 "Shot" = "산탄 잡음";
 "Shove" = "밀어내기";
@@ -774,6 +813,7 @@
 "Simulation" = "시뮬레이션";
 "Simulation speed relative to real time (slow motion shows fast signals)" = "실시간 대비 시뮬레이션 속도 (슬로 모션으로 빠른 신호 확인)";
 "Single-ended" = "싱글엔드";
+"Size %lld" = "크기 %lld";
 "Skew" = "스큐";
 "Smooth" = "매끄러움";
 "Solve the DC operating point once — shows voltage probes" = "DC 동작점을 한 번 계산 — 전압 프로브 표시";
@@ -787,6 +827,7 @@
 "Stack repeated power pins" = "반복되는 전원 핀 스택";
 "Stack-up from the Layers setting in PCB Layout: 1 layer leaves the underside bare FR-4; " = "PCB 레이아웃의 레이어 설정에 따른 적층 구조: 1층은 하면이 FR-4 그대로 노출됩니다. ";
 "Standard ED" = "표준 ED";
+"Start %lld°" = "시작 %lld°";
 "Starting the design engine" = "설계 엔진 시작 중";
 "Step" = "스텝";
 "Step response" = "계단 응답";
@@ -819,7 +860,9 @@
 "Tamper mesh over" = "탬퍼 메시 적용 대상";
 "Target" = "목표";
 "Test Connection" = "연결 테스트";
+"Text" = "텍스트";
 "The autorouter sizes RF lines and differential pairs (…_P/_N) to these impedances (IPC-2141)." = "자동 배선기가 RF 라인과 차동 쌍(…_P/_N)을 이 임피던스에 맞게 크기를 정합니다 (IPC-2141).";
+"The board is up to date with the schematic." = "보드가 회로도와 최신 상태입니다.";
 "The imported model replaces the built-in one in every analysis." = "가져온 모델이 모든 해석에서 기본 제공 모델을 대신합니다.";
 "The interface follows this language. Engineering terms, part numbers, units, net names and design check messages stay in English so they match datasheets and fabrication files." = "인터페이스가 이 언어로 표시됩니다. 엔지니어링 용어, 부품 번호, 단위, 네트 이름 및 설계 검사 메시지는 데이터시트 및 제조 파일과 일치하도록 영어로 유지됩니다.";
 "The offline designer uses SiEDA's built-in reference circuits. No network or API key needed — ideal for demos and air-gapped labs." = "오프라인 설계 도구는 SiEDA에 내장된 레퍼런스 회로를 사용합니다. 네트워크나 API 키가 필요 없어 데모 및 폐쇄망 실험실에 적합합니다.";
@@ -829,6 +872,9 @@
 "The two gates exchange places in their packages; the symbols and wires stay" = "두 게이트가 패키지 내 위치를 맞바꾸며 기호와 배선은 그대로입니다";
 "The victim runs on the adjacent layer, over or under the aggressor" = "피해 넷이 인접 레이어에서 공격 넷의 위나 아래를 지나갑니다";
 "Thermal" = "열 잡음";
+"This channel has its own SPICE model" = "이 채널에는 자체 SPICE 모델이 있습니다";
+"This channel has its own firmware" = "이 채널에는 자체 펌웨어가 있습니다";
+"This channel only" = "이 채널만";
 "Through" = "관통";
 "Title" = "제목";
 "Total jitter" = "총 지터";
@@ -844,6 +890,7 @@
 "Type a designator, value, label or net name." = "참조 기호, 값, 레이블 또는 넷 이름을 입력하세요.";
 "UNIT %@" = "단위 %@";
 "UNITS" = "단위";
+"UPDATE PCB" = "PCB 업데이트";
 "USB" = "USB";
 "Underfill / corner-bond heavy parts (shock)" = "무거운 부품 언더필 / 코너 본딩 (충격)";
 "Undershoot" = "언더슈트";
@@ -856,8 +903,10 @@
 "Units" = "단위";
 "Unity gain" = "단위 이득";
 "Unstack" = "스택 해제";
+"Update PCB" = "PCB 업데이트";
 "Upload .hex…" = ".hex 업로드…";
 "Use Block Value" = "블록 값 사용";
+"Use Block's" = "블록 값 사용";
 "Use the generated body again" = "생성된 몸체를 다시 사용";
 "Use this sheet as several identical channels (1 to 64). Each channel gets its own designators, nets and sheet symbol; editing any channel edits them all." = "이 시트를 여러 개의 동일한 채널(1~64)로 사용합니다. 각 채널은 고유한 참조 기호, 네트, 시트 심볼을 가지며, 한 채널을 편집하면 모든 채널이 편집됩니다.";
 "VRML (.wrl, as KiCad libraries ship), STL or OBJ. STEP files cannot be read: use the .wrl next to them." = "VRML(KiCad 라이브러리에 포함된 .wrl), STL 또는 OBJ. STEP 파일은 읽을 수 없으니 옆의 .wrl을 사용하세요.";
@@ -922,3 +971,37 @@
 "x right, y towards the top of the PCB view, z up from the board. Rotations turn about x, then y, then z." = "x는 오른쪽, y는 PCB 보기의 위쪽, z는 기판에서 위쪽입니다. 회전은 x, y, z 순서입니다.";
 "−3 dB" = "−3 dB";
 "⌥-drag or two-finger drag to pan" = "⌥-드래그 또는 두 손가락 드래그로 이동";
+
+/* Interactive routing: arcs, length tuning, drags, teardrops, stitching, glossing */
+"True arcs" = "실제 원호";
+"True arcs (G02/G03 in Gerber); pairs and buses turn on concentric arcs. Off: short straight chords" = "실제 원호(Gerber의 G02/G03), 차동 쌍과 버스는 동심 원호로 꺾입니다. 끄면: 짧은 직선 현";
+"Accordion" = "아코디언";
+"Trombone" = "트롬본";
+"Sawtooth" = "톱니";
+"Accordion: rectangular meanders; Trombone: one wide loop; Sawtooth: triangular teeth" = "아코디언: 사각형 미앤더, 트롬본: 넓은 루프 하나, 톱니: 삼각형 톱니";
+"Meander corners" = "미앤더 모서리";
+"Square" = "직각";
+"Mitered" = "모따기";
+"Round" = "둥글게";
+"Corners of the meanders: square, 45° mitered or round (true arcs)" = "미앤더의 모서리: 직각, 45° 모따기 또는 둥글게(실제 원호)";
+"Coupled" = "결합";
+"Differential pair: meander both members together at their gap" = "차동 쌍: 두 선을 간격을 유지하며 함께 미앤더";
+"Skew tuning of a pair member: small bumps on the side away from its partner, to the partner's length" = "쌍 멤버의 스큐 조정: 상대 선 반대쪽에 작은 돌기를 넣어 상대 길이에 맞춤";
+"Length Rules" = "길이 규칙";
+"Length targets per net and match groups, measured pad to pad through series parts" = "네트별 길이 목표와 매치 그룹, 직렬 부품을 거쳐 패드에서 패드까지 측정";
+"Remove the length rule" = "길이 규칙 제거";
+"Tolerance" = "허용 오차";
+"Match Groups" = "매치 그룹";
+"Remove the match group" = "매치 그룹 제거";
+"Group name" = "그룹 이름";
+"Add Group" = "그룹 추가";
+"Members: pick two or more nets. A net through series resistors or capacitors is measured pad to pad across them." = "멤버: 네트를 두 개 이상 고르세요. 직렬 저항이나 커패시터를 지나는 네트는 그것들을 건너 패드에서 패드까지 측정합니다.";
+"Any angle" = "임의 각도";
+"Route and drag at any angle: the head is one straight track to the pointer" = "임의 각도로 배선하고 끌기: 헤드는 포인터까지의 직선 트랙 하나입니다";
+"Remove loops" = "루프 제거";
+"Finishing a route removes the old path of the net it makes redundant" = "배선을 마치면 그로 인해 불필요해진 네트의 기존 경로를 제거합니다";
+"Auto teardrops" = "자동 티어드롭";
+"Teardrops where each finished route meets pads and vias" = "완료된 각 배선이 패드와 비아에 닿는 곳에 티어드롭";
+"Stop at obstacle" = "장애물에서 멈춤";
+"Hug obstacles" = "장애물 감싸기";
+"A dragged track bends around pads and other copper it cannot push instead of stopping short" = "끌고 있는 트랙이 밀 수 없는 패드와 다른 구리를 피해 휘어 돌아가며 중간에 멈추지 않습니다";

@@ -3,6 +3,7 @@
 #include "sieda/Embedded.hpp"
 #include "sieda/Isolation.hpp"
 #include "sieda/LengthMatch.hpp"
+#include "sieda/LengthRules.hpp"
 #include "sieda/Reliability.hpp"
 #include "sieda/Stackup.hpp"
 
@@ -239,6 +240,17 @@ double BoardSettings::segmentEdgeDistance(Vec2 a, Vec2 b) const {
     return d;
 }
 
+double BoardSettings::trackEdgeDistance(const Track& t) const {
+    const ArcGeom g = trackArc(t);
+    if (!g.valid) return segmentEdgeDistance(t.a, t.b);
+    if (!contains(t.a) || !contains(t.b)) return -1;
+    auto poly = outlinePolygon();
+    double d = std::numeric_limits<double>::max();
+    for (size_t i = 0, j = poly.size() - 1; i < poly.size(); j = i++) d = std::min(d, segmentArcDistance(poly[j], poly[i], g));
+    // An arc that bulges out of the board crosses the outline (distance 0); one that stays inside does not.
+    return d;
+}
+
 double BoardSettings::holeDistance(Vec2 p) const {
     double d = 1e9;
     for (const auto& h : holes) d = std::min(d, (p - h.position).length() - h.keepout / 2);
@@ -404,6 +416,7 @@ bool PcbLayout::fitBoardToComponents(Schematic& sch, double margin) {
     for (auto& t : tracks) {
         t.a = t.a + shift;
         t.b = t.b + shift;
+        t.mid = t.mid + shift;
     }
     for (auto& v : vias) v.position = v.position + shift;
     for (auto& h : settings.holes) h.position = h.position + shift;
@@ -785,7 +798,7 @@ std::vector<Rect> padBoxes(const std::vector<Pad>& ps) {
 std::vector<Rect> trackBoxes(const std::vector<Track>& ts) {
     std::vector<Rect> out;
     out.reserve(ts.size());
-    for (const auto& t : ts) out.push_back(segmentBox(t.a, t.b, t.width / 2));
+    for (const auto& t : ts) out.push_back(trackBox(t, t.width / 2));
     return out;
 }
 std::vector<Rect> viaBoxes(const std::vector<Via>& vs) {
@@ -816,17 +829,17 @@ struct DSU {
 
 bool trackTouchesPad(const Track& t, const Pad& p) {
     if (!p.onLayer(t.layer)) return false;
-    if (p.round) return pointSegmentDistance(p.position, t.a, t.b) <= std::min(p.size.x, p.size.y) / 2 + t.width / 2 - 1e-6;
-    return segmentRectDistance(t.a, t.b, p.bounds()) <= t.width / 2 - 1e-6;
+    if (p.round) return trackPointDistance(t, p.position) <= std::min(p.size.x, p.size.y) / 2 + t.width / 2 - 1e-6;
+    return trackRectDistance(t, p.bounds()) <= t.width / 2 - 1e-6;
 }
 
 bool tracksTouch(const Track& a, const Track& b) {
     if (a.layer != b.layer) return false;
-    return segmentSegmentDistance(a.a, a.b, b.a, b.b) <= std::min(a.width, b.width) / 2;
+    return trackTrackDistance(a, b) <= std::min(a.width, b.width) / 2;
 }
 
 bool viaTouchesTrack(const Via& v, const Track& t) {
-    return v.spans(t.layer) && pointSegmentDistance(v.position, t.a, t.b) <= v.diameter / 2;
+    return v.spans(t.layer) && trackPointDistance(t, v.position) <= v.diameter / 2;
 }
 
 bool viaTouchesPad(const Via& v, const Pad& p) {
@@ -869,10 +882,10 @@ DSU copperClusters(const std::vector<Pad>& pads, const std::vector<Track>& track
             for (size_t t = 0; t < nt; ++t) {
                 const Track& tr = tracks[t];
                 if (tr.net != f.net || tr.layer != f.layer) continue;
-                double len = (tr.b - tr.a).length();
+                double len = trackLength(tr);
                 int steps = std::max(1, static_cast<int>(std::ceil(len / f.cell)));
                 for (int k = 0; k <= steps; ++k) {
-                    int id = f.islandNear(tr.a + (tr.b - tr.a) * (static_cast<double>(k) / steps), tr.width / 2);
+                    int id = f.islandNear(trackPointAt(tr, static_cast<double>(k) / steps), tr.width / 2);
                     if (id >= 0) join(np + t, id);
                 }
             }
@@ -887,12 +900,12 @@ DSU copperClusters(const std::vector<Pad>& pads, const std::vector<Track>& track
     const double slack = 1e-6;
     for (size_t t = 0; t < nt; ++t) {
         const Track& tr = tracks[t];
-        const Rect body = segmentBox(tr.a, tr.b, tr.width / 2 + slack);
+        const Rect body = trackBox(tr, tr.width / 2 + slack);
         for (size_t p : padIx.query(body))
             if (trackTouchesPad(tr, pads[p])) d.unite(np + t, p);
         for (size_t u : trackIx.query(body, static_cast<long long>(t)))
             if (tracksTouch(tr, tracks[u])) d.unite(np + t, np + u);
-        for (size_t v : viaIx.query(segmentBox(tr.a, tr.b, slack)))
+        for (size_t v : viaIx.query(trackBox(tr, slack)))
             if (viaTouchesTrack(vias[v], tr)) d.unite(np + t, np + nt + v);
     }
     for (size_t v = 0; v < nv; ++v)
@@ -3670,7 +3683,7 @@ int PcbLayout::applyHdiVias(const Schematic& sch) {
             last = std::max(last, layer);
         };
         for (const auto& t : tracks)
-            if (t.net == v.net && pointSegmentDistance(v.position, t.a, t.b) <= v.diameter / 2 + 1e-6) use(t.layer);
+            if (t.net == v.net && trackPointDistance(t, v.position) <= v.diameter / 2 + 1e-6) use(t.layer);
         for (const auto& p : ps)
             if (p.net == v.net && padDistance(p, v.position) <= v.diameter / 2 - 1e-6) {
                 if (p.throughHole) {
@@ -3733,7 +3746,7 @@ int PcbLayout::cleanupRouting(const Schematic& sch) {
         for (size_t i : nearTracks) {
             const Track& t = tracks[i];
             if (i == skipA || i == skipB || t.layer != layer || t.net == net) continue;
-            if (segmentSegmentDistance(a, b, t.a, t.b) - (w + t.width) / 2 < clr - 1e-6) return false;
+            if (trackSegmentDistance(t, a, b) - (w + t.width) / 2 < clr - 1e-6) return false;
         }
         for (size_t pi : padIx.query(reach)) {
             const Pad& pd = ps[pi];
@@ -3769,6 +3782,7 @@ int PcbLayout::cleanupRouting(const Schematic& sch) {
             Track& ti = tracks[i];
             Track& tj = tracks[j];
             if (ti.net != tj.net || std::fabs(ti.width - tj.width) > 1e-9) continue;
+            if (ti.arc || tj.arc) continue;  // arcs keep their shape
             Vec2 p{std::get<1>(k) / 1e4, std::get<2>(k) / 1e4};
             if (anchored(ti.layer, p)) continue;
             bool iAtA = (ti.a - p).length() < 1e-3, jAtA = (tj.a - p).length() < 1e-3;
@@ -4056,26 +4070,26 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
         if (tr.layer < 0 || tr.layer >= settings.layerCount)
             add(Severity::Error, "DRC_LAYER", "Track on " + netName(tr.net) + " uses a layer that is not in the " +
                 std::to_string(settings.layerCount) + "-layer stack-up.", tr.a);
-        if (settings.segmentEdgeDistance(tr.a, tr.b) - tr.width / 2 < settings.edgeClearance - eps)
+        if (settings.trackEdgeDistance(tr) - tr.width / 2 < settings.edgeClearance - eps)
             add(Severity::Error, "DRC_EDGE_CLEARANCE", "Track on " + netName(tr.net) + " is too close to the board edge.", tr.a);
         for (const auto& h : settings.holes)
-            if (pointSegmentDistance(h.position, tr.a, tr.b) - tr.width / 2 < h.keepout / 2 - eps) {
+            if (trackPointDistance(tr, h.position) - tr.width / 2 < h.keepout / 2 - eps) {
                 add(Severity::Error, "DRC_HOLE_KEEPOUT", "Track on " + netName(tr.net) + " enters a mounting-hole keep-out.",
                     h.position);
                 break;
             }
-        const Rect trackReach = segmentBox(tr.a, tr.b, tr.width / 2 + reach);
+        const Rect trackReach = trackBox(tr, tr.width / 2 + reach);
         for (size_t pi : padIx.query(trackReach)) {
             const Pad& p = ps[pi];
             if (p.net == tr.net || !p.onLayer(tr.layer)) continue;
-            double d = (p.round ? std::max(0.0, pointSegmentDistance(p.position, tr.a, tr.b) - std::min(p.size.x, p.size.y) / 2)
-                                : segmentRectDistance(tr.a, tr.b, p.bounds())) -
+            double d = (p.round ? std::max(0.0, trackPointDistance(tr, p.position) - std::min(p.size.x, p.size.y) / 2)
+                                : trackRectDistance(tr, p.bounds())) -
                        tr.width / 2;
             // Where the track is still inside its own pad of the same footprint, the gap is the package's pad gap.
             Vec2 ab = tr.b - tr.a;
             double len2 = ab.dot(ab);
             double tt = len2 > 0 ? std::clamp((p.position - tr.a).dot(ab) / len2, 0.0, 1.0) : 0.0;
-            Vec2 closest = tr.a + ab * tt;
+            Vec2 closest = tr.arc ? trackClosestPoint(tr, p.position) : tr.a + ab * tt;
             bool inOwnPad = false;
             for (size_t oi : padsOfComponent.at(p.componentId)) {
                 const Pad& own = ps[oi];
@@ -4093,13 +4107,13 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
         for (size_t u : trackIx.query(trackReach, static_cast<long long>(t))) {
             const Track& o = tracks[u];
             if (o.net == tr.net || o.layer != tr.layer) continue;
-            double d = segmentSegmentDistance(tr.a, tr.b, o.a, o.b) - (tr.width + o.width) / 2;
+            double d = trackTrackDistance(tr, o) - (tr.width + o.width) / 2;
             clearanceCheck(d, "Track clearance " + fmt(std::max(0.0, d)) + " between " + netName(tr.net) + " and " + netName(o.net), (tr.a + tr.b) * 0.5, {}, tr.net, o.net);
         }
         for (size_t vi : viaIx.query(trackReach)) {
             const Via& v = vias[vi];
             if (v.net == tr.net || !v.spans(tr.layer)) continue;
-            double d = pointSegmentDistance(v.position, tr.a, tr.b) - tr.width / 2 - v.diameter / 2;
+            double d = trackPointDistance(tr, v.position) - tr.width / 2 - v.diameter / 2;
             clearanceCheck(d, "Via (" + netName(v.net) + ") to track (" + netName(tr.net) + ") clearance " + fmt(std::max(0.0, d)), v.position, {}, v.net, tr.net);
         }
     }
@@ -4213,7 +4227,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
         }
         for (size_t k : trackIx.query(Rect::centered(end, 0, 0).inflated((widestTrack + t.width) / 4 + 1e-6))) {
             if (k == self || tracks[k].net != t.net || tracks[k].layer != t.layer) continue;
-            if (pointSegmentDistance(end, tracks[k].a, tracks[k].b) <= (tracks[k].width + t.width) / 4) return true;
+            if (trackPointDistance(tracks[k], end) <= (tracks[k].width + t.width) / 4) return true;
         }
         return false;
     };
@@ -4225,14 +4239,16 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                 break;
             }
     for (size_t t = 0; t < tracks.size(); ++t)
-        for (size_t u : trackIx.query(segmentBox(tracks[t].a, tracks[t].b, 1e-5), static_cast<long long>(t))) {
+        for (size_t u : trackIx.query(trackBox(tracks[t], 1e-5), static_cast<long long>(t))) {
             const Track& a = tracks[t];
             const Track& b = tracks[u];
             if (a.net != b.net || a.layer != b.layer) continue;
             for (Vec2 pa : {a.a, a.b})
                 for (Vec2 pb : {b.a, b.b}) {
                     if ((pa - pb).length() > 1e-6) continue;
-                    Vec2 da = (pa == a.a ? a.b : a.a) - pa, db = (pb == b.a ? b.b : b.a) - pb;
+                    // An arc leaves its end along its tangent.
+                    Vec2 da = a.arc && isArcTrack(a) ? trackEndDirection(a, !(pa == a.a)) : (pa == a.a ? a.b : a.a) - pa;
+                    Vec2 db = b.arc && isArcTrack(b) ? trackEndDirection(b, !(pb == b.a)) : (pb == b.a ? b.b : b.a) - pb;
                     double la = da.length(), lb = db.length();
                     if (la < 1e-9 || lb < 1e-9) continue;
                     double angle = std::acos(std::clamp(da.dot(db) / (la * lb), -1.0, 1.0)) * 180.0 / kPi;
@@ -4321,6 +4337,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             const Pad* pad = nullptr;
             Vec2 a, b;
             double half = 0;
+            const Track* track = nullptr;  // tracks (arcs are measured as arcs)
         };
         std::vector<Item> items;
         std::map<int, std::vector<const Pad*>> compPads;
@@ -4332,7 +4349,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                 if (p.onLayer(l)) items.push_back({p.net, d, p.componentId, l, &p, p.position, p.position, 0});
         }
         for (const auto& t : tracks)
-            if (const int d = doms.domainOfNet(t.net); d >= 0) items.push_back({t.net, d, -1, t.layer, nullptr, t.a, t.b, t.width / 2});
+            if (const int d = doms.domainOfNet(t.net); d >= 0) items.push_back({t.net, d, -1, t.layer, nullptr, t.a, t.b, t.width / 2, &t});
         for (const auto& v : vias)
             if (const int d = doms.domainOfNet(v.net); d >= 0)
                 items.push_back({v.net, d, -1, -1, nullptr, v.position, v.position, v.diameter / 2});
@@ -4347,6 +4364,13 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
         }
         auto dist = [&](const Item& x, const Item& y) {
             if (x.pad && y.pad) return rectRectDistance(x.pad->bounds(), y.pad->bounds());
+            const bool xa = x.track && x.track->arc, ya = y.track && y.track->arc;
+            if (xa || ya) {  // an arc track: measure the arc
+                if (x.pad) return trackRectDistance(*y.track, x.pad->bounds()) - y.half;
+                if (y.pad) return trackRectDistance(*x.track, y.pad->bounds()) - x.half;
+                if (x.track && y.track) return trackTrackDistance(*x.track, *y.track) - x.half - y.half;
+                return (x.track ? trackPointDistance(*x.track, y.a) : trackPointDistance(*y.track, x.a)) - x.half - y.half;
+            }
             if (x.pad) return segmentRectDistance(y.a, y.b, x.pad->bounds()) - y.half;
             if (y.pad) return segmentRectDistance(x.a, x.b, y.pad->bounds()) - x.half;
             return segmentSegmentDistance(x.a, x.b, y.a, y.b) - x.half - y.half;
@@ -4358,14 +4382,19 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             for (const Pad* q : compPads[x.comp]) {
                 if (doms.domainOfNet(q->net) != y.dom) continue;
                 const double d = y.pad ? rectRectDistance(q->bounds(), y.pad->bounds())
-                                       : segmentRectDistance(y.a, y.b, q->bounds()) - y.half;
+                                       : (y.track && y.track->arc ? trackRectDistance(*y.track, q->bounds())
+                                                                  : segmentRectDistance(y.a, y.b, q->bounds())) - y.half;
                 if (d < it->second) return true;
             }
             return false;
         };
         int reported = 0;
         std::vector<Rect> itemBoxes;
-        for (const Item& x : items) itemBoxes.push_back(x.pad ? x.pad->bounds() : Rect(x.a.x, x.a.y, x.b.x, x.b.y).inflated(x.half));
+        auto itemBox = [](const Item& x) {
+            if (x.pad) return x.pad->bounds();
+            return x.track && x.track->arc ? trackBox(*x.track, x.half) : Rect(x.a.x, x.a.y, x.b.x, x.b.y).inflated(x.half);
+        };
+        for (const Item& x : items) itemBoxes.push_back(itemBox(x));
         const RectIndex itemIx(itemBoxes);
         for (size_t i = 0; i < items.size() && reported < 5; ++i)
             for (size_t j : itemIx.query(itemBoxes[i].inflated(gap + 1e-6), static_cast<long long>(i))) {
@@ -4374,8 +4403,8 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                 if (x.dom == y.dom) continue;
                 if (x.layer >= 0 && y.layer >= 0 && x.layer != y.layer) continue;
                 if (x.comp >= 0 && x.comp == y.comp) continue;  // inside one barrier part: its datasheet rating
-                const Rect bx = x.pad ? x.pad->bounds() : Rect(x.a.x, x.a.y, x.b.x, x.b.y).inflated(x.half);
-                const Rect by = y.pad ? y.pad->bounds() : Rect(y.a.x, y.a.y, y.b.x, y.b.y).inflated(y.half);
+                const Rect bx = itemBox(x);
+                const Rect by = itemBox(y);
                 if (!bx.inflated(gap).intersects(by)) continue;
                 const double d = dist(x, y);
                 if (d >= gap - 1e-6 || exempt(x, y) || exempt(y, x)) continue;
@@ -4406,7 +4435,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             bool found = false;
             for (const Track& t : tracks)
                 if (t.net == want.net && t.layer == want.layer &&
-                    pointSegmentDistance((want.a + want.b) * 0.5, t.a, t.b) < 1e-3 + t.width / 2) {  // corners may be chamfered
+                    trackPointDistance(t, (want.a + want.b) * 0.5) < 1e-3 + t.width / 2) {  // corners may be chamfered
                     found = true;
                     break;
                 }
@@ -4429,7 +4458,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
             }
         for (const Track& t : tracks)
             if ((t.layer == tm.layerA || t.layer == tm.layerB) && t.net != m.netA && t.net != m.netB &&
-                segmentRectDistance(t.a, t.b, area) <= 0) {
+                trackRectDistance(t, area) <= 0) {
                 add(Severity::Error, "DRC_TAMPER_MESH_BREACH",
                     netName(t.net) + " runs through the tamper-mesh layer of " + tm.componentRef + " (" +
                         copperLayerName(t.layer, settings.layerCount) + "), leaving a gap in the mesh.",
@@ -4437,6 +4466,10 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
                 break;
             }
     }
+
+    // Length rules and match groups (only when the board has any).
+    if (!settings.lengthRules.empty() || !settings.matchGroups.empty())
+        for (auto& v : lengthRuleViolations(*this, sch)) out.push_back(std::move(v));
 
     // Connectivity.
     auto lines = ratsnest(sch);
