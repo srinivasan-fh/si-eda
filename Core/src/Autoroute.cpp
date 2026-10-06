@@ -9,7 +9,44 @@ namespace sieda {
 bool AutorouteOptions::operator==(const AutorouteOptions& o) const {
     return coupledPairs == o.coupledPairs && pairGap == o.pairGap && lengthAware == o.lengthAware &&
            minimizeVias == o.minimizeVias && gloss == o.gloss && arcCorners == o.arcCorners && arcRadius == o.arcRadius &&
-           teardrops == o.teardrops;
+           teardrops == o.teardrops && preset == o.preset && fast == o.fast && fanoutOnly == o.fanoutOnly && nets == o.nets &&
+           netClass == o.netClass && hasArea == o.hasArea && (!hasArea || (area.x0 == o.area.x0 && area.y0 == o.area.y0 &&
+           area.x1 == o.area.x1 && area.y1 == o.area.y1)) && protectLocked == o.protectLocked && classLayers == o.classLayers;
+}
+
+const std::vector<AutoroutePreset>& autoroutePresets() {
+    static const std::vector<AutoroutePreset> presets = [] {
+        std::vector<AutoroutePreset> v;
+        auto add = [&](const char* name, const char* title, const char* description, AutorouteOptions o) {
+            o.preset = name;
+            v.push_back({name, title, description, o});
+        };
+        add("default", "Default", "Every net, as the router has always routed them.", AutorouteOptions{});
+        AutorouteOptions fast;
+        fast.fast = true;
+        add("fast", "Fast", "Fewer rip-up passes: a quick first route of a dense board.", fast);
+        AutorouteOptions quality;
+        quality.coupledPairs = true;
+        quality.lengthAware = true;
+        quality.minimizeVias = true;
+        quality.gloss = true;
+        add("quality", "High quality",
+            "Coupled differential pairs, length rules and match groups to target, fewer vias, glossed tracks.", quality);
+        AutorouteOptions fanout;
+        fanout.fanoutOnly = true;
+        add("fanout", "Fan-out only", "BGA dog-bones and the vias of pour and plane pads; nothing else.", fanout);
+        add("nets", "Selected nets", "Only the selected nets; everything else keeps its copper.", AutorouteOptions{});
+        add("netclass", "Net class", "Only the nets of one net class; everything else keeps its copper.", AutorouteOptions{});
+        add("area", "Area", "Only the nets whose pads all lie in an area, inside it.", AutorouteOptions{});
+        return v;
+    }();
+    return presets;
+}
+
+const AutorouteOptions* autoroutePreset(const std::string& name) {
+    for (const auto& p : autoroutePresets())
+        if (p.name == name) return &p.options;
+    return nullptr;
 }
 
 namespace {
@@ -26,6 +63,30 @@ Json autorouteOptionsToJson(const AutorouteOptions& o) {
     j["arcCorners"] = o.arcCorners;
     j["arcRadius"] = o.arcRadius;
     j["teardrops"] = o.teardrops;
+    j["preset"] = o.preset;
+    j["fast"] = o.fast;
+    j["fanoutOnly"] = o.fanoutOnly;
+    Json nets = Json::array();
+    for (const auto& n : o.nets) nets.push(n);
+    j["nets"] = nets;
+    j["netClass"] = o.netClass;
+    j["hasArea"] = o.hasArea;
+    if (o.hasArea) {
+        Json a = Json::object();
+        a["x0"] = o.area.x0;
+        a["y0"] = o.area.y0;
+        a["x1"] = o.area.x1;
+        a["y1"] = o.area.y1;
+        j["area"] = a;
+    }
+    j["protectLocked"] = o.protectLocked;
+    Json cl = Json::object();
+    for (const auto& [name, layers] : o.classLayers) {
+        Json l = Json::array();
+        for (int k : layers) l.push(k);
+        cl[name] = l;
+    }
+    j["classLayers"] = cl;
     return j;
 }
 
@@ -39,7 +100,55 @@ AutorouteOptions autorouteOptionsFromJson(const Json& j, AutorouteOptions o) {
     o.arcCorners = j.get("arcCorners").asBool(o.arcCorners);
     if (j.has("arcRadius")) o.arcRadius = clampMm(j.get("arcRadius").asNumber(o.arcRadius), 0.0, 20.0, 0.0);
     o.teardrops = j.get("teardrops").asBool(o.teardrops);
+    if (j.has("preset")) {
+        const std::string p = j.get("preset").asString("default");
+        o.preset = autoroutePreset(p) ? p : "default";
+    }
+    o.fast = j.get("fast").asBool(o.fast);
+    o.fanoutOnly = j.get("fanoutOnly").asBool(o.fanoutOnly);
+    if (j.has("nets")) {
+        o.nets.clear();
+        for (const auto& n : j.get("nets").items())
+            if (n.isString() && !n.asString().empty()) o.nets.push_back(n.asString());
+    }
+    if (j.has("netClass")) o.netClass = j.get("netClass").asString("");
+    o.hasArea = j.get("hasArea").asBool(o.hasArea);
+    if (j.has("area")) {
+        const Json& a = j.get("area");
+        const double x0 = a.get("x0").asNumber(0), y0 = a.get("y0").asNumber(0), x1 = a.get("x1").asNumber(0), y1 = a.get("y1").asNumber(0);
+        if (std::isfinite(x0) && std::isfinite(y0) && std::isfinite(x1) && std::isfinite(y1))
+            o.area = Rect(std::min(x0, x1), std::min(y0, y1), std::max(x0, x1), std::max(y0, y1));
+    }
+    if (o.hasArea && (o.area.width() <= 0 || o.area.height() <= 0)) o.hasArea = false;
+    o.protectLocked = j.get("protectLocked").asBool(o.protectLocked);
+    if (j.has("classLayers")) {
+        o.classLayers.clear();
+        const Json& cl = j.get("classLayers");
+        if (cl.isObject())
+            for (const auto& [name, layers] : cl.fields()) {
+                std::vector<int> ls;
+                for (const auto& l : layers.items()) {
+                    const int k = l.asInt(-1);
+                    if (k >= 0 && k < BoardSettings::kMaxLayers && std::find(ls.begin(), ls.end(), k) == ls.end()) ls.push_back(k);
+                }
+                std::sort(ls.begin(), ls.end());
+                if (!name.empty() && !ls.empty()) o.classLayers[name] = ls;
+            }
+    }
     return o;
+}
+
+Json autoroutePresetsJson() {
+    Json a = Json::array();
+    for (const auto& p : autoroutePresets()) {
+        Json j = Json::object();
+        j["name"] = p.name;
+        j["title"] = p.title;
+        j["description"] = p.description;
+        j["options"] = autorouteOptionsToJson(p.options);
+        a.push(j);
+    }
+    return a;
 }
 
 Json keepoutsToJson(const std::vector<RouteKeepout>& ks) {

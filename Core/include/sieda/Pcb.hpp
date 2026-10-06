@@ -58,6 +58,24 @@ struct AutorouteOptions {
     double arcRadius = 0;
     /// Teardrops where tracks meet pads and vias (addTeardrops).
     bool teardrops = false;
+    /// Strategy (autoroutePresets()): the preset these options came from ("default", "fast", "quality", "fanout",
+    /// "nets", "netclass", "area"; informational — the fields below decide).
+    std::string preset = "default";
+    /// Fast: at most 2 rip-up passes and no recovery (classic router), at most 6 rip-up rounds (corridor router).
+    bool fast = false;
+    /// Fan-out only: BGA dog-bones and the fan-out vias of pour / plane pads, nothing else.
+    bool fanoutOnly = false;
+    /// Scope: when any is given, only nets matching all of them are routed (net names; a schematic net class; every pad
+    /// inside the area, whose copper then stays inside it too) and every other net keeps its copper as it is.
+    std::vector<std::string> nets;
+    std::string netClass;
+    bool hasArea = false;
+    Rect area;
+    /// Locked tracks stay where they are; their nets are completed from them.
+    bool protectLocked = false;
+    /// Per schematic net class: the copper layers its nets may route on (others are used only to leave their pads).
+    std::map<std::string, std::vector<int>> classLayers;
+    bool scoped() const { return !nets.empty() || !netClass.empty() || hasArea; }
     bool operator==(const AutorouteOptions& o) const;
     bool operator!=(const AutorouteOptions& o) const { return !(*this == o); }
     bool isDefault() const { return *this == AutorouteOptions{}; }
@@ -71,6 +89,18 @@ struct RouteKeepout {
     int layer = -1;
     bool tracks = true, vias = true;
 };
+
+struct AutoroutePreset {
+    std::string name;         // "default", "fast", "quality", "fanout", "nets", "netclass", "area"
+    std::string title;        // English, for menus
+    std::string description;
+    AutorouteOptions options;  // scope fields empty (the caller fills them)
+};
+/// The preset strategies: default (classic behaviour), fast, high quality (coupled pairs, length-aware, via
+/// minimisation, gloss), fan-out only, route selected nets, route a net class, route an area.
+const std::vector<AutoroutePreset>& autoroutePresets();
+/// The preset's options, or nullptr for an unknown name.
+const AutorouteOptions* autoroutePreset(const std::string& name);
 
 /// Copper layer index: 0 = top, `BoardSettings::bottomLayer()` = bottom, anything between = inner layer.
 constexpr int kTopLayer = 0;
@@ -466,6 +496,8 @@ public:
     /// The same, reporting progress and allowing cancellation (RouteControl). A cancelled route leaves the board
     /// exactly as it was (tracks, vias, net classes) and returns stats with `cancelled` set.
     RouteStats autoRoute(const Schematic& sch, const RouteControl& control);
+    /// The report of the last autoroute (pairs, lengths, metrics; empty before the first). Not saved with the board.
+    RouteReport lastRouteReport;
 
 private:
     RouteStats routeWithVoltageSpacing(const Schematic& sch, const RouteControl* control);

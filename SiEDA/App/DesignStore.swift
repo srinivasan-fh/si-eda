@@ -1319,9 +1319,9 @@ final class DesignStore: ObservableObject {
 
     /// Routes the board. `clearFirst` rips up the existing tracks and vias first (a clean re-route); `placeMissing`
     /// first places footprints that are not on the board yet. Either way it is a single undo step.
-    func autoRoute(clearFirst: Bool = false, placeMissing: Bool = false) async {
+    func autoRoute(clearFirst: Bool = false, placeMissing: Bool = false, undoState: String? = nil) async {
         guard !isBusy else { return }
-        let before = self.engine.saveJSON()
+        let before = undoState ?? self.engine.saveJSON()
         if clearFirst {
             self.engine.clearRouting()
             refresh()

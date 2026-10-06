@@ -9,8 +9,9 @@
 
 namespace sieda {
 
-/// {"coupledPairs","pairGap","lengthAware","minimizeVias","gloss","arcCorners","arcRadius","teardrops"} — every
-/// field, as saved with the board.
+/// {"coupledPairs","pairGap","lengthAware","minimizeVias","gloss","arcCorners","arcRadius","teardrops","preset","fast",
+/// "fanoutOnly","nets":[name],"netClass","hasArea","area":{"x0","y0","x1","y1"},"protectLocked",
+/// "classLayers":{class:[layer]}} — every field, as saved with the board.
 Json autorouteOptionsToJson(const AutorouteOptions& o);
 /// Options from JSON; missing fields keep their value in `base`, out-of-range values are clamped.
 AutorouteOptions autorouteOptionsFromJson(const Json& j, AutorouteOptions base = {});
@@ -19,6 +20,8 @@ AutorouteOptions autorouteOptionsFromJson(const Json& j, AutorouteOptions base =
 ///  "metrics":{"vias","microvias","blindVias","trackLength","layerLength":[mm per layer],"segments","arcs","teardrops",
 ///  "unrouted","viasRemoved","netsRerouted","glossed","arcsAdded","teardropsAdded"}}
 Json routeReportJson(const RouteReport& r);
+/// [{"name","title","description","options":{…}}] (autoroutePresets()).
+Json autoroutePresetsJson();
 /// Routing keep-outs: [{"name","x0","y0","x1","y1","layer","tracks","vias"}] (layer -1 = every layer).
 Json keepoutsToJson(const std::vector<RouteKeepout>& keepouts);
 /// Keep-outs from JSON (empty or inverted areas and keep-outs that keep nothing out are dropped).

@@ -272,6 +272,21 @@ int32_t sieda_router_set_strategy(int32_t strategy);
 int32_t sieda_router_strategy(void);
 /* Corridor-router threads (0 = the hardware's concurrency, at most 8). The routed copper is the same for any count. */
 void sieda_router_set_threads(int32_t threads);
+/* Autorouter strategy of the board (AutorouteOptions, saved with the project): JSON {"coupledPairs","pairGap",
+ * "lengthAware","minimizeVias","gloss","arcCorners","arcRadius","teardrops","preset","fast","fanoutOnly","nets":[name],
+ * "netClass","hasArea","area":{"x0","y0","x1","y1"},"protectLocked","classLayers":{class:[layer]}}. Setting takes
+ * the fields given (others keep their value); returns 1 when the JSON was valid. */
+char* sieda_pcb_autoroute_options(const SiedaProject* project);
+int32_t sieda_pcb_set_autoroute_options(SiedaProject* project, const char* options_json);
+/* Preset strategies: [{"name","title","description","options":{…}}] (default, fast, quality, fanout, nets, netclass,
+ * area). */
+char* sieda_autoroute_presets(void);
+/* The last autoroute's report: {"pairs":[…],"lengths":[…],"metrics":{…}} (see Autoroute.hpp routeReportJson). */
+char* sieda_pcb_route_report(const SiedaProject* project);
+/* Routing keep-outs: [{"name","x0","y0","x1","y1","layer" (-1 = all),"tracks","vias"}]. Setting replaces them all;
+ * returns the number kept. */
+char* sieda_pcb_keepouts(const SiedaProject* project);
+int32_t sieda_pcb_set_keepouts(SiedaProject* project, const char* keepouts_json);
 void sieda_pcb_clear_routing(SiedaProject* project);
 char* sieda_pcb_run_drc(const SiedaProject* project);
 /* Standard design-rule presets: [{"name","description","trackWidth",…,"minHoleToHole"}] */
