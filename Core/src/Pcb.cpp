@@ -4353,7 +4353,15 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                                 r.corridor.push_back(tiles.id(x, y));
                         repairs.push_back(std::move(r));
                     }
-                    for (const Repair& f : repairs) {
+                    // The repair searches read the board only, so they run on all threads (one workspace each); what
+                    // they find is then applied in order, exactly as one after the other.
+                    struct RepairPath {
+                        std::vector<std::pair<int, size_t>> nodes;  // from the pad back to the tree
+                        std::vector<char> viaPastRouted;            // per node: a via there needs routed copper gone
+                    };
+                    std::vector<RepairPath> repairPaths(repairs.size());
+                    auto searchRepair = [&](size_t k, AStarWorkspace& ws) {
+                        const Repair& f = repairs[k];
                         std::vector<std::pair<int, size_t>> to;
                         padCells(ps[f.pad], to);
                         const std::vector<std::pair<int, size_t>>& from = f.from;
@@ -4415,19 +4423,34 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                                         if (ol != l) relax(ol, c, cached->second == 1 ? 10.0f : 10.0f + penalty);
                             }
                         }
-                        std::vector<int> blockers, needed;
+                        RepairPath& out = repairPaths[k];
                         for (int sn = hit; sn >= 0; sn = ws.parent(static_cast<size_t>(sn))) {
                             const int l = sn / static_cast<int>(gridCells);
                             const size_t c = static_cast<size_t>(sn) % gridCells;
+                            out.nodes.push_back({l, c});
+                            const int prev = ws.parent(static_cast<size_t>(sn));
+                            bool pastRouted = false;
+                            if (prev >= 0 && prev / static_cast<int>(gridCells) != l) {
+                                auto vs = viaState.find(c);
+                                pastRouted = vs != viaState.end() && vs->second == 2;
+                            }
+                            out.viaPastRouted.push_back(pastRouted ? 1 : 0);
+                        }
+                    };
+                    routing::parallelFor(static_cast<int>(repairs.size()), threads, [&](int k, int worker) {
+                        searchRepair(static_cast<size_t>(k), *threadWs[static_cast<size_t>(worker)]);
+                    });
+                    for (size_t k = 0; k < repairs.size(); ++k) {
+                        const Repair& f = repairs[k];
+                        const RepairPath& path = repairPaths[k];
+                        std::vector<int> blockers, needed;
+                        for (size_t q = 0; q < path.nodes.size(); ++q) {
+                            const auto [l, c] = path.nodes[q];
                             needed.push_back(tiles.ofCell(static_cast<int>(c % static_cast<size_t>(grid.cols())),
                                                           static_cast<int>(c / static_cast<size_t>(grid.cols()))));
                             if (!grid.passable(l, c, f.net) || aggression > 0) grid.routedNetsNear(l, c, f.net, near, blockers);
-                            const int prev = ws.parent(static_cast<size_t>(sn));
-                            if (prev >= 0 && prev / static_cast<int>(gridCells) != l) {
-                                auto vs = viaState.find(c);
-                                if (vs != viaState.end() && vs->second == 2)
-                                    for (int vl = 0; vl < grid.layers(); ++vl) grid.routedNetsNear(vl, c, f.net, viaNear, blockers);
-                            }
+                            if (path.viaPastRouted[q])
+                                for (int vl = 0; vl < grid.layers(); ++vl) grid.routedNetsNear(vl, c, f.net, viaNear, blockers);
                         }
                         int added = 0;
                         for (int b : blockers)
@@ -4440,13 +4463,11 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                         }
                         {
                             const double wn = settings.widthFor(nets[static_cast<size_t>(f.net)].name);
-                            const int k = static_cast<int>(std::ceil((wn / 2 + clr + w / 2) / grid.pitch()));
-                            for (int sn = hit; sn >= 0; sn = ws.parent(static_cast<size_t>(sn))) {
-                                const int l = sn / static_cast<int>(gridCells);
-                                const size_t c = static_cast<size_t>(sn) % gridCells;
+                            const int kw = static_cast<int>(std::ceil((wn / 2 + clr + w / 2) / grid.pitch()));
+                            for (const auto& [l, c] : path.nodes) {
                                 const int i = static_cast<int>(c % static_cast<size_t>(grid.cols())), j = static_cast<int>(c / static_cast<size_t>(grid.cols()));
-                                for (int dj = -k; dj <= k; ++dj)
-                                    for (int di = -k; di <= k; ++di)
+                                for (int dj = -kw; dj <= kw; ++dj)
+                                    for (int di = -kw; di <= kw; ++di)
                                         if (grid.inside(i + di, j + dj))
                                             congestion->add(static_cast<size_t>(l) * gridCells + grid.idx(i + di, j + dj), kHistoryStep, f.net);
                             }
@@ -4457,6 +4478,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
                         for (int t : needed) tileHistory[static_cast<size_t>(t)] += 40;
                     }
                     ws.trim(size_t{32} << 20);  // the repair searches' corridors are not needed again
+                    for (size_t t = 1; t < threadWs.size(); ++t) threadWs[t]->trim(0);
                     if (congestion) profile.most("  history pages (MB)", static_cast<double>(congestion->bytes()) / 1e6);
                     // Buses: a failing two-pin net's neighbours with both ends within 6 mm of its ends compete for the
                     // same escape. They are ripped with it and re-routed first, all of them in their order across the

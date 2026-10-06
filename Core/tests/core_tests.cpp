@@ -16382,3 +16382,32 @@ TEST(c_api_autoroute_strategy) {
     if (rc != 0) std::printf("    C API autoroute strategy test failed at step %d\n", rc);
     CHECK(rc == 0);
 }
+
+TEST(corridor_rip_up_same_copper_for_any_thread_count) {
+    // A congested two-layer board that needs rip-up passes (their repair searches run on all threads): the corridor
+    // router lays the same copper on 1 and 4 threads.
+    bench::BenchBoard b = bench::makeBenchBoard({7, 3, 2, false, false, 0.45});
+    b.project.pcb.autoPlace(b.project.schematic, true);
+    setRouterStrategy(RouterStrategy::Corridor);
+    std::vector<Track> tracks[2];
+    std::vector<Via> vias[2];
+    int failed[2] = {0, 0};
+    for (int k = 0; k < 2; ++k) {
+        Project p = b.project;
+        setRoutingThreads(k == 0 ? 1 : 4);
+        const RouteStats st = p.pcb.autoRoute(p.schematic);
+        failed[k] = st.failed;
+        tracks[k] = p.pcb.tracks;
+        vias[k] = p.pcb.vias;
+    }
+    setRouterStrategy(RouterStrategy::Auto);
+    setRoutingThreads(0);
+    std::printf("    unrouted: %d (1 thread), %d (4 threads)\n", failed[0], failed[1]);
+    CHECK(failed[0] == failed[1]);
+    bool same = tracks[0].size() == tracks[1].size() && vias[0].size() == vias[1].size();
+    for (size_t i = 0; same && i < tracks[0].size(); ++i)
+        same = tracks[0][i].a == tracks[1][i].a && tracks[0][i].b == tracks[1][i].b && tracks[0][i].layer == tracks[1][i].layer &&
+               tracks[0][i].net == tracks[1][i].net && tracks[0][i].width == tracks[1][i].width;
+    for (size_t i = 0; same && i < vias[0].size(); ++i) same = vias[0][i].position == vias[1][i].position && vias[0][i].net == vias[1][i].net;
+    CHECK(same);
+}
