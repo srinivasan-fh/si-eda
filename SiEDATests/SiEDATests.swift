@@ -6793,3 +6793,166 @@ final class AutorouteStrategyTests: XCTestCase {
         XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
     }
 }
+
+/// Schematic canvas colour schemes, grid styles and the custom (named-colour) theme.
+@MainActor
+final class SchematicPaletteTests: XCTestCase {
+    func testEveryPresetForegroundReachesThreeToOne() throws {
+        for scheme in SchematicColorScheme.presets {
+            let p = try XCTUnwrap(scheme.presetPalette)
+            for item in p.foregrounds {
+                let ratio = item.colour.contrast(with: p.background)
+                XCTAssertGreaterThanOrEqual(ratio, 3, "\(scheme.rawValue).\(item.name) is \(ratio):1")
+            }
+            for pair in p.overlayPairs {
+                let ratio = pair.text.contrast(with: pair.fill)
+                XCTAssertGreaterThanOrEqual(ratio, 3, "\(scheme.rawValue).\(pair.name) is \(ratio):1")
+            }
+        }
+    }
+
+    func testContrastFormula() {
+        let white = SchematicRGB(hex: 0xFFFFFF), black = SchematicRGB(hex: 0x000000)
+        XCTAssertEqual(white.contrast(with: black), 21, accuracy: 0.01)
+        XCTAssertEqual(white.contrast(with: white), 1, accuracy: 0.0001)
+    }
+
+    func testDefaultSchemeIsTodaysColours() {
+        XCTAssertEqual(SchematicColorScheme.defaultScheme, .siedaDark)
+        XCTAssertEqual(SchematicCanvasStyle.standard.palette, .siedaDark)
+        XCTAssertEqual(SchematicColorScheme.palette(scheme: "unknown", customJSON: ""), .siedaDark)
+        let p = SchematicPalette.siedaDark
+        let canvas: [(SchematicRGB, Color)] = [
+            (p.background, Theme.schematicBackground), (p.gridMinor, Theme.gridDot), (p.gridMajor, Theme.darkBlue),
+            (p.wire, Theme.wire), (p.junction, Theme.wire), (p.bus, Theme.lightBlue), (p.netLabel, Theme.skyBlue),
+            (p.symbol, Theme.symbol), (p.symbolFill, Theme.symbolFill), (p.pin, Theme.pin),
+        ]
+        let text: [(SchematicRGB, Color)] = [
+            (p.unconnectedPin, Theme.unconnectedPin), (p.selection, Theme.selection), (p.designator, Theme.label),
+            (p.value, Theme.valueLabel), (p.harness, Theme.harness), (p.error, Theme.error), (p.probe, Theme.probe),
+            (p.liveOn, Theme.liveOn), (p.overlayFill, Theme.deepBlue), (p.selectionHalo, Theme.blue),
+            (p.sheetText, Theme.textMuted), (p.portLabel, Theme.warning),
+        ]
+        for (index, pair) in (canvas + text).enumerated() {
+            assertSameColour(pair.0.color, pair.1, "colour \(index)")
+        }
+    }
+
+    private func assertSameColour(_ a: Color, _ b: Color, _ message: String) {
+        guard let x = NSColor(a).usingColorSpace(.sRGB), let y = NSColor(b).usingColorSpace(.sRGB) else {
+            return XCTFail("not convertible: \(message)")
+        }
+        XCTAssertEqual(x.redComponent, y.redComponent, accuracy: 1e-9, message)
+        XCTAssertEqual(x.greenComponent, y.greenComponent, accuracy: 1e-9, message)
+        XCTAssertEqual(x.blueComponent, y.blueComponent, accuracy: 1e-9, message)
+        XCTAssertEqual(x.alphaComponent, y.alphaComponent, accuracy: 1e-9, message)
+    }
+
+    func testSchemesPersistByStableRawValues() throws {
+        let expected = ["siedaDark", "altium", "orcad", "allegro", "xpedition", "pads", "cr8000", "kicad", "eagle",
+                        "proteus", "easyeda", "diptrace", "monochrome", "highContrast", "custom"]
+        XCTAssertEqual(SchematicColorScheme.allCases.map(\.rawValue), expected)
+        let suite = "SiEDA.SchematicPaletteTests"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        for scheme in SchematicColorScheme.allCases {
+            defaults.set(scheme.rawValue, forKey: SchematicColorScheme.storageKey)
+            let stored = try XCTUnwrap(defaults.string(forKey: SchematicColorScheme.storageKey))
+            XCTAssertEqual(SchematicColorScheme(rawValue: stored), scheme)
+        }
+        for style in SchematicGridStyle.allCases {
+            defaults.set(style.rawValue, forKey: SchematicGridStyle.storageKey)
+            let stored = defaults.string(forKey: SchematicGridStyle.storageKey) ?? ""
+            XCTAssertEqual(SchematicGridStyle(rawValue: stored), style)
+        }
+    }
+
+    func testSchemeNamesAreUniqueAndGrouped() {
+        let titles = SchematicColorScheme.allCases.map(\.title)
+        XCTAssertEqual(Set(titles).count, titles.count)
+        XCTAssertEqual(SchematicColorScheme.siedaDark.title, "Midnight Navy")
+        let grouped = SchematicColorScheme.lightPresets + SchematicColorScheme.darkPresets
+        XCTAssertEqual(Set(grouped), Set(SchematicColorScheme.presets))
+        XCTAssertTrue(SchematicColorScheme.darkPresets.contains(.siedaDark))
+        XCTAssertTrue(SchematicColorScheme.lightPresets.contains(.kicad))
+        XCTAssertFalse(SchematicColorScheme.presets.contains(.custom))
+    }
+
+    func testGridStyleDefaultsToDots() {
+        XCTAssertEqual(SchematicCanvasStyle.standard.grid, .dots)
+        XCTAssertEqual(SchematicCanvasStyle.standard.majorEvery, 10)
+        let style = SchematicCanvasStyle.from(scheme: "siedaDark", customJSON: "", grid: "bogus", majorEvery: 10)
+        XCTAssertEqual(style, .standard)
+        let lines = SchematicCanvasStyle.from(scheme: "", customJSON: "", grid: "lines", majorEvery: 5)
+        XCTAssertEqual(lines.grid, .lines)
+        XCTAssertEqual(lines.majorEvery, 5)
+    }
+
+    func testNamedColourTableIsUnique() {
+        let all = SchematicNamedColor.all
+        XCTAssertGreaterThanOrEqual(all.count, 40)
+        XCTAssertEqual(Set(all.map(\.id)).count, all.count)
+        XCTAssertEqual(Set(all.map(\.name)).count, all.count)
+        XCTAssertEqual(SchematicNamedColor.named("green")?.name, "Green")
+        XCTAssertNil(SchematicNamedColor.named("nope"))
+    }
+
+    func testNearestNamedColour() {
+        XCTAssertEqual(SchematicNamedColor.nearest(to: SchematicRGB(hex: 0x009600)).id, "green")
+        XCTAssertEqual(SchematicNamedColor.nearest(to: SchematicRGB(hex: 0xFE0202)).id, "red")
+        XCTAssertEqual(SchematicNamedColor.nearest(to: SchematicRGB(hex: 0x840000)).id, "maroon")
+    }
+
+    func testHexStrings() {
+        XCTAssertEqual(SchematicRGB(hexString: "#0A1B2C")?.hexString, "#0A1B2C")
+        XCTAssertEqual(SchematicRGB(hexString: "0a1b2c")?.hexString, "#0A1B2C")
+        XCTAssertEqual(SchematicRGB(hexString: "#0A1B2C80")?.hexString, "#0A1B2C80")
+        XCTAssertNil(SchematicRGB(hexString: "#12"))
+        XCTAssertNil(SchematicRGB(hexString: "#GGGGGG"))
+    }
+
+    func testCustomThemeJSONRoundTrip() {
+        var theme = SchematicCustomTheme.seeded(from: .kicad)
+        theme.roles[SchematicColorRole.wire.rawValue] = "yellow"
+        theme.roles[SchematicColorRole.bus.rawValue] = "#123456"
+        let loaded = SchematicCustomTheme.load(theme.json)
+        XCTAssertEqual(loaded, theme)
+        XCTAssertEqual(loaded.seedScheme, .kicad)
+        XCTAssertEqual(loaded.palette().wire, SchematicNamedColor.named("yellow")?.rgb)
+        XCTAssertEqual(loaded.palette().bus, SchematicRGB(hex: 0x123456))
+        XCTAssertEqual(loaded.choice(for: .wire), "yellow")
+        XCTAssertEqual(loaded.choice(for: .bus), SchematicCustomTheme.otherTag)
+        XCTAssertEqual(SchematicColorScheme.palette(scheme: "custom", customJSON: theme.json), loaded.palette())
+    }
+
+    func testSeededThemeLooksLikeItsPreset() throws {
+        for scheme in SchematicColorScheme.presets {
+            let preset = try XCTUnwrap(scheme.presetPalette)
+            XCTAssertEqual(SchematicCustomTheme.seeded(from: scheme).palette(), preset, scheme.rawValue)
+        }
+    }
+
+    func testUnknownColourIdsFallBackToTheSeed() {
+        let theme = SchematicCustomTheme(seed: "altium", roles: ["wire": "notAColour", "bus": "#12", "pin": "red"])
+        let p = theme.palette()
+        XCTAssertEqual(p.wire, SchematicPalette.altium.wire)
+        XCTAssertEqual(p.bus, SchematicPalette.altium.bus)
+        XCTAssertEqual(p.pin, SchematicRGB(hex: 0xFF0000))
+        XCTAssertEqual(SchematicCustomTheme(seed: "nope", roles: [:]).palette(), .siedaDark)
+        XCTAssertEqual(SchematicCustomTheme(seed: "custom", roles: [:]).palette(), .siedaDark)
+        let fallback = SchematicCustomTheme.seeded(from: .siedaDark)
+        XCTAssertEqual(SchematicCustomTheme.load("{not json"), fallback)
+        XCTAssertEqual(SchematicColorScheme.palette(scheme: "custom", customJSON: "garbage"), fallback.palette())
+    }
+
+    func testLowContrastRolesAreFlagged() {
+        var theme = SchematicCustomTheme.seeded(from: .eagle)
+        theme.roles[SchematicColorRole.background.rawValue] = "white"
+        theme.roles[SchematicColorRole.wire.rawValue] = "yellow"
+        XCTAssertTrue(theme.lowContrastRoles().contains(.wire))
+        XCTAssertTrue(SchematicCustomTheme.seeded(from: .kicad).lowContrastRoles().isEmpty)
+        // A pale fill or grid is never flagged: they are not foregrounds.
+        theme.roles[SchematicColorRole.symbolFill.rawValue] = "white"
+        XCTAssertFalse(theme.lowContrastRoles().contains(.symbolFill))
+    }
+}

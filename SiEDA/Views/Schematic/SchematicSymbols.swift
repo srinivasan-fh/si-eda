@@ -96,8 +96,9 @@ enum SchematicSymbols {
     /// whatever the component's rotation (names along vertical leads read bottom to top). Stacked pins show one name
     /// and all their numbers.
     static func drawPinLabels(_ ctx: GraphicsContext, part: CustomPartInfo, transform t: CGAffineTransform, fontSize: CGFloat,
-                              nameColor: (CustomPartInfo.SymbolPin) -> Color, numberColor: Color) {
-        drawGraphicTexts(ctx, part: part, transform: t, color: Theme.symbol)
+                              textColor: Color = Theme.symbol, nameColor: (CustomPartInfo.SymbolPin) -> Color,
+                              numberColor: Color) {
+        drawGraphicTexts(ctx, part: part, transform: t, color: textColor)
         let hw = part.symbol.halfWidth, hh = part.symbol.halfHeight
         var order: [String] = []
         var groups: [String: (pin: CustomPartInfo.SymbolPin, numbers: [String])] = [:]
