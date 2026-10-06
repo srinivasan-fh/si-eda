@@ -19,6 +19,8 @@ struct SymbolEditorView: View {
     @State private var dragStart: CGPoint?
     @State private var dragLocation: CGPoint?
     @State private var stackDuplicates = true
+    @AppStorage(SchematicColorScheme.storageKey) private var colourScheme = SchematicColorScheme.defaultScheme.rawValue
+    @AppStorage(SchematicCustomTheme.storageKey) private var customTheme = ""
     @State private var arrangeError: String?
     /// Symbol layout or the units (gates) of a multi-unit part.
     @State private var mode = Mode.symbol
@@ -180,11 +182,16 @@ struct SymbolEditorView: View {
 
     private var flagged: Set<String> { Set(issues.filter { $0.severity != "info" }.flatMap(\.pins)) }
 
+    /// The schematic colour scheme (Schematic Canvas preferences), so the symbol looks as it will on the sheet.
+    private var palette: SchematicPalette {
+        SchematicColorScheme.palette(scheme: colourScheme, customJSON: customTheme)
+    }
+
     private var canvas: some View {
         GeometryReader { geo in
             let size = geo.size
             ZStack {
-                Theme.schematicBackground
+                palette.background.color
                 if let part = preview {
                     Canvas { ctx, _ in drawSymbol(ctx, size: size, part: part) }
                     .contentShape(Rectangle())
@@ -199,13 +206,13 @@ struct SymbolEditorView: View {
                     .accessibilityValue("\(spec.pins.count) pins, \(selection.count) selected")
                 } else {
                     Text(issues.first?.message ?? "Add pins to the part to lay out its symbol.")
-                        .font(.caption).foregroundStyle(Theme.textMuted).padding()
+                        .font(.caption).foregroundStyle(palette.sheetText.color).padding()
                 }
             }
             .overlay(alignment: .bottomLeading) {
                 Text(drawTool == nil ? LocalizedStringKey("Click a pin to select (⇧ to add) · drag it to any side or slot · ⌥-drop onto a pin to stack")
                                      : LocalizedStringKey("Drag to draw · click to place a text · Esc returns to selecting"))
-                    .font(.caption2).foregroundStyle(Theme.textMuted).padding(8)
+                    .font(.caption2).foregroundStyle(palette.sheetText.color).padding(8)
             }
         }
     }
@@ -213,43 +220,45 @@ struct SymbolEditorView: View {
     /// The symbol preview with its selection, the selected drawing and the drop marker of a pin drag.
     private func drawSymbol(_ ctx: GraphicsContext, size: CGSize, part: CustomPartInfo) {
         let t = transform(for: size, part: part)
+        let palette = self.palette  // decoded once per frame
         let shapes = SchematicSymbols.customShapes(part)
-        ctx.fill(shapes.fill.applying(t), with: .color(Theme.symbolFill))
-        ctx.stroke(shapes.stroke.applying(t), with: .color(Theme.symbol), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
-        ctx.fill(shapes.solid.applying(t), with: .color(Theme.symbol))
+        ctx.fill(shapes.fill.applying(t), with: .color(palette.symbolFill.color))
+        ctx.stroke(shapes.stroke.applying(t), with: .color(palette.symbol.color), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+        ctx.fill(shapes.solid.applying(t), with: .color(palette.symbol.color))
         SchematicSymbols.drawPinLabels(ctx, part: part, transform: t, fontSize: max(7, min(12, 6 * scale(for: size, part: part))),
+                                       textColor: palette.symbol.color,
                                        nameColor: { pin in
-                                           selection.contains(pin.number) ? Theme.selection
-                                               : flagged.contains(pin.number) ? Theme.error
-                                               : pin.type == PinElectricalType.powerIn.rawValue ? Theme.probe : Theme.skyBlue
+                                           selection.contains(pin.number) ? palette.selection.color
+                                               : flagged.contains(pin.number) ? palette.error.color
+                                               : pin.type == PinElectricalType.powerIn.rawValue ? palette.powerLabel.color : palette.pinName.color
                                        },
-                                       numberColor: Theme.textMuted)
+                                       numberColor: palette.pinNumber.color)
         // Selected pins: a highlight on their pin ends.
         for pin in part.symbol.pins where selection.contains(pin.number) || flagged.contains(pin.number) {
             let e = CGPoint(x: pin.x, y: pin.y).applying(t)
             ctx.stroke(Path(ellipseIn: CGRect(x: e.x - 6, y: e.y - 6, width: 12, height: 12)),
-                       with: .color(selection.contains(pin.number) ? Theme.selection : Theme.error), lineWidth: 2)
+                       with: .color(selection.contains(pin.number) ? palette.selection.color : palette.error.color), lineWidth: 2)
         }
         // While dragging: where the pins will land.
         if let location = dragLocation, let start = dragStart, hypot(location.x - start.x, location.y - start.y) > 4,
            !selection.isEmpty {
             let drop = target(at: location, size: size, part: part)
             let m = slotPoint(drop.side, drop.slot, part: part).applying(t)
-            ctx.fill(Path(ellipseIn: CGRect(x: m.x - 7, y: m.y - 7, width: 14, height: 14)), with: .color(Theme.blue.opacity(0.6)))
+            ctx.fill(Path(ellipseIn: CGRect(x: m.x - 7, y: m.y - 7, width: 14, height: 14)), with: .color(palette.selectionHalo.color.opacity(0.6)))
             ctx.draw(Text("\(selection.count) → \(drop.side.title) \(drop.slot)").font(.caption2.weight(.semibold))
-                        .foregroundColor(Theme.iceBlue), at: CGPoint(x: location.x + 10, y: location.y - 12), anchor: .leading)
+                        .foregroundColor(palette.designator.color), at: CGPoint(x: location.x + 10, y: location.y - 12), anchor: .leading)
         }
         // The selected drawing, and the one being drawn.
         if let i = selectedDrawing, draft.graphics.indices.contains(i) {
             let g = draft.graphics[i]
             let path = g.shapeKind == .text ? Path(g.bounds) : g.path
-            ctx.stroke(path.applying(t), with: .color(Theme.selection), style: StrokeStyle(lineWidth: 2, dash: [4, 3]))
+            ctx.stroke(path.applying(t), with: .color(palette.selection.color), style: StrokeStyle(lineWidth: 2, dash: [4, 3]))
         }
         if let tool = drawTool, let start = dragStart, let location = dragLocation {
             let inverse = t.inverted()
             if let g = SymbolDraft.drawing(tool, from: start.applying(inverse), to: location.applying(inverse)) {
                 let path = g.shapeKind == .text ? Path(g.bounds) : g.path
-                ctx.stroke(path.applying(t), with: .color(Theme.skyBlue), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+                ctx.stroke(path.applying(t), with: .color(palette.preview.color), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
             }
         }
     }

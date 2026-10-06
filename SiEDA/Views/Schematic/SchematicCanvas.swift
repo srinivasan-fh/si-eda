@@ -14,6 +14,8 @@ struct SchematicCanvas: View {
     var placementTool: SchematicTool = .place(.resistor)
     /// Live (real-time) simulation: probes show its voltages, LEDs glow, switches are clicked.
     @ObservedObject var live: LiveSimulation
+    /// Colour scheme and grid (Schematic Canvas preferences).
+    @Environment(\.schematicStyle) private var style
 
     private enum DragMode {
         case move(Set<Int>)
@@ -556,7 +558,8 @@ struct SchematicCanvas: View {
 
     private func draw(_ ctx: inout GraphicsContext, size: CGSize) {
         let snap = store.sheetSnapshot
-        ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Theme.schematicBackground))
+        let pal = style.palette
+        ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(pal.background.color))
         drawGrid(&ctx, size: size)
 
         let screen = CGAffineTransform(translationX: viewport.offset.width, y: viewport.offset.height)
@@ -599,9 +602,9 @@ struct SchematicCanvas: View {
             }
             let selected = store.selectedWire == w.id
             if selected {
-                ctx.stroke(path.applying(screen), with: .color(Theme.blue.opacity(0.6)), lineWidth: 7)
+                ctx.stroke(path.applying(screen), with: .color(pal.selectionHalo.color.opacity(0.6)), lineWidth: 7)
             }
-            ctx.stroke(path.applying(screen), with: .color(selected ? Theme.selection : Theme.wire),
+            ctx.stroke(path.applying(screen), with: .color(selected ? pal.selection.color : pal.wire.color),
                        style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
             // Two wires on one pin make a T with the pin's lead (a dot); junctions draw their own.
             for (end, p) in [(w.a, a), (w.b, b)] where !junctionIds.contains(end.component) {
@@ -611,7 +614,7 @@ struct SchematicCanvas: View {
         }
         for (_, entry) in endpointCount where entry.1 >= 2 {
             let s = entry.0.applying(screen)
-            ctx.fill(Path(ellipseIn: CGRect(x: s.x - 3.5, y: s.y - 3.5, width: 7, height: 7)), with: .color(Theme.wire))
+            ctx.fill(Path(ellipseIn: CGRect(x: s.x - 3.5, y: s.y - 3.5, width: 7, height: 7)), with: .color(pal.junction.color))
         }
         // Junctions: a dot where three or more wires meet, nothing on a plain bend, an open circle on a loose end.
         for c in snap.components where c.componentKind == .junction {
@@ -621,16 +624,16 @@ struct SchematicCanvas: View {
             let s = p.applying(screen)
             let count = wiresAt[c.id] ?? 0
             if store.selection.contains(c.id) {
-                ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 7, y: s.y - 7, width: 14, height: 14)), with: .color(Theme.selection), lineWidth: 2)
+                ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 7, y: s.y - 7, width: 14, height: 14)), with: .color(pal.selection.color), lineWidth: 2)
             }
             if count >= 3 {
-                ctx.fill(Path(ellipseIn: CGRect(x: s.x - 4, y: s.y - 4, width: 8, height: 8)), with: .color(Theme.wire))
+                ctx.fill(Path(ellipseIn: CGRect(x: s.x - 4, y: s.y - 4, width: 8, height: 8)), with: .color(pal.junction.color))
             } else if count <= 1 {
                 ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 3.5, y: s.y - 3.5, width: 7, height: 7)),
-                           with: .color(Theme.unconnectedPin), lineWidth: 1.4)
+                           with: .color(pal.unconnectedPin.color), lineWidth: 1.4)
             } else if let h = hover, tool == .select, hypot(h.x - s.x, h.y - s.y) < 10 {
                 // A bend shows a handle under the pointer: drag it to reshape the wire.
-                ctx.stroke(Path(CGRect(x: s.x - 3.5, y: s.y - 3.5, width: 7, height: 7)), with: .color(Theme.skyBlue), lineWidth: 1.4)
+                ctx.stroke(Path(CGRect(x: s.x - 3.5, y: s.y - 3.5, width: 7, height: 7)), with: .color(pal.preview.color), lineWidth: 1.4)
             }
         }
 
@@ -643,12 +646,12 @@ struct SchematicCanvas: View {
             var path = Path()
             path.addLines(pts)
             let selected = store.selectedBus == bus.id
-            if selected { ctx.stroke(path.applying(screen), with: .color(Theme.blue.opacity(0.6)), lineWidth: 10) }
-            ctx.stroke(path.applying(screen), with: .color(selected ? Theme.selection : Theme.lightBlue),
+            if selected { ctx.stroke(path.applying(screen), with: .color(pal.selectionHalo.color.opacity(0.6)), lineWidth: 10) }
+            ctx.stroke(path.applying(screen), with: .color(selected ? pal.selection.color : pal.bus.color),
                        style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
             if showLabels {
                 ctx.draw(Text(verbatim: bus.name).font(.system(size: max(8, min(13, 9 * viewport.scale / 1.6)), weight: .bold, design: .monospaced))
-                            .foregroundColor(Theme.lightBlue),
+                            .foregroundColor(pal.bus.color),
                          at: CGPoint(x: pts[0].x + 4, y: pts[0].y - 6).applying(screen), anchor: .bottomLeading)
             }
         }
@@ -661,7 +664,7 @@ struct SchematicCanvas: View {
             var stub = Path()
             stub.move(to: q.applying(screen))
             stub.addLine(to: at.applying(screen))
-            ctx.stroke(stub, with: .color(Theme.lightBlue), lineWidth: 2)
+            ctx.stroke(stub, with: .color(pal.bus.color), lineWidth: 2)
         }
         // Harness connectors: each entry is joined to its harness label by a thin harness-coloured stub.
         for c in snap.components where c.harnessOf != nil {
@@ -673,7 +676,7 @@ struct SchematicCanvas: View {
             stub.move(to: a.applying(screen))
             stub.addLine(to: CGPoint(x: a.x, y: b.y).applying(screen))
             stub.addLine(to: b.applying(screen))
-            ctx.stroke(stub, with: .color(Theme.harness.opacity(0.7)), lineWidth: 1.5)
+            ctx.stroke(stub, with: .color(pal.harness.color.opacity(0.7)), lineWidth: 1.5)
         }
         // Harness connector bodies: a box around each harness label's entries, notched towards the harness.
         drawHarnessBodies(&ctx, snap: snap, screen: screen, moving: movingIds, delta: delta)
@@ -686,14 +689,14 @@ struct SchematicCanvas: View {
                 let pin = c.pins[d.pin].point
                 let at = CGPoint(x: pin.x + 6, y: pin.y - 10).applying(screen)
                 ctx.draw(Text(verbatim: "◆ " + d.summary).font(.system(size: 9, weight: .semibold, design: .monospaced))
-                            .foregroundColor(Theme.liveOn), at: at, anchor: .bottomLeading)
+                            .foregroundColor(pal.directive.color), at: at, anchor: .bottomLeading)
             }
         }
         // The bus being drawn.
         if tool == .bus, !busPoints.isEmpty {
             var path = Path()
             path.addLines(busPoints + (hover.map { [SchematicAutoLayout.snap(viewport.toWorld($0))] } ?? []))
-            ctx.stroke(path.applying(screen), with: .color(Theme.skyBlue), style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
+            ctx.stroke(path.applying(screen), with: .color(pal.preview.color), style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
         }
 
         // Sheet symbols: a box around the entries of each child sheet (its pins on the left edge) with the sheet's name.
@@ -714,11 +717,11 @@ struct SchematicCanvas: View {
                                height: max(box.height + 26, CGFloat(child.symbolHeight ?? 0)))
             guard frame.intersects(view) else { continue }
             let rect = frame.applying(screen)
-            ctx.fill(Path(rect), with: .color(Theme.symbolFill))
-            ctx.stroke(Path(rect), with: .color(Theme.symbol), lineWidth: 1.6)
+            ctx.fill(Path(rect), with: .color(pal.symbolFill.color))
+            ctx.stroke(Path(rect), with: .color(pal.symbol.color), lineWidth: 1.6)
             if showLabels {
                 ctx.draw(Text(verbatim: child.name).font(.system(size: max(8, min(13, 9 * viewport.scale / 1.6)), weight: .bold))
-                            .foregroundColor(Theme.label), at: CGPoint(x: rect.minX, y: rect.minY - 4), anchor: .bottomLeading)
+                            .foregroundColor(pal.designator.color), at: CGPoint(x: rect.minX, y: rect.minY - 4), anchor: .bottomLeading)
             }
         }
 
@@ -739,7 +742,7 @@ struct SchematicCanvas: View {
             // A unit is highlighted when it or its package (picked from the PCB, BOM or a check) is selected.
             let selected = store.selection.contains(c.id) || (c.unitOf.map { store.selection.contains($0) } ?? false)
             if selected {
-                ctx.stroke(shapes.stroke.applying(t), with: .color(Theme.blue.opacity(0.55)), lineWidth: 6)
+                ctx.stroke(shapes.stroke.applying(t), with: .color(pal.selectionHalo.color.opacity(0.55)), lineWidth: 6)
             }
             if c.componentKind == .led {
                 // LEDs show their colour: a dim tint when dark, lit body and glow with the current through them.
@@ -754,14 +757,14 @@ struct SchematicCanvas: View {
                                                    center: centre, startRadius: 0, endRadius: radius))
                 }
                 ctx.fill(shapes.fill.applying(t), with: .color(b > 0.02 ? colour.opacity(0.45 + 0.55 * b) : colour.opacity(0.22)))
-                let ledStroke = selected ? Theme.selection : (b > 0.02 ? colour : colour.opacity(0.75))
+                let ledStroke = selected ? pal.selection.color : (b > 0.02 ? colour : colour.opacity(0.75))
                 ctx.stroke(shapes.stroke.applying(t), with: .color(ledStroke),
                            style: StrokeStyle(lineWidth: b > 0.02 ? 2 : 1.6, lineCap: .round, lineJoin: .round))
                 ctx.fill(shapes.solid.applying(t), with: .color(ledStroke))
             } else {
-                ctx.fill(shapes.fill.applying(t), with: .color(Theme.symbolFill))
-                var strokeColor = selected ? Theme.selection : Theme.symbol
-                if c.componentKind == .switchSPST, !selected, live.isRunning, live.isClosed(c.id) == true { strokeColor = Theme.liveOn }
+                ctx.fill(shapes.fill.applying(t), with: .color(pal.symbolFill.color))
+                var strokeColor = selected ? pal.selection.color : pal.symbol.color
+                if c.componentKind == .switchSPST, !selected, live.isRunning, live.isClosed(c.id) == true { strokeColor = pal.liveOn.color }
                 ctx.stroke(shapes.stroke.applying(t), with: .color(strokeColor),
                            style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
                 ctx.fill(shapes.solid.applying(t), with: .color(strokeColor))
@@ -775,7 +778,7 @@ struct SchematicCanvas: View {
                 cross.addLine(to: CGPoint(x: box.maxX, y: box.maxY))
                 cross.move(to: CGPoint(x: box.minX, y: box.maxY))
                 cross.addLine(to: CGPoint(x: box.maxX, y: box.minY))
-                ctx.stroke(cross, with: .color(Theme.error.opacity(0.85)), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                ctx.stroke(cross, with: .color(pal.error.color.opacity(0.85)), style: StrokeStyle(lineWidth: 2, lineCap: .round))
             }
 
             // Pins
@@ -792,15 +795,15 @@ struct SchematicCanvas: View {
                     cross.addLine(to: CGPoint(x: s.x + a, y: s.y + a))
                     cross.move(to: CGPoint(x: s.x - a, y: s.y + a))
                     cross.addLine(to: CGPoint(x: s.x + a, y: s.y - a))
-                    ctx.stroke(cross, with: .color(p.connected ? Theme.error : Theme.skyBlue), lineWidth: 1.5)
+                    ctx.stroke(cross, with: .color(p.connected ? pal.error.color : pal.noConnect.color), lineWidth: 1.5)
                 } else if p.connected {
-                    ctx.fill(Path(ellipseIn: CGRect(x: s.x - r, y: s.y - r, width: 2 * r, height: 2 * r)), with: .color(Theme.pin))
+                    ctx.fill(Path(ellipseIn: CGRect(x: s.x - r, y: s.y - r, width: 2 * r, height: 2 * r)), with: .color(pal.pin.color))
                 } else if !c.componentKind.isVirtual || c.componentKind == .netLabel {
-                    ctx.stroke(Path(CGRect(x: s.x - 3, y: s.y - 3, width: 6, height: 6)), with: .color(Theme.unconnectedPin), lineWidth: 1.2)
+                    ctx.stroke(Path(CGRect(x: s.x - 3, y: s.y - 3, width: 6, height: 6)), with: .color(pal.unconnectedPin.color), lineWidth: 1.2)
                 }
                 if c.componentKind == .ic8, viewport.scale > 1.2 {
                     let inward = CGPoint(x: (c.position.x - pp.x) * 0.18 + pp.x, y: pp.y).applying(screen)
-                    ctx.draw(Text("\(i + 1)").font(.system(size: 8, design: .monospaced)).foregroundColor(Theme.textMuted),
+                    ctx.draw(Text("\(i + 1)").font(.system(size: 8, design: .monospaced)).foregroundColor(pal.pinNumber.color),
                              at: inward)
                 }
             }
@@ -808,8 +811,9 @@ struct SchematicCanvas: View {
             if let custom, showPins, viewport.scale > 0.9 {
                 // Pin names inside the body, pin numbers on the leads (readable at any rotation).
                 SchematicSymbols.drawPinLabels(ctx, part: custom, transform: t, fontSize: max(7, min(11, 7 * viewport.scale / 1.6)),
-                                               nameColor: { $0.type == PinElectricalType.powerIn.rawValue ? Theme.probe : Theme.skyBlue },
-                                               numberColor: Theme.textMuted)
+                                               textColor: pal.symbol.color,
+                                               nameColor: { $0.type == PinElectricalType.powerIn.rawValue ? pal.powerLabel.color : pal.pinName.color },
+                                               numberColor: pal.pinNumber.color)
             }
 
             // Labels (kept upright)
@@ -825,10 +829,10 @@ struct SchematicCanvas: View {
                 // Harness labels (a bundle) and their entries are drawn in the harness colour, the bundle marked ≡.
                 let colour: Color
                 switch c.labelScope {
-                case _ where c.harnessType != nil: colour = Theme.harness
-                case "local": colour = Theme.textMuted
-                case "port", "entry": colour = Theme.warning
-                default: colour = Theme.skyBlue
+                case _ where c.harnessType != nil: colour = pal.harness.color
+                case "local": colour = pal.localLabel.color
+                case "port", "entry": colour = pal.portLabel.color
+                default: colour = pal.netLabel.color
                 }
                 ctx.draw(Text(verbatim: c.isHarnessLabel ? c.value + " ≡" : c.value)
                             .font(.system(size: fontSize, weight: c.isHarnessLabel ? .heavy : .semibold, design: .monospaced))
@@ -850,10 +854,10 @@ struct SchematicCanvas: View {
                 }
                 // A part the active variant leaves off is marked DNP; a variant value replaces the design value.
                 ctx.draw(Text(c.isFitted ? c.displayRef : c.displayRef + " DNP").font(.system(size: fontSize, weight: .bold, design: .monospaced))
-                            .foregroundColor(selected ? Theme.selection : (c.isFitted ? Theme.label : Theme.error)),
+                            .foregroundColor(selected ? pal.selection.color : (c.isFitted ? pal.designator.color : pal.error.color)),
                          at: refPoint, anchor: anchor)
                 ctx.draw(Text(c.variantValue ?? c.value).font(.system(size: fontSize, design: .monospaced))
-                            .foregroundColor(c.variantValue == nil ? Theme.valueLabel : Theme.warning), at: valPoint, anchor: anchor)
+                            .foregroundColor(c.variantValue == nil ? pal.value.color : pal.variantValue.color), at: valPoint, anchor: anchor)
             }
         }
 
@@ -869,10 +873,10 @@ struct SchematicCanvas: View {
                 let center = content.isNull ? CGPoint.zero : CGPoint(x: content.midX, y: content.midY)
                 frame = CGRect(x: center.x - w / 2, y: center.y - h / 2, width: w, height: h)
             }
-            ctx.stroke(Path(frame.applying(screen)), with: .color(Theme.symbol.opacity(0.55)),
+            ctx.stroke(Path(frame.applying(screen)), with: .color(pal.sheetBorder.color.opacity(0.55)),
                        style: StrokeStyle(lineWidth: 1, dash: [8, 5]))
             if showLabels {
-                ctx.draw(Text(verbatim: template.name).font(.system(size: 11, weight: .semibold)).foregroundColor(Theme.textMuted),
+                ctx.draw(Text(verbatim: template.name).font(.system(size: 11, weight: .semibold)).foregroundColor(pal.sheetText.color),
                          at: CGPoint(x: frame.minX + 6, y: frame.minY + 6).applying(screen), anchor: .topLeading)
             }
         }
@@ -884,24 +888,24 @@ struct SchematicCanvas: View {
                 let block = CGRect(x: content.maxX - 220, y: content.maxY + 40, width: 260, height: 64)
                 if block.intersects(view) {
                     let rect = block.applying(screen)
-                    ctx.stroke(Path(rect), with: .color(Theme.symbol.opacity(0.8)), lineWidth: 1.2)
+                    ctx.stroke(Path(rect), with: .color(pal.sheetBorder.color.opacity(0.8)), lineWidth: 1.2)
                     var rule = Path()
                     rule.move(to: CGPoint(x: rect.minX, y: rect.midY))
                     rule.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
-                    ctx.stroke(rule, with: .color(Theme.symbol.opacity(0.5)), lineWidth: 0.8)
+                    ctx.stroke(rule, with: .color(pal.sheetBorder.color.opacity(0.5)), lineWidth: 0.8)
                     let size = max(7, min(12, 8 * viewport.scale / 1.6))
                     let tb = store.snapshot.titleBlock
                     let index = (snap.sheets.firstIndex { $0.id == snap.activeSheet } ?? 0) + 1
                     let total = max(1, snap.sheets.count)
-                    ctx.draw(Text(verbatim: tb.title).font(.system(size: size + 1, weight: .bold)).foregroundColor(Theme.label),
+                    ctx.draw(Text(verbatim: tb.title).font(.system(size: size + 1, weight: .bold)).foregroundColor(pal.designator.color),
                              at: CGPoint(x: rect.minX + 6, y: rect.minY + 4), anchor: .topLeading)
-                    ctx.draw(Text(verbatim: snap.sheet(snap.activeSheet)?.name ?? "").font(.system(size: size)).foregroundColor(Theme.valueLabel),
+                    ctx.draw(Text(verbatim: snap.sheet(snap.activeSheet)?.name ?? "").font(.system(size: size)).foregroundColor(pal.value.color),
                              at: CGPoint(x: rect.maxX - 6, y: rect.minY + 4), anchor: .topTrailing)
-                    ctx.draw(Text("Sheet \(index) of \(total)").font(.system(size: size)).foregroundColor(Theme.valueLabel),
+                    ctx.draw(Text("Sheet \(index) of \(total)").font(.system(size: size)).foregroundColor(pal.value.color),
                              at: CGPoint(x: rect.maxX - 6, y: rect.midY - 3), anchor: .bottomTrailing)
                     let lower = [tb.company, tb.revision.isEmpty ? "" : "Rev " + tb.revision, tb.date, tb.drawnBy]
                         .filter { !$0.isEmpty }.joined(separator: "  ·  ")
-                    ctx.draw(Text(verbatim: lower).font(.system(size: size)).foregroundColor(Theme.valueLabel),
+                    ctx.draw(Text(verbatim: lower).font(.system(size: size)).foregroundColor(pal.value.color),
                              at: CGPoint(x: rect.minX + 6, y: rect.midY + 4), anchor: .topLeading)
                 }
             }
@@ -919,10 +923,10 @@ struct SchematicCanvas: View {
                 let width = CGFloat(text.count) * 6.2 + 14
                 let rect = CGRect(x: top.x - width / 2, y: top.y - 22, width: width, height: 15)
                 ctx.fill(Path(roundedRect: rect, cornerRadius: 7.5),
-                         with: .color(closed ? Theme.liveOn.opacity(0.9) : Theme.deepBlue.opacity(0.92)))
-                ctx.stroke(Path(roundedRect: rect, cornerRadius: 7.5), with: .color(closed ? Theme.liveOn : Theme.textMuted), lineWidth: 1)
+                         with: .color(closed ? pal.liveOn.color.opacity(0.9) : pal.overlayFill.color.opacity(0.92)))
+                ctx.stroke(Path(roundedRect: rect, cornerRadius: 7.5), with: .color(closed ? pal.liveOn.color : pal.overlayMuted.color), lineWidth: 1)
                 ctx.draw(Text(text).font(.system(size: 9, weight: .bold, design: .rounded))
-                            .foregroundColor(closed ? Theme.deepBlue : Theme.textSecondary), at: CGPoint(x: rect.midX, y: rect.midY))
+                            .foregroundColor(closed ? pal.overlayOnText.color : pal.overlayText.color), at: CGPoint(x: rect.midX, y: rect.midY))
             }
         }
 
@@ -945,10 +949,10 @@ struct SchematicCanvas: View {
                 let text = EngineeringFormat.string(v, unit: "V", digits: 3)
                 let width = CGFloat(text.count) * 6.4 + 14
                 let rect = CGRect(x: s.x - width / 2, y: s.y - 20, width: width, height: 15)
-                ctx.fill(Path(roundedRect: rect, cornerRadius: 7.5), with: .color(Theme.deepBlue.opacity(0.92)))
-                ctx.stroke(Path(roundedRect: rect, cornerRadius: 7.5), with: .color(Theme.probe), lineWidth: 1)
+                ctx.fill(Path(roundedRect: rect, cornerRadius: 7.5), with: .color(pal.overlayFill.color.opacity(0.92)))
+                ctx.stroke(Path(roundedRect: rect, cornerRadius: 7.5), with: .color(pal.probe.color), lineWidth: 1)
                 ctx.draw(Text(text).font(.system(size: 9.5, weight: .semibold, design: .monospaced))
-                            .foregroundColor(Theme.probe), at: CGPoint(x: rect.midX, y: rect.midY))
+                            .foregroundColor(pal.probe.color), at: CGPoint(x: rect.midX, y: rect.midY))
             }
         }
 
@@ -958,7 +962,7 @@ struct SchematicCanvas: View {
             let b = endPoint(wireEnd(at: viewport.toWorld(h))) ?? viewport.toWorld(h)
             var path = Path()
             path.addLines(Self.wirePath(a, b))
-            ctx.stroke(path.applying(screen), with: .color(Theme.skyBlue),
+            ctx.stroke(path.applying(screen), with: .color(pal.preview.color),
                        style: StrokeStyle(lineWidth: 1.6, dash: [6, 4]))
         }
 
@@ -969,7 +973,7 @@ struct SchematicCanvas: View {
         if let shapes = ghost, let h = hover {
             let world = SchematicAutoLayout.snap(viewport.toWorld(h))
             let t = SchematicSymbols.transform(position: world, rotation: placementRotation).concatenating(screen)
-            ctx.stroke(shapes.stroke.applying(t), with: .color(Theme.skyBlue.opacity(0.6)),
+            ctx.stroke(shapes.stroke.applying(t), with: .color(pal.preview.color.opacity(0.6)),
                        style: StrokeStyle(lineWidth: 1.4, dash: [4, 3]))
         }
 
@@ -978,17 +982,17 @@ struct SchematicCanvas: View {
             let world = viewport.toWorld(h)
             if let p = pin(at: world, includeJunctions: wiringJunctions)?.1 {
                 let s = p.applying(screen)
-                ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 7, y: s.y - 7, width: 14, height: 14)), with: .color(Theme.skyBlue), lineWidth: 1.5)
+                ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 7, y: s.y - 7, width: 14, height: 14)), with: .color(pal.preview.color), lineWidth: 1.5)
             } else if wiringJunctions || wireFrom != nil, let hit = wireHit(at: world) {
                 let s = hit.point.applying(screen)
-                ctx.fill(Path(ellipseIn: CGRect(x: s.x - 4, y: s.y - 4, width: 8, height: 8)), with: .color(Theme.skyBlue))
-                ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 8, y: s.y - 8, width: 16, height: 16)), with: .color(Theme.skyBlue), lineWidth: 1.2)
+                ctx.fill(Path(ellipseIn: CGRect(x: s.x - 4, y: s.y - 4, width: 8, height: 8)), with: .color(pal.preview.color))
+                ctx.stroke(Path(ellipseIn: CGRect(x: s.x - 8, y: s.y - 8, width: 16, height: 16)), with: .color(pal.preview.color), lineWidth: 1.2)
             }
         }
 
         if let m = marquee {
-            ctx.fill(Path(m), with: .color(Theme.blue.opacity(0.12)))
-            ctx.stroke(Path(m), with: .color(Theme.skyBlue), style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
+            ctx.fill(Path(m), with: .color(pal.selectionHalo.color.opacity(0.12)))
+            ctx.stroke(Path(m), with: .color(pal.preview.color), style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
         }
 
         if zoomArmed {
@@ -996,7 +1000,7 @@ struct SchematicCanvas: View {
         }
         if let h = hover {
             let w = viewport.toWorld(h)
-            CanvasOverlays.readout(String(format: "X %.0f  Y %.0f", w.x, w.y), in: &ctx, size: size)
+            CanvasOverlays.readout(String(format: "X %.0f  Y %.0f", w.x, w.y), in: &ctx, size: size, colour: pal.readout.color)
         }
     }
 
@@ -1022,15 +1026,22 @@ struct SchematicCanvas: View {
                                   CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)])
             }
             outline.closeSubpath()
-            ctx.fill(outline.applying(screen), with: .color(Theme.harness.opacity(0.08)))
-            ctx.stroke(outline.applying(screen), with: .color(Theme.harness.opacity(0.8)), lineWidth: 1.4)
+            ctx.fill(outline.applying(screen), with: .color(style.palette.harness.color.opacity(0.08)))
+            ctx.stroke(outline.applying(screen), with: .color(style.palette.harness.color.opacity(0.8)), lineWidth: 1.4)
         }
     }
 
     private func drawGrid(_ ctx: inout GraphicsContext, size: CGSize) {
-        // Pitch adapts to the zoom (10, 50, 100, 500 … units) so dots never get denser than 8 points.
+        // Pitch adapts to the zoom (10, 50, 100, 500 … units) so dots and lines never get denser than 8 points.
         let minor = viewport.gridPitch(base: 10, minimumPoints: 8)
-        let major = minor * 10
+        switch style.grid {
+        case .none: return
+        case .lines: drawGridLines(&ctx, size: size, minor: minor, major: minor * CGFloat(style.majorEvery))
+        case .dots: drawGridDots(&ctx, size: size, minor: minor, major: minor * 10)
+        }
+    }
+
+    private func drawGridDots(_ ctx: inout GraphicsContext, size: CGSize, minor: CGFloat, major: CGFloat) {
         let world = viewport.visibleWorldRect(in: size)
         var dots = Path()
         var majors = Path()
@@ -1049,7 +1060,32 @@ struct SchematicCanvas: View {
             }
             x += minor
         }
-        ctx.fill(dots, with: .color(Theme.gridDot))
-        ctx.fill(majors, with: .color(Theme.darkBlue))
+        ctx.fill(dots, with: .color(style.palette.gridMinor.color))
+        ctx.fill(majors, with: .color(style.palette.gridMajor.color))
+    }
+
+    /// Line grid: thin minor lines, a stronger line every `style.majorEvery` minor lines.
+    private func drawGridLines(_ ctx: inout GraphicsContext, size: CGSize, minor: CGFloat, major: CGFloat) {
+        let world = viewport.visibleWorldRect(in: size)
+        var lines = Path()
+        var majors = Path()
+        var x = (world.minX / minor).rounded(.down) * minor
+        while x <= world.maxX {
+            let sx = viewport.toScreen(CGPoint(x: x, y: 0)).x
+            let isMajor = abs(x.remainder(dividingBy: major)) < minor / 2
+            let a = CGPoint(x: sx, y: 0), b = CGPoint(x: sx, y: size.height)
+            if isMajor { majors.move(to: a); majors.addLine(to: b) } else { lines.move(to: a); lines.addLine(to: b) }
+            x += minor
+        }
+        var y = (world.minY / minor).rounded(.down) * minor
+        while y <= world.maxY {
+            let sy = viewport.toScreen(CGPoint(x: 0, y: y)).y
+            let isMajor = abs(y.remainder(dividingBy: major)) < minor / 2
+            let a = CGPoint(x: 0, y: sy), b = CGPoint(x: size.width, y: sy)
+            if isMajor { majors.move(to: a); majors.addLine(to: b) } else { lines.move(to: a); lines.addLine(to: b) }
+            y += minor
+        }
+        ctx.stroke(lines, with: .color(style.palette.gridMinor.color), lineWidth: 0.5)
+        ctx.stroke(majors, with: .color(style.palette.gridMajor.color), lineWidth: 1)
     }
 }

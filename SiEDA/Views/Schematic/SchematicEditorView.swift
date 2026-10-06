@@ -45,6 +45,15 @@ struct SchematicEditorView: View {
     @State private var updatingPCB = false
     /// Arrange by the symbols' outlines (edges line up) rather than their reference points.
     @AppStorage("schematic.alignByOutline") private var alignByOutline = true
+    // Schematic Canvas preferences: colour scheme, custom theme and grid.
+    @AppStorage(SchematicColorScheme.storageKey) private var colourScheme = SchematicColorScheme.defaultScheme.rawValue
+    @AppStorage(SchematicCustomTheme.storageKey) private var customTheme = ""
+    @AppStorage(SchematicGridStyle.storageKey) private var gridStyle = SchematicGridStyle.dots.rawValue
+    @AppStorage(SchematicGridStyle.majorStorageKey) private var gridMajorEvery = SchematicGridStyle.defaultMajorEvery
+
+    private var canvasStyle: SchematicCanvasStyle {
+        SchematicCanvasStyle.from(scheme: colourScheme, customJSON: customTheme, grid: gridStyle, majorEvery: gridMajorEvery)
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -161,6 +170,7 @@ struct SchematicEditorView: View {
                         .help("Every ERC message of every sheet; click one to go there")
                     Button { store.exportSchematicPDF() } label: { Label("PDF", systemImage: "doc.richtext") }
                         .help("PDF of every sheet with bookmarks, frames and title blocks")
+                    appearanceMenu
                     Spacer()
                     if !store.selection.isEmpty {
                         Text("\(store.selection.count) selected").foregroundStyle(Theme.skyBlue)
@@ -177,6 +187,7 @@ struct SchematicEditorView: View {
                 ZStack(alignment: .bottomLeading) {
                     SchematicCanvas(tool: $tool, viewport: $viewport, canvasSize: $canvasSize, wireStart: $wireStart,
                                     placementTool: placementTool, live: store.live)
+                        .environment(\.schematicStyle, canvasStyle)
                     if store.showNavigator, !store.sheetSnapshot.components.isEmpty {
                         navigator
                             .canvasScrollShield()
@@ -258,9 +269,22 @@ struct SchematicEditorView: View {
             Text("Copies of the clipboard, each one step further (schematic units, 10 = one grid). Parts get the next free designators; net label numbers count up by the increment (D0 → D1 …).")
         }
         .sheet(isPresented: $store.showFind) { SchematicFindPanel().environmentObject(store) }
+        .sheet(isPresented: $store.showSchematicColours) { SchematicThemeEditor() }
         .background(DeleteKeyMonitor { store.deleteSelection() } isActive: {
             store.selectedWire != nil || !store.selection.isEmpty
         })
+    }
+
+    /// Colour scheme and grid of the canvas: a compact menu, so the options bar keeps its width.
+    private var appearanceMenu: some View {
+        Menu {
+            SchematicAppearanceMenu(onCustomise: { store.showSchematicColours = true })
+        } label: {
+            Image(systemName: "paintpalette")
+        }
+        .fixedSize()
+        .help("Colour scheme and grid of the schematic canvas")
+        .accessibilityLabel("Colour Scheme")
     }
 
     private func arm(_ placement: SchematicTool) {
