@@ -5181,6 +5181,22 @@ LengthTuneResult tuneTrackLengthAdvanced(PcbLayout& pcb, const Schematic& sch, s
         const double L = trackLength(t);
         const Vec2 u = unit(t.b - t.a);
         double s0 = margin, s1 = L - margin;
+        // The pattern stays off the net's own pads at the track's ends: their clearance plus a track width beyond
+        // their far edge (a meander pushed against an end by the press point or a span would otherwise start inside
+        // the pad's clearance, and no smaller height can fix that).
+        for (const auto& pd : base.pads) {
+            if (pd.net != t.net || !pd.onLayer(t.layer)) continue;
+            const bool atA = padDistance(pd, t.a) <= 0, atB = padDistance(pd, t.b) <= 0;
+            if (!atA && !atB) continue;
+            const Rect bb = pd.bounds();
+            double lo = std::numeric_limits<double>::max(), hi = -lo;
+            for (Vec2 c : {Vec2{bb.x0, bb.y0}, Vec2{bb.x1, bb.y0}, Vec2{bb.x1, bb.y1}, Vec2{bb.x0, bb.y1}}) {
+                lo = std::min(lo, (c - t.a).dot(u));
+                hi = std::max(hi, (c - t.a).dot(u));
+            }
+            if (atA) s0 = std::max(s0, hi + clr + wd);
+            if (atB) s1 = std::min(s1, lo - clr - wd);
+        }
         if (opt.hasSpan && ci == ti) {
             const double p0 = (opt.spanFrom - t.a).dot(u), p1 = (opt.spanTo - t.a).dot(u);
             s0 = std::max(s0, std::min(p0, p1));

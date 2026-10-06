@@ -6303,7 +6303,9 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertTrue(engine.routerCommit().ok)
         let snapshot = try XCTUnwrap(engine.snapshot())
         let arcs = snapshot.tracks.filter(\.isArc)
-        XCTAssertEqual(arcs.count, 2)
+        // One corner: the point fixed at (20, 20) lies on the straight start, so the route is straight, then one 45°
+        // turn up to the pad — one arc.
+        XCTAssertEqual(arcs.count, 1)
         for arc in arcs {
             // The mid point lies on the arc; the drawn centre line starts and ends exactly at the track's ends.
             let mid = CGPoint(x: try XCTUnwrap(arc.mx), y: try XCTUnwrap(arc.my))
