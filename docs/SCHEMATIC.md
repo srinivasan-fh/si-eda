@@ -618,3 +618,10 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
 - Update PCB places new parts with the automatic placer (not at a chosen spot). The board reads parts and nets from
   the schematic live (one design), so removed parts, new designators, values and footprints are already on it:
   executing those changes records them (and removes routing that no longer fits) rather than moving copper.
+
+## Device icons
+
+The device palette, the component list and the inspector show each device by its real schematic symbol (a resistor
+is its zigzag, a capacitor two plates, ground the ground bars), drawn from the same paths as the canvas
+(`SchematicSymbols.shapes`) by `SiEDA/Views/Schematic/ComponentSymbolIcon.swift`. The icons are template images, so
+they follow the surrounding colour; a symbol change on the canvas changes its icon too.

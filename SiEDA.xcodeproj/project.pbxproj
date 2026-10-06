@@ -106,6 +106,7 @@
 		96050B0A6DE1C7A3144FD467 = {isa = PBXBuildFile; fileRef = 8D23FAC4C1E972362B3DB3E7; };
 		976C2E17360605E19E2949BC = {isa = PBXBuildFile; fileRef = F459489B353E161C42FB7B2D; };
 		998FB69AF8575AC8CC2D0D22 = {isa = PBXBuildFile; fileRef = 2D0D08EA04C82C4F8F255643; };
+		9BCA7E409A5C888AD4015152 = {isa = PBXBuildFile; fileRef = EBD63F285616B480506CE487; };
 		9BD1EFC37CFEB2FCF1B54EE8 = {isa = PBXBuildFile; fileRef = D3E15B9053DA257C9A5751E7; };
 		9D1071AAC3C84E5B9F9D6B39 = {isa = PBXBuildFile; fileRef = ADD9C234BD8825A5E6022F7A; };
 		9D123CFF6797C354E55BECE2 = {isa = PBXBuildFile; fileRef = B7A272C317609DD8A2D79E17; };
@@ -421,6 +422,7 @@
 		E75D7DE7D08DFA800FFAA790 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Fabrication.cpp; sourceTree = "<group>"; };
 		E998F02C43AE3E6BFBE9A648 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fil; path = fil.lproj/Localizable.strings; sourceTree = "<group>"; };
 		E9CB94A2D6B70CBD9008B104 = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Memory.hpp; sourceTree = "<group>"; };
+		EBD63F285616B480506CE487 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentSymbolIcon.swift; sourceTree = "<group>"; };
 		EBECAAA7807D81B9EA1B4E2D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiEDAApp.swift; sourceTree = "<group>"; };
 		ECA4121A999FDD6B5C06560F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchematicPalette.swift; sourceTree = "<group>"; };
 		ED31CDCBDEE7E1F670F7977E = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Reliability.cpp; sourceTree = "<group>"; };
@@ -824,6 +826,7 @@
 		DFECAEB8DA9B48DF9F835721 = {
 			isa = PBXGroup;
 			children = (
+				EBD63F285616B480506CE487,
 				0ED15CEF8193940CDDA7EDC4,
 				DB5FB3116B534225DB0915D6,
 				301DAF4F2FC8D0083DFB1A0F,
@@ -1091,6 +1094,7 @@
 				28E9F38E814294CB5C0F20A5,
 				EBA3820C549C57E1C0D6A5A9,
 				22409A8BB039D0E0CC2751CF,
+				9BCA7E409A5C888AD4015152,
 				2A26F5F10710C3605BCC92E7,
 				AB629F7484D25C40369EBA0F,
 				6821CCCDECA1EE3F41A956C7,
