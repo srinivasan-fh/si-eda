@@ -6303,7 +6303,9 @@ final class ArcRoutingTests: XCTestCase {
         XCTAssertTrue(engine.routerCommit().ok)
         let snapshot = try XCTUnwrap(engine.snapshot())
         let arcs = snapshot.tracks.filter(\.isArc)
-        XCTAssertEqual(arcs.count, 2)
+        // One corner: the point fixed at (20, 20) lies on the straight start, so the route is straight, then one 45°
+        // turn up to the pad — one arc.
+        XCTAssertEqual(arcs.count, 1)
         for arc in arcs {
             // The mid point lies on the arc; the drawn centre line starts and ends exactly at the track's ends.
             let mid = CGPoint(x: try XCTUnwrap(arc.mx), y: try XCTUnwrap(arc.my))
@@ -6454,10 +6456,14 @@ final class DragAndMultiRouteTests: XCTestCase {
         let store = store(withRoute: true)
         // The route has a corner where two tracks meet away from the pads: drag it.
         let tracks = store.snapshot.tracks
-        let corner = try XCTUnwrap(tracks.flatMap { [$0.start, $0.end] }.first { p in
-            tracks.filter { $0.start == p || $0.end == p }.count == 2 && hypot(p.x - 10.95, p.y - 10) > 0.5
-                && hypot(p.x - 29.05, p.y - 20) > 0.5
-        })
+        let ends: [CGPoint] = tracks.flatMap { [$0.start, $0.end] }
+        func isInnerCorner(_ p: CGPoint) -> Bool {
+            let joined = tracks.filter { $0.start == p || $0.end == p }.count
+            let awayFromA = hypot(p.x - 10.95, p.y - 10) > 0.5
+            let awayFromB = hypot(p.x - 29.05, p.y - 20) > 0.5
+            return joined == 2 && awayFromA && awayFromB
+        }
+        let corner = try XCTUnwrap(ends.first(where: isInnerCorner))
         let track = try XCTUnwrap(tracks.first { $0.start == corner || $0.end == corner })
         XCTAssertTrue(store.beginCornerDrag(track.id, at: corner))
         XCTAssertEqual(store.routePreview?.kind, "corner")

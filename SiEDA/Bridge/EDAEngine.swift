@@ -1580,7 +1580,6 @@ final class LiveSession: @unchecked Sendable {
 // MARK: - Schematic capture: editing productivity, back-annotation, templates and PDF
 
 extension EDAEngine {
-    private static func idList(_ ids: [Int]) -> String { "[" + ids.map(String.init).joined(separator: ",") + "]" }
 
     /// Aligns or distributes components: "left", "right", "top", "bottom", "centerX", "centerY", "distributeX",
     /// "distributeY". The number moved (0 when nothing moved).

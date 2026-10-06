@@ -16012,6 +16012,28 @@ TEST(router_keeps_net_class_clearance) {
     CHECK(gap >= classGap - 1e-6);
 }
 
+TEST(length_tuning_near_a_pad_keeps_off_it) {
+    // Pressed 4 mm from the start pad, the meanders slide away from the pad instead of failing in its clearance.
+    Project p;
+    auto& s = p.schematic;
+    const int r1 = placeR(p, {10, 20}), r2 = placeR(p, {40, 20});
+    wire(s, r1, "2", r2, "1");
+    p.schematicChanged();
+    const int net = s.netOf({r1, 1});
+    addPath(p.pcb, net, 0, 0.25, {padAt(p, r1, 1), padAt(p, r2, 0)});
+    const double before = routedNetLength(p.pcb, net);
+    LengthTuneOptions o;
+    o.target = before + 2;
+    o.style = MeanderStyle::Sawtooth;
+    o.corner = MeanderCorner::Round;
+    o.hasNear = true;
+    o.near = {15, 20};
+    const LengthTuneResult r = tuneTrackLength(p.pcb, s, p.pcb.tracks[0].id, o);
+    CHECK(r.ok && r.applied);
+    CHECK_NEAR(routedNetLength(p.pcb, net), before + 2, 0.02);
+    CHECK(routingProblems(p) == 0);
+}
+
 // ======================================================================= autorouter: coupled differential pairs
 
 namespace {
