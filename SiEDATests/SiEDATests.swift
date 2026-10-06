@@ -6732,3 +6732,64 @@ final class PcbSwapTests: XCTestCase {
         XCTAssertEqual(store.snapshot.component(r)?.ref, "R1")
     }
 }
+
+/// Autorouter strategies (docs/ROUTING.md): presets, options saved with the project, keep-outs, scoped routes and the
+/// routing report through the bridge.
+@MainActor
+final class AutorouteStrategyTests: XCTestCase {
+    private func twoNetStore() -> (DesignStore, [Int]) {
+        let store = DesignStore()
+        let engine = store.engine
+        var ids: [Int] = []
+        for k in 0..<4 {
+            ids.append(engine.addComponent(.resistor, value: "1k", at: CGPoint(x: 60 * (k % 2), y: 60 * (k / 2))))
+        }
+        _ = engine.connect(PinAddress(component: ids[0], pin: 1), PinAddress(component: ids[1], pin: 0))
+        _ = engine.connect(PinAddress(component: ids[2], pin: 1), PinAddress(component: ids[3], pin: 0))
+        engine.setBoard(width: 60, height: 40, trackWidth: 0, clearance: 0)
+        for (k, id) in ids.enumerated() {
+            _ = engine.moveFootprint(id, to: CGPoint(x: 10 + 40.0 * Double(k % 2), y: 12 + 16.0 * Double(k / 2)))
+        }
+        store.refresh()
+        return (store, ids)
+    }
+
+    func testPresetsOptionsAndReport() async throws {
+        let presets = EDAEngine.autoroutePresets()
+        XCTAssertEqual(presets.count, 7)
+        XCTAssertTrue(presets.contains { $0.name == "quality" && $0.options.minimizeVias && $0.options.coupledPairs })
+        let (store, _) = twoNetStore()
+        store.applyRoutingPreset("quality")
+        XCTAssertEqual(store.autorouteOptions.preset, "quality")
+        XCTAssertTrue(store.autorouteOptions.gloss)
+        store.toggleRoutingOption(\.teardrops)
+        XCTAssertTrue(store.autorouteOptions.teardrops)
+        store.undo()
+        XCTAssertFalse(store.autorouteOptions.teardrops)
+        // Keep-outs round-trip through the bridge and the saved project.
+        XCTAssertEqual(store.engine.setKeepouts([RouteKeepout(name: "K", x0: 26, y0: 2, x1: 34, y1: 20, layer: 0, tracks: true, vias: true)]), 1)
+        XCTAssertEqual(store.engine.keepouts().first?.name, "K")
+        XCTAssertTrue(store.engine.saveJSON().contains("\"keepouts\""))
+        await store.autoRoute()
+        let report = store.routeReport
+        XCTAssertEqual(report.metrics.unrouted, 0)
+        XCTAssertGreaterThan(report.metrics.trackLength, 0)
+        XCTAssertEqual(report.metrics.layerLength.count, store.snapshot.board.layerCount)
+    }
+
+    func testRouteSelectedNetsKeepsTheOtherNet() async throws {
+        let (store, ids) = twoNetStore()
+        await store.autoRoute()
+        let otherNet = try XCTUnwrap(store.snapshot.pads.first { $0.component == ids[2] && $0.pin == 1 }?.net)
+        let other = store.snapshot.tracks.filter { $0.net == otherNet }
+        XCTAssertFalse(other.isEmpty)
+        store.selection = [ids[0]]
+        XCTAssertFalse(store.selectedRoutingNets.isEmpty)
+        let before = store.autorouteOptions
+        await store.routeSelectedNets()
+        XCTAssertEqual(store.autorouteOptions, before)  // the scope applied to that route only
+        let after = store.snapshot.tracks.filter { $0.net == otherNet }
+        XCTAssertEqual(other.map(\.ax).sorted(), after.map(\.ax).sorted())
+        XCTAssertTrue(store.snapshot.ratsnest.isEmpty)
+    }
+}

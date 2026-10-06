@@ -47,6 +47,7 @@ through series parts, pair / bus groups; DRC_LENGTH), fanout of selected parts; 
 | F17 | Schematic productivity: find / replace across sheets, net navigator, hierarchy cross-probing, title block | ✅ |
 | F19 | Schematic capture, pro: nested repeated sheets (repeat inside repeat, path designators) and per-channel values; graphical unit (gate) editor with shared / power pins, gate and pin swap; AI refinement keeps hierarchy, repeated sheets, buses, multi-unit parts, harnesses and directives; signal harnesses with harness ERC; schematic directives (net classes, differential pairs, parameter sets) as the source of the PCB rules; align / distribute, smart paste and paste array, cross-probe both ways, back-annotation ECO with review, Messages panel, ERC error reporting, sheet templates and PDF of all sheets with bookmarks (docs/SCHEMATIC.md) | ✅ |
 | F20 | Schematic ↔ board, 10/10 pass: Update PCB forward ECO (components, nets, pours, rules) with review and execute; PCB pin / gate swap with ratsnest gain and automatic swap, back-annotated; free-form symbol graphics (lines, arcs, rectangles, polygons, text, fill) in the Symbol Editor, on the canvas and in the PDF; drawn sheet-symbol sizes and harness connector bodies; helper sheets inside repeated blocks; per-channel SPICE model, firmware and DNP; copy / paste with buses, directives, sourcing and variants; align / distribute by symbol outline; fixed sheet frames; PDF with real symbols and Unicode text (embedded TrueType subset); interactive router keeps net-class clearances (docs/SCHEMATIC.md, docs/SYMBOL_EDITOR.md) | ✅ |
+| F21 | Autorouting, pro: coupled differential-pair autorouting (pair gap from the stack-up, symmetric fan-out, coupled vias), length-aware routing to length rules and match groups (meanders by the interactive tuner, achieved vs target reported), quality passes (via minimisation, gloss, true-arc corners, teardrops), routing keep-outs, net-class clearances kept both ways, per-class layer restrictions, routing strategies (default, fast, high quality, fan-out only, selected nets, net class, area) with locked copper protected, routing report sheet; multi-resolution corridor router: the 923-part board in under a minute and under 500 MB (docs/ROUTING.md) | ✅ |
 | F18 | Part library: KiCad, Eagle and Altium (.SchLib / .PcbLib) import with a footprint choice per symbol; VRML / STL / OBJ 3D models per part (3D view, STL / OBJ export); live distributor search (Octopart / Nexar, DigiKey, Mouser) with stock, price breaks and lifecycle, Place Part with sourcing; BOM live pricing and cost per build quantity (docs/LIBRARY_IMPORT.md, docs/SUPPLIERS.md) | ✅ |
 
 ## Non-functional requirements
@@ -54,9 +55,9 @@ through series parts, pair / bus groups; DRC_LENGTH), fanout of selected parts; 
   it is presented.
 - **Performance.** Interactive editing of designs with 1000+ parts (O(1) part lookup, culled and batched
   drawing). Autorouting typical small boards takes under one second; a 400-part, 8-layer board with BGAs routes in
-  about 20 s, and a 923-part, 8-layer board with an FPGA and four BGAs routes completely in under two minutes in
-  under 1 GB (corridor router: global routing, parallel nets, targeted rip-up), with progress and Stop in the app
-  (benchmark and limits in [ROUTING.md](ROUTING.md)).
+  about 10 s, and a 923-part, 8-layer board with an FPGA and four BGAs routes completely in under a minute in
+  under 500 MB (corridor router: global routing, a multi-resolution grid, parallel nets, targeted rip-up), with
+  progress and Stop in the app (benchmark and limits in [ROUTING.md](ROUTING.md)).
 - **Privacy.** Keys live in the Keychain. Only the prompt and design context are sent to the selected provider.
 - **Portability.** The core is dependency-free C++17 and is tested on Linux and macOS in CI.
 

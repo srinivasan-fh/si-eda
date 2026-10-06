@@ -54,6 +54,14 @@
   routing is unchanged; head searches may run on several threads but must give the sequential result), C API additions in `Core/src/sieda_c_routing.cpp`; app in
   `SiEDA/Views/PCB/`, `SiEDA/App/DesignStore+Routing.swift`, `SiEDA/Bridge/EDAEngine+Routing.swift`; guide in
   `docs/INTERACTIVE_ROUTING.md`.
+- Autorouter: `Core/src/Pcb.cpp` (`PcbLayout::routeAll`, `runPass`; classic router below 2 M grid nodes — keep its
+  copper and DRC bit-identical, check with the reference designs), corridor router + `GlobalRouter.cpp`, coupled pairs
+  in `Core/src/CoupledPairRouter.inc`, post-route passes (length-aware tuning, gloss, arcs, teardrops, metrics) in
+  `Core/src/RouteQuality.cpp`; strategy options `AutorouteOptions` (`BoardSettings::autorouter`, every default = the old
+  behaviour; JSON in `Core/src/Autoroute.cpp`), keep-outs, C API in `Core/src/sieda_c_autoroute.cpp`; app
+  `SiEDA/Views/PCB/RoutingStrategy*.swift`, `RoutingReportSheet.swift`, `SiEDA/App/DesignStore+Autoroute.swift`; guide in
+  `docs/ROUTING.md`. `SIEDA_ROUTE_PROFILE=1` prints phase timings; the corridor router must give the same copper for
+  any thread count.
 - Library parts live in `Core/src/StandardParts.cpp`; KiCad-derived pinouts are generated into
   `Core/src/StandardCatalog.inc` by `tools/fetch_catalog_parts.py` — don't edit that file by hand. More parts from
   whole KiCad libraries: `--discover` freezes `tools/catalog_extra_parts.tsv`, `--extra` writes

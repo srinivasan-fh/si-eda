@@ -181,6 +181,7 @@ struct PCBEditorView: View {
             VStack(spacing: 0) {
                 OptionsBar {
                     autoRouteButton
+                    RoutingStrategyMenu()
                     if tuneTool {
                         Divider().frame(height: 18)
                         tuneControls
