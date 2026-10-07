@@ -1463,6 +1463,9 @@ struct RouteStats: Decodable, Equatable {
     var failedNets: [String] = []
     /// The user stopped the route (`sieda_pcb_autoroute_progress`): the board was left as it was.
     var cancelled: Bool?
+    /// Pin / gate swaps made before routing (only when the strategy swaps).
+    var pinSwaps: Int?
+    var gateSwaps: Int?
 }
 
 /// The seven robot design segments (`sieda_robot_segments_json`) or the six automotive ECU segments

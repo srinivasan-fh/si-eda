@@ -1148,3 +1148,13 @@
 "Colour Symbols by Device" = "デバイスごとにシンボルを色分け";
 "Tune Lengths While Routing" = "配線中に長さを調整";
 "While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "バスや等長ネットの配線中に各メンバーの長さを目標と比較して表示し、配線完了時に短いメンバーへミアンダを追加します";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "ピンとゲートを入れ替え";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "配線前に、ラッツネストが短くなる箇所で等価なピンとゲートを入れ替えます（回路図にバックアノテーション）";
+"Pin & Gate Swaps" = "ピン／ゲートの入れ替え";
+"Pins swapped" = "入れ替えたピン";
+"Gates swapped" = "入れ替えたゲート";
+"Ratsnest before" = "ラッツネスト（前）";
+"Ratsnest after" = "ラッツネスト（後）";
+"Crossings" = "交差";

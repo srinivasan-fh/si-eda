@@ -1148,3 +1148,13 @@
 "Colour Symbols by Device" = "Warnakan Simbol mengikut Peranti";
 "Tune Lengths While Routing" = "Tala Panjang Semasa Menghala";
 "While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "Semasa menghala bas atau net sepadan panjang, tunjukkan panjang setiap ahli berbanding sasarannya; menamatkan laluan menambah liku pada ahli yang pendek";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "Tukar Pin & Get";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "Sebelum penghalaan, tukar pin dan get setara di mana ratsnest menjadi lebih pendek (dianotasi balik ke skematik)";
+"Pin & Gate Swaps" = "Pertukaran Pin & Get";
+"Pins swapped" = "Pin ditukar";
+"Gates swapped" = "Get ditukar";
+"Ratsnest before" = "Ratsnest sebelum";
+"Ratsnest after" = "Ratsnest selepas";
+"Crossings" = "Persilangan";

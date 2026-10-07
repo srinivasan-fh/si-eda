@@ -1148,3 +1148,13 @@
 "Colour Symbols by Device" = "Tô màu ký hiệu theo linh kiện";
 "Tune Lengths While Routing" = "Điều chỉnh độ dài khi đi dây";
 "While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "Khi đi dây một bus hoặc một net khớp độ dài, hiển thị độ dài của từng thành viên so với mục tiêu; khi hoàn tất tuyến, các thành viên ngắn được thêm đường uốn khúc";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "Hoán đổi chân & cổng";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "Trước khi đi dây, hoán đổi các chân và cổng tương đương ở nơi đường nối tắt ngắn hơn (chú thích ngược về sơ đồ)";
+"Pin & Gate Swaps" = "Các lần hoán đổi chân & cổng";
+"Pins swapped" = "Chân đã hoán đổi";
+"Gates swapped" = "Cổng đã hoán đổi";
+"Ratsnest before" = "Đường nối trước";
+"Ratsnest after" = "Đường nối sau";
+"Crossings" = "Giao cắt";

@@ -1148,3 +1148,13 @@
 "Colour Symbols by Device" = "장치별 심볼 색상";
 "Tune Lengths While Routing" = "배선 중 길이 조정";
 "While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "버스나 등장 네트를 배선하는 동안 각 멤버의 길이를 목표와 비교해 표시하고, 배선을 마치면 짧은 멤버에 미앤더를 추가합니다";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "핀·게이트 교체";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "배선 전에 래츠네스트가 짧아지는 곳에서 등가 핀과 게이트를 교체합니다(회로도에 역주석)";
+"Pin & Gate Swaps" = "핀 및 게이트 교체 결과";
+"Pins swapped" = "교체된 핀";
+"Gates swapped" = "교체된 게이트";
+"Ratsnest before" = "래츠네스트 (이전)";
+"Ratsnest after" = "래츠네스트 (이후)";
+"Crossings" = "교차";

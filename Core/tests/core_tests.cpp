@@ -16563,6 +16563,231 @@ TEST(autoroute_fanout_only_and_fast) {
     for (const auto& e : routeDrcErrors(p)) std::printf("    %s\n", e.c_str());
 }
 
+// ---- autoroute pin swap
+
+namespace {
+/// Two 74HC00 packages side by side (only gate A of each placed). R1 drives U1's gate A but sits by U2; R2 drives
+/// U2's gate A but sits by U1: swapping the gates (U1A ↔ U2A) shortens both connections.
+struct CrossedGates {
+    Project p;
+    int u1a = -1, u2a = -1, pkg1 = -1, pkg2 = -1, r1 = -1, r2 = -1;
+};
+CrossedGates crossedGatesBoard() {
+    CrossedGates b;
+    const auto part = CustomPartRegistry::instance().registerPart(quadNandSpec());
+    Schematic& s = b.p.schematic;
+    b.p.pcb.settings.width = 60;
+    b.p.pcb.settings.height = 40;
+    b.u1a = s.addCustomUnits(part->id, "74HC00", {0, 0});
+    b.u2a = s.addCustomUnits(part->id, "74HC00", {300, 0});
+    b.pkg1 = s.unitPackage(b.u1a);
+    b.pkg2 = s.unitPackage(b.u2a);
+    CHECK(b.u1a > 0 && b.u2a > 0 && b.pkg1 > 0 && b.pkg2 > 0 && b.pkg1 != b.pkg2);
+    b.r1 = s.addComponent(ComponentKind::Resistor, "1k", {-200, 0});
+    b.r2 = s.addComponent(ComponentKind::Resistor, "1k", {500, 0});
+    CHECK(s.connect({b.r1, 1}, {b.u1a, 0}) >= 0 && s.connect({b.r2, 1}, {b.u2a, 0}) >= 0);
+    b.p.schematicChanged();
+    s.find(b.pkg1)->pcb = PcbPlacement{{15, 20}, 0, false, true};
+    s.find(b.pkg2)->pcb = PcbPlacement{{45, 20}, 0, false, true};
+    s.find(b.r1)->pcb = PcbPlacement{{45, 32}, 0, false, true};
+    s.find(b.r2)->pcb = PcbPlacement{{15, 32}, 0, false, true};
+    b.p.pcbSync = b.p.currentSync();
+    return b;
+}
+
+/// Net of the pad (package, part pin) on the board (-2 when there is no such pad).
+int padNet(const Project& p, int pkg, int pin) {
+    for (const auto& pad : p.pcb.pads(p.schematic))
+        if (pad.componentId == pkg && pad.pinIndex == pin) return pad.net;
+    return -2;
+}
+
+bool sameCopper(const Project& a, const Project& b) {
+    if (a.pcb.tracks.size() != b.pcb.tracks.size() || a.pcb.vias.size() != b.pcb.vias.size()) return false;
+    for (size_t i = 0; i < a.pcb.tracks.size(); ++i) {
+        const Track& x = a.pcb.tracks[i];
+        const Track& y = b.pcb.tracks[i];
+        if (!(x.a == y.a) || !(x.b == y.b) || x.layer != y.layer || x.net != y.net || x.width != y.width || x.arc != y.arc)
+            return false;
+    }
+    for (size_t i = 0; i < a.pcb.vias.size(); ++i)
+        if (!(a.pcb.vias[i].position == b.pcb.vias[i].position) || a.pcb.vias[i].net != b.pcb.vias[i].net) return false;
+    return true;
+}
+}  // namespace
+
+TEST(autoroute_pin_swap_off_routes_as_before) {
+    // Regression guard on the reference amplifier board: with the option off, the project's autoroute is the board's
+    // autoroute, copper for copper; with it on but no swappable part, the copper is the same too.
+    Project ref = amplifierProject();
+    ref.pcb.settings.width = 40;
+    ref.pcb.settings.height = 30;
+    ref.pcb.autoPlace(ref.schematic, true);
+    Project a = ref, b = ref, c = ref;
+    const RouteStats sa = a.pcb.autoRoute(a.schematic);
+    const RouteStats sb = b.autoRoute();
+    c.pcb.settings.autorouter.pinSwap = true;
+    const RouteStats sc = c.autoRoute();
+    CHECK(sa.failed == sb.failed && sa.failed == sc.failed && sa.routed == sb.routed);
+    CHECK(sameCopper(a, b) && sameCopper(a, c));
+    CHECK(!sb.report.metrics.swapRun && sb.report.swaps.empty());
+    CHECK(sc.report.metrics.swapRun && sc.report.metrics.pinSwaps == 0 && sc.report.metrics.gateSwaps == 0);
+    CHECK(sc.report.metrics.ratsnestBefore > 0 && sc.report.metrics.ratsnestAfter == sc.report.metrics.ratsnestBefore);
+    CHECK(sc.report.metrics.crossingsAfter == sc.report.metrics.crossingsBefore);
+    CHECK(!routeReportJson(b.pcb.lastRouteReport).get("metrics").has("pinSwaps"));
+    CHECK(routeReportJson(c.pcb.lastRouteReport).get("metrics").has("ratsnestAfter"));
+    CHECK(AutorouteOptions{}.isDefault() && !c.pcb.settings.autorouter.isDefault());
+}
+
+TEST(autoroute_pin_swap_shortens_ratsnest_and_back_annotates) {
+    // Gate swap between two packages.
+    {
+        CrossedGates off = crossedGatesBoard();
+        CrossedGates on = off;
+        const RouteStats a = off.p.autoRoute();
+        on.p.pcb.settings.autorouter.pinSwap = true;
+        const RouteStats b = on.p.autoRoute();
+        const RouteMetrics& m = b.report.metrics;
+        std::printf("    gates: %d pin / %d gate swaps, ratsnest %.1f -> %.1f mm, crossings %d -> %d, copper %.1f -> %.1f mm\n",
+                    m.pinSwaps, m.gateSwaps, m.ratsnestBefore, m.ratsnestAfter, m.crossingsBefore, m.crossingsAfter,
+                    a.report.metrics.trackLength, m.trackLength);
+        for (const auto& line : b.report.swaps) std::printf("    %s\n", line.c_str());
+        CHECK(m.swapRun && m.gateSwaps >= 1 && m.pinSwaps + m.gateSwaps == static_cast<int>(b.report.swaps.size()));
+        CHECK(m.ratsnestAfter < m.ratsnestBefore - 10 && m.crossingsAfter <= m.crossingsBefore);
+        CHECK(b.failed == 0 && b.failed <= a.failed);
+        CHECK(m.trackLength < a.report.metrics.trackLength);
+        for (const auto& e : routeDrcErrors(on.p)) std::printf("    %s\n", e.c_str());
+        CHECK(routeDrcErrors(on.p).empty());
+        // Back-annotated: the gate R1 drives now sits in U2 (and R2's in U1); schematic and board agree.
+        const Schematic& s = on.p.schematic;
+        CHECK(s.find(on.u1a)->unitOf == on.pkg2 && s.find(on.u2a)->unitOf == on.pkg1);
+        const int n1 = s.netOf({on.r1, 1}), n2 = s.netOf({on.r2, 1});
+        CHECK(n1 >= 0 && n2 >= 0 && n1 == s.netOf({on.u1a, 0}) && n2 == s.netOf({on.u2a, 0}));
+        CHECK(padNet(on.p, on.pkg2, 0) == n1 && padNet(on.p, on.pkg1, 0) == n2);
+        CHECK(on.p.pcbEcoPreview().empty());  // the board is in step with the schematic
+        // The swaps are in the route report and its JSON; the option-off route reports none.
+        const Json j = routeReportJson(on.p.pcb.lastRouteReport);
+        CHECK(j.get("metrics").get("gateSwaps").asInt(-1) == m.gateSwaps && j.get("swaps").size() == b.report.swaps.size());
+        CHECK(j.get("metrics").get("ratsnestBefore").asNumber(0) > j.get("metrics").get("ratsnestAfter").asNumber(0));
+        CHECK(!a.report.metrics.swapRun && !routeReportJson(off.p.pcb.lastRouteReport).has("swaps"));
+    }
+    // Pin swap inside one gate: R1 drives input 1A but sits beyond pad 2, R2 drives 1B but sits beyond pad 1.
+    {
+        const auto part = CustomPartRegistry::instance().registerPart(quadNandSpec());
+        Project p;
+        Schematic& s = p.schematic;
+        const int a = s.addCustomUnits(part->id, "74HC00", {0, 0});
+        const int pkg = s.unitPackage(a);
+        const int r1 = s.addComponent(ComponentKind::Resistor, "1k", {-200, 0});
+        const int r2 = s.addComponent(ComponentKind::Resistor, "1k", {-200, 100});
+        CHECK(s.connect({r1, 1}, {a, 0}) >= 0 && s.connect({r2, 1}, {a, 1}) >= 0);
+        p.schematicChanged();
+        s.find(pkg)->pcb = PcbPlacement{{20, 20}, 0, false, true};
+        const Vec2 pad1 = padAt(p, pkg, 0), pad2 = padAt(p, pkg, 1);
+        const double dir = pad2.y > pad1.y ? 1 : -1;
+        s.find(r1)->pcb = PcbPlacement{{pad2.x - 3, pad2.y + 10 * dir}, 90, false, true};
+        s.find(r2)->pcb = PcbPlacement{{pad1.x - 3, pad1.y - 10 * dir}, 90, false, true};
+        p.pcbSync = p.currentSync();
+        p.pcb.settings.autorouter.pinSwap = true;
+        const RouteStats st = p.autoRoute();
+        const RouteMetrics& m = st.report.metrics;
+        std::printf("    pins: %d pin / %d gate swaps, ratsnest %.1f -> %.1f mm\n", m.pinSwaps, m.gateSwaps, m.ratsnestBefore,
+                    m.ratsnestAfter);
+        CHECK(m.pinSwaps >= 1 && m.gateSwaps == 0 && m.ratsnestAfter < m.ratsnestBefore);
+        CHECK(s.netOf({a, 1}) == s.netOf({r1, 1}) && s.netOf({a, 0}) == s.netOf({r2, 1}));
+        CHECK(padNet(p, pkg, 1) == s.netOf({r1, 1}) && padNet(p, pkg, 0) == s.netOf({r2, 1}));
+        CHECK(st.failed == 0 && routeDrcErrors(p).empty() && p.pcbEcoPreview().empty());
+    }
+}
+
+TEST(autoroute_pin_swap_leaves_locked_parts_and_copper) {
+    // A locked package is never swapped, though the swap would pay.
+    {
+        CrossedGates b = crossedGatesBoard();
+        b.p.pcb.settings.autorouter.pinSwap = true;
+        b.p.schematic.find(b.pkg2)->pcb.locked = true;
+        const int n2 = b.p.schematic.netOf({b.r2, 1});
+        const AutoSwapResult r = b.p.autoSwapForRouting();
+        CHECK(r.gateSwaps == 0);
+        const Schematic& s = b.p.schematic;
+        CHECK(s.find(b.u1a)->unitOf == b.pkg1 && s.find(b.u2a)->unitOf == b.pkg2);
+        CHECK(n2 >= 0 && s.netOf({b.u2a, 0}) == s.netOf({b.r2, 1}) && padNet(b.p, b.pkg2, 0) == s.netOf({b.r2, 1}));
+        const RouteStats st = b.p.autoRoute();
+        CHECK(st.report.metrics.gateSwaps == 0 && st.failed == 0);
+        CHECK(s.find(b.u2a)->unitOf == b.pkg2 && padNet(b.p, b.pkg2, 0) == s.netOf({b.r2, 1}));
+        for (const auto& line : st.report.swaps) CHECK(line.find(s.displayRef(*s.find(b.u2a))) == std::string::npos);
+    }
+    // Locked copper on a net keeps that net on its pins.
+    {
+        CrossedGates b = crossedGatesBoard();
+        b.p.pcb.settings.autorouter.pinSwap = true;
+        Track t;
+        t.net = b.p.schematic.netOf({b.r2, 1});
+        t.layer = 0;
+        t.a = padAt(b.p, b.r2, 1);
+        t.b = {t.a.x, t.a.y - 3};
+        t.locked = true;
+        b.p.pcb.addTrack(t);
+        const AutoSwapResult r = b.p.autoSwapForRouting();
+        CHECK(r.gateSwaps == 0 && b.p.schematic.find(b.u2a)->unitOf == b.pkg2);
+        CHECK(padNet(b.p, b.pkg2, 0) == b.p.schematic.netOf({b.r2, 1}));
+    }
+    // A scoped strategy swaps nothing (nets outside the route keep their pins).
+    {
+        CrossedGates b = crossedGatesBoard();
+        b.p.pcb.settings.autorouter.pinSwap = true;
+        b.p.pcb.settings.autorouter.nets = {"NOPE"};
+        const AutoSwapResult r = b.p.autoSwapForRouting();
+        CHECK(r.pinSwaps + r.gateSwaps == 0 && r.ratsnestAfter == r.ratsnestBefore && r.report.empty());
+    }
+}
+
+TEST(autoroute_pin_swap_is_deterministic) {
+    CrossedGates base = crossedGatesBoard();
+    base.p.pcb.settings.autorouter.pinSwap = true;
+    std::vector<std::string> swaps[2];
+    std::vector<int> nets[2];
+    Project routed[2];
+    for (int k = 0; k < 2; ++k) {
+        routed[k] = base.p;
+        setRoutingThreads(k == 0 ? 1 : 4);
+        const RouteStats st = routed[k].autoRoute();
+        swaps[k] = st.report.swaps;
+        for (int pkg : {base.pkg1, base.pkg2})
+            for (int pin = 0; pin < 14; ++pin) nets[k].push_back(padNet(routed[k], pkg, pin));
+    }
+    setRoutingThreads(0);
+    CHECK(!swaps[0].empty() && swaps[0] == swaps[1] && nets[0] == nets[1]);
+    CHECK(sameCopper(routed[0], routed[1]));
+    // The swap alone, twice from the same board: the same result.
+    Project x = base.p, y = base.p;
+    const AutoSwapResult rx = x.autoSwapForRouting(), ry = y.autoSwapForRouting();
+    CHECK(rx.report == ry.report && rx.pinSwaps == ry.pinSwaps && rx.gateSwaps == ry.gateSwaps);
+    CHECK(rx.ratsnestAfter == ry.ratsnestAfter && rx.crossingsAfter == ry.crossingsAfter);
+}
+
+TEST(autoroute_pin_swap_option_json) {
+    AutorouteOptions o;
+    CHECK(!autorouteOptionsToJson(o).has("pinSwap"));  // the default is not written
+    o.pinSwap = true;
+    const Json j = autorouteOptionsToJson(o);
+    CHECK(j.get("pinSwap").asBool(false) && autorouteOptionsFromJson(j) == o && !(o == AutorouteOptions{}));
+    CHECK(autorouteOptionsFromJson(Json::parse("{\"pinSwap\":true}")).pinSwap);
+    CHECK(!autorouteOptionsFromJson(Json::parse("{\"pinSwap\":false}"), o).pinSwap);
+    CHECK(autorouteOptionsFromJson(Json::parse("{\"gloss\":true}"), o).pinSwap);  // missing keeps the base
+    // Saved with the board only when on; other options save as before.
+    Project p;
+    CHECK(p.toJson().dump().find("pinSwap") == std::string::npos);
+    p.pcb.settings.autorouter.gloss = true;
+    CHECK(p.toJson().dump().find("pinSwap") == std::string::npos);
+    p.pcb.settings.autorouter.pinSwap = true;
+    const std::string saved = p.toJson().dump();
+    CHECK(saved.find("\"pinSwap\":true") != std::string::npos);
+    CHECK(Project::fromJson(Json::parse(saved)).pcb.settings.autorouter == p.pcb.settings.autorouter);
+    // A report without the swap has no swap fields.
+    CHECK(!routeReportJson(RouteReport{}).get("metrics").has("pinSwaps") && !routeReportJson(RouteReport{}).has("swaps"));
+}
+
 extern "C" int sieda_c_api_autoroute_strategy_test(void);
 TEST(c_api_autoroute_strategy) {
     const int rc = sieda_c_api_autoroute_strategy_test();

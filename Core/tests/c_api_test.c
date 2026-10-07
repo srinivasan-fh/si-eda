@@ -1499,6 +1499,24 @@ int sieda_c_api_autoroute_strategy_test(void) {
     if (!saved || !strstr(saved, "\"autorouter\"") || !strstr(saved, "\"keepouts\"")) return 13;
     sieda_string_free(saved);
     if (sieda_pcb_route_report(NULL) != NULL || sieda_pcb_set_keepouts(p, "[]") != 0) return 14;
+    /* Pin / gate swap: off by default (not written), round-trips, and the route reports its metrics. */
+    opts = sieda_pcb_autoroute_options(p);
+    if (!opts || strstr(opts, "pinSwap")) return 15;
+    sieda_string_free(opts);
+    if (sieda_pcb_set_autoroute_options(p, "{\"pinSwap\":true}") != 1) return 16;
+    opts = sieda_pcb_autoroute_options(p);
+    if (!opts || !strstr(opts, "\"pinSwap\":true") || !strstr(opts, "\"minimizeVias\":true")) return 17;
+    sieda_string_free(opts);
+    routed = sieda_pcb_autoroute(p);
+    if (!routed || !strstr(routed, "\"pinSwaps\":0") || !strstr(routed, "\"gateSwaps\":0") || !strstr(routed, "\"ratsnestAfter\""))
+        return 18;
+    sieda_string_free(routed);
+    report = sieda_pcb_route_report(p);
+    if (!report || !strstr(report, "\"ratsnestBefore\"") || !strstr(report, "\"swaps\":[]")) return 19;
+    sieda_string_free(report);
+    saved = sieda_project_save_json(p);
+    if (!saved || !strstr(saved, "\"pinSwap\":true")) return 20;
+    sieda_string_free(saved);
     sieda_project_free(p);
     return 0;
 }

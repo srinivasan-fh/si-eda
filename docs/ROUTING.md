@@ -240,6 +240,39 @@ staggered ends (29.5–41.5 mm) and a ruled net 12 mm above its direct length al
   the half-width), and other nets' vias and wide tracks keep it from the class net's pads and copper. Boards without
   net-class clearances route exactly as before.
 
+## Pin and gate swapping
+
+`pinSwap` (off by default; JSON `"pinSwap"`, written only when on, so older files load and save identically) makes
+the autorouter swap pins and gates first, as Allegro / Xpedition / Altium's automatic pin / gate swap do. It runs in
+`Project::autoRoute` (the board router `PcbLayout::autoRoute` only sees a `const Schematic`, and a swap is a
+schematic edit), before the board is routed, through `Project::autoSwapForRouting`:
+
+- **Which swaps.** Exactly the ones the manual board swap offers (`Project::pcbSwapOptions`, `Core/src/PcbSwap.cpp`):
+  two pins of one pin-swap group of a placed gate, or two interchangeable gates (`unitsInterchangeable`) of the same
+  part and value on one sheet, in one package or two. Each is carried out with `applyPcbSwap`, so it is back-annotated
+  exactly like a manual swap: the schematic's wires (pin swap) or gates (gate swap) change, routing that no longer fits
+  is removed, and when the board was in step with the schematic the Update PCB baseline follows (nothing for Update PCB
+  to bring over). Undo in the app takes the route and its swaps back together.
+- **What is never swapped.** Locked packages (`PcbPlacement::locked`, on either side of a gate swap), unplaced ones,
+  nets with locked tracks, pour nets and tamper-mesh nets (a swap must move neither pin of such a net), units of a
+  repeated sheet's block (their channel copies would move too) and their copies. A scoped strategy (nets, net class,
+  area) or fan-out only swaps nothing: nets outside the route keep their pins.
+- **Objective.** The ratsnest is each net's minimum spanning tree over its pads (Euclidean, pour nets left out);
+  crossings are airwires of two different nets that cross. Greedy and deterministic: every round evaluates every legal
+  swap exactly (the affected nets' trees rebuilt, their crossings recounted) and makes the best one that shortens the
+  ratsnest by more than 0.01 mm without adding crossings, or removes crossings without lengthening it (ranked by
+  length saved + 2 mm per crossing removed; ties go to the first in package / unit order). It stops when no swap
+  qualifies (or after 500). Every round strictly improves (length, crossings), so it ends; it is single-threaded, so
+  the swaps are the same on any thread count, and the routers then route the swapped board as they always do.
+- **Report.** `RouteMetrics` gets `swapRun`, `pinSwaps`, `gateSwaps`, `ratsnestBefore` / `ratsnestAfter` (mm) and
+  `crossingsBefore` / `crossingsAfter`, and `RouteReport::swaps` one line per swap; the JSON (`routeReportJson`,
+  `sieda_pcb_route_report`) and the C API's autoroute result (`pinSwaps`, `gateSwaps`, `ratsnestBefore`,
+  `ratsnestAfter`) carry them only when the option is on. A cancelled route undoes the swaps with it.
+
+With the option off, `Project::autoRoute` is `PcbLayout::autoRoute` and the copper is bit-identical. In the app:
+**Swap Pins & Gates** in the Routing Strategy menu and the Strategy Settings sheet (kept when switching presets); the
+Routing Report lists the swaps, and the status line counts them.
+
 ## Routing report
 
 Every autoroute fills `RouteStats::report` (kept as `PcbLayout::lastRouteReport`; C API `sieda_pcb_route_report`):
@@ -430,6 +463,7 @@ connections are serial.
 | Pass loop, via minimisation stage, multi-resolution grid, lattice fallback, profile | `Core/src/Pcb.cpp` (`runPass`, `RoutingGrid::setCoarse`, `routeWithVoltageSpacing`, `RouteProfile`) |
 | Coupled differential pairs | `Core/src/CoupledPairRouter.inc` (`routeCoupledPair`), `RoutingGrid::trackClearExact` / `viaClearExact` |
 | Length-aware tuning, gloss, arcs, teardrops, metrics | `Core/src/RouteQuality.{hpp,cpp}` |
+| Automatic pin / gate swap before routing | `Core/src/PcbSwap.cpp` (`Project::autoSwapForRouting`, `Project::autoRoute`) |
 | Strategy options, presets, report and keep-outs as JSON | `Core/include/sieda/Autoroute.hpp`, `Core/src/Autoroute.cpp`; C API `Core/src/sieda_c_autoroute.cpp` |
 | App: strategy menu and sheets, report | `SiEDA/Views/PCB/RoutingStrategyMenu.swift`, `RoutingStrategySheet.swift`, `RoutingReportSheet.swift`, `SiEDA/App/DesignStore+Autoroute.swift`, `SiEDA/Bridge/EDAEngine+Autoroute.swift` |
 | Placer | `Core/src/Pcb.cpp` (`PcbLayout::autoPlace`) |
@@ -452,6 +486,12 @@ connections are serial.
   fan-out only, fast.
 - `corridor_rip_up_same_copper_for_any_thread_count`: rip-up with parallel repair searches, the same copper on 1 and 4
   threads.
+- `autoroute_pin_swap_off_routes_as_before`, `autoroute_pin_swap_shortens_ratsnest_and_back_annotates`,
+  `autoroute_pin_swap_leaves_locked_parts_and_copper`, `autoroute_pin_swap_is_deterministic`,
+  `autoroute_pin_swap_option_json`: option off (and on without swappable parts) gives the same copper; crossed gates
+  of two 74HC00s and crossed inputs of one gate are swapped, the ratsnest and copper get shorter, DRC-clean, schematic
+  and board agree; locked parts, locked copper and scoped routes are left alone; the same swaps on 1 and 4 threads;
+  the option's JSON.
 - `c_api_autoroute_strategy` (`sieda_c_api_autoroute_strategy_test`) and the app's `AutorouteStrategyTests`.
 
 - `global_router_capacity_batches_and_threads`: the global router detours around a boundary without capacity,

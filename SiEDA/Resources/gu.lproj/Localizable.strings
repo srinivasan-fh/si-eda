@@ -1148,3 +1148,13 @@
 "Colour Symbols by Device" = "ડિવાઇસ મુજબ સિમ્બોલ રંગો";
 "Tune Lengths While Routing" = "રૂટિંગ દરમિયાન લંબાઈ ટ્યુન કરો";
 "While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "બસ અથવા લંબાઈ-મેળ નેટ રૂટ કરતી વખતે દરેક સભ્યની લંબાઈ તેના લક્ષ્ય સામે બતાવો; રૂટ પૂર્ણ કરતાં ટૂંકા સભ્યોમાં મીએન્ડર ઉમેરાય છે";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "પિન અને ગેટ બદલો";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "રૂટિંગ પહેલાં, જ્યાં રેટ્સનેસ્ટ ટૂંકું થાય ત્યાં સમકક્ષ પિન અને ગેટ બદલો (સ્કીમેટિકમાં બેક-એનોટેટ)";
+"Pin & Gate Swaps" = "પિન અને ગેટ અદલાબદલી";
+"Pins swapped" = "બદલેલા પિન";
+"Gates swapped" = "બદલેલા ગેટ";
+"Ratsnest before" = "રેટ્સનેસ્ટ પહેલાં";
+"Ratsnest after" = "રેટ્સનેસ્ટ પછી";
+"Crossings" = "ક્રોસિંગ";

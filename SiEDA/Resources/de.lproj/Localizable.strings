@@ -1148,3 +1148,13 @@
 "Colour Symbols by Device" = "Symbole nach Bauteil einfärben";
 "Tune Lengths While Routing" = "Längen beim Routen abstimmen";
 "While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "Zeigt beim Routen eines Busses oder eines längenabgeglichenen Netzes die Länge jedes Mitglieds gegenüber dem Ziel; beim Abschließen der Route erhalten die kurzen Mitglieder Mäander";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "Pins & Gatter tauschen";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "Vor dem Routen gleichwertige Pins und Gatter tauschen, wo die Luftlinien kürzer werden (in den Schaltplan rückannotiert)";
+"Pin & Gate Swaps" = "Pin- & Gattertausch";
+"Pins swapped" = "Getauschte Pins";
+"Gates swapped" = "Getauschte Gatter";
+"Ratsnest before" = "Luftlinien vorher";
+"Ratsnest after" = "Luftlinien nachher";
+"Crossings" = "Kreuzungen";

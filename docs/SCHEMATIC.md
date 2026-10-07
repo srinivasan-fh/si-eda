@@ -345,7 +345,8 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
   wires (pin swap) or gates (gate swap) change, the board's nets follow, routing that no longer fits is removed, and
   Update PCB has nothing to bring over. One undo step. Units of a repeated sheet's channels are swapped on the
   block's own sheet. C API `sieda_pcb_swap_options`, `sieda_apply_pcb_swap`, `sieda_optimize_pcb_swaps` (all
-  packages with -1).
+  packages with -1). The autorouter can make the same swaps itself before it routes (Routing Strategy → **Swap Pins &
+  Gates**; docs/ROUTING.md, Pin and gate swapping), back-annotated the same way.
 - **Messages**: the options bar's **Messages** panel lists every ERC finding of every sheet with its sheet name;
   **Compile** re-runs ERC; click a message to show it on its sheet, selected and zoomed.
 - **Error reporting** (Altium's project options ▸ Error Reporting): right-click a message ▸ *Report as Error /

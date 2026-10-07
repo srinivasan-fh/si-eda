@@ -58,6 +58,7 @@ struct RoutingStrategyMenu: View {
             optionToggle("Teardrops", o.teardrops, \.teardrops)
             Menu("Teardrop Style") { teardropStyleItems(o.teardropStyle) }
             optionToggle("Protect locked copper", o.protectLocked, \.protectLocked)
+            optionToggle("Swap Pins & Gates", o.pinSwap, \.pinSwap)
         }
     }
 

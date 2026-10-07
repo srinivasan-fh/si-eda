@@ -57,6 +57,14 @@ struct PcbSwapOption {
     double gain = 0;        // ratsnest saved (mm, nearest-pad estimate; negative = longer)
 };
 
+/// What the automatic pin / gate swap before routing did (Project::autoSwapForRouting).
+struct AutoSwapResult {
+    int pinSwaps = 0, gateSwaps = 0;
+    double ratsnestBefore = 0, ratsnestAfter = 0;  // mm, every net's pad-to-pad spanning tree (pour nets left out)
+    int crossingsBefore = 0, crossingsAfter = 0;   // airwires of different nets that cross
+    std::vector<std::string> report;               // one line per swap (applyPcbSwap)
+};
+
 struct PcbSyncBaseline {
     std::map<int, std::array<std::string, 3>> parts;  // component id → ref, footprint, value
     std::map<std::string, std::string> nets;          // net name → "R1.1 R2.2 …"
@@ -164,6 +172,15 @@ public:
     /// Automatic pin / gate swap: makes the swap that saves most ratsnest, again and again (at most `maxSwaps`), for
     /// one package (`componentId`) or every placed package (-1). Returns the number made.
     int optimizePcbSwaps(int componentId, int maxSwaps = 100, std::vector<std::string>* report = nullptr);
+    /// The autorouter's pin / gate swap (AutorouteOptions::pinSwap): over every placed, unlocked multi-unit package,
+    /// makes the legal swap (pcbSwapOptions) that most shortens the pad-to-pad ratsnest without adding crossings, or
+    /// removes crossings without lengthening it, again and again (at most `maxSwaps`). Each swap is carried out with
+    /// applyPcbSwap, so it is back-annotated like a manual one. Nets with locked copper or a pour, and units of
+    /// repeated sheets, are never swapped; a scoped or fan-out-only strategy swaps nothing. Deterministic.
+    AutoSwapResult autoSwapForRouting(int maxSwaps = 500);
+    /// The board's autoroute (PcbLayout::autoRoute) with the strategy's pin / gate swap first when it is on; the swaps
+    /// are reported in the route report (RouteMetrics::swapRun, RouteReport::swaps). A cancelled route undoes them.
+    RouteStats autoRoute(const RouteControl& control = RouteControl{});
     /// The schematic as the board would take it now.
     PcbSyncBaseline currentSync() const;
     /// The changes an update would make, by section; nothing is changed.
