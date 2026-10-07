@@ -3,6 +3,8 @@
 //   sieda_route_bench                      medium board (the CI case) and the large board
 //   sieda_route_bench --clusters 32 --layers 8 --seed 3 [--fpga] [--no-bga] [--drc-brute]
 //                     [--threads N] [--router auto|classic|corridor] [--snapshot out.json]
+//                     [--budget <seconds> <MB>]   exit 1 when place + route + DRC + snapshot take longer or the
+//                                                  peak memory is higher (the CTest scale guard)
 //
 // Prints component / net counts, the time of each stage, routing completion and the peak resident memory.
 #include <chrono>
@@ -38,7 +40,8 @@ double peakMegabytes() {
 
 std::string g_snapshot;  // --snapshot: where to write the routed board (Project::snapshot JSON)
 
-void run(const bench::BenchSpec& spec, bool brute) {
+/// Seconds spent in place, route, DRC, ratsnest and snapshot.
+double run(const bench::BenchSpec& spec, bool brute) {
     using clock = std::chrono::steady_clock;
     auto secs = [](clock::time_point a) { return std::chrono::duration<double>(clock::now() - a).count(); };
     bench::BenchBoard b = bench::makeBenchBoard(spec);
@@ -50,12 +53,14 @@ void run(const bench::BenchSpec& spec, bool brute) {
     auto t0 = clock::now();
     p.pcb.autoPlace(p.schematic, true);
     const double place = secs(t0);
+    double total = place;
     std::printf("  place   %8.2f s   (board %.0f × %.0f mm)\n", place, p.pcb.settings.width, p.pcb.settings.height);
     std::fflush(stdout);
     t0 = clock::now();
     const std::clock_t c0 = std::clock();
     const RouteStats st = p.pcb.autoRoute(p.schematic);
     const double route = secs(t0);
+    total += route;
     const double cpu = static_cast<double>(std::clock() - c0) / CLOCKS_PER_SEC;
     std::printf("  route   %8.2f s   %d / %d connections (%.1f %%), %d vias, %zu tracks, %.0f mm (CPU %.1f s, %d threads)\n",
                 route, st.routed, st.connections, st.connections ? 100.0 * st.routed / st.connections : 100.0, st.vias,
@@ -69,6 +74,7 @@ void run(const bench::BenchSpec& spec, bool brute) {
     t0 = clock::now();
     const auto drc =p.pcb.runDRC(p.schematic);
     const double drcTime = secs(t0);
+    total += drcTime;
     int errors = 0, warnings = 0;
     for (const auto& v : drc) {
         errors += v.severity == Severity::Error;
@@ -95,6 +101,7 @@ void run(const bench::BenchSpec& spec, bool brute) {
     const double ratsTime = secs(t0);
     t0 = clock::now();
     const size_t snapBytes = p.snapshot().dump().size();
+    total += ratsTime + secs(t0);
     std::printf("  ratsnest %7.3f s (%zu lines), snapshot %.3f s (%.1f MB JSON)\n", ratsTime, ratsLines, secs(t0),
                 static_cast<double>(snapBytes) / 1e6);
     if (!g_snapshot.empty())
@@ -105,12 +112,14 @@ void run(const bench::BenchSpec& spec, bool brute) {
         }
     std::printf("  peak memory %.0f MB\n", peakMegabytes());
     std::fflush(stdout);
+    return total;
 }
 }  // namespace
 
 int main(int argc, char** argv) {
     bench::BenchSpec spec;
     bool custom = false, brute = false;
+    double budgetSeconds = 0, budgetMegabytes = 0;
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         auto num = [&](int& out) {
@@ -129,18 +138,27 @@ int main(int argc, char** argv) {
             custom = true;
         } else if (a == "--drc-brute") brute = true;
         else if (a == "--snapshot" && i + 1 < argc) g_snapshot = argv[++i];
+        else if (a == "--budget" && i + 2 < argc) {
+            budgetSeconds = std::atof(argv[++i]);
+            budgetMegabytes = std::atof(argv[++i]);
+        }
         else if (a == "--threads" && i + 1 < argc) setRoutingThreads(std::atoi(argv[++i]));
         else if (a == "--router" && i + 1 < argc) {
             const std::string r = argv[++i];
             setRouterStrategy(r == "classic" ? RouterStrategy::Classic : r == "corridor" ? RouterStrategy::Corridor : RouterStrategy::Auto);
         }
         else {
-            std::printf("usage: sieda_route_bench [--clusters N] [--layers L] [--seed S] [--fpga] [--no-bga] [--drc-brute] [--snapshot file.json] [--threads N] [--router auto|classic|corridor]\n");
+            std::printf("usage: sieda_route_bench [--clusters N] [--layers L] [--seed S] [--fpga] [--no-bga] [--drc-brute] [--snapshot file.json] [--threads N] [--router auto|classic|corridor] [--budget seconds MB]\n");
             return 2;
         }
     }
-    if (custom) {
-        run(spec, brute);
+    if (custom || budgetSeconds > 0) {
+        const double total = run(spec, brute);
+        if (budgetSeconds > 0 && (total > budgetSeconds || peakMegabytes() > budgetMegabytes)) {
+            std::printf("over budget: %.1f s (limit %.0f s), %.0f MB (limit %.0f MB)\n", total, budgetSeconds,
+                        peakMegabytes(), budgetMegabytes);
+            return 1;
+        }
         return 0;
     }
     // Default: the medium CI board, then the large board.

@@ -11,3 +11,10 @@
 {"jsonrpc":"2.0","id":10,"method":"no/such/method"}
 this line is not JSON
 {"jsonrpc":"2.0","id":11,"method":"ping"}
+{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"project_save_as","arguments":{"path":"v1.siedaproj"}}}
+{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"schematic_set_value","arguments":{"ref":"R1","value":"470"}}}
+{"jsonrpc":"2.0","id":14,"method":"tools/call","params":{"name":"project_diff","arguments":{"before":"v1.siedaproj"}}}
+{"jsonrpc":"2.0","id":15,"method":"tools/call","params":{"name":"output_3d_model","arguments":{"path":"out/board.step","format":"step"}}}
+{"jsonrpc":"2.0","id":16,"method":"tools/call","params":{"name":"output_3d_model","arguments":{"path":"out/board.emn","format":"idf_board"}}}
+{"jsonrpc":"2.0","id":17,"method":"tools/call","params":{"name":"pcb_import_idf_placement","arguments":{"path":"out/board.emn"}}}
+{"jsonrpc":"2.0","id":18,"method":"tools/call","params":{"name":"project_save_as","arguments":{"path":"v2.siedaproj"}}}

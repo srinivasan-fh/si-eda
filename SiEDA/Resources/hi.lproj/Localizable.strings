@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "दस्तावेज़ का फ़ोल्डर उपयोग करें";
 "Off" = "बंद";
 "Starting…" = "शुरू हो रहा है…";
+"Base" = "आधार";
+"Compare Variants" = "वैरिएंट की तुलना करें";
+"Compare Variants…" = "वैरिएंट की तुलना करें…";
+"Compare with Another Version…" = "दूसरे संस्करण से तुलना करें…";
+"Import MCAD Placement (IDF)…" = "MCAD प्लेसमेंट आयात करें (IDF)…";
+"No variant changes a part yet." = "अभी कोई वैरिएंट किसी पार्ट को नहीं बदलता।";
+"Changes since %@" = "%@ के बाद के बदलाव";

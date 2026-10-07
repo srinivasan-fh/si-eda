@@ -41,7 +41,10 @@
 #include "sieda/InteractiveRouter.hpp"
 #include "sieda/Json.hpp"
 #include "sieda/Mcp.hpp"
+#include "sieda/Mechanical.hpp"
 #include "sieda/Mesh.hpp"
+#include "sieda/ProjectDiff.hpp"
+#include "sieda/Variants.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/LengthMatch.hpp"
 #include "sieda/LibraryImport.hpp"
@@ -18864,4 +18867,172 @@ TEST(c_api_mcp) {
     const int rc = sieda_c_api_mcp_test();
     if (rc != 0) std::printf("    C API MCP test failed at step %d\n", rc);
     CHECK(rc == 0);
+}
+
+// ---- mechanical CAD exchange (STEP / IDF) and design diff ------------------------------------------------------
+
+namespace {
+Project placedBenchBoard() {
+    Project p = bench::makeBenchBoard({2, 2, 4, false, false, 0.45}).project;
+    p.pcb.autoPlace(p.schematic, true);
+    p.pcb.settings.holes.push_back({{3, 3}, 3.2, 6.4});
+    return p;
+}
+
+int placedBodies(const Project& p) {
+    int n = 0;
+    for (const auto& c : p.schematic.components()) n += c.hasFootprint() && c.pcb.placed && !c.pcb.embedded();
+    return n;
+}
+}  // namespace
+
+TEST(step_export_closed_named_solids) {
+    Project p = placedBenchBoard();
+    const std::string step = exportStep(p.schematic, p.pcb, "bench");
+    CHECK(step.rfind("ISO-10303-21;", 0) == 0);
+    CHECK(step.find("AUTOMOTIVE_DESIGN") != std::string::npos);
+    CHECK(step.find("END-ISO-10303-21;") != std::string::npos);
+    // Entities by id; every reference resolves.
+    std::map<int, std::string> e;
+    std::istringstream in(step);
+    for (std::string l; std::getline(in, l);)
+        if (l.size() > 1 && l[0] == '#') e[std::atoi(l.c_str() + 1)] = l.substr(l.find('=') + 1);
+    auto refs = [](const std::string& s) {
+        std::vector<int> r;
+        for (size_t i = s.find('#'); i != std::string::npos; i = s.find('#', i + 1)) r.push_back(std::atoi(s.c_str() + i + 1));
+        return r;
+    };
+    for (const auto& [id, body] : e) {
+        for (int r : refs(body)) CHECK(e.count(r) == 1);
+        CHECK(std::count(body.begin(), body.end(), '(') == std::count(body.begin(), body.end(), ')'));
+    }
+    // One solid for the board and one per placed part, named by designator; each shell is watertight with
+    // consistently oriented faces (every directed edge is matched by its reverse).
+    int solids = 0;
+    for (const auto& [id, body] : e) {
+        if (body.rfind("FACETED_BREP(", 0) != 0) continue;
+        ++solids;
+        std::map<std::pair<int, int>, int> edges;
+        for (int face : refs(e[refs(body)[0]]))
+            for (int r : refs(e[face])) {
+                if (e[r].rfind("PLANE", 0) == 0) continue;
+                const auto pts = refs(e[refs(e[r])[0]]);  // bound → POLY_LOOP points
+                for (size_t i = 0; i < pts.size(); ++i) ++edges[{pts[i], pts[(i + 1) % pts.size()]}];
+            }
+        for (const auto& [edge, count] : edges) {
+            CHECK(count == 1);
+            CHECK(edges.count({edge.second, edge.first}) == 1);
+        }
+    }
+    CHECK(solids == placedBodies(p) + 1);
+    CHECK(step.find("FACETED_BREP('PCB'") != std::string::npos);
+    CHECK(step.find("FACETED_BREP('U1'") != std::string::npos);
+    CHECK(step.find("COLOUR_RGB") != std::string::npos);
+}
+
+TEST(idf_export_and_placement_round_trip) {
+    Project p = placedBenchBoard();
+    const std::string emn = exportIdfBoard(p.schematic, p.pcb, "bench");
+    const std::string emp = exportIdfLibrary(p.schematic, p.pcb);
+    CHECK(emn.find("BOARD_FILE 3.0") != std::string::npos);
+    CHECK(emn.find(".BOARD_OUTLINE ECAD\n1.6\n0 ") != std::string::npos);
+    CHECK(emn.find("3.2 3. -3. NPTH BOARD MTG ECAD") != std::string::npos);
+    CHECK(emp.find("LIBRARY_FILE 3.0") != std::string::npos);
+    size_t placements = 0;
+    for (size_t i = emn.find(" PLACED\n"); i != std::string::npos; i = emn.find(" PLACED\n", i + 1)) ++placements;
+    CHECK(static_cast<int>(placements) == placedBodies(p));
+    // Every package / part number placed has its outline in the library.
+    std::istringstream in(emn.substr(emn.find(".PLACEMENT")));
+    std::string l;
+    std::getline(in, l);
+    while (std::getline(in, l) && l != ".END_PLACEMENT") {
+        CHECK(emp.find(l.substr(0, l.rfind('"') + 1)) != std::string::npos);
+        std::getline(in, l);
+    }
+    // Unchanged file: nothing moves. MCAD moved U1 and flipped it: the import brings it back to the file's placement.
+    Project moved = p;
+    CHECK(importIdfPlacement(moved.schematic, emn).empty());
+    Component* u1 = moved.schematic.find(moved.schematic.findByRef("U1")->id);
+    const PcbPlacement original = u1->pcb;
+    u1->pcb.position = {original.position.x + 5, original.position.y - 2};
+    u1->pcb.rotation = (original.rotation + 90) % 360;
+    u1->pcb.bottom = !original.bottom;
+    const auto refs = importIdfPlacement(moved.schematic, emn);
+    CHECK(refs.size() == 1 && refs[0] == "U1");
+    CHECK_NEAR(u1->pcb.position.x, original.position.x, 1e-6);
+    CHECK_NEAR(u1->pcb.position.y, original.position.y, 1e-6);
+    CHECK(u1->pcb.rotation == original.rotation % 360);
+    CHECK(u1->pcb.bottom == original.bottom);
+    // Rotation survives the Y flip: a part at 90° exports as 270° counter-clockwise and reads back as 90°.
+    u1->pcb.rotation = 90;
+    const std::string rotated = exportIdfBoard(moved.schematic, moved.pcb, "bench");
+    u1->pcb.rotation = 0;
+    importIdfPlacement(moved.schematic, rotated);
+    CHECK(u1->pcb.rotation == 90);
+}
+
+TEST(project_diff_parts_nets_copper_variants) {
+    Project a = placedBenchBoard();
+    CHECK(diffProjects(a, a).get("identical").asBool());
+    CHECK(diffText(diffProjects(a, a)) == "No changes.\n");
+    Project b = a;
+    Component* r = nullptr;
+    for (auto& c : b.schematic.mutableComponents())
+        if (!r && c.ref.rfind("R", 0) == 0) r = &c;
+    CHECK(r != nullptr);
+    const std::string ref = r->ref;
+    r->value = "4k7";
+    r->pcb.position.x += 1;
+    b.addVariant("Lite");
+    b.pcb.settings.layerCount = 6;
+    const Json d = diffProjects(a, b);
+    CHECK(!d.get("identical").asBool());
+    CHECK(d.get("components").get("changed").size() == 1);
+    CHECK(d.get("components").get("changed")[0].get("changes").has("value"));
+    CHECK(d.get("components").get("changed")[0].get("changes").has("position"));
+    CHECK(d.get("board").has("layers"));
+    CHECK(d.get("variants").get("added").size() == 1);
+    const std::string text = diffText(d);
+    CHECK(text.find("~ " + ref + " ") != std::string::npos);
+    CHECK(text.find("value") != std::string::npos);
+    CHECK(text.find("+ variant Lite") != std::string::npos);
+    CHECK(text.find("~ board layers 4 → 6") != std::string::npos);
+    // A removed part shows as removed, its pins leave their nets.
+    Project c = a;
+    const int id = c.schematic.findByRef(ref)->id;
+    c.schematic.removeComponent(id);
+    const Json dr = diffProjects(a, c);
+    CHECK(dr.get("components").get("removed").size() == 1);
+    CHECK(dr.get("nets").get("changed").size() + dr.get("nets").get("removed").size() >= 1);
+    // Through the C API, as Git's diff driver uses it; a file that is not a project is an error, not a crash.
+    const std::string ja = a.toJson().dump(), jb = b.toJson().dump();
+    char* t = sieda_diff_projects(ja.c_str(), jb.c_str(), 1);
+    CHECK(t && std::string(t).find("+ variant Lite") != std::string::npos);
+    sieda_string_free(t);
+    char* bad = sieda_diff_projects("{}", jb.c_str(), 0);
+    CHECK(bad && std::string(bad).find("error") != std::string::npos);
+    sieda_string_free(bad);
+}
+
+TEST(variant_matrix_side_by_side) {
+    Project p = placedBenchBoard();
+    const Component* r = nullptr;
+    for (const auto& c : p.schematic.components())
+        if (!r && c.ref.rfind("R", 0) == 0) r = &c;
+    CHECK(r != nullptr);
+    CHECK(p.addVariant("Lite"));
+    CHECK(p.addVariant("Pro"));
+    const std::string v = "1k";
+    CHECK(p.setVariantPart("Lite", r->id, 0, nullptr));
+    CHECK(p.setVariantPart("Pro", r->id, -1, &v));
+    const Json m = variantMatrix(p);
+    CHECK(m.get("variants").size() == 2);
+    CHECK(m.get("parts").size() == 1);
+    const Json& row = m.get("parts")[0];
+    CHECK(row.get("ref").asString() == r->ref);
+    CHECK(!row.get("cells")[0].get("fitted").asBool());
+    CHECK(row.get("cells")[1].get("fitted").asBool());
+    CHECK(row.get("cells")[1].get("value").asString() == "1k");
+    CHECK(m.get("variants")[0].get("notFitted").asNumber() == m.get("variants")[1].get("notFitted").asNumber() + 1);
+    CHECK(m.get("variants")[1].get("valueChanges").asNumber() == 1);
 }

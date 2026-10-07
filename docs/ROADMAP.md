@@ -3,7 +3,7 @@
 Status of the recent work and the planned work, one line per item. Tick an item (`[x]`) when its PR is merged with
 CI green. Token figures are rough estimates of the AI work per package (they help plan weekend sessions).
 
-## Current ratings (after PR #81)
+## Current ratings (after the MCAD / team / scale round)
 
 | Area | Rating | Next step that moves it |
 |---|---|---|
@@ -14,10 +14,11 @@ CI green. Token figures are rough estimates of the AI work per package (they hel
 | Simulation | 9.0 | — |
 | SI / PI | 9.0 | — |
 | Library | 9.0 | — |
-| Large-design scale | 8.0 | Large-board benchmark and fixes |
-| 3D / mechanical | 7.0 | STEP export, IDF / IDX |
-| Team, data management, variants | 6.0 | Variant manager, diff / merge, library server |
-| **Overall** | **~9.0** (features), ~7.5 (production readiness) | |
+| AI / automation (MCP) | 9.3 | Real-client sessions on the live endpoint |
+| Large-design scale | 8.7 | Corridor-router thread scaling (1.5× on 4 threads today) |
+| 3D / mechanical | 8.6 | IDX (incremental), 3D clearance checks |
+| Team, data management, variants | 7.6 | 3-way merge, library server, design review |
+| **Overall** | **~9.2** (features), ~8.3 (production readiness) | |
 
 ## Done (merged)
 
@@ -46,17 +47,25 @@ CI green. Token figures are rough estimates of the AI work per package (they hel
 - [x] Parts still waiting in the queue no longer block placement — #81
 - [x] Fix: a part straddling the board edge is now reported as outside the outline — #81
 
+### Mechanical CAD, team work, scale
+- [x] STEP AP214 export: board + one closed, coloured, named solid per part (validated with OpenCASCADE)
+- [x] IDF 3.0 board / library export and MCAD placement import (one undo step)
+- [x] Version diff (parts, nets by pins, copper per net, board, variants): app, MCP `project_diff`, `sieda-mcp --diff`
+- [x] Git diff driver (`sieda-mcp --git-diff`)
+- [x] Variants side by side (Compare Variants…, MCP `schematic_variant_matrix`)
+- [x] Scale measured: 927 parts route 100 % in 50 s / 413 MB; 1756 parts in 175 s / 740 MB; CTest budget guard
+
 ## Weekend order (pick up from the top)
 
 The agreed order for the weekend sessions; each line is one package (PR, CI green, merge). The sections below break
 each package into its steps.
 
-1. [ ] Large-board benchmark and fixes (~0.35M–0.65M tokens)
+1. [x] Large-board benchmark (in CI as `sieda_scale_budget`); next: corridor-router thread scaling
 2. [ ] PDF text shaping with HarfBuzz (~0.15M–0.25M)
-3. [ ] STEP export (~0.2M–0.3M)
-4. [ ] Variant manager (~0.15M–0.2M)
-5. [ ] Design diff and merge (~0.25M–0.4M)
-6. [ ] IDF / IDX exchange with mechanical CAD (~0.15M–0.25M)
+3. [x] STEP export
+4. [x] Variant manager (variants existed; comparison matrix added)
+5. [~] Design diff done (app, MCP, Git driver); 3-way merge still open (~0.15M–0.25M)
+6. [x] IDF 3.0 exchange (IDX still open)
 7. [ ] Shared library server (~0.2M–0.3M)
 8. [ ] Design review (~0.15M–0.2M)
 9. [ ] 3D clearance checks (~0.1M–0.15M)
@@ -65,8 +74,8 @@ each package into its steps.
 ## Next (planned, in suggested order)
 
 ### 1. Large boards (scale 8.0 → ~9.0) — ~0.35M–0.65M tokens
-- [ ] Benchmark board with 923 parts in CI (time and memory; target < 60 s, < 500 MB)
-- [ ] Profile routing, DRC, snapshot and canvas on it
+- [x] Benchmark board with 923 parts: 50 s, 413 MB (target < 60 s, < 500 MB); CI guard on a 350-part board
+- [x] Profile routing, DRC, snapshot on it: corridor batches 38 s of 50 s; DRC 0.05 s; snapshot 0.12 s
 - [ ] Live tuning: copy only the affected nets instead of the whole board
 - [ ] Fix the hotspots the benchmark finds
 
@@ -77,14 +86,15 @@ each package into its steps.
 - [ ] Tests with sample sheets in each script
 
 ### 3. 3D / mechanical (7.0 → ~9.0) — ~0.45M–0.7M tokens
-- [ ] STEP export (AP214) of board and parts — ~0.2M–0.3M
-- [ ] IDF 3.0 / IDX exchange with MCAD (outline, keep-outs, placement, round trip) — ~0.15M–0.25M
+- [x] STEP export (AP214) of board and parts
+- [x] IDF 3.0 exchange with MCAD (outline, holes, placement, placement round trip); IDX still open
 - [ ] 3D clearance and enclosure checks — ~0.1M–0.15M
 - [ ] Optional: STEP import of part models (needs OpenCASCADE) — ~0.25M–0.4M
 
 ### 4. Team, data management, variants (6.0 → ~8.5) — ~0.75M–1.1M tokens
-- [ ] Variant manager (table of variants, per-variant outputs, comparison) — ~0.15M–0.2M
-- [ ] Visual design diff and 3-way merge of project files (Git-friendly) — ~0.25M–0.4M
+- [x] Variant manager (table of variants, per-variant outputs, comparison)
+- [x] Design diff of project files (app, MCP, Git diff driver)
+- [ ] 3-way merge of project files — ~0.15M–0.25M
 - [ ] Shared library server (versioned parts, lifecycle states, where used) — ~0.2M–0.3M
 - [ ] Design review (pinned comments, status, review PDF) — ~0.15M–0.2M
 - [ ] Optional: real-time multi-user editing (needs a sync server) — ~0.8M–1.5M+

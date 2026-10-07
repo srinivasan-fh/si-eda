@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "ഡോക്യുമെന്റ് ഫോൾഡർ ഉപയോഗിക്കുക";
 "Off" = "ഓഫ്";
 "Starting…" = "ആരംഭിക്കുന്നു…";
+"Base" = "അടിസ്ഥാനം";
+"Compare Variants" = "വേരിയന്റുകൾ താരതമ്യം ചെയ്യുക";
+"Compare Variants…" = "വേരിയന്റുകൾ താരതമ്യം ചെയ്യുക…";
+"Compare with Another Version…" = "മറ്റൊരു പതിപ്പുമായി താരതമ്യം ചെയ്യുക…";
+"Import MCAD Placement (IDF)…" = "MCAD പ്ലേസ്‌മെന്റ് ഇറക്കുമതി (IDF)…";
+"No variant changes a part yet." = "ഇതുവരെ ഒരു വേരിയന്റും ഭാഗം മാറ്റുന്നില്ല.";
+"Changes since %@" = "%@ മുതലുള്ള മാറ്റങ്ങൾ";

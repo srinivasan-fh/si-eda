@@ -315,6 +315,8 @@ struct SiEDACommands: Commands {
                     Button(format.displayName) { store.export(format) }
                 }
             }
+            Button("Import MCAD Placement (IDF)…") { store.importIDFPlacement() }
+            Button("Compare with Another Version…") { store.compareWithFile() }
         }
         CommandGroup(replacing: .undoRedo) {
             // While a text field is being edited, ⌘Z/⇧⌘Z belong to the text, not to the design.

@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "ଡକ୍ୟୁମେଣ୍ଟ ଫୋଲ୍ଡର ବ୍ୟବହାର କରନ୍ତୁ";
 "Off" = "ବନ୍ଦ";
 "Starting…" = "ଆରମ୍ଭ ହେଉଛି…";
+"Base" = "ଆଧାର";
+"Compare Variants" = "ଭାରିଆଣ୍ଟ ତୁଳନା କରନ୍ତୁ";
+"Compare Variants…" = "ଭାରିଆଣ୍ଟ ତୁଳନା କରନ୍ତୁ…";
+"Compare with Another Version…" = "ଅନ୍ୟ ସଂସ୍କରଣ ସହ ତୁଳନା କରନ୍ତୁ…";
+"Import MCAD Placement (IDF)…" = "MCAD ସ୍ଥାପନ ଆମଦାନି କରନ୍ତୁ (IDF)…";
+"No variant changes a part yet." = "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଭାରିଆଣ୍ଟ ଅଂଶ ବଦଳାଏ ନାହିଁ।";
+"Changes since %@" = "%@ ପରଠାରୁ ପରିବର୍ତ୍ତନ";

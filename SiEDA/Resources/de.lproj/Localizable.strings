@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "Ordner des Dokuments verwenden";
 "Off" = "Aus";
 "Starting…" = "Startet …";
+"Base" = "Basis";
+"Compare Variants" = "Varianten vergleichen";
+"Compare Variants…" = "Varianten vergleichen …";
+"Compare with Another Version…" = "Mit anderer Version vergleichen …";
+"Import MCAD Placement (IDF)…" = "MCAD-Platzierung importieren (IDF) …";
+"No variant changes a part yet." = "Noch keine Variante ändert ein Bauteil.";
+"Changes since %@" = "Änderungen seit %@";

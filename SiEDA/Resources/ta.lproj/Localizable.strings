@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "ஆவணக் கோப்புறையைப் பயன்படுத்து";
 "Off" = "முடக்கம்";
 "Starting…" = "தொடங்குகிறது…";
+"Base" = "அடிப்படை";
+"Compare Variants" = "வேரியன்ட்களை ஒப்பிடு";
+"Compare Variants…" = "வேரியன்ட்களை ஒப்பிடு…";
+"Compare with Another Version…" = "வேறு பதிப்புடன் ஒப்பிடு…";
+"Import MCAD Placement (IDF)…" = "MCAD இடஅமைப்பை இறக்கு (IDF)…";
+"No variant changes a part yet." = "எந்த வேரியன்டும் இன்னும் பாகத்தை மாற்றவில்லை.";
+"Changes since %@" = "%@ முதல் மாற்றங்கள்";

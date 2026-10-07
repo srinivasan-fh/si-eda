@@ -34,6 +34,8 @@ add_library(sieda_core STATIC
     Core/src/PartUnits.cpp
     Core/src/SchematicSearch.cpp
     Core/src/Variants.cpp
+    Core/src/ProjectDiff.cpp
+    Core/src/Mechanical.cpp
     Core/src/Simulator.cpp
     Core/src/Analysis.cpp
     Core/src/SpiceModels.cpp
@@ -136,9 +138,11 @@ if(SIEDA_BUILD_TESTS)
                              $<TARGET_FILE:sieda-mcp>)
         endif()
     endif()
-    # Scale benchmark: place / route / DRC timings on generated large boards (not part of ctest).
+    # Scale benchmark: place / route / DRC timings on generated large boards. CTest runs a ~350-part board under a
+    # generous budget (about 10× today's time) so an algorithmic slow-down or memory blow-up fails CI.
     add_executable(sieda_route_bench Core/tests/bench/route_bench.cpp)
     target_link_libraries(sieda_route_bench PRIVATE sieda_core)
+    add_test(NAME sieda_scale_budget COMMAND sieda_route_bench --clusters 12 --layers 6 --seed 1 --budget 90 800)
     # Interactive-router benchmark: head-update times on a generated, autorouted ~400-part board (not part of ctest).
     add_executable(sieda_router_bench Core/tests/bench/router_bench.cpp)
     target_link_libraries(sieda_router_bench PRIVATE sieda_core)

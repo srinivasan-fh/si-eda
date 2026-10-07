@@ -1438,6 +1438,9 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case fabNotes = "fab_notes"
     case stl
     case obj
+    case step
+    case idfBoard = "idf_board"
+    case idfLibrary = "idf_library"
 
     var id: String { rawValue }
 
@@ -1466,6 +1469,9 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .drillNPTH: return "board-NPTH.drl"
         case .stl: return "assembly.stl"
         case .obj: return "assembly.obj"
+        case .step: return "board.step"
+        case .idfBoard: return "board.emn"
+        case .idfLibrary: return "board.emp"
         }
     }
 
@@ -1494,6 +1500,9 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .drillNPTH: return "Excellon Drill — Mounting Holes (NPTH)"
         case .stl: return "3D Model (STL)"
         case .obj: return "3D Model (OBJ)"
+        case .step: return "STEP AP214 — Board and Parts (MCAD)"
+        case .idfBoard: return "IDF 3.0 Board (.emn)"
+        case .idfLibrary: return "IDF 3.0 Library (.emp)"
         }
     }
 }

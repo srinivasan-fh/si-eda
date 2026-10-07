@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "दस्तऐवजाचे फोल्डर वापरा";
 "Off" = "बंद";
 "Starting…" = "सुरू होत आहे…";
+"Base" = "मूळ";
+"Compare Variants" = "प्रकारांची तुलना करा";
+"Compare Variants…" = "प्रकारांची तुलना करा…";
+"Compare with Another Version…" = "दुसऱ्या आवृत्तीशी तुलना करा…";
+"Import MCAD Placement (IDF)…" = "MCAD मांडणी आयात करा (IDF)…";
+"No variant changes a part yet." = "अद्याप कोणताही प्रकार भाग बदलत नाही.";
+"Changes since %@" = "%@ पासूनचे बदल";

@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "書類のフォルダを使用";
 "Off" = "オフ";
 "Starting…" = "起動中…";
+"Base" = "ベース";
+"Compare Variants" = "バリアントを比較";
+"Compare Variants…" = "バリアントを比較…";
+"Compare with Another Version…" = "別のバージョンと比較…";
+"Import MCAD Placement (IDF)…" = "MCAD 配置を読み込む (IDF)…";
+"No variant changes a part yet." = "部品を変更するバリアントはまだありません。";
+"Changes since %@" = "%@ からの変更";

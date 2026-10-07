@@ -505,7 +505,9 @@ char* sieda_pi_ir_map_json(const SiedaProject* project, const char* net_name);
 
 /* ---- exports ------------------------------------------------------------------------------- */
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
- *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj". Returns NULL for unknown formats. */
+ *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj",
+ *         "step" (STEP AP214 solids: board + one named, coloured body per part), "idf_board" (IDF 3.0 .emn),
+ *         "idf_library" (IDF 3.0 .emp). Returns NULL for unknown formats. */
 char* sieda_export(const SiedaProject* project, const char* format);
 /* Bill of materials: {"lines":[{item, refs, componentIds, quantity, type, value, footprint, description, rating,
  * manufacturer, mpn, supplierPart, unitPrice, dnp, lineCost, suggestedManufacturer, suggestedMpn, notes}],
@@ -580,6 +582,18 @@ int32_t sieda_set_active_variant(SiedaProject* project, const char* name);
 /* An assembly export ("bom", "bom_assembly", "cpl", "pnp", "assembly_top", "assembly_bottom") or the BOM JSON
  * ("bom_json") for a given variant ("" = base design). NULL for an unknown format or variant. */
 char* sieda_export_variant(const SiedaProject* project, const char* format, const char* variant);
+
+/* Every part a variant changes with its fitting / value in each variant, and per-variant totals:
+ * {"variants":[{"name","fitted","notFitted","valueChanges"}],"parts":[{"ref","value","cells":[{"fitted","value"}]}]}. */
+char* sieda_variant_matrix_json(const SiedaProject* project);
+
+/* ---- mechanical CAD and design diff -------------------------------------------------------- */
+/* Moves parts to the placement of an IDF 3.0 board file (.emn) written back by MCAD: {"moved":[refs]}. NULL on a
+ * NULL argument. */
+char* sieda_import_idf_placement(SiedaProject* project, const char* emn);
+/* What changed between two saved projects (.siedaproj JSON): the diff JSON (docs/TEAM.md) or, with as_text, the
+ * review text. {"error"} for a file that does not parse. Caller frees. */
+char* sieda_diff_projects(const char* before_json, const char* after_json, int32_t as_text);
 
 /* ---- 3D ------------------------------------------------------------------------------------ */
 SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_components);

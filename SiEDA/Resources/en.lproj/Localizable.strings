@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "Use Document Folder";
 "Off" = "Off";
 "Starting…" = "Starting…";
+"Base" = "Base";
+"Compare Variants" = "Compare Variants";
+"Compare Variants…" = "Compare Variants…";
+"Compare with Another Version…" = "Compare with Another Version…";
+"Import MCAD Placement (IDF)…" = "Import MCAD Placement (IDF)…";
+"No variant changes a part yet." = "No variant changes a part yet.";
+"Changes since %@" = "Changes since %@";

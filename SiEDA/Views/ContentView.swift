@@ -48,6 +48,10 @@ struct ContentView: View {
         .toolbarBackground(Theme.deepBlue, for: .windowToolbar)
         .toolbarBackground(.visible, for: .windowToolbar)
 
+        .sheet(item: $store.designDiff) { DesignDiffView(diff: $0) }
+        .sheet(isPresented: Binding(get: { store.variantMatrix != nil }, set: { if !$0 { store.variantMatrix = nil } })) {
+            if let matrix = store.variantMatrix { VariantMatrixView(matrix: matrix) }
+        }
         .alert(item: $store.alert) { item in
             Alert(title: Text(item.title), message: Text(item.message), dismissButton: .default(Text("OK")))
         }
