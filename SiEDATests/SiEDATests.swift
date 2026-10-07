@@ -7011,6 +7011,6 @@ final class ComponentSymbolIconTests: XCTestCase {
                 XCTAssertGreaterThanOrEqual(c.contrast(with: palette.background), 3, "\(kind) on \(scheme)")
             }
         }
-        XCTAssertFalse(SchematicCanvasStyle.standard.colourByDevice)
+        XCTAssertTrue(SchematicCanvasStyle.standard.colourByDevice)
     }
 }

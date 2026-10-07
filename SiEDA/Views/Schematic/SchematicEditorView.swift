@@ -50,7 +50,7 @@ struct SchematicEditorView: View {
     @AppStorage(SchematicCustomTheme.storageKey) private var customTheme = ""
     @AppStorage(SchematicGridStyle.storageKey) private var gridStyle = SchematicGridStyle.dots.rawValue
     @AppStorage(SchematicGridStyle.majorStorageKey) private var gridMajorEvery = SchematicGridStyle.defaultMajorEvery
-    @AppStorage(SchematicCanvasStyle.colourByDeviceKey) private var colourByDevice = false
+    @AppStorage(SchematicCanvasStyle.colourByDeviceKey) private var colourByDevice = true
 
     private var canvasStyle: SchematicCanvasStyle {
         SchematicCanvasStyle.from(scheme: colourScheme, customJSON: customTheme, grid: gridStyle, majorEvery: gridMajorEvery,

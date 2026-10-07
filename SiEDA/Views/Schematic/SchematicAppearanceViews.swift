@@ -68,7 +68,7 @@ struct SchematicAppearanceMenu: View {
     @AppStorage(SchematicGridStyle.storageKey) private var grid = SchematicGridStyle.dots.rawValue
     @AppStorage(SchematicGridStyle.majorStorageKey) private var majorEvery = SchematicGridStyle.defaultMajorEvery
     @AppStorage(SchematicCustomTheme.storageKey) private var customJSON = ""
-    @AppStorage(SchematicCanvasStyle.colourByDeviceKey) private var colourByDevice = false
+    @AppStorage(SchematicCanvasStyle.colourByDeviceKey) private var colourByDevice = true
 
     var body: some View {
         schemePicker
