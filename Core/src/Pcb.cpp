@@ -1,4 +1,5 @@
 #include "sieda/Pcb.hpp"
+#include "sieda/Mechanical.hpp"
 #include "sieda/CustomParts.hpp"
 #include "sieda/Embedded.hpp"
 #include "sieda/Isolation.hpp"
@@ -5621,6 +5622,7 @@ std::vector<RuleViolation> PcbLayout::runDRC(const Schematic& sch) const {
         add(Severity::Error, "DRC_UNROUTED",
             std::to_string(lines.size()) + " connection(s) are not routed. Run the autorouter or draw tracks.", lines[0].first);
     }
+    for (auto& v : mechanicalChecks(sch, *this)) out.push_back(std::move(v));  // 3D clearance (Mechanical.cpp)
     if (out.empty()) {
         RuleViolation v;
         v.severity = Severity::Info;

@@ -19036,3 +19036,119 @@ TEST(variant_matrix_side_by_side) {
     CHECK(m.get("variants")[0].get("notFitted").asNumber() == m.get("variants")[1].get("notFitted").asNumber() + 1);
     CHECK(m.get("variants")[1].get("valueChanges").asNumber() == 1);
 }
+
+TEST(mechanical_3d_clearance_checks) {
+    Project p = placedBenchBoard();
+    auto codes = [&](const std::string& code) {
+        int n = 0;
+        for (const auto& v : p.pcb.runDRC(p.schematic)) n += v.code == code;
+        return n;
+    };
+    CHECK(codes("MECH_BODY_COLLISION") == 0);
+    CHECK(codes("MECH_HEIGHT") == 0);  // no limits set: nothing to check
+    // A 0.1 mm enclosure on the top: every top-side part is too tall. Saved and loaded with the project.
+    p.pcb.settings.maxHeightTop = 0.1;
+    const int tooTall = codes("MECH_HEIGHT");
+    CHECK(tooTall > 0);
+    const Project reloaded = Project::fromJson(p.toJson());
+    CHECK_NEAR(reloaded.pcb.settings.maxHeightTop, 0.1, 1e-12);
+    p.pcb.settings.maxHeightTop = 0;
+    // A height zone over U1 only.
+    const Component* u1 = p.schematic.findByRef("U1");
+    p.pcb.settings.heightZones.push_back({"display", Rect::centered(u1->pcb.position, 1, 1), u1->pcb.bottom, 0.05});
+    CHECK(codes("MECH_HEIGHT_ZONE") == 1);
+    CHECK(Project::fromJson(p.toJson()).pcb.settings.heightZones.size() == 1);
+    p.pcb.settings.heightZones.clear();
+    CHECK(Project::fromJson(p.toJson()).toJson().get("board").has("mechanical") == false);  // unset: not written
+    // Two parts on top of each other collide; a part marked DNP is not fitted, so it does not.
+    Component* r = nullptr;
+    for (auto& c : p.schematic.mutableComponents())
+        if (!r && c.ref.rfind("R", 0) == 0 && !c.pcb.bottom && c.id != u1->id) r = &c;
+    CHECK(r != nullptr);
+    r->pcb.position = u1->pcb.position;
+    r->pcb.bottom = u1->pcb.bottom;
+    CHECK(codes("MECH_BODY_COLLISION") >= 1);
+    r->sourcing.dnp = true;
+    CHECK(codes("MECH_BODY_COLLISION") == 0);
+    // Through the C API.
+    SiedaProject* sp = sieda_project_load_json(p.toJson().dump().c_str(), nullptr);
+    CHECK(sieda_pcb_set_mechanical_limits(sp, R"({"maxHeightTop":3,"zones":[{"x0":0,"y0":0,"x1":5,"y1":5,"maxHeight":1}]})") == 1);
+    char* lim = sieda_pcb_mechanical_limits(sp);
+    CHECK(std::string(lim).find("\"maxHeightTop\":3") != std::string::npos);
+    sieda_string_free(lim);
+    sieda_project_free(sp);
+}
+
+TEST(project_three_way_merge) {
+    const Project base = placedBenchBoard();
+    Project ours = base, theirs = base;
+    // Ours changes R?'s value and adds a review comment; theirs moves U1 and adds a variant: both land.
+    Component* r = nullptr;
+    for (auto& c : ours.schematic.mutableComponents())
+        if (!r && c.ref.rfind("R", 0) == 0) r = &c;
+    const std::string ref = r->ref;
+    r->value = "4k7";
+    reviewCommand(ours, Json::parse(R"({"action":"add","text":"Check the pull-up","ref":")" + ref + R"("})"));
+    theirs.schematic.find(theirs.schematic.findByRef("U1")->id)->pcb.position.x += 3;
+    CHECK(theirs.addVariant("Lite"));
+    ProjectMerge m = mergeProjects(base.toJson(), ours.toJson(), theirs.toJson());
+    CHECK(m.error.empty());
+    CHECK(m.conflicts.empty());
+    Project merged = Project::fromJson(m.merged);
+    CHECK(merged.schematic.findByRef(ref)->value == "4k7");
+    CHECK_NEAR(merged.schematic.findByRef("U1")->pcb.position.x, theirs.schematic.findByRef("U1")->pcb.position.x, 1e-9);
+    CHECK(merged.findVariant("Lite") != nullptr);
+    CHECK(merged.reviewComments.size() == 1);
+    // Both change the same value differently: a conflict, ours kept.
+    Project theirs2 = base;
+    theirs2.schematic.find(theirs2.schematic.findByRef(ref)->id)->value = "1k";
+    m = mergeProjects(base.toJson(), ours.toJson(), theirs2.toJson());
+    CHECK(m.conflicts.size() == 1 && m.conflicts[0].find("value") != std::string::npos);
+    CHECK(Project::fromJson(m.merged).schematic.findByRef(ref)->value == "4k7");
+    // Copper merges as a set: tracks both sides add appear once each, the same track added twice appears once.
+    Project a = base, b = base;
+    Track t;
+    t.layer = 0, t.width = 0.2, t.a = {1, 1}, t.b = {2, 1};
+    Track u = t;
+    u.a = {1, 3}, u.b = {2, 3};
+    a.pcb.tracks.push_back(t), b.pcb.tracks.push_back(t), b.pcb.tracks.push_back(u);
+    m = mergeProjects(base.toJson(), a.toJson(), b.toJson());
+    CHECK(m.conflicts.empty());
+    CHECK(m.merged.get("tracks").size() == base.toJson().get("tracks").size() + 2);
+    // Not a project: an error, nothing merged.
+    CHECK(!mergeProjects(Json::object(), ours.toJson(), theirs.toJson()).error.empty());
+}
+
+TEST(review_comments_round_trip) {
+    Project p = placedBenchBoard();
+    CHECK(!p.toJson().has("review"));  // none: not written
+    const int a = reviewCommand(p, Json::parse(R"({"action":"add","author":"Ana","text":"Move C1 closer to U1","ref":"U1"})"));
+    const int b = reviewCommand(p, Json::parse(R"({"action":"add","text":"Keep-out for the screw","x":10,"y":5})"));
+    CHECK(a == 1 && b == 2);
+    reviewCommand(p, Json::parse(R"({"action":"reply","id":1,"author":"Raj","text":"Done"})"));
+    reviewCommand(p, Json::parse(R"({"action":"resolve","id":1})"));
+    bool threw = false;
+    try {
+        reviewCommand(p, Json::parse(R"({"action":"add","text":"x","ref":"NOPE99"})"));
+    } catch (const JsonError&) {
+        threw = true;
+    }
+    CHECK(threw);
+    const Project q = Project::fromJson(p.toJson());
+    CHECK(q.reviewComments.size() == 2);
+    CHECK(q.reviewComments[0].resolved && q.reviewComments[0].replies.size() == 1);
+    CHECK(q.reviewComments[1].hasAt && q.reviewComments[1].at.x == 10);
+    const std::string md = reviewMarkdown(q);
+    CHECK(md.find("1 open, 1 resolved") != std::string::npos);
+    CHECK(md.find("## Open") < md.find("## Resolved"));
+    CHECK(diffText(diffProjects(placedBenchBoard(), q)).find("+ review comment #1") != std::string::npos);
+    // C API.
+    SiedaProject* sp = sieda_project_load_json(q.toJson().dump().c_str(), nullptr);
+    char* r = sieda_review_command(sp, R"({"action":"delete","id":2})");
+    CHECK(std::string(r).find("\"id\":2") != std::string::npos);
+    sieda_string_free(r);
+    char* j = sieda_review_json(sp);
+    CHECK(std::string(j).find("\"open\":0") != std::string::npos);
+    sieda_string_free(j);
+    sieda_project_free(sp);
+}

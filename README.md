@@ -32,7 +32,7 @@ Every AI result lands in the same editable schematic and PCB, so you can switch 
 `sieda-mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server. With it, Claude Desktop, Claude Code,
 Cursor, VS Code, ChatGPT desktop or a local LLM can drive SiEDA completely. The AI can capture schematics, search the
 catalog, simulate, lay out and autoroute boards, run ERC / DRC / verification, look at PNG renders and write Gerbers.
-It has 128 tools, plus guides as resources and ready-made prompts. Files are read and written only inside one folder,
+It has 132 tools, plus guides as resources and ready-made prompts. Files are read and written only inside one folder,
 and `--read-only` lets the AI inspect without changing anything.
 
 ```bash
@@ -63,6 +63,15 @@ and the tool reference are in [docs/MCP.md](docs/MCP.md).
   driver.
 - **Compare variants**: the schematic's variant menu shows every part a variant changes, with its value or DNP in
   each variant.
+- **Merge**: two people edit copies of the same design and Git merges them with `sieda-mcp --merge`. Parts and wires
+  merge item by item and copper as sets. A field both sides changed differently keeps "ours" and is listed as a
+  conflict.
+- **Design review** (**File → Design Review…**): comments pinned to parts, with replies and resolve / reopen. Copy
+  the review as Markdown.
+- **3D clearance** in the DRC:
+  - **Always on:** part bodies that collide.
+  - **When a limit is set:** parts taller than the enclosure allows on their side (**Board Setup → Tallest part**).
+  - **Height zones:** rectangles with their own maximum height, set over MCP or the C API.
 
 Guides: [docs/MCAD.md](docs/MCAD.md) and [docs/TEAM.md](docs/TEAM.md).
 

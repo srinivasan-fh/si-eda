@@ -1210,3 +1210,17 @@
 "Import MCAD Placement (IDF)…" = "Import MCAD Placement (IDF)…";
 "No variant changes a part yet." = "No variant changes a part yet.";
 "Changes since %@" = "Changes since %@";
+"Tallest part, top" = "Tallest part, top";
+"Tallest part, bottom" = "Tallest part, bottom";
+"The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)" = "The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)";
+"Add" = "Add";
+"Comment" = "Comment";
+"Copy as Markdown" = "Copy as Markdown";
+"Delete comment" = "Delete comment";
+"Design Review" = "Design Review";
+"Design Review…" = "Design Review…";
+"Part (optional)" = "Part (optional)";
+"Reply" = "Reply";
+"Reopen" = "Reopen";
+"Resolve" = "Resolve";
+"%lld open" = "%lld open";

@@ -1210,3 +1210,17 @@
 "Import MCAD Placement (IDF)…" = "MCAD 配置を読み込む (IDF)…";
 "No variant changes a part yet." = "部品を変更するバリアントはまだありません。";
 "Changes since %@" = "%@ からの変更";
+"Tallest part, top" = "最も高い部品、表面";
+"Tallest part, bottom" = "最も高い部品、裏面";
+"The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)" = "基板上の筐体の空間：DRC は高すぎる部品（と本体が衝突する部品）を報告します";
+"Add" = "追加";
+"Comment" = "コメント";
+"Copy as Markdown" = "Markdown としてコピー";
+"Delete comment" = "コメントを削除";
+"Design Review" = "設計レビュー";
+"Design Review…" = "設計レビュー…";
+"Part (optional)" = "部品（任意）";
+"Reply" = "返信";
+"Reopen" = "再オープン";
+"Resolve" = "解決";
+"%lld open" = "未解決 %lld 件";

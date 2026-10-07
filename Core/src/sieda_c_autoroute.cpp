@@ -8,6 +8,7 @@
 #include "sieda/Autoroute.hpp"
 #include "sieda/Json.hpp"
 #include "sieda/sieda_c.h"
+#include "sieda/Mechanical.hpp"
 
 using namespace sieda;
 
@@ -65,6 +66,22 @@ char* sieda_pcb_keepouts(const SiedaProject* project) {
         return dupText(keepoutsToJson(project->project.pcb.settings.keepouts).dump());
     } catch (const std::exception&) {
         return nullptr;
+    }
+}
+
+char* sieda_pcb_mechanical_limits(const SiedaProject* project) {
+    if (!project) return nullptr;
+    const Json j = mechanicalLimitsToJson(project->project.pcb.settings);
+    return dupText(j.isNull() ? std::string("{}") : j.dump());
+}
+
+int32_t sieda_pcb_set_mechanical_limits(SiedaProject* project, const char* limits_json) {
+    if (!project || !limits_json) return 0;
+    try {
+        mechanicalLimitsFromJson(Json::parse(limits_json), project->project.pcb.settings);
+        return 1;
+    } catch (const std::exception&) {
+        return 0;
     }
 }
 

@@ -1210,3 +1210,17 @@
 "Import MCAD Placement (IDF)…" = "MCAD স্থাপন আমদানি কৰক (IDF)…";
 "No variant changes a part yet." = "এতিয়ালৈকে কোনো ভেৰিয়েণ্টে অংশ সলনি কৰা নাই।";
 "Changes since %@" = "%@ ৰ পিছৰ সলনিসমূহ";
+"Tallest part, top" = "আটাইতকৈ ওখ অংশ, ওপৰ";
+"Tallest part, bottom" = "আটাইতকৈ ওখ অংশ, তল";
+"The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)" = "বোৰ্ডৰ ওপৰত আৱৰণৰ ঠাই: DRC-এ ওখ অংশ (আৰু খুন্দা খোৱা অংশ) জনায়";
+"Add" = "যোগ কৰক";
+"Comment" = "মন্তব্য";
+"Copy as Markdown" = "Markdown হিচাপে কপি কৰক";
+"Delete comment" = "মন্তব্য মচক";
+"Design Review" = "ডিজাইন পৰ্যালোচনা";
+"Design Review…" = "ডিজাইন পৰ্যালোচনা…";
+"Part (optional)" = "অংশ (ঐচ্ছিক)";
+"Reply" = "উত্তৰ";
+"Reopen" = "পুনৰ খোলক";
+"Resolve" = "সমাধান কৰক";
+"%lld open" = "%lld খোলা";

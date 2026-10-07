@@ -140,6 +140,8 @@ struct BoardSetupPanel: View {
                     }
                     .help("Parts, tracks and pours of separate galvanic domains (across isolators and isolated converters) "
                           + "keep this creepage apart; DRC checks it")
+                    enclosurePicker("Tallest part, top", bottom: false) { store.setEnclosureHeight(top: $0) }
+                    enclosurePicker("Tallest part, bottom", bottom: true) { store.setEnclosureHeight(bottom: $0) }
                     Toggle("Underfill / corner-bond heavy parts (shock)", isOn: Binding(
                         get: { board.underfill }, set: { store.setMechanical(underfill: $0) }))
                         .help("Epoxy under processors, BGAs and large capacitors so a MIL-STD-901E shock cannot tear them off")
@@ -352,6 +354,20 @@ struct BoardSetupPanel: View {
                     .help("Add serpentine (accordion) tuning to the short members of each group")
             }
         }
+    }
+
+    /// Enclosure height limit for one side (the DRC's 3D clearance check, MECH_HEIGHT).
+    private func enclosurePicker(_ title: LocalizedStringKey, bottom: Bool,
+                                 set: @escaping (Double) -> Void) -> some View {
+        let options = [0.0, 2, 3, 5, 8, 12, 20, 30]
+        let heights = store.engine.enclosureHeights()
+        let current = bottom ? heights.bottom : heights.top
+        return Picker(title, selection: Binding(get: { current }, set: set)) {
+            Text("None").tag(0.0)
+            ForEach(options.dropFirst(), id: \.self) { Text(String(format: "%.0f mm", $0)).tag($0) }
+            if !options.contains(current) { Text(String(format: "%.1f mm", current)).tag(current) }
+        }
+        .help("The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)")
     }
 
     private func value(_ text: String, _ fallback: Double) -> Double {

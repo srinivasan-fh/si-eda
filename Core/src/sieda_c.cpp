@@ -22,6 +22,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <sstream>
 #include <string>
 
 #include "sieda/Bom.hpp"
@@ -1472,6 +1473,7 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         if (f == "stl") return dup(exportStl(buildAssemblyMesh(p.schematic, p.pcb), p.name));
         if (f == "obj") return dup(exportObj(buildAssemblyMesh(p.schematic, p.pcb), p.name));
         if (f == "step") return dup(exportStep(p.schematic, p.pcb, p.name));
+        if (f == "review") return dup(reviewMarkdown(p));
         if (f == "idf_board") return dup(exportIdfBoard(p.schematic, p.pcb, p.name));
         if (f == "idf_library") return dup(exportIdfLibrary(p.schematic, p.pcb));
         return nullptr;
@@ -1971,6 +1973,74 @@ char* sieda_diff_projects(const char* before_json, const char* after_json, int32
         err["error"] = std::string(e.what());
         return dup(err.dump());
     }
+}
+
+char* sieda_merge_projects(const char* base_json, const char* ours_json, const char* theirs_json) {
+    Json out = Json::object();
+    try {
+        const ProjectMerge m = mergeProjects(Json::parse(str(base_json)), Json::parse(str(ours_json)), Json::parse(str(theirs_json)));
+        out["merged"] = m.merged;
+        Json c = Json::array();
+        for (const auto& s : m.conflicts) c.push(s);
+        out["conflicts"] = c;
+        if (!m.error.empty()) out["error"] = m.error;
+    } catch (const std::exception& e) {
+        out["error"] = std::string(e.what());
+    }
+    return dup(out.dump());
+}
+
+int32_t sieda_merge_project_files(const char* base_path, const char* ours_path, const char* theirs_path, char** report_out) {
+    if (report_out) *report_out = nullptr;
+    std::string report;
+    int32_t result = -1;
+    try {
+        auto read = [](const char* path, bool emptyOk) {
+            std::ifstream in(str(path), std::ios::binary);
+            std::stringstream ss;
+            ss << in.rdbuf();
+            std::string text = ss.str();
+            if (text.find_first_not_of(" \t\r\n") == std::string::npos) {
+                if (!emptyOk) throw JsonError(std::string("Cannot read ") + str(path));
+                return Project().toJson();
+            }
+            return Json::parse(text);
+        };
+        const ProjectMerge m = mergeProjects(read(base_path, true), read(ours_path, false), read(theirs_path, false));
+        if (!m.error.empty()) throw JsonError(m.error);
+        std::ofstream out(str(ours_path), std::ios::binary | std::ios::trunc);
+        out << Project::fromJson(m.merged).toJson().dump(true);
+        if (!out) throw JsonError(std::string("Cannot write ") + str(ours_path));
+        for (const auto& c : m.conflicts) report += "conflict: " + c + "\n";
+        result = static_cast<int32_t>(m.conflicts.size());
+    } catch (const std::exception& e) {
+        report = std::string("merge failed: ") + e.what() + "\n";
+    }
+    if (report_out && !report.empty()) *report_out = dup(report);
+    return result;
+}
+
+char* sieda_review_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    const Project& p = project->project;
+    Json out = Json::object();
+    out["comments"] = reviewToJson(p.reviewComments);
+    int open = 0;
+    for (const auto& c : p.reviewComments) open += !c.resolved;
+    out["open"] = open;
+    out["markdown"] = reviewMarkdown(p);
+    return dup(out.dump());
+}
+
+char* sieda_review_command(SiedaProject* project, const char* request_json) {
+    if (!project) return nullptr;
+    Json out = Json::object();
+    try {
+        out["id"] = reviewCommand(project->project, Json::parse(str(request_json)));
+    } catch (const std::exception& e) {
+        out["error"] = std::string(e.what());
+    }
+    return dup(out.dump());
 }
 
 char* sieda_variants_json(const SiedaProject* project) {

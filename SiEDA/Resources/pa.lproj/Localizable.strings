@@ -1210,3 +1210,17 @@
 "Import MCAD Placement (IDF)…" = "MCAD ਪਲੇਸਮੈਂਟ ਆਯਾਤ ਕਰੋ (IDF)…";
 "No variant changes a part yet." = "ਅਜੇ ਕੋਈ ਵੇਰੀਐਂਟ ਕਿਸੇ ਪੁਰਜ਼ੇ ਨੂੰ ਨਹੀਂ ਬਦਲਦਾ।";
 "Changes since %@" = "%@ ਤੋਂ ਬਾਅਦ ਦੀਆਂ ਤਬਦੀਲੀਆਂ";
+"Tallest part, top" = "ਸਭ ਤੋਂ ਉੱਚਾ ਪੁਰਜ਼ਾ, ਉੱਪਰ";
+"Tallest part, bottom" = "ਸਭ ਤੋਂ ਉੱਚਾ ਪੁਰਜ਼ਾ, ਹੇਠਾਂ";
+"The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)" = "ਬੋਰਡ ਉੱਪਰ ਕੇਸ ਦੀ ਥਾਂ: DRC ਉੱਚੇ ਪੁਰਜ਼ੇ (ਅਤੇ ਟਕਰਾਉਂਦੇ ਪੁਰਜ਼ੇ) ਦੱਸਦਾ ਹੈ";
+"Add" = "ਜੋੜੋ";
+"Comment" = "ਟਿੱਪਣੀ";
+"Copy as Markdown" = "Markdown ਵਜੋਂ ਕਾਪੀ ਕਰੋ";
+"Delete comment" = "ਟਿੱਪਣੀ ਮਿਟਾਓ";
+"Design Review" = "ਡਿਜ਼ਾਈਨ ਸਮੀਖਿਆ";
+"Design Review…" = "ਡਿਜ਼ਾਈਨ ਸਮੀਖਿਆ…";
+"Part (optional)" = "ਪੁਰਜ਼ਾ (ਚੋਣਵਾਂ)";
+"Reply" = "ਜਵਾਬ";
+"Reopen" = "ਦੁਬਾਰਾ ਖੋਲ੍ਹੋ";
+"Resolve" = "ਹੱਲ ਕਰੋ";
+"%lld open" = "%lld ਖੁੱਲ੍ਹੀਆਂ";

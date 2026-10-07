@@ -32,6 +32,26 @@ extension DesignStore {
                                       : "Moved \(moved.count) parts: \(moved.prefix(8).joined(separator: ", "))"
     }
 
+    /// Tallest part allowed per side by the enclosure (mm, 0 = no limit); the DRC reports MECH_HEIGHT. Undoable.
+    func setEnclosureHeight(top: Double? = nil, bottom: Double? = nil) {
+        let current = engine.enclosureHeights()
+        let t = top ?? current.top, b = bottom ?? current.bottom
+        guard t != current.top || b != current.bottom else { return }
+        performChecked("Enclosure height", invalidatesAnalysis: false) { $0.setEnclosureHeights(top: t, bottom: b) }
+        if !drcResults.isEmpty { runDRC() }
+    }
+
+    /// A design review command as one undo step; the store's alert shows a refusal (unknown part, empty text).
+    func review(_ request: [String: Any], _ actionName: String) {
+        var failure: String?
+        performExternalEdit(actionName) { engine in
+            failure = engine.reviewCommand(request)
+            return failure == nil
+        }
+        if let failure { alert = AlertItem(title: "Review", message: failure) }
+        objectWillChange.send()
+    }
+
     /// Asks for another version of the project and shows what changed from it to the open design.
     func compareWithFile() {
         guard let picked = chooseText("Choose the earlier version to compare the open design with.",

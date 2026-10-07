@@ -1210,3 +1210,17 @@
 "Import MCAD Placement (IDF)…" = "Mag-import ng MCAD Placement (IDF)…";
 "No variant changes a part yet." = "Wala pang variant na nagbabago ng piyesa.";
 "Changes since %@" = "Mga pagbabago mula sa %@";
+"Tallest part, top" = "Pinakamataas na piyesa, itaas";
+"Tallest part, bottom" = "Pinakamataas na piyesa, ibaba";
+"The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)" = "Espasyo ng enclosure sa ibabaw ng board: iniuulat ng DRC ang mas matataas na piyesa (at mga piyesang nagbabanggaan ang katawan)";
+"Add" = "Idagdag";
+"Comment" = "Komento";
+"Copy as Markdown" = "Kopyahin bilang Markdown";
+"Delete comment" = "Burahin ang komento";
+"Design Review" = "Pagsusuri ng Disenyo";
+"Design Review…" = "Pagsusuri ng Disenyo…";
+"Part (optional)" = "Piyesa (opsyonal)";
+"Reply" = "Sumagot";
+"Reopen" = "Buksan muli";
+"Resolve" = "Lutasin";
+"%lld open" = "%lld bukas";

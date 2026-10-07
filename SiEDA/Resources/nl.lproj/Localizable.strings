@@ -1210,3 +1210,17 @@
 "Import MCAD Placement (IDF)…" = "MCAD-plaatsing importeren (IDF)…";
 "No variant changes a part yet." = "Nog geen variant wijzigt een onderdeel.";
 "Changes since %@" = "Wijzigingen sinds %@";
+"Tallest part, top" = "Hoogste onderdeel, boven";
+"Tallest part, bottom" = "Hoogste onderdeel, onder";
+"The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)" = "De ruimte in de behuizing boven de print: de DRC meldt hogere onderdelen (en onderdelen waarvan de behuizingen botsen)";
+"Add" = "Toevoegen";
+"Comment" = "Opmerking";
+"Copy as Markdown" = "Kopiëren als Markdown";
+"Delete comment" = "Opmerking verwijderen";
+"Design Review" = "Ontwerpreview";
+"Design Review…" = "Ontwerpreview…";
+"Part (optional)" = "Onderdeel (optioneel)";
+"Reply" = "Antwoorden";
+"Reopen" = "Heropenen";
+"Resolve" = "Oplossen";
+"%lld open" = "%lld open";

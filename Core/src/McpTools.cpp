@@ -2505,6 +2505,59 @@ void outputTools(Table& t) {
 }
 
 void teamTools(Table& t) {
+    t.add("project", "project_merge", "Merge versions", Kind::Files, false,
+          "Three-way merge of two edited copies of a project against their common ancestor (all files inside the "
+          "root), written to path. Parts, wires and sheets merge item by item, copper as sets; a field both sides "
+          "changed differently keeps 'ours' and is listed in conflicts.",
+          Schema().str("base", "Common ancestor .siedaproj", true).str("ours", "Our edited copy", true)
+              .str("theirs", "Their edited copy", true).str("path", "Where to write the merged project", true),
+          [](McpServer& s, const Json& a) {
+              const std::string b = readFileArg(s, requireStr(a, "base")).asString(),
+                                o = readFileArg(s, requireStr(a, "ours")).asString(),
+                                th = readFileArg(s, requireStr(a, "theirs")).asString();
+              Json r = takeJson(sieda_merge_projects(b.c_str(), o.c_str(), th.c_str()));
+              if (r.has("error")) throw ToolError(r.get("error").asString());
+              Json j = obj();
+              j["written"] = s.writeFile(requireStr(a, "path"), r.get("merged").dump(true));
+              j["conflicts"] = r.get("conflicts");
+              return out(j);
+          });
+    t.add("project", "review_comments", "Review comments", Kind::Read, true,
+          "Design review comments (pinned to a part and / or a place) with their replies and status, and the review "
+          "as Markdown.", Schema(),
+          [](McpServer& s, const Json&) { return out(takeJson(sieda_review_json(P(s)))); });
+    t.add("project", "review_comment", "Comment / resolve", Kind::Edit, false,
+          "Review commands: add (text, author, ref and / or x, y with view pcb|schematic), reply (id, text, author), "
+          "resolve, reopen or delete (id).",
+          Schema().str("action", "What to do", true, {"add", "reply", "resolve", "reopen", "delete"})
+              .num("id", "Comment id (reply, resolve, reopen, delete)").str("text", "Comment or reply text")
+              .str("author", "Who writes it").str("ref", "Part designator the comment is about")
+              .str("view", "pcb (default) or schematic", false, {"pcb", "schematic"})
+              .num("x", "Place (mm on the board, grid units on the schematic)").num("y", "Place"),
+          [](McpServer& s, const Json& a) {
+              Json q = a;
+              Json r = takeJson(sieda_review_command(P(s), q.dump().c_str()));
+              if (r.has("error")) throw ToolError(r.get("error").asString());
+              Json all = takeJson(sieda_review_json(P(s)));
+              all["id"] = r.get("id");
+              return out(all);
+          });
+    t.add("pcb", "pcb_mechanical_limits", "Enclosure limits", Kind::Edit, true,
+          "3D clearance limits checked by the DRC: tallest part per side (mm, 0 = none) and height zones "
+          "(rectangles with their own maximum height). Without arguments returns the current limits.",
+          Schema().num("maxHeightTop", "Tallest part on the top side (mm, 0 = no limit)")
+              .num("maxHeightBottom", "Tallest part on the bottom side (mm, 0 = no limit)")
+              .any("zones", "[{name, x0, y0, x1, y1, bottom, maxHeight}] (mm, board coordinates)"),
+          [](McpServer& s, const Json& a) {
+              if (a.has("maxHeightTop") || a.has("maxHeightBottom") || a.has("zones")) {
+                  Json cur = takeJson(sieda_pcb_mechanical_limits(P(s)));
+                  if (!cur.isObject()) cur = obj();
+                  for (const char* k : {"maxHeightTop", "maxHeightBottom", "zones"})
+                      if (a.has(k)) cur[k] = a.get(k);
+                  check(sieda_pcb_set_mechanical_limits(P(s), cur.dump().c_str()) == 1, "Invalid limits");
+              }
+              return out(takeJson(sieda_pcb_mechanical_limits(P(s))));
+          });
     t.add("pcb", "pcb_import_idf_placement", "Import MCAD placement", Kind::Edit, false,
           "Moves parts to the placement in an IDF 3.0 board file (.emn) written back by mechanical CAD (position, "
           "rotation, side by designator). Returns the designators moved.",

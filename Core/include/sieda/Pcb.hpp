@@ -109,6 +109,15 @@ struct RouteKeepout {
     bool tracks = true, vias = true;
 };
 
+/// Mechanical height zone (enclosure rib, display, battery): parts on `bottom` / top inside `area` may be at most
+/// `maxHeight` mm tall above the board surface.
+struct HeightZone {
+    std::string name;
+    Rect area;
+    bool bottom = false;
+    double maxHeight = 0;
+};
+
 struct AutoroutePreset {
     std::string name;         // "default", "fast", "quality", "fanout", "nets", "netclass", "area"
     std::string title;        // English, for menus
@@ -195,6 +204,10 @@ struct BoardSettings {
     AutorouteOptions autorouter;
     /// Routing keep-outs (saved only when there are any).
     std::vector<RouteKeepout> keepouts;
+    /// Enclosure limits for the 3D clearance checks (Mechanical.hpp): tallest part per side (mm, 0 = no limit) and
+    /// height zones. Saved only when set.
+    double maxHeightTop = 0, maxHeightBottom = 0;
+    std::vector<HeightZone> heightZones;
     /// The autorouter first widens net classes to the IPC-2221 width for each net's simulated current.
     bool autoSizeNets = true;
     double widthFor(const std::string& netName) const {

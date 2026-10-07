@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "sieda/Json.hpp"
 #include "sieda/Pcb.hpp"
 #include "sieda/Schematic.hpp"
 
@@ -24,5 +25,15 @@ std::string exportIdfLibrary(const Schematic& sch, const PcbLayout& pcb);
 /// Reads the PLACEMENT section of an IDF board file and moves the parts it names (by designator) to its position,
 /// rotation and side. Returns the designators moved; unknown designators and unchanged parts are left out.
 std::vector<std::string> importIdfPlacement(Schematic& sch, const std::string& emn);
+
+/// 3D clearance checks (part of the DRC): MECH_HEIGHT (a part taller than its side's enclosure limit),
+/// MECH_HEIGHT_ZONE (taller than a height zone it stands in) and MECH_BODY_COLLISION (two fitted parts' bodies on
+/// the same side overlap). Parts not fitted (DNP) are left out. No limits set: only collisions are checked.
+std::vector<RuleViolation> mechanicalChecks(const Schematic& sch, const PcbLayout& pcb);
+
+/// {"maxHeightTop","maxHeightBottom","zones":[{"name","x0","y0","x1","y1","bottom","maxHeight"}]}; null when unset.
+Json mechanicalLimitsToJson(const BoardSettings& s);
+/// Reads the limits into `s` (invalid zones are skipped; null leaves no limits).
+void mechanicalLimitsFromJson(const Json& j, BoardSettings& s);
 
 }  // namespace sieda

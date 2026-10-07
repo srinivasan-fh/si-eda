@@ -1,4 +1,6 @@
 #include "sieda/Project.hpp"
+#include "sieda/Mechanical.hpp"
+#include "sieda/ProjectDiff.hpp"
 #include "sieda/Autoroute.hpp"
 #include "sieda/Model3D.hpp"
 #include "sieda/SchematicPdf.hpp"
@@ -137,6 +139,7 @@ Json boardJson(const BoardSettings& s) {
     }
     if (!s.autorouter.isDefault()) b["autorouter"] = autorouteOptionsToJson(s.autorouter);  // only when changed
     if (!s.keepouts.empty()) b["keepouts"] = keepoutsToJson(s.keepouts);
+    if (Json m = mechanicalLimitsToJson(s); !m.isNull()) b["mechanical"] = m;
     b["autoSizeNets"] = s.autoSizeNets;
     Json outline = Json::array();
     for (const auto& v : s.outline) outline.push(vec(v));
@@ -590,6 +593,7 @@ Json Project::toJson() const {
         root["variants"] = vs;
     }
     if (!activeVariant.empty()) root["activeVariant"] = activeVariant;
+    if (!reviewComments.empty()) root["review"] = reviewToJson(reviewComments);
     if (!titleBlock.empty()) {
         Json tb = Json::object();
         tb["title"] = titleBlock.title;
@@ -743,6 +747,7 @@ Project Project::fromJson(const Json& root) {
     }
     s.autorouter = autorouteOptionsFromJson(b.get("autorouter"));
     s.keepouts = keepoutsFromJson(b.get("keepouts"));
+    mechanicalLimitsFromJson(b.get("mechanical"), s);
     s.maxTempRise = std::max(1.0, b.get("maxTempRise").asNumber(s.maxTempRise));
     s.autoSizeNets = b.get("autoSizeNets").asBool(true);
     {
@@ -951,6 +956,7 @@ Project Project::fromJson(const Json& root) {
         p.variants.push_back(v);
     }
     p.activeVariant = root.get("activeVariant").asString("");
+    p.reviewComments = reviewFromJson(root.get("review"));
     {
         const Json& tb = root.get("titleBlock");
         auto field = [&](const char* key) {

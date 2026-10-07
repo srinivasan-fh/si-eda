@@ -5,6 +5,7 @@
 //   sieda-mcp [--root <dir>] [--project <file>] [--read-only] [--tools <list>] [--docs <dir>]
 //   sieda-mcp --diff <old> <new> [--json] what changed between two project files (exit 1 when they differ)
 //   sieda-mcp --git-diff <git's 7 args>  the same as Git's external diff driver (docs/TEAM.md)
+//   sieda-mcp --merge <base> <ours> <theirs>  three-way merge into <ours> (Git's merge driver; exit 1 on conflicts)
 //   sieda-mcp --list-tools-markdown      print the tool reference (docs/MCP.md) and exit
 //   sieda-mcp --list-tools               print the tool table as JSON and exit
 //   sieda-mcp --connect <url> [--token <t>] [--timeout <s>]
@@ -42,6 +43,7 @@ void usage() {
                  "usage: sieda-mcp [--root <dir>] [--project <file>] [--read-only] [--tools <list>] [--docs <dir>]\n"
                  "       sieda-mcp --connect http://127.0.0.1:39717/mcp [--token <t>] [--timeout <s>]\n"
                  "       sieda-mcp --diff <old.siedaproj> <new.siedaproj> [--json]\n"
+                 "       sieda-mcp --merge <base> <ours> <theirs>   (writes the result into <ours>)\n"
                  "       sieda-mcp --list-tools-markdown | --list-tools | --version\n"
                  "Speaks the Model Context Protocol (JSON-RPC 2.0) on stdin/stdout. See docs/MCP.md.\n");
 }
@@ -75,6 +77,14 @@ int diff(const char* before, const char* after, bool json, const char* title) {
     if (json) std::fputc('\n', stdout);
     return text.rfind("No changes.", 0) == 0 || text.find("\"identical\":true") != std::string::npos ? 0 : 1;
 }
+/// Git merge driver: merges into `ours`; conflicts (ours kept) are listed on stderr and exit 1 so Git marks the file.
+int merge(const char* base, const char* ours, const char* theirs) {
+    char* report = nullptr;
+    const int conflicts = sieda_merge_project_files(base, ours, theirs, &report);
+    if (report) std::fputs(report, stderr);
+    sieda_string_free(report);
+    return conflicts == 0 ? 0 : conflicts > 0 ? 1 : 2;
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -92,6 +102,7 @@ int main(int argc, char** argv) {
     options.docsDir = defaultDocsDir(argv[0]);
     if (argc >= 4 && std::strcmp(argv[1], "--diff") == 0)
         return diff(argv[2], argv[3], argc >= 5 && std::strcmp(argv[4], "--json") == 0, nullptr);
+    if (argc >= 5 && std::strcmp(argv[1], "--merge") == 0) return merge(argv[2], argv[3], argv[4]);
     if (argc >= 7 && std::strcmp(argv[1], "--git-diff") == 0) {  // path old-file old-hex old-mode new-file …
         diff(argv[3], argv[6], false, argv[2]);
         return 0;  // Git stops a multi-file diff on a non-zero exit
