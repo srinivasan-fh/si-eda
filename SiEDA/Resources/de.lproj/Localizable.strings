@@ -1036,6 +1036,11 @@
 "Strategy" = "Strategie";
 "Strategy Settings…" = "Strategie-Einstellungen…";
 "Teardrops" = "Tropfen";
+"Teardrop style" = "Teardrop-Form";
+"Teardrop Style" = "Teardrop-Form";
+"Straight" = "Gerade";
+"Curved" = "Gebogen";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "Teardrop-Umriss: gerade Fächer oder gebogene Übergänge in Pads und Vias";
 "Default" = "Standard";
 "Fast" = "Schnell";
 "High quality" = "Hohe Qualität";

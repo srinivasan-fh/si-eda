@@ -306,7 +306,20 @@ so the DRC sees no acute angle and no dangling end. Teardrops are ordinary coppe
 **Auto teardrops** (Route tool options) adds them on every finished route. Teardrops whose track was moved away
 (dragged, shoved, deleted) are removed on the next commit.
 
-Core: `addTeardrops`, `removeTeardrops`, `pruneTeardrops`; C: `sieda_pcb_teardrops`; router option `"teardrops"`.
+**Teardrop style** (Route tool options, Straight / Curved; it applies to the Teardrops command and to auto
+teardrops) chooses the outline. *Straight* (the default, unchanged) ends every fan member at nearly one point on the
+track: a triangle. *Curved* (`TeardropStyle::Curved`) gives the concave flare of other tools' curved teardrops: on
+each side, member k of N joins the point at k/N from P0 (inside the pad / via, across the track end) to P1 (on the
+track, inside the pad / via) with the point at k/N from P1 to the tip P2 on the track. The members' envelope — the
+copper outline — is the quadratic Bézier P0 P1 P2, tangent to the track at the tip, and lies inside the straight
+teardrop of the same length. The members are ordinary `Track::teardrop` tracks (from inside the pad / via onto the
+track), their ends at most 0.4 × the track width apart so the copper fills and the curve is smooth, the two sides'
+ends on the track staggered; clearance checks, the shortening to half and "without room" are those of straight teardrops, and
+`removeTeardrops` / `pruneTeardrops` treat both styles alike. Round and rectangular pads and vias.
+
+Core: `addTeardrops` (`TeardropOptions::style`), `removeTeardrops`, `pruneTeardrops`; C: `sieda_pcb_teardrops`
+(option `"style": "straight" | "curved"`); router options `"teardrops"` and `"teardropStyle"`
+(`RouterOptions::teardropStyle`).
 
 ## Via stitching and shielding
 
@@ -510,7 +523,8 @@ never fails because of an old DRC problem elsewhere, and it never creates a new 
   (not through ICs or multi-pin resistor networks) and measure track length (vias add nothing).
 - A bus (or multi-route) ends in the bundle; each track is finished to its pad on its own. Members all use the
   widest member's width. Bundle vias need a placed corner first (they are laid across the bundle's direction).
-- Teardrops are straight-track fans (no curved outline) on straight tracks, at pads and vias only (not at T
+- Teardrops are fans of straight tracks (a curved teardrop's outline is their envelope, not a true arc or polygon)
+  on straight tracks, at pads and vias only (not at T
   junctions between tracks); a track as wide as 90 % of the pad gets none. Stitching uses one via size on a square
   grid (no hexagonal or edge-of-pour patterns). Glossing works line by line on one layer (it does not move vias).
   Loop removal skips poured nets.
@@ -631,6 +645,10 @@ Core (`Core/tests/core_tests.cpp`):
 | `router_multi_routes_nets_with_vias` | Three scattered nets route as one bundle; V places three vias at via pitch and the bundle continues on the bottom layer; DRC clean. |
 | `c_api_corner_multi_drag_and_multi_route` | Corner drag, multi drag and multi-route through the C API. |
 | `teardrops_on_pads_and_vias` | Six teardrops on a pad → via → via → pad route; DRC clean (no acute angle, no dangling end), saved, in the Gerber, removed exactly; auto teardrops on commit; pruning. |
+| `curved_teardrops_default_is_straight` | The default style gives exactly the straight teardrops. |
+| `curved_teardrops_on_pads_and_vias` | Curved teardrops on the same route: six, all `teardrop`, DRC clean, connected; each fan inside the straight fan's triangle and concave; saved; pruned and removed exactly. |
+| `curved_teardrops_router_and_autorouter` | Curved auto teardrops on a router commit; the autorouter's curved teardrop pass, DRC clean. |
+| `curved_teardrops_json_and_c_api` | `teardropStyle` in the autoroute / router options JSON (written only when curved) and `"style"` through `sieda_pcb_teardrops`. |
 | `via_stitching_and_shielding` | Shielding rows clear of the track; stitching grid inside the area on two GND pours; DRC clean. |
 | `gloss_pulls_routes_tight` | A detour is pulled > 10 mm shorter, connected, DRC clean; a tight or locked route stays. |
 | `router_removes_loops_on_commit` | A new direct route removes the old detour, its stub and its two vias; without the option all stays. |

@@ -179,6 +179,7 @@ char* sieda_pcb_teardrops(SiedaProject* project, const char* track_ids_json, con
         opt.pads = o.get("pads").asBool(true);
         opt.vias = o.get("vias").asBool(true);
         opt.length = o.get("length").asNumber(1.0);
+        opt.style = teardropStyleFromName(o.get("style").asString("straight"));
         opt.apply = o.get("apply").asBool(true);
         return boardEditString(project, addTeardrops(project->project.pcb, project->project.schematic, opt));
     } catch (const std::exception& e) {

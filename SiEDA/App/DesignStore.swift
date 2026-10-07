@@ -1675,6 +1675,11 @@ final class DesignStore: ObservableObject {
         didSet { if routerTeardrops != oldValue { applyRouterOptions() } }
     }
 
+    /// Outline of the teardrops the router and the Teardrops command add: straight or curved.
+    @Published var teardropStyle = TeardropStyleChoice.straight {
+        didSet { if teardropStyle != oldValue { applyRouterOptions() } }
+    }
+
     /// Hug: a dragged track bends around pads and other copper it cannot push instead of stopping short.
     @Published var routerHugDrag = true {
         didSet { if routerHugDrag != oldValue { applyRouterOptions() } }
@@ -1683,7 +1688,7 @@ final class DesignStore: ObservableObject {
     private var routerOptions: String {
         EDAEngine.routingOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType, rounded: routerRounded,
                                  arcs: routerArcs, anyAngle: routerAnyAngle, removeLoops: routerRemoveLoops,
-                                 teardrops: routerTeardrops, hug: routerHugDrag)
+                                 teardrops: routerTeardrops, hug: routerHugDrag, teardropStyle: teardropStyle)
     }
 
     /// Shows a router reply: a refused step keeps the route and reports why.

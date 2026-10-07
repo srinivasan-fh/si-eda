@@ -16433,3 +16433,297 @@ TEST(corridor_rip_up_same_copper_for_any_thread_count) {
     for (size_t i = 0; same && i < vias[0].size(); ++i) same = vias[0][i].position == vias[1][i].position && vias[0][i].net == vias[1][i].net;
     CHECK(same);
 }
+
+// ---- curved teardrops
+
+namespace {
+/// The board of teardrops_on_pads_and_vias: pad → via → via → pad, 0.25 mm tracks.
+struct TeardropBoard {
+    Project p;
+    int net = -1;
+    Vec2 from, to;
+};
+
+TeardropBoard teardropBoard() {
+    TeardropBoard b;
+    auto& s = b.p.schematic;
+    const int r1 = placeR(b.p, {10, 20}), r2 = placeR(b.p, {34, 20});
+    wire(s, r1, "2", r2, "1");
+    b.p.schematicChanged();
+    b.net = s.netOf({r1, 1});
+    b.from = padAt(b.p, r1, 1);
+    b.to = padAt(b.p, r2, 0);
+    addPath(b.p.pcb, b.net, 0, 0.25, {b.from, {18, b.from.y}});
+    addPath(b.p.pcb, b.net, 1, 0.25, {{18, b.from.y}, {26, b.from.y}});
+    addPath(b.p.pcb, b.net, 0, 0.25, {{26, b.from.y}, b.to});
+    b.p.pcb.addVia(testVia(b.p, b.net, {18, b.from.y}));
+    b.p.pcb.addVia(testVia(b.p, b.net, {26, b.from.y}));
+    return b;
+}
+
+/// Teardrop members on `layer` whose pad / via end lies within `radius` of `E`.
+std::vector<Track> teardropsAt(const std::vector<Track>& tracks, Vec2 E, int layer, double radius) {
+    std::vector<Track> out;
+    for (const auto& t : tracks)
+        if (t.teardrop && t.layer == layer && (t.a - E).length() <= radius) out.push_back(t);
+    return out;
+}
+
+/// A point relative to a teardrop's end `E` and track direction `u`: x along the track, y across it (absolute).
+Vec2 teardropLocal(Vec2 p, Vec2 E, Vec2 u) {
+    const Vec2 d = p - E;
+    return {d.dot(u), std::fabs(d.x * u.y - d.y * u.x)};
+}
+
+/// Widest centre-line offset of the members at `x` along the track (their copper outline less half the width).
+double teardropExtentAt(const std::vector<Track>& fan, Vec2 E, Vec2 u, double x) {
+    double best = 0;
+    for (const auto& t : fan) {
+        const Vec2 a = teardropLocal(t.a, E, u), b = teardropLocal(t.b, E, u);
+        if (x < std::min(a.x, b.x) || x > std::max(a.x, b.x) || std::fabs(b.x - a.x) < 1e-12) continue;
+        best = std::max(best, a.y + (b.y - a.y) * (x - a.x) / (b.x - a.x));
+    }
+    return best;
+}
+
+bool sameTracks(const std::vector<Track>& x, const std::vector<Track>& y) {
+    bool same = x.size() == y.size();
+    for (size_t i = 0; same && i < x.size(); ++i)
+        same = x[i].a == y[i].a && x[i].b == y[i].b && x[i].width == y[i].width && x[i].layer == y[i].layer &&
+               x[i].net == y[i].net && x[i].teardrop == y[i].teardrop;
+    return same;
+}
+
+/// Checks a curved fan against the straight one at the same end `E` (track direction `u`): inside its triangle,
+/// concave (well inside it three quarters of the way along), as long, and with gaps narrower than the track.
+void checkConcaveFan(const std::vector<Track>& straight, const std::vector<Track>& curved, Vec2 E, Vec2 u) {
+    CHECK(!straight.empty() && !curved.empty());
+    if (straight.empty() || curved.empty()) return;
+    double tip = 0, half = 0;
+    for (const auto& t : straight) {
+        tip = std::max(tip, teardropLocal(t.b, E, u).x);
+        half = std::max(half, teardropLocal(t.a, E, u).y);
+    }
+    CHECK(tip > 0 && half > 0);
+    // Every curved member lies in the straight fan's triangle (0, ±half) – (tip, 0).
+    bool inside = true, strict = false;
+    for (const auto& t : curved)
+        for (Vec2 p : {t.a, t.b}) {
+            const Vec2 l = teardropLocal(p, E, u);
+            const double bound = half * (1 - l.x / tip);
+            inside = inside && l.x >= -1e-9 && l.x <= tip + 1e-9 && l.y <= bound + 1e-9;
+            strict = strict || (l.y > 0.01 && l.y < bound - 0.01);  // a member end well inside: the outline bends in
+        }
+    CHECK(inside);
+    CHECK(strict);
+    // Concave: three quarters of the way to the tip the outline is much narrower than the straight one.
+    const double x = 0.75 * tip;
+    const double ys = teardropExtentAt(straight, E, u, x), yc = teardropExtentAt(curved, E, u, x);
+    std::printf("    teardrop half-width at %.2f mm: straight %.3f, curved %.3f\n", x, ys, yc);
+    CHECK(ys > 0.02 && yc < 0.6 * ys);
+    // The curved members reach (within one gap) as far along the track as the straight ones.
+    double ctip = 0;
+    for (const auto& t : curved) ctip = std::max(ctip, teardropLocal(t.b, E, u).x);
+    CHECK(ctip <= tip + 1e-9 && ctip > tip - curved.front().width);
+    // Neighbouring ends on the track are closer than the track is wide (the copper fills between members).
+    std::vector<double> ends;
+    for (const auto& t : curved) ends.push_back(teardropLocal(t.b, E, u).x);
+    std::sort(ends.begin(), ends.end());
+    for (size_t k = 1; k < ends.size(); ++k) CHECK(ends[k] - ends[k - 1] < curved.front().width);
+}
+}  // namespace
+
+TEST(curved_teardrops_default_is_straight) {
+    // The default style is Straight and gives exactly the teardrops of TeardropStyle::Straight.
+    CHECK(TeardropOptions{}.style == TeardropStyle::Straight);
+    CHECK(RouterOptions{}.teardropStyle == TeardropStyle::Straight);
+    CHECK(AutorouteOptions{}.teardropStyle == TeardropStyle::Straight);
+    TeardropBoard d = teardropBoard(), s = teardropBoard();
+    TeardropOptions straight;
+    straight.style = TeardropStyle::Straight;
+    const BoardEditResult rd = addTeardrops(d.p.pcb, d.p.schematic);
+    const BoardEditResult rs = addTeardrops(s.p.pcb, s.p.schematic, straight);
+    CHECK(rd.ok && rs.ok && rd.added == 6 && rs.added == 6 && rd.skipped == rs.skipped);
+    CHECK(sameTracks(rd.addedTracks, rs.addedTracks));
+    CHECK(sameTracks(d.p.pcb.tracks, s.p.pcb.tracks));
+    CHECK(rd.message == rs.message);
+    // Straight members all end within the stagger of one point on the track.
+    const double r = d.p.pcb.settings.viaDiameter / 2;
+    const auto fan = teardropsAt(d.p.pcb.tracks, {18, d.from.y}, 0, r);
+    CHECK(!fan.empty());
+    double lo = 1e9, hi = -1e9;
+    for (const auto& t : fan) {
+        lo = std::min(lo, t.b.x);
+        hi = std::max(hi, t.b.x);
+    }
+    CHECK(hi - lo <= 0.02 * static_cast<double>(fan.size()) + 1e-9);
+}
+
+TEST(curved_teardrops_on_pads_and_vias) {
+    // Curved teardrops on the same board: one per pad / via end, every member a teardrop, DRC clean, connectivity
+    // unchanged, each fan inside the straight fan's outline and concave; saved and loaded; pruned and removed exactly.
+    TeardropBoard st = teardropBoard(), cv = teardropBoard();
+    const size_t plainCount = cv.p.pcb.tracks.size();
+    const size_t plainRats = cv.p.pcb.ratsnest(cv.p.schematic).size();
+    CHECK(netRouted(cv.p, cv.net));
+    TeardropOptions curved;
+    curved.style = TeardropStyle::Curved;
+    const BoardEditResult rs = addTeardrops(st.p.pcb, st.p.schematic);
+    const BoardEditResult rc = addTeardrops(cv.p.pcb, cv.p.schematic, curved);
+    std::printf("    straight: %s (%zu tracks); curved: %s (%zu tracks)\n", rs.message.c_str(), rs.addedTracks.size(),
+                rc.message.c_str(), rc.addedTracks.size());
+    CHECK(rc.ok && rc.applied && rc.added == 6 && rc.skipped == 0);
+    CHECK(teardropTracks(cv.p) > 0 && static_cast<size_t>(teardropTracks(cv.p)) == rc.addedTracks.size());
+    bool allTeardrops = true;
+    for (const auto& t : rc.addedTracks) allTeardrops = allTeardrops && t.teardrop && t.net == cv.net && t.width == 0.25;
+    CHECK(allTeardrops);
+    CHECK(!sameTracks(rs.addedTracks, rc.addedTracks));
+    CHECK(routingProblems(cv.p) == 0);
+    CHECK(acuteWarnings(cv.p) == 0);
+    CHECK(drcCount(cv.p, "DRC_DANGLING_TRACK") == 0);
+    CHECK(netRouted(cv.p, cv.net));
+    CHECK(cv.p.pcb.ratsnest(cv.p.schematic).size() == plainRats);
+    CHECK(addTeardrops(cv.p.pcb, cv.p.schematic, curved).added == 0);  // already there
+    CHECK(addTeardrops(cv.p.pcb, cv.p.schematic).added == 0);          // no straight one on top
+    CHECK(pruneTeardrops(cv.p.pcb, cv.p.schematic) == 0);
+
+    // Concave outline at the via (on layer 0 the track runs from it towards -x, on layer 1 towards +x) and at the pad.
+    const double r = cv.p.pcb.settings.viaDiameter / 2;
+    const Vec2 via{18, cv.from.y};
+    checkConcaveFan(teardropsAt(st.p.pcb.tracks, via, 0, r), teardropsAt(cv.p.pcb.tracks, via, 0, r), via, {-1, 0});
+    checkConcaveFan(teardropsAt(st.p.pcb.tracks, via, 1, r), teardropsAt(cv.p.pcb.tracks, via, 1, r), via, {1, 0});
+    checkConcaveFan(teardropsAt(st.p.pcb.tracks, cv.from, 0, 2.0), teardropsAt(cv.p.pcb.tracks, cv.from, 0, 2.0), cv.from,
+                    {1, 0});
+
+    // Saved and loaded with the board.
+    const Project back = Project::fromJson(cv.p.toJson());
+    CHECK(teardropTracks(back) == teardropTracks(cv.p));
+    // Pruned when their track goes, as straight teardrops.
+    {
+        Project q = cv.p;
+        q.pcb.tracks.erase(std::remove_if(q.pcb.tracks.begin(), q.pcb.tracks.end(),
+                                          [](const Track& t) { return !t.teardrop && t.layer == 1; }),
+                           q.pcb.tracks.end());
+        const size_t onLayer1 = teardropsAt(cv.p.pcb.tracks, via, 1, r).size() +
+                                teardropsAt(cv.p.pcb.tracks, {26, cv.from.y}, 1, r).size();
+        CHECK(onLayer1 > 0 && pruneTeardrops(q.pcb, q.schematic) == static_cast<int>(onLayer1));
+    }
+    // removeTeardrops removes them exactly: one track's, then all.
+    int firstId = -1;
+    for (const auto& t : cv.p.pcb.tracks)
+        if (!t.teardrop && t.layer == 0 && firstId < 0) firstId = t.id;
+    const int before = teardropTracks(cv.p);
+    const BoardEditResult one = removeTeardrops(cv.p.pcb, {firstId});
+    CHECK(one.ok && teardropTracks(cv.p) > 0 && teardropTracks(cv.p) < before);
+    const BoardEditResult all = removeTeardrops(cv.p.pcb);
+    CHECK(all.ok && teardropTracks(cv.p) == 0 && cv.p.pcb.tracks.size() == plainCount);
+    CHECK(netRouted(cv.p, cv.net));
+}
+
+TEST(curved_teardrops_router_and_autorouter) {
+    // Auto teardrops on a router commit, curved.
+    Project q;
+    const int a = placeR(q, {10, 20}), b = placeR(q, {30, 20});
+    wire(q.schematic, a, "2", b, "1");
+    q.schematicChanged();
+    InteractiveRouter ir(q.pcb, q.schematic);
+    const RouterOptions o = routerOptionsFromJson(Json::parse("{\"teardrops\":true,\"teardropStyle\":\"curved\"}"));
+    CHECK(o.autoTeardrops && o.teardropStyle == TeardropStyle::Curved);
+    ir.setOptions(o);
+    CHECK(ir.beginRoute(padAt(q, a, 1), 0));
+    ir.moveTo(padAt(q, b, 0));
+    const RouteChanges ch = ir.commit();
+    CHECK(ch.ok && teardropTracks(q) >= 4);
+    CHECK(drcCount(q, "DRC_DANGLING_TRACK") == 0 && acuteWarnings(q) == 0);
+    CHECK(routingProblems(q) == 0);
+    CHECK(ch.addedTracks.size() == q.pcb.tracks.size());
+
+    // The autorouter's teardrop pass, curved: complete and DRC clean.
+    Project p = amplifierProject();
+    p.pcb.settings.width = 40;
+    p.pcb.settings.height = 30;
+    p.pcb.autoPlace(p.schematic, true);
+    p.pcb.settings.autorouter.teardrops = true;
+    p.pcb.settings.autorouter.teardropStyle = TeardropStyle::Curved;
+    const RouteStats st = p.pcb.autoRoute(p.schematic);
+    std::printf("    autorouted with %d curved teardrops\n", st.report.metrics.teardropsAdded);
+    CHECK(st.failed == 0 && st.report.metrics.unrouted == 0);
+    CHECK(st.report.metrics.teardropsAdded > 0 && st.report.metrics.teardrops > 0);
+    const auto errors = routeDrcErrors(p);
+    for (const auto& e : errors) std::printf("    %s\n", e.c_str());
+    CHECK(errors.empty());
+}
+
+TEST(curved_teardrops_json_and_c_api) {
+    // AutorouteOptions: "teardropStyle" only when curved, so default boards save as before; it round-trips.
+    const AutorouteOptions def;
+    CHECK(!autorouteOptionsToJson(def).has("teardropStyle"));
+    AutorouteOptions o;
+    o.teardrops = true;
+    o.teardropStyle = TeardropStyle::Curved;
+    const Json j = autorouteOptionsToJson(o);
+    CHECK(j.get("teardropStyle").asString() == "curved");
+    CHECK(autorouteOptionsFromJson(j) == o);
+    CHECK(!(autorouteOptionsFromJson(j) == def));
+    AutorouteOptions styleOnly;
+    styleOnly.teardropStyle = TeardropStyle::Curved;
+    CHECK(!styleOnly.isDefault());
+    CHECK(autorouteOptionsFromJson(Json::parse("{\"teardropStyle\":\"straight\"}"), o).teardropStyle == TeardropStyle::Straight);
+    CHECK(autorouteOptionsFromJson(Json::parse("{\"teardropStyle\":\"wavy\"}"), o).teardropStyle == TeardropStyle::Curved);
+    CHECK(autorouteOptionsFromJson(Json::parse("{\"teardrops\":true}"), o).teardropStyle == TeardropStyle::Curved);
+    // Saved with the project; a default board's file has no "teardropStyle".
+    {
+        Project p;
+        CHECK(p.toJson().dump().find("teardropStyle") == std::string::npos);
+        p.pcb.settings.autorouter = o;
+        const Project back = Project::fromJson(Json::parse(p.toJson().dump()));
+        CHECK(back.pcb.settings.autorouter.teardropStyle == TeardropStyle::Curved);
+        CHECK(back.pcb.settings.autorouter == o);
+    }
+    // Router options.
+    CHECK(routerOptionsFromJson(Json::parse("{\"teardropStyle\":\"curved\"}")).teardropStyle == TeardropStyle::Curved);
+    CHECK(routerOptionsFromJson(Json::parse("{\"teardropStyle\":\"straight\"}")).teardropStyle == TeardropStyle::Straight);
+    CHECK(routerOptionsFromJson(Json::parse("{}")).teardropStyle == TeardropStyle::Straight);
+    CHECK(std::string(teardropStyleName(TeardropStyle::Curved)) == "curved" &&
+          std::string(teardropStyleName(TeardropStyle::Straight)) == "straight");
+
+    // C API: sieda_pcb_teardrops takes "style"; the autoroute options carry "teardropStyle".
+    TeardropBoard b = teardropBoard();
+    TeardropOptions dry;
+    dry.apply = false;
+    dry.style = TeardropStyle::Curved;
+    const BoardEditResult expectCurved = addTeardrops(b.p.pcb, b.p.schematic, dry);
+    dry.style = TeardropStyle::Straight;
+    const BoardEditResult expectStraight = addTeardrops(b.p.pcb, b.p.schematic, dry);
+    CHECK(!sameTracks(expectCurved.addedTracks, expectStraight.addedTracks));
+    const std::string saved = b.p.toJson().dump();
+    SiedaProject* api = sieda_project_load_json(saved.c_str(), nullptr);
+    CHECK(api != nullptr);
+    if (!api) return;
+    auto teardrops = [&](const char* options) {
+        char* out = sieda_pcb_teardrops(api, "[]", options);
+        const Json r = Json::parse(out ? std::string(out) : std::string("{}"));
+        sieda_string_free(out);
+        return r;
+    };
+    const Json c = teardrops("{\"style\":\"curved\",\"apply\":false}");
+    CHECK(c.get("added").asInt() == 6 && c.get("addedTracks").size() == expectCurved.addedTracks.size());
+    const Json s = teardrops("{\"apply\":false}");
+    CHECK(s.get("added").asInt() == 6 && s.get("addedTracks").size() == expectStraight.addedTracks.size());
+    const Json added = teardrops("{\"style\":\"curved\"}");
+    CHECK(added.get("applied").asBool() && added.get("addedTracks").size() == expectCurved.addedTracks.size());
+    const Json removed = teardrops("{\"remove\":true}");
+    CHECK(removed.get("ok").asBool() && removed.get("removedTracks").size() == expectCurved.addedTracks.size());
+
+    CHECK(sieda_pcb_set_autoroute_options(api, "{\"teardrops\":true,\"teardropStyle\":\"curved\"}") == 1);
+    char* opts = sieda_pcb_autoroute_options(api);
+    const Json oj = Json::parse(opts ? std::string(opts) : std::string("{}"));
+    sieda_string_free(opts);
+    CHECK(oj.get("teardrops").asBool() && oj.get("teardropStyle").asString() == "curved");
+    CHECK(sieda_pcb_set_autoroute_options(api, "{\"teardropStyle\":\"straight\"}") == 1);
+    opts = sieda_pcb_autoroute_options(api);
+    const Json oj2 = Json::parse(opts ? std::string(opts) : std::string("{}"));
+    sieda_string_free(opts);
+    CHECK(!oj2.has("teardropStyle") && oj2.get("teardrops").asBool());
+    sieda_project_free(api);
+}

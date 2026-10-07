@@ -1036,6 +1036,11 @@
 "Strategy" = "रणनीति";
 "Strategy Settings…" = "रणनीति सेटिंग…";
 "Teardrops" = "टियरड्रॉप";
+"Teardrop style" = "टियरड्रॉप शैली";
+"Teardrop Style" = "टियरड्रॉप शैली";
+"Straight" = "सीधा";
+"Curved" = "घुमावदार";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "टियरड्रॉप की रूपरेखा: सीधे पंखे, या पैड और वाया में घुमावदार फैलाव";
 "Default" = "डिफ़ॉल्ट";
 "Fast" = "तेज़";
 "High quality" = "उच्च गुणवत्ता";

@@ -20,6 +20,7 @@ extension DesignStore {
         var options = preset.options
         options.classLayers = current.classLayers
         options.protectLocked = current.protectLocked
+        options.teardropStyle = current.teardropStyle
         setAutorouteOptions(options)
     }
 
@@ -27,6 +28,13 @@ extension DesignStore {
     func toggleRoutingOption(_ keyPath: WritableKeyPath<AutorouteOptions, Bool>) {
         var options = engine.autorouteOptions()
         options[keyPath: keyPath].toggle()
+        setAutorouteOptions(options)
+    }
+
+    /// Sets the outline of the autorouter's teardrops.
+    func setRoutingTeardropStyle(_ style: TeardropStyleChoice) {
+        var options = engine.autorouteOptions()
+        options.teardropStyle = style
         setAutorouteOptions(options)
     }
 

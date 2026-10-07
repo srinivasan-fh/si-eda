@@ -1036,6 +1036,11 @@
 "Strategy" = "전략";
 "Strategy Settings…" = "전략 설정…";
 "Teardrops" = "티어드롭";
+"Teardrop style" = "티어드롭 모양";
+"Teardrop Style" = "티어드롭 모양";
+"Straight" = "직선";
+"Curved" = "곡선";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "티어드롭 윤곽: 직선 부채꼴 또는 패드와 비아로 곡선으로 넓어지는 모양";
 "Default" = "기본";
 "Fast" = "빠름";
 "High quality" = "고품질";

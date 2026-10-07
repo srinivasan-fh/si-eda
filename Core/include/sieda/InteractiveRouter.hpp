@@ -80,6 +80,8 @@ struct RouterOptions {
     bool removeLoops = false;
     /// Teardrops on commit where the new tracks meet pads and vias (addTeardrops).
     bool autoTeardrops = false;
+    /// Outline of those teardrops (JSON "teardropStyle": "straight" | "curved").
+    TeardropStyle teardropStyle = TeardropStyle::Straight;
     /// Hug: a dragged segment that runs into copper that cannot move (pads, locked tracks, fixed vias) bends around it
     /// on its clearance hull instead of stopping short; other nets' tracks are still shoved (Shove) or kept clear.
     bool hugDrag = false;
@@ -349,6 +351,10 @@ struct TeardropOptions {
     bool pads = true, vias = true;
     /// Length of the teardrop beyond the pad / via edge, as a fraction of the pad / via size (0.3 … 3).
     double length = 1.0;
+    /// Straight (the default): every fan member ends near the same point on the track. Curved: the members' ends
+    /// spread along the track so their envelope (the copper outline) is a concave quadratic Bézier from inside the
+    /// pad / via, tangent to the track; it lies inside the straight teardrop's outline.
+    TeardropStyle style = TeardropStyle::Straight;
     /// False: compute the result without changing the board.
     bool apply = true;
 };

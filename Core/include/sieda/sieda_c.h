@@ -274,7 +274,8 @@ int32_t sieda_router_strategy(void);
 void sieda_router_set_threads(int32_t threads);
 /* Autorouter strategy of the board (AutorouteOptions, saved with the project): JSON {"coupledPairs","pairGap",
  * "lengthAware","minimizeVias","gloss","arcCorners","arcRadius","teardrops","preset","fast","fanoutOnly","nets":[name],
- * "netClass","hasArea","area":{"x0","y0","x1","y1"},"protectLocked","classLayers":{class:[layer]}}. Setting takes
+ * "netClass","hasArea","area":{"x0","y0","x1","y1"},"protectLocked","classLayers":{class:[layer]}}, plus
+ * "teardropStyle":"curved" when the teardrops are curved (absent = "straight"). Setting takes
  * the fields given (others keep their value); returns 1 when the JSON was valid. */
 char* sieda_pcb_autoroute_options(const SiedaProject* project);
 int32_t sieda_pcb_set_autoroute_options(SiedaProject* project, const char* options_json);
@@ -832,9 +833,11 @@ char* sieda_router_begin_multi_drag(SiedaProject* project, const char* options_j
 char* sieda_router_begin_multi(SiedaProject* project, const char* options_json, const char* points_json, int32_t layer);
 /* Board commands. Each returns {"ok","message","added","skipped","applied","addedTracks","addedVias","removedTracks",
  * "removedVias","changes"} (ok false: nothing to do), or {"error"}. Router options also take "removeLoops" (loop
- * removal on commit) and "teardrops" (teardrops on the committed tracks). Tracks with "teardrop":true are teardrops. */
+ * removal on commit), "teardrops" (teardrops on the committed tracks) and "teardropStyle" ("straight" default, or
+ * "curved"). Tracks with "teardrop":true are teardrops. */
 /* Teardrops on the given tracks' ends at pads / vias ([] = every track); options {"pads","vias" (default true),
- * "length" (fraction of the pad / via size, 0.3–3, default 1),"apply","remove" (remove them instead)}. */
+ * "length" (fraction of the pad / via size, 0.3–3, default 1),"style" ("straight" default, or "curved": concave outline),
+ * "apply","remove" (remove them instead)}. */
 char* sieda_pcb_teardrops(SiedaProject* project, const char* track_ids_json, const char* options_json);
 /* Via stitching where the net's pours overlap on two or more layers; options {"net" (default the ground net),
  * "pitch" (mm, default 2),"x0","y0","x1","y1" (area),"apply"}. */

@@ -6545,6 +6545,43 @@ final class BoardCommandTests: XCTestCase {
         XCTAssertFalse(store.routerTeardrops)
     }
 
+    func testCurvedTeardropStyleReachesTheCore() throws {
+        let curvedJSON = EDAEngine.routingOptions(mode: .shove, diagonal: true, teardrops: true, teardropStyle: .curved)
+        XCTAssertTrue(curvedJSON.contains("\"teardropStyle\":\"curved\""))
+        let plain = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+        XCTAssertTrue(plain.contains("\"teardropStyle\":\"straight\""))
+        let command = EDAEngine.teardropOptions(remove: false, apply: true, style: .curved)
+        XCTAssertTrue(command.contains("\"style\":\"curved\""))
+
+        // The command: a curved fan differs from the straight one at the same ends.
+        let store = routedStore()
+        XCTAssertEqual(store.teardropStyle, .straight)
+        let straight = try XCTUnwrap(store.engine.teardrops(tracks: [], apply: false))
+        let curved = try XCTUnwrap(store.engine.teardrops(tracks: [], apply: false, style: .curved))
+        XCTAssertGreaterThan(curved.added, 0)
+        XCTAssertEqual(straight.added, curved.added)
+        XCTAssertNotEqual(straight.addedTracks.map(\.bx), curved.addedTracks.map(\.bx))
+        store.teardropStyle = .curved
+        store.toggleTeardrops()
+        let drops = store.snapshot.tracks.filter { $0.teardrop == true }
+        XCTAssertEqual(drops.count, curved.addedTracks.count)
+        store.toggleTeardrops()  // again: removed
+        XCTAssertFalse(store.snapshot.tracks.contains { $0.teardrop == true })
+
+        // The autorouter option: decoded, set, saved only when curved.
+        let decoder = JSONDecoder()
+        let old = try decoder.decode(AutorouteOptions.self, from: Data("{\"teardrops\":true}".utf8))
+        XCTAssertEqual(old.teardropStyle, .straight)
+        let curvedOptions = try decoder.decode(AutorouteOptions.self, from: Data("{\"teardropStyle\":\"curved\"}".utf8))
+        XCTAssertEqual(curvedOptions.teardropStyle, .curved)
+        XCTAssertFalse(store.engine.saveJSON().contains("teardropStyle"))
+        store.setRoutingTeardropStyle(.curved)
+        XCTAssertEqual(store.autorouteOptions.teardropStyle, .curved)
+        XCTAssertTrue(store.engine.saveJSON().contains("\"teardropStyle\""))
+        store.applyRoutingPreset("quality")  // a preset keeps the style
+        XCTAssertEqual(store.autorouteOptions.teardropStyle, .curved)
+    }
+
     func testGlossStitchAndShieldReportWithoutChangingWhenNothingToDo() {
         let store = routedStore()
         let tracks = store.snapshot.tracks

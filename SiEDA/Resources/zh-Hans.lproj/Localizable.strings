@@ -1036,6 +1036,11 @@
 "Strategy" = "策略";
 "Strategy Settings…" = "策略设置…";
 "Teardrops" = "泪滴";
+"Teardrop style" = "泪滴样式";
+"Teardrop Style" = "泪滴样式";
+"Straight" = "直线";
+"Curved" = "曲线";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "泪滴轮廓：直线扇形，或以曲线过渡到焊盘和过孔";
 "Default" = "默认";
 "Fast" = "快速";
 "High quality" = "高质量";

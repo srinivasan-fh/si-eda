@@ -23,7 +23,7 @@ int glossRouted(PcbLayout& pcb, const Schematic& sch, const std::set<int>& skipN
 /// True-arc corners on the routed copper (convertCornersToArcs; radius 0 = automatic). Returns the corners converted.
 int arcRouted(PcbLayout& pcb, const Schematic& sch, double radius);
 /// Teardrops on every pad and via joint (addTeardrops). Returns the teardrops added.
-int teardropsRouted(PcbLayout& pcb, const Schematic& sch);
+int teardropsRouted(PcbLayout& pcb, const Schematic& sch, TeardropStyle style = TeardropStyle::Straight);
 /// Fills the board measurements of `m` (vias by kind, length per layer, segments, arcs, teardrops, unrouted).
 void measure(const PcbLayout& pcb, const Schematic& sch, RouteMetrics& m);
 

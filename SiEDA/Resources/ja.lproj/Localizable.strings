@@ -1036,6 +1036,11 @@
 "Strategy" = "戦略";
 "Strategy Settings…" = "戦略の設定…";
 "Teardrops" = "ティアドロップ";
+"Teardrop style" = "ティアドロップの形状";
+"Teardrop Style" = "ティアドロップの形状";
+"Straight" = "直線";
+"Curved" = "曲線";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "ティアドロップの輪郭: 直線の扇形、またはパッドやビアへ曲線で広がる形";
 "Default" = "標準";
 "Fast" = "高速";
 "High quality" = "高品質";
