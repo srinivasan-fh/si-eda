@@ -23,8 +23,8 @@ struct VariantMatrix: Decodable {
     var parts: [Row]
 }
 
-/// Design review (`sieda_review_json`).
-struct DesignReview: Decodable {
+/// Design review comments (`sieda_review_json`).
+struct ReviewThread: Decodable {
     struct Reply: Decodable, Hashable {
         var author: String
         var text: String
@@ -44,8 +44,8 @@ struct DesignReview: Decodable {
 }
 
 extension EDAEngine {
-    func review() -> DesignReview? {
-        Self.decode(DesignReview.self, from: withHandle { Self.take(sieda_review_json($0)) })
+    func review() -> ReviewThread? {
+        Self.decode(ReviewThread.self, from: withHandle { Self.take(sieda_review_json($0)) })
     }
 
     /// A review command (add, reply, resolve, reopen, delete); nil on success, else the core's reason.
