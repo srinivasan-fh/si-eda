@@ -105,6 +105,37 @@ each package into its steps.
 - [ ] App skeleton: open / save, schematic and PCB canvases, zoom, selection
 - [ ] Port the editors one area per PR
 
+## Long-term archival ("1,000-year" designs) — plan later
+
+Principle: the data must outlive the software. Formats first, executables second.
+
+### Already true
+- [x] Works fully offline (AI and supplier prices are optional; design work never needs the network)
+- [x] Plain-text project file (`.siedaproj`, UTF-8 JSON)
+- [x] Open, documented, text-based outputs: Gerber X2, Excellon, IPC-D-356, SVG, PDF, STEP AP214, IDF 3.0
+- [x] Core has no third-party libraries and renders PNG / SVG with its own code
+
+### Archive Package — File → Export Archive… (~0.1M–0.15M tokens)
+- [ ] `README.txt`: plain English — what the folder is and how to read every file
+- [ ] `FORMAT.txt`: `.siedaproj` specification (units, axes, every field)
+- [ ] `"readme"` field at the top of the project JSON explaining the syntax (written only in the archive copy)
+- [ ] `PHYSICS.txt`: the formulas the engine uses (IPC-2221 current, impedance, decoupling)
+- [ ] `netlist.txt`: `ref.pin → net`, one per line
+- [ ] `schematic.pdf` and 1:1 `layers/*.svg` with scale bar and coordinates (for printing / etching onto archival media)
+- [ ] `fab/` (Gerber, drill, IPC-356, BOM, CPL) and `mechanical/` (STEP, IDF)
+- [ ] `checksums.txt`: SHA-256 of every file (detects bit rot)
+- [ ] Core test: the archive is complete and every checksum matches
+
+### WebAssembly core (~0.1M tokens)
+- [ ] Emscripten target for the dependency-free C++17 core (`sieda-core.wasm`), included in the archive
+- [ ] CI job that keeps the WebAssembly build green
+
+### Deliberately not planned
+- Self-compiling ("quine") toolchain: years of work; documented formats + clean C source serve a future engineer better
+- Electronics textbook inside the source: a short `PHYSICS.txt` in the archive instead
+- "Biological / atomic" manufacturing outputs: exact vector geometry + netlist + rules + stack-up already adapt to any process
+- A minimal "stone-age" UI: the UI is the most replaceable layer; keep the data and the core durable instead
+
 ## Arm-focused production-ready PCB (plan for review) — ~2.1M–3.2M tokens
 
 Goal: pick an Arm processor and its peripherals; SiEDA produces a minimal, low-cost, production-ready board
