@@ -465,22 +465,34 @@ afterwards, like the tune-while-routing modes of the big tools:
 - **A bus started with the option on** leaves room between its members for the meanders: the members are
   `tuneGap` further apart than width + clearance (automatic: one more width + clearance; `< 0` keeps the bundle
   packed, so only the outer members have room).
-- **On commit (Enter)** each short member gets accordion meanders on the tracks this route adds, and only on those
-  (longest first, through the same tuner as the Tune tool, one track at a time), never higher than the room between
-  the members, keeping clearance to everything. Lengths are then measured as the Tune tool measures them (pad to pad
-  through series parts when a rule or group applies). The status line reports `Lengths: 3 of 4 members within
-  tolerance of the target`, and names every member that could not get there (`— could not reach the target (no room
-  for meanders): DQ2 (-1.20 mm)`). Nothing that would break a DRC rule is ever added: a member without room stays
-  short.
-- Differential pairs are not tuned here (their skew and length are tuned as a coupled pair with the Tune tool), and
-  the live head is not meandered: the meanders appear when the route is finished. With the option off routing is
-  bit-for-bit what it was.
+- **Live, while the head moves**, each short member gets accordion meanders on the tracks this route adds, and only
+  on those (longest first, through the same tuner as the Tune tool, one track at a time), never higher than the room
+  between the members, keeping clearance to everything. The preview shows the route with its meanders as it will be
+  written, and the banner's lengths are the tuned ones, measured as the Tune tool measures them (pad to pad through
+  series parts when a rule or group applies). The router tunes a copy of the board exactly as the commit will, so
+  **on commit (Enter)** the copper is the copper last shown when the cursor has not moved since: the commit re-tunes
+  the untuned route (it never tunes an already meandered one) and gets the same result. To stay fast the live tuning
+  is cached by the route's geometry (moves that leave the route as it was cost nothing; a head that moved less than
+  0.02 mm keeps the last meanders) and each member gets at most `max(4, shoveLimit / 20)` tuned tracks per step (the
+  commit uses the same limit). The status line reports `Lengths: 3 of 4 members within tolerance of the target`,
+  and names every member that could not get there (`— could not reach the target (no room for meanders): DQ2
+  (-1.20 mm)`). Nothing that would break a DRC rule is ever added: a member without room stays short.
+- **Differential pairs** (routed with the pair tool) whose members have a length target (a length rule, a match group
+  or a matched-length group with other nets) are tuned as a whole: coupled meanders on the longer member's new tracks
+  with its partner alongside (both members together, at the pair gap, the Tune tool's coupled mode) bring the pair to
+  its target; then the shorter member gets small skew bumps (the Tune tool's phase tuning, on the side away from its
+  partner) until `|P − N|` is within the pair's tolerance. A pair without a target of its own is matched for skew
+  only. Live in the preview and on commit, as for buses; the banner adds `Pair: 2 of 2 members within tolerance of
+  the target, skew 0.004 mm (tolerance 0.100 mm)` (and `— skew over tolerance` when the bumps had no room).
+- With the option off routing is bit-for-bit what it was, and so is the preview of a route that has no length target.
 
-Core: `RouterOptions::tuneWhileRouting`, `RouterOptions::tuneGap`; `RoutePreview::memberLengths` and
-`RouteChanges::memberLengths` / `RouteChanges::tuneStatus` (`MemberLength {net, length, target, tolerance,
-withinTolerance}`). JSON: router options `"tuneWhileRouting"`, `"tuneGap"`; the preview and the commit's changes
-carry `"memberLengths":[{"net","length","target","tolerance","withinTolerance"}]` (and the changes `"tuneStatus"`)
-only when the option produced them.
+Core: `RouterOptions::tuneWhileRouting`, `RouterOptions::tuneGap`; `RoutePreview::memberLengths`,
+`RoutePreview::tunedTracks`, `RoutePreview::tuneStatus` and `RouteChanges::memberLengths` /
+`RouteChanges::tuneStatus` (`MemberLength {net, length, target, tolerance, withinTolerance}`). JSON: router options
+`"tuneWhileRouting"`, `"tuneGap"`; the preview and the commit's changes carry
+`"memberLengths":[{"net","length","target","tolerance","withinTolerance"}]` and `"tuneStatus"`, the preview
+`"tunedTracks":[track]` (the route with its live meanders; draw it in place of `placed` + `head`), each only when the
+option produced them.
 
 ## Core API
 
@@ -545,10 +557,11 @@ that are left out keep their value.
 
 Preview JSON: `active`, `kind` (`route` / `pair` / `drag` / `via`), `status`, `blocked`, `reachedTarget`, `nets`,
 `layer`, `width`, `gap`, `endX`, `endY`, `length`, `netLength`, `targetLength`, `placed`, `head`, `vias`,
-`shovedTracks`, `shovedVias`, `hiddenTracks`, `hiddenVias`, `memberLengths` (tune while routing only), and `error`
+`shovedTracks`, `shovedVias`, `hiddenTracks`, `hiddenVias`, `memberLengths`, `tunedTracks`, `tuneStatus` (tune while
+routing only), and `error`
 when the call was refused. Vias carry
 `fromLayer`, `toLayer` and `kind` as in the snapshot. To draw a preview, draw the board without `hiddenTracks` /
-`hiddenVias`, then `shovedTracks` / `shovedVias`, then the route (`placed`, `head`, `vias`).
+`hiddenVias`, then `shovedTracks` / `shovedVias`, then the route (`placed`, `head`, `vias`; `tunedTracks` in place of `placed` + `head` when present).
 
 ## How shoving works
 

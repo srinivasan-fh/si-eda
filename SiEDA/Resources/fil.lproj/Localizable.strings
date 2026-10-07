@@ -1147,7 +1147,7 @@
 "Tan" = "Tan";
 "Colour Symbols by Device" = "Kulayan ang mga Simbolo ayon sa Device";
 "Tune Lengths While Routing" = "I-tune ang Haba Habang Nagru-route";
-"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "Habang nagru-route ng bus o net na may tugmang haba, ipakita ang haba ng bawat miyembro laban sa target nito; ang pagtatapos ng ruta ay nagdaragdag ng meander sa maiikling miyembro";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "Habang nagra-route ng bus, net na tugma ang haba o differential pair, nagkakaroon ng meander ang maiikling miyembro habang nagra-route ka (sabay na tinu-tune ang pair, saka ang skew nito); isinusulat ang mga ito kapag tinapos ang route";
 
 // Autorouter: pin and gate swap
 "Swap Pins & Gates" = "Magpalit ng Pin at Gate";

@@ -1147,7 +1147,7 @@
 "Tan" = "タン";
 "Colour Symbols by Device" = "デバイスごとにシンボルを色分け";
 "Tune Lengths While Routing" = "配線中に長さを調整";
-"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "バスや等長ネットの配線中に各メンバーの長さを目標と比較して表示し、配線完了時に短いメンバーへミアンダを追加します";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "バス、等長ネット、差動ペアの配線中に短いメンバーへミアンダをリアルタイムで追加します（ペアは2本まとめて調整し、その後スキューを調整）。配線完了時にそのまま確定します";
 
 // Autorouter: pin and gate swap
 "Swap Pins & Gates" = "ピンとゲートを入れ替え";

@@ -86,10 +86,13 @@ struct RouterOptions {
     /// on its clearance hull instead of stopping short; other nets' tracks are still shoved (Shove) or kept clear.
     bool hugDrag = false;
     /// Tune while routing: routing a bus, or a single net with a length target (length rule, match group or
-    /// matched-length group), the preview reports each member's length against its target (RoutePreview::
-    /// memberLengths), and on commit the members that are short get accordion meanders on the tracks this route adds
-    /// (only those), keeping clearance, until they reach the target; members without room are named in
-    /// RouteChanges::tuneStatus. A bus started with it leaves `tuneGap` between its members for the meanders.
+    /// matched-length group), the members that are short get accordion meanders on the tracks this route adds (only
+    /// those), keeping clearance, until they reach the target — live in the preview while the head moves
+    /// (RoutePreview::tunedTracks, memberLengths with the tuned lengths) and the same on commit; members without room
+    /// are named in tuneStatus. A differential pair with a length target (rule, match group or matched-length
+    /// group) is tuned as a whole with coupled meanders (both members at the pair gap), then the shorter member gets
+    /// small skew bumps until |P − N| is within the pair's tolerance. A bus started with it leaves `tuneGap` between
+    /// its members for the meanders. Each member gets at most max(4, shoveLimit / 20) tuned tracks per step.
     bool tuneWhileRouting = false;
     /// With tuneWhileRouting: extra room between a bus's members (mm, on top of width + clearance, centre to centre),
     /// which is also the meanders' height limit there; 0 = automatic (track width + clearance), < 0 = packed at pitch.
@@ -149,8 +152,14 @@ struct RoutePreview {
     double netLength = 0;
     double targetLength = 0;
     /// Tune while routing (RouterOptions::tuneWhileRouting): each routed member's length so far (its other copper plus
-    /// the route) against its target; empty when the option is off or no member has a target.
+    /// the route, with the live meanders when `tunedTracks` is not empty) against its target; empty when the option
+    /// is off or no member has a target.
     std::vector<MemberLength> memberLengths;
+    /// Tune while routing: the route's copper as commit() will write it, with the live meanders (and a pair's skew
+    /// bumps), in place of `placed` + `head` (which stay the untuned route). Empty when nothing is meandered.
+    std::vector<Track> tunedTracks;
+    /// Tune while routing: the live summary (as RouteChanges::tuneStatus; a pair's line names its skew).
+    std::string tuneStatus;
     /// Highlight mode: what the route's copper violates (empty in the other modes, which never violate anything).
     std::vector<RouteCollision> collisions;
     /// The last moveTo() was cancelled (requestAbort): this is the preview from before it, unchanged.
@@ -447,6 +456,7 @@ Json boardEditJson(const BoardEditResult& r, int layerCount = 0);
 /// Options from {"mode":"shove|walkaround","posture":"45|90|free","swapPosture","width","pairGap","snap"} — missing
 /// fields keep their value in `base`.
 RouterOptions routerOptionsFromJson(const Json& j, RouterOptions base = {});
+/// Tune while routing adds "memberLengths", "tunedTracks" ([track]) and "tuneStatus", each only when not empty.
 Json routePreviewJson(const RoutePreview& p);
 /// [{"net","length","target","tolerance","withinTolerance"}] (tune while routing: "memberLengths" of the preview and
 /// of the commit's changes, written only when not empty).

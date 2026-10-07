@@ -7299,3 +7299,36 @@ final class ComponentSymbolIconTests: XCTestCase {
         XCTAssertEqual(withSwaps.swaps?.count, 1)
     }
 }
+
+@MainActor
+final class LiveTuningPreviewTests: XCTestCase {
+    private func previewJSON(extra: String) -> String {
+        let track = "{\"id\":-1,\"net\":3,\"layer\":0,\"width\":0.2,\"ax\":0,\"ay\":0,\"bx\":10,\"by\":0}"
+        var json = "{\"active\":true,\"kind\":\"pair\",\"status\":\"\",\"blocked\":false,\"reachedTarget\":true,"
+        json += "\"nets\":[3,4],\"layer\":0,\"width\":0.2,\"gap\":0.2,\"endX\":10,\"endY\":0,\"length\":10,"
+        json += "\"placed\":[\(track)],\"head\":[],\"vias\":[],\"shovedTracks\":[],\"shovedVias\":[],"
+        json += "\"hiddenTracks\":[],\"hiddenVias\":[]" + extra + "}"
+        return json
+    }
+
+    func testPreviewDecodesLiveMeandersAndSkewStatus() throws {
+        let meander = "{\"id\":7,\"net\":3,\"layer\":0,\"width\":0.2,\"ax\":0,\"ay\":0,\"bx\":0,\"by\":1}"
+        let status = "Pair: 2 of 2 members within tolerance of the target, skew 0.004 mm (tolerance 0.100 mm)"
+        let extra = ",\"tunedTracks\":[\(meander)],\"tuneStatus\":\"\(status)\""
+        let data = Data(previewJSON(extra: extra).utf8)
+        let preview = try JSONDecoder().decode(RoutePreview.self, from: data)
+        XCTAssertEqual(preview.tunedTracks?.count, 1)
+        XCTAssertEqual(preview.tunedTracks?.first?.id, 7)
+        XCTAssertEqual(preview.tuneStatus?.contains("skew"), true)
+        // The live meanders are drawn in place of the placed tracks and the head.
+        XCTAssertEqual(preview.routeCopper.map(\.id), [7])
+    }
+
+    func testPreviewWithoutLiveTuningDrawsPlacedAndHead() throws {
+        let data = Data(previewJSON(extra: "").utf8)
+        let preview = try JSONDecoder().decode(RoutePreview.self, from: data)
+        XCTAssertNil(preview.tunedTracks)
+        XCTAssertNil(preview.tuneStatus)
+        XCTAssertEqual(preview.routeCopper, preview.placed + preview.head)
+    }
+}

@@ -1147,7 +1147,7 @@
 "Tan" = "Nâu vàng";
 "Colour Symbols by Device" = "Tô màu ký hiệu theo linh kiện";
 "Tune Lengths While Routing" = "Điều chỉnh độ dài khi đi dây";
-"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "Khi đi dây một bus hoặc một net khớp độ dài, hiển thị độ dài của từng thành viên so với mục tiêu; khi hoàn tất tuyến, các thành viên ngắn được thêm đường uốn khúc";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "Khi đi dây một bus, một net khớp độ dài hoặc một cặp vi sai, các thành viên ngắn được thêm đường uốn khúc trực tiếp trong lúc đi dây (cặp được chỉnh cùng nhau, rồi chỉnh độ lệch); khi hoàn tất tuyến, chúng được ghi lại";
 
 // Autorouter: pin and gate swap
 "Swap Pins & Gates" = "Hoán đổi chân & cổng";

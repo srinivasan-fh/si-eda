@@ -1690,7 +1690,8 @@ final class DesignStore: ObservableObject {
         didSet { if routerHugDrag != oldValue { applyRouterOptions() } }
     }
 
-    /// Tune lengths while routing: a bus's (or a matched net's) short members get meanders when the route is finished.
+    /// Tune lengths while routing: a bus's (or a matched net's, or a pair's) short members get meanders live in the
+    /// preview, written when the route is finished.
     @Published var routerTuneWhileRouting = false {
         didSet { if routerTuneWhileRouting != oldValue { applyRouterOptions() } }
     }
