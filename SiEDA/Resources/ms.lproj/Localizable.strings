@@ -1182,3 +1182,24 @@
 "Show device names" = "Tunjukkan nama peranti";
 "Show icons only (names in tooltips)" = "Ikon sahaja (nama dalam petua alat)";
 "Show icons only" = "Ikon sahaja";
+
+// Live MCP server (Settings → AI Access)
+"AI Access (MCP)" = "Akses AI (MCP)";
+"Access token" = "Token akses";
+"Allowed folder" = "Folder dibenarkan";
+"An AI client on this Mac works on the design open in this window. Each change it makes is one undo step. Only this Mac can connect, and only with the token below." = "Klien AI pada Mac ini bekerja pada reka bentuk yang dibuka dalam tetingkap ini. Setiap perubahannya ialah satu langkah buat asal. Hanya Mac ini boleh bersambung, dan hanya dengan token di bawah.";
+"An AI client used the live MCP server recently" = "Klien AI menggunakan pelayan MCP langsung baru-baru ini";
+"Choose…" = "Pilih…";
+"Claude Desktop starts the sieda-mcp bridge (built with the core), which forwards to this server. Restart a client after changing its configuration. Full guide: docs/MCP.md." = "Claude Desktop memulakan jambatan sieda-mcp (dibina bersama teras), yang memajukan ke pelayan ini. Mulakan semula klien selepas menukar konfigurasinya. Panduan penuh: docs/MCP.md.";
+"Client setup" = "Persediaan klien";
+"Clients send it as “Authorization: Bearer <token>”. Regenerating it disconnects every client until it is given the new one. Kept in the macOS Keychain." = "Klien menghantarnya sebagai “Authorization: Bearer <token>”. Menjana semula memutuskan semua klien sehingga mereka diberi token baharu. Disimpan dalam Rantai Kunci macOS.";
+"Enable live MCP server" = "Dayakan pelayan MCP langsung";
+"Hide" = "Sembunyi";
+"Live MCP server on (Settings → AI Access)" = "Pelayan MCP langsung hidup (Tetapan → Akses AI)";
+"Live server" = "Pelayan langsung";
+"Port" = "Port";
+"Read-only (the AI can inspect and check, not change)" = "Baca sahaja (AI boleh memeriksa dan menyemak, bukan mengubah)";
+"Regenerate" = "Jana semula";
+"Use Document Folder" = "Guna Folder Dokumen";
+"Off" = "Mati";
+"Starting…" = "Bermula…";

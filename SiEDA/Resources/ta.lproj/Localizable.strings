@@ -1182,3 +1182,24 @@
 "Show device names" = "சாதனப் பெயர்களைக் காட்டு";
 "Show icons only (names in tooltips)" = "சின்னங்கள் மட்டும் (பெயர்கள் உதவிக்குறிப்பில்)";
 "Show icons only" = "சின்னங்கள் மட்டும்";
+
+// Live MCP server (Settings → AI Access)
+"AI Access (MCP)" = "AI அணுகல் (MCP)";
+"Access token" = "அணுகல் டோக்கன்";
+"Allowed folder" = "அனுமதிக்கப்பட்ட கோப்புறை";
+"An AI client on this Mac works on the design open in this window. Each change it makes is one undo step. Only this Mac can connect, and only with the token below." = "இந்த Mac இல் உள்ள AI கிளையன்ட் இந்தச் சாளரத்தில் திறந்த வடிவமைப்பில் வேலை செய்கிறது. அது செய்யும் ஒவ்வொரு மாற்றமும் ஒரு செயல்தவிர் படி. இந்த Mac மட்டும், கீழே உள்ள டோக்கனுடன் மட்டும், இணைக்க முடியும்.";
+"An AI client used the live MCP server recently" = "ஒரு AI கிளையன்ட் சமீபத்தில் நேரடி MCP சேவையகத்தைப் பயன்படுத்தியது";
+"Choose…" = "தேர்ந்தெடு…";
+"Claude Desktop starts the sieda-mcp bridge (built with the core), which forwards to this server. Restart a client after changing its configuration. Full guide: docs/MCP.md." = "Claude Desktop sieda-mcp பாலத்தை (கோருடன் உருவாக்கப்பட்டது) தொடங்குகிறது, அது இந்தச் சேவையகத்துக்கு அனுப்புகிறது. உள்ளமைவை மாற்றிய பின் கிளையன்டை மறுதொடக்கம் செய்யவும். முழு வழிகாட்டி: docs/MCP.md.";
+"Client setup" = "கிளையன்ட் அமைப்பு";
+"Clients send it as “Authorization: Bearer <token>”. Regenerating it disconnects every client until it is given the new one. Kept in the macOS Keychain." = "கிளையன்ட்கள் இதை “Authorization: Bearer <token>” ஆக அனுப்புகின்றன. மீண்டும் உருவாக்கினால் புதிய டோக்கன் கிடைக்கும் வரை ஒவ்வொரு கிளையன்டும் துண்டிக்கப்படும். macOS கீசெயினில் வைக்கப்படுகிறது.";
+"Enable live MCP server" = "நேரடி MCP சேவையகத்தை இயக்கு";
+"Hide" = "மறை";
+"Live MCP server on (Settings → AI Access)" = "நேரடி MCP சேவையகம் இயக்கத்தில் (அமைப்புகள் → AI அணுகல்)";
+"Live server" = "நேரடி சேவையகம்";
+"Port" = "போர்ட்";
+"Read-only (the AI can inspect and check, not change)" = "படிக்க மட்டும் (AI பார்க்கவும் சரிபார்க்கவும் முடியும், மாற்ற முடியாது)";
+"Regenerate" = "மீண்டும் உருவாக்கு";
+"Use Document Folder" = "ஆவணக் கோப்புறையைப் பயன்படுத்து";
+"Off" = "முடக்கம்";
+"Starting…" = "தொடங்குகிறது…";

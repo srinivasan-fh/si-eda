@@ -106,7 +106,7 @@ add_executable(sieda-cli Core/cli/main.cpp)
 target_link_libraries(sieda-cli PRIVATE sieda_core)
 
 # MCP server over stdio (docs/MCP.md): any MCP client (Claude Desktop / Code, Cursor, VS Code …) drives SiEDA.
-add_executable(sieda-mcp Core/mcp/main.cpp)
+add_executable(sieda-mcp Core/mcp/main.cpp Core/mcp/http_bridge.cpp)
 target_link_libraries(sieda-mcp PRIVATE sieda_core)
 target_compile_definitions(sieda-mcp PRIVATE SIEDA_DOCS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/docs")
 if(NOT MSVC)
@@ -129,6 +129,12 @@ if(SIEDA_BUILD_TESTS)
         add_test(NAME sieda_mcp_stdio
                  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/mcp_stdio_test.py
                          $<TARGET_FILE:sieda-mcp> ${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/fixtures/mcp/transcript.jsonl)
+        # sieda-mcp --connect (stdio to the app's live HTTP endpoint) against a small in-process HTTP server.
+        if(NOT WIN32)
+            add_test(NAME sieda_mcp_connect
+                     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/mcp_connect_test.py
+                             $<TARGET_FILE:sieda-mcp>)
+        endif()
     endif()
     # Scale benchmark: place / route / DRC timings on generated large boards (not part of ctest).
     add_executable(sieda_route_bench Core/tests/bench/route_bench.cpp)

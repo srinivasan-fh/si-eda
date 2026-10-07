@@ -1182,3 +1182,24 @@
 "Show device names" = "ഉപകരണ പേരുകൾ കാണിക്കുക";
 "Show icons only (names in tooltips)" = "ഐക്കണുകൾ മാത്രം (പേരുകൾ ടൂൾടിപ്പിൽ)";
 "Show icons only" = "ഐക്കണുകൾ മാത്രം";
+
+// Live MCP server (Settings → AI Access)
+"AI Access (MCP)" = "AI ആക്സസ് (MCP)";
+"Access token" = "ആക്സസ് ടോക്കൺ";
+"Allowed folder" = "അനുവദിച്ച ഫോൾഡർ";
+"An AI client on this Mac works on the design open in this window. Each change it makes is one undo step. Only this Mac can connect, and only with the token below." = "ഈ Mac-ലെ ഒരു AI ക്ലയന്റ് ഈ വിൻഡോയിൽ തുറന്ന ഡിസൈനിൽ പ്രവർത്തിക്കുന്നു. അതിന്റെ ഓരോ മാറ്റവും ഒരു പഴയപടിയാക്കൽ ഘട്ടമാണ്. ഈ Mac-ന് മാത്രം, താഴെയുള്ള ടോക്കൺ ഉപയോഗിച്ച് മാത്രം, കണക്റ്റ് ചെയ്യാം.";
+"An AI client used the live MCP server recently" = "ഒരു AI ക്ലയന്റ് അടുത്തിടെ ലൈവ് MCP സെർവർ ഉപയോഗിച്ചു";
+"Choose…" = "തിരഞ്ഞെടുക്കുക…";
+"Claude Desktop starts the sieda-mcp bridge (built with the core), which forwards to this server. Restart a client after changing its configuration. Full guide: docs/MCP.md." = "Claude Desktop sieda-mcp ബ്രിഡ്ജ് (കോറിനൊപ്പം നിർമ്മിച്ചത്) ആരംഭിക്കുന്നു, അത് ഈ സെർവറിലേക്ക് കൈമാറുന്നു. കോൺഫിഗറേഷൻ മാറ്റിയ ശേഷം ക്ലയന്റ് വീണ്ടും ആരംഭിക്കുക. പൂർണ്ണ ഗൈഡ്: docs/MCP.md.";
+"Client setup" = "ക്ലയന്റ് സജ്ജീകരണം";
+"Clients send it as “Authorization: Bearer <token>”. Regenerating it disconnects every client until it is given the new one. Kept in the macOS Keychain." = "ക്ലയന്റുകൾ ഇത് “Authorization: Bearer <token>” ആയി അയയ്ക്കുന്നു. വീണ്ടും സൃഷ്ടിച്ചാൽ പുതിയ ടോക്കൺ ലഭിക്കുന്നത് വരെ എല്ലാ ക്ലയന്റുകളും വിച്ഛേദിക്കപ്പെടും. macOS കീചെയിനിൽ സൂക്ഷിക്കുന്നു.";
+"Enable live MCP server" = "ലൈവ് MCP സെർവർ പ്രവർത്തനക്ഷമമാക്കുക";
+"Hide" = "മറയ്ക്കുക";
+"Live MCP server on (Settings → AI Access)" = "ലൈവ് MCP സെർവർ ഓൺ (ക്രമീകരണങ്ങൾ → AI ആക്സസ്)";
+"Live server" = "ലൈവ് സെർവർ";
+"Port" = "പോർട്ട്";
+"Read-only (the AI can inspect and check, not change)" = "വായന മാത്രം (AI-ക്ക് കാണാനും പരിശോധിക്കാനും കഴിയും, മാറ്റാനാവില്ല)";
+"Regenerate" = "വീണ്ടും സൃഷ്ടിക്കുക";
+"Use Document Folder" = "ഡോക്യുമെന്റ് ഫോൾഡർ ഉപയോഗിക്കുക";
+"Off" = "ഓഫ്";
+"Starting…" = "ആരംഭിക്കുന്നു…";

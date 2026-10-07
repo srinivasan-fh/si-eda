@@ -1182,3 +1182,24 @@
 "Show device names" = "ડિવાઇસનાં નામ બતાવો";
 "Show icons only (names in tooltips)" = "ફક્ત આઇકન બતાવો (નામ ટૂલટિપમાં)";
 "Show icons only" = "ફક્ત આઇકન બતાવો";
+
+// Live MCP server (Settings → AI Access)
+"AI Access (MCP)" = "AI ઍક્સેસ (MCP)";
+"Access token" = "ઍક્સેસ ટોકન";
+"Allowed folder" = "મંજૂર ફોલ્ડર";
+"An AI client on this Mac works on the design open in this window. Each change it makes is one undo step. Only this Mac can connect, and only with the token below." = "આ Mac પરનો AI ક્લાયન્ટ આ વિન્ડોમાં ખુલ્લી ડિઝાઇન પર કામ કરે છે. તેનો દરેક ફેરફાર એક પૂર્વવત્ પગલું છે. ફક્ત આ Mac, અને ફક્ત નીચેના ટોકનથી, કનેક્ટ થઈ શકે છે.";
+"An AI client used the live MCP server recently" = "કોઈ AI ક્લાયન્ટે તાજેતરમાં લાઇવ MCP સર્વરનો ઉપયોગ કર્યો";
+"Choose…" = "પસંદ કરો…";
+"Claude Desktop starts the sieda-mcp bridge (built with the core), which forwards to this server. Restart a client after changing its configuration. Full guide: docs/MCP.md." = "Claude Desktop sieda-mcp બ્રિજ (કોર સાથે બનેલ) શરૂ કરે છે, જે આ સર્વર સુધી આગળ મોકલે છે. રૂપરેખાંકન બદલ્યા પછી ક્લાયન્ટ ફરી શરૂ કરો. સંપૂર્ણ માર્ગદર્શિકા: docs/MCP.md.";
+"Client setup" = "ક્લાયન્ટ સેટઅપ";
+"Clients send it as “Authorization: Bearer <token>”. Regenerating it disconnects every client until it is given the new one. Kept in the macOS Keychain." = "ક્લાયન્ટ્સ તેને “Authorization: Bearer <token>” તરીકે મોકલે છે. ફરી બનાવવાથી નવો ટોકન ન મળે ત્યાં સુધી દરેક ક્લાયન્ટ ડિસ્કનેક્ટ થાય છે. macOS કીચેનમાં રાખવામાં આવે છે.";
+"Enable live MCP server" = "લાઇવ MCP સર્વર ચાલુ કરો";
+"Hide" = "છુપાવો";
+"Live MCP server on (Settings → AI Access)" = "લાઇવ MCP સર્વર ચાલુ (સેટિંગ્સ → AI ઍક્સેસ)";
+"Live server" = "લાઇવ સર્વર";
+"Port" = "પોર્ટ";
+"Read-only (the AI can inspect and check, not change)" = "ફક્ત વાંચવા માટે (AI જોઈ અને તપાસી શકે છે, બદલી શકતું નથી)";
+"Regenerate" = "ફરી બનાવો";
+"Use Document Folder" = "દસ્તાવેજનું ફોલ્ડર વાપરો";
+"Off" = "બંધ";
+"Starting…" = "શરૂ થઈ રહ્યું છે…";
