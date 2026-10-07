@@ -1158,3 +1158,14 @@
 "Ratsnest before" = "ラッツネスト（前）";
 "Ratsnest after" = "ラッツネスト（後）";
 "Crossings" = "交差";
+"Placing %@ (%lld of %lld)" = "%@ を配置中（%lld / %lld）";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R 回転 · F 反転 · クリックで配置 · ⌥-クリックで強制 · Esc でスキップ";
+"Skip" = "スキップ";
+"Leave this part where Auto Place put it" = "この部品を自動配置の位置のままにする";
+"Skip All" = "すべてスキップ";
+"Leave every remaining part where Auto Place put it" = "残りの部品をすべて自動配置の位置のままにする";
+"Place All Automatically" = "すべて自動配置";
+"Put every remaining part at the free spot next to its connections" = "残りの部品をそれぞれ接続先の近くの空き位置に置く";
+"Place new parts interactively after Update PCB" = "PCB の更新後に新しい部品を対話的に配置";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "PCB の更新後、新しい部品をカーソルに付けた状態で PCB エディタが開きます。R で回転、F で反転、クリックで配置、Esc で自動配置の位置のままにします。オフ：新しい部品は自動配置の位置に置かれます。";
+"PCB Editor" = "PCB エディタ";

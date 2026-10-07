@@ -16,7 +16,8 @@
   buses in `Core/src/Buses.cpp`, multi-unit parts in `Core/src/PartUnits.cpp` (kind PartUnit + hidden `packageOnly`
   package; the snapshot reports units as kind Custom with `unitOf`), find / replace and the net navigator in
   `Core/src/SchematicSearch.cpp`, variant simulation via `Project::simulationSchematic`; Update PCB (forward ECO,
-  `pcbSync` baseline) in `Core/src/Eco.cpp`, PCB pin / gate swap in `Core/src/PcbSwap.cpp`, schematic PDF in
+  `pcbSync` baseline) in `Core/src/Eco.cpp` (its new parts placed by hand afterwards: `Core/src/InteractivePlacement.cpp`,
+`SiEDA/App/DesignStore+Placement.swift`, `SiEDA/Views/PCB/PlaceNewPartsOverlay.swift`), PCB pin / gate swap in `Core/src/PcbSwap.cpp`, schematic PDF in
   `Core/src/SchematicPdf.cpp` with TrueType subsetting in `Core/src/PdfFont.cpp`; app in `SiEDA/Views/Schematic/`;
   guide in `docs/SCHEMATIC.md`. Symbol graphics: `SymbolSpec::graphics` (core) = `CustomPartSpec.SymbolGraphic`
   (Swift); keep their JSON identical. Nested repetition and per-channel values

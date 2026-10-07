@@ -1158,3 +1158,14 @@
 "Ratsnest before" = "Ratsnest sebelum";
 "Ratsnest after" = "Ratsnest selepas";
 "Crossings" = "Persilangan";
+"Placing %@ (%lld of %lld)" = "Meletakkan %@ (%lld daripada %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R putar · F terbalik · klik letak · ⌥-klik paksa · Esc langkau";
+"Skip" = "Langkau";
+"Leave this part where Auto Place put it" = "Biarkan komponen ini di tempat Letak Automatik meletakkannya";
+"Skip All" = "Langkau Semua";
+"Leave every remaining part where Auto Place put it" = "Biarkan semua komponen yang tinggal di tempat Letak Automatik meletakkannya";
+"Place All Automatically" = "Letak Semua Secara Automatik";
+"Put every remaining part at the free spot next to its connections" = "Letakkan setiap komponen yang tinggal di tempat kosong bersebelahan sambungannya";
+"Place new parts interactively after Update PCB" = "Letakkan komponen baharu secara interaktif selepas Kemas Kini PCB";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "Selepas Kemas Kini PCB, editor PCB dibuka dengan setiap komponen baharu pada kursor: R memutar, F menterbalikkan, klik meletakkannya dan Esc membiarkannya di tempat Letak Automatik meletakkannya. Mati: komponen baharu kekal di tempat Letak Automatik meletakkannya.";
+"PCB Editor" = "Editor PCB";

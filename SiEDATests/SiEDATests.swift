@@ -6678,6 +6678,115 @@ final class UpdatePcbTests: XCTestCase {
     }
 }
 
+/// Place new parts after Update PCB: the update queues the footprints it added (only those), the PCB editor places
+/// them one at a time (each an undo step), an illegal spot is refused, Esc / Skip leaves the automatic position, and
+/// the preference turned off keeps the old automatic behaviour.
+@MainActor
+final class PlaceNewPartsTests: XCTestCase {
+    private func withPreference(_ on: Bool, _ body: () throws -> Void) rethrows {
+        let key = DesignStore.placeInteractivelyKey
+        let saved = UserDefaults.standard.object(forKey: key)
+        UserDefaults.standard.set(on, forKey: key)
+        defer { UserDefaults.standard.set(saved, forKey: key) }
+        try body()
+    }
+
+    private func updateAll(_ store: DesignStore) {
+        _ = store.updatePCB(keys: store.engine.pcbEcoPreview().filter(\.applicable).map(\.key))
+    }
+
+    func testUpdatePcbQueuesNewPartsAndPlacesThemOneByOne() throws {
+        try withPreference(true) {
+            let store = DesignStore()
+            let r1 = store.addComponent(.resistor, at: .zero)
+            updateAll(store)
+            XCTAssertEqual(store.placementSession?.total, 1)
+            store.skipAllPlacements()
+            XCTAssertNil(store.placementSession)
+            // Two new parts: only they are queued, and the PCB editor opens on the first.
+            store.workspace = .schematic
+            let r2 = store.addComponent(.resistor, at: CGPoint(x: 100, y: 0))
+            let c1 = store.addComponent(.capacitor, at: CGPoint(x: 200, y: 0))
+            XCTAssertTrue(store.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+            updateAll(store)
+            let session = try XCTUnwrap(store.placementSession)
+            XCTAssertEqual(Set(session.queue.map(\.id)), [r2, c1])
+            XCTAssertEqual(session.total, 2)
+            XCTAssertEqual(store.workspace, .pcb)
+            let first = try XCTUnwrap(session.current)
+            XCTAssertEqual(store.selection, [first.id])
+            // The ghost starts at a free spot near the part's connections.
+            let spot = try XCTUnwrap(session.ghost)
+            XCTAssertTrue(spot.legal)
+            let automatic = try XCTUnwrap(store.snapshot.component(first.id)).pcb
+            // A click places it (snapped) and moves on to the next part.
+            XCTAssertTrue(store.placeCurrentPart(at: CGPoint(x: spot.x + 0.1, y: spot.y + 0.1)))
+            let placed = try XCTUnwrap(store.snapshot.component(first.id)).pcb
+            XCTAssertEqual(placed.x, spot.x, accuracy: 1e-9)
+            XCTAssertEqual(placed.y, spot.y, accuracy: 1e-9)
+            XCTAssertEqual(store.placementSession?.number, 2)
+            // Undo restores the automatic position (each placement is one undo step).
+            store.undo()
+            let restored = try XCTUnwrap(store.snapshot.component(first.id)).pcb
+            XCTAssertEqual(restored.x, automatic.x, accuracy: 1e-9)
+            XCTAssertEqual(restored.y, automatic.y, accuracy: 1e-9)
+            // Onto R1's courtyard: refused, nothing moves, the part stays current.
+            let second = try XCTUnwrap(store.placementSession?.current)
+            let before = try XCTUnwrap(store.snapshot.component(second.id)).pcb
+            let r1Spot = try XCTUnwrap(store.snapshot.component(r1)).pcb
+            XCTAssertFalse(store.placeCurrentPart(at: CGPoint(x: r1Spot.x, y: r1Spot.y)))
+            XCTAssertEqual(store.placementSession?.current, second)
+            XCTAssertEqual(try XCTUnwrap(store.snapshot.component(second.id)).pcb.x, before.x, accuracy: 1e-9)
+            XCTAssertEqual(store.placementSession?.ghost?.issues.first?.code, "PLACE_OVERLAP")
+            // R turns the ghost, F flips it.
+            store.movePlacementGhost(to: CGPoint(x: r1Spot.x + 20, y: r1Spot.y))
+            let rotation = try XCTUnwrap(store.placementSession?.rotation)
+            store.rotatePlacement()
+            XCTAssertEqual(store.placementSession?.rotation, (rotation + 90) % 360)
+            XCTAssertEqual(store.placementSession?.ghost?.rotation, (rotation + 90) % 360)
+            store.flipPlacement()
+            XCTAssertEqual(store.placementSession?.ghost?.bottom, true)
+            store.flipPlacement()
+            // Esc skips: the part keeps its automatic position and the queue is empty.
+            store.skipPlacement()
+            XCTAssertNil(store.placementSession)
+            XCTAssertEqual(try XCTUnwrap(store.snapshot.component(second.id)).pcb.x, before.x, accuracy: 1e-9)
+        }
+    }
+
+    func testPlaceAllAutomaticallyIsOneUndoStep() throws {
+        try withPreference(true) {
+            let store = DesignStore()
+            _ = store.addComponent(.resistor, at: .zero)
+            _ = store.addComponent(.resistor, at: CGPoint(x: 100, y: 0))
+            _ = store.addComponent(.capacitor, at: CGPoint(x: 200, y: 0))
+            updateAll(store)
+            let ids = try XCTUnwrap(store.placementSession).queue.map(\.id)
+            XCTAssertEqual(ids.count, 3)
+            let automatic = ids.compactMap { store.snapshot.component($0)?.pcb }
+            store.placeAllAutomatically()
+            XCTAssertNil(store.placementSession)
+            XCTAssertTrue(ids.allSatisfy { store.snapshot.component($0)?.pcb.placed == true })
+            store.undo()
+            let restored = ids.compactMap { store.snapshot.component($0)?.pcb }
+            XCTAssertEqual(restored.map(\.x), automatic.map(\.x))
+            XCTAssertEqual(restored.map(\.y), automatic.map(\.y))
+        }
+    }
+
+    func testTurnedOffNewPartsStayWhereAutoPlacePutsThem() throws {
+        try withPreference(false) {
+            let store = DesignStore()
+            let r1 = store.addComponent(.resistor, at: .zero)
+            store.workspace = .schematic
+            updateAll(store)
+            XCTAssertNil(store.placementSession)
+            XCTAssertEqual(store.workspace, .schematic)
+            XCTAssertEqual(store.snapshot.component(r1)?.pcb.placed, true)
+        }
+    }
+}
+
 
 /// Symbol graphics: drawings made in the Symbol Editor encode like the core's, survive the preview round trip and
 /// enlarge the symbol's hit box; a sheet symbol takes a drawn size.

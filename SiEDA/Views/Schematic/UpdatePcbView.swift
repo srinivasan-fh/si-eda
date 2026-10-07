@@ -60,7 +60,12 @@ struct UpdatePcbView: View {
                     .keyboardShortcut(.cancelAction)
                 Button("Execute Changes") {
                     report = store.updatePCB(keys: Array(chosen))
-                    reload()
+                    // New parts to place by hand: the PCB editor takes over (Preferences → PCB).
+                    if store.placementSession != nil {
+                        dismiss()
+                    } else {
+                        reload()
+                    }
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)

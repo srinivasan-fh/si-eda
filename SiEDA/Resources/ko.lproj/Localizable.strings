@@ -1158,3 +1158,14 @@
 "Ratsnest before" = "래츠네스트 (이전)";
 "Ratsnest after" = "래츠네스트 (이후)";
 "Crossings" = "교차";
+"Placing %@ (%lld of %lld)" = "%@ 배치 중 (%lld / %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R 회전 · F 뒤집기 · 클릭 배치 · ⌥-클릭 강제 · Esc 건너뛰기";
+"Skip" = "건너뛰기";
+"Leave this part where Auto Place put it" = "이 부품을 자동 배치된 위치에 그대로 둡니다";
+"Skip All" = "모두 건너뛰기";
+"Leave every remaining part where Auto Place put it" = "남은 부품을 모두 자동 배치된 위치에 그대로 둡니다";
+"Place All Automatically" = "모두 자동 배치";
+"Put every remaining part at the free spot next to its connections" = "남은 부품을 각각 연결된 부품 옆의 빈 자리에 놓습니다";
+"Place new parts interactively after Update PCB" = "PCB 업데이트 후 새 부품을 대화식으로 배치";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "PCB 업데이트 후 새 부품이 커서에 붙은 채로 PCB 편집기가 열립니다. R은 회전, F는 뒤집기, 클릭하면 배치되고 Esc는 자동 배치된 위치에 둡니다. 끄면 새 부품은 자동 배치된 위치에 남습니다.";
+"PCB Editor" = "PCB 편집기";

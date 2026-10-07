@@ -1158,3 +1158,14 @@
 "Ratsnest before" = "Đường nối trước";
 "Ratsnest after" = "Đường nối sau";
 "Crossings" = "Giao cắt";
+"Placing %@ (%lld of %lld)" = "Đang đặt %@ (%lld / %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R xoay · F lật · nhấp để đặt · ⌥-nhấp để ép · Esc bỏ qua";
+"Skip" = "Bỏ qua";
+"Leave this part where Auto Place put it" = "Giữ linh kiện này ở vị trí Tự động đặt đã chọn";
+"Skip All" = "Bỏ qua tất cả";
+"Leave every remaining part where Auto Place put it" = "Giữ mọi linh kiện còn lại ở vị trí Tự động đặt đã chọn";
+"Place All Automatically" = "Đặt tất cả tự động";
+"Put every remaining part at the free spot next to its connections" = "Đặt mỗi linh kiện còn lại vào chỗ trống gần các kết nối của nó";
+"Place new parts interactively after Update PCB" = "Đặt linh kiện mới theo cách tương tác sau khi Cập nhật PCB";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "Sau khi Cập nhật PCB, trình soạn thảo PCB mở ra với từng linh kiện mới theo con trỏ: R xoay, F lật, nhấp để đặt và Esc giữ nó ở vị trí Tự động đặt đã chọn. Tắt: linh kiện mới ở lại vị trí Tự động đặt chọn.";
+"PCB Editor" = "Trình soạn thảo PCB";

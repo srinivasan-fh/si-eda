@@ -65,6 +65,31 @@ struct AutoSwapResult {
     std::vector<std::string> report;               // one line per swap (applyPcbSwap)
 };
 
+/// Interactive placement (Update PCB's "place new parts", or any single footprint): a footprint at a candidate pose
+/// (grid-snapped centre, rotation, side) and what is wrong there. Errors make the pose illegal: the courtyard overlaps
+/// another part's on the same side (PLACE_OVERLAP), reaches past the board outline (PLACE_OUTSIDE) or into a
+/// mounting-hole keep-out (PLACE_HOLE), or the part is locked (PLACE_LOCKED). A routing keep-out over the part's pads
+/// (PLACE_KEEPOUT) is a warning: the pose is legal, but tracks cannot reach those pads there.
+struct PlacementIssue {
+    std::string code;     // PLACE_OVERLAP, PLACE_OUTSIDE, PLACE_HOLE, PLACE_LOCKED, PLACE_KEEPOUT
+    std::string message;  // English, with the designators
+    int other = -1;       // PLACE_OVERLAP: the part overlapped
+    bool error = true;
+};
+
+struct PlacementCheck {
+    int component = -1;  // -1: no such footprint
+    Vec2 position;       // snapped
+    int rotation = 0;    // 0, 90, 180, 270
+    bool bottom = false;
+    Rect courtyard;
+    /// Copper pads at this pose (board space, as PcbLayout::pads gives them once placed; nets from the schematic).
+    std::vector<Pad> pads;
+    std::vector<PlacementIssue> issues;
+    bool legal = false;      // no error among the issues
+    bool committed = false;  // placeComponent: the part now stands there
+};
+
 struct PcbSyncBaseline {
     std::map<int, std::array<std::string, 3>> parts;  // component id → ref, footprint, value
     std::map<std::string, std::string> nets;          // net name → "R1.1 R2.2 …"
@@ -188,7 +213,27 @@ public:
     /// Executes the changes with these keys (all when `keys` is empty): places added footprints, removes copper zones
     /// on nets that are gone, carries the schematic's net rules to the board and records the new baseline for what
     /// was executed. `report` gets one line per executed change. Returns the number executed.
-    int applyPcbEco(const std::vector<std::string>& keys, std::vector<std::string>* report = nullptr);
+    /// `placementQueue` (optional) gets the components the update put on the board, in designator order: the new
+    /// footprints the designer may now place interactively (placeComponent). They already stand where Auto Place put
+    /// them, so a part never placed by hand keeps that position. Parts already on the board are never listed.
+    int applyPcbEco(const std::vector<std::string>& keys, std::vector<std::string>* report = nullptr,
+                    std::vector<int>* placementQueue = nullptr);
+
+    // ---- interactive placement (Core/src/InteractivePlacement.cpp) ----
+    /// The footprint of `componentId` with its centre at `at` snapped to `grid` mm (≤ 0: no snap), turned to
+    /// `rotation` (rounded to a quarter turn), on the bottom side when `bottom` (embedded parts stay inside). Nothing
+    /// changes. Other parts' courtyards, the outline, mounting holes and keep-outs are checked (see PlacementCheck).
+    PlacementCheck checkPlacement(int componentId, Vec2 at, int rotation, bool bottom, double grid) const;
+    /// Moves, turns and flips the part to that pose when it is legal and returns the check with `committed` set. An
+    /// illegal pose is not committed (the part stays where it was) unless `allowIllegal`: then it is committed and
+    /// `legal` stays false, so the caller can report the violation (the DRC reports it as well).
+    PlacementCheck placeComponent(int componentId, Vec2 at, int rotation, bool bottom, double grid,
+                                  bool allowIllegal = false);
+    /// Where to start placing the part: next to the parts it connects to (the centroid of their pads on its nets,
+    /// each net weighted equally so a ground rail does not pull it to the middle), at the nearest grid spot where the
+    /// pose is legal with a small gap to other courtyards. Its current rotation and side are kept. Without
+    /// connections the search starts at the board centre; `legal` is false when the board has no free spot.
+    PlacementCheck suggestPlacement(int componentId, double grid) const;
 
     // ---- back-annotation (board → schematic ECO) ----
     /// Designators re-numbered from the board: per prefix, the placed parts in board order (rows top to bottom then

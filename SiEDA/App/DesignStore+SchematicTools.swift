@@ -216,16 +216,21 @@ extension DesignStore {
 
     // MARK: - Update PCB (schematic → board ECO)
 
-    /// Executes the chosen Update PCB changes as one undo step; what was done.
+    /// Executes the chosen Update PCB changes as one undo step; what was done. New footprints stand where Auto Place
+    /// put them; with "Place new parts interactively" on (the default) the PCB editor then opens to place them one
+    /// by one (DesignStore+Placement.swift).
     func updatePCB(keys: [String]) -> [String] {
         guard !keys.isEmpty else { return [] }
-        var report: [String] = []
+        var result = PcbEcoResult(executed: 0, report: [], placementQueue: [])
         performChecked("Update PCB (\(keys.count) change(s))", failureMessage: "None of the changes could be executed") {
-            report = $0.applyPcbEco(keys: keys)
-            return !report.isEmpty
+            result = $0.applyPcbEcoResult(keys: keys)
+            return !result.report.isEmpty
         }
-        if !report.isEmpty { statusMessage = "Updated the board: \(report.count) change(s)" }
-        return report
+        if !result.report.isEmpty { statusMessage = "Updated the board: \(result.report.count) change(s)" }
+        if Self.placesNewPartsInteractively, !result.placementQueue.isEmpty {
+            beginPlacement(result.placementQueue)
+        }
+        return result.report
     }
 
     // MARK: - PCB pin / gate swap (back-annotated)

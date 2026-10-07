@@ -1158,3 +1158,14 @@
 "Ratsnest before" = "રેટ્સનેસ્ટ પહેલાં";
 "Ratsnest after" = "રેટ્સનેસ્ટ પછી";
 "Crossings" = "ક્રોસિંગ";
+"Placing %@ (%lld of %lld)" = "%@ મૂકી રહ્યા છીએ (%lld માંથી %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R ફેરવે · F ઉલટાવે · ક્લિક મૂકે · ⌥-ક્લિક ફરજિયાત · Esc છોડે";
+"Skip" = "છોડો";
+"Leave this part where Auto Place put it" = "આ ભાગને ઓટો પ્લેસે જ્યાં મૂક્યો ત્યાં જ રહેવા દો";
+"Skip All" = "બધા છોડો";
+"Leave every remaining part where Auto Place put it" = "બાકીના બધા ભાગોને ઓટો પ્લેસે જ્યાં મૂક્યા ત્યાં જ રહેવા દો";
+"Place All Automatically" = "બધા આપમેળે મૂકો";
+"Put every remaining part at the free spot next to its connections" = "બાકીના દરેક ભાગને તેના જોડાણોની બાજુમાં ખાલી જગ્યાએ મૂકો";
+"Place new parts interactively after Update PCB" = "PCB અપડેટ પછી નવા ભાગો ઇન્ટરેક્ટિવ રીતે મૂકો";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "PCB અપડેટ પછી PCB એડિટર ખૂલે છે અને દરેક નવો ભાગ કર્સર પર હોય છે: R ફેરવે છે, F ઉલટાવે છે, ક્લિક તેને મૂકે છે અને Esc તેને ઓટો પ્લેસે જ્યાં મૂક્યો ત્યાં છોડે છે. બંધ: નવા ભાગો ઓટો પ્લેસ જ્યાં મૂકે ત્યાં રહે છે.";
+"PCB Editor" = "PCB એડિટર";

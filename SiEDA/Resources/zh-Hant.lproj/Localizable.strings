@@ -1158,3 +1158,14 @@
 "Ratsnest before" = "飛線（之前）";
 "Ratsnest after" = "飛線（之後）";
 "Crossings" = "交叉";
+"Placing %@ (%lld of %lld)" = "正在放置 %@（第 %lld 個，共 %lld 個）";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R 旋轉 · F 翻面 · 按一下放置 · ⌥-按一下強制 · Esc 略過";
+"Skip" = "略過";
+"Leave this part where Auto Place put it" = "將此元件留在自動佈局放置的位置";
+"Skip All" = "全部略過";
+"Leave every remaining part where Auto Place put it" = "將其餘元件全部留在自動佈局放置的位置";
+"Place All Automatically" = "全部自動放置";
+"Put every remaining part at the free spot next to its connections" = "將其餘每個元件放到其連接附近的空位";
+"Place new parts interactively after Update PCB" = "更新 PCB 後互動式放置新元件";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "更新 PCB 後，PCB 編輯器會開啟，新元件逐一跟隨游標：R 旋轉，F 翻面，按一下放置，Esc 將其留在自動佈局的位置。關閉：新元件留在自動佈局放置的位置。";
+"PCB Editor" = "PCB 編輯器";

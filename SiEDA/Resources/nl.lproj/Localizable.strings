@@ -1158,3 +1158,14 @@
 "Ratsnest before" = "Ratsnest vooraf";
 "Ratsnest after" = "Ratsnest achteraf";
 "Crossings" = "Kruisingen";
+"Placing %@ (%lld of %lld)" = "%@ plaatsen (%lld van %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R draait · F spiegelt · klik plaatst · ⌥-klik forceert · Esc slaat over";
+"Skip" = "Overslaan";
+"Leave this part where Auto Place put it" = "Dit onderdeel laten staan waar automatisch plaatsen het zette";
+"Skip All" = "Alles overslaan";
+"Leave every remaining part where Auto Place put it" = "Alle overige onderdelen laten staan waar automatisch plaatsen ze zette";
+"Place All Automatically" = "Alles automatisch plaatsen";
+"Put every remaining part at the free spot next to its connections" = "Elk overig onderdeel op de vrije plek naast zijn verbindingen zetten";
+"Place new parts interactively after Update PCB" = "Nieuwe onderdelen interactief plaatsen na PCB bijwerken";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "Na PCB bijwerken opent de PCB-editor met elk nieuw onderdeel aan de cursor: R draait, F spiegelt, een klik plaatst het en Esc laat het staan waar automatisch plaatsen het zette. Uit: nieuwe onderdelen blijven waar automatisch plaatsen ze zet.";
+"PCB Editor" = "PCB-editor";
