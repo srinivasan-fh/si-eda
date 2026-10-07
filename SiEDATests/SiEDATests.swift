@@ -6774,6 +6774,103 @@ final class PlaceNewPartsTests: XCTestCase {
         }
     }
 
+    /// R1 on the board, then R2 (`a`) and R3 (`b`) wired to it and queued by Update PCB, R2 first.
+    private func queueTwoParts(_ store: DesignStore) throws -> (a: Int, b: Int) {
+        let r1 = store.addComponent(.resistor, at: .zero)
+        updateAll(store)
+        store.skipAllPlacements()
+        store.workspace = .schematic
+        let a = store.addComponent(.resistor, at: CGPoint(x: 100, y: 0))
+        let b = store.addComponent(.resistor, at: CGPoint(x: 200, y: 0))
+        XCTAssertTrue(store.connect(PinAddress(component: r1, pin: 1), PinAddress(component: a, pin: 0)))
+        XCTAssertTrue(store.connect(PinAddress(component: r1, pin: 0), PinAddress(component: b, pin: 0)))
+        updateAll(store)
+        XCTAssertEqual(try XCTUnwrap(store.placementSession).queue.map(\.id), [a, b])
+        return (a, b)
+    }
+
+    /// Whether the part, where it stands, overlaps another part's courtyard (nothing ignored).
+    private func overlaps(_ store: DesignStore, _ id: Int) -> Bool {
+        guard let pcb = store.snapshot.component(id)?.pcb else { return false }
+        let at = CGPoint(x: pcb.x, y: pcb.y)
+        let check = store.engine.checkPlacement(id, at: at, rotation: pcb.rotation, bottom: pcb.bottom)
+        let issues = check?.issues ?? []
+        return issues.contains { $0.code == "PLACE_OVERLAP" }
+    }
+
+    private func spot(_ store: DesignStore, _ id: Int) throws -> CGPoint {
+        let pcb = try XCTUnwrap(store.snapshot.component(id)).pcb
+        return CGPoint(x: pcb.x, y: pcb.y)
+    }
+
+    private func assertAt(_ store: DesignStore, _ id: Int, _ expected: CGPoint) throws {
+        let at = try spot(store, id)
+        XCTAssertEqual(at.x, expected.x, accuracy: 1e-9)
+        XCTAssertEqual(at.y, expected.y, accuracy: 1e-9)
+    }
+
+    func testQueuedPartsDoNotBlockPlacement() throws {
+        try withPreference(true) {
+            let store = DesignStore()
+            let (a, b) = try queueTwoParts(store)
+            let autoA = try spot(store, a)
+            let autoB = try spot(store, b)
+            // Over B's automatic spot the ghost is green: B still waits, so it is no obstacle.
+            store.movePlacementGhost(to: autoB)
+            let ghost = try XCTUnwrap(store.placementSession?.ghost)
+            XCTAssertTrue(ghost.legal)
+            XCTAssertFalse(ghost.issues.contains { $0.code == "PLACE_OVERLAP" })
+            // A plain click (no ⌥) places A there.
+            XCTAssertTrue(store.placeCurrentPart(at: autoB))
+            XCTAssertEqual(store.placementSession?.current?.id, b)
+            XCTAssertTrue(overlaps(store, b))  // B still stands at its automatic spot, under A
+            // B's ghost starts at a free spot, not on A.
+            let next = try XCTUnwrap(store.placementSession?.ghost)
+            XCTAssertTrue(next.legal)
+            XCTAssertFalse(next.issues.contains { $0.code == "PLACE_OVERLAP" })
+            // Skip All leaves no overlap: B goes to its free spot.
+            store.skipAllPlacements()
+            XCTAssertNil(store.placementSession)
+            XCTAssertFalse(overlaps(store, a))
+            XCTAssertFalse(overlaps(store, b))
+            XCTAssertNotEqual(try spot(store, b), autoB)
+            // Undo: first B's move, then A's placement.
+            store.undo()
+            try assertAt(store, b, autoB)
+            XCTAssertTrue(overlaps(store, b))
+            store.undo()
+            try assertAt(store, a, autoA)
+            XCTAssertFalse(overlaps(store, b))
+        }
+    }
+
+    func testSkipAndPlaceAllMoveQueuedPartsOffPlacedOnes() throws {
+        try withPreference(true) {
+            // Skip: B, covered by A, goes to a free spot as one undo step.
+            let store = DesignStore()
+            let (a, b) = try queueTwoParts(store)
+            let autoB = try spot(store, b)
+            XCTAssertTrue(store.placeCurrentPart(at: autoB))
+            store.skipPlacement()
+            XCTAssertNil(store.placementSession)
+            XCTAssertFalse(overlaps(store, a))
+            XCTAssertFalse(overlaps(store, b))
+            store.undo()
+            try assertAt(store, b, autoB)
+            XCTAssertTrue(overlaps(store, b))  // A, placed by hand, stays
+            // Place All Automatically: B avoids A (placed), one undo step.
+            let other = DesignStore()
+            let (_, d) = try queueTwoParts(other)
+            let autoD = try spot(other, d)
+            XCTAssertTrue(other.placeCurrentPart(at: autoD))
+            other.placeAllAutomatically()
+            XCTAssertNil(other.placementSession)
+            XCTAssertFalse(overlaps(other, d))
+            other.undo()
+            try assertAt(other, d, autoD)
+        }
+    }
+
     func testTurnedOffNewPartsStayWhereAutoPlacePutsThem() throws {
         try withPreference(false) {
             let store = DesignStore()

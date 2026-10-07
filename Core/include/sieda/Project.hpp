@@ -223,17 +223,21 @@ public:
     /// The footprint of `componentId` with its centre at `at` snapped to `grid` mm (≤ 0: no snap), turned to
     /// `rotation` (rounded to a quarter turn), on the bottom side when `bottom` (embedded parts stay inside). Nothing
     /// changes. Other parts' courtyards, the outline, mounting holes and keep-outs are checked (see PlacementCheck).
-    PlacementCheck checkPlacement(int componentId, Vec2 at, int rotation, bool bottom, double grid) const;
+    /// The courtyards of the parts in `ignore` are no obstacles (the placement queue still waiting: they stand at
+    /// their automatic spots only until placed); empty = every placed part counts, as before.
+    PlacementCheck checkPlacement(int componentId, Vec2 at, int rotation, bool bottom, double grid,
+                                  const std::vector<int>& ignore = {}) const;
     /// Moves, turns and flips the part to that pose when it is legal and returns the check with `committed` set. An
     /// illegal pose is not committed (the part stays where it was) unless `allowIllegal`: then it is committed and
     /// `legal` stays false, so the caller can report the violation (the DRC reports it as well).
     PlacementCheck placeComponent(int componentId, Vec2 at, int rotation, bool bottom, double grid,
-                                  bool allowIllegal = false);
+                                  bool allowIllegal = false, const std::vector<int>& ignore = {});
     /// Where to start placing the part: next to the parts it connects to (the centroid of their pads on its nets,
     /// each net weighted equally so a ground rail does not pull it to the middle), at the nearest grid spot where the
     /// pose is legal with a small gap to other courtyards. Its current rotation and side are kept. Without
-    /// connections the search starts at the board centre; `legal` is false when the board has no free spot.
-    PlacementCheck suggestPlacement(int componentId, double grid) const;
+    /// connections the search starts at the board centre; `legal` is false when the board has no free spot. The
+    /// parts in `ignore` are no obstacles (the spot may overlap them), as in checkPlacement.
+    PlacementCheck suggestPlacement(int componentId, double grid, const std::vector<int>& ignore = {}) const;
 
     // ---- back-annotation (board → schematic ECO) ----
     /// Designators re-numbered from the board: per prefix, the placed parts in board order (rows top to bottom then

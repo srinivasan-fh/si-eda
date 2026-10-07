@@ -385,20 +385,26 @@ Code: `Core/src/SchematicEdit.cpp`, `Core/src/Eco.cpp`, `Core/src/SchematicPdf.c
 - **Place new parts** (after Update PCB; Altium's component placement after an ECO, KiCad's footprints on the
   cursor): when the update adds footprints, the PCB editor opens and places them one at a time, by designator. The
   current part's ghost (courtyard, pads and ratsnest lines to its nets) follows the cursor, snapped to the 0.25 mm
-  grid, green where it may go, red where it may not (overlapping another part's courtyard on the same side, past the
-  board outline, in a mounting-hole keep-out) and amber with a warning (its pads inside a routing keep-out). It starts
-  at the free spot nearest the parts it connects to. **R** (or a Space tap) turns it a quarter turn, **F** flips it
-  to the other side, a **click** places it — one undo step per part — and **Esc** skips it. A drag pans. An illegal
-  spot is refused with the reason in the status bar and nothing moves; **⌥-click** places it anyway (the DRC then
-  reports the overlap). The HUD at the bottom shows *Placing U3 (2 of 5)* with **Skip**, **Skip All** and **Place All
-  Automatically** (every remaining part to its suggested spot, one undo step). New parts already stand where Auto
-  Place put them, so a skipped part keeps that position. **Settings → Appearance → PCB Editor → Place new parts
-  interactively after Update PCB** (on by default) turns the mode off: new parts then stay where Auto Place puts them,
-  as before. Nothing about the mode is saved in the project. Core: `Project::applyPcbEco(keys, report,
-  placementQueue)` lists the added footprints; `checkPlacement` / `placeComponent` (an illegal pose is *not*
-  committed unless `allowIllegal`, which commits it with `legal` false) / `suggestPlacement` in
-  `Core/src/InteractivePlacement.cpp`; C API `sieda_apply_pcb_eco` (`placementQueue`), `sieda_pcb_check_placement`,
-  `sieda_pcb_place_footprint`, `sieda_pcb_suggest_placement`.
+  grid, green where it may go, red where it may not (overlapping a placed part's courtyard on the same side, past the
+  board outline, in a mounting-hole keep-out) and amber with a warning (its pads inside a routing keep-out). Parts
+  still waiting in the queue are no obstacles — they stand at their automatic spots only until their turn — so a part
+  may go where Auto Place put a later one without ⌥. It starts at the free spot nearest the parts it connects to
+  (placed parts avoided, waiting ones not), so a part whose automatic spot has since been taken starts elsewhere.
+  **R** (or a Space tap) turns it a quarter turn, **F** flips it to the other side, a **click** places it — one undo
+  step per part — and **Esc** skips it. A drag pans. An illegal spot is refused with the reason in the status bar
+  and nothing moves; **⌥-click** places it anyway (the DRC then reports the overlap). The HUD at the bottom shows
+  *Placing U3 (2 of 5)* with **Skip**, **Skip All** and **Place All Automatically** (every remaining part to its
+  suggested spot, each avoiding the parts placed before it, one undo step). New parts already stand where Auto Place
+  put them, so a skipped part keeps that position — unless a part placed by hand now overlaps it: then **Skip** /
+  **Skip All** move it to its nearest free spot (one undo step for Skip All), so no queued part is left overlapping.
+  **Settings → Appearance → PCB Editor → Place new parts interactively after Update PCB** (on by default) turns the
+  mode off: new parts then stay where Auto Place puts them, as before. Nothing about the mode is saved in the
+  project. Core: `Project::applyPcbEco(keys, report, placementQueue)` lists the added footprints; `checkPlacement` /
+  `placeComponent` (an illegal pose is *not* committed unless `allowIllegal`, which commits it with `legal` false) /
+  `suggestPlacement` in `Core/src/InteractivePlacement.cpp`, each with an optional `ignore` list (the parts whose
+  courtyards are no obstacles; empty by default, as before); C API `sieda_apply_pcb_eco` (`placementQueue`),
+  `sieda_pcb_check_placement`, `sieda_pcb_place_footprint`, `sieda_pcb_suggest_placement` and their `…_with`
+  variants taking options `{"ignore":[ids]}`.
 
 ## Canvas colour schemes and grid
 
@@ -634,8 +640,7 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
   Latin / Greek; CFF (`.otf`) fonts are not embedded. A frame fixed so that the drawing sticks out of it prints
   scaled to fit, as before.
 - Update PCB first places new parts with the automatic placer; placing them by hand afterwards moves them one at a
-  time (no block placement of a group, no push-aside of other parts; parts still waiting in the queue count as
-  obstacles at their automatic spots). The board reads parts and nets from
+  time (no block placement of a group, no push-aside of other parts). The board reads parts and nets from
   the schematic live (one design), so removed parts, new designators, values and footprints are already on it:
   executing those changes records them (and removes routing that no longer fits) rather than moving copper.
 

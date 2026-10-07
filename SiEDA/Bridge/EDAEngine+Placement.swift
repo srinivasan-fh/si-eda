@@ -76,27 +76,39 @@ extension EDAEngine {
     /// The 0.25 mm grid footprints snap to (as when they are dragged).
     static let placementGrid = 0.25
 
-    /// The footprint at that pose; nothing changes.
-    func checkPlacement(_ id: Int, at point: CGPoint, rotation: Int, bottom: Bool) -> PlacementCheckInfo? {
+    /// `{"ignore":[ids]}`: parts whose courtyards are no obstacles (the queue still waiting to be placed).
+    static func placementOptions(ignoring ids: [Int]) -> String {
+        let list = ids.map(String.init).joined(separator: ",")
+        return "{\"ignore\":[\(list)]}"
+    }
+
+    /// The footprint at that pose; nothing changes. Parts in `ignore` do not block it.
+    func checkPlacement(_ id: Int, at point: CGPoint, rotation: Int, bottom: Bool,
+                        ignore: [Int] = []) -> PlacementCheckInfo? {
+        let options = Self.placementOptions(ignoring: ignore)
         let reply = withHandle {
-            sieda_pcb_check_placement($0, Int32(id), Double(point.x), Double(point.y), Int32(rotation),
-                                      bottom ? 1 : 0, Self.placementGrid)
+            sieda_pcb_check_placement_with($0, Int32(id), Double(point.x), Double(point.y), Int32(rotation),
+                                           bottom ? 1 : 0, Self.placementGrid, options)
         }
         return Self.decode(PlacementCheckInfo.self, from: Self.take(reply))
     }
 
     /// Moves / turns / flips the footprint there when legal (or `force`); `committed` says whether it moved.
-    func placeFootprint(_ id: Int, at point: CGPoint, rotation: Int, bottom: Bool, force: Bool = false) -> PlacementCheckInfo? {
+    /// Parts in `ignore` do not block it.
+    func placeFootprint(_ id: Int, at point: CGPoint, rotation: Int, bottom: Bool, force: Bool = false,
+                        ignore: [Int] = []) -> PlacementCheckInfo? {
+        let options = Self.placementOptions(ignoring: ignore)
         let reply = withHandle {
-            sieda_pcb_place_footprint($0, Int32(id), Double(point.x), Double(point.y), Int32(rotation),
-                                      bottom ? 1 : 0, Self.placementGrid, force ? 1 : 0)
+            sieda_pcb_place_footprint_with($0, Int32(id), Double(point.x), Double(point.y), Int32(rotation),
+                                           bottom ? 1 : 0, Self.placementGrid, force ? 1 : 0, options)
         }
         return Self.decode(PlacementCheckInfo.self, from: Self.take(reply))
     }
 
-    /// The nearest free spot to the parts it connects to; nothing changes.
-    func suggestPlacement(_ id: Int) -> PlacementCheckInfo? {
-        let reply = withHandle { sieda_pcb_suggest_placement($0, Int32(id), Self.placementGrid) }
+    /// The nearest free spot to the parts it connects to; nothing changes. Parts in `ignore` do not block it.
+    func suggestPlacement(_ id: Int, ignore: [Int] = []) -> PlacementCheckInfo? {
+        let options = Self.placementOptions(ignoring: ignore)
+        let reply = withHandle { sieda_pcb_suggest_placement_with($0, Int32(id), Self.placementGrid, options) }
         return Self.decode(PlacementCheckInfo.self, from: Self.take(reply))
     }
 }
