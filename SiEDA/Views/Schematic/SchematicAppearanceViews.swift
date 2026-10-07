@@ -68,12 +68,14 @@ struct SchematicAppearanceMenu: View {
     @AppStorage(SchematicGridStyle.storageKey) private var grid = SchematicGridStyle.dots.rawValue
     @AppStorage(SchematicGridStyle.majorStorageKey) private var majorEvery = SchematicGridStyle.defaultMajorEvery
     @AppStorage(SchematicCustomTheme.storageKey) private var customJSON = ""
+    @AppStorage(SchematicCanvasStyle.colourByDeviceKey) private var colourByDevice = false
 
     var body: some View {
         schemePicker
         if let onCustomise {
             Button("Customise…", action: onCustomise)
         }
+        Toggle("Colour Symbols by Device", isOn: $colourByDevice)
         Divider()
         Picker("Grid", selection: $grid) {
             ForEach(SchematicGridStyle.allCases) { Text($0.title).tag($0.rawValue) }
