@@ -126,6 +126,7 @@ final class DesignStore: ObservableObject {
     /// Sheets of DesignStore+Team: what changed since another version, the variants side by side.
     @Published var designDiff: DesignDiff?
     @Published var variantMatrix: VariantMatrix?
+    @Published var showReview = false
     /// Incremented whenever geometry changes so the 3D view knows to rebuild its mesh.
     @Published private(set) var revision = 0
     /// Incremented when a whole new design arrives (AI plan, open, example, re-placement) so editors re-fit.

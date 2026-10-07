@@ -24,7 +24,7 @@ the AI client itself.
 | Part | Where | What it does |
 |---|---|---|
 | MCP engine | `Core/src/Mcp.cpp`, `Core/include/sieda/Mcp.hpp` | Transport-independent JSON-RPC 2.0 handler: `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `resources/templates/list`, `prompts/list`, `prompts/get`; file sandbox; session (the open project). |
-| Tool table | `Core/src/McpTools.cpp` | 128 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
+| Tool table | `Core/src/McpTools.cpp` | 132 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
 | Renderer | `Core/src/McpRender.cpp` | The schematic and the board as PNG (own rasteriser and PNG writer) or SVG, for clients that can look at images. |
 | C API | `Core/src/sieda_c_mcp.cpp`, `sieda_mcp_*` in `sieda_c.h` | For hosts that embed the engine (the app's live endpoint). |
 | Stdio server | `Core/mcp/main.cpp` → `sieda-mcp` | Newline-delimited JSON-RPC on stdin / stdout; logs on stderr only. |
@@ -187,7 +187,7 @@ the bridge is the way in.)
 }
 ```
 
-Cursor (and some other clients) only pass a limited number of tools to the model. SiEDA has 128, so in headless mode
+Cursor (and some other clients) only pass a limited number of tools to the model. SiEDA has 132, so in headless mode
 pick the groups a task needs with `--tools`; in live mode switch off the tools you do not need in Cursor's MCP
 settings.
 
@@ -380,7 +380,7 @@ Kind: **read** changes nothing; **edit** changes the design (refused in read-onl
 removes or replaces work; **writes files** creates files inside the root without changing the design. Every tool's
 full description and argument schema is in `tools/list` (or `sieda-mcp --list-tools`).
 
-### project (12)
+### project (15)
 
 Create, open, save and inspect projects; built-in examples.
 
@@ -397,6 +397,9 @@ Create, open, save and inspect projects; built-in examples.
 | `project_set_info` | edit | Sets the project name, the requirements text, the industry profile and title-block fields (any subset). |
 | `project_industry_profiles` | read | Industry profiles (rule preset, derating, standards, guidance) for project_new / project_set_info. |
 | `project_snapshot` | read | Raw view-model sections of the design (as the app draws it): components, wires, nets, sheets, buses, board, pads, tracks, vias, zones, zoneFills, ratsnest, courtyards, variants, … Default: components, wires, nets, board. |
+| `project_merge` | writes files | Three-way merge of two edited copies of a project against their common ancestor (all files inside the root), written to path. |
+| `project_review_comments` | read | Design review comments (pinned to a part and / or a place) with their replies and status, and the review as Markdown. |
+| `project_review_comment` | edit | Review commands: add (text, author, ref and / or x, y with view pcb schematic), reply (id, text, author), resolve, reopen or delete (id). |
 | `project_diff` | read | What changed between two versions of a project: parts added / removed / changed (value, footprint, placement), nets (pins joined or left, renames), copper per net, board settings and variants. |
 
 ### schematic (34)
@@ -457,7 +460,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (32)
+### pcb (33)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
@@ -494,6 +497,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_remove_copper` | edit (destructive) | Deletes tracks and vias by id (ids from project_snapshot sections tracks / vias). |
 | `pcb_optimize_swaps` | edit | Swaps interchangeable pins and gates to shorten the ratsnest (back-annotated to the schematic), for one part or all. |
 | `pcb_add_thermal_vias` | edit | Stitches thermal vias into a power part's largest pad (its own net, clearance kept). |
+| `pcb_mechanical_limits` | edit | 3D clearance limits checked by the DRC: tallest part per side (mm, 0 = none) and height zones (rectangles with their own maximum height). |
 | `pcb_import_idf_placement` | edit | Moves parts to the placement in an IDF 3.0 board file (.emn) written back by mechanical CAD (position, rotation, side by designator). |
 
 ### sim (13)

@@ -4649,6 +4649,15 @@ final class SheetAndVariantTests: XCTestCase {
         XCTAssertEqual(matrix.parts.first?.cells.first?.fitted, false)
         XCTAssertTrue(engine.diffText(from: rebuilt.saveJSON()).contains("+ variant Lite"))
         XCTAssertTrue(engine.diffText(from: engine.saveJSON()).hasPrefix("No changes."))
+        // Design review comments and the enclosure limits round-trip through the core.
+        XCTAssertNil(engine.reviewCommand(["action": "add", "text": "Check R1", "ref": "R1", "author": "QA"]))
+        XCTAssertNotNil(engine.reviewCommand(["action": "add", "text": "x", "ref": "NOPE99"]))
+        XCTAssertEqual(engine.review()?.open, 1)
+        XCTAssertNil(engine.reviewCommand(["action": "resolve", "id": 1]))
+        XCTAssertEqual(engine.review()?.open, 0)
+        XCTAssertTrue(engine.setEnclosureHeights(top: 8, bottom: 2))
+        XCTAssertEqual(engine.enclosureHeights().top, 8)
+        XCTAssertEqual(engine.enclosureHeights().bottom, 2)
         XCTAssertEqual(EDAEngine.expandBus("D[0..2]"), ["D0", "D1", "D2"])
     }
 }

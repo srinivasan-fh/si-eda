@@ -64,6 +64,12 @@ struct Body {
     std::vector<Vec2> outline;
     double height;
     float r, g, b;
+    bool round = false;
+    Rect box() const {
+        Rect r{outline[0].x, outline[0].y, outline[0].x, outline[0].y};
+        for (const auto& v : outline) r = Rect(std::min(r.x0, v.x), std::min(r.y0, v.y), std::max(r.x1, v.x), std::max(r.y1, v.y));
+        return r;
+    }
 };
 
 std::vector<Body> partBodies(const Schematic& sch, const PcbLayout& pcb) {
@@ -82,7 +88,7 @@ std::vector<Body> partBodies(const Schematic& sch, const PcbLayout& pcb) {
         }
         if (b.height <= 0) b.height = 1.0;
         const Vec2 p = c.pcb.position;
-        Body body{&c, {}, b.height, b.r, b.g, b.b};
+        Body body{&c, {}, b.height, b.r, b.g, b.b, b.cylinder};
         body.outline = b.cylinder ? circle(p, std::min(w, d) / 2, 24)
                                   : std::vector<Vec2>{{p.x - w / 2, p.y - d / 2}, {p.x + w / 2, p.y - d / 2},
                                                       {p.x + w / 2, p.y + d / 2}, {p.x - w / 2, p.y + d / 2}};
@@ -206,7 +212,114 @@ std::vector<std::string> tokens(const std::string& line) {
     return t;
 }
 
+/// Do two bodies' footprints overlap (more than touching)? Cylinders are circles, everything else rectangles.
+bool bodiesOverlap(const Body& a, const Body& b) {
+    const Rect ra = a.box(), rb = b.box();
+    constexpr double e = 1e-3;
+    if (ra.x1 <= rb.x0 + e || rb.x1 <= ra.x0 + e || ra.y1 <= rb.y0 + e || rb.y1 <= ra.y0 + e) return false;
+    auto circleRect = [&](const Rect& c, const Rect& r) {
+        const Vec2 m{(c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2};
+        const double dx = m.x - std::clamp(m.x, r.x0, r.x1), dy = m.y - std::clamp(m.y, r.y0, r.y1);
+        return std::hypot(dx, dy) < c.width() / 2 - e;
+    };
+    if (a.round && b.round)
+        return std::hypot((ra.x0 + ra.x1 - rb.x0 - rb.x1) / 2, (ra.y0 + ra.y1 - rb.y0 - rb.y1) / 2) <
+               (ra.width() + rb.width()) / 2 - e;
+    if (a.round) return circleRect(ra, rb);
+    if (b.round) return circleRect(rb, ra);
+    return true;
+}
+
 }  // namespace
+
+std::vector<RuleViolation> mechanicalChecks(const Schematic& sch, const PcbLayout& pcb) {
+    const BoardSettings& s = pcb.settings;
+    std::vector<RuleViolation> out;
+    auto add = [&](const char* code, std::string message, std::vector<int> ids, Vec2 at) {
+        RuleViolation v;
+        v.severity = Severity::Error;
+        v.code = code;
+        v.message = std::move(message);
+        v.components = std::move(ids);
+        v.location = at;
+        v.hasLocation = true;
+        out.push_back(std::move(v));
+    };
+    std::vector<Body> bodies;
+    for (auto& b : partBodies(sch, pcb))
+        if (!b.c->sourcing.dnp) bodies.push_back(std::move(b));
+    auto mm = [](double v) { return num(std::round(v * 100) / 100) + " mm"; };
+    for (const Body& b : bodies) {
+        const Component& c = *b.c;
+        const double limit = c.pcb.bottom ? s.maxHeightBottom : s.maxHeightTop;
+        if (limit > 0 && b.height > limit + 1e-6)
+            add("MECH_HEIGHT", c.ref + " is " + mm(b.height) + " tall; the enclosure allows " + mm(limit) + " on the " +
+                    (c.pcb.bottom ? "bottom" : "top") + " side.", {c.id}, c.pcb.position);
+        const Rect box = b.box();
+        for (const HeightZone& z : s.heightZones)
+            if (z.bottom == c.pcb.bottom && b.height > z.maxHeight + 1e-6 && box.x0 < z.area.x1 && z.area.x0 < box.x1 &&
+                box.y0 < z.area.y1 && z.area.y0 < box.y1)
+                add("MECH_HEIGHT_ZONE", c.ref + " (" + mm(b.height) + ") stands in height zone " +
+                        (z.name.empty() ? std::string("(unnamed)") : z.name) + ", which allows " + mm(z.maxHeight) + ".",
+                    {c.id}, c.pcb.position);
+    }
+    // Sweep along X: only bodies whose X ranges overlap are compared.
+    std::vector<Rect> boxes;
+    std::vector<size_t> order(bodies.size());
+    for (size_t i = 0; i < bodies.size(); ++i) boxes.push_back(bodies[i].box()), order[i] = i;
+    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) { return boxes[a].x0 < boxes[b].x0; });
+    std::vector<std::pair<size_t, size_t>> hits;
+    for (size_t p = 0; p < order.size(); ++p)
+        for (size_t q = p + 1; q < order.size() && boxes[order[q]].x0 < boxes[order[p]].x1; ++q) {
+            const size_t i = std::min(order[p], order[q]), j = std::max(order[p], order[q]);
+            if (bodies[i].c->pcb.bottom == bodies[j].c->pcb.bottom && bodiesOverlap(bodies[i], bodies[j])) hits.push_back({i, j});
+        }
+    std::sort(hits.begin(), hits.end());  // report in part order, independent of the sweep
+    for (const auto& [i, j] : hits) {
+        const Body &a = bodies[i], &b = bodies[j];
+        const Rect &ra = boxes[i], &rb = boxes[j];
+        add("MECH_BODY_COLLISION", "The bodies of " + a.c->ref + " and " + b.c->ref + " collide.", {a.c->id, b.c->id},
+            {(std::max(ra.x0, rb.x0) + std::min(ra.x1, rb.x1)) / 2, (std::max(ra.y0, rb.y0) + std::min(ra.y1, rb.y1)) / 2});
+    }
+    return out;
+}
+
+Json mechanicalLimitsToJson(const BoardSettings& s) {
+    if (s.maxHeightTop <= 0 && s.maxHeightBottom <= 0 && s.heightZones.empty()) return Json();
+    Json j = Json::object(), zones = Json::array();
+    j["maxHeightTop"] = s.maxHeightTop;
+    j["maxHeightBottom"] = s.maxHeightBottom;
+    for (const HeightZone& z : s.heightZones) {
+        Json e = Json::object();
+        e["name"] = z.name, e["x0"] = z.area.x0, e["y0"] = z.area.y0, e["x1"] = z.area.x1, e["y1"] = z.area.y1;
+        e["bottom"] = z.bottom, e["maxHeight"] = z.maxHeight;
+        zones.push(e);
+    }
+    j["zones"] = zones;
+    return j;
+}
+
+void mechanicalLimitsFromJson(const Json& j, BoardSettings& s) {
+    auto len = [](const Json& v) {
+        const double d = v.asNumber(0);
+        return std::isfinite(d) && d > 0 ? d : 0.0;
+    };
+    s.maxHeightTop = len(j.get("maxHeightTop"));
+    s.maxHeightBottom = len(j.get("maxHeightBottom"));
+    s.heightZones.clear();
+    if (!j.get("zones").isArray()) return;
+    for (const Json& e : j.get("zones").items()) {
+        HeightZone z;
+        z.name = e.get("name").asString("");
+        const double x0 = e.get("x0").asNumber(0), y0 = e.get("y0").asNumber(0), x1 = e.get("x1").asNumber(0),
+                     y1 = e.get("y1").asNumber(0);
+        if (!std::isfinite(x0) || !std::isfinite(y0) || !std::isfinite(x1) || !std::isfinite(y1)) continue;
+        z.area = Rect(std::min(x0, x1), std::min(y0, y1), std::max(x0, x1), std::max(y0, y1));
+        z.bottom = e.get("bottom").asBool(false);
+        z.maxHeight = std::max(0.0, e.get("maxHeight").asNumber(0));
+        if (z.area.width() > 0 && z.area.height() > 0 && std::isfinite(z.maxHeight)) s.heightZones.push_back(z);
+    }
+}
 
 std::string exportStep(const Schematic& sch, const PcbLayout& pcb, const std::string& name) {
     const BoardSettings& s = pcb.settings;

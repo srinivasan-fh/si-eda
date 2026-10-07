@@ -48,6 +48,41 @@ git config diff.sieda.command "/path/to/sieda-mcp --git-diff"
 
 A file Git reports as added or deleted (`/dev/null`) is compared with an empty project.
 
+## Merge two versions (three-way)
+
+When two people edit copies of the same design, SiEDA merges them against their common ancestor:
+
+```bash
+echo '*.siedaproj merge=sieda' >> .gitattributes
+git config merge.sieda.driver "/path/to/sieda-mcp --merge %O %A %B"
+```
+
+How each kind of data merges:
+- **Fields** merge one by one.
+- **Lists with ids** (parts, wires, sheets, custom parts, review comments) merge item by item, so a part one side
+  added and a value the other side changed both land.
+- **Copper** (tracks, vias, pours) merges as a set. Both sides' additions and removals apply, and the same track added
+  on both sides appears once.
+- **Conflicts:** a field both sides changed differently keeps **ours**. The driver lists it on stderr and exits 1, so
+  Git marks the file as conflicted.
+- **Edited and deleted items:** an item one side deleted and the other changed is kept, and listed as a conflict.
+
+The merged file always loads, and after a merge with copper changes the DRC catches any shorts between the two sides'
+tracks. The same merge is available as MCP `project_merge` (base, ours, theirs, path) and C
+`sieda_merge_projects` / `sieda_merge_project_files`.
+
+## Design review
+
+**File → Design Review…** lists comments pinned to a part (or to a place on the board or a sheet). Open comments are
+listed first. Each comment can be replied to, resolved, reopened or deleted, and every action is one Undo step.
+**Copy as Markdown** gives the review for a ticket or an e-mail.
+
+Comments are saved in the project file only when there are any. They merge like parts, and the diff lists the ones
+added or resolved. They are also available as:
+- **MCP:** `project_review_comments` and `project_review_comment` (add / reply / resolve / reopen / delete);
+- **C API:** `sieda_review_json` and `sieda_review_command`;
+- **export:** `sieda_export(p, "review")` (Markdown).
+
 ## Compare variants
 
 The schematic's variant menu has **Compare Variants…**. It shows one row per part that any variant changes, with
@@ -58,5 +93,5 @@ its value or **DNP** in each variant:
 The last row counts the parts fitted in each variant. Over MCP this is `schematic_variant_matrix`; in C it is
 `sieda_variant_matrix_json`.
 
-Code: `Core/src/ProjectDiff.cpp` (`diffProjects`, `diffText`, `variantMatrix`), `Core/mcp/main.cpp` (`--diff`,
-`--git-diff`), app `SiEDA/App/DesignStore+Team.swift`, `SiEDA/Views/Common/TeamViews.swift`.
+Code: `Core/src/ProjectDiff.cpp` (`diffProjects`, `diffText`, `mergeProjects`, review comments, `variantMatrix`), `Core/mcp/main.cpp` (`--diff`,
+`--git-diff`, `--merge`), app `SiEDA/App/DesignStore+Team.swift`, `SiEDA/Views/Common/TeamViews.swift`.

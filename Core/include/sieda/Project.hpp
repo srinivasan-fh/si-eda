@@ -96,6 +96,18 @@ struct PcbSyncBaseline {
     bool operator==(const PcbSyncBaseline& o) const { return parts == o.parts && nets == o.nets; }
 };
 
+/// A design review comment pinned to a part (`ref`) and / or a place (`at`, mm on the board or schematic units on a
+/// sheet, per `view`), with its replies. Ids are unique within the project.
+struct ReviewComment {
+    int id = 0;
+    std::string author, text, ref;
+    std::string view = "pcb";  // "pcb" or "schematic"
+    Vec2 at;
+    bool hasAt = false;
+    bool resolved = false;
+    std::vector<std::pair<std::string, std::string>> replies;  // (author, text)
+};
+
 class Project {
 public:
     std::string name = "Untitled";
@@ -136,6 +148,8 @@ public:
     /// Assembly variants and the one the BOM, CPL and assembly exports follow ("" = the base design).
     std::vector<DesignVariant> variants;
     std::string activeVariant;
+    /// Design review comments (ProjectDiff.hpp); saved only when there are any.
+    std::vector<ReviewComment> reviewComments;
     /// Schematic title block (empty = the title is the project name).
     TitleBlock titleBlock;
 

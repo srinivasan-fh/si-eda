@@ -291,6 +291,11 @@ char* sieda_pcb_route_report(const SiedaProject* project);
  * returns the number kept. */
 char* sieda_pcb_keepouts(const SiedaProject* project);
 int32_t sieda_pcb_set_keepouts(SiedaProject* project, const char* keepouts_json);
+/* Enclosure limits for the 3D clearance DRC (MECH_HEIGHT, MECH_HEIGHT_ZONE; MECH_BODY_COLLISION is always on):
+ * {"maxHeightTop","maxHeightBottom","zones":[{"name","x0","y0","x1","y1","bottom","maxHeight"}]} (mm, 0 = no limit).
+ * The getter returns {} without limits. Set returns 1 on success. */
+char* sieda_pcb_mechanical_limits(const SiedaProject* project);
+int32_t sieda_pcb_set_mechanical_limits(SiedaProject* project, const char* limits_json);
 void sieda_pcb_clear_routing(SiedaProject* project);
 char* sieda_pcb_run_drc(const SiedaProject* project);
 /* Standard design-rule presets: [{"name","description","trackWidth",…,"minHoleToHole"}] */
@@ -507,7 +512,7 @@ char* sieda_pi_ir_map_json(const SiedaProject* project, const char* net_name);
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
  *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj",
  *         "step" (STEP AP214 solids: board + one named, coloured body per part), "idf_board" (IDF 3.0 .emn),
- *         "idf_library" (IDF 3.0 .emp). Returns NULL for unknown formats. */
+ *         "idf_library" (IDF 3.0 .emp), "review" (design review, Markdown). Returns NULL for unknown formats. */
 char* sieda_export(const SiedaProject* project, const char* format);
 /* Bill of materials: {"lines":[{item, refs, componentIds, quantity, type, value, footprint, description, rating,
  * manufacturer, mpn, supplierPart, unitPrice, dnp, lineCost, suggestedManufacturer, suggestedMpn, notes}],
@@ -594,6 +599,19 @@ char* sieda_import_idf_placement(SiedaProject* project, const char* emn);
 /* What changed between two saved projects (.siedaproj JSON): the diff JSON (docs/TEAM.md) or, with as_text, the
  * review text. {"error"} for a file that does not parse. Caller frees. */
 char* sieda_diff_projects(const char* before_json, const char* after_json, int32_t as_text);
+/* Three-way merge of two edited copies against their common ancestor (all .siedaproj JSON):
+ * {"merged":{project},"conflicts":["path: …"],"error"?}. Conflicting fields keep "ours". Caller frees. */
+char* sieda_merge_projects(const char* base_json, const char* ours_json, const char* theirs_json);
+/* The same on files (Git's merge driver): writes the merge into ours_path. Returns the number of conflicts, or -1 when
+ * a file cannot be read, is not a project or the result does not load (ours_path is then left alone). *report_out
+ * (caller frees, may be NULL) lists the conflicts or the error. A missing or empty base is an empty project. */
+int32_t sieda_merge_project_files(const char* base_path, const char* ours_path, const char* theirs_path, char** report_out);
+/* Design review comments: {"comments":[{"id","author","text","ref"?,"view","x"?,"y"?,"resolved","replies"?}],
+ * "open","markdown"}. Caller frees. */
+char* sieda_review_json(const SiedaProject* project);
+/* {"action":"add","author","text","ref"?,"view"?,"x"?,"y"?} | {"action":"reply","id","author","text"} |
+ * {"action":"resolve"|"reopen"|"delete","id"} → {"id"} or {"error"}. Caller frees. */
+char* sieda_review_command(SiedaProject* project, const char* request_json);
 
 /* ---- 3D ------------------------------------------------------------------------------------ */
 SiedaMesh* sieda_mesh_build(const SiedaProject* project, int32_t include_components);

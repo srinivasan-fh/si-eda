@@ -1210,3 +1210,17 @@
 "Import MCAD Placement (IDF)…" = "MCAD प्लेसमेंट आयात करें (IDF)…";
 "No variant changes a part yet." = "अभी कोई वैरिएंट किसी पार्ट को नहीं बदलता।";
 "Changes since %@" = "%@ के बाद के बदलाव";
+"Tallest part, top" = "सबसे ऊँचा पार्ट, ऊपर";
+"Tallest part, bottom" = "सबसे ऊँचा पार्ट, नीचे";
+"The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)" = "बोर्ड के ऊपर एनक्लोज़र की जगह: DRC ऊँचे पार्ट (और टकराते बॉडी वाले पार्ट) बताता है";
+"Add" = "जोड़ें";
+"Comment" = "टिप्पणी";
+"Copy as Markdown" = "Markdown के रूप में कॉपी करें";
+"Delete comment" = "टिप्पणी हटाएँ";
+"Design Review" = "डिज़ाइन समीक्षा";
+"Design Review…" = "डिज़ाइन समीक्षा…";
+"Part (optional)" = "पार्ट (वैकल्पिक)";
+"Reply" = "जवाब";
+"Reopen" = "फिर खोलें";
+"Resolve" = "हल करें";
+"%lld open" = "%lld खुली";

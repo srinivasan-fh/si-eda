@@ -1210,3 +1210,17 @@
 "Import MCAD Placement (IDF)…" = "导入 MCAD 布局 (IDF)…";
 "No variant changes a part yet." = "还没有变体更改任何元件。";
 "Changes since %@" = "自 %@ 以来的更改";
+"Tallest part, top" = "最高元件，顶面";
+"Tallest part, bottom" = "最高元件，底面";
+"The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)" = "外壳在电路板上方的空间：DRC 会报告更高的元件（以及本体相撞的元件）";
+"Add" = "添加";
+"Comment" = "评论";
+"Copy as Markdown" = "复制为 Markdown";
+"Delete comment" = "删除评论";
+"Design Review" = "设计评审";
+"Design Review…" = "设计评审…";
+"Part (optional)" = "元件（可选）";
+"Reply" = "回复";
+"Reopen" = "重新打开";
+"Resolve" = "解决";
+"%lld open" = "%lld 条未解决";

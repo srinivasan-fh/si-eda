@@ -10,6 +10,7 @@ usage: mcp_stdio_test.py <path to sieda-mcp> <transcript.jsonl>
 import base64
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -64,6 +65,12 @@ def main():
         v1, v2 = os.path.join(root, "v1.siedaproj"), os.path.join(root, "v2.siedaproj")
         cli = [subprocess.run([exe] + args, capture_output=True, text=True, timeout=60)
                for args in (["--diff", v1, v1], ["--diff", v1, v2], ["--git-diff", "board.siedaproj", v1, "0", "100644", v2, "1", "100644"])]
+        # Git merge driver: ours changed a value, theirs is the base: the result is ours, no conflict.
+        ours, theirs = os.path.join(root, "ours.siedaproj"), os.path.join(root, "theirs.siedaproj")
+        shutil.copy(v2, ours)
+        shutil.copy(v1, theirs)
+        merged = subprocess.run([exe, "--merge", v1, ours, theirs], capture_output=True, text=True, timeout=60)
+        merged_diff = subprocess.run([exe, "--diff", v2, ours], capture_output=True, text=True, timeout=60)
     if proc.returncode != 0:
         fail("exit code %d, stderr: %s" % (proc.returncode, proc.stderr))
     out = [line for line in proc.stdout.split("\n") if line]
@@ -127,6 +134,8 @@ def main():
         fail("--diff of a file with itself: %r" % cli[0])
     if cli[1].returncode != 1 or "~ R1 value" not in cli[1].stdout:
         fail("--diff v1 v2: %r" % cli[1])
+    if merged.returncode != 0 or "No changes." not in merged_diff.stdout:
+        fail("--merge: %r / %r" % (merged, merged_diff))
     if cli[2].returncode != 0 or "SiEDA diff board.siedaproj" not in cli[2].stdout:
         fail("--git-diff: %r" % cli[2])
     if json.loads(responses[17]["result"]["content"][0]["text"]).get("moved") != []:

@@ -1210,3 +1210,17 @@
 "Import MCAD Placement (IDF)…" = "Import Peletakan MCAD (IDF)…";
 "No variant changes a part yet." = "Belum ada varian yang mengubah komponen.";
 "Changes since %@" = "Perubahan sejak %@";
+"Tallest part, top" = "Komponen tertinggi, atas";
+"Tallest part, bottom" = "Komponen tertinggi, bawah";
+"The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)" = "Ruang kepungan di atas papan: DRC melaporkan komponen yang lebih tinggi (dan komponen yang badannya berlanggar)";
+"Add" = "Tambah";
+"Comment" = "Komen";
+"Copy as Markdown" = "Salin sebagai Markdown";
+"Delete comment" = "Padam komen";
+"Design Review" = "Semakan Reka Bentuk";
+"Design Review…" = "Semakan Reka Bentuk…";
+"Part (optional)" = "Komponen (pilihan)";
+"Reply" = "Balas";
+"Reopen" = "Buka semula";
+"Resolve" = "Selesaikan";
+"%lld open" = "%lld terbuka";

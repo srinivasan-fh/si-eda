@@ -15,10 +15,10 @@ CI green. Token figures are rough estimates of the AI work per package (they hel
 | SI / PI | 9.0 | — |
 | Library | 9.0 | — |
 | AI / automation (MCP) | 9.3 | Real-client sessions on the live endpoint |
-| Large-design scale | 8.7 | Corridor-router thread scaling (1.5× on 4 threads today) |
-| 3D / mechanical | 8.6 | IDX (incremental), 3D clearance checks |
-| Team, data management, variants | 7.6 | 3-way merge, library server, design review |
-| **Overall** | **~9.2** (features), ~8.3 (production readiness) | |
+| Large-design scale | 9.0 | Faster per-net search (batch parallelism is at its deterministic limit) |
+| 3D / mechanical | 9.0 | IDX (incremental exchange), STEP import of part models |
+| Team, data management, variants | 9.0 | Shared library server, real-time co-editing |
+| **Overall** | **~9.3** (features), ~9.0 (production readiness) | |
 
 ## Done (merged)
 
@@ -53,7 +53,13 @@ CI green. Token figures are rough estimates of the AI work per package (they hel
 - [x] Version diff (parts, nets by pins, copper per net, board, variants): app, MCP `project_diff`, `sieda-mcp --diff`
 - [x] Git diff driver (`sieda-mcp --git-diff`)
 - [x] Variants side by side (Compare Variants…, MCP `schematic_variant_matrix`)
-- [x] Scale measured: 927 parts route 100 % in 50 s / 413 MB; 1756 parts in 175 s / 740 MB; CTest budget guard
+- [x] Scale measured: 927 parts route 100 % in 45–50 s / 413 MB; 1756 parts in 175 s / 740 MB; CTest budget guard
+- [x] Interactive routing on the 927-part board: median 6–8 ms, p99 ≈ 40 ms per update
+- [x] Corridor batches analysed: 272 dependent batches (≈ 4 nets each) — speculative next-batch search kept the copper
+      identical but was slower (most speculation invalidated), so it was not merged
+- [x] 3D clearance DRC: body collisions, enclosure height per side, height zones
+- [x] Three-way merge of project files (Git merge driver `sieda-mcp --merge`, MCP `project_merge`)
+- [x] Design review comments (pinned to parts / places, replies, resolve, Markdown report; diff and merge aware)
 
 ## Weekend order (pick up from the top)
 
@@ -64,11 +70,11 @@ each package into its steps.
 2. [ ] PDF text shaping with HarfBuzz (~0.15M–0.25M)
 3. [x] STEP export
 4. [x] Variant manager (variants existed; comparison matrix added)
-5. [~] Design diff done (app, MCP, Git driver); 3-way merge still open (~0.15M–0.25M)
+5. [x] Design diff and 3-way merge (app, MCP, Git diff and merge drivers)
 6. [x] IDF 3.0 exchange (IDX still open)
 7. [ ] Shared library server (~0.2M–0.3M)
-8. [ ] Design review (~0.15M–0.2M)
-9. [ ] 3D clearance checks (~0.1M–0.15M)
+8. [x] Design review
+9. [x] 3D clearance checks
 10. [ ] Windows build
 
 ## Next (planned, in suggested order)
@@ -88,15 +94,15 @@ each package into its steps.
 ### 3. 3D / mechanical (7.0 → ~9.0) — ~0.45M–0.7M tokens
 - [x] STEP export (AP214) of board and parts
 - [x] IDF 3.0 exchange with MCAD (outline, holes, placement, placement round trip); IDX still open
-- [ ] 3D clearance and enclosure checks — ~0.1M–0.15M
+- [x] 3D clearance and enclosure checks
 - [ ] Optional: STEP import of part models (needs OpenCASCADE) — ~0.25M–0.4M
 
 ### 4. Team, data management, variants (6.0 → ~8.5) — ~0.75M–1.1M tokens
 - [x] Variant manager (table of variants, per-variant outputs, comparison)
 - [x] Design diff of project files (app, MCP, Git diff driver)
-- [ ] 3-way merge of project files — ~0.15M–0.25M
+- [x] 3-way merge of project files
 - [ ] Shared library server (versioned parts, lifecycle states, where used) — ~0.2M–0.3M
-- [ ] Design review (pinned comments, status, review PDF) — ~0.15M–0.2M
+- [x] Design review (pinned comments, status, Markdown report)
 - [ ] Optional: real-time multi-user editing (needs a sync server) — ~0.8M–1.5M+
 
 ### 5. Platforms (on hold — plan later)
@@ -104,6 +110,37 @@ each package into its steps.
 - [ ] Choose the Windows / Linux UI framework (Qt 6 recommended; or web / .NET)
 - [ ] App skeleton: open / save, schematic and PCB canvases, zoom, selection
 - [ ] Port the editors one area per PR
+
+## Long-term archival ("1,000-year" designs) — plan later
+
+Principle: the data must outlive the software. Formats first, executables second.
+
+### Already true
+- [x] Works fully offline (AI and supplier prices are optional; design work never needs the network)
+- [x] Plain-text project file (`.siedaproj`, UTF-8 JSON)
+- [x] Open, documented, text-based outputs: Gerber X2, Excellon, IPC-D-356, SVG, PDF, STEP AP214, IDF 3.0
+- [x] Core has no third-party libraries and renders PNG / SVG with its own code
+
+### Archive Package — File → Export Archive… (~0.1M–0.15M tokens)
+- [ ] `README.txt`: plain English — what the folder is and how to read every file
+- [ ] `FORMAT.txt`: `.siedaproj` specification (units, axes, every field)
+- [ ] `"readme"` field at the top of the project JSON explaining the syntax (written only in the archive copy)
+- [ ] `PHYSICS.txt`: the formulas the engine uses (IPC-2221 current, impedance, decoupling)
+- [ ] `netlist.txt`: `ref.pin → net`, one per line
+- [ ] `schematic.pdf` and 1:1 `layers/*.svg` with scale bar and coordinates (for printing / etching onto archival media)
+- [ ] `fab/` (Gerber, drill, IPC-356, BOM, CPL) and `mechanical/` (STEP, IDF)
+- [ ] `checksums.txt`: SHA-256 of every file (detects bit rot)
+- [ ] Core test: the archive is complete and every checksum matches
+
+### WebAssembly core (~0.1M tokens)
+- [ ] Emscripten target for the dependency-free C++17 core (`sieda-core.wasm`), included in the archive
+- [ ] CI job that keeps the WebAssembly build green
+
+### Deliberately not planned
+- Self-compiling ("quine") toolchain: years of work; documented formats + clean C source serve a future engineer better
+- Electronics textbook inside the source: a short `PHYSICS.txt` in the archive instead
+- "Biological / atomic" manufacturing outputs: exact vector geometry + netlist + rules + stack-up already adapt to any process
+- A minimal "stone-age" UI: the UI is the most replaceable layer; keep the data and the core durable instead
 
 ## Arm-focused production-ready PCB (plan for review) — ~2.1M–3.2M tokens
 

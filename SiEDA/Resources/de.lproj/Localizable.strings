@@ -1210,3 +1210,17 @@
 "Import MCAD Placement (IDF)…" = "MCAD-Platzierung importieren (IDF) …";
 "No variant changes a part yet." = "Noch keine Variante ändert ein Bauteil.";
 "Changes since %@" = "Änderungen seit %@";
+"Tallest part, top" = "Höchstes Bauteil, oben";
+"Tallest part, bottom" = "Höchstes Bauteil, unten";
+"The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)" = "Der Platz im Gehäuse über der Platine: der DRC meldet höhere Bauteile (und Bauteile, deren Körper kollidieren)";
+"Add" = "Hinzufügen";
+"Comment" = "Kommentar";
+"Copy as Markdown" = "Als Markdown kopieren";
+"Delete comment" = "Kommentar löschen";
+"Design Review" = "Design-Review";
+"Design Review…" = "Design-Review …";
+"Part (optional)" = "Bauteil (optional)";
+"Reply" = "Antworten";
+"Reopen" = "Wieder öffnen";
+"Resolve" = "Erledigt";
+"%lld open" = "%lld offen";

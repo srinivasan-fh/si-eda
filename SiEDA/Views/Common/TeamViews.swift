@@ -81,3 +81,79 @@ struct VariantMatrixView: View {
         .frame(minWidth: 480, minHeight: 320)
     }
 }
+
+/// Design review: comments pinned to parts, with replies; resolve, reopen, delete, copy the review as Markdown.
+struct DesignReviewView: View {
+    @EnvironmentObject private var store: DesignStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var text = ""
+    @State private var ref = ""
+    @State private var replies: [Int: String] = [:]
+    @AppStorage("review.author") private var author = NSFullUserName()
+
+    var body: some View {
+        let review = store.engine.review()
+        let comments = (review?.comments ?? []).sorted { ($0.resolved ? 1 : 0, $0.id) < ($1.resolved ? 1 : 0, $1.id) }
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Design Review").font(.headline)
+                Spacer()
+                Text("\(review?.open ?? 0) open").foregroundStyle(Theme.textSecondary)
+            }
+            HStack {
+                TextField("Comment", text: $text).textFieldStyle(.roundedBorder)
+                TextField("Part (optional)", text: $ref).textFieldStyle(.roundedBorder).frame(width: 120)
+                Button("Add") {
+                    var q: [String: Any] = ["action": "add", "text": text, "author": author]
+                    if !ref.isEmpty { q["ref"] = ref }
+                    store.review(q, "Review comment")
+                    text = ""
+                }
+                .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            List(comments) { c in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("#\(c.id)").monospacedDigit().foregroundStyle(Theme.textSecondary)
+                        if let r = c.ref { Text(r).bold() }
+                        Text(c.text).strikethrough(c.resolved)
+                        Spacer()
+                        Button(c.resolved ? LocalizedStringKey("Reopen") : LocalizedStringKey("Resolve")) {
+                            store.review(["action": c.resolved ? "reopen" : "resolve", "id": c.id], "Review status")
+                        }
+                        Button(role: .destructive) { store.review(["action": "delete", "id": c.id], "Delete comment") } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Delete comment")
+                    }
+                    if !c.author.isEmpty { Text(c.author).font(.caption).foregroundStyle(Theme.textSecondary) }
+                    ForEach(c.replies ?? [], id: \.self) { r in
+                        Text((r.author.isEmpty ? "" : r.author + ": ") + r.text).font(.callout).padding(.leading, 16)
+                    }
+                    if !c.resolved {
+                        TextField("Reply", text: Binding(get: { replies[c.id] ?? "" }, set: { replies[c.id] = $0 }))
+                            .textFieldStyle(.roundedBorder)
+                            .padding(.leading, 16)
+                            .onSubmit {
+                                guard let t = replies[c.id], !t.isEmpty else { return }
+                                store.review(["action": "reply", "id": c.id, "text": t, "author": author], "Reply")
+                                replies[c.id] = nil
+                            }
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            HStack {
+                Button("Copy as Markdown") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(review?.markdown ?? "", forType: .string)
+                }
+                Spacer()
+                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 620, minHeight: 420)
+    }
+}

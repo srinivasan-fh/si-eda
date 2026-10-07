@@ -23,7 +23,40 @@ struct VariantMatrix: Decodable {
     var parts: [Row]
 }
 
+/// Design review comments (`sieda_review_json`).
+struct ReviewThread: Decodable {
+    struct Reply: Decodable, Hashable {
+        var author: String
+        var text: String
+    }
+    struct Comment: Decodable, Identifiable {
+        var id: Int
+        var author: String
+        var text: String
+        var ref: String?
+        var view: String
+        var resolved: Bool
+        var replies: [Reply]?
+    }
+    var comments: [Comment]
+    var open: Int
+    var markdown: String
+}
+
 extension EDAEngine {
+    func review() -> ReviewThread? {
+        Self.decode(ReviewThread.self, from: withHandle { Self.take(sieda_review_json($0)) })
+    }
+
+    /// A review command (add, reply, resolve, reopen, delete); nil on success, else the core's reason.
+    func reviewCommand(_ request: [String: Any]) -> String? {
+        guard let data = try? JSONSerialization.data(withJSONObject: request),
+              let json = String(data: data, encoding: .utf8) else { return "Invalid request" }
+        struct Reply: Decodable { var error: String? }
+        let reply = Self.decode(Reply.self, from: withHandle { Self.take(sieda_review_command($0, json)) })
+        return reply == nil ? "No reply from the core" : reply?.error
+    }
+
     func variantMatrix() -> VariantMatrix? {
         Self.decode(VariantMatrix.self, from: withHandle { Self.take(sieda_variant_matrix_json($0)) })
     }
@@ -32,6 +65,25 @@ extension EDAEngine {
     func importIDFPlacement(_ emn: String) -> [String] {
         struct Moved: Decodable { var moved: [String] }
         return Self.decode(Moved.self, from: withHandle { Self.take(sieda_import_idf_placement($0, emn)) })?.moved ?? []
+    }
+
+    /// Enclosure height limit per side for the 3D clearance DRC (mm, 0 = none); height zones are kept as they are.
+    func enclosureHeights() -> (top: Double, bottom: Double) {
+        struct Limits: Decodable { var maxHeightTop: Double?; var maxHeightBottom: Double? }
+        let l = Self.decode(Limits.self, from: withHandle { Self.take(sieda_pcb_mechanical_limits($0)) })
+        return (l?.maxHeightTop ?? 0, l?.maxHeightBottom ?? 0)
+    }
+
+    func setEnclosureHeights(top: Double, bottom: Double) -> Bool {
+        withHandle { handle -> Bool in
+            let current = Self.take(sieda_pcb_mechanical_limits(handle)) ?? "{}"
+            guard var limits = (try? JSONSerialization.jsonObject(with: Data(current.utf8))) as? [String: Any] else { return false }
+            limits["maxHeightTop"] = top
+            limits["maxHeightBottom"] = bottom
+            guard let data = try? JSONSerialization.data(withJSONObject: limits),
+                  let json = String(data: data, encoding: .utf8) else { return false }
+            return sieda_pcb_set_mechanical_limits(handle, json) == 1
+        }
     }
 
     /// Review text of what changed from `before` (a saved project's JSON) to the open design.

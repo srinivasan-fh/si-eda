@@ -1210,3 +1210,17 @@
 "Import MCAD Placement (IDF)…" = "MCAD ప్లేస్‌మెంట్ దిగుమతి (IDF)…";
 "No variant changes a part yet." = "ఇంకా ఏ వేరియంట్ భాగాన్ని మార్చలేదు.";
 "Changes since %@" = "%@ నుండి మార్పులు";
+"Tallest part, top" = "అత్యంత ఎత్తైన భాగం, పైన";
+"Tallest part, bottom" = "అత్యంత ఎత్తైన భాగం, కింద";
+"The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)" = "బోర్డ్ పైన ఎన్‌క్లోజర్ స్థలం: ఎత్తైన భాగాలను (ఢీకొనే భాగాలను) DRC చూపుతుంది";
+"Add" = "జోడించు";
+"Comment" = "వ్యాఖ్య";
+"Copy as Markdown" = "Markdown గా కాపీ చేయి";
+"Delete comment" = "వ్యాఖ్య తొలగించు";
+"Design Review" = "డిజైన్ సమీక్ష";
+"Design Review…" = "డిజైన్ సమీక్ష…";
+"Part (optional)" = "భాగం (ఐచ్ఛికం)";
+"Reply" = "జవాబు";
+"Reopen" = "మళ్ళీ తెరువు";
+"Resolve" = "పరిష్కరించు";
+"%lld open" = "%lld తెరిచినవి";

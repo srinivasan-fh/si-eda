@@ -1210,3 +1210,17 @@
 "Import MCAD Placement (IDF)…" = "Nhập vị trí MCAD (IDF)…";
 "No variant changes a part yet." = "Chưa có biến thể nào thay đổi linh kiện.";
 "Changes since %@" = "Thay đổi kể từ %@";
+"Tallest part, top" = "Linh kiện cao nhất, mặt trên";
+"Tallest part, bottom" = "Linh kiện cao nhất, mặt dưới";
+"The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)" = "Khoảng trống của vỏ phía trên bo mạch: DRC báo các linh kiện cao hơn (và linh kiện có thân va chạm)";
+"Add" = "Thêm";
+"Comment" = "Nhận xét";
+"Copy as Markdown" = "Sao chép dạng Markdown";
+"Delete comment" = "Xóa nhận xét";
+"Design Review" = "Duyệt thiết kế";
+"Design Review…" = "Duyệt thiết kế…";
+"Part (optional)" = "Linh kiện (tùy chọn)";
+"Reply" = "Trả lời";
+"Reopen" = "Mở lại";
+"Resolve" = "Giải quyết";
+"%lld open" = "%lld đang mở";

@@ -49,6 +49,7 @@ struct ContentView: View {
         .toolbarBackground(.visible, for: .windowToolbar)
 
         .sheet(item: $store.designDiff) { DesignDiffView(diff: $0) }
+        .sheet(isPresented: $store.showReview) { DesignReviewView().environmentObject(store) }
         .sheet(isPresented: Binding(get: { store.variantMatrix != nil }, set: { if !$0 { store.variantMatrix = nil } })) {
             if let matrix = store.variantMatrix { VariantMatrixView(matrix: matrix) }
         }

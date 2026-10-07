@@ -15,6 +15,23 @@ Coordinates are in MCAD's frame:
 - **Origin:** the board's underside is at Z = 0.
 - **Parts:** top-side parts sit on Z = thickness; bottom-side parts hang below Z = 0.
 
+## 3D clearance (DRC)
+
+The design rule check also checks the parts in 3D (Errors):
+
+| Code | When |
+|---|---|
+| `MECH_BODY_COLLISION` | Two fitted parts' bodies overlap on the same side. Always checked; parts marked DNP are left out. |
+| `MECH_HEIGHT` | A part is taller than the enclosure allows on its side (**Board Setup → Mechanical → Tallest part, top / bottom**). |
+| `MECH_HEIGHT_ZONE` | A part stands in a height zone (a rectangle under a display, a rib or a battery) and is taller than the zone allows. |
+
+How to set the limits:
+- **App:** the per-side limits are in **Board Setup → Mechanical**.
+- **MCP:** `pcb_mechanical_limits` sets the per-side limits and the zones.
+- **C API:** `sieda_pcb_mechanical_limits` / `sieda_pcb_set_mechanical_limits`.
+
+Limits are saved with the board only when set. Heights come from each package body, the same as the STEP solids.
+
 ## STEP
 
 The solids are a faceted B-rep: planar faces bounded by polygons, so every MCAD tool reads them without a CAD kernel.

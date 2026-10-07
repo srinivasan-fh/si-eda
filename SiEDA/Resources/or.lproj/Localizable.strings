@@ -1210,3 +1210,17 @@
 "Import MCAD Placement (IDF)…" = "MCAD ସ୍ଥାପନ ଆମଦାନି କରନ୍ତୁ (IDF)…";
 "No variant changes a part yet." = "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଭାରିଆଣ୍ଟ ଅଂଶ ବଦଳାଏ ନାହିଁ।";
 "Changes since %@" = "%@ ପରଠାରୁ ପରିବର୍ତ୍ତନ";
+"Tallest part, top" = "ସବୁଠୁ ଉଚ୍ଚ ଅଂଶ, ଉପର";
+"Tallest part, bottom" = "ସବୁଠୁ ଉଚ୍ଚ ଅଂଶ, ତଳ";
+"The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)" = "ବୋର୍ଡ ଉପରେ ଆବରଣର ସ୍ଥାନ: DRC ଅଧିକ ଉଚ୍ଚ ଅଂଶ (ଓ ଧକ୍କା ହେଉଥିବା ଅଂଶ) ଜଣାଏ";
+"Add" = "ଯୋଡନ୍ତୁ";
+"Comment" = "ମନ୍ତବ୍ୟ";
+"Copy as Markdown" = "Markdown ଭାବେ କପି କରନ୍ତୁ";
+"Delete comment" = "ମନ୍ତବ୍ୟ ବିଲୋପ କରନ୍ତୁ";
+"Design Review" = "ଡିଜାଇନ ସମୀକ୍ଷା";
+"Design Review…" = "ଡିଜାଇନ ସମୀକ୍ଷା…";
+"Part (optional)" = "ଅଂଶ (ଇଚ୍ଛାଧୀନ)";
+"Reply" = "ଉତ୍ତର";
+"Reopen" = "ପୁଣି ଖୋଲନ୍ତୁ";
+"Resolve" = "ସମାଧାନ";
+"%lld open" = "%lld ଖୋଲା";

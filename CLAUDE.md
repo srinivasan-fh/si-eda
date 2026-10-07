@@ -78,8 +78,11 @@
   `DesignStore.performExternalEdit` = one undo step), `SiEDA/Views/Settings/MCPSettingsView.swift`; stdio clients
   reach it through `sieda-mcp --connect` (`Core/mcp/http_bridge.cpp`, CTest `sieda_mcp_connect`).
 - Mechanical CAD and team work: STEP AP214 / IDF 3.0 export and the IDF placement import in `Core/src/Mechanical.cpp`
-  (faceted B-rep solids must stay closed: test `step_export_closed_named_solids`); version diff, Git diff driver
-  (`sieda-mcp --diff` / `--git-diff`) and the variant matrix in `Core/src/ProjectDiff.cpp`; app
+  (faceted B-rep solids must stay closed: test `step_export_closed_named_solids`), 3D clearance DRC
+  (`mechanicalChecks`: MECH_BODY_COLLISION always, MECH_HEIGHT / MECH_HEIGHT_ZONE only with `BoardSettings` limits);
+  version diff, three-way merge (`mergeProjects`, `sieda-mcp --merge`), design review comments
+  (`Project::reviewComments`, saved only when present), Git drivers (`--diff` / `--git-diff`) and the variant matrix
+  in `Core/src/ProjectDiff.cpp`; app
   `SiEDA/App/DesignStore+Team.swift`, `SiEDA/Views/Common/TeamViews.swift`; guides `docs/MCAD.md`, `docs/TEAM.md`.
   Scale guard: CTest `sieda_scale_budget` (`sieda_route_bench --budget`); `sieda_route_bench --clusters 32 --layers 8
   --seed 3 --fpga` is the 923-part board.

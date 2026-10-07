@@ -1210,3 +1210,17 @@
 "Import MCAD Placement (IDF)…" = "MCAD இடஅமைப்பை இறக்கு (IDF)…";
 "No variant changes a part yet." = "எந்த வேரியன்டும் இன்னும் பாகத்தை மாற்றவில்லை.";
 "Changes since %@" = "%@ முதல் மாற்றங்கள்";
+"Tallest part, top" = "மிக உயரமான பாகம், மேல்";
+"Tallest part, bottom" = "மிக உயரமான பாகம், கீழ்";
+"The enclosure's room above the board: the DRC reports taller parts (and parts whose bodies collide)" = "பலகைக்கு மேல் உறையின் இடம்: உயரமான பாகங்களையும் (மோதும் பாகங்களையும்) DRC காட்டும்";
+"Add" = "சேர்";
+"Comment" = "கருத்து";
+"Copy as Markdown" = "Markdown ஆக நகலெடு";
+"Delete comment" = "கருத்தை நீக்கு";
+"Design Review" = "வடிவமைப்பு மதிப்பாய்வு";
+"Design Review…" = "வடிவமைப்பு மதிப்பாய்வு…";
+"Part (optional)" = "பாகம் (விருப்பம்)";
+"Reply" = "பதில்";
+"Reopen" = "மீண்டும் திற";
+"Resolve" = "தீர்";
+"%lld open" = "%lld திறந்தவை";
