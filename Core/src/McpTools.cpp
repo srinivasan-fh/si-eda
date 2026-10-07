@@ -2522,11 +2522,11 @@ void teamTools(Table& t) {
               j["conflicts"] = r.get("conflicts");
               return out(j);
           });
-    t.add("project", "review_comments", "Review comments", Kind::Read, true,
+    t.add("project", "project_review_comments", "Review comments", Kind::Read, true,
           "Design review comments (pinned to a part and / or a place) with their replies and status, and the review "
           "as Markdown.", Schema(),
           [](McpServer& s, const Json&) { return out(takeJson(sieda_review_json(P(s)))); });
-    t.add("project", "review_comment", "Comment / resolve", Kind::Edit, false,
+    t.add("project", "project_review_comment", "Comment / resolve", Kind::Edit, false,
           "Review commands: add (text, author, ref and / or x, y with view pcb|schematic), reply (id, text, author), "
           "resolve, reopen or delete (id).",
           Schema().str("action", "What to do", true, {"add", "reply", "resolve", "reopen", "delete"})

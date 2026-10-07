@@ -79,7 +79,7 @@ listed first. Each comment can be replied to, resolved, reopened or deleted, and
 
 Comments are saved in the project file only when there are any. They merge like parts, and the diff lists the ones
 added or resolved. They are also available as:
-- **MCP:** `review_comments` and `review_comment` (add / reply / resolve / reopen / delete);
+- **MCP:** `project_review_comments` and `project_review_comment` (add / reply / resolve / reopen / delete);
 - **C API:** `sieda_review_json` and `sieda_review_command`;
 - **export:** `sieda_export(p, "review")` (Markdown).
 

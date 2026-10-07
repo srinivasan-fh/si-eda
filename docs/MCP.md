@@ -398,8 +398,8 @@ Create, open, save and inspect projects; built-in examples.
 | `project_industry_profiles` | read | Industry profiles (rule preset, derating, standards, guidance) for project_new / project_set_info. |
 | `project_snapshot` | read | Raw view-model sections of the design (as the app draws it): components, wires, nets, sheets, buses, board, pads, tracks, vias, zones, zoneFills, ratsnest, courtyards, variants, … Default: components, wires, nets, board. |
 | `project_merge` | writes files | Three-way merge of two edited copies of a project against their common ancestor (all files inside the root), written to path. |
-| `review_comments` | read | Design review comments (pinned to a part and / or a place) with their replies and status, and the review as Markdown. |
-| `review_comment` | edit | Review commands: add (text, author, ref and / or x, y with view pcb schematic), reply (id, text, author), resolve, reopen or delete (id). |
+| `project_review_comments` | read | Design review comments (pinned to a part and / or a place) with their replies and status, and the review as Markdown. |
+| `project_review_comment` | edit | Review commands: add (text, author, ref and / or x, y with view pcb schematic), reply (id, text, author), resolve, reopen or delete (id). |
 | `project_diff` | read | What changed between two versions of a project: parts added / removed / changed (value, footprint, placement), nets (pins joined or left, renames), copper per net, board settings and variants. |
 
 ### schematic (34)
