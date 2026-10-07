@@ -1177,3 +1177,8 @@
 "Leave focus mode (F11, ⌃⌘F)" = "Umalis sa focus mode (F11, ⌃⌘F)";
 "Full screen hides the panels (focus mode)" = "Itinatago ng full screen ang mga panel (focus mode)";
 "F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F o Fn-F: full screen na editor at mga tool lang nito. Ituro ang itaas na gilid ng editor para ipakita ang options bar nito.";
+
+// Device palette: icons only
+"Show device names" = "Ipakita ang mga pangalan ng device";
+"Show icons only (names in tooltips)" = "Mga icon lang (pangalan sa tooltip)";
+"Show icons only" = "Mga icon lang";

@@ -1177,3 +1177,8 @@
 "Leave focus mode (F11, ⌃⌘F)" = "退出专注模式 (F11, ⌃⌘F)";
 "Full screen hides the panels (focus mode)" = "全屏时隐藏面板（专注模式）";
 "F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11、⌃⌘F 或 Fn-F：全屏，仅显示编辑器及其工具。将指针移到编辑器顶部边缘可显示其选项栏。";
+
+// Device palette: icons only
+"Show device names" = "显示器件名称";
+"Show icons only (names in tooltips)" = "仅显示图标（名称见提示）";
+"Show icons only" = "仅显示图标";

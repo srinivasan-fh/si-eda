@@ -1177,3 +1177,8 @@
 "Leave focus mode (F11, ⌃⌘F)" = "கவன பயன்முறையை விடு (F11, ⌃⌘F)";
 "Full screen hides the panels (focus mode)" = "முழுத்திரையில் பலகங்களை மறை (கவன பயன்முறை)";
 "F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F அல்லது Fn-F: எடிட்டர் மற்றும் அதன் கருவிகள் மட்டும் உள்ள முழுத்திரை. விருப்பப் பட்டியைக் காட்ட எடிட்டரின் மேல் விளிம்பைச் சுட்டவும்.";
+
+// Device palette: icons only
+"Show device names" = "சாதனப் பெயர்களைக் காட்டு";
+"Show icons only (names in tooltips)" = "சின்னங்கள் மட்டும் (பெயர்கள் உதவிக்குறிப்பில்)";
+"Show icons only" = "சின்னங்கள் மட்டும்";

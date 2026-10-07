@@ -1177,3 +1177,8 @@
 "Leave focus mode (F11, ⌃⌘F)" = "ফ’কাছ ম’ড এৰক (F11, ⌃⌘F)";
 "Full screen hides the panels (focus mode)" = "সম্পূৰ্ণ স্ক্ৰীণত পেনেল লুকুৱাওক (ফ’কাছ ম’ড)";
 "F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F বা Fn-F: কেৱল এডিটৰ আৰু ইয়াৰ সঁজুলিৰ সৈতে সম্পূৰ্ণ স্ক্ৰীণ। বিকল্প বাৰ দেখুৱাবলৈ এডিটৰৰ ওপৰৰ কাষলৈ পইণ্টাৰ নিয়ক।";
+
+// Device palette: icons only
+"Show device names" = "ডিভাইচৰ নাম দেখুৱাওক";
+"Show icons only (names in tooltips)" = "কেৱল আইকন দেখুৱাওক (নাম টুলটিপত)";
+"Show icons only" = "কেৱল আইকন দেখুৱাওক";

@@ -7398,3 +7398,34 @@ final class FocusModeTests: XCTestCase {
         XCTAssertLessThanOrEqual(window.height, LayoutMetrics.minimumWindow.height)
     }
 }
+
+/// The device palette's icons-only mode: a narrow column, names in tooltips.
+@MainActor
+final class DevicePaletteIconsOnlyTests: XCTestCase {
+    private func width(iconsOnly: Bool) -> CGFloat {
+        let defaults = UserDefaults.standard
+        let saved = defaults.object(forKey: DevicePicker.iconsOnlyKey)
+        defaults.set(iconsOnly, forKey: DevicePicker.iconsOnlyKey)
+        defer {
+            if let saved { defaults.set(saved, forKey: DevicePicker.iconsOnlyKey) } else {
+                defaults.removeObject(forKey: DevicePicker.iconsOnlyKey)
+            }
+        }
+        let picker = DevicePicker(selected: .constant(.resistor)) { _ in }
+        let host = NSHostingController(rootView: picker.frame(height: 600))
+        return host.sizeThatFits(in: CGSize(width: 1, height: 600)).width
+    }
+
+    func testIconsOnlyIsOffByDefault() {
+        let defaults = UserDefaults.standard
+        let saved = defaults.object(forKey: DevicePicker.iconsOnlyKey)
+        defaults.removeObject(forKey: DevicePicker.iconsOnlyKey)
+        XCTAssertFalse(defaults.bool(forKey: DevicePicker.iconsOnlyKey))
+        if let saved { defaults.set(saved, forKey: DevicePicker.iconsOnlyKey) }
+    }
+
+    func testIconsOnlyFitsItsNarrowColumn() {
+        XCTAssertLessThanOrEqual(DevicePicker.iconsOnlyWidth, 60)
+        XCTAssertLessThanOrEqual(width(iconsOnly: true), DevicePicker.iconsOnlyWidth)
+    }
+}

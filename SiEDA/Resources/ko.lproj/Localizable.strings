@@ -1177,3 +1177,8 @@
 "Leave focus mode (F11, ⌃⌘F)" = "포커스 모드 나가기 (F11, ⌃⌘F)";
 "Full screen hides the panels (focus mode)" = "전체 화면에서 패널 숨기기 (포커스 모드)";
 "F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F 또는 Fn-F: 편집기와 도구만 있는 전체 화면. 편집기 위쪽 가장자리를 가리키면 옵션 막대가 나타납니다.";
+
+// Device palette: icons only
+"Show device names" = "장치 이름 표시";
+"Show icons only (names in tooltips)" = "아이콘만 표시(이름은 도움말)";
+"Show icons only" = "아이콘만 표시";
