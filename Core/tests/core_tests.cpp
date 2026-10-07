@@ -14656,6 +14656,302 @@ TEST(c_api_arc_corners) {
     CHECK(rc == 0);
 }
 
+// ---- shove arc chains and pinned arcs
+
+namespace {
+/// Net B runs from R3 right along y = 10, through an S-curve of two tangent 2 mm arcs ((16, 10) → (18, 12) about
+/// (16, 12), then (18, 12) → (20, 14) about (20, 12)) and right along y = 14 to R4. Net A's route from R1 runs left
+/// along y = 12.5 to (19.8, 12.5) and then 45° along x − y = 7.3: 0.33 mm from the first arc's bulge (0.45 needed),
+/// 0.92 mm from the second arc and B's straight tracks.
+struct SCurveBoard {
+    Project p;
+    int netA = -1, netB = -1;
+    int r1 = -1, r2 = -1;
+    Track arc1, arc2;  // as laid
+};
+SCurveBoard sCurveBoard(bool locked) {
+    SCurveBoard b;
+    auto& s = b.p.schematic;
+    b.p.pcb.settings.width = 40;
+    b.p.pcb.settings.height = 30;
+    b.r1 = placeR(b.p, {34, 12.5});
+    b.r2 = placeR(b.p, {6, 6});
+    const int r3 = placeR(b.p, {8, 10}), r4 = placeR(b.p, {28, 14});
+    wire(s, b.r1, "1", b.r2, "2");
+    wire(s, r3, "2", r4, "1");
+    b.p.schematicChanged();
+    b.netA = s.netOf({b.r1, 0});
+    b.netB = s.netOf({r3, 1});
+    addPath(b.p.pcb, b.netB, 0, 0.25, {padAt(b.p, r3, 1), {16, 10}});
+    Track a1 = arcTrackOf(b.netB, {16, 12}, 2, -90, 0), a2 = arcTrackOf(b.netB, {20, 12}, 2, 180, 90);
+    a1.locked = a2.locked = locked;
+    b.p.pcb.addTrack(a1);
+    b.arc1 = b.p.pcb.tracks.back();
+    b.p.pcb.addTrack(a2);
+    b.arc2 = b.p.pcb.tracks.back();
+    addPath(b.p.pcb, b.netB, 0, 0.25, {{20, 14}, padAt(b.p, r4, 0)});
+    return b;
+}
+/// Starts a route at pad 0 of `from`, lays it straight to `corner` and then 45° to `end`; returns that preview.
+RoutePreview routeTwoLegs(Project& p, InteractiveRouter& r, int from, Vec2 corner, Vec2 end) {
+    RouterOptions o;
+    o.mode = RouterMode::Shove;
+    r.setOptions(o);
+    CHECK(r.beginRoute(padAt(p, from, 0), 0));
+    r.moveTo(corner);
+    CHECK(r.fixHead());
+    return r.moveTo(end);
+}
+std::vector<Track> arcsOfNet(const Project& p, int net) {
+    std::vector<Track> out;
+    for (const auto& t : p.pcb.tracks)
+        if (t.arc && t.net == net) out.push_back(t);
+    return out;
+}
+/// Straight tracks of `net` with an end at `e`; each must leave `e` tangentially to direction `d` (into the arc).
+int tangentStraightsAt(const Project& p, int net, Vec2 e, Vec2 d, bool& tangent) {
+    int joined = 0;
+    for (const auto& t : p.pcb.tracks) {
+        if (t.arc || t.net != net) continue;
+        const bool atA = (t.a - e).length() < 1e-6, atB = (t.b - e).length() < 1e-6;
+        if (!atA && !atB) continue;
+        ++joined;
+        const Vec2 u = (atA ? t.b - e : t.a - e) * (1.0 / trackLength(t));
+        tangent = tangent && std::fabs(u.x * d.y - u.y * d.x) < 1e-6 && u.x * d.x + u.y * d.y < 0;
+    }
+    return joined;
+}
+
+/// Net B leaves pad 2 of R3 (or, with `onVia`, a via fed by a locked bottom track) at `pin` along +x on a 4 mm arc
+/// about pin + (0, 4) to pin + (4, 4), then straight down to y = 22 and on to R4. Net A's route from R1 runs left
+/// along y = 13 to (16.1, 13) and 45° along x − y = 3.1: 0.33 mm from the arc's bulge, well clear of the pad / via.
+struct PinnedArcBoard {
+    Project p;
+    int netA = -1, netB = -1;
+    int r1 = -1, r2 = -1, r3 = -1;
+    Vec2 pin;
+    Track arc, locked;
+    std::vector<Via> vias;
+};
+PinnedArcBoard pinnedArcBoard(bool onVia) {
+    PinnedArcBoard b;
+    auto& s = b.p.schematic;
+    b.p.pcb.settings.width = 40;
+    b.p.pcb.settings.height = 30;
+    b.r1 = placeR(b.p, {30, 13});
+    b.r2 = placeR(b.p, {4, 5});
+    b.r3 = placeR(b.p, onVia ? Vec2{4, 10} : Vec2{10, 10});
+    const int r4 = placeR(b.p, {20, 22});
+    wire(s, b.r1, "1", b.r2, "2");
+    wire(s, b.r3, "2", r4, "1");
+    b.p.schematicChanged();
+    b.netA = s.netOf({b.r1, 0});
+    b.netB = s.netOf({b.r3, 1});
+    if (onVia) {
+        b.pin = {10.95, 10};
+        Via v;
+        v.net = b.netB;
+        v.position = {6.5, 10};
+        b.p.pcb.addVia(v);
+        v.position = b.pin;
+        b.p.pcb.addVia(v);
+        b.vias = b.p.pcb.vias;
+        addPath(b.p.pcb, b.netB, 0, 0.25, {padAt(b.p, b.r3, 1), {6.5, 10}});
+        addPath(b.p.pcb, b.netB, 1, 0.25, {{6.5, 10}, b.pin}, true);
+        b.locked = b.p.pcb.tracks.back();
+    } else {
+        b.pin = padAt(b.p, b.r3, 1);
+    }
+    b.p.pcb.addTrack(arcTrackOf(b.netB, b.pin + Vec2{0, 4}, 4, -90, 0));
+    b.arc = b.p.pcb.tracks.back();
+    addPath(b.p.pcb, b.netB, 0, 0.25, {b.pin + Vec2{4, 4}, {b.pin.x + 4, 22}, padAt(b.p, r4, 0)});
+    return b;
+}
+RoutePreview routePastPinnedArc(PinnedArcBoard& b, InteractiveRouter& r) {
+    return routeTwoLegs(b.p, r, b.r1, {16.1, 13}, {8.1, 5});
+}
+/// The pinned board's arc after a shove: one arc of B, still starting at the pin along +x, with another radius.
+void checkPinnedArcShoved(const PinnedArcBoard& b) {
+    const auto arcs = arcsOfNet(b.p, b.netB);
+    CHECK(arcs.size() == 1);
+    if (arcs.size() != 1) return;
+    const Track& a = arcs[0];
+    const bool atA = (a.a - b.pin).length() < 1e-9, atB = (a.b - b.pin).length() < 1e-9;
+    CHECK(atA || atB);
+    const Vec2 d = trackEndDirection(a, atB);
+    CHECK(std::fabs(d.x - 1) < 1e-6 && std::fabs(d.y) < 1e-6);  // the same direction out of the pin
+    CHECK(std::fabs(trackArc(a).r - 4) > 1e-3);
+    // Its other end still runs on into one straight track of B (tangentially).
+    bool tangent = true;
+    CHECK(tangentStraightsAt(b.p, b.netB, atA ? a.b : a.a, trackEndDirection(a, atA), tangent) == 1);
+    CHECK(tangent);
+}
+}  // namespace
+
+TEST(router_shoves_an_s_curve) {
+    // A route over the first bulge of an S-curve shoves the two arcs as a unit: still two arcs of B, tangent at their
+    // join, each outer end still joined (tangentially) to one straight track; one radius grew and the other shrank.
+    // Both nets stay connected; the gap keeps the clearance; the board is DRC and acute-angle clean.
+    SCurveBoard b = sCurveBoard(false);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(netRouted(b.p, b.netB));
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    const RoutePreview pv = routeTwoLegs(b.p, r, b.r1, {19.8, 12.5}, {13.3, 6});
+    CHECK(!pv.blocked);
+    int shovedArcs = 0;
+    for (const auto& t : pv.shovedTracks) shovedArcs += t.arc && t.net == b.netB ? 1 : 0;
+    CHECK(shovedArcs == 2);
+    CHECK(r.fixHead());
+    CHECK(r.moveTo(padAt(b.p, b.r2, 1)).reachedTarget);
+    CHECK(r.commit().ok);
+    const auto arcs = arcsOfNet(b.p, b.netB);
+    CHECK(arcs.size() == 2);
+    if (arcs.size() == 2) {
+        for (const auto& a : arcs) CHECK(a.id != b.arc1.id && a.id != b.arc2.id && trackArc(a).valid);
+        // The join: one end of each, the same point, tangent.
+        int joins = 0;
+        bool tangentJoin = true;
+        Vec2 outer[2];
+        bool outerAtB[2] = {false, false};
+        for (int i = 0; i < 2; ++i)
+            for (int j = 0; j < 2; ++j) {
+                const Vec2 e0 = i ? arcs[0].b : arcs[0].a, e1 = j ? arcs[1].b : arcs[1].a;
+                if ((e0 - e1).length() > 1e-6) continue;
+                ++joins;
+                const Vec2 d0 = trackEndDirection(arcs[0], i == 1), d1 = trackEndDirection(arcs[1], j == 1);
+                tangentJoin = tangentJoin && std::fabs(d0.x * d1.y - d0.y * d1.x) < 1e-6 && d0.x * d1.x + d0.y * d1.y < 0;
+                outer[0] = i ? arcs[0].a : arcs[0].b;
+                outerAtB[0] = i == 0;
+                outer[1] = j ? arcs[1].a : arcs[1].b;
+                outerAtB[1] = j == 0;
+            }
+        CHECK(joins == 1 && tangentJoin);
+        if (joins == 1)
+            for (int k = 0; k < 2; ++k) {
+                bool tangent = true;
+                CHECK(tangentStraightsAt(b.p, b.netB, outer[k], trackEndDirection(arcs[static_cast<size_t>(k)], outerAtB[k]),
+                                         tangent) == 1);
+                CHECK(tangent);
+            }
+        const double ra = trackArc(arcs[0]).r, rb = trackArc(arcs[1]).r;
+        CHECK(std::max(ra, rb) > 2 + 1e-3 && std::min(ra, rb) < 2 - 1e-3);
+    }
+    CHECK(netGap(b.p, b.netA, b.netB) >= b.p.pcb.settings.clearance - 1e-6);
+    CHECK(netRouted(b.p, b.netA));
+    CHECK(netRouted(b.p, b.netB));
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+}
+
+TEST(router_shoves_an_arc_pinned_on_a_pad) {
+    // The arc starts on a pad: the pad end stays (the same point and direction), the radius changes and the far end
+    // stays tangent to its straight track; the pad is not moved; clearance kept, DRC clean, both nets connected.
+    PinnedArcBoard b = pinnedArcBoard(false);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(netRouted(b.p, b.netB));
+    const Vec2 padBefore = padAt(b.p, b.r3, 1);
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    const RoutePreview pv = routePastPinnedArc(b, r);
+    CHECK(!pv.blocked);
+    bool arcShoved = false;
+    for (const auto& t : pv.shovedTracks) arcShoved = arcShoved || (t.arc && t.net == b.netB);
+    CHECK(arcShoved);
+    CHECK(r.fixHead());
+    CHECK(r.moveTo(padAt(b.p, b.r2, 1)).reachedTarget);
+    CHECK(r.commit().ok);
+    CHECK(padAt(b.p, b.r3, 1) == padBefore);
+    checkPinnedArcShoved(b);
+    CHECK(netGap(b.p, b.netA, b.netB) >= b.p.pcb.settings.clearance - 1e-6);
+    CHECK(netRouted(b.p, b.netA));
+    CHECK(netRouted(b.p, b.netB));
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+}
+
+TEST(router_shoves_an_arc_pinned_on_a_held_via) {
+    // The arc starts on a via held by a locked bottom track: the via and the locked track stay exactly; the arc
+    // keeps starting on the via (same point and direction) and moves clear; DRC clean, both nets connected.
+    PinnedArcBoard b = pinnedArcBoard(true);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(netRouted(b.p, b.netB));
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    const RoutePreview pv = routePastPinnedArc(b, r);
+    CHECK(!pv.blocked);
+    CHECK(pv.shovedVias.empty());
+    CHECK(r.fixHead());
+    CHECK(r.moveTo(padAt(b.p, b.r2, 1)).reachedTarget);
+    CHECK(r.commit().ok);
+    CHECK(b.p.pcb.vias.size() == b.vias.size());
+    for (size_t i = 0; i < b.vias.size() && i < b.p.pcb.vias.size(); ++i)
+        CHECK(b.p.pcb.vias[i].id == b.vias[i].id && b.p.pcb.vias[i].position == b.vias[i].position);
+    bool lockedKept = false;
+    for (const auto& t : b.p.pcb.tracks)
+        lockedKept = lockedKept || (t.id == b.locked.id && t.locked && t.a == b.locked.a && t.b == b.locked.b);
+    CHECK(lockedKept);
+    checkPinnedArcShoved(b);
+    CHECK(netGap(b.p, b.netA, b.netB) >= b.p.pcb.settings.clearance - 1e-6);
+    CHECK(netRouted(b.p, b.netA));
+    CHECK(netRouted(b.p, b.netB));
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+}
+
+TEST(router_does_not_shove_a_locked_s_curve) {
+    // The same route with the S-curve locked: both arcs stay bit for bit, the shove reports the locked track, and
+    // the head walks around or stops short, clear of it; the board stays DRC clean.
+    SCurveBoard b = sCurveBoard(true);
+    CHECK(routingProblems(b.p) == 0);
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    const RoutePreview pv = routeTwoLegs(b.p, r, b.r1, {19.8, 12.5}, {13.3, 6});
+    CHECK(pv.status.find("locked track") != std::string::npos);
+    for (int id : {b.arc1.id, b.arc2.id})
+        CHECK(std::find(pv.hiddenTracks.begin(), pv.hiddenTracks.end(), id) == pv.hiddenTracks.end());
+    for (const auto& t : pv.shovedTracks) CHECK(!t.arc);
+    CHECK(r.commit().ok);
+    int kept = 0;
+    for (const auto& t : b.p.pcb.tracks)
+        for (const Track* o : {&b.arc1, &b.arc2})
+            kept += t.id == o->id && t.arc && t.locked && t.a == o->a && t.b == o->b && t.mid == o->mid ? 1 : 0;
+    CHECK(kept == 2);
+    CHECK(netGap(b.p, b.netA, b.netB) >= b.p.pcb.settings.clearance - 1e-6);
+    CHECK(routingProblems(b.p) == 0);
+}
+
+TEST(router_straight_shove_unchanged_by_an_s_curve) {
+    // Regression guard: an S-curve (two tangent arcs) elsewhere on the board leaves the straight-only shove of the
+    // lane board exactly as it is without it (the same preview, the same copper), and both arcs stay bit for bit.
+    std::string d1, d2;
+    LaneBoard a = laneBoard(), b = laneBoard();
+    b.p.pcb.addTrack(arcTrackOf(b.lane[2], {33, 36}, 1.5, -90, 0));
+    const Track s1 = b.p.pcb.tracks.back();
+    b.p.pcb.addTrack(arcTrackOf(b.lane[2], {36, 36}, 1.5, 180, 90));
+    const Track s2 = b.p.pcb.tracks.back();
+    const RouteChanges ca = routeAlongLanes(a, &d1), cb = routeAlongLanes(b, &d2);
+    CHECK(ca.ok && cb.ok);
+    CHECK(!d1.empty() && d1 == d2);
+    CHECK(ca.removedTracks.size() == cb.removedTracks.size() && ca.addedTracks.size() == cb.addedTracks.size());
+    CHECK(a.p.pcb.tracks.size() + 2 == b.p.pcb.tracks.size());
+    bool same = a.p.pcb.tracks.size() + 2 == b.p.pcb.tracks.size();
+    int arcsKept = 0;
+    size_t j = 0;
+    for (const auto& t : b.p.pcb.tracks) {
+        if (t.id == s1.id || t.id == s2.id) {
+            const Track& o = t.id == s1.id ? s1 : s2;
+            arcsKept += t.arc && t.a == o.a && t.b == o.b && t.mid == o.mid ? 1 : 0;
+            continue;
+        }
+        if (j >= a.p.pcb.tracks.size()) {
+            same = false;
+            break;
+        }
+        const Track& u = a.p.pcb.tracks[j++];
+        same = same && !t.arc && !u.arc && t.a == u.a && t.b == u.b && t.net == u.net && t.layer == u.layer &&
+               t.width == u.width;
+    }
+    CHECK(same && arcsKept == 2);
+    CHECK(routingProblems(a.p) == 0);
+}
+
 // ======================================================================= length tuning parity (interactive routing 10/10)
 
 namespace {
