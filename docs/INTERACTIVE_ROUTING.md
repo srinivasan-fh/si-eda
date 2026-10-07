@@ -121,9 +121,28 @@ to its ends follow it:
   goes back to its sharp corner, those straight tracks are shoved as normal lines, and at the end of the shove the
   corner nearest the old one is rounded again with the old radius (or a half or a quarter of it) where that fits.
 
-An arc whose end sits on a pad, a via, a junction, a locked track or another arc, and every locked arc or teardrop,
-stays fixed: the shove reports it ("Blocked by a track of …") and the head walks around it. Tracks pushed into an arc
-walk around it as they always did. Boards without arcs shove exactly as before.
+Arcs joined directly to each other with tangent joins (an S-curve, or any chain of up to 16 arcs of one width) are
+shoved as one unit, together with the straight tracks at the chain's ends:
+
+- Between tangent straight tracks the chain is re-solved on its corner polygon (the corners its tangent lines meet
+  at): each join between two arcs slides along their common tangent and both radii follow, so every join stays
+  tangent and the outer tracks only get shorter or longer along their own lines.
+- Otherwise, or when that cannot clear the pusher, the chain is offset as a whole (its parallel curve: inner joins
+  stay tangent, the outer tracks' near ends follow its ends).
+
+An arc whose end sits on a pad or via of its net keeps that end where it is, with the same direction out of it: its
+radius changes, and its other end stays tangent to the straight track there (which turns about its far end) or keeps
+its sweep when it is free. A pad never moves; a via under the arc's end is not moved by the arc (only `shoveVia` moves
+a via, and only one that may move).
+
+When none of these clears the pusher, the chain (or the pinned arc) goes back to its corner polyline: its end points
+stay, so a pinned end gets a short straight exit from the pad or via; those lines are shoved as normal lines, and at
+the end of the shove each corner is rounded again with its old radius (or a half or a quarter of it) where that fits.
+
+An arc whose end sits on a junction, a locked track or an arc it is not tangent to (or one that is locked), and every
+locked arc or teardrop, stays fixed: the shove reports it ("Blocked by a track of …" / "a locked track of …") and the
+head walks around it. Tracks pushed into an arc walk around it as they always did. Boards without arcs shove exactly
+as before.
 
 ## Rules the router keeps
 
@@ -186,7 +205,7 @@ that reads copper treats it as an arc:
 | 3D view | The arc as short boxes (5 µm sagitta). |
 | Project files | `"mid": {"x","y"}` on an arc track; files without it load as before (straight). |
 | Snapshot / preview JSON | `"arc": true`, `"mx","my"` and, for drawing, `"cx","cy","radius","startAngle","sweep"` (radians, sweep > 0 turns from +x towards +y). |
-| Interactive router | Arcs are obstacles measured exactly (walkaround, shove, highlight, grid search); the shove engine pushes an arc as a whole (re-filleted or offset concentrically, see [Shoving arcs](#shoving-arcs)); locked arcs stay. |
+| Interactive router | Arcs are obstacles measured exactly (walkaround, shove, highlight, grid search); the shove engine pushes an arc as a whole (re-filleted or offset concentrically), a chain of tangent arcs as a unit and an arc on a pad or via about its pinned end (see [Shoving arcs](#shoving-arcs)); locked arcs stay. |
 
 Arc geometry is in `Core/include/sieda/TrackGeometry.hpp`; for a straight track every function is exactly the
 segment formula used before arcs existed, so boards without arcs give bit-identical results. The functions are

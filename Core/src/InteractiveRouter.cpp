@@ -2108,7 +2108,13 @@ private:
     ///  - when no radius clears the pusher, a fillet goes back to its sharp corner (straight tracks, shoved as lines
     ///    from there) and is re-filleted at the end of the shove where it fits (refilletCorners).
     /// Otherwise it fails like a fixed track ("Blocked by ..."). The smallest move that clears the pusher wins.
+    /// An arc joined tangentially to further movable arcs (an S-curve, a chain of arcs) or with an end on a pad or via
+    /// of its net goes to shoveArcChain.
     bool shoveArc(size_t ai, const Item& pusher, std::string& why) {
+        {
+            const ArcChain C = arcChain(ai);
+            if (C.idx.size() > 1 || C.end[0].pinned || C.end[1].pinned) return shoveArcChain(C, ai, pusher, why);
+        }
         const Hit asHit{HitKind::Track, ai, true};
         const Track A = w_.track(ai);
         const ArcGeom g = trackArc(A);
@@ -2290,6 +2296,426 @@ private:
         return true;
     }
 
+    // ------------------------------------------------------------------- arc chains (S-curves) and pinned arcs
+
+    /// One end of an arc chain: continued by one movable straight track, held (a junction, a locked track or an arc
+    /// that is not part of the chain), pinned (on a pad or via of the net: the point stays) or free.
+    struct ChainEnd {
+        long nb = -1;
+        bool held = false, pinned = false;
+    };
+    /// Movable arcs of one net, layer and width joined end to end with tangent joins (an S-curve is two).
+    struct ArcChain {
+        std::vector<size_t> idx;  // the arc tracks in chain order
+        std::vector<Track> seg;   // the same, oriented along the chain: seg[k].b is seg[k + 1].a
+        std::vector<char> rev;    // seg[k] is track idx[k] reversed
+        ChainEnd end[2];          // at seg.front().a and seg.back().b
+    };
+
+    ChainEnd chainEndAt(size_t arc, Vec2 p) const {
+        const Track& A = w_.track(arc);
+        ChainEnd e;
+        long via = -1;
+        if (nodeAnchored(w_, A.net, A.layer, p, &via)) {
+            e.pinned = true;
+            return e;
+        }
+        const auto at = tracksEndingAt(w_, A.net, A.layer, p, arc);
+        if (at.empty()) return e;
+        if (at.size() > 1 || w_.trackFixed(at[0]) || w_.track(at[0]).arc) {
+            e.held = true;
+            return e;
+        }
+        e.nb = static_cast<long>(at[0]);
+        return e;
+    }
+
+    /// The chain of movable arcs through arc `ai`: followed both ways while the next track is the only one at the
+    /// join, a movable arc of the same width, and runs on tangentially (at most 16 arcs).
+    ArcChain arcChain(size_t ai) const {
+        ArcChain c;
+        const Track A = w_.track(ai);
+        c.idx = {ai};
+        c.seg = {A};
+        c.rev = {0};
+        for (int fwd = 1; fwd >= 0; --fwd) {
+            while (c.idx.size() < 16) {
+                const Track cur = fwd ? c.seg.back() : c.seg.front();
+                const size_t ci = fwd ? c.idx.back() : c.idx.front();
+                const Vec2 p = fwd ? cur.b : cur.a;
+                long via = -1;
+                if (nodeAnchored(w_, A.net, A.layer, p, &via)) break;
+                const auto at = tracksEndingAt(w_, A.net, A.layer, p, ci);
+                if (at.size() != 1) break;
+                const size_t nx = at[0];
+                if (!w_.arcShovable(nx) || std::fabs(w_.track(nx).width - A.width) > 1e-9 ||
+                    std::find(c.idx.begin(), c.idx.end(), nx) != c.idx.end())
+                    break;
+                Track nt = w_.track(nx);
+                const bool flip = fwd ? !samePoint(nt.a, p) : !samePoint(nt.b, p);
+                if (flip) nt = reversedTrack(nt);
+                // Into each track's interior from the join: a tangent join runs on without a kink.
+                const Vec2 dIn = trackEndDirection(cur, fwd != 0), dOut = trackEndDirection(nt, fwd == 0);
+                if (std::fabs(cross(dIn, dOut)) >= 1e-4 || dIn.dot(dOut) >= 0) break;
+                if (fwd) {
+                    c.idx.push_back(nx);
+                    c.seg.push_back(nt);
+                    c.rev.push_back(flip);
+                } else {
+                    c.idx.insert(c.idx.begin(), nx);
+                    c.seg.insert(c.seg.begin(), nt);
+                    c.rev.insert(c.rev.begin(), flip);
+                }
+            }
+        }
+        c.end[0] = chainEndAt(c.idx.front(), c.seg.front().a);
+        c.end[1] = chainEndAt(c.idx.back(), c.seg.back().b);
+        return c;
+    }
+
+    /// Shoves a chain of tangent arcs (an S-curve) or an arc with an end on a pad or via, as a unit:
+    ///  1. a chain between tangent straight tracks is re-solved on its corner polygon: the joins between the arcs slide
+    ///     along their common tangents and the radii follow, so every join stays tangent and the outer tracks only
+    ///     get shorter or longer along their own lines;
+    ///  2. otherwise (or when that cannot clear the pusher) a chain is offset as a whole (its parallel curve: the joins
+    ///     stay tangent, the outer tracks' near ends follow its ends);
+    ///  3. an arc pinned at one end keeps that end and its direction there; its radius changes, and its other end
+    ///     stays tangent to the straight track there (which turns about its far end) or keeps its sweep when free;
+    ///  4. failing that, the chain becomes its corner polyline (a pinned end keeps its point, so it gets a short
+    ///     straight exit), the lines are shoved, and each corner is rounded again at the end (refilletCorners).
+    /// Pads and vias never move here; a held end (a junction, a locked track, another arc) blocks it.
+    bool shoveArcChain(const ArcChain& C, size_t ai, const Item& pusher, std::string& why) {
+        const Hit asHit{HitKind::Track, ai, true};
+        auto blocked = [&] {
+            why = "Blocked by " + describeHit(w_, asHit);
+            return false;
+        };
+        const size_t n = C.seg.size();
+        if (C.end[0].held || C.end[1].held || (C.end[0].nb >= 0 && C.end[0].nb == C.end[1].nb)) return blocked();
+        std::vector<ArcGeom> g(n);
+        for (size_t k = 0; k < n; ++k) {
+            g[k] = trackArc(C.seg[k]);
+            if (!g[k].valid) return blocked();
+        }
+        const Track& A = C.seg.front();
+        const Vec2 endPt[2] = {C.seg.front().a, C.seg.back().b};
+        std::vector<size_t> olds = C.idx;
+        for (const ChainEnd& x : C.end)
+            if (x.nb >= 0) olds.push_back(static_cast<size_t>(x.nb));
+        // What the old copper already violated stays tolerated for the new.
+        std::vector<Hit> grand;
+        for (size_t o : olds) {
+            const Item it{false, o};
+            if (o < w_.baseT())
+                for (const Hit& h : rawHits(it))
+                    if (preexisting(h)) grand.push_back(h);
+            auto gi = grandfathered_.find(it);
+            if (gi != grandfathered_.end()) grand.insert(grand.end(), gi->second.begin(), gi->second.end());
+        }
+        std::sort(grand.begin(), grand.end());
+        grand.erase(std::unique(grand.begin(), grand.end()), grand.end());
+        for (size_t o : olds) w_.goneT[o] = 1;
+        auto restore = [&] {
+            for (size_t o : olds) w_.goneT[o] = 0;
+        };
+        // Same-net copper on the arcs (pads, vias, other tracks): the moved chain must keep touching it.
+        auto contactsOfArcs = [&](const std::vector<Track>& arcs, size_t count) {
+            std::vector<Hit> all;
+            for (size_t k = 0; k < count && k < arcs.size(); ++k) {
+                const auto c = contactsOf(w_, A.net, A.layer, trackPolyline(arcs[k], 1e-3), A.width / 2);
+                all.insert(all.end(), c.begin(), c.end());
+            }
+            std::sort(all.begin(), all.end());
+            all.erase(std::unique(all.begin(), all.end()), all.end());
+            return all;
+        };
+        const auto contactsBefore = contactsOfArcs(C.seg, n);
+
+        // New arcs (chain order) in their tracks' own orientation, followed by the outer tracks with their near ends
+        // moved onto the chain's ends. A pinned end must stay where it is.
+        auto build = [&](const std::vector<Track>& arcs, std::vector<Track>& out) {
+            out.clear();
+            const Vec2 to[2] = {arcs.front().a, arcs.back().b};
+            const Vec2 into[2] = {trackEndDirection(arcs.front(), false), trackEndDirection(arcs.back(), true)};
+            std::vector<Track> nbs;
+            for (int k = 0; k < 2; ++k) {
+                if (C.end[k].pinned && !samePoint(to[k], endPt[k], 1e-9)) return false;
+                if (C.end[k].nb < 0) continue;
+                Track t = w_.track(static_cast<size_t>(C.end[k].nb));
+                (samePoint(t.a, endPt[k]) ? t.a : t.b) = to[k];
+                const Vec2 far = otherEnd(t, to[k]);
+                if ((far - to[k]).length() < 0.01) return false;
+                if (acuteAway(far - to[k], into[k])) return false;
+                nbs.push_back(t);
+            }
+            for (size_t k = 0; k < arcs.size(); ++k) {
+                if (!isArcTrack(arcs[k])) return false;
+                out.push_back(C.rev[k] ? reversedTrack(arcs[k]) : arcs[k]);
+            }
+            out.insert(out.end(), nbs.begin(), nbs.end());
+            return true;
+        };
+        auto clearsPusher = [&](const std::vector<Track>& c) {
+            for (const Track& t : c)
+                if (!clearOfPusher(t, pusher)) return false;
+            return true;
+        };
+        // No new fixed obstacle (other movable arcs are shoved on in turn) and every contact kept.
+        auto acceptable = [&](const std::vector<Track>& c) {
+            std::vector<Hit> hits;
+            for (const Track& t : c) {
+                hits.clear();
+                trackHits(w_, {t.net}, t.layer, t, t.width / 2, &hits);
+                for (const Hit& h : hits)
+                    if (h.fixed && !movableArc(h) && std::find(grand.begin(), grand.end(), h) == grand.end()) return false;
+            }
+            const auto after = contactsOfArcs(c, n);
+            return std::includes(after.begin(), after.end(), contactsBefore.begin(), contactsBefore.end());
+        };
+        // The least change of parameter x (0 = as it is) within [lo, hi] that clears the pusher: scanned outwards in
+        // steps both ways, the step where it starts to clear bisected (as shoveArc does with its scale).
+        using Maker = std::function<bool(double, std::vector<Track>&)>;
+        auto search = [&](const Maker& make, double lo, double hi, double step, std::vector<Track>& best) {
+            double bestMove = std::numeric_limits<double>::max();
+            for (int sign : {1, -1}) {
+                double prev = 0;
+                bool bisected = false;
+                int tries = 0;
+                for (int k = 1; k <= 400; ++k) {
+                    const double x = sign * k * step;
+                    if (x < lo || x > hi || std::fabs(x) >= bestMove) break;
+                    std::vector<Track> c;
+                    if (!make(x, c) || !clearsPusher(c)) {
+                        prev = x;
+                        continue;
+                    }
+                    if (!bisected) {  // the first step that clears: bisected for the least move
+                        bisected = true;
+                        double a = prev, b = x;
+                        std::vector<Track> cb = c;
+                        for (int it = 0; it < 30 && std::fabs(b - a) > 1e-9; ++it) {
+                            const double m = (a + b) / 2;
+                            std::vector<Track> cm;
+                            if (make(m, cm) && clearsPusher(cm)) {
+                                b = m;
+                                cb = std::move(cm);
+                            } else {
+                                a = m;
+                            }
+                        }
+                        if (acceptable(cb)) {
+                            best = std::move(cb);
+                            bestMove = std::fabs(b);
+                            break;
+                        }
+                    }
+                    if (acceptable(c)) {
+                        best = std::move(c);
+                        bestMove = std::fabs(x);
+                        break;
+                    }
+                    if (++tries >= 24) break;  // further out only runs into more copper
+                    prev = x;
+                }
+            }
+            return !best.empty();
+        };
+        const double stepLen = std::max(0.02, (B_.s.clearance + A.width) / 4);
+        const double rMin = std::max(A.width / 2, 0.01);  // the centre line's radius at least the half width
+        auto leftOf = [](Vec2 d) { return Vec2{-d.y, d.x}; };
+        auto withShape = [&](size_t k, const Track& shape) {  // arc k's track (net, width, ...) with a new shape
+            Track t = C.seg[k];
+            t.a = shape.a;
+            t.b = shape.b;
+            t.mid = shape.mid;
+            return t;
+        };
+        // The corner polygon: arc k fillets corner V[k] with tangent length T[k] (each sweep below 180°).
+        std::vector<Vec2> V(n);
+        std::vector<double> T(n);
+        bool corners = true;
+        for (size_t k = 0; k < n && corners; ++k) {
+            const double sweep = std::fabs(g[k].sweep);
+            corners = sweep < kPi - 0.01;
+            T[k] = g[k].r * std::tan(sweep / 2);
+            V[k] = C.seg[k].a + trackEndDirection(C.seg[k], false) * T[k];
+        }
+
+        std::vector<Track> news;
+        if (n >= 2 && !C.end[0].pinned && !C.end[1].pinned) {
+            // 1. Re-solved on the corner polygon, when straight tracks continue the chain tangentially at both ends.
+            bool tangentEnds = corners && C.end[0].nb >= 0 && C.end[1].nb >= 0;
+            for (int k = 0; k < 2 && tangentEnds; ++k) {
+                const Track& t = w_.track(static_cast<size_t>(C.end[k].nb));
+                const Vec2 u = unit(otherEnd(t, endPt[k]) - endPt[k]);
+                const Vec2 d = k == 0 ? trackEndDirection(C.seg.front(), false) : trackEndDirection(C.seg.back(), true);
+                tangentEnds = std::fabs(cross(u, d)) < 1e-3 && u.dot(d) < 0;
+            }
+            if (tangentEnds) {
+                // Edge directions: e[0] along the first outer track, e[k] from V[k - 1] to V[k], e[n] along the last.
+                std::vector<Vec2> e(n + 1);
+                e[0] = trackEndDirection(C.seg.front(), false);
+                e[n] = trackEndDirection(C.seg.back(), true) * -1;
+                std::vector<double> T0(n), turn(n);
+                T0[0] = T[0];
+                bool ok = true;
+                for (size_t k = 1; k < n && ok; ++k) {  // the joins split each inner edge: T[k - 1] + T[k] = |edge|
+                    const Vec2 d = V[k] - V[k - 1];
+                    e[k] = unit(d);
+                    T0[k] = d.length() - T0[k - 1];
+                    ok = T0[k] > 1e-6 && e[k].dot(trackEndDirection(C.seg[k], false)) > 0.999;
+                }
+                for (size_t k = 0; k < n && ok; ++k) {
+                    turn[k] = std::acos(std::clamp(e[k].dot(e[k + 1]), -1.0, 1.0));
+                    ok = turn[k] > 1e-3 && turn[k] < kPi - 0.01;
+                }
+                if (ok) {
+                    // T[k] = T0[k] + x on even arcs, − x on odd ones; every radius stays at least rMin.
+                    double lo = -std::numeric_limits<double>::max(), hi = std::numeric_limits<double>::max();
+                    for (size_t k = 0; k < n; ++k) {
+                        const double slack = T0[k] - rMin * std::tan(turn[k] / 2);
+                        if (k % 2 == 0)
+                            lo = std::max(lo, -slack);
+                        else
+                            hi = std::min(hi, slack);
+                    }
+                    auto make = [&](double x, std::vector<Track>& out) {
+                        std::vector<Track> arcs;
+                        Vec2 start;
+                        for (size_t k = 0; k < n; ++k) {
+                            const double Tk = T0[k] + (k % 2 == 0 ? x : -x);
+                            const double r = Tk / std::tan(turn[k] / 2);
+                            if (Tk <= 1e-6 || r < rMin - 1e-12) return false;
+                            if (k == 0) start = V[0] - e[0] * Tk;
+                            const bool ccw = cross(e[k], e[k + 1]) > 0;
+                            const Vec2 c = start + (ccw ? leftOf(e[k]) : leftOf(e[k]) * -1) * r;
+                            const Vec2 end = V[k] + e[k + 1] * Tk;
+                            arcs.push_back(withShape(k, makeArcTrack(start, end, c, ccw, A.net, A.layer, A.width)));
+                            start = end;
+                        }
+                        return build(arcs, out);
+                    };
+                    search(make, lo, hi, stepLen, news);
+                }
+            }
+            // 2. Offset as a whole: the parallel curve at distance x to the left of the chain's direction.
+            if (news.empty()) {
+                double lo = -std::numeric_limits<double>::max(), hi = std::numeric_limits<double>::max();
+                for (size_t k = 0; k < n; ++k) {
+                    if (g[k].sweep > 0)
+                        hi = std::min(hi, g[k].r - rMin);  // centre on the left: the radius shrinks
+                    else
+                        lo = std::max(lo, rMin - g[k].r);
+                }
+                auto make = [&](double x, std::vector<Track>& out) {
+                    std::vector<Track> arcs;
+                    for (size_t k = 0; k < n; ++k) {
+                        const double f = (g[k].r + (g[k].sweep > 0 ? -x : x)) / g[k].r;
+                        if (g[k].r * f < rMin - 1e-12) return false;
+                        const Track& s = C.seg[k];
+                        Track t = s;
+                        t.a = k == 0 ? g[k].c + (s.a - g[k].c) * f : arcs.back().b;
+                        t.b = g[k].c + (s.b - g[k].c) * f;
+                        t.mid = g[k].c + (s.mid - g[k].c) * f;
+                        arcs.push_back(t);
+                    }
+                    return build(arcs, out);
+                };
+                search(make, lo, hi, stepLen, news);
+            }
+        } else if (n == 1 && C.end[0].pinned != C.end[1].pinned) {
+            // 3. Pinned at one end P: the circle through P with the same direction there, its radius varied.
+            const bool atB = C.end[1].pinned;
+            const Track S = atB ? reversedTrack(C.seg[0]) : C.seg[0];  // runs from the pinned end
+            const ArcGeom sg = trackArc(S);
+            const int other = atB ? 0 : 1;
+            const Vec2 P = S.a, t0 = trackEndDirection(S, false);
+            const bool ccw = sg.sweep > 0;
+            const Vec2 nrm = ccw ? leftOf(t0) : leftOf(t0) * -1;  // towards the centre
+            const bool hasNb = C.end[other].nb >= 0;
+            Vec2 F;  // the far end of the straight track at the other end: it turns about that point
+            if (hasNb) F = otherEnd(w_.track(static_cast<size_t>(C.end[other].nb)), endPt[other]);
+            if (sg.valid) {
+                auto make = [&](double x, std::vector<Track>& out) {
+                    const double R = sg.r + x;
+                    if (R < rMin - 1e-12) return false;
+                    const Vec2 c = P + nrm * R;
+                    Vec2 Q;
+                    if (hasNb) {  // the tangent point from F, on the side the arc runs on towards F
+                        const Vec2 cf = F - c;
+                        const double d = cf.length();
+                        if (d <= R + 0.01) return false;
+                        const double al = std::acos(R / d), base = std::atan2(cf.y, cf.x);
+                        bool found = false;
+                        for (double s : {1.0, -1.0}) {
+                            const double ang = base + s * al;
+                            const Vec2 q = c + Vec2{std::cos(ang), std::sin(ang)} * R;
+                            const Vec2 fwd = ccw ? leftOf(q - c) : leftOf(q - c) * -1;
+                            if (fwd.dot(F - q) > 0) {
+                                Q = q;
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) return false;
+                    } else {  // a free end keeps the sweep
+                        const double ang = std::atan2(P.y - c.y, P.x - c.x) + sg.sweep;
+                        Q = c + Vec2{std::cos(ang), std::sin(ang)} * R;
+                    }
+                    const double s0 = std::atan2(P.y - c.y, P.x - c.x), s1 = std::atan2(Q.y - c.y, Q.x - c.x);
+                    const double sweep = std::fmod((ccw ? s1 - s0 : s0 - s1) + 4 * kPi, 2 * kPi);
+                    if (sweep < 1e-3 || sweep > 1.5 * kPi) return false;
+                    Track arc = withShape(0, makeArcTrack(P, Q, c, ccw, A.net, A.layer, A.width));
+                    if (atB) arc = reversedTrack(arc);
+                    return build({arc}, out);
+                };
+                search(make, rMin - sg.r, std::numeric_limits<double>::max(), stepLen, news);
+            }
+        }
+        bool polygon = false;
+        if (news.empty() && corners) {
+            // 4. Back to the corner polyline; the chain's end points stay (a pinned end gets a straight exit).
+            std::vector<Vec2> pts{endPt[0]};
+            pts.insert(pts.end(), V.begin(), V.end());
+            pts.push_back(endPt[1]);
+            bool ok = true;
+            for (size_t i = 1; i + 1 < pts.size() && ok; ++i) ok = !acuteAway(pts[i - 1] - pts[i], pts[i + 1] - pts[i]);
+            for (int k = 0; k < 2 && ok; ++k) {
+                if (C.end[k].nb < 0) continue;
+                const Vec2 p = endPt[k], q = k == 0 ? pts[1] : pts[pts.size() - 2];
+                ok = !acuteAway(otherEnd(w_.track(static_cast<size_t>(C.end[k].nb)), p) - p, q - p);
+            }
+            if (ok) {
+                for (size_t i = 0; i + 1 < pts.size(); ++i) {
+                    if ((pts[i + 1] - pts[i]).length() <= 1e-6) continue;
+                    Track t = A;
+                    t.arc = false;
+                    t.mid = Vec2{};
+                    t.a = pts[i];
+                    t.b = pts[i + 1];
+                    news.push_back(t);
+                }
+                polygon = !news.empty();
+                if (polygon)  // the outer tracks stay as they are
+                    for (const ChainEnd& x : C.end)
+                        if (x.nb >= 0) w_.goneT[static_cast<size_t>(x.nb)] = 0;
+            }
+        }
+        if (news.empty()) {
+            restore();
+            return blocked();
+        }
+        if (polygon)
+            for (size_t k = 0; k < n; ++k)
+                refillets_.push_back({A.net, A.layer, A.width, g[k].r, V[k], std::max(1.0, 4 * T[k])});
+        for (const Track& t : news) {
+            const Item it{false, w_.addTrack(t, false)};
+            grandfathered_[it] = grand;
+            push(it);
+        }
+        return true;
+    }
+
     /// A fillet shoveArc turned back into its corner: rounded again after the shove.
     struct Refillet {
         int net = -1, layer = 0;
@@ -2321,6 +2747,9 @@ private:
                     const size_t o = at[0] == i ? at[1] : at[0];
                     const Track& u = w_.track(o);
                     if (u.arc || w_.trackFixed(o) || std::fabs(u.width - R.width) > 1e-9) continue;
+                    // A straight run-through (a join between two collinear pieces) is no corner.
+                    const Vec2 da = awayFrom(t, p), db = awayFrom(u, p);
+                    if (da.dot(db) <= -std::cos(1e-3) * da.length() * db.length()) continue;
                     bestD = d;
                     corner = p;
                     ta = i;
