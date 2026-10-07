@@ -415,6 +415,36 @@ the message counts the nets lengthened, already matched and without room.
 
 Core: `matchTrackLengths(pcb, sch, trackIds, options, tolerance)`; C: `sieda_pcb_match_lengths`.
 
+### Tuning while routing
+
+**Tune Lengths While Routing** (routing options bar, off by default) matches lengths as you route instead of
+afterwards, like the tune-while-routing modes of the big tools:
+
+- **While routing a bus** (or a multi-route), or a single net that has a length target (a length rule, a match group
+  or a matched-length group such as `DQ0…DQ7`), the banner lists each member's length so far against its target, e.g.
+  `DQ0 12.40/13.10` (members within tolerance are marked ✓). The target is the member's length rule; otherwise its
+  match group's longest member; otherwise, for a bus, the longest member of the bus itself (tolerance 0.1 mm, or the
+  group's / rule's). A single net matches the other members of its group.
+- **A bus started with the option on** leaves room between its members for the meanders: the members are
+  `tuneGap` further apart than width + clearance (automatic: one more width + clearance; `< 0` keeps the bundle
+  packed, so only the outer members have room).
+- **On commit (Enter)** each short member gets accordion meanders on the tracks this route adds, and only on those
+  (longest first, through the same tuner as the Tune tool, one track at a time), never higher than the room between
+  the members, keeping clearance to everything. Lengths are then measured as the Tune tool measures them (pad to pad
+  through series parts when a rule or group applies). The status line reports `Lengths: 3 of 4 members within
+  tolerance of the target`, and names every member that could not get there (`— could not reach the target (no room
+  for meanders): DQ2 (-1.20 mm)`). Nothing that would break a DRC rule is ever added: a member without room stays
+  short.
+- Differential pairs are not tuned here (their skew and length are tuned as a coupled pair with the Tune tool), and
+  the live head is not meandered: the meanders appear when the route is finished. With the option off routing is
+  bit-for-bit what it was.
+
+Core: `RouterOptions::tuneWhileRouting`, `RouterOptions::tuneGap`; `RoutePreview::memberLengths` and
+`RouteChanges::memberLengths` / `RouteChanges::tuneStatus` (`MemberLength {net, length, target, tolerance,
+withinTolerance}`). JSON: router options `"tuneWhileRouting"`, `"tuneGap"`; the preview and the commit's changes
+carry `"memberLengths":[{"net","length","target","tolerance","withinTolerance"}]` (and the changes `"tuneStatus"`)
+only when the option produced them.
+
 ## Core API
 
 `Core/include/sieda/InteractiveRouter.hpp`:
@@ -473,11 +503,13 @@ All functions are in `sieda_c.h`. Each project has one route session.
 
 Options JSON: `{"mode":"shove"|"walkaround"|"highlight", "posture":"45"|"90"|"free", "swapPosture":bool, "width":mm,
 "pairGap":mm, "snap":bool, "viaType":"through"|"blind"|"micro"|"auto", "cornerRadius":mm (0 sharp, < 0 auto),
-"arcCorners":bool}`. Fields that are left out keep their value.
+"arcCorners":bool, "removeLoops":bool, "teardrops":bool, "hug":bool, "tuneWhileRouting":bool, "tuneGap":mm}`. Fields
+that are left out keep their value.
 
 Preview JSON: `active`, `kind` (`route` / `pair` / `drag` / `via`), `status`, `blocked`, `reachedTarget`, `nets`,
 `layer`, `width`, `gap`, `endX`, `endY`, `length`, `netLength`, `targetLength`, `placed`, `head`, `vias`,
-`shovedTracks`, `shovedVias`, `hiddenTracks`, `hiddenVias`, and `error` when the call was refused. Vias carry
+`shovedTracks`, `shovedVias`, `hiddenTracks`, `hiddenVias`, `memberLengths` (tune while routing only), and `error`
+when the call was refused. Vias carry
 `fromLayer`, `toLayer` and `kind` as in the snapshot. To draw a preview, draw the board without `hiddenTracks` /
 `hiddenVias`, then `shovedTracks` / `shovedVias`, then the route (`placed`, `head`, `vias`).
 
@@ -655,6 +687,10 @@ Core (`Core/tests/core_tests.cpp`):
 | `c_api_board_commands` | Teardrops, gloss, shielding, stitching and the router options through the C API. |
 | `router_stop_mode_stops_at_the_first_obstacle` | Shove pushes a crossing track; Stop at obstacle leaves it and ends short of it. |
 | `match_track_lengths_of_a_bus` | Three nets, one with a detour: the other two are lengthened to it within 0.1 mm, DRC clean, no group left behind. |
+| `tune_while_routing_off_is_unchanged` | Option off (with a tune gap given): the same preview, changes and copper as the default router, the bus packed at pitch, no member lengths. |
+| `tune_while_routing_matches_a_bus_on_commit` | A four-net bus turned through 90°: on commit every member is within 0.1 mm of the longest, only route tracks replaced, DRC clean, each member one piece. |
+| `tune_while_routing_preview_reports_member_lengths` | The preview's member lengths and targets (longest member; a member's own length rule), JSON and options. |
+| `tune_while_routing_reports_a_member_without_room` | A member whose rule asks for more than fits is named in the status and stays short; DRC clean. |
 | `router_drag_hugs_a_pad` | A segment dragged onto another part's pad stops short; with hug it bends round the pad, connected, DRC clean. |
 | `c_api_match_lengths_and_stop_mode` | Stop mode and length matching through the C API. |
 | `router_head_update_can_be_cancelled` | A cancelled update leaves the router exactly as before; the next one matches a router that was never cancelled; a request while idle changes nothing. |

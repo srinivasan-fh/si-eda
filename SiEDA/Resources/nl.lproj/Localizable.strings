@@ -1146,3 +1146,5 @@
 "Brown" = "Bruin";
 "Tan" = "Lichtbruin";
 "Colour Symbols by Device" = "Symbolen kleuren per component";
+"Tune Lengths While Routing" = "Lengtes afstemmen tijdens routeren";
+"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "Toont tijdens het routeren van een bus of een lengte-gematcht net de lengte van elk lid ten opzichte van het doel; bij het afronden van de route krijgen de korte leden meanders";

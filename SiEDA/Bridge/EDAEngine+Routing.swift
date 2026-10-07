@@ -98,16 +98,19 @@ enum TeardropStyleChoice: String, Codable, CaseIterable, Identifiable {
 /// corner-to-arc conversion and the other routing commands.
 extension EDAEngine {
     /// Router options JSON (`sieda_router_*`). `rounded`: corners get the automatic radius; `arcs`: as true arcs
-    /// (pairs and buses on concentric arcs) instead of short chords.
+    /// (pairs and buses on concentric arcs) instead of short chords. `tune`: tune lengths while routing (a bus's or a
+    /// matched net's short members get meanders on commit; the preview reports `memberLengths`).
     static func routingOptions(mode: RouterModeChoice, diagonal: Bool, via: RouterViaChoice = .through,
                                rounded: Bool = false, arcs: Bool = true, anyAngle: Bool = false,
                                removeLoops: Bool = false, teardrops: Bool = false, hug: Bool = false,
-                               teardropStyle: TeardropStyleChoice = .straight) -> String {
+                               teardropStyle: TeardropStyleChoice = .straight,
+                               tune: Bool = false) -> String {
         let posture = anyAngle ? "free" : (diagonal ? "45" : "90")
         return "{\"mode\":\"\(mode.rawValue)\",\"posture\":\"\(posture)\",\"viaType\":\"\(via.rawValue)\","
             + "\"cornerRadius\":\(rounded ? -1 : 0),\"arcCorners\":\(rounded && arcs),"
             + "\"removeLoops\":\(removeLoops),\"teardrops\":\(teardrops),\"hug\":\(hug),"
-            + "\"teardropStyle\":\"\(teardropStyle.rawValue)\"}"
+            + "\"teardropStyle\":\"\(teardropStyle.rawValue)\","
+            + "\"tuneWhileRouting\":\(tune)}"
     }
 
     /// Drags the corner of `trackId` nearest to `point`.

@@ -227,6 +227,9 @@ struct PCBEditorView: View {
                         .labelsHidden()
                         .fixedSize()
                         .help("Teardrop outline: straight fans, or curved flares into pads and vias")
+                        Toggle("Tune Lengths While Routing", isOn: $store.routerTuneWhileRouting)
+                            .toggleStyle(.checkbox)
+                            .help("While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members")
                         Toggle("Rounded corners", isOn: $store.routerRounded)
                             .toggleStyle(.checkbox)
                             .help("Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only")
@@ -1312,6 +1315,7 @@ struct PCBCanvas: View {
             if let net = route.netLength, let target = route.targetLength, target > 0 {
                 length += String(format: " · net %.2f / %.2f mm", net, target)
             }
+            length += memberLengthsText(route.memberLengths ?? [], snap: snap)
             let hint = route.kind == "drag" || route.kind == "via" ? "release to drop · Esc cancels"
                 : "click places a corner · V via · Enter finishes · Esc cancels"
             CanvasOverlays.banner("\(route.status) · \(length) · \(hint)", in: &ctx, size: size)
@@ -1370,4 +1374,15 @@ struct PCBCanvas: View {
         }
         ctx.fill(dots, with: .color(Theme.gridDot.opacity(0.7)))
     }
+}
+
+/// Tune while routing: " · DQ0 12.40/13.10 · DQ1 13.10/13.10 ✓" for the route banner ("" without members).
+func memberLengthsText(_ members: [RouteMemberLength], snap: DesignSnapshot) -> String {
+    var text = ""
+    for m in members where m.target > 0 {
+        let name = snap.net(m.net)?.name ?? "\(m.net)"
+        let mark = m.withinTolerance ? " ✓" : ""
+        text += " · " + name + String(format: " %.2f/%.2f", m.length, m.target) + mark
+    }
+    return text
 }

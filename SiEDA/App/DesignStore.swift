@@ -1685,10 +1685,16 @@ final class DesignStore: ObservableObject {
         didSet { if routerHugDrag != oldValue { applyRouterOptions() } }
     }
 
+    /// Tune lengths while routing: a bus's (or a matched net's) short members get meanders when the route is finished.
+    @Published var routerTuneWhileRouting = false {
+        didSet { if routerTuneWhileRouting != oldValue { applyRouterOptions() } }
+    }
+
     private var routerOptions: String {
         EDAEngine.routingOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType, rounded: routerRounded,
                                  arcs: routerArcs, anyAngle: routerAnyAngle, removeLoops: routerRemoveLoops,
-                                 teardrops: routerTeardrops, hug: routerHugDrag, teardropStyle: teardropStyle)
+                                 teardrops: routerTeardrops, hug: routerHugDrag, teardropStyle: teardropStyle,
+                                 tune: routerTuneWhileRouting)
     }
 
     /// Shows a router reply: a refused step keeps the route and reports why.
@@ -1826,6 +1832,7 @@ final class DesignStore: ObservableObject {
         }
         routePreview = nil
         if !done, let error = result.error { statusMessage = error }
+        if done, let tuned = result.tuneStatus, !tuned.isEmpty { statusMessage = tuned }
         if done, !drcResults.isEmpty { runDRC() }
     }
 

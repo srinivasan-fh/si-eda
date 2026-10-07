@@ -85,6 +85,24 @@ struct RouterOptions {
     /// Hug: a dragged segment that runs into copper that cannot move (pads, locked tracks, fixed vias) bends around it
     /// on its clearance hull instead of stopping short; other nets' tracks are still shoved (Shove) or kept clear.
     bool hugDrag = false;
+    /// Tune while routing: routing a bus, or a single net with a length target (length rule, match group or
+    /// matched-length group), the preview reports each member's length against its target (RoutePreview::
+    /// memberLengths), and on commit the members that are short get accordion meanders on the tracks this route adds
+    /// (only those), keeping clearance, until they reach the target; members without room are named in
+    /// RouteChanges::tuneStatus. A bus started with it leaves `tuneGap` between its members for the meanders.
+    bool tuneWhileRouting = false;
+    /// With tuneWhileRouting: extra room between a bus's members (mm, on top of width + clearance, centre to centre),
+    /// which is also the meanders' height limit there; 0 = automatic (track width + clearance), < 0 = packed at pitch.
+    double tuneGap = 0;
+};
+
+/// One member of a routed bus (or the routed net) against its length target (tune while routing).
+struct MemberLength {
+    int net = -1;
+    double length = 0;  // mm: while routing, the net's copper with the route; after commit, as the length tuner measures
+    double target = 0;  // mm: the length rule / match group target, else the longest member (0 = no target)
+    double tolerance = 0;
+    bool withinTolerance = false;
 };
 
 /// What commit() changed, so a caller can undo it exactly: removed items (with their old geometry and ids) and the
@@ -96,6 +114,10 @@ struct RouteChanges {
     std::vector<Via> removedVias;
     std::vector<int> addedTracks;
     std::vector<int> addedVias;
+    /// Tune while routing: each member's length after the commit's meanders, and a summary naming the members that
+    /// could not reach their target ("" when the option is off or no member has a target).
+    std::vector<MemberLength> memberLengths;
+    std::string tuneStatus;
     bool empty() const { return removedTracks.empty() && removedVias.empty() && addedTracks.empty() && addedVias.empty(); }
 };
 
@@ -126,6 +148,9 @@ struct RoutePreview {
     /// the length it should match: the longest other member of its matched-length group (0 = not in a group).
     double netLength = 0;
     double targetLength = 0;
+    /// Tune while routing (RouterOptions::tuneWhileRouting): each routed member's length so far (its other copper plus
+    /// the route) against its target; empty when the option is off or no member has a target.
+    std::vector<MemberLength> memberLengths;
     /// Highlight mode: what the route's copper violates (empty in the other modes, which never violate anything).
     std::vector<RouteCollision> collisions;
     /// The last moveTo() was cancelled (requestAbort): this is the preview from before it, unchanged.
@@ -423,6 +448,9 @@ Json boardEditJson(const BoardEditResult& r, int layerCount = 0);
 /// fields keep their value in `base`.
 RouterOptions routerOptionsFromJson(const Json& j, RouterOptions base = {});
 Json routePreviewJson(const RoutePreview& p);
+/// [{"net","length","target","tolerance","withinTolerance"}] (tune while routing: "memberLengths" of the preview and
+/// of the commit's changes, written only when not empty).
+Json memberLengthsJson(const std::vector<MemberLength>& members);
 Json routeChangesJson(const RouteChanges& c);
 
 }  // namespace sieda

@@ -1146,3 +1146,5 @@
 "Brown" = "갈색";
 "Tan" = "황갈색";
 "Colour Symbols by Device" = "장치별 심볼 색상";
+"Tune Lengths While Routing" = "배선 중 길이 조정";
+"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "버스나 등장 네트를 배선하는 동안 각 멤버의 길이를 목표와 비교해 표시하고, 배선을 마치면 짧은 멤버에 미앤더를 추가합니다";

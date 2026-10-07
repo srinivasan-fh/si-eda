@@ -2440,6 +2440,76 @@ std::vector<size_t> padPartition(const std::vector<Pad>& pads, const std::vector
     return label;
 }
 
+// ------------------------------------------------------------------------------------- tune while routing
+
+/// What a routed member's length is matched to (tune while routing): a length rule's fixed target, or a floor (a
+/// match group's or matched-length group's longest other member) that the bus's own longest member may raise.
+struct TuneTarget {
+    bool has = false;    // the member has a target at all
+    bool fixed = false;  // a length rule: `target` is the target
+    double target = 0;   // fixed target, or the floor
+    double tolerance = 0.1;
+};
+
+TuneTarget tuneTargetOf(const PcbLayout& pcb, const Schematic& sch, const std::vector<Pad>& pads, int net,
+                        const std::vector<int>& memberNets, bool bus) {
+    TuneTarget t;
+    if (net < 0) return t;
+    LengthTarget lt;
+    if (lengthTargetFor(pcb, sch, pads, net, lt)) {
+        t.has = true;
+        t.fixed = lt.source.rfind("rule:", 0) == 0;
+        t.target = lt.target;
+        t.tolerance = std::max(0.01, lt.tolerance);
+        return t;
+    }
+    for (const auto& g : lengthGroups(sch, pcb.settings)) {
+        if (std::find(g.nets.begin(), g.nets.end(), net) == g.nets.end()) continue;
+        t.has = true;
+        t.tolerance = std::max(0.01, g.tolerance);
+        for (int n : g.nets)
+            if (n != net && std::find(memberNets.begin(), memberNets.end(), n) == memberNets.end())
+                t.target = std::max(t.target, routedNetLength(pcb, n));
+        return t;
+    }
+    t.has = bus;  // a bus without rules: its longest member
+    return t;
+}
+
+/// A net's length as the length tuner measures it: pad to pad through series parts when a length rule or match
+/// group applies or the signal passes series parts, otherwise its routed copper.
+double tunerLength(const PcbLayout& pcb, const Schematic& sch, const std::vector<Pad>& pads, int net) {
+    LengthTarget lt;
+    const bool ruled = lengthTargetFor(pcb, sch, pads, net, lt);
+    if (!ruled) lt.xsignal = xSignalOf(sch, pads, net);
+    if (!ruled && lt.xsignal.seriesParts.empty()) return routedNetLength(pcb, net);
+    const double l = xSignalLength(pcb, pads, lt.xsignal);
+    return l > 0 ? l : routedNetLength(pcb, net);
+}
+
+/// Each member's target from its TuneTarget and the members' lengths: a rule's target, else the floor raised to the
+/// longest unruled member (a bus); a single route matches its group's other members only. 0 = no target.
+std::vector<double> tuneTargetsFor(const std::vector<TuneTarget>& tt, const std::vector<double>& len, bool bus) {
+    double longest = 0;
+    if (bus)
+        for (size_t k = 0; k < tt.size(); ++k)
+            if (tt[k].has && !tt[k].fixed) longest = std::max(longest, len[k]);
+    std::vector<double> out(tt.size(), 0.0);
+    for (size_t k = 0; k < tt.size(); ++k)
+        if (tt[k].has) out[k] = tt[k].fixed ? tt[k].target : std::max(tt[k].target, longest);
+    return out;
+}
+
+MemberLength memberLengthOf(int net, double length, double target, double tolerance) {
+    MemberLength m;
+    m.net = net;
+    m.length = length;
+    m.target = target;
+    m.tolerance = tolerance;
+    m.withinTolerance = target > 0 && std::fabs(length - target) <= tolerance + 1e-9;
+    return m;
+}
+
 }  // namespace
 
 // ================================================================================================ the router
@@ -2515,6 +2585,9 @@ struct InteractiveRouter::Impl {
     } mdrag;
     bool multiRoute = false;          // the bus was started with beginMultiRoute
     double groupTarget = 0;     // longest other member of the net's matched-length group (0 = none)
+    double busTuneRoom = 0;     // tune while routing: the extra room left between a bus's members (mm)
+    std::vector<TuneTarget> tuneTargets;  // tune while routing: each member's target (computed on first use)
+    bool tuneTargetsReady = false;
 
     RoutePreview prev;
 
@@ -2537,6 +2610,9 @@ struct InteractiveRouter::Impl {
         mdrag = MultiDrag{};
         multiRoute = false;
         groupTarget = 0;
+        busTuneRoom = 0;
+        tuneTargets.clear();
+        tuneTargetsReady = false;
         busOffset.clear();
         prev = RoutePreview{};
     }
@@ -2544,6 +2620,96 @@ struct InteractiveRouter::Impl {
     bool fail(const std::string& why) {
         err = why;
         return false;
+    }
+
+    /// Tune while routing: the extra room between a bus's members for meanders (0 when the option is off).
+    double tuneRoom(double w, double clr) const {
+        if (!opt.tuneWhileRouting || opt.tuneGap < 0) return 0;
+        return opt.tuneGap > 0 ? opt.tuneGap : w + clr;
+    }
+
+    /// The members' targets for the live readout (the board does not change during a session).
+    void ensureTuneTargets() {
+        if (tuneTargetsReady) return;
+        tuneTargetsReady = true;
+        std::vector<int> nets;
+        for (const auto& m : members) nets.push_back(m.net);
+        for (int n : nets) tuneTargets.push_back(tuneTargetOf(pcb, sch, base->pads, n, nets, kind == Kind::Bus));
+    }
+
+    /// Tune while routing on commit: each short member gets meanders on the tracks this commit added for it (longest
+    /// first, one track at a time through the length tuner) up to its target; `ch` takes the tuner's changes, the
+    /// members' lengths and the status.
+    void tuneOnCommit(RouteChanges& ch, const std::vector<int>& nets, bool bus, double room) {
+        const auto pads = pcb.pads(sch);
+        std::vector<TuneTarget> tt;
+        std::vector<double> len;
+        bool any = false;
+        for (int n : nets) {
+            tt.push_back(tuneTargetOf(pcb, sch, pads, n, nets, bus));
+            len.push_back(tunerLength(pcb, sch, pads, n));
+            any = any || tt.back().has;
+        }
+        if (!any) return;
+        const std::vector<double> target = tuneTargetsFor(tt, len, bus);
+        for (size_t k = 0; k < nets.size(); ++k) {
+            if (target[k] <= 0 || len[k] >= target[k] - tt[k].tolerance) continue;
+            std::vector<std::pair<double, int>> cand;
+            for (const Track& t : pcb.tracks)
+                if (t.net == nets[k] && !t.arc && !t.teardrop && !t.locked &&
+                    std::find(ch.addedTracks.begin(), ch.addedTracks.end(), t.id) != ch.addedTracks.end())
+                    cand.push_back({-trackLength(t), t.id});
+            std::sort(cand.begin(), cand.end());
+            for (const auto& c : cand) {
+                if (len[k] >= target[k] - 0.01) break;
+                const auto it =
+                    std::find_if(pcb.tracks.begin(), pcb.tracks.end(), [&](const Track& t) { return t.id == c.second; });
+                if (it == pcb.tracks.end()) continue;
+                LengthTuneOptions o;
+                o.target = target[k];
+                o.maxAmplitude = room > 0.05 ? 0.98 * room : 0;  // the meanders stay inside the room between members
+                o.hasSpan = true;  // on this track only
+                o.spanFrom = it->a;
+                o.spanTo = it->b;
+                const LengthTuneResult tr = tuneTrackLength(pcb, sch, c.second, o);
+                if (!tr.applied) continue;
+                for (const Track& gone : tr.changes.removedTracks) {
+                    const auto at = std::find(ch.addedTracks.begin(), ch.addedTracks.end(), gone.id);
+                    if (at != ch.addedTracks.end())
+                        ch.addedTracks.erase(at);
+                    else
+                        ch.removedTracks.push_back(gone);
+                }
+                for (int id : tr.changes.addedTracks) ch.addedTracks.push_back(id);
+                len[k] = tunerLength(pcb, sch, pads, nets[k]);
+            }
+        }
+        // Match groups' targets follow the members' new lengths.
+        const std::vector<double> after = tuneTargetsFor(tt, len, bus);
+        std::string shortList;
+        int within = 0, counted = 0;
+        for (size_t k = 0; k < nets.size(); ++k) {
+            const MemberLength m = memberLengthOf(nets[k], len[k], after[k], tt[k].tolerance);
+            ch.memberLengths.push_back(m);
+            if (m.target <= 0) continue;
+            ++counted;
+            if (m.withinTolerance) {
+                ++within;
+                continue;
+            }
+            char buf[48];
+            std::snprintf(buf, sizeof buf, " (%+.2f mm)", m.length - m.target);
+            const std::string name = m.net >= 0 && m.net < static_cast<int>(sch.nets().size())
+                                         ? sch.nets()[static_cast<size_t>(m.net)].name
+                                         : std::to_string(m.net);
+            shortList += (shortList.empty() ? "" : ", ") + name + buf;
+        }
+        if (counted == 0) return;
+        char buf[128];
+        std::snprintf(buf, sizeof buf, "Lengths: %d of %d %s within tolerance of the target", within, counted,
+                      counted == 1 ? "member" : "members");
+        ch.tuneStatus = buf;
+        if (!shortList.empty()) ch.tuneStatus += " — could not reach the target (no room for meanders): " + shortList;
     }
 
     double netWidth(int net) const {
@@ -3234,7 +3400,8 @@ struct InteractiveRouter::Impl {
         for (int a : nets)
             for (int b : nets)
                 if (a != b) clr = std::max(clr, base->clearance(a, b));
-        spacing = width + clr;  // centre to centre
+        busTuneRoom = tuneRoom(width, clr);
+        spacing = width + clr + busTuneRoom;  // centre to centre
         members.clear();
         centre = {};
         for (size_t q : pick) {
@@ -3964,7 +4131,8 @@ struct InteractiveRouter::Impl {
         for (int a : nets)
             for (int b : nets)
                 if (a != b) clr = std::max(clr, base->clearance(a, b));
-        spacing = width + clr;
+        busTuneRoom = tuneRoom(width, clr);
+        spacing = width + clr + busTuneRoom;
         members.clear();
         centre = {};
         for (const auto& st : hits) {
@@ -4560,6 +4728,11 @@ struct InteractiveRouter::Impl {
         if (opt.removeLoops) before = std::make_unique<PcbLayout>(pcb);
         ch = applyWorld(pcb, committed, kept, routeVias);
         if (before) removeLoops(*before, ch);
+        if (opt.tuneWhileRouting && ch.ok && (kind == Kind::Route || kind == Kind::Bus) && !members.empty()) {
+            std::vector<int> nets;
+            for (const auto& m : members) nets.push_back(m.net);
+            tuneOnCommit(ch, nets, kind == Kind::Bus, busTuneRoom);
+        }
         if (opt.autoTeardrops && !ch.addedTracks.empty()) {
             TeardropOptions to;
             to.trackIds = ch.addedTracks;
@@ -4860,6 +5033,26 @@ struct InteractiveRouter::Impl {
             }
             p.netLength = other + p.length;
             p.targetLength = groupTarget;
+        }
+        if (opt.tuneWhileRouting && (kind == Kind::Route || kind == Kind::Bus) && !members.empty()) {
+            // Each member's copper so far (its other copper in the overlay plus its route) against its target.
+            ensureTuneTargets();
+            std::vector<double> len(members.size(), 0.0);
+            bool any = false;
+            for (size_t k = 0; k < members.size(); ++k) {
+                for (const Track& t : members[k].placed) len[k] += trackLength(t);
+                len[k] += pathLength(members[k].head);
+                any = any || tuneTargets[k].has;
+            }
+            for (size_t i = 0; any && i < current.nT(); ++i) {
+                if (!current.aliveT(i) || (i >= current.baseT() && current.fixAddT[i - current.baseT()])) continue;
+                const Track& t = current.track(i);
+                for (size_t k = 0; k < members.size(); ++k)
+                    if (t.net == members[k].net) len[k] += trackLength(t);
+            }
+            const std::vector<double> target = tuneTargetsFor(tuneTargets, len, kind == Kind::Bus);
+            for (size_t k = 0; any && k < members.size(); ++k)
+                p.memberLengths.push_back(memberLengthOf(members[k].net, len[k], target[k], tuneTargets[k].tolerance));
         }
         prev = p;
     }
@@ -6391,8 +6584,27 @@ RouterOptions routerOptionsFromJson(const Json& j, RouterOptions o) {
     if (j.has("teardrops")) o.autoTeardrops = j.get("teardrops").asBool(o.autoTeardrops);
     if (j.has("teardropStyle")) o.teardropStyle = teardropStyleFromName(j.get("teardropStyle").asString(std::string()), o.teardropStyle);
     if (j.has("hug")) o.hugDrag = j.get("hug").asBool(o.hugDrag);
+    if (j.has("tuneWhileRouting")) o.tuneWhileRouting = j.get("tuneWhileRouting").asBool(o.tuneWhileRouting);
+    if (j.get("tuneGap").isNumber()) {
+        const double g = j.get("tuneGap").asNumber(o.tuneGap);
+        if (std::isfinite(g)) o.tuneGap = std::min(g, 10.0);
+    }
     if (j.has("shoveLimit")) o.shoveLimit = std::clamp(j.get("shoveLimit").asInt(o.shoveLimit), 1, 10000);
     return o;
+}
+
+Json memberLengthsJson(const std::vector<MemberLength>& ms) {
+    Json a = Json::array();
+    for (const MemberLength& m : ms) {
+        Json k = Json::object();
+        k["net"] = m.net;
+        k["length"] = m.length;
+        k["target"] = m.target;
+        k["tolerance"] = m.tolerance;
+        k["withinTolerance"] = m.withinTolerance;
+        a.push(k);
+    }
+    return a;
 }
 
 Json routePreviewJson(const RoutePreview& p) {
@@ -6453,6 +6665,7 @@ Json routePreviewJson(const RoutePreview& p) {
         col.push(k);
     }
     j["collisions"] = col;
+    if (!p.memberLengths.empty()) j["memberLengths"] = memberLengthsJson(p.memberLengths);
     return j;
 }
 
@@ -6469,6 +6682,8 @@ Json routeChangesJson(const RouteChanges& c) {
     j["removedVias"] = rv;
     j["addedTracks"] = at;
     j["addedVias"] = av;
+    if (!c.memberLengths.empty()) j["memberLengths"] = memberLengthsJson(c.memberLengths);
+    if (!c.tuneStatus.empty()) j["tuneStatus"] = c.tuneStatus;
     return j;
 }
 

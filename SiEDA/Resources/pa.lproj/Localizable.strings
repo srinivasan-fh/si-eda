@@ -1146,3 +1146,5 @@
 "Brown" = "ਭੂਰਾ";
 "Tan" = "ਹਲਕਾ ਭੂਰਾ";
 "Colour Symbols by Device" = "ਡਿਵਾਈਸ ਅਨੁਸਾਰ ਚਿੰਨ੍ਹਾਂ ਦੇ ਰੰਗ";
+"Tune Lengths While Routing" = "ਰੂਟਿੰਗ ਦੌਰਾਨ ਲੰਬਾਈ ਟਿਊਨ ਕਰੋ";
+"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "ਬੱਸ ਜਾਂ ਲੰਬਾਈ-ਮੇਲ ਨੈੱਟ ਰੂਟ ਕਰਦੇ ਸਮੇਂ ਹਰ ਮੈਂਬਰ ਦੀ ਲੰਬਾਈ ਉਸਦੇ ਟੀਚੇ ਦੇ ਮੁਕਾਬਲੇ ਦਿਖਾਓ; ਰੂਟ ਪੂਰਾ ਕਰਨ 'ਤੇ ਛੋਟੇ ਮੈਂਬਰਾਂ ਵਿੱਚ ਮੀਐਂਡਰ ਜੋੜੇ ਜਾਂਦੇ ਹਨ";

@@ -1146,3 +1146,5 @@
 "Brown" = "பழுப்பு";
 "Tan" = "வெளிர் பழுப்பு";
 "Colour Symbols by Device" = "சாதனப்படி குறியீட்டு வண்ணங்கள்";
+"Tune Lengths While Routing" = "ரூட்டிங்கின் போது நீளங்களை டியூன் செய்";
+"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "பஸ் அல்லது நீளம்-பொருத்திய நெட்டை ரூட் செய்யும்போது ஒவ்வொரு உறுப்பினரின் நீளத்தையும் அதன் இலக்குடன் காட்டு; ரூட்டை முடிக்கும்போது குறுகிய உறுப்பினர்களுக்கு மியாண்டர்கள் சேர்க்கப்படும்";

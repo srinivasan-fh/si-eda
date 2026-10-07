@@ -1146,3 +1146,5 @@
 "Brown" = "Coklat";
 "Tan" = "Perang Muda";
 "Colour Symbols by Device" = "Warnakan Simbol mengikut Peranti";
+"Tune Lengths While Routing" = "Tala Panjang Semasa Menghala";
+"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "Semasa menghala bas atau net sepadan panjang, tunjukkan panjang setiap ahli berbanding sasarannya; menamatkan laluan menambah liku pada ahli yang pendek";

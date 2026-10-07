@@ -1146,3 +1146,5 @@
 "Brown" = "કથ્થઈ";
 "Tan" = "આછો કથ્થઈ";
 "Colour Symbols by Device" = "ડિવાઇસ મુજબ સિમ્બોલ રંગો";
+"Tune Lengths While Routing" = "રૂટિંગ દરમિયાન લંબાઈ ટ્યુન કરો";
+"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "બસ અથવા લંબાઈ-મેળ નેટ રૂટ કરતી વખતે દરેક સભ્યની લંબાઈ તેના લક્ષ્ય સામે બતાવો; રૂટ પૂર્ણ કરતાં ટૂંકા સભ્યોમાં મીએન્ડર ઉમેરાય છે";
