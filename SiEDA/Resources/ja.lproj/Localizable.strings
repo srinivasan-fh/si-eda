@@ -1169,3 +1169,11 @@
 "Place new parts interactively after Update PCB" = "PCB の更新後に新しい部品を対話的に配置";
 "After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "PCB の更新後、新しい部品をカーソルに付けた状態で PCB エディタが開きます。R で回転、F で反転、クリックで配置、Esc で自動配置の位置のままにします。オフ：新しい部品は自動配置の位置に置かれます。";
 "PCB Editor" = "PCB エディタ";
+
+// Focus mode
+"Enter Focus Mode" = "フォーカスモードに入る";
+"Exit Focus Mode" = "フォーカスモードを終了";
+"Exit Focus" = "フォーカス終了";
+"Leave focus mode (F11, ⌃⌘F)" = "フォーカスモードを終了 (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "フルスクリーンでパネルを隠す (フォーカスモード)";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11、⌃⌘F または Fn-F: エディタとツールだけのフルスクリーン。エディタの上端にポインタを置くとオプションバーが表示されます。";

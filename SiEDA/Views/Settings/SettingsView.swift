@@ -271,6 +271,7 @@ private struct AppearanceSettings: View {
     @AppStorage("showSplashScreen") private var showSplashScreen = true
     /// DesignStore.placeInteractivelyKey (Update PCB's "place new parts").
     @AppStorage("pcb.placeNewPartsInteractively") private var placeNewPartsInteractively = true
+    @AppStorage(FocusMode.hidesPanelsKey) private var fullScreenHidesPanels = true
     @State private var customisingSchematic = false
 
     var body: some View {
@@ -308,6 +309,10 @@ private struct AppearanceSettings: View {
     /// Update PCB: new parts placed one by one at the cursor, or left where Auto Place puts them.
     private var pcbSection: some View {
         Section {
+            Toggle("Full screen hides the panels (focus mode)", isOn: $fullScreenHidesPanels)
+            Text("F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar.")
+                .font(.caption)
+                .foregroundStyle(Theme.textMuted)
             Toggle("Place new parts interactively after Update PCB", isOn: $placeNewPartsInteractively)
             Text("After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them.")
                 .font(.caption)

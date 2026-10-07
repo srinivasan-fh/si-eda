@@ -1169,3 +1169,11 @@
 "Place new parts interactively after Update PCB" = "更新 PCB 后交互式放置新元件";
 "After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "更新 PCB 后，PCB 编辑器会打开，新元件逐个跟随光标：R 旋转，F 翻面，单击放置，Esc 将其留在自动布局的位置。关闭：新元件留在自动布局放置的位置。";
 "PCB Editor" = "PCB 编辑器";
+
+// Focus mode
+"Enter Focus Mode" = "进入专注模式";
+"Exit Focus Mode" = "退出专注模式";
+"Exit Focus" = "退出专注";
+"Leave focus mode (F11, ⌃⌘F)" = "退出专注模式 (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "全屏时隐藏面板（专注模式）";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11、⌃⌘F 或 Fn-F：全屏，仅显示编辑器及其工具。将指针移到编辑器顶部边缘可显示其选项栏。";

@@ -103,6 +103,7 @@
 		8DA069493A75EB98940AC208 = {isa = PBXBuildFile; fileRef = A4EEF06B763841210168AEB3; };
 		8EB510497D82C58195A186E6 = {isa = PBXBuildFile; fileRef = A5389408EEF183EEC611E330; };
 		92D8A78741A34B5E4AA64FE6 = {isa = PBXBuildFile; fileRef = 190FD291891208916B99A706; };
+		939A303A77CE6A310EECDD00 = {isa = PBXBuildFile; fileRef = B46D2AEFEE0749D1F2AC3A2E; };
 		93F543F5DF9687E3A93CCAA0 = {isa = PBXBuildFile; fileRef = 938DECEE75900EFD66E07216; };
 		94A2FB858724C3D8CDB07FAF = {isa = PBXBuildFile; fileRef = 0C901B807364BC2CC8209B6B; };
 		96050B0A6DE1C7A3144FD467 = {isa = PBXBuildFile; fileRef = 8D23FAC4C1E972362B3DB3E7; };
@@ -379,6 +380,7 @@
 		B2FEEB38AB0B19ADD19A0E30 = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		B3DB0B5C344C88E3947D835C = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Directives.cpp; sourceTree = "<group>"; };
 		B3FB7A6C6435E513AE1809AC = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LossyLine.cpp; sourceTree = "<group>"; };
+		B46D2AEFEE0749D1F2AC3A2E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusMode.swift; sourceTree = "<group>"; };
 		B6CD4CB57F05C06F88DEAA2C = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = LossyLine.hpp; sourceTree = "<group>"; };
 		B7A272C317609DD8A2D79E17 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentKind.swift; sourceTree = "<group>"; };
 		B7F4A2A7A651672AE1EAE396 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sieda_c.h; sourceTree = "<group>"; };
@@ -503,6 +505,7 @@
 			isa = PBXGroup;
 			children = (
 				7D38A642DF9EECA1FFA8CE5A,
+				B46D2AEFEE0749D1F2AC3A2E,
 				DF6ECA8D3A158AB03BF17024,
 			);
 			path = Common;
@@ -1091,6 +1094,7 @@
 				93F543F5DF9687E3A93CCAA0,
 				BA6D45241A0139FD8B4C26A9,
 				F84C75A40B9069298630ACE6,
+				939A303A77CE6A310EECDD00,
 				AAC385CA2568FFA26B026F63,
 				7E5CB3E6074CEC5D362A6B2E,
 				4F280E8BF0B8B57A2F76F776,

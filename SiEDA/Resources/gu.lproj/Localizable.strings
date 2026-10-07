@@ -1169,3 +1169,11 @@
 "Place new parts interactively after Update PCB" = "PCB અપડેટ પછી નવા ભાગો ઇન્ટરેક્ટિવ રીતે મૂકો";
 "After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "PCB અપડેટ પછી PCB એડિટર ખૂલે છે અને દરેક નવો ભાગ કર્સર પર હોય છે: R ફેરવે છે, F ઉલટાવે છે, ક્લિક તેને મૂકે છે અને Esc તેને ઓટો પ્લેસે જ્યાં મૂક્યો ત્યાં છોડે છે. બંધ: નવા ભાગો ઓટો પ્લેસ જ્યાં મૂકે ત્યાં રહે છે.";
 "PCB Editor" = "PCB એડિટર";
+
+// Focus mode
+"Enter Focus Mode" = "ફોકસ મોડ શરૂ કરો";
+"Exit Focus Mode" = "ફોકસ મોડમાંથી બહાર નીકળો";
+"Exit Focus" = "ફોકસમાંથી બહાર";
+"Leave focus mode (F11, ⌃⌘F)" = "ફોકસ મોડ છોડો (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "ફુલ સ્ક્રીનમાં પેનલ છુપાવો (ફોકસ મોડ)";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F અથવા Fn-F: ફક્ત એડિટર અને તેના સાધનો સાથે ફુલ સ્ક્રીન. વિકલ્પ બાર બતાવવા એડિટરની ઉપરની કિનારી પર પોઇન્ટર લઈ જાઓ.";

@@ -1169,3 +1169,11 @@
 "Place new parts interactively after Update PCB" = "Neue Bauteile nach „PCB aktualisieren“ interaktiv platzieren";
 "After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "Nach „PCB aktualisieren“ öffnet sich der PCB-Editor mit jedem neuen Bauteil am Mauszeiger: R dreht, F spiegelt, ein Klick platziert es und Esc lässt es dort, wo die automatische Platzierung es abgelegt hat. Aus: Neue Bauteile bleiben dort, wo die automatische Platzierung sie ablegt.";
 "PCB Editor" = "PCB-Editor";
+
+// Focus mode
+"Enter Focus Mode" = "Fokusmodus aktivieren";
+"Exit Focus Mode" = "Fokusmodus beenden";
+"Exit Focus" = "Fokus beenden";
+"Leave focus mode (F11, ⌃⌘F)" = "Fokusmodus verlassen (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "Vollbild blendet die Bereiche aus (Fokusmodus)";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F oder Fn-F: Vollbild nur mit dem Editor und seinen Werkzeugen. Zeigen Sie auf den oberen Rand eines Editors, um seine Optionsleiste einzublenden.";

@@ -129,6 +129,8 @@ final class DesignStore: ObservableObject {
     @Published private(set) var fitToken = 0
     /// Bumped to ask the window to show the inspector (a click on a part in a results list).
     @Published private(set) var inspectorRevealToken = 0
+    /// Focus mode: full screen with only the editor (FocusMode.swift); set by the window's full-screen changes.
+    @Published var focusMode = false
     /// Latest navigation command for the visible schematic/PCB canvas (View menu, zoom controls).
     @Published private(set) var viewRequest: ViewRequest?
     /// Navigator overview on the 2D canvases (persisted).

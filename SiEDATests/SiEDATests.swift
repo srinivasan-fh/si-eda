@@ -7332,3 +7332,69 @@ final class LiveTuningPreviewTests: XCTestCase {
         XCTAssertEqual(preview.routeCopper, preview.placed + preview.head)
     }
 }
+
+/// Focus mode (F11, ⌃⌘F, Fn-F): full screen with only the editor.
+@MainActor
+final class FocusModeTests: XCTestCase {
+    private func size<V: View>(_ view: V, store: DesignStore, settings: AISettings,
+                               agents: AgentOrchestrator) -> CGSize {
+        let host = NSHostingController(rootView: view
+            .environmentObject(store)
+            .environmentObject(settings)
+            .environmentObject(agents))
+        return host.sizeThatFits(in: CGSize(width: 1, height: 1))
+    }
+
+    func testDefaults() {
+        XCTAssertFalse(DesignStore().focusMode)
+        let defaults = UserDefaults.standard
+        let saved = defaults.object(forKey: FocusMode.hidesPanelsKey)
+        defaults.removeObject(forKey: FocusMode.hidesPanelsKey)
+        XCTAssertTrue(FocusMode.hidesPanels)
+        defaults.set(false, forKey: FocusMode.hidesPanelsKey)
+        XCTAssertFalse(FocusMode.hidesPanels)
+        if let saved { defaults.set(saved, forKey: FocusMode.hidesPanelsKey) } else {
+            defaults.removeObject(forKey: FocusMode.hidesPanelsKey)
+        }
+    }
+
+    func testF11IsTheFunctionKey() {
+        let scalar = FocusMode.f11.character.unicodeScalars.first?.value
+        XCTAssertEqual(scalar, UInt32(NSF11FunctionKey))
+    }
+
+    func testOptionsBarCollapsesToAStrip() throws {
+        let store = DesignStore()
+        let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.FocusModeTests")))
+        let agents = AgentOrchestrator()
+        let bar = OptionsBar { Text(verbatim: "Options") }
+        let normal = size(bar, store: store, settings: settings, agents: agents)
+        let focused = size(bar.environment(\.editorFocusMode, true), store: store, settings: settings, agents: agents)
+        XCTAssertEqual(normal.height, 36, accuracy: 0.5)
+        XCTAssertEqual(focused.height, 4, accuracy: 0.5)
+    }
+
+    func testEditorsInFocusModeNeedNoMoreRoom() throws {
+        let store = DesignStore()
+        let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.FocusModeTests")))
+        let agents = AgentOrchestrator()
+        store.loadExample(OfflineProvider.templates[8].industryPlan)
+        for workspace in Workspace.allCases {
+            let view = ContentView.workspaceView(workspace)
+            let normal = size(view, store: store, settings: settings, agents: agents)
+            let focused = size(view.environment(\.editorFocusMode, true), store: store, settings: settings, agents: agents)
+            XCTAssertLessThanOrEqual(focused.height, normal.height, "\(workspace.title)")
+            XCTAssertLessThanOrEqual(focused.width, normal.width, "\(workspace.title)")
+        }
+    }
+
+    func testWindowInFocusModeFitsTheMinimumWindow() throws {
+        let store = DesignStore()
+        let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.FocusModeTests")))
+        let agents = AgentOrchestrator()
+        store.focusMode = true
+        let window = size(ContentView(), store: store, settings: settings, agents: agents)
+        XCTAssertLessThanOrEqual(window.width, LayoutMetrics.minimumWindow.width)
+        XCTAssertLessThanOrEqual(window.height, LayoutMetrics.minimumWindow.height)
+    }
+}

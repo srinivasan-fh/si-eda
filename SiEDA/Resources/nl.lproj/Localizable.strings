@@ -1169,3 +1169,11 @@
 "Place new parts interactively after Update PCB" = "Nieuwe onderdelen interactief plaatsen na PCB bijwerken";
 "After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "Na PCB bijwerken opent de PCB-editor met elk nieuw onderdeel aan de cursor: R draait, F spiegelt, een klik plaatst het en Esc laat het staan waar automatisch plaatsen het zette. Uit: nieuwe onderdelen blijven waar automatisch plaatsen ze zet.";
 "PCB Editor" = "PCB-editor";
+
+// Focus mode
+"Enter Focus Mode" = "Focusmodus starten";
+"Exit Focus Mode" = "Focusmodus verlaten";
+"Exit Focus" = "Focus verlaten";
+"Leave focus mode (F11, ⌃⌘F)" = "Focusmodus verlaten (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "Volledig scherm verbergt de panelen (focusmodus)";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F of Fn-F: volledig scherm met alleen de editor en zijn gereedschap. Wijs naar de bovenrand van een editor om de optiebalk te tonen.";

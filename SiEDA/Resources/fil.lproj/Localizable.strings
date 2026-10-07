@@ -1169,3 +1169,11 @@
 "Place new parts interactively after Update PCB" = "Ilagay ang mga bagong piyesa nang interactive pagkatapos ng Update PCB";
 "After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "Pagkatapos ng Update PCB, bubukas ang PCB editor na nasa cursor ang bawat bagong piyesa: R ay iniikot, F ay binabaligtad, ang click ay naglalagay at ang Esc ay iniiwan ito kung saan inilagay ng Auto Place. Naka-off: mananatili ang mga bagong piyesa kung saan inilalagay ng Auto Place.";
 "PCB Editor" = "PCB Editor";
+
+// Focus mode
+"Enter Focus Mode" = "Pumasok sa Focus Mode";
+"Exit Focus Mode" = "Lumabas sa Focus Mode";
+"Exit Focus" = "Lumabas sa Focus";
+"Leave focus mode (F11, ⌃⌘F)" = "Umalis sa focus mode (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "Itinatago ng full screen ang mga panel (focus mode)";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F o Fn-F: full screen na editor at mga tool lang nito. Ituro ang itaas na gilid ng editor para ipakita ang options bar nito.";

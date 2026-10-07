@@ -1169,3 +1169,11 @@
 "Place new parts interactively after Update PCB" = "Letakkan komponen baharu secara interaktif selepas Kemas Kini PCB";
 "After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "Selepas Kemas Kini PCB, editor PCB dibuka dengan setiap komponen baharu pada kursor: R memutar, F menterbalikkan, klik meletakkannya dan Esc membiarkannya di tempat Letak Automatik meletakkannya. Mati: komponen baharu kekal di tempat Letak Automatik meletakkannya.";
 "PCB Editor" = "Editor PCB";
+
+// Focus mode
+"Enter Focus Mode" = "Masuk Mod Fokus";
+"Exit Focus Mode" = "Keluar Mod Fokus";
+"Exit Focus" = "Keluar Fokus";
+"Leave focus mode (F11, ⌃⌘F)" = "Tinggalkan mod fokus (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "Skrin penuh menyembunyikan panel (mod fokus)";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F atau Fn-F: skrin penuh dengan editor dan alatnya sahaja. Tuding ke tepi atas editor untuk menunjukkan bar pilihannya.";

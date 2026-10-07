@@ -1169,3 +1169,11 @@
 "Place new parts interactively after Update PCB" = "Đặt linh kiện mới theo cách tương tác sau khi Cập nhật PCB";
 "After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "Sau khi Cập nhật PCB, trình soạn thảo PCB mở ra với từng linh kiện mới theo con trỏ: R xoay, F lật, nhấp để đặt và Esc giữ nó ở vị trí Tự động đặt đã chọn. Tắt: linh kiện mới ở lại vị trí Tự động đặt chọn.";
 "PCB Editor" = "Trình soạn thảo PCB";
+
+// Focus mode
+"Enter Focus Mode" = "Vào chế độ tập trung";
+"Exit Focus Mode" = "Thoát chế độ tập trung";
+"Exit Focus" = "Thoát tập trung";
+"Leave focus mode (F11, ⌃⌘F)" = "Rời chế độ tập trung (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "Toàn màn hình ẩn các bảng (chế độ tập trung)";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F hoặc Fn-F: toàn màn hình chỉ với trình soạn thảo và công cụ của nó. Trỏ vào mép trên của trình soạn thảo để hiện thanh tùy chọn.";
