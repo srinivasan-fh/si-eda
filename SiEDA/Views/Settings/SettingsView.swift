@@ -269,6 +269,8 @@ private struct AccountSettings: View {
 private struct AppearanceSettings: View {
     @AppStorage("appearance") private var appearance = AppearancePreference.dark.rawValue
     @AppStorage("showSplashScreen") private var showSplashScreen = true
+    /// DesignStore.placeInteractivelyKey (Update PCB's "place new parts").
+    @AppStorage("pcb.placeNewPartsInteractively") private var placeNewPartsInteractively = true
     @State private var customisingSchematic = false
 
     var body: some View {
@@ -285,6 +287,7 @@ private struct AppearanceSettings: View {
                 .font(.caption)
                 .foregroundStyle(Theme.textMuted)
             schematicSection
+            pcbSection
         }
         .formStyle(.grouped)
         .sheet(isPresented: $customisingSchematic) { SchematicThemeEditor() }
@@ -299,6 +302,18 @@ private struct AppearanceSettings: View {
                 .foregroundStyle(Theme.textMuted)
         } header: {
             Text("Schematic Canvas")
+        }
+    }
+
+    /// Update PCB: new parts placed one by one at the cursor, or left where Auto Place puts them.
+    private var pcbSection: some View {
+        Section {
+            Toggle("Place new parts interactively after Update PCB", isOn: $placeNewPartsInteractively)
+            Text("After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them.")
+                .font(.caption)
+                .foregroundStyle(Theme.textMuted)
+        } header: {
+            Text("PCB Editor")
         }
     }
 }

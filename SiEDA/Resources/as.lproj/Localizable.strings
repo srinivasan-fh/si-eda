@@ -1141,3 +1141,14 @@
 "Brown" = "মটীয়া";
 "Tan" = "পাতল মটীয়া";
 "Colour Symbols by Device" = "ডিভাইচ অনুসৰি চিম্বলৰ ৰং";
+"Placing %@ (%lld of %lld)" = "%@ স্থাপন কৰি থকা হৈছে (%lld ৰ ভিতৰত %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R ঘূৰায় · F ওলোটায় · ক্লিকে স্থাপন কৰে · ⌥-ক্লিকে জোৰকৈ · Esc এ এৰি দিয়ে";
+"Skip" = "এৰি দিয়ক";
+"Leave this part where Auto Place put it" = "এই অংশটো অটো প্লেচে য'ত ৰাখিছে তাতেই থাকিবলৈ দিয়ক";
+"Skip All" = "সকলো এৰি দিয়ক";
+"Leave every remaining part where Auto Place put it" = "বাকী থকা সকলো অংশ অটো প্লেচে য'ত ৰাখিছে তাতেই থাকিবলৈ দিয়ক";
+"Place All Automatically" = "সকলো স্বয়ংক্ৰিয়ভাৱে স্থাপন কৰক";
+"Put every remaining part at the free spot next to its connections" = "বাকী থকা প্ৰতিটো অংশ ইয়াৰ সংযোগৰ কাষৰ খালী ঠাইত ৰাখক";
+"Place new parts interactively after Update PCB" = "PCB আপডেটৰ পিছত নতুন অংশ ইণ্টাৰেক্টিভভাৱে স্থাপন কৰক";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "PCB আপডেটৰ পিছত PCB এডিটৰ খোল খায় আৰু প্ৰতিটো নতুন অংশ কাৰ্চৰত থাকে: R এ ঘূৰায়, F এ ওলোটায়, ক্লিকে স্থাপন কৰে আৰু Esc এ অটো প্লেচে য'ত ৰাখিছে তাতেই এৰি দিয়ে। বন্ধ: নতুন অংশ অটো প্লেচে য'ত ৰাখে তাতেই থাকে।";
+"PCB Editor" = "PCB এডিটৰ";

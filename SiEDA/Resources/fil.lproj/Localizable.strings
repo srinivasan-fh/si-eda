@@ -1141,3 +1141,14 @@
 "Brown" = "Kayumanggi";
 "Tan" = "Tan";
 "Colour Symbols by Device" = "Kulayan ang mga Simbolo ayon sa Device";
+"Placing %@ (%lld of %lld)" = "Inilalagay ang %@ (%lld ng %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R iniikot · F binabaligtad · i-click para ilagay · ⌥-click para pilitin · Esc nilalaktawan";
+"Skip" = "Laktawan";
+"Leave this part where Auto Place put it" = "Iwan ang piyesang ito kung saan ito inilagay ng Auto Place";
+"Skip All" = "Laktawan Lahat";
+"Leave every remaining part where Auto Place put it" = "Iwan ang lahat ng natitirang piyesa kung saan inilagay ng Auto Place";
+"Place All Automatically" = "Ilagay Lahat nang Awtomatiko";
+"Put every remaining part at the free spot next to its connections" = "Ilagay ang bawat natitirang piyesa sa bakanteng puwesto katabi ng mga koneksyon nito";
+"Place new parts interactively after Update PCB" = "Ilagay ang mga bagong piyesa nang interactive pagkatapos ng Update PCB";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "Pagkatapos ng Update PCB, bubukas ang PCB editor na nasa cursor ang bawat bagong piyesa: R ay iniikot, F ay binabaligtad, ang click ay naglalagay at ang Esc ay iniiwan ito kung saan inilagay ng Auto Place. Naka-off: mananatili ang mga bagong piyesa kung saan inilalagay ng Auto Place.";
+"PCB Editor" = "PCB Editor";

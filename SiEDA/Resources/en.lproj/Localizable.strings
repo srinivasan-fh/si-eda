@@ -1141,3 +1141,14 @@
 "Brown" = "Brown";
 "Tan" = "Tan";
 "Colour Symbols by Device" = "Colour Symbols by Device";
+"Placing %@ (%lld of %lld)" = "Placing %@ (%lld of %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R rotates · F flips · click places · ⌥-click forces · Esc skips";
+"Skip" = "Skip";
+"Leave this part where Auto Place put it" = "Leave this part where Auto Place put it";
+"Skip All" = "Skip All";
+"Leave every remaining part where Auto Place put it" = "Leave every remaining part where Auto Place put it";
+"Place All Automatically" = "Place All Automatically";
+"Put every remaining part at the free spot next to its connections" = "Put every remaining part at the free spot next to its connections";
+"Place new parts interactively after Update PCB" = "Place new parts interactively after Update PCB";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them.";
+"PCB Editor" = "PCB Editor";

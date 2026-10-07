@@ -1141,3 +1141,14 @@
 "Brown" = "棕色";
 "Tan" = "浅棕褐色";
 "Colour Symbols by Device" = "按器件为符号着色";
+"Placing %@ (%lld of %lld)" = "正在放置 %@（第 %lld 个，共 %lld 个）";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R 旋转 · F 翻面 · 单击放置 · ⌥-单击强制 · Esc 跳过";
+"Skip" = "跳过";
+"Leave this part where Auto Place put it" = "将此元件留在自动布局放置的位置";
+"Skip All" = "全部跳过";
+"Leave every remaining part where Auto Place put it" = "将其余元件全部留在自动布局放置的位置";
+"Place All Automatically" = "全部自动放置";
+"Put every remaining part at the free spot next to its connections" = "将其余每个元件放到其连接附近的空位";
+"Place new parts interactively after Update PCB" = "更新 PCB 后交互式放置新元件";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "更新 PCB 后，PCB 编辑器会打开，新元件逐个跟随光标：R 旋转，F 翻面，单击放置，Esc 将其留在自动布局的位置。关闭：新元件留在自动布局放置的位置。";
+"PCB Editor" = "PCB 编辑器";

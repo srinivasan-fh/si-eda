@@ -3340,12 +3340,22 @@ char* sieda_apply_pcb_eco(SiedaProject* project, const char* keys_json) {
             if (keys.empty()) keys.push_back("~none");  // an empty selection executes nothing
         }
         std::vector<std::string> report;
-        const int done = project->project.applyPcbEco(keys, &report);
+        std::vector<int> queue;
+        const int done = project->project.applyPcbEco(keys, &report, &queue);
         Json out = Json::object();
         out["executed"] = done;
         Json lines = Json::array();
         for (const auto& l : report) lines.push(l);
         out["report"] = lines;
+        Json placing = Json::array();
+        for (int id : queue) {
+            Json j = Json::object();
+            j["id"] = id;
+            const Component* c = project->project.schematic.find(id);
+            j["ref"] = c ? c->ref : std::string();
+            placing.push(j);
+        }
+        out["placementQueue"] = placing;
         return dup(out.dump());
     } catch (...) {
         return nullptr;

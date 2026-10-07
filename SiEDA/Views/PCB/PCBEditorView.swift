@@ -320,6 +320,9 @@ struct PCBEditorView: View {
                     PCBCanvas(viewport: $viewport, canvasSize: $canvasSize, panMode: $panMode, routeTool: $routeTool,
                               tuneTool: $tuneTool, routePair: routePair, visible: visible, activeLayer: activeLayer)
                         .disabled(store.isBusy)  // the engine is busy autorouting
+                    if let ghost = store.placementSession?.ghost {
+                        PlacementGhostLayer(ghost: ghost, viewport: viewport, pads: store.snapshot.pads)
+                    }
                     if store.showNavigator, !store.snapshot.pads.isEmpty {
                         navigator
                             .canvasScrollShield()
@@ -368,6 +371,12 @@ struct PCBEditorView: View {
                         .overlay(Capsule().strokeBorder(Theme.blue.opacity(0.5)))
                         .padding(10)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    }
+                    if let session = store.placementSession {
+                        PlaceNewPartsHUD(session: session)
+                            .canvasScrollShield()
+                            .padding(10)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     }
                     if store.snapshot.pads.isEmpty {
                         BlueEmptyState(systemImage: "square.grid.3x3.square",
@@ -694,6 +703,8 @@ struct PCBCanvas: View {
                     switch phase {
                     case .active(let p):
                         hover = p
+                        // Placing new parts: the ghost follows the cursor.
+                        if store.placementSession != nil { store.movePlacementGhost(to: viewport.toWorld(p)) }
                         // The route's head follows the cursor (shoving or walking around as set).
                         if routeTool, store.routePreview != nil { store.moveRoute(to: viewport.toWorld(p)) }
                     case .ended: hover = nil
@@ -712,7 +723,10 @@ struct PCBCanvas: View {
                         spaceUsedForPan = false
                     case .up:
                         spaceHeld = false
-                        if !spaceUsedForPan { store.rotateFootprints() }  // a tap rotates; Space + drag panned instead
+                        // A tap rotates (the part being placed, or the selection); Space + drag panned instead.
+                        if !spaceUsedForPan {
+                            if store.placementSession != nil { store.rotatePlacement() } else { store.rotateFootprints() }
+                        }
                     default:
                         break
                     }
@@ -722,6 +736,11 @@ struct PCBCanvas: View {
                 // Single-letter keys; ⌘/⌥/⌃ combinations belong to menus and text editing.
                 .onKeyPress(keys: ["r", "f", "v", "V", "h", "x", "t"], phases: .down) { press in
                     guard press.modifiers.subtracting(.shift).isEmpty else { return .ignored }
+                    if store.placementSession != nil, press.key == KeyEquivalent("r") || press.key == KeyEquivalent("f") {
+                        // Placing new parts: R turns and F flips the part at the cursor.
+                        if press.key == KeyEquivalent("r") { store.rotatePlacement() } else { store.flipPlacement() }
+                        return .handled
+                    }
                     switch press.key {
                     case KeyEquivalent("t"):
                         panMode = false
@@ -752,7 +771,9 @@ struct PCBCanvas: View {
                     return .handled
                 }
                 .onKeyPress(.escape) {
-                    if store.routePreview != nil {
+                    if store.placementSession != nil {
+                        store.skipPlacement()  // the part keeps its automatic position
+                    } else if store.routePreview != nil {
                         store.cancelRoute()
                     } else if !store.multiStarts.isEmpty {
                         store.multiStarts = []
@@ -914,6 +935,8 @@ struct PCBCanvas: View {
                     } else if spaceHeld {
                         spaceUsedForPan = true
                         dragMode = .pan(viewport.offset)
+                    } else if store.placementSession != nil {
+                        dragMode = .pan(viewport.offset)  // placing new parts: a drag pans, a click places
                     } else if tuneTool, !panMode, let hit = copperHit(at: world, vias: false) {
                         dragMode = .tuneDrag(hit.id, world)
                     } else if !panMode, !routeTool, !tuneTool, pad(at: world) == nil, let hit = copperHit(at: world) {
@@ -964,6 +987,9 @@ struct PCBCanvas: View {
                 } else if copperDragActive {
                     copperDragActive = false
                     store.finishRoute(at: viewport.toWorld(value.location))
+                } else if !moved && store.placementSession != nil && !spaceHeld {
+                    let force = NSEvent.modifierFlags.contains(.option)
+                    store.placeCurrentPart(at: viewport.toWorld(value.location), force: force)
                 } else if !moved && routeTool && !spaceHeld {
                     routeClick(at: viewport.toWorld(value.location))
                 } else if !moved && tuneTool && !spaceHeld {

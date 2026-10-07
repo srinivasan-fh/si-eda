@@ -1141,3 +1141,14 @@
 "Brown" = "ಕಂದು";
 "Tan" = "ತಿಳಿ ಕಂದು";
 "Colour Symbols by Device" = "ಸಾಧನದ ಪ್ರಕಾರ ಚಿಹ್ನೆಗಳಿಗೆ ಬಣ್ಣ";
+"Placing %@ (%lld of %lld)" = "%@ ಇರಿಸಲಾಗುತ್ತಿದೆ (%lld ರಲ್ಲಿ %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R ತಿರುಗಿಸುತ್ತದೆ · F ತಿರುವುತ್ತದೆ · ಕ್ಲಿಕ್ ಇರಿಸುತ್ತದೆ · ⌥-ಕ್ಲಿಕ್ ಬಲವಂತ · Esc ಬಿಟ್ಟುಬಿಡುತ್ತದೆ";
+"Skip" = "ಬಿಟ್ಟುಬಿಡಿ";
+"Leave this part where Auto Place put it" = "ಈ ಭಾಗವನ್ನು ಆಟೋ ಪ್ಲೇಸ್ ಇರಿಸಿದ ಸ್ಥಳದಲ್ಲೇ ಬಿಡಿ";
+"Skip All" = "ಎಲ್ಲವನ್ನೂ ಬಿಟ್ಟುಬಿಡಿ";
+"Leave every remaining part where Auto Place put it" = "ಉಳಿದ ಎಲ್ಲಾ ಭಾಗಗಳನ್ನು ಆಟೋ ಪ್ಲೇಸ್ ಇರಿಸಿದ ಸ್ಥಳದಲ್ಲೇ ಬಿಡಿ";
+"Place All Automatically" = "ಎಲ್ಲವನ್ನೂ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಇರಿಸಿ";
+"Put every remaining part at the free spot next to its connections" = "ಉಳಿದ ಪ್ರತಿಯೊಂದು ಭಾಗವನ್ನು ಅದರ ಸಂಪರ್ಕಗಳ ಪಕ್ಕದ ಖಾಲಿ ಸ್ಥಳದಲ್ಲಿ ಇರಿಸಿ";
+"Place new parts interactively after Update PCB" = "PCB ನವೀಕರಣದ ನಂತರ ಹೊಸ ಭಾಗಗಳನ್ನು ಸಂವಾದಾತ್ಮಕವಾಗಿ ಇರಿಸಿ";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "PCB ನವೀಕರಣದ ನಂತರ PCB ಎಡಿಟರ್ ಪ್ರತಿಯೊಂದು ಹೊಸ ಭಾಗವನ್ನು ಕರ್ಸರ್‌ನಲ್ಲಿ ತೋರಿಸುತ್ತಾ ತೆರೆಯುತ್ತದೆ: R ತಿರುಗಿಸುತ್ತದೆ, F ತಿರುವುತ್ತದೆ, ಕ್ಲಿಕ್ ಅದನ್ನು ಇರಿಸುತ್ತದೆ ಮತ್ತು Esc ಆಟೋ ಪ್ಲೇಸ್ ಇರಿಸಿದ ಸ್ಥಳದಲ್ಲೇ ಬಿಡುತ್ತದೆ. ಆಫ್: ಹೊಸ ಭಾಗಗಳು ಆಟೋ ಪ್ಲೇಸ್ ಇರಿಸುವ ಸ್ಥಳದಲ್ಲೇ ಇರುತ್ತವೆ.";
+"PCB Editor" = "PCB ಎಡಿಟರ್";

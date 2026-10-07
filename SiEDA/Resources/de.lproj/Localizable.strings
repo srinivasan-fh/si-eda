@@ -1141,3 +1141,14 @@
 "Brown" = "Braun";
 "Tan" = "Hellbraun";
 "Colour Symbols by Device" = "Symbole nach Bauteil einfärben";
+"Placing %@ (%lld of %lld)" = "%@ wird platziert (%lld von %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R dreht · F spiegelt · Klick platziert · ⌥-Klick erzwingt · Esc überspringt";
+"Skip" = "Überspringen";
+"Leave this part where Auto Place put it" = "Dieses Bauteil dort lassen, wo die automatische Platzierung es abgelegt hat";
+"Skip All" = "Alle überspringen";
+"Leave every remaining part where Auto Place put it" = "Alle übrigen Bauteile dort lassen, wo die automatische Platzierung sie abgelegt hat";
+"Place All Automatically" = "Alle automatisch platzieren";
+"Put every remaining part at the free spot next to its connections" = "Alle übrigen Bauteile an den freien Platz neben ihren Verbindungen setzen";
+"Place new parts interactively after Update PCB" = "Neue Bauteile nach „PCB aktualisieren“ interaktiv platzieren";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "Nach „PCB aktualisieren“ öffnet sich der PCB-Editor mit jedem neuen Bauteil am Mauszeiger: R dreht, F spiegelt, ein Klick platziert es und Esc lässt es dort, wo die automatische Platzierung es abgelegt hat. Aus: Neue Bauteile bleiben dort, wo die automatische Platzierung sie ablegt.";
+"PCB Editor" = "PCB-Editor";

@@ -353,7 +353,9 @@ std::vector<PcbEcoChange> Project::pcbEcoPreview() const {
     return out;
 }
 
-int Project::applyPcbEco(const std::vector<std::string>& keys, std::vector<std::string>* report) {
+int Project::applyPcbEco(const std::vector<std::string>& keys, std::vector<std::string>* report,
+                         std::vector<int>* placementQueue) {
+    if (placementQueue) placementQueue->clear();
     const auto changes = pcbEcoPreview();
     const std::set<std::string> chosen(keys.begin(), keys.end());
     auto picked = [&](const PcbEcoChange& e) { return chosen.empty() || chosen.count(e.key) > 0; };
@@ -376,6 +378,23 @@ int Project::applyPcbEco(const std::vector<std::string>& keys, std::vector<std::
         pcb.autoPlace(schematic, false);
         for (int id : held)
             if (Component* c = schematic.find(id)) c->pcb.placed = false;
+        if (placementQueue) {
+            // The new footprints, by designator (R2 before R10), for the designer to place by hand.
+            auto number = [](const std::string& ref) {
+                const std::string digits = ref.substr(prefixOf(ref).size());
+                return digits.empty() || digits.size() > 9 ? -1L : std::stol(digits);
+            };
+            for (int id : toPlace)
+                if (const Component* c = schematic.find(id); c && c->pcb.placed) placementQueue->push_back(id);
+            std::stable_sort(placementQueue->begin(), placementQueue->end(), [&](int a, int b) {
+                const std::string& ra = schematic.find(a)->ref;
+                const std::string& rb = schematic.find(b)->ref;
+                const std::string pa = prefixOf(ra), pb = prefixOf(rb);
+                if (pa != pb) return pa < pb;
+                if (number(ra) != number(rb)) return number(ra) < number(rb);
+                return ra < rb;
+            });
+        }
     }
     std::vector<size_t> zonesGone;
     bool rules = false;

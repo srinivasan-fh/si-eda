@@ -1688,12 +1688,14 @@ extension EDAEngine {
 
     /// Executes the changes with these keys; what was done, one line per change.
     func applyPcbEco(keys: [String]) -> [String] {
-        struct Reply: Decodable {
-            let executed: Int
-            let report: [String]
-        }
+        applyPcbEcoResult(keys: keys).report
+    }
+
+    /// Executes the changes with these keys; what was done and the new footprints to place by hand.
+    func applyPcbEcoResult(keys: [String]) -> PcbEcoResult {
         let json = (try? JSONEncoder().encode(keys)).map { String(decoding: $0, as: UTF8.self) } ?? "[]"
-        return Self.decode(Reply.self, from: Self.take(withHandle { sieda_apply_pcb_eco($0, json) }))?.report ?? []
+        let reply = Self.take(withHandle { sieda_apply_pcb_eco($0, json) })
+        return Self.decode(PcbEcoResult.self, from: reply) ?? PcbEcoResult(executed: 0, report: [], placementQueue: [])
     }
 }
 

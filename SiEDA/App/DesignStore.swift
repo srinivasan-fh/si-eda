@@ -111,6 +111,8 @@ final class DesignStore: ObservableObject {
     /// Progress of the running autoroute (nil when none runs); `cancelAutoRoute()` stops it.
     @Published private(set) var routeProgress: RouteProgressReport?
     private var routeChannel: RouteProgressChannel?
+    /// "Place new parts" after Update PCB (DesignStore+Placement.swift): the footprints still to place by hand.
+    @Published var placementSession: PlacementSession?
     @Published private(set) var busyMessage = ""
     @Published var statusMessage = "Ready"
     @Published private(set) var documentURL: URL?
@@ -281,6 +283,8 @@ final class DesignStore: ObservableObject {
         if routePreview != nil, !engine.routerActive { routePreview = nil }
         if let tune = tuneSession, !snapshot.tracks.contains(where: { $0.id == tune.track }) { tuneSession = nil }
         if !selectedTracks.isEmpty { selectedTracks.formIntersection(snapshot.tracks.map(\.id)) }
+        // A new design (open, example) or an undone Update PCB took the part being placed away.
+        if let part = placementSession?.current, snapshot.component(part.id) == nil { placementSession = nil }
         revision &+= 1
     }
 

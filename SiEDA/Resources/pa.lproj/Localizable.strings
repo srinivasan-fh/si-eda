@@ -1141,3 +1141,14 @@
 "Brown" = "ਭੂਰਾ";
 "Tan" = "ਹਲਕਾ ਭੂਰਾ";
 "Colour Symbols by Device" = "ਡਿਵਾਈਸ ਅਨੁਸਾਰ ਚਿੰਨ੍ਹਾਂ ਦੇ ਰੰਗ";
+"Placing %@ (%lld of %lld)" = "%@ ਰੱਖਿਆ ਜਾ ਰਿਹਾ ਹੈ (%lld ਵਿੱਚੋਂ %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R ਘੁਮਾਉਂਦਾ · F ਪਲਟਦਾ · ਕਲਿੱਕ ਰੱਖਦਾ · ⌥-ਕਲਿੱਕ ਜ਼ਬਰਦਸਤੀ · Esc ਛੱਡਦਾ";
+"Skip" = "ਛੱਡੋ";
+"Leave this part where Auto Place put it" = "ਇਸ ਪੁਰਜ਼ੇ ਨੂੰ ਉੱਥੇ ਹੀ ਰਹਿਣ ਦਿਓ ਜਿੱਥੇ ਆਟੋ ਪਲੇਸ ਨੇ ਰੱਖਿਆ";
+"Skip All" = "ਸਭ ਛੱਡੋ";
+"Leave every remaining part where Auto Place put it" = "ਬਾਕੀ ਸਾਰੇ ਪੁਰਜ਼ਿਆਂ ਨੂੰ ਉੱਥੇ ਹੀ ਰਹਿਣ ਦਿਓ ਜਿੱਥੇ ਆਟੋ ਪਲੇਸ ਨੇ ਰੱਖਿਆ";
+"Place All Automatically" = "ਸਭ ਆਪਣੇ-ਆਪ ਰੱਖੋ";
+"Put every remaining part at the free spot next to its connections" = "ਬਾਕੀ ਹਰ ਪੁਰਜ਼ੇ ਨੂੰ ਉਸਦੇ ਕਨੈਕਸ਼ਨਾਂ ਦੇ ਨੇੜੇ ਖਾਲੀ ਥਾਂ 'ਤੇ ਰੱਖੋ";
+"Place new parts interactively after Update PCB" = "PCB ਅੱਪਡੇਟ ਤੋਂ ਬਾਅਦ ਨਵੇਂ ਪੁਰਜ਼ੇ ਇੰਟਰਐਕਟਿਵ ਢੰਗ ਨਾਲ ਰੱਖੋ";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "PCB ਅੱਪਡੇਟ ਤੋਂ ਬਾਅਦ PCB ਐਡੀਟਰ ਖੁੱਲ੍ਹਦਾ ਹੈ ਅਤੇ ਹਰ ਨਵਾਂ ਪੁਰਜ਼ਾ ਕਰਸਰ 'ਤੇ ਹੁੰਦਾ ਹੈ: R ਘੁਮਾਉਂਦਾ ਹੈ, F ਪਲਟਦਾ ਹੈ, ਕਲਿੱਕ ਉਸਨੂੰ ਰੱਖਦਾ ਹੈ ਅਤੇ Esc ਉਸਨੂੰ ਉੱਥੇ ਛੱਡਦਾ ਹੈ ਜਿੱਥੇ ਆਟੋ ਪਲੇਸ ਨੇ ਰੱਖਿਆ। ਬੰਦ: ਨਵੇਂ ਪੁਰਜ਼ੇ ਉੱਥੇ ਰਹਿੰਦੇ ਹਨ ਜਿੱਥੇ ਆਟੋ ਪਲੇਸ ਰੱਖਦਾ ਹੈ।";
+"PCB Editor" = "PCB ਐਡੀਟਰ";

@@ -15236,6 +15236,233 @@ TEST(c_api_update_pcb) {
     CHECK(rc == 0);
 }
 
+// ---- interactive placement after update PCB
+
+namespace {
+/// Two resistors on the board at known spots (R1 at 10,10 and R2 at 20,10 on an 80 × 60 board), then a capacitor
+/// on R1 and a third resistor on R2 drawn in the schematic and not yet on the board.
+struct PlacementFixture {
+    Project p;
+    int r1 = -1, r2 = -1, c1 = -1, r3 = -1;
+    PlacementFixture() {
+        Schematic& s = p.schematic;
+        r1 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+        r2 = s.addComponent(ComponentKind::Resistor, "2k", {100, 0});
+        s.connect({r1, 1}, {r2, 0});
+        p.schematicChanged();
+        p.applyPcbEco({});
+        p.pcb.settings.width = 80;
+        p.pcb.settings.height = 60;
+        p.placeComponent(r1, {10, 10}, 0, false, 0.25, true);
+        p.placeComponent(r2, {20, 10}, 0, false, 0.25, true);
+        c1 = s.addComponent(ComponentKind::Capacitor, "100n", {0, 100});
+        r3 = s.addComponent(ComponentKind::Resistor, "10k", {200, 0});
+        s.connect({r1, 0}, {c1, 0});
+        s.connect({r2, 1}, {r3, 0});
+        p.schematicChanged();
+    }
+};
+
+std::vector<Pad> padsOf(const Project& p, int id) {
+    std::vector<Pad> out;
+    for (const Pad& pad : p.pcb.pads(p.schematic))
+        if (pad.componentId == id) out.push_back(pad);
+    return out;
+}
+
+bool hasIssue(const PlacementCheck& c, const std::string& code, int other = -1) {
+    return std::any_of(c.issues.begin(), c.issues.end(),
+                       [&](const PlacementIssue& i) { return i.code == code && (other < 0 || i.other == other); });
+}
+}  // namespace
+
+TEST(interactive_placement_queue_lists_only_new_parts) {
+    PlacementFixture f;
+    std::vector<std::string> report;
+    std::vector<int> queue = {12345};  // cleared by the call
+    CHECK(f.p.applyPcbEco({}, &report, &queue) > 0);
+    // Exactly the two new parts, by designator (C1 before R3); R1 / R2 were on the board already.
+    CHECK(queue.size() == 2);
+    CHECK(queue.size() == 2 && queue[0] == f.c1 && queue[1] == f.r3);
+    CHECK(std::find(queue.begin(), queue.end(), f.r1) == queue.end());
+    CHECK(std::find(queue.begin(), queue.end(), f.r2) == queue.end());
+    // They already stand where Auto Place put them (skipping keeps that), and the board is in step.
+    CHECK(f.p.schematic.find(f.c1)->pcb.placed && f.p.schematic.find(f.r3)->pcb.placed);
+    CHECK(f.p.pcbEcoPreview().empty());
+    // A second update has nothing new to place; an update that adds no part queues nothing.
+    CHECK(f.p.applyPcbEco({}, nullptr, &queue) == 0 && queue.empty());
+    // Only the chosen additions are queued.
+    PlacementFixture g;
+    CHECK(g.p.applyPcbEco({"component:" + std::to_string(g.r3)}, nullptr, &queue) == 1);
+    CHECK(queue.size() == 1 && queue[0] == g.r3 && !g.p.schematic.find(g.c1)->pcb.placed);
+    // The C API reports the queue with designators.
+    SiedaProject* cp = sieda_project_new("Placement queue");
+    const int32_t a = sieda_add_component(cp, 0, "1k", 0, 0, 0, nullptr);
+    char* out = sieda_apply_pcb_eco(cp, nullptr);
+    CHECK(out && std::string(out).find("\"placementQueue\":[{") != std::string::npos);
+    CHECK(out && std::string(out).find("\"id\":" + std::to_string(a)) != std::string::npos);
+    sieda_string_free(out);
+    out = sieda_apply_pcb_eco(cp, nullptr);
+    CHECK(out && std::string(out).find("\"placementQueue\":[]") != std::string::npos);
+    sieda_string_free(out);
+    sieda_project_free(cp);
+}
+
+TEST(interactive_placement_snaps_moves_pads_and_ratsnest) {
+    PlacementFixture f;
+    std::vector<int> queue;
+    f.p.applyPcbEco({}, nullptr, &queue);
+    f.p.placeComponent(f.r3, {70, 10}, 0, false, 0.25, true);  // out of the way
+    const Component before = *f.p.schematic.find(f.c1);
+    const auto padsBefore = padsOf(f.p, f.c1);
+    const auto ratsBefore = f.p.pcb.ratsnest(f.p.schematic);
+    CHECK(!padsBefore.empty());
+    // The cursor at (60.1, 45.13) snaps to the 0.25 mm grid: (60, 45.25).
+    const PlacementCheck c =
+        f.p.placeComponent(f.c1, {60.1, 45.13}, before.pcb.rotation, before.pcb.bottom, 0.25);
+    CHECK(c.legal && c.committed && c.issues.empty());
+    CHECK(std::abs(c.position.x - 60.0) < 1e-9 && std::abs(c.position.y - 45.25) < 1e-9);
+    const Component& after = *f.p.schematic.find(f.c1);
+    CHECK(after.pcb.position == c.position && after.pcb.placed);
+    // Its pads move with it.
+    const Vec2 delta = c.position - before.pcb.position;
+    const auto padsAfter = padsOf(f.p, f.c1);
+    CHECK(padsAfter.size() == padsBefore.size());
+    for (size_t i = 0; i < padsAfter.size() && i < padsBefore.size(); ++i)
+        CHECK((padsAfter[i].position - (padsBefore[i].position + delta)).length() < 1e-9);
+    // The check's pads are the pads the board now has.
+    CHECK(c.pads.size() == padsAfter.size());
+    for (size_t i = 0; i < c.pads.size() && i < padsAfter.size(); ++i)
+        CHECK((c.pads[i].position - padsAfter[i].position).length() < 1e-9 && c.pads[i].net == padsAfter[i].net);
+    // The ratsnest follows: a line now ends on a pad of C1 at its new place, none at the old one.
+    const auto rats = f.p.pcb.ratsnest(f.p.schematic);
+    CHECK(rats.size() == ratsBefore.size());
+    auto endsAt = [&](const std::vector<std::pair<Vec2, Vec2>>& lines, Vec2 at) {
+        return std::any_of(lines.begin(), lines.end(), [&](const auto& l) {
+            return (l.first - at).length() < 1e-6 || (l.second - at).length() < 1e-6;
+        });
+    };
+    bool newEnd = false, oldEnd = false;
+    for (const Pad& pad : padsAfter) newEnd |= endsAt(rats, pad.position);
+    for (const Pad& pad : padsBefore) oldEnd |= endsAt(rats, pad.position);
+    CHECK(newEnd && !oldEnd);
+    // Rotation (a quarter turn, rounded) and side: the courtyard turns, the pads go to the bottom layer.
+    const Rect upright = f.p.checkPlacement(f.c1, {60, 45.25}, 0, false, 0.25).courtyard;
+    const PlacementCheck turned = f.p.placeComponent(f.c1, {60, 45.25}, 85, true, 0.25);
+    CHECK(turned.committed && turned.rotation == 90 && turned.bottom);
+    CHECK(std::abs(turned.courtyard.width() - upright.height()) < 1e-9);
+    CHECK(f.p.schematic.find(f.c1)->pcb.rotation == 90 && f.p.schematic.find(f.c1)->pcb.bottom);
+    for (const Pad& pad : padsOf(f.p, f.c1)) CHECK(pad.throughHole || pad.smdLayer == f.p.pcb.settings.bottomLayer());
+    // No grid: the exact point.
+    const PlacementCheck exact = f.p.checkPlacement(f.c1, {60.1, 45.13}, 0, false, 0);
+    CHECK(exact.position == Vec2(60.1, 45.13));
+}
+
+TEST(interactive_placement_illegal_poses_are_reported_not_committed) {
+    PlacementFixture f;
+    f.p.applyPcbEco({});
+    f.p.placeComponent(f.c1, {60, 45}, 0, false, 0.25, true);
+    f.p.placeComponent(f.r3, {70, 10}, 0, false, 0.25, true);
+    const Vec2 home = f.p.schematic.find(f.r3)->pcb.position;
+    const std::string saved = f.p.toJson().dump();
+    // Onto R1's courtyard: illegal, R1 named, nothing moves.
+    PlacementCheck c = f.p.placeComponent(f.r3, {10, 10}, 0, false, 0.25);
+    CHECK(!c.legal && !c.committed && hasIssue(c, "PLACE_OVERLAP", f.r1));
+    CHECK(f.p.schematic.find(f.r3)->pcb.position == home);
+    // The same spot on the other side is legal (courtyards collide only on one side).
+    CHECK(f.p.checkPlacement(f.r3, {10, 10}, 0, true, 0.25).legal);
+    // Outside the outline: illegal, not committed.
+    c = f.p.placeComponent(f.r3, {-20, -20}, 0, false, 0.25);
+    CHECK(!c.legal && !c.committed && hasIssue(c, "PLACE_OUTSIDE"));
+    c = f.p.placeComponent(f.r3, {79.9, 30}, 0, false, 0.25);  // straddling the edge
+    CHECK(!c.legal && !c.committed && hasIssue(c, "PLACE_OUTSIDE"));
+    // A mounting hole's keep-out.
+    f.p.pcb.settings.holes.push_back(MountingHole{{40, 50}, 3.2, 6.4});
+    c = f.p.checkPlacement(f.r3, {40, 50}, 0, false, 0.25);
+    CHECK(!c.legal && hasIssue(c, "PLACE_HOLE"));
+    f.p.pcb.settings.holes.clear();
+    CHECK(f.p.toJson().dump() == saved);  // nothing was committed
+    // A routing keep-out over its pads is a warning: legal, committed, and reported.
+    RouteKeepout k;
+    k.name = "RF";
+    k.area = Rect(35, 25, 45, 35);
+    f.p.pcb.settings.keepouts.push_back(k);
+    c = f.p.placeComponent(f.r3, {40, 30}, 0, false, 0.25);
+    CHECK(c.legal && c.committed && hasIssue(c, "PLACE_KEEPOUT"));
+    f.p.pcb.settings.keepouts.clear();
+    // Forced: committed with the violation flagged (legal stays false); the DRC reports it too.
+    c = f.p.placeComponent(f.r3, {10, 10}, 0, false, 0.25, true);
+    CHECK(c.committed && !c.legal && hasIssue(c, "PLACE_OVERLAP", f.r1));
+    const auto drc = f.p.pcb.runDRC(f.p.schematic);
+    CHECK(std::any_of(drc.begin(), drc.end(), [](const RuleViolation& v) { return v.code == "DRC_COURTYARD_OVERLAP"; }));
+    // A locked part never moves, even forced.
+    f.p.schematic.find(f.r3)->pcb.locked = true;
+    c = f.p.placeComponent(f.r3, {70, 10}, 0, false, 0.25, true);
+    CHECK(!c.committed && hasIssue(c, "PLACE_LOCKED"));
+    // Unknown parts.
+    CHECK(f.p.checkPlacement(987654, {1, 1}, 0, false, 0.25).component < 0);
+    CHECK(f.p.placeComponent(987654, {1, 1}, 0, false, 0.25).component < 0);
+}
+
+TEST(interactive_placement_suggests_a_free_spot_near_connections) {
+    PlacementFixture f;
+    f.p.applyPcbEco({});
+    f.p.placeComponent(f.c1, {60, 45}, 0, false, 0.25, true);
+    f.p.placeComponent(f.r3, {70, 50}, 0, false, 0.25, true);  // far from R2, which it connects to
+    const std::string saved = f.p.toJson().dump();
+    const PlacementCheck s = f.p.suggestPlacement(f.r3, 0.25);
+    CHECK(s.component == f.r3 && s.legal && s.issues.empty());
+    CHECK(f.p.toJson().dump() == saved);  // a suggestion changes nothing
+    // Near R2 (its connection), much nearer than where it stands.
+    const Vec2 r2 = f.p.schematic.find(f.r2)->pcb.position;
+    CHECK((s.position - r2).length() < 12);
+    // On the grid and clear of every other courtyard.
+    CHECK(std::abs(s.position.x / 0.25 - std::round(s.position.x / 0.25)) < 1e-6);
+    CHECK(std::abs(s.position.y / 0.25 - std::round(s.position.y / 0.25)) < 1e-6);
+    for (const auto& o : f.p.schematic.components())
+        if (o.id != f.r3 && o.hasFootprint() && o.pcb.placed) CHECK(!f.p.pcb.courtyard(o).intersects(s.courtyard));
+    // Placing at the suggestion is legal and commits.
+    CHECK(f.p.placeComponent(f.r3, s.position, s.rotation, s.bottom, 0.25).committed);
+    // The C API gives the same spot.
+    SiedaProject* cp = sieda_project_new("Suggest");
+    const int32_t a = sieda_add_component(cp, 0, "1k", 0, 0, 0, nullptr);
+    sieda_string_free(sieda_apply_pcb_eco(cp, nullptr));
+    char* sug = sieda_pcb_suggest_placement(cp, a, 0.25);
+    CHECK(sug && std::string(sug).find("\"legal\":true") != std::string::npos);
+    sieda_string_free(sug);
+    char* chk = sieda_pcb_check_placement(cp, a, -100, -100, 0, 0, 0.25);
+    CHECK(chk && std::string(chk).find("PLACE_OUTSIDE") != std::string::npos);
+    sieda_string_free(chk);
+    char* put = sieda_pcb_place_footprint(cp, a, -100, -100, 0, 0, 0.25, 0);
+    CHECK(put && std::string(put).find("\"committed\":false") != std::string::npos);
+    sieda_string_free(put);
+    CHECK(sieda_pcb_check_placement(cp, 987654, 0, 0, 0, 0, 0.25) == nullptr);
+    sieda_project_free(cp);
+}
+
+TEST(interactive_placement_leaves_project_files_unchanged) {
+    // A project that never used the feature saves exactly as before, and placing writes no new fields.
+    PlacementFixture f;
+    const std::string before = f.p.toJson().dump();
+    CHECK(Project::fromJson(Json::parse(before)).toJson().dump() == before);
+    std::vector<int> queue;
+    f.p.applyPcbEco({}, nullptr, &queue);
+    f.p.checkPlacement(f.c1, {60, 45}, 0, false, 0.25);
+    f.p.suggestPlacement(f.c1, 0.25);
+    const std::string afterEco = f.p.toJson().dump();
+    f.p.placeComponent(f.c1, {60, 45}, 0, false, 0.25);
+    const std::string placed = f.p.toJson().dump();
+    for (const char* key : {"placementQueue", "placement\"", "suggest"}) {
+        CHECK(afterEco.find(key) == std::string::npos);
+        CHECK(placed.find(key) == std::string::npos);
+    }
+    CHECK(Project::fromJson(Json::parse(placed)).toJson().dump() == placed);
+    // Without the queue argument the update behaves as before (both new parts auto-placed).
+    PlacementFixture g;
+    CHECK(g.p.applyPcbEco({}) > 0);
+    CHECK(g.p.schematic.find(g.c1)->pcb.placed && g.p.schematic.find(g.r3)->pcb.placed);
+}
+
 // ======================================================================= symbol graphics, drawn sheet symbols
 
 TEST(symbol_graphics_persist_and_draw) {

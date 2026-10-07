@@ -854,8 +854,28 @@ char* sieda_pcb_match_lengths(SiedaProject* project, const char* track_ids_json,
 char* sieda_pcb_eco_preview(const SiedaProject* project);
 /* Executes the changes whose keys are listed (keys_json ["component:7",…]; NULL = all; [] = none): places added
  * footprints, removes pours on nets that are gone, carries the net rules, records the new baseline. Returns
- * {"executed": n, "report": [line…]}. Caller frees. */
+ * {"executed": n, "report": [line…], "placementQueue": [{"id","ref"}…]}: the queue lists the footprints this update
+ * put on the board (by designator; parts already placed are never listed). They stand where Auto Place put them; the
+ * designer can place them one by one with the calls below. Caller frees. */
 char* sieda_apply_pcb_eco(SiedaProject* project, const char* keys_json);
+/* ---- interactive placement (after Update PCB, or any footprint) ---------------------------------------------------
+ * A placement JSON: {"component","x","y","rotation","bottom","legal","committed","courtyard":{x0,y0,x1,y1},
+ *   "pads":[{x,y,w,h,round,net}], "issues":[{code,message,other,error}]}. x / y are the snapped centre; issue codes
+ * PLACE_OVERLAP (courtyards on the same side; other = that part), PLACE_OUTSIDE (beyond the outline), PLACE_HOLE
+ * (mounting-hole keep-out), PLACE_LOCKED (errors: the pose is illegal) and PLACE_KEEPOUT (pads inside a routing
+ * keep-out; a warning, still legal). NULL for an unknown component or one without a footprint. Caller frees.
+ * grid ≤ 0 = no snap; rotation is rounded to a quarter turn; bottom 1 = the bottom side. */
+/* The footprint at that pose; nothing changes (the ghost while placing). */
+char* sieda_pcb_check_placement(const SiedaProject* project, int32_t component_id, double x, double y,
+                                int32_t rotation, int32_t bottom, double grid);
+/* Moves / turns / flips the footprint there when the pose is legal ("committed": true). An illegal pose is not
+ * committed unless force = 1: then it is, and "legal" stays false so the caller can report it. A locked part never
+ * moves. */
+char* sieda_pcb_place_footprint(SiedaProject* project, int32_t component_id, double x, double y, int32_t rotation,
+                                int32_t bottom, double grid, int32_t force);
+/* Where to start placing it: the nearest free grid spot to the pads it connects to (its rotation and side kept);
+ * "legal": false when the board has no free spot. Nothing changes. */
+char* sieda_pcb_suggest_placement(const SiedaProject* project, int32_t component_id, double grid);
 /* Drawn size of a sheet's sheet symbol in schematic units (0 = fitted to its entries; clamped to 4000). 1 on success. */
 int32_t sieda_set_sheet_symbol_size(SiedaProject* project, int32_t sheet, double width, double height);
 /* Per-channel parameters of a part on a repeated sheet (see sieda_set_channel_value): this channel's own SPICE model

@@ -1141,3 +1141,14 @@
 "Brown" = "பழுப்பு";
 "Tan" = "வெளிர் பழுப்பு";
 "Colour Symbols by Device" = "சாதனப்படி குறியீட்டு வண்ணங்கள்";
+"Placing %@ (%lld of %lld)" = "%@ வைக்கப்படுகிறது (%lld இல் %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R சுழற்றும் · F புரட்டும் · கிளிக் வைக்கும் · ⌥-கிளிக் கட்டாயம் · Esc தவிர்க்கும்";
+"Skip" = "தவிர்";
+"Leave this part where Auto Place put it" = "இந்தப் பாகத்தை ஆட்டோ பிளேஸ் வைத்த இடத்திலேயே விடு";
+"Skip All" = "அனைத்தையும் தவிர்";
+"Leave every remaining part where Auto Place put it" = "மீதமுள்ள அனைத்துப் பாகங்களையும் ஆட்டோ பிளேஸ் வைத்த இடத்திலேயே விடு";
+"Place All Automatically" = "அனைத்தையும் தானாக வை";
+"Put every remaining part at the free spot next to its connections" = "மீதமுள்ள ஒவ்வொரு பாகத்தையும் அதன் இணைப்புகளுக்கு அருகிலுள்ள காலி இடத்தில் வை";
+"Place new parts interactively after Update PCB" = "PCB புதுப்பித்த பின் புதிய பாகங்களை ஊடாடும் முறையில் வை";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "PCB புதுப்பித்த பின் PCB எடிட்டர் ஒவ்வொரு புதிய பாகத்தையும் கர்சரில் காட்டித் திறக்கும்: R சுழற்றும், F புரட்டும், கிளிக் அதை வைக்கும், Esc ஆட்டோ பிளேஸ் வைத்த இடத்திலேயே விடும். அணைத்தால்: புதிய பாகங்கள் ஆட்டோ பிளேஸ் வைக்கும் இடத்திலேயே இருக்கும்.";
+"PCB Editor" = "PCB எடிட்டர்";
