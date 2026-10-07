@@ -111,6 +111,8 @@ final class DesignStore: ObservableObject {
     /// Progress of the running autoroute (nil when none runs); `cancelAutoRoute()` stops it.
     @Published private(set) var routeProgress: RouteProgressReport?
     private var routeChannel: RouteProgressChannel?
+    /// "Place new parts" after Update PCB (DesignStore+Placement.swift): the footprints still to place by hand.
+    @Published var placementSession: PlacementSession?
     @Published private(set) var busyMessage = ""
     @Published var statusMessage = "Ready"
     @Published private(set) var documentURL: URL?
@@ -127,6 +129,8 @@ final class DesignStore: ObservableObject {
     @Published private(set) var fitToken = 0
     /// Bumped to ask the window to show the inspector (a click on a part in a results list).
     @Published private(set) var inspectorRevealToken = 0
+    /// Focus mode: full screen with only the editor (FocusMode.swift); set by the window's full-screen changes.
+    @Published var focusMode = false
     /// Latest navigation command for the visible schematic/PCB canvas (View menu, zoom controls).
     @Published private(set) var viewRequest: ViewRequest?
     /// Navigator overview on the 2D canvases (persisted).
@@ -281,6 +285,8 @@ final class DesignStore: ObservableObject {
         if routePreview != nil, !engine.routerActive { routePreview = nil }
         if let tune = tuneSession, !snapshot.tracks.contains(where: { $0.id == tune.track }) { tuneSession = nil }
         if !selectedTracks.isEmpty { selectedTracks.formIntersection(snapshot.tracks.map(\.id)) }
+        // A new design (open, example) or an undone Update PCB took the part being placed away.
+        if let part = placementSession?.current, snapshot.component(part.id) == nil { placementSession = nil }
         revision &+= 1
     }
 
@@ -1377,6 +1383,7 @@ final class DesignStore: ObservableObject {
             : "routed \(stats.routed)/\(stats.connections) — \(stats.failed) failed (\(stats.failedNets.joined(separator: ", ")))"
         statusMessage = (placeMissing ? "Placed footprints inside the board outline and " : "") + routed
             + ((stats.lengthTuned ?? 0) > 0 ? ", \(stats.lengthTuned ?? 0) nets length-matched with serpentines" : "")
+            + swapSummary(stats)
         statusMessage = statusMessage.prefix(1).uppercased() + statusMessage.dropFirst()
     }
 
@@ -1675,15 +1682,27 @@ final class DesignStore: ObservableObject {
         didSet { if routerTeardrops != oldValue { applyRouterOptions() } }
     }
 
+    /// Outline of the teardrops the router and the Teardrops command add: straight or curved.
+    @Published var teardropStyle = TeardropStyleChoice.straight {
+        didSet { if teardropStyle != oldValue { applyRouterOptions() } }
+    }
+
     /// Hug: a dragged track bends around pads and other copper it cannot push instead of stopping short.
     @Published var routerHugDrag = true {
         didSet { if routerHugDrag != oldValue { applyRouterOptions() } }
     }
 
+    /// Tune lengths while routing: a bus's (or a matched net's, or a pair's) short members get meanders live in the
+    /// preview, written when the route is finished.
+    @Published var routerTuneWhileRouting = false {
+        didSet { if routerTuneWhileRouting != oldValue { applyRouterOptions() } }
+    }
+
     private var routerOptions: String {
         EDAEngine.routingOptions(mode: routerMode, diagonal: routerDiagonal, via: routerViaType, rounded: routerRounded,
                                  arcs: routerArcs, anyAngle: routerAnyAngle, removeLoops: routerRemoveLoops,
-                                 teardrops: routerTeardrops, hug: routerHugDrag)
+                                 teardrops: routerTeardrops, hug: routerHugDrag, teardropStyle: teardropStyle,
+                                 tune: routerTuneWhileRouting)
     }
 
     /// Shows a router reply: a refused step keeps the route and reports why.
@@ -1821,6 +1840,7 @@ final class DesignStore: ObservableObject {
         }
         routePreview = nil
         if !done, let error = result.error { statusMessage = error }
+        if done, let tuned = result.tuneStatus, !tuned.isEmpty { statusMessage = tuned }
         if done, !drcResults.isEmpty { runDRC() }
     }
 

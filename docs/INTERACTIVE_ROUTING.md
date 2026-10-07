@@ -100,12 +100,49 @@ Shoving never moves:
 - vias inside a pad of their own net;
 - the route itself, and other copper of the net being routed;
 - tamper-mesh stripes and their vias;
-- arcs and teardrop tracks (a teardrop whose track moved away is removed on commit);
+- locked arcs and teardrop tracks (a teardrop whose track moved away is removed on commit);
 - the board edge, mounting-hole keep-outs and plane layers (a net cannot be routed on another net's plane layer).
 
 A track whose end sits on a pad or a junction can bend, but its end stays put. Shoving it past the obstacle has to
 succeed with both ends where they are. A track that ends on a via can move that via, and the via's other tracks
 follow it.
+
+### Shoving arcs
+
+An arc track (`Track::arc`) is pushed as a whole, like Altium, Xpedition and KiCad do, and the straight tracks joined
+to its ends follow it:
+
+- An arc that rounds a corner (a fillet: tangent straight tracks on both ends) is re-filleted with another radius about
+  the same corner. A larger radius moves it away from the corner, a smaller one towards it; its neighbours only get
+  shorter or longer along their own lines, so the joins stay tangent.
+- Any other arc whose ends are free or continue in one straight track is offset concentrically (the radius changes);
+  the neighbours' near ends follow its ends.
+- The smallest change that clears the pusher (clearance plus a rounding margin) wins. When no radius fits a fillet, it
+  goes back to its sharp corner, those straight tracks are shoved as normal lines, and at the end of the shove the
+  corner nearest the old one is rounded again with the old radius (or a half or a quarter of it) where that fits.
+
+Arcs joined directly to each other with tangent joins (an S-curve, or any chain of up to 16 arcs of one width) are
+shoved as one unit, together with the straight tracks at the chain's ends:
+
+- Between tangent straight tracks the chain is re-solved on its corner polygon (the corners its tangent lines meet
+  at): each join between two arcs slides along their common tangent and both radii follow, so every join stays
+  tangent and the outer tracks only get shorter or longer along their own lines.
+- Otherwise, or when that cannot clear the pusher, the chain is offset as a whole (its parallel curve: inner joins
+  stay tangent, the outer tracks' near ends follow its ends).
+
+An arc whose end sits on a pad or via of its net keeps that end where it is, with the same direction out of it: its
+radius changes, and its other end stays tangent to the straight track there (which turns about its far end) or keeps
+its sweep when it is free. A pad never moves; a via under the arc's end is not moved by the arc (only `shoveVia` moves
+a via, and only one that may move).
+
+When none of these clears the pusher, the chain (or the pinned arc) goes back to its corner polyline: its end points
+stay, so a pinned end gets a short straight exit from the pad or via; those lines are shoved as normal lines, and at
+the end of the shove each corner is rounded again with its old radius (or a half or a quarter of it) where that fits.
+
+An arc whose end sits on a junction, a locked track or an arc it is not tangent to (or one that is locked), and every
+locked arc or teardrop, stays fixed: the shove reports it ("Blocked by a track of …" / "a locked track of …") and the
+head walks around it. Tracks pushed into an arc walk around it as they always did. Boards without arcs shove exactly
+as before.
 
 ## Rules the router keeps
 
@@ -168,7 +205,7 @@ that reads copper treats it as an arc:
 | 3D view | The arc as short boxes (5 µm sagitta). |
 | Project files | `"mid": {"x","y"}` on an arc track; files without it load as before (straight). |
 | Snapshot / preview JSON | `"arc": true`, `"mx","my"` and, for drawing, `"cx","cy","radius","startAngle","sweep"` (radians, sweep > 0 turns from +x towards +y). |
-| Interactive router | Arcs are obstacles measured exactly (walkaround, shove, highlight, grid search); the shove engine moves straight lines and leaves arcs where they are, like locked tracks. |
+| Interactive router | Arcs are obstacles measured exactly (walkaround, shove, highlight, grid search); the shove engine pushes an arc as a whole (re-filleted or offset concentrically), a chain of tangent arcs as a unit and an arc on a pad or via about its pinned end (see [Shoving arcs](#shoving-arcs)); locked arcs stay. |
 
 Arc geometry is in `Core/include/sieda/TrackGeometry.hpp`; for a straight track every function is exactly the
 segment formula used before arcs existed, so boards without arcs give bit-identical results. The functions are
@@ -306,7 +343,20 @@ so the DRC sees no acute angle and no dangling end. Teardrops are ordinary coppe
 **Auto teardrops** (Route tool options) adds them on every finished route. Teardrops whose track was moved away
 (dragged, shoved, deleted) are removed on the next commit.
 
-Core: `addTeardrops`, `removeTeardrops`, `pruneTeardrops`; C: `sieda_pcb_teardrops`; router option `"teardrops"`.
+**Teardrop style** (Route tool options, Straight / Curved; it applies to the Teardrops command and to auto
+teardrops) chooses the outline. *Straight* (the default, unchanged) ends every fan member at nearly one point on the
+track: a triangle. *Curved* (`TeardropStyle::Curved`) gives the concave flare of other tools' curved teardrops: on
+each side, member k of N joins the point at k/N from P0 (inside the pad / via, across the track end) to P1 (on the
+track, inside the pad / via) with the point at k/N from P1 to the tip P2 on the track. The members' envelope — the
+copper outline — is the quadratic Bézier P0 P1 P2, tangent to the track at the tip, and lies inside the straight
+teardrop of the same length. The members are ordinary `Track::teardrop` tracks (from inside the pad / via onto the
+track), their ends at most 0.4 × the track width apart so the copper fills and the curve is smooth, the two sides'
+ends on the track staggered; clearance checks, the shortening to half and "without room" are those of straight teardrops, and
+`removeTeardrops` / `pruneTeardrops` treat both styles alike. Round and rectangular pads and vias.
+
+Core: `addTeardrops` (`TeardropOptions::style`), `removeTeardrops`, `pruneTeardrops`; C: `sieda_pcb_teardrops`
+(option `"style": "straight" | "curved"`); router options `"teardrops"` and `"teardropStyle"`
+(`RouterOptions::teardropStyle`).
 
 ## Via stitching and shielding
 
@@ -402,6 +452,48 @@ the message counts the nets lengthened, already matched and without room.
 
 Core: `matchTrackLengths(pcb, sch, trackIds, options, tolerance)`; C: `sieda_pcb_match_lengths`.
 
+### Tuning while routing
+
+**Tune Lengths While Routing** (routing options bar, off by default) matches lengths as you route instead of
+afterwards, like the tune-while-routing modes of the big tools:
+
+- **While routing a bus** (or a multi-route), or a single net that has a length target (a length rule, a match group
+  or a matched-length group such as `DQ0…DQ7`), the banner lists each member's length so far against its target, e.g.
+  `DQ0 12.40/13.10` (members within tolerance are marked ✓). The target is the member's length rule; otherwise its
+  match group's longest member; otherwise, for a bus, the longest member of the bus itself (tolerance 0.1 mm, or the
+  group's / rule's). A single net matches the other members of its group.
+- **A bus started with the option on** leaves room between its members for the meanders: the members are
+  `tuneGap` further apart than width + clearance (automatic: one more width + clearance; `< 0` keeps the bundle
+  packed, so only the outer members have room).
+- **Live, while the head moves**, each short member gets accordion meanders on the tracks this route adds, and only
+  on those (longest first, through the same tuner as the Tune tool, one track at a time), never higher than the room
+  between the members, keeping clearance to everything. The preview shows the route with its meanders as it will be
+  written, and the banner's lengths are the tuned ones, measured as the Tune tool measures them (pad to pad through
+  series parts when a rule or group applies). The router tunes a copy of the board exactly as the commit will, so
+  **on commit (Enter)** the copper is the copper last shown when the cursor has not moved since: the commit re-tunes
+  the untuned route (it never tunes an already meandered one) and gets the same result. To stay fast the live tuning
+  is cached by the route's geometry (moves that leave the route as it was cost nothing; a head that moved less than
+  0.02 mm keeps the last meanders) and each member gets at most `max(4, shoveLimit / 20)` tuned tracks per step (the
+  commit uses the same limit). The status line reports `Lengths: 3 of 4 members within tolerance of the target`,
+  and names every member that could not get there (`— could not reach the target (no room for meanders): DQ2
+  (-1.20 mm)`). Nothing that would break a DRC rule is ever added: a member without room stays short.
+- **Differential pairs** (routed with the pair tool) whose members have a length target (a length rule, a match group
+  or a matched-length group with other nets) are tuned as a whole: coupled meanders on the longer member's new tracks
+  with its partner alongside (both members together, at the pair gap, the Tune tool's coupled mode) bring the pair to
+  its target; then the shorter member gets small skew bumps (the Tune tool's phase tuning, on the side away from its
+  partner) until `|P − N|` is within the pair's tolerance. A pair without a target of its own is matched for skew
+  only. Live in the preview and on commit, as for buses; the banner adds `Pair: 2 of 2 members within tolerance of
+  the target, skew 0.004 mm (tolerance 0.100 mm)` (and `— skew over tolerance` when the bumps had no room).
+- With the option off routing is bit-for-bit what it was, and so is the preview of a route that has no length target.
+
+Core: `RouterOptions::tuneWhileRouting`, `RouterOptions::tuneGap`; `RoutePreview::memberLengths`,
+`RoutePreview::tunedTracks`, `RoutePreview::tuneStatus` and `RouteChanges::memberLengths` /
+`RouteChanges::tuneStatus` (`MemberLength {net, length, target, tolerance, withinTolerance}`). JSON: router options
+`"tuneWhileRouting"`, `"tuneGap"`; the preview and the commit's changes carry
+`"memberLengths":[{"net","length","target","tolerance","withinTolerance"}]` and `"tuneStatus"`, the preview
+`"tunedTracks":[track]` (the route with its live meanders; draw it in place of `placed` + `head`), each only when the
+option produced them.
+
 ## Core API
 
 `Core/include/sieda/InteractiveRouter.hpp`:
@@ -460,13 +552,16 @@ All functions are in `sieda_c.h`. Each project has one route session.
 
 Options JSON: `{"mode":"shove"|"walkaround"|"highlight", "posture":"45"|"90"|"free", "swapPosture":bool, "width":mm,
 "pairGap":mm, "snap":bool, "viaType":"through"|"blind"|"micro"|"auto", "cornerRadius":mm (0 sharp, < 0 auto),
-"arcCorners":bool}`. Fields that are left out keep their value.
+"arcCorners":bool, "removeLoops":bool, "teardrops":bool, "hug":bool, "tuneWhileRouting":bool, "tuneGap":mm}`. Fields
+that are left out keep their value.
 
 Preview JSON: `active`, `kind` (`route` / `pair` / `drag` / `via`), `status`, `blocked`, `reachedTarget`, `nets`,
 `layer`, `width`, `gap`, `endX`, `endY`, `length`, `netLength`, `targetLength`, `placed`, `head`, `vias`,
-`shovedTracks`, `shovedVias`, `hiddenTracks`, `hiddenVias`, and `error` when the call was refused. Vias carry
+`shovedTracks`, `shovedVias`, `hiddenTracks`, `hiddenVias`, `memberLengths`, `tunedTracks`, `tuneStatus` (tune while
+routing only), and `error`
+when the call was refused. Vias carry
 `fromLayer`, `toLayer` and `kind` as in the snapshot. To draw a preview, draw the board without `hiddenTracks` /
-`hiddenVias`, then `shovedTracks` / `shovedVias`, then the route (`placed`, `head`, `vias`).
+`hiddenVias`, then `shovedTracks` / `shovedVias`, then the route (`placed`, `head`, `vias`; `tunedTracks` in place of `placed` + `head` when present).
 
 ## How shoving works
 
@@ -510,7 +605,8 @@ never fails because of an old DRC problem elsewhere, and it never creates a new 
   (not through ICs or multi-pin resistor networks) and measure track length (vias add nothing).
 - A bus (or multi-route) ends in the bundle; each track is finished to its pad on its own. Members all use the
   widest member's width. Bundle vias need a placed corner first (they are laid across the bundle's direction).
-- Teardrops are straight-track fans (no curved outline) on straight tracks, at pads and vias only (not at T
+- Teardrops are fans of straight tracks (a curved teardrop's outline is their envelope, not a true arc or polygon)
+  on straight tracks, at pads and vias only (not at T
   junctions between tracks); a track as wide as 90 % of the pad gets none. Stitching uses one via size on a square
   grid (no hexagonal or edge-of-pour patterns). Glossing works line by line on one layer (it does not move vias).
   Loop removal skips poured nets.
@@ -631,12 +727,20 @@ Core (`Core/tests/core_tests.cpp`):
 | `router_multi_routes_nets_with_vias` | Three scattered nets route as one bundle; V places three vias at via pitch and the bundle continues on the bottom layer; DRC clean. |
 | `c_api_corner_multi_drag_and_multi_route` | Corner drag, multi drag and multi-route through the C API. |
 | `teardrops_on_pads_and_vias` | Six teardrops on a pad → via → via → pad route; DRC clean (no acute angle, no dangling end), saved, in the Gerber, removed exactly; auto teardrops on commit; pruning. |
+| `curved_teardrops_default_is_straight` | The default style gives exactly the straight teardrops. |
+| `curved_teardrops_on_pads_and_vias` | Curved teardrops on the same route: six, all `teardrop`, DRC clean, connected; each fan inside the straight fan's triangle and concave; saved; pruned and removed exactly. |
+| `curved_teardrops_router_and_autorouter` | Curved auto teardrops on a router commit; the autorouter's curved teardrop pass, DRC clean. |
+| `curved_teardrops_json_and_c_api` | `teardropStyle` in the autoroute / router options JSON (written only when curved) and `"style"` through `sieda_pcb_teardrops`. |
 | `via_stitching_and_shielding` | Shielding rows clear of the track; stitching grid inside the area on two GND pours; DRC clean. |
 | `gloss_pulls_routes_tight` | A detour is pulled > 10 mm shorter, connected, DRC clean; a tight or locked route stays. |
 | `router_removes_loops_on_commit` | A new direct route removes the old detour, its stub and its two vias; without the option all stays. |
 | `c_api_board_commands` | Teardrops, gloss, shielding, stitching and the router options through the C API. |
 | `router_stop_mode_stops_at_the_first_obstacle` | Shove pushes a crossing track; Stop at obstacle leaves it and ends short of it. |
 | `match_track_lengths_of_a_bus` | Three nets, one with a detour: the other two are lengthened to it within 0.1 mm, DRC clean, no group left behind. |
+| `tune_while_routing_off_is_unchanged` | Option off (with a tune gap given): the same preview, changes and copper as the default router, the bus packed at pitch, no member lengths. |
+| `tune_while_routing_matches_a_bus_on_commit` | A four-net bus turned through 90°: on commit every member is within 0.1 mm of the longest, only route tracks replaced, DRC clean, each member one piece. |
+| `tune_while_routing_preview_reports_member_lengths` | The preview's member lengths and targets (longest member; a member's own length rule), JSON and options. |
+| `tune_while_routing_reports_a_member_without_room` | A member whose rule asks for more than fits is named in the status and stays short; DRC clean. |
 | `router_drag_hugs_a_pad` | A segment dragged onto another part's pad stops short; with hug it bends round the pad, connected, DRC clean. |
 | `c_api_match_lengths_and_stop_mode` | Stop mode and length matching through the C API. |
 | `router_head_update_can_be_cancelled` | A cancelled update leaves the router exactly as before; the next one matches a router that was never cancelled; a request while idle changes nothing. |

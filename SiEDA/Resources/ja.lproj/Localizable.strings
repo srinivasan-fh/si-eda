@@ -1036,6 +1036,11 @@
 "Strategy" = "戦略";
 "Strategy Settings…" = "戦略の設定…";
 "Teardrops" = "ティアドロップ";
+"Teardrop style" = "ティアドロップの形状";
+"Teardrop Style" = "ティアドロップの形状";
+"Straight" = "直線";
+"Curved" = "曲線";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "ティアドロップの輪郭: 直線の扇形、またはパッドやビアへ曲線で広がる形";
 "Default" = "標準";
 "Fast" = "高速";
 "High quality" = "高品質";
@@ -1141,3 +1146,34 @@
 "Brown" = "ブラウン";
 "Tan" = "タン";
 "Colour Symbols by Device" = "デバイスごとにシンボルを色分け";
+"Tune Lengths While Routing" = "配線中に長さを調整";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "バス、等長ネット、差動ペアの配線中に短いメンバーへミアンダをリアルタイムで追加します（ペアは2本まとめて調整し、その後スキューを調整）。配線完了時にそのまま確定します";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "ピンとゲートを入れ替え";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "配線前に、ラッツネストが短くなる箇所で等価なピンとゲートを入れ替えます（回路図にバックアノテーション）";
+"Pin & Gate Swaps" = "ピン／ゲートの入れ替え";
+"Pins swapped" = "入れ替えたピン";
+"Gates swapped" = "入れ替えたゲート";
+"Ratsnest before" = "ラッツネスト（前）";
+"Ratsnest after" = "ラッツネスト（後）";
+"Crossings" = "交差";
+"Placing %@ (%lld of %lld)" = "%@ を配置中（%lld / %lld）";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R 回転 · F 反転 · クリックで配置 · ⌥-クリックで強制 · Esc でスキップ";
+"Skip" = "スキップ";
+"Leave this part where Auto Place put it" = "この部品を自動配置の位置のままにする";
+"Skip All" = "すべてスキップ";
+"Leave every remaining part where Auto Place put it" = "残りの部品をすべて自動配置の位置のままにする";
+"Place All Automatically" = "すべて自動配置";
+"Put every remaining part at the free spot next to its connections" = "残りの部品をそれぞれ接続先の近くの空き位置に置く";
+"Place new parts interactively after Update PCB" = "PCB の更新後に新しい部品を対話的に配置";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "PCB の更新後、新しい部品をカーソルに付けた状態で PCB エディタが開きます。R で回転、F で反転、クリックで配置、Esc で自動配置の位置のままにします。オフ：新しい部品は自動配置の位置に置かれます。";
+"PCB Editor" = "PCB エディタ";
+
+// Focus mode
+"Enter Focus Mode" = "フォーカスモードに入る";
+"Exit Focus Mode" = "フォーカスモードを終了";
+"Exit Focus" = "フォーカス終了";
+"Leave focus mode (F11, ⌃⌘F)" = "フォーカスモードを終了 (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "フルスクリーンでパネルを隠す (フォーカスモード)";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11、⌃⌘F または Fn-F: エディタとツールだけのフルスクリーン。エディタの上端にポインタを置くとオプションバーが表示されます。";

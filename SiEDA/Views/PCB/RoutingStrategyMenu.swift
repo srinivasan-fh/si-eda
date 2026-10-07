@@ -56,7 +56,21 @@ struct RoutingStrategyMenu: View {
             optionToggle("Gloss tracks", o.gloss, \.gloss)
             optionToggle("Arc corners", o.arcCorners, \.arcCorners)
             optionToggle("Teardrops", o.teardrops, \.teardrops)
+            Menu("Teardrop Style") { teardropStyleItems(o.teardropStyle) }
             optionToggle("Protect locked copper", o.protectLocked, \.protectLocked)
+            optionToggle("Swap Pins & Gates", o.pinSwap, \.pinSwap)
+        }
+    }
+
+    @ViewBuilder private func teardropStyleItems(_ current: TeardropStyleChoice) -> some View {
+        ForEach(TeardropStyleChoice.allCases) { style in
+            Button { store.setRoutingTeardropStyle(style) } label: {
+                if style == current {
+                    Label(LocalizedStringKey(style.title), systemImage: "checkmark")
+                } else {
+                    Text(LocalizedStringKey(style.title))
+                }
+            }
         }
     }
 

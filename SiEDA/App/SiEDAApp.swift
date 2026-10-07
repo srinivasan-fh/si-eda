@@ -354,6 +354,10 @@ struct SiEDACommands: Commands {
                 }
             }
             .disabled(!canvas)
+            Button { FocusMode.toggle() } label: {
+                if store.focusMode { Text("Exit Focus Mode") } else { Text("Enter Focus Mode") }
+            }
+            .keyboardShortcut(FocusMode.f11, modifiers: [])
             Toggle("Show Navigator", isOn: $store.showNavigator)
             Menu("Schematic Canvas") {
                 SchematicAppearanceMenu(onCustomise: {

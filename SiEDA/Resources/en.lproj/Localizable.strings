@@ -1036,6 +1036,11 @@
 "Strategy" = "Strategy";
 "Strategy Settings…" = "Strategy Settings…";
 "Teardrops" = "Teardrops";
+"Teardrop style" = "Teardrop style";
+"Teardrop Style" = "Teardrop Style";
+"Straight" = "Straight";
+"Curved" = "Curved";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "Teardrop outline: straight fans, or curved flares into pads and vias";
 "Default" = "Default";
 "Fast" = "Fast";
 "High quality" = "High quality";
@@ -1141,3 +1146,34 @@
 "Brown" = "Brown";
 "Tan" = "Tan";
 "Colour Symbols by Device" = "Colour Symbols by Device";
+"Tune Lengths While Routing" = "Tune Lengths While Routing";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "Swap Pins & Gates";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)";
+"Pin & Gate Swaps" = "Pin & Gate Swaps";
+"Pins swapped" = "Pins swapped";
+"Gates swapped" = "Gates swapped";
+"Ratsnest before" = "Ratsnest before";
+"Ratsnest after" = "Ratsnest after";
+"Crossings" = "Crossings";
+"Placing %@ (%lld of %lld)" = "Placing %@ (%lld of %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R rotates · F flips · click places · ⌥-click forces · Esc skips";
+"Skip" = "Skip";
+"Leave this part where Auto Place put it" = "Leave this part where Auto Place put it";
+"Skip All" = "Skip All";
+"Leave every remaining part where Auto Place put it" = "Leave every remaining part where Auto Place put it";
+"Place All Automatically" = "Place All Automatically";
+"Put every remaining part at the free spot next to its connections" = "Put every remaining part at the free spot next to its connections";
+"Place new parts interactively after Update PCB" = "Place new parts interactively after Update PCB";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them.";
+"PCB Editor" = "PCB Editor";
+
+// Focus mode
+"Enter Focus Mode" = "Enter Focus Mode";
+"Exit Focus Mode" = "Exit Focus Mode";
+"Exit Focus" = "Exit Focus";
+"Leave focus mode (F11, ⌃⌘F)" = "Leave focus mode (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "Full screen hides the panels (focus mode)";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar.";

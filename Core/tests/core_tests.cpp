@@ -14448,7 +14448,8 @@ TEST(convert_corners_to_arcs_command) {
 
 TEST(router_respects_arc_tracks) {
     // Arcs on the board are obstacles measured as arcs: a route past an arc's bulge keeps clearance from the arc
-    // (walkaround and shove), and shoving never moves an arc (it stays bit for bit).
+    // (walkaround and shove). Walkaround never moves the arc (it stays bit for bit); shove may push this free arc
+    // only concentrically (same centre, smaller radius: away from the route above it).
     for (RouterMode mode : {RouterMode::Walkaround, RouterMode::Shove}) {
         Project p;
         auto& s = p.schematic;
@@ -14476,12 +14477,176 @@ TEST(router_respects_arc_tracks) {
         bool still = false;
         for (const auto& t : p.pcb.tracks)
             if (t.arc && t.a == kept.a && t.b == kept.b && t.mid == kept.mid) still = true;
-        CHECK(still);
+        if (mode == RouterMode::Walkaround) CHECK(still);
+        const Track* now = nullptr;
+        for (const auto& t : p.pcb.tracks)
+            if (t.arc && t.net == other) now = &t;
+        CHECK(now != nullptr);
+        if (!now) continue;
+        const ArcGeom g = trackArc(*now), g0 = trackArc(kept);
+        CHECK(g.valid && (g.c - g0.c).length() < 1e-6 && g.r <= g0.r + 1e-9);
         double nearest = 1e9;
         for (const auto& t : p.pcb.tracks)
-            if (t.net == net) nearest = std::min(nearest, trackTrackDistance(t, kept) - (t.width + kept.width) / 2);
+            if (t.net == net) nearest = std::min(nearest, trackTrackDistance(t, *now) - (t.width + now->width) / 2);
         CHECK(nearest >= p.pcb.settings.clearance - 1e-6);
     }
+}
+
+// ---- shove arcs
+
+namespace {
+/// Net B runs from R3 to the right, turns down round a 2 mm fillet arc (centre (18, 12), corner (20, 10)) and on to
+/// R4. A 45° route of net A along x − y = 9.3 passes 0.33 mm from the arc's centre line (too close: 0.45 needed) and
+/// 0.92 mm from B's straight tracks.
+struct FilletBoard {
+    Project p;
+    int netA = -1, netB = -1;
+    int r1 = -1, r2 = -1;
+    Track arc;  // as laid
+};
+FilletBoard filletBoard(bool lockedArc) {
+    FilletBoard b;
+    auto& s = b.p.schematic;
+    b.p.pcb.settings.width = 40;
+    b.p.pcb.settings.height = 35;
+    b.r1 = placeR(b.p, {30, 15});
+    b.r2 = placeR(b.p, {6, 5});
+    const int r3 = placeR(b.p, {8, 10}), r4 = placeR(b.p, {28, 25});
+    wire(s, b.r1, "1", b.r2, "2");
+    wire(s, r3, "2", r4, "1");
+    b.p.schematicChanged();
+    b.netA = s.netOf({b.r1, 0});
+    b.netB = s.netOf({r3, 1});
+    addPath(b.p.pcb, b.netB, 0, 0.25, {padAt(b.p, r3, 1), {18, 10}});
+    Track arc = arcTrackOf(b.netB, {18, 12}, 2, -90, 0);  // (18, 10) → (20, 12)
+    arc.locked = lockedArc;
+    b.p.pcb.addTrack(arc);
+    b.arc = b.p.pcb.tracks.back();
+    addPath(b.p.pcb, b.netB, 0, 0.25, {{20, 12}, {20, 25}, padAt(b.p, r4, 0)});
+    return b;
+}
+/// Starts net A at R1 and lays the 45° segment over the fillet; returns the preview of that segment.
+RoutePreview routeOverFillet(FilletBoard& b, InteractiveRouter& r) {
+    RouterOptions o;
+    o.mode = RouterMode::Shove;
+    r.setOptions(o);
+    CHECK(r.beginRoute(padAt(b.p, b.r1, 0), 0));
+    r.moveTo({24.3, 15});
+    CHECK(r.fixHead());
+    return r.moveTo({14.3, 5});
+}
+/// Smallest edge gap between tracks of nets a and b.
+double netGap(const Project& p, int a, int b) {
+    double gap = 1e9;
+    for (const auto& t : p.pcb.tracks)
+        for (const auto& u : p.pcb.tracks)
+            if (t.net == a && u.net == b && t.layer == u.layer)
+                gap = std::min(gap, trackTrackDistance(t, u) - (t.width + u.width) / 2);
+    return gap;
+}
+}  // namespace
+
+TEST(router_shoves_an_arc_track) {
+    // A route over a fillet's bulge pushes the arc as a whole: it is re-filleted with a larger radius about the same
+    // corner, still an arc, still joined (tangent) to one straight track at each end, clear of the new route; both
+    // nets stay connected and the board DRC clean. The preview carries the shoved arc, and its JSON says so.
+    FilletBoard b = filletBoard(false);
+    CHECK(routingProblems(b.p) == 0);
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    const RoutePreview pv = routeOverFillet(b, r);
+    CHECK(!pv.blocked);
+    bool arcShoved = false;
+    for (const auto& t : pv.shovedTracks) arcShoved = arcShoved || (t.arc && t.net == b.netB);
+    CHECK(arcShoved);
+    CHECK(std::find(pv.hiddenTracks.begin(), pv.hiddenTracks.end(), b.arc.id) != pv.hiddenTracks.end());
+    CHECK(routePreviewJson(pv).dump().find("\"arc\":true") != std::string::npos);
+    CHECK(r.fixHead());
+    CHECK(r.moveTo(padAt(b.p, b.r2, 1)).reachedTarget);
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok);
+    bool oldGone = false;
+    for (const auto& t : ch.removedTracks) oldGone = oldGone || t.id == b.arc.id;
+    CHECK(oldGone);
+    std::vector<Track> arcs;
+    for (const auto& t : b.p.pcb.tracks)
+        if (t.arc) arcs.push_back(t);
+    CHECK(arcs.size() == 1);
+    if (arcs.size() == 1) {
+        const Track& a = arcs[0];
+        const ArcGeom g = trackArc(a);
+        CHECK(a.net == b.netB && g.valid);
+        CHECK(g.r > 2 + 1e-3);  // a larger radius: away from the corner (20, 10)
+        // Still joined, tangentially, to exactly one straight track of B at each end.
+        for (bool atB : {false, true}) {
+            const Vec2 e = atB ? a.b : a.a;
+            const Vec2 d = trackEndDirection(a, atB);
+            int joined = 0;
+            for (const auto& t : b.p.pcb.tracks) {
+                if (t.arc || t.net != b.netB) continue;
+                const bool atA = (t.a - e).length() < 1e-6, atEnd = (t.b - e).length() < 1e-6;
+                if (!atA && !atEnd) continue;
+                ++joined;
+                const Vec2 u = (atA ? t.b - e : t.a - e) * (1.0 / trackLength(t));
+                CHECK(std::fabs(u.x * d.y - u.y * d.x) < 1e-6 && u.x * d.x + u.y * d.y < 0);
+            }
+            CHECK(joined == 1);
+        }
+    }
+    CHECK(netGap(b.p, b.netA, b.netB) >= b.p.pcb.settings.clearance - 1e-6);
+    CHECK(netRouted(b.p, b.netA));
+    CHECK(netRouted(b.p, b.netB));
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+}
+
+TEST(router_does_not_shove_a_locked_arc) {
+    // The same route with the fillet locked: the arc is never moved (bit for bit); the shove reports it and the head
+    // walks around it or stops short, clear of it, and the board stays DRC clean.
+    FilletBoard b = filletBoard(true);
+    CHECK(routingProblems(b.p) == 0);
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    const RoutePreview pv = routeOverFillet(b, r);
+    CHECK(pv.status.find("locked track") != std::string::npos);
+    CHECK(std::find(pv.hiddenTracks.begin(), pv.hiddenTracks.end(), b.arc.id) == pv.hiddenTracks.end());
+    for (const auto& t : pv.shovedTracks) CHECK(!t.arc);
+    CHECK(r.commit().ok);
+    bool kept = false;
+    for (const auto& t : b.p.pcb.tracks)
+        kept = kept || (t.id == b.arc.id && t.arc && t.locked && t.a == b.arc.a && t.b == b.arc.b && t.mid == b.arc.mid);
+    CHECK(kept);
+    CHECK(netGap(b.p, b.netA, b.netB) >= b.p.pcb.settings.clearance - 1e-6);
+    CHECK(routingProblems(b.p) == 0);
+}
+
+TEST(router_straight_shove_unchanged_by_arcs) {
+    // Regression guard: an arc elsewhere on the board leaves the straight-only shove of the lane board exactly as it
+    // is without it (the same preview, the same copper), and the arc stays bit for bit.
+    std::string d1, d2;
+    LaneBoard a = laneBoard(), b = laneBoard();
+    b.p.pcb.addTrack(arcTrackOf(b.lane[2], {35, 37}, 1.5, 200, 340));
+    const Track far = b.p.pcb.tracks.back();
+    const RouteChanges ca = routeAlongLanes(a, &d1), cb = routeAlongLanes(b, &d2);
+    CHECK(ca.ok && cb.ok);
+    CHECK(!d1.empty() && d1 == d2);
+    CHECK(ca.removedTracks.size() == cb.removedTracks.size() && ca.addedTracks.size() == cb.addedTracks.size());
+    CHECK(a.p.pcb.tracks.size() + 1 == b.p.pcb.tracks.size());
+    bool same = a.p.pcb.tracks.size() + 1 == b.p.pcb.tracks.size(), arcKept = false;
+    size_t j = 0;
+    for (const auto& t : b.p.pcb.tracks) {
+        if (t.id == far.id) {
+            arcKept = t.arc && t.a == far.a && t.b == far.b && t.mid == far.mid;
+            continue;
+        }
+        if (j >= a.p.pcb.tracks.size()) {
+            same = false;
+            break;
+        }
+        const Track& u = a.p.pcb.tracks[j++];
+        same = same && !t.arc && !u.arc && t.a == u.a && t.b == u.b && t.net == u.net && t.layer == u.layer &&
+               t.width == u.width;
+    }
+    CHECK(same && arcKept);
+    CHECK(routingProblems(a.p) == 0);
 }
 
 extern "C" int sieda_c_api_arc_test(void);
@@ -14489,6 +14654,302 @@ TEST(c_api_arc_corners) {
     const int rc = sieda_c_api_arc_test();
     if (rc != 0) std::printf("    C API arc test failed at step %d\n", rc);
     CHECK(rc == 0);
+}
+
+// ---- shove arc chains and pinned arcs
+
+namespace {
+/// Net B runs from R3 right along y = 10, through an S-curve of two tangent 2 mm arcs ((16, 10) → (18, 12) about
+/// (16, 12), then (18, 12) → (20, 14) about (20, 12)) and right along y = 14 to R4. Net A's route from R1 runs left
+/// along y = 12.5 to (19.8, 12.5) and then 45° along x − y = 7.3: 0.33 mm from the first arc's bulge (0.45 needed),
+/// 0.92 mm from the second arc and B's straight tracks.
+struct SCurveBoard {
+    Project p;
+    int netA = -1, netB = -1;
+    int r1 = -1, r2 = -1;
+    Track arc1, arc2;  // as laid
+};
+SCurveBoard sCurveBoard(bool locked) {
+    SCurveBoard b;
+    auto& s = b.p.schematic;
+    b.p.pcb.settings.width = 40;
+    b.p.pcb.settings.height = 30;
+    b.r1 = placeR(b.p, {34, 12.5});
+    b.r2 = placeR(b.p, {6, 6});
+    const int r3 = placeR(b.p, {8, 10}), r4 = placeR(b.p, {28, 14});
+    wire(s, b.r1, "1", b.r2, "2");
+    wire(s, r3, "2", r4, "1");
+    b.p.schematicChanged();
+    b.netA = s.netOf({b.r1, 0});
+    b.netB = s.netOf({r3, 1});
+    addPath(b.p.pcb, b.netB, 0, 0.25, {padAt(b.p, r3, 1), {16, 10}});
+    Track a1 = arcTrackOf(b.netB, {16, 12}, 2, -90, 0), a2 = arcTrackOf(b.netB, {20, 12}, 2, 180, 90);
+    a1.locked = a2.locked = locked;
+    b.p.pcb.addTrack(a1);
+    b.arc1 = b.p.pcb.tracks.back();
+    b.p.pcb.addTrack(a2);
+    b.arc2 = b.p.pcb.tracks.back();
+    addPath(b.p.pcb, b.netB, 0, 0.25, {{20, 14}, padAt(b.p, r4, 0)});
+    return b;
+}
+/// Starts a route at pad 0 of `from`, lays it straight to `corner` and then 45° to `end`; returns that preview.
+RoutePreview routeTwoLegs(Project& p, InteractiveRouter& r, int from, Vec2 corner, Vec2 end) {
+    RouterOptions o;
+    o.mode = RouterMode::Shove;
+    r.setOptions(o);
+    CHECK(r.beginRoute(padAt(p, from, 0), 0));
+    r.moveTo(corner);
+    CHECK(r.fixHead());
+    return r.moveTo(end);
+}
+std::vector<Track> arcsOfNet(const Project& p, int net) {
+    std::vector<Track> out;
+    for (const auto& t : p.pcb.tracks)
+        if (t.arc && t.net == net) out.push_back(t);
+    return out;
+}
+/// Straight tracks of `net` with an end at `e`; each must leave `e` tangentially to direction `d` (into the arc).
+int tangentStraightsAt(const Project& p, int net, Vec2 e, Vec2 d, bool& tangent) {
+    int joined = 0;
+    for (const auto& t : p.pcb.tracks) {
+        if (t.arc || t.net != net) continue;
+        const bool atA = (t.a - e).length() < 1e-6, atB = (t.b - e).length() < 1e-6;
+        if (!atA && !atB) continue;
+        ++joined;
+        const Vec2 u = (atA ? t.b - e : t.a - e) * (1.0 / trackLength(t));
+        tangent = tangent && std::fabs(u.x * d.y - u.y * d.x) < 1e-6 && u.x * d.x + u.y * d.y < 0;
+    }
+    return joined;
+}
+
+/// Net B leaves pad 2 of R3 (or, with `onVia`, a via fed by a locked bottom track) at `pin` along +x on a 4 mm arc
+/// about pin + (0, 4) to pin + (4, 4), then straight down to y = 22 and on to R4. Net A's route from R1 runs left
+/// along y = 13 to (16.1, 13) and 45° along x − y = 3.1: 0.33 mm from the arc's bulge, well clear of the pad / via.
+struct PinnedArcBoard {
+    Project p;
+    int netA = -1, netB = -1;
+    int r1 = -1, r2 = -1, r3 = -1;
+    Vec2 pin;
+    Track arc, locked;
+    std::vector<Via> vias;
+};
+PinnedArcBoard pinnedArcBoard(bool onVia) {
+    PinnedArcBoard b;
+    auto& s = b.p.schematic;
+    b.p.pcb.settings.width = 40;
+    b.p.pcb.settings.height = 30;
+    b.r1 = placeR(b.p, {30, 13});
+    b.r2 = placeR(b.p, {4, 5});
+    b.r3 = placeR(b.p, onVia ? Vec2{4, 10} : Vec2{10, 10});
+    const int r4 = placeR(b.p, {20, 22});
+    wire(s, b.r1, "1", b.r2, "2");
+    wire(s, b.r3, "2", r4, "1");
+    b.p.schematicChanged();
+    b.netA = s.netOf({b.r1, 0});
+    b.netB = s.netOf({b.r3, 1});
+    if (onVia) {
+        b.pin = {10.95, 10};
+        Via v;
+        v.net = b.netB;
+        v.position = {6.5, 10};
+        b.p.pcb.addVia(v);
+        v.position = b.pin;
+        b.p.pcb.addVia(v);
+        b.vias = b.p.pcb.vias;
+        addPath(b.p.pcb, b.netB, 0, 0.25, {padAt(b.p, b.r3, 1), {6.5, 10}});
+        addPath(b.p.pcb, b.netB, 1, 0.25, {{6.5, 10}, b.pin}, true);
+        b.locked = b.p.pcb.tracks.back();
+    } else {
+        b.pin = padAt(b.p, b.r3, 1);
+    }
+    b.p.pcb.addTrack(arcTrackOf(b.netB, b.pin + Vec2{0, 4}, 4, -90, 0));
+    b.arc = b.p.pcb.tracks.back();
+    addPath(b.p.pcb, b.netB, 0, 0.25, {b.pin + Vec2{4, 4}, {b.pin.x + 4, 22}, padAt(b.p, r4, 0)});
+    return b;
+}
+RoutePreview routePastPinnedArc(PinnedArcBoard& b, InteractiveRouter& r) {
+    return routeTwoLegs(b.p, r, b.r1, {16.1, 13}, {8.1, 5});
+}
+/// The pinned board's arc after a shove: one arc of B, still starting at the pin along +x, with another radius.
+void checkPinnedArcShoved(const PinnedArcBoard& b) {
+    const auto arcs = arcsOfNet(b.p, b.netB);
+    CHECK(arcs.size() == 1);
+    if (arcs.size() != 1) return;
+    const Track& a = arcs[0];
+    const bool atA = (a.a - b.pin).length() < 1e-9, atB = (a.b - b.pin).length() < 1e-9;
+    CHECK(atA || atB);
+    const Vec2 d = trackEndDirection(a, atB);
+    CHECK(std::fabs(d.x - 1) < 1e-6 && std::fabs(d.y) < 1e-6);  // the same direction out of the pin
+    CHECK(std::fabs(trackArc(a).r - 4) > 1e-3);
+    // Its other end still runs on into one straight track of B (tangentially).
+    bool tangent = true;
+    CHECK(tangentStraightsAt(b.p, b.netB, atA ? a.b : a.a, trackEndDirection(a, atA), tangent) == 1);
+    CHECK(tangent);
+}
+}  // namespace
+
+TEST(router_shoves_an_s_curve) {
+    // A route over the first bulge of an S-curve shoves the two arcs as a unit: still two arcs of B, tangent at their
+    // join, each outer end still joined (tangentially) to one straight track; one radius grew and the other shrank.
+    // Both nets stay connected; the gap keeps the clearance; the board is DRC and acute-angle clean.
+    SCurveBoard b = sCurveBoard(false);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(netRouted(b.p, b.netB));
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    const RoutePreview pv = routeTwoLegs(b.p, r, b.r1, {19.8, 12.5}, {13.3, 6});
+    CHECK(!pv.blocked);
+    int shovedArcs = 0;
+    for (const auto& t : pv.shovedTracks) shovedArcs += t.arc && t.net == b.netB ? 1 : 0;
+    CHECK(shovedArcs == 2);
+    CHECK(r.fixHead());
+    CHECK(r.moveTo(padAt(b.p, b.r2, 1)).reachedTarget);
+    CHECK(r.commit().ok);
+    const auto arcs = arcsOfNet(b.p, b.netB);
+    CHECK(arcs.size() == 2);
+    if (arcs.size() == 2) {
+        for (const auto& a : arcs) CHECK(a.id != b.arc1.id && a.id != b.arc2.id && trackArc(a).valid);
+        // The join: one end of each, the same point, tangent.
+        int joins = 0;
+        bool tangentJoin = true;
+        Vec2 outer[2];
+        bool outerAtB[2] = {false, false};
+        for (int i = 0; i < 2; ++i)
+            for (int j = 0; j < 2; ++j) {
+                const Vec2 e0 = i ? arcs[0].b : arcs[0].a, e1 = j ? arcs[1].b : arcs[1].a;
+                if ((e0 - e1).length() > 1e-6) continue;
+                ++joins;
+                const Vec2 d0 = trackEndDirection(arcs[0], i == 1), d1 = trackEndDirection(arcs[1], j == 1);
+                tangentJoin = tangentJoin && std::fabs(d0.x * d1.y - d0.y * d1.x) < 1e-6 && d0.x * d1.x + d0.y * d1.y < 0;
+                outer[0] = i ? arcs[0].a : arcs[0].b;
+                outerAtB[0] = i == 0;
+                outer[1] = j ? arcs[1].a : arcs[1].b;
+                outerAtB[1] = j == 0;
+            }
+        CHECK(joins == 1 && tangentJoin);
+        if (joins == 1)
+            for (int k = 0; k < 2; ++k) {
+                bool tangent = true;
+                CHECK(tangentStraightsAt(b.p, b.netB, outer[k], trackEndDirection(arcs[static_cast<size_t>(k)], outerAtB[k]),
+                                         tangent) == 1);
+                CHECK(tangent);
+            }
+        const double ra = trackArc(arcs[0]).r, rb = trackArc(arcs[1]).r;
+        CHECK(std::max(ra, rb) > 2 + 1e-3 && std::min(ra, rb) < 2 - 1e-3);
+    }
+    CHECK(netGap(b.p, b.netA, b.netB) >= b.p.pcb.settings.clearance - 1e-6);
+    CHECK(netRouted(b.p, b.netA));
+    CHECK(netRouted(b.p, b.netB));
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+}
+
+TEST(router_shoves_an_arc_pinned_on_a_pad) {
+    // The arc starts on a pad: the pad end stays (the same point and direction), the radius changes and the far end
+    // stays tangent to its straight track; the pad is not moved; clearance kept, DRC clean, both nets connected.
+    PinnedArcBoard b = pinnedArcBoard(false);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(netRouted(b.p, b.netB));
+    const Vec2 padBefore = padAt(b.p, b.r3, 1);
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    const RoutePreview pv = routePastPinnedArc(b, r);
+    CHECK(!pv.blocked);
+    bool arcShoved = false;
+    for (const auto& t : pv.shovedTracks) arcShoved = arcShoved || (t.arc && t.net == b.netB);
+    CHECK(arcShoved);
+    CHECK(r.fixHead());
+    CHECK(r.moveTo(padAt(b.p, b.r2, 1)).reachedTarget);
+    CHECK(r.commit().ok);
+    CHECK(padAt(b.p, b.r3, 1) == padBefore);
+    checkPinnedArcShoved(b);
+    CHECK(netGap(b.p, b.netA, b.netB) >= b.p.pcb.settings.clearance - 1e-6);
+    CHECK(netRouted(b.p, b.netA));
+    CHECK(netRouted(b.p, b.netB));
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+}
+
+TEST(router_shoves_an_arc_pinned_on_a_held_via) {
+    // The arc starts on a via held by a locked bottom track: the via and the locked track stay exactly; the arc
+    // keeps starting on the via (same point and direction) and moves clear; DRC clean, both nets connected.
+    PinnedArcBoard b = pinnedArcBoard(true);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(netRouted(b.p, b.netB));
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    const RoutePreview pv = routePastPinnedArc(b, r);
+    CHECK(!pv.blocked);
+    CHECK(pv.shovedVias.empty());
+    CHECK(r.fixHead());
+    CHECK(r.moveTo(padAt(b.p, b.r2, 1)).reachedTarget);
+    CHECK(r.commit().ok);
+    CHECK(b.p.pcb.vias.size() == b.vias.size());
+    for (size_t i = 0; i < b.vias.size() && i < b.p.pcb.vias.size(); ++i)
+        CHECK(b.p.pcb.vias[i].id == b.vias[i].id && b.p.pcb.vias[i].position == b.vias[i].position);
+    bool lockedKept = false;
+    for (const auto& t : b.p.pcb.tracks)
+        lockedKept = lockedKept || (t.id == b.locked.id && t.locked && t.a == b.locked.a && t.b == b.locked.b);
+    CHECK(lockedKept);
+    checkPinnedArcShoved(b);
+    CHECK(netGap(b.p, b.netA, b.netB) >= b.p.pcb.settings.clearance - 1e-6);
+    CHECK(netRouted(b.p, b.netA));
+    CHECK(netRouted(b.p, b.netB));
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+}
+
+TEST(router_does_not_shove_a_locked_s_curve) {
+    // The same route with the S-curve locked: both arcs stay bit for bit, the shove reports the locked track, and
+    // the head walks around or stops short, clear of it; the board stays DRC clean.
+    SCurveBoard b = sCurveBoard(true);
+    CHECK(routingProblems(b.p) == 0);
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    const RoutePreview pv = routeTwoLegs(b.p, r, b.r1, {19.8, 12.5}, {13.3, 6});
+    CHECK(pv.status.find("locked track") != std::string::npos);
+    for (int id : {b.arc1.id, b.arc2.id})
+        CHECK(std::find(pv.hiddenTracks.begin(), pv.hiddenTracks.end(), id) == pv.hiddenTracks.end());
+    for (const auto& t : pv.shovedTracks) CHECK(!t.arc);
+    CHECK(r.commit().ok);
+    int kept = 0;
+    for (const auto& t : b.p.pcb.tracks)
+        for (const Track* o : {&b.arc1, &b.arc2})
+            kept += t.id == o->id && t.arc && t.locked && t.a == o->a && t.b == o->b && t.mid == o->mid ? 1 : 0;
+    CHECK(kept == 2);
+    CHECK(netGap(b.p, b.netA, b.netB) >= b.p.pcb.settings.clearance - 1e-6);
+    CHECK(routingProblems(b.p) == 0);
+}
+
+TEST(router_straight_shove_unchanged_by_an_s_curve) {
+    // Regression guard: an S-curve (two tangent arcs) elsewhere on the board leaves the straight-only shove of the
+    // lane board exactly as it is without it (the same preview, the same copper), and both arcs stay bit for bit.
+    std::string d1, d2;
+    LaneBoard a = laneBoard(), b = laneBoard();
+    b.p.pcb.addTrack(arcTrackOf(b.lane[2], {33, 36}, 1.5, -90, 0));
+    const Track s1 = b.p.pcb.tracks.back();
+    b.p.pcb.addTrack(arcTrackOf(b.lane[2], {36, 36}, 1.5, 180, 90));
+    const Track s2 = b.p.pcb.tracks.back();
+    const RouteChanges ca = routeAlongLanes(a, &d1), cb = routeAlongLanes(b, &d2);
+    CHECK(ca.ok && cb.ok);
+    CHECK(!d1.empty() && d1 == d2);
+    CHECK(ca.removedTracks.size() == cb.removedTracks.size() && ca.addedTracks.size() == cb.addedTracks.size());
+    CHECK(a.p.pcb.tracks.size() + 2 == b.p.pcb.tracks.size());
+    bool same = a.p.pcb.tracks.size() + 2 == b.p.pcb.tracks.size();
+    int arcsKept = 0;
+    size_t j = 0;
+    for (const auto& t : b.p.pcb.tracks) {
+        if (t.id == s1.id || t.id == s2.id) {
+            const Track& o = t.id == s1.id ? s1 : s2;
+            arcsKept += t.arc && t.a == o.a && t.b == o.b && t.mid == o.mid ? 1 : 0;
+            continue;
+        }
+        if (j >= a.p.pcb.tracks.size()) {
+            same = false;
+            break;
+        }
+        const Track& u = a.p.pcb.tracks[j++];
+        same = same && !t.arc && !u.arc && t.a == u.a && t.b == u.b && t.net == u.net && t.layer == u.layer &&
+               t.width == u.width;
+    }
+    CHECK(same && arcsKept == 2);
+    CHECK(routingProblems(a.p) == 0);
 }
 
 // ======================================================================= length tuning parity (interactive routing 10/10)
@@ -15234,6 +15695,326 @@ TEST(c_api_update_pcb) {
     const int rc = sieda_c_api_update_pcb_test();
     if (rc != 0) std::printf("    C API Update PCB test failed at step %d\n", rc);
     CHECK(rc == 0);
+}
+
+// ---- interactive placement after update PCB
+
+namespace {
+/// Two resistors on the board at known spots (R1 at 10,10 and R2 at 20,10 on an 80 × 60 board), then a capacitor
+/// on R1 and a third resistor on R2 drawn in the schematic and not yet on the board.
+struct PlacementFixture {
+    Project p;
+    int r1 = -1, r2 = -1, c1 = -1, r3 = -1;
+    PlacementFixture() {
+        Schematic& s = p.schematic;
+        r1 = s.addComponent(ComponentKind::Resistor, "1k", {0, 0});
+        r2 = s.addComponent(ComponentKind::Resistor, "2k", {100, 0});
+        s.connect({r1, 1}, {r2, 0});
+        p.schematicChanged();
+        p.applyPcbEco({});
+        p.pcb.settings.width = 80;
+        p.pcb.settings.height = 60;
+        p.placeComponent(r1, {10, 10}, 0, false, 0.25, true);
+        p.placeComponent(r2, {20, 10}, 0, false, 0.25, true);
+        c1 = s.addComponent(ComponentKind::Capacitor, "100n", {0, 100});
+        r3 = s.addComponent(ComponentKind::Resistor, "10k", {200, 0});
+        s.connect({r1, 0}, {c1, 0});
+        s.connect({r2, 1}, {r3, 0});
+        p.schematicChanged();
+    }
+};
+
+std::vector<Pad> padsOf(const Project& p, int id) {
+    std::vector<Pad> out;
+    for (const Pad& pad : p.pcb.pads(p.schematic))
+        if (pad.componentId == id) out.push_back(pad);
+    return out;
+}
+
+bool hasIssue(const PlacementCheck& c, const std::string& code, int other = -1) {
+    return std::any_of(c.issues.begin(), c.issues.end(),
+                       [&](const PlacementIssue& i) { return i.code == code && (other < 0 || i.other == other); });
+}
+}  // namespace
+
+TEST(interactive_placement_queue_lists_only_new_parts) {
+    PlacementFixture f;
+    std::vector<std::string> report;
+    std::vector<int> queue = {12345};  // cleared by the call
+    CHECK(f.p.applyPcbEco({}, &report, &queue) > 0);
+    // Exactly the two new parts, by designator (C1 before R3); R1 / R2 were on the board already.
+    CHECK(queue.size() == 2);
+    CHECK(queue.size() == 2 && queue[0] == f.c1 && queue[1] == f.r3);
+    CHECK(std::find(queue.begin(), queue.end(), f.r1) == queue.end());
+    CHECK(std::find(queue.begin(), queue.end(), f.r2) == queue.end());
+    // They already stand where Auto Place put them (skipping keeps that), and the board is in step.
+    CHECK(f.p.schematic.find(f.c1)->pcb.placed && f.p.schematic.find(f.r3)->pcb.placed);
+    CHECK(f.p.pcbEcoPreview().empty());
+    // A second update has nothing new to place; an update that adds no part queues nothing.
+    CHECK(f.p.applyPcbEco({}, nullptr, &queue) == 0 && queue.empty());
+    // Only the chosen additions are queued.
+    PlacementFixture g;
+    CHECK(g.p.applyPcbEco({"component:" + std::to_string(g.r3)}, nullptr, &queue) == 1);
+    CHECK(queue.size() == 1 && queue[0] == g.r3 && !g.p.schematic.find(g.c1)->pcb.placed);
+    // The C API reports the queue with designators.
+    SiedaProject* cp = sieda_project_new("Placement queue");
+    const int32_t a = sieda_add_component(cp, 0, "1k", 0, 0, 0, nullptr);
+    char* out = sieda_apply_pcb_eco(cp, nullptr);
+    CHECK(out && std::string(out).find("\"placementQueue\":[{") != std::string::npos);
+    CHECK(out && std::string(out).find("\"id\":" + std::to_string(a)) != std::string::npos);
+    sieda_string_free(out);
+    out = sieda_apply_pcb_eco(cp, nullptr);
+    CHECK(out && std::string(out).find("\"placementQueue\":[]") != std::string::npos);
+    sieda_string_free(out);
+    sieda_project_free(cp);
+}
+
+TEST(interactive_placement_snaps_moves_pads_and_ratsnest) {
+    PlacementFixture f;
+    std::vector<int> queue;
+    f.p.applyPcbEco({}, nullptr, &queue);
+    f.p.placeComponent(f.r3, {70, 10}, 0, false, 0.25, true);  // out of the way
+    const Component before = *f.p.schematic.find(f.c1);
+    const auto padsBefore = padsOf(f.p, f.c1);
+    const auto ratsBefore = f.p.pcb.ratsnest(f.p.schematic);
+    CHECK(!padsBefore.empty());
+    // The cursor at (60.1, 45.13) snaps to the 0.25 mm grid: (60, 45.25).
+    const PlacementCheck c =
+        f.p.placeComponent(f.c1, {60.1, 45.13}, before.pcb.rotation, before.pcb.bottom, 0.25);
+    CHECK(c.legal && c.committed && c.issues.empty());
+    CHECK(std::abs(c.position.x - 60.0) < 1e-9 && std::abs(c.position.y - 45.25) < 1e-9);
+    const Component& after = *f.p.schematic.find(f.c1);
+    CHECK(after.pcb.position == c.position && after.pcb.placed);
+    // Its pads move with it.
+    const Vec2 delta = c.position - before.pcb.position;
+    const auto padsAfter = padsOf(f.p, f.c1);
+    CHECK(padsAfter.size() == padsBefore.size());
+    for (size_t i = 0; i < padsAfter.size() && i < padsBefore.size(); ++i)
+        CHECK((padsAfter[i].position - (padsBefore[i].position + delta)).length() < 1e-9);
+    // The check's pads are the pads the board now has.
+    CHECK(c.pads.size() == padsAfter.size());
+    for (size_t i = 0; i < c.pads.size() && i < padsAfter.size(); ++i)
+        CHECK((c.pads[i].position - padsAfter[i].position).length() < 1e-9 && c.pads[i].net == padsAfter[i].net);
+    // The ratsnest follows: a line now ends on a pad of C1 at its new place, none at the old one.
+    const auto rats = f.p.pcb.ratsnest(f.p.schematic);
+    CHECK(rats.size() == ratsBefore.size());
+    auto endsAt = [&](const std::vector<std::pair<Vec2, Vec2>>& lines, Vec2 at) {
+        return std::any_of(lines.begin(), lines.end(), [&](const auto& l) {
+            return (l.first - at).length() < 1e-6 || (l.second - at).length() < 1e-6;
+        });
+    };
+    bool newEnd = false, oldEnd = false;
+    for (const Pad& pad : padsAfter) newEnd |= endsAt(rats, pad.position);
+    for (const Pad& pad : padsBefore) oldEnd |= endsAt(rats, pad.position);
+    CHECK(newEnd && !oldEnd);
+    // Rotation (a quarter turn, rounded) and side: the courtyard turns, the pads go to the bottom layer.
+    const Rect upright = f.p.checkPlacement(f.c1, {60, 45.25}, 0, false, 0.25).courtyard;
+    const PlacementCheck turned = f.p.placeComponent(f.c1, {60, 45.25}, 85, true, 0.25);
+    CHECK(turned.committed && turned.rotation == 90 && turned.bottom);
+    CHECK(std::abs(turned.courtyard.width() - upright.height()) < 1e-9);
+    CHECK(f.p.schematic.find(f.c1)->pcb.rotation == 90 && f.p.schematic.find(f.c1)->pcb.bottom);
+    for (const Pad& pad : padsOf(f.p, f.c1)) CHECK(pad.throughHole || pad.smdLayer == f.p.pcb.settings.bottomLayer());
+    // No grid: the exact point.
+    const PlacementCheck exact = f.p.checkPlacement(f.c1, {60.1, 45.13}, 0, false, 0);
+    CHECK(exact.position == Vec2(60.1, 45.13));
+}
+
+TEST(interactive_placement_illegal_poses_are_reported_not_committed) {
+    PlacementFixture f;
+    f.p.applyPcbEco({});
+    f.p.placeComponent(f.c1, {60, 45}, 0, false, 0.25, true);
+    f.p.placeComponent(f.r3, {70, 10}, 0, false, 0.25, true);
+    const Vec2 home = f.p.schematic.find(f.r3)->pcb.position;
+    const std::string saved = f.p.toJson().dump();
+    // Onto R1's courtyard: illegal, R1 named, nothing moves.
+    PlacementCheck c = f.p.placeComponent(f.r3, {10, 10}, 0, false, 0.25);
+    CHECK(!c.legal && !c.committed && hasIssue(c, "PLACE_OVERLAP", f.r1));
+    CHECK(f.p.schematic.find(f.r3)->pcb.position == home);
+    // The same spot on the other side is legal (courtyards collide only on one side).
+    CHECK(f.p.checkPlacement(f.r3, {10, 10}, 0, true, 0.25).legal);
+    // Outside the outline: illegal, not committed.
+    c = f.p.placeComponent(f.r3, {-20, -20}, 0, false, 0.25);
+    CHECK(!c.legal && !c.committed && hasIssue(c, "PLACE_OUTSIDE"));
+    c = f.p.placeComponent(f.r3, {79.9, 30}, 0, false, 0.25);  // straddling the edge
+    CHECK(!c.legal && !c.committed && hasIssue(c, "PLACE_OUTSIDE"));
+    // A mounting hole's keep-out.
+    f.p.pcb.settings.holes.push_back(MountingHole{{40, 50}, 3.2, 6.4});
+    c = f.p.checkPlacement(f.r3, {40, 50}, 0, false, 0.25);
+    CHECK(!c.legal && hasIssue(c, "PLACE_HOLE"));
+    f.p.pcb.settings.holes.clear();
+    CHECK(f.p.toJson().dump() == saved);  // nothing was committed
+    // A routing keep-out over its pads is a warning: legal, committed, and reported.
+    RouteKeepout k;
+    k.name = "RF";
+    k.area = Rect(35, 25, 45, 35);
+    f.p.pcb.settings.keepouts.push_back(k);
+    c = f.p.placeComponent(f.r3, {40, 30}, 0, false, 0.25);
+    CHECK(c.legal && c.committed && hasIssue(c, "PLACE_KEEPOUT"));
+    f.p.pcb.settings.keepouts.clear();
+    // Forced: committed with the violation flagged (legal stays false); the DRC reports it too.
+    c = f.p.placeComponent(f.r3, {10, 10}, 0, false, 0.25, true);
+    CHECK(c.committed && !c.legal && hasIssue(c, "PLACE_OVERLAP", f.r1));
+    const auto drc = f.p.pcb.runDRC(f.p.schematic);
+    CHECK(std::any_of(drc.begin(), drc.end(), [](const RuleViolation& v) { return v.code == "DRC_COURTYARD_OVERLAP"; }));
+    // A locked part never moves, even forced.
+    f.p.schematic.find(f.r3)->pcb.locked = true;
+    c = f.p.placeComponent(f.r3, {70, 10}, 0, false, 0.25, true);
+    CHECK(!c.committed && hasIssue(c, "PLACE_LOCKED"));
+    // Unknown parts.
+    CHECK(f.p.checkPlacement(987654, {1, 1}, 0, false, 0.25).component < 0);
+    CHECK(f.p.placeComponent(987654, {1, 1}, 0, false, 0.25).component < 0);
+}
+
+TEST(interactive_placement_suggests_a_free_spot_near_connections) {
+    PlacementFixture f;
+    f.p.applyPcbEco({});
+    f.p.placeComponent(f.c1, {60, 45}, 0, false, 0.25, true);
+    f.p.placeComponent(f.r3, {70, 50}, 0, false, 0.25, true);  // far from R2, which it connects to
+    const std::string saved = f.p.toJson().dump();
+    const PlacementCheck s = f.p.suggestPlacement(f.r3, 0.25);
+    CHECK(s.component == f.r3 && s.legal && s.issues.empty());
+    CHECK(f.p.toJson().dump() == saved);  // a suggestion changes nothing
+    // Near R2 (its connection), much nearer than where it stands.
+    const Vec2 r2 = f.p.schematic.find(f.r2)->pcb.position;
+    CHECK((s.position - r2).length() < 12);
+    // On the grid and clear of every other courtyard.
+    CHECK(std::abs(s.position.x / 0.25 - std::round(s.position.x / 0.25)) < 1e-6);
+    CHECK(std::abs(s.position.y / 0.25 - std::round(s.position.y / 0.25)) < 1e-6);
+    for (const auto& o : f.p.schematic.components())
+        if (o.id != f.r3 && o.hasFootprint() && o.pcb.placed) CHECK(!f.p.pcb.courtyard(o).intersects(s.courtyard));
+    // Placing at the suggestion is legal and commits.
+    CHECK(f.p.placeComponent(f.r3, s.position, s.rotation, s.bottom, 0.25).committed);
+    // The C API gives the same spot.
+    SiedaProject* cp = sieda_project_new("Suggest");
+    const int32_t a = sieda_add_component(cp, 0, "1k", 0, 0, 0, nullptr);
+    sieda_string_free(sieda_apply_pcb_eco(cp, nullptr));
+    char* sug = sieda_pcb_suggest_placement(cp, a, 0.25);
+    CHECK(sug && std::string(sug).find("\"legal\":true") != std::string::npos);
+    sieda_string_free(sug);
+    char* chk = sieda_pcb_check_placement(cp, a, -100, -100, 0, 0, 0.25);
+    CHECK(chk && std::string(chk).find("PLACE_OUTSIDE") != std::string::npos);
+    sieda_string_free(chk);
+    char* put = sieda_pcb_place_footprint(cp, a, -100, -100, 0, 0, 0.25, 0);
+    CHECK(put && std::string(put).find("\"committed\":false") != std::string::npos);
+    sieda_string_free(put);
+    CHECK(sieda_pcb_check_placement(cp, 987654, 0, 0, 0, 0, 0.25) == nullptr);
+    sieda_project_free(cp);
+}
+
+TEST(interactive_placement_leaves_project_files_unchanged) {
+    // A project that never used the feature saves exactly as before, and placing writes no new fields.
+    PlacementFixture f;
+    const std::string before = f.p.toJson().dump();
+    CHECK(Project::fromJson(Json::parse(before)).toJson().dump() == before);
+    std::vector<int> queue;
+    f.p.applyPcbEco({}, nullptr, &queue);
+    f.p.checkPlacement(f.c1, {60, 45}, 0, false, 0.25);
+    f.p.suggestPlacement(f.c1, 0.25);
+    const std::string afterEco = f.p.toJson().dump();
+    f.p.placeComponent(f.c1, {60, 45}, 0, false, 0.25);
+    const std::string placed = f.p.toJson().dump();
+    for (const char* key : {"placementQueue", "placement\"", "suggest"}) {
+        CHECK(afterEco.find(key) == std::string::npos);
+        CHECK(placed.find(key) == std::string::npos);
+    }
+    CHECK(Project::fromJson(Json::parse(placed)).toJson().dump() == placed);
+    // Without the queue argument the update behaves as before (both new parts auto-placed).
+    PlacementFixture g;
+    CHECK(g.p.applyPcbEco({}) > 0);
+    CHECK(g.p.schematic.find(g.c1)->pcb.placed && g.p.schematic.find(g.r3)->pcb.placed);
+}
+
+// ---- placement ignores queued parts
+
+TEST(placement_ignore_lets_a_part_take_a_queued_parts_spot) {
+    PlacementFixture f;
+    std::vector<int> queue;
+    f.p.applyPcbEco({}, nullptr, &queue);
+    CHECK(queue.size() == 2);
+    // R3 still waits in the queue at its "automatic" spot (pinned here so the test does not depend on Auto Place).
+    f.p.placeComponent(f.r3, {40, 30}, 0, false, 0.25, true);
+    f.p.placeComponent(f.c1, {60, 45}, 0, false, 0.25, true);
+    const Vec2 home = f.p.schematic.find(f.c1)->pcb.position;
+    // By default (no ignore list) R3 is an obstacle, as before: refused, nothing moves.
+    PlacementCheck c = f.p.checkPlacement(f.c1, {40, 30}, 0, false, 0.25);
+    CHECK(!c.legal && hasIssue(c, "PLACE_OVERLAP", f.r3));
+    c = f.p.placeComponent(f.c1, {40, 30}, 0, false, 0.25);
+    CHECK(!c.committed && f.p.schematic.find(f.c1)->pcb.position == home);
+    // With R3 in the ignore list the spot is legal and C1 goes there without forcing.
+    const std::vector<int> ignore = {f.r3};
+    c = f.p.checkPlacement(f.c1, {40, 30}, 0, false, 0.25, ignore);
+    CHECK(c.legal && !hasIssue(c, "PLACE_OVERLAP"));
+    c = f.p.placeComponent(f.c1, {40, 30}, 0, false, 0.25, false, ignore);
+    CHECK(c.committed && c.legal);
+    CHECK(f.p.schematic.find(f.c1)->pcb.position == Vec2(40, 30));
+    // Ignoring R3 ignores nothing else: R1 still blocks, as does the outline.
+    c = f.p.checkPlacement(f.c1, {10, 10}, 0, false, 0.25, ignore);
+    CHECK(!c.legal && hasIssue(c, "PLACE_OVERLAP", f.r1));
+    CHECK(!f.p.checkPlacement(f.c1, {-20, -20}, 0, false, 0.25, ignore).legal);
+    // Duplicates, unknown ids and the part itself in the list change nothing.
+    const std::vector<int> messy = {f.r3, 987654, f.r3, f.c1};
+    CHECK(f.p.checkPlacement(f.c1, {40, 30}, 0, false, 0.25, messy).legal);
+    CHECK(!f.p.checkPlacement(f.c1, {10, 10}, 0, false, 0.25, messy).legal);
+}
+
+TEST(placement_ignore_suggestion_may_overlap_queued_never_placed) {
+    PlacementFixture f;
+    f.p.applyPcbEco({});
+    f.p.placeComponent(f.c1, {70, 50}, 0, false, 0.25, true);  // out of the way
+    f.p.placeComponent(f.r3, {70, 10}, 0, false, 0.25, true);
+    // Where R3 would go next to R2 with nothing in the way...
+    const PlacementCheck free = f.p.suggestPlacement(f.r3, 0.25);
+    CHECK(free.legal);
+    // ...is where C1 (still queued) now stands.
+    f.p.placeComponent(f.c1, free.position, 0, false, 0.25, true);
+    const Rect c1Box = f.p.pcb.courtyard(*f.p.schematic.find(f.c1));
+    // Without the ignore list (as before) the suggestion avoids C1.
+    const PlacementCheck avoid = f.p.suggestPlacement(f.r3, 0.25);
+    CHECK(avoid.legal && !avoid.courtyard.intersects(c1Box));
+    // With C1 ignored it is the free spot again, overlapping C1...
+    const std::vector<int> ignore = {f.c1};
+    const PlacementCheck over = f.p.suggestPlacement(f.r3, 0.25, ignore);
+    CHECK(over.legal && over.issues.empty());
+    CHECK(over.position == free.position && over.courtyard.intersects(c1Box));
+    // ...but never a placed part's courtyard.
+    for (const auto& o : f.p.schematic.components())
+        if (o.id != f.r3 && o.id != f.c1 && o.hasFootprint() && o.pcb.placed)
+            CHECK(!f.p.pcb.courtyard(o).intersects(over.courtyard));
+}
+
+TEST(placement_ignore_c_api_round_trip) {
+    SiedaProject* cp = sieda_project_new("Ignore queue");
+    const int32_t a = sieda_add_component(cp, 0, "1k", 0, 0, 0, nullptr);
+    const int32_t b = sieda_add_component(cp, 0, "2k", 100, 0, 0, nullptr);
+    sieda_string_free(sieda_apply_pcb_eco(cp, nullptr));
+    sieda_string_free(sieda_pcb_place_footprint(cp, a, 10, 10, 0, 0, 0.25, 1));
+    sieda_string_free(sieda_pcb_place_footprint(cp, b, 30, 20, 0, 0, 0.25, 1));
+    auto has = [](char* out, const std::string& text) {
+        const bool found = out && std::string(out).find(text) != std::string::npos;
+        sieda_string_free(out);
+        return found;
+    };
+    const std::string ignoreB = "{\"ignore\":[" + std::to_string(b) + "]}";
+    // The old calls and NULL / empty / key-less options: B blocks.
+    CHECK(has(sieda_pcb_check_placement(cp, a, 30, 20, 0, 0, 0.25), "PLACE_OVERLAP"));
+    CHECK(has(sieda_pcb_check_placement_with(cp, a, 30, 20, 0, 0, 0.25, nullptr), "PLACE_OVERLAP"));
+    CHECK(has(sieda_pcb_check_placement_with(cp, a, 30, 20, 0, 0, 0.25, ""), "PLACE_OVERLAP"));
+    CHECK(has(sieda_pcb_check_placement_with(cp, a, 30, 20, 0, 0, 0.25, "{}"), "PLACE_OVERLAP"));
+    CHECK(has(sieda_pcb_place_footprint(cp, a, 30, 20, 0, 0, 0.25, 0), "\"committed\":false"));
+    // "ignore":[B]: legal, and placing commits without force.
+    CHECK(has(sieda_pcb_check_placement_with(cp, a, 30, 20, 0, 0, 0.25, ignoreB.c_str()), "\"legal\":true"));
+    CHECK(has(sieda_pcb_suggest_placement_with(cp, a, 0.25, ignoreB.c_str()), "\"legal\":true"));
+    CHECK(has(sieda_pcb_place_footprint_with(cp, a, 30, 20, 0, 0, 0.25, 0, ignoreB.c_str()), "\"committed\":true"));
+    // Now A stands on B: B is blocked by A unless A is ignored.
+    const std::string ignoreA = "{\"ignore\":[" + std::to_string(a) + "]}";
+    CHECK(has(sieda_pcb_check_placement(cp, b, 30, 20, 0, 0, 0.25), "PLACE_OVERLAP"));
+    CHECK(has(sieda_pcb_check_placement_with(cp, b, 30, 20, 0, 0, 0.25, ignoreA.c_str()), "\"legal\":true"));
+    // Invalid options give NULL.
+    CHECK(sieda_pcb_check_placement_with(cp, a, 30, 20, 0, 0, 0.25, "{nope") == nullptr);
+    CHECK(sieda_pcb_place_footprint_with(cp, a, 10, 10, 0, 0, 0.25, 0, "[") == nullptr);
+    CHECK(sieda_pcb_suggest_placement_with(cp, a, 0.25, "{\"ignore\":") == nullptr);
+    CHECK(sieda_pcb_check_placement_with(nullptr, a, 0, 0, 0, 0, 0.25, ignoreB.c_str()) == nullptr);
+    sieda_project_free(cp);
 }
 
 // ======================================================================= symbol graphics, drawn sheet symbols
@@ -16398,6 +17179,234 @@ TEST(autoroute_fanout_only_and_fast) {
     for (const auto& e : routeDrcErrors(p)) std::printf("    %s\n", e.c_str());
 }
 
+// ---- autoroute pin swap
+
+namespace {
+/// Two 74HC00 packages side by side (only gate A of each placed). R1 drives U1's gate A but sits by U2; R2 drives
+/// U2's gate A but sits by U1: swapping the gates (U1A ↔ U2A) shortens both connections.
+struct CrossedGates {
+    Project p;
+    int u1a = -1, u2a = -1, pkg1 = -1, pkg2 = -1, r1 = -1, r2 = -1;
+};
+CrossedGates crossedGatesBoard() {
+    CrossedGates b;
+    const auto part = CustomPartRegistry::instance().registerPart(quadNandSpec());
+    Schematic& s = b.p.schematic;
+    b.p.pcb.settings.width = 60;
+    b.p.pcb.settings.height = 40;
+    b.u1a = s.addCustomUnits(part->id, "74HC00", {0, 0});
+    b.u2a = s.addCustomUnits(part->id, "74HC00", {300, 0});
+    b.pkg1 = s.unitPackage(b.u1a);
+    b.pkg2 = s.unitPackage(b.u2a);
+    CHECK(b.u1a > 0 && b.u2a > 0 && b.pkg1 > 0 && b.pkg2 > 0 && b.pkg1 != b.pkg2);
+    b.r1 = s.addComponent(ComponentKind::Resistor, "1k", {-200, 0});
+    b.r2 = s.addComponent(ComponentKind::Resistor, "1k", {500, 0});
+    CHECK(s.connect({b.r1, 1}, {b.u1a, 0}) >= 0 && s.connect({b.r2, 1}, {b.u2a, 0}) >= 0);
+    b.p.schematicChanged();
+    s.find(b.pkg1)->pcb = PcbPlacement{{15, 20}, 0, false, true};
+    s.find(b.pkg2)->pcb = PcbPlacement{{45, 20}, 0, false, true};
+    s.find(b.r1)->pcb = PcbPlacement{{45, 32}, 0, false, true};
+    s.find(b.r2)->pcb = PcbPlacement{{15, 32}, 0, false, true};
+    b.p.pcbSync = b.p.currentSync();
+    return b;
+}
+
+/// Net of the pad (package, part pin) on the board (-2 when there is no such pad).
+int padNet(const Project& p, int pkg, int pin) {
+    for (const auto& pad : p.pcb.pads(p.schematic))
+        if (pad.componentId == pkg && pad.pinIndex == pin) return pad.net;
+    return -2;
+}
+
+bool sameCopper(const Project& a, const Project& b) {
+    if (a.pcb.tracks.size() != b.pcb.tracks.size() || a.pcb.vias.size() != b.pcb.vias.size()) return false;
+    for (size_t i = 0; i < a.pcb.tracks.size(); ++i) {
+        const Track& x = a.pcb.tracks[i];
+        const Track& y = b.pcb.tracks[i];
+        if (!(x.a == y.a) || !(x.b == y.b) || x.layer != y.layer || x.net != y.net || x.width != y.width || x.arc != y.arc)
+            return false;
+    }
+    for (size_t i = 0; i < a.pcb.vias.size(); ++i)
+        if (!(a.pcb.vias[i].position == b.pcb.vias[i].position) || a.pcb.vias[i].net != b.pcb.vias[i].net) return false;
+    return true;
+}
+}  // namespace
+
+TEST(autoroute_pin_swap_off_routes_as_before) {
+    // Regression guard on the reference amplifier board: with the option off, the project's autoroute is the board's
+    // autoroute, copper for copper; with it on but no swappable part, the copper is the same too.
+    Project ref = amplifierProject();
+    ref.pcb.settings.width = 40;
+    ref.pcb.settings.height = 30;
+    ref.pcb.autoPlace(ref.schematic, true);
+    Project a = ref, b = ref, c = ref;
+    const RouteStats sa = a.pcb.autoRoute(a.schematic);
+    const RouteStats sb = b.autoRoute();
+    c.pcb.settings.autorouter.pinSwap = true;
+    const RouteStats sc = c.autoRoute();
+    CHECK(sa.failed == sb.failed && sa.failed == sc.failed && sa.routed == sb.routed);
+    CHECK(sameCopper(a, b) && sameCopper(a, c));
+    CHECK(!sb.report.metrics.swapRun && sb.report.swaps.empty());
+    CHECK(sc.report.metrics.swapRun && sc.report.metrics.pinSwaps == 0 && sc.report.metrics.gateSwaps == 0);
+    CHECK(sc.report.metrics.ratsnestBefore > 0 && sc.report.metrics.ratsnestAfter == sc.report.metrics.ratsnestBefore);
+    CHECK(sc.report.metrics.crossingsAfter == sc.report.metrics.crossingsBefore);
+    CHECK(!routeReportJson(b.pcb.lastRouteReport).get("metrics").has("pinSwaps"));
+    CHECK(routeReportJson(c.pcb.lastRouteReport).get("metrics").has("ratsnestAfter"));
+    CHECK(AutorouteOptions{}.isDefault() && !c.pcb.settings.autorouter.isDefault());
+}
+
+TEST(autoroute_pin_swap_shortens_ratsnest_and_back_annotates) {
+    // Gate swap between two packages.
+    {
+        CrossedGates off = crossedGatesBoard();
+        CrossedGates on = off;
+        const RouteStats a = off.p.autoRoute();
+        on.p.pcb.settings.autorouter.pinSwap = true;
+        const RouteStats b = on.p.autoRoute();
+        const RouteMetrics& m = b.report.metrics;
+        std::printf("    gates: %d pin / %d gate swaps, ratsnest %.1f -> %.1f mm, crossings %d -> %d, copper %.1f -> %.1f mm\n",
+                    m.pinSwaps, m.gateSwaps, m.ratsnestBefore, m.ratsnestAfter, m.crossingsBefore, m.crossingsAfter,
+                    a.report.metrics.trackLength, m.trackLength);
+        for (const auto& line : b.report.swaps) std::printf("    %s\n", line.c_str());
+        CHECK(m.swapRun && m.gateSwaps >= 1 && m.pinSwaps + m.gateSwaps == static_cast<int>(b.report.swaps.size()));
+        CHECK(m.ratsnestAfter < m.ratsnestBefore - 10 && m.crossingsAfter <= m.crossingsBefore);
+        CHECK(b.failed == 0 && b.failed <= a.failed);
+        CHECK(m.trackLength < a.report.metrics.trackLength);
+        for (const auto& e : routeDrcErrors(on.p)) std::printf("    %s\n", e.c_str());
+        CHECK(routeDrcErrors(on.p).empty());
+        // Back-annotated: the gate R1 drives now sits in U2 (and R2's in U1); schematic and board agree.
+        const Schematic& s = on.p.schematic;
+        CHECK(s.find(on.u1a)->unitOf == on.pkg2 && s.find(on.u2a)->unitOf == on.pkg1);
+        const int n1 = s.netOf({on.r1, 1}), n2 = s.netOf({on.r2, 1});
+        // The gate's two inputs are swappable too, so each net may end on either input of its new gate.
+        auto onInput = [&](int unit, int net) { return net == s.netOf({unit, 0}) || net == s.netOf({unit, 1}); };
+        CHECK(n1 >= 0 && n2 >= 0 && onInput(on.u1a, n1) && onInput(on.u2a, n2));
+        auto padInput = [&](int pkg, int net) { return padNet(on.p, pkg, 0) == net || padNet(on.p, pkg, 1) == net; };
+        CHECK(padInput(on.pkg2, n1) && padInput(on.pkg1, n2));
+        CHECK(on.p.pcbEcoPreview().empty());  // the board is in step with the schematic
+        // The swaps are in the route report and its JSON; the option-off route reports none.
+        const Json j = routeReportJson(on.p.pcb.lastRouteReport);
+        CHECK(j.get("metrics").get("gateSwaps").asInt(-1) == m.gateSwaps && j.get("swaps").size() == b.report.swaps.size());
+        CHECK(j.get("metrics").get("ratsnestBefore").asNumber(0) > j.get("metrics").get("ratsnestAfter").asNumber(0));
+        CHECK(!a.report.metrics.swapRun && !routeReportJson(off.p.pcb.lastRouteReport).has("swaps"));
+    }
+    // Pin swap inside one gate: R1 drives input 1A but sits beyond pad 2, R2 drives 1B but sits beyond pad 1.
+    {
+        const auto part = CustomPartRegistry::instance().registerPart(quadNandSpec());
+        Project p;
+        Schematic& s = p.schematic;
+        const int a = s.addCustomUnits(part->id, "74HC00", {0, 0});
+        const int pkg = s.unitPackage(a);
+        const int r1 = s.addComponent(ComponentKind::Resistor, "1k", {-200, 0});
+        const int r2 = s.addComponent(ComponentKind::Resistor, "1k", {-200, 100});
+        CHECK(s.connect({r1, 1}, {a, 0}) >= 0 && s.connect({r2, 1}, {a, 1}) >= 0);
+        p.schematicChanged();
+        s.find(pkg)->pcb = PcbPlacement{{20, 20}, 0, false, true};
+        const Vec2 pad1 = padAt(p, pkg, 0), pad2 = padAt(p, pkg, 1);
+        const double dir = pad2.y > pad1.y ? 1 : -1;
+        s.find(r1)->pcb = PcbPlacement{{pad2.x - 3, pad2.y + 10 * dir}, 90, false, true};
+        s.find(r2)->pcb = PcbPlacement{{pad1.x - 3, pad1.y - 10 * dir}, 90, false, true};
+        p.pcbSync = p.currentSync();
+        p.pcb.settings.autorouter.pinSwap = true;
+        const RouteStats st = p.autoRoute();
+        const RouteMetrics& m = st.report.metrics;
+        std::printf("    pins: %d pin / %d gate swaps, ratsnest %.1f -> %.1f mm\n", m.pinSwaps, m.gateSwaps, m.ratsnestBefore,
+                    m.ratsnestAfter);
+        CHECK(m.pinSwaps >= 1 && m.gateSwaps == 0 && m.ratsnestAfter < m.ratsnestBefore);
+        CHECK(s.netOf({a, 1}) == s.netOf({r1, 1}) && s.netOf({a, 0}) == s.netOf({r2, 1}));
+        CHECK(padNet(p, pkg, 1) == s.netOf({r1, 1}) && padNet(p, pkg, 0) == s.netOf({r2, 1}));
+        CHECK(st.failed == 0 && routeDrcErrors(p).empty() && p.pcbEcoPreview().empty());
+    }
+}
+
+TEST(autoroute_pin_swap_leaves_locked_parts_and_copper) {
+    // A locked package is never swapped, though the swap would pay.
+    {
+        CrossedGates b = crossedGatesBoard();
+        b.p.pcb.settings.autorouter.pinSwap = true;
+        b.p.schematic.find(b.pkg2)->pcb.locked = true;
+        const int n2 = b.p.schematic.netOf({b.r2, 1});
+        const AutoSwapResult r = b.p.autoSwapForRouting();
+        CHECK(r.gateSwaps == 0);
+        const Schematic& s = b.p.schematic;
+        CHECK(s.find(b.u1a)->unitOf == b.pkg1 && s.find(b.u2a)->unitOf == b.pkg2);
+        CHECK(n2 >= 0 && s.netOf({b.u2a, 0}) == s.netOf({b.r2, 1}) && padNet(b.p, b.pkg2, 0) == s.netOf({b.r2, 1}));
+        const RouteStats st = b.p.autoRoute();
+        CHECK(st.report.metrics.gateSwaps == 0 && st.failed == 0);
+        CHECK(s.find(b.u2a)->unitOf == b.pkg2 && padNet(b.p, b.pkg2, 0) == s.netOf({b.r2, 1}));
+        for (const auto& line : st.report.swaps) CHECK(line.find(s.displayRef(*s.find(b.u2a))) == std::string::npos);
+    }
+    // Locked copper on a net keeps that net on its pins.
+    {
+        CrossedGates b = crossedGatesBoard();
+        b.p.pcb.settings.autorouter.pinSwap = true;
+        Track t;
+        t.net = b.p.schematic.netOf({b.r2, 1});
+        t.layer = 0;
+        t.a = padAt(b.p, b.r2, 1);
+        t.b = {t.a.x, t.a.y - 3};
+        t.locked = true;
+        b.p.pcb.addTrack(t);
+        const AutoSwapResult r = b.p.autoSwapForRouting();
+        CHECK(r.gateSwaps == 0 && b.p.schematic.find(b.u2a)->unitOf == b.pkg2);
+        CHECK(padNet(b.p, b.pkg2, 0) == b.p.schematic.netOf({b.r2, 1}));
+    }
+    // A scoped strategy swaps nothing (nets outside the route keep their pins).
+    {
+        CrossedGates b = crossedGatesBoard();
+        b.p.pcb.settings.autorouter.pinSwap = true;
+        b.p.pcb.settings.autorouter.nets = {"NOPE"};
+        const AutoSwapResult r = b.p.autoSwapForRouting();
+        CHECK(r.pinSwaps + r.gateSwaps == 0 && r.ratsnestAfter == r.ratsnestBefore && r.report.empty());
+    }
+}
+
+TEST(autoroute_pin_swap_is_deterministic) {
+    CrossedGates base = crossedGatesBoard();
+    base.p.pcb.settings.autorouter.pinSwap = true;
+    std::vector<std::string> swaps[2];
+    std::vector<int> nets[2];
+    Project routed[2];
+    for (int k = 0; k < 2; ++k) {
+        routed[k] = base.p;
+        setRoutingThreads(k == 0 ? 1 : 4);
+        const RouteStats st = routed[k].autoRoute();
+        swaps[k] = st.report.swaps;
+        for (int pkg : {base.pkg1, base.pkg2})
+            for (int pin = 0; pin < 14; ++pin) nets[k].push_back(padNet(routed[k], pkg, pin));
+    }
+    setRoutingThreads(0);
+    CHECK(!swaps[0].empty() && swaps[0] == swaps[1] && nets[0] == nets[1]);
+    CHECK(sameCopper(routed[0], routed[1]));
+    // The swap alone, twice from the same board: the same result.
+    Project x = base.p, y = base.p;
+    const AutoSwapResult rx = x.autoSwapForRouting(), ry = y.autoSwapForRouting();
+    CHECK(rx.report == ry.report && rx.pinSwaps == ry.pinSwaps && rx.gateSwaps == ry.gateSwaps);
+    CHECK(rx.ratsnestAfter == ry.ratsnestAfter && rx.crossingsAfter == ry.crossingsAfter);
+}
+
+TEST(autoroute_pin_swap_option_json) {
+    AutorouteOptions o;
+    CHECK(!autorouteOptionsToJson(o).has("pinSwap"));  // the default is not written
+    o.pinSwap = true;
+    const Json j = autorouteOptionsToJson(o);
+    CHECK(j.get("pinSwap").asBool(false) && autorouteOptionsFromJson(j) == o && !(o == AutorouteOptions{}));
+    CHECK(autorouteOptionsFromJson(Json::parse("{\"pinSwap\":true}")).pinSwap);
+    CHECK(!autorouteOptionsFromJson(Json::parse("{\"pinSwap\":false}"), o).pinSwap);
+    CHECK(autorouteOptionsFromJson(Json::parse("{\"gloss\":true}"), o).pinSwap);  // missing keeps the base
+    // Saved with the board only when on; other options save as before.
+    Project p;
+    CHECK(p.toJson().dump().find("pinSwap") == std::string::npos);
+    p.pcb.settings.autorouter.gloss = true;
+    CHECK(p.toJson().dump().find("pinSwap") == std::string::npos);
+    p.pcb.settings.autorouter.pinSwap = true;
+    const std::string saved = p.toJson().dump();
+    CHECK(saved.find("\"pinSwap\":true") != std::string::npos);
+    CHECK(Project::fromJson(Json::parse(saved)).pcb.settings.autorouter == p.pcb.settings.autorouter);
+    // A report without the swap has no swap fields.
+    CHECK(!routeReportJson(RouteReport{}).get("metrics").has("pinSwaps") && !routeReportJson(RouteReport{}).has("swaps"));
+}
+
 extern "C" int sieda_c_api_autoroute_strategy_test(void);
 TEST(c_api_autoroute_strategy) {
     const int rc = sieda_c_api_autoroute_strategy_test();
@@ -16432,4 +17441,767 @@ TEST(corridor_rip_up_same_copper_for_any_thread_count) {
                tracks[0][i].net == tracks[1][i].net && tracks[0][i].width == tracks[1][i].width;
     for (size_t i = 0; same && i < vias[0].size(); ++i) same = vias[0][i].position == vias[1][i].position && vias[0][i].net == vias[1][i].net;
     CHECK(same);
+}
+
+// ---- curved teardrops
+
+namespace {
+/// The board of teardrops_on_pads_and_vias: pad → via → via → pad, 0.25 mm tracks.
+struct TeardropBoard {
+    Project p;
+    int net = -1;
+    Vec2 from, to;
+};
+
+TeardropBoard teardropBoard() {
+    TeardropBoard b;
+    auto& s = b.p.schematic;
+    const int r1 = placeR(b.p, {10, 20}), r2 = placeR(b.p, {34, 20});
+    wire(s, r1, "2", r2, "1");
+    b.p.schematicChanged();
+    b.net = s.netOf({r1, 1});
+    b.from = padAt(b.p, r1, 1);
+    b.to = padAt(b.p, r2, 0);
+    addPath(b.p.pcb, b.net, 0, 0.25, {b.from, {18, b.from.y}});
+    addPath(b.p.pcb, b.net, 1, 0.25, {{18, b.from.y}, {26, b.from.y}});
+    addPath(b.p.pcb, b.net, 0, 0.25, {{26, b.from.y}, b.to});
+    b.p.pcb.addVia(testVia(b.p, b.net, {18, b.from.y}));
+    b.p.pcb.addVia(testVia(b.p, b.net, {26, b.from.y}));
+    return b;
+}
+
+/// Teardrop members on `layer` whose pad / via end lies within `radius` of `E`.
+std::vector<Track> teardropsAt(const std::vector<Track>& tracks, Vec2 E, int layer, double radius) {
+    std::vector<Track> out;
+    for (const auto& t : tracks)
+        if (t.teardrop && t.layer == layer && (t.a - E).length() <= radius) out.push_back(t);
+    return out;
+}
+
+/// A point relative to a teardrop's end `E` and track direction `u`: x along the track, y across it (absolute).
+Vec2 teardropLocal(Vec2 p, Vec2 E, Vec2 u) {
+    const Vec2 d = p - E;
+    return {d.dot(u), std::fabs(d.x * u.y - d.y * u.x)};
+}
+
+/// Widest centre-line offset of the members at `x` along the track (their copper outline less half the width).
+double teardropExtentAt(const std::vector<Track>& fan, Vec2 E, Vec2 u, double x) {
+    double best = 0;
+    for (const auto& t : fan) {
+        const Vec2 a = teardropLocal(t.a, E, u), b = teardropLocal(t.b, E, u);
+        if (x < std::min(a.x, b.x) || x > std::max(a.x, b.x) || std::fabs(b.x - a.x) < 1e-12) continue;
+        best = std::max(best, a.y + (b.y - a.y) * (x - a.x) / (b.x - a.x));
+    }
+    return best;
+}
+
+bool sameTracks(const std::vector<Track>& x, const std::vector<Track>& y) {
+    bool same = x.size() == y.size();
+    for (size_t i = 0; same && i < x.size(); ++i)
+        same = x[i].a == y[i].a && x[i].b == y[i].b && x[i].width == y[i].width && x[i].layer == y[i].layer &&
+               x[i].net == y[i].net && x[i].teardrop == y[i].teardrop;
+    return same;
+}
+
+/// Checks a curved fan against the straight one at the same end `E` (track direction `u`): inside its triangle,
+/// concave (well inside it three quarters of the way along), as long, and with gaps narrower than the track.
+void checkConcaveFan(const std::vector<Track>& straight, const std::vector<Track>& curved, Vec2 E, Vec2 u) {
+    CHECK(!straight.empty() && !curved.empty());
+    if (straight.empty() || curved.empty()) return;
+    double tip = 0, half = 0;
+    for (const auto& t : straight) {
+        tip = std::max(tip, teardropLocal(t.b, E, u).x);
+        half = std::max(half, teardropLocal(t.a, E, u).y);
+    }
+    CHECK(tip > 0 && half > 0);
+    // Every curved member lies in the straight fan's triangle (0, ±half) – (tip, 0).
+    bool inside = true, strict = false;
+    for (const auto& t : curved)
+        for (Vec2 p : {t.a, t.b}) {
+            const Vec2 l = teardropLocal(p, E, u);
+            const double bound = half * (1 - l.x / tip);
+            inside = inside && l.x >= -1e-9 && l.x <= tip + 1e-9 && l.y <= bound + 1e-9;
+            strict = strict || (l.y > 0.01 && l.y < bound - 0.01);  // a member end well inside: the outline bends in
+        }
+    CHECK(inside);
+    CHECK(strict);
+    // Concave: three quarters of the way to the tip the outline is much narrower than the straight one.
+    const double x = 0.75 * tip;
+    const double ys = teardropExtentAt(straight, E, u, x), yc = teardropExtentAt(curved, E, u, x);
+    std::printf("    teardrop half-width at %.2f mm: straight %.3f, curved %.3f\n", x, ys, yc);
+    CHECK(ys > 0.02 && yc < 0.6 * ys);
+    // The curved members reach (within one gap) as far along the track as the straight ones.
+    double ctip = 0;
+    for (const auto& t : curved) ctip = std::max(ctip, teardropLocal(t.b, E, u).x);
+    CHECK(ctip <= tip + 1e-9 && ctip > tip - curved.front().width);
+    // Neighbouring ends on the track are closer than the track is wide (the copper fills between members).
+    std::vector<double> ends;
+    for (const auto& t : curved) ends.push_back(teardropLocal(t.b, E, u).x);
+    std::sort(ends.begin(), ends.end());
+    for (size_t k = 1; k < ends.size(); ++k) CHECK(ends[k] - ends[k - 1] < curved.front().width);
+}
+}  // namespace
+
+TEST(curved_teardrops_default_is_straight) {
+    // The default style is Straight and gives exactly the teardrops of TeardropStyle::Straight.
+    CHECK(TeardropOptions{}.style == TeardropStyle::Straight);
+    CHECK(RouterOptions{}.teardropStyle == TeardropStyle::Straight);
+    CHECK(AutorouteOptions{}.teardropStyle == TeardropStyle::Straight);
+    TeardropBoard d = teardropBoard(), s = teardropBoard();
+    TeardropOptions straight;
+    straight.style = TeardropStyle::Straight;
+    const BoardEditResult rd = addTeardrops(d.p.pcb, d.p.schematic);
+    const BoardEditResult rs = addTeardrops(s.p.pcb, s.p.schematic, straight);
+    CHECK(rd.ok && rs.ok && rd.added == 6 && rs.added == 6 && rd.skipped == rs.skipped);
+    CHECK(sameTracks(rd.addedTracks, rs.addedTracks));
+    CHECK(sameTracks(d.p.pcb.tracks, s.p.pcb.tracks));
+    CHECK(rd.message == rs.message);
+    // Straight members all end within the stagger of one point on the track.
+    const double r = d.p.pcb.settings.viaDiameter / 2;
+    const auto fan = teardropsAt(d.p.pcb.tracks, {18, d.from.y}, 0, r);
+    CHECK(!fan.empty());
+    double lo = 1e9, hi = -1e9;
+    for (const auto& t : fan) {
+        lo = std::min(lo, t.b.x);
+        hi = std::max(hi, t.b.x);
+    }
+    CHECK(hi - lo <= 0.02 * static_cast<double>(fan.size()) + 1e-9);
+}
+
+TEST(curved_teardrops_on_pads_and_vias) {
+    // Curved teardrops on the same board: one per pad / via end, every member a teardrop, DRC clean, connectivity
+    // unchanged, each fan inside the straight fan's outline and concave; saved and loaded; pruned and removed exactly.
+    TeardropBoard st = teardropBoard(), cv = teardropBoard();
+    const size_t plainCount = cv.p.pcb.tracks.size();
+    const size_t plainRats = cv.p.pcb.ratsnest(cv.p.schematic).size();
+    CHECK(netRouted(cv.p, cv.net));
+    TeardropOptions curved;
+    curved.style = TeardropStyle::Curved;
+    const BoardEditResult rs = addTeardrops(st.p.pcb, st.p.schematic);
+    const BoardEditResult rc = addTeardrops(cv.p.pcb, cv.p.schematic, curved);
+    std::printf("    straight: %s (%zu tracks); curved: %s (%zu tracks)\n", rs.message.c_str(), rs.addedTracks.size(),
+                rc.message.c_str(), rc.addedTracks.size());
+    CHECK(rc.ok && rc.applied && rc.added == 6 && rc.skipped == 0);
+    CHECK(teardropTracks(cv.p) > 0 && static_cast<size_t>(teardropTracks(cv.p)) == rc.addedTracks.size());
+    bool allTeardrops = true;
+    for (const auto& t : rc.addedTracks) allTeardrops = allTeardrops && t.teardrop && t.net == cv.net && t.width == 0.25;
+    CHECK(allTeardrops);
+    CHECK(!sameTracks(rs.addedTracks, rc.addedTracks));
+    CHECK(routingProblems(cv.p) == 0);
+    CHECK(acuteWarnings(cv.p) == 0);
+    CHECK(drcCount(cv.p, "DRC_DANGLING_TRACK") == 0);
+    CHECK(netRouted(cv.p, cv.net));
+    CHECK(cv.p.pcb.ratsnest(cv.p.schematic).size() == plainRats);
+    CHECK(addTeardrops(cv.p.pcb, cv.p.schematic, curved).added == 0);  // already there
+    CHECK(addTeardrops(cv.p.pcb, cv.p.schematic).added == 0);          // no straight one on top
+    CHECK(pruneTeardrops(cv.p.pcb, cv.p.schematic) == 0);
+
+    // Concave outline at the via (on layer 0 the track runs from it towards -x, on layer 1 towards +x) and at the pad.
+    const double r = cv.p.pcb.settings.viaDiameter / 2;
+    const Vec2 via{18, cv.from.y};
+    checkConcaveFan(teardropsAt(st.p.pcb.tracks, via, 0, r), teardropsAt(cv.p.pcb.tracks, via, 0, r), via, {-1, 0});
+    checkConcaveFan(teardropsAt(st.p.pcb.tracks, via, 1, r), teardropsAt(cv.p.pcb.tracks, via, 1, r), via, {1, 0});
+    checkConcaveFan(teardropsAt(st.p.pcb.tracks, cv.from, 0, 2.0), teardropsAt(cv.p.pcb.tracks, cv.from, 0, 2.0), cv.from,
+                    {1, 0});
+
+    // Saved and loaded with the board.
+    const Project back = Project::fromJson(cv.p.toJson());
+    CHECK(teardropTracks(back) == teardropTracks(cv.p));
+    // Pruned when their track goes, as straight teardrops.
+    {
+        Project q = cv.p;
+        q.pcb.tracks.erase(std::remove_if(q.pcb.tracks.begin(), q.pcb.tracks.end(),
+                                          [](const Track& t) { return !t.teardrop && t.layer == 1; }),
+                           q.pcb.tracks.end());
+        const size_t onLayer1 = teardropsAt(cv.p.pcb.tracks, via, 1, r).size() +
+                                teardropsAt(cv.p.pcb.tracks, {26, cv.from.y}, 1, r).size();
+        CHECK(onLayer1 > 0 && pruneTeardrops(q.pcb, q.schematic) == static_cast<int>(onLayer1));
+    }
+    // removeTeardrops removes them exactly: one track's, then all.
+    int firstId = -1;
+    for (const auto& t : cv.p.pcb.tracks)
+        if (!t.teardrop && t.layer == 0 && firstId < 0) firstId = t.id;
+    const int before = teardropTracks(cv.p);
+    const BoardEditResult one = removeTeardrops(cv.p.pcb, {firstId});
+    CHECK(one.ok && teardropTracks(cv.p) > 0 && teardropTracks(cv.p) < before);
+    const BoardEditResult all = removeTeardrops(cv.p.pcb);
+    CHECK(all.ok && teardropTracks(cv.p) == 0 && cv.p.pcb.tracks.size() == plainCount);
+    CHECK(netRouted(cv.p, cv.net));
+}
+
+TEST(curved_teardrops_router_and_autorouter) {
+    // Auto teardrops on a router commit, curved.
+    Project q;
+    const int a = placeR(q, {10, 20}), b = placeR(q, {30, 20});
+    wire(q.schematic, a, "2", b, "1");
+    q.schematicChanged();
+    InteractiveRouter ir(q.pcb, q.schematic);
+    const RouterOptions o = routerOptionsFromJson(Json::parse("{\"teardrops\":true,\"teardropStyle\":\"curved\"}"));
+    CHECK(o.autoTeardrops && o.teardropStyle == TeardropStyle::Curved);
+    ir.setOptions(o);
+    CHECK(ir.beginRoute(padAt(q, a, 1), 0));
+    ir.moveTo(padAt(q, b, 0));
+    const RouteChanges ch = ir.commit();
+    CHECK(ch.ok && teardropTracks(q) >= 4);
+    CHECK(drcCount(q, "DRC_DANGLING_TRACK") == 0 && acuteWarnings(q) == 0);
+    CHECK(routingProblems(q) == 0);
+    CHECK(ch.addedTracks.size() == q.pcb.tracks.size());
+
+    // The autorouter's teardrop pass, curved: complete and DRC clean.
+    Project p = amplifierProject();
+    p.pcb.settings.width = 40;
+    p.pcb.settings.height = 30;
+    p.pcb.autoPlace(p.schematic, true);
+    p.pcb.settings.autorouter.teardrops = true;
+    p.pcb.settings.autorouter.teardropStyle = TeardropStyle::Curved;
+    const RouteStats st = p.pcb.autoRoute(p.schematic);
+    std::printf("    autorouted with %d curved teardrops\n", st.report.metrics.teardropsAdded);
+    CHECK(st.failed == 0 && st.report.metrics.unrouted == 0);
+    CHECK(st.report.metrics.teardropsAdded > 0 && st.report.metrics.teardrops > 0);
+    const auto errors = routeDrcErrors(p);
+    for (const auto& e : errors) std::printf("    %s\n", e.c_str());
+    CHECK(errors.empty());
+}
+
+TEST(curved_teardrops_json_and_c_api) {
+    // AutorouteOptions: "teardropStyle" only when curved, so default boards save as before; it round-trips.
+    const AutorouteOptions def;
+    CHECK(!autorouteOptionsToJson(def).has("teardropStyle"));
+    AutorouteOptions o;
+    o.teardrops = true;
+    o.teardropStyle = TeardropStyle::Curved;
+    const Json j = autorouteOptionsToJson(o);
+    CHECK(j.get("teardropStyle").asString() == "curved");
+    CHECK(autorouteOptionsFromJson(j) == o);
+    CHECK(!(autorouteOptionsFromJson(j) == def));
+    AutorouteOptions styleOnly;
+    styleOnly.teardropStyle = TeardropStyle::Curved;
+    CHECK(!styleOnly.isDefault());
+    CHECK(autorouteOptionsFromJson(Json::parse("{\"teardropStyle\":\"straight\"}"), o).teardropStyle == TeardropStyle::Straight);
+    CHECK(autorouteOptionsFromJson(Json::parse("{\"teardropStyle\":\"wavy\"}"), o).teardropStyle == TeardropStyle::Curved);
+    CHECK(autorouteOptionsFromJson(Json::parse("{\"teardrops\":true}"), o).teardropStyle == TeardropStyle::Curved);
+    // Saved with the project; a default board's file has no "teardropStyle".
+    {
+        Project p;
+        CHECK(p.toJson().dump().find("teardropStyle") == std::string::npos);
+        p.pcb.settings.autorouter = o;
+        const Project back = Project::fromJson(Json::parse(p.toJson().dump()));
+        CHECK(back.pcb.settings.autorouter.teardropStyle == TeardropStyle::Curved);
+        CHECK(back.pcb.settings.autorouter == o);
+    }
+    // Router options.
+    CHECK(routerOptionsFromJson(Json::parse("{\"teardropStyle\":\"curved\"}")).teardropStyle == TeardropStyle::Curved);
+    CHECK(routerOptionsFromJson(Json::parse("{\"teardropStyle\":\"straight\"}")).teardropStyle == TeardropStyle::Straight);
+    CHECK(routerOptionsFromJson(Json::parse("{}")).teardropStyle == TeardropStyle::Straight);
+    CHECK(std::string(teardropStyleName(TeardropStyle::Curved)) == "curved" &&
+          std::string(teardropStyleName(TeardropStyle::Straight)) == "straight");
+
+    // C API: sieda_pcb_teardrops takes "style"; the autoroute options carry "teardropStyle".
+    TeardropBoard b = teardropBoard();
+    TeardropOptions dry;
+    dry.apply = false;
+    dry.style = TeardropStyle::Curved;
+    const BoardEditResult expectCurved = addTeardrops(b.p.pcb, b.p.schematic, dry);
+    dry.style = TeardropStyle::Straight;
+    const BoardEditResult expectStraight = addTeardrops(b.p.pcb, b.p.schematic, dry);
+    CHECK(!sameTracks(expectCurved.addedTracks, expectStraight.addedTracks));
+    const std::string saved = b.p.toJson().dump();
+    SiedaProject* api = sieda_project_load_json(saved.c_str(), nullptr);
+    CHECK(api != nullptr);
+    if (!api) return;
+    auto teardrops = [&](const char* options) {
+        char* out = sieda_pcb_teardrops(api, "[]", options);
+        const Json r = Json::parse(out ? std::string(out) : std::string("{}"));
+        sieda_string_free(out);
+        return r;
+    };
+    const Json c = teardrops("{\"style\":\"curved\",\"apply\":false}");
+    CHECK(c.get("added").asInt() == 6 && c.get("addedTracks").size() == expectCurved.addedTracks.size());
+    const Json s = teardrops("{\"apply\":false}");
+    CHECK(s.get("added").asInt() == 6 && s.get("addedTracks").size() == expectStraight.addedTracks.size());
+    const Json added = teardrops("{\"style\":\"curved\"}");
+    CHECK(added.get("applied").asBool() && added.get("addedTracks").size() == expectCurved.addedTracks.size());
+    const Json removed = teardrops("{\"remove\":true}");
+    CHECK(removed.get("ok").asBool() && removed.get("removedTracks").size() == expectCurved.addedTracks.size());
+
+    CHECK(sieda_pcb_set_autoroute_options(api, "{\"teardrops\":true,\"teardropStyle\":\"curved\"}") == 1);
+    char* opts = sieda_pcb_autoroute_options(api);
+    const Json oj = Json::parse(opts ? std::string(opts) : std::string("{}"));
+    sieda_string_free(opts);
+    CHECK(oj.get("teardrops").asBool() && oj.get("teardropStyle").asString() == "curved");
+    CHECK(sieda_pcb_set_autoroute_options(api, "{\"teardropStyle\":\"straight\"}") == 1);
+    opts = sieda_pcb_autoroute_options(api);
+    const Json oj2 = Json::parse(opts ? std::string(opts) : std::string("{}"));
+    sieda_string_free(opts);
+    CHECK(!oj2.has("teardropStyle") && oj2.get("teardrops").asBool());
+    sieda_project_free(api);
+}
+
+// ---- tune while routing
+
+namespace {
+/// The bus of busBoard() from U1's P5 (`count` members), straight out to x = 24 and turned down to (30, 34): the
+/// members on the inside of the turn come out shorter.
+RoutePreview routeTurningBus(InteractiveRouter& r, BusBoard& b, int count) {
+    auto& s = b.p.schematic;
+    CHECK(r.beginBus(padAt(b.p, b.u1, pin(s, b.u1, "P5")), 0, count));
+    r.moveTo({24, 20});
+    CHECK(r.fixHead());
+    return r.moveTo({30, 34});
+}
+
+/// Every track of `net` is joined, through the net's own copper, to a track ending on its pad of `comp`.
+bool netCopperConnected(const Project& p, int net, int comp) {
+    std::vector<const Track*> ts;
+    for (const auto& t : p.pcb.tracks)
+        if (t.net == net) ts.push_back(&t);
+    if (ts.empty()) return false;
+    std::vector<bool> seen(ts.size(), false);
+    std::vector<size_t> todo;
+    auto onPad = [](const Pad& pd, Vec2 q) {
+        const Rect bb = pd.bounds();
+        return q.x >= bb.x0 - 1e-9 && q.x <= bb.x1 + 1e-9 && q.y >= bb.y0 - 1e-9 && q.y <= bb.y1 + 1e-9;
+    };
+    for (const auto& pd : p.pcb.pads(p.schematic))
+        if (pd.net == net && pd.componentId == comp)
+            for (size_t i = 0; i < ts.size(); ++i)
+                if (!seen[i] && (onPad(pd, ts[i]->a) || onPad(pd, ts[i]->b))) {
+                    seen[i] = true;
+                    todo.push_back(i);
+                }
+    while (!todo.empty()) {
+        const Track* t = ts[todo.back()];
+        todo.pop_back();
+        for (size_t j = 0; j < ts.size(); ++j) {
+            if (seen[j]) continue;
+            const Track* o = ts[j];
+            const double reach = std::max(t->width, o->width) / 2;
+            if (trackPointDistance(*t, o->a) <= reach || trackPointDistance(*t, o->b) <= reach ||
+                trackPointDistance(*o, t->a) <= reach || trackPointDistance(*o, t->b) <= reach) {
+                seen[j] = true;
+                todo.push_back(j);
+            }
+        }
+    }
+    return std::find(seen.begin(), seen.end(), false) == seen.end();
+}
+}  // namespace
+
+TEST(tune_while_routing_off_is_unchanged) {
+    // The option off (also with a tune gap given) routes exactly the copper the router always did: the bus packed at
+    // width + clearance, no member lengths in the preview or the commit.
+    CHECK(!RouterOptions{}.tuneWhileRouting);
+    const RouterOptions fromJson = routerOptionsFromJson(Json::parse("{\"tuneWhileRouting\":false,\"tuneGap\":2}"));
+    CHECK(!fromJson.tuneWhileRouting && fromJson.tuneGap == 2);
+    BusBoard a = busBoard(), b = busBoard();
+    InteractiveRouter ra(a.p.pcb, a.p.schematic), rb(b.p.pcb, b.p.schematic);
+    rb.setOptions(fromJson);
+    const RoutePreview pa = routeTurningBus(ra, a, 4), pb = routeTurningBus(rb, b, 4);
+    CHECK(pa.memberLengths.empty() && pb.memberLengths.empty());
+    CHECK(routePreviewJson(pa).dump() == routePreviewJson(pb).dump());
+    CHECK(routePreviewJson(pb).dump().find("memberLengths") == std::string::npos);
+    const RouteChanges ca = ra.commit(), cb = rb.commit();
+    CHECK(ca.ok && cb.ok);
+    CHECK(cb.memberLengths.empty() && cb.tuneStatus.empty());
+    CHECK(routeChangesJson(cb).dump() == routeChangesJson(ca).dump());
+    CHECK(routeChangesJson(cb).dump().find("tuneStatus") == std::string::npos);
+    bool same = a.p.pcb.tracks.size() == b.p.pcb.tracks.size();
+    for (size_t i = 0; same && i < a.p.pcb.tracks.size(); ++i) {
+        const Track &x = a.p.pcb.tracks[i], &y = b.p.pcb.tracks[i];
+        same = x.a == y.a && x.b == y.b && x.net == y.net && x.layer == y.layer && x.width == y.width && x.arc == y.arc;
+    }
+    CHECK(same);
+    double closest = 1e9;
+    for (const auto& t : b.p.pcb.tracks)
+        for (const auto& u : b.p.pcb.tracks)
+            if (t.net != u.net) closest = std::min(closest, segmentSegmentDistance(t.a, t.b, u.a, u.b) - (t.width + u.width) / 2);
+    CHECK_NEAR(closest, b.p.pcb.settings.clearance, 1e-6);  // still packed at pitch
+}
+
+TEST(tune_while_routing_matches_a_bus_on_commit) {
+    // A bus of four turned through 90°: its members differ in length. With tune while routing the bundle leaves room
+    // between its members, and the commit meanders the short ones (on the new tracks only) to the longest member,
+    // within tolerance; DRC clean, every member still one piece from its pad.
+    BusBoard b = busBoard();
+    auto& s = b.p.schematic;
+    InteractiveRouter r(b.p.pcb, s);
+    RouterOptions o;
+    o.tuneWhileRouting = true;
+    r.setOptions(o);
+    const RoutePreview pv = routeTurningBus(r, b, 4);
+    CHECK(!pv.blocked);
+    CHECK(pv.memberLengths.size() == 4);
+    // memberLengths are the live-tuned lengths; the untuned route (placed + head) differs between members.
+    std::map<int, double> untuned;
+    for (const auto* part : {&pv.placed, &pv.head})
+        for (const Track& t : *part) untuned[t.net] += trackLength(t);
+    double shortest = 1e9, longest = 0;
+    for (const auto& [net, length] : untuned) {
+        shortest = std::min(shortest, length);
+        longest = std::max(longest, length);
+    }
+    CHECK(untuned.size() == 4 && longest - shortest > 1.0);  // unequal before tuning
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok);
+    CHECK(ch.memberLengths.size() == 4);
+    double target = 0;
+    for (int n : b.nets) target = std::max(target, routedNetLength(b.p.pcb, n));
+    for (const auto& m : ch.memberLengths) {
+        CHECK(m.withinTolerance);
+        CHECK_NEAR(m.target, target, 1e-6);
+        CHECK_NEAR(m.length, routedNetLength(b.p.pcb, m.net), 1e-6);
+    }
+    for (int n : b.nets) CHECK_NEAR(routedNetLength(b.p.pcb, n), target, 0.1 + 1e-6);
+    CHECK(ch.tuneStatus.find("4 of 4 members within tolerance") != std::string::npos);
+    CHECK(ch.tuneStatus.find("could not reach") == std::string::npos);
+    // The meanders replace route tracks only: every id the commit reports as added is on the board, nothing that was
+    // on the board before was removed.
+    for (int id : ch.addedTracks) {
+        bool found = false;
+        for (const auto& t : b.p.pcb.tracks) found = found || t.id == id;
+        CHECK(found);
+    }
+    CHECK(ch.removedTracks.empty());
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    for (int n : b.nets) CHECK(netCopperConnected(b.p, n, b.u1));
+    const Json j = routeChangesJson(ch);
+    CHECK(j.get("memberLengths").size() == 4);
+    CHECK(j.get("tuneStatus").asString("") == ch.tuneStatus);
+}
+
+TEST(tune_while_routing_preview_reports_member_lengths) {
+    // While routing, each member's length so far (with the live meanders) against its target: the longest member
+    // without a rule, the member's own length rule otherwise.
+    BusBoard b = busBoard();
+    auto& s = b.p.schematic;
+    InteractiveRouter r(b.p.pcb, s);
+    RouterOptions o;
+    o.tuneWhileRouting = true;
+    r.setOptions(o);
+    const RoutePreview pv = routeTurningBus(r, b, 3);
+    CHECK(pv.kind == "bus");
+    CHECK(pv.memberLengths.size() == 3);
+    double longest = 0;
+    for (const auto& m : pv.memberLengths) longest = std::max(longest, m.length);
+    int within = 0;
+    for (size_t k = 0; k < pv.memberLengths.size() && k < pv.nets.size(); ++k) {
+        const MemberLength& m = pv.memberLengths[k];
+        CHECK(m.net == pv.nets[k]);
+        CHECK_NEAR(m.target, longest, 1e-9);
+        CHECK_NEAR(m.tolerance, 0.1, 1e-12);
+        within += m.withinTolerance ? 1 : 0;
+    }
+    CHECK(within == 3);  // the live meanders bring the inner members to the outermost one's length
+    const Json j = routePreviewJson(pv);
+    CHECK(j.get("memberLengths").size() == 3);
+    CHECK(j.get("memberLengths").items()[0].get("target").asNumber(0) == pv.memberLengths[0].target);
+    r.cancel();
+    // A length rule on one member: that member's target is the rule's, the others match the longest of themselves.
+    const int ruled = pv.nets[0];
+    b.p.pcb.settings.lengthRules.push_back({s.nets()[static_cast<size_t>(ruled)].name, 40.0, 0.3});
+    InteractiveRouter r2(b.p.pcb, s);
+    r2.setOptions(o);
+    const RoutePreview p2 = routeTurningBus(r2, b, 3);
+    CHECK(p2.memberLengths.size() == 3);
+    double longestOther = 0;
+    for (const auto& m : p2.memberLengths)
+        if (m.net != ruled) longestOther = std::max(longestOther, m.length);
+    for (const auto& m : p2.memberLengths) {
+        if (m.net == ruled) {
+            CHECK_NEAR(m.target, 40.0, 1e-9);
+            CHECK_NEAR(m.tolerance, 0.3, 1e-12);
+            CHECK(m.withinTolerance == (std::fabs(m.length - 40.0) <= 0.3 + 1e-9));
+        } else {
+            CHECK_NEAR(m.target, longestOther, 1e-9);
+        }
+    }
+    // Options from JSON.
+    const RouterOptions oj = routerOptionsFromJson(Json::parse("{\"tuneWhileRouting\":true,\"tuneGap\":0.6}"));
+    CHECK(oj.tuneWhileRouting && oj.tuneGap == 0.6);
+}
+
+TEST(tune_while_routing_reports_a_member_without_room) {
+    // One member's length rule asks for far more than its new tracks can hold: it is lengthened as far as the room
+    // allows and named in the status; the others still match; the board stays DRC clean.
+    BusBoard b = busBoard();
+    auto& s = b.p.schematic;
+    const int ruled = b.nets[0];
+    b.p.pcb.settings.lengthRules.push_back({s.nets()[static_cast<size_t>(ruled)].name, 200.0, 0.1});
+    InteractiveRouter r(b.p.pcb, s);
+    RouterOptions o;
+    o.tuneWhileRouting = true;
+    r.setOptions(o);
+    const RoutePreview pv = routeTurningBus(r, b, 4);
+    double before = 0;
+    for (const auto& m : pv.memberLengths)
+        if (m.net == ruled) before = m.length;
+    CHECK(before > 0);
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok);
+    CHECK(ch.memberLengths.size() == 4);
+    for (const auto& m : ch.memberLengths) {
+        if (m.net != ruled) continue;
+        CHECK(!m.withinTolerance);
+        CHECK_NEAR(m.target, 200.0, 1e-9);
+        CHECK(m.length < 200.0 - 0.1);
+    }
+    CHECK(ch.tuneStatus.find("could not reach the target") != std::string::npos);
+    CHECK(ch.tuneStatus.find(s.nets()[static_cast<size_t>(ruled)].name) != std::string::npos);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    for (int n : b.nets) CHECK(netCopperConnected(b.p, n, b.u1));
+}
+
+// ---- live tuning and pairs
+
+namespace {
+/// Route copper of `net` in a preview's track list, or on the board among the ids a commit added.
+double tracksLengthOf(const std::vector<Track>& ts, int net) {
+    double l = 0;
+    for (const auto& t : ts)
+        if (t.net == net) l += trackLength(t);
+    return l;
+}
+
+/// Two tracks are the same copper (ids aside).
+bool sameCopper(const Track& x, const Track& y) {
+    return x.a == y.a && x.b == y.b && x.net == y.net && x.layer == y.layer && x.width == y.width && x.arc == y.arc &&
+           (!x.arc || x.mid == y.mid);
+}
+
+/// `preview` (a preview's tunedTracks) is exactly the copper of the routed nets that commit `ch` added to `p`.
+bool committedAsPreviewed(const Project& p, const RouteChanges& ch, const std::vector<int>& nets,
+                          const std::vector<Track>& preview) {
+    std::vector<Track> board;
+    for (const auto& t : p.pcb.tracks)
+        if (std::find(ch.addedTracks.begin(), ch.addedTracks.end(), t.id) != ch.addedTracks.end() &&
+            std::find(nets.begin(), nets.end(), t.net) != nets.end())
+            board.push_back(t);
+    if (board.size() != preview.size()) return false;
+    for (const Track& t : preview) {
+        bool found = false;
+        for (const Track& u : board) found = found || (u.id == t.id && sameCopper(u, t));
+        if (!found) return false;
+    }
+    return true;
+}
+
+/// The differential pair board of router_routes_differential_pairs_at_the_pair_gap: USB_P / USB_N from the left
+/// resistors to the right ones, side by side 30 mm.
+struct PairBoard {
+    Project p;
+    int p1 = -1, p2 = -1, n1 = -1, n2 = -1, netP = -1, netN = -1;
+};
+
+PairBoard pairBoard() {
+    PairBoard b;
+    auto& s = b.p.schematic;
+    b.p1 = placeR(b.p, {10, 14});
+    b.p2 = placeR(b.p, {40, 14});
+    b.n1 = placeR(b.p, {10, 16});
+    b.n2 = placeR(b.p, {40, 16});
+    wire(s, b.p1, "2", b.p2, "1");
+    wire(s, b.n1, "2", b.n2, "1");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_P", {0, 0}), "N", b.p1, "2");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_N", {0, 50}), "N", b.n1, "2");
+    b.p.schematicChanged();
+    b.netP = s.netOf({b.p1, 1});
+    b.netN = s.netOf({b.n1, 1});
+    return b;
+}
+
+/// The pair from P1 straight along to x = 25, then to P2's pad (the head ends on it).
+RoutePreview routePair(InteractiveRouter& r, PairBoard& b) {
+    CHECK(r.beginPair(padAt(b.p, b.p1, 1), 0));
+    r.moveTo({25, 15});
+    CHECK(r.fixHead());
+    return r.moveTo(padAt(b.p, b.p2, 0));
+}
+}  // namespace
+
+TEST(live_tuning_shows_bus_meanders_while_routing) {
+    // Tune while routing a bus: the preview shows the meanders while the head moves (tunedTracks), the short members'
+    // lengths are the tuned ones (longer than their untuned route, at the target where there is room), and the
+    // commit writes exactly that copper when the cursor did not move since.
+    BusBoard b = busBoard();
+    auto& s = b.p.schematic;
+    InteractiveRouter r(b.p.pcb, s);
+    RouterOptions o;
+    o.tuneWhileRouting = true;
+    r.setOptions(o);
+    const RoutePreview pv = routeTurningBus(r, b, 4);
+    CHECK(!pv.blocked);
+    CHECK(!pv.tunedTracks.empty());
+    CHECK(pv.memberLengths.size() == 4);
+    std::vector<Track> untuned = pv.placed;
+    untuned.insert(untuned.end(), pv.head.begin(), pv.head.end());
+    int lengthened = 0;
+    for (const auto& m : pv.memberLengths) {
+        const double before = tracksLengthOf(untuned, m.net), after = tracksLengthOf(pv.tunedTracks, m.net);
+        CHECK(after >= before - 1e-6);
+        if (after > before + 0.05) ++lengthened;
+        CHECK(m.withinTolerance);  // the bus leaves room for the meanders
+        CHECK(std::fabs(m.length - m.target) <= m.tolerance + 1e-9);
+    }
+    CHECK(lengthened == 3);  // all but the outermost member
+    CHECK(pv.tuneStatus.find("4 of 4 members within tolerance") != std::string::npos);
+    const Json j = routePreviewJson(pv);
+    CHECK(j.get("tunedTracks").size() == pv.tunedTracks.size());
+    CHECK(j.get("tuneStatus").asString("") == pv.tuneStatus);
+    // The preview's placed / head stay the untuned route; the commit (cursor unchanged) is the previewed copper.
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok);
+    CHECK(committedAsPreviewed(b.p, ch, b.nets, pv.tunedTracks));
+    CHECK(ch.memberLengths.size() == pv.memberLengths.size());
+    for (size_t k = 0; k < ch.memberLengths.size() && k < pv.memberLengths.size(); ++k)
+        CHECK_NEAR(ch.memberLengths[k].length, pv.memberLengths[k].length, 1e-9);
+    CHECK(ch.tuneStatus == pv.tuneStatus);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    for (int n : b.nets) CHECK(netCopperConnected(b.p, n, b.u1));
+}
+
+TEST(live_tuning_off_or_without_target_leaves_the_preview_unchanged) {
+    // The option off: no live meanders, no new JSON fields, the preview exactly as before. On, but routing a net
+    // without any length target: the same preview as with the option off.
+    BusBoard a = busBoard(), b = busBoard();
+    InteractiveRouter ra(a.p.pcb, a.p.schematic), rb(b.p.pcb, b.p.schematic);
+    RouterOptions off;
+    off.tuneGap = 1.0;  // ignored while the option is off
+    rb.setOptions(off);
+    const RoutePreview pa = routeTurningBus(ra, a, 4), pb = routeTurningBus(rb, b, 4);
+    CHECK(pa.tunedTracks.empty() && pb.tunedTracks.empty() && pb.tuneStatus.empty());
+    const std::string ja = routePreviewJson(pa).dump();
+    CHECK(ja == routePreviewJson(pb).dump());
+    CHECK(ja.find("tunedTracks") == std::string::npos && ja.find("tuneStatus") == std::string::npos);
+    ra.cancel();
+    rb.cancel();
+    // A single net of the bus (no rule, no group): nothing to tune, with or without the option.
+    BusBoard c = busBoard(), d = busBoard();
+    InteractiveRouter rc(c.p.pcb, c.p.schematic), rd(d.p.pcb, d.p.schematic);
+    RouterOptions on;
+    on.tuneWhileRouting = true;
+    rd.setOptions(on);
+    auto single = [](InteractiveRouter& r, BusBoard& bb) {
+        CHECK(r.beginRoute(padAt(bb.p, bb.u1, pin(bb.p.schematic, bb.u1, "P5")), 0));
+        r.moveTo({24, 20});
+        return r.moveTo({30, 30});
+    };
+    const RoutePreview pc = single(rc, c), pd = single(rd, d);
+    CHECK(pd.tunedTracks.empty() && pd.memberLengths.empty());
+    CHECK(routePreviewJson(pc).dump() == routePreviewJson(pd).dump());
+}
+
+TEST(live_tuning_tunes_a_differential_pair_as_a_whole) {
+    // A differential pair whose members have a length rule, routed with tune while routing: the preview shows the
+    // pair meandered together (coupled, at the pair gap) and the shorter member's skew bumps, live; after the commit
+    // both members are within tolerance of the target, the skew within the pair's tolerance, the gap kept, DRC clean.
+    PairBoard base = pairBoard();
+    double untunedP = 0, untunedN = 0;
+    {
+        InteractiveRouter r0(base.p.pcb, base.p.schematic);
+        RouterOptions o0;
+        o0.pairGap = 0.2;
+        r0.setOptions(o0);
+        routePair(r0, base);
+        CHECK(r0.commit().ok);
+        untunedP = routedNetLength(base.p.pcb, base.netP);
+        untunedN = routedNetLength(base.p.pcb, base.netN);
+    }
+    CHECK(untunedP > 20 && untunedN > 20);
+    const double target = std::max(untunedP, untunedN) + 6.0, tol = 0.2;
+    PairBoard b = pairBoard();
+    auto& s = b.p.schematic;
+    b.p.pcb.settings.lengthRules.push_back({"USB_P", target, tol});
+    b.p.pcb.settings.lengthRules.push_back({"USB_N", target, tol});
+    double skewTol = tol;
+    for (const auto& g : lengthGroups(s, b.p.pcb.settings))
+        if (g.kind == "pair" && std::find(g.nets.begin(), g.nets.end(), b.netP) != g.nets.end())
+            skewTol = std::max(0.01, g.tolerance);
+    InteractiveRouter r(b.p.pcb, s);
+    RouterOptions o;
+    o.pairGap = 0.2;
+    o.tuneWhileRouting = true;
+    r.setOptions(o);
+    const RoutePreview pv = routePair(r, b);
+    CHECK(pv.kind == "pair" && pv.reachedTarget);
+    // Live: the meanders and both members' tuned lengths.
+    CHECK(!pv.tunedTracks.empty());
+    CHECK(pv.memberLengths.size() == 2);
+    for (const auto& m : pv.memberLengths) {
+        CHECK_NEAR(m.target, target, 1e-9);
+        CHECK(m.withinTolerance);
+    }
+    CHECK(tracksLengthOf(pv.tunedTracks, b.netP) > tracksLengthOf(pv.placed, b.netP) + tracksLengthOf(pv.head, b.netP) + 1);
+    CHECK(pv.tuneStatus.find("skew") != std::string::npos);
+    CHECK(pv.tuneStatus.find("2 of 2 members within tolerance") != std::string::npos);
+    CHECK(routePreviewJson(pv).get("memberLengths").size() == 2);
+    // Commit: the previewed copper, both members at the target, the skew in tolerance.
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok);
+    CHECK(committedAsPreviewed(b.p, ch, {b.netP, b.netN}, pv.tunedTracks));
+    CHECK(ch.memberLengths.size() == 2);
+    double lp = 0, ln = 0;
+    for (const auto& m : ch.memberLengths) {
+        CHECK(m.withinTolerance);
+        CHECK_NEAR(m.target, target, 1e-9);
+        (m.net == b.netP ? lp : ln) = m.length;
+    }
+    CHECK(std::fabs(lp - target) <= tol + 1e-9 && std::fabs(ln - target) <= tol + 1e-9);
+    CHECK(std::fabs(lp - ln) <= skewTol + 1e-9);
+    CHECK(ch.tuneStatus.find("skew") != std::string::npos);
+    CHECK(ch.tuneStatus.find("over tolerance") == std::string::npos);
+    CHECK(ch.tuneStatus.find("could not reach") == std::string::npos);
+    // The gap is kept (nowhere closer), the members still run coupled at it, DRC clean.
+    double minGap = 1e9, coupled = 0;
+    for (const auto& x : b.p.pcb.tracks)
+        for (const auto& y : b.p.pcb.tracks) {
+            if (x.net != b.netP || y.net != b.netN) continue;
+            const double g = trackTrackDistance(x, y) - (x.width + y.width) / 2;
+            minGap = std::min(minGap, g);
+            if (!x.arc && !y.arc && std::fabs(g - 0.2) < 1e-6 && std::fabs(crossOf(x.b - x.a, y.b - y.a)) < 1e-9)
+                coupled += std::min((x.b - x.a).length(), (y.b - y.a).length());
+        }
+    CHECK(minGap >= 0.2 - 1e-6);
+    CHECK(coupled > 20);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    CHECK(netRouted(b.p, b.netP) && netRouted(b.p, b.netN));
+}
+
+TEST(live_tuning_is_deterministic) {
+    // The same moves twice give the same preview, bit for bit; moving away and back gives the first preview again
+    // (the live cache follows the route, not the order of the moves).
+    auto run = [](BusBoard& b) {
+        InteractiveRouter r(b.p.pcb, b.p.schematic);
+        RouterOptions o;
+        o.tuneWhileRouting = true;
+        r.setOptions(o);
+        const RoutePreview pv = routeTurningBus(r, b, 4);
+        const std::string first = routePreviewJson(pv).dump();
+        r.moveTo({33, 38});
+        const std::string back = routePreviewJson(r.moveTo({30, 34})).dump();
+        CHECK(back == first);
+        return first;
+    };
+    BusBoard a = busBoard(), b = busBoard();
+    const std::string ja = run(a), jb = run(b);
+    CHECK(ja == jb);
+    CHECK(ja.find("tunedTracks") != std::string::npos);
+    // A pair too.
+    PairBoard p = pairBoard(), q = pairBoard();
+    for (PairBoard* x : {&p, &q}) {
+        x->p.pcb.settings.lengthRules.push_back({"USB_P", 40.0, 0.2});
+        x->p.pcb.settings.lengthRules.push_back({"USB_N", 40.0, 0.2});
+    }
+    auto runPair = [](PairBoard& x) {
+        InteractiveRouter r(x.p.pcb, x.p.schematic);
+        RouterOptions o;
+        o.pairGap = 0.2;
+        o.tuneWhileRouting = true;
+        r.setOptions(o);
+        return routePreviewJson(routePair(r, x)).dump();
+    };
+    CHECK(runPair(p) == runPair(q));
 }

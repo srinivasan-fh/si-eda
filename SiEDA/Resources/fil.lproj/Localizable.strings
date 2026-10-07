@@ -1036,6 +1036,11 @@
 "Strategy" = "Estratehiya";
 "Strategy Settings…" = "Mga Setting ng Estratehiya…";
 "Teardrops" = "Teardrops";
+"Teardrop style" = "Istilo ng teardrop";
+"Teardrop Style" = "Istilo ng Teardrop";
+"Straight" = "Tuwid";
+"Curved" = "Kurbado";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "Balangkas ng teardrop: tuwid na pamaypay, o kurbadong paglapad papunta sa mga pad at via";
 "Default" = "Default";
 "Fast" = "Mabilis";
 "High quality" = "Mataas na kalidad";
@@ -1141,3 +1146,34 @@
 "Brown" = "Kayumanggi";
 "Tan" = "Tan";
 "Colour Symbols by Device" = "Kulayan ang mga Simbolo ayon sa Device";
+"Tune Lengths While Routing" = "I-tune ang Haba Habang Nagru-route";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "Habang nagra-route ng bus, net na tugma ang haba o differential pair, nagkakaroon ng meander ang maiikling miyembro habang nagra-route ka (sabay na tinu-tune ang pair, saka ang skew nito); isinusulat ang mga ito kapag tinapos ang route";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "Magpalit ng Pin at Gate";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "Bago mag-route, pagpalitin ang mga katumbas na pin at gate kung saan umiikli ang ratsnest (ibinabalik sa schematic)";
+"Pin & Gate Swaps" = "Mga Pagpapalit ng Pin at Gate";
+"Pins swapped" = "Mga pin na pinagpalit";
+"Gates swapped" = "Mga gate na pinagpalit";
+"Ratsnest before" = "Ratsnest bago";
+"Ratsnest after" = "Ratsnest pagkatapos";
+"Crossings" = "Mga pagtatawid";
+"Placing %@ (%lld of %lld)" = "Inilalagay ang %@ (%lld ng %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R iniikot · F binabaligtad · i-click para ilagay · ⌥-click para pilitin · Esc nilalaktawan";
+"Skip" = "Laktawan";
+"Leave this part where Auto Place put it" = "Iwan ang piyesang ito kung saan ito inilagay ng Auto Place";
+"Skip All" = "Laktawan Lahat";
+"Leave every remaining part where Auto Place put it" = "Iwan ang lahat ng natitirang piyesa kung saan inilagay ng Auto Place";
+"Place All Automatically" = "Ilagay Lahat nang Awtomatiko";
+"Put every remaining part at the free spot next to its connections" = "Ilagay ang bawat natitirang piyesa sa bakanteng puwesto katabi ng mga koneksyon nito";
+"Place new parts interactively after Update PCB" = "Ilagay ang mga bagong piyesa nang interactive pagkatapos ng Update PCB";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "Pagkatapos ng Update PCB, bubukas ang PCB editor na nasa cursor ang bawat bagong piyesa: R ay iniikot, F ay binabaligtad, ang click ay naglalagay at ang Esc ay iniiwan ito kung saan inilagay ng Auto Place. Naka-off: mananatili ang mga bagong piyesa kung saan inilalagay ng Auto Place.";
+"PCB Editor" = "PCB Editor";
+
+// Focus mode
+"Enter Focus Mode" = "Pumasok sa Focus Mode";
+"Exit Focus Mode" = "Lumabas sa Focus Mode";
+"Exit Focus" = "Lumabas sa Focus";
+"Leave focus mode (F11, ⌃⌘F)" = "Umalis sa focus mode (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "Itinatago ng full screen ang mga panel (focus mode)";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F o Fn-F: full screen na editor at mga tool lang nito. Ituro ang itaas na gilid ng editor para ipakita ang options bar nito.";

@@ -27,6 +27,7 @@ add_library(sieda_core STATIC
     Core/src/Directives.cpp
     Core/src/SchematicEdit.cpp
     Core/src/Eco.cpp
+    Core/src/InteractivePlacement.cpp
     Core/src/SchematicPdf.cpp
     Core/src/PdfFont.cpp
     Core/src/PcbSwap.cpp
@@ -83,6 +84,7 @@ add_library(sieda_core STATIC
     Core/src/AltiumLibrary.cpp
     Core/src/sieda_c.cpp
     Core/src/sieda_c_routing.cpp
+    Core/src/sieda_c_placement.cpp
 )
 target_include_directories(sieda_core PUBLIC Core/include)
 find_package(Threads REQUIRED)

@@ -257,7 +257,10 @@ int32_t sieda_pcb_rotate_footprint(SiedaProject* project, int32_t component_id, 
 int32_t sieda_pcb_flip_footprint(SiedaProject* project, int32_t component_id);
 /* Resizes the board outline to the placed footprints plus margin_mm, keeping parts and copper together. */
 int32_t sieda_pcb_fit_board(SiedaProject* project, double margin_mm);
-char* sieda_pcb_autoroute(SiedaProject* project); /* JSON route statistics */
+/* JSON route statistics {"connections","routed","failed","vias","trackLength","lengthTuned","failedNets",
+ * "thermalVias"}; with the strategy's "pinSwap" on, pins and gates are swapped (back-annotated) first and the JSON adds
+ * "pinSwaps","gateSwaps","ratsnestBefore","ratsnestAfter" (mm). */
+char* sieda_pcb_autoroute(SiedaProject* project);
 /* Autoroute with progress and cancel: as sieda_pcb_autoroute, but calls progress(user, phase, pass, done, total,
  * unrouted) every few nets, always on the calling thread and never concurrently. phase: 0 preparing, 1 routing,
  * 2 rip-up pass, 3 finishing; done / total: nets of the current pass; unrouted: connections the best pass so far
@@ -274,7 +277,8 @@ int32_t sieda_router_strategy(void);
 void sieda_router_set_threads(int32_t threads);
 /* Autorouter strategy of the board (AutorouteOptions, saved with the project): JSON {"coupledPairs","pairGap",
  * "lengthAware","minimizeVias","gloss","arcCorners","arcRadius","teardrops","preset","fast","fanoutOnly","nets":[name],
- * "netClass","hasArea","area":{"x0","y0","x1","y1"},"protectLocked","classLayers":{class:[layer]}}. Setting takes
+ * "netClass","hasArea","area":{"x0","y0","x1","y1"},"protectLocked","classLayers":{class:[layer]},"pinSwap" (only
+ * when true)}, plus "teardropStyle":"curved" when the teardrops are curved (absent = "straight"). Setting takes
  * the fields given (others keep their value); returns 1 when the JSON was valid. */
 char* sieda_pcb_autoroute_options(const SiedaProject* project);
 int32_t sieda_pcb_set_autoroute_options(SiedaProject* project, const char* options_json);
@@ -832,9 +836,13 @@ char* sieda_router_begin_multi_drag(SiedaProject* project, const char* options_j
 char* sieda_router_begin_multi(SiedaProject* project, const char* options_json, const char* points_json, int32_t layer);
 /* Board commands. Each returns {"ok","message","added","skipped","applied","addedTracks","addedVias","removedTracks",
  * "removedVias","changes"} (ok false: nothing to do), or {"error"}. Router options also take "removeLoops" (loop
- * removal on commit) and "teardrops" (teardrops on the committed tracks). Tracks with "teardrop":true are teardrops. */
+ * removal on commit), "teardrops" (teardrops on the committed tracks), "teardropStyle" ("straight" default, or
+ * "curved") and "tuneWhileRouting" / "tuneGap" (a bus's or a matched net's short members get meanders on commit; the
+ * preview and the commit's changes then carry "memberLengths":[{"net","length","target","tolerance","withinTolerance"}]
+ * and the changes "tuneStatus"). Tracks with "teardrop":true are teardrops. */
 /* Teardrops on the given tracks' ends at pads / vias ([] = every track); options {"pads","vias" (default true),
- * "length" (fraction of the pad / via size, 0.3–3, default 1),"apply","remove" (remove them instead)}. */
+ * "length" (fraction of the pad / via size, 0.3–3, default 1),"style" ("straight" default, or "curved": concave outline),
+ * "apply","remove" (remove them instead)}. */
 char* sieda_pcb_teardrops(SiedaProject* project, const char* track_ids_json, const char* options_json);
 /* Via stitching where the net's pours overlap on two or more layers; options {"net" (default the ground net),
  * "pitch" (mm, default 2),"x0","y0","x1","y1" (area),"apply"}. */
@@ -854,8 +862,37 @@ char* sieda_pcb_match_lengths(SiedaProject* project, const char* track_ids_json,
 char* sieda_pcb_eco_preview(const SiedaProject* project);
 /* Executes the changes whose keys are listed (keys_json ["component:7",…]; NULL = all; [] = none): places added
  * footprints, removes pours on nets that are gone, carries the net rules, records the new baseline. Returns
- * {"executed": n, "report": [line…]}. Caller frees. */
+ * {"executed": n, "report": [line…], "placementQueue": [{"id","ref"}…]}: the queue lists the footprints this update
+ * put on the board (by designator; parts already placed are never listed). They stand where Auto Place put them; the
+ * designer can place them one by one with the calls below. Caller frees. */
 char* sieda_apply_pcb_eco(SiedaProject* project, const char* keys_json);
+/* ---- interactive placement (after Update PCB, or any footprint) ---------------------------------------------------
+ * A placement JSON: {"component","x","y","rotation","bottom","legal","committed","courtyard":{x0,y0,x1,y1},
+ *   "pads":[{x,y,w,h,round,net}], "issues":[{code,message,other,error}]}. x / y are the snapped centre; issue codes
+ * PLACE_OVERLAP (courtyards on the same side; other = that part), PLACE_OUTSIDE (beyond the outline), PLACE_HOLE
+ * (mounting-hole keep-out), PLACE_LOCKED (errors: the pose is illegal) and PLACE_KEEPOUT (pads inside a routing
+ * keep-out; a warning, still legal). NULL for an unknown component or one without a footprint. Caller frees.
+ * grid ≤ 0 = no snap; rotation is rounded to a quarter turn; bottom 1 = the bottom side. */
+/* The footprint at that pose; nothing changes (the ghost while placing). */
+char* sieda_pcb_check_placement(const SiedaProject* project, int32_t component_id, double x, double y,
+                                int32_t rotation, int32_t bottom, double grid);
+/* Moves / turns / flips the footprint there when the pose is legal ("committed": true). An illegal pose is not
+ * committed unless force = 1: then it is, and "legal" stays false so the caller can report it. A locked part never
+ * moves. */
+char* sieda_pcb_place_footprint(SiedaProject* project, int32_t component_id, double x, double y, int32_t rotation,
+                                int32_t bottom, double grid, int32_t force);
+/* Where to start placing it: the nearest free grid spot to the pads it connects to (its rotation and side kept);
+ * "legal": false when the board has no free spot. Nothing changes. */
+char* sieda_pcb_suggest_placement(const SiedaProject* project, int32_t component_id, double grid);
+/* The same three calls with options_json (NULL = none): {"ignore":[component ids]} — parts whose courtyards are no
+ * obstacles (the placement queue still waiting at its automatic spots). Invalid JSON gives NULL. */
+char* sieda_pcb_check_placement_with(const SiedaProject* project, int32_t component_id, double x, double y,
+                                     int32_t rotation, int32_t bottom, double grid, const char* options_json);
+char* sieda_pcb_place_footprint_with(SiedaProject* project, int32_t component_id, double x, double y,
+                                     int32_t rotation, int32_t bottom, double grid, int32_t force,
+                                     const char* options_json);
+char* sieda_pcb_suggest_placement_with(const SiedaProject* project, int32_t component_id, double grid,
+                                       const char* options_json);
 /* Drawn size of a sheet's sheet symbol in schematic units (0 = fitted to its entries; clamped to 4000). 1 on success. */
 int32_t sieda_set_sheet_symbol_size(SiedaProject* project, int32_t sheet, double width, double height);
 /* Per-channel parameters of a part on a repeated sheet (see sieda_set_channel_value): this channel's own SPICE model

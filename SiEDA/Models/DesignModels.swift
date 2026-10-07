@@ -995,6 +995,28 @@ struct RoutePreview: Decodable, Equatable {
     var collisions: [RouteCollision]?
     /// The update was cancelled (`routerAbort`): the preview from before it, to be ignored.
     var aborted: Bool?
+    /// Tune while routing: each routed member's length so far against its target (nil when off).
+    var memberLengths: [RouteMemberLength]?
+    /// Tune while routing: the route with its live meanders (and a pair's skew bumps), drawn in place of
+    /// `placed` + `head` (nil when nothing is meandered).
+    var tunedTracks: [SnapTrack]?
+    /// Tune while routing: the live summary (members within tolerance, a pair's skew).
+    var tuneStatus: String?
+
+    /// The route's copper to draw: the live meanders when there are any, else the placed tracks and the head.
+    var routeCopper: [SnapTrack] {
+        if let tuned = tunedTracks, !tuned.isEmpty { return tuned }
+        return placed + head
+    }
+}
+
+/// One member of a routed bus (or the routed net) against its length target (tune while routing).
+struct RouteMemberLength: Decodable, Equatable {
+    var net: Int
+    var length: Double
+    var target: Double
+    var tolerance: Double
+    var withinTolerance: Bool
 }
 
 /// Interactive router mode (`sieda_router_*` options "mode").
@@ -1067,6 +1089,9 @@ struct RouteCommitResult: Decodable, Equatable {
     var error: String?
     var addedTracks: [Int]
     var addedVias: [Int]
+    /// Tune while routing: the members' lengths after the meanders, and which could not reach the target.
+    var memberLengths: [RouteMemberLength]?
+    var tuneStatus: String?
 }
 
 struct SnapLine: Decodable, Equatable {
@@ -1449,6 +1474,9 @@ struct RouteStats: Decodable, Equatable {
     var failedNets: [String] = []
     /// The user stopped the route (`sieda_pcb_autoroute_progress`): the board was left as it was.
     var cancelled: Bool?
+    /// Pin / gate swaps made before routing (only when the strategy swaps).
+    var pinSwaps: Int?
+    var gateSwaps: Int?
 }
 
 /// The seven robot design segments (`sieda_robot_segments_json`) or the six automotive ECU segments

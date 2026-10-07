@@ -21,6 +21,7 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <deque>
 #include <functional>
@@ -721,6 +722,7 @@ struct Base {
     std::vector<Track> tracks;
     std::vector<Via> vias;
     std::vector<char> trackFixed;  // locked, or a tamper-mesh stripe
+    std::vector<char> arcMovable;  // an arc fixed only by its shape: the shove engine may move it as a whole
     std::vector<char> viaFixed;    // inside a pad of its net (moving it would leave the pad), or a mesh via
     std::map<int, std::vector<size_t>> compPads;
     std::map<int, std::string> refs;
@@ -781,9 +783,14 @@ struct Base {
                 meshNets.insert(g.netB);
             }
         trackFixed.resize(tracks.size());
-        // Arcs stay where they are (the shove engine moves straight lines), like locked tracks.
-        for (size_t i = 0; i < tracks.size(); ++i)
+        arcMovable.resize(tracks.size());
+        // Arcs are fixed for the line machinery (lines, drags, gloss move straight segments); the shove engine moves
+        // an arc that only its shape holds as a whole (Shover::shoveArc). Locked arcs, teardrops and mesh stripes stay.
+        for (size_t i = 0; i < tracks.size(); ++i) {
             trackFixed[i] = tracks[i].locked || meshNets.count(tracks[i].net) || tracks[i].arc || tracks[i].teardrop;
+            arcMovable[i] = tracks[i].arc && !tracks[i].locked && !meshNets.count(tracks[i].net) && !tracks[i].teardrop &&
+                            isArcTrack(tracks[i]);
+        }
         viaFixed.resize(vias.size());
         for (size_t i = 0; i < vias.size(); ++i) {
             bool inPad = false;
@@ -972,7 +979,15 @@ struct World {
     bool netFixed(int n) const { return std::find(fixedNets.begin(), fixedNets.end(), n) != fixedNets.end(); }
     bool trackFixed(size_t i) const {
         if (netFixed(track(i).net)) return true;
-        return i < baseT() ? b->trackFixed[i] != 0 : fixAddT[i - baseT()] != 0;
+        // An added arc (a shoved or re-filleted one) is held like a base arc: lines end at it.
+        return i < baseT() ? b->trackFixed[i] != 0 : (fixAddT[i - baseT()] != 0 || addT[i - baseT()].arc);
+    }
+    /// An arc only its shape holds (not locked, a teardrop, a mesh stripe or the route itself): trackFixed for the
+    /// line machinery, but the shove engine moves it as a whole (Shover::shoveArc).
+    bool arcShovable(size_t i) const {
+        const Track& t = track(i);
+        if (!t.arc || t.teardrop || netFixed(t.net)) return false;
+        return i < baseT() ? b->arcMovable[i] != 0 : (fixAddT[i - baseT()] == 0 && isArcTrack(t));
     }
     bool viaFixed(size_t i) const {
         if (netFixed(via(i).net)) return true;
@@ -1480,7 +1495,7 @@ public:
             for (;;) {
                 std::vector<Hit> hits = hitsOf(p);
                 if (hits.empty()) break;
-                auto fixedHit = std::find_if(hits.begin(), hits.end(), [](const Hit& h) { return h.fixed; });
+                auto fixedHit = std::find_if(hits.begin(), hits.end(), [&](const Hit& h) { return h.fixed && !movableArc(h); });
                 if (fixedHit != hits.end()) {
                     why = "Blocked by " + describeHit(w_, *fixedHit);
                     return false;
@@ -1489,8 +1504,12 @@ public:
                     why = "Too much copper to shove here";
                     return false;
                 }
-                const Hit h = hits.front();
-                const bool ok = h.kind == HitKind::Track ? shoveTrack(h.index, p, why) : shoveVia(h.index, p, why);
+                // An arc in the way goes first (its neighbours follow it); otherwise the first hit.
+                auto arcHit = std::find_if(hits.begin(), hits.end(), [&](const Hit& h) { return movableArc(h); });
+                const Hit h = arcHit != hits.end() ? *arcHit : hits.front();
+                const bool ok = h.kind == HitKind::Track
+                                    ? (arcHit != hits.end() ? shoveArc(h.index, p, why) : shoveTrack(h.index, p, why))
+                                    : shoveVia(h.index, p, why);
                 if (!ok) return false;
                 if (!alive(p)) break;
             }
@@ -1500,6 +1519,7 @@ public:
                 why = "Shoved copper would break clearance";
                 return false;
             }
+        refilletCorners();
         return cleanJoins(why);
     }
 
@@ -1675,6 +1695,10 @@ private:
             return makeOctagon({v.position}, grow + kMargin);
         }
         const Track& t = w_.track(p.idx);
+        if (t.arc && isArcTrack(t)) {  // a shoved arc pushing on: the hull of its chords (radius covers the sagitta)
+            const Shape s = trackShape(t);
+            return makeOctagon(s.points(), B_.clearance(net, t.net) + half + s.radius + kMargin);
+        }
         return makeOctagon({t.a, t.b}, B_.clearance(net, t.net) + half + t.width / 2 + kMargin);
     }
     bool polylineHitsPusher(const std::vector<Vec2>& pts, int net, double hw, const Item& p) const {
@@ -2031,6 +2055,733 @@ private:
             writeBack(L, best, {});
         }
         return true;
+    }
+
+    // ------------------------------------------------------------------------------------------ shoving arcs
+
+    /// A hit on an arc the shove engine may move as a whole.
+    bool movableArc(const Hit& h) const { return h.kind == HitKind::Track && w_.arcShovable(h.index); }
+
+    /// Where an arc track ends: the one movable straight track of its net that continues it there (or none), or held
+    /// (a pad, a via, a junction, a locked track or another arc).
+    struct ArcEnd {
+        long nb = -1;
+        bool held = false;
+    };
+    ArcEnd arcEnd(size_t ai, Vec2 p) const {
+        const Track& A = w_.track(ai);
+        ArcEnd e;
+        long via = -1;
+        if (nodeAnchored(w_, A.net, A.layer, p, &via)) {
+            e.held = true;
+            return e;
+        }
+        const auto at = tracksEndingAt(w_, A.net, A.layer, p, ai);
+        if (at.empty()) return e;
+        if (at.size() > 1 || w_.trackFixed(at[0]) || w_.track(at[0]).arc) {
+            e.held = true;
+            return e;
+        }
+        e.nb = static_cast<long>(at[0]);
+        return e;
+    }
+
+    /// Track `t` keeps the clearance (plus kMargin) to the pusher.
+    bool clearOfPusher(const Track& t, const Item& p) const {
+        if (p.via) {
+            const Via& v = w_.via(p.idx);
+            if (!v.spans(t.layer)) return true;
+            const double need = B_.clearance(v.net, t.net) + kMargin;
+            return trackPointDistance(t, v.position) - t.width / 2 - v.diameter / 2 >= need;
+        }
+        const Track& u = w_.track(p.idx);
+        if (u.layer != t.layer) return true;
+        const double need = B_.clearance(u.net, t.net) + kMargin;
+        return trackTrackDistance(t, u) - t.width / 2 - u.width / 2 >= need;
+    }
+
+    /// Shoves arc track `ai` clear of `pusher` as a whole, its neighbours following:
+    ///  - an arc that fillets a corner (tangent straight neighbours on both ends) is re-filleted with another radius:
+    ///    the arc and its tangent points scale about the corner, so the neighbours only get shorter or longer along
+    ///    their own lines (a larger radius moves the arc away from the corner, a smaller one towards it);
+    ///  - any other arc whose ends are free or continue in one movable straight track is offset concentrically (the
+    ///    radius changes); the neighbours' near ends follow its ends;
+    ///  - when no radius clears the pusher, a fillet goes back to its sharp corner (straight tracks, shoved as lines
+    ///    from there) and is re-filleted at the end of the shove where it fits (refilletCorners).
+    /// Otherwise it fails like a fixed track ("Blocked by ..."). The smallest move that clears the pusher wins.
+    /// An arc joined tangentially to further movable arcs (an S-curve, a chain of arcs) or with an end on a pad or via
+    /// of its net goes to shoveArcChain.
+    bool shoveArc(size_t ai, const Item& pusher, std::string& why) {
+        {
+            const ArcChain C = arcChain(ai);
+            if (C.idx.size() > 1 || C.end[0].pinned || C.end[1].pinned) return shoveArcChain(C, ai, pusher, why);
+        }
+        const Hit asHit{HitKind::Track, ai, true};
+        const Track A = w_.track(ai);
+        const ArcGeom g = trackArc(A);
+        auto blocked = [&] {
+            why = "Blocked by " + describeHit(w_, asHit);
+            return false;
+        };
+        if (!g.valid) return blocked();
+        const ArcEnd e[2] = {arcEnd(ai, A.a), arcEnd(ai, A.b)};
+        if (e[0].held || e[1].held || (e[0].nb >= 0 && e[0].nb == e[1].nb)) return blocked();
+        const Vec2 ends[2] = {A.a, A.b};
+        std::vector<size_t> olds{ai};
+        for (const ArcEnd& x : e)
+            if (x.nb >= 0) olds.push_back(static_cast<size_t>(x.nb));
+        // What the old copper already violated stays tolerated for the new.
+        std::vector<Hit> grand;
+        for (size_t o : olds) {
+            const Item it{false, o};
+            if (o < w_.baseT())
+                for (const Hit& h : rawHits(it))
+                    if (preexisting(h)) grand.push_back(h);
+            auto gi = grandfathered_.find(it);
+            if (gi != grandfathered_.end()) grand.insert(grand.end(), gi->second.begin(), gi->second.end());
+        }
+        std::sort(grand.begin(), grand.end());
+        grand.erase(std::unique(grand.begin(), grand.end()), grand.end());
+        for (size_t o : olds) w_.goneT[o] = 1;
+        auto restore = [&] {
+            for (size_t o : olds) w_.goneT[o] = 0;
+        };
+        // Same-net copper on the arc itself (beside its neighbours): the moved arc must keep touching it.
+        const auto contactsBefore = contactsOf(w_, A.net, A.layer, trackPolyline(A, 1e-3), A.width / 2);
+
+        // The new arc with the neighbours' near ends moved onto its ends.
+        auto build = [&](const Track& arc2, std::vector<Track>& out) {
+            out.assign(1, arc2);
+            const Vec2 to[2] = {arc2.a, arc2.b};
+            for (int k = 0; k < 2; ++k) {
+                if (e[k].nb < 0) continue;
+                Track n = w_.track(static_cast<size_t>(e[k].nb));
+                (samePoint(n.a, ends[k]) ? n.a : n.b) = to[k];
+                const Vec2 far = otherEnd(n, to[k]);
+                if ((far - to[k]).length() < 0.01) return false;
+                if (acuteAway(far - to[k], trackEndDirection(arc2, k == 1))) return false;
+                out.push_back(n);
+            }
+            return true;
+        };
+        auto clearsPusher = [&](const std::vector<Track>& c) {
+            for (const Track& t : c)
+                if (!clearOfPusher(t, pusher)) return false;
+            return true;
+        };
+        // No new fixed obstacle (other movable arcs are shoved on in turn) and every contact kept.
+        auto acceptable = [&](const std::vector<Track>& c) {
+            std::vector<Hit> hits;
+            for (const Track& t : c) {
+                hits.clear();
+                trackHits(w_, {t.net}, t.layer, t, t.width / 2, &hits);
+                for (const Hit& h : hits)
+                    if (h.fixed && !movableArc(h) && std::find(grand.begin(), grand.end(), h) == grand.end()) return false;
+            }
+            const auto after = contactsOf(w_, A.net, A.layer, trackPolyline(c.front(), 1e-3), A.width / 2);
+            return std::includes(after.begin(), after.end(), contactsBefore.begin(), contactsBefore.end());
+        };
+        // The least change of the scale f (1 = as it is) within [lo, hi] that clears the pusher: scanned outwards in
+        // steps both ways, the step where it starts to clear bisected.
+        auto search = [&](const std::function<bool(double, std::vector<Track>&)>& make, double lo, double hi,
+                          double step, std::vector<Track>& best) {
+            double bestMove = std::numeric_limits<double>::max();
+            for (int dir : {1, -1}) {
+                double prev = 1;
+                bool bisected = false;
+                int tries = 0;
+                for (int k = 1; k <= 400; ++k) {
+                    const double f = 1 + dir * k * step;
+                    if (f < lo || f > hi || std::fabs(f - 1) >= bestMove) break;
+                    std::vector<Track> c;
+                    if (!make(f, c) || !clearsPusher(c)) {
+                        prev = f;
+                        continue;
+                    }
+                    if (!bisected) {  // the first step that clears: bisected for the least move
+                        bisected = true;
+                        double a = prev, b = f;
+                        std::vector<Track> cb = c;
+                        for (int it = 0; it < 30 && std::fabs(b - a) > 1e-9; ++it) {
+                            const double m = (a + b) / 2;
+                            std::vector<Track> cm;
+                            if (make(m, cm) && clearsPusher(cm)) {
+                                b = m;
+                                cb = std::move(cm);
+                            } else {
+                                a = m;
+                            }
+                        }
+                        if (acceptable(cb)) {
+                            best = std::move(cb);
+                            bestMove = std::fabs(b - 1);
+                            break;
+                        }
+                    }
+                    if (acceptable(c)) {
+                        best = std::move(c);
+                        bestMove = std::fabs(f - 1);
+                        break;
+                    }
+                    if (++tries >= 24) break;  // further out only runs into more copper
+                    prev = f;
+                }
+            }
+            return !best.empty();
+        };
+        auto scaled = [&](Vec2 o, double f) {
+            Track t = A;
+            t.a = o + (A.a - o) * f;
+            t.b = o + (A.b - o) * f;
+            t.mid = o + (A.mid - o) * f;
+            return t;
+        };
+        const double stepLen = std::max(0.02, (B_.s.clearance + A.width) / 4);
+        const double lo = std::max(A.width / 2, 0.01) / g.r;  // the centre line's radius at least the half width
+
+        // A fillet: tangent straight neighbours on both ends; V is the corner it rounds.
+        bool fillet = e[0].nb >= 0 && e[1].nb >= 0;
+        Vec2 V;
+        if (fillet) {
+            const Vec2 d0 = trackEndDirection(A, false), d1 = trackEndDirection(A, true);
+            for (int k = 0; k < 2 && fillet; ++k) {
+                const Track& n = w_.track(static_cast<size_t>(e[k].nb));
+                const Vec2 u = unit(otherEnd(n, ends[k]) - ends[k]), d = k == 0 ? d0 : d1;
+                fillet = std::fabs(cross(u, d)) < 1e-3 && u.dot(d) < 0;
+            }
+            const double den = cross(d0, d1);
+            if (fillet && std::fabs(den) > 1e-6) {
+                const double s0 = cross(A.b - A.a, d1) / den, s1 = cross(A.b - A.a, d0) / den;
+                V = A.a + d0 * s0;
+                fillet = s0 > 1e-6 && s1 > 1e-6;
+            } else {
+                fillet = false;
+            }
+        }
+        std::vector<Track> news;
+        if (fillet) {
+            const double reach = std::max((A.mid - V).length(), 1e-6);
+            double hi = std::numeric_limits<double>::max();
+            for (int k = 0; k < 2; ++k) {
+                const Track& n = w_.track(static_cast<size_t>(e[k].nb));
+                hi = std::min(hi, ((otherEnd(n, ends[k]) - V).length() - 0.01) / (ends[k] - V).length());
+            }
+            search([&](double f, std::vector<Track>& out) { return build(scaled(V, f), out); }, lo, hi,
+                   std::max(1e-6, stepLen / reach), news);
+        } else {
+            search([&](double f, std::vector<Track>& out) { return build(scaled(g.c, f), out); }, lo,
+                   std::numeric_limits<double>::max(), stepLen / g.r, news);
+        }
+        if (news.empty() && fillet) {
+            // Back to the sharp corner: the neighbours meet at V and are shoved as lines; refilletCorners rounds it.
+            const Track& n0 = w_.track(static_cast<size_t>(e[0].nb));
+            const Track& n1 = w_.track(static_cast<size_t>(e[1].nb));
+            if (!acuteAway(otherEnd(n0, A.a) - V, otherEnd(n1, A.b) - V)) {
+                for (int k = 0; k < 2; ++k) {
+                    Track n = w_.track(static_cast<size_t>(e[k].nb));
+                    (samePoint(n.a, ends[k]) ? n.a : n.b) = V;
+                    news.push_back(n);
+                }
+                refillets_.push_back({A.net, A.layer, A.width, g.r, V, std::max(1.0, 4 * (A.a - V).length())});
+            }
+        }
+        if (news.empty()) {
+            restore();
+            return blocked();
+        }
+        for (const Track& t : news) {
+            const Item it{false, w_.addTrack(t, false)};
+            grandfathered_[it] = grand;
+            push(it);
+        }
+        return true;
+    }
+
+    // ------------------------------------------------------------------- arc chains (S-curves) and pinned arcs
+
+    /// One end of an arc chain: continued by one movable straight track, held (a junction, a locked track or an arc
+    /// that is not part of the chain), pinned (on a pad or via of the net: the point stays) or free.
+    struct ChainEnd {
+        long nb = -1;
+        bool held = false, pinned = false;
+    };
+    /// Movable arcs of one net, layer and width joined end to end with tangent joins (an S-curve is two).
+    struct ArcChain {
+        std::vector<size_t> idx;  // the arc tracks in chain order
+        std::vector<Track> seg;   // the same, oriented along the chain: seg[k].b is seg[k + 1].a
+        std::vector<char> rev;    // seg[k] is track idx[k] reversed
+        ChainEnd end[2];          // at seg.front().a and seg.back().b
+    };
+
+    ChainEnd chainEndAt(size_t arc, Vec2 p) const {
+        const Track& A = w_.track(arc);
+        ChainEnd e;
+        long via = -1;
+        if (nodeAnchored(w_, A.net, A.layer, p, &via)) {
+            e.pinned = true;
+            return e;
+        }
+        const auto at = tracksEndingAt(w_, A.net, A.layer, p, arc);
+        if (at.empty()) return e;
+        if (at.size() > 1 || w_.trackFixed(at[0]) || w_.track(at[0]).arc) {
+            e.held = true;
+            return e;
+        }
+        e.nb = static_cast<long>(at[0]);
+        return e;
+    }
+
+    /// The chain of movable arcs through arc `ai`: followed both ways while the next track is the only one at the
+    /// join, a movable arc of the same width, and runs on tangentially (at most 16 arcs).
+    ArcChain arcChain(size_t ai) const {
+        ArcChain c;
+        const Track A = w_.track(ai);
+        c.idx = {ai};
+        c.seg = {A};
+        c.rev = {0};
+        for (int fwd = 1; fwd >= 0; --fwd) {
+            while (c.idx.size() < 16) {
+                const Track cur = fwd ? c.seg.back() : c.seg.front();
+                const size_t ci = fwd ? c.idx.back() : c.idx.front();
+                const Vec2 p = fwd ? cur.b : cur.a;
+                long via = -1;
+                if (nodeAnchored(w_, A.net, A.layer, p, &via)) break;
+                const auto at = tracksEndingAt(w_, A.net, A.layer, p, ci);
+                if (at.size() != 1) break;
+                const size_t nx = at[0];
+                if (!w_.arcShovable(nx) || std::fabs(w_.track(nx).width - A.width) > 1e-9 ||
+                    std::find(c.idx.begin(), c.idx.end(), nx) != c.idx.end())
+                    break;
+                Track nt = w_.track(nx);
+                const bool flip = fwd ? !samePoint(nt.a, p) : !samePoint(nt.b, p);
+                if (flip) nt = reversedTrack(nt);
+                // Into each track's interior from the join: a tangent join runs on without a kink.
+                const Vec2 dIn = trackEndDirection(cur, fwd != 0), dOut = trackEndDirection(nt, fwd == 0);
+                if (std::fabs(cross(dIn, dOut)) >= 1e-4 || dIn.dot(dOut) >= 0) break;
+                if (fwd) {
+                    c.idx.push_back(nx);
+                    c.seg.push_back(nt);
+                    c.rev.push_back(flip);
+                } else {
+                    c.idx.insert(c.idx.begin(), nx);
+                    c.seg.insert(c.seg.begin(), nt);
+                    c.rev.insert(c.rev.begin(), flip);
+                }
+            }
+        }
+        c.end[0] = chainEndAt(c.idx.front(), c.seg.front().a);
+        c.end[1] = chainEndAt(c.idx.back(), c.seg.back().b);
+        return c;
+    }
+
+    /// Shoves a chain of tangent arcs (an S-curve) or an arc with an end on a pad or via, as a unit:
+    ///  1. a chain between tangent straight tracks is re-solved on its corner polygon: the joins between the arcs slide
+    ///     along their common tangents and the radii follow, so every join stays tangent and the outer tracks only
+    ///     get shorter or longer along their own lines;
+    ///  2. otherwise (or when that cannot clear the pusher) a chain is offset as a whole (its parallel curve: the joins
+    ///     stay tangent, the outer tracks' near ends follow its ends);
+    ///  3. an arc pinned at one end keeps that end and its direction there; its radius changes, and its other end
+    ///     stays tangent to the straight track there (which turns about its far end) or keeps its sweep when free;
+    ///  4. failing that, the chain becomes its corner polyline (a pinned end keeps its point, so it gets a short
+    ///     straight exit), the lines are shoved, and each corner is rounded again at the end (refilletCorners).
+    /// Pads and vias never move here; a held end (a junction, a locked track, another arc) blocks it.
+    bool shoveArcChain(const ArcChain& C, size_t ai, const Item& pusher, std::string& why) {
+        const Hit asHit{HitKind::Track, ai, true};
+        auto blocked = [&] {
+            why = "Blocked by " + describeHit(w_, asHit);
+            return false;
+        };
+        const size_t n = C.seg.size();
+        if (C.end[0].held || C.end[1].held || (C.end[0].nb >= 0 && C.end[0].nb == C.end[1].nb)) return blocked();
+        std::vector<ArcGeom> g(n);
+        for (size_t k = 0; k < n; ++k) {
+            g[k] = trackArc(C.seg[k]);
+            if (!g[k].valid) return blocked();
+        }
+        const Track& A = C.seg.front();
+        const Vec2 endPt[2] = {C.seg.front().a, C.seg.back().b};
+        std::vector<size_t> olds = C.idx;
+        for (const ChainEnd& x : C.end)
+            if (x.nb >= 0) olds.push_back(static_cast<size_t>(x.nb));
+        // What the old copper already violated stays tolerated for the new.
+        std::vector<Hit> grand;
+        for (size_t o : olds) {
+            const Item it{false, o};
+            if (o < w_.baseT())
+                for (const Hit& h : rawHits(it))
+                    if (preexisting(h)) grand.push_back(h);
+            auto gi = grandfathered_.find(it);
+            if (gi != grandfathered_.end()) grand.insert(grand.end(), gi->second.begin(), gi->second.end());
+        }
+        std::sort(grand.begin(), grand.end());
+        grand.erase(std::unique(grand.begin(), grand.end()), grand.end());
+        for (size_t o : olds) w_.goneT[o] = 1;
+        auto restore = [&] {
+            for (size_t o : olds) w_.goneT[o] = 0;
+        };
+        // Same-net copper on the arcs (pads, vias, other tracks): the moved chain must keep touching it.
+        auto contactsOfArcs = [&](const std::vector<Track>& arcs, size_t count) {
+            std::vector<Hit> all;
+            for (size_t k = 0; k < count && k < arcs.size(); ++k) {
+                const auto c = contactsOf(w_, A.net, A.layer, trackPolyline(arcs[k], 1e-3), A.width / 2);
+                all.insert(all.end(), c.begin(), c.end());
+            }
+            std::sort(all.begin(), all.end());
+            all.erase(std::unique(all.begin(), all.end()), all.end());
+            return all;
+        };
+        const auto contactsBefore = contactsOfArcs(C.seg, n);
+
+        // New arcs (chain order) in their tracks' own orientation, followed by the outer tracks with their near ends
+        // moved onto the chain's ends. A pinned end must stay where it is.
+        auto build = [&](const std::vector<Track>& arcs, std::vector<Track>& out) {
+            out.clear();
+            const Vec2 to[2] = {arcs.front().a, arcs.back().b};
+            const Vec2 into[2] = {trackEndDirection(arcs.front(), false), trackEndDirection(arcs.back(), true)};
+            std::vector<Track> nbs;
+            for (int k = 0; k < 2; ++k) {
+                if (C.end[k].pinned && !samePoint(to[k], endPt[k], 1e-9)) return false;
+                if (C.end[k].nb < 0) continue;
+                Track t = w_.track(static_cast<size_t>(C.end[k].nb));
+                (samePoint(t.a, endPt[k]) ? t.a : t.b) = to[k];
+                const Vec2 far = otherEnd(t, to[k]);
+                if ((far - to[k]).length() < 0.01) return false;
+                if (acuteAway(far - to[k], into[k])) return false;
+                nbs.push_back(t);
+            }
+            for (size_t k = 0; k < arcs.size(); ++k) {
+                if (!isArcTrack(arcs[k])) return false;
+                out.push_back(C.rev[k] ? reversedTrack(arcs[k]) : arcs[k]);
+            }
+            out.insert(out.end(), nbs.begin(), nbs.end());
+            return true;
+        };
+        auto clearsPusher = [&](const std::vector<Track>& c) {
+            for (const Track& t : c)
+                if (!clearOfPusher(t, pusher)) return false;
+            return true;
+        };
+        // No new fixed obstacle (other movable arcs are shoved on in turn) and every contact kept.
+        auto acceptable = [&](const std::vector<Track>& c) {
+            std::vector<Hit> hits;
+            for (const Track& t : c) {
+                hits.clear();
+                trackHits(w_, {t.net}, t.layer, t, t.width / 2, &hits);
+                for (const Hit& h : hits)
+                    if (h.fixed && !movableArc(h) && std::find(grand.begin(), grand.end(), h) == grand.end()) return false;
+            }
+            const auto after = contactsOfArcs(c, n);
+            return std::includes(after.begin(), after.end(), contactsBefore.begin(), contactsBefore.end());
+        };
+        // The least change of parameter x (0 = as it is) within [lo, hi] that clears the pusher: scanned outwards in
+        // steps both ways, the step where it starts to clear bisected (as shoveArc does with its scale).
+        using Maker = std::function<bool(double, std::vector<Track>&)>;
+        auto search = [&](const Maker& make, double lo, double hi, double step, std::vector<Track>& best) {
+            double bestMove = std::numeric_limits<double>::max();
+            for (int sign : {1, -1}) {
+                double prev = 0;
+                bool bisected = false;
+                int tries = 0;
+                for (int k = 1; k <= 400; ++k) {
+                    const double x = sign * k * step;
+                    if (x < lo || x > hi || std::fabs(x) >= bestMove) break;
+                    std::vector<Track> c;
+                    if (!make(x, c) || !clearsPusher(c)) {
+                        prev = x;
+                        continue;
+                    }
+                    if (!bisected) {  // the first step that clears: bisected for the least move
+                        bisected = true;
+                        double a = prev, b = x;
+                        std::vector<Track> cb = c;
+                        for (int it = 0; it < 30 && std::fabs(b - a) > 1e-9; ++it) {
+                            const double m = (a + b) / 2;
+                            std::vector<Track> cm;
+                            if (make(m, cm) && clearsPusher(cm)) {
+                                b = m;
+                                cb = std::move(cm);
+                            } else {
+                                a = m;
+                            }
+                        }
+                        if (acceptable(cb)) {
+                            best = std::move(cb);
+                            bestMove = std::fabs(b);
+                            break;
+                        }
+                    }
+                    if (acceptable(c)) {
+                        best = std::move(c);
+                        bestMove = std::fabs(x);
+                        break;
+                    }
+                    if (++tries >= 24) break;  // further out only runs into more copper
+                    prev = x;
+                }
+            }
+            return !best.empty();
+        };
+        const double stepLen = std::max(0.02, (B_.s.clearance + A.width) / 4);
+        const double rMin = std::max(A.width / 2, 0.01);  // the centre line's radius at least the half width
+        auto leftOf = [](Vec2 d) { return Vec2{-d.y, d.x}; };
+        auto withShape = [&](size_t k, const Track& shape) {  // arc k's track (net, width, ...) with a new shape
+            Track t = C.seg[k];
+            t.a = shape.a;
+            t.b = shape.b;
+            t.mid = shape.mid;
+            return t;
+        };
+        // The corner polygon: arc k fillets corner V[k] with tangent length T[k] (each sweep below 180°).
+        std::vector<Vec2> V(n);
+        std::vector<double> T(n);
+        bool corners = true;
+        for (size_t k = 0; k < n && corners; ++k) {
+            const double sweep = std::fabs(g[k].sweep);
+            corners = sweep < kPi - 0.01;
+            T[k] = g[k].r * std::tan(sweep / 2);
+            V[k] = C.seg[k].a + trackEndDirection(C.seg[k], false) * T[k];
+        }
+
+        std::vector<Track> news;
+        if (n >= 2 && !C.end[0].pinned && !C.end[1].pinned) {
+            // 1. Re-solved on the corner polygon, when straight tracks continue the chain tangentially at both ends.
+            bool tangentEnds = corners && C.end[0].nb >= 0 && C.end[1].nb >= 0;
+            for (int k = 0; k < 2 && tangentEnds; ++k) {
+                const Track& t = w_.track(static_cast<size_t>(C.end[k].nb));
+                const Vec2 u = unit(otherEnd(t, endPt[k]) - endPt[k]);
+                const Vec2 d = k == 0 ? trackEndDirection(C.seg.front(), false) : trackEndDirection(C.seg.back(), true);
+                tangentEnds = std::fabs(cross(u, d)) < 1e-3 && u.dot(d) < 0;
+            }
+            if (tangentEnds) {
+                // Edge directions: e[0] along the first outer track, e[k] from V[k - 1] to V[k], e[n] along the last.
+                std::vector<Vec2> e(n + 1);
+                e[0] = trackEndDirection(C.seg.front(), false);
+                e[n] = trackEndDirection(C.seg.back(), true) * -1;
+                std::vector<double> T0(n), turn(n);
+                T0[0] = T[0];
+                bool ok = true;
+                for (size_t k = 1; k < n && ok; ++k) {  // the joins split each inner edge: T[k - 1] + T[k] = |edge|
+                    const Vec2 d = V[k] - V[k - 1];
+                    e[k] = unit(d);
+                    T0[k] = d.length() - T0[k - 1];
+                    ok = T0[k] > 1e-6 && e[k].dot(trackEndDirection(C.seg[k], false)) > 0.999;
+                }
+                for (size_t k = 0; k < n && ok; ++k) {
+                    turn[k] = std::acos(std::clamp(e[k].dot(e[k + 1]), -1.0, 1.0));
+                    ok = turn[k] > 1e-3 && turn[k] < kPi - 0.01;
+                }
+                if (ok) {
+                    // T[k] = T0[k] + x on even arcs, − x on odd ones; every radius stays at least rMin.
+                    double lo = -std::numeric_limits<double>::max(), hi = std::numeric_limits<double>::max();
+                    for (size_t k = 0; k < n; ++k) {
+                        const double slack = T0[k] - rMin * std::tan(turn[k] / 2);
+                        if (k % 2 == 0)
+                            lo = std::max(lo, -slack);
+                        else
+                            hi = std::min(hi, slack);
+                    }
+                    auto make = [&](double x, std::vector<Track>& out) {
+                        std::vector<Track> arcs;
+                        Vec2 start;
+                        for (size_t k = 0; k < n; ++k) {
+                            const double Tk = T0[k] + (k % 2 == 0 ? x : -x);
+                            const double r = Tk / std::tan(turn[k] / 2);
+                            if (Tk <= 1e-6 || r < rMin - 1e-12) return false;
+                            if (k == 0) start = V[0] - e[0] * Tk;
+                            const bool ccw = cross(e[k], e[k + 1]) > 0;
+                            const Vec2 c = start + (ccw ? leftOf(e[k]) : leftOf(e[k]) * -1) * r;
+                            const Vec2 end = V[k] + e[k + 1] * Tk;
+                            arcs.push_back(withShape(k, makeArcTrack(start, end, c, ccw, A.net, A.layer, A.width)));
+                            start = end;
+                        }
+                        return build(arcs, out);
+                    };
+                    search(make, lo, hi, stepLen, news);
+                }
+            }
+            // 2. Offset as a whole: the parallel curve at distance x to the left of the chain's direction.
+            if (news.empty()) {
+                double lo = -std::numeric_limits<double>::max(), hi = std::numeric_limits<double>::max();
+                for (size_t k = 0; k < n; ++k) {
+                    if (g[k].sweep > 0)
+                        hi = std::min(hi, g[k].r - rMin);  // centre on the left: the radius shrinks
+                    else
+                        lo = std::max(lo, rMin - g[k].r);
+                }
+                auto make = [&](double x, std::vector<Track>& out) {
+                    std::vector<Track> arcs;
+                    for (size_t k = 0; k < n; ++k) {
+                        const double f = (g[k].r + (g[k].sweep > 0 ? -x : x)) / g[k].r;
+                        if (g[k].r * f < rMin - 1e-12) return false;
+                        const Track& s = C.seg[k];
+                        Track t = s;
+                        t.a = k == 0 ? g[k].c + (s.a - g[k].c) * f : arcs.back().b;
+                        t.b = g[k].c + (s.b - g[k].c) * f;
+                        t.mid = g[k].c + (s.mid - g[k].c) * f;
+                        arcs.push_back(t);
+                    }
+                    return build(arcs, out);
+                };
+                search(make, lo, hi, stepLen, news);
+            }
+        } else if (n == 1 && C.end[0].pinned != C.end[1].pinned) {
+            // 3. Pinned at one end P: the circle through P with the same direction there, its radius varied.
+            const bool atB = C.end[1].pinned;
+            const Track S = atB ? reversedTrack(C.seg[0]) : C.seg[0];  // runs from the pinned end
+            const ArcGeom sg = trackArc(S);
+            const int other = atB ? 0 : 1;
+            const Vec2 P = S.a, t0 = trackEndDirection(S, false);
+            const bool ccw = sg.sweep > 0;
+            const Vec2 nrm = ccw ? leftOf(t0) : leftOf(t0) * -1;  // towards the centre
+            const bool hasNb = C.end[other].nb >= 0;
+            Vec2 F;  // the far end of the straight track at the other end: it turns about that point
+            if (hasNb) F = otherEnd(w_.track(static_cast<size_t>(C.end[other].nb)), endPt[other]);
+            if (sg.valid) {
+                auto make = [&](double x, std::vector<Track>& out) {
+                    const double R = sg.r + x;
+                    if (R < rMin - 1e-12) return false;
+                    const Vec2 c = P + nrm * R;
+                    Vec2 Q;
+                    if (hasNb) {  // the tangent point from F, on the side the arc runs on towards F
+                        const Vec2 cf = F - c;
+                        const double d = cf.length();
+                        if (d <= R + 0.01) return false;
+                        const double al = std::acos(R / d), base = std::atan2(cf.y, cf.x);
+                        bool found = false;
+                        for (double s : {1.0, -1.0}) {
+                            const double ang = base + s * al;
+                            const Vec2 q = c + Vec2{std::cos(ang), std::sin(ang)} * R;
+                            const Vec2 fwd = ccw ? leftOf(q - c) : leftOf(q - c) * -1;
+                            if (fwd.dot(F - q) > 0) {
+                                Q = q;
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) return false;
+                    } else {  // a free end keeps the sweep
+                        const double ang = std::atan2(P.y - c.y, P.x - c.x) + sg.sweep;
+                        Q = c + Vec2{std::cos(ang), std::sin(ang)} * R;
+                    }
+                    const double s0 = std::atan2(P.y - c.y, P.x - c.x), s1 = std::atan2(Q.y - c.y, Q.x - c.x);
+                    const double sweep = std::fmod((ccw ? s1 - s0 : s0 - s1) + 4 * kPi, 2 * kPi);
+                    if (sweep < 1e-3 || sweep > 1.5 * kPi) return false;
+                    Track arc = withShape(0, makeArcTrack(P, Q, c, ccw, A.net, A.layer, A.width));
+                    if (atB) arc = reversedTrack(arc);
+                    return build({arc}, out);
+                };
+                search(make, rMin - sg.r, std::numeric_limits<double>::max(), stepLen, news);
+            }
+        }
+        bool polygon = false;
+        if (news.empty() && corners) {
+            // 4. Back to the corner polyline; the chain's end points stay (a pinned end gets a straight exit).
+            std::vector<Vec2> pts{endPt[0]};
+            pts.insert(pts.end(), V.begin(), V.end());
+            pts.push_back(endPt[1]);
+            bool ok = true;
+            for (size_t i = 1; i + 1 < pts.size() && ok; ++i) ok = !acuteAway(pts[i - 1] - pts[i], pts[i + 1] - pts[i]);
+            for (int k = 0; k < 2 && ok; ++k) {
+                if (C.end[k].nb < 0) continue;
+                const Vec2 p = endPt[k], q = k == 0 ? pts[1] : pts[pts.size() - 2];
+                ok = !acuteAway(otherEnd(w_.track(static_cast<size_t>(C.end[k].nb)), p) - p, q - p);
+            }
+            if (ok) {
+                for (size_t i = 0; i + 1 < pts.size(); ++i) {
+                    if ((pts[i + 1] - pts[i]).length() <= 1e-6) continue;
+                    Track t = A;
+                    t.arc = false;
+                    t.mid = Vec2{};
+                    t.a = pts[i];
+                    t.b = pts[i + 1];
+                    news.push_back(t);
+                }
+                polygon = !news.empty();
+                if (polygon)  // the outer tracks stay as they are
+                    for (const ChainEnd& x : C.end)
+                        if (x.nb >= 0) w_.goneT[static_cast<size_t>(x.nb)] = 0;
+            }
+        }
+        if (news.empty()) {
+            restore();
+            return blocked();
+        }
+        if (polygon)
+            for (size_t k = 0; k < n; ++k)
+                refillets_.push_back({A.net, A.layer, A.width, g[k].r, V[k], std::max(1.0, 4 * T[k])});
+        for (const Track& t : news) {
+            const Item it{false, w_.addTrack(t, false)};
+            grandfathered_[it] = grand;
+            push(it);
+        }
+        return true;
+    }
+
+    /// A fillet shoveArc turned back into its corner: rounded again after the shove.
+    struct Refillet {
+        int net = -1, layer = 0;
+        double width = 0, radius = 0;
+        Vec2 at;
+        double reach = 0;
+    };
+    std::vector<Refillet> refillets_;
+
+    /// Rounds each such corner again: the nearest corner of two movable straight tracks of its net within reach of
+    /// where it was, with the old radius, a half or a quarter of it, where that keeps every clearance and
+    /// connection; a corner with no room stays sharp.
+    void refilletCorners() {
+        for (const Refillet& R : refillets_) {
+            std::vector<size_t> found;
+            w_.tracksOnLayer(Rect::centered(R.at, 2 * R.reach, 2 * R.reach), R.layer, found);
+            double bestD = R.reach;
+            size_t ta = SIZE_MAX, tb = SIZE_MAX;
+            Vec2 corner;
+            for (size_t i : found) {
+                const Track& t = w_.track(i);
+                if (t.net != R.net || t.layer != R.layer || t.arc || w_.trackFixed(i) || std::fabs(t.width - R.width) > 1e-9)
+                    continue;
+                for (Vec2 p : {t.a, t.b}) {
+                    const double d = (p - R.at).length();
+                    if (d >= bestD || joinCovered(w_, R.net, R.layer, p)) continue;
+                    const auto at = endsAt(w_, R.net, R.layer, p);
+                    if (at.size() != 2) continue;
+                    const size_t o = at[0] == i ? at[1] : at[0];
+                    const Track& u = w_.track(o);
+                    if (u.arc || w_.trackFixed(o) || std::fabs(u.width - R.width) > 1e-9) continue;
+                    // A straight run-through (a join between two collinear pieces) is no corner.
+                    const Vec2 da = awayFrom(t, p), db = awayFrom(u, p);
+                    if (da.dot(db) <= -std::cos(1e-3) * da.length() * db.length()) continue;
+                    bestD = d;
+                    corner = p;
+                    ta = i;
+                    tb = o;
+                }
+            }
+            if (ta != SIZE_MAX) filletCorner(ta, tb, corner, R.radius);
+        }
+    }
+
+    /// Rounds the corner at `p` between straight tracks `ia` and `ib` with a tangent arc of radius r0 (or r0 / 2,
+    /// r0 / 4) when the result keeps every clearance and connection.
+    bool filletCorner(size_t ia, size_t ib, Vec2 p, double r0) {
+        const Track X = w_.track(ia), Y = w_.track(ib);
+        const Vec2 x = otherEnd(X, p), y = otherEnd(Y, p);
+        const double lx = (x - p).length(), ly = (y - p).length();
+        const Vec2 dx = unit(x - p), dy = unit(y - p);
+        const double phi = std::acos(std::clamp(dx.dot(dy), -1.0, 1.0));  // the corner's inner angle
+        if (phi < 1e-3 || phi > kPi - 1e-3) return false;
+        for (double r : {r0, r0 / 2, r0 / 4}) {
+            const double T = r / std::tan(phi / 2);
+            if (T >= lx - 0.01 || T >= ly - 0.01) continue;
+            const Vec2 t0 = p + dx * T, t1 = p + dy * T;
+            const Vec2 c = p + unit(dx + dy) * (r / std::sin(phi / 2));
+            const Track arc = makeArcTrack(t0, t1, c, cross(t0 - c, t1 - c) > 0, X.net, X.layer, X.width);
+            Track x2 = X, y2 = Y;
+            (samePoint(x2.a, p) ? x2.a : x2.b) = t0;
+            (samePoint(y2.a, p) ? y2.a : y2.b) = t1;
+            if (tryReplace({ia, ib}, {x2, arc, y2})) return true;
+        }
+        return false;
     }
 };
 
@@ -2440,6 +3191,88 @@ std::vector<size_t> padPartition(const std::vector<Pad>& pads, const std::vector
     return label;
 }
 
+// ------------------------------------------------------------------------------------- tune while routing
+
+/// What a routed member's length is matched to (tune while routing): a length rule's fixed target, or a floor (a
+/// match group's or matched-length group's longest other member) that the bus's own longest member may raise.
+struct TuneTarget {
+    bool has = false;    // the member has a target at all
+    bool fixed = false;  // a length rule: `target` is the target
+    double target = 0;   // fixed target, or the floor
+    double tolerance = 0.1;
+};
+
+TuneTarget tuneTargetOf(const PcbLayout& pcb, const Schematic& sch, const std::vector<Pad>& pads, int net,
+                        const std::vector<int>& memberNets, bool bus) {
+    TuneTarget t;
+    if (net < 0) return t;
+    LengthTarget lt;
+    if (lengthTargetFor(pcb, sch, pads, net, lt)) {
+        t.has = true;
+        t.fixed = lt.source.rfind("rule:", 0) == 0;
+        t.target = lt.target;
+        t.tolerance = std::max(0.01, lt.tolerance);
+        return t;
+    }
+    for (const auto& g : lengthGroups(sch, pcb.settings)) {
+        if (std::find(g.nets.begin(), g.nets.end(), net) == g.nets.end()) continue;
+        t.has = true;
+        t.tolerance = std::max(0.01, g.tolerance);
+        for (int n : g.nets)
+            if (n != net && std::find(memberNets.begin(), memberNets.end(), n) == memberNets.end())
+                t.target = std::max(t.target, routedNetLength(pcb, n));
+        return t;
+    }
+    t.has = bus;  // a bus without rules: its longest member
+    return t;
+}
+
+/// A net's length as the length tuner measures it: pad to pad through series parts when a length rule or match
+/// group applies or the signal passes series parts, otherwise its routed copper.
+double tunerLength(const PcbLayout& pcb, const Schematic& sch, const std::vector<Pad>& pads, int net) {
+    LengthTarget lt;
+    const bool ruled = lengthTargetFor(pcb, sch, pads, net, lt);
+    if (!ruled) lt.xsignal = xSignalOf(sch, pads, net);
+    if (!ruled && lt.xsignal.seriesParts.empty()) return routedNetLength(pcb, net);
+    const double l = xSignalLength(pcb, pads, lt.xsignal);
+    return l > 0 ? l : routedNetLength(pcb, net);
+}
+
+/// Each member's target from its TuneTarget and the members' lengths: a rule's target, else the floor raised to the
+/// longest unruled member (a bus); a single route matches its group's other members only. 0 = no target.
+std::vector<double> tuneTargetsFor(const std::vector<TuneTarget>& tt, const std::vector<double>& len, bool bus) {
+    double longest = 0;
+    if (bus)
+        for (size_t k = 0; k < tt.size(); ++k)
+            if (tt[k].has && !tt[k].fixed) longest = std::max(longest, len[k]);
+    std::vector<double> out(tt.size(), 0.0);
+    for (size_t k = 0; k < tt.size(); ++k)
+        if (tt[k].has) out[k] = tt[k].fixed ? tt[k].target : std::max(tt[k].target, longest);
+    return out;
+}
+
+/// A differential pair's target (tune while routing): the larger of its members' own targets (rule, match group or
+/// matched-length group); without one, its longer member (the pair is then matched for skew only). 0 = no target.
+double pairTarget(const std::vector<TuneTarget>& tt, const std::vector<double>& len) {
+    double t = 0;
+    for (double v : tuneTargetsFor(tt, len, false)) t = std::max(t, v);
+    bool any = false;
+    for (const TuneTarget& x : tt) any = any || x.has;
+    if (t <= 0 && any)
+        for (double l : len) t = std::max(t, l);
+    return t;
+}
+
+MemberLength memberLengthOf(int net, double length, double target, double tolerance) {
+    MemberLength m;
+    m.net = net;
+    m.length = length;
+    m.target = target;
+    m.tolerance = tolerance;
+    m.withinTolerance = target > 0 && std::fabs(length - target) <= tolerance + 1e-9;
+    return m;
+}
+
 }  // namespace
 
 // ================================================================================================ the router
@@ -2515,6 +3348,9 @@ struct InteractiveRouter::Impl {
     } mdrag;
     bool multiRoute = false;          // the bus was started with beginMultiRoute
     double groupTarget = 0;     // longest other member of the net's matched-length group (0 = none)
+    double busTuneRoom = 0;     // tune while routing: the extra room left between a bus's members (mm)
+    std::vector<TuneTarget> tuneTargets;  // tune while routing: each member's target (computed on first use)
+    bool tuneTargetsReady = false;
 
     RoutePreview prev;
 
@@ -2537,6 +3373,10 @@ struct InteractiveRouter::Impl {
         mdrag = MultiDrag{};
         multiRoute = false;
         groupTarget = 0;
+        busTuneRoom = 0;
+        tuneTargets.clear();
+        tuneTargetsReady = false;
+        live = LiveTune{};
         busOffset.clear();
         prev = RoutePreview{};
     }
@@ -2544,6 +3384,218 @@ struct InteractiveRouter::Impl {
     bool fail(const std::string& why) {
         err = why;
         return false;
+    }
+
+    /// Tune while routing: the extra room between a bus's members for meanders (0 when the option is off).
+    double tuneRoom(double w, double clr) const {
+        if (!opt.tuneWhileRouting || opt.tuneGap < 0) return 0;
+        return opt.tuneGap > 0 ? opt.tuneGap : w + clr;
+    }
+
+    /// The members' targets for the live readout (the board does not change during a session).
+    void ensureTuneTargets() {
+        if (tuneTargetsReady) return;
+        tuneTargetsReady = true;
+        std::vector<int> nets;
+        for (const auto& m : members) nets.push_back(m.net);
+        for (int n : nets) tuneTargets.push_back(tuneTargetOf(pcb, sch, base->pads, n, nets, kind == Kind::Bus));
+    }
+
+    /// Tune while routing: most tuned tracks per member and step (the tuner's work stays bounded while the head moves).
+    int tuneBudget() const { return std::max(4, opt.shoveLimit / 20); }
+
+    /// The tuner's changes into the route's changes: tracks it replaced that the route added leave `addedTracks`,
+    /// other replaced tracks are removed ones.
+    static void takeTune(RouteChanges& ch, const LengthTuneResult& tr) {
+        for (const Track& gone : tr.changes.removedTracks) {
+            const auto at = std::find(ch.addedTracks.begin(), ch.addedTracks.end(), gone.id);
+            if (at != ch.addedTracks.end())
+                ch.addedTracks.erase(at);
+            else
+                ch.removedTracks.push_back(gone);
+        }
+        for (int id : tr.changes.addedTracks) ch.addedTracks.push_back(id);
+    }
+
+    /// Straight, unlocked tracks of `net` the route added (ids), longest first.
+    static std::vector<int> addedTracksOf(const PcbLayout& P, const RouteChanges& ch, int net) {
+        std::vector<std::pair<double, int>> cand;
+        for (const Track& t : P.tracks)
+            if (t.net == net && !t.arc && !t.teardrop && !t.locked &&
+                std::find(ch.addedTracks.begin(), ch.addedTracks.end(), t.id) != ch.addedTracks.end())
+                cand.push_back({-trackLength(t), t.id});
+        std::sort(cand.begin(), cand.end());
+        std::vector<int> out;
+        for (const auto& c : cand) out.push_back(c.second);
+        return out;
+    }
+
+    static const Track* trackById(const PcbLayout& P, int id) {
+        const auto it = std::find_if(P.tracks.begin(), P.tracks.end(), [&](const Track& t) { return t.id == id; });
+        return it == P.tracks.end() ? nullptr : &*it;
+    }
+
+    std::string netNameOf(int net) const {
+        return net >= 0 && net < static_cast<int>(sch.nets().size()) ? sch.nets()[static_cast<size_t>(net)].name
+                                                                       : std::to_string(net);
+    }
+
+    /// Tune while routing on commit (and on the preview's copy of the board, `P`): each short member gets meanders on
+    /// the tracks this commit added for it (longest first, one track at a time through the length tuner, at most
+    /// tuneBudget() tracks) up to its target; `ch` takes the tuner's changes, the members' lengths and the status.
+    /// A differential pair is tuned as a whole (tunePair). True when meanders were added.
+    bool tuneOnCommit(PcbLayout& P, RouteChanges& ch, const std::vector<int>& nets, bool bus, bool pair, double room) {
+        if (pair && nets.size() == 2) return tunePair(P, ch, nets);
+        const auto pads = P.pads(sch);
+        std::vector<TuneTarget> tt;
+        std::vector<double> len;
+        bool any = false, changed = false;
+        for (int n : nets) {
+            tt.push_back(tuneTargetOf(P, sch, pads, n, nets, bus));
+            len.push_back(tunerLength(P, sch, pads, n));
+            any = any || tt.back().has;
+        }
+        if (!any) return false;
+        const int budget = tuneBudget();
+        const std::vector<double> target = tuneTargetsFor(tt, len, bus);
+        for (size_t k = 0; k < nets.size(); ++k) {
+            if (target[k] <= 0 || len[k] >= target[k] - tt[k].tolerance) continue;
+            int used = 0;
+            for (int id : addedTracksOf(P, ch, nets[k])) {
+                if (len[k] >= target[k] - 0.01 || used >= budget) break;
+                const Track* t = trackById(P, id);
+                if (t == nullptr) continue;
+                ++used;
+                LengthTuneOptions o;
+                o.target = target[k];
+                o.maxAmplitude = room > 0.05 ? 0.98 * room : 0;  // the meanders stay inside the room between members
+                o.hasSpan = true;  // on this track only
+                o.spanFrom = t->a;
+                o.spanTo = t->b;
+                const LengthTuneResult tr = tuneTrackLength(P, sch, id, o);
+                if (!tr.applied) continue;
+                takeTune(ch, tr);
+                changed = true;
+                len[k] = tunerLength(P, sch, pads, nets[k]);
+            }
+        }
+        // Match groups' targets follow the members' new lengths.
+        const std::vector<double> after = tuneTargetsFor(tt, len, bus);
+        std::string shortList;
+        int within = 0, counted = 0;
+        for (size_t k = 0; k < nets.size(); ++k) {
+            const MemberLength m = memberLengthOf(nets[k], len[k], after[k], tt[k].tolerance);
+            ch.memberLengths.push_back(m);
+            if (m.target <= 0) continue;
+            ++counted;
+            if (m.withinTolerance) {
+                ++within;
+                continue;
+            }
+            char buf[48];
+            std::snprintf(buf, sizeof buf, " (%+.2f mm)", m.length - m.target);
+            shortList += (shortList.empty() ? "" : ", ") + netNameOf(m.net) + buf;
+        }
+        if (counted == 0) return changed;
+        char buf[128];
+        std::snprintf(buf, sizeof buf, "Lengths: %d of %d %s within tolerance of the target", within, counted,
+                      counted == 1 ? "member" : "members");
+        ch.tuneStatus = buf;
+        if (!shortList.empty()) ch.tuneStatus += " — could not reach the target (no room for meanders): " + shortList;
+        return changed;
+    }
+
+    /// The tolerance of a pair's skew |P − N|: its matched-length (pair) group's, else `fallback`.
+    double pairSkewTolerance(const PcbLayout& P, const std::vector<int>& nets, double fallback) const {
+        for (const auto& g : lengthGroups(sch, P.settings))
+            if (g.kind == "pair" && std::find(g.nets.begin(), g.nets.end(), nets[0]) != g.nets.end() &&
+                std::find(g.nets.begin(), g.nets.end(), nets[1]) != g.nets.end())
+                return std::max(0.01, g.tolerance);
+        return fallback;
+    }
+
+    /// Tune while routing a differential pair: while the longer member is short of the pair's target, coupled
+    /// meanders (both members together at their gap, on the longer member's new tracks, longest first) bring it
+    /// there; then the shorter member gets skew bumps (phase tuning, away from its partner) up to the longer one's
+    /// length, so |P − N| is within the pair's tolerance. Members, target and skew go into `ch`.
+    bool tunePair(PcbLayout& P, RouteChanges& ch, const std::vector<int>& nets) {
+        const auto pads = P.pads(sch);
+        std::vector<TuneTarget> tt;
+        std::vector<double> len;
+        for (int n : nets) {
+            tt.push_back(tuneTargetOf(P, sch, pads, n, nets, false));
+            len.push_back(tunerLength(P, sch, pads, n));
+        }
+        if (!tt[0].has && !tt[1].has) return false;
+        const double tol = std::min(tt[0].has ? tt[0].tolerance : 1e9, tt[1].has ? tt[1].tolerance : 1e9);
+        const double skewTol = pairSkewTolerance(P, nets, tol);
+        const int budget = tuneBudget();
+        bool changed = false;
+        const double target = pairTarget(tt, len);
+        // Coupled: the pair to its target.
+        const size_t lg = len[0] >= len[1] ? 0 : 1;
+        if (target > 0 && len[lg] < target - tol) {
+            int used = 0;
+            for (int id : addedTracksOf(P, ch, nets[lg])) {
+                if (len[lg] >= target - 0.01 || used >= budget) break;
+                if (trackById(P, id) == nullptr) continue;
+                ++used;
+                LengthTuneOptions o;
+                o.target = target;
+                o.coupled = true;
+                const LengthTuneResult tr = tuneTrackLength(P, sch, id, o);
+                if (!tr.applied) continue;
+                takeTune(ch, tr);
+                changed = true;
+                len[0] = tunerLength(P, sch, pads, nets[0]);
+                len[1] = tunerLength(P, sch, pads, nets[1]);
+            }
+        }
+        // Skew: the shorter member to the longer one's length.
+        const size_t sh = len[0] < len[1] ? 0 : 1, lo = 1 - sh;
+        if (len[lo] - len[sh] > skewTol) {
+            int used = 0;
+            for (int id : addedTracksOf(P, ch, nets[sh])) {
+                if (len[lo] - len[sh] <= 0.01 || used >= budget) break;
+                const Track* t = trackById(P, id);
+                if (t == nullptr) continue;
+                ++used;
+                LengthTuneOptions o;
+                o.target = len[lo];
+                o.phase = true;
+                o.hasSpan = true;
+                o.spanFrom = t->a;
+                o.spanTo = t->b;
+                const LengthTuneResult tr = tuneTrackLength(P, sch, id, o);
+                if (!tr.applied) continue;
+                takeTune(ch, tr);
+                changed = true;
+                len[sh] = tunerLength(P, sch, pads, nets[sh]);
+            }
+        }
+        const double after = pairTarget(tt, len);
+        const double mtol = tol < 1e8 ? tol : skewTol;
+        int within = 0;
+        std::string shortList;
+        for (size_t k = 0; k < 2; ++k) {
+            const MemberLength m = memberLengthOf(nets[k], len[k], after, mtol);
+            ch.memberLengths.push_back(m);
+            if (m.withinTolerance) {
+                ++within;
+                continue;
+            }
+            char buf[48];
+            std::snprintf(buf, sizeof buf, " (%+.2f mm)", m.length - m.target);
+            shortList += (shortList.empty() ? "" : ", ") + netNameOf(m.net) + buf;
+        }
+        const double skew = std::fabs(len[0] - len[1]);
+        char buf[160];
+        std::snprintf(buf, sizeof buf, "Pair: %d of 2 members within tolerance of the target, skew %.3f mm (tolerance %.3f mm)",
+                      within, skew, skewTol);
+        ch.tuneStatus = buf;
+        if (skew > skewTol + 1e-9) ch.tuneStatus += " — skew over tolerance (no room for skew bumps)";
+        if (!shortList.empty()) ch.tuneStatus += " — could not reach the target (no room for meanders): " + shortList;
+        return changed;
     }
 
     double netWidth(int net) const {
@@ -3234,7 +4286,8 @@ struct InteractiveRouter::Impl {
         for (int a : nets)
             for (int b : nets)
                 if (a != b) clr = std::max(clr, base->clearance(a, b));
-        spacing = width + clr;  // centre to centre
+        busTuneRoom = tuneRoom(width, clr);
+        spacing = width + clr + busTuneRoom;  // centre to centre
         members.clear();
         centre = {};
         for (size_t q : pick) {
@@ -3964,7 +5017,8 @@ struct InteractiveRouter::Impl {
         for (int a : nets)
             for (int b : nets)
                 if (a != b) clr = std::max(clr, base->clearance(a, b));
-        spacing = width + clr;
+        busTuneRoom = tuneRoom(width, clr);
+        spacing = width + clr + busTuneRoom;
         members.clear();
         centre = {};
         for (const auto& st : hits) {
@@ -4485,6 +5539,158 @@ struct InteractiveRouter::Impl {
         return true;
     }
 
+    /// Tune while routing applies to this session (a route, a bus or a differential pair).
+    bool tunesWhileRouting() const { return kind == Kind::Route || kind == Kind::Bus || kind == Kind::Pair; }
+
+    /// Each member's route tracks as commit() takes them: the placed ones, plus (withHead) the head as fixHead()
+    /// would place it.
+    std::vector<std::vector<Track>> memberRoutes(bool withHead) const {
+        std::vector<std::vector<Track>> per;
+        for (const auto& m : members) {
+            std::vector<Track> placed = m.placed;
+            if (withHead && m.head.size() >= 2) {
+                std::vector<Track> news = toTracks(m.head, m.net, layer, width);
+                if (kind == Kind::Pair) trimBacktrack(placed, news);
+                placed.insert(placed.end(), news.begin(), news.end());
+            }
+            per.push_back(placed);
+        }
+        return per;
+    }
+
+    /// The route's tracks as commit() writes them, from each member's tracks `per` on the overlay `w`: corners
+    /// rounded as set (concentric arcs for a pair or bus), collinear pieces merged.
+    std::vector<Track> roundedRoute(const std::vector<std::vector<Track>>& per, const World& w) const {
+        std::vector<Track> out;
+        if ((kind == Kind::Pair || kind == Kind::Bus) && opt.arcCorners && cornerRadius() > 0) {
+            std::vector<size_t> from;
+            for (const auto& ts : per) from.push_back(ts.size());
+            for (const auto& ts : roundGroup(per, from, w, nullptr))
+                for (const Track& t : mergeCollinear(ts)) out.push_back(t);
+            return out;
+        }
+        for (const auto& ts : per)
+            for (const Track& t : mergeCollinear(kind == Kind::Route && cornerRadius() > 0
+                                                     ? roundRoute(ts, ts.size(), w, nullptr)
+                                                     : ts))
+                out.push_back(t);
+        return out;
+    }
+
+    /// Route pieces that run exactly over copper the net already has add nothing.
+    static std::vector<Track> dropCovered(const std::vector<Track>& routeTracks, const World& w) {
+        std::vector<Track> kept;
+        for (const Track& t : routeTracks) {
+            bool covered = false;
+            std::vector<size_t> found;
+            w.tracksIn(trackBox(t, 0.01), found);
+            for (size_t i : found) {
+                const Track& o = w.track(i);
+                if (i >= w.baseT() && w.fixAddT[i - w.baseT()]) continue;  // the route itself
+                if (o.net == t.net && o.layer == t.layer && o.width >= t.width - 1e-9 && !t.arc &&
+                    trackPointDistance(o, t.a) <= 1e-7 && trackPointDistance(o, t.b) <= 1e-7)
+                    covered = true;
+            }
+            if (!covered) kept.push_back(t);
+        }
+        return kept;
+    }
+
+    /// FNV-1a over raw bytes (the live tuning's cache keys).
+    static void hashBytes(uint64_t& h, const void* data, size_t n) {
+        const unsigned char* p = static_cast<const unsigned char*>(data);
+        for (size_t i = 0; i < n; ++i) {
+            h ^= p[i];
+            h *= 1099511628211ULL;
+        }
+    }
+    static void hashTrack(uint64_t& h, const Track& t) {
+        const double d[] = {t.a.x, t.a.y, t.b.x, t.b.y, t.mid.x, t.mid.y, t.width};
+        const int i[] = {t.net, t.layer, t.arc ? 1 : 0};
+        hashBytes(h, d, sizeof d);
+        hashBytes(h, i, sizeof i);
+    }
+    static void hashVia(uint64_t& h, const Via& v) {
+        const double d[] = {v.position.x, v.position.y, v.drill, v.diameter};
+        const int i[] = {v.net, v.fromLayer, v.toLayer};
+        hashBytes(h, d, sizeof d);
+        hashBytes(h, i, sizeof i);
+    }
+
+    /// Tune while routing, live: the last tuning of the preview's route on a copy of the board, kept while the route
+    /// (and what it shoved) stays the same.
+    struct LiveTune {
+        bool valid = false;
+        uint64_t key = 0;       // the route's copper, its vias and the overlay's shoved / removed copper
+        uint64_t fixedKey = 0;  // the same without the head (the threshold applies only while this stays)
+        Vec2 headEnd;
+        bool changed = false;  // meanders were added
+        std::vector<Track> tracks;
+        std::vector<MemberLength> lengths;
+        std::string status;
+    } live;
+
+    /// The head end may move this far (mm) before the live meanders are tuned again.
+    double liveTuneStep() const { return std::min(0.02, width / 8); }
+
+    uint64_t routeKey(const std::vector<Track>& kept, const std::vector<Via>& vias, const World& w) const {
+        uint64_t h = 1469598103934665603ULL;
+        for (const Track& t : kept) hashTrack(h, t);
+        const uint64_t nv = vias.size();
+        hashBytes(h, &nv, sizeof nv);
+        for (const Via& v : vias) hashVia(h, v);
+        for (size_t i = 0; i < w.baseT(); ++i)
+            if (w.goneT[i]) hashBytes(h, &i, sizeof i);
+        for (size_t i = 0; i < w.baseV(); ++i)
+            if (w.goneV[i]) hashBytes(h, &i, sizeof i);
+        for (size_t k = 0; k < w.addT.size(); ++k)
+            if (!w.goneT[w.baseT() + k] && !w.fixAddT[k]) hashTrack(h, w.addT[k]);
+        for (size_t k = 0; k < w.addV.size(); ++k)
+            if (!w.goneV[w.baseV() + k] && !w.fixAddV[k]) hashVia(h, w.addV[k]);
+        return h;
+    }
+
+    /// Tune while routing, live: the route as commit() would write it (placed + head, on the current overlay) is
+    /// applied to a copy of the board and tuned there exactly as commit() tunes it; the preview takes the tuned route
+    /// copper (tunedTracks), the members' tuned lengths and the status. Cached by the route's geometry; a head that
+    /// moved less than liveTuneStep() with the rest unchanged keeps the last result.
+    void liveTune(RoutePreview& p) {
+        AbortScope whole(nullptr);  // never cut short by a cancel: the cached result must be the commit's
+        const std::vector<Track> kept = dropCovered(roundedRoute(memberRoutes(true), current), current);
+        if (kept.empty()) return;
+        const uint64_t key = routeKey(kept, placedVias, current);
+        uint64_t fixedKey = 1469598103934665603ULL;
+        for (const auto& ts : memberRoutes(false))
+            for (const Track& t : ts) hashTrack(fixedKey, t);
+        for (const Via& v : placedVias) hashVia(fixedKey, v);
+        hashBytes(fixedKey, &layer, sizeof layer);
+        const bool same = live.valid && live.key == key;
+        const bool near = live.valid && live.fixedKey == fixedKey && (p.end - live.headEnd).length() < liveTuneStep();
+        if (!same && !near) {
+            PcbLayout P = pcb;
+            RouteChanges ch = applyWorld(P, current, kept, placedVias);
+            if (opt.removeLoops) removeLoops(P, pcb, ch);
+            std::vector<int> nets;
+            for (const auto& m : members) nets.push_back(m.net);
+            live = LiveTune{};
+            live.changed = tuneOnCommit(P, ch, nets, kind == Kind::Bus, kind == Kind::Pair, busTuneRoom);
+            std::set<int> netSet(nets.begin(), nets.end());
+            for (int id : ch.addedTracks) {
+                const Track* t = trackById(P, id);
+                if (t != nullptr && netSet.count(t->net)) live.tracks.push_back(*t);
+            }
+            live.lengths = ch.memberLengths;
+            live.status = ch.tuneStatus;
+            live.valid = true;
+            live.key = key;
+            live.fixedKey = fixedKey;
+            live.headEnd = p.end;
+        }
+        if (live.changed) p.tunedTracks = live.tracks;
+        if (!live.lengths.empty()) p.memberLengths = live.lengths;
+        p.tuneStatus = live.status;
+    }
+
     RouteChanges commit() {
         RouteChanges ch;
         if (kind == Kind::None) {
@@ -4525,44 +5731,27 @@ struct InteractiveRouter::Impl {
             committed = current;
             for (const Track& t : mergeCollinear(toTracks(members[0].head, members[0].net, layer, width)))
                 routeTracks.push_back(t);
-        } else if ((kind == Kind::Pair || kind == Kind::Bus) && opt.arcCorners && cornerRadius() > 0) {
-            std::vector<std::vector<Track>> per;
-            std::vector<size_t> from;
-            for (const auto& m : members) {
-                per.push_back(m.placed);
-                from.push_back(m.placed.size());
-            }
-            for (const auto& ts : roundGroup(per, from, committed, nullptr))
-                for (const Track& t : mergeCollinear(ts)) routeTracks.push_back(t);
         } else {
-            for (const auto& m : members)
-                for (const Track& t : mergeCollinear(kind == Kind::Route && cornerRadius() > 0
-                                                         ? roundRoute(m.placed, m.placed.size(), committed, nullptr)
-                                                         : m.placed))
-                    routeTracks.push_back(t);
+            std::vector<std::vector<Track>> per;
+            for (const auto& m : members) per.push_back(m.placed);
+            routeTracks = roundedRoute(per, committed);
         }
-        // Route pieces that run exactly over copper the net already has add nothing.
-        std::vector<Track> kept;
-        for (const Track& t : routeTracks) {
-            bool covered = false;
-            std::vector<size_t> found;
-            committed.tracksIn(trackBox(t, 0.01), found);
-            for (size_t i : found) {
-                const Track& o = committed.track(i);
-                if (i >= committed.baseT() && committed.fixAddT[i - committed.baseT()]) continue;  // the route itself
-                if (o.net == t.net && o.layer == t.layer && o.width >= t.width - 1e-9 && !t.arc &&
-                    trackPointDistance(o, t.a) <= 1e-7 && trackPointDistance(o, t.b) <= 1e-7)
-                    covered = true;
-            }
-            if (!covered) kept.push_back(t);
-        }
+        const std::vector<Track> kept = dropCovered(routeTracks, committed);
         std::unique_ptr<PcbLayout> before;
         if (opt.removeLoops) before = std::make_unique<PcbLayout>(pcb);
         ch = applyWorld(pcb, committed, kept, routeVias);
-        if (before) removeLoops(*before, ch);
+        if (before) removeLoops(pcb, *before, ch);
+        if (opt.tuneWhileRouting && ch.ok && tunesWhileRouting() && !members.empty()) {
+            // Re-tuned from the untuned route, exactly as the live preview tuned it (the same copper when the head
+            // has not moved since).
+            std::vector<int> nets;
+            for (const auto& m : members) nets.push_back(m.net);
+            tuneOnCommit(pcb, ch, nets, kind == Kind::Bus, kind == Kind::Pair, busTuneRoom);
+        }
         if (opt.autoTeardrops && !ch.addedTracks.empty()) {
             TeardropOptions to;
             to.trackIds = ch.addedTracks;
+            to.style = opt.teardropStyle;
             const BoardEditResult td = addTeardrops(pcb, sch, to);
             for (int id : td.changes.addedTracks) ch.addedTracks.push_back(id);
         }
@@ -4579,16 +5768,17 @@ struct InteractiveRouter::Impl {
         return ch;
     }
 
-    /// Loop removal after a commit: old tracks of the routed nets that were needed before (removing one split the
-    /// net's pads) but are redundant now are removed one by one, then vias of those nets left touching nothing.
-    void removeLoops(const PcbLayout& before, RouteChanges& ch) {
+    /// Loop removal after a commit (on `P`, the board or the live preview's copy of it): old tracks of the routed nets
+    /// that were needed before (removing one split the net's pads) but are redundant now are removed one by one, then
+    /// vias of those nets left touching nothing.
+    void removeLoops(PcbLayout& P, const PcbLayout& before, RouteChanges& ch) {
         const std::set<int> added(ch.addedTracks.begin(), ch.addedTracks.end());
         std::set<int> nets;
-        for (const auto& t : pcb.tracks)
+        for (const auto& t : P.tracks)
             if (added.count(t.id) && t.net >= 0) nets.insert(t.net);
         if (nets.empty()) return;
         std::set<std::string> poured;
-        for (const auto& z : pcb.zones) poured.insert(z.net);
+        for (const auto& z : P.zones) poured.insert(z.net);
         const auto& pads = base->pads;
         std::set<int> goneIds;
         for (int net : nets) {
@@ -4599,14 +5789,14 @@ struct InteractiveRouter::Impl {
             if (padsOfNet.size() < 2) continue;
             std::vector<int> cand;
             size_t count = 0;
-            for (const auto& t : pcb.tracks)
+            for (const auto& t : P.tracks)
                 if (t.net == net) {
                     ++count;
                     if (!added.count(t.id) && !t.locked && !t.arc && !t.teardrop) cand.push_back(t.id);
                 }
             if (cand.empty() || count > 600) continue;
             const std::set<int> none;
-            const auto ref = padPartition(pads, padsOfNet, pcb.tracks, pcb.vias, net, none);
+            const auto ref = padPartition(pads, padsOfNet, P.tracks, P.vias, net, none);
             const auto refBefore = padPartition(pads, padsOfNet, before.tracks, before.vias, net, none);
             std::set<int> gone;
             for (int id : cand) {
@@ -4614,7 +5804,7 @@ struct InteractiveRouter::Impl {
                 if (padPartition(pads, padsOfNet, before.tracks, before.vias, net, one) == refBefore) continue;  // was spare
                 std::set<int> trial = gone;
                 trial.insert(id);
-                if (padPartition(pads, padsOfNet, pcb.tracks, pcb.vias, net, trial) == ref) gone.insert(id);
+                if (padPartition(pads, padsOfNet, P.tracks, P.vias, net, trial) == ref) gone.insert(id);
             }
             // The rest of a removed path (stubs between removed tracks) goes too.
             bool more = !gone.empty();
@@ -4623,25 +5813,25 @@ struct InteractiveRouter::Impl {
                 for (int id : cand) {
                     if (gone.count(id)) continue;
                     const Track* t = nullptr;
-                    for (const auto& o : pcb.tracks)
+                    for (const auto& o : P.tracks)
                         if (o.id == id) t = &o;
                     if (t == nullptr) continue;
                     // A stub: one end touches nothing kept of the net but removed tracks.
                     for (const Vec2 e : {t->a, t->b}) {
                         bool kept = false, touchedGone = false;
-                        for (const auto& o : pcb.tracks) {
+                        for (const auto& o : P.tracks) {
                             if (o.id == id || o.net != net || o.layer != t->layer || trackPointDistance(o, e) > o.width / 2) continue;
                             if (gone.count(o.id))
                                 touchedGone = true;
                             else
                                 kept = true;
                         }
-                        for (const auto& v : pcb.vias) kept = kept || (v.net == net && (v.position - e).length() <= v.diameter / 2);
+                        for (const auto& v : P.vias) kept = kept || (v.net == net && (v.position - e).length() <= v.diameter / 2);
                         for (size_t p : padsOfNet) kept = kept || (pads[p].onLayer(t->layer) && padDistance(pads[p], e) <= 0);
                         if (touchedGone && !kept) {
                             std::set<int> trial = gone;
                             trial.insert(id);
-                            if (padPartition(pads, padsOfNet, pcb.tracks, pcb.vias, net, trial) == ref) {
+                            if (padPartition(pads, padsOfNet, P.tracks, P.vias, net, trial) == ref) {
                                 gone.insert(id);
                                 more = true;
                             }
@@ -4654,23 +5844,23 @@ struct InteractiveRouter::Impl {
         }
         if (goneIds.empty()) return;
         std::set<int> touchedVias;
-        for (const auto& t : pcb.tracks)
+        for (const auto& t : P.tracks)
             if (goneIds.count(t.id))
-                for (const auto& v : pcb.vias)
+                for (const auto& v : P.vias)
                     if (v.net == t.net && v.spans(t.layer) && trackPointDistance(t, v.position) <= v.diameter / 2) touchedVias.insert(v.id);
-        for (const auto& t : pcb.tracks)
+        for (const auto& t : P.tracks)
             if (goneIds.count(t.id)) ch.removedTracks.push_back(t);
-        pcb.tracks.erase(std::remove_if(pcb.tracks.begin(), pcb.tracks.end(), [&](const Track& t) { return goneIds.count(t.id) > 0; }),
-                         pcb.tracks.end());
+        P.tracks.erase(std::remove_if(P.tracks.begin(), P.tracks.end(), [&](const Track& t) { return goneIds.count(t.id) > 0; }),
+                         P.tracks.end());
         std::set<int> goneVias;
-        for (const auto& v : pcb.vias) {
+        for (const auto& v : P.vias) {
             if (!touchedVias.count(v.id)) continue;
             bool used = false;
-            for (const auto& t : pcb.tracks) used = used || (t.net == v.net && v.spans(t.layer) && trackPointDistance(t, v.position) <= v.diameter / 2);
+            for (const auto& t : P.tracks) used = used || (t.net == v.net && v.spans(t.layer) && trackPointDistance(t, v.position) <= v.diameter / 2);
             for (const auto& p : pads) used = used || (p.net == v.net && padDistance(p, v.position) <= v.diameter / 2);
             if (!used) goneVias.insert(v.id);
         }
-        for (const auto& v : pcb.vias)
+        for (const auto& v : P.vias)
             if (goneVias.count(v.id)) {
                 const auto it = std::find(ch.addedVias.begin(), ch.addedVias.end(), v.id);
                 if (it != ch.addedVias.end())
@@ -4678,8 +5868,8 @@ struct InteractiveRouter::Impl {
                 else
                     ch.removedVias.push_back(v);
             }
-        pcb.vias.erase(std::remove_if(pcb.vias.begin(), pcb.vias.end(), [&](const Via& v) { return goneVias.count(v.id) > 0; }),
-                       pcb.vias.end());
+        P.vias.erase(std::remove_if(P.vias.begin(), P.vias.end(), [&](const Via& v) { return goneVias.count(v.id) > 0; }),
+                       P.vias.end());
     }
 
     /// What the session's own copper (route, dragged track or via) violates in the current overlay.
@@ -4859,6 +6049,29 @@ struct InteractiveRouter::Impl {
             }
             p.netLength = other + p.length;
             p.targetLength = groupTarget;
+        }
+        if (opt.tuneWhileRouting && tunesWhileRouting() && !members.empty()) {
+            // Each member's copper so far (its other copper in the overlay plus its route) against its target.
+            ensureTuneTargets();
+            std::vector<double> len(members.size(), 0.0);
+            bool any = false;
+            for (size_t k = 0; k < members.size(); ++k) {
+                for (const Track& t : members[k].placed) len[k] += trackLength(t);
+                len[k] += pathLength(members[k].head);
+                any = any || tuneTargets[k].has;
+            }
+            for (size_t i = 0; any && i < current.nT(); ++i) {
+                if (!current.aliveT(i) || (i >= current.baseT() && current.fixAddT[i - current.baseT()])) continue;
+                const Track& t = current.track(i);
+                for (size_t k = 0; k < members.size(); ++k)
+                    if (t.net == members[k].net) len[k] += trackLength(t);
+            }
+            std::vector<double> target = tuneTargetsFor(tuneTargets, len, kind == Kind::Bus);
+            if (kind == Kind::Pair) target.assign(target.size(), pairTarget(tuneTargets, len));
+            for (size_t k = 0; any && k < members.size(); ++k)
+                p.memberLengths.push_back(memberLengthOf(members[k].net, len[k], target[k], tuneTargets[k].tolerance));
+            // Live meanders: the route tuned as commit() will tune it (lengths as the tuner measures them).
+            if (any) liveTune(p);
         }
         prev = p;
     }
@@ -6003,6 +7216,37 @@ BoardEditResult finishEdit(PcbLayout& pcb, World& w, BoardEditResult& r, const s
     return r;
 }
 
+/// The members of a curved teardrop at the end `E` of track `t` (`u` along the track, `nrm` across it): for each side,
+/// lines from P0 = E ± nrm·half (inside the pad / via) towards P1 = E + u·p1 (on the track, inside the pad / via) and
+/// from P1 to the tip P2 = E + u·(edge + ltd), member k joining the points at k/N on P0→P1 and on P1→P2. Their
+/// envelope is the quadratic Bézier P0, P1, P2: concave, tangent to the track at the tip, inside the triangle
+/// P0 P1 P2 and so inside the straight teardrop of the same size. Ends on P0→P1 lie in the pad / via (it is convex
+/// and P0, P1 are in it); ends on the track are at most `step` / 2 apart, as are the ends in the pad, so the gaps stay
+/// narrower than the track. The far ends of one side are staggered against the other so no two members share one.
+std::vector<Track> curvedTeardropFan(const Track& t, Vec2 E, Vec2 u, Vec2 nrm, double half, double edge, double ltd,
+                                     double step) {
+    const double p1 = std::min(std::max(0.0, edge - t.width / 2), half);
+    const double spanB = edge + ltd - p1;
+    const double spanA = std::hypot(half, p1);
+    // Twice as fine as the straight fan: the outline is the members' envelope, so more members draw a smoother curve.
+    const int N = std::max(4, static_cast<int>(std::ceil(std::max(spanA, spanB) / (0.5 * step))));
+    const double stagger = std::min(0.02, 0.5 * spanB / N);
+    std::vector<Track> lines;
+    for (int k = 1; k < N; ++k) {
+        const double f = static_cast<double>(k) / N;
+        for (double sgn : {1.0, -1.0}) {
+            Track td = t;
+            td.id = -1;
+            td.locked = false;
+            td.teardrop = true;
+            td.a = E + nrm * (sgn * half * (1 - f)) + u * (p1 * f);
+            td.b = E + u * (p1 + spanB * f - (sgn < 0 ? stagger : 0.0));
+            lines.push_back(td);
+        }
+    }
+    return lines;
+}
+
 }  // namespace
 
 BoardEditResult addTeardrops(PcbLayout& pcb, const Schematic& sch, const TeardropOptions& opt) {
@@ -6067,18 +7311,22 @@ BoardEditResult addTeardrops(PcbLayout& pcb, const Schematic& sch, const Teardro
                 ltd = std::min(ltd, 0.8 * L - edge);
                 if (ltd < t.width) break;
                 std::vector<Track> lines;
-                int idx = 0;
-                for (int k = 1; k <= K; ++k)
-                    for (double sgn : {1.0, -1.0}) {
-                        const double o = sgn * std::min(k * step, half);
-                        Track td = t;
-                        td.id = -1;
-                        td.locked = false;
-                        td.teardrop = true;
-                        td.a = E + nrm * o;
-                        td.b = E + u * (edge + ltd - 0.02 * idx++);  // staggered ends: no two lines share one
-                        lines.push_back(td);
-                    }
+                if (opt.style == TeardropStyle::Curved) {
+                    lines = curvedTeardropFan(t, E, u, nrm, half, edge, ltd, step);
+                } else {
+                    int idx = 0;
+                    for (int k = 1; k <= K; ++k)
+                        for (double sgn : {1.0, -1.0}) {
+                            const double o = sgn * std::min(k * step, half);
+                            Track td = t;
+                            td.id = -1;
+                            td.locked = false;
+                            td.teardrop = true;
+                            td.a = E + nrm * o;
+                            td.b = E + u * (edge + ltd - 0.02 * idx++);  // staggered ends: no two lines share one
+                            lines.push_back(td);
+                        }
+                }
                 bool fits = true;
                 for (const Track& td : lines) {
                     const bool inside = isVia ? (td.a - C).length() <= across / 2 - td.width / 2 + 1e-9
@@ -6353,9 +7601,29 @@ RouterOptions routerOptionsFromJson(const Json& j, RouterOptions o) {
     if (j.has("arcCorners")) o.arcCorners = j.get("arcCorners").asBool(o.arcCorners);
     if (j.has("removeLoops")) o.removeLoops = j.get("removeLoops").asBool(o.removeLoops);
     if (j.has("teardrops")) o.autoTeardrops = j.get("teardrops").asBool(o.autoTeardrops);
+    if (j.has("teardropStyle")) o.teardropStyle = teardropStyleFromName(j.get("teardropStyle").asString(std::string()), o.teardropStyle);
     if (j.has("hug")) o.hugDrag = j.get("hug").asBool(o.hugDrag);
+    if (j.has("tuneWhileRouting")) o.tuneWhileRouting = j.get("tuneWhileRouting").asBool(o.tuneWhileRouting);
+    if (j.get("tuneGap").isNumber()) {
+        const double g = j.get("tuneGap").asNumber(o.tuneGap);
+        if (std::isfinite(g)) o.tuneGap = std::min(g, 10.0);
+    }
     if (j.has("shoveLimit")) o.shoveLimit = std::clamp(j.get("shoveLimit").asInt(o.shoveLimit), 1, 10000);
     return o;
+}
+
+Json memberLengthsJson(const std::vector<MemberLength>& ms) {
+    Json a = Json::array();
+    for (const MemberLength& m : ms) {
+        Json k = Json::object();
+        k["net"] = m.net;
+        k["length"] = m.length;
+        k["target"] = m.target;
+        k["tolerance"] = m.tolerance;
+        k["withinTolerance"] = m.withinTolerance;
+        a.push(k);
+    }
+    return a;
 }
 
 Json routePreviewJson(const RoutePreview& p) {
@@ -6416,6 +7684,9 @@ Json routePreviewJson(const RoutePreview& p) {
         col.push(k);
     }
     j["collisions"] = col;
+    if (!p.memberLengths.empty()) j["memberLengths"] = memberLengthsJson(p.memberLengths);
+    if (!p.tunedTracks.empty()) j["tunedTracks"] = tracks(p.tunedTracks);
+    if (!p.tuneStatus.empty()) j["tuneStatus"] = p.tuneStatus;
     return j;
 }
 
@@ -6432,6 +7703,8 @@ Json routeChangesJson(const RouteChanges& c) {
     j["removedVias"] = rv;
     j["addedTracks"] = at;
     j["addedVias"] = av;
+    if (!c.memberLengths.empty()) j["memberLengths"] = memberLengthsJson(c.memberLengths);
+    if (!c.tuneStatus.empty()) j["tuneStatus"] = c.tuneStatus;
     return j;
 }
 

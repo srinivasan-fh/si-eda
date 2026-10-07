@@ -1036,6 +1036,11 @@
 "Strategy" = "策略";
 "Strategy Settings…" = "策略設定…";
 "Teardrops" = "淚滴";
+"Teardrop style" = "淚滴樣式";
+"Teardrop Style" = "淚滴樣式";
+"Straight" = "直線";
+"Curved" = "曲線";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "淚滴輪廓：直線扇形，或以曲線過渡到焊盤和過孔";
 "Default" = "預設";
 "Fast" = "快速";
 "High quality" = "高品質";
@@ -1141,3 +1146,34 @@
 "Brown" = "棕色";
 "Tan" = "淺棕褐色";
 "Colour Symbols by Device" = "按元件為符號著色";
+"Tune Lengths While Routing" = "佈線時調整長度";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "佈線匯流排、等長網路或差動對時，較短的成員會在佈線過程中即時加入蛇形線（差動對整體調整，再調整偏斜）；完成佈線時寫入";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "交換接腳與閘";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "佈線前，在飛線變短處交換等效接腳與閘（反向標註到電路圖）";
+"Pin & Gate Swaps" = "接腳與閘交換";
+"Pins swapped" = "已交換接腳";
+"Gates swapped" = "已交換閘";
+"Ratsnest before" = "飛線（之前）";
+"Ratsnest after" = "飛線（之後）";
+"Crossings" = "交叉";
+"Placing %@ (%lld of %lld)" = "正在放置 %@（第 %lld 個，共 %lld 個）";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R 旋轉 · F 翻面 · 按一下放置 · ⌥-按一下強制 · Esc 略過";
+"Skip" = "略過";
+"Leave this part where Auto Place put it" = "將此元件留在自動佈局放置的位置";
+"Skip All" = "全部略過";
+"Leave every remaining part where Auto Place put it" = "將其餘元件全部留在自動佈局放置的位置";
+"Place All Automatically" = "全部自動放置";
+"Put every remaining part at the free spot next to its connections" = "將其餘每個元件放到其連接附近的空位";
+"Place new parts interactively after Update PCB" = "更新 PCB 後互動式放置新元件";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "更新 PCB 後，PCB 編輯器會開啟，新元件逐一跟隨游標：R 旋轉，F 翻面，按一下放置，Esc 將其留在自動佈局的位置。關閉：新元件留在自動佈局放置的位置。";
+"PCB Editor" = "PCB 編輯器";
+
+// Focus mode
+"Enter Focus Mode" = "進入專注模式";
+"Exit Focus Mode" = "結束專注模式";
+"Exit Focus" = "結束專注";
+"Leave focus mode (F11, ⌃⌘F)" = "離開專注模式 (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "全螢幕時隱藏面板（專注模式）";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11、⌃⌘F 或 Fn-F：全螢幕，只顯示編輯器及其工具。將指標移到編輯器頂端邊緣可顯示其選項列。";

@@ -32,6 +32,19 @@ struct MatchGroup {
     double tolerance = 0.1;
 };
 
+/// Outline of a teardrop (addTeardrops, InteractiveRouter.hpp). Straight: a triangle-like fan from the pad / via to
+/// the track. Curved: the outline flares concavely (a quadratic Bézier tangent to the track) from the pad / via into
+/// the track, as the curved teardrops of other tools.
+enum class TeardropStyle { Straight, Curved };
+/// "straight" / "curved".
+inline const char* teardropStyleName(TeardropStyle s) { return s == TeardropStyle::Curved ? "curved" : "straight"; }
+/// "curved" → Curved; anything else → `fallback`, "straight" → Straight.
+inline TeardropStyle teardropStyleFromName(const std::string& name, TeardropStyle fallback = TeardropStyle::Straight) {
+    if (name == "curved") return TeardropStyle::Curved;
+    if (name == "straight") return TeardropStyle::Straight;
+    return fallback;
+}
+
 /// Autorouter strategy options (Board Setup → Routing strategy; docs/ROUTING.md). Every option defaults to the
 /// router's classic behaviour, so a board whose options are all default routes exactly as before.
 struct AutorouteOptions {
@@ -58,6 +71,8 @@ struct AutorouteOptions {
     double arcRadius = 0;
     /// Teardrops where tracks meet pads and vias (addTeardrops).
     bool teardrops = false;
+    /// Their outline (JSON "teardropStyle", written only when curved).
+    TeardropStyle teardropStyle = TeardropStyle::Straight;
     /// Strategy (autoroutePresets()): the preset these options came from ("default", "fast", "quality", "fanout",
     /// "nets", "netclass", "area"; informational — the fields below decide).
     std::string preset = "default";
@@ -75,6 +90,10 @@ struct AutorouteOptions {
     bool protectLocked = false;
     /// Per schematic net class: the copper layers its nets may route on (others are used only to leave their pads).
     std::map<std::string, std::vector<int>> classLayers;
+    /// Automatic pin and gate swap before routing (Project::autoRoute; docs/ROUTING.md, Pin and gate swapping): pins of
+    /// a swap group and interchangeable gates of multi-unit parts change places where that shortens the ratsnest and
+    /// crosses fewer airwires, back-annotated to the schematic like a manual PCB swap. Whole-board routes only.
+    bool pinSwap = false;
     bool scoped() const { return !nets.empty() || !netClass.empty() || hasArea; }
     bool operator==(const AutorouteOptions& o) const;
     bool operator!=(const AutorouteOptions& o) const { return !(*this == o); }
@@ -446,12 +465,18 @@ struct RouteMetrics {
     int glossed = 0;                  // lines glossing improved
     int arcsAdded = 0;                // corners made arcs
     int teardropsAdded = 0;
+    // Automatic pin / gate swap before routing (AutorouteOptions::pinSwap; reported only when `swapRun`).
+    bool swapRun = false;
+    int pinSwaps = 0, gateSwaps = 0;
+    double ratsnestBefore = 0, ratsnestAfter = 0;  // mm, pad-to-pad ratsnest (spanning tree of each net's pads)
+    int crossingsBefore = 0, crossingsAfter = 0;   // airwires of different nets that cross
 };
 /// What an autoroute did beyond the counts in RouteStats (the routing report sheet in the app).
 struct RouteReport {
     std::vector<PairRouteReport> pairs;
     std::vector<LengthRouteReport> lengths;
     RouteMetrics metrics;
+    std::vector<std::string> swaps;  // the automatic pin / gate swaps made before routing, one line each
 };
 struct RouteStats {
     RouteReport report;

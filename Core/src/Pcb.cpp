@@ -4753,7 +4753,7 @@ RouteStats PcbLayout::routeAll(const Schematic& sch, const RouteControl* control
     }
     best.report.pairs = std::move(pairReports);
     if (ropt.arcCorners) metrics.arcsAdded = routequality::arcRouted(*this, sch, ropt.arcRadius);
-    if (ropt.teardrops) metrics.teardropsAdded = routequality::teardropsRouted(*this, sch);
+    if (ropt.teardrops) metrics.teardropsAdded = routequality::teardropsRouted(*this, sch, ropt.teardropStyle);
     for (const Track& k : unlockAgain)
         for (Track& t : tracks)
             if (t.locked && t.net == k.net && t.layer == k.layer && t.a == k.a && t.b == k.b && t.width == k.width) {

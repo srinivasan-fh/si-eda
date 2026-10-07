@@ -1036,6 +1036,11 @@
 "Strategy" = "உத்தி";
 "Strategy Settings…" = "உத்தி அமைப்புகள்…";
 "Teardrops" = "கண்ணீர்த்துளிகள்";
+"Teardrop style" = "கண்ணீர்த்துளி பாணி";
+"Teardrop Style" = "கண்ணீர்த்துளி பாணி";
+"Straight" = "நேர்";
+"Curved" = "வளைவு";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "கண்ணீர்த்துளி வெளிக்கோடு: நேர் விசிறிகள், அல்லது பேட்கள் மற்றும் வயாக்களுக்குள் வளைந்து விரிதல்";
 "Default" = "இயல்புநிலை";
 "Fast" = "வேகம்";
 "High quality" = "உயர் தரம்";
@@ -1141,3 +1146,34 @@
 "Brown" = "பழுப்பு";
 "Tan" = "வெளிர் பழுப்பு";
 "Colour Symbols by Device" = "சாதனப்படி குறியீட்டு வண்ணங்கள்";
+"Tune Lengths While Routing" = "ரூட்டிங்கின் போது நீளங்களை டியூன் செய்";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "பஸ், நீளம்-பொருத்திய நெட் அல்லது டிஃபரன்ஷியல் ஜோடியை ரூட் செய்யும்போது குறுகிய உறுப்பினர்களுக்கு ரூட்டிங்கின் போதே மியாண்டர்கள் சேர்க்கப்படும் (ஜோடி ஒன்றாக டியூன் செய்யப்பட்டு, பின்னர் அதன் ஸ்கியூ); ரூட்டை முடிக்கும்போது அவை எழுதப்படும்";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "பின்கள் & கேட்களை மாற்று";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "ரூட்டிங்கிற்கு முன், ராட்ஸ்நெஸ்ட் குறையும் இடங்களில் சமமான பின்கள் மற்றும் கேட்களை மாற்றவும் (திட்டவரைவுக்கு பின்-குறிப்பிடப்படும்)";
+"Pin & Gate Swaps" = "பின் & கேட் மாற்றங்கள்";
+"Pins swapped" = "மாற்றிய பின்கள்";
+"Gates swapped" = "மாற்றிய கேட்கள்";
+"Ratsnest before" = "ராட்ஸ்நெஸ்ட் முன்";
+"Ratsnest after" = "ராட்ஸ்நெஸ்ட் பின்";
+"Crossings" = "குறுக்கீடுகள்";
+"Placing %@ (%lld of %lld)" = "%@ வைக்கப்படுகிறது (%lld இல் %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R சுழற்றும் · F புரட்டும் · கிளிக் வைக்கும் · ⌥-கிளிக் கட்டாயம் · Esc தவிர்க்கும்";
+"Skip" = "தவிர்";
+"Leave this part where Auto Place put it" = "இந்தப் பாகத்தை ஆட்டோ பிளேஸ் வைத்த இடத்திலேயே விடு";
+"Skip All" = "அனைத்தையும் தவிர்";
+"Leave every remaining part where Auto Place put it" = "மீதமுள்ள அனைத்துப் பாகங்களையும் ஆட்டோ பிளேஸ் வைத்த இடத்திலேயே விடு";
+"Place All Automatically" = "அனைத்தையும் தானாக வை";
+"Put every remaining part at the free spot next to its connections" = "மீதமுள்ள ஒவ்வொரு பாகத்தையும் அதன் இணைப்புகளுக்கு அருகிலுள்ள காலி இடத்தில் வை";
+"Place new parts interactively after Update PCB" = "PCB புதுப்பித்த பின் புதிய பாகங்களை ஊடாடும் முறையில் வை";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "PCB புதுப்பித்த பின் PCB எடிட்டர் ஒவ்வொரு புதிய பாகத்தையும் கர்சரில் காட்டித் திறக்கும்: R சுழற்றும், F புரட்டும், கிளிக் அதை வைக்கும், Esc ஆட்டோ பிளேஸ் வைத்த இடத்திலேயே விடும். அணைத்தால்: புதிய பாகங்கள் ஆட்டோ பிளேஸ் வைக்கும் இடத்திலேயே இருக்கும்.";
+"PCB Editor" = "PCB எடிட்டர்";
+
+// Focus mode
+"Enter Focus Mode" = "கவன பயன்முறைக்குச் செல்";
+"Exit Focus Mode" = "கவன பயன்முறையிலிருந்து வெளியேறு";
+"Exit Focus" = "கவனத்திலிருந்து வெளியேறு";
+"Leave focus mode (F11, ⌃⌘F)" = "கவன பயன்முறையை விடு (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "முழுத்திரையில் பலகங்களை மறை (கவன பயன்முறை)";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F அல்லது Fn-F: எடிட்டர் மற்றும் அதன் கருவிகள் மட்டும் உள்ள முழுத்திரை. விருப்பப் பட்டியைக் காட்ட எடிட்டரின் மேல் விளிம்பைச் சுட்டவும்.";

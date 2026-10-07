@@ -139,9 +139,11 @@ int arcRouted(PcbLayout& pcb, const Schematic& sch, double radius) {
     });
 }
 
-int teardropsRouted(PcbLayout& pcb, const Schematic& sch) {
+int teardropsRouted(PcbLayout& pcb, const Schematic& sch, TeardropStyle style) {
     return keepingConnections(pcb, sch, [&] {
-        const BoardEditResult r = addTeardrops(pcb, sch, TeardropOptions{});
+        TeardropOptions to;
+        to.style = style;
+        const BoardEditResult r = addTeardrops(pcb, sch, to);
         return r.applied ? r.added : 0;
     });
 }

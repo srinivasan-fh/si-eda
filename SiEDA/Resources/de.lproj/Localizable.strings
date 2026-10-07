@@ -1036,6 +1036,11 @@
 "Strategy" = "Strategie";
 "Strategy Settings…" = "Strategie-Einstellungen…";
 "Teardrops" = "Tropfen";
+"Teardrop style" = "Teardrop-Form";
+"Teardrop Style" = "Teardrop-Form";
+"Straight" = "Gerade";
+"Curved" = "Gebogen";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "Teardrop-Umriss: gerade Fächer oder gebogene Übergänge in Pads und Vias";
 "Default" = "Standard";
 "Fast" = "Schnell";
 "High quality" = "Hohe Qualität";
@@ -1141,3 +1146,34 @@
 "Brown" = "Braun";
 "Tan" = "Hellbraun";
 "Colour Symbols by Device" = "Symbole nach Bauteil einfärben";
+"Tune Lengths While Routing" = "Längen beim Routen abstimmen";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "Beim Routen eines Busses, eines längenabgeglichenen Netzes oder eines differenziellen Paars erhalten die kurzen Mitglieder schon während des Routens Mäander (ein Paar wird gemeinsam abgeglichen, dann sein Skew); beim Abschließen der Route werden sie geschrieben";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "Pins & Gatter tauschen";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "Vor dem Routen gleichwertige Pins und Gatter tauschen, wo die Luftlinien kürzer werden (in den Schaltplan rückannotiert)";
+"Pin & Gate Swaps" = "Pin- & Gattertausch";
+"Pins swapped" = "Getauschte Pins";
+"Gates swapped" = "Getauschte Gatter";
+"Ratsnest before" = "Luftlinien vorher";
+"Ratsnest after" = "Luftlinien nachher";
+"Crossings" = "Kreuzungen";
+"Placing %@ (%lld of %lld)" = "%@ wird platziert (%lld von %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R dreht · F spiegelt · Klick platziert · ⌥-Klick erzwingt · Esc überspringt";
+"Skip" = "Überspringen";
+"Leave this part where Auto Place put it" = "Dieses Bauteil dort lassen, wo die automatische Platzierung es abgelegt hat";
+"Skip All" = "Alle überspringen";
+"Leave every remaining part where Auto Place put it" = "Alle übrigen Bauteile dort lassen, wo die automatische Platzierung sie abgelegt hat";
+"Place All Automatically" = "Alle automatisch platzieren";
+"Put every remaining part at the free spot next to its connections" = "Alle übrigen Bauteile an den freien Platz neben ihren Verbindungen setzen";
+"Place new parts interactively after Update PCB" = "Neue Bauteile nach „PCB aktualisieren“ interaktiv platzieren";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "Nach „PCB aktualisieren“ öffnet sich der PCB-Editor mit jedem neuen Bauteil am Mauszeiger: R dreht, F spiegelt, ein Klick platziert es und Esc lässt es dort, wo die automatische Platzierung es abgelegt hat. Aus: Neue Bauteile bleiben dort, wo die automatische Platzierung sie ablegt.";
+"PCB Editor" = "PCB-Editor";
+
+// Focus mode
+"Enter Focus Mode" = "Fokusmodus aktivieren";
+"Exit Focus Mode" = "Fokusmodus beenden";
+"Exit Focus" = "Fokus beenden";
+"Leave focus mode (F11, ⌃⌘F)" = "Fokusmodus verlassen (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "Vollbild blendet die Bereiche aus (Fokusmodus)";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F oder Fn-F: Vollbild nur mit dem Editor und seinen Werkzeugen. Zeigen Sie auf den oberen Rand eines Editors, um seine Optionsleiste einzublenden.";

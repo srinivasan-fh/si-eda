@@ -1036,6 +1036,11 @@
 "Strategy" = "কৌশল";
 "Strategy Settings…" = "কৌশলৰ ছেটিং…";
 "Teardrops" = "টিয়াৰড্ৰপ";
+"Teardrop style" = "টিয়াৰড্ৰপৰ শৈলী";
+"Teardrop Style" = "টিয়াৰড্ৰপৰ শৈলী";
+"Straight" = "পোন";
+"Curved" = "বেঁকা";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "টিয়াৰড্ৰপৰ ৰূপৰেখা: পোন পাখা, বা পেড আৰু ভায়ালৈ বেঁকাকৈ বিস্তাৰ";
 "Default" = "ডিফল্ট";
 "Fast" = "দ্ৰুত";
 "High quality" = "উচ্চ গুণগত মান";
@@ -1141,3 +1146,34 @@
 "Brown" = "মটীয়া";
 "Tan" = "পাতল মটীয়া";
 "Colour Symbols by Device" = "ডিভাইচ অনুসৰি চিম্বলৰ ৰং";
+"Tune Lengths While Routing" = "ৰাউটিঙৰ সময়ত দৈৰ্ঘ্য টিউন কৰক";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "বাছ, দৈৰ্ঘ্য-মিলোৱা নেট বা ডিফাৰেনচিয়েল পেয়াৰ ৰাউট কৰোঁতে চুটি সদস্যসকলে ৰাউটিঙৰ সময়তে মিয়েণ্ডাৰ পায় (পেয়াৰটো একেলগে টিউন কৰা হয়, তাৰ পিছত ইয়াৰ স্কিউ); ৰাউট শেষ কৰিলে সেইবোৰ লিখা হয়";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "পিন আৰু গেট সলনি কৰক";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "ৰাউটিঙৰ আগতে, য'ত ৰেটছনেষ্ট চুটি হয় তাত সমতুল্য পিন আৰু গেট সলনি কৰক (স্কিমেটিকলৈ বেক-এনোটেট কৰা হয়)";
+"Pin & Gate Swaps" = "পিন আৰু গেট সলনি";
+"Pins swapped" = "সলনি কৰা পিন";
+"Gates swapped" = "সলনি কৰা গেট";
+"Ratsnest before" = "ৰেটছনেষ্ট আগতে";
+"Ratsnest after" = "ৰেটছনেষ্ট পিছত";
+"Crossings" = "ক্ৰছিং";
+"Placing %@ (%lld of %lld)" = "%@ স্থাপন কৰি থকা হৈছে (%lld ৰ ভিতৰত %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R ঘূৰায় · F ওলোটায় · ক্লিকে স্থাপন কৰে · ⌥-ক্লিকে জোৰকৈ · Esc এ এৰি দিয়ে";
+"Skip" = "এৰি দিয়ক";
+"Leave this part where Auto Place put it" = "এই অংশটো অটো প্লেচে য'ত ৰাখিছে তাতেই থাকিবলৈ দিয়ক";
+"Skip All" = "সকলো এৰি দিয়ক";
+"Leave every remaining part where Auto Place put it" = "বাকী থকা সকলো অংশ অটো প্লেচে য'ত ৰাখিছে তাতেই থাকিবলৈ দিয়ক";
+"Place All Automatically" = "সকলো স্বয়ংক্ৰিয়ভাৱে স্থাপন কৰক";
+"Put every remaining part at the free spot next to its connections" = "বাকী থকা প্ৰতিটো অংশ ইয়াৰ সংযোগৰ কাষৰ খালী ঠাইত ৰাখক";
+"Place new parts interactively after Update PCB" = "PCB আপডেটৰ পিছত নতুন অংশ ইণ্টাৰেক্টিভভাৱে স্থাপন কৰক";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "PCB আপডেটৰ পিছত PCB এডিটৰ খোল খায় আৰু প্ৰতিটো নতুন অংশ কাৰ্চৰত থাকে: R এ ঘূৰায়, F এ ওলোটায়, ক্লিকে স্থাপন কৰে আৰু Esc এ অটো প্লেচে য'ত ৰাখিছে তাতেই এৰি দিয়ে। বন্ধ: নতুন অংশ অটো প্লেচে য'ত ৰাখে তাতেই থাকে।";
+"PCB Editor" = "PCB এডিটৰ";
+
+// Focus mode
+"Enter Focus Mode" = "ফ’কাছ ম’ড আৰম্ভ কৰক";
+"Exit Focus Mode" = "ফ’কাছ ম’ডৰ পৰা ওলাওক";
+"Exit Focus" = "ফ’কাছৰ পৰা ওলাওক";
+"Leave focus mode (F11, ⌃⌘F)" = "ফ’কাছ ম’ড এৰক (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "সম্পূৰ্ণ স্ক্ৰীণত পেনেল লুকুৱাওক (ফ’কাছ ম’ড)";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F বা Fn-F: কেৱল এডিটৰ আৰু ইয়াৰ সঁজুলিৰ সৈতে সম্পূৰ্ণ স্ক্ৰীণ। বিকল্প বাৰ দেখুৱাবলৈ এডিটৰৰ ওপৰৰ কাষলৈ পইণ্টাৰ নিয়ক।";

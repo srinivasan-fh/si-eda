@@ -69,7 +69,25 @@ struct OptionsBar<Content: View>: View {
         self.content = content()
     }
 
+    @Environment(\.editorFocusMode) private var focusMode
+    @State private var revealed = false
+
     var body: some View {
+        if focusMode && !revealed {
+            // Focus mode: a thin strip; the bar comes back while the pointer is over it.
+            Rectangle()
+                .fill(Theme.deepBlue.opacity(0.6))
+                .frame(height: 4)
+                .contentShape(Rectangle())
+                .onHover { if $0 { revealed = true } }
+                .help("Options")
+        } else {
+            bar
+                .onHover { inside in if !inside { revealed = false } }
+        }
+    }
+
+    private var bar: some View {
         Group {
             if scrollsWhenNarrow {
                 // On narrow windows the controls scroll sideways instead of forcing the workspace wider than the window.

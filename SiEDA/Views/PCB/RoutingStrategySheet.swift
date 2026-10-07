@@ -43,8 +43,10 @@ struct RoutingStrategySheet: View {
         var next = preset.options
         next.classLayers = options.classLayers
         next.protectLocked = options.protectLocked
+        next.pinSwap = options.pinSwap
         next.pairGap = options.pairGap
         next.arcRadius = options.arcRadius
+        next.teardropStyle = options.teardropStyle
         options = next
     }
 
@@ -58,8 +60,16 @@ struct RoutingStrategySheet: View {
             Toggle("Arc corners", isOn: $options.arcCorners)
             numberField("Arc radius (0 = automatic)", $options.arcRadius)
             Toggle("Teardrops", isOn: $options.teardrops)
+            Picker("Teardrop style", selection: $options.teardropStyle) {
+                ForEach(TeardropStyleChoice.allCases) { style in
+                    Text(LocalizedStringKey(style.title)).tag(style)
+                }
+            }
+            .disabled(!options.teardrops)
             Toggle("Fast (fewer rip-up passes)", isOn: $options.fast)
             Toggle("Protect locked copper", isOn: $options.protectLocked)
+            Toggle("Swap Pins & Gates", isOn: $options.pinSwap)
+                .help("Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)")
         }
     }
 

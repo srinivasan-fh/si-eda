@@ -1036,6 +1036,11 @@
 "Strategy" = "ରଣନୀତି";
 "Strategy Settings…" = "ରଣନୀତି ସେଟିଂସ…";
 "Teardrops" = "ଟିଅରଡ୍ରପ୍";
+"Teardrop style" = "ଟିୟରଡ୍ରପ୍ ଶୈଳୀ";
+"Teardrop Style" = "ଟିୟରଡ୍ରପ୍ ଶୈଳୀ";
+"Straight" = "ସିଧା";
+"Curved" = "ବକ୍ର";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "ଟିୟରଡ୍ରପ୍ ରୂପରେଖା: ସିଧା ପଙ୍ଖା, କିମ୍ବା ପ୍ୟାଡ୍ ଓ ଭାୟାକୁ ବକ୍ର ବିସ୍ତାର";
 "Default" = "ଡିଫଲ୍ଟ";
 "Fast" = "ଦ୍ରୁତ";
 "High quality" = "ଉଚ୍ଚ ଗୁଣବତ୍ତା";
@@ -1141,3 +1146,34 @@
 "Brown" = "ମାଟିଆ";
 "Tan" = "ହାଲୁକା ମାଟିଆ";
 "Colour Symbols by Device" = "ଡିଭାଇସ୍ ଅନୁସାରେ ପ୍ରତୀକ ରଙ୍ଗ";
+"Tune Lengths While Routing" = "ରୁଟିଂ ସମୟରେ ଲମ୍ବ ଟ୍ୟୁନ୍ କରନ୍ତୁ";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "ବସ୍, ଦୈର୍ଘ୍ୟ-ମେଳ ନେଟ୍ କିମ୍ବା ଡିଫରେନସିଆଲ୍ ପେୟାର ରୁଟ୍ କରିବା ସମୟରେ ଛୋଟ ସଦସ୍ୟମାନେ ରୁଟିଂ ସମୟରେ ହିଁ ମିଆଣ୍ଡର ପାଆନ୍ତି (ପେୟାରକୁ ଏକାସାଙ୍ଗରେ ଟ୍ୟୁନ୍ କରାଯାଏ, ତାପରେ ଏହାର ସ୍କ୍ୟୁ); ରୁଟ୍ ଶେଷ କଲେ ସେଗୁଡ଼ିକ ଲେଖାଯାଏ";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "ପିନ୍ ଓ ଗେଟ୍ ବଦଳାନ୍ତୁ";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "ରାଉଟିଂ ପୂର୍ବରୁ, ଯେଉଁଠି ର୍ୟାଟ୍‌ସନେଷ୍ଟ ଛୋଟ ହୁଏ ସେଠାରେ ସମତୁଲ୍ୟ ପିନ୍ ଓ ଗେଟ୍ ବଦଳାନ୍ତୁ (ସ୍କିମାଟିକ୍‌କୁ ବ୍ୟାକ୍-ଆନୋଟେଟ୍)";
+"Pin & Gate Swaps" = "ପିନ୍ ଓ ଗେଟ୍ ଅଦଳବଦଳ";
+"Pins swapped" = "ବଦଳାଯାଇଥିବା ପିନ୍";
+"Gates swapped" = "ବଦଳାଯାଇଥିବା ଗେଟ୍";
+"Ratsnest before" = "ର୍ୟାଟ୍‌ସନେଷ୍ଟ ପୂର୍ବରୁ";
+"Ratsnest after" = "ର୍ୟାଟ୍‌ସନେଷ୍ଟ ପରେ";
+"Crossings" = "କ୍ରସିଂ";
+"Placing %@ (%lld of %lld)" = "%@ ରଖାଯାଉଛି (%lld ମଧ୍ୟରୁ %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R ଘୁରାଏ · F ଓଲଟାଏ · କ୍ଲିକ୍ ରଖେ · ⌥-କ୍ଲିକ୍ ବାଧ୍ୟତାମୂଳକ · Esc ଛାଡେ";
+"Skip" = "ଛାଡନ୍ତୁ";
+"Leave this part where Auto Place put it" = "ଏହି ଅଂଶକୁ ଅଟୋ ପ୍ଲେସ୍ ଯେଉଁଠି ରଖିଛି ସେଠାରେ ରହିବାକୁ ଦିଅନ୍ତୁ";
+"Skip All" = "ସବୁ ଛାଡନ୍ତୁ";
+"Leave every remaining part where Auto Place put it" = "ବାକି ସମସ୍ତ ଅଂଶକୁ ଅଟୋ ପ୍ଲେସ୍ ଯେଉଁଠି ରଖିଛି ସେଠାରେ ରହିବାକୁ ଦିଅନ୍ତୁ";
+"Place All Automatically" = "ସବୁ ସ୍ୱୟଂଚାଳିତ ଭାବେ ରଖନ୍ତୁ";
+"Put every remaining part at the free spot next to its connections" = "ବାକି ପ୍ରତ୍ୟେକ ଅଂଶକୁ ତାହାର ସଂଯୋଗ ପାଖରେ ଖାଲି ସ୍ଥାନରେ ରଖନ୍ତୁ";
+"Place new parts interactively after Update PCB" = "PCB ଅପଡେଟ୍ ପରେ ନୂଆ ଅଂଶ ଇଣ୍ଟରାକ୍ଟିଭ୍ ଭାବେ ରଖନ୍ତୁ";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "PCB ଅପଡେଟ୍ ପରେ PCB ଏଡିଟର୍ ଖୋଲେ ଏବଂ ପ୍ରତ୍ୟେକ ନୂଆ ଅଂଶ କର୍ସରରେ ଥାଏ: R ଘୁରାଏ, F ଓଲଟାଏ, କ୍ଲିକ୍ ଏହାକୁ ରଖେ ଏବଂ Esc ଅଟୋ ପ୍ଲେସ୍ ଯେଉଁଠି ରଖିଛି ସେଠାରେ ଛାଡେ। ବନ୍ଦ: ନୂଆ ଅଂଶ ଅଟୋ ପ୍ଲେସ୍ ଯେଉଁଠି ରଖେ ସେଠାରେ ରହେ।";
+"PCB Editor" = "PCB ଏଡିଟର୍";
+
+// Focus mode
+"Enter Focus Mode" = "ଫୋକସ ମୋଡ ଆରମ୍ଭ କରନ୍ତୁ";
+"Exit Focus Mode" = "ଫୋକସ ମୋଡରୁ ବାହାରନ୍ତୁ";
+"Exit Focus" = "ଫୋକସରୁ ବାହାରନ୍ତୁ";
+"Leave focus mode (F11, ⌃⌘F)" = "ଫୋକସ ମୋଡ ଛାଡନ୍ତୁ (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "ପୂର୍ଣ୍ଣ ସ୍କ୍ରିନରେ ପ୍ୟାନେଲ ଲୁଚାନ୍ତୁ (ଫୋକସ ମୋଡ)";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F କିମ୍ବା Fn-F: କେବଳ ଏଡିଟର ଓ ଏହାର ଉପକରଣ ସହ ପୂର୍ଣ୍ଣ ସ୍କ୍ରିନ। ବିକଳ୍ପ ବାର ଦେଖାଇବାକୁ ଏଡିଟରର ଉପର ଧାରକୁ ପଏଣ୍ଟର ନିଅନ୍ତୁ।";

@@ -1036,6 +1036,11 @@
 "Strategy" = "Strategi";
 "Strategy Settings…" = "Tetapan Strategi…";
 "Teardrops" = "Titisan air mata";
+"Teardrop style" = "Gaya titisan air mata";
+"Teardrop Style" = "Gaya Titisan Air Mata";
+"Straight" = "Lurus";
+"Curved" = "Melengkung";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "Garis luar titisan air mata: kipas lurus, atau kembang melengkung ke pad dan via";
 "Default" = "Lalai";
 "Fast" = "Pantas";
 "High quality" = "Kualiti tinggi";
@@ -1141,3 +1146,34 @@
 "Brown" = "Coklat";
 "Tan" = "Perang Muda";
 "Colour Symbols by Device" = "Warnakan Simbol mengikut Peranti";
+"Tune Lengths While Routing" = "Tala Panjang Semasa Menghala";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "Semasa menghala bas, net dipadankan panjang atau pasangan pembeza, ahli yang pendek mendapat liku-liku secara langsung semasa anda menghala (pasangan ditala bersama, kemudian sisihannya); menamatkan laluan akan menulisnya";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "Tukar Pin & Get";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "Sebelum penghalaan, tukar pin dan get setara di mana ratsnest menjadi lebih pendek (dianotasi balik ke skematik)";
+"Pin & Gate Swaps" = "Pertukaran Pin & Get";
+"Pins swapped" = "Pin ditukar";
+"Gates swapped" = "Get ditukar";
+"Ratsnest before" = "Ratsnest sebelum";
+"Ratsnest after" = "Ratsnest selepas";
+"Crossings" = "Persilangan";
+"Placing %@ (%lld of %lld)" = "Meletakkan %@ (%lld daripada %lld)";
+"R rotates · F flips · click places · ⌥-click forces · Esc skips" = "R putar · F terbalik · klik letak · ⌥-klik paksa · Esc langkau";
+"Skip" = "Langkau";
+"Leave this part where Auto Place put it" = "Biarkan komponen ini di tempat Letak Automatik meletakkannya";
+"Skip All" = "Langkau Semua";
+"Leave every remaining part where Auto Place put it" = "Biarkan semua komponen yang tinggal di tempat Letak Automatik meletakkannya";
+"Place All Automatically" = "Letak Semua Secara Automatik";
+"Put every remaining part at the free spot next to its connections" = "Letakkan setiap komponen yang tinggal di tempat kosong bersebelahan sambungannya";
+"Place new parts interactively after Update PCB" = "Letakkan komponen baharu secara interaktif selepas Kemas Kini PCB";
+"After Update PCB the PCB editor opens with each new part at the cursor: R rotates, F flips, a click places it and Esc leaves it where Auto Place put it. Off: new parts stay where Auto Place puts them." = "Selepas Kemas Kini PCB, editor PCB dibuka dengan setiap komponen baharu pada kursor: R memutar, F menterbalikkan, klik meletakkannya dan Esc membiarkannya di tempat Letak Automatik meletakkannya. Mati: komponen baharu kekal di tempat Letak Automatik meletakkannya.";
+"PCB Editor" = "Editor PCB";
+
+// Focus mode
+"Enter Focus Mode" = "Masuk Mod Fokus";
+"Exit Focus Mode" = "Keluar Mod Fokus";
+"Exit Focus" = "Keluar Fokus";
+"Leave focus mode (F11, ⌃⌘F)" = "Tinggalkan mod fokus (F11, ⌃⌘F)";
+"Full screen hides the panels (focus mode)" = "Skrin penuh menyembunyikan panel (mod fokus)";
+"F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F atau Fn-F: skrin penuh dengan editor dan alatnya sahaja. Tuding ke tepi atas editor untuk menunjukkan bar pilihannya.";

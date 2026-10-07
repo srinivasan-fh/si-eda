@@ -6545,6 +6545,62 @@ final class BoardCommandTests: XCTestCase {
         XCTAssertFalse(store.routerTeardrops)
     }
 
+    func testCurvedTeardropStyleReachesTheCore() throws {
+        let curvedJSON = EDAEngine.routingOptions(mode: .shove, diagonal: true, teardrops: true, teardropStyle: .curved)
+        XCTAssertTrue(curvedJSON.contains("\"teardropStyle\":\"curved\""))
+        let plain = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+        XCTAssertTrue(plain.contains("\"teardropStyle\":\"straight\""))
+        let command = EDAEngine.teardropOptions(remove: false, apply: true, style: .curved)
+        XCTAssertTrue(command.contains("\"style\":\"curved\""))
+
+        // The command: a curved fan differs from the straight one at the same ends.
+        let store = routedStore()
+        XCTAssertEqual(store.teardropStyle, .straight)
+        let straight = try XCTUnwrap(store.engine.teardrops(tracks: [], apply: false))
+        let curved = try XCTUnwrap(store.engine.teardrops(tracks: [], apply: false, style: .curved))
+        XCTAssertGreaterThan(curved.added, 0)
+        XCTAssertEqual(straight.added, curved.added)
+        XCTAssertNotEqual(straight.addedTracks.map(\.bx), curved.addedTracks.map(\.bx))
+        store.teardropStyle = .curved
+        store.toggleTeardrops()
+        let drops = store.snapshot.tracks.filter { $0.teardrop == true }
+        XCTAssertEqual(drops.count, curved.addedTracks.count)
+        store.toggleTeardrops()  // again: removed
+        XCTAssertFalse(store.snapshot.tracks.contains { $0.teardrop == true })
+
+        // The autorouter option: decoded, set, saved only when curved.
+        let decoder = JSONDecoder()
+        let old = try decoder.decode(AutorouteOptions.self, from: Data("{\"teardrops\":true}".utf8))
+        XCTAssertEqual(old.teardropStyle, .straight)
+        let curvedOptions = try decoder.decode(AutorouteOptions.self, from: Data("{\"teardropStyle\":\"curved\"}".utf8))
+        XCTAssertEqual(curvedOptions.teardropStyle, .curved)
+        XCTAssertFalse(store.engine.saveJSON().contains("teardropStyle"))
+        store.setRoutingTeardropStyle(.curved)
+        XCTAssertEqual(store.autorouteOptions.teardropStyle, .curved)
+        XCTAssertTrue(store.engine.saveJSON().contains("\"teardropStyle\""))
+        store.applyRoutingPreset("quality")  // a preset keeps the style
+        XCTAssertEqual(store.autorouteOptions.teardropStyle, .curved)
+    }
+
+    func testTuneWhileRoutingOptionAndMemberLengths() throws {
+        let on = EDAEngine.routingOptions(mode: .shove, diagonal: true, tune: true)
+        XCTAssertTrue(on.contains("\"tuneWhileRouting\":true"))
+        let off = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+        XCTAssertTrue(off.contains("\"tuneWhileRouting\":false"))
+        XCTAssertFalse(DesignStore().routerTuneWhileRouting)
+        let member = "{\"net\":3,\"length\":12.5,\"target\":13,\"tolerance\":0.1,\"withinTolerance\":false}"
+        let json = "{\"ok\":true,\"addedTracks\":[1],\"addedVias\":[],\"memberLengths\":[\(member)],"
+            + "\"tuneStatus\":\"Lengths: 0 of 1 member within tolerance of the target\"}"
+        let result = try JSONDecoder().decode(RouteCommitResult.self, from: Data(json.utf8))
+        XCTAssertEqual(result.memberLengths?.first?.net, 3)
+        XCTAssertEqual(result.memberLengths?.first?.target, 13)
+        XCTAssertEqual(result.tuneStatus?.hasPrefix("Lengths:"), true)
+        let plain = "{\"ok\":true,\"addedTracks\":[],\"addedVias\":[]}"
+        let old = try JSONDecoder().decode(RouteCommitResult.self, from: Data(plain.utf8))
+        XCTAssertNil(old.memberLengths)
+        XCTAssertNil(old.tuneStatus)
+    }
+
     func testGlossStitchAndShieldReportWithoutChangingWhenNothingToDo() {
         let store = routedStore()
         let tracks = store.snapshot.tracks
@@ -6619,6 +6675,212 @@ final class UpdatePcbTests: XCTestCase {
         XCTAssertFalse(report.isEmpty)
         XCTAssertTrue(store.engine.pcbEcoPreview().isEmpty)
         XCTAssertTrue(store.updatePCB(keys: []).isEmpty)
+    }
+}
+
+/// Place new parts after Update PCB: the update queues the footprints it added (only those), the PCB editor places
+/// them one at a time (each an undo step), an illegal spot is refused, Esc / Skip leaves the automatic position, and
+/// the preference turned off keeps the old automatic behaviour.
+@MainActor
+final class PlaceNewPartsTests: XCTestCase {
+    private func withPreference(_ on: Bool, _ body: () throws -> Void) rethrows {
+        let key = DesignStore.placeInteractivelyKey
+        let saved = UserDefaults.standard.object(forKey: key)
+        UserDefaults.standard.set(on, forKey: key)
+        defer { UserDefaults.standard.set(saved, forKey: key) }
+        try body()
+    }
+
+    private func updateAll(_ store: DesignStore) {
+        _ = store.updatePCB(keys: store.engine.pcbEcoPreview().filter(\.applicable).map(\.key))
+    }
+
+    func testUpdatePcbQueuesNewPartsAndPlacesThemOneByOne() throws {
+        try withPreference(true) {
+            let store = DesignStore()
+            let r1 = store.addComponent(.resistor, at: .zero)
+            updateAll(store)
+            XCTAssertEqual(store.placementSession?.total, 1)
+            store.skipAllPlacements()
+            XCTAssertNil(store.placementSession)
+            // Two new parts: only they are queued, and the PCB editor opens on the first.
+            store.workspace = .schematic
+            let r2 = store.addComponent(.resistor, at: CGPoint(x: 100, y: 0))
+            let c1 = store.addComponent(.capacitor, at: CGPoint(x: 200, y: 0))
+            XCTAssertTrue(store.connect(PinAddress(component: r1, pin: 1), PinAddress(component: r2, pin: 0)))
+            updateAll(store)
+            let session = try XCTUnwrap(store.placementSession)
+            XCTAssertEqual(Set(session.queue.map(\.id)), [r2, c1])
+            XCTAssertEqual(session.total, 2)
+            XCTAssertEqual(store.workspace, .pcb)
+            let first = try XCTUnwrap(session.current)
+            XCTAssertEqual(store.selection, [first.id])
+            // The ghost starts at a free spot near the part's connections.
+            let spot = try XCTUnwrap(session.ghost)
+            XCTAssertTrue(spot.legal)
+            let automatic = try XCTUnwrap(store.snapshot.component(first.id)).pcb
+            // A click places it (snapped) and moves on to the next part.
+            XCTAssertTrue(store.placeCurrentPart(at: CGPoint(x: spot.x + 0.1, y: spot.y + 0.1)))
+            let placed = try XCTUnwrap(store.snapshot.component(first.id)).pcb
+            XCTAssertEqual(placed.x, spot.x, accuracy: 1e-9)
+            XCTAssertEqual(placed.y, spot.y, accuracy: 1e-9)
+            XCTAssertEqual(store.placementSession?.number, 2)
+            // Undo restores the automatic position (each placement is one undo step).
+            store.undo()
+            let restored = try XCTUnwrap(store.snapshot.component(first.id)).pcb
+            XCTAssertEqual(restored.x, automatic.x, accuracy: 1e-9)
+            XCTAssertEqual(restored.y, automatic.y, accuracy: 1e-9)
+            // Onto R1's courtyard: refused, nothing moves, the part stays current.
+            let second = try XCTUnwrap(store.placementSession?.current)
+            let before = try XCTUnwrap(store.snapshot.component(second.id)).pcb
+            let r1Spot = try XCTUnwrap(store.snapshot.component(r1)).pcb
+            XCTAssertFalse(store.placeCurrentPart(at: CGPoint(x: r1Spot.x, y: r1Spot.y)))
+            XCTAssertEqual(store.placementSession?.current, second)
+            XCTAssertEqual(try XCTUnwrap(store.snapshot.component(second.id)).pcb.x, before.x, accuracy: 1e-9)
+            XCTAssertEqual(store.placementSession?.ghost?.issues.first?.code, "PLACE_OVERLAP")
+            // R turns the ghost, F flips it.
+            store.movePlacementGhost(to: CGPoint(x: r1Spot.x + 20, y: r1Spot.y))
+            let rotation = try XCTUnwrap(store.placementSession?.rotation)
+            store.rotatePlacement()
+            XCTAssertEqual(store.placementSession?.rotation, (rotation + 90) % 360)
+            XCTAssertEqual(store.placementSession?.ghost?.rotation, (rotation + 90) % 360)
+            store.flipPlacement()
+            XCTAssertEqual(store.placementSession?.ghost?.bottom, true)
+            store.flipPlacement()
+            // Esc skips: the part keeps its automatic position and the queue is empty.
+            store.skipPlacement()
+            XCTAssertNil(store.placementSession)
+            XCTAssertEqual(try XCTUnwrap(store.snapshot.component(second.id)).pcb.x, before.x, accuracy: 1e-9)
+        }
+    }
+
+    func testPlaceAllAutomaticallyIsOneUndoStep() throws {
+        try withPreference(true) {
+            let store = DesignStore()
+            _ = store.addComponent(.resistor, at: .zero)
+            _ = store.addComponent(.resistor, at: CGPoint(x: 100, y: 0))
+            _ = store.addComponent(.capacitor, at: CGPoint(x: 200, y: 0))
+            updateAll(store)
+            let ids = try XCTUnwrap(store.placementSession).queue.map(\.id)
+            XCTAssertEqual(ids.count, 3)
+            let automatic = ids.compactMap { store.snapshot.component($0)?.pcb }
+            store.placeAllAutomatically()
+            XCTAssertNil(store.placementSession)
+            XCTAssertTrue(ids.allSatisfy { store.snapshot.component($0)?.pcb.placed == true })
+            store.undo()
+            let restored = ids.compactMap { store.snapshot.component($0)?.pcb }
+            XCTAssertEqual(restored.map(\.x), automatic.map(\.x))
+            XCTAssertEqual(restored.map(\.y), automatic.map(\.y))
+        }
+    }
+
+    /// R1 on the board, then R2 (`a`) and R3 (`b`) wired to it and queued by Update PCB, R2 first.
+    private func queueTwoParts(_ store: DesignStore) throws -> (a: Int, b: Int) {
+        let r1 = store.addComponent(.resistor, at: .zero)
+        updateAll(store)
+        store.skipAllPlacements()
+        store.workspace = .schematic
+        let a = store.addComponent(.resistor, at: CGPoint(x: 100, y: 0))
+        let b = store.addComponent(.resistor, at: CGPoint(x: 200, y: 0))
+        XCTAssertTrue(store.connect(PinAddress(component: r1, pin: 1), PinAddress(component: a, pin: 0)))
+        XCTAssertTrue(store.connect(PinAddress(component: r1, pin: 0), PinAddress(component: b, pin: 0)))
+        updateAll(store)
+        XCTAssertEqual(try XCTUnwrap(store.placementSession).queue.map(\.id), [a, b])
+        return (a, b)
+    }
+
+    /// Whether the part, where it stands, overlaps another part's courtyard (nothing ignored).
+    private func overlaps(_ store: DesignStore, _ id: Int) -> Bool {
+        guard let pcb = store.snapshot.component(id)?.pcb else { return false }
+        let at = CGPoint(x: pcb.x, y: pcb.y)
+        let check = store.engine.checkPlacement(id, at: at, rotation: pcb.rotation, bottom: pcb.bottom)
+        let issues = check?.issues ?? []
+        return issues.contains { $0.code == "PLACE_OVERLAP" }
+    }
+
+    private func spot(_ store: DesignStore, _ id: Int) throws -> CGPoint {
+        let pcb = try XCTUnwrap(store.snapshot.component(id)).pcb
+        return CGPoint(x: pcb.x, y: pcb.y)
+    }
+
+    private func assertAt(_ store: DesignStore, _ id: Int, _ expected: CGPoint) throws {
+        let at = try spot(store, id)
+        XCTAssertEqual(at.x, expected.x, accuracy: 1e-9)
+        XCTAssertEqual(at.y, expected.y, accuracy: 1e-9)
+    }
+
+    func testQueuedPartsDoNotBlockPlacement() throws {
+        try withPreference(true) {
+            let store = DesignStore()
+            let (a, b) = try queueTwoParts(store)
+            let autoA = try spot(store, a)
+            let autoB = try spot(store, b)
+            // Over B's automatic spot the ghost is green: B still waits, so it is no obstacle.
+            store.movePlacementGhost(to: autoB)
+            let ghost = try XCTUnwrap(store.placementSession?.ghost)
+            XCTAssertTrue(ghost.legal)
+            XCTAssertFalse(ghost.issues.contains { $0.code == "PLACE_OVERLAP" })
+            // A plain click (no ⌥) places A there.
+            XCTAssertTrue(store.placeCurrentPart(at: autoB))
+            XCTAssertEqual(store.placementSession?.current?.id, b)
+            XCTAssertTrue(overlaps(store, b))  // B still stands at its automatic spot, under A
+            // B's ghost starts at a free spot, not on A.
+            let next = try XCTUnwrap(store.placementSession?.ghost)
+            XCTAssertTrue(next.legal)
+            XCTAssertFalse(next.issues.contains { $0.code == "PLACE_OVERLAP" })
+            // Skip All leaves no overlap: B goes to its free spot.
+            store.skipAllPlacements()
+            XCTAssertNil(store.placementSession)
+            XCTAssertFalse(overlaps(store, a))
+            XCTAssertFalse(overlaps(store, b))
+            XCTAssertNotEqual(try spot(store, b), autoB)
+            // Undo: first B's move, then A's placement.
+            store.undo()
+            try assertAt(store, b, autoB)
+            XCTAssertTrue(overlaps(store, b))
+            store.undo()
+            try assertAt(store, a, autoA)
+            XCTAssertFalse(overlaps(store, b))
+        }
+    }
+
+    func testSkipAndPlaceAllMoveQueuedPartsOffPlacedOnes() throws {
+        try withPreference(true) {
+            // Skip: B, covered by A, goes to a free spot as one undo step.
+            let store = DesignStore()
+            let (a, b) = try queueTwoParts(store)
+            let autoB = try spot(store, b)
+            XCTAssertTrue(store.placeCurrentPart(at: autoB))
+            store.skipPlacement()
+            XCTAssertNil(store.placementSession)
+            XCTAssertFalse(overlaps(store, a))
+            XCTAssertFalse(overlaps(store, b))
+            store.undo()
+            try assertAt(store, b, autoB)
+            XCTAssertTrue(overlaps(store, b))  // A, placed by hand, stays
+            // Place All Automatically: B avoids A (placed), one undo step.
+            let other = DesignStore()
+            let (_, d) = try queueTwoParts(other)
+            let autoD = try spot(other, d)
+            XCTAssertTrue(other.placeCurrentPart(at: autoD))
+            other.placeAllAutomatically()
+            XCTAssertNil(other.placementSession)
+            XCTAssertFalse(overlaps(other, d))
+            other.undo()
+            try assertAt(other, d, autoD)
+        }
+    }
+
+    func testTurnedOffNewPartsStayWhereAutoPlacePutsThem() throws {
+        try withPreference(false) {
+            let store = DesignStore()
+            let r1 = store.addComponent(.resistor, at: .zero)
+            store.workspace = .schematic
+            updateAll(store)
+            XCTAssertNil(store.placementSession)
+            XCTAssertEqual(store.workspace, .schematic)
+            XCTAssertEqual(store.snapshot.component(r1)?.pcb.placed, true)
+        }
     }
 }
 
@@ -7012,5 +7274,127 @@ final class ComponentSymbolIconTests: XCTestCase {
             }
         }
         XCTAssertTrue(SchematicCanvasStyle.standard.colourByDevice)
+    }
+
+    func testAutoroutePinSwapOptionAndReportDecode() throws {
+        let old = try JSONDecoder().decode(AutorouteOptions.self, from: Data("{\"gloss\":true}".utf8))
+        XCTAssertFalse(old.pinSwap)
+        XCTAssertTrue(old.gloss)
+        let on = try JSONDecoder().decode(AutorouteOptions.self, from: Data("{\"pinSwap\":true}".utf8))
+        XCTAssertTrue(on.pinSwap)
+        let encoded = try JSONEncoder().encode(on)
+        XCTAssertEqual(try JSONDecoder().decode(AutorouteOptions.self, from: encoded), on)
+        let plain = "{\"pairs\":[],\"lengths\":[],\"metrics\":{\"vias\":1,\"microvias\":0,\"blindVias\":0,"
+            + "\"trackLength\":2,\"layerLength\":[2],\"segments\":1,\"arcs\":0,\"teardrops\":0,\"unrouted\":0,"
+            + "\"viasRemoved\":0,\"netsRerouted\":0,\"glossed\":0,\"arcsAdded\":0,\"teardropsAdded\":0"
+        let report = try JSONDecoder().decode(RouteReport.self, from: Data((plain + "}}").utf8))
+        XCTAssertNil(report.metrics.pinSwaps)
+        XCTAssertNil(report.swaps)
+        let swapped = plain + ",\"pinSwaps\":2,\"gateSwaps\":1,\"ratsnestBefore\":40,\"ratsnestAfter\":12}"
+            + ",\"swaps\":[\"Swapped gates U1A \\u2194 U2A\"]}"
+        let withSwaps = try JSONDecoder().decode(RouteReport.self, from: Data(swapped.utf8))
+        XCTAssertEqual(withSwaps.metrics.pinSwaps, 2)
+        XCTAssertEqual(withSwaps.metrics.gateSwaps, 1)
+        XCTAssertEqual(withSwaps.metrics.ratsnestAfter, 12)
+        XCTAssertEqual(withSwaps.swaps?.count, 1)
+    }
+}
+
+@MainActor
+final class LiveTuningPreviewTests: XCTestCase {
+    private func previewJSON(extra: String) -> String {
+        let track = "{\"id\":-1,\"net\":3,\"layer\":0,\"width\":0.2,\"ax\":0,\"ay\":0,\"bx\":10,\"by\":0}"
+        var json = "{\"active\":true,\"kind\":\"pair\",\"status\":\"\",\"blocked\":false,\"reachedTarget\":true,"
+        json += "\"nets\":[3,4],\"layer\":0,\"width\":0.2,\"gap\":0.2,\"endX\":10,\"endY\":0,\"length\":10,"
+        json += "\"placed\":[\(track)],\"head\":[],\"vias\":[],\"shovedTracks\":[],\"shovedVias\":[],"
+        json += "\"hiddenTracks\":[],\"hiddenVias\":[]" + extra + "}"
+        return json
+    }
+
+    func testPreviewDecodesLiveMeandersAndSkewStatus() throws {
+        let meander = "{\"id\":7,\"net\":3,\"layer\":0,\"width\":0.2,\"ax\":0,\"ay\":0,\"bx\":0,\"by\":1}"
+        let status = "Pair: 2 of 2 members within tolerance of the target, skew 0.004 mm (tolerance 0.100 mm)"
+        let extra = ",\"tunedTracks\":[\(meander)],\"tuneStatus\":\"\(status)\""
+        let data = Data(previewJSON(extra: extra).utf8)
+        let preview = try JSONDecoder().decode(RoutePreview.self, from: data)
+        XCTAssertEqual(preview.tunedTracks?.count, 1)
+        XCTAssertEqual(preview.tunedTracks?.first?.id, 7)
+        XCTAssertEqual(preview.tuneStatus?.contains("skew"), true)
+        // The live meanders are drawn in place of the placed tracks and the head.
+        XCTAssertEqual(preview.routeCopper.map(\.id), [7])
+    }
+
+    func testPreviewWithoutLiveTuningDrawsPlacedAndHead() throws {
+        let data = Data(previewJSON(extra: "").utf8)
+        let preview = try JSONDecoder().decode(RoutePreview.self, from: data)
+        XCTAssertNil(preview.tunedTracks)
+        XCTAssertNil(preview.tuneStatus)
+        XCTAssertEqual(preview.routeCopper, preview.placed + preview.head)
+    }
+}
+
+/// Focus mode (F11, ⌃⌘F, Fn-F): full screen with only the editor.
+@MainActor
+final class FocusModeTests: XCTestCase {
+    private func size<V: View>(_ view: V, store: DesignStore, settings: AISettings,
+                               agents: AgentOrchestrator) -> CGSize {
+        let host = NSHostingController(rootView: view
+            .environmentObject(store)
+            .environmentObject(settings)
+            .environmentObject(agents))
+        return host.sizeThatFits(in: CGSize(width: 1, height: 1))
+    }
+
+    func testDefaults() {
+        XCTAssertFalse(DesignStore().focusMode)
+        let defaults = UserDefaults.standard
+        let saved = defaults.object(forKey: FocusMode.hidesPanelsKey)
+        defaults.removeObject(forKey: FocusMode.hidesPanelsKey)
+        XCTAssertTrue(FocusMode.hidesPanels)
+        defaults.set(false, forKey: FocusMode.hidesPanelsKey)
+        XCTAssertFalse(FocusMode.hidesPanels)
+        if let saved { defaults.set(saved, forKey: FocusMode.hidesPanelsKey) } else {
+            defaults.removeObject(forKey: FocusMode.hidesPanelsKey)
+        }
+    }
+
+    func testF11IsTheFunctionKey() {
+        let scalar = FocusMode.f11.character.unicodeScalars.first?.value
+        XCTAssertEqual(scalar, UInt32(NSF11FunctionKey))
+    }
+
+    func testOptionsBarCollapsesToAStrip() throws {
+        let store = DesignStore()
+        let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.FocusModeTests")))
+        let agents = AgentOrchestrator()
+        let bar = OptionsBar { Text(verbatim: "Options") }
+        let normal = size(bar, store: store, settings: settings, agents: agents)
+        let focused = size(bar.environment(\.editorFocusMode, true), store: store, settings: settings, agents: agents)
+        XCTAssertEqual(normal.height, 36, accuracy: 0.5)
+        XCTAssertEqual(focused.height, 4, accuracy: 0.5)
+    }
+
+    func testEditorsInFocusModeNeedNoMoreRoom() throws {
+        let store = DesignStore()
+        let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.FocusModeTests")))
+        let agents = AgentOrchestrator()
+        store.loadExample(OfflineProvider.templates[8].industryPlan)
+        for workspace in Workspace.allCases {
+            let view = ContentView.workspaceView(workspace)
+            let normal = size(view, store: store, settings: settings, agents: agents)
+            let focused = size(view.environment(\.editorFocusMode, true), store: store, settings: settings, agents: agents)
+            XCTAssertLessThanOrEqual(focused.height, normal.height, "\(workspace.title)")
+            XCTAssertLessThanOrEqual(focused.width, normal.width, "\(workspace.title)")
+        }
+    }
+
+    func testWindowInFocusModeFitsTheMinimumWindow() throws {
+        let store = DesignStore()
+        let settings = AISettings(defaults: try XCTUnwrap(UserDefaults(suiteName: "SiEDA.FocusModeTests")))
+        let agents = AgentOrchestrator()
+        store.focusMode = true
+        let window = size(ContentView(), store: store, settings: settings, agents: agents)
+        XCTAssertLessThanOrEqual(window.width, LayoutMetrics.minimumWindow.width)
+        XCTAssertLessThanOrEqual(window.height, LayoutMetrics.minimumWindow.height)
     }
 }

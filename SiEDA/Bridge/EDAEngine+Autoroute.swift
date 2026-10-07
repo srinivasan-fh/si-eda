@@ -12,6 +12,8 @@ struct AutorouteOptions: Codable, Equatable {
     var arcCorners = false
     var arcRadius = 0.0
     var teardrops = false
+    /// Teardrop outline (core `TeardropStyle`, JSON "teardropStyle").
+    var teardropStyle = TeardropStyleChoice.straight
     var preset = "default"
     var fast = false
     var fanoutOnly = false
@@ -22,6 +24,8 @@ struct AutorouteOptions: Codable, Equatable {
     var protectLocked = false
     /// Per schematic net class: the copper layers its nets may route on.
     var classLayers: [String: [Int]] = [:]
+    /// Swap pins and gates of multi-unit parts before routing (back-annotated to the schematic).
+    var pinSwap = false
 
     init() {}
 
@@ -35,6 +39,8 @@ struct AutorouteOptions: Codable, Equatable {
         arcCorners = try c.decodeIfPresent(Bool.self, forKey: .arcCorners) ?? false
         arcRadius = try c.decodeIfPresent(Double.self, forKey: .arcRadius) ?? 0
         teardrops = try c.decodeIfPresent(Bool.self, forKey: .teardrops) ?? false
+        let style = try c.decodeIfPresent(String.self, forKey: .teardropStyle) ?? ""
+        teardropStyle = TeardropStyleChoice(rawValue: style) ?? .straight
         preset = try c.decodeIfPresent(String.self, forKey: .preset) ?? "default"
         fast = try c.decodeIfPresent(Bool.self, forKey: .fast) ?? false
         fanoutOnly = try c.decodeIfPresent(Bool.self, forKey: .fanoutOnly) ?? false
@@ -44,6 +50,7 @@ struct AutorouteOptions: Codable, Equatable {
         area = try c.decodeIfPresent(AutorouteArea.self, forKey: .area)
         protectLocked = try c.decodeIfPresent(Bool.self, forKey: .protectLocked) ?? false
         classLayers = try c.decodeIfPresent([String: [Int]].self, forKey: .classLayers) ?? [:]
+        pinSwap = try c.decodeIfPresent(Bool.self, forKey: .pinSwap) ?? false
     }
 
     /// Routes only part of the board (selected nets, a net class or an area).
@@ -108,10 +115,19 @@ struct RouteReport: Decodable, Equatable {
         var glossed = 0
         var arcsAdded = 0
         var teardropsAdded = 0
+        /// Pin / gate swap before routing (present only when the strategy swaps).
+        var pinSwaps: Int?
+        var gateSwaps: Int?
+        var ratsnestBefore: Double?
+        var ratsnestAfter: Double?
+        var crossingsBefore: Int?
+        var crossingsAfter: Int?
     }
     var pairs: [Pair] = []
     var lengths: [Length] = []
     var metrics = Metrics()
+    /// The pin / gate swaps made before routing, one line each (nil when the strategy does not swap).
+    var swaps: [String]?
 }
 
 /// A routing keep-out (`sieda_pcb_keepouts`): no track and / or via inside the area on a layer (-1 = all layers).

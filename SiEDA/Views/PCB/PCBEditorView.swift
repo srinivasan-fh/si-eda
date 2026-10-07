@@ -218,6 +218,18 @@ struct PCBEditorView: View {
                         Toggle("Auto teardrops", isOn: $store.routerTeardrops)
                             .toggleStyle(.checkbox)
                             .help("Teardrops where each finished route meets pads and vias")
+                        Picker("Teardrop style", selection: $store.teardropStyle) {
+                            ForEach(TeardropStyleChoice.allCases) { style in
+                                Text(LocalizedStringKey(style.title)).tag(style)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                        .help("Teardrop outline: straight fans, or curved flares into pads and vias")
+                        Toggle("Tune Lengths While Routing", isOn: $store.routerTuneWhileRouting)
+                            .toggleStyle(.checkbox)
+                            .help("While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them")
                         Toggle("Rounded corners", isOn: $store.routerRounded)
                             .toggleStyle(.checkbox)
                             .help("Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only")
@@ -320,6 +332,9 @@ struct PCBEditorView: View {
                     PCBCanvas(viewport: $viewport, canvasSize: $canvasSize, panMode: $panMode, routeTool: $routeTool,
                               tuneTool: $tuneTool, routePair: routePair, visible: visible, activeLayer: activeLayer)
                         .disabled(store.isBusy)  // the engine is busy autorouting
+                    if let ghost = store.placementSession?.ghost {
+                        PlacementGhostLayer(ghost: ghost, viewport: viewport, pads: store.snapshot.pads)
+                    }
                     if store.showNavigator, !store.snapshot.pads.isEmpty {
                         navigator
                             .canvasScrollShield()
@@ -368,6 +383,12 @@ struct PCBEditorView: View {
                         .overlay(Capsule().strokeBorder(Theme.blue.opacity(0.5)))
                         .padding(10)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    }
+                    if let session = store.placementSession {
+                        PlaceNewPartsHUD(session: session)
+                            .canvasScrollShield()
+                            .padding(10)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     }
                     if store.snapshot.pads.isEmpty {
                         BlueEmptyState(systemImage: "square.grid.3x3.square",
@@ -694,6 +715,8 @@ struct PCBCanvas: View {
                     switch phase {
                     case .active(let p):
                         hover = p
+                        // Placing new parts: the ghost follows the cursor.
+                        if store.placementSession != nil { store.movePlacementGhost(to: viewport.toWorld(p)) }
                         // The route's head follows the cursor (shoving or walking around as set).
                         if routeTool, store.routePreview != nil { store.moveRoute(to: viewport.toWorld(p)) }
                     case .ended: hover = nil
@@ -712,7 +735,10 @@ struct PCBCanvas: View {
                         spaceUsedForPan = false
                     case .up:
                         spaceHeld = false
-                        if !spaceUsedForPan { store.rotateFootprints() }  // a tap rotates; Space + drag panned instead
+                        // A tap rotates (the part being placed, or the selection); Space + drag panned instead.
+                        if !spaceUsedForPan {
+                            if store.placementSession != nil { store.rotatePlacement() } else { store.rotateFootprints() }
+                        }
                     default:
                         break
                     }
@@ -722,6 +748,11 @@ struct PCBCanvas: View {
                 // Single-letter keys; ⌘/⌥/⌃ combinations belong to menus and text editing.
                 .onKeyPress(keys: ["r", "f", "v", "V", "h", "x", "t"], phases: .down) { press in
                     guard press.modifiers.subtracting(.shift).isEmpty else { return .ignored }
+                    if store.placementSession != nil, press.key == KeyEquivalent("r") || press.key == KeyEquivalent("f") {
+                        // Placing new parts: R turns and F flips the part at the cursor.
+                        if press.key == KeyEquivalent("r") { store.rotatePlacement() } else { store.flipPlacement() }
+                        return .handled
+                    }
                     switch press.key {
                     case KeyEquivalent("t"):
                         panMode = false
@@ -752,7 +783,9 @@ struct PCBCanvas: View {
                     return .handled
                 }
                 .onKeyPress(.escape) {
-                    if store.routePreview != nil {
+                    if store.placementSession != nil {
+                        store.skipPlacement()  // the part keeps its automatic position
+                    } else if store.routePreview != nil {
                         store.cancelRoute()
                     } else if !store.multiStarts.isEmpty {
                         store.multiStarts = []
@@ -914,6 +947,8 @@ struct PCBCanvas: View {
                     } else if spaceHeld {
                         spaceUsedForPan = true
                         dragMode = .pan(viewport.offset)
+                    } else if store.placementSession != nil {
+                        dragMode = .pan(viewport.offset)  // placing new parts: a drag pans, a click places
                     } else if tuneTool, !panMode, let hit = copperHit(at: world, vias: false) {
                         dragMode = .tuneDrag(hit.id, world)
                     } else if !panMode, !routeTool, !tuneTool, pad(at: world) == nil, let hit = copperHit(at: world) {
@@ -964,6 +999,9 @@ struct PCBCanvas: View {
                 } else if copperDragActive {
                     copperDragActive = false
                     store.finishRoute(at: viewport.toWorld(value.location))
+                } else if !moved && store.placementSession != nil && !spaceHeld {
+                    let force = NSEvent.modifierFlags.contains(.option)
+                    store.placeCurrentPart(at: viewport.toWorld(value.location), force: force)
                 } else if !moved && routeTool && !spaceHeld {
                     routeClick(at: viewport.toWorld(value.location))
                 } else if !moved && tuneTool && !spaceHeld {
@@ -1157,10 +1195,10 @@ struct PCBCanvas: View {
                        style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
         }
 
-        // The route in progress on top: placed segments in their copper colour, the head following the cursor
-        // outlined, and its vias.
+        // The route in progress on top: placed segments in their copper colour (with the live meanders when tuning
+        // while routing), the head following the cursor outlined, and its vias.
         if let route {
-            for t in route.placed + route.head {
+            for t in route.routeCopper {
                 var path = Path()
                 t.addCentreLine(to: &path)
                 ctx.stroke(path.applying(screen), with: .color(copper(t.net, t.layer)),
@@ -1303,6 +1341,8 @@ struct PCBCanvas: View {
             if let net = route.netLength, let target = route.targetLength, target > 0 {
                 length += String(format: " · net %.2f / %.2f mm", net, target)
             }
+            length += memberLengthsText(route.memberLengths ?? [], snap: snap)
+            if route.kind == "pair", let tuned = route.tuneStatus, !tuned.isEmpty { length += " · " + tuned }
             let hint = route.kind == "drag" || route.kind == "via" ? "release to drop · Esc cancels"
                 : "click places a corner · V via · Enter finishes · Esc cancels"
             CanvasOverlays.banner("\(route.status) · \(length) · \(hint)", in: &ctx, size: size)
@@ -1361,4 +1401,15 @@ struct PCBCanvas: View {
         }
         ctx.fill(dots, with: .color(Theme.gridDot.opacity(0.7)))
     }
+}
+
+/// Tune while routing: " · DQ0 12.40/13.10 · DQ1 13.10/13.10 ✓" for the route banner ("" without members).
+func memberLengthsText(_ members: [RouteMemberLength], snap: DesignSnapshot) -> String {
+    var text = ""
+    for m in members where m.target > 0 {
+        let name = snap.net(m.net)?.name ?? "\(m.net)"
+        let mark = m.withinTolerance ? " ✓" : ""
+        text += " · " + name + String(format: " %.2f/%.2f", m.length, m.target) + mark
+    }
+    return text
 }

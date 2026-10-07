@@ -8,20 +8,29 @@ struct ContentView: View {
     /// The inspector starts hidden on laptop-size screens (decided once at launch: measuring the window and
     /// toggling panels during layout makes AppKit loop on constraint updates and abort).
     @State private var showInspector = ContentView.startsWithInspector
+    @State private var columns = NavigationSplitViewVisibility.all
+    /// Whether the inspector was open when focus mode hid it (restored on leaving).
+    @State private var inspectorBeforeFocus = false
 
     static var startsWithInspector: Bool {
         (NSScreen.main?.visibleFrame.width ?? LayoutMetrics.defaultWindow.width) >= LayoutMetrics.inspectorWidthThreshold
     }
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columns) {
             SidebarView()
                 .navigationSplitViewColumnWidth(min: 200, ideal: 230, max: 300)
         } detail: {
             VStack(spacing: 0) {
                 workspaceView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                StatusBar()
+                    .environment(\.editorFocusMode, store.focusMode)
+                if !store.focusMode {
+                    StatusBar()
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if store.focusMode { FocusModeBadge() }
             }
             .background(Theme.navy)
             .inspector(isPresented: $showInspector) {
@@ -32,6 +41,9 @@ struct ContentView: View {
         .navigationTitle(store.windowTitle)
         .onChange(of: store.inspectorRevealToken) { _, _ in showInspector = true }
         .toolbar { toolbarContent }
+        .toolbar(store.focusMode ? .hidden : .visible, for: .windowToolbar)
+        .background(FullScreenObserver { full in store.focusMode = full && FocusMode.hidesPanels })
+        .onChange(of: store.focusMode) { _, focus in applyFocus(focus) }
         // Solid blue toolbar: the default translucent one takes its colour from the desktop picture.
         .toolbarBackground(Theme.deepBlue, for: .windowToolbar)
         .toolbarBackground(.visible, for: .windowToolbar)
@@ -48,6 +60,18 @@ struct ContentView: View {
         .onChange(of: settings.aiEnabled) { _, enabled in
             if !enabled { agents.cancel() }
             store.aiEnabled = enabled
+        }
+    }
+
+    /// Focus mode hides the sidebar and the inspector, and puts them back as they were on leaving.
+    private func applyFocus(_ focus: Bool) {
+        if focus {
+            inspectorBeforeFocus = showInspector
+            showInspector = false
+            columns = .detailOnly
+        } else {
+            showInspector = inspectorBeforeFocus
+            columns = .all
         }
     }
 

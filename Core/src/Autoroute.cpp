@@ -9,9 +9,10 @@ namespace sieda {
 bool AutorouteOptions::operator==(const AutorouteOptions& o) const {
     return coupledPairs == o.coupledPairs && pairGap == o.pairGap && lengthAware == o.lengthAware &&
            minimizeVias == o.minimizeVias && gloss == o.gloss && arcCorners == o.arcCorners && arcRadius == o.arcRadius &&
-           teardrops == o.teardrops && preset == o.preset && fast == o.fast && fanoutOnly == o.fanoutOnly && nets == o.nets &&
+           teardrops == o.teardrops && teardropStyle == o.teardropStyle && preset == o.preset && fast == o.fast && fanoutOnly == o.fanoutOnly && nets == o.nets &&
            netClass == o.netClass && hasArea == o.hasArea && (!hasArea || (area.x0 == o.area.x0 && area.y0 == o.area.y0 &&
-           area.x1 == o.area.x1 && area.y1 == o.area.y1)) && protectLocked == o.protectLocked && classLayers == o.classLayers;
+           area.x1 == o.area.x1 && area.y1 == o.area.y1)) && protectLocked == o.protectLocked && classLayers == o.classLayers &&
+           pinSwap == o.pinSwap;
 }
 
 const std::vector<AutoroutePreset>& autoroutePresets() {
@@ -63,6 +64,7 @@ Json autorouteOptionsToJson(const AutorouteOptions& o) {
     j["arcCorners"] = o.arcCorners;
     j["arcRadius"] = o.arcRadius;
     j["teardrops"] = o.teardrops;
+    if (o.teardropStyle != TeardropStyle::Straight) j["teardropStyle"] = teardropStyleName(o.teardropStyle);  // only when changed
     j["preset"] = o.preset;
     j["fast"] = o.fast;
     j["fanoutOnly"] = o.fanoutOnly;
@@ -87,6 +89,7 @@ Json autorouteOptionsToJson(const AutorouteOptions& o) {
         cl[name] = l;
     }
     j["classLayers"] = cl;
+    if (o.pinSwap) j["pinSwap"] = true;  // written only when on: older files load and save identically
     return j;
 }
 
@@ -100,6 +103,7 @@ AutorouteOptions autorouteOptionsFromJson(const Json& j, AutorouteOptions o) {
     o.arcCorners = j.get("arcCorners").asBool(o.arcCorners);
     if (j.has("arcRadius")) o.arcRadius = clampMm(j.get("arcRadius").asNumber(o.arcRadius), 0.0, 20.0, 0.0);
     o.teardrops = j.get("teardrops").asBool(o.teardrops);
+    if (j.has("teardropStyle")) o.teardropStyle = teardropStyleFromName(j.get("teardropStyle").asString(""), o.teardropStyle);
     if (j.has("preset")) {
         const std::string p = j.get("preset").asString("default");
         o.preset = autoroutePreset(p) ? p : "default";
@@ -135,6 +139,7 @@ AutorouteOptions autorouteOptionsFromJson(const Json& j, AutorouteOptions o) {
                 if (!name.empty() && !ls.empty()) o.classLayers[name] = ls;
             }
     }
+    o.pinSwap = j.get("pinSwap").asBool(o.pinSwap);
     return o;
 }
 
@@ -236,6 +241,17 @@ Json routeReportJson(const RouteReport& r) {
     q["glossed"] = m.glossed;
     q["arcsAdded"] = m.arcsAdded;
     q["teardropsAdded"] = m.teardropsAdded;
+    if (m.swapRun) {  // only when the strategy swaps pins and gates
+        q["pinSwaps"] = m.pinSwaps;
+        q["gateSwaps"] = m.gateSwaps;
+        q["ratsnestBefore"] = m.ratsnestBefore;
+        q["ratsnestAfter"] = m.ratsnestAfter;
+        q["crossingsBefore"] = m.crossingsBefore;
+        q["crossingsAfter"] = m.crossingsAfter;
+        Json swaps = Json::array();
+        for (const auto& line : r.swaps) swaps.push(line);
+        j["swaps"] = swaps;
+    }
     j["metrics"] = q;
     return j;
 }

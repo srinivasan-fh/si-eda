@@ -462,6 +462,7 @@ The schematic and PCB canvases are built for large designs such as CPU/GPU/NPU m
 | ⇧Z or ⌥⌘0 | Zoom to selection |
 | Z | Zoom to area: drag a rectangle (a click zooms 2×) |
 | N | Show/hide the navigator |
+| F11, ⌃⌘F or Fn-F | Focus mode: full screen with only the editor (sidebar, inspector, toolbar, status bar and options bar hidden; point at the top edge of an editor for its options bar). Same keys or **Exit Focus** to leave. **Settings → Appearance** can keep the panels in full screen instead |
 | **View → Zoom Level** / click the zoom percentage | Preset levels from 10 % to 1600 % |
 | V / H / W | Select, pan (hand) and wire tools (schematic) |
 | Q | No-connect tool: click a pin to mark it intentionally open (schematic) |
