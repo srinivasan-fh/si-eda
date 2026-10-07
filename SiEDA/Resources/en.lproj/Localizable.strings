@@ -1141,3 +1141,5 @@
 "Brown" = "Brown";
 "Tan" = "Tan";
 "Colour Symbols by Device" = "Colour Symbols by Device";
+"Tune Lengths While Routing" = "Tune Lengths While Routing";
+"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members";

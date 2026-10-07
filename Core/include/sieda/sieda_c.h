@@ -832,7 +832,9 @@ char* sieda_router_begin_multi_drag(SiedaProject* project, const char* options_j
 char* sieda_router_begin_multi(SiedaProject* project, const char* options_json, const char* points_json, int32_t layer);
 /* Board commands. Each returns {"ok","message","added","skipped","applied","addedTracks","addedVias","removedTracks",
  * "removedVias","changes"} (ok false: nothing to do), or {"error"}. Router options also take "removeLoops" (loop
- * removal on commit) and "teardrops" (teardrops on the committed tracks). Tracks with "teardrop":true are teardrops. */
+ * removal on commit), "teardrops" (teardrops on the committed tracks) and "tuneWhileRouting" / "tuneGap" (a bus's
+ * or a matched net's short members get meanders on commit; the preview and the commit's changes then carry
+ * "memberLengths":[{"net","length","target","tolerance","withinTolerance"}] and the changes "tuneStatus"). Tracks with "teardrop":true are teardrops. */
 /* Teardrops on the given tracks' ends at pads / vias ([] = every track); options {"pads","vias" (default true),
  * "length" (fraction of the pad / via size, 0.3–3, default 1),"apply","remove" (remove them instead)}. */
 char* sieda_pcb_teardrops(SiedaProject* project, const char* track_ids_json, const char* options_json);

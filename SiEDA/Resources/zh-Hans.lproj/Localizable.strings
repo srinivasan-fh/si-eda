@@ -1141,3 +1141,5 @@
 "Brown" = "棕色";
 "Tan" = "浅棕褐色";
 "Colour Symbols by Device" = "按器件为符号着色";
+"Tune Lengths While Routing" = "布线时调整长度";
+"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "布线总线或等长网络时，显示每个成员相对于目标的长度；完成布线时为较短的成员添加蛇形线";

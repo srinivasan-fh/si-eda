@@ -6545,6 +6545,25 @@ final class BoardCommandTests: XCTestCase {
         XCTAssertFalse(store.routerTeardrops)
     }
 
+    func testTuneWhileRoutingOptionAndMemberLengths() throws {
+        let on = EDAEngine.routingOptions(mode: .shove, diagonal: true, tune: true)
+        XCTAssertTrue(on.contains("\"tuneWhileRouting\":true"))
+        let off = EDAEngine.routingOptions(mode: .shove, diagonal: true)
+        XCTAssertTrue(off.contains("\"tuneWhileRouting\":false"))
+        XCTAssertFalse(DesignStore().routerTuneWhileRouting)
+        let member = "{\"net\":3,\"length\":12.5,\"target\":13,\"tolerance\":0.1,\"withinTolerance\":false}"
+        let json = "{\"ok\":true,\"addedTracks\":[1],\"addedVias\":[],\"memberLengths\":[\(member)],"
+            + "\"tuneStatus\":\"Lengths: 0 of 1 member within tolerance of the target\"}"
+        let result = try JSONDecoder().decode(RouteCommitResult.self, from: Data(json.utf8))
+        XCTAssertEqual(result.memberLengths?.first?.net, 3)
+        XCTAssertEqual(result.memberLengths?.first?.target, 13)
+        XCTAssertEqual(result.tuneStatus?.hasPrefix("Lengths:"), true)
+        let plain = "{\"ok\":true,\"addedTracks\":[],\"addedVias\":[]}"
+        let old = try JSONDecoder().decode(RouteCommitResult.self, from: Data(plain.utf8))
+        XCTAssertNil(old.memberLengths)
+        XCTAssertNil(old.tuneStatus)
+    }
+
     func testGlossStitchAndShieldReportWithoutChangingWhenNothingToDo() {
         let store = routedStore()
         let tracks = store.snapshot.tracks

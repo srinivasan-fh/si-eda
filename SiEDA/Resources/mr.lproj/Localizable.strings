@@ -1141,3 +1141,5 @@
 "Brown" = "तपकिरी";
 "Tan" = "फिकट तपकिरी";
 "Colour Symbols by Device" = "डिव्हाइसनुसार चिन्हांचे रंग";
+"Tune Lengths While Routing" = "रूटिंग करताना लांबी ट्यून करा";
+"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "बस किंवा लांबी-जुळवलेले नेट रूट करताना प्रत्येक सदस्याची लांबी त्याच्या लक्ष्याशी दाखवा; रूट पूर्ण केल्यावर लहान सदस्यांना मिअँडर जोडले जातात";

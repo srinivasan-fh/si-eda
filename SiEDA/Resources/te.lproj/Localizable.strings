@@ -1141,3 +1141,5 @@
 "Brown" = "గోధుమ";
 "Tan" = "లేత గోధుమ రంగు";
 "Colour Symbols by Device" = "పరికరం ప్రకారం చిహ్నాల రంగులు";
+"Tune Lengths While Routing" = "రూటింగ్ సమయంలో పొడవులను ట్యూన్ చేయి";
+"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "బస్ లేదా పొడవు-సరిపోలిన నెట్‌ను రూట్ చేస్తున్నప్పుడు ప్రతి సభ్యుని పొడవును దాని లక్ష్యంతో చూపించు; రూట్ పూర్తి చేసినప్పుడు చిన్న సభ్యులకు మియాండర్‌లు జోడించబడతాయి";

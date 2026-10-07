@@ -1141,3 +1141,5 @@
 "Brown" = "ମାଟିଆ";
 "Tan" = "ହାଲୁକା ମାଟିଆ";
 "Colour Symbols by Device" = "ଡିଭାଇସ୍ ଅନୁସାରେ ପ୍ରତୀକ ରଙ୍ଗ";
+"Tune Lengths While Routing" = "ରୁଟିଂ ସମୟରେ ଲମ୍ବ ଟ୍ୟୁନ୍ କରନ୍ତୁ";
+"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "ବସ୍ କିମ୍ବା ଲମ୍ବ-ମେଳ ନେଟ୍ ରୁଟ୍ କରିବା ସମୟରେ ପ୍ରତ୍ୟେକ ସଦସ୍ୟର ଲମ୍ବ ତାହାର ଲକ୍ଷ୍ୟ ସହ ଦେଖାନ୍ତୁ; ରୁଟ୍ ଶେଷ କଲେ ଛୋଟ ସଦସ୍ୟମାନଙ୍କରେ ମିଆଣ୍ଡର୍ ଯୋଡ଼ାଯାଏ";

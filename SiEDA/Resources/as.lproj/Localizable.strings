@@ -1141,3 +1141,5 @@
 "Brown" = "মটীয়া";
 "Tan" = "পাতল মটীয়া";
 "Colour Symbols by Device" = "ডিভাইচ অনুসৰি চিম্বলৰ ৰং";
+"Tune Lengths While Routing" = "ৰাউটিঙৰ সময়ত দৈৰ্ঘ্য টিউন কৰক";
+"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "বাছ বা দৈৰ্ঘ্য-মিল নেট ৰাউট কৰোঁতে প্ৰতিজন সদস্যৰ দৈৰ্ঘ্য তাৰ লক্ষ্যৰ বিপৰীতে দেখুৱাওক; ৰুট সম্পূৰ্ণ কৰিলে চুটি সদস্যসকলত মিয়েণ্ডাৰ যোগ হয়";

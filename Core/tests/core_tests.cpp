@@ -16433,3 +16433,215 @@ TEST(corridor_rip_up_same_copper_for_any_thread_count) {
     for (size_t i = 0; same && i < vias[0].size(); ++i) same = vias[0][i].position == vias[1][i].position && vias[0][i].net == vias[1][i].net;
     CHECK(same);
 }
+
+// ---- tune while routing
+
+namespace {
+/// The bus of busBoard() from U1's P5 (`count` members), straight out to x = 24 and turned down to (30, 34): the
+/// members on the inside of the turn come out shorter.
+RoutePreview routeTurningBus(InteractiveRouter& r, BusBoard& b, int count) {
+    auto& s = b.p.schematic;
+    CHECK(r.beginBus(padAt(b.p, b.u1, pin(s, b.u1, "P5")), 0, count));
+    r.moveTo({24, 20});
+    CHECK(r.fixHead());
+    return r.moveTo({30, 34});
+}
+
+/// Every track of `net` is joined, through the net's own copper, to a track ending on its pad of `comp`.
+bool netCopperConnected(const Project& p, int net, int comp) {
+    std::vector<const Track*> ts;
+    for (const auto& t : p.pcb.tracks)
+        if (t.net == net) ts.push_back(&t);
+    if (ts.empty()) return false;
+    std::vector<bool> seen(ts.size(), false);
+    std::vector<size_t> todo;
+    auto onPad = [](const Pad& pd, Vec2 q) {
+        const Rect bb = pd.bounds();
+        return q.x >= bb.x0 - 1e-9 && q.x <= bb.x1 + 1e-9 && q.y >= bb.y0 - 1e-9 && q.y <= bb.y1 + 1e-9;
+    };
+    for (const auto& pd : p.pcb.pads(p.schematic))
+        if (pd.net == net && pd.componentId == comp)
+            for (size_t i = 0; i < ts.size(); ++i)
+                if (!seen[i] && (onPad(pd, ts[i]->a) || onPad(pd, ts[i]->b))) {
+                    seen[i] = true;
+                    todo.push_back(i);
+                }
+    while (!todo.empty()) {
+        const Track* t = ts[todo.back()];
+        todo.pop_back();
+        for (size_t j = 0; j < ts.size(); ++j) {
+            if (seen[j]) continue;
+            const Track* o = ts[j];
+            const double reach = std::max(t->width, o->width) / 2;
+            if (trackPointDistance(*t, o->a) <= reach || trackPointDistance(*t, o->b) <= reach ||
+                trackPointDistance(*o, t->a) <= reach || trackPointDistance(*o, t->b) <= reach) {
+                seen[j] = true;
+                todo.push_back(j);
+            }
+        }
+    }
+    return std::find(seen.begin(), seen.end(), false) == seen.end();
+}
+}  // namespace
+
+TEST(tune_while_routing_off_is_unchanged) {
+    // The option off (also with a tune gap given) routes exactly the copper the router always did: the bus packed at
+    // width + clearance, no member lengths in the preview or the commit.
+    CHECK(!RouterOptions{}.tuneWhileRouting);
+    const RouterOptions fromJson = routerOptionsFromJson(Json::parse("{\"tuneWhileRouting\":false,\"tuneGap\":2}"));
+    CHECK(!fromJson.tuneWhileRouting && fromJson.tuneGap == 2);
+    BusBoard a = busBoard(), b = busBoard();
+    InteractiveRouter ra(a.p.pcb, a.p.schematic), rb(b.p.pcb, b.p.schematic);
+    rb.setOptions(fromJson);
+    const RoutePreview pa = routeTurningBus(ra, a, 4), pb = routeTurningBus(rb, b, 4);
+    CHECK(pa.memberLengths.empty() && pb.memberLengths.empty());
+    CHECK(routePreviewJson(pa).dump() == routePreviewJson(pb).dump());
+    CHECK(routePreviewJson(pb).dump().find("memberLengths") == std::string::npos);
+    const RouteChanges ca = ra.commit(), cb = rb.commit();
+    CHECK(ca.ok && cb.ok);
+    CHECK(cb.memberLengths.empty() && cb.tuneStatus.empty());
+    CHECK(routeChangesJson(cb).dump() == routeChangesJson(ca).dump());
+    CHECK(routeChangesJson(cb).dump().find("tuneStatus") == std::string::npos);
+    bool same = a.p.pcb.tracks.size() == b.p.pcb.tracks.size();
+    for (size_t i = 0; same && i < a.p.pcb.tracks.size(); ++i) {
+        const Track &x = a.p.pcb.tracks[i], &y = b.p.pcb.tracks[i];
+        same = x.a == y.a && x.b == y.b && x.net == y.net && x.layer == y.layer && x.width == y.width && x.arc == y.arc;
+    }
+    CHECK(same);
+    double closest = 1e9;
+    for (const auto& t : b.p.pcb.tracks)
+        for (const auto& u : b.p.pcb.tracks)
+            if (t.net != u.net) closest = std::min(closest, segmentSegmentDistance(t.a, t.b, u.a, u.b) - (t.width + u.width) / 2);
+    CHECK_NEAR(closest, b.p.pcb.settings.clearance, 1e-6);  // still packed at pitch
+}
+
+TEST(tune_while_routing_matches_a_bus_on_commit) {
+    // A bus of four turned through 90°: its members differ in length. With tune while routing the bundle leaves room
+    // between its members, and the commit meanders the short ones (on the new tracks only) to the longest member,
+    // within tolerance; DRC clean, every member still one piece from its pad.
+    BusBoard b = busBoard();
+    auto& s = b.p.schematic;
+    InteractiveRouter r(b.p.pcb, s);
+    RouterOptions o;
+    o.tuneWhileRouting = true;
+    r.setOptions(o);
+    const RoutePreview pv = routeTurningBus(r, b, 4);
+    CHECK(!pv.blocked);
+    CHECK(pv.memberLengths.size() == 4);
+    double shortest = 1e9, longest = 0;
+    for (const auto& m : pv.memberLengths) {
+        shortest = std::min(shortest, m.length);
+        longest = std::max(longest, m.length);
+    }
+    CHECK(longest - shortest > 1.0);  // unequal before tuning
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok);
+    CHECK(ch.memberLengths.size() == 4);
+    double target = 0;
+    for (int n : b.nets) target = std::max(target, routedNetLength(b.p.pcb, n));
+    for (const auto& m : ch.memberLengths) {
+        CHECK(m.withinTolerance);
+        CHECK_NEAR(m.target, target, 1e-6);
+        CHECK_NEAR(m.length, routedNetLength(b.p.pcb, m.net), 1e-6);
+    }
+    for (int n : b.nets) CHECK_NEAR(routedNetLength(b.p.pcb, n), target, 0.1 + 1e-6);
+    CHECK(ch.tuneStatus.find("4 of 4 members within tolerance") != std::string::npos);
+    CHECK(ch.tuneStatus.find("could not reach") == std::string::npos);
+    // The meanders replace route tracks only: every id the commit reports as added is on the board, nothing that was
+    // on the board before was removed.
+    for (int id : ch.addedTracks) {
+        bool found = false;
+        for (const auto& t : b.p.pcb.tracks) found = found || t.id == id;
+        CHECK(found);
+    }
+    CHECK(ch.removedTracks.empty());
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    for (int n : b.nets) CHECK(netCopperConnected(b.p, n, b.u1));
+    const Json j = routeChangesJson(ch);
+    CHECK(j.get("memberLengths").size() == 4);
+    CHECK(j.get("tuneStatus").asString("") == ch.tuneStatus);
+}
+
+TEST(tune_while_routing_preview_reports_member_lengths) {
+    // While routing, each member's length so far against its target: the longest member without a rule, the member's
+    // own length rule otherwise.
+    BusBoard b = busBoard();
+    auto& s = b.p.schematic;
+    InteractiveRouter r(b.p.pcb, s);
+    RouterOptions o;
+    o.tuneWhileRouting = true;
+    r.setOptions(o);
+    const RoutePreview pv = routeTurningBus(r, b, 3);
+    CHECK(pv.kind == "bus");
+    CHECK(pv.memberLengths.size() == 3);
+    double longest = 0;
+    for (const auto& m : pv.memberLengths) longest = std::max(longest, m.length);
+    int within = 0;
+    for (size_t k = 0; k < pv.memberLengths.size() && k < pv.nets.size(); ++k) {
+        const MemberLength& m = pv.memberLengths[k];
+        CHECK(m.net == pv.nets[k]);
+        CHECK_NEAR(m.target, longest, 1e-9);
+        CHECK_NEAR(m.tolerance, 0.1, 1e-12);
+        within += m.withinTolerance ? 1 : 0;
+    }
+    CHECK(within == 1);  // only the outermost member
+    const Json j = routePreviewJson(pv);
+    CHECK(j.get("memberLengths").size() == 3);
+    CHECK(j.get("memberLengths").items()[0].get("target").asNumber(0) == pv.memberLengths[0].target);
+    r.cancel();
+    // A length rule on one member: that member's target is the rule's, the others match the longest of themselves.
+    const int ruled = pv.nets[0];
+    b.p.pcb.settings.lengthRules.push_back({s.nets()[static_cast<size_t>(ruled)].name, 40.0, 0.3});
+    InteractiveRouter r2(b.p.pcb, s);
+    r2.setOptions(o);
+    const RoutePreview p2 = routeTurningBus(r2, b, 3);
+    CHECK(p2.memberLengths.size() == 3);
+    double longestOther = 0;
+    for (const auto& m : p2.memberLengths)
+        if (m.net != ruled) longestOther = std::max(longestOther, m.length);
+    for (const auto& m : p2.memberLengths) {
+        if (m.net == ruled) {
+            CHECK_NEAR(m.target, 40.0, 1e-9);
+            CHECK_NEAR(m.tolerance, 0.3, 1e-12);
+            CHECK(!m.withinTolerance);
+        } else {
+            CHECK_NEAR(m.target, longestOther, 1e-9);
+        }
+    }
+    // Options from JSON.
+    const RouterOptions oj = routerOptionsFromJson(Json::parse("{\"tuneWhileRouting\":true,\"tuneGap\":0.6}"));
+    CHECK(oj.tuneWhileRouting && oj.tuneGap == 0.6);
+}
+
+TEST(tune_while_routing_reports_a_member_without_room) {
+    // One member's length rule asks for far more than its new tracks can hold: it is lengthened as far as the room
+    // allows and named in the status; the others still match; the board stays DRC clean.
+    BusBoard b = busBoard();
+    auto& s = b.p.schematic;
+    const int ruled = b.nets[0];
+    b.p.pcb.settings.lengthRules.push_back({s.nets()[static_cast<size_t>(ruled)].name, 200.0, 0.1});
+    InteractiveRouter r(b.p.pcb, s);
+    RouterOptions o;
+    o.tuneWhileRouting = true;
+    r.setOptions(o);
+    const RoutePreview pv = routeTurningBus(r, b, 4);
+    double before = 0;
+    for (const auto& m : pv.memberLengths)
+        if (m.net == ruled) before = m.length;
+    CHECK(before > 0);
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok);
+    CHECK(ch.memberLengths.size() == 4);
+    for (const auto& m : ch.memberLengths) {
+        if (m.net != ruled) continue;
+        CHECK(!m.withinTolerance);
+        CHECK_NEAR(m.target, 200.0, 1e-9);
+        CHECK(m.length < 200.0 - 0.1);
+    }
+    CHECK(ch.tuneStatus.find("could not reach the target") != std::string::npos);
+    CHECK(ch.tuneStatus.find(s.nets()[static_cast<size_t>(ruled)].name) != std::string::npos);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    for (int n : b.nets) CHECK(netCopperConnected(b.p, n, b.u1));
+}

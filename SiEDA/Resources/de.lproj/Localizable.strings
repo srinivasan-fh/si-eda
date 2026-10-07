@@ -1141,3 +1141,5 @@
 "Brown" = "Braun";
 "Tan" = "Hellbraun";
 "Colour Symbols by Device" = "Symbole nach Bauteil einfärben";
+"Tune Lengths While Routing" = "Längen beim Routen abstimmen";
+"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "Zeigt beim Routen eines Busses oder eines längenabgeglichenen Netzes die Länge jedes Mitglieds gegenüber dem Ziel; beim Abschließen der Route erhalten die kurzen Mitglieder Mäander";

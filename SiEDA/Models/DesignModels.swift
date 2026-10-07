@@ -995,6 +995,17 @@ struct RoutePreview: Decodable, Equatable {
     var collisions: [RouteCollision]?
     /// The update was cancelled (`routerAbort`): the preview from before it, to be ignored.
     var aborted: Bool?
+    /// Tune while routing: each routed member's length so far against its target (nil when off).
+    var memberLengths: [RouteMemberLength]?
+}
+
+/// One member of a routed bus (or the routed net) against its length target (tune while routing).
+struct RouteMemberLength: Decodable, Equatable {
+    var net: Int
+    var length: Double
+    var target: Double
+    var tolerance: Double
+    var withinTolerance: Bool
 }
 
 /// Interactive router mode (`sieda_router_*` options "mode").
@@ -1067,6 +1078,9 @@ struct RouteCommitResult: Decodable, Equatable {
     var error: String?
     var addedTracks: [Int]
     var addedVias: [Int]
+    /// Tune while routing: the members' lengths after the meanders, and which could not reach the target.
+    var memberLengths: [RouteMemberLength]?
+    var tuneStatus: String?
 }
 
 struct SnapLine: Decodable, Equatable {
