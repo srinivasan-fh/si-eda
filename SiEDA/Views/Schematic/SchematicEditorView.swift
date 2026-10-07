@@ -45,6 +45,8 @@ struct SchematicEditorView: View {
     @State private var updatingPCB = false
     /// Arrange by the symbols' outlines (edges line up) rather than their reference points.
     @AppStorage("schematic.alignByOutline") private var alignByOutline = true
+    /// Device palette as icons only (names in tooltips).
+    @AppStorage(DevicePicker.iconsOnlyKey) private var pickerIconsOnly = false
     // Schematic Canvas preferences: colour scheme, custom theme and grid.
     @AppStorage(SchematicColorScheme.storageKey) private var colourScheme = SchematicColorScheme.defaultScheme.rawValue
     @AppStorage(SchematicCustomTheme.storageKey) private var customTheme = ""
@@ -109,7 +111,7 @@ struct SchematicEditorView: View {
                     pickerKind = kind
                     arm(.place(kind))
                 }
-                .frame(width: 220)
+                .frame(width: pickerIconsOnly ? DevicePicker.iconsOnlyWidth : 220)
             }
 
             VStack(spacing: 0) {
@@ -536,6 +538,11 @@ struct DevicePicker: View {
     var onPick: (ComponentKind) -> Void
     @State private var search = ""
     @State private var selectedCustom: String?
+    /// Icons only: a narrow column of device icons, each named in its tooltip (the palette's compact mode).
+    @AppStorage(DevicePicker.iconsOnlyKey) private var iconsOnly = false
+
+    static let iconsOnlyKey = "schematic.devicePaletteIconsOnly"
+    static let iconsOnlyWidth: CGFloat = 52
 
     private var filtered: [ComponentKind] {
         let q = search.lowercased()
@@ -581,10 +588,89 @@ struct DevicePicker: View {
     }
 
     var body: some View {
+        Group {
+            if iconsOnly { iconsBody } else { fullBody }
+        }
+        .background(Theme.deepBlue.opacity(0.75))
+        .overlay(Rectangle().frame(width: 1).foregroundStyle(Theme.blue.opacity(0.3)), alignment: .trailing)
+    }
+
+    private var layoutToggle: some View {
+        Button { iconsOnly.toggle() } label: {
+            Image(systemName: iconsOnly ? "sidebar.squares.left" : "square.grid.2x2")
+                .font(.caption)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Theme.textMuted)
+        .help(LocalizedStringKey(iconsOnly ? "Show device names" : "Show icons only (names in tooltips)"))
+        .accessibilityLabel(Text(LocalizedStringKey(iconsOnly ? "Show device names" : "Show icons only")))
+    }
+
+    /// One device icon with its name in the tooltip.
+    private func iconButton<Icon: View>(highlighted: Bool, help: String, action: @escaping () -> Void,
+                                        @ViewBuilder icon: () -> Icon) -> some View {
+        Button(action: action) {
+            icon()
+                .frame(width: 36, height: 28)
+                .background(RoundedRectangle(cornerRadius: 5).fill(highlighted ? Theme.blue.opacity(0.3) : Color.clear))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
+
+    /// Icons only: built-in devices by category (a thin rule between categories), then the project's custom parts.
+    private var iconsBody: some View {
+        VStack(spacing: 0) {
+            layoutToggle
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVStack(spacing: 2) {
+                    ForEach(ComponentKind.pickerCategories, id: \.self) { category in
+                        iconSection(category)
+                    }
+                    if !customParts.isEmpty {
+                        Divider().padding(.vertical, 4)
+                        ForEach(customParts) { part in
+                            iconButton(highlighted: selectedCustom == part.id, help: part.name) {
+                                selectedCustom = part.id
+                                onPickCustom(part.id)
+                            } icon: { ComponentSymbolImage(kind: .custom) }
+                        }
+                    }
+                    Divider().padding(.vertical, 4)
+                    iconButton(highlighted: false, help: String(localized: "Import Datasheet…"), action: onImport) {
+                        Image(systemName: "doc.viewfinder").foregroundStyle(Theme.lightBlue)
+                    }
+                }
+                .padding(.bottom, 6)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private func iconSection(_ category: String) -> some View {
+        let items = ComponentKind.builtIn.filter { $0.category == category }
+        if !items.isEmpty {
+            Divider().padding(.vertical, 4).help(category)
+            ForEach(items) { kind in
+                iconButton(highlighted: selectedCustom == nil && isPlacing && selected == kind,
+                           help: kind.displayName + " — " + kind.valueHint) {
+                    selectedCustom = nil
+                    onPick(kind)
+                } icon: { ComponentSymbolImage(kind: kind) }
+            }
+        }
+    }
+
+    private var fullBody: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("DEVICES").font(.caption.weight(.bold)).foregroundStyle(Theme.skyBlue)
                 Spacer()
+                layoutToggle
                 Text("P").font(.caption.monospaced()).foregroundStyle(Theme.textMuted)
             }
             .padding(.horizontal, 10)
@@ -683,8 +769,6 @@ struct DevicePicker: View {
             .padding(10)
             }
         }
-        .background(Theme.deepBlue.opacity(0.75))
-        .overlay(Rectangle().frame(width: 1).foregroundStyle(Theme.blue.opacity(0.3)), alignment: .trailing)
     }
 }
 

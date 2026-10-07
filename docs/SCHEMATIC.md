@@ -651,6 +651,10 @@ is its zigzag, a capacitor two plates, ground the ground bars), drawn from the s
 (`SchematicSymbols.shapes`) by `SiEDA/Views/Schematic/ComponentSymbolIcon.swift`; a symbol change on the canvas
 changes its icon too.
 
+**Icons only:** the grid button at the top of the device palette shrinks it to a narrow column of device icons
+(categories separated by thin rules, the project's custom parts after them); each icon's name and value hint are in
+its tooltip. The same button brings the names back. The choice is remembered (`schematic.devicePaletteIconsOnly`).
+
 Each device has its own colour (`ComponentKind.deviceColour`), grouped by family the way schematic part palettes
 colour-code their groups:
 

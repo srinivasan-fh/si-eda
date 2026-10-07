@@ -1177,3 +1177,8 @@
 "Leave focus mode (F11, ⌃⌘F)" = "ఫోకస్ మోడ్ వదిలివేయండి (F11, ⌃⌘F)";
 "Full screen hides the panels (focus mode)" = "పూర్తి స్క్రీన్‌లో ప్యానెల్‌లను దాచు (ఫోకస్ మోడ్)";
 "F11, ⌃⌘F or Fn-F: full screen with only the editor and its tools. Point at the top edge of an editor to show its options bar." = "F11, ⌃⌘F లేదా Fn-F: ఎడిటర్ మరియు దాని సాధనాలతో మాత్రమే పూర్తి స్క్రీన్. ఆప్షన్స్ బార్ చూపడానికి ఎడిటర్ పై అంచుకు పాయింటర్ తీసుకెళ్లండి.";
+
+// Device palette: icons only
+"Show device names" = "పరికరాల పేర్లు చూపు";
+"Show icons only (names in tooltips)" = "ఐకాన్‌లు మాత్రమే (పేర్లు టూల్‌టిప్‌లో)";
+"Show icons only" = "ఐకాన్‌లు మాత్రమే";
