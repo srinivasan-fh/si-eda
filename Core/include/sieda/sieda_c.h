@@ -925,6 +925,42 @@ int32_t sieda_apply_pcb_swap(SiedaProject* project, const char* option_json);
  * The number made, or -1. */
 int32_t sieda_optimize_pcb_swaps(SiedaProject* project, int32_t component_id, int32_t max_swaps);
 
+/* ---- Model Context Protocol (docs/MCP.md) ---------------------------------------------------------------------------
+ * The MCP engine behind `sieda-mcp` and the app's live endpoint: a JSON-RPC 2.0 handler (protocol "2025-06-18", also
+ * "2025-03-26" / "2024-11-05") with SiEDA's tools, resources and prompts. Transport-independent: hand it one message
+ * per call and send back what it returns.
+ * options_json (NULL = defaults): {"readOnly":bool (refuse tools that change the design, and every file write),
+ *   "allowedRoot":"/abs/folder" (projects are opened from and outputs written only inside it; "" = no file access),
+ *   "toolFilter":["project","pcb_autoroute","sim_*"] (groups, names or prefixes offered; [] = all),
+ *   "docsDir":"/path/to/docs" (guides served as sieda://docs/<name>), "serverName":"sieda"}.
+ * NULL for invalid options. A server owns a blank project until one is attached.
+ * Threading: a server is not thread-safe. Call sieda_mcp_handle from one thread at a time, and with an attached project
+ * only from the thread that owns that project (the same rule as every SiedaProject call): the app serialises requests
+ * onto its main thread / document actor. The change callback runs synchronously inside sieda_mcp_handle. */
+typedef struct SiedaMcpServer SiedaMcpServer;
+SiedaMcpServer* sieda_mcp_new(const char* options_json);
+void sieda_mcp_free(SiedaMcpServer* server);
+/* One request (a JSON-RPC message or batch, one line) → the response line, "" when nothing is to be answered
+ * (notifications). NULL only for a NULL server. Never fails otherwise: protocol errors come back as JSON-RPC errors and
+ * tool failures as results with "isError": true. Caller frees with sieda_string_free. */
+char* sieda_mcp_handle(SiedaMcpServer* server, const char* request_json);
+/* Binds the server to a project owned by the caller (the app's open document); tools then read and edit it in place,
+ * and project_new / project_open / project_load_example replace its contents. NULL returns to a fresh project of the
+ * server's own. The server never frees an attached project: detach (NULL) or free the server before freeing it.
+ * 1 on success. */
+int32_t sieda_mcp_attach_project(SiedaMcpServer* server, SiedaProject* project);
+/* Replaces the options (same JSON as sieda_mcp_new), e.g. to toggle read-only. 1 on success, 0 for invalid JSON. */
+int32_t sieda_mcp_set_options(SiedaMcpServer* server, const char* options_json);
+/* Called after every tool that changed the design or the session, with the tool's name (refresh views, mark the
+ * document edited). NULL removes it. */
+typedef void (*SiedaMcpChangeCallback)(void* user, const char* tool_name);
+void sieda_mcp_set_change_callback(SiedaMcpServer* server, SiedaMcpChangeCallback callback, void* user);
+/* The file of the attached project (absolute; "" = none), which project_save writes to. 1 on success. */
+int32_t sieda_mcp_set_project_path(SiedaMcpServer* server, const char* path);
+/* The tool table: [{"name","group","title","description","inputSchema","readOnly","destructive","idempotent",
+ * "mutates"}]. Caller frees. */
+char* sieda_mcp_tools_json(void);
+
 #ifdef __cplusplus
 }
 #endif

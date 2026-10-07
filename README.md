@@ -27,6 +27,22 @@ AI is optional. A single switch (**Settings → AI Models → Enable AI assistan
 
 Every AI result lands in the same editable schematic and PCB, so you can switch modes at any time.
 
+## Use SiEDA from any AI (MCP)
+
+`sieda-mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server. With it, Claude Desktop, Claude Code,
+Cursor, VS Code, ChatGPT desktop or a local LLM can drive SiEDA completely. The AI can capture schematics, search the
+catalog, simulate, lay out and autoroute boards, run ERC / DRC / verification, look at PNG renders and write Gerbers.
+It has 125 tools, plus guides as resources and ready-made prompts. Files are read and written only inside one folder,
+and `--read-only` lets the AI inspect without changing anything.
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j --target sieda-mcp
+claude mcp add sieda -- "$PWD/build/sieda-mcp" --root ~/Designs      # Claude Code
+```
+
+Setup for Claude Desktop, Cursor, VS Code and other clients, the safety model and the tool reference are in
+[docs/MCP.md](docs/MCP.md).
+
 ## Features
 
 | Area | What it does |
@@ -355,6 +371,7 @@ Core/                C++17 engine (no dependencies)
   src/               schematic, simulator, PCB/autorouter/DRC, mesh, exports, JSON
   tests/             unit tests (C++ and a C-compiled ABI smoke test)
   cli/               sieda-cli: headless ERC → simulation → place & route → DRC → verification → fabrication files
+  mcp/               sieda-mcp: Model Context Protocol server over stdio (docs/MCP.md)
 SiEDA/               macOS SwiftUI app
   App/               app entry point, launch splash, menus, DesignStore (state, undo, documents)
   Bridge/            bridging header + EDAEngine (thread-safe Swift façade over the C ABI)

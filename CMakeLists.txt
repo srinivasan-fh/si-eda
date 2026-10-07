@@ -85,6 +85,10 @@ add_library(sieda_core STATIC
     Core/src/sieda_c.cpp
     Core/src/sieda_c_routing.cpp
     Core/src/sieda_c_placement.cpp
+    Core/src/Mcp.cpp
+    Core/src/McpTools.cpp
+    Core/src/McpRender.cpp
+    Core/src/sieda_c_mcp.cpp
 )
 target_include_directories(sieda_core PUBLIC Core/include)
 find_package(Threads REQUIRED)
@@ -101,12 +105,31 @@ endif()
 add_executable(sieda-cli Core/cli/main.cpp)
 target_link_libraries(sieda-cli PRIVATE sieda_core)
 
+# MCP server over stdio (docs/MCP.md): any MCP client (Claude Desktop / Code, Cursor, VS Code …) drives SiEDA.
+add_executable(sieda-mcp Core/mcp/main.cpp)
+target_link_libraries(sieda-mcp PRIVATE sieda_core)
+target_compile_definitions(sieda-mcp PRIVATE SIEDA_DOCS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/docs")
+if(NOT MSVC)
+    target_compile_options(sieda-mcp PRIVATE -Wall -Wextra -Wpedantic)
+    if(SIEDA_WARNINGS_AS_ERRORS)
+        target_compile_options(sieda-mcp PRIVATE -Werror)
+    endif()
+endif()
+
 if(SIEDA_BUILD_TESTS)
     enable_testing()
     add_executable(sieda_core_tests Core/tests/core_tests.cpp Core/tests/c_api_test.c)
     target_link_libraries(sieda_core_tests PRIVATE sieda_core)
-    target_compile_definitions(sieda_core_tests PRIVATE SIEDA_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/fixtures")
+    target_compile_definitions(sieda_core_tests PRIVATE SIEDA_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/fixtures"
+                               SIEDA_DOCS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/docs")
     add_test(NAME sieda_core_tests COMMAND sieda_core_tests)
+    # The stdio server end to end: a scripted transcript on stdin, every stdout line must be a JSON-RPC response.
+    find_package(Python3 COMPONENTS Interpreter)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME sieda_mcp_stdio
+                 COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/mcp_stdio_test.py
+                         $<TARGET_FILE:sieda-mcp> ${CMAKE_CURRENT_SOURCE_DIR}/Core/tests/fixtures/mcp/transcript.jsonl)
+    endif()
     # Scale benchmark: place / route / DRC timings on generated large boards (not part of ctest).
     add_executable(sieda_route_bench Core/tests/bench/route_bench.cpp)
     target_link_libraries(sieda_route_bench PRIVATE sieda_core)

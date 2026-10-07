@@ -1521,3 +1521,70 @@ int sieda_c_api_autoroute_strategy_test(void) {
     sieda_project_free(p);
     return 0;
 }
+
+/* MCP engine through the C API: handshake, notifications, a project attached by the host (the app's document), the
+ * change callback, read-only options and the tool table. Returns 0 or the failing step. */
+static int g_mcp_changes = 0;
+static void mcp_changed(void* user, const char* tool) {
+    (void)user;
+    if (tool && strstr(tool, "schematic_")) ++g_mcp_changes;
+}
+
+int sieda_c_api_mcp_test(void) {
+    if (sieda_mcp_new("not json") != NULL) return 1;
+    if (sieda_mcp_handle(NULL, "{}") != NULL) return 2;
+    SiedaMcpServer* s = sieda_mcp_new("{\"readOnly\":false,\"serverName\":\"sieda-test\"}");
+    if (!s) return 3;
+    char* r = sieda_mcp_handle(
+        s, "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\"}}");
+    if (!r || !strstr(r, "\"protocolVersion\":\"2025-06-18\"") || !strstr(r, "\"name\":\"sieda-test\"")) return 4;
+    sieda_string_free(r);
+    r = sieda_mcp_handle(s, "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
+    if (!r || r[0] != '\0') return 5; /* notifications: an empty string */
+    sieda_string_free(r);
+    r = sieda_mcp_handle(s, "{not json");
+    if (!r || !strstr(r, "-32700")) return 6;
+    sieda_string_free(r);
+
+    SiedaProject* p = sieda_project_new("Host document");
+    if (!p) return 7;
+    if (sieda_add_component(p, 0 /* Resistor */, "1k", 0, 0, 0, NULL) < 0) return 8;
+    if (sieda_mcp_attach_project(s, p) != 1) return 9;
+    sieda_mcp_set_change_callback(s, mcp_changed, NULL);
+    r = sieda_mcp_handle(s, "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"project_summary\"}}");
+    if (!r || !strstr(r, "Host document") || strstr(r, "\"isError\":true")) return 10;
+    sieda_string_free(r);
+    r = sieda_mcp_handle(s, "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":"
+                            "\"schematic_add_component\",\"arguments\":{\"kind\":\"resistor\",\"value\":\"2k2\"}}}");
+    if (!r || strstr(r, "\"isError\":true") || !strstr(r, "R2")) return 11;
+    sieda_string_free(r);
+    if (sieda_find_component(p, "R2") < 0) return 12; /* the host's project changed in place */
+    if (g_mcp_changes != 1) return 13;
+    r = sieda_mcp_handle(s, "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"schematic_connect\","
+                            "\"arguments\":{\"from\":\"R1.2\",\"to\":\"R2.1\"}}}");
+    if (!r || strstr(r, "\"isError\":true") || !strstr(r, "\"wiresAdded\":1")) return 14;
+    sieda_string_free(r);
+
+    /* Read-only: the same edit is refused as a tool error, and the project is untouched. */
+    if (sieda_mcp_set_options(s, "{\"readOnly\":true}") != 1) return 15;
+    if (sieda_mcp_set_options(s, "[1,2") != 0) return 16;
+    r = sieda_mcp_handle(s, "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"tools/call\",\"params\":{\"name\":"
+                            "\"schematic_add_component\",\"arguments\":{\"kind\":\"resistor\"}}}");
+    if (!r || !strstr(r, "\"isError\":true") || !strstr(r, "read-only")) return 17;
+    sieda_string_free(r);
+    if (sieda_find_component(p, "R3") >= 0) return 18;
+    if (sieda_mcp_set_project_path(s, "/tmp/host.siedaproj") != 1) return 19;
+
+    char* tools = sieda_mcp_tools_json();
+    if (!tools || !strstr(tools, "\"pcb_autoroute\"") || !strstr(tools, "\"inputSchema\"")) return 20;
+    sieda_string_free(tools);
+
+    if (sieda_mcp_attach_project(s, NULL) != 1) return 21; /* detach before the host frees its project */
+    sieda_project_free(p);
+    r = sieda_mcp_handle(s, "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"tools/call\",\"params\":{\"name\":\"project_summary\"}}");
+    if (!r || strstr(r, "Host document")) return 22;
+    sieda_string_free(r);
+    sieda_mcp_free(s);
+    sieda_mcp_free(NULL);
+    return 0;
+}

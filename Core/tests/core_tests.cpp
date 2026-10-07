@@ -2,7 +2,9 @@
 #include <map>
 #include <atomic>
 #include <chrono>
+#include <cctype>
 #include <cmath>
+#include <cstring>
 #include <complex>
 #include <cstdio>
 #include <cstdlib>
@@ -38,6 +40,7 @@
 #include "sieda/Industry.hpp"
 #include "sieda/InteractiveRouter.hpp"
 #include "sieda/Json.hpp"
+#include "sieda/Mcp.hpp"
 #include "sieda/Mesh.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/LengthMatch.hpp"
@@ -18204,4 +18207,661 @@ TEST(live_tuning_is_deterministic) {
         return routePreviewJson(routePair(r, x)).dump();
     };
     CHECK(runPair(p) == runPair(q));
+}
+
+// ---- MCP
+// The Model Context Protocol engine (Core/src/Mcp.cpp, McpTools.cpp, McpRender.cpp; docs/MCP.md).
+
+namespace {
+/// One JSON-RPC request through the server; the parsed response (null when nothing was answered).
+Json mcpRequest(mcp::McpServer& s, const std::string& method, Json params = Json::object(), int id = 1) {
+    Json req = Json::object();
+    req["jsonrpc"] = "2.0";
+    req["id"] = id;
+    req["method"] = method;
+    req["params"] = params;
+    const std::string line = s.handle(req.dump());
+    return line.empty() ? Json() : Json::parse(line);
+}
+
+/// tools/call result (the "result" member).
+Json mcpTool(mcp::McpServer& s, const std::string& name, Json args = Json::object()) {
+    Json params = Json::object();
+    params["name"] = name;
+    params["arguments"] = args;
+    return mcpRequest(s, "tools/call", params).get("result");
+}
+
+/// The JSON a tool returned (its first text content).
+Json mcpData(const Json& result) {
+    const Json& content = result.get("content");
+    if (!content.isArray() || content.size() == 0) return Json();
+    const std::string text = content[0].get("text").asString("");
+    try {
+        return Json::parse(text);
+    } catch (...) {
+        return Json(text);
+    }
+}
+
+bool mcpFailed(const Json& result) { return result.get("isError").asBool(false); }
+
+std::string mcpErrorText(const Json& result) {
+    return result.get("content").size() ? result.get("content")[0].get("text").asString("") : std::string();
+}
+
+/// A fresh folder under the temp directory for a server root.
+std::filesystem::path mcpRoot(const std::string& name) {
+    const auto dir = std::filesystem::temp_directory_path() / ("sieda_mcp_" + name);
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+    std::filesystem::create_directories(dir, ec);
+    return dir;
+}
+
+mcp::McpOptions mcpOptions(const std::filesystem::path& root) {
+    mcp::McpOptions o;
+    o.allowedRoot = root.string();
+#ifdef SIEDA_DOCS_DIR
+    o.docsDir = SIEDA_DOCS_DIR;
+#endif
+    return o;
+}
+
+Json pinArgs(std::initializer_list<const char*> pins) {
+    Json a = Json::array();
+    for (const char* p : pins) a.push(p);
+    return a;
+}
+}  // namespace
+
+TEST(mcp_initialize_handshake) {
+    mcp::McpServer s;
+    Json params = Json::object();
+    params["protocolVersion"] = "2025-06-18";
+    Json client = Json::object();
+    client["name"] = "test-client";
+    client["version"] = "1";
+    params["clientInfo"] = client;
+    params["capabilities"] = Json::object();
+    Json r = mcpRequest(s, "initialize", params, 7);
+    CHECK(r.get("jsonrpc").asString("") == "2.0");
+    CHECK(r.get("id").asInt(0) == 7);
+    const Json& res = r.get("result");
+    CHECK(res.get("protocolVersion").asString("") == "2025-06-18");
+    CHECK(res.get("serverInfo").get("name").asString("") == "sieda");
+    CHECK(!res.get("serverInfo").get("version").asString("").empty());
+    CHECK(res.get("capabilities").get("tools").isObject());
+    CHECK(res.get("capabilities").get("resources").isObject());
+    CHECK(res.get("capabilities").get("prompts").isObject());
+    CHECK(!res.get("instructions").asString("").empty());
+    // The initialized notification and any other notification are not answered.
+    CHECK(s.handle(R"({"jsonrpc":"2.0","method":"notifications/initialized"})").empty());
+    CHECK(s.handle(R"({"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":3}})").empty());
+    // ping answers an empty result; a string id is echoed as a string.
+    Json ping = Json::parse(s.handle(R"({"jsonrpc":"2.0","id":"abc","method":"ping"})"));
+    CHECK(ping.get("id").asString("") == "abc");
+    CHECK(ping.get("result").isObject());
+    // An older client keeps its revision; an unknown one gets the server's.
+    mcp::McpServer old;
+    params["protocolVersion"] = "2024-11-05";
+    CHECK(mcpRequest(old, "initialize", params).get("result").get("protocolVersion").asString("") == "2024-11-05");
+    mcp::McpServer future;
+    params["protocolVersion"] = "2099-01-01";
+    CHECK(mcpRequest(future, "initialize", params).get("result").get("protocolVersion").asString("") ==
+          std::string(mcp::kProtocolVersion));
+    // A blank line is ignored.
+    CHECK(s.handle("   ").empty());
+}
+
+TEST(mcp_tools_list_schemas) {
+    mcp::McpServer s;
+    Json r = mcpRequest(s, "tools/list");
+    const Json& tools = r.get("result").get("tools");
+    CHECK(tools.isArray());
+    CHECK(tools.size() == mcp::mcpTools().size());
+    CHECK(tools.size() >= 100);
+    std::set<std::string> names, groupsSeen;
+    for (const auto& t : tools.items()) {
+        const std::string name = t.get("name").asString("");
+        CHECK(!name.empty());
+        CHECK(names.insert(name).second);  // unique
+        bool plain = true;
+        for (char c : name) plain = plain && ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_');
+        CHECK(plain);
+        CHECK(!t.get("description").asString("").empty());
+        const Json& schema = t.get("inputSchema");
+        CHECK(schema.get("type").asString("") == "object");
+        CHECK(schema.get("properties").isObject());
+        if (schema.has("required"))
+            for (const auto& req : schema.get("required").items()) CHECK(schema.get("properties").has(req.asString("")));
+        for (const auto& [key, prop] : schema.get("properties").fields()) {
+            CHECK(!key.empty());
+            CHECK(prop.isObject());
+            CHECK(!prop.get("description").asString("").empty());
+        }
+        const Json& ann = t.get("annotations");
+        CHECK(ann.get("readOnlyHint").type() == Json::Type::Bool);
+        CHECK(ann.get("destructiveHint").type() == Json::Type::Bool);
+    }
+    for (const auto& t : mcp::mcpTools()) {
+        groupsSeen.insert(t.group);
+        CHECK(!(t.readOnly && t.mutates));
+        CHECK(static_cast<bool>(t.handler));
+    }
+    for (const auto& [group, about] : mcp::mcpToolGroups()) {
+        CHECK(groupsSeen.count(group) == 1);
+        CHECK(!about.empty());
+    }
+    CHECK(groupsSeen.size() == mcp::mcpToolGroups().size());
+    for (const char* must : {"project_new", "project_open", "project_save", "project_save_as", "project_export_json",
+                             "project_list_examples", "project_load_example", "project_summary", "schematic_add_component",
+                             "schematic_connect", "schematic_net_label", "schematic_annotate", "schematic_find",
+                             "schematic_erc", "library_search", "library_add_part", "library_create_part",
+                             "pcb_set_board", "pcb_update_from_schematic", "pcb_place_footprint", "pcb_autoroute",
+                             "pcb_route", "pcb_teardrops", "pcb_add_pour", "pcb_drc", "pcb_route_report", "sim_dc_op",
+                             "sim_transient", "sim_ac", "sim_noise", "sim_measure", "sim_set_spice_model",
+                             "si_impedance", "si_length_report", "si_memory_checks", "verify_design", "output_gerbers",
+                             "output_bom", "output_pick_and_place", "output_schematic_pdf", "output_3d_model",
+                             "render_schematic", "render_pcb"})
+        CHECK(names.count(must) == 1);
+    // The Markdown reference names every tool.
+    const std::string md = mcp::mcpToolsMarkdown();
+    for (const auto& n : names) CHECK(md.find("`" + n + "`") != std::string::npos);
+}
+
+TEST(mcp_protocol_errors) {
+    mcp::McpServer s;
+    // Malformed JSON → -32700 with a null id.
+    Json parse = Json::parse(s.handle("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":"));
+    CHECK(parse.get("error").get("code").asInt(0) == -32700);
+    CHECK(parse.get("id").isNull());
+    // Unknown method → -32601 with the request's id.
+    Json unknown = mcpRequest(s, "sampling/doSomething", Json::object(), 5);
+    CHECK(unknown.get("error").get("code").asInt(0) == -32601);
+    CHECK(unknown.get("id").asInt(0) == 5);
+    // Not a request object / wrong version / bad params → -32600 / -32602.
+    CHECK(Json::parse(s.handle("42")).get("error").get("code").asInt(0) == -32600);
+    CHECK(Json::parse(s.handle(R"({"jsonrpc":"1.0","id":1,"method":"ping"})")).get("error").get("code").asInt(0) == -32600);
+    CHECK(Json::parse(s.handle(R"({"jsonrpc":"2.0","id":1})")).get("error").get("code").asInt(0) == -32600);
+    CHECK(Json::parse(s.handle(R"({"jsonrpc":"2.0","id":{},"method":"ping"})")).get("error").get("code").asInt(0) == -32600);
+    CHECK(Json::parse(s.handle(R"({"jsonrpc":"2.0","id":1,"method":"ping","params":[1]})")).get("error").get("code").asInt(0) == -32602);
+    CHECK(Json::parse(s.handle("[]")).get("error").get("code").asInt(0) == -32600);
+    // tools/call: unknown tool and missing name are protocol errors (-32602).
+    Json params = Json::object();
+    params["name"] = "no_such_tool";
+    CHECK(mcpRequest(s, "tools/call", params).get("error").get("code").asInt(0) == -32602);
+    CHECK(mcpRequest(s, "tools/call", Json::object()).get("error").get("code").asInt(0) == -32602);
+    // A batch answers each request (and not the notification) in order.
+    const Json batch = Json::parse(s.handle(
+        R"([{"jsonrpc":"2.0","id":1,"method":"ping"},{"jsonrpc":"2.0","method":"notifications/initialized"},{"jsonrpc":"2.0","id":2,"method":"nope"}])"));
+    CHECK(batch.isArray() && batch.size() == 2);
+    if (batch.isArray() && batch.size() == 2) {
+        CHECK(batch[0].get("id").asInt(0) == 1 && batch[0].get("result").isObject());
+        CHECK(batch[1].get("error").get("code").asInt(0) == -32601);
+    }
+    // A response from the client is not answered.
+    CHECK(s.handle(R"({"jsonrpc":"2.0","id":9,"result":{}})").empty());
+}
+
+TEST(mcp_tool_failures_are_results) {
+    mcp::McpServer s;
+    // Bad arguments never crash: they come back as isError results with a reason.
+    Json r = mcpTool(s, "schematic_add_component", Json::object());
+    CHECK(mcpFailed(r));
+    CHECK(mcpErrorText(r).find("kind") != std::string::npos);
+    Json bad = Json::object();
+    bad["kind"] = "unicorn";
+    r = mcpTool(s, "schematic_add_component", bad);
+    CHECK(mcpFailed(r));
+    Json conn = Json::object();
+    conn["from"] = "R99.1";
+    conn["to"] = "D1.A";
+    r = mcpTool(s, "schematic_connect", conn);
+    CHECK(mcpFailed(r));
+    CHECK(mcpErrorText(r).find("R99") != std::string::npos);
+    Json wrongType = Json::object();
+    wrongType["width"] = "wide";
+    CHECK(mcpFailed(mcpTool(s, "pcb_set_board", wrongType)));
+    Json badEnum = Json::object();
+    badEnum["format"] = "bmp";
+    CHECK(mcpFailed(mcpTool(s, "render_pcb", badEnum)));
+    Json noPin = Json::object();
+    noPin["kind"] = "resistor";
+    CHECK(!mcpFailed(mcpTool(s, "schematic_add_component", noPin)));
+    conn["from"] = "R1.7";
+    conn["to"] = "R1.1";
+    r = mcpTool(s, "schematic_connect", conn);
+    CHECK(mcpFailed(r));
+    CHECK(mcpErrorText(r).find("Pins") != std::string::npos);  // lists the pins it has
+    Json noArgs = Json::object();
+    noArgs["id"] = "no_such_example";
+    CHECK(mcpFailed(mcpTool(s, "project_load_example", noArgs)));
+    Json route = Json::object();
+    route["from"] = "R1.1";
+    route["to"] = "R1.2";
+    CHECK(mcpFailed(mcpTool(s, "pcb_route", route)));  // not on the board yet
+    Json net = Json::object();
+    net["net"] = "NOPE";
+    CHECK(mcpFailed(mcpTool(s, "schematic_net_places", net)));
+    // Arguments that are not an object are a protocol error.
+    CHECK(Json::parse(s.handle(R"({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"project_summary","arguments":[1]}})"))
+              .get("error").get("code").asInt(0) == -32602);
+    // Every tool survives empty arguments (an error result or a result, never a throw or a protocol error).
+    const auto root = mcpRoot("empty_args");
+    mcp::McpServer all(mcpOptions(root));
+    Json led = Json::object();
+    led["id"] = "led_indicator";
+    CHECK(!mcpFailed(mcpTool(all, "project_load_example", led)));
+    for (const auto& t : mcp::mcpTools()) {
+        if (t.name == "project_new" || t.name == "project_load_example" || t.name == "pcb_autoroute") continue;
+        Json res = mcpTool(all, t.name);
+        CHECK(res.isObject());
+        CHECK(res.get("content").isArray());
+    }
+}
+
+TEST(mcp_read_only_mode) {
+    const auto root = mcpRoot("readonly");
+    mcp::McpOptions o = mcpOptions(root);
+    o.readOnly = true;
+    mcp::McpServer s(o);
+    Json add = Json::object();
+    add["kind"] = "resistor";
+    Json r = mcpTool(s, "schematic_add_component", add);
+    CHECK(mcpFailed(r));
+    CHECK(mcpErrorText(r).find("read-only") != std::string::npos);
+    CHECK(mcpData(mcpTool(s, "project_summary")).get("components").asInt(-1) == 0);
+    Json ex = Json::object();
+    ex["id"] = "led_indicator";
+    CHECK(mcpFailed(mcpTool(s, "project_load_example", ex)));
+    CHECK(mcpFailed(mcpTool(s, "project_new", Json::object())));
+    // Reading still works, outputs come back inline, but nothing is written.
+    CHECK(!mcpFailed(mcpTool(s, "project_summary")));
+    CHECK(!mcpFailed(mcpTool(s, "schematic_erc")));
+    CHECK(!mcpFailed(mcpTool(s, "output_bom")));
+    Json path = Json::object();
+    path["path"] = "bom.json";
+    CHECK(mcpFailed(mcpTool(s, "output_bom", path)));
+    path["path"] = "design.siedaproj";
+    CHECK(mcpFailed(mcpTool(s, "project_save_as", path)));
+    CHECK(!std::filesystem::exists(root / "design.siedaproj"));
+    CHECK(!std::filesystem::exists(root / "bom.json"));
+    // The tool list says so.
+    const Json tools = mcpRequest(s, "tools/list").get("result").get("tools");
+    bool flagged = false;
+    for (const auto& t : tools.items())
+        if (t.get("name").asString("") == "schematic_add_component")
+            flagged = t.get("description").asString("").find("read-only") != std::string::npos &&
+                      !t.get("annotations").get("readOnlyHint").asBool(true);
+    CHECK(flagged);
+}
+
+TEST(mcp_allowed_root_sandbox) {
+    const auto root = mcpRoot("sandbox");
+    const auto outside = mcpRoot("sandbox_outside");
+    mcp::McpServer s(mcpOptions(root));
+    Json ex = Json::object();
+    ex["id"] = "led_indicator";
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", ex)));
+    // Inside the root: fine (sub-folders are created).
+    Json a = Json::object();
+    a["path"] = "boards/led.siedaproj";
+    CHECK(!mcpFailed(mcpTool(s, "project_save_as", a)));
+    CHECK(std::filesystem::exists(root / "boards" / "led.siedaproj"));
+    // ../ traversal, absolute paths elsewhere and a symbolic link out of the root are refused.
+    for (const std::string bad : {std::string("../escape.siedaproj"), std::string("boards/../../escape.siedaproj"),
+                                  (outside / "abs.siedaproj").string()}) {
+        a["path"] = bad;
+        Json r = mcpTool(s, "project_save_as", a);
+        CHECK(mcpFailed(r));
+    }
+    CHECK(!std::filesystem::exists(root.parent_path() / "escape.siedaproj"));
+    CHECK(!std::filesystem::exists(outside / "abs.siedaproj"));
+    std::error_code ec;
+    std::filesystem::create_directory_symlink(outside, root / "link", ec);
+    if (!ec) {
+        a["path"] = "link/through.siedaproj";
+        CHECK(mcpFailed(mcpTool(s, "project_save_as", a)));
+        CHECK(!std::filesystem::exists(outside / "through.siedaproj"));
+    }
+    {
+        std::ofstream f(outside / "secret.siedaproj");
+        f << "{}";
+    }
+    a["path"] = (outside / "secret.siedaproj").string();
+    CHECK(mcpFailed(mcpTool(s, "project_open", a)));
+    a["path"] = "../sieda_mcp_sandbox_outside/secret.siedaproj";
+    CHECK(mcpFailed(mcpTool(s, "project_open", a)));
+    Json dir = Json::object();
+    dir["dir"] = "../fab";
+    CHECK(mcpFailed(mcpTool(s, "output_gerbers", dir)));
+    Json spice = Json::object();
+    spice["path"] = "../../etc/passwd";
+    CHECK(mcpFailed(mcpTool(s, "sim_spice_parse", spice)));
+    // Opening inside the root works and keeps the path for project_save.
+    a["path"] = "boards/led.siedaproj";
+    CHECK(!mcpFailed(mcpTool(s, "project_open", a)));
+    CHECK(s.projectPath().find("led.siedaproj") != std::string::npos);
+    CHECK(!mcpFailed(mcpTool(s, "project_save")));
+    // Without a root there is no file access at all.
+    mcp::McpServer noRoot;
+    a["path"] = "x.siedaproj";
+    Json r = mcpTool(noRoot, "project_save_as", a);
+    CHECK(mcpFailed(r));
+    CHECK(mcpErrorText(r).find("disabled") != std::string::npos);
+}
+
+TEST(mcp_resources_and_prompts) {
+    const auto root = mcpRoot("resources");
+    mcp::McpServer s(mcpOptions(root));
+    const Json list = mcpRequest(s, "resources/list").get("result").get("resources");
+    std::set<std::string> uris;
+    for (const auto& r : list.items()) {
+        uris.insert(r.get("uri").asString(""));
+        CHECK(!r.get("name").asString("").empty());
+        CHECK(!r.get("mimeType").asString("").empty());
+    }
+    CHECK(uris.count("sieda://docs/mcp-quickstart") == 1);
+    CHECK(uris.count("sieda://catalog") == 1);
+    CHECK(uris.count("sieda://project/current") == 1);
+    CHECK(uris.count("sieda://rules/presets") == 1);
+#ifdef SIEDA_DOCS_DIR
+    CHECK(uris.count("sieda://docs/schematic") == 1);
+    CHECK(uris.count("sieda://docs/routing") == 1);
+    Json read = Json::object();
+    read["uri"] = "sieda://docs/schematic";
+    const Json doc = mcpRequest(s, "resources/read", read).get("result").get("contents");
+    CHECK(doc.size() == 1);
+    if (doc.size() == 1) {
+        CHECK(doc[0].get("mimeType").asString("") == "text/markdown");
+        CHECK(doc[0].get("text").asString("").find('#') != std::string::npos);
+    }
+#endif
+    Json q = Json::object();
+    q["uri"] = "sieda://docs/mcp-quickstart";
+    CHECK(mcpRequest(s, "resources/read", q).get("result").get("contents")[0].get("text").asString("").find("REF.PIN") !=
+          std::string::npos);
+    q["uri"] = "sieda://catalog";
+    CHECK(mcpRequest(s, "resources/read", q).get("result").get("contents")[0].get("text").asString("").find("resistor") !=
+          std::string::npos);
+    q["uri"] = "sieda://project/current";
+    const std::string projectText = mcpRequest(s, "resources/read", q).get("result").get("contents")[0].get("text").asString("");
+    CHECK(Json::parse(projectText).isObject());
+    for (const char* missing : {"sieda://docs/../../etc/passwd", "sieda://nothing", "file:///etc/passwd"}) {
+        q["uri"] = missing;
+        CHECK(mcpRequest(s, "resources/read", q).get("error").get("code").asInt(0) == -32002);
+    }
+    CHECK(mcpRequest(s, "resources/templates/list").get("result").get("resourceTemplates").size() == 1);
+
+    const Json prompts = mcpRequest(s, "prompts/list").get("result").get("prompts");
+    std::set<std::string> names;
+    for (const auto& p : prompts.items()) names.insert(p.get("name").asString(""));
+    CHECK(names.count("design_minimal_mcu_board") && names.count("review_design") && names.count("route_and_verify"));
+    Json get = Json::object();
+    get["name"] = "design_minimal_mcu_board";
+    Json args = Json::object();
+    args["mcu"] = "STM32F103C8T6";
+    get["arguments"] = args;
+    const Json msg = mcpRequest(s, "prompts/get", get).get("result").get("messages");
+    CHECK(msg.size() == 1);
+    if (msg.size() == 1) {
+        CHECK(msg[0].get("role").asString("") == "user");
+        const std::string text = msg[0].get("content").get("text").asString("");
+        CHECK(text.find("STM32F103C8T6") != std::string::npos);
+        // Every tool the prompt names exists.
+        for (const char* tool : {"library_search", "library_add_part", "schematic_erc", "pcb_autoroute", "verify_design"})
+            CHECK(text.find(tool) != std::string::npos);
+    }
+    get["name"] = "route_and_verify";
+    get["arguments"] = Json::object();
+    CHECK(mcpRequest(s, "prompts/get", get).get("result").get("messages").size() == 1);
+    get["name"] = "no_such_prompt";
+    CHECK(mcpRequest(s, "prompts/get", get).get("error").get("code").asInt(0) == -32602);
+}
+
+TEST(mcp_prompts_name_real_tools) {
+    // The prompts and the quick start must only mention tools that exist.
+    mcp::McpServer s;
+    std::set<std::string> tools;
+    for (const auto& t : mcp::mcpTools()) tools.insert(t.name);
+    auto checkText = [&](const std::string& text) {
+        for (size_t i = 0; i < text.size(); ++i) {
+            for (const char* prefix : {"project_", "schematic_", "library_", "pcb_", "sim_", "si_", "pi_", "verify_", "output_", "render_"}) {
+                const size_t n = std::strlen(prefix);
+                if (text.compare(i, n, prefix) != 0 || (i > 0 && (std::isalnum(static_cast<unsigned char>(text[i - 1])) || text[i - 1] == '_')))
+                    continue;
+                size_t j = i;
+                while (j < text.size() && (std::isalnum(static_cast<unsigned char>(text[j])) || text[j] == '_')) ++j;
+                const std::string word = text.substr(i, j - i);
+                if (!tools.count(word)) std::printf("    unknown tool named: %s\n", word.c_str());
+                CHECK(tools.count(word) == 1);
+            }
+        }
+    };
+    for (const char* name : {"design_minimal_mcu_board", "review_design", "route_and_verify", "simulate_circuit"}) {
+        Json get = Json::object();
+        get["name"] = name;
+        checkText(mcpRequest(s, "prompts/get", get).get("result").get("messages")[0].get("content").get("text").asString(""));
+    }
+    Json q = Json::object();
+    q["uri"] = "sieda://docs/mcp-quickstart";
+    checkText(mcpRequest(s, "resources/read", q).get("result").get("contents")[0].get("text").asString(""));
+}
+
+TEST(mcp_examples_and_filter) {
+    mcp::McpServer s;
+    for (const auto& e : mcp::mcpExamples()) {
+        Json a = Json::object();
+        a["id"] = e.id;
+        Json r = mcpTool(s, "project_load_example", a);
+        CHECK(!mcpFailed(r));
+        CHECK(mcpData(r).get("components").asInt(0) >= 3);
+        const Json erc = mcpData(mcpTool(s, "schematic_erc"));
+        if (erc.get("errors").asInt(1) != 0) std::printf("    example %s: ERC %s\n", e.id.c_str(), erc.dump().c_str());
+        CHECK(erc.get("errors").asInt(1) == 0);
+    }
+    // A tool filter offers only the listed groups / names / prefixes.
+    mcp::McpOptions o;
+    o.toolFilter = {"project", "sim_*", "pcb_drc"};
+    mcp::McpServer f(o);
+    const Json tools = mcpRequest(f, "tools/list").get("result").get("tools");
+    CHECK(tools.size() > 3);
+    for (const auto& t : tools.items()) {
+        const std::string n = t.get("name").asString("");
+        CHECK(n.rfind("project_", 0) == 0 || n.rfind("sim_", 0) == 0 || n == "pcb_drc");
+    }
+    Json params = Json::object();
+    params["name"] = "schematic_erc";
+    CHECK(mcpRequest(f, "tools/call", params).get("error").get("code").asInt(0) == -32602);
+    // Options round-trip through JSON.
+    mcp::McpOptions back = mcp::McpOptions::fromJson(o.toJson());
+    CHECK(back.toolFilter.size() == 3 && !back.readOnly);
+}
+
+TEST(mcp_change_handler_and_attach) {
+    SiedaProject* app = sieda_project_new("App document");
+    mcp::McpServer s;
+    std::vector<std::string> changed;
+    s.setChangeHandler([&](const std::string& tool) { changed.push_back(tool); });
+    s.attachProject(app);
+    CHECK(s.attached());
+    CHECK(mcpData(mcpTool(s, "project_summary")).get("name").asString("") == "App document");
+    Json add = Json::object();
+    add["kind"] = "capacitor";
+    add["value"] = "100n";
+    Json r = mcpTool(s, "schematic_add_component", add);
+    CHECK(!mcpFailed(r));
+    CHECK(mcpData(r).get("ref").asString("") == "C1");
+    CHECK(sieda_find_component(app, "C1") >= 0);  // the app's own project changed
+    CHECK(changed.size() == 1 && changed[0] == "schematic_add_component");
+    mcpTool(s, "schematic_erc");
+    CHECK(changed.size() == 1);  // reading changes nothing
+    s.attachProject(nullptr);
+    CHECK(!s.attached());
+    CHECK(s.project() != app);
+    CHECK(sieda_find_component(app, "C1") >= 0);
+    sieda_project_free(app);
+}
+
+TEST(mcp_render_images) {
+    mcp::McpServer s;
+    Json ex = Json::object();
+    ex["id"] = "transistor_switch";
+    CHECK(!mcpFailed(mcpTool(s, "project_load_example", ex)));
+    CHECK(!mcpFailed(mcpTool(s, "pcb_update_from_schematic")));
+    // PNG: an image content item with a valid PNG (signature, IHDR first, CRCs, zlib header, IEND last).
+    Json png = mcpTool(s, "render_pcb");
+    CHECK(!mcpFailed(png));
+    CHECK(png.get("content").size() == 2);
+    const Json& img = png.get("content")[1];
+    CHECK(img.get("type").asString("") == "image");
+    CHECK(img.get("mimeType").asString("") == "image/png");
+    CHECK(img.get("data").asString("").rfind("iVBORw0KGgo", 0) == 0);
+    const std::string bytes = mcp::renderPcbPng(*s.project(), {}, 400);
+    CHECK(bytes.size() > 60 && bytes.compare(0, 8, "\x89PNG\r\n\x1a\n") == 0);
+    auto be32 = [&](size_t at) {
+        return (static_cast<uint32_t>(static_cast<uint8_t>(bytes[at])) << 24) |
+               (static_cast<uint32_t>(static_cast<uint8_t>(bytes[at + 1])) << 16) |
+               (static_cast<uint32_t>(static_cast<uint8_t>(bytes[at + 2])) << 8) | static_cast<uint8_t>(bytes[at + 3]);
+    };
+    auto crc = [](const std::string& d) {
+        uint32_t c = 0xFFFFFFFFu;
+        for (unsigned char ch : d) {
+            c ^= ch;
+            for (int k = 0; k < 8; ++k) c = (c & 1) ? 0xEDB88320u ^ (c >> 1) : c >> 1;
+        }
+        return ~c;
+    };
+    size_t at = 8;
+    std::vector<std::string> chunks;
+    bool crcOk = true;
+    while (at + 12 <= bytes.size()) {
+        const uint32_t len = be32(at);
+        const std::string type = bytes.substr(at + 4, 4);
+        if (at + 12 + len > bytes.size()) break;
+        crcOk = crcOk && crc(bytes.substr(at + 4, 4 + len)) == be32(at + 8 + len);
+        if (type == "IDAT") CHECK(static_cast<uint8_t>(bytes[at + 8]) == 0x78);
+        if (type == "IHDR") CHECK(be32(at + 8) == 400);
+        chunks.push_back(type);
+        at += 12 + len;
+    }
+    CHECK(crcOk);
+    CHECK(chunks.size() >= 4 && chunks.front() == "IHDR" && chunks.back() == "IEND");
+    CHECK(at == bytes.size());
+    // SVG: an embedded resource.
+    Json svgArgs = Json::object();
+    svgArgs["format"] = "svg";
+    Json svg = mcpTool(s, "render_schematic", svgArgs);
+    CHECK(!mcpFailed(svg));
+    const Json& res = svg.get("content")[1].get("resource");
+    CHECK(res.get("mimeType").asString("") == "image/svg+xml");
+    CHECK(res.get("text").asString("").find("<svg") != std::string::npos);
+    CHECK(res.get("text").asString("").find("Q1") != std::string::npos);
+    CHECK(mcp::base64Encode("Man") == "TWFu" && mcp::base64Encode("Ma") == "TWE=" && mcp::base64Encode("M") == "TQ==");
+}
+
+TEST(mcp_end_to_end_board) {
+    // A small board built purely through tools/call: schematic → ERC → board → Update PCB → autoroute → DRC → Gerbers.
+    const auto root = mcpRoot("e2e");
+    mcp::McpServer s(mcpOptions(root));
+    Json init = Json::object();
+    init["protocolVersion"] = "2025-06-18";
+    CHECK(mcpRequest(s, "initialize", init).get("result").isObject());
+    Json a = Json::object();
+    a["name"] = "MCP LED";
+    CHECK(!mcpFailed(mcpTool(s, "project_new", a)));
+    auto add = [&](const char* kind, const char* value, double x, double y) {
+        Json c = Json::object();
+        c["kind"] = kind;
+        c["value"] = value;
+        c["x"] = x;
+        c["y"] = y;
+        Json r = mcpTool(s, "schematic_add_component", c);
+        CHECK(!mcpFailed(r));
+        return mcpData(r).get("ref").asString("");
+    };
+    const std::string v = add("voltage_source", "5", 0, 0);
+    const std::string r = add("resistor", "330", 80, -40);
+    const std::string d = add("led", "Red", 160, -40);
+    CHECK(v == "V1" && r == "R1" && d == "D1");
+    Json conn = Json::object();
+    conn["chain"] = pinArgs({"V1.+", "R1.1"});
+    Json pairs = Json::array();
+    pairs.push(pinArgs({"R1.2", "D1.A"}));
+    conn["connections"] = pairs;
+    Json cr = mcpTool(s, "schematic_connect", conn);
+    CHECK(!mcpFailed(cr));
+    CHECK(mcpData(cr).get("wiresAdded").asInt(0) == 2);
+    Json gnd = Json::object();
+    gnd["pins"] = pinArgs({"V1.-", "D1.K"});
+    CHECK(!mcpFailed(mcpTool(s, "schematic_connect_to_ground", gnd)));
+    Json label = Json::object();
+    label["net"] = "LED_A";
+    label["pins"] = pinArgs({"D1.A"});
+    CHECK(!mcpFailed(mcpTool(s, "schematic_net_label", label)));
+    const Json nets = mcpData(mcpTool(s, "schematic_list_nets"));
+    bool named = false;
+    for (const auto& n : nets.get("nets").items()) named = named || n.get("name").asString("") == "LED_A";
+    CHECK(named);
+    const Json erc = mcpData(mcpTool(s, "schematic_erc"));
+    if (erc.get("errors").asInt(1) != 0) std::printf("    ERC: %s\n", erc.dump().c_str());
+    CHECK(erc.get("errors").asInt(1) == 0);
+    const Json dc = mcpData(mcpTool(s, "sim_dc_op"));
+    CHECK(dc.get("converged").asBool(false));
+    // Board: size, Update PCB places every footprint, the autorouter routes everything.
+    Json board = Json::object();
+    board["width"] = 30;
+    board["height"] = 20;
+    board["layers"] = 2;
+    CHECK(!mcpFailed(mcpTool(s, "pcb_set_board", board)));
+    const Json eco = mcpData(mcpTool(s, "pcb_update_from_schematic"));
+    CHECK(eco.get("executed").asInt(0) > 0);
+    CHECK(eco.get("board").get("footprintsNotPlaced").asInt(-1) == 0);
+    Json route = Json::object();
+    route["preset"] = "default";
+    const Json routed = mcpData(mcpTool(s, "pcb_autoroute", route));
+    CHECK(routed.get("stats").get("failed").asInt(-1) == 0);
+    CHECK(routed.get("unroutedConnections").asInt(-1) == 0);
+    const Json drc = mcpData(mcpTool(s, "pcb_drc"));
+    if (drc.get("errors").asInt(1) != 0) std::printf("    DRC: %s\n", drc.dump().c_str());
+    CHECK(drc.get("errors").asInt(1) == 0);
+    CHECK(drc.get("clean").asBool(false));
+    // Outputs inside the root.
+    Json fab = Json::object();
+    fab["dir"] = "out/gerbers";
+    const Json files = mcpData(mcpTool(s, "output_gerbers", fab));
+    CHECK(files.get("files").size() >= 8);
+    const auto canonRoot = std::filesystem::weakly_canonical(root);
+    for (const auto& f : files.get("files").items()) {
+        const std::filesystem::path p = f.asString("");
+        CHECK(std::filesystem::exists(p));
+        CHECK(std::filesystem::file_size(p) > 0);
+        CHECK(p.string().rfind(canonRoot.string(), 0) == 0);
+    }
+    CHECK(std::filesystem::exists(root / "out" / "gerbers" / "MCP_LED-F_Cu.gtl"));
+    CHECK(std::filesystem::exists(root / "out" / "gerbers" / "MCP_LED-PTH.drl"));
+    Json bom = Json::object();
+    bom["path"] = "out/bom.csv";
+    bom["format"] = "csv";
+    CHECK(!mcpFailed(mcpTool(s, "output_bom", bom)));
+    CHECK(std::filesystem::exists(root / "out" / "bom.csv"));
+    Json save = Json::object();
+    save["path"] = "mcp_led.siedaproj";
+    CHECK(!mcpFailed(mcpTool(s, "project_save_as", save)));
+    // The saved file opens again with the routed board.
+    mcp::McpServer again(mcpOptions(root));
+    CHECK(!mcpFailed(mcpTool(again, "project_open", save)));
+    CHECK(mcpData(mcpTool(again, "project_summary")).get("board").get("unroutedConnections").asInt(-1) == 0);
+    CHECK(mcpData(mcpTool(again, "project_summary")).get("board").get("tracks").asInt(-1) ==
+          mcpData(mcpTool(s, "project_summary")).get("board").get("tracks").asInt(-2));
+    const Json verdict = mcpData(mcpTool(s, "verify_design"));
+    CHECK(!verdict.get("verdict").asString("").empty());
+}
+
+extern "C" int sieda_c_api_mcp_test(void);
+TEST(c_api_mcp) {
+    const int rc = sieda_c_api_mcp_test();
+    if (rc != 0) std::printf("    C API MCP test failed at step %d\n", rc);
+    CHECK(rc == 0);
 }
