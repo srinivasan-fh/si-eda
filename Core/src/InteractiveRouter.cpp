@@ -721,6 +721,7 @@ struct Base {
     std::vector<Track> tracks;
     std::vector<Via> vias;
     std::vector<char> trackFixed;  // locked, or a tamper-mesh stripe
+    std::vector<char> arcMovable;  // an arc fixed only by its shape: the shove engine may move it as a whole
     std::vector<char> viaFixed;    // inside a pad of its net (moving it would leave the pad), or a mesh via
     std::map<int, std::vector<size_t>> compPads;
     std::map<int, std::string> refs;
@@ -781,9 +782,14 @@ struct Base {
                 meshNets.insert(g.netB);
             }
         trackFixed.resize(tracks.size());
-        // Arcs stay where they are (the shove engine moves straight lines), like locked tracks.
-        for (size_t i = 0; i < tracks.size(); ++i)
+        arcMovable.resize(tracks.size());
+        // Arcs are fixed for the line machinery (lines, drags, gloss move straight segments); the shove engine moves
+        // an arc that only its shape holds as a whole (Shover::shoveArc). Locked arcs, teardrops and mesh stripes stay.
+        for (size_t i = 0; i < tracks.size(); ++i) {
             trackFixed[i] = tracks[i].locked || meshNets.count(tracks[i].net) || tracks[i].arc || tracks[i].teardrop;
+            arcMovable[i] = tracks[i].arc && !tracks[i].locked && !meshNets.count(tracks[i].net) && !tracks[i].teardrop &&
+                            isArcTrack(tracks[i]);
+        }
         viaFixed.resize(vias.size());
         for (size_t i = 0; i < vias.size(); ++i) {
             bool inPad = false;
@@ -972,7 +978,15 @@ struct World {
     bool netFixed(int n) const { return std::find(fixedNets.begin(), fixedNets.end(), n) != fixedNets.end(); }
     bool trackFixed(size_t i) const {
         if (netFixed(track(i).net)) return true;
-        return i < baseT() ? b->trackFixed[i] != 0 : fixAddT[i - baseT()] != 0;
+        // An added arc (a shoved or re-filleted one) is held like a base arc: lines end at it.
+        return i < baseT() ? b->trackFixed[i] != 0 : (fixAddT[i - baseT()] != 0 || addT[i - baseT()].arc);
+    }
+    /// An arc only its shape holds (not locked, a teardrop, a mesh stripe or the route itself): trackFixed for the
+    /// line machinery, but the shove engine moves it as a whole (Shover::shoveArc).
+    bool arcShovable(size_t i) const {
+        const Track& t = track(i);
+        if (!t.arc || t.teardrop || netFixed(t.net)) return false;
+        return i < baseT() ? b->arcMovable[i] != 0 : (fixAddT[i - baseT()] == 0 && isArcTrack(t));
     }
     bool viaFixed(size_t i) const {
         if (netFixed(via(i).net)) return true;
@@ -1480,7 +1494,7 @@ public:
             for (;;) {
                 std::vector<Hit> hits = hitsOf(p);
                 if (hits.empty()) break;
-                auto fixedHit = std::find_if(hits.begin(), hits.end(), [](const Hit& h) { return h.fixed; });
+                auto fixedHit = std::find_if(hits.begin(), hits.end(), [&](const Hit& h) { return h.fixed && !movableArc(h); });
                 if (fixedHit != hits.end()) {
                     why = "Blocked by " + describeHit(w_, *fixedHit);
                     return false;
@@ -1489,8 +1503,12 @@ public:
                     why = "Too much copper to shove here";
                     return false;
                 }
-                const Hit h = hits.front();
-                const bool ok = h.kind == HitKind::Track ? shoveTrack(h.index, p, why) : shoveVia(h.index, p, why);
+                // An arc in the way goes first (its neighbours follow it); otherwise the first hit.
+                auto arcHit = std::find_if(hits.begin(), hits.end(), [&](const Hit& h) { return movableArc(h); });
+                const Hit h = arcHit != hits.end() ? *arcHit : hits.front();
+                const bool ok = h.kind == HitKind::Track
+                                    ? (arcHit != hits.end() ? shoveArc(h.index, p, why) : shoveTrack(h.index, p, why))
+                                    : shoveVia(h.index, p, why);
                 if (!ok) return false;
                 if (!alive(p)) break;
             }
@@ -1500,6 +1518,7 @@ public:
                 why = "Shoved copper would break clearance";
                 return false;
             }
+        refilletCorners();
         return cleanJoins(why);
     }
 
@@ -1675,6 +1694,10 @@ private:
             return makeOctagon({v.position}, grow + kMargin);
         }
         const Track& t = w_.track(p.idx);
+        if (t.arc && isArcTrack(t)) {  // a shoved arc pushing on: the hull of its chords (radius covers the sagitta)
+            const Shape s = trackShape(t);
+            return makeOctagon(s.points(), B_.clearance(net, t.net) + half + s.radius + kMargin);
+        }
         return makeOctagon({t.a, t.b}, B_.clearance(net, t.net) + half + t.width / 2 + kMargin);
     }
     bool polylineHitsPusher(const std::vector<Vec2>& pts, int net, double hw, const Item& p) const {
@@ -2031,6 +2054,304 @@ private:
             writeBack(L, best, {});
         }
         return true;
+    }
+
+    // ------------------------------------------------------------------------------------------ shoving arcs
+
+    /// A hit on an arc the shove engine may move as a whole.
+    bool movableArc(const Hit& h) const { return h.kind == HitKind::Track && w_.arcShovable(h.index); }
+
+    /// Where an arc track ends: the one movable straight track of its net that continues it there (or none), or held
+    /// (a pad, a via, a junction, a locked track or another arc).
+    struct ArcEnd {
+        long nb = -1;
+        bool held = false;
+    };
+    ArcEnd arcEnd(size_t ai, Vec2 p) const {
+        const Track& A = w_.track(ai);
+        ArcEnd e;
+        long via = -1;
+        if (nodeAnchored(w_, A.net, A.layer, p, &via)) {
+            e.held = true;
+            return e;
+        }
+        const auto at = tracksEndingAt(w_, A.net, A.layer, p, ai);
+        if (at.empty()) return e;
+        if (at.size() > 1 || w_.trackFixed(at[0]) || w_.track(at[0]).arc) {
+            e.held = true;
+            return e;
+        }
+        e.nb = static_cast<long>(at[0]);
+        return e;
+    }
+
+    /// Track `t` keeps the clearance (plus kMargin) to the pusher.
+    bool clearOfPusher(const Track& t, const Item& p) const {
+        if (p.via) {
+            const Via& v = w_.via(p.idx);
+            if (!v.spans(t.layer)) return true;
+            const double need = B_.clearance(v.net, t.net) + kMargin;
+            return trackPointDistance(t, v.position) - t.width / 2 - v.diameter / 2 >= need;
+        }
+        const Track& u = w_.track(p.idx);
+        if (u.layer != t.layer) return true;
+        const double need = B_.clearance(u.net, t.net) + kMargin;
+        return trackTrackDistance(t, u) - t.width / 2 - u.width / 2 >= need;
+    }
+
+    /// Shoves arc track `ai` clear of `pusher` as a whole, its neighbours following:
+    ///  - an arc that fillets a corner (tangent straight neighbours on both ends) is re-filleted with another radius:
+    ///    the arc and its tangent points scale about the corner, so the neighbours only get shorter or longer along
+    ///    their own lines (a larger radius moves the arc away from the corner, a smaller one towards it);
+    ///  - any other arc whose ends are free or continue in one movable straight track is offset concentrically (the
+    ///    radius changes); the neighbours' near ends follow its ends;
+    ///  - when no radius clears the pusher, a fillet goes back to its sharp corner (straight tracks, shoved as lines
+    ///    from there) and is re-filleted at the end of the shove where it fits (refilletCorners).
+    /// Otherwise it fails like a fixed track ("Blocked by ..."). The smallest move that clears the pusher wins.
+    bool shoveArc(size_t ai, const Item& pusher, std::string& why) {
+        const Hit asHit{HitKind::Track, ai, true};
+        const Track A = w_.track(ai);
+        const ArcGeom g = trackArc(A);
+        auto blocked = [&] {
+            why = "Blocked by " + describeHit(w_, asHit);
+            return false;
+        };
+        if (!g.valid) return blocked();
+        const ArcEnd e[2] = {arcEnd(ai, A.a), arcEnd(ai, A.b)};
+        if (e[0].held || e[1].held || (e[0].nb >= 0 && e[0].nb == e[1].nb)) return blocked();
+        const Vec2 ends[2] = {A.a, A.b};
+        std::vector<size_t> olds{ai};
+        for (const ArcEnd& x : e)
+            if (x.nb >= 0) olds.push_back(static_cast<size_t>(x.nb));
+        // What the old copper already violated stays tolerated for the new.
+        std::vector<Hit> grand;
+        for (size_t o : olds) {
+            const Item it{false, o};
+            if (o < w_.baseT())
+                for (const Hit& h : rawHits(it))
+                    if (preexisting(h)) grand.push_back(h);
+            auto gi = grandfathered_.find(it);
+            if (gi != grandfathered_.end()) grand.insert(grand.end(), gi->second.begin(), gi->second.end());
+        }
+        std::sort(grand.begin(), grand.end());
+        grand.erase(std::unique(grand.begin(), grand.end()), grand.end());
+        for (size_t o : olds) w_.goneT[o] = 1;
+        auto restore = [&] {
+            for (size_t o : olds) w_.goneT[o] = 0;
+        };
+        // Same-net copper on the arc itself (beside its neighbours): the moved arc must keep touching it.
+        const auto contactsBefore = contactsOf(w_, A.net, A.layer, trackPolyline(A, 1e-3), A.width / 2);
+
+        // The new arc with the neighbours' near ends moved onto its ends.
+        auto build = [&](const Track& arc2, std::vector<Track>& out) {
+            out.assign(1, arc2);
+            const Vec2 to[2] = {arc2.a, arc2.b};
+            for (int k = 0; k < 2; ++k) {
+                if (e[k].nb < 0) continue;
+                Track n = w_.track(static_cast<size_t>(e[k].nb));
+                (samePoint(n.a, ends[k]) ? n.a : n.b) = to[k];
+                const Vec2 far = otherEnd(n, to[k]);
+                if ((far - to[k]).length() < 0.01) return false;
+                if (acuteAway(far - to[k], trackEndDirection(arc2, k == 1))) return false;
+                out.push_back(n);
+            }
+            return true;
+        };
+        auto clearsPusher = [&](const std::vector<Track>& c) {
+            for (const Track& t : c)
+                if (!clearOfPusher(t, pusher)) return false;
+            return true;
+        };
+        // No new fixed obstacle (other movable arcs are shoved on in turn) and every contact kept.
+        auto acceptable = [&](const std::vector<Track>& c) {
+            std::vector<Hit> hits;
+            for (const Track& t : c) {
+                hits.clear();
+                trackHits(w_, {t.net}, t.layer, t, t.width / 2, &hits);
+                for (const Hit& h : hits)
+                    if (h.fixed && !movableArc(h) && std::find(grand.begin(), grand.end(), h) == grand.end()) return false;
+            }
+            const auto after = contactsOf(w_, A.net, A.layer, trackPolyline(c.front(), 1e-3), A.width / 2);
+            return std::includes(after.begin(), after.end(), contactsBefore.begin(), contactsBefore.end());
+        };
+        // The least change of the scale f (1 = as it is) within [lo, hi] that clears the pusher: scanned outwards in
+        // steps both ways, the step where it starts to clear bisected.
+        auto search = [&](const std::function<bool(double, std::vector<Track>&)>& make, double lo, double hi,
+                          double step, std::vector<Track>& best) {
+            double bestMove = std::numeric_limits<double>::max();
+            for (int dir : {1, -1}) {
+                double prev = 1;
+                bool bisected = false;
+                int tries = 0;
+                for (int k = 1; k <= 400; ++k) {
+                    const double f = 1 + dir * k * step;
+                    if (f < lo || f > hi || std::fabs(f - 1) >= bestMove) break;
+                    std::vector<Track> c;
+                    if (!make(f, c) || !clearsPusher(c)) {
+                        prev = f;
+                        continue;
+                    }
+                    if (!bisected) {  // the first step that clears: bisected for the least move
+                        bisected = true;
+                        double a = prev, b = f;
+                        std::vector<Track> cb = c;
+                        for (int it = 0; it < 30 && std::fabs(b - a) > 1e-9; ++it) {
+                            const double m = (a + b) / 2;
+                            std::vector<Track> cm;
+                            if (make(m, cm) && clearsPusher(cm)) {
+                                b = m;
+                                cb = std::move(cm);
+                            } else {
+                                a = m;
+                            }
+                        }
+                        if (acceptable(cb)) {
+                            best = std::move(cb);
+                            bestMove = std::fabs(b - 1);
+                            break;
+                        }
+                    }
+                    if (acceptable(c)) {
+                        best = std::move(c);
+                        bestMove = std::fabs(f - 1);
+                        break;
+                    }
+                    if (++tries >= 24) break;  // further out only runs into more copper
+                    prev = f;
+                }
+            }
+            return !best.empty();
+        };
+        auto scaled = [&](Vec2 o, double f) {
+            Track t = A;
+            t.a = o + (A.a - o) * f;
+            t.b = o + (A.b - o) * f;
+            t.mid = o + (A.mid - o) * f;
+            return t;
+        };
+        const double stepLen = std::max(0.02, (B_.s.clearance + A.width) / 4);
+        const double lo = std::max(A.width / 2, 0.01) / g.r;  // the centre line's radius at least the half width
+
+        // A fillet: tangent straight neighbours on both ends; V is the corner it rounds.
+        bool fillet = e[0].nb >= 0 && e[1].nb >= 0;
+        Vec2 V;
+        if (fillet) {
+            const Vec2 d0 = trackEndDirection(A, false), d1 = trackEndDirection(A, true);
+            for (int k = 0; k < 2 && fillet; ++k) {
+                const Track& n = w_.track(static_cast<size_t>(e[k].nb));
+                const Vec2 u = unit(otherEnd(n, ends[k]) - ends[k]), d = k == 0 ? d0 : d1;
+                fillet = std::fabs(cross(u, d)) < 1e-3 && u.dot(d) < 0;
+            }
+            const double den = cross(d0, d1);
+            if (fillet && std::fabs(den) > 1e-6) {
+                const double s0 = cross(A.b - A.a, d1) / den, s1 = cross(A.b - A.a, d0) / den;
+                V = A.a + d0 * s0;
+                fillet = s0 > 1e-6 && s1 > 1e-6;
+            } else {
+                fillet = false;
+            }
+        }
+        std::vector<Track> news;
+        if (fillet) {
+            const double reach = std::max((A.mid - V).length(), 1e-6);
+            double hi = std::numeric_limits<double>::max();
+            for (int k = 0; k < 2; ++k) {
+                const Track& n = w_.track(static_cast<size_t>(e[k].nb));
+                hi = std::min(hi, ((otherEnd(n, ends[k]) - V).length() - 0.01) / (ends[k] - V).length());
+            }
+            search([&](double f, std::vector<Track>& out) { return build(scaled(V, f), out); }, lo, hi,
+                   std::max(1e-6, stepLen / reach), news);
+        } else {
+            search([&](double f, std::vector<Track>& out) { return build(scaled(g.c, f), out); }, lo,
+                   std::numeric_limits<double>::max(), stepLen / g.r, news);
+        }
+        if (news.empty() && fillet) {
+            // Back to the sharp corner: the neighbours meet at V and are shoved as lines; refilletCorners rounds it.
+            const Track& n0 = w_.track(static_cast<size_t>(e[0].nb));
+            const Track& n1 = w_.track(static_cast<size_t>(e[1].nb));
+            if (!acuteAway(otherEnd(n0, A.a) - V, otherEnd(n1, A.b) - V)) {
+                for (int k = 0; k < 2; ++k) {
+                    Track n = w_.track(static_cast<size_t>(e[k].nb));
+                    (samePoint(n.a, ends[k]) ? n.a : n.b) = V;
+                    news.push_back(n);
+                }
+                refillets_.push_back({A.net, A.layer, A.width, g.r, V, std::max(1.0, 4 * (A.a - V).length())});
+            }
+        }
+        if (news.empty()) {
+            restore();
+            return blocked();
+        }
+        for (const Track& t : news) {
+            const Item it{false, w_.addTrack(t, false)};
+            grandfathered_[it] = grand;
+            push(it);
+        }
+        return true;
+    }
+
+    /// A fillet shoveArc turned back into its corner: rounded again after the shove.
+    struct Refillet {
+        int net = -1, layer = 0;
+        double width = 0, radius = 0;
+        Vec2 at;
+        double reach = 0;
+    };
+    std::vector<Refillet> refillets_;
+
+    /// Rounds each such corner again: the nearest corner of two movable straight tracks of its net within reach of
+    /// where it was, with the old radius, a half or a quarter of it, where that keeps every clearance and
+    /// connection; a corner with no room stays sharp.
+    void refilletCorners() {
+        for (const Refillet& R : refillets_) {
+            std::vector<size_t> found;
+            w_.tracksOnLayer(Rect::centered(R.at, 2 * R.reach, 2 * R.reach), R.layer, found);
+            double bestD = R.reach;
+            size_t ta = SIZE_MAX, tb = SIZE_MAX;
+            Vec2 corner;
+            for (size_t i : found) {
+                const Track& t = w_.track(i);
+                if (t.net != R.net || t.layer != R.layer || t.arc || w_.trackFixed(i) || std::fabs(t.width - R.width) > 1e-9)
+                    continue;
+                for (Vec2 p : {t.a, t.b}) {
+                    const double d = (p - R.at).length();
+                    if (d >= bestD || joinCovered(w_, R.net, R.layer, p)) continue;
+                    const auto at = endsAt(w_, R.net, R.layer, p);
+                    if (at.size() != 2) continue;
+                    const size_t o = at[0] == i ? at[1] : at[0];
+                    const Track& u = w_.track(o);
+                    if (u.arc || w_.trackFixed(o) || std::fabs(u.width - R.width) > 1e-9) continue;
+                    bestD = d;
+                    corner = p;
+                    ta = i;
+                    tb = o;
+                }
+            }
+            if (ta != SIZE_MAX) filletCorner(ta, tb, corner, R.radius);
+        }
+    }
+
+    /// Rounds the corner at `p` between straight tracks `ia` and `ib` with a tangent arc of radius r0 (or r0 / 2,
+    /// r0 / 4) when the result keeps every clearance and connection.
+    bool filletCorner(size_t ia, size_t ib, Vec2 p, double r0) {
+        const Track X = w_.track(ia), Y = w_.track(ib);
+        const Vec2 x = otherEnd(X, p), y = otherEnd(Y, p);
+        const double lx = (x - p).length(), ly = (y - p).length();
+        const Vec2 dx = unit(x - p), dy = unit(y - p);
+        const double phi = std::acos(std::clamp(dx.dot(dy), -1.0, 1.0));  // the corner's inner angle
+        if (phi < 1e-3 || phi > kPi - 1e-3) return false;
+        for (double r : {r0, r0 / 2, r0 / 4}) {
+            const double T = r / std::tan(phi / 2);
+            if (T >= lx - 0.01 || T >= ly - 0.01) continue;
+            const Vec2 t0 = p + dx * T, t1 = p + dy * T;
+            const Vec2 c = p + unit(dx + dy) * (r / std::sin(phi / 2));
+            const Track arc = makeArcTrack(t0, t1, c, cross(t0 - c, t1 - c) > 0, X.net, X.layer, X.width);
+            Track x2 = X, y2 = Y;
+            (samePoint(x2.a, p) ? x2.a : x2.b) = t0;
+            (samePoint(y2.a, p) ? y2.a : y2.b) = t1;
+            if (tryReplace({ia, ib}, {x2, arc, y2})) return true;
+        }
+        return false;
     }
 };
 

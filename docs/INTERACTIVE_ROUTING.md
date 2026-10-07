@@ -100,12 +100,30 @@ Shoving never moves:
 - vias inside a pad of their own net;
 - the route itself, and other copper of the net being routed;
 - tamper-mesh stripes and their vias;
-- arcs and teardrop tracks (a teardrop whose track moved away is removed on commit);
+- locked arcs and teardrop tracks (a teardrop whose track moved away is removed on commit);
 - the board edge, mounting-hole keep-outs and plane layers (a net cannot be routed on another net's plane layer).
 
 A track whose end sits on a pad or a junction can bend, but its end stays put. Shoving it past the obstacle has to
 succeed with both ends where they are. A track that ends on a via can move that via, and the via's other tracks
 follow it.
+
+### Shoving arcs
+
+An arc track (`Track::arc`) is pushed as a whole, like Altium, Xpedition and KiCad do, and the straight tracks joined
+to its ends follow it:
+
+- An arc that rounds a corner (a fillet: tangent straight tracks on both ends) is re-filleted with another radius about
+  the same corner. A larger radius moves it away from the corner, a smaller one towards it; its neighbours only get
+  shorter or longer along their own lines, so the joins stay tangent.
+- Any other arc whose ends are free or continue in one straight track is offset concentrically (the radius changes);
+  the neighbours' near ends follow its ends.
+- The smallest change that clears the pusher (clearance plus a rounding margin) wins. When no radius fits a fillet, it
+  goes back to its sharp corner, those straight tracks are shoved as normal lines, and at the end of the shove the
+  corner nearest the old one is rounded again with the old radius (or a half or a quarter of it) where that fits.
+
+An arc whose end sits on a pad, a via, a junction, a locked track or another arc, and every locked arc or teardrop,
+stays fixed: the shove reports it ("Blocked by a track of …") and the head walks around it. Tracks pushed into an arc
+walk around it as they always did. Boards without arcs shove exactly as before.
 
 ## Rules the router keeps
 
@@ -168,7 +186,7 @@ that reads copper treats it as an arc:
 | 3D view | The arc as short boxes (5 µm sagitta). |
 | Project files | `"mid": {"x","y"}` on an arc track; files without it load as before (straight). |
 | Snapshot / preview JSON | `"arc": true`, `"mx","my"` and, for drawing, `"cx","cy","radius","startAngle","sweep"` (radians, sweep > 0 turns from +x towards +y). |
-| Interactive router | Arcs are obstacles measured exactly (walkaround, shove, highlight, grid search); the shove engine moves straight lines and leaves arcs where they are, like locked tracks. |
+| Interactive router | Arcs are obstacles measured exactly (walkaround, shove, highlight, grid search); the shove engine pushes an arc as a whole (re-filleted or offset concentrically, see [Shoving arcs](#shoving-arcs)); locked arcs stay. |
 
 Arc geometry is in `Core/include/sieda/TrackGeometry.hpp`; for a straight track every function is exactly the
 segment formula used before arcs existed, so boards without arcs give bit-identical results. The functions are

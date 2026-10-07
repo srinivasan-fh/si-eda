@@ -14448,7 +14448,8 @@ TEST(convert_corners_to_arcs_command) {
 
 TEST(router_respects_arc_tracks) {
     // Arcs on the board are obstacles measured as arcs: a route past an arc's bulge keeps clearance from the arc
-    // (walkaround and shove), and shoving never moves an arc (it stays bit for bit).
+    // (walkaround and shove). Walkaround never moves the arc (it stays bit for bit); shove may push this free arc
+    // only concentrically (same centre, smaller radius: away from the route above it).
     for (RouterMode mode : {RouterMode::Walkaround, RouterMode::Shove}) {
         Project p;
         auto& s = p.schematic;
@@ -14476,12 +14477,176 @@ TEST(router_respects_arc_tracks) {
         bool still = false;
         for (const auto& t : p.pcb.tracks)
             if (t.arc && t.a == kept.a && t.b == kept.b && t.mid == kept.mid) still = true;
-        CHECK(still);
+        if (mode == RouterMode::Walkaround) CHECK(still);
+        const Track* now = nullptr;
+        for (const auto& t : p.pcb.tracks)
+            if (t.arc && t.net == other) now = &t;
+        CHECK(now != nullptr);
+        if (!now) continue;
+        const ArcGeom g = trackArc(*now), g0 = trackArc(kept);
+        CHECK(g.valid && (g.c - g0.c).length() < 1e-6 && g.r <= g0.r + 1e-9);
         double nearest = 1e9;
         for (const auto& t : p.pcb.tracks)
-            if (t.net == net) nearest = std::min(nearest, trackTrackDistance(t, kept) - (t.width + kept.width) / 2);
+            if (t.net == net) nearest = std::min(nearest, trackTrackDistance(t, *now) - (t.width + now->width) / 2);
         CHECK(nearest >= p.pcb.settings.clearance - 1e-6);
     }
+}
+
+// ---- shove arcs
+
+namespace {
+/// Net B runs from R3 to the right, turns down round a 2 mm fillet arc (centre (18, 12), corner (20, 10)) and on to
+/// R4. A 45° route of net A along x − y = 9.3 passes 0.33 mm from the arc's centre line (too close: 0.45 needed) and
+/// 0.92 mm from B's straight tracks.
+struct FilletBoard {
+    Project p;
+    int netA = -1, netB = -1;
+    int r1 = -1, r2 = -1;
+    Track arc;  // as laid
+};
+FilletBoard filletBoard(bool lockedArc) {
+    FilletBoard b;
+    auto& s = b.p.schematic;
+    b.p.pcb.settings.width = 40;
+    b.p.pcb.settings.height = 35;
+    b.r1 = placeR(b.p, {30, 15});
+    b.r2 = placeR(b.p, {6, 5});
+    const int r3 = placeR(b.p, {8, 10}), r4 = placeR(b.p, {28, 25});
+    wire(s, b.r1, "1", b.r2, "2");
+    wire(s, r3, "2", r4, "1");
+    b.p.schematicChanged();
+    b.netA = s.netOf({b.r1, 0});
+    b.netB = s.netOf({r3, 1});
+    addPath(b.p.pcb, b.netB, 0, 0.25, {padAt(b.p, r3, 1), {18, 10}});
+    Track arc = arcTrackOf(b.netB, {18, 12}, 2, -90, 0);  // (18, 10) → (20, 12)
+    arc.locked = lockedArc;
+    b.p.pcb.addTrack(arc);
+    b.arc = b.p.pcb.tracks.back();
+    addPath(b.p.pcb, b.netB, 0, 0.25, {{20, 12}, {20, 25}, padAt(b.p, r4, 0)});
+    return b;
+}
+/// Starts net A at R1 and lays the 45° segment over the fillet; returns the preview of that segment.
+RoutePreview routeOverFillet(FilletBoard& b, InteractiveRouter& r) {
+    RouterOptions o;
+    o.mode = RouterMode::Shove;
+    r.setOptions(o);
+    CHECK(r.beginRoute(padAt(b.p, b.r1, 0), 0));
+    r.moveTo({24.3, 15});
+    CHECK(r.fixHead());
+    return r.moveTo({14.3, 5});
+}
+/// Smallest edge gap between tracks of nets a and b.
+double netGap(const Project& p, int a, int b) {
+    double gap = 1e9;
+    for (const auto& t : p.pcb.tracks)
+        for (const auto& u : p.pcb.tracks)
+            if (t.net == a && u.net == b && t.layer == u.layer)
+                gap = std::min(gap, trackTrackDistance(t, u) - (t.width + u.width) / 2);
+    return gap;
+}
+}  // namespace
+
+TEST(router_shoves_an_arc_track) {
+    // A route over a fillet's bulge pushes the arc as a whole: it is re-filleted with a larger radius about the same
+    // corner, still an arc, still joined (tangent) to one straight track at each end, clear of the new route; both
+    // nets stay connected and the board DRC clean. The preview carries the shoved arc, and its JSON says so.
+    FilletBoard b = filletBoard(false);
+    CHECK(routingProblems(b.p) == 0);
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    const RoutePreview pv = routeOverFillet(b, r);
+    CHECK(!pv.blocked);
+    bool arcShoved = false;
+    for (const auto& t : pv.shovedTracks) arcShoved = arcShoved || (t.arc && t.net == b.netB);
+    CHECK(arcShoved);
+    CHECK(std::find(pv.hiddenTracks.begin(), pv.hiddenTracks.end(), b.arc.id) != pv.hiddenTracks.end());
+    CHECK(routePreviewJson(pv).dump().find("\"arc\":true") != std::string::npos);
+    CHECK(r.fixHead());
+    CHECK(r.moveTo(padAt(b.p, b.r2, 1)).reachedTarget);
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok);
+    bool oldGone = false;
+    for (const auto& t : ch.removedTracks) oldGone = oldGone || t.id == b.arc.id;
+    CHECK(oldGone);
+    std::vector<Track> arcs;
+    for (const auto& t : b.p.pcb.tracks)
+        if (t.arc) arcs.push_back(t);
+    CHECK(arcs.size() == 1);
+    if (arcs.size() == 1) {
+        const Track& a = arcs[0];
+        const ArcGeom g = trackArc(a);
+        CHECK(a.net == b.netB && g.valid);
+        CHECK(g.r > 2 + 1e-3);  // a larger radius: away from the corner (20, 10)
+        // Still joined, tangentially, to exactly one straight track of B at each end.
+        for (bool atB : {false, true}) {
+            const Vec2 e = atB ? a.b : a.a;
+            const Vec2 d = trackEndDirection(a, atB);
+            int joined = 0;
+            for (const auto& t : b.p.pcb.tracks) {
+                if (t.arc || t.net != b.netB) continue;
+                const bool atA = (t.a - e).length() < 1e-6, atEnd = (t.b - e).length() < 1e-6;
+                if (!atA && !atEnd) continue;
+                ++joined;
+                const Vec2 u = (atA ? t.b - e : t.a - e) * (1.0 / trackLength(t));
+                CHECK(std::fabs(u.x * d.y - u.y * d.x) < 1e-6 && u.x * d.x + u.y * d.y < 0);
+            }
+            CHECK(joined == 1);
+        }
+    }
+    CHECK(netGap(b.p, b.netA, b.netB) >= b.p.pcb.settings.clearance - 1e-6);
+    CHECK(netRouted(b.p, b.netA));
+    CHECK(netRouted(b.p, b.netB));
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+}
+
+TEST(router_does_not_shove_a_locked_arc) {
+    // The same route with the fillet locked: the arc is never moved (bit for bit); the shove reports it and the head
+    // walks around it or stops short, clear of it, and the board stays DRC clean.
+    FilletBoard b = filletBoard(true);
+    CHECK(routingProblems(b.p) == 0);
+    InteractiveRouter r(b.p.pcb, b.p.schematic);
+    const RoutePreview pv = routeOverFillet(b, r);
+    CHECK(pv.status.find("locked track") != std::string::npos);
+    CHECK(std::find(pv.hiddenTracks.begin(), pv.hiddenTracks.end(), b.arc.id) == pv.hiddenTracks.end());
+    for (const auto& t : pv.shovedTracks) CHECK(!t.arc);
+    CHECK(r.commit().ok);
+    bool kept = false;
+    for (const auto& t : b.p.pcb.tracks)
+        kept = kept || (t.id == b.arc.id && t.arc && t.locked && t.a == b.arc.a && t.b == b.arc.b && t.mid == b.arc.mid);
+    CHECK(kept);
+    CHECK(netGap(b.p, b.netA, b.netB) >= b.p.pcb.settings.clearance - 1e-6);
+    CHECK(routingProblems(b.p) == 0);
+}
+
+TEST(router_straight_shove_unchanged_by_arcs) {
+    // Regression guard: an arc elsewhere on the board leaves the straight-only shove of the lane board exactly as it
+    // is without it (the same preview, the same copper), and the arc stays bit for bit.
+    std::string d1, d2;
+    LaneBoard a = laneBoard(), b = laneBoard();
+    b.p.pcb.addTrack(arcTrackOf(b.lane[2], {35, 37}, 1.5, 200, 340));
+    const Track far = b.p.pcb.tracks.back();
+    const RouteChanges ca = routeAlongLanes(a, &d1), cb = routeAlongLanes(b, &d2);
+    CHECK(ca.ok && cb.ok);
+    CHECK(!d1.empty() && d1 == d2);
+    CHECK(ca.removedTracks.size() == cb.removedTracks.size() && ca.addedTracks.size() == cb.addedTracks.size());
+    CHECK(a.p.pcb.tracks.size() + 1 == b.p.pcb.tracks.size());
+    bool same = a.p.pcb.tracks.size() + 1 == b.p.pcb.tracks.size(), arcKept = false;
+    size_t j = 0;
+    for (const auto& t : b.p.pcb.tracks) {
+        if (t.id == far.id) {
+            arcKept = t.arc && t.a == far.a && t.b == far.b && t.mid == far.mid;
+            continue;
+        }
+        if (j >= a.p.pcb.tracks.size()) {
+            same = false;
+            break;
+        }
+        const Track& u = a.p.pcb.tracks[j++];
+        same = same && !t.arc && !u.arc && t.a == u.a && t.b == u.b && t.net == u.net && t.layer == u.layer &&
+               t.width == u.width;
+    }
+    CHECK(same && arcKept);
+    CHECK(routingProblems(a.p) == 0);
 }
 
 extern "C" int sieda_c_api_arc_test(void);
