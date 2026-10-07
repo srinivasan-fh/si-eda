@@ -623,5 +623,21 @@ The snapshot (`sieda_project_snapshot`) adds `sheets`, `activeSheet`, `variants`
 
 The device palette, the component list and the inspector show each device by its real schematic symbol (a resistor
 is its zigzag, a capacitor two plates, ground the ground bars), drawn from the same paths as the canvas
-(`SchematicSymbols.shapes`) by `SiEDA/Views/Schematic/ComponentSymbolIcon.swift`. The icons are template images, so
-they follow the surrounding colour; a symbol change on the canvas changes its icon too.
+(`SchematicSymbols.shapes`) by `SiEDA/Views/Schematic/ComponentSymbolIcon.swift`; a symbol change on the canvas
+changes its icon too.
+
+Each device has its own colour (`ComponentKind.deviceColour`), grouped by family the way schematic part palettes
+colour-code their groups:
+
+| Family | Devices | Colour |
+| --- | --- | --- |
+| Power sources | voltage, battery, AC, current source | reds (power ports and flags are red) |
+| Ground and nets | ground, net label, junction | greens (earth green, label and wire green) |
+| Passives | resistor, capacitor, inductor, fuse | amber body, blue sleeve, copper winding, pale gold |
+| Discrete semiconductors | diode, LED, NPN, N-MOSFET | violets; an LED shows the colour it lights (its value) |
+| ICs | op-amp, IC, custom parts | the yellow of an IC body |
+| Electromechanical | switch, connector | metal greys |
+
+On the canvas the symbols keep the scheme's one symbol colour, as in other schematic editors. **Colour Symbols by
+Device** (in the colour-scheme menu) draws each symbol in its device colour instead, darkened or lightened until it
+reads at 3:1 on the scheme's background.

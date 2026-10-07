@@ -50,9 +50,11 @@ struct SchematicEditorView: View {
     @AppStorage(SchematicCustomTheme.storageKey) private var customTheme = ""
     @AppStorage(SchematicGridStyle.storageKey) private var gridStyle = SchematicGridStyle.dots.rawValue
     @AppStorage(SchematicGridStyle.majorStorageKey) private var gridMajorEvery = SchematicGridStyle.defaultMajorEvery
+    @AppStorage(SchematicCanvasStyle.colourByDeviceKey) private var colourByDevice = false
 
     private var canvasStyle: SchematicCanvasStyle {
-        SchematicCanvasStyle.from(scheme: colourScheme, customJSON: customTheme, grid: gridStyle, majorEvery: gridMajorEvery)
+        SchematicCanvasStyle.from(scheme: colourScheme, customJSON: customTheme, grid: gridStyle, majorEvery: gridMajorEvery,
+                                  colourByDevice: colourByDevice)
     }
 
     var body: some View {
@@ -605,7 +607,7 @@ struct DevicePicker: View {
                                     selectedCustom = nil
                                     onPick(kind)
                                 } label: {
-                                    Label { Text(kind.displayName) } icon: { ComponentSymbolImage(kind: kind).foregroundStyle(Theme.skyBlue) }
+                                    Label { Text(kind.displayName) } icon: { ComponentSymbolImage(kind: kind) }
                                         .foregroundStyle(Theme.textPrimary)
                                 }
                             }
@@ -618,7 +620,7 @@ struct DevicePicker: View {
                             onPickCustom(part.id)
                         } label: {
                             HStack {
-                                ComponentSymbolImage(kind: .ic8).foregroundStyle(Theme.skyBlue)
+                                ComponentSymbolImage(kind: .custom)
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(part.name).foregroundStyle(Theme.textPrimary)
                                     Text("\(part.footprint) · \(part.pins.count) pins").font(.caption2).foregroundStyle(Theme.textMuted)
@@ -640,7 +642,7 @@ struct DevicePicker: View {
                                 if let id = onPickStandard(part) { selectedCustom = id }
                             } label: {
                                 HStack {
-                                    ComponentSymbolImage(kind: .ic8).foregroundStyle(Theme.lightBlue)
+                                    ComponentSymbolImage(kind: .ic8)
                                     VStack(alignment: .leading, spacing: 1) {
                                         Text(part.spec.name).foregroundStyle(Theme.textPrimary)
                                         Text("\(part.category) · \(part.packageSummary)").font(.caption2).foregroundStyle(Theme.textMuted)

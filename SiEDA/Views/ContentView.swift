@@ -170,8 +170,7 @@ struct SidebarView: View {
                         if ![.schematic, .pcb, .threeD].contains(store.workspace) { store.workspace = .schematic }
                     } label: {
                         HStack {
-                            ComponentSymbolImage(kind: c.componentKind, size: CGSize(width: 18, height: 14))
-                                .foregroundStyle(Theme.blue)
+                            ComponentSymbolImage(kind: c.componentKind, size: CGSize(width: 18, height: 14), value: c.value)
                             Text(c.ref).font(.system(.body, design: .monospaced)).foregroundStyle(Theme.textPrimary)
                             Spacer()
                             Text(c.value).foregroundStyle(Theme.textMuted).lineLimit(1)

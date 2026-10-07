@@ -235,14 +235,18 @@ struct SchematicCanvasStyle: Equatable {
     var palette: SchematicPalette = .siedaDark
     var grid: SchematicGridStyle = .dots
     var majorEvery: Int = SchematicGridStyle.defaultMajorEvery
+    /// Symbols drawn in their device colour (`ComponentKind.deviceColour`) instead of the scheme's one symbol colour.
+    var colourByDevice = false
 
     static let standard = SchematicCanvasStyle()
+    static let colourByDeviceKey = "schematic.colourByDevice"
 
     /// The style from the stored preferences (the `@AppStorage` values).
-    static func from(scheme: String, customJSON: String, grid: String, majorEvery: Int) -> SchematicCanvasStyle {
+    static func from(scheme: String, customJSON: String, grid: String, majorEvery: Int,
+                     colourByDevice: Bool = false) -> SchematicCanvasStyle {
         SchematicCanvasStyle(palette: SchematicColorScheme.palette(scheme: scheme, customJSON: customJSON),
                              grid: SchematicGridStyle(rawValue: grid) ?? .dots,
-                             majorEvery: max(2, majorEvery))
+                             majorEvery: max(2, majorEvery), colourByDevice: colourByDevice)
     }
 }
 

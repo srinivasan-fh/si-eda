@@ -546,15 +546,7 @@ struct SchematicCanvas: View {
     }
 
     /// Glow colour of an LED from its value ("Red", "Green 0805", "Blue", …).
-    static func ledColour(_ value: String) -> Color {
-        let v = value.lowercased()
-        if v.contains("green") { return Color(red: 0.30, green: 1.0, blue: 0.40) }
-        if v.contains("blue") { return Color(red: 0.35, green: 0.55, blue: 1.0) }
-        if v.contains("yellow") || v.contains("amber") { return Color(red: 1.0, green: 0.85, blue: 0.20) }
-        if v.contains("orange") { return Color(red: 1.0, green: 0.55, blue: 0.15) }
-        if v.contains("white") { return Color(red: 0.95, green: 0.97, blue: 1.0) }
-        return Color(red: 1.0, green: 0.22, blue: 0.18)
-    }
+    static func ledColour(_ value: String) -> Color { ComponentKind.ledColour(value).color }
 
     private func draw(_ ctx: inout GraphicsContext, size: CGSize) {
         let snap = store.sheetSnapshot
@@ -763,7 +755,8 @@ struct SchematicCanvas: View {
                 ctx.fill(shapes.solid.applying(t), with: .color(ledStroke))
             } else {
                 ctx.fill(shapes.fill.applying(t), with: .color(pal.symbolFill.color))
-                var strokeColor = selected ? pal.selection.color : pal.symbol.color
+                let symbolColour = style.colourByDevice ? c.componentKind.deviceColour().readable(on: pal.background) : pal.symbol
+                var strokeColor = selected ? pal.selection.color : symbolColour.color
                 if c.componentKind == .switchSPST, !selected, live.isRunning, live.isClosed(c.id) == true { strokeColor = pal.liveOn.color }
                 ctx.stroke(shapes.stroke.applying(t), with: .color(strokeColor),
                            style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))

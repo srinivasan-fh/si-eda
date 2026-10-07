@@ -6981,4 +6981,36 @@ final class ComponentSymbolIconTests: XCTestCase {
         XCTAssertTrue(a === ComponentSymbolIcon.image(.resistor))
         XCTAssertFalse(a === ComponentSymbolIcon.image(.resistor, size: CGSize(width: 40, height: 32)))
     }
+
+    func testEveryDeviceHasItsOwnReadableColour() {
+        let kinds = ComponentKind.allCases.filter { $0 != .custom }   // a custom part is an IC
+        let colours = kinds.map { $0.deviceColour().hexString }
+        XCTAssertEqual(Set(colours).count, kinds.count, "two devices share a colour")
+        XCTAssertEqual(ComponentKind.custom.deviceColour(), ComponentKind.ic8.deviceColour())
+        let sidebar = SchematicPalette.siedaDark.background
+        for kind in ComponentKind.allCases {
+            XCTAssertGreaterThanOrEqual(kind.deviceColour().contrast(with: sidebar), 3, "\(kind)")
+        }
+    }
+
+    func testDeviceFamiliesFollowTheUsualColours() {
+        for kind in ComponentKind.allCases where kind.deviceFamily == .power {
+            let c = kind.deviceColour()
+            XCTAssertTrue(c.r > c.g && c.r > c.b, "\(kind) power source is not red")
+        }
+        XCTAssertGreaterThan(ComponentKind.ground.deviceColour().g, ComponentKind.ground.deviceColour().r)
+        XCTAssertEqual(ComponentKind.led.deviceColour(value: "Green").hexString, ComponentKind.ledColour("green").hexString)
+        XCTAssertEqual(ComponentKind.led.deviceColour(value: "Blue 0805").hexString, ComponentKind.ledColour("Blue").hexString)
+    }
+
+    func testCanvasDeviceColoursStayReadableOnEveryScheme() {
+        for scheme in SchematicColorScheme.allCases {
+            guard let palette = scheme.presetPalette else { continue }
+            for kind in ComponentKind.allCases {
+                let c = kind.deviceColour().readable(on: palette.background)
+                XCTAssertGreaterThanOrEqual(c.contrast(with: palette.background), 3, "\(kind) on \(scheme)")
+            }
+        }
+        XCTAssertFalse(SchematicCanvasStyle.standard.colourByDevice)
+    }
 }
