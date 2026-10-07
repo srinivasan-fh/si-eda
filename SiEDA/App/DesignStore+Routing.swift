@@ -82,7 +82,7 @@ extension DesignStore {
         let remove = ids.isEmpty ? snapshot.tracks.contains { $0.teardrop == true } : hasTeardrops(on: Set(ids))
         runBoardCommand(remove ? "Removed teardrops" : "Added teardrops",
                         failure: remove ? "Teardrops: none to remove" : "Teardrops: no pad or via end had room") {
-            $0.teardrops(tracks: ids, remove: remove)
+            $0.teardrops(tracks: ids, remove: remove, style: teardropStyle)
         }
     }
 

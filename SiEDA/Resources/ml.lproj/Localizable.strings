@@ -1036,6 +1036,11 @@
 "Strategy" = "തന്ത്രം";
 "Strategy Settings…" = "തന്ത്ര ക്രമീകരണങ്ങൾ…";
 "Teardrops" = "ടിയർഡ്രോപ്പുകൾ";
+"Teardrop style" = "ടിയർഡ്രോപ്പ് ശൈലി";
+"Teardrop Style" = "ടിയർഡ്രോപ്പ് ശൈലി";
+"Straight" = "നേരായ";
+"Curved" = "വളഞ്ഞ";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "ടിയർഡ്രോപ്പ് രൂപരേഖ: നേരായ വിശറികൾ, അല്ലെങ്കിൽ പാഡുകളിലേക്കും വയകളിലേക്കും വളഞ്ഞ് വിടരുന്നത്";
 "Default" = "ഡിഫോൾട്ട്";
 "Fast" = "വേഗം";
 "High quality" = "ഉയർന്ന ഗുണനിലവാരം";

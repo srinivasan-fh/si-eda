@@ -32,6 +32,19 @@ struct MatchGroup {
     double tolerance = 0.1;
 };
 
+/// Outline of a teardrop (addTeardrops, InteractiveRouter.hpp). Straight: a triangle-like fan from the pad / via to
+/// the track. Curved: the outline flares concavely (a quadratic Bézier tangent to the track) from the pad / via into
+/// the track, as the curved teardrops of other tools.
+enum class TeardropStyle { Straight, Curved };
+/// "straight" / "curved".
+inline const char* teardropStyleName(TeardropStyle s) { return s == TeardropStyle::Curved ? "curved" : "straight"; }
+/// "curved" → Curved; anything else → `fallback`, "straight" → Straight.
+inline TeardropStyle teardropStyleFromName(const std::string& name, TeardropStyle fallback = TeardropStyle::Straight) {
+    if (name == "curved") return TeardropStyle::Curved;
+    if (name == "straight") return TeardropStyle::Straight;
+    return fallback;
+}
+
 /// Autorouter strategy options (Board Setup → Routing strategy; docs/ROUTING.md). Every option defaults to the
 /// router's classic behaviour, so a board whose options are all default routes exactly as before.
 struct AutorouteOptions {
@@ -58,6 +71,8 @@ struct AutorouteOptions {
     double arcRadius = 0;
     /// Teardrops where tracks meet pads and vias (addTeardrops).
     bool teardrops = false;
+    /// Their outline (JSON "teardropStyle", written only when curved).
+    TeardropStyle teardropStyle = TeardropStyle::Straight;
     /// Strategy (autoroutePresets()): the preset these options came from ("default", "fast", "quality", "fanout",
     /// "nets", "netclass", "area"; informational — the fields below decide).
     std::string preset = "default";

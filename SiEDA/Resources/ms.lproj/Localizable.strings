@@ -1036,6 +1036,11 @@
 "Strategy" = "Strategi";
 "Strategy Settings…" = "Tetapan Strategi…";
 "Teardrops" = "Titisan air mata";
+"Teardrop style" = "Gaya titisan air mata";
+"Teardrop Style" = "Gaya Titisan Air Mata";
+"Straight" = "Lurus";
+"Curved" = "Melengkung";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "Garis luar titisan air mata: kipas lurus, atau kembang melengkung ke pad dan via";
 "Default" = "Lalai";
 "Fast" = "Pantas";
 "High quality" = "Kualiti tinggi";

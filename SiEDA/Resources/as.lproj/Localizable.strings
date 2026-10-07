@@ -1036,6 +1036,11 @@
 "Strategy" = "কৌশল";
 "Strategy Settings…" = "কৌশলৰ ছেটিং…";
 "Teardrops" = "টিয়াৰড্ৰপ";
+"Teardrop style" = "টিয়াৰড্ৰপৰ শৈলী";
+"Teardrop Style" = "টিয়াৰড্ৰপৰ শৈলী";
+"Straight" = "পোন";
+"Curved" = "বেঁকা";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "টিয়াৰড্ৰপৰ ৰূপৰেখা: পোন পাখা, বা পেড আৰু ভায়ালৈ বেঁকাকৈ বিস্তাৰ";
 "Default" = "ডিফল্ট";
 "Fast" = "দ্ৰুত";
 "High quality" = "উচ্চ গুণগত মান";

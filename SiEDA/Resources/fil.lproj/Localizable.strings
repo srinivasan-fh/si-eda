@@ -1036,6 +1036,11 @@
 "Strategy" = "Estratehiya";
 "Strategy Settings…" = "Mga Setting ng Estratehiya…";
 "Teardrops" = "Teardrops";
+"Teardrop style" = "Istilo ng teardrop";
+"Teardrop Style" = "Istilo ng Teardrop";
+"Straight" = "Tuwid";
+"Curved" = "Kurbado";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "Balangkas ng teardrop: tuwid na pamaypay, o kurbadong paglapad papunta sa mga pad at via";
 "Default" = "Default";
 "Fast" = "Mabilis";
 "High quality" = "Mataas na kalidad";

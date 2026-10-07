@@ -218,6 +218,15 @@ struct PCBEditorView: View {
                         Toggle("Auto teardrops", isOn: $store.routerTeardrops)
                             .toggleStyle(.checkbox)
                             .help("Teardrops where each finished route meets pads and vias")
+                        Picker("Teardrop style", selection: $store.teardropStyle) {
+                            ForEach(TeardropStyleChoice.allCases) { style in
+                                Text(LocalizedStringKey(style.title)).tag(style)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                        .help("Teardrop outline: straight fans, or curved flares into pads and vias")
                         Toggle("Rounded corners", isOn: $store.routerRounded)
                             .toggleStyle(.checkbox)
                             .help("Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only")

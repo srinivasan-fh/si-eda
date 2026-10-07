@@ -1036,6 +1036,11 @@
 "Strategy" = "વ્યૂહરચના";
 "Strategy Settings…" = "વ્યૂહરચના સેટિંગ્સ…";
 "Teardrops" = "ટિયરડ્રોપ";
+"Teardrop style" = "ટિયરડ્રોપ શૈલી";
+"Teardrop Style" = "ટિયરડ્રોપ શૈલી";
+"Straight" = "સીધું";
+"Curved" = "વક્ર";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "ટિયરડ્રોપની રૂપરેખા: સીધા પંખા, અથવા પેડ અને વાયામાં વક્ર ફેલાવ";
 "Default" = "ડિફૉલ્ટ";
 "Fast" = "ઝડપી";
 "High quality" = "ઉચ્ચ ગુણવત્તા";

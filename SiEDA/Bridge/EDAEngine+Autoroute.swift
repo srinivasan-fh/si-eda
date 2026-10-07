@@ -12,6 +12,8 @@ struct AutorouteOptions: Codable, Equatable {
     var arcCorners = false
     var arcRadius = 0.0
     var teardrops = false
+    /// Teardrop outline (core `TeardropStyle`, JSON "teardropStyle").
+    var teardropStyle = TeardropStyleChoice.straight
     var preset = "default"
     var fast = false
     var fanoutOnly = false
@@ -35,6 +37,8 @@ struct AutorouteOptions: Codable, Equatable {
         arcCorners = try c.decodeIfPresent(Bool.self, forKey: .arcCorners) ?? false
         arcRadius = try c.decodeIfPresent(Double.self, forKey: .arcRadius) ?? 0
         teardrops = try c.decodeIfPresent(Bool.self, forKey: .teardrops) ?? false
+        let style = try c.decodeIfPresent(String.self, forKey: .teardropStyle) ?? ""
+        teardropStyle = TeardropStyleChoice(rawValue: style) ?? .straight
         preset = try c.decodeIfPresent(String.self, forKey: .preset) ?? "default"
         fast = try c.decodeIfPresent(Bool.self, forKey: .fast) ?? false
         fanoutOnly = try c.decodeIfPresent(Bool.self, forKey: .fanoutOnly) ?? false

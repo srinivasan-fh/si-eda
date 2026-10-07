@@ -1036,6 +1036,11 @@
 "Strategy" = "Strategy";
 "Strategy Settings…" = "Strategy Settings…";
 "Teardrops" = "Teardrops";
+"Teardrop style" = "Teardrop style";
+"Teardrop Style" = "Teardrop Style";
+"Straight" = "Straight";
+"Curved" = "Curved";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "Teardrop outline: straight fans, or curved flares into pads and vias";
 "Default" = "Default";
 "Fast" = "Fast";
 "High quality" = "High quality";

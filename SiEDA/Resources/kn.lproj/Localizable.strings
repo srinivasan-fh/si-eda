@@ -1036,6 +1036,11 @@
 "Strategy" = "ಕಾರ್ಯತಂತ್ರ";
 "Strategy Settings…" = "ಕಾರ್ಯತಂತ್ರ ಸೆಟ್ಟಿಂಗ್‌ಗಳು…";
 "Teardrops" = "ಟಿಯರ್‌ಡ್ರಾಪ್‌ಗಳು";
+"Teardrop style" = "ಟಿಯರ್‌ಡ್ರಾಪ್ ಶೈಲಿ";
+"Teardrop Style" = "ಟಿಯರ್‌ಡ್ರಾಪ್ ಶೈಲಿ";
+"Straight" = "ನೇರ";
+"Curved" = "ವಕ್ರ";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "ಟಿಯರ್‌ಡ್ರಾಪ್ ರೂಪರೇಖೆ: ನೇರ ಬೀಸಣಿಗೆಗಳು, ಅಥವಾ ಪ್ಯಾಡ್‌ಗಳು ಮತ್ತು ವಯಾಗಳೊಳಗೆ ವಕ್ರ ವಿಸ್ತರಣೆ";
 "Default" = "ಡೀಫಾಲ್ಟ್";
 "Fast" = "ವೇಗ";
 "High quality" = "ಉನ್ನತ ಗುಣಮಟ್ಟ";

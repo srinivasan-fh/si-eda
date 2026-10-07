@@ -230,7 +230,9 @@ staggered ends (29.5–41.5 mm) and a ruled net 12 mm above its direct length al
   open, the whole pass is undone.
 - **Gloss / arc corners / teardrops** (`gloss`, `arcCorners` + `arcRadius`, `teardrops`): the interactive router's
   gloss (45° shortcuts and a re-search, kept when shorter; coupled pairs left alone), true-arc corners and teardrops on
-  the routed copper. Each is undone if it leaves more connections open than before.
+  the routed copper. Each is undone if it leaves more connections open than before. `teardropStyle` (`"straight"`,
+  the default, or `"curved"`; saved only when curved, so older files are unchanged) picks straight fans or curved
+  (concave) teardrops — see docs/INTERACTIVE_ROUTING.md, Teardrops; Routing strategy menu and sheet → Teardrop style.
 - **Keep-outs** (`BoardSettings::keepouts`, saved when present): no track and / or via of any net inside an area on one
   layer or all layers. The router routes around them, the DRC reports copper inside one (`DRC_KEEPOUT`).
 - **Net-class clearances** (`BoardSettings::netClearances`, from schematic directives) are kept both ways: a class
@@ -443,7 +445,8 @@ connections are serial.
 - `autoroute_length_aware_rules_and_match_groups`: a staggered four-net bus group and a ruled net end within
   tolerance; the DRC length check agrees.
 - `autoroute_keepouts_and_quality_passes`: keep-outs routed around and reported by the DRC; via minimisation, gloss,
-  arcs and teardrops complete and DRC-clean with consistent metrics.
+  arcs and teardrops complete and DRC-clean with consistent metrics. `curved_teardrops_router_and_autorouter`,
+  `curved_teardrops_json_and_c_api`: the curved teardrop pass is DRC-clean; `teardropStyle` round-trips.
 - `autoroute_strategies_scope_locked_layers_and_presets`, `autoroute_fanout_only_and_fast`: presets, routing one net
   leaves the other's copper untouched, area scope, locked copper kept and completed from, inner-layer net classes,
   fan-out only, fast.

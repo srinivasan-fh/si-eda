@@ -1036,6 +1036,11 @@
 "Strategy" = "உத்தி";
 "Strategy Settings…" = "உத்தி அமைப்புகள்…";
 "Teardrops" = "கண்ணீர்த்துளிகள்";
+"Teardrop style" = "கண்ணீர்த்துளி பாணி";
+"Teardrop Style" = "கண்ணீர்த்துளி பாணி";
+"Straight" = "நேர்";
+"Curved" = "வளைவு";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "கண்ணீர்த்துளி வெளிக்கோடு: நேர் விசிறிகள், அல்லது பேட்கள் மற்றும் வயாக்களுக்குள் வளைந்து விரிதல்";
 "Default" = "இயல்புநிலை";
 "Fast" = "வேகம்";
 "High quality" = "உயர் தரம்";

@@ -4563,6 +4563,7 @@ struct InteractiveRouter::Impl {
         if (opt.autoTeardrops && !ch.addedTracks.empty()) {
             TeardropOptions to;
             to.trackIds = ch.addedTracks;
+            to.style = opt.teardropStyle;
             const BoardEditResult td = addTeardrops(pcb, sch, to);
             for (int id : td.changes.addedTracks) ch.addedTracks.push_back(id);
         }
@@ -6003,6 +6004,37 @@ BoardEditResult finishEdit(PcbLayout& pcb, World& w, BoardEditResult& r, const s
     return r;
 }
 
+/// The members of a curved teardrop at the end `E` of track `t` (`u` along the track, `nrm` across it): for each side,
+/// lines from P0 = E ± nrm·half (inside the pad / via) towards P1 = E + u·p1 (on the track, inside the pad / via) and
+/// from P1 to the tip P2 = E + u·(edge + ltd), member k joining the points at k/N on P0→P1 and on P1→P2. Their
+/// envelope is the quadratic Bézier P0, P1, P2: concave, tangent to the track at the tip, inside the triangle
+/// P0 P1 P2 and so inside the straight teardrop of the same size. Ends on P0→P1 lie in the pad / via (it is convex
+/// and P0, P1 are in it); ends on the track are at most `step` / 2 apart, as are the ends in the pad, so the gaps stay
+/// narrower than the track. The far ends of one side are staggered against the other so no two members share one.
+std::vector<Track> curvedTeardropFan(const Track& t, Vec2 E, Vec2 u, Vec2 nrm, double half, double edge, double ltd,
+                                     double step) {
+    const double p1 = std::min(std::max(0.0, edge - t.width / 2), half);
+    const double spanB = edge + ltd - p1;
+    const double spanA = std::hypot(half, p1);
+    // Twice as fine as the straight fan: the outline is the members' envelope, so more members draw a smoother curve.
+    const int N = std::max(4, static_cast<int>(std::ceil(std::max(spanA, spanB) / (0.5 * step))));
+    const double stagger = std::min(0.02, 0.5 * spanB / N);
+    std::vector<Track> lines;
+    for (int k = 1; k < N; ++k) {
+        const double f = static_cast<double>(k) / N;
+        for (double sgn : {1.0, -1.0}) {
+            Track td = t;
+            td.id = -1;
+            td.locked = false;
+            td.teardrop = true;
+            td.a = E + nrm * (sgn * half * (1 - f)) + u * (p1 * f);
+            td.b = E + u * (p1 + spanB * f - (sgn < 0 ? stagger : 0.0));
+            lines.push_back(td);
+        }
+    }
+    return lines;
+}
+
 }  // namespace
 
 BoardEditResult addTeardrops(PcbLayout& pcb, const Schematic& sch, const TeardropOptions& opt) {
@@ -6067,18 +6099,22 @@ BoardEditResult addTeardrops(PcbLayout& pcb, const Schematic& sch, const Teardro
                 ltd = std::min(ltd, 0.8 * L - edge);
                 if (ltd < t.width) break;
                 std::vector<Track> lines;
-                int idx = 0;
-                for (int k = 1; k <= K; ++k)
-                    for (double sgn : {1.0, -1.0}) {
-                        const double o = sgn * std::min(k * step, half);
-                        Track td = t;
-                        td.id = -1;
-                        td.locked = false;
-                        td.teardrop = true;
-                        td.a = E + nrm * o;
-                        td.b = E + u * (edge + ltd - 0.02 * idx++);  // staggered ends: no two lines share one
-                        lines.push_back(td);
-                    }
+                if (opt.style == TeardropStyle::Curved) {
+                    lines = curvedTeardropFan(t, E, u, nrm, half, edge, ltd, step);
+                } else {
+                    int idx = 0;
+                    for (int k = 1; k <= K; ++k)
+                        for (double sgn : {1.0, -1.0}) {
+                            const double o = sgn * std::min(k * step, half);
+                            Track td = t;
+                            td.id = -1;
+                            td.locked = false;
+                            td.teardrop = true;
+                            td.a = E + nrm * o;
+                            td.b = E + u * (edge + ltd - 0.02 * idx++);  // staggered ends: no two lines share one
+                            lines.push_back(td);
+                        }
+                }
                 bool fits = true;
                 for (const Track& td : lines) {
                     const bool inside = isVia ? (td.a - C).length() <= across / 2 - td.width / 2 + 1e-9
@@ -6353,6 +6389,7 @@ RouterOptions routerOptionsFromJson(const Json& j, RouterOptions o) {
     if (j.has("arcCorners")) o.arcCorners = j.get("arcCorners").asBool(o.arcCorners);
     if (j.has("removeLoops")) o.removeLoops = j.get("removeLoops").asBool(o.removeLoops);
     if (j.has("teardrops")) o.autoTeardrops = j.get("teardrops").asBool(o.autoTeardrops);
+    if (j.has("teardropStyle")) o.teardropStyle = teardropStyleFromName(j.get("teardropStyle").asString(std::string()), o.teardropStyle);
     if (j.has("hug")) o.hugDrag = j.get("hug").asBool(o.hugDrag);
     if (j.has("shoveLimit")) o.shoveLimit = std::clamp(j.get("shoveLimit").asInt(o.shoveLimit), 1, 10000);
     return o;

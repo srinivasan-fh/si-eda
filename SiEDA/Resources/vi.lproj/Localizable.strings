@@ -1036,6 +1036,11 @@
 "Strategy" = "Chiến lược";
 "Strategy Settings…" = "Cài đặt chiến lược…";
 "Teardrops" = "Giọt nước";
+"Teardrop style" = "Kiểu giọt lệ";
+"Teardrop Style" = "Kiểu giọt lệ";
+"Straight" = "Thẳng";
+"Curved" = "Cong";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "Đường viền giọt lệ: hình quạt thẳng, hoặc loe cong vào pad và via";
 "Default" = "Mặc định";
 "Fast" = "Nhanh";
 "High quality" = "Chất lượng cao";

@@ -1036,6 +1036,11 @@
 "Strategy" = "వ్యూహం";
 "Strategy Settings…" = "వ్యూహ అమరికలు…";
 "Teardrops" = "టియర్‌డ్రాప్‌లు";
+"Teardrop style" = "టియర్‌డ్రాప్ శైలి";
+"Teardrop Style" = "టియర్‌డ్రాప్ శైలి";
+"Straight" = "నేరుగా";
+"Curved" = "వంపు";
+"Teardrop outline: straight fans, or curved flares into pads and vias" = "టియర్‌డ్రాప్ రూపురేఖ: నేరుగా ఉండే విసనకర్రలు, లేదా ప్యాడ్‌లు, వయాలలోకి వంపుగా విస్తరణ";
 "Default" = "డిఫాల్ట్";
 "Fast" = "వేగం";
 "High quality" = "అధిక నాణ్యత";

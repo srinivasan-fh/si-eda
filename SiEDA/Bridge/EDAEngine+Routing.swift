@@ -79,6 +79,21 @@ struct LengthTargets: Decodable, Equatable {
     static let empty = LengthTargets(rules: [], groups: [])
 }
 
+/// Teardrop outline (core `TeardropStyle`): straight fans, or curved (concave) flares into the pad / via.
+enum TeardropStyleChoice: String, Codable, CaseIterable, Identifiable {
+    case straight
+    case curved
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .straight: return "Straight"
+        case .curved: return "Curved"
+        }
+    }
+}
+
 /// Interactive-routing additions of the core (docs/INTERACTIVE_ROUTING.md): router options with true arcs,
 /// corner-to-arc conversion and the other routing commands.
 extension EDAEngine {
@@ -86,11 +101,13 @@ extension EDAEngine {
     /// (pairs and buses on concentric arcs) instead of short chords.
     static func routingOptions(mode: RouterModeChoice, diagonal: Bool, via: RouterViaChoice = .through,
                                rounded: Bool = false, arcs: Bool = true, anyAngle: Bool = false,
-                               removeLoops: Bool = false, teardrops: Bool = false, hug: Bool = false) -> String {
+                               removeLoops: Bool = false, teardrops: Bool = false, hug: Bool = false,
+                               teardropStyle: TeardropStyleChoice = .straight) -> String {
         let posture = anyAngle ? "free" : (diagonal ? "45" : "90")
         return "{\"mode\":\"\(mode.rawValue)\",\"posture\":\"\(posture)\",\"viaType\":\"\(via.rawValue)\","
             + "\"cornerRadius\":\(rounded ? -1 : 0),\"arcCorners\":\(rounded && arcs),"
-            + "\"removeLoops\":\(removeLoops),\"teardrops\":\(teardrops),\"hug\":\(hug)}"
+            + "\"removeLoops\":\(removeLoops),\"teardrops\":\(teardrops),\"hug\":\(hug),"
+            + "\"teardropStyle\":\"\(teardropStyle.rawValue)\"}"
     }
 
     /// Drags the corner of `trackId` nearest to `point`.
@@ -182,12 +199,18 @@ extension EDAEngine {
         })
     }
 
-    /// Adds teardrops where the tracks (empty: all) meet pads and vias, or (`remove`) removes theirs.
-    func teardrops(tracks: [Int], remove: Bool = false, apply: Bool = true) -> BoardEditResult? {
-        let options = "{\"remove\":\(remove),\"apply\":\(apply)}"
+    /// Adds teardrops (of `style`) where the tracks (empty: all) meet pads and vias, or (`remove`) removes theirs.
+    func teardrops(tracks: [Int], remove: Bool = false, apply: Bool = true,
+                   style: TeardropStyleChoice = .straight) -> BoardEditResult? {
+        let options = Self.teardropOptions(remove: remove, apply: apply, style: style)
         return Self.decode(BoardEditResult.self, from: withHandle {
             Self.take(sieda_pcb_teardrops($0, Self.idList(tracks), options))
         })
+    }
+
+    /// Options JSON of `sieda_pcb_teardrops`.
+    static func teardropOptions(remove: Bool, apply: Bool, style: TeardropStyleChoice) -> String {
+        "{\"remove\":\(remove),\"apply\":\(apply),\"style\":\"\(style.rawValue)\"}"
     }
 
     /// Via stitching of `net` (empty: ground) where its pours overlap on two or more layers.
