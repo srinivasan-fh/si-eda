@@ -7,7 +7,9 @@ picture and write fabrication files. The AI works with the same engine the app u
 the AI client itself.
 
 - [What it is](#what-it-is)
+- [Two modes: headless or live](#two-modes-headless-or-live)
 - [Build and run](#build-and-run)
+- [Live app mode](#live-app-mode)
 - [Client setup](#client-setup)
 - [Safety](#safety)
 - [A first session](#a-first-session)
@@ -26,12 +28,26 @@ the AI client itself.
 | Renderer | `Core/src/McpRender.cpp` | The schematic and the board as PNG (own rasteriser and PNG writer) or SVG, for clients that can look at images. |
 | C API | `Core/src/sieda_c_mcp.cpp`, `sieda_mcp_*` in `sieda_c.h` | For hosts that embed the engine (the app's live endpoint). |
 | Stdio server | `Core/mcp/main.cpp` → `sieda-mcp` | Newline-delimited JSON-RPC on stdin / stdout; logs on stderr only. |
+| Live app endpoint | `SiEDA/App/MCPEndpoint.swift`, `SiEDA/App/DesignStore+MCP.swift` | MCP over Streamable HTTP on `127.0.0.1` inside the macOS app: the AI works on the design open in the window, with undo. Off by default. |
+| Stdio bridge | `Core/mcp/http_bridge.cpp` → `sieda-mcp --connect` | For clients that only launch stdio servers (Claude Desktop): forwards stdin to the live app endpoint. |
 
 Protocol revision **2025-06-18**. Clients that ask for 2025-03-26 or 2024-11-05 are answered in their revision. Tool
 failures (an unknown designator, a pin that does not exist, a refused path) come back as tool results with
 `isError: true` and a message the AI can act on; protocol errors use the JSON-RPC codes -32700 (parse error), -32600
 (invalid request), -32601 (unknown method), -32602 (invalid params, unknown tool or prompt), -32603 (internal) and
 -32002 (unknown resource).
+
+## Two modes: headless or live
+
+| | Headless (`sieda-mcp`) | Live app (Settings → AI Access (MCP)) |
+|---|---|---|
+| What the AI works on | Its own project, opened from / saved to a root folder | The design open in the SiEDA window — you watch the canvas change |
+| Undo | — | Every tool call that changes the design is one undo step (**Edit → Undo**), shown as "AI: <tool>" in the status bar |
+| Transport | stdio (the client starts the process) | Streamable HTTP on `http://127.0.0.1:39717/mcp`, bearer token; stdio clients use `sieda-mcp --connect` |
+| Needs | A build of the core (any OS) | The macOS app running, with the live server switched on |
+| Good for | Batch jobs, CI, scripted designs, Linux / Windows | Pair-designing: you and the AI on the same board |
+
+The tools, resources and prompts are the same in both modes (one engine, `Core/src/Mcp.cpp`).
 
 ## Build and run
 
@@ -48,23 +64,89 @@ cmake --build build -j --target sieda-mcp
 | `--read-only` | Refuse every tool that changes the design, and every file write. Reading, checking, simulating and rendering still work. |
 | `--tools <list>` | Offer only these groups / tools / prefixes, e.g. `--tools project,schematic,sim_*,pcb_drc`. |
 | `--docs <dir>` | Folder of the guides served as `sieda://docs/<name>` (default: the repository's `docs/`). |
+| `--connect <url>` | Bridge mode: no local engine, forward stdin / stdout to the app's live endpoint (see [Live app mode](#live-app-mode)); with `--token <t>` (or `SIEDA_MCP_TOKEN`) and `--timeout <s>`. |
 | `--list-tools-markdown`, `--list-tools` | Print the tool reference (Markdown, as below) or the tool table (JSON) and exit. |
 
 Use absolute paths in client configuration files: most clients do not expand `~` there.
 
+## Live app mode
+
+The SiEDA app can serve MCP itself, so an AI client drives **the design that is open in the window**.
+
+1. **SiEDA → Settings… → AI Access (MCP)** and switch on **Enable live MCP server** (it is off by default and stays
+   off until you turn it on).
+2. Optional: change the **port** (default 39717), turn on **Read-only**, or pick the **Allowed folder** (default: the
+   folder of the open document; an unsaved design has no file access until you save it or pick a folder).
+3. Copy the **access token** (or one of the ready-made snippets under **Client setup**, which contain it) into your
+   client — see [Client setup](#client-setup). The token is created on first use and kept in the macOS Keychain;
+   **Regenerate** replaces it (every client must then be given the new one).
+4. The status line shows the endpoint, open connections, MCP sessions and the last tool called. While the server is on,
+   an antenna icon sits in the window's status bar; it lights up for half a minute after an AI client's call.
+
+What happens to a request:
+
+- Every request is handled on the app's main thread, against the window's design. A tool that changes the design runs
+  as one undoable edit labelled "AI: <tool name>" (status bar); **Edit → Undo** takes it back like any edit. Reading
+  tools (lists, ERC, DRC, simulation, renders) leave no undo step. A refused or failed tool that changed nothing
+  leaves no undo step either.
+- `project_new` and `project_load_example` replace the window's design in place (one undo step; the window keeps its
+  file, so **File → Save** would write the new design there). `project_open` uses the app's normal open path: the
+  window then shows that file and its undo history starts afresh; it is refused while the open design has unsaved
+  changes. `project_save` without a path saves the window's document (like **File → Save**); with a path it writes a
+  copy inside the allowed folder.
+- While SiEDA is busy (autorouting, simulation started from the app) tool calls answer "SiEDA is busy" — try again.
+  Long tools called by the AI (e.g. `pcb_autoroute` on a big board) run on the main thread, so the window waits for
+  them.
+
+Protocol details (for client authors): MCP **Streamable HTTP**, revision 2025-06-18 (also 2025-03-26, 2024-11-05).
+
+| Request | Answer |
+|---|---|
+| `POST /mcp`, JSON-RPC request (or batch) | `200`, `Content-Type: application/json`, the JSON-RPC response |
+| `POST /mcp`, only notifications / responses | `202 Accepted`, no body |
+| `POST /mcp` `initialize` | The response carries `Mcp-Session-Id`; send it on later requests (an unknown id → `404`, initialize again; a missing id is accepted) |
+| `DELETE /mcp` with `Mcp-Session-Id` | `204`, the session ends |
+| `GET /mcp` | `405` (no server-initiated stream: every answer comes back on its POST) |
+| No / wrong `Authorization: Bearer <token>` | `401` with `WWW-Authenticate: Bearer` |
+| `Origin` or `Host` that is not `localhost` / `127.0.0.1` / `[::1]` | `403` (blocks DNS rebinding from web pages) |
+| `MCP-Protocol-Version` the server does not speak | `400` |
+| Body over 16 MB / headers over 32 KB | `413` / `431` |
+
+`sieda-mcp --connect <url>` turns this endpoint back into stdio for clients that only start local processes: it reads
+one JSON-RPC message per stdin line, POSTs it with the token (`--token <t>` or the `SIEDA_MCP_TOKEN` environment
+variable; prefer the variable — command lines are visible to other processes), keeps the session id, and prints each
+response (JSON or Server-Sent Events) as one stdout line. If the app is not running or refuses the token, every request
+is answered with a JSON-RPC error that says why, so the client never hangs. `--timeout <s>` (default 600) bounds one
+request. Plain HTTP/1.1 over POSIX sockets, macOS and Linux.
+
 ## Client setup
 
-Replace `/path/to/si-eda` with your checkout and `/Users/me/Designs` with the folder the AI may work in.
+Every client below in both modes. Replace `/path/to/si-eda` with your checkout, `/Users/me/Designs` with the folder
+the AI may work in, and `<token>` with the token from **Settings → AI Access (MCP)** (the snippets there already have
+it filled in, with the port you chose). Use absolute paths: most clients do not expand `~` in their configuration.
+Restart a client (or reload its MCP servers) after changing its configuration.
 
-**Claude Code**
+### Claude Code
+
+Headless:
 
 ```bash
 claude mcp add sieda -- /path/to/si-eda/build/sieda-mcp --root ~/Designs
 # shared with a repository's team: claude mcp add --scope project sieda -- …   (writes .mcp.json)
 ```
 
-**Claude Desktop** — `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`, Windows:
-`%APPDATA%\Claude\`), then restart Claude Desktop:
+Live app (Claude Code speaks HTTP itself):
+
+```bash
+claude mcp add --transport http sieda-app http://127.0.0.1:39717/mcp --header "Authorization: Bearer <token>"
+```
+
+Check with `claude mcp list` (or `/mcp` inside a session).
+
+### Claude Desktop
+
+`claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`, Windows: `%APPDATA%\Claude\`; or
+**Settings → Developer → Edit Config**), then quit and restart Claude Desktop. Both modes can be configured at once.
 
 ```json
 {
@@ -72,12 +154,23 @@ claude mcp add sieda -- /path/to/si-eda/build/sieda-mcp --root ~/Designs
     "sieda": {
       "command": "/path/to/si-eda/build/sieda-mcp",
       "args": ["--root", "/Users/me/Designs"]
+    },
+    "sieda-app": {
+      "command": "/path/to/si-eda/build/sieda-mcp",
+      "args": ["--connect", "http://127.0.0.1:39717/mcp"],
+      "env": { "SIEDA_MCP_TOKEN": "<token>" }
     }
   }
 }
 ```
 
-**Cursor** — `.cursor/mcp.json` in a project (or `~/.cursor/mcp.json` for all projects):
+`sieda-app` is the live mode: Claude Desktop starts `sieda-mcp --connect`, which forwards to the running app. (Claude
+Desktop's remote "custom connectors" are reached from Anthropic's servers and cannot see a server on your Mac, so
+the bridge is the way in.)
+
+### Cursor
+
+`.cursor/mcp.json` in a project (or `~/.cursor/mcp.json` for all projects):
 
 ```json
 {
@@ -85,40 +178,77 @@ claude mcp add sieda -- /path/to/si-eda/build/sieda-mcp --root ~/Designs
     "sieda": {
       "command": "/path/to/si-eda/build/sieda-mcp",
       "args": ["--root", "/Users/me/Designs", "--tools", "project,schematic,library,pcb,verify,output,render"]
+    },
+    "sieda-app": {
+      "url": "http://127.0.0.1:39717/mcp",
+      "headers": { "Authorization": "Bearer <token>" }
     }
   }
 }
 ```
 
-Cursor (and some other clients) only pass a limited number of tools to the model. SiEDA has 125, so pick the groups a
-task needs with `--tools`.
+Cursor (and some other clients) only pass a limited number of tools to the model. SiEDA has 125, so in headless mode
+pick the groups a task needs with `--tools`; in live mode switch off the tools you do not need in Cursor's MCP
+settings.
 
-**VS Code** (Copilot agent mode) — `.vscode/mcp.json`:
+### VS Code (Copilot agent mode)
+
+`.vscode/mcp.json` in the workspace (or **MCP: Open User Configuration** for all workspaces):
 
 ```json
 {
+  "inputs": [
+    { "type": "promptString", "id": "sieda-token", "description": "SiEDA MCP token", "password": true }
+  ],
   "servers": {
     "sieda": {
       "type": "stdio",
       "command": "/path/to/si-eda/build/sieda-mcp",
       "args": ["--root", "${workspaceFolder}"]
+    },
+    "sieda-app": {
+      "type": "http",
+      "url": "http://127.0.0.1:39717/mcp",
+      "headers": { "Authorization": "Bearer ${input:sieda-token}" }
     }
   }
 }
 ```
 
-**Other clients** (ChatGPT desktop, local LLM hosts such as LM Studio or an Ollama-based agent, your own scripts):
-anything that can launch an MCP server over stdio takes the same command and arguments. A client that only speaks a
-remote (HTTP) transport needs a stdio-to-HTTP bridge; the app's built-in endpoint will cover that case. Talking to the
-server by hand:
+The `inputs` entry makes VS Code ask for the token once and keep it out of the file (the snippet in SiEDA's settings
+has it inline instead — fine for a user configuration, not for a file you commit).
 
-```bash
-printf '%s\n' \
-  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' \
-  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"project_load_example","arguments":{"id":"led_indicator"}}}' \
-  '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"schematic_erc"}}' \
-  | ./build/sieda-mcp --root /tmp
-```
+### ChatGPT
+
+ChatGPT's connectors (developer mode) are called from OpenAI's servers and need a public HTTPS URL. SiEDA never
+listens beyond this Mac — neither mode can be reached by ChatGPT directly, and exposing the endpoint through a tunnel
+would put your design and token on the internet; that is not supported. Use one of the local clients above (or a
+local agent host below) instead.
+
+### Other clients
+
+- **Anything that launches stdio servers** (LM Studio, Ollama-based agents such as `mcphost`, Zed, Continue, your own
+  scripts): headless — the command `sieda-mcp --root <folder>`; live — the command
+  `sieda-mcp --connect http://127.0.0.1:39717/mcp` with `SIEDA_MCP_TOKEN=<token>` in its environment.
+- **Anything that speaks Streamable HTTP** (live mode only): URL `http://127.0.0.1:39717/mcp` and the header
+  `Authorization: Bearer <token>`.
+- **By hand**, headless:
+
+  ```bash
+  printf '%s\n' \
+    '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' \
+    '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"project_load_example","arguments":{"id":"led_indicator"}}}' \
+    '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"schematic_erc"}}' \
+    | ./build/sieda-mcp --root /tmp
+  ```
+
+  and live (the part appears in the window; **Edit → Undo** removes it):
+
+  ```bash
+  curl -s http://127.0.0.1:39717/mcp -H "Authorization: Bearer $SIEDA_MCP_TOKEN" \
+    -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"schematic_add_component","arguments":{"kind":"resistor","value":"10k"}}}'
+  ```
 
 ## Safety
 
@@ -132,6 +262,16 @@ printf '%s\n' \
   replaces work: removing parts or pours, clearing routing, replacing the project), `idempotentHint`. Clients use them
   to decide what to confirm with you. Output tools are not read-only (they write files) but do not change the design.
 - **No network, no secrets.** The server makes no network requests and reads no keys. Supplier lookups stay in the app.
+- **Live app mode** adds:
+  - *Off by default*; nothing listens until you switch it on, and switching it off closes every connection.
+  - *This Mac only*: the listener is bound to `127.0.0.1` (never `0.0.0.0`) and accepts local connections only.
+  - *Token*: every request needs `Authorization: Bearer <token>` (compared in constant time); the token is random
+    (256 bits), lives in the Keychain and can be regenerated at any time.
+  - *Origin / Host check*: a web page that tricks your browser into calling `localhost` (DNS rebinding) is refused with
+    403 — requests must name `localhost`, `127.0.0.1` or `[::1]`.
+  - *Undo*: every change the AI makes is one undo step, and `project_open` never discards unsaved work.
+  - *Same sandbox*: files only inside the allowed folder (the open document's folder unless you pick one); read-only
+    mode as above.
 - **Bounded answers.** Waveforms, sweeps and curves are decimated (`maxPoints`), long outputs are truncated inline
   (give `path` to write them whole), violation lists are capped at 100 (errors first).
 
@@ -174,7 +314,7 @@ Built-in examples (`project_list_examples`): `led_indicator`, `transistor_switch
 
 ## Embedding the engine (C API)
 
-The app's live endpoint (a later package) reuses this engine through the C API in `sieda_c.h`:
+The app's live endpoint reuses this engine through the C API in `sieda_c.h`:
 
 ```c
 SiedaMcpServer* sieda_mcp_new(const char* options_json);          /* NULL for invalid options */
@@ -191,7 +331,8 @@ Options: `{"readOnly", "allowedRoot", "toolFilter":[…], "docsDir", "serverName
 edit the host's document in place and the change callback (tool name) fires after every tool that changed it, inside
 `sieda_mcp_handle`. **Threading:** a server is not thread-safe; call it from one thread at a time, and with an
 attached project only from the thread that owns that project (the rule for every `SiedaProject` call), e.g. the
-app's main actor. In C++ the same engine is `sieda::mcp::McpServer` (`handle`, `attachProject`, `setChangeHandler`)
+app's main actor. The app attaches the window's project before every request (Undo and Open swap the engine's
+project), runs mutating tools inside one undo step and refreshes its views when the change callback fired. In C++ the same engine is `sieda::mcp::McpServer` (`handle`, `attachProject`, `setChangeHandler`)
 and the tool table is `sieda::mcp::mcpTools()`.
 
 ## Tests
@@ -204,6 +345,15 @@ and the tool table is `sieda::mcp::mcpTools()`.
 - `Core/tests/c_api_test.c`, `sieda_c_api_mcp_test`: the `sieda_mcp_*` round trip with an attached project.
 - CTest `sieda_mcp_stdio` (`Core/tests/mcp_stdio_test.py`, transcript `Core/tests/fixtures/mcp/transcript.jsonl`): runs
   the `sieda-mcp` binary and checks every stdout line is a JSON-RPC response in order (and that the PNG inflates).
+- CTest `sieda_mcp_connect` (`Core/tests/mcp_connect_test.py`): `sieda-mcp --connect` against a small HTTP server on an
+  ephemeral loopback port — token and session headers, 202 for notifications, JSON, Server-Sent-Events and chunked
+  replies, and JSON-RPC errors (no hang) for a wrong token or an app that is not running.
+- App: `MCPLiveEndpointTests` in `SiEDATests/SiEDATests.swift` — HTTP parsing across arbitrary chunk boundaries
+  (Content-Length and chunked bodies, limits), the gate (401 without / with a wrong token, 403 for a foreign Origin or
+  Host), routing (405, 404, 202, sessions), `initialize`, `schematic_add_component` through the store (the part is in
+  the window's design, one undo step, Undo removes it), read-only refusals, project replacement and `project_open`
+  with unsaved work, off by default, the listener's loopback-only parameters, and a real URLSession round trip on an
+  ephemeral port.
 
 ## Code map
 
@@ -216,6 +366,10 @@ and the tool table is `sieda::mcp::mcpTools()`.
 | `Core/src/McpRender.cpp` | PNG / SVG renderer, base64 |
 | `Core/src/sieda_c_mcp.cpp` | C API |
 | `Core/mcp/main.cpp` | `sieda-mcp` stdio server |
+| `Core/mcp/http_bridge.cpp` | `sieda-mcp --connect`: stdio ⇄ HTTP bridge to the live app |
+| `SiEDA/App/MCPEndpoint.swift` | Live endpoint transport: `NWListener` on 127.0.0.1, HTTP/1.1 parser, request gate (token, Origin / Host) |
+| `SiEDA/App/DesignStore+MCP.swift` | `MCPLiveServer` (settings, token, status, Streamable HTTP routing) and `MCPStoreBridge` (tool calls on the window's design with undo) |
+| `SiEDA/Views/Settings/MCPSettingsView.swift` | Settings → AI Access (MCP) and the status-bar indicator |
 
 To add a tool, add a `t.add(group, name, title, kind, idempotent, description, Schema()…, handler)` entry in
 `McpTools.cpp` and regenerate the reference below with `./build/sieda-mcp --list-tools-markdown`.

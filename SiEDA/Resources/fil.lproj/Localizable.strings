@@ -1182,3 +1182,24 @@
 "Show device names" = "Ipakita ang mga pangalan ng device";
 "Show icons only (names in tooltips)" = "Mga icon lang (pangalan sa tooltip)";
 "Show icons only" = "Mga icon lang";
+
+// Live MCP server (Settings → AI Access)
+"AI Access (MCP)" = "AI Access (MCP)";
+"Access token" = "Access token";
+"Allowed folder" = "Pinapayagang folder";
+"An AI client on this Mac works on the design open in this window. Each change it makes is one undo step. Only this Mac can connect, and only with the token below." = "Gumagana ang isang AI client sa Mac na ito sa disenyong bukas sa window na ito. Bawat pagbabago nito ay isang hakbang na maa-undo. Ang Mac na ito lang ang makakakonekta, at gamit lang ang token sa ibaba.";
+"An AI client used the live MCP server recently" = "Kamakailang gumamit ang isang AI client ng live MCP server";
+"Choose…" = "Pumili…";
+"Claude Desktop starts the sieda-mcp bridge (built with the core), which forwards to this server. Restart a client after changing its configuration. Full guide: docs/MCP.md." = "Sinisimulan ng Claude Desktop ang sieda-mcp bridge (binuo kasama ng core), na nagpapasa sa server na ito. I-restart ang client matapos baguhin ang configuration nito. Buong gabay: docs/MCP.md.";
+"Client setup" = "Setup ng client";
+"Clients send it as “Authorization: Bearer <token>”. Regenerating it disconnects every client until it is given the new one. Kept in the macOS Keychain." = "Ipinapadala ito ng mga client bilang “Authorization: Bearer <token>”. Kapag ginawang muli, madidiskonekta ang bawat client hanggang maibigay ang bago. Nakatago sa macOS Keychain.";
+"Enable live MCP server" = "I-enable ang live MCP server";
+"Hide" = "Itago";
+"Live MCP server on (Settings → AI Access)" = "Naka-on ang live MCP server (Settings → AI Access)";
+"Live server" = "Live server";
+"Port" = "Port";
+"Read-only (the AI can inspect and check, not change)" = "Read-only (makakatingin at makakasuri ang AI, hindi makakapagbago)";
+"Regenerate" = "Gawing muli";
+"Use Document Folder" = "Gamitin ang Folder ng Dokumento";
+"Off" = "Naka-off";
+"Starting…" = "Nagsisimula…";

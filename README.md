@@ -40,8 +40,16 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j --targe
 claude mcp add sieda -- "$PWD/build/sieda-mcp" --root ~/Designs      # Claude Code
 ```
 
-Setup for Claude Desktop, Cursor, VS Code and other clients, the safety model and the tool reference are in
-[docs/MCP.md](docs/MCP.md).
+**Live app mode:** switch on **Settings → AI Access (MCP)** and the AI works on the design open in the SiEDA window —
+you watch the canvas change, and every AI edit is one **Undo** step. It listens on `127.0.0.1` only, needs a token and
+is off by default:
+
+```bash
+claude mcp add --transport http sieda-app http://127.0.0.1:39717/mcp --header "Authorization: Bearer <token>"
+```
+
+Setup for Claude Desktop (via `sieda-mcp --connect`), Cursor, VS Code and other clients in both modes, the safety model
+and the tool reference are in [docs/MCP.md](docs/MCP.md).
 
 ## Features
 

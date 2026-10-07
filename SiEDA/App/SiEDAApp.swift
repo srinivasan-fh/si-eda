@@ -225,7 +225,11 @@ struct SiEDAApp: App {
                 .documentWindowFrame()
                 .background(WindowCloseGuardInstaller(store: store))
                 .background(SplashWindowGate())
-                .onAppear { appDelegate.store = store }
+                .onAppear {
+                    appDelegate.store = store
+                    // The live MCP endpoint (Settings → AI Access): off unless the user turned it on.
+                    if !CrashReporter.isRunningTests { MCPLiveServer.shared.attach(store) }
+                }
         }
         .defaultSize(width: LayoutMetrics.defaultWindow.width, height: LayoutMetrics.defaultWindow.height)
         .windowToolbarStyle(.unified)

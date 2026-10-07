@@ -1182,3 +1182,24 @@
 "Show device names" = "デバイス名を表示";
 "Show icons only (names in tooltips)" = "アイコンのみ表示（名前はツールチップ）";
 "Show icons only" = "アイコンのみ表示";
+
+// Live MCP server (Settings → AI Access)
+"AI Access (MCP)" = "AI アクセス（MCP）";
+"Access token" = "アクセストークン";
+"Allowed folder" = "許可フォルダ";
+"An AI client on this Mac works on the design open in this window. Each change it makes is one undo step. Only this Mac can connect, and only with the token below." = "この Mac 上の AI クライアントが、このウインドウで開いている設計を操作します。変更は 1 つずつ取り消せる操作になります。接続できるのはこの Mac だけで、下のトークンが必要です。";
+"An AI client used the live MCP server recently" = "AI クライアントが最近ライブ MCP サーバを使用しました";
+"Choose…" = "選択…";
+"Claude Desktop starts the sieda-mcp bridge (built with the core), which forwards to this server. Restart a client after changing its configuration. Full guide: docs/MCP.md." = "Claude Desktop は sieda-mcp ブリッジ（コアと一緒にビルド）を起動し、このサーバへ転送します。設定を変更したらクライアントを再起動してください。詳しいガイド：docs/MCP.md。";
+"Client setup" = "クライアントの設定";
+"Clients send it as “Authorization: Bearer <token>”. Regenerating it disconnects every client until it is given the new one. Kept in the macOS Keychain." = "クライアントは「Authorization: Bearer <token>」として送信します。再生成すると、新しいトークンを渡すまで全クライアントが切断されます。macOS キーチェーンに保存されます。";
+"Enable live MCP server" = "ライブ MCP サーバを有効にする";
+"Hide" = "隠す";
+"Live MCP server on (Settings → AI Access)" = "ライブ MCP サーバ稼働中（設定 → AI アクセス）";
+"Live server" = "ライブサーバ";
+"Port" = "ポート";
+"Read-only (the AI can inspect and check, not change)" = "読み取り専用（AI は確認やチェックのみ、変更不可）";
+"Regenerate" = "再生成";
+"Use Document Folder" = "書類のフォルダを使用";
+"Off" = "オフ";
+"Starting…" = "起動中…";

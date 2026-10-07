@@ -1182,3 +1182,24 @@
 "Show device names" = "Hiện tên linh kiện";
 "Show icons only (names in tooltips)" = "Chỉ hiện biểu tượng (tên trong chú giải)";
 "Show icons only" = "Chỉ hiện biểu tượng";
+
+// Live MCP server (Settings → AI Access)
+"AI Access (MCP)" = "Truy cập AI (MCP)";
+"Access token" = "Mã truy cập";
+"Allowed folder" = "Thư mục được phép";
+"An AI client on this Mac works on the design open in this window. Each change it makes is one undo step. Only this Mac can connect, and only with the token below." = "Một ứng dụng AI trên máy Mac này làm việc với thiết kế đang mở trong cửa sổ này. Mỗi thay đổi là một bước có thể hoàn tác. Chỉ máy Mac này mới kết nối được, và chỉ với mã bên dưới.";
+"An AI client used the live MCP server recently" = "Một ứng dụng AI vừa dùng máy chủ MCP trực tiếp";
+"Choose…" = "Chọn…";
+"Claude Desktop starts the sieda-mcp bridge (built with the core), which forwards to this server. Restart a client after changing its configuration. Full guide: docs/MCP.md." = "Claude Desktop khởi chạy cầu nối sieda-mcp (được dựng cùng lõi), chuyển tiếp đến máy chủ này. Khởi động lại ứng dụng sau khi đổi cấu hình. Hướng dẫn đầy đủ: docs/MCP.md.";
+"Client setup" = "Thiết lập ứng dụng khách";
+"Clients send it as “Authorization: Bearer <token>”. Regenerating it disconnects every client until it is given the new one. Kept in the macOS Keychain." = "Ứng dụng gửi mã dưới dạng “Authorization: Bearer <token>”. Tạo lại sẽ ngắt mọi ứng dụng cho đến khi chúng nhận mã mới. Được lưu trong Chuỗi khóa macOS.";
+"Enable live MCP server" = "Bật máy chủ MCP trực tiếp";
+"Hide" = "Ẩn";
+"Live MCP server on (Settings → AI Access)" = "Máy chủ MCP trực tiếp đang bật (Cài đặt → Truy cập AI)";
+"Live server" = "Máy chủ trực tiếp";
+"Port" = "Cổng";
+"Read-only (the AI can inspect and check, not change)" = "Chỉ đọc (AI có thể xem và kiểm tra, không thể thay đổi)";
+"Regenerate" = "Tạo lại";
+"Use Document Folder" = "Dùng thư mục của tài liệu";
+"Off" = "Tắt";
+"Starting…" = "Đang khởi động…";

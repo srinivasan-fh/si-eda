@@ -333,6 +333,20 @@ final class DesignStore: ObservableObject {
         return true
     }
 
+    /// An edit whose effect is known only afterwards (an AI client's tool call through the live MCP endpoint):
+    /// one undo step labelled `actionName` when `body` reports a change and the design really differs, none otherwise
+    /// (a refused tool leaves the history and the document's saved state alone).
+    @discardableResult
+    func performExternalEdit(_ actionName: String, _ body: (EDAEngine) -> Bool) -> Bool {
+        guard !isBusy else { return performChecked(actionName) { _ in false } }
+        let before = engine.saveJSON()
+        let changed = performChecked(actionName, recordUndo: false, failureMessage: "\(actionName) — no change") {
+            body($0) && $0.saveJSON() != before
+        }
+        if changed { pushUndo(before) }
+        return changed
+    }
+
     func undo() {
         guard let state = undoStack.popLast() else { return }
         redoStack.append(engine.saveJSON())
@@ -2500,6 +2514,17 @@ final class DesignStore: ObservableObject {
             present(error, title: "Could not save project")
             return false
         }
+    }
+
+    /// An AI client (live MCP endpoint) replaced the whole design in place — project_new / project_load_example,
+    /// recorded as one undo step by `performChecked`: selections and check results of the old design go, views re-fit.
+    func noteDesignReplaced() {
+        selection = []
+        selectedWire = nil
+        selectedBus = nil
+        resetChecks()
+        routeStats = nil
+        fitToken &+= 1
     }
 
     func setProjectName(_ name: String) {
