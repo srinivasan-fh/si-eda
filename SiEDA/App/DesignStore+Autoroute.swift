@@ -13,14 +13,23 @@ extension DesignStore {
         perform("Routing strategy", invalidatesAnalysis: false) { $0.setAutorouteOptions(options) }
     }
 
-    /// Switches to a preset strategy; the per-class layers and locked-copper protection are kept.
+    /// Switches to a preset strategy; the per-class layers, locked-copper protection and pin / gate swap are kept.
     func applyRoutingPreset(_ name: String) {
         guard let preset = EDAEngine.autoroutePresets().first(where: { $0.name == name }) else { return }
         let current = engine.autorouteOptions()
         var options = preset.options
         options.classLayers = current.classLayers
         options.protectLocked = current.protectLocked
+        options.pinSwap = current.pinSwap
         setAutorouteOptions(options)
+    }
+
+    /// ", swapped 2 pin pair(s) and 1 gate(s)" after a route that swapped pins or gates ("" otherwise).
+    func swapSummary(_ stats: RouteStats) -> String {
+        let pins = stats.pinSwaps ?? 0
+        let gates = stats.gateSwaps ?? 0
+        guard pins + gates > 0 else { return "" }
+        return ", swapped \(pins) pin pair(s) and \(gates) gate(s)"
     }
 
     /// Flips one quality / strategy option.

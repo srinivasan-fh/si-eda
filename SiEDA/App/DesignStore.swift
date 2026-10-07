@@ -1377,6 +1377,7 @@ final class DesignStore: ObservableObject {
             : "routed \(stats.routed)/\(stats.connections) — \(stats.failed) failed (\(stats.failedNets.joined(separator: ", ")))"
         statusMessage = (placeMissing ? "Placed footprints inside the board outline and " : "") + routed
             + ((stats.lengthTuned ?? 0) > 0 ? ", \(stats.lengthTuned ?? 0) nets length-matched with serpentines" : "")
+            + swapSummary(stats)
         statusMessage = statusMessage.prefix(1).uppercased() + statusMessage.dropFirst()
     }
 

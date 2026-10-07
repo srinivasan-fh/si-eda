@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The last autoroute's report (docs/ROUTING.md, Routing report): board metrics and layer usage, what the quality
-/// passes did, differential pairs (coupled or not, skew) and length targets (achieved against target).
+/// passes did, the pin / gate swaps made before routing, differential pairs (coupled or not, skew) and length targets (achieved against target).
 struct RoutingReportSheet: View {
     let report: RouteReport
     @Environment(\.dismiss) private var dismiss
@@ -13,6 +13,7 @@ struct RoutingReportSheet: View {
                 VStack(alignment: .leading, spacing: 14) {
                     metricsBox
                     layersBox
+                    if report.metrics.pinSwaps != nil { swapsBox }
                     if !report.pairs.isEmpty { pairsBox }
                     if !report.lengths.isEmpty { lengthsBox }
                 }
@@ -64,6 +65,22 @@ struct RoutingReportSheet: View {
             Text(verbatim: "L\(layer + 1)").frame(width: 40, alignment: .leading)
             ProgressView(value: length / total).frame(width: 220)
             Text(verbatim: String(format: "%.1f mm", length)).monospacedDigit()
+        }
+    }
+
+    private var swapsBox: some View {
+        let m = report.metrics
+        return GroupBox("Pin & Gate Swaps") {
+            VStack(alignment: .leading, spacing: 4) {
+                row("Pins swapped", "\(m.pinSwaps ?? 0)")
+                row("Gates swapped", "\(m.gateSwaps ?? 0)")
+                row("Ratsnest before", String(format: "%.1f mm", m.ratsnestBefore ?? 0))
+                row("Ratsnest after", String(format: "%.1f mm", m.ratsnestAfter ?? 0))
+                row("Crossings", "\(m.crossingsBefore ?? 0) → \(m.crossingsAfter ?? 0)")
+                ForEach(report.swaps ?? [], id: \.self) { line in
+                    Text(verbatim: line).font(.caption).foregroundStyle(.secondary)
+                }
+            }
         }
     }
 

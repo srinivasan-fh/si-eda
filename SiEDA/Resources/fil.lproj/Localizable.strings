@@ -1141,3 +1141,13 @@
 "Brown" = "Kayumanggi";
 "Tan" = "Tan";
 "Colour Symbols by Device" = "Kulayan ang mga Simbolo ayon sa Device";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "Magpalit ng Pin at Gate";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "Bago mag-route, pagpalitin ang mga katumbas na pin at gate kung saan umiikli ang ratsnest (ibinabalik sa schematic)";
+"Pin & Gate Swaps" = "Mga Pagpapalit ng Pin at Gate";
+"Pins swapped" = "Mga pin na pinagpalit";
+"Gates swapped" = "Mga gate na pinagpalit";
+"Ratsnest before" = "Ratsnest bago";
+"Ratsnest after" = "Ratsnest pagkatapos";
+"Crossings" = "Mga pagtatawid";

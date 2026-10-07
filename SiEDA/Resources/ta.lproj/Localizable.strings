@@ -1141,3 +1141,13 @@
 "Brown" = "பழுப்பு";
 "Tan" = "வெளிர் பழுப்பு";
 "Colour Symbols by Device" = "சாதனப்படி குறியீட்டு வண்ணங்கள்";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "பின்கள் & கேட்களை மாற்று";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "ரூட்டிங்கிற்கு முன், ராட்ஸ்நெஸ்ட் குறையும் இடங்களில் சமமான பின்கள் மற்றும் கேட்களை மாற்றவும் (திட்டவரைவுக்கு பின்-குறிப்பிடப்படும்)";
+"Pin & Gate Swaps" = "பின் & கேட் மாற்றங்கள்";
+"Pins swapped" = "மாற்றிய பின்கள்";
+"Gates swapped" = "மாற்றிய கேட்கள்";
+"Ratsnest before" = "ராட்ஸ்நெஸ்ட் முன்";
+"Ratsnest after" = "ராட்ஸ்நெஸ்ட் பின்";
+"Crossings" = "குறுக்கீடுகள்";

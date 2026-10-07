@@ -7013,4 +7013,27 @@ final class ComponentSymbolIconTests: XCTestCase {
         }
         XCTAssertTrue(SchematicCanvasStyle.standard.colourByDevice)
     }
+
+    func testAutoroutePinSwapOptionAndReportDecode() throws {
+        let old = try JSONDecoder().decode(AutorouteOptions.self, from: Data("{\"gloss\":true}".utf8))
+        XCTAssertFalse(old.pinSwap)
+        XCTAssertTrue(old.gloss)
+        let on = try JSONDecoder().decode(AutorouteOptions.self, from: Data("{\"pinSwap\":true}".utf8))
+        XCTAssertTrue(on.pinSwap)
+        let encoded = try JSONEncoder().encode(on)
+        XCTAssertEqual(try JSONDecoder().decode(AutorouteOptions.self, from: encoded), on)
+        let plain = "{\"pairs\":[],\"lengths\":[],\"metrics\":{\"vias\":1,\"microvias\":0,\"blindVias\":0,"
+            + "\"trackLength\":2,\"layerLength\":[2],\"segments\":1,\"arcs\":0,\"teardrops\":0,\"unrouted\":0,"
+            + "\"viasRemoved\":0,\"netsRerouted\":0,\"glossed\":0,\"arcsAdded\":0,\"teardropsAdded\":0"
+        let report = try JSONDecoder().decode(RouteReport.self, from: Data((plain + "}}").utf8))
+        XCTAssertNil(report.metrics.pinSwaps)
+        XCTAssertNil(report.swaps)
+        let swapped = plain + ",\"pinSwaps\":2,\"gateSwaps\":1,\"ratsnestBefore\":40,\"ratsnestAfter\":12}"
+            + ",\"swaps\":[\"Swapped gates U1A \\u2194 U2A\"]}"
+        let withSwaps = try JSONDecoder().decode(RouteReport.self, from: Data(swapped.utf8))
+        XCTAssertEqual(withSwaps.metrics.pinSwaps, 2)
+        XCTAssertEqual(withSwaps.metrics.gateSwaps, 1)
+        XCTAssertEqual(withSwaps.metrics.ratsnestAfter, 12)
+        XCTAssertEqual(withSwaps.swaps?.count, 1)
+    }
 }

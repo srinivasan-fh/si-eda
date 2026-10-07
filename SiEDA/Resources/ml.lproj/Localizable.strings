@@ -1141,3 +1141,13 @@
 "Brown" = "തവിട്ട്";
 "Tan" = "ഇളം തവിട്ട്";
 "Colour Symbols by Device" = "ഉപകരണം അനുസരിച്ച് ചിഹ്ന നിറങ്ങൾ";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "പിനുകളും ഗേറ്റുകളും മാറ്റുക";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "റൂട്ടിങ്ങിന് മുമ്പ്, റാറ്റ്‌സ്‌നെസ്റ്റ് കുറയുന്നിടത്ത് തുല്യമായ പിനുകളും ഗേറ്റുകളും മാറ്റുക (സ്കീമാറ്റിക്കിലേക്ക് ബാക്ക്-അനോട്ടേറ്റ് ചെയ്യുന്നു)";
+"Pin & Gate Swaps" = "പിൻ & ഗേറ്റ് മാറ്റങ്ങൾ";
+"Pins swapped" = "മാറ്റിയ പിനുകൾ";
+"Gates swapped" = "മാറ്റിയ ഗേറ്റുകൾ";
+"Ratsnest before" = "റാറ്റ്‌സ്‌നെസ്റ്റ് മുമ്പ്";
+"Ratsnest after" = "റാറ്റ്‌സ്‌നെസ്റ്റ് ശേഷം";
+"Crossings" = "ക്രോസിംഗുകൾ";

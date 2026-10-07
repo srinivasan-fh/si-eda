@@ -75,6 +75,10 @@ struct AutorouteOptions {
     bool protectLocked = false;
     /// Per schematic net class: the copper layers its nets may route on (others are used only to leave their pads).
     std::map<std::string, std::vector<int>> classLayers;
+    /// Automatic pin and gate swap before routing (Project::autoRoute; docs/ROUTING.md, Pin and gate swapping): pins of
+    /// a swap group and interchangeable gates of multi-unit parts change places where that shortens the ratsnest and
+    /// crosses fewer airwires, back-annotated to the schematic like a manual PCB swap. Whole-board routes only.
+    bool pinSwap = false;
     bool scoped() const { return !nets.empty() || !netClass.empty() || hasArea; }
     bool operator==(const AutorouteOptions& o) const;
     bool operator!=(const AutorouteOptions& o) const { return !(*this == o); }
@@ -446,12 +450,18 @@ struct RouteMetrics {
     int glossed = 0;                  // lines glossing improved
     int arcsAdded = 0;                // corners made arcs
     int teardropsAdded = 0;
+    // Automatic pin / gate swap before routing (AutorouteOptions::pinSwap; reported only when `swapRun`).
+    bool swapRun = false;
+    int pinSwaps = 0, gateSwaps = 0;
+    double ratsnestBefore = 0, ratsnestAfter = 0;  // mm, pad-to-pad ratsnest (spanning tree of each net's pads)
+    int crossingsBefore = 0, crossingsAfter = 0;   // airwires of different nets that cross
 };
 /// What an autoroute did beyond the counts in RouteStats (the routing report sheet in the app).
 struct RouteReport {
     std::vector<PairRouteReport> pairs;
     std::vector<LengthRouteReport> lengths;
     RouteMetrics metrics;
+    std::vector<std::string> swaps;  // the automatic pin / gate swaps made before routing, one line each
 };
 struct RouteStats {
     RouteReport report;

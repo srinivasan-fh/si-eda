@@ -1141,3 +1141,13 @@
 "Brown" = "মটীয়া";
 "Tan" = "পাতল মটীয়া";
 "Colour Symbols by Device" = "ডিভাইচ অনুসৰি চিম্বলৰ ৰং";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "পিন আৰু গেট সলনি কৰক";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "ৰাউটিঙৰ আগতে, য'ত ৰেটছনেষ্ট চুটি হয় তাত সমতুল্য পিন আৰু গেট সলনি কৰক (স্কিমেটিকলৈ বেক-এনোটেট কৰা হয়)";
+"Pin & Gate Swaps" = "পিন আৰু গেট সলনি";
+"Pins swapped" = "সলনি কৰা পিন";
+"Gates swapped" = "সলনি কৰা গেট";
+"Ratsnest before" = "ৰেটছনেষ্ট আগতে";
+"Ratsnest after" = "ৰেটছনেষ্ট পিছত";
+"Crossings" = "ক্ৰছিং";

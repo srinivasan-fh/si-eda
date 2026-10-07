@@ -1141,3 +1141,13 @@
 "Brown" = "棕色";
 "Tan" = "浅棕褐色";
 "Colour Symbols by Device" = "按器件为符号着色";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "交换引脚和门";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "布线前，在飞线变短处交换等效引脚和门（反向标注到原理图）";
+"Pin & Gate Swaps" = "引脚和门交换";
+"Pins swapped" = "已交换引脚";
+"Gates swapped" = "已交换门";
+"Ratsnest before" = "飞线（之前）";
+"Ratsnest after" = "飞线（之后）";
+"Crossings" = "交叉";

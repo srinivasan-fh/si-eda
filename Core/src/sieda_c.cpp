@@ -1137,7 +1137,8 @@ char* autorouteJson(SiedaProject* project, const RouteControl& control) {
         // A cancelled route leaves the project exactly as it was, placement of new parts included.
         std::unique_ptr<Project> before = control.progress ? std::make_unique<Project>(project->project) : nullptr;
         project->project.pcb.autoPlace(project->project.schematic, false);
-        RouteStats s = project->project.pcb.autoRoute(project->project.schematic, control);
+        // With the strategy's pin / gate swap on, the swaps are made (and back-annotated) first.
+        RouteStats s = project->project.autoRoute(control);
         Json j = Json::object();
         if (s.cancelled) {
             if (before) project->project = std::move(*before);
@@ -1153,6 +1154,12 @@ char* autorouteJson(SiedaProject* project, const RouteControl& control) {
         j["vias"] = s.vias;
         j["trackLength"] = s.trackLength;
         j["lengthTuned"] = s.lengthTuned;
+        if (s.report.metrics.swapRun) {  // only when the strategy swaps pins and gates
+            j["pinSwaps"] = s.report.metrics.pinSwaps;
+            j["gateSwaps"] = s.report.metrics.gateSwaps;
+            j["ratsnestBefore"] = s.report.metrics.ratsnestBefore;
+            j["ratsnestAfter"] = s.report.metrics.ratsnestAfter;
+        }
         Json failed = Json::array();
         for (const auto& n : s.failedNets) failed.push(n);
         j["failedNets"] = failed;

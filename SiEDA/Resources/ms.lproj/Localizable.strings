@@ -1141,3 +1141,13 @@
 "Brown" = "Coklat";
 "Tan" = "Perang Muda";
 "Colour Symbols by Device" = "Warnakan Simbol mengikut Peranti";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "Tukar Pin & Get";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "Sebelum penghalaan, tukar pin dan get setara di mana ratsnest menjadi lebih pendek (dianotasi balik ke skematik)";
+"Pin & Gate Swaps" = "Pertukaran Pin & Get";
+"Pins swapped" = "Pin ditukar";
+"Gates swapped" = "Get ditukar";
+"Ratsnest before" = "Ratsnest sebelum";
+"Ratsnest after" = "Ratsnest selepas";
+"Crossings" = "Persilangan";

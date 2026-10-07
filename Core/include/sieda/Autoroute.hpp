@@ -11,14 +11,16 @@ namespace sieda {
 
 /// {"coupledPairs","pairGap","lengthAware","minimizeVias","gloss","arcCorners","arcRadius","teardrops","preset","fast",
 /// "fanoutOnly","nets":[name],"netClass","hasArea","area":{"x0","y0","x1","y1"},"protectLocked",
-/// "classLayers":{class:[layer]}} — every field, as saved with the board.
+/// "classLayers":{class:[layer]},"pinSwap"} — every field, as saved with the board ("pinSwap" only when on).
 Json autorouteOptionsToJson(const AutorouteOptions& o);
 /// Options from JSON; missing fields keep their value in `base`, out-of-range values are clamped.
 AutorouteOptions autorouteOptionsFromJson(const Json& j, AutorouteOptions base = {});
 /// {"pairs":[{"positive","negative","coupled","reason","width","gap","coupledLength","uncoupledLength","skew",
 ///  "viaPairs"}],"lengths":[{"net","source","target","tolerance","routed","achieved","ok","tuned"}],
 ///  "metrics":{"vias","microvias","blindVias","trackLength","layerLength":[mm per layer],"segments","arcs","teardrops",
-///  "unrouted","viasRemoved","netsRerouted","glossed","arcsAdded","teardropsAdded"}}
+///  "unrouted","viasRemoved","netsRerouted","glossed","arcsAdded","teardropsAdded"}}; with pin / gate swap on, the
+///  metrics add "pinSwaps","gateSwaps","ratsnestBefore","ratsnestAfter","crossingsBefore","crossingsAfter" and the
+///  report "swaps":[line].
 Json routeReportJson(const RouteReport& r);
 /// [{"name","title","description","options":{…}}] (autoroutePresets()).
 Json autoroutePresetsJson();

@@ -43,6 +43,7 @@ struct RoutingStrategySheet: View {
         var next = preset.options
         next.classLayers = options.classLayers
         next.protectLocked = options.protectLocked
+        next.pinSwap = options.pinSwap
         next.pairGap = options.pairGap
         next.arcRadius = options.arcRadius
         options = next
@@ -60,6 +61,8 @@ struct RoutingStrategySheet: View {
             Toggle("Teardrops", isOn: $options.teardrops)
             Toggle("Fast (fewer rip-up passes)", isOn: $options.fast)
             Toggle("Protect locked copper", isOn: $options.protectLocked)
+            Toggle("Swap Pins & Gates", isOn: $options.pinSwap)
+                .help("Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)")
         }
     }
 

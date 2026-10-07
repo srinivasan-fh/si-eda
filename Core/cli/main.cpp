@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
     }
 
     project.pcb.autoPlace(project.schematic, false);
-    RouteStats st = project.pcb.autoRoute(project.schematic);
+    RouteStats st = project.autoRoute();  // with the strategy's pin / gate swap first when it is on
     std::printf("\n== Autorouter ==\n  %d/%d connections routed, %d vias, %.1f mm of track\n", st.routed, st.connections,
                 st.vias, st.trackLength);
     auto drc = project.pcb.runDRC(project.schematic);

@@ -1141,3 +1141,13 @@
 "Brown" = "Braun";
 "Tan" = "Hellbraun";
 "Colour Symbols by Device" = "Symbole nach Bauteil einfärben";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "Pins & Gatter tauschen";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "Vor dem Routen gleichwertige Pins und Gatter tauschen, wo die Luftlinien kürzer werden (in den Schaltplan rückannotiert)";
+"Pin & Gate Swaps" = "Pin- & Gattertausch";
+"Pins swapped" = "Getauschte Pins";
+"Gates swapped" = "Getauschte Gatter";
+"Ratsnest before" = "Luftlinien vorher";
+"Ratsnest after" = "Luftlinien nachher";
+"Crossings" = "Kreuzungen";

@@ -1141,3 +1141,13 @@
 "Brown" = "갈색";
 "Tan" = "황갈색";
 "Colour Symbols by Device" = "장치별 심볼 색상";
+
+// Autorouter: pin and gate swap
+"Swap Pins & Gates" = "핀·게이트 교체";
+"Before routing, swap equivalent pins and gates where the ratsnest gets shorter (back-annotated to the schematic)" = "배선 전에 래츠네스트가 짧아지는 곳에서 등가 핀과 게이트를 교체합니다(회로도에 역주석)";
+"Pin & Gate Swaps" = "핀 및 게이트 교체 결과";
+"Pins swapped" = "교체된 핀";
+"Gates swapped" = "교체된 게이트";
+"Ratsnest before" = "래츠네스트 (이전)";
+"Ratsnest after" = "래츠네스트 (이후)";
+"Crossings" = "교차";

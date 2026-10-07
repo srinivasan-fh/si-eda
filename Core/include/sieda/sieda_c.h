@@ -257,7 +257,10 @@ int32_t sieda_pcb_rotate_footprint(SiedaProject* project, int32_t component_id, 
 int32_t sieda_pcb_flip_footprint(SiedaProject* project, int32_t component_id);
 /* Resizes the board outline to the placed footprints plus margin_mm, keeping parts and copper together. */
 int32_t sieda_pcb_fit_board(SiedaProject* project, double margin_mm);
-char* sieda_pcb_autoroute(SiedaProject* project); /* JSON route statistics */
+/* JSON route statistics {"connections","routed","failed","vias","trackLength","lengthTuned","failedNets",
+ * "thermalVias"}; with the strategy's "pinSwap" on, pins and gates are swapped (back-annotated) first and the JSON adds
+ * "pinSwaps","gateSwaps","ratsnestBefore","ratsnestAfter" (mm). */
+char* sieda_pcb_autoroute(SiedaProject* project);
 /* Autoroute with progress and cancel: as sieda_pcb_autoroute, but calls progress(user, phase, pass, done, total,
  * unrouted) every few nets, always on the calling thread and never concurrently. phase: 0 preparing, 1 routing,
  * 2 rip-up pass, 3 finishing; done / total: nets of the current pass; unrouted: connections the best pass so far
@@ -274,7 +277,8 @@ int32_t sieda_router_strategy(void);
 void sieda_router_set_threads(int32_t threads);
 /* Autorouter strategy of the board (AutorouteOptions, saved with the project): JSON {"coupledPairs","pairGap",
  * "lengthAware","minimizeVias","gloss","arcCorners","arcRadius","teardrops","preset","fast","fanoutOnly","nets":[name],
- * "netClass","hasArea","area":{"x0","y0","x1","y1"},"protectLocked","classLayers":{class:[layer]}}. Setting takes
+ * "netClass","hasArea","area":{"x0","y0","x1","y1"},"protectLocked","classLayers":{class:[layer]},"pinSwap" (only
+ * when true)}. Setting takes
  * the fields given (others keep their value); returns 1 when the JSON was valid. */
 char* sieda_pcb_autoroute_options(const SiedaProject* project);
 int32_t sieda_pcb_set_autoroute_options(SiedaProject* project, const char* options_json);

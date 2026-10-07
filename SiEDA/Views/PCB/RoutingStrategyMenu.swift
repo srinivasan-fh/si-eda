@@ -57,6 +57,7 @@ struct RoutingStrategyMenu: View {
             optionToggle("Arc corners", o.arcCorners, \.arcCorners)
             optionToggle("Teardrops", o.teardrops, \.teardrops)
             optionToggle("Protect locked copper", o.protectLocked, \.protectLocked)
+            optionToggle("Swap Pins & Gates", o.pinSwap, \.pinSwap)
         }
     }
 
