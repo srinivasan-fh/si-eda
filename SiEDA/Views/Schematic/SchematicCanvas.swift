@@ -756,7 +756,7 @@ struct SchematicCanvas: View {
             } else {
                 ctx.fill(shapes.fill.applying(t), with: .color(pal.symbolFill.color))
                 let symbolColour = style.colourByDevice ? c.componentKind.deviceColour().readable(on: pal.background) : pal.symbol
-                var strokeColor = selected ? pal.selection.color : body.color
+                var strokeColor = selected ? pal.selection.color : symbolColour.color
                 if c.componentKind == .switchSPST, !selected, live.isRunning, live.isClosed(c.id) == true { strokeColor = pal.liveOn.color }
                 ctx.stroke(shapes.stroke.applying(t), with: .color(strokeColor),
                            style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
