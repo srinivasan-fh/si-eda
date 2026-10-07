@@ -638,6 +638,6 @@ colour-code their groups:
 | ICs | op-amp, IC, custom parts | the yellow of an IC body |
 | Electromechanical | switch, connector | metal greys |
 
-On the canvas the symbols keep the scheme's one symbol colour, as in other schematic editors. **Colour Symbols by
-Device** (in the colour-scheme menu) draws each symbol in its device colour instead, darkened or lightened until it
-reads at 3:1 on the scheme's background.
+The canvas draws every symbol in its device colour too, in every scheme (Midnight Navy included), darkened or
+lightened until it reads at 3:1 on the scheme's background. Turn off **Colour Symbols by Device** (in the colour-scheme
+menu) to draw all symbols in the scheme's one symbol colour instead.

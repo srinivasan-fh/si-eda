@@ -28,7 +28,8 @@
   are written only when used so older files load and save identically.
   Canvas colour schemes / grid styles / custom named-colour theme: `SiEDA/Views/Schematic/SchematicPalette.swift`
   (+ `SchematicCustomTheme.swift`, `SchematicAppearanceViews.swift`); the canvas draws only with the palette (no
-  fixed `Theme` schematic colours), and Midnight Navy (`siedaDark`) must stay today's colours.
+  fixed `Theme` schematic colours), and Midnight Navy (`siedaDark`) must stay today's colours. Symbols are drawn in
+  their device colour (`ComponentKind.deviceColour`) by default; "Colour Symbols by Device" off = the scheme's symbol colour.
 - Simulation: MNA core in `Core/src/Simulator.cpp` (elements in `SimulatorInternal.hpp`), SPICE model import in
   `Core/src/SpiceModels.cpp` (parser / flattening, fuzz-hardened) + `SpiceDevices.cpp` (device equations) +
   `SpiceBuild.cpp` (models and op-amp macromodel in the simulator), noise in `Noise.cpp`, adaptive / trapezoidal
