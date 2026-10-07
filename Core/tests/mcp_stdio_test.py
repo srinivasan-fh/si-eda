@@ -9,6 +9,7 @@ usage: mcp_stdio_test.py <path to sieda-mcp> <transcript.jsonl>
 """
 import base64
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -59,6 +60,10 @@ def main():
     with tempfile.TemporaryDirectory() as root:
         proc = subprocess.run([exe, "--root", root], input="\n".join(lines) + "\n", capture_output=True, text=True,
                               timeout=300)
+        # The command-line diff (Git's diff driver): identical files exit 0, a changed value exits 1 and is listed.
+        v1, v2 = os.path.join(root, "v1.siedaproj"), os.path.join(root, "v2.siedaproj")
+        cli = [subprocess.run([exe] + args, capture_output=True, text=True, timeout=60)
+               for args in (["--diff", v1, v1], ["--diff", v1, v2], ["--git-diff", "board.siedaproj", v1, "0", "100644", v2, "1", "100644"])]
     if proc.returncode != 0:
         fail("exit code %d, stderr: %s" % (proc.returncode, proc.stderr))
     out = [line for line in proc.stdout.split("\n") if line]
@@ -111,6 +116,21 @@ def main():
         fail("malformed JSON must be -32700")
     if responses[11]["result"] != {}:
         fail("ping")
+    # Team / MCAD: diff against the saved version, STEP and IDF out, the IDF placement back in (nothing moved).
+    for i in (12, 13, 15, 16, 17):
+        if responses[i]["result"].get("isError"):
+            fail("call %d failed: %r" % (i, responses[i]))
+    diff = json.loads(responses[14]["result"]["content"][0]["text"])
+    if "~ R1 value" not in diff.get("text", "") or diff.get("identical"):
+        fail("project_diff: %r" % diff)
+    if cli[0].returncode != 0 or "No changes." not in cli[0].stdout:
+        fail("--diff of a file with itself: %r" % cli[0])
+    if cli[1].returncode != 1 or "~ R1 value" not in cli[1].stdout:
+        fail("--diff v1 v2: %r" % cli[1])
+    if cli[2].returncode != 0 or "SiEDA diff board.siedaproj" not in cli[2].stdout:
+        fail("--git-diff: %r" % cli[2])
+    if json.loads(responses[17]["result"]["content"][0]["text"]).get("moved") != []:
+        fail("IDF placement round trip moved parts: %r" % responses[17])
     print("OK: %d responses" % len(out))
 
 

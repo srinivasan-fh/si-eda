@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "Gamitin ang Folder ng Dokumento";
 "Off" = "Naka-off";
 "Starting…" = "Nagsisimula…";
+"Base" = "Base";
+"Compare Variants" = "Ihambing ang mga Variant";
+"Compare Variants…" = "Ihambing ang mga Variant…";
+"Compare with Another Version…" = "Ihambing sa Ibang Bersyon…";
+"Import MCAD Placement (IDF)…" = "Mag-import ng MCAD Placement (IDF)…";
+"No variant changes a part yet." = "Wala pang variant na nagbabago ng piyesa.";
+"Changes since %@" = "Mga pagbabago mula sa %@";

@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "문서 폴더 사용";
 "Off" = "끔";
 "Starting…" = "시작하는 중…";
+"Base" = "기본";
+"Compare Variants" = "변형 비교";
+"Compare Variants…" = "변형 비교…";
+"Compare with Another Version…" = "다른 버전과 비교…";
+"Import MCAD Placement (IDF)…" = "MCAD 배치 가져오기 (IDF)…";
+"No variant changes a part yet." = "아직 부품을 바꾸는 변형이 없습니다.";
+"Changes since %@" = "%@ 이후 변경 사항";

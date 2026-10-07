@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "Guna Folder Dokumen";
 "Off" = "Mati";
 "Starting…" = "Bermula…";
+"Base" = "Asas";
+"Compare Variants" = "Banding Varian";
+"Compare Variants…" = "Banding Varian…";
+"Compare with Another Version…" = "Banding dengan Versi Lain…";
+"Import MCAD Placement (IDF)…" = "Import Peletakan MCAD (IDF)…";
+"No variant changes a part yet." = "Belum ada varian yang mengubah komponen.";
+"Changes since %@" = "Perubahan sejak %@";

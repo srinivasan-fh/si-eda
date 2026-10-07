@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "Gebruik documentmap";
 "Off" = "Uit";
 "Starting…" = "Starten…";
+"Base" = "Basis";
+"Compare Variants" = "Varianten vergelijken";
+"Compare Variants…" = "Varianten vergelijken…";
+"Compare with Another Version…" = "Vergelijken met andere versie…";
+"Import MCAD Placement (IDF)…" = "MCAD-plaatsing importeren (IDF)…";
+"No variant changes a part yet." = "Nog geen variant wijzigt een onderdeel.";
+"Changes since %@" = "Wijzigingen sinds %@";

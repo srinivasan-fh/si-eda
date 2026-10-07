@@ -33,7 +33,9 @@
 #include "sieda/InteractiveRouter.hpp"
 #include "sieda/LengthMatch.hpp"
 #include "sieda/LibraryImport.hpp"
+#include "sieda/Mechanical.hpp"
 #include "sieda/Mesh.hpp"
+#include "sieda/ProjectDiff.hpp"
 #include "sieda/PowerIntegrity.hpp"
 #include "sieda/Project.hpp"
 #include "sieda/Reliability.hpp"
@@ -1469,6 +1471,9 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         }
         if (f == "stl") return dup(exportStl(buildAssemblyMesh(p.schematic, p.pcb), p.name));
         if (f == "obj") return dup(exportObj(buildAssemblyMesh(p.schematic, p.pcb), p.name));
+        if (f == "step") return dup(exportStep(p.schematic, p.pcb, p.name));
+        if (f == "idf_board") return dup(exportIdfBoard(p.schematic, p.pcb, p.name));
+        if (f == "idf_library") return dup(exportIdfLibrary(p.schematic, p.pcb));
         return nullptr;
     } catch (...) {
         return nullptr;
@@ -1931,6 +1936,42 @@ char* sieda_annotate(SiedaProject* project, const char* options_json) {
 }
 
 /* ---- design variants ---- */
+
+char* sieda_variant_matrix_json(const SiedaProject* project) {
+    if (!project) return nullptr;
+    try {
+        return dup(variantMatrix(project->project).dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_import_idf_placement(SiedaProject* project, const char* emn) {
+    if (!project || !emn) return nullptr;
+    try {
+        Json moved = Json::array();
+        for (const auto& ref : importIdfPlacement(project->project.schematic, emn)) moved.push(ref);
+        if (moved.size()) project->project.schematicChanged();
+        Json out = Json::object();
+        out["moved"] = moved;
+        return dup(out.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_diff_projects(const char* before_json, const char* after_json, int32_t as_text) {
+    try {
+        const Project a = Project::fromJson(Json::parse(str(before_json)));
+        const Project b = Project::fromJson(Json::parse(str(after_json)));
+        const Json d = diffProjects(a, b);
+        return dup(as_text ? diffText(d) : d.dump());
+    } catch (const std::exception& e) {
+        Json err = Json::object();
+        err["error"] = std::string(e.what());
+        return dup(err.dump());
+    }
+}
 
 char* sieda_variants_json(const SiedaProject* project) {
     if (!project) return nullptr;

@@ -1,0 +1,333 @@
+#include "sieda/Mechanical.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <ctime>
+#include <map>
+#include <set>
+#include <sstream>
+
+#include "sieda/Embedded.hpp"
+#include "sieda/Library.hpp"
+
+namespace sieda {
+
+namespace {
+
+constexpr double kPi = 3.14159265358979323846;
+
+/// Number with a decimal point and no trailing zeros ("1.", "0.25", "-3.2").
+std::string num(double v) {
+    if (std::fabs(v) < 5e-7) v = 0;
+    char b[32];
+    std::snprintf(b, sizeof b, "%.6f", v);
+    std::string s = b;
+    while (s.back() == '0') s.pop_back();
+    return s;
+}
+
+std::string quoted(std::string s) {
+    for (auto& ch : s)
+        if (ch == '\'' || ch == '"' || ch == '\n') ch = '_';
+    return s;
+}
+
+double signedArea(const std::vector<Vec2>& p) {
+    double a = 0;
+    for (size_t i = 0; i < p.size(); ++i) a += p[i].x * p[(i + 1) % p.size()].y - p[(i + 1) % p.size()].x * p[i].y;
+    return a / 2;
+}
+
+/// Polygon in MCAD XY (Y up), counter-clockwise when `ccw`.
+std::vector<Vec2> mcad(const std::vector<Vec2>& board, bool ccw) {
+    std::vector<Vec2> p;
+    for (const auto& v : board) p.push_back({v.x, -v.y});
+    if ((signedArea(p) > 0) != ccw) std::reverse(p.begin(), p.end());
+    return p;
+}
+
+std::vector<Vec2> circle(Vec2 c, double r, int n) {
+    std::vector<Vec2> p;
+    for (int i = 0; i < n; ++i) p.push_back({c.x + r * std::cos(2 * kPi * i / n), c.y + r * std::sin(2 * kPi * i / n)});
+    return p;
+}
+
+std::vector<Vec2> boardOutline(const BoardSettings& s) {
+    if (s.hasCustomOutline()) return s.outline;
+    return {{0, 0}, {s.width, 0}, {s.width, s.height}, {0, s.height}};
+}
+
+/// A placed part's package body in board coordinates: outline (rectangle or cylinder), height, colour.
+struct Body {
+    const Component* c;
+    std::vector<Vec2> outline;
+    double height;
+    float r, g, b;
+};
+
+std::vector<Body> partBodies(const Schematic& sch, const PcbLayout& pcb) {
+    std::vector<Body> out;
+    for (const auto& c : sch.components()) {
+        if (!c.hasFootprint() || !c.pcb.placed || embeddedElement(c, pcb.settings)) continue;
+        const FootprintDef* fp = Library::instance().footprint(c.footprintName());
+        BodyDef b = fp ? fp->body : BodyDef{};
+        double w = b.width, d = b.depth;
+        if (((c.pcb.rotation / 90) % 2 + 2) % 2 == 1) std::swap(w, d);
+        if (w <= 0 || d <= 0) {  // no body: the courtyard, 1 mm high
+            const Rect r = pcb.courtyard(c);
+            w = r.width();
+            d = r.height();
+            b.height = 1.0;
+        }
+        if (b.height <= 0) b.height = 1.0;
+        const Vec2 p = c.pcb.position;
+        Body body{&c, {}, b.height, b.r, b.g, b.b};
+        body.outline = b.cylinder ? circle(p, std::min(w, d) / 2, 24)
+                                  : std::vector<Vec2>{{p.x - w / 2, p.y - d / 2}, {p.x + w / 2, p.y - d / 2},
+                                                      {p.x + w / 2, p.y + d / 2}, {p.x - w / 2, p.y + d / 2}};
+        out.push_back(std::move(body));
+    }
+    return out;
+}
+
+/// ISO 10303-21 writer for faceted B-rep prisms.
+struct Step {
+    std::ostringstream o;
+    int next = 1;
+
+    int add(const std::string& entity) {
+        o << '#' << next << '=' << entity << ";\n";
+        return next++;
+    }
+    std::string ref(int id) const { return "#" + std::to_string(id); }
+    int point(double x, double y, double z) { return add("CARTESIAN_POINT('',(" + num(x) + "," + num(y) + "," + num(z) + "))"); }
+    int dir(double x, double y, double z) { return add("DIRECTION('',(" + num(x) + "," + num(y) + "," + num(z) + "))"); }
+    int placement(double x, double y, double z, double nx, double ny, double nz, double rx, double ry, double rz) {
+        const int p = point(x, y, z), n = dir(nx, ny, nz), r = dir(rx, ry, rz);
+        return add("AXIS2_PLACEMENT_3D(''," + ref(p) + "," + ref(n) + "," + ref(r) + ")");
+    }
+    std::string loop(const std::vector<int>& pts) {
+        std::string s = "POLY_LOOP('',(";
+        for (size_t i = 0; i < pts.size(); ++i) s += (i ? "," : "") + ref(pts[i]);
+        return s + "))";
+    }
+    /// Planar face through `origin` with outward normal n (unit) and in-plane direction r.
+    int face(const std::vector<std::vector<int>>& loops, Vec3 origin, Vec3 n, Vec3 r) {
+        std::string bounds;
+        for (size_t i = 0; i < loops.size(); ++i) {
+            const int l = add(loop(loops[i]));
+            bounds += (i ? "," : "") + ref(add(std::string(i ? "FACE_BOUND" : "FACE_OUTER_BOUND") + "(''," + ref(l) + ",.T.)"));
+        }
+        const int pl = add("PLANE(''," + ref(placement(origin.x, origin.y, origin.z, n.x, n.y, n.z, r.x, r.y, r.z)) + ")");
+        return add("FACE_SURFACE('',(" + bounds + ")," + ref(pl) + ",.T.)");
+    }
+    /// Closed prism: CCW outline (MCAD XY) with CW holes, from z0 to z1. Returns the FACETED_BREP.
+    int prism(const std::string& name, const std::vector<Vec2>& outline, const std::vector<std::vector<Vec2>>& holes,
+              double z0, double z1) {
+        std::vector<int> faces;
+        std::vector<std::vector<int>> top, bottom;
+        auto ring = [&](const std::vector<Vec2>& poly) {
+            std::vector<int> lo, hi;
+            for (const auto& v : poly) lo.push_back(point(v.x, v.y, z0));
+            for (const auto& v : poly) hi.push_back(point(v.x, v.y, z1));
+            top.push_back(hi);
+            bottom.emplace_back(lo.rbegin(), lo.rend());
+            for (size_t i = 0; i < poly.size(); ++i) {
+                const size_t j = (i + 1) % poly.size();
+                const Vec2 e = poly[j] - poly[i];
+                const double len = std::hypot(e.x, e.y);
+                if (len < 1e-9) continue;
+                faces.push_back(face({{lo[i], lo[j], hi[j], hi[i]}}, {poly[i].x, poly[i].y, z0},
+                                     {e.y / len, -e.x / len, 0}, {e.x / len, e.y / len, 0}));
+            }
+        };
+        ring(outline);
+        for (const auto& h : holes) ring(h);
+        const Vec2 o = outline.front();
+        faces.push_back(face(top, {o.x, o.y, z1}, {0, 0, 1}, {1, 0, 0}));
+        faces.push_back(face(bottom, {o.x, o.y, z0}, {0, 0, -1}, {1, 0, 0}));
+        std::string list;
+        for (size_t i = 0; i < faces.size(); ++i) list += (i ? "," : "") + ref(faces[i]);
+        const int shell = add("CLOSED_SHELL('',(" + list + "))");
+        return add("FACETED_BREP('" + quoted(name) + "'," + ref(shell) + ")");
+    }
+    int styled(int item, float r, float g, float b) {
+        const int col = add("COLOUR_RGB(''," + num(r) + "," + num(g) + "," + num(b) + ")");
+        const int fill = add("FILL_AREA_STYLE('',(" + ref(add("FILL_AREA_STYLE_COLOUR(''," + ref(col) + ")")) + "))");
+        const int side = add("SURFACE_SIDE_STYLE('',(" + ref(add("SURFACE_STYLE_FILL_AREA(" + ref(fill) + ")")) + "))");
+        const int usage = add("SURFACE_STYLE_USAGE(.BOTH.," + ref(side) + ")");
+        return add("STYLED_ITEM('',(" + ref(add("PRESENTATION_STYLE_ASSIGNMENT((" + ref(usage) + "))")) + ")," + ref(item) + ")");
+    }
+};
+
+std::string idfDate() {
+    std::time_t t = std::time(nullptr);
+    std::tm tm{};
+#if defined(_WIN32)
+    gmtime_s(&tm, &t);
+#else
+    gmtime_r(&t, &tm);
+#endif
+    char b[32];
+    std::strftime(b, sizeof b, "%Y/%m/%d.%H:%M:%S", &tm);
+    return b;
+}
+
+/// IDF rotation (counter-clockwise, Y up) of a part's rotation (board view, Y down).
+int idfRotation(int rotation) { return ((360 - rotation % 360) % 360 + 360) % 360; }
+
+std::string idfPartNumber(const Component& c) {
+    return quoted(!c.sourcing.mpn.empty() ? c.sourcing.mpn : !c.value.empty() ? c.value : c.footprintName());
+}
+
+void idfLoop(std::ostringstream& o, int label, std::vector<Vec2> p) {
+    p.push_back(p.front());  // IDF loops are closed by repeating the first point
+    for (const auto& v : p) o << label << ' ' << num(v.x) << ' ' << num(v.y) << " 0\n";
+}
+
+/// Whitespace-separated tokens; "quoted strings" stay one token.
+std::vector<std::string> tokens(const std::string& line) {
+    std::vector<std::string> t;
+    for (size_t i = 0; i < line.size();) {
+        if (std::isspace(static_cast<unsigned char>(line[i]))) {
+            ++i;
+        } else if (line[i] == '"') {
+            const size_t e = line.find('"', i + 1);
+            t.push_back(line.substr(i + 1, (e == std::string::npos ? line.size() : e) - i - 1));
+            i = e == std::string::npos ? line.size() : e + 1;
+        } else {
+            size_t e = i;
+            while (e < line.size() && !std::isspace(static_cast<unsigned char>(line[e]))) ++e;
+            t.push_back(line.substr(i, e - i));
+            i = e;
+        }
+    }
+    return t;
+}
+
+}  // namespace
+
+std::string exportStep(const Schematic& sch, const PcbLayout& pcb, const std::string& name) {
+    const BoardSettings& s = pcb.settings;
+    const double t = s.thickness;
+    const std::string title = quoted(name.empty() ? "board" : name);
+    Step w;
+    const int app = w.add("APPLICATION_CONTEXT('core data for automotive mechanical design processes')");
+    w.add("APPLICATION_PROTOCOL_DEFINITION('international standard','automotive_design',2000," + w.ref(app) + ")");
+    const int pctx = w.add("PRODUCT_CONTEXT(''," + w.ref(app) + ",'mechanical')");
+    const int prod = w.add("PRODUCT('" + title + "','" + title + "',''," + "(" + w.ref(pctx) + "))");
+    const int form = w.add("PRODUCT_DEFINITION_FORMATION('',''," + w.ref(prod) + ")");
+    const int dctx = w.add("PRODUCT_DEFINITION_CONTEXT('part definition'," + w.ref(app) + ",'design')");
+    const int def = w.add("PRODUCT_DEFINITION('design',''," + w.ref(form) + "," + w.ref(dctx) + ")");
+    const int shape = w.add("PRODUCT_DEFINITION_SHAPE(''," + w.ref(def) + ")");
+    const int mm = w.add("(LENGTH_UNIT()NAMED_UNIT(*)SI_UNIT(.MILLI.,.METRE.))");
+    const int rad = w.add("(NAMED_UNIT(*)PLANE_ANGLE_UNIT()SI_UNIT($,.RADIAN.))");
+    const int sr = w.add("(NAMED_UNIT(*)SI_UNIT($,.STERADIAN.)SOLID_ANGLE_UNIT())");
+    const int unc = w.add("UNCERTAINTY_MEASURE_WITH_UNIT(LENGTH_MEASURE(1.E-05)," + w.ref(mm) + ",'distance_accuracy_value','')");
+    const int ctx = w.add("(GEOMETRIC_REPRESENTATION_CONTEXT(3)GLOBAL_UNCERTAINTY_ASSIGNED_CONTEXT((" + w.ref(unc) +
+                          "))GLOBAL_UNIT_ASSIGNED_CONTEXT((" + w.ref(mm) + "," + w.ref(rad) + "," + w.ref(sr) +
+                          "))REPRESENTATION_CONTEXT('',''))");
+    std::vector<int> items{w.placement(0, 0, 0, 0, 0, 1, 1, 0, 0)}, styles;
+
+    std::vector<std::vector<Vec2>> holes;
+    for (const auto& h : s.holes) holes.push_back(mcad(circle(h.position, h.drill / 2, 24), false));
+    const int board = w.prism("PCB", mcad(boardOutline(s), true), holes, 0, t);
+    items.push_back(board);
+    styles.push_back(w.styled(board, 0.10f, 0.42f, 0.20f));
+    for (const auto& b : partBodies(sch, pcb)) {
+        const double z0 = b.c->pcb.bottom ? -b.height : t, z1 = b.c->pcb.bottom ? 0 : t + b.height;
+        const int solid = w.prism(b.c->ref.empty() ? b.c->footprintName() : b.c->ref, mcad(b.outline, true), {}, z0, z1);
+        items.push_back(solid);
+        styles.push_back(w.styled(solid, b.r, b.g, b.b));
+    }
+    std::string list, styleList;
+    for (size_t i = 0; i < items.size(); ++i) list += (i ? "," : "") + w.ref(items[i]);
+    for (size_t i = 0; i < styles.size(); ++i) styleList += (i ? "," : "") + w.ref(styles[i]);
+    const int rep = w.add("FACETED_BREP_SHAPE_REPRESENTATION('" + title + "',(" + list + ")," + w.ref(ctx) + ")");
+    w.add("SHAPE_DEFINITION_REPRESENTATION(" + w.ref(shape) + "," + w.ref(rep) + ")");
+    w.add("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION('',(" + styleList + ")," + w.ref(ctx) + ")");
+
+    std::ostringstream o;
+    o << "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('SiEDA board assembly'),'2;1');\n"
+      << "FILE_NAME('" << title << ".step','" << idfDate() << "',(''),(''),'SiEDA','SiEDA','');\n"
+      << "FILE_SCHEMA(('AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }'));\nENDSEC;\nDATA;\n"
+      << w.o.str() << "ENDSEC;\nEND-ISO-10303-21;\n";
+    return o.str();
+}
+
+std::string exportIdfBoard(const Schematic& sch, const PcbLayout& pcb, const std::string& name) {
+    const BoardSettings& s = pcb.settings;
+    std::ostringstream o;
+    o << ".HEADER\nBOARD_FILE 3.0 \"SiEDA\" " << idfDate() << " 1\n\"" << quoted(name.empty() ? "board" : name)
+      << "\" MM\n.END_HEADER\n.BOARD_OUTLINE ECAD\n" << num(s.thickness) << '\n';
+    idfLoop(o, 0, mcad(boardOutline(s), true));
+    o << ".END_BOARD_OUTLINE\n.DRILLED_HOLES\n";
+    for (const auto& h : s.holes)
+        o << num(h.drill) << ' ' << num(h.position.x) << ' ' << num(-h.position.y) << " NPTH BOARD MTG ECAD\n";
+    o << ".END_DRILLED_HOLES\n.PLACEMENT\n";
+    for (const auto& b : partBodies(sch, pcb)) {
+        const Component& c = *b.c;
+        o << '"' << quoted(c.footprintName()) << "\" \"" << idfPartNumber(c) << "\" " << quoted(c.ref) << '\n'
+          << num(c.pcb.position.x) << ' ' << num(-c.pcb.position.y) << " 0 " << idfRotation(c.pcb.rotation) << ' '
+          << (c.pcb.bottom ? "BOTTOM" : "TOP") << (c.pcb.locked ? " MCAD\n" : " PLACED\n");
+    }
+    o << ".END_PLACEMENT\n";
+    return o.str();
+}
+
+std::string exportIdfLibrary(const Schematic& sch, const PcbLayout& pcb) {
+    std::ostringstream o;
+    o << ".HEADER\nLIBRARY_FILE 3.0 \"SiEDA\" " << idfDate() << " 1\n.END_HEADER\n";
+    std::set<std::pair<std::string, std::string>> done;
+    for (const auto& b : partBodies(sch, pcb)) {
+        const Component& c = *b.c;
+        if (!done.insert({c.footprintName(), idfPartNumber(c)}).second) continue;
+        // The outline in the package's own frame (unrotated, centred on its origin).
+        std::vector<Vec2> local;
+        for (const auto& v : b.outline) local.push_back(v - c.pcb.position);
+        if (((c.pcb.rotation / 90) % 2 + 2) % 2 == 1 && local.size() == 4)
+            for (auto& v : local) v = {v.y, v.x};
+        o << ".ELECTRICAL\n\"" << quoted(c.footprintName()) << "\" \"" << idfPartNumber(c) << "\" MM "
+          << num(b.height) << '\n';
+        idfLoop(o, 0, mcad(local, true));
+        o << ".END_ELECTRICAL\n";
+    }
+    return o.str();
+}
+
+std::vector<std::string> importIdfPlacement(Schematic& sch, const std::string& emn) {
+    std::vector<std::string> moved, lines;
+    std::istringstream in(emn);
+    for (std::string l; std::getline(in, l);) {
+        if (!l.empty() && l.back() == '\r') l.pop_back();
+        if (l.find_first_not_of(" \t") != std::string::npos && l[l.find_first_not_of(" \t")] != '#') lines.push_back(l);
+    }
+    bool inPlacement = false;
+    for (size_t i = 0; i < lines.size(); ++i) {
+        const auto t = tokens(lines[i]);
+        if (t.empty()) continue;
+        if (t[0] == ".PLACEMENT") inPlacement = true;
+        else if (t[0] == ".END_PLACEMENT") inPlacement = false;
+        else if (inPlacement && t.size() >= 3 && i + 1 < lines.size()) {
+            const auto p = tokens(lines[++i]);
+            Component* c = nullptr;
+            if (const Component* found = sch.findByRef(t[2])) c = sch.find(found->id);
+            if (!c || p.size() < 5) continue;
+            const Vec2 at{std::atof(p[0].c_str()), -std::atof(p[1].c_str())};
+            const int rot = idfRotation(static_cast<int>(std::lround(std::atof(p[3].c_str()) / 90.0)) * 90);
+            const bool bottom = p[4] == "BOTTOM";
+            if (std::hypot(at.x - c->pcb.position.x, at.y - c->pcb.position.y) < 1e-4 && rot == c->pcb.rotation % 360 &&
+                bottom == c->pcb.bottom)
+                continue;
+            c->pcb.position = at;
+            c->pcb.rotation = rot;
+            c->pcb.bottom = bottom;
+            c->pcb.placed = true;
+            moved.push_back(c->ref);
+        }
+    }
+    return moved;
+}
+
+}  // namespace sieda

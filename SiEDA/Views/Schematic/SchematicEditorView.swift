@@ -458,6 +458,8 @@ struct SheetBar: View {
                     Button(variant.name) { store.selectVariant(variant.name) }
                 }
                 Divider()
+                Button("Compare Variants…") { store.variantMatrix = store.engine.variantMatrix() }
+                    .disabled(store.snapshot.variants.isEmpty)
                 Button("New Variant…") {
                     variantName = ""
                     addingVariant = true

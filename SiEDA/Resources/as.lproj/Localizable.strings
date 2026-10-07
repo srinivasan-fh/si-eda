@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "নথিৰ ফোল্ডাৰ ব্যৱহাৰ কৰক";
 "Off" = "অফ";
 "Starting…" = "আৰম্ভ হৈছে…";
+"Base" = "ভিত্তি";
+"Compare Variants" = "ভেৰিয়েণ্ট তুলনা কৰক";
+"Compare Variants…" = "ভেৰিয়েণ্ট তুলনা কৰক…";
+"Compare with Another Version…" = "আন সংস্কৰণৰ সৈতে তুলনা কৰক…";
+"Import MCAD Placement (IDF)…" = "MCAD স্থাপন আমদানি কৰক (IDF)…";
+"No variant changes a part yet." = "এতিয়ালৈকে কোনো ভেৰিয়েণ্টে অংশ সলনি কৰা নাই।";
+"Changes since %@" = "%@ ৰ পিছৰ সলনিসমূহ";

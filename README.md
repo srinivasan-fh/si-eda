@@ -32,7 +32,7 @@ Every AI result lands in the same editable schematic and PCB, so you can switch 
 `sieda-mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server. With it, Claude Desktop, Claude Code,
 Cursor, VS Code, ChatGPT desktop or a local LLM can drive SiEDA completely. The AI can capture schematics, search the
 catalog, simulate, lay out and autoroute boards, run ERC / DRC / verification, look at PNG renders and write Gerbers.
-It has 125 tools, plus guides as resources and ready-made prompts. Files are read and written only inside one folder,
+It has 128 tools, plus guides as resources and ready-made prompts. Files are read and written only inside one folder,
 and `--read-only` lets the AI inspect without changing anything.
 
 ```bash
@@ -50,6 +50,21 @@ claude mcp add --transport http sieda-app http://127.0.0.1:39717/mcp --header "A
 
 Setup for Claude Desktop (via `sieda-mcp --connect`), Cursor, VS Code and other clients in both modes, the safety model
 and the tool reference are in [docs/MCP.md](docs/MCP.md).
+
+## Mechanical CAD and team work
+
+- **STEP AP214** (**File → Export**): the board with its holes and one closed, coloured solid per part, named by
+  designator. SolidWorks, Fusion, Creo, NX, Inventor and FreeCAD read it.
+- **IDF 3.0** board (`.emn`) and library (`.emp`) files. When the mechanical engineer moves a connector, read the
+  placement back with **File → Import MCAD Placement (IDF)…**. The whole import is one Undo step.
+- **Compare versions**: **File → Compare with Another Version…** lists what changed. That covers parts added,
+  removed or changed (value, footprint, placement), pins that joined or left nets, re-routed copper per net, board
+  settings and variants. Git shows the same list for `git diff` once `sieda-mcp --git-diff` is set as the diff
+  driver.
+- **Compare variants**: the schematic's variant menu shows every part a variant changes, with its value or DNP in
+  each variant.
+
+Guides: [docs/MCAD.md](docs/MCAD.md) and [docs/TEAM.md](docs/TEAM.md).
 
 ## Features
 

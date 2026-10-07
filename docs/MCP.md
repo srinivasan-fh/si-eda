@@ -24,7 +24,7 @@ the AI client itself.
 | Part | Where | What it does |
 |---|---|---|
 | MCP engine | `Core/src/Mcp.cpp`, `Core/include/sieda/Mcp.hpp` | Transport-independent JSON-RPC 2.0 handler: `initialize`, `ping`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `resources/templates/list`, `prompts/list`, `prompts/get`; file sandbox; session (the open project). |
-| Tool table | `Core/src/McpTools.cpp` | 125 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
+| Tool table | `Core/src/McpTools.cpp` | 128 tools in 9 groups, each with a description, a JSON Schema and MCP annotations; handlers call the C API (`sieda_c.h`). Data-driven: `mcpTools()`. |
 | Renderer | `Core/src/McpRender.cpp` | The schematic and the board as PNG (own rasteriser and PNG writer) or SVG, for clients that can look at images. |
 | C API | `Core/src/sieda_c_mcp.cpp`, `sieda_mcp_*` in `sieda_c.h` | For hosts that embed the engine (the app's live endpoint). |
 | Stdio server | `Core/mcp/main.cpp` → `sieda-mcp` | Newline-delimited JSON-RPC on stdin / stdout; logs on stderr only. |
@@ -187,7 +187,7 @@ the bridge is the way in.)
 }
 ```
 
-Cursor (and some other clients) only pass a limited number of tools to the model. SiEDA has 125, so in headless mode
+Cursor (and some other clients) only pass a limited number of tools to the model. SiEDA has 128, so in headless mode
 pick the groups a task needs with `--tools`; in live mode switch off the tools you do not need in Cursor's MCP
 settings.
 
@@ -380,7 +380,7 @@ Kind: **read** changes nothing; **edit** changes the design (refused in read-onl
 removes or replaces work; **writes files** creates files inside the root without changing the design. Every tool's
 full description and argument schema is in `tools/list` (or `sieda-mcp --list-tools`).
 
-### project (11)
+### project (12)
 
 Create, open, save and inspect projects; built-in examples.
 
@@ -397,8 +397,9 @@ Create, open, save and inspect projects; built-in examples.
 | `project_set_info` | edit | Sets the project name, the requirements text, the industry profile and title-block fields (any subset). |
 | `project_industry_profiles` | read | Industry profiles (rule preset, derating, standards, guidance) for project_new / project_set_info. |
 | `project_snapshot` | read | Raw view-model sections of the design (as the app draws it): components, wires, nets, sheets, buses, board, pads, tracks, vias, zones, zoneFills, ratsnest, courtyards, variants, … Default: components, wires, nets, board. |
+| `project_diff` | read | What changed between two versions of a project: parts added / removed / changed (value, footprint, placement), nets (pins joined or left, renames), copper per net, board settings and variants. |
 
-### schematic (33)
+### schematic (34)
 
 Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC, variants.
 
@@ -436,6 +437,7 @@ Schematic capture: parts, wires, labels, sheets, buses, annotation, search, ERC,
 | `schematic_add_directive` | edit | Attaches a rule to the net of a pin: a net class, a differential pair (with its X_P / X_N partner), or its own track width / clearance (mm). |
 | `schematic_net_rules` | read | The net classes, differential pairs and per-net widths / clearances the schematic gives the board. |
 | `schematic_variants` | read | Assembly variants (fitted / DNP parts, value overrides) and the active one. |
+| `schematic_variant_matrix` | read | Variants side by side: every part a variant changes with its fitting and value in each variant, and per-variant totals (fitted, not fitted, value changes). |
 | `schematic_variant_edit` | edit | Variant commands: add (name, copyFrom), remove (name), rename (name, newName), describe (name, description), activate (name; "" = base design), set_part (name, ref, fitted true/false/null, value). |
 
 ### library (10)
@@ -455,7 +457,7 @@ Standard-part catalog search, custom parts from pin lists, KiCad / Eagle library
 | `library_import` | edit | Imports KiCad (.kicad_sym / .kicad_mod) or Eagle (.lbr) libraries, from files in the root folder (paths) or inline text (files). |
 | `library_packages` | read | Package types a custom part can use (SOIC, TSSOP, QFN, LQFP, BGA …). |
 
-### pcb (31)
+### pcb (32)
 
 Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive routes, pours, DRC.
 
@@ -492,6 +494,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_remove_copper` | edit (destructive) | Deletes tracks and vias by id (ids from project_snapshot sections tracks / vias). |
 | `pcb_optimize_swaps` | edit | Swaps interchangeable pins and gates to shorten the ratsnest (back-annotated to the schematic), for one part or all. |
 | `pcb_add_thermal_vias` | edit | Stitches thermal vias into a power part's largest pad (its own net, clearance kept). |
+| `pcb_import_idf_placement` | edit | Moves parts to the placement in an IDF 3.0 board file (.emn) written back by mechanical CAD (position, rotation, side by designator). |
 
 ### sim (13)
 
@@ -557,7 +560,7 @@ Fabrication outputs: Gerbers, drill, BOM, pick-and-place, schematic PDF, 3D mode
 | `output_bom` | writes files | The bill of materials (grouped lines, quantities, MPNs, cost) as JSON, or CSV written to path. |
 | `output_pick_and_place` | writes files | Pick-and-place / centroid file (designator, x, y, rotation, side) as CSV, inline or written to path. |
 | `output_schematic_pdf` | writes files | The schematic as a PDF (one page per sheet with frame and title block, bookmarks by hierarchy), written to path inside the root, or returned as an embedded PDF resource. |
-| `output_3d_model` | writes files | The assembled board as a 3D mesh (STL or OBJ) written to path inside the root. |
+| `output_3d_model` | writes files | The assembled board for mechanical CAD written to path inside the root: STEP AP214 solids (board + one named body per part), IDF 3.0 board (.emn) or library (.emp), or a mesh (STL, OBJ). |
 
 ### render (2)
 

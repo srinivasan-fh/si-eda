@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "使用文稿所在文件夹";
 "Off" = "关闭";
 "Starting…" = "正在启动…";
+"Base" = "基础";
+"Compare Variants" = "比较变体";
+"Compare Variants…" = "比较变体…";
+"Compare with Another Version…" = "与其他版本比较…";
+"Import MCAD Placement (IDF)…" = "导入 MCAD 布局 (IDF)…";
+"No variant changes a part yet." = "还没有变体更改任何元件。";
+"Changes since %@" = "自 %@ 以来的更改";

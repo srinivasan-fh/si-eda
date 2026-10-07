@@ -1025,6 +1025,12 @@ final class DesignFlowTests: XCTestCase {
             XCTAssertLessThan(bare.vertexCount, mesh.vertexCount, "components add bodies")
             XCTAssertTrue(store.engine.export(.stl)?.contains("facet") ?? false)
             XCTAssertTrue(store.engine.export(.obj)?.contains("v ") ?? false)
+            // Mechanical CAD: STEP solids, IDF files, and the IDF placement read back moves nothing.
+            XCTAssertTrue(store.engine.export(.step)?.contains("FACETED_BREP('PCB'") ?? false)
+            XCTAssertTrue(store.engine.export(.idfLibrary)?.contains(".ELECTRICAL") ?? false)
+            let emn = try XCTUnwrap(store.engine.export(.idfBoard))
+            XCTAssertTrue(emn.contains(".PLACEMENT"))
+            XCTAssertEqual(store.engine.importIDFPlacement(emn), [])
         }
         // Shaped (quad-X) drone frame with holes and pours.
         let drone = OfflineProvider.templates.first { $0.plan.title == "Quadcopter Flight Controller" }
@@ -4636,6 +4642,13 @@ final class SheetAndVariantTests: XCTestCase {
         XCTAssertEqual(engine.bom().summary.dnp, 1)
         XCTAssertTrue(engine.setActiveVariant(""))
         XCTAssertEqual(engine.bom().summary.dnp, 0)
+        // Variants side by side, and the change from the saved version.
+        let matrix = try XCTUnwrap(engine.variantMatrix())
+        XCTAssertEqual(matrix.variants.map(\.name), ["Lite"])
+        XCTAssertEqual(matrix.parts.map(\.ref), ["R1"])
+        XCTAssertEqual(matrix.parts.first?.cells.first?.fitted, false)
+        XCTAssertTrue(engine.diffText(from: rebuilt.saveJSON()).contains("+ variant Lite"))
+        XCTAssertTrue(engine.diffText(from: engine.saveJSON()).hasPrefix("No changes."))
         XCTAssertEqual(EDAEngine.expandBus("D[0..2]"), ["D0", "D1", "D2"])
     }
 }

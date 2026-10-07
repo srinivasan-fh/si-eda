@@ -968,6 +968,10 @@ void schematicTools(Table& t) {
     t.add("schematic", "schematic_variants", "Variants", Kind::Read, true,
           "Assembly variants (fitted / DNP parts, value overrides) and the active one.", Schema(),
           [](McpServer& s, const Json&) { return out(takeJson(sieda_variants_json(P(s)))); });
+    t.add("schematic", "schematic_variant_matrix", "Compare variants", Kind::Read, true,
+          "Variants side by side: every part a variant changes with its fitting and value in each variant, and "
+          "per-variant totals (fitted, not fitted, value changes).", Schema(),
+          [](McpServer& s, const Json&) { return out(takeJson(sieda_variant_matrix_json(P(s)))); });
     t.add("schematic", "schematic_variant_edit", "Edit variants", Kind::Edit, false,
           "Variant commands: add (name, copyFrom), remove (name), rename (name, newName), describe (name, "
           "description), activate (name; \"\" = base design), set_part (name, ref, fitted true/false/null, value).",
@@ -2484,9 +2488,12 @@ void outputTools(Table& t) {
               o.data = j;
               return o;
           });
-    t.add("output", "output_3d_model", "3D model", Kind::Files, false,
-          "The assembled board as a 3D mesh (STL or OBJ) written to path inside the root.",
-          Schema().str("path", "File to write, e.g. \"out/board.stl\"", true).str("format", "stl (default) or obj", false, {"stl", "obj"}),
+    t.add("output", "output_3d_model", "3D / MCAD model", Kind::Files, false,
+          "The assembled board for mechanical CAD written to path inside the root: STEP AP214 solids (board + one "
+          "named body per part), IDF 3.0 board (.emn) or library (.emp), or a mesh (STL, OBJ).",
+          Schema().str("path", "File to write, e.g. \"out/board.step\"", true)
+              .str("format", "step, idf_board, idf_library, stl (default) or obj", false,
+                   {"step", "idf_board", "idf_library", "stl", "obj"}),
           [](McpServer& s, const Json& a) {
               const std::string content = takeText(sieda_export(P(s), argStr(a, "format", "stl").c_str()));
               if (content.empty()) throw ToolError("Could not build the 3D model");
@@ -2494,6 +2501,31 @@ void outputTools(Table& t) {
               j["written"] = s.writeFile(requireStr(a, "path"), content);
               j["bytes"] = content.size();
               return out(j);
+          });
+}
+
+void teamTools(Table& t) {
+    t.add("pcb", "pcb_import_idf_placement", "Import MCAD placement", Kind::Edit, false,
+          "Moves parts to the placement in an IDF 3.0 board file (.emn) written back by mechanical CAD (position, "
+          "rotation, side by designator). Returns the designators moved.",
+          Schema().str("path", "The .emn file inside the root", true),
+          [](McpServer& s, const Json& a) {
+              const std::string emn = readFileArg(s, requireStr(a, "path")).asString();
+              return out(takeJson(sieda_import_idf_placement(P(s), emn.c_str())));
+          });
+    t.add("project", "project_diff", "Compare versions", Kind::Read, true,
+          "What changed between two versions of a project: parts added / removed / changed (value, footprint, "
+          "placement), nets (pins joined or left, renames), copper per net, board settings and variants. 'after' "
+          "defaults to the open project.",
+          Schema().str("before", "Older .siedaproj inside the root", true).str("after", "Newer .siedaproj (default: the open project)"),
+          [](McpServer& s, const Json& a) {
+              const std::string before = readFileArg(s, requireStr(a, "before")).asString();
+              const std::string after = a.has("after") ? readFileArg(s, requireStr(a, "after")).asString()
+                                                       : takeText(sieda_project_save_json(P(s)));
+              Json d = takeJson(sieda_diff_projects(before.c_str(), after.c_str(), 0));
+              if (d.has("error")) throw ToolError(d["error"].asString());
+              d["text"] = takeText(sieda_diff_projects(before.c_str(), after.c_str(), 1));
+              return out(d);
           });
 }
 
@@ -2565,6 +2597,7 @@ std::vector<McpTool> buildTools() {
     siTools(t);
     verifyTools(t);
     outputTools(t);
+    teamTools(t);
     renderTools(t);
     return std::move(t.tools);
 }

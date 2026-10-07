@@ -77,6 +77,12 @@
   parser, gate), `SiEDA/App/DesignStore+MCP.swift` (`MCPLiveServer`, `MCPStoreBridge`: mutating tools run in
   `DesignStore.performExternalEdit` = one undo step), `SiEDA/Views/Settings/MCPSettingsView.swift`; stdio clients
   reach it through `sieda-mcp --connect` (`Core/mcp/http_bridge.cpp`, CTest `sieda_mcp_connect`).
+- Mechanical CAD and team work: STEP AP214 / IDF 3.0 export and the IDF placement import in `Core/src/Mechanical.cpp`
+  (faceted B-rep solids must stay closed: test `step_export_closed_named_solids`); version diff, Git diff driver
+  (`sieda-mcp --diff` / `--git-diff`) and the variant matrix in `Core/src/ProjectDiff.cpp`; app
+  `SiEDA/App/DesignStore+Team.swift`, `SiEDA/Views/Common/TeamViews.swift`; guides `docs/MCAD.md`, `docs/TEAM.md`.
+  Scale guard: CTest `sieda_scale_budget` (`sieda_route_bench --budget`); `sieda_route_bench --clusters 32 --layers 8
+  --seed 3 --fpga` is the 923-part board.
 - Library parts live in `Core/src/StandardParts.cpp`; KiCad-derived pinouts are generated into
   `Core/src/StandardCatalog.inc` by `tools/fetch_catalog_parts.py` — don't edit that file by hand. More parts from
   whole KiCad libraries: `--discover` freezes `tools/catalog_extra_parts.tsv`, `--extra` writes

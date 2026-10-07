@@ -3,6 +3,8 @@
 // Newline-delimited JSON-RPC 2.0 on stdin / stdout (one message per line); logs go to stderr only.
 //
 //   sieda-mcp [--root <dir>] [--project <file>] [--read-only] [--tools <list>] [--docs <dir>]
+//   sieda-mcp --diff <old> <new> [--json] what changed between two project files (exit 1 when they differ)
+//   sieda-mcp --git-diff <git's 7 args>  the same as Git's external diff driver (docs/TEAM.md)
 //   sieda-mcp --list-tools-markdown      print the tool reference (docs/MCP.md) and exit
 //   sieda-mcp --list-tools               print the tool table as JSON and exit
 //   sieda-mcp --connect <url> [--token <t>] [--timeout <s>]
@@ -18,6 +20,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -38,6 +41,7 @@ void usage() {
     std::fprintf(stderr,
                  "usage: sieda-mcp [--root <dir>] [--project <file>] [--read-only] [--tools <list>] [--docs <dir>]\n"
                  "       sieda-mcp --connect http://127.0.0.1:39717/mcp [--token <t>] [--timeout <s>]\n"
+                 "       sieda-mcp --diff <old.siedaproj> <new.siedaproj> [--json]\n"
                  "       sieda-mcp --list-tools-markdown | --list-tools | --version\n"
                  "Speaks the Model Context Protocol (JSON-RPC 2.0) on stdin/stdout. See docs/MCP.md.\n");
 }
@@ -52,6 +56,24 @@ std::string defaultDocsDir(const char* argv0) {
                                       exe.parent_path().parent_path() / "share" / "sieda" / "docs"})
         if (fs::is_directory(candidate, ec)) return candidate.string();
     return std::string();
+}
+/// A project file's JSON; a missing or empty file (Git's /dev/null for an added file) is an empty project.
+std::string projectText(const char* path) {
+    std::ifstream in(path, std::ios::binary);
+    std::stringstream ss;
+    ss << in.rdbuf();
+    return ss.str().find_first_not_of(" \t\r\n") == std::string::npos ? "{\"format\":\"sieda-project\"}" : ss.str();
+}
+
+int diff(const char* before, const char* after, bool json, const char* title) {
+    const std::string a = projectText(before), b = projectText(after);
+    char* d = sieda_diff_projects(a.c_str(), b.c_str(), json ? 0 : 1);
+    const std::string text = d ? d : "";
+    sieda_string_free(d);
+    if (title) std::printf("SiEDA diff %s\n", title);
+    std::fputs(text.c_str(), stdout);
+    if (json) std::fputc('\n', stdout);
+    return text.rfind("No changes.", 0) == 0 || text.find("\"identical\":true") != std::string::npos ? 0 : 1;
 }
 }  // namespace
 
@@ -68,6 +90,12 @@ int main(int argc, char** argv) {
     std::error_code ec;
     options.allowedRoot = fs::current_path(ec).string();
     options.docsDir = defaultDocsDir(argv[0]);
+    if (argc >= 4 && std::strcmp(argv[1], "--diff") == 0)
+        return diff(argv[2], argv[3], argc >= 5 && std::strcmp(argv[4], "--json") == 0, nullptr);
+    if (argc >= 7 && std::strcmp(argv[1], "--git-diff") == 0) {  // path old-file old-hex old-mode new-file …
+        diff(argv[3], argv[6], false, argv[2]);
+        return 0;  // Git stops a multi-file diff on a non-zero exit
+    }
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         auto value = [&]() -> std::string {

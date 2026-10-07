@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "డాక్యుమెంట్ ఫోల్డర్ ఉపయోగించు";
 "Off" = "ఆఫ్";
 "Starting…" = "ప్రారంభమవుతోంది…";
+"Base" = "మూలం";
+"Compare Variants" = "వేరియంట్‌లను పోల్చండి";
+"Compare Variants…" = "వేరియంట్‌లను పోల్చండి…";
+"Compare with Another Version…" = "మరో వెర్షన్‌తో పోల్చండి…";
+"Import MCAD Placement (IDF)…" = "MCAD ప్లేస్‌మెంట్ దిగుమతి (IDF)…";
+"No variant changes a part yet." = "ఇంకా ఏ వేరియంట్ భాగాన్ని మార్చలేదు.";
+"Changes since %@" = "%@ నుండి మార్పులు";

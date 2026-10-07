@@ -1203,3 +1203,10 @@
 "Use Document Folder" = "Dùng thư mục của tài liệu";
 "Off" = "Tắt";
 "Starting…" = "Đang khởi động…";
+"Base" = "Cơ sở";
+"Compare Variants" = "So sánh biến thể";
+"Compare Variants…" = "So sánh biến thể…";
+"Compare with Another Version…" = "So sánh với phiên bản khác…";
+"Import MCAD Placement (IDF)…" = "Nhập vị trí MCAD (IDF)…";
+"No variant changes a part yet." = "Chưa có biến thể nào thay đổi linh kiện.";
+"Changes since %@" = "Thay đổi kể từ %@";
