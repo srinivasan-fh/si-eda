@@ -21,6 +21,7 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <deque>
 #include <functional>
@@ -2821,6 +2822,18 @@ std::vector<double> tuneTargetsFor(const std::vector<TuneTarget>& tt, const std:
     return out;
 }
 
+/// A differential pair's target (tune while routing): the larger of its members' own targets (rule, match group or
+/// matched-length group); without one, its longer member (the pair is then matched for skew only). 0 = no target.
+double pairTarget(const std::vector<TuneTarget>& tt, const std::vector<double>& len) {
+    double t = 0;
+    for (double v : tuneTargetsFor(tt, len, false)) t = std::max(t, v);
+    bool any = false;
+    for (const TuneTarget& x : tt) any = any || x.has;
+    if (t <= 0 && any)
+        for (double l : len) t = std::max(t, l);
+    return t;
+}
+
 MemberLength memberLengthOf(int net, double length, double target, double tolerance) {
     MemberLength m;
     m.net = net;
@@ -2934,6 +2947,7 @@ struct InteractiveRouter::Impl {
         busTuneRoom = 0;
         tuneTargets.clear();
         tuneTargetsReady = false;
+        live = LiveTune{};
         busOffset.clear();
         prev = RoutePreview{};
     }
@@ -2958,51 +2972,82 @@ struct InteractiveRouter::Impl {
         for (int n : nets) tuneTargets.push_back(tuneTargetOf(pcb, sch, base->pads, n, nets, kind == Kind::Bus));
     }
 
-    /// Tune while routing on commit: each short member gets meanders on the tracks this commit added for it (longest
-    /// first, one track at a time through the length tuner) up to its target; `ch` takes the tuner's changes, the
-    /// members' lengths and the status.
-    void tuneOnCommit(RouteChanges& ch, const std::vector<int>& nets, bool bus, double room) {
-        const auto pads = pcb.pads(sch);
+    /// Tune while routing: most tuned tracks per member and step (the tuner's work stays bounded while the head moves).
+    int tuneBudget() const { return std::max(4, opt.shoveLimit / 20); }
+
+    /// The tuner's changes into the route's changes: tracks it replaced that the route added leave `addedTracks`,
+    /// other replaced tracks are removed ones.
+    static void takeTune(RouteChanges& ch, const LengthTuneResult& tr) {
+        for (const Track& gone : tr.changes.removedTracks) {
+            const auto at = std::find(ch.addedTracks.begin(), ch.addedTracks.end(), gone.id);
+            if (at != ch.addedTracks.end())
+                ch.addedTracks.erase(at);
+            else
+                ch.removedTracks.push_back(gone);
+        }
+        for (int id : tr.changes.addedTracks) ch.addedTracks.push_back(id);
+    }
+
+    /// Straight, unlocked tracks of `net` the route added (ids), longest first.
+    static std::vector<int> addedTracksOf(const PcbLayout& P, const RouteChanges& ch, int net) {
+        std::vector<std::pair<double, int>> cand;
+        for (const Track& t : P.tracks)
+            if (t.net == net && !t.arc && !t.teardrop && !t.locked &&
+                std::find(ch.addedTracks.begin(), ch.addedTracks.end(), t.id) != ch.addedTracks.end())
+                cand.push_back({-trackLength(t), t.id});
+        std::sort(cand.begin(), cand.end());
+        std::vector<int> out;
+        for (const auto& c : cand) out.push_back(c.second);
+        return out;
+    }
+
+    static const Track* trackById(const PcbLayout& P, int id) {
+        const auto it = std::find_if(P.tracks.begin(), P.tracks.end(), [&](const Track& t) { return t.id == id; });
+        return it == P.tracks.end() ? nullptr : &*it;
+    }
+
+    std::string netNameOf(int net) const {
+        return net >= 0 && net < static_cast<int>(sch.nets().size()) ? sch.nets()[static_cast<size_t>(net)].name
+                                                                       : std::to_string(net);
+    }
+
+    /// Tune while routing on commit (and on the preview's copy of the board, `P`): each short member gets meanders on
+    /// the tracks this commit added for it (longest first, one track at a time through the length tuner, at most
+    /// tuneBudget() tracks) up to its target; `ch` takes the tuner's changes, the members' lengths and the status.
+    /// A differential pair is tuned as a whole (tunePair). True when meanders were added.
+    bool tuneOnCommit(PcbLayout& P, RouteChanges& ch, const std::vector<int>& nets, bool bus, bool pair, double room) {
+        if (pair && nets.size() == 2) return tunePair(P, ch, nets);
+        const auto pads = P.pads(sch);
         std::vector<TuneTarget> tt;
         std::vector<double> len;
-        bool any = false;
+        bool any = false, changed = false;
         for (int n : nets) {
-            tt.push_back(tuneTargetOf(pcb, sch, pads, n, nets, bus));
-            len.push_back(tunerLength(pcb, sch, pads, n));
+            tt.push_back(tuneTargetOf(P, sch, pads, n, nets, bus));
+            len.push_back(tunerLength(P, sch, pads, n));
             any = any || tt.back().has;
         }
-        if (!any) return;
+        if (!any) return false;
+        const int budget = tuneBudget();
         const std::vector<double> target = tuneTargetsFor(tt, len, bus);
         for (size_t k = 0; k < nets.size(); ++k) {
             if (target[k] <= 0 || len[k] >= target[k] - tt[k].tolerance) continue;
-            std::vector<std::pair<double, int>> cand;
-            for (const Track& t : pcb.tracks)
-                if (t.net == nets[k] && !t.arc && !t.teardrop && !t.locked &&
-                    std::find(ch.addedTracks.begin(), ch.addedTracks.end(), t.id) != ch.addedTracks.end())
-                    cand.push_back({-trackLength(t), t.id});
-            std::sort(cand.begin(), cand.end());
-            for (const auto& c : cand) {
-                if (len[k] >= target[k] - 0.01) break;
-                const auto it =
-                    std::find_if(pcb.tracks.begin(), pcb.tracks.end(), [&](const Track& t) { return t.id == c.second; });
-                if (it == pcb.tracks.end()) continue;
+            int used = 0;
+            for (int id : addedTracksOf(P, ch, nets[k])) {
+                if (len[k] >= target[k] - 0.01 || used >= budget) break;
+                const Track* t = trackById(P, id);
+                if (t == nullptr) continue;
+                ++used;
                 LengthTuneOptions o;
                 o.target = target[k];
                 o.maxAmplitude = room > 0.05 ? 0.98 * room : 0;  // the meanders stay inside the room between members
                 o.hasSpan = true;  // on this track only
-                o.spanFrom = it->a;
-                o.spanTo = it->b;
-                const LengthTuneResult tr = tuneTrackLength(pcb, sch, c.second, o);
+                o.spanFrom = t->a;
+                o.spanTo = t->b;
+                const LengthTuneResult tr = tuneTrackLength(P, sch, id, o);
                 if (!tr.applied) continue;
-                for (const Track& gone : tr.changes.removedTracks) {
-                    const auto at = std::find(ch.addedTracks.begin(), ch.addedTracks.end(), gone.id);
-                    if (at != ch.addedTracks.end())
-                        ch.addedTracks.erase(at);
-                    else
-                        ch.removedTracks.push_back(gone);
-                }
-                for (int id : tr.changes.addedTracks) ch.addedTracks.push_back(id);
-                len[k] = tunerLength(pcb, sch, pads, nets[k]);
+                takeTune(ch, tr);
+                changed = true;
+                len[k] = tunerLength(P, sch, pads, nets[k]);
             }
         }
         // Match groups' targets follow the members' new lengths.
@@ -3020,17 +3065,108 @@ struct InteractiveRouter::Impl {
             }
             char buf[48];
             std::snprintf(buf, sizeof buf, " (%+.2f mm)", m.length - m.target);
-            const std::string name = m.net >= 0 && m.net < static_cast<int>(sch.nets().size())
-                                         ? sch.nets()[static_cast<size_t>(m.net)].name
-                                         : std::to_string(m.net);
-            shortList += (shortList.empty() ? "" : ", ") + name + buf;
+            shortList += (shortList.empty() ? "" : ", ") + netNameOf(m.net) + buf;
         }
-        if (counted == 0) return;
+        if (counted == 0) return changed;
         char buf[128];
         std::snprintf(buf, sizeof buf, "Lengths: %d of %d %s within tolerance of the target", within, counted,
                       counted == 1 ? "member" : "members");
         ch.tuneStatus = buf;
         if (!shortList.empty()) ch.tuneStatus += " — could not reach the target (no room for meanders): " + shortList;
+        return changed;
+    }
+
+    /// The tolerance of a pair's skew |P − N|: its matched-length (pair) group's, else `fallback`.
+    double pairSkewTolerance(const PcbLayout& P, const std::vector<int>& nets, double fallback) const {
+        for (const auto& g : lengthGroups(sch, P.settings))
+            if (g.kind == "pair" && std::find(g.nets.begin(), g.nets.end(), nets[0]) != g.nets.end() &&
+                std::find(g.nets.begin(), g.nets.end(), nets[1]) != g.nets.end())
+                return std::max(0.01, g.tolerance);
+        return fallback;
+    }
+
+    /// Tune while routing a differential pair: while the longer member is short of the pair's target, coupled
+    /// meanders (both members together at their gap, on the longer member's new tracks, longest first) bring it
+    /// there; then the shorter member gets skew bumps (phase tuning, away from its partner) up to the longer one's
+    /// length, so |P − N| is within the pair's tolerance. Members, target and skew go into `ch`.
+    bool tunePair(PcbLayout& P, RouteChanges& ch, const std::vector<int>& nets) {
+        const auto pads = P.pads(sch);
+        std::vector<TuneTarget> tt;
+        std::vector<double> len;
+        for (int n : nets) {
+            tt.push_back(tuneTargetOf(P, sch, pads, n, nets, false));
+            len.push_back(tunerLength(P, sch, pads, n));
+        }
+        if (!tt[0].has && !tt[1].has) return false;
+        const double tol = std::min(tt[0].has ? tt[0].tolerance : 1e9, tt[1].has ? tt[1].tolerance : 1e9);
+        const double skewTol = pairSkewTolerance(P, nets, tol);
+        const int budget = tuneBudget();
+        bool changed = false;
+        const double target = pairTarget(tt, len);
+        // Coupled: the pair to its target.
+        const size_t lg = len[0] >= len[1] ? 0 : 1;
+        if (target > 0 && len[lg] < target - tol) {
+            int used = 0;
+            for (int id : addedTracksOf(P, ch, nets[lg])) {
+                if (len[lg] >= target - 0.01 || used >= budget) break;
+                if (trackById(P, id) == nullptr) continue;
+                ++used;
+                LengthTuneOptions o;
+                o.target = target;
+                o.coupled = true;
+                const LengthTuneResult tr = tuneTrackLength(P, sch, id, o);
+                if (!tr.applied) continue;
+                takeTune(ch, tr);
+                changed = true;
+                len[0] = tunerLength(P, sch, pads, nets[0]);
+                len[1] = tunerLength(P, sch, pads, nets[1]);
+            }
+        }
+        // Skew: the shorter member to the longer one's length.
+        const size_t sh = len[0] < len[1] ? 0 : 1, lo = 1 - sh;
+        if (len[lo] - len[sh] > skewTol) {
+            int used = 0;
+            for (int id : addedTracksOf(P, ch, nets[sh])) {
+                if (len[lo] - len[sh] <= 0.01 || used >= budget) break;
+                const Track* t = trackById(P, id);
+                if (t == nullptr) continue;
+                ++used;
+                LengthTuneOptions o;
+                o.target = len[lo];
+                o.phase = true;
+                o.hasSpan = true;
+                o.spanFrom = t->a;
+                o.spanTo = t->b;
+                const LengthTuneResult tr = tuneTrackLength(P, sch, id, o);
+                if (!tr.applied) continue;
+                takeTune(ch, tr);
+                changed = true;
+                len[sh] = tunerLength(P, sch, pads, nets[sh]);
+            }
+        }
+        const double after = pairTarget(tt, len);
+        const double mtol = tol < 1e8 ? tol : skewTol;
+        int within = 0;
+        std::string shortList;
+        for (size_t k = 0; k < 2; ++k) {
+            const MemberLength m = memberLengthOf(nets[k], len[k], after, mtol);
+            ch.memberLengths.push_back(m);
+            if (m.withinTolerance) {
+                ++within;
+                continue;
+            }
+            char buf[48];
+            std::snprintf(buf, sizeof buf, " (%+.2f mm)", m.length - m.target);
+            shortList += (shortList.empty() ? "" : ", ") + netNameOf(m.net) + buf;
+        }
+        const double skew = std::fabs(len[0] - len[1]);
+        char buf[160];
+        std::snprintf(buf, sizeof buf, "Pair: %d of 2 members within tolerance of the target, skew %.3f mm (tolerance %.3f mm)",
+                      within, skew, skewTol);
+        ch.tuneStatus = buf;
+        if (skew > skewTol + 1e-9) ch.tuneStatus += " — skew over tolerance (no room for skew bumps)";
+        if (!shortList.empty()) ch.tuneStatus += " — could not reach the target (no room for meanders): " + shortList;
+        return changed;
     }
 
     double netWidth(int net) const {
@@ -4974,6 +5110,158 @@ struct InteractiveRouter::Impl {
         return true;
     }
 
+    /// Tune while routing applies to this session (a route, a bus or a differential pair).
+    bool tunesWhileRouting() const { return kind == Kind::Route || kind == Kind::Bus || kind == Kind::Pair; }
+
+    /// Each member's route tracks as commit() takes them: the placed ones, plus (withHead) the head as fixHead()
+    /// would place it.
+    std::vector<std::vector<Track>> memberRoutes(bool withHead) const {
+        std::vector<std::vector<Track>> per;
+        for (const auto& m : members) {
+            std::vector<Track> placed = m.placed;
+            if (withHead && m.head.size() >= 2) {
+                std::vector<Track> news = toTracks(m.head, m.net, layer, width);
+                if (kind == Kind::Pair) trimBacktrack(placed, news);
+                placed.insert(placed.end(), news.begin(), news.end());
+            }
+            per.push_back(placed);
+        }
+        return per;
+    }
+
+    /// The route's tracks as commit() writes them, from each member's tracks `per` on the overlay `w`: corners
+    /// rounded as set (concentric arcs for a pair or bus), collinear pieces merged.
+    std::vector<Track> roundedRoute(const std::vector<std::vector<Track>>& per, const World& w) const {
+        std::vector<Track> out;
+        if ((kind == Kind::Pair || kind == Kind::Bus) && opt.arcCorners && cornerRadius() > 0) {
+            std::vector<size_t> from;
+            for (const auto& ts : per) from.push_back(ts.size());
+            for (const auto& ts : roundGroup(per, from, w, nullptr))
+                for (const Track& t : mergeCollinear(ts)) out.push_back(t);
+            return out;
+        }
+        for (const auto& ts : per)
+            for (const Track& t : mergeCollinear(kind == Kind::Route && cornerRadius() > 0
+                                                     ? roundRoute(ts, ts.size(), w, nullptr)
+                                                     : ts))
+                out.push_back(t);
+        return out;
+    }
+
+    /// Route pieces that run exactly over copper the net already has add nothing.
+    static std::vector<Track> dropCovered(const std::vector<Track>& routeTracks, const World& w) {
+        std::vector<Track> kept;
+        for (const Track& t : routeTracks) {
+            bool covered = false;
+            std::vector<size_t> found;
+            w.tracksIn(trackBox(t, 0.01), found);
+            for (size_t i : found) {
+                const Track& o = w.track(i);
+                if (i >= w.baseT() && w.fixAddT[i - w.baseT()]) continue;  // the route itself
+                if (o.net == t.net && o.layer == t.layer && o.width >= t.width - 1e-9 && !t.arc &&
+                    trackPointDistance(o, t.a) <= 1e-7 && trackPointDistance(o, t.b) <= 1e-7)
+                    covered = true;
+            }
+            if (!covered) kept.push_back(t);
+        }
+        return kept;
+    }
+
+    /// FNV-1a over raw bytes (the live tuning's cache keys).
+    static void hashBytes(uint64_t& h, const void* data, size_t n) {
+        const unsigned char* p = static_cast<const unsigned char*>(data);
+        for (size_t i = 0; i < n; ++i) {
+            h ^= p[i];
+            h *= 1099511628211ULL;
+        }
+    }
+    static void hashTrack(uint64_t& h, const Track& t) {
+        const double d[] = {t.a.x, t.a.y, t.b.x, t.b.y, t.mid.x, t.mid.y, t.width};
+        const int i[] = {t.net, t.layer, t.arc ? 1 : 0};
+        hashBytes(h, d, sizeof d);
+        hashBytes(h, i, sizeof i);
+    }
+    static void hashVia(uint64_t& h, const Via& v) {
+        const double d[] = {v.position.x, v.position.y, v.drill, v.diameter};
+        const int i[] = {v.net, v.fromLayer, v.toLayer};
+        hashBytes(h, d, sizeof d);
+        hashBytes(h, i, sizeof i);
+    }
+
+    /// Tune while routing, live: the last tuning of the preview's route on a copy of the board, kept while the route
+    /// (and what it shoved) stays the same.
+    struct LiveTune {
+        bool valid = false;
+        uint64_t key = 0;       // the route's copper, its vias and the overlay's shoved / removed copper
+        uint64_t fixedKey = 0;  // the same without the head (the threshold applies only while this stays)
+        Vec2 headEnd;
+        bool changed = false;  // meanders were added
+        std::vector<Track> tracks;
+        std::vector<MemberLength> lengths;
+        std::string status;
+    } live;
+
+    /// The head end may move this far (mm) before the live meanders are tuned again.
+    double liveTuneStep() const { return std::min(0.02, width / 8); }
+
+    uint64_t routeKey(const std::vector<Track>& kept, const std::vector<Via>& vias, const World& w) const {
+        uint64_t h = 1469598103934665603ULL;
+        for (const Track& t : kept) hashTrack(h, t);
+        const uint64_t nv = vias.size();
+        hashBytes(h, &nv, sizeof nv);
+        for (const Via& v : vias) hashVia(h, v);
+        for (size_t i = 0; i < w.baseT(); ++i)
+            if (w.goneT[i]) hashBytes(h, &i, sizeof i);
+        for (size_t i = 0; i < w.baseV(); ++i)
+            if (w.goneV[i]) hashBytes(h, &i, sizeof i);
+        for (size_t k = 0; k < w.addT.size(); ++k)
+            if (!w.goneT[w.baseT() + k] && !w.fixAddT[k]) hashTrack(h, w.addT[k]);
+        for (size_t k = 0; k < w.addV.size(); ++k)
+            if (!w.goneV[w.baseV() + k] && !w.fixAddV[k]) hashVia(h, w.addV[k]);
+        return h;
+    }
+
+    /// Tune while routing, live: the route as commit() would write it (placed + head, on the current overlay) is
+    /// applied to a copy of the board and tuned there exactly as commit() tunes it; the preview takes the tuned route
+    /// copper (tunedTracks), the members' tuned lengths and the status. Cached by the route's geometry; a head that
+    /// moved less than liveTuneStep() with the rest unchanged keeps the last result.
+    void liveTune(RoutePreview& p) {
+        AbortScope whole(nullptr);  // never cut short by a cancel: the cached result must be the commit's
+        const std::vector<Track> kept = dropCovered(roundedRoute(memberRoutes(true), current), current);
+        if (kept.empty()) return;
+        const uint64_t key = routeKey(kept, placedVias, current);
+        uint64_t fixedKey = 1469598103934665603ULL;
+        for (const auto& ts : memberRoutes(false))
+            for (const Track& t : ts) hashTrack(fixedKey, t);
+        for (const Via& v : placedVias) hashVia(fixedKey, v);
+        hashBytes(fixedKey, &layer, sizeof layer);
+        const bool same = live.valid && live.key == key;
+        const bool near = live.valid && live.fixedKey == fixedKey && (p.end - live.headEnd).length() < liveTuneStep();
+        if (!same && !near) {
+            PcbLayout P = pcb;
+            RouteChanges ch = applyWorld(P, current, kept, placedVias);
+            if (opt.removeLoops) removeLoops(P, pcb, ch);
+            std::vector<int> nets;
+            for (const auto& m : members) nets.push_back(m.net);
+            live = LiveTune{};
+            live.changed = tuneOnCommit(P, ch, nets, kind == Kind::Bus, kind == Kind::Pair, busTuneRoom);
+            std::set<int> netSet(nets.begin(), nets.end());
+            for (int id : ch.addedTracks) {
+                const Track* t = trackById(P, id);
+                if (t != nullptr && netSet.count(t->net)) live.tracks.push_back(*t);
+            }
+            live.lengths = ch.memberLengths;
+            live.status = ch.tuneStatus;
+            live.valid = true;
+            live.key = key;
+            live.fixedKey = fixedKey;
+            live.headEnd = p.end;
+        }
+        if (live.changed) p.tunedTracks = live.tracks;
+        if (!live.lengths.empty()) p.memberLengths = live.lengths;
+        p.tuneStatus = live.status;
+    }
+
     RouteChanges commit() {
         RouteChanges ch;
         if (kind == Kind::None) {
@@ -5014,45 +5302,22 @@ struct InteractiveRouter::Impl {
             committed = current;
             for (const Track& t : mergeCollinear(toTracks(members[0].head, members[0].net, layer, width)))
                 routeTracks.push_back(t);
-        } else if ((kind == Kind::Pair || kind == Kind::Bus) && opt.arcCorners && cornerRadius() > 0) {
-            std::vector<std::vector<Track>> per;
-            std::vector<size_t> from;
-            for (const auto& m : members) {
-                per.push_back(m.placed);
-                from.push_back(m.placed.size());
-            }
-            for (const auto& ts : roundGroup(per, from, committed, nullptr))
-                for (const Track& t : mergeCollinear(ts)) routeTracks.push_back(t);
         } else {
-            for (const auto& m : members)
-                for (const Track& t : mergeCollinear(kind == Kind::Route && cornerRadius() > 0
-                                                         ? roundRoute(m.placed, m.placed.size(), committed, nullptr)
-                                                         : m.placed))
-                    routeTracks.push_back(t);
+            std::vector<std::vector<Track>> per;
+            for (const auto& m : members) per.push_back(m.placed);
+            routeTracks = roundedRoute(per, committed);
         }
-        // Route pieces that run exactly over copper the net already has add nothing.
-        std::vector<Track> kept;
-        for (const Track& t : routeTracks) {
-            bool covered = false;
-            std::vector<size_t> found;
-            committed.tracksIn(trackBox(t, 0.01), found);
-            for (size_t i : found) {
-                const Track& o = committed.track(i);
-                if (i >= committed.baseT() && committed.fixAddT[i - committed.baseT()]) continue;  // the route itself
-                if (o.net == t.net && o.layer == t.layer && o.width >= t.width - 1e-9 && !t.arc &&
-                    trackPointDistance(o, t.a) <= 1e-7 && trackPointDistance(o, t.b) <= 1e-7)
-                    covered = true;
-            }
-            if (!covered) kept.push_back(t);
-        }
+        const std::vector<Track> kept = dropCovered(routeTracks, committed);
         std::unique_ptr<PcbLayout> before;
         if (opt.removeLoops) before = std::make_unique<PcbLayout>(pcb);
         ch = applyWorld(pcb, committed, kept, routeVias);
-        if (before) removeLoops(*before, ch);
-        if (opt.tuneWhileRouting && ch.ok && (kind == Kind::Route || kind == Kind::Bus) && !members.empty()) {
+        if (before) removeLoops(pcb, *before, ch);
+        if (opt.tuneWhileRouting && ch.ok && tunesWhileRouting() && !members.empty()) {
+            // Re-tuned from the untuned route, exactly as the live preview tuned it (the same copper when the head
+            // has not moved since).
             std::vector<int> nets;
             for (const auto& m : members) nets.push_back(m.net);
-            tuneOnCommit(ch, nets, kind == Kind::Bus, busTuneRoom);
+            tuneOnCommit(pcb, ch, nets, kind == Kind::Bus, kind == Kind::Pair, busTuneRoom);
         }
         if (opt.autoTeardrops && !ch.addedTracks.empty()) {
             TeardropOptions to;
@@ -5074,16 +5339,17 @@ struct InteractiveRouter::Impl {
         return ch;
     }
 
-    /// Loop removal after a commit: old tracks of the routed nets that were needed before (removing one split the
-    /// net's pads) but are redundant now are removed one by one, then vias of those nets left touching nothing.
-    void removeLoops(const PcbLayout& before, RouteChanges& ch) {
+    /// Loop removal after a commit (on `P`, the board or the live preview's copy of it): old tracks of the routed nets
+    /// that were needed before (removing one split the net's pads) but are redundant now are removed one by one, then
+    /// vias of those nets left touching nothing.
+    void removeLoops(PcbLayout& P, const PcbLayout& before, RouteChanges& ch) {
         const std::set<int> added(ch.addedTracks.begin(), ch.addedTracks.end());
         std::set<int> nets;
-        for (const auto& t : pcb.tracks)
+        for (const auto& t : P.tracks)
             if (added.count(t.id) && t.net >= 0) nets.insert(t.net);
         if (nets.empty()) return;
         std::set<std::string> poured;
-        for (const auto& z : pcb.zones) poured.insert(z.net);
+        for (const auto& z : P.zones) poured.insert(z.net);
         const auto& pads = base->pads;
         std::set<int> goneIds;
         for (int net : nets) {
@@ -5094,14 +5360,14 @@ struct InteractiveRouter::Impl {
             if (padsOfNet.size() < 2) continue;
             std::vector<int> cand;
             size_t count = 0;
-            for (const auto& t : pcb.tracks)
+            for (const auto& t : P.tracks)
                 if (t.net == net) {
                     ++count;
                     if (!added.count(t.id) && !t.locked && !t.arc && !t.teardrop) cand.push_back(t.id);
                 }
             if (cand.empty() || count > 600) continue;
             const std::set<int> none;
-            const auto ref = padPartition(pads, padsOfNet, pcb.tracks, pcb.vias, net, none);
+            const auto ref = padPartition(pads, padsOfNet, P.tracks, P.vias, net, none);
             const auto refBefore = padPartition(pads, padsOfNet, before.tracks, before.vias, net, none);
             std::set<int> gone;
             for (int id : cand) {
@@ -5109,7 +5375,7 @@ struct InteractiveRouter::Impl {
                 if (padPartition(pads, padsOfNet, before.tracks, before.vias, net, one) == refBefore) continue;  // was spare
                 std::set<int> trial = gone;
                 trial.insert(id);
-                if (padPartition(pads, padsOfNet, pcb.tracks, pcb.vias, net, trial) == ref) gone.insert(id);
+                if (padPartition(pads, padsOfNet, P.tracks, P.vias, net, trial) == ref) gone.insert(id);
             }
             // The rest of a removed path (stubs between removed tracks) goes too.
             bool more = !gone.empty();
@@ -5118,25 +5384,25 @@ struct InteractiveRouter::Impl {
                 for (int id : cand) {
                     if (gone.count(id)) continue;
                     const Track* t = nullptr;
-                    for (const auto& o : pcb.tracks)
+                    for (const auto& o : P.tracks)
                         if (o.id == id) t = &o;
                     if (t == nullptr) continue;
                     // A stub: one end touches nothing kept of the net but removed tracks.
                     for (const Vec2 e : {t->a, t->b}) {
                         bool kept = false, touchedGone = false;
-                        for (const auto& o : pcb.tracks) {
+                        for (const auto& o : P.tracks) {
                             if (o.id == id || o.net != net || o.layer != t->layer || trackPointDistance(o, e) > o.width / 2) continue;
                             if (gone.count(o.id))
                                 touchedGone = true;
                             else
                                 kept = true;
                         }
-                        for (const auto& v : pcb.vias) kept = kept || (v.net == net && (v.position - e).length() <= v.diameter / 2);
+                        for (const auto& v : P.vias) kept = kept || (v.net == net && (v.position - e).length() <= v.diameter / 2);
                         for (size_t p : padsOfNet) kept = kept || (pads[p].onLayer(t->layer) && padDistance(pads[p], e) <= 0);
                         if (touchedGone && !kept) {
                             std::set<int> trial = gone;
                             trial.insert(id);
-                            if (padPartition(pads, padsOfNet, pcb.tracks, pcb.vias, net, trial) == ref) {
+                            if (padPartition(pads, padsOfNet, P.tracks, P.vias, net, trial) == ref) {
                                 gone.insert(id);
                                 more = true;
                             }
@@ -5149,23 +5415,23 @@ struct InteractiveRouter::Impl {
         }
         if (goneIds.empty()) return;
         std::set<int> touchedVias;
-        for (const auto& t : pcb.tracks)
+        for (const auto& t : P.tracks)
             if (goneIds.count(t.id))
-                for (const auto& v : pcb.vias)
+                for (const auto& v : P.vias)
                     if (v.net == t.net && v.spans(t.layer) && trackPointDistance(t, v.position) <= v.diameter / 2) touchedVias.insert(v.id);
-        for (const auto& t : pcb.tracks)
+        for (const auto& t : P.tracks)
             if (goneIds.count(t.id)) ch.removedTracks.push_back(t);
-        pcb.tracks.erase(std::remove_if(pcb.tracks.begin(), pcb.tracks.end(), [&](const Track& t) { return goneIds.count(t.id) > 0; }),
-                         pcb.tracks.end());
+        P.tracks.erase(std::remove_if(P.tracks.begin(), P.tracks.end(), [&](const Track& t) { return goneIds.count(t.id) > 0; }),
+                         P.tracks.end());
         std::set<int> goneVias;
-        for (const auto& v : pcb.vias) {
+        for (const auto& v : P.vias) {
             if (!touchedVias.count(v.id)) continue;
             bool used = false;
-            for (const auto& t : pcb.tracks) used = used || (t.net == v.net && v.spans(t.layer) && trackPointDistance(t, v.position) <= v.diameter / 2);
+            for (const auto& t : P.tracks) used = used || (t.net == v.net && v.spans(t.layer) && trackPointDistance(t, v.position) <= v.diameter / 2);
             for (const auto& p : pads) used = used || (p.net == v.net && padDistance(p, v.position) <= v.diameter / 2);
             if (!used) goneVias.insert(v.id);
         }
-        for (const auto& v : pcb.vias)
+        for (const auto& v : P.vias)
             if (goneVias.count(v.id)) {
                 const auto it = std::find(ch.addedVias.begin(), ch.addedVias.end(), v.id);
                 if (it != ch.addedVias.end())
@@ -5173,8 +5439,8 @@ struct InteractiveRouter::Impl {
                 else
                     ch.removedVias.push_back(v);
             }
-        pcb.vias.erase(std::remove_if(pcb.vias.begin(), pcb.vias.end(), [&](const Via& v) { return goneVias.count(v.id) > 0; }),
-                       pcb.vias.end());
+        P.vias.erase(std::remove_if(P.vias.begin(), P.vias.end(), [&](const Via& v) { return goneVias.count(v.id) > 0; }),
+                       P.vias.end());
     }
 
     /// What the session's own copper (route, dragged track or via) violates in the current overlay.
@@ -5355,7 +5621,7 @@ struct InteractiveRouter::Impl {
             p.netLength = other + p.length;
             p.targetLength = groupTarget;
         }
-        if (opt.tuneWhileRouting && (kind == Kind::Route || kind == Kind::Bus) && !members.empty()) {
+        if (opt.tuneWhileRouting && tunesWhileRouting() && !members.empty()) {
             // Each member's copper so far (its other copper in the overlay plus its route) against its target.
             ensureTuneTargets();
             std::vector<double> len(members.size(), 0.0);
@@ -5371,9 +5637,12 @@ struct InteractiveRouter::Impl {
                 for (size_t k = 0; k < members.size(); ++k)
                     if (t.net == members[k].net) len[k] += trackLength(t);
             }
-            const std::vector<double> target = tuneTargetsFor(tuneTargets, len, kind == Kind::Bus);
+            std::vector<double> target = tuneTargetsFor(tuneTargets, len, kind == Kind::Bus);
+            if (kind == Kind::Pair) target.assign(target.size(), pairTarget(tuneTargets, len));
             for (size_t k = 0; any && k < members.size(); ++k)
                 p.memberLengths.push_back(memberLengthOf(members[k].net, len[k], target[k], tuneTargets[k].tolerance));
+            // Live meanders: the route tuned as commit() will tune it (lengths as the tuner measures them).
+            if (any) liveTune(p);
         }
         prev = p;
     }
@@ -6987,6 +7256,8 @@ Json routePreviewJson(const RoutePreview& p) {
     }
     j["collisions"] = col;
     if (!p.memberLengths.empty()) j["memberLengths"] = memberLengthsJson(p.memberLengths);
+    if (!p.tunedTracks.empty()) j["tunedTracks"] = tracks(p.tunedTracks);
+    if (!p.tuneStatus.empty()) j["tuneStatus"] = p.tuneStatus;
     return j;
 }
 

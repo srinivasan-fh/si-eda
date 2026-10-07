@@ -1147,7 +1147,7 @@
 "Tan" = "ഇളം തവിട്ട്";
 "Colour Symbols by Device" = "ഉപകരണം അനുസരിച്ച് ചിഹ്ന നിറങ്ങൾ";
 "Tune Lengths While Routing" = "റൂട്ടിംഗിനിടെ നീളം ട്യൂൺ ചെയ്യുക";
-"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "ബസ് അല്ലെങ്കിൽ നീളം-പൊരുത്തപ്പെട്ട നെറ്റ് റൂട്ട് ചെയ്യുമ്പോൾ ഓരോ അംഗത്തിന്റെയും നീളം ലക്ഷ്യവുമായി കാണിക്കുക; റൂട്ട് പൂർത്തിയാക്കുമ്പോൾ ചെറിയ അംഗങ്ങൾക്ക് മിയാൻഡറുകൾ ചേർക്കുന്നു";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "ബസ്, നീളം പൊരുത്തപ്പെടുത്തിയ നെറ്റ് അല്ലെങ്കിൽ ഡിഫറൻഷ്യൽ ജോഡി റൂട്ട് ചെയ്യുമ്പോൾ ചെറിയ അംഗങ്ങൾക്ക് റൂട്ടിങ്ങിനിടെ തന്നെ മിയാൻഡറുകൾ ലഭിക്കും (ജോഡി ഒരുമിച്ച് ട്യൂൺ ചെയ്യും, തുടർന്ന് അതിന്റെ സ്ക്യൂ); റൂട്ട് പൂർത്തിയാക്കുമ്പോൾ അവ എഴുതപ്പെടും";
 
 // Autorouter: pin and gate swap
 "Swap Pins & Gates" = "പിനുകളും ഗേറ്റുകളും മാറ്റുക";

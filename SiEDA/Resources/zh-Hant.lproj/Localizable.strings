@@ -1147,7 +1147,7 @@
 "Tan" = "淺棕褐色";
 "Colour Symbols by Device" = "按元件為符號著色";
 "Tune Lengths While Routing" = "佈線時調整長度";
-"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "佈線匯流排或等長網路時，顯示每個成員相對於目標的長度；完成佈線時為較短的成員加入蛇形線";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "佈線匯流排、等長網路或差動對時，較短的成員會在佈線過程中即時加入蛇形線（差動對整體調整，再調整偏斜）；完成佈線時寫入";
 
 // Autorouter: pin and gate swap
 "Swap Pins & Gates" = "交換接腳與閘";

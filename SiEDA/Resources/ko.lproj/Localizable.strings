@@ -1147,7 +1147,7 @@
 "Tan" = "황갈색";
 "Colour Symbols by Device" = "장치별 심볼 색상";
 "Tune Lengths While Routing" = "배선 중 길이 조정";
-"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "버스나 등장 네트를 배선하는 동안 각 멤버의 길이를 목표와 비교해 표시하고, 배선을 마치면 짧은 멤버에 미앤더를 추가합니다";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "버스, 길이 정합 넷 또는 차동 쌍을 배선하는 동안 짧은 멤버에 미앤더를 실시간으로 추가합니다(쌍은 함께 조정한 뒤 스큐를 맞춤). 배선을 마치면 그대로 기록됩니다";
 
 // Autorouter: pin and gate swap
 "Swap Pins & Gates" = "핀·게이트 교체";

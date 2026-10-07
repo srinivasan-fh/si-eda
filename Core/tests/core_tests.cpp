@@ -17475,8 +17475,8 @@ TEST(tune_while_routing_matches_a_bus_on_commit) {
 }
 
 TEST(tune_while_routing_preview_reports_member_lengths) {
-    // While routing, each member's length so far against its target: the longest member without a rule, the member's
-    // own length rule otherwise.
+    // While routing, each member's length so far (with the live meanders) against its target: the longest member
+    // without a rule, the member's own length rule otherwise.
     BusBoard b = busBoard();
     auto& s = b.p.schematic;
     InteractiveRouter r(b.p.pcb, s);
@@ -17496,7 +17496,7 @@ TEST(tune_while_routing_preview_reports_member_lengths) {
         CHECK_NEAR(m.tolerance, 0.1, 1e-12);
         within += m.withinTolerance ? 1 : 0;
     }
-    CHECK(within == 1);  // only the outermost member
+    CHECK(within == 3);  // the live meanders bring the inner members to the outermost one's length
     const Json j = routePreviewJson(pv);
     CHECK(j.get("memberLengths").size() == 3);
     CHECK(j.get("memberLengths").items()[0].get("target").asNumber(0) == pv.memberLengths[0].target);
@@ -17515,7 +17515,7 @@ TEST(tune_while_routing_preview_reports_member_lengths) {
         if (m.net == ruled) {
             CHECK_NEAR(m.target, 40.0, 1e-9);
             CHECK_NEAR(m.tolerance, 0.3, 1e-12);
-            CHECK(!m.withinTolerance);
+            CHECK(m.withinTolerance == (std::fabs(m.length - 40.0) <= 0.3 + 1e-9));
         } else {
             CHECK_NEAR(m.target, longestOther, 1e-9);
         }
@@ -17555,4 +17555,257 @@ TEST(tune_while_routing_reports_a_member_without_room) {
     CHECK(routingProblems(b.p) == 0);
     CHECK(acuteWarnings(b.p) == 0);
     for (int n : b.nets) CHECK(netCopperConnected(b.p, n, b.u1));
+}
+
+// ---- live tuning and pairs
+
+namespace {
+/// Route copper of `net` in a preview's track list, or on the board among the ids a commit added.
+double tracksLengthOf(const std::vector<Track>& ts, int net) {
+    double l = 0;
+    for (const auto& t : ts)
+        if (t.net == net) l += trackLength(t);
+    return l;
+}
+
+/// Two tracks are the same copper (ids aside).
+bool sameCopper(const Track& x, const Track& y) {
+    return x.a == y.a && x.b == y.b && x.net == y.net && x.layer == y.layer && x.width == y.width && x.arc == y.arc &&
+           (!x.arc || x.mid == y.mid);
+}
+
+/// `preview` (a preview's tunedTracks) is exactly the copper of the routed nets that commit `ch` added to `p`.
+bool committedAsPreviewed(const Project& p, const RouteChanges& ch, const std::vector<int>& nets,
+                          const std::vector<Track>& preview) {
+    std::vector<Track> board;
+    for (const auto& t : p.pcb.tracks)
+        if (std::find(ch.addedTracks.begin(), ch.addedTracks.end(), t.id) != ch.addedTracks.end() &&
+            std::find(nets.begin(), nets.end(), t.net) != nets.end())
+            board.push_back(t);
+    if (board.size() != preview.size()) return false;
+    for (const Track& t : preview) {
+        bool found = false;
+        for (const Track& u : board) found = found || (u.id == t.id && sameCopper(u, t));
+        if (!found) return false;
+    }
+    return true;
+}
+
+/// The differential pair board of router_routes_differential_pairs_at_the_pair_gap: USB_P / USB_N from the left
+/// resistors to the right ones, side by side 30 mm.
+struct PairBoard {
+    Project p;
+    int p1 = -1, p2 = -1, n1 = -1, n2 = -1, netP = -1, netN = -1;
+};
+
+PairBoard pairBoard() {
+    PairBoard b;
+    auto& s = b.p.schematic;
+    b.p1 = placeR(b.p, {10, 14});
+    b.p2 = placeR(b.p, {40, 14});
+    b.n1 = placeR(b.p, {10, 16});
+    b.n2 = placeR(b.p, {40, 16});
+    wire(s, b.p1, "2", b.p2, "1");
+    wire(s, b.n1, "2", b.n2, "1");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_P", {0, 0}), "N", b.p1, "2");
+    wire(s, s.addComponent(ComponentKind::NetLabel, "USB_N", {0, 50}), "N", b.n1, "2");
+    b.p.schematicChanged();
+    b.netP = s.netOf({b.p1, 1});
+    b.netN = s.netOf({b.n1, 1});
+    return b;
+}
+
+/// The pair from P1 straight along to x = 25, then to P2's pad (the head ends on it).
+RoutePreview routePair(InteractiveRouter& r, PairBoard& b) {
+    CHECK(r.beginPair(padAt(b.p, b.p1, 1), 0));
+    r.moveTo({25, 15});
+    CHECK(r.fixHead());
+    return r.moveTo(padAt(b.p, b.p2, 0));
+}
+}  // namespace
+
+TEST(live_tuning_shows_bus_meanders_while_routing) {
+    // Tune while routing a bus: the preview shows the meanders while the head moves (tunedTracks), the short members'
+    // lengths are the tuned ones (longer than their untuned route, at the target where there is room), and the
+    // commit writes exactly that copper when the cursor did not move since.
+    BusBoard b = busBoard();
+    auto& s = b.p.schematic;
+    InteractiveRouter r(b.p.pcb, s);
+    RouterOptions o;
+    o.tuneWhileRouting = true;
+    r.setOptions(o);
+    const RoutePreview pv = routeTurningBus(r, b, 4);
+    CHECK(!pv.blocked);
+    CHECK(!pv.tunedTracks.empty());
+    CHECK(pv.memberLengths.size() == 4);
+    std::vector<Track> untuned = pv.placed;
+    untuned.insert(untuned.end(), pv.head.begin(), pv.head.end());
+    int lengthened = 0;
+    for (const auto& m : pv.memberLengths) {
+        const double before = tracksLengthOf(untuned, m.net), after = tracksLengthOf(pv.tunedTracks, m.net);
+        CHECK(after >= before - 1e-6);
+        if (after > before + 0.05) ++lengthened;
+        CHECK(m.withinTolerance);  // the bus leaves room for the meanders
+        CHECK(std::fabs(m.length - m.target) <= m.tolerance + 1e-9);
+    }
+    CHECK(lengthened == 3);  // all but the outermost member
+    CHECK(pv.tuneStatus.find("4 of 4 members within tolerance") != std::string::npos);
+    const Json j = routePreviewJson(pv);
+    CHECK(j.get("tunedTracks").size() == pv.tunedTracks.size());
+    CHECK(j.get("tuneStatus").asString("") == pv.tuneStatus);
+    // The preview's placed / head stay the untuned route; the commit (cursor unchanged) is the previewed copper.
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok);
+    CHECK(committedAsPreviewed(b.p, ch, b.nets, pv.tunedTracks));
+    CHECK(ch.memberLengths.size() == pv.memberLengths.size());
+    for (size_t k = 0; k < ch.memberLengths.size() && k < pv.memberLengths.size(); ++k)
+        CHECK_NEAR(ch.memberLengths[k].length, pv.memberLengths[k].length, 1e-9);
+    CHECK(ch.tuneStatus == pv.tuneStatus);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    for (int n : b.nets) CHECK(netCopperConnected(b.p, n, b.u1));
+}
+
+TEST(live_tuning_off_or_without_target_leaves_the_preview_unchanged) {
+    // The option off: no live meanders, no new JSON fields, the preview exactly as before. On, but routing a net
+    // without any length target: the same preview as with the option off.
+    BusBoard a = busBoard(), b = busBoard();
+    InteractiveRouter ra(a.p.pcb, a.p.schematic), rb(b.p.pcb, b.p.schematic);
+    RouterOptions off;
+    off.tuneGap = 1.0;  // ignored while the option is off
+    rb.setOptions(off);
+    const RoutePreview pa = routeTurningBus(ra, a, 4), pb = routeTurningBus(rb, b, 4);
+    CHECK(pa.tunedTracks.empty() && pb.tunedTracks.empty() && pb.tuneStatus.empty());
+    const std::string ja = routePreviewJson(pa).dump();
+    CHECK(ja == routePreviewJson(pb).dump());
+    CHECK(ja.find("tunedTracks") == std::string::npos && ja.find("tuneStatus") == std::string::npos);
+    ra.cancel();
+    rb.cancel();
+    // A single net of the bus (no rule, no group): nothing to tune, with or without the option.
+    BusBoard c = busBoard(), d = busBoard();
+    InteractiveRouter rc(c.p.pcb, c.p.schematic), rd(d.p.pcb, d.p.schematic);
+    RouterOptions on;
+    on.tuneWhileRouting = true;
+    rd.setOptions(on);
+    auto single = [](InteractiveRouter& r, BusBoard& bb) {
+        CHECK(r.beginRoute(padAt(bb.p, bb.u1, pin(bb.p.schematic, bb.u1, "P5")), 0));
+        r.moveTo({24, 20});
+        return r.moveTo({30, 30});
+    };
+    const RoutePreview pc = single(rc, c), pd = single(rd, d);
+    CHECK(pd.tunedTracks.empty() && pd.memberLengths.empty());
+    CHECK(routePreviewJson(pc).dump() == routePreviewJson(pd).dump());
+}
+
+TEST(live_tuning_tunes_a_differential_pair_as_a_whole) {
+    // A differential pair whose members have a length rule, routed with tune while routing: the preview shows the
+    // pair meandered together (coupled, at the pair gap) and the shorter member's skew bumps, live; after the commit
+    // both members are within tolerance of the target, the skew within the pair's tolerance, the gap kept, DRC clean.
+    PairBoard base = pairBoard();
+    double untunedP = 0, untunedN = 0;
+    {
+        InteractiveRouter r0(base.p.pcb, base.p.schematic);
+        RouterOptions o0;
+        o0.pairGap = 0.2;
+        r0.setOptions(o0);
+        routePair(r0, base);
+        CHECK(r0.commit().ok);
+        untunedP = routedNetLength(base.p.pcb, base.netP);
+        untunedN = routedNetLength(base.p.pcb, base.netN);
+    }
+    CHECK(untunedP > 20 && untunedN > 20);
+    const double target = std::max(untunedP, untunedN) + 6.0, tol = 0.2;
+    PairBoard b = pairBoard();
+    auto& s = b.p.schematic;
+    b.p.pcb.settings.lengthRules.push_back({"USB_P", target, tol});
+    b.p.pcb.settings.lengthRules.push_back({"USB_N", target, tol});
+    double skewTol = tol;
+    for (const auto& g : lengthGroups(s, b.p.pcb.settings))
+        if (g.kind == "pair" && std::find(g.nets.begin(), g.nets.end(), b.netP) != g.nets.end())
+            skewTol = std::max(0.01, g.tolerance);
+    InteractiveRouter r(b.p.pcb, s);
+    RouterOptions o;
+    o.pairGap = 0.2;
+    o.tuneWhileRouting = true;
+    r.setOptions(o);
+    const RoutePreview pv = routePair(r, b);
+    CHECK(pv.kind == "pair" && pv.reachedTarget);
+    // Live: the meanders and both members' tuned lengths.
+    CHECK(!pv.tunedTracks.empty());
+    CHECK(pv.memberLengths.size() == 2);
+    for (const auto& m : pv.memberLengths) {
+        CHECK_NEAR(m.target, target, 1e-9);
+        CHECK(m.withinTolerance);
+    }
+    CHECK(tracksLengthOf(pv.tunedTracks, b.netP) > tracksLengthOf(pv.placed, b.netP) + tracksLengthOf(pv.head, b.netP) + 1);
+    CHECK(pv.tuneStatus.find("skew") != std::string::npos);
+    CHECK(pv.tuneStatus.find("2 of 2 members within tolerance") != std::string::npos);
+    CHECK(routePreviewJson(pv).get("memberLengths").size() == 2);
+    // Commit: the previewed copper, both members at the target, the skew in tolerance.
+    const RouteChanges ch = r.commit();
+    CHECK(ch.ok);
+    CHECK(committedAsPreviewed(b.p, ch, {b.netP, b.netN}, pv.tunedTracks));
+    CHECK(ch.memberLengths.size() == 2);
+    double lp = 0, ln = 0;
+    for (const auto& m : ch.memberLengths) {
+        CHECK(m.withinTolerance);
+        CHECK_NEAR(m.target, target, 1e-9);
+        (m.net == b.netP ? lp : ln) = m.length;
+    }
+    CHECK(std::fabs(lp - target) <= tol + 1e-9 && std::fabs(ln - target) <= tol + 1e-9);
+    CHECK(std::fabs(lp - ln) <= skewTol + 1e-9);
+    CHECK(ch.tuneStatus.find("skew") != std::string::npos);
+    CHECK(ch.tuneStatus.find("over tolerance") == std::string::npos);
+    CHECK(ch.tuneStatus.find("could not reach") == std::string::npos);
+    // The gap is kept (nowhere closer), the members still run coupled at it, DRC clean.
+    double minGap = 1e9, coupled = 0;
+    for (const auto& x : b.p.pcb.tracks)
+        for (const auto& y : b.p.pcb.tracks) {
+            if (x.net != b.netP || y.net != b.netN) continue;
+            const double g = trackTrackDistance(x, y) - (x.width + y.width) / 2;
+            minGap = std::min(minGap, g);
+            if (!x.arc && !y.arc && std::fabs(g - 0.2) < 1e-6 && std::fabs(crossOf(x.b - x.a, y.b - y.a)) < 1e-9)
+                coupled += std::min((x.b - x.a).length(), (y.b - y.a).length());
+        }
+    CHECK(minGap >= 0.2 - 1e-6);
+    CHECK(coupled > 20);
+    CHECK(routingProblems(b.p) == 0);
+    CHECK(acuteWarnings(b.p) == 0);
+    CHECK(netRouted(b.p, b.netP) && netRouted(b.p, b.netN));
+}
+
+TEST(live_tuning_is_deterministic) {
+    // The same moves twice give the same preview, bit for bit; moving away and back gives the first preview again
+    // (the live cache follows the route, not the order of the moves).
+    auto run = [](BusBoard& b) {
+        InteractiveRouter r(b.p.pcb, b.p.schematic);
+        RouterOptions o;
+        o.tuneWhileRouting = true;
+        r.setOptions(o);
+        const RoutePreview pv = routeTurningBus(r, b, 4);
+        const std::string first = routePreviewJson(pv).dump();
+        r.moveTo({33, 38});
+        const std::string back = routePreviewJson(r.moveTo({30, 34})).dump();
+        CHECK(back == first);
+        return first;
+    };
+    BusBoard a = busBoard(), b = busBoard();
+    const std::string ja = run(a), jb = run(b);
+    CHECK(ja == jb);
+    CHECK(ja.find("tunedTracks") != std::string::npos);
+    // A pair too.
+    PairBoard p = pairBoard(), q = pairBoard();
+    for (PairBoard* x : {&p, &q}) {
+        x->p.pcb.settings.lengthRules.push_back({"USB_P", 40.0, 0.2});
+        x->p.pcb.settings.lengthRules.push_back({"USB_N", 40.0, 0.2});
+    }
+    auto runPair = [](PairBoard& x) {
+        InteractiveRouter r(x.p.pcb, x.p.schematic);
+        RouterOptions o;
+        o.pairGap = 0.2;
+        o.tuneWhileRouting = true;
+        r.setOptions(o);
+        return routePreviewJson(routePair(r, x)).dump();
+    };
+    CHECK(runPair(p) == runPair(q));
 }

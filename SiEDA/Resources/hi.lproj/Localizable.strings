@@ -1147,7 +1147,7 @@
 "Tan" = "हल्का भूरा";
 "Colour Symbols by Device" = "डिवाइस के अनुसार सिंबल रंग";
 "Tune Lengths While Routing" = "रूटिंग के दौरान लंबाई ट्यून करें";
-"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "बस या लंबाई-मिलान नेट रूट करते समय हर सदस्य की लंबाई उसके लक्ष्य के सामने दिखाएँ; रूट पूरा करने पर छोटे सदस्यों में मिएंडर जुड़ते हैं";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "बस, लंबाई-मिलान नेट या डिफ़रेंशियल पेयर रूट करते समय छोटे सदस्यों को रूटिंग के दौरान ही मियांडर मिलते हैं (पेयर एक साथ ट्यून होता है, फिर उसका स्क्यू); रूट पूरा करने पर वे लिख दिए जाते हैं";
 
 // Autorouter: pin and gate swap
 "Swap Pins & Gates" = "पिन और गेट बदलें";

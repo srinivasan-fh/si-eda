@@ -997,6 +997,17 @@ struct RoutePreview: Decodable, Equatable {
     var aborted: Bool?
     /// Tune while routing: each routed member's length so far against its target (nil when off).
     var memberLengths: [RouteMemberLength]?
+    /// Tune while routing: the route with its live meanders (and a pair's skew bumps), drawn in place of
+    /// `placed` + `head` (nil when nothing is meandered).
+    var tunedTracks: [SnapTrack]?
+    /// Tune while routing: the live summary (members within tolerance, a pair's skew).
+    var tuneStatus: String?
+
+    /// The route's copper to draw: the live meanders when there are any, else the placed tracks and the head.
+    var routeCopper: [SnapTrack] {
+        if let tuned = tunedTracks, !tuned.isEmpty { return tuned }
+        return placed + head
+    }
 }
 
 /// One member of a routed bus (or the routed net) against its length target (tune while routing).

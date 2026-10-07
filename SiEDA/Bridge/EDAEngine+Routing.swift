@@ -99,7 +99,8 @@ enum TeardropStyleChoice: String, Codable, CaseIterable, Identifiable {
 extension EDAEngine {
     /// Router options JSON (`sieda_router_*`). `rounded`: corners get the automatic radius; `arcs`: as true arcs
     /// (pairs and buses on concentric arcs) instead of short chords. `tune`: tune lengths while routing (a bus's or a
-    /// matched net's short members get meanders on commit; the preview reports `memberLengths`).
+    /// matched net's short members, and a pair with a length target, get meanders live in the preview (`tunedTracks`,
+    /// `memberLengths`, `tuneStatus`) and the same on commit).
     static func routingOptions(mode: RouterModeChoice, diagonal: Bool, via: RouterViaChoice = .through,
                                rounded: Bool = false, arcs: Bool = true, anyAngle: Bool = false,
                                removeLoops: Bool = false, teardrops: Bool = false, hug: Bool = false,

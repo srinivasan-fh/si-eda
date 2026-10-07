@@ -229,7 +229,7 @@ struct PCBEditorView: View {
                         .help("Teardrop outline: straight fans, or curved flares into pads and vias")
                         Toggle("Tune Lengths While Routing", isOn: $store.routerTuneWhileRouting)
                             .toggleStyle(.checkbox)
-                            .help("While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members")
+                            .help("While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them")
                         Toggle("Rounded corners", isOn: $store.routerRounded)
                             .toggleStyle(.checkbox)
                             .help("Corners become arcs (drawn as short straight chords) where they fit and keep clearance; single tracks only")
@@ -1195,10 +1195,10 @@ struct PCBCanvas: View {
                        style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
         }
 
-        // The route in progress on top: placed segments in their copper colour, the head following the cursor
-        // outlined, and its vias.
+        // The route in progress on top: placed segments in their copper colour (with the live meanders when tuning
+        // while routing), the head following the cursor outlined, and its vias.
         if let route {
-            for t in route.placed + route.head {
+            for t in route.routeCopper {
                 var path = Path()
                 t.addCentreLine(to: &path)
                 ctx.stroke(path.applying(screen), with: .color(copper(t.net, t.layer)),
@@ -1342,6 +1342,7 @@ struct PCBCanvas: View {
                 length += String(format: " · net %.2f / %.2f mm", net, target)
             }
             length += memberLengthsText(route.memberLengths ?? [], snap: snap)
+            if route.kind == "pair", let tuned = route.tuneStatus, !tuned.isEmpty { length += " · " + tuned }
             let hint = route.kind == "drag" || route.kind == "via" ? "release to drop · Esc cancels"
                 : "click places a corner · V via · Enter finishes · Esc cancels"
             CanvasOverlays.banner("\(route.status) · \(length) · \(hint)", in: &ctx, size: size)

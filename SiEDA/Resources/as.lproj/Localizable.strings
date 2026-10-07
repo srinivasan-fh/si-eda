@@ -1147,7 +1147,7 @@
 "Tan" = "পাতল মটীয়া";
 "Colour Symbols by Device" = "ডিভাইচ অনুসৰি চিম্বলৰ ৰং";
 "Tune Lengths While Routing" = "ৰাউটিঙৰ সময়ত দৈৰ্ঘ্য টিউন কৰক";
-"While routing a bus or a length-matched net, show each member's length against its target; finishing the route adds meanders to the short members" = "বাছ বা দৈৰ্ঘ্য-মিল নেট ৰাউট কৰোঁতে প্ৰতিজন সদস্যৰ দৈৰ্ঘ্য তাৰ লক্ষ্যৰ বিপৰীতে দেখুৱাওক; ৰুট সম্পূৰ্ণ কৰিলে চুটি সদস্যসকলত মিয়েণ্ডাৰ যোগ হয়";
+"While routing a bus, a length-matched net or a differential pair, the short members get meanders live as you route (a pair is tuned together, then its skew); finishing the route writes them" = "বাছ, দৈৰ্ঘ্য-মিলোৱা নেট বা ডিফাৰেনচিয়েল পেয়াৰ ৰাউট কৰোঁতে চুটি সদস্যসকলে ৰাউটিঙৰ সময়তে মিয়েণ্ডাৰ পায় (পেয়াৰটো একেলগে টিউন কৰা হয়, তাৰ পিছত ইয়াৰ স্কিউ); ৰাউট শেষ কৰিলে সেইবোৰ লিখা হয়";
 
 // Autorouter: pin and gate swap
 "Swap Pins & Gates" = "পিন আৰু গেট সলনি কৰক";
