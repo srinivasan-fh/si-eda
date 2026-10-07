@@ -67,6 +67,12 @@
   `SiEDA/Views/PCB/RoutingStrategy*.swift`, `RoutingReportSheet.swift`, `SiEDA/App/DesignStore+Autoroute.swift`; guide in
   `docs/ROUTING.md`. `SIEDA_ROUTE_PROFILE=1` prints phase timings; the corridor router must give the same copper for
   any thread count.
+- MCP (any AI client drives SiEDA): engine in `Core/src/Mcp.cpp` (JSON-RPC dispatch, root-folder sandbox, resources,
+  prompts, examples; `Core/include/sieda/Mcp.hpp`), the data-driven tool table in `Core/src/McpTools.cpp` (handlers
+  call the C API), PNG / SVG renders in `Core/src/McpRender.cpp`, C API `sieda_mcp_*` in `Core/src/sieda_c_mcp.cpp`
+  (the app's live endpoint reuses it), stdio server `sieda-mcp` in `Core/mcp/main.cpp`; guide in `docs/MCP.md` (its
+  tool reference is `sieda-mcp --list-tools-markdown`). Tool failures are `isError` results, never crashes; file
+  access stays inside `allowedRoot`; read-only mode refuses tools with `mutates`.
 - Library parts live in `Core/src/StandardParts.cpp`; KiCad-derived pinouts are generated into
   `Core/src/StandardCatalog.inc` by `tools/fetch_catalog_parts.py` — don't edit that file by hand. More parts from
   whole KiCad libraries: `--discover` freezes `tools/catalog_extra_parts.tsv`, `--extra` writes
