@@ -1182,3 +1182,24 @@
 "Show device names" = "显示器件名称";
 "Show icons only (names in tooltips)" = "仅显示图标（名称见提示）";
 "Show icons only" = "仅显示图标";
+
+// Live MCP server (Settings → AI Access)
+"AI Access (MCP)" = "AI 访问（MCP）";
+"Access token" = "访问令牌";
+"Allowed folder" = "允许的文件夹";
+"An AI client on this Mac works on the design open in this window. Each change it makes is one undo step. Only this Mac can connect, and only with the token below." = "这台 Mac 上的 AI 客户端可以处理此窗口中打开的设计。它的每次更改都是一个可撤销步骤。只有这台 Mac 可以连接，且必须使用下方的令牌。";
+"An AI client used the live MCP server recently" = "最近有 AI 客户端使用了实时 MCP 服务器";
+"Choose…" = "选择…";
+"Claude Desktop starts the sieda-mcp bridge (built with the core), which forwards to this server. Restart a client after changing its configuration. Full guide: docs/MCP.md." = "Claude Desktop 会启动 sieda-mcp 桥接程序（随核心一起构建），再转发到此服务器。更改客户端配置后请重新启动它。完整指南：docs/MCP.md。";
+"Client setup" = "客户端设置";
+"Clients send it as “Authorization: Bearer <token>”. Regenerating it disconnects every client until it is given the new one. Kept in the macOS Keychain." = "客户端以“Authorization: Bearer <token>”发送它。重新生成后，所有客户端都会断开，直到获得新令牌。保存在 macOS 钥匙串中。";
+"Enable live MCP server" = "启用实时 MCP 服务器";
+"Hide" = "隐藏";
+"Live MCP server on (Settings → AI Access)" = "实时 MCP 服务器已开启（设置 → AI 访问）";
+"Live server" = "实时服务器";
+"Port" = "端口";
+"Read-only (the AI can inspect and check, not change)" = "只读（AI 可以查看和检查，但不能更改）";
+"Regenerate" = "重新生成";
+"Use Document Folder" = "使用文稿所在文件夹";
+"Off" = "关闭";
+"Starting…" = "正在启动…";

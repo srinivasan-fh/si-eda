@@ -1182,3 +1182,24 @@
 "Show device names" = "పరికరాల పేర్లు చూపు";
 "Show icons only (names in tooltips)" = "ఐకాన్‌లు మాత్రమే (పేర్లు టూల్‌టిప్‌లో)";
 "Show icons only" = "ఐకాన్‌లు మాత్రమే";
+
+// Live MCP server (Settings → AI Access)
+"AI Access (MCP)" = "AI యాక్సెస్ (MCP)";
+"Access token" = "యాక్సెస్ టోకెన్";
+"Allowed folder" = "అనుమతించిన ఫోల్డర్";
+"An AI client on this Mac works on the design open in this window. Each change it makes is one undo step. Only this Mac can connect, and only with the token below." = "ఈ Mac లోని AI క్లయింట్ ఈ విండోలో తెరిచిన డిజైన్‌పై పని చేస్తుంది. అది చేసే ప్రతి మార్పు ఒక అన్‌డూ దశ. ఈ Mac మాత్రమే, కింది టోకెన్‌తో మాత్రమే కనెక్ట్ కాగలదు.";
+"An AI client used the live MCP server recently" = "ఒక AI క్లయింట్ ఇటీవల లైవ్ MCP సర్వర్‌ను ఉపయోగించింది";
+"Choose…" = "ఎంచుకోండి…";
+"Claude Desktop starts the sieda-mcp bridge (built with the core), which forwards to this server. Restart a client after changing its configuration. Full guide: docs/MCP.md." = "Claude Desktop sieda-mcp బ్రిడ్జ్‌ను (కోర్‌తో పాటు నిర్మించినది) ప్రారంభిస్తుంది, అది ఈ సర్వర్‌కు పంపుతుంది. కాన్ఫిగరేషన్ మార్చిన తర్వాత క్లయింట్‌ను పునఃప్రారంభించండి. పూర్తి గైడ్: docs/MCP.md.";
+"Client setup" = "క్లయింట్ సెటప్";
+"Clients send it as “Authorization: Bearer <token>”. Regenerating it disconnects every client until it is given the new one. Kept in the macOS Keychain." = "క్లయింట్‌లు దీన్ని “Authorization: Bearer <token>” గా పంపుతాయి. మళ్లీ సృష్టిస్తే కొత్త టోకెన్ ఇచ్చే వరకు ప్రతి క్లయింట్ డిస్‌కనెక్ట్ అవుతుంది. macOS కీచైన్‌లో ఉంచబడుతుంది.";
+"Enable live MCP server" = "లైవ్ MCP సర్వర్‌ను ప్రారంభించండి";
+"Hide" = "దాచు";
+"Live MCP server on (Settings → AI Access)" = "లైవ్ MCP సర్వర్ ఆన్‌లో ఉంది (సెట్టింగ్‌లు → AI యాక్సెస్)";
+"Live server" = "లైవ్ సర్వర్";
+"Port" = "పోర్ట్";
+"Read-only (the AI can inspect and check, not change)" = "చదవడానికి మాత్రమే (AI చూడగలదు, తనిఖీ చేయగలదు, మార్చలేదు)";
+"Regenerate" = "మళ్లీ సృష్టించు";
+"Use Document Folder" = "డాక్యుమెంట్ ఫోల్డర్ ఉపయోగించు";
+"Off" = "ఆఫ్";
+"Starting…" = "ప్రారంభమవుతోంది…";

@@ -11,6 +11,8 @@ struct SettingsView: View {
                 .tabItem { Label("Language", systemImage: "globe") }
             SupplierSettingsView()
                 .tabItem { Label("Suppliers", systemImage: "shippingbox") }
+            MCPSettingsView()
+                .tabItem { Label("AI Access (MCP)", systemImage: "dot.radiowaves.left.and.right") }
             AboutSettings()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }

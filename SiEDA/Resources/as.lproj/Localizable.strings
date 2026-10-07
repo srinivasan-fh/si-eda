@@ -1182,3 +1182,24 @@
 "Show device names" = "ডিভাইচৰ নাম দেখুৱাওক";
 "Show icons only (names in tooltips)" = "কেৱল আইকন দেখুৱাওক (নাম টুলটিপত)";
 "Show icons only" = "কেৱল আইকন দেখুৱাওক";
+
+// Live MCP server (Settings → AI Access)
+"AI Access (MCP)" = "AI প্ৰৱেশ (MCP)";
+"Access token" = "প্ৰৱেশ টোকেন";
+"Allowed folder" = "অনুমোদিত ফোল্ডাৰ";
+"An AI client on this Mac works on the design open in this window. Each change it makes is one undo step. Only this Mac can connect, and only with the token below." = "এই Mac ৰ এটা AI ক্লায়েণ্টে এই উইণ্ড'ত খোলা ডিজাইনত কাম কৰে। ইয়াৰ প্ৰতিটো সলনি এটা আনডু পদক্ষেপ। কেৱল এই Mac এ, আৰু কেৱল তলৰ টোকেনেৰে সংযোগ কৰিব পাৰে।";
+"An AI client used the live MCP server recently" = "এটা AI ক্লায়েণ্টে শেহতীয়াকৈ লাইভ MCP ছাৰ্ভাৰ ব্যৱহাৰ কৰিছে";
+"Choose…" = "বাছক…";
+"Claude Desktop starts the sieda-mcp bridge (built with the core), which forwards to this server. Restart a client after changing its configuration. Full guide: docs/MCP.md." = "Claude Desktop এ sieda-mcp ব্ৰিজ (ক'ৰৰ সৈতে নিৰ্মিত) আৰম্ভ কৰে, যিয়ে এই ছাৰ্ভাৰলৈ পঠিয়ায়। কনফিগাৰেচন সলনি কৰাৰ পিছত ক্লায়েণ্ট পুনৰ আৰম্ভ কৰক। সম্পূৰ্ণ নিৰ্দেশিকা: docs/MCP.md।";
+"Client setup" = "ক্লায়েণ্ট ছেটআপ";
+"Clients send it as “Authorization: Bearer <token>”. Regenerating it disconnects every client until it is given the new one. Kept in the macOS Keychain." = "ক্লায়েণ্টসমূহে ইয়াক “Authorization: Bearer <token>” হিচাপে পঠিয়ায়। পুনৰ সৃষ্টি কৰিলে নতুন টোকেন নোপোৱালৈকে সকলো ক্লায়েণ্ট বিচ্ছিন্ন হয়। macOS কীচেইনত ৰখা হয়।";
+"Enable live MCP server" = "লাইভ MCP ছাৰ্ভাৰ সক্ৰিয় কৰক";
+"Hide" = "লুকুৱাওক";
+"Live MCP server on (Settings → AI Access)" = "লাইভ MCP ছাৰ্ভাৰ অন (ছেটিংছ → AI প্ৰৱেশ)";
+"Live server" = "লাইভ ছাৰ্ভাৰ";
+"Port" = "প'ৰ্ট";
+"Read-only (the AI can inspect and check, not change)" = "কেৱল পঢ়িব পৰা (AI এ চাব আৰু পৰীক্ষা কৰিব পাৰে, সলনি কৰিব নোৱাৰে)";
+"Regenerate" = "পুনৰ সৃষ্টি কৰক";
+"Use Document Folder" = "নথিৰ ফোল্ডাৰ ব্যৱহাৰ কৰক";
+"Off" = "অফ";
+"Starting…" = "আৰম্ভ হৈছে…";

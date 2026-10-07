@@ -1182,3 +1182,24 @@
 "Show device names" = "Show device names";
 "Show icons only (names in tooltips)" = "Show icons only (names in tooltips)";
 "Show icons only" = "Show icons only";
+
+// Live MCP server (Settings → AI Access)
+"AI Access (MCP)" = "AI Access (MCP)";
+"Access token" = "Access token";
+"Allowed folder" = "Allowed folder";
+"An AI client on this Mac works on the design open in this window. Each change it makes is one undo step. Only this Mac can connect, and only with the token below." = "An AI client on this Mac works on the design open in this window. Each change it makes is one undo step. Only this Mac can connect, and only with the token below.";
+"An AI client used the live MCP server recently" = "An AI client used the live MCP server recently";
+"Choose…" = "Choose…";
+"Claude Desktop starts the sieda-mcp bridge (built with the core), which forwards to this server. Restart a client after changing its configuration. Full guide: docs/MCP.md." = "Claude Desktop starts the sieda-mcp bridge (built with the core), which forwards to this server. Restart a client after changing its configuration. Full guide: docs/MCP.md.";
+"Client setup" = "Client setup";
+"Clients send it as “Authorization: Bearer <token>”. Regenerating it disconnects every client until it is given the new one. Kept in the macOS Keychain." = "Clients send it as “Authorization: Bearer <token>”. Regenerating it disconnects every client until it is given the new one. Kept in the macOS Keychain.";
+"Enable live MCP server" = "Enable live MCP server";
+"Hide" = "Hide";
+"Live MCP server on (Settings → AI Access)" = "Live MCP server on (Settings → AI Access)";
+"Live server" = "Live server";
+"Port" = "Port";
+"Read-only (the AI can inspect and check, not change)" = "Read-only (the AI can inspect and check, not change)";
+"Regenerate" = "Regenerate";
+"Use Document Folder" = "Use Document Folder";
+"Off" = "Off";
+"Starting…" = "Starting…";

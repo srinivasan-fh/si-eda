@@ -271,6 +271,7 @@ struct StatusBar: View {
                     .truncationMode(.tail)
             }
             Spacer(minLength: 12)
+            MCPStatusIndicator()
             // Full statistics when there is room, a compact summary otherwise (never wraps).
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 14) {

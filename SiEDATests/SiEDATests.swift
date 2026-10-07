@@ -1,4 +1,5 @@
 import Metal
+import Network
 import SceneKit
 import SwiftUI
 import XCTest
@@ -7427,5 +7428,381 @@ final class DevicePaletteIconsOnlyTests: XCTestCase {
     func testIconsOnlyFitsItsNarrowColumn() {
         XCTAssertLessThanOrEqual(DevicePicker.iconsOnlyWidth, 60)
         XCTAssertLessThanOrEqual(width(iconsOnly: true), DevicePicker.iconsOnlyWidth)
+    }
+}
+
+/// The live MCP endpoint (Settings → AI Access (MCP), docs/MCP.md "Live app mode"): HTTP parsing, the request gate
+/// (token, Host / Origin), Streamable HTTP routing, tool calls on the open design with undo, and a real loopback
+/// round trip.
+@MainActor
+final class MCPLiveEndpointTests: XCTestCase {
+    private let token = "test-token-0123456789"
+
+    /// A server with its own defaults and an in-memory token, on any free port (never the user's 39717).
+    private func makeServer(store: DesignStore? = nil) throws -> MCPLiveServer {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "SiEDA.MCPLiveTests.\(UUID().uuidString)"))
+        let server = MCPLiveServer(defaults: defaults, tokens: MemoryMCPTokenStore(token: token))
+        server.port = 0
+        server.attach(store ?? DesignStore())
+        server.enabled = true
+        return server
+    }
+
+    private func request(_ json: String, token: String? = nil, headers: [String: String] = [:],
+                         method: String = "POST", path: String = "/mcp") -> MCPHTTPRequest {
+        var all = ["Host": "127.0.0.1:39717", "Content-Type": "application/json",
+                   "Accept": "application/json, text/event-stream"]
+        if let token { all["Authorization"] = "Bearer " + token }
+        for (k, v) in headers { all[k] = v }
+        return MCPHTTPRequest(method: method, target: path, headers: all, body: Data(json.utf8))
+    }
+
+    private func json(_ response: MCPHTTPResponse) throws -> [String: Any] {
+        try XCTUnwrap(JSONSerialization.jsonObject(with: response.body) as? [String: Any])
+    }
+
+    private func status(_ server: MCPLiveServer, _ request: MCPHTTPRequest) async -> Int {
+        await server.respond(to: request).status
+    }
+
+    private func call(_ server: MCPLiveServer, id: Int, tool: String, arguments: [String: Any] = [:]) async throws
+        -> [String: Any] {
+        let params: [String: Any] = ["name": tool, "arguments": arguments]
+        let message: [String: Any] = ["jsonrpc": "2.0", "id": id, "method": "tools/call", "params": params]
+        let body = String(decoding: try JSONSerialization.data(withJSONObject: message), as: UTF8.self)
+        let response = await server.respond(to: request(body, token: token))
+        XCTAssertEqual(response.status, 200)
+        let reply = try json(response)
+        XCTAssertEqual(reply["id"] as? Int, id)
+        return try XCTUnwrap(reply["result"] as? [String: Any], "no result: \(reply)")
+    }
+
+    private func text(_ result: [String: Any]) -> String {
+        ((result["content"] as? [[String: Any]])?.first?["text"] as? String) ?? ""
+    }
+
+    // MARK: HTTP parsing
+
+    func testParserAssemblesRequestsFromArbitraryChunks() {
+        let body = #"{"jsonrpc":"2.0","id":1,"method":"ping"}"#
+        let one = "POST /mcp?x=1 HTTP/1.1\r\nHost: 127.0.0.1:39717\r\nContent-Type: application/json\r\n"
+            + "Authorization: Bearer abc\r\nContent-Length: \(body.utf8.count)\r\n\r\n" + body
+        let two = "DELETE /mcp HTTP/1.1\r\nMcp-Session-Id: s1\r\nContent-Length: 0\r\n\r\n"
+        let bytes = Array((one + two).utf8)
+        for chunk in [1, 3, 7, 64, bytes.count] {
+            var parser = MCPHTTPParser()
+            var requests: [MCPHTTPRequest] = []
+            var at = 0
+            while at < bytes.count {
+                parser.append(Data(bytes[at..<min(at + chunk, bytes.count)]))
+                at += chunk
+                while case .request(let r) = parser.next() { requests.append(r) }
+            }
+            XCTAssertEqual(requests.count, 2, "chunk size \(chunk)")
+            XCTAssertEqual(requests.first?.method, "POST")
+            XCTAssertEqual(requests.first?.path, "/mcp")
+            XCTAssertEqual(requests.first?.header("AUTHORIZATION"), "Bearer abc")
+            XCTAssertEqual(requests.first?.header("content-length"), "\(body.utf8.count)")
+            XCTAssertEqual(requests.first.map { String(decoding: $0.body, as: UTF8.self) }, body)
+            XCTAssertEqual(requests.last?.method, "DELETE")
+            XCTAssertEqual(requests.last?.header("mcp-session-id"), "s1")
+            XCTAssertEqual(requests.last?.body.count, 0)
+            XCTAssertEqual(parser.next(), .needMore)
+        }
+    }
+
+    func testParserChunkedBodiesAndLimits() {
+        let chunked = "POST /mcp HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n4\r\n{\"a\"\r\n3;ext=1\r\n:1}\r\n0\r\n\r\n"
+        var parser = MCPHTTPParser()
+        var result: MCPHTTPParser.Event = .needMore
+        for byte in Array(chunked.utf8) {  // byte by byte: every chunk boundary is split
+            parser.append(Data([byte]))
+            result = parser.next()
+            if case .request = result { break }
+        }
+        guard case .request(let request) = result else { return XCTFail("chunked request not parsed: \(result)") }
+        XCTAssertEqual(String(decoding: request.body, as: UTF8.self), "{\"a\":1}")
+
+        var big = MCPHTTPParser()
+        big.maxBodyBytes = 10
+        big.append(Data("POST /mcp HTTP/1.1\r\nContent-Length: 11\r\n\r\n".utf8))
+        XCTAssertEqual(big.next(), .failure(413, "Request body too large"))
+
+        var bad = MCPHTTPParser()
+        bad.append(Data("POST /mcp HTTP/1.1\r\nContent-Length: -4\r\n\r\n".utf8))
+        if case .failure(let status, _) = bad.next() { XCTAssertEqual(status, 400) } else { XCTFail("negative length") }
+
+        var garbage = MCPHTTPParser()
+        garbage.append(Data("HELLO\r\n\r\n".utf8))
+        if case .failure(let status, _) = garbage.next() { XCTAssertEqual(status, 400) } else { XCTFail("bad line") }
+
+        var huge = MCPHTTPParser()
+        huge.maxHeaderBytes = 64
+        huge.append(Data(("POST /mcp HTTP/1.1\r\nX: " + String(repeating: "a", count: 100)).utf8))
+        if case .failure(let status, _) = huge.next() { XCTAssertEqual(status, 431) } else { XCTFail("huge header") }
+    }
+
+    func testResponseSerialization() {
+        let response = MCPHTTPResponse.json("{}", headers: [("Mcp-Session-Id", "s")])
+        let text = String(decoding: response.serialized(close: true), as: UTF8.self)
+        XCTAssertTrue(text.hasPrefix("HTTP/1.1 200 OK\r\n"))
+        XCTAssertTrue(text.contains("Content-Type: application/json\r\n"))
+        XCTAssertTrue(text.contains("Mcp-Session-Id: s\r\n"))
+        XCTAssertTrue(text.contains("Content-Length: 2\r\n"))
+        XCTAssertTrue(text.contains("Connection: close\r\n"))
+        XCTAssertTrue(text.hasSuffix("\r\n\r\n{}"))
+    }
+
+    // MARK: Gate and routing
+
+    func testRequestGate() {
+        XCTAssertTrue(MCPRequestGate.isAllowedOrigin(nil))
+        XCTAssertTrue(MCPRequestGate.isAllowedOrigin("http://localhost:6274"))
+        XCTAssertTrue(MCPRequestGate.isAllowedOrigin("http://127.0.0.1"))
+        XCTAssertTrue(MCPRequestGate.isAllowedOrigin("https://[::1]:3000"))
+        XCTAssertFalse(MCPRequestGate.isAllowedOrigin("https://evil.example"))
+        XCTAssertFalse(MCPRequestGate.isAllowedOrigin("http://localhost.evil.example"))
+        XCTAssertFalse(MCPRequestGate.isAllowedOrigin("null"))
+        XCTAssertFalse(MCPRequestGate.isAllowedOrigin("file://"))
+        XCTAssertTrue(MCPRequestGate.isAllowedHost("127.0.0.1:39717"))
+        XCTAssertTrue(MCPRequestGate.isAllowedHost("localhost:39717"))
+        XCTAssertTrue(MCPRequestGate.isAllowedHost("[::1]:39717"))
+        XCTAssertFalse(MCPRequestGate.isAllowedHost("rebind.evil.example:39717"))
+        XCTAssertEqual(MCPRequestGate.bearerToken("Bearer abc"), "abc")
+        XCTAssertEqual(MCPRequestGate.bearerToken("bearer  abc "), "abc")
+        XCTAssertNil(MCPRequestGate.bearerToken("Basic abc"))
+        XCTAssertTrue(MCPRequestGate.tokensMatch("abc", "abc"))
+        XCTAssertFalse(MCPRequestGate.tokensMatch("abc", "abd"))
+        XCTAssertFalse(MCPRequestGate.tokensMatch("", ""))
+        let a = MCPRequestGate.generateToken()
+        let b = MCPRequestGate.generateToken()
+        XCTAssertNotEqual(a, b)
+        XCTAssertGreaterThanOrEqual(a.count, 40)
+        XCTAssertNil(a.rangeOfCharacter(from: CharacterSet(charactersIn: "+/=")))
+    }
+
+    func testDisabledByDefault() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "SiEDA.MCPLiveTests.default.\(UUID().uuidString)"))
+        let server = MCPLiveServer(defaults: defaults, tokens: MemoryMCPTokenStore())
+        XCTAssertFalse(server.enabled)
+        XCTAssertFalse(server.readOnly)
+        XCTAssertEqual(server.port, MCPLiveServer.defaultPort)
+        XCTAssertEqual(server.status, .off)
+        server.attach(DesignStore())
+        XCTAssertEqual(server.status, .off, "attaching the window's store must not start the server")
+        XCTAssertNil(server.boundPort)
+        let ping = request(#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#, token: server.token)
+        let code = await status(server, ping)
+        XCTAssertEqual(code, 503)
+        XCTAssertFalse(server.token.isEmpty, "a token is generated on first use")
+    }
+
+    func testAuthOriginAndRouting() async throws {
+        let server = try makeServer()
+        defer { server.enabled = false }
+        let ping = #"{"jsonrpc":"2.0","id":1,"method":"ping"}"#
+
+        let missing = await server.respond(to: request(ping))
+        XCTAssertEqual(missing.status, 401)
+        XCTAssertNotNil(missing.header("WWW-Authenticate"))
+        let wrong = await status(server, request(ping, token: "nope"))
+        XCTAssertEqual(wrong, 401)
+        let evil = await status(server, request(ping, token: token, headers: ["Origin": "https://evil.example"]))
+        XCTAssertEqual(evil, 403)
+        let rebinding = await status(server, request(ping, token: token, headers: ["Host": "evil.example:39717"]))
+        XCTAssertEqual(rebinding, 403)
+        let local = await server.respond(to: request(ping, token: token, headers: ["Origin": "http://localhost:6274"]))
+        XCTAssertEqual(local.status, 200)
+        XCTAssertEqual(try json(local)["id"] as? Int, 1)
+
+        let get = await status(server, request("", token: token, method: "GET"))
+        XCTAssertEqual(get, 405)
+        let otherPath = await status(server, request(ping, token: token, path: "/other"))
+        XCTAssertEqual(otherPath, 404)
+        let unknownSession = await status(server, request(ping, token: token, headers: ["Mcp-Session-Id": "unknown"]))
+        XCTAssertEqual(unknownSession, 404)
+        let oldVersion = await status(server, request(ping, token: token, headers: ["MCP-Protocol-Version": "1999-01-01"]))
+        XCTAssertEqual(oldVersion, 400)
+        let plainText = await status(server, request(ping, token: token, headers: ["Content-Type": "text/plain"]))
+        XCTAssertEqual(plainText, 415)
+        let note = await server.respond(to: request(#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
+                                                    token: token))
+        XCTAssertEqual(note.status, 202)
+        XCTAssertTrue(note.body.isEmpty)
+    }
+
+    func testInitializeGivesJSONRPCResponseAndSession() async throws {
+        let server = try makeServer()
+        defer { server.enabled = false }
+        let initialize = #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}"#
+        let response = await server.respond(to: request(initialize, token: token))
+        XCTAssertEqual(response.status, 200)
+        XCTAssertEqual(response.header("Content-Type"), "application/json")
+        let reply = try json(response)
+        XCTAssertEqual(reply["jsonrpc"] as? String, "2.0")
+        XCTAssertEqual(reply["id"] as? Int, 1)
+        let result = try XCTUnwrap(reply["result"] as? [String: Any])
+        XCTAssertEqual(result["protocolVersion"] as? String, "2025-06-18")
+        XCTAssertEqual((result["serverInfo"] as? [String: Any])?["name"] as? String, "sieda-app")
+        let session = try XCTUnwrap(response.header("Mcp-Session-Id"))
+        XCTAssertTrue(server.sessions.contains(session))
+
+        let list = await server.respond(to: request(#"{"jsonrpc":"2.0","id":2,"method":"tools/list"}"#, token: token,
+                                                    headers: ["Mcp-Session-Id": session]))
+        let listResult = try XCTUnwrap(try json(list)["result"] as? [String: Any])
+        let tools = try XCTUnwrap(listResult["tools"] as? [[String: Any]])
+        XCTAssertTrue(tools.contains { $0["name"] as? String == "schematic_add_component" })
+
+        let end = await status(server, request("", token: token, headers: ["Mcp-Session-Id": session], method: "DELETE"))
+        XCTAssertEqual(end, 204)
+        XCTAssertFalse(server.sessions.contains(session))
+    }
+
+    // MARK: The open design
+
+    func testToolCallEditsTheOpenDesignAsOneUndoStep() async throws {
+        let store = DesignStore()
+        let server = try makeServer(store: store)
+        defer { server.enabled = false }
+        XCTAssertFalse(store.canUndo)
+        let result = try await call(server, id: 7, tool: "schematic_add_component",
+                                    arguments: ["kind": "resistor", "value": "4k7", "ref": "R42"])
+        XCTAssertEqual(result["isError"] as? Bool, false, text(result))
+        XCTAssertTrue(store.snapshot.components.contains { $0.ref == "R42" && $0.value == "4k7" },
+                      "the part must appear in the window's design")
+        XCTAssertTrue(store.canUndo)
+        XCTAssertEqual(store.undoDepth, 1, "one tool call = one undo step")
+        XCTAssertEqual(store.statusMessage, "AI: schematic_add_component")
+        XCTAssertTrue(store.isDirty)
+        XCTAssertEqual(server.lastCall?.tool, "schematic_add_component")
+        XCTAssertEqual(server.lastCall?.changed, true)
+        XCTAssertTrue(server.recentlyActive())
+
+        // A read-only tool records no undo step.
+        let list = try await call(server, id: 8, tool: "schematic_list_components")
+        XCTAssertEqual(list["isError"] as? Bool, false)
+        XCTAssertTrue(text(list).contains("R42"))
+        XCTAssertEqual(store.undoDepth, 1)
+
+        store.undo()
+        XCTAssertFalse(store.snapshot.components.contains { $0.ref == "R42" })
+        // Undo swaps the engine's project: the next call must see the restored design, not a stale one.
+        let again = try await call(server, id: 9, tool: "schematic_list_components")
+        XCTAssertFalse(text(again).contains("R42"))
+    }
+
+    func testReadOnlyModeRefusesChanges() async throws {
+        let store = DesignStore()
+        let server = try makeServer(store: store)
+        defer { server.enabled = false }
+        server.readOnly = true
+        let result = try await call(server, id: 1, tool: "schematic_add_component", arguments: ["kind": "resistor"])
+        XCTAssertEqual(result["isError"] as? Bool, true)
+        XCTAssertTrue(store.snapshot.components.isEmpty)
+        XCTAssertFalse(store.canUndo)
+        XCTAssertFalse(store.isDirty)
+        let open = try await call(server, id: 2, tool: "project_open", arguments: ["path": "x.siedaproj"])
+        XCTAssertEqual(open["isError"] as? Bool, true)
+        let summary = try await call(server, id: 3, tool: "project_summary")
+        XCTAssertEqual(summary["isError"] as? Bool, false, "reading still works")
+    }
+
+    func testReplacingToolsAreUndoableAndOpenRespectsUnsavedWork() async throws {
+        let store = DesignStore()
+        let server = try makeServer(store: store)
+        defer { server.enabled = false }
+        let loaded = try await call(server, id: 1, tool: "project_load_example", arguments: ["id": "led_indicator"])
+        XCTAssertEqual(loaded["isError"] as? Bool, false, text(loaded))
+        XCTAssertFalse(store.snapshot.components.isEmpty)
+        XCTAssertEqual(store.undoDepth, 1)
+        store.undo()
+        XCTAssertTrue(store.snapshot.components.isEmpty)
+        store.redo()
+        XCTAssertFalse(store.snapshot.components.isEmpty)
+        // Unsaved work in the window: project_open is refused rather than discarding it.
+        XCTAssertTrue(store.isDirty)
+        let open = try await call(server, id: 2, tool: "project_open", arguments: ["path": "other.siedaproj"])
+        XCTAssertEqual(open["isError"] as? Bool, true)
+        XCTAssertTrue(text(open).contains("unsaved"))
+        XCTAssertFalse(store.snapshot.components.isEmpty)
+    }
+
+    func testOpenResolvesInsideTheAllowedFolderOnly() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("mcp-root-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try "{}".write(to: root.appendingPathComponent("a.siedaproj"), atomically: true, encoding: .utf8)
+        if case .success(let url) = MCPStoreBridge.resolve("a.siedaproj", root: root.path) {
+            XCTAssertEqual(url.lastPathComponent, "a.siedaproj")
+        } else {
+            XCTFail("a file inside the root must resolve")
+        }
+        if case .success = MCPStoreBridge.resolve("../etc/passwd", root: root.path) { XCTFail("..") }
+        if case .success = MCPStoreBridge.resolve("/etc/hosts", root: root.path) { XCTFail("outside the root") }
+        if case .success = MCPStoreBridge.resolve("a.siedaproj", root: "") { XCTFail("no root = no files") }
+        if case .success = MCPStoreBridge.resolve("missing.siedaproj", root: root.path) { XCTFail("missing") }
+    }
+
+    // MARK: Listener
+
+    func testListenerBindsToLoopbackOnly() {
+        let parameters = MCPEndpoint.parameters(port: 39717)
+        XCTAssertTrue(parameters.acceptLocalOnly)
+        guard case .hostPort(let host, let port)? = parameters.requiredLocalEndpoint else {
+            return XCTFail("the listener must have a required local endpoint")
+        }
+        XCTAssertEqual(host, NWEndpoint.Host.ipv4(IPv4Address.loopback), "127.0.0.1 only, never 0.0.0.0")
+        XCTAssertEqual(port.rawValue, 39717)
+        XCTAssertEqual(MCPLiveServer.defaultPort, 39717)
+        let command = MCPLiveServer.claudeCodeCommand(url: "http://127.0.0.1:39717/mcp", token: "T")
+        XCTAssertEqual(command,
+                       "claude mcp add --transport http sieda-app http://127.0.0.1:39717/mcp --header \"Authorization: Bearer T\"")
+        for config in [MCPLiveServer.cursorConfig(url: "u", token: "T"), MCPLiveServer.vsCodeConfig(url: "u", token: "T"),
+                       MCPLiveServer.claudeDesktopConfig(url: "u", token: "T", bridgePath: "/b")] {
+            XCTAssertNotNil(try? JSONSerialization.jsonObject(with: Data(config.utf8)), config)
+        }
+    }
+
+    func testRealLoopbackRoundTrip() async throws {
+        let store = DesignStore()
+        let server = try makeServer(store: store)
+        defer { server.enabled = false }
+        var waited = 0
+        while server.boundPort == nil, waited < 100 {
+            if case .failed(let message) = server.status { return XCTFail("listener failed: \(message)") }
+            try await Task.sleep(nanoseconds: 50_000_000)
+            waited += 1
+        }
+        let port = try XCTUnwrap(server.boundPort, "the listener did not start")
+        XCTAssertNotEqual(port, 0)
+        let url = try XCTUnwrap(URL(string: "http://127.0.0.1:\(port)/mcp"))
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.invalidateAndCancel() }
+
+        var post = URLRequest(url: url)
+        post.httpMethod = "POST"
+        post.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        post.setValue("application/json, text/event-stream", forHTTPHeaderField: "Accept")
+        post.setValue("Bearer " + token, forHTTPHeaderField: "Authorization")
+        post.httpBody = Data(#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}"#.utf8)
+        let (data, response) = try await session.data(for: post)
+        let http = try XCTUnwrap(response as? HTTPURLResponse)
+        XCTAssertEqual(http.statusCode, 200)
+        let sessionId = try XCTUnwrap(http.value(forHTTPHeaderField: "Mcp-Session-Id"))
+        let reply = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(reply["id"] as? Int, 1)
+
+        // A tool call over the wire changes the design in the window.
+        post.setValue(sessionId, forHTTPHeaderField: "Mcp-Session-Id")
+        post.httpBody = Data(#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"schematic_add_component","arguments":{"kind":"capacitor","ref":"C9"}}}"#.utf8)
+        let (_, second) = try await session.data(for: post)
+        XCTAssertEqual((second as? HTTPURLResponse)?.statusCode, 200)
+        XCTAssertTrue(store.snapshot.components.contains { $0.ref == "C9" })
+        XCTAssertTrue(store.canUndo)
+
+        var anonymous = post
+        anonymous.setValue(nil, forHTTPHeaderField: "Authorization")
+        let (_, refused) = try await session.data(for: anonymous)
+        XCTAssertEqual((refused as? HTTPURLResponse)?.statusCode, 401)
     }
 }

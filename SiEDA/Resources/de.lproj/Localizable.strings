@@ -1182,3 +1182,24 @@
 "Show device names" = "Bauteilnamen anzeigen";
 "Show icons only (names in tooltips)" = "Nur Symbole anzeigen (Namen im Tooltip)";
 "Show icons only" = "Nur Symbole anzeigen";
+
+// Live MCP server (Settings → AI Access)
+"AI Access (MCP)" = "KI-Zugriff (MCP)";
+"Access token" = "Zugriffstoken";
+"Allowed folder" = "Erlaubter Ordner";
+"An AI client on this Mac works on the design open in this window. Each change it makes is one undo step. Only this Mac can connect, and only with the token below." = "Ein KI-Client auf diesem Mac bearbeitet den in diesem Fenster geöffneten Entwurf. Jede Änderung ist ein Schritt, den du widerrufen kannst. Nur dieser Mac kann sich verbinden, und nur mit dem Token unten.";
+"An AI client used the live MCP server recently" = "Ein KI-Client hat den Live-MCP-Server kürzlich verwendet";
+"Choose…" = "Auswählen …";
+"Claude Desktop starts the sieda-mcp bridge (built with the core), which forwards to this server. Restart a client after changing its configuration. Full guide: docs/MCP.md." = "Claude Desktop startet die sieda-mcp-Brücke (mit dem Kern gebaut), die an diesen Server weiterleitet. Starte einen Client nach dem Ändern seiner Konfiguration neu. Vollständige Anleitung: docs/MCP.md.";
+"Client setup" = "Client-Einrichtung";
+"Clients send it as “Authorization: Bearer <token>”. Regenerating it disconnects every client until it is given the new one. Kept in the macOS Keychain." = "Clients senden es als „Authorization: Bearer <token>“. Nach dem Neuerzeugen ist jeder Client getrennt, bis er das neue Token erhält. Im macOS-Schlüsselbund gespeichert.";
+"Enable live MCP server" = "Live-MCP-Server aktivieren";
+"Hide" = "Ausblenden";
+"Live MCP server on (Settings → AI Access)" = "Live-MCP-Server an (Einstellungen → KI-Zugriff)";
+"Live server" = "Live-Server";
+"Port" = "Port";
+"Read-only (the AI can inspect and check, not change)" = "Nur lesen (die KI kann ansehen und prüfen, nicht ändern)";
+"Regenerate" = "Neu erzeugen";
+"Use Document Folder" = "Ordner des Dokuments verwenden";
+"Off" = "Aus";
+"Starting…" = "Startet …";

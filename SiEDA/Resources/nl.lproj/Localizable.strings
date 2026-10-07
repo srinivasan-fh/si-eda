@@ -1182,3 +1182,24 @@
 "Show device names" = "Componentnamen tonen";
 "Show icons only (names in tooltips)" = "Alleen pictogrammen tonen (namen in tooltip)";
 "Show icons only" = "Alleen pictogrammen tonen";
+
+// Live MCP server (Settings → AI Access)
+"AI Access (MCP)" = "AI-toegang (MCP)";
+"Access token" = "Toegangstoken";
+"Allowed folder" = "Toegestane map";
+"An AI client on this Mac works on the design open in this window. Each change it makes is one undo step. Only this Mac can connect, and only with the token below." = "Een AI-client op deze Mac werkt aan het ontwerp dat in dit venster open is. Elke wijziging is één stap die je ongedaan kunt maken. Alleen deze Mac kan verbinden, en alleen met het token hieronder.";
+"An AI client used the live MCP server recently" = "Een AI-client heeft de live MCP-server onlangs gebruikt";
+"Choose…" = "Kies…";
+"Claude Desktop starts the sieda-mcp bridge (built with the core), which forwards to this server. Restart a client after changing its configuration. Full guide: docs/MCP.md." = "Claude Desktop start de sieda-mcp-brug (gebouwd met de kern), die doorstuurt naar deze server. Start een client opnieuw nadat je de configuratie hebt gewijzigd. Volledige handleiding: docs/MCP.md.";
+"Client setup" = "Clientconfiguratie";
+"Clients send it as “Authorization: Bearer <token>”. Regenerating it disconnects every client until it is given the new one. Kept in the macOS Keychain." = "Clients sturen het als “Authorization: Bearer <token>”. Opnieuw genereren verbreekt elke client totdat die het nieuwe token krijgt. Bewaard in de macOS-sleutelhanger.";
+"Enable live MCP server" = "Live MCP-server inschakelen";
+"Hide" = "Verberg";
+"Live MCP server on (Settings → AI Access)" = "Live MCP-server aan (Instellingen → AI-toegang)";
+"Live server" = "Live server";
+"Port" = "Poort";
+"Read-only (the AI can inspect and check, not change)" = "Alleen-lezen (de AI kan bekijken en controleren, niet wijzigen)";
+"Regenerate" = "Opnieuw genereren";
+"Use Document Folder" = "Gebruik documentmap";
+"Off" = "Uit";
+"Starting…" = "Starten…";
