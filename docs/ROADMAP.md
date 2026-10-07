@@ -46,6 +46,22 @@ CI green. Token figures are rough estimates of the AI work per package (they hel
 - [x] Parts still waiting in the queue no longer block placement — #81
 - [x] Fix: a part straddling the board edge is now reported as outside the outline — #81
 
+## Weekend order (pick up from the top)
+
+The agreed order for the weekend sessions; each line is one package (PR, CI green, merge). The sections below break
+each package into its steps.
+
+1. [ ] Large-board benchmark and fixes (~0.35M–0.65M tokens)
+2. [ ] PDF text shaping with HarfBuzz (~0.15M–0.25M)
+3. [ ] STEP export (~0.2M–0.3M)
+4. [ ] Variant manager (~0.15M–0.2M)
+5. [ ] Design diff and merge (~0.25M–0.4M)
+6. [ ] IDF / IDX exchange with mechanical CAD (~0.15M–0.25M)
+7. [ ] Shared library server (~0.2M–0.3M)
+8. [ ] Design review (~0.15M–0.2M)
+9. [ ] 3D clearance checks (~0.1M–0.15M)
+10. [ ] Windows build
+
 ## Next (planned, in suggested order)
 
 ### 1. Large boards (scale 8.0 → ~9.0) — ~0.35M–0.65M tokens
