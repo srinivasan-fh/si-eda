@@ -67,8 +67,9 @@ void collectIssues(const Project& p, const Component& cand, double gap, const st
     out.courtyard = cy;
     if (cand.pcb.locked)
         out.issues.push_back({"PLACE_LOCKED", cand.ref + " is locked; unlock it to move it.", -1, true});
-    // Outline and mounting holes (as DRC_OUT_OF_BOARD / DRC_HOLE_KEEPOUT).
-    if (!s.rectInside(cy, -kEps)) {
+    // Outline and mounting holes (as DRC_OUT_OF_BOARD / DRC_HOLE_KEEPOUT). Not gated on rectInside: a segment
+    // crossing the rectangle measures 0 there, which a negative margin accepts, so a part straddling the edge passed.
+    {
         bool inHole = false;
         for (const auto& h : s.holes)
             if (pointRectDistance(h.position, cy) < h.keepout / 2 - kEps) inHole = true;

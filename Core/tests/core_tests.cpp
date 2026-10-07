@@ -17278,8 +17278,11 @@ TEST(autoroute_pin_swap_shortens_ratsnest_and_back_annotates) {
         const Schematic& s = on.p.schematic;
         CHECK(s.find(on.u1a)->unitOf == on.pkg2 && s.find(on.u2a)->unitOf == on.pkg1);
         const int n1 = s.netOf({on.r1, 1}), n2 = s.netOf({on.r2, 1});
-        CHECK(n1 >= 0 && n2 >= 0 && n1 == s.netOf({on.u1a, 0}) && n2 == s.netOf({on.u2a, 0}));
-        CHECK(padNet(on.p, on.pkg2, 0) == n1 && padNet(on.p, on.pkg1, 0) == n2);
+        // The gate's two inputs are swappable too, so each net may end on either input of its new gate.
+        auto onInput = [&](int unit, int net) { return net == s.netOf({unit, 0}) || net == s.netOf({unit, 1}); };
+        CHECK(n1 >= 0 && n2 >= 0 && onInput(on.u1a, n1) && onInput(on.u2a, n2));
+        auto padInput = [&](int pkg, int net) { return padNet(on.p, pkg, 0) == net || padNet(on.p, pkg, 1) == net; };
+        CHECK(padInput(on.pkg2, n1) && padInput(on.pkg1, n2));
         CHECK(on.p.pcbEcoPreview().empty());  // the board is in step with the schematic
         // The swaps are in the route report and its JSON; the option-off route reports none.
         const Json j = routeReportJson(on.p.pcb.lastRouteReport);
@@ -17828,12 +17831,16 @@ TEST(tune_while_routing_matches_a_bus_on_commit) {
     const RoutePreview pv = routeTurningBus(r, b, 4);
     CHECK(!pv.blocked);
     CHECK(pv.memberLengths.size() == 4);
+    // memberLengths are the live-tuned lengths; the untuned route (placed + head) differs between members.
+    std::map<int, double> untuned;
+    for (const auto* part : {&pv.placed, &pv.head})
+        for (const Track& t : *part) untuned[t.net] += trackLength(t);
     double shortest = 1e9, longest = 0;
-    for (const auto& m : pv.memberLengths) {
-        shortest = std::min(shortest, m.length);
-        longest = std::max(longest, m.length);
+    for (const auto& [net, length] : untuned) {
+        shortest = std::min(shortest, length);
+        longest = std::max(longest, length);
     }
-    CHECK(longest - shortest > 1.0);  // unequal before tuning
+    CHECK(untuned.size() == 4 && longest - shortest > 1.0);  // unequal before tuning
     const RouteChanges ch = r.commit();
     CHECK(ch.ok);
     CHECK(ch.memberLengths.size() == 4);

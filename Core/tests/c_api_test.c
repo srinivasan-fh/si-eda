@@ -1515,7 +1515,8 @@ int sieda_c_api_autoroute_strategy_test(void) {
     if (!report || !strstr(report, "\"ratsnestBefore\"") || !strstr(report, "\"swaps\":[]")) return 19;
     sieda_string_free(report);
     saved = sieda_project_save_json(p);
-    if (!saved || !strstr(saved, "\"pinSwap\":true")) return 20;
+    /* The saved file is pretty-printed ("key": value). */
+    if (!saved || (!strstr(saved, "\"pinSwap\":true") && !strstr(saved, "\"pinSwap\": true"))) return 20;
     sieda_string_free(saved);
     sieda_project_free(p);
     return 0;
