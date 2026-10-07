@@ -58,8 +58,10 @@ std::vector<Pad> padsAt(const Component& c, const Schematic& sch, const BoardSet
 }
 
 /// The issues of `cand` (a copy of the part at its candidate pose). `gap` > 0 keeps that much space to other
-/// courtyards (the suggestion's search); the report itself uses 0, as the DRC does.
-void collectIssues(const Project& p, const Component& cand, double gap, PlacementCheck& out) {
+/// courtyards (the suggestion's search); the report itself uses 0, as the DRC does. Parts in `ignore` (sorted; the
+/// placement queue still waiting) are no obstacles.
+void collectIssues(const Project& p, const Component& cand, double gap, const std::vector<int>& ignore,
+                   PlacementCheck& out) {
     const BoardSettings& s = p.pcb.settings;
     const Rect cy = p.pcb.courtyard(cand);
     out.courtyard = cy;
@@ -83,6 +85,7 @@ void collectIssues(const Project& p, const Component& cand, double gap, Placemen
     const Rect probe = cy.inflated(gap);
     for (const auto& o : p.schematic.components()) {
         if (o.id == cand.id || !o.hasFootprint() || !o.pcb.placed || plane(o, s) != own) continue;
+        if (std::binary_search(ignore.begin(), ignore.end(), o.id)) continue;
         if (p.pcb.courtyard(o).intersects(probe))
             out.issues.push_back({"PLACE_OVERLAP", cand.ref + " would overlap the courtyard of " + o.ref + ".", o.id, true});
     }
@@ -115,27 +118,35 @@ std::optional<Component> candidate(const Schematic& sch, const BoardSettings& s,
     return cand;
 }
 
-PlacementCheck checkCandidate(const Project& p, const Component& cand, double gap) {
+std::vector<int> sortedIds(const std::vector<int>& ids) {
+    std::vector<int> out = ids;
+    std::sort(out.begin(), out.end());
+    out.erase(std::unique(out.begin(), out.end()), out.end());
+    return out;
+}
+
+PlacementCheck checkCandidate(const Project& p, const Component& cand, double gap, const std::vector<int>& ignore) {
     PlacementCheck out;
     out.component = cand.id;
     out.position = cand.pcb.position;
     out.rotation = cand.pcb.rotation;
     out.bottom = cand.pcb.bottom;
     out.pads = padsAt(cand, p.schematic, p.pcb.settings);
-    collectIssues(p, cand, gap, out);
+    collectIssues(p, cand, gap, ignore, out);
     return out;
 }
 }  // namespace
 
-PlacementCheck Project::checkPlacement(int componentId, Vec2 at, int rotation, bool bottom, double grid) const {
+PlacementCheck Project::checkPlacement(int componentId, Vec2 at, int rotation, bool bottom, double grid,
+                                       const std::vector<int>& ignore) const {
     const auto cand = candidate(schematic, pcb.settings, componentId, at, rotation, bottom, grid);
     if (!cand) return {};
-    return checkCandidate(*this, *cand, 0);
+    return checkCandidate(*this, *cand, 0, sortedIds(ignore));
 }
 
 PlacementCheck Project::placeComponent(int componentId, Vec2 at, int rotation, bool bottom, double grid,
-                                       bool allowIllegal) {
-    PlacementCheck check = checkPlacement(componentId, at, rotation, bottom, grid);
+                                       bool allowIllegal, const std::vector<int>& ignore) {
+    PlacementCheck check = checkPlacement(componentId, at, rotation, bottom, grid, ignore);
     if (check.component < 0) return check;
     const bool locked = std::any_of(check.issues.begin(), check.issues.end(),
                                     [](const PlacementIssue& i) { return i.code == "PLACE_LOCKED"; });
@@ -150,7 +161,8 @@ PlacementCheck Project::placeComponent(int componentId, Vec2 at, int rotation, b
     return check;
 }
 
-PlacementCheck Project::suggestPlacement(int componentId, double grid) const {
+PlacementCheck Project::suggestPlacement(int componentId, double grid, const std::vector<int>& ignoreIds) const {
+    const std::vector<int> ignore = sortedIds(ignoreIds);
     const Component* c = schematic.find(componentId);
     if (!c || !c->hasFootprint() || isNetSymbolKind(c->kind)) return {};
     // The centroid of the pads it connects to on other placed parts, each net counting once.
@@ -182,7 +194,7 @@ PlacementCheck Project::suggestPlacement(int componentId, double grid) const {
     const Vec2 origin{snap(target.x, base), snap(target.y, base)};
     auto cand = candidate(schematic, pcb.settings, componentId, origin, rotation, bottom, base);
     if (!cand) return {};
-    if (c->pcb.locked) return checkCandidate(*this, *cand, 0);  // reported as locked; nothing to search
+    if (c->pcb.locked) return checkCandidate(*this, *cand, 0, ignore);  // reported as locked; nothing to search
     constexpr double kGap = 0.25;
     for (int r = 0; r <= rings; ++r) {
         bool found = false;
@@ -196,7 +208,7 @@ PlacementCheck Project::suggestPlacement(int componentId, double grid) const {
                 if (found && d >= bestD) continue;
                 cand->pcb.position = at;
                 PlacementCheck probe;
-                collectIssues(*this, *cand, kGap, probe);
+                collectIssues(*this, *cand, kGap, ignore, probe);
                 if (!probe.legal) continue;
                 found = true;
                 best = at;
@@ -204,12 +216,12 @@ PlacementCheck Project::suggestPlacement(int componentId, double grid) const {
             }
         if (found) {
             cand->pcb.position = best;
-            return checkCandidate(*this, *cand, 0);
+            return checkCandidate(*this, *cand, 0, ignore);
         }
     }
     // Nowhere free: the spot next to the connections, reported as it is.
     cand->pcb.position = origin;
-    return checkCandidate(*this, *cand, 0);
+    return checkCandidate(*this, *cand, 0, ignore);
 }
 
 }  // namespace sieda

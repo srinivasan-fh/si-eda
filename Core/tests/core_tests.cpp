@@ -15628,6 +15628,99 @@ TEST(interactive_placement_leaves_project_files_unchanged) {
     CHECK(g.p.schematic.find(g.c1)->pcb.placed && g.p.schematic.find(g.r3)->pcb.placed);
 }
 
+// ---- placement ignores queued parts
+
+TEST(placement_ignore_lets_a_part_take_a_queued_parts_spot) {
+    PlacementFixture f;
+    std::vector<int> queue;
+    f.p.applyPcbEco({}, nullptr, &queue);
+    CHECK(queue.size() == 2);
+    // R3 still waits in the queue at its "automatic" spot (pinned here so the test does not depend on Auto Place).
+    f.p.placeComponent(f.r3, {40, 30}, 0, false, 0.25, true);
+    f.p.placeComponent(f.c1, {60, 45}, 0, false, 0.25, true);
+    const Vec2 home = f.p.schematic.find(f.c1)->pcb.position;
+    // By default (no ignore list) R3 is an obstacle, as before: refused, nothing moves.
+    PlacementCheck c = f.p.checkPlacement(f.c1, {40, 30}, 0, false, 0.25);
+    CHECK(!c.legal && hasIssue(c, "PLACE_OVERLAP", f.r3));
+    c = f.p.placeComponent(f.c1, {40, 30}, 0, false, 0.25);
+    CHECK(!c.committed && f.p.schematic.find(f.c1)->pcb.position == home);
+    // With R3 in the ignore list the spot is legal and C1 goes there without forcing.
+    const std::vector<int> ignore = {f.r3};
+    c = f.p.checkPlacement(f.c1, {40, 30}, 0, false, 0.25, ignore);
+    CHECK(c.legal && !hasIssue(c, "PLACE_OVERLAP"));
+    c = f.p.placeComponent(f.c1, {40, 30}, 0, false, 0.25, false, ignore);
+    CHECK(c.committed && c.legal);
+    CHECK(f.p.schematic.find(f.c1)->pcb.position == Vec2(40, 30));
+    // Ignoring R3 ignores nothing else: R1 still blocks, as does the outline.
+    c = f.p.checkPlacement(f.c1, {10, 10}, 0, false, 0.25, ignore);
+    CHECK(!c.legal && hasIssue(c, "PLACE_OVERLAP", f.r1));
+    CHECK(!f.p.checkPlacement(f.c1, {-20, -20}, 0, false, 0.25, ignore).legal);
+    // Duplicates, unknown ids and the part itself in the list change nothing.
+    const std::vector<int> messy = {f.r3, 987654, f.r3, f.c1};
+    CHECK(f.p.checkPlacement(f.c1, {40, 30}, 0, false, 0.25, messy).legal);
+    CHECK(!f.p.checkPlacement(f.c1, {10, 10}, 0, false, 0.25, messy).legal);
+}
+
+TEST(placement_ignore_suggestion_may_overlap_queued_never_placed) {
+    PlacementFixture f;
+    f.p.applyPcbEco({});
+    f.p.placeComponent(f.c1, {70, 50}, 0, false, 0.25, true);  // out of the way
+    f.p.placeComponent(f.r3, {70, 10}, 0, false, 0.25, true);
+    // Where R3 would go next to R2 with nothing in the way...
+    const PlacementCheck free = f.p.suggestPlacement(f.r3, 0.25);
+    CHECK(free.legal);
+    // ...is where C1 (still queued) now stands.
+    f.p.placeComponent(f.c1, free.position, 0, false, 0.25, true);
+    const Rect c1Box = f.p.pcb.courtyard(*f.p.schematic.find(f.c1));
+    // Without the ignore list (as before) the suggestion avoids C1.
+    const PlacementCheck avoid = f.p.suggestPlacement(f.r3, 0.25);
+    CHECK(avoid.legal && !avoid.courtyard.intersects(c1Box));
+    // With C1 ignored it is the free spot again, overlapping C1...
+    const std::vector<int> ignore = {f.c1};
+    const PlacementCheck over = f.p.suggestPlacement(f.r3, 0.25, ignore);
+    CHECK(over.legal && over.issues.empty());
+    CHECK(over.position == free.position && over.courtyard.intersects(c1Box));
+    // ...but never a placed part's courtyard.
+    for (const auto& o : f.p.schematic.components())
+        if (o.id != f.r3 && o.id != f.c1 && o.hasFootprint() && o.pcb.placed)
+            CHECK(!f.p.pcb.courtyard(o).intersects(over.courtyard));
+}
+
+TEST(placement_ignore_c_api_round_trip) {
+    SiedaProject* cp = sieda_project_new("Ignore queue");
+    const int32_t a = sieda_add_component(cp, 0, "1k", 0, 0, 0, nullptr);
+    const int32_t b = sieda_add_component(cp, 0, "2k", 100, 0, 0, nullptr);
+    sieda_string_free(sieda_apply_pcb_eco(cp, nullptr));
+    sieda_string_free(sieda_pcb_place_footprint(cp, a, 10, 10, 0, 0, 0.25, 1));
+    sieda_string_free(sieda_pcb_place_footprint(cp, b, 30, 20, 0, 0, 0.25, 1));
+    auto has = [](char* out, const std::string& text) {
+        const bool found = out && std::string(out).find(text) != std::string::npos;
+        sieda_string_free(out);
+        return found;
+    };
+    const std::string ignoreB = "{\"ignore\":[" + std::to_string(b) + "]}";
+    // The old calls and NULL / empty / key-less options: B blocks.
+    CHECK(has(sieda_pcb_check_placement(cp, a, 30, 20, 0, 0, 0.25), "PLACE_OVERLAP"));
+    CHECK(has(sieda_pcb_check_placement_with(cp, a, 30, 20, 0, 0, 0.25, nullptr), "PLACE_OVERLAP"));
+    CHECK(has(sieda_pcb_check_placement_with(cp, a, 30, 20, 0, 0, 0.25, ""), "PLACE_OVERLAP"));
+    CHECK(has(sieda_pcb_check_placement_with(cp, a, 30, 20, 0, 0, 0.25, "{}"), "PLACE_OVERLAP"));
+    CHECK(has(sieda_pcb_place_footprint(cp, a, 30, 20, 0, 0, 0.25, 0), "\"committed\":false"));
+    // "ignore":[B]: legal, and placing commits without force.
+    CHECK(has(sieda_pcb_check_placement_with(cp, a, 30, 20, 0, 0, 0.25, ignoreB.c_str()), "\"legal\":true"));
+    CHECK(has(sieda_pcb_suggest_placement_with(cp, a, 0.25, ignoreB.c_str()), "\"legal\":true"));
+    CHECK(has(sieda_pcb_place_footprint_with(cp, a, 30, 20, 0, 0, 0.25, 0, ignoreB.c_str()), "\"committed\":true"));
+    // Now A stands on B: B is blocked by A unless A is ignored.
+    const std::string ignoreA = "{\"ignore\":[" + std::to_string(a) + "]}";
+    CHECK(has(sieda_pcb_check_placement(cp, b, 30, 20, 0, 0, 0.25), "PLACE_OVERLAP"));
+    CHECK(has(sieda_pcb_check_placement_with(cp, b, 30, 20, 0, 0, 0.25, ignoreA.c_str()), "\"legal\":true"));
+    // Invalid options give NULL.
+    CHECK(sieda_pcb_check_placement_with(cp, a, 30, 20, 0, 0, 0.25, "{nope") == nullptr);
+    CHECK(sieda_pcb_place_footprint_with(cp, a, 10, 10, 0, 0, 0.25, 0, "[") == nullptr);
+    CHECK(sieda_pcb_suggest_placement_with(cp, a, 0.25, "{\"ignore\":") == nullptr);
+    CHECK(sieda_pcb_check_placement_with(nullptr, a, 0, 0, 0, 0, 0.25, ignoreB.c_str()) == nullptr);
+    sieda_project_free(cp);
+}
+
 // ======================================================================= symbol graphics, drawn sheet symbols
 
 TEST(symbol_graphics_persist_and_draw) {

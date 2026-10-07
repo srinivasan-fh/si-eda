@@ -884,6 +884,15 @@ char* sieda_pcb_place_footprint(SiedaProject* project, int32_t component_id, dou
 /* Where to start placing it: the nearest free grid spot to the pads it connects to (its rotation and side kept);
  * "legal": false when the board has no free spot. Nothing changes. */
 char* sieda_pcb_suggest_placement(const SiedaProject* project, int32_t component_id, double grid);
+/* The same three calls with options_json (NULL = none): {"ignore":[component ids]} — parts whose courtyards are no
+ * obstacles (the placement queue still waiting at its automatic spots). Invalid JSON gives NULL. */
+char* sieda_pcb_check_placement_with(const SiedaProject* project, int32_t component_id, double x, double y,
+                                     int32_t rotation, int32_t bottom, double grid, const char* options_json);
+char* sieda_pcb_place_footprint_with(SiedaProject* project, int32_t component_id, double x, double y,
+                                     int32_t rotation, int32_t bottom, double grid, int32_t force,
+                                     const char* options_json);
+char* sieda_pcb_suggest_placement_with(const SiedaProject* project, int32_t component_id, double grid,
+                                       const char* options_json);
 /* Drawn size of a sheet's sheet symbol in schematic units (0 = fitted to its entries; clamped to 4000). 1 on success. */
 int32_t sieda_set_sheet_symbol_size(SiedaProject* project, int32_t sheet, double width, double height);
 /* Per-channel parameters of a part on a repeated sheet (see sieda_set_channel_value): this channel's own SPICE model
