@@ -8021,6 +8021,7 @@ final class DfmPackTests: XCTestCase {
             XCTAssertGreaterThan(r.z0, 20)
             XCTAssertLessThan(r.z0, 150)
             XCTAssertGreaterThan(r.eeff, 1)
+            XCTAssertGreaterThan(r.dbPerInch(at: 10) ?? 0, r.dbPerInch(at: 1) ?? 1)
         }
         XCTAssertNil(store.engine.fieldSolve(layer: 99, width: 0.2))
     }

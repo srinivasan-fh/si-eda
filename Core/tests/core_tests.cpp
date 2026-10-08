@@ -19412,3 +19412,27 @@ TEST(field_solver_matches_exact_stripline_and_microstrip) {
         CHECK(r.kf < 0 && r.kb > 0 && r.zdiff < 2 * single.z0 && r.zeven > r.zodd);
     }
 }
+
+TEST(field_solver_line_loss) {
+    // Homogeneous stripline: dielectric loss is exactly π·f·√εr·tanδ / c.
+    FieldGeometry s{0.15, 0.018, 0.2, 0.2, 0, 4.0, 0.02, 0};
+    const auto rs = solveField(s);
+    const auto l1 = lineLoss(s, rs, 1e9);
+    const double exactDiel = 3.14159265358979 * 1e9 * 2.0 * 0.02 / 299792458.0 * 8.685889638 * 0.0254;
+    CHECK_NEAR(l1.dielectricDbPerIn, exactDiel, 0.01 * exactDiel);
+    // Skin effect: conductor loss grows as √f well above the DC corner, and roughness adds to it.
+    const auto l10 = lineLoss(s, rs, 10e9);
+    CHECK_NEAR(l10.conductorDbPerIn / l1.conductorDbPerIn, std::sqrt(10.0), 0.05 * std::sqrt(10.0));
+    FieldGeometry rough = s;
+    rough.roughness = 2.0;
+    const auto lr = lineLoss(rough, rs, 10e9);
+    CHECK(lr.conductorDbPerIn > 1.5 * l10.conductorDbPerIn && lr.conductorDbPerIn < 2.01 * l10.conductorDbPerIn);
+    // A 5 mil, 50 Ω microstrip on FR-4 at 1 GHz: Bogatin's rules of thumb give ~0.14 dB/in conductor and
+    // ~0.09 dB/in dielectric (Signal and Power Integrity — Simplified, ch. 9).
+    FieldGeometry m{0.127, 0.035, 0.07, 0, 0, 4.0, 0.02, 0};
+    const auto rm = solveField(m);
+    const auto lm = lineLoss(m, rm, 1e9);
+    CHECK(lm.conductorDbPerIn > 0.08 && lm.conductorDbPerIn < 0.2);
+    CHECK(lm.dielectricDbPerIn > 0.05 && lm.dielectricDbPerIn < 0.1);
+    CHECK_NEAR(lineLoss(m, rm, 0).rOhmPerMm, 1.72e-8 / (0.127e-3 * 0.035e-3) * 1e-3, 1e-9);
+}

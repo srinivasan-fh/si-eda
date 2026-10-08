@@ -2575,10 +2575,13 @@ void teamTools(Table& t) {
     t.add("pcb", "si_field_solver", "Field-solver impedance", Kind::Read, false,
           "2D field solver on a stack-up layer's cross-section (Laplace by finite volumes, with and without the "
           "dielectric): Z0, εeff, delay, L and C per mm for a track; with gap also odd / even / differential impedance "
-          "and the backward (kb) and forward (kf) crosstalk coefficients. Within ~1 % of exact stripline results.",
-          Schema().integer("layer", "Copper layer (0 = top)").num("width", "Track width, mm").num("gap", "Pair gap, mm (0 = single)"),
+          "and the backward (kb) and forward (kf) crosstalk coefficients; loss in dB/inch from 0.1 to 25 GHz (skin effect "
+          "with copper roughness, laminate loss tangent). Within ~1 % of exact stripline results.",
+          Schema().integer("layer", "Copper layer (0 = top)").num("width", "Track width, mm").num("gap", "Pair gap, mm (0 = single)")
+              .num("roughness", "Copper RMS roughness, µm (default 1; HVLP ≈ 0.4, standard ED ≈ 1–2)"),
           [](McpServer& s, const Json& a) {
-              char* r = sieda_field_solve(P(s), argInt(a, "layer", 0), argNum(a, "width", 0.2), argNum(a, "gap", 0));
+              char* r = sieda_field_solve(P(s), argInt(a, "layer", 0), argNum(a, "width", 0.2), argNum(a, "gap", 0),
+                                          argNum(a, "roughness", 1.0));
               check(r != nullptr, "Bad layer, width or gap");
               return out(takeJson(r));
           });

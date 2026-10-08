@@ -95,12 +95,14 @@ int32_t sieda_pcb_set_dfm_pack(SiedaProject* project, const char* pack_id) {
     return project && pack_id && applyDfmPack(project->project.pcb.settings, pack_id) ? 1 : 0;
 }
 
-char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width, double gap) {
+char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width, double gap, double roughness_um) {
     if (!project) return nullptr;
     const auto& s = project->project.pcb.settings;
-    if (layer < 0 || layer >= std::max(1, s.layerCount) || !(width > 0 && width < 20) || !(gap >= 0 && gap < 20))
+    if (layer < 0 || layer >= std::max(1, s.layerCount) || !(width > 0 && width < 20) || !(gap >= 0 && gap < 20) ||
+        !(roughness_um >= 0 && roughness_um < 20))
         return nullptr;
-    const FieldGeometry g = trackGeometry(s, layer, width, gap);
+    FieldGeometry g = trackGeometry(s, layer, width, gap);
+    g.roughness = roughness_um;
     return dupText(fieldResultJson(g, solveField(g)).dump());
 }
 

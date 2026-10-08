@@ -316,9 +316,10 @@ char* sieda_pcb_panel(const SiedaProject* project);
 char* sieda_dfm_packs_json(void);
 int32_t sieda_pcb_set_dfm_pack(SiedaProject* project, const char* pack_id);
 /* 2D field solver (sieda/FieldSolver.hpp) on the cross-section of `layer` from the stack-up: a track `width` mm wide,
- * or an edge-coupled pair `gap` mm apart (gap > 0). {"geometry","z0","eeff","delayPsPerMm","lNhPerMm","cPfPerMm",
- * pairs also "zodd","zeven","zdiff","zcommon","kb","kf"}; NULL for a bad layer or width. */
-char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width, double gap);
+ * or an edge-coupled pair `gap` mm apart (gap > 0), copper RMS roughness `roughness_um` (0 = smooth).
+ * {"geometry","z0","eeff","delayPsPerMm","lNhPerMm","cPfPerMm","loss":[{"ghz","rOhmPerMm","conductorDbPerIn",
+ * "dielectricDbPerIn","totalDbPerIn"}], pairs also "zodd","zeven","zdiff","zcommon","kb","kf"}; NULL for bad input. */
+char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width, double gap, double roughness_um);
 int32_t sieda_pcb_set_panel(SiedaProject* project, const char* settings_json);
 void sieda_pcb_clear_routing(SiedaProject* project);
 char* sieda_pcb_run_drc(const SiedaProject* project);
