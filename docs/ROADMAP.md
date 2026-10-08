@@ -77,6 +77,17 @@ each package into its steps.
 9. [x] 3D clearance checks
 10. [ ] Windows build
 
+## App themes — plan later
+
+Midnight Navy, Matrix Green and Graphite colour the whole app (`AppTheme`). Still to do:
+
+- **Light app theme** (~0.15M–0.25M tokens): light panels need dark text everywhere, so audit the views that assume a
+  dark background (white text on accents, `.opacity` washes over `Theme.navy`, PCB / 3D canvases that stay dark),
+  give `AppTheme.Colours` the missing roles (on-accent text, canvas versus panel background), pair it with a light
+  schematic scheme (Paper White) and extend `testEveryThemeIsReadable` to 4.5:1 for body text.
+- Optional: theme without the full-window redraw (an environment value read by the views), so open popovers and
+  scroll positions survive a theme change.
+
 ## Next (planned, in suggested order)
 
 ### 1. Large boards (scale 8.0 → ~9.0) — ~0.35M–0.65M tokens

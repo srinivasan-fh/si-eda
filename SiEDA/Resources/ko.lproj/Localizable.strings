@@ -1225,3 +1225,6 @@
 "Resolve" = "해결";
 "%lld open" = "%lld개 열림";
 "Matrix Green" = "매트릭스 그린";
+"App Theme" = "앱 테마";
+"Graphite" = "그래파이트";
+"Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "모든 창(패널, 강조색, 텍스트)의 색을 정하고 어울리는 회로도 색 구성을 선택합니다. 구리, 패드, 오류 색은 표준으로 유지됩니다.";

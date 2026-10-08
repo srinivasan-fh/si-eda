@@ -1225,3 +1225,6 @@
 "Resolve" = "সমাধান কৰক";
 "%lld open" = "%lld খোলা";
 "Matrix Green" = "মেট্ৰিক্স গ্ৰীন";
+"App Theme" = "এপ্‌ থীম";
+"Graphite" = "গ্ৰেফাইট";
+"Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "প্ৰতিটো উইণ্ড'ৰ ৰং: পেনেল, এক্সেণ্ট আৰু লিখনি, আৰু মিল থকা স্কিমেটিক স্কীম বাছে। কপাৰ, পেড আৰু ত্ৰুটিৰ ৰং মানক থাকে।";

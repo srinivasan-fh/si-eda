@@ -1225,3 +1225,6 @@
 "Resolve" = "Erledigt";
 "%lld open" = "%lld offen";
 "Matrix Green" = "Matrix-Grün";
+"App Theme" = "App-Design";
+"Graphite" = "Graphit";
+"Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "Färbt jedes Fenster: Bereiche, Akzente und Text, und wählt das passende Schaltplan-Schema. Kupfer-, Pad- und Fehlerfarben bleiben Standard.";

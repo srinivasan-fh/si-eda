@@ -2,36 +2,38 @@ import SwiftUI
 
 /// SiEDA's blue-first visual language. Dark mode is the default appearance.
 enum Theme {
-    // Core blues
-    static let navy = Color(red: 0.04, green: 0.07, blue: 0.14)          // canvas background
-    static let deepBlue = Color(red: 0.06, green: 0.12, blue: 0.25)      // panels
-    static let darkBlue = Color(red: 0.10, green: 0.23, blue: 0.48)
-    static let blue = Color(red: 0.20, green: 0.47, blue: 0.96)          // accent
-    static let lightBlue = Color(red: 0.45, green: 0.68, blue: 1.00)
-    static let skyBlue = Color(red: 0.49, green: 0.83, blue: 0.99)
-    static let iceBlue = Color(red: 0.80, green: 0.91, blue: 1.00)
+    private static var c: AppTheme.Colours { AppTheme.current.colours }
+
+    // Core blues (the app theme's colours; Midnight Navy keeps the original blues)
+    static var navy: Color { c.navy.color }              // canvas background
+    static var deepBlue: Color { c.deepBlue.color }      // panels
+    static var darkBlue: Color { c.darkBlue.color }
+    static var blue: Color { c.blue.color }              // accent
+    static var lightBlue: Color { c.lightBlue.color }
+    static var skyBlue: Color { c.skyBlue.color }
+    static var iceBlue: Color { c.iceBlue.color }
 
     // Text
-    static let textPrimary = iceBlue
-    static let textSecondary = lightBlue
-    static let textMuted = Color(red: 0.42, green: 0.53, blue: 0.72)
+    static var textPrimary: Color { iceBlue }
+    static var textSecondary: Color { lightBlue }
+    static var textMuted: Color { c.textMuted.color }
 
     // Semantic (kept distinct so errors stay noticeable)
     static let error = Color(red: 1.00, green: 0.38, blue: 0.40)
     static let warning = Color(red: 1.00, green: 0.72, blue: 0.30)
-    static let success = skyBlue
+    static var success: Color { skyBlue }
 
     // Schematic canvas
-    static let schematicBackground = navy
-    static let gridDot = Color(red: 0.16, green: 0.24, blue: 0.40)
-    static let symbol = lightBlue
-    static let symbolFill = Color(red: 0.10, green: 0.18, blue: 0.34).opacity(0.65)
-    static let wire = skyBlue
-    static let pin = Color(red: 0.62, green: 0.78, blue: 1.00)
-    static let unconnectedPin = warning
+    static var schematicBackground: Color { navy }
+    static var gridDot: Color { c.gridDot.color }
+    static var symbol: Color { lightBlue }
+    static var symbolFill: Color { c.symbolFill.color.opacity(0.65) }
+    static var wire: Color { skyBlue }
+    static var pin: Color { c.pin.color }
+    static var unconnectedPin: Color { warning }
     static let selection = Color(red: 0.98, green: 0.98, blue: 1.00)
-    static let label = iceBlue
-    static let valueLabel = Color(red: 0.55, green: 0.70, blue: 0.95)
+    static var label: Color { iceBlue }
+    static var valueLabel: Color { c.valueLabel.color }
     static let probe = Color(red: 0.36, green: 0.92, blue: 1.00)
     /// Live simulation: closed switches, running indicators.
     static let liveOn = Color(red: 0.36, green: 0.90, blue: 0.52)
@@ -39,10 +41,10 @@ enum Theme {
     static let harness = Color(red: 0.78, green: 0.58, blue: 1.00)
 
     // PCB canvas (blue copper palette)
-    static let pcbBackground = Color(red: 0.02, green: 0.04, blue: 0.09)
+    static var pcbBackground: Color { c.pcbBackground.color }
     /// Near-black laminate, so layer and net colours read as in professional CAD (Altium / KiCad dark themes).
     static let boardFill = Color(red: 0.07, green: 0.08, blue: 0.10)
-    static let boardEdge = skyBlue
+    static var boardEdge: Color { skyBlue }
     // Standard layer colours (KiCad / Altium convention): top red, bottom blue.
     static let topCopper = Color(red: 0.90, green: 0.22, blue: 0.20)
     static let bottomCopper = Color(red: 0.25, green: 0.45, blue: 0.98)
@@ -97,10 +99,10 @@ enum Theme {
     }
 
     /// Series colours for charts — all blues, distinguishable by lightness.
-    static let seriesColors: [Color] = [
-        skyBlue, blue, Color(red: 0.62, green: 0.55, blue: 1.0), iceBlue,
-        Color(red: 0.15, green: 0.75, blue: 0.95), Color(red: 0.35, green: 0.40, blue: 0.95), lightBlue,
-    ]
+    static var seriesColors: [Color] {
+        [skyBlue, blue, Color(red: 0.62, green: 0.55, blue: 1.0), iceBlue,
+         Color(red: 0.15, green: 0.75, blue: 0.95), Color(red: 0.35, green: 0.40, blue: 0.95), lightBlue]
+    }
 }
 
 /// Blue gradient card used across workspaces.

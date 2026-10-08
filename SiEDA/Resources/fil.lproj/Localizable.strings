@@ -1225,3 +1225,6 @@
 "Resolve" = "Lutasin";
 "%lld open" = "%lld bukas";
 "Matrix Green" = "Matrix Green";
+"App Theme" = "Tema ng App";
+"Graphite" = "Graphite";
+"Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "Kinukulayan ang bawat window: mga panel, accent at teksto, at pinipili ang katugmang schematic scheme. Nananatiling karaniwan ang kulay ng copper, pad at error.";

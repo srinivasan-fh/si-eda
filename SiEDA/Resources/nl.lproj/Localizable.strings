@@ -1225,3 +1225,6 @@
 "Resolve" = "Oplossen";
 "%lld open" = "%lld open";
 "Matrix Green" = "Matrix-groen";
+"App Theme" = "App-thema";
+"Graphite" = "Grafiet";
+"Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "Kleurt elk venster: panelen, accenten en tekst, en kiest het bijpassende schema-kleurenschema. Koper-, pad- en foutkleuren blijven standaard.";

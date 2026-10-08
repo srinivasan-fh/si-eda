@@ -1225,3 +1225,6 @@
 "Resolve" = "പരിഹരിക്കുക";
 "%lld open" = "%lld തുറന്നവ";
 "Matrix Green" = "മാട്രിക്സ് ഗ്രീൻ";
+"App Theme" = "ആപ്പ് തീം";
+"Graphite" = "ഗ്രാഫൈറ്റ്";
+"Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "എല്ലാ വിൻഡോയ്ക്കും നിറം: പാനലുകൾ, ആക്സന്റുകൾ, ടെക്സ്റ്റ്; ചേരുന്ന സ്കീമാറ്റിക് സ്കീമും തിരഞ്ഞെടുക്കുന്നു. കോപ്പർ, പാഡ്, പിശക് നിറങ്ങൾ സാധാരണ പോലെ തുടരും.";

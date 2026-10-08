@@ -7828,3 +7828,38 @@ final class MCPLiveEndpointTests: XCTestCase {
         XCTAssertEqual((refused as? HTTPURLResponse)?.statusCode, 401)
     }
 }
+
+/// App-wide themes (Settings → Appearance → App Theme).
+@MainActor
+final class AppThemeTests: XCTestCase {
+    func testEveryThemeIsReadable() {
+        for theme in AppTheme.allCases {
+            let c = theme.colours
+            let pairs: [(String, SchematicRGB, SchematicRGB, Double)] = [
+                ("text", c.iceBlue, c.navy, 4.5), ("muted", c.textMuted, c.navy, 3), ("mutedOnPanel", c.textMuted, c.deepBlue, 3),
+                ("secondary", c.lightBlue, c.deepBlue, 3), ("accent", c.blue, c.navy, 3),
+            ]
+            for (name, fg, bg, minimum) in pairs {
+                XCTAssertGreaterThanOrEqual(fg.contrast(with: bg), minimum, "\(theme.rawValue).\(name)")
+            }
+        }
+    }
+
+    func testSelectSwitchesColoursAndSchematicScheme() {
+        let defaults = UserDefaults.standard
+        let saved = (AppTheme.current, defaults.object(forKey: AppTheme.storageKey),
+                     defaults.object(forKey: SchematicColorScheme.storageKey))
+        defer {
+            AppTheme.current = saved.0
+            defaults.set(saved.1, forKey: AppTheme.storageKey)
+            defaults.set(saved.2, forKey: SchematicColorScheme.storageKey)
+        }
+        AppTheme.select(.matrixGreen)
+        XCTAssertEqual(defaults.string(forKey: AppTheme.storageKey), "matrixGreen")
+        XCTAssertEqual(defaults.string(forKey: SchematicColorScheme.storageKey), SchematicColorScheme.matrix.rawValue)
+        XCTAssertEqual(SchematicRGB(Theme.navy)?.hexString, "#020A04")
+        AppTheme.select(.midnightNavy)
+        XCTAssertEqual(SchematicRGB(Theme.navy)?.hexString, "#0A1224")
+        XCTAssertEqual(defaults.string(forKey: SchematicColorScheme.storageKey), SchematicColorScheme.siedaDark.rawValue)
+    }
+}
