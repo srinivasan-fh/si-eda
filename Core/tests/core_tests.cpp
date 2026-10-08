@@ -19305,6 +19305,11 @@ TEST(review_comments_round_trip) {
     sieda_project_free(sp);
 }
 
+TEST(json_as_int_clamps_hostile_numbers) {
+    CHECK(Json::parse("2.2e112").asInt() == 2147483647 && Json::parse("-1e300").asInt() == -2147483647 - 1);
+    CHECK(Json::parse("42.9").asInt() == 42 && Json::parse("-7").asInt() == -7 && Json::parse("\"x\"").asInt(5) == 5);
+}
+
 TEST(json_hostile_nesting_and_number_format) {
     // A hostile document nested 100 000 levels deep is an error, not a stack overflow.
     bool threw = false;
