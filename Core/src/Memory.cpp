@@ -212,11 +212,12 @@ struct DdrLayoutLimits {
     double laneSkewPs, addrSkewPs, impedanceTol;  // byte-lane DQ skew; command / address to CK; ± fraction of target
     int laneViaSpread;                            // vias: every bit of a lane within this many of each other
     double dqsSkewPs;                             // each DQ of a lane to its strobe
+    double pairSkewPs;                            // P to N of the clock and strobe pairs
 };
 DdrLayoutLimits ddrLayoutLimits(const std::string& type) {
-    if (type == "sdram") return {50, 100, 0.15, 1, 50};
-    if (type == "lpddr") return {5, 15, 0.10, 0, 5};
-    return {10, 25, 0.10, 0, 10};  // DDR3L / DDR4 memory-down, DIMMs
+    if (type == "sdram") return {50, 100, 0.15, 1, 50, 10};
+    if (type == "lpddr") return {5, 15, 0.10, 0, 5, 1};
+    return {10, 25, 0.10, 0, 10, 2};  // DDR3L / DDR4 memory-down, DIMMs
 }
 
 /// The type's limits with the project's overrides (from the controller's layout guide).
@@ -228,13 +229,14 @@ DdrLayoutLimits effectiveLimits(const Project& p) {
     if (o.addrSkewPs > 0) l.addrSkewPs = o.addrSkewPs;
     if (o.impedanceTolPercent > 0) l.impedanceTol = o.impedanceTolPercent / 100;
     if (o.laneViaSpread >= 0) l.laneViaSpread = o.laneViaSpread;
+    if (o.pairSkewPs > 0) l.pairSkewPs = o.pairSkewPs;
     return l;
 }
 
 Json limitsJson(const DdrLayoutLimits& l) {
     Json j = Json::object();
     j["laneSkewPs"] = l.laneSkewPs, j["dqsSkewPs"] = l.dqsSkewPs, j["addrSkewPs"] = l.addrSkewPs;
-    j["impedanceTolPercent"] = l.impedanceTol * 100, j["laneViaSpread"] = l.laneViaSpread;
+    j["impedanceTolPercent"] = l.impedanceTol * 100, j["laneViaSpread"] = l.laneViaSpread, j["pairSkewPs"] = l.pairSkewPs;
     return j;
 }
 
@@ -327,6 +329,17 @@ void ddrLayoutChecks(const PcbLayout& pcb, const Dram& d, const DdrLayoutLimits&
             break;
         }
     }
+    // Differential clock and strobes: P and N matched (a skewed pair shifts its crossing point and converts to common mode).
+    std::vector<std::pair<std::string, std::pair<int, int>>> pairs{{"CK", {d.clock, d.clockN}}};
+    for (size_t k = 0; k < d.strobes.size(); ++k)
+        pairs.push_back({"DQS" + std::to_string(k < d.strobeLanes.size() ? d.strobeLanes[k] : 0), d.strobes[k]});
+    for (const auto& [label, pn] : pairs)
+        if (pn.first >= 0 && pn.second >= 0 && routed(pn.first) && routed(pn.second))
+            if (const double skew = std::fabs(routedDelayPs(pcb, pn.first) - routedDelayPs(pcb, pn.second)); skew > lim.pairSkewPs)
+                add(sev, "MEM_DDR_PAIR_SKEW",
+                    m.ref + "'s " + label + " pair has " + fmt("%.1f ps", skew) + " between P and N: match it within " +
+                        fmt("%.0f ps", lim.pairSkewPs) + " (Tune Lengths on the pair).",
+                    {m.id});
     // Fly-by command / address against the clock.
     if (d.clock >= 0 && routed(d.clock)) {
         const double ck = routedDelayPs(pcb, d.clock);
@@ -741,6 +754,7 @@ Json memoryLimitsJson(const Project::MemoryLayoutLimits& l) {
     if (l.addrSkewPs > 0) j["addrSkewPs"] = l.addrSkewPs;
     if (l.impedanceTolPercent > 0) j["impedanceTolPercent"] = l.impedanceTolPercent;
     if (l.laneViaSpread >= 0) j["laneViaSpread"] = l.laneViaSpread;
+    if (l.pairSkewPs > 0) j["pairSkewPs"] = l.pairSkewPs;
     return j;
 }
 
@@ -752,6 +766,7 @@ Project::MemoryLayoutLimits memoryLimitsFromJson(const Json& j) {
     l.addrSkewPs = std::clamp(j.get("addrSkewPs").asNumber(0), 0.0, 1000.0);
     l.impedanceTolPercent = std::clamp(j.get("impedanceTolPercent").asNumber(0), 0.0, 50.0);
     l.laneViaSpread = std::clamp(j.get("laneViaSpread").asInt(-1), -1, 8);
+    l.pairSkewPs = std::clamp(j.get("pairSkewPs").asNumber(0), 0.0, 1000.0);
     return l;
 }
 

@@ -251,7 +251,7 @@ char* sieda_appliance_segments_json(const SiedaProject* project);
 /// Memory design type ("sdram", "ddr", "lpddr", "dimm", "rdimm"; "" = none). 0 for an unknown id.
 int32_t sieda_set_memory_design(SiedaProject* project, const char* type);
 /* DDR layout limits (Memory.hpp): {"type","effective":{laneSkewPs,dqsSkewPs,addrSkewPs,impedanceTolPercent,
- * laneViaSpread},"defaults":{…},"overrides":{…}}. The setter replaces the overrides with the controller's own values
+ * laneViaSpread,pairSkewPs},"defaults":{…},"overrides":{…}}. The setter replaces the overrides with the controller's own values
  * ({} = the type's typical limits); 0 for malformed JSON. */
 char* sieda_memory_limits_json(const SiedaProject* project);
 int32_t sieda_set_memory_limits(SiedaProject* project, const char* limits_json);

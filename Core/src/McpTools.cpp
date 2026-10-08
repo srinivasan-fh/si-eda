@@ -2364,7 +2364,8 @@ void verifyTools(Table& t) {
           "type's typical value). Returns the limits in force.",
           Schema().num("laneSkewPs", "Byte-lane DQ skew, ps").num("dqsSkewPs", "DQ to its strobe, ps")
               .num("addrSkewPs", "Command / address to clock, ps").num("impedanceTolPercent", "Data impedance tolerance, %")
-              .integer("laneViaSpread", "Via-count spread within a lane (-1 = typical)"),
+              .integer("laneViaSpread", "Via-count spread within a lane (-1 = typical)")
+              .num("pairSkewPs", "P to N of the clock and strobe pairs, ps"),
           [](McpServer& s, const Json& a) {
               if (a.isObject() && a.size() > 0) check(sieda_set_memory_limits(P(s), a.dump().c_str()) == 1, "Invalid limits");
               return out(takeJson(sieda_memory_limits_json(P(s))));

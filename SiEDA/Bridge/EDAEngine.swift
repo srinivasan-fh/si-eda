@@ -764,7 +764,7 @@ final class EDAEngine: @unchecked Sendable {
 
     /// DDR layout limits in force (the memory type's typical values with the controller's overrides).
     struct MemoryLimits: Codable, Equatable {
-        var laneSkewPs, dqsSkewPs, addrSkewPs, impedanceTolPercent: Double?
+        var laneSkewPs, dqsSkewPs, addrSkewPs, impedanceTolPercent, pairSkewPs: Double?
         var laneViaSpread: Int?
     }
     struct MemoryLimitsReport: Decodable { var effective, defaults, overrides: MemoryLimits }

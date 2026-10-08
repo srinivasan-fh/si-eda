@@ -10,7 +10,7 @@
   `SiEDA/Views/Library/SymbolEditorView.swift`; guide in `docs/SYMBOL_EDITOR.md`.
 - Memory (RAM) design segments: core in `Core/src/Memory.cpp` (`memoryChecks`, `memorySegments`, routed DDR layout
   rules `ddrLayoutChecks` / `ddrLayoutLimits` with `Project::memoryLimits` overrides from the controller's guide,
-  DQS-to-lane `MEM_DDR_DQS_SKEW`: MEM_DDR_* warnings on DDR, info on SDR), app via
+  DQS-to-lane `MEM_DDR_DQS_SKEW`, CK / DQS P-to-N `MEM_DDR_PAIR_SKEW`: MEM_DDR_* warnings on DDR, info on SDR), app via
   `EDAEngine.memorySegments` / `DesignStore.setMemoryDesign`; guide in `docs/MEMORY_DESIGN.md`. The memory reference design
   (STM32H743 + SDRAM) must keep passing verification on 6 layers.
 - Schematic capture: sheets / hierarchy / bus labels / annotation in `Core/src/Sheets.cpp`, repeated sheets in

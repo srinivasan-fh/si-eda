@@ -19747,7 +19747,7 @@ TEST(ddr_strobe_matched_to_its_byte_lane) {
     const int dram = d.addCustomComponent(
         CustomPartRegistry::instance().registerPart(findStandardPart("MT41K256M16HA-125")->spec)->id, "", {0, 0});
     std::map<std::string, int> net;
-    for (const char* pin : {"DQ0", "DQ1", "LDQS"}) {
+    for (const char* pin : {"DQ0", "DQ1", "LDQS", "nLDQS", "CK", "nCK"}) {
         const int r = d.addComponent(ComponentKind::Resistor, "22", {200, 0});
         wire(d, dram, pin, r, "1");
     }
@@ -19769,6 +19769,16 @@ TEST(ddr_strobe_matched_to_its_byte_lane) {
     CHECK(codes().count("MEM_DDR_DQS_SKEW") && !codes().count("MEM_DDR_LANE_SKEW"));
     q.pcb.tracks.back().b = {20, 0};
     CHECK(!codes().count("MEM_DDR_DQS_SKEW"));
+    // Differential pairs: the strobe's N leg 1 mm longer than P (≈ 6 ps) fails the 2 ps DDR limit; the clock pair
+    // matched passes. A controller allowing 10 ps accepts it.
+    route("nLDQS", 21), route("CK", 30), route("nCK", 30);
+    CHECK(codes().count("MEM_DDR_PAIR_SKEW"));
+    bool strobe = false;
+    for (const auto& v : memoryChecks(q)) strobe = strobe || (v.code == "MEM_DDR_PAIR_SKEW" && v.message.find("DQS0") != std::string::npos);
+    CHECK(strobe);
+    q.memoryLimits.pairSkewPs = 10;
+    CHECK(!codes().count("MEM_DDR_PAIR_SKEW"));
+    CHECK(memoryLimitsFromJson(memoryLimitsJson(q.memoryLimits)).pairSkewPs == 10);
 }
 
 TEST(dfm_aspect_ratio_copper_balance_and_report) {

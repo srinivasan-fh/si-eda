@@ -1285,3 +1285,4 @@
 "Sign-off Report" = "承認レポート";
 "Live Collaboration" = "ライブ共同編集";
 "Save each edit to the shared project file and merge teammates' saves automatically" = "各編集を共有プロジェクトファイルに保存し、チームメンバーの保存を自動でマージします";
+"Clock / strobe pair P to N (ps)" = "クロック / ストローブ対 P–N 間 (ps)";
