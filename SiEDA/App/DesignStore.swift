@@ -77,6 +77,9 @@ final class DesignStore: ObservableObject {
     @Published var showFind = false
     /// ⌘K command palette (`CommandPaletteView`).
     @Published var showCommandPalette = false
+    /// Help → Welcome Tour (shown once on first launch) and Help → Keyboard Shortcuts (Onboarding.swift).
+    @Published var showWelcomeTour = false
+    @Published var showShortcuts = false
     /// The custom schematic colour theme editor (opened from the colour scheme menus).
     @Published var showSchematicColours = false
     @Published var ercResults: [RuleViolation] = []

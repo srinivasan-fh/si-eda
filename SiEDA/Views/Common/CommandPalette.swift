@@ -8,6 +8,9 @@ struct CommandPaletteEntry: Identifiable {
     let kind: Kind
     let title: String
     let detail: String
+    /// Menu commands: the key equivalent ("⇧⌘E") and the top-level menu ("File").
+    var shortcut = ""
+    var menu = ""
     let run: () -> Void
 
     var icon: String {
@@ -33,9 +36,10 @@ enum CommandPalette {
             if let sub = item.submenu {
                 if sub !== NSApp.servicesMenu { out += menuEntries(sub, path: path + [name]) }
             } else if item.isEnabled {
-                let key = item.keyEquivalent.isEmpty ? "" : "  " + shortcut(item)
+                let key = item.keyEquivalent.isEmpty ? "" : shortcut(item)
                 out.append(CommandPaletteEntry(id: "menu:" + (path + [name]).joined(separator: "›"), kind: .command,
-                                               title: name, detail: path.joined(separator: " › ") + key) { [weak item] in
+                                               title: name, detail: path.joined(separator: " › ") + (key.isEmpty ? "" : "  " + key),
+                                               shortcut: key, menu: path.first ?? "") { [weak item] in
                     guard let item, let owner = item.menu, let index = owner.items.firstIndex(of: item) else { return }
                     owner.performActionForItem(at: index)
                 })

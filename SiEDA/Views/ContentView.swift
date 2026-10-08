@@ -51,6 +51,8 @@ struct ContentView: View {
         .overlay { if store.showCommandPalette { CommandPaletteView() } }
         .sheet(item: $store.designDiff) { DesignDiffView(diff: $0) }
         .sheet(isPresented: $store.showReview) { DesignReviewView().environmentObject(store) }
+        .sheet(isPresented: $store.showWelcomeTour) { WelcomeTourView() }
+        .sheet(isPresented: $store.showShortcuts) { KeyboardShortcutsView() }
         .sheet(isPresented: Binding(get: { store.variantMatrix != nil }, set: { if !$0 { store.variantMatrix = nil } })) {
             if let matrix = store.variantMatrix { VariantMatrixView(matrix: matrix) }
         }
@@ -62,6 +64,9 @@ struct ContentView: View {
         .task {
             store.aiEnabled = settings.aiEnabled
             if store.snapshot.components.isEmpty { store.workspace = store.startWorkspace }
+            if !CrashReporter.isRunningTests, !UserDefaults.standard.bool(forKey: WelcomeTourView.shownKey) {
+                store.showWelcomeTour = true
+            }
         }
         .onChange(of: settings.aiEnabled) { _, enabled in
             if !enabled { agents.cancel() }

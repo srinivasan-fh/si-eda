@@ -335,6 +335,10 @@ struct SiEDACommands: Commands {
             .keyboardShortcut("z", modifiers: [.command, .shift])
         }
         CommandGroup(after: .help) {
+            Button("Welcome Tour…") { store.showWelcomeTour = true }
+            Button("Keyboard Shortcuts") { store.showShortcuts = true }
+                .keyboardShortcut("/", modifiers: .command)
+            Divider()
             Button("Show Crash Reports") {
                 let folder = (CrashReporter.shared?.directory ?? CrashReporter.defaultDirectory)
                     .appendingPathComponent("Reports", isDirectory: true)

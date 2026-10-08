@@ -506,6 +506,7 @@ The schematic and PCB canvases are built for large designs such as CPU/GPU/NPU m
 
 | Key | Action |
 |---|---|
+| ⌘/ | Keyboard shortcuts: every menu command with its keys (read from the menus) and the canvas keys; **Help → Welcome Tour** replays the five-page first-run tour |
 | ⌘K | Command palette: type to find any menu command, part (designator or value) or net; Return runs it or shows the part / net on its sheet |
 | Arrow keys (⇧ for half a screen) | Pan |
 | + / − (or ⌘= / ⌘−) | Zoom in / out at the cursor |

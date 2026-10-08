@@ -7898,6 +7898,8 @@ final class CommandPaletteTests: XCTestCase {
         let entries = CommandPalette.menuEntries(root)
         XCTAssertEqual(entries.map(\.title), ["Save"])
         XCTAssertEqual(entries.first?.detail, "File  ⌘S")
+        XCTAssertEqual(entries.first?.shortcut, "⌘S")  // Help → Keyboard Shortcuts lists it under its menu
+        XCTAssertEqual(entries.first?.menu, "File")
         entries.first?.run()
         XCTAssertEqual(target.hits, 1)
     }
