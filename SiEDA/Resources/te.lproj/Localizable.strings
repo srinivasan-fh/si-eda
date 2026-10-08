@@ -1228,3 +1228,5 @@
 "App Theme" = "యాప్ థీమ్";
 "Graphite" = "గ్రాఫైట్";
 "Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "ప్రతి విండోకు రంగు: ప్యానెల్‌లు, యాక్సెంట్‌లు, వచనం; సరిపోయే స్కీమాటిక్ స్కీమ్‌ను కూడా ఎంచుకుంటుంది. రాగి, ప్యాడ్, లోప రంగులు ప్రామాణికంగానే ఉంటాయి.";
+"Command Palette…" = "కమాండ్ ప్యాలెట్…";
+"Search commands, parts and nets" = "కమాండ్‌లు, భాగాలు, నెట్‌లను వెతకండి";

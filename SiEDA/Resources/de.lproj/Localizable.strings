@@ -1228,3 +1228,5 @@
 "App Theme" = "App-Design";
 "Graphite" = "Graphit";
 "Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "Färbt jedes Fenster: Bereiche, Akzente und Text, und wählt das passende Schaltplan-Schema. Kupfer-, Pad- und Fehlerfarben bleiben Standard.";
+"Command Palette…" = "Befehlspalette…";
+"Search commands, parts and nets" = "Befehle, Bauteile und Netze suchen";

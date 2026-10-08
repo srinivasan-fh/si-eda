@@ -48,6 +48,7 @@ struct ContentView: View {
         .toolbarBackground(Theme.deepBlue, for: .windowToolbar)
         .toolbarBackground(.visible, for: .windowToolbar)
 
+        .overlay { if store.showCommandPalette { CommandPaletteView() } }
         .sheet(item: $store.designDiff) { DesignDiffView(diff: $0) }
         .sheet(isPresented: $store.showReview) { DesignReviewView().environmentObject(store) }
         .sheet(isPresented: Binding(get: { store.variantMatrix != nil }, set: { if !$0 { store.variantMatrix = nil } })) {

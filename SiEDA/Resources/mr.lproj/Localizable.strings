@@ -1228,3 +1228,5 @@
 "App Theme" = "ॲप थीम";
 "Graphite" = "ग्रॅफाइट";
 "Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "प्रत्येक विंडोला रंग देते: पॅनेल, ॲक्सेंट आणि मजकूर, आणि जुळणारी स्कीमॅटिक योजना निवडते. कॉपर, पॅड आणि त्रुटीचे रंग मानक राहतात.";
+"Command Palette…" = "कमांड पॅलेट…";
+"Search commands, parts and nets" = "कमांड, पार्ट आणि नेट शोधा";

@@ -1228,3 +1228,5 @@
 "App Theme" = "Tema ng App";
 "Graphite" = "Graphite";
 "Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "Kinukulayan ang bawat window: mga panel, accent at teksto, at pinipili ang katugmang schematic scheme. Nananatiling karaniwan ang kulay ng copper, pad at error.";
+"Command Palette…" = "Command Palette…";
+"Search commands, parts and nets" = "Maghanap ng mga command, piyesa at net";

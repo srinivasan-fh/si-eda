@@ -75,6 +75,8 @@ final class DesignStore: ObservableObject {
     @Published var selectedBus: Int?
     /// The schematic's Find & Replace panel.
     @Published var showFind = false
+    /// ⌘K command palette (`CommandPaletteView`).
+    @Published var showCommandPalette = false
     /// The custom schematic colour theme editor (opened from the colour scheme menus).
     @Published var showSchematicColours = false
     @Published var ercResults: [RuleViolation] = []
