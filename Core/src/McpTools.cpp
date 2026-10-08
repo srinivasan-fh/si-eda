@@ -2613,12 +2613,20 @@ void teamTools(Table& t) {
           Schema().integer("nx", "Boards across (1 to 20)").integer("ny", "Boards up (1 to 20)")
               .num("gap", "Routed gap between boards and to the rails, mm (tab panels)")
               .num("rail", "Rail width along the top and bottom, mm (0 = none)")
-              .boolean("vscore", "V-score instead of tabs and mouse bites"),
+              .boolean("vscore", "V-score instead of tabs and mouse bites")
+              .boolean("fit", "Pick nx × ny: the most boards within maxWidth × maxHeight (default: the DFM pack's size limit)")
+              .num("maxWidth", "Largest panel width for fit, mm").num("maxHeight", "Largest panel height for fit, mm"),
           [](McpServer& s, const Json& a) {
-              if (a.has("nx") || a.has("ny") || a.has("gap") || a.has("rail") || a.has("vscore")) {
+              if (a.has("nx") || a.has("ny") || a.has("gap") || a.has("rail") || a.has("vscore") || a.get("fit").asBool(false)) {
                   Json cur = takeJson(sieda_pcb_panel(P(s))).get("settings");
                   for (const char* k : {"nx", "ny", "gap", "rail", "vscore"})
                       if (a.has(k)) cur[k] = a.get(k);
+                  if (a.get("fit").asBool(false)) {
+                      Json fit = obj();
+                      if (a.has("maxWidth")) fit["width"] = a.get("maxWidth");
+                      if (a.has("maxHeight")) fit["height"] = a.get("maxHeight");
+                      cur["fit"] = fit;
+                  }
                   check(sieda_pcb_set_panel(P(s), cur.dump().c_str()) == 1, "Invalid panel settings");
               }
               return out(takeJson(sieda_pcb_panel(P(s))));

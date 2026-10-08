@@ -313,7 +313,8 @@ char* sieda_pcb_mechanical_limits(const SiedaProject* project);
 int32_t sieda_pcb_set_mechanical_limits(SiedaProject* project, const char* limits_json);
 /* Production panel (sieda/Panel.hpp): the layout {"settings":{"nx","ny","gap","rail","vscore"},"enabled","width",
  * "height","boardWidth","boardHeight","boards":[[x,y]],"fiducials","toolingHoles","mouseBites","tabs":[[[x0,y0],
- * [x1,y1]]],"vscores"} (mm, Y up). Set takes the settings (1 × 1 = no panel); returns 1 on success. The fabrication
+ * [x1,y1]]],"vscores"} (mm, Y up). Set takes the settings (1 × 1 = no panel); with "fit":{"width","height"} (mm; default the DFM pack's size limit,
+ * else 250 × 250) it picks the nx × ny with the most boards that fits. Returns 1 on success. The fabrication
  * package adds panel/ Gerbers, drills and a zip when the panel has more than one board. */
 char* sieda_pcb_panel(const SiedaProject* project);
 /* Manufacturer DFM / DFA packs (sieda/Dfm.hpp): [{"id","name","maker","notes","minTrack",…,"maxLayers",…}]. Setting a

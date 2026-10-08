@@ -2957,6 +2957,17 @@ TEST(panel_steps_the_board_with_rails_tabs_and_vscore) {
     CHECK(l.fiducials.size() == 3 && l.toolingHoles.size() == 4 && !l.tabs.empty() && l.vscores.empty());
     CHECK(l.mouseBites.size() % 6 == 0 && l.mouseBites.size() >= 6 * l.tabs.size());
     for (const Rect& t : l.tabs) CHECK(std::abs(t.width() * t.height() - 5.0 * 2.0) < 1e-9);  // 5 mm × the gap
+    // Fit: the most boards within the fab's panel size (here exactly this 3 × 2 panel), never larger; utilisation reported.
+    {
+        BoardSettings f = p.pcb.settings;
+        const PanelSettings best = fitPanel(f, l.width, l.height);
+        f.panel = best;
+        const PanelLayout fl = panelLayout(f);
+        CHECK(best.nx * best.ny == 6 && fl.width <= l.width + 1e-9 && fl.height <= l.height + 1e-9);
+        CHECK(fitPanel(f, W, H).nx * fitPanel(f, W, H).ny == 1);
+        const double u = panelLayoutJson(p.pcb.settings).get("utilisation").asNumber();
+        CHECK_NEAR(u, 6 * W * H / (l.width * l.height), 1e-9);
+    }
 
     auto files = fabricationPackage(p);
     std::map<std::string, std::string> byName;

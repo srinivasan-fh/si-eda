@@ -97,7 +97,8 @@
   Cohn coupled stripline and Hammerstad–Jensen), C API `sieda_field_solve`, MCP `si_field_solver`, app Board Setup →
   Stack-up → Check with Field Solver; opt-in `SiSettings::fieldSolverLines` / `LossOptions::fieldSolver` feeds the
   channel lines (`lineModel`, cached per geometry). The closed-form widths are unchanged.
-- Production panels: `Core/src/Panel.cpp` (`BoardSettings::panel`, saved only when nx × ny > 1; panel Gerbers are the
+- Production panels: `Core/src/Panel.cpp` (`BoardSettings::panel`, saved only when nx × ny > 1; `fitPanel` = most boards
+  within a fab panel size, default the DFM pack's; panel Gerbers are the
   board's own Gerbers shifted and stepped with %SR, drills repeated per board; C API `sieda_pcb_panel` /
   `_set_panel`, MCP `pcb_panel`), app Board Setup → Production Panel (`PanelPreview`).
 - Mechanical CAD and team work: STEP AP214 / IDF 3.0 export and the IDF placement import in `Core/src/Mechanical.cpp`

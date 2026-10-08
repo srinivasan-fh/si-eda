@@ -31,7 +31,10 @@ PanelLayout panelLayout(const BoardSettings& s);
 Json panelToJson(const PanelSettings& p);
 /// Reads the settings (counts clamped to 1 … 20, gap 0 … 20 mm, rail 0 … 20 mm); null = no panel.
 void panelFromJson(const Json& j, PanelSettings& p);
-/// The layout as JSON for previews: settings, sizes, boards, fiducials, tooling holes, tabs, mouse bites, V-scores.
+/// The most boards (nx × ny ≤ 20 × 20) whose panel fits `maxWidth` × `maxHeight` mm with the board's gap, rails and
+/// V-score choice; ties go to the squarer, smaller panel. 1 × 1 when even two boards do not fit.
+PanelSettings fitPanel(const BoardSettings& s, double maxWidth, double maxHeight);
+/// The layout as JSON for previews (with "utilisation": boards' area ÷ panel area): settings, sizes, boards, fiducials, tooling holes, tabs, mouse bites, V-scores.
 Json panelLayoutJson(const BoardSettings& s);
 
 /// Panel files under panel/ (Gerbers, drills, outline, V-score layer, zip) from the board package `boardFiles` (the

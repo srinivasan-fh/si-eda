@@ -129,7 +129,16 @@ char* sieda_pcb_panel(const SiedaProject* project) {
 int32_t sieda_pcb_set_panel(SiedaProject* project, const char* settings_json) {
     if (!project || !settings_json) return 0;
     try {
-        panelFromJson(Json::parse(settings_json), project->project.pcb.settings.panel);
+        const Json j = Json::parse(settings_json);
+        auto& s = project->project.pcb.settings;
+        panelFromJson(j, s.panel);
+        if (j.get("fit").isObject()) {  // the most boards within a maximum panel (default: the DFM pack's size limit)
+            const auto pack = boardDfmPack(s);
+            const double w = j.get("fit").get("width").asNumber(pack ? pack->maxWidth : 250);
+            const double h = j.get("fit").get("height").asNumber(pack ? pack->maxHeight : 250);
+            if (!(w > 0 && h > 0 && w < 1e4 && h < 1e4)) return 0;
+            s.panel = fitPanel(s, w, h);
+        }
         return 1;
     } catch (const std::exception&) {
         return 0;
