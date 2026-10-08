@@ -130,6 +130,14 @@ final class EngineBridgeTests: XCTestCase {
 }
 
 final class DesignPlanTests: XCTestCase {
+    func testModelWrittenPartNumbersFindTheCatalogPart() {
+        XCTAssertEqual(DesignPlanCompiler.closestStandardPart("lm358-dr")?.spec.name, "LM358")
+        XCTAssertEqual(DesignPlanCompiler.closestStandardPart("NE555P")?.spec.name, "NE555")
+        XCTAssertEqual(DesignPlanCompiler.closestStandardPart("ne 555")?.spec.name, "NE555")
+        XCTAssertNil(DesignPlanCompiler.closestStandardPart("XYZ"))
+        XCTAssertNil(DesignPlanCompiler.closestStandardPart("QQQQ9999"))
+    }
+
     func testOfflineTemplatesCompileCleanly() async throws {
         let provider = OfflineProvider()
         for template in OfflineProvider.templates {
