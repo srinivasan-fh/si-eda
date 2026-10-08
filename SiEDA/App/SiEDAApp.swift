@@ -345,6 +345,8 @@ struct SiEDACommands: Commands {
         CommandGroup(after: .toolbar) {
             let canvas = store.workspace.hasCanvas
             Divider()
+            Button("Command Palette…") { store.showCommandPalette.toggle() }
+                .keyboardShortcut("k", modifiers: .command)
             Button("Zoom In") { store.requestView(.zoomIn) }
                 .keyboardShortcut("=", modifiers: .command)
                 .disabled(!canvas)

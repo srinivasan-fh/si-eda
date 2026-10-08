@@ -7863,3 +7863,39 @@ final class AppThemeTests: XCTestCase {
         XCTAssertEqual(defaults.string(forKey: SchematicColorScheme.storageKey), SchematicColorScheme.siedaDark.rawValue)
     }
 }
+
+/// ⌘K command palette.
+@MainActor
+final class CommandPaletteTests: XCTestCase {
+    func testFilterRanksTitlePrefixFirstAndNeedsEveryWord() {
+        let e = ["Run Electrical Rule Check", "Route All", "Auto-Route Selected Nets", "R12"].map {
+            CommandPaletteEntry(id: $0, kind: .command, title: $0, detail: "Design", run: {})
+        }
+        XCTAssertEqual(CommandPalette.filter(e, query: "ro").map(\.title), ["Route All", "Auto-Route Selected Nets"])
+        XCTAssertEqual(CommandPalette.filter(e, query: "rule design").map(\.title), ["Run Electrical Rule Check"])
+        XCTAssertEqual(CommandPalette.filter(e, query: "").count, 4)
+        XCTAssertTrue(CommandPalette.filter(e, query: "zzz").isEmpty)
+    }
+
+    func testMenuEntriesListEnabledLeavesWithPathAndRunThem() {
+        final class Target: NSObject { var hits = 0; @objc func hit(_ sender: Any?) { hits += 1 } }
+        let target = Target()
+        let root = NSMenu(title: "Main"), file = NSMenu(title: "File")
+        let save = NSMenuItem(title: "Save", action: #selector(Target.hit(_:)), keyEquivalent: "s")
+        save.target = target
+        let off = NSMenuItem(title: "Disabled", action: nil, keyEquivalent: "")
+        file.autoenablesItems = false
+        off.isEnabled = false
+        file.addItem(save)
+        file.addItem(.separator())
+        file.addItem(off)
+        let top = NSMenuItem(title: "File", action: nil, keyEquivalent: "")
+        top.submenu = file
+        root.addItem(top)
+        let entries = CommandPalette.menuEntries(root)
+        XCTAssertEqual(entries.map(\.title), ["Save"])
+        XCTAssertEqual(entries.first?.detail, "File  ⌘S")
+        entries.first?.run()
+        XCTAssertEqual(target.hits, 1)
+    }
+}

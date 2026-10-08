@@ -1228,3 +1228,5 @@
 "App Theme" = "ஆப் தீம்";
 "Graphite" = "கிராஃபைட்";
 "Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "ஒவ்வொரு சாளரத்துக்கும் நிறம்: பேனல்கள், அக்சென்ட், உரை; பொருந்தும் ஸ்கீமாட்டிக் திட்டத்தையும் தேர்வு செய்யும். செம்பு, பேட், பிழை நிறங்கள் நிலையானவையாகவே இருக்கும்.";
+"Command Palette…" = "கட்டளைத் தட்டு…";
+"Search commands, parts and nets" = "கட்டளைகள், பாகங்கள், நெட்களைத் தேடு";
