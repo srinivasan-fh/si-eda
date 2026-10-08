@@ -3155,6 +3155,23 @@ TEST(fabrication_package_is_complete) {
                              "Silkscreen           White, top and bottom", "HASL lead-free", "Non-plated           1",
                              "IPC-D-356A", "Amp_rev_A-gerbers.zip"})
         CHECK(notes.find(text) != std::string::npos);
+    // The drill chart lists each finished size with its counts, matching the Excellon totals.
+    CHECK(notes.find("Drill chart") != std::string::npos && notes.find("Hole tolerance") != std::string::npos);
+    {
+        int charted = 0;
+        std::istringstream chart(notes.substr(notes.find("Drill chart")));
+        std::string row;
+        std::getline(chart, row);
+        while (std::getline(chart, row) && row.find(" mm ") != std::string::npos) {
+            std::istringstream r(row.substr(row.find(" mm ") + 4));
+            int a = 0, b = 0, c = 0;
+            r >> a >> b >> c;
+            charted += a + b + c;
+        }
+        int holes = static_cast<int>(p.pcb.vias.size() + p.pcb.settings.holes.size());
+        for (const auto& pad : p.pcb.pads(p.schematic)) holes += pad.throughHole && pad.drill > 0;
+        CHECK(charted == holes && holes > 0);
+    }
     std::string cpl = byName["assembly/Amp_rev_A-cpl.csv"];
     CHECK(cpl.find("Bottom") != std::string::npos && cpl.find("mm,") != std::string::npos);
 

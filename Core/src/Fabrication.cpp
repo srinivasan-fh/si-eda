@@ -384,7 +384,22 @@ std::string fabricationNotes(const Project& project, const std::vector<FabFile>&
     o << "  Edge clearance       " << fmt("%.2f", s.edgeClearance) << " mm\n\n";
     o << "HOLES\n";
     o << "  Plated (pads)        " << f.pth << "\n  Vias                 " << f.vias << "\n";
-    o << "  Non-plated           " << f.npth << " (mounting holes)\n\n";
+    o << "  Non-plated           " << f.npth << " (mounting holes)\n";
+    {  // Drill chart (IPC-2615): finished hole sizes with their counts, as on a drill drawing.
+        std::map<long, std::array<int, 3>> chart;  // µm → plated pads, vias, non-plated
+        for (const auto& p : project.pcb.pads(project.schematic))
+            if (p.throughHole && p.drill > 0) ++chart[std::lround(p.drill * 1000)][0];
+        for (const auto& v : project.pcb.vias) ++chart[std::lround(v.drill * 1000)][1];
+        for (const auto& h : s.holes) ++chart[std::lround(h.drill * 1000)][2];
+        if (!chart.empty()) {
+            o << "  Drill chart          finished size   plated pads   vias   non-plated\n";
+            for (const auto& [um, n] : chart)
+                o << "                       " << fmt("%6.3f", um / 1000.0) << " mm   " << fmt("%11.0f", n[0]) << "   "
+                  << fmt("%4.0f", n[1]) << "   " << fmt("%10.0f", n[2]) << "\n";
+            o << "  Hole tolerance       finished size, plated +/-0.08 mm, non-plated +/-0.05 mm\n";
+        }
+    }
+    o << "\n";
     o << "ASSEMBLY\n";
     o << "  Parts                " << f.partsTop << " top, " << f.partsBottom << " bottom (" << f.tht
       << " through-hole)\n";
