@@ -24,6 +24,7 @@ both editors and save them with the project.
 |---|---|---|
 | `.kicad_mod` (KiCad 6–9, and KiCad 5 `(module …)` files) | One footprint: pads, drills, layers, rotation, courtyard, fab and silkscreen outlines | A land pattern (package type `CUSTOM`) |
 | `.kicad_sym` (KiCad 6–9) | One or many symbols: pins with number, name, electrical type, position and orientation; multi-unit symbols; derived symbols (`extends`) | A part's pins and its symbol layout |
+| `.lib` (KiCad 4–5, `EESchema-LIBRARY`) | `DEF … ENDDEF` symbols: pins (`X` lines, mil) with number, name, electrical type, position and orientation; units; the footprint (F2), datasheet (F3) and `$FPLIST` filters; De Morgan alternatives dropped | A part's pins and its symbol layout — the format many vendor download sites still ship |
 | `.lbr` (Eagle 6–9, Fusion Electronics libraries exported as `.lbr`) | Packages, symbols, device sets with their devices, technologies and pin–pad connects | Complete parts, one per device and technology |
 | `.SchLib` (Altium Designer binary schematic library) | Components: pins with designator, name, electrical type, position and orientation; multi-part components; designator prefix, parameters (manufacturer, datasheet) and the PCB footprint models they link | A part's pins and symbol layout, paired with the linked footprint |
 | `.PcbLib` (Altium Designer binary PCB library) | Footprints: pads with position, size, shape, drill, layer and rotation; top overlay outline | A land pattern |
@@ -240,8 +241,6 @@ KiCad ships beside each `.step`, or export VRML / STL / OBJ from the CAD tool.
 
 - **Altium integrated libraries** (`.IntLib`) and ASCII Altium libraries are refused with a message (see
   [Altium libraries](#altium-libraries)); binary `.SchLib` and `.PcbLib` are read.
-- **KiCad 5 `.lib` symbol libraries** (`EESchema-LIBRARY`) are refused; open them in KiCad 6 or later and save them
-  as `.kicad_sym`. KiCad 5 footprints (`.kicad_mod` with `(module …)`) are supported.
 - **STEP 3D models** (see [3D models](#3d-models)); VRML, STL and OBJ models are imported.
 - **Other graphics.** Silkscreen and fab graphics are used only for the body outline; text and other drawings are not
   imported.

@@ -746,7 +746,7 @@ struct ComponentLibraryView: View {
     }
 
     /// File types the library importer reads (KiCad footprints and symbol libraries, Eagle libraries).
-    static let libraryExtensions: Set<String> = ["kicad_mod", "kicad_sym", "lbr", "schlib", "pcblib", "intlib"]
+    static let libraryExtensions: Set<String> = ["kicad_mod", "kicad_sym", "lib", "lbr", "schlib", "pcblib", "intlib"]
     /// Binary library files, sent to the core as base64 (Altium compound files).
     static let binaryExtensions: Set<String> = ["schlib", "pcblib", "intlib", "stl"]
     /// 3D models imported with the footprints that name them (KiCad .3dshapes folders).
@@ -761,7 +761,7 @@ struct ComponentLibraryView: View {
         panel.canChooseDirectories = true
         panel.allowedContentTypes = (Self.libraryExtensions.union(Self.modelExtensions)).compactMap { UTType(filenameExtension: $0) }
             + [UTType.folder]
-        panel.message = "Choose KiCad footprints (.kicad_mod), symbol libraries (.kicad_sym), Eagle libraries (.lbr), "
+        panel.message = "Choose KiCad footprints (.kicad_mod), symbol libraries (.kicad_sym, KiCad 5 .lib), Eagle libraries (.lbr), "
             + "Altium libraries (.SchLib, .PcbLib), 3D models (.wrl, .stl, .obj) or folders of them."
         guard panel.runModal() == .OK else { return }
         let files = Self.libraryFiles(at: panel.urls)

@@ -6936,6 +6936,32 @@ TEST(library_import_eagle_libraries) {
     CHECK(broken.parts.size() == 1 && !broken.parts[0].ok && broken.parts[0].error.find("GONE") != std::string::npos);
 }
 
+TEST(kicad5_lib_symbols_import) {
+    // A KiCad 5 library as vendor sites ship it: an LM358-like dual op-amp (two units + a power unit) and a De Morgan pin.
+    const std::string lib = "EESchema-LIBRARY Version 2.4\n#encoding utf-8\n#\n# OPA2\n#\n"
+                            "DEF OPA2 U 0 20 Y Y 3 F N\nF0 \"U\" 0 200 50 H V L CNN\nF1 \"OPA2\" 0 -200 50 H V L CNN\n"
+                            "F2 \"Package_SO:SOIC-8_3.9x4.9mm_P1.27mm\" 0 0 50 H I C CNN\nF3 \"http://x/ds.pdf\" 0 0 50 H I C CNN\n"
+                            "$FPLIST\n SOIC*3.9x4.9mm*P1.27mm*\n$ENDFPLIST\nDRAW\n"
+                            "X ~ 1 300 0 100 L 50 50 1 1 O\nX - 2 -200 -100 100 R 50 50 1 1 I\nX + 3 -200 100 100 R 50 50 1 1 I\n"
+                            "X V- 4 -100 -300 150 U 50 50 3 1 W\nX V+ 8 -100 300 150 D 50 50 3 1 W\n"
+                            "X ~ 5 -200 100 100 R 50 50 2 1 I\nX ~ 6 -200 -100 100 R 50 50 2 1 I\nX ~ 7 300 0 100 L 50 50 2 1 O\n"
+                            "X ALT 9 0 0 100 R 50 50 1 2 P\nENDDRAW\nENDDEF\n#End Library\n";
+    const auto syms = parseKicadSymbols(lib, "opa.lib");
+    CHECK(syms.size() == 1);
+    if (syms.empty()) return;
+    const ImportedSymbol& s = syms[0];
+    CHECK(s.name == "OPA2" && s.refPrefix == "U" && s.units == 3 && s.pins.size() == 8);
+    CHECK(s.footprint == "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" && s.datasheet == "http://x/ds.pdf");
+    CHECK(s.footprintFilters.size() == 1 && s.footprintFilters[0] == "SOIC*3.9x4.9mm*P1.27mm*");
+    std::map<std::string, CustomPin> byNumber;
+    for (const auto& p : s.pins) byNumber[p.number] = p;
+    CHECK(byNumber["1"].type == PinType::Output && byNumber["1"].name == "1" && byNumber["3"].name == "+");
+    CHECK(byNumber["8"].type == PinType::PowerIn && byNumber["2"].type == PinType::Input && !byNumber.count("9"));
+    // Through the importer it pairs with nothing but is a part: the file is read, not refused.
+    LibraryImport out = importLibraryFiles({{"opa.lib", lib}});
+    CHECK(out.files.size() == 1 && out.files[0].error.empty() && out.symbols.size() == 1);
+}
+
 TEST(library_import_rejects_unsupported_formats_and_survives_fuzzing) {
     auto fileError = [](const std::string& name, const std::string& content) {
         LibraryImport out = importLibraryFiles({{name, content}});
@@ -6943,7 +6969,7 @@ TEST(library_import_rejects_unsupported_formats_and_survives_fuzzing) {
     };
     CHECK(fileError("Parts.SchLib", std::string("\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1", 8)).find("Altium") != std::string::npos);
     CHECK(fileError("Parts.PcbLib", "x").find("not supported") != std::string::npos);
-    CHECK(fileError("old.lib", "EESchema-LIBRARY Version 2.4\n").find("KiCad 5") != std::string::npos);
+    CHECK(fileError("old.lib", "EESchema-LIBRARY Version 2.4\n").find("no symbols") != std::string::npos);
     CHECK(fileError("notes.txt", "hello").find("unknown file type") != std::string::npos);
     CHECK(fileError("deep.kicad_mod", std::string(100000, '(')).find("nesting too deep") != std::string::npos);
     CHECK(fileError("lt.lbr", "<eagle>" + std::string(5000, '<')).find("line 1") != std::string::npos);
