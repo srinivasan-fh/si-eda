@@ -19755,13 +19755,14 @@ TEST(merge_keeps_parts_both_sides_added_under_the_same_id) {
     for (const auto& comp : merged.schematic.components()) refs.insert(comp.ref), values.insert(comp.value);
     CHECK(refs.size() == 3 && values.count("10k") && values.count("4k7"));
     // Theirs' wire follows its renumbered part: the 4k7 still connects to R1.
-    const Component* moved = nullptr;
+    int moved = -1;
     for (const auto& comp : merged.schematic.components())
-        if (comp.value == "4k7") moved = &comp;
-    CHECK(moved && moved->id != c);
+        if (comp.value == "4k7") moved = comp.id;
+    CHECK(moved >= 0 && moved != c);
     bool wired = false;
-    for (const auto& w : merged.toJson().get("wires").items())
-        wired = wired || w.get("a").get("component").asInt(-1) == moved->id || w.get("b").get("component").asInt(-1) == moved->id;
+    for (const auto& w : m.merged.get("wires").items())
+        wired = wired || w.get("a").get("component").asInt(-1) == moved || w.get("b").get("component").asInt(-1) == moved;
+    if (!wired) std::printf("    merged wires: %s\n", m.merged.get("wires").dump().c_str());
     CHECK(wired);
 }
 
