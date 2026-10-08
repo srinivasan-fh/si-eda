@@ -80,6 +80,12 @@
   parser, gate), `SiEDA/App/DesignStore+MCP.swift` (`MCPLiveServer`, `MCPStoreBridge`: mutating tools run in
   `DesignStore.performExternalEdit` = one undo step), `SiEDA/Views/Settings/MCPSettingsView.swift`; stdio clients
   reach it through `sieda-mcp --connect` (`Core/mcp/http_bridge.cpp`, CTest `sieda_mcp_connect`).
+- IPC-2581C / ODB++ v7: `Core/src/FabExchange.cpp` (one per-layer feature list feeds both; ODB++ is a .tgz written by
+  `tgz` with stored deflate blocks; both are in the fabrication package, IPC-2581 also as export "ipc2581"). Keep the
+  XML valid against the IPC-2581C schema (KiCad's `qa/data/pcbnew/ipc2581/IPC-2581C.xsd`).
+- Production panels: `Core/src/Panel.cpp` (`BoardSettings::panel`, saved only when nx × ny > 1; panel Gerbers are the
+  board's own Gerbers shifted and stepped with %SR, drills repeated per board; C API `sieda_pcb_panel` /
+  `_set_panel`, MCP `pcb_panel`), app Board Setup → Production Panel (`PanelPreview`).
 - Mechanical CAD and team work: STEP AP214 / IDF 3.0 export and the IDF placement import in `Core/src/Mechanical.cpp`
   (faceted B-rep solids must stay closed: test `step_export_closed_named_solids`), 3D clearance DRC
   (`mechanicalChecks`: MECH_BODY_COLLISION always, MECH_HEIGHT / MECH_HEIGHT_ZONE only with `BoardSettings` limits);
@@ -91,10 +97,15 @@
   --seed 3 --fpga` is the 923-part board.
 - Speed and safety rules:
   - **Per-edit path:** undo history and change detection use the compact `sieda_project_state_json`; files on disk
-    use the indented `sieda_project_save_json`.
+    use the indented `sieda_project_save_json`. The view refresh uses `sieda_project_snapshot_delta` (only changed
+    top-level sections, merged in `DesignSnapshot.init(from:)` over `DesignStore.coreSnapshot`); a new snapshot section
+    must be decoded through `field(...)` there.
   - **JSON writer:** `Json::dump` uses `std::to_chars` and a no-escape fast path, and must stay byte-identical to
     `%.10g` / `%lld`.
   - **JSON parser:** limits nesting to 256 levels (hostile files and requests).
+  - **Measured:** every Schematic / board edit records its undo-state, engine and refresh time (`DesignStore.editTimings`,
+    Help → Performance…, os_signpost "edit" intervals for Instruments); `sieda_route_bench --edit-budget <ms>` fails when
+    the app's per-edit core path (move + undo state + delta snapshot) is slower at p95 (in CTest `sieda_scale_budget`).
   - **Copper pours:** fills (`Zones.cpp`) use running-count filters, union-find island labels and one thread per
     layer, and must stay identical to the sequential fill.
   - **MCP:** file reads are capped at 128 MB.

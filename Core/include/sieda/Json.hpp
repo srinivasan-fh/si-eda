@@ -41,7 +41,11 @@ public:
 
     bool asBool(bool def = false) const { return type_ == Type::Bool ? bool_ : def; }
     double asNumber(double def = 0.0) const { return type_ == Type::Number ? num_ : def; }
-    int asInt(int def = 0) const { return type_ == Type::Number ? static_cast<int>(num_) : def; }
+    /// Numbers outside the int range clamp to it (hostile files: a cast of 1e300 would be undefined); NaN → `def`.
+    int asInt(int def = 0) const {
+        if (type_ != Type::Number || num_ != num_) return def;
+        return num_ >= 2147483647.0 ? 2147483647 : num_ <= -2147483648.0 ? -2147483647 - 1 : static_cast<int>(num_);
+    }
     const std::string& asString() const;
     std::string asString(const std::string& def) const { return type_ == Type::String ? str_ : def; }
 

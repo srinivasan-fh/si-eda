@@ -143,11 +143,16 @@ final class EDAEngine: @unchecked Sendable {
     }
 
     /// The snapshot, or why it could not be read (a core error, or the decoder's description of the bad field).
-    func snapshotChecked() -> Result<DesignSnapshot, EDAEngineError> {
-        let json = withHandle { Self.take(sieda_project_snapshot($0)) }
+    /// With `base` (the snapshot this engine last returned from here): only the sections that changed since then come
+    /// from the core and are merged into it (`sieda_project_snapshot_delta`); large boards decode a fraction per edit.
+    func snapshotChecked(base: DesignSnapshot? = nil, delta: Bool = false) -> Result<DesignSnapshot, EDAEngineError> {
+        let json = withHandle { delta ? Self.take(sieda_project_snapshot_delta($0, base == nil ? 1 : 0))
+                                      : Self.take(sieda_project_snapshot($0)) }
         guard let json, let data = json.data(using: .utf8) else { return .failure(.operationFailed("no reply from the core")) }
         do {
-            return .success(try JSONDecoder().decode(DesignSnapshot.self, from: data))
+            let decoder = JSONDecoder()
+            if delta, let base { decoder.userInfo[DesignSnapshot.baseKey] = base }
+            return .success(try decoder.decode(DesignSnapshot.self, from: data))
         } catch {
             if let failure = try? JSONDecoder().decode(CoreError.self, from: data) { return .failure(.operationFailed(failure.error)) }
             return .failure(.operationFailed("unreadable design snapshot: \(error)"))
@@ -1449,6 +1454,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case step
     case idfBoard = "idf_board"
     case idfLibrary = "idf_library"
+    case ipc2581
 
     var id: String { rawValue }
 
@@ -1480,6 +1486,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .step: return "board.step"
         case .idfBoard: return "board.emn"
         case .idfLibrary: return "board.emp"
+        case .ipc2581: return "board-ipc2581.xml"
         }
     }
 
@@ -1511,6 +1518,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .step: return "STEP AP214 — Board and Parts (MCAD)"
         case .idfBoard: return "IDF 3.0 Board (.emn)"
         case .idfLibrary: return "IDF 3.0 Library (.emp)"
+        case .ipc2581: return "IPC-2581C — Layers, Nets, Parts and BOM (XML)"
         }
     }
 }

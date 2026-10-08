@@ -498,6 +498,7 @@ Board outline, stack-up, rules, Update PCB, placement, autorouter, interactive r
 | `pcb_optimize_swaps` | edit | Swaps interchangeable pins and gates to shorten the ratsnest (back-annotated to the schematic), for one part or all. |
 | `pcb_add_thermal_vias` | edit | Stitches thermal vias into a power part's largest pad (its own net, clearance kept). |
 | `pcb_mechanical_limits` | edit | 3D clearance limits checked by the DRC: tallest part per side (mm, 0 = none) and height zones (rectangles with their own maximum height). |
+| `pcb_panel` | edit | Panel for the fabrication package: nx × ny boards between rails with fiducials and tooling holes, separated by V-score lines or routed gaps with breakaway tabs and mouse bites. Without arguments returns the layout (mm, Y up); 1 × 1 removes the panel. |
 | `pcb_import_idf_placement` | edit | Moves parts to the placement in an IDF 3.0 board file (.emn) written back by mechanical CAD (position, rotation, side by designator). |
 
 ### sim (13)
@@ -560,7 +561,7 @@ Fabrication outputs: Gerbers, drill, BOM, pick-and-place, schematic PDF, 3D mode
 |---|---|---|
 | `output_fabrication_package` | writes files | Writes the complete fabrication package into a folder inside the root: gerbers/ (every layer, drills, job file, IPC-D-356A), assembly/ (BOMs, CPL, pick-and-place, drawings), fab notes, a gerber zip, netlist and 3D STL. |
 | `output_gerbers` | writes files | Writes RS-274X Gerbers (every copper layer, masks, silkscreens, paste, outline) and Excellon drill files into a folder inside the root. |
-| `output_export` | writes files | One output as text, returned inline or written to path (inside the root): spice, bom, bom_assembly, cpl, pnp, assembly_top / assembly_bottom (SVG), gerber_top, gerber_bottom, gerber_l<N>, gerber_mask_top / _bottom, gerber_silk_top / _bottom, gerber_paste_top / _bottom, gerber_edge, gerber_job, drill, drill_npth, ipc356, fab_notes, stl, obj. |
+| `output_export` | writes files | One output as text, returned inline or written to path (inside the root): spice, bom, bom_assembly, cpl, pnp, assembly_top / assembly_bottom (SVG), gerber_top, gerber_bottom, gerber_l<N>, gerber_mask_top / _bottom, gerber_silk_top / _bottom, gerber_paste_top / _bottom, gerber_edge, gerber_job, drill, drill_npth, ipc356, ipc2581 (IPC-2581C XML), fab_notes, stl, obj. |
 | `output_bom` | writes files | The bill of materials (grouped lines, quantities, MPNs, cost) as JSON, or CSV written to path. |
 | `output_pick_and_place` | writes files | Pick-and-place / centroid file (designator, x, y, rotation, side) as CSV, inline or written to path. |
 | `output_schematic_pdf` | writes files | The schematic as a PDF (one page per sheet with frame and title block, bookmarks by hierarchy), written to path inside the root, or returned as an embedded PDF resource. |

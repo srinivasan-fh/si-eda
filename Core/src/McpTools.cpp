@@ -2433,7 +2433,7 @@ void outputTools(Table& t) {
           "One output as text, returned inline or written to path (inside the root): spice, bom, bom_assembly, cpl, "
           "pnp, assembly_top / assembly_bottom (SVG), gerber_top, gerber_bottom, gerber_l<N>, gerber_mask_top / "
           "_bottom, gerber_silk_top / _bottom, gerber_paste_top / _bottom, gerber_edge, gerber_job, drill, "
-          "drill_npth, ipc356, fab_notes, stl, obj. variant: an assembly variant for the assembly outputs.",
+          "drill_npth, ipc356, ipc2581 (IPC-2581C XML), fab_notes, stl, obj. variant: an assembly variant for the assembly outputs.",
           Schema().str("format", "Output format", true).str("path", "File to write (default: return the text)").str("variant", "Assembly variant"),
           [](McpServer& s, const Json& a) {
               const std::string f = requireStr(a, "format");
@@ -2559,6 +2559,23 @@ void teamTools(Table& t) {
                   check(sieda_pcb_set_mechanical_limits(P(s), cur.dump().c_str()) == 1, "Invalid limits");
               }
               return out(takeJson(sieda_pcb_mechanical_limits(P(s))));
+          });
+    t.add("pcb", "pcb_panel", "Production panel", Kind::Edit, true,
+          "Panel for the fabrication package: nx × ny boards between rails with fiducials and tooling holes, "
+          "separated by V-score lines or routed gaps with breakaway tabs and mouse bites. Without arguments returns "
+          "the layout (mm, Y up); 1 × 1 removes the panel.",
+          Schema().integer("nx", "Boards across (1 to 20)").integer("ny", "Boards up (1 to 20)")
+              .num("gap", "Routed gap between boards and to the rails, mm (tab panels)")
+              .num("rail", "Rail width along the top and bottom, mm (0 = none)")
+              .boolean("vscore", "V-score instead of tabs and mouse bites"),
+          [](McpServer& s, const Json& a) {
+              if (a.has("nx") || a.has("ny") || a.has("gap") || a.has("rail") || a.has("vscore")) {
+                  Json cur = takeJson(sieda_pcb_panel(P(s))).get("settings");
+                  for (const char* k : {"nx", "ny", "gap", "rail", "vscore"})
+                      if (a.has(k)) cur[k] = a.get(k);
+                  check(sieda_pcb_set_panel(P(s), cur.dump().c_str()) == 1, "Invalid panel settings");
+              }
+              return out(takeJson(sieda_pcb_panel(P(s))));
           });
     t.add("pcb", "pcb_import_idf_placement", "Import MCAD placement", Kind::Edit, false,
           "Moves parts to the placement in an IDF 3.0 board file (.emn) written back by mechanical CAD (position, "

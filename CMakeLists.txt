@@ -7,6 +7,17 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(SIEDA_BUILD_TESTS "Build SiEDA core unit tests" ON)
 option(SIEDA_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+# Memory and undefined-behaviour checking for every target (the CI sanitizer job); leaks are reported at exit.
+option(SIEDA_SANITIZE "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+# libFuzzer targets for the file readers (Core/tests/fuzz/fuzz.cpp); clang only, implies the sanitizers.
+option(SIEDA_FUZZ "Build the libFuzzer targets (clang)" OFF)
+if(SIEDA_SANITIZE OR SIEDA_FUZZ)
+    add_compile_options(-fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+if(SIEDA_FUZZ)
+    add_compile_options(-fsanitize=fuzzer-no-link)
+endif()
 
 add_library(sieda_core STATIC
     Core/src/Json.cpp
@@ -52,6 +63,8 @@ add_library(sieda_core STATIC
     Core/src/Mesh.cpp
     Core/src/Export.cpp
     Core/src/Fabrication.cpp
+    Core/src/FabExchange.cpp
+    Core/src/Panel.cpp
     Core/src/Bom.cpp
     Core/src/Reliability.cpp
     Core/src/Stackup.cpp
@@ -142,8 +155,18 @@ if(SIEDA_BUILD_TESTS)
     # generous budget (about 10× today's time) so an algorithmic slow-down or memory blow-up fails CI.
     add_executable(sieda_route_bench Core/tests/bench/route_bench.cpp)
     target_link_libraries(sieda_route_bench PRIVATE sieda_core)
-    add_test(NAME sieda_scale_budget COMMAND sieda_route_bench --clusters 12 --layers 6 --seed 1 --budget 90 800)
+    add_test(NAME sieda_scale_budget COMMAND sieda_route_bench --clusters 12 --layers 6 --seed 1 --budget 90 800 --edit-budget 1500)
     # Interactive-router benchmark: head-update times on a generated, autorouted ~400-part board (not part of ctest).
     add_executable(sieda_router_bench Core/tests/bench/router_bench.cpp)
     target_link_libraries(sieda_router_bench PRIVATE sieda_core)
+endif()
+
+if(SIEDA_FUZZ)
+    foreach(target json project spice library idf)
+        string(TOUPPER ${target} upper)
+        add_executable(sieda_fuzz_${target} Core/tests/fuzz/fuzz.cpp)
+        target_compile_definitions(sieda_fuzz_${target} PRIVATE SIEDA_FUZZ_${upper})
+        target_link_options(sieda_fuzz_${target} PRIVATE -fsanitize=fuzzer)
+        target_link_libraries(sieda_fuzz_${target} PRIVATE sieda_core)
+    endforeach()
 endif()

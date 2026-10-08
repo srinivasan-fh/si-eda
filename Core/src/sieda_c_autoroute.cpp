@@ -9,6 +9,7 @@
 #include "sieda/Json.hpp"
 #include "sieda/sieda_c.h"
 #include "sieda/Mechanical.hpp"
+#include "sieda/Panel.hpp"
 
 using namespace sieda;
 
@@ -79,6 +80,21 @@ int32_t sieda_pcb_set_mechanical_limits(SiedaProject* project, const char* limit
     if (!project || !limits_json) return 0;
     try {
         mechanicalLimitsFromJson(Json::parse(limits_json), project->project.pcb.settings);
+        return 1;
+    } catch (const std::exception&) {
+        return 0;
+    }
+}
+
+char* sieda_pcb_panel(const SiedaProject* project) {
+    if (!project) return nullptr;
+    return dupText(panelLayoutJson(project->project.pcb.settings).dump());
+}
+
+int32_t sieda_pcb_set_panel(SiedaProject* project, const char* settings_json) {
+    if (!project || !settings_json) return 0;
+    try {
+        panelFromJson(Json::parse(settings_json), project->project.pcb.settings.panel);
         return 1;
     } catch (const std::exception&) {
         return 0;

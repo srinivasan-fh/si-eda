@@ -1,5 +1,6 @@
 #include "sieda/Project.hpp"
 #include "sieda/Mechanical.hpp"
+#include "sieda/Panel.hpp"
 #include "sieda/ProjectDiff.hpp"
 #include "sieda/Autoroute.hpp"
 #include "sieda/Model3D.hpp"
@@ -140,6 +141,7 @@ Json boardJson(const BoardSettings& s) {
     if (!s.autorouter.isDefault()) b["autorouter"] = autorouteOptionsToJson(s.autorouter);  // only when changed
     if (!s.keepouts.empty()) b["keepouts"] = keepoutsToJson(s.keepouts);
     if (Json m = mechanicalLimitsToJson(s); !m.isNull()) b["mechanical"] = m;
+    if (Json panel = panelToJson(s.panel); !panel.isNull()) b["panel"] = panel;
     b["autoSizeNets"] = s.autoSizeNets;
     Json outline = Json::array();
     for (const auto& v : s.outline) outline.push(vec(v));
@@ -748,6 +750,7 @@ Project Project::fromJson(const Json& root) {
     s.autorouter = autorouteOptionsFromJson(b.get("autorouter"));
     s.keepouts = keepoutsFromJson(b.get("keepouts"));
     mechanicalLimitsFromJson(b.get("mechanical"), s);
+    panelFromJson(b.get("panel"), s.panel);
     s.maxTempRise = std::max(1.0, b.get("maxTempRise").asNumber(s.maxTempRise));
     s.autoSizeNets = b.get("autoSizeNets").asBool(true);
     {

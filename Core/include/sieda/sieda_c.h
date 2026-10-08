@@ -45,6 +45,10 @@ int32_t sieda_project_set_industry(SiedaProject* project, const char* industry_i
 char* sieda_industry_profiles_json(void);
 /* Full UI view model (components with world pin positions, wires, nets, pads, tracks, vias, ratsnest). */
 char* sieda_project_snapshot(const SiedaProject* project);
+/* The snapshot after an edit: only the top-level sections whose JSON changed since the previous call on this project,
+ * with "delta": true (the app merges them into the copy it holds). The first call, full != 0, or a change in the set of
+ * sections returns every section (no "delta" key). Large boards: a schematic edit skips the copper, pads and pours. */
+char* sieda_project_snapshot_delta(SiedaProject* project, int32_t full);
 /* Built-in component catalogue. */
 char* sieda_library_json(void);
 void sieda_string_free(char* s);
@@ -302,6 +306,12 @@ int32_t sieda_pcb_set_keepouts(SiedaProject* project, const char* keepouts_json)
  * The getter returns {} without limits. Set returns 1 on success. */
 char* sieda_pcb_mechanical_limits(const SiedaProject* project);
 int32_t sieda_pcb_set_mechanical_limits(SiedaProject* project, const char* limits_json);
+/* Production panel (sieda/Panel.hpp): the layout {"settings":{"nx","ny","gap","rail","vscore"},"enabled","width",
+ * "height","boardWidth","boardHeight","boards":[[x,y]],"fiducials","toolingHoles","mouseBites","tabs":[[[x0,y0],
+ * [x1,y1]]],"vscores"} (mm, Y up). Set takes the settings (1 × 1 = no panel); returns 1 on success. The fabrication
+ * package adds panel/ Gerbers, drills and a zip when the panel has more than one board. */
+char* sieda_pcb_panel(const SiedaProject* project);
+int32_t sieda_pcb_set_panel(SiedaProject* project, const char* settings_json);
 void sieda_pcb_clear_routing(SiedaProject* project);
 char* sieda_pcb_run_drc(const SiedaProject* project);
 /* Standard design-rule presets: [{"name","description","trackWidth",…,"minHoleToHole"}] */
@@ -518,7 +528,9 @@ char* sieda_pi_ir_map_json(const SiedaProject* project, const char* net_name);
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
  *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj",
  *         "step" (STEP AP214 solids: board + one named, coloured body per part), "idf_board" (IDF 3.0 .emn),
- *         "idf_library" (IDF 3.0 .emp), "review" (design review, Markdown). Returns NULL for unknown formats. */
+ *         "idf_library" (IDF 3.0 .emp), "ipc2581" (IPC-2581C XML: layers with nets, drills, parts, BOM),
+ *         "review" (design review, Markdown). Returns NULL for unknown formats. ODB++ (binary .tgz) is part of
+ *         sieda_write_fabrication_package. */
 char* sieda_export(const SiedaProject* project, const char* format);
 /* Bill of materials: {"lines":[{item, refs, componentIds, quantity, type, value, footprint, description, rating,
  * manufacturer, mpn, supplierPart, unitPrice, dnp, lineCost, suggestedManufacturer, suggestedMpn, notes}],

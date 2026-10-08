@@ -88,6 +88,24 @@ Midnight Navy, Matrix Green and Graphite colour the whole app (`AppTheme`). Stil
 - Optional: theme without the full-window redraw (an environment value read by the views), so open popovers and
   scroll positions survive a theme change.
 
+## Quality and depth (planned, in suggested order)
+
+Queued after the ⌘K / delta-snapshot / IPC-2581 / panel / onboarding / performance / fuzzing round; one PR each.
+
+1. **DFM/DFA rule packs** (~0.2M tokens): manufacturer capability packs as data (JLCPCB, PCBWay, OSH Park,
+   Eurocircuits, Class 3 / aerospace): minimum track / space, drill, annular ring, mask sliver, silk-to-pad; picking a
+   pack sets the DRC limits. Assembly checks: part-to-part and part-to-edge spacing, fiducials, polarity marks, tall
+   parts beside fine pitch.
+2. **IDX (ProSTEP EDMD)** (~0.25M): baseline export (board, parts, holes, keep-outs), MCAD change proposals read back
+   (moved / rotated parts, outline edits) with accept / reject, SiEDA changes sent as proposals.
+3. **HarfBuzz text shaping in PDFs** (~0.2M): Indic, Arabic and Thai shaped correctly in the schematic PDF; an optional
+   CMake dependency, so builds without it keep today's byte-identical output (the archival plan avoids dependencies).
+4. **Field-solver SI / PI** (~0.5M): 2D cross-section solver (single-ended, differential, coupled: impedance,
+   coupling, crosstalk, loss) replacing the closed-form formulas when enabled; plane solver on the real copper for PDN
+   impedance and DC IR drop with a heat-map overlay.
+5. **Real-time co-editing** (~0.7M): local-network session, edits broadcast as delta operations, conflicts through
+   the three-way merge, presence (who is where on the board); an internet relay with accounts comes later.
+
 ## Next (planned, in suggested order)
 
 ### 1. Large boards (scale 8.0 → ~9.0) — ~0.35M–0.65M tokens

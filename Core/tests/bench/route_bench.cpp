@@ -1,18 +1,21 @@
 // sieda_route_bench — times auto-place, auto-route and DRC on generated large boards.
 //
 //   sieda_route_bench                      medium board (the CI case) and the large board
-//   sieda_route_bench --clusters 32 --layers 8 --seed 3 [--fpga] [--no-bga] [--drc-brute]
+//   sieda_route_bench --clusters 32 --layers 8 --seed 3 [--fpga] [--no-bga] [--drc-brute] [--save board.siedaproj]
 //                     [--threads N] [--router auto|classic|corridor] [--snapshot out.json]
+//                     [--edit-budget <ms>]  exit 1 when an edit (move + undo state + delta snapshot) takes longer (p95)
 //                     [--budget <seconds> <MB>]   exit 1 when place + route + DRC + snapshot take longer or the
 //                                                  peak memory is higher (the CTest scale guard)
 //
 // Prints component / net counts, the time of each stage, routing completion and the peak resident memory.
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <string>
+#include <vector>
 
 #if defined(__unix__) || defined(__APPLE__)
 #include <sys/resource.h>
@@ -20,6 +23,7 @@
 
 #include "BoardGenerator.hpp"
 #include "sieda/Pcb.hpp"
+#include "sieda/sieda_c.h"
 
 using namespace sieda;
 
@@ -39,6 +43,37 @@ double peakMegabytes() {
 }
 
 std::string g_snapshot;  // --snapshot: where to write the routed board (Project::snapshot JSON)
+std::string g_save;      // --save: where to write the routed project (.siedaproj JSON, to profile edits on it)
+double g_editP95 = 0;    // the app's per-edit path, 95th percentile (ms), measured after routing
+
+/// What one edit costs the app on this board, through the C API like the app: move a part, take the undo state and
+/// the delta snapshot. 20 edits; prints the median, 95th percentile and slowest.
+void measureEdits(const Project& p) {
+    using clock = std::chrono::steady_clock;
+    SiedaProject* sp = sieda_project_load_json(p.toJson().dump().c_str(), nullptr);
+    if (!sp) return;
+    sieda_string_free(sieda_project_snapshot_delta(sp, 1));
+    const Component* part = nullptr;
+    for (const auto& c : p.schematic.components())
+        if (c.hasFootprint() && c.pcb.placed && !c.pcb.locked) {
+            part = &c;
+            break;
+        }
+    std::vector<double> ms;
+    for (int i = 0; part && i < 20; ++i) {
+        const auto t0 = clock::now();
+        sieda_pcb_move_footprint(sp, part->id, part->pcb.position.x + (i % 2 ? 0.5 : 0), part->pcb.position.y);
+        sieda_string_free(sieda_project_state_json(sp));
+        sieda_string_free(sieda_project_snapshot_delta(sp, 0));
+        ms.push_back(std::chrono::duration<double, std::milli>(clock::now() - t0).count());
+    }
+    sieda_project_free(sp);
+    if (ms.empty()) return;
+    std::sort(ms.begin(), ms.end());
+    g_editP95 = ms[std::min(ms.size() - 1, static_cast<size_t>(0.95 * static_cast<double>(ms.size())))];
+    std::printf("  edit    %8.0f ms median, %.0f ms p95, %.0f ms slowest (move + undo state + delta snapshot)\n",
+                ms[ms.size() / 2], g_editP95, ms.back());
+}
 
 /// Seconds spent in place, route, DRC, ratsnest and snapshot.
 double run(const bench::BenchSpec& spec, bool brute) {
@@ -104,12 +139,19 @@ double run(const bench::BenchSpec& spec, bool brute) {
     total += ratsTime + secs(t0);
     std::printf("  ratsnest %7.3f s (%zu lines), snapshot %.3f s (%.1f MB JSON)\n", ratsTime, ratsLines, secs(t0),
                 static_cast<double>(snapBytes) / 1e6);
+    if (!g_save.empty())
+        if (FILE* f = std::fopen(g_save.c_str(), "w")) {
+            const std::string json = p.toJson().dump();
+            std::fwrite(json.data(), 1, json.size(), f);
+            std::fclose(f);
+        }
     if (!g_snapshot.empty())
         if (FILE* f = std::fopen(g_snapshot.c_str(), "w")) {
             const std::string json = p.snapshot().dump();
             std::fwrite(json.data(), 1, json.size(), f);
             std::fclose(f);
         }
+    measureEdits(p);
     std::printf("  peak memory %.0f MB\n", peakMegabytes());
     std::fflush(stdout);
     return total;
@@ -119,7 +161,7 @@ double run(const bench::BenchSpec& spec, bool brute) {
 int main(int argc, char** argv) {
     bench::BenchSpec spec;
     bool custom = false, brute = false;
-    double budgetSeconds = 0, budgetMegabytes = 0;
+    double budgetSeconds = 0, budgetMegabytes = 0, editBudget = 0;
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         auto num = [&](int& out) {
@@ -138,17 +180,19 @@ int main(int argc, char** argv) {
             custom = true;
         } else if (a == "--drc-brute") brute = true;
         else if (a == "--snapshot" && i + 1 < argc) g_snapshot = argv[++i];
+        else if (a == "--save" && i + 1 < argc) g_save = argv[++i];
         else if (a == "--budget" && i + 2 < argc) {
             budgetSeconds = std::atof(argv[++i]);
             budgetMegabytes = std::atof(argv[++i]);
         }
+        else if (a == "--edit-budget" && i + 1 < argc) editBudget = std::atof(argv[++i]);
         else if (a == "--threads" && i + 1 < argc) setRoutingThreads(std::atoi(argv[++i]));
         else if (a == "--router" && i + 1 < argc) {
             const std::string r = argv[++i];
             setRouterStrategy(r == "classic" ? RouterStrategy::Classic : r == "corridor" ? RouterStrategy::Corridor : RouterStrategy::Auto);
         }
         else {
-            std::printf("usage: sieda_route_bench [--clusters N] [--layers L] [--seed S] [--fpga] [--no-bga] [--drc-brute] [--snapshot file.json] [--threads N] [--router auto|classic|corridor] [--budget seconds MB]\n");
+            std::printf("usage: sieda_route_bench [--clusters N] [--layers L] [--seed S] [--fpga] [--no-bga] [--drc-brute] [--snapshot file.json] [--threads N] [--router auto|classic|corridor] [--budget seconds MB] [--edit-budget ms] [--save file]\n");
             return 2;
         }
     }
@@ -157,6 +201,10 @@ int main(int argc, char** argv) {
         if (budgetSeconds > 0 && (total > budgetSeconds || peakMegabytes() > budgetMegabytes)) {
             std::printf("over budget: %.1f s (limit %.0f s), %.0f MB (limit %.0f MB)\n", total, budgetSeconds,
                         peakMegabytes(), budgetMegabytes);
+            return 1;
+        }
+        if (editBudget > 0 && g_editP95 > editBudget) {
+            std::printf("edits over budget: %.0f ms p95 (limit %.0f ms)\n", g_editP95, editBudget);
             return 1;
         }
         return 0;

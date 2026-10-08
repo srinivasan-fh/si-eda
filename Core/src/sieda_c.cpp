@@ -11,6 +11,7 @@
 #include "sieda/Automotive.hpp"
 #include "sieda/Avr.hpp"
 #include "sieda/Firmware.hpp"
+#include "sieda/FabExchange.hpp"
 
 #include <fstream>
 #include <iterator>
@@ -229,6 +230,33 @@ char* sieda_project_snapshot(const SiedaProject* project) {
     try {
         return dup(project->project.snapshot().dump());
     } catch (const std::exception& e) {
+        return errorJson(e);
+    }
+}
+
+char* sieda_project_snapshot_delta(SiedaProject* project, int32_t full) {
+    if (!project) return nullptr;
+    try {
+        const Json root = project->project.snapshot();
+        auto& sent = project->sentSnapshot;
+        bool all = full != 0 || sent.size() != root.fields().size();
+        for (const auto& [key, value] : root.fields()) all = all || !sent.count(key);
+        std::string out = all ? "{" : "{\"delta\":true";
+        for (const auto& [key, value] : root.fields()) {
+            std::string text = value.dump();
+            auto& last = sent[key];
+            if (!all && text == last) continue;
+            if (out.size() > 1) out += ',';
+            out += Json(key).dump();
+            out += ':';
+            out += text;
+            last = std::move(text);
+        }
+        if (all)
+            for (auto it = sent.begin(); it != sent.end();) it = root.fields().count(it->first) ? std::next(it) : sent.erase(it);
+        return dup(out + "}");
+    } catch (const std::exception& e) {
+        project->sentSnapshot.clear();
         return errorJson(e);
     }
 }
@@ -1484,6 +1512,7 @@ char* sieda_export(const SiedaProject* project, const char* format) {
         if (f == "stl") return dup(exportStl(buildAssemblyMesh(p.schematic, p.pcb), p.name));
         if (f == "obj") return dup(exportObj(buildAssemblyMesh(p.schematic, p.pcb), p.name));
         if (f == "step") return dup(exportStep(p.schematic, p.pcb, p.name));
+        if (f == "ipc2581") return dup(exportIpc2581(p));
         if (f == "review") return dup(reviewMarkdown(p));
         if (f == "idf_board") return dup(exportIdfBoard(p.schematic, p.pcb, p.name));
         if (f == "idf_library") return dup(exportIdfLibrary(p.schematic, p.pcb));

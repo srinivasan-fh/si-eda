@@ -77,6 +77,12 @@ final class DesignStore: ObservableObject {
     @Published var showFind = false
     /// ⌘K command palette (`CommandPaletteView`).
     @Published var showCommandPalette = false
+    /// Help → Welcome Tour (shown once on first launch) and Help → Keyboard Shortcuts (Onboarding.swift).
+    @Published var showWelcomeTour = false
+    @Published var showShortcuts = false
+    @Published var showPerformance = false
+    /// The last edits' timings (Help → Performance…); not published, so recording one redraws nothing.
+    private(set) var editTimings: [EditTiming] = []
     /// The custom schematic colour theme editor (opened from the colour scheme menus).
     @Published var showSchematicColours = false
     @Published var ercResults: [RuleViolation] = []
@@ -116,6 +122,8 @@ final class DesignStore: ObservableObject {
     /// "Place new parts" after Update PCB (DesignStore+Placement.swift): the footprints still to place by hand.
     @Published var placementSession: PlacementSession?
     @Published private(set) var busyMessage = ""
+    /// The snapshot as the core last sent it (`refresh` merges the next delta into it).
+    private var coreSnapshot: DesignSnapshot?
     /// When the running busy task started (the status bar shows its elapsed time) and whether Stop can end it.
     @Published private(set) var busySince: Date?
     @Published private(set) var busyStoppable = false
@@ -273,11 +281,14 @@ final class DesignStore: ObservableObject {
     private var snapshotErrorShown = false
 
     func refresh() {
-        switch engine.snapshotChecked() {
+        // Only the changed sections of the snapshot after an edit; `coreSnapshot` is the copy they apply to.
+        switch engine.snapshotChecked(base: coreSnapshot, delta: true) {
         case .success(let snap):
             snapshot = snap
+            coreSnapshot = snap
             snapshotErrorShown = false
         case .failure(let error):
+            coreSnapshot = nil  // the next refresh asks for every section
             // Keep showing the last good state, but never silently: edits would otherwise look like they did nothing.
             NSLog("SiEDA: %@", error.localizedDescription)
             statusMessage = "Display not updated — \(error.localizedDescription)"
@@ -318,11 +329,16 @@ final class DesignStore: ObservableObject {
             statusMessage = "\(busyMessage.isEmpty ? "Busy" : busyMessage) — try again when it finishes"
             return false
         }
+        let signpost = PerformanceLog.signposter.beginInterval("edit", "\(actionName)")
+        defer { PerformanceLog.signposter.endInterval("edit", signpost) }
+        let t0 = DispatchTime.now()
         let before = recordUndo ? engine.stateJSON() : nil
+        let t1 = DispatchTime.now()
         guard body(engine) else {
             statusMessage = failureMessage ?? "\(actionName): not possible"
             return false
         }
+        let t2 = DispatchTime.now()
         if let before { pushUndo(before) }
         isDirty = true
         if invalidatesAnalysis {
@@ -336,6 +352,10 @@ final class DesignStore: ObservableObject {
             fftResult = nil
         }
         refresh()
+        let t3 = DispatchTime.now()
+        editTimings.append(EditTiming(action: actionName, stateMs: PerformanceLog.milliseconds(t0, t1),
+                                      engineMs: PerformanceLog.milliseconds(t1, t2), refreshMs: PerformanceLog.milliseconds(t2, t3)))
+        if editTimings.count > PerformanceLog.capacity { editTimings.removeFirst(editTimings.count - PerformanceLog.capacity) }
         statusMessage = actionName
         CrashReporter.note(actionName)
         scheduleRecoverySave()

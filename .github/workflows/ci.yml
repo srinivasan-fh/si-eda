@@ -37,6 +37,54 @@ jobs:
           name: demo-fabrication-files
           path: fab/
 
+  sanitizers:
+    name: Core sanitizers and fuzzing (clang)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sanitizer and libFuzzer runtimes
+        run: sudo apt-get install -y -q "libclang-rt-$(clang --version | grep -oP 'version \K[0-9]+')-dev"
+      - name: Configure (AddressSanitizer, UndefinedBehaviorSanitizer, libFuzzer)
+        run: |
+          cmake -S . -B build-san -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ -DSIEDA_FUZZ=ON
+      - name: Build
+        run: cmake --build build-san --parallel
+      - name: Unit tests under ASan, UBSan and LeakSanitizer
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        # The scale budget times the router; sanitizers make every run several times slower.
+        run: ctest --test-dir build-san --output-on-failure -E sieda_scale_budget
+      - name: Fuzz the file readers (60 s each)
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: |
+          ./build-san/sieda-cli --demo seeds >/dev/null
+          for t in json project spice library idf; do mkdir -p corpus/$t; done
+          cp seeds/design.siedaproj corpus/json/ && cp seeds/design.siedaproj corpus/project/
+          cp seeds/*-netlist.cir corpus/spice/
+          i=0
+          for f in Core/tests/fixtures/library/*.kicad_mod Core/tests/fixtures/library/*.kicad_sym \
+                   Core/tests/fixtures/library/*.lbr Core/tests/fixtures/altium/*; do
+            case "$f" in *.kicad_mod) b='\000';; *.kicad_sym) b='\001';; *.lbr) b='\002';; *.SchLib) b='\003';;
+                         *.PcbLib) b='\004';; *.IntLib) b='\005';; *) continue;; esac
+            { printf "$b"; cat "$f"; } > corpus/library/seed$((i += 1))
+          done
+          for t in json project spice library idf; do
+            ./build-san/sieda_fuzz_$t corpus/$t -max_total_time=60 -timeout=10 -rss_limit_mb=2048 -max_len=262144 \
+              -print_final_stats=1 || exit 1
+          done
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: fuzz-crashes
+          path: |
+            crash-*
+            timeout-*
+            leak-*
+            oom-*
+
   app:
     name: macOS app (Xcode)
     runs-on: macos-15

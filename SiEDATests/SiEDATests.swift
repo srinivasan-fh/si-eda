@@ -2037,6 +2037,9 @@ final class FabricationPackageTests: XCTestCase {
         let notes = try String(contentsOf: folder.appendingPathComponent("fab_notes.txt"), encoding: .utf8)
         XCTAssertTrue(notes.contains("Solder mask          Green"))
         XCTAssertTrue(notes.contains("Board-gerbers.zip"))
+        XCTAssertTrue(notes.contains("Board-ipc2581.xml") && notes.contains("Board-odb.tgz"))
+        let odb = try Data(contentsOf: folder.appendingPathComponent("Board-odb.tgz"))
+        XCTAssertEqual(Array(odb.prefix(2)), [0x1F, 0x8B])  // gzip
 
         // Every single-file export works on its own too.
         for format in ExportFormat.allCases {
@@ -7895,6 +7898,8 @@ final class CommandPaletteTests: XCTestCase {
         let entries = CommandPalette.menuEntries(root)
         XCTAssertEqual(entries.map(\.title), ["Save"])
         XCTAssertEqual(entries.first?.detail, "File  ⌘S")
+        XCTAssertEqual(entries.first?.shortcut, "⌘S")  // Help → Keyboard Shortcuts lists it under its menu
+        XCTAssertEqual(entries.first?.menu, "File")
         entries.first?.run()
         XCTAssertEqual(target.hits, 1)
     }
@@ -7913,5 +7918,78 @@ final class SimulationStopTests: XCTestCase {
         XCTAssertEqual(stopped.error, "Simulation stopped.")
         EDAEngine.stopSimulation(false)
         XCTAssertTrue(engine.simulateTransient(stop: 1e-3, step: 1e-5).ok)
+    }
+}
+
+/// Delta snapshots after edits (`sieda_project_snapshot_delta`).
+@MainActor
+final class SnapshotDeltaTests: XCTestCase {
+    func testMergedDeltaEqualsTheFullSnapshot() throws {
+        let engine = EDAEngine()
+        DesignPlanCompiler.apply(OfflineProvider.templates[0].plan, to: engine, previous: nil)
+        var held = try engine.snapshotChecked(base: nil, delta: true).get()
+        XCTAssertEqual(held, try engine.snapshotChecked().get())
+        let part = try XCTUnwrap(held.components.first { !$0.componentKind.isVirtual })
+        XCTAssertTrue(engine.setValue(part.id, "4k7"))
+        XCTAssertTrue(engine.moveComponent(part.id, to: CGPoint(x: part.x + 20, y: part.y)))
+        held = try engine.snapshotChecked(base: held, delta: true).get()
+        let full = try engine.snapshotChecked().get()
+        XCTAssertEqual(held, full)
+        XCTAssertEqual(held.component(part.id)?.value, "4k7")
+        // Nothing changed: the reply is only {"delta": true} and the copy stays the same.
+        XCTAssertEqual(try engine.snapshotChecked(base: held, delta: true).get(), full)
+    }
+
+    func testStoreRefreshKeepsTheFullSnapshot() throws {
+        let store = DesignStore()
+        store.loadExample(OfflineProvider.templates[0].industryPlan)
+        let part = try XCTUnwrap(store.snapshot.components.first { !$0.componentKind.isVirtual })
+        store.moveComponents([part.id], by: CGSize(width: 10, height: 0))
+        XCTAssertEqual(store.snapshot, try store.engine.snapshotChecked().get())
+    }
+}
+
+/// Production panels (`sieda_pcb_panel`): settings round trip, layout and the package's panel folder.
+@MainActor
+final class PanelTests: XCTestCase {
+    func testPanelLayoutAndPackage() throws {
+        let store = DesignStore()
+        store.loadExample(OfflineProvider.templates[0].industryPlan)
+        store.autoPlace(all: true)
+        XCTAssertNil(store.snapshot.board.panel)
+        store.setPanel(PanelInfo(nx: 2, ny: 3, gap: 2, rail: 5, vscore: false))
+        XCTAssertEqual(store.snapshot.board.panel, PanelInfo(nx: 2, ny: 3, gap: 2, rail: 5, vscore: false))
+        let layout = try XCTUnwrap(store.engine.panelLayout())
+        XCTAssertEqual(layout.boards.count, 6)
+        XCTAssertEqual(layout.fiducials.count, 3)
+        XCTAssertFalse(layout.tabs.isEmpty)
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("panel-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: folder) }
+        XCTAssertTrue(store.engine.writeFabricationPackage(to: folder, base: "Board").ok)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("panel/Board-panel.zip").path))
+        store.setPanel(PanelInfo())
+        XCTAssertNil(store.snapshot.board.panel)
+    }
+}
+
+/// Per-edit timings (Help → Performance…) and the app's edit budget on a reference design.
+@MainActor
+final class EditPerformanceTests: XCTestCase {
+    func testEditsAreTimedAndStayWithinBudget() throws {
+        let store = DesignStore()
+        store.loadExample(OfflineProvider.templates[8].industryPlan)
+        store.autoPlace(all: true)
+        let part = try XCTUnwrap(store.snapshot.components.first { !$0.componentKind.isVirtual && $0.pcb.placed })
+        let before = store.editTimings.count
+        for i in 0..<20 {
+            store.moveFootprint(part.id, to: CGPoint(x: part.pcb.x + (i % 2 == 0 ? 1 : 0), y: part.pcb.y))
+        }
+        let timings = Array(store.editTimings.suffix(store.editTimings.count - before))
+        XCTAssertEqual(timings.count, 20)
+        XCTAssertTrue(timings.allSatisfy { $0.action.hasPrefix("Moved") && $0.totalMs > 0 })
+        // Generous for shared CI machines; a regression to full snapshots on every edit shows up here first.
+        let p95 = PerformanceLog.percentile(timings.map(\.totalMs), 0.95)
+        XCTAssertLessThan(p95, 400, "edit p95 \(p95) ms")
+        XCTAssertEqual(PerformanceLog.percentile([5, 1, 3, 2, 4], 0.5), 3)
     }
 }

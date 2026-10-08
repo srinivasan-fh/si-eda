@@ -28,6 +28,8 @@
 #include "sieda/Embedded.hpp"
 #include "sieda/Export.hpp"
 #include "sieda/Fabrication.hpp"
+#include "sieda/FabExchange.hpp"
+#include "sieda/Panel.hpp"
 #include "sieda/Ibis.hpp"
 #include "sieda/PowerIntegrity.hpp"
 #include "sieda/SignalIntegrity.hpp"
@@ -1635,6 +1637,29 @@ TEST(firmware_persists_with_the_project) {
     CHECK(found);
 }
 
+TEST(snapshot_delta_sends_changed_sections_and_merges_to_full) {
+    SiedaProject* p = sieda_project_new("delta");
+    auto take = [](char* j) {
+        Json v = Json::parse(j);
+        sieda_string_free(j);
+        return v;
+    };
+    int r = sieda_add_component(p, static_cast<int32_t>(ComponentKind::Resistor), "1k", 0, 0, 0, "R1");
+    Json held = take(sieda_project_snapshot_delta(p, 0));
+    CHECK(!held.has("delta") && held.has("components") && held.has("tracks"));
+    Json same = take(sieda_project_snapshot_delta(p, 0));
+    CHECK(same.has("delta") && same.fields().size() == 1);  // nothing changed
+    CHECK(sieda_set_component_value(p, r, "2k2"));
+    Json delta = take(sieda_project_snapshot_delta(p, 0));
+    CHECK(delta.has("delta") && delta.has("components") && !delta.has("tracks") && !delta.has("pads"));
+    for (const auto& [key, value] : delta.fields())
+        if (key != "delta") held[key] = value;
+    CHECK(held.dump() == take(sieda_project_snapshot(p)).dump());  // merged = full snapshot
+    Json full = take(sieda_project_snapshot_delta(p, 1));
+    CHECK(!full.has("delta") && full.dump() == held.dump());
+    sieda_project_free(p);
+}
+
 TEST(live_simulation_c_api) {
     SiedaProject* p = sieda_project_new("live");
     // ATmega328P from the standard library, through the C API like the app does.
@@ -2861,6 +2886,108 @@ TEST(assembly_mesh_follows_layer_count) {
         CHECK((layers == 1) == (bareUnderside > 0));
         CHECK(bands == std::max(0, layers - 2));
     }
+}
+
+TEST(ipc2581_and_odb_archive_describe_the_same_board) {
+    Project p = amplifierProject();
+    p.name = "Amp";
+    p.pcb.autoPlace(p.schematic, true);
+    p.pcb.settings.layerCount = 4;
+    p.pcb.settings.holes.push_back({{3, 3}, 3.2, 6.4});
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    for (auto& c : p.schematic.mutableComponents())
+        if (c.kind == ComponentKind::Resistor && c.hasFootprint()) {
+            c.pcb.bottom = true;
+            break;
+        }
+    int parts = 0, holes = static_cast<int>(p.pcb.vias.size() + p.pcb.settings.holes.size());
+    for (const auto& c : p.schematic.components()) parts += c.hasFootprint() && c.pcb.placed && !c.pcb.embedded();
+    for (const auto& pad : p.pcb.pads(p.schematic)) holes += pad.throughHole && pad.drill > 0;
+    auto count = [](const std::string& text, const std::string& what) {
+        int n = 0;
+        for (size_t at = text.find(what); at != std::string::npos; at = text.find(what, at + 1)) ++n;
+        return n;
+    };
+
+    const std::string xml = exportIpc2581(p);
+    CHECK(xml.rfind("<?xml", 0) == 0 && xml.find("</IPC-2581>") != std::string::npos);
+    CHECK(count(xml, "<Component ") == parts);
+    CHECK(count(xml, "<Hole ") == holes);
+    CHECK(count(xml, "<Set") == count(xml, "</Set>") && count(xml, "<LayerFeature ") >= 8);
+    CHECK(xml.find("<Layer name=\"L2\" layerFunction=\"SIGNAL\" side=\"INTERNAL\"") != std::string::npos);
+    CHECK(xml.find("<Span fromLayer=\"TOP\" toLayer=\"BOTTOM\"/>") != std::string::npos);
+
+    // ODB++: gzip of stored deflate blocks around a ustar archive; unwrap it and look inside.
+    const std::string tgz = exportOdbArchive(p);
+    CHECK(tgz.size() > 18 && static_cast<unsigned char>(tgz[0]) == 0x1f && static_cast<unsigned char>(tgz[1]) == 0x8b);
+    std::string tar;
+    for (size_t at = 10; at + 5 <= tgz.size() - 8;) {
+        const bool last = tgz[at] & 1;
+        const size_t n = static_cast<unsigned char>(tgz[at + 1]) | static_cast<size_t>(static_cast<unsigned char>(tgz[at + 2])) << 8;
+        tar.append(tgz, at + 5, n);
+        at += 5 + n;
+        if (last) break;
+    }
+    uint32_t crc = 0;
+    for (int i = 3; i >= 0; --i) crc = crc << 8 | static_cast<unsigned char>(tgz[tgz.size() - 8 + static_cast<size_t>(i)]);
+    CHECK(crc == crc32(tar) && tar.size() % 512 == 0);
+    for (const char* path : {"Amp/matrix/matrix", "Amp/misc/info", "Amp/steps/pcb/profile", "Amp/steps/pcb/eda/data",
+                             "Amp/steps/pcb/layers/l2/features", "Amp/steps/pcb/layers/drill/features",
+                             "Amp/steps/pcb/layers/comp_+_top/components", "Amp/steps/pcb/layers/comp_+_bot/components"})
+        CHECK(tar.find(path) != std::string::npos);
+    CHECK(count(tar, "\nCMP ") == parts);
+    CHECK(count(tar, "TYPE=SIGNAL") == 4);
+}
+
+TEST(panel_steps_the_board_with_rails_tabs_and_vscore) {
+    Project p = amplifierProject();
+    p.name = "Amp";
+    p.pcb.autoPlace(p.schematic, true);
+    CHECK(p.pcb.autoRoute(p.schematic).failed == 0);
+    const double W = p.pcb.settings.width, H = p.pcb.settings.height;
+    // No panel: nothing saved, no panel files.
+    CHECK(!p.toJson().get("board").has("panel"));
+    for (const auto& f : fabricationPackage(p)) CHECK(f.path.rfind("panel/", 0) != 0);
+
+    p.pcb.settings.panel = {3, 2, 2.0, 5.0, false};
+    PanelLayout l = panelLayout(p.pcb.settings);
+    CHECK(l.boards.size() == 6);
+    CHECK(std::abs(l.width - (3 * W + 2 * 2.0)) < 1e-9 && std::abs(l.height - (2 * H + 2.0 + 2 * 7.0)) < 1e-9);
+    CHECK(l.fiducials.size() == 3 && l.toolingHoles.size() == 4 && !l.tabs.empty() && l.vscores.empty());
+    CHECK(l.mouseBites.size() % 6 == 0 && l.mouseBites.size() >= 6 * l.tabs.size());
+    for (const Rect& t : l.tabs) CHECK(std::abs(t.width() * t.height() - 5.0 * 2.0) < 1e-9);  // 5 mm × the gap
+
+    auto files = fabricationPackage(p);
+    std::map<std::string, std::string> byName;
+    for (const auto& f : files) byName[f.path] = f.content;
+    const std::string copper = byName["panel/Amp-panel-F_Cu.gbr"];
+    CHECK(copper.find("%SRX3Y2I") != std::string::npos && copper.find("%SR*%") != std::string::npos);
+    CHECK(copper.find("M02*") != std::string::npos && byName.count("panel/Amp-panel.zip") == 1);
+    // Board holes: once per board in the panel drill file.
+    auto holes = [](const std::string& drill) {
+        size_t n = 0;
+        for (size_t at = drill.find("\nX"); at != std::string::npos; at = drill.find("\nX", at + 1)) ++n;
+        return n;
+    };
+    const size_t boardHoles = holes(byName["gerbers/Amp-PTH.drl"]);
+    CHECK(boardHoles > 0 && holes(byName["panel/Amp-panel-PTH.drl"]) == 6 * boardHoles);
+    const std::string npth = byName["panel/Amp-panel-NPTH.drl"];
+    CHECK(npth.find("C2.000") != std::string::npos && npth.find("C0.500") != std::string::npos);
+
+    // Saved and read back; V-score panels butt the boards and score between them.
+    Project back = Project::fromJson(p.toJson());
+    CHECK(back.pcb.settings.panel.nx == 3 && back.pcb.settings.panel.ny == 2 && !back.pcb.settings.panel.vscore);
+    p.pcb.settings.panel.vscore = true;
+    l = panelLayout(p.pcb.settings);
+    CHECK(l.tabs.empty() && l.mouseBites.empty() && std::abs(l.width - 3 * W) < 1e-9);
+    CHECK(l.vscores.size() == 3 + 2);  // 3 horizontal (rail joints and between rows), 2 vertical
+    files = fabricationPackage(p);
+    bool vscoreFile = false;
+    for (const auto& f : files) vscoreFile |= f.path == "panel/Amp-panel-VScore.gbr";
+    CHECK(vscoreFile);
+    PanelSettings clamped;
+    panelFromJson(Json::parse(R"({"nx":99,"ny":-3,"gap":1e9,"rail":-1})"), clamped);
+    CHECK(clamped.nx == 20 && clamped.ny == 1 && clamped.gap == 20 && clamped.rail == 0);
 }
 
 TEST(fabrication_package_is_complete) {
@@ -19176,6 +19303,11 @@ TEST(review_comments_round_trip) {
     CHECK(std::string(j).find("\"open\":0") != std::string::npos);
     sieda_string_free(j);
     sieda_project_free(sp);
+}
+
+TEST(json_as_int_clamps_hostile_numbers) {
+    CHECK(Json::parse("2.2e112").asInt() == 2147483647 && Json::parse("-1e300").asInt() == -2147483647 - 1);
+    CHECK(Json::parse("42.9").asInt() == 42 && Json::parse("-7").asInt() == -7 && Json::parse("\"x\"").asInt(5) == 5);
 }
 
 TEST(json_hostile_nesting_and_number_format) {
