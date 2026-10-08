@@ -109,7 +109,9 @@
   version diff, three-way merge (`mergeProjects`, `sieda-mcp --merge`), design review comments
   (`Project::reviewComments`, saved only when present), Git drivers (`--diff` / `--git-diff`) and the variant matrix
   in `Core/src/ProjectDiff.cpp`; app
-  `SiEDA/App/DesignStore+Team.swift`, `SiEDA/Views/Common/TeamViews.swift`; guides `docs/MCAD.md`, `docs/TEAM.md`.
+  `SiEDA/App/DesignStore+Team.swift`, `SiEDA/Views/Common/TeamViews.swift`; live co-editing of a shared file
+  (auto-save, 2 s watch, three-way merge as one undo step, presence folder) in `SiEDA/App/LiveCollaboration.swift`;
+  guides `docs/MCAD.md`, `docs/TEAM.md`.
   Scale guard: CTest `sieda_scale_budget` (`sieda_route_bench --budget`); `sieda_route_bench --clusters 32 --layers 8
   --seed 3 --fpga` is the 923-part board.
 - Speed and safety rules:

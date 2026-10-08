@@ -1283,3 +1283,5 @@
 "Address to clock (ps)" = "Address sa clock (ps)";
 "Impedance tolerance (%)" = "Tolerance ng impedance (%)";
 "Sign-off Report" = "Ulat ng Sign-off";
+"Live Collaboration" = "Live na Pakikipagtulungan";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "I-save ang bawat edit sa shared na project file at awtomatikong pagsamahin ang mga save ng mga kasama";

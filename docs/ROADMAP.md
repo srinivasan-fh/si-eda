@@ -104,7 +104,8 @@ Queued after the ⌘K / delta-snapshot / IPC-2581 / panel / onboarding / perform
 4. ✅ **Field-solver SI / PI** (SI done: `Core/src/FieldSolver.cpp`, Board Setup → Check with Field Solver, MCP `si_field_solver`; PI already has the pour-mesh DC IR drop and cavity plane impedance) (~0.5M): 2D cross-section solver (single-ended, differential, coupled: impedance,
    coupling, crosstalk, loss) replacing the closed-form formulas when enabled; plane solver on the real copper for PDN
    impedance and DC IR drop with a heat-map overlay.
-5. **Real-time co-editing** (~0.7M): local-network session, edits broadcast as delta operations, conflicts through
+5. ✅ **Real-time co-editing** (done over a shared file: File → Live Collaboration, auto-save + watch + three-way
+   merge + presence, `SiEDA/App/LiveCollaboration.swift`; a network session with operation broadcast is still open) (~0.7M): local-network session, edits broadcast as delta operations, conflicts through
    the three-way merge, presence (who is where on the board); an internet relay with accounts comes later.
 
 ## Next (planned, in suggested order)

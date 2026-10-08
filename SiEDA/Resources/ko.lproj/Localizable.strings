@@ -1283,3 +1283,5 @@
 "Address to clock (ps)" = "주소 대 클록 (ps)";
 "Impedance tolerance (%)" = "임피던스 허용 오차 (%)";
 "Sign-off Report" = "승인 보고서";
+"Live Collaboration" = "실시간 공동 작업";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "각 편집을 공유 프로젝트 파일에 저장하고 팀원의 저장을 자동으로 병합합니다";

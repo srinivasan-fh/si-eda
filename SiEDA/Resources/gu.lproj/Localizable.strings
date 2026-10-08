@@ -1283,3 +1283,5 @@
 "Address to clock (ps)" = "એડ્રેસથી ક્લોક (ps)";
 "Impedance tolerance (%)" = "ઇમ્પીડન્સ સહનશીલતા (%)";
 "Sign-off Report" = "સાઇન-ઓફ રિપોર્ટ";
+"Live Collaboration" = "લાઇવ સહયોગ";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "દરેક ફેરફાર વહેંચાયેલ પ્રોજેક્ટ ફાઇલમાં સાચવો અને સાથીઓના સેવ આપમેળે મર્જ કરો";

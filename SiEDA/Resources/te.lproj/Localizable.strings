@@ -1283,3 +1283,5 @@
 "Address to clock (ps)" = "చిరునామా నుండి క్లాక్ (ps)";
 "Impedance tolerance (%)" = "ఇంపెడెన్స్ సహనం (%)";
 "Sign-off Report" = "సైన్-ఆఫ్ నివేదిక";
+"Live Collaboration" = "ప్రత్యక్ష సహకారం";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "ప్రతి మార్పును భాగస్వామ్య ప్రాజెక్ట్ ఫైల్‌లో సేవ్ చేసి, సహచరుల సేవ్‌లను స్వయంచాలకంగా విలీనం చేయండి";

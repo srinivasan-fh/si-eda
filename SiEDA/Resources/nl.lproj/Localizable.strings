@@ -1283,3 +1283,5 @@
 "Address to clock (ps)" = "Adres naar klok (ps)";
 "Impedance tolerance (%)" = "Impedantietolerantie (%)";
 "Sign-off Report" = "Vrijgaverapport";
+"Live Collaboration" = "Live samenwerken";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "Elke bewerking in het gedeelde projectbestand opslaan en opslagen van teamgenoten automatisch samenvoegen";

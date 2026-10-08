@@ -1283,3 +1283,5 @@
 "Address to clock (ps)" = "முகவரி முதல் கடிகாரம் (ps)";
 "Impedance tolerance (%)" = "மின்மறுப்பு சகிப்புத்தன்மை (%)";
 "Sign-off Report" = "ஒப்புதல் அறிக்கை";
+"Live Collaboration" = "நேரடி கூட்டுப்பணி";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "ஒவ்வொரு திருத்தத்தையும் பகிரப்பட்ட திட்டக் கோப்பில் சேமித்து, குழுவினரின் சேமிப்புகளைத் தானாக இணைக்கவும்";

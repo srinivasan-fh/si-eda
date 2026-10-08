@@ -61,6 +61,19 @@ extension EDAEngine {
         Self.decode(VariantMatrix.self, from: withHandle { Self.take(sieda_variant_matrix_json($0)) })
     }
 
+    /// Three-way merge of two edited copies of a project (saved JSON) against their common ancestor: the merged
+    /// project and the fields both sides changed differently (ours kept). nil when a side is not a project.
+    struct ProjectMergeResult { var merged: String; var conflicts: [String] }
+    static func mergeProjects(base: String, ours: String, theirs: String) -> ProjectMergeResult? {
+        guard let text = take(sieda_merge_projects(base, ours, theirs)), let data = text.data(using: .utf8),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              (root["error"] as? String ?? "").isEmpty, let merged = root["merged"],
+              JSONSerialization.isValidJSONObject(merged),
+              let mergedData = try? JSONSerialization.data(withJSONObject: merged),
+              let mergedText = String(data: mergedData, encoding: .utf8) else { return nil }
+        return ProjectMergeResult(merged: mergedText, conflicts: root["conflicts"] as? [String] ?? [])
+    }
+
     /// Moves parts to the placement of an IDF board file written back by MCAD; the designators moved.
     func importIDFPlacement(_ emn: String) -> [String] {
         struct Moved: Decodable { var moved: [String] }

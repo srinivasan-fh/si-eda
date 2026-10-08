@@ -1283,3 +1283,5 @@
 "Address to clock (ps)" = "地址至时钟 (ps)";
 "Impedance tolerance (%)" = "阻抗容差 (%)";
 "Sign-off Report" = "签核报告";
+"Live Collaboration" = "实时协作";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "将每次编辑保存到共享项目文件，并自动合并队友的保存";

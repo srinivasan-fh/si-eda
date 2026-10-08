@@ -1283,3 +1283,5 @@
 "Address to clock (ps)" = "Address to clock (ps)";
 "Impedance tolerance (%)" = "Impedance tolerance (%)";
 "Sign-off Report" = "Sign-off Report";
+"Live Collaboration" = "Live Collaboration";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "Save each edit to the shared project file and merge teammates' saves automatically";

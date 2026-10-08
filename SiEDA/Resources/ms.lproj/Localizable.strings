@@ -1283,3 +1283,5 @@
 "Address to clock (ps)" = "Alamat ke jam (ps)";
 "Impedance tolerance (%)" = "Toleransi impedans (%)";
 "Sign-off Report" = "Laporan Pengesahan";
+"Live Collaboration" = "Kerjasama Langsung";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "Simpan setiap suntingan ke fail projek kongsi dan gabungkan simpanan rakan sepasukan secara automatik";

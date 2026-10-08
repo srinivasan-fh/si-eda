@@ -1283,3 +1283,5 @@
 "Address to clock (ps)" = "ঠিকনাৰ পৰা ক্লক (ps)";
 "Impedance tolerance (%)" = "প্ৰতিবাধা সহনশীলতা (%)";
 "Sign-off Report" = "চূড়ান্ত পৰীক্ষাৰ প্ৰতিবেদন";
+"Live Collaboration" = "লাইভ সহযোগিতা";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "প্ৰতিটো সম্পাদনা ভাগ-বতৰা প্ৰকল্প ফাইলত সাঁচি ৰাখক আৰু সতীৰ্থৰ সাঁচতীয়া স্বয়ংক্ৰিয়ভাৱে একত্ৰিত কৰক";

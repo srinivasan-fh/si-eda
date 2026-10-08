@@ -128,7 +128,14 @@ final class DesignStore: ObservableObject {
     @Published private(set) var busySince: Date?
     @Published private(set) var busyStoppable = false
     @Published var statusMessage = "Ready"
-    @Published private(set) var documentURL: URL?
+    @Published private(set) var documentURL: URL? {
+        didSet { if documentURL == nil { collaboration.documentChanged(url: nil, json: "") } }
+    }
+    /// Live co-editing through the shared project file (File → Live Collaboration).
+    lazy var collaboration = LiveCollaboration(store: self)
+    @Published var liveCollaboration = false {
+        didSet { collaboration.setEnabled(liveCollaboration) }
+    }
     @Published private(set) var isDirty = false {
         didSet {
             // Saved, reverted or discarded: nothing left to recover.
@@ -341,6 +348,7 @@ final class DesignStore: ObservableObject {
         let t2 = DispatchTime.now()
         if let before { pushUndo(before) }
         isDirty = true
+        collaboration.noteEdit()
         if invalidatesAnalysis {
             dcResult = nil
             transientResult = nil
@@ -2519,6 +2527,7 @@ final class DesignStore: ObservableObject {
             let json = try String(contentsOf: url, encoding: .utf8)
             try engine.load(json: json)
             documentURL = url
+            collaboration.documentChanged(url: url, json: json)
             undoStack.removeAll()
             redoStack.removeAll()
             isDirty = false
@@ -2560,8 +2569,10 @@ final class DesignStore: ObservableObject {
 
     private func write(to url: URL) -> Bool {
         do {
-            try engine.saveJSON().write(to: url, atomically: true, encoding: .utf8)
+            let json = engine.saveJSON()
+            try json.write(to: url, atomically: true, encoding: .utf8)
             documentURL = url
+            collaboration.documentChanged(url: url, json: json)
             isDirty = false
             statusMessage = "Saved \(url.lastPathComponent)"
             CrashReporter.note("Saved \(url.lastPathComponent)")

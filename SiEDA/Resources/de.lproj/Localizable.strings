@@ -1283,3 +1283,5 @@
 "Address to clock (ps)" = "Adresse zu Takt (ps)";
 "Impedance tolerance (%)" = "Impedanztoleranz (%)";
 "Sign-off Report" = "Freigabebericht";
+"Live Collaboration" = "Live-Zusammenarbeit";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "Jede Änderung in der gemeinsamen Projektdatei speichern und Speicherungen von Teammitgliedern automatisch zusammenführen";

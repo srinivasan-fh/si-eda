@@ -1283,3 +1283,5 @@
 "Address to clock (ps)" = "Địa chỉ so với xung nhịp (ps)";
 "Impedance tolerance (%)" = "Dung sai trở kháng (%)";
 "Sign-off Report" = "Báo cáo phê duyệt";
+"Live Collaboration" = "Cộng tác trực tiếp";
+"Save each edit to the shared project file and merge teammates' saves automatically" = "Lưu từng chỉnh sửa vào tệp dự án dùng chung và tự động hợp nhất các lần lưu của đồng đội";
