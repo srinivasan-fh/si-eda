@@ -176,6 +176,9 @@ char* sieda_run_circuit_validation(const SiedaProject* project);
    {"verdict":"pass|warning|fail","passed","errors","warnings","infos","stages":[...],"markdown"}. */
 char* sieda_run_verification(const SiedaProject* project);
 char* sieda_simulate_dc(const SiedaProject* project);
+/* Stop for running simulations, from any thread: non-zero makes transient, AC, DC sweep, parameter sweep, Monte Carlo
+ * and FFT end early with the error "Simulation stopped."; it stays until cleared with 0 (clear it before a new run). */
+void sieda_simulation_stop(int32_t stop);
 char* sieda_simulate_transient(const SiedaProject* project, double t_stop, double t_step);
 /* Advanced analyses (docs/SIMULATION.md). Each takes a JSON options object (numbers may be engineering strings such as
  * "10k" or "1MEG"; NULL or "" = defaults) and returns {"ok","error",…}. Nets are named as in the schematic, parts by

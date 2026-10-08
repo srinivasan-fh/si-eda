@@ -39,7 +39,7 @@ extension DesignStore {
     func simulateNoise(output: String, start: String, stop: String, pointsPerDecade: Int, source: String) async {
         guard !isBusy else { return }  // one analysis at a time
         let engine = self.engine
-        let result = await runBusy("Running noise analysis…") {
+        let result = await runBusy("Running noise analysis…", stoppable: true) {
             engine.simulateNoise(output: output, start: start, stop: stop, pointsPerDecade: pointsPerDecade, source: source)
         }
         noiseResult = result
@@ -50,7 +50,7 @@ extension DesignStore {
                             start: String, stop: String, step: String) async {
         guard !isBusy else { return }
         let engine = self.engine
-        let result = await runBusy("Running parameter sweep…") {
+        let result = await runBusy("Running parameter sweep…", stoppable: true) {
             engine.simulateParamSweep(component: component, values: values, analysis: analysis, net: net,
                                       start: start, stop: stop, step: step)
         }
@@ -61,7 +61,7 @@ extension DesignStore {
     func simulateFFT(net: String, stop: String, step: String, fundamental: String, harmonics: Int) async {
         guard !isBusy else { return }
         let engine = self.engine
-        let result = await runBusy("Running FFT…") {
+        let result = await runBusy("Running FFT…", stoppable: true) {
             engine.simulateFFT(net: net, stop: stop, step: step, fundamental: fundamental, harmonics: harmonics)
         }
         fftResult = result

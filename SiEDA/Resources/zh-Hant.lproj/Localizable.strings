@@ -1230,3 +1230,4 @@
 "Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "為每個視窗配色：面板、強調色和文字，並選擇相應的電路圖配色。銅箔、焊墊和錯誤顏色保持標準。";
 "Command Palette…" = "命令面板…";
 "Search commands, parts and nets" = "搜尋命令、元件和網路";
+"End the simulation early" = "提前結束模擬";

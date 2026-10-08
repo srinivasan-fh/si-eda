@@ -330,6 +330,11 @@ The exact fields are documented at each declaration in `Core/include/sieda/sieda
 `"ok": false` with a message; they never throw across the C boundary. Readouts that do not exist in the sweep are
 `null`.
 
+**Stop.** While an analysis runs, the status bar shows its elapsed time and a **Stop** button. Stop calls
+`sieda_simulation_stop(1)` (any thread): transient steps, AC and DC sweep points, parameter sweep and Monte Carlo runs
+check it and end with `"ok": false, "error": "Simulation stopped."`. The flag stays set until `sieda_simulation_stop(0)`,
+which the app sends before and after every run; results are unchanged while it is clear.
+
 ```json
 // sieda_simulate_ac(project, "{\"start\":10,\"stop\":\"1MEG\",\"pointsPerDecade\":50,\"source\":\"V1\"}")
 {"ok":true,"error":"","stimulus":["V1"],"frequency":[10, …],

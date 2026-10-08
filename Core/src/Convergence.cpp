@@ -185,6 +185,10 @@ TransientResult Simulator::transient(const TransientOptions& o) {
         if (o.tStop / tStep > 200000) tStep = o.tStop / 200000;
         const int steps = static_cast<int>(std::ceil(o.tStop / tStep - 1e-9));
         for (int s = 1; s <= steps; ++s) {
+            if (simulationStopRequested()) {
+                res.error = kSimulationStopped;
+                return res;
+            }
             const double t = std::min(s * tStep, o.tStop);
             if (!advance(t - t_, res.error)) {
                 res.mcus = mcuReports();
@@ -214,6 +218,10 @@ TransientResult Simulator::transient(const TransientOptions& o) {
     for (const auto& e : elements_)
         if (e.type == ElemType::Inductor && e.branch >= 0) inductorBranch[static_cast<size_t>(e.branch)] = 1;
     while (t_ < o.tStop * (1 - 1e-12)) {
+        if (simulationStopRequested()) {
+            res.error = kSimulationStopped;
+            return res;
+        }
         while (bp < breaks.size() && breaks[bp] <= t_ + hmin) ++bp;
         double step = std::min(h, hmax);
         bool hitsBreak = false;

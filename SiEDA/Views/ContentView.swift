@@ -269,6 +269,18 @@ struct StatusBar: View {
                     .foregroundStyle(Theme.skyBlue)
                     .lineLimit(1)
                     .truncationMode(.tail)
+                if store.isBusy, let since = store.busySince {
+                    // Elapsed time once a task takes longer than a second.
+                    TimelineView(.periodic(from: since, by: 1)) { context in
+                        let seconds = Int(context.date.timeIntervalSince(since))
+                        if seconds >= 1 { Text(verbatim: "\(seconds) s").monospacedDigit().foregroundStyle(Theme.textMuted) }
+                    }
+                }
+                if store.busyStoppable {
+                    Button("Stop", action: store.stopBusyTask)
+                        .controlSize(.small)
+                        .help("End the simulation early")
+                }
             } else {
                 Image(systemName: "bolt.horizontal.circle").foregroundStyle(Theme.blue)
                 Text(store.statusMessage)

@@ -1230,3 +1230,4 @@
 "Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "Kleurt elk venster: panelen, accenten en tekst, en kiest het bijpassende schema-kleurenschema. Koper-, pad- en foutkleuren blijven standaard.";
 "Command Palette…" = "Opdrachtenpalet…";
 "Search commands, parts and nets" = "Zoek opdrachten, onderdelen en netten";
+"End the simulation early" = "Simulatie voortijdig beëindigen";

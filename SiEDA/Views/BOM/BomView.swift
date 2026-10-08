@@ -50,9 +50,9 @@ struct BomView: View {
                 .fixedSize()
                 .help("Boards per order, for the order cost")
                 Menu {
-                    Button("Bill of Materials (CSV)…") { store.export(.bom) }
-                    Button("BOM for Assembly (JLCPCB / PCBWay)…") { store.export(.bomAssembly) }
-                    Button("Component Placement List (CPL)…") { store.export(.cpl) }
+                    Button("Bill of Materials (CSV)…") { Task { await store.export(.bom) } }
+                    Button("BOM for Assembly (JLCPCB / PCBWay)…") { Task { await store.export(.bomAssembly) } }
+                    Button("Component Placement List (CPL)…") { Task { await store.export(.cpl) } }
                 } label: {
                     Label("Export", systemImage: "square.and.arrow.up")
                 }

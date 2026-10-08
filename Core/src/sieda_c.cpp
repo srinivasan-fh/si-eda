@@ -816,6 +816,8 @@ char* sieda_run_verification(const SiedaProject* project) {
     }
 }
 
+void sieda_simulation_stop(int32_t stop) { requestSimulationStop(stop != 0); }
+
 char* sieda_simulate_dc(const SiedaProject* project) {
     if (!project) return nullptr;
     try {

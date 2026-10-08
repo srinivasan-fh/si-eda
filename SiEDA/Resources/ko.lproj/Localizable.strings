@@ -1230,3 +1230,4 @@
 "Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "모든 창(패널, 강조색, 텍스트)의 색을 정하고 어울리는 회로도 색 구성을 선택합니다. 구리, 패드, 오류 색은 표준으로 유지됩니다.";
 "Command Palette…" = "명령 팔레트…";
 "Search commands, parts and nets" = "명령, 부품, 네트 검색";
+"End the simulation early" = "시뮬레이션을 일찍 끝내기";

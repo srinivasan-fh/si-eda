@@ -122,6 +122,10 @@ ToleranceResult toleranceAnalysis(const Schematic& schematic, const Measurement&
 
     SeededRandom rng(options.seed);
     for (int run = 0; run < options.runs; ++run) {
+        if (simulationStopRequested()) {
+            res.error = kSimulationStopped;
+            return res;
+        }
         std::map<int, double> scale;
         for (const auto& p : res.parts) {
             double dev;
@@ -209,6 +213,10 @@ std::vector<ParamSweepRun> parameterSweep(const Schematic& schematic, const Para
         return runs;
     }
     for (const auto& value : options.values) {
+        if (simulationStopRequested()) {
+            error = kSimulationStopped;
+            return {};
+        }
         Schematic copy = schematic;
         copy.setValue(options.componentId, value);
         ParamSweepRun run;

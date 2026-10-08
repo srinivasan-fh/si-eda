@@ -116,6 +116,9 @@ final class DesignStore: ObservableObject {
     /// "Place new parts" after Update PCB (DesignStore+Placement.swift): the footprints still to place by hand.
     @Published var placementSession: PlacementSession?
     @Published private(set) var busyMessage = ""
+    /// When the running busy task started (the status bar shows its elapsed time) and whether Stop can end it.
+    @Published private(set) var busySince: Date?
+    @Published private(set) var busyStoppable = false
     @Published var statusMessage = "Ready"
     @Published private(set) var documentURL: URL?
     @Published private(set) var isDirty = false {
@@ -388,14 +391,29 @@ final class DesignStore: ObservableObject {
         }
     }
 
-    func runBusy<T: Sendable>(_ message: String, _ work: @escaping @Sendable () -> T) async -> T {
+    /// Runs `work` off the main thread with the status bar's busy message and elapsed time. `stoppable`: a simulation,
+    /// which the status bar's Stop button ends early (`sieda_simulation_stop`).
+    func runBusy<T: Sendable>(_ message: String, stoppable: Bool = false, _ work: @escaping @Sendable () -> T) async -> T {
         isBusy = true
         busyMessage = message
+        busySince = Date()
+        busyStoppable = stoppable
+        EDAEngine.stopSimulation(false)
         defer {
             isBusy = false
             busyMessage = ""
+            busySince = nil
+            busyStoppable = false
+            EDAEngine.stopSimulation(false)
         }
         return await Task.detached(priority: .userInitiated) { work() }.value
+    }
+
+    /// Ends the running simulation early; its result reports "Simulation stopped.".
+    func stopBusyTask() {
+        guard isBusy, busyStoppable else { return }
+        EDAEngine.stopSimulation(true)
+        busyMessage = "Stopping…"
     }
 
     func present(_ error: Error, title: String) {
@@ -1280,7 +1298,7 @@ final class DesignStore: ObservableObject {
     func simulateDC() async {
         guard !isBusy else { return }  // one analysis at a time: overlapping runs would reset isBusy early
         let engine = self.engine
-        let result = await runBusy("Solving DC operating point…") { engine.simulateDC() }
+        let result = await runBusy("Solving DC operating point…", stoppable: true) { engine.simulateDC() }
         dcResult = result
         statusMessage = result.converged
             ? "DC operating point converged in \(result.iterations) iterations"
@@ -1290,7 +1308,7 @@ final class DesignStore: ObservableObject {
     func simulateTransient(stop: Double, step: Double, adaptive: Bool = false, trapezoidal: Bool = false) async {
         guard !isBusy else { return }  // one analysis at a time: overlapping runs would reset isBusy early
         let engine = self.engine
-        let result = await runBusy("Running transient analysis…") {
+        let result = await runBusy("Running transient analysis…", stoppable: true) {
             engine.simulateTransient(stop: stop, step: step, adaptive: adaptive, trapezoidal: trapezoidal)
         }
         transientResult = result
@@ -1300,7 +1318,7 @@ final class DesignStore: ObservableObject {
     func simulateAC(start: String, stop: String, pointsPerDecade: Int, source: String) async {
         guard !isBusy else { return }  // one analysis at a time
         let engine = self.engine
-        let result = await runBusy("Running AC analysis…") {
+        let result = await runBusy("Running AC analysis…", stoppable: true) {
             engine.simulateAC(start: start, stop: stop, pointsPerDecade: pointsPerDecade, source: source)
         }
         acResult = result
@@ -1310,7 +1328,7 @@ final class DesignStore: ObservableObject {
     func simulateDCSweep(source: String, start: String, stop: String, step: String) async {
         guard !isBusy else { return }  // one analysis at a time
         let engine = self.engine
-        let result = await runBusy("Running DC sweep…") {
+        let result = await runBusy("Running DC sweep…", stoppable: true) {
             engine.simulateDCSweep(source: source, start: start, stop: stop, step: step)
         }
         dcSweepResult = result
@@ -1320,7 +1338,7 @@ final class DesignStore: ObservableObject {
     func simulateMonteCarlo(net: String, measure: String, runs: Int) async {
         guard !isBusy else { return }  // one analysis at a time
         let engine = self.engine
-        let result = await runBusy("Running Monte Carlo analysis…") {
+        let result = await runBusy("Running Monte Carlo analysis…", stoppable: true) {
             engine.simulateMonteCarlo(net: net, measure: measure, runs: runs, seed: 1)
         }
         monteCarloResult = result
@@ -2574,7 +2592,8 @@ final class DesignStore: ObservableObject {
             try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
             // Gerbers (every layer, mask, paste, silkscreen), drills, job file, IPC netlist, assembly files, notes and
             // the upload zip all come from the core, the same package the command-line tool writes.
-            let package = engine.writeFabricationPackage(to: target, base: base)
+            let engine = self.engine
+            let package = await runBusy("Writing the fabrication package…") { engine.writeFabricationPackage(to: target, base: base) }
             guard package.ok else {
                 alert = AlertItem(title: "Export failed", message: package.error)
                 return
@@ -2592,14 +2611,17 @@ final class DesignStore: ObservableObject {
         }
     }
 
-    func export(_ format: ExportFormat) {
-        guard let content = engine.export(format) else {
-            alert = AlertItem(title: "Export failed", message: "The core could not produce \(format.displayName).")
-            return
-        }
+    /// Asks where to save, then writes the file off the main thread (STEP or 3D exports of a big board take a while).
+    func export(_ format: ExportFormat) async {
+        guard !isBusy else { return }
         let panel = NSSavePanel()
         panel.nameFieldStringValue = format.fileName
         guard panel.runModal() == .OK, let url = panel.url else { return }
+        let engine = self.engine
+        guard let content = await runBusy("Exporting \(format.displayName)…", { engine.export(format) }) else {
+            alert = AlertItem(title: "Export failed", message: "The core could not produce \(format.displayName).")
+            return
+        }
         do {
             try content.write(to: url, atomically: true, encoding: .utf8)
             statusMessage = "Exported \(format.displayName)"

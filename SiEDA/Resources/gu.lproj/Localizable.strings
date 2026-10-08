@@ -1230,3 +1230,4 @@
 "Colours every window: panels, accents and text, and picks the matching schematic scheme. Copper, pads and error colours stay standard." = "દરેક વિન્ડોને રંગ આપે છે: પેનલ, ઍક્સેન્ટ અને લખાણ, અને મેળ ખાતી સ્કીમેટિક યોજના પસંદ કરે છે. કૉપર, પૅડ અને ભૂલના રંગ પ્રમાણભૂત રહે છે.";
 "Command Palette…" = "કમાન્ડ પૅલેટ…";
 "Search commands, parts and nets" = "કમાન્ડ, ભાગો અને નેટ શોધો";
+"End the simulation early" = "સિમ્યુલેશન વહેલું સમાપ્ત કરો";

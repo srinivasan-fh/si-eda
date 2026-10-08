@@ -145,6 +145,13 @@ struct TransientOptions {
     double maxStep = 0;        // largest adaptive step; 0 = tStep
 };
 
+/// Stops a running simulation from any thread (the app's Stop button): transient steps, AC / DC sweep points and
+/// Monte Carlo / parameter sweep runs check it and end with `kSimulationStopped`. Results are unchanged while it is
+/// clear; it stays set until cleared (`requestSimulationStop(false)`).
+inline constexpr const char* kSimulationStopped = "Simulation stopped.";
+void requestSimulationStop(bool stop = true);
+bool simulationStopRequested();
+
 class Simulator {
 public:
     explicit Simulator(const Schematic& schematic);
