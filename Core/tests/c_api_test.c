@@ -1195,7 +1195,9 @@ int sieda_c_api_schematic_tools_test(void) {
     if (!made || made[0] != '[') return 5;
     sieda_string_free(made);
     sieda_string_free(clip);
-    if (sieda_paste_components(p, "{\"format\":\"x\"}", NULL) == NULL) return 6; /* nothing pasted: an empty list */
+    char* none = sieda_paste_components(p, "{\"format\":\"x\"}", NULL); /* nothing pasted: an empty list */
+    if (none == NULL) return 6;
+    sieda_string_free(none);
     if (!sieda_swap_pin_connections(p, a, 0, 1) || sieda_swap_pin_connections(p, a, 0, 9)) return 7;
     char* eco = sieda_eco_from_was_is(p, "R1 R7\nR42 R43\n");
     if (!eco || !strstr(eco, "\"applicable\":true") || !strstr(eco, "No part R42")) return 8;
