@@ -37,7 +37,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         sch.addComponent(ComponentKind::Resistor, "10k", {0, 0});
         sch.addComponent(ComponentKind::Capacitor, "100n", {100, 0});
         (void)importIdfPlacement(sch, text);
-        (void)importIdxPlacement(sch, text);  // IDX (EDMD XML) from the same MCAD side
+        BoardSettings board;
+        (void)importIdx(sch, board, text);  // IDX (EDMD XML) from the same MCAD side
+        (void)idxResponse(text, true);
 #else
 #error "Define one SIEDA_FUZZ_<TARGET>"
 #endif

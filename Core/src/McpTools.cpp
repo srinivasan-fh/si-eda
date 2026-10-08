@@ -2612,12 +2612,24 @@ void teamTools(Table& t) {
               return out(takeJson(sieda_import_idf_placement(P(s), emn.c_str())));
           });
     t.add("pcb", "pcb_import_idx", "Import MCAD changes (IDX)", Kind::Edit, false,
-          "Moves, rotates and flips parts (by designator) to an IDX (ProSTEP EDMD) baseline or change file written by "
-          "mechanical CAD. Returns the designators moved.",
+          "Applies an IDX (ProSTEP EDMD) baseline or change file written by mechanical CAD: parts moved, rotated and "
+          "flipped by designator, the board outline and thickness, routing / via keep-outs and component keep-outs "
+          "(height zones). Returns what changed.",
           Schema().str("path", "The .idx file inside the root", true),
           [](McpServer& s, const Json& a) {
               const std::string idx = readFileArg(s, requireStr(a, "path")).asString();
               return out(takeJson(sieda_import_idx(P(s), idx.c_str())));
+          });
+    t.add("output", "output_idx_response", "IDX response for MCAD", Kind::Files, false,
+          "Writes the IDX response to a change file from MCAD: every change it proposes accepted or rejected.",
+          Schema().str("changes", "The MCAD change .idx inside the root", true).str("path", "File to write", true)
+              .boolean("accept", "Accept (default) or reject the changes"),
+          [](McpServer& s, const Json& a) {
+              const std::string changes = readFileArg(s, requireStr(a, "changes")).asString();
+              const std::string content = takeText(sieda_idx_response(changes.c_str(), a.get("accept").asBool(true) ? 1 : 0));
+              Json j = obj();
+              j["written"] = s.writeFile(requireStr(a, "path"), content);
+              return out(j);
           });
     t.add("output", "output_idx_changes", "IDX changes for MCAD", Kind::Files, false,
           "Writes an IDX SendChanges file with only the parts placed differently from a baseline IDX (the one MCAD "

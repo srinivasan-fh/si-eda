@@ -8018,8 +8018,10 @@ final class DfmPackTests: XCTestCase {
         store.autoPlace(all: true)
         let base = try XCTUnwrap(store.engine.export(.idx))
         XCTAssertTrue(base.contains("EDMDDataSet"))
-        XCTAssertTrue(store.engine.importIDX(base).isEmpty)
-        XCTAssertTrue(store.engine.importIDX("<not xml").isEmpty)
+        let again = try XCTUnwrap(store.engine.importIDX(base))
+        XCTAssertTrue(again.moved.isEmpty)
+        XCTAssertFalse(again.outline)
+        XCTAssertTrue(store.engine.importIDX("<not xml")?.moved.isEmpty ?? true)
     }
 
     func testFieldSolverAgreesWithStackupWidths() async throws {

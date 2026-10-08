@@ -607,6 +607,76 @@ std::map<std::string, IdxPlacement> idxPlacements(const std::string& idx) {
     return out;
 }
 
+/// Items of an IDX file with their geometry: geometryType, name, side, outlines (MCAD XY) with z-range and inversion.
+struct IdxShape {
+    std::vector<Vec2> points;
+    double z0 = 0, z1 = 0;
+    bool inverted = false;
+};
+struct IdxItem {
+    std::string type, name, side;
+    std::vector<IdxShape> shapes;
+};
+
+std::vector<IdxItem> idxItems(const XmlNode& root) {
+    std::map<std::string, const XmlNode*> byId;
+    std::vector<const XmlNode*> items, todo{&root};
+    while (!todo.empty()) {
+        const XmlNode* n = todo.back();
+        todo.pop_back();
+        for (const auto& k : n->kids) todo.push_back(&k);
+        const auto id = n->attrs.find("id");
+        if (id != n->attrs.end()) byId[id->second] = n;
+        if (n->name == "Item" && !n->child("ItemInstance")) items.push_back(n);
+    }
+    auto ref = [&](std::string id) -> const XmlNode* {  // element by id (references may carry whitespace)
+        id.erase(0, id.find_first_not_of(" \t\r\n"));
+        id.erase(id.find_last_not_of(" \t\r\n") + 1);
+        const auto it = byId.find(id);
+        return it == byId.end() ? nullptr : it->second;
+    };
+    std::vector<IdxItem> out;
+    for (const XmlNode* it : items) {
+        IdxItem item;
+        const auto gt = it->attrs.find("geometryType");
+        item.type = gt == it->attrs.end() ? "" : gt->second;
+        if (it->child("Name")) item.name = it->child("Name")->text;
+        if (it->child("AssembleToName")) item.side = it->child("AssembleToName")->text;
+        // Shape → (Stratum | KeepOut | ShapeElement) → CurveSet2d → PolyLine → CartesianPoints, depth-limited.
+        std::vector<std::pair<const XmlNode*, bool>> stack;
+        for (const auto& k : it->kids)
+            if (k.name == "Shape")
+                if (const XmlNode* n = ref(k.text)) stack.push_back({n, false});
+        for (int guard = 0; !stack.empty() && guard < 10000; ++guard) {
+            auto [n, inverted] = stack.back();
+            stack.pop_back();
+            if (n->child("Inverted")) inverted = inverted || n->child("Inverted")->text.find("true") != std::string::npos;
+            if (n->name == "CurveSet2d") {
+                IdxShape sh;
+                sh.inverted = inverted;
+                sh.z0 = n->child("LowerBound") ? n->child("LowerBound")->number() : 0;
+                sh.z1 = n->child("UpperBound") ? n->child("UpperBound")->number() : 0;
+                for (const auto& k : n->kids)
+                    if (k.name == "DetailedGeometricModelElement")
+                        if (const XmlNode* line = ref(k.text))
+                            for (const auto& pt : line->kids)
+                                if (pt.name == "Point")
+                                    if (const XmlNode* p = ref(pt.text))
+                                        sh.points.push_back({p->child("X") ? p->child("X")->number() : 0,
+                                                             p->child("Y") ? p->child("Y")->number() : 0});
+                if (sh.points.size() > 1 && (sh.points.front() - sh.points.back()).length() < 1e-9) sh.points.pop_back();
+                if (sh.points.size() >= 3) item.shapes.push_back(std::move(sh));
+                continue;
+            }
+            for (const auto& k : n->kids)
+                if (k.name == "DefiningShape" || k.name == "ShapeElement" || k.name == "Shape")
+                    if (const XmlNode* m = ref(k.text); m && m != n) stack.push_back({m, inverted});
+        }
+        out.push_back(std::move(item));
+    }
+    return out;
+}
+
 std::string xmlEscape(const std::string& s) {
     std::string o;
     for (char ch : s) o += ch == '<' ? "&lt;" : ch == '>' ? "&gt;" : ch == '&' ? "&amp;" : ch == '"' ? "&quot;" : std::string(1, ch);
@@ -674,6 +744,20 @@ std::string writeIdx(const Schematic& sch, const PcbLayout& pcb, const std::stri
         body << "</foundation:Item>\n  <foundation:Item id=\"" << inst << "\" xsi:type=\"pdm:EDMDItem\"><foundation:Name>"
              << xmlEscape(name) << "</foundation:Name><pdm:ItemType>assembly</pdm:ItemType><pdm:ItemInstance id=\"" << id("II")
              << "\"><pdm:Item>" << def << "</pdm:Item>" << instanceName(name) << "</pdm:ItemInstance></foundation:Item>\n";
+        // Keep-outs: routing / via keep-outs, and height zones as component keep-outs with their height limit.
+        auto keepout = [&](const char* type, const std::string& nm, const Rect& r, double z1, const char* side) {
+            const std::vector<Vec2> box{{r.x0, r.y0}, {r.x1, r.y0}, {r.x1, r.y1}, {r.x0, r.y1}};
+            const std::string e = shape(mcad(box, true), 0, z1, false);
+            body << "  <foundation:Item id=\"" << id("ITEM") << "\" geometryType=\"" << type
+                 << "\" xsi:type=\"pdm:EDMDItem\"><foundation:Name>" << xmlEscape(nm) << "</foundation:Name><pdm:ItemType>"
+                 << "single</pdm:ItemType><pdm:Shape>" << e << "</pdm:Shape>"
+                 << (side ? std::string("<pdm:AssembleToName>") + side + "</pdm:AssembleToName>" : std::string())
+                 << "</foundation:Item>\n";
+        };
+        for (const auto& k : s.keepouts)
+            keepout(k.tracks ? "KEEPOUT_AREA_ROUTE" : "KEEPOUT_AREA_VIA", k.name, k.area, 0, nullptr);
+        for (const auto& z : s.heightZones)
+            keepout("KEEPOUT_AREA_COMPONENT", z.name, z.area, z.maxHeight, z.bottom ? "BOTTOM" : "TOP");
     }
     // Parts: a package item (body in its own frame) and an assembly instance placed by a 2D transformation.
     for (const auto& b : partBodies(sch, pcb)) {
@@ -748,6 +832,114 @@ std::string exportIdxChanges(const Schematic& sch, const PcbLayout& pcb, const s
             refs.insert(c.ref);
     }
     return refs.empty() ? std::string() : writeIdx(sch, pcb, name.empty() ? "board" : name, &refs);
+}
+
+IdxImport importIdx(Schematic& sch, BoardSettings& s, const std::string& idx) {
+    IdxImport r;
+    r.moved = importIdxPlacement(sch, idx);
+    XmlNode root;
+    if (idx.size() > (64u << 20) || !parseXml(idx, root)) return r;
+    std::vector<RouteKeepout> newKeepouts;
+    std::vector<HeightZone> newZones;
+    for (const auto& item : idxItems(root)) {
+        auto box = [](const IdxShape& sh) {
+            Rect b(sh.points[0].x, -sh.points[0].y, sh.points[0].x, -sh.points[0].y);
+            for (const auto& p : sh.points) b = Rect(std::min(b.x0, p.x), std::min(b.y0, -p.y), std::max(b.x1, p.x), std::max(b.y1, -p.y));
+            return b;
+        };
+        if (item.type == "BOARD_OUTLINE") {
+            for (const auto& sh : item.shapes) {
+                if (sh.inverted) continue;
+                std::vector<Vec2> poly;
+                for (const auto& p : sh.points) poly.push_back({p.x, -p.y});
+                const Rect b = box(sh);
+                if (b.x0 < -1e-6 || b.y0 < -1e-6 || b.width() <= 0 || b.height() <= 0 || poly.size() > 100000) continue;
+                bool same = poly.size() == s.outlinePolygon().size();
+                if (same) {
+                    const auto cur = s.outlinePolygon();
+                    // Same polygon, possibly from a different starting point or winding.
+                    for (const auto& p : poly)
+                        same = same && std::any_of(cur.begin(), cur.end(), [&](const Vec2& q) { return (p - q).length() < 1e-4; });
+                }
+                if (std::fabs(sh.z1 - sh.z0) > 0.05 && std::fabs(sh.z1 - sh.z0 - s.thickness) > 1e-4) {
+                    s.thickness = std::fabs(sh.z1 - sh.z0);
+                    r.thicknessChanged = true;
+                }
+                if (same) break;
+                const bool rect = poly.size() == 4 && std::fabs(b.x0) < 1e-6 && std::fabs(b.y0) < 1e-6 &&
+                                  std::all_of(poly.begin(), poly.end(), [&](const Vec2& p) {
+                                      return (std::fabs(p.x - b.x0) < 1e-6 || std::fabs(p.x - b.x1) < 1e-6) &&
+                                             (std::fabs(p.y - b.y0) < 1e-6 || std::fabs(p.y - b.y1) < 1e-6);
+                                  });
+                s.outline = rect ? std::vector<Vec2>{} : poly;
+                s.width = b.x1;
+                s.height = b.y1;
+                r.outlineChanged = true;
+                break;
+            }
+        } else if (item.type.rfind("KEEPOUT_AREA", 0) == 0 && !item.shapes.empty()) {
+            const Rect b = box(item.shapes.front());
+            const std::string name = "MCAD " + (item.name.empty() ? item.type.substr(13) : item.name);
+            if (item.type.find("COMPONENT") != std::string::npos || item.type.find("PLACEMENT") != std::string::npos) {
+                HeightZone z;
+                z.name = name;
+                z.area = b;
+                z.bottom = item.side.find("BOTTOM") != std::string::npos;
+                z.maxHeight = std::max(0.0, item.shapes.front().z1 - item.shapes.front().z0);
+                newZones.push_back(z);
+            } else {
+                RouteKeepout k;
+                k.name = name;
+                k.area = b;
+                k.tracks = item.type.find("VIA") == std::string::npos;
+                k.vias = true;
+                newKeepouts.push_back(k);
+            }
+        }
+    }
+    // MCAD's keep-outs replace the ones it sent before (named "MCAD …"); SiEDA's own stay.
+    auto fromMcad = [](const std::string& n) { return n.rfind("MCAD ", 0) == 0; };
+    auto mergeIn = [&](auto& list, auto& added, int& count) {
+        list.erase(std::remove_if(list.begin(), list.end(), [&](const auto& x) { return fromMcad(x.name); }), list.end());
+        for (auto& x : added) {
+            const bool known = std::any_of(list.begin(), list.end(), [&](const auto& y) {
+                return std::fabs(y.area.x0 - x.area.x0) < 1e-4 && std::fabs(y.area.y0 - x.area.y0) < 1e-4 &&
+                       std::fabs(y.area.x1 - x.area.x1) < 1e-4 && std::fabs(y.area.y1 - x.area.y1) < 1e-4;
+            });
+            if (!known) list.push_back(x), ++count;
+        }
+    };
+    mergeIn(s.keepouts, newKeepouts, r.keepouts);
+    mergeIn(s.heightZones, newZones, r.heightZones);
+    return r;
+}
+
+std::string idxResponse(const std::string& changesIdx, bool accept) {
+    XmlNode root;
+    std::vector<std::string> ids;
+    if (changesIdx.size() <= (64u << 20) && parseXml(changesIdx, root)) {
+        std::vector<const XmlNode*> todo{&root};
+        while (!todo.empty()) {
+            const XmlNode* n = todo.back();
+            todo.pop_back();
+            for (const auto& k : n->kids) todo.push_back(&k);
+            if (n->name == "Change" && n->child("NewItem")) ids.push_back(n->child("NewItem")->text);
+        }
+    }
+    std::ostringstream o;
+    o << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<foundation:EDMDDataSet xmlns:foundation=\"http://www.prostep.org/EDMD/Foundation\" "
+         "xmlns:computational=\"http://www.prostep.org/EDMD/Computational\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n"
+         " <foundation:Header xsi:type=\"foundation:EDMDHeader\"><foundation:Description>SiEDA response</foundation:Description>"
+         "<foundation:CreatorSystem>SiEDA</foundation:CreatorSystem><foundation:GlobalUnitLength>UNIT_MM</foundation:GlobalUnitLength>"
+         "<foundation:CreationDateTime>" << isoNow() << "</foundation:CreationDateTime></foundation:Header>\n"
+         " <foundation:Body xsi:type=\"foundation:EDMDDataSetBody\"/>\n"
+         " <foundation:ProcessInstruction xsi:type=\"computational:EDMDProcessInstructionSendChanges\">\n";
+    for (const auto& id : ids)
+        o << "  <computational:Changes><computational:Change xsi:type=\"computational:EDMDChange\"><computational:NewItem>"
+          << xmlEscape(id) << "</computational:NewItem><computational:Accept>" << (accept ? "true" : "false")
+          << "</computational:Accept></computational:Change></computational:Changes>\n";
+    o << " </foundation:ProcessInstruction>\n</foundation:EDMDDataSet>\n";
+    return o.str();
 }
 
 std::vector<std::string> importIdxPlacement(Schematic& sch, const std::string& idx) {

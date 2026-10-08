@@ -19599,3 +19599,56 @@ TEST(field_solved_lines_feed_the_channel_model) {
     si.fieldSolverLines = true;
     CHECK(!si.isDefault() && SiSettings::fromJson(si.toJson()).fieldSolverLines);
 }
+
+TEST(idx_outline_keepouts_and_response) {
+    Project p = placedBenchBoard();
+    RouteKeepout k;
+    k.name = "Antenna";
+    k.area = Rect(2, 2, 8, 6);
+    p.pcb.settings.keepouts.push_back(k);
+    HeightZone z;
+    z.name = "Rib";
+    z.area = Rect(10, 1, 20, 4);
+    z.maxHeight = 3.5;
+    z.bottom = true;
+    p.pcb.settings.heightZones.push_back(z);
+    const std::string base = exportIdx(p.schematic, p.pcb, "bench");
+    CHECK(base.find("KEEPOUT_AREA_ROUTE") != std::string::npos && base.find("KEEPOUT_AREA_COMPONENT") != std::string::npos);
+    // Re-importing our own baseline changes nothing.
+    Project same = p;
+    const IdxImport none = importIdx(same.schematic, same.pcb.settings, base);
+    CHECK(none.moved.empty() && !none.outlineChanged && none.keepouts == 0 && none.heightZones == 0);
+    CHECK(same.pcb.settings.keepouts.size() == 1 && same.pcb.settings.heightZones.size() == 1);
+    // MCAD's keep-outs arrive in a board without them, as "MCAD …" entries with the area, side and height.
+    Project ecad = p;
+    ecad.pcb.settings.keepouts.clear();
+    ecad.pcb.settings.heightZones.clear();
+    const IdxImport got = importIdx(ecad.schematic, ecad.pcb.settings, base);
+    CHECK(got.keepouts == 1 && got.heightZones == 1);
+    const auto& gk = ecad.pcb.settings.keepouts.front();
+    CHECK(gk.name == "MCAD Antenna" && gk.tracks && std::fabs(gk.area.x0 - 2) < 1e-6 && std::fabs(gk.area.y1 - 6) < 1e-6);
+    const auto& gz = ecad.pcb.settings.heightZones.front();
+    CHECK(gz.bottom && std::fabs(gz.maxHeight - 3.5) < 1e-6 && std::fabs(gz.area.x1 - 20) < 1e-6);
+    // A second import replaces MCAD's keep-outs instead of piling them up.
+    importIdx(ecad.schematic, ecad.pcb.settings, base);
+    CHECK(ecad.pcb.settings.keepouts.size() == 1 && ecad.pcb.settings.heightZones.size() == 1);
+    // MCAD reshapes the board (a notch) and makes it thinner: outline and thickness follow, once.
+    Project mcad = p;
+    const double w = p.pcb.settings.width, h = p.pcb.settings.height;
+    mcad.pcb.settings.outline = {{0, 0}, {w, 0}, {w, h}, {w / 2, h}, {w / 2, h - 3}, {0, h - 3}};
+    mcad.pcb.settings.thickness = 1.0;
+    const std::string reshaped = exportIdx(mcad.schematic, mcad.pcb, "bench");
+    const IdxImport o = importIdx(ecad.schematic, ecad.pcb.settings, reshaped);
+    CHECK(o.outlineChanged && o.thicknessChanged && ecad.pcb.settings.outline.size() == 6);
+    CHECK(std::fabs(ecad.pcb.settings.thickness - 1.0) < 1e-6 && std::fabs(ecad.pcb.settings.width - w) < 1e-6);
+    CHECK(!importIdx(ecad.schematic, ecad.pcb.settings, reshaped).outlineChanged);
+    // Accept / reject response to a change file names every proposed change.
+    Component* u1 = mcad.schematic.find(mcad.schematic.findByRef("U1")->id);
+    u1->pcb.position = {u1->pcb.position.x + 3, u1->pcb.position.y};
+    const std::string changes = exportIdxChanges(mcad.schematic, mcad.pcb, "bench", base);
+    const std::string yes = idxResponse(changes, true), no = idxResponse(changes, false);
+    CHECK(yes.find("<computational:Accept>true</computational:Accept>") != std::string::npos);
+    CHECK(no.find("<computational:Accept>false</computational:Accept>") != std::string::npos);
+    CHECK(yes.find("<computational:NewItem>ITEM") != std::string::npos);
+    CHECK(idxResponse("<broken", true).find("<computational:Change ") == std::string::npos);
+}

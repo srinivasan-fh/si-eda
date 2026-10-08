@@ -63,18 +63,24 @@ IDX (ProSTEP iViP EDMD, schema v4.5) is the XML successor of IDF that MCAD tools
 collaboration (SolidWorks PCB / CircuitWorks, Creo, NX, Altium, Cadence and others).
 
 1. **File → Export → IDX / EDMD Baseline for MCAD (.idx)** writes a baseline (`SendInformation`): the board outline
-   extruded to its thickness with the mounting holes cut, and for every placed part a package item (body outline and
+   extruded to its thickness with the mounting holes cut, for every placed part a package item (body outline and
    height) and an instance with its designator (`REFDES` property), side (`AssembleToName` TOP / BOTTOM) and 2D
-   transformation. Millimetres, MCAD XY (Y up).
+   transformation, routing keep-outs (`KEEPOUT_AREA_ROUTE` / `_VIA`) and height zones (`KEEPOUT_AREA_COMPONENT` with
+   the height limit as the extrusion). Millimetres, MCAD XY (Y up).
 2. MCAD moves, rotates or flips parts and sends back a baseline or a change file (`SendChanges`).
-3. **File → Import MCAD Changes (IDX)…** applies it by designator (one Undo step). Namespace prefixes may differ
+3. **File → Import MCAD Changes (IDX)…** applies it (one Undo step): parts by designator, a reshaped board
+   outline and its thickness, routing / via keep-outs and component keep-outs (as height zones; height 0 = no parts).
+   Keep-outs from an earlier MCAD import ("MCAD …") are replaced, SiEDA's own stay. The status line lists what changed. Namespace prefixes may differ
    between tools; the reader matches elements by their local names and accepts numbers written plainly or in a
    `Value` element. Rotations snap to 90°.
 4. To send SiEDA's own moves back, MCP `output_idx_changes` (`baseline`, `path`) or C `sieda_export_idx_changes`
    writes a `SendChanges` file with only the parts placed differently from the baseline MCAD already has.
 
-Limits: placement (position, rotation, side) is exchanged both ways; board-outline edits and keep-outs from MCAD are
-not read yet, and there is no accept / reject response file. The files are checked for well-formed XML and a
+5. MCAD proposals are answered with MCP `output_idx_response` (`changes`, `path`, `accept`) or C `sieda_idx_response`:
+   every proposed change accepted or rejected.
+
+Limits: outlines are polylines (arcs in an MCAD outline are not read); keep-outs are taken as their bounding box;
+mounting holes edited in MCAD are not read back. The files are checked for well-formed XML and a
 SiEDA round trip in the tests; they have not yet been checked against a commercial MCAD tool.
 
 Code: `Core/src/Mechanical.cpp` (`exportStep`, `exportIdfBoard`, `exportIdfLibrary`, `importIdfPlacement`,

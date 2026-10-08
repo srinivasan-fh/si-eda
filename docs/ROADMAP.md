@@ -96,8 +96,8 @@ Queued after the ⌘K / delta-snapshot / IPC-2581 / panel / onboarding / perform
    Eurocircuits, Class 3 / aerospace): minimum track / space, drill, annular ring, mask sliver, silk-to-pad; picking a
    pack sets the DRC limits. Assembly checks: part-to-part and part-to-edge spacing, fiducials, polarity marks, tall
    parts beside fine pitch.
-2. ✅ **IDX (ProSTEP EDMD)** (done for placement: `exportIdx` / `exportIdxChanges` / `importIdxPlacement`; outline
-   edits, keep-outs and accept / reject responses still open) (~0.25M): baseline export (board, parts, holes, keep-outs), MCAD change proposals read back
+2. ✅ **IDX (ProSTEP EDMD)** (done: placement, outline and thickness edits, keep-outs / height zones both ways,
+   accept / reject responses) (~0.25M): baseline export (board, parts, holes, keep-outs), MCAD change proposals read back
    (moved / rotated parts, outline edits) with accept / reject, SiEDA changes sent as proposals.
 3. **HarfBuzz text shaping in PDFs** (~0.2M): Indic, Arabic and Thai shaped correctly in the schematic PDF; an optional
    CMake dependency, so builds without it keep today's byte-identical output (the archival plan avoids dependencies).

@@ -626,12 +626,16 @@ char* sieda_variant_matrix_json(const SiedaProject* project);
 /* Moves parts to the placement of an IDF 3.0 board file (.emn) written back by MCAD: {"moved":[refs]}. NULL on a
  * NULL argument. */
 char* sieda_import_idf_placement(SiedaProject* project, const char* emn);
-/* ProSTEP EDMD (IDX) v4.5: the baseline is sieda_export(project, "idx"). Import moves, rotates and flips parts by
- * designator from an IDX baseline or change file written by MCAD: {"moved":[refs]}. The change export writes an IDX
+/* ProSTEP EDMD (IDX) v4.5: the baseline is sieda_export(project, "idx") (board, holes, parts, keep-outs, height
+ * zones). Import applies an IDX baseline or change file written by MCAD: parts moved / rotated / flipped by designator,
+ * the board outline and thickness, routing / via keep-outs and component keep-outs (height zones):
+ * {"moved":[refs],"outline":bool,"thickness":bool,"keepouts":n,"heightZones":n}. sieda_idx_response answers a change
+ * file, accepting or rejecting every change it proposes. The change export writes an IDX
  * SendChanges file with only the parts placed differently from `baseline_idx` ("" when nothing changed). NULL on a
  * NULL argument. */
 char* sieda_import_idx(SiedaProject* project, const char* idx);
 char* sieda_export_idx_changes(const SiedaProject* project, const char* baseline_idx);
+char* sieda_idx_response(const char* changes_idx, int32_t accept);
 /* What changed between two saved projects (.siedaproj JSON): the diff JSON (docs/TEAM.md) or, with as_text, the
  * review text. {"error"} for a file that does not parse. Caller frees. */
 char* sieda_diff_projects(const char* before_json, const char* after_json, int32_t as_text);

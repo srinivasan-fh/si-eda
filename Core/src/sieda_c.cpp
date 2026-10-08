@@ -2007,11 +2007,25 @@ char* sieda_import_idx(SiedaProject* project, const char* idx) {
     if (!project || !idx) return nullptr;
     try {
         Json moved = Json::array();
-        for (const auto& ref : importIdxPlacement(project->project.schematic, idx)) moved.push(ref);
+        const IdxImport r = importIdx(project->project.schematic, project->project.pcb.settings, idx);
+        for (const auto& ref : r.moved) moved.push(ref);
         if (moved.size()) project->project.schematicChanged();
         Json out = Json::object();
         out["moved"] = moved;
+        out["outline"] = r.outlineChanged;
+        out["thickness"] = r.thicknessChanged;
+        out["keepouts"] = r.keepouts;
+        out["heightZones"] = r.heightZones;
         return dup(out.dump());
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+char* sieda_idx_response(const char* changes_idx, int32_t accept) {
+    if (!changes_idx) return nullptr;
+    try {
+        return dup(idxResponse(changes_idx, accept != 0));
     } catch (...) {
         return nullptr;
     }
