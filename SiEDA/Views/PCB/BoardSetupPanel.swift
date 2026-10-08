@@ -316,7 +316,8 @@ struct BoardSetupPanel: View {
                         if let f = fieldSolved[layer.name] {
                             Text(String(format: "%.1f Ω", f.z0) + (f.zdiff.map { String(format: " / %.1f Ω", $0) } ?? ""))
                                 .font(.caption).monospacedDigit().foregroundStyle(Theme.skyBlue)
-                                .help(String(format: "Field solver: εeff %.2f, %.2f ps/mm", f.eeff, f.delayPsPerMm))
+                                .help(String(format: "Field solver: εeff %.2f, %.2f ps/mm, loss %.3f dB/in at 1 GHz, %.3f at 10 GHz",
+                                             f.eeff, f.delayPsPerMm, f.dbPerInch(at: 1) ?? 0, f.dbPerInch(at: 10) ?? 0))
                         }
                     } else {
                         Text(String(format: "%.3f mm", layer.thickness))

@@ -316,9 +316,10 @@ char* sieda_pcb_panel(const SiedaProject* project);
 char* sieda_dfm_packs_json(void);
 int32_t sieda_pcb_set_dfm_pack(SiedaProject* project, const char* pack_id);
 /* 2D field solver (sieda/FieldSolver.hpp) on the cross-section of `layer` from the stack-up: a track `width` mm wide,
- * or an edge-coupled pair `gap` mm apart (gap > 0). {"geometry","z0","eeff","delayPsPerMm","lNhPerMm","cPfPerMm",
- * pairs also "zodd","zeven","zdiff","zcommon","kb","kf"}; NULL for a bad layer or width. */
-char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width, double gap);
+ * or an edge-coupled pair `gap` mm apart (gap > 0), copper RMS roughness `roughness_um` (0 = smooth).
+ * {"geometry","z0","eeff","delayPsPerMm","lNhPerMm","cPfPerMm","loss":[{"ghz","rOhmPerMm","conductorDbPerIn",
+ * "dielectricDbPerIn","totalDbPerIn"}], pairs also "zodd","zeven","zdiff","zcommon","kb","kf"}; NULL for bad input. */
+char* sieda_field_solve(const SiedaProject* project, int32_t layer, double width, double gap, double roughness_um);
 int32_t sieda_pcb_set_panel(SiedaProject* project, const char* settings_json);
 void sieda_pcb_clear_routing(SiedaProject* project);
 char* sieda_pcb_run_drc(const SiedaProject* project);
@@ -535,7 +536,7 @@ char* sieda_pi_ir_map_json(const SiedaProject* project, const char* net_name);
 /* ---- exports ------------------------------------------------------------------------------- */
 /* format: "spice", "bom", "pnp", "gerber_top", "gerber_bottom", "gerber_l<N>" (copper layer N, 1-based), "gerber_mask_top", "gerber_mask_bottom",
  *         "gerber_silk_top", "gerber_edge", "drill", "drill_npth" (mounting holes), "stl", "obj",
- *         "step" (STEP AP214 solids: board + one named, coloured body per part), "idf_board" (IDF 3.0 .emn),
+ *         "step" (STEP AP214 solids: board + one named, coloured body per part), "idf_board" (IDF 3.0 .emn), "idx" (ProSTEP EDMD / IDX v4.5 baseline),
  *         "idf_library" (IDF 3.0 .emp), "ipc2581" (IPC-2581C XML: layers with nets, drills, parts, BOM),
  *         "review" (design review, Markdown). Returns NULL for unknown formats. ODB++ (binary .tgz) is part of
  *         sieda_write_fabrication_package. */
@@ -622,6 +623,12 @@ char* sieda_variant_matrix_json(const SiedaProject* project);
 /* Moves parts to the placement of an IDF 3.0 board file (.emn) written back by MCAD: {"moved":[refs]}. NULL on a
  * NULL argument. */
 char* sieda_import_idf_placement(SiedaProject* project, const char* emn);
+/* ProSTEP EDMD (IDX) v4.5: the baseline is sieda_export(project, "idx"). Import moves, rotates and flips parts by
+ * designator from an IDX baseline or change file written by MCAD: {"moved":[refs]}. The change export writes an IDX
+ * SendChanges file with only the parts placed differently from `baseline_idx` ("" when nothing changed). NULL on a
+ * NULL argument. */
+char* sieda_import_idx(SiedaProject* project, const char* idx);
+char* sieda_export_idx_changes(const SiedaProject* project, const char* baseline_idx);
 /* What changed between two saved projects (.siedaproj JSON): the diff JSON (docs/TEAM.md) or, with as_text, the
  * review text. {"error"} for a file that does not parse. Caller frees. */
 char* sieda_diff_projects(const char* before_json, const char* after_json, int32_t as_text);

@@ -8012,6 +8012,16 @@ final class DfmPackTests: XCTestCase {
         XCTAssertEqual(store.snapshot.board.dfmPack, "")
     }
 
+    func testIdxRoundTripMovesAPart() throws {
+        let store = DesignStore()
+        store.loadExample(OfflineProvider.templates[0].industryPlan)
+        store.autoPlace(all: true)
+        let base = try XCTUnwrap(store.engine.export(.idx))
+        XCTAssertTrue(base.contains("EDMDDataSet"))
+        XCTAssertTrue(store.engine.importIDX(base).isEmpty)
+        XCTAssertTrue(store.engine.importIDX("<not xml").isEmpty)
+    }
+
     func testFieldSolverAgreesWithStackupWidths() async throws {
         let store = DesignStore()
         store.loadExample(OfflineProvider.templates[0].industryPlan)
@@ -8021,6 +8031,7 @@ final class DfmPackTests: XCTestCase {
             XCTAssertGreaterThan(r.z0, 20)
             XCTAssertLessThan(r.z0, 150)
             XCTAssertGreaterThan(r.eeff, 1)
+            XCTAssertGreaterThan(r.dbPerInch(at: 10) ?? 0, r.dbPerInch(at: 1) ?? 1)
         }
         XCTAssertNil(store.engine.fieldSolve(layer: 99, width: 0.2))
     }

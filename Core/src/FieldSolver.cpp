@@ -9,7 +9,7 @@
 namespace sieda {
 
 namespace {
-constexpr double kEps0 = 8.8541878128e-12, kC = 299792458.0;
+constexpr double kEps0 = 8.8541878128e-12, kC = 299792458.0, kMu0 = 1.25663706212e-6, kRhoCu = 1.72e-8, kPiF = 3.14159265358979;
 
 /// Grid lines through every break, cells growing ×1.3 from each break up to `hmax`, symmetric within each interval.
 std::vector<double> axis(std::vector<double> br, double hmin, double hmax) {
@@ -38,8 +38,14 @@ struct Grid {
     size_t at(size_t i, size_t j) const { return j * nx + i; }
 };
 
-/// Charges (per ε0, per metre) on conductors 1 and 2 with conductor 1 at 1 V, everything else at 0 V.
-std::pair<double, double> charges(const Grid& g) {
+struct Charges {
+    double q1 = 0, q2 = 0;
+    double rGeom = 0;  // ∮ρ²dl / (∮ρdl)² over the signal and the return surfaces, 1/mm (current crowding)
+};
+
+/// Charges (per ε0, per metre) on conductors 1 and 2 with conductor 1 at 1 V, everything else at 0 V. The surface charge
+/// is the surface current of the TEM mode, so its spread gives the skin-effect resistance R = Rs · rGeom.
+Charges charges(const Grid& g) {
     const size_t n = g.nx * g.ny;
     std::vector<double> v(n, 0), r(n, 0), z(n, 0), p(n, 0), q(n, 0), diag(n, 0);
     for (size_t k = 0; k < n; ++k) v[k] = g.owner[k] == 1 ? 1 : 0;
@@ -86,9 +92,24 @@ std::pair<double, double> charges(const Grid& g) {
         rz = rz2;
     }
     apply(v, q, false);  // net flux out of each node
-    double q1 = 0, q2 = 0;
-    for (size_t k = 0; k < n; ++k) (g.owner[k] == 1 ? q1 : g.owner[k] == 2 ? q2 : r0) += q[k];
-    return {q1, q2};
+    Charges c;
+    for (size_t k = 0; k < n; ++k) (g.owner[k] == 1 ? c.q1 : g.owner[k] == 2 ? c.q2 : r0) += q[k];
+    // Flux through each conductor face: signal faces (conductor 1) and return faces (planes, box, conductor 2).
+    double s2 = 0;
+    auto face = [&](size_t k, size_t m, double gk, double len) {
+        const int a = g.owner[k], b = g.owner[m];
+        if ((a == 1) != (b == 1) || ((a >= 0) != (b >= 0))) s2 += (gk * (v[k] - v[m])) * (gk * (v[k] - v[m])) / len;
+    };
+    for (size_t j = 0; j < g.ny; ++j)
+        for (size_t i = 0; i < g.nx; ++i) {
+            const size_t k = g.at(i, j);
+            const double dyS = j > 0 ? g.y[j] - g.y[j - 1] : 0, dyN = j + 1 < g.ny ? g.y[j + 1] - g.y[j] : 0;
+            const double dxW = i > 0 ? g.x[i] - g.x[i - 1] : 0, dxE = i + 1 < g.nx ? g.x[i + 1] - g.x[i] : 0;
+            if (i + 1 < g.nx) face(k, k + 1, g.gx[k], (dyS + dyN) / 2);
+            if (j + 1 < g.ny) face(k, k + g.nx, g.gy[k], (dxW + dxE) / 2);
+        }
+    c.rGeom = c.q1 > 0 ? s2 / (c.q1 * c.q1) : 0;
+    return c;
 }
 }  // namespace
 
@@ -120,6 +141,7 @@ FieldResult solveField(const FieldGeometry& in) {
             else if (y >= y1 - tol && y <= y2 + tol && x >= xa - tol && x <= xb + tol) o = 1;
             else if (pair && y >= y1 - tol && y <= y2 + tol && x >= -xb - tol && x <= -xa + tol) o = 2;
         }
+    double rGeom = 0;
     auto solve = [&](bool air) {
         auto eps = [&](size_t i, size_t j) {  // cell (i,j); out of range = 0
             if (i + 1 >= grid.nx || j + 1 >= grid.ny) return 0.0;
@@ -133,8 +155,9 @@ FieldResult solveField(const FieldGeometry& in) {
                 if (i + 1 < grid.nx) grid.gx[grid.at(i, j)] = ((j > 0 ? eps(i, j - 1) * dyS : 0) + eps(i, j) * dyN) / 2 / dxE;
                 if (j + 1 < grid.ny) grid.gy[grid.at(i, j)] = ((i > 0 ? eps(i - 1, j) * dxW : 0) + eps(i, j) * dxE) / 2 / dyN;
             }
-        auto [q1, q2] = charges(grid);
-        return std::pair<double, double>{kEps0 * q1, kEps0 * q2};
+        const Charges c = charges(grid);
+        if (air) rGeom = c.rGeom;
+        return std::pair<double, double>{kEps0 * c.q1, kEps0 * c.q2};
     };
     const auto [a, b] = solve(false);
     const auto [a0, b0] = solve(true);
@@ -146,6 +169,8 @@ FieldResult solveField(const FieldGeometry& in) {
     r.delayPsPerMm = std::sqrt(l11 * a) * 1e9;
     r.lNhPerMm = l11 * 1e6;
     r.cPfPerMm = a * 1e9;
+    r.rGeom = rGeom * 1e3;
+    r.rdc = g.t > 0 ? kRhoCu / (g.w * g.t * 1e-6) : 0;
     if (pair) {
         r.zodd = 1 / (kC * std::sqrt((a - b) * (a0 - b0)));
         r.zeven = 1 / (kC * std::sqrt((a + b) * (a0 + b0)));
@@ -156,9 +181,30 @@ FieldResult solveField(const FieldGeometry& in) {
     return r;
 }
 
+LineLoss lineLoss(const FieldGeometry& g, const FieldResult& r, double f) {
+    LineLoss l;
+    l.f = f = std::max(f, 0.0);
+    if (!(r.z0 > 0)) return l;
+    double rac = 0;
+    if (f > 0) {
+        const double rs = std::sqrt(kPiF * f * kMu0 * kRhoCu), delta = std::sqrt(kRhoCu / (kPiF * f * kMu0)) * 1e6;  // µm
+        const double rough = 1 + 2 / kPiF * std::atan(1.4 * std::pow(std::max(g.roughness, 0.0) / delta, 2));
+        rac = rs * rough * r.rGeom;
+    }
+    const double rTot = std::hypot(r.rdc, rac);
+    const double er = std::max(g.er, 1.0), q = er > 1 + 1e-9 ? er * (r.eeff - 1) / (r.eeff * (er - 1)) : 1;
+    const double gS = 2 * kPiF * f * std::max(g.tanD, 0.0) * r.cPfPerMm * 1e-9 * std::clamp(q, 0.0, 1.0);  // S/m
+    const double dbPerIn = 8.685889638 * 0.0254;
+    l.rOhmPerMm = rTot * 1e-3;
+    l.conductorDbPerIn = rTot / (2 * r.z0) * dbPerIn;
+    l.dielectricDbPerIn = gS * r.z0 / 2 * dbPerIn;
+    l.totalDbPerIn = l.conductorDbPerIn + l.dielectricDbPerIn;
+    return l;
+}
+
 FieldGeometry trackGeometry(const BoardSettings& s, int layer, double w, double gap) {
     FieldGeometry g;
-    g.w = w, g.s = gap, g.t = copperThickness(s), g.er = boardLaminate(s).er;
+    g.w = w, g.s = gap, g.t = copperThickness(s), g.er = boardLaminate(s).er, g.tanD = boardLaminate(s).lossTangent;
     if (isStriplineLayer(s, layer)) g.h = dielectricBelow(s, layer), g.hTop = dielectricBelow(s, layer - 1);
     else g.h = impedanceReferenceHeight(s, layer);
     return g;
@@ -169,9 +215,19 @@ Json fieldResultJson(const FieldGeometry& g, const FieldResult& r) {
     j["geometry"] = Json::object();
     j["geometry"]["w"] = g.w, j["geometry"]["t"] = g.t, j["geometry"]["h"] = g.h, j["geometry"]["hTop"] = g.hTop;
     j["geometry"]["s"] = g.s, j["geometry"]["er"] = g.er;
+    j["geometry"]["tanD"] = g.tanD, j["geometry"]["roughness"] = g.roughness;
     j["geometry"]["kind"] = g.hTop > 0 ? "stripline" : "microstrip";
     j["z0"] = r.z0, j["eeff"] = r.eeff, j["delayPsPerMm"] = r.delayPsPerMm;
     j["lNhPerMm"] = r.lNhPerMm, j["cPfPerMm"] = r.cPfPerMm, j["nodes"] = r.nodes;
+    Json loss = Json::array();
+    for (double ghz : {0.1, 1.0, 2.5, 5.0, 10.0, 25.0}) {
+        const LineLoss l = lineLoss(g, r, ghz * 1e9);
+        Json e = Json::object();
+        e["ghz"] = ghz, e["rOhmPerMm"] = l.rOhmPerMm, e["conductorDbPerIn"] = l.conductorDbPerIn;
+        e["dielectricDbPerIn"] = l.dielectricDbPerIn, e["totalDbPerIn"] = l.totalDbPerIn;
+        loss.push(e);
+    }
+    j["loss"] = loss;
     if (g.s > 0) {
         j["zodd"] = r.zodd, j["zeven"] = r.zeven, j["zdiff"] = r.zdiff, j["zcommon"] = r.zcommon;
         j["kb"] = r.kb, j["kf"] = r.kf;

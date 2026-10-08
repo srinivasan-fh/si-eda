@@ -67,6 +67,12 @@ extension EDAEngine {
         return Self.decode(Moved.self, from: withHandle { Self.take(sieda_import_idf_placement($0, emn)) })?.moved ?? []
     }
 
+    /// Moves, rotates and flips parts to an IDX (EDMD) baseline or change file from MCAD; the designators moved.
+    func importIDX(_ idx: String) -> [String] {
+        struct Moved: Decodable { var moved: [String] }
+        return Self.decode(Moved.self, from: withHandle { Self.take(sieda_import_idx($0, idx)) })?.moved ?? []
+    }
+
     /// Enclosure height limit per side for the 3D clearance DRC (mm, 0 = none); height zones are kept as they are.
     func enclosureHeights() -> (top: Double, bottom: Double) {
         struct Limits: Decodable { var maxHeightTop: Double?; var maxHeightBottom: Double? }
@@ -92,8 +98,8 @@ extension EDAEngine {
     func setDfmPack(_ id: String) -> Bool { withHandle { sieda_pcb_set_dfm_pack($0, id) } == 1 }
 
     /// 2D field solve of a track `width` mm wide on copper `layer` (a pair when `gap` > 0).
-    func fieldSolve(layer: Int, width: Double, gap: Double = 0) -> FieldSolveInfo? {
-        Self.decode(FieldSolveInfo.self, from: withHandle { Self.take(sieda_field_solve($0, Int32(layer), width, gap)) })
+    func fieldSolve(layer: Int, width: Double, gap: Double = 0, roughness: Double = 1) -> FieldSolveInfo? {
+        Self.decode(FieldSolveInfo.self, from: withHandle { Self.take(sieda_field_solve($0, Int32(layer), width, gap, roughness)) })
     }
 
     /// The production panel's layout (the settings and where boards, rails, tabs and holes go).

@@ -1454,6 +1454,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case step
     case idfBoard = "idf_board"
     case idfLibrary = "idf_library"
+    case idx
     case ipc2581
 
     var id: String { rawValue }
@@ -1486,6 +1487,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .step: return "board.step"
         case .idfBoard: return "board.emn"
         case .idfLibrary: return "board.emp"
+        case .idx: return "board.idx"
         case .ipc2581: return "board-ipc2581.xml"
         }
     }
@@ -1518,6 +1520,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .step: return "STEP AP214 — Board and Parts (MCAD)"
         case .idfBoard: return "IDF 3.0 Board (.emn)"
         case .idfLibrary: return "IDF 3.0 Library (.emp)"
+        case .idx: return "IDX / EDMD Baseline for MCAD (.idx)"
         case .ipc2581: return "IPC-2581C — Layers, Nets, Parts and BOM (XML)"
         }
     }

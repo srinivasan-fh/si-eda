@@ -8,7 +8,8 @@
 - Symbol Editor: core in `Core/src/CustomParts.cpp` (`autoArrangeSymbol`, `checkSymbol`, four-sided layout) and
   `Core/src/Schematic.cpp` (stacked pins join nets), app in `SiEDA/Models/SymbolDraft.swift` and
   `SiEDA/Views/Library/SymbolEditorView.swift`; guide in `docs/SYMBOL_EDITOR.md`.
-- Memory (RAM) design segments: core in `Core/src/Memory.cpp` (`memoryChecks`, `memorySegments`), app via
+- Memory (RAM) design segments: core in `Core/src/Memory.cpp` (`memoryChecks`, `memorySegments`, routed DDR layout
+  rules `ddrLayoutChecks` / `ddrLayoutLimits`: MEM_DDR_* warnings on DDR, info on SDR), app via
   `EDAEngine.memorySegments` / `DesignStore.setMemoryDesign`; guide in `docs/MEMORY_DESIGN.md`. The memory reference design
   (STM32H743 + SDRAM) must keep passing verification on 6 layers.
 - Schematic capture: sheets / hierarchy / bus labels / annotation in `Core/src/Sheets.cpp`, repeated sheets in
@@ -87,7 +88,8 @@
   DRC minimums, `dfmChecks` adds DFM_* / DFA_* to `runDRC` when `BoardSettings::dfmPack` is set; saved only when set;
   C API `sieda_dfm_packs_json` / `sieda_pcb_set_dfm_pack`, MCP `pcb_dfm_pack`), app Board Setup → Manufacturer Rules.
 - Field solver: `Core/src/FieldSolver.cpp` (2D Laplace, finite volumes on a graded grid, Jacobi-CG; C and C0 give Z0,
-  εeff, L / C, odd / even, kb / kf; `trackGeometry` reads the stack-up; tests hold it within 1.5 % of exact stripline,
+  εeff, L / C, odd / even, kb / kf; `lineLoss`: skin-effect R from the air solution's surface charge, Hammerstad
+  roughness, G from Df with the filling factor; `trackGeometry` reads the stack-up; tests hold it within 1.5 % of exact stripline,
   Cohn coupled stripline and Hammerstad–Jensen), C API `sieda_field_solve`, MCP `si_field_solver`, app Board Setup →
   Stack-up → Check with Field Solver. The closed-form widths are unchanged.
 - Production panels: `Core/src/Panel.cpp` (`BoardSettings::panel`, saved only when nx × ny > 1; panel Gerbers are the
@@ -96,6 +98,8 @@
 - Mechanical CAD and team work: STEP AP214 / IDF 3.0 export and the IDF placement import in `Core/src/Mechanical.cpp`
   (faceted B-rep solids must stay closed: test `step_export_closed_named_solids`), 3D clearance DRC
   (`mechanicalChecks`: MECH_BODY_COLLISION always, MECH_HEIGHT / MECH_HEIGHT_ZONE only with `BoardSettings` limits);
+  IDX / EDMD v4.5 baseline, change file and placement import (`exportIdx`, `exportIdxChanges`, `importIdxPlacement`,
+  namespace-agnostic XML reader, fuzzed in the `idf` target);
   version diff, three-way merge (`mergeProjects`, `sieda-mcp --merge`), design review comments
   (`Project::reviewComments`, saved only when present), Git drivers (`--diff` / `--git-diff`) and the variant matrix
   in `Core/src/ProjectDiff.cpp`; app

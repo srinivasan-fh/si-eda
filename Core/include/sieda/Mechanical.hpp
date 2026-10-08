@@ -26,6 +26,19 @@ std::string exportIdfLibrary(const Schematic& sch, const PcbLayout& pcb);
 /// rotation and side. Returns the designators moved; unknown designators and unchanged parts are left out.
 std::vector<std::string> importIdfPlacement(Schematic& sch, const std::string& emn);
 
+/// ProSTEP iViP EDMD (IDX) v4.5 baseline (SendInformation): the board outline extruded to its thickness with its
+/// mounting holes, and every placed part as a package item (body outline and height) plus an instance with its
+/// designator (REFDES), side (AssembleToName TOP / BOTTOM) and 2D transformation. MCAD XY, Y up, millimetres.
+std::string exportIdx(const Schematic& sch, const PcbLayout& pcb, const std::string& name);
+/// IDX SendChanges with only the parts placed differently from `baselineIdx` (moved, rotated, flipped or new);
+/// empty when nothing changed.
+std::string exportIdxChanges(const Schematic& sch, const PcbLayout& pcb, const std::string& name,
+                             const std::string& baselineIdx);
+/// Reads an IDX baseline or change file (from MCAD or SiEDA) and moves, rotates and flips the parts it names (by
+/// REFDES, else the instance name). Rotations snap to 90°. Returns the designators changed; malformed files change
+/// nothing.
+std::vector<std::string> importIdxPlacement(Schematic& sch, const std::string& idx);
+
 /// 3D clearance checks (part of the DRC): MECH_HEIGHT (a part taller than its side's enclosure limit),
 /// MECH_HEIGHT_ZONE (taller than a height zone it stands in) and MECH_BODY_COLLISION (two fitted parts' bodies on
 /// the same side overlap). Parts not fitted (DNP) are left out. No limits set: only collisions are checked.

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <map>
 #include <set>
 
@@ -9,6 +10,9 @@
 #include "sieda/LengthMatch.hpp"
 #include "sieda/Pcb.hpp"
 #include "sieda/Project.hpp"
+#include "sieda/SignalIntegrity.hpp"
+#include "sieda/Stackup.hpp"
+#include "sieda/TrackGeometry.hpp"
 
 namespace sieda {
 
@@ -50,6 +54,13 @@ bool indexed(const std::string& name, const char* prefix) {
     return std::all_of(name.begin() + static_cast<long>(n), name.end(), [](char ch) { return std::isdigit(static_cast<unsigned char>(ch)); });
 }
 
+/// The bit number of an indexed pin (DQ12 → 12), -1 when the pin is not `prefix` + digits.
+int pinBit(const Component& c, int pin, const char* prefix) {
+    for (const auto& a : aliases(norm(c.def().pins[static_cast<size_t>(pin)].name)))
+        if (indexed(a, prefix)) return std::atoi(a.c_str() + std::string(prefix).size());
+    return -1;
+}
+
 bool pinIndexed(const Component& c, int pin, const char* prefix) {
     for (const auto& a : aliases(norm(c.def().pins[static_cast<size_t>(pin)].name)))
         if (indexed(a, prefix)) return true;
@@ -89,7 +100,7 @@ bool netConnected(const Schematic& sch, int net) {
 struct Dram {
     const Component* part = nullptr;
     bool ddr = false;
-    std::vector<int> dqNets, addrNets, supplyNets, vrefNets, zqNets, resetNets;
+    std::vector<int> dqNets, dqBits, addrNets, supplyNets, vrefNets, zqNets, resetNets;
     std::vector<std::pair<int, int>> strobes;  // (positive, negative) DQS nets
     int clock = -1, clockN = -1;               // CLK (SDR) or CK / CK# (DDR)
     int cke = -1;
@@ -122,7 +133,10 @@ Analysis analyse(const Project& project) {
             const int net = sch.netOf({c.id, i});
             for (const auto& al : aliases(norm(c.def().pins[static_cast<size_t>(i)].name))) byName[al] = net;
             if (net < 0) continue;
-            if (pinIndexed(c, i, "DQ") && netConnected(sch, net)) d.dqNets.push_back(net);  // wired data lines
+            if (pinIndexed(c, i, "DQ") && netConnected(sch, net)) {  // wired data lines
+                d.dqNets.push_back(net);
+                d.dqBits.push_back(pinBit(c, i, "DQ"));
+            }
             if (pinIndexed(c, i, "A") || pinIndexed(c, i, "BA") || pinIndexed(c, i, "BG")) d.addrNets.push_back(net);
             if (pinIs(c, i, {"VDD", "VDDQ", "VDD1", "VDD2", "VDDQ1", "VDDQ2"})) {
                 ++d.supplyPins;
@@ -188,7 +202,110 @@ bool isGround(const Schematic& sch, int net) {
     return net >= 0 && (net == sch.groundNet() || sch.netRole(net) == NetRole::Ground);
 }
 
+/// DDR layout limits on the routed bus, by memory type: typical values from public DRAM and controller layout guides
+/// (Micron DDR3 / DDR4 / LPDDR technical notes, TI / NXP DDR layout application notes). A controller's own guide wins.
+struct DdrLayoutLimits {
+    double laneSkewPs, addrSkewPs, impedanceTol;  // byte-lane DQ skew; command / address to CK; ± fraction of target
+    int laneViaSpread;                            // vias: every bit of a lane within this many of each other
+};
+DdrLayoutLimits ddrLayoutLimits(const std::string& type) {
+    if (type == "sdram") return {50, 100, 0.15, 1};
+    if (type == "lpddr") return {5, 15, 0.10, 0};
+    return {10, 25, 0.10, 0};  // DDR3L / DDR4 memory-down, DIMMs
+}
+
+/// Routed delay of a net (ps): every track's length × the propagation delay of its layer and width.
+double routedDelayPs(const PcbLayout& pcb, int net) {
+    double ps = 0;
+    for (const auto& t : pcb.tracks)
+        if (t.net == net && !t.teardrop) ps += trackLength(t) * propagationDelayPerMm(pcb.settings, t.layer, t.width) * 1e12;
+    return ps;
+}
+
 double valueOf(const Component& c) { return parseEngineeringValue(primaryValue(c.value)).value_or(0); }
+
+/// Routed-bus checks of one DDR device: byte lanes (DQ0–7, DQ8–15, …) matched in delay, through the same vias and
+/// layers; DQ tracks at the impedance target; fly-by command / address matched to the clock. Unrouted nets are skipped.
+template <class Add>
+void ddrLayoutChecks(const PcbLayout& pcb, const Dram& d, const std::string& type, Add add) {
+    const DdrLayoutLimits lim = ddrLayoutLimits(type);
+    const Component& m = *d.part;
+    const Severity sev = d.ddr ? Severity::Warning : Severity::Info;  // SDR SDRAM at ≤ 166 MHz: advice only
+    auto routed = [&](int net) {
+        return std::any_of(pcb.tracks.begin(), pcb.tracks.end(), [&](const Track& t) { return t.net == net; });
+    };
+    std::map<int, std::vector<int>> lanes;  // lane → nets
+    for (size_t k = 0; k < d.dqNets.size(); ++k)
+        if (d.dqBits[k] >= 0 && routed(d.dqNets[k])) lanes[d.dqBits[k] / 8].push_back(d.dqNets[k]);
+    for (const auto& [lane, nets] : lanes) {
+        if (nets.size() < 2) continue;
+        double lo = 1e18, hi = 0;
+        int vLo = 1 << 30, vHi = 0;
+        std::set<std::set<int>> layerSets;
+        for (int n : nets) {
+            const double ps = routedDelayPs(pcb, n);
+            lo = std::min(lo, ps), hi = std::max(hi, ps);
+            const int vias = static_cast<int>(std::count_if(pcb.vias.begin(), pcb.vias.end(), [&](const Via& v) { return v.net == n; }));
+            vLo = std::min(vLo, vias), vHi = std::max(vHi, vias);
+            std::set<int> layers;
+            for (const auto& t : pcb.tracks)
+                if (t.net == n) layers.insert(t.layer);
+            layerSets.insert(layers);
+        }
+        const std::string name = m.ref + " byte lane " + std::to_string(lane) + " (DQ" + std::to_string(lane * 8) + "–" +
+                                 std::to_string(lane * 8 + 7) + ")";
+        if (hi - lo > lim.laneSkewPs)
+            add(sev, "MEM_DDR_LANE_SKEW",
+                name + " has " + fmt("%.1f ps", hi - lo) + " of skew between its bits: keep it within " +
+                    fmt("%.0f ps", lim.laneSkewPs) + " (Tune Lengths matches the lane by delay).",
+                {m.id});
+        if (vHi - vLo > lim.laneViaSpread)
+            add(sev, "MEM_DDR_LANE_VIAS",
+                name + " uses " + std::to_string(vLo) + " to " + std::to_string(vHi) + " vias per bit: route every bit of "
+                "a lane through the same number of vias so their delay and discontinuities match.",
+                {m.id});
+        if (layerSets.size() > 1)
+            add(Severity::Info, "MEM_DDR_LANE_LAYERS",
+                name + " is routed on different layers bit to bit: keep a lane on the same layers (same reference planes, "
+                "same propagation delay).",
+                {m.id});
+    }
+    // Routed DQ impedance against the board's single-ended target, on each net's main width (the layer and width
+    // carrying most of its length; short fine-pitch neck-downs at the pins are left out).
+    const double target = pcb.settings.singleEndedImpedance;
+    std::set<std::pair<int, double>> seen;
+    for (int net : d.dqNets) {
+        std::map<std::pair<int, double>, double> runs;
+        for (const auto& tr : pcb.tracks)
+            if (tr.net == net && !tr.teardrop) runs[{tr.layer, tr.width}] += trackLength(tr);
+        if (runs.empty()) continue;
+        const auto main = std::max_element(runs.begin(), runs.end(), [](const auto& x, const auto& y) { return x.second < y.second; });
+        const Track t = [&] { Track k; k.layer = main->first.first; k.width = main->first.second; return k; }();
+        if (!seen.insert({t.layer, t.width}).second) continue;
+        const double z = trackImpedance(pcb.settings, t.layer, t.width);
+        if (target > 0 && z > 0 && std::fabs(z - target) > lim.impedanceTol * target) {
+            add(sev, "MEM_DDR_IMPEDANCE",
+                m.ref + "'s data tracks " + fmt("%.3f mm", t.width) + " wide on " +
+                    copperLayerName(t.layer, pcb.settings.layerCount) + " are " + fmt("%.0f Ω", z) + ", not " +
+                    fmt("%.0f Ω", target) + " ± " + fmt("%.0f %%", lim.impedanceTol * 100) +
+                    ": use the stack-up's width for that layer.",
+                {m.id});
+            break;
+        }
+    }
+    // Fly-by command / address against the clock.
+    if (d.clock >= 0 && routed(d.clock)) {
+        const double ck = routedDelayPs(pcb, d.clock);
+        double worst = 0;
+        for (int n : d.addrNets)
+            if (routed(n)) worst = std::max(worst, std::fabs(routedDelayPs(pcb, n) - ck));
+        if (worst > lim.addrSkewPs)
+            add(sev, "MEM_DDR_ADDR_SKEW",
+                m.ref + "'s command / address lines differ from its clock by up to " + fmt("%.1f ps", worst) +
+                    ": match them to CK within " + fmt("%.0f ps", lim.addrSkewPs) + " (they are captured on its edge).",
+                {m.id});
+    }
+}
 
 /// strict: full severities (a memory design type is set); otherwise everything is Info.
 std::vector<RuleViolation> checks(const Project& project, bool strict, const Analysis& a) {
@@ -371,6 +488,7 @@ std::vector<RuleViolation> checks(const Project& project, bool strict, const Ana
                         fmt("%.0f mm", limit) + " so the bus fits the controller's timing budget and stays short to tune.",
                     {m.id, d.controller->id});
         }
+        if (strict) ddrLayoutChecks(pcb, d, type, add);
     }
 
     // ---------------------------------------------------------------- modules: SPD, PMIC, RCD, mechanics

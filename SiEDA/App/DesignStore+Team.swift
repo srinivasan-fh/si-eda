@@ -32,6 +32,19 @@ extension DesignStore {
                                       : "Moved \(moved.count) parts: \(moved.prefix(8).joined(separator: ", "))"
     }
 
+    /// Asks for an IDX file (baseline or changes) from MCAD and applies its placements. One undo step.
+    func importIDX() {
+        guard let picked = chooseText("Choose the IDX file (.idx) from mechanical CAD.", extensions: ["idx", "xml"]) else { return }
+        let (url, text) = picked
+        var moved: [String] = []
+        performExternalEdit("MCAD changes from \(url.lastPathComponent)") { engine in
+            moved = engine.importIDX(text)
+            return !moved.isEmpty
+        }
+        statusMessage = moved.isEmpty ? "\(url.lastPathComponent): no part moved"
+                                      : "Moved \(moved.count) parts: \(moved.prefix(8).joined(separator: ", "))"
+    }
+
     /// Tallest part allowed per side by the enclosure (mm, 0 = no limit); the DRC reports MECH_HEIGHT. Undoable.
     func setEnclosureHeight(top: Double? = nil, bottom: Double? = nil) {
         let current = engine.enclosureHeights()

@@ -5195,6 +5195,39 @@ TEST(memory_design_segments_and_checks) {
         CHECK(!segs[1].items[1].ok);  // address lines still open
     }
     CHECK(Project::fromJson(p.toJson()).memoryDesign == "sdram");
+    // Routed byte lane: a 10 mm and a 30 mm bit with two vias are flagged (advice on SDR), equal bits are not.
+    {
+        auto dqNet = [&](const char* pin) {
+            const Component* r = s.find(ram);
+            for (int i = 0; i < static_cast<int>(r->def().pins.size()); ++i)
+                if (r->def().pins[static_cast<size_t>(i)].name == pin) return s.netOf({ram, i});
+            return -1;
+        };
+        const int n0 = dqNet("DQ0"), n1 = dqNet("DQ1");
+        CHECK(n0 >= 0 && n1 >= 0);
+        auto track = [&](int net, double len) {
+            Track t;
+            t.net = net, t.width = 0.2, t.a = {0, 0}, t.b = {len, 0};
+            p.pcb.tracks.push_back(t);
+        };
+        track(n0, 10);
+        track(n1, 30);
+        for (int k = 0; k < 2; ++k) {
+            Via v;
+            v.net = n1;
+            p.pcb.vias.push_back(v);
+        }
+        const auto flagged = codes(p, false);
+        CHECK(flagged.count("MEM_DDR_LANE_SKEW") && flagged.count("MEM_DDR_LANE_VIAS"));
+        CHECK(!codes(p).count("MEM_DDR_LANE_SKEW"));  // SDR: Info only
+        p.pcb.tracks.clear();
+        p.pcb.vias.clear();
+        track(n0, 20);
+        track(n1, 20);
+        const auto clean = codes(p, false);
+        CHECK(!clean.count("MEM_DDR_LANE_SKEW") && !clean.count("MEM_DDR_LANE_VIAS") && !clean.count("MEM_DDR_LANE_LAYERS"));
+        p.pcb.tracks.clear();
+    }
     Json bad = p.toJson();
     bad["memoryDesign"] = "ddr9";
     CHECK(Project::fromJson(bad).memoryDesign.empty());
@@ -19411,4 +19444,90 @@ TEST(field_solver_matches_exact_stripline_and_microstrip) {
         const auto single = solveField(FieldGeometry{0.2, 0.035, 0.2, 0, 0, 4.4});
         CHECK(r.kf < 0 && r.kb > 0 && r.zdiff < 2 * single.z0 && r.zeven > r.zodd);
     }
+}
+
+TEST(field_solver_line_loss) {
+    // Homogeneous stripline: dielectric loss is exactly π·f·√εr·tanδ / c.
+    FieldGeometry s{0.15, 0.018, 0.2, 0.2, 0, 4.0, 0.02, 0};
+    const auto rs = solveField(s);
+    const auto l1 = lineLoss(s, rs, 1e9);
+    const double exactDiel = 3.14159265358979 * 1e9 * 2.0 * 0.02 / 299792458.0 * 8.685889638 * 0.0254;
+    CHECK_NEAR(l1.dielectricDbPerIn, exactDiel, 0.01 * exactDiel);
+    // Skin effect: conductor loss grows as √f well above the DC corner, and roughness adds to it.
+    const auto l10 = lineLoss(s, rs, 10e9);
+    CHECK_NEAR(l10.conductorDbPerIn / l1.conductorDbPerIn, std::sqrt(10.0), 0.05 * std::sqrt(10.0));
+    FieldGeometry rough = s;
+    rough.roughness = 2.0;
+    const auto lr = lineLoss(rough, rs, 10e9);
+    CHECK(lr.conductorDbPerIn > 1.5 * l10.conductorDbPerIn && lr.conductorDbPerIn < 2.01 * l10.conductorDbPerIn);
+    // A 5 mil, 50 Ω microstrip on FR-4 at 1 GHz: Bogatin's rules of thumb give ~0.14 dB/in conductor and
+    // ~0.09 dB/in dielectric (Signal and Power Integrity — Simplified, ch. 9).
+    FieldGeometry m{0.127, 0.035, 0.07, 0, 0, 4.0, 0.02, 0};
+    const auto rm = solveField(m);
+    const auto lm = lineLoss(m, rm, 1e9);
+    CHECK(lm.conductorDbPerIn > 0.08 && lm.conductorDbPerIn < 0.2);
+    CHECK(lm.dielectricDbPerIn > 0.05 && lm.dielectricDbPerIn < 0.1);
+    CHECK_NEAR(lineLoss(m, rm, 0).rOhmPerMm, 1.72e-8 / (0.127e-3 * 0.035e-3) * 1e-3, 1e-9);
+}
+
+TEST(idx_baseline_changes_and_import_round_trip) {
+    Project p = placedBenchBoard();
+    const std::string base = exportIdx(p.schematic, p.pcb, "bench");
+    CHECK(base.find("<foundation:EDMDDataSet") != std::string::npos);
+    CHECK(base.find("EDMDProcessInstructionSendInformation") != std::string::npos);
+    CHECK(base.find("geometryType=\"BOARD_OUTLINE\"") != std::string::npos);
+    CHECK(base.find("<property:Value>U1</property:Value>") != std::string::npos);
+    size_t parts = 0;
+    for (size_t i = base.find("<pdm:AssembleToName>"); i != std::string::npos; i = base.find("<pdm:AssembleToName>", i + 1)) ++parts;
+    CHECK(static_cast<int>(parts) == placedBodies(p));
+    // Every id the file refers to is defined once.
+    std::set<std::string> ids;
+    for (size_t i = base.find(" id=\""); i != std::string::npos; i = base.find(" id=\"", i + 1))
+        CHECK(ids.insert(base.substr(i + 5, base.find('"', i + 5) - i - 5)).second);
+    for (const char* tag : {"<pdm:Shape>", "<d2:Point>", "<pdm:Item>", "<pdm:DefiningShape>", "<d2:DetailedGeometricModelElement>"})
+        for (size_t i = base.find(tag); i != std::string::npos; i = base.find(tag, i + 1)) {
+            const size_t a = i + std::strlen(tag);
+            CHECK(ids.count(base.substr(a, base.find('<', a) - a)) == 1);
+        }
+
+    // Unchanged: no change file and nothing moves on import.
+    CHECK(exportIdxChanges(p.schematic, p.pcb, "bench", base).empty());
+    Project ecad = p;
+    CHECK(importIdxPlacement(ecad.schematic, base).empty());
+    // MCAD moves, rotates and flips U1: the change file carries only U1, and the ECAD side takes it.
+    Project mcad = p;
+    Component* u1 = mcad.schematic.find(mcad.schematic.findByRef("U1")->id);
+    u1->pcb.position = {u1->pcb.position.x + 5, u1->pcb.position.y - 2};
+    u1->pcb.rotation = 90;
+    u1->pcb.bottom = !u1->pcb.bottom;
+    const std::string changes = exportIdxChanges(mcad.schematic, mcad.pcb, "bench", base);
+    CHECK(changes.find("EDMDProcessInstructionSendChanges") != std::string::npos);
+    CHECK(changes.find("<property:Value>U1</property:Value>") != std::string::npos);
+    size_t changed = 0;
+    for (size_t i = changes.find("<computational:Change "); i != std::string::npos; i = changes.find("<computational:Change ", i + 1))
+        ++changed;
+    CHECK(changed == 1);
+    const auto moved = importIdxPlacement(ecad.schematic, changes);
+    CHECK(moved.size() == 1 && moved[0] == "U1");
+    const Component* e1 = ecad.schematic.findByRef("U1");
+    CHECK_NEAR(e1->pcb.position.x, u1->pcb.position.x, 1e-6);
+    CHECK_NEAR(e1->pcb.position.y, u1->pcb.position.y, 1e-6);
+    CHECK(e1->pcb.rotation == 90 && e1->pcb.bottom == u1->pcb.bottom);
+    CHECK(exportIdxChanges(ecad.schematic, ecad.pcb, "bench", exportIdx(mcad.schematic, mcad.pcb, "bench")).empty());
+
+    // Other tools' prefixes and plain-number transforms read the same; hostile files change nothing.
+    std::string other = changes;
+    for (const char* ns : {"foundation:", "pdm:", "property:", "d2:", "computational:"}) {
+        for (size_t i = other.find(ns); i != std::string::npos; i = other.find(ns, i)) other.replace(i, std::strlen(ns), "x:");
+    }
+    Project third = p;
+    CHECK(importIdxPlacement(third.schematic, other).size() == 1);
+    Project hostile = p;
+    CHECK(importIdxPlacement(hostile.schematic, "<a><b></a>").empty());
+    CHECK(importIdxPlacement(hostile.schematic, std::string(100000, '<')).empty());
+    std::string deep;
+    for (int i = 0; i < 5000; ++i) deep += "<Item>";
+    CHECK(importIdxPlacement(hostile.schematic, deep).empty());
+    CHECK(importIdxPlacement(hostile.schematic, "<Item><ItemInstance><Transformation><tx>nan</tx></Transformation>"
+                                                "<InstanceName><ObjectName>U1</ObjectName></InstanceName></ItemInstance></Item>").size() <= 1);
 }

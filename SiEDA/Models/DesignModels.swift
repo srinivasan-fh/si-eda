@@ -1647,8 +1647,13 @@ struct PanelLayoutInfo: Decodable, Equatable {
 /// A manufacturer DFM / DFA rule pack (`sieda_dfm_packs_json`).
 /// Field-solver result for one track (and, with a gap, the pair) on a stack-up layer.
 struct FieldSolveInfo: Decodable, Equatable {
+    struct Loss: Decodable, Equatable { var ghz, totalDbPerIn: Double }
     var z0, eeff, delayPsPerMm: Double
     var zdiff: Double?
+    var loss: [Loss]?
+
+    /// Total loss at `ghz` (dB per inch), when the solver reported that frequency.
+    func dbPerInch(at ghz: Double) -> Double? { loss?.first { abs($0.ghz - ghz) < 1e-9 }?.totalDbPerIn }
 }
 
 struct DfmPackInfo: Decodable, Identifiable, Equatable {

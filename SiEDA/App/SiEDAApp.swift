@@ -320,6 +320,7 @@ struct SiEDACommands: Commands {
                 }
             }
             Button("Import MCAD Placement (IDF)…") { store.importIDFPlacement() }
+            Button("Import MCAD Changes (IDX)…") { store.importIDX() }
             Button("Compare with Another Version…") { store.compareWithFile() }
             Button("Design Review…") { store.showReview = true }
         }
