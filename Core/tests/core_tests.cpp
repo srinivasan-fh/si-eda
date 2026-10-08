@@ -19154,6 +19154,15 @@ TEST(idf_export_and_placement_round_trip) {
     u1->pcb.rotation = 0;
     importIdfPlacement(moved.schematic, rotated);
     CHECK(u1->pcb.rotation == 90);
+    // Hostile angles (found by the fuzzer) read as a finite rotation instead of overflowing.
+    for (const char* angle : {" 0 1e300 ", " 0 nan ", " 0 -9.1e8 "}) {
+        std::string hostile = rotated;
+        const auto at = hostile.find(" 0 270 ");
+        CHECK(at != std::string::npos);
+        if (at != std::string::npos) hostile.replace(at, 7, angle);
+        importIdfPlacement(moved.schematic, hostile);
+        CHECK(u1->pcb.rotation >= 0 && u1->pcb.rotation < 360);
+    }
 }
 
 TEST(project_diff_parts_nets_copper_variants) {
