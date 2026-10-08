@@ -17,7 +17,8 @@ struct Url {
 };
 
 /// Parses "http://host[:port][/path]". IPv6 hosts in brackets ("http://[::1]:39717/mcp"). False for anything else
-/// (https is not supported: the endpoint is loopback only).
+/// (https is not supported: the endpoint is loopback only). Hosts other than 127.0.0.1, localhost and ::1 are
+/// refused, so the bearer token is never sent off this Mac.
 bool parseUrl(const std::string& text, Url* out);
 
 struct HttpReply {

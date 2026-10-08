@@ -250,6 +250,8 @@ bool padOf(const Project& p, PinAddress a, Vec2* at, int* layer) {
 
 Json readFileArg(McpServer& s, const std::string& path) {
     const std::string full = s.resolvePath(path, false);
+    std::error_code ec;
+    if (fs::file_size(full, ec) > 128u * 1024u * 1024u && !ec) throw ToolError(path + " is larger than 128 MB");
     std::ifstream in(full, std::ios::binary);
     if (!in) throw ToolError("Cannot read " + full);
     std::stringstream ss;

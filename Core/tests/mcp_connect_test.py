@@ -143,6 +143,11 @@ def main():
     proc = subprocess.run([exe, "--connect", "https://example.com/mcp"], input="", capture_output=True, text=True)
     if proc.returncode != 2:
         fail("https URL should be refused")
+    # A host other than this Mac: refused before connecting, so the token never leaves the machine.
+    proc = subprocess.run([exe, "--connect", "http://192.0.2.1:39717/mcp"], input="", capture_output=True, text=True,
+                          timeout=10)
+    if proc.returncode != 2:
+        fail("a non-loopback host should be refused")
     print("ok: sieda-mcp --connect bridged", len(out), "responses")
 
 

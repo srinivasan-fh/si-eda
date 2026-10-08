@@ -1,3 +1,4 @@
+#include <charconv>
 #include "sieda/Json.hpp"
 
 #include <cmath>
@@ -50,8 +51,14 @@ private:
         skipWs();
         if (pos_ >= s_.size()) fail("unexpected end of input");
         char c = s_[pos_];
-        if (c == '{') return parseObject();
-        if (c == '[') return parseArray();
+        if (c == '{' || c == '[') {
+            // Nesting is bounded so a hostile document (a project file, an MCP or live-endpoint request) cannot
+            // exhaust the stack; real SiEDA documents nest about ten levels.
+            if (++depth_ > kMaxDepth) fail("nesting deeper than " + std::to_string(kMaxDepth) + " levels");
+            Json v = c == '{' ? parseObject() : parseArray();
+            --depth_;
+            return v;
+        }
         if (c == '"') return Json(parseString());
         if (c == 't') { literal("true"); return Json(true); }
         if (c == 'f') { literal("false"); return Json(false); }
@@ -176,12 +183,26 @@ private:
         return Json(std::move(obj));
     }
 
+    static constexpr int kMaxDepth = 256;
+    int depth_ = 0;
     const std::string& s_;
     size_t pos_ = 0;
 };
 
 void escapeString(std::string& out, const std::string& s) {
     out += '"';
+    // Fast path: most strings (names, designators, layer names) need no escaping.
+    bool plain = true;
+    for (unsigned char c : s)
+        if (c < 0x20 || c == '"' || c == '\\') {
+            plain = false;
+            break;
+        }
+    if (plain) {
+        out += s;
+        out += '"';
+        return;
+    }
     for (unsigned char c : s) {
         switch (c) {
             case '"': out += "\\\""; break;
@@ -272,12 +293,13 @@ void Json::dumpTo(std::string& out, bool pretty, int indent) const {
         case Type::Number: {
             if (!std::isfinite(num_)) {
                 out += "null";
-            } else if (num_ == std::floor(num_) && std::fabs(num_) < 1e15) {
-                out += std::to_string(static_cast<long long>(num_));
             } else {
-                char buf[32];
-                std::snprintf(buf, sizeof buf, "%.10g", num_);
-                out += buf;
+                // std::to_chars: the same text as printf ("%lld" / "%.10g") without locale or format parsing.
+                char buf[40];
+                const auto r = num_ == std::floor(num_) && std::fabs(num_) < 1e15
+                                   ? std::to_chars(buf, buf + sizeof buf, static_cast<long long>(num_))
+                                   : std::to_chars(buf, buf + sizeof buf, num_, std::chars_format::general, 10);
+                out.append(buf, r.ptr);
             }
             break;
         }

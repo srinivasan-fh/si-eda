@@ -106,6 +106,8 @@ std::string withoutNewlines(const std::string& s) {
 }
 }  // namespace
 
+constexpr size_t kMaxReplyBytes = 64u * 1024u * 1024u;
+
 bool parseUrl(const std::string& text, Url* out) {
     const std::string scheme = "http://";
     if (lower(text.substr(0, scheme.size())) != scheme) return false;
@@ -131,6 +133,9 @@ bool parseUrl(const std::string& text, Url* out) {
         if (colon != std::string::npos) portText = authority.substr(colon + 1);
     }
     if (u.host.empty()) return false;
+    // The app's endpoint listens on this Mac only; the bearer token is never sent anywhere else (plain HTTP).
+    const std::string h = lower(u.host);
+    if (h != "127.0.0.1" && h != "localhost" && h != "::1") return false;
     if (!portText.empty()) {
         int port = 0;
         for (char c : portText) {
@@ -267,6 +272,11 @@ HttpReply httpPost(const Url& url, const std::string& token, const std::string& 
         }
         if (n == 0) break;
         raw.append(buffer, static_cast<size_t>(n));
+        if (raw.size() > kMaxReplyBytes) {
+            close(fd);
+            reply.error = "reply from the SiEDA app is larger than 64 MB";
+            return reply;
+        }
         if (headerEnd == std::string::npos) {
             headerEnd = raw.find("\r\n\r\n");
             if (headerEnd != std::string::npos) {
@@ -325,7 +335,8 @@ HttpReply httpPost(const Url& url, const std::string& token, const std::string& 
 int runBridge(const std::string& urlText, const std::string& token, int timeoutSeconds) {
     Url url;
     if (!parseUrl(urlText, &url)) {
-        std::fprintf(stderr, "sieda-mcp: --connect needs an http://host:port/path URL, got %s\n", urlText.c_str());
+        std::fprintf(stderr, "sieda-mcp: --connect needs an http://127.0.0.1:port/path (or localhost / [::1]) URL, got %s\n",
+                     urlText.c_str());
         return 2;
     }
     std::signal(SIGPIPE, SIG_IGN);

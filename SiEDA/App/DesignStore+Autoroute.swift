@@ -82,7 +82,7 @@ extension DesignStore {
     private func routeScoped(_ scope: (inout AutorouteOptions) -> Void) async {
         guard !isBusy else { return }
         let saved = engine.autorouteOptions()
-        let undoState = engine.saveJSON()  // undo returns to the board's own strategy, not the one-shot scope
+        let undoState = engine.stateJSON()  // undo returns to the board's own strategy, not the one-shot scope
         var options = saved
         scope(&options)
         engine.setAutorouteOptions(options)
